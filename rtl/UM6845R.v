@@ -81,8 +81,8 @@ always @(*) begin
 	if (ENABLE & ~nCS) begin
 		if (RS) begin
 			case (addr)
-				10: DO = {R10_cursor_mode, R10_cursor_start};
-				11: DO = R11_cursor_end;
+				// R10/R11 are not readable on CRTC types 0/1, only on 3/4 (ACCC v1.9 §21.2);
+				// they remain writable and still drive the CURSOR output.
 				12: DO = CRTC_TYPE ? 8'h00 : R12_start_addr_h;
 				13: DO = CRTC_TYPE ? 8'h00 : R13_start_addr_l;
 				14: DO = R14_cursor_h;
