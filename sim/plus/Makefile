@@ -23,8 +23,15 @@ MEMORY_TEST_BYTES := 20'd32
 MEMORY_MIN_OBJ_DIR  := obj_dir/plus_cartridge_memory_min
 MEMORY_MIN_TEST_BIN := $(MEMORY_MIN_OBJ_DIR)/plus_cartridge_memory_min_tests
 
+SDRAM_TOP      := sdram_cartridge_test_top
+SDRAM_RTL      := $(abspath ../../rtl/sdram.v)
+SDRAM_TEST_TOP := $(abspath sdram_cartridge_test_top.v)
+SDRAM_OBJ_DIR  := obj_dir/sdram_cartridge
+SDRAM_TEST_SRC := $(abspath sdram_cartridge_test.cpp)
+SDRAM_TEST_BIN := $(SDRAM_OBJ_DIR)/sdram_cartridge_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(MODEL_TEST_BIN) $(MEMORY_TEST_BIN) \
-	$(MEMORY_MIN_TEST_BIN)
+	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -40,6 +47,7 @@ test: $(TEST_BINS)
 	./$(MODEL_TEST_BIN)
 	./$(MEMORY_TEST_BIN)
 	./$(MEMORY_MIN_TEST_BIN)
+	./$(SDRAM_TEST_BIN)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
@@ -63,6 +71,12 @@ $(MEMORY_MIN_TEST_BIN): $(MEMORY_RTL) $(MEMORY_TEST_SRC) Makefile | $(OBJ_DIR)
 		-CFLAGS "$(CXXFLAGS) -DCLEAR_TEST_BYTES=1" \
 		-o $(notdir $(MEMORY_MIN_TEST_BIN)) $(MEMORY_RTL) $(MEMORY_TEST_SRC)
 
+$(SDRAM_TEST_BIN): $(SDRAM_RTL) $(MEMORY_RTL) $(SDRAM_TEST_TOP) $(SDRAM_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(SDRAM_TOP) \
+		--Mdir $(SDRAM_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(SDRAM_TEST_BIN)) $(SDRAM_TEST_TOP) $(SDRAM_RTL) \
+		$(MEMORY_RTL) $(SDRAM_TEST_SRC)
+
 $(OBJ_DIR):
 	mkdir -p -- $@
 
@@ -75,6 +89,9 @@ lint:
 		--top-module $(MEMORY_TOP) -Wall $(MEMORY_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(MEMORY_TOP) -Wall "-GCLEAR_BYTES=20'd1" $(MEMORY_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(SDRAM_TOP) -Wall -Wno-fatal $(SDRAM_TEST_TOP) $(SDRAM_RTL) \
+		$(MEMORY_RTL)
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)

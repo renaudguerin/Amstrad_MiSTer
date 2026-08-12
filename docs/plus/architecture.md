@@ -102,6 +102,26 @@ consume it today, and delete no classic code).
 - **ACID**: not emulated, per universal emulator practice (reference §11) — CPR pages load
   and run unconditionally.
 
+### Cartridge SDRAM contract (P-1)
+
+Cartridge bytes occupy SDRAM bank 3, byte addresses `0x080000..0x0fffff`. The cartridge
+memory service converts a page and offset to `{4'b0001, page[4:0], offset[13:0]}` and passes
+that 23-bit address plus bank 3 to `sdram`; the controller does not reinterpret or bound the
+mapping. This keeps all region policy in the service and the physical SDRAM client generic.
+
+The synchronous cartridge port is a held request/acknowledge interface. `cart_req`, write
+direction, bank, address and write data remain stable until the rising edge carrying
+`cart_ack`. Read data is valid with that acknowledge. A requester may keep `cart_req` high
+and change the other fields after the acknowledged edge for the next transfer; the
+controller acknowledges each transfer exactly once.
+
+At each SDRAM slot the order is: a new main CPU/chipset edge, an overdue forced refresh,
+cartridge, tape, video, then ordinary refresh when no client is selected. After 32
+cartridge grants without a refresh, one no-client refresh slot becomes due. A simultaneous
+main edge still wins, but does not clear the pending refresh. Initialization admits no
+client. Until P0 connects the cartridge service, `Amstrad.sv` ties the new port inactive,
+so the classic client behavior and SDRAM map are unchanged.
+
 ## 4. Phasing (each phase = usable milestone, separately testable)
 
 Two integration gates precede P0. **P-2** adds a separate `Plus model` OSD field (`Off`,

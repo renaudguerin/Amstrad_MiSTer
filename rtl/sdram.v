@@ -24,7 +24,7 @@ module sdram
 (
 
 	// interface to the MT48LC16M16 chip
-	inout  reg [15:0] SDRAM_DQ,   // 16 bit bidirectional data bus
+	inout      [15:0] SDRAM_DQ,   // 16 bit bidirectional data bus
 	output reg [12:0] SDRAM_A,    // 13 bit multiplexed address bus
 	output            SDRAM_DQML, // byte mask
 	output            SDRAM_DQMH, // byte mask
@@ -47,6 +47,17 @@ module sdram
 	input      [22:0] addr,       // 25 bit byte address
 	input             oe,         // cpu/chipset requests read
 	input             we,         // cpu/chipset requests write
+
+	// Held cartridge request interface. The requester keeps every input
+	// stable until cart_ack. A request may remain asserted for the next
+	// transaction, provided its fields change only after the acknowledge.
+	input             cart_req,
+	input             cart_wr,
+	input       [1:0] cart_bank,
+	input      [22:0] cart_addr,
+	input       [7:0] cart_din,
+	output reg  [7:0] cart_dout,
+	output reg        cart_ack,
 
 	output reg [15:0] vram_dout,
 	input      [22:0] vram_addr,
@@ -91,6 +102,20 @@ reg        wr;
 reg        ram_req=0;
 reg        vram_req=0;
 reg        tape_req=0;
+reg        cart_active=0;
+reg  [1:0] active_bank;
+reg  [7:0] cart_write_data;
+reg  [5:0] cart_grants_since_refresh=0;
+reg        refresh_due=0;
+
+localparam MODE_NORMAL = 2'b00;
+localparam MODE_RESET  = 2'b01;
+localparam MODE_LDM    = 2'b10;
+localparam MODE_PRE    = 2'b11;
+
+reg [1:0] mode = MODE_RESET;
+reg [4:0] reset = 5'h1f;
+reg       init_old = 0;
 
 // access manager
 always @(posedge clk) begin
@@ -105,22 +130,53 @@ always @(posedge clk) begin
 		ram_req <= 0;
 		vram_req <= 0;
 		tape_req <= 0;
+		cart_active <= 0;
 		wr <= 0;
 
-		if((~old_rd & oe) | (~old_we & we)) begin
+		// No client is admitted during the complete SDRAM initialization
+		// sequence. With no admitted client a normal-mode slot is refresh.
+		if((mode == MODE_NORMAL) && (reset == 0) && !init && !init_old &&
+		   ((~old_rd & oe) | (~old_we & we))) begin
 			ram_req <= 1;
 			wr <= we;
 			a <= addr;
 		end
-		else if(tape_rd | tape_wr) begin
+		// A due refresh outranks every new client except the edge-triggered
+		// main port. Keeping refresh_due set across a main grant makes that
+		// exception bounded rather than losing the refresh obligation.
+		else if((mode == MODE_NORMAL) && (reset == 0) && !init && !init_old &&
+		        refresh_due) begin
+			refresh_due <= 0;
+			cart_grants_since_refresh <= 0;
+		end
+		else if((mode == MODE_NORMAL) && (reset == 0) && !init && !init_old && cart_req) begin
+			cart_active <= 1;
+			wr <= cart_wr;
+			a <= cart_addr;
+			active_bank <= cart_bank;
+			cart_write_data <= cart_din;
+			if(cart_grants_since_refresh == 6'd31) begin
+				cart_grants_since_refresh <= 6'd32;
+				refresh_due <= 1;
+			end
+			else cart_grants_since_refresh <= cart_grants_since_refresh + 1'd1;
+		end
+		else if((mode == MODE_NORMAL) && (reset == 0) && !init && !init_old &&
+		        (tape_rd | tape_wr)) begin
 			tape_req <= 1;
 			wr <= tape_wr;
 			a <= tape_addr;
 		end
-		else if(old_addr[15:1] != vram_addr[15:1]) begin
+		else if((mode == MODE_NORMAL) && (reset == 0) && !init && !init_old &&
+		        (old_addr[15:1] != vram_addr[15:1])) begin
 			vram_req <= 1;
 			old_addr <= vram_addr;
 			a <= vram_addr;
+		end
+		else if(mode == MODE_NORMAL) begin
+			// This is the ordinary idle-slot refresh path.
+			refresh_due <= 0;
+			cart_grants_since_refresh <= 0;
 		end
 	end
 
@@ -128,16 +184,8 @@ always @(posedge clk) begin
 	if(~old_ref & clkref) q <= 0;
 end
 
-localparam MODE_NORMAL = 2'b00;
-localparam MODE_RESET  = 2'b01;
-localparam MODE_LDM    = 2'b10;
-localparam MODE_PRE    = 2'b11;
-
 // initialization 
-reg [1:0] mode;
 always @(posedge clk) begin
-	reg [4:0] reset=5'h1f;
-	reg init_old=0;
 	init_old <= init;
 
 	if(init_old & ~init) reset <= 5'h1f;
@@ -162,12 +210,16 @@ localparam CMD_AUTO_REFRESH    = 3'b001;
 localparam CMD_LOAD_MODE       = 3'b000;
 
 reg [7:0] ram_dout;
+reg [15:0] sdram_dq_out;
+reg        sdram_dq_oe;
+
+assign SDRAM_DQ = sdram_dq_oe ? sdram_dq_out : 16'hzzzz;
 
 // SDRAM state machines
 always @(posedge clk) begin
 	reg [15:0] data;
 
-	casex({ram_req|vram_req|tape_req,wr,mode,q})
+	casex({ram_req|vram_req|tape_req|cart_active,wr,mode,q})
 		{2'b1X, MODE_NORMAL, STATE_START}: {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_ACTIVE;
 		{2'b11, MODE_NORMAL, STATE_CONT }: {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_WRITE;
 		{2'b10, MODE_NORMAL, STATE_CONT }: {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_READ;
@@ -180,7 +232,7 @@ always @(posedge clk) begin
 		                          default: {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_NOP;
 	endcase
 
-	casex({ram_req|vram_req|tape_req,mode,q})
+	casex({ram_req|vram_req|tape_req|cart_active,mode,q})
 		{1'b1,  MODE_NORMAL, STATE_START}: SDRAM_A <= a[21:9];
 		{1'b1,  MODE_NORMAL, STATE_CONT }: SDRAM_A <= {~a[0] & wr, a[0] & wr, 2'b10, a[22], a[8:1]};
 
@@ -192,15 +244,30 @@ always @(posedge clk) begin
 	endcase
 
 	if(q == STATE_START) begin
-		SDRAM_BA <= (mode == MODE_NORMAL) ? (tape_req ? 2'b10 :vram_req ? vram_bank : bank) : 2'b00;
+		SDRAM_BA <= (mode == MODE_NORMAL) ?
+		            (cart_active ? active_bank : tape_req ? 2'b10 :
+		             vram_req ? vram_bank : bank) : 2'b00;
 		if(ram_req & wr) ram_dout <= din;
 	end
 
 	data <= SDRAM_DQ;
-	SDRAM_DQ <= 16'hZZZZ;
-	if(q == STATE_CONT && wr) SDRAM_DQ <= tape_req ? {tape_din, tape_din} : {din, din};
+	sdram_dq_oe <= 0;
+	if(q == STATE_CONT && wr) begin
+		sdram_dq_out <= tape_req ? {tape_din, tape_din} :
+		                cart_active ? {cart_write_data, cart_write_data} : {din, din};
+		sdram_dq_oe <= 1;
+	end
 
 	tape_wr_ack	<= 0;
+	cart_ack <= 0;
+	// Raise acknowledge for the complete READY phase. Read data is sampled
+	// on the edge entering READY, so a synchronous requester consumes the
+	// acknowledge and may update a still-held request before the next IDLE
+	// arbitration edge. This avoids re-granting the old request.
+	if(q == STATE_READ && cart_active) begin
+		if(!wr) cart_dout <= a[0] ? SDRAM_DQ[15:8] : SDRAM_DQ[7:0];
+		cart_ack <= 1;
+	end
 	if (q == STATE_READY) begin
 		if (~wr & ram_req) ram_dout <= a[0] ? data[15:8] : data[7:0];
 		else if (vram_req) vram_dout<=data;
