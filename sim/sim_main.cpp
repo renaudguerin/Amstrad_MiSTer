@@ -119,6 +119,40 @@ public:
         bus_write(true, value);
     }
 
+    void hold_selected_register_at_clken(std::uint8_t value,
+                                         unsigned clock_ticks) {
+        while (tick_in_character_ != kClkEnPhase) {
+            clock_tick();
+        }
+        dut_->ENABLE = 1;
+        dut_->nCS = 0;
+        dut_->R_nW = 0;
+        dut_->RS = 1;
+        dut_->DI = value;
+        for (unsigned tick = 0; tick < clock_ticks; ++tick) {
+            clock_tick();
+        }
+        idle_bus();
+        eval_comb();
+    }
+
+    void load_snapshot_registers(
+        const std::array<std::uint8_t, 10>& registers) {
+        for (unsigned word = 0; word < 5; ++word) {
+            dut_->SNA_REGS[word] = 0;
+        }
+        for (unsigned address = 0; address < registers.size(); ++address) {
+            const unsigned bit = address * 8;
+            dut_->SNA_REGS[bit / 32] |=
+                static_cast<std::uint32_t>(registers[address]) << (bit % 32);
+        }
+        dut_->SNA_ADDR = 7;
+        dut_->SNA_LOAD = 1;
+        clock_tick();
+        dut_->SNA_LOAD = 0;
+        eval_comb();
+    }
+
     std::uint8_t read_register(std::uint8_t address) {
         select_register(address);
         dut_->ENABLE = 1;
@@ -190,6 +224,10 @@ public:
 
     void expect_vsync_high(const std::string& expectation) const {
         expect_high(expectation, dut_->VSYNC);
+    }
+
+    void expect_field_low(const std::string& expectation) const {
+        expect_low(expectation, dut_->FIELD);
     }
 
     void expect_known_vsync_low(const std::string& expectation) const {
@@ -363,13 +401,16 @@ constexpr unsigned kF3LineCharacters = 8;
 constexpr unsigned kF3MidlineHcc = 3;
 constexpr unsigned kVsyncLines = 16;
 
-void configure_f3_midline_fixture(TestBench& test, unsigned type) {
+void configure_f3_midline_fixture(TestBench& test,
+                                  unsigned type,
+                                  unsigned vertical_sync_width = 2) {
     test.set_crtc_type(type);
 
     // Hold C4 at zero for the whole measurement. R7 starts unequal to C4 so
     // that only the explicitly timed R7=0 write can arm VSYNC.
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
-        {0, kF3LineCharacters - 1}, {1, 4}, {2, 5}, {3, 0x21}, {4, 3},
+        {0, kF3LineCharacters - 1}, {1, 4}, {2, 5},
+        {3, static_cast<std::uint8_t>((vertical_sync_width << 4) | 1)}, {4, 3},
         {5, 0},                     {6, 3}, {7, 1}, {8, 0},    {9, 31},
     }};
     for (const auto& [address, value] : registers) {
@@ -398,7 +439,7 @@ void test_type0_r7_hcc_blocked(TestBench& test, unsigned hcc) {
 
     std::ostringstream immediate;
     immediate << "type 0 R7=C4 write at C0=" << hcc << " is blocked";
-    test.expect_known_vsync_low(immediate.str());
+    test.expect_vsync_low(immediate.str());
 
     // A blocked comparison is consumed: remaining on C4=R7 must not produce a
     // delayed pulse on either of the following lines.
@@ -425,7 +466,7 @@ void test_type0_r7_midline_duration_extended(TestBench& test) {
     test.run_characters((kF3LineCharacters - 1) - kF3MidlineHcc);
     test.expect_vsync_high("type 0 VSYNC at its first post-write line boundary");
     test.run_characters(kF3LineCharacters);
-    test.expect_known_vsync_high(
+    test.expect_vsync_high(
         "type 0 partial line does not consume either R3h line");
     test.run_characters(kF3LineCharacters);
     test.expect_vsync_low("type 0 extended VSYNC ends after two complete lines");
@@ -456,6 +497,139 @@ void test_type1_r7_midline_partial_counts(TestBench& test) {
     test.expect_vsync_high("type 1 VSYNC through its fifteenth line boundary");
     test.run_characters(kF3LineCharacters);
     test.expect_vsync_low("type 1 partial-line VSYNC at its sixteenth boundary");
+}
+
+void configure_vsync_reentrancy_fixture(TestBench& test,
+                                        unsigned type,
+                                        unsigned vertical_total,
+                                        unsigned max_scanline);
+
+void test_r7_level_write_and_active_rearm(TestBench& test) {
+    constexpr unsigned line_characters = 4;
+    constexpr unsigned held_characters = 2;
+
+    for (unsigned type = 0; type <= 1; ++type) {
+        configure_vsync_reentrancy_fixture(test, type, 0, 0);
+        test.run_characters(line_characters);
+        test.expect_vsync_high("initial VSYNC before held equal R7 write");
+
+        test.hold_selected_register_at_clken(
+            0, held_characters * kClockTicksPerCharacter);
+        test.expect_vsync_high("held equal R7 write does not disturb active VSYNC");
+        test.run_characters(kVsyncLines * line_characters - held_characters);
+        test.expect_vsync_low("held equal R7 write remains consumed at VSYNC end");
+        test.run_characters(2 * line_characters);
+        test.expect_vsync_low("held equal R7 write cannot re-trigger while equal");
+
+        configure_vsync_reentrancy_fixture(test, type, 1, 0);
+        test.run_characters(2 * line_characters);
+        test.expect_vsync_high("initial VSYNC before different R7 write");
+        test.hold_selected_register_at_clken(
+            1, held_characters * kClockTicksPerCharacter);
+        test.expect_vsync_high("different R7 write does not cancel active VSYNC");
+        test.run_characters(kVsyncLines * line_characters - held_characters);
+        test.expect_vsync_low("active VSYNC completes after different R7 write");
+        test.run_characters(line_characters);
+        test.expect_vsync_high("different R7 write permits the next genuine match");
+    }
+}
+
+void test_type0_dynamic_vsync_width_extremes(TestBench& test) {
+    for (const unsigned programmed_width : {0U, 1U, 15U}) {
+        const unsigned effective_width = programmed_width == 0 ? 16 : programmed_width;
+        configure_f3_midline_fixture(test, 0, programmed_width);
+        write_r7_zero_at_hcc(test, kF3MidlineHcc);
+        test.expect_vsync_high("type 0 dynamic VSYNC starts for width extreme");
+
+        test.run_characters((kF3LineCharacters - 1) - kF3MidlineHcc);
+        test.expect_vsync_high("type 0 partial line is excluded for width extreme");
+        if (effective_width > 1) {
+            test.run_characters((effective_width - 1) * kF3LineCharacters);
+            test.expect_vsync_high("type 0 VSYNC survives all but its final full line");
+        }
+        test.run_characters(kF3LineCharacters);
+        test.expect_vsync_low("type 0 width extreme ends after complete lines");
+    }
+}
+
+void test_type0_r7_c0_2_at_line_boundary(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 2}, {1, 1}, {2, 1}, {3, 0x11}, {4, 3},
+        {5, 0}, {6, 3}, {7, 1}, {8, 0},    {9, 31},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(7);
+    test.reset();
+
+    write_r7_zero_at_hcc(test, 2);
+    test.expect_vsync_high("type 0 R7=C4 write at C0=2 is not blocked");
+    test.run_characters(3);
+    test.expect_vsync_low("C0=2/R0 count boundary consumes no partial-line skip");
+}
+
+void configure_f3_interlace_fixture(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 15}, {1, 8}, {2, 10}, {3, 0x11}, {4, 0},
+        {5, 0},  {6, 1}, {7, 1},  {8, 3},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(7);
+    test.reset();
+    test.run_characters(16);
+    test.expect_field_low("interlace fixture reaches the half-line-count field");
+}
+
+void expect_interlace_dynamic_vsync_end(TestBench& test,
+                                        unsigned write_hcc,
+                                        unsigned characters_to_end) {
+    configure_f3_interlace_fixture(test);
+    write_r7_zero_at_hcc(test, write_hcc);
+    test.expect_vsync_high("interlace-field R7=C4 write asserts VSYNC");
+    test.run_characters(characters_to_end - 1);
+    test.expect_vsync_high("interlace-field VSYNC remains high before final count tick");
+    test.run_characters(1);
+    test.expect_vsync_low("interlace-field VSYNC ends on the expected count tick");
+}
+
+void test_type0_interlace_count_boundaries(TestBench& test) {
+    // In the second field with R0=15, the count tick sees old C0=6
+    // (hcc_next=R0/2).  Before/on/after exercise the shared predicate; C0=15
+    // proves that hcc_last itself is not a count tick in this field.
+    expect_interlace_dynamic_vsync_end(test, 5, 26);
+    expect_interlace_dynamic_vsync_end(test, 6, 25);
+    expect_interlace_dynamic_vsync_end(test, 7, 31);
+    expect_interlace_dynamic_vsync_end(test, 15, 23);
+}
+
+void test_type0_pending_skip_clears_on_type_roundtrip(TestBench& test) {
+    configure_f3_midline_fixture(test, 0, 1);
+    write_r7_zero_at_hcc(test, kF3MidlineHcc);
+    test.expect_vsync_high("type 0 mid-line VSYNC has a pending first-line skip");
+
+    test.set_crtc_type(1);
+    test.run_clock_ticks(1);
+    test.set_crtc_type(0);
+    test.run_characters((kF3LineCharacters - 1) - kF3MidlineHcc);
+    test.expect_vsync_low("live type round-trip clears the type 0 pending skip");
+}
+
+void test_type0_pending_skip_clears_on_snapshot_load(TestBench& test) {
+    configure_f3_midline_fixture(test, 0, 1);
+    write_r7_zero_at_hcc(test, kF3MidlineHcc);
+    test.expect_vsync_high("type 0 mid-line VSYNC before snapshot load");
+
+    const std::array<std::uint8_t, 10> snapshot_registers = {{
+        kF3LineCharacters - 1, 4, 5, 0x11, 3, 0, 3, 0, 0, 31,
+    }};
+    test.load_snapshot_registers(snapshot_registers);
+    test.run_characters((kF3LineCharacters - 1) - kF3MidlineHcc);
+    test.expect_vsync_low("snapshot load clears the derived pending-line skip");
 }
 
 void configure_vsync_reentrancy_fixture(TestBench& test,
@@ -678,15 +852,27 @@ int main(int argc, char** argv) {
         {"t01_register_readback", "ACCC 1.9 sections 21.2 and 28.1.9; F1/F11c/F11d",
          false, test_register_readback_table},
         {"t02a_type0_r7_hcc0_blocked", "ACCC 1.9 section 16.4.1; F3",
-         true, test_type0_r7_hcc0_blocked},
+         false, test_type0_r7_hcc0_blocked},
         {"t02b_type0_r7_hcc1_blocked", "ACCC 1.9 section 16.4.1; F3",
-         true, test_type0_r7_hcc1_blocked},
+         false, test_type0_r7_hcc1_blocked},
         {"t02c_type0_r7_midline_extended", "ACCC 1.9 section 16.4.1; F3",
-         true, test_type0_r7_midline_duration_extended},
+         false, test_type0_r7_midline_duration_extended},
         {"t02d_type1_r7_early_hcc_immediate", "ACCC 1.9 section 16.4.2; F3",
          false, test_type1_r7_early_hcc_immediate},
         {"t02e_type1_r7_midline_partial_counts", "ACCC 1.9 section 16.4.2; F3",
          false, test_type1_r7_midline_partial_counts},
+        {"t02f_r7_level_write_and_active_rearm", "ACCC 1.9 sections 16.3-16.4; F3",
+         false, test_r7_level_write_and_active_rearm},
+        {"t02g_type0_dynamic_vsync_width_extremes", "ACCC 1.9 sections 14.2 and 16.4.1; F3",
+         false, test_type0_dynamic_vsync_width_extremes},
+        {"t02h_type0_r7_c0_2_at_line_boundary", "ACCC 1.9 section 16.4.1; F3",
+         false, test_type0_r7_c0_2_at_line_boundary},
+        {"t02i_type0_interlace_count_boundaries", "ACCC 1.9 sections 16.4-16.5; F3",
+         false, test_type0_interlace_count_boundaries},
+        {"t02j_type0_pending_skip_type_roundtrip", "UM6845R live CRTC_TYPE contract; F3/F11d",
+         false, test_type0_pending_skip_clears_on_type_roundtrip},
+        {"t02k_type0_pending_skip_snapshot_load", "UM6845R snapshot-load contract; F3/F11d",
+         false, test_type0_pending_skip_clears_on_snapshot_load},
         {"t03a_vsync_compare_lock_and_rearm", "ACCC 1.9 section 16.3; F11b",
          false, test_vsync_compare_lock_and_rearm},
         {"t03b_vsync_reentrancy_bypass", "ACCC 1.9 section 16.3; F11b",
