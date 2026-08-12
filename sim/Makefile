@@ -15,9 +15,11 @@ CXXFLAGS ?= -std=c++17 -O2
 all: test
 
 build: $(TEST_BIN)
+	$(MAKE) -C plus build
 
 test: $(TEST_BIN)
 	./$(TEST_BIN)
+	$(MAKE) -C plus test
 
 $(TEST_BIN): $(RTL) $(TEST_SRC) Makefile
 	$(VERILATOR) $(VERILATOR_FLAGS) -CFLAGS "$(CXXFLAGS)" \
@@ -25,6 +27,8 @@ $(TEST_BIN): $(RTL) $(TEST_SRC) Makefile
 
 lint:
 	$(VERILATOR) --lint-only --top-module $(TOP) -Wall -Wno-fatal $(RTL)
+	$(MAKE) -C plus lint
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)
+	$(MAKE) -C plus clean
