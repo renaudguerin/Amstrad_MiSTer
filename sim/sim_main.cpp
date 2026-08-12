@@ -119,6 +119,10 @@ public:
         bus_write(true, value);
     }
 
+    void write_selected_register_now(std::uint8_t value) {
+        bus_write(true, value);
+    }
+
     void hold_selected_register_at_clken(std::uint8_t value,
                                          unsigned clock_ticks) {
         while (tick_in_character_ != kClkEnPhase) {
@@ -1180,13 +1184,14 @@ void test_type0_r0_zero_c9_equal_single_c4_increment_deferred(TestBench& test) {
 
     // ACCC 13.2.1's narrow deferred subcase: when C9 already equals R9 as
     // type 0 enters R0=0, the previously armed decision increments C4 once
-    // on the second C0=0 occurrence, then freezes.  R7=1 makes that hidden
-    // C4 state observable after recovery: a correct C4=1 must not start
-    // VSYNC on the first widened line, whereas the current all-state freeze
-    // leaves C4=0 and produces a false C4 0->1 match.
+    // on the second C0=0 occurrence, then freezes.  The first normal R0=3
+    // line below reaches C4=1/C9=0; R0 is then changed at that exact C0=0.
+    // R7=2 makes the deferred increment observable after recovery: a correct
+    // frozen C4=2 must not start VSYNC on the first widened line, whereas the
+    // current all-state freeze leaves C4=1 and produces a false 1->2 match.
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
-        {0, 0}, {1, 0}, {2, 2}, {3, 0x11}, {4, 3},
-        {5, 0}, {6, 3}, {7, 1}, {8, 0},    {9, 0},
+        {0, 3}, {1, 0}, {2, 2}, {3, 0x11}, {4, 3},
+        {5, 0}, {6, 3}, {7, 2}, {8, 0},    {9, 0},
     }};
     for (const auto& [address, value] : registers) {
         test.write_register(address, value);
@@ -1194,7 +1199,13 @@ void test_type0_r0_zero_c9_equal_single_c4_increment_deferred(TestBench& test) {
     test.select_register(0);
     test.reset();
 
+    // Stop immediately after the C0=3->0 boundary rather than running the
+    // remainder of the character.  The raw phase-1 bus write changes R0 at
+    // C0=0 without introducing another CLKEN.
     test.run_characters(3);
+    test.run_clock_ticks(1);
+    test.write_selected_register_now(0);
+    test.run_characters(2);
     test.expect_vsync_low("deferred C9=R9 subcase stays quiet while frozen");
     test.write_selected_register_at_nclken(3);
     test.run_clock_ticks(kClockTicksPerCharacter - kNClkEnPhase - 1);
