@@ -619,6 +619,15 @@ sdram sdram
 	.bank(reset ? boot_bank : dan_ena ? 2'b11 : model),
 	.din (reset ? boot_dout : cpu_dout),
 	.dout(ram_dout),
+	// Reserved held-request port for the cartridge memory service. Keep it
+	// inert until P0 connects the already-tested loader/CPU owner.
+	.cart_req(1'b0),
+	.cart_wr(1'b0),
+	.cart_bank(2'b00),
+	.cart_addr(23'd0),
+	.cart_din(8'd0),
+	.cart_dout(),
+	.cart_ack(),
 	.vram_bank(model),
 	.vram_addr({2'b10,vram_addr,1'b0}),
 	.vram_dout(vram_dout),
