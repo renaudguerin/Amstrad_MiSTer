@@ -149,15 +149,18 @@ wire [4:0] interlace = &R8_interlace[1:0];
 reg        in_adj;
 
 reg  [7:0] hcc;
-wire       hcc_last  = (hcc == R0_h_total) && (CRTC_TYPE || R0_h_total); // always false if !R0_h_total on CRTC0
+wire       hcc_last  = hcc == R0_h_total;
 wire [7:0] hcc_next  = hcc_last ? 8'h00 : hcc + 1'd1;
+// Type 0 still compares C0 with R0 when both are zero, but that repeated
+// equality pins C0 rather than completing a stream of one-character lines.
+wire       r0_frozen = !CRTC_TYPE && !R0_h_total && !hcc;
 
 reg  [4:0] line;
 wire [4:0] line_max  = (in_adj ? (|R5_v_total_adj ? R5_v_total_adj-1'd1 : 5'd0) : R9_v_max_line) & ~interlace;
 reg        line_last_r;
 wire       line_last = (line == line_max) || !line_max;
 wire [4:0] line_next = ((CRTC_TYPE ? line_last : line_last_r) ? 5'd0 : line + 1'd1 + interlace) & ~interlace;
-wire       line_new  = hcc_last;
+wire       line_new  = hcc_last && !r0_frozen;
 
 reg  [6:0] row;
 reg        row_last_r;
@@ -185,7 +188,7 @@ always @(posedge CLOCK) begin
 	else if(CLKEN) begin
 		hcc <= hcc_next;
 		if(line_new) line <= line_next;
-		if(hcc == 0) begin
+		if(hcc == 0 && !r0_frozen) begin
 			line_last_r <= line_last;
 			row_last_r <= row_last;
 			frame_adj_r <= line_last & row_last & ~in_adj;
@@ -217,7 +220,7 @@ always @(posedge CLOCK) begin
 	if(CLKEN) begin
 		if(row_addr_save) row_addr <= row_addr_r; // save current pointer
 
-		if(hcc_last & !row_addr_save) row_addr_r <= row_addr; // restore the pointer, take care of simultaneous saving and restoring
+		if(line_new & !row_addr_save) row_addr_r <= row_addr; // restore the pointer, take care of simultaneous saving and restoring
 		if(!hcc_last)                 row_addr_r <= row_addr_r + 1'd1;
 
 		if(CRTC0_reload) begin

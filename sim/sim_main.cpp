@@ -270,6 +270,17 @@ public:
         expect_byte(expectation, expected, dut_->RA);
     }
 
+    std::uint16_t ma() const {
+        return dut_->MA;
+    }
+
+    void expect_ma(const std::string& expectation, std::uint16_t expected) const {
+        if (dut_->MA != expected) {
+            fail(expectation + " == " + std::to_string(expected),
+                 static_cast<unsigned>(dut_->MA));
+        }
+    }
+
     void expect_de_high(const std::string& expectation) const {
         expect_high(expectation, dut_->DE);
     }
@@ -890,7 +901,7 @@ void configure_f5_r0_zero_fixture(TestBench& test,
 void test_type0_r0_zero_suppresses_nonzero_r2_hsync(TestBench& test) {
     constexpr unsigned horizontal_sync_position = 4;
     constexpr unsigned observation_characters = 260;
-    constexpr unsigned known_first_pulse_tick =
+    constexpr unsigned former_free_running_r2_tick =
         (horizontal_sync_position - 1) * kClockTicksPerCharacter + 1;
 
     configure_f5_r0_zero_fixture(test, 0, horizontal_sync_position);
@@ -906,9 +917,9 @@ void test_type0_r0_zero_suppresses_nonzero_r2_hsync(TestBench& test) {
         if ((tick + 1) % kClockTicksPerCharacter == 0) {
             test.expect_ra("type 0 R0=0 keeps C9/RA frozen", 0);
         }
-        if (tick == known_first_pulse_tick) {
-            test.expect_known_hsync_low(
-                "type 0 R0=0 first spurious R2 pulse edge");
+        if (tick == former_free_running_r2_tick) {
+            test.expect_hsync_low(
+                "type 0 R0=0 suppresses the former free-running R2 edge");
         } else {
             test.expect_hsync_low("type 0 R0=0 cannot reach nonzero R2");
         }
@@ -947,7 +958,7 @@ void test_type0_r0_zero_allows_r2_zero_hsync(TestBench& test) {
     for (unsigned tick = 1; tick < kClockTicksPerCharacter; ++tick) {
         test.run_clock_ticks(1);
         if (tick == 1) {
-            test.expect_known_hsync_high(
+            test.expect_hsync_high(
                 "type 0 third R2=0 occurrence restarts HSYNC");
         } else {
             test.expect_hsync_high(
@@ -975,15 +986,13 @@ void test_type0_r0_zero_resumes_after_nclken_write(TestBench& test) {
     test.expect_ra("type 0 raster counter at R0 recovery write", 0);
     test.expect_hsync_low("type 0 HSYNC remains low at the recovery write");
 
-    // The first post-write CLKEN resumes frozen C0 as 1, not 2.  Keep the
-    // known divergence at the single raw edge where the current RTL exposes
-    // its premature C0 advance; all surrounding timing remains exact.
+    // The first post-write CLKEN resumes frozen C0 as 1, not 2.
     test.run_clock_ticks(kClockTicksPerCharacter - kNClkEnPhase - 1);
     test.expect_hsync_low("type 0 recovery remains below R2 before CLKEN");
     test.run_clock_ticks(1);
     test.expect_hsync_low("type 0 recovery advances C0 from zero to one");
     test.run_clock_ticks(1);
-    test.expect_known_hsync_low(
+    test.expect_hsync_low(
         "type 0 recovery does not assert HSYNC before C0=R2");
 
     // On the second post-write CLKEN C0 reaches R2=2.  HSYNC registers on
@@ -1028,6 +1037,103 @@ void test_type1_r0_zero_keeps_one_character_lines(TestBench& test) {
     test.expect_ra("type 1 widened line before C0 reaches R0", 5);
     test.run_characters(1);
     test.expect_ra("type 1 widened line advances C9/RA at C0=R0", 6);
+}
+
+void test_type0_midline_r0_zero_free_runs_then_pins(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 0}, {2, 4}, {3, 0x11}, {4, 3},
+        {5, 0}, {6, 3}, {7, 2}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(0);
+    test.reset();
+    test.expect_reset_outputs();
+
+    // Two complete characters leave C0=2.  The helper executes the next
+    // CLKEN before reaching nCLKEN, so R0 becomes zero live at C0=3.
+    test.run_characters(2);
+    test.write_selected_register_at_nclken(0);
+    const std::uint16_t ma_at_write = test.ma();
+    const auto advanced_ma = [ma_at_write](unsigned characters) {
+        return static_cast<std::uint16_t>(
+            (ma_at_write + characters) & 0x3fff);
+    };
+    test.expect_ra("type 0 mid-line R0=0 write does not create a line", 0);
+
+    // The live comparator cannot match zero while C0 is nonzero.  C0 must
+    // continue to increment rather than clamp immediately; reaching R2=4 and
+    // advancing MA on the first following CLKEN makes that externally visible.
+    test.run_clock_ticks(kClockTicksPerCharacter - kNClkEnPhase - 1);
+    test.expect_ma("type 0 MA holds until the first post-write CLKEN",
+                   ma_at_write);
+    test.run_clock_ticks(1);
+    test.expect_ma("type 0 mid-line R0=0 continues from C0=3 to C0=4",
+                   advanced_ma(1));
+    test.expect_ra("type 0 free-run does not create a line at C0=4", 0);
+    test.run_clock_ticks(1);
+    test.expect_hsync_high("type 0 free-run still reaches the live R2=4");
+
+    // From C0=4, another 251 character clocks reach C0=255, and the next
+    // wraps the eight-bit counter to zero.  None is a true C0=R0 line end.
+    test.run_characters(251);
+    test.expect_ma("type 0 free-run advances MA through C0=255",
+                   advanced_ma(252));
+    test.expect_ra("type 0 free-run through C0=255 creates no false line", 0);
+    test.run_characters(1);
+    test.expect_ma("type 0 C0 overflow advances MA once before pinning",
+                   advanced_ma(253));
+    test.expect_ra("type 0 C0 overflow creates no false line", 0);
+
+    // Once the overflow has produced C0=0, the repeated C0=R0 equality pins
+    // C0 and must not reload/increment the visible memory address.
+    test.run_characters(3);
+    test.expect_ma("type 0 R0=0 pins MA after the eight-bit wrap",
+                   advanced_ma(253));
+    test.expect_ra("type 0 R0=0 pins C9 after the eight-bit wrap", 0);
+
+    // Widen R0 at nCLKEN.  C0 resumes from zero, MA advances for C0=1..3,
+    // and the first genuine C0=R0 boundary advances C9 exactly once.
+    test.write_selected_register_at_nclken(3);
+    test.expect_ma("type 0 MA remains pinned at the recovery write",
+                   advanced_ma(253));
+    test.run_clock_ticks(kClockTicksPerCharacter - kNClkEnPhase - 1);
+    test.expect_ma("type 0 recovered MA waits for CLKEN", advanced_ma(253));
+    test.run_clock_ticks(1);
+    test.expect_ma("type 0 recovery resumes MA from frozen C0=0",
+                   advanced_ma(254));
+    test.run_characters(2);
+    test.expect_ma("type 0 recovery advances MA through C0=3",
+                   advanced_ma(256));
+    test.expect_ra("type 0 recovery has not ended the widened line early", 0);
+    test.run_characters(1);
+    test.expect_ra("type 0 recovery ends one complete R0=3 line", 1);
+}
+
+void test_r0_zero_freeze_survives_type_round_trip(TestBench& test) {
+    configure_f5_r0_zero_fixture(test, 0, 4);
+
+    test.run_characters(2);
+    test.expect_ra("type 0 begins the type round-trip frozen", 0);
+
+    // CRTC_TYPE is a live input.  Type 1 treats R0=0 as one-character lines,
+    // then returning to type 0 at C0=0 must immediately restore the freeze.
+    test.set_crtc_type(1);
+    test.run_characters(2);
+    test.expect_ra("type 1 advances two R0=0 lines during round-trip", 2);
+    test.set_crtc_type(0);
+    test.run_characters(3);
+    test.expect_ra("type 0 re-pins C9 after the type round-trip", 2);
+
+    test.write_selected_register_at_nclken(3);
+    test.run_clock_ticks(kClockTicksPerCharacter - kNClkEnPhase - 1);
+    test.run_clock_ticks(1);
+    test.expect_ra("round-trip recovery starts from the frozen raster", 2);
+    test.run_characters(3);
+    test.expect_ra("round-trip recovery completes one widened line", 3);
 }
 
 }  // namespace
@@ -1075,17 +1181,23 @@ int main(int argc, char** argv) {
         {"t06d_status_clears_on_type_round_trip", "ACCC 1.9 section 21.3.3; F2",
          false, test_type1_status_clears_on_type_round_trip},
         {"t09a_type0_r0_zero_suppresses_nonzero_r2_hsync",
-         "ACCC 1.9 section 13.2.1; F5", true,
+         "ACCC 1.9 section 13.2.1; F5", false,
         test_type0_r0_zero_suppresses_nonzero_r2_hsync},
         {"t09b_type0_r0_zero_allows_r2_zero_hsync",
-         "ACCC 1.9 sections 13.2.1 and 15.3; F5", true,
+         "ACCC 1.9 sections 13.2.1 and 15.3; F5", false,
         test_type0_r0_zero_allows_r2_zero_hsync},
         {"t09c_type0_r0_zero_resumes_after_nclken_write",
-         "ACCC 1.9 section 13.2.1; F5", true,
+         "ACCC 1.9 section 13.2.1; F5", false,
          test_type0_r0_zero_resumes_after_nclken_write},
         {"t09d_type1_r0_zero_keeps_one_character_lines",
          "ACCC 1.9 section 13.3; F5 regression guard", false,
          test_type1_r0_zero_keeps_one_character_lines},
+        {"t09e_type0_midline_r0_zero_free_runs_then_pins",
+         "ACCC 1.9 section 13.2.1; F5 live-write regression guard", false,
+         test_type0_midline_r0_zero_free_runs_then_pins},
+        {"t09f_r0_zero_freeze_survives_type_round_trip",
+         "UM6845R live CRTC_TYPE contract; F5/F11d", false,
+         test_r0_zero_freeze_survives_type_round_trip},
     };
 
     unsigned passed = 0;
