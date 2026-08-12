@@ -184,6 +184,10 @@ you need to extract them.
 
 ## 7. Deploying the .rbf to your MiSTer
 
+For the current development branch's exact supported features, limitations, and suggested
+F2/F3/F5 hardware checks, read `current-status.md` before deploying. In particular, Plus
+models do not boot yet even though the menu and tested foundation modules are present.
+
 Amstrad is a "computer" class core. Convention (confirmed against this
 repo's own `releases/` folder, which already contains files like
 `Amstrad_20260603.rbf`):

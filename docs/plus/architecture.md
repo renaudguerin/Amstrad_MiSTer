@@ -95,8 +95,8 @@ consume it today, and delete no classic code).
   independent).
 - **Boot**: no `boot.rom` in Plus mode. Reset vectors the Z80 to `&0000` with RMR2=0
   (cart page 0 low). The high window starts on page 1 for GX4000; on 464+ and 6128+ the
-  external `/EXP` state dynamically selects page 1 or page 3 (reference §11). P-1 must
-  define how that input is supplied and sampled before P0 implements reset mapping. The
+  external `/EXP` state dynamically selects page 1 or page 3 (reference §11). P0 must
+  define how that input is supplied and sampled before it implements reset mapping. The
   system-cartridge firmware does the rest. Ship nothing: users provide a CPR (GX4000 games
   are self-contained; 6128+ needs a system cartridge image).
 - **ACID**: not emulated, per universal emulator practice (reference §11) — CPR pages load
@@ -159,15 +159,18 @@ P1.
    mode (feed it constant DISPEN/sync inputs, ignore its video). (b) is a cheap P0 stopgap;
    (a) is the honest end state. Measure drift: the ASIC's documented +1µs interrupt/colour
    deltas suggest Amstrad's own re-timing differed too.
-2. **SDRAM bandwidth for sprites.** Sprite pixel RAM is 4KB — keep it in BRAM (dual-port:
-   CPU via ASIC page, video side free-running). No SDRAM impact. Palette likewise (64B).
-   The only new SDRAM client is DMA fetch (≤3 words per HSYNC, fits the video slot pattern)
-   — verify against `sdram.v` slot allocation in P6.
+2. **SDRAM bandwidth for sprites and DMA.** Sprite pixel RAM is 4KB — keep it in BRAM
+   (dual-port: CPU via ASIC page, video side free-running). Palette likewise (64B). The
+   tied-off cartridge client now has an explicit held-request slot and forced-refresh guard.
+   DMA will be the next client; verify its ≤3 words per HSYNC against the accepted
+   cartridge/main/tape/video arbitration instead of assuming an unused slot.
 3. **GX4000 clock (39.90257 vs 40 MHz)**: ignore (0.25%; MiSTer video pipeline normalizes;
    note in docs).
 4. **A13 vector bug**: default = not emulated; revisit only if a title provably depends on
    it (none known — software uses the DCSR re-dispatch workaround which works either way).
-5. **6128+ FDC**: reuse existing u765 path untouched (it's model-gated already for 664/6128).
+5. **6128+ FDC**: reuse the existing u765 implementation, but add explicit Plus-model
+   selection when P0 enables behavior. The current top-level port decode is controlled by
+   the drive-disable option, not by the classic model field, so do not assume model gating.
 6. **Where does `plus_mode` snapshot support land?** SNA v3 has no Plus state; punt —
    document "no snapshots in Plus mode" initially.
 7. **Reference gaps** (reference §15): PRI fire offset 6 vs ~10µs and sprite +3 write
@@ -192,20 +195,20 @@ Each phase above decomposes into prompts the way `docs/accuracy/audit-findings.m
 Write later-phase prompts at phase start, after the preceding interface has been measured.
 The pre-P0 and P0 packages are:
 
-- P-2.1 reserve a non-overlapping status range for a separate `Plus model` field; decode it
-  once into `plus_mode` and explicit model capabilities; test all values and default-off
-  classic invariance
-- P-2.2 plumb the model capabilities through the top and motherboard without selecting new
-  hardware yet
-- P-1.1 document and assert the cartridge SDRAM region, page/offset address function, bounds,
-  loader/CPU ownership, arbitration priority, request/acknowledge contract, and reset/loading
-  behavior
-- P-1.2 implement the cartridge memory service against that contract and unit-test
-  interleaved page-0/page-31 loader writes and CPU reads; do not parse CPR yet
+- P-2.1 **complete** — a non-overlapping `Plus model` field decodes once into `plus_mode`
+  and explicit model capabilities; all selector values are unit-tested
+- P-2.2 **complete and behaviorally inert** — capabilities reach the motherboard boundary
+  without selecting Plus hardware or changing classic model paths
+- P-1.1 **complete** — the cartridge SDRAM region, page/offset function, held request/ack
+  contract, arbitration, refresh fairness, and loader/CPU ownership are documented and
+  tested; Dandanator uploads are bounded below the reserved region
+- P-1.2 **complete as a tied-off foundation** — the atomic cartridge memory service and real
+  service-to-SDRAM integration are tested; production top-level hookup waits for P0
 - P0.1 `plus_mmu.v` + motherboard memory mux and cartridge page/reset mapping
 - P0.2 CPR ioctl parser in `Amstrad.sv`, using only P-1's memory-service interface, with RIFF
   and chunk validation plus short-page zero fill
-- P0.3 unlock FSM in `asic_regs.v` (state machine only, gates nothing yet, +testbench)
+- P0.3 **leaf complete, integration pending** — the unlock FSM is exhaustively tested but
+  does not yet gate an ASIC register page
 - P0.4 Plus bench scaffolding and the P0 boot integration test
 
 For every package, add each new synthesizable source to `files.qip` in the same commit that

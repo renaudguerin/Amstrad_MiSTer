@@ -74,19 +74,22 @@ references; prefer observing outputs where a rule allows it, internals only wher
 Failure output must state: test file, line, character-cycle timestamp, expected vs actual —
 and auto-dump a `.vcd` for the failing window (open with GTKWave/Surfer on macOS).
 
-## Test inventory (initial — map 1:1 to audit findings)
+## Test inventory
+
+Implemented groups are marked below. The executable suite is authoritative when this table
+lags a sub-vector name.
 
 | Test | Source rule | Protects/verifies |
 |---|---|---|
-| t01 register readback table, both types (R0-R31 sweep) | digest-03 §21.2/§28.1.9 | F1, F11c, F11d |
-| t02 VSYNC mid-line R7 write, duration per type; blocked at C0<2 (type 0) | digest-02 §19 | F3 |
-| t03 VSYNC re-entrancy: R7=0/R4=0 lock; R7=0,R4=1,R9=7,R3h=0 infinite bypass | digest-02 §18 | F11b (regression guard) |
+| t01 register readback table, both types (R0-R31 sweep) — implemented | digest-03 §21.2/§28.1.9 | F1, F11c, F11d |
+| t02 VSYNC mid-line R7 write, duration per type; blocked at C0<2 (type 0) — implemented | digest-02 §19 | F3 |
+| t03 VSYNC re-entrancy: R7=0/R4=0 lock; R7=0,R4=1,R9=7,R3h=0 infinite bypass — implemented | digest-02 §18 | F11b (regression guard) |
 | t04 R3l rewrite mid-HSYNC: overflow-to-16; type 1 R3l=0 cancels | digest-02 §4 | F11a (regression guard) |
 | t05 R3l=0 static → no HSYNC (both types) | digest-02 §5 | F11a |
-| t06 status bit 5 latch at C0=R0; not set by R6=0-while-C4>0 (type 1) | digest-03 §21.3.3 | F2 |
+| t06 status bit 5 latch at C0=R0; not set by R6=0-while-C4>0 (type 1) — implemented | digest-03 §21.3.3 | F2 |
 | t07 C9 overflow: R9 rewritten < C9 → counts to 31 and wraps | digest-01 §3 | F4 |
 | t08 §28.1.1 ID: R4=36,R9=7,R5=16, R7 sweep → VSYNC ceases >37 (t0) / >39 (t1) | digest-03 §28.1.1 | F4 |
-| t09 R0=0 freeze (type 0): counters halt, no HSYNC unless R2=0, resume clean | digest-01 §8.1 | F5 |
+| t09 R0=0 freeze (type 0): counters halt, no HSYNC unless R2=0, resume clean — implemented; C9=R9 entry subcase remains named XFAIL | digest-01 §8.1 | F5 |
 | t10 R1>R0: type 0 one border char at C0=R0, type 1 none | digest-03 §17.6.2 | F6 |
 | t11 type 1 adjustment: C9 keeps cycling (RA!), C4 increments, R5=0 doesn't end | digest-01 §4 | F8 |
 | t12 R9 write at exact C0==R0 (type 0): digest-01 §3.1 Ex.1/Ex.2 vectors | digest-01 §3.1 | F9 |
@@ -94,9 +97,10 @@ and auto-dump a `.vcd` for the failing window (open with GTKWave/Surfer on macOS
 | t14 VMA reload: type 0 only at C4=C9=C0=0; type 1 every line of C4=0 row | digest-03 §17.4/§20.3 | F11h + regression |
 | t15 R12/R13 overscan-bit carry into MA[13:12] | digest-03 §20.5 | regression |
 
-Write t01–t06 first (they pass against **current** RTL except where a finding is being fixed —
-each fix PR flips its test from xfail to pass). t07+ document current divergences: mark them
-`xfail` with the finding ID so the suite is green from day one and tightens as fixes land.
+The implemented t01/t02/t03/t06/t09 groups are required passes except for the single named
+F5 C9=R9-entry divergence. The next vector-only checkpoint is t07/t08 for F4. Mark each
+new divergence `xfail` with the finding ID so the suite stays green and tightens when the
+behavioral commit lands; never wrap setup assertions in a whole-test expected failure.
 
 ## Non-goals
 

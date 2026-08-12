@@ -14,20 +14,23 @@ merged into the same behavioral PR.
 ## 1. Current baseline
 
 - `master` is the upstream baseline.
-- The current development branch contains the accuracy/reference documents, the F1
-  R10/R11 readback correction, a Verilator CRTC harness, and a GitHub Actions synthesis
-  workflow.
-- The CI workflow has not yet completed its first build on a remote GitHub runner. Treat
-  Quartus synthesis, fitter output, and timing output as unverified until that run succeeds.
-- `sim/` implements the fast Verilator gate: F1 readback is green and the two known F2
-  divergences are executable xfails. Do not start a timing-sensitive finding until its
-  focused failing vector exists.
+- The current development branch contains the accuracy/reference documents, the F1-F3 and
+  main F5 corrections, the Verilator CRTC/Plus gates, and GitHub Actions synthesis.
+- GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
+  RBF packaging, and artifact upload for the final hardware-test milestone (`ba5b629`, run
+  `31637450102`). New top-level/file-list commits still require their own run.
+- `sim/` currently reports 26 required CRTC passes and one named F5 XFAIL for the deferred
+  C9=R9-at-freeze-entry C4 increment. The Plus leaf and SDRAM integration suites are green.
+  Do not start another timing-sensitive finding until its focused failing vector exists.
+- P-2 model plumbing and the P-1 cartridge memory/SDRAM contract are implemented but
+  behaviorally tied off. No Plus/GX4000 firmware or cartridge boots yet.
 - `docs/ACCC1.9-EN.pdf` is a source of last resort for rules explicitly marked for
   re-extraction. Prefer the checked-in digests and audit prompts so ordinary work does not
   repeatedly consume the full document.
 
 The current branch is a useful staging branch, not a requirement to publish one large PR.
 The commits may be rearranged into the small sequences below before publication.
+See `current-status.md` for the exact handoff and real-hardware checklist.
 
 ## 2. Integration rules
 
@@ -99,10 +102,10 @@ Classic work is intentionally serial because most findings touch the same state 
 
 | Checkpoint | Work, in order | Deterministic exit | Hardware/software exit |
 |---|---|---|---|
-| **C0: establish the harness** | Implement the Verilator harness; run the complete register table; verify the already-present F1 fix rather than rewriting it | `t01` passes for types 0 and 1, baseline protection tests pass, and all unimplemented findings are explicit named xfails | One baseline RBF builds remotely; classic CPC boot/disk smoke test passes |
-| **C1: status readback** | F2 only | `t06` proves bit 5 changes only at the required C0=R0 sample and excludes the dynamic R6=0 border case; `t01` remains green | SHAKER/type-detection status test |
-| **C2: VSYNC write timing** | F3 only | `t02` covers type-0 blocked writes at C0=0/1, type-0 extended duration, and unchanged type-1 partial-line duration; `t03` protects re-entrancy | SHAKER VSYNC tests plus Onescreen Colonies and PHX regression |
-| **C3: R0 stall** | F5 only | `t09` proves type-0 freeze, R2-dependent HSYNC, clean resume, and unchanged type-1 one-character lines | SHAKER R0 tests; monitor sync and GA interrupt behavior remain stable |
+| **C0: establish the harness — deterministic complete; hardware pending** | Implement the Verilator harness; run the complete register table; verify the already-present F1 fix rather than rewriting it | `t01` passes for types 0 and 1, baseline protection tests pass, and all unimplemented findings are explicit named xfails | One baseline RBF builds remotely; classic CPC boot/disk smoke test passes |
+| **C1: status readback — deterministic complete; hardware pending** | F2 only | `t06` proves bit 5 changes only at the required C0=R0 sample and excludes the dynamic R6=0 border case; `t01` remains green | SHAKER/type-detection status test |
+| **C2: VSYNC write timing — deterministic complete; hardware pending** | F3 only | `t02` covers type-0 blocked writes at C0=0/1, type-0 extended duration, and unchanged type-1 partial-line duration; `t03` protects re-entrancy | SHAKER VSYNC tests plus Onescreen Colonies and PHX regression |
+| **C3: R0 stall — main behavior complete; one subcase XFAIL; hardware pending** | F5 only | `t09` proves type-0 freeze, R2-dependent HSYNC, clean resume, and unchanged type-1 one-character lines | SHAKER R0 tests; monitor sync and GA interrupt behavior remain stable |
 | **C4: border decision** | F6 only if its approximation is explicitly accepted | `t10` distinguishes type 0 and type 1 and proves skew placement | Visual R1>R0 discriminator and affected demos |
 | **C5: equality/overflow foundation** | F4 only | `t07` and `t08` pass, including RLAL regression vectors; no shortcut term is retained to hide a latch bug | SHAKER overflow/rupture tests and Batman Forever, The Demo, and Yao demo sweep |
 | **C6: type-1 adjustment** | F8 only, after F4 | `t11` proves independent C5, continuing C4/C9, RA sequence, and the R5=0 mid-adjustment behavior | SHAKER adjustment vectors |
@@ -133,12 +136,15 @@ simulation conventions are stable; it does not depend on completing classic C1-C
 
 ### P-2: model selection before Plus behavior
 
+**Status:** deterministic implementation complete; hardware remains deliberately
+unselected.
+
 Add a separate OSD `Plus model` field with `Off`, `GX4000`, `6128+`, and `464+` values. Do
 not extend or reinterpret the existing classic CPC `Model` field. Decode the new value once
 into `plus_mode` and static model capabilities (RAM size, FDC, and tape), then plumb those
 signals without changing behavior while `Plus model = Off`. Cartridge reset-page selection
 is deliberately not a static capability: GX4000 fixes the high window to page 1, whereas the
-464+ and 6128+ select page 1 or page 3 from the external `/EXP` state. P-1/P0 must define and
+464+ and 6128+ select page 1 or page 3 from the external `/EXP` state. P0 must define and
 test that dynamic input before implementing reset mapping.
 
 Exit requires an exhaustive decode test, reset/default-off test, and a classic-mode
@@ -146,6 +152,9 @@ integration trace showing unchanged selected paths. Reserve non-overlapping stat
 document them beside the existing status map.
 
 ### P-1: cartridge SDRAM contract before CPR parsing
+
+**Status:** deterministic implementation and Quartus integration complete as a tied-off
+foundation. P0 owns the first production connection of the cartridge service.
 
 Before accepting `.cpr`, write and test one cartridge-memory ownership design. It must fix:
 
@@ -245,11 +254,13 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 
 ## 8. Immediate execution queue
 
-1. Push or otherwise run the CI build commit and establish the first remote
-   synthesis/fitter/timing baseline.
-2. Implement F2, F3, and F5 in that order, one tested commit each.
-3. In parallel only where files do not overlap, specify P-2's status-bit allocation and P-1's
-   cartridge SDRAM contract. Do not start the CPR parser until P-1 is accepted.
-4. Decide whether the F6 one-character approximation is acceptable; default to defer.
-5. Continue classic work through F4 -> F8 -> F9 -> F7. Start F10 only after its fixtures and
-   PDF re-check gate are ready.
+1. Test the synthesized current milestone on real MiSTer hardware using
+   `current-status.md`; record classic CPC and F2/F3/F5 results.
+2. Classic stream: add and review the F4 `t07`/`t08` vectors as a test-only checkpoint,
+   then implement equality/overflow without weakening the type-0 RLAL guards.
+3. Plus stream: implement P0 MMU, bounded CPR parsing, `/EXP`, and boot integration against
+   the accepted P-1 service/SDRAM contract. Do not combine this with Plus video work.
+4. Keep F6 deferred unless a half-character-capable interface is designed or the project
+   explicitly accepts the reversible one-character approximation.
+5. Continue classic work F4 -> F8 -> F9 -> F7. Start F10 only after its fixtures and PDF
+   re-check gate are ready.
