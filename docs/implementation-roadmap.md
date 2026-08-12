@@ -135,8 +135,11 @@ simulation conventions are stable; it does not depend on completing classic C1-C
 
 Add a separate OSD `Plus model` field with `Off`, `GX4000`, `6128+`, and `464+` values. Do
 not extend or reinterpret the existing classic CPC `Model` field. Decode the new value once
-into `plus_mode` and explicit model capabilities (RAM size, FDC, tape, cartridge reset page),
-then plumb those signals without changing behavior while `Plus model = Off`.
+into `plus_mode` and static model capabilities (RAM size, FDC, and tape), then plumb those
+signals without changing behavior while `Plus model = Off`. Cartridge reset-page selection
+is deliberately not a static capability: GX4000 fixes the high window to page 1, whereas the
+464+ and 6128+ select page 1 or page 3 from the external `/EXP` state. P-1/P0 must define and
+test that dynamic input before implementing reset mapping.
 
 Exit requires an exhaustive decode test, reset/default-off test, and a classic-mode
 integration trace showing unchanged selected paths. Reserve non-overlapping status bits and

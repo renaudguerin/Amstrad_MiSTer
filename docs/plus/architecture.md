@@ -84,18 +84,21 @@ consume it today, and delete no classic code).
 
 ## 3. Loading, boot, and model selection
 
-- **OSD**: extend the existing `Model` option (`P2O[5:4]`) or add a new one:
-  `GX4000 / 6128+ / 464+` selecting `plus_mode` + RAM size + FDC + tape presence per the
-  model table in the reference §12. Plus mode ignores the CRTC type toggle (ASIC = type 3).
+- **OSD**: add a separate `Plus model` option rather than extending the existing classic
+  `Model` field: `Off / GX4000 / 6128+ / 464+`, selecting `plus_mode` + RAM size + FDC +
+  tape presence per the model table in the reference §12. Plus mode ignores the CRTC type
+  toggle (ASIC = type 3).
 - **CPR loading**: new ioctl index for `.cpr`. RIFF parsing is trivial and sequential —
   do it in the `Amstrad.sv` ioctl stream handler (skip `RIFF`+`Ams!` header, read `cbNN`
   chunk headers, route ≤16KB payloads to SDRAM cartridge slots NN, zero-fill short chunks).
   512KB cartridge region in SDRAM (the current map has room; snapshot/tape/disk paths are
   independent).
 - **Boot**: no `boot.rom` in Plus mode. Reset vectors the Z80 to `&0000` with RMR2=0
-  (cart page 0 low), `&DFxx`=0 (page 1 high on GX4000; page 3 if FDC model — reference
-  §11). The system-cartridge firmware does the rest. Ship nothing: users provide a CPR
-  (GX4000 games are self-contained; 6128+ needs a system cartridge image).
+  (cart page 0 low). The high window starts on page 1 for GX4000; on 464+ and 6128+ the
+  external `/EXP` state dynamically selects page 1 or page 3 (reference §11). P-1 must
+  define how that input is supplied and sampled before P0 implements reset mapping. The
+  system-cartridge firmware does the rest. Ship nothing: users provide a CPR (GX4000 games
+  are self-contained; 6128+ needs a system cartridge image).
 - **ACID**: not emulated, per universal emulator practice (reference §11) — CPR pages load
   and run unconditionally.
 
