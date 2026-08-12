@@ -268,7 +268,7 @@ end
 reg vde, vde_r;
 reg VSYNC_r;
 wire vsync_count_tick = CLKEN &&
-	(field ? (hcc_next == {1'b0, R0_h_total[7:1]}) : line_new);
+	(field ? (!r0_frozen && (hcc_next == {1'b0, R0_h_total[7:1]})) : line_new);
 always @(posedge CLOCK) VSYNC <= VSYNC_r; // delay the same as HSYNC to not confuse the GA
 always @(posedge CLOCK) begin
 	reg  [3:0] vsc;

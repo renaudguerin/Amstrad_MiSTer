@@ -1136,6 +1136,75 @@ void test_r0_zero_freeze_survives_type_round_trip(TestBench& test) {
     test.expect_ra("round-trip recovery completes one widened line", 3);
 }
 
+void test_type0_interlace_r0_zero_freezes_vsync_count(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 15}, {1, 8}, {2, 10}, {3, 0x11}, {4, 0},
+        {5, 0},  {6, 1}, {7, 1},  {8, 3},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(7);
+    test.reset();
+
+    // Start a one-count VSYNC in field=0 at C0=3.  Its partial-line guard is
+    // consumed by the genuine C0=15->0 line tick, which also enters field=1.
+    // Thus C3h=0 while VSYNC remains active at C0=0 in the half-line field.
+    write_r7_zero_at_hcc(test, 3);
+    test.expect_vsync_high("interlaced VSYNC starts before the R0=0 freeze");
+    test.run_characters(12);
+    test.expect_vsync_high("interlaced VSYNC reaches the next line active");
+    test.expect_field_low("interlaced VSYNC remains in the half-line field");
+
+    // Land R0=0 at nCLKEN while C0 is already zero.  A frozen type-0 C0 must
+    // not masquerade as the field=1 half-line predicate on every CLKEN.
+    test.select_register(0);
+    test.write_selected_register_at_nclken(0);
+    test.run_characters(3);
+    test.expect_vsync_high(
+        "type 0 interlaced R0=0 freeze does not consume C3h character-wise");
+    test.expect_ra("type 0 interlaced R0=0 keeps the raster frozen", 1);
+
+    // Widening R0 restores the real half-line predicate.  With R0=7 it lands
+    // at C0=2->3: no earlier character may end VSYNC, and that count ends it.
+    test.write_selected_register_at_nclken(7);
+    test.run_characters(2);
+    test.expect_vsync_high("recovered interlaced VSYNC waits for R0/2");
+    test.run_characters(1);
+    test.expect_vsync_low("recovered interlaced VSYNC ends at R0/2");
+}
+
+void test_type0_r0_zero_c9_equal_single_c4_increment_deferred(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC 13.2.1's narrow deferred subcase: when C9 already equals R9 as
+    // type 0 enters R0=0, the previously armed decision increments C4 once
+    // on the second C0=0 occurrence, then freezes.  R7=1 makes that hidden
+    // C4 state observable after recovery: a correct C4=1 must not start
+    // VSYNC on the first widened line, whereas the current all-state freeze
+    // leaves C4=0 and produces a false C4 0->1 match.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 0}, {1, 0}, {2, 2}, {3, 0x11}, {4, 3},
+        {5, 0}, {6, 3}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(0);
+    test.reset();
+
+    test.run_characters(3);
+    test.expect_vsync_low("deferred C9=R9 subcase stays quiet while frozen");
+    test.write_selected_register_at_nclken(3);
+    test.run_clock_ticks(kClockTicksPerCharacter - kNClkEnPhase - 1);
+    test.run_clock_ticks(1);
+    test.run_characters(3);
+    test.run_clock_ticks(1);
+    test.expect_known_vsync_low(
+        "deferred C9=R9 entry increments C4 once before recovery");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1198,6 +1267,12 @@ int main(int argc, char** argv) {
         {"t09f_r0_zero_freeze_survives_type_round_trip",
          "UM6845R live CRTC_TYPE contract; F5/F11d", false,
          test_r0_zero_freeze_survives_type_round_trip},
+        {"t09g_type0_interlace_r0_zero_freezes_vsync_count",
+         "ACCC 1.9 sections 13.2.1 and 16.5; F3/F5 regression guard", false,
+         test_type0_interlace_r0_zero_freezes_vsync_count},
+        {"t09h_type0_r0_zero_c9_equal_single_c4_increment_deferred",
+         "ACCC 1.9 section 13.2.1; deferred F5 C0 state machine", true,
+         test_type0_r0_zero_c9_equal_single_c4_increment_deferred},
     };
 
     unsigned passed = 0;
