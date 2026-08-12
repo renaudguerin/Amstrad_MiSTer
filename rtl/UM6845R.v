@@ -74,6 +74,8 @@ reg [5:0] R12_start_addr_h;
 reg [7:0] R13_start_addr_l;
 reg [5:0] R14_cursor_h;
 reg [7:0] R15_cursor_l;
+reg       r6_border_condition;
+reg       status_bit5;
 
 reg [4:0] addr;
 always @(*) begin
@@ -92,7 +94,7 @@ always @(*) begin
 			endcase
 		end
 		else if(CRTC_TYPE) begin
-			DO = vde ? 8'h00 : 8'h20; // status for CRTC1
+			DO = {2'b00, status_bit5, 5'b00000}; // status for CRTC1
 		end
 	end
 end
@@ -320,6 +322,43 @@ always @(posedge CLOCK) begin
 		end else begin
 			if (row == DI[6:0] && !(row == 0 && line == 0)) vde_r <= 0;
 		end
+	end
+end
+
+// Type 1 status bit 5 is a line-sampled view of the sticky C4=R6 border
+// condition.  Keep that condition separate from vde: writing R6=0 while
+// C4>0 also forces vde low, but is not a C4=R6 match and must not set status.
+always @(posedge CLOCK) begin
+	if(~nRESET | SNA_LOAD) begin
+		r6_border_condition <= 0;
+		status_bit5 <= 0;
+	end
+	else if(CRTC_TYPE) begin
+		if(CLKEN && row_new) begin
+			// C4=C9=C0=0 is explicitly outside the R6-border condition,
+			// including the otherwise-equal R6=0 case at frame origin.
+			if(frame_new) r6_border_condition <= 0;
+			else if(row_next == R6_v_displayed) r6_border_condition <= 1;
+		end
+
+		if(nCLKEN & ENABLE & RS & ~nCS & ~R_nW & addr == 5'd06 &
+		   row == DI[6:0]) begin
+			r6_border_condition <= 1;
+		end
+
+		if(CLKEN && hcc_last) begin
+			// A row transition can assert or clear the condition on this same
+			// C0=R0 edge, so sample the resulting state rather than the old flop.
+			if(row_new && frame_new) status_bit5 <= 0;
+			else if(row_new && row_next == R6_v_displayed) status_bit5 <= 1;
+			else status_bit5 <= r6_border_condition;
+		end
+	end
+	else begin
+		// The type input is live.  Do not preserve hidden type-1 status when
+		// the model runs as type 0 and is later switched back to type 1.
+		r6_border_condition <= 0;
+		status_bit5 <= 0;
 	end
 end
 

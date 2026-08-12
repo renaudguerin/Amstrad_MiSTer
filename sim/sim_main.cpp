@@ -160,6 +160,20 @@ public:
         }
     }
 
+    void expect_high(const std::string& signal, std::uint8_t actual) const {
+        if (actual != 1) {
+            fail(signal + " high", static_cast<unsigned>(actual));
+        }
+    }
+
+    void expect_de_high(const std::string& expectation) const {
+        expect_high(expectation, dut_->DE);
+    }
+
+    void expect_de_low(const std::string& expectation) const {
+        expect_low(expectation, dut_->DE);
+    }
+
     void expect_reset_outputs() const {
         expect_low("HSYNC after reset", dut_->HSYNC);
         expect_low("VSYNC after reset", dut_->VSYNC);
@@ -314,13 +328,26 @@ void test_type1_status_r6_zero_forced_border(TestBench& test) {
 
     test.run_characters(32);  // Complete the initial frame and enable display.
     test.run_characters(10);  // Enter row 1, away from C0=R0.
+    test.expect_de_high("DE before R6=0 forced border");
     test.expect_byte("type 1 status in displayed row", 0x00, test.read_status());
 
     // ACCC 1.9 section 21.3.3: setting R6=0 while C4>0 forces border,
     // but that special case must not set the C4==R6 status condition.
     test.write_selected_register_at_nclken(0);
+    test.expect_de_low("DE after R6=0 forced border");
     test.expect_byte("type 1 status after R6=0 forced border at C4>0",
                      0x00, test.read_status());
+
+    test.run_characters(5);
+    test.expect_byte("type 1 status after sampling R6=0 forced border",
+                     0x00, test.read_status());
+
+    test.run_characters(15);
+    test.expect_byte("type 1 R6=0 status before frame origin", 0x00,
+                     test.read_status());
+    test.run_characters(1);
+    test.expect_byte("type 1 R6=0 status at frame origin", 0x00,
+                     test.read_status());
 }
 
 void test_type1_status_waits_for_r0_sample(TestBench& test) {
@@ -347,8 +374,84 @@ void test_type1_status_waits_for_r0_sample(TestBench& test) {
     test.expect_byte("type 1 status before the C0=R0 sample", 0x00,
                      test.read_status());
 
-    test.run_characters(5);
+    test.run_characters(4);
+    test.expect_byte("type 1 status one character before the C0=R0 sample",
+                     0x00, test.read_status());
+
+    test.run_characters(1);
     test.expect_byte("type 1 status after the C0=R0 sample", 0x20,
+                     test.read_status());
+}
+
+void test_type1_status_samples_natural_r6_edge(TestBench& test) {
+    test.set_crtc_type(1);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 3},
+        {5, 0}, {6, 2}, {7, 2}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    test.run_characters(32);  // Complete the initial frame and clear status.
+    test.expect_byte("type 1 status at the start of a displayed frame", 0x00,
+                     test.read_status());
+
+    test.run_characters(15);
+    test.expect_byte("type 1 status before entering the R6 row", 0x00,
+                     test.read_status());
+
+    test.run_characters(1);
+    test.expect_byte("type 1 status when the R6 row is sampled", 0x20,
+                     test.read_status());
+
+    test.run_characters(15);
+    test.expect_byte("type 1 high status before frame origin", 0x20,
+                     test.read_status());
+    test.run_characters(1);
+    test.expect_byte("type 1 high status clears at frame origin", 0x00,
+                     test.read_status());
+
+    test.run_characters(15);
+    test.expect_byte("type 1 status before the next R6 row", 0x00,
+                     test.read_status());
+    test.run_characters(1);
+    test.expect_byte("type 1 status set again before reset", 0x20,
+                     test.read_status());
+    test.reset();
+    test.expect_byte("type 1 high status clears on reset", 0x00,
+                     test.read_status());
+
+    test.set_crtc_type(0);
+    test.expect_byte("type 0 status remains unchanged", 0xff,
+                     test.read_status());
+}
+
+void test_type1_status_clears_on_type_round_trip(TestBench& test) {
+    test.set_crtc_type(1);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 3},
+        {5, 0}, {6, 2}, {7, 2}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    test.run_characters(48);
+    test.expect_byte("type 1 status before type round-trip", 0x20,
+                     test.read_status());
+
+    test.set_crtc_type(0);
+    test.run_characters(1);
+    test.expect_byte("type 0 status during type round-trip", 0xff,
+                     test.read_status());
+
+    test.set_crtc_type(1);
+    test.expect_byte("type 1 status after type round-trip", 0x00,
                      test.read_status());
 }
 
@@ -363,9 +466,13 @@ int main(int argc, char** argv) {
         {"t01_register_readback", "ACCC 1.9 sections 21.2 and 28.1.9; F1/F11c/F11d",
          false, test_register_readback_table},
         {"t06a_status_waits_for_r0_sample", "ACCC 1.9 section 21.3.3; F2",
-         true, test_type1_status_waits_for_r0_sample},
+         false, test_type1_status_waits_for_r0_sample},
         {"t06b_status_r6_zero_forced_border", "ACCC 1.9 section 21.3.3; F2",
-         true, test_type1_status_r6_zero_forced_border},
+         false, test_type1_status_r6_zero_forced_border},
+        {"t06c_status_samples_natural_r6_edge", "ACCC 1.9 section 21.3.3; F2",
+         false, test_type1_status_samples_natural_r6_edge},
+        {"t06d_status_clears_on_type_round_trip", "ACCC 1.9 section 21.3.3; F2",
+         false, test_type1_status_clears_on_type_round_trip},
     };
 
     unsigned passed = 0;
