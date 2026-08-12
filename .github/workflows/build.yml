@@ -31,6 +31,10 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          # Quartus executes repository-controlled Tcl. Do not leave a GitHub token
+          # in .git/config when the checkout is mounted into the build container.
+          persist-credentials: false
 
       - name: Compile Amstrad core
         shell: bash
