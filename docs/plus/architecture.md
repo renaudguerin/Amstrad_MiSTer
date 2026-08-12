@@ -101,21 +101,30 @@ consume it today, and delete no classic code).
 
 ## 4. Phasing (each phase = usable milestone, separately testable)
 
+Two integration gates precede P0. **P-2** adds a separate `Plus model` OSD field (`Off`,
+`GX4000`, `6128+`, `464+`) and derives model capabilities without changing the existing CPC
+`Model` field. **P-1** fixes and tests cartridge SDRAM ownership: one 512KB region, one
+page/offset address conversion, and explicit arbitration between ioctl loader writes and CPU
+reads. CPR parsing must not begin until that contract is accepted. See
+`../implementation-roadmap.md` for their deterministic exits.
+
 | Phase | Content | Exit test |
 |---|---|---|
-| **P0 cartridge boots** | plus_mmu + CPR loader + OSD model + boot flow; video still via classic CRTC+GA as a stopgap; unlock FSM present but ASIC page not yet backed | GX4000 firmware/game reaches its first screen (most carts show *something* before touching sprites) |
-| **P1 ASIC page + palette** | asic_regs (page RAM, unlock-gated RMR2), palette RAM both ports (page writes + legacy PENR/INKR translation table), 4-bit RGB path end-to-end | Titles with static Plus palettes show correct colours (Burnin' Rubber title) |
-| **P2 interrupts** | PRI, IVR + vector supply, DCSR bit 7, MRER bit-4 clear, +32-line bit-5 rule; decide A13 bug = **not** emulated (document) | Raster-split games stable (Pang, RoboCop 2 use PRI heavily) |
-| **P3 sprites** | sprite RAM, attributes, compare-and-composite engine, priority, magnification, access-blanking side effect | Sprite-based games (Switchblade, Copter 271, Klax) |
-| **P4 CRTC-3 semantics** | replace stopgap CRTC in plus path with asic_video's own CRTC3: mod-8 reads, R12/R13 readable, both sync widths, VSYNC C0=C9=0 gate, +1µs alignment, IN-performs-write trap, open-bus reads | CRTC3 detection tests; SHAKER on CRTC3 setting |
-| **P5 split & scroll** | SPLT/SSA capture at HCC=R1 (stored-MA model), SSCR H-delay/V-offset/border-mask | Plus demos & games using hardware scroll (Fluff intro screens etc.) |
-| **P6 DMA sound** | asic_dma, PSG arbitration waits, PAUSE/REPEAT/LOOP semantics incl. undocumented &3xxx note | DMA-music titles/demos; DCSR polling tests |
-| **P7 polish** | Plus-PPI quirks (port B input, port C latches — mod to `i8255` under plus_mode), ADC paddle stubs (wire defaults `3F 3F 3F 3F 3F 00 3F 00`), GX4000 `&DF=7→page 1` quirk, greyscale weights | compatibility sweep |
+| **P0 cartridge boots** | `plus_mmu` + CPR loader connected to the already-tested cartridge memory service + boot/reset state; video still via classic CRTC+GA as a temporary stopgap; unlock FSM present but ASIC page not yet backed | Parser vectors cover chunk order, short-page zero fill, bounds, and malformed input; GX4000 firmware/game reaches its first screen |
+| **P1 CRTC-3 timing foundation** | `asic_video` CRTC3 counters, MA/RA, DE, both sync widths, VSYNC C0=C9=0 gate, +1µs alignment, basic locked-ASIC pixel path, and the CPU/WAIT timing contract needed by later raster consumers; exact register readback quirks may remain pending | Cycle assertions for counter rollover, sync/DE/MA/RA timing, classic-palette pixel output, and stable CPU/SDRAM handshake; locked-ASIC title reaches the same boot point as P0 |
+| **P2 ASIC page + palette** | `asic_regs` page decoder, unlock-gated RMR2, sprite/attribute backing RAM, palette RAM both ports, legacy PENR/INKR translation, and 4-bit RGB path; implement `8'hFF`-neutral wired-AND participation, explicit open-bus responses, per-register read/write masks, and no write-through to underlying RAM | Exhaustive page decode/read/write/mirror/mask/open-bus tests; static Plus palettes display correctly (Burnin' Rubber title) |
+| **P3 interrupts** | PRI driven from P1's CRTC3 counters, IVR + vector supply, DCSR bit 7, MRER bit-4 clear, +32-line bit-5 rule; A13 bug remains deliberately not emulated unless evidence changes the decision | Exact-cycle PRI/vector/DCSR assertions; raster-split games stable (Pang, RoboCop 2) |
+| **P4 sprites** | sprite compare/compositor driven from P1's counters, priority, magnification, and access-blanking side effect | Per-pixel overlap/priority/magnification/blanking assertions; Switchblade, Copter 271, and Klax sprite smoke tests |
+| **P5 CRTC-3 bus semantics** | modulo-8 reads, R12/R13 readable, status groups, unmapped/open-bus reads, and IN-performs-write traps on CRTC/GA ports; timing remains owned by P1 | CRTC3 detection and bus-trap tests; SHAKER on its CRTC3 setting |
+| **P6 split & scroll** | SPLT/SSA capture at HCC=R1 using P1's stored-MA model; SSCR H-delay/V-offset/border-mask | Exact capture/offset assertions; Plus demos and games using hardware scroll (Fluff intro screens etc.) |
+| **P7 DMA sound** | `asic_dma`, SDRAM fetch slots, PSG arbitration waits, PAUSE/REPEAT/LOOP semantics including the undocumented &3xxx note | DMA instruction/DCSR/WAIT tests; DMA-music titles/demos |
+| **P8 polish** | Plus-PPI quirks (port B input, port C latches — mod to `i8255` under `plus_mode`), ADC paddle stubs (wire defaults `3F 3F 3F 3F 3F 00 3F 00`), GX4000 `&DF=7->page 1` quirk, greyscale weights | Model-by-model compatibility sweep plus classic-mode regression |
 
-Ordering rationale: P0-P2 make *many* GX4000 games playable-ish before any sprite exists
-(several titles degrade gracefully); sprites (P3) before CRTC-3 exactness (P4) because
-visible progress beats invisible correctness for motivation, and nothing in P3 depends on
-P4. P5 needs P4's stored-MA model, hence after.
+P1 deliberately precedes PRI and sprites: those units consume CRTC counters and edge timing,
+so implementing them against the classic stopgap would create a second timing contract to
+remove later. P5 separates exact CRTC3 readback/I/O quirks from that foundation because they
+do not feed PRI or sprite positioning. P6 still follows the stored-MA model established by
+P1.
 
 ## 5. Risks / open design questions (decide before P0/P1 coding)
 
@@ -157,10 +166,27 @@ P4. P5 needs P4's stored-MA model, hence after.
 ## 7. Deliverable-sized work packages (for implementation agents)
 
 Each phase above decomposes into prompts the way `docs/accuracy/audit-findings.md` does.
-Write them at phase start, not all upfront (the P0 experience will recalibrate P1+ scoping).
-P0's package list, ready to be turned into prompts:
+Write later-phase prompts at phase start, after the preceding interface has been measured.
+The pre-P0 and P0 packages are:
 
-- P0.1 `plus_mmu.v` + motherboard mux + `plus_mode` plumbing from OSD (no ASIC page yet)
-- P0.2 CPR ioctl parser in `Amstrad.sv` + SDRAM cart region + boot/reset state
+- P-2.1 reserve a non-overlapping status range for a separate `Plus model` field; decode it
+  once into `plus_mode` and explicit model capabilities; test all values and default-off
+  classic invariance
+- P-2.2 plumb the model capabilities through the top and motherboard without selecting new
+  hardware yet
+- P-1.1 document and assert the cartridge SDRAM region, page/offset address function, bounds,
+  loader/CPU ownership, arbitration priority, request/acknowledge contract, and reset/loading
+  behavior
+- P-1.2 implement the cartridge memory service against that contract and unit-test
+  interleaved page-0/page-31 loader writes and CPU reads; do not parse CPR yet
+- P0.1 `plus_mmu.v` + motherboard memory mux and cartridge page/reset mapping
+- P0.2 CPR ioctl parser in `Amstrad.sv`, using only P-1's memory-service interface, with RIFF
+  and chunk validation plus short-page zero fill
 - P0.3 unlock FSM in `asic_regs.v` (state machine only, gates nothing yet, +testbench)
-- P0.4 Verilator bench scaffolding for the plus modules (clone of CRTC harness)
+- P0.4 Plus bench scaffolding and the P0 boot integration test
+
+For every package, add each new synthesizable source to `files.qip` in the same commit that
+first instantiates it, and add it to the simulation file list. The package is incomplete if
+Verilator passes but Quartus cannot discover the module. Keep decoder/open-bus/write-mask
+tests with P2 and CRTC counter/timing tests with P1; do not defer those contracts to the
+title-level smoke tests.
