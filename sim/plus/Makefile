@@ -13,6 +13,12 @@ MODEL_OBJ_DIR  := obj_dir/plus_model_select
 MODEL_TEST_SRC := $(abspath plus_model_select_test.cpp)
 MODEL_TEST_BIN := $(MODEL_OBJ_DIR)/plus_model_select_tests
 
+DAN_BOUNDS_TOP      := dandanator_loader_bounds
+DAN_BOUNDS_RTL      := $(abspath ../../rtl/dandanator/dandanator_loader_bounds.v)
+DAN_BOUNDS_OBJ_DIR  := obj_dir/dandanator_loader_bounds
+DAN_BOUNDS_TEST_SRC := $(abspath dandanator_loader_bounds_test.cpp)
+DAN_BOUNDS_TEST_BIN := $(DAN_BOUNDS_OBJ_DIR)/dandanator_loader_bounds_tests
+
 MEMORY_TOP        := plus_cartridge_memory
 MEMORY_RTL        := $(abspath ../../rtl/plus/plus_cartridge_memory.v)
 MEMORY_OBJ_DIR    := obj_dir/plus_cartridge_memory
@@ -30,7 +36,7 @@ SDRAM_OBJ_DIR  := obj_dir/sdram_cartridge
 SDRAM_TEST_SRC := $(abspath sdram_cartridge_test.cpp)
 SDRAM_TEST_BIN := $(SDRAM_OBJ_DIR)/sdram_cartridge_tests
 
-TEST_BINS := $(ASIC_TEST_BIN) $(MODEL_TEST_BIN) $(MEMORY_TEST_BIN) \
+TEST_BINS := $(ASIC_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
@@ -45,6 +51,7 @@ build: $(TEST_BINS)
 test: $(TEST_BINS)
 	./$(ASIC_TEST_BIN)
 	./$(MODEL_TEST_BIN)
+	./$(DAN_BOUNDS_TEST_BIN)
 	./$(MEMORY_TEST_BIN)
 	./$(MEMORY_MIN_TEST_BIN)
 	./$(SDRAM_TEST_BIN)
@@ -58,6 +65,11 @@ $(MODEL_TEST_BIN): $(MODEL_RTL) $(MODEL_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(MODEL_TOP) \
 		--Mdir $(MODEL_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(MODEL_TEST_BIN)) $(MODEL_RTL) $(MODEL_TEST_SRC)
+
+$(DAN_BOUNDS_TEST_BIN): $(DAN_BOUNDS_RTL) $(DAN_BOUNDS_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(DAN_BOUNDS_TOP) \
+		--Mdir $(DAN_BOUNDS_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(DAN_BOUNDS_TEST_BIN)) $(DAN_BOUNDS_RTL) $(DAN_BOUNDS_TEST_SRC)
 
 $(MEMORY_TEST_BIN): $(MEMORY_RTL) $(MEMORY_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(MEMORY_TOP) \
@@ -85,6 +97,8 @@ lint:
 		--top-module $(ASIC_TOP) -Wall $(ASIC_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(MODEL_TOP) -Wall $(MODEL_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(DAN_BOUNDS_TOP) -Wall $(DAN_BOUNDS_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(MEMORY_TOP) -Wall $(MEMORY_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
