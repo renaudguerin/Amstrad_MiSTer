@@ -264,10 +264,13 @@ end
 // vertical output
 reg vde, vde_r;
 reg VSYNC_r;
+wire vsync_count_tick = CLKEN &&
+	(field ? (hcc_next == {1'b0, R0_h_total[7:1]}) : line_new);
 always @(posedge CLOCK) VSYNC <= VSYNC_r; // delay the same as HSYNC to not confuse the GA
 always @(posedge CLOCK) begin
 	reg  [3:0] vsc;
 	reg        vsync_allow;
+	reg        type0_vsync_wait_line_start;
 
 	if(~nRESET) begin
 		vsc    <= 0;
@@ -275,6 +278,7 @@ always @(posedge CLOCK) begin
 		vde_r  <= 0;
 		VSYNC_r<= 0;
 		vsync_allow <= 1;
+		type0_vsync_wait_line_start <= 0;
 	end
 	else if (CLKEN) begin
 		if (!CRTC_TYPE && row == 0 && line == 0 && R6_v_displayed == 0) begin
@@ -287,11 +291,16 @@ always @(posedge CLOCK) begin
 			if(frame_new)                  begin vde <= 1; vde_r <= 1; end
 			if(row_next == R6_v_displayed) begin vde <= 0; vde_r <= 0; end
 		end
-		if(field ? (hcc_next == {1'b0, R0_h_total[7:1]}) : line_new) begin
-			if(vsc) vsc <= vsc - 1'd1;
+		if(vsync_count_tick) begin
+			// A type 0 VSYNC started by an R7=C4 write after C0=1
+			// does not count its partial first line.  Preserve C3h at the
+			// first following type-specific count tick.
+			if(!CRTC_TYPE && type0_vsync_wait_line_start)
+				type0_vsync_wait_line_start <= 0;
+			else if(vsc) vsc <= vsc - 1'd1;
 			else if (vsync_allow & (field ? (row == R7_v_sync_pos && !line) : (row_next == R7_v_sync_pos && line_last))) begin
 				VSYNC_r <= 1;
-				// Don't allow a new vsync until a new row (Onescreen Colonies) or the R7 is written (PHX)
+				// Don't allow a new VSYNC until C4=R7 has become false and true again.
 				vsync_allow <= 0;
 				vsc <= (CRTC_TYPE ? 4'd0 : R3_v_sync_width) - 1'd1;
 			end
@@ -306,13 +315,29 @@ always @(posedge CLOCK) begin
 	end
 
 	if (ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07) begin
-		vsync_allow <= 1;
-		if (row == DI[6:0] && !VSYNC_r) begin
-			// TODO: extra conditions for CRTC0
-			VSYNC_r <= 1;
-			vsc <= (CRTC_TYPE ? 4'd0 : R3_v_sync_width) - 1'd1;
+		if(row != DI[6:0]) begin
+			// A false comparison re-arms the next genuine C4=R7 match.  It
+			// does not alter a VSYNC already in progress.
+			vsync_allow <= 1;
+		end
+		else begin
+			// An equal comparison is consumed even when type 0 blocks the
+			// pulse at C0=0/1.  Qualifying with the old allow state also makes
+			// a bus write held for several clocks one comparison, not many.
+			vsync_allow <= 0;
+			if(!VSYNC_r && vsync_allow && (CRTC_TYPE || hcc > 1)) begin
+				VSYNC_r <= 1;
+				vsc <= (CRTC_TYPE ? 4'd0 : R3_v_sync_width) - 1'd1;
+				type0_vsync_wait_line_start <= !CRTC_TYPE && !vsync_count_tick;
+			end else if(!VSYNC_r) begin
+				type0_vsync_wait_line_start <= 0;
+			end
 		end
 	end
+
+	// The type input is live and snapshots do not restore this derived latch.
+	// Never carry a pending type 0 partial-line state through either boundary.
+	if(CRTC_TYPE || SNA_LOAD) type0_vsync_wait_line_start <= 0;
 	if (nCLKEN & ENABLE & RS & ~nCS & ~R_nW & addr == 5'd06) begin
 		if (CRTC_TYPE) begin
 			if (row == DI[6:0]) vde_r <= 0;
