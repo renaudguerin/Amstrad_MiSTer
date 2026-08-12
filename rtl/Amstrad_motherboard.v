@@ -22,6 +22,13 @@ module Amstrad_motherboard
 	input         clk,
 	input         ce_16,
 
+	// Reserved capability inputs for staged Amstrad Plus integration.
+	// They intentionally do not affect the classic CPC implementation yet.
+	input         plus_mode,
+	input         plus_ram_128k,
+	input         plus_has_fdc,
+	input         plus_has_tape,
+
 	input   [6:0] joy1,
 	input   [6:0] joy2,
 	input         right_shift_mod,
