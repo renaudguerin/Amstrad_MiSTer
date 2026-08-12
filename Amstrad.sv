@@ -227,7 +227,16 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 wire        rom_download = ioctl_download && ((ioctl_index[4:0] < 4) || (ioctl_index == 7));
 wire        tape_download = ioctl_download && (ioctl_index == 4);
 wire        dan_download = ioctl_download && (ioctl_index == 5);
+wire        dan_write_accepted;
 wire        sna_download = ioctl_download && (ioctl_index == 6);
+
+dandanator_loader_bounds dandanator_loader_bounds
+(
+	.dan_download(dan_download),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_addr(ioctl_addr),
+	.write_accepted(dan_write_accepted)
+);
 wire [24:0] sna_mem_addr = ioctl_addr - 25'h100;
 wire [15:0] sna_std_mem_size = (sna_mem_size > 16'd128) ? 16'd128 : sna_mem_size;
 wire [24:0] sna_chunk_start = 25'h100 + {sna_std_mem_size[14:0], 10'd0};
@@ -317,7 +326,7 @@ always @(posedge clk_sys) begin
 			sna_rle_state <= 2'd0;
 		end
 	end
-	else if((rom_download | dan_download | sna_mem_wr)  & ioctl_wr) begin
+	else if((rom_download && ioctl_wr) || dan_write_accepted || sna_mem_wr) begin
 		romdl_wait <= 1;
 		boot_dout <= ioctl_dout;
 
@@ -328,7 +337,7 @@ always @(posedge clk_sys) begin
 			boot_a[22:14] <= 9'd8 + {6'd0, sna_mem_addr[16:14]};
 			boot_a[13:0] <= sna_mem_addr[13:0];
 		end
-		else if (dan_download) begin
+		else if (dan_write_accepted) begin
 			boot_bank <= 2'b11;
 			boot_a[22:14] <= ioctl_addr[22:14];
 		end 
