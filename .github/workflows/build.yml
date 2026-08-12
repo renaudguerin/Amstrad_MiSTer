@@ -21,7 +21,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  simulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Verilator
+        run: sudo apt-get update && sudo apt-get install --yes verilator
+
+      - name: Run behavioral tests and lint
+        run: make -C sim clean test lint
+
   synthesis:
+    needs: simulation
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:

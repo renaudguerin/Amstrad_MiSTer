@@ -45,6 +45,8 @@ The checked-in workflow is `.github/workflows/build.yml`. It:
 
 - runs for non-documentation pushes on every branch, non-documentation pull
   requests targeting `master`, and manual `workflow_dispatch` runs;
+- installs Verilator on an Ubuntu runner and runs the aggregate CRTC/Plus
+  behavioral tests and lint before allowing synthesis to start;
 - runs checkout and artifact actions on `ubuntu-latest`, then compiles
   `Amstrad.qpf` by invoking the Quartus container with `docker run`;
 - pins the `raetro/quartus` image digest currently corresponding to Quartus
