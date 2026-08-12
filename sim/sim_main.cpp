@@ -226,6 +226,14 @@ public:
         expect_high(expectation, dut_->VSYNC);
     }
 
+    void expect_hsync_low(const std::string& expectation) const {
+        expect_low(expectation, dut_->HSYNC);
+    }
+
+    void expect_hsync_high(const std::string& expectation) const {
+        expect_high(expectation, dut_->HSYNC);
+    }
+
     void expect_field_low(const std::string& expectation) const {
         expect_low(expectation, dut_->FIELD);
     }
@@ -242,6 +250,24 @@ public:
             known_divergence(expectation + " high",
                              static_cast<unsigned>(dut_->VSYNC));
         }
+    }
+
+    void expect_known_hsync_low(const std::string& expectation) const {
+        if (dut_->HSYNC != 0) {
+            known_divergence(expectation + " low",
+                             static_cast<unsigned>(dut_->HSYNC));
+        }
+    }
+
+    void expect_known_hsync_high(const std::string& expectation) const {
+        if (dut_->HSYNC != 1) {
+            known_divergence(expectation + " high",
+                             static_cast<unsigned>(dut_->HSYNC));
+        }
+    }
+
+    void expect_ra(const std::string& expectation, std::uint8_t expected) const {
+        expect_byte(expectation, expected, dut_->RA);
     }
 
     void expect_de_high(const std::string& expectation) const {
@@ -841,6 +867,169 @@ void test_type1_status_clears_on_type_round_trip(TestBench& test) {
                      test.read_status());
 }
 
+void configure_f5_r0_zero_fixture(TestBench& test,
+                                  unsigned type,
+                                  std::uint8_t horizontal_sync_position) {
+    test.set_crtc_type(type);
+
+    // R9 is deliberately nonzero: type 0 must freeze C9/RA at zero while
+    // R0=0, whereas type 1 must continue through one-character lines.  R2 is
+    // varied independently to exercise the pin-level HSYNC consequence.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 0}, {1, 0}, {2, horizontal_sync_position}, {3, 0x11}, {4, 3},
+        {5, 0}, {6, 3}, {7, 2},                       {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(0);
+    test.reset();
+    test.expect_reset_outputs();
+}
+
+void test_type0_r0_zero_suppresses_nonzero_r2_hsync(TestBench& test) {
+    constexpr unsigned horizontal_sync_position = 4;
+    constexpr unsigned observation_characters = 260;
+    constexpr unsigned known_first_pulse_tick =
+        (horizontal_sync_position - 1) * kClockTicksPerCharacter + 1;
+
+    configure_f5_r0_zero_fixture(test, 0, horizontal_sync_position);
+    test.expect_ra("type 0 R0=0 initial raster counter", 0);
+
+    // ACCC 1.9 section 13.2.1: C0 remains pinned at zero, so it can never
+    // reach a nonzero R2.  Sample every raw CLOCK tick, not merely character
+    // boundaries, so a sub-character HSYNC pulse cannot escape the vector.
+    for (unsigned tick = 0;
+         tick < observation_characters * kClockTicksPerCharacter;
+         ++tick) {
+        test.run_clock_ticks(1);
+        if ((tick + 1) % kClockTicksPerCharacter == 0) {
+            test.expect_ra("type 0 R0=0 keeps C9/RA frozen", 0);
+        }
+        if (tick == known_first_pulse_tick) {
+            test.expect_known_hsync_low(
+                "type 0 R0=0 first spurious R2 pulse edge");
+        } else {
+            test.expect_hsync_low("type 0 R0=0 cannot reach nonzero R2");
+        }
+    }
+}
+
+void test_type0_r0_zero_allows_r2_zero_hsync(TestBench& test) {
+    configure_f5_r0_zero_fixture(test, 0, 0);
+
+    // ACCC 1.9 section 15.3: type 0 does not restart HSYNC on the second
+    // C0=R2=0 occurrence.  Its stopped C3l then permits a restart on the
+    // third occurrence.  Sample every raw CLOCK tick so the brief low window
+    // cannot be hidden by character-boundary observations.
+    for (unsigned tick = 0; tick < kClockTicksPerCharacter; ++tick) {
+        test.run_clock_ticks(1);
+        test.expect_hsync_high(
+            "type 0 first R2=0 occurrence keeps HSYNC high");
+        test.expect_ra("type 0 R2=0 first occurrence keeps C9/RA frozen", 0);
+    }
+
+    test.run_clock_ticks(1);
+    test.expect_hsync_high(
+        "type 0 second R2=0 occurrence does not restart HSYNC");
+    test.expect_ra("type 0 R2=0 second occurrence keeps C9/RA frozen", 0);
+    for (unsigned tick = 1; tick < kClockTicksPerCharacter; ++tick) {
+        test.run_clock_ticks(1);
+        test.expect_hsync_low(
+            "type 0 HSYNC stays off after the second R2=0 occurrence");
+        test.expect_ra("type 0 R2=0 second occurrence keeps C9/RA frozen", 0);
+    }
+
+    test.run_clock_ticks(1);
+    test.expect_hsync_low(
+        "type 0 third R2=0 occurrence first clears stopped C3l");
+    test.expect_ra("type 0 R2=0 third occurrence keeps C9/RA frozen", 0);
+    for (unsigned tick = 1; tick < kClockTicksPerCharacter; ++tick) {
+        test.run_clock_ticks(1);
+        if (tick == 1) {
+            test.expect_known_hsync_high(
+                "type 0 third R2=0 occurrence restarts HSYNC");
+        } else {
+            test.expect_hsync_high(
+                "type 0 third R2=0 occurrence keeps HSYNC high");
+        }
+        test.expect_ra("type 0 R2=0 third occurrence keeps C9/RA frozen", 0);
+    }
+}
+
+void test_type0_r0_zero_resumes_after_nclken_write(TestBench& test) {
+    constexpr unsigned horizontal_sync_position = 2;
+    configure_f5_r0_zero_fixture(test, 0, horizontal_sync_position);
+
+    // Prove the recovered, in-range R2 has not been reached while R0=0.  The
+    // first released CLKEN is included; HSYNC must remain low through nCLKEN.
+    for (unsigned tick = 0; tick < kNClkEnPhase; ++tick) {
+        test.expect_hsync_low("type 0 R0=0 keeps recovered R2 out of range");
+        test.run_clock_ticks(1);
+        test.expect_ra("type 0 raster counter during R0=0 stall", 0);
+    }
+
+    // nCLKEN is tick 8, opposite CLKEN at tick 0.  Landing R0=3 there makes
+    // the new total stable before the next character edge.
+    test.write_selected_register_at_nclken(3);
+    test.expect_ra("type 0 raster counter at R0 recovery write", 0);
+    test.expect_hsync_low("type 0 HSYNC remains low at the recovery write");
+
+    // The first post-write CLKEN resumes frozen C0 as 1, not 2.  Keep the
+    // known divergence at the single raw edge where the current RTL exposes
+    // its premature C0 advance; all surrounding timing remains exact.
+    test.run_clock_ticks(kClockTicksPerCharacter - kNClkEnPhase - 1);
+    test.expect_hsync_low("type 0 recovery remains below R2 before CLKEN");
+    test.run_clock_ticks(1);
+    test.expect_hsync_low("type 0 recovery advances C0 from zero to one");
+    test.run_clock_ticks(1);
+    test.expect_known_hsync_low(
+        "type 0 recovery does not assert HSYNC before C0=R2");
+
+    // On the second post-write CLKEN C0 reaches R2=2.  HSYNC registers on
+    // the following raw CLOCK edge.
+    test.run_clock_ticks(kClockTicksPerCharacter - 2);
+    test.expect_hsync_low("type 0 recovery remains below R2 until CLKEN");
+    test.run_clock_ticks(1);
+    test.expect_hsync_low("type 0 recovery reaches R2 before HSYNC registers");
+    test.run_clock_ticks(1);
+    test.expect_hsync_high("type 0 recovery asserts HSYNC exactly at C0=R2");
+
+    // From C0=R2, two further CLKENs reach C0=R0 and then wrap to zero.
+    test.run_clock_ticks(2 * kClockTicksPerCharacter - 2);
+    test.expect_ra("type 0 recovery before the first widened line end", 0);
+    test.run_clock_ticks(1);
+    test.expect_ra("type 0 recovery advances C9/RA after one R0=3 line", 1);
+}
+
+void test_type1_r0_zero_keeps_one_character_lines(TestBench& test) {
+    configure_f5_r0_zero_fixture(test, 1, 4);
+
+    // Type 1 has no R0=0 freeze: tick 0 completes each one-character line,
+    // while C0=0 still cannot reach the nonzero R2 value.  Sample every raw
+    // CLOCK tick so a sub-character HSYNC pulse cannot escape the guard.
+    for (std::uint8_t raster = 1; raster <= 4; ++raster) {
+        for (unsigned tick = 0; tick < kClockTicksPerCharacter; ++tick) {
+            test.run_clock_ticks(1);
+            test.expect_hsync_low("type 1 R0=0 cannot reach nonzero R2");
+            if (tick == kClkEnPhase) {
+                test.expect_ra(
+                    "type 1 R0=0 advances C9/RA at each CLKEN", raster);
+            }
+        }
+    }
+
+    // The helper reaches nCLKEN by first executing the documented tick-0
+    // CLKEN, completing one last R0=0 line (RA 4->5).  R0=3 is then stable
+    // before subsequent CLKENs and produces a four-character line.
+    test.write_selected_register_at_nclken(3);
+    test.expect_ra("type 1 final one-character line before R0 widening", 5);
+    test.run_characters(3);
+    test.expect_ra("type 1 widened line before C0 reaches R0", 5);
+    test.run_characters(1);
+    test.expect_ra("type 1 widened line advances C9/RA at C0=R0", 6);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -885,6 +1074,18 @@ int main(int argc, char** argv) {
          false, test_type1_status_samples_natural_r6_edge},
         {"t06d_status_clears_on_type_round_trip", "ACCC 1.9 section 21.3.3; F2",
          false, test_type1_status_clears_on_type_round_trip},
+        {"t09a_type0_r0_zero_suppresses_nonzero_r2_hsync",
+         "ACCC 1.9 section 13.2.1; F5", true,
+        test_type0_r0_zero_suppresses_nonzero_r2_hsync},
+        {"t09b_type0_r0_zero_allows_r2_zero_hsync",
+         "ACCC 1.9 sections 13.2.1 and 15.3; F5", true,
+        test_type0_r0_zero_allows_r2_zero_hsync},
+        {"t09c_type0_r0_zero_resumes_after_nclken_write",
+         "ACCC 1.9 section 13.2.1; F5", true,
+         test_type0_r0_zero_resumes_after_nclken_write},
+        {"t09d_type1_r0_zero_keeps_one_character_lines",
+         "ACCC 1.9 section 13.3; F5 regression guard", false,
+         test_type1_r0_zero_keeps_one_character_lines},
     };
 
     unsigned passed = 0;
