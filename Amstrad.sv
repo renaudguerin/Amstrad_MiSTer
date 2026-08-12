@@ -92,6 +92,7 @@ localparam CONF_STR = {
 	"P2-;",
 	"P2oAC,Distributor,Amstrad,Orion,Schneider,Awa,Solavox,Saisho,Triumph,Isp;",
 	"P2O[5:4],Model,CPC 6128,CPC 664,CPC 464;",
+	"P2O[34:33],Plus model,Off,GX4000,6128+,464+;",
 	"P2OV,Tape progressbar,Off,On;",
 
 	"-;",
@@ -207,7 +208,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 
 	.buttons(buttons),
 	.status(status),
-	.status_in({status[31:21],~status[20],status[19:0]}),
+	.status_in({64'd0,status[63:33],1'b0,status[31:21],~status[20],status[19:0]}),
 	.status_set(Fn[1]),
 	.status_menumask({en270p,1'b0}),
 
@@ -961,11 +962,33 @@ wire io_wr = wr & iorq;
 wire romen;
 wire ready;
 
+wire [1:0] plus_model = status[34:33];
+wire       plus_mode;
+wire       plus_ram_128k;
+wire       plus_has_fdc;
+wire       plus_has_tape;
+
+plus_model_select plus_model_decoder
+(
+	.plus_model(plus_model),
+	.plus_mode(plus_mode),
+	.ram_128k(plus_ram_128k),
+	.has_fdc(plus_has_fdc),
+	.has_tape(plus_has_tape)
+);
+
 Amstrad_motherboard motherboard
 (
 	.reset(reset),
 	.clk(clk_sys),
 	.ce_16(ce_16),
+
+	// Reserved until the Plus subsystems are integrated. Keeping these
+	// explicit prevents the classic CPC model path from changing at P-2.
+	.plus_mode(plus_mode),
+	.plus_ram_128k(plus_ram_128k),
+	.plus_has_fdc(plus_has_fdc),
+	.plus_has_tape(plus_has_tape),
 
 	.right_shift_mod(st_right_shift_mod),
 	.keypad_mod(st_keypad_mod),
