@@ -23,7 +23,7 @@ for a public repo, and there's a proven example from another MiSTer core dev
 (`srg320/Saturn_MiSTer`) using the `raetro/quartus:17.0` Docker image on a
 plain `ubuntu-latest` runner. You already have this repo on GitHub. This is
 the least-effort, least-risk path for a first build, and it's reusable for
-every future change — push, wait ~15-30 min, download the `.rbf` artifact.
+every future change: push, wait for synthesis, then download the artifact.
 
 **Fallback / for iteration speed: UTM VM (Debian arm64 + Rosetta 2) on the
 Mac itself.** Counter-intuitively, this **beats Docker and beats a Windows
@@ -41,62 +41,53 @@ distant third option, listed below only for completeness.
 
 ## 2. Option A — GitHub Actions (recommended)
 
-Add `.github/workflows/build.yml` to this repo:
+The checked-in workflow is `.github/workflows/build.yml`. It:
 
-```yaml
-name: Build core
-on:
-  push:
-    branches: [master]
-    paths-ignore: ['**.md']
-  workflow_dispatch: {}
+- runs for non-documentation pushes on every branch, non-documentation pull
+  requests targeting `master`, and manual `workflow_dispatch` runs;
+- runs checkout and artifact actions on `ubuntu-latest`, then compiles
+  `Amstrad.qpf` by invoking the Quartus container with `docker run`;
+- pins the `raetro/quartus` image digest currently corresponding to Quartus
+  17.0.2.602, rather than trusting its mutable `17.0` tag;
+- cancels an older run for the same workflow and Git ref when a replacement is
+  queued;
+- requires the generated RBF, fitter summary, and TimeQuest report after a
+  successful Quartus invocation, so a missing timing report cannot be silently
+  accepted; and
+- uploads the available reports even when synthesis fails, plus a successful
+  bitstream named `Amstrad_YYYYMMDD_<7-character-SHA>.rbf`. Dates are UTC.
 
-jobs:
-  synthesis:
-    runs-on: ubuntu-latest
-    container: raetro/quartus:17.0
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Compile
-        run: quartus_sh --flow compile Amstrad.qpf
-
-      - name: Tag and collect artifacts
-        run: |
-          mkdir -p release
-          ver=$(date +'%Y%m%d')
-          cp output_files/Amstrad.rbf release/Amstrad_${ver}.rbf
-          cp output_files/Amstrad.fit.summary release/Amstrad_${ver}.fit.summary.txt
-          cp output_files/Amstrad.sta.rpt release/Amstrad_${ver}.timing.rpt || true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Amstrad-rbf
-          path: release/
-```
+The uploaded artifact is named
+`Amstrad-build-<run-number>-<run-attempt>`, is retained for 14 days, and uses
+`actions/upload-artifact@v4`. The workflow grants only read access to repository
+contents.
 
 Notes:
 - `raetro/quartus:17.0` is amd64-only (verified via Docker Hub manifest), but
   GitHub's `ubuntu-latest` runners are amd64, so no emulation involved at
   all — full native speed on GitHub's hardware.
+- The image is based on Debian Stretch. The workflow deliberately runs
+  `actions/checkout@v4` and `actions/upload-artifact@v4` on the Ubuntu host,
+  outside that old userspace; current JavaScript actions require a newer glibc
+  than Stretch provides.
 - Image is ~6GB, last pushed 2022 but still actively pulled (confirmed via
   Docker Hub API) and is exactly what `srg320/Saturn_MiSTer` uses in
   production today for another MiSTer core.
 - This repo's own project file is `Amstrad.qpf` (not `Amstrad_Q13.qpf`) —
-  the workflow above targets the right one.
-- Free-tier GitHub Actions gives 2000 min/month on private repos, unlimited
-  on public repos. A Cyclone V core this size should compile in well under
-  an hour; community reports for similarly-sized MiSTer cores run
-  20-40 minutes on CI. If it's public, cost is $0 either way.
-- Push, then watch the run: `gh run watch` or the Actions tab. Download the
-  artifact with `gh run download` or via the web UI.
+  the checked-in workflow targets the right one.
+- Actual duration and billing depend on the repository's current GitHub plan,
+  visibility, runner availability, and the synthesis result. The workflow has a
+  90-minute timeout; this is a safety limit, not an estimated build duration.
+- Push, then watch the run with `gh run watch` or in the Actions tab. Download
+  the artifact with `gh run download` or via the web UI.
 
 ```bash
 git add .github/workflows/build.yml
 git commit -m "Add CI build workflow"
 git push
 gh run watch   # or: open the Actions tab in the browser
-gh run download --name Amstrad-rbf --dir /tmp/amstrad-build
+gh run download --name "Amstrad-build-<run-number>-<run-attempt>" \
+  --dir /tmp/amstrad-build
 ```
 
 ## 3. Option B — Local VM (Debian arm64 + Rosetta 2 via UTM)
@@ -143,7 +134,7 @@ cd /Users/renaudg/code/Amstrad_MiSTer
 
 Requires ~24GB Docker-allocated disk and ~7GB RAM at compile time (raise
 Docker Desktop's resource limits accordingly). Output lands in
-`Amstrad_MiSTer/output/Amstrad.rbf`. This is a real, working path — it's
+`Amstrad_MiSTer/output_files/Amstrad.rbf`. This is a real, working path — it's
 just the slowest of the three based on the M2 benchmark cited in Option B's
 source (8m10s Docker vs 6m43s Rosetta-VM vs 10m03s bare Windows Server for a
 comparable Cyclone V project). Use it only if you don't want to touch UTM

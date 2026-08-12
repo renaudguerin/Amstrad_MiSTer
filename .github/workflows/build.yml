@@ -1,0 +1,77 @@
+name: Build core
+
+on:
+  push:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthesis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      # Quartus 17.0.2.602 for amd64. Keep the digest deliberate: the tag is mutable.
+      QUARTUS_IMAGE: raetro/quartus@sha256:55442b161163dc7723e3d4917ce046fcb682478365fe9320756c9a4ae7d7d4ce
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Compile Amstrad core
+        shell: bash
+        run: |
+          mkdir -p artifacts/reports
+          set -o pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/build" \
+            --workdir /build \
+            "$QUARTUS_IMAGE" \
+            quartus_sh --flow compile Amstrad.qpf \
+            2>&1 | tee artifacts/reports/quartus-build.log
+
+      - name: Collect synthesis reports
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/reports
+          if [[ -d output_files ]]; then
+            find output_files -maxdepth 1 -type f \
+              \( -name '*.rpt' -o -name '*.summary' -o -name '*.log' \
+                 -o -name '*.smsg' -o -name '*.done' \) \
+              -exec cp '{}' artifacts/reports/ \;
+          fi
+
+      - name: Package bitstream
+        shell: bash
+        run: |
+          test -s output_files/Amstrad.rbf
+          test -s output_files/Amstrad.fit.summary
+          test -s output_files/Amstrad.sta.rpt
+          build_date="$(date -u +'%Y%m%d')"
+          short_sha="${GITHUB_SHA:0:7}"
+          cp output_files/Amstrad.rbf \
+            "artifacts/Amstrad_${build_date}_${short_sha}.rbf"
+
+      - name: Upload bitstream and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Amstrad-build-${{ github.run_number }}-${{ github.run_attempt }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
