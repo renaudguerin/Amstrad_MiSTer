@@ -1,0 +1,115 @@
+---
+- name: Validate the UTM Quartus build VM
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Read the Rosetta binfmt registration
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/update-binfmts
+          - --display
+          - rosetta
+      register: rosetta_binfmt
+      changed_when: false
+
+    - name: Assert Rosetta is registered and enabled
+      ansible.builtin.assert:
+        that:
+          - "'enabled' in rosetta_binfmt.stdout"
+          - "rosetta_mountpoint + '/rosetta' in rosetta_binfmt.stdout"
+
+    - name: Read the persisted Rosetta definition
+      ansible.builtin.slurp:
+        path: /var/lib/binfmts/rosetta
+      register: rosetta_definition
+
+    - name: Require the exact Rosetta interpreter, magic, mask, and flags
+      ansible.builtin.assert:
+        that:
+          - >-
+            rosetta_definition.content | b64decode ==
+            rosetta_binfmt_definition_expected
+        fail_msg: >-
+          /var/lib/binfmts/rosetta differs from the managed definition. Re-run
+          site.yml before validating.
+
+    - name: Read the active kernel Rosetta registration
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/cat
+          - /proc/sys/fs/binfmt_misc/rosetta
+      register: rosetta_kernel_definition
+      changed_when: false
+
+    - name: Require active credentials, preserve-argv0, and fix-binary flags
+      ansible.builtin.assert:
+        that:
+          - "('interpreter ' + rosetta_mountpoint + '/rosetta') in rosetta_kernel_definition.stdout"
+          - "rosetta_kernel_definition.stdout is regex('(?ms).*^flags: [A-Z]*C[A-Z]*$.*')"
+          - "rosetta_kernel_definition.stdout is regex('(?ms).*^flags: [A-Z]*P[A-Z]*$.*')"
+          - "rosetta_kernel_definition.stdout is regex('(?ms).*^flags: [A-Z]*F[A-Z]*$.*')"
+        fail_msg: >-
+          The active kernel registration lacks the managed interpreter or the
+          C/P/F flags. Registration follows:
+          {{ rosetta_kernel_definition.stdout }}
+
+    - name: Inspect the amd64 probe executable
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/file
+          - /usr/bin/hello
+      register: amd64_probe_file
+      changed_when: false
+
+    - name: Execute an amd64 program through Rosetta
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/hello
+      register: amd64_probe
+      changed_when: false
+
+    - name: Assert the Rosetta probe really is x86_64 and ran successfully
+      ansible.builtin.assert:
+        that:
+          - "'x86-64' in amd64_probe_file.stdout"
+          - "'Hello, world!' in amd64_probe.stdout"
+        fail_msg: >-
+          The amd64 probe did not execute through Rosetta.
+          file={{ amd64_probe_file.stdout }} output={{ amd64_probe.stdout }}
+
+    - name: Check for Quartus after the manual installer handoff
+      ansible.builtin.stat:
+        path: "{{ quartus_rootdir }}/bin/quartus_sh"
+      register: quartus_sh
+
+    - name: Query the installed Quartus version as the non-root build user
+      ansible.builtin.command:
+        argv:
+          - "{{ quartus_rootdir }}/bin/quartus_sh"
+          - --version
+      become_user: "{{ quartus_user }}"
+      environment:
+        QUARTUS_ROOTDIR: "{{ quartus_rootdir }}"
+        QUARTUS_CPUID_BYPASS: "1"
+        PATH: "{{ quartus_rootdir }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      register: quartus_version
+      changed_when: false
+      when: quartus_sh.stat.exists
+
+    - name: Require Quartus 17.0.2 when Quartus is installed
+      ansible.builtin.assert:
+        that:
+          - "'Version 17.0.2' in quartus_version.stdout"
+        fail_msg: >-
+          Quartus runs, but this core requires 17.0.2. Reported version:
+          {{ quartus_version.stdout }}
+      when: quartus_sh.stat.exists
+
+    - name: Report Quartus state
+      ansible.builtin.debug:
+        msg: >-
+          {{ quartus_version.stdout
+             if quartus_sh.stat.exists
+             else 'Quartus is not installed yet; complete the manual installer handoff in ansible/README.md.' }}

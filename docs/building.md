@@ -100,8 +100,12 @@ Rosetta 2 translates x86_64 instructions directly rather than emulating a
 whole different CPU, and Quartus's actual CPU-bound synthesis work benefits
 from that more than from virtualization overhead.
 
+The checked-in [`ansible/`](../ansible/README.md) playbooks provision and
+validate the project's Debian 13 UTM guest. Use that recipe for the current VM;
+the outline below remains useful when creating a replacement VM from scratch.
+
 1. Install UTM (`brew install --cask utm`).
-2. Create a VM: Apple Virtualization Framework backend, Debian 12 arm64
+2. Create a VM: Apple Virtualization Framework backend, Debian 13 arm64
    netinstall ISO, **enable Rosetta** in the VM's sharing settings (UTM
    exposes this as a checkbox on Virtualize-type VMs).
 3. Inside the Debian VM: install `binfmt-support`, mount the Rosetta share

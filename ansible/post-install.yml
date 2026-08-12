@@ -1,0 +1,135 @@
+---
+- name: Adapt an installed Quartus 17.0.2 for Rosetta
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    quartus_qenv: "{{ quartus_rootdir }}/adm/qenv.sh"
+    quartus_sse_marker: >-
+      # We don't support processors without SSE extensions (e.g. Pentium II and older CPUs).
+    quartus_bitness_marker: "##### Determine what bitness executables we should use"
+
+  tasks:
+    - name: Inspect the installed Quartus environment script
+      ansible.builtin.stat:
+        path: "{{ quartus_qenv }}"
+      register: quartus_qenv_stat
+
+    - name: Require the manual Quartus installation first
+      ansible.builtin.assert:
+        that:
+          - quartus_qenv_stat.stat.exists
+          - quartus_qenv_stat.stat.isreg
+        fail_msg: >-
+          {{ quartus_qenv }} is missing. Complete the manual Intel installer
+          handoff in ansible/README.md before running post-install.yml.
+
+    - name: Count Quartus's SSE marker
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/grep
+          - -c
+          - -F
+          - "{{ quartus_sse_marker }}"
+          - "{{ quartus_qenv }}"
+      register: quartus_qenv_sse_marker
+      changed_when: false
+      failed_when: quartus_qenv_sse_marker.rc not in [0, 1]
+
+    - name: Count Quartus's bitness marker
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/grep
+          - -c
+          - -F
+          - "{{ quartus_bitness_marker }}"
+          - "{{ quartus_qenv }}"
+      register: quartus_qenv_bitness_marker
+      changed_when: false
+      failed_when: quartus_qenv_bitness_marker.rc not in [0, 1]
+
+    - name: Assert the known Quartus 17 qenv layout before patching
+      ansible.builtin.assert:
+        that:
+          - quartus_qenv_sse_marker.stdout | int == 1
+          - quartus_qenv_bitness_marker.stdout | int == 1
+        fail_msg: >-
+          Refusing to patch an unrecognized qenv.sh layout. Expected exactly
+          one SSE marker and one bitness marker; found
+          SSE={{ quartus_qenv_sse_marker.stdout | default('0') }},
+          bitness={{ quartus_qenv_bitness_marker.stdout | default('0') }}.
+
+    - name: Back up the vendor qenv script once
+      ansible.builtin.copy:
+        src: "{{ quartus_qenv }}"
+        dest: "{{ quartus_qenv }}.pre-rosetta"
+        remote_src: true
+        force: false
+        owner: "{{ quartus_qenv_stat.stat.pw_name }}"
+        group: "{{ quartus_qenv_stat.stat.gr_name }}"
+        mode: preserve
+
+    - name: Force Quartus's 64-bit tools when the guest reports aarch64
+      ansible.builtin.blockinfile:
+        path: "{{ quartus_qenv }}"
+        insertbefore: "{{ quartus_sse_marker | regex_escape }}"
+        marker: "# {mark} ANSIBLE MANAGED ROSETTA BITNESS"
+        block: |
+          if test "$(uname -m)" = "aarch64"; then
+              export QUARTUS_BIT_TYPE=64
+              export QUARTUS_CPUID_BYPASS=1
+          fi
+
+    - name: Disable the incompatible host SSE probe under Rosetta
+      ansible.builtin.replace:
+        path: "{{ quartus_qenv }}"
+        after: "{{ quartus_sse_marker | regex_escape }}"
+        before: "{{ quartus_bitness_marker | regex_escape }}"
+        regexp: '^([^#\n].*)$'
+        replace: '# \1'
+
+    - name: Check the patched shell script syntax
+      ansible.builtin.command:
+        argv:
+          - /bin/bash
+          - -n
+          - "{{ quartus_qenv }}"
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Query Quartus through the patched environment as the build user
+      ansible.builtin.command:
+        argv:
+          - "{{ quartus_rootdir }}/bin/quartus_sh"
+          - --version
+      become_user: "{{ quartus_user }}"
+      environment:
+        QUARTUS_ROOTDIR: "{{ quartus_rootdir }}"
+        QUARTUS_CPUID_BYPASS: "1"
+        PATH: "{{ quartus_rootdir }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      register: quartus_version
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Require the intended Quartus update level
+      ansible.builtin.assert:
+        that:
+          - "'Version 17.0.2' in quartus_version.stdout"
+        fail_msg: >-
+          Quartus runs, but this core requires 17.0.2. Reported version:
+          {{ quartus_version.stdout }}
+      when: not ansible_check_mode
+
+    - name: Report the working Quartus version
+      ansible.builtin.debug:
+        var: quartus_version.stdout
+      when: not ansible_check_mode
+
+    - name: Explain post-install check-mode validation
+      ansible.builtin.debug:
+        msg: >-
+          Check mode previews the qenv.sh edits but cannot execute the patched
+          result because no change was written. A real post-install.yml run
+          performs the shell syntax and Quartus 17.0.2 checks.
+      when: ansible_check_mode
