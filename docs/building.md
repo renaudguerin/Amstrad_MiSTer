@@ -71,8 +71,9 @@ Notes:
   outside that old userspace; current JavaScript actions require a newer glibc
   than Stretch provides.
 - Image is ~6GB, last pushed 2022 but still actively pulled (confirmed via
-  Docker Hub API) and is exactly what `srg320/Saturn_MiSTer` uses in
-  production today for another MiSTer core.
+  Docker Hub API), and another MiSTer core (`srg320/Saturn_MiSTer`) has
+  workflows configured to use it. This repository's first live run is the
+  reliability and runner-disk-space canary.
 - This repo's own project file is `Amstrad.qpf` (not `Amstrad_Q13.qpf`) —
   the checked-in workflow targets the right one.
 - Actual duration and billing depend on the repository's current GitHub plan,
