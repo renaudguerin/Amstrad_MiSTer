@@ -84,3 +84,10 @@ CPC6128 model has 64KB+512KB RAM. Upper 448KB are visible in special OS ROM or a
 * Visibility can be restored via machine reset (original MF 2+).
 * For loading a saved game, MF2 must be visible.
 * ROM version is 8D.
+
+## Technical references
+
+Technical information for the CRTC accuracy work is sourced from the "Amstrad CPC CRTC
+Compendium" by Longshot (CC BY-NC-ND). The documentation baseline is ACCC v1.10; see the
+[v1.9-to-v1.10 comparison](docs/accuracy/accc-1.10-differences.md) for the changed rules and
+their implementation impact.

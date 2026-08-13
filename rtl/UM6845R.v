@@ -83,7 +83,7 @@ always @(*) begin
 	if (ENABLE & ~nCS) begin
 		if (RS) begin
 			case (addr)
-				// R10/R11 are not readable on CRTC types 0/1, only on 3/4 (ACCC v1.9 §21.2);
+				// R10/R11 are not readable on CRTC types 0/1, only on 3/4 (ACCC v1.10 §21.2);
 				// they remain writable and still drive the CURSOR output.
 				12: DO = CRTC_TYPE ? 8'h00 : R12_start_addr_h;
 				13: DO = CRTC_TYPE ? 8'h00 : R13_start_addr_l;
@@ -148,6 +148,22 @@ wire [4:0] interlace = &R8_interlace[1:0];
 
 reg        in_adj;
 
+// Technical information sourced from the "Amstrad CPC CRTC Compendium" by
+// Longshot (CC BY-NC-ND). ACCC v1.10 section 11.2.2 specifies that an R4
+// write on a type-0 last line from C0=2 through C0=R0 switches the line-end
+// comparison from C9/R9 to C9/R5 before the next line is calculated.
+reg        type0_r4_adjust_switch;
+reg        type0_r9_live_compare;
+reg        type0_r9_at_r0_pending;
+wire       register_write = ENABLE & ~nCS & ~R_nW & RS;
+wire       type0_r4_window_write;
+wire       type0_r4_switch_write;
+wire       type0_r4_switch_clear_write;
+wire       type0_r9_compare_write;
+wire       type0_r4_switch_active = (type0_r4_adjust_switch | type0_r4_switch_write) &
+									~type0_r4_switch_clear_write;
+wire       type0_r9_compare_active = type0_r9_live_compare | type0_r9_compare_write;
+
 reg  [7:0] hcc;
 wire       hcc_last  = hcc == R0_h_total;
 wire [7:0] hcc_next  = hcc_last ? 8'h00 : hcc + 1'd1;
@@ -159,7 +175,19 @@ reg  [4:0] line;
 wire [4:0] line_max  = (in_adj ? (|R5_v_total_adj ? R5_v_total_adj-1'd1 : 5'd0) : R9_v_max_line) & ~interlace;
 reg        line_last_r;
 wire       line_last = (line == line_max) || !line_max;
-wire [4:0] line_next = ((CRTC_TYPE ? line_last : line_last_r) ? 5'd0 : line + 1'd1 + interlace) & ~interlace;
+wire [4:0] type0_adjust_line_max = (|R5_v_total_adj ? R5_v_total_adj-1'd1 : 5'd0) & ~interlace;
+wire       type0_r9_at_r0_write;
+wire       type0_r9_at_r0_active = type0_r9_at_r0_pending | type0_r9_at_r0_write;
+wire       type0_rollover_line_last = type0_r9_at_r0_active ?
+									 (line == type0_adjust_line_max) :
+								 type0_r4_switch_active ?
+									 (line == type0_adjust_line_max) :
+								 type0_r9_compare_active ? (line == (R9_v_max_line & ~interlace)) :
+									 line_last_r;
+wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
+									 type0_rollover_line_last;
+wire [4:0] line_next = ((CRTC_TYPE ? line_last : type0_rollover_line_last) ?
+						 5'd0 : line + 1'd1 + interlace) & ~interlace;
 wire       line_new  = hcc_last && !r0_frozen;
 
 reg  [6:0] row;
@@ -167,13 +195,45 @@ reg        row_last_r;
 wire       row_last  = (row == R4_v_total) || (!CRTC_TYPE && !R4_v_total);
 wire       row_frame_last = ((CRTC_TYPE ? row_last : row_last_r) | in_adj) & ~frame_adj;
 wire [6:0] row_next  = row_frame_last ? 7'd0 : row + 1'd1;
-wire       row_new   = line_new & (CRTC_TYPE ? line_last : line_last_r);
+wire       row_new   = line_new & (CRTC_TYPE ? line_last : type0_rollover_row_last);
 
 reg        frame_adj_r;
-wire       frame_adj_CRTC0 = (hcc == 2) ? frame_adj_r & |R5_v_total_adj : frame_adj_r;
+wire       type0_r5_write = !CRTC_TYPE && register_write && addr == 5'd05;
+wire [4:0] type0_effective_r5 = type0_r5_write ? DI[4:0] : R5_v_total_adj;
+wire       type0_adjustment_selected = (hcc == 2) ?
+									 frame_adj_r & |type0_effective_r5 : frame_adj_r;
+assign type0_r4_window_write = !CRTC_TYPE && register_write && addr == 5'd04 &&
+								  hcc >= 2 && hcc <= R0_h_total &&
+								  type0_adjustment_selected && !in_adj;
+assign type0_r4_switch_write = type0_r4_window_write && DI[6:0] != row;
+assign type0_r4_switch_clear_write = type0_r4_window_write && DI[6:0] == row;
+assign type0_r9_compare_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
+								  hcc >= 2 && hcc < R0_h_total &&
+								  type0_adjustment_selected && !in_adj;
+assign type0_r9_at_r0_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
+								 hcc_last && hcc >= 2 && type0_adjustment_selected && !in_adj;
+wire       frame_adj_CRTC0 = type0_adjustment_selected;
 wire       frame_adj_CRTC1 = row_last && ~in_adj && R5_v_total_adj;
 wire       frame_adj = CRTC_TYPE ? frame_adj_CRTC1 : frame_adj_CRTC0;
 wire       frame_new = row_new & row_frame_last;
+
+// Register writes are clocked at the 16 MHz bus rate, not only on CLKEN.
+// Retain the selected comparator for the rest of the current character line.
+always @(posedge CLOCK) begin
+	if(~nRESET | SNA_LOAD | CRTC_TYPE) begin
+		type0_r4_adjust_switch <= 0;
+		type0_r9_live_compare <= 0;
+		type0_r9_at_r0_pending <= 0;
+	end
+	else begin
+		if(type0_r4_window_write) type0_r4_adjust_switch <= DI[6:0] != row;
+		else if(CLKEN && line_new) type0_r4_adjust_switch <= 0;
+		if(type0_r9_compare_write) type0_r9_live_compare <= 1;
+		else if(CLKEN && line_new) type0_r9_live_compare <= 0;
+		if(type0_r9_at_r0_write) type0_r9_at_r0_pending <= 1;
+		else if(CLKEN && line_new) type0_r9_at_r0_pending <= 0;
+	end
+end
 
 // counters
 reg  field;
@@ -195,7 +255,9 @@ always @(posedge CLOCK) begin
 		end
 		// CRTC0 always schedule the adjustment run at HCC=0,
 		// then at HCC=2 it decides that it really has to run
-		if(hcc == 2) frame_adj_r <= frame_adj_r & |R5_v_total_adj;
+		if(hcc == 2) frame_adj_r <= frame_adj_r & |type0_effective_r5;
+		if(line_new && !CRTC_TYPE && (type0_r4_switch_active | type0_r9_compare_active))
+			in_adj <= 1;
 
 		if(row_new) begin
 			row <= row_next;

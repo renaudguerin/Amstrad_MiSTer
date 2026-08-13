@@ -1,6 +1,8 @@
-# CRTC Sync Rules — R3, R2, R7, Interrupts (Compendium Chapters 14–16, 27)
+# ACCC v1.10 Digest 02 — CRTC Sync Rules (R3, R2, R7, Interrupts; Chapters 14–16, 27)
 
-Source: "The Amstrad CPC CRTC Compendium" v1.9 (Logon System), pages 127–171, 279–287.
+Source: ["The Amstrad CPC CRTC Compendium" v1.10](../ACCC1.10-EN.pdf#page=130), pages 130–174,
+283–291. See the [v1.9-to-v1.10 comparison report](accc-1.10-differences.md).
+Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot (CC BY-NC-ND).
 Scope: **CRTC type 0 (HD6845S/UM6845) and type 1 (UM6845R) only.** Type 2/3/4 contrasts are marked
 `[Tn diff]`, one line, informational only. Counter names: **C0** = horizontal char counter, **C0vs**
 = C0 as seen internally by CRTC for sync-condition tests, **C0 disp/C0ga** = C0 as seen by Gate
@@ -11,15 +13,15 @@ for C-SYNC generation (not CRTC registers).
 
 ---
 
-## 1. R3 register layout (§14.1, p.127)
+## 1. R3 register layout (§14.1, p.130)
 
 - R3l (bits 0–3) = HSYNC width in char clocks (µs, 1 char = 1 µs @ 1MHz CRTC clock). R3h (bits 4–7)
   = VSYNC height in lines, meaningful on CRTC 0 only (`[T3/4 diff]` also on 3/4). CRTC 1 ignores R3h
   entirely — always 16-line VSYNC.
 - C3l starts at 0 the instant C0vs reaches R2; HSYNC is asserted until C3l reaches R3l.
-- ⚠ VERIFY p.127 — bit-layout comparison table extracted as noise; rule above is prose-confirmed.
+- ⚠ VERIFY p.130 — bit-layout comparison table extracted as noise; rule above is prose-confirmed.
 
-## 2. VSYNC length via R3h (§14.2, p.128)
+## 2. VSYNC length via R3h (§14.2, p.131)
 
 - R3h=0 → 16 lines (legacy compat); R3h=1..15 → exactly that many lines. Applies to CRTC 0 (`[T3/4
   diff]` also 3/4). CRTC 1/2 always 16 lines regardless of R3h.
@@ -37,7 +39,7 @@ for C-SYNC generation (not CRTC registers).
   HSYNCs keep arriving (confirmed again §16.1–16.2). `[T3/4 diff]` those types need the CRTC VSYNC
   pin to stay active through the 2nd post-VSYNC HSYNC for the ASIC to emit C-VSYNC at all.
 
-## 3. HSYNC: Gate Array vs CRTC (§14.3, p.129–131)
+## 3. HSYNC: Gate Array vs CRTC (§14.3, p.132–134)
 
 - GA processing of a CRTC HSYNC pulse: (1) ~2 µs black border; (2) **C-HSYNC** monitor pulse, max
   **4 µs**; (3) if R3l>6, black again for the remainder until CRTC's HSYNC actually ends.
@@ -45,20 +47,20 @@ for C-SYNC generation (not CRTC registers).
   the stop condition when **R3l ≥ 6**), or CRTC signaling HSYNC-end (stop condition when **R3l <
   6**, giving a *shorter*, less-precisely-timed pulse, ±1–2 pixel-M2 jitter by CRTC type).
 - **R3l=6 is the exact threshold**: C-HSYNC = exactly 4.0000 µs, JIT/NJIT converge, most precise.
-- Measured C-HSYNC durations (NJIT/JIT µs) — ⚠ VERIFY p.130 (digit-wrap corruption; trust the prose
+- Measured C-HSYNC durations (NJIT/JIT µs) — ⚠ VERIFY p.133 (digit-wrap corruption; trust the prose
   rule below over these numbers): CRTC0 R3l=4→2.0625/2.125, R3l=5→3.0625/3.125, R3l=6→4.0000; CRTC1
   R3l=4→2.125/2.1875, R3l=5→3.125/3.1875, R3l=6→4.0000.
 - **Prose-confirmed rule of thumb**: R3l 4→5 gives exactly **1.0 µs** difference regardless of CRTC
   type/tolerance — preferred pair for exact pixel-scroll positioning over 5→6 (uneven ~0.875µs delta,
   imprecise since R3l=5 is below the R3l=6 threshold).
-- Fine horizontal positioning via R2/R3l (CRTC0/1, prose p.130, exact):
+- Fine horizontal positioning via R2/R3l (CRTC0/1, prose p.133, exact):
   - R2 += 1 → shift **left** 16 px-M2 (1 char). R2 -= 1 → shift **right** 16 px-M2.
   - R3l += 1 (only if new value < 6) → shift **left** 8 px-M2. R3l -= 1 (only if new value > 2) →
     shift **right** 8 px-M2. Combine both for arbitrary sub-char C-HSYNC positioning.
 - GA is only "almost master" of C-HSYNC: VSYNC-CRTC's sole role for GA is arming `VSYNC_GA=true`
   (§16.2.3); all subsequent GA timing is driven by HSYNC-end events, never by VSYNC pin level.
 
-## 4. Updating R3 during HSYNC (§14.4, p.131–137)
+## 4. Updating R3 during HSYNC (§14.4, p.134–140)
 
 - **General rule (all types)**: R3l rewritten to a value **less than current C3l** → C3l must
   **overflow its full nibble (wrap 15→0)** before reaching the new (smaller) target; HSYNC does
@@ -73,23 +75,23 @@ for C-SYNC generation (not CRTC registers).
     (rather than the usual "delay end by 0.25µs" JIT behavior).
   - Note 1: rewriting R3=0 via OUTI (non-JIT-precise) instead **prevents HSYNC from starting** next
     cycle (same as static R3=0, §5) — does not cut an in-progress one.
-  - Exact JIT end offsets (prose p.135): CRTC0 — HSYNC starts 5th px-M2, lasts 4 px-M2 (R3=0
+  - Exact JIT end offsets (prose p.138): CRTC0 — HSYNC starts 5th px-M2, lasts 4 px-M2 (R3=0
     JIT'd); CRTC1 — starts 6th px-M2, lasts 3 px-M2. Note 2: in NJIT/OUTI mode, CRTC1's HSYNC ends
     1 px-M2 later than CRTC0/2.
-  - ⚠ VERIFY pp.136–137 — R3.JIT pixel-M2 diagrams (CRTC0/1/2) extracted as unusable repeating pixel
+  - ⚠ VERIFY pp.139–140 — R3.JIT pixel-M2 diagrams (CRTC0/1/2) extracted as unusable repeating pixel
     index rows; trust prose offsets above only.
   - `[T3/4 diff]` explicit "NO R3.JIT ON CRTC 4" subsection title confirms the negative.
-- ⚠ VERIFY pp.132–134 — per-type dynamic-rewrite diagrams (CRTC0/2, CRTC1, CRTC3/4) extracted as
+- ⚠ VERIFY pp.135–137 — per-type dynamic-rewrite diagrams (CRTC0/2, CRTC1, CRTC3/4) extracted as
   disconnected C0/C3 number sequences with no reliable register binding; only the prose overflow/
   wrap and CRTC-1-zero-exception rules above should be trusted.
 
-## 5. Absence of HSYNC (§14.5, p.138)
+## 5. Absence of HSYNC (§14.5, p.141)
 
 - **R3l=0 static**: CRTC 0 and 1 → **no HSYNC at all** when C0=R2 (⇒ no interrupt trigger, since
   interrupts derive from HSYNC-end, §27). `[T2/3/4 diff]` those types instead get a 16 µs HSYNC
   (full nibble wrap) unless dynamically interrupted.
 
-## 6. HSYNC start-up — R2 latch timing (§14.6, p.138–139)
+## 6. HSYNC start-up — R2 latch timing (§14.6, p.141–142)
 
 - Static: HSYNC when C0==R2, R3l chars wide. R2 write latches during the **3rd µs of OUT(C),reg8**.
 - **Display-stop position differs by pre-programmed vs JIT vs OUTI** (all relative to start of
@@ -107,23 +109,23 @@ for C-SYNC generation (not CRTC registers).
   - `[T3/4 diff]` test is against C0vs but HSYNC deferred to align with GA's display of that char;
     R2.JIT via OUT(C),r8 does NOT delay the visible black zone here (already deferred by design).
 
-## 7. HSYNC and interrupts (§14.7, p.139)
+## 7. HSYNC and interrupts (§14.7, p.142)
 
 - Dynamic HSYNC-width changes shift exactly when the post-HSYNC interrupt trigger fires (interrupt
   = "GA triggers just after HSYNC end") — full rules in §23–27 (chapter 27) below.
 
-## 8. HSYNC schematics — VSYNC-end/HSYNC-end interaction (§14.8, p.140–141)
+## 8. HSYNC schematics — VSYNC-end/HSYNC-end interaction (§14.8, p.143–144)
 
 - At VSYNC end (end of 26th GA-tracked HSYNC, §14): CRTC0/1 → black stops **1 px-M2 after** HSYNC
   end. `[T2/3/4 diff]` CRTC2/3/4 → black stops **at the same instant**.
-- ⚠ VERIFY p.141 — per-CRTC pixel-M2 tables (R2-JIT/NJIT × OUT(C),r8/OUTI × GA model 40007/8 vs
+- ⚠ VERIFY p.144 — per-CRTC pixel-M2 tables (R2-JIT/NJIT × OUT(C),r8/OUTI × GA model 40007/8 vs
   40010) extracted as unusable pixel-index noise. Aggregate totals survived cleanly and are usable
   as sanity checks: CRTC0 NJIT=32 M2px (2µs), JIT=28 M2px (1.75µs); CRTC1 NJIT=32 M2px (2µs),
   JIT=29 M2px (1.8125µs); CRTC2 NJIT=33 M2px (2.0625µs), JIT=29 M2px (1.8125µs).
 
 ---
 
-## 9. R2 general (§15.1, p.142–143)
+## 9. R2 general (§15.1, p.145–146)
 
 - HSYNC-CRTC activates when **C0vs reaches R2**; width fixed by R3l.
 - **CRTC-vs-GA distinction (critical)**: GA processes HSYNC faster than it displays chars — on
@@ -143,7 +145,7 @@ for C-SYNC generation (not CRTC registers).
 - **Re-entrancy lockout (all types)**: while HSYNC-CRTC active, the C0==R2 test is disabled — a new
   HSYNC cannot start while one is in progress (mirrors R52/interrupt lockout, §27).
 
-## 10. Updating R2 during HSYNC (§15.3, p.145–148)
+## 10. Updating R2 during HSYNC (§15.3, p.148–151)
 
 - **General (all types)**: R2 rewrite during active HSYNC is ignored for starting a *new* HSYNC if
   doing so would restart HSYNC within the current one — avoids lock-up when R0 < R3 lets C0 revisit
@@ -169,11 +171,11 @@ for C-SYNC generation (not CRTC registers).
   - `[T2 diff]` **CRTC2**: no such margin — GA sees one continuous unbroken black run instead of two
     pulses. **Real, testable CRTC1-vs-CRTC2 divergence** worth asserting if the Verilog model
     distinguishes types.
-- ⚠ VERIFY pp.146–147 — per-value (R2 rewritten 17..22, R3 fixed=10) diagrams for CRTC0/CRTC1&2
+- ⚠ VERIFY pp.149–150 — per-value (R2 rewritten 17..22, R3 fixed=10) diagrams for CRTC0/CRTC1&2
   extracted as disconnected C0/C3 rows without per-scenario separation; prose rules above are the
   reliable takeaway.
 
-## 11. VSYNC consideration during HSYNC (§15.4, p.149–152)
+## 11. VSYNC consideration during HSYNC (§15.4, p.152–155)
 
 - **CRTC0/1**: C4==R7 VSYNC condition is evaluated on **any C0 value** while it holds true —
   whether reached by natural C4 increment or by rewriting R7 to match current C4 mid-scanline
@@ -181,33 +183,33 @@ for C-SYNC generation (not CRTC registers).
   on the increment edge** (rewriting R7 to an already-equal C4 does not retrigger).
 - **No HSYNC/VSYNC pin conflict for CRTC0/1** (unlike CRTC2, below) — VSYNC pin can assert normally
   even mid-HSYNC.
-- ⚠ VERIFY p.149 — CRTC0/1 encroaching-HSYNC-vs-VSYNC-window diagrams extracted as disconnected
+- ⚠ VERIFY p.152 — CRTC0/1 encroaching-HSYNC-vs-VSYNC-window diagrams extracted as disconnected
   rows; prose rule stands independently.
 - `[T2 diff — GHOST VSYNC, §15.4.4, informational only]`: CRTC2 evaluates VSYNC on all C0/C9; if
   landing inside active HSYNC (C0=R2..R2+R3l+1), produces a GHOST VSYNC (internal line-count
   proceeds, blocks real VSYNC, pin never asserted to GA — pins 39/40 conflict). Exception: R2==0
   detects early enough to fire for real.
 
-## 12. Border and HSYNC (§15.5, p.152)
+## 12. Border and HSYNC (§15.5, p.155)
 
 - CRTC0/1 (and 3/4): background/BORDER-restore logic (C0==0 test, C0==R1 to re-enable border) is
   evaluated unconditionally, including mid-HSYNC. No special interaction to model.
 - `[T2 diff]` CRTC2: the C0==0 restore-background test is **suppressed during active HSYNC** — if
   HSYNC spans C0=0, the restore doesn't fire and prior state persists an extra pass.
 
-## 13. R2 dynamic update — "the right moment" (§15.7, p.153–154)
+## 13. R2 dynamic update — "the right moment" (§15.7, p.156–157)
 
 - Uncompensated mid-frame R2 rewrite → monitor re-syncs horizontally over several lines (visible
   gradual drift), same phenomenon as an out-of-range R3l change (§3).
 - Mitigation: also adjust **R0** so C0 returns to the *new* R2 at the same wall-clock moment the old
   C0=R2 used to land — shrink R0 if new-R2 > old-R2, enlarge if new-R2 < old-R2 (horizontal analog
   of the R4/R7 vertical trick, §22).
-- ⚠ VERIFY p.154 — worked R2 46↔50 OUT-sequence diagrams extracted with garbled column alignment;
+- ⚠ VERIFY p.157 — worked R2 46↔50 OUT-sequence diagrams extracted with garbled column alignment;
   the compensation principle above is the reliable takeaway.
 
 ---
 
-## 14. R7 general (§16.1, p.155–156)
+## 14. R7 general (§16.1, p.158–159)
 
 - VSYNC-CRTC activates when **C4 reaches R7** (per-type exceptions, §19).
 - **GA's V26 state machine (core CRTC-vs-GA distinction)**:
@@ -219,12 +221,12 @@ for C-SYNC generation (not CRTC registers).
     `VSYNC_GA` clears — GA-side VSYNC processing "complete," permits re-arming (§17).
   - **Decoupling**: CRTC's programmed VSYNC width (R3h, or fixed 16 lines on CRTC1) is functionally
     independent of GA's 26-HSYNC black/sync window, as long as HSYNCs keep arriving — R3h=1 on
-    CRTC0 still gets the full 26-line GA treatment (confirmed again p.160).
+    CRTC0 still gets the full 26-line GA treatment (confirmed again p.163).
 - Background restore after VSYNC ends (26th HSYNC processed): CRTC0/1 → restarts **1 px-M2
   (0.0625µs) after** HSYNC end. `[T2/3/4 diff]` restarts at same instant.
 - First visible line on CTM: **34th line** from VSYNC start (2nd scanline of 5th 8-line char row).
 
-## 15. C-SYNC algorithm — GA state machine, exact (§16.2.2–16.2.3, p.159–162)
+## 15. C-SYNC algorithm — GA state machine, exact (§16.2.2–16.2.3, p.162–165)
 
 ```
 If VSYNC-CRTC Transition OFF->ON:
@@ -260,7 +262,7 @@ CSYNC = SIG_GA_HSYNC XNOR SIG_GA_VSYNC
   2..6 of 0..26 — speculated shared flip-flop hardware in real GA ASIC; do not encode as a
   constraint, informational only.
 
-## 16. VSYNC-CRTC vs VSYNC-GA — display-area timing, pre-set vs JIT R7 (§16.2.1, p.156–157)
+## 16. VSYNC-CRTC vs VSYNC-GA — display-area timing, pre-set vs JIT R7 (§16.2.1, p.159–160)
 
 - **R7 pre-set before natural C4=R7** (normal case): black starts CRTC0/2 = 5th pixel of VMA word
   preceding C4=R7 (8 px of BORDER shown instead of 2nd byte of that word); CRTC1 = 6th pixel.
@@ -274,24 +276,24 @@ CSYNC = SIG_GA_HSYNC XNOR SIG_GA_VSYNC
     position (bit 7, 2nd byte of word at "C0−1"). Via **OUTI** → 5th px-M2 of that same preceding
     word (bit 3, 1st byte) — **OUTI is 4 px-M2 (0.25µs) earlier** than OUT(C),r8, same asymmetry
     pattern as R2.JIT (§6).
-  - ⚠ VERIFY p.157 — pixel-M2 diagrams extracted as unusable repeating index rows; prose above is
+  - ⚠ VERIFY p.160 — pixel-M2 diagrams extracted as unusable repeating index rows; prose above is
     the reliable source.
 - Reaffirms §14.2/§16.1 decoupling: R3h=1 or CRTC VSYNC cut to 2µs still gets full 26-line GA hold.
 
-## 17. VSYNC re-trigger while GA-VSYNC in progress (§16.2.5, p.163)
+## 17. VSYNC re-trigger while GA-VSYNC in progress (§16.2.5, p.166)
 
 - If a new VSYNC-CRTC pulse arrives while GA's own V26 sequence is still running (V26<26), **GA's
   V26 resets to 0** and restarts its 2/6/26 sequence, incrementing again per subsequent HSYNC-end.
   This is separate from the CRTC's own internal re-entrancy protection (§18) — GA only watches the
   VSYNC-CRTC pin transition, independent of the CRTC's internal blocking state.
-- ⚠ VERIFY p.163 — worked numeric trace (CRTC0/1/2, R7 reprogrammed mid-VSYNC at C4=12/C9=4) showing
+- ⚠ VERIFY p.166 — worked numeric trace (CRTC0/1/2, R7 reprogrammed mid-VSYNC at C4=12/C9=4) showing
   GA-counter restart: table columns (Update/R7/C4/C9/CRTC-CNT/GA-CNT/Monitor) bled together on
   extraction; the restart rule in prose is trustworthy regardless.
 - `[T3/4 diff]` those types additionally require the CRTC VSYNC pin to stay physically active for
   the ASIC to keep emitting C-VSYNC (mirrors ASIC's C-HSYNC dependency). Not applicable to CRTC0/1,
   where GA timing runs off HSYNC-end events only once armed.
 
-## 18. VSYNC protection / re-entrancy (§16.3, p.164)
+## 18. VSYNC protection / re-entrancy (§16.3, p.167)
 
 Two independent mechanisms against infinite VSYNC:
 
@@ -315,7 +317,7 @@ Two independent mechanisms against infinite VSYNC:
     new V26 sequence once the prior one reaches its 26th row (§17) — monitor-visible C-VSYNC still
     repeats at a bounded rate.
 
-## 19. Per-type exact R7 latch rules (§16.4, p.165–167)
+## 19. Per-type exact R7 latch rules (§16.4, p.168–170)
 
 - **Universal**: R7 can be rewritten with C4's value up to the **last µs preceding** the natural
   C4==R7 transition and still correctly arm VSYNC for the next match.
@@ -372,7 +374,7 @@ Two independent mechanisms against infinite VSYNC:
   infinite-VSYNC exposure, worse than CRTC0/1's partial mechanism-2 protection).
 - VSYNC must last **≥3 lines** for C-VSYNC to be generated at all.
 
-## 20. Delayed VSYNC in interlace modes (§16.5, p.168)
+## 20. Delayed VSYNC in interlace modes (§16.5, p.171)
 
 - CRTC0 and CRTC1: interlace mode can delay VSYNC from the nominal C4==R7 transition:
   - **Half-line delay** on **even** frames: VSYNC occurs at C4==R7 **and C0==R0/2** (not C0==0).
@@ -382,7 +384,7 @@ Two independent mechanisms against infinite VSYNC:
     from odd-scanline chars (R9 even) — documented CRTC-1-specific interlace deficiency, absent on
     CRTC0/3/4.
 
-## 21. Limitless VSYNC / interlace positioning trick (§16.6, p.169–171)
+## 21. Limitless VSYNC / interlace positioning trick (§16.6, p.172–174)
 
 - GA's composite C-SYNC is timed off its own H06/V26 state machine (§15), normally whole-line
   aligned — this would otherwise mask the CRTC's raw half-line interlace VSYNC (§20).
@@ -393,7 +395,7 @@ Two independent mechanisms against infinite VSYNC:
     (SHAKER 2.1+). Confirms GA's C-VSYNC timing is driven purely by HSYNC-end event timing, no
     direct dependency on CRTC's own VSYNC pulse width once armed (reinforces §14/§16.1).
 
-## 22. R7 dynamic update — "the right moment" (§16.7, p.171)
+## 22. R7 dynamic update — "the right moment" (§16.7, p.174)
 
 - Same category as R2 mid-frame updates (§13): uncompensated R7 rewrite → monitor sees
   multiple/missing VSYNCs → visible frame breaks/rolling.
@@ -403,7 +405,7 @@ Two independent mechanisms against infinite VSYNC:
 
 ---
 
-## 23. Chapter 27 — GA's R52 interrupt counter, management (§27.1–27.2, p.279)
+## 23. Chapter 27 — GA's R52 interrupt counter, management (§27.1–27.2, p.283)
 
 - **R52**: GA-internal counter, 0–51 (52 states), entirely GA-side state (not a CRTC register); CRTC
   only supplies the HSYNC-end events that drive it.
@@ -429,7 +431,7 @@ Two independent mechanisms against infinite VSYNC:
   **Cycle-exact ordering rule** — a behavioral model must apply RMR-reset and HSYNC-end-increment in
   the correct relative C0 order, not "whichever happens last in program order this frame."
 
-## 24. Interrupt trigger conditions (§27.3, p.279–280)
+## 24. Interrupt trigger conditions (§27.3, p.283–284)
 
 ### 27.3.1 — R52 wraps 51→0
 
@@ -462,7 +464,7 @@ Two independent mechanisms against infinite VSYNC:
   **hangs indefinitely**. (Trailblazer's split-raster HALT usage cited as the practical exception —
   values HALT's cycle-exact interrupt landing.)
 
-## 25. Interrupt modes 1/2 — Z80 background (§27.4–27.5, p.280–282)
+## 25. Interrupt modes 1/2 — Z80 background (§27.4–27.5, p.284–286)
 
 - **IM1** (dominant CPC convention): interrupt ≈ implicit `RST #38`. RST #38 from code = 4µs; same
   vector taken via a real interrupt = **5µs** (1µs ack overhead).
@@ -472,7 +474,7 @@ Two independent mechanisms against infinite VSYNC:
 - Neither affects CRTC-side modeling directly; included as prerequisite context for §27's latency
   reasoning (IM1's 5µs figure is used implicitly in §26/27).
 
-## 26. CRTC & interrupts — per-type latch timing (§27.6, p.282–284)
+## 26. CRTC & interrupts — per-type latch timing (§27.6, p.286–288)
 
 - **Universal**: interrupt always begins (GA requests it) **1µs after HSYNC end**, for every CRTC
   type — but "HSYNC end" itself lands at different C0vs per type, per §9's established latch rules:
@@ -482,7 +484,7 @@ Two independent mechanisms against infinite VSYNC:
   - `[T3/4 diff]` CRTC3/4: HSYNC begins exactly *at* start of GA's display of char C0=R2 (no lead)
     → **with identical R2/R3, interrupt lands exactly 1µs later on CRTC3/4 than on CRTC0/1/2** —
     direct, testable, single-µs divergence.
-- Worked C0vs-relative interrupt timings for CRTC0/1/2, cleanly extracted (p.283):
+- Worked C0vs-relative interrupt timings for CRTC0/1/2, cleanly extracted (p.287):
   - R3=14 → interrupt at **15µs** after C0vs=R2. R3=8 → **9µs**. R3=1 → **2µs**. R3=0 → **no
     interrupt** (CRTC0/1 no-HSYNC case, §5).
   - `[T2/3/4 diff]` R3=0 variant showing interrupt at 17µs (CRTC0/1/2 numbering) or 18µs (CRTC3/4):
@@ -497,7 +499,7 @@ Two independent mechanisms against infinite VSYNC:
   the visible display area**, not just during blanking. A behavioral model must not assume
   interrupts only occur during border/blanking time.
 
-## 27. "Threesome" — R52/EI race and interrupt reliability (§27.7, p.284–287)
+## 27. "Threesome" — R52/EI race and interrupt reliability (§27.7, p.288–291)
 
 ### 27.7.1 — R52-vs-bit5-clear race (exact worked case)
 
@@ -529,7 +531,7 @@ Two independent mechanisms against infinite VSYNC:
     timing benchmark** specifically for this consistency. CRTC2/3/4 generally match CRTC0 closely;
     **CRTC1 is the outlier**. GA model (40007/8 vs 40010) can also shift fine timings by up to
     1/16MHz between units, compounding CRTC1 variance.
-- **Exact GA-vs-Z80 T-state alignment rule** (pp.285–286, full cycle tables in source):
+- **Exact GA-vs-Z80 T-state alignment rule** (pp.289–290, full cycle tables in source):
   - If HSYNC-end (and GA's INT assertion) occurs **at or before** the first 1/16MHz cycle falling
     under Z80 T-state **T3** of the current instruction: GA has lead time to present INT in time —
     **interrupt taken at the end of the current instruction**, on schedule.
@@ -547,7 +549,7 @@ Two independent mechanisms against infinite VSYNC:
     "which µs" — sub-microsecond (0.0625µs) alignment decides whether an interrupt lands this
     instruction or the next. A µs-granular model **will get this wrong** for borderline cases;
     document the limitation if not modeling at this granularity.
-- Author's verdict (p.287): "it is risky to rely on the temporal position of an interrupt as it can
+- Author's verdict (p.291): "it is risky to rely on the temporal position of an interrupt as it can
   occur at the very end of an instruction" — even the reference hardware doesn't guarantee exact
   interrupt timing to sub-instruction granularity; treat behavioral-model interrupt timing at this
   granularity as best-effort, not hard spec.
@@ -556,16 +558,16 @@ Two independent mechanisms against infinite VSYNC:
 
 ## ⚠ Summary of VERIFY flags (poorly-extracted figures/tables)
 
-- p.127 — R3 bit-layout comparison table.
-- p.130 — C-HSYNC duration table, CRTC0/1/2 × R3l=2..6 × JIT/NJIT.
-- pp.132–134 — R3-during-HSYNC dynamic-update diagrams (CRTC0/2, CRTC1, CRTC3/4).
-- pp.136–137 — R3.JIT pixel-M2 positioning diagrams (CRTC0/1/2).
-- p.141 — HSYNC schematics pixel-M2 tables (CRTC0/1/2/4); aggregate M2px/µs totals did survive.
-- pp.146–147 — R2-during-HSYNC dynamic-update diagrams (CRTC0, CRTC1/2).
-- p.149 — VSYNC-during-HSYNC encroachment diagrams (CRTC0/1).
-- p.154 — R2 46↔50 repositioning OUT-sequence diagrams.
-- p.157 — R7.JIT pixel-M2 positioning diagrams (CRTC0/1/2/4).
-- p.163 — GA-counter-restart worked numeric trace (Update/R7/C4/C9/CRTC-CNT/GA-CNT/Monitor).
+- p.130 — R3 bit-layout comparison table.
+- p.133 — C-HSYNC duration table, CRTC0/1/2 × R3l=2..6 × JIT/NJIT.
+- pp.135–137 — R3-during-HSYNC dynamic-update diagrams (CRTC0/2, CRTC1, CRTC3/4).
+- pp.139–140 — R3.JIT pixel-M2 positioning diagrams (CRTC0/1/2).
+- p.144 — HSYNC schematics pixel-M2 tables (CRTC0/1/2/4); aggregate M2px/µs totals did survive.
+- pp.149–150 — R2-during-HSYNC dynamic-update diagrams (CRTC0, CRTC1/2).
+- p.152 — VSYNC-during-HSYNC encroachment diagrams (CRTC0/1).
+- p.157 — R2 46↔50 repositioning OUT-sequence diagrams.
+- p.160 — R7.JIT pixel-M2 positioning diagrams (CRTC0/1/2/4).
+- p.166 — GA-counter-restart worked numeric trace (Update/R7/C4/C9/CRTC-CNT/GA-CNT/Monitor).
 
 All other rules are drawn from clean prose extraction. Where the source itself documents inherent
 hardware nondeterminism (§23's RMR race, §27.7.1's R52 race, §27.7.2's CRTC1 unit variance), this is

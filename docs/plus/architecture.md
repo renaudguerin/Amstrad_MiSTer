@@ -54,8 +54,13 @@ Consequences to embrace explicitly:
   history (the ASIC's GA emulation itself has documented deltas: colours ~½µs late, PPI
   quirks, interrupt +1µs).
 - The CRTC-accuracy work stream (docs/accuracy/) hardens `UM6845R.v` independently; the
-  ASIC's CRTC-3 is a *new* implementation informed by the Compendium's type-3 notes, reusing
-  the Verilator testbench harness (same pin contract) with a type-3 rule set.
+  ASIC's CRTC-3 is a *new* implementation informed by ACCC v1.10's type-3 notes, reusing
+  the Verilator testbench harness (same pin contract) with a type-3 rule set. The v1.10
+  changes clarify CRTC0/2 behavior and do not change this type-3 architecture; see the
+  [edition comparison](../accuracy/accc-1.10-differences.md).
+
+Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
+(CC BY-NC-ND).
 
 ### Module/bus sketch
 

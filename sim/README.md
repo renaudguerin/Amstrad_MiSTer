@@ -5,7 +5,8 @@ runs:
 
 - Pin-level tests for `rtl/UM6845R.v`. The harness drives the 16 MHz `CLOCK`,
   with `CLKEN` at character-clock phase 0 and `nCLKEN` at phase 8, and exercises
-  the CRTC register bus directly.
+  the CRTC register bus directly. Counter-state assertions are used only for
+  Compendium cases whose documented C4/C9 result is not distinguishable from pins alone.
 - Standalone Amstrad Plus ASIC lock/unlock sequence tests in `sim/plus`.
 
 Requirements: Verilator 5 or later, GNU Make, and a C++17 compiler. On macOS:
