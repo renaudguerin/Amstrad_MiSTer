@@ -2,6 +2,7 @@
 #include <verilated_vcd_c.h>
 
 #include "VUM6845R.h"
+#include "VUM6845R___024root.h"
 
 #include <array>
 #include <cstdint>
@@ -272,6 +273,30 @@ public:
 
     void expect_ra(const std::string& expectation, std::uint8_t expected) const {
         expect_byte(expectation, expected, dut_->RA);
+    }
+
+    void expect_c4(const std::string& expectation, std::uint8_t expected) const {
+        expect_byte(expectation, expected, dut_->rootp->UM6845R__DOT__row);
+    }
+
+    void expect_adjustment_active(const std::string& expectation) const {
+        expect_high(expectation, dut_->rootp->UM6845R__DOT__in_adj);
+    }
+
+    void expect_adjustment_inactive(const std::string& expectation) const {
+        expect_low(expectation, dut_->rootp->UM6845R__DOT__in_adj);
+    }
+
+    void expect_type0_arbitration_latches(const std::string& expectation,
+                                          bool r4_switch,
+                                          bool r9_live,
+                                          bool r9_at_r0) const {
+        expect_byte(expectation + " R4 switch", r4_switch,
+                    dut_->rootp->UM6845R__DOT__type0_r4_adjust_switch);
+        expect_byte(expectation + " live R9 compare", r9_live,
+                    dut_->rootp->UM6845R__DOT__type0_r9_live_compare);
+        expect_byte(expectation + " exact-R0 R9", r9_at_r0,
+                    dut_->rootp->UM6845R__DOT__type0_r9_at_r0_pending);
     }
 
     std::uint16_t ma() const {
@@ -758,7 +783,7 @@ void test_type1_status_r6_zero_forced_border(TestBench& test) {
     test.expect_de_high("DE before R6=0 forced border");
     test.expect_byte("type 1 status in displayed row", 0x00, test.read_status());
 
-    // ACCC 1.9 section 21.3.3: setting R6=0 while C4>0 forces border,
+    // ACCC v1.10 section 21.3.3: setting R6=0 while C4>0 forces border,
     // but that special case must not set the C4==R6 status condition.
     test.write_selected_register_at_nclken(0);
     test.expect_de_low("DE after R6=0 forced border");
@@ -911,7 +936,7 @@ void test_type0_r0_zero_suppresses_nonzero_r2_hsync(TestBench& test) {
     configure_f5_r0_zero_fixture(test, 0, horizontal_sync_position);
     test.expect_ra("type 0 R0=0 initial raster counter", 0);
 
-    // ACCC 1.9 section 13.2.1: C0 remains pinned at zero, so it can never
+    // ACCC v1.10 section 13.2.1: C0 remains pinned at zero, so it can never
     // reach a nonzero R2.  Sample every raw CLOCK tick, not merely character
     // boundaries, so a sub-character HSYNC pulse cannot escape the vector.
     for (unsigned tick = 0;
@@ -933,7 +958,7 @@ void test_type0_r0_zero_suppresses_nonzero_r2_hsync(TestBench& test) {
 void test_type0_r0_zero_allows_r2_zero_hsync(TestBench& test) {
     configure_f5_r0_zero_fixture(test, 0, 0);
 
-    // ACCC 1.9 section 15.3: type 0 does not restart HSYNC on the second
+    // ACCC v1.10 section 15.3: type 0 does not restart HSYNC on the second
     // C0=R2=0 occurrence.  Its stopped C3l then permits a restart on the
     // third occurrence.  Sample every raw CLOCK tick so the brief low window
     // cannot be hidden by character-boundary observations.
@@ -1216,6 +1241,324 @@ void test_type0_r0_zero_c9_equal_single_c4_increment_deferred(TestBench& test) {
         "deferred C9=R9 entry increments C4 once before recovery");
 }
 
+void test_type0_adjustment_r4_write_switches_c9_to_r5(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 11.2.2: once the last-line state is established,
+    // changing R4 from C0=2 through C0=R0 switches the line-end comparator
+    // from C9/R9 to C9/R5.  With C4=R4=2, C9=R9=3, and R5=5, the next line
+    // must therefore be C4=2/C9=4 in vertical adjustment, not C4=3/C9=0.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 5}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    constexpr unsigned line_characters = 8;
+    constexpr unsigned lines_before_last = 11;
+    test.run_characters(lines_before_last * line_characters);
+    test.run_characters(2);  // Last-line state is now established; C0=2.
+    test.write_selected_register_at_clken(1);
+    test.run_characters(5);  // Complete C0=3..7 and enter the next line.
+
+    test.expect_adjustment_active("type 0 R4 write enters vertical adjustment");
+    test.expect_c4("type 0 R4 write keeps C4 on the entry line", 2);
+    test.expect_ra("type 0 R4 write compares C9 with R5", 4);
+}
+
+void test_type0_adjustment_r9_write_uses_new_r9(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 11.2.2: an R9 write from C0=2 through
+    // C0=R0-1 is compared with C9 on the current last-frame line. Here the
+    // new R9=1 differs from C9=0, so C9 increments while C4 stays at zero.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 4}, {1, 3}, {2, 3}, {3, 0x11}, {4, 0},
+        {5, 2}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+
+    test.run_characters(2);
+    test.write_selected_register_at_clken(1);
+    test.run_characters(2);
+
+    test.expect_adjustment_active("type 0 R9 write retains vertical adjustment");
+    test.expect_c4("type 0 R9 write does not increment C4", 0);
+    test.expect_ra("type 0 R9 write increments C9 against the new R9", 1);
+}
+
+void test_type0_adjustment_accepts_r5_write_at_c0_2(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 sections 10.3.1 and 11.2.2: C0=2 is the final
+    // arbitration point. An R5 write from zero to one there must select one
+    // adjustment line, reset C9, and increment C4 on the following line.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(5);
+    test.reset();
+
+    test.run_characters(2);
+    test.write_selected_register_at_clken(1);
+    test.run_characters(1);
+
+    test.expect_adjustment_active("type 0 accepts R5>0 at C0=2");
+    test.expect_c4("type 0 accepted R5 write increments C4", 1);
+    test.expect_ra("type 0 accepted R5 write resets C9", 0);
+}
+
+void test_type0_adjustment_rejects_r5_write_after_c0_2(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // The same v1.10 arbitration window closes once C0 has reached 3.
+    // A later R5 write must not turn the already-decided frame boundary into
+    // an adjustment line.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 4}, {1, 3}, {2, 3}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(5);
+    test.reset();
+
+    test.run_characters(3);
+    test.write_selected_register_at_clken(1);
+    test.run_characters(1);
+
+    test.expect_adjustment_inactive("type 0 rejects R5>0 after C0=2");
+    test.expect_c4("type 0 late R5 write completes the frame", 0);
+    test.expect_ra("type 0 late R5 write completes C9", 0);
+}
+
+void test_type0_adjustment_r9_write_at_r0_increments_c4_and_c9(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 11.2.2 exact-boundary case: the old C9/R9
+    // equality increments C4 first. C4 then differs from R4, switching C9
+    // to the R5 comparison, so C9 increments as well.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 5}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+
+    constexpr unsigned line_characters = 8;
+    constexpr unsigned lines_before_last = 11;
+    test.run_characters(lines_before_last * line_characters);
+    test.run_characters(7);
+    test.write_selected_register_at_clken(4);
+
+    test.expect_adjustment_active("type 0 exact-R0 R9 write enters adjustment");
+    test.expect_c4("type 0 exact-R0 R9 write increments C4", 3);
+    test.expect_ra("type 0 exact-R0 R9 write increments C9 against R5", 4);
+}
+
+void test_type0_adjustment_completion_resets_the_next_line(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 5}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+
+    test.run_characters(11 * 8);
+    test.run_characters(7);
+    test.write_selected_register_at_clken(4);
+    test.run_characters(8);
+
+    // The exact-R0 split leaves C9=R5-1. The following line completes the
+    // R5 count, re-establishes Last Line, and resets C4/C9 for the new frame.
+    test.expect_adjustment_inactive("type 0 R5 completion leaves adjustment");
+    test.expect_c4("type 0 R5 completion resets C4 on the following line", 0);
+    test.expect_ra("type 0 R5 completion resets C9 on the following line", 0);
+}
+
+void test_type0_adjustment_captures_mid_character_r4_write(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 5}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.run_characters(11 * 8);
+    test.run_characters(1);  // C0=1 at tick 0.
+    test.write_selected_register_at_nclken(1);  // R4 write within C0=2.
+    test.run_characters(6);
+
+    test.expect_adjustment_active("type 0 captures an R4 write within C0=2");
+    test.expect_c4("type 0 mid-character R4 write keeps C4", 2);
+    test.expect_ra("type 0 mid-character R4 write compares C9 with R5", 4);
+}
+
+void test_type0_adjustment_captures_mid_character_r9_write_at_r0(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 5}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+
+    test.run_characters(11 * 8);
+    test.run_characters(6);  // C0=6 at tick 0.
+    test.write_selected_register_at_nclken(4);  // R9 write within C0=R0.
+    test.run_characters(1);
+
+    test.expect_adjustment_active("type 0 captures an exact-R0 R9 bus write");
+    test.expect_c4("type 0 mid-character exact-R0 R9 write increments C4", 3);
+    test.expect_ra("type 0 mid-character exact-R0 R9 write increments C9", 4);
+}
+
+void test_type0_adjustment_r4_write_at_r0_switches_c9_to_r5(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // R4's documented window includes C0=R0. A same-edge write must affect
+    // the imminent rollover, even though the register file itself uses NBA
+    // semantics and still presents the previous R4 to the counter block.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 5}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.run_characters(11 * 8);
+    test.run_characters(7);
+    test.write_selected_register_at_clken(1);
+
+    test.expect_adjustment_active("type 0 accepts an R4 write at C0=R0");
+    test.expect_c4("type 0 exact-R0 R4 write keeps C4", 2);
+    test.expect_ra("type 0 exact-R0 R4 write compares C9 with R5", 4);
+}
+
+void test_type0_adjustment_captures_mid_character_r4_write_at_r0(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 5}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.run_characters(11 * 8);
+    test.run_characters(6);
+    test.write_selected_register_at_nclken(1);
+    test.run_characters(1);
+
+    test.expect_adjustment_active("type 0 captures an R4 bus write within C0=R0");
+    test.expect_c4("type 0 mid-character exact-R0 R4 write keeps C4", 2);
+    test.expect_ra("type 0 mid-character exact-R0 R4 write uses R5", 4);
+}
+
+void test_type0_adjustment_latches_clear_on_snapshot_load(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 5}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.run_characters(11 * 8);
+    test.run_characters(2);
+    test.write_selected_register_at_nclken(1);
+    test.expect_type0_arbitration_latches(
+        "type 0 R4 write arms only the R4 comparator latch", true, false, false);
+
+    const std::array<std::uint8_t, 10> snapshot_registers = {{
+        7, 4, 5, 0x11, 2, 5, 2, 1, 0, 3,
+    }};
+    test.load_snapshot_registers(snapshot_registers);
+    test.expect_type0_arbitration_latches(
+        "snapshot load clears type 0 arbitration state", false, false, false);
+}
+
+void test_type0_adjustment_latches_clear_on_type_roundtrip(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 5}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+
+    test.run_characters(11 * 8);
+    test.run_characters(2);
+    test.write_selected_register_at_nclken(4);
+    test.expect_type0_arbitration_latches(
+        "type 0 mid-line R9 write arms the live comparator latch", false, true, false);
+
+    test.set_crtc_type(1);
+    test.run_clock_ticks(1);
+    test.expect_type0_arbitration_latches(
+        "type 1 clears type 0 live-comparator state", false, false, false);
+
+    test.set_crtc_type(0);
+    test.write_register(9, 3);
+    test.select_register(9);
+    test.reset();
+    test.run_characters(11 * 8);
+    test.run_characters(6);
+    test.write_selected_register_at_nclken(4);
+    test.expect_type0_arbitration_latches(
+        "type 0 exact-R0 R9 write arms the boundary latch", false, false, true);
+
+    test.set_crtc_type(1);
+    test.run_clock_ticks(1);
+    test.set_crtc_type(0);
+    test.expect_type0_arbitration_latches(
+        "live type round-trip clears exact-R0 state", false, false, false);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1224,66 +1567,102 @@ int main(int argc, char** argv) {
     const std::vector<TestCase> tests = {
         {"t00_reset_and_idle_bus", "UM6845R pin-level reset/bus contract", false,
          test_reset_and_idle_bus},
-        {"t01_register_readback", "ACCC 1.9 sections 21.2 and 28.1.9; F1/F11c/F11d",
+        {"t01_register_readback", "ACCC v1.10 sections 21.2 and 28.1.9; F1/F11c/F11d",
          false, test_register_readback_table},
-        {"t02a_type0_r7_hcc0_blocked", "ACCC 1.9 section 16.4.1; F3",
+        {"t02a_type0_r7_hcc0_blocked", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_hcc0_blocked},
-        {"t02b_type0_r7_hcc1_blocked", "ACCC 1.9 section 16.4.1; F3",
+        {"t02b_type0_r7_hcc1_blocked", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_hcc1_blocked},
-        {"t02c_type0_r7_midline_extended", "ACCC 1.9 section 16.4.1; F3",
+        {"t02c_type0_r7_midline_extended", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_midline_duration_extended},
-        {"t02d_type1_r7_early_hcc_immediate", "ACCC 1.9 section 16.4.2; F3",
+        {"t02d_type1_r7_early_hcc_immediate", "ACCC v1.10 section 16.4.2; F3",
          false, test_type1_r7_early_hcc_immediate},
-        {"t02e_type1_r7_midline_partial_counts", "ACCC 1.9 section 16.4.2; F3",
+        {"t02e_type1_r7_midline_partial_counts", "ACCC v1.10 section 16.4.2; F3",
          false, test_type1_r7_midline_partial_counts},
-        {"t02f_r7_level_write_and_active_rearm", "ACCC 1.9 sections 16.3-16.4; F3",
+        {"t02f_r7_level_write_and_active_rearm", "ACCC v1.10 sections 16.3-16.4; F3",
          false, test_r7_level_write_and_active_rearm},
-        {"t02g_type0_dynamic_vsync_width_extremes", "ACCC 1.9 sections 14.2 and 16.4.1; F3",
+        {"t02g_type0_dynamic_vsync_width_extremes", "ACCC v1.10 sections 14.2 and 16.4.1; F3",
          false, test_type0_dynamic_vsync_width_extremes},
-        {"t02h_type0_r7_c0_2_at_line_boundary", "ACCC 1.9 section 16.4.1; F3",
+        {"t02h_type0_r7_c0_2_at_line_boundary", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_c0_2_at_line_boundary},
-        {"t02i_type0_interlace_count_boundaries", "ACCC 1.9 sections 16.4-16.5; F3",
+        {"t02i_type0_interlace_count_boundaries", "ACCC v1.10 sections 16.4-16.5; F3",
          false, test_type0_interlace_count_boundaries},
         {"t02j_type0_pending_skip_type_roundtrip", "UM6845R live CRTC_TYPE contract; F3/F11d",
          false, test_type0_pending_skip_clears_on_type_roundtrip},
         {"t02k_type0_pending_skip_snapshot_load", "UM6845R snapshot-load contract; F3/F11d",
          false, test_type0_pending_skip_clears_on_snapshot_load},
-        {"t03a_vsync_compare_lock_and_rearm", "ACCC 1.9 section 16.3; F11b",
+        {"t03a_vsync_compare_lock_and_rearm", "ACCC v1.10 section 16.3; F11b",
          false, test_vsync_compare_lock_and_rearm},
-        {"t03b_vsync_reentrancy_bypass", "ACCC 1.9 section 16.3; F11b",
+        {"t03b_vsync_reentrancy_bypass", "ACCC v1.10 section 16.3; F11b",
          false, test_vsync_reentrancy_bypass},
-        {"t06a_status_waits_for_r0_sample", "ACCC 1.9 section 21.3.3; F2",
+        {"t06a_status_waits_for_r0_sample", "ACCC v1.10 section 21.3.3; F2",
          false, test_type1_status_waits_for_r0_sample},
-        {"t06b_status_r6_zero_forced_border", "ACCC 1.9 section 21.3.3; F2",
+        {"t06b_status_r6_zero_forced_border", "ACCC v1.10 section 21.3.3; F2",
          false, test_type1_status_r6_zero_forced_border},
-        {"t06c_status_samples_natural_r6_edge", "ACCC 1.9 section 21.3.3; F2",
+        {"t06c_status_samples_natural_r6_edge", "ACCC v1.10 section 21.3.3; F2",
          false, test_type1_status_samples_natural_r6_edge},
-        {"t06d_status_clears_on_type_round_trip", "ACCC 1.9 section 21.3.3; F2",
+        {"t06d_status_clears_on_type_round_trip", "ACCC v1.10 section 21.3.3; F2",
          false, test_type1_status_clears_on_type_round_trip},
         {"t09a_type0_r0_zero_suppresses_nonzero_r2_hsync",
-         "ACCC 1.9 section 13.2.1; F5", false,
+         "ACCC v1.10 section 13.2.1; F5", false,
         test_type0_r0_zero_suppresses_nonzero_r2_hsync},
         {"t09b_type0_r0_zero_allows_r2_zero_hsync",
-         "ACCC 1.9 sections 13.2.1 and 15.3; F5", false,
+         "ACCC v1.10 sections 13.2.1 and 15.3; F5", false,
         test_type0_r0_zero_allows_r2_zero_hsync},
         {"t09c_type0_r0_zero_resumes_after_nclken_write",
-         "ACCC 1.9 section 13.2.1; F5", false,
+         "ACCC v1.10 section 13.2.1; F5", false,
          test_type0_r0_zero_resumes_after_nclken_write},
         {"t09d_type1_r0_zero_keeps_one_character_lines",
-         "ACCC 1.9 section 13.3; F5 regression guard", false,
+         "ACCC v1.10 section 13.3; F5 regression guard", false,
          test_type1_r0_zero_keeps_one_character_lines},
         {"t09e_type0_midline_r0_zero_free_runs_then_pins",
-         "ACCC 1.9 section 13.2.1; F5 live-write regression guard", false,
+         "ACCC v1.10 section 13.2.1; F5 live-write regression guard", false,
          test_type0_midline_r0_zero_free_runs_then_pins},
         {"t09f_r0_zero_freeze_survives_type_round_trip",
          "UM6845R live CRTC_TYPE contract; F5/F11d", false,
          test_r0_zero_freeze_survives_type_round_trip},
         {"t09g_type0_interlace_r0_zero_freezes_vsync_count",
-         "ACCC 1.9 sections 13.2.1 and 16.5; F3/F5 regression guard", false,
+         "ACCC v1.10 sections 13.2.1 and 16.5; F3/F5 regression guard", false,
          test_type0_interlace_r0_zero_freezes_vsync_count},
         {"t09h_type0_r0_zero_c9_equal_single_c4_increment_deferred",
-         "ACCC 1.9 section 13.2.1; deferred F5 C0 state machine", true,
+         "ACCC v1.10 section 13.2.1; deferred F5 C0 state machine", true,
          test_type0_r0_zero_c9_equal_single_c4_increment_deferred},
+        {"t16a_type0_r4_write_switches_c9_to_r5",
+         "ACCC v1.10 section 11.2.2; F12", false,
+         test_type0_adjustment_r4_write_switches_c9_to_r5},
+        {"t16b_type0_r9_write_uses_new_r9",
+         "ACCC v1.10 section 11.2.2; F12", false,
+         test_type0_adjustment_r9_write_uses_new_r9},
+        {"t16c_type0_accepts_r5_write_at_c0_2",
+         "ACCC v1.10 sections 10.3.1 and 11.2.2; F12", false,
+         test_type0_adjustment_accepts_r5_write_at_c0_2},
+        {"t16d_type0_rejects_r5_write_after_c0_2",
+         "ACCC v1.10 sections 10.3.1 and 11.2.2; F12 guard", false,
+         test_type0_adjustment_rejects_r5_write_after_c0_2},
+        {"t16e_type0_r9_write_at_r0_increments_c4_and_c9",
+         "ACCC v1.10 section 11.2.2; F9/F12", false,
+         test_type0_adjustment_r9_write_at_r0_increments_c4_and_c9},
+        {"t16f_type0_adjustment_completion_resets_the_next_line",
+         "ACCC v1.10 sections 10.3.1 and 11.2.2; F12", false,
+         test_type0_adjustment_completion_resets_the_next_line},
+        {"t16g_type0_captures_mid_character_r4_write",
+         "ACCC v1.10 section 11.2.2; F12 bus-phase guard", false,
+         test_type0_adjustment_captures_mid_character_r4_write},
+        {"t16h_type0_captures_mid_character_r9_write_at_r0",
+         "ACCC v1.10 section 11.2.2; F9/F12 bus-phase guard", false,
+         test_type0_adjustment_captures_mid_character_r9_write_at_r0},
+        {"t16i_type0_r4_write_at_r0_switches_c9_to_r5",
+         "ACCC v1.10 section 11.2.2; F12 boundary guard", false,
+         test_type0_adjustment_r4_write_at_r0_switches_c9_to_r5},
+        {"t16j_type0_captures_mid_character_r4_write_at_r0",
+         "ACCC v1.10 section 11.2.2; F12 bus-phase boundary guard", false,
+         test_type0_adjustment_captures_mid_character_r4_write_at_r0},
+        {"t16k_type0_arbitration_latches_clear_on_snapshot_load",
+         "UM6845R snapshot-load contract; F12 lifecycle guard", false,
+         test_type0_adjustment_latches_clear_on_snapshot_load},
+        {"t16l_type0_arbitration_latches_clear_on_type_roundtrip",
+         "UM6845R live CRTC_TYPE contract; F12 lifecycle guard", false,
+         test_type0_adjustment_latches_clear_on_type_roundtrip},
     };
 
     unsigned passed = 0;
