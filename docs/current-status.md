@@ -6,10 +6,11 @@ remain in `accuracy/`; the long-term ordering remains in `implementation-roadmap
 
 ## Hardware-test milestone
 
-`ba5b629` is the hardware-test milestone. GitHub Actions run `31637450102` passed the
+`1a1233f` is the newest hardware-test milestone. GitHub Actions run `31661330994` passed the
 complete Verilator gate, Quartus 17.0.2 compilation, fitter, TimeQuest, RBF packaging, and
-artifact upload. It includes the independently reviewed 512 KiB Dandanator loader bound on
-top of the synthesized P-1 SDRAM checkpoint.
+artifact upload. It adds the independently reviewed C0>=2 F12 arbitration slice to the
+earlier Dandanator/SDRAM milestone. The follow-on work after `1a1233f` completes the
+C0=0/C0=1/short-R0 counter paths in simulation and is not part of this RBF.
 
 Three bisectable CI builds have also been downloaded locally under the ignored
 `output_files/hardware-milestones/` directory:
@@ -20,9 +21,10 @@ Three bisectable CI builds have also been downloaded locally under the ignored
 | F3 complete, before F5 | `9956d83` | `9634938072dec7a9c82676a3a5b7192ef6927df50e77d164b84963d0d6c554d2` |
 | F5 plus tied-off SDRAM foundation | `4ffa853` | `67efe7c7d07f49b31edb6dfca0c19ccf99237bd62df5eefdb0c780a86c95f0a9` |
 | Final milestone with Dandanator isolation | `ba5b629` | `7ede21c7449868764f576c114f1697ffd5e6ce4a9b98a38679861d2d52dd3249` |
+| F12 C0>=2 arbitration | `1a1233f` | `fd9705732ae20cb45f1807d4c980b893e974392c3b8f48bdb69ff57794f93319` |
 
-The final fitter used 14,891 / 41,910 ALMs (36%), 685,217 block-memory bits (12%),
-and 3 / 6 PLLs. Worst setup and hold slacks were positive at +0.439 ns and +0.151 ns
+The `1a1233f` fitter used 14,947 / 41,910 ALMs (36%), 685,217 block-memory bits (12%),
+and 3 / 6 PLLs. Worst setup and hold slacks were positive at +0.541 ns and +0.192 ns
 respectively.
 
 The build is suitable for classic CPC regression testing. It contains the F1, F2, F3, and
@@ -39,7 +41,7 @@ For a first MiSTer pass:
 3. Exercise SHAKER's status/readback and dynamic VSYNC tests for F2/F3.
 4. Exercise its type-0 R0=0/stall tests for F5. Watch sync stability and Gate Array
    interrupt behavior as well as the diagnostic result.
-5. Load a normal 512 KiB Dandanator image. The final build rejects bytes at `0x080000` and
+5. Load a normal 512 KiB Dandanator image. The build rejects bytes at `0x080000` and
    above so malformed uploads cannot overwrite the reserved Plus cartridge region.
 6. Record the RBF commit, MiSTer version, classic model, CRTC type, diagnostic/image name,
    and observed result. If a regression appears, compare the F2, pre-F5, and final milestone
@@ -54,25 +56,22 @@ For a first MiSTer pass:
   dynamic R6=0 false case.
 - F3 implements model-specific live R7/VSYNC timing, including blocked type-0 early writes,
   partial-line duration, interlace boundaries, live type changes, and snapshot loading.
-- F5 implements the main type-0 R0=0 freeze, R2-dependent HSYNC behavior, live entry and
-  recovery, MA/RA behavior, type switching, and odd-field VSYNC freeze. One narrower F5
-  subcase remains an explicit XFAIL: when C9 already equals R9 at freeze entry, real type 0
-  increments C4 once before freezing.
-- The first ACCC v1.10 F12 slice implements type-0 R5 arbitration at C0=2, the R4/R9
-  last-line write windows, the exact-C0=R0 R9-to-R5 split, bus-phase capture, and adjustment
-  completion. Twelve `t16a`-`t16l` vectors protect the C4/C9 results, the exact-R0 R4
-  boundary at both bus phases, and arbitration-state clearing on snapshot load and live type
-  changes. The R5=0 C0=1 entry and
-  `R0<2` default-adjustment route remain deliberately outside this slice pending focused
-  traces; the existing F5 XFAIL remains named.
-- The current local gate reports 38 required CRTC passes, one named expected failure, no
-  unexpected passes, and no failures.
+- F5 implements the type-0 R0=0 freeze, R2-dependent HSYNC behavior, live entry and
+  recovery, MA/RA behavior, type switching, odd-field VSYNC freeze, and the single C4
+  increment when C9 already equals R9 at freeze entry.
+- ACCC v1.10 F12 counter arbitration is deterministic-complete for the documented entry
+  paths. `t16a`-`t16s` cover R5 arbitration at C0=2, the R4/R9 last-line write windows,
+  same-edge C0=0 writes, the C0=1/R5=0 equality-break route, exact-C0=R0 switching,
+  `R0=0` and `R0=1` default adjustment, active-adjustment freeze, exact short-line latch
+  consumption, bus phases, completion, and retained-state lifecycle. Exact sub-character MA/DE/VSYNC behavior still requires hardware or SHAKER
+  traces; the deterministic assertions use C4/C9/RA and adjustment state.
+- The current local gate reports 46 required CRTC passes, no expected failures, and no
+  failures. The Plus leaf and SDRAM integration suites are also green.
 
-The next classic checkpoint is the remaining F12 entry state, still test first. Add focused
-vectors for the `R5=0` C0=1 equality-break route and correlate `R0<2` with the named F5
-XFAIL before changing that shared state. Then add `t07` equality/overflow and `t08` CRTC-ID
-boundary vectors, including the tightened type-0 RLAL guards, before implementing F4. F12
-and F4 then unblock F8, the remaining F9 worked-example coverage, and F7 in that order. F6
+The next classic checkpoint is F4. Add `t07` equality/overflow and `t08` CRTC-ID boundary
+vectors, including the tightened type-0 RLAL guards, before removing the zero-value
+shortcuts. F4 then unblocks F8, the remaining F9 worked-example coverage, and F7 in that
+order. F6
 remains deferred because the documented
 half-character border byte cannot be represented exactly by the current character-granular
 CRTC-to-Gate-Array interface. F10 remains the last, separately fixture-gated project.
@@ -109,25 +108,27 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
   maintenance commit rather than mixing it into an RTL milestone.
 - `ansible/` provisions the Debian 13 arm64 UTM guest at `192.168.64.3`, restores the
   `renaud` user's supplementary groups, mounts Rosetta, registers amd64 binfmt, and validates
-  a real amd64 binary. Quartus itself still requires the manual Intel installer/EULA step;
-  then run `ansible/post-install.yml` and `ansible/validate.yml`.
+  a real amd64 binary. It also creates a private installer staging directory and provides a
+  read-only checksum preflight for the exact Altera 17.0.2 payloads. Quartus itself still
+  requires a human download and interactive EULA step; then run `ansible/post-install.yml`
+  and `ansible/validate.yml -e quartus_required=true`.
 - ACCC v1.10 is now the primary documentation baseline. The checked-in digests and
   `accuracy/accc-1.10-differences.md` capture its rules and the edition delta; consult the
   full PDF only when a page is specifically flagged for re-extraction.
 - The untracked `docs/ACCC1.10-EN.pdf` and `docs/ACCC1.9-EN.pdf` files are user-owned source
   material and must remain outside commits. v1.9 is retained only to verify the edition
   delta and historical citations.
-- The first F12/t16 implementation slice is now present in RTL and the executable harness.
-  It is a deterministic simulation milestone, not yet a synthesized or hardware-tested RBF.
+- The complete deterministic F12/t16 counter-arbitration milestone is present in RTL and
+  the executable harness. Its C0>=2 predecessor has a synthesized CI build; this extended
+  C0=0/C0=1/short-R0 slice is not yet synthesized or hardware-tested.
 
 ## Next-session order
 
 1. Test the preserved `ba5b629` RBF on MiSTer and record the result.
 2. Incorporate real MiSTer observations; add a deterministic regression before repairing
    any newly found behavior.
-3. Classic: finish the F12 `t16` entry-state vectors for C0=1/R5=0 and `R0<2`, preserving
-   unresolved pin timing as named XFAILs. Follow with the F4 `t07`/`t08` vector-only
-   checkpoint and equality/overflow implementation.
+3. Classic: add the F4 `t07`/`t08` vector-only checkpoint, then implement equality/overflow
+   without weakening the F12 arbitration or the tightened type-0 RLAL guards.
 4. Plus: in a separate stack, implement P0 MMU/parser/boot integration against the existing
    memory-service and SDRAM contracts.
 5. Update this file when either stream reaches its next hardware-testable checkpoint.

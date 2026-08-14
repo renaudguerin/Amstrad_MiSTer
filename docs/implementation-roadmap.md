@@ -19,17 +19,16 @@ merged into the same behavioral PR.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
   RBF packaging, and artifact upload for the final hardware-test milestone (`ba5b629`, run
   `31637450102`). New top-level/file-list commits still require their own run.
-- `sim/` currently reports 38 required CRTC passes and one named F5 XFAIL for the deferred
-  C9=R9-at-freeze-entry C4 increment. The Plus leaf and SDRAM integration suites are green.
+- `sim/` currently reports 46 required CRTC passes with no expected failures. The Plus leaf
+  and SDRAM integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing and the P-1 cartridge memory/SDRAM contract are implemented but
   behaviorally tied off. No Plus/GX4000 firmware or cartridge boots yet.
 - ACCC v1.10 is the primary Compendium baseline. Prefer the checked-in digests, audit
   prompts, and `accuracy/accc-1.10-differences.md`; consult `docs/ACCC1.10-EN.pdf` only for
   rules explicitly marked for re-extraction. Retain v1.9 only for historical comparison.
-- The v1.10 documentation rebaseline is complete. The first F12/t16 RTL slice now covers
-  the documented C0>=2 write/arbitration window; C0=1/R5=0 and `R0<2` remain before the
-  complete C5A exit.
+- The v1.10 documentation rebaseline and deterministic F12/t16 counter milestone are
+  complete. The next classic checkpoint is F4's test-only `t07`/`t08` foundation.
 
 The current branch is a useful staging branch, not a requirement to publish one large PR.
 The commits may be rearranged into the small sequences below before publication.
@@ -108,9 +107,9 @@ Classic work is intentionally serial because most findings touch the same state 
 | **C0: establish the harness — deterministic complete; hardware pending** | Implement the Verilator harness; run the complete register table; verify the already-present F1 fix rather than rewriting it | `t01` passes for types 0 and 1, baseline protection tests pass, and all unimplemented findings are explicit named xfails | One baseline RBF builds remotely; classic CPC boot/disk smoke test passes |
 | **C1: status readback — deterministic complete; hardware pending** | F2 only | `t06` proves bit 5 changes only at the required C0=R0 sample and excludes the dynamic R6=0 border case; `t01` remains green | SHAKER/type-detection status test |
 | **C2: VSYNC write timing — deterministic complete; hardware pending** | F3 only | `t02` covers type-0 blocked writes at C0=0/1, type-0 extended duration, and unchanged type-1 partial-line duration; `t03` protects re-entrancy | SHAKER VSYNC tests plus Onescreen Colonies and PHX regression |
-| **C3: R0 stall — main behavior complete; one subcase XFAIL; hardware pending** | F5 only | `t09` proves type-0 freeze, R2-dependent HSYNC, clean resume, and unchanged type-1 one-character lines | SHAKER R0 tests; monitor sync and GA interrupt behavior remain stable |
+| **C3: R0 stall — deterministic complete; hardware pending** | F5 only | `t09` proves type-0 freeze, the single deferred C4 increment, R2-dependent HSYNC, clean resume, and unchanged type-1 one-character lines | SHAKER R0 tests; monitor sync and GA interrupt behavior remain stable |
 | **C4: border decision** | F6 only if its approximation is explicitly accepted | `t10` distinguishes type 0 and type 1 and proves skew placement | Visual R1>R0 discriminator and affected demos |
-| **C5A: v1.10 type-0 adjustment arbitration — C0>=2 write-window slice deterministic complete** | F12, test first | Implemented `t16a`-`t16l` prove R5 acceptance/rejection around C0=2, R4/R9 live-write windows including exact-R0 at both bus phases, the exact-R0 R9-to-R5 split, completion reset, and snapshot/type-change state clearing. Complete C5A only after focused C0=1/R5=0 and `R0<2` vectors exist; keep the F5 divergence named until correlated. | Focused SHAKER or hardware traces resolve uncertain C0=1/short-R0 pin timing before complete C5A acceptance |
+| **C5A: v1.10 type-0 adjustment arbitration — deterministic complete; hardware pending** | F12, test first | `t16a`-`t16s` prove C0=0 same-edge comparison, C0=1/R5=0 entry including exact R0=1 rollover consumption, R5 acceptance/rejection around C0=2, R4/R9 live-write windows including exact-R0 at both bus phases, the exact-R0 R9-to-R5 split, R0=0/1 default adjustment, active-adjustment R0=0 freeze, completion reset, and retained-state lifecycle | Focused SHAKER or hardware traces verify uncertain sub-character MA/DE/VSYNC timing without changing the fixed counter expectations |
 | **C5B: equality/overflow foundation** | F4 only, after F12 establishes the corrected state seam | `t07` and `t08` pass, including the tightened RLAL regression vectors; no shortcut term is retained to hide a latch bug | SHAKER overflow/rupture tests and Batman Forever, The Demo, and Yao demo sweep |
 | **C6: type-1 adjustment** | F8 only, after F4 | `t11` proves independent C5 counting, continuing C4/C9, RA sequence, and the R5=0 mid-adjustment behavior | SHAKER adjustment vectors |
 | **C7: type-0 R9 race** | Revised F9 only, after F12/F4/F8 have stabilized the counter structure | `t12` reproduces both documented exact-cycle results using the v1.10 comparison target; it must not preserve the v1.9 rationale as an oracle | Contrived timing test; hardware trace if simulation and SHAKER disagree |
@@ -260,14 +259,11 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5 results.
-2. Classic stream: complete F12 with focused C0=1/R5=0 and `R0<2` vectors. Do not fold the
-   remaining F5 XFAIL into the implementation until a trace proves it is the same path; the
-   C0>=2 write-window slice is already protected by `t16a`-`t16l`.
-3. Classic stream after complete F12: add and review the F4 `t07`/`t08` vectors as a test-only
+2. Classic stream: add and review the F4 `t07`/`t08` vectors as a test-only
    checkpoint, then implement equality/overflow without weakening the type-0 RLAL guards.
-4. Plus stream: implement P0 MMU, bounded CPR parsing, `/EXP`, and boot integration against
+3. Plus stream: implement P0 MMU, bounded CPR parsing, `/EXP`, and boot integration against
    the accepted P-1 service/SDRAM contract. Do not combine this with Plus video work.
-5. Keep F6 deferred unless a half-character-capable interface is designed or the project
+4. Keep F6 deferred unless a half-character-capable interface is designed or the project
    explicitly accepts the reversible one-character approximation.
-6. Continue classic work F12 -> F4 -> F8 -> F9 -> F7. Start F10 only after its fixtures and PDF
+5. Continue classic work F4 -> F8 -> F9 -> F7. Start F10 only after its fixtures and PDF
    re-check gate are ready.

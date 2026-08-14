@@ -290,13 +290,19 @@ public:
     void expect_type0_arbitration_latches(const std::string& expectation,
                                           bool r4_switch,
                                           bool r9_live,
-                                          bool r9_at_r0) const {
+                                          bool r9_at_r0,
+                                          bool c0_1_adjust = false,
+                                          bool r0_zero_consumed = false) const {
         expect_byte(expectation + " R4 switch", r4_switch,
                     dut_->rootp->UM6845R__DOT__type0_r4_adjust_switch);
         expect_byte(expectation + " live R9 compare", r9_live,
                     dut_->rootp->UM6845R__DOT__type0_r9_live_compare);
         expect_byte(expectation + " exact-R0 R9", r9_at_r0,
                     dut_->rootp->UM6845R__DOT__type0_r9_at_r0_pending);
+        expect_byte(expectation + " C0=1 adjustment", c0_1_adjust,
+                    dut_->rootp->UM6845R__DOT__type0_c0_1_adjust);
+        expect_byte(expectation + " R0=0 entry consumed", r0_zero_consumed,
+                    dut_->rootp->UM6845R__DOT__type0_r0_zero_entry_consumed);
     }
 
     std::uint16_t ma() const {
@@ -1237,7 +1243,7 @@ void test_type0_r0_zero_c9_equal_single_c4_increment_deferred(TestBench& test) {
     test.run_clock_ticks(1);
     test.run_characters(3);
     test.run_clock_ticks(1);
-    test.expect_known_vsync_low(
+    test.expect_vsync_low(
         "deferred C9=R9 entry increments C4 once before recovery");
 }
 
@@ -1559,6 +1565,211 @@ void test_type0_adjustment_latches_clear_on_type_roundtrip(TestBench& test) {
         "live type round-trip clears exact-R0 state", false, false, false);
 }
 
+void test_type0_r4_write_at_c0_1_enters_zero_adjustment(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2: if Last Line was
+    // established at C0=0, an R4 write at C0=1 that breaks C4==R4 makes the
+    // current line the first adjustment line even when R5=0. The changed R4
+    // keeps C4 at zero, while C9 advances from zero instead of being reset.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.run_characters(1);
+    test.write_selected_register_at_clken(1);
+    test.expect_type0_arbitration_latches(
+        "type 0 C0=1 R4 break arms only zero-adjustment entry", false, false,
+        false, true);
+    test.run_characters(2);
+
+    test.expect_adjustment_active("type 0 C0=1 R4 break enters adjustment with R5=0");
+    test.expect_c4("type 0 C0=1 R4 break keeps C4", 0);
+    test.expect_ra("type 0 C0=1 R4 break increments C9", 1);
+    test.expect_type0_arbitration_latches(
+        "type 0 C0=1 entry latch clears at the line boundary", false, false,
+        false);
+}
+
+void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+
+    test.write_selected_register_at_nclken(1);
+    test.run_characters(3);
+
+    test.expect_adjustment_active("type 0 C0=1 R9 break enters adjustment with R5=0");
+    test.expect_c4("type 0 C0=1 R9 break keeps C4", 0);
+    test.expect_ra("type 0 C0=1 R9 break increments C9", 1);
+}
+
+void test_type0_r4_write_at_c0_0_overrides_last_line(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // At C0=0 the register write participates in the Last Line comparison
+    // itself. Breaking C4==R4 here must select ordinary counting, not the
+    // special C0=1 zero-adjustment route and not an immutable frame reset.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.write_selected_register_at_clken(1);
+    test.run_characters(3);
+
+    test.expect_adjustment_inactive("type 0 C0=0 R4 break does not enter adjustment");
+    test.expect_c4("type 0 C0=0 R4 break selects ordinary C4 increment", 1);
+    test.expect_ra("type 0 C0=0 R4 break resets matching C9", 0);
+}
+
+void test_type0_r0_one_runs_default_zero_adjustment_line(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 sections 11.2.2 and 13.2.1/13.2.5: R0=1 never reaches
+    // C0=2, so it cannot cancel the adjustment armed by C4==R4/C9==R9.
+    // With R4=R9=R5=0, one two-character adjustment line at C4=1/C9=0
+    // follows the frame line, then the next boundary resets both counters.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    test.run_characters(2);
+    test.expect_adjustment_active("type 0 R0=1 enters default adjustment");
+    test.expect_c4("type 0 R0=1 increments C4 once for adjustment", 1);
+    test.expect_ra("type 0 R0=1 keeps C9 zero for R5=0 adjustment", 0);
+
+    test.run_characters(2);
+    test.expect_adjustment_inactive("type 0 R0=1 zero adjustment lasts one line");
+    test.expect_c4("type 0 R0=1 completion resets C4", 0);
+    test.expect_ra("type 0 R0=1 completion resets C9", 0);
+}
+
+void test_type0_r0_zero_starts_default_zero_adjustment(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 sections 11.2.2 and 13.2.1/13.2.6: with R0 already zero,
+    // the repeated C0=0 equality freezes C9 but consumes the C4 increment
+    // once on the second C0=0. Because C4=R4 and C9=R9 established Last
+    // Line, the short line also takes the default adjustment route even
+    // though R5=0.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 0}, {1, 0}, {2, 0}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(0);
+    test.reset();
+
+    test.run_characters(1);
+    test.expect_adjustment_active("type 0 R0=0 enters default adjustment");
+    test.expect_c4("type 0 R0=0 consumes one C4 increment", 1);
+    test.expect_ra("type 0 R0=0 freezes C9", 0);
+    test.expect_type0_arbitration_latches(
+        "type 0 R0=0 records that its entry increment was consumed", false,
+        false, false, false, true);
+
+    test.run_characters(3);
+    test.expect_c4("type 0 R0=0 does not repeat the C4 increment", 1);
+    test.expect_ra("type 0 R0=0 keeps C9 frozen", 0);
+
+    test.write_selected_register_at_nclken(3);
+    test.run_characters(4);
+    test.expect_adjustment_inactive("type 0 R0=0 recovery completes adjustment");
+    test.expect_c4("type 0 R0=0 recovery resets C4", 0);
+    test.expect_ra("type 0 R0=0 recovery resets C9", 0);
+    test.expect_type0_arbitration_latches(
+        "type 0 R0=0 entry guard rearms after recovery", false, false, false);
+}
+
+void test_type0_r0_zero_during_adjustment_freezes_c4(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 13.2.3: once adjustment is active, changing R0 to
+    // zero at C0=0 freezes the existing C4/C9 values. The pre-adjustment
+    // deferred C4 increment must not fire again merely because C9 equals R9.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 3}, {1, 1}, {2, 1}, {3, 0x11}, {4, 0},
+        {5, 3}, {6, 1}, {7, 1}, {8, 0},    {9, 1},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(0);
+    test.reset();
+
+    test.run_characters(11);
+    test.expect_adjustment_active("type 0 reaches active adjustment before R0=0");
+    test.expect_c4("type 0 adjustment has incremented C4 once", 1);
+    test.expect_ra("type 0 adjustment is one character before C9=R9", 0);
+
+    // The helper crosses the imminent CLKEN boundary, then writes at nCLKEN
+    // while the resulting C0=0/C9=R9 character is active.
+    test.write_selected_register_at_nclken(0);
+    test.expect_ra("type 0 R0=0 write lands with C9=R9", 1);
+    test.run_characters(1);
+    test.expect_adjustment_active("type 0 R0=0 preserves active adjustment");
+    test.expect_c4("type 0 R0=0 does not increment C4 again in adjustment", 1);
+    test.expect_ra("type 0 R0=0 freezes adjustment C9", 1);
+}
+
+void test_type0_r0_one_c0_1_break_is_consumed_at_rollover(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // With R0=1, C0=1 is also the line rollover. The equality-breaking R4
+    // write must affect that rollover directly and be consumed there; retaining
+    // the entry latch would force an extra adjustment line.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.run_characters(1);
+    test.write_selected_register_at_clken(1);
+    test.expect_adjustment_active("type 0 R0=1 C0=1 break enters adjustment");
+    test.expect_c4("type 0 R0=1 C0=1 break keeps C4", 0);
+    test.expect_ra("type 0 R0=1 C0=1 break advances C9", 1);
+    test.expect_type0_arbitration_latches(
+        "type 0 R0=1 consumes the C0=1 entry latch at rollover", false, false,
+        false);
+
+    test.run_characters(2);
+    test.expect_adjustment_inactive("type 0 R0=1 C0=1 adjustment completes next line");
+    test.expect_c4("type 0 R0=1 C0=1 completion resets C4", 0);
+    test.expect_ra("type 0 R0=1 C0=1 completion resets C9", 0);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1625,7 +1836,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 13.2.1 and 16.5; F3/F5 regression guard", false,
          test_type0_interlace_r0_zero_freezes_vsync_count},
         {"t09h_type0_r0_zero_c9_equal_single_c4_increment_deferred",
-         "ACCC v1.10 section 13.2.1; deferred F5 C0 state machine", true,
+         "ACCC v1.10 sections 13.2.1 and 13.2.6; F5/F12", false,
          test_type0_r0_zero_c9_equal_single_c4_increment_deferred},
         {"t16a_type0_r4_write_switches_c9_to_r5",
          "ACCC v1.10 section 11.2.2; F12", false,
@@ -1663,6 +1874,27 @@ int main(int argc, char** argv) {
         {"t16l_type0_arbitration_latches_clear_on_type_roundtrip",
          "UM6845R live CRTC_TYPE contract; F12 lifecycle guard", false,
          test_type0_adjustment_latches_clear_on_type_roundtrip},
+        {"t16m_type0_r4_write_at_c0_1_enters_zero_adjustment",
+         "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12", false,
+         test_type0_r4_write_at_c0_1_enters_zero_adjustment},
+        {"t16n_type0_r9_write_within_c0_1_enters_zero_adjustment",
+         "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12 bus-phase guard", false,
+         test_type0_r9_write_within_c0_1_enters_zero_adjustment},
+        {"t16o_type0_r4_write_at_c0_0_overrides_last_line",
+         "ACCC v1.10 sections 10.3.1 and 12.2; F12 C0=0 guard", false,
+         test_type0_r4_write_at_c0_0_overrides_last_line},
+        {"t16p_type0_r0_one_runs_default_zero_adjustment_line",
+         "ACCC v1.10 sections 11.2.2 and 13.2.1/13.2.5; F5/F12", false,
+         test_type0_r0_one_runs_default_zero_adjustment_line},
+        {"t16q_type0_r0_zero_starts_default_zero_adjustment",
+         "ACCC v1.10 sections 11.2.2 and 13.2.1/13.2.6; F5/F12", false,
+         test_type0_r0_zero_starts_default_zero_adjustment},
+        {"t16r_type0_r0_zero_during_adjustment_freezes_c4",
+         "ACCC v1.10 section 13.2.3; F5/F12 interaction guard", false,
+         test_type0_r0_zero_during_adjustment_freezes_c4},
+        {"t16s_type0_r0_one_c0_1_break_is_consumed_at_rollover",
+         "ACCC v1.10 sections 10.3.1, 11.2.2, and 13.2.1; F5/F12 boundary",
+         false, test_type0_r0_one_c0_1_break_is_consumed_at_rollover},
     };
 
     unsigned passed = 0;

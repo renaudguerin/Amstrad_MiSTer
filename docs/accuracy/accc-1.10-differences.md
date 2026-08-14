@@ -187,24 +187,25 @@ than extrapolating from this table.
 
 The repository documentation now uses v1.10 as its primary Compendium baseline. The
 digests, audit, test plan, roadmap, current-status handoff, Plus architecture note, and
-visible README credit reflect that edition. A first deterministic implementation slice now
-covers the CRTC0 C0>=2 write/arbitration window; the C0=1/R5=0 and `R0<2` entry paths remain.
+visible README credit reflect that edition. Deterministic CRTC0 counter arbitration now
+covers the C0=0 comparison, C0=1/R5=0 entry, C0>=2 write windows, exact-R0 split, and
+R0=0/1 default-adjustment paths. Hardware-visible sub-character timing remains to verify.
 
 ### Semantic re-audit applied to the documentation
 
 - `docs/accuracy/compendium-01-counters.md` now derives sections 3.1, 4.2, and 7.1 from
   v1.10 sections 10.3.1, 11.2.2, and 12.1-12.2, including adjustment arbitration and the
   R9-to-R5 comparison switch.
-- `docs/accuracy/audit-findings.md` now revises F4 and F9, preserves the remaining F5
-  uncertainty, and records the broader v1.10 state-machine gap as F12.
+- `docs/accuracy/audit-findings.md` now revises F4 and F9, records the combined F5/F12
+  state-machine correction, and retains the hardware-verification boundary.
 - `docs/accuracy/testbench-spec.md` revises `t07`, `t08`, `t09`, and `t12`. Implemented
-  `t16a`-`t16l` now protect R5 arbitration at C0=2, the R4/R9 C0>=2 write windows, the
-  exact-R0 split and R4 boundary at both bus phases, completion reset, and snapshot/type-change
-  state clearing. Focused C0=1 and `R0<2` vectors
-  remain before complete F12 acceptance.
-- `rtl/UM6845R.v` implements only that evidence-backed slice. This report does not establish
-  that the current RTL is correct for every v1.10 case; unresolved paths remain named rather
-  than inferred from adjacent behavior.
+  `t16a`-`t16s` protect same-edge C0=0 comparison, C0=1/R5=0 entry, R5 arbitration at C0=2,
+  the R4/R9 C0>=2 write windows, exact-R0 behavior, R0=0/1 default adjustment, completion,
+  active-adjustment freeze, exact short-line latch consumption, and retained-state lifecycle.
+  t09h is now a required pass for the correlated freeze entry.
+- `rtl/UM6845R.v` implements those evidence-backed counter paths. This report does not
+  establish correctness for every pin-level v1.10 timing case; hardware-dependent paths
+  remain verification work rather than inferred from adjacent behavior.
 
 ### Version, citation, and attribution refresh applied
 
@@ -222,20 +223,16 @@ covers the CRTC0 C0>=2 write/arbitration window; the C0=1/R5=0 and `R0<2` entry 
 
 ## Unresolved verification and implementation questions
 
-1. Does the current RTL already model the v1.10 ordering between `Last Line`, vertical
-   adjustment activation, and the C9/R9-to-C9/R5 comparison switch? Answer with focused
-   traces before rewriting shared counter logic.
-2. For the `R5 == 0`, `C0 == 1` adjustment-entry case, what are the exact observable C4,
-   C9, RA, MA/DE, and VSYNC transitions at each character boundary? The prose is clearer,
-   but a hardware/SHAKER trace remains the best oracle for sub-cycle ordering.
-3. Does the named F5 freeze-entry XFAIL exercise the same `R0 < 2` default-adjustment path
-   described in v1.10, or a distinct already-armed transition? Keep it named until the
-   relationship is proved.
-4. Should the project expand the accuracy scope to CRTC 2? If so, encode the three internal
+1. For the `R5 == 0`, `C0 == 1` adjustment-entry case, what are the exact observable MA/DE
+   and VSYNC transitions within the character? Counter-boundary C4/C9/RA behavior is fixed,
+   but a hardware/SHAKER trace remains the best oracle for sub-cycle outputs.
+2. Does real type-0 hardware expose any additional sync/interrupt edge during an R0=0 live
+   rupture beyond the now-tested freeze, deferred increment, and recovery sequence?
+3. Should the project expand the accuracy scope to CRTC 2? If so, encode the three internal
    states and no-HSYNC case directly; do not extrapolate the type-0 latch implementation.
-5. When the affected counter RTL is changed, should `rtl/UM6845R.v` carry a focused source
-   attribution comment in addition to the visible README and documentation credit?
+4. Should future F4/F9 refactoring retain the focused source comment in `rtl/UM6845R.v`, or
+   add a more explicit mapping from each retained arbitration flag to the Compendium state?
 
-v1.10 supersedes v1.9 for new CRTC work. Continue from the remaining focused F12/t16 entry
-traces described above; v1.9 remains relevant only to this edition comparison and historical
-review.
+v1.10 supersedes v1.9 for new CRTC work. Continue with F4's t07/t08 equality/overflow
+checkpoint while preserving t09h and t16a-t16s; v1.9 remains relevant only to this edition
+comparison and historical review.

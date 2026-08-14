@@ -117,7 +117,7 @@ General implementation rules for all fix prompts:
   V2 (SHAKER VSYNC tests); V1 (Onescreen Colonies, PHX must not regress — they motivated the
   existing `vsync_allow` code).
 
-## F12. CRTC 0 last-line / vertical-adjustment arbitration — C0>=2 slice implemented
+## F12. CRTC 0 last-line / vertical-adjustment arbitration — deterministic counter path implemented
 
 - **Rule** (digest-01 §3.1/§4.2/§7.1 → ACCC §10.3.1, §11.2.2, §12.2,
   p.75-76/81-83/92-94): `Last Line` is provisional until additional-line handling is
@@ -126,28 +126,24 @@ General implementation rules for all fix prompts:
   breaks equality that was true at C0==0, and the `R0<2` route. On the entry line, R9 writes
   at C0==2..R0-1 use the new R9; R4 writes at C0==2..R0 switch the C9 comparator from R9 to
   R5; an R9 write exactly at C0==R0 can increment both C4 and C9 under that switch.
-- **Current**: the first implementation slice captures type-0 R4/R9 bus writes across the
-  documented C0>=2 windows, applies a same-cycle R5 write at the C0=2 decision, separates the
-  exact-R0 C4 and C9 comparisons, and retains the selected comparison across arbitrary 16 MHz
-  bus phases. `t16a`-`t16l` protect entry C4/C9 values, exact-R0 R4 at both bus phases,
-  completion reset, and snapshot/type-change state clearing. The C0=1
-  equality-break entry with R5=0 and the `R0<2` route are not implemented by this slice;
-  `frame_adj_r` still represents those paths through the older shared state.
-- **Impact**: CRTC-0 ruptures that change R4/R9 on the last frame line, zero-adjustment entry,
-  short `R0` lines, and the frame boundary after adjustment can choose the wrong C4/C9 path.
-  This overlaps F4/F5/F9 but is the missing arbitration state, not another zero-comparator
-  shortcut.
-- **Confidence: medium-high for the implemented C0>=2 counter results; medium for the
-  remaining entry state.** The C4/C9 results are explicit in v1.10 and protected at both bus
-  phases. Exact RA, MA/DE, and VSYNC behavior for the C0==1 path still needs hardware/SHAKER
-  vectors.
+- **Current**: type 0 captures effective R4/R9 values for same-edge C0=0 comparison,
+  activates the R5=0 C0=1 equality-break route, applies a same-cycle R5 write at C0=2,
+  retains the selected comparator across the documented C0>=2 windows, and separates the
+  exact-R0 C4 and C9 comparisons. The short-R0 path consumes the C4 increment once for R0=0
+  and runs the default zero-adjustment line for R0=0/1. `t16a`-`t16s` protect those counter
+  results, active-adjustment freeze, exact R0=1 latch consumption, completion, bus phases,
+  and retained-state lifecycle; t09h protects the correlated R0=0 freeze entry.
+- **Impact**: the documented deterministic C4/C9/RA and adjustment-state paths are now
+  guarded. Remaining risk is pin-level sub-character timing for ruptures and short-R0 entry,
+  plus interactions exposed when F4 removes the older zero-comparator shortcuts.
+- **Confidence: high for the implemented counter results; medium for untraced pin timing.**
+  The C4/C9 results are explicit in v1.10 and protected at both bus phases. Exact MA/DE and
+  VSYNC behavior for the C0==1 path still benefits from hardware/SHAKER traces.
 - **Fix prompt**:
-  > Preserve `t16a`-`t16l` as required passes. Add the C0==1 equality-break vectors with
-  > R5==0 and the `R0<2` correlation vectors before extending the state machine. Keep the
-  > t09h divergence named until traces establish whether it is the same default-adjustment
-  > route. Keep type 1 unchanged and do not infer MA/DE/VSYNC timing without evidence.
-- **Verify**: V3 `t16a`-`t16l` required passes for the implemented slice; focused C0==1 and
-  `R0<2` vectors plus V2/hardware evidence remain for complete F12 acceptance.
+  > Preserve `t09h` and `t16a`-`t16s` as required passes while implementing F4. Keep type 1
+  > unchanged and do not infer sub-character MA/DE/VSYNC timing from internal counter state.
+- **Verify**: V3 `t09h` and `t16a`-`t16s` required passes; V2/hardware evidence remains for
+  sub-character output timing and the complete CRTC-0 rupture matrix.
 
 ## F4. Counter overflow defeated by `!line_max` / type 0 `!R4` shortcut terms
 
@@ -184,32 +180,27 @@ General implementation rules for all fix prompts:
 - **Verify**: V3 t07/t08 plus F12's planned t16 mandatory before merging; then V2 + V1
   regression pass (demos: Batman Forever, The Demo, Yao demos exercise ruptures heavily).
 
-## F5. CRTC 0 R0=0 freeze is implemented; deferred entry state remains unresolved
+## F5. CRTC 0 R0=0 freeze and deferred entry are deterministic-complete
 
 - **Rule** (digest-01 §8.1 → ACCC §13.2, p.103-109): type 0 with R0=0 pins C0 at 0; the C0==1
   re-authorization never runs, so C9 (and everything driven from it) freezes; R4/R5/R9 writes
   are ignored while frozen; R8 stays live; HSYNC can only occur if R2==0 (C0 never reaches a
   nonzero R2); VMA reload is suppressed until C4/C9 return to 0. v1.10 also frames `R0<2` as a
   default vertical-adjustment route because C0 cannot reach the C0==2 cancellation point.
-- **Current** (`UM6845R.v:152-163`): `hcc_next` now pins C0 at 0 and `r0_frozen` suppresses
-  `line_new`; implemented t09a-t09g cover the principal freeze, HSYNC, resume, type-1, and
-  interlace regressions. The named t09h XFAIL remains: when C9==R9 on entry, the previously
-  armed decision should increment C4 once before the frozen state settles. It has not yet been
-  proved whether that XFAIL is exactly the same internal route as v1.10's broader `R0<2`
-  default-adjustment wording.
-- **Impact**: the principal HSYNC/counter freeze is protected. The remaining risk is the narrow
-  C9==R9 entry transition and its relationship to F12's adjustment state; treating t09h as
-  isolated may produce the wrong C4/C9 state on recovery.
-- **Confidence: medium.** Current pins demonstrate the main fix. The relationship between the
-  deferred increment, default adjustment, and later `Last Line` re-arm needs the combined t16
-  traces rather than a prose-only conclusion.
+- **Current**: `hcc_next` pins C0 at 0 and `r0_frozen` suppresses `line_new`; t09a-t09g cover
+  the principal freeze, HSYNC, resume, type-1, and interlace regressions. Required-pass t09h
+  now consumes the previously armed C4 increment exactly once when C9==R9 at entry. t16p/q
+  correlate R0=1 and initial R0=0 with the default-adjustment route and recovery.
+- **Impact**: the deterministic freeze and entry counter states are protected. Remaining risk
+  is hardware-visible sync/interrupt timing during exotic live ruptures, not a named simulator
+  divergence.
+- **Confidence: high for deterministic counter and pin assertions; medium for the broader
+  hardware matrix.** The combined t09/t16 traces establish deferred increment, adjustment
+  activation, freeze, and recovery as one state sequence.
 - **Fix prompt**:
-  > Keep the current pin/freeze behavior and t09a-t09g green. Before changing the t09h path,
-  > implement the R0<2 sub-vectors in planned t16 and trace whether C9==R9 entry, adjustment
-  > activation, and completion re-arming are one state sequence. Resolve only the narrow
-  > deferred transition; do not loosen `r0_frozen` or change type 1's one-character lines.
-- **Verify**: V3 t09a-t09g required passes; t09h remains a named XFAIL until correlated with
-  planned t16 and, ideally, a type-0 hardware/SHAKER trace.
+  > Keep t09a-t09h and t16p/q green. Do not loosen `r0_frozen` or change type 1's
+  > one-character lines while removing F4 shortcuts.
+- **Verify**: V3 t09a-t09h and t16p-s required passes; V2/hardware SHAKER R0 tests remain.
 
 ## F6. Type 0 spurious border byte when R1>R0 (and its R8-skew suppression)
 
@@ -368,9 +359,9 @@ General implementation rules for all fix prompts:
 | 2 | F2 status bit 5 latch | S | none |
 | 3 | Verilator testbench (separate spec) | M | none — unblocks the rest |
 | 4 | F3 VSYNC mid-line/blocked | M | testbench strongly advised |
-| 5 | F12 type 0 last-line/adjustment arbitration | L (risky) | planned t16 + hardware vectors |
-| 6 | F5 deferred R0<2 entry state | S-M | F12 vectors |
-| 7 | F4 overflow shortcut removal | M (risky) | F12, testbench mandatory |
+| 5 | F12 type 0 last-line/adjustment arbitration — deterministic complete | L (risky) | t16 required; hardware vectors pending |
+| 6 | F5 deferred R0<2 entry state — deterministic complete | S-M | t09/t16 required; hardware pending |
+| 7 | F4 overflow shortcut removal | M (risky) | F12 complete; testbench mandatory |
 | 8 | F8 type 1 C5 counter | M | F4 |
 | 9 | F9 C0==R0 R9-to-R5 switch | S-M | F12, t12/t16 |
 | 10 | F7 RFD | L | F4, F8 |

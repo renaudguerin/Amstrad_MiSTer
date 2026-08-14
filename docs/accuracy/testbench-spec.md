@@ -94,22 +94,20 @@ lags a sub-vector name.
 | t06 status bit 5 latch at C0=R0; not set by R6=0-while-C4>0 (type 1) — implemented | digest-03 §21.3.3 | F2 |
 | t07 equality overflow: R9<C9 counts C9 through 31/wrap; outside adjustment R4<C4 counts C4 through 127/wrap | digest-01 §3/§7 | F4, while preserving F12 arbitration |
 | t08 §28.1.1 ID: R4=36,R9=7,R5=16, R7 sweep → VSYNC ceases >37 (t0) / >39 (t1); establish adjustment/overflow prerequisites explicitly | digest-03 §28.1.1 + digest-01 §4.2/§7.1 | F4/F12 discriminator, not shortcut-only proof |
-| t09 R0=0 freeze (type 0): counters halt, no HSYNC unless R2=0, resume clean — implemented; C9=R9 deferred-entry subcase remains named XFAIL pending correlation with v1.10's R0<2 default-adjustment route | digest-01 §8.1 | F5/F12 boundary |
+| t09 R0=0 freeze (type 0): counters halt, no HSYNC unless R2=0, resume clean; C9=R9 entry consumes exactly one C4 increment — implemented | digest-01 §8.1 | F5/F12 boundary |
 | t10 R1>R0: type 0 one border char at C0=R0, type 1 none | digest-03 §17.6.2 | F6 |
 | t11 type 1 adjustment: C9 keeps cycling (RA!), C4 increments, R5=0 doesn't end | digest-01 §4 | F8 |
 | t12 R9 write at exact C0==R0 (type 0): preserve documented C4=39,C9=8 result as the R9-to-R5 comparator-switch race, not a generic old/new-R9 sample | digest-01 §3.1/§4.2 | F9/F12 |
 | t13 RFD: R5 0→1 at C0==R0, frame-parity VMA' alternation | digest-01 §5 | F7 |
 | t14 VMA reload: type 0 only at C4=C9=C0=0; type 1 every line of C4=0 row | digest-03 §17.4/§20.3 | F11h + regression |
 | t15 R12/R13 overscan-bit carry into MA[13:12] | digest-03 §20.5 | regression |
-| t16a-t16l type-0 C0>=2 last-line/adjustment arbitration — implemented: R5 accepted at C0==2 and rejected after it; R9 updates at C0==2..R0-1; R4 updates switch C9/R9 to C9/R5 through exact-R0; exact-R0 R9 increments C4 and C9; completion resets the next line; CLKEN/mid-character boundary phases and snapshot/type-change clearing covered | digest-01 §3.1/§4.2/§7.1 | F12 write-window slice and F9 core race |
-| t16 remaining type-0 entry state — planned/XFAIL where necessary: R5=0 equality broken at C0==1; `R0<2` linkage and the named t09h divergence; pin-level RA/MA/DE/VSYNC expectations only where hardware evidence supports them | digest-01 §3.1/§4.2/§7.1/§8.1 | Complete F12 before F4/F5 integration |
+| t16a-t16s type-0 last-line/adjustment arbitration — implemented: same-edge C0=0 R4 comparison; C0=1 R4/R9 equality breaks with R5=0, including exact R0=1 rollover consumption; R5 accepted at C0==2 and rejected after it; R9 updates at C0==2..R0-1; R4 updates switch C9/R9 to C9/R5 through exact-R0; exact-R0 R9 increments C4 and C9; R0=0/1 default adjustment; R0=0 during active adjustment freezes C4/C9; completion and retained-state lifecycle | digest-01 §3.1/§4.2/§7.1/§8.1 | F12 deterministic counter milestone and F5/F9 boundaries |
 
-The implemented t01/t02/t03/t06/t09 groups are required passes except for the single named
-F5 C9=R9-entry divergence. `t16a`-`t16l` are required passes for the v1.10 C0>=2
-write-window slice. The next vector-only checkpoint finishes the C0=1/R5=0 and `R0<2`
-entry state; use narrowly named `xfail` sub-vectors until hardware evidence resolves
-sub-cycle observables. Then t07/t08 follow for F4. Never wrap setup assertions in a
-whole-test expected failure.
+The implemented t01/t02/t03/t06/t09 and t16 groups are required passes. `t16a`-`t16s`
+fix the v1.10 counter and adjustment-state expectations while deliberately avoiding
+unsupported sub-character MA/DE/VSYNC claims. The next vector-only checkpoint is t07/t08
+for F4. If later hardware evidence introduces a true pin-level uncertainty, keep any
+expected failure narrow; never wrap setup assertions in a whole-test expected failure.
 
 ## Non-goals
 
