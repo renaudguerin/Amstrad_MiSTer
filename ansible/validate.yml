@@ -84,6 +84,18 @@
         path: "{{ quartus_rootdir }}/bin/quartus_sh"
       register: quartus_sh
 
+    - name: Require Quartus for the final build-VM acceptance gate
+      ansible.builtin.assert:
+        that:
+          - quartus_sh.stat.exists
+          - quartus_sh.stat.isreg
+          - quartus_sh.stat.executable
+        fail_msg: >-
+          Quartus is required but {{ quartus_rootdir }}/bin/quartus_sh is not
+          an executable file. Complete the human installer handoff and run
+          post-install.yml before repeating this validation.
+      when: quartus_required | bool
+
     - name: Query the installed Quartus version as the non-root build user
       ansible.builtin.command:
         argv:
@@ -112,4 +124,4 @@
         msg: >-
           {{ quartus_version.stdout
              if quartus_sh.stat.exists
-             else 'Quartus is not installed yet; complete the manual installer handoff in ansible/README.md.' }}
+             else 'Rosetta is ready, but Quartus is not installed. Complete the human installer handoff in ansible/README.md; use -e quartus_required=true for the final acceptance gate.' }}

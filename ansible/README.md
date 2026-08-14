@@ -6,9 +6,10 @@ groups, mounts UTM's Rosetta runtime, registers the x86_64 ELF handler,
 enables Debian amd64 multiarch, and installs the native and amd64 runtime
 dependencies used by Quartus and the repository's Verilator tests.
 
-It deliberately does **not** download, copy, or accept the license terms for
-Intel's proprietary installer. No credentials or installer files belong in
-this repository.
+It deliberately does **not** download, copy, execute, or accept the license
+terms for Altera's proprietary installer. No credentials or installer files
+belong in this repository. Quartus Prime Lite needs no license file, but its
+downloads and installer still have terms that a human must review and accept.
 
 ## Provision
 
@@ -26,8 +27,10 @@ The first check-mode run skips resolution of amd64 packages because check mode
 does not execute `dpkg --add-architecture amd64`. The real run enables the
 architecture; subsequent check-mode runs can cover those packages. Some
 runtime-only tasks, such as starting the systemd service, remain intentionally
-skipped in check mode. The validation play executes Debian's amd64 `/usr/bin/hello`
-through Rosetta, then reports the Quartus version if Quartus is installed.
+skipped in check mode. The validation play executes Debian's amd64
+`/usr/bin/hello` through Rosetta, then reports the Quartus version if Quartus
+is installed. The final acceptance command uses `-e quartus_required=true` so
+an absent toolchain fails rather than being mistaken for a complete build VM.
 
 The inventory connects as root using the already-configured SSH key. It does
 not configure passwords or copy private/public keys. If the VM address changes,
@@ -38,34 +41,61 @@ ansible-playbook -i 'quartus-vm,' \
   -e ansible_host=192.168.64.3 -e ansible_user=root site.yml
 ```
 
-## Manual Intel installer handoff
+## Human installer handoff
 
-1. As a human, sign in to Intel's FPGA Software Download Center and download
-   the Linux **Quartus Prime Lite 17.0** base installer, the **17.0.2** update,
-   and **Cyclone V** device support. Review and accept Intel's terms yourself.
-2. Transfer those files to a temporary directory in the VM. Do not put them in
-   this repository. The Cyclone V `.qdz` must be beside the base installer.
-3. SSH into the VM as `renaud`, make the installers executable, and install the
-   base release into the provisioned user-owned directory:
+1. As a human, open Altera's official
+   [Quartus Prime Lite 17.0 Linux archive](https://www.altera.com/downloads/fpga-development-tools/quartus-prime-lite-edition-design-software-version-17-0-linux),
+   review its notices and license terms, and download only these files:
+
+   | Purpose | Vendor filename | Published SHA-1 |
+   | --- | --- | --- |
+   | Base tools | `QuartusLiteSetup-17.0.0.595-linux.run` | `99ccfb15962febceba64de2dc9b28c47e5a3b8df` |
+   | Cyclone V support | `cyclonev-17.0.0.595.qdz` | `2198dedb99866f38d43ff6c029d4bd668e2bbb59` |
+   | Update 2 | `QuartusSetup-17.0.2.602-linux.run` | `cdc0389947ba6d3fb3206ac9840549c9fb38b093` |
+
+   The archive warns that 17.0 is obsolete and lacks later functional and
+   security updates. Keep this VM dedicated to trusted FPGA builds and use a
+   current browser on the Mac for the download.
+2. Copy the three files, unchanged and with their vendor filenames, into
+   `/home/renaud/quartus-installer-17.0.2` in the VM. Do not put them in this
+   repository. The Cyclone V `.qdz` must be beside the base installer so the
+   installer can discover it.
+3. From the Mac, verify that all three files are present and match the checksums
+   published on the official archive page. This play is read-only; it neither
+   runs an installer nor accepts a license:
+
+   ```bash
+   cd ansible
+   ansible-playbook installer-preflight.yml
+   ```
+
+4. SSH into the VM as `renaud`, make the base installer executable, and launch
+   it in interactive console mode (no X display is required):
 
    ```bash
    ssh renaud@192.168.64.3
-   cd /path/to/temporary/installer-directory
+   cd /home/renaud/quartus-installer-17.0.2
    chmod +x QuartusLiteSetup-17.0.0.595-linux.run
    export QUARTUS_CPUID_BYPASS=1
-   ./QuartusLiteSetup-17.0.0.595-linux.run \
-     --mode unattended --installdir /home/renaud/intelFPGA_lite/17.0
+   ./QuartusLiteSetup-17.0.0.595-linux.run --mode text
    ```
 
-   `--mode unattended` is only appropriate after you personally review and
-   accept the download's terms. If Intel's installer requires an explicit EULA
-   option, use its `--help` output rather than copying a flag from a different
-   Quartus release.
-4. Apply Intel's 17.0.2 update to the same installation directory, following
-   the update installer's own `--help`/GUI. Installer filenames and switches
-   have changed across archive revisions, so the playbook does not guess them.
-5. Remove the temporary installer files when you no longer need them. They are
-   proprietary and can always be downloaded again from your Intel account.
+   Review and accept the displayed terms yourself. Select
+   `/home/renaud/intelFPGA_lite/17.0` as the installation directory and include
+   Cyclone V support. An unattended invocation requires an explicit EULA-
+   acceptance switch, so it is intentionally not scripted here.
+5. Apply Update 2 interactively to the same installation directory:
+
+   ```bash
+   cd /home/renaud/quartus-installer-17.0.2
+   chmod +x QuartusSetup-17.0.2.602-linux.run
+   export QUARTUS_CPUID_BYPASS=1
+   ./QuartusSetup-17.0.2.602-linux.run --mode text
+   ```
+
+   Review the update's displayed terms and confirm the existing
+   `/home/renaud/intelFPGA_lite/17.0` installation. Do not create a second
+   version directory.
 6. From the Mac, apply the Rosetta compatibility patch to Quartus's environment
    script, then validate the result:
 
@@ -74,7 +104,7 @@ ansible-playbook -i 'quartus-vm,' \
    ansible-playbook post-install.yml --check --diff
    ansible-playbook post-install.yml
    ansible-playbook post-install.yml --check --diff
-   ansible-playbook validate.yml
+   ansible-playbook validate.yml -e quartus_required=true
    ```
 
    `post-install.yml` recognizes the two relevant sections of Quartus 17's
@@ -82,11 +112,21 @@ ansible-playbook -i 'quartus-vm,' \
    `qenv.sh.pre-rosetta` backup, selects the 64-bit tools on an aarch64 guest,
    and disables only the host SSE-probe section that cannot work through
    Rosetta. It then runs `quartus_sh --version` as `renaud` and requires
-   version 17.0.2. Re-running the play makes no further edit.
+   version 17.0.2. Re-running the play makes no further edit. The final
+   validation also rechecks the live Rosetta registration and amd64 execution.
+7. Remove the three files from `/home/renaud/quartus-installer-17.0.2` when you
+   no longer need the proprietary installer payload. The installed tools remain
+   under `/home/renaud/intelFPGA_lite/17.0`.
 
 Rosetta only translates 64-bit Intel Linux executables. Quartus synthesis uses
 the 64-bit tools; legacy 32-bit utilities and USB/JTAG tooling are outside this
 VM's supported build-only scope.
+
+A container does not remove the human handoff: Altera's archive publishes
+installers rather than a Quartus 17.0.2 container image, and a local image would
+still have to be built from the same terms-governed files. The disposable VM is
+already the isolation boundary, while direct Rosetta execution avoids another
+amd64 userland and container runtime.
 
 ## Build as the normal user
 

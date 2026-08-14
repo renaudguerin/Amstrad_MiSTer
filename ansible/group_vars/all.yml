@@ -33,6 +33,28 @@ rosetta_binfmt_definition_expected: |
 quartus_install_parent: "{{ quartus_user_home }}/intelFPGA_lite"
 quartus_install_dir: "{{ quartus_install_parent }}/17.0"
 quartus_rootdir: "{{ quartus_install_dir }}/quartus"
+quartus_installer_staging_dir: "{{ quartus_user_home }}/quartus-installer-17.0.2"
+
+# These are the minimal Linux artifacts published on Altera's Quartus Prime
+# Lite 17.0 archive page. Keep the vendor filenames: the base installer finds
+# Cyclone V support beside itself. Downloading the files and accepting their
+# terms remain explicit human actions; installer-preflight.yml only verifies
+# payloads that are already in the guest.
+quartus_installer_artifacts:
+  - description: Quartus Prime Lite 17.0 base installer
+    filename: QuartusLiteSetup-17.0.0.595-linux.run
+    sha1: 99ccfb15962febceba64de2dc9b28c47e5a3b8df
+  - description: Cyclone V 17.0 device support
+    filename: cyclonev-17.0.0.595.qdz
+    sha1: 2198dedb99866f38d43ff6c029d4bd668e2bbb59
+  - description: Quartus Prime 17.0 Update 2
+    filename: QuartusSetup-17.0.2.602-linux.run
+    sha1: cdc0389947ba6d3fb3206ac9840549c9fb38b093
+
+# validate.yml normally validates the provisioned Rosetta foundation even
+# before the human installer handoff. Set this true at the final acceptance
+# gate so a missing Quartus installation is a hard failure.
+quartus_required: false
 
 quartus_native_packages:
   - binfmt-support

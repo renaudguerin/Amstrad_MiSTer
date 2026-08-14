@@ -1,0 +1,51 @@
+---
+- name: Verify the human-downloaded Quartus 17.0.2 installer payload
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Inspect the expected installer artifacts
+      ansible.builtin.stat:
+        path: "{{ quartus_installer_staging_dir }}/{{ item.filename }}"
+        checksum_algorithm: sha1
+        get_checksum: true
+      loop: "{{ quartus_installer_artifacts }}"
+      loop_control:
+        label: "{{ item.filename }}"
+      register: quartus_installer_stats
+
+    - name: Require every installer artifact
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg
+        fail_msg: >-
+          Missing {{ item.item.description }} at
+          {{ quartus_installer_staging_dir }}/{{ item.item.filename }}.
+          Download it from Altera's Quartus Prime Lite 17.0 Linux archive only
+          after reviewing and accepting the vendor's terms, then copy it into
+          the staging directory as {{ quartus_user }}.
+      loop: "{{ quartus_installer_stats.results }}"
+      loop_control:
+        label: "{{ item.item.filename }}"
+
+    - name: Require the vendor-published SHA-1 checksums
+      ansible.builtin.assert:
+        that:
+          - item.stat.checksum == item.item.sha1
+        fail_msg: >-
+          Checksum mismatch for {{ item.item.filename }}. Expected the SHA-1
+          published by Altera ({{ item.item.sha1 }}), but found
+          {{ item.stat.checksum }}. Do not run this file; download a fresh copy
+          from the official archive.
+      loop: "{{ quartus_installer_stats.results }}"
+      loop_control:
+        label: "{{ item.item.filename }}"
+
+    - name: Report the verified human handoff
+      ansible.builtin.debug:
+        msg: >-
+          All three vendor payloads match Altera's published checksums. No file
+          was executed and no license term was accepted. Continue with the
+          interactive installer steps in ansible/README.md.

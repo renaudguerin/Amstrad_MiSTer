@@ -236,6 +236,14 @@
         group: "{{ quartus_user }}"
         mode: "0755"
 
+    - name: Create the private installer staging directory
+      ansible.builtin.file:
+        path: "{{ quartus_installer_staging_dir }}"
+        state: directory
+        owner: "{{ quartus_user }}"
+        group: "{{ quartus_user }}"
+        mode: "0700"
+
     - name: Install the shared Quartus environment
       ansible.builtin.template:
         src: quartus-env.sh.j2
