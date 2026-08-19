@@ -304,6 +304,10 @@ public:
         expect_byte(expectation, expected, dut_->rootp->UM6845R__DOT__row);
     }
 
+    void expect_c5(const std::string& expectation, std::uint8_t expected) const {
+        expect_byte(expectation, expected, dut_->rootp->UM6845R__DOT__c5);
+    }
+
     void expect_known_ra(const std::string& expectation,
                          std::uint8_t expected) const {
         expect_known_byte(expectation, expected, dut_->RA);
@@ -2782,28 +2786,189 @@ void test_type1_identification_r7_38_fires(TestBench& test) {
     // at 38, while type 1 increments C4 again during adjustment.  That extra
     // counting depends on F8's separate C5 counter.
     const bool seen = run_identification_sweep(test, 1, 38);
-    test.expect_known_vsync_observed("type 1 R7=38 triggers VSYNC in adjustment",
-                                     seen);
+    test.expect_vsync_observed("type 1 R7=38 triggers VSYNC in adjustment",
+                               seen);
 }
 
 void test_type1_identification_r7_39_fires(TestBench& test) {
     // Type 1 keeps incrementing C4 whenever C9 reaches R9 during adjustment
     // (section 11.2.1): C4=37 on entry, 38 after eight adjustment lines, and
-    // 39 as the sixteenth completes the R5 count.  That extra counting is F8's
-    // separate C5 counter, which is not implemented, so this boundary is a
-    // named F8 divergence rather than a weakened expectation.
+    // 39 as the sixteenth completes the R5 count.
     const bool seen = run_identification_sweep(test, 1, 39);
-    test.expect_known_vsync_observed("type 1 R7=39 triggers VSYNC in adjustment",
-                                     seen);
+    test.expect_vsync_observed("type 1 R7=39 triggers VSYNC in adjustment",
+                               seen);
 }
 
 void test_type1_identification_r7_40_is_silent(TestBench& test) {
-    // The type-1 half of the discriminator.  It holds on the current model for
-    // the wrong reason (C4 stops at 37 without F8), so it is a required pass
-    // now and becomes load-bearing once F8 lands.
+    // The type-1 half of the discriminator.  It holds once F8 is implemented
+    // because C4 reaches 39 on the sixteenth adjustment line and then resets to 0.
     const bool seen = run_identification_sweep(test, 1, 40);
     test.expect_no_vsync_observed("type 1 R7=40 never triggers VSYNC", seen);
 }
+
+// ---------------------------------------------------------------------------
+// F8 worked example, zero-R5 bug, and Type 0 control tests
+// ---------------------------------------------------------------------------
+
+void test_type1_adjustment_c4_c9_c5_worked_example(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // Compendium section 4.1 (ACCC v1.10 section 11.2.1, page 81):
+    // Worked example: R4=10, R5=16, R9=3, R1=40, R0=63.
+    // Total normal lines = (10 + 1) * (3 + 1) = 44 lines = 2816 characters.
+    constexpr RegisterProgram kWorkedExampleRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
+        {5, 16}, {6, 25}, {7, 30}, {8, 0},    {9, 3},
+    }};
+    program_registers(test, kWorkedExampleRegisters);
+    test.reset();
+
+    // Advance through the normal frame to reach vertical adjustment entry.
+    test.run_characters(44 * 64);
+
+    // Compendium section 4.1 and ACCC v1.10 section 11.2.1 (page 81):
+    // On CRTC 1, vertical adjustment counts 16 lines (c5 = 0..15).
+    // C9 cycles 0..R9 (0,1,2,3, 0,1,2,3, 0,1,2,3, 0,1,2,3).
+    // C4 increments each time C9 reaches R9=3:
+    // lines 0..3:   c5=0..3,   C4=11, C9=0..3
+    // lines 4..7:   c5=4..7,   C4=12, C9=0..3
+    // lines 8..11:  c5=8..11,  C4=13, C9=0..3
+    // lines 12..15: c5=12..15, C4=14, C9=0..3
+    struct ExpectedLine {
+        std::uint8_t c4;
+        std::uint8_t c9;
+        std::uint8_t c5;
+    };
+
+    const std::array<ExpectedLine, 16> expected_sequence = {{
+        {11, 0, 0},  {11, 1, 1},  {11, 2, 2},  {11, 3, 3},
+        {12, 0, 4},  {12, 1, 5},  {12, 2, 6},  {12, 3, 7},
+        {13, 0, 8},  {13, 1, 9},  {13, 2, 10}, {13, 3, 11},
+        {14, 0, 12}, {14, 1, 13}, {14, 2, 14}, {14, 3, 15},
+    }};
+
+    for (unsigned line_idx = 0; line_idx < 16; ++line_idx) {
+        const auto& exp = expected_sequence[line_idx];
+        const std::string line_tag = "line " + std::to_string(line_idx) + " (c5=" + std::to_string(exp.c5) + ")";
+        test.expect_c4("CRTC 1 worked example " + line_tag + " C4", exp.c4);
+        test.expect_ra("CRTC 1 worked example " + line_tag + " C9/RA", exp.c9);
+        test.expect_c5("CRTC 1 worked example " + line_tag + " C5", exp.c5);
+        test.run_characters(64);
+    }
+
+    // After 16 lines of adjustment (c5+1 == 16 == R5), adjustment ends.
+    // C4 and C9 reset to 0 unconditionally for frame 1 start.
+    test.expect_c4("CRTC 1 worked example frame 1 start C4=0", 0);
+    test.expect_ra("CRTC 1 worked example frame 1 start C9=0", 0);
+    test.expect_c5("CRTC 1 worked example frame 1 start C5=0", 0);
+}
+
+void test_type1_r5_zero_mid_adjustment_keeps_counting(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // Compendium section 4.4 (ACCC v1.10 section 11.3.2, page 85):
+    // Bug: R5 set to 0 during adjustment does NOT reset C4/end adjustment.
+    // CRTC 1 compares C5+1 == R5 by equality, which cannot match R5=0.
+    // C5 free-runs, C4 continues incrementing at C9==R9 wraps.
+    // Only setting R5 to a reachable positive value clears adjustment.
+    constexpr RegisterProgram kRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
+        {5, 16}, {6, 25}, {7, 30}, {8, 0},    {9, 3},
+    }};
+    program_registers(test, kRegisters);
+    test.reset();
+
+    // Advance 44 lines into the frame to enter vertical adjustment.
+    test.run_characters(44 * 64);
+
+    // On line 0 of adjustment: c5=0, C4=11, C9=0.
+    test.expect_c4("adjustment line 0: C4=11", 11);
+    test.expect_c5("adjustment line 0: c5=0", 0);
+
+    // Run 2 lines to reach line 2 (c5=2, C4=11, C9=2).
+    test.run_characters(2 * 64);
+    test.expect_c5("adjustment line 2: c5=2", 2);
+
+    // Mid-adjustment write: set R5 = 0.
+    test.write_register(5, 0);
+
+    // Advance through the remaining lines up to line 15 (13 lines = 13 * 64 chars).
+    test.run_characters(13 * 64);
+    test.expect_c4("adjustment line 15: C4=14", 14);
+    test.expect_ra("adjustment line 15: C9=3", 3);
+    test.expect_c5("adjustment line 15: c5=15", 15);
+
+    // Line 16: With R5=0, adjustment does NOT end!
+    // C9 wraps to 0, C4 increments to 15, c5 increments to 16.
+    test.run_characters(64);
+    test.expect_c4("adjustment line 16: C4 continues to 15", 15);
+    test.expect_ra("adjustment line 16: C9 wraps to 0", 0);
+    test.expect_c5("adjustment line 16: c5 advances to 16", 16);
+
+    // Advance further through c5=31 (15 lines = 15 * 64 chars) to reach c5=31.
+    test.run_characters(15 * 64);
+    test.expect_c5("adjustment line 31: c5 reaches 31", 31);
+    test.expect_c4("adjustment line 31: C4 reaches 18", 18);
+    test.expect_ra("adjustment line 31: C9 reaches 3", 3);
+
+    // Next line (32nd adjustment line): c5 wraps from 31 to 0! C4 increments to 19.
+    test.run_characters(64);
+    test.expect_c5("adjustment line 32: c5 wraps to 0", 0);
+    test.expect_c4("adjustment line 32: C4 increments to 19", 19);
+    test.expect_ra("adjustment line 32: C9 wraps to 0", 0);
+
+    // Run 5 more lines to reach c5=5.
+    test.run_characters(5 * 64);
+    test.expect_c5("c5 reaches 5", 5);
+
+    // Now write a reachable non-zero value: R5 = 8.
+    test.write_register(5, 8);
+
+    // Run 2 lines: line with c5=6, line with c5=7.
+    test.run_characters(2 * 64);
+    test.expect_c5("c5 reaches 7", 7);
+
+    // At the end of line with c5=7, c5+1 == 8 == R5 matches!
+    // Next line should be frame 1 start (C4=0, C9=0, c5=0).
+    test.run_characters(64);
+    test.expect_c4("frame 1 start: C4 resets to 0", 0);
+    test.expect_ra("frame 1 start: C9 resets to 0", 0);
+    test.expect_c5("frame 1 start: c5 resets to 0", 0);
+}
+
+void test_type0_adjustment_c4_frozen_c9_counts_to_r5(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // Compendium section 4.1 and section 4.2 (ACCC v1.10 section 11.1-11.2, pages 80-83):
+    // Type 0 worked example: R4=10, R5=16, R9=3, R1=40, R0=63.
+    // Total normal lines = (10 + 1) * (3 + 1) = 44 lines = 2816 characters.
+    // On CRTC 0, vertical adjustment has NO separate C5 counter:
+    // C4 freezes at 11 (R4+1) for the ENTIRE 16-line adjustment.
+    // C9 counts 0..15 continuously (exceeding R9=3) until reaching R5-1=15.
+    constexpr RegisterProgram kWorkedExampleRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
+        {5, 16}, {6, 25}, {7, 30}, {8, 0},    {9, 3},
+    }};
+    program_registers(test, kWorkedExampleRegisters);
+    test.reset();
+
+    // Complete normal frame.
+    test.run_characters(44 * 64);
+
+    // For all 16 lines of adjustment, C4 must remain 11 while C9 counts 0..15.
+    for (unsigned line_idx = 0; line_idx < 16; ++line_idx) {
+        const std::string line_tag = "line " + std::to_string(line_idx);
+        test.expect_c4("CRTC 0 control " + line_tag + " C4 frozen at 11", 11);
+        test.expect_ra("CRTC 0 control " + line_tag + " C9/RA counts 0..15", line_idx);
+        test.run_characters(64);
+    }
+
+    // Frame 1 start: C4=0, C9=0.
+    test.expect_c4("CRTC 0 control frame 1 start C4=0", 0);
+    test.expect_ra("CRTC 0 control frame 1 start C9=0", 0);
+}
+
+void test_type1_r4_zero_adjustment_vma_reloads_on_c4_one(TestBench& test);
 
 // ---------------------------------------------------------------------------
 // t20: Video Pointer R12/R13 reload coverage across normal and degenerate frames
@@ -2818,6 +2983,78 @@ void write_r12_r13_character(TestBench& test, std::uint8_t r12, std::uint8_t r13
 void write_r13_character(TestBench& test, std::uint8_t r13) {
     test.write_register(13, r13);
     test.run_clock_ticks(14);
+}
+
+void test_type1_r4_zero_adjustment_vma_reloads_on_c4_one(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // Compendium section 4.3 (ACCC v1.10 section 11.2.4, pages 83-84):
+    // If C4 was 0 immediately before adjustment began (R4=0), VMA loads
+    // from R12/R13 (not VMA') for as long as C4==1 in adjustment.
+    // R4=0, R9=3 (4 lines/row), R5=8 (8 lines adjust), R0=63, R1=40.
+    constexpr RegisterProgram kR4ZeroRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 0},
+        {5, 8},  {6, 25}, {7, 30}, {8, 0},    {9, 3},
+    }};
+    program_registers(test, kR4ZeroRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.reset();
+
+    // Complete initial frame (4 normal lines + 8 adjust lines = 12 lines of 64 chars)
+    // to reach genuine frame start where frame_new asserts and loads R12/R13.
+    test.run_characters(12 * 64);
+
+    // Row 0 has 4 lines (C9=0..3). Total 4 * 64 = 256 characters.
+    // Line 0: MA = 0x1234
+    test.expect_ma("CRTC 1 R4=0 row 0 line 0 MA loaded from R12/R13", 0x1234);
+
+    // Advance to line 3 (last line of row 0, C9=3=R9).
+    test.run_characters(3 * 64);
+    test.expect_c4("row 0 line 3 C4=0", 0);
+    test.expect_ra("row 0 line 3 C9=3", 3);
+
+    // On line 3 (C9=3=R9), advance past C0=R1=40 where VMA' latches VMA:
+    // VMA' becomes 0x1234 + 40 = 0x125C.
+    test.run_characters(50);
+
+    // Write new R12/R13 (0x2050) at C0=50.
+    write_r12_r13_character(test, 0x20, 0x50);
+
+    // Complete line 3 (64 - 51 = 13 chars) to reach adjustment line 0 (C4=1, C9=0).
+    test.run_characters(13);
+
+    // In adjustment while C4==1: VMA reloads from R12/R13 (0x2050), NOT VMA' (0x125C)!
+    test.expect_c4("adjustment line 0 C4=1", 1);
+    test.expect_ra("adjustment line 0 C9=0", 0);
+    test.expect_ma("adjustment line 0 (C4=1) reloads new R12/R13 (0x2050)", 0x2050);
+
+    // Advance into line 0, write new R12/R13 (0x3078) at C0=10, complete line 0.
+    test.run_characters(10);
+    write_r12_r13_character(test, 0x30, 0x78);
+    test.run_characters(53);
+
+    // Line 1 of adjustment (C4=1, C9=1): VMA reloads new R12/R13 (0x3078).
+    test.expect_c4("adjustment line 1 C4=1", 1);
+    test.expect_ra("adjustment line 1 C9=1", 1);
+    test.expect_ma("adjustment line 1 (C4=1) reloads new R12/R13 (0x3078)", 0x3078);
+
+    // Complete lines 1 and 2 (2 * 64 chars) to reach line 3 of adjustment (C4=1, C9=3=R9).
+    test.run_characters(2 * 64);
+    test.expect_c4("adjustment line 3 C4=1", 1);
+    test.expect_ra("adjustment line 3 C9=3", 3);
+
+    // On line 3 (C4=1, C9=3=R9), advance past C0=R1=40 where VMA' latches VMA:
+    // VMA' becomes 0x3078 + 40 = 0x30A0.
+    test.run_characters(50);
+    write_r12_r13_character(test, 0x01, 0x11);
+    test.run_characters(13);
+
+    // Line 4 of adjustment (c5=4, C4=2, C9=0):
+    // Now C4 is 2 (no longer 1)! VMA must reload from VMA' (0x30A0), refusing R12/R13 (0x0111).
+    test.expect_c4("adjustment line 4 C4=2", 2);
+    test.expect_ra("adjustment line 4 C9=0", 0);
+    test.expect_ma("adjustment line 4 (C4=2) reloads VMA' (0x30A0) refusing R12/R13 (0x0111)", 0x30A0);
 }
 
 void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
@@ -3456,14 +3693,26 @@ int main(int argc, char** argv) {
          "ACCC v1.10 section 28.1.1; F4/F8 boundary", false,
          test_type1_identification_r7_37_fires},
         {"t08f_type1_identification_r7_38_fires",
-         "ACCC v1.10 sections 28.1.1 and 11.2.1; F8 divergence", true,
+         "ACCC v1.10 sections 28.1.1 and 11.2.1; F8", false,
          test_type1_identification_r7_38_fires},
         {"t08g_type1_identification_r7_39_fires",
-         "ACCC v1.10 sections 28.1.1 and 11.2.1; F8 divergence", true,
+         "ACCC v1.10 sections 28.1.1 and 11.2.1; F8", false,
          test_type1_identification_r7_39_fires},
         {"t08h_type1_identification_r7_40_is_silent",
          "ACCC v1.10 section 28.1.1; F4/F8 type-1 boundary", false,
          test_type1_identification_r7_40_is_silent},
+        {"t08i_type1_adjustment_c4_c9_c5_worked_example",
+         "ACCC v1.10 section 11.2.1; F8 worked example sequence", false,
+         test_type1_adjustment_c4_c9_c5_worked_example},
+        {"t08j_type1_r5_zero_mid_adjustment_keeps_counting",
+         "ACCC v1.10 section 11.3.2; F8 zero R5 free-run and recovery", false,
+         test_type1_r5_zero_mid_adjustment_keeps_counting},
+        {"t08k_type0_adjustment_c4_frozen_c9_counts_to_r5",
+         "ACCC v1.10 section 11.2.1; F8 type-0 control", false,
+         test_type0_adjustment_c4_frozen_c9_counts_to_r5},
+        {"t08l_type1_r4_zero_adjustment_vma_reloads_on_c4_one",
+         "ACCC v1.10 section 11.2.4; F8/section 4.3 VMA reload on C4=1", false,
+         test_type1_r4_zero_adjustment_vma_reloads_on_c4_one},
         {"t20a_type0_normal_frame_reloads_at_frame_start_only",
          "ACCC v1.10 sections 17.4.1 and 20.3.1; F11h", false,
          test_type0_normal_frame_reloads_at_frame_start_only},

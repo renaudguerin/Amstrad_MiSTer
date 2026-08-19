@@ -197,7 +197,16 @@ wire       r0_frozen = !CRTC_TYPE && !R0_h_total && !hcc;
 
 reg  [4:0] line;
 reg  [6:0] row;
-wire [4:0] line_max  = (in_adj ? (R5_v_total_adj - 1'd1) : R9_v_max_line) & ~interlace;
+reg  [4:0] c5;
+reg        crtc1_adj_from_row0;
+
+// Technical information sourced from the "Amstrad CPC CRTC Compendium" by
+// Longshot (CC BY-NC-ND). ACCC v1.10 section 11.1 specifies that CRTC 1 has a
+// separate C5 counter for vertical adjustment, while C9 continues cycling 0..R9
+// and C4 increments at each C9==R9 wrap. CRTC 0 reuses C9 against R5.
+wire [4:0] crtc1_line_max = R9_v_max_line & ~interlace;
+wire [4:0] crtc0_line_max = (in_adj ? (R5_v_total_adj - 1'd1) : R9_v_max_line) & ~interlace;
+wire [4:0] line_max       = CRTC_TYPE ? crtc1_line_max : crtc0_line_max;
 reg        line_last_r;
 reg        row_last_r;
 // ACCC v1.10 section 10.3: C9 uses equality, never magnitude.  A zero limit
@@ -229,7 +238,12 @@ wire       type0_rollover_line_last = type0_c0_1_adjust_active ? 1'b0 :
 									 type0_live_line_last;
 wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 									 type0_rollover_line_last;
-wire [4:0] line_next = ((CRTC_TYPE ? line_last : type0_rollover_line_last) ?
+
+// ACCC v1.10 section 11.3.2: Type 1 adjustment ends when C5+1 reaches R5
+// evaluated by equality at the line boundary. R5=0 never satisfies this comparison.
+wire       crtc1_adj_end = CRTC_TYPE & in_adj & ({1'b0, c5} + 6'd1 == {1'b0, R5_v_total_adj}) & (|R5_v_total_adj);
+
+wire [4:0] line_next = ((CRTC_TYPE ? (line_last | crtc1_adj_end) : type0_rollover_line_last) ?
 						 5'd0 : line + 1'd1 + interlace) & ~interlace;
 wire       line_new  = hcc_last && !r0_frozen;
 
@@ -237,9 +251,13 @@ wire       line_new  = hcc_last && !r0_frozen;
 // too.  Type 0's R4=0 frame end comes from the `Last Line` / adjustment
 // arbitration below, not from a magnitude special case.
 wire       row_last  = (row == R4_v_total);
-wire       row_frame_last = ((CRTC_TYPE ? row_last : row_last_r) | in_adj) & ~frame_adj;
+wire       crtc1_row_frame_last = in_adj ? crtc1_adj_end : (row_last & ~frame_adj_CRTC1);
+wire       crtc0_row_frame_last = (row_last_r | in_adj) & ~frame_adj_CRTC0;
+wire       row_frame_last = CRTC_TYPE ? crtc1_row_frame_last : crtc0_row_frame_last;
 wire [6:0] row_next  = row_frame_last ? 7'd0 : row + 1'd1;
-wire       row_new   = line_new & (CRTC_TYPE ? line_last : type0_rollover_row_last);
+wire       crtc1_row_new = line_new & (line_last | crtc1_adj_end);
+wire       crtc0_row_new = line_new & type0_rollover_row_last;
+wire       row_new   = CRTC_TYPE ? crtc1_row_new : crtc0_row_new;
 
 reg        frame_adj_r;
 wire       type0_r5_write = !CRTC_TYPE && register_write && addr == 5'd05;
@@ -262,7 +280,7 @@ assign type0_r9_compare_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
 assign type0_r9_at_r0_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
 								 hcc_last && hcc >= 2 && type0_adjustment_selected && !in_adj;
 wire       frame_adj_CRTC0 = type0_adjustment_selected;
-wire       frame_adj_CRTC1 = row_last && ~in_adj && R5_v_total_adj;
+wire       frame_adj_CRTC1 = row_last && ~in_adj && |R5_v_total_adj;
 wire       frame_adj = CRTC_TYPE ? frame_adj_CRTC1 : frame_adj_CRTC0;
 wire       frame_new = row_new & row_frame_last;
 wire       type0_r4_at_c0_write = !CRTC_TYPE && register_write && addr == 5'd04 && hcc == 0;
@@ -344,12 +362,25 @@ always @(posedge CLOCK) begin
 		hcc    <= 0;
 		line   <= 0;
 		row    <= 0;
+		c5     <= 0;
 		in_adj <= 0;
 		field  <= 0;
+		crtc1_adj_from_row0 <= 0;
 	end
 	else if(CLKEN) begin
 		hcc <= hcc_next;
 		if(line_new) line <= line_next;
+		if(CRTC_TYPE) begin
+			if(line_new) begin
+				if(in_adj) begin
+					if(crtc1_adj_end) c5 <= 0;
+					else c5 <= c5 + 1'd1;
+				end
+				else c5 <= 0;
+			end
+		end else begin
+			c5 <= 0;
+		end
 		if(hcc == 0 && !r0_frozen) begin
 			line_last_r <= CRTC_TYPE ? line_last : type0_c0_line_last;
 			row_last_r <= CRTC_TYPE ? row_last : type0_c0_row_last;
@@ -375,17 +406,30 @@ always @(posedge CLOCK) begin
 
 		if(row_new) begin
 			row <= row_next;
-			if(frame_adj) in_adj <= 1;
+			if(frame_adj) begin
+				in_adj <= 1;
+				if(CRTC_TYPE && row == 0) crtc1_adj_from_row0 <= 1;
+			end
 			else if(frame_new) begin
 				in_adj <= 0;
 				row <= 0;
 				field <= ~field & R8_interlace[0];
+				crtc1_adj_from_row0 <= 0;
+			end
+			else if(CRTC_TYPE && in_adj && row_next != 1) begin
+				crtc1_adj_from_row0 <= 0;
 			end
 		end
 	end
 end
 
-wire CRTC1_reload =  CRTC_TYPE & (frame_new | (~line_last & !row & !hcc_next)); //CRTC1 reloads addr on every line of 1st row
+// Technical information sourced from ACCC v1.10 §11.2.4:
+// If C4 was 0 immediately before adjustment began, VMA loads from R12/R13
+// while C4==1 in adjustment.
+wire crtc1_adj_entry_from_row0 = CRTC_TYPE & !in_adj & row_last & line_last & (|R5_v_total_adj) & (row == 0);
+wire crtc1_adj_row1_reload = CRTC_TYPE & (crtc1_adj_entry_from_row0 | (in_adj & crtc1_adj_from_row0 & (row == 1) & ~line_last)) & !hcc_next;
+wire crtc1_row0_reload = CRTC_TYPE & (frame_new | (~line_last & !row & !hcc_next));
+wire CRTC1_reload = crtc1_row0_reload | crtc1_adj_row1_reload;
 wire CRTC0_reload = ~CRTC_TYPE & frame_new;
 wire row_addr_save = hcc == R1_h_displayed && (CRTC_TYPE ? line_last : type0_live_line_last);
 
@@ -477,7 +521,7 @@ always @(posedge CLOCK) begin
 			if(!CRTC_TYPE && type0_vsync_wait_line_start)
 				type0_vsync_wait_line_start <= 0;
 			else if(vsc) vsc <= vsc - 1'd1;
-			else if (vsync_allow & (field ? (row == R7_v_sync_pos && !line) : (row_next == R7_v_sync_pos && line_last))) begin
+			else if (vsync_allow & (field ? (row == R7_v_sync_pos && !line) : (((CRTC_TYPE && in_adj) ? (row + 1'd1) : row_next) == R7_v_sync_pos && line_last))) begin
 				VSYNC_r <= 1;
 				// Don't allow a new VSYNC until C4=R7 has become false and true again.
 				vsync_allow <= 0;
