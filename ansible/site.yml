@@ -83,6 +83,53 @@
         update_cache: true
         cache_valid_time: 3600
 
+    - name: Set a stable guest hostname
+      ansible.builtin.hostname:
+        name: "{{ guest_hostname }}"
+      register: guest_hostname_set
+
+    - name: Keep the hostname resolvable locally
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1\s'
+        line: "127.0.1.1 {{ guest_hostname }}"
+        state: present
+
+    # avahi-daemon publishes {{ guest_hostname }}.local, which macOS resolves
+    # natively. This removes the need to read `ip addr` off the console after
+    # every DHCP lease change.
+    - name: Publish the guest over mDNS
+      ansible.builtin.systemd_service:
+        name: avahi-daemon.service
+        enabled: true
+        state: "{{ 'restarted' if guest_hostname_set is changed else 'started' }}"
+      when: not ansible_check_mode
+
+    - name: Select a legible console font
+      ansible.builtin.lineinfile:
+        path: /etc/default/console-setup
+        regexp: "^{{ item.key }}="
+        line: '{{ item.key }}="{{ item.value }}"'
+        state: present
+        create: false
+      loop:
+        - {key: FONTFACE, value: "{{ console_font_face }}"}
+        - {key: FONTSIZE, value: "{{ console_font_size }}"}
+      loop_control:
+        label: "{{ item.key }}"
+      register: console_font_config
+
+    - name: Apply the console font to the active virtual terminals
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/setupcon
+          - --force
+          - --save
+      when:
+        - console_font_config is changed
+        - not ansible_check_mode
+      changed_when: true
+
     - name: Create the Rosetta mount point
       ansible.builtin.file:
         path: "{{ rosetta_mountpoint }}"

@@ -1,7 +1,11 @@
 ---
+# The guest is reached by mDNS, so a DHCP lease change does not need an edit
+# here. site.yml sets the guest hostname and installs avahi-daemon, which is
+# what publishes this name. Override with -e ansible_host=<address> if mDNS is
+# unavailable on your network.
 all:
   hosts:
     quartus-vm:
-      ansible_host: 192.168.64.3
+      ansible_host: quartus-vm.local
       ansible_user: root
       ansible_python_interpreter: /usr/bin/python3

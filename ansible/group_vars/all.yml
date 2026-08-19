@@ -1,6 +1,8 @@
 ---
-quartus_user: renaud
-quartus_user_home: /home/renaud
+# The unprivileged guest account that owns the Quartus installation. Override
+# with -e quartus_user=... if your guest uses a different name.
+quartus_user: admin
+quartus_user_home: /home/{{ quartus_user }}
 
 # The groups assigned by the Debian installer before `usermod -G sudo` replaced
 # the supplementary group list. The playbook verifies that every group exists
@@ -57,18 +59,32 @@ quartus_installer_artifacts:
 quartus_required: false
 
 quartus_native_packages:
+  - avahi-daemon
   - binfmt-support
   - build-essential
   - ca-certificates
+  - console-setup
   - curl
   - file
   - git
+  - kbd
   - rsync
   - tar
   - unzip
   - verilator
   - xauth
   - xz-utils
+
+# The guest publishes itself as <guest_hostname>.local over mDNS so a changing
+# DHCP lease never has to be looked up on the console.
+guest_hostname: quartus-vm
+
+# UTM's virtual framebuffer reports a large resolution, which makes the default
+# 8x16 console font unreadable. Terminus at 16x32 is legible at any UTM display
+# size. Console use is only for the interactive Quartus installer and for
+# recovery; normal work happens over SSH.
+console_font_face: Terminus
+console_font_size: 16x32
 
 # Quartus 17's synthesis binaries are x86_64. Debian 13 renamed several
 # libraries for the 64-bit time_t transition, hence the t64 package names.

@@ -1,10 +1,10 @@
 # Quartus UTM VM provisioning
 
-This directory prepares the existing Debian 13 arm64 VM at `192.168.64.3`
-for local Amstrad MiSTer builds. It restores `renaud`'s installer-created
-groups, mounts UTM's Rosetta runtime, registers the x86_64 ELF handler,
-enables Debian amd64 multiarch, and installs the native and amd64 runtime
-dependencies used by Quartus and the repository's Verilator tests.
+This directory prepares an existing Debian 13 arm64 UTM guest for local Amstrad
+MiSTer builds. It restores the build user's installer-created groups, mounts
+UTM's Rosetta runtime, registers the x86_64 ELF handler, enables Debian amd64
+multiarch, and installs the native and amd64 runtime dependencies used by
+Quartus and the repository's Verilator tests.
 
 It deliberately does **not** download, copy, execute, or accept the license
 terms for Altera's proprietary installer. No credentials or installer files
@@ -32,14 +32,31 @@ skipped in check mode. The validation play executes Debian's amd64
 is installed. The final acceptance command uses `-e quartus_required=true` so
 an absent toolchain fails rather than being mistaken for a complete build VM.
 
-The inventory connects as root using the already-configured SSH key. It does
-not configure passwords or copy private/public keys. If the VM address changes,
-edit `inventory.yml` or override it temporarily:
+## Addressing the guest
+
+`inventory.yml` targets `quartus-vm.local`, not an IP address. `site.yml` sets
+the guest hostname and installs `avahi-daemon`, so the guest publishes itself
+over mDNS and a new DHCP lease never has to be looked up on the console. macOS
+resolves `.local` names natively.
+
+Bootstrapping is the one exception: before the first `site.yml` run the guest
+has neither the hostname nor avahi, so pass its current address once. Run
+`ip -4 addr show scope global` on the guest console to read it.
 
 ```bash
 ansible-playbook -i 'quartus-vm,' \
-  -e ansible_host=192.168.64.3 -e ansible_user=root site.yml
+  -e ansible_host=<current-guest-ip> -e ansible_user=root site.yml
 ```
+
+The inventory connects as root using an already-configured SSH key. It does not
+configure passwords or copy private/public keys.
+
+`site.yml` also sets the console font to Terminus 16x32, because UTM's default
+framebuffer resolution renders the stock 8x16 font unreadably small.
+
+The build user defaults to `admin` (`quartus_user` in `group_vars/all.yml`).
+Every playbook derives paths from that variable, so a guest using a different
+account only needs `-e quartus_user=<name>`.
 
 ## Human installer handoff
 
@@ -57,7 +74,7 @@ ansible-playbook -i 'quartus-vm,' \
    security updates. Keep this VM dedicated to trusted FPGA builds and use a
    current browser on the Mac for the download.
 2. Copy the three files, unchanged and with their vendor filenames, into
-   `/home/renaud/quartus-installer-17.0.2` in the VM. Do not put them in this
+   `/home/admin/quartus-installer-17.0.2` in the VM. Do not put them in this
    repository. The Cyclone V `.qdz` must be beside the base installer so the
    installer can discover it.
 3. From the Mac, verify that all three files are present and match the checksums
@@ -69,32 +86,32 @@ ansible-playbook -i 'quartus-vm,' \
    ansible-playbook installer-preflight.yml
    ```
 
-4. SSH into the VM as `renaud`, make the base installer executable, and launch
+4. SSH into the VM as `admin`, make the base installer executable, and launch
    it in interactive console mode (no X display is required):
 
    ```bash
-   ssh renaud@192.168.64.3
-   cd /home/renaud/quartus-installer-17.0.2
+   ssh admin@quartus-vm.local
+   cd /home/admin/quartus-installer-17.0.2
    chmod +x QuartusLiteSetup-17.0.0.595-linux.run
    export QUARTUS_CPUID_BYPASS=1
    ./QuartusLiteSetup-17.0.0.595-linux.run --mode text
    ```
 
    Review and accept the displayed terms yourself. Select
-   `/home/renaud/intelFPGA_lite/17.0` as the installation directory and include
+   `/home/admin/intelFPGA_lite/17.0` as the installation directory and include
    Cyclone V support. An unattended invocation requires an explicit EULA-
    acceptance switch, so it is intentionally not scripted here.
 5. Apply Update 2 interactively to the same installation directory:
 
    ```bash
-   cd /home/renaud/quartus-installer-17.0.2
+   cd /home/admin/quartus-installer-17.0.2
    chmod +x QuartusSetup-17.0.2.602-linux.run
    export QUARTUS_CPUID_BYPASS=1
    ./QuartusSetup-17.0.2.602-linux.run --mode text
    ```
 
    Review the update's displayed terms and confirm the existing
-   `/home/renaud/intelFPGA_lite/17.0` installation. Do not create a second
+   `/home/admin/intelFPGA_lite/17.0` installation. Do not create a second
    version directory.
 6. From the Mac, apply the Rosetta compatibility patch to Quartus's environment
    script, then validate the result:
@@ -111,12 +128,12 @@ ansible-playbook -i 'quartus-vm,' \
    `quartus/adm/qenv.sh` before changing anything, creates a one-time
    `qenv.sh.pre-rosetta` backup, selects the 64-bit tools on an aarch64 guest,
    and disables only the host SSE-probe section that cannot work through
-   Rosetta. It then runs `quartus_sh --version` as `renaud` and requires
+   Rosetta. It then runs `quartus_sh --version` as `admin` and requires
    version 17.0.2. Re-running the play makes no further edit. The final
    validation also rechecks the live Rosetta registration and amd64 execution.
-7. Remove the three files from `/home/renaud/quartus-installer-17.0.2` when you
+7. Remove the three files from `/home/admin/quartus-installer-17.0.2` when you
    no longer need the proprietary installer payload. The installed tools remain
-   under `/home/renaud/intelFPGA_lite/17.0`.
+   under `/home/admin/intelFPGA_lite/17.0`.
 
 Rosetta only translates 64-bit Intel Linux executables. Quartus synthesis uses
 the 64-bit tools; legacy 32-bit utilities and USB/JTAG tooling are outside this
@@ -130,7 +147,7 @@ amd64 userland and container runtime.
 
 ## Build as the normal user
 
-Clone or copy this repository into the VM as `renaud`, then run:
+Clone or copy this repository into the VM as `admin`, then run:
 
 ```bash
 build-amstrad /path/to/Amstrad_MiSTer

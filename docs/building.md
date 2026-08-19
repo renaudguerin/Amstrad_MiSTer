@@ -135,7 +135,7 @@ git clone https://github.com/hunson-abadeer/MiSTer-docker-build
 cd MiSTer-docker-build
 docker build -t mister-quartus .      # builds an amd64 image; Rosetta-in-Docker
                                         # emulation handles the arch mismatch
-cd /Users/renaudg/code/Amstrad_MiSTer
+cd /path/to/Amstrad_MiSTer
 ../MiSTer-docker-build/mister_quartus_compile.sh Amstrad
 ```
 
