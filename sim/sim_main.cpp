@@ -1,3 +1,19 @@
+//============================================================================
+//  Verilator testbench for the Amstrad CPC CRTC (UM6845R / HD6845S).
+//
+//  ACCURACY REFERENCE
+//
+//  Technical information sourced from the "Amstrad CPC CRTC Compendium" by
+//  Longshot (CC BY-NC-ND).
+//
+//  The expected values asserted by these vectors are derived from The Amstrad
+//  CPC CRTC Compendium v1.10, Serge Querne (Longshot / Logon System),
+//  https://shaker.logonsystem.eu -- licensed CC BY-NC-ND 4.0. Its attribution
+//  directive requires this notice in the source of CRTC emulation modules and
+//  in the credits of any distributed product built from them. Individual
+//  vectors cite their ACCC section alongside the assertion.
+//============================================================================
+
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
