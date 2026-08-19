@@ -344,7 +344,8 @@ public:
                                           bool r9_live,
                                           bool r9_at_r0,
                                           bool c0_1_adjust = false,
-                                          bool r0_zero_consumed = false) const {
+                                          bool r0_zero_consumed = false,
+                                          bool r5_override = false) const {
         expect_byte(expectation + " R4 switch", r4_switch,
                     dut_->rootp->UM6845R__DOT__type0_r4_adjust_switch);
         expect_byte(expectation + " live R9 compare", r9_live,
@@ -355,6 +356,20 @@ public:
                     dut_->rootp->UM6845R__DOT__type0_c0_1_adjust);
         expect_byte(expectation + " R0=0 entry consumed", r0_zero_consumed,
                     dut_->rootp->UM6845R__DOT__type0_r0_zero_entry_consumed);
+        expect_byte(expectation + " R5 adjust override", r5_override,
+                    dut_->rootp->UM6845R__DOT__type0_r5_adjust_override);
+    }
+
+    void expect_type0_r5_adjust_override(const std::string& expectation,
+                                         bool expected) const {
+        expect_byte(expectation, expected,
+                    dut_->rootp->UM6845R__DOT__type0_r5_adjust_override);
+    }
+
+    void expect_type0_zero_adj_entry(const std::string& expectation,
+                                     bool expected) const {
+        expect_byte(expectation, expected,
+                    dut_->rootp->UM6845R__DOT__type0_zero_adj_entry);
     }
 
     std::uint16_t ma() const {
@@ -1574,6 +1589,27 @@ void test_type0_adjustment_latches_clear_on_snapshot_load(TestBench& test) {
     test.load_snapshot_registers(snapshot_registers);
     test.expect_type0_arbitration_latches(
         "snapshot load clears type 0 arbitration state", false, false, false);
+
+    // Arm zero adjustment entry latch, verify it is true, then verify snapshot load clears it.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> zero_adj_registers = {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : zero_adj_registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.run_characters(1);
+    test.write_selected_register_at_clken(1);
+    test.run_characters(2);
+    test.expect_type0_zero_adj_entry(
+        "type 0 zero adjustment entry latch is armed before snapshot load", true);
+
+    test.load_snapshot_registers(snapshot_registers);
+    test.expect_type0_zero_adj_entry(
+        "snapshot load clears zero adjustment entry latch", false);
 }
 
 void test_type0_adjustment_latches_clear_on_type_roundtrip(TestBench& test) {
@@ -1615,6 +1651,29 @@ void test_type0_adjustment_latches_clear_on_type_roundtrip(TestBench& test) {
     test.set_crtc_type(0);
     test.expect_type0_arbitration_latches(
         "live type round-trip clears exact-R0 state", false, false, false);
+
+    // Arm zero adjustment entry latch, verify it is true, then verify type round-trip clears it.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> zero_adj_registers = {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : zero_adj_registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.run_characters(1);
+    test.write_selected_register_at_clken(1);
+    test.run_characters(2);
+    test.expect_type0_zero_adj_entry(
+        "type 0 zero adjustment entry latch is armed before type round-trip", true);
+
+    test.set_crtc_type(1);
+    test.run_clock_ticks(1);
+    test.set_crtc_type(0);
+    test.expect_type0_zero_adj_entry(
+        "live type round-trip clears zero adjustment entry latch", false);
 }
 
 void test_type0_r4_write_at_c0_1_enters_zero_adjustment(TestBench& test) {
@@ -1647,6 +1706,13 @@ void test_type0_r4_write_at_c0_1_enters_zero_adjustment(TestBench& test) {
     test.expect_type0_arbitration_latches(
         "type 0 C0=1 entry latch clears at the line boundary", false, false,
         false);
+    test.expect_type0_zero_adj_entry(
+        "type 0 C0=1 R4 break sets zero adjustment entry latch", true);
+
+    test.run_characters(4);
+    test.expect_adjustment_inactive("type 0 C0=1 R4 zero adjustment completes");
+    test.expect_type0_zero_adj_entry(
+        "type 0 zero adjustment entry latch clears after completion", false);
 }
 
 void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
@@ -1714,11 +1780,15 @@ void test_type0_r0_one_runs_default_zero_adjustment_line(TestBench& test) {
     test.expect_adjustment_active("type 0 R0=1 enters default adjustment");
     test.expect_c4("type 0 R0=1 increments C4 once for adjustment", 1);
     test.expect_ra("type 0 R0=1 keeps C9 zero for R5=0 adjustment", 0);
+    test.expect_type0_zero_adj_entry(
+        "type 0 R0=1 sets zero adjustment entry latch", true);
 
     test.run_characters(2);
     test.expect_adjustment_inactive("type 0 R0=1 zero adjustment lasts one line");
     test.expect_c4("type 0 R0=1 completion resets C4", 0);
     test.expect_ra("type 0 R0=1 completion resets C9", 0);
+    test.expect_type0_zero_adj_entry(
+        "type 0 R0=1 clears zero adjustment entry latch after completion", false);
 }
 
 void test_type0_r0_zero_starts_default_zero_adjustment(TestBench& test) {
@@ -1746,6 +1816,8 @@ void test_type0_r0_zero_starts_default_zero_adjustment(TestBench& test) {
     test.expect_type0_arbitration_latches(
         "type 0 R0=0 records that its entry increment was consumed", false,
         false, false, false, true);
+    test.expect_type0_zero_adj_entry(
+        "type 0 R0=0 sets zero adjustment entry latch", true);
 
     test.run_characters(3);
     test.expect_c4("type 0 R0=0 does not repeat the C4 increment", 1);
@@ -1758,6 +1830,8 @@ void test_type0_r0_zero_starts_default_zero_adjustment(TestBench& test) {
     test.expect_ra("type 0 R0=0 recovery resets C9", 0);
     test.expect_type0_arbitration_latches(
         "type 0 R0=0 entry guard rearms after recovery", false, false, false);
+    test.expect_type0_zero_adj_entry(
+        "type 0 R0=0 clears zero adjustment entry latch after completion", false);
 }
 
 void test_type0_r0_zero_during_adjustment_freezes_c4(TestBench& test) {
@@ -1820,6 +1894,352 @@ void test_type0_r0_one_c0_1_break_is_consumed_at_rollover(TestBench& test) {
     test.expect_adjustment_inactive("type 0 R0=1 C0=1 adjustment completes next line");
     test.expect_c4("type 0 R0=1 C0=1 completion resets C4", 0);
     test.expect_ra("type 0 R0=1 C0=1 completion resets C9", 0);
+}
+
+void test_type0_adjustment_unequal_c9_counts_to_r5(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 11.2.1 / compendium lines 109-121 and 128-137:
+    // CRTC 0 reuses C9 for vertical adjustment without a separate C5 counter.
+    // Documented unequal fixture: R4=10, R5=16, R9=3, R1=40, R0=63.
+    // Frame rows 0..10 each have 4 lines (C9=0..3). On the last line (C4=10, C9=3),
+    // adjustment is entered at C0=2 (R5>0). C4 increments once to R4+1 (11) and
+    // freezes for the whole adjustment, while reused C9 counts 0..15 (0..R5-1).
+    // After C9=15, adjustment completes and frame reset follows (C4=0, C9=0).
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
+        {5, 16}, {6, 25}, {7, 0},  {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    constexpr unsigned line_characters = 64;
+    constexpr unsigned frame_lines_before_adj = (10 + 1) * (3 + 1);  // 44 lines
+    test.run_characters(frame_lines_before_adj * line_characters);
+
+    // Reused C9 counts 0..15 continuously in adjustment while C4 freezes at 11.
+    for (unsigned adj_line = 0; adj_line < 16; ++adj_line) {
+        test.expect_adjustment_active(
+            "type 0 vertical adjustment is active at C9=" + std::to_string(adj_line));
+        test.expect_c4(
+            "type 0 C4 freezes at R4+1 (11) at C9=" + std::to_string(adj_line), 11);
+        test.expect_ra(
+            "type 0 C9 advances past R9 to " + std::to_string(adj_line), adj_line);
+        test.run_characters(line_characters);
+    }
+
+    // Line 16 (first line of next frame): adjustment complete, C4/C9 reset to 0.
+    test.expect_adjustment_inactive("type 0 leaves vertical adjustment after C9=15");
+    test.expect_c4("type 0 frame reset clears C4", 0);
+    test.expect_ra("type 0 frame reset clears C9", 0);
+}
+
+void test_type0_active_adjustment_r5_zero_counts_through_31(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 sections 10.3.1, 11.2.1, and 11.2.2:
+    // When Type 0 enters ordinary vertical adjustment with R5>0, C9 counts
+    // lines in adjustment using equality semantics against R5-1.
+    // If R5 is rewritten to 0 while vertical adjustment is already active and
+    // C9 has reached a positive value (e.g. C9=1), the effective target
+    // becomes R5-1 = 31 (5'b11111). C9 must not immediately reset on the next
+    // line, but instead must count all the way through 31 and wrap, completing
+    // vertical adjustment only after line C9=31.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
+        {5, 16}, {6, 25}, {7, 0},  {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(5);
+    test.reset();
+
+    constexpr unsigned line_characters = 64;
+    constexpr unsigned frame_lines_before_adj = (10 + 1) * (3 + 1);  // 44 lines
+    test.run_characters(frame_lines_before_adj * line_characters);
+
+    // Adj line 0: C9=0, C4=11.
+    test.expect_adjustment_active("type 0 enters normal nonzero adjustment at C9=0");
+    test.expect_c4("type 0 C4 freezes at 11 during adjustment", 11);
+    test.expect_ra("type 0 C9 starts adjustment at 0", 0);
+    test.expect_type0_zero_adj_entry(
+        "ordinary adjustment entry does not set zero adjustment latch", false);
+    test.run_characters(line_characters);
+
+    // Adj line 1: C9 reaches 1 (C9 is positive).
+    test.expect_adjustment_active("type 0 adjustment reaches C9=1");
+    test.expect_c4("type 0 C4 remains 11 at C9=1", 11);
+    test.expect_ra("type 0 C9 is positive (1) before R5=0 rewrite", 1);
+    test.expect_type0_zero_adj_entry(
+        "zero adjustment latch remains unset at C9=1", false);
+
+    // Write R5=0 at a pinned C0 phase (C0=2).
+    test.run_characters(2);
+    test.write_selected_register_at_clken(0);
+    test.run_characters(line_characters - 3);
+
+    // Adj line 2..31: C9 counts through 31 without immediate reset.
+    for (unsigned adj_line = 2; adj_line <= 31; ++adj_line) {
+        test.expect_adjustment_active(
+            "type 0 adjustment remains active after R5=0 rewrite at C9=" + std::to_string(adj_line));
+        test.expect_c4(
+            "type 0 C4 freezes at 11 at C9=" + std::to_string(adj_line), 11);
+        test.expect_ra(
+            "type 0 C9 counts through 31 to " + std::to_string(adj_line), adj_line);
+        test.expect_type0_zero_adj_entry(
+            "zero adjustment latch remains unset during C9 overflow at C9=" + std::to_string(adj_line),
+            false);
+        test.run_characters(line_characters);
+    }
+
+    // Line 32 (first line of next frame): after C9=31, adjustment completes and frame resets.
+    test.expect_adjustment_inactive("type 0 leaves vertical adjustment after C9=31");
+    test.expect_c4("type 0 frame reset clears C4", 0);
+    test.expect_ra("type 0 frame reset clears C9", 0);
+    test.expect_type0_zero_adj_entry(
+        "zero adjustment latch remains unset after frame reset", false);
+}
+
+void test_type0_adjustment_last_line_r5_zero_retargets_to_31(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 sections 10.3.1, 11.2.1, and 11.2.2:
+    // When Type 0 enters ordinary vertical adjustment with R5=4, C9 counts
+    // lines in adjustment (0..3) matching against R5-1 = 3.
+    // On the current last line of vertical adjustment (C9=3, R5=4), writing
+    // R5=0 at C0=2 must revise current-line completion: the effective target
+    // becomes R5-1 = 31 (5'b11111). C9 must not end adjustment on this line,
+    // but must retarget to 31, counting through lines 4..31 and completing
+    // vertical adjustment only after line C9=31.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 4}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(5);
+    test.reset();
+
+    constexpr unsigned line_characters = 8;
+    constexpr unsigned frame_lines_before_adj = (2 + 1) * (3 + 1);  // 12 lines
+    test.run_characters(frame_lines_before_adj * line_characters);
+
+    // Adj lines 0..2: C9 counts 0, 1, 2.
+    for (unsigned adj_line = 0; adj_line < 3; ++adj_line) {
+        test.expect_adjustment_active(
+            "type 0 vertical adjustment is active at C9=" + std::to_string(adj_line));
+        test.expect_c4(
+            "type 0 C4 freezes at R4+1 (3) at C9=" + std::to_string(adj_line), 3);
+        test.expect_ra(
+            "type 0 C9 is " + std::to_string(adj_line), adj_line);
+        test.expect_type0_zero_adj_entry(
+            "zero adjustment latch remains unset at C9=" + std::to_string(adj_line), false);
+        test.run_characters(line_characters);
+    }
+
+    // Adj line 3: C9=3 (this would be the last line if R5 remained 4).
+    test.expect_adjustment_active("type 0 reaches last nominal adjustment line at C9=3");
+    test.expect_c4("type 0 C4 is 3 at C9=3", 3);
+    test.expect_ra("type 0 C9 is 3 before R5=0 rewrite", 3);
+    test.expect_type0_zero_adj_entry("zero adjustment latch is unset at C9=3", false);
+
+    // Write R5=0 at C0=2.
+    test.run_characters(2);
+    test.write_selected_register_at_clken(0);
+    test.expect_type0_r5_adjust_override(
+        "type 0 R5 write at C0=2 arms adjustment override latch", true);
+    test.run_characters(line_characters - 3);
+
+    // Adj line 4..31: C9 must retarget to 31 instead of ending at line 3.
+    for (unsigned adj_line = 4; adj_line <= 31; ++adj_line) {
+        test.expect_adjustment_active(
+            "type 0 adjustment remains active after R5=0 rewrite at C9=" + std::to_string(adj_line));
+        test.expect_c4(
+            "type 0 C4 freezes at 3 at C9=" + std::to_string(adj_line), 3);
+        test.expect_ra(
+            "type 0 C9 counts through 31 to " + std::to_string(adj_line), adj_line);
+        test.expect_type0_zero_adj_entry(
+            "ordinary R5-to-zero write leaves zero adjustment latch false at C9=" + std::to_string(adj_line),
+            false);
+        test.expect_type0_r5_adjust_override(
+            "R5 adjustment override latch clears at line rollover at C9=" + std::to_string(adj_line),
+            false);
+        test.run_characters(line_characters);
+    }
+
+    // Line 32 (first line of next frame): adjustment complete, C4/C9 reset to 0.
+    test.expect_adjustment_inactive("type 0 leaves vertical adjustment after C9=31");
+    test.expect_c4("type 0 frame reset clears C4", 0);
+    test.expect_ra("type 0 frame reset clears C9", 0);
+    test.expect_type0_zero_adj_entry(
+        "zero adjustment latch remains unset after frame reset", false);
+}
+
+void test_type0_r5_same_line_rejected_write_does_not_retarget(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // An accepted R5=0 write at C0=2 latches target 31 for the current
+    // adjustment line. A second R5=4 write at C0=3 updates the register but
+    // is outside the arbitration window; it must not replace that target
+    // before the line rolls over.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 4}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(5);
+    test.reset();
+
+    constexpr unsigned line_characters = 8;
+    constexpr unsigned frame_lines_before_adj = (2 + 1) * (3 + 1);
+    test.run_characters(frame_lines_before_adj * line_characters);
+    test.run_characters(3 * line_characters);
+    test.expect_adjustment_active("same-line R5 two-write fixture reaches adjustment C9=3");
+    test.expect_ra("same-line R5 two-write fixture reaches C9=3", 3);
+
+    test.run_characters(2);
+    test.write_selected_register_at_clken(0);
+    test.write_selected_register_now(4);
+    test.run_characters(line_characters - 3);
+
+    test.expect_adjustment_active(
+        "rejected C0=3 R5 write does not complete accepted R5=0 adjustment");
+    test.expect_c4("accepted R5=0 target keeps C4 in adjustment", 3);
+    test.expect_ra("accepted R5=0 target advances to C9=4", 4);
+}
+
+void test_type0_r5_same_line_rejected_zero_does_not_retarget(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // Inverse ordering: accepted R5=4 (target 3) at C0=2 followed by a
+    // rejected R5=0 write at C0=3 must still complete the current line at
+    // C9=3, rather than retargeting it to 31.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 4}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(5);
+    test.reset();
+
+    constexpr unsigned line_characters = 8;
+    constexpr unsigned frame_lines_before_adj = (2 + 1) * (3 + 1);
+    test.run_characters(frame_lines_before_adj * line_characters);
+    test.run_characters(3 * line_characters);
+    test.expect_adjustment_active("inverse same-line R5 fixture reaches adjustment C9=3");
+    test.expect_ra("inverse same-line R5 fixture reaches C9=3", 3);
+
+    test.run_characters(2);
+    test.write_selected_register_at_clken(4);
+    test.write_selected_register_now(0);
+    test.run_characters(line_characters - 3);
+
+    test.expect_adjustment_inactive(
+        "rejected C0=3 R5=0 write does not retarget accepted R5=4 completion");
+}
+
+void test_type0_zero_adj_entry_r5_positive_extends_adjustment(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2:
+    // Entering special zero adjustment (e.g. via C0=1 R4 break with R5=0) arms
+    // type0_zero_adj_entry for a one-line adjustment.
+    // An accepted positive R5 write before C0=3 (e.g. R5=4 at C0=2) must
+    // clear/suppress type0_zero_adj_entry and override stale line_last_r at
+    // rollover, extending adjustment toward the new R5 (C9 counting through R5-1)
+    // instead of sticky one-line completion.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    constexpr unsigned line_characters = 8;
+
+    // Break C4==R4 at C0=1 on frame line to enter zero adjustment.
+    test.run_characters(1);
+    test.write_selected_register_at_clken(1);
+    test.run_characters(line_characters - 2);
+
+    // Now on adjustment line: zero-entry is initially armed, C9 advanced to 1.
+    test.expect_adjustment_active("type 0 enters special zero adjustment");
+    test.expect_c4("type 0 zero adjustment keeps C4 at 0", 0);
+    test.expect_ra("type 0 zero adjustment starts at C9=1", 1);
+    test.expect_type0_zero_adj_entry(
+        "zero adjustment entry latch is initially true", true);
+
+    // Write R5=4 (positive) before C0=3 (at C0=2).
+    test.select_register(5);
+    test.run_characters(2);
+    test.write_selected_register_at_clken(4);
+    test.expect_type0_zero_adj_entry(
+        "positive R5 write at C0=2 clears zero adjustment entry latch immediately", false);
+    test.expect_type0_r5_adjust_override(
+        "positive R5 write at C0=2 arms adjustment override latch", true);
+    test.run_characters(line_characters - 3);
+
+    // Line 1 completes rollover without ending adjustment; C9 advances to 2.
+    test.expect_adjustment_active("type 0 positive R5 write extends adjustment");
+    test.expect_c4("type 0 C4 remains 0 during extended adjustment", 0);
+    test.expect_ra("type 0 C9 advances to 2 instead of sticky completion", 2);
+    test.expect_type0_zero_adj_entry(
+        "zero adjustment entry latch remains false", false);
+    test.expect_type0_r5_adjust_override(
+        "R5 adjustment override latch clears after line rollover", false);
+
+    // Line 2: C9 counts to 3 (which is R5-1 = 3).
+    test.run_characters(line_characters);
+    test.expect_ra("type 0 C9 reaches 3 (new R5-1)", 3);
+    test.expect_adjustment_active("type 0 adjustment active on final line C9=3");
+
+    // Line 3: adjustment completes and frame resets after C9=3.
+    test.run_characters(line_characters);
+    test.expect_adjustment_inactive("type 0 leaves adjustment after C9=3");
+    test.expect_c4("type 0 frame reset clears C4", 0);
+    test.expect_ra("type 0 frame reset clears C9", 0);
+    test.expect_type0_zero_adj_entry(
+        "zero adjustment entry latch remains clear after frame reset", false);
+
+    // Rejection check: write R5 positive after C0=2 (at C0=3) does NOT extend adjustment.
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.run_characters(1);
+    test.write_selected_register_at_clken(1);
+    test.run_characters(line_characters - 2);
+
+    test.expect_adjustment_active("type 0 enters special zero adjustment for rejection check");
+    test.expect_ra("type 0 zero adjustment starts at C9=1", 1);
+    test.expect_type0_zero_adj_entry(
+        "zero adjustment entry latch is true before late write", true);
+
+    // Write R5=4 at C0=3 (after the accepted window C0<=2).
+    test.select_register(5);
+    test.run_characters(3);
+    test.write_selected_register_at_clken(4);
+    test.expect_type0_r5_adjust_override(
+        "late R5 write at C0=3 does NOT arm adjustment override latch", false);
+    test.run_characters(line_characters - 4);
+
+    // The late write is rejected for current line: adjustment ends after line 1.
+    test.expect_adjustment_inactive("type 0 late R5 write after C0=2 does not extend adjustment");
+    test.expect_c4("type 0 late R5 write resets C4", 0);
+    test.expect_ra("type 0 late R5 write resets C9", 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -2231,6 +2651,58 @@ void test_type0_rlal_from_the_genuine_last_line(TestBench& test) {
     test.expect_ra("type 0 RLAL perpetuates C9=0", 0);
 }
 
+void test_type0_r9_write_before_r1_advances_next_row_ma(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 10.3.1 and section 17.1: live C9==R9 equality at C0==R1
+    // latches VMA' (row_addr_save). When R9 is rewritten to 0 at C0=2 before
+    // C0=R1 on a line where C9=0, row_addr_save captures the current pointer
+    // and the line-end rollover resets C9/increments C4 to start the next row
+    // at the advanced address rather than repeating the previous row.
+    program_registers(test, {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 5},
+        {5, 0}, {6, 4}, {7, 100}, {8, 0}, {9, 3},
+    }});
+    test.select_register(9);
+    test.reset();
+
+    test.expect_c4("type 0 live row_addr_save fixture starts at C4=0", 0);
+    test.expect_ra("type 0 live row_addr_save fixture starts at C9=0", 0);
+
+    const std::uint16_t initial_ma = test.ma();
+    const auto expected_ma = [initial_ma](unsigned offset) {
+        return static_cast<std::uint16_t>((initial_ma + offset) & 0x3fff);
+    };
+
+    // Run to C0=2, then write R9=0 before C0 reaches R1=4.
+    test.run_characters(2);
+    test.expect_ma("type 0 MA reaches offset 2 at C0=2", expected_ma(2));
+    test.write_selected_register_at_clken(0);
+
+    // Advance across the line end (R0=7, so 8 characters per line).
+    // The write happened at C0=2 (taking 1 character tick to reach C0=3).
+    // 4 characters remain to reach C0=7.
+    test.run_characters(4);
+    test.expect_ma("type 0 MA reaches offset 7 at C0=7", expected_ma(7));
+
+    // At the next CLKEN, C0 rolls over to 0 of the next line (row 1, line 0).
+    test.run_characters(1);
+    test.expect_c4("type 0 delayed R9=0 increments C4 to 1", 1);
+    test.expect_ra("type 0 delayed R9=0 resets C9 to 0", 0);
+    test.expect_ma(
+        "type 0 next-row MA reloads saved address rather than repeating old row",
+        expected_ma(4));
+
+    // Verify row 1 continues advancing MA.
+    test.run_characters(4);
+    test.expect_ma("type 0 row 1 MA reaches offset 8 at C0=4", expected_ma(8));
+
+    test.run_characters(4);
+    test.expect_c4("type 0 row advances to C4=2", 2);
+    test.expect_ra("type 0 C9 remains 0 on row 2", 0);
+    test.expect_ma("type 0 row 2 starts at MA offset 8", expected_ma(8));
+}
+
 // ACCC v1.10 section 28.1.1: R4=36, R9=7, R5=16 is the documented CRTC
 // identification frame.  Use standard 64-character CPC horizontal timing so
 // this counter-only oracle is directly comparable with hardware traces.
@@ -2442,11 +2914,29 @@ int main(int argc, char** argv) {
         {"t16s_type0_r0_one_c0_1_break_is_consumed_at_rollover",
          "ACCC v1.10 sections 10.3.1, 11.2.2, and 13.2.1; F5/F12 boundary",
          false, test_type0_r0_one_c0_1_break_is_consumed_at_rollover},
+        {"t16t_type0_adjustment_unequal_c9_counts_to_r5",
+         "ACCC v1.10 sections 11.2.1 and 11.2.2; F12/F4 vertical adjustment C9 reuse",
+         false, test_type0_adjustment_unequal_c9_counts_to_r5},
+        {"t16u_type0_active_adjustment_r5_zero_counts_through_31",
+         "ACCC v1.10 sections 10.3.1, 11.2.1, and 11.2.2; F4/F12 zero-R5 wrap",
+         false, test_type0_active_adjustment_r5_zero_counts_through_31},
+        {"t16v_type0_adjustment_last_line_r5_zero_retargets_to_31",
+         "ACCC v1.10 sections 10.3.1, 11.2.1, and 11.2.2; F4/F12 zero-R5 retarget",
+         false, test_type0_adjustment_last_line_r5_zero_retargets_to_31},
+        {"t16x_type0_r5_same_line_rejected_write_does_not_retarget",
+         "ACCC v1.10 sections 10.3.1 and 11.2.2; F4/F12 R5 target latch",
+         false, test_type0_r5_same_line_rejected_write_does_not_retarget},
+        {"t16y_type0_r5_same_line_rejected_zero_does_not_retarget",
+         "ACCC v1.10 sections 10.3.1 and 11.2.2; F4/F12 inverse R5 target latch",
+         false, test_type0_r5_same_line_rejected_zero_does_not_retarget},
+        {"t16w_type0_zero_adj_entry_r5_positive_extends_adjustment",
+         "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12 zero-entry positive R5",
+         false, test_type0_zero_adj_entry_r5_positive_extends_adjustment},
         {"t07a_type1_c9_counts_through_31_and_wraps",
          "ACCC v1.10 sections 10.3 and 10.3.2; F4", false,
          test_type1_c9_counts_through_31_and_wraps},
         {"t07b_type1_c9_zero_limit_overflows",
-         "ACCC v1.10 section 10.3; F4 zero-limit divergence", true,
+         "ACCC v1.10 section 10.3; F4 zero-limit equality rollover", false,
          test_type1_c9_zero_limit_overflows},
         {"t07c_type1_c4_counts_through_127_and_wraps",
          "ACCC v1.10 sections 12 and 12.3; F4", false,
@@ -2458,13 +2948,13 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 10.3.1 and 12.2; F4", false,
          test_type0_c9_counts_through_31_and_wraps},
         {"t07f_type0_c9_zero_limit_overflows",
-         "ACCC v1.10 section 10.3; F4 zero-limit divergence", true,
+         "ACCC v1.10 section 10.3; F4 zero-limit equality rollover", false,
          test_type0_c9_zero_limit_overflows},
         {"t07g_type0_c4_counts_through_127_and_wraps",
          "ACCC v1.10 section 12.2; F4", false,
          test_type0_c4_counts_through_127_and_wraps},
         {"t07h_type0_c4_zero_limit_overflows",
-         "ACCC v1.10 section 12.2; F4 zero-limit divergence", true,
+         "ACCC v1.10 section 12.2; F4 zero-limit equality rollover", false,
          test_type0_c4_zero_limit_overflows},
         {"t07i_type0_rlal_zero_limit_arms_last_line",
          "ACCC v1.10 section 12.2; F4/F12 RLAL guard", false,
@@ -2473,11 +2963,14 @@ int main(int argc, char** argv) {
          "ACCC v1.10 section 12.2; F4/F12 RLAL guard", false,
          test_type0_rlal_single_zero_limit_does_not_arm},
         {"t07k_type0_rlal_first_line_delayed_arming",
-         "ACCC v1.10 sections 10.3.1 and 12.2.1; F4/F12 divergence", true,
+         "ACCC v1.10 sections 10.3.1 and 12.2.1; F4/F12 equality rollover", false,
          test_type0_rlal_first_line_delayed_arming},
         {"t07l_type0_rlal_from_the_genuine_last_line",
          "ACCC v1.10 section 12.2.1; F4/F12 RLAL guard", false,
          test_type0_rlal_from_the_genuine_last_line},
+        {"t07m_type0_r9_write_before_r1_advances_next_row_ma",
+         "ACCC v1.10 sections 10.3.1 and 17.1; F4 live row_addr_save", false,
+         test_type0_r9_write_before_r1_advances_next_row_ma},
         {"t08a_type0_identification_r7_36_fires",
          "ACCC v1.10 section 28.1.1; F4 control", false,
          test_type0_identification_r7_36_fires},
