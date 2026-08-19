@@ -42,3 +42,6 @@ c5_pin_model_dump.txt
 # Local source/reference artifacts (deliberately not versioned).
 docs/ACCC*.pdf
 docs/plus/references/cartridges/
+
+# SHAKER capture screenshots: kept locally as provenance, not committed
+docs/accuracy/shaker/*.png
