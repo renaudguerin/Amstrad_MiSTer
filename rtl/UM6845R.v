@@ -157,6 +157,9 @@ reg        type0_r9_live_compare;
 reg        type0_r9_at_r0_pending;
 reg        type0_c0_1_adjust;
 reg        type0_r0_zero_entry_consumed;
+reg        type0_zero_adj_entry;
+reg        type0_r5_adjust_override;
+reg  [4:0] type0_r5_adjust_target;
 wire       register_write = ENABLE & ~nCS & ~R_nW & RS;
 wire       type0_r4_window_write;
 wire       type0_r4_switch_write;
@@ -179,28 +182,47 @@ wire [7:0] hcc_next  = hcc_last ? 8'h00 : hcc + 1'd1;
 wire       r0_frozen = !CRTC_TYPE && !R0_h_total && !hcc;
 
 reg  [4:0] line;
-wire [4:0] line_max  = (in_adj ? (|R5_v_total_adj ? R5_v_total_adj-1'd1 : 5'd0) : R9_v_max_line) & ~interlace;
+reg  [6:0] row;
+wire [4:0] line_max  = (in_adj ? (R5_v_total_adj - 1'd1) : R9_v_max_line) & ~interlace;
 reg        line_last_r;
-wire       line_last = (line == line_max) || !line_max;
-wire [4:0] type0_adjust_line_max = (|R5_v_total_adj ? R5_v_total_adj-1'd1 : 5'd0) & ~interlace;
+reg        row_last_r;
+// ACCC v1.10 section 10.3: C9 uses equality, never magnitude.  A zero limit
+// reached from C9>0 must let C9 run to 31 and wrap, so no unconditional
+// "limit is zero" match may short-circuit the comparison.
+wire       line_last = (line == line_max);
+wire [4:0] type0_r5_adjust_target_effective = type0_r5_window_write ?
+											(DI[4:0] - 1'd1) : type0_r5_adjust_target;
+wire [4:0] type0_adjust_line_max =
+					(type0_r5_override_active ? type0_r5_adjust_target_effective :
+					 (type0_effective_r5 - 1'd1)) & ~interlace;
 wire       type0_r9_at_r0_write;
 wire       type0_r9_at_r0_active = type0_r9_at_r0_pending | type0_r9_at_r0_write;
+// Section 10.3.1.1: once `Last Line` is false, the rollover uses the live
+// C9/R9 comparison rather than the value latched at C0=0.  That is what makes
+// the section 12.2.1 first-line RLAL sequence (R9=0 written after the C0<2
+// window) increment C4 on the very next line.
+wire       type0_live_line_last = (line == (R9_v_max_line & ~interlace));
+wire       type0_last_line_armed = line_last_r & row_last_r;
 wire       type0_rollover_line_last = type0_c0_1_adjust_active ? 1'b0 :
 									 type0_r9_at_r0_active ?
 									 (line == type0_adjust_line_max) :
 								 type0_r4_switch_active ?
 									 (line == type0_adjust_line_max) :
-								 type0_r9_compare_active ? (line == (R9_v_max_line & ~interlace)) :
-									 line_last_r;
+								 type0_r9_compare_active ? type0_live_line_last :
+								 type0_r5_override_active ?
+									 ((line == type0_adjust_line_max) | type0_zero_adj_entry_active) :
+								 (in_adj | type0_last_line_armed) ? line_last_r :
+									 type0_live_line_last;
 wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 									 type0_rollover_line_last;
 wire [4:0] line_next = ((CRTC_TYPE ? line_last : type0_rollover_line_last) ?
 						 5'd0 : line + 1'd1 + interlace) & ~interlace;
 wire       line_new  = hcc_last && !r0_frozen;
 
-reg  [6:0] row;
-reg        row_last_r;
-wire       row_last  = (row == R4_v_total) || (!CRTC_TYPE && !R4_v_total);
+// ACCC v1.10 section 12: outside vertical adjustment C4 is equality-compared
+// too.  Type 0's R4=0 frame end comes from the `Last Line` / adjustment
+// arbitration below, not from a magnitude special case.
+wire       row_last  = (row == R4_v_total);
 wire       row_frame_last = ((CRTC_TYPE ? row_last : row_last_r) | in_adj) & ~frame_adj;
 wire [6:0] row_next  = row_frame_last ? 7'd0 : row + 1'd1;
 wire       row_new   = line_new & (CRTC_TYPE ? line_last : type0_rollover_row_last);
@@ -208,6 +230,10 @@ wire       row_new   = line_new & (CRTC_TYPE ? line_last : type0_rollover_row_la
 reg        frame_adj_r;
 wire       type0_r5_write = !CRTC_TYPE && register_write && addr == 5'd05;
 wire [4:0] type0_effective_r5 = type0_r5_write ? DI[4:0] : R5_v_total_adj;
+wire       type0_r5_window_write = type0_r5_write && hcc <= 2 && in_adj;
+wire       type0_r5_override_active = (type0_r5_adjust_override | type0_r5_window_write) & in_adj;
+wire       type0_zero_adj_entry_active = type0_zero_adj_entry &
+										 ~(type0_r5_write && (hcc <= 2) && (|DI[4:0]));
 wire       type0_adjustment_selected = type0_c0_1_adjust_active |
 									 ((hcc == 2) ?
 									  frame_adj_r & |type0_effective_r5 : frame_adj_r);
@@ -227,10 +253,18 @@ wire       frame_adj = CRTC_TYPE ? frame_adj_CRTC1 : frame_adj_CRTC0;
 wire       frame_new = row_new & row_frame_last;
 wire       type0_r4_at_c0_write = !CRTC_TYPE && register_write && addr == 5'd04 && hcc == 0;
 wire       type0_r9_at_c0_write = !CRTC_TYPE && register_write && addr == 5'd09 && hcc == 0;
+wire       type0_r5_at_c0_write = type0_r5_write && hcc == 0;
 wire [6:0] type0_c0_r4 = type0_r4_at_c0_write ? DI[6:0] : R4_v_total;
 wire [4:0] type0_c0_r9 = type0_r9_at_c0_write ? DI[4:0] : R9_v_max_line;
-wire       type0_c0_row_last = (row == type0_c0_r4) || !type0_c0_r4;
-wire       type0_c0_line_last = (line == type0_c0_r9) || !type0_c0_r9;
+wire [4:0] type0_c0_r5 = type0_r5_at_c0_write ? DI[4:0] : R5_v_total_adj;
+wire [4:0] type0_c0_adjust_line_max = (type0_c0_r5 - 1'd1) & ~interlace;
+wire       type0_c0_zero_adj_entry = type0_zero_adj_entry & ~(type0_r5_at_c0_write & (|DI[4:0]));
+// The C0=0 seam evaluates `Last Line` against the effective (possibly
+// same-edge written) R4/R9.  Both are plain equalities: a zero limit is an
+// ordinary value that only matches a counter already at zero.
+wire       type0_c0_row_last = (row == type0_c0_r4);
+wire       type0_c0_line_last = in_adj ? ((line == type0_c0_adjust_line_max) | type0_c0_zero_adj_entry) :
+									 (line == type0_c0_r9);
 
 // Register writes are clocked at the 16 MHz bus rate, not only on CLKEN.
 // Retain the selected comparator for the rest of the current character line.
@@ -241,6 +275,9 @@ always @(posedge CLOCK) begin
 		type0_r9_at_r0_pending <= 0;
 		type0_c0_1_adjust <= 0;
 		type0_r0_zero_entry_consumed <= 0;
+		type0_zero_adj_entry <= 0;
+		type0_r5_adjust_override <= 0;
+		type0_r5_adjust_target <= 0;
 	end
 	else begin
 		if(type0_r4_window_write) type0_r4_adjust_switch <= DI[6:0] != row;
@@ -249,12 +286,40 @@ always @(posedge CLOCK) begin
 		else if(CLKEN && line_new) type0_r9_live_compare <= 0;
 		if(type0_r9_at_r0_write) type0_r9_at_r0_pending <= 1;
 		else if(CLKEN && line_new) type0_r9_at_r0_pending <= 0;
+		// A line boundary consumes the current-line override.  An accepted
+		// write on that same edge still affects the combinational rollover
+		// through type0_r5_adjust_target_effective, but must not leak into the
+		// next line's state.
+		if(CLKEN && line_new) begin
+			type0_r5_adjust_override <= 0;
+			type0_r5_adjust_target <= 0;
+		end
+		else if(type0_r5_window_write) begin
+			type0_r5_adjust_override <= 1;
+			type0_r5_adjust_target <= DI[4:0] - 1'd1;
+		end
 		// A C0=1 write can also be the R0=1 rollover. Its combinational
 		// effect is consumed on that edge and must not leak into the next line.
 		if(CLKEN && line_new) type0_c0_1_adjust <= 0;
 		else if(type0_c0_1_break_write) type0_c0_1_adjust <= 1;
 		if(!r0_frozen) type0_r0_zero_entry_consumed <= 0;
 		else if(CLKEN) type0_r0_zero_entry_consumed <= 1;
+		if(type0_r5_write && (hcc <= 2) && (|DI[4:0])) type0_zero_adj_entry <= 0;
+
+		if(CLKEN) begin
+			if(line_new && (type0_r4_switch_active | type0_r9_compare_active |
+							type0_c0_1_adjust_active))
+				type0_zero_adj_entry <= type0_c0_1_adjust_active & !(|type0_effective_r5);
+			else if(r0_frozen && !in_adj && !type0_r0_zero_entry_consumed &&
+					line == R9_v_max_line && row == R4_v_total)
+				type0_zero_adj_entry <= !(|R5_v_total_adj);
+			else if(row_new) begin
+				if(frame_adj)
+					type0_zero_adj_entry <= !(|type0_effective_r5);
+				else if(frame_new)
+					type0_zero_adj_entry <= 0;
+			end
+		end
 	end
 end
 
@@ -308,7 +373,7 @@ end
 
 wire CRTC1_reload =  CRTC_TYPE & (frame_new | (~line_last & !row & !hcc_next)); //CRTC1 reloads addr on every line of 1st row
 wire CRTC0_reload = ~CRTC_TYPE & frame_new;
-wire row_addr_save = hcc == R1_h_displayed && (CRTC_TYPE ? line_last : line_last_r);
+wire row_addr_save = hcc == R1_h_displayed && (CRTC_TYPE ? line_last : type0_live_line_last);
 
 // address
 reg  [13:0] row_addr;   // saved pointer
