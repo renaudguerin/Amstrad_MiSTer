@@ -2805,6 +2805,459 @@ void test_type1_identification_r7_40_is_silent(TestBench& test) {
     test.expect_no_vsync_observed("type 1 R7=40 never triggers VSYNC", seen);
 }
 
+// ---------------------------------------------------------------------------
+// t20: Video Pointer R12/R13 reload coverage across normal and degenerate frames
+// ---------------------------------------------------------------------------
+
+void write_r12_r13_character(TestBench& test, std::uint8_t r12, std::uint8_t r13) {
+    test.write_register(12, r12);
+    test.write_register(13, r13);
+    test.run_clock_ticks(12);
+}
+
+void write_r13_character(TestBench& test, std::uint8_t r13) {
+    test.write_register(13, r13);
+    test.run_clock_ticks(14);
+}
+
+void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // Normal frame: 64 characters/line (R0=63), 39 character rows (R4=38),
+    // 8 scanlines/row (R9=7), no vertical adjust (R5=0).
+    // Total frame = (38+1)*(7+1) = 312 lines of 64 characters.
+    constexpr RegisterProgram kNormalRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 0},  {6, 25}, {7, 30}, {8, 0},    {9, 7},
+    }};
+    program_registers(test, kNormalRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.reset();
+
+    // Complete the initial frame (312 lines of 64 characters) to reach the
+    // first genuine frame start (C4=0, C9=0, C0=0) where frame_new asserts.
+    test.run_characters(312 * 64);
+
+    // ACCC v1.10 section 20.3.1 (page 242) and section 17.4.1 (page 182):
+    // On CRTC 0, frame start (C4=0, C9=0, C0=0) initializes VMA and VMA' with R12/R13.
+    test.expect_ma("type 0 normal frame: initial frame start MA loaded from R12/R13", 0x1234);
+
+    // Advance into line 0 (10 characters), then write new R12/R13 values (consumes 1 character at C0=10).
+    test.run_characters(10);
+    write_r12_r13_character(test, 0x20, 0x50);
+
+    // Complete line 0 (64 characters total, 64 - 11 = 53 remaining) to reach line 1 start (C4=0, C9=1, C0=0).
+    test.run_characters(53);
+
+    // ACCC v1.10 section 17.4.1 (page 182) and section 20.3.1 (page 242):
+    // On CRTC 0, lines within the first row (C4=0, C9>0) reload VMA from VMA' (0x1234),
+    // NOT from R12/R13 (0x2050).
+    test.expect_ma("type 0 normal frame: line 1 (C9=1) reloads VMA' (0x1234) ignoring R12/R13 (0x2050)", 0x1234);
+
+    // Advance across the remainder of the frame (311 lines of 64 chars) to the next frame start (C4=0, C9=0, C0=0).
+    test.run_characters(311 * 64);
+
+    // ACCC v1.10 section 20.3.1 (page 242):
+    // At the start of the new frame (C4=0, C9=0, C0=0), VMA and VMA' are loaded with R12/R13 (0x2050).
+    test.expect_ma("type 0 normal frame: frame 1 start (C4=0, C9=0, C0=0) reloads new R12/R13", 0x2050);
+}
+
+void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // Normal frame: 64 characters/line (R0=63), 39 character rows (R4=38),
+    // 8 scanlines/row (R9=7), no vertical adjust (R5=0).
+    constexpr RegisterProgram kNormalRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 0},  {6, 25}, {7, 30}, {8, 0},    {9, 7},
+    }};
+    program_registers(test, kNormalRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.reset();
+
+    // Complete the initial frame (312 lines of 64 characters) to reach the
+    // first genuine frame start (C4=0, C9=0, C0=0).
+    test.run_characters(312 * 64);
+
+    // ACCC v1.10 section 20.3.2 (page 242) and section 17.4.2 (page 182):
+    // On CRTC 1, line 0 of row 0 (C4=0, C9=0, C0=0) loads VMA with R12/R13 (0x1234).
+    test.expect_ma("type 1 normal frame: line 0 (C4=0, C9=0) MA loaded from R12/R13", 0x1234);
+
+    // Advance into line 0, write new R12/R13 during C0=10 (1 char), then complete line 0 (53 chars).
+    test.run_characters(10);
+    write_r12_r13_character(test, 0x20, 0x50);
+    test.run_characters(53);
+
+    // ACCC v1.10 section 17.4.2 (page 182) and section 20.3.2 (page 242):
+    // On CRTC 1, VMA is reloaded from R12/R13 on EVERY line while C4=0.
+    test.expect_ma("type 1 normal frame: line 1 (C4=0, C9=1) reloads new R12/R13 (0x2050)", 0x2050);
+
+    // Advance into line 1, write new R12/R13 during C0=10 (1 char), then complete line 1 (53 chars).
+    test.run_characters(10);
+    write_r12_r13_character(test, 0x30, 0x78);
+    test.run_characters(53);
+
+    // ACCC v1.10 section 20.3.2 (page 242):
+    // Line 2 (C4=0, C9=2) reloads new R12/R13 (0x3078).
+    test.expect_ma("type 1 normal frame: line 2 (C4=0, C9=2) reloads new R12/R13 (0x3078)", 0x3078);
+
+    // Advance through lines 2, 3, 4, 5, 6 (5 lines = 5 * 64 = 320 chars) to reach line 7 (C4=0, C9=7=R9).
+    test.run_characters(5 * 64);
+    test.expect_ma("type 1 normal frame: line 7 (C4=0, C9=7) reloads R12/R13 (0x3078)", 0x3078);
+
+    // On line 7 (last line of row 0, C9=R9), advance past C0=R1=40 where VMA' latches VMA:
+    // VMA at C0=R1 is 0x3078 + 40 = 0x30A0. VMA' becomes 0x30A0.
+    test.run_characters(50);
+
+    // Write new R12/R13 (0x0111) during C0=50 (1 char).
+    write_r12_r13_character(test, 0x01, 0x11);
+
+    // Complete line 7 (64 - 51 = 13 chars remaining) to reach line 8 start (row 1, C4=1, C9=0, C0=0).
+    test.run_characters(13);
+
+    // ACCC v1.10 section 17.4.2 (page 182) and section 20.3.2 (page 242):
+    // Once C4 > 0, CRTC 1 no longer reloads from R12/R13 (0x0111); VMA reloads from VMA' (0x30A0).
+    test.expect_ma("type 1 normal frame: row 1 (C4=1, C9=0) reloads VMA' (0x30A0) refusing R12/R13 (0x0111)", 0x30A0);
+}
+
+void test_type0_r0_three_reloads_every_line(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 13.8.1 (page 127) and section 20.3.1 (page 242):
+    // R0=3, R4=0, R9=0, R5=0 (4 us lines).
+    // C0 reaches 2, so the C0=2 disarm check cancels vertical adjustment.
+    // C4 stays 0 on every line; each line is a new frame start (C4=0, C9=0, C0=0).
+    // VMA and VMA' reload from R12/R13 on every 4 us line.
+    constexpr RegisterProgram kR0ThreeRegisters = {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    program_registers(test, kR0ThreeRegisters);
+    test.write_register(12, 0x10);
+    test.write_register(13, 0x20);
+    test.reset();
+
+    // Complete initial line (4 characters) to reach the first frame boundary.
+    test.run_characters(4);
+
+    // ACCC v1.10 section 20.3.1 page 242:
+    // Line 1 start (C0=0): MA loaded from R12/R13 (0x1020).
+    test.expect_ma("type 0 R0=3 line 1 MA loaded from R12/R13", 0x1020);
+
+    // Advance to C0=1 (1 char), write new R13 during C0=1 (1 char), complete line 1 (4 - 2 = 2 chars).
+    test.run_characters(1);
+    write_r13_character(test, 0x45);
+    test.run_characters(2);
+
+    // ACCC v1.10 section 13.8.1 page 127:
+    // Line 2 start (C0=0): reloads updated R12/R13 (0x1045).
+    test.expect_ma("type 0 R0=3 line 2 MA reloaded with updated R13 (0x1045)", 0x1045);
+
+    // Advance to C0=1 (1 char), write new R12/R13 during C0=1 (1 char), complete line 2 (2 chars).
+    test.run_characters(1);
+    write_r12_r13_character(test, 0x23, 0x67);
+    test.run_characters(2);
+
+    // ACCC v1.10 section 13.8.1 page 127:
+    // Line 3 start (C0=0): reloads updated R12/R13 (0x2367).
+    test.expect_ma("type 0 R0=3 line 3 MA reloaded with updated R12/R13 (0x2367)", 0x2367);
+
+    // Advance 4 characters to line 4 start without writing new registers.
+    test.run_characters(4);
+
+    // ACCC v1.10 section 13.8.1 page 127:
+    // Line 4 start (C0=0): reloads 0x2367 rather than advancing sequentially.
+    test.expect_ma("type 0 R0=3 line 4 MA reloads 0x2367 at line start", 0x2367);
+}
+
+void test_type1_r0_three_reloads_every_line(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // ACCC v1.10 section 13.8.1 (page 127) and section 20.3.2 (page 242):
+    // R0=3, R4=0, R9=0, R5=0 (4 us lines).
+    // CRTC 1 keeps C4=0 throughout; VMA reloads from R12/R13 on every 4 us line at C0=0.
+    constexpr RegisterProgram kR0ThreeRegisters = {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    program_registers(test, kR0ThreeRegisters);
+    test.write_register(12, 0x10);
+    test.write_register(13, 0x20);
+    test.reset();
+
+    // Complete initial line (4 characters) to reach the first line boundary.
+    test.run_characters(4);
+
+    // ACCC v1.10 section 20.3.2 page 242:
+    // Line 1 start (C0=0): MA loaded from R12/R13 (0x1020).
+    test.expect_ma("type 1 R0=3 line 1 MA loaded from R12/R13", 0x1020);
+
+    // Advance to C0=1 (1 char), write new R13 during C0=1 (1 char), complete line 1 (2 chars).
+    test.run_characters(1);
+    write_r13_character(test, 0x45);
+    test.run_characters(2);
+
+    // ACCC v1.10 section 13.8.1 page 127:
+    // Line 2 start (C0=0): reloads updated R12/R13 (0x1045).
+    test.expect_ma("type 1 R0=3 line 2 MA reloaded with updated R13 (0x1045)", 0x1045);
+
+    // Advance to C0=1 (1 char), write new R12/R13 during C0=1 (1 char), complete line 2 (2 chars).
+    test.run_characters(1);
+    write_r12_r13_character(test, 0x23, 0x67);
+    test.run_characters(2);
+
+    // ACCC v1.10 section 13.8.1 page 127:
+    // Line 3 start (C0=0): reloads updated R12/R13 (0x2367).
+    test.expect_ma("type 1 R0=3 line 3 MA reloaded with updated R12/R13 (0x2367)", 0x2367);
+
+    // Advance 4 characters to line 4 start without writing new registers.
+    test.run_characters(4);
+
+    // ACCC v1.10 section 13.8.1 page 127:
+    // Line 4 start (C0=0): reloads 0x2367 rather than advancing sequentially.
+    test.expect_ma("type 1 R0=3 line 4 MA reloads 0x2367 at line start", 0x2367);
+}
+
+void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 sections 13.8.2 (page 128), 13.2.5 (page 107), and 20.3.1 (page 242):
+    // R0=1, R4=0, R9=0, R5=0 (2 us lines).
+    // C0 never reaches 2, so the disarm check never runs and an uncancelled 1-line
+    // vertical adjustment fires every frame.
+    // Line 0 (C4=0, 2 us): frame line.
+    // Line 1 (C4=1, 2 us): adjustment line.
+    // Line 2 (C4=0, 2 us): frame 1 start. Reloads from R12/R13 (0x1100) at C0=0.
+    //   During line 2: C0=0 (MA=0x1100), C0=1=R1 (MA=0x1101, VMA' latches 0x1101).
+    // Line 3 (C4=1, 2 us): adjustment line. C4=1, so R12/R13 update (0x2233) is REFUSED.
+    //   VMA reloads from VMA' (0x1101).
+    // Line 4 (C4=0, 2 us): frame 2 start. Reloads from R12/R13 (0x2233) at C0=0.
+    //   During line 4: C0=0 (MA=0x2233), C0=1=R1 (MA=0x2234, VMA' latches 0x2234).
+    // Line 5 (C4=1, 2 us): adjustment line. R12/R13 update (0x3344) is REFUSED.
+    //   VMA reloads from VMA' (0x2234).
+    // Line 6 (C4=0, 2 us): frame 3 start. Reloads from R12/R13 (0x3344) at C0=0.
+    // R12/R13 updates are therefore accepted only every 4 us (every second 2 us line).
+    constexpr RegisterProgram kR0OneRegisters = {{
+        {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    program_registers(test, kR0OneRegisters);
+    test.write_register(12, 0x11);
+    test.write_register(13, 0x00);
+    test.reset();
+
+    // Complete initial frame + adjustment line (2 lines = 4 characters) to reach
+    // frame 1 line 0 (C4=0, C0=0) where frame_new asserts.
+    test.run_characters(4);
+
+    // ACCC v1.10 section 20.3.1 page 242:
+    // Line 2 start (C4=0, C0=0): MA loaded from initial R12/R13 (0x1100).
+    test.expect_c4("type 0 R0=1 reaches frame 1 start (C4=0)", 0);
+    test.expect_ma("type 0 R0=1 line 2 (C4=0) MA loaded from R12/R13", 0x1100);
+
+    // Write new R12/R13 during C0=0 of line 2 (1 char), then advance remaining 1 char (C0=1) to line 3.
+    // At C0=1=R1, VMA advances to 0x1101 and VMA' latches 0x1101.
+    write_r12_r13_character(test, 0x22, 0x33);
+    test.run_characters(1);
+
+    // ACCC v1.10 section 13.2.5 page 107 and section 13.8.2 page 128:
+    // Line 3 is in vertical adjustment (C4=1), so R12/R13 update is REFUSED.
+    // VMA reloads from VMA' (0x1101), NOT from R12/R13 (0x2233).
+    test.expect_c4("type 0 R0=1 line 3 enters uncancelled vertical adjustment (C4=1)", 1);
+    test.expect_ma("type 0 R0=1 line 3 (C4=1) refuses R12/R13 update (reloads VMA' 0x1101)", 0x1101);
+
+    // Advance 2 characters to line 4 start (C4=0, C0=0, frame 2 line 0).
+    test.run_characters(2);
+
+    // ACCC v1.10 section 13.2.5 page 107 and section 20.3.1 page 242:
+    // Line 4 (C4=0, C0=0): new frame line accepts R12/R13 (0x2233).
+    test.expect_c4("type 0 R0=1 line 4 returns to C4=0", 0);
+    test.expect_ma("type 0 R0=1 line 4 (C4=0) accepts R12/R13 reload (0x2233)", 0x2233);
+
+    // Write new R12/R13 during C0=0 of line 4 (1 char), then advance remaining 1 char (C0=1) to line 5.
+    // At C0=1=R1, VMA advances to 0x2234 and VMA' latches 0x2234.
+    write_r12_r13_character(test, 0x33, 0x44);
+    test.run_characters(1);
+
+    // ACCC v1.10 section 13.2.5 page 107:
+    // Line 5 (C4=1): adjustment line refuses R12/R13 (0x3344); VMA reloads from VMA' (0x2234).
+    test.expect_c4("type 0 R0=1 line 5 enters adjustment (C4=1)", 1);
+    test.expect_ma("type 0 R0=1 line 5 (C4=1) refuses R12/R13 update (reloads VMA' 0x2234)", 0x2234);
+
+    // Advance 2 characters to line 6 start (C4=0, C0=0, frame 3 line 0).
+    test.run_characters(2);
+
+    // ACCC v1.10 section 13.2.5 page 107 and section 20.3.1 page 242:
+    // Line 6 (C4=0, C0=0): new frame line accepts R12/R13 (0x3344).
+    test.expect_c4("type 0 R0=1 line 6 returns to C4=0", 0);
+    test.expect_ma("type 0 R0=1 line 6 (C4=0) accepts R12/R13 reload (0x3344)", 0x3344);
+}
+
+void test_type1_r0_one_reloads_every_line(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // ACCC v1.10 section 13.8.2 (page 128) and section 20.3.2 (page 242):
+    // R0=1, R4=0, R9=0, R5=0 (2 us lines).
+    // CRTC 1 keeps C4=0 throughout; VMA reloads from R12/R13 on EVERY 2 us line at C0=0.
+    constexpr RegisterProgram kR0OneRegisters = {{
+        {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    program_registers(test, kR0OneRegisters);
+    test.write_register(12, 0x11);
+    test.write_register(13, 0x00);
+    test.reset();
+
+    // Complete initial line (2 characters) so CRTC 1 line_new fires.
+    test.run_characters(2);
+
+    // ACCC v1.10 section 20.3.2 page 242:
+    // Line 1 start (C0=0): MA loaded from initial R12/R13 (0x1100).
+    test.expect_c4("type 1 R0=1 line 1 C4 is 0", 0);
+    test.expect_ma("type 1 R0=1 line 1 MA loaded from R12/R13", 0x1100);
+
+    // Write new R12/R13 during C0=0 of line 1 (1 char), then advance remaining 1 char to line 2.
+    write_r12_r13_character(test, 0x22, 0x33);
+    test.run_characters(1);
+
+    // ACCC v1.10 section 13.8.2 page 128 & section 20.3.2 page 242:
+    // CRTC 1 keeps C4=0 and reloads VMA on every 2 us line.
+    test.expect_c4("type 1 R0=1 keeps C4 at 0 on line 2", 0);
+    test.expect_ma("type 1 R0=1 line 2 reloads R12/R13 (0x2233) immediately", 0x2233);
+
+    // Write new R12/R13 during C0=0 of line 2 (1 char), then advance remaining 1 char to line 3.
+    write_r12_r13_character(test, 0x33, 0x44);
+    test.run_characters(1);
+
+    // ACCC v1.10 section 13.8.2 page 128:
+    test.expect_c4("type 1 R0=1 keeps C4 at 0 on line 3", 0);
+    test.expect_ma("type 1 R0=1 line 3 reloads R12/R13 (0x3344) immediately", 0x3344);
+
+    // Write new R12/R13 during C0=0 of line 3 (1 char), then advance remaining 1 char to line 4.
+    write_r12_r13_character(test, 0x05, 0x67);
+    test.run_characters(1);
+
+    // ACCC v1.10 section 13.8.2 page 128:
+    test.expect_c4("type 1 R0=1 keeps C4 at 0 on line 4", 0);
+    test.expect_ma("type 1 R0=1 line 4 reloads R12/R13 (0x0567) immediately", 0x0567);
+}
+
+void test_type0_r0_zero_ignores_reload_after_hiccup(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 sections 13.8.3 (page 129), 13.2.6 (page 108), and 20.3.1 (page 242):
+    // R0=0, R4=0, R9=0, R5=0 (1 us lines).
+    // On CRTC 0:
+    // Character 0 (C0=0): frame start, C4=0, C9=0.
+    // Character 1 (C0=0): "C4's last hiccup" increments C4 to 1, entering additional management.
+    // C9 freezes at 0. All counters except C0 stop.
+    // Because C4 remains stuck at 1, C4=0 never recurs while R0=0.
+    // Section 13.8.3 p. 129: "R12 / R13 cannot be considered until C4 and C9 both go back to 0."
+    // All subsequent R12/R13 writes are IGNORED; MA remains stuck at 0.
+    constexpr RegisterProgram kR0ZeroRegisters = {{
+        {0, 0}, {1, 0}, {2, 0}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    program_registers(test, kR0ZeroRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.reset();
+
+    // ACCC v1.10 section 13.2.6 page 108:
+    // Character 0: initial reset state.
+    test.expect_ma("type 0 R0=0 character 0 initial MA", 0);
+
+    // Advance 1 character (1 us) to character 1: C4 takes last hiccup increment to 1.
+    test.run_characters(1);
+    test.expect_c4("type 0 R0=0 character 1 consumes last-hiccup C4 increment", 1);
+    test.expect_ma("type 0 R0=0 character 1 MA remains 0", 0);
+
+    // Advance 1 character (1 us) to character 2: all counters are frozen.
+    test.run_characters(1);
+    test.expect_c4("type 0 R0=0 character 2 C4 remains frozen at 1", 1);
+    test.expect_ma("type 0 R0=0 character 2 MA remains 0", 0);
+
+    // Write new R12/R13 values (0x2055) while frozen at R0=0 (consumes 1 character at character 2).
+    write_r12_r13_character(test, 0x20, 0x55);
+
+    // Advance 20 1-us lines.
+    test.run_characters(20);
+
+    // ACCC v1.10 section 13.8.3 page 129:
+    // R12/R13 write is ignored because C4 is stuck at 1.
+    test.expect_c4("type 0 R0=0 C4 remains 1 across 20 lines", 1);
+    test.expect_ma("type 0 R0=0 ignores R12/R13 (0x2055) write while frozen (MA remains 0)", 0);
+
+    // Write another R12/R13 value (0x3ABC).
+    write_r12_r13_character(test, 0x3A, 0xBC);
+
+    // Advance another 20 1-us lines.
+    test.run_characters(20);
+
+    // Negative assertion: MA remains 0 throughout.
+    test.expect_ma("type 0 R0=0 continues ignoring R12/R13 (0x3ABC) write (MA remains 0)", 0);
+}
+
+void test_type1_r0_zero_reloads_every_line(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // ACCC v1.10 sections 13.3 (page 113), 13.8.3 (page 129), and 20.3.2 (page 242):
+    // R0=0, R4=0, R9=0, R5=0 (1 us lines).
+    // On CRTC 1, R0=0 does not freeze counters; C9 and R4 continue to be managed normally.
+    // C4 stays 0 throughout.
+    // VMA is loaded with R12/R13 on EVERY 1 us line at C0=0.
+    constexpr RegisterProgram kR0ZeroRegisters = {{
+        {0, 0}, {1, 0}, {2, 0}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    program_registers(test, kR0ZeroRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.reset();
+
+    // Complete initial line (1 character) so line_new asserts.
+    test.run_characters(1);
+
+    // ACCC v1.10 section 20.3.2 page 242:
+    // Line 1 start (C0=0): MA loaded from initial R12/R13 (0x1234).
+    test.expect_ma("type 1 R0=0 line 1 MA loaded from R12/R13", 0x1234);
+
+    // Write new R13 (0x35) during line 1 (1 char), then advance to line 2 start (1 char).
+    write_r13_character(test, 0x35);
+    test.run_characters(1);
+
+    // ACCC v1.10 section 13.8.3 page 129 & section 20.3.2 page 242:
+    // Line 2 start (C0=0): reloads updated R13 (0x1235).
+    test.expect_c4("type 1 R0=0 keeps C4 at 0 on line 2", 0);
+    test.expect_ma("type 1 R0=0 line 2 reloads updated R13 (0x1235)", 0x1235);
+
+    // Write new R13 (0x36) during line 2 (1 char), then advance to line 3 start (1 char).
+    write_r13_character(test, 0x36);
+    test.run_characters(1);
+
+    // Line 3 start (C0=0): reloads updated R13 (0x1236).
+    test.expect_c4("type 1 R0=0 keeps C4 at 0 on line 3", 0);
+    test.expect_ma("type 1 R0=0 line 3 reloads updated R13 (0x1236)", 0x1236);
+
+    // Write new R12 (0x25) and R13 (0x80) during line 3 (1 char), then advance to line 4 start (1 char).
+    write_r12_r13_character(test, 0x25, 0x80);
+    test.run_characters(1);
+
+    // Line 4 start (C0=0): reloads updated R12/R13 (0x2580).
+    test.expect_c4("type 1 R0=0 keeps C4 at 0 on line 4", 0);
+    test.expect_ma("type 1 R0=0 line 4 reloads updated R12/R13 (0x2580)", 0x2580);
+
+    // Advance 5 characters (5 us) to line 9 start without writing new registers.
+    test.run_characters(5);
+
+    // ACCC v1.10 section 13.8.3 page 129:
+    // Line 9 start (C0=0): continues reloading 0x2580 on every 1 us line.
+    test.expect_c4("type 1 R0=0 keeps C4 at 0 on line 9", 0);
+    test.expect_ma("type 1 R0=0 line 9 continues reloading 0x2580", 0x2580);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -3011,6 +3464,30 @@ int main(int argc, char** argv) {
         {"t08h_type1_identification_r7_40_is_silent",
          "ACCC v1.10 section 28.1.1; F4/F8 type-1 boundary", false,
          test_type1_identification_r7_40_is_silent},
+        {"t20a_type0_normal_frame_reloads_at_frame_start_only",
+         "ACCC v1.10 sections 17.4.1 and 20.3.1; F11h", false,
+         test_type0_normal_frame_reloads_at_frame_start_only},
+        {"t20b_type1_normal_frame_reloads_every_line_of_row0",
+         "ACCC v1.10 sections 17.4.2 and 20.3.2; F11h", false,
+         test_type1_normal_frame_reloads_every_line_of_row0},
+        {"t20c_type0_r0_three_reloads_every_line",
+         "ACCC v1.10 sections 13.8.1 and 20.3.1; F11h", false,
+         test_type0_r0_three_reloads_every_line},
+        {"t20d_type1_r0_three_reloads_every_line",
+         "ACCC v1.10 sections 13.8.1 and 20.3.2; F11h", false,
+         test_type1_r0_three_reloads_every_line},
+        {"t20e_type0_r0_one_reloads_every_second_line",
+         "ACCC v1.10 sections 13.2.5, 13.8.2, and 20.3.1; F11h", false,
+         test_type0_r0_one_reloads_every_second_line},
+        {"t20f_type1_r0_one_reloads_every_line",
+         "ACCC v1.10 sections 13.8.2 and 20.3.2; F11h", false,
+         test_type1_r0_one_reloads_every_line},
+        {"t20g_type0_r0_zero_ignores_reload_after_hiccup",
+         "ACCC v1.10 sections 13.2.6, 13.8.3, and 20.3.1; F5/F12/F11h", false,
+         test_type0_r0_zero_ignores_reload_after_hiccup},
+        {"t20h_type1_r0_zero_reloads_every_line",
+         "ACCC v1.10 sections 13.3, 13.8.3, and 20.3.2; F11h", false,
+         test_type1_r0_zero_reloads_every_line},
     };
 
     unsigned passed = 0;
