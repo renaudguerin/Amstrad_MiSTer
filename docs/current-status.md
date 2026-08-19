@@ -12,7 +12,7 @@ artifact upload. It adds the independently reviewed C0>=2 F12 arbitration slice 
 earlier Dandanator/SDRAM milestone. The follow-on work after `1a1233f` completes the
 C0=0/C0=1/short-R0 counter paths in simulation and is not part of this RBF.
 
-Three bisectable CI builds have also been downloaded locally under the ignored
+The retained CI builds have been downloaded locally under the ignored
 `output_files/hardware-milestones/` directory:
 
 | Milestone | Commit | RBF SHA-256 |
@@ -23,15 +23,22 @@ Three bisectable CI builds have also been downloaded locally under the ignored
 | Final milestone with Dandanator isolation | `ba5b629` | `7ede21c7449868764f576c114f1697ffd5e6ce4a9b98a38679861d2d52dd3249` |
 | F12 C0>=2 arbitration | `1a1233f` | `fd9705732ae20cb45f1807d4c980b893e974392c3b8f48bdb69ff57794f93319` |
 | F12 complete | `365c132` | `f44e16cc8c815a5d34c4a807feadbb54a25d358175fb4d542dfbcfddbd20f231` |
+| F4 complete plus CPR parser | `5ddddef` | `e1ba1728435f33fc4fe8e1886b0b7b4021f12a4dff861767440b9e2b60a65ff6` |
 
 The `1a1233f` fitter used 14,947 / 41,910 ALMs (36%), 685,217 block-memory bits (12%),
 and 3 / 6 PLLs. Worst setup and hold slacks were positive at +0.541 ns and +0.192 ns.
 The later `365c132` F12-complete build also passed synthesis, with worst setup and hold
 slacks of +0.472 ns and +0.253 ns respectively; it has not yet been hardware-tested.
+GitHub Actions run `32251491936` synthesized the F4-complete/CPR-parser state at `5ddddef`.
+Its fitter used 14,899 / 41,910 ALMs (36%), 685,217 block-memory bits (12%), and 3 / 6
+PLLs. Worst setup and hold slacks were +0.606 ns and +0.254 ns. TimeQuest still reports
+the repository's existing unconstrained external I/O paths, so these positive internal
+slacks are not full timing closure. This RBF is retained under
+`output_files/hardware-milestones/f4-plus-cpr-5ddddef/` and is not hardware-tested yet.
 
 Hardware testing reported on 2026-08-19 found no regression against the stock core, but
 also no CRTC-0 compatibility improvement in the SHAKER Module A tests that were run. This
-result applies to `1a1233f`, not the later deterministic-complete F12 commit `da79915`.
+result applies to `1a1233f`, not the later deterministic-complete F12/F4 implementation.
 Record the individual Module A subtests on the next pass so each failure can be mapped to a
 named finding or an explicit coverage gap; do not infer hardware accuracy from the green
 counter-level simulation gate alone.
@@ -138,9 +145,8 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
 - The local example cartridge `docs/plus/references/cartridges/crtc3_v2fix.cpr` is likewise
   deliberately untracked. Use it as a real RIFF/CPR parsing fixture when P0 starts; do not
   make it a build dependency or redistribute it from this repository.
-- The complete deterministic F12/t16 counter-arbitration milestone has a synthesized CI
-  build at `365c132`, but has not yet been hardware-tested. The later F4 implementation and
-  CPR parser are locally verified and still need their own GitHub Actions synthesis.
+- The complete deterministic F12/F4 counter milestone and CPR parser have a synthesized CI
+  build at `5ddddef`, but have not yet been hardware-tested.
 
 ## Next-session order
 
@@ -149,10 +155,9 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
    the four-command post-install sequence in `ansible/README.md` from the `ansible/`
    directory: check, apply, repeat the check, then validate with
    `quartus_required=true`.
-2. Synthesize the current F4-plus-CPR-parser state through GitHub Actions, retain the RBF and
-   timing reports under a commit-specific ignored hardware-milestone directory, and then
-   rerun the same SHAKER Module A selection. Record individual subtests so the result is
-   directly comparable with `1a1233f`.
+2. Hardware-test `Amstrad_20260819_5ddddef.rbf` with Plus model disabled, then rerun the same
+   SHAKER Module A selection. Record individual subtests so the result is directly
+   comparable with `1a1233f`.
 3. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
    deterministic regression before repairing any newly understood behavior.
 4. Classic: implement F8 type-1 R7 identification during vertical adjustment, leaving the
