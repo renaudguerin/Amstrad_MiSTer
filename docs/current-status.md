@@ -6,11 +6,11 @@ remain in `accuracy/`; the long-term ordering remains in `implementation-roadmap
 
 ## Hardware-test milestone
 
-`1a1233f` is the newest hardware-tested milestone. GitHub Actions run `31661330994` passed the
-complete Verilator gate, Quartus 17.0.2 compilation, fitter, TimeQuest, RBF packaging, and
-artifact upload. It adds the independently reviewed C0>=2 F12 arbitration slice to the
-earlier Dandanator/SDRAM milestone. The follow-on work after `1a1233f` completes the
-C0=0/C0=1/short-R0 counter paths in simulation and is not part of this RBF.
+`5ddddef` is the newest hardware-tested milestone, covering the deterministic-complete F12/F4
+counter work and the CPR parser. `1a1233f` is the previous one; GitHub Actions run
+`31661330994` passed the complete Verilator gate, Quartus 17.0.2 compilation, fitter,
+TimeQuest, RBF packaging, and artifact upload for it, and it carries the independently
+reviewed C0>=2 F12 arbitration slice on top of the earlier Dandanator/SDRAM milestone.
 
 The retained CI builds have been downloaded locally under the ignored
 `output_files/hardware-milestones/` directory:
@@ -34,14 +34,35 @@ Its fitter used 14,899 / 41,910 ALMs (36%), 685,217 block-memory bits (12%), and
 PLLs. Worst setup and hold slacks were +0.606 ns and +0.254 ns. TimeQuest still reports
 the repository's existing unconstrained external I/O paths, so these positive internal
 slacks are not full timing closure. This RBF is retained under
-`output_files/hardware-milestones/f4-plus-cpr-5ddddef/` and is not hardware-tested yet.
+`output_files/hardware-milestones/f4-plus-cpr-5ddddef/` and is the one hardware-tested on
+2026-08-19. The intermediate `365c132` build remains untested and is kept only as a bisection
+point.
 
-Hardware testing reported on 2026-08-19 found no regression against the stock core, but
-also no CRTC-0 compatibility improvement in the SHAKER Module A tests that were run. This
-result applies to `1a1233f`, not the later deterministic-complete F12/F4 implementation.
-Record the individual Module A subtests on the next pass so each failure can be mapped to a
-named finding or an explicit coverage gap; do not infer hardware accuracy from the green
-counter-level simulation gate alone.
+Hardware testing on 2026-08-19 covered two milestones and returned the same result for
+both. `1a1233f` showed no regression against the stock core and no CRTC-0 compatibility
+improvement in the SHAKER Module A tests that were run. `5ddddef`, which adds the
+deterministic-complete F12/F4 counter work and the CPR parser, was then tested and also
+showed no regression and no Module A progress.
+
+Treat that as a signal about coverage, not only about correctness. The completed F12/F4
+counter arbitration work moved nothing that the attempted Module A subtests measure, so
+further counter-internal work is unlikely to change those tests. Both sessions tested only a
+few subtests and did not record them individually, so no failure can currently be mapped to a
+named finding.
+
+Before the next classic RTL change, close that data gap:
+
+- Record every Module A subtest by name and result, for both supported CRTC selections, with
+  the stock core tested side by side in the same session.
+- Confirm that SHAKER's own CRTC identification agrees with the OSD CRTC selection. If it
+  does not, every Module A comparison so far is uninterpretable and that is the first bug to
+  chase.
+- Map each persistent difference to an implemented finding or to a named gap. The current
+  leading hypothesis is that Module A leans on behaviour that is still unimplemented or
+  deliberately deferred — F6 spurious border byte, F8 type-1 C5, F7 RFD, F10 interlace
+  parity — rather than on the counter internals already fixed.
+
+Do not infer hardware accuracy from the green counter-level simulation gate alone.
 
 The build is suitable for classic CPC regression testing. It contains the F1, F2, F3, and
 main F5 CRTC accuracy work. Plus support is not bootable yet: the `Plus model` menu and
@@ -146,7 +167,10 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
   deliberately untracked. Use it as a real RIFF/CPR parsing fixture when P0 starts; do not
   make it a build dependency or redistribute it from this repository.
 - The complete deterministic F12/F4 counter milestone and CPR parser have a synthesized CI
-  build at `5ddddef`, but have not yet been hardware-tested.
+  build at `5ddddef`, which was hardware-tested on 2026-08-19 as described above.
+- Independent cross-provider review is unavailable: the GPT-5.6 Sol reviewer's quota is
+  exhausted and Fable is excluded. Work continues behind the Verilator and synthesis gates,
+  and every unreviewed diff is tracked in `review-debt.md` for a dedicated review pass later.
 
 ## Next-session order
 
@@ -155,9 +179,9 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
    the four-command post-install sequence in `ansible/README.md` from the `ansible/`
    directory: check, apply, repeat the check, then validate with
    `quartus_required=true`.
-2. Hardware-test `Amstrad_20260819_5ddddef.rbf` with Plus model disabled, then rerun the same
-   SHAKER Module A selection. Record individual subtests so the result is directly
-   comparable with `1a1233f`.
+2. Re-run SHAKER Module A on `5ddddef` with Plus model disabled, this time recording every
+   subtest by name and result for both CRTC selections, alongside the stock core. The first
+   two passes produced only an aggregate impression and are not actionable.
 3. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
    deterministic regression before repairing any newly understood behavior.
 4. Classic: implement F8 type-1 R7 identification during vertical adjustment, leaving the
