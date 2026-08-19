@@ -1,7 +1,7 @@
 # Current implementation status
 
 This is the handoff for the next development and hardware-test session. It describes the
-state of `codex/exploratory-gx4000-plus-plan` on 2026-08-13. The detailed behavioral rules
+state of `codex/exploratory-gx4000-plus-plan` on 2026-08-19. The detailed behavioral rules
 remain in `accuracy/`; the long-term ordering remains in `implementation-roadmap.md`.
 
 ## Hardware-test milestone
@@ -26,6 +26,13 @@ Three bisectable CI builds have also been downloaded locally under the ignored
 The `1a1233f` fitter used 14,947 / 41,910 ALMs (36%), 685,217 block-memory bits (12%),
 and 3 / 6 PLLs. Worst setup and hold slacks were positive at +0.541 ns and +0.192 ns
 respectively.
+
+Hardware testing reported on 2026-08-19 found no regression against the stock core, but
+also no CRTC-0 compatibility improvement in the SHAKER Module A tests that were run. This
+result applies to `1a1233f`, not the later deterministic-complete F12 commit `da79915`.
+Record the individual Module A subtests on the next pass so each failure can be mapped to a
+named finding or an explicit coverage gap; do not infer hardware accuracy from the green
+counter-level simulation gate alone.
 
 The build is suitable for classic CPC regression testing. It contains the F1, F2, F3, and
 main F5 CRTC accuracy work. Plus support is not bootable yet: the `Plus model` menu and
@@ -106,8 +113,9 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
 - GitHub currently warns that `actions/checkout@v4` targets deprecated Node 20 and is being
   forced onto Node 24. It does not fail the build; update the action in a separate CI-only
   maintenance commit rather than mixing it into an RTL milestone.
-- `ansible/` provisions the Debian 13 arm64 UTM guest at `192.168.64.3`, restores the
-  `renaud` user's supplementary groups, mounts Rosetta, registers amd64 binfmt, and validates
+- `ansible/` provisions the Debian 13 arm64 UTM guest (reached as `quartus-vm.local` over
+  mDNS), restores the build user's supplementary groups, mounts Rosetta, registers amd64
+  binfmt, and validates
   a real amd64 binary. It also creates a private installer staging directory and provides a
   read-only checksum preflight for the exact Altera 17.0.2 payloads. Quartus itself still
   requires a human download and interactive EULA step; then run `ansible/post-install.yml`
@@ -115,18 +123,22 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
 - ACCC v1.10 is now the primary documentation baseline. The checked-in digests and
   `accuracy/accc-1.10-differences.md` capture its rules and the edition delta; consult the
   full PDF only when a page is specifically flagged for re-extraction.
-- The untracked `docs/ACCC1.10-EN.pdf` and `docs/ACCC1.9-EN.pdf` files are user-owned source
-  material and must remain outside commits. v1.9 is retained only to verify the edition
-  delta and historical citations.
+- The local `docs/ACCC1.10-EN.pdf` is user-owned source material and must remain outside
+  commits. If v1.9 is retained locally for edition-delta or historical-citation checks, it
+  must likewise stay untracked.
+- The local example cartridge `docs/plus/references/cartridges/crtc3_v2fix.cpr` is likewise
+  deliberately untracked. Use it as a real RIFF/CPR parsing fixture when P0 starts; do not
+  make it a build dependency or redistribute it from this repository.
 - The complete deterministic F12/t16 counter-arbitration milestone is present in RTL and
   the executable harness. Its C0>=2 predecessor has a synthesized CI build; this extended
   C0=0/C0=1/short-R0 slice is not yet synthesized or hardware-tested.
 
 ## Next-session order
 
-1. Test the preserved `ba5b629` RBF on MiSTer and record the result.
-2. Incorporate real MiSTer observations; add a deterministic regression before repairing
-   any newly found behavior.
+1. Synthesize the current `da79915` F12 state and rerun the same SHAKER Module A selection,
+   recording individual subtests so the result is directly comparable with `1a1233f`.
+2. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
+   deterministic regression before repairing any newly understood behavior.
 3. Classic: add the F4 `t07`/`t08` vector-only checkpoint, then implement equality/overflow
    without weakening the F12 arbitration or the tightened type-0 RLAL guards.
 4. Plus: in a separate stack, implement P0 MMU/parser/boot integration against the existing
