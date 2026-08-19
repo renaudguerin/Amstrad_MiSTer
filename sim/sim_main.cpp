@@ -211,6 +211,15 @@ public:
         }
     }
 
+    void expect_known_byte(const std::string& expectation,
+                           std::uint8_t expected,
+                           std::uint8_t actual) const {
+        if (actual != expected) {
+            known_divergence(expectation + " == " + std::to_string(expected),
+                             static_cast<unsigned>(actual));
+        }
+    }
+
     void expect_low(const std::string& signal, std::uint8_t actual) const {
         if (actual != 0) {
             fail(signal + " low", static_cast<unsigned>(actual));
@@ -277,6 +286,49 @@ public:
 
     void expect_c4(const std::string& expectation, std::uint8_t expected) const {
         expect_byte(expectation, expected, dut_->rootp->UM6845R__DOT__row);
+    }
+
+    void expect_known_ra(const std::string& expectation,
+                         std::uint8_t expected) const {
+        expect_known_byte(expectation, expected, dut_->RA);
+    }
+
+    void expect_known_c4(const std::string& expectation,
+                         std::uint8_t expected) const {
+        expect_known_byte(expectation, expected,
+                          dut_->rootp->UM6845R__DOT__row);
+    }
+
+    // Whole-frame VSYNC observation for the section 28.1.1 R7 sweep: the pulse
+    // is many characters wide, so one sample per character cannot miss it.
+    bool vsync_within_characters(std::uint64_t characters) {
+        for (std::uint64_t character = 0; character < characters; ++character) {
+            run_characters(1);
+            if (dut_->VSYNC != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void expect_vsync_observed(const std::string& expectation, bool seen) const {
+        if (!seen) {
+            fail(expectation, "no VSYNC pulse");
+        }
+    }
+
+    void expect_no_vsync_observed(const std::string& expectation,
+                                  bool seen) const {
+        if (seen) {
+            fail(expectation, "a VSYNC pulse");
+        }
+    }
+
+    void expect_known_vsync_observed(const std::string& expectation,
+                                     bool seen) const {
+        if (!seen) {
+            known_divergence(expectation, "no VSYNC pulse");
+        }
     }
 
     void expect_adjustment_active(const std::string& expectation) const {
@@ -1770,6 +1822,501 @@ void test_type0_r0_one_c0_1_break_is_consumed_at_rollover(TestBench& test) {
     test.expect_ra("type 0 R0=1 C0=1 completion resets C9", 0);
 }
 
+// ---------------------------------------------------------------------------
+// t07 / t08: F4 equality-only counter overflow and the section 28.1.1 CRTC
+// identification boundaries.  Test-only checkpoint: these vectors encode the
+// v1.10 rules, and the cases the current comparator shortcuts cannot satisfy
+// are registered as named known divergences rather than weakened.
+// ---------------------------------------------------------------------------
+
+using RegisterProgram = std::array<std::pair<std::uint8_t, std::uint8_t>, 10>;
+
+void program_registers(TestBench& test, const RegisterProgram& registers) {
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+}
+
+// R9=7 frame with a long C4 limit, so a lowered R9 exercises C9 alone.
+constexpr RegisterProgram kC9OverflowRegisters = {{
+    {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 20},
+    {5, 0}, {6, 20}, {7, 100}, {8, 0}, {9, 7},
+}};
+
+// R9=0 makes every character line a row, so a lowered R4 exercises C4 alone.
+constexpr RegisterProgram kC4OverflowRegisters = {{
+    {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 5},
+    {5, 0}, {6, 40}, {7, 100}, {8, 0}, {9, 0},
+}};
+
+constexpr unsigned kOverflowLineCharacters = 4;
+
+// Reach C9=4 (C9-overflow fixture) or C4=4 (C4-overflow fixture) with C0 back
+// at 0, ready for the register write that lowers the limit below the counter.
+void run_to_fourth_line_start(TestBench& test) {
+    test.run_characters(4 * kOverflowLineCharacters);
+}
+
+void run_lines(TestBench& test, unsigned lines) {
+    test.run_characters(lines * kOverflowLineCharacters);
+}
+
+void test_type1_c9_counts_through_31_and_wraps(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // ACCC v1.10 sections 10.3 and 10.3.2: C9 uses equality, never
+    // magnitude.  R9 lowered below C9 leaves C9 counting up to 31, wrapping,
+    // and only then meeting the new limit.  C4 must not move while C9 wraps.
+    program_registers(test, kC9OverflowRegisters);
+    test.select_register(9);
+    test.reset();
+
+    run_to_fourth_line_start(test);
+    test.expect_ra("type 1 C9 overflow fixture reaches C9=4", 4);
+    test.expect_c4("type 1 C9 overflow fixture keeps C4 at zero", 0);
+
+    test.write_selected_register_at_clken(2);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_ra("type 1 R9 below C9 keeps counting C9", 5);
+    test.expect_c4("type 1 R9 below C9 does not increment C4", 0);
+
+    run_lines(test, 26);
+    test.expect_ra("type 1 C9 reaches its 5-bit limit", 31);
+    test.expect_c4("type 1 C9 overflow still does not increment C4", 0);
+
+    run_lines(test, 1);
+    test.expect_ra("type 1 C9 wraps past 31", 0);
+    test.expect_c4("type 1 C9 wrap is not a C9=R9 match", 0);
+
+    // 0 -> 1 -> 2 meets the new R9, so the third line resets C9 and moves C4.
+    run_lines(test, 3);
+    test.expect_ra("type 1 wrapped C9 meets the new R9", 0);
+    test.expect_c4("type 1 wrapped C9 match increments C4", 1);
+}
+
+void test_type1_c9_zero_limit_overflows(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // ACCC v1.10 section 10.3: "If R9 is rewritten to 0 while C9>0, C9 does
+    // not snap to 0 - it overflows up to 31 then wraps."  Zero is an ordinary
+    // limit value, so the same overflow applies as for the nonzero case above.
+    program_registers(test, kC9OverflowRegisters);
+    test.select_register(9);
+    test.reset();
+
+    run_to_fourth_line_start(test);
+    test.expect_ra("type 1 zero-limit fixture reaches C9=4", 4);
+    test.expect_c4("type 1 zero-limit fixture keeps C4 at zero", 0);
+
+    test.write_selected_register_at_clken(0);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_known_ra("type 1 R9=0 below C9 keeps counting C9", 5);
+    test.expect_known_c4("type 1 R9=0 below C9 does not increment C4", 0);
+
+    run_lines(test, 26);
+    test.expect_known_ra("type 1 R9=0 lets C9 reach its 5-bit limit", 31);
+
+    run_lines(test, 1);
+    test.expect_known_ra("type 1 R9=0 wraps C9 onto the new limit", 0);
+    test.expect_known_c4("type 1 R9=0 wrap does not yet increment C4", 0);
+
+    run_lines(test, 1);
+    test.expect_known_ra("type 1 wrapped C9 matches R9=0", 0);
+    test.expect_known_c4("type 1 wrapped C9 match increments C4 once", 1);
+}
+
+void test_type1_c4_counts_through_127_and_wraps(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // ACCC v1.10 sections 12 and 12.3: outside vertical adjustment C4 uses
+    // equality too.  R4 lowered below C4 leaves C4 counting to its 7-bit
+    // limit, wrapping, and only then meeting the new limit.
+    program_registers(test, kC4OverflowRegisters);
+    test.select_register(4);
+    test.reset();
+
+    run_to_fourth_line_start(test);
+    test.expect_c4("type 1 C4 overflow fixture reaches C4=4", 4);
+
+    test.write_selected_register_at_clken(1);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_c4("type 1 R4 below C4 keeps counting C4", 5);
+
+    run_lines(test, 122);
+    test.expect_c4("type 1 C4 reaches its 7-bit limit", 127);
+
+    run_lines(test, 1);
+    test.expect_c4("type 1 C4 wraps past 127", 0);
+
+    run_lines(test, 1);
+    test.expect_c4("type 1 wrapped C4 is not yet the new limit", 1);
+
+    run_lines(test, 1);
+    test.expect_c4("type 1 wrapped C4 meets the new R4", 0);
+}
+
+void test_type1_c4_zero_limit_overflows(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // ACCC v1.10 section 12.3: on type 1, R4=0 is an ordinary value with no
+    // last-line latch, so writing it while C4>0 overflows C4 rather than
+    // ending the frame.
+    program_registers(test, kC4OverflowRegisters);
+    test.select_register(4);
+    test.reset();
+
+    run_to_fourth_line_start(test);
+    test.expect_c4("type 1 zero-limit C4 fixture reaches C4=4", 4);
+
+    test.write_selected_register_at_clken(0);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_c4("type 1 R4=0 below C4 keeps counting C4", 5);
+
+    run_lines(test, 122);
+    test.expect_c4("type 1 R4=0 lets C4 reach its 7-bit limit", 127);
+
+    run_lines(test, 1);
+    test.expect_c4("type 1 R4=0 wraps C4 onto the new limit", 0);
+
+    run_lines(test, 1);
+    test.expect_c4("type 1 R4=0 holds C4 at the reached limit", 0);
+}
+
+void test_type0_c9_counts_through_31_and_wraps(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 sections 10.3.1 and 12.2: type 0 establishes the last-line
+    // state while C0<2, so the R9 write lands at C0=0 and participates in that
+    // comparison.  The new limit is below C9 and not a last line, so the live
+    // general case applies: C9 counts through 31 and wraps.
+    program_registers(test, kC9OverflowRegisters);
+    test.select_register(9);
+    test.reset();
+
+    run_to_fourth_line_start(test);
+    test.expect_ra("type 0 C9 overflow fixture reaches C9=4", 4);
+    test.expect_c4("type 0 C9 overflow fixture keeps C4 at zero", 0);
+
+    test.write_selected_register_at_clken(2);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_ra("type 0 R9 below C9 keeps counting C9", 5);
+    test.expect_c4("type 0 R9 below C9 does not increment C4", 0);
+
+    run_lines(test, 26);
+    test.expect_ra("type 0 C9 reaches its 5-bit limit", 31);
+    test.expect_c4("type 0 C9 overflow still does not increment C4", 0);
+
+    run_lines(test, 1);
+    test.expect_ra("type 0 C9 wraps past 31", 0);
+    test.expect_c4("type 0 C9 wrap is not a C9=R9 match", 0);
+
+    run_lines(test, 3);
+    test.expect_ra("type 0 wrapped C9 meets the new R9", 0);
+    test.expect_c4("type 0 wrapped C9 match increments C4", 1);
+}
+
+void test_type0_c9_zero_limit_overflows(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 10.3: R9=0 written while C9>0 must overflow exactly
+    // like any other lowered limit.  C4=0 is far from R4=20, so no last-line
+    // exception can apply and no adjustment route is open.
+    program_registers(test, kC9OverflowRegisters);
+    test.select_register(9);
+    test.reset();
+
+    run_to_fourth_line_start(test);
+    test.expect_ra("type 0 zero-limit fixture reaches C9=4", 4);
+    test.expect_c4("type 0 zero-limit fixture keeps C4 at zero", 0);
+
+    test.write_selected_register_at_clken(0);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_known_ra("type 0 R9=0 below C9 keeps counting C9", 5);
+    test.expect_known_c4("type 0 R9=0 below C9 does not increment C4", 0);
+
+    run_lines(test, 26);
+    test.expect_known_ra("type 0 R9=0 lets C9 reach its 5-bit limit", 31);
+
+    run_lines(test, 1);
+    test.expect_known_ra("type 0 R9=0 wraps C9 onto the new limit", 0);
+    test.expect_known_c4("type 0 R9=0 wrap does not yet increment C4", 0);
+
+    run_lines(test, 1);
+    test.expect_known_ra("type 0 wrapped C9 matches R9=0", 0);
+    test.expect_known_c4("type 0 wrapped C9 match increments C4 once", 1);
+}
+
+void test_type0_c4_counts_through_127_and_wraps(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 12.2: outside adjustment, a C4 that has passed a
+    // newly lowered R4 advances on ordinary C9=R9 row completions through 127
+    // and wraps.  The R4 write lands at C0=0, inside the last-line window.
+    program_registers(test, kC4OverflowRegisters);
+    test.select_register(4);
+    test.reset();
+
+    run_to_fourth_line_start(test);
+    test.expect_c4("type 0 C4 overflow fixture reaches C4=4", 4);
+
+    test.write_selected_register_at_clken(1);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_c4("type 0 R4 below C4 keeps counting C4", 5);
+
+    run_lines(test, 122);
+    test.expect_c4("type 0 C4 reaches its 7-bit limit", 127);
+
+    run_lines(test, 1);
+    test.expect_c4("type 0 C4 wraps past 127", 0);
+
+    run_lines(test, 1);
+    test.expect_c4("type 0 wrapped C4 is not yet the new limit", 1);
+
+    run_lines(test, 1);
+    test.expect_c4("type 0 wrapped C4 meets the new R4", 0);
+}
+
+void test_type0_c4_zero_limit_overflows(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 12.2: R4=0 is reached through equality plus the
+    // Last Line / adjustment state, not through a magnitude special case.
+    // Written while C4=4, it must let C4 overflow instead of ending the frame.
+    program_registers(test, kC4OverflowRegisters);
+    test.select_register(4);
+    test.reset();
+
+    run_to_fourth_line_start(test);
+    test.expect_c4("type 0 zero-limit C4 fixture reaches C4=4", 4);
+
+    test.write_selected_register_at_clken(0);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_known_c4("type 0 R4=0 below C4 keeps counting C4", 5);
+
+    run_lines(test, 122);
+    test.expect_known_c4("type 0 R4=0 lets C4 reach its 7-bit limit", 127);
+
+    run_lines(test, 1);
+    test.expect_known_c4("type 0 R4=0 wraps C4 onto the new limit", 0);
+}
+
+void test_type0_rlal_zero_limit_arms_last_line(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 12.2: to arm Last Line while C4=C9=0, one limit must
+    // already be zero and the other positive.  Here R9=0 already holds, so
+    // writing the remaining positive limit R4 to 0 while C0<2 arms the state
+    // and every following line repeats C4=C9=0.  This is the RLAL steady state
+    // that removing the comparator shortcuts must preserve.
+    program_registers(test, {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 2},
+        {5, 0}, {6, 40}, {7, 100}, {8, 0}, {9, 0},
+    }});
+    test.select_register(4);
+    test.reset();
+
+    test.expect_c4("type 0 RLAL fixture starts at C4=0", 0);
+    test.expect_ra("type 0 RLAL fixture starts at C9=0", 0);
+
+    test.write_selected_register_at_clken(0);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_c4("type 0 zero-limit arm keeps C4 at zero", 0);
+    test.expect_ra("type 0 zero-limit arm keeps C9 at zero", 0);
+    test.expect_adjustment_inactive("type 0 zero-limit arm is not adjustment");
+
+    run_lines(test, 4);
+    test.expect_c4("type 0 zero-limit arm perpetuates C4=0", 0);
+    test.expect_ra("type 0 zero-limit arm perpetuates C9=0", 0);
+}
+
+void test_type0_rlal_single_zero_limit_does_not_arm(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // The same section rejects the loose "R4>0 or R9>0" reading: with R9=2
+    // still positive, writing only R4=0 while C4=C9=0 leaves C9 unequal to R9,
+    // so Last Line is not armed and C9 simply counts on.
+    program_registers(test, {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 2},
+        {5, 0}, {6, 40}, {7, 100}, {8, 0}, {9, 2},
+    }});
+    test.select_register(4);
+    test.reset();
+
+    test.expect_c4("type 0 single-zero-limit fixture starts at C4=0", 0);
+    test.expect_ra("type 0 single-zero-limit fixture starts at C9=0", 0);
+
+    test.write_selected_register_at_clken(0);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_c4("type 0 single zero limit does not arm Last Line", 0);
+    test.expect_ra("type 0 single zero limit lets C9 count", 1);
+    test.expect_adjustment_inactive(
+        "type 0 single zero limit does not enter adjustment");
+
+    // C9 still reaches R9 two lines later; only then does the now-equal R4=0
+    // complete a frame, and C4 has never left zero.
+    run_lines(test, 2);
+    test.expect_ra("type 0 single zero limit completes the C9 count", 0);
+    test.expect_c4("type 0 single zero limit never moves C4", 0);
+}
+
+void test_type0_rlal_first_line_delayed_arming(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 12.2.1 first-line variant: on the first frame line
+    // (C4=C9=0) the Last Line test has already run and found inequality, so a
+    // later R9=0/R4 write cannot make that line the last one.  The documented
+    // fix writes R4=1 with R9=0 after the C0<2 window: the live rollover
+    // compares C9 with the new R9 and increments C4, so line 2 holds C4=1/C9=0
+    // and arms Last Line in its own C0<2 window, resetting both on line 3.
+    program_registers(test, {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 5},
+        {5, 0}, {6, 40}, {7, 100}, {8, 0}, {9, 3},
+    }});
+    test.select_register(9);
+    test.reset();
+
+    test.expect_c4("type 0 delayed-arming fixture starts at C4=0", 0);
+    test.expect_ra("type 0 delayed-arming fixture starts at C9=0", 0);
+
+    // C0=2 and C0=3 are both outside the C0<2 window this rule needs.
+    test.run_characters(2);
+    test.write_selected_register_at_clken(0);
+    test.write_register(4, 1);
+    test.run_characters(1);
+
+    test.expect_known_c4("type 0 delayed arming increments C4 at the rollover", 1);
+    test.expect_known_ra("type 0 delayed arming resets C9 against the new R9", 0);
+
+    run_lines(test, 1);
+    test.expect_known_c4("type 0 delayed arming resets C4 on the third line", 0);
+    test.expect_known_ra("type 0 delayed arming resets C9 on the third line", 0);
+}
+
+void test_type0_rlal_from_the_genuine_last_line(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // ACCC v1.10 section 12.2.1, RLAL from the genuine last line: rewriting
+    // R9 and R4 to 0 around the true frame end perpetuates C9=C4=0.  The same
+    // section requires waiting until C0=2 before rewriting R9 once C9 has
+    // become equal to it, so R9=0 lands at C0=2 of the last line and R4=0 at
+    // C0=0 of the following line, inside its C0<2 arming window.
+    program_registers(test, {{
+        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 2},
+        {5, 0}, {6, 40}, {7, 100}, {8, 0}, {9, 1},
+    }});
+    test.select_register(9);
+    test.reset();
+
+    // Frame lines are (C4,C9) = (0,0) (0,1) (1,0) (1,1) (2,0) (2,1); the last
+    // pair is the genuine last line.
+    run_lines(test, 5);
+    test.expect_c4("type 0 RLAL fixture reaches the last row", 2);
+    test.expect_ra("type 0 RLAL fixture reaches the last line", 1);
+
+    test.run_characters(2);
+    test.write_selected_register_at_clken(0);
+    test.run_characters(1);
+    test.expect_c4("type 0 genuine last line still completes the frame", 0);
+    test.expect_ra("type 0 genuine last line still resets C9", 0);
+
+    test.select_register(4);
+    test.write_selected_register_at_clken(0);
+    test.run_characters(kOverflowLineCharacters - 1);
+    test.expect_c4("type 0 RLAL keeps C4 at zero", 0);
+    test.expect_ra("type 0 RLAL keeps C9 at zero", 0);
+    test.expect_adjustment_inactive("type 0 RLAL does not enter adjustment");
+
+    run_lines(test, 4);
+    test.expect_c4("type 0 RLAL perpetuates C4=0", 0);
+    test.expect_ra("type 0 RLAL perpetuates C9=0", 0);
+}
+
+// ACCC v1.10 section 28.1.1: R4=36, R9=7, R5=16 is the documented CRTC
+// identification frame.  Use standard 64-character CPC horizontal timing so
+// this counter-only oracle is directly comparable with hardware traces.
+constexpr RegisterProgram kIdentificationRegisters = {{
+    {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 36},
+    {5, 16}, {6, 25}, {7, 0}, {8, 0}, {9, 7},
+}};
+
+constexpr unsigned kIdentificationFrameLines = (36 + 1) * (7 + 1) + 16;
+constexpr unsigned kIdentificationLineCharacters = 64;
+constexpr unsigned kIdentificationObserveCharacters =
+    (kIdentificationFrameLines + 1) * kIdentificationLineCharacters;
+
+bool run_identification_sweep(TestBench& test,
+                              unsigned type,
+                              std::uint8_t r7) {
+    test.set_crtc_type(type);
+    // Program R7 once with its swept value: an R7 write whose value equals the
+    // current C4 is itself a VSYNC trigger, so a placeholder write would add a
+    // pulse the sweep must not see.
+    RegisterProgram registers = kIdentificationRegisters;
+    registers[7].second = r7;
+    program_registers(test, registers);
+    test.reset();
+
+    return test.vsync_within_characters(kIdentificationObserveCharacters);
+}
+
+void test_type0_identification_r7_36_fires(TestBench& test) {
+    // Control for the sweep: C4 reaches 36 during ordinary counting, so the
+    // fixture must produce a VSYNC before any overflow question arises.
+    const bool seen = run_identification_sweep(test, 0, 36);
+    test.expect_vsync_observed("type 0 R7=36 still triggers VSYNC", seen);
+}
+
+void test_type0_identification_r7_37_fires(TestBench& test) {
+    // C4 repeats past R4 exactly once for the type-0 additional-line
+    // management, so 37 is the last value R7 can reach.
+    const bool seen = run_identification_sweep(test, 0, 37);
+    test.expect_vsync_observed("type 0 R7=37 triggers VSYNC in adjustment", seen);
+}
+
+void test_type0_identification_r7_38_is_silent(TestBench& test) {
+    // The type-0 half of the published discriminator: VSYNC ceases above 37.
+    const bool seen = run_identification_sweep(test, 0, 38);
+    test.expect_no_vsync_observed("type 0 R7=38 never triggers VSYNC", seen);
+}
+
+void test_type1_identification_r7_36_fires(TestBench& test) {
+    const bool seen = run_identification_sweep(test, 1, 36);
+    test.expect_vsync_observed("type 1 R7=36 still triggers VSYNC", seen);
+}
+
+void test_type1_identification_r7_37_fires(TestBench& test) {
+    const bool seen = run_identification_sweep(test, 1, 37);
+    test.expect_vsync_observed("type 1 R7=37 triggers VSYNC in adjustment", seen);
+}
+
+void test_type1_identification_r7_38_fires(TestBench& test) {
+    // This is the direct cross-type discriminator: type 0 is already silent
+    // at 38, while type 1 increments C4 again during adjustment.  That extra
+    // counting depends on F8's separate C5 counter.
+    const bool seen = run_identification_sweep(test, 1, 38);
+    test.expect_known_vsync_observed("type 1 R7=38 triggers VSYNC in adjustment",
+                                     seen);
+}
+
+void test_type1_identification_r7_39_fires(TestBench& test) {
+    // Type 1 keeps incrementing C4 whenever C9 reaches R9 during adjustment
+    // (section 11.2.1): C4=37 on entry, 38 after eight adjustment lines, and
+    // 39 as the sixteenth completes the R5 count.  That extra counting is F8's
+    // separate C5 counter, which is not implemented, so this boundary is a
+    // named F8 divergence rather than a weakened expectation.
+    const bool seen = run_identification_sweep(test, 1, 39);
+    test.expect_known_vsync_observed("type 1 R7=39 triggers VSYNC in adjustment",
+                                     seen);
+}
+
+void test_type1_identification_r7_40_is_silent(TestBench& test) {
+    // The type-1 half of the discriminator.  It holds on the current model for
+    // the wrong reason (C4 stops at 37 without F8), so it is a required pass
+    // now and becomes load-bearing once F8 lands.
+    const bool seen = run_identification_sweep(test, 1, 40);
+    test.expect_no_vsync_observed("type 1 R7=40 never triggers VSYNC", seen);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1895,6 +2442,66 @@ int main(int argc, char** argv) {
         {"t16s_type0_r0_one_c0_1_break_is_consumed_at_rollover",
          "ACCC v1.10 sections 10.3.1, 11.2.2, and 13.2.1; F5/F12 boundary",
          false, test_type0_r0_one_c0_1_break_is_consumed_at_rollover},
+        {"t07a_type1_c9_counts_through_31_and_wraps",
+         "ACCC v1.10 sections 10.3 and 10.3.2; F4", false,
+         test_type1_c9_counts_through_31_and_wraps},
+        {"t07b_type1_c9_zero_limit_overflows",
+         "ACCC v1.10 section 10.3; F4 zero-limit divergence", true,
+         test_type1_c9_zero_limit_overflows},
+        {"t07c_type1_c4_counts_through_127_and_wraps",
+         "ACCC v1.10 sections 12 and 12.3; F4", false,
+         test_type1_c4_counts_through_127_and_wraps},
+        {"t07d_type1_c4_zero_limit_overflows",
+         "ACCC v1.10 section 12.3; F4 zero-limit guard", false,
+         test_type1_c4_zero_limit_overflows},
+        {"t07e_type0_c9_counts_through_31_and_wraps",
+         "ACCC v1.10 sections 10.3.1 and 12.2; F4", false,
+         test_type0_c9_counts_through_31_and_wraps},
+        {"t07f_type0_c9_zero_limit_overflows",
+         "ACCC v1.10 section 10.3; F4 zero-limit divergence", true,
+         test_type0_c9_zero_limit_overflows},
+        {"t07g_type0_c4_counts_through_127_and_wraps",
+         "ACCC v1.10 section 12.2; F4", false,
+         test_type0_c4_counts_through_127_and_wraps},
+        {"t07h_type0_c4_zero_limit_overflows",
+         "ACCC v1.10 section 12.2; F4 zero-limit divergence", true,
+         test_type0_c4_zero_limit_overflows},
+        {"t07i_type0_rlal_zero_limit_arms_last_line",
+         "ACCC v1.10 section 12.2; F4/F12 RLAL guard", false,
+         test_type0_rlal_zero_limit_arms_last_line},
+        {"t07j_type0_rlal_single_zero_limit_does_not_arm",
+         "ACCC v1.10 section 12.2; F4/F12 RLAL guard", false,
+         test_type0_rlal_single_zero_limit_does_not_arm},
+        {"t07k_type0_rlal_first_line_delayed_arming",
+         "ACCC v1.10 sections 10.3.1 and 12.2.1; F4/F12 divergence", true,
+         test_type0_rlal_first_line_delayed_arming},
+        {"t07l_type0_rlal_from_the_genuine_last_line",
+         "ACCC v1.10 section 12.2.1; F4/F12 RLAL guard", false,
+         test_type0_rlal_from_the_genuine_last_line},
+        {"t08a_type0_identification_r7_36_fires",
+         "ACCC v1.10 section 28.1.1; F4 control", false,
+         test_type0_identification_r7_36_fires},
+        {"t08b_type0_identification_r7_37_fires",
+         "ACCC v1.10 sections 28.1.1 and 11.2.1; F4/F12", false,
+         test_type0_identification_r7_37_fires},
+        {"t08c_type0_identification_r7_38_is_silent",
+         "ACCC v1.10 section 28.1.1; F4 type-0 boundary", false,
+         test_type0_identification_r7_38_is_silent},
+        {"t08d_type1_identification_r7_36_fires",
+         "ACCC v1.10 section 28.1.1; F4 control", false,
+         test_type1_identification_r7_36_fires},
+        {"t08e_type1_identification_r7_37_fires",
+         "ACCC v1.10 section 28.1.1; F4/F8 boundary", false,
+         test_type1_identification_r7_37_fires},
+        {"t08f_type1_identification_r7_38_fires",
+         "ACCC v1.10 sections 28.1.1 and 11.2.1; F8 divergence", true,
+         test_type1_identification_r7_38_fires},
+        {"t08g_type1_identification_r7_39_fires",
+         "ACCC v1.10 sections 28.1.1 and 11.2.1; F8 divergence", true,
+         test_type1_identification_r7_39_fires},
+        {"t08h_type1_identification_r7_40_is_silent",
+         "ACCC v1.10 section 28.1.1; F4/F8 type-1 boundary", false,
+         test_type1_identification_r7_40_is_silent},
     };
 
     unsigned passed = 0;
