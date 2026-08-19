@@ -6,7 +6,7 @@ remain in `accuracy/`; the long-term ordering remains in `implementation-roadmap
 
 ## Hardware-test milestone
 
-`1a1233f` is the newest hardware-test milestone. GitHub Actions run `31661330994` passed the
+`1a1233f` is the newest hardware-tested milestone. GitHub Actions run `31661330994` passed the
 complete Verilator gate, Quartus 17.0.2 compilation, fitter, TimeQuest, RBF packaging, and
 artifact upload. It adds the independently reviewed C0>=2 F12 arbitration slice to the
 earlier Dandanator/SDRAM milestone. The follow-on work after `1a1233f` completes the
@@ -22,10 +22,12 @@ Three bisectable CI builds have also been downloaded locally under the ignored
 | F5 plus tied-off SDRAM foundation | `4ffa853` | `67efe7c7d07f49b31edb6dfca0c19ccf99237bd62df5eefdb0c780a86c95f0a9` |
 | Final milestone with Dandanator isolation | `ba5b629` | `7ede21c7449868764f576c114f1697ffd5e6ce4a9b98a38679861d2d52dd3249` |
 | F12 C0>=2 arbitration | `1a1233f` | `fd9705732ae20cb45f1807d4c980b893e974392c3b8f48bdb69ff57794f93319` |
+| F12 complete | `365c132` | `f44e16cc8c815a5d34c4a807feadbb54a25d358175fb4d542dfbcfddbd20f231` |
 
 The `1a1233f` fitter used 14,947 / 41,910 ALMs (36%), 685,217 block-memory bits (12%),
-and 3 / 6 PLLs. Worst setup and hold slacks were positive at +0.541 ns and +0.192 ns
-respectively.
+and 3 / 6 PLLs. Worst setup and hold slacks were positive at +0.541 ns and +0.192 ns.
+The later `365c132` F12-complete build also passed synthesis, with worst setup and hold
+slacks of +0.472 ns and +0.253 ns respectively; it has not yet been hardware-tested.
 
 Hardware testing reported on 2026-08-19 found no regression against the stock core, but
 also no CRTC-0 compatibility improvement in the SHAKER Module A tests that were run. This
@@ -72,13 +74,17 @@ For a first MiSTer pass:
   `R0=0` and `R0=1` default adjustment, active-adjustment freeze, exact short-line latch
   consumption, bus phases, completion, and retained-state lifecycle. Exact sub-character MA/DE/VSYNC behavior still requires hardware or SHAKER
   traces; the deterministic assertions use C4/C9/RA and adjustment state.
-- The current local gate reports 46 required CRTC passes, no expected failures, and no
-  failures. The Plus leaf and SDRAM integration suites are also green.
+- F4 removes the non-equality C9/C4 zero-limit shortcuts for both CRTC types and preserves
+  type-0's live-versus-latched Last Line/RLAL behavior. Live R9 writes now also feed the
+  independent VMA capture comparison, while active type-0 adjustment reuses C9 against
+  R5 rather than R9. The `t07` counter and `t08` identification vectors now pass except
+  for the two explicitly deferred type-1 adjustment-identification cases.
+- The current local gate reports 71 required CRTC passes, two expected F8 divergences, no
+  unexpected passes, and no failures. The Plus leaf and SDRAM integration suites are also
+  green.
 
-The next classic checkpoint is F4. Add `t07` equality/overflow and `t08` CRTC-ID boundary
-vectors, including the tightened type-0 RLAL guards, before removing the zero-value
-shortcuts. F4 then unblocks F8, the remaining F9 worked-example coverage, and F7 in that
-order. F6
+The next classic checkpoint is F8, completing type-1 R7 identification during vertical
+adjustment. Then take the remaining F9 worked-example coverage and F7 in that order. F6
 remains deferred because the documented
 half-character border byte cannot be represented exactly by the current character-granular
 CRTC-to-Gate-Array interface. F10 remains the last, separately fixture-gated project.
@@ -95,14 +101,17 @@ CRTC-to-Gate-Array interface. F10 remains the last, separately fixture-gated pro
   fairness. The top-level ties it inactive until P0 integration.
 - A real service-to-real-SDRAM simulation proves exact clear/load transaction counts,
   publication, and CPU readback without duplicate held requests.
+- A bounded, streaming RIFF/CPR parser now validates the `RIFF`/`AMS!` envelope, accepts
+  ordered `cbNN` cartridge-bank chunks, handles RIFF padding, streams payload bytes into
+  the atomic cartridge service, and fails closed on malformed or aborted downloads.
 - Dandanator uploads are bounded below the Plus cartridge reservation: bank 3
   `0x000000..0x07ffff` remains Dandanator, while `0x080000..0x0fffff` is reserved for Plus.
-- The CPR parser, Plus MMU/reset mapping, `/EXP` sampling, firmware/cartridge boot path,
-  ASIC register page, CRTC3/video, palette, interrupts, sprites, split/scroll, and DMA are
-  not implemented.
+- Top-level parser/service wiring, the Plus MMU/reset mapping, `/EXP` sampling,
+  firmware/cartridge boot path, ASIC register page, CRTC3/video, palette, interrupts,
+  sprites, split/scroll, and DMA are not implemented.
 
 The next Plus milestone is P0 cartridge boot. Keep it stacked on the accepted P-1 contract:
-connect the existing memory service, add a bounded RIFF/CPR parser, define `/EXP` for 464+
+connect the parser to the existing memory service and download path, define `/EXP` for 464+
 and 6128+ reset-page selection, and implement the Plus MMU/boot mux. Do not start Plus video
 by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC video module.
 
@@ -129,18 +138,25 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
 - The local example cartridge `docs/plus/references/cartridges/crtc3_v2fix.cpr` is likewise
   deliberately untracked. Use it as a real RIFF/CPR parsing fixture when P0 starts; do not
   make it a build dependency or redistribute it from this repository.
-- The complete deterministic F12/t16 counter-arbitration milestone is present in RTL and
-  the executable harness. Its C0>=2 predecessor has a synthesized CI build; this extended
-  C0=0/C0=1/short-R0 slice is not yet synthesized or hardware-tested.
+- The complete deterministic F12/t16 counter-arbitration milestone has a synthesized CI
+  build at `365c132`, but has not yet been hardware-tested. The later F4 implementation and
+  CPR parser are locally verified and still need their own GitHub Actions synthesis.
 
 ## Next-session order
 
-1. Synthesize the current `da79915` F12 state and rerun the same SHAKER Module A selection,
-   recording individual subtests so the result is directly comparable with `1a1233f`.
-2. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
+1. Quartus VM post-install is a future-session task and must only run after explicit user
+   authorization. Until then, keep synthesis on GitHub Actions. When authorized, run
+   the four-command post-install sequence in `ansible/README.md` from the `ansible/`
+   directory: check, apply, repeat the check, then validate with
+   `quartus_required=true`.
+2. Synthesize the current F4-plus-CPR-parser state through GitHub Actions, retain the RBF and
+   timing reports under a commit-specific ignored hardware-milestone directory, and then
+   rerun the same SHAKER Module A selection. Record individual subtests so the result is
+   directly comparable with `1a1233f`.
+3. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
    deterministic regression before repairing any newly understood behavior.
-3. Classic: add the F4 `t07`/`t08` vector-only checkpoint, then implement equality/overflow
-   without weakening the F12 arbitration or the tightened type-0 RLAL guards.
-4. Plus: in a separate stack, implement P0 MMU/parser/boot integration against the existing
-   memory-service and SDRAM contracts.
-5. Update this file when either stream reaches its next hardware-testable checkpoint.
+4. Classic: implement F8 type-1 R7 identification during vertical adjustment, leaving the
+   current equality/overflow and F12 arbitration guards intact.
+5. Plus: in a separate stack, wire the CPR parser into P0 MMU/boot integration against the
+   existing memory-service and SDRAM contracts.
+6. Update this file when either stream reaches its next hardware-testable checkpoint.
