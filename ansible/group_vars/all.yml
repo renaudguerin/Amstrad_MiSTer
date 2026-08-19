@@ -75,6 +75,13 @@ quartus_native_packages:
   - xauth
   - xz-utils
 
+# Quartus 17's self-extracting installer launchers use an old static ELF layout
+# that Apple's Linux Rosetta loader rejects with `bss_size overflow`. Invoke
+# only those launchers explicitly through QEMU. Do not install the recommended
+# qemu-user-binfmt package: Rosetta remains the normal x86_64 handler for the
+# installed Quartus tools.
+quartus_installer_emulator_package: qemu-user
+
 # The guest publishes itself as <guest_hostname>.local over mDNS so a changing
 # DHCP lease never has to be looked up on the console.
 guest_hostname: quartus-vm

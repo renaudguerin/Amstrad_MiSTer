@@ -83,6 +83,12 @@
         update_cache: true
         cache_valid_time: 3600
 
+    - name: Install the direct-only legacy installer emulator
+      ansible.builtin.apt:
+        name: "{{ quartus_installer_emulator_package }}"
+        state: present
+        install_recommends: false
+
     - name: Set a stable guest hostname
       ansible.builtin.hostname:
         name: "{{ guest_hostname }}"

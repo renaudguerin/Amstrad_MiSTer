@@ -86,16 +86,21 @@ account only needs `-e quartus_user=<name>`.
    ansible-playbook installer-preflight.yml
    ```
 
-4. SSH into the VM as `admin`, make the base installer executable, and launch
-   it in interactive console mode (no X display is required):
+4. SSH into the VM as `admin` and launch the base installer in interactive
+   console mode through QEMU (no X display is required):
 
    ```bash
    ssh admin@quartus-vm.local
    cd /home/admin/quartus-installer-17.0.2
-   chmod +x QuartusLiteSetup-17.0.0.595-linux.run
    export QUARTUS_CPUID_BYPASS=1
-   ./QuartusLiteSetup-17.0.0.595-linux.run --mode text
+   /usr/bin/qemu-x86_64 ./QuartusLiteSetup-17.0.0.595-linux.run --mode text
    ```
+
+   The old self-extracting launcher has a static ELF layout that Apple's Linux
+   Rosetta loader rejects with `bss_size overflow`. `site.yml` therefore
+   installs `qemu-user` without its binfmt recommender, and this command uses
+   QEMU only for the launcher. Rosetta remains the registered x86_64 handler
+   for the installed Quartus tools.
 
    Review and accept the displayed terms yourself. Select
    `/home/admin/intelFPGA_lite/17.0` as the installation directory and include
@@ -105,9 +110,8 @@ account only needs `-e quartus_user=<name>`.
 
    ```bash
    cd /home/admin/quartus-installer-17.0.2
-   chmod +x QuartusSetup-17.0.2.602-linux.run
    export QUARTUS_CPUID_BYPASS=1
-   ./QuartusSetup-17.0.2.602-linux.run --mode text
+   /usr/bin/qemu-x86_64 ./QuartusSetup-17.0.2.602-linux.run --mode text
    ```
 
    Review the update's displayed terms and confirm the existing
