@@ -1,80 +1,124 @@
 # SHAKER Module A: test map and coverage gaps
 
-Working document, opened 2026-08-19 after two hardware sessions (`1a1233f` and `5ddddef`)
-returned no Module A improvement over the stock core. Its purpose is to turn "no progress"
-into a per-subtest statement, and to decide what to implement next on evidence rather than on
-the order of the audit table.
+Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
+(CC BY-NC-ND).
 
-## Confidence warning
+Working document. Purpose: turn "no Module A progress" into a per-entry statement, and choose
+the next implementation on evidence rather than on the order of the audit table.
 
-The subtest inventory below came from a secondary research pass over public sources, not from
-running SHAKER or from the ACCC text. The researcher itself reported that Module A is **not
-publicly documented at subtest granularity**, then supplied a subtest table anyway. Those two
-statements are in tension, so treat every subtest name and description here as a hypothesis
-to be checked against the running program, not as fact.
+Sources, both now firsthand rather than inferred:
 
-The first hardware session that reads the module's own on-screen list replaces this section
-with observed names. Do not cite this file as a source until that has happened.
+- `shaker/menu-transcriptions.md` — the module menus read off a running SHAKER 2.6.
+- `shaker/shaker-accc-crossref.md` — every menu entry in modules A–E mapped to its ACCC v1.10
+  section and page. That file is dated evidence and its citations are **not** independently
+  re-checked; confirm a quote against the PDF before turning it into RTL or a vector.
 
-## What is solid
+Modules B–E are covered only in the cross-reference. This file stays focused on Module A
+because that is what has been run on hardware.
 
-- SHAKER's current release is v2.6, organised as modules A through E, launched from BASIC as
-  `RUN"SHAKE26A"` and so on.
-- **Results are read by visual comparison against reference photographs of real hardware**,
-  published by Logon System on the Shakerland portal (`shaker.logonsystem.eu`), covering CRTC
-  types 0 through 4. There is no numeric score and no published pass/fail table.
-- The ACCC explains the behaviour each test probes but does not state the expected picture
-  per subtest.
+## How Module A results must be judged
 
-### Consequence for our test protocol
+Results are read by **visual comparison against Logon System's reference photographs of real
+hardware**, published per CRTC type on `shaker.logonsystem.eu`. There is no numeric score and
+no published pass/fail table, and the ACCC explains the behaviour without stating the expected
+picture per test.
 
 This invalidates how the first two hardware sessions were run. Comparing our core against the
-stock core answers "did I change anything", not "is it correct": if both cores are wrong in
-the same way, the pictures match and the session reports no progress, which is exactly what
-was observed. From now on the reference photograph for the selected CRTC type is the oracle,
-and the stock core is only a regression baseline.
+stock core answers "did anything change", not "is it correct": if both cores are wrong the same
+way the pictures match and the session reports no progress, which is what was observed at
+`1a1233f` and `5ddddef`. The reference photograph for the selected CRTC type is the oracle; the
+stock core is only a regression baseline.
 
-## Claimed Module A coverage, mapped to our findings
+## Module A entries, with our coverage
 
-Unverified names, grouped by what they probe. The right-hand column is the honest coverage
-statement.
+Names and test counts are verbatim from the menu. ACCC sections are from the cross-reference.
 
-| Claimed subtests | Behaviour probed | Our coverage |
-|---|---|---|
-| A5, A6, A7 — R13 update in 4/2/1 µs screens | R12/R13 start-address latch timing at three character widths | **Gap.** Only `F11h`, filed as minor with no action and still marked for a PDF re-read of ACCC §20.3.2 p.242. Nothing implemented or tested. |
-| A1 — VRAM update versus CRTC/GA fetch | CPU write versus fetch phase within the 1 MHz cycle | **Gap.** Sub-character phase; not representable at the current character-granular CRTC-to-Gate-Array interface. |
-| A8, A9, AE, AR — Gate Array pixelisation, ink, mode change, mode-to-HSYNC delay | Gate Array timing relative to CRTC edges | **Out of CRTC scope by design** (`F11i`). These live in the netlist-derived `GA40010`, which is gate-accurate and deliberately untouched. Our contribution is only correct HSYNC edges. |
-| A2 — skew on R0 rupture | R8 SKEW-DISPTMG interacting with a mid-line R0 change | Partial. Skew path is `F11g` and believed correct; the R0-rupture interaction is untested. |
-| AO — R1 stories | R1 > R0 and mid-line R1 writes | **Deferred by decision.** This is `F6`, the type-0 spurious border byte, parked because the documented half-character byte cannot be expressed through the character-granular interface. |
-| AP — R6 stories | R6 beyond R4, overscan counter overflow | Partial, via `F4` equality-only rollover and `F12`. |
-| AU — R4 and R9 checkings | Equality comparators, row increment and rollover trickery | **Implemented**, and this is precisely the F4/F12 work just hardware-tested. |
-| AI — VSYNC conditions | R3/R4/R7 sync entry, clearing, and lock-up | **Implemented**, via `F3` and `F11b`. |
-| AT, AY — R2 and R3 updates during HSYNC | Latched comparator versus live comparison during an active pulse | Believed correct via `F11a`, but only the width semantics were reasoned about; the during-pulse write cases have no vectors. |
-| A3 — vertical rupture | Mid-frame R4/R9 changes | Partial, via `F12`/`F4`. |
-| A4 — R0 update timing | When a new R0 takes effect | Partial, via `F5`/`F12`. |
-| ACOPY — CRTC 2 offset | Type-2-specific behaviour | **Out of scope.** The project targets types 0 and 1. |
+| Entry | Tests | ACCC | Our coverage |
+|---|---|---|---|
+| **(5)** R13 UPDATE IN 4 USEC SCREENS (R0=3) | 5 | §13.8.1 p.127, §20.3 p.242 | **No vectors.** Mechanism plausibly correct; consequence unproven. See below. |
+| **(6)** R13 UPDATE IN 2 USEC SCREENS (R0=1) | 5 | §13.8.2 p.128, §13.2.5 p.107 | **No vectors.** Same. |
+| **(7)** R13 UPDATE IN 1 USEC SCREENS (R0=0) | 5 | §13.8.3 p.129, §13.2.6 p.108 | **No vectors.** Same. |
+| **(U)** R4 & R9 CHECKING | 54 | §10.3 pp.74–79, §12 pp.92–101 | **Implemented.** This is the F4/F12 work just hardware-tested. |
+| **(I)** VSYNC CONDITIONS | 413 | §16.4 pp.168–170, §15.4 pp.152–154 | **Implemented**, via F3 and F11b. Largest entry in the module by a wide margin. |
+| **(P)** R6 STORIES | 13 | §18 pp.188–191 | Partial, via F4 equality-only rollover and F12. |
+| **(O)** R1 STORIES | 8 | §17 pp.175–187, §17.6 pp.185–186 | **Deferred by decision** (F6). The type-0 half-character border byte cannot be expressed through the character-granular CRTC-to-Gate-Array interface. |
+| **(T)** R2 UPD DURING & AFTER HSYNC | 6 | §15.3 pp.148–151 | Believed correct via F11a, but only width semantics were reasoned about. No during-pulse vectors. |
+| **(Y)** R3 UPD DURING HSYNC | 8 | §14.4 pp.134–140, §14.4.4 pp.138–140 | Same as (T). R3.JIT sub-microsecond behaviour untested. |
+| **(4)** UPDATE CRTC R0 TIMING | 17 | §13.6 pp.122–123, §4.4.3 p.26 | Partial, via F5/F12. Probes `OUT (C),r` versus `OUTI` phase, which our vectors do not distinguish. |
+| **(2)** SKEW DISP ON R0 RUPTURE | 4 | §19.2 pp.193–197 | Partial. Skew path is F11g and believed correct; the R0-rupture interaction is untested. |
+| **(TAB)** HSYNC START POSITION | 4 interactive | §14.6 pp.141–142 | Untested. Sub-microsecond blanking start differs per type (CRTC 0 pixel 5, CRTC 1 pixel 6). |
+| **(1)** UPDATE VRAM VS CRTC | 79 | §8 pp.43–44 | **Out of reach.** Z80 write versus fetch phase inside the 1 MHz cycle; not representable at the current character-granular interface. |
+| **(8)** GATE ARRAY PIXELISATION | — | §9.1 pp.46–47 | **Out of CRTC scope** (F11i). Lives in the netlist-derived `GA40010`. |
+| **(9)** GATE ARRAY INKERISATION | 3 | §9.2 pp.48–50 | Out of CRTC scope. |
+| **(E)** GATE ARRAY MODERISATION | — | §9.3 pp.51–52 | Out of CRTC scope. |
+| **(R)** MODE UPD >HSYNC DELAY< (2.1.0) | 3 | §9.3.1 p.51, §14.3 p.132 | Out of CRTC scope apart from correct HSYNC edges. |
+| **(CAPS)** INTERACTIVE TEST MODE X TO Y | 16 interactive | §9.3.4 pp.53–72 | Out of CRTC scope. Gate Array pixel residue across mode splits. |
+| **(3)** CRTC 2 RVMB | 22 | §17.4.3 pp.183–184 | **Out of project scope.** CRTC 2 only. |
+| **(COPY)** CRTC 2 OFFSET | — | §17.4.3 p.183, §20.3.3 p.243 | Out of project scope. |
 
-## Why the flat hardware result is consistent with this map
+Module A totals over 600 individual tests. Roughly two thirds sit in `(I) VSYNC CONDITIONS`
+alone, and a further 79 in `(1)`, which we cannot reach at all.
 
-The two hardware sessions changed AU-class and AI-class behaviour, which is a narrow slice of
-Module A. The subtests that emulator authors historically found hardest — the R13 start-address
-update timing of A5 through A7 — are untouched by everything implemented so far, and the
-Gate-Array-timing and sub-character subtests are either out of scope or blocked on the
-interface granularity decision. A flat result is therefore the expected outcome, not evidence
-that the F4/F12 work is wrong.
+## Why the flat hardware result is consistent
 
-It is equally possible that the few subtests actually attempted were ones we never touched.
-Without recorded names this cannot be distinguished, which is the reason for the protocol
-change above.
+Three independent reasons, none of which implies the F4/F12 work is wrong:
+
+1. The oracle was the stock core, not the reference photographs, so shared inaccuracy is
+   invisible.
+2. "A few tests" is a very small sample of 600+, and the entries actually moved by F4/F12 are
+   `(U)` and parts of `(P)`.
+3. Of the 20 entries, 8 are Gate Array, CRTC 2, or sub-character scope and cannot move at all
+   from type 0/1 CRTC work.
+
+## R12/R13: the strongest next candidate
+
+Entries (5), (6) and (7) are 15 tests probing one mechanism at three character widths, and the
+ACCC rules for them are unusually crisp.
+
+**R0=3, 4 µs frames.** Types 0 and 1 behave identically. C0 reaches 2, so CRTC 0 passes its
+C0=2 evaluation and disarms the default vertical adjustment (R5=0). C4 stays 0, and VMA takes
+a new R12/R13 on each C0=0.
+
+**R0=1, 2 µs frames.** The types diverge. C0 never reaches 2, so CRTC 0's disarm check never
+runs and an *uncancelled* one-line vertical adjustment fires every frame, leaving C4=1 for the
+second 2 µs period. ACCC §13.2.5 p.107: R12/R13 can therefore be considered only every 4 µs on
+CRTC 0, against every 2 µs on types 1, 2, 3 and 4.
+
+**R0=0, 1 µs frames.** The types diverge further. On CRTC 0, C0 never reaches 1, so C9 freezes
+at whatever value it held, C4 takes one last increment ("C4's last hiccup", §13.2.6 p.108) and
+then every counter but C0 stops. With C4 stuck at 1 the C4=0 condition never recurs and
+R12/R13 writes are ignored entirely. On CRTC 1, C9 and R4 keep being managed, C4 stays 0, and
+VMA reloads on every 1 µs line (§13.3 p.113, §20.3.2 p.242).
+
+### Where our RTL actually stands
+
+The general-case reload rules are already right, and the degenerate-case *mechanisms* appear to
+be present from the F5/F12 work:
+
+- `rtl/UM6845R.v:389` `CRTC0_reload = ~CRTC_TYPE & frame_new` — type 0 reloads at frame start.
+- `rtl/UM6845R.v:388` `CRTC1_reload = CRTC_TYPE & (frame_new | (~line_last & !row & !hcc_next))`
+  — type 1 reloads while C4=0, matching §20.3.2.
+- `rtl/UM6845R.v:196` `r0_frozen = !CRTC_TYPE && !R0_h_total && !hcc` plus
+  `type0_r0_zero_entry_consumed` implement the R0=0 freeze and the last-hiccup increment.
+- `rtl/UM6845R.v:361` `if(hcc == 2) frame_adj_r <= frame_adj_r & |type0_effective_r5;` is the
+  C0=2 disarm check, so at R0=1 it correctly never runs and the adjustment stays armed.
+
+What is missing is proof that these produce the right *video pointer* behaviour. There is not a
+single R12/R13 reload vector in `sim/sim_main.cpp`; the only R12 references are register
+readback aliasing tests. `MA` is already observable and `expect_ma` already exists, so the
+vectors are cheap to write.
+
+This is a **coverage gap, not a demonstrated bug**. The 15 tests may already pass.
 
 ## Next actions
 
-1. Run Module A and record the module's own subtest list verbatim, with results for both
-   supported CRTC selections. Replace the confidence warning and the table above with observed
-   names.
-2. Pull the matching Shakerland reference photographs for the selected CRTC type and judge
-   against those, keeping the stock core only as a regression baseline.
-3. Re-read ACCC §20.3.2 p.242 and decide whether R12/R13 update timing becomes a real finding.
-   If the A5–A7 grouping survives verification, it is the strongest candidate for the next
-   classic implementation, ahead of the audit's nominal next item.
-4. Whatever is chosen, add its deterministic vector to the Verilator gate before changing RTL.
+1. Write R12/R13 reload vectors before touching RTL: both types, across normal frames, R0=3,
+   R0=1 and R0=0, asserting on `MA` at each C0=0 boundary. Confirm each expected value against
+   the cited ACCC page first.
+2. Only if a vector fails, open a finding and fix it.
+3. Next hardware session: record every entry run by name with its result, set the OSD CRTC
+   selection deliberately, confirm the footer reports the type selected, and judge against the
+   Shakerland reference photographs for that type.
+4. Cheap direct check of shipped work: Module E `(3) CRTC 0 C4/C9 COUNTER LOGIC BUG`
+   (§10.3.1.2 pp.75–76, §11.2.2 pp.81–82) targets exactly the F4/F12 counter logic. Module E
+   `(2)` targets CRTC 1 VMA treatment on adjustment lines, adjacent to the R12/R13 work above.
