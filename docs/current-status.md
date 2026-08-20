@@ -6,8 +6,9 @@ remain in `accuracy/`; the long-term ordering remains in `implementation-roadmap
 
 ## Hardware-test milestone
 
-`5ddddef` is the newest hardware-tested milestone, covering the deterministic-complete F12/F4
-counter work and the CPR parser. `1a1233f` is the previous one; GitHub Actions run
+`4c78603` is the newest synthesized milestone and the first to carry F8; it has not been
+hardware-tested yet. `5ddddef` is the newest hardware-*tested* milestone, covering the
+deterministic-complete F12/F4 counter work and the CPR parser. `1a1233f` is the previous one; GitHub Actions run
 `31661330994` passed the complete Verilator gate, Quartus 17.0.2 compilation, fitter,
 TimeQuest, RBF packaging, and artifact upload for it, and it carries the independently
 reviewed C0>=2 F12 arbitration slice on top of the earlier Dandanator/SDRAM milestone.
@@ -24,6 +25,7 @@ The retained CI builds have been downloaded locally under the ignored
 | F12 C0>=2 arbitration | `1a1233f` | `fd9705732ae20cb45f1807d4c980b893e974392c3b8f48bdb69ff57794f93319` |
 | F12 complete | `365c132` | `f44e16cc8c815a5d34c4a807feadbb54a25d358175fb4d542dfbcfddbd20f231` |
 | F4 complete plus CPR parser | `5ddddef` | `e1ba1728435f33fc4fe8e1886b0b7b4021f12a4dff861767440b9e2b60a65ff6` |
+| F8 type-1 C5 counter | `4c78603` | `8caa9a9f4db825e6fe0d375554a6810e053ec4839409944139e18b29c8bc8e0b` |
 
 The `1a1233f` fitter used 14,947 / 41,910 ALMs (36%), 685,217 block-memory bits (12%),
 and 3 / 6 PLLs. Worst setup and hold slacks were positive at +0.541 ns and +0.192 ns.
@@ -37,6 +39,14 @@ slacks are not full timing closure. This RBF is retained under
 `output_files/hardware-milestones/f4-plus-cpr-5ddddef/` and is the one hardware-tested on
 2026-08-19. The intermediate `365c132` build remains untested and is kept only as a bisection
 point.
+
+GitHub Actions run `32289023249` then synthesized `4c78603`, the first build containing F8 on
+top of that F12/F4 and CPR-parser state. Its fitter used 14,947 / 41,910 ALMs (36%), 685,217
+block-memory bits (12%), and 3 / 6 PLLs, with worst setup and hold slacks of +0.516 ns and
++0.246 ns. The artifact is retained under
+`output_files/hardware-milestones/Amstrad-build-17-1/Amstrad_20260819_4c78603.rbf`. It has not
+been hardware-tested, and it is the build the next SHAKER session should use: `5ddddef`
+predates F8 and cannot produce evidence for it.
 
 Hardware testing on 2026-08-19 covered two milestones and returned the same result for
 both. `1a1233f` showed no regression against the stock core and no CRTC-0 compatibility
@@ -59,8 +69,9 @@ Before the next classic RTL change, close that data gap:
   chase.
 - Map each persistent difference to an implemented finding or to a named gap. The current
   leading hypothesis is that Module A leans on behaviour that is still unimplemented or
-  deliberately deferred — F6 spurious border byte, F8 type-1 C5, F7 RFD, F10 interlace
-  parity — rather than on the counter internals already fixed.
+  deliberately deferred — F6 spurious border byte, F7 RFD, F10 interlace parity — rather
+  than on the counter internals already fixed. F8 (type-1 C5) is now implemented, so it is no
+  longer a candidate explanation.
 
 Do not infer hardware accuracy from the green counter-level simulation gate alone.
 
@@ -105,15 +116,21 @@ For a first MiSTer pass:
 - F4 removes the non-equality C9/C4 zero-limit shortcuts for both CRTC types and preserves
   type-0's live-versus-latched Last Line/RLAL behavior. Live R9 writes now also feed the
   independent VMA capture comparison, while active type-0 adjustment reuses C9 against
-  R5 rather than R9. The `t07` counter and `t08` identification vectors now pass except
-  for the two explicitly deferred type-1 adjustment-identification cases.
-- The current local gate reports 71 required CRTC passes, two expected F8 divergences, no
+  R5 rather than R9.
+- F8 gives the CRTC 1 type-1 vertical adjustment its own 5-bit C5 counter. C9 now keeps
+  cycling 0..R9 during adjustment so the row address keeps cycling; C4 increments at each
+  C9==R9 wrap; C5 counts the adjustment lines and the adjustment ends when C5+1 equals R5
+  by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
+  deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
+  The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
+- The current local gate reports 85 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures. The Plus leaf and SDRAM integration suites are also
   green.
 
-The next classic checkpoint is F8, completing type-1 R7 identification during vertical
-adjustment. Then take the remaining F9 worked-example coverage and F7 in that order. F6
-remains deferred because the documented
+The next classic checkpoint is the remaining F9 coverage: the type-0 R9 write at C0==R0 that
+straddles the R9-to-R5 comparison switch is implemented and covered by `t16e`/`t16h`, but the
+full `t12` worked-example pair (the documented C4=39, C9=8 case and its control) is still
+unencoded. Then F7 RFD. F6 remains deferred because the documented
 half-character border byte cannot be represented exactly by the current character-granular
 CRTC-to-Gate-Array interface. F10 remains the last, separately fixture-gated project.
 
@@ -167,7 +184,8 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
   deliberately untracked. Use it as a real RIFF/CPR parsing fixture when P0 starts; do not
   make it a build dependency or redistribute it from this repository.
 - The complete deterministic F12/F4 counter milestone and CPR parser have a synthesized CI
-  build at `5ddddef`, which was hardware-tested on 2026-08-19 as described above.
+  build at `5ddddef`, which was hardware-tested on 2026-08-19 as described above. The F8 work
+  on top of it has a synthesized, not yet hardware-tested, CI build at `4c78603`.
 - Independent cross-provider review is unavailable: the GPT-5.6 Sol reviewer's quota is
   exhausted and Fable is excluded. Work continues behind the Verilator and synthesis gates,
   and every unreviewed diff is tracked in `review-debt.md` for a dedicated review pass later.
@@ -179,13 +197,18 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
    the four-command post-install sequence in `ansible/README.md` from the `ansible/`
    directory: check, apply, repeat the check, then validate with
    `quartus_required=true`.
-2. Re-run SHAKER Module A on `5ddddef` with Plus model disabled, this time recording every
-   subtest by name and result for both CRTC selections, alongside the stock core. The first
-   two passes produced only an aggregate impression and are not actionable.
+2. Re-run SHAKER Module A on `4c78603` with Plus model disabled, this time recording every
+   subtest by name and result for both CRTC selections, alongside the stock core. Use
+   `4c78603` rather than the previously tested `5ddddef`: it is the first synthesized build
+   containing F8. The first two passes produced only an aggregate impression and are not
+   actionable. Judge the results
+   against the Logon System reference photographs, as `docs/accuracy/shaker-module-a-map.md`
+   requires; the stock core is a regression baseline only.
 3. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
    deterministic regression before repairing any newly understood behavior.
-4. Classic: implement F8 type-1 R7 identification during vertical adjustment, leaving the
-   current equality/overflow and F12 arbitration guards intact.
+4. Classic: close F9 by encoding the full `t12` worked example (ACCC §10.3.1/§11.2.2,
+   pp. 75-76/81-83) without changing the implemented comparator split, leaving the current
+   equality/overflow and F12 arbitration guards intact. Then F7 RFD.
 5. Plus: in a separate stack, wire the CPR parser into P0 MMU/boot integration against the
    existing memory-service and SDRAM contracts.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
