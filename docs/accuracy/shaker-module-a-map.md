@@ -97,12 +97,12 @@ mechanism level). The general-case reload rules are right, the degenerate-case m
 present from the F5/F12 work, and `t20a`-`t20h` (commit `90aed07`) now assert MA across
 normal frames and R0=3/1/0 on both types:
 
-- `rtl/UM6845R.v:433` `CRTC0_reload = ~CRTC_TYPE & frame_new` — type 0 reloads at frame start.
-- `rtl/UM6845R.v:430-432` type 1 reloads while C4=0 (`crtc1_row0_reload`) plus the ACCC
+- `rtl/crtc_type0_engine.v:248` `reload = ~CRTC_TYPE & frame_new` — type 0 reloads at frame start.
+- `rtl/crtc_type1_engine.v:151-154` type 1 reloads while C4=0 (`crtc1_row0_reload`) plus the ACCC
   §11.2.4 adjustment-entry path loading VMA from R12/R13 while C4==1 — matching §20.3.2.
-- `rtl/UM6845R.v:196` `r0_frozen = !CRTC_TYPE && !R0_h_total && !hcc` plus
+- `rtl/crtc_type0_engine.v:149` `r0_frozen = !CRTC_TYPE && !R0_h_total && !hcc` plus
   `type0_r0_zero_entry_consumed` implement the R0=0 freeze and the last-hiccup increment.
-- `rtl/UM6845R.v:392` `if(hcc == 2) frame_adj_r <= frame_adj_r & |type0_effective_r5;` is the
+- `rtl/CRTC.v:295` `if(hcc == 2) frame_adj_r <= frame_adj_r & e0_hcc2_adj_keep;` is the
   C0=2 disarm check, so at R0=1 it correctly never runs and the adjustment stays armed.
 
 What the local vectors do **not** cover is the entry's remaining dimension: the five Z80

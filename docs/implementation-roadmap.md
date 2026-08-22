@@ -6,7 +6,7 @@ Amstrad Plus/GX4000 support. The detailed evidence remains in `accuracy/` and
 acceptance gates for a fresh implementation session.
 
 Do not combine the two work streams merely because both concern video. Classic accuracy
-changes refine `rtl/UM6845R.v` while retaining the netlist Gate Array. Plus support adds a
+changes refine `rtl/CRTC.v` and its per-type engines while retaining the netlist Gate Array. Plus support adds a
 parallel ASIC path with its own type-3 CRTC, memory mapping, palette, sprites, and DMA. They
 can share simulation infrastructure, but neither stream should wait for the other or be
 merged into the same behavioral PR.
@@ -47,7 +47,7 @@ See `current-status.md` for the exact handoff and real-hardware checklist.
 1. Keep classic CPC mode bit-identical when implementing Plus plumbing. With the new Plus
    selector off, existing CPC model bits, CRTC selection, ROM loading, video, memory, disk,
    tape, and snapshot behavior must retain their old paths.
-2. Keep Plus code out of `UM6845R.v`. The Plus ASIC's type-3 CRTC belongs in the new
+2. Keep Plus code out of `rtl/CRTC.v` and its engines. The Plus ASIC's type-3 CRTC belongs in the new
    behavioral Plus path described in `plus/architecture.md`.
 3. Give every behavioral change one focused commit and one deterministic regression test.
    A later commit may refactor only after the behavior commit is independently green.
@@ -114,7 +114,7 @@ Every checkpoint advances through the cheapest applicable gates in order.
 ## 4. Classic CPC accuracy checkpoints
 
 Classic work is intentionally serial because most findings touch the same state machine in
-`UM6845R.v`. The required order below supersedes the older priority table in
+`rtl/CRTC.v`. The required order below supersedes the older priority table in
 `accuracy/audit-findings.md` where dependencies differ.
 
 | Checkpoint | Work, in order | Deterministic exit | Hardware/software exit |
@@ -259,7 +259,7 @@ existing F1 commit can remain distinct; C0 adds its deterministic verification.
 - Harness scaffolding may be one medium PR, but its initial test-data commits should remain
   reviewable and must not change DUT behavior.
 - Merge the classic stack in order. Rebase later branches after each merge so a regression
-  can be attributed to one finding without resolving repeated `UM6845R.v` conflicts.
+  can be attributed to one finding without resolving repeated `CRTC.v` conflicts.
 
 ### Plus stack
 

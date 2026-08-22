@@ -2,7 +2,7 @@
 
 Companion to `references/asic-reference.md` (facts live there; design reasoning lives here).
 Target: add 464+/6128+/GX4000 emulation to this core. Everything below is grounded in the
-current RTL (`Amstrad.sv`, `rtl/Amstrad_motherboard.v`, `rtl/UM6845R.v`, `rtl/GA40010/`).
+current RTL (`Amstrad.sv`, `rtl/Amstrad_motherboard.v`, `rtl/CRTC.v`, `rtl/GA40010/`).
 
 ## 1. What the ASIC replaces, and what that means here
 
@@ -53,7 +53,7 @@ Consequences to embrace explicitly:
   not on ga40010. It will initially be less accurate than classic mode. That matches real
   history (the ASIC's GA emulation itself has documented deltas: colours ~½µs late, PPI
   quirks, interrupt +1µs).
-- The CRTC-accuracy work stream (docs/accuracy/) hardens `UM6845R.v` independently; the
+- The CRTC-accuracy work stream (docs/accuracy/) hardens the classic CRTC core (`rtl/CRTC.v`) independently; the
   ASIC's CRTC-3 is a *new* implementation informed by ACCC v1.10's type-3 notes, reusing
   the Verilator testbench harness (same pin contract) with a type-3 rule set. The v1.10
   changes clarify CRTC0/2 behavior and do not change this type-3 architecture; see the
