@@ -146,12 +146,19 @@ the type-split refactor milestone (it forces a full read anyway).
       and removal stays trivial; expected permanent tooling (F7 needs bit-identity-when-
       unarmed proof, F10 stages benefit), not split-only scaffolding.
 - [ ] Classic queue: F9 closure done (`t12a`/`t12b` on `accuracy/f9-t12-closure`, `aea80b5`,
-      87 required passes) → next: F6 decision gate — options analysis + corrected GA
-      interface evidence recorded in `accuracy/f6-decision-gate.md`; user leans option C
-      (full fidelity, staged, no GA netlist change expected). Longshot's per-CRTC-separation
-      advice + status recorded in `accuracy/crtc-per-type-separation.md` (recommendation:
-      split before F7/F10 RTL, option S2 there) → F7 RFD (incl. B6 disarm path; A1 VSYNC
-      corner fix first if accepted) → F10 fixtures+impl (gated on B10/B11 + Q10-Q12 answers).
+      87 required passes) → next: type-split prerequisite (soak harness on base), then the
+      split per `accuracy/crtc-per-type-separation.md` → F6 option C Stage 1 (user lean
+      recorded in `accuracy/f6-decision-gate.md`) → F7 RFD (incl. B6 disarm path; A1 VSYNC
+      corner fix) → F10 fixtures+impl. F10 gating fallback: author answers Q10-Q12 may
+      never arrive — if so, derive fixtures from the §19.5-§19.8 pseudocode (P1-verified)
+      plus the SHAKER 22C/3 tables via the visual tier (render pp.210-212 PNGs), record
+      each ambiguity as a resolved-by-default-reading note citing the page, and proceed;
+      SHAKER hardware comparison remains the arbiter.
+- [ ] Branch review note (clarification): no branch stacking is needed. Stream branches
+      (`accuracy/*`, `plus/*`) cut from `accc-review-and-fixes`; the base branch itself
+      carries no new review-debt rows by decision, which is only safe because its whole
+      diff gets one review pass before its content is treated as settled/upstreamed.
+      Schedule that pass at the first real merge (or before upstreaming), not per commit.
 - [ ] Plus queue: P0 parser→service/MMU/boot wiring → P1 CRTC3 foundation.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";
       F8 build `4c78603`→Module A adjustment entries + Module E "(2)"; F7→RFD entries;
@@ -179,11 +186,11 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: P2-P4 complete on `accc-review-and-fixes`
-(fa44862, 2506687, bf5c1fb, 1b4eb0b); common-dependency check done (only shared surface =
-sim harness; A4 landed there). P5 started: F9 t12 closure committed on stream branch
-`accuracy/f9-t12-closure` (aea80b5, 87 required passes, no RTL change needed). Next: user
-decision on the F6 gate; then F7 RFD design (fold in B6 disarm path + A1 VSYNC corner +
-A2 caveat vectors) on a fresh accuracy branch; Plus P0 wiring on a plus/* branch. Review
-action items A1-A5 live in docs/review-debt.md. Author answers to Q1-Q14 may refine docs but
-block nothing except F10 fixtures.**
+the resume point in one line here: **resume point: P0-P4 complete; F9 closed on
+`accuracy/f9-t12-closure` (aea80b5). User approved the type split before further CRTC
+changes; author answers may never arrive (F10 fallback recorded above). NEXT SESSION
+(single, classic stream): (1) soak-diff harness on `accc-review-and-fixes`, mint golden
+hash from unsplit core; (2) type split on `accuracy/crtc-type-split` — bit-identical proof,
+lint, files.qip + CI synthesis, folded-in prose sweep; then STOP for user review. F6 stage 1,
+F7, F10, Plus P0 all explicitly out of scope until the split is reviewed. See sim/README.md
+(soak rationale) and AGENTS.md "Verification ownership" for the conventions.**
