@@ -248,19 +248,23 @@ public:
         mix(dut_->CURSOR);
         mix(dut_->FIELD);
         mix(dut_->DO);
+        // Wrapper-owned shared counters...
         mix(r.UM6845R__DOT__hcc);
         mix(r.UM6845R__DOT__line);
         mix(r.UM6845R__DOT__row);
         mix(r.UM6845R__DOT__c5);
         mix(r.UM6845R__DOT__in_adj);
-        mix(r.UM6845R__DOT__type0_r4_adjust_switch);
-        mix(r.UM6845R__DOT__type0_r9_live_compare);
-        mix(r.UM6845R__DOT__type0_r9_at_r0_pending);
-        mix(r.UM6845R__DOT__type0_c0_1_adjust);
-        mix(r.UM6845R__DOT__type0_r0_zero_entry_consumed);
-        mix(r.UM6845R__DOT__type0_zero_adj_entry);
-        mix(r.UM6845R__DOT__type0_r5_adjust_override);
-        mix(r.UM6845R__DOT__type0_r5_adjust_target);
+        // ...and the type-0 engine's private arbitration latches. The hashed
+        // values are unchanged by the type split; only the hierarchy paths
+        // moved.
+        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r4_adjust_switch);
+        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r9_live_compare);
+        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r9_at_r0_pending);
+        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_c0_1_adjust);
+        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r0_zero_entry_consumed);
+        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
+        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
+        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r5_adjust_target);
     }
 
     void expect_byte(const std::string& expectation,
@@ -363,29 +367,29 @@ public:
                                           bool r0_zero_consumed = false,
                                           bool r5_override = false) const {
         expect_byte(expectation + " R4 switch", r4_switch,
-                    dut_->rootp->UM6845R__DOT__type0_r4_adjust_switch);
+                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r4_adjust_switch);
         expect_byte(expectation + " live R9 compare", r9_live,
-                    dut_->rootp->UM6845R__DOT__type0_r9_live_compare);
+                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r9_live_compare);
         expect_byte(expectation + " exact-R0 R9", r9_at_r0,
-                    dut_->rootp->UM6845R__DOT__type0_r9_at_r0_pending);
+                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r9_at_r0_pending);
         expect_byte(expectation + " C0=1 adjustment", c0_1_adjust,
-                    dut_->rootp->UM6845R__DOT__type0_c0_1_adjust);
+                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_c0_1_adjust);
         expect_byte(expectation + " R0=0 entry consumed", r0_zero_consumed,
-                    dut_->rootp->UM6845R__DOT__type0_r0_zero_entry_consumed);
+                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r0_zero_entry_consumed);
         expect_byte(expectation + " R5 adjust override", r5_override,
-                    dut_->rootp->UM6845R__DOT__type0_r5_adjust_override);
+                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
     }
 
     void expect_type0_r5_adjust_override(const std::string& expectation,
                                          bool expected) const {
         expect_byte(expectation, expected,
-                    dut_->rootp->UM6845R__DOT__type0_r5_adjust_override);
+                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
     }
 
     void expect_type0_zero_adj_entry(const std::string& expectation,
                                      bool expected) const {
         expect_byte(expectation, expected,
-                    dut_->rootp->UM6845R__DOT__type0_zero_adj_entry);
+                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
     }
 
     std::uint16_t ma() const {
