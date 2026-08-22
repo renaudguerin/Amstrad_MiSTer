@@ -97,7 +97,7 @@ lags a sub-vector name.
 | t09 R0=0 freeze (type 0): counters halt, no HSYNC unless R2=0, resume clean; C9=R9 entry consumes exactly one C4 increment — implemented | digest-01 §8.1 | F5/F12 boundary |
 | t10 R1>R0: type 0 one border char at C0=R0, type 1 none | digest-03 §17.6.2 | F6 |
 | t11 type 1 adjustment: C9 keeps cycling (RA!), C4 increments, R5=0 doesn't end | digest-01 §4 | F8 |
-| t12 R9 write at exact C0==R0 (type 0): preserve documented C4=39,C9=8 result as the R9-to-R5 comparator-switch race, not a generic old/new-R9 sample | digest-01 §3.1/§4.2 | F9/F12 |
+| t12 R9 write at exact C0==R0 (type 0): preserve documented C4=39,C9=8 result as the R9-to-R5 comparator-switch race, not a generic old/new-R9 sample; encode the companion windowed-write case beside it (R9 written in C0∈[2,R0−1] → C4=38,C9=8, ACCC p.82 ex.3) | digest-01 §3.1/§4.2 | F9/F12 |
 | t13 RFD: R5 0→1 at C0==R0, frame-parity VMA' alternation | digest-01 §5 | F7 |
 | t14 VMA reload: type 0 only at C4=C9=C0=0; type 1 every line of C4=0 row | digest-03 §17.4/§20.3 | F11h + regression |
 | t15 R12/R13 overscan-bit carry into MA[13:12] | digest-03 §20.5 | regression |
@@ -109,6 +109,20 @@ failures. These vectors fix the v1.10 counter and adjustment-state expectations 
 deliberately avoiding unsupported sub-character MA/DE/VSYNC claims. If later hardware
 evidence introduces a true pin-level uncertainty, keep any expected failure narrow; never
 wrap setup assertions in a whole-test expected failure.
+
+### Planned additions from the 2026-08-22 review (docs only — no RTL/test changes yet)
+
+Recorded per `findings-review.md` Part C; each becomes a deterministic vector derived from
+the cited ACCC rule when implemented:
+
+- **t12 companion vector** (B4): windowed R9 write inside `C0∈[2,R0−1]` leaves C4=38,C9=8
+  (ACCC p.82 example 3), beside the exact-`C0==R0` 39/8 case.
+- **F8 corner vectors** (B5): an R9 write at exactly C0==R0 entering adjustment must NOT
+  cancel the type-1 VMA-from-R12/R13-while-C4==1 reload; an R4(>0) rewrite at C0==R0 must
+  cancel it (ACCC §11.2.4 note, p.84). The R4 side is the untested corner in
+  `docs/review-debt.md`.
+- **F7 design note** (B6): the RFD disarm path must cover R1>R0 — with `C0==R1` unreachable,
+  the bare `C9==R9` match alone disarms the VMA-source flag (ACCC p.87).
 
 ## Non-goals
 

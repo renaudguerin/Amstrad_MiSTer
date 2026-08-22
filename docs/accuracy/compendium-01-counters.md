@@ -33,8 +33,9 @@ referenced to the CRTC's own timeline), not the Gate-Array-delayed display timel
     Else: C9=C9+1
   Else: C0=C0+1
   ```
-- C9 occupies VRAM address bits 11-13 (⚠ VERIFY p.34, table extracted poorly). On CRTC 3/4 the
-  same bit position is occupied by C5 during adjustment, not C9 — one-line contrast only.
+- C9 occupies VRAM address bits 11-13 (p.34 table confirmed from the text layer; earlier
+  extraction-smearing flag retired by the 2026-08-22 review). On CRTC 3/4 the same bit position
+  is occupied by C5 during adjustment, not C9 — one-line contrast only.
 
 ## 2. Synchronization principles (Ch.7, p.37-41)
 
@@ -77,8 +78,9 @@ referenced to the CRTC's own timeline), not the Gate-Array-delayed display timel
 - **⚠ Dynamic-update hazard — R9 written exactly at C0==R0** (p.76): C4 may still increment
   because C9 matched the earlier R9, while C9 is incremented under the comparison selected
   after the write. On a last line entering adjustment, that second comparison is against R5,
-  not merely a second sample of R9 (§4.2). The documented R4=38/R9=7 example yields
-  C4=39,C9=8.
+  not merely a second sample of R9 (§4.2). The documented R4=38/R9=7 exact-`C0==R0` example
+  yields C4=39,C9=8; the windowed companion write (inside `C0∈[2,R0−1]`) yields C4=38,C9=8 —
+  p.82 example 3, see §4.2. Both cases belong in t12.
 - A single snapshot applied uniformly to C4 and C9 cannot reproduce this race. However, the
   Compendium prose does not by itself settle every RTL-clock ordering detail; use the focused
   hardware/trace vectors in `testbench-spec.md` before choosing an implementation seam.
@@ -96,7 +98,8 @@ referenced to the CRTC's own timeline), not the Gate-Array-delayed display timel
 
 ### 3.3 CRTC 0/1 divergence cross-check (§10.3, p.78-79 tables)
 
-⚠ VERIFY p.78-79 (heavy column smearing in extraction):
+Cross-check tables (p.78-79) read cleanly in the text layer; the earlier heavy-smearing flag
+was retired by the 2026-08-22 review:
 - "C4=R4>0" scenarios, previous R9=7: CRTC 1 marks offset-reconsidered "Yes if C4=0" for
   intermediate C9-overflow cases (reconsiders R12/R13 whenever resulting C4==0, regardless of
   "last line"); CRTC 0 does NOT reconsider offset in those same intermediate cases, only at
@@ -144,6 +147,9 @@ referenced to the CRTC's own timeline), not the Gate-Array-delayed display timel
   - R9 written exactly at `C0==R0`: the earlier C9/R9 match can increment C4, then the changed
     C4/R4 result switches C9 to the R5 comparison. Both C4 and C9 can therefore increment;
     the documented R4=38/R9=7 example ends at C4=39,C9=8.
+  - Companion case (p.82, example 3): an R9 write landing inside the same `C0∈[2,R0−1]` window
+    (rather than exactly at `C0==R0`) leaves **C4=38, C9=8** on the next line — C4 is not yet
+    incremented. Encode both documented results in t12 (`testbench-spec.md`).
 - **VMA'/offset capture keeps working during adjustment** through the independent live
   `C0==R1 && C9==R9` comparison, so R9 changes can still redirect the saved pointer
   (§11.2.2, p.82-83).
@@ -159,7 +165,9 @@ referenced to the CRTC's own timeline), not the Gate-Array-delayed display timel
   C4==1** in adjustment (the new post-increment C4). This suspends the normal "R1 gates VMA'"
   logic for that row — offset changeable on every C9 line of that C4==1 row, like RFD. Caveat:
   only holds if R4 was NOT rewritten to >0 exactly at C0==R0 entering adjustment; if it was,
-  VMA is NOT updated from R12/R13 at C4==1.
+  VMA is NOT updated from R12/R13 at C4==1. Conversely (§11.2.4 note, p.84): an **R9** write
+  landing exactly at `C0==R0` entering adjustment does **not** cancel this behaviour — only the
+  R4(>0) rewrite does. (F8 corner rule; the untested corner is recorded in docs/review-debt.md.)
 - Adjustment becomes **irreversible** only once `C4==R4 && C9==R9` is true exactly at
   `C0==R0`. Before that instant, rewriting R4/R9 so the equality fails aborts/postpones
   adjustment. But if the equality still holds AND R4/R9 are rewritten *simultaneously* at that
@@ -210,9 +218,11 @@ The single most intricate dynamic-update bug in the CRTC-1 model.
   interaction: §8.7.
 - **Two independent flags activated** (§11.6, restated §11.6.2 p.88-89):
   1. **VMA-source flag**: normally VMA loads from R12/R13 only at C4==0/C0==0; RFD forces this
-     "load from R12/R13" to stay **true regardless of C4** — address changeable on every row
-     for the rest of the frame. Disarmed again once `C9==R9` at `C0==R1` next succeeds (see
-     parity below).
+      "load from R12/R13" to stay **true regardless of C4** — address changeable on every row
+      for the rest of the frame. Disarmed again once `C9==R9` at `C0==R1` next succeeds (see
+      parity below). **R1>R0 disarm path** (p.87): if R1>R0, `C0==R1` can never fire, so the
+      bare `C9==R9` match alone deactivates the VMA-source state. F7's design must include
+      this route.
   2. **Parity-management flag** in the C9==R9 test at C0==R1 (used by IVM): RFD arms
      consideration of frame parity in that test, otherwise parity-blind.
 - **Frame-parity alternation** (§11.6.1, p.88-89): once armed, C9==R9-at-C0==R1 becomes
@@ -334,7 +344,10 @@ The chip spreads end-of-line/end-of-frame decisions across three distinct instan
 - **Consequences of R0==0** (§13.2.1/§13.2.4, p.104-105): C0 never advances past 0, so the
   C0==1 re-authorization never runs:
   - C9!=R9 at the (only) C0==0 when R0 became 0 → **all counters freeze** entirely while
-    R0 stays 0. An R0=0 stall of N cycles ≈ "losing" `N/(R9+1)` character rows.
+    R0 stays 0. The cost is wall-clock display time — counters are frozen, nothing progresses;
+    the source's own figure is that freezing R0=0 for 64×8 µsec "forgets" 8 raster lines
+    (p.104), i.e. an N-µs stall costs N/64 lines. The caption's "(C4−1 if R9=7)" gloss is
+    unresolved — author-question Q2.
   - C9==R9 at that instant → **C4 increments exactly once** on the *second* C0==0 occurrence
     (already-armed decision, not cancellable until C0==2, unreachable while R0==0); everything
     (incl. C4) freezes after that second C0==0.
@@ -354,8 +367,10 @@ The chip spreads end-of-line/end-of-frame decisions across three distinct instan
 - **Case R0==1** (§13.2.1/§13.2.5, p.104-108): C0 alternates 0,1,0,1... (2µs "lines"), never
   reaching 2, so the adjustment **disarm** step never runs — if C4==R4 && C9==R9 fires at
   C0==0/1, adjustment arms and **stays armed** (uncancellable) even though it lasts only as
-  long as R5 dictates once reachable. With R4=R9=0: every 2µs "frame" chains into another 2µs
-  adjustment frame (C4→1, C9=0) until C9's adjustment count reaches R5. ⚠ VERIFY p.105-108
+  long as R5 dictates once reachable. With R4=R9=0 and R5=0 the frames strictly **alternate**
+  normal/additional: each additional "frame" lasts one 2µs line before ceasing ("lasts 1 line
+  of 2 µsec before ceasing", p.104; alternating pattern in the p.107 case study). The chained
+  into-another-adjustment-frame reading applies only while R5>0. ⚠ VERIFY p.105-108
   (chronogram partially garbled in extraction — cross-check exact screen-grid before using as
   test vectors).
 

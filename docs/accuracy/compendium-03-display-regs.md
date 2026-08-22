@@ -24,7 +24,9 @@ Counter names used throughout, matching the compendium's own notation:
 - C0 can never exceed R0 (it's clocked by the R0 comparator), so if R1 > R0 the condition `C0=R1` is simply never true during normal counting.
 - If `C0` returns to 0 via **8-bit overflow** (wrapping past 255, not via the R0 compare) DISPTMG is **not** re-enabled — verified for CRTC 0; unverified for others.
 - Not managed by CRTC2 during HSYNC (out of scope, noted for contrast only).
-- If R1=0: no characters are ever displayed on any CRTC type (border permanently on, video pointer still counts).
+- If R1=0: no characters are ever displayed on any CRTC type — the video pointer still counts
+  (stated); "border permanently on" is implied by the source rather than spelled out
+  (marked as inference, review B13).
 - Border begins exactly at `C0=R1` (assuming SKEW-DISPTMG not in use on type 0 — see §19.2).
 
 ### 17.1 VMA/VMA' pointer model (§17.1, p.176)
@@ -62,9 +64,9 @@ This is the single most important dynamic-update rule to get right per CRTC type
 *(CRTC2/3/4 for contrast only: type 2 has a documented priority-ordering bug between the "last line of frame" test and the C0=R1 test when R1=0, involving a partial AND-only update bug on VMA'. Out of scope for type 0/1 modeling — see p.183-184 if ever needed.)*
 
 ### 17.5 Acknowledgment of R1=0 (§17.5, p.185) — timing/deadline table
-- **Type 0 (and type 1, type 2 grouped together in the doc):** writing `R1,0` needs to land **early enough** relative to `C0` reaching the *old* R0 value to be honored for that line; the diagram (p.185) shows: writes landing at `C0=3d`/`3e` = "too late" (border still shows that line as before); write landing at `C0=3f` (i.e. C0=R0, the last character) = "just in time" → no border byte inserted, R1=0 honored starting next line.
+- **Type 0 (and type 1, type 2 grouped together in the doc):** writing `R1,0` needs to land **early enough** relative to `C0` reaching the *old* R0 value to be honored for that line; the diagram (p.185) shows — as transcribed here, pending the visual tier — writes landing at `C0=3d`/`3e` = "too late" (border still shows that line as before) and a write landing at `C0=3f` (i.e. C0=R0, the last character) = "just in time" → no border byte inserted, R1=0 honored starting next line. The precise 3d/3e/3f deadline mapping is a digest transcription from a compressed diagram (review B13), not quoted prose.
 - ⚠ VERIFY p.185: the exact cycle-accurate boundary (which C0 value is the last "too late" vs "just in time" one) is best re-derived directly against the Verilog's C0 compare stage rather than trusted from the compressed ASCII diagram — the table only gives relative character positions (3b..3f, 0..5) without an explicit rule sentence for type 0/1, unlike CRTC3/4 which get an explicit contrast paragraph below it.
-- **CRTC3/4 contrast (one line):** need one extra character's lead time vs type 0/1/2 for the same OUT to land "just in time" (their acknowledgment window is shifted by one position — see p.185 diagram, bottom half).
+- **CRTC3/4 contrast (one line):** need one extra character's lead time vs type 0/1/2 for the same OUT to land "just in time" — a diagram-shape inference pending visual verification (review B13; their acknowledgment window is shifted by one position, see p.185 diagram, bottom half).
 
 ### 17.6 Interline border (§17.6, p.185-187)
 - **R1=R0 and C0=R0, all CRTC types (0 through 4):** exactly 1 µs (one character) of border is generated on the last character (`C0=R0`) even though R1=R0 — i.e. **the very last displayed character position always shows border for that cycle**, because the DISPTMG-off condition `C0=R1` and `C0=R0`'s natural wraparound coincide, forcing a 1-char border blip before the next row's `C0=0` reload. VRAM pointer offset continues normally into the next character-row's start (§17.6.1, p.185-186).
@@ -82,7 +84,7 @@ This is the single most important dynamic-update rule to get right per CRTC type
 ## 18. Register R6 (vertical displayed)
 
 ### 18.1 General (§18.1, p.188)
-- Border activates when `C4=R6` (checked on the character row's **first** scanline, C9 value irrelevant to the trigger — "true whatever the value of C9").
+- Border activates when `C4=R6`. The source's "(1st line-character R6)" phrase is ambiguous; we read the check as immediate on any C0 (per "considered immediately" below), not restricted to the row's first scanline — see the closing notes in [accc-author-questions.md](accc-author-questions.md) (review B13). C9 value is irrelevant to the trigger ("true whatever the value of C9").
 - **Except CRTC3/4**, R6 is considered **immediately** on the current C0 (i.e. mid-scanline, not just at row boundaries) — relevant for type 0/1.
 - DISPTMG goes OFF on `C4=R6` the same way it does on `C0=R1`. Normal recovery only at next full frame (`C4=C9=C0=0`).
 - VMA/VMA' pointer keeps counting through R6-triggered border exactly as through R1-triggered border.
@@ -132,12 +134,12 @@ This is the single most important dynamic-update rule to get right per CRTC type
 | 1 | x | x | x | x | x | x | i | i |
 
 - `i1:i0` (bits 1:0) = **Interlace mode**, same encoding both types: `00`=no interlace, `01`=Interlace Sync Mode, `10`=no interlace, `11`=Interlace Sync & Video Mode (IVM).
-- `Sd` (bits 4:3) = **Skew DISPTMG** — **type 0 only** (bits are "x"/unused on type 1): `00`=non-skew, `01`=1-char skew, `10`=2-char skew, `11`=non-output.
-- `Sc` (bits 6:5) = Skew CUDISP (cursor output skew) — type 0 only, same encoding; not used on CPC (no hardware cursor).
-- **Type 1 has no SKEW-DISPTMG/SKEW-CUDISP function at all** — bits 3-7 are don't-care on type 1.
+- `Sd` (bits 5:4) = **Skew DISPTMG** — types 0/3/4 (bits are "x"/unused on type 1): `00`=non-skew, `01`=1-char skew, `10`=2-char skew, `11`=non-output. (Bit positions corrected per review B8 — the earlier "bits 4:3" bullets contradicted the table above; the source's own BORDER ON mask `001100xx` sets bits 5,4.)
+- `Sc` (bits 7:6) = Skew CUDISP (cursor output skew) — types 0/3/4, same encoding; not used on CPC (no hardware cursor).
+- **Type 1 has no SKEW-DISPTMG/SKEW-CUDISP function at all** — bits 3-7 are don't-care on type 1. (SKEW exists on CRTCs 0/3/4, not type 0 alone — scope corrected per review B8.)
 
-### 19.2 SKEW-DISPTMG functions — **type 0 ONLY** (§19.2, p.193-197)
-These bits (Sd, R8 bits 3:2 in the `00xx` masks below) do not exist on type 1 — skip this whole section for a type-1 model except to confirm it's a no-op.
+### 19.2 SKEW-DISPTMG functions — types 0/3/4 (§19.2, p.193-197)
+These bits (Sd, R8 bits **5:4** in the `00xx` masks below) exist on CRTCs 0/3/4 and do not exist on type 1 — skip this whole section for a type-1 model except to confirm it's a no-op. (Heading narrowed and bit positions corrected per review B8; the section's rules are written from the type-0 CPC context.)
 
 - **BORDER ON** (`R8 = 001100xx`, §19.2.1, p.193): forces DISPTMG OFF immediately (border shown regardless of R1/R6 state). VMA keeps incrementing; VMA' is still updated normally at `C0=R1 AND C9=R9`(sic — text says "C9=C0=0", likely a typo for the row-end condition; treat as the standard VMA' latch condition). Does **not** affect R6-border state — can still transition among the other 3 R8 sub-states. ⚠ Note in source: bits 0-1 (interlace) are apparently ignored while this is active — "requires further investigation," flagged by the author themselves.
   - Type-1 analog: setting R6=0 forces DISPEN off directly, but **unlike** the type-0 BORDER-ON function, if `C4=0` simultaneously, type 1's R6=0 hits the sticky/definitive-border path (§18.2.3) — a side effect type-0's BORDER-ON function avoids.
@@ -150,11 +152,13 @@ These bits (Sd, R8 bits 3:2 in the `00xx` masks below) do not exist on type 1 �
   - With delay active, 1 or 2 *extra* characters are displayed at the right edge of the line (using addresses already fetched from the advancing VMA, which will be reloaded from VMA' at line start as usual).
   - **R8 changes affecting this delay take effect immediately, mid-line** (§19.2.3, p.194) — worked diagram at p.194 (R1=59,R0=63) shown but condensed here: writing R8 mid-line changes where the border edge appears on the *same* line, live.
 - **No-condition case R1>R0** (§19.2.4, p.195): since `C0=R1` never fires, type 0 (and type 2) substitute `C0=R0` as the effective border-start trigger (spurious border byte, per §17.6.2). **Type 1 (and 3/4)** do not substitute anything — no BORDER-ON signal is sent at all in this configuration. When a SKEW-DISPTMG delay is programmed on type 0 in this R1>R0 configuration, the delay is still counted from C0 transitions as if the (never-reached) `C0=R1` condition had fired at the substituted point.
-- **Disintegration of the border via double R8 write (type 0 only)** (§19.2.5, p.196-197): a 1-2 µs window exists (using SKEW-DISPTMG) during which **two back-to-back R8 writes on the same/adjacent line can cancel a spurious border byte** entirely — type 2 cannot do this (no SKEW-DISPTMG). Four documented sub-cases (§19.2.5.1-4, p.196-197) depending on exactly which C0 value the two OUTs land on relative to R0/R1 — condensed: **whether the border byte appears or is cancelled depends on which of the two R8 writes is "seen" by the comparator logic in the cycle it fires**, i.e. a last-write-wins-if-in-time race. ⚠ VERIFY p.196-197 if implementing this level of R8 detail — the 4 sub-diagrams each show a 1-cycle boundary case that's easy to mis-transcribe from the compressed text.
+- **Disintegration of the border via double R8 write (type 0 only)** (§19.2.5, p.196-197): a 1-2 µs window exists (using SKEW-DISPTMG) during which **two back-to-back R8 writes on the same/adjacent line can cancel a spurious border byte** entirely — type 2 cannot do this (no SKEW-DISPTMG). Four documented sub-cases (§19.2.5.1-4, p.196-197) depending on exactly which C0 value the two OUTs land on relative to R0/R1 — condensed: **whether the border byte appears or is cancelled depends on which of the two R8 writes is "seen" by the comparator logic in the cycle it fires**, i.e. a last-write-wins-if-in-time race. The four sub-case *rules* are plain prose and readable (flag narrowed per review B7); ⚠ keep it only for the p.196-197 cycle diagrams — each shows a 1-cycle boundary case that's easy to mis-transcribe from the compressed text.
 
 ### 19.3 Interlace functions — general (§19.3, p.198-202)
 - Two programmable interlace modes, same 2-bit encoding on all CRTC types: **Interlace Sync Mode** (`R8 bits1:0 = 01`) and **Interlace Sync & Video Mode / IVM** (`= 11`).
-- Interlace works by delaying VSYNC by half a line on `C4=R7` for the even-numbered frame (MID-VSYNC, taking `C0=R0/2` as reference), plus adding **one extra scanline** at the end of the odd frame's construction (parity-dependent — see §19.5/19.6) so lines end up correctly ordered on a real interlaced CRT. On CPC, whether this actually produces a stable interlaced image depends on the Gate Array's HSYNC/VSYNC recombination logic (§16.6, out of scope here).
+- Interlace works by delaying VSYNC by half a line on `C4=R7` for the even-numbered frame (MID-VSYNC, taking `C0=R0/2` as reference), plus adding **one extra scanline** at the end of a frame's construction (parity-dependent — see §19.5/19.6) so lines end up correctly ordered on a real interlaced CRT.
+  - Which frame receives that extra line: the source pages conflict — p.198 says it ends "the first frame", pp.205/216 attach it to the construction of the **even** frame, and p.199 shows the odd frame lasting 20032µs "inheriting" it. Both readings are carried here pending Q10 (review B11).
+- On CPC, whether this actually produces a stable interlaced image depends on the Gate Array's HSYNC/VSYNC recombination logic (§16.6, out of scope here).
 - **Interlace Sync Mode** (§19.3.2.1, p.199): same video data displayed on even and odd frames (doubles apparent resolution by filling gaps, no new data) — CRTC registers need no reprogramming between frames.
 - **IVM / Interlace Sync & Video Mode** (§19.3.2.2, p.200-201): even frame shows **even C9** scanlines, odd frame shows **odd C9** scanlines — genuinely different data per frame-half. Registers must be programmed as if building a 624-line frame (the 625th line is handled automatically). Note: UM6845R datasheet figure describing this mode is **incorrect**; the UM6845(non-R)/HD6845S figure is correct (confirms UM6845 = type 0 lineage). Line 0 alternates with a border line in this mode (not with line -1, since there isn't one) due to the even frame's VSYNC repositioning being a full line ahead of the odd frame's.
 
@@ -179,10 +183,10 @@ Parity state determines: extra end-of-frame line, MID-VSYNC generation on even f
 - `ParityR6 := ParityFrame XOR 1` when `C4` reaches `R6` — this anticipates next frame's parity. **If R6>R4** (C4 never reaches R6), ParityR6 stops updating and ParityFrame freezes at its last value.
 - ParityR6 management is **independent of R8's value** (keeps running even outside interlace mode).
 - C9 parity itself is only actively managed **when R8=3** (full IVM).
-- When R9 is **even** (IVM mode, N-2 formula ⇒ odd total line-count N): parity is identical regardless of C4 (simple case).
+- When R9 is **even** (IVM mode, N-2 formula ⇒ **even** total line-count per character — e.g. R9=6 → 2×4 = 8 lines): parity is identical regardless of C4 (simple case). (Corrected per review B10: the distilled "odd total line-count N" parenthetical was inverted; Q11 asks the author to confirm the even reading.)
 - When R9 is **odd** in IVM: total line count per character is odd ⇒ line-count imbalance between frames is compensated by **alternating even/odd-only scanline sets per C4** within the same frame: `ParityC9 = C4.bit0 XOR ParityFrame` (computed whenever R8=3). On even frame, C9 parity tracks C4 parity directly; on odd frame it's inverted. This keeps the total-lines-per-C4 balanced (worked example p.206: R9=7, even frame C4=0 → 5 even lines then 4 odd lines = 9 total; odd frame C4=0 → 4 odd then 5 even = 9 total).
 - **VSYNC delay-by-1-line correction**: if R7 lands on an **odd C4** in this odd-R9 balancing scheme, VSYNC is delayed by 1 line — occurs when `C4=R7 AND C9.VMA=2` on odd C4s — to avoid phase-shifting the VSYNC relative to its position on even frames (worked tables p.206-207). ⚠ VERIFY p.206-207: the two large parity/C4/C9/VSYNC tables are central to getting odd-R9 IVM right; recommend deriving a standalone truth table from the pseudocode below rather than transcribing the ASCII tables directly.
-- Note (p.207): if R8 is switched to 3 on an **odd C4** rather than at frame start, the VSYNC-delay correction can itself become imbalanced for that transition frame only — self-correcting on subsequent frames.
+- Note (p.206; the digest previously cited p.207): if R8 is switched to 3 on an **odd C4** rather than at frame start, the VSYNC-delay correction can itself become imbalanced for that transition frame. The digest's "self-correcting on subsequent frames" tail is an inference not present in the source text (marked per review B10; Q12 asks whether it holds).
 - Determining current parity live: possible via the "counting bug" that appears when IVM is activated on `C9=R9` with odd parity, or deactivated on `C9.VMA=R9+1` (§19.8.1) — i.e. parity is externally observable through characteristic C9 miscounts at mode-transition boundaries.
 
 **Type 1 parity states (§19.5.3, p.208-209):**
@@ -355,7 +359,7 @@ Register select port: `&BC00` (both types). Register data port: `&BF00` (both ty
 - Status register lives at `&BE00`.
 - UMC docs mark bits 0-4 and bit 7 as unused; repeated reads return 0 on those bits (should be modeled as hard-wired 0, not floating).
 - **Bit 5** = BORDER-R6 condition, but **only updated/latched at `C0=R0`** (not continuously): `0`=false (`C4=C9=C0=0` — i.e. not in R6-border), `1`=true (`C4=R6 AND C9=C0=0` at the moment of the C0=R0 check). ⚠ Important nuance: bit 5 being 0 does **not** guarantee characters are currently displayed — border can still be active via the independent R1-condition; bit 5 only reflects the R6-specific condition, sampled once per line.
-- Also: if R6 is set to 0 while C4>0 specifically to *force* border (the "R6=0 special case" from §18.2.3/18.3.3), that state is **not reflected** in status bit 5 — bit 5 stays 0 in that case (since the underlying `C4=R6` equivalence, which is what bit 5 actually tracks, is not what's driving the border here). ⚠ VERIFY p.247-248: two worked timing diagrams show bit 5's transition to 1/0 exactly at the C0=R0 sample point across a VSYNC boundary — condensed correctly above, but re-derive against C0=R0 sampling in the Verilog rather than trusting the ASCII diagram positions verbatim.
+- Also: if R6 is set to 0 while C4>0 specifically to *force* border (the "R6=0 special case" from §18.2.3/18.3.3), that state is **not reflected** in status bit 5 — bit 5 stays 0 in that case (since the underlying `C4=R6` equivalence, which is what bit 5 actually tracks, is not what's driving the border here). The bit-5 transition rules are fully stated in prose (flag narrowed per review B7); ⚠ keep it only for the two worked timing diagrams (p.247-248) showing bit 5's transition exactly at the C0=R0 sample point across a VSYNC boundary — re-derive against C0=R0 sampling in the Verilog rather than trusting the ASCII diagram positions verbatim when pin-exact vectors are needed.
 
 *(Type 3/4 status registers R10/R11 documented in detail at §21.3.4, p.247-249 — out of scope for type 0/1 modeling; noted only because §21.3.1 states the &BE00 port mirrors &BF00 on those types, unlike type 0's floating/type 1's dedicated-status behavior.)*
 
@@ -417,7 +421,9 @@ Each subsection below is a runnable acceptance-test recipe: **I/O sequence → e
   - **Expected on both type 0 and type 1:** VSYNC now occurs **twice as fast** as before entering IVM, because `C4` reaches `R7` twice as fast (rows are now 4 lines instead of 8 from C4's perspective). This confirms "is this CRTC 0 or 1" as a *pair* (both behave the same way) versus type 2, which does **not** speed up C4 counting under IVM — so this test discriminates {0,1} vs {2}, not 0 vs 1 specifically. Included here because the source groups it under "CRTC identification" generally; **not** a 0-vs-1 discriminator by itself.
 
 ### 28.1.8 Via status register at &BE00 (§28.1.8, p.293) — PRIMARY 0-vs-1 TEST
-- **Test:** read `&BE00` repeatedly at a precisely-timed instant (specifically: testing the transition of bit 6, described as always-1 per §21.3... cross-check bit numbering against §21.3.3 which discusses bit 5 for BORDER-R6; the identification chapter references "bit 6" transition testing — likely referring to a fixed/always-1 bit used as a liveness check that only a genuine status register would hold stable, or possibly a documentation-numbering mismatch between chapters. ⚠ VERIFY p.293 cross-reference against p.247 bit numbering before hard-coding bit index).
+- **Test:** read `&BE00` repeatedly at a precisely-timed instant; the identification chapter polls "the transition of **bit 6**".
+  - Correction (review B12): the source never describes bit 6 as "always 1" for UM6845R — an "always-1" bit 6 appears only in the CRTC 3/4 STATUS-1 table (p.248). The earlier gloss attributing it to §21.3 is dropped.
+  - §21.3.3 defines bit 5 as the only dynamic status bit on type 1, so chapter 28's "bit 6" reference conflicts with it internally — recorded as Q14. Do not hard-code a bit index until answered. ⚠ p.293 vs pp.246-248.
   - **Type 1:** `&BE00` is a genuine, live status register — the targeted bit transitions in a well-defined, reproducible way tied to CRTC internal state (per §21.3.3's bit-5 BORDER-R6 rule, sampled at C0=R0).
   - **Type 0:** `&BE00` has **no status register** — reads are described elsewhere (§21.3.2) as returning "randomly 255 or 127" — i.e. floating bus / undefined value, NOT a value that transitions in sync with any CRTC condition.
   - **Concrete acceptance test:** poll `&BE00` across many frames at a fixed timing relative to a known raster position. **Type 1** must show bit 5 flipping deterministically at `C0=R0` in sync with the programmed R6/C4 state (§21.3.3). **Type 0** must show a value that does **not** correlate with any internal CRTC state (model this as returning the floating-bus/last-driven-value byte, e.g. from a prior OUT to the address/data bus, rather than a fixed constant — do not hardcode 0xFF).
@@ -426,6 +432,7 @@ Each subsection below is a runnable acceptance-test recipe: **I/O sequence → e
 - **Test:** select each register 0-31 via `&BC00`, then read `&BF00`, and tabulate which numbers return non-zero.
   - **Type 0:** non-zero (real) data returned for R12, R13, R14, R15, R16, R17 (mod-32 aliasing — e.g. selecting register 108 behaves as register 12 since `108 mod 32 = 12`). All others return 0.
   - **Type 1:** non-zero data returned for R14, R15, R16, R17 **only** — **R12 and R13 read back as 0** (this is the headline discriminator — type 1's R12/R13 are write-only). Additionally, register 31 (and anything aliasing to bits 0-4 all set, mod 32) returns a **non-zero garbage-ish constant** (127 or 255 observed) even though it's not a "real" register — this is unique to type 1 and doubles as a second independent signal.
+  - Footnote (review B12): the source's own identification sentence — "all registers return 0 except register 31" on CRTC 1 — contradicts §21.2.2's readable-set table (R14-R17 readable); tracked as Q13. This digest, like F1, follows §21.2.2. The concrete OUT/IN acceptance steps below are digest-added scaffolding, not quoted from the source.
   - **Concrete acceptance test:**
     1. `OUT &BC00, 12` / `OUT &BC00, 13` with known R12/R13 values previously written; `IN A,(&BF00)`.
        - Type 0 expected: readback equals last-written value.
@@ -479,10 +486,14 @@ Out of CRTC-type scope proper, but included per the assignment brief since it af
 10. **C0=R1=0 acknowledgment deadline (§17.5)** and the R1 dynamic-update JIT edge case are both under-specified in the extracted ASCII diagrams — flagged ⚠ VERIFY, recommend deriving the exact cycle boundary from the Verilog's own C0 comparator stage rather than the compendium's compressed tables.
 
 ## Pages flagged ⚠ VERIFY (poor extraction / compressed diagrams, re-check against PDF directly if implementing that rule)
-- p.183 — R1 dynamic-update JIT-write example (VMA' pointer repeated 960 vs 1000 tables)
-- p.185 — R1=0 acknowledgment deadline diagram (exact "too late" vs "just in time" C0 boundary for type 0/1)
-- p.196-197 — R8 SKEW-DISPTMG double-write "border disintegration" 4 sub-cases (type 0 only)
-- p.206-207 — Type 0 odd-R9 IVM parity/VSYNC-delay worked tables
-- p.210-212 — Type 1 R8-toggle parity truth tables (SHAKER test-suite cross-references)
-- p.247-248 — Type 1 status register bit 5 transition diagrams (BORDER-R6 sampling at C0=R0)
-- p.293 — CRTC identification "via status register &BE00, bit 6" (bit-index cross-reference against §21.3.3's bit-5 discussion is ambiguous in the extracted text)
+
+Narrowed by the 2026-08-22 faithfulness review (B7): rules whose prose is clean keep the flag
+only for their diagrams/worked tables.
+
+- p.183 — R1 dynamic-update JIT-write worked table (VMA' pointer repeated 960 vs 1000); the p.182 JIT rule itself is plain prose.
+- p.185 — R1=0 acknowledgment deadline diagram (exact "too late" vs "just in time" C0 boundary for type 0/1).
+- p.196-197 — R8 SKEW-DISPTMG double-write "border disintegration" cycle diagrams (sub-case rules are prose-readable).
+- p.206 — Type 0 odd-R9 IVM parity/VSYNC-delay worked tables.
+- p.210-212 — Type 1 R8-toggle parity truth tables (SHAKER test-suite cross-references).
+- p.247-248 — Type 1 status register bit 5 transition diagrams (rules fully in prose).
+- p.293 — CRTC identification "bit 6" reference — source-internal conflict with §21.3.3, tracked as Q14 (not an extraction issue).

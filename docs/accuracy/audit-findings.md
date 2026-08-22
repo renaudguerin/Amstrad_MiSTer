@@ -10,7 +10,8 @@ Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).
 
 Original audit: 2026-07-07, Claude (Fable 5). ACCC v1.10 documentation rebaseline:
-2026-08-13.
+2026-08-13. 2026-08-22 v1.10 faithfulness review accepted
+(`findings-review.md`); its code implications are noted inline below (F7/F8/F9/F10).
 
 ## How to read this document
 
@@ -247,6 +248,9 @@ General implementation rules for all fix prompts:
   > `rfd_vma_flag` — extends the existing `CRTC1_reload` term to any row, cleared when the
   > VMA' save (`row_addr_save`) actually fires; (2) `rfd_parity_flag` — gates `row_addr_save`
   > with a frame-parity bit that toggles at frame boundaries where `C4==C9==C0==0 && R9 odd`.
+  > Disarm paths: normal disarm when `C9==R9` at `C0==R1` succeeds, **plus the R1>R0 route** —
+  > when `R1>R0` the `C0==R1` comparison can never fire and the bare `C9==R9` match alone
+  > disarms the VMA-source flag (ACCC p.87; findings-review.md B6).
   > Skip the RFD#10 "1-B chip" variant (document as not modeled). This is a self-contained
   > additive feature: when never triggered, behavior must be bit-identical to current (add a
   > testbench regression run to prove it).
@@ -277,8 +281,14 @@ General implementation rules for all fix prompts:
   > reproduce it). On adjustment end, C4=C9=0 unconditionally. Type 0 path unchanged (C9-vs-R5
   > reuse is correct there). Read `compendium-01-counters.md` §4 fully first; mind §4.3's
   > "VMA from R12/R13 while C4==1" special case — implement it only if the existing
-  > CRTC1_reload logic doesn't already produce it, and add the §4.1 worked example
-  > (R4=10,R5=16,R9=3) as a testbench vector.
+> CRTC1_reload logic doesn't already produce it, and add the §4.1 worked example
+  (R4=10,R5=16,R9=3) as a testbench vector.
+- **Corner to close before F8 counts as done** (findings-review.md B5; ACCC §11.2.4 note,
+  p.84): an **R9 write landing exactly at `C0==R0` entering adjustment must NOT cancel** the
+  VMA-from-R12/R13-while-C4==1 reload — only an R4(>0) rewrite at `C0==R0` cancels it. The R4
+  side is the untested corner already recorded in `docs/review-debt.md` for the F8 commit;
+  both sides need deterministic vectors (docs-only pointer for now — no RTL/test change in
+  this pass).
 - **Verify**: V3 (the §4.1 table); V2.
 
 ## F9. Type 0 R9 write at C0==R0 straddles the R9-to-R5 comparison switch
@@ -298,9 +308,10 @@ General implementation rules for all fix prompts:
 - **Confidence: medium.** The comparison sequence and numeric result are documented; exact RTL
   write/CLKEN ordering and adjacent-cycle observables still require traces.
 - **Fix prompt**:
-  > Keep `t16e`/`t16h` green. Add t12's complete documented C4=39,C9=8 case and its companion
-  > control without changing the implemented comparator split. Do not replace it with a
-  > generic old-R9/new-R9 pair.
+  > Keep `t16e`/`t16h` green. Add t12's complete documented C4=39,C9=8 case **and its
+  > companion control** — an R9 write inside the `C0∈[2,R0−1]` window, documented as leaving
+  > C4=38,C9=8 (ACCC p.82 example 3; findings-review.md B4) — without changing the implemented
+  > comparator split. Do not replace it with a generic old-R9/new-R9 pair.
 - **Verify**: V3 `t16e`/`t16h` required; full t12 and a hardware trace remain desirable before
   independent F9 closure.
 
@@ -321,6 +332,10 @@ General implementation rules for all fix prompts:
 - **Fix prompt**: deliberately NOT written yet — this is a multi-week finding. Treat
   digest-03 §19.5-19.8 pseudocode as the spec, build V3 fixtures from the SHAKER 22C/3 tables
   (⚠ re-extract p.210-212 from the PDF first), and implement type-by-type. Do this LAST.
+  Gate fixture work on the accepted digest corrections B10-B11 (findings-review.md) and on
+  answers to Q10-Q12 — the extra-line frame attribution and the odd-R9 total-line-count
+  reading were both corrected there, so pre-correction fixtures would encode known-wrong
+  expectations.
 
 ## F11. Minor / confirmatory findings (no immediate action)
 
@@ -340,8 +355,8 @@ General implementation rules for all fix prompts:
 - **F11f — R16/R17 light pen**: not implemented (reads 0). Real chips return a latched address;
   with no pen attached the value is effectively arbitrary. Low value; note only.
 - **F11g — DE skew** (`UM6845R.v:56`): R8 bits 5:4, type 0 only, 0/1/2-char delay + non-output ✓
-  (matches ACCC §19.1 table; note the digest prose "(bits 4:3)" is a typo — the table and the
-  UM6845 datasheet say bits 5:4, which is what the code uses).
+  (matches ACCC §19.1 table; the digest's wrong bit-position bullets were corrected 2026-08-22
+  per B8 — the table says bits 5:4, which is what the code uses).
 - **F11h — R12/R13 mid-row immediacy on type 1** (digest-03 §20.3.2, ⚠ VERIFY p.242): digest
   suggests type 1 applies an R12/R13 write to VMA possibly mid-line within C4=0, current model
   applies at next line start. Re-read PDF p.242 before deciding; if real, fold into F7's work.
