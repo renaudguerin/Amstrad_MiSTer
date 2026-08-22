@@ -110,7 +110,13 @@ reviewed fresh on 2026-08-22.
       (Commit with the plan update.)
 
 ### P5/P6 — implementation iterations (separate stream branches)
-- [ ] Common-dependency analysis; land shared items on base branch.
+- [x] Common-dependency analysis; land shared items on base branch.
+      (2026-08-22 conclusion: the only cross-stream shared surface is `sim/sim_main.cpp`
+      harness helpers — classic vectors and Plus benches both extend it, so harness-only
+      changes land on `accc-review-and-fixes` first. Classic queue touches only
+      `rtl/UM6845R.v`; Plus P0 touches top-level wiring + `files.qip`; no shared RTL items.
+      Review action item A4 (harness tidy) landed on base for this reason. Nothing else
+      blocks cutting `accuracy/*` and `plus/*`.)
 - [ ] Classic queue: F9 closure (t12 vectors) → F6 decision gate → F7 RFD → F10 fixtures+impl.
 - [ ] Plus queue: P0 parser→service/MMU/boot wiring → P1 CRTC3 foundation.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";

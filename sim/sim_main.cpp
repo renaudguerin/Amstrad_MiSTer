@@ -227,15 +227,6 @@ public:
         }
     }
 
-    void expect_known_byte(const std::string& expectation,
-                           std::uint8_t expected,
-                           std::uint8_t actual) const {
-        if (actual != expected) {
-            known_divergence(expectation + " == " + std::to_string(expected),
-                             static_cast<unsigned>(actual));
-        }
-    }
-
     void expect_low(const std::string& signal, std::uint8_t actual) const {
         if (actual != 0) {
             fail(signal + " low", static_cast<unsigned>(actual));
@@ -268,34 +259,6 @@ public:
         expect_low(expectation, dut_->FIELD);
     }
 
-    void expect_known_vsync_low(const std::string& expectation) const {
-        if (dut_->VSYNC != 0) {
-            known_divergence(expectation + " low",
-                             static_cast<unsigned>(dut_->VSYNC));
-        }
-    }
-
-    void expect_known_vsync_high(const std::string& expectation) const {
-        if (dut_->VSYNC != 1) {
-            known_divergence(expectation + " high",
-                             static_cast<unsigned>(dut_->VSYNC));
-        }
-    }
-
-    void expect_known_hsync_low(const std::string& expectation) const {
-        if (dut_->HSYNC != 0) {
-            known_divergence(expectation + " low",
-                             static_cast<unsigned>(dut_->HSYNC));
-        }
-    }
-
-    void expect_known_hsync_high(const std::string& expectation) const {
-        if (dut_->HSYNC != 1) {
-            known_divergence(expectation + " high",
-                             static_cast<unsigned>(dut_->HSYNC));
-        }
-    }
-
     void expect_ra(const std::string& expectation, std::uint8_t expected) const {
         expect_byte(expectation, expected, dut_->RA);
     }
@@ -306,17 +269,6 @@ public:
 
     void expect_c5(const std::string& expectation, std::uint8_t expected) const {
         expect_byte(expectation, expected, dut_->rootp->UM6845R__DOT__c5);
-    }
-
-    void expect_known_ra(const std::string& expectation,
-                         std::uint8_t expected) const {
-        expect_known_byte(expectation, expected, dut_->RA);
-    }
-
-    void expect_known_c4(const std::string& expectation,
-                         std::uint8_t expected) const {
-        expect_known_byte(expectation, expected,
-                          dut_->rootp->UM6845R__DOT__row);
     }
 
     // Whole-frame VSYNC observation for the section 28.1.1 R7 sweep: the pulse
@@ -344,12 +296,6 @@ public:
         }
     }
 
-    void expect_known_vsync_observed(const std::string& expectation,
-                                     bool seen) const {
-        if (!seen) {
-            known_divergence(expectation, "no VSYNC pulse");
-        }
-    }
 
     void expect_adjustment_active(const std::string& expectation) const {
         expect_high(expectation, dut_->rootp->UM6845R__DOT__in_adj);
@@ -2350,19 +2296,19 @@ void test_type1_c9_zero_limit_overflows(TestBench& test) {
 
     test.write_selected_register_at_clken(0);
     test.run_characters(kOverflowLineCharacters - 1);
-    test.expect_known_ra("type 1 R9=0 below C9 keeps counting C9", 5);
-    test.expect_known_c4("type 1 R9=0 below C9 does not increment C4", 0);
+    test.expect_ra("type 1 R9=0 below C9 keeps counting C9", 5);
+    test.expect_c4("type 1 R9=0 below C9 does not increment C4", 0);
 
     run_lines(test, 26);
-    test.expect_known_ra("type 1 R9=0 lets C9 reach its 5-bit limit", 31);
+    test.expect_ra("type 1 R9=0 lets C9 reach its 5-bit limit", 31);
 
     run_lines(test, 1);
-    test.expect_known_ra("type 1 R9=0 wraps C9 onto the new limit", 0);
-    test.expect_known_c4("type 1 R9=0 wrap does not yet increment C4", 0);
+    test.expect_ra("type 1 R9=0 wraps C9 onto the new limit", 0);
+    test.expect_c4("type 1 R9=0 wrap does not yet increment C4", 0);
 
     run_lines(test, 1);
-    test.expect_known_ra("type 1 wrapped C9 matches R9=0", 0);
-    test.expect_known_c4("type 1 wrapped C9 match increments C4 once", 1);
+    test.expect_ra("type 1 wrapped C9 matches R9=0", 0);
+    test.expect_c4("type 1 wrapped C9 match increments C4 once", 1);
 }
 
 void test_type1_c4_counts_through_127_and_wraps(TestBench& test) {
@@ -2471,19 +2417,19 @@ void test_type0_c9_zero_limit_overflows(TestBench& test) {
 
     test.write_selected_register_at_clken(0);
     test.run_characters(kOverflowLineCharacters - 1);
-    test.expect_known_ra("type 0 R9=0 below C9 keeps counting C9", 5);
-    test.expect_known_c4("type 0 R9=0 below C9 does not increment C4", 0);
+    test.expect_ra("type 0 R9=0 below C9 keeps counting C9", 5);
+    test.expect_c4("type 0 R9=0 below C9 does not increment C4", 0);
 
     run_lines(test, 26);
-    test.expect_known_ra("type 0 R9=0 lets C9 reach its 5-bit limit", 31);
+    test.expect_ra("type 0 R9=0 lets C9 reach its 5-bit limit", 31);
 
     run_lines(test, 1);
-    test.expect_known_ra("type 0 R9=0 wraps C9 onto the new limit", 0);
-    test.expect_known_c4("type 0 R9=0 wrap does not yet increment C4", 0);
+    test.expect_ra("type 0 R9=0 wraps C9 onto the new limit", 0);
+    test.expect_c4("type 0 R9=0 wrap does not yet increment C4", 0);
 
     run_lines(test, 1);
-    test.expect_known_ra("type 0 wrapped C9 matches R9=0", 0);
-    test.expect_known_c4("type 0 wrapped C9 match increments C4 once", 1);
+    test.expect_ra("type 0 wrapped C9 matches R9=0", 0);
+    test.expect_c4("type 0 wrapped C9 match increments C4 once", 1);
 }
 
 void test_type0_c4_counts_through_127_and_wraps(TestBench& test) {
@@ -2531,13 +2477,13 @@ void test_type0_c4_zero_limit_overflows(TestBench& test) {
 
     test.write_selected_register_at_clken(0);
     test.run_characters(kOverflowLineCharacters - 1);
-    test.expect_known_c4("type 0 R4=0 below C4 keeps counting C4", 5);
+    test.expect_c4("type 0 R4=0 below C4 keeps counting C4", 5);
 
     run_lines(test, 122);
-    test.expect_known_c4("type 0 R4=0 lets C4 reach its 7-bit limit", 127);
+    test.expect_c4("type 0 R4=0 lets C4 reach its 7-bit limit", 127);
 
     run_lines(test, 1);
-    test.expect_known_c4("type 0 R4=0 wraps C4 onto the new limit", 0);
+    test.expect_c4("type 0 R4=0 wraps C4 onto the new limit", 0);
 }
 
 void test_type0_rlal_zero_limit_arms_last_line(TestBench& test) {
@@ -2624,12 +2570,12 @@ void test_type0_rlal_first_line_delayed_arming(TestBench& test) {
     test.write_register(4, 1);
     test.run_characters(1);
 
-    test.expect_known_c4("type 0 delayed arming increments C4 at the rollover", 1);
-    test.expect_known_ra("type 0 delayed arming resets C9 against the new R9", 0);
+    test.expect_c4("type 0 delayed arming increments C4 at the rollover", 1);
+    test.expect_ra("type 0 delayed arming resets C9 against the new R9", 0);
 
     run_lines(test, 1);
-    test.expect_known_c4("type 0 delayed arming resets C4 on the third line", 0);
-    test.expect_known_ra("type 0 delayed arming resets C9 on the third line", 0);
+    test.expect_c4("type 0 delayed arming resets C4 on the third line", 0);
+    test.expect_ra("type 0 delayed arming resets C9 on the third line", 0);
 }
 
 void test_type0_rlal_from_the_genuine_last_line(TestBench& test) {
