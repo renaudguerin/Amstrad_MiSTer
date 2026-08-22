@@ -78,25 +78,36 @@ Deliverables of Phase 1 (stop point — user reviews before Phase 2):
 - [x] findings-review.md + accc-author-questions.md written and committed (`436d6b1`).
 
 ### P2 — corrections (ACCEPTED by user 2026-08-22: all of B1–B13; author questions being relayed)
-- [ ] Apply accepted fixes to affected docs.
-- [ ] Write code-implication list (RTL/tests), no RTL changes yet.
+- [x] Apply accepted fixes to affected docs. (`fa44862`)
+- [x] Write code-implication list (RTL/tests), no RTL changes yet. (Part C pointers into
+      audit-findings F7/F8/F9/F10 + testbench-spec planned additions, same commit.)
 
 ### P3 — status-vs-code audit
-- [ ] Run `make -C sim` and `make -C sim lint`; capture summary line.
-- [ ] Reconcile current-status.md / implementation-roadmap.md / shaker-module-a-map.md /
-      testbench-spec.md claims vs code. Known stale already: shaker-map "no R12/R13 vectors"
-      (t20a–t20h exist since `90aed07`); testbench-spec xfail statement (none remain);
-      roadmap "46 required passes" (now 85).
-- [ ] Add SHAKER-not-CI clarification to roadmap Gate C, current-status, shaker-map.
+- [x] Run `make -C sim` and `make -C sim lint`; capture summary line.
+      (85 passed, 0 xfailed, 0 xpassed, 0 failed; Verilator 5.050.)
+- [x] Reconcile current-status.md / implementation-roadmap.md / shaker-module-a-map.md /
+      testbench-spec.md claims vs code. Fixed: shaker-map "no R12/R13 vectors"
+      (t20a-t20h exist since `90aed07`) + drifted RTL line refs; testbench-spec xfail
+      statements (none remain) and definition-of-done; roadmap "46 required passes" (85)
+      and stale F4-next baseline.
+- [x] Add SHAKER-not-CI clarification to roadmap Gate C, current-status, shaker-map.
+      (`2506687`)
 
 ### P4 — review debt (order per review-debt.md)
-- [ ] `de71808` F4 equality-only rollover (+vectors) — widest reach.
-- [ ] `da79915` last-line arbitration completion, read with reviewed `1a1233f` as one whole.
-- [x] `cd47d7d` CPR parser as untrusted-input review.
-- [x] `c4c3e0f` F4 vectors vs ACCC digests (gate-integrity risk).
-- [x] `90aed07` t20 R12/R13 vectors incl. the t20g C0=0 concern.
+Note: the four `[x]` ticks this checklist carried before P4 ran were stale (present since
+the plan was created, with no cleared rows in review-debt.md); all six commits were
+reviewed fresh on 2026-08-22.
+- [x] `de71808` F4 equality-only rollover (+vectors) — widest reach. Clear.
+- [x] `da79915` last-line arbitration completion, read with reviewed `1a1233f` as one whole. Clear.
+- [x] `cd47d7d` CPR parser as untrusted-input review. Clear; observations A5.
+- [x] `c4c3e0f` F4 vectors vs ACCC digests (gate-integrity risk). Clear.
+- [x] `90aed07` t20 R12/R13 vectors incl. the t20g C0=0 concern. Clear; concern resolved
+      (cold-reset event semantics), companion-vector suggestion A3.
 - [x] F8 commit (`c9f4a4e`) incl. VSYNC comparator change + untested R4-rewrite corner.
-- [ ] Update review-debt.md rows with reviewer/date; problems → action items.
+      Clear; corner finding A1 (spurious VSYNC if R7==R4+R5+1 on the adjustment-ending
+      line), caveat pair A2.
+- [x] Update review-debt.md rows with reviewer/date; problems → action items A1-A5.
+      (Commit with the plan update.)
 
 ### P5/P6 — implementation iterations (separate stream branches)
 - [ ] Common-dependency analysis; land shared items on base branch.
@@ -128,6 +139,9 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: P1 complete (`436d6b1`); user ACCEPTED B1-B13 and is relaying Q1-Q14. Next: P2, then P3, P4 (user review of findings no longer blocks). Previously blocked on user
-review of findings-review.md + acccc-author-questions.md before P2. P3/P4 can start in
-parallel if the user prefers.**
+the resume point in one line here: **resume point: P2 (`fa44862`), P3 (`2506687`) and P4
+(review-debt cleared, action items A1-A5) complete. Next: P5/P6 — common-dependency check
+first, land shared items on `accc-review-and-fixes`, then classic queue F9 t12 closure
+(incl. B4 companion case, A3 vector) → F6 decision gate → F7 RFD (incl. B6 disarm path) →
+F10 fixtures+impl (gated on Q10-Q12); Plus queue P0 wiring → P1 CRTC3. Author answers to
+Q1-Q14 may refine docs but block nothing except F10 fixtures.**
