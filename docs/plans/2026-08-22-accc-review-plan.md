@@ -117,7 +117,10 @@ reviewed fresh on 2026-08-22.
       `rtl/UM6845R.v`; Plus P0 touches top-level wiring + `files.qip`; no shared RTL items.
       Review action item A4 (harness tidy) landed on base for this reason. Nothing else
       blocks cutting `accuracy/*` and `plus/*`.)
-- [ ] Classic queue: F9 closure (t12 vectors) → F6 decision gate → F7 RFD → F10 fixtures+impl.
+- [ ] Classic queue: F9 closure done (`t12a`/`t12b` on `accuracy/f9-t12-closure`, `aea80b5`,
+      87 required passes) → next: F6 decision gate (user call on the one-character
+      approximation) → F7 RFD (incl. B6 disarm path; A1 VSYNC corner fix first if accepted)
+      → F10 fixtures+impl (gated on B10/B11 + Q10-Q12 answers).
 - [ ] Plus queue: P0 parser→service/MMU/boot wiring → P1 CRTC3 foundation.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";
       F8 build `4c78603`→Module A adjustment entries + Module E "(2)"; F7→RFD entries;
@@ -145,9 +148,11 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: P2 (`fa44862`), P3 (`2506687`) and P4
-(review-debt cleared, action items A1-A5) complete. Next: P5/P6 — common-dependency check
-first, land shared items on `accc-review-and-fixes`, then classic queue F9 t12 closure
-(incl. B4 companion case, A3 vector) → F6 decision gate → F7 RFD (incl. B6 disarm path) →
-F10 fixtures+impl (gated on Q10-Q12); Plus queue P0 wiring → P1 CRTC3. Author answers to
-Q1-Q14 may refine docs but block nothing except F10 fixtures.**
+the resume point in one line here: **resume point: P2-P4 complete on `accc-review-and-fixes`
+(fa44862, 2506687, bf5c1fb, 1b4eb0b); common-dependency check done (only shared surface =
+sim harness; A4 landed there). P5 started: F9 t12 closure committed on stream branch
+`accuracy/f9-t12-closure` (aea80b5, 87 required passes, no RTL change needed). Next: user
+decision on the F6 gate; then F7 RFD design (fold in B6 disarm path + A1 VSYNC corner +
+A2 caveat vectors) on a fresh accuracy branch; Plus P0 wiring on a plus/* branch. Review
+action items A1-A5 live in docs/review-debt.md. Author answers to Q1-Q14 may refine docs but
+block nothing except F10 fixtures.**
