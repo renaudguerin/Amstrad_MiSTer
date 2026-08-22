@@ -119,9 +119,12 @@ output. Order: `de71808` → `da79915`+`1a1233f` → `cd47d7d` → `c4c3e0f` →
   (§13.8.3 p.129).
 - **A4 — cosmetic:** rename or annotate the `expect_known_*` helpers in `sim/sim_main.cpp`
   (they are hard assertions in required-pass tests).
-- **A5 — parser observations** (`cd47d7d`): decide truncate-vs-abort for oversized `cbNN`
-  chunks before P0 wires the parser live; document the service-side reset-cleanup ownership;
-  keep the no-`cbNN`-container aborts behaviour.
+- **A5 — parser observations** (`cd47d7d`): RESOLVED 2026-08-23 on `plus/p0-parser-wiring`,
+  before the parser was wired live. Oversized `cbNN` chunks abort (truncate was not
+  required — the §11 "ignored" wording is tool tolerance, and excess bytes are
+  unreachable); zero-`cbNN`-container abort kept; reset-time cleanup ownership documented.
+  Decisions + rationale: `docs/plus/architecture.md` "CPR parser policy (P0)". The abort
+  behavior landed with its own focused vector in the same commit series.
 
 ## Repaying the debt
 

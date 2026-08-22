@@ -127,6 +127,34 @@ main edge still wins, but does not clear the pending refresh. Initialization adm
 client. Until P0 connects the cartridge service, `Amstrad.sv` ties the new port inactive,
 so the classic client behavior and SDRAM map are unchanged.
 
+### CPR parser policy (P0 decisions)
+
+Recorded against review `cd47d7d` observations (review-debt action item A5); the parser is
+fail-closed untrusted-input handling and these decisions keep it that way.
+
+- **Oversized `cbNN` chunks abort the load.** A block chunk declaring more than one
+  16 KiB page is malformed: the CPR format reference records that common loaders merely
+  ignore data beyond 16 KiB (`asic-reference.md` §11), but that is tool tolerance, not a
+  format requirement — no evidence exists that any title or producer needs oversized
+  chunks to load. Bytes past offset 16383 of a page are architecturally unreachable, so
+  truncation protects no content; it would silently commit an image that differs from the
+  file. Fail-closed discipline for spec-violating structure therefore wins. Trade-off,
+  deliberately accepted: a malformed-but-tolerated image will be refused here where other
+  emulators run it. Revisit only with concrete evidence a real title needs tolerance.
+  Only `cbNN` chunks are size-limited; metadata chunks of any length stay legal RIFF.
+- **A container with zero `cbNN` chunks still ends in ABORT, not COMMIT** (kept from
+  `cd47d7d`): committing a cleared-but-empty region would boot unspecified memory as
+  firmware with no diagnostic.
+- **Reset-time cleanup ownership.** The parser never pulses `load_commit` or `load_abort`
+  in response to a raw machine reset — its reset just returns it to idle. The cartridge
+  memory service owns reset-time cleanup through `cold_reset`: it cancels transient
+  loader/CPU activity (pending clear/load requests, `commit_pending`, outstanding
+  `mem_req`) while preserving `image_valid` and SDRAM contents, so a warm reset keeps the
+  loaded cartridge. Whoever wires P0 must drive `service.cold_reset` from the same machine
+  reset the parser sees, so both sides clear atomically; nothing may rely on `load_abort`
+  being pulsed during reset. Explicit unloading remains `detach`'s job (OSD "Reset &
+  Detach Cartridge"), which invalidates the image without scrubbing SDRAM.
+
 ## 4. Phasing (each phase = usable milestone, separately testable)
 
 Two integration gates precede P0. **P-2** adds a separate `Plus model` OSD field (`Off`,
