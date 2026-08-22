@@ -153,7 +153,7 @@ the type-split refactor milestone (it forces a full read anyway).
       split branch inherits the full 87-vector suite and the exact core state the hash was
       minted against; re-minting is required only if the seed, sampled field set/order, or
       event schedule changes.
-- [ ] Classic queue: F9 closure done (`t12a`/`t12b` on `accuracy/f9-t12-closure`, `aea80b5`,
+- [x] Classic queue: F9 closure done (`t12a`/`t12b` on `accuracy/f9-t12-closure`, `aea80b5`,
       87 required passes) → next: type-split prerequisite (soak harness on base), then the
       split per `accuracy/crtc-per-type-separation.md` → F6 option C Stage 1 (user lean
       recorded in `accuracy/f6-decision-gate.md`) → F7 RFD (incl. B6 disarm path; A1 VSYNC
@@ -162,6 +162,18 @@ the type-split refactor milestone (it forces a full read anyway).
       plus the SHAKER 22C/3 tables via the visual tier (render pp.210-212 PNGs), record
       each ambiguity as a resolved-by-default-reading note citing the page, and proceed;
       SHAKER hardware comparison remains the arbiter.
+      TYPE SPLIT DONE (`accuracy/crtc-type-split`, 27efc2d, pushed, CI simulation +
+      synthesis green): wrapper keeps ports/regfile/shared-counter sequencing; two engines
+      hold all type rules + provably-private flops; singular shared state because live
+      CRTC_TYPE round-trips are a pinned contract (t02j/t06d/t09f/t16l). Soak reproduces
+      the golden hash; 87 vectors pass; lint clean; files.qip in-commit; audit-findings
+      prose sweep folded in (line refs refreshed to split layout, implementation stamps on
+      F1/F2/F3/F4/F8, F7 absence + F10 minimal-IVM re-verified, F11h Current rewritten).
+      Dev-time catch worth remembering: the soak alone passed nothing until a lockstep
+      differential harness vs the pre-split core isolated a holdoff-latch set-path bug the
+      directed vectors missed — the differential harness was throwaway (opencode temp dir,
+      NOT committed); rerun equivalent by diffing against `git show 418aa68:rtl/UM6845R.v`
+      if ever needed again.
 - [ ] Branch review note (clarification): no branch stacking is needed. Stream branches
       (`accuracy/*`, `plus/*`) cut from `accc-review-and-fixes`; the base branch itself
       carries no new review-debt rows by decision, which is only safe because its whole
@@ -194,11 +206,15 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: P0-P4 complete; F9 closed on
-`accuracy/f9-t12-closure` (aea80b5). User approved the type split before further CRTC
-changes; author answers may never arrive (F10 fallback recorded above). NEXT SESSION
-(single, classic stream): (1) soak-diff harness on `accc-review-and-fixes`, mint golden
-hash from unsplit core; (2) type split on `accuracy/crtc-type-split` — bit-identical proof,
-lint, files.qip + CI synthesis, folded-in prose sweep; then STOP for user review. F6 stage 1,
-F7, F10, Plus P0 all explicitly out of scope until the split is reviewed. See sim/README.md
-(soak rationale) and AGENTS.md "Verification ownership" for the conventions.**
+the resume point in one line here: **resume point: STOP — awaiting user review of the type
+split.** State: base `accc-review-and-fixes` at 418aa68 (soak harness; golden hash
+`0x5b5004ff70148443` minted there; F9 merged in via d5cab8f). Split branch
+`accuracy/crtc-type-split` at 27efc2d — bit-identical per soak + 87 vectors + lint + CI
+synthesis green, prose sweep folded in. OUT OF SCOPE until the split is reviewed: F6 Stage 1,
+F7 RFD, F10, Plus P0, top-level wiring. NEXT SESSION (after user review): if approved, merge
+or fast-forward the split into the classic stream and proceed with F6 option C Stage 1 → F7
+RFD (B6 disarm path + A1 corner fix) → F10 (fallback recorded above); Plus P0 is unblocked
+and independent. If the split needs changes, re-run `make -C sim soak
+SOAK_EXPECT=5b5004ff70148443` after edits — a hash change means behaviour moved and needs a
+documented reason before proceeding. See sim/README.md (soak rationale) and AGENTS.md
+"Verification ownership" for the conventions.**
