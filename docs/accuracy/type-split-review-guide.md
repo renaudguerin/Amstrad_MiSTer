@@ -1,0 +1,116 @@
+# Reviewer's guide — `accc-review-and-fixes` + `accuracy/crtc-type-split`
+
+Written 2026-08-23 for the whole-branch review pass required by the 2026-08-22 locked
+decision in the session plan (`docs/plans/2026-08-22-accc-review-plan.md`): work on these
+branches was authored by a single model (ox-alpha) with no cross-provider review available
+on this harness, so **the entire diff is reviewed as one unit before any of it is treated
+as settled or upstreamed**. Per that decision, no per-commit rows were added to
+`docs/review-debt.md`; this guide is what a reviewer should read alongside the diffs.
+
+You do not need to be fluent in Verilog to gate most of this: the strongest claims are
+backed by mechanical checks you can run (commands below). The Verilog-specific reading list
+at the end is for whoever does the line-level pass.
+
+## Branch 1 — `accc-review-and-fixes` (base branch)
+
+Scope: documentation reconciliation + verification tooling. No CRTC behaviour change.
+
+| Commit | What | Why |
+|---|---|---|
+| P0–P4 commits | ACCC v1.10 faithfulness review deliverables, doc corrections, status-vs-code audit, review-debt repayment record (A1–A5 action items) | Recorded in `docs/accuracy/findings-review.md` and `docs/review-debt.md`; docs-only until the harness commit |
+| `d5cab8f` | Merge of `accuracy/f9-t12-closure` (`aea80b5`, t12a/t12b + F9 RTL fix) into base | The type-split branch had to inherit the full 87-vector suite and the exact core state the soak golden hash was minted against |
+| `418aa68` | Soak-diff harness: `make -C sim soak` | Turns "bit-identical refactor" from a hope into a checkable claim; permanent tooling (F7/F10 will reuse it). Fixed seed; FNV-1a hash over all pins + hcc/line/row/c5/in_adj/type-0 latches sampled every CLKEN |
+
+**Golden hash: `0x5b5004ff70148443`** (seed `0xaccc5eed20260822`). It is minted from the
+unsplit core at `418aa68` and is the contract the split branch must reproduce. Re-minting is
+only needed if the seed, sampled field set/order, or event schedule changes.
+
+## Branch 2 — `accuracy/crtc-type-split`
+
+| Commit | What | Why |
+|---|---|---|
+| `27efc2d` | Split: wrapper + two per-type engines; files.qip same commit; prose sweep folded in | Implements approved option S2 from `docs/accuracy/crtc-per-type-separation.md`: F7 RFD is type-1-only and F10 interlace parity differs structurally per type; landing them into separate engine files stops the shared-state-machine tangle that produced review finding A1 |
+| `4c28a89` | Plan checklists + resume point | Session bookkeeping |
+| `63f4c01` | Rename wrapper `UM6845R` → `CRTC`, file `rtl/CRTC.v` | UM6845R is the *type-1* part number; naming the two-variant entry module after one variant misdescribed it (user-raised). Mechanical sweep; motherboard instance label was already `CRTC` |
+| guide commit | This file + `docs/review-debt.md` branch-review section | Review logistics |
+
+### The structural decision, and its rationale
+
+The engines are **not** independently stateful. `rtl/CRTC.v` keeps singular state (register
+file, hcc/line/row/c5/in_adj counters, VSYNC/vde machinery); each engine module holds every
+*type-specific rule expression* plus only the flops provably private to its type:
+
+- type-0-private: arbitration latch cluster (8 regs), partial-VSYNC holdoff latch;
+- type-1-private: status bit 5 + R6-border condition.
+
+Rationale: `CRTC_TYPE` is a live input, and four required vectors (t02j, t06d, t09f, t16l)
+pin the round-trip contract that switching type mid-flight continues counting from the exact
+state the previous type left behind. A physical CRTC has one counter bank regardless of which
+variant sits in the socket; duplicated engine state would break those vectors or need a
+fragile state-handoff bus. Consequence: engines compute next-state/predicate terms, the
+wrapper clocks shared counters from muxed engine outputs, and every original expression moved
+verbatim (wrapper ternaries became explicit `CRTC_TYPE ? e1_x : e0_x` muxes).
+
+Register/bus decode stayed **shared** in the wrapper (explicitly allowed by the separation
+doc): the decode is identical for both types, so duplicating it would double maintenance for
+zero separation benefit.
+
+### Evidence stack (run these)
+
+```sh
+make -C sim                                  # 87 passed / 0 xfail / 0 xpass / 0 failed
+make -C sim lint                             # no errors (pre-existing warnings only)
+make -C sim soak SOAK_EXPECT=5b5004ff70148443   # bit-identity vs the unsplit core
+```
+
+Plus, once per push: GitHub Actions "Build core" workflow green on
+`accuracy/crtc-type-split` (Verilator gate first, then pinned Quartus 17.0.2 synthesis —
+required because `files.qip` changed).
+
+Stronger than any single run: during development, a throwaway lockstep differential harness
+(pre-split reference core vs split core, identical stimulus, compared after **every** CLKEN
+edge) ran ~45.5M samples across both types with zero divergence after the fix below. It is
+deliberately not committed; rebuild recipe if ever needed:
+extract `git show 418aa68:rtl/UM6845R.v` as a reference module (rename module to avoid a
+clash), drive both models with the soak stimulus in lockstep, compare full state per edge.
+
+The one real bug it caught (fixed before any commit): the relocated type-0 partial-VSYNC
+holdoff latch initially applied its *set* path on R7 writes whose comparison was false
+(`row != DI`), whereas the original only touches that latch inside the equal-comparison
+branch. Exactly the class of subtle sequencing the split was expected to risk — and exactly
+what the differential method exists to catch.
+
+### For the line-level reviewer: read hardest, in order
+
+1. **Wrapper mux seams** (`rtl/CRTC.v`, search `CRTC_TYPE ? e1_`): each must select the same
+   leg the original inline ternary did.
+2. **Type-0 latch cluster** (`crtc_type0_engine.v`, block under "Register writes are clocked
+   at the 16 MHz bus rate"): moved verbatim including its outer clear
+   (`~nRESET | SNA_LOAD | CRTC_TYPE`) — safe because the latches are held at 0 while type 1
+   is selected, matching pre-split values at any switch instant.
+3. **Holdoff latch** (`type0_vsync_wait_line_start`): three update sites replicated with
+   original program order (count-tick clear → R7-write set/clear → unconditional
+   type/SNA clear). See bug note above.
+4. **`frame_adj_r`'s hcc==2 keep term**: consumed unconditionally under BOTH types
+   (`e0_hcc2_adj_keep` carries its own type gate internally), preserving the quirk that the
+   flop updates even while type 1 runs.
+5. **hcc==0 capture semantics**: `line_last_r`/`row_last_r`/`frame_adj_r` must keep updating
+   under *both* types with type-muxed values — they are read by type-0 rules after a live
+   switch, so gating them would change round-trip behaviour.
+
+### Known-open items (recorded, deliberately not fixed here)
+
+- A1/A2/A3 action items in `docs/review-debt.md` (VSYNC comparator corner, §11.2.4 caveat
+  pair, t20 companion vector).
+- F11h residual: intra-character immediacy of R12/R13 on type 1 not modeled; p.242 re-read
+  pending.
+- F6 Stage 1, F7 RFD, F10, Plus P0: explicitly out of scope until this split is reviewed.
+- Hardware results always outrank simulation: none of the above evidence replaces a SHAKER
+  session.
+
+## Verification-ownership footnote
+
+Per the AGENTS.md convention: Rule sections in `audit-findings.md` are ACCC-verified (P1)
+and trusted; integration claims were re-checked against current sources during the split
+prose sweep (F7 absence, F10 minimal-IVM, F11a–i anchors — stamped in place). Anything found
+during later work becomes a recorded finding or plan addendum, never a silent fix.

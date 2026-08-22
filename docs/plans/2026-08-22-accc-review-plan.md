@@ -174,6 +174,12 @@ the type-split refactor milestone (it forces a full read anyway).
       directed vectors missed — the differential harness was throwaway (opencode temp dir,
       NOT committed); rerun equivalent by diffing against `git show 418aa68:rtl/UM6845R.v`
       if ever needed again.
+      FOLLOW-UP (same branch, user-raised): wrapper renamed `rtl/UM6845R.v` → `rtl/CRTC.v`,
+      module `CRTC` (63f4c01) — UM6845R is the type-1 part number and misdescribed a
+      two-variant component. Mechanical; gates re-run green, golden hash unchanged.
+      Reviewer logistics: whole-branch review pending per locked decision; guide written at
+      `docs/accuracy/type-split-review-guide.md`; `docs/review-debt.md` now lists both
+      branches as outstanding whole-diff reviews instead of per-commit rows.
 - [ ] Branch review note (clarification): no branch stacking is needed. Stream branches
       (`accuracy/*`, `plus/*`) cut from `accc-review-and-fixes`; the base branch itself
       carries no new review-debt rows by decision, which is only safe because its whole
@@ -209,8 +215,9 @@ At end of any phase (or if the session must end), tick the checklist above, comm
 the resume point in one line here: **resume point: STOP — awaiting user review of the type
 split.** State: base `accc-review-and-fixes` at 418aa68 (soak harness; golden hash
 `0x5b5004ff70148443` minted there; F9 merged in via d5cab8f). Split branch
-`accuracy/crtc-type-split` at 27efc2d — bit-identical per soak + 87 vectors + lint + CI
-synthesis green, prose sweep folded in. OUT OF SCOPE until the split is reviewed: F6 Stage 1,
+`accuracy/crtc-type-split` at 63f4c01+ — split (27efc2d) bit-identical per soak + 87 vectors
++ lint + CI synthesis green, prose sweep folded in, wrapper renamed to `rtl/CRTC.v`
+(63f4c01), reviewer guide + review-debt branch entries added. OUT OF SCOPE until the split is reviewed: F6 Stage 1,
 F7 RFD, F10, Plus P0, top-level wiring. NEXT SESSION (after user review): if approved, merge
 or fast-forward the split into the classic stream and proceed with F6 option C Stage 1 → F7
 RFD (B6 disarm path + A1 corner fix) → F10 (fallback recorded above); Plus P0 is unblocked

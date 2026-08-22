@@ -137,6 +137,24 @@ The original plan, for the record:
 All five steps were followed (with `90aed07` and `c9f4a4e` added per the same order);
 findings became action items A1-A5 above.
 
+## Outstanding branch-level reviews (locked decision 2026-08-22)
+
+No per-commit rows are added for work on the two branches below: the 2026-08-22 locked
+decision treats them as authored by a single model (ox-alpha) to be reviewed **as one whole
+diff** before any of their content is treated as settled or upstreamed. The reviewer's guide
+with per-commit rationale, evidence commands, and a prioritized reading list is
+`docs/accuracy/type-split-review-guide.md`.
+
+| Branch | Scope of the pending whole-branch review | Status |
+|---|---|---|
+| `accc-review-and-fixes` | Docs corrections/reconciliation, review record + A1–A5, soak harness (`418aa68`), F9 merge | Pending |
+| `accuracy/crtc-type-split` | Per-type engine split (`27efc2d`), wrapper rename to `rtl/CRTC.v` (`63f4c01`), session docs | Pending |
+
+The same rule applies here as everywhere else in this file: clear an entry only after a real
+independent review has run — not because later work touched the same files. Mechanical gates
+(87 vectors, lint, soak golden-hash equality, CI synthesis) are necessary but do not
+substitute for that review.
+
 ## Rule for new work while the debt stands
 
 New commits merged without independent review get a row in the table above in the same
