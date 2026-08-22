@@ -127,9 +127,13 @@ the cited ACCC rule when implemented:
 
 ## Non-goals
 
-- No Gate Array co-simulation (GA40010 is netlist-based and slow to simulate; CRTC rules are
-  testable at the CRTC's pins). GA interaction rules (C-SYNC state machine, R52) are out of
-  scope — they're already gate-accurate in hardware.
+- No Gate Array co-simulation *in this suite* (CRTC rules are testable at the CRTC's pins).
+  This is a scoping choice for the CRTC vectors, not a statement of infeasibility: a separate
+  CRTC+GA co-simulation harness already exists in-repo (`rtl/GA40010/ga40010_test.v` +
+  `Makefile`, renders frames to PNG; `ga40010.sv` has a Verilator build path). The GA is a
+  schematic-derived SystemVerilog recreation, not a black-box netlist, and simulates fine.
+  Use that harness when a rule's observable lives downstream of the CRTC (e.g. F6 seam
+  width). GA interaction rules (C-SYNC state machine, R52) remain out of scope here.
 - No Z80 instruction-level modeling; the `at_c0 write` abstraction plus a ±1-tick offset knob
   covers the OUT/OUTI distinction the Compendium cares about.
 - No cycle-exact pixel pipeline — DE/MA/RA at character granularity is the contract.

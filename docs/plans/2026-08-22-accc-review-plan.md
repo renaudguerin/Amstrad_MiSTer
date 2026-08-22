@@ -109,6 +109,28 @@ reviewed fresh on 2026-08-22.
 - [x] Update review-debt.md rows with reviewer/date; problems → action items A1-A5.
       (Commit with the plan update.)
 
+### P4 addendum — verification scope convention (learned 2026-08-22, F6 premise miss)
+
+The F6 "DE consumed at 1µs" premise survived P1-P4 because each phase owned a different
+layer: P0/P1 = docs vs ACCC book; P2 = corrections downstream (still book side); P3 =
+status docs vs code on the plan's named items only; P4 = six commits vs rules. Nobody owned
+**engineering-assumption sentences inside audit-findings' Current/fix prompts about how the
+core integrates**. Same-layer inventory from the 2026-08-22 sweep:
+
+- ✅ F6 DE-consumption premise — wrong, corrected (`accuracy/f6-decision-gate.md`);
+  consequence: GA40010 samples DISPEN at byte phase, option C likely needs no netlist change.
+- ❌ testbench-spec non-goal "no GA co-simulation / netlist-based / slow" — wrong;
+  ga40010_test.v co-simulates UM6845R+GA40010 and renders PNG frames. Corrected in
+  testbench-spec; enables in-simulation seam measurement for F6 Stage 2.
+- ⚠ Stale: audit-findings RTL line references throughout (drifted through commits).
+- ⚠ Stale: F11h "Current" text — predates t20b/crtc1_row0_reload per-line row-0 reload.
+- ✅ Spot-checked still true: F11f light-pen reads 0.
+
+Convention going forward: within audit-findings, **Rule sections are ACCC-verified (P1);
+Current/fix-prompt integration assumptions are unverified until confirmed against code.**
+Remedy for the remainder: fold a sweep of F7/F10/F11a-i code-side claims + line refs into
+the type-split refactor milestone (it forces a full read anyway).
+
 ### P5/P6 — implementation iterations (separate stream branches)
 - [x] Common-dependency analysis; land shared items on base branch.
       (2026-08-22 conclusion: the only cross-stream shared surface is `sim/sim_main.cpp`

@@ -58,8 +58,15 @@ is contradicted by the code:
    it is what the real pin does. Deterministic vector t10 (both types + skew placement).
    Revert point: commit is self-contained.
 2. **Stage 2 — measure what falls out.** Verilator asserts the DE pin; the visible seam
-   width comes from the GA+glue path and needs eyes on it. Hardware check: SHAKER Module A
-   `(O)` against the Logon System reference photos for the selected CRTC type.
+   width comes from the GA+glue path. Two measurement routes, cheapest first:
+   - **In-simulation**: `rtl/GA40010/ga40010_test.v` already instantiates `UM6845R`
+     together with GA40010 and its Makefile renders raw RGB frames to PNG
+     (`make video`). Render a frame with R1>R0 programmed and measure the seam width in
+     mode-2 pixels (8 px = 0.5 µs) without any hardware session. This co-simulation
+     harness predates the fork work and was forgotten — see the corrected non-goals note
+     in `testbench-spec.md`.
+   - **Hardware**: SHAKER Module A `(O)` against the Logon System reference photos for the
+     selected CRTC type, at the next manual milestone session.
 3. **Stage 3 — only if the seam measures 1 µs:** align or remove the fork-added byte-blanking
    in `Amstrad_motherboard.v` so border rendering goes through the GA's own `border_sel`
    like real hardware. Upstream framing: removes a non-hardware shortcut; netlist untouched.
