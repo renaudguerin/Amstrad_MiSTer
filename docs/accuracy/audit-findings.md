@@ -300,8 +300,9 @@ General implementation rules for all fix prompts:
   C4=39,C9=8. This is not adequately specified as "old R9 in step (a), new R9 in step (b)".
 - **Current**: the C0>=2 F12 slice now preserves the earlier C9/R9 result for C4 while using
   C9/R5 for C9 at exact C0==R0. `t16e` covers the character-edge result and `t16h` proves the
-  same result for a mid-character bus write. The full `t12` worked-example pair remains to be
-  encoded before treating F9 as independently complete.
+  same result for a mid-character bus write. The documented R4=38/R9=7 worked example pair is
+  now encoded (`t12a` exact-R0 → C4=39,C9=8; `t12b` windowed companion → C4=38,C9=8, ACCC
+  p.82 example 3), closing F9's deterministic coverage on branch `accuracy/f9-t12-closure`.
 - **Impact**: single-cycle JIT R9 writes (demo timing surgery). The numeric expectation may be
   unchanged, but a fix based on two R9 snapshots would encode the wrong state transition and
   fail adjacent R4/R9-window cases from F12.

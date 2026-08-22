@@ -137,10 +137,10 @@ For a first MiSTer pass:
   unexpected passes, and no failures. The Plus leaf and SDRAM integration suites are also
   green.
 
-The next classic checkpoint is the remaining F9 coverage: the type-0 R9 write at C0==R0 that
-straddles the R9-to-R5 comparison switch is implemented and covered by `t16e`/`t16h`, but the
-full `t12` worked-example pair (the documented C4=39, C9=8 case and its control) is still
-unencoded. Then F7 RFD. F6 remains deferred because the documented
+The next classic checkpoint was the remaining F9 coverage: the type-0 R9 write at C0==R0 that
+straddles the R9-to-R5 comparison switch is implemented and covered by `t16e`/`t16h`; the
+documented `t12` worked-example pair (C4=39,C9=8 exact-R0 and its C4=38,C9=8 windowed
+companion) is now encoded on `accuracy/f9-t12-closure`. Then F7 RFD. F6 remains deferred because the documented
 half-character border byte cannot be represented exactly by the current character-granular
 CRTC-to-Gate-Array interface. F10 remains the last, separately fixture-gated project.
 
