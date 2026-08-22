@@ -42,8 +42,15 @@ PARSER_OBJ_DIR  := obj_dir/plus_cpr_parser
 PARSER_TEST_SRC := $(abspath plus_cpr_parser_test.cpp)
 PARSER_TEST_BIN := $(PARSER_OBJ_DIR)/plus_cpr_parser_tests
 
+MMU_TOP      := plus_mmu
+MMU_RTL      := $(abspath ../../rtl/plus/plus_mmu.v)
+MMU_DEPS     := $(abspath ../../rtl/plus/asic_unlock.v)
+MMU_OBJ_DIR  := obj_dir/plus_mmu
+MMU_TEST_SRC := $(abspath plus_mmu_test.cpp)
+MMU_TEST_BIN := $(MMU_OBJ_DIR)/plus_mmu_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
-	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN)
+	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -62,6 +69,7 @@ test: $(TEST_BINS)
 	./$(MEMORY_MIN_TEST_BIN)
 	./$(SDRAM_TEST_BIN)
 	./$(PARSER_TEST_BIN)
+	./$(MMU_TEST_BIN)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
@@ -101,6 +109,11 @@ $(PARSER_TEST_BIN): $(PARSER_RTL) $(PARSER_TEST_SRC) Makefile | $(OBJ_DIR)
 		--Mdir $(PARSER_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(PARSER_TEST_BIN)) $(PARSER_RTL) $(PARSER_TEST_SRC)
 
+$(MMU_TEST_BIN): $(MMU_RTL) $(MMU_DEPS) $(MMU_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(MMU_TOP) \
+		--Mdir $(MMU_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(MMU_TEST_BIN)) $(MMU_RTL) $(MMU_DEPS) $(MMU_TEST_SRC)
+
 $(OBJ_DIR):
 	mkdir -p -- $@
 
@@ -120,6 +133,8 @@ lint:
 		$(MEMORY_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(PARSER_TOP) -Wall $(PARSER_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(MMU_TOP) -Wall $(MMU_RTL) $(MMU_DEPS)
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)
