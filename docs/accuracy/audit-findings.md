@@ -27,8 +27,11 @@ Verification levels referenced below:
 
 General implementation rules for all fix prompts:
 1. One finding = one commit. Commit message format: `CRTC: <finding id> <summary>`.
-2. Never regress the other CRTC type: every change must be gated on `CRTC_TYPE` unless the rule
-   is explicitly universal.
+2. Never regress the other CRTC type: type-0 rules live in `rtl/crtc_type0_engine.v`, type-1
+   rules in `rtl/crtc_type1_engine.v`, and shared counters/register-file sequencing in the
+   `rtl/UM6845R.v` wrapper (per-type separation landed 2026-08-22; line references below were
+   refreshed for that layout). A change must land in its type's engine unless the rule is
+   explicitly universal.
 3. `UM6845R.v` uses `CLKEN` as the 1MHz character-clock enable; "per C0 cycle" rules belong inside
    `if (CLKEN)` blocks. Register writes from the Z80 arrive via the `ENABLE & ~nCS & ~R_nW` path
    at full `CLOCK` rate — write-vs-counter races are races between that block and `CLKEN` blocks.
@@ -42,8 +45,9 @@ General implementation rules for all fix prompts:
 - **Rule** (digest-03 §21.2 → ACCC §21.2, p.245-246): readable registers are R12-R17 on type 0,
   R14-R17 (+dummy 31) on type 1. **R10 and R11 are not readable on either type** (only on
   types 3/4). Unrecognized register numbers read 0.
-- **Current** (`UM6845R.v:84-85`): `10: DO = {R10_cursor_mode, R10_cursor_start}; 11: DO = R11_cursor_end;`
-  — returns stored values on both types.
+- **Current** (fixed): the readback mux (`UM6845R.v:112-121`) has no R10/R11 arms, so both
+  types return the `default: DO = 0` value; R12/R13 still read back on type 0 only, dummy 31
+  differs per type as documented. Protected by `t01_register_readback`.
 - **Impact**: CRTC-detection routines that tabulate readable registers (ACCC §28.1.9 method)
   mis-identify the emulated chip; any software using the readback-register signature.
 - **Confidence: high.** Direct table lookup, no timing subtlety.
@@ -61,9 +65,9 @@ General implementation rules for all fix prompts:
 - **Rule** (digest-03 §21.3.3 → ACCC §21.3, p.247): type 1's `&BE00` status bit 5 reflects the
   **R6-border condition** (`C4=R6` reached), **sampled only at C0=R0**, not continuously. The
   "R6=0 forced border while C4>0" state is NOT reflected in bit 5. Bits 0-4 and 7 read 0.
-- **Current** (`UM6845R.v:95`): `DO = vde ? 8'h00 : 8'h20;` — continuous `vde`, which conflates
-  the R6=0-forced border (which *does* clear `vde`) with the C4=R6 condition, and is not latched
-  at C0=R0.
+- **Current** (fixed): `status_bit5` lives in the type-1 engine (`crtc_type1_engine.v:216-247`),
+  is sampled at `CLKEN && hcc_last` from a dedicated R6-border condition latch, and the DO mux
+  returns `{2'b00, status_bit5, 5'b00000}` (`UM6845R.v:124`). Protected by `t06a`-`t06d`.
 - **Impact**: software polling `&BE00` for raster position (documented technique, ACCC §24.5
   OUTI/status tricks) sees transitions up to a line early/late; detection routines checking the
   latch behavior (§28.1.8) diverge.
@@ -92,10 +96,10 @@ General implementation rules for all fix prompts:
   On type 1 (§16.4.2): the write triggers immediately at **any** C0vs, and the partial line
   *counts* as line 1, so duration is *reduced* by `C0+1` µs. (PPI-visible latency: 6µs type 0
   vs 5µs type 1 — a documented detection vector.)
-- **Current** (`UM6845R.v:306-313`): R7-write handler triggers `VSYNC_r` for both types
-  identically when `row == DI`, with an explicit `// TODO: extra conditions for CRTC0`. `vsc`
-  then decrements at the next line event for both — i.e. both types get type-1-style "partial
-  line counts" semantics, and type 0's C0vs<2 blocking is absent.
+- **Current** (fixed): the R7-write handler (`UM6845R.v:433-449`) arms `VSYNC_r` via per-type
+  fire terms (`crtc_type0_engine.v:319` gates on `hcc > 1`; type 1 fires at any C0), loads
+  `vsc` from the type's width term, and the type-0 engine owns the partial-first-line holdoff
+  latch that blocks the C0<2 pulse. Protected by `t02a`-`t02k`.
 - **Impact**: ACCC §28.1.3/§28.1.4 CRTC-identification via VSYNC timing/length distinguishes
   exactly this; demos synchronizing off mid-line R7 tricks ("PHX" is already name-checked in the
   code) get one-line-off VSYNC on type 0.
@@ -153,11 +157,10 @@ General implementation rules for all fix prompts:
   adjustment, lowering R4 below C4 makes C4 count to 127 and wrap. Zero is not an unconditional
   match. Type 0's exceptions come from the explicit `Last Line` / adjustment arbitration in
   F12, including completion re-arming—not from a comparator shortcut.
-- **Current** (`UM6845R.v:156`): `line_last = (line == line_max) || !line_max;` — when
-  `line_max==0` (R9=0, or R5=0/1 in adjustment, or IVM masking), `line_last` is true regardless
-  of `line`'s value, so a C9 that should overflow to 31 instead terminates immediately.
-  (`UM6845R.v:162`): `row_last = (row == R4_v_total) || (!CRTC_TYPE && !R4_v_total);` — same
-  shortcut for C4 on type 0 with R4=0.
+- **Current** (fixed, `de71808`): both comparators are pure equality —
+  `line_last = (line == crtc0_line_max)` (`crtc_type0_engine.v:155`, type-1 twin at
+  `crtc_type1_engine.v:110`) and `row_last = (row == R4_v_total)` (`crtc_type0_engine.v:196`,
+  type-1 twin at `:137`). Zero-limit overflow behavior is protected by `t07a`-`t07l`.
 - **Impact**: R9/R4-rewrite overflow behavior is the backbone of "rupture" timing analysis
   (ACCC ch.10/12) and of ID test §28.1.1 (VSYNC stops at R7>37 vs R7>39 under overflow).
   However — these terms were probably added to make specific R4=0/R9=0 tricks (RLAL-style
@@ -208,7 +211,7 @@ General implementation rules for all fix prompts:
 - **Rule** (digest-03 §17.6.2/§19.2.4 → ACCC §17.6, p.186): when R1>R0 (C0=R1 never fires),
   type 0 emits **one border byte (0.5µs)** keyed on C0=R0, "BORDER OFF" again on the following
   character; suppressible via R8 SKEW-DISPTMG. Type 1 emits nothing (rows seamlessly merge).
-- **Current**: `hde` is cleared only by `hcc_next == R1_h_displayed` (`UM6845R.v:254`) — never
+- **Current** (`UM6845R.v:366`): `hde` is cleared only by `hcc_next == R1_h_displayed` — never
   fires when R1>R0, so both types show continuous display: correct for type 1, missing the
   spurious byte for type 0.
 - **Impact**: visual discriminator (ACCC §28.1.6); demos doing "frame merging" rely on the
@@ -234,7 +237,9 @@ General implementation rules for all fix prompts:
   behavior alternate per frame unless pinned via R8 IVM toggling. Used by real demos as a
   CRTC-1 rupture technique.
 - **Current**: absent entirely. The R5 write path is a plain register store; no C0==R0
-  coincidence detection.
+  coincidence detection. (Verified against the split tree 2026-08-22: no RFD/parity logic
+  anywhere in `UM6845R.v` or either engine.) The nearest existing machinery it would extend is
+  the type-1 reload term (`crtc1_reload`, `crtc_type1_engine.v:154`).
 - **Impact**: CRTC-1-specific demo effects (the technique is popular precisely because it's the
   easy rupture on type 1); SHAKER tests it.
 - **Confidence: medium.** The digest's rules are detailed but this is the most intricate
@@ -263,10 +268,11 @@ General implementation rules for all fix prompts:
   C9 keeps counting 0..R9 (VRAM row-select derives from C9!), C4 keeps incrementing at each
   C9==R9 while C5 counts the adjustment lines against R5. Plus the §4.4 bug: R5 rewritten to 0
   mid-adjustment does NOT end it on type 1 (C5 free-runs until R5 is set to a reachable value).
-- **Current** (`UM6845R.v:154`): one shared mechanism — `line_max` switches to `R5-1` for both
-  types; C9 counts adjustment lines directly; C4 frozen during adjustment for both. Type 0 ✓,
-  type 1 ✗ (no C5, no C4/C9 continuation, R5=0 ends adjustment immediately via the `!line_max`
-  term — F4 interaction).
+- **Current** (fixed, `c9f4a4e`): type 1 has a genuine C5 (`crtc_type1_engine.v:116` equality
+  end, `:123-134` counter next-state) while C9 keeps cycling 0..R9 and C4 increments at each
+  wrap; type 0 still reuses C9 vs R5 (`crtc_type0_engine.v:150` line-max selection). The §4.4
+  R5=0 free-run bug is deliberately reproduced. Protected by `t08i`-`t08l`. The R4-rewrite
+  caveat corner below remains untested (A1/A2).
 - **Impact**: type 1 ruptures/overscan using adjustment rows show wrong row addressing (RA
   bits come from C9, which real type 1 keeps cycling); the R5=0 escape trick (force C4/C9=0 on
   an arbitrary line) doesn't work.
@@ -324,10 +330,11 @@ General implementation rules for all fix prompts:
   the OUT, R9-parity-triggered alternation, and NO VSYNC drift correction. Additional interlace
   line appended per type-specific parity conditions. R9 programming formula differs (N-2 type 0
   IVM vs N-1 type 1).
-- **Current** (`UM6845R.v:51,54,145,157,201`): minimal IVM: `line` steps by 2 with bit 0 masked,
-  RA ORs in `field`, `field` toggles at frame end, MID-VSYNC at R0/2 on `field`. No parity
-  state machines, no per-type differences, no additional interlace line, no entry/exit
-  asymmetry.
+- **Current** (`UM6845R.v:82`, `:313`; `crtc_type0_engine.v:190`, `crtc_type1_engine.v:119`,
+  `:158`; field count tick also `crtc_type0_engine.v:316`): minimal IVM: `line` steps by 2 with
+  bit 0 masked, RA ORs in `field`, `field` toggles at frame end, MID-VSYNC at R0/2 on `field`.
+  No parity state machines, no per-type differences, no additional interlace line, no entry/exit
+  asymmetry. (Verified against the split tree 2026-08-22.)
 - **Impact**: interlace demos (SHAKER 2.x uses 1/64-line positioning tricks); most games unaffected.
 - **Confidence: medium** (digest pseudocode is complete but ⚠ p.206-212 tables unverified).
 - **Fix prompt**: deliberately NOT written yet — this is a multi-week finding. Treat
@@ -340,27 +347,34 @@ General implementation rules for all fix prompts:
 
 ## F11. Minor / confirmatory findings (no immediate action)
 
-- **F11a — HSYNC width semantics** (`UM6845R.v:235-236`): equality-based `hsc == R3l` end +
+- **F11a — HSYNC width semantics** (`UM6845R.v:347-348`; type-1 zero-width cut at
+  `crtc_type1_engine.v:164`): equality-based `hsc == R3l` end +
   4-bit wrap naturally reproduces the "overflow on shrink" rule (digest-02 §4) ✓; type 1
   R3l=0-cancels-immediately ✓ explicitly coded. Type 0 mid-HSYNC write of R3l=0 wraps (correct).
   Only gap: CRTC 0's "restart without C3l reset if R3l modified at the exact end position"
   (§10) — exotic; leave.
-- **F11b — VSYNC re-entrancy** (`vsync_allow`, `UM6845R.v:283-296`): reproduces mechanism 2
-  including the R7=0/R4=0 lock and the R7=0,R4=1,R9=7 infinite-VSYNC bypass (digest-02 §18) ✓.
-  Keep; add V3 vectors for both cases to protect it.
-- **F11c — R12/R13 readback** (`UM6845R.v:86-87`): type 0 returns stored, type 1 returns 0 ✓
-  (primary detection vector, correct). Protect with V3 assertion.
-- **F11d — Dummy register 31** (`UM6845R.v:90`): 0xFF on type 1, 0x00 on type 0 ✓.
-- **F11e — VSYNC width R3h** (`UM6845R.v:294`): type 0 uses R3h (0→16 via 4-bit wrap ✓),
-  type 1 fixed 16 ✓.
-- **F11f — R16/R17 light pen**: not implemented (reads 0). Real chips return a latched address;
-  with no pen attached the value is effectively arbitrary. Low value; note only.
-- **F11g — DE skew** (`UM6845R.v:56`): R8 bits 5:4, type 0 only, 0/1/2-char delay + non-output ✓
+- **F11b — VSYNC re-entrancy** (`vsync_allow`, `UM6845R.v:377`, `:381-384`, `:433-449`):
+  reproduces mechanism 2 including the R7=0/R4=0 lock and the R7=0,R4=1,R9=7 infinite-VSYNC
+  bypass (digest-02 §18) ✓. Protected by `t03a`/`t03b`.
+- **F11c — R12/R13 readback** (`UM6845R.v:115-116`): type 0 returns stored, type 1 returns 0 ✓
+  (primary detection vector, correct). Protected by `t01`.
+- **F11d — Dummy register 31** (`UM6845R.v:119`): 0xFF on type 1, 0x00 on type 0 ✓.
+- **F11e — VSYNC width R3h** (`crtc_type0_engine.v:352`, `crtc_type1_engine.v:161`): type 0
+  uses R3h (0→16 via 4-bit wrap ✓), type 1 fixed 16 ✓.
+- **F11f — R16/R17 light pen**: not implemented (`UM6845R.v:120` default arm reads 0). Real
+  chips return a latched address; with no pen attached the value is effectively arbitrary.
+  Low value; note only.
+- **F11g — DE skew** (`UM6845R.v:84`; index term `crtc_type0_engine.v:355`): R8 bits 5:4,
+  type 0 only, 0/1/2-char delay + non-output ✓
   (matches ACCC §19.1 table; the digest's wrong bit-position bullets were corrected 2026-08-22
   per B8 — the table says bits 5:4, which is what the code uses).
-- **F11h — R12/R13 mid-row immediacy on type 1** (digest-03 §20.3.2, ⚠ VERIFY p.242): digest
-  suggests type 1 applies an R12/R13 write to VMA possibly mid-line within C4=0, current model
-  applies at next line start. Re-read PDF p.242 before deciding; if real, fold into F7's work.
+- **F11h — R12/R13 mid-row immediacy on type 1** (digest-03 §20.3.2, ⚠ VERIFY p.242):
+  current model reloads VMA from R12/R13 at **every non-final line boundary within C4=0**
+  (plus row 1 after a row-0 adjustment entry) via `crtc1_row0_reload` /
+  `crtc1_adj_row1_reload` (`crtc_type1_engine.v:152-154`), so an R12/R13 write lands in VMA
+  within one line during row 0 — protected by `t20b`/`t20d`/`t20f`/`t20h`. What is still not
+  modeled is intra-character immediacy (a write taking effect inside the same character line);
+  re-read PDF p.242 before deciding whether that residual gap matters; fold into F7's work if so.
 - **F11i — Interrupt/R52, GA-side rules** (digest-02 §23-27): live in `rtl/GA40010` (netlist,
   gate-accurate) — out of CRTC scope, nothing to do. The CRTC's job is correct HSYNC *edges*,
   which F3/F5/F6 improve.

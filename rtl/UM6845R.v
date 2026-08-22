@@ -30,6 +30,20 @@
 //  in the credits of any distributed product built from them. Individual rules
 //  cite their ACCC section at the point of implementation.
 //============================================================================
+//
+//  Port-compatible wrapper around the two per-type counter engines
+//  (crtc_type0_engine / crtc_type1_engine). The motherboard wiring and every
+//  external pin are unchanged.
+//
+//  Why one set of shared flops rather than two stateful engines: CRTC_TYPE is
+//  a live input (snapshot model selection), and the required vectors pin the
+//  round-trip contract that a type switch continues counting from the very
+//  state the previous type left behind (t02j/t06d/t09f/t16l). A physical
+//  CRTC's counters exist once regardless of which variant is emulated, so the
+//  wrapper owns the register file, the shared counters, and the sequencing,
+//  while each engine module owns everything type-specific: its rule
+//  expressions, its private latches (arbitration cluster, partial-VSYNC
+//  holdoff, status bit 5), and its shares of the sync/display outputs.
 
 module UM6845R
 (
@@ -67,7 +81,7 @@ assign FIELD = ~field & interlace[0];
 assign MA = row_addr_r;
 assign RA = line | (field & interlace[0]);
 
-assign DE = de[R8_skew & ~{2{CRTC_TYPE}}];
+assign DE = de[CRTC_TYPE ? e1_de_index : e0_de_index];
 
 reg [7:0] R0_h_total;
 reg [7:0] R1_h_displayed;
@@ -88,8 +102,7 @@ reg [5:0] R12_start_addr_h;
 reg [7:0] R13_start_addr_l;
 reg [5:0] R14_cursor_h;
 reg [7:0] R15_cursor_l;
-reg       r6_border_condition;
-reg       status_bit5;
+wire      status_bit5;
 
 reg [4:0] addr;
 always @(*) begin
@@ -162,201 +175,98 @@ wire [4:0] interlace = &R8_interlace[1:0];
 
 reg        in_adj;
 
-// Technical information sourced from the "Amstrad CPC CRTC Compendium" by
-// Longshot (CC BY-NC-ND). ACCC v1.10 section 11.2.2 specifies that an R4
-// write on a type-0 last line from C0=2 through C0=R0 switches the line-end
-// comparison from C9/R9 to C9/R5 before the next line is calculated.
-reg        type0_r4_adjust_switch;
-reg        type0_r9_live_compare;
-reg        type0_r9_at_r0_pending;
-reg        type0_c0_1_adjust;
-reg        type0_r0_zero_entry_consumed;
-reg        type0_zero_adj_entry;
-reg        type0_r5_adjust_override;
-reg  [4:0] type0_r5_adjust_target;
-wire       register_write = ENABLE & ~nCS & ~R_nW & RS;
-wire       type0_r4_window_write;
-wire       type0_r4_switch_write;
-wire       type0_r4_switch_clear_write;
-wire       type0_r9_compare_write;
-wire       type0_r4_switch_active = (type0_r4_adjust_switch | type0_r4_switch_write) &
-									~type0_r4_switch_clear_write;
-wire       type0_r9_compare_active = type0_r9_live_compare | type0_r9_compare_write;
-wire       type0_c0_1_break_write = !CRTC_TYPE && register_write && hcc == 1 &&
-									frame_adj_r && !in_adj &&
-									((addr == 5'd04 && DI[6:0] != row) ||
-									 (addr == 5'd09 && DI[4:0] != line));
-wire       type0_c0_1_adjust_active = type0_c0_1_adjust | type0_c0_1_break_write;
-
 reg  [7:0] hcc;
 wire       hcc_last  = hcc == R0_h_total;
 wire [7:0] hcc_next  = hcc_last ? 8'h00 : hcc + 1'd1;
-// Type 0 still compares C0 with R0 when both are zero, but that repeated
-// equality pins C0 rather than completing a stream of one-character lines.
-wire       r0_frozen = !CRTC_TYPE && !R0_h_total && !hcc;
 
 reg  [4:0] line;
 reg  [6:0] row;
 reg  [4:0] c5;
 reg        crtc1_adj_from_row0;
-
-// Technical information sourced from the "Amstrad CPC CRTC Compendium" by
-// Longshot (CC BY-NC-ND). ACCC v1.10 section 11.1 specifies that CRTC 1 has a
-// separate C5 counter for vertical adjustment, while C9 continues cycling 0..R9
-// and C4 increments at each C9==R9 wrap. CRTC 0 reuses C9 against R5.
-wire [4:0] crtc1_line_max = R9_v_max_line & ~interlace;
-wire [4:0] crtc0_line_max = (in_adj ? (R5_v_total_adj - 1'd1) : R9_v_max_line) & ~interlace;
-wire [4:0] line_max       = CRTC_TYPE ? crtc1_line_max : crtc0_line_max;
 reg        line_last_r;
 reg        row_last_r;
-// ACCC v1.10 section 10.3: C9 uses equality, never magnitude.  A zero limit
-// reached from C9>0 must let C9 run to 31 and wrap, so no unconditional
-// "limit is zero" match may short-circuit the comparison.
-wire       line_last = (line == line_max);
-wire [4:0] type0_r5_adjust_target_effective = type0_r5_window_write ?
-											(DI[4:0] - 1'd1) : type0_r5_adjust_target;
-wire [4:0] type0_adjust_line_max =
-					(type0_r5_override_active ? type0_r5_adjust_target_effective :
-					 (type0_effective_r5 - 1'd1)) & ~interlace;
-wire       type0_r9_at_r0_write;
-wire       type0_r9_at_r0_active = type0_r9_at_r0_pending | type0_r9_at_r0_write;
-// Section 10.3.1.1: once `Last Line` is false, the rollover uses the live
-// C9/R9 comparison rather than the value latched at C0=0.  That is what makes
-// the section 12.2.1 first-line RLAL sequence (R9=0 written after the C0<2
-// window) increment C4 on the very next line.
-wire       type0_live_line_last = (line == (R9_v_max_line & ~interlace));
-wire       type0_last_line_armed = line_last_r & row_last_r;
-wire       type0_rollover_line_last = type0_c0_1_adjust_active ? 1'b0 :
-									 type0_r9_at_r0_active ?
-									 (line == type0_adjust_line_max) :
-								 type0_r4_switch_active ?
-									 (line == type0_adjust_line_max) :
-								 type0_r9_compare_active ? type0_live_line_last :
-								 type0_r5_override_active ?
-									 ((line == type0_adjust_line_max) | type0_zero_adj_entry_active) :
-								 (in_adj | type0_last_line_armed) ? line_last_r :
-									 type0_live_line_last;
-wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
-									 type0_rollover_line_last;
-
-// ACCC v1.10 section 11.3.2: Type 1 adjustment ends when C5+1 reaches R5
-// evaluated by equality at the line boundary. R5=0 never satisfies this comparison.
-wire       crtc1_adj_end = CRTC_TYPE & in_adj & ({1'b0, c5} + 6'd1 == {1'b0, R5_v_total_adj}) & (|R5_v_total_adj);
-
-wire [4:0] line_next = ((CRTC_TYPE ? (line_last | crtc1_adj_end) : type0_rollover_line_last) ?
-						 5'd0 : line + 1'd1 + interlace) & ~interlace;
-wire       line_new  = hcc_last && !r0_frozen;
-
-// ACCC v1.10 section 12: outside vertical adjustment C4 is equality-compared
-// too.  Type 0's R4=0 frame end comes from the `Last Line` / adjustment
-// arbitration below, not from a magnitude special case.
-wire       row_last  = (row == R4_v_total);
-wire       crtc1_row_frame_last = in_adj ? crtc1_adj_end : (row_last & ~frame_adj_CRTC1);
-wire       crtc0_row_frame_last = (row_last_r | in_adj) & ~frame_adj_CRTC0;
-wire       row_frame_last = CRTC_TYPE ? crtc1_row_frame_last : crtc0_row_frame_last;
-wire [6:0] row_next  = row_frame_last ? 7'd0 : row + 1'd1;
-wire       crtc1_row_new = line_new & (line_last | crtc1_adj_end);
-wire       crtc0_row_new = line_new & type0_rollover_row_last;
-wire       row_new   = CRTC_TYPE ? crtc1_row_new : crtc0_row_new;
-
 reg        frame_adj_r;
-wire       type0_r5_write = !CRTC_TYPE && register_write && addr == 5'd05;
-wire [4:0] type0_effective_r5 = type0_r5_write ? DI[4:0] : R5_v_total_adj;
-wire       type0_r5_window_write = type0_r5_write && hcc <= 2 && in_adj;
-wire       type0_r5_override_active = (type0_r5_adjust_override | type0_r5_window_write) & in_adj;
-wire       type0_zero_adj_entry_active = type0_zero_adj_entry &
-										 ~(type0_r5_write && (hcc <= 2) && (|DI[4:0]));
-wire       type0_adjustment_selected = type0_c0_1_adjust_active |
-									 ((hcc == 2) ?
-									  frame_adj_r & |type0_effective_r5 : frame_adj_r);
-assign type0_r4_window_write = !CRTC_TYPE && register_write && addr == 5'd04 &&
-								  hcc >= 2 && hcc <= R0_h_total &&
-								  type0_adjustment_selected && !in_adj;
-assign type0_r4_switch_write = type0_r4_window_write && DI[6:0] != row;
-assign type0_r4_switch_clear_write = type0_r4_window_write && DI[6:0] == row;
-assign type0_r9_compare_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
-								  hcc >= 2 && hcc < R0_h_total &&
-								  type0_adjustment_selected && !in_adj;
-assign type0_r9_at_r0_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
-								 hcc_last && hcc >= 2 && type0_adjustment_selected && !in_adj;
-wire       frame_adj_CRTC0 = type0_adjustment_selected;
-wire       frame_adj_CRTC1 = row_last && ~in_adj && |R5_v_total_adj;
-wire       frame_adj = CRTC_TYPE ? frame_adj_CRTC1 : frame_adj_CRTC0;
-wire       frame_new = row_new & row_frame_last;
-wire       type0_r4_at_c0_write = !CRTC_TYPE && register_write && addr == 5'd04 && hcc == 0;
-wire       type0_r9_at_c0_write = !CRTC_TYPE && register_write && addr == 5'd09 && hcc == 0;
-wire       type0_r5_at_c0_write = type0_r5_write && hcc == 0;
-wire [6:0] type0_c0_r4 = type0_r4_at_c0_write ? DI[6:0] : R4_v_total;
-wire [4:0] type0_c0_r9 = type0_r9_at_c0_write ? DI[4:0] : R9_v_max_line;
-wire [4:0] type0_c0_r5 = type0_r5_at_c0_write ? DI[4:0] : R5_v_total_adj;
-wire [4:0] type0_c0_adjust_line_max = (type0_c0_r5 - 1'd1) & ~interlace;
-wire       type0_c0_zero_adj_entry = type0_zero_adj_entry & ~(type0_r5_at_c0_write & (|DI[4:0]));
-// The C0=0 seam evaluates `Last Line` against the effective (possibly
-// same-edge written) R4/R9.  Both are plain equalities: a zero limit is an
-// ordinary value that only matches a counter already at zero.
-wire       type0_c0_row_last = (row == type0_c0_r4);
-wire       type0_c0_line_last = in_adj ? ((line == type0_c0_adjust_line_max) | type0_c0_zero_adj_entry) :
-									 (line == type0_c0_r9);
+reg        field;
 
-// Register writes are clocked at the 16 MHz bus rate, not only on CLKEN.
-// Retain the selected comparator for the rest of the current character line.
-always @(posedge CLOCK) begin
-	if(~nRESET | SNA_LOAD | CRTC_TYPE) begin
-		type0_r4_adjust_switch <= 0;
-		type0_r9_live_compare <= 0;
-		type0_r9_at_r0_pending <= 0;
-		type0_c0_1_adjust <= 0;
-		type0_r0_zero_entry_consumed <= 0;
-		type0_zero_adj_entry <= 0;
-		type0_r5_adjust_override <= 0;
-		type0_r5_adjust_target <= 0;
-	end
-	else begin
-		if(type0_r4_window_write) type0_r4_adjust_switch <= DI[6:0] != row;
-		else if(CLKEN && line_new) type0_r4_adjust_switch <= 0;
-		if(type0_r9_compare_write) type0_r9_live_compare <= 1;
-		else if(CLKEN && line_new) type0_r9_live_compare <= 0;
-		if(type0_r9_at_r0_write) type0_r9_at_r0_pending <= 1;
-		else if(CLKEN && line_new) type0_r9_at_r0_pending <= 0;
-		// A line boundary consumes the current-line override.  An accepted
-		// write on that same edge still affects the combinational rollover
-		// through type0_r5_adjust_target_effective, but must not leak into the
-		// next line's state.
-		if(CLKEN && line_new) begin
-			type0_r5_adjust_override <= 0;
-			type0_r5_adjust_target <= 0;
-		end
-		else if(type0_r5_window_write) begin
-			type0_r5_adjust_override <= 1;
-			type0_r5_adjust_target <= DI[4:0] - 1'd1;
-		end
-		// A C0=1 write can also be the R0=1 rollover. Its combinational
-		// effect is consumed on that edge and must not leak into the next line.
-		if(CLKEN && line_new) type0_c0_1_adjust <= 0;
-		else if(type0_c0_1_break_write) type0_c0_1_adjust <= 1;
-		if(!r0_frozen) type0_r0_zero_entry_consumed <= 0;
-		else if(CLKEN) type0_r0_zero_entry_consumed <= 1;
-		if(type0_r5_write && (hcc <= 2) && (|DI[4:0])) type0_zero_adj_entry <= 0;
+// ------------------------------------------------------------------
+// Per-type engines
+// ------------------------------------------------------------------
+wire       e0_r0_frozen, e0_line_new, e0_row_frame_last, e0_row_new, e0_frame_adj;
+wire       e0_c0_line_last, e0_c0_row_last, e0_in_adj_route, e0_frozen_row_advance;
+wire       e0_hcc2_adj_keep, e0_reload, e0_row_addr_save, e0_field_count_tick;
+wire       e0_hsync_off, e0_vsync_line_fire, e0_r7_write_fire, e0_vsync_holdoff;
+wire       e0_vde_toggle, e0_r6_vder_write, e0_r6_vder_value;
+wire [4:0] e0_line_next, e0_c5_next;
+wire [6:0] e0_row_next;
+wire [1:0] e0_de_index;
+wire [3:0] e0_vsc_load;
 
-		if(CLKEN) begin
-			if(line_new && (type0_r4_switch_active | type0_r9_compare_active |
-							type0_c0_1_adjust_active))
-				type0_zero_adj_entry <= type0_c0_1_adjust_active & !(|type0_effective_r5);
-			else if(r0_frozen && !in_adj && !type0_r0_zero_entry_consumed &&
-					line == R9_v_max_line && row == R4_v_total)
-				type0_zero_adj_entry <= !(|R5_v_total_adj);
-			else if(row_new) begin
-				if(frame_adj)
-					type0_zero_adj_entry <= !(|type0_effective_r5);
-				else if(frame_new)
-					type0_zero_adj_entry <= 0;
-			end
-		end
-	end
-end
+crtc_type0_engine crtc_type0_engine
+(
+	CLOCK, CLKEN, nRESET, CRTC_TYPE, SNA_LOAD,
+	ENABLE, nCS, R_nW, RS, DI, addr,
+	R0_h_total, R1_h_displayed, R3_h_sync_width, R3_v_sync_width,
+	R4_v_total, R5_v_total_adj, R6_v_displayed, R7_v_sync_pos,
+	R8_skew, R8_interlace, R9_v_max_line,
+	hcc, hcc_next, hcc_last, line, row, in_adj, field,
+	line_last_r, row_last_r, frame_adj_r,
+	VSYNC_r, vsync_allow, hsc,
+	e0_r0_frozen, e0_line_new, e0_line_next, e0_c5_next,
+	e0_row_frame_last, e0_row_next, e0_row_new, e0_frame_adj,
+	e0_c0_line_last, e0_c0_row_last,
+	e0_in_adj_route, e0_frozen_row_advance, e0_hcc2_adj_keep,
+	e0_reload, e0_row_addr_save,
+	e0_field_count_tick, e0_hsync_off, e0_de_index, e0_vsync_line_fire,
+	e0_vsc_load, e0_r7_write_fire, e0_vsync_holdoff, e0_vde_toggle,
+	e0_r6_vder_write, e0_r6_vder_value
+);
+
+wire       e1_line_last, e1_line_new, e1_row_last, e1_row_frame_last, e1_row_new, e1_frame_adj;
+wire       e1_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
+wire       e1_vsync_line_fire, e1_r7_write_fire, e1_r6_vde_write, e1_r6_vde_value;
+wire       e1_r6_vder_write, e1_r6_vder_value, e1_status_bit5;
+wire [4:0] e1_line_next, e1_c5_next;
+wire [6:0] e1_row_next;
+wire [1:0] e1_de_index;
+wire [3:0] e1_vsc_load;
+
+crtc_type1_engine crtc_type1_engine
+(
+	CLOCK, CLKEN, nCLKEN, nRESET, CRTC_TYPE, SNA_LOAD,
+	ENABLE, nCS, R_nW, RS, DI, addr,
+	R0_h_total, R1_h_displayed, R3_h_sync_width, R4_v_total,
+	R5_v_total_adj, R6_v_displayed, R7_v_sync_pos, R8_interlace, R9_v_max_line,
+	hcc, hcc_next, hcc_last, line, row, c5, in_adj, crtc1_adj_from_row0,
+	VSYNC_r, vsync_allow, hsc, vde_r,
+	e1_line_last, e1_line_new, e1_line_next, e1_c5_next,
+	e1_row_last, e1_row_frame_last, e1_row_next, e1_row_new, e1_frame_adj,
+	e1_reload, e1_row_addr_save,
+	e1_field_count_tick, e1_hsync_off, e1_de_index, e1_vsync_line_fire,
+	e1_vsc_load, e1_r7_write_fire,
+	e1_r6_vde_write, e1_r6_vde_value, e1_r6_vder_write, e1_r6_vder_value,
+	e1_status_bit5
+);
+
+assign status_bit5 = e1_status_bit5;
+
+// ------------------------------------------------------------------
+// Type-multiplexed contributions (the only place the two engines meet)
+// ------------------------------------------------------------------
+wire       r0_frozen      = CRTC_TYPE ? 1'b0          : e0_r0_frozen;
+wire       line_new       = CRTC_TYPE ? e1_line_new   : e0_line_new;
+wire [4:0] line_next      = CRTC_TYPE ? e1_line_next  : e0_line_next;
+wire [4:0] c5_next        = CRTC_TYPE ? e1_c5_next    : e0_c5_next;
+wire       row_frame_last = CRTC_TYPE ? e1_row_frame_last : e0_row_frame_last;
+wire [6:0] row_next       = CRTC_TYPE ? e1_row_next   : e0_row_next;
+wire       row_new        = CRTC_TYPE ? e1_row_new    : e0_row_new;
+wire       frame_adj      = CRTC_TYPE ? e1_frame_adj  : e0_frame_adj;
+wire       frame_new      = row_new & row_frame_last;
+
+wire       crtc0_reload     = e0_reload;
+wire       crtc1_reload     = e1_reload;
+wire       row_addr_save    = CRTC_TYPE ? e1_row_addr_save : e0_row_addr_save;
 
 // counters
-reg  field;
 always @(posedge CLOCK) begin
 	if(~nRESET) begin
 		hcc    <= 0;
@@ -370,36 +280,23 @@ always @(posedge CLOCK) begin
 	else if(CLKEN) begin
 		hcc <= hcc_next;
 		if(line_new) line <= line_next;
-		if(CRTC_TYPE) begin
-			if(line_new) begin
-				if(in_adj) begin
-					if(crtc1_adj_end) c5 <= 0;
-					else c5 <= c5 + 1'd1;
-				end
-				else c5 <= 0;
-			end
-		end else begin
-			c5 <= 0;
-		end
+		c5 <= c5_next;
 		if(hcc == 0 && !r0_frozen) begin
-			line_last_r <= CRTC_TYPE ? line_last : type0_c0_line_last;
-			row_last_r <= CRTC_TYPE ? row_last : type0_c0_row_last;
-			frame_adj_r <= (CRTC_TYPE ? (line_last & row_last) :
-									 (type0_c0_line_last & type0_c0_row_last)) & ~in_adj;
+			line_last_r <= CRTC_TYPE ? e1_line_last : e0_c0_line_last;
+			row_last_r <= CRTC_TYPE ? e1_row_last : e0_c0_row_last;
+			frame_adj_r <= (CRTC_TYPE ? (e1_line_last & e1_row_last) :
+									 (e0_c0_line_last & e0_c0_row_last)) & ~in_adj;
 		end
 		// CRTC0 always schedule the adjustment run at HCC=0,
 		// then at HCC=2 it decides that it really has to run
-		if(hcc == 2) frame_adj_r <= frame_adj_r & |type0_effective_r5;
-		if(line_new && !CRTC_TYPE && (type0_r4_switch_active | type0_r9_compare_active |
-									 type0_c0_1_adjust_active))
+		if(hcc == 2) frame_adj_r <= frame_adj_r & e0_hcc2_adj_keep;
+		if(e0_in_adj_route)
 			in_adj <= 1;
 		// ACCC v1.10 sections 11.2.2 and 13.2.1/13.2.6: on the first
 		// repeated C0=0, C9 freezes but a matching C9/R9 consumes the
 		// already-armed C4 increment exactly once. A simultaneous C4/R4
 		// match enters the short-R0 default adjustment route.
-		if(!CRTC_TYPE && r0_frozen && !in_adj &&
-			!type0_r0_zero_entry_consumed &&
-			line == R9_v_max_line) begin
+		if(e0_frozen_row_advance) begin
 			row <= row + 1'd1;
 			if(row == R4_v_total) in_adj <= 1;
 		end
@@ -423,16 +320,6 @@ always @(posedge CLOCK) begin
 	end
 end
 
-// Technical information sourced from ACCC v1.10 §11.2.4:
-// If C4 was 0 immediately before adjustment began, VMA loads from R12/R13
-// while C4==1 in adjustment.
-wire crtc1_adj_entry_from_row0 = CRTC_TYPE & !in_adj & row_last & line_last & (|R5_v_total_adj) & (row == 0);
-wire crtc1_adj_row1_reload = CRTC_TYPE & (crtc1_adj_entry_from_row0 | (in_adj & crtc1_adj_from_row0 & (row == 1) & ~line_last)) & !hcc_next;
-wire crtc1_row0_reload = CRTC_TYPE & (frame_new | (~line_last & !row & !hcc_next));
-wire CRTC1_reload = crtc1_row0_reload | crtc1_adj_row1_reload;
-wire CRTC0_reload = ~CRTC_TYPE & frame_new;
-wire row_addr_save = hcc == R1_h_displayed && (CRTC_TYPE ? line_last : type0_live_line_last);
-
 // address
 reg  [13:0] row_addr;   // saved pointer
 reg  [13:0] row_addr_r; // current pointer
@@ -443,11 +330,11 @@ always @(posedge CLOCK) begin
 		if(line_new & !row_addr_save) row_addr_r <= row_addr; // restore the pointer, take care of simultaneous saving and restoring
 		if(!hcc_last)                 row_addr_r <= row_addr_r + 1'd1;
 
-		if(CRTC0_reload) begin
+		if(crtc0_reload) begin
 			row_addr <= {R12_start_addr_h, R13_start_addr_l};
 			row_addr_r <= {R12_start_addr_h, R13_start_addr_l};
 		end
-		if(CRTC1_reload) begin
+		if(crtc1_reload) begin
 			row_addr_r <= {R12_start_addr_h, R13_start_addr_l};
 		end
 	end
@@ -458,7 +345,7 @@ reg        hde;
 reg  [3:0] hsc;
 
 wire hsync_on = hcc == R2_h_sync_pos && R3_h_sync_width != 0;
-wire hsync_off = (hsc == R3_h_sync_width) || (CRTC_TYPE && R3_h_sync_width == 0);
+wire hsync_off = CRTC_TYPE ? e1_hsync_off : e0_hsync_off;
 
 always @(posedge CLOCK) begin
 
@@ -487,13 +374,20 @@ end
 // vertical output
 reg vde, vde_r;
 reg VSYNC_r;
+reg vsync_allow;
 wire vsync_count_tick = CLKEN &&
-	(field ? (!r0_frozen && (hcc_next == {1'b0, R0_h_total[7:1]})) : line_new);
+	(field ? (CRTC_TYPE ? e1_field_count_tick : e0_field_count_tick) : line_new);
+wire vsync_holdoff = e0_vsync_holdoff;
+wire vsync_fire = vsync_allow &
+	(field ? (row == R7_v_sync_pos && !line) :
+			 (CRTC_TYPE ? e1_vsync_line_fire : e0_vsync_line_fire));
+wire [3:0] vsc_load = CRTC_TYPE ? e1_vsc_load : e0_vsc_load;
+wire r7_write_hit = ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07;
+wire r7_write_fire = CRTC_TYPE ? e1_r7_write_fire : e0_r7_write_fire;
+
 always @(posedge CLOCK) VSYNC <= VSYNC_r; // delay the same as HSYNC to not confuse the GA
 always @(posedge CLOCK) begin
 	reg  [3:0] vsc;
-	reg        vsync_allow;
-	reg        type0_vsync_wait_line_start;
 
 	if(~nRESET) begin
 		vsc    <= 0;
@@ -501,10 +395,9 @@ always @(posedge CLOCK) begin
 		vde_r  <= 0;
 		VSYNC_r<= 0;
 		vsync_allow <= 1;
-		type0_vsync_wait_line_start <= 0;
 	end
 	else if (CLKEN) begin
-		if (!CRTC_TYPE && row == 0 && line == 0 && R6_v_displayed == 0) begin
+		if (e0_vde_toggle) begin
 			vde <= ~vde;
 			vde_r <= ~vde_r;
 		end
@@ -517,27 +410,27 @@ always @(posedge CLOCK) begin
 		if(vsync_count_tick) begin
 			// A type 0 VSYNC started by an R7=C4 write after C0=1
 			// does not count its partial first line.  Preserve C3h at the
-			// first following type-specific count tick.
-			if(!CRTC_TYPE && type0_vsync_wait_line_start)
-				type0_vsync_wait_line_start <= 0;
+			// first following type-specific count tick; the engine owns the
+			// holdoff latch and clears it on this tick itself.
+			if(vsync_holdoff) ;
 			else if(vsc) vsc <= vsc - 1'd1;
-			else if (vsync_allow & (field ? (row == R7_v_sync_pos && !line) : (((CRTC_TYPE && in_adj) ? (row + 1'd1) : row_next) == R7_v_sync_pos && line_last))) begin
+			else if (vsync_fire) begin
 				VSYNC_r <= 1;
 				// Don't allow a new VSYNC until C4=R7 has become false and true again.
 				vsync_allow <= 0;
-				vsc <= (CRTC_TYPE ? 4'd0 : R3_v_sync_width) - 1'd1;
+				vsc <= vsc_load;
 			end
 			else VSYNC_r <= 0;
 		end
 	end
 	else if (nCLKEN) begin
-		if (!CRTC_TYPE && row == 0 && line == 0 && R6_v_displayed == 0) begin
+		if (e0_vde_toggle) begin
 			vde <= ~vde;
 			vde_r <= ~vde_r;
 		end
 	end
 
-	if (ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07) begin
+	if (r7_write_hit) begin
 		if(row != DI[6:0]) begin
 			// A false comparison re-arms the next genuine C4=R7 match.  It
 			// does not alter a VSYNC already in progress.
@@ -548,65 +441,20 @@ always @(posedge CLOCK) begin
 			// pulse at C0=0/1.  Qualifying with the old allow state also makes
 			// a bus write held for several clocks one comparison, not many.
 			vsync_allow <= 0;
-			if(!VSYNC_r && vsync_allow && (CRTC_TYPE || hcc > 1)) begin
+			if(r7_write_fire) begin
 				VSYNC_r <= 1;
-				vsc <= (CRTC_TYPE ? 4'd0 : R3_v_sync_width) - 1'd1;
-				type0_vsync_wait_line_start <= !CRTC_TYPE && !vsync_count_tick;
-			end else if(!VSYNC_r) begin
-				type0_vsync_wait_line_start <= 0;
+				vsc <= vsc_load;
 			end
 		end
 	end
 
-	// The type input is live and snapshots do not restore this derived latch.
-	// Never carry a pending type 0 partial-line state through either boundary.
-	if(CRTC_TYPE || SNA_LOAD) type0_vsync_wait_line_start <= 0;
 	if (nCLKEN & ENABLE & RS & ~nCS & ~R_nW & addr == 5'd06) begin
 		if (CRTC_TYPE) begin
-			if (row == DI[6:0]) vde_r <= 0;
-			if (row != DI[6:0] && DI[6:0] != 0) vde <= vde_r;
-			if (row == R6_v_displayed && DI[6:0] != row) vde <= 1;
-			if (row == DI[6:0] || DI[6:0] == 0) vde <= 0;
+			if (e1_r6_vder_write) vde_r <= e1_r6_vder_value;
+			if (e1_r6_vde_write)  vde   <= e1_r6_vde_value;
 		end else begin
-			if (row == DI[6:0] && !(row == 0 && line == 0)) vde_r <= 0;
+			if (e0_r6_vder_write) vde_r <= e0_r6_vder_value;
 		end
-	end
-end
-
-// Type 1 status bit 5 is a line-sampled view of the sticky C4=R6 border
-// condition.  Keep that condition separate from vde: writing R6=0 while
-// C4>0 also forces vde low, but is not a C4=R6 match and must not set status.
-always @(posedge CLOCK) begin
-	if(~nRESET | SNA_LOAD) begin
-		r6_border_condition <= 0;
-		status_bit5 <= 0;
-	end
-	else if(CRTC_TYPE) begin
-		if(CLKEN && row_new) begin
-			// C4=C9=C0=0 is explicitly outside the R6-border condition,
-			// including the otherwise-equal R6=0 case at frame origin.
-			if(frame_new) r6_border_condition <= 0;
-			else if(row_next == R6_v_displayed) r6_border_condition <= 1;
-		end
-
-		if(nCLKEN & ENABLE & RS & ~nCS & ~R_nW & addr == 5'd06 &
-		   row == DI[6:0]) begin
-			r6_border_condition <= 1;
-		end
-
-		if(CLKEN && hcc_last) begin
-			// A row transition can assert or clear the condition on this same
-			// C0=R0 edge, so sample the resulting state rather than the old flop.
-			if(row_new && frame_new) status_bit5 <= 0;
-			else if(row_new && row_next == R6_v_displayed) status_bit5 <= 1;
-			else status_bit5 <= r6_border_condition;
-		end
-	end
-	else begin
-		// The type input is live.  Do not preserve hidden type-1 status when
-		// the model runs as type 0 and is later switched back to type 1.
-		r6_border_condition <= 0;
-		status_bit5 <= 0;
 	end
 end
 
