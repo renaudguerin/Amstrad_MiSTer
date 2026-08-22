@@ -3508,6 +3508,77 @@ void test_type0_r0_zero_ignores_reload_after_hiccup(TestBench& test) {
     test.expect_ma("type 0 R0=0 continues ignoring R12/R13 (0x3ABC) write (MA remains 0)", 0);
 }
 
+// Review action item A3 (docs/review-debt.md): live-entry twin of t20g.
+// t20g reaches the R0=0 state by cold reset, where no counter edge has run
+// before the freeze pins C0, so the section 20.3.1 reload never fires and
+// MA stays at its reset value. The actual section 13.2.6 setup is reached
+// by writing R0=0 while the frame runs; this vector pins that path.
+void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // Running fixture with the freeze conditions armed: R4=R9=R5=0 makes
+    // every 8-character line (R0=7) a complete one-character-row frame, so
+    // C4=C9=0 hold throughout and the seam equality tests (C4==R4, C9==R9)
+    // are already satisfied when R0 is written to 0.
+    constexpr RegisterProgram kLiveR0ZeroRegisters = {{
+        {0, 7}, {1, 0}, {2, 0}, {3, 0x11}, {4, 0},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    program_registers(test, kLiveR0ZeroRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    // Leave R0 selected so the timed write below needs no bus traffic that
+    // would disturb the character alignment (reset() re-aligns the phase).
+    test.select_register(0);
+    test.reset();
+
+    // Land R0:=0 on the seventh character boundary, i.e. exactly on the
+    // wrap edge of an 8-character line: the line end is evaluated with
+    // the OLD R0 (the register file updates on the same edge), so this line
+    // still ends normally. The seam condition C4=C9=C0=0 therefore recurs
+    // one last time and ACCC v1.10 section 20.3.1 (page 242) loads both
+    // VMA' and VMA from R12/R13 -- this is the worked example's "1st
+    // C0==0 -> VMA reload" of section 13.2.6 (page 108), realized at the
+    // live wrap edge. Immediately afterwards R0=0 pins C0 and freezes.
+    // (Expectations deliberately start at this reload: the pre-wrap pointer
+    // value depends on how many CLKEN edges elapsed around reset, which no
+    // Compendium rule covers; the reload overwrites it wholesale.)
+    test.run_characters(7);
+    test.write_selected_register_at_clken(0);
+    test.expect_ma("type 0 live R0=0 entry: wrap-edge reload loads R12/R13 (0x1234)",
+                   0x1234);
+
+    // ACCC v1.10 section 13.2.6 (page 108), live-entry form: on the first
+    // repeated C0==0 the armed C9==R9 decision consumes its C4 increment
+    // exactly once ("this IS end of frame -> C4->1, adjustment entered")
+    // while C9 does not truly reset -- it freezes at 0.
+    test.run_characters(1);
+    test.expect_c4("type 0 live R0=0: first frozen C0==0 consumes the armed C4 increment",
+                   1);
+    test.expect_ra("type 0 live R0=0: C9 stays frozen at 0", 0);
+    test.expect_ma("type 0 live R0=0: MA holds the reloaded 0x1234", 0x1234);
+
+    // Further C0==0 cycles: everything stays frozen at C4=1, C9=0
+    // (ACCC v1.10 section 13.2.6, page 108).
+    test.run_characters(1);
+    test.expect_c4("type 0 live R0=0: C4 remains frozen at 1", 1);
+    test.expect_ma("type 0 live R0=0: MA remains 0x1234", 0x1234);
+
+    // ACCC v1.10 section 13.8.3 (page 129): R12/R13 cannot be considered
+    // until C4 and C9 both go back to 0 -- they never do while R0=0. Same
+    // negative pair as t20g, now guarding a non-zero latched pointer.
+    write_r12_r13_character(test, 0x20, 0x55);
+    test.run_characters(19);
+    test.expect_c4("type 0 live R0=0: C4 still 1 across 20 characters", 1);
+    test.expect_ma("type 0 live R0=0 ignores R12/R13 0x2055 (MA remains 0x1234)",
+                   0x1234);
+
+    write_r12_r13_character(test, 0x3A, 0xBC);
+    test.run_characters(20);
+    test.expect_ma("type 0 live R0=0 ignores R12/R13 0x3ABC (MA remains 0x1234)",
+                   0x1234);
+}
+
 void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     test.set_crtc_type(1);
 
@@ -4003,6 +4074,9 @@ int main(int argc, char** argv) {
         {"t20h_type1_r0_zero_reloads_every_line",
          "ACCC v1.10 sections 13.3, 13.8.3, and 20.3.2; F11h", false,
          test_type1_r0_zero_reloads_every_line},
+        {"t20i_type0_r0_zero_live_entry_reloads_vma_then_freezes",
+         "ACCC v1.10 sections 13.2.6, 13.8.3, and 20.3.1; F5/F12/F11h (A3)",
+         false, test_type0_r0_zero_live_entry_reloads_vma_then_freezes},
     };
 
     unsigned passed = 0;
