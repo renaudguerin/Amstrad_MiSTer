@@ -10,7 +10,9 @@ would mean.
 the old filename was the type-1 part number and misdescribed a two-variant component) keeps
 ports, register file, shared counters and sequencing; `rtl/crtc_type0_engine.v` /
 `rtl/crtc_type1_engine.v` hold every type-specific rule plus provably-private flops.
-Bit-identity proven by the soak golden hash (`0x5b5004ff70148443`, minted pre-split), all 87
+Bit-identity proven by the soak golden hash (`0x5b5004ff70148443`, minted pre-split; later
+re-minted to `0x326ea81358e7d88f` by the intended F6 Stage 1 behaviour change — this
+historical statement refers to the split proof only), all 87
 vectors, lint, and a lockstep differential run against the pre-split core (~45.5M CLKEN
 samples, no divergence). See `docs/accuracy/type-split-review-guide.md`. The sections below
 are kept as the pre-split record.

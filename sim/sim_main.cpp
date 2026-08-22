@@ -3637,6 +3637,180 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     test.expect_ma("type 1 R0=0 line 9 continues reloading 0x2580", 0x2580);
 }
 
+// ---------------------------------------------------------------------------
+// t10: F6 -- spurious type-0 interline border byte when R1 > R0
+//
+// ACCC v1.10 section 17.6.2 (page 186): when R1 > R0 the C0=R1 DISPTMG-off
+// comparison can never fire (C0 wraps at R0 first), so a type-0 CRTC
+// substitutes C0=R0 as the border-start trigger: one border byte (0.5 us)
+// is emitted between every pair of character rows, with "BORDER OFF" sent
+// again on the following character. Type 1 emits nothing at all in this
+// configuration (pages 186-187) -- the documented type discriminator of
+// section 28.1.6. Section 19.2.4 (page 195) counts a programmed
+// SKEW-DISPTMG delay from the substituted trigger as if C0=R1 had fired
+// there, so delay=1/2 displaces the byte onto C0=0/C0=1 of the following
+// line (delay arithmetic per section 19.2.3, pages 193-194), and SKEW mode
+// 2'b11 suppresses all DISPTMG output entirely.
+// ---------------------------------------------------------------------------
+
+constexpr unsigned kF6LineCharacters = 16;  // R0 = 15
+constexpr unsigned kF6FrameLines = 39 * 8;  // R4 = 38 rows x (R9 = 7)+1 lines
+
+RegisterProgram f6_registers(unsigned skew) {
+    return {{
+        {0, 15}, {1, 20}, {2, 10}, {3, 0x11}, {4, 38},
+        {5, 0},  {6, 25}, {7, 30}, {8, static_cast<std::uint8_t>(skew << 4)},
+        {9, 7},
+    }};
+}
+
+// Walk one full 16-character line, sampling DE during each character. Must
+// be entered mid character C0=0 (e.g. right after a wrap edge) and leaves
+// the bench mid character C0=15.
+void f6_expect_line_de(TestBench& test,
+                       const std::array<bool, kF6LineCharacters>& display,
+                       const std::string& context) {
+    for (unsigned c0 = 0; c0 < kF6LineCharacters; ++c0) {
+        std::ostringstream label;
+        label << context << " [C0=" << c0 << "]";
+        if (display[c0]) {
+            test.expect_de_high(label.str());
+        } else {
+            test.expect_de_low(label.str());
+        }
+        if (c0 + 1 < kF6LineCharacters) {
+            test.run_characters(1);
+        }
+    }
+}
+
+// Display runs through every character of the line; the only gap is the
+// substituted-trigger border byte itself.
+constexpr std::array<bool, kF6LineCharacters> kF6SpuriousByteAtR0 = {
+    true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, false,
+};
+constexpr std::array<bool, kF6LineCharacters> kF6AllDisplay = {
+    true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true,
+};
+constexpr std::array<bool, kF6LineCharacters> kF6SpuriousByteDelayed1 = {
+    false, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true,
+};
+constexpr std::array<bool, kF6LineCharacters> kF6SpuriousByteDelayed2 = {
+    true, false, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true,
+};
+
+void f6_settle_one_frame(TestBench& test, unsigned skew) {
+    // Run one complete frame (39 rows x 8 lines of 16 characters) plus two
+    // more lines, so the frame-start reload of ACCC v1.10 section 17.4.1
+    // (page 182) has established the R12/R13 base pointer AND both
+    // SKEW-DISPTMG delay stages carry current-frame state rather than the
+    // previous frame's tail-of-frame border rows (R6 < R4 here). Leaves the
+    // bench mid character C0=0 of the third displayed line.
+    program_registers(test, f6_registers(skew));
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.reset();
+    test.run_characters((kF6FrameLines + 2) * kF6LineCharacters);
+}
+
+void test_type0_r1_gt_r0_spurious_border_byte(TestBench& test) {
+    test.set_crtc_type(0);
+    f6_settle_one_frame(test, 0);
+
+    // ACCC v1.10 section 17.4.1 (page 182): frame start reloaded VMA/VMA'
+    // from R12/R13; section 17.2 (page 179): with C0=R1 unreachable, every
+    // line of the frame restarts from that same frozen base.
+    test.expect_ma("type 0 R1>R0 line start holds the R12/R13 base", 0x1234);
+    test.expect_de_high("type 0 R1>R0 displays at C0=0 despite R1>R0");
+
+    // ACCC v1.10 section 17.6.1 (page 185-186): the VRAM pointer offset
+    // continues normally into the border byte.
+    test.run_characters(15);
+    test.expect_ma("type 0 R1>R0 pointer keeps counting through the border byte",
+                   0x1234 + 15);
+    test.expect_de_low(
+        "type 0 R1>R0 spurious border byte keyed on C0=R0 "
+        "(ACCC v1.10 section 17.6.2 p.186)");
+
+    // ACCC v1.10 section 17.6.2 (page 186): BORDER OFF on the character
+    // following C0=R0. Section 17.2 (page 179): C0=R1 never fired, so VMA'
+    // was never updated and this line restarts from the same base address
+    // (character-line repetition).
+    test.run_characters(1);
+    test.expect_ma("type 0 R1>R0 next line restarts from the frozen VMA' base",
+                   0x1234);
+    test.expect_de_high(
+        "type 0 R1>R0 BORDER OFF on the character following C0=R0 "
+        "(ACCC v1.10 section 17.6.2 p.186)");
+
+    // The byte recurs between every pair of character rows.
+    f6_expect_line_de(test, kF6SpuriousByteAtR0,
+                      "type 0 R1>R0 spurious border byte recurs per line");
+    test.run_characters(1);
+    f6_expect_line_de(test, kF6SpuriousByteAtR0,
+                      "type 0 R1>R0 spurious border byte on the third line");
+}
+
+void test_type1_r1_gt_r0_no_border_byte(TestBench& test) {
+    test.set_crtc_type(1);
+    f6_settle_one_frame(test, 0);
+
+    // ACCC v1.10 section 17.6.2 (pages 186-187): type 1 emits no border
+    // byte between rows when R1 > R0 -- rows stay seamlessly contiguous
+    // (section 28.1.6 type discriminator).
+    f6_expect_line_de(test, kF6AllDisplay,
+                      "type 1 R1>R0 emits no border byte");
+    test.run_characters(1);
+    f6_expect_line_de(test, kF6AllDisplay,
+                      "type 1 R1>R0 emits no border byte on the next line");
+}
+
+void test_type0_spurious_byte_delayed_one_character(TestBench& test) {
+    test.set_crtc_type(0);
+    f6_settle_one_frame(test, 1);
+
+    // ACCC v1.10 sections 19.2.4 (page 195) and 19.2.3 (pages 193-194):
+    // the SKEW-DISPTMG delay is counted from the substituted trigger, so
+    // delay=1 displaces the spurious byte onto C0=0 of the following line
+    // and display resumes one character later than without skew.
+    f6_expect_line_de(test, kF6SpuriousByteDelayed1,
+                      "type 0 R1>R0 skew 1 displaces the border byte to C0=0");
+    test.run_characters(1);
+    f6_expect_line_de(test, kF6SpuriousByteDelayed1,
+                      "type 0 R1>R0 skew 1 displaced byte recurs per line");
+}
+
+void test_type0_spurious_byte_delayed_two_characters(TestBench& test) {
+    test.set_crtc_type(0);
+    f6_settle_one_frame(test, 2);
+
+    // Delay=2 displaces the spurious byte onto C0=1 (ACCC v1.10 sections
+    // 19.2.4 page 195 and 19.2.3 pages 193-194).
+    f6_expect_line_de(test, kF6SpuriousByteDelayed2,
+                      "type 0 R1>R0 skew 2 displaces the border byte to C0=1");
+    test.run_characters(1);
+    f6_expect_line_de(test, kF6SpuriousByteDelayed2,
+                      "type 0 R1>R0 skew 2 displaced byte recurs per line");
+}
+
+void test_type0_skew_non_output_blanks(TestBench& test) {
+    test.set_crtc_type(0);
+    f6_settle_one_frame(test, 3);
+
+    // SKEW-DISPTMG mode 2'b11 is the non-output code: no DISPTMG at all is
+    // generated, which also suppresses the spurious byte (ACCC v1.10
+    // sections 19.1 page 192 and 19.2 page 193).
+    const std::array<bool, kF6LineCharacters> blanked = {};
+    f6_expect_line_de(test, blanked, "type 0 R1>R0 skew non-output blanks DE");
+    test.run_characters(1);
+    f6_expect_line_de(test, blanked,
+                      "type 0 R1>R0 skew non-output stays blanked");
+}
+
 }  // namespace
 
 //============================================================================
@@ -4077,6 +4251,21 @@ int main(int argc, char** argv) {
         {"t20i_type0_r0_zero_live_entry_reloads_vma_then_freezes",
          "ACCC v1.10 sections 13.2.6, 13.8.3, and 20.3.1; F5/F12/F11h (A3)",
          false, test_type0_r0_zero_live_entry_reloads_vma_then_freezes},
+        {"t10a_type0_r1_gt_r0_spurious_border_byte",
+         "ACCC v1.10 sections 17.6.2, 17.6.1, and 17.2; F6", false,
+         test_type0_r1_gt_r0_spurious_border_byte},
+        {"t10b_type1_r1_gt_r0_no_border_byte",
+         "ACCC v1.10 sections 17.6.2 and 28.1.6; F6 type discriminator", false,
+         test_type1_r1_gt_r0_no_border_byte},
+        {"t10c_type0_spurious_byte_delayed_one_character",
+         "ACCC v1.10 sections 19.2.4 and 19.2.3; F6 skew placement", false,
+         test_type0_spurious_byte_delayed_one_character},
+        {"t10d_type0_spurious_byte_delayed_two_characters",
+         "ACCC v1.10 sections 19.2.4 and 19.2.3; F6 skew placement", false,
+         test_type0_spurious_byte_delayed_two_characters},
+        {"t10e_type0_skew_non_output_blanks",
+         "ACCC v1.10 sections 19.2 and 19.1; F6 suppression path", false,
+         test_type0_skew_non_output_blanks},
     };
 
     unsigned passed = 0;

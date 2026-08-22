@@ -1,6 +1,11 @@
 # F6 decision gate — spurious type-0 border byte under R1>R0
 
-Status: **decision open** (default remains defer). Renaud's stated priority 2026-08-22:
+Status: **option C chosen; Stage 1 landed 2026-08-23** on branch
+`accuracy/a3-f6-stage1` (vectors `t10a`-`t10e` red first, then the substituted
+border-start term in `crtc_type0_engine.v`, injected ahead of the wrapper's
+SKEW-DISPTMG delay line in `rtl/CRTC.v`; golden soak hash re-minted to
+`0x326ea81358e7d88f`, delta protected by t10a-t10e). Stage 2 (seam-width
+measurement) is next and has not started. Renaud's stated priority 2026-08-22:
 exact hardware preservation, materialised by passing all SHAKER tests — strongly leaning
 toward the full-fidelity path (option C), conditional on the validation gates below. This
 file exists so any option can be picked up or abandoned without re-deriving the analysis.
@@ -51,13 +56,19 @@ is contradicted by the code:
 ## Option C staged plan (with revert points)
 
 1. **Stage 1 — exact pin behaviour in the type-0 engine / `rtl/CRTC.v` wrapper**
-   (type 0 only): when
+   (**DONE 2026-08-23**, branch `accuracy/a3-f6-stage1`): when
    `R1_h_displayed > R0_h_total` and `hcc == R0_h_total`, force DE low for that character;
    inject before the existing skew delay-line mux so SKEW-DISPTMG delays/suppresses it like
    a natural border edge (§19.2.4 substitution; note the author-question caveat about the
    p.195 placement ambiguity). Comment cites ACCC §17.6.2. This is *not* an approximation —
    it is what the real pin does. Deterministic vector t10 (both types + skew placement).
    Revert point: commit is self-contained.
+   Implementation notes: the term is combinational (`!CRTC_TYPE && R1>R0 && hcc==R0`) in
+   `crtc_type0_engine.v`, matching §17.3's live comparator semantics; vectors are t10a-t10e
+   (byte at C0=R0, type-1 control, skew 1/2 displacement, non-output blanking). Recorded
+   residual: with R0=0 the frozen C0 holds DISPTMG off continuously; the book's
+   alternating-byte description of that extreme (p.186) needs a toggle mechanism and is
+   deferred to a later F6 stage.
 2. **Stage 2 — measure what falls out.** Verilator asserts the DE pin; the visible seam
    width comes from the GA+glue path. Two measurement routes, cheapest first:
    - **In-simulation**: `rtl/GA40010/ga40010_test.v` already instantiates `CRTC` (the

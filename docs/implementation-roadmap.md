@@ -169,8 +169,11 @@ live in `accuracy/f6-decision-gate.md` (2026-08-22). Summary: F6 documents a hal
 border byte; the original "character-granular interface" premise was wrong — the GA40010
 recreation samples DISPEN twice per microsecond, so a char-aligned DE pulse (exact pin
 behaviour) plus the existing GA pipeline may reproduce the 0.5 µs result with no netlist
-change. Default action remains defer until Renaud picks an option; the one-character
-approximation stays available as a fallback. Whatever is chosen: own commit/PR at C4,
+change. Update 2026-08-23: Renaud picked option C and Stage 1 (exact pin behaviour,
+type-0 substituted border start + SKEW-DISPTMG displacement) landed on
+`accuracy/a3-f6-stage1` with vectors t10a-t10e satisfying this gate's `t10` requirement;
+Stage 2 seam-width measurement is pending before the result may be described as exact.
+The one-character approximation stays available as a fallback. Own commit/PR at C4,
 revertible, never described as exact unless the SHAKER Module A `(O)` photo comparison says so.
 
 ### F10 scope gate
