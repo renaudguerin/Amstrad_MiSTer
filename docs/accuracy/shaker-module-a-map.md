@@ -35,9 +35,9 @@ Names and test counts are verbatim from the menu. ACCC sections are from the cro
 
 | Entry | Tests | ACCC | Our coverage |
 |---|---|---|---|
-| **(5)** R13 UPDATE IN 4 USEC SCREENS (R0=3) | 5 | §13.8.1 p.127, §20.3 p.242 | **No vectors.** Mechanism plausibly correct; consequence unproven. See below. |
-| **(6)** R13 UPDATE IN 2 USEC SCREENS (R0=1) | 5 | §13.8.2 p.128, §13.2.5 p.107 | **No vectors.** Same. |
-| **(7)** R13 UPDATE IN 1 USEC SCREENS (R0=0) | 5 | §13.8.3 p.129, §13.2.6 p.108 | **No vectors.** Same. |
+| **(5)** R13 UPDATE IN 4 USEC SCREENS (R0=3) | 5 | §13.8.1 p.127, §20.3 p.242 | **Mechanism vectors exist**: `t20c`/`t20d` (both types, R0=3, MA asserted per line, commit `90aed07`). Unproven: the 5-phase Z80 write alignment the entry probes. |
+| **(6)** R13 UPDATE IN 2 USEC SCREENS (R0=1) | 5 | §13.8.2 p.128, §13.2.5 p.107 | **Mechanism vectors exist**: `t20e`/`t20f`. Same residual gap. |
+| **(7)** R13 UPDATE IN 1 USEC SCREENS (R0=0) | 5 | §13.8.3 p.129, §13.2.6 p.108 | **Mechanism vectors exist**: `t20g`/`t20h` (type 0 ignores reload after the hiccup; type 1 reloads every line). Same residual gap. |
 | **(U)** R4 & R9 CHECKING | 54 | §10.3 pp.74–79, §12 pp.92–101 | **Implemented.** This is the F4/F12 work just hardware-tested. |
 | **(I)** VSYNC CONDITIONS | 413 | §16.4 pp.168–170, §15.4 pp.152–154 | **Implemented**, via F3 and F11b. Largest entry in the module by a wide margin. |
 | **(P)** R6 STORIES | 13 | §18 pp.188–191 | Partial, via F4 equality-only rollover and F12. |
@@ -92,33 +92,37 @@ VMA reloads on every 1 µs line (§13.3 p.113, §20.3.2 p.242).
 
 ### Where our RTL actually stands
 
-The general-case reload rules are already right, and the degenerate-case *mechanisms* appear to
-be present from the F5/F12 work:
+Updated 2026-08-22 (P3 audit; earlier line refs had drifted and the R12/R13 gap is closed at
+mechanism level). The general-case reload rules are right, the degenerate-case mechanisms are
+present from the F5/F12 work, and `t20a`-`t20h` (commit `90aed07`) now assert MA across
+normal frames and R0=3/1/0 on both types:
 
-- `rtl/UM6845R.v:389` `CRTC0_reload = ~CRTC_TYPE & frame_new` — type 0 reloads at frame start.
-- `rtl/UM6845R.v:388` `CRTC1_reload = CRTC_TYPE & (frame_new | (~line_last & !row & !hcc_next))`
-  — type 1 reloads while C4=0, matching §20.3.2.
+- `rtl/UM6845R.v:433` `CRTC0_reload = ~CRTC_TYPE & frame_new` — type 0 reloads at frame start.
+- `rtl/UM6845R.v:430-432` type 1 reloads while C4=0 (`crtc1_row0_reload`) plus the ACCC
+  §11.2.4 adjustment-entry path loading VMA from R12/R13 while C4==1 — matching §20.3.2.
 - `rtl/UM6845R.v:196` `r0_frozen = !CRTC_TYPE && !R0_h_total && !hcc` plus
   `type0_r0_zero_entry_consumed` implement the R0=0 freeze and the last-hiccup increment.
-- `rtl/UM6845R.v:361` `if(hcc == 2) frame_adj_r <= frame_adj_r & |type0_effective_r5;` is the
+- `rtl/UM6845R.v:392` `if(hcc == 2) frame_adj_r <= frame_adj_r & |type0_effective_r5;` is the
   C0=2 disarm check, so at R0=1 it correctly never runs and the adjustment stays armed.
 
-What is missing is proof that these produce the right *video pointer* behaviour. There is not a
-single R12/R13 reload vector in `sim/sim_main.cpp`; the only R12 references are register
-readback aliasing tests. `MA` is already observable and `expect_ma` already exists, so the
-vectors are cheap to write.
-
-This is a **coverage gap, not a demonstrated bug**. The 15 tests may already pass.
+What the local vectors do **not** cover is the entry's remaining dimension: the five Z80
+instruction-phase alignments (`OUT (C),r` 3rd µs vs `OUTI` 5th µs). The harness models write
+timing as a character boundary plus a ±1-tick offset, which distinguishes JIT-vs-late but not
+all five phases. So this is now **partial coverage**: mechanism proven, phase alignment not.
 
 ## Next actions
 
-1. Write R12/R13 reload vectors before touching RTL: both types, across normal frames, R0=3,
-   R0=1 and R0=0, asserting on `MA` at each C0=0 boundary. Confirm each expected value against
-   the cited ACCC page first.
-2. Only if a vector fails, open a finding and fix it.
+1. ~~Write R12/R13 reload vectors before touching RTL~~ Done: `t20a`-`t20h` landed in
+   `90aed07`. Remaining sub-scope: instruction-phase alignment if a hardware divergence
+   points there.
+2. Only if a vector or hardware result fails, open a finding and fix it.
 3. Next hardware session: record every entry run by name with its result, set the OSD CRTC
-   selection deliberately, confirm the footer reports the type selected, and judge against the
-   Shakerland reference photographs for that type.
+   selection deliberately, confirm the footer reports the type selected, and judge against
+   the Shakerland reference photographs for that type. Target list for the next session:
+   Module A `(U)`, `(P)`, `(5)`-`(7)`; Module E `(3)`, `(2)`, `(1)`; Module B `(RETURN)`;
+   Module D `(E)` — see `current-status.md` and the roadmap's per-checkpoint SHAKER list.
+   SHAKER sessions stay manual and milestone-targeted; they are not part of the automated
+   Verilator + CI loop.
 4. Cheap direct check of shipped work: Module E `(3) CRTC 0 C4/C9 COUNTER LOGIC BUG`
    (§10.3.1.2 pp.75–76, §11.2.2 pp.81–82) targets exactly the F4/F12 counter logic. Module E
    `(2)` targets CRTC 1 VMA treatment on adjustment lines, adjacent to the R12/R13 work above.

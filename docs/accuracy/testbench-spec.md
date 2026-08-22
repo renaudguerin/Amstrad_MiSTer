@@ -103,9 +103,10 @@ lags a sub-vector name.
 | t15 R12/R13 overscan-bit carry into MA[13:12] | digest-03 §20.5 | regression |
 | t16a-t16y type-0 last-line/adjustment arbitration — implemented: same-edge C0=0 R4 comparison; C0=1 R4/R9 equality breaks with R5=0, including exact R0=1 rollover consumption; R5 accepted through C0==2 and rejected after it with the accepted current-line target retained; R9 updates at C0==2..R0-1; R4 updates switch C9/R9 to C9/R5 through exact-R0; exact-R0 R9 increments C4 and C9; active adjustment reuses C9 against R5 even when R9 differs, including R5=0 overflow and zero-entry extension; R0=0/1 default adjustment; R0=0 during active adjustment freezes C4/C9; completion and retained-state lifecycle | digest-01 §3.1/§4.2/§7.1/§8.1 | F12 deterministic counter milestone and F5/F9 boundaries |
 
-The implemented t01/t02/t03/t06/t07/t09 and t16 groups are required passes. The t08 group
-retains only the two named type-1 F8 adjustment-identification divergences as expected
-failures. These vectors fix the v1.10 counter and adjustment-state expectations while
+All implemented groups are required passes. As of the F8 commit (`c9f4a4e`) the suite has
+**no expected failures**: the former type-1 adjustment-identification xfails (`t08f`/`t08g`)
+became required passes, and the 2026-08-22 run reports 85 passed / 0 xfailed / 0 xpassed /
+0 failed. These vectors fix the v1.10 counter and adjustment-state expectations while
 deliberately avoiding unsupported sub-character MA/DE/VSYNC claims. If later hardware
 evidence introduces a true pin-level uncertainty, keep any expected failure narrow; never
 wrap setup assertions in a whole-test expected failure.
@@ -135,7 +136,8 @@ the cited ACCC rule when implemented:
 
 ## Definition of done (for the implementing agent)
 
-1. `make -C sim` runs t01–t06 green on current master (with documented xfails), < 30 s total.
+1. `make -C sim` runs the full suite non-interactively and exits zero (2026-08-22 state:
+   85 required passes, no expected failures), well under a minute total.
 2. A failing assertion produces a VCD + human-readable diff.
 3. `docs/accuracy/audit-findings.md` verification levels V3 references become real: each
    finding's fix prompt names its test file.

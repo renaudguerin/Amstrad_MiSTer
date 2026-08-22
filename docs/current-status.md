@@ -1,8 +1,18 @@
 # Current implementation status
 
-This is the handoff for the next development and hardware-test session. It describes the
-state of `codex/exploratory-gx4000-plus-plan` on 2026-08-19. The detailed behavioral rules
-remain in `accuracy/`; the long-term ordering remains in `implementation-roadmap.md`.
+This is the handoff for the next development and hardware-test session. Hardware facts below
+describe `codex/exploratory-gx4000-plus-plan` as of 2026-08-19; the review/correction work
+since then (ACCC v1.10 faithfulness review, corrections B1-B13, review-debt repayment) lives
+on `accc-review-and-fixes` and does not change RTL. The detailed behavioral rules remain in
+`accuracy/`; the long-term ordering remains in `implementation-roadmap.md`.
+
+## How hardware testing fits the loop
+
+SHAKER is **not** part of the automated loop. The automated loop is the Verilator suite
+(`make -C sim`) plus GitHub Actions synthesis. SHAKER sessions are manual, user-run, and
+happen only at significant milestones, against a named target list recorded before the
+session. A green simulation gate is never evidence of hardware accuracy; a manual session
+never gates a commit.
 
 ## Hardware-test milestone
 
@@ -186,9 +196,11 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
 - The complete deterministic F12/F4 counter milestone and CPR parser have a synthesized CI
   build at `5ddddef`, which was hardware-tested on 2026-08-19 as described above. The F8 work
   on top of it has a synthesized, not yet hardware-tested, CI build at `4c78603`.
-- Independent cross-provider review is unavailable: the GPT-5.6 Sol reviewer's quota is
-  exhausted and Fable is excluded. Work continues behind the Verilator and synthesis gates,
-  and every unreviewed diff is tracked in `review-debt.md` for a dedicated review pass later.
+- Independent review: cross-provider review remains unavailable on this harness. Per the
+  2026-08-22 decision, same-model independent reviews count for this project; repayment of
+  the `review-debt.md` rows is in progress on `accc-review-and-fixes`. New work on that
+  branch deliberately takes no new debt rows — the whole branch gets one review pass at
+  merge time.
 
 ## Next-session order
 
@@ -197,18 +209,26 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
    the four-command post-install sequence in `ansible/README.md` from the `ansible/`
    directory: check, apply, repeat the check, then validate with
    `quartus_required=true`.
-2. Re-run SHAKER Module A on `4c78603` with Plus model disabled, this time recording every
-   subtest by name and result for both CRTC selections, alongside the stock core. Use
-   `4c78603` rather than the previously tested `5ddddef`: it is the first synthesized build
-   containing F8. The first two passes produced only an aggregate impression and are not
-   actionable. Judge the results
-   against the Logon System reference photographs, as `docs/accuracy/shaker-module-a-map.md`
-   requires; the stock core is a regression baseline only.
+2. Re-run SHAKER on `4c78603` with Plus model disabled, recording every subtest by name and
+   result for both CRTC selections, alongside the stock core — but judged against the Logon
+   System reference photographs, not against the stock core (`shaker-module-a-map.md`; the
+   stock core is a regression baseline only). Suggested target list for this session, drawn
+   from `accuracy/shaker/shaker-accc-crossref.md` (confirm each cited page before acting on
+   a result):
+   - Module E `(3)` (CRTC 0 C4/C9 counter logic — the F12/F4 work),
+   - Module E `(2)` and `(1)`, Module B `(RETURN) R5 STORIES`, Module D `(E)` (F8 type-1
+     C5 adjustment),
+   - Module A `(U)` and `(P)` (counter/border edges moved by F12/F4),
+   - Module A `(5)`/`(6)`/`(7)` R13 UPDATE IN n USEC SCREENS (mechanism vectors `t20a`-
+     `t20h` now exist locally, so a divergence here maps straight to code).
+   The first two passes produced only an aggregate impression and are not actionable.
+   Confirm SHAKER's own CRTC identification agrees with the OSD selection before comparing.
 3. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
    deterministic regression before repairing any newly understood behavior.
-4. Classic: close F9 by encoding the full `t12` worked example (ACCC §10.3.1/§11.2.2,
-   pp. 75-76/81-83) without changing the implemented comparator split, leaving the current
-   equality/overflow and F12 arbitration guards intact. Then F7 RFD.
+4. Classic: close F9 by encoding the full `t12` worked example plus its windowed companion
+   case (ACCC §10.3.1/§11.2.2, pp. 75-76/81-83; findings-review B4) without changing the
+   implemented comparator split, leaving the current equality/overflow and F12 arbitration
+   guards intact. Then the F6 decision gate, then F7 RFD. F10 stays fixture-gated.
 5. Plus: in a separate stack, wire the CPR parser into P0 MMU/boot integration against the
    existing memory-service and SDRAM contracts.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.

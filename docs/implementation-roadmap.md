@@ -14,21 +14,29 @@ merged into the same behavioral PR.
 ## 1. Current baseline
 
 - `master` is the upstream baseline.
-- The current development branch contains the accuracy/reference documents, the F1-F3 and
-  main F5 corrections, the Verilator CRTC/Plus gates, and GitHub Actions synthesis.
+- Review/correction work lands on `accc-review-and-fixes` (cut from
+  `codex/exploratory-gx4000-plus-plan`); stream branches (`accuracy/*`, `plus/*`) cut from it
+  only after shared dependencies land there.
+- The current development state contains the accuracy/reference documents, the F1-F3 and main
+  F5 corrections, deterministic-complete F12/F4/F8, the Verilator CRTC/Plus gates, the bounded
+  CPR parser (tied off), R12/R13 reload vectors (`t20a`-`t20h`), and GitHub Actions synthesis.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
   RBF packaging, and artifact upload for the final hardware-test milestone (`ba5b629`, run
-  `31637450102`). New top-level/file-list commits still require their own run.
-- `sim/` currently reports 46 required CRTC passes with no expected failures. The Plus leaf
-  and SDRAM integration suites are green.
+  `31637450102`; latest synthesized build `4c78603`). New top-level/file-list commits still
+  require their own run.
+- `sim/` currently reports **85** required CRTC passes with no expected failures (verified
+  2026-08-22, Verilator 5.050). The Plus leaf and SDRAM integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing and the P-1 cartridge memory/SDRAM contract are implemented but
   behaviorally tied off. No Plus/GX4000 firmware or cartridge boots yet.
-- ACCC v1.10 is the primary Compendium baseline. Prefer the checked-in digests, audit
-  prompts, and `accuracy/accc-1.10-differences.md`; consult `docs/ACCC1.10-EN.pdf` only for
-  rules explicitly marked for re-extraction. Retain v1.9 only for historical comparison.
-- The v1.10 documentation rebaseline and deterministic F12/t16 counter milestone are
-  complete. The next classic checkpoint is F4's test-only `t07`/`t08` foundation.
+- ACCC v1.10 is the primary Compendium baseline, verified against the PDF by the 2026-08-22
+  faithfulness review (`accuracy/findings-review.md`, corrections B1-B13 applied). Prefer the
+  checked-in digests and audit prompts; consult `docs/ACCC1.10-EN.pdf` only for pages still
+  flagged ⚠ (visual-tier diagrams). v1.9 is disregarded — historical only.
+- The v1.10 documentation rebaseline and deterministic F12/F4 counter milestone are complete;
+  F8 (type-1 C5 adjustment) is implemented with its identification vectors as required passes.
+  The next classic checkpoint is F9 closure: encode the full `t12` worked-example pair plus
+  its windowed companion case (findings-review B4).
 
 The current branch is a useful staging branch, not a requirement to publish one large PR.
 The commits may be rearranged into the small sequences below before publication.
@@ -86,13 +94,20 @@ Every checkpoint advances through the cheapest applicable gates in order.
 
 ### Gate C: real software and hardware
 
-- Run SHAKER or the named diagnostic for the changed behavior before calling a timing fix
+- **SHAKER is not part of the automated loop.** The automated verification loop is Gate A
+  (Verilator) plus Gate B (CI synthesis). SHAKER sessions are manual, user-run, and happen
+  only at significant milestones — never per-commit. A checkpoint names its suggested SHAKER
+  targets in advance so each manual session is milestone-targeted and results are recorded
+  per entry.
+- Run the named SHAKER entries for the changed behavior before calling a timing fix
   complete.
 - On MiSTer, first verify classic boot, a known-good disk `cat`, video, keyboard/joystick,
   and reset. Then run the finding- or milestone-specific titles.
 - Capture the RBF commit, MiSTer version, selected model/CRTC, test image hash or filename,
   and observed result. For visual comparisons, retain a real-hardware or trusted-emulator
-  reference and describe the expected raster feature.
+  reference and describe the expected raster feature. SHAKER results are judged against the
+  Logon System reference photographs (`shaker.logonsystem.eu`); the stock core is only a
+  regression baseline.
 - A hardware-only success never replaces Gate A. It promotes a deterministic implementation
   after simulation and synthesis have passed.
 
@@ -115,6 +130,32 @@ Classic work is intentionally serial because most findings touch the same state 
 | **C7: type-0 R9 race** | Revised F9 only, after F12/F4/F8 have stabilized the counter structure | `t12` reproduces both documented exact-cycle results using the v1.10 comparison target; it must not preserve the v1.9 rationale as an oracle | Contrived timing test; hardware trace if simulation and SHAKER disagree |
 | **C8: type-1 RFD** | F7 only, after F4/F8/F9 | `t13` proves trigger timing, frame parity, VMA reload, and no behavioral change when never armed | SHAKER RFD tests and a CRTC-1 RFD demo sweep |
 | **C9: interlace** | F10 last, split into fixtures, type-0 machinery, then type-1 machinery | New parity and entry/exit fixtures derived from the cited SHAKER tables; all t01-t15 regressions stay green | SHAKER interlace suite and hardware comparison for both CRTC types |
+
+### Suggested SHAKER targets per checkpoint
+
+Manual-session target lists drawn from `accuracy/shaker/shaker-accc-crossref.md` (its
+citations are unverified until each cited page is confirmed before acting on a result).
+Module/key names are SHAKER 2.6 menu entries.
+
+- C1 F2 → B `(S) CRTC 1 : BE00 CHECK`.
+- C2 F3 / C3 F5 → A `(I) VSYNC CONDITIONS`; A entries `(4)` and `(U)` for the R0-timing
+  edges; B `(P) ANALYZER / FORCED STAB CRTC 0 R0=0`.
+- C4 F6 (if accepted) → A `(O) R1 STORIES`.
+- C5A/C5B F12/F4 → A `(U) R4 & R9 CHECKING`, A `(P) R6 STORIES`, E `(3) CRTC 0 C4/C9
+  COUNTER LOGIC BUG`.
+- C6 F8 → build `4c78603` or later: E `(2) CRTC 1 VMA TRT ... ADJ LINE`, E `(1) R5 STORIES
+  2ND ROUND`, B `(RETURN) R5 STORIES`, D `(E) CRTC 1 : OFS UPD IN ADD MANAGEMENT`.
+- C7 F9 → E `(3)` (same entry covers the C0==R0 comparator switch).
+- C8 F7 → C `(1) CRTC 1 : RFD & PARITY STORY`, D `(9) CRTC 1 : RFD ROUND 2`. (B `(O)
+  CRTC 1-A OR 1-B?` is the chip-variant discriminator — informative only; the variant is
+  deliberately not modeled.)
+- C9 F10 → interlace suite: B `(1) INTERLACE C4/C9 COUNTERS`, B `(9) INTERLACE VM`,
+  C `(1)`–`(5)` parity entries, plus the SHAKER 22C/3 parity truth tables (ACCC pp.210-212)
+  as fixture sources.
+- Plus P1/P5 (CRTC3 foundation, bus quirks) → run the classic entries above on the CRTC3
+  setting where applicable, plus D `(U) CRTC 3/4 : STATUS` once status paths exist.
+- Any session touching R12/R13 reload → A `(5)`/`(6)`/`(7)` R13 UPDATE IN n USEC SCREENS
+  (mechanism vectors `t20a`-`t20h` already exist locally).
 
 ### F6 decision gate
 
@@ -258,12 +299,13 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 ## 8. Immediate execution queue
 
 1. Test the synthesized current milestone on real MiSTer hardware using
-   `current-status.md`; record classic CPC and F2/F3/F5 results.
-2. Classic stream: add and review the F4 `t07`/`t08` vectors as a test-only
-   checkpoint, then implement equality/overflow without weakening the type-0 RLAL guards.
-3. Plus stream: implement P0 MMU, bounded CPR parsing, `/EXP`, and boot integration against
-   the accepted P-1 service/SDRAM contract. Do not combine this with Plus video work.
+   `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
+2. Classic stream: close F9 by encoding the full `t12` worked example and its windowed
+   companion case (test-only), then take the F6 decision gate, then F7 RFD. F10 stays
+   fixture-gated behind its PDF re-checks.
+3. Plus stream: implement P0 MMU, bounded CPR parsing integration, `/EXP`, and boot wiring
+   against the accepted P-1 service/SDRAM contract. Do not combine this with Plus video work.
 4. Keep F6 deferred unless a half-character-capable interface is designed or the project
    explicitly accepts the reversible one-character approximation.
-5. Continue classic work F4 -> F8 -> F9 -> F7. Start F10 only after its fixtures and PDF
-   re-check gate are ready.
+5. Common dependencies for both streams (harness helpers, shared docs) land on
+   `accc-review-and-fixes` before `accuracy/*` and `plus/*` branches are cut.
