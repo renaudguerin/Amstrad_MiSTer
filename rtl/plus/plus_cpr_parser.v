@@ -3,7 +3,9 @@
 // Parses a sequential ioctl stream carrying a .cpr image, validating the RIFF
 // container and block chunks ("cb00".."cb31"), forwarding page data to
 // plus_cartridge_memory, and pulsing control lines (load_begin, load_commit,
-// load_abort).
+// load_abort).  A cbNN chunk declaring more than one 16 KiB page is malformed
+// and aborts the load (fail closed); see docs/plus/architecture.md,
+// "CPR parser policy (P0)".
 
 module plus_cpr_parser
 (
@@ -373,6 +375,14 @@ always @(posedge clk) begin
 								2'd3: begin
 									sub_idx <= 2'd0;
 									if (chunk_extent_exceeds_riff) begin
+										load_abort <= 1'b1;
+										state      <= STATE_ERROR;
+									end
+									else if (is_block && (full_chunk_len > 32'd16384)) begin
+										// A cbNN page is exactly 16 KiB; a longer
+										// declared block cannot be valid cartridge
+										// data. Abort instead of silently dropping
+										// the excess (A5a, review cd47d7d).
 										load_abort <= 1'b1;
 										state      <= STATE_ERROR;
 									end
