@@ -139,6 +139,12 @@ the type-split refactor milestone (it forces a full read anyway).
       `rtl/UM6845R.v`; Plus P0 touches top-level wiring + `files.qip`; no shared RTL items.
       Review action item A4 (harness tidy) landed on base for this reason. Nothing else
       blocks cutting `accuracy/*` and `plus/*`.)
+- [ ] Type-split prerequisite: land the soak-diff harness on base BEFORE the split
+      (deterministic-seed randomized register writes at random C0/tick phases, both types,
+      rolling hash over pins + key internals per CLKEN; mint the golden hash from unsplit
+      code). Ship it as its own `make -C sim soak` target so the default suite stays lean
+      and removal stays trivial; expected permanent tooling (F7 needs bit-identity-when-
+      unarmed proof, F10 stages benefit), not split-only scaffolding.
 - [ ] Classic queue: F9 closure done (`t12a`/`t12b` on `accuracy/f9-t12-closure`, `aea80b5`,
       87 required passes) → next: F6 decision gate — options analysis + corrected GA
       interface evidence recorded in `accuracy/f6-decision-gate.md`; user leans option C
