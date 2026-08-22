@@ -69,13 +69,13 @@ Deliverables of Phase 1 (stop point — user reviews before Phase 2):
 - [x] Multimodal smoke test passed (read SHAKER screenshot).
 
 ### P1 — faithfulness review
-- [ ] Extract + skim ch. 2 (attribution/licence), 3–5 (context), 6–29 scope map.
-- [ ] Digest-01 (ch. 6–13) verified.
-- [ ] Digest-02 (ch. 14–16, 27) verified.
-- [ ] Digest-03 (ch. 17–22, 28–29) verified.
-- [ ] F1–F12 cross-checked against verified rules (not just digests).
-- [ ] testbench-spec / shaker-map citations spot-checked.
-- [ ] findings-review.md + accc-author-questions.md written and committed.
+- [x] Extract + skim ch. 2 (attribution/licence), 3–5 (context), 6–29 scope map.
+- [x] Digest-01 (ch. 6–13) verified.
+- [x] Digest-02 (ch. 14–16, 27) verified.
+- [x] Digest-03 (ch. 17–22, 28–29) verified.
+- [x] F1–F12 cross-checked against verified rules (not just digests).
+- [x] testbench-spec / shaker-map citations spot-checked.
+- [x] findings-review.md + accc-author-questions.md written and committed (`436d6b1`).
 
 ### P2 — corrections (blocked on user sign-off)
 - [ ] Apply accepted fixes to affected docs.
@@ -128,4 +128,6 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: P0 complete → starting P1**.
+the resume point in one line here: **resume point: P1 complete (`436d6b1`) — BLOCKED on user
+review of findings-review.md + acccc-author-questions.md before P2. P3/P4 can start in
+parallel if the user prefers.**
