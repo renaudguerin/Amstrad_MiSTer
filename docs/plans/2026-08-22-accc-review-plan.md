@@ -171,9 +171,9 @@ the type-split refactor milestone (it forces a full read anyway).
       F1/F2/F3/F4/F8, F7 absence + F10 minimal-IVM re-verified, F11h Current rewritten).
       Dev-time catch worth remembering: the soak alone passed nothing until a lockstep
       differential harness vs the pre-split core isolated a holdoff-latch set-path bug the
-      directed vectors missed — the differential harness was throwaway (opencode temp dir,
-      NOT committed); rerun equivalent by diffing against `git show 418aa68:rtl/UM6845R.v`
-      if ever needed again.
+      directed vectors missed — the differential harness was throwaway (opencode temp dir),
+      since preserved reproducibly as tools/split-differential (branch
+      docs/split-differential-evidence, c68459b).
       FOLLOW-UP (same branch, user-raised): wrapper renamed `rtl/UM6845R.v` → `rtl/CRTC.v`,
       module `CRTC` (63f4c01) — UM6845R is the type-1 part number and misdescribed a
       two-variant component. Mechanical; gates re-run green, golden hash unchanged.

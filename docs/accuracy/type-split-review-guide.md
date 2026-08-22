@@ -18,7 +18,7 @@ Scope: documentation reconciliation + verification tooling. No CRTC behaviour ch
 | Commit | What | Why |
 |---|---|---|
 | P0–P4 commits | ACCC v1.10 faithfulness review deliverables, doc corrections, status-vs-code audit, review-debt repayment record (A1–A5 action items) | Recorded in `docs/accuracy/findings-review.md` and `docs/review-debt.md`; docs-only until the harness commit |
-| `d5cab8f` | Merge of `accuracy/f9-t12-closure` (`aea80b5`, t12a/t12b + F9 RTL fix) into base | The type-split branch had to inherit the full 87-vector suite and the exact core state the soak golden hash was minted against |
+| `d5cab8f` | Merge of `accuracy/f9-t12-closure` (`aea80b5`: t12a/t12b vectors + docs, no RTL change) into base | The type-split branch had to inherit the full 87-vector suite and the exact core state the soak golden hash was minted against |
 | `418aa68` | Soak-diff harness: `make -C sim soak` | Turns "bit-identical refactor" from a hope into a checkable claim; permanent tooling (F7/F10 will reuse it). Fixed seed; FNV-1a hash over all pins + hcc/line/row/c5/in_adj/type-0 latches sampled every CLKEN |
 
 **Golden hash: `0x5b5004ff70148443`** (seed `0xaccc5eed20260822`). It is minted from the
@@ -67,12 +67,14 @@ Plus, once per push: GitHub Actions "Build core" workflow green on
 `accuracy/crtc-type-split` (Verilator gate first, then pinned Quartus 17.0.2 synthesis —
 required because `files.qip` changed).
 
-Stronger than any single run: during development, a throwaway lockstep differential harness
+Stronger than any single run: during development, a lockstep differential harness
 (pre-split reference core vs split core, identical stimulus, compared after **every** CLKEN
 edge) ran ~45.5M samples across both types with zero divergence after the fix below. It is
-deliberately not committed; rebuild recipe if ever needed:
-extract `git show 418aa68:rtl/UM6845R.v` as a reference module (rename module to avoid a
-clash), drive both models with the soak stimulus in lockstep, compare full state per edge.
+now preserved and reproducible: `tools/split-differential/run.sh` (branch
+`docs/split-differential-evidence`, `c68459b`), which extracts the reference from git
+history automatically. An independently rerun capture against this branch's tip is at
+`docs/accuracy/evidence/split-differential-run-2026-08-23.log`; see also the independent
+review, `docs/accuracy/accc-review-and-fixes-independent-review.md`, which reproduced it.
 
 The one real bug it caught (fixed before any commit): the relocated type-0 partial-VSYNC
 holdoff latch initially applied its *set* path on R7 writes whose comparison was false
@@ -91,9 +93,11 @@ what the differential method exists to catch.
 3. **Holdoff latch** (`type0_vsync_wait_line_start`): three update sites replicated with
    original program order (count-tick clear → R7-write set/clear → unconditional
    type/SNA clear). See bug note above.
-4. **`frame_adj_r`'s hcc==2 keep term**: consumed unconditionally under BOTH types
-   (`e0_hcc2_adj_keep` carries its own type gate internally), preserving the quirk that the
-   flop updates even while type 1 runs.
+4. **`frame_adj_r`'s hcc==2 keep term**: consumed unconditionally under BOTH types.
+   The exported term is the raw effective-R5 reduction — it carries no type gate of its
+   own; correctness comes from the wrapper consuming it regardless of type, preserving the
+   quirk that the flop updates even while type 1 runs. (Corrected per the independent
+   review, which refuted this guide's original wording.)
 5. **hcc==0 capture semantics**: `line_last_r`/`row_last_r`/`frame_adj_r` must keep updating
    under *both* types with type-muxed values — they are read by type-0 rules after a live
    switch, so gating them would change round-trip behaviour.
