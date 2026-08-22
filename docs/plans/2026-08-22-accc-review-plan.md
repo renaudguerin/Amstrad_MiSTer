@@ -77,7 +77,7 @@ Deliverables of Phase 1 (stop point — user reviews before Phase 2):
 - [x] testbench-spec / shaker-map citations spot-checked.
 - [x] findings-review.md + accc-author-questions.md written and committed (`436d6b1`).
 
-### P2 — corrections (blocked on user sign-off)
+### P2 — corrections (ACCEPTED by user 2026-08-22: all of B1–B13; author questions being relayed)
 - [ ] Apply accepted fixes to affected docs.
 - [ ] Write code-implication list (RTL/tests), no RTL changes yet.
 
@@ -128,6 +128,6 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: P1 complete (`436d6b1`) — BLOCKED on user
+the resume point in one line here: **resume point: P1 complete (`436d6b1`); user ACCEPTED B1-B13 and is relaying Q1-Q14. Next: P2, then P3, P4 (user review of findings no longer blocks). Previously blocked on user
 review of findings-review.md + acccc-author-questions.md before P2. P3/P4 can start in
 parallel if the user prefers.**
