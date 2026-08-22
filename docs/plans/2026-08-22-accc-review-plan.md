@@ -139,12 +139,20 @@ the type-split refactor milestone (it forces a full read anyway).
       `rtl/UM6845R.v`; Plus P0 touches top-level wiring + `files.qip`; no shared RTL items.
       Review action item A4 (harness tidy) landed on base for this reason. Nothing else
       blocks cutting `accuracy/*` and `plus/*`.)
-- [ ] Type-split prerequisite: land the soak-diff harness on base BEFORE the split
+- [x] Type-split prerequisite: land the soak-diff harness on base BEFORE the split
       (deterministic-seed randomized register writes at random C0/tick phases, both types,
       rolling hash over pins + key internals per CLKEN; mint the golden hash from unsplit
       code). Ship it as its own `make -C sim soak` target so the default suite stays lean
       and removal stays trivial; expected permanent tooling (F7 needs bit-identity-when-
       unarmed proof, F10 stages benefit), not split-only scaffolding.
+      DONE: `make -C sim soak` on `accc-review-and-fixes`. **Golden hash
+      `0x5b5004ff70148443`**, minted from the unsplit core at this commit (seed
+      `0xaccc5eed20260822`, 2,845,088 characters / CLKEN samples, ~6 s, verified identical
+      across two runs). The split must reproduce it exactly. Note: `accuracy/f9-t12-closure`
+      (aea80b5) was merged into base first (merge commit before the soak commit) so the
+      split branch inherits the full 87-vector suite and the exact core state the hash was
+      minted against; re-minting is required only if the seed, sampled field set/order, or
+      event schedule changes.
 - [ ] Classic queue: F9 closure done (`t12a`/`t12b` on `accuracy/f9-t12-closure`, `aea80b5`,
       87 required passes) → next: type-split prerequisite (soak harness on base), then the
       split per `accuracy/crtc-per-type-separation.md` → F6 option C Stage 1 (user lean

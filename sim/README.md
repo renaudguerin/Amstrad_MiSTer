@@ -32,12 +32,12 @@ Other useful commands:
 ```sh
 make -C sim lint
 make -C sim clean
-make -C sim soak        # (planned: see "Randomized equivalence soak" below)
+make -C sim soak    # randomized equivalence soak, see below
 ```
 
-## Randomized equivalence soak (planned for the type-split refactor)
+## Randomized equivalence soak
 
-Alongside the directed vectors, the suite gains a deterministic randomized
+Alongside the directed vectors, the suite ships a deterministic randomized
 "soak-diff" target. Rationale, for reviewers:
 
 - Directed + randomized stimulus against a golden reference is standard
@@ -57,6 +57,30 @@ Alongside the directed vectors, the suite gains a deterministic randomized
 - Cost is one self-contained target (~150 lines reusing existing TestBench
   helpers), seconds of runtime, zero entanglement with the default suite — so
   removing it later, if ever judged not worth keeping, is trivial.
+
+Usage and golden-hash protocol:
+
+```sh
+make -C sim soak                          # prints the current hash
+make -C sim soak SOAK_EXPECT=<16 hex>     # exits nonzero on mismatch
+```
+
+The stimulus is fixed-seed (seed value in `sim/sim_main.cpp`, `kSoakSeed`):
+pseudo-random register writes at arbitrary C0 values and CLKEN/nCLKEN bus
+phases, both CRTC types, with occasional reads, held writes, snapshot loads,
+live type round-trips, and resets. The rolling FNV-1a hash samples every pin
+(MA, RA, DE, HSYNC, VSYNC, CURSOR, FIELD, DO) plus `hcc`, `line`, `row`,
+`c5`, `in_adj`, and the type-0 arbitration latches (including the R5
+retarget value) after every CLKEN edge.
+
+The golden hash for the type-0/type-1 engine split was minted from the
+unsplit core; the minting commit and hash value are recorded in the session
+plan (`docs/plans/2026-08-22-accc-review-plan.md`). The hash depends on the
+seed, the sampled field set/order, the event schedule, and the DUT's
+observable behaviour — any of the first three changing requires re-minting,
+recorded as such. The soak accesses internals by their Verilator names, so a
+refactor that renames them updates those accessors without touching the
+hashed values.
 
 For future behaviour changes the rule stays as elsewhere in this repo:
 deterministic vector first, derived from the cited ACCC rule, expectations on
