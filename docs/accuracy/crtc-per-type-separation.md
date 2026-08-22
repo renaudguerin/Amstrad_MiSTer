@@ -2,10 +2,20 @@
 
 Context: Longshot's advice to Renaud (relayed 2026-08-22): "each CRTC must have its own
 emulation code. If you try anything else, it will be either failure, or an unmaintainable
-headache." This file records where our core stands against that advice and what changing it
-would mean. Decision not taken yet; recorded so the trade-off survives session handoffs.
+headache." This file records where our core stood against that advice and what changing it
+would mean.
 
-## Current status: one shared model for types 0 and 1
+**OUTCOME (2026-08-22): option S2 executed.** The split landed behaviour-preserving on
+`accuracy/crtc-type-split` (27efc2d): wrapper `rtl/CRTC.v` (renamed from `rtl/UM6845R.v` —
+the old filename was the type-1 part number and misdescribed a two-variant component) keeps
+ports, register file, shared counters and sequencing; `rtl/crtc_type0_engine.v` /
+`rtl/crtc_type1_engine.v` hold every type-specific rule plus provably-private flops.
+Bit-identity proven by the soak golden hash (`0x5b5004ff70148443`, minted pre-split), all 87
+vectors, lint, and a lockstep differential run against the pre-split core (~45.5M CLKEN
+samples, no divergence). See `docs/accuracy/type-split-review-guide.md`. The sections below
+are kept as the pre-split record.
+
+## Status before the split: one shared model for types 0 and 1
 
 `rtl/UM6845R.v` implements **both** classic types in a single state machine selected by the
 `CRTC_TYPE` port (`0` → HD6845S/UM6845, `1` → UM6845R). The filename is the type-1 part

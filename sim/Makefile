@@ -1,7 +1,7 @@
 VERILATOR ?= verilator
 
-TOP       := UM6845R
-RTL       := ../rtl/UM6845R.v
+TOP       := CRTC
+RTL       := ../rtl/CRTC.v ../rtl/crtc_type0_engine.v ../rtl/crtc_type1_engine.v
 OBJ_DIR   := obj_dir
 TEST_SRC  := sim_main.cpp
 TEST_BIN  := $(OBJ_DIR)/crtc_tests

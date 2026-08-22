@@ -50,7 +50,8 @@ is contradicted by the code:
 
 ## Option C staged plan (with revert points)
 
-1. **Stage 1 — exact pin behaviour in `UM6845R.v`** (type 0 only): when
+1. **Stage 1 — exact pin behaviour in the type-0 engine / `rtl/CRTC.v` wrapper**
+   (type 0 only): when
    `R1_h_displayed > R0_h_total` and `hcc == R0_h_total`, force DE low for that character;
    inject before the existing skew delay-line mux so SKEW-DISPTMG delays/suppresses it like
    a natural border edge (§19.2.4 substitution; note the author-question caveat about the
@@ -75,7 +76,7 @@ is contradicted by the code:
 
 ## Upstream justifiability (the condition attached to choosing C)
 
-- `UM6845R.v` change: exact documented pin behaviour with an ACCC citation — trivially
+- `CRTC.v`/engine change: exact documented pin behaviour with an ACCC citation — trivially
   justifiable.
 - `GA40010`: expected **zero changes**. If Stage 3 ever seemed to require them, stop and
   re-examine the glue first; changing the netlist recreation is out of scope for F6.

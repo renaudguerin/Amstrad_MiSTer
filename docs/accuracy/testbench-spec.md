@@ -1,6 +1,7 @@
 # Verilator CRTC Testbench — Specification
 
-Goal: a **macOS-native, no-Quartus** simulation harness for `rtl/UM6845R.v` that encodes the
+Goal: a **macOS-native, no-Quartus** simulation harness for the classic CRTC core
+(`rtl/CRTC.v` + its two per-type engine files) that encodes the
 Compendium rules (see the digests in this directory) as executable assertions, so that any
 future agent or human can verify CRTC changes in seconds instead of a 30-minute synthesis +
 hardware test. This is the verification backbone for findings F3–F10 and F12 in
@@ -13,9 +14,9 @@ Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 ## Why Verilator
 
 - Runs natively on Apple Silicon (`brew install verilator`), compiles Verilog to C++.
-- `UM6845R.v` is self-contained, pure synchronous, single clock — ideal DUT. No vendor
+- The CRTC core (`rtl/CRTC.v` + engines) is pure synchronous logic on a single clock — ideal DUT. No vendor
   primitives, no PLL, no sys/ dependencies.
-- The one blocker: `UM6845R.v` uses `/* verilator lint_off WIDTH */` already — the author
+- Note: the RTL carries `/* verilator lint_off WIDTH */` pragmas — the author
   anticipated this. Expect only minor lint noise.
 
 ## Architecture
