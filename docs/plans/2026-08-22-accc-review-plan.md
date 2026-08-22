@@ -118,9 +118,12 @@ reviewed fresh on 2026-08-22.
       Review action item A4 (harness tidy) landed on base for this reason. Nothing else
       blocks cutting `accuracy/*` and `plus/*`.)
 - [ ] Classic queue: F9 closure done (`t12a`/`t12b` on `accuracy/f9-t12-closure`, `aea80b5`,
-      87 required passes) → next: F6 decision gate (user call on the one-character
-      approximation) → F7 RFD (incl. B6 disarm path; A1 VSYNC corner fix first if accepted)
-      → F10 fixtures+impl (gated on B10/B11 + Q10-Q12 answers).
+      87 required passes) → next: F6 decision gate — options analysis + corrected GA
+      interface evidence recorded in `accuracy/f6-decision-gate.md`; user leans option C
+      (full fidelity, staged, no GA netlist change expected). Longshot's per-CRTC-separation
+      advice + status recorded in `accuracy/crtc-per-type-separation.md` (recommendation:
+      split before F7/F10 RTL, option S2 there) → F7 RFD (incl. B6 disarm path; A1 VSYNC
+      corner fix first if accepted) → F10 fixtures+impl (gated on B10/B11 + Q10-Q12 answers).
 - [ ] Plus queue: P0 parser→service/MMU/boot wiring → P1 CRTC3 foundation.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";
       F8 build `4c78603`→Module A adjustment entries + Module E "(2)"; F7→RFD entries;

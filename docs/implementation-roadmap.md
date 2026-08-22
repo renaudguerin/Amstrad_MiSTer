@@ -159,12 +159,14 @@ Module/key names are SHAKER 2.6 menu entries.
 
 ### F6 decision gate
 
-F6 documents a half-character border byte, while the current CRTC-to-Gate-Array contract is
-character-granular. Default action is to defer F6. If the project accepts the documented
-one-character approximation, implement it in its own optional commit/PR at C4 so it can be
-reverted without disturbing counter work. Do not describe that approximation as exact. If
-accuracy rather than compatibility is the goal, first design a half-character-capable seam
-and reassess its impact on the netlist Gate Array.
+The full options analysis, corrected interface evidence, staged plan, and revert conditions
+live in `accuracy/f6-decision-gate.md` (2026-08-22). Summary: F6 documents a half-character
+border byte; the original "character-granular interface" premise was wrong — the GA40010
+recreation samples DISPEN twice per microsecond, so a char-aligned DE pulse (exact pin
+behaviour) plus the existing GA pipeline may reproduce the 0.5 µs result with no netlist
+change. Default action remains defer until Renaud picks an option; the one-character
+approximation stays available as a fallback. Whatever is chosen: own commit/PR at C4,
+revertible, never described as exact unless the SHAKER Module A `(O)` photo comparison says so.
 
 ### F10 scope gate
 
