@@ -51,6 +51,8 @@ public:
 
 class TestBench {
 public:
+    // An empty trace_path disables VCD tracing (used by the soak harness,
+    // which runs far too many cycles to record).
     explicit TestBench(const std::string& trace_path)
         : context_(std::make_unique<VerilatedContext>()),
           dut_(std::make_unique<VUM6845R>(context_.get())),
@@ -68,14 +70,18 @@ public:
             dut_->SNA_REGS[word] = 0;
         }
 
-        dut_->trace(trace_.get(), 99);
-        trace_->open(trace_path.c_str());
+        if (!trace_path.empty()) {
+            dut_->trace(trace_.get(), 99);
+            trace_->open(trace_path.c_str());
+        }
         eval_and_dump();
     }
 
     ~TestBench() {
         dut_->final();
-        trace_->close();
+        if (trace_->isOpen()) {
+            trace_->close();
+        }
     }
 
     TestBench(const TestBench&) = delete;
@@ -211,6 +217,50 @@ public:
         for (std::uint64_t tick = 0; tick < ticks; ++tick) {
             clock_tick();
         }
+    }
+
+    // Soak-harness hook: invoked once after every CLKEN clock edge.
+    void set_clken_sampler(std::function<void()> sampler) {
+        clken_sampler_ = std::move(sampler);
+    }
+
+    // Monotonic character count; unlike character_cycles_ this survives
+    // resets (the soak uses it for its volume report).
+    std::uint64_t total_characters() const {
+        return total_characters_;
+    }
+
+    // Fold every pin plus the key counter/arbitration state into the
+    // caller's FNV-1a rolling hash (see "Randomized equivalence soak" in
+    // sim/README.md). Field order and widths are part of the golden-hash
+    // contract: any change here invalidates a minted hash.
+    void soak_mix_sample(std::uint64_t& hash) const {
+        const auto& r = *dut_->rootp;
+        const auto mix = [&hash](std::uint64_t value) {
+            hash ^= value;
+            hash *= 1099511628211ULL;
+        };
+        mix(dut_->MA);
+        mix(dut_->RA);
+        mix(dut_->DE);
+        mix(dut_->HSYNC);
+        mix(dut_->VSYNC);
+        mix(dut_->CURSOR);
+        mix(dut_->FIELD);
+        mix(dut_->DO);
+        mix(r.UM6845R__DOT__hcc);
+        mix(r.UM6845R__DOT__line);
+        mix(r.UM6845R__DOT__row);
+        mix(r.UM6845R__DOT__c5);
+        mix(r.UM6845R__DOT__in_adj);
+        mix(r.UM6845R__DOT__type0_r4_adjust_switch);
+        mix(r.UM6845R__DOT__type0_r9_live_compare);
+        mix(r.UM6845R__DOT__type0_r9_at_r0_pending);
+        mix(r.UM6845R__DOT__type0_c0_1_adjust);
+        mix(r.UM6845R__DOT__type0_r0_zero_entry_consumed);
+        mix(r.UM6845R__DOT__type0_zero_adj_entry);
+        mix(r.UM6845R__DOT__type0_r5_adjust_override);
+        mix(r.UM6845R__DOT__type0_r5_adjust_target);
     }
 
     void expect_byte(const std::string& expectation,
@@ -407,6 +457,9 @@ private:
         eval_and_dump();
         dut_->CLOCK = 1;
         eval_and_dump();
+        if (clken_sampler_ && active_phase == kClkEnPhase) {
+            clken_sampler_();
+        }
         dut_->CLOCK = 0;
         eval_and_dump();
 
@@ -414,6 +467,7 @@ private:
             (tick_in_character_ + 1) % kClockTicksPerCharacter;
         if (active_phase == kClkEnPhase) {
             ++character_cycles_;
+            ++total_characters_;
         }
     }
 
@@ -423,7 +477,9 @@ private:
 
     void eval_and_dump() {
         dut_->eval();
-        trace_->dump(trace_time_++);
+        if (trace_->isOpen()) {
+            trace_->dump(trace_time_++);
+        }
     }
 
     template <typename Actual>
@@ -444,8 +500,10 @@ private:
     std::unique_ptr<VerilatedContext> context_;
     std::unique_ptr<VUM6845R> dut_;
     std::unique_ptr<VerilatedVcdC> trace_;
+    std::function<void()> clken_sampler_;
     vluint64_t trace_time_ = 0;
     std::uint64_t character_cycles_ = 0;
+    std::uint64_t total_characters_ = 0;
     unsigned tick_in_character_ = 0;
 };
 
@@ -3506,8 +3564,197 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
 
 }  // namespace
 
+//============================================================================
+//  Randomized equivalence soak
+//
+//  See sim/README.md ("Randomized equivalence soak"). Deterministic
+//  self-referential oracle: pseudo-random register traffic at arbitrary C0
+//  values and CLKEN/nCLKEN tick phases over both CRTC types, with a rolling
+//  FNV-1a hash over every pin plus key internal state sampled at each
+//  CLKEN. The golden hash is minted from the unsplit core; a
+//  behaviour-preserving refactor (the type-0/type-1 engine split) must
+//  reproduce it exactly. This complements the directed vectors; it never
+//  replaces them.
+//============================================================================
+
+// Fixed seed: part of the golden-hash contract. Changing it invalidates a
+// minted hash and requires re-minting.
+constexpr std::uint64_t kSoakSeed = 0xaccc5eed20260822ULL;
+constexpr std::uint64_t kFnvOffsetBasis = 14695981039346656037ULL;
+
+class SoakRng {
+public:
+    explicit SoakRng(std::uint64_t seed) : state_(seed) {}
+
+    // splitmix64: small, fast, fully deterministic across platforms.
+    std::uint64_t next() {
+        state_ += 0x9e3779b97f4a7c15ULL;
+        std::uint64_t z = state_;
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+        return z ^ (z >> 31);
+    }
+
+    std::uint64_t below(std::uint64_t bound) {
+        return next() % bound;
+    }
+
+private:
+    std::uint64_t state_;
+};
+
+std::uint8_t soak_random_value(SoakRng& rng) {
+    // Boundary-biased distribution: degenerate totals (R0=0, R9=0, R5=0)
+    // reach the arbitration and freeze corners that directed vectors had to
+    // be hand-guided into.
+    const std::uint64_t roll = rng.below(100);
+    if (roll < 40) {
+        return static_cast<std::uint8_t>(rng.below(4));
+    }
+    if (roll < 65) {
+        return static_cast<std::uint8_t>(rng.below(16));
+    }
+    if (roll < 90) {
+        return static_cast<std::uint8_t>(rng.below(256));
+    }
+    constexpr std::array<std::uint8_t, 14> kBoundaries = {{
+        0x00, 0x01, 0x02, 0x03, 0x0f, 0x1f, 0x3f,
+        0x40, 0x7f, 0x80, 0xc0, 0xf0, 0xfe, 0xff,
+    }};
+    return kBoundaries[rng.below(kBoundaries.size())];
+}
+
+void soak_bus_op(TestBench& bench, SoakRng& rng) {
+    const std::uint64_t roll = rng.below(100);
+
+    if (roll < 60) {
+        // Register data write at whatever phase we are in, or aligned to
+        // the two special bus phases. Occasional alias addresses (>31)
+        // exercise the five-bit decode.
+        unsigned address = rng.below(16);
+        if (rng.below(32) == 0) {
+            address |= 32u + rng.below(32);
+        }
+        const std::uint8_t value = soak_random_value(rng);
+        const std::uint64_t style = rng.below(100);
+        if (style < 55) {
+            bench.write_register(static_cast<std::uint8_t>(address), value);
+        } else if (style < 78) {
+            bench.select_register(static_cast<std::uint8_t>(address));
+            bench.write_selected_register_at_clken(value);
+        } else {
+            bench.select_register(static_cast<std::uint8_t>(address));
+            bench.write_selected_register_at_nclken(value);
+        }
+    } else if (roll < 70) {
+        // Reads do not change the DUT but put DO into the hashed window.
+        if (rng.below(4) == 0) {
+            bench.read_status();
+        } else {
+            bench.read_register(static_cast<std::uint8_t>(rng.below(32)));
+        }
+    } else if (roll < 76) {
+        // Register-pointer reselect only.
+        bench.select_register(static_cast<std::uint8_t>(rng.below(32)));
+    } else if (roll < 80) {
+        // Held multi-cycle write, as used by the directed vectors.
+        bench.select_register(static_cast<std::uint8_t>(rng.below(16)));
+        bench.hold_selected_register_at_clken(
+            soak_random_value(rng),
+            kClockTicksPerCharacter * (1 + rng.below(3)));
+    } else if (roll < 82) {
+        std::array<std::uint8_t, 10> snapshot{};
+        for (std::uint8_t& value : snapshot) {
+            value = soak_random_value(rng);
+        }
+        bench.load_snapshot_registers(snapshot);
+    } else {
+        // Idle stretch so frames and adjustment runs develop.
+        bench.run_characters(rng.below(64));
+    }
+}
+
+void run_soak(std::uint64_t expected_hash, bool check_expected) {
+    SoakRng rng(kSoakSeed);
+    constexpr std::uint64_t kEventsPerType = 150000;
+
+    std::uint64_t hash = kFnvOffsetBasis;
+    std::uint64_t samples = 0;
+    std::uint64_t characters = 0;
+
+    for (unsigned type = 0; type <= 1; ++type) {
+        TestBench bench({});
+        bench.set_clken_sampler([&bench, &hash, &samples]() {
+            ++samples;
+            bench.soak_mix_sample(hash);
+        });
+
+        bench.set_crtc_type(type);
+        bench.prepare_for_reset(type);
+        // Random base frame so most segments start near short-line/short-
+        // frame territory; the random traffic then degrades it freely.
+        for (unsigned address = 0; address <= 15; ++address) {
+            bench.write_register(static_cast<std::uint8_t>(address),
+                                 soak_random_value(rng));
+        }
+
+        unsigned current_type = type;
+        for (std::uint64_t event = 0; event < kEventsPerType; ++event) {
+            const std::uint64_t lifecycle = rng.below(1024);
+            if (lifecycle == 0) {
+                bench.prepare_for_reset(current_type);
+            } else if (lifecycle == 1) {
+                current_type ^= 1;
+                bench.set_crtc_type(current_type);
+            }
+
+            soak_bus_op(bench, rng);
+            bench.run_clock_ticks(rng.below(kClockTicksPerCharacter * 7));
+        }
+        characters += bench.total_characters();
+    }
+
+    std::cout << "soak: seed 0x" << std::hex << std::setfill('0')
+              << std::setw(16) << kSoakSeed << ", " << std::dec
+              << characters << " characters, " << samples
+              << " CLKEN samples\n"
+              << "soak hash: 0x" << std::hex << std::setw(16) << hash
+              << '\n';
+
+    if (!check_expected) {
+        return;
+    }
+    if (hash != expected_hash) {
+        std::cerr << "soak hash MISMATCH: expected 0x" << std::hex
+                  << std::setw(16) << expected_hash << ", got 0x" << std::setw(16)
+                  << hash << '\n';
+        throw TestFailure("soak hash mismatch");
+    }
+    std::cout << "soak hash matches expected\n";
+}
+
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
+
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) != "--soak") {
+            continue;
+        }
+        bool check_expected = false;
+        std::uint64_t expected_hash = 0;
+        if (i + 1 < argc && argv[i + 1][0] != '\0') {
+            check_expected = true;
+            expected_hash =
+                std::stoull(std::string(argv[i + 1]), nullptr, 16);
+        }
+        try {
+            run_soak(expected_hash, check_expected);
+        } catch (const std::exception& error) {
+            std::cerr << "soak failed: " << error.what() << '\n';
+            return 1;
+        }
+        return 0;
+    }
 
     const std::vector<TestCase> tests = {
         {"t00_reset_and_idle_bus", "UM6845R pin-level reset/bus contract", false,
