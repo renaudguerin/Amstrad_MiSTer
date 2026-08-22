@@ -310,16 +310,16 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
-2. Classic stream: F9 closure is already merged (`t12a`/`t12b`). Next: F6 option C Stage 1
-   (exact type-0 pin behaviour plus vector `t10`) per `accuracy/f6-decision-gate.md`, then
-   F7 RFD including the B6 disarm path and the A1 VSYNC-corner fix. F10 stays fixture-gated
-   behind its PDF re-checks.
+2. Classic stream: F9 closure is merged (`t12a`/`t12b`) and F6 option C Stage 1 landed on
+   `accuracy/a3-f6-stage1` (exact type-0 pin behaviour plus vectors t10a-t10e). Next: F6
+   Stage 2 seam-width measurement, then F7 RFD including the B6 disarm path and the A1
+   VSYNC-corner fix. F10 stays fixture-gated behind its PDF re-checks.
 3. Plus stream: implement P0 MMU, bounded CPR parsing integration, `/EXP`, and boot wiring
    against the accepted P-1 service/SDRAM contract. Do not combine this with Plus video work.
-4. F6 proceeds per the staged option C plan in `accuracy/f6-decision-gate.md` (user lean
-   recorded there; revert points documented): the GA samples DISPEN at byte phase, so Stage 1
-   is an exact type-0 pin change with no Gate Array netlist edit expected; Stage 3 glue work
-   happens only if the measured seam comes out 1 µs.
+4. F6 proceeds per the staged option C plan in `accuracy/f6-decision-gate.md`: Stage 1 is
+   done (the GA samples DISPEN at byte phase, so it was an exact type-0 pin change with no
+   Gate Array netlist edit expected); Stage 2 measures the seam; Stage 3 glue work happens
+   only if the measured seam comes out 1 µs.
 5. Common dependencies for both streams (harness helpers, shared docs) land on
    `accc-review-and-fixes`; the running stream branches (`accuracy/a3-f6-stage1`,
    `plus/p0-parser-wiring`) rebase onto it rather than stacking.
