@@ -1482,6 +1482,69 @@ void test_type0_adjustment_captures_mid_character_r9_write_at_r0(TestBench& test
     test.expect_ra("type 0 mid-character exact-R0 R9 write increments C9", 4);
 }
 
+// ---------------------------------------------------------------------------
+// t12: the documented R4=38/R9=7 worked example pair (ACCC v1.10 section
+// 11.2.2, p.82 example 3; section 10.3.1, p.76). Two writes land on the same
+// last line of the frame and must leave different counter states:
+//   - an R9 write exactly at C0==R0 straddles the comparator switch: the old
+//     C9/R9 match increments C4 first, then the changed C4/R4 result switches
+//     C9 to the R5 comparison and C9 also increments -> C4==39, C9==8;
+//   - an R9 write inside the C0 in [2, R0-1] window is consumed by the live
+//     new-R9 comparison instead, so C4 is not yet incremented -> C4==38,
+//     C9==8 (findings-review.md B4 companion case).
+// Frame geometry: 38 full rows x 8 scanlines + the row-38 scanlines C9=0..6
+// = 311 lines of 64 characters before the critical scanline. R7 is parked
+// beyond any reachable C4 so VSYNC cannot disturb the sampling.
+// ---------------------------------------------------------------------------
+constexpr unsigned kT12CriticalLineCharacters = 311u * 64u;
+
+void test_type0_worked_example_exact_r0_yields_39_8(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 16}, {6, 25}, {7, 63}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+
+    test.run_characters(kT12CriticalLineCharacters);
+    test.run_characters(63);  // Enter character C0=R0 of the critical scanline.
+    test.write_selected_register_at_clken(8);
+
+    // ACCC v1.10 section 11.2.2, p.82: "we end up with C4==39 and C9==8."
+    test.expect_adjustment_active("t12 exact-R0 write enters adjustment");
+    test.expect_c4("t12 exact-R0 straddle leaves C4=39", 39);
+    test.expect_ra("t12 exact-R0 straddle leaves C9=8", 8);
+}
+
+void test_type0_worked_example_window_write_yields_38_8(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 16}, {6, 25}, {7, 63}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+
+    test.run_characters(kT12CriticalLineCharacters + 10);  // C0=10, window open.
+    test.write_selected_register_at_clken(8);
+    test.run_characters(64 - 11);  // Consume characters 11..63 to the rollover.
+
+    // ACCC v1.10 section 11.2.2, p.82 example 3: the windowed write leaves
+    // C4 un-incremented; only C9 advances under the new-R9 comparison.
+    test.expect_adjustment_active("t12 windowed write enters adjustment");
+    test.expect_c4("t12 windowed write keeps C4=38", 38);
+    test.expect_ra("t12 windowed write leaves C9=8", 8);
+}
+
 void test_type0_adjustment_r4_write_at_r0_switches_c9_to_r5(TestBench& test) {
     test.set_crtc_type(0);
 
@@ -3510,8 +3573,14 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 13.2.1 and 13.2.6; F5/F12", false,
          test_type0_r0_zero_c9_equal_single_c4_increment_deferred},
         {"t16a_type0_r4_write_switches_c9_to_r5",
-         "ACCC v1.10 section 11.2.2; F12", false,
+         "ACCC v1.10 sections 10.3.1 and 11.2.2; F12 guard", false,
          test_type0_adjustment_r4_write_switches_c9_to_r5},
+        {"t12a_type0_worked_example_exact_r0_yields_39_8",
+         "ACCC v1.10 section 11.2.2 p.82 example 3 and section 10.3.1 p.76; F9/B4",
+         false, test_type0_worked_example_exact_r0_yields_39_8},
+        {"t12b_type0_worked_example_window_write_yields_38_8",
+         "ACCC v1.10 section 11.2.2 p.82 example 3; F9/B4 companion case",
+         false, test_type0_worked_example_window_write_yields_38_8},
         {"t16b_type0_r9_write_uses_new_r9",
          "ACCC v1.10 section 11.2.2; F12", false,
          test_type0_adjustment_r9_write_uses_new_r9},
