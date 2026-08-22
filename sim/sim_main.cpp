@@ -17,8 +17,8 @@
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
-#include "VUM6845R.h"
-#include "VUM6845R___024root.h"
+#include "VCRTC.h"
+#include "VCRTC___024root.h"
 
 #include <array>
 #include <cstdint>
@@ -55,7 +55,7 @@ public:
     // which runs far too many cycles to record).
     explicit TestBench(const std::string& trace_path)
         : context_(std::make_unique<VerilatedContext>()),
-          dut_(std::make_unique<VUM6845R>(context_.get())),
+          dut_(std::make_unique<VCRTC>(context_.get())),
           trace_(std::make_unique<VerilatedVcdC>()) {
         context_->traceEverOn(true);
         dut_->CLOCK = 0;
@@ -249,22 +249,22 @@ public:
         mix(dut_->FIELD);
         mix(dut_->DO);
         // Wrapper-owned shared counters...
-        mix(r.UM6845R__DOT__hcc);
-        mix(r.UM6845R__DOT__line);
-        mix(r.UM6845R__DOT__row);
-        mix(r.UM6845R__DOT__c5);
-        mix(r.UM6845R__DOT__in_adj);
+        mix(r.CRTC__DOT__hcc);
+        mix(r.CRTC__DOT__line);
+        mix(r.CRTC__DOT__row);
+        mix(r.CRTC__DOT__c5);
+        mix(r.CRTC__DOT__in_adj);
         // ...and the type-0 engine's private arbitration latches. The hashed
         // values are unchanged by the type split; only the hierarchy paths
         // moved.
-        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r4_adjust_switch);
-        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r9_live_compare);
-        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r9_at_r0_pending);
-        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_c0_1_adjust);
-        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r0_zero_entry_consumed);
-        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
-        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
-        mix(r.UM6845R__DOT__crtc_type0_engine__DOT__type0_r5_adjust_target);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r4_adjust_switch);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r9_live_compare);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r9_at_r0_pending);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_c0_1_adjust);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r0_zero_entry_consumed);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_target);
     }
 
     void expect_byte(const std::string& expectation,
@@ -318,11 +318,11 @@ public:
     }
 
     void expect_c4(const std::string& expectation, std::uint8_t expected) const {
-        expect_byte(expectation, expected, dut_->rootp->UM6845R__DOT__row);
+        expect_byte(expectation, expected, dut_->rootp->CRTC__DOT__row);
     }
 
     void expect_c5(const std::string& expectation, std::uint8_t expected) const {
-        expect_byte(expectation, expected, dut_->rootp->UM6845R__DOT__c5);
+        expect_byte(expectation, expected, dut_->rootp->CRTC__DOT__c5);
     }
 
     // Whole-frame VSYNC observation for the section 28.1.1 R7 sweep: the pulse
@@ -352,11 +352,11 @@ public:
 
 
     void expect_adjustment_active(const std::string& expectation) const {
-        expect_high(expectation, dut_->rootp->UM6845R__DOT__in_adj);
+        expect_high(expectation, dut_->rootp->CRTC__DOT__in_adj);
     }
 
     void expect_adjustment_inactive(const std::string& expectation) const {
-        expect_low(expectation, dut_->rootp->UM6845R__DOT__in_adj);
+        expect_low(expectation, dut_->rootp->CRTC__DOT__in_adj);
     }
 
     void expect_type0_arbitration_latches(const std::string& expectation,
@@ -367,29 +367,29 @@ public:
                                           bool r0_zero_consumed = false,
                                           bool r5_override = false) const {
         expect_byte(expectation + " R4 switch", r4_switch,
-                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r4_adjust_switch);
+                    dut_->rootp->CRTC__DOT__crtc_type0_engine__DOT__type0_r4_adjust_switch);
         expect_byte(expectation + " live R9 compare", r9_live,
-                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r9_live_compare);
+                    dut_->rootp->CRTC__DOT__crtc_type0_engine__DOT__type0_r9_live_compare);
         expect_byte(expectation + " exact-R0 R9", r9_at_r0,
-                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r9_at_r0_pending);
+                    dut_->rootp->CRTC__DOT__crtc_type0_engine__DOT__type0_r9_at_r0_pending);
         expect_byte(expectation + " C0=1 adjustment", c0_1_adjust,
-                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_c0_1_adjust);
+                    dut_->rootp->CRTC__DOT__crtc_type0_engine__DOT__type0_c0_1_adjust);
         expect_byte(expectation + " R0=0 entry consumed", r0_zero_consumed,
-                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r0_zero_entry_consumed);
+                    dut_->rootp->CRTC__DOT__crtc_type0_engine__DOT__type0_r0_zero_entry_consumed);
         expect_byte(expectation + " R5 adjust override", r5_override,
-                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
+                    dut_->rootp->CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
     }
 
     void expect_type0_r5_adjust_override(const std::string& expectation,
                                          bool expected) const {
         expect_byte(expectation, expected,
-                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
+                    dut_->rootp->CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
     }
 
     void expect_type0_zero_adj_entry(const std::string& expectation,
                                      bool expected) const {
         expect_byte(expectation, expected,
-                    dut_->rootp->UM6845R__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
+                    dut_->rootp->CRTC__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
     }
 
     std::uint16_t ma() const {
@@ -502,7 +502,7 @@ private:
     }
 
     std::unique_ptr<VerilatedContext> context_;
-    std::unique_ptr<VUM6845R> dut_;
+    std::unique_ptr<VCRTC> dut_;
     std::unique_ptr<VerilatedVcdC> trace_;
     std::function<void()> clken_sampler_;
     vluint64_t trace_time_ = 0;
@@ -3761,7 +3761,7 @@ int main(int argc, char** argv) {
     }
 
     const std::vector<TestCase> tests = {
-        {"t00_reset_and_idle_bus", "UM6845R pin-level reset/bus contract", false,
+        {"t00_reset_and_idle_bus", "CRTC pin-level reset/bus contract", false,
          test_reset_and_idle_bus},
         {"t01_register_readback", "ACCC v1.10 sections 21.2 and 28.1.9; F1/F11c/F11d",
          false, test_register_readback_table},
@@ -3783,9 +3783,9 @@ int main(int argc, char** argv) {
          false, test_type0_r7_c0_2_at_line_boundary},
         {"t02i_type0_interlace_count_boundaries", "ACCC v1.10 sections 16.4-16.5; F3",
          false, test_type0_interlace_count_boundaries},
-        {"t02j_type0_pending_skip_type_roundtrip", "UM6845R live CRTC_TYPE contract; F3/F11d",
+        {"t02j_type0_pending_skip_type_roundtrip", "CRTC live CRTC_TYPE contract; F3/F11d",
          false, test_type0_pending_skip_clears_on_type_roundtrip},
-        {"t02k_type0_pending_skip_snapshot_load", "UM6845R snapshot-load contract; F3/F11d",
+        {"t02k_type0_pending_skip_snapshot_load", "CRTC snapshot-load contract; F3/F11d",
          false, test_type0_pending_skip_clears_on_snapshot_load},
         {"t03a_vsync_compare_lock_and_rearm", "ACCC v1.10 section 16.3; F11b",
          false, test_vsync_compare_lock_and_rearm},
@@ -3815,7 +3815,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 section 13.2.1; F5 live-write regression guard", false,
          test_type0_midline_r0_zero_free_runs_then_pins},
         {"t09f_r0_zero_freeze_survives_type_round_trip",
-         "UM6845R live CRTC_TYPE contract; F5/F11d", false,
+         "CRTC live CRTC_TYPE contract; F5/F11d", false,
          test_r0_zero_freeze_survives_type_round_trip},
         {"t09g_type0_interlace_r0_zero_freezes_vsync_count",
          "ACCC v1.10 sections 13.2.1 and 16.5; F3/F5 regression guard", false,
@@ -3860,10 +3860,10 @@ int main(int argc, char** argv) {
          "ACCC v1.10 section 11.2.2; F12 bus-phase boundary guard", false,
          test_type0_adjustment_captures_mid_character_r4_write_at_r0},
         {"t16k_type0_arbitration_latches_clear_on_snapshot_load",
-         "UM6845R snapshot-load contract; F12 lifecycle guard", false,
+         "CRTC snapshot-load contract; F12 lifecycle guard", false,
          test_type0_adjustment_latches_clear_on_snapshot_load},
         {"t16l_type0_arbitration_latches_clear_on_type_roundtrip",
-         "UM6845R live CRTC_TYPE contract; F12 lifecycle guard", false,
+         "CRTC live CRTC_TYPE contract; F12 lifecycle guard", false,
          test_type0_adjustment_latches_clear_on_type_roundtrip},
         {"t16m_type0_r4_write_at_c0_1_enters_zero_adjustment",
          "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12", false,

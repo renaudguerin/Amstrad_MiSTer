@@ -166,7 +166,7 @@ wire [13:0] MA;
 wire  [4:0] RA;
 wire  [7:0] crtc_dout;
 
-UM6845R CRTC
+CRTC crtc
 (
 	.CLOCK(clk),
 	.CLKEN(cclk_en_n),

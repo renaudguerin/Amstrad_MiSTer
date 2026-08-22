@@ -1,5 +1,5 @@
 //============================================================================
-//  UM6845R for Amstrad CPC
+//  Classic Amstrad CPC CRTC (HD6845S / UM6845R, selected by CRTC_TYPE)
 //  Copyright (C) 2018 Sorgelig
 //
 //  This program is free software; you can redistribute it and/or modify it
@@ -33,7 +33,10 @@
 //
 //  Port-compatible wrapper around the two per-type counter engines
 //  (crtc_type0_engine / crtc_type1_engine). The motherboard wiring and every
-//  external pin are unchanged.
+//  external pin are unchanged. The wrapper is named for the component, not
+//  one variant: the socket takes a type-0 HD6845S/UM6845 or a type-1
+//  UM6845R depending on model (the file was rtl/UM6845R.v before the
+//  per-type split; the old name survives only in history).
 //
 //  Why one set of shared flops rather than two stateful engines: CRTC_TYPE is
 //  a live input (snapshot model selection), and the required vectors pin the
@@ -45,7 +48,7 @@
 //  expressions, its private latches (arbitration cluster, partial-VSYNC
 //  holdoff, status bit 5), and its shares of the sync/display outputs.
 
-module UM6845R
+module CRTC
 (
 	input            CLOCK,
 	input            CLKEN,

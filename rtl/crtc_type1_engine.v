@@ -12,14 +12,14 @@
 //  cite their ACCC section at the point of implementation.
 //============================================================================
 //
-//  Type-1 CRTC engine (UM6845R behaviour selected by CRTC_TYPE=1).
+//  Type-1 CRTC engine (UM6845R-type behaviour selected by CRTC_TYPE=1).
 //
-//  This module holds every type-1-specific rule of the UM6845R core: the C5
+//  This module holds every type-1-specific rule of this core: the C5
 //  vertical-adjustment counter behaviour, the C4/C9 rollover rules, the
 //  row-0/row-1 VMA reloads, the fixed 16-line VSYNC, the zero-width HSYNC
 //  cut, the R6 bus-write display handling, and the type-1 status register
 //  (bit 5), whose flops are private state cleared while another type is
-//  selected. All shared counters stay in the UM6845R wrapper so a live
+//  selected. All shared counters stay in the CRTC wrapper so a live
 //  CRTC_TYPE change continues counting from the same state, exactly as one
 //  physical chip would.
 //

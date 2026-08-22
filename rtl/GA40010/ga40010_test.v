@@ -131,7 +131,7 @@ wire CRTC_DE;
 
 assign VRAM_ADDR = {MA[13:12], RA[2:0], MA[9:0]};
 
-UM6845R CRTC
+CRTC crtc
 (
 	.CLOCK(clk),
 	.CLKEN(CCLK_EN_N),

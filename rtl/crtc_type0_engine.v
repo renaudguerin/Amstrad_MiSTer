@@ -14,13 +14,14 @@
 //
 //  Type-0 CRTC engine (HD6845S / UM6845 as fitted to the CPC classic models).
 //
-//  This module holds every type-0-specific rule of the UM6845R core: the
+//  This module holds every type-0-specific rule of this core (type 0 is the
+//  HD6845S/UM6845, not the UM6845R the old wrapper filename referred to):
 //  R0=0 freeze, the last-line / vertical-adjustment arbitration cluster
 //  (with its private latches), the C0=0 seam comparators, the partial-VSYNC
 //  holdoff latch, and the type-0 shares of the sync and display-enable
 //  outputs. It owns only state that is provably type-0-private (cleared or
 //  held harmless while another type is selected); all shared counters stay
-//  in the UM6845R wrapper so a live CRTC_TYPE change continues counting
+//  in the CRTC wrapper so a live CRTC_TYPE change continues counting
 //  from the same state, exactly as one physical chip would.
 //
 //  CRTC_TYPE is an input here in its "another type is selected" sense: the
