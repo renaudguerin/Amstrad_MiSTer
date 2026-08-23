@@ -11,7 +11,8 @@ The AMS40489 ASIC integrates: Gate Array + CRTC (type 3) + PAL/MMU + PPI + new f
 
 The current core wires three separate modules in `Amstrad_motherboard.v`:
 
-- `UM6845R` (behavioral CRTC, types 0/1) → `MA/RA/DE/HSYNC/VSYNC` →
+- `rtl/CRTC.v` plus `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`
+  (behavioral CRTC, types 0/1) → `MA/RA/DE/HSYNC/VSYNC` →
 - `ga40010` (netlist-derived Gate Array: pixel pipeline, 27-colour palette, R52 interrupts,
   Z80 clocking/WAIT, RAS/CAS) → 2-bit-plus-OE R/G/B outputs →
 - `Amstrad_MMU` (ROM/RAM banking).
@@ -34,11 +35,13 @@ Three structural facts drive the whole design:
 
 **Build one new module, `rtl/plus/asic_video.v` (behavioral: CRTC-3 + pixel pipeline +
 palette + sprites + PRI + SPLT/SSCR), plus small siblings (`asic_dma.v`, `asic_regs.v`),
-selected by a `plus_mode` input. Classic mode keeps UM6845R + ga40010 untouched.**
+selected by a `plus_mode` input. Classic mode keeps `rtl/CRTC.v` plus its two engines and
+`ga40010` untouched.**
 
 Rejected alternatives, for the record:
 
-- *Extend UM6845R with a type-3 mode and overlay sprites after ga40010*: fails on fact 1/2
+- *Extend the classic `rtl/CRTC.v` path with a type-3 mode and overlay sprites after
+  `ga40010`*: fails on fact 1/2
   above (no pen index, no palette width, SPLT/SSCR unreachable). Type 3 semantics
   (mod-8 register reads, R12/R13 readable, both sync widths programmable, VSYNC gated on
   C4=R7 ∧ C9=0 ∧ C0=0, +1µs HSYNC/display alignment) also diverge enough that stuffing a
@@ -66,7 +69,7 @@ Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 
 ```
 Amstrad_motherboard.v
-  ├─ plus_mode == 0: UM6845R + ga40010 (exactly as today)
+  ├─ plus_mode == 0: rtl/CRTC.v + its two engines + ga40010 (exactly as today)
   └─ plus_mode == 1:
        asic_video   — CRTC3 counters, MA/RA gen (SPLT/SSCR aware), DE, syncs,
        │              pen pipeline (mode 0/1/2), 32×12 palette RAM, sprite engine,
