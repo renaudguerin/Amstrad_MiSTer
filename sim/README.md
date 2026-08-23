@@ -3,7 +3,9 @@
 This directory contains the aggregate Verilator regression suite. It currently
 runs:
 
-- Pin-level tests for `rtl/UM6845R.v`. The harness drives the 16 MHz `CLOCK`,
+- Pin-level tests for the classic CRTC core: wrapper `rtl/CRTC.v` plus its two per-type
+  rule engines (`rtl/crtc_type0_engine.v`, `rtl/crtc_type1_engine.v`). The harness drives
+  the 16 MHz `CLOCK`,
   with `CLKEN` at character-clock phase 0 and `nCLKEN` at phase 8, and exercises
   the CRTC register bus directly. Counter-state assertions are used only for
   Compendium cases whose documented C4/C9 result is not distinguishable from pins alone.

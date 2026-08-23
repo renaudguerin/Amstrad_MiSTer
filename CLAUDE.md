@@ -35,8 +35,9 @@ progress. A batch of vectors that all pass on first run bought regression armour
 finding; that is occasionally worth doing on purpose, but it should be a deliberate choice
 rather than the default motion.
 
-This does not license skipping tests for behaviour changes. `rtl/UM6845R.v` is one shared
-state machine, findings routinely touch each other's state, and the Verilator suite is the only
+This does not license skipping tests for behaviour changes. The classic CRTC core keeps
+singular shared state across three files (wrapper `rtl/CRTC.v` plus the two per-type rule
+engines), findings routinely touch each other's state, and the Verilator suite is the only
 thing that catches collateral damage. Every behaviour change still lands with a focused
 deterministic vector, and a timing-sensitive finding does not start until its failing vector
 exists.
@@ -67,6 +68,6 @@ has read the diff and rerun the gate itself.
 
 The Compendium is licensed CC BY-NC-ND 4.0 and its section 2.2 carries an explicit attribution
 directive: the credit line belongs in the source headers of CRTC emulation modules and in the
-credits of any distributed product built from them. `rtl/UM6845R.v` and `sim/sim_main.cpp`
+credits of any distributed product built from them. `rtl/CRTC.v` and `sim/sim_main.cpp`
 carry it. Any new module implementing CRTC behaviour from the Compendium must carry it too,
 and individual rules cite their ACCC section at the point of implementation.

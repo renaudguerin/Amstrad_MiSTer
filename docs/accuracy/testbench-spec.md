@@ -23,7 +23,7 @@ Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 
 ```
 sim/
-  Makefile              # verilator --cc UM6845R.v --exe sim_main.cpp; make -C obj_dir
+  Makefile              # verilator --cc CRTC.v crtc_type0_engine.v crtc_type1_engine.v --exe sim_main.cpp; make -C obj_dir
   sim_main.cpp          # harness: clocking, register I/O helpers, trace hooks
   crtc_script.h/.cpp    # tiny "test program" interpreter (see below)
   tests/

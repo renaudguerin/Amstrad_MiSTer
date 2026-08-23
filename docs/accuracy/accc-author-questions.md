@@ -64,13 +64,20 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     status bit (bit 6 unused/read-0), while the CRTC 3/4 STATUS-1 table (p.248) has an
     always-1 bit 6. Which bit does the &BE00 identification test actually target on UM6845R?
 
-Also noted while verifying (no answer needed, listed for completeness): p.190's "alternation
-only takes place when the condition R1 is fulfilled (BORDER R1 is false)" reads
-self-contradictorily — we resolve it as border-via-R1 false, matching behaviour; p.188's
-"(1st line-character R6)" — we read the C4=R6 check as immediate on any C0 (per "considered
-immediately"), not restricted to the first scanline; p.195 places the skew-delay-from-
-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay applies to type 0's
-substituted trigger. Corrections welcome.
+15. **p.190 — border-alternation condition wording.** "Alternation only takes place when
+    the condition R1 is fulfilled (BORDER R1 is false)" reads self-contradictorily. Working
+    resolution (recorded as inference in findings-review B13): alternation happens via
+    BORDER-R1 being *false* (border displayed), matching observed behaviour. Confirmation
+    welcome; nothing is blocked on an answer.
+16. **p.188 (§18.1) — "(1st line-character R6)".** Working resolution: the C4=R6 check is
+    immediate on any C0 (per "considered immediately"), not restricted to the row's first
+    scanline — findings-review B13 records the digest gloss built on it as inference.
+    Confirmation welcome.
+
+Also noted while verifying (no answer needed, listed for completeness): p.195 places the
+skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay
+applies to type 0's substituted trigger (the placement caveat cited by
+`f6-decision-gate.md`). Corrections welcome.
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).

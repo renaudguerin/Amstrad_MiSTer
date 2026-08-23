@@ -7,7 +7,7 @@ Method and tooling: `docs/plans/2026-08-22-accc-review-plan.md`; extraction mani
 unverifiable-from-text**. "Inaccurate" always means the *documentation*, not the RTL.
 
 Companion document: [accc-author-questions.md](accc-author-questions.md) (source ambiguities,
-numbered Q1-Q14 below).
+numbered Q1-Q16 below).
 
 ## Headline
 
@@ -93,8 +93,9 @@ Priority order; each item names file, location, and the fix.
 13. **B13 — digest-03 glosses to mark as inference:** §17.5's precise 3d/3e/3f deadline
     mapping and the "CRTC3/4 need one extra character lead" rule (diagram-shape inference;
     visual tier pending); §18.1's "checked on the row's first scanline" (source's "(1st
-    line-character R6)" is ambiguous — Q15/Q16); "border permanently on / pointer still
-    counts" under R1=0 (pointer part is stated, permanence is implied).
+    line-character R6)" is ambiguous — Q16); "border permanently on / pointer still
+    counts" under R1=0 (pointer part is stated, permanence is implied — border-alternation
+    wording Q15).
 
 ## Part C — Consequences for code
 

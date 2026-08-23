@@ -60,8 +60,9 @@ is contradicted by the code:
    Revert point: commit is self-contained.
 2. **Stage 2 — measure what falls out.** Verilator asserts the DE pin; the visible seam
    width comes from the GA+glue path. Two measurement routes, cheapest first:
-   - **In-simulation**: `rtl/GA40010/ga40010_test.v` already instantiates `UM6845R`
-     together with GA40010 and its Makefile renders raw RGB frames to PNG
+   - **In-simulation**: `rtl/GA40010/ga40010_test.v` already instantiates `CRTC` (the
+     split wrapper; its Makefile manifest lists the wrapper and both engines) together with
+     GA40010 and renders raw RGB frames to PNG
      (`make video`). Render a frame with R1>R0 programmed and measure the seam width in
      mode-2 pixels (8 px = 0.5 µs) without any hardware session. This co-simulation
      harness predates the fork work and was forgotten — see the corrected non-goals note
