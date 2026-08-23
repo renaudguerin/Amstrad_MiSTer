@@ -131,8 +131,9 @@ assign     line_new = hcc_end;
 // trigger route exists on CRTC 1.  Widening R0 with an OUT(C),reg8 write
 // landing exactly at C0==R0 on the last line of the frame (C9==R9, C4==R4,
 // R5==0, outside adjustment beforehand) does not end that line: per the
-// section 13.7.1.1 chronogram gist ("just-in-time write considered this
-// rollover") the widened total is used by this rollover's own decision, so
+// section 13.6.2 chronogram gist, p.122 ("just-in-time write considered
+// this rollover") the widened total is used by this rollover's own
+// decision, so
 // the comparator match is overridden and the line runs on into the widened
 // remainder.  If the last-line condition is then cancelled by R9/R4
 // rewrites -- evaluated from the register state held at the line's actual

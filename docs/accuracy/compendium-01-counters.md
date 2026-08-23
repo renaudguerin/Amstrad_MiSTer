@@ -431,8 +431,12 @@ The chip spreads end-of-line/end-of-frame decisions across three distinct instan
     `OUT(C),reg8` two µs "later" would not. **A model treating all I/O as atomic at
     "instruction-start + fixed offset" needs a +1-cycle correction specifically for CRTC-1 OUTI
     writes to R0** relative to OUT(C),reg8.
-  - ⚠ VERIFY p.122-123 ("R0 UPDATE: CHRONOGRAM" figures for CRTC0/2 and CRTC1) — extracted as
-    flattened text, alignment/braces lost; textual gist: CRTC0/2 and CRTC1 both show a
+  - **§13.6 R0 UPDATE, p.122-123** — §13.6.1 "CRTC 0, 2 : CHRONOGRAM" and §13.6.2 "CRTC 1 :
+    CHRONOGRAM", both p.122 (§13.6.3 covers CRTC 3/4, p.123). Do not confuse these with
+    §13.7.1.1 "R0 UPDATE: OUTI" p.124, which is the instruction-timing hazard above.
+    ⚠ the figures themselves are still only available here as flattened text, alignment and
+    braces lost, but the annotation quoted below was re-checked verbatim against the PDF on
+    2026-08-24 and is exact. Textual gist: CRTC0/2 and CRTC1 both show a
     "too-late write not considered until following line" vs "just-in-time write considered
     this rollover" two-outcome split; CRTC1's figure additionally marks: **"RFD activated on
     CRTC 1 if R4 and/or R9 modified until C0=7F (new R0) on last line of frame"** — widening R0

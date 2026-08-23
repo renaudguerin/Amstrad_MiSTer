@@ -23,6 +23,10 @@ misreading of the Compendium passes cheerfully and hides the very bug it was mea
 When simulation and hardware disagree, hardware wins and the vector is wrong.
 
 `docs/ACCC1.10-EN.pdf` is user-owned and deliberately untracked. Never commit it.
+**Untracked does not mean absent**: the file is in the working tree and gitignored, and
+`pdftotext -f <first> -l <last> docs/ACCC1.10-EN.pdf out.txt` reads it. Read it directly when
+a rule matters — it outranks the digests, and reviews that trusted the digests alone have
+already shipped a wrong section citation.
 
 ## Writing test vectors
 

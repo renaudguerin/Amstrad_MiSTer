@@ -87,13 +87,11 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     §28.1.1 count an extra increment we are missing (a third C9 wrap, an interlace line,
     or a different R5 accounting), or is its boundary value imprecise?
 
-18. **p.122-123 vs p.124 (the R0-update chronogram vs §13.7.1.2) — R0-widening RFD arming
-    condition.** (Our digest labels the chronogram §13.7.1.1; the PDF table of contents puts
-    "CRTC 1: CHRONOGRAM" at §13.6.2 and reserves §13.7.1.1 for "R0 UPDATE: OUTI", so the page
-    anchor is the reliable pointer here.) The p.122-123 chronogram annotation reads "RFD
-    activated on CRTC 1 if R4 and/or R9 **modified** until C0=7F (new R0) on last line of
-    frame". That wording is ambiguous: read as a write-event condition it would arm even if
-    the written value is later restored to the original, but the figure does not say so
+18. **§13.6.2 p.122 vs §13.7.1.2 p.124 — R0-widening RFD arming condition.**
+    The §13.6.2 "CRTC 1 : CHRONOGRAM" annotation reads "RFD activated on CRTC 1 if R4 and/or
+    R9 **modified** until C0=7F (new R0) on last line of frame" (quoted verbatim from the
+    PDF). That wording is ambiguous: read as a write-event condition it would arm even if the
+    written value is later restored to the original, but the figure does not say so
     explicitly — that consequence is our inference from the word "modified". The dedicated
     §13.7.1.2 section defines its variants by state: "(C9 != R9 **by line end**)" /
     "(C4 != R4 **by line end**)". Our model follows the end-state reading (`t13h` pins

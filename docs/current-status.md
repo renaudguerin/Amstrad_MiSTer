@@ -192,8 +192,9 @@ For a first MiSTer pass:
   (`t13j` retimed, `t13l` added). RFD#10's "1-B" variant and the scope notes in
   `audit-findings.md` remain as documented there.
 
-The next classic work is the F10 fixtures; F10 stays fixture-gated behind its PDF re-checks,
-and F13 waits for hardware. Neither blocks the other stream.
+The next classic work is D1, the ACCC digest re-verification and reference sweep
+(`implementation-roadmap.md` queue item 2); then the F10 fixtures, still fixture-gated behind
+their PDF re-checks. F13 waits for hardware. Neither blocks the other stream.
 
 ## Completed Plus foundations
 
@@ -343,8 +344,10 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    trigger is implemented with its blocking review findings remediated
    (`accuracy/f7-r0-widening-independent-review.md`, vectors `t13e`-`t13m`). That branch
    passed its pass-2 cross-provider re-review on 2026-08-24 and is merged at `27078f4`, so
-   F7 is complete in full. Next classic work is the F10 fixtures; F10 stays fixture-gated
-   behind its PDF re-checks.
+   F7 is complete in full. **Next classic work is D1, not F10**: re-verify the ACCC digests
+   against `docs/ACCC1.10-EN.pdf` — which is present in the tree, merely gitignored — then
+   sweep the stale section references it exposes. See queue item 2 in
+   `implementation-roadmap.md`. F10 follows, still fixture-gated behind its PDF re-checks.
 5. Plus: P0 and the P1 CRTC3 counter/timing foundation are merged. Next Plus steps: the
    manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
    classic re-checked side by side), then the P1 remainder per

@@ -295,8 +295,8 @@ General implementation rules for all fix prompts:
   "1-B" variant is deliberately not modeled.
 - **Current** (§13.7.1.2 R0-widening route implemented 2026-08-23): a type-1 R0 write that
   strictly widens R0 and lands exactly on the C0==R0 comparator edge of the frame's last line
-  (C9==R9, C4==R4, R5==0, outside adjustment) defers that line end — per §13.7.1.1's
-  "just-in-time write considered this rollover" gist — so the line runs into the widened
+  (C9==R9, C4==R4, R5==0, outside adjustment) defers that line end — per §13.6.2's p.122
+  chronogram, "just-in-time write considered this rollover" — so the line runs into the widened
   remainder (`hcc_end` in `rtl/CRTC.v`; engine term `rfd_r0_extend`). If the register state
   held at the line's actual end no longer satisfies C9==R9 ∧ C4==R4 (the documented "by line
   end" variant definitions), both RFD flags arm there with the same same-edge reload

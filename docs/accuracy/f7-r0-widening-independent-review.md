@@ -342,9 +342,17 @@ says the directed vectors, not the soak, carry the behavioural proof.
 
 Requested because pass 1 and pass 2 shared one reviewer, so the pass-2 checklist and its
 verification had the same owner. Run by **GPT-5.6 Sol** at high reasoning effort via the
-`reviewer-cross` bridge, read-only, one pass. Sol had access to the untracked
+`reviewer-cross` bridge, read-only, one pass. Sol read the untracked
 `docs/ACCC1.10-EN.pdf` itself, so parts of its check sit at authority rank 1-2 rather than
 rank 3 (the digests) — stronger sourcing than either earlier pass had.
+
+**Reviewer error worth recording, because it shaped all three passes.** The brief for this
+pass told Sol it would not have the PDF. That was wrong: `docs/ACCC1.10-EN.pdf` is present in
+the working tree at 4.8 MB and merely gitignored, and `pdftotext` extracts it cleanly. Passes
+1 and 2 verified rule claims against the digests alone for the same reason — "untracked" in
+`CLAUDE.md` was read as "absent". Sol ignored the brief's claim, opened the PDF, and that is
+how the citation error surfaced. **Future reviews of ACCC-derived work should read the PDF
+directly**; it is authority rank 2, above the digests, and it is right there.
 
 **Verdict: AGREE with the pass-2 CLEAR. No blocking findings.** Sol independently reproduced
 the RTL conclusions: the DE-guard removal is correct because `rtl/CRTC.v` compares the
@@ -368,12 +376,24 @@ were applied in the follow-up commit that carries this section.
   citation sends the next reader to a section about a different chip.
 - **N-7 · Low — question 18 presented an inference as the source's own words.** "a
   write-event condition that would arm even if the written value is later restored" reads as
-  if the p.122-123 figure says so; it says "modified", and the restore consequence is our
-  reading of that one word. Reworded to mark it as inference. The same edit drops the
-  disputed "§13.7.1.1" label for the chronogram — Sol's PDF read puts "CRTC 1: CHRONOGRAM" at
-  §13.6.2 and "R0 UPDATE: OUTI" at §13.7.1.1, so the question now anchors on the page numbers
-  and flags the digest's section label as uncertain. **Worth an author check**: digest-01 §8.5
-  may carry the same mislabel.
+  if the figure says so; it says "modified", and the restore consequence is our reading of
+  that one word. Reworded to mark it as inference.
+- **N-8 · Low — the chronogram was cited as §13.7.1.1, which is a different section.**
+  Surfaced by Sol and then settled directly against the PDF rather than left as a question,
+  because it is a fact anyone can check in thirty seconds. Ground truth from the chapter-13
+  table of contents and the p.122/p.124 body text: **§13.6 "R0 UPDATE" p.122-123** holds
+  §13.6.1 "CRTC 0, 2 : CHRONOGRAM" (p.122), §13.6.2 "CRTC 1 : CHRONOGRAM" (p.122) and §13.6.3
+  "CRTC 3, 4 : CHRONOGRAM" (p.123); **§13.7 "SPECIAL CASES" p.124** holds §13.7.1 "CRTC 1"
+  with §13.7.1.1 "R0 UPDATE: OUTI" and §13.7.1.2 "R0 UPDATE: OUT(C),R8", and §13.7.2 "CRTC 0".
+  So the just-in-time chronogram gist belongs to **§13.6.2 p.122**, not §13.7.1.1. Corrected
+  in `rtl/crtc_type1_engine.v`, `audit-findings.md` and question 18. Two citations were
+  already right and were left alone: digest-01 §8.5's bullet header uses §13.7.1.1 for the
+  OUTI hazard, which is exactly what that section is, and `shaker-accc-crossref.md` does the
+  same. Digest-01 §8.5 was not mislabelled — it anchored the chronogram on page numbers only;
+  it now carries the §13.6.x labels and a warning not to confuse them with §13.7.1.1.
+  The chronogram annotation quoted in digest-01 §8.5 was re-checked verbatim against the PDF
+  and is exact, so that half of its ⚠ VERIFY flag is retired; the figure alignment caveat
+  stands.
 - **N-2 and N-3 fixed rather than deferred.** Sol judged that leaving the backwards
   `rfd_r0_arm` clause and the unsupported "emerges from the armed flags" claim unfixed was
   the wrong call, and gave the structural argument for N-3 that pass 2 only asserted: the RFD

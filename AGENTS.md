@@ -23,7 +23,9 @@ Start from:
 
 When simulation and hardware disagree, hardware wins and the test vector is wrong.
 
-`docs/ACCC1.10-EN.pdf` is user-owned and untracked. **Never commit it.**
+`docs/ACCC1.10-EN.pdf` is user-owned and untracked. **Never commit it.** It is present in
+the working tree, though — untracked, not missing — and `pdftotext` reads it. Prefer it over
+the digests whenever a rule claim matters.
 
 ## Commands
 

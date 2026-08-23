@@ -312,16 +312,32 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
-2. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
+2. **PRIORITY — D1: re-verify the ACCC digests against the PDF, then sweep every stale
+   section reference.** `docs/ACCC1.10-EN.pdf` is present in the working tree (4.8 MB,
+   gitignored, not absent) and `pdftotext -f <first> -l <last>` extracts it cleanly. The three
+   digests under `docs/accuracy/compendium-0*.md` were built without using it, which left 27
+   `⚠ VERIFY` flags whose stated reason is flattened-text extraction, and at least one
+   downstream section mislabel that survived three review passes (the §13.6.2 p.122 CRTC-1
+   chronogram cited as §13.7.1.1, which is actually "R0 UPDATE: OUTI"; see N-8 in
+   `accuracy/f7-r0-widening-independent-review.md`). Do it in two steps and do not merge them:
+   first re-check each digest section against the PDF, retiring or re-scoping every `⚠ VERIFY`
+   flag it can settle and correcting section numbers and page anchors against the real table of
+   contents; then, as a separate pass, sweep `docs/` plus `rtl/` and `sim/` for references to
+   the corrected sections. RTL and vector citations count — `t13e`/`t13j`/`t13l` cited §13.5
+   p.121 (CRTC 3/4) for a type-1 rule that belongs to §13.3 p.113. Expect this to surface
+   rule claims we implemented from a misread digest; each one is a finding, not a typo, and
+   gets a vector before any RTL moves. The PDF is authority rank 2 and outranks the digests,
+   so where they disagree the digest is wrong. Never commit the PDF.
+3. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
    and is BLOCKED-PENDING-HARDWARE-EVIDENCE. F7 RFD is complete in full (R5 route, B6
-   disarm, A1/A2, and the §13.7.1.2 R0-widening trigger, vectors `t13a`-`t13k`). F10 stays
-   fixture-gated behind its PDF re-checks and is the next classic item.
-3. Plus stream: P0 and the P1 CRTC3 counter/timing foundation are done. Next: the P1
+   disarm, A1/A2, and the §13.7.1.2 R0-widening trigger, vectors `t13a`-`t13m`). F10 stays
+   fixture-gated behind its PDF re-checks and is the next classic item after D1.
+4. Plus stream: P0 and the P1 CRTC3 counter/timing foundation are done. Next: the P1
    remainder (pixel path and the CPU/WAIT contract at first motherboard instantiation),
    then P2. Do not combine Plus video with the classic stream.
-4. F6 proceeds per `accuracy/f6-decision-gate.md`: Stage 1 is the full-character
+5. F6 proceeds per `accuracy/f6-decision-gate.md`: Stage 1 is the full-character
    presence/type/skew approximation; Stage 2 measured 1 µs; Stage 2b assigns the documented
    0.5 µs to the CRTC DE phase. No CRTC, GA, or glue work before F13's hardware gate.
-5. Common dependencies for both streams (harness helpers, shared docs) land on
+6. Common dependencies for both streams (harness helpers, shared docs) land on
    `accc-review-and-fixes`; the running stream branches (`accuracy/a3-f6-stage1`,
    `plus/p0-parser-wiring`) rebase onto it rather than stacking.
