@@ -202,6 +202,7 @@ wire       e0_vde_toggle, e0_r6_vder_write, e0_r6_vder_value;
 wire [4:0] e0_line_next, e0_c5_next;
 wire [6:0] e0_row_next;
 wire [1:0] e0_de_index;
+wire       e0_spurious_border_off;
 wire [3:0] e0_vsc_load;
 
 crtc_type0_engine crtc_type0_engine
@@ -219,7 +220,8 @@ crtc_type0_engine crtc_type0_engine
 	e0_c0_line_last, e0_c0_row_last,
 	e0_in_adj_route, e0_frozen_row_advance, e0_hcc2_adj_keep,
 	e0_reload, e0_row_addr_save,
-	e0_field_count_tick, e0_hsync_off, e0_de_index, e0_vsync_line_fire,
+	e0_field_count_tick, e0_hsync_off, e0_de_index, e0_spurious_border_off,
+	e0_vsync_line_fire,
 	e0_vsc_load, e0_r7_write_fire, e0_vsync_holdoff, e0_vde_toggle,
 	e0_r6_vder_write, e0_r6_vder_value
 );
@@ -461,7 +463,13 @@ always @(posedge CLOCK) begin
 	end
 end
 
-wire [3:0] de = {1'b0, dde[1:0], hde & vde & vde_r};
+// DISPTMG delay line. The type-0 spurious-border term (ACCC v1.10 section
+// 17.6.2 p.186, substituted border start for R1>R0) is injected here,
+// ahead of the SKEW-DISPTMG stages, so a programmed delay displaces it
+// like a natural border edge and mode 2'b11 suppresses it (section
+// 19.2.4). The term is already gated on !CRTC_TYPE in the engine: type 1
+// has no border-start substitution at all (ACCC p.186-187).
+wire [3:0] de = {1'b0, dde[1:0], hde & vde & vde_r & ~e0_spurious_border_off};
 reg  [1:0] dde;
 always @(posedge CLOCK) if (CLKEN) dde <= {dde[0],de[0]};
 

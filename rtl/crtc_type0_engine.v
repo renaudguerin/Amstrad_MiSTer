@@ -102,6 +102,10 @@ module crtc_type0_engine
 	output           field_count_tick,
 	output           hsync_off,
 	output     [1:0] de_index,
+	// Type-0-only substituted border-start trigger for R1>R0 (ACCC v1.10
+	// section 17.6.2); the wrapper injects it ahead of the SKEW-DISPTMG
+	// delay line. See the assign below for the rule.
+	output           spurious_border_off,
 	output           vsync_line_fire,
 	output     [3:0] vsc_load,
 	output           r7_write_fire,
@@ -354,6 +358,28 @@ assign vsc_load = R3_v_sync_width - 1'd1;
 
 assign hsync_off = (hsc == R3_h_sync_width);
 assign de_index = R8_skew;
+
+// Technical information sourced from the "Amstrad CPC CRTC Compendium" by
+// Longshot (CC BY-NC-ND). ACCC v1.10 section 17.6.2 (p.186): when R1>R0 the
+// C0=R1 DISPTMG-off comparison can never fire (C0 wraps at R0 first), so a
+// type-0 CRTC substitutes C0=R0 as the border-start trigger -- DISPTMG is
+// forced off for exactly that one character (the spurious interline border
+// byte) and returns on the following character through the natural
+// line-start set. Section 19.2.4 (p.195): a programmed SKEW-DISPTMG delay
+// is counted from the substituted trigger, so the wrapper must inject this
+// ahead of the delay line; mode 2'b11 (non-output) suppresses it entirely.
+// The term is combinational by intent: section 17.3 has the C0=R1
+// comparison evaluate live, so the substitution tracks live R1/R0 writes
+// too. Gated on !CRTC_TYPE because type 1 emits no border byte at all in
+// this configuration (ACCC p.186-187; section 28.1.6 discriminator).
+//
+// Recorded residual: with R0=0 the frozen C0 pins hcc==R0 permanently, so
+// this term holds DISPTMG off for every character; the book's alternating
+// display/border-byte description of that extreme (p.186) needs a toggle
+// mechanism and is deliberately left to a later F6 stage.
+assign spurious_border_off = !CRTC_TYPE &&
+							 (R1_h_displayed > R0_h_total) &&
+							 (hcc == R0_h_total);
 
 // nCLKEN R6-write handling: type 0 clears the delayed display-enable latch
 // unless the write lands on the frame-origin toggle point.
