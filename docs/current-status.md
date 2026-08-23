@@ -209,6 +209,12 @@ separately fixture-gated project.
   of `asic_video` (architecture §5 Risk 1). `files.qip` is untouched until that
   instantiation commit. The locked-ASIC title boot-point check remains the manual P0/P1
   hardware checkpoint described above.
+- CI evidence for the P1 foundation branch (run `32632492492`, tip `0be8a60`):
+  simulation and synthesis both green. Fitter: 15,295 / 41,910 ALMs (36%), 685,217
+  block-memory bits (12%), 3 / 6 PLLs; worst setup slack +0.342 ns — numerically
+  identical to the P0 merged-tip build, and `asic_video` appears nowhere in the fit
+  report because nothing instantiates it yet. No regression signal; the first
+  meaningful synthesis delta arrives with the P1-remainder motherboard integration.
 - ASIC register page backing, palette, interrupts, sprites, split/scroll,
   and DMA are not implemented. FDC/tape presence gating for GX4000/464+ is also still
   inert (P8 polish scope).
