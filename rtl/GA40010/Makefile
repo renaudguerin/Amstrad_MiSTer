@@ -5,7 +5,7 @@ VERILATOR_BIN=/usr/local/bin/verilator
 VERILATOR_BIN=/usr/bin/verilator
 #VERILATOR_DIR=${HOME}/verilator/include
 #VERILATOR_BIN=${HOME}/verilator/bin/verilator
-HDL_FILES = ga40010_test.v ga40010.sv syncgen.v syncgen_sync.v casgen.v video.sv rslatch.v ../CRTC.v ../crtc_type0_engine.v ../crtc_type1_engine.v
+HDL_FILES = ga40010_test.v ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v ../CRTC.v ../crtc_type0_engine.v ../crtc_type1_engine.v
 
 all: ga40010_tb
 
