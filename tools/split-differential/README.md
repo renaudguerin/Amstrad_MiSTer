@@ -7,10 +7,12 @@ lockstep run, no divergence" claim in `docs/accuracy/type-split-review-guide.md`
 
 ## What it does
 
-Drives **two Verilated models in lockstep** — the current split core
-(`rtl/CRTC.v` + engines) and a reference extracted at run time from git history
-(`git show 418aa68:rtl/UM6845R.v`, module renamed to avoid a clash) — with an
-identical stimulus schedule (seed `0xaccc5eed20260822`, 150000 events per CRTC
+Drives **two Verilated models in lockstep**, both extracted at run time from git
+history: the reviewed split integration tip (`2d4f880`, `rtl/CRTC.v` + engines)
+and its pre-split reference (`418aa68:rtl/UM6845R.v`, module renamed to avoid a
+clash). Pinning both sides keeps this a reproducible provenance check after later
+intentional CRTC behaviour changes. It uses an identical stimulus schedule (seed
+`0xaccc5eed20260822`, 150000 events per CRTC
 type: random register writes at arbitrary phases incl. CLKEN/nCLKEN-aligned,
 held writes, reselects, snapshot loads, live type round-trips, resets; idle
 ticks between events). After **every CLKEN edge** it compares a full state
@@ -39,8 +41,10 @@ with a state dump and a 40-edge history.
    committed soak in `sim/sim_main.cpp` (e.g. read operations do not drive the
    bus here). Same seed and event budget; different trajectory — the two runs
    are complementary, not duplicates.
-2. The reference core exists only in git history (`418aa68`); nothing checked
-   in depends on it at build time — `run.sh` extracts it on the fly.
+2. Both compared revisions exist in git history (`418aa68` and `2d4f880`);
+   nothing checked in depends on them at build time — `run.sh` extracts them on
+   the fly. This reproduces the reviewed split-equivalence evidence; it does not
+   compare later intentional behaviour changes with the unsplit core.
 3. Pass criteria are equality of the sampled fields only; unsampled internal
    wires could theoretically differ without detection (none of the sequential
    state is known to be unsampled).
@@ -48,8 +52,8 @@ with a state dump and a 40-edge history.
 ## Run
 
 ```sh
-tools/split-differential/run.sh            # default reference: 418aa68
-tools/split-differential/run.sh <commit>   # any pre-split wrapper commit
+tools/split-differential/run.sh                    # defaults: 418aa68 vs 2d4f880
+tools/split-differential/run.sh <ref> <split>      # override either frozen side
 ```
 
 Exit 0 = no divergence over both type phases (~45.5M comparisons, ~15 s).
