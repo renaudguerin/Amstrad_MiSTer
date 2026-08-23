@@ -281,6 +281,15 @@ the type-split refactor milestone (it forces a full read anyway).
       **`0xae27f2c3c758ed87`**, reproduced twice and checked with `SOAK_EXPECT`. The soak
       does not prove bit identity when unarmed. RFD#10's optional "1-B" chip variant is
       explicitly not modeled.
+- [x] A1 adjustment-ending VSYNC corner — DONE 2026-08-23 on `accuracy/f7-rfd`:
+      the type-1 `row+1` VSYNC comparator substitution now excludes `crtc1_adj_end`, because
+      the actual transition is final adjustment row → C4=0. New `t08m` derives a minimal
+      R4=1/R5=2/R9=0 case from ACCC §§16.1/16.4.2; existing `t08g` was the same stale
+      final-row+1 oracle and is corrected to require R7=39 silence. This exposes a source
+      tension with the older §28.1.1 discriminator wording; the later independent review
+      must check that reconciliation explicitly. With seed/schedule/projection unchanged,
+      the intended VSYNC delta re-minted the soak from `0xae27f2c3c758ed87` to
+      **`0x6439f9805b20acaa`**, reproduced twice and checked with `SOAK_EXPECT`.
 - [x] Plus queue: P0 parser→service/MMU/boot wiring DONE on `plus/p0-parser-wiring`
       (4556665: A5 decisions + oversized-cbNN abort; 7eaddf2: `plus_mmu` cartridge
       windows, production service→SDRAM hookup, CPU cart read bridge with WAIT

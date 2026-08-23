@@ -314,8 +314,9 @@ General implementation rules for all fix prompts:
 - **Current** (fixed, `c9f4a4e`): type 1 has a genuine C5 (`crtc_type1_engine.v:116` equality
   end, `:124-135` counter next-state) while C9 keeps cycling 0..R9 and C4 increments at each
   wrap; type 0 still reuses C9 vs R5 (`crtc_type0_engine.v:151` line-max selection). The §4.4
-  R5=0 free-run bug is deliberately reproduced. Protected by `t08i`-`t08l`. The R4-rewrite
-  caveat corner below remains untested (A1/A2).
+  R5=0 free-run bug is deliberately reproduced. Protected by `t08i`-`t08l`. A1's
+  adjustment-ending VSYNC correction is now protected by `t08m` (and the corrected `t08g`
+  oracle); the §11.2.4 R4/R9 rewrite caveat pair remains A2.
 - **Impact**: type 1 ruptures/overscan using adjustment rows show wrong row addressing (RA
   bits come from C9, which real type 1 keeps cycling); the R5=0 escape trick (force C4/C9=0 on
   an arbitrary line) doesn't work.

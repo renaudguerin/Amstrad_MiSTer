@@ -223,7 +223,12 @@ end
 
 assign field_count_tick = (hcc_next == {1'b0, R0_h_total[7:1]});
 
-assign vsync_line_fire = (((CRTC_TYPE && in_adj) ? (row + 1'd1) : row_next) == R7_v_sync_pos && line_last_w);
+// ACCC v1.10 sections 16.1/16.4.2: while adjustment continues, C4 reaches
+// row+1 at a C9 wrap and may fire VSYNC there.  On the adjustment-ending
+// line C4 instead returns directly to row_next=0; comparing final-row+1
+// would invent a C4 value the chip never reaches (review action A1).
+assign vsync_line_fire = (((CRTC_TYPE && in_adj && !crtc1_adj_end) ?
+								 (row + 1'd1) : row_next) == R7_v_sync_pos && line_last_w);
 assign vsc_load = 4'd0 - 1'd1;
 assign r7_write_fire = !VSYNC_r && vsync_allow;
 

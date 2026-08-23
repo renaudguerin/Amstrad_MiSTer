@@ -1,9 +1,9 @@
 # Independent review debt
 
-**Status: all branch-level review rows cleared 2026-08-23** — the independent pass-3
-verification accepted the pass-2 remediations at reviewed tip `d64e449`. Action items A1/A2
-and the non-blocking follow-ups recorded below remain separate implementation work; they do
-not keep the reviewed branch content open.
+**Status: earlier branch rows cleared; `accuracy/f7-rfd` outstanding 2026-08-23.** The
+independent pass-3 verification accepted the earlier remediations at reviewed tip `d64e449`.
+A1 is now implemented, A2 is in progress, and their branch-level review is deliberately
+deferred until the three focused commits are complete.
 
 This file tracks work that was merged without the independent cross-provider review the
 project normally requires. It exists because that review was unavailable at the time, not
@@ -102,13 +102,16 @@ output. Order: `de71808` → `da79915`+`1a1233f` → `cd47d7d` → `c4c3e0f` →
 
 ### Action items arising (never silently fixed)
 
-- **A1 — F8 VSYNC comparator corner (`c9f4a4e`).** On the type-1 adjustment-ending line,
+- **A1 — F8 VSYNC comparator corner (`c9f4a4e`) — DONE 2026-08-23 on
+  `accuracy/f7-rfd`.** On the type-1 adjustment-ending line,
   `((CRTC_TYPE && in_adj) ? row + 1 : row_next)` compares against `row+1` while the actual
-  next row is 0 (new frame). If R7 equals (final adjustment row)+1 (= R4+R5+1) the core
+  next row is 0 (new frame). If R7 equals (final adjustment row)+1 the core
   starts a VSYNC real hardware would not emit (C4 never takes that value; ACCC §16.1/§16.4.2).
   Unreachable with standard programming (R7<R4); reachable via dynamic-R7 tricks. Fix is to
   exclude the `crtc1_adj_end` case from the substitution; land with a focused deterministic
-  vector derived from §16.4.2.
+  vector derived from §16.4.2. Implemented with minimal `t08m`; the related `t08g` oracle
+  now requires R7=39 silence instead of the same spurious final-row+1 pulse. The tension
+  with the older §28.1.1 discriminator wording is named for the branch review.
 - **A2 — F8 §11.2.4 caveat pair.** Implement/test both halves: R4(>0)-rewrite at C0==R0
   entering adjustment suppresses the VMA-from-R12/R13 reload; an R9 write at C0==R0 does
   not (B5). Already noted in `audit-findings.md` F8 and `testbench-spec.md` planned additions.
@@ -161,6 +164,7 @@ hardest-reading guidance inline).
 | `plus/p0-parser-wiring` | Production parser → cartridge service → SDRAM → MMU/CPU-WAIT path. Review hardest: cancellation, late acknowledgements, load-time MMU waiting, and classic-mode isolation. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 traced cancellation/rearm and load replay, adversarially checked fail-closed parsing, and accepted the production-sized integration proof. |
 | `docs/split-differential-evidence` | Frozen `418aa68` pre-split vs `2d4f880` split comparator and preserved 45,498,863-sample run. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 reproduced the committed run including `r6_border_condition`; no divergence. |
 | `plus/p1-crtc3-foundation` | Plus P1 CRTC3 counter/timing foundation, now 27 vectors (`t01a`-`t04h`). Review hardest: live R2 HSYNC collision, save/reload priority, vertical equality/overflow rules, and the explicitly unverified t01e R0-shrink model assumption. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 verified the live-R2 fix directly against ACCC p.151 and accepted t04a's test isolation. The t01e and R3=0 collision cases remain labelled or queued as model assumptions, not review debt. |
+| `accuracy/f7-rfd` | Type-1 F7 R5-trigger RFD, A1 adjustment-ending VSYNC correction, and A2 §11.2.4 caveat pair. Review hardest: same-edge R5/rollover ordering; parity/save disarm; B6 bare-C9 timing; the §§16.1/16.4.2 vs §28.1.1 t08g source tension; and A2 exact-R0 write discrimination. | **OUTSTANDING — review after the three focused commits at the branch tip.** User requested the independent pass be deferred; do not use Claude for this session. |
 
 The same rule applies here as everywhere else in this file: clear an entry only after a real
 independent review has run — not because later work touched the same files. The pass-3 record
@@ -186,7 +190,8 @@ documentation-only.
   is documented and does not reopen P0. Real `.cpr` hardware boot remains a separate
   milestone gap.
 
-Pass 3 raised no blocking issues. A1/A2 remain open and were outside its scope.
+Pass 3 raised no blocking issues. A1 is now implemented on the later `accuracy/f7-rfd`
+branch; A2 remains open. Both were outside pass 3's scope, and the new branch row remains debt.
 
 ## Rule for future unreviewed work
 

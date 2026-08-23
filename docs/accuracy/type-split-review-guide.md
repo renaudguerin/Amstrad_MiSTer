@@ -36,6 +36,8 @@ expectations for their own commits.)
 (F7 then intentionally changed type-1 behaviour under the unchanged fixed stimulus: random
 R5 traffic can arm RFD. The current hash is `0xae27f2c3c758ed87`; directed `t13a`, not the
 soak, proves the never-triggered path remains unarmed and unchanged.)
+(A1 then removed the spurious type-1 VSYNC at the adjustment-ending final-row+1
+comparison, re-minting the unchanged stimulus/projection to `0x6439f9805b20acaa`.)
 
 ## Branch 2 — `accuracy/crtc-type-split`
 
@@ -70,13 +72,13 @@ zero separation benefit.
 ### Evidence stack (run these)
 
 ```sh
-make -C sim                                  # 97 passed / 0 xfail / 0 xpass / 0 failed
+make -C sim                                  # 98 passed / 0 xfail / 0 xpass / 0 failed
 make -C sim lint                             # no errors (pre-existing warnings only)
-make -C sim soak SOAK_EXPECT=0xae27f2c3c758ed87 # current sampled-field contract
+make -C sim soak SOAK_EXPECT=0x6439f9805b20acaa # current sampled-field contract
 ```
 
-The current checkout has 97 classic passes and uses `0xae27f2c3c758ed87`, re-minted
-for the intended F7 RFD behaviour after the F6 Stage 1 and sampled-field re-mints. The historical
+The current checkout has 98 classic passes and uses `0x6439f9805b20acaa`, re-minted
+for A1 after the F7 RFD, F6 Stage 1, and sampled-field re-mints. The historical
 `0x5b5004ff70148443` value remains the correct expectation for the unsplit-core
 comparison commit recorded above; the split-equivalence claim is bounded to the
 sampled fields, stimulus, and phase documented in `sim/README.md`.
@@ -122,8 +124,8 @@ what the differential method exists to catch.
 
 ### Current bounded status
 
-- A1/A2 remain open in `docs/review-debt.md` (the VSYNC comparator corner and the
-  §11.2.4 caveat pair). A3's t20 companion vector is complete: `t20i` covers live-entry
+- A1 is closed by `t08m` plus the corrected `t08g` oracle; A2 remains open in
+  `docs/review-debt.md` (§11.2.4 caveat pair). A3's t20 companion vector is complete: `t20i` covers live-entry
   R0=0 VMA reload and freeze.
 - F11h residual: intra-character immediacy of R12/R13 on type 1 not modeled; p.242 re-read
   pending.
