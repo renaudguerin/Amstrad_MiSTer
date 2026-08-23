@@ -158,9 +158,12 @@ assign DO = 8'hFF;
 // C0 counts 0..R0 inclusive and wraps via equality against the live R0
 // value (ACCC §13.1, p.102). Type 3 accepts any R0 without disturbing
 // other counters — there is no type-0-style freeze machinery (§13.5,
-// p.121); an R0 lowered below the current C0 simply makes the equality
-// unreachable until C0 has overflowed its full eight-bit range and come
-// back round (§13.5 "main subtlety" contrast; §28.1.1 general form).
+// p.121). The exact post-write behavior when R0 is lowered below the
+// current C0 is not given as a direct CRTC3 chronogram in the source; the
+// equality-based eight-bit overflow below is therefore an explicitly
+// unverified P1 model assumption, protected by t01e pending direct CRTC3
+// rule/chronogram, Logon, or hardware evidence. ACCC §28.1.1 is not support
+// for this behavior: it describes C4/C9 identification overflow, not C0.
 //----------------------------------------------------------------------
 
 reg [7:0] hcc;

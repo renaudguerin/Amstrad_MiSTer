@@ -275,7 +275,9 @@ The pre-P0 and P0 packages are:
   malformed-input aborts, reset-mid-load cleanup, loader/CPU arbitration)
 - P1.1 **complete** — `rtl/plus/asic_video.v` skeleton: type-3 register storage with
   full-index write decode (§28.1.9) and the C0/HCC counter with live R0 equality;
-  any-R0 acceptance incl. the eight-bit overflow route (§13.5 p.121). Vectors t01a-t01e
+  any-R0 acceptance (§13.5 p.121). The exact lowered-R0 eight-bit sequence in t01e is
+  retained as an explicitly unverified P1 model assumption, not a direct ACCC chronogram.
+  Vectors t01a-t01e
 - P1.2 **complete** — vertical chain: C9 completion via >=R9 so a lowered R9 forces
   next-C9=0 (§10.3.4 p.77), C4 overflow on a lowered R4 (§12.5 p.101), adjustment entry
   freezing C4 at R4 (§11.2.6), R5-length management with live shrink/grow (§11.3.3).
