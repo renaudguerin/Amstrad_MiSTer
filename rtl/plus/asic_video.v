@@ -46,7 +46,14 @@ module asic_video
 	output     [7:0] DO,
 
 	// Horizontal counter tap for later raster consumers (PRI/sprites/DMA)
-	output     [7:0] HCC
+	output     [7:0] HCC,
+
+	// Vertical counter taps: C4 char-row counter, C9 scanline-in-row
+	// counter (which doubles as the vertical-adjustment line index on
+	// types 3/4, ACCC §11.2.6), and the adjustment-active flag.
+	output     [6:0] LINE,
+	output     [4:0] ROW,
+	output           ADJ
 );
 
 /* verilator lint_off WIDTH */
@@ -66,14 +73,16 @@ reg  [4:0] addr;
 /* verilator lint_off UNUSEDSIGNAL */
 reg [7:0] R0_h_total;
 reg [7:0] R1_h_displayed;
+// R1/R2/R3 gain consumers with the display and sync phases; this scaffold
+// pragma block shrinks as each phase lands.
+/* verilator lint_off UNUSEDSIGNAL */
 reg [7:0] R2_h_sync_pos;
 reg [3:0] R3_h_sync_width;
 reg [3:0] R3_v_sync_width;
-reg [6:0] R4_v_total;
-reg [4:0] R5_v_total_adj;
 reg [6:0] R6_v_displayed;
 reg [6:0] R7_v_sync_pos;
 reg [1:0] R8_skew;         // bits 5:4, SKEW-DISPTMG (types 0/3/4, §19.1)
+/* verilator lint_on UNUSEDSIGNAL */
 // R8 bits 1:0 select interlace modes and stay stored-but-inert for the
 // whole P1 foundation: the type-3 IVM counting/parity machinery (ACCC
 // §19.5.5, §19.8.4) is deliberately out of P1 scope (see header). The
@@ -82,12 +91,9 @@ reg [1:0] R8_skew;         // bits 5:4, SKEW-DISPTMG (types 0/3/4, §19.1)
 /* verilator lint_off UNUSEDSIGNAL */
 reg [1:0] R8_interlace;
 /* verilator lint_on UNUSEDSIGNAL */
-// R9 gains its consumer with the vertical chain; until that commit lands
-// it is storage only. Scaffold pragmas here shrink as each phase consumes
-// its registers.
-/* verilator lint_off UNUSEDSIGNAL */
+reg [6:0] R4_v_total;
+reg [4:0] R5_v_total_adj;
 reg [4:0] R9_v_max_line;
-/* verilator lint_on UNUSEDSIGNAL */
 /* verilator lint_on UNUSEDSIGNAL */
 
 always @(posedge CLOCK) begin
@@ -151,6 +157,87 @@ always @(posedge CLOCK) begin
 	else if (CLKEN) hcc <= hcc_next;
 end
 
-assign HCC = hcc;
+//----------------------------------------------------------------------
+// Vertical counters: C9 (raster line within the character row) and C4
+// (character row within the frame), plus the vertical-adjustment state.
+//
+// All decisions sample the live register values at the line-end edge
+// (C0==R0); a bus write landing mid-line is therefore considered at that
+// line's end, and a write landing exactly on the decision edge itself is
+// seen by the *next* decision (the documented same-edge hazard window;
+// vectors stay inside the documented mid-line windows).
+//
+// C9/R9 completion uses ">=" not equality: on types 3/4 an R9 lowered
+// below the current C9 forces next-C9=0 with normal row accounting,
+// "it is impossible to overflow C9" (ACCC §10.3.4 p.77). Equality alone
+// is the natural case; the greater-than term is the forced reset.
+//
+// Entering adjustment from the last character row does NOT increment C4:
+// it stays equal to R4 for every adjustment line (ACCC §11.2.6 p.84),
+// and R6==R4 consequently covers those lines too (§18.2.4 note).
+// Adjustment ends when the next adjustment-line index C9+1 has reached
+// R5 — or would pass it after a mid-adjustment R5 shrink; both end the
+// management on the same line ("Whether with R5 or R9, it is impossible
+// to overflow C9", ACCC §11.3.3 p.86).
+//
+// An R4 lowered below the current C4 makes the frame-end equality
+// unreachable: C4 free-runs through its seven-bit range (ACCC §12.5
+// p.101, "overflow of the C4 counter"), in contrast to C9 above.
+//----------------------------------------------------------------------
+
+reg  [6:0] charline;
+reg  [4:0] raster;
+reg        in_adj;
+
+wire       c9_done       = in_adj ? 1'b0 : (raster >= R9_v_max_line);
+wire       last_charline = (charline == R4_v_total);
+wire       enter_adj     = c9_done & last_charline &
+                           (R5_v_total_adj != 5'd0);
+wire       frame_wrap    = c9_done & last_charline &
+                           (R5_v_total_adj == 5'd0);
+wire       adj_end       = ((raster + 5'd1) >= R5_v_total_adj);
+
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		charline <= 7'd0;
+		raster   <= 5'd0;
+		in_adj   <= 1'b0;
+	end
+	else if (CLKEN) begin
+		if (hcc_last) begin
+			if (in_adj) begin
+				if (adj_end) begin
+					in_adj   <= 1'b0;
+					raster   <= 5'd0;
+					charline <= 7'd0;
+				end
+				else begin
+					raster <= raster + 5'd1;
+				end
+			end
+			else if (enter_adj) begin
+				in_adj <= 1'b1;
+				raster <= 5'd0;
+				// charline deliberately frozen at R4 (ACCC §11.2.6)
+			end
+			else if (frame_wrap) begin
+				raster   <= 5'd0;
+				charline <= 7'd0;
+			end
+			else if (c9_done) begin
+				raster   <= 5'd0;
+				charline <= charline + 7'd1;
+			end
+			else begin
+				raster <= raster + 5'd1;
+			end
+		end
+	end
+end
+
+assign HCC  = hcc;
+assign LINE = charline;
+assign ROW  = raster;
+assign ADJ  = in_adj;
 
 endmodule

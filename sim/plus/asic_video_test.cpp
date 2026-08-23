@@ -74,9 +74,49 @@ public:
         }
     }
 
+    // Advance one character at a time until the counters sit at a frame
+    // start (C4=C9=C0=0 sampled just after a CLKEN edge).
+    void run_to_frame_start() {
+        unsigned guard = 0;
+        do {
+            run_characters(1);
+            if (++guard > 4096) {
+                throw TestFailure("run_to_frame_start did not converge");
+            }
+        } while (!(dut.LINE == 0 && dut.ROW == 0 && dut.HCC == 0));
+    }
+
+    void run_until_adjustment() {
+        unsigned guard = 0;
+        do {
+            run_characters(1);
+            if (++guard > 4096) {
+                throw TestFailure("run_until_adjustment did not converge");
+            }
+        } while (dut.ADJ == 0);
+    }
+
     void expect_hcc(const std::string& expectation, unsigned expected) const {
         if (dut.HCC != expected) {
             fail(expectation + ": HCC", expected, dut.HCC);
+        }
+    }
+
+    void expect_line(const std::string& expectation, unsigned expected) const {
+        if (dut.LINE != expected) {
+            fail(expectation + ": LINE(C4)", expected, dut.LINE);
+        }
+    }
+
+    void expect_row(const std::string& expectation, unsigned expected) const {
+        if (dut.ROW != expected) {
+            fail(expectation + ": ROW(C9)", expected, dut.ROW);
+        }
+    }
+
+    void expect_adj(bool expected, const std::string& expectation) const {
+        if ((dut.ADJ != 0) != expected) {
+            fail(expectation + ": ADJ", expected ? 1 : 0, dut.ADJ);
         }
     }
 
@@ -218,12 +258,170 @@ struct TestCase {
     void (*run)(TestBench&);
 };
 
-constexpr std::array<TestCase, 5> kTests = {{
+// Program a standard frame: R0=7 (8-char lines), R9=3 (4-line char rows),
+// R4=2 (3 char rows), R5=0 -> 3*4*8 = 96 characters per frame. Counter
+// state is pinned at zero while R0=R4=R9=0 during programming, so callers
+// align with run_to_frame_start() before reasoning about positions.
+void program_standard_frame(TestBench& test) {
+    test.write_register(0x00, 7);
+    test.write_register(0x09, 3);
+    test.write_register(0x04, 2);
+    test.write_register(0x05, 0);
+}
+
+void t02a_normal_frame_cycle(TestBench& test) {
+    program_standard_frame(test);
+    test.run_to_frame_start();
+    // Row accounting per ACCC §6.1.4 skeleton with the type-3 rules of
+    // §10/§12: raster climbs within R9, charline within R4, then the
+    // frame wraps (R5=0).
+    test.run_characters(8);
+    test.expect_row("first line completion advances C9", 1);
+    test.expect_line("still character row 0", 0);
+    test.run_characters(16);
+    test.expect_row("two more lines complete the row count", 3);
+    test.expect_line("row 0 still displayed-counting", 0);
+    test.run_characters(8);   // fourth line completes the char row
+    test.expect_row("row completion resets C9", 0);
+    test.expect_line("and increments C4", 1);
+    test.run_characters(32);
+    test.expect_line("second row completes", 2);
+    test.run_characters(32);
+    test.expect_line("third row completes: frame wrap (ACCC §12.5)", 0);
+    test.expect_row("new frame restarts C9 at 0", 0);
+    test.expect_adj(false, "no adjustment with R5=0");
+}
+
+// ACCC §10.3.4 p.77: "If current-C9 > R9 then next-C9=0" — lowering R9
+// below the running C9 forces the reset on the next line with normal row
+// accounting (impossible to overflow C9). Previous R9 family table,
+// C4<>R4 case: next line C9=0, C4=C4+1.
+void t02b_r9_lowered_forces_reset(TestBench& test) {
+    program_standard_frame(test);
+    test.run_to_frame_start();
+    test.run_characters(16);  // start of third scanline: C9=2
+    test.expect_row("precondition C9=2", 2);
+    // Write lands mid-line (bus positioning consumes one CLKEN; the line
+    // is still on raster 2).
+    test.write_register(0x09, 1);
+    test.expect_row("write mid-row leaves current line untouched", 2);
+    test.run_characters(8);
+    test.expect_row("next-C9=0 forced by C9>R9 (ACCC §10.3.4)", 0);
+    test.expect_line("row completed early: C4 incremented", 1);
+    // Subsequent rows now hold two lines each (0..1).
+    test.run_characters(8);
+    test.expect_row("rows count to the lowered R9", 1);
+    test.expect_line("same char row still", 1);
+    test.run_characters(8);
+    test.expect_row("next row starts", 0);
+    test.expect_line("and C4 advanced again", 2);
+}
+
+// ACCC §12.5 p.101: an R4 updated below the current C4 makes the frame-end
+// equality unreachable — "there is overflow of the C4 counter" (contrast
+// with C9 above): C4 free-runs and the frame does not restart.
+void t02c_r4_lowered_overflows(TestBench& test) {
+    program_standard_frame(test);
+    test.run_to_frame_start();
+    test.run_characters(32);  // start of char row 1
+    test.expect_line("precondition C4=1", 1);
+    test.write_register(0x04, 0);
+    test.run_characters(32);  // row 1 completes normally (C9 cycled)
+    test.expect_line("row end with C4!=R4 increments C4 past old limit", 2);
+    test.run_characters(32);
+    test.expect_line("C4 keeps counting: equality unreachable", 3);
+    test.expect_row("raster still cycles normally", 0);
+    test.expect_adj(false, "no adjustment entered");
+}
+
+// ACCC §11.2.6 p.84: on types 3/4 entering vertical adjustment does NOT
+// increment C4 — it stays equal to R4 — while C9 resets to 0.
+void t02d_adjustment_entry_keeps_c4(TestBench& test) {
+    test.write_register(0x00, 7);
+    test.write_register(0x09, 3);
+    test.write_register(0x04, 2);
+    test.write_register(0x05, 2);
+    test.run_until_adjustment();
+    test.expect_adj(true, "adjustment active after last character row");
+    test.expect_line("C4 frozen at R4, not incremented (ACCC §11.2.6)", 2);
+    test.expect_row("adjustment lines index from C9=0", 0);
+}
+
+// ACCC §11.3.3 p.86 + §11.2.6: adjustment runs exactly R5 lines, then the
+// next line is a fresh frame (C4=C9=0). With R0=7/R9=3 each line is 8
+// characters; frame body = 3 rows x 4 lines, plus R5=2 adjustment lines.
+void t02e_adjustment_length_and_restart(TestBench& test) {
+    test.write_register(0x00, 7);
+    test.write_register(0x09, 3);
+    test.write_register(0x04, 2);
+    test.write_register(0x05, 2);
+    test.run_until_adjustment();      // first adjustment line in progress
+    test.run_characters(8);           // it completes
+    test.expect_row("second adjustment line indexes C9=1", 1);
+    test.expect_adj(true, "still adjusting");
+    test.expect_line("C4 still frozen at R4", 2);
+    test.run_characters(8);           // adjustment line 1 == last (R5=2)
+    test.expect_adj(false, "adjustment ended after R5 lines");
+    test.expect_line("fresh frame starts", 0);
+    test.expect_row("with C9=0", 0);
+    // Full frame period: 3*4*8 + 2*8 = 112 characters. We sit at character
+    // 0 of the new frame's first line; the body ends and adjustment entry
+    // fires on the same edge after exactly 96 characters.
+    test.run_characters(95);
+    test.expect_adj(false, "still in the final body line before entry");
+    test.run_characters(1);
+    test.expect_adj(true, "second frame enters adjustment on schedule");
+    test.expect_line("entry again freezes C4 at R4", 2);
+    test.expect_row("and restarts the adjustment index", 0);
+}
+
+// ACCC §11.3.3: shrinking R5 below C9+1 during adjustment makes the
+// current line the last one — management ends, no overflow chase.
+void t02f_r5_shrink_ends_adjustment(TestBench& test) {
+    test.write_register(0x00, 7);
+    test.write_register(0x09, 3);
+    test.write_register(0x04, 2);
+    test.write_register(0x05, 4);
+    test.run_until_adjustment();   // adjustment line index 0 in progress
+    test.write_register(0x05, 1);  // lands during that line
+    test.run_characters(8);        // index 0 completes: 0+1 >= 1
+    test.expect_adj(false, "shrunken R5 ends adjustment immediately");
+    test.expect_line("frame restarts", 0);
+    test.expect_row("at C9=0", 0);
+}
+
+// ACCC §11.3.3 ("Whether with R5 or R9, it is impossible to overflow
+// C9") combined with §11.3 general: growing R5 mid-adjustment extends the
+// count to the new value.
+void t02g_r5_grow_extends_adjustment(TestBench& test) {
+    test.write_register(0x00, 7);
+    test.write_register(0x09, 3);
+    test.write_register(0x04, 2);
+    test.write_register(0x05, 2);
+    test.run_until_adjustment();   // index 0 in progress
+    test.write_register(0x05, 5);  // lands during that line
+    test.run_characters(8 * 4);    // indices 1..4 pass without ending
+    test.expect_adj(true, "grown R5 keeps management active");
+    test.expect_row("adjustment index follows", 4);
+    test.expect_line("C4 frozen throughout", 2);
+    test.run_characters(8);
+    test.expect_adj(false, "ends when C9+1 reaches the new R5");
+    test.expect_line("fresh frame", 0);
+}
+
+constexpr std::array<TestCase, 12> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
     {"t01d live R0 widen mid-line", t01d_r0_widen_midline},
     {"t01e R0 shrink eight-bit overflow", t01e_r0_shrink_overflow},
+    {"t02a normal frame counter cycle", t02a_normal_frame_cycle},
+    {"t02b lowered R9 forces C9 reset", t02b_r9_lowered_forces_reset},
+    {"t02c lowered R4 overflows C4", t02c_r4_lowered_overflows},
+    {"t02d adjustment entry keeps C4=R4", t02d_adjustment_entry_keeps_c4},
+    {"t02e adjustment length and restart", t02e_adjustment_length_and_restart},
+    {"t02f shrunk R5 ends adjustment", t02f_r5_shrink_ends_adjustment},
+    {"t02g grown R5 extends adjustment", t02g_r5_grow_extends_adjustment},
 }};
 
 }  // namespace
