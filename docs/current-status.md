@@ -206,12 +206,15 @@ separately fixture-gated project.
   adjustment that freezes C4 at R4 (§11.2.6/§11.3.3), the two-stage video pointer with
   the C4=0 ∧ C0=0 reload condition (§20.3.4), DE with line-start-only R6 semantics
   (§18.2.4) and SKEW-DISPTMG (§19.2), and HSYNC/VSYNC generation including bounded
-  R3=0 widths and the live §15.3 end/start collision. 27 deterministic vectors
-  (t01a-t04h) cover them, including the p.151 live-R2 chronogram; every rule cites its ACCC
-  section at the point of implementation. `t03c` also pins the simultaneous C0=R1=R0
+  R3=0 widths and the live §15.3 end/start collision. 28 deterministic vectors
+  (t01a-t04i) cover them, including the p.151 live-R2 chronogram; every sourced rule cites
+  its ACCC section at the point of implementation. `t03c` also pins the simultaneous C0=R1=R0
   row-end save/reload so MA
   advances to the captured row base rather than restoring stale VMA'. Interlace is
   stored-but-inert; status registers/read map are P5.
+  Follow-up vector `t04i` makes the R3l=0 end/start-collision exception explicit: the
+  current model keeps the documented 16-character pulse bounded, but that boundary is an
+  unverified model assumption pending a direct rule, Logon observation, or hardware capture.
 - Still open in P1 before the milestone is complete: the basic locked-ASIC pixel path
   (needs the legacy-colour table sourced from [KT] or hardware measurement), and the
   CPU/WAIT timing-contract decision that lands with the first motherboard instantiation
