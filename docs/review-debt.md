@@ -1,10 +1,10 @@
 # Independent review debt
 
-**Status: all rows cleared 2026-08-23.** The independent pass-3 verification accepted the
-earlier remediations at reviewed tip `d64e449`, and the same-day pass-4 review accepted the
-`accuracy/f7-rfd` classic delta, the `plus/p1-followups` work, and the CI synthesis-policy
-commit (`docs/accuracy/f7-plus-followups-independent-review.md`). No row is outstanding;
-new unreviewed work must open a fresh one per the rule at the bottom of this file.
+**Status: one row open.** The pass-3 verification accepted the earlier remediations at
+reviewed tip `d64e449`, and the same-day pass-4 review accepted the `accuracy/f7-rfd`
+classic delta, the `plus/p1-followups` work, and the CI synthesis-policy commit
+(`docs/accuracy/f7-plus-followups-independent-review.md`). A fresh row opened 2026-08-23 for
+`accuracy/f7-rfd-r0-widening`; no other row is outstanding.
 
 This file tracks work that was merged without the independent cross-provider review the
 project normally requires. It exists because that review was unavailable at the time, not
@@ -167,6 +167,7 @@ hardest-reading guidance inline).
 | `plus/p1-crtc3-foundation` | Plus P1 CRTC3 counter/timing foundation, now 27 vectors (`t01a`-`t04h`). Review hardest: live R2 HSYNC collision, save/reload priority, vertical equality/overflow rules, and the explicitly unverified t01e R0-shrink model assumption. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 verified the live-R2 fix directly against ACCC p.151 and accepted t04a's test isolation. The t01e and R3=0 collision cases remain labelled or queued as model assumptions, not review debt. |
 | `accuracy/f7-rfd` | Type-1 F7 R5-trigger RFD, A1 adjustment-ending VSYNC correction, and A2 §11.2.4 caveat pair. Review hardest: same-edge R5/rollover ordering; parity/save disarm; B6 bare-C9 timing; the §§16.1/16.4.2 vs §28.1.1 t08g source tension; and A2 exact-R0 write discrimination. | **CLEARED — ox-alpha, 2026-08-23.** Pass 4 verified the vector expectations as rule-derived (not implementation-derived), accepted the A1 §§16.1/16.4.2 reconciliation with its §28.1.1 tension routed to an author question, and recorded the B6 early-clear interpretation as unobservable. Full record: `accuracy/f7-plus-followups-independent-review.md`. |
 | `plus/p1-followups` | Pass-3 Q1 standalone GA40010 target tooling and Q3 R3l=0 collision-assumption labelling/vector. Review hardest: `VERILATOR_BIN` override isolation, non-fatal warning policy, and whether t04i pins the current assumption without implying an ACCC oracle. | **CLEARED — ox-alpha, 2026-08-23.** Pass 4 empirically verified the override in both CLI and env form, confirmed no GA40010 netlist source changed, and confirmed t04i labels the assumption without claiming an ACCC oracle. Full record: `accuracy/f7-plus-followups-independent-review.md`. |
+| `accuracy/f7-rfd-r0-widening` | §13.7.1.2 p.124 R0-widening RFD trigger: wrapper `hcc_end` line-end strobe (defers C0 wrap, MA increment, roll-into-R1 display end, odd-field count tick), engine pending-window/arm state, vectors `t13e`-`t13k`. Review hardest: completeness of the `hcc_end` consumer switch (any line-event consumer still on raw `hcc_last` fires at the suppressed edge); same-edge ordering of window-set vs -clear vs arm against the R5-route flag updates; the end-state reading of the documented "(C9 != R9 / C4 != R4 by line end)" variant definitions behind `t13h`; and bit-identical type-0/ordinary-type-1 behavior outside the recipe (directed guards plus an unchanged soak hash). | **Open — opened 2026-08-23; cross-provider bridge unavailable in the authoring session.** |
 
 The same rule applies here as everywhere else in this file: clear an entry only after a real
 independent review has run — not because later work touched the same files. The pass-3 record

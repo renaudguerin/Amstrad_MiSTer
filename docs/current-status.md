@@ -333,5 +333,6 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
    classic re-checked side by side), then the P1 remainder per
    `docs/plus/architecture.md` §4/§7 (pixel path plus motherboard CPU/WAIT contract), then
-   P2. All review-debt rows are cleared as of 2026-08-23.
+   P2. The `accuracy/f7-rfd-r0-widening` branch carries one open review-debt row
+   (cross-provider bridge was unavailable when it was authored); all other rows are cleared.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
