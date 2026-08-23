@@ -40,15 +40,20 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0xf5f8ae01ffdf928d`, re-minted 2026-08-23 for the sampled-field expansion,
-  review issue 4 remediation; previously `0x326ea81358e7d88f` from F6 Stage 1
-  and `0x5b5004ff70148443` from the unsplit core)
+  (`0x512eaae74a628dca`, re-minted 2026-08-23 for the A2 exact-edge R4
+  adjustment-reload suppression; previously `0x6439f9805b20acaa` from A1,
+  `0xae27f2c3c758ed87` from F7 RFD,
+  `0xf5f8ae01ffdf928d` from the sampled-field expansion,
+  `0x326ea81358e7d88f` from F6 Stage 1, and
+  `0x5b5004ff70148443` from the unsplit core)
   for behaviour-preserving changes: run `make -C sim soak SOAK_EXPECT=<hash>`.
   A hash change on a refactor commit means behaviour moved — stop and document
   why before proceeding.
-- There is no local Quartus path on Apple Silicon. Synthesis runs in GitHub Actions
-  (`.github/workflows/build.yml`: Verilator gate first, then pinned `raetro/quartus`
-  digest, Quartus 17.0.2). Local build options (UTM VM, Docker) are in `docs/building.md`.
+- There is no native local Quartus path on Apple Silicon. GitHub Actions runs Verilator on
+  every non-documentation push, then runs the pinned Quartus 17.0.2 container only for known
+  integration paths, the default branch, pull requests to it, tags, or a manual milestone dispatch.
+  Semantic clock/memory/RGB risks still require an exact manually dispatched build. The tiered
+  rules are in `docs/ci-testing-policy.md`; local UTM/Docker options are in `docs/building.md`.
 - Use `Amstrad.qpf` as the project file; `Amstrad_Q13.*` is a legacy alternate, ignore it.
 
 ## Core layout (since the 2026-08-22 per-type split)

@@ -5,22 +5,126 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
+  # Do not path-filter pull requests: a filtered workflow never reports its
+  # required-gate check and can leave branch protection pending forever.
   pull_request:
-    branches:
-      - master
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
   workflow_dispatch:
+    inputs:
+      clean_quartus_build:
+        description: "Build without restoring or saving the Quartus database"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: build-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  # A routine push must never cancel the manually dispatched milestone which
+  # compensates for semantic risks the pathname classifier cannot see.
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
+  synthesis-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      required: ${{ steps.classify.outputs.required }}
+      reason: ${{ steps.classify.outputs.reason }}
+      cache_enabled: ${{ steps.classify.outputs.cache_enabled }}
+
+    steps:
+      - name: Check out source and history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Test synthesis path classification
+        run: scripts/ci/test-classify-synthesis-paths.sh
+
+      - name: Decide whether full synthesis is required
+        id: classify
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CLEAN_QUARTUS_BUILD: ${{ inputs.clean_quartus_build }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          required=false
+          cache_enabled=false
+          compare_paths=false
+          fallback_ref="origin/$DEFAULT_BRANCH"
+          reason="ordinary feature-branch change"
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            required=true
+            reason="manual milestone dispatch"
+            if [[ "$CLEAN_QUARTUS_BUILD" == "false" && \
+                  "$REF_TYPE" == "branch" && "$REF_NAME" != "$DEFAULT_BRANCH" ]]; then
+              cache_enabled=true
+            fi
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            required=true
+            reason="tagged milestone"
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            head_sha="$PR_HEAD_SHA"
+            base_sha="$PR_BASE_SHA"
+            fallback_ref="origin/$PR_BASE_REF"
+            compare_paths=true
+            reason="pull request change"
+          elif [[ "$GITHUB_REF" == "refs/heads/$DEFAULT_BRANCH" ]]; then
+            required=true
+            reason="default-branch integration tip"
+          else
+            head_sha="$GITHUB_SHA"
+            base_sha="$BEFORE_SHA"
+            cache_enabled=true
+            compare_paths=true
+          fi
+
+          if [[ "$compare_paths" == "true" ]]; then
+            if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]] || \
+               ! git cat-file -e "$base_sha^{commit}" 2>/dev/null; then
+              if base_sha="$(git merge-base "$head_sha" "$fallback_ref")"; then
+                reason="new or rewritten ref compared with its integration branch"
+              else
+                required=true
+                cache_enabled=false
+                reason="unable to establish safe comparison base"
+              fi
+            elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+              if ! base_sha="$(git merge-base "$base_sha" "$head_sha")"; then
+                required=true
+                reason="unable to establish pull-request merge base"
+              fi
+            fi
+
+            if [[ "$required" == "false" ]]; then
+              changed_paths="$RUNNER_TEMP/synthesis-changed-paths.txt"
+              git diff --name-only --no-renames "$base_sha" "$head_sha" > "$changed_paths"
+              required="$(scripts/ci/classify-synthesis-paths.sh < "$changed_paths")"
+              if [[ "$required" == "true" ]]; then
+                reason="known synthesis integration path changed"
+              fi
+            fi
+          fi
+
+          printf 'required=%s\n' "$required" >> "$GITHUB_OUTPUT"
+          printf 'reason=%s\n' "$reason" >> "$GITHUB_OUTPUT"
+          printf 'cache_enabled=%s\n' "$cache_enabled" >> "$GITHUB_OUTPUT"
+          printf 'Full synthesis required: %s (%s); Quartus database reuse: %s\n' \
+            "$required" "$reason" "$cache_enabled"
+
   simulation:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -38,9 +142,14 @@ jobs:
         run: make -C sim clean test lint
 
   synthesis:
-    needs: simulation
+    needs:
+      - simulation
+      - synthesis-policy
+    if: needs.simulation.result == 'success' && needs.synthesis-policy.outputs.required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    outputs:
+      build_mode: ${{ steps.cache-provenance.outputs.build_mode }}
     env:
       # Quartus 17.0.2.602 for amd64. Keep the digest deliberate: the tag is mutable.
       QUARTUS_IMAGE: raetro/quartus@sha256:55442b161163dc7723e3d4917ce046fcb682478365fe9320756c9a4ae7d7d4ce
@@ -53,6 +162,20 @@ jobs:
           # in .git/config when the checkout is mounted into the build container.
           persist-credentials: false
 
+      - name: Restore branch Quartus database
+        id: quartus-cache
+        if: needs.synthesis-policy.outputs.cache_enabled == 'true'
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            db
+            incremental_db
+          # Change the epoch whenever the Quartus image or database policy moves.
+          key: quartus-db-17.0.2-55442b16-v1-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            quartus-db-17.0.2-55442b16-v1-${{ runner.os }}-${{ github.ref_name }}-
+
       - name: Compile Amstrad core
         shell: bash
         run: |
@@ -64,6 +187,39 @@ jobs:
             "$QUARTUS_IMAGE" \
             quartus_sh --flow compile Amstrad.qpf \
             2>&1 | tee artifacts/reports/quartus-build.log
+
+      - name: Summarize Quartus database reuse
+        id: cache-provenance
+        if: always()
+        shell: bash
+        env:
+          CACHE_ENABLED: ${{ needs.synthesis-policy.outputs.cache_enabled }}
+          CACHE_PRIMARY_KEY: ${{ steps.quartus-cache.outputs.cache-primary-key }}
+          CACHE_MATCHED_KEY: ${{ steps.quartus-cache.outputs.cache-matched-key }}
+        run: |
+          mkdir -p artifacts/reports
+          if [[ "$CACHE_ENABLED" != "true" ]]; then
+            build_mode=clean
+          elif [[ -n "$CACHE_MATCHED_KEY" ]]; then
+            build_mode=quartus_database_reuse
+          else
+            build_mode=clean_cache_seed
+          fi
+
+          printf 'build_mode=%s\n' "$build_mode" >> "$GITHUB_OUTPUT"
+          {
+            printf 'build_mode=%s\n' "$build_mode"
+            printf 'cache_enabled=%s\n' "$CACHE_ENABLED"
+            printf 'cache_primary_key=%s\n' "${CACHE_PRIMARY_KEY:-none}"
+            printf 'cache_matched_key=%s\n' "${CACHE_MATCHED_KEY:-none}"
+            printf 'generated_database_sizes:\n'
+            du -sh db incremental_db 2>/dev/null || true
+          } | tee artifacts/reports/quartus-cache.txt
+
+          {
+            printf '### Quartus database reuse\n\n'
+            sed 's/^/- `/' artifacts/reports/quartus-cache.txt | sed 's/$/`/'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Collect synthesis reports
         if: always()
@@ -88,6 +244,16 @@ jobs:
           cp output_files/Amstrad.rbf \
             "artifacts/Amstrad_${build_date}_${short_sha}.rbf"
 
+      - name: Save branch Quartus database
+        if: ${{ success() && needs.synthesis-policy.outputs.cache_enabled == 'true' && steps.quartus-cache.outputs.cache-hit != 'true' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            db
+            incremental_db
+          key: ${{ steps.quartus-cache.outputs.cache-primary-key }}
+
       - name: Upload bitstream and reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,3 +262,50 @@ jobs:
           path: artifacts/
           if-no-files-found: error
           retention-days: 14
+
+  required-gate:
+    if: always()
+    needs:
+      - synthesis-policy
+      - simulation
+      - synthesis
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Enforce the selected verification tier
+        shell: bash
+        env:
+          POLICY_RESULT: ${{ needs.synthesis-policy.result }}
+          SIMULATION_RESULT: ${{ needs.simulation.result }}
+          SYNTHESIS_REQUIRED: ${{ needs.synthesis-policy.outputs.required }}
+          SYNTHESIS_REASON: ${{ needs.synthesis-policy.outputs.reason }}
+          SYNTHESIS_BUILD_MODE: ${{ needs.synthesis.outputs.build_mode }}
+          SYNTHESIS_RESULT: ${{ needs.synthesis.result }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$POLICY_RESULT" != "success" ]]; then
+            printf 'Synthesis policy job did not pass: %s\n' "$POLICY_RESULT" >&2
+            exit 1
+          fi
+          if [[ "$SIMULATION_RESULT" != "success" ]]; then
+            printf 'Simulation job did not pass: %s\n' "$SIMULATION_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$SYNTHESIS_REQUIRED" == "true" ]]; then
+            if [[ "$SYNTHESIS_RESULT" != "success" ]]; then
+              printf 'Required synthesis did not pass: %s (%s)\n' \
+                "$SYNTHESIS_RESULT" "$SYNTHESIS_REASON" >&2
+              exit 1
+            fi
+          elif [[ "$SYNTHESIS_RESULT" != "skipped" ]]; then
+            printf 'Unexpected synthesis result for simulation-only change: %s\n' \
+              "$SYNTHESIS_RESULT" >&2
+            exit 1
+          fi
+
+          printf 'Verification gate passed; synthesis=%s (%s); build_mode=%s\n' \
+            "$SYNTHESIS_REQUIRED" "$SYNTHESIS_REASON" \
+            "${SYNTHESIS_BUILD_MODE:-not-run}"

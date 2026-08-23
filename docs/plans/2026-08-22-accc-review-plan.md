@@ -271,6 +271,32 @@ the type-split refactor milestone (it forces a full read anyway).
       identical across two runs and via `SOAK_EXPECT`; rationale: review issue 4
       remediation. Recorded in this plan, sim/README.md,
       accuracy/type-split-review-guide.md, and AGENTS.md.
+- [x] F7 RFD primary R5 trigger — DONE 2026-08-23 on `accuracy/f7-rfd`:
+      type-1-only same-edge `R5 0->nonzero` arming at `CLKEN && hcc==R0`, RFD VMA-source
+      reload, parity-gated VMA' save, odd-R9 frame-parity alternation, successful-save
+      disarm, and the R1>R0 bare-C9 disarm route (B6). `t13a`-`t13d` are required passes;
+      `t13a` is the directed never-triggered proof (R5 written away from C0=R0). Random
+      soak traffic legitimately arms the new behaviour, so with the seed, schedule, and
+      sampled fields unchanged the hash moved from `0xf5f8ae01ffdf928d` to
+      **`0xae27f2c3c758ed87`**, reproduced twice and checked with `SOAK_EXPECT`. The soak
+      does not prove bit identity when unarmed. RFD#10's optional "1-B" chip variant is
+      explicitly not modeled.
+- [x] A1 adjustment-ending VSYNC corner — DONE 2026-08-23 on `accuracy/f7-rfd`:
+      the type-1 `row+1` VSYNC comparator substitution now excludes `crtc1_adj_end`, because
+      the actual transition is final adjustment row → C4=0. New `t08m` derives a minimal
+      R4=1/R5=2/R9=0 case from ACCC §§16.1/16.4.2; existing `t08g` was the same stale
+      final-row+1 oracle and is corrected to require R7=39 silence. This exposes a source
+      tension with the older §28.1.1 discriminator wording; the later independent review
+      must check that reconciliation explicitly. With seed/schedule/projection unchanged,
+      the intended VSYNC delta re-minted the soak from `0xae27f2c3c758ed87` to
+      **`0x6439f9805b20acaa`**, reproduced twice and checked with `SOAK_EXPECT`.
+- [x] A2 §11.2.4 exact-edge caveat pair — DONE 2026-08-23 on `accuracy/f7-rfd`:
+      `t08n` proves an R4(>0) rewrite at C0==R0 adjustment entry suppresses the type-1
+      C4=1 R12/R13 reload; `t08o` proves an R9 write on the same edge does not. The narrow
+      type-1 engine predicate also controls the wrapper's existing adjustment-origin marker.
+      With seed/schedule/projection unchanged, this intended behavior delta re-minted the
+      soak from `0x6439f9805b20acaa` to **`0x512eaae74a628dca`**, reproduced twice and
+      checked with `SOAK_EXPECT`.
 - [x] Plus queue: P0 parser→service/MMU/boot wiring DONE on `plus/p0-parser-wiring`
       (4556665: A5 decisions + oversized-cbNN abort; 7eaddf2: `plus_mmu` cartridge
       windows, production service→SDRAM hookup, CPU cart read bridge with WAIT
@@ -311,21 +337,16 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and
-note the resume point in one line here: **resume point: the independent review generation is
-closed at reviewed tip `d64e449`; the verbatim pass-3 record accepts all 11 pass-2 fixes and
-all six branch-level review rows are cleared by GPT-5.6 Sol on 2026-08-23. The P0 MMU/service
-seam now rejects stale completions and waits through production-sized loads; the P1
-foundation has 27 vectors including the ACCC p.151 live-R2 HSYNC collision; the GA40010
-manifest elaborates from scratch; the frozen split comparator samples
-`r6_border_condition`; canonical handoff/count/path/oracle/F6 wording is reconciled. The
-review reran 93 classic passes plus all Plus groups, lint (warnings only), clean exact-range
-`git diff --check`, soak hash `0xf5f8ae01ffdf928d`, and the split differential. GitHub
-Actions run `32645547100` remains green at `f6f09f5` (simulation plus synthesis), with only
-documentation after it through the reviewed tip. No soak re-mint and no GA40010 netlist
-change occurred. NEXT: classic starts F7 RFD (including B6 disarm and A1; A2 remains queued),
-then F10 fixtures, while F13 waits for SHAKER/DE-pin hardware evidence. Plus takes its P1
-follow-ups per the roadmap: Q1 standalone-target tooling, Q3 assumption labelling/evidence,
-the pixel path, and the motherboard CPU/WAIT contract; the manual real-`.cpr` checkpoint
-remains outstanding. Keep the classic and Plus streams separate. Behaviour-preserving edits run
-`make -C sim soak SOAK_EXPECT=0xf5f8ae01ffdf928d`; a hash change requires a documented
-reason. See `sim/README.md` and AGENTS.md "Verification ownership" for conventions.**
+note the resume point in one line here: **resume point: `accuracy/f7-rfd` now contains the
+three focused classic changes: F7's type-1 R5 RFD route (`t13a`-`t13d`), A1's
+adjustment-ending VSYNC exclusion (`t08m` plus corrected `t08g`), and A2's §11.2.4
+exact-edge R4/R9 caveat pair (`t08n`/`t08o`). The local gate is 100 classic passes plus all
+Plus groups, lint has warnings only, and the current soak contract is
+`0x512eaae74a628dca`; each behavior-changing mint retained the seed, schedule, and sampled
+projection and is documented in `sim/README.md`. The optional RFD#10 1-B variant is not
+modeled, and the separate §13.7.1.2 R0-widening trigger remains explicit residual F7 scope.
+The combined F7/A1/A2 branch row is OUTSTANDING in `docs/review-debt.md`; the user requested
+that independent review be performed later and that Claude not be used in this session.
+NEXT: push this branch, require green branch CI, and stop for coordination without merging.
+After coordination, classic can take the residual R0 route or F10 fixtures; F13 still waits
+for SHAKER/DE-pin hardware evidence. Keep the classic and Plus streams separate.**

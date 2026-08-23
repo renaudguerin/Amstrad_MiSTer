@@ -400,6 +400,19 @@ public:
                     dut_->rootp->CRTC__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
     }
 
+    void expect_type1_rfd_state(const std::string& expectation,
+                                bool vma_flag,
+                                bool parity_flag,
+                                bool frame_parity) const {
+        const auto& root = *dut_->rootp;
+        expect_byte(expectation + " VMA-source flag", vma_flag,
+                    root.CRTC__DOT__crtc_type1_engine__DOT__rfd_vma_flag);
+        expect_byte(expectation + " parity-management flag", parity_flag,
+                    root.CRTC__DOT__crtc_type1_engine__DOT__rfd_parity_flag);
+        expect_byte(expectation + " frame parity", frame_parity,
+                    root.CRTC__DOT__crtc_type1_engine__DOT__rfd_frame_parity);
+    }
+
     std::uint16_t ma() const {
         return dut_->MA;
     }
@@ -2869,18 +2882,20 @@ void test_type1_identification_r7_38_fires(TestBench& test) {
                                seen);
 }
 
-void test_type1_identification_r7_39_fires(TestBench& test) {
-    // Type 1 keeps incrementing C4 whenever C9 reaches R9 during adjustment
-    // (section 11.2.1): C4=37 on entry, 38 after eight adjustment lines, and
-    // 39 as the sixteenth completes the R5 count.
+void test_type1_identification_r7_39_is_silent(TestBench& test) {
+    // ACCC v1.10 sections 16.1/16.4.2 and review action A1: C4=37 on
+    // adjustment entry and 38 after eight lines, but the sixteenth line ends
+    // adjustment by taking C4 directly from 38 to 0.  C4 never reaches 39,
+    // so the former final-row+1 comparator pulse was spurious.  This corrects
+    // the older §28.1.1-based oracle in this vector; the source tension is
+    // recorded in the session plan for the independent review pass.
     const bool seen = run_identification_sweep(test, 1, 39);
-    test.expect_vsync_observed("type 1 R7=39 triggers VSYNC in adjustment",
-                               seen);
+    test.expect_no_vsync_observed(
+        "type 1 R7=39 is skipped at adjustment end", seen);
 }
 
 void test_type1_identification_r7_40_is_silent(TestBench& test) {
-    // The type-1 half of the discriminator.  It holds once F8 is implemented
-    // because C4 reaches 39 on the sixteenth adjustment line and then resets to 0.
+    // R7=40 is also unreachable; A1 moves the first silent value down to 39.
     const bool seen = run_identification_sweep(test, 1, 40);
     test.expect_no_vsync_observed("type 1 R7=40 never triggers VSYNC", seen);
 }
@@ -3134,6 +3149,215 @@ void test_type1_r4_zero_adjustment_vma_reloads_on_c4_one(TestBench& test) {
     test.expect_c4("adjustment line 4 C4=2", 2);
     test.expect_ra("adjustment line 4 C9=0", 0);
     test.expect_ma("adjustment line 4 (C4=2) reloads VMA' (0x30A0) refusing R12/R13 (0x0111)", 0x30A0);
+}
+
+void test_type1_adjustment_end_does_not_fire_unreached_r7(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // ACCC v1.10 sections 16.1 and 16.4.2: VSYNC fires only when C4
+    // actually reaches R7.  On paper, R4=1/R5=2/R9=0 produces normal C4
+    // rows 0,1 followed by adjustment rows 2,3; the adjustment-ending
+    // transition is C4=3 -> 0.  C4 never reaches R7=4, so no VSYNC pulse is
+    // permitted on that boundary (review action A1).
+    constexpr RegisterProgram kRegisters = {{
+        {0, 7}, {1, 4}, {2, 6}, {3, 0x11}, {4, 1},
+        {5, 2}, {6, 2}, {7, 4}, {8, 0},    {9, 0},
+    }};
+    program_registers(test, kRegisters);
+    test.reset();
+
+    constexpr unsigned normal_and_adjustment_characters = 4 * 8;
+    const bool seen = test.vsync_within_characters(
+        normal_and_adjustment_characters + 8);
+    test.expect_no_vsync_observed(
+        "type 1 adjustment end skips unreachable R7=final-row+1", seen);
+}
+
+void prepare_type1_a2_exact_r0_write(TestBench& test,
+                                     std::uint8_t target_register,
+                                     std::uint8_t value) {
+    test.set_crtc_type(1);
+    constexpr RegisterProgram kRegisters = {{
+        {0, 7}, {1, 4}, {2, 6}, {3, 0x11}, {4, 0},
+        {5, 2}, {6, 2}, {7, 20}, {8, 0},   {9, 1},
+    }};
+    program_registers(test, kRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.reset();
+
+    // Establish a genuine frame start, then reach C0=4 on the last normal
+    // line (C4=0/C9=R9=1).  The C0=R1 save captures VMA'=0x1238 before
+    // R12/R13 change to 0x2050.  Two more CLKENs reach C0=R0=7, where the
+    // selected A2 write lands on the adjustment-entry rollover.
+    constexpr unsigned frame_characters = (2 + 2) * 8;
+    test.run_characters(frame_characters);
+    test.expect_ma("A2 fixture starts the frame from R12/R13", 0x1234);
+    test.run_characters(8 + 4);
+    test.write_register(12, 0x20);
+    test.write_register(13, 0x50);
+    test.select_register(target_register);
+    test.run_characters(2);
+    test.write_selected_register_at_clken(value);
+    test.expect_adjustment_active("A2 exact-R0 write enters adjustment");
+    test.expect_c4("A2 exact-R0 write enters adjustment at C4=1", 1);
+    test.expect_ra("A2 exact-R0 write resets C9 on adjustment entry", 0);
+}
+
+void test_type1_r4_write_at_adjustment_entry_suppresses_r12_reload(
+    TestBench& test) {
+    // ACCC v1.10 section 11.2.4 note, page 84: rewriting R4 to a nonzero
+    // value exactly at C0=R0 while entering adjustment suppresses the
+    // special VMA-from-R12/R13 behavior for C4=1.  The saved VMA'=0x1238
+    // must win over the newly programmed R12/R13=0x2050.
+    prepare_type1_a2_exact_r0_write(test, 4, 1);
+    test.expect_ma(
+        "type 1 exact-R0 R4>0 write suppresses the C4=1 R12/R13 reload",
+        0x1238);
+}
+
+void test_type1_r9_write_at_adjustment_entry_keeps_r12_reload(
+    TestBench& test) {
+    // ACCC v1.10 section 11.2.4 note, page 84 (findings-review B5): an R9
+    // write on the same exact C0=R0 edge does NOT cancel the C4=1 special
+    // case.  Therefore the new R12/R13=0x2050, not VMA'=0x1238, must load.
+    prepare_type1_a2_exact_r0_write(test, 9, 2);
+    test.expect_ma(
+        "type 1 exact-R0 R9 write retains the C4=1 R12/R13 reload",
+        0x2050);
+}
+
+// ---------------------------------------------------------------------------
+// t13: F7 -- CRTC-1 Rupture For Dummies (RFD)
+// ---------------------------------------------------------------------------
+
+constexpr RegisterProgram kRfdRegisters = {{
+    {0, 7}, {1, 4}, {2, 6}, {3, 0x11}, {4, 1},
+    {5, 0}, {6, 2}, {7, 20}, {8, 0},   {9, 1},
+}};
+
+void test_type1_rfd_write_away_from_r0_stays_unarmed(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.select_register(5);
+    test.reset();
+
+    // ACCC v1.10 section 11.6, page 87: RFD requires the R5 0->nonzero
+    // write to land exactly at C0==R0.  On paper, this write lands at C0=3
+    // while R0=7, so neither RFD flag nor its parity state may move.  This
+    // is the directed never-triggered regression that protects the
+    // bit-identical-when-unarmed contract; the randomized soak is not that
+    // proof because it legitimately exercises the trigger.
+    test.run_characters(3);
+    test.write_selected_register_at_clken(1);
+    test.expect_type1_rfd_state(
+        "type 1 off-R0 R5 write leaves RFD unarmed", false, false, false);
+}
+
+void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(5);
+    test.reset();
+
+    // ACCC v1.10 section 11.6 and 11.6.3, pages 87-90: with R5 previously
+    // zero and C9=0 != R9=1, the 0->1 write landing at C0=R0=7 arms both
+    // independent RFD flags.  The current (reset) parity is case 1, so the
+    // C9=R9-at-C0=R1 save is suppressed during this frame.
+    test.run_characters(7);
+    test.write_selected_register_at_clken(1);
+    test.expect_type1_rfd_state(
+        "type 1 exact-R0 R5 write arms both RFD flags", true, true, false);
+    test.expect_ma(
+        "type 1 exact-R0 R5 write reloads R12/R13 on the arming rollover",
+        0x1234);
+    // Complete the section 11.6.3 recipe's OUT R5,0 step before the normal
+    // frame end so this vector isolates RFD from vertical adjustment.
+    test.write_register(5, 0);
+
+    // Change the base during C9=R9.  With the parity-gated VMA' save blocked,
+    // the RFD VMA-source flag reloads R12/R13 on the next row even though
+    // C4 becomes 1 (section 11.6.1, pages 88-89, case 1).
+    test.write_register(12, 0x20);
+    test.write_register(13, 0x50);
+    test.run_characters(8);
+    test.expect_c4("RFD case 1 advances to nonzero C4", 1);
+    test.expect_ra("RFD case 1 begins the next row at C9=0", 0);
+    test.expect_ma("RFD case 1 reloads R12/R13 on a nonzero row", 0x2050);
+    test.expect_type1_rfd_state(
+        "RFD case 1 leaves the VMA-source flag armed", true, true, false);
+
+    // The tiny fixture has four lines per frame.  Two more line endings
+    // reach C4=C9=C0=0; odd R9 toggles parity (section 11.6.1, pp.88-89).
+    test.run_characters(16);
+    test.expect_c4("RFD parity boundary resets C4", 0);
+    test.expect_ra("RFD parity boundary resets C9", 0);
+    test.expect_type1_rfd_state(
+        "RFD odd-R9 frame boundary selects case 2", true, true, true);
+
+    // In case 2, the next C9=R9/C0=R1 comparison succeeds.  The actual
+    // VMA' save clears only the VMA-source flag; parity management remains
+    // armed for subsequent frames (section 11.6.1, pp.88-89).
+    test.run_characters(13);
+    test.expect_type1_rfd_state(
+        "RFD case 2 successful VMA' save disarms only the source flag",
+        false, true, true);
+}
+
+void test_type1_rfd_r1_gt_r0_bare_c9_disarms(TestBench& test) {
+    test.set_crtc_type(1);
+    RegisterProgram registers = kRfdRegisters;
+    registers[0].second = 3;
+    registers[1].second = 5;
+    program_registers(test, registers);
+    test.select_register(5);
+    test.reset();
+
+    // ACCC v1.10 section 11.6, page 87 (findings-review B6): with R1>R0,
+    // C0 can never reach R1, so the bare C9==R9 match must disarm the
+    // VMA-source state.  Trigger on C9=0, then enter C9=R9=1; no VMA' save
+    // is possible in this geometry.
+    test.run_characters(3);
+    test.write_selected_register_at_clken(1);
+    test.expect_type1_rfd_state(
+        "R1>R0 exact-R0 write initially arms RFD", true, true, false);
+    test.run_clock_ticks(1);
+    test.expect_type1_rfd_state(
+        "R1>R0 bare C9 match disarms the RFD VMA-source flag",
+        false, true, false);
+}
+
+void test_type1_rfd_final_line_write_enters_adjustment(TestBench& test) {
+    test.set_crtc_type(1);
+    RegisterProgram registers = kRfdRegisters;
+    registers[4].second = 0;
+    registers[9].second = 0;
+    program_registers(test, registers);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(5);
+    test.reset();
+
+    // ACCC v1.10 sections 11.4 (p.86) and 11.6 (p.87): R5 is evaluated
+    // live at C0=R0.  On paper C4=R4=0 and C9=R9=0 make this the final
+    // normal line, so the same R5 0->1 write must both arm RFD and select
+    // one adjustment line; using the old stored R5 would incorrectly start
+    // a new frame instead.
+    test.run_characters(7);
+    test.write_selected_register_at_clken(1);
+    test.expect_adjustment_active(
+        "exact-R0 RFD write on the final line enters adjustment");
+    test.expect_c4("exact-R0 final-line RFD write advances C4", 1);
+    test.expect_ra("exact-R0 final-line RFD write resets C9", 0);
+    test.expect_c5("exact-R0 final-line RFD write starts C5 at zero", 0);
+    test.expect_ma(
+        "exact-R0 final-line RFD write reloads R12/R13 on that rollover",
+        0x1234);
+    test.expect_type1_rfd_state(
+        "exact-R0 final-line R5 write arms both RFD flags",
+        true, true, false);
 }
 
 void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
@@ -4217,9 +4441,9 @@ int main(int argc, char** argv) {
         {"t08f_type1_identification_r7_38_fires",
          "ACCC v1.10 sections 28.1.1 and 11.2.1; F8", false,
          test_type1_identification_r7_38_fires},
-        {"t08g_type1_identification_r7_39_fires",
-         "ACCC v1.10 sections 28.1.1 and 11.2.1; F8", false,
-         test_type1_identification_r7_39_fires},
+        {"t08g_type1_identification_r7_39_is_silent",
+         "ACCC v1.10 sections 16.1 and 16.4.2; F8/A1 supersedes old oracle", false,
+         test_type1_identification_r7_39_is_silent},
         {"t08h_type1_identification_r7_40_is_silent",
          "ACCC v1.10 section 28.1.1; F4/F8 type-1 boundary", false,
          test_type1_identification_r7_40_is_silent},
@@ -4235,6 +4459,27 @@ int main(int argc, char** argv) {
         {"t08l_type1_r4_zero_adjustment_vma_reloads_on_c4_one",
          "ACCC v1.10 section 11.2.4; F8/section 4.3 VMA reload on C4=1", false,
          test_type1_r4_zero_adjustment_vma_reloads_on_c4_one},
+        {"t08m_type1_adjustment_end_does_not_fire_unreached_r7",
+         "ACCC v1.10 sections 16.1 and 16.4.2; F8/A1", false,
+         test_type1_adjustment_end_does_not_fire_unreached_r7},
+        {"t08n_type1_r4_write_at_adjustment_entry_suppresses_r12_reload",
+         "ACCC v1.10 section 11.2.4 p.84; F8/A2", false,
+         test_type1_r4_write_at_adjustment_entry_suppresses_r12_reload},
+        {"t08o_type1_r9_write_at_adjustment_entry_keeps_r12_reload",
+         "ACCC v1.10 section 11.2.4 p.84; F8/A2/B5", false,
+         test_type1_r9_write_at_adjustment_entry_keeps_r12_reload},
+        {"t13a_type1_rfd_write_away_from_r0_stays_unarmed",
+         "ACCC v1.10 section 11.6 p.87; F7 never-triggered control", false,
+         test_type1_rfd_write_away_from_r0_stays_unarmed},
+        {"t13b_type1_rfd_alternates_save_by_frame_parity",
+         "ACCC v1.10 sections 11.6.1-11.6.3 pp.87-90; F7", false,
+         test_type1_rfd_alternates_save_by_frame_parity},
+        {"t13c_type1_rfd_r1_gt_r0_bare_c9_disarms",
+         "ACCC v1.10 section 11.6 p.87; F7/B6", false,
+         test_type1_rfd_r1_gt_r0_bare_c9_disarms},
+        {"t13d_type1_rfd_final_line_write_enters_adjustment",
+         "ACCC v1.10 sections 11.4 p.86 and 11.6 p.87; F7 rollover race", false,
+         test_type1_rfd_final_line_write_enters_adjustment},
         {"t20a_type0_normal_frame_reloads_at_frame_start_only",
          "ACCC v1.10 sections 17.4.1 and 20.3.1; F11h", false,
          test_type0_normal_frame_reloads_at_frame_start_only},

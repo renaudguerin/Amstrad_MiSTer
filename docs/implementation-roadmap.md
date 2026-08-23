@@ -93,6 +93,9 @@ Every checkpoint advances through the cheapest applicable gates in order.
 - Synthesize every checkpoint that changes top-level wiring, clocks, memory arbitration,
   RGB width, or `files.qip`. Small CRTC-only commits may share one synthesis run only after
   their individual simulation gates pass, but keep their commits independently bisectable.
+- CI automatically recognizes known project and integration paths. Manually dispatch the exact
+  checkpoint for semantic clock/memory/RGB risks or internal-RTL milestones which a path match
+  cannot identify; `docs/ci-testing-policy.md` is the durable routing policy.
 - Record fitter utilization and the worst timing result at each Plus milestone. A sudden
   change is a regression signal even if Quartus returns success.
 - The local UTM/Quartus setup in `docs/building.md` is a second route to the same gate, not

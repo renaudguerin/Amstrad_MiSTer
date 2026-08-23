@@ -68,12 +68,14 @@ Alongside the directed vectors, the suite ships a deterministic randomized
    instead. Stronger split evidence lives in the lockstep differential tool
   (`tools/split-differential`, branch `docs/split-differential-evidence`),
   which samples a broader state set after every CLKEN edge.
-- It is not split-only scaffolding: F7 (RFD) requires proving never-armed
-  equivalence under this projection, and F10's staged interlace work benefits
-  between stages. There is no mechanism to exclude documented behaviour
-  deltas from a hash window. For a behaviour-changing commit, change the
-  stimulus/sampled fields deliberately if needed and re-mint the golden
-  hash, recording why it moved.
+- It is not split-only scaffolding: F7 (RFD) and F10's staged interlace work
+  benefit from the same fixed randomized projection. There is no mechanism
+  to exclude documented behaviour deltas from a hash window. F7's random
+  traffic legitimately reaches the R5-at-R0 trigger, so its soak hash moved;
+  the **bit-identical-when-unarmed** claim is protected instead by directed
+  `t13a`, which writes R5 nonzero away from C0=R0 and proves no RFD state is
+  armed. For a behaviour-changing commit, re-mint the golden hash and record
+  why it moved.
 - Cost is one self-contained target (~150 lines reusing existing TestBench
   helpers), seconds of runtime, zero entanglement with the default suite — so
   removing it later, if ever judged not worth keeping, is trivial.
@@ -100,12 +102,19 @@ flops (`r6_border_condition`, `status_bit5_r`).
 The golden hash for the type-0/type-1 engine split was minted from the
 unsplit core; the minting commit and hash value are recorded in the session
 plan (`docs/plans/2026-08-22-accc-review-plan.md`). It has been re-minted
-twice on 2026-08-23: first for the intended F6 Stage 1 behaviour change (the
-type-0 spurious border byte when R1>R0, protected by the t10 vectors), then
-for the sampled-field expansion (holdoff latch + type-1 status flops added,
-review issue 4 remediation — no RTL change). All hash values and reasons are
-recorded there; the current golden value is **`0xf5f8ae01ffdf928d`**. The
-hash depends on the seed, the
+five times on 2026-08-23: for the intended F6 Stage 1 behaviour change; for
+the sampled-field expansion (holdoff latch + type-1 status flops added,
+review issue 4 remediation — no RTL change); for the intended type-1 F7
+RFD behaviour; for A1's removal of the type-1 adjustment-ending spurious
+VSYNC; and for A2's exact-edge R4 suppression of the adjustment C4=1 reload.
+The F7/A1/A2 mints kept the seed, event schedule, and sampled-field
+set/order unchanged; random R5 writes now sometimes arm RFD, so the observed
+DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
+`0xae27f2c3c758ed87`, A1 moved it to `0x6439f9805b20acaa`, and A2 moved it to
+the current **`0x512eaae74a628dca`** because the fixed random schedule reaches
+the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
+expected-hash gate matched. All hash values and reasons are recorded in the
+session plan. The hash depends on the seed, the
 sampled field set/order, the event schedule, and the DUT's observable
 behaviour — any of the first three changing requires re-minting, recorded as
 such. The soak accesses internals by their Verilator names, so a refactor
