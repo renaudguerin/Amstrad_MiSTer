@@ -4,10 +4,14 @@ This is the handoff for the next development and hardware-test session. Hardware
 below remain dated 2026-08-19; current simulation and synthesis evidence is newer. The
 `accc-review-and-fixes` branch now contains the ACCC review/corrections, per-type classic CRTC
 split, F6 Stage 1 full-character approximation, sampled-field soak expansion, production Plus
-P0 cartridge wiring, and the simulation-only P1 CRTC3 foundation. The two whole-branch reviews
-are recorded in `accuracy/accc-review-and-fixes-independent-review.md` and
-`accuracy/accc-review-and-fixes-independent-review-pass2.md`; pass-2 fixes await reviewer
-confirmation. The detailed behavioral rules remain in
+P0 cartridge wiring, the simulation-only P1 CRTC3 foundation, and the implemented F7/A1/A2
+classic work. The earlier whole-branch reviews are recorded in
+`accuracy/accc-review-and-fixes-independent-review.md` (pass 1),
+`accuracy/accc-review-and-fixes-independent-review-pass2.md` (pass 2), and
+`accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
+which accepted all pass-2 remediations); the 2026-08-23 review of the F7/A1/A2 and Plus
+follow-up deltas is `accuracy/f7-plus-followups-independent-review.md`, and both
+review-debt rows are cleared. The detailed behavioral rules remain in
 `accuracy/`; the long-term ordering remains in `implementation-roadmap.md`.
 
 ## How hardware testing fits the loop
@@ -64,9 +68,10 @@ block-memory bits (12%), and 3 / 6 PLLs, with worst setup and hold slacks of +0.
 been hardware-tested, and it is the build the next SHAKER session should use: `5ddddef`
 predates F8 and cannot produce evidence for it. The later per-type split and rename were
 behaviour-preserving within the directed, soak, and frozen differential projections, but F6
-Stage 1 intentionally changed classic DE behaviour and re-minted the soak. The current
-canonical hash is `0xf5f8ae01ffdf928d`, re-minted again when three sampled fields were added
-without RTL change. Use a current-tip RBF for F6 work; retain `4c78603` as the clean F8-era
+Stage 1 intentionally changed classic DE behaviour and re-minted the soak. F7 RFD, the A1
+VSYNC correction, and the A2 reload caveat then re-minted it again with unchanged
+seed/schedule/projection; the current canonical hash is `0x512eaae74a628dca` (full chain in
+AGENTS.md). Use a current-tip RBF for F6/F7 work; retain `4c78603` as the clean F8-era
 bisection milestone.
 
 Hardware testing on 2026-08-19 covered two milestones and returned the same result for
@@ -89,11 +94,11 @@ Before the next classic RTL change, close that data gap:
   does not, every Module A comparison so far is uninterpretable and that is the first bug to
   chase.
 - Map each persistent difference to an implemented finding or to a named gap. The current
-  leading hypothesis is that Module A leans on behaviour that is still unimplemented — F7 RFD,
-  F10 interlace parity, and F13's hardware-blocked half-character F6 seam — rather
-  than on the counter internals already fixed. F8 (type-1 C5) is now implemented, so it is no
-  longer a candidate explanation; F6 Stage 1's presence/type/skew approximation landed
-  2026-08-23.
+  leading hypothesis is that Module A leans on behaviour that is still unimplemented —
+  F10 interlace parity and F13's hardware-blocked half-character F6 seam — rather
+  than on the counter internals already fixed. F8 (type-1 C5) and F7's type-1 R5-route RFD
+  are now implemented, so they are no longer candidate explanations; F6 Stage 1's
+  presence/type/skew approximation landed 2026-08-23.
 
 Do not infer hardware accuracy from the green counter-level simulation gate alone.
 
@@ -147,10 +152,11 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 93 required CRTC passes, zero expected failures, no
+- The current local gate reports 100 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures (verified 2026-08-23, Verilator 5.050). The randomized
-  equivalence soak reproduces golden hash `0xf5f8ae01ffdf928d`, re-minted for the sampled-field
-  expansion (review issue 4 remediation; previously `0x326ea81358e7d88f` from F6 Stage 1).
+  equivalence soak reproduces golden hash `0x512eaae74a628dca`, re-minted for the A2 exact-edge
+  R4 adjustment-reload suppression (previously `0x6439f9805b20acaa` from A1,
+  `0xae27f2c3c758ed87` from F7 RFD; full chain in AGENTS.md).
   The Plus leaf and SDRAM integration suites are also green.
 - The core is split into a shared-state wrapper (`rtl/CRTC.v`) plus two per-type rule engines
   (`rtl/crtc_type0_engine.v`, `rtl/crtc_type1_engine.v`); live `CRTC_TYPE` round-trips stay
@@ -164,10 +170,15 @@ For a first MiSTer pass:
   from ACCC pp.186/195 assigns the documented 0.5 µs to a sub-character CRTC DE pulse;
   test/production phase matches and both GA paths agree. Formal finding F13 blocks a
   correction pending SHAKER Module A `(O)` and, if possible, a DE-pin capture.
+- F7 RFD is implemented for the type-1 R5 route (`t13a`-`t13d`): same-edge `R5 0→nonzero`
+  arming at C0=R0, VMA-from-R12/R13 on every row, parity-gated VMA' saves with odd-R9
+  frame-parity alternation, successful-save disarm, and the B6 R1>R0 bare-C9 disarm.
+  A1 closes the adjustment-ending VSYNC corner (`t08m`, corrected `t08g`) and A2 implements
+  the §11.2.4 exact-C0==R0 caveat pair (`t08n`/`t08o`). The §13.7.1.2 R0-widening trigger and
+  RFD#10's "1-B" variant remain explicitly out of scope.
 
-The next independent classic checkpoint is F7 RFD including the B6 disarm path and A1
-VSYNC-corner fix; F13 waits for hardware and does not block it. F10 remains the last,
-separately fixture-gated project.
+The next classic work is either the residual §13.7.1.2 R0-widening trigger or the F10
+fixtures; both are separately gated. F13 waits for hardware and does not block them.
 
 ## Completed Plus foundations
 
@@ -309,11 +320,12 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    deterministic regression before repairing any newly understood behavior.
 4. Classic: F6 Stage 2/2b is complete per `accuracy/f6-decision-gate.md`; F13 records the
    half-character CRTC-side phase mismatch and is BLOCKED-PENDING-HARDWARE-EVIDENCE.
-   Next independent work: F7 RFD (including B6 disarm and the A1 VSYNC-corner fix).
-   F10 stays fixture-gated.
+   F7 RFD (R5 route, B6 disarm, A1, A2) is implemented and independently reviewed
+   (`accuracy/f7-plus-followups-independent-review.md`). Next classic work is the residual
+   §13.7.1.2 R0-widening trigger or the F10 fixtures; F10 stays fixture-gated.
 5. Plus: P0 and the P1 CRTC3 counter/timing foundation are merged. Next Plus steps: the
    manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
    classic re-checked side by side), then the P1 remainder per
    `docs/plus/architecture.md` §4/§7 (pixel path plus motherboard CPU/WAIT contract), then
-   P2. Pass-2 fixes await confirmation in `docs/review-debt.md`.
+   P2. All review-debt rows are cleared as of 2026-08-23.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.

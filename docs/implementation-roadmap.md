@@ -20,17 +20,17 @@ merged into the same behavioral PR.
   `plus/p0-parser-wiring`, which rebase onto this branch's post-review fixes).
 - The current development state contains the accuracy/reference documents, the F1-F3 and main
   F5 corrections, deterministic-complete F12/F4/F8/F9, the Verilator CRTC/Plus gates plus the
-  randomized equivalence soak (`make -C sim soak`, golden hash `0xf5f8ae01ffdf928d`), the
+  randomized equivalence soak (`make -C sim soak`, golden hash `0x512eaae74a628dca`), the
   production-wired bounded CPR parser/service/MMU path, R12/R13 reload vectors
   (`t20a`-`t20i`), the per-type engine
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
-  from `rtl/UM6845R.v`), and GitHub Actions synthesis.
+  from `rtl/UM6845R.v`), F7's type-1 R5-route RFD with A1/A2, and GitHub Actions synthesis.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
   RBF packaging, and artifact upload through the pass-2 fix tip `f6f09f5` (run
   `32645547100`). New top-level/file-list commits still require their own run.
-- `sim/` currently reports **93** required classic CRTC passes with no expected failures
+- `sim/` currently reports **100** required classic CRTC passes with no expected failures
   (verified 2026-08-23, Verilator 5.050); the soak reproduces golden hash
-  `0xf5f8ae01ffdf928d`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
+  `0x512eaae74a628dca`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through
