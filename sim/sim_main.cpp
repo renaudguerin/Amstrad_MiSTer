@@ -3568,22 +3568,27 @@ void test_type1_rfd_r0_widen_off_last_line_never_arms(TestBench& test) {
 
     // ACCC v1.10 sections 13.5 p.121 and 13.7.1.2 p.124: any-R0 acceptance
     // is generic type-1 behaviour, but the RFD window requires the exact
-    // last-line precondition (C4==R4, C9==R9, R5==0).  Widening R0 at
-    // C0==R0 of line 1 (C4=0) accepts the new total without opening a
-    // window, so a subsequent R4 rewrite cannot arm anything: paper gives
-    // an ordinary row advance (C4 0->1) with all RFD latches closed.
+    // last-line precondition (C4==R4, C9==R9, R5==0).  run_characters(15)
+    // lands on C0=7==R0 of line 1, where the line half of the precondition
+    // holds (C9=1==R9) but the row half fails (C4=0!=R4): widening R0
+    // there accepts the new total without opening a window, so a
+    // subsequent R4 rewrite cannot arm anything.  Paper: the write edge is
+    // an ordinary line end for line 1 -- C9==R9 holds, so C4 advances to 1
+    // and C9 wraps to 0 while R0 becomes 9, making line 2 ten characters
+    // long; its end then defers any further boundary (C9=0 != live R9).
     test.run_characters(15);
     test.expect_c4("off-last-line fixture sits in row 0", 0);
     test.expect_ra("off-last-line fixture sits in line 1", 1);
-    test.run_characters(7);
     test.write_selected_register_at_clken(9);
     test.expect_type1_rfd_pending(
         "widening off the last line opens no window", false);
+    test.expect_c4("line-1 wrap advances C4 at the write edge", 1);
+    test.expect_ra("line-1 wrap resets C9", 0);
     test.write_register(4, 2);
     test.run_characters(10);
     test.expect_type1_rfd_state(
         "no window on a mid-frame widening", false, false, false);
-    test.expect_c4("ordinary row boundary still advances C4", 1);
+    test.expect_c4("deferred boundary leaves the advanced C4", 1);
 }
 
 void test_type1_rfd_r0_window_does_not_survive_type_round_trip(TestBench& test) {
@@ -3620,6 +3625,69 @@ void test_type1_rfd_r0_window_does_not_survive_type_round_trip(TestBench& test) 
         "window does not survive the round trip", false, false, false);
     test.expect_c4("counters continue across the round trip", 1);
     test.expect_ra("counters continue across the round trip", 2);
+}
+
+void test_type1_rfd_r0_widen_line_gate_never_arms(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.select_register(0);
+    test.reset();
+
+    // Companion to t13j exercising the other half of the section
+    // 13.7.1.2 p.124 last-line precondition.  Paper: run_characters(23)
+    // lands on C0=7==R0 of line 2, where the row half holds (C4=1==R4)
+    // but the line half fails (C9=0!=R9).  Widening there opens no
+    // window; the write edge wraps ordinarily (C9=0 does not match R9, so
+    // no row boundary -- C4 keeps its value while C9 advances to 1), R0
+    // becomes 9, and a later cancellation-flavoured R9 rewrite still has
+    // nothing to act in.  The extended line ends with C9 advancing to 2.
+    test.run_characters(23);
+    test.expect_c4("line-gate fixture sits in row 1", 1);
+    test.expect_ra("line-gate fixture sits in line 2", 0);
+    test.write_selected_register_at_clken(9);
+    test.expect_type1_rfd_pending(
+        "widening with C9!=R9 opens no window", false);
+    test.expect_c4("ordinary wrap leaves the row untouched", 1);
+    test.expect_ra("ordinary wrap advances C9", 1);
+    test.write_register(9, 3);
+    test.run_characters(10);
+    test.expect_type1_rfd_state(
+        "no window means the rewrite cannot arm", false, false, false);
+    test.expect_c4("no row boundary occurred anywhere", 1);
+    test.expect_ra("extended line end advances C9", 2);
+}
+
+void test_type1_rfd_r0_extend_blanks_from_c0_r1(TestBench& test) {
+    test.set_crtc_type(1);
+    RegisterProgram registers = kRfdRegisters;
+    registers[1].second = 8;
+    program_registers(test, registers);
+    test.select_register(0);
+    test.reset();
+
+    // ACCC v1.10 section 6.1.3 p.33: DISPEN enables at C0==0 and disables
+    // at C0==R1.  With R1=8==R0_old+1, the section 13.7.1.2 continuation
+    // makes the extended line genuinely reach C0==R1 in its first widened
+    // character, so the display must blank exactly there (review finding
+    // F-1).  Paper: one full fixture frame runs first so the vertical
+    // display state is set; the trigger write lands on C0=7 of the last
+    // line, whose whole pre-extension length stays displayed because R1
+    // exceeds R0; the suppressed wrap carries C0 into 8==R1 and DE must
+    // drop on that same edge; the deferred end restarts the frame and
+    // display resumes at the next C0=0.
+    test.run_characters(32);
+    test.run_characters(24);
+    test.expect_ra("DE fixture reaches the last line", 1);
+    test.run_characters(7);
+    test.expect_de_high("C0=7 is still displayed when R1 exceeds R0");
+    test.write_selected_register_at_clken(9);
+    test.expect_type1_rfd_pending(
+        "widening opens the expected window", true);
+    test.expect_de_low("display blanks entering widened C0=8==R1");
+    test.run_characters(1);
+    test.expect_de_low("widened remainder stays blanked");
+    test.run_characters(1);
+    test.expect_de_high("deferred end restarts display at C0=0");
 }
 
 void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
@@ -4763,6 +4831,12 @@ int main(int argc, char** argv) {
         {"t13k_type1_rfd_r0_window_does_not_survive_type_round_trip",
          "ACCC v1.10 section 13.7.1.2 p.124; F7 live-type contract", false,
          test_type1_rfd_r0_window_does_not_survive_type_round_trip},
+        {"t13l_type1_rfd_r0_widen_line_gate_never_arms",
+         "ACCC v1.10 sections 13.5 p.121 and 13.7.1.2 p.124; F7/F-2", false,
+         test_type1_rfd_r0_widen_line_gate_never_arms},
+        {"t13m_type1_rfd_r0_extend_blanks_from_c0_r1",
+         "ACCC v1.10 sections 6.1.3 p.33 and 13.7.1.2 p.124; F-1", false,
+         test_type1_rfd_r0_extend_blanks_from_c0_r1},
         {"t20a_type0_normal_frame_reloads_at_frame_start_only",
          "ACCC v1.10 sections 17.4.1 and 20.3.1; F11h", false,
          test_type0_normal_frame_reloads_at_frame_start_only},

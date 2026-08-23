@@ -380,10 +380,11 @@ always @(posedge CLOCK) begin
 
 		if (CLKEN) begin
 			if(line_new)                   hde <= 1;
-			// The section 13.7.1.2 suppressed-wrap edge continues the same
-			// line, so it must not double as a roll-into-R1 display end.
-			if(hcc_next == R1_h_displayed & ~(CRTC_TYPE & e1_rfd_r0_extend))
-				hde <= 0;
+			// hcc_next carries the post-mux continuation value at a
+			// section 13.7.1.2 suppressed-wrap edge, so this comparison
+			// sees the extended line's genuine roll-into-R1 display end
+			// (ACCC v1.10 section 6.1.3 p.33) with no special case.
+			if(hcc_next == R1_h_displayed) hde <= 0;
 
 			if(HSYNC) hsc <= hsc + 1'd1;
 			else hsc <= 0;
