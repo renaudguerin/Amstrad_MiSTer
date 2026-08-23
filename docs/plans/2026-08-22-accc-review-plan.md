@@ -248,17 +248,19 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
 the resume point in one line here: **resume point: STOP — Plus P0 (`plus/p0-parser-wiring`)
-rebased onto the post-review/A3/F6-Stage-1 base and merged back; awaiting merged-base CI
-green and user review.** State: base carries the whole-branch review resolutions (90f0cda,
+merged into `accc-review-and-fixes` (daf1d6f); merged-tip CI green (simulation + synthesis);
+awaiting user review.** State: base carries the whole-branch review resolutions (90f0cda,
 72d7cf4, 4140ebb, d66ec23, c7558ae) and the classic merge 756f3ef (A3 `t20i` + F6 option C
 Stage 1), which legitimately re-minted the golden soak hash to
 **`0x326ea81358e7d88f`** (previously `0x5b5004ff70148443`, which remains the correct
 expectation for the split-branch commits). Plus P0 sits on top: A5 decisions +
 oversized-cbNN abort (4556665), `plus_mmu` + production service hookup + CPU cart read
 bridge (7eaddf2, b1ccdfd), CPR ioctl index 8 live + P0 boot integration bench (5a69ebe).
-NEXT: merged-base CI confirmation, then the manual hardware checkpoint (real `.cpr` boot
-with a Plus model selected, classic re-checked side by side), then Plus P1 CRTC3 foundation
-per `docs/plus/architecture.md` §4; classic continues F6 Stage 2 → F7 RFD → F10 fixtures.
+Gates on the merged tree: 93 classic vectors passed, all Plus suites green, lint clean,
+soak hash verified. Whole-branch review of the Plus branch is pending in review-debt.
+NEXT: the manual hardware checkpoint (real `.cpr` boot with a Plus model selected,
+classic re-checked side by side), then Plus P1 CRTC3 foundation per
+`docs/plus/architecture.md` §4; classic continues F6 Stage 2 → F7 RFD → F10 fixtures.
 Behaviour-preserving edits from here run
 `make -C sim soak SOAK_EXPECT=326ea81358e7d88f`; a hash change means behaviour moved and
 needs a documented reason before proceeding. Soak field expansion stays queued for the next

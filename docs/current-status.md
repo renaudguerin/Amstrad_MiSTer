@@ -205,13 +205,13 @@ confirm the firmware/game reaches its first screen; classic mode must be re-chec
 side by side in the same session. Do not start Plus video by extending `ga40010`; the
 planned path is a parallel behavioral CRTC3/ASIC video module.
 
-Plus P0 wiring has a green GitHub Actions build (simulation + synthesis) at `b1ccdfd`.
-Fitter: 15,302 / 41,910 ALMs (37%), 685,217 block-memory bits (12%), 3 / 6 PLLs; worst
-setup slack +0.416 ns, worst hold slack +0.249 ns (TimeQuest still reports the repo's
-unconstrained external I/O paths, so internal slacks are not full closure). Versus the
-pre-P0 build (`4c78603`: 14,947 ALMs, +0.516/+0.246 ns), the ~355-ALM growth and small
-setup-slack shift match the added cartridge decode/bridge logic; no regression signal.
-It has not been hardware-tested.
+Plus P0 wiring is merged onto `accc-review-and-fixes` (merge `daf1d6f`) and has a green
+GitHub Actions build (simulation + synthesis) on the merged tip. Fitter: 15,295 / 41,910
+ALMs (36%), 685,217 block-memory bits (12%), 3 / 6 PLLs; worst setup slack +0.342 ns,
+worst hold slack +0.244 ns (TimeQuest still reports the repo's unconstrained external I/O
+paths, so internal slacks are not full closure). Versus the pre-P0 build (`4c78603`:
+14,947 ALMs, +0.516/+0.246 ns), the ~350-ALM growth and small setup-slack shift match the
+added cartridge decode/bridge logic; no regression signal. It has not been hardware-tested.
 
 ## Build and tooling state
 
@@ -278,6 +278,9 @@ It has not been hardware-tested.
    deterministic vectors t10a-t10e covering both types and skew placement. Next: F6 Stage 2
    seam-width measurement, then F7 RFD (including the B6 disarm path and the A1
    VSYNC-corner fix). F10 stays fixture-gated.
-5. Plus: in a separate stack, wire the CPR parser into P0 MMU/boot integration against the
-   existing memory-service and SDRAM contracts.
+5. Plus: P0 is merged (CPR parser -> cartridge service -> SDRAM -> `plus_mmu` windows ->
+   Z80, ioctl index 8). Next Plus steps: the manual hardware checkpoint named above (real
+   `.cpr` boot with a Plus model selected, classic re-checked side by side in the same
+   session), then P1 CRTC3 counter/timing foundation per `docs/plus/architecture.md` §4.
+   Whole-branch review of `plus/p0-parser-wiring` is pending in `docs/review-debt.md`.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
