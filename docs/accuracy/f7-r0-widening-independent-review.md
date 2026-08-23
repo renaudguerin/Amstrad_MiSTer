@@ -222,3 +222,117 @@ F-5/F-6 recorded under audit-findings F7 "Deliberately unmodeled / interpretatio
 F-7 routed to `accc-author-questions.md` question 18; F-8 marked ⚠ for hardware there and
 in audit-findings; F-9 erratum recorded in `current-status.md`. The re-review pass itself
 remains outstanding per the `review-debt.md` row.
+
+## Pass 2 — re-review of the remediation delta (2026-08-24)
+
+Re-reviewed by **Claude Opus 5** (Claude Code session, `claude-opus-5`) — the same reviewer
+as the pass-1 verdict above, and still cross-provider with respect to the author (**Ox-Alpha**
+wrote both the original feature and this remediation). Continuity is deliberate: the pass-1
+checklist is the acceptance criterion, so the reviewer who wrote it verifies it. This session
+did not author, advise on, or suggest wording for any part of the remediation.
+
+- Range: `git diff 729ba02..ab98c6b` — `8278069` (RTL + vectors), `ab98c6b` (docs).
+- Staging base `accc-review-and-fixes` unmoved at `d91fa0b`; no rebase needed.
+
+### Verdict: **CLEAR** with five non-blocking follow-ups (N-1 to N-5).
+
+Both blocking findings are genuinely fixed, not papered over. No assertion was weakened: the
+suite grew 107 → 109 and every previously required pass stayed required.
+
+### Claim-by-claim
+
+**1. F-1 fix — confirmed.** The `~(CRTC_TYPE & e1_rfd_r0_extend)` term is gone from
+`hcc_next == R1_h_displayed` and the replacement comment states the correct reason (`hcc_next`
+carries the post-mux continuation value, so the comparison is already right). `t13m`'s
+expectations are rule-first, not observation-first: ACCC §6.1.3 p.33 gives DISPEN on at
+`C0==0` and off at `C0==R1`; with `R1=8` and `R0_old=7` the pre-extension line never reaches
+`R1` (hence DE high at `C0=7`), the suppressed wrap carries `C0` to `8==R1` (hence DE low on
+that same edge), `C0=9` is past `R1` with no re-enable (hence still low), and the deferred end
+is a genuine `line_new` at `C0=0` (hence high again). Re-derived independently; all four
+match. The one-frame warm-up is load-bearing and correctly justified: `DE = hde & vde & vde_r`
+(`rtl/CRTC.v:488`) and type 1 pins `de_index = 2'b00`, so there is no skew pipeline hiding the
+edge, but both vertical terms must be set before any DE assertion means anything.
+
+**2. F-2 fix — confirmed.** `t13j` now writes at `run_characters(15)`: `C0=7==R0`, `C9=1==R9`,
+`C4=0!=R4`, with the counter asserts at the write point that the pass-1 checklist demanded.
+Trailing arithmetic re-derived on paper and matched: the write edge is an ordinary line end
+because `C9==R9` still holds, so `C4→1` and `C9→0` while `R0` becomes 9; the following ten
+CLKEN edges are exactly one widened line, whose end finds `C9=0 != R9=1` and therefore raises
+no row boundary, leaving `C4=1`. The later `R4` rewrite has no window to act in.
+
+**3. `t13l` — confirmed.** `run_characters(23)` lands `C0=7==R0`, `C4=1==R4`, `C9=0!=R9`: the
+mirror-image half of the gate. Re-derived: the write edge wraps ordinarily with no row
+boundary (`C9=0` does not match `R9=1`), so `C9→1` with `C4` held; `R9→3` then makes
+`crtc1_line_max=3`, so the ten-character extended line ends with `line_last_w` false and
+`C9→2`, `C4` still 1. Matches every assertion.
+
+**4. F-3/F-4 — confirmed, with N-2.** The dead `~rfd_r0_extend` term on `field_count_tick` is
+removed and provably could never have fired: at the extend edge `hcc_next = R0_old+1` while the
+comparison reads the stored `R0_old>>1`, and `R0_old+1 == R0_old>>1` has no solution over the
+full 8-bit range (`R0_old+1 - R0_old/2 = R0_old/2 + 1 > 0` for `R0_old ≤ 254`; the `255` wrap
+gives `0` vs `127`). Removal is therefore behaviour-identical, consistent with the unchanged
+soak. The F-4 invariant comment was added at `rfd_r0_arm` and its substantive clause is right —
+see N-2 for its faulty opening clause.
+
+**5. Bite-test honesty — reproduced, with one precision correction (N-4).** All three probes
+were run on a scratch basis (file copied aside, edited, rebuilt, restored; `git status` empty
+afterwards):
+
+| Probe | Mutation | Measured failure set |
+|---|---|---|
+| A | reinstate the F-1 guard on `hcc_next == R1_h_displayed` | `t13m` only — `108 passed, 1 failed` |
+| B1 | drop `(row == R4_v_total)` from `rfd_r0_widen_at_last_line` | `t13j` only — `108 passed, 1 failed` |
+| B2 | drop `(line == crtc1_line_max)` from the same term | `t13l` only — `108 passed, 1 failed` |
+
+This is a *stronger* result than the claim as worded: each gate term is load-bearing for
+exactly one vector and disturbs nothing else, and the union across B1/B2 is exactly
+`{t13j, t13l}`. Predicted on paper before running, and matched.
+
+**6. Docs — confirmed, with N-1, N-3 and N-5.** The audit-findings F7 "Deliberately unmodeled /
+interpretation notes" block covers F-5 (window surviving a legal C0-overflow line), F-6
+(§8.6 second-frame stuck-C4), F-7 (end-state vs write-event reading) and F-8 (free-running
+unarmed parity), each pointing somewhere actionable. Author question 18 states both source
+readings verbatim and neither is strawmanned: the p.122-123 gist is quoted with its
+"**modified**" emphasis intact and its consequence spelled out (would arm on a restore), the
+§13.7.1.2 parentheses are quoted in full, our choice is given with its two reasons, and a
+discriminating SHAKER experiment is named. `current-status.md` carries the F-9 erratum and now
+says the directed vectors, not the soak, carry the behavioural proof.
+
+### Non-blocking follow-ups
+
+- **N-1 · Low — the `review-debt.md` row was malformed.** The remediation edit appended a
+  fourth cell (`**Open — remediation delta awaits independent re-review before merge.**`) to a
+  three-column table, so most Markdown renderers drop it silently — hiding the open status in
+  the one file whose job is to track it. Fixed as part of flipping the row to CLEARED in this
+  pass; worth watching for on future row edits.
+- **N-2 · Low — the F-4 invariant comment misstates its own invariant in its first clause.**
+  "arming requires `rfd_r0_widen_at_last_line` false at every earlier edge" is backwards:
+  arming requires it *true* at an earlier edge, which is what sets `rfd_r0_pending`. What must
+  be false is the term at the arm edge itself, which is exactly what the rest of the sentence
+  establishes. Deliberately not corrected in this pass so the merged tip matches the reviewed
+  tip; recommended wording: "arming requires `rfd_r0_cancelled` at this edge, and that is the
+  exact complement of the widen term's line/row conjunction, so ...".
+- **N-3 · Low — an unverified integration claim in the F-6 scope note.** "emerges from the
+  armed flags only in specific geometries" asserts something about how our model behaves that
+  nothing pins. No mechanism in the engine can suppress a `C4` reset; what does exist is the
+  R4-cancellation path (`t13g`) advancing `C4` past the old total at the extended end, which is
+  a different phenomenon from §8.6's second-frame statement. Per the AGENTS.md
+  verification-ownership rule this is a boundary claim, unverified by default. Recommend
+  dropping the emergence clause and keeping the plain "not modeled or vector-pinned".
+- **N-4 · Info — bite-test phrasing.** "removing either gate term fails exactly `t13j`+`t13l`"
+  is true only as a union across the two probes; individually each removal fails exactly one.
+  See the table above for the measured per-probe result.
+- **N-5 · Info — the debt row's scope cell still reads "vectors `t13e`-`t13k`".** Accurate as a
+  description of what pass 1 targeted, now stale as a description of the branch. Left as
+  historical scope; `audit-findings.md` and `current-status.md` both carry `t13e`-`t13m`.
+
+### Evidence (rerun on branch tip `ab98c6b`, Verilator 5.050)
+
+- `make -C sim` — `Summary: 109 passed, 0 xfailed, 0 xpassed, 0 failed`; Plus leaf, MMU, SDRAM
+  cartridge and P0 boot suites green.
+- `make -C sim lint` — 62 warnings, 0 errors: the same five CRTC ones as pass 1
+  (`SNA_REGS` bits, `interlace[4:1]`, `R10_cursor_mode`, type-0 `DI[7]`, type-0 `row_last_w`)
+  plus the known `rtl/sdram.v` and Plus test-top warnings. No new warning, and no
+  UNUSEDSIGNAL appeared for `e1_rfd_r0_extend` (still consumed by `hcc_end`).
+- `make -C sim soak SOAK_EXPECT=0x512eaae74a628dca` — matches. Per F-9 this is not behavioural
+  evidence either way; it is consistent with the F-3 removal being provably inert.
