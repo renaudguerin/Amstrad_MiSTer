@@ -185,6 +185,11 @@ the type-split refactor milestone (it forces a full read anyway).
       carries no new review-debt rows by decision, which is only safe because its whole
       diff gets one review pass before its content is treated as settled/upstreamed.
       Schedule that pass at the first real merge (or before upstreaming), not per commit.
+- [ ] Expand the soak sampled field set (partial-VSYNC holdoff latch, type-1 status flops)
+      and re-mint the golden hash at the next natural boundary (review Issue 4: the current
+      projection is exactly how the dev-time holdoff bug escaped it). Both stream branches
+      are pinned to `0x5b5004ff70148443`, so do not move the hash mid-stream; re-mint only
+      once they have rebased and landed, and record the minting rationale.
 - [ ] Plus queue: P0 parser→service/MMU/boot wiring → P1 CRTC3 foundation.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";
       F8 build `4c78603`→Module A adjustment entries + Module E "(2)"; F7→RFD entries;

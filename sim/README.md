@@ -49,11 +49,25 @@ Alongside the directed vectors, the suite ships a deterministic randomized
   values and bus phases, both CRTC types, fixed seed. Before a
   behaviour-preserving refactor (the type-0/type-1 engine split), the golden
   hash is minted from the unsplit core; the refactor must reproduce it exactly.
-  That turns "bit-identical" from a hope into a checkable claim.
-- It is not split-only scaffolding: F7 (RFD) requires proving bit-identity when
-  never armed, and F10's staged interlace work benefits between stages. For
-  behaviour-changing commits the same harness runs with documented deltas
-  excluded from the hash window.
+  That turns "equivalent on this stimulus and projection" from a hope into a
+  checkable claim.
+- Scope of that claim, stated plainly: equal hashes prove equivalence for
+  THIS fixed stimulus, as seen through this sampled projection of pins and
+  internals, at CLKEN sample points only. They do not establish general RTL
+  bit identity. Invisible to the hash: combinational states and bus phases
+  between sample points, the values returned by the randomized reads (the
+  harness restores the idle bus before each sample), and any state outside
+  the sampled field set — which is exactly how the development-time holdoff
+  latch bug escaped the soak and was caught by the differential comparator
+  instead. Stronger split evidence lives in the lockstep differential tool
+  (`tools/split-differential`, branch `docs/split-differential-evidence`),
+  which samples a broader state set after every CLKEN edge.
+- It is not split-only scaffolding: F7 (RFD) requires proving never-armed
+  equivalence under this projection, and F10's staged interlace work benefits
+  between stages. There is no mechanism to exclude documented behaviour
+  deltas from a hash window. For a behaviour-changing commit, change the
+  stimulus/sampled fields deliberately if needed and re-mint the golden
+  hash, recording why it moved.
 - Cost is one self-contained target (~150 lines reusing existing TestBench
   helpers), seconds of runtime, zero entanglement with the default suite — so
   removing it later, if ever judged not worth keeping, is trivial.
@@ -68,10 +82,13 @@ make -C sim soak SOAK_EXPECT=<16 hex>     # exits nonzero on mismatch
 The stimulus is fixed-seed (seed value in `sim/sim_main.cpp`, `kSoakSeed`):
 pseudo-random register writes at arbitrary C0 values and CLKEN/nCLKEN bus
 phases, both CRTC types, with occasional reads, held writes, snapshot loads,
-live type round-trips, and resets. The rolling FNV-1a hash samples every pin
-(MA, RA, DE, HSYNC, VSYNC, CURSOR, FIELD, DO) plus `hcc`, `line`, `row`,
-`c5`, `in_adj`, and the type-0 arbitration latches (including the R5
-retarget value) after every CLKEN edge.
+live type round-trips, and resets. The rolling hash is FNV-style mixing of
+each sampled field as a whole — XOR the field into the accumulator, multiply
+by the FNV-1a prime (1099511628211) — rather than byte-wise FNV-1a over a
+serialized stream. Samples are taken after every CLKEN edge: every pin (MA,
+RA, DE, HSYNC, VSYNC, CURSOR, FIELD, DO) plus `hcc`, `line`, `row`, `c5`,
+`in_adj`, and the type-0 arbitration latches (including the R5 retarget
+value).
 
 The golden hash for the type-0/type-1 engine split was minted from the
 unsplit core; the minting commit and hash value are recorded in the session
