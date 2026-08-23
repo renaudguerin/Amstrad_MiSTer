@@ -9,7 +9,10 @@ runs:
   with `CLKEN` at character-clock phase 0 and `nCLKEN` at phase 8, and exercises
   the CRTC register bus directly. Counter-state assertions are used only for
   Compendium cases whose documented C4/C9 result is not distinguishable from pins alone.
-- Standalone Amstrad Plus ASIC lock/unlock sequence tests in `sim/plus`.
+- Standalone Amstrad Plus suites in `sim/plus`: ASIC lock/unlock, model select,
+  Dandanator bounds, cartridge memory service, real-SDRAM cartridge client, CPR
+  parser, MMU windows/boot integration, and (since Plus P1) the `asic_video`
+  CRTC3 counter/timing foundation bench (`rtl/plus/asic_video.v`).
 
 Requirements: Verilator 5 or later, GNU Make, and a C++17 compiler. On macOS:
 

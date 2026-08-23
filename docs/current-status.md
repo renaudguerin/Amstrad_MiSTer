@@ -192,16 +192,32 @@ separately fixture-gated project.
   runs parser + service + real SDRAM end to end, including reset-mid-load cleanup.
 - Dandanator uploads are bounded below the Plus cartridge reservation: bank 3
   `0x000000..0x07ffff` remains Dandanator, while `0x080000..0x0fffff` is reserved for Plus.
-- ASIC register page backing, CRTC3/video, palette, interrupts, sprites, split/scroll,
+- Plus P1 counter/timing foundation is implemented on `plus/p1-crtc3-foundation`:
+  `rtl/plus/asic_video.v` carries the type-3 register file, C0/C9/C4 counters with the
+  type-3 R9-forced-reset and R4-overflow rules (ACCC §10.3.4/§12.5), R5 vertical
+  adjustment that freezes C4 at R4 (§11.2.6/§11.3.3), the two-stage video pointer with
+  the C4=0 ∧ C0=0 reload condition (§20.3.4), DE with line-start-only R6 semantics
+  (§18.2.4) and SKEW-DISPTMG (§19.2), and HSYNC/VSYNC generation including the bounded
+  R3=0 widths and the §15.3.1/§15.3.2 infinite-HSYNC relation. 26 deterministic vectors
+  (t01a-t04g) cover them; every rule cites its ACCC section at the point of
+  implementation. Interlace is stored-but-inert; status registers/read map are P5.
+- Still open in P1 before the milestone is complete: the basic locked-ASIC pixel path
+  (needs the legacy-colour table sourced from [KT] or hardware measurement), and the
+  CPU/WAIT timing-contract decision that lands with the first motherboard instantiation
+  of `asic_video` (architecture §5 Risk 1). `files.qip` is untouched until that
+  instantiation commit. The locked-ASIC title boot-point check remains the manual P0/P1
+  hardware checkpoint described above.
+- ASIC register page backing, palette, interrupts, sprites, split/scroll,
   and DMA are not implemented. FDC/tape presence gating for GX4000/464+ is also still
   inert (P8 polish scope).
 
-The next Plus milestone is P1 (CRTC3 counter/timing foundation) per
-`docs/plus/architecture.md` §4. The P0 hardware checkpoint is manual: with a Plus model
-selected, load a real `.cpr` (e.g. the local untracked `crtc3_v2fix.cpr` fixture) and
-confirm the firmware/game reaches its first screen; classic mode must be re-checked
-side by side in the same session. Do not start Plus video by extending `ga40010`; the
-planned path is a parallel behavioral CRTC3/ASIC video module.
+The next Plus milestone work is the P1 remainder per `docs/plus/architecture.md` §4/§7:
+pixel path + clocking-contract decision, then P2. The P0 hardware checkpoint is manual:
+with a Plus model selected, load a real `.cpr` (e.g. the local untracked `crtc3_v2fix.cpr`
+fixture) and confirm the firmware/game reaches its first screen; classic mode must be
+re-checked side by side in the same session. Do not start Plus video by extending
+`ga40010`; the planned path is the parallel behavioral `asic_video` module now under
+construction.
 
 Plus P0 wiring is merged onto `accc-review-and-fixes` (merge `daf1d6f`) and has a green
 GitHub Actions build (simulation + synthesis) on the merged tip. Fitter: 15,295 / 41,910

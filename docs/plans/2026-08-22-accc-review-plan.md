@@ -249,7 +249,11 @@ the type-split refactor milestone (it forces a full read anyway).
       (4556665: A5 decisions + oversized-cbNN abort; 7eaddf2: `plus_mmu` cartridge
       windows, production service→SDRAM hookup, CPU cart read bridge with WAIT
       insertion; 5a69ebe: CPR ioctl index 8 live, P0 boot integration bench).
-      P1 CRTC3 foundation remains.
+      P1 CRTC3 counter/timing foundation DONE 2026-08-23 on
+      `plus/p1-crtc3-foundation` (4 commits: register file + HCC, vertical chain,
+      pointer/DE/skew, syncs; vectors t01a-t04g, ACCC cites at point of
+      implementation). P1 remainder: pixel path ([KT] colour table to source) +
+      CPU/WAIT contract decision at first motherboard instantiation.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";
       F8 build `4c78603`→Module A adjustment entries + Module E "(2)"; F7→RFD entries;
       F10→interlace suite 22C/3; Plus P1/P5→Shaker on CRTC3 setting).
@@ -275,25 +279,20 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 
 ## Handoff convention
 
-At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: STOP — Plus P0 (`plus/p0-parser-wiring`)
-merged into `accc-review-and-fixes` (daf1d6f); merged-tip CI green (simulation + synthesis);
-awaiting user review.** State: base carries the whole-branch review resolutions (90f0cda,
-72d7cf4, 4140ebb, d66ec23, c7558ae) and the classic merge 756f3ef (A3 `t20i` + F6 option C
-Stage 1), which legitimately re-minted the golden soak hash to
-**`0x326ea81358e7d88f`** (previously `0x5b5004ff70148443`, which remains the correct
-expectation for the split-branch commits). Plus P0 sits on top: A5 decisions +
-oversized-cbNN abort (4556665), `plus_mmu` + production service hookup + CPU cart read
-bridge (7eaddf2, b1ccdfd), CPR ioctl index 8 live + P0 boot integration bench (5a69ebe).
-Gates on the merged tree: 93 classic vectors passed, all Plus suites green, lint clean,
-soak hash verified. Whole-branch review of the Plus branch is pending in review-debt.
-NEXT: the manual hardware checkpoint (real `.cpr` boot with a Plus model selected,
-classic re-checked side by side), then Plus P1 CRTC3 foundation per
-`docs/plus/architecture.md` §4; classic continues F7 RFD → F10 fixtures while F13 waits
-for SHAKER/DE-pin hardware evidence.
-Behaviour-preserving edits from here run
-`make -C sim soak SOAK_EXPECT=f5f8ae01ffdf928d`; a hash change means behaviour moved and
-needs a documented reason before proceeding. Soak field expansion has since landed on
-`accuracy/f6stage2-soak-expand` (current hash `0xf5f8ae01ffdf928d`, review issue 4
-remediation; see the ticked checklist item above). See sim/README.md (bounded soak claim)
-and AGENTS.md "Verification ownership" for conventions.**
+At end of any phase (or if the session must end), tick the checklist above, commit, and
+note the resume point in one line here: **resume point: Plus P1 CRTC3 counter/timing
+foundation implemented on branch `plus/p1-crtc3-foundation`, now rebased onto the base
+carrying the soak sampled-field expansion and F6 Stage 2/2b evidence: register file + HCC,
+vertical chain, video pointer + DE/SKEW-DISPTMG, and HSYNC/VSYNC; 26 `asic_video` vectors
+t01a-t04g, 93 classic vectors, lint clean. The canonical soak hash is
+`0xf5f8ae01ffdf928d`, re-minted for the sampled-field expansion after the earlier F6 Stage 1
+behaviour re-mint. P1 remainder is recorded in `docs/plus/architecture.md` §7 (pixel path
+needs the [KT] colour table; CPU/WAIT contract decision at first motherboard instantiation;
+interlace + read map deferred to later phases). Whole-branch review remains recorded in
+`docs/review-debt.md`. NEXT: the coordination session integrates the branch; classic
+continues F7 RFD → F10 while F13 waits for SHAKER/DE-pin hardware evidence; Plus continues
+the P1 remainder then P2. Before later Plus work, run the manual hardware checkpoint: real
+`.cpr` boot with a Plus model selected and classic re-checked side by side. Behaviour-
+preserving edits run `make -C sim soak SOAK_EXPECT=f5f8ae01ffdf928d`; a hash change means
+behaviour moved and needs a documented reason. See sim/README.md (bounded soak claim) and
+AGENTS.md "Verification ownership" for conventions.**
