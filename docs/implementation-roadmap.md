@@ -16,16 +16,21 @@ merged into the same behavioral PR.
 - `master` is the upstream baseline.
 - Review/correction work lands on `accc-review-and-fixes` (cut from
   `codex/exploratory-gx4000-plus-plan`); stream branches (`accuracy/*`, `plus/*`) cut from it
-  only after shared dependencies land there.
+  only after shared dependencies land there (currently `accuracy/a3-f6-stage1` and
+  `plus/p0-parser-wiring`, which rebase onto this branch's post-review fixes).
 - The current development state contains the accuracy/reference documents, the F1-F3 and main
-  F5 corrections, deterministic-complete F12/F4/F8, the Verilator CRTC/Plus gates, the bounded
-  CPR parser (tied off), R12/R13 reload vectors (`t20a`-`t20h`), and GitHub Actions synthesis.
+  F5 corrections, deterministic-complete F12/F4/F8/F9, the Verilator CRTC/Plus gates plus the
+  randomized equivalence soak (`make -C sim soak`, golden hash `0x5b5004ff70148443`), the
+  bounded CPR parser (tied off), R12/R13 reload vectors (`t20a`-`t20h`), the per-type engine
+  split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
+  from `rtl/UM6845R.v`), and GitHub Actions synthesis.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
   RBF packaging, and artifact upload for the final hardware-test milestone (`ba5b629`, run
   `31637450102`; latest synthesized build `4c78603`). New top-level/file-list commits still
   require their own run.
-- `sim/` currently reports **85** required CRTC passes with no expected failures (verified
-  2026-08-22, Verilator 5.050). The Plus leaf and SDRAM integration suites are green.
+- `sim/` currently reports **87** required CRTC passes with no expected failures (verified
+  2026-08-23, Verilator 5.050); the soak reproduces golden hash `0x5b5004ff70148443`. The Plus
+  leaf and SDRAM integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing and the P-1 cartridge memory/SDRAM contract are implemented but
   behaviorally tied off. No Plus/GX4000 firmware or cartridge boots yet.
@@ -33,10 +38,10 @@ merged into the same behavioral PR.
   faithfulness review (`accuracy/findings-review.md`, corrections B1-B13 applied). Prefer the
   checked-in digests and audit prompts; consult `docs/ACCC1.10-EN.pdf` only for pages still
   flagged ⚠ (visual-tier diagrams). v1.9 is disregarded — historical only.
-- The v1.10 documentation rebaseline and deterministic F12/F4 counter milestone are complete;
-  F8 (type-1 C5 adjustment) is implemented with its identification vectors as required passes.
-  The next classic checkpoint is F9 closure: encode the full `t12` worked-example pair plus
-  its windowed companion case (findings-review B4).
+- The v1.10 documentation rebaseline and the deterministic F12/F4/F8 milestones are complete;
+  F9 closure is merged into this branch (`t12a`/`t12b`: exact-C0==R0 write → C4=39/C9=8 and
+  its windowed companion → C4=38/C9=8, ACCC p.82). The next classic checkpoint is F6 option C
+  Stage 1 (`accuracy/f6-decision-gate.md`), then F7 RFD, then F10 fixtures.
 
 The current branch is a useful staging branch, not a requirement to publish one large PR.
 The commits may be rearranged into the small sequences below before publication.
@@ -126,8 +131,8 @@ Classic work is intentionally serial because most findings touch the same state 
 | **C4: border decision** | F6 only if its approximation is explicitly accepted | `t10` distinguishes type 0 and type 1 and proves skew placement | Visual R1>R0 discriminator and affected demos |
 | **C5A: v1.10 type-0 adjustment arbitration — deterministic complete; hardware pending** | F12, test first | `t16a`-`t16s` prove C0=0 same-edge comparison, C0=1/R5=0 entry including exact R0=1 rollover consumption, R5 acceptance/rejection around C0=2, R4/R9 live-write windows including exact-R0 at both bus phases, the exact-R0 R9-to-R5 split, R0=0/1 default adjustment, active-adjustment R0=0 freeze, completion reset, and retained-state lifecycle | Focused SHAKER or hardware traces verify uncertain sub-character MA/DE/VSYNC timing without changing the fixed counter expectations |
 | **C5B: equality/overflow foundation** | F4 only, after F12 establishes the corrected state seam | `t07` and `t08` pass, including the tightened RLAL regression vectors; no shortcut term is retained to hide a latch bug | SHAKER overflow/rupture tests and Batman Forever, The Demo, and Yao demo sweep |
-| **C6: type-1 adjustment** | F8 only, after F4 | `t11` proves independent C5 counting, continuing C4/C9, RA sequence, and the R5=0 mid-adjustment behavior | SHAKER adjustment vectors |
-| **C7: type-0 R9 race** | Revised F9 only, after F12/F4/F8 have stabilized the counter structure | `t12` reproduces both documented exact-cycle results using the v1.10 comparison target; it must not preserve the v1.9 rationale as an oracle | Contrived timing test; hardware trace if simulation and SHAKER disagree |
+| **C6: type-1 adjustment — deterministic complete; hardware pending** | F8 only, after F4 | `t11` proves independent C5 counting, continuing C4/C9, RA sequence, and the R5=0 mid-adjustment behavior | SHAKER adjustment vectors |
+| **C7: type-0 R9 race — deterministic complete; hardware pending** | Revised F9 only, after F12/F4/F8 have stabilized the counter structure | `t12` reproduces both documented exact-cycle results using the v1.10 comparison target; it must not preserve the v1.9 rationale as an oracle | Contrived timing test; hardware trace if simulation and SHAKER disagree |
 | **C8: type-1 RFD** | F7 only, after F4/F8/F9 | `t13` proves trigger timing, frame parity, VMA reload, and no behavioral change when never armed | SHAKER RFD tests and a CRTC-1 RFD demo sweep |
 | **C9: interlace** | F10 last, split into fixtures, type-0 machinery, then type-1 machinery | New parity and entry/exit fixtures derived from the cited SHAKER tables; all t01-t15 regressions stay green | SHAKER interlace suite and hardware comparison for both CRTC types |
 
@@ -302,12 +307,16 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
-2. Classic stream: close F9 by encoding the full `t12` worked example and its windowed
-   companion case (test-only), then take the F6 decision gate, then F7 RFD. F10 stays
-   fixture-gated behind its PDF re-checks.
+2. Classic stream: F9 closure is already merged (`t12a`/`t12b`). Next: F6 option C Stage 1
+   (exact type-0 pin behaviour plus vector `t10`) per `accuracy/f6-decision-gate.md`, then
+   F7 RFD including the B6 disarm path and the A1 VSYNC-corner fix. F10 stays fixture-gated
+   behind its PDF re-checks.
 3. Plus stream: implement P0 MMU, bounded CPR parsing integration, `/EXP`, and boot wiring
    against the accepted P-1 service/SDRAM contract. Do not combine this with Plus video work.
-4. Keep F6 deferred unless a half-character-capable interface is designed or the project
-   explicitly accepts the reversible one-character approximation.
+4. F6 proceeds per the staged option C plan in `accuracy/f6-decision-gate.md` (user lean
+   recorded there; revert points documented): the GA samples DISPEN at byte phase, so Stage 1
+   is an exact type-0 pin change with no Gate Array netlist edit expected; Stage 3 glue work
+   happens only if the measured seam comes out 1 µs.
 5. Common dependencies for both streams (harness helpers, shared docs) land on
-   `accc-review-and-fixes` before `accuracy/*` and `plus/*` branches are cut.
+   `accc-review-and-fixes`; the running stream branches (`accuracy/a3-f6-stage1`,
+   `plus/p0-parser-wiring`) rebase onto it rather than stacking.

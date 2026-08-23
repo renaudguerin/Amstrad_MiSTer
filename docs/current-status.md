@@ -1,9 +1,13 @@
 # Current implementation status
 
 This is the handoff for the next development and hardware-test session. Hardware facts below
-describe `codex/exploratory-gx4000-plus-plan` as of 2026-08-19; the review/correction work
-since then (ACCC v1.10 faithfulness review, corrections B1-B13, review-debt repayment) lives
-on `accc-review-and-fixes` and does not change RTL. The detailed behavioral rules remain in
+describe `codex/exploratory-gx4000-plus-plan` as of 2026-08-19. Since then `accc-review-and-fixes`
+has absorbed the ACCC v1.10 faithfulness review and corrections B1-B13, review-debt repayment,
+the randomized equivalence-soak harness, F9 closure (`t12a`/`t12b`), and the per-type engine
+split (wrapper `rtl/CRTC.v` + two engines, renamed from `rtl/UM6845R.v`) with no behaviour
+change (soak golden-hash pinned). The whole-branch independent review is recorded in
+`accuracy/accc-review-and-fixes-independent-review.md`; its documentation findings are fixed on
+this branch. The detailed behavioral rules remain in
 `accuracy/`; the long-term ordering remains in `implementation-roadmap.md`.
 
 ## How hardware testing fits the loop
@@ -56,7 +60,11 @@ block-memory bits (12%), and 3 / 6 PLLs, with worst setup and hold slacks of +0.
 +0.246 ns. The artifact is retained under
 `output_files/hardware-milestones/Amstrad-build-17-1/Amstrad_20260819_4c78603.rbf`. It has not
 been hardware-tested, and it is the build the next SHAKER session should use: `5ddddef`
-predates F8 and cannot produce evidence for it.
+predates F8 and cannot produce evidence for it. Everything merged after `4c78603` (soak
+harness, F9 vectors, the per-type split and rename) provably changed no CRTC behaviour — the
+soak reproduces golden hash `0x5b5004ff70148443` minted from the unsplit core, and a ~45.5M-sample
+lockstep differential comparison against the pre-split core found no divergence — so the
+current-tip CI build is equally valid for that session.
 
 Hardware testing on 2026-08-19 covered two milestones and returned the same result for
 both. `1a1233f` showed no regression against the stock core and no CRTC-0 compatibility
@@ -133,16 +141,24 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 85 required CRTC passes, zero expected failures, no
-  unexpected passes, and no failures. The Plus leaf and SDRAM integration suites are also
-  green.
+- The current local gate reports 87 required CRTC passes, zero expected failures, no
+  unexpected passes, and no failures (verified 2026-08-23, Verilator 5.050). The randomized
+  equivalence soak reproduces golden hash `0x5b5004ff70148443`. The Plus leaf and SDRAM
+  integration suites are also green.
+- The core is split into a shared-state wrapper (`rtl/CRTC.v`) plus two per-type rule engines
+  (`rtl/crtc_type0_engine.v`, `rtl/crtc_type1_engine.v`); live `CRTC_TYPE` round-trips stay
+  pinned by t02j/t06d/t09f/t16l, and bit-identity with the pre-split core is pinned by the
+  soak hash and the reproduced lockstep differential run.
+- F9 closure is merged into this branch: the documented `t12` worked-example pair — R9 write
+  at exact C0==R0 → C4=39/C9=8, and its windowed companion in C0∈[2,R0−1] → C4=38/C9=8
+  (ACCC p.82) — is encoded as `t12a`/`t12b` (`aea80b5`, merged via `d5cab8f`).
 
-The next classic checkpoint was the remaining F9 coverage: the type-0 R9 write at C0==R0 that
-straddles the R9-to-R5 comparison switch is implemented and covered by `t16e`/`t16h`; the
-documented `t12` worked-example pair (C4=39,C9=8 exact-R0 and its C4=38,C9=8 windowed
-companion) is now encoded on `accuracy/f9-t12-closure`. Then F7 RFD. F6 remains deferred because the documented
-half-character border byte cannot be represented exactly by the current character-granular
-CRTC-to-Gate-Array interface. F10 remains the last, separately fixture-gated project.
+The next classic checkpoints follow the session plan resume point: F6 option C Stage 1 per
+`accuracy/f6-decision-gate.md` (which supersedes the earlier character-granularity premise
+about the CRTC→Gate-Array DE interface: the GA samples DISPEN at byte phase, so the exact
+half-character pin behaviour is achievable without touching the Gate Array netlist), then
+F7 RFD including the B6 disarm path and the A1 VSYNC-corner fix. F10 remains the last,
+separately fixture-gated project.
 
 ## Completed Plus foundations
 
@@ -196,11 +212,15 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
 - The complete deterministic F12/F4 counter milestone and CPR parser have a synthesized CI
   build at `5ddddef`, which was hardware-tested on 2026-08-19 as described above. The F8 work
   on top of it has a synthesized, not yet hardware-tested, CI build at `4c78603`.
-- Independent review: cross-provider review remains unavailable on this harness. Per the
-  2026-08-22 decision, same-model independent reviews count for this project; repayment of
-  the `review-debt.md` rows is in progress on `accc-review-and-fixes`. New work on that
-  branch deliberately takes no new debt rows — the whole branch gets one review pass at
-  merge time.
+- Independent review: the six per-commit `review-debt.md` rows were repaid on 2026-08-22 by
+  same-model independent review under the 2026-08-22 locked decision (cross-provider review
+  unavailable on this harness); findings became action items A1-A5. The whole-diff review of
+  this branch plus the type-split branch then ran on 2026-08-23
+  (`accuracy/accc-review-and-fixes-independent-review.md`): split RTL accepted as sound; its
+  blocking findings (broken GA40010 co-sim manifest, stale handoff/F6 premises) and
+  non-blocking ones (soak claim bounds, sweep leftovers) are addressed on this branch. New
+  work here still deliberately takes no per-commit debt rows — stream branches cut from this
+  tip rebase onto these fixes.
 
 ## Next-session order
 
@@ -225,10 +245,11 @@ by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC vid
    Confirm SHAKER's own CRTC identification agrees with the OSD selection before comparing.
 3. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
    deterministic regression before repairing any newly understood behavior.
-4. Classic: close F9 by encoding the full `t12` worked example plus its windowed companion
-   case (ACCC §10.3.1/§11.2.2, pp. 75-76/81-83; findings-review B4) without changing the
-   implemented comparator split, leaving the current equality/overflow and F12 arbitration
-   guards intact. Then the F6 decision gate, then F7 RFD. F10 stays fixture-gated.
+4. Classic: F9 is already closed (`t12a`/`t12b`, merged). Start F6 option C Stage 1 per
+   `accuracy/f6-decision-gate.md`: type-0 forced DE-low at `hcc==R0_h_total` when
+   `R1_h_displayed > R0_h_total`, injected before the skew delay-line mux, with deterministic
+   vector `t10` covering both types and skew placement. Then F7 RFD (including the B6 disarm
+   path and the A1 VSYNC-corner fix). F10 stays fixture-gated.
 5. Plus: in a separate stack, wire the CPR parser into P0 MMU/boot integration against the
    existing memory-service and SDRAM contracts.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
