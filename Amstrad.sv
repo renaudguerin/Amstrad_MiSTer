@@ -57,6 +57,7 @@ localparam CONF_STR = {
 	"F5,ROM,Load Dandanator ROM;",
 	"F6,SNA,Load snapshot;",
 	"F7,E??,Load CPC464 ROM;",
+	"F8,CPR,Load Plus cartridge;",
 	"OK,Tape sound,Disabled,Enabled;",
 	"-;",
 	"O[62:61],SNAC,Off,Player 1,Player 2;",
@@ -229,6 +230,8 @@ wire        tape_download = ioctl_download && (ioctl_index == 4);
 wire        dan_download = ioctl_download && (ioctl_index == 5);
 wire        dan_write_accepted;
 wire        sna_download = ioctl_download && (ioctl_index == 6);
+wire        cpr_download = ioctl_download && (ioctl_index == 8);
+wire        cpr_ioctl_wait;
 
 dandanator_loader_bounds dandanator_loader_bounds
 (
@@ -277,7 +280,7 @@ reg   [1:0] sna_rle_state = 2'd0;
 reg   [7:0] sna_rle_count = 8'd0;
 reg   [7:0] sna_rle_value = 8'd0;
 
-assign ioctl_wait = romdl_wait | (sna_download && |sna_rle_count && (sna_rle_state == 2'd0));
+assign ioctl_wait = romdl_wait | (sna_download && |sna_rle_count && (sna_rle_state == 2'd0)) | cpr_ioctl_wait;
 
 function automatic [1:0] valid_model(input [1:0] requested);
 	begin
@@ -1055,18 +1058,41 @@ plus_mmu plus_mmu
 	.asic_page_on()
 );
 
-// CPR loader stream: deliberately not connected yet. The parser joins in
-// the next commit; until then no load can begin and the service stays in
-// its idle, image-invalid state.
-wire cart_load_begin = 1'b0;
-wire cart_load_commit = 1'b0;
-wire cart_load_abort = 1'b0;
-wire cart_load_valid = 1'b0;
-wire [5:0]  cart_load_page = 6'd0;
-wire [14:0] cart_load_offset = 15'd0;
-wire [7:0]  cart_load_data = 8'd0;
+// CPR loader stream (P0): the parser validates the RIFF envelope and cbNN
+// chunks and streams page bytes into the cartridge memory service. Its
+// ioctl_wait output joins the download throttle above so the HPS paces the
+// byte stream while writes are outstanding.
+wire        cart_load_begin;
+wire        cart_load_commit;
+wire        cart_load_abort;
+wire        cart_load_valid;
+wire [5:0]  cart_load_page;
+wire [14:0] cart_load_offset;
+wire [7:0]  cart_load_data;
 wire        cart_load_ready;
 wire        cart_load_error;
+
+plus_cpr_parser cpr_parser
+(
+	.clk(clk_sys),
+	.reset(reset),
+
+	.cpr_download(cpr_download),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_addr(ioctl_addr),
+	.ioctl_dout(ioctl_dout),
+	.ioctl_wait(cpr_ioctl_wait),
+
+	.load_begin(cart_load_begin),
+	.load_commit(cart_load_commit),
+	.load_abort(cart_load_abort),
+	.load_valid(cart_load_valid),
+	.load_page(cart_load_page),
+	.load_offset(cart_load_offset),
+	.load_data(cart_load_data),
+	.load_ready(cart_load_ready),
+	.load_error(cart_load_error)
+);
 
 plus_cartridge_memory cartridge_memory
 (
