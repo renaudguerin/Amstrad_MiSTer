@@ -107,6 +107,16 @@ public:
         } while (dut.VSYNC != 0);
     }
 
+    void run_until_hsync_idle() {
+        unsigned guard = 0;
+        do {
+            run_characters(1);
+            if (++guard > 256) {
+                throw TestFailure("run_until_hsync_idle did not converge");
+            }
+        } while (dut.HSYNC != 0);
+    }
+
     void run_until_adjustment() {
         unsigned guard = 0;
         do {
@@ -342,8 +352,13 @@ void t01e_r0_shrink_overflow(TestBench& test) {
 // across the line boundary.
 void t04a_hsync_position_and_width(TestBench& test) {
     program_display_frame(test);
-    test.write_register(2, 6);
+    test.write_register(2, 255);
     test.write_register(3, 0x65);  // H width 5, V width 6
+    // Discard the reset-programming pulse before checking the steady
+    // width. A type-3 end/start collision can legitimately prolong that
+    // transient (§15.3.1), while this vector is about §14 normal timing.
+    test.run_until_hsync_idle();
+    test.write_register(2, 6);
     test.run_to_frame_start();
     for (unsigned k = 0; k <= 15; ++k) {
         if (k > 0) {
@@ -412,6 +427,35 @@ void t04d_infinite_hsync(TestBench& test) {
         test.run_characters(1);
         test.expect_hsync("HSYNC restarts itself forever", true);
     }
+}
+
+// ACCC §15.3.5 p.151 CRTC3 chronogram: R2 starts at 11 with R3l=10,
+// then a live R2=21 lands exactly where the active pulse would naturally
+// end. C3 does not reset; it continues 10,11..15,0..10 and HSYNC therefore
+// stays asserted through C0=36 before ending on entry to C0=37.
+void t04h_live_r2_end_start_collision(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(0, 63);
+    test.write_register(2, 11);
+    test.write_register(3, 0x6a);
+    test.run_to_frame_start();
+
+    test.run_characters(19);
+    test.expect_hcc("live-R2 collision precondition", 19);
+    test.expect_hsync("original R2=11 pulse is active", true);
+    test.write_register(2, 21);
+
+    test.expect_hcc("live R2 write lands before collision", 20);
+    test.run_characters(1);
+    test.expect_hcc("rewritten start meets natural end", 21);
+    test.expect_hsync("end/start collision keeps HSYNC asserted", true);
+    for (unsigned c0 = 22; c0 <= 36; ++c0) {
+        test.run_characters(1);
+        test.expect_hsync("C3 continues through nibble wrap", true);
+    }
+    test.run_characters(1);
+    test.expect_hcc("second R3 equality position", 37);
+    test.expect_hsync("continued pulse ends at second R3 equality", false);
 }
 
 // ACCC §16.4.4 p.170: VSYNC needs C4==R7 AND C9==0 AND C0==0 at a line
@@ -838,7 +882,7 @@ void t02g_r5_grow_extends_adjustment(TestBench& test) {
     test.expect_line("fresh frame", 0);
 }
 
-constexpr std::array<TestCase, 26> kTests = {{
+constexpr std::array<TestCase, 27> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -862,6 +906,7 @@ constexpr std::array<TestCase, 26> kTests = {{
     {"t04b R3l=0 sixteen-character HSYNC", t04b_r3_zero_means_sixteen},
     {"t04c R3l rewrite wraps the nibble", t04c_r3l_rewrite_wraps_nibble},
     {"t04d infinite-HSYNC bug", t04d_infinite_hsync},
+    {"t04h live-R2 HSYNC end/start collision", t04h_live_r2_end_start_collision},
     {"t04e VSYNC gate and mid-row R7 write", t04e_vsync_gate_and_r7_write},
     {"t04f VSYNC width incl. legacy 16", t04f_vsync_width},
     {"t04g VSYNC refire without protection", t04g_no_reentrancy_continuous_refire},

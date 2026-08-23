@@ -356,23 +356,14 @@ end
 // §15.2.2 chronograms where C3l=0 sits under C0=R2 — the same
 // registered-output convention the DISPTMG logic uses for C0=R1.
 //
-// Type-1..4 re-entrancy bug (§15.3.1 p.148): "there is a bug if C0=R2 on
-// C0=R2+R3" — when the natural end position coincides with the start
-// position, i.e. the effective width is a multiple of the line length,
-// the expiring pulse restarts instead of ending and hsc keeps rolling
-// through its wrapped nibble. The documented extreme R0=0, R2=0, R3l=1
-// makes every character both a start and a natural end: the infinite
-// HSYNC (§15.3.2). Ordinary programmings never satisfy the relation.
-// The legacy full-nibble width of §14.5 is documented as bounded, so
-// chaining applies only to programmed widths 1..15. The relation is
-// evaluated from the registers rather than a dynamic mid-pulse
-// coincidence: a dynamic test would let one accidental coincidence
-// permanently re-phase an ordinary pulse into endless chaining, which
-// no cited section describes.
-// Implemented as the register relation (W mod (R0+1) == 0) rather than a
-// dynamic mid-pulse coincidence: a dynamic test would let one accidental
-// coincidence permanently re-phase an ordinary pulse into endless
-// chaining, which is not behaviour any cited section describes.
+// Type-1..4 re-entrancy bug (§15.3.1 p.148): when C0 reaches R2 on the
+// same edge that C3 reaches R3l, the active pulse does not end. C3 keeps
+// counting through its wrapped nibble until the next equality. This is a
+// live collision, not a static register relation: §15.3.5 p.151 shows a
+// CRTC3 R2 rewrite from 11 to 21 creating the collision at the natural
+// end of an already-active pulse. The R0=0, R2=0, R3l=1 extreme makes
+// every end edge collide and therefore produces infinite HSYNC
+// (§15.3.2). R3l=0 retains the bounded 16-character rule from §14.5.
 //----------------------------------------------------------------------
 
 reg       in_hsync;
@@ -380,21 +371,11 @@ reg [3:0] hsc;
 reg       in_vsync;
 reg [3:0] vsc;
 
-reg  [4:0] hsync_w_eff;    // effective H width, R3l=0 -> 16
-reg  [4:0] hsync_line_len; // min(R0+1, 16); longer lines cannot divide W
-always @(posedge CLOCK) begin
-	hsync_w_eff    <= (R3_h_sync_width == 4'd0) ? 5'd16
-	                                            : {1'b0, R3_h_sync_width};
-	hsync_line_len <= (R0_h_total > 8'd14) ? 5'd0
-	                                       : {1'b0, R0_h_total[3:0]} + 5'd1;
-end
-
-wire       hsync_bug      = (R3_h_sync_width != 4'd0) &&
-                            (hsync_line_len != 5'd0) &&
-                            ((hsync_w_eff % hsync_line_len) == 5'd0);
-wire       hsync_start    = (hcc_next == R2_h_sync_pos);
-wire [3:0] hsc_next       = hsc + 4'd1;
-wire       hsync_end_hit  = (hsc_next == R3_h_sync_width);
+wire       hsync_start               = (hcc_next == R2_h_sync_pos);
+wire [3:0] hsc_next                  = hsc + 4'd1;
+wire       hsync_end_hit             = (hsc_next == R3_h_sync_width);
+wire       hsync_end_start_collision = (R3_h_sync_width != 4'd0) &&
+                                        hsync_start;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
@@ -405,7 +386,7 @@ always @(posedge CLOCK) begin
 	else if (CLKEN) begin
 		if (in_hsync) begin
 			hsc <= hsc_next;
-			if (hsync_end_hit && !(hsync_bug && hsync_start)) begin
+			if (hsync_end_hit && !hsync_end_start_collision) begin
 				in_hsync <= 1'b0;
 				HSYNC    <= 1'b0;
 			end
