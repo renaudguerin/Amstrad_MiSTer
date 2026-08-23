@@ -49,6 +49,8 @@ module asic_video
 	// (ACCC §19.2, types 0/3/4); MA is the current video pointer VMA and
 	// RA the scanline address C9 (which carries the adjustment index on
 	// types 3/4, ACCC §11.2.6).
+	output reg       HSYNC,
+	output reg       VSYNC,
 	output           DE,
 	output    [13:0] MA,
 	output     [4:0] RA,
@@ -339,6 +341,137 @@ always @(posedge CLOCK) begin
 			hde <= 1'b0;
 		end
 		dde <= {dde[0], disp_raw};
+	end
+end
+
+//----------------------------------------------------------------------
+// HSYNC (ACCC §14/§15).
+//
+// HSYNC starts when C0 reaches R2 and lasts R3l characters. Types 3/4
+// generate a 16-character HSYNC when R3l=0 ("it is impossible not to
+// generate HSYNC", §14.5 p.141). The width counter is a free-running
+// nibble compared against the LIVE R3l: a mid-HSYNC rewrite below the
+// already-counted value wraps the full nibble before the new equality
+// can hit, so an interrupted HSYNC never ends early (§14.4 general rule;
+// compendium-02 §4). There is no R3.JIT on types 3/4 (§14.4).
+//
+// The start comparison keys on the ENTERING edge (hcc_next == R2) so the
+// registered HSYNC is visible during character R2 itself, matching the
+// §15.2.2 chronograms where C3l=0 sits under C0=R2 — the same
+// registered-output convention the DISPTMG logic uses for C0=R1.
+//
+// Type-1..4 re-entrancy bug (§15.3.1 p.148): "there is a bug if C0=R2 on
+// C0=R2+R3" — when the natural end position coincides with the start
+// position, i.e. the effective width is a multiple of the line length,
+// the expiring pulse restarts instead of ending and hsc keeps rolling
+// through its wrapped nibble. The documented extreme R0=0, R2=0, R3l=1
+// makes every character both a start and a natural end: the infinite
+// HSYNC (§15.3.2). Ordinary programmings never satisfy the relation.
+// The legacy full-nibble width of §14.5 is documented as bounded, so
+// chaining applies only to programmed widths 1..15. The relation is
+// evaluated from the registers rather than a dynamic mid-pulse
+// coincidence: a dynamic test would let one accidental coincidence
+// permanently re-phase an ordinary pulse into endless chaining, which
+// no cited section describes.
+// Implemented as the register relation (W mod (R0+1) == 0) rather than a
+// dynamic mid-pulse coincidence: a dynamic test would let one accidental
+// coincidence permanently re-phase an ordinary pulse into endless
+// chaining, which is not behaviour any cited section describes.
+//----------------------------------------------------------------------
+
+reg       in_hsync;
+reg [3:0] hsc;
+reg       in_vsync;
+reg [3:0] vsc;
+
+reg  [4:0] hsync_w_eff;    // effective H width, R3l=0 -> 16
+reg  [4:0] hsync_line_len; // min(R0+1, 16); longer lines cannot divide W
+always @(posedge CLOCK) begin
+	hsync_w_eff    <= (R3_h_sync_width == 4'd0) ? 5'd16
+	                                            : {1'b0, R3_h_sync_width};
+	hsync_line_len <= (R0_h_total > 8'd14) ? 5'd0
+	                                       : {1'b0, R0_h_total[3:0]} + 5'd1;
+end
+
+wire       hsync_bug      = (R3_h_sync_width != 4'd0) &&
+                            (hsync_line_len != 5'd0) &&
+                            ((hsync_w_eff % hsync_line_len) == 5'd0);
+wire       hsync_start    = (hcc_next == R2_h_sync_pos);
+wire [3:0] hsc_next       = hsc + 4'd1;
+wire       hsync_end_hit  = (hsc_next == R3_h_sync_width);
+
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		HSYNC    <= 1'b0;
+		in_hsync <= 1'b0;
+		hsc      <= 4'd0;
+	end
+	else if (CLKEN) begin
+		if (in_hsync) begin
+			hsc <= hsc_next;
+			if (hsync_end_hit && !(hsync_bug && hsync_start)) begin
+				in_hsync <= 1'b0;
+				HSYNC    <= 1'b0;
+			end
+			// else: bug path — keep the pulse asserted and let hsc roll on
+		end
+		else if (hsync_start) begin
+			in_hsync <= 1'b1;
+			HSYNC    <= 1'b1;
+			hsc      <= 4'd0;
+		end
+	end
+end
+
+//----------------------------------------------------------------------
+// VSYNC (ACCC §16.4.4 p.170): starts only at line starts where
+// C4==R7 AND C9==0 AND C0==0 hold simultaneously; rewriting R7 to the
+// current C4 while C0>0 does not trigger. There is no re-entrancy
+// protection — a condition that persists across a finished pulse
+// restarts it immediately. Width is R3h lines with 0 meaning 16 (§14.2),
+// counted per line with the same live-equality nibble semantics; dynamic
+// R3h rewrites follow the CRTCs-0/3/4 rule (compendium-02 §2). Interlace
+// MID-VSYNC delays are out of P1 scope (header note); the ASIC needs >=3
+// active lines to emit monitor C-VSYNC, which belongs to the integrated
+// pipeline phase.
+//----------------------------------------------------------------------
+
+wire        vsync_fire      = hcc_last &&
+                              (charline_n == R7_v_sync_pos) &&
+                              (raster_n == 5'd0);
+wire [3:0]  vsc_next        = vsc + 4'd1;
+wire        vsync_width_hit = (vsc_next == R3_v_sync_width);
+
+// The width counts LINE boundaries while the pulse is active (R3h is a
+// line count), and a condition that persists across the expiring edge
+// renews the pulse on that same edge — there is no re-entrancy
+// protection, so with R7=R4=R9=0 the pin never visibly drops (§16.4.4).
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		VSYNC    <= 1'b0;
+		in_vsync <= 1'b0;
+		vsc      <= 4'd0;
+	end
+	else if (CLKEN) begin
+		if (in_vsync) begin
+			if (hcc_last) begin
+				vsc <= vsc_next;
+				if (vsync_width_hit) begin
+					if (vsync_fire) begin
+						vsc <= 4'd0;   // renewed without a gap
+					end
+					else begin
+						in_vsync <= 1'b0;
+						VSYNC    <= 1'b0;
+					end
+				end
+			end
+		end
+		else if (vsync_fire) begin
+			in_vsync <= 1'b1;
+			VSYNC    <= 1'b1;
+			vsc      <= 4'd0;
+		end
 	end
 end
 
