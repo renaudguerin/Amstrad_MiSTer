@@ -46,7 +46,7 @@ Alongside the directed vectors, the suite ships a deterministic randomized
 "soak-diff" target. Rationale, for reviewers:
 
 - Directed + randomized stimulus against a golden reference is standard
-  verification practice; the 87 vectors are the directed leg and only visit
+  verification practice; the 93 vectors are the directed leg and only visit
   states an author imagined. The soak explores unimagined ones.
 - Its oracle is self-referential by design: hash every pin plus key internal
   state (`hcc`, `line`, `row`, `c5`, `in_adj`, arbitration latches) each CLKEN

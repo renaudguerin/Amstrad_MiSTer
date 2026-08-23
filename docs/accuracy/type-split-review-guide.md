@@ -13,7 +13,9 @@ at the end is for whoever does the line-level pass.
 
 ## Branch 1 — `accc-review-and-fixes` (base branch)
 
-Scope: documentation reconciliation + verification tooling. No CRTC behaviour change.
+Scope: documentation reconciliation + verification tooling for the classic split. The
+current checkout also carries later F6 Stage 1 and Plus-stream work; those are separate
+behaviour/evidence streams and are not covered by the split-equivalence claim below.
 
 | Commit | What | Why |
 |---|---|---|
@@ -65,14 +67,16 @@ zero separation benefit.
 ### Evidence stack (run these)
 
 ```sh
-make -C sim                                  # 87 passed / 0 xfail / 0 xpass / 0 failed
+make -C sim                                  # 93 passed / 0 xfail / 0 xpass / 0 failed
 make -C sim lint                             # no errors (pre-existing warnings only)
-make -C sim soak SOAK_EXPECT=5b5004ff70148443   # bit-identity vs the unsplit core
+make -C sim soak SOAK_EXPECT=0xf5f8ae01ffdf928d # current sampled-field contract
 ```
 
-(Counts and the expected hash above are as of these two branches; later behaviour
-work on stream branches re-mints per the protocol — see the note at the golden
-hash below the commit table.)
+The current checkout has 93 classic passes and uses `0xf5f8ae01ffdf928d`, re-minted
+for the F6 Stage 1 behaviour and subsequent sampled-field expansion. The historical
+`0x5b5004ff70148443` value remains the correct expectation for the unsplit-core
+comparison commit recorded above; the split-equivalence claim is bounded to the
+sampled fields, stimulus, and phase documented in `sim/README.md`.
 
 Plus, once per push: GitHub Actions "Build core" workflow green on
 `accuracy/crtc-type-split` (Verilator gate first, then pinned Quartus 17.0.2 synthesis —
@@ -113,13 +117,19 @@ what the differential method exists to catch.
    under *both* types with type-muxed values — they are read by type-0 rules after a live
    switch, so gating them would change round-trip behaviour.
 
-### Known-open items (recorded, deliberately not fixed here)
+### Current bounded status
 
-- A1/A2/A3 action items in `docs/review-debt.md` (VSYNC comparator corner, §11.2.4 caveat
-  pair, t20 companion vector).
+- A1/A2 remain open in `docs/review-debt.md` (the VSYNC comparator corner and the
+  §11.2.4 caveat pair). A3's t20 companion vector is complete: `t20i` covers live-entry
+  R0=0 VMA reload and freeze.
 - F11h residual: intra-character immediacy of R12/R13 on type 1 not modeled; p.242 re-read
   pending.
-- F6 Stage 1, F7 RFD, F10, Plus P0: explicitly out of scope until this split is reviewed.
+- F6 Stage 1 is accepted only as the documented full-character DE approximation; exact
+  ACCC 0.5 µs pin timing remains F13 hardware-blocked. F7 RFD and F10 remain the next
+  separately gated classic work.
+- Plus P0 wiring and the P1 CRTC3 foundation are implemented in their separate stream;
+  their current review-debt rows await independent confirmation and do not extend the
+  classic split-differential claim.
 - Hardware results always outrank simulation: none of the above evidence replaces a SHAKER
   session.
 
