@@ -55,6 +55,7 @@ module crtc_type1_engine
 	input      [7:0] hcc,
 	input      [7:0] hcc_next,
 	input            hcc_last,
+	input            hcc_end,
 	input      [4:0] line,
 	input      [6:0] row,
 	input      [4:0] c5,
@@ -95,6 +96,12 @@ module crtc_type1_engine
 	output           r6_vder_write,
 	output           r6_vder_value,
 
+	// Same-edge R0-widening line-extension request for the section
+	// 13.7.1.2 trigger route.  The wrapper owns the shared C0 counter, so
+	// this term defers its line-end strobe there; the engine consumes the
+	// deferred strobe back as hcc_end.
+	output           rfd_r0_extend,
+
 	// Type-1 status register view (readback multiplexed by the wrapper).
 	output           status_bit5
 );
@@ -118,7 +125,36 @@ wire [4:0] crtc1_rollover_r5 = rfd_arm ? DI[4:0] : R5_v_total_adj;
 // "limit is zero" match may short-circuit the comparison.
 wire       line_last_w = (line == crtc1_line_max);
 assign     line_last = line_last_w;
-assign     line_new = hcc_last;
+assign     line_new = hcc_end;
+
+// ACCC v1.10 section 13.7.1.2 p.124 (digest-01 section 8.6): a second RFD
+// trigger route exists on CRTC 1.  Widening R0 with an OUT(C),reg8 write
+// landing exactly at C0==R0 on the last line of the frame (C9==R9, C4==R4,
+// R5==0, outside adjustment beforehand) does not end that line: per the
+// section 13.7.1.1 chronogram gist ("just-in-time write considered this
+// rollover") the widened total is used by this rollover's own decision, so
+// the comparator match is overridden and the line runs on into the widened
+// remainder.  If the last-line condition is then cancelled by R9/R4
+// rewrites -- evaluated from the register state held at the line's actual
+// end, matching the documented "(C9 != R9 by line end)" / "(C4 != R4 by
+// line end)" variant definitions -- RFD arms exactly there and behaves
+// like the R5-route state above.  The evidence at hand only covers the
+// last-line recipe, so the continuation is gated to it; whether an
+// arbitrary mid-frame widening write at C0==R0 also extends its line is
+// deliberately left unmodeled pending sourced chronograms.
+//
+// Every term below requires CRTC_TYPE, so type 0 and ordinary type-1 R0
+// writes keep their existing registered-comparator behaviour.
+wire r0_write_hit = CRTC_TYPE & ENABLE & RS & ~nCS & ~R_nW & (addr == 5'd00);
+wire rfd_r0_widen_at_last_line = CLKEN & hcc_last & r0_write_hit &
+                                 ({1'b0, DI} > {1'b0, R0_h_total}) &
+                                 (line == crtc1_line_max) &
+                                 (row == R4_v_total) &
+                                 (R5_v_total_adj == 0) & ~in_adj;
+assign rfd_r0_extend = rfd_r0_widen_at_last_line;
+
+wire rfd_r0_cancelled = (line != crtc1_line_max) | (row != R4_v_total);
+wire rfd_r0_arm = rfd_r0_pending & CLKEN & hcc_last & rfd_r0_cancelled;
 
 // ACCC v1.10 section 11.3.2: Type 1 adjustment ends when C5+1 reaches R5
 // evaluated by equality at the line boundary. R5=0 never satisfies this comparison.
@@ -166,9 +202,10 @@ wire       frame_new_w = row_new & row_frame_last;
 reg rfd_vma_flag;
 reg rfd_parity_flag;
 reg rfd_frame_parity;
+reg rfd_r0_pending;
 
-wire rfd_parity_active = rfd_parity_flag | rfd_arm;
-wire rfd_vma_active = rfd_vma_flag | rfd_arm;
+wire rfd_parity_active = rfd_parity_flag | rfd_arm | rfd_r0_arm;
+wire rfd_vma_active = rfd_vma_flag | rfd_arm | rfd_r0_arm;
 
 // Section 11.6 p.87: when R1>R0, C0=R1 is unreachable, so the bare
 // C9=R9 match deactivates the VMA-source state without a VMA' save.
@@ -204,6 +241,7 @@ always @(posedge CLOCK) begin
 		rfd_vma_flag <= 0;
 		rfd_parity_flag <= 0;
 		rfd_frame_parity <= 0;
+		rfd_r0_pending <= 0;
 	end
 	else if(CRTC_TYPE) begin
 		// ACCC v1.10 section 11.6.1, pages 88-89: parity changes only
@@ -216,9 +254,20 @@ always @(posedge CLOCK) begin
 		// cannot be immediately lost to an old comparison result.
 		if((CLKEN && row_addr_save) | rfd_r1_gt_r0_disarm)
 			rfd_vma_flag <= 0;
-		if(rfd_arm) begin
+		if(rfd_arm | rfd_r0_arm) begin
 			rfd_vma_flag <= 1;
 			rfd_parity_flag <= 1;
+		end
+
+		// Section 13.7.1.2 trigger window: opened only by the qualifying
+		// widening write, closed by the next line end (the extended line's
+		// actual end) whether or not that end arms.  CLKEN gates both so a
+		// mid-character bus phase can neither open nor close the window.
+		if(CLKEN) begin
+			if(rfd_r0_widen_at_last_line)
+				rfd_r0_pending <= 1;
+			else if(hcc_end)
+				rfd_r0_pending <= 0;
 		end
 		// RFD#10, the optional "1-B" chip variant from section 11.6.2
 		// p.89, is deliberately not modeled: this baseline implements the
@@ -230,10 +279,15 @@ always @(posedge CLOCK) begin
 		rfd_vma_flag <= 0;
 		rfd_parity_flag <= 0;
 		rfd_frame_parity <= 0;
+		rfd_r0_pending <= 0;
 	end
 end
 
-assign field_count_tick = (hcc_next == {1'b0, R0_h_total[7:1]});
+// The suppressed-wrap edge continues the same line, so it must not double
+// as an odd-field count tick even if the extended total makes the
+// half-line comparison coincide.
+assign field_count_tick = (hcc_next == {1'b0, R0_h_total[7:1]}) &
+                          ~rfd_r0_extend;
 
 // ACCC v1.10 sections 16.1/16.4.2: while adjustment continues, C4 reaches
 // row+1 at a C9 wrap and may fire VSYNC there.  On the adjustment-ending
@@ -282,9 +336,10 @@ always @(posedge CLOCK) begin
 			r6_border_condition <= 1;
 		end
 
-		if(CLKEN && hcc_last) begin
-			// A row transition can assert or clear the condition on this same
-			// C0=R0 edge, so sample the resulting state rather than the old flop.
+		if(CLKEN && hcc_end) begin
+			// A row transition can assert or clear the condition on this
+			// same line-end edge, so sample the resulting state rather than
+			// the old flop.
 			if(row_new && frame_new_w) status_bit5_r <= 0;
 			else if(row_new && row_next == R6_v_displayed) status_bit5_r <= 1;
 			else status_bit5_r <= r6_border_condition;
