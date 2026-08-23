@@ -40,8 +40,8 @@ merged into the same behavioral PR.
   flagged ⚠ (visual-tier diagrams). v1.9 is disregarded — historical only.
 - The v1.10 documentation rebaseline and the deterministic F12/F4/F8 milestones are complete;
   F9 closure is merged into this branch (`t12a`/`t12b`: exact-C0==R0 write → C4=39/C9=8 and
-  its windowed companion → C4=38/C9=8, ACCC p.82). The next classic checkpoint is F6 option C
-  Stage 1 (`accuracy/f6-decision-gate.md`), then F7 RFD, then F10 fixtures.
+  its windowed companion → C4=38/C9=8, ACCC p.82). F6 Stage 2/2b is complete; F13 is
+  hardware-blocked. The next independent classic checkpoint is F7 RFD, then F10 fixtures.
 
 The current branch is a useful staging branch, not a requirement to publish one large PR.
 The commits may be rearranged into the small sequences below before publication.
@@ -164,17 +164,14 @@ Module/key names are SHAKER 2.6 menu entries.
 
 ### F6 decision gate
 
-The full options analysis, corrected interface evidence, staged plan, and revert conditions
-live in `accuracy/f6-decision-gate.md` (2026-08-22). Summary: F6 documents a half-character
-border byte; the original "character-granular interface" premise was wrong — the GA40010
-recreation samples DISPEN twice per microsecond, so a char-aligned DE pulse (exact pin
-behaviour) plus the existing GA pipeline may reproduce the 0.5 µs result with no netlist
-change. Update 2026-08-23: Renaud picked option C and Stage 1 (exact pin behaviour,
-type-0 substituted border start + SKEW-DISPTMG displacement) landed on
-`accuracy/a3-f6-stage1` with vectors t10a-t10e satisfying this gate's `t10` requirement;
-Stage 2 seam-width measurement is pending before the result may be described as exact.
-The one-character approximation stays available as a fallback. Own commit/PR at C4,
-revertible, never described as exact unless the SHAKER Module A `(O)` photo comparison says so.
+The full options analysis, evidence, staged plan, and revert conditions live in
+`accuracy/f6-decision-gate.md`. Stage 1 landed a full-character type-0 DE gap plus
+SKEW-DISPTMG handling (`accuracy/a3-f6-stage1`, t10a-t10e). Stage 2 rendered a 16-mode-2-px
+(1 µs) seam. Stage 2b's visual reading of ACCC pp.186/195 establishes that the documented
+0.5 µs belongs to a sub-character CRTC DE pulse; test/production CRTC clock phase matches
+and both GA buffer paths agree. Formal finding F13 is BLOCKED-PENDING-HARDWARE-EVIDENCE:
+SHAKER Module A `(O)` plus a DE-pin capture if possible. Stage 1 remains the presence/type/
+skew approximation and must not be described as exact.
 
 ### F10 scope gate
 
@@ -310,17 +307,15 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
-2. Classic stream: F9 closure is merged (`t12a`/`t12b`) and F6 option C Stage 1 landed on
-   `accuracy/a3-f6-stage1` (exact type-0 pin behaviour plus vectors t10a-t10e). Next: F6
-   Stage 2 seam-width measurement, then F7 RFD including the B6 disarm path and the A1
-   VSYNC-corner fix. F10 stays fixture-gated behind its PDF re-checks.
+2. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
+   and is BLOCKED-PENDING-HARDWARE-EVIDENCE; it does not block F7 RFD (B6 disarm + A1
+   VSYNC-corner fix). F10 stays fixture-gated behind its PDF re-checks.
 3. Plus stream: P0 done on `plus/p0-parser-wiring` (MMU windows, /EXP definition, CPR
    parsing live against the accepted P-1 service/SDRAM contract). Next: P1 CRTC3
    foundation. Do not combine Plus video with the classic stream.
-4. F6 proceeds per the staged option C plan in `accuracy/f6-decision-gate.md`: Stage 1 is
-   done (the GA samples DISPEN at byte phase, so it was an exact type-0 pin change with no
-   Gate Array netlist edit expected); Stage 2 measures the seam; Stage 3 glue work happens
-   only if the measured seam comes out 1 µs.
+4. F6 proceeds per `accuracy/f6-decision-gate.md`: Stage 1 is the full-character
+   presence/type/skew approximation; Stage 2 measured 1 µs; Stage 2b assigns the documented
+   0.5 µs to the CRTC DE phase. No CRTC, GA, or glue work before F13's hardware gate.
 5. Common dependencies for both streams (harness helpers, shared docs) land on
    `accc-review-and-fixes`; the running stream branches (`accuracy/a3-f6-stage1`,
    `plus/p0-parser-wiring`) rebase onto it rather than stacking.

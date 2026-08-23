@@ -222,20 +222,22 @@ General implementation rules for all fix prompts:
   2'b11. Type 1 has no such term (rows merge; §17.6.2 p.186-187). Protected by
   t10a-t10e. Residual: the R0=0 alternating-byte extreme (p.186) is not modeled — the
   frozen C0 holds DISPTMG off continuously; needs a toggle mechanism in a later stage.
-  Stage 2 (seam-width measurement via the GA co-simulation harness or SHAKER) is pending;
-  the §19.2.5 double-R8-write disintegration cases remain out of scope.
+  Stage 2 measured 16 mode-2 px (1 µs) through the GA co-simulation route. Stage 2b's
+  visual reading of pp.186/195 established that the book requires a CRTC-side 0.5 µs
+  pulse, not GA halving of a full-character pulse; formal extension F13 below owns the
+  blocked duration/phase correction. The §19.2.5 double-R8-write disintegration cases
+  remain out of scope.
 - **Impact**: visual discriminator (ACCC §28.1.6); demos doing "frame merging" rely on the
   presence (type 0) or absence (type 1) of the seam.
 - **Confidence: high** for the basic byte; the half-µs phase within the character and the R8
   double-write "disintegration" cases (⚠ VERIFY p.196-197) are refinements.
-- **SUPERSEDED (2026-08-22): the fix prompt's integration premise below is wrong.** Its claim
+- **SUPERSEDED twice (2026-08-22 / Stage 2b 2026-08-23):** the fix prompt's claim
   that "DE is consumed by the GA at 1µs granularity here, so a full-character border byte is
-  the achievable approximation" was an unverified engineering assumption, not an ACCC rule.
-  The code-aware correction is authoritative: `docs/accuracy/f6-decision-gate.md` shows the
-  GA40010 recreation samples DISPEN at byte/pixel phase (`rtl/GA40010/ga40010.sv` DISPEN_BUF
-  latch, twice per µs), so the exact half-character pin behaviour is achievable with no Gate
-  Array change; residual seam width belongs to downstream GA/glue measurement. **Do not
-  implement the prompt as written** — follow the staged option C plan in
+  achievable approximation" was wrong. The first correction then wrongly assumed all real
+  DISPTMG edges were character-aligned and assigned the half-byte to the GA pipeline.
+  Stage 2b is authoritative: visual ACCC pp.186/195 specify a sub-character CRTC signal;
+  test/production CRTC clock phase matches and both GA paths agree. **Do not implement the
+  prompt as written** — follow F13 and the staged option C plan in
   [f6-decision-gate.md](f6-decision-gate.md). The prompt below is retained verbatim as
   history, including its pre-split path name (`rtl/UM6845R.v`, now `rtl/CRTC.v`).
 - **Fix prompt** (superseded — see banner above; current plan: `f6-decision-gate.md`):
@@ -248,6 +250,34 @@ General implementation rules for all fix prompts:
   > like a natural border edge, and R8 skew mode 2'b11 (non-output) already blanks everything.
   > Type 1: no change (already correct). Cite ACCC §17.6.2 in the comment.
 - **Verify**: V3 (DE trace with R1=R0+1: type 0 shows 1-char gap per line, type 1 none); V1.
+
+## F13. Type-0 R1>R0 blip width — pin vs GA phase ownership
+
+- **Rule** (ACCC §17.6.2 p.186, §19.2.4 p.195; visual tier 2026-08-23): for type 0 with
+  R1>R0, C0=R0 contains one DISP-ON byte followed by one BORDER byte; the BORDER signal is
+  sent 0.5 µs after C0=R0 and disabled at the following character boundary, 0.5 µs later.
+  R1=R0 is the p.185 control (full 1 µs border character). Type 1 emits no seam (p.187).
+- **Current** (`accuracy/f6stage2-soak-expand`, Stage 2/2b): Stage 1 drives DE low for a
+  full character. The GA co-sim renders 16 mode-2 px (1 µs) on 199/199 display rows across
+  two geometries; type 1 renders none. VCD evidence shows `DISPEN_BUF`, `u1008`, and
+  `border_sel` preserve that full-character input width. Candidate-owner elimination:
+  test-top phase mismatch is false (`ga40010_test.v` and `Amstrad_motherboard.v` both use
+  CCLK_EN_N/S=03; adding production's `nCLKEN` connection does not move the result);
+  original async and synchronous GA paths transition identically; ACCC nuance is ruled out
+  by the p.186 chronogram plus p.195 prose. Remaining owner: CRTC-side sub-character DE
+  phase.
+- **Impact**: the §28.1.6 presence/absence discriminator is implemented, but type-0 seam
+  width/phase is 2x wrong. SHAKER Module A (O) is the hardware gate; effects relying on the
+  exact byte seam may differ despite passing the coarse type discriminator.
+- **Confidence: high for document/mechanism ownership; hardware confirmation pending.**
+  Multimodal source reading plus agreement between the original async and synchronous
+  GA buffer/sequencer realizations (which feed the same `video` module) excludes a
+  path-specific discrepancy for the tested full-character pulse. It does not substitute
+  for the proposed half-character hardware stimulus; real hardware remains authoritative.
+- **Fix prompt: BLOCKED-PENDING-HARDWARE-EVIDENCE.** Do not change CRTC, GA, or glue RTL.
+  Capture SHAKER Module A (O) on a real type-0 CPC and, if possible, the CRTC DE pin: expected
+  book result is an 8-mode-2-px seam with DE low only for the second byte of C0=R0. Record
+  any disagreement as evidence before selecting among the already-tested candidate owners.
 
 ## F7. RFD ("Rupture For Dummies") — CRTC 1 frame-parity address-reload quirk — NOT implemented
 

@@ -27,6 +27,10 @@ only needed if the seed, sampled field set/order, or event schedule changes.
 (2026-08-23 note: the F6 Stage 1 behaviour change on `accuracy/a3-f6-stage1` later re-minted
 the golden value to `0x326ea81358e7d88f`; `5b5004ff70148443` remains the correct expectation
 for the commits of these two branches.)
+(Later the same day, review issue 4 remediation: the sampled field set gained the type-0
+partial-VSYNC holdoff latch and the two type-1 status flops — no RTL change — re-minting
+the current golden value to `0xf5f8ae01ffdf928d`; both earlier values remain the correct
+expectations for their own commits.)
 
 ## Branch 2 — `accuracy/crtc-type-split`
 
