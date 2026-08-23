@@ -180,7 +180,15 @@ reg        in_adj;
 
 reg  [7:0] hcc;
 wire       hcc_last  = hcc == R0_h_total;
-wire [7:0] hcc_next  = hcc_last ? 8'h00 : hcc + 1'd1;
+// ACCC v1.10 section 13.7.1.2 p.124: a type-1 R0-widening write landing on
+// the C0==R0 comparator edge of the frame's last line defers that line end
+// (the type-1 engine raises rfd_r0_extend for that one edge), so the line
+// runs on into the widened remainder and ends at the new total instead.
+// hcc_end is the effective line-end strobe every line-event consumer uses;
+// raw hcc_last stays for terms whose documented semantics are tied to the
+// comparator edge itself.
+wire       hcc_end   = hcc_last & ~(CRTC_TYPE & e1_rfd_r0_extend);
+wire [7:0] hcc_next  = hcc_end ? 8'h00 : hcc + 1'd1;
 
 reg  [4:0] line;
 reg  [6:0] row;
@@ -231,6 +239,7 @@ wire       e1_adj_from_row0;
 wire       e1_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
 wire       e1_vsync_line_fire, e1_r7_write_fire, e1_r6_vde_write, e1_r6_vde_value;
 wire       e1_r6_vder_write, e1_r6_vder_value, e1_status_bit5;
+wire       e1_rfd_r0_extend;
 wire [4:0] e1_line_next, e1_c5_next;
 wire [6:0] e1_row_next;
 wire [1:0] e1_de_index;
@@ -242,7 +251,7 @@ crtc_type1_engine crtc_type1_engine
 	ENABLE, nCS, R_nW, RS, DI, addr,
 	R0_h_total, R1_h_displayed, R3_h_sync_width, R4_v_total,
 	R5_v_total_adj, R6_v_displayed, R7_v_sync_pos, R8_interlace, R9_v_max_line,
-	hcc, hcc_next, hcc_last, line, row, c5, in_adj, crtc1_adj_from_row0,
+	hcc, hcc_next, hcc_last, hcc_end, line, row, c5, in_adj, crtc1_adj_from_row0,
 	VSYNC_r, vsync_allow, hsc, vde_r,
 	e1_line_last, e1_line_new, e1_line_next, e1_c5_next,
 	e1_row_last, e1_row_frame_last, e1_row_next, e1_row_new, e1_frame_adj,
@@ -251,6 +260,7 @@ crtc_type1_engine crtc_type1_engine
 	e1_field_count_tick, e1_hsync_off, e1_de_index, e1_vsync_line_fire,
 	e1_vsc_load, e1_r7_write_fire,
 	e1_r6_vde_write, e1_r6_vde_value, e1_r6_vder_write, e1_r6_vder_value,
+	e1_rfd_r0_extend,
 	e1_status_bit5
 );
 
@@ -335,7 +345,7 @@ always @(posedge CLOCK) begin
 		if(row_addr_save) row_addr <= row_addr_r; // save current pointer
 
 		if(line_new & !row_addr_save) row_addr_r <= row_addr; // restore the pointer, take care of simultaneous saving and restoring
-		if(!hcc_last)                 row_addr_r <= row_addr_r + 1'd1;
+		if(!hcc_end)                  row_addr_r <= row_addr_r + 1'd1;
 
 		if(crtc0_reload) begin
 			row_addr <= {R12_start_addr_h, R13_start_addr_l};
@@ -370,6 +380,10 @@ always @(posedge CLOCK) begin
 
 		if (CLKEN) begin
 			if(line_new)                   hde <= 1;
+			// hcc_next carries the post-mux continuation value at a
+			// section 13.7.1.2 suppressed-wrap edge, so this comparison
+			// sees the extended line's genuine roll-into-R1 display end
+			// (ACCC v1.10 section 6.1.3 p.33) with no special case.
 			if(hcc_next == R1_h_displayed) hde <= 0;
 
 			if(HSYNC) hsc <= hsc + 1'd1;
