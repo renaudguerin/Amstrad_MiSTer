@@ -243,9 +243,9 @@ fixtures; both are separately gated. F13 waits for hardware and does not block t
   cross-checked entry by entry during extraction against this repo's own
   ga40010 DAC equations — all 32 agree; byte/pixel layouts from the Grimware
   Gate Array page (already cited by color_mix.sv), corroborated by the
-  netlist cidx taps ({r1,r5,r3,r7}/{r3,r7}/{r7}). Vectors t05a-t05g pin the
-  ROM sweep, all four mode layouts, border/sync blanking, and the
-  after-next-HSYNC mode latch. Explicit unverified P1 model assumption
+  netlist cidx taps ({r1,r5,r3,r7}/{r3,r7}/{r7}). Vectors t05a-t05h pin the
+  ROM sweep, all four mode layouts, border/sync blanking, the
+  after-next-HSYNC mode latch, and the per-character byte-latch phase. Explicit unverified P1 model assumption
   (t04i discipline): the first pixel of a character's even byte is presented
   on dot 0 with one-dot registered output latency; the real GA's pipeline
   latencies relative to its load/DISPEN cadence (Plus INKR effects ~1/4
@@ -349,7 +349,7 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    §13.7.1.2 R0-widening trigger or the F10 fixtures; F10 stays fixture-gated.
 5. Plus: P0 and the P1 CRTC3 counter/timing foundation are merged, and the
    P1 locked-ASIC pixel path is implemented on `plus/p1-pixel-path`
-   (legacy-colour ROM + pen pipeline, vectors t05a-t05g). Next Plus steps:
+   (legacy-colour ROM + pen pipeline, vectors t05a-t05h). Next Plus steps:
    the manual hardware checkpoint named above (real `.cpr` boot with a Plus
    model selected, classic re-checked side by side), then the P1
    motherboard-integration commit (Risk-1 CPU/WAIT contract decision,
