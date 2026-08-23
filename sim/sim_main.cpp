@@ -413,6 +413,12 @@ public:
                     root.CRTC__DOT__crtc_type1_engine__DOT__rfd_frame_parity);
     }
 
+    void expect_type1_rfd_pending(const std::string& expectation,
+                                  bool expected) const {
+        expect_byte(expectation, expected,
+                    dut_->rootp->CRTC__DOT__crtc_type1_engine__DOT__rfd_r0_pending);
+    }
+
     std::uint16_t ma() const {
         return dut_->MA;
     }
@@ -3360,6 +3366,330 @@ void test_type1_rfd_final_line_write_enters_adjustment(TestBench& test) {
         true, true, false);
 }
 
+// ---------------------------------------------------------------------------
+// t13e-t13k: F7 residual -- CRTC-1 R0-widening RFD trigger route
+// (ACCC v1.10 section 13.7.1.2 p.124; digest-01 section 8.6)
+//
+// Fixture geometry, derived on paper: R0=7 gives 8 characters per line
+// (C0=0..7), R4=1 gives rows C4={0,1}, R9=1 gives lines C9={0,1}, so the
+// frame is 4 lines and its true last line carries C4=1, C9=1 with R5=0.
+// After reset, run_characters(24) lands on that line's first character and
+// run_characters(7) reaches C0=R0=7.  A CLKEN-aligned write there lands on
+// the exact C0==R0 rollover edge, matching the OUT(C),reg8 alignment the
+// recipe requires.
+// ---------------------------------------------------------------------------
+
+void test_type1_rfd_r0_widen_without_cancel_ends_normally(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(0);
+    test.reset();
+
+    // ACCC v1.10 section 13.7.1.2 p.124: widening R0 exactly at C0==R0 on
+    // the last line opens a trigger window, but arming additionally needs
+    // the last-line condition to be cancelled during the widened remainder.
+    // With no R9/R4 rewrite the window must expire harmlessly at the
+    // extended line's actual end (C0=9 under the new R0) and the frame must
+    // restart through the ordinary path: paper says C4 returns to 0, C9 to
+    // 0, MA reloads from R12/R13 at the frame boundary, and neither RFD
+    // flag ever sets.  The restart is a genuine C4=C9=C0=0 boundary with
+    // odd R9, so section 11.6.1 frame-parity tracking still toggles even
+    // though nothing is armed.
+    test.run_characters(24);
+    test.expect_c4("R0-widen fixture reaches the last row", 1);
+    test.expect_ra("R0-widen fixture reaches the last line", 1);
+    test.run_characters(7);
+    test.write_selected_register_at_clken(9);
+    test.expect_type1_rfd_pending(
+        "widening R0 write on the last line opens the trigger window", true);
+    test.expect_type1_rfd_state(
+        "opening the window alone does not arm RFD", false, false, false);
+    // The comparator match is overridden this rollover, so C0 runs 7 -> 8
+    // -> 9 and the deferred line end fires on the second following edge.
+    test.run_characters(2);
+    test.expect_c4("window expiry ends the frame normally (C4)", 0);
+    test.expect_ra("window expiry ends the frame normally (C9)", 0);
+    test.expect_ma(
+        "window expiry keeps the ordinary frame-start reload", 0x1234);
+    test.expect_type1_rfd_pending("expired window closes", false);
+    test.expect_type1_rfd_state(
+        "no cancellation means no RFD arm", false, false, true);
+}
+
+void test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(0);
+    test.reset();
+
+    // ACCC v1.10 section 13.7.1.2 p.124, R9 variant ("C9 != R9 by line
+    // end"): widen R0 7->9 on the last line, then raise R9 to 3 inside the
+    // widened remainder.  At the extended end C9=1 no longer equals R9=3,
+    // so RFD arms exactly there -- not earlier -- and behaves per section
+    // 11.6: both flags set, VMA reloads from R12/R13 on that same rollover,
+    // while C9 advances past the old value without a row wrap (paper:
+    // C4 stays 1, C9 becomes 2).  The raised R9 extends the row by two
+    // lines; on the first C9==R9 line the case-1 parity state suppresses
+    // the C0=R1 VMA' save, so the VMA-source flag survives the next frame
+    // boundary and odd R9 toggles the frame parity there.
+    test.run_characters(24);
+    test.run_characters(7);
+    test.write_selected_register_at_clken(9);
+    test.write_register(9, 3);
+    // C0 continues 7 -> 8 -> 9; the cancellation write lands inside the
+    // widened remainder and arming fires at the deferred line end.
+    test.run_characters(2);
+    test.expect_type1_rfd_state(
+        "R9-cancelled widened last line arms both RFD flags",
+        true, true, false);
+    test.expect_type1_rfd_pending("arming closes the window", false);
+    test.expect_ma("armed RFD reloads R12/R13 at the extended end", 0x1234);
+    test.expect_c4("cancelled condition does not end the frame", 1);
+    test.expect_ra("C9 runs past the old R9 without wrapping", 2);
+    test.run_characters(20);
+    test.expect_c4("raised R9 defers the frame end by one line pair", 0);
+    test.expect_ra("deferred frame boundary resets C9", 0);
+    test.expect_ma("frame start reloads R12/R13 as usual", 0x1234);
+    test.expect_type1_rfd_state(
+        "case-1 save suppression leaves the source flag armed",
+        true, true, true);
+}
+
+void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(0);
+    test.reset();
+
+    // ACCC v1.10 section 13.7.1.2 p.124, R4 variant ("C4 != R4 by line
+    // end, C9==R9 still held"): widen R0 7->9 on the last line, then raise
+    // R4 to 2 inside the widened remainder.  At the extended end C9==R9
+    // still holds so the row boundary fires, but C4=1 no longer matches
+    // R4=2, so instead of a frame restart C4 advances past the old total
+    // (paper: C4=2, C9 wraps to 0) and RFD arms with its same-edge
+    // R12/R13 reload onto that new row start.  The frame then continues
+    // until C4 genuinely reaches the raised R4.
+    test.run_characters(24);
+    test.run_characters(7);
+    test.write_selected_register_at_clken(9);
+    test.write_register(4, 2);
+    // C0 continues 7 -> 8 -> 9; the R4 rewrite lands inside the widened
+    // remainder and arming fires at the deferred line end, whose row
+    // boundary now advances C4 instead of restarting the frame.
+    test.run_characters(2);
+    test.expect_type1_rfd_state(
+        "R4-cancelled widened last line arms both RFD flags",
+        true, true, false);
+    test.expect_type1_rfd_pending("arming closes the window", false);
+    test.expect_c4("cancelled condition advances C4 past old R4", 2);
+    test.expect_ra("row boundary still resets C9", 0);
+    test.expect_ma(
+        "armed RFD reloads R12/R13 at the continued row start", 0x1234);
+    test.run_characters(20);
+    test.expect_c4("frame ends once C4 reaches the raised R4", 0);
+    test.expect_type1_rfd_state(
+        "case-1 save suppression leaves the source flag armed",
+        true, true, true);
+}
+
+void test_type1_rfd_r0_widen_restored_condition_does_not_arm(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(0);
+    test.reset();
+
+    // ACCC v1.10 section 13.7.1.2 p.124 defines both variants by the state
+    // at the line's actual end ("C9 != R9 by line end", "C4 != R4 by line
+    // end"), so a condition cancelled and then restored inside the widened
+    // remainder must not arm: paper has the frame restart normally at the
+    // extended boundary with no RFD flags set.  That restart is a genuine
+    // C4=C9=C0=0 boundary with odd R9, so section 11.6.1 frame-parity
+    // tracking toggles even though nothing is armed.
+    test.run_characters(24);
+    test.run_characters(7);
+    test.write_selected_register_at_clken(9);
+    test.write_register(9, 0);
+    test.write_register(9, 1);
+    // C0 continues 7 -> 8 -> 9; both writes land inside the widened
+    // remainder, and the restored condition makes the deferred line end
+    // an ordinary frame restart.
+    test.run_characters(2);
+    test.expect_type1_rfd_pending("window closes either way", false);
+    test.expect_type1_rfd_state(
+        "restored last-line condition does not arm RFD",
+        false, false, true);
+    test.expect_c4("restored condition ends the frame normally", 0);
+    test.expect_ra("restored condition resets C9", 0);
+    test.expect_ma(
+        "ordinary frame-start reload survives restore", 0x1234);
+}
+
+void test_type1_rfd_equal_r0_write_opens_no_window(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.select_register(0);
+    test.reset();
+
+    // ACCC v1.10 section 13.7.1.2 p.124 arms only when R0 is *widened*.
+    // An equal-value write on the same edge changes nothing about the
+    // comparator, which used the old R0: the last line still ends at that
+    // exact edge and the frame restarts through the ordinary path, whose
+    // genuine C4=C9=C0=0 boundary toggles odd-R9 parity tracking
+    // (section 11.6.1).  With no extension window, a later ordinary R9
+    // rewrite can only act through the generic equality rules (paper: the
+    // new frame's first line ends with C9=0 != R9=3, so C4 keeps its reset
+    // value 0).
+    test.run_characters(24);
+    test.run_characters(7);
+    test.write_selected_register_at_clken(7);
+    test.expect_type1_rfd_pending(
+        "equal-value R0 write opens no trigger window", false);
+    test.write_register(9, 3);
+    test.run_characters(8);
+    test.expect_type1_rfd_state(
+        "no window means no arm regardless of later writes",
+        false, false, true);
+    test.expect_c4("frame already restarted at the write edge", 0);
+}
+
+void test_type1_rfd_r0_widen_off_last_line_never_arms(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.select_register(0);
+    test.reset();
+
+    // ACCC v1.10 sections 13.5 p.121 and 13.7.1.2 p.124: any-R0 acceptance
+    // is generic type-1 behaviour, but the RFD window requires the exact
+    // last-line precondition (C4==R4, C9==R9, R5==0).  run_characters(15)
+    // lands on C0=7==R0 of line 1, where the line half of the precondition
+    // holds (C9=1==R9) but the row half fails (C4=0!=R4): widening R0
+    // there accepts the new total without opening a window, so a
+    // subsequent R4 rewrite cannot arm anything.  Paper: the write edge is
+    // an ordinary line end for line 1 -- C9==R9 holds, so C4 advances to 1
+    // and C9 wraps to 0 while R0 becomes 9, making line 2 ten characters
+    // long; its end then defers any further boundary (C9=0 != live R9).
+    test.run_characters(15);
+    test.expect_c4("off-last-line fixture sits in row 0", 0);
+    test.expect_ra("off-last-line fixture sits in line 1", 1);
+    test.write_selected_register_at_clken(9);
+    test.expect_type1_rfd_pending(
+        "widening off the last line opens no window", false);
+    test.expect_c4("line-1 wrap advances C4 at the write edge", 1);
+    test.expect_ra("line-1 wrap resets C9", 0);
+    test.write_register(4, 2);
+    test.run_characters(10);
+    test.expect_type1_rfd_state(
+        "no window on a mid-frame widening", false, false, false);
+    test.expect_c4("deferred boundary leaves the advanced C4", 1);
+}
+
+void test_type1_rfd_r0_window_does_not_survive_type_round_trip(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.select_register(0);
+    test.reset();
+
+    // The trigger window is hidden type-1 state; CRTC_TYPE is a live input
+    // whose round-trip contract (t02j/t06d/t09f/t16l) forbids carrying
+    // hidden state across a dwell on the other type.  Open the window,
+    // cancel the condition, dwell on type 0, return, and let the extended
+    // line end: paper requires NO arm despite the cancellation being in
+    // place, with the counters continuing seamlessly (C9 -> 2).
+    test.run_characters(24);
+    test.run_characters(7);
+    test.write_selected_register_at_clken(9);
+    test.expect_type1_rfd_pending("window open before the switch", true);
+    test.write_register(9, 3);
+    test.run_clock_ticks(2);
+    test.set_crtc_type(0);
+    // Hidden flops observe the type change on the next CLOCK edge.
+    test.run_clock_ticks(1);
+    test.expect_type1_rfd_pending(
+        "type-0 dwell clears the hidden window", false);
+    test.expect_type1_rfd_state(
+        "type-0 dwell clears the RFD flags", false, false, false);
+    test.set_crtc_type(1);
+    // C0 continues 7 -> 8 -> 9 across the round trip; with the window
+    // cleared the deferred line end must behave as a plain cancelled
+    // non-event: no arm, C9 advancing past the old value.
+    test.run_characters(2);
+    test.expect_type1_rfd_state(
+        "window does not survive the round trip", false, false, false);
+    test.expect_c4("counters continue across the round trip", 1);
+    test.expect_ra("counters continue across the round trip", 2);
+}
+
+void test_type1_rfd_r0_widen_line_gate_never_arms(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.select_register(0);
+    test.reset();
+
+    // Companion to t13j exercising the other half of the section
+    // 13.7.1.2 p.124 last-line precondition.  Paper: run_characters(23)
+    // lands on C0=7==R0 of line 2, where the row half holds (C4=1==R4)
+    // but the line half fails (C9=0!=R9).  Widening there opens no
+    // window; the write edge wraps ordinarily (C9=0 does not match R9, so
+    // no row boundary -- C4 keeps its value while C9 advances to 1), R0
+    // becomes 9, and a later cancellation-flavoured R9 rewrite still has
+    // nothing to act in.  The extended line ends with C9 advancing to 2.
+    test.run_characters(23);
+    test.expect_c4("line-gate fixture sits in row 1", 1);
+    test.expect_ra("line-gate fixture sits in line 2", 0);
+    test.write_selected_register_at_clken(9);
+    test.expect_type1_rfd_pending(
+        "widening with C9!=R9 opens no window", false);
+    test.expect_c4("ordinary wrap leaves the row untouched", 1);
+    test.expect_ra("ordinary wrap advances C9", 1);
+    test.write_register(9, 3);
+    test.run_characters(10);
+    test.expect_type1_rfd_state(
+        "no window means the rewrite cannot arm", false, false, false);
+    test.expect_c4("no row boundary occurred anywhere", 1);
+    test.expect_ra("extended line end advances C9", 2);
+}
+
+void test_type1_rfd_r0_extend_blanks_from_c0_r1(TestBench& test) {
+    test.set_crtc_type(1);
+    RegisterProgram registers = kRfdRegisters;
+    registers[1].second = 8;
+    program_registers(test, registers);
+    test.select_register(0);
+    test.reset();
+
+    // ACCC v1.10 section 6.1.3 p.33: DISPEN enables at C0==0 and disables
+    // at C0==R1.  With R1=8==R0_old+1, the section 13.7.1.2 continuation
+    // makes the extended line genuinely reach C0==R1 in its first widened
+    // character, so the display must blank exactly there (review finding
+    // F-1).  Paper: one full fixture frame runs first so the vertical
+    // display state is set; the trigger write lands on C0=7 of the last
+    // line, whose whole pre-extension length stays displayed because R1
+    // exceeds R0; the suppressed wrap carries C0 into 8==R1 and DE must
+    // drop on that same edge; the deferred end restarts the frame and
+    // display resumes at the next C0=0.
+    test.run_characters(32);
+    test.run_characters(24);
+    test.expect_ra("DE fixture reaches the last line", 1);
+    test.run_characters(7);
+    test.expect_de_high("C0=7 is still displayed when R1 exceeds R0");
+    test.write_selected_register_at_clken(9);
+    test.expect_type1_rfd_pending(
+        "widening opens the expected window", true);
+    test.expect_de_low("display blanks entering widened C0=8==R1");
+    test.run_characters(1);
+    test.expect_de_low("widened remainder stays blanked");
+    test.run_characters(1);
+    test.expect_de_high("deferred end restarts display at C0=0");
+}
+
 void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
     test.set_crtc_type(0);
 
@@ -4480,6 +4810,33 @@ int main(int argc, char** argv) {
         {"t13d_type1_rfd_final_line_write_enters_adjustment",
          "ACCC v1.10 sections 11.4 p.86 and 11.6 p.87; F7 rollover race", false,
          test_type1_rfd_final_line_write_enters_adjustment},
+        {"t13e_type1_rfd_r0_widen_without_cancel_ends_normally",
+         "ACCC v1.10 sections 13.5 p.121 and 13.7.1.2 p.124; F7 residual",
+         false, test_type1_rfd_r0_widen_without_cancel_ends_normally},
+        {"t13f_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end",
+         "ACCC v1.10 section 13.7.1.2 p.124 (digest-01 section 8.6); F7 residual",
+         false, test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end},
+        {"t13g_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4",
+         "ACCC v1.10 section 13.7.1.2 p.124 (digest-01 section 8.6); F7 residual",
+         false, test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4},
+        {"t13h_type1_rfd_r0_widen_restored_condition_does_not_arm",
+         "ACCC v1.10 section 13.7.1.2 p.124 variant definitions; F7 residual",
+         false, test_type1_rfd_r0_widen_restored_condition_does_not_arm},
+        {"t13i_type1_rfd_equal_r0_write_opens_no_window",
+         "ACCC v1.10 section 13.7.1.2 p.124 widened-only gate; F7 residual",
+         false, test_type1_rfd_equal_r0_write_opens_no_window},
+        {"t13j_type1_rfd_r0_widen_off_last_line_never_arms",
+         "ACCC v1.10 sections 13.5 p.121 and 13.7.1.2 p.124; F7 residual",
+         false, test_type1_rfd_r0_widen_off_last_line_never_arms},
+        {"t13k_type1_rfd_r0_window_does_not_survive_type_round_trip",
+         "ACCC v1.10 section 13.7.1.2 p.124; F7 live-type contract", false,
+         test_type1_rfd_r0_window_does_not_survive_type_round_trip},
+        {"t13l_type1_rfd_r0_widen_line_gate_never_arms",
+         "ACCC v1.10 sections 13.5 p.121 and 13.7.1.2 p.124; F7/F-2", false,
+         test_type1_rfd_r0_widen_line_gate_never_arms},
+        {"t13m_type1_rfd_r0_extend_blanks_from_c0_r1",
+         "ACCC v1.10 sections 6.1.3 p.33 and 13.7.1.2 p.124; F-1", false,
+         test_type1_rfd_r0_extend_blanks_from_c0_r1},
         {"t20a_type0_normal_frame_reloads_at_frame_start_only",
          "ACCC v1.10 sections 17.4.1 and 20.3.1; F11h", false,
          test_type0_normal_frame_reloads_at_frame_start_only},

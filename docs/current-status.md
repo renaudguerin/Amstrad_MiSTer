@@ -11,7 +11,9 @@ classic work. The earlier whole-branch reviews are recorded in
 `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
 which accepted all pass-2 remediations); the 2026-08-23 review of the F7/A1/A2 and Plus
 follow-up deltas is `accuracy/f7-plus-followups-independent-review.md`, and both
-review-debt rows are cleared. The detailed behavioral rules remain in
+review-debt rows are cleared. The unmerged `accuracy/f7-rfd-r0-widening` branch has its own
+2026-08-23 cross-provider review, `accuracy/f7-r0-widening-independent-review.md`, which
+returned NOT CLEAR with two blocking findings. The detailed behavioral rules remain in
 `accuracy/`; the long-term ordering remains in `implementation-roadmap.md`.
 
 ## How hardware testing fits the loop
@@ -152,11 +154,12 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 100 required CRTC passes, zero expected failures, no
+- The current local gate reports 109 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures (verified 2026-08-23, Verilator 5.050). The randomized
-  equivalence soak reproduces golden hash `0x512eaae74a628dca`, re-minted for the A2 exact-edge
-  R4 adjustment-reload suppression (previously `0x6439f9805b20acaa` from A1,
-  `0xae27f2c3c758ed87` from F7 RFD; full chain in AGENTS.md).
+  equivalence soak reproduces golden hash `0x512eaae74a628dca` (chain in AGENTS.md). The
+  §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
+  window; per review finding F-9 the soak is measurably insensitive to this region, so the
+  directed vectors — not the soak — carry the behavioral proof here.
   The Plus leaf and SDRAM integration suites are also green.
 - The core is split into a shared-state wrapper (`rtl/CRTC.v`) plus two per-type rule engines
   (`rtl/crtc_type0_engine.v`, `rtl/crtc_type1_engine.v`); live `CRTC_TYPE` round-trips stay
@@ -174,11 +177,18 @@ For a first MiSTer pass:
   arming at C0=R0, VMA-from-R12/R13 on every row, parity-gated VMA' saves with odd-R9
   frame-parity alternation, successful-save disarm, and the B6 R1>R0 bare-C9 disarm.
   A1 closes the adjustment-ending VSYNC corner (`t08m`, corrected `t08g`) and A2 implements
-  the §11.2.4 exact-C0==R0 caveat pair (`t08n`/`t08o`). The §13.7.1.2 R0-widening trigger and
-  RFD#10's "1-B" variant remain explicitly out of scope.
+  the §11.2.4 exact-C0==R0 caveat pair (`t08n`/`t08o`). The §13.7.1.2 R0-widening trigger —
+  the second route — landed 2026-08-23 (`t13e`-`t13m` after cross-provider review): a strictly
+  widening R0 write on the C0==R0 edge of the frame's last line defers that line end (wrapper
+  `hcc_end`), and a last-line condition cancelled by R9/R4 rewrites before the extended end
+  arms the same two flags there. The review's blocking findings are remediated in-branch:
+  the vestigial display-end guard is removed (`t13m` pins DE blanking at `C0==R1` on the
+  extended line) and both off-last-line precondition halves now have load-bearing vectors
+  (`t13j` retimed, `t13l` added). RFD#10's "1-B" variant and the scope notes in
+  `audit-findings.md` remain as documented there.
 
-The next classic work is either the residual §13.7.1.2 R0-widening trigger or the F10
-fixtures; both are separately gated. F13 waits for hardware and does not block them.
+The next classic work is the F10 fixtures; F10 stays fixture-gated behind its PDF re-checks,
+and F13 waits for hardware. Neither blocks the other stream.
 
 ## Completed Plus foundations
 
@@ -321,11 +331,21 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
 4. Classic: F6 Stage 2/2b is complete per `accuracy/f6-decision-gate.md`; F13 records the
    half-character CRTC-side phase mismatch and is BLOCKED-PENDING-HARDWARE-EVIDENCE.
    F7 RFD (R5 route, B6 disarm, A1, A2) is implemented and independently reviewed
-   (`accuracy/f7-plus-followups-independent-review.md`). Next classic work is the residual
-   §13.7.1.2 R0-widening trigger or the F10 fixtures; F10 stays fixture-gated.
+   (`accuracy/f7-plus-followups-independent-review.md`), and the §13.7.1.2 R0-widening
+   trigger is implemented with its blocking review findings remediated
+   (`accuracy/f7-r0-widening-independent-review.md`, vectors `t13e`-`t13m`). Before merging
+   the branch, run an independent re-review of the remediation delta (guard removals plus
+   `t13j`/`t13l`/`t13m`) to clear the open `review-debt.md` row. Next classic work after
+   that is the F10 fixtures; F10 stays fixture-gated.
 5. Plus: P0 and the P1 CRTC3 counter/timing foundation are merged. Next Plus steps: the
    manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
    classic re-checked side by side), then the P1 remainder per
    `docs/plus/architecture.md` §4/§7 (pixel path plus motherboard CPU/WAIT contract), then
-   P2. All review-debt rows are cleared as of 2026-08-23.
+   P2. The `accuracy/f7-rfd-r0-widening` branch is reviewed but **not merged**: its
+   cross-provider review (Claude Opus 5 on an Ox-Alpha-authored delta,
+   `accuracy/f7-r0-widening-independent-review.md`) returned NOT CLEAR. Its review-debt row
+   stays open until F-1 (the `hcc_next == R1_h_displayed` guard suppressing a real
+   `C0==R1` DISPEN event when `R1 == R0+1`) and F-2 (`t13j` never reaching a `C0==R0` edge,
+   leaving the last-line gate untested) are remediated on that branch. All other rows are
+   cleared.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
