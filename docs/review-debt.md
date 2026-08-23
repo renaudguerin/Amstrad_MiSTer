@@ -1,9 +1,9 @@
 # Independent review debt
 
-**Status: earlier branch rows cleared; `accuracy/f7-rfd` outstanding 2026-08-23.** The
-independent pass-3 verification accepted the earlier remediations at reviewed tip `d64e449`.
-F7, A1, and A2 are implemented, and their branch-level review is deliberately deferred to
-the later independent pass requested by the user.
+**Status: earlier branch rows cleared; `accuracy/f7-rfd` and `plus/p1-followups`
+outstanding 2026-08-23.** The independent pass-3 verification accepted the earlier
+remediations at reviewed tip `d64e449`. Both later branches are implemented and merged into
+`accc-review-and-fixes`, with review deliberately deferred to the next independent pass.
 
 This file tracks work that was merged without the independent cross-provider review the
 project normally requires. It exists because that review was unavailable at the time, not
@@ -164,8 +164,8 @@ hardest-reading guidance inline).
 | `plus/p0-parser-wiring` | Production parser → cartridge service → SDRAM → MMU/CPU-WAIT path. Review hardest: cancellation, late acknowledgements, load-time MMU waiting, and classic-mode isolation. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 traced cancellation/rearm and load replay, adversarially checked fail-closed parsing, and accepted the production-sized integration proof. |
 | `docs/split-differential-evidence` | Frozen `418aa68` pre-split vs `2d4f880` split comparator and preserved 45,498,863-sample run. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 reproduced the committed run including `r6_border_condition`; no divergence. |
 | `plus/p1-crtc3-foundation` | Plus P1 CRTC3 counter/timing foundation, now 27 vectors (`t01a`-`t04h`). Review hardest: live R2 HSYNC collision, save/reload priority, vertical equality/overflow rules, and the explicitly unverified t01e R0-shrink model assumption. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 verified the live-R2 fix directly against ACCC p.151 and accepted t04a's test isolation. The t01e and R3=0 collision cases remain labelled or queued as model assumptions, not review debt. |
-| `accuracy/f7-rfd` | Type-1 F7 R5-trigger RFD, A1 adjustment-ending VSYNC correction, and A2 §11.2.4 caveat pair. Review hardest: same-edge R5/rollover ordering; parity/save disarm; B6 bare-C9 timing; the §§16.1/16.4.2 vs §28.1.1 t08g source tension; and A2 exact-R0 write discrimination. | **OUTSTANDING — review after the three focused commits at the branch tip.** User requested the independent pass be deferred; do not use Claude for this session. |
-| `plus/p1-followups` | Pass-3 Q1 standalone GA40010 target tooling and Q3 R3l=0 collision-assumption labelling/vector. Review hardest: `VERILATOR_BIN` override isolation, non-fatal warning policy, and whether t04i pins the current assumption without implying an ACCC oracle. | **PENDING — Q1/Q3 implemented and rebased onto the integrated F7 base, pending integration/review.** Post-rebase gates must confirm the canonical classic soak `0x512eaae74a628dca`. |
+| `accuracy/f7-rfd` | Type-1 F7 R5-trigger RFD, A1 adjustment-ending VSYNC correction, and A2 §11.2.4 caveat pair. Review hardest: same-edge R5/rollover ordering; parity/save disarm; B6 bare-C9 timing; the §§16.1/16.4.2 vs §28.1.1 t08g source tension; and A2 exact-R0 write discrimination. | **OUTSTANDING — implemented, merged into base, pending review.** The next independent pass should review the three focused classic commits as one delta. |
+| `plus/p1-followups` | Pass-3 Q1 standalone GA40010 target tooling and Q3 R3l=0 collision-assumption labelling/vector. Review hardest: `VERILATOR_BIN` override isolation, non-fatal warning policy, and whether t04i pins the current assumption without implying an ACCC oracle. | **OUTSTANDING — implemented, merged into base, pending review.** Merged-tree gates: standalone GA40010 target builds, 100 classic vectors plus all Plus suites pass (28 `asic_video` vectors), lint exits cleanly, and the canonical soak remains `0x512eaae74a628dca`. |
 
 The same rule applies here as everywhere else in this file: clear an entry only after a real
 independent review has run — not because later work touched the same files. The pass-3 record
