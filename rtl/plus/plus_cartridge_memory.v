@@ -13,6 +13,9 @@
 // consumed address rejections.  A rejection produces no backend request and
 // makes load_error sticky until load_begin, load_abort, detach, or cold_reset;
 // an errored session cannot be committed.
+// Dropping cpu_valid cancels that logical CPU request. Any physical SDRAM read
+// already in flight is held until acknowledgement and discarded; cpu_ready is
+// never pulsed for it. A later asserted cpu_valid is a fresh request.
 // Simultaneous controls have explicit dominance:
 // detach > load_abort > cold_reset > load_begin > load_commit.  Every asserted
 // control is consumed even when a higher-priority control wins, so a held
@@ -196,7 +199,9 @@ always @(posedge clk) begin
 		commit_pending <= 1'b0;
 		load_error     <= 1'b0;
 		load_consumed  <= load_valid;
-		cpu_consumed   <= cpu_valid;
+		// A CPU cycle held through the load is deferred, not consumed: after
+		// atomic publication it must be replayed against the new image.
+		cpu_consumed   <= 1'b0;
 		if (mem_req && !mem_ack)
 			discard_request <= 1'b1;
 		else begin
@@ -213,7 +218,8 @@ always @(posedge clk) begin
 		if (mem_req) begin
 			if (mem_ack) begin
 				mem_req <= 1'b0;
-				if (discard_request) begin
+				if (discard_request ||
+				    ((request_kind == REQUEST_CPU) && !cpu_valid)) begin
 					discard_request <= 1'b0;
 				end
 				else begin
@@ -246,6 +252,12 @@ always @(posedge clk) begin
 						end
 					endcase
 				end
+			end
+			else if ((request_kind == REQUEST_CPU) && !cpu_valid) begin
+				// The MMU ended or timed out the logical bus cycle. Keep the
+				// physical request stable until SDRAM acknowledges it, but do
+				// not let that old completion escape through cpu_ready.
+				discard_request <= 1'b1;
 			end
 		end
 		else if (load_active) begin

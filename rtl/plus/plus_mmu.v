@@ -34,8 +34,10 @@
 // ends. cart_dout is captured one edge after cart_ready because the service
 // registers data and completion on the same edge. A watchdog releases the
 // stall with open-bus FF if no answer ever arrives, so a wedged backend
-// cannot hang the machine. The Z80 deasserts MREQ/RD between bus cycles,
-// which is what terminates the ownership window.
+// cannot hang the machine. Dropping cart_valid explicitly cancels the logical
+// request; the service drains any physical SDRAM request without returning its
+// stale completion. The Z80 deasserts MREQ/RD between bus cycles, which is
+// what terminates the ownership window.
 //
 // Sources are the reference sections cited above; this module implements no
 // CRTC behaviour, so no Compendium attribution applies.

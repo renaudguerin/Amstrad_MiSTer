@@ -731,6 +731,75 @@ void test_abort_detach_and_cold_reset() {
     test.tick();
 }
 
+void test_abandoned_cpu_completion_is_discarded_and_rearms() {
+    TestBench test;
+    begin_load_and_clear(test);
+    write_loader_byte(test, 1, 0x0123, 0x41);
+    write_loader_byte(test, 2, 0x0456, 0x92);
+    commit_load(test);
+
+    test.dut().cpu_page = 1;
+    test.dut().cpu_offset = 0x0123;
+    test.dut().cpu_valid = 1;
+    test.tick();
+    test.wait_for_request();
+
+    // The logical bus cycle ends before the held physical read completes.
+    // Its later acknowledgement must be drained without a CPU completion.
+    test.dut().cpu_valid = 0;
+    test.tick(true);
+    require(test.dut().cpu_ready == 0,
+            "abandoned physical read leaked a CPU completion");
+    test.tick();
+
+    // A different logical read must issue cleanly and receive only its own
+    // backend data.
+    require(cpu_read(test, 2, 0x0456) == 0x92,
+            "service did not rearm after abandoned CPU read");
+}
+
+void test_load_begin_discards_pending_cpu_read_then_replays_held_request() {
+    TestBench test;
+    begin_load_and_clear(test);
+    write_loader_byte(test, 3, 0x0067, 0x33);
+    commit_load(test);
+
+    test.dut().cpu_page = 3;
+    test.dut().cpu_offset = 0x0067;
+    test.dut().cpu_valid = 1;
+    test.tick();
+    test.wait_for_request();
+
+    // A replacement load invalidates the old image while the physical read
+    // is still outstanding. Its acknowledgement is not the held request's
+    // post-load completion.
+    test.dut().load_begin = 1;
+    test.tick();
+    test.dut().load_begin = 0;
+    test.tick(true);
+    require(test.dut().cpu_ready == 0,
+            "load_begin leaked the old physical CPU completion");
+
+    for (unsigned index = 0; index < kClearBytes; ++index) {
+        test.acknowledge_after(index % 2);
+    }
+    test.tick();
+    write_loader_byte(test, 3, 0x0067, 0xa7);
+    commit_load(test);
+
+    // cpu_valid stayed asserted throughout the load. The logical request
+    // must reissue against the newly published image without a valid toggle.
+    test.wait_for_request();
+    const auto request = test.pending_request();
+    require(!request.write && request.address == kBase + 3 * 0x4000U + 0x0067,
+            "held CPU request did not reissue after load publication");
+    test.tick(true);
+    require(test.dut().cpu_ready == 1 && test.dut().cpu_data == 0xa7,
+            "replayed CPU request did not return new-image data");
+    test.dut().cpu_valid = 0;
+    test.tick();
+}
+
 void run_test(const char* name, void (*test)()) {
     test();
     std::cout << "PASS: " << name << '\n';
@@ -757,6 +826,10 @@ int main(int argc, char** argv) {
                  test_loader_ack_control_races);
         run_test("abort, detach, and ordinary cold reset",
                  test_abort_detach_and_cold_reset);
+        run_test("abandoned CPU completion is discarded and service rearms",
+                 test_abandoned_cpu_completion_is_discarded_and_rearms);
+        run_test("load_begin discards pending CPU read and replays held request",
+                 test_load_begin_discards_pending_cpu_read_then_replays_held_request);
     } catch (const std::exception& error) {
         std::cerr << "FAIL: " << error.what() << '\n';
         return 1;
