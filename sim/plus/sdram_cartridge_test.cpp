@@ -786,10 +786,17 @@ void test_top_level_wiring(TestState &test) {
                "Amstrad top must instantiate the Plus MMU");
     test.check(source.find(".plus_mem_wait(plus_cart_stall)") != std::string::npos,
                "cartridge stalls must reach the CPU WAIT input on the motherboard");
-    test.check(source.find("wire cart_load_begin = 1'b0") != std::string::npos &&
-                   source.find("wire cart_load_commit = 1'b0") != std::string::npos &&
-                   source.find("wire cart_load_abort = 1'b0") != std::string::npos,
-               "CPR loader controls must stay explicitly tied off until the parser joins");
+    test.check(source.find("plus_cpr_parser cpr_parser") != std::string::npos,
+               "Amstrad top must instantiate the CPR parser");
+    test.check(source.find("cpr_download = ioctl_download && (ioctl_index == 8)") !=
+                   std::string::npos,
+               "the CPR stream must own its own ioctl index (8)");
+    test.check(source.find("\"F8,CPR,Load Plus cartridge;\"") != std::string::npos,
+               "the OSD must offer a CPR cartridge entry");
+    test.check(source.find("| cpr_ioctl_wait") != std::string::npos,
+               "parser backpressure must join the ioctl download throttle");
+    test.check(source.find("wire cart_load_begin = 1'b0") == std::string::npos,
+               "the interim loader tie-off must be gone once the parser joins");
 }
 
 } // namespace
