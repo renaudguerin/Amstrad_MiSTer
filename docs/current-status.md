@@ -11,9 +11,10 @@ classic work. The earlier whole-branch reviews are recorded in
 `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
 which accepted all pass-2 remediations); the 2026-08-23 review of the F7/A1/A2 and Plus
 follow-up deltas is `accuracy/f7-plus-followups-independent-review.md`, and both
-review-debt rows are cleared. The unmerged `accuracy/f7-rfd-r0-widening` branch has its own
-2026-08-23 cross-provider review, `accuracy/f7-r0-widening-independent-review.md`, which
-returned NOT CLEAR with two blocking findings. The detailed behavioral rules remain in
+review-debt rows are cleared. The §13.7.1.2 R0-widening trigger took two cross-provider
+passes recorded in `accuracy/f7-r0-widening-independent-review.md` — pass 1 returned NOT
+CLEAR on two blocking findings, pass 2 cleared the remediation on 2026-08-24 — and the
+branch is merged, so no review-debt row is outstanding. The detailed behavioral rules remain in
 `accuracy/`; the long-term ordering remains in `implementation-roadmap.md`.
 
 ## How hardware testing fits the loop
@@ -26,9 +27,13 @@ never gates a commit.
 
 ## Hardware-test milestone
 
-`f6f09f5` is the newest successfully synthesized code milestone (GitHub Actions run
-`32645547100`); it includes all independent pass-2 code/evidence remediations through the
-residual documentation sweep. It has not been hardware-tested. `5ddddef` remains the
+`27078f4` (merge of `accuracy/f7-rfd-r0-widening`, 2026-08-24) is the newest merged code
+milestone. It is **not yet synthesized and not hardware-tested**: it adds the §13.7.1.2
+R0-widening RFD trigger on top of `f6f09f5` and touches only the CRTC wrapper and the type-1
+engine, so it needs its own Quartus run before any hardware session. `f6f09f5` remains the
+newest successfully *synthesized* code milestone (GitHub Actions run `32645547100`); it
+includes all independent pass-2 code/evidence remediations through the residual documentation
+sweep, and it has not been hardware-tested either. `5ddddef` remains the
 newest hardware-*tested* milestone, covering the
 deterministic-complete F12/F4 counter work and the CPR parser. `1a1233f` is the previous one; GitHub Actions run
 `31661330994` passed the complete Verilator gate, Quartus 17.0.2 compilation, fitter,
@@ -323,7 +328,10 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
      C5 adjustment),
    - Module A `(U)` and `(P)` (counter/border edges moved by F12/F4),
    - Module A `(5)`/`(6)`/`(7)` R13 UPDATE IN n USEC SCREENS (mechanism vectors `t20a`-
-     `t20h` now exist locally, so a divergence here maps straight to code).
+     `t20h` now exist locally, so a divergence here maps straight to code),
+   - Module C `(1)` and Module D `(9)` (RFD — both trigger routes are now implemented,
+     `t13a`-`t13m`; these are also the tests that discriminate author question 18, the
+     end-state vs write-event reading of the R0-widening cancellation).
    The first two passes produced only an aggregate impression and are not actionable.
    Confirm SHAKER's own CRTC identification agrees with the OSD selection before comparing.
 3. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
@@ -333,19 +341,13 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    F7 RFD (R5 route, B6 disarm, A1, A2) is implemented and independently reviewed
    (`accuracy/f7-plus-followups-independent-review.md`), and the §13.7.1.2 R0-widening
    trigger is implemented with its blocking review findings remediated
-   (`accuracy/f7-r0-widening-independent-review.md`, vectors `t13e`-`t13m`). Before merging
-   the branch, run an independent re-review of the remediation delta (guard removals plus
-   `t13j`/`t13l`/`t13m`) to clear the open `review-debt.md` row. Next classic work after
-   that is the F10 fixtures; F10 stays fixture-gated.
+   (`accuracy/f7-r0-widening-independent-review.md`, vectors `t13e`-`t13m`). That branch
+   passed its pass-2 cross-provider re-review on 2026-08-24 and is merged at `27078f4`, so
+   F7 is complete in full. Next classic work is the F10 fixtures; F10 stays fixture-gated
+   behind its PDF re-checks.
 5. Plus: P0 and the P1 CRTC3 counter/timing foundation are merged. Next Plus steps: the
    manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
    classic re-checked side by side), then the P1 remainder per
    `docs/plus/architecture.md` §4/§7 (pixel path plus motherboard CPU/WAIT contract), then
-   P2. The `accuracy/f7-rfd-r0-widening` branch is reviewed but **not merged**: its
-   cross-provider review (Claude Opus 5 on an Ox-Alpha-authored delta,
-   `accuracy/f7-r0-widening-independent-review.md`) returned NOT CLEAR. Its review-debt row
-   stays open until F-1 (the `hcc_next == R1_h_displayed` guard suppressing a real
-   `C0==R1` DISPEN event when `R1 == R0+1`) and F-2 (`t13j` never reaching a `C0==R0` edge,
-   leaving the last-line gate untested) are remediated on that branch. All other rows are
-   cleared.
+   P2. Every `review-debt.md` row is cleared as of 2026-08-24.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
