@@ -96,7 +96,7 @@ lags a sub-vector name.
 | t07a-t07m equality overflow and live VMA capture — implemented: R9<C9 counts C9 through 31/wrap; outside adjustment R4<C4 counts C4 through 127/wrap; a late live R9 match also feeds VMA' capture at C0=R1 | digest-01 §3/§7/§17.1 | F4, while preserving F12 arbitration |
 | t08 §28.1.1 ID: R4=36,R9=7,R5=16, R7 sweep → VSYNC ceases >37 (t0) / >39 (t1); establish adjustment/overflow prerequisites explicitly | digest-03 §28.1.1 + digest-01 §4.2/§7.1 | F4/F12 discriminator, not shortcut-only proof |
 | t09 R0=0 freeze (type 0): counters halt, no HSYNC unless R2=0, resume clean; C9=R9 entry consumes exactly one C4 increment — implemented | digest-01 §8.1 | F5/F12 boundary |
-| t10a-t10e R1>R0: type 0 one border char at C0=R0 (+MA counting/repetition), type 1 none; SKEW-DISPTMG displacement 1/2 and non-output suppression — implemented | digest-03 §17.6.2/§19.2.3/§19.2.4 | F6 Stage 1 |
+| t10a-t10e R1>R0: type 0 one **full-character Stage 1 approximation** of the border event at C0=R0 (+MA counting/repetition), type 1 none; SKEW-DISPTMG displacement 1/2 and non-output suppression — implemented; exact ACCC 0.5 µs pin timing remains F13 hardware-blocked | digest-03 §17.6.2/§19.2.3/§19.2.4 | F6 Stage 1 |
 | t11 type 1 adjustment: C9 keeps cycling (RA!), C4 increments, R5=0 doesn't end | digest-01 §4 | F8 |
 | t12a/t12b documented R4=38/R9=7 worked example pair (type 0): exact-C0==R0 R9 write leaves C4=39,C9=8; windowed write (C0∈[2,R0−1]) leaves C4=38,C9=8 — both encoded from ACCC §11.2.2 p.82 ex.3 — implemented | digest-01 §3.1/§4.2 | F9/F12 |
 | t13 RFD: R5 0→1 at C0==R0, frame-parity VMA' alternation | digest-01 §5 | F7 |

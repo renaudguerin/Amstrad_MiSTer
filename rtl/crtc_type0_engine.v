@@ -362,12 +362,14 @@ assign de_index = R8_skew;
 // Technical information sourced from the "Amstrad CPC CRTC Compendium" by
 // Longshot (CC BY-NC-ND). ACCC v1.10 section 17.6.2 (p.186): when R1>R0 the
 // C0=R1 DISPTMG-off comparison can never fire (C0 wraps at R0 first), so a
-// type-0 CRTC substitutes C0=R0 as the border-start trigger -- DISPTMG is
-// forced off for exactly that one character (the spurious interline border
-// byte) and returns on the following character through the natural
-// line-start set. Section 19.2.4 (p.195): a programmed SKEW-DISPTMG delay
-// is counted from the substituted trigger, so the wrapper must inject this
-// ahead of the delay line; mode 2'b11 (non-output) suppresses it entirely.
+// type-0 CRTC substitutes C0=R0 as the border-start trigger -- the source
+// describes a 0.5 us spurious interline border byte. Stage 1 deliberately
+// keeps this core's character-granular DE contract: the accepted model holds
+// DISPTMG off for the full 1 us character containing that trigger, rather than
+// claiming the exact half-character pin timing. F13 remains hardware-blocked
+// for that distinction. Section 19.2.4 (p.195): a programmed SKEW-DISPTMG
+// delay is counted from the substituted trigger, so the wrapper must inject
+// this ahead of the delay line; mode 2'b11 (non-output) suppresses it entirely.
 // The term is combinational by intent: section 17.3 has the C0=R1
 // comparison evaluate live, so the substitution tracks live R1/R0 writes
 // too. Gated on !CRTC_TYPE because type 1 emits no border byte at all in
@@ -376,7 +378,7 @@ assign de_index = R8_skew;
 // Recorded residual: with R0=0 the frozen C0 pins hcc==R0 permanently, so
 // this term holds DISPTMG off for every character; the book's alternating
 // display/border-byte description of that extreme (p.186) needs a toggle
-// mechanism and is deliberately left to a later F6 stage.
+// mechanism and remains outside this Stage 1 approximation.
 assign spurious_border_off = !CRTC_TYPE &&
 							 (R1_h_displayed > R0_h_total) &&
 							 (hcc == R0_h_total);
