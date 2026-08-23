@@ -188,6 +188,14 @@ the type-split refactor milestone (it forces a full read anyway).
       wrapper's SKEW-DISPTMG delay line). This INTENDED a behaviour change: golden hash
       re-minted to **`0x326ea81358e7d88f`** (same seed/sampling; delta is exactly the
       type-0 R1>R0 DE byte, protected by t10a-t10e). Suite 93 passed / lint clean.
+- [x] A3 companion vector (`t20i`) — DONE 2026-08-23 on `accuracy/a3-f6-stage1`,
+      rebased onto the post-review base (A3-point soak verified against the base-recorded
+      hash) and merged into `accc-review-and-fixes`. Closes review-debt action item A3.
+- [x] F6 option C Stage 1 — DONE 2026-08-23, same branch, merged. Implementation matches
+      the corrected interface premise (char-aligned DE edge; GA samples DISPEN at byte
+      phase — no Gate Array change). Golden hash re-minted to `0x326ea81358e7d88f` for the
+      intended delta; recorded in plan/README/guide/AGENTS.md. Next stage: Stage 2
+      seam-width measurement via the GA40010 co-simulation render.
 - [ ] Branch review note (clarification): no branch stacking is needed. Stream branches
       (`accuracy/*`, `plus/*`) cut from `accc-review-and-fixes`; the base branch itself
       carries no new review-debt rows by decision, which is only safe because its whole
@@ -204,9 +212,10 @@ the type-split refactor milestone (it forces a full read anyway).
       `0x5b5004ff70148443`. Resolutions await reviewer confirmation.
 - [ ] Expand the soak sampled field set (partial-VSYNC holdoff latch, type-1 status flops)
       and re-mint the golden hash at the next natural boundary (review Issue 4: the current
-      projection is exactly how the dev-time holdoff bug escaped it). Both stream branches
-      are pinned to `0x5b5004ff70148443`, so do not move the hash mid-stream; re-mint only
-      once they have rebased and landed, and record the minting rationale.
+      projection is exactly how the dev-time holdoff bug escaped it). The F6 Stage 1
+      behaviour change took the earlier re-mint slot (hash now `0x326ea81358e7d88f`,
+      rationale recorded); this field-expansion re-mint is still queued and must land with
+      its own minting note.
 - [ ] Plus queue: P0 parser→service/MMU/boot wiring → P1 CRTC3 foundation.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";
       F8 build `4c78603`→Module A adjustment entries + Module E "(2)"; F7→RFD entries;
@@ -234,14 +243,10 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: STOP — `accuracy/a3-f6-stage1` rebased
-onto the post-review-fix base; awaiting reviewer confirmation of the base-review resolutions
-and review of this branch's A3 + F6 Stage 1 work.** State: base tip carries the independent
-review and its fixes (6cfd4dd, 90f0cda, 72d7cf4, 4140ebb, d66ec23, c7558ae — docs +
-`rtl/GA40010/Makefile` only); GA40010 co-sim elaborates and renders from its manifest.
-`accuracy/a3-f6-stage1` adds `t20i` (A3, behaviour-preserving) and F6 option C Stage 1
-(`crtc_type0_engine.v` substituted border start + wrapper delay-line injection, vectors
-t10a-t10e red-first); suite 93 passed / lint clean / CI simulation+synthesis green per push.
+the resume point in one line here: **resume point: STOP — A3 (`t20i`) + F6 option C Stage 1
+merged into `accc-review-and-fixes`; awaiting base CI green and reviewer confirmation, then
+user review.** State: the merge (756f3ef) sits on the post-review-fix base tip; suite 93
+passed / lint clean / soak `0x326ea81358e7d88f` verified on the merged tree before push.
 Golden soak hash re-minted to **`0x326ea81358e7d88f`** for the intended F6 delta (previously
 `0x5b5004ff70148443`, which remains the correct expectation for the split-branch commits) —
 the recorded exception to "do not move the golden hash mid-stream": it moved at the planned
