@@ -46,9 +46,11 @@ make -C sim clean
   for behaviour-preserving changes: run `make -C sim soak SOAK_EXPECT=<hash>`.
   A hash change on a refactor commit means behaviour moved — stop and document
   why before proceeding.
-- There is no local Quartus path on Apple Silicon. Synthesis runs in GitHub Actions
-  (`.github/workflows/build.yml`: Verilator gate first, then pinned `raetro/quartus`
-  digest, Quartus 17.0.2). Local build options (UTM VM, Docker) are in `docs/building.md`.
+- There is no native local Quartus path on Apple Silicon. GitHub Actions runs Verilator on
+  every non-documentation push, then runs the pinned Quartus 17.0.2 container only for known
+  integration paths, the default branch, pull requests to it, tags, or a manual milestone dispatch.
+  Semantic clock/memory/RGB risks still require an exact manually dispatched build. The tiered
+  rules are in `docs/ci-testing-policy.md`; local UTM/Docker options are in `docs/building.md`.
 - Use `Amstrad.qpf` as the project file; `Amstrad_Q13.*` is a legacy alternate, ignore it.
 
 ## Core layout (since the 2026-08-22 per-type split)
