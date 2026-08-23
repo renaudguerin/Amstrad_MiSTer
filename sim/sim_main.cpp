@@ -2882,18 +2882,20 @@ void test_type1_identification_r7_38_fires(TestBench& test) {
                                seen);
 }
 
-void test_type1_identification_r7_39_fires(TestBench& test) {
-    // Type 1 keeps incrementing C4 whenever C9 reaches R9 during adjustment
-    // (section 11.2.1): C4=37 on entry, 38 after eight adjustment lines, and
-    // 39 as the sixteenth completes the R5 count.
+void test_type1_identification_r7_39_is_silent(TestBench& test) {
+    // ACCC v1.10 sections 16.1/16.4.2 and review action A1: C4=37 on
+    // adjustment entry and 38 after eight lines, but the sixteenth line ends
+    // adjustment by taking C4 directly from 38 to 0.  C4 never reaches 39,
+    // so the former final-row+1 comparator pulse was spurious.  This corrects
+    // the older §28.1.1-based oracle in this vector; the source tension is
+    // recorded in the session plan for the independent review pass.
     const bool seen = run_identification_sweep(test, 1, 39);
-    test.expect_vsync_observed("type 1 R7=39 triggers VSYNC in adjustment",
-                               seen);
+    test.expect_no_vsync_observed(
+        "type 1 R7=39 is skipped at adjustment end", seen);
 }
 
 void test_type1_identification_r7_40_is_silent(TestBench& test) {
-    // The type-1 half of the discriminator.  It holds once F8 is implemented
-    // because C4 reaches 39 on the sixteenth adjustment line and then resets to 0.
+    // R7=40 is also unreachable; A1 moves the first silent value down to 39.
     const bool seen = run_identification_sweep(test, 1, 40);
     test.expect_no_vsync_observed("type 1 R7=40 never triggers VSYNC", seen);
 }
@@ -3147,6 +3149,28 @@ void test_type1_r4_zero_adjustment_vma_reloads_on_c4_one(TestBench& test) {
     test.expect_c4("adjustment line 4 C4=2", 2);
     test.expect_ra("adjustment line 4 C9=0", 0);
     test.expect_ma("adjustment line 4 (C4=2) reloads VMA' (0x30A0) refusing R12/R13 (0x0111)", 0x30A0);
+}
+
+void test_type1_adjustment_end_does_not_fire_unreached_r7(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // ACCC v1.10 sections 16.1 and 16.4.2: VSYNC fires only when C4
+    // actually reaches R7.  On paper, R4=1/R5=2/R9=0 produces normal C4
+    // rows 0,1 followed by adjustment rows 2,3; the adjustment-ending
+    // transition is C4=3 -> 0.  C4 never reaches R7=4, so no VSYNC pulse is
+    // permitted on that boundary (review action A1).
+    constexpr RegisterProgram kRegisters = {{
+        {0, 7}, {1, 4}, {2, 6}, {3, 0x11}, {4, 1},
+        {5, 2}, {6, 2}, {7, 4}, {8, 0},    {9, 0},
+    }};
+    program_registers(test, kRegisters);
+    test.reset();
+
+    constexpr unsigned normal_and_adjustment_characters = 4 * 8;
+    const bool seen = test.vsync_within_characters(
+        normal_and_adjustment_characters + 8);
+    test.expect_no_vsync_observed(
+        "type 1 adjustment end skips unreachable R7=final-row+1", seen);
 }
 
 // ---------------------------------------------------------------------------
@@ -4363,9 +4387,9 @@ int main(int argc, char** argv) {
         {"t08f_type1_identification_r7_38_fires",
          "ACCC v1.10 sections 28.1.1 and 11.2.1; F8", false,
          test_type1_identification_r7_38_fires},
-        {"t08g_type1_identification_r7_39_fires",
-         "ACCC v1.10 sections 28.1.1 and 11.2.1; F8", false,
-         test_type1_identification_r7_39_fires},
+        {"t08g_type1_identification_r7_39_is_silent",
+         "ACCC v1.10 sections 16.1 and 16.4.2; F8/A1 supersedes old oracle", false,
+         test_type1_identification_r7_39_is_silent},
         {"t08h_type1_identification_r7_40_is_silent",
          "ACCC v1.10 section 28.1.1; F4/F8 type-1 boundary", false,
          test_type1_identification_r7_40_is_silent},
@@ -4381,6 +4405,9 @@ int main(int argc, char** argv) {
         {"t08l_type1_r4_zero_adjustment_vma_reloads_on_c4_one",
          "ACCC v1.10 section 11.2.4; F8/section 4.3 VMA reload on C4=1", false,
          test_type1_r4_zero_adjustment_vma_reloads_on_c4_one},
+        {"t08m_type1_adjustment_end_does_not_fire_unreached_r7",
+         "ACCC v1.10 sections 16.1 and 16.4.2; F8/A1", false,
+         test_type1_adjustment_end_does_not_fire_unreached_r7},
         {"t13a_type1_rfd_write_away_from_r0_stays_unarmed",
          "ACCC v1.10 section 11.6 p.87; F7 never-triggered control", false,
          test_type1_rfd_write_away_from_r0_stays_unarmed},
