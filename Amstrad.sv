@@ -621,6 +621,7 @@ wire  [1:0] cart_mem_bank;
 wire [22:0] cart_mem_addr;
 wire  [7:0] cart_mem_wdata, cart_mem_rdata;
 wire        cart_image_valid;
+wire        cart_service_busy;
 
 wire [15:0] vram_dout;
 wire [14:0] vram_addr;
@@ -1048,6 +1049,7 @@ plus_mmu plus_mmu
 	.cart_offset(plus_cart_offset),
 	.cart_ready(plus_cart_ready),
 	.cart_data(plus_cart_data),
+	.cart_busy(cart_service_busy),
 
 	.cart_own(plus_cart_own),
 	.cart_stall(plus_cart_stall),
@@ -1117,7 +1119,7 @@ plus_cartridge_memory cartridge_memory
 	.cpu_data(plus_cart_data),
 
 	.image_valid(cart_image_valid),
-	.busy(),
+	.busy(cart_service_busy),
 
 	.mem_req(cart_mem_req),
 	.mem_write(cart_mem_write),

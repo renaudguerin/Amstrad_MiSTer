@@ -24,6 +24,13 @@ module p0_boot_test_top
 	output            cpu_ready,
 	output      [7:0] cpu_data,
 
+	input             use_mmu,
+	input             mmu_mem_rd,
+	input      [15:0] mmu_A,
+	output            mmu_cart_own,
+	output            mmu_cart_stall,
+	output      [7:0] mmu_cart_dout,
+
 	output            image_valid,
 	output            service_busy,
 
@@ -58,8 +65,40 @@ wire [15:0] unused_vram_dout;
 wire  [7:0] unused_tape_dout;
 wire        unused_tape_wr_ack, unused_tape_rd_ack;
 
+wire        mmu_cart_valid, mmu_cart_ready;
+wire  [4:0] mmu_cart_page;
+wire [13:0] mmu_cart_offset;
+wire  [7:0] mmu_cart_data;
+wire        service_cpu_valid = use_mmu ? mmu_cart_valid : cpu_valid;
+wire  [4:0] service_cpu_page = use_mmu ? mmu_cart_page : cpu_page;
+wire [13:0] service_cpu_offset = use_mmu ? mmu_cart_offset : cpu_offset;
+
 assign sdram_dq = memory_dq_oe ? memory_dq : 16'hzzzz;
 assign observed_dq = sdram_dq;
+
+plus_mmu mmu
+(
+	.clk(clk),
+	.reset(reset),
+	.plus_mode(1'b1),
+	.gx4000(1'b0),
+	.io_wr(1'b0),
+	.mem_rd(mmu_mem_rd),
+	.A(mmu_A),
+	.D(8'h00),
+	.rom_en(1'b1),
+	.exp_n(1'b1),
+	.cart_valid(mmu_cart_valid),
+	.cart_page(mmu_cart_page),
+	.cart_offset(mmu_cart_offset),
+	.cart_ready(mmu_cart_ready),
+	.cart_data(mmu_cart_data),
+	.cart_busy(service_busy),
+	.cart_own(mmu_cart_own),
+	.cart_stall(mmu_cart_stall),
+	.cart_dout(mmu_cart_dout),
+	.asic_page_on()
+);
 
 plus_cpr_parser parser
 (
@@ -83,7 +122,7 @@ plus_cpr_parser parser
 	.load_error(load_error)
 );
 
-plus_cartridge_memory #(.CLEAR_BYTES(20'd32768)) service
+plus_cartridge_memory service
 (
 	.clk(clk),
 	.cold_reset(reset),
@@ -99,11 +138,11 @@ plus_cartridge_memory #(.CLEAR_BYTES(20'd32768)) service
 	.load_ready(load_ready),
 	.load_error(load_error),
 
-	.cpu_valid(cpu_valid),
-	.cpu_page(cpu_page),
-	.cpu_offset(cpu_offset),
-	.cpu_ready(cpu_ready),
-	.cpu_data(cpu_data),
+	.cpu_valid(service_cpu_valid),
+	.cpu_page(service_cpu_page),
+	.cpu_offset(service_cpu_offset),
+	.cpu_ready(mmu_cart_ready),
+	.cpu_data(mmu_cart_data),
 
 	.image_valid(image_valid),
 	.busy(service_busy),
@@ -116,6 +155,9 @@ plus_cartridge_memory #(.CLEAR_BYTES(20'd32768)) service
 	.mem_ack(mem_ack),
 	.mem_rdata(mem_rdata)
 );
+
+assign cpu_ready = mmu_cart_ready;
+assign cpu_data = mmu_cart_data;
 
 sdram dut
 (

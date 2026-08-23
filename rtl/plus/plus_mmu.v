@@ -33,8 +33,10 @@
 // until the data returns, and owns the CPU data mux until the bus cycle
 // ends. cart_dout is captured one edge after cart_ready because the service
 // registers data and completion on the same edge. A watchdog releases the
-// stall with open-bus FF if no answer ever arrives, so a wedged backend
-// cannot hang the machine. Dropping cart_valid explicitly cancels the logical
+// stall with open-bus FF if no answer ever arrives once the cartridge service
+// is quiescent, so a wedged backend cannot hang the machine. A legitimate
+// atomic load resets that watchdog and may hold the CPU until publication.
+// Dropping cart_valid explicitly cancels the logical
 // request; the service drains any physical SDRAM request without returning its
 // stale completion. The Z80 deasserts MREQ/RD between bus cycles, which is
 // what terminates the ownership window.
@@ -68,6 +70,7 @@ module plus_mmu
 	output reg [13:0] cart_offset,
 	input             cart_ready,
 	input      [7:0]  cart_data,
+	input             cart_busy,
 
 	// result side
 	output reg        cart_own,    // this read cycle belongs to the cartridge
@@ -179,12 +182,22 @@ always @(posedge clk) begin
 			end
 
 			CART_WAIT: begin
-				stall_count <= stall_count + 16'd1;
 				if (cart_ready) begin
 					cart_valid <= 1'b0;
 					cart_state <= CART_CAPTURE;
 				end
-				else if (!window_hit || (stall_count == STALL_TIMEOUT)) begin
+				else if (!window_hit) begin
+					cart_valid <= 1'b0;
+					cart_stall <= 1'b0;
+					cart_dout  <= 8'hFF;
+					cart_state <= CART_IDLE;
+				end
+				else if (cart_busy) begin
+					// Clearing/loading is bounded but intentionally far longer
+					// than a normal SDRAM read. It is not a wedged backend.
+					stall_count <= 16'd0;
+				end
+				else if (stall_count == STALL_TIMEOUT) begin
 					// The bus cycle vanished underneath us, or the backend
 					// never answered: release with open-bus data instead of
 					// hanging the machine.
@@ -192,6 +205,9 @@ always @(posedge clk) begin
 					cart_stall <= 1'b0;
 					cart_dout  <= 8'hFF;
 					cart_state <= window_hit ? CART_DONE : CART_IDLE;
+				end
+				else begin
+					stall_count <= stall_count + 16'd1;
 				end
 			end
 

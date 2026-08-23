@@ -13,6 +13,7 @@ namespace {
 constexpr uint8_t CMD_ACTIVE = 0b011;
 constexpr uint8_t CMD_READ = 0b101;
 constexpr uint8_t CMD_WRITE = 0b100;
+constexpr unsigned kIoctlWaitLimit = 20000000;
 
 class TestFailure : public std::runtime_error {
 public:
@@ -72,6 +73,9 @@ public:
         dut.cpu_valid = 0;
         dut.cpu_page = 0;
         dut.cpu_offset = 0;
+        dut.use_mmu = 0;
+        dut.mmu_mem_rd = 0;
+        dut.mmu_A = 0;
         dut.memory_dq = 0;
         dut.memory_dq_oe = 0;
         dut.eval();
@@ -156,7 +160,7 @@ public:
             unsigned guard = 0;
             while (dut.ioctl_wait) {
                 tick();
-                require(++guard < 4000000, "ioctl backpressure never released");
+                require(++guard < kIoctlWaitLimit, "ioctl backpressure never released");
             }
         }
         dut.cpr_download = 0;
@@ -323,7 +327,7 @@ void test_reset_during_load_cleans_up() {
         unsigned guard = 0;
         while (h.dut.ioctl_wait) {
             h.tick();
-            require(++guard < 4000000, "ioctl backpressure never released");
+            require(++guard < kIoctlWaitLimit, "ioctl backpressure never released");
         }
     }
     require(!h.dut.image_valid,
@@ -361,7 +365,7 @@ void test_cpu_read_during_active_load() {
         unsigned guard = 0;
         while (h.dut.ioctl_wait) {
             h.tick();
-            require(++guard < 4000000, "ioctl backpressure never released");
+            require(++guard < kIoctlWaitLimit, "ioctl backpressure never released");
         }
     };
 
@@ -416,6 +420,68 @@ void test_cpu_read_during_active_load() {
     require(h.cpu_read(1, 0x0000) == 0x42, "data after mid-load CPU read mismatch");
 }
 
+// Production seam: the MMU watchdog must not turn the guaranteed-long
+// 512 KiB clear into an open-bus completion. The held bus read starts during
+// the clear, remains stalled well beyond STALL_TIMEOUT, then resolves only
+// after the new image is atomically published.
+void test_mmu_read_waits_out_production_sized_load() {
+    Harness h;
+    h.initialize();
+    h.machine_reset();
+
+    const auto image = nominal_two_page_image();
+    h.dut.use_mmu = 1;
+    h.dut.cpr_download = 1;
+    h.tick();
+    for (unsigned guard = 0; !h.dut.service_busy && guard < 8; ++guard) h.tick();
+    require(h.dut.service_busy, "production clear did not start");
+
+    h.dut.mmu_A = 0x0000;
+    h.dut.mmu_mem_rd = 1;
+    h.tick();
+    require(h.dut.mmu_cart_own && h.dut.mmu_cart_stall,
+            "MMU did not claim the load-time cartridge read");
+
+    for (unsigned clear_wait = 0; clear_wait < 1400; ++clear_wait) {
+        h.tick();
+        require(h.dut.service_busy,
+                "production clear ended before watchdog-boundary exercise");
+        require(h.dut.mmu_cart_stall,
+                "MMU watchdog released the read during production clear");
+    }
+
+    for (size_t i = 0; i < image.size(); ++i) {
+        h.dut.ioctl_addr = static_cast<uint32_t>(i);
+        h.dut.ioctl_dout = image[i];
+        h.dut.ioctl_wr = 1;
+        h.tick();
+        h.dut.ioctl_wr = 0;
+        unsigned guard = 0;
+        while (h.dut.ioctl_wait) {
+            h.tick();
+            require(h.dut.mmu_cart_stall,
+                    "MMU released the read while cartridge bytes loaded");
+            require(++guard < kIoctlWaitLimit, "ioctl backpressure never released");
+        }
+    }
+
+    h.dut.cpr_download = 0;
+    h.tick();
+    unsigned completion_guard = 0;
+    while (h.dut.mmu_cart_stall) {
+        h.tick();
+        require(++completion_guard < 200000,
+                "held MMU read did not resolve after publication");
+    }
+    require(h.dut.image_valid, "load-time MMU read prevented publication");
+    require(h.dut.mmu_cart_dout == image[20],
+            "load-time MMU read returned open bus or stale data");
+
+    h.dut.mmu_mem_rd = 0;
+    h.tick();
+    require(!h.dut.mmu_cart_own, "MMU ownership survived the bus-cycle end");
+}
+
 }  // namespace
 
 int main(int argc, char **argv) {
@@ -431,6 +497,8 @@ int main(int argc, char **argv) {
         std::cout << "PASS: machine reset mid-load cleans up; fresh download commits\n";
         test_cpu_read_during_active_load();
         std::cout << "PASS: CPU reads during an active load wait out the loader and resolve against the commit\n";
+        test_mmu_read_waits_out_production_sized_load();
+        std::cout << "PASS: MMU read waits out production-sized clear/load and returns committed data\n";
     } catch (const std::exception &error) {
         std::cerr << "FAIL: " << error.what() << '\n';
         return 1;

@@ -166,14 +166,16 @@ For reference when reviewing or extending: `plus_mmu` decodes both cartridge win
 bridges CPU reads to the service's held request/acknowledge port; a bus read in a window
 claims the service once, stretches the bus cycle via a `plus_mem_wait` term on the Z80
 WAIT input (active only under `plus_mode`), latches data one edge after completion, owns
-the CPU data mux until the cycle ends, and releases open-bus FF on a watchdog timeout so
-a wedged backend cannot hang the machine. Cartridge-owned cycles suppress the SDRAM
+the CPU data mux until the cycle ends, and releases open-bus FF on a watchdog timeout only
+after the cartridge service is quiescent, so a wedged backend cannot hang the machine while
+a legitimate clear/load remains fail-closed. Cartridge-owned cycles suppress the SDRAM
 main-port output enable so stale read data never participates. Consequences worth
 remembering: cartridge fetches run slower than real ROM (each window access waits out one
 SDRAM round trip), Multiface Two's `&0000-&3FFF` windows are shadowed by the cartridge
 under Plus mode (consistent with the ASIC masking expansion there), and CPU reads racing
-an active download stall until the loader finishes — the P0 boot integration bench pins
-all three behaviors deterministically.
+an active download stall until the loader finishes. The P0 boot integration bench uses the
+production 512 KiB clear and joins MMU → service → SDRAM to pin that load-time read through
+atomic publication; service-level vectors separately pin cancellation and late-ack draining.
 
 ## 4. Phasing (each phase = usable milestone, separately testable)
 

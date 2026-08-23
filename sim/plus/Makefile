@@ -60,6 +60,8 @@ P0BOOT_TEST_TOP := $(abspath p0_boot_test_top.v)
 P0BOOT_SDRAM    := $(abspath ../../rtl/sdram.v)
 P0BOOT_PARSER   := $(abspath ../../rtl/plus/plus_cpr_parser.v)
 P0BOOT_MEMORY   := $(abspath ../../rtl/plus/plus_cartridge_memory.v)
+P0BOOT_MMU      := $(abspath ../../rtl/plus/plus_mmu.v)
+P0BOOT_UNLOCK   := $(abspath ../../rtl/plus/asic_unlock.v)
 P0BOOT_OBJ_DIR  := obj_dir/p0_boot
 P0BOOT_TEST_SRC := $(abspath p0_boot_test.cpp)
 P0BOOT_TEST_BIN := $(P0BOOT_OBJ_DIR)/p0_boot_tests
@@ -136,11 +138,11 @@ $(MMU_TEST_BIN): $(MMU_RTL) $(MMU_DEPS) $(MMU_TEST_SRC) Makefile | $(OBJ_DIR)
 		--Mdir $(MMU_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(MMU_TEST_BIN)) $(MMU_RTL) $(MMU_DEPS) $(MMU_TEST_SRC)
 
-$(P0BOOT_TEST_BIN): $(P0BOOT_TEST_TOP) $(P0BOOT_SDRAM) $(P0BOOT_PARSER) $(P0BOOT_MEMORY) $(P0BOOT_TEST_SRC) Makefile | $(OBJ_DIR)
+$(P0BOOT_TEST_BIN): $(P0BOOT_TEST_TOP) $(P0BOOT_SDRAM) $(P0BOOT_PARSER) $(P0BOOT_MEMORY) $(P0BOOT_MMU) $(P0BOOT_UNLOCK) $(P0BOOT_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(P0BOOT_TOP) \
 		--Mdir $(P0BOOT_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(P0BOOT_TEST_BIN)) $(P0BOOT_TEST_TOP) $(P0BOOT_PARSER) \
-		$(P0BOOT_MEMORY) $(P0BOOT_SDRAM) $(P0BOOT_TEST_SRC)
+		$(P0BOOT_MEMORY) $(P0BOOT_MMU) $(P0BOOT_UNLOCK) $(P0BOOT_SDRAM) $(P0BOOT_TEST_SRC)
 
 $(OBJ_DIR):
 	mkdir -p -- $@
@@ -167,7 +169,7 @@ lint:
 		--top-module $(MMU_TOP) -Wall $(MMU_RTL) $(MMU_DEPS)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(P0BOOT_TOP) -Wall -Wno-fatal $(P0BOOT_TEST_TOP) $(P0BOOT_PARSER) \
-		$(P0BOOT_MEMORY) $(P0BOOT_SDRAM)
+		$(P0BOOT_MEMORY) $(P0BOOT_MMU) $(P0BOOT_UNLOCK) $(P0BOOT_SDRAM)
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)
