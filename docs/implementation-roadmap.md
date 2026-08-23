@@ -356,9 +356,11 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
    and is BLOCKED-PENDING-HARDWARE-EVIDENCE. F7 RFD is complete in full (R5 route, B6
    disarm, A1/A2, and the §13.7.1.2 R0-widening trigger, vectors `t13a`-`t13m`). F10 stays
    fixture-gated behind its PDF re-checks and is the next classic item after D1.
-5. Plus stream: P0 and the P1 CRTC3 counter/timing foundation are done. Next: the P1
-   remainder (pixel path and the CPU/WAIT contract at first motherboard instantiation),
-   then P2. Do not combine Plus video with the classic stream.
+5. Plus stream: P0, the P1 CRTC3 counter/timing foundation, and the P1
+   locked-ASIC pixel path (legacy-colour ROM + pen pipeline) are done. Next: the P1
+   motherboard-integration commit (CPU/WAIT contract decision per architecture §5
+   Risk 1, first instantiation, `files.qip`, fitter recording), then P2. Do not
+   combine Plus video with the classic stream.
 6. F6 proceeds per `accuracy/f6-decision-gate.md`: Stage 1 is the full-character
    presence/type/skew approximation; Stage 2 measured 1 µs; Stage 2b assigns the documented
    0.5 µs to the CRTC DE phase. No CRTC, GA, or glue work before F13's hardware gate.
