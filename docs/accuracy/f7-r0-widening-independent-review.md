@@ -291,11 +291,12 @@ exactly one vector and disturbs nothing else, and the union across B1/B2 is exac
 **6. Docs — confirmed, with N-1, N-3 and N-5.** The audit-findings F7 "Deliberately unmodeled /
 interpretation notes" block covers F-5 (window surviving a legal C0-overflow line), F-6
 (§8.6 second-frame stuck-C4), F-7 (end-state vs write-event reading) and F-8 (free-running
-unarmed parity), each pointing somewhere actionable. Author question 18 states both source
-readings verbatim and neither is strawmanned: the p.122-123 gist is quoted with its
-"**modified**" emphasis intact and its consequence spelled out (would arm on a restore), the
-§13.7.1.2 parentheses are quoted in full, our choice is given with its two reasons, and a
-discriminating SHAKER experiment is named. `current-status.md` carries the F-9 erratum and now
+unarmed parity), each pointing somewhere actionable. Author question 18 quotes both source
+passages and neither is strawmanned: the p.122-123 gist keeps its "**modified**" emphasis,
+the §13.7.1.2 parentheses are quoted in full, our choice is given with its two reasons, and a
+discriminating SHAKER experiment is named. (Pass 3 corrected an overstatement here: the
+question originally presented "would arm on a restore" as if the figure said it, when that is
+our inference from one word. See N-7.) `current-status.md` carries the F-9 erratum and now
 says the directed vectors, not the soak, carry the behavioural proof.
 
 ### Non-blocking follow-ups
@@ -336,3 +337,48 @@ says the directed vectors, not the soak, carry the behavioural proof.
   UNUSEDSIGNAL appeared for `e1_rfd_r0_extend` (still consumed by `hcc_end`).
 - `make -C sim soak SOAK_EXPECT=0x512eaae74a628dca` — matches. Per F-9 this is not behavioural
   evidence either way; it is consistent with the F-3 removal being provably inert.
+
+## Pass 3 — fresh-eyes cross-check of the pass-2 verdict (2026-08-24)
+
+Requested because pass 1 and pass 2 shared one reviewer, so the pass-2 checklist and its
+verification had the same owner. Run by **GPT-5.6 Sol** at high reasoning effort via the
+`reviewer-cross` bridge, read-only, one pass. Sol had access to the untracked
+`docs/ACCC1.10-EN.pdf` itself, so parts of its check sit at authority rank 1-2 rather than
+rank 3 (the digests) — stronger sourcing than either earlier pass had.
+
+**Verdict: AGREE with the pass-2 CLEAR. No blocking findings.** Sol independently reproduced
+the RTL conclusions: the DE-guard removal is correct because `rtl/CRTC.v` compares the
+already-muxed continuation `hcc_next`; the `field_count_tick` removal is behaviour-neutral
+(`hcc_next = R0+1` cannot equal `R0>>1`, and `R0=255` cannot widen at all); the remaining raw
+`hcc_last` uses are comparator-edge events; and the `t13j`/`t13l`/`t13m` timelines derive as
+pass 2 stated, with `t13m`'s warm-up necessary because reset clears `vde`/`vde_r`, which are
+set only at `frame_new`. Gates rerun and matched: 109/109, 62 lint warnings and 0 errors,
+soak `0x512eaae74a628dca`.
+
+Sol raised one finding both earlier passes missed, plus three wording corrections. All four
+were applied in the follow-up commit that carries this section.
+
+- **N-6 · Low — wrong ACCC citation on `t13e`, `t13j` and `t13l`.** They cited "§13.5 p.121"
+  for the type-1 any-R0-acceptance premise. §13.4-13.5 is the CRTC 2/3/4 contrast, explicitly
+  out of scope (digest §8.7); the type-1 rule is §13.3 p.113 (digest §8.5). Confirmed against
+  the digest independently of Sol. Introduced in `95fff05` and propagated into `t13l` by the
+  remediation, so it survived pass 1 and pass 2 both. Corrected to §13.3 p.113 in all four
+  places (three registry entries and one comment). This is exactly the failure mode the
+  house rule about citing the section beside the assertion exists to prevent: a wrong
+  citation sends the next reader to a section about a different chip.
+- **N-7 · Low — question 18 presented an inference as the source's own words.** "a
+  write-event condition that would arm even if the written value is later restored" reads as
+  if the p.122-123 figure says so; it says "modified", and the restore consequence is our
+  reading of that one word. Reworded to mark it as inference. The same edit drops the
+  disputed "§13.7.1.1" label for the chronogram — Sol's PDF read puts "CRTC 1: CHRONOGRAM" at
+  §13.6.2 and "R0 UPDATE: OUTI" at §13.7.1.1, so the question now anchors on the page numbers
+  and flags the digest's section label as uncertain. **Worth an author check**: digest-01 §8.5
+  may carry the same mislabel.
+- **N-2 and N-3 fixed rather than deferred.** Sol judged that leaving the backwards
+  `rfd_r0_arm` clause and the unsupported "emerges from the armed flags" claim unfixed was
+  the wrong call, and gave the structural argument for N-3 that pass 2 only asserted: the RFD
+  flags select reload and save behaviour only, and `row_frame_last`/`row_next` carry no RFD
+  dependency, so nothing in the engine can suppress a C4 reset. Both texts corrected.
+
+Nothing in pass 3 disturbed RTL behaviour: every change is a comment, a citation string, or
+prose. The gate was rerun after the corrections.

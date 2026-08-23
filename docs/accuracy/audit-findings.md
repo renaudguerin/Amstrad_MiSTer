@@ -308,8 +308,10 @@ General implementation rules for all fix prompts:
 - **Deliberately unmodeled / interpretation notes** (recorded per the same review):
   whether an arbitrary mid-frame widening write at `C0==R0` also extends its own line is left
   unmodeled pending sourced chronograms — the gate enforcing that boundary is exercised by
-  `t13j`/`t13l`. The §8.6 R4-variant's second-frame stuck-C4 consequence emerges from the
-  armed flags only in specific geometries and is not separately modeled or vector-pinned.
+  `t13j`/`t13l`. The §8.6 R4-variant's second-frame stuck-C4 consequence is not
+  modeled or vector-pinned: the RFD flags select reload and save behaviour only, and
+  `row_frame_last`/`row_next` carry no RFD dependency, so nothing in the engine can
+  suppress a C4 reset.
   A trigger window opened just before R0 is shrunk below the live C0 survives across that
   legal C0-overflow line (§13.5) and can arm at its far end — unmodeled corner. The
   end-state cancellation reading follows §8.6's parentheses against §8.5's write-event gist;
