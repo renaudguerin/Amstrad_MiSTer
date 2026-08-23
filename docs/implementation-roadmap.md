@@ -340,16 +340,28 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
    annotation is confirmed verbatim, so that half of its flag is retired. The §13.5-for-§13.3
    citation error in `t13e`/`t13j`/`t13l` and the §13.7.1.1-for-§13.6.2 chronogram mislabel
    are both already corrected. Everything else in the 27-flag backlog is still open.
-3. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
+3. **D2: find out why the Quartus database cache saves nothing.** Measured 2026-08-24 across
+   two runs on `accc-review-and-fixes`: run `32657783842` restored the cache
+   (`Cache restored successfully`, `build_mode=incremental_db`) and its synthesis job took
+   **12.2 min**; run `32652569271` missed the cache (`build_mode=clean`) and took **12.2 min**.
+   Identical. Either the restored database is not actually being reused by
+   `quartus_sh --flow compile`, or compile is dominated by something the database does not
+   cover. Worth roughly one session: check whether the cache key changes every run (it embeds a
+   commit SHA, so it may only ever hit on a re-run of the same commit), whether Quartus reports
+   using the incremental database in its log, and what the per-stage timing split is
+   (analysis/synthesis vs fitter vs TimeQuest vs assembler). If the cache genuinely cannot help,
+   delete it — it adds moving parts and upload time for nothing. This gates nothing; it is
+   pure CI cost. Not urgent, but the 12 minutes is now the main brake on integration feedback.
+4. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
    and is BLOCKED-PENDING-HARDWARE-EVIDENCE. F7 RFD is complete in full (R5 route, B6
    disarm, A1/A2, and the §13.7.1.2 R0-widening trigger, vectors `t13a`-`t13m`). F10 stays
    fixture-gated behind its PDF re-checks and is the next classic item after D1.
-4. Plus stream: P0 and the P1 CRTC3 counter/timing foundation are done. Next: the P1
+5. Plus stream: P0 and the P1 CRTC3 counter/timing foundation are done. Next: the P1
    remainder (pixel path and the CPU/WAIT contract at first motherboard instantiation),
    then P2. Do not combine Plus video with the classic stream.
-5. F6 proceeds per `accuracy/f6-decision-gate.md`: Stage 1 is the full-character
+6. F6 proceeds per `accuracy/f6-decision-gate.md`: Stage 1 is the full-character
    presence/type/skew approximation; Stage 2 measured 1 µs; Stage 2b assigns the documented
    0.5 µs to the CRTC DE phase. No CRTC, GA, or glue work before F13's hardware gate.
-6. Common dependencies for both streams (harness helpers, shared docs) land on
+7. Common dependencies for both streams (harness helpers, shared docs) land on
    `accc-review-and-fixes`; the running stream branches (`accuracy/a3-f6-stage1`,
    `plus/p0-parser-wiring`) rebase onto it rather than stacking.

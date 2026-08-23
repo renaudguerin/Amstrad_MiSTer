@@ -20,28 +20,39 @@ and repository tooling.  A failed Tier A run blocks every higher tier.
 
 ### Tier B: full Quartus integration
 
-The full `quartus_sh --flow compile Amstrad.qpf` job runs automatically when a push changes a
-known synthesis boundary:
+The full `quartus_sh --flow compile Amstrad.qpf` job costs about **12 minutes** and the Quartus
+database cache does not shorten it (measured 2026-08-24: 12.2 min on a cache hit, 12.2 min on a
+clean build — see queue item D2). So the policy runs it where a milestone actually forms, and
+nowhere else.
 
-- the project, constraint, or production manifest files (`Amstrad.qpf`, `Amstrad.qsf`,
-  `Amstrad.sdc`, `files.qip`);
-- the production top level (`Amstrad.sv`), platform sources under `sys/`, or a nested QIP;
-- the known motherboard, SDRAM, and RGB integration modules, the qip-listed GA40010
-  netlist-recreation sources (the netlist is a frozen reference — any source edit is an
-  integration event even when `ga40010.qip` itself is unchanged), or the u765 FDC
-  controller; or
-- the CI workflow or its synthesis-path classifier.
+**Where it runs.** Tier B is triggered by *where a change has arrived*, not by which file it
+touched:
 
-It also runs for every non-documentation push to the repository's default branch, every pushed
-tag, and every manual workflow dispatch. Pull requests use the same path classifier as feature
-branches; an internal-RTL milestone still needs its manually dispatched build before merge. The
-exact path policy is executable and tested in `scripts/ci/classify-synthesis-paths.sh`.
+- **Integration branches** — the default branch and `accc-review-and-fixes` (the
+  `INTEGRATION_BRANCHES` list in `build.yml`): every push whose changed set affects the build.
+  This is the automatic replacement for the old "named milestone" ritual. A merge is a push to
+  an integration branch, so merging a stream branch synthesizes the result with nobody having
+  to remember.
+- **Pull requests**: the same path test, giving pre-merge signal to anyone who wants it.
+- **Every pushed tag and every manual workflow dispatch**: unconditionally.
+- **Stream branches**: never. Tier A only. The same code would otherwise be synthesized twice —
+  once on the branch and again when it merges — at 12 minutes each.
 
-Internal RTL commits may share one Tier B run at a named milestone after every constituent
-commit has passed Tier A.  Path classification cannot recognize semantics, so manually dispatch
-a Tier B build on the exact commit whenever a change affects top-level wiring, clocks, memory
-arbitration, RGB width, a newly synthesizable source, or another integration boundary not listed
-above:
+**What counts as affecting the build** is decided by `scripts/ci/classify-synthesis-paths.sh`,
+which no longer keeps a hand-written list of RTL. It resolves `files.qip` transitively through
+nested QIPs via `scripts/ci/list-synthesized-sources.sh`, so *every source Quartus compiles is
+covered the moment it is added to a manifest*. The old allowlist duplicated part of the manifest
+and went stale twice, hiding the GA40010 netlist sources and then the u765 controller until a
+review noticed. Only files no manifest can reach are listed by name: the Quartus project files,
+the CI definition, the `sys/` platform tree, and the PLL chain — which hangs off a *Tcl-computed*
+QIP name (`sys/sys.qip` builds `pll_q17.qip` from `$quartus(version)` at run time) that a static
+walk cannot follow. **A new Tcl-computed reference would need the same explicit treatment; the
+walk will not warn you.**
+
+Path classification still cannot recognize semantics. Merging now covers the common case, but
+dispatch a Tier B build on the exact commit when you need the answer *before* a merge, or when a
+change affects top-level wiring, clocks, memory arbitration, or RGB width in a way no path
+reveals:
 
 ```sh
 gh workflow run build.yml --ref <branch-or-tag>

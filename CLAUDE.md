@@ -62,11 +62,13 @@ failing is a finding, not something to edit.
 ## Gates
 
 `make -C sim` must pass before every commit. GitHub Actions runs that fast gate on every
-non-documentation push, while pinned Quartus 17.0.2 synthesis is reserved for integration
-boundaries and named milestones. Any commit touching top-level wiring, clocks, memory
-arbitration, RGB width, or `files.qip` needs its own full run; manually dispatch it when the
-path classifier cannot recognize the semantic risk. Small internal CRTC commits may share one
-full run only after their individual simulation gates pass. Hardware results outrank simulation
+non-documentation push. Pinned Quartus 17.0.2 synthesis is automatic wherever work integrates:
+every push to an integration branch (the default branch, `accc-review-and-fixes`) that touches
+anything Quartus compiles, plus pull requests, tags, and manual dispatches. Stream branches
+stay on simulation only until they merge, so **merging is what triggers synthesis** — you no
+longer have to remember to name a milestone. Dispatch a build by hand only when you need the
+answer before a merge, or for a semantic risk no path reveals (top-level wiring, clocks, memory
+arbitration, RGB width). Hardware results outrank simulation
 but never replace it. See `docs/ci-testing-policy.md` for the executable routing rules.
 
 ## Independent review

@@ -102,8 +102,10 @@ named remediation milestone (never leave it silently stale).
 
 ## Other hard constraints
 
-- Any commit touching top-level wiring, clocks, memory arbitration, RGB width, or
-  `files.qip` needs its own GitHub Actions synthesis run (CI skips docs-only paths).
+- Synthesis is automatic on every integration-branch push that touches a source Quartus
+  compiles, so merging a stream branch synthesizes it. Dispatch by hand only for a pre-merge
+  answer or a semantic risk no path reveals (top-level wiring, clocks, memory arbitration,
+  RGB width). See `docs/ci-testing-policy.md`.
 - New modules implementing CRTC behaviour from the Compendium must carry the CC BY-NC-ND
   attribution line (see `rtl/CRTC.v` header) and cite ACCC sections at the point of
   implementation.
