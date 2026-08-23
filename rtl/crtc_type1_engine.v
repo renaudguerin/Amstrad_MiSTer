@@ -77,6 +77,7 @@ module crtc_type1_engine
 	output     [6:0] row_next,
 	output           row_new,
 	output           frame_adj,
+	output           adj_from_row0,
 
 	// Video pointer reload / save decisions.
 	output           reload,
@@ -174,10 +175,17 @@ wire rfd_vma_active = rfd_vma_flag | rfd_arm;
 wire rfd_r1_gt_r0_disarm = rfd_vma_flag &
                            (R1_h_displayed > R0_h_total) & line_last_w;
 
-// Technical information sourced from ACCC v1.10 §11.2.4:
+// Technical information sourced from ACCC v1.10 §11.2.4 p.84:
 // If C4 was 0 immediately before adjustment began, VMA loads from R12/R13
-// while C4==1 in adjustment.
-wire crtc1_adj_entry_from_row0 = CRTC_TYPE & !in_adj & row_last_w & line_last_w & (|R5_v_total_adj) & (row == 0);
+// while C4==1 in adjustment.  A positive R4 rewrite on the exact C0=R0
+// entry edge suppresses that reload; an R9 rewrite on the same edge does not.
+wire r4_positive_write_at_adj_entry = CRTC_TYPE & CLKEN & hcc_last &
+									 ENABLE & RS & ~nCS & ~R_nW &
+									 (addr == 5'd04) & (|DI[6:0]);
+wire crtc1_adj_entry_from_row0 = CRTC_TYPE & !in_adj & row_last_w &
+									 line_last_w & (|R5_v_total_adj) & (row == 0) &
+									 ~r4_positive_write_at_adj_entry;
+assign adj_from_row0 = crtc1_adj_entry_from_row0;
 wire crtc1_adj_row1_reload = CRTC_TYPE & (crtc1_adj_entry_from_row0 | (in_adj & crtc1_adj_from_row0 & (row == 1) & ~line_last_w)) & !hcc_next;
 wire crtc1_row0_reload = CRTC_TYPE & (frame_new_w | (~line_last_w & !row & !hcc_next));
 wire crtc1_rfd_reload = CRTC_TYPE & rfd_vma_active & !hcc_next;

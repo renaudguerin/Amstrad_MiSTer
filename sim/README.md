@@ -102,15 +102,17 @@ flops (`r6_border_condition`, `status_bit5_r`).
 The golden hash for the type-0/type-1 engine split was minted from the
 unsplit core; the minting commit and hash value are recorded in the session
 plan (`docs/plans/2026-08-22-accc-review-plan.md`). It has been re-minted
-four times on 2026-08-23: for the intended F6 Stage 1 behaviour change; for
+five times on 2026-08-23: for the intended F6 Stage 1 behaviour change; for
 the sampled-field expansion (holdoff latch + type-1 status flops added,
 review issue 4 remediation — no RTL change); for the intended type-1 F7
-RFD behaviour; and for A1's removal of the type-1 adjustment-ending spurious
-VSYNC. The F7/A1 mints kept the seed, event schedule, and sampled-field
+RFD behaviour; for A1's removal of the type-1 adjustment-ending spurious
+VSYNC; and for A2's exact-edge R4 suppression of the adjustment C4=1 reload.
+The F7/A1/A2 mints kept the seed, event schedule, and sampled-field
 set/order unchanged; random R5 writes now sometimes arm RFD, so the observed
 DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
-`0xae27f2c3c758ed87`, then A1 moved it to the current
-**`0x6439f9805b20acaa`**. Two independent A1 minting runs reproduced it and the
+`0xae27f2c3c758ed87`, A1 moved it to `0x6439f9805b20acaa`, and A2 moved it to
+the current **`0x512eaae74a628dca`** because the fixed random schedule reaches
+the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. The hash depends on the seed, the
 sampled field set/order, the event schedule, and the DUT's observable

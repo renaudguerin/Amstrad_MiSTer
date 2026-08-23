@@ -3173,6 +3173,60 @@ void test_type1_adjustment_end_does_not_fire_unreached_r7(TestBench& test) {
         "type 1 adjustment end skips unreachable R7=final-row+1", seen);
 }
 
+void prepare_type1_a2_exact_r0_write(TestBench& test,
+                                     std::uint8_t target_register,
+                                     std::uint8_t value) {
+    test.set_crtc_type(1);
+    constexpr RegisterProgram kRegisters = {{
+        {0, 7}, {1, 4}, {2, 6}, {3, 0x11}, {4, 0},
+        {5, 2}, {6, 2}, {7, 20}, {8, 0},   {9, 1},
+    }};
+    program_registers(test, kRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.reset();
+
+    // Establish a genuine frame start, then reach C0=4 on the last normal
+    // line (C4=0/C9=R9=1).  The C0=R1 save captures VMA'=0x1238 before
+    // R12/R13 change to 0x2050.  Two more CLKENs reach C0=R0=7, where the
+    // selected A2 write lands on the adjustment-entry rollover.
+    constexpr unsigned frame_characters = (2 + 2) * 8;
+    test.run_characters(frame_characters);
+    test.expect_ma("A2 fixture starts the frame from R12/R13", 0x1234);
+    test.run_characters(8 + 4);
+    test.write_register(12, 0x20);
+    test.write_register(13, 0x50);
+    test.select_register(target_register);
+    test.run_characters(2);
+    test.write_selected_register_at_clken(value);
+    test.expect_adjustment_active("A2 exact-R0 write enters adjustment");
+    test.expect_c4("A2 exact-R0 write enters adjustment at C4=1", 1);
+    test.expect_ra("A2 exact-R0 write resets C9 on adjustment entry", 0);
+}
+
+void test_type1_r4_write_at_adjustment_entry_suppresses_r12_reload(
+    TestBench& test) {
+    // ACCC v1.10 section 11.2.4 note, page 84: rewriting R4 to a nonzero
+    // value exactly at C0=R0 while entering adjustment suppresses the
+    // special VMA-from-R12/R13 behavior for C4=1.  The saved VMA'=0x1238
+    // must win over the newly programmed R12/R13=0x2050.
+    prepare_type1_a2_exact_r0_write(test, 4, 1);
+    test.expect_ma(
+        "type 1 exact-R0 R4>0 write suppresses the C4=1 R12/R13 reload",
+        0x1238);
+}
+
+void test_type1_r9_write_at_adjustment_entry_keeps_r12_reload(
+    TestBench& test) {
+    // ACCC v1.10 section 11.2.4 note, page 84 (findings-review B5): an R9
+    // write on the same exact C0=R0 edge does NOT cancel the C4=1 special
+    // case.  Therefore the new R12/R13=0x2050, not VMA'=0x1238, must load.
+    prepare_type1_a2_exact_r0_write(test, 9, 2);
+    test.expect_ma(
+        "type 1 exact-R0 R9 write retains the C4=1 R12/R13 reload",
+        0x2050);
+}
+
 // ---------------------------------------------------------------------------
 // t13: F7 -- CRTC-1 Rupture For Dummies (RFD)
 // ---------------------------------------------------------------------------
@@ -4408,6 +4462,12 @@ int main(int argc, char** argv) {
         {"t08m_type1_adjustment_end_does_not_fire_unreached_r7",
          "ACCC v1.10 sections 16.1 and 16.4.2; F8/A1", false,
          test_type1_adjustment_end_does_not_fire_unreached_r7},
+        {"t08n_type1_r4_write_at_adjustment_entry_suppresses_r12_reload",
+         "ACCC v1.10 section 11.2.4 p.84; F8/A2", false,
+         test_type1_r4_write_at_adjustment_entry_suppresses_r12_reload},
+        {"t08o_type1_r9_write_at_adjustment_entry_keeps_r12_reload",
+         "ACCC v1.10 section 11.2.4 p.84; F8/A2/B5", false,
+         test_type1_r9_write_at_adjustment_entry_keeps_r12_reload},
         {"t13a_type1_rfd_write_away_from_r0_stays_unarmed",
          "ACCC v1.10 section 11.6 p.87; F7 never-triggered control", false,
          test_type1_rfd_write_away_from_r0_stays_unarmed},

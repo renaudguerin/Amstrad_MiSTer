@@ -314,9 +314,11 @@ General implementation rules for all fix prompts:
 - **Current** (fixed, `c9f4a4e`): type 1 has a genuine C5 (`crtc_type1_engine.v:116` equality
   end, `:124-135` counter next-state) while C9 keeps cycling 0..R9 and C4 increments at each
   wrap; type 0 still reuses C9 vs R5 (`crtc_type0_engine.v:151` line-max selection). The §4.4
-  R5=0 free-run bug is deliberately reproduced. Protected by `t08i`-`t08l`. A1's
+  R5=0 free-run bug is deliberately reproduced. Protected by `t08i`-`t08o`. A1's
   adjustment-ending VSYNC correction is now protected by `t08m` (and the corrected `t08g`
-  oracle); the §11.2.4 R4/R9 rewrite caveat pair remains A2.
+  oracle). A2 is protected in both directions: `t08n` requires a positive R4 rewrite on the
+  exact adjustment-entry edge to suppress the C4=1 reload, while `t08o` requires an R9 write
+  on that edge to retain it.
 - **Impact**: type 1 ruptures/overscan using adjustment rows show wrong row addressing (RA
   bits come from C9, which real type 1 keeps cycling); the R5=0 escape trick (force C4/C9=0 on
   an arbitrary line) doesn't work.
@@ -333,12 +335,10 @@ General implementation rules for all fix prompts:
   > "VMA from R12/R13 while C4==1" special case — implement it only if the existing
 > CRTC1_reload logic doesn't already produce it, and add the §4.1 worked example
   (R4=10,R5=16,R9=3) as a testbench vector.
-- **Corner to close before F8 counts as done** (findings-review.md B5; ACCC §11.2.4 note,
-  p.84): an **R9 write landing exactly at `C0==R0` entering adjustment must NOT cancel** the
-  VMA-from-R12/R13-while-C4==1 reload — only an R4(>0) rewrite at `C0==R0` cancels it. The R4
-  side is the untested corner already recorded in `docs/review-debt.md` for the F8 commit;
-  both sides need deterministic vectors (docs-only pointer for now — no RTL/test change in
-  this pass).
+- **§11.2.4 corner closed by A2** (findings-review.md B5; p.84): an **R9 write landing
+  exactly at `C0==R0` entering adjustment does not cancel** the VMA-from-R12/R13-while-C4==1
+  reload, while an R4(>0) rewrite on that edge does. Deterministic `t08n`/`t08o` pin both
+  directions.
 - **Verify**: V3 (the §4.1 table); V2.
 
 ## F9. Type 0 R9 write at C0==R0 straddles the R9-to-R5 comparison switch

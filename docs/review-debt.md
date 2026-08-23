@@ -2,8 +2,8 @@
 
 **Status: earlier branch rows cleared; `accuracy/f7-rfd` outstanding 2026-08-23.** The
 independent pass-3 verification accepted the earlier remediations at reviewed tip `d64e449`.
-A1 is now implemented, A2 is in progress, and their branch-level review is deliberately
-deferred until the three focused commits are complete.
+F7, A1, and A2 are implemented, and their branch-level review is deliberately deferred to
+the later independent pass requested by the user.
 
 This file tracks work that was merged without the independent cross-provider review the
 project normally requires. It exists because that review was unavailable at the time, not
@@ -112,9 +112,9 @@ output. Order: `de71808` → `da79915`+`1a1233f` → `cd47d7d` → `c4c3e0f` →
   vector derived from §16.4.2. Implemented with minimal `t08m`; the related `t08g` oracle
   now requires R7=39 silence instead of the same spurious final-row+1 pulse. The tension
   with the older §28.1.1 discriminator wording is named for the branch review.
-- **A2 — F8 §11.2.4 caveat pair.** Implement/test both halves: R4(>0)-rewrite at C0==R0
-  entering adjustment suppresses the VMA-from-R12/R13 reload; an R9 write at C0==R0 does
-  not (B5). Already noted in `audit-findings.md` F8 and `testbench-spec.md` planned additions.
+- **A2 — F8 §11.2.4 caveat pair — DONE 2026-08-23 on `accuracy/f7-rfd`.**
+  `t08n` requires an R4(>0) rewrite at exact C0==R0 adjustment entry to suppress the
+  VMA-from-R12/R13 reload; `t08o` requires an R9 write on that edge not to suppress it (B5).
 - **A3 — t20 companion vector — DONE 2026-08-23** (`t20i` on
   `accuracy/a3-f6-stage1`). Pins the live-entry R0=0 case (write R0=0 mid-frame landing on
   a wrap edge, freeze conditions armed): the wrap-edge §20.3.1 VMA reload from R12/R13,
@@ -190,8 +190,9 @@ documentation-only.
   is documented and does not reopen P0. Real `.cpr` hardware boot remains a separate
   milestone gap.
 
-Pass 3 raised no blocking issues. A1 is now implemented on the later `accuracy/f7-rfd`
-branch; A2 remains open. Both were outside pass 3's scope, and the new branch row remains debt.
+Pass 3 raised no blocking issues. A1 and A2 are now implemented on the later
+`accuracy/f7-rfd` branch. Both were outside pass 3's scope, and the branch row remains debt
+until the user-requested later independent pass.
 
 ## Rule for future unreviewed work
 

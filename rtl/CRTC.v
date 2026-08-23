@@ -227,6 +227,7 @@ crtc_type0_engine crtc_type0_engine
 );
 
 wire       e1_line_last, e1_line_new, e1_row_last, e1_row_frame_last, e1_row_new, e1_frame_adj;
+wire       e1_adj_from_row0;
 wire       e1_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
 wire       e1_vsync_line_fire, e1_r7_write_fire, e1_r6_vde_write, e1_r6_vde_value;
 wire       e1_r6_vder_write, e1_r6_vder_value, e1_status_bit5;
@@ -245,6 +246,7 @@ crtc_type1_engine crtc_type1_engine
 	VSYNC_r, vsync_allow, hsc, vde_r,
 	e1_line_last, e1_line_new, e1_line_next, e1_c5_next,
 	e1_row_last, e1_row_frame_last, e1_row_next, e1_row_new, e1_frame_adj,
+	e1_adj_from_row0,
 	e1_reload, e1_row_addr_save,
 	e1_field_count_tick, e1_hsync_off, e1_de_index, e1_vsync_line_fire,
 	e1_vsc_load, e1_r7_write_fire,
@@ -310,7 +312,7 @@ always @(posedge CLOCK) begin
 			row <= row_next;
 			if(frame_adj) begin
 				in_adj <= 1;
-				if(CRTC_TYPE && row == 0) crtc1_adj_from_row0 <= 1;
+				if(e1_adj_from_row0) crtc1_adj_from_row0 <= 1;
 			end
 			else if(frame_new) begin
 				in_adj <= 0;

@@ -40,8 +40,9 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x6439f9805b20acaa`, re-minted 2026-08-23 for the A1 adjustment-ending
-  VSYNC correction; previously `0xae27f2c3c758ed87` from F7 RFD,
+  (`0x512eaae74a628dca`, re-minted 2026-08-23 for the A2 exact-edge R4
+  adjustment-reload suppression; previously `0x6439f9805b20acaa` from A1,
+  `0xae27f2c3c758ed87` from F7 RFD,
   `0xf5f8ae01ffdf928d` from the sampled-field expansion,
   `0x326ea81358e7d88f` from F6 Stage 1, and
   `0x5b5004ff70148443` from the unsplit core)
