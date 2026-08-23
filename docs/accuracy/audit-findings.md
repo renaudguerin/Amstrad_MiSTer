@@ -221,7 +221,17 @@ General implementation rules for all fix prompts:
   presence (type 0) or absence (type 1) of the seam.
 - **Confidence: high** for the basic byte; the half-µs phase within the character and the R8
   double-write "disintegration" cases (⚠ VERIFY p.196-197) are refinements.
-- **Fix prompt**:
+- **SUPERSEDED (2026-08-22): the fix prompt's integration premise below is wrong.** Its claim
+  that "DE is consumed by the GA at 1µs granularity here, so a full-character border byte is
+  the achievable approximation" was an unverified engineering assumption, not an ACCC rule.
+  The code-aware correction is authoritative: `docs/accuracy/f6-decision-gate.md` shows the
+  GA40010 recreation samples DISPEN at byte/pixel phase (`rtl/GA40010/ga40010.sv` DISPEN_BUF
+  latch, twice per µs), so the exact half-character pin behaviour is achievable with no Gate
+  Array change; residual seam width belongs to downstream GA/glue measurement. **Do not
+  implement the prompt as written** — follow the staged option C plan in
+  [f6-decision-gate.md](f6-decision-gate.md). The prompt below is retained verbatim as
+  history, including its pre-split path name (`rtl/UM6845R.v`, now `rtl/CRTC.v`).
+- **Fix prompt** (superseded — see banner above; current plan: `f6-decision-gate.md`):
   > In `rtl/UM6845R.v`, for type 0 only: when `R1_h_displayed > R0_h_total` (compare at the
   > moment of use, registers are live) and `hcc == R0_h_total`, force the DE output low for
   > that character (half-character granularity if the pixel pipeline allows — DE is consumed
