@@ -185,6 +185,15 @@ the type-split refactor milestone (it forces a full read anyway).
       carries no new review-debt rows by decision, which is only safe because its whole
       diff gets one review pass before its content is treated as settled/upstreamed.
       Schedule that pass at the first real merge (or before upstreaming), not per commit.
+- [x] Whole-branch independent review ran 2026-08-23
+      (`accuracy/accc-review-and-fixes-independent-review.md`): per-type split accepted as
+      sound (mux seams, latch cluster, holdoff, hcc==0 capture all confirmed; ~45.5M-sample
+      differential reproduced). Its six issues fixed on `accc-review-and-fixes`: 90f0cda
+      GA40010 co-sim manifest (+ lint/render proof), 72d7cf4 handoff/roadmap tip-grounding,
+      4140ebb F6 premise stamped SUPERSEDED, d66ec23 soak claim bounds + re-mint protocol,
+      c7558ae rename sweep + Q15/Q16 numbering. Guide wording fixes it refuted landed in
+      6cfd4dd beforehand. Gates unchanged throughout: 87 required passes, soak hash
+      `0x5b5004ff70148443`. Resolutions await reviewer confirmation.
 - [ ] Expand the soak sampled field set (partial-VSYNC holdoff latch, type-1 status flops)
       and re-mint the golden hash at the next natural boundary (review Issue 4: the current
       projection is exactly how the dev-time holdoff bug escaped it). Both stream branches
@@ -217,16 +226,14 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: STOP — awaiting user review of the type
-split.** State: base `accc-review-and-fixes` at 418aa68 (soak harness; golden hash
-`0x5b5004ff70148443` minted there; F9 merged in via d5cab8f). Split branch
-`accuracy/crtc-type-split` at 63f4c01+ — split (27efc2d) bit-identical per soak + 87 vectors
-+ lint + CI synthesis green, prose sweep folded in, wrapper renamed to `rtl/CRTC.v`
-(63f4c01), reviewer guide + review-debt branch entries added. OUT OF SCOPE until the split is reviewed: F6 Stage 1,
-F7 RFD, F10, Plus P0, top-level wiring. NEXT SESSION (after user review): if approved, merge
-or fast-forward the split into the classic stream and proceed with F6 option C Stage 1 → F7
-RFD (B6 disarm path + A1 corner fix) → F10 (fallback recorded above); Plus P0 is unblocked
-and independent. If the split needs changes, re-run `make -C sim soak
-SOAK_EXPECT=5b5004ff70148443` after edits — a hash change means behaviour moved and needs a
-documented reason before proceeding. See sim/README.md (soak rationale) and AGENTS.md
-"Verification ownership" for the conventions.**
+the resume point in one line here: **resume point: STOP — post-review fixes landed on
+`accc-review-and-fixes`; awaiting reviewer confirmation of the resolutions.** State: base
+branch at the tip on top of 2d4f880 (review + fixes: 6cfd4dd, 90f0cda, 72d7cf4, 4140ebb,
+d66ec23, c7558ae — docs + `rtl/GA40010/Makefile` only); suite 87 passed / soak hash
+`0x5b5004ff70148443` unchanged; GA40010 co-sim elaborates and renders from its manifest.
+Stream branches `accuracy/a3-f6-stage1` (worktree `../Amstrad_MiSTer-classic`) and
+`plus/p0-parser-wiring` (worktree `../Amstrad_MiSTer-plus`) rebase onto this tip. NEXT (after
+confirmation): F6 option C Stage 1 → F7 RFD (B6 disarm path + A1 corner fix) → F10 fixtures
+(fallback derivation above); Plus P0 unblocked and independent. Soak field expansion is
+queued for the next natural boundary — do not move the golden hash mid-stream. See
+sim/README.md (bounded soak claim) and AGENTS.md "Verification ownership" for conventions.**

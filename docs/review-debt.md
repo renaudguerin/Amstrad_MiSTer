@@ -147,8 +147,8 @@ with per-commit rationale, evidence commands, and a prioritized reading list is
 
 | Branch | Scope of the pending whole-branch review | Status |
 |---|---|---|
-| `accc-review-and-fixes` | Docs corrections/reconciliation, review record + A1–A5, soak harness (`418aa68`), F9 merge | Pending |
-| `accuracy/crtc-type-split` | Per-type engine split (`27efc2d`), wrapper rename to `rtl/CRTC.v` (`63f4c01`), session docs | Pending |
+| `accc-review-and-fixes` | Docs corrections/reconciliation, review record + A1–A5, soak harness (`418aa68`), F9 merge | Reviewed 2026-08-23 (`accuracy/accc-review-and-fixes-independent-review.md`). Blocking findings (broken GA40010 co-sim manifest, stale handoff/F6 premises) fixed in 90f0cda/72d7cf4/4140ebb; non-blocking ones in d66ec23/c7558ae. **Resolved pending reviewer confirmation of those fixes**; entries clear only after that confirmation |
+| `accuracy/crtc-type-split` | Per-type engine split (`27efc2d`), wrapper rename to `rtl/CRTC.v` (`63f4c01`), session docs | Reviewed 2026-08-23: split RTL accepted as sound (all five high-risk areas confirmed). Guide wording corrections landed in 6cfd4dd |
 
 The same rule applies here as everywhere else in this file: clear an entry only after a real
 independent review has run — not because later work touched the same files. Mechanical gates
