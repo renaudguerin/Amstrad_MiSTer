@@ -585,6 +585,14 @@ void t03c_r1_eq_r0_blip(TestBench& test) {
         }
         test.expect_de("only the C0=R0 character borders", k < 7);
     }
+    // ACCC §17.1 p.176 and §17.6.1 p.185: the simultaneous C0=R1=R0
+    // row-end capture still advances VMA' normally. After the remaining
+    // scanlines of row 0, row 1 must therefore start at base+R1 rather
+    // than repeating the old row base.
+    test.run_characters(25);
+    test.expect_line("R1==R0 reaches the next character row", 1);
+    test.expect_ma("R1==R0 simultaneous save/reload advances VMA'",
+                   kBase + 7);
 }
 
 // ACCC §17.6.2/§19.2.4 (types 3/4 grouped with type 1): with R1>R0 no

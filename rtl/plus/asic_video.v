@@ -273,19 +273,15 @@ always @(posedge CLOCK) begin
 		if (row_latch_event) vma_latch <= vma;
 
 		if (hcc_last) begin
-			// Line start. Statement order encodes the §20.3.4 priority:
-			// a degenerate simultaneous capture (only reachable when
-			// R1==0) loses to the unconditional frame-start reload.
-			if (!adj_n) begin
-				if (charline_n == 7'd0) begin
-					vma       <= {R12_start_addr_h, R13_start_addr_l};
-					vma_latch <= {R12_start_addr_h, R13_start_addr_l};
-				end
-				else begin
-					vma <= vma_latch;
-				end
+			// §20.3.4 frame-start reload has highest priority. Otherwise
+			// a simultaneous C0=R1=R0 row-end capture supplies the next
+			// row base, so do not overwrite VMA with the stale latch value
+			// on that same edge (ACCC §17.1 p.176 / §17.6.1 p.185).
+			if (!adj_n && (charline_n == 7'd0)) begin
+				vma       <= {R12_start_addr_h, R13_start_addr_l};
+				vma_latch <= {R12_start_addr_h, R13_start_addr_l};
 			end
-			else begin
+			else if (!row_latch_event) begin
 				vma <= vma_latch;
 			end
 		end
