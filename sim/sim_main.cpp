@@ -3650,15 +3650,18 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
 //
 // ACCC v1.10 section 17.6.2 (page 186): when R1 > R0 the C0=R1 DISPTMG-off
 // comparison can never fire (C0 wraps at R0 first), so a type-0 CRTC
-// substitutes C0=R0 as the border-start trigger: one border byte (0.5 us)
-// is emitted between every pair of character rows, with "BORDER OFF" sent
-// again on the following character. Type 1 emits nothing at all in this
-// configuration (pages 186-187) -- the documented type discriminator of
-// section 28.1.6. Section 19.2.4 (page 195) counts a programmed
-// SKEW-DISPTMG delay from the substituted trigger as if C0=R1 had fired
-// there, so delay=1/2 displaces the byte onto C0=0/C0=1 of the following
-// line (delay arithmetic per section 19.2.3, pages 193-194), and SKEW mode
-// 2'b11 suppresses all DISPTMG output entirely.
+// substitutes C0=R0 as the border-start trigger. The source describes the
+// resulting border byte as 0.5 us, but this character-granular Stage 1 bench
+// deliberately pins DE low for the full 1 us character containing that
+// trigger; these assertions are for that accepted approximation, not exact
+// ACCC pin timing. F13 remains hardware-blocked for the half-character
+// distinction. Type 1 emits nothing at all in this configuration (pages
+// 186-187) -- the documented type discriminator of section 28.1.6. Section
+// 19.2.4 (page 195) counts a programmed SKEW-DISPTMG delay from the
+// substituted trigger as if C0=R1 had fired there, so delay=1/2 displaces the
+// approximated full-character blank onto C0=0/C0=1 of the following line
+// (delay arithmetic per section 19.2.3, pages 193-194), and SKEW mode 2'b11
+// suppresses all DISPTMG output entirely.
 // ---------------------------------------------------------------------------
 
 constexpr unsigned kF6LineCharacters = 16;  // R0 = 15
