@@ -7,6 +7,12 @@ ASIC_OBJ_DIR  := obj_dir/asic_unlock
 ASIC_TEST_SRC := $(abspath asic_unlock_test.cpp)
 ASIC_TEST_BIN := $(ASIC_OBJ_DIR)/asic_unlock_tests
 
+ASICVID_TOP      := asic_video
+ASICVID_RTL      := $(abspath ../../rtl/plus/asic_video.v)
+ASICVID_OBJ_DIR  := obj_dir/asic_video
+ASICVID_TEST_SRC := $(abspath asic_video_test.cpp)
+ASICVID_TEST_BIN := $(ASICVID_OBJ_DIR)/asic_video_tests
+
 MODEL_TOP      := plus_model_select
 MODEL_RTL      := $(abspath ../../rtl/plus/plus_model_select.v)
 MODEL_OBJ_DIR  := obj_dir/plus_model_select
@@ -58,7 +64,7 @@ P0BOOT_OBJ_DIR  := obj_dir/p0_boot
 P0BOOT_TEST_SRC := $(abspath p0_boot_test.cpp)
 P0BOOT_TEST_BIN := $(P0BOOT_OBJ_DIR)/p0_boot_tests
 
-TEST_BINS := $(ASIC_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
+TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
@@ -72,6 +78,7 @@ build: $(TEST_BINS)
 
 test: $(TEST_BINS)
 	./$(ASIC_TEST_BIN)
+	./$(ASICVID_TEST_BIN)
 	./$(MODEL_TEST_BIN)
 	./$(DAN_BOUNDS_TEST_BIN)
 	./$(MEMORY_TEST_BIN)
@@ -85,6 +92,11 @@ $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
 		--Mdir $(ASIC_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(ASIC_TEST_BIN)) $(ASIC_RTL) $(ASIC_TEST_SRC)
+
+$(ASICVID_TEST_BIN): $(ASICVID_RTL) $(ASICVID_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASICVID_TOP) \
+		--Mdir $(ASICVID_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(ASICVID_TEST_BIN)) $(ASICVID_RTL) $(ASICVID_TEST_SRC)
 
 $(MODEL_TEST_BIN): $(MODEL_RTL) $(MODEL_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(MODEL_TOP) \
@@ -136,6 +148,8 @@ $(OBJ_DIR):
 lint:
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(ASIC_TOP) -Wall $(ASIC_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(ASICVID_TOP) -Wall $(ASICVID_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(MODEL_TOP) -Wall $(MODEL_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
