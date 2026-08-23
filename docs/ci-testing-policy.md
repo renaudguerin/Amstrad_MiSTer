@@ -26,7 +26,10 @@ known synthesis boundary:
 - the project, constraint, or production manifest files (`Amstrad.qpf`, `Amstrad.qsf`,
   `Amstrad.sdc`, `files.qip`);
 - the production top level (`Amstrad.sv`), platform sources under `sys/`, or a nested QIP;
-- the known motherboard, SDRAM, and RGB integration modules; or
+- the known motherboard, SDRAM, and RGB integration modules, the qip-listed GA40010
+  netlist-recreation sources (the netlist is a frozen reference — any source edit is an
+  integration event even when `ga40010.qip` itself is unchanged), or the u765 FDC
+  controller; or
 - the CI workflow or its synthesis-path classifier.
 
 It also runs for every non-documentation push to the repository's default branch, every pushed
