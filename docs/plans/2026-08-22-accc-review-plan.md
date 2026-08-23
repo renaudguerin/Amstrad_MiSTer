@@ -196,6 +196,17 @@ the type-split refactor milestone (it forces a full read anyway).
       phase — no Gate Array change). Golden hash re-minted to `0x326ea81358e7d88f` for the
       intended delta; recorded in plan/README/guide/AGENTS.md. Next stage: Stage 2
       seam-width measurement via the GA40010 co-simulation render.
+- [x] F6 option C Stage 2 (seam-width measurement) — DONE 2026-08-23 on
+      `accuracy/f6stage2-soak-expand`, per `accuracy/f6-decision-gate.md`
+      (dated section) + `accuracy/evidence/f6-stage2-seam-measurement-2026-08-23.log`.
+      GA40010 co-sim render, two geometries: type 0 seam = 16 mode-2 px (1 µs)
+      on every display row, type 1 = none. The recreation renders the
+      char-aligned DE gap one-for-one (byte-phase DISPEN latch exists but does
+      not halve/anticipate); narrowing the seam to the book's 0.5 µs would
+      require GA/glue RTL changes, so Stage 2 stopped at measurement as
+      defined. SHAKER Module A (O) is the arbiter; shaker-module-a-map (O)
+      entry updated. No RTL change; suite/gates untouched.
+      NEXT: F7 RFD → F10 fixtures.
 - [ ] Branch review note (clarification): no branch stacking is needed. Stream branches
       (`accuracy/*`, `plus/*`) cut from `accc-review-and-fixes`; the base branch itself
       carries no new review-debt rows by decision, which is only safe because its whole

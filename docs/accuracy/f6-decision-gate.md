@@ -4,8 +4,10 @@ Status: **option C chosen; Stage 1 landed 2026-08-23** on branch
 `accuracy/a3-f6-stage1` (vectors `t10a`-`t10e` red first, then the substituted
 border-start term in `crtc_type0_engine.v`, injected ahead of the wrapper's
 SKEW-DISPTMG delay line in `rtl/CRTC.v`; golden soak hash re-minted to
-`0x326ea81358e7d88f`, delta protected by t10a-t10e). Stage 2 (seam-width
-measurement) is next and has not started. Renaud's stated priority 2026-08-22:
+`0x326ea81358e7d88f`, delta protected by t10a-t10e). **Stage 2 measured
+2026-08-23** — see the dated section below: the visible seam through the
+GA40010 co-sim route is 1 µs, not the documented 0.5 µs; recorded and stopped
+(no GA/glue change made). Renaud's stated priority 2026-08-22:
 exact hardware preservation, materialised by passing all SHAKER tests — strongly leaning
 toward the full-fidelity path (option C), conditional on the validation gates below. This
 file exists so any option can be picked up or abandoned without re-deriving the analysis.
@@ -105,3 +107,44 @@ is contradicted by the code:
 
 Related constraint: sequencing with the per-CRTC model separation is discussed in
 [crtc-per-type-separation.md](crtc-per-type-separation.md).
+
+## Stage 2 result — seam width measured 2026-08-23 (`accuracy/f6stage2-soak-expand`)
+
+Method, raw numbers, VCD mechanism trace, and reproduction sketch:
+[evidence/f6-stage2-seam-measurement-2026-08-23.log](evidence/f6-stage2-seam-measurement-2026-08-23.log).
+Summary:
+
+- Route: `ga40010_test.v` CRTC+GA40010 co-simulation render (90f0cda manifest;
+  elaboration from the checked-in HDL list re-verified), mode 2, zeroed VRAM,
+  border pen distinct from display ink. Registers stock except R0/R1 under test
+  and R2/R3 moved so the reshaped GA HSYNC band does not sit on the seam char
+  (with stock R2=46/R3=128+14 the sync band swallows it — first attempt,
+  negative result). Two geometries: R0=62/R1=63 and R0=49/R1=50.
+- **Type 0: every display row shows exactly one interior border seam of
+  exactly 16 mode-2 px = 1 µs** (199/199 rows, both geometries).
+  **Type 1: zero interior seams** — rows merge seamlessly; §28.1.6 type
+  discriminator holds.
+- Pin level agrees with Stage 1 / t10a-t10e: DE low exactly one character at
+  C0=R0 once per line (type 0); never (type 1).
+
+Mechanism: the GA *does* latch DISPEN at byte phase (`DISPEN_BUF` samples at
+S=0xE0/S=0x03 catch the drop mid-character), but the video pipeline
+(`u1008 = load ? DISPEN_BUF : u1005`) renders the captured gap one-for-one:
+`border_sel` runs a full character, displaced ~one character late relative to
+the pin drop. The recreation neither halves nor anticipates the blip.
+
+Disposition — **STOP, measurement recorded, no RTL change**: narrowing the
+visible seam to the ACCC §17.6.2 p.186 "one byte" (0.5 µs) would require
+behaviour changes downstream of the CRTC pins (GA `DISPEN_BUF`/`u1008`/
+`border_sel` timing), which Stage 2 forbids itself. Consequences for the gate:
+
+1. Through this recreation, option B (char-aligned approximation) and option C
+   Stage 1 are visually indistinguishable — both render a 1 µs seam here. The
+   pin-level difference remains real and vector-pinned; only the visible
+   payoff of full fidelity is absent so far.
+2. Hardware is the authority and outranks both the book reading and the
+   simulation: SHAKER Module A (O) against the Logon System reference photos
+   decides. If real silicon shows ~0.5 µs, the recreation diverges and a
+   Stage 3-class question opens (GA pipeline timing vs. glue); if it shows
+   ~1 µs, the ACCC 0.5 µs wording needs re-examination against the source.
+   Until that session, no code path should be "fixed" toward either number.
