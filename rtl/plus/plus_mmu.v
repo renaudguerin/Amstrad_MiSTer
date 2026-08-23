@@ -85,7 +85,9 @@ localparam [1:0] CART_DONE    = 2'd3;
 // clk_sys cycles); small enough to recover the CPU almost immediately.
 localparam [15:0] STALL_TIMEOUT = 16'd1024;
 
-reg        unlocked;
+// Net, not a variable: it is driven by the asic_unlock instance output and
+// Quartus rejects variable connections for output ports.
+wire       unlocked;
 reg [1:0]  rmr2_pos;    // low-window position as A[15:14] compare code
 reg [2:0]  rmr2_page;
 reg [7:0]  romsel;
