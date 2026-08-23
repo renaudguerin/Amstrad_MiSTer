@@ -76,6 +76,8 @@ public:
 
     // Advance one character at a time until the counters sit at a frame
     // start (C4=C9=C0=0 sampled just after a CLKEN edge).
+    unsigned vsync() const { return dut.VSYNC; }
+
     void dbg_state(const char* where) const {
         std::printf("DBG %s: HCC=%u LINE=%u ROW=%u MA=%u RA=%u DE=%u\n",
                     where, dut.HCC, dut.LINE, dut.ROW, dut.MA, dut.RA, dut.DE);
@@ -89,6 +91,20 @@ public:
                 throw TestFailure("run_to_frame_start did not converge");
             }
         } while (!(dut.LINE == 0 && dut.ROW == 0 && dut.HCC == 0));
+    }
+
+    // Run until the VSYNC pin is observed low: flushes any pulse that
+    // legitimately persists out of the pinned R0=0 programming phase
+    // (with R7=0 the §16.4.4 condition holds at every line start and the
+    // pulse renews without a gap).
+    void run_until_vsync_idle() {
+        unsigned guard = 0;
+        do {
+            run_characters(1);
+            if (++guard > 8192) {
+                throw TestFailure("run_until_vsync_idle did not converge");
+            }
+        } while (dut.VSYNC != 0);
     }
 
     void run_until_adjustment() {
@@ -137,10 +153,30 @@ public:
         }
     }
 
+    void expect_hsync(const std::string& expectation, bool expected) const {
+        if ((dut.HSYNC != 0) != expected) {
+            fail(expectation + ": HSYNC", expected ? 1 : 0, dut.HSYNC);
+        }
+    }
+
+    void expect_vsync(const std::string& expectation, bool expected) const {
+        if ((dut.VSYNC != 0) != expected) {
+            fail(expectation + ": VSYNC", expected ? 1 : 0, dut.VSYNC);
+        }
+    }
+
     void expect_ra(const std::string& expectation, unsigned expected) const {
         if (dut.RA != expected) {
             fail(expectation + ": RA", expected, dut.RA);
         }
+    }
+
+public:
+    [[noreturn]] static void fail_unsigned(const std::string& what,
+                                           unsigned expected,
+                                           unsigned actual) {
+        throw TestFailure(what + ": expected " + std::to_string(expected) +
+                          ", actual " + std::to_string(actual));
     }
 
 private:
@@ -189,6 +225,30 @@ private:
     Vasic_video dut;
     unsigned tick_in_character_ = 0;
 };
+
+// Program a standard frame: R0=7 (8-char lines), R9=3 (4-line char rows),
+// R4=2 (3 char rows), R5=0 -> 3*4*8 = 96 characters per frame. Counter
+// state is pinned at zero while R0=R4=R9=0 during programming, so callers
+// align with run_to_frame_start() before reasoning about positions.
+void program_standard_frame(TestBench& test) {
+    test.write_register(0x00, 7);
+    test.write_register(0x09, 3);
+    test.write_register(0x04, 2);
+    test.write_register(0x05, 0);
+}
+
+// Standard frame plus display programming: R1=4 displayed characters,
+// R6=100 (never reached: no border), video base 0x1234 via R12/R13.
+void program_display_frame(TestBench& test) {
+    test.write_register(9, 3);
+    test.write_register(4, 2);
+    test.write_register(5, 0);
+    test.write_register(1, 4);
+    test.write_register(6, 100);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.write_register(0, 7);  // last: starts the 8-char line cadence
+}
 
 // Power-on R0=0 makes every character a complete line: C0 pins to 0. This
 // is the §13.5 (p.121) "R0 accepts all values" acceptance at the reset
@@ -276,34 +336,200 @@ void t01e_r0_shrink_overflow(TestBench& test) {
     test.expect_hcc("equality reached: normal wrap resumes", 0);
 }
 
+
+// ACCC §14.6.2 p.142 / §15.2.2 p.147: HSYNC starts at C0=R2 and lasts R3l
+// characters (§14.1). Width 5 starting at R2=6 covers characters 6..10
+// across the line boundary.
+void t04a_hsync_position_and_width(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(2, 6);
+    test.write_register(3, 0x65);  // H width 5, V width 6
+    test.run_to_frame_start();
+    for (unsigned k = 0; k <= 15; ++k) {
+        if (k > 0) {
+            test.run_characters(1);
+        }
+        // Width 5 from C0=R2=6 on an 8-character line wraps: chars
+        // 6,7 of every line plus 0,1,2 of the following one.
+        const unsigned phase = k % 8;
+        const bool high = (phase <= 2) || (phase >= 6);
+        test.expect_hsync(("HSYNC wrap k=" + std::to_string(k)).c_str(), high);
+    }
+}
+
+// ACCC §14.5 p.141: on types 2/3/4 an R3l of 0 still produces a
+// 16-character HSYNC (full nibble), unlike types 0/1 which produce none.
+void t04b_r3_zero_means_sixteen(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(2, 6);
+    test.write_register(3, 0x60);  // H width 0 -> 16
+    test.run_to_frame_start();
+    // Steady pattern with 8-character lines: each pulse lasts 16 chars
+    // from C0=6, and a start landing inside an active pulse is ignored
+    // (a new HSYNC cannot begin during one, ACCC §15.3.1), giving 16 on
+    // / 8 off. The aligned character sits 14 characters into the pulse
+    // that the previous line started.
+    for (unsigned k = 0; k <= 23; ++k) {
+        if (k > 0) {
+            test.run_characters(1);
+        }
+        test.expect_hsync("R3l=0 gives a full-nibble HSYNC",
+                          k < 14 || k >= 22);
+    }
+}
+
+// Dynamic R3l rewrite below the already-counted value: the counter wraps
+// its whole nibble before the new equality can hit, so the interrupted
+// HSYNC is EXTENDED, not truncated (compendium-02 §4, ACCC §14.4 general
+// rule incl. types 3/4). Start width 12 from C0=R2=6; a rewrite to 2
+// landing during character 9 ends the pulse entering character 23.
+void t04c_r3l_rewrite_wraps_nibble(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(2, 6);
+    test.write_register(3, 0x6C);  // H width 12, V width 6
+    test.run_to_frame_start();
+    test.run_characters(8);        // position: C0=8
+    test.write_register(3, 0x62);  // lands mid-character 9; H width -> 2
+    for (unsigned k = 9; k <= 26; ++k) {
+        test.run_characters(1);
+        const bool high = (k >= 10 && k <= 22);
+        if (k == 10 || k == 22 || k == 23 || k == 26) {
+            test.expect_hsync("nibble wrap extends the interrupted HSYNC",
+                              high);
+        }
+    }
+}
+
+// ACCC §15.3.1/§15.3.2 p.148: with R0=0, R2=0, R3l=1 the width expires
+// exactly on a C0=R2 character every time; types 1..4 keep the HSYNC
+// asserted with the counter rolling through its wrapped nibble — the
+// infinite-HSYNC configuration.
+void t04d_infinite_hsync(TestBench& test) {
+    test.write_register(2, 0);
+    test.write_register(3, 0x01);
+    test.write_register(0, 0);
+    for (unsigned k = 1; k <= 40; ++k) {
+        test.run_characters(1);
+        test.expect_hsync("HSYNC restarts itself forever", true);
+    }
+}
+
+// ACCC §16.4.4 p.170: VSYNC needs C4==R7 AND C9==0 AND C0==0 at a line
+// start; rewriting R7 to the current C4 while C0>0 does NOT trigger
+// until a qualifying line start arrives.
+void t04e_vsync_gate_and_r7_write(TestBench& test) {
+    // Positive control: R7=1 fires at the row-1 entry line start.
+    program_display_frame(test);
+    test.write_register(7, 1);
+    test.write_register(3, 0x30);  // V width 3 lines
+    test.run_until_vsync_idle();   // flush the pinned-phase pulse
+    test.run_to_frame_start();
+    unsigned first_high = 0;
+    for (unsigned k = 1; k <= 95; ++k) {
+        test.run_characters(1);
+        if (first_high == 0 && test.vsync() != 0) {
+            first_high = k;
+        }
+    }
+    if (first_high != 32) {
+        TestBench::fail_unsigned("VSYNC fires at row-1 entry (C4=R7, C9=C0=0)", 32, first_high);
+    }
+
+    // Negative: unreachable R7 during frame 1; a mid-row R7=1 write
+    // lands after that row's qualifying line start has passed, so the
+    // pulse waits for the NEXT frame's row-1 entry.
+    TestBench late;
+    program_display_frame(late);
+    late.write_register(7, 200);
+    late.write_register(3, 0x30);
+    late.run_characters(200);      // flush the pinned-phase pulse
+    late.run_to_frame_start();
+    late.run_characters(40);       // inside row 1, past its entry line
+    late.write_register(7, 1);     // C0>0: no trigger now
+    bool fired_before_frame_end = false;
+    for (unsigned k = 41; k <= 95; ++k) {   // rest of frame 1
+        late.run_characters(1);
+        if (late.vsync() != 0) {
+            fired_before_frame_end = true;
+        }
+    }
+    if (fired_before_frame_end) {
+        TestBench::fail_unsigned(
+            "mid-row R7 write stays inert until a line-start match", 0, 1);
+    }
+    // Frame 2 must fire at its row-1 entry (C4=R7=1, C9=C0=0) and the
+    // 3-line pulse must be observable there.
+    bool fired_next_frame = false;
+    for (unsigned k = 0; k < 64; ++k) {     // frame 2 rows 0-1
+        late.run_characters(1);
+        if (late.vsync() != 0) {
+            fired_next_frame = true;
+        }
+    }
+    if (!fired_next_frame) {
+        TestBench::fail_unsigned("next frame's row-1 entry fires", 1, 0);
+    }
+}
+
+// ACCC §14.2 p.131: R3h programs the VSYNC length in lines, 0 meaning
+// 16 (types 0/3/4).
+void t04f_vsync_width(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(7, 1);
+    test.write_register(3, 0x35);  // V width 3
+    test.run_until_vsync_idle();   // flush the pinned-phase pulse
+    test.run_to_frame_start();
+    for (unsigned k = 1; k <= 60; ++k) {
+        test.run_characters(1);
+        if (k == 31) {
+            test.expect_vsync("pulse not yet started", false);
+        }
+        else if (k == 33 || k == 55) {
+            test.expect_vsync("three programmed lines wide", true);
+        }
+        else if (k == 57) {
+            test.expect_vsync("ends after the third line", false);
+        }
+    }
+
+    TestBench legacy;
+    program_display_frame(legacy);
+    legacy.write_register(7, 1);
+    legacy.write_register(3, 0x05);  // V width 0 -> 16 lines
+    legacy.run_until_vsync_idle();
+    legacy.run_to_frame_start();
+    for (unsigned k = 1; k <= 170; ++k) {
+        legacy.run_characters(1);
+        if (k == 33 || k == 150) {
+            legacy.expect_vsync("legacy 16-line VSYNC", true);
+        }
+        else if (k == 162) {
+            legacy.expect_vsync("sixteen lines end the pulse", false);
+        }
+    }
+}
+
+// ACCC §16.4.4: there is NO re-entrancy protection — with the qualifying
+// condition true at every line start (R7=R4=R9=0), a finished pulse is
+// renewed immediately, which for this degenerate programming means the
+// pin never visibly drops between renewals.
+void t04g_no_reentrancy_continuous_refire(TestBench& test) {
+    test.write_register(9, 0);
+    test.write_register(4, 0);
+    test.write_register(7, 0);
+    test.write_register(5, 0);
+    test.write_register(3, 0x20);  // V width 2 lines
+    test.write_register(0, 1);     // 2-character lines
+    for (unsigned k = 1; k <= 30; ++k) {
+        test.run_characters(1);
+        test.expect_vsync("renewed VSYNC whenever inactive", true);
+    }
+}
+
 struct TestCase {
     const char* name;
     void (*run)(TestBench&);
 };
-
-// Program a standard frame: R0=7 (8-char lines), R9=3 (4-line char rows),
-// R4=2 (3 char rows), R5=0 -> 3*4*8 = 96 characters per frame. Counter
-// state is pinned at zero while R0=R4=R9=0 during programming, so callers
-// align with run_to_frame_start() before reasoning about positions.
-void program_standard_frame(TestBench& test) {
-    test.write_register(0x00, 7);
-    test.write_register(0x09, 3);
-    test.write_register(0x04, 2);
-    test.write_register(0x05, 0);
-}
-
-// Standard frame plus display programming: R1=4 displayed characters,
-// R6=100 (never reached: no border), video base 0x1234 via R12/R13.
-void program_display_frame(TestBench& test) {
-    test.write_register(9, 3);
-    test.write_register(4, 2);
-    test.write_register(5, 0);
-    test.write_register(1, 4);
-    test.write_register(6, 100);
-    test.write_register(12, 0x12);
-    test.write_register(13, 0x34);
-    test.write_register(0, 7);  // last: starts the 8-char line cadence
-}
 
 constexpr unsigned kBase = 0x1234;
 
@@ -604,7 +830,7 @@ void t02g_r5_grow_extends_adjustment(TestBench& test) {
     test.expect_line("fresh frame", 0);
 }
 
-constexpr std::array<TestCase, 19> kTests = {{
+constexpr std::array<TestCase, 26> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -624,6 +850,13 @@ constexpr std::array<TestCase, 19> kTests = {{
     {"t03e R6 line-start-only semantics", t03e_r6_line_start_semantics},
     {"t03f adjustment rows solidified", t03f_adjustment_rows_solidified},
     {"t03g SKEW-DISPTMG delay and BORDER ON", t03g_skew_delay_and_border_on},
+    {"t04a HSYNC position and width", t04a_hsync_position_and_width},
+    {"t04b R3l=0 sixteen-character HSYNC", t04b_r3_zero_means_sixteen},
+    {"t04c R3l rewrite wraps the nibble", t04c_r3l_rewrite_wraps_nibble},
+    {"t04d infinite-HSYNC bug", t04d_infinite_hsync},
+    {"t04e VSYNC gate and mid-row R7 write", t04e_vsync_gate_and_r7_write},
+    {"t04f VSYNC width incl. legacy 16", t04f_vsync_width},
+    {"t04g VSYNC refire without protection", t04g_no_reentrancy_continuous_refire},
 }};
 
 }  // namespace
