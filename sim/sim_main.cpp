@@ -3566,7 +3566,7 @@ void test_type1_rfd_r0_widen_off_last_line_never_arms(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 sections 13.5 p.121 and 13.7.1.2 p.124: any-R0 acceptance
+    // ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124: any-R0 acceptance
     // is generic type-1 behaviour, but the RFD window requires the exact
     // last-line precondition (C4==R4, C9==R9, R5==0).  run_characters(15)
     // lands on C0=7==R0 of line 1, where the line half of the precondition
@@ -4811,7 +4811,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 11.4 p.86 and 11.6 p.87; F7 rollover race", false,
          test_type1_rfd_final_line_write_enters_adjustment},
         {"t13e_type1_rfd_r0_widen_without_cancel_ends_normally",
-         "ACCC v1.10 sections 13.5 p.121 and 13.7.1.2 p.124; F7 residual",
+         "ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124; F7 residual",
          false, test_type1_rfd_r0_widen_without_cancel_ends_normally},
         {"t13f_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end",
          "ACCC v1.10 section 13.7.1.2 p.124 (digest-01 section 8.6); F7 residual",
@@ -4826,13 +4826,13 @@ int main(int argc, char** argv) {
          "ACCC v1.10 section 13.7.1.2 p.124 widened-only gate; F7 residual",
          false, test_type1_rfd_equal_r0_write_opens_no_window},
         {"t13j_type1_rfd_r0_widen_off_last_line_never_arms",
-         "ACCC v1.10 sections 13.5 p.121 and 13.7.1.2 p.124; F7 residual",
+         "ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124; F7 residual",
          false, test_type1_rfd_r0_widen_off_last_line_never_arms},
         {"t13k_type1_rfd_r0_window_does_not_survive_type_round_trip",
          "ACCC v1.10 section 13.7.1.2 p.124; F7 live-type contract", false,
          test_type1_rfd_r0_window_does_not_survive_type_round_trip},
         {"t13l_type1_rfd_r0_widen_line_gate_never_arms",
-         "ACCC v1.10 sections 13.5 p.121 and 13.7.1.2 p.124; F7/F-2", false,
+         "ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124; F7/F-2", false,
          test_type1_rfd_r0_widen_line_gate_never_arms},
         {"t13m_type1_rfd_r0_extend_blanks_from_c0_r1",
          "ACCC v1.10 sections 6.1.3 p.33 and 13.7.1.2 p.124; F-1", false,

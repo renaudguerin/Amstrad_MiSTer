@@ -155,10 +155,12 @@ assign rfd_r0_extend = rfd_r0_widen_at_last_line;
 
 wire rfd_r0_cancelled = (line != crtc1_line_max) | (row != R4_v_total);
 // Raw hcc_last is safe here by an exact-negation invariant: arming requires
-// rfd_r0_widen_at_last_line false at every earlier edge, and that term's
-// line/row conjunction is precisely the complement of rfd_r0_cancelled, so
-// a re-extend and an arm can never share an edge and hcc_end == hcc_last
-// on every possible arm edge.
+// rfd_r0_cancelled at this edge, and that is the precise complement of the
+// line/row conjunction inside rfd_r0_widen_at_last_line, so that term is
+// necessarily false on an arm edge.  A re-extend and an arm can therefore
+// never share an edge, and hcc_end == hcc_last on every possible arm edge.
+// (Opening the window earlier does require rfd_r0_widen_at_last_line true
+// at some prior edge; that is what set rfd_r0_pending.)
 wire rfd_r0_arm = rfd_r0_pending & CLKEN & hcc_last & rfd_r0_cancelled;
 
 // ACCC v1.10 section 11.3.2: Type 1 adjustment ends when C5+1 reaches R5
