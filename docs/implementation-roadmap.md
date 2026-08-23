@@ -26,9 +26,8 @@ merged into the same behavioral PR.
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
   from `rtl/UM6845R.v`), and GitHub Actions synthesis.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
-  RBF packaging, and artifact upload through `69da513` (run `32641514600`), which includes
-  P0 production wiring, the simulation-only P1 foundation, F6 Stage 1, and the sampled-field
-  soak expansion. New top-level/file-list commits still require their own run.
+  RBF packaging, and artifact upload through the pass-2 fix tip `f6f09f5` (run
+  `32645547100`). New top-level/file-list commits still require their own run.
 - `sim/` currently reports **93** required classic CRTC passes with no expected failures
   (verified 2026-08-23, Verilator 5.050); the soak reproduces golden hash
   `0xf5f8ae01ffdf928d`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.

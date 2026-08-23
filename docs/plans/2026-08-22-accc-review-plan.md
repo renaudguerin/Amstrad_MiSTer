@@ -120,7 +120,8 @@ core integrates**. Same-layer inventory from the 2026-08-22 sweep:
 - ✅ F6 DE-consumption premise — wrong, corrected (`accuracy/f6-decision-gate.md`);
   consequence: GA40010 samples DISPEN at byte phase, option C likely needs no netlist change.
 - ❌ testbench-spec non-goal "no GA co-simulation / netlist-based / slow" — wrong;
-  ga40010_test.v co-simulates UM6845R+GA40010 and renders PNG frames. Corrected in
+  ga40010_test.v co-simulates `rtl/CRTC.v` plus both engines with GA40010 and renders PNG
+  frames. Corrected in
   testbench-spec; enables in-simulation seam measurement for F6 Stage 2.
 - ⚠ Stale: audit-findings RTL line references throughout (drifted through commits).
 - ⚠ Stale: F11h "Current" text — predates t20b/crtc1_row0_reload per-line row-0 reload.
@@ -136,7 +137,8 @@ the type-split refactor milestone (it forces a full read anyway).
       (2026-08-22 conclusion: the only cross-stream shared surface is `sim/sim_main.cpp`
       harness helpers — classic vectors and Plus benches both extend it, so harness-only
       changes land on `accc-review-and-fixes` first. Classic queue touches only
-      `rtl/UM6845R.v`; Plus P0 touches top-level wiring + `files.qip`; no shared RTL items.
+      `rtl/CRTC.v` plus the per-type engines; Plus P0 touches top-level wiring + `files.qip`;
+      no shared RTL items.
       Review action item A4 (harness tidy) landed on base for this reason. Nothing else
       blocks cutting `accuracy/*` and `plus/*`.)
 - [x] Type-split prerequisite: land the soak-diff harness on base BEFORE the split
@@ -217,11 +219,12 @@ the type-split refactor milestone (it forces a full read anyway).
       finding promoted as F13, BLOCKED-PENDING-HARDWARE-EVIDENCE; no production RTL.
       Q15/Q16 resolved by default visual readings. NEXT independent work: F7 RFD →
       F10 fixtures; next F13 action is SHAKER Module A (O) + DE-pin capture if possible.
-- [ ] Branch review note (clarification): no branch stacking is needed. Stream branches
+- [x] Branch review note (clarification): no branch stacking is needed. Stream branches
       (`accuracy/*`, `plus/*`) cut from `accc-review-and-fixes`; the base branch itself
       carries no new review-debt rows by decision, which is only safe because its whole
       diff gets one review pass before its content is treated as settled/upstreamed.
-      Schedule that pass at the first real merge (or before upstreaming), not per commit.
+      The pass-1 and pass-2 records now exist; the pass-2 remediation commits await the
+      user's next independent confirmation pass before the rows clear.
 - [x] Whole-branch independent review ran 2026-08-23
       (`accuracy/accc-review-and-fixes-independent-review.md`): per-type split accepted as
       sound (mux seams, latch cluster, holdoff, hcc==0 capture all confirmed; ~45.5M-sample
@@ -229,8 +232,22 @@ the type-split refactor milestone (it forces a full read anyway).
       GA40010 co-sim manifest (+ lint/render proof), 72d7cf4 handoff/roadmap tip-grounding,
       4140ebb F6 premise stamped SUPERSEDED, d66ec23 soak claim bounds + re-mint protocol,
       c7558ae rename sweep + Q15/Q16 numbering. Guide wording fixes it refuted landed in
-      6cfd4dd beforehand. Gates unchanged throughout: 87 required passes, soak hash
-      `0x5b5004ff70148443`. Resolutions await reviewer confirmation.
+      6cfd4dd beforehand. At that pass-1 tip, gates were 87 required passes and soak hash
+      `0x5b5004ff70148443`. Those resolutions awaited pass 2.
+- [x] Independent pass 2 preserved verbatim at
+      `accuracy/accc-review-and-fixes-independent-review-pass2.md` (reviewed tip
+      `0773ad47369f983094201c142122f6e2a1425d29`). All 11 findings were confirmed and
+      remediated in focused commits: P0 cancellation/late-response safety (`c889142`) and
+      load-time MMU waiting with a production-sized integrated vector (`a3dc85a`); exact
+      range whitespace (`68b8aef`); complete GA40010 co-sim manifest (`42e8fd2`); live-R2
+      HSYNC collision from ACCC §15.3.5 p.151 (`d5d8416`, docs `bfb2057`); canonical
+      handoff (`7c40f93`); differential `r6_border_condition` coverage and preserved rerun
+      (`b75330b`); wrapper-path sweep (`cdfc7ff`); honest t01e oracle classification
+      (`de6e14e`); F6 approximation wording (`b077821`); and residual counts/status
+      (`f6f09f5`, with the duplicate review-debt header removed in the final handoff).
+      No GA40010 netlist RTL changed. The canonical soak hash stayed
+      `0xf5f8ae01ffdf928d`. GitHub Actions run `32645547100` is green at `f6f09f5`
+      (simulation plus Quartus synthesis/package/upload). Fixes await reviewer confirmation.
 - [x] Expand the soak sampled field set (partial-VSYNC holdoff latch, type-1 status flops)
       and re-mint the golden hash at the next natural boundary (review Issue 4: the current
       projection is exactly how the dev-time holdoff bug escaped it). The F6 Stage 1
@@ -251,10 +268,12 @@ the type-split refactor milestone (it forces a full read anyway).
       insertion; 5a69ebe: CPR ioctl index 8 live, P0 boot integration bench).
       P1 CRTC3 counter/timing foundation DONE 2026-08-23 on
       `plus/p1-crtc3-foundation` (4 commits: register file + HCC, vertical chain,
-      pointer/DE/skew, syncs; vectors t01a-t04g, ACCC cites at point of
+      pointer/DE/skew, syncs; vectors t01a-t04h, ACCC cites at point of
       implementation). Integration inspection added an ACCC-derived `t03c` MA assertion
       and fixed the simultaneous C0=R1=R0 VMA'/VMA save/reload seam; the original code
       had incorrectly restored the stale row base on the first scanline of the next row.
+      Pass-2 follow-up `t04h` pins the live R2 end/start collision and C3 continuation;
+      t01e remains an explicitly unverified model assumption rather than a sourced rule.
       P1 remainder: pixel path ([KT] colour table to source) +
       CPU/WAIT contract decision at first motherboard instantiation.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";
@@ -283,19 +302,18 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and
-note the resume point in one line here: **resume point: Plus P1 CRTC3 counter/timing
-foundation implemented on branch `plus/p1-crtc3-foundation`, now rebased onto the base
-carrying the soak sampled-field expansion and F6 Stage 2/2b evidence: register file + HCC,
-vertical chain, video pointer + DE/SKEW-DISPTMG, and HSYNC/VSYNC; 26 `asic_video` vectors
-t01a-t04g, 93 classic vectors, lint clean. The canonical soak hash is
-`0xf5f8ae01ffdf928d`, re-minted for the sampled-field expansion after the earlier F6 Stage 1
-behaviour re-mint. P1 remainder is recorded in `docs/plus/architecture.md` §7 (pixel path
-needs the [KT] colour table; CPU/WAIT contract decision at first motherboard instantiation;
-interlace + read map deferred to later phases). Whole-branch review remains recorded in
-`docs/review-debt.md`. NEXT: the coordination session integrates the branch; classic
-continues F7 RFD → F10 while F13 waits for SHAKER/DE-pin hardware evidence; Plus continues
-the P1 remainder then P2. Before later Plus work, run the manual hardware checkpoint: real
-`.cpr` boot with a Plus model selected and classic re-checked side by side. Behaviour-
-preserving edits run `make -C sim soak SOAK_EXPECT=f5f8ae01ffdf928d`; a hash change means
-behaviour moved and needs a documented reason. See sim/README.md (bounded soak claim) and
-AGENTS.md "Verification ownership" for conventions.**
+note the resume point in one line here: **resume point: independent pass-2 fixes are
+implemented on `accc-review-and-fixes` and await the user's confirmation review. The P0
+MMU/service seam now rejects stale completions and waits through production-sized loads;
+the P1 foundation has 27 vectors including the ACCC p.151 live-R2 HSYNC collision; the
+GA40010 co-sim manifest elaborates from scratch; the frozen split comparator now samples
+`r6_border_condition`; canonical handoff/count/path/oracle/F6 wording is reconciled. Local
+gates are 93 classic passes plus all Plus groups, lint warnings only, clean exact-range
+`git diff --check`, soak hash `0xf5f8ae01ffdf928d`, and green GitHub Actions run
+`32645547100` at `f6f09f5` (simulation plus synthesis). No soak re-mint and no GA40010
+netlist change occurred. NEXT: stop for the user's independent review pass; do not begin new
+RTL. After confirmation, classic can continue F7 RFD → F10 while F13 waits for SHAKER/DE-pin
+hardware evidence; Plus can take the manual real-`.cpr` checkpoint and then the P1 remainder
+(pixel path plus motherboard CPU/WAIT contract) → P2. Behaviour-preserving edits run
+`make -C sim soak SOAK_EXPECT=0xf5f8ae01ffdf928d`; a hash change requires a documented
+reason. See `sim/README.md` and AGENTS.md "Verification ownership" for conventions.**

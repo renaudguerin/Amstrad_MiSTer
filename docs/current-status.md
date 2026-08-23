@@ -20,9 +20,9 @@ never gates a commit.
 
 ## Hardware-test milestone
 
-`69da513` is the newest successfully synthesized code milestone (GitHub Actions run
-`32641514600`); it includes P0 production wiring, the P1 simulation foundation, F6 Stage 1,
-and the sampled-field soak expansion. It has not been hardware-tested. `5ddddef` remains the
+`f6f09f5` is the newest successfully synthesized code milestone (GitHub Actions run
+`32645547100`); it includes all independent pass-2 code/evidence remediations through the
+residual documentation sweep. It has not been hardware-tested. `5ddddef` remains the
 newest hardware-*tested* milestone, covering the
 deterministic-complete F12/F4 counter work and the CPR parser. `1a1233f` is the previous one; GitHub Actions run
 `31661330994` passed the complete Verilator gate, Quartus 17.0.2 compilation, fitter,
