@@ -265,6 +265,14 @@ public:
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_target);
+        // Review issue 4 remediation (2026-08-23): the relocated partial-VSYNC
+        // holdoff latch and the type-1 private status flops join the sampled
+        // projection. The dev-time holdoff bug escaped exactly because this
+        // latch was unsampled; expanding the field set re-mints the golden
+        // hash by design (no RTL behaviour change).
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_vsync_wait_line_start);
+        mix(r.CRTC__DOT__crtc_type1_engine__DOT__r6_border_condition);
+        mix(r.CRTC__DOT__crtc_type1_engine__DOT__status_bit5_r);
     }
 
     void expect_byte(const std::string& expectation,

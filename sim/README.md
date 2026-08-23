@@ -58,10 +58,11 @@ Alongside the directed vectors, the suite ships a deterministic randomized
   internals, at CLKEN sample points only. They do not establish general RTL
   bit identity. Invisible to the hash: combinational states and bus phases
   between sample points, the values returned by the randomized reads (the
-  harness restores the idle bus before each sample), and any state outside
-  the sampled field set — which is exactly how the development-time holdoff
-  latch bug escaped the soak and was caught by the differential comparator
-  instead. Stronger split evidence lives in the lockstep differential tool
+   harness restores the idle bus before each sample), and any state outside
+   the sampled field set — which is exactly how the development-time holdoff
+   latch bug escaped the soak before the 2026-08-23 field expansion (the
+   latch is now sampled) and was caught by the differential comparator
+   instead. Stronger split evidence lives in the lockstep differential tool
   (`tools/split-differential`, branch `docs/split-differential-evidence`),
   which samples a broader state set after every CLKEN edge.
 - It is not split-only scaffolding: F7 (RFD) requires proving never-armed
@@ -89,15 +90,19 @@ each sampled field as a whole — XOR the field into the accumulator, multiply
 by the FNV-1a prime (1099511628211) — rather than byte-wise FNV-1a over a
 serialized stream. Samples are taken after every CLKEN edge: every pin (MA,
 RA, DE, HSYNC, VSYNC, CURSOR, FIELD, DO) plus `hcc`, `line`, `row`, `c5`,
-`in_adj`, and the type-0 arbitration latches (including the R5 retarget
-value).
+`in_adj`, the type-0 arbitration latches (including the R5 retarget value),
+the type-0 partial-VSYNC holdoff latch, and the two type-1 private status
+flops (`r6_border_condition`, `status_bit5_r`).
 
 The golden hash for the type-0/type-1 engine split was minted from the
 unsplit core; the minting commit and hash value are recorded in the session
-plan (`docs/plans/2026-08-22-accc-review-plan.md`). It was re-minted once,
-on 2026-08-23, for the intended F6 Stage 1 behaviour change (the type-0
-spurious border byte when R1>R0, protected by the t10 vectors); both hash
-values and the reason are recorded there. The hash depends on the seed, the
+plan (`docs/plans/2026-08-22-accc-review-plan.md`). It has been re-minted
+twice on 2026-08-23: first for the intended F6 Stage 1 behaviour change (the
+type-0 spurious border byte when R1>R0, protected by the t10 vectors), then
+for the sampled-field expansion (holdoff latch + type-1 status flops added,
+review issue 4 remediation — no RTL change). All hash values and reasons are
+recorded there; the current golden value is **`0xf5f8ae01ffdf928d`**. The
+hash depends on the seed, the
 sampled field set/order, the event schedule, and the DUT's observable
 behaviour — any of the first three changing requires re-minting, recorded as
 such. The soak accesses internals by their Verilator names, so a refactor

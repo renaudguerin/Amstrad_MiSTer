@@ -40,8 +40,9 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x326ea81358e7d88f`, re-minted 2026-08-23 for the intended F6 Stage 1
-  behaviour change; previously `0x5b5004ff70148443` from the unsplit core)
+  (`0xf5f8ae01ffdf928d`, re-minted 2026-08-23 for the sampled-field expansion,
+  review issue 4 remediation; previously `0x326ea81358e7d88f` from F6 Stage 1
+  and `0x5b5004ff70148443` from the unsplit core)
   for behaviour-preserving changes: run `make -C sim soak SOAK_EXPECT=<hash>`.
   A hash change on a refactor commit means behaviour moved — stop and document
   why before proceeding.

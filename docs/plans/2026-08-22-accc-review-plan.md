@@ -210,12 +210,20 @@ the type-split refactor milestone (it forces a full read anyway).
       c7558ae rename sweep + Q15/Q16 numbering. Guide wording fixes it refuted landed in
       6cfd4dd beforehand. Gates unchanged throughout: 87 required passes, soak hash
       `0x5b5004ff70148443`. Resolutions await reviewer confirmation.
-- [ ] Expand the soak sampled field set (partial-VSYNC holdoff latch, type-1 status flops)
+- [x] Expand the soak sampled field set (partial-VSYNC holdoff latch, type-1 status flops)
       and re-mint the golden hash at the next natural boundary (review Issue 4: the current
       projection is exactly how the dev-time holdoff bug escaped it). The F6 Stage 1
       behaviour change took the earlier re-mint slot (hash now `0x326ea81358e7d88f`,
       rationale recorded); this field-expansion re-mint is still queued and must land with
       its own minting note.
+      DONE 2026-08-23 (`accuracy/f6stage2-soak-expand`): three fields added after the
+      existing ones in `soak_mix_sample` (`type0_vsync_wait_line_start`,
+      `r6_border_condition`, `status_bit5_r`); no RTL change; suite stayed 93 passed /
+      lint clean throughout; golden hash re-minted to **`0xf5f8ae01ffdf928d`**
+      (same seed/sampling/event schedule — delta is exactly the added fields), verified
+      identical across two runs and via `SOAK_EXPECT`; rationale: review issue 4
+      remediation. Recorded in this plan, sim/README.md,
+      accuracy/type-split-review-guide.md, and AGENTS.md.
 - [x] Plus queue: P0 parser→service/MMU/boot wiring DONE on `plus/p0-parser-wiring`
       (4556665: A5 decisions + oversized-cbNN abort; 7eaddf2: `plus_mmu` cartridge
       windows, production service→SDRAM hookup, CPU cart read bridge with WAIT
@@ -262,7 +270,8 @@ NEXT: the manual hardware checkpoint (real `.cpr` boot with a Plus model selecte
 classic re-checked side by side), then Plus P1 CRTC3 foundation per
 `docs/plus/architecture.md` §4; classic continues F6 Stage 2 → F7 RFD → F10 fixtures.
 Behaviour-preserving edits from here run
-`make -C sim soak SOAK_EXPECT=326ea81358e7d88f`; a hash change means behaviour moved and
-needs a documented reason before proceeding. Soak field expansion stays queued for the next
-natural boundary. See sim/README.md (bounded soak claim) and AGENTS.md "Verification
-ownership" for conventions.**
+`make -C sim soak SOAK_EXPECT=f5f8ae01ffdf928d`; a hash change means behaviour moved and
+needs a documented reason before proceeding. Soak field expansion has since landed on
+`accuracy/f6stage2-soak-expand` (current hash `0xf5f8ae01ffdf928d`, review issue 4
+remediation; see the ticked checklist item above). See sim/README.md (bounded soak claim)
+and AGENTS.md "Verification ownership" for conventions.**
