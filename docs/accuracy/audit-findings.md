@@ -279,37 +279,30 @@ General implementation rules for all fix prompts:
   book result is an 8-mode-2-px seam with DE low only for the second byte of C0=R0. Record
   any disagreement as evidence before selecting among the already-tested candidate owners.
 
-## F7. RFD ("Rupture For Dummies") — CRTC 1 frame-parity address-reload quirk — NOT implemented
+## F7. RFD ("Rupture For Dummies") — CRTC 1 frame-parity address-reload quirk — R5 trigger implemented
 
 - **Rule** (digest-01 §5 → ACCC §11.6, p.87-90): on type 1, writing R5 from 0 to nonzero exactly
   at C0==R0 (or the R0-widening route, §8.6) arms two flags: VMA loads from R12/R13 on **every**
   row (not just C4=0), and the C9=R9-at-C0=R1 test becomes **frame-parity dependent**, making
   behavior alternate per frame unless pinned via R8 IVM toggling. Used by real demos as a
   CRTC-1 rupture technique.
-- **Current**: absent entirely. The R5 write path is a plain register store; no C0==R0
-  coincidence detection. (Verified against the split tree 2026-08-22: no RFD/parity logic
-  anywhere in `CRTC.v` or either engine.) The nearest existing machinery it would extend is
-  the type-1 reload term (`reload`, `crtc_type1_engine.v:154`).
+- **Current** (implemented 2026-08-23 on `accuracy/f7-rfd`): the type-1 engine detects the
+  R5 0→nonzero bus write on the same `CLKEN && hcc_last` edge, feeds the newly armed state
+  into that edge's reload decision, and maintains independent VMA-source, parity-management,
+  and odd-R9 frame-parity state. A parity-qualified VMA' save clears the source flag; R1>R0
+  uses the p.87 bare-C9 disarm. Required vectors `t13a`-`t13d` pin the never-triggered path,
+  same-cycle reload and adjustment entry, parity alternation, normal disarm, and B6 route. RFD#10's optional
+  "1-B" variant is deliberately not modeled. The separate R0-widening trigger from §13.7.1.2
+  remains outside this R5-trigger milestone.
 - **Impact**: CRTC-1-specific demo effects (the technique is popular precisely because it's the
   easy rupture on type 1); SHAKER tests it.
-- **Confidence: medium.** The digest's rules are detailed but this is the most intricate
-  finding; needs the testbench and possibly ⚠ p.90 re-verification.
-- **Fix prompt** (for a capable agent, after V3 exists):
-  > Implement RFD in `rtl/UM6845R.v` per `compendium-01-counters.md` §5 (read it in full
-  > first, plus §8.6 for the second trigger route): detect `R5 0→nonzero` writes landing in
-  > the same character cycle as `hcc == R0_h_total` (the write block runs at CLOCK rate;
-  > coincidence = write strobe while `CLKEN && hcc_last` this cycle — mind the race, ACCC
-  > timing says the write is seen by the rollover logic of that cycle). Arm: (1)
-  > `rfd_vma_flag` — extends the existing `CRTC1_reload` term to any row, cleared when the
-  > VMA' save (`row_addr_save`) actually fires; (2) `rfd_parity_flag` — gates `row_addr_save`
-  > with a frame-parity bit that toggles at frame boundaries where `C4==C9==C0==0 && R9 odd`.
-  > Disarm paths: normal disarm when `C9==R9` at `C0==R1` succeeds, **plus the R1>R0 route** —
-  > when `R1>R0` the `C0==R1` comparison can never fire and the bare `C9==R9` match alone
-  > disarms the VMA-source flag (ACCC p.87; findings-review.md B6).
-  > Skip the RFD#10 "1-B chip" variant (document as not modeled). This is a self-contained
-  > additive feature: when never triggered, behavior must be bit-identical to current (add a
-  > testbench regression run to prove it).
-- **Verify**: V3 mandatory; V2 (SHAKER RFD tests); V1 (CRTC-1 demos).
+- **Confidence: medium-high for the implemented R5 route.** The deterministic V3 vectors are
+  source-derived and exercise the timing race and both disarm paths; real SHAKER hardware
+  remains the higher-authority check. The §13.7.1.2 R0-widening route needs its own wrapper-
+  sequencing design and vector before this finding is complete in full.
+- **Residual fix prompt**: implement the §13.7.1.2 p.124 R0-widening trigger without changing
+  type 0 or ordinary type-1 R0-write behavior; retain the same two RFD states and parity rules.
+- **Verify**: V3 passed for the R5 route; V2 (SHAKER RFD tests); V1 (CRTC-1 demos).
 
 ## F8. CRTC 1 vertical adjustment must use a separate C5 counter (C4/C9 keep counting)
 

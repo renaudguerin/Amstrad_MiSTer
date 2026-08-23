@@ -33,6 +33,9 @@ for the commits of these two branches.)
 partial-VSYNC holdoff latch and the two type-1 status flops — no RTL change — re-minting
 the current golden value to `0xf5f8ae01ffdf928d`; both earlier values remain the correct
 expectations for their own commits.)
+(F7 then intentionally changed type-1 behaviour under the unchanged fixed stimulus: random
+R5 traffic can arm RFD. The current hash is `0xae27f2c3c758ed87`; directed `t13a`, not the
+soak, proves the never-triggered path remains unarmed and unchanged.)
 
 ## Branch 2 — `accuracy/crtc-type-split`
 
@@ -67,13 +70,13 @@ zero separation benefit.
 ### Evidence stack (run these)
 
 ```sh
-make -C sim                                  # 93 passed / 0 xfail / 0 xpass / 0 failed
+make -C sim                                  # 97 passed / 0 xfail / 0 xpass / 0 failed
 make -C sim lint                             # no errors (pre-existing warnings only)
-make -C sim soak SOAK_EXPECT=0xf5f8ae01ffdf928d # current sampled-field contract
+make -C sim soak SOAK_EXPECT=0xae27f2c3c758ed87 # current sampled-field contract
 ```
 
-The current checkout has 93 classic passes and uses `0xf5f8ae01ffdf928d`, re-minted
-for the F6 Stage 1 behaviour and subsequent sampled-field expansion. The historical
+The current checkout has 97 classic passes and uses `0xae27f2c3c758ed87`, re-minted
+for the intended F7 RFD behaviour after the F6 Stage 1 and sampled-field re-mints. The historical
 `0x5b5004ff70148443` value remains the correct expectation for the unsplit-core
 comparison commit recorded above; the split-equivalence claim is bounded to the
 sampled fields, stimulus, and phase documented in `sim/README.md`.
@@ -125,8 +128,8 @@ what the differential method exists to catch.
 - F11h residual: intra-character immediacy of R12/R13 on type 1 not modeled; p.242 re-read
   pending.
 - F6 Stage 1 is accepted only as the documented full-character DE approximation; exact
-  ACCC 0.5 µs pin timing remains F13 hardware-blocked. F7 RFD and F10 remain the next
-  separately gated classic work.
+  ACCC 0.5 µs pin timing remains F13 hardware-blocked. F7's R5-at-R0 route is implemented
+  with t13a-t13d; F10 remains the next separately gated classic work.
 - Plus P0 wiring and the P1 CRTC3 foundation are implemented in their separate stream;
   their current review-debt rows await independent confirmation and do not extend the
   classic split-differential claim.

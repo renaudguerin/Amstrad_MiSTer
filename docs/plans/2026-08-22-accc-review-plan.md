@@ -271,6 +271,16 @@ the type-split refactor milestone (it forces a full read anyway).
       identical across two runs and via `SOAK_EXPECT`; rationale: review issue 4
       remediation. Recorded in this plan, sim/README.md,
       accuracy/type-split-review-guide.md, and AGENTS.md.
+- [x] F7 RFD primary R5 trigger — DONE 2026-08-23 on `accuracy/f7-rfd`:
+      type-1-only same-edge `R5 0->nonzero` arming at `CLKEN && hcc==R0`, RFD VMA-source
+      reload, parity-gated VMA' save, odd-R9 frame-parity alternation, successful-save
+      disarm, and the R1>R0 bare-C9 disarm route (B6). `t13a`-`t13d` are required passes;
+      `t13a` is the directed never-triggered proof (R5 written away from C0=R0). Random
+      soak traffic legitimately arms the new behaviour, so with the seed, schedule, and
+      sampled fields unchanged the hash moved from `0xf5f8ae01ffdf928d` to
+      **`0xae27f2c3c758ed87`**, reproduced twice and checked with `SOAK_EXPECT`. The soak
+      does not prove bit identity when unarmed. RFD#10's optional "1-B" chip variant is
+      explicitly not modeled.
 - [x] Plus queue: P0 parser→service/MMU/boot wiring DONE on `plus/p0-parser-wiring`
       (4556665: A5 decisions + oversized-cbNN abort; 7eaddf2: `plus_mmu` cartridge
       windows, production service→SDRAM hookup, CPU cart read bridge with WAIT

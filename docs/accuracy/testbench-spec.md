@@ -99,7 +99,7 @@ lags a sub-vector name.
 | t10a-t10e R1>R0: type 0 one **full-character Stage 1 approximation** of the border event at C0=R0 (+MA counting/repetition), type 1 none; SKEW-DISPTMG displacement 1/2 and non-output suppression — implemented; exact ACCC 0.5 µs pin timing remains F13 hardware-blocked | digest-03 §17.6.2/§19.2.3/§19.2.4 | F6 Stage 1 |
 | t11 type 1 adjustment: C9 keeps cycling (RA!), C4 increments, R5=0 doesn't end | digest-01 §4 | F8 |
 | t12a/t12b documented R4=38/R9=7 worked example pair (type 0): exact-C0==R0 R9 write leaves C4=39,C9=8; windowed write (C0∈[2,R0−1]) leaves C4=38,C9=8 — both encoded from ACCC §11.2.2 p.82 ex.3 — implemented | digest-01 §3.1/§4.2 | F9/F12 |
-| t13 RFD: R5 0→1 at C0==R0, frame-parity VMA' alternation | digest-01 §5 | F7 |
+| t13a-t13d RFD — implemented: away-from-R0 never-triggered control, R5 0→1 at C0==R0, same-cycle VMA reload/adjustment entry, frame-parity VMA' alternation, successful-save disarm, and R1>R0 bare-C9 disarm | digest-01 §4.5/§5 | F7/B6 |
 | t14 VMA reload: type 0 only at C4=C9=C0=0; type 1 every line of C4=0 row | digest-03 §17.4/§20.3 | F11h + regression |
 | t15 R12/R13 overscan-bit carry into MA[13:12] | digest-03 §20.5 | regression |
 | t16a-t16y type-0 last-line/adjustment arbitration — implemented: same-edge C0=0 R4 comparison; C0=1 R4/R9 equality breaks with R5=0, including exact R0=1 rollover consumption; R5 accepted through C0==2 and rejected after it with the accepted current-line target retained; R9 updates at C0==2..R0-1; R4 updates switch C9/R9 to C9/R5 through exact-R0; exact-R0 R9 increments C4 and C9; active adjustment reuses C9 against R5 even when R9 differs, including R5=0 overflow and zero-entry extension; R0=0/1 default adjustment; R0=0 during active adjustment freezes C4/C9; completion and retained-state lifecycle | digest-01 §3.1/§4.2/§7.1/§8.1 | F12 deterministic counter milestone and F5/F9 boundaries |
@@ -107,7 +107,7 @@ lags a sub-vector name.
 All implemented groups are required passes. The suite has **no expected failures** since
 the F8 commit (`c9f4a4e`): the former type-1 adjustment-identification xfails
 (`t08f`/`t08g`) became required passes. Current state (2026-08-23, after A3 `t20i` and F6
-Stage 1 `t10a`-`t10e`): 93 passed / 0 xfailed / 0 xpassed / 0 failed. These vectors fix
+Stage 1 `t10a`-`t10e` and F7 `t13a`-`t13d`): 97 passed / 0 xfailed / 0 xpassed / 0 failed. These vectors fix
 the v1.10 counter and adjustment-state expectations while
 deliberately avoiding unsupported sub-character MA/DE/VSYNC claims. If later hardware
 evidence introduces a true pin-level uncertainty, keep any expected failure narrow; never
@@ -123,7 +123,7 @@ the cited ACCC rule when implemented:
   cancel the type-1 VMA-from-R12/R13-while-C4==1 reload; an R4(>0) rewrite at C0==R0 must
   cancel it (ACCC §11.2.4 note, p.84). The R4 side is the untested corner in
   `docs/review-debt.md`.
-- **F7 design note** (B6): the RFD disarm path must cover R1>R0 — with `C0==R1` unreachable,
+- ~~**F7 design note** (B6)~~ Done in `t13c`: with `C0==R1` unreachable because R1>R0,
   the bare `C9==R9` match alone disarms the VMA-source flag (ACCC p.87).
 - ~~t20 companion vector~~ (review action item A3) Done 2026-08-23: `t20i` pins the
   live-entry R0=0 freeze (R0 written to 0 on a wrap edge), including the documented

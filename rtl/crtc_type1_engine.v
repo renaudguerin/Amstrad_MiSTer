@@ -104,6 +104,14 @@ wire [4:0] interlace = &R8_interlace[1:0];
 
 wire [4:0] crtc1_line_max = R9_v_max_line & ~interlace;
 
+// The register file and this engine sample the same CLOCK edge.  For the
+// RFD-forming R5 0->nonzero write, use the old stored R5 to recognize the
+// transition and the live DI value in this edge's rollover decisions.
+wire r5_write_hit = CRTC_TYPE & ENABLE & RS & ~nCS & ~R_nW & (addr == 5'd05);
+wire rfd_arm = CLKEN & hcc_last & r5_write_hit &
+               (R5_v_total_adj == 0) & (|DI[4:0]);
+wire [4:0] crtc1_rollover_r5 = rfd_arm ? DI[4:0] : R5_v_total_adj;
+
 // ACCC v1.10 section 10.3: C9 uses equality, never magnitude.  A zero limit
 // reached from C9>0 must let C9 run to 31 and wrap, so no unconditional
 // "limit is zero" match may short-circuit the comparison.
@@ -113,7 +121,7 @@ assign     line_new = hcc_last;
 
 // ACCC v1.10 section 11.3.2: Type 1 adjustment ends when C5+1 reaches R5
 // evaluated by equality at the line boundary. R5=0 never satisfies this comparison.
-wire       crtc1_adj_end = CRTC_TYPE & in_adj & ({1'b0, c5} + 6'd1 == {1'b0, R5_v_total_adj}) & (|R5_v_total_adj);
+wire       crtc1_adj_end = CRTC_TYPE & in_adj & ({1'b0, c5} + 6'd1 == {1'b0, crtc1_rollover_r5}) & (|crtc1_rollover_r5);
 
 assign line_next = ((line_last_w | crtc1_adj_end) ?
 						 5'd0 : line + 1'd1 + interlace) & ~interlace;
@@ -136,7 +144,7 @@ end
 // too.
 wire       row_last_w = (row == R4_v_total);
 assign     row_last = row_last_w;
-wire       frame_adj_CRTC1 = row_last_w && ~in_adj && |R5_v_total_adj;
+wire       frame_adj_CRTC1 = row_last_w && ~in_adj && |crtc1_rollover_r5;
 assign     frame_adj = frame_adj_CRTC1;
 wire       crtc1_row_frame_last = in_adj ? crtc1_adj_end : (row_last_w & ~frame_adj_CRTC1);
 assign     row_frame_last = crtc1_row_frame_last;
@@ -145,15 +153,73 @@ assign     row_new = line_new & (line_last_w | crtc1_adj_end);
 
 wire       frame_new_w = row_new & row_frame_last;
 
+// ACCC v1.10 sections 11.6-11.6.3, pages 87-90: "Rupture For
+// Dummies" is armed only by a type-1 R5 write from zero to nonzero that
+// is visible on the C0=R0 rollover edge.  The register file and this engine
+// sample the same CLOCK edge, so use the old stored R5 value together with
+// the live write data.  Feeding rfd_arm into the combinational reload/save
+// terms below makes the newly armed state participate in that same rollover
+// rather than one line late.  crtc1_rollover_r5 above also makes the new
+// value visible to adjustment entry/end on this edge (section 11.4 p.86).
+
+reg rfd_vma_flag;
+reg rfd_parity_flag;
+reg rfd_frame_parity;
+
+wire rfd_parity_active = rfd_parity_flag | rfd_arm;
+wire rfd_vma_active = rfd_vma_flag | rfd_arm;
+
+// Section 11.6 p.87: when R1>R0, C0=R1 is unreachable, so the bare
+// C9=R9 match deactivates the VMA-source state without a VMA' save.
+wire rfd_r1_gt_r0_disarm = rfd_vma_flag &
+                           (R1_h_displayed > R0_h_total) & line_last_w;
+
 // Technical information sourced from ACCC v1.10 §11.2.4:
 // If C4 was 0 immediately before adjustment began, VMA loads from R12/R13
 // while C4==1 in adjustment.
 wire crtc1_adj_entry_from_row0 = CRTC_TYPE & !in_adj & row_last_w & line_last_w & (|R5_v_total_adj) & (row == 0);
 wire crtc1_adj_row1_reload = CRTC_TYPE & (crtc1_adj_entry_from_row0 | (in_adj & crtc1_adj_from_row0 & (row == 1) & ~line_last_w)) & !hcc_next;
 wire crtc1_row0_reload = CRTC_TYPE & (frame_new_w | (~line_last_w & !row & !hcc_next));
-assign reload = crtc1_row0_reload | crtc1_adj_row1_reload;
+wire crtc1_rfd_reload = CRTC_TYPE & rfd_vma_active & !hcc_next;
+assign reload = crtc1_row0_reload | crtc1_adj_row1_reload | crtc1_rfd_reload;
 
-assign row_addr_save = hcc == R1_h_displayed && line_last_w;
+wire row_addr_save_base = hcc == R1_h_displayed && line_last_w;
+assign row_addr_save = row_addr_save_base &
+                       (~rfd_parity_active | rfd_frame_parity);
+
+always @(posedge CLOCK) begin
+	if(~nRESET | SNA_LOAD) begin
+		rfd_vma_flag <= 0;
+		rfd_parity_flag <= 0;
+		rfd_frame_parity <= 0;
+	end
+	else if(CRTC_TYPE) begin
+		// ACCC v1.10 section 11.6.1, pages 88-89: parity changes only
+		// at a genuine C4=C9=C0=0 frame boundary when R9 is odd.
+		if(CLKEN && frame_new_w && R9_v_max_line[0])
+			rfd_frame_parity <= ~rfd_frame_parity;
+
+		// Clear only when the parity-gated save really fires, or through
+		// the R1>R0 bare-C9 route.  A same-edge trigger wins so the write
+		// cannot be immediately lost to an old comparison result.
+		if((CLKEN && row_addr_save) | rfd_r1_gt_r0_disarm)
+			rfd_vma_flag <= 0;
+		if(rfd_arm) begin
+			rfd_vma_flag <= 1;
+			rfd_parity_flag <= 1;
+		end
+		// RFD#10, the optional "1-B" chip variant from section 11.6.2
+		// p.89, is deliberately not modeled: this baseline implements the
+		// ordinary CRTC-1 behavior for every nonzero R5 value.
+	end
+	else begin
+		// CRTC_TYPE is live; do not preserve hidden type-1 RFD state
+		// across a round-trip through type 0.
+		rfd_vma_flag <= 0;
+		rfd_parity_flag <= 0;
+		rfd_frame_parity <= 0;
+	end
+end
 
 assign field_count_tick = (hcc_next == {1'b0, R0_h_total[7:1]});
 
