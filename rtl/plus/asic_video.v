@@ -366,7 +366,11 @@ end
 // CRTC3 R2 rewrite from 11 to 21 creating the collision at the natural
 // end of an already-active pulse. The R0=0, R2=0, R3l=1 extreme makes
 // every end edge collide and therefore produces infinite HSYNC
-// (§15.3.2). R3l=0 retains the bounded 16-character rule from §14.5.
+// (§15.3.2). ACCC §14.5 establishes that R3l=0 produces a 16-character
+// pulse, but does not say whether the §15.3 collision applies when that
+// pulse's natural end meets a live start. This model assumes it does not,
+// leaving R3l=0 bounded; that is an unverified P1 model assumption, pinned
+// by t04i pending a direct rule, Logon observation, or hardware capture.
 //----------------------------------------------------------------------
 
 reg       in_hsync;
@@ -377,6 +381,8 @@ reg [3:0] vsc;
 wire       hsync_start               = (hcc_next == R2_h_sync_pos);
 wire [3:0] hsc_next                  = hsc + 4'd1;
 wire       hsync_end_hit             = (hsc_next == R3_h_sync_width);
+// See the unverified R3l=0 boundary assumption above: collision extension
+// is enabled only for explicit nonzero widths.
 wire       hsync_end_start_collision = (R3_h_sync_width != 4'd0) &&
                                         hsync_start;
 

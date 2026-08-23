@@ -295,7 +295,10 @@ The pre-P0 and P0 packages are:
   collision (including the CRTC3 R2 rewrite chronogram in §15.3.5 p.151), and the
   R0=0/R2=0/R3l=1 §15.3.2 infinite HSYNC; VSYNC gate
   C4=R7 ∧ C9=C0=0 at line starts only, R3h line widths 0 → 16 (§14.2), same-edge renewal
-  with no re-entrancy protection (§16.4.4). Vectors t04a-t04h
+  with no re-entrancy protection (§16.4.4). The choice to suppress an end/start collision
+  when R3l=0 is an explicitly unverified model assumption: §14.5 establishes the bounded
+  16-character width, not that collision boundary. Vector t04i pins the current choice
+  pending a direct rule, Logon observation, or hardware capture. Vectors t04a-t04i
 
 P1 remainder (open scope, in dependency order): the basic locked-ASIC pixel path needs
 the legacy-colour translation table sourced ([KT] palette section or hardware

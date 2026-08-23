@@ -461,6 +461,41 @@ void t04h_live_r2_end_start_collision(TestBench& test) {
     test.expect_hsync("continued pulse ends at second R3 equality", false);
 }
 
+// ACCC §14.5 p.141 establishes that type 3's R3l=0 encoding produces a
+// 16-character HSYNC, but does not state whether the §15.3 end/start
+// collision extends that pulse when its natural end lands on C0=R2. The
+// current P1 model deliberately lets it end, then permits a fresh pulse at
+// the following line start. This is an explicitly unverified model
+// assumption, not an ACCC-derived expectation; keep it visible until a
+// direct rule, Logon observation, or hardware capture settles the boundary.
+void t04i_r3_zero_collision_stays_bounded(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(2, 255);   // park starts while programming
+    test.write_register(3, 0x60);  // R3l=0 -> 16-character pulse
+    test.run_until_hsync_idle();
+    test.write_register(0, 15);    // 16-character lines
+    test.write_register(2, 0);     // every natural end meets a live start
+    test.run_to_frame_start();
+
+    // The first aligned C0=0 is the natural end of the pulse that was
+    // already active while run_to_frame_start converged.
+    test.expect_hsync("unverified model assumption lets collision end", false);
+    for (unsigned c0 = 1; c0 <= 15; ++c0) {
+        test.run_characters(1);
+        test.expect_hsync("ended pulse stays low until the next start", false);
+    }
+    test.run_characters(1);
+    test.expect_hcc("following line reaches the next start", 0);
+    test.expect_hsync("fresh R3l=0 pulse starts after bounded gap", true);
+    for (unsigned c0 = 1; c0 <= 15; ++c0) {
+        test.run_characters(1);
+        test.expect_hsync("R3l=0 pulse remains high for 16 characters", true);
+    }
+    test.run_characters(1);
+    test.expect_hcc("R3l=0 natural end coincides with live start", 0);
+    test.expect_hsync("zero-width collision remains bounded again", false);
+}
+
 // ACCC §16.4.4 p.170: VSYNC needs C4==R7 AND C9==0 AND C0==0 at a line
 // start; rewriting R7 to the current C4 while C0>0 does NOT trigger
 // until a qualifying line start arrives.
@@ -885,7 +920,7 @@ void t02g_r5_grow_extends_adjustment(TestBench& test) {
     test.expect_line("fresh frame", 0);
 }
 
-constexpr std::array<TestCase, 27> kTests = {{
+constexpr std::array<TestCase, 28> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -911,6 +946,8 @@ constexpr std::array<TestCase, 27> kTests = {{
     {"t04c R3l rewrite wraps the nibble", t04c_r3l_rewrite_wraps_nibble},
     {"t04d infinite-HSYNC bug", t04d_infinite_hsync},
     {"t04h live-R2 HSYNC end/start collision", t04h_live_r2_end_start_collision},
+    {"t04i R3l=0 collision stays bounded (unverified model assumption)",
+     t04i_r3_zero_collision_stays_bounded},
     {"t04e VSYNC gate and mid-row R7 write", t04e_vsync_gate_and_r7_write},
     {"t04f VSYNC width incl. legacy 16", t04f_vsync_width},
     {"t04g VSYNC refire without protection", t04g_no_reentrancy_continuous_refire},
