@@ -181,16 +181,29 @@ separately fixture-gated project.
 - A bounded, streaming RIFF/CPR parser now validates the `RIFF`/`AMS!` envelope, accepts
   ordered `cbNN` cartridge-bank chunks, handles RIFF padding, streams payload bytes into
   the atomic cartridge service, and fails closed on malformed or aborted downloads.
+  Oversized `cbNN` chunks abort instead of truncating (A5 decision,
+  `docs/plus/architecture.md` "CPR parser policy (P0)").
+- P0 wiring is complete on `plus/p0-parser-wiring`: `plus_mmu` implements the Plus
+  cartridge windows (high window from the ROM-select port incl. the GX4000 page-1 rule
+  and the /EXP-dependent value-0 rule; low window position/page from unlock-gated RMR2;
+  ASIC-page-enable captured but unbacked until P2). `/EXP` is a defined dynamic input,
+  tied high at the top level for P0 (= no expansion connected). The cartridge memory
+  service is production-connected to the reserved SDRAM port, and Z80 reads in cartridge
+  windows are bridged to the service with CPU WAIT insertion and an open-bus-FF watchdog.
+  The CPR stream is live on ioctl index 8 (OSD "F8,CPR"), and a P0 boot integration bench
+  runs parser + service + real SDRAM end to end, including reset-mid-load cleanup.
 - Dandanator uploads are bounded below the Plus cartridge reservation: bank 3
   `0x000000..0x07ffff` remains Dandanator, while `0x080000..0x0fffff` is reserved for Plus.
-- Top-level parser/service wiring, the Plus MMU/reset mapping, `/EXP` sampling,
-  firmware/cartridge boot path, ASIC register page, CRTC3/video, palette, interrupts,
-  sprites, split/scroll, and DMA are not implemented.
+- ASIC register page backing, CRTC3/video, palette, interrupts, sprites, split/scroll,
+  and DMA are not implemented. FDC/tape presence gating for GX4000/464+ is also still
+  inert (P8 polish scope).
 
-The next Plus milestone is P0 cartridge boot. Keep it stacked on the accepted P-1 contract:
-connect the parser to the existing memory service and download path, define `/EXP` for 464+
-and 6128+ reset-page selection, and implement the Plus MMU/boot mux. Do not start Plus video
-by extending `ga40010`; the planned path is a parallel behavioral CRTC3/ASIC video module.
+The next Plus milestone is P1 (CRTC3 counter/timing foundation) per
+`docs/plus/architecture.md` §4. The P0 hardware checkpoint is manual: with a Plus model
+selected, load a real `.cpr` (e.g. the local untracked `crtc3_v2fix.cpr` fixture) and
+confirm the firmware/game reaches its first screen; classic mode must be re-checked
+side by side in the same session. Do not start Plus video by extending `ga40010`; the
+planned path is a parallel behavioral CRTC3/ASIC video module.
 
 ## Build and tooling state
 
