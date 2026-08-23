@@ -280,8 +280,9 @@ The pre-P0 and P0 packages are:
   with the type-3 reload condition C4=0 ∧ C0=0 and no C9 term (§20.3.4 p.243),
   row-end capture at C0=R1 ∧ C9=R9 suppressed during adjustment (§11.2.6), frozen-row
   repetition without spurious border for R1>R0 (§17.2, §17.6.2/§19.2.4), the R1==R0
-  one-character blip (§17.6.1), line-start-only R6 testing (§18.2.4), SKEW-DISPTMG
-  delay/BORDER ON (§19.2). Vectors t03a-t03g
+  one-character blip plus simultaneous VMA' save/reload at the row boundary (§17.1,
+  §17.6.1), line-start-only R6 testing (§18.2.4), SKEW-DISPTMG delay/BORDER ON (§19.2).
+  Vectors t03a-t03g
 - P1.4 **complete** — sync generation: HSYNC visible during character R2 with live-nibble
   width semantics and bounded R3l=0 → 16 (§14.5, §15.2.2), the §15.3.1 re-entrancy bug as
   its register relation W mod (R0+1) == 0 giving the §15.3.2 infinite HSYNC; VSYNC gate

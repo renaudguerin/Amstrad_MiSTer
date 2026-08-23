@@ -252,7 +252,10 @@ the type-split refactor milestone (it forces a full read anyway).
       P1 CRTC3 counter/timing foundation DONE 2026-08-23 on
       `plus/p1-crtc3-foundation` (4 commits: register file + HCC, vertical chain,
       pointer/DE/skew, syncs; vectors t01a-t04g, ACCC cites at point of
-      implementation). P1 remainder: pixel path ([KT] colour table to source) +
+      implementation). Integration inspection added an ACCC-derived `t03c` MA assertion
+      and fixed the simultaneous C0=R1=R0 VMA'/VMA save/reload seam; the original code
+      had incorrectly restored the stale row base on the first scanline of the next row.
+      P1 remainder: pixel path ([KT] colour table to source) +
       CPU/WAIT contract decision at first motherboard instantiation.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";
       F8 build `4c78603`→Module A adjustment entries + Module E "(2)"; F7→RFD entries;

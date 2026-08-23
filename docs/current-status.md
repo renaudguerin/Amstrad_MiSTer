@@ -200,14 +200,17 @@ separately fixture-gated project.
   (§18.2.4) and SKEW-DISPTMG (§19.2), and HSYNC/VSYNC generation including the bounded
   R3=0 widths and the §15.3.1/§15.3.2 infinite-HSYNC relation. 26 deterministic vectors
   (t01a-t04g) cover them; every rule cites its ACCC section at the point of
-  implementation. Interlace is stored-but-inert; status registers/read map are P5.
+  implementation. `t03c` also pins the simultaneous C0=R1=R0 row-end save/reload so MA
+  advances to the captured row base rather than restoring stale VMA'. Interlace is
+  stored-but-inert; status registers/read map are P5.
 - Still open in P1 before the milestone is complete: the basic locked-ASIC pixel path
   (needs the legacy-colour table sourced from [KT] or hardware measurement), and the
   CPU/WAIT timing-contract decision that lands with the first motherboard instantiation
   of `asic_video` (architecture §5 Risk 1). `files.qip` is untouched until that
   instantiation commit. The locked-ASIC title boot-point check remains the manual P0/P1
   hardware checkpoint described above.
-- CI evidence for the P1 foundation branch (run `32632492492`, tip `0be8a60`):
+- CI evidence for the pre-rebase P1 foundation branch (run `32632492492`, original tip
+  `0be8a60`):
   simulation and synthesis both green. Fitter: 15,295 / 41,910 ALMs (36%), 685,217
   block-memory bits (12%), 3 / 6 PLLs; worst setup slack +0.342 ns — numerically
   identical to the P0 merged-tip build, and `asic_video` appears nowhere in the fit
