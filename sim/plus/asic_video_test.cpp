@@ -76,6 +76,11 @@ public:
 
     // Advance one character at a time until the counters sit at a frame
     // start (C4=C9=C0=0 sampled just after a CLKEN edge).
+    void dbg_state(const char* where) const {
+        std::printf("DBG %s: HCC=%u LINE=%u ROW=%u MA=%u RA=%u DE=%u\n",
+                    where, dut.HCC, dut.LINE, dut.ROW, dut.MA, dut.RA, dut.DE);
+    }
+
     void run_to_frame_start() {
         unsigned guard = 0;
         do {
@@ -117,6 +122,24 @@ public:
     void expect_adj(bool expected, const std::string& expectation) const {
         if ((dut.ADJ != 0) != expected) {
             fail(expectation + ": ADJ", expected ? 1 : 0, dut.ADJ);
+        }
+    }
+
+    void expect_de(const std::string& expectation, bool expected) const {
+        if ((dut.DE != 0) != expected) {
+            fail(expectation + ": DE", expected ? 1 : 0, dut.DE);
+        }
+    }
+
+    void expect_ma(const std::string& expectation, unsigned expected) const {
+        if (dut.MA != expected) {
+            fail(expectation + ": MA", expected, dut.MA);
+        }
+    }
+
+    void expect_ra(const std::string& expectation, unsigned expected) const {
+        if (dut.RA != expected) {
+            fail(expectation + ": RA", expected, dut.RA);
         }
     }
 
@@ -269,6 +292,178 @@ void program_standard_frame(TestBench& test) {
     test.write_register(0x05, 0);
 }
 
+// Standard frame plus display programming: R1=4 displayed characters,
+// R6=100 (never reached: no border), video base 0x1234 via R12/R13.
+void program_display_frame(TestBench& test) {
+    test.write_register(9, 3);
+    test.write_register(4, 2);
+    test.write_register(5, 0);
+    test.write_register(1, 4);
+    test.write_register(6, 100);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.write_register(0, 7);  // last: starts the 8-char line cadence
+}
+
+constexpr unsigned kBase = 0x1234;
+
+// ACCC §20.3.4 p.243 + §17.1 p.176: both pointers reload from R12/R13 at
+// the frame start (C4=0 & C0=0); VMA counts every character cell; the
+// row-end capture (C0=R1 & C9=R9) advances the row start by R1.
+void t03a_ma_reload_and_row_advance(TestBench& test) {
+    program_display_frame(test);
+    test.run_to_frame_start();
+    test.expect_ma("frame start reloads VMA from R12/R13", kBase);
+    for (unsigned k = 1; k <= 7; ++k) {
+        test.run_characters(1);
+        if (k == 1 || k == 4 || k == 7) {
+            test.expect_ma("VMA increments on every character cell", kBase + k);
+        }
+    }
+    test.run_characters(25);  // chars 8..32: lines 2-4 of row 0 + row-1 start
+    test.expect_ma("row 1 restarts from the captured VMA' (=base+R1)",
+                   kBase + 4);
+    test.run_characters(32);
+    test.expect_ma("row 2 advances by R1 again", kBase + 8);
+    test.run_characters(32);
+    test.expect_ma("next frame wrap reloads R12/R13 into both pointers",
+                   kBase);
+}
+
+// ACCC §17.1 p.175/§17.6.1: DISPTMG on at C0=0, off at C0=R1; with
+// R1<R0 the rest of the line is border while VMA keeps counting.
+void t03b_r1_border_edges(TestBench& test) {
+    program_display_frame(test);
+    test.run_to_frame_start();
+    for (unsigned k = 0; k <= 7; ++k) {
+        if (k > 0) {
+            test.run_characters(1);
+        }
+        test.expect_de("display window is C0 in [0,R1)", k < 4);
+        if (k == 6) {
+            test.expect_ma("pointer keeps counting through border",
+                           kBase + 6);
+        }
+    }
+}
+
+// ACCC §17.6.1 p.185 (all types): with R1==R0 exactly one border
+// character appears at C0=R0 before the next line reloads DISPTMG.
+void t03c_r1_eq_r0_blip(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(0x01, 7);
+    test.run_to_frame_start();
+    for (unsigned k = 0; k <= 7; ++k) {
+        if (k > 0) {
+            test.run_characters(1);
+        }
+        test.expect_de("only the C0=R0 character borders", k < 7);
+    }
+}
+
+// ACCC §17.6.2/§19.2.4 (types 3/4 grouped with type 1): with R1>R0 no
+// spurious border byte is substituted at C0=R0 — the whole line stays
+// displayed — and §17.2 p.179 makes every row re-display the frozen VMA'
+// base (capture can never fire).
+void t03d_r1_gt_r0_no_substitution(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(0x01, 9);
+    test.run_to_frame_start();
+    for (unsigned k = 0; k <= 7; ++k) {
+        if (k > 0) {
+            test.run_characters(1);
+        }
+        test.expect_de("whole line displayed when R1>R0", true);
+    }
+    test.run_characters(25);  // from mid-char 7 to the row-1 line start
+    test.expect_ma("row 1 re-displays the frozen base (§17.2)", kBase);
+    test.expect_line("positioned at char row 1", 1);
+    test.run_characters(32);
+    test.expect_de("row 2 still fully displayed", true);
+    test.expect_ma("row 2 repeats the same base", kBase);
+}
+
+// ACCC §18.2.4 p.189: the R6 test runs only at the beginning of a line;
+// a mid-line update is not considered until the next line start, and
+// there is no per-C0 evaluation (contrast types 0/1).
+// ACCC §18.2.4 p.189: the R6 test runs only at the beginning of a line;
+// a mid-line update is not considered until the next line start, and
+// there is no per-C0 evaluation (contrast types 0/1). §18.3.4: R6=0 has
+// no special case. R1>R0 keeps the horizontal term out of the way so DE
+// mirrors the vertical decision alone.
+//
+// Tick accounting: every write_register consumes one CLKEN while moving
+// the bus to mid-character; samples below name the character they land on.
+void t03e_r6_line_start_semantics(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(1, 9);  // R1>R0: DE mirrors the vertical term only
+    test.run_to_frame_start();
+    test.run_characters(3);        // sample position: body line 0, C0=3
+    test.write_register(6, 0);     // C4==R6==0 from here, but mid-line;
+                                   // positioning consumed C0=4's edge
+    test.run_characters(3);        // characters 5..7 of that same line
+    test.expect_de("line unaffected by mid-line R6 write", true);
+    test.run_characters(1);        // next line start: C4==R6 -> border
+    test.expect_de("border activates at the NEXT line start only", false);
+    test.run_characters(7);        // remainder of that bordered line
+    test.expect_de("whole line bordered while C4==R6 holds", false);
+    // Positioning for the next write consumes the line-end edge into the
+    // second bordered line; that start still evaluates the OLD R6 (=0).
+    test.write_register(6, 7);     // new value lands mid-line
+    test.run_characters(4);        // later characters of that line
+    test.expect_de("mid-line R6 change does not clear the border", false);
+    test.run_characters(4);        // next line start re-evaluates C4!=R6
+    test.expect_de("display resumes once C4!=R6 at a line start", true);
+}
+
+// ACCC §11.2.6 p.84 + §20.3.4: adjustment lines do not update the video
+// pointer; each one restores the captured row base, and RA carries the
+// adjustment index instead of a fresh scanline count.
+void t03f_adjustment_rows_solidified(TestBench& test) {
+    program_display_frame(test);
+    test.run_to_frame_start();
+    // Arm adjustment from a known frame start; a mid-frame R5 write is
+    // considered at that line's end (ACCC §11.4.1).
+    test.write_register(5, 2);
+    test.run_until_adjustment();
+    test.expect_adj(true, "adjustment entered");
+    // Row 2 began at base+8 and captured VMA'=base+12 at C0=R1 of its
+    // last scanline (C9=R9).
+    test.expect_ma("adjustment line restores the solidified base",
+                   kBase + 12);
+    test.expect_ra("RA indexes the adjustment lines", 0);
+    test.run_characters(8);
+    test.expect_ra("second adjustment line", 1);
+    test.expect_ma("pointer unchanged between adjustment lines",
+                   kBase + 12);
+    test.expect_de("R6=100 leaves adjustment rows displayed", true);
+}
+
+// ACCC §19.2.3 p.193-194 (SKEW-DISPTMG exists on types 0/3/4): delay +1
+// shifts both visible border edges by one character; mode 3 forces
+// BORDER ON regardless of R1/R6 state.
+void t03g_skew_delay_and_border_on(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(0x08, 0b00010000);  // SKEW-DISPTMG delay +1
+    test.run_to_frame_start();
+    for (unsigned k = 0; k <= 7; ++k) {
+        if (k > 0) {
+            test.run_characters(1);
+        }
+        const bool expected = (k >= 1 && k <= 4);
+        test.expect_de("delay +1 shifts the window to C0 1..R1", expected);
+    }
+
+    TestBench border_on;
+    program_display_frame(border_on);
+    border_on.write_register(0x08, 0b00110000);  // BORDER ON
+    border_on.run_to_frame_start();
+    for (unsigned k = 0; k <= 15; ++k) {
+        border_on.run_characters(1);
+        border_on.expect_de("BORDER ON suppresses DISPTMG output", false);
+    }
+}
+
 void t02a_normal_frame_cycle(TestBench& test) {
     program_standard_frame(test);
     test.run_to_frame_start();
@@ -409,7 +604,7 @@ void t02g_r5_grow_extends_adjustment(TestBench& test) {
     test.expect_line("fresh frame", 0);
 }
 
-constexpr std::array<TestCase, 12> kTests = {{
+constexpr std::array<TestCase, 19> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -422,6 +617,13 @@ constexpr std::array<TestCase, 12> kTests = {{
     {"t02e adjustment length and restart", t02e_adjustment_length_and_restart},
     {"t02f shrunk R5 ends adjustment", t02f_r5_shrink_ends_adjustment},
     {"t02g grown R5 extends adjustment", t02g_r5_grow_extends_adjustment},
+    {"t03a VMA reload and row advance", t03a_ma_reload_and_row_advance},
+    {"t03b R1 border edges", t03b_r1_border_edges},
+    {"t03c R1==R0 single-character blip", t03c_r1_eq_r0_blip},
+    {"t03d R1>R0 no substitution, frozen rows", t03d_r1_gt_r0_no_substitution},
+    {"t03e R6 line-start-only semantics", t03e_r6_line_start_semantics},
+    {"t03f adjustment rows solidified", t03f_adjustment_rows_solidified},
+    {"t03g SKEW-DISPTMG delay and BORDER ON", t03g_skew_delay_and_border_on},
 }};
 
 }  // namespace

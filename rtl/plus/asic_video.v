@@ -45,6 +45,14 @@ module asic_video
 	input      [7:0] DI,
 	output     [7:0] DO,
 
+	// Raster timing outputs. DE follows the SKEW-DISPTMG programming
+	// (ACCC §19.2, types 0/3/4); MA is the current video pointer VMA and
+	// RA the scanline address C9 (which carries the adjustment index on
+	// types 3/4, ACCC §11.2.6).
+	output           DE,
+	output    [13:0] MA,
+	output     [4:0] RA,
+
 	// Horizontal counter tap for later raster consumers (PRI/sprites/DMA)
 	output     [7:0] HCC,
 
@@ -94,6 +102,8 @@ reg [1:0] R8_interlace;
 reg [6:0] R4_v_total;
 reg [4:0] R5_v_total_adj;
 reg [4:0] R9_v_max_line;
+reg [5:0] R12_start_addr_h;
+reg [7:0] R13_start_addr_l;
 /* verilator lint_on UNUSEDSIGNAL */
 
 always @(posedge CLOCK) begin
@@ -109,6 +119,8 @@ always @(posedge CLOCK) begin
 		R7_v_sync_pos    <= 7'd0;
 		{R8_skew, R8_interlace} <= 4'd0;
 		R9_v_max_line    <= 5'd0;
+		R12_start_addr_h <= 6'd0;
+		R13_start_addr_l <= 8'd0;
 	end
 	else if (ENABLE & ~nCS & ~R_nW) begin
 		if (~RS) begin
@@ -126,7 +138,9 @@ always @(posedge CLOCK) begin
 			5'd07: R7_v_sync_pos  <= DI[6:0];
 			5'd08: {R8_skew, R8_interlace} <= {DI[5:4], DI[1:0]};
 			5'd09: R9_v_max_line  <= DI[4:0];
-			default: ;  // 10/11 status, 12-17 land with their phases
+			5'd12: R12_start_addr_h <= DI[5:0];
+			5'd13: R13_start_addr_l <= DI;
+			default: ;  // 10/11 status, 14-17 land with later phases
 			endcase
 		end
 	end
@@ -195,7 +209,19 @@ wire       enter_adj     = c9_done & last_charline &
                            (R5_v_total_adj != 5'd0);
 wire       frame_wrap    = c9_done & last_charline &
                            (R5_v_total_adj == 5'd0);
-wire       adj_end       = ((raster + 5'd1) >= R5_v_total_adj);
+wire       adj_end_n     = ((raster + 5'd1) >= R5_v_total_adj);
+
+// Next-state values at the line-end edge, shared with the video-pointer
+// and display-enable logic so every consumer sees one consistent seam.
+// Adjustment end restarts the frame: C4=C9=0 (ACCC §11.3 general).
+wire [4:0] raster_n      = in_adj ? (adj_end_n ? 5'd0 : raster + 5'd1) :
+                           c9_done ? 5'd0 : raster + 5'd1;
+wire [6:0] charline_n    = (in_adj & adj_end_n) ? 7'd0 :
+                           in_adj ? charline :
+                           enter_adj ? charline :
+                           frame_wrap ? 7'd0 :
+                           c9_done ? charline + 7'd1 : charline;
+wire       adj_n         = in_adj ? !adj_end_n : enter_adj;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
@@ -205,39 +231,126 @@ always @(posedge CLOCK) begin
 	end
 	else if (CLKEN) begin
 		if (hcc_last) begin
-			if (in_adj) begin
-				if (adj_end) begin
-					in_adj   <= 1'b0;
-					raster   <= 5'd0;
-					charline <= 7'd0;
-				end
-				else begin
-					raster <= raster + 5'd1;
-				end
-			end
-			else if (enter_adj) begin
-				in_adj <= 1'b1;
-				raster <= 5'd0;
-				// charline deliberately frozen at R4 (ACCC §11.2.6)
-			end
-			else if (frame_wrap) begin
-				raster   <= 5'd0;
-				charline <= 7'd0;
-			end
-			else if (c9_done) begin
-				raster   <= 5'd0;
-				charline <= charline + 7'd1;
-			end
-			else begin
-				raster <= raster + 5'd1;
-			end
+			in_adj   <= adj_n;
+			raster   <= raster_n;
+			charline <= charline_n;
 		end
 	end
 end
+
+//----------------------------------------------------------------------
+// Video pointer: VMA (current) and VMA' (row-start latch).
+//
+// Two-stage {R12,R13} -> VMA' -> VMA behaviour, as on type 0 (ACCC
+// §20.3.4 p.243): at every C0=0 while C4=0 BOTH pointers reload from
+// R12/R13 — note there is no C9 term in the type-3/4 condition, unlike
+// type 0's C4=C9=C0=0 (§20.3.1). At any other line start VMA loads from
+// VMA'. The row-end capture VMA' <- VMA fires on the live comparison
+// C0==R1 && C9==R9 and is suppressed during vertical adjustment, which
+// instead re-solidifies the captured row base each adjustment line
+// ("without updating the video pointer", ACCC §11.2.6 p.84).
+//
+// With R1>R0 the capture can never fire, so every row re-displays the
+// frozen VMA' base — character-line repetition (ACCC §17.2 p.179) with
+// no spurious border substitution on types 3/4 (§17.6.2/§19.2.4).
+//----------------------------------------------------------------------
+
+reg [13:0] vma;
+reg [13:0] vma_latch;
+
+wire row_latch_event = CLKEN && !in_adj &&
+                       (hcc == R1_h_displayed) &&
+                       (raster == R9_v_max_line);
+
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		vma       <= 14'd0;
+		vma_latch <= 14'd0;
+	end
+	else if (CLKEN) begin
+		if (row_latch_event) vma_latch <= vma;
+
+		if (hcc_last) begin
+			// Line start. Statement order encodes the §20.3.4 priority:
+			// a degenerate simultaneous capture (only reachable when
+			// R1==0) loses to the unconditional frame-start reload.
+			if (!adj_n) begin
+				if (charline_n == 7'd0) begin
+					vma       <= {R12_start_addr_h, R13_start_addr_l};
+					vma_latch <= {R12_start_addr_h, R13_start_addr_l};
+				end
+				else begin
+					vma <= vma_latch;
+				end
+			end
+			else begin
+				vma <= vma_latch;
+			end
+		end
+		else if (!hcc_last) begin
+			// VMA increments on every character cell processed,
+			// displayed or border (ACCC §17.1 p.176).
+			vma <= vma + 14'd1;
+		end
+	end
+end
+
+//----------------------------------------------------------------------
+// Display enable.
+//
+// Horizontal: DISPTMG on at C0=0, off from C0=R1 (ACCC §17.1 p.175).
+// The registered clear makes an R1==R0 line show exactly one border
+// character at C0=R0 (the interline blip, §17.6.1), while R1>R0 keeps
+// the whole line displayed because the equality never fires (types 3/4
+// substitute nothing, §17.6.2). R1=0 clears every line start: no
+// characters are ever displayed (§17.1/§18.3.1).
+//
+// Vertical: the R6 test runs ONLY at the beginning of a line on types
+// 3/4 — mid-line R6 updates are not considered until the next line
+// start ("The update of R6 during the line is therefore not considered",
+// ACCC §18.2.4 p.189). There is no R6==0 special case (§18.3.4). Because
+// C4 stays ==R4 through adjustment, R6==R4 borders those lines too
+// (§18.2.4 note).
+//
+// SKEW-DISPTMG (R8 bits 5:4; types 0/3/4, §19.2): 00 immediate, 01/10
+// delay both border edges by one/two characters, 11 BORDER ON (output
+// suppressed). Only the visible edges shift; pointer bookkeeping is
+// unaffected (§19.2.3 p.194).
+//----------------------------------------------------------------------
+
+reg       hde;
+reg       vde;
+reg [1:0] dde;
+
+wire      disp_raw = hde & vde;
+
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		hde <= 1'b0;
+		vde <= 1'b0;
+		dde <= 2'b00;
+	end
+	else if (CLKEN) begin
+		if (hcc_last) begin
+			hde <= (R1_h_displayed != 8'd0);
+			vde <= (charline_n != R6_v_displayed);
+		end
+		else if ((hcc + 8'd1) == R1_h_displayed) begin
+			hde <= 1'b0;
+		end
+		dde <= {dde[0], disp_raw};
+	end
+end
+
+assign DE = (R8_skew == 2'b00) ? disp_raw :
+            (R8_skew == 2'b01) ? dde[0] :
+            (R8_skew == 2'b10) ? dde[1] : 1'b0;
 
 assign HCC  = hcc;
 assign LINE = charline;
 assign ROW  = raster;
 assign ADJ  = in_adj;
+assign MA   = vma;
+assign RA   = raster;
 
 endmodule
