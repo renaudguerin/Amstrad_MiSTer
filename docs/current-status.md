@@ -87,9 +87,10 @@ Before the next classic RTL change, close that data gap:
   chase.
 - Map each persistent difference to an implemented finding or to a named gap. The current
   leading hypothesis is that Module A leans on behaviour that is still unimplemented — F7 RFD,
-  F10 interlace parity, and the unmeasured F6 Stage 2 seam width — rather
+  F10 interlace parity, and F13's hardware-blocked half-character F6 seam — rather
   than on the counter internals already fixed. F8 (type-1 C5) is now implemented, so it is no
-  longer a candidate explanation; F6 Stage 1 pin behaviour landed 2026-08-23.
+  longer a candidate explanation; F6 Stage 1's presence/type/skew approximation landed
+  2026-08-23.
 
 Do not infer hardware accuracy from the green counter-level simulation gate alone.
 
@@ -143,9 +144,9 @@ For a first MiSTer pass:
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
 - The current local gate reports 93 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures (verified 2026-08-23, Verilator 5.050). The randomized
-  equivalence soak reproduces golden hash `0x326ea81358e7d88f`, re-minted by the intended F6
-  Stage 1 behaviour change (previously `0x5b5004ff70148443` from the unsplit core). The Plus
-  leaf and SDRAM integration suites are also green.
+  equivalence soak reproduces golden hash `0xf5f8ae01ffdf928d`, re-minted for the sampled-field
+  expansion (review issue 4 remediation; previously `0x326ea81358e7d88f` from F6 Stage 1).
+  The Plus leaf and SDRAM integration suites are also green.
 - The core is split into a shared-state wrapper (`rtl/CRTC.v`) plus two per-type rule engines
   (`rtl/crtc_type0_engine.v`, `rtl/crtc_type1_engine.v`); live `CRTC_TYPE` round-trips stay
   pinned by t02j/t06d/t09f/t16l, and bit-identity with the pre-split core is pinned by the
@@ -153,17 +154,14 @@ For a first MiSTer pass:
 - F9 closure is merged into this branch: the documented `t12` worked-example pair — R9 write
   at exact C0==R0 → C4=39/C9=8, and its windowed companion in C0∈[2,R0−1] → C4=38/C9=8
   (ACCC p.82) — is encoded as `t12a`/`t12b` (`aea80b5`, merged via `d5cab8f`).
-- F6 option C Stage 1 is implemented on this branch (`accuracy/a3-f6-stage1`): exact type-0
-  pin behaviour for the R1>R0 spurious border byte — substituted border start keyed on
-  C0=R0, displaced/suppressed through the existing SKEW-DISPTMG delay line — behind vectors
-  t10a-t10e. Stage 2 seam-width measurement is pending, so the on-screen result is not yet
-  hardware-confirmed.
+- F6 Stage 1 implements the presence/type/skew discriminator but uses a full-character DE
+  gap (t10a-t10e). Stage 2 measured a 16-mode-2-px (1 µs) seam. Stage 2b visual evidence
+  from ACCC pp.186/195 assigns the documented 0.5 µs to a sub-character CRTC DE pulse;
+  test/production phase matches and both GA paths agree. Formal finding F13 blocks a
+  correction pending SHAKER Module A `(O)` and, if possible, a DE-pin capture.
 
-The next classic checkpoints follow the session plan resume point: F6 Stage 2 measurement
-per `accuracy/f6-decision-gate.md` (which supersedes the earlier character-granularity premise
-about the CRTC→Gate-Array DE interface: the GA samples DISPEN at byte phase, so the exact
-half-character pin behaviour is achievable without touching the Gate Array netlist), then
-F7 RFD including the B6 disarm path and the A1 VSYNC-corner fix. F10 remains the last,
+The next independent classic checkpoint is F7 RFD including the B6 disarm path and A1
+VSYNC-corner fix; F13 waits for hardware and does not block it. F10 remains the last,
 separately fixture-gated project.
 
 ## Completed Plus foundations
@@ -272,12 +270,10 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    Confirm SHAKER's own CRTC identification agrees with the OSD selection before comparing.
 3. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
    deterministic regression before repairing any newly understood behavior.
-4. Classic: F9 is closed (`t12a`/`t12b`, merged) and F6 option C Stage 1 is done per
-   `accuracy/f6-decision-gate.md`: type-0 forced DE-low at `hcc==R0_h_total` when
-   `R1_h_displayed > R0_h_total`, injected before the skew delay-line mux, with
-   deterministic vectors t10a-t10e covering both types and skew placement. Next: F6 Stage 2
-   seam-width measurement, then F7 RFD (including the B6 disarm path and the A1
-   VSYNC-corner fix). F10 stays fixture-gated.
+4. Classic: F6 Stage 2/2b is complete per `accuracy/f6-decision-gate.md`; F13 records the
+   half-character CRTC-side phase mismatch and is BLOCKED-PENDING-HARDWARE-EVIDENCE.
+   Next independent work: F7 RFD (including B6 disarm and the A1 VSYNC-corner fix).
+   F10 stays fixture-gated.
 5. Plus: P0 is merged (CPR parser -> cartridge service -> SDRAM -> `plus_mmu` windows ->
    Z80, ioctl index 8). Next Plus steps: the manual hardware checkpoint named above (real
    `.cpr` boot with a Plus model selected, classic re-checked side by side in the same

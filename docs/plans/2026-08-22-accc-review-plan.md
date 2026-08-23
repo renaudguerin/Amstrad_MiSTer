@@ -156,8 +156,10 @@ the type-split refactor milestone (it forces a full read anyway).
 - [x] Classic queue: F9 closure done (`t12a`/`t12b` on `accuracy/f9-t12-closure`, `aea80b5`,
       87 required passes) → next: type-split prerequisite (soak harness on base), then the
       split per `accuracy/crtc-per-type-separation.md` → F6 option C Stage 1 (user lean
-      recorded in `accuracy/f6-decision-gate.md`) → F7 RFD (incl. B6 disarm path; A1 VSYNC
-      corner fix) → F10 fixtures+impl. F10 gating fallback: author answers Q10-Q12 may
+      recorded in `accuracy/f6-decision-gate.md`) → F13 R1>R0 byte-phase hardware gate
+      (BLOCKED-PENDING-HARDWARE-EVIDENCE; does not block independent work) → F7 RFD
+      (incl. B6 disarm path; A1 VSYNC corner fix) → F10 fixtures+impl. F10 gating fallback:
+      author answers Q10-Q12 may
       never arrive — if so, derive fixtures from the §19.5-§19.8 pseudocode (P1-verified)
       plus the SHAKER 22C/3 tables via the visual tier (render pp.210-212 PNGs), record
       each ambiguity as a resolved-by-default-reading note citing the page, and proceed;
@@ -191,9 +193,10 @@ the type-split refactor milestone (it forces a full read anyway).
 - [x] A3 companion vector (`t20i`) — DONE 2026-08-23 on `accuracy/a3-f6-stage1`,
       rebased onto the post-review base (A3-point soak verified against the base-recorded
       hash) and merged into `accc-review-and-fixes`. Closes review-debt action item A3.
-- [x] F6 option C Stage 1 — DONE 2026-08-23, same branch, merged. Implementation matches
-      the corrected interface premise (char-aligned DE edge; GA samples DISPEN at byte
-      phase — no Gate Array change). Golden hash re-minted to `0x326ea81358e7d88f` for the
+- [x] F6 option C Stage 1 — DONE 2026-08-23, same branch, merged. At landing, this was
+      believed to match a char-aligned DE premise with GA byte-phase sampling; Stage 2b
+      below refutes that premise and reclassifies Stage 1 as the full-character
+      approximation. Golden hash re-minted to `0x326ea81358e7d88f` for the
       intended delta; recorded in plan/README/guide/AGENTS.md. Next stage: Stage 2
       seam-width measurement via the GA40010 co-simulation render.
 - [x] F6 option C Stage 2 (seam-width measurement) — DONE 2026-08-23 on
@@ -202,11 +205,18 @@ the type-split refactor milestone (it forces a full read anyway).
       GA40010 co-sim render, two geometries: type 0 seam = 16 mode-2 px (1 µs)
       on every display row, type 1 = none. The recreation renders the
       char-aligned DE gap one-for-one (byte-phase DISPEN latch exists but does
-      not halve/anticipate); narrowing the seam to the book's 0.5 µs would
-      require GA/glue RTL changes, so Stage 2 stopped at measurement as
-      defined. SHAKER Module A (O) is the arbiter; shaker-module-a-map (O)
-      entry updated. No RTL change; suite/gates untouched.
-      NEXT: F7 RFD → F10 fixtures.
+      not halve/anticipate). Stage 2 stopped before changing any candidate owner;
+      its initial downstream-owner inference is superseded by Stage 2b below.
+      No RTL change; suite/gates untouched.
+- [x] F6 Stage 2b disambiguation — DONE 2026-08-23 on
+      `accuracy/f6stage2-soak-expand`. Visual ACCC pp.185-187/195: R1>R0 is DISP ON for
+      the first byte of C0=R0, BORDER for the second; p.195 explicitly places the
+      0.5 µs pulse at the CRTC signal. Test and production both clock CRTC CLKEN from
+      GA S=03; adding the test top's omitted production `nCLKEN` connection leaves the
+      16 px result unchanged; original async and synchronous GA paths agree. Formal
+      finding promoted as F13, BLOCKED-PENDING-HARDWARE-EVIDENCE; no production RTL.
+      Q15/Q16 resolved by default visual readings. NEXT independent work: F7 RFD →
+      F10 fixtures; next F13 action is SHAKER Module A (O) + DE-pin capture if possible.
 - [ ] Branch review note (clarification): no branch stacking is needed. Stream branches
       (`accuracy/*`, `plus/*`) cut from `accc-review-and-fixes`; the base branch itself
       carries no new review-debt rows by decision, which is only safe because its whole
@@ -279,7 +289,8 @@ Gates on the merged tree: 93 classic vectors passed, all Plus suites green, lint
 soak hash verified. Whole-branch review of the Plus branch is pending in review-debt.
 NEXT: the manual hardware checkpoint (real `.cpr` boot with a Plus model selected,
 classic re-checked side by side), then Plus P1 CRTC3 foundation per
-`docs/plus/architecture.md` §4; classic continues F6 Stage 2 → F7 RFD → F10 fixtures.
+`docs/plus/architecture.md` §4; classic continues F7 RFD → F10 fixtures while F13 waits
+for SHAKER/DE-pin hardware evidence.
 Behaviour-preserving edits from here run
 `make -C sim soak SOAK_EXPECT=f5f8ae01ffdf928d`; a hash change means behaviour moved and
 needs a documented reason before proceeding. Soak field expansion has since landed on

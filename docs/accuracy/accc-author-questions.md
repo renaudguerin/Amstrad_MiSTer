@@ -64,15 +64,19 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     status bit (bit 6 unused/read-0), while the CRTC 3/4 STATUS-1 table (p.248) has an
     always-1 bit 6. Which bit does the &BE00 identification test actually target on UM6845R?
 
-15. **p.190 — border-alternation condition wording.** "Alternation only takes place when
-    the condition R1 is fulfilled (BORDER R1 is false)" reads self-contradictorily. Working
-    resolution (recorded as inference in findings-review B13): alternation happens via
-    BORDER-R1 being *false* (border displayed), matching observed behaviour. Confirmation
-    welcome; nothing is blocked on an answer.
-16. **p.188 (§18.1) — "(1st line-character R6)".** Working resolution: the C4=R6 check is
-    immediate on any C0 (per "considered immediately"), not restricted to the row's first
-    scanline — findings-review B13 records the digest gloss built on it as inference.
-    Confirmation welcome.
+15. **p.190 — border-alternation condition wording — RESOLVED BY DEFAULT READING
+    2026-08-23.** "Alternation only takes place when the condition R1 is fulfilled
+    (BORDER R1 is false)" is self-contradictory in isolation. The immediately preceding
+    mechanism is unambiguous: DISPLAY ENABLE turns ON at each character start and OFF
+    0.5 µs later; therefore BORDER-R1 *false* is the operative state permitting the
+    BORDER-R6 conflict to alternate bytes. Visual reading recorded in
+    `f6-decision-gate.md` Stage 2b; author confirmation remains welcome but nothing is
+    blocked.
+16. **p.188 (§18.1) — "(1st line-character R6)" — RESOLVED BY DEFAULT READING
+    2026-08-23.** This is not a first-scanline restriction. The same page explicitly says
+    C4=R6 is considered immediately regardless of C0 (with type 3/4 separately excepted),
+    and says the rule holds whatever C9. Visual reading recorded in
+    `f6-decision-gate.md` Stage 2b; author confirmation remains welcome.
 
 Also noted while verifying (no answer needed, listed for completeness): p.195 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay

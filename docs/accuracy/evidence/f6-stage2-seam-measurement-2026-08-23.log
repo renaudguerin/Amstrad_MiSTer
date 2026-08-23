@@ -6,6 +6,13 @@ artifacts (rgb/png/vcd) kept out of the repository per the 90f0cda precedent.
 This log is the raw record behind the dated Stage 2 section in
 `docs/accuracy/f6-decision-gate.md`.
 
+Stage 2b supersession (2026-08-23): the measurements and VCD transitions below
+remain valid, but the original disposition assigning the width correction
+downstream of the CRTC pin is superseded. Visual ACCC pp.186/195 specify that
+the CRTC BORDER/DE pulse itself begins 0.5 us after C0=R0 and ends 0.5 us later.
+Test and production CLKEN phase match; original async and synchronous GA paths
+agree. See the decision gate's Stage 2b section and formal finding F13.
+
 ## Method
 
 Route: `rtl/GA40010/ga40010_test.v` CRTC+GA40010 co-simulation (manifest fixed
@@ -77,15 +84,10 @@ byte-phase DISPEN sampling exists but does not halve or anticipate a
 character-aligned DE gap: the border_sel pipeline renders it one-for-one,
 displaced late rather than anticipated early.
 
-Narrowing the visible seam to 0.5 µs would require behaviour changes
-downstream of the CRTC pins (GA `DISPEN_BUF`/`u1008`/`border_sel` timing) —
-i.e. GA/glue RTL changes. Per the Stage 2 definition ("Stage 2 measures, it
-does not fix") the measurement stops here and records findings; option C's
-revert/switch conditions already cover the outcome ("subtly wrong in
-width/phase → Stage 3"). Hardware remains the authority: SHAKER Module A (O)
-against the Logon System reference photos decides whether real silicon shows
-0.5 µs (recreation diverges → Stage 3 question opens) or ~1 µs (ACCC's 0.5 µs
-reading needs revisiting against the book).
+Stage 2 correctly stopped at measurement. Stage 2b later established that
+narrowing the seam belongs at the CRTC-side sub-character DE phase, not in GA
+or glue; formal finding F13 blocks any production change pending SHAKER/DE-pin
+hardware evidence.
 
 ## Reproduction sketch
 
