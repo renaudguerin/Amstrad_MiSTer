@@ -18,12 +18,13 @@ Repo facts (verified by reading the files, not assumed):
 
 ## 1. TL;DR recommendation
 
-**Primary: GitHub Actions.** Zero local toolchain, zero emulation tax, free
-for a public repo, and there's a proven example from another MiSTer core dev
+**Primary authoritative route: GitHub Actions.** Zero local toolchain, zero emulation tax,
+free for a public repo on standard hosted runners, and there's a proven example from another MiSTer core dev
 (`srg320/Saturn_MiSTer`) using the `raetro/quartus:17.0` Docker image on a
 plain `ubuntu-latest` runner. You already have this repo on GitHub. This is
 the least-effort, least-risk path for a first build, and it's reusable for
-every future change: push, wait for synthesis, then download the artifact.
+every future integration milestone. Ordinary pushes receive the fast Verilator gate; see
+`docs/ci-testing-policy.md` for when full synthesis is automatic or manually dispatched.
 
 **Fallback / for iteration speed: UTM VM (Debian arm64 + Rosetta 2) on the
 Mac itself.** Counter-intuitively, this **beats Docker and beats a Windows
@@ -43,8 +44,11 @@ distant third option, listed below only for completeness.
 
 The checked-in workflow is `.github/workflows/build.yml`. It:
 
-- runs for non-documentation pushes on every branch, non-documentation pull
-  requests targeting `master`, and manual `workflow_dispatch` runs;
+- runs behavioral verification for non-documentation pushes on every branch and every pull
+  request;
+- runs full synthesis automatically for known project/top-level/platform integration paths,
+  non-documentation pushes to the default branch, pushed tags, or manually for a named
+  milestone;
 - installs Verilator on an Ubuntu runner and runs the aggregate CRTC/Plus
   behavioral tests and lint before allowing synthesis to start;
 - runs checkout and artifact actions on `ubuntu-latest`, then compiles
@@ -58,6 +62,20 @@ The checked-in workflow is `.github/workflows/build.yml`. It:
   accepted; and
 - uploads the available reports even when synthesis fails, plus a successful
   bitstream named `Amstrad_YYYYMMDD_<7-character-SHA>.rbf`. Dates are UTC.
+
+To synthesize an internal-RTL milestone or a semantic integration risk which the path classifier
+cannot see, dispatch the exact ref:
+
+```bash
+gh workflow run build.yml --ref <branch-or-tag>
+```
+
+Confirm that the ref points at the intended commit before dispatching.
+
+Qualifying feature-branch builds automatically reuse branch-scoped `db`/`incremental_db` state.
+Manual runs are clean by default; use `-f clean_quartus_build=false` for an iterative cached run.
+The override works only for feature-branch refs: tags, pull requests, and default-branch builds
+stay clean. See `docs/ci-testing-policy.md` for the provenance and benchmarking rules.
 
 The uploaded artifact is named
 `Amstrad-build-<run-number>-<run-attempt>`, is retained for 14 days, and uses
