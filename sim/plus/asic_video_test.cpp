@@ -34,7 +34,14 @@ public:
     TestBench() {
         dut.CLOCK = 0;
         dut.CLKEN = 0;
+        dut.PIXEN = 0;
         dut.nRESET = 0;
+        dut.VIDEOD = 0;
+        dut.GAMODE = 0;
+        dut.BORDER_I = 20;   // black border by default
+        for (unsigned k = 0; k < 16; ++k) {
+            set_inkr(k, 20);
+        }
         idle_bus();
         dut.eval();
         reset();
@@ -181,6 +188,66 @@ public:
         }
     }
 
+    // ---- Locked-ASIC pixel-path helpers (t05x vectors) ----
+
+    void set_inkr(unsigned pen, unsigned hw_colour) {
+        // INKR_I entry k occupies bits [k*5 +: 5]; Verilator models the
+        // 80-bit port as three 32-bit words.
+        for (unsigned b = 0; b < 5; ++b) {
+            const unsigned idx = pen * 5 + b;
+            const unsigned word = idx / 32;
+            const unsigned off = idx % 32;
+            if ((hw_colour >> b) & 1U) {
+                inkr_[word] |= (1U << off);
+            } else {
+                inkr_[word] &= ~(1U << off);
+            }
+        }
+        dut.INKR_I[0] = inkr_[0];
+        dut.INKR_I[1] = inkr_[1];
+        dut.INKR_I[2] = inkr_[2];
+    }
+
+    void set_ga(unsigned mode, unsigned border, unsigned videod_word) {
+        dut.GAMODE = mode;
+        dut.BORDER_I = border;
+        dut.VIDEOD = videod_word;
+    }
+
+    void set_border(unsigned hw_colour) { dut.BORDER_I = hw_colour; }
+    void set_mode(unsigned mode) { dut.GAMODE = mode; }
+    bool hsync() const { return dut.HSYNC != 0; }
+
+    void run_dots(unsigned dots) {
+        for (unsigned d = 0; d < dots; ++d) {
+            clock_tick();
+        }
+    }
+
+    // Advance to the tick boundary so the next clock_tick() executes dot 0
+    // of a character (the CLKEN edge that latches vid_even and de_hold).
+    void align_to_character_start() {
+        while (tick_in_character_ != kClkEnPhase) {
+            clock_tick();
+        }
+    }
+
+    void expect_rgb(const std::string& expectation, unsigned r, unsigned g,
+                    unsigned b) const {
+        if (dut.RGB_R != r || dut.RGB_G != g || dut.RGB_B != b) {
+            fail(expectation + ": RGB", (r * 256) + (g * 16) + b,
+                 (dut.RGB_R * 256) + (dut.RGB_G * 16) + dut.RGB_B);
+        }
+    }
+
+    void expect_pen(const std::string& expectation, bool border,
+                    unsigned nibble) const {
+        const unsigned expected = (border ? 0x10U : 0U) | nibble;
+        if (dut.PEN != expected) {
+            fail(expectation + ": PEN", expected, static_cast<unsigned>(dut.PEN));
+        }
+    }
+
 public:
     [[noreturn]] static void fail_unsigned(const std::string& what,
                                            unsigned expected,
@@ -215,6 +282,7 @@ private:
 
     void clock_tick() {
         dut.CLKEN = tick_in_character_ == kClkEnPhase ? 1 : 0;
+        dut.PIXEN = 1;  // every bench tick is one dot (16 dots per character)
         dut.CLOCK = 0;
         dut.eval();
         dut.CLOCK = 1;
@@ -233,6 +301,7 @@ private:
     }
 
     Vasic_video dut;
+    std::uint32_t inkr_[3] = {0, 0, 0};
     unsigned tick_in_character_ = 0;
 };
 
@@ -920,7 +989,310 @@ void t02g_r5_grow_extends_adjustment(TestBench& test) {
     test.expect_line("fresh frame", 0);
 }
 
-constexpr std::array<TestCase, 28> kTests = {{
+// ------------------------------------------------------------------
+// P1 remainder: locked-ASIC pixel path vectors (t05x).
+//
+// Every expectation below is derived on paper from the cited source:
+//  - [KT] legacy-colour table (web.archive.org capture 20230923001014,
+//    Palette section), independently cross-checked entry by entry against
+//    the checked-in ga40010 netlist DAC equations during extraction.
+//  - Grimware Gate Array page, §RMR "Byte/Pixel structure" table for the
+//    per-mode bit layouts; corroborated against the netlist cidx taps.
+// The bench drives PIXEN on every tick, so dot d of a character is tick d
+// after align_to_character_start(); RGB is registered once per dot, so the
+// value sampled during dot d reflects the pixel decoded at dot d-1. That
+// one-dot presentation latency is part of the documented unverified
+// phase-alignment assumption in asic_video.v (t04i discipline).
+// ------------------------------------------------------------------
+
+// Frame used by the pixel vectors: 64-character lines with display on
+// characters 0-3 and HSYNC at characters 40-41, so a full character walk
+// from the frame start never meets sync.
+void program_pixel_frame(TestBench& test) {
+    test.write_register(9, 3);
+    test.write_register(4, 2);
+    test.write_register(5, 0);
+    test.write_register(1, 4);
+    test.write_register(6, 100);
+    test.write_register(2, 40);
+    test.write_register(3, 0x11);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.write_register(0, 63);  // last: starts the 64-char line cadence
+}
+
+// Palette shared by the layout vectors; entries chosen so every expected
+// colour is unique and traceable back to its [KT] row.
+struct TestPalette {
+    unsigned ink0 = 20;  // black          -> 0,0,0
+    unsigned ink1 = 11;  // bright white   -> 15,15,15
+    unsigned ink2 = 18;  // bright green   -> 0,15,0
+    unsigned ink3 = 10;  // bright yellow  -> 15,15,0
+    unsigned ink4 = 21;  // bright blue    -> 0,0,15
+    unsigned ink6 = 26;  // lime           -> 6,15,0
+    unsigned ink9 = 25;  // pastel green   -> 6,15,6
+    unsigned ink10 = 23; // sky blue       -> 0,6,15
+    unsigned ink13 = 12; // bright red     -> 15,0,0
+};
+
+void apply_palette(TestBench& test, const TestPalette& pal) {
+    test.set_inkr(0, pal.ink0);
+    test.set_inkr(1, pal.ink1);
+    test.set_inkr(2, pal.ink2);
+    test.set_inkr(3, pal.ink3);
+    test.set_inkr(4, pal.ink4);
+    test.set_inkr(6, pal.ink6);
+    test.set_inkr(9, pal.ink9);
+    test.set_inkr(10, pal.ink10);
+    test.set_inkr(13, pal.ink13);
+}
+
+constexpr unsigned kBlackR = 0, kBlackG = 0, kBlackB = 0;
+constexpr unsigned kWhiteR = 15, kWhiteG = 15, kWhiteB = 15;
+constexpr unsigned kYellowR = 15, kYellowG = 15, kYellowB = 0;
+constexpr unsigned kBBlueR = 0, kBBlueG = 0, kBBlueB = 15;
+constexpr unsigned kLimeR = 6, kLimeG = 15, kLimeB = 0;
+constexpr unsigned kPGreenR = 6, kPGreenG = 15, kPGreenB = 6;
+constexpr unsigned kSkyR = 0, kSkyG = 6, kSkyB = 15;
+constexpr unsigned kGreenR = 0, kGreenG = 15, kGreenB = 0;
+constexpr unsigned kRedR = 15, kRedG = 0, kRedB = 0;
+
+// [KT] table sweep via the border path (DE low everywhere: R1=0 keeps hde
+// cleared at every line start, R6=0 keeps vde cleared too). Sampling sits at
+// character ~3 of each 64-char line, far from HSYNC at 40-41, and the border
+// write is given a full character to propagate through the registered RGB.
+void t05a_legacy_colour_rom_sweep(TestBench& test) {
+    test.write_register(9, 2);
+    test.write_register(4, 2);   // short frame: fits the convergence guard
+    test.write_register(5, 0);
+    test.write_register(1, 0);   // no displayed characters: border always
+    test.write_register(6, 0);   // vertical border as well
+    test.write_register(2, 60);  // sync late: the 32-entry sweep stays clear
+    test.write_register(3, 0x11);
+    test.write_register(0, 63);
+    test.run_to_frame_start();
+    // [KT] hardware colour index -> R,G,B (mid level = 6).
+    static const unsigned kKt[32][3] = {
+        {6, 6, 6},    {6, 6, 6},    {0, 15, 6},   {15, 15, 6},
+        {0, 0, 6},    {15, 0, 6},   {0, 6, 6},    {15, 6, 6},
+        {15, 0, 6},   {15, 15, 6},  {15, 15, 0},  {15, 15, 15},
+        {15, 0, 0},   {15, 0, 15},  {15, 6, 0},   {15, 6, 15},
+        {0, 0, 6},    {0, 15, 6},   {0, 15, 0},   {0, 15, 15},
+        {0, 0, 0},    {0, 0, 15},   {0, 6, 0},    {0, 6, 15},
+        {6, 0, 6},    {6, 15, 6},   {6, 15, 0},   {6, 15, 15},
+        {6, 0, 0},    {6, 0, 15},   {6, 6, 0},    {6, 6, 15},
+    };
+    for (unsigned hw = 0; hw < 32; ++hw) {
+        test.set_border(hw);
+        test.run_characters(1);  // crosses a CLKEN edge: RGB re-registers
+        test.run_dots(4);        // settle mid-character
+        test.expect_rgb("legacy ROM entry [KT] hw=" + std::to_string(hw),
+                        kKt[hw][0], kKt[hw][1], kKt[hw][2]);
+        test.expect_pen("border flag for hw=" + std::to_string(hw), true, 0);
+    }
+}
+
+// Walks dots 0..15 of the first displayed character and asserts RGB per dot,
+// accounting for the one-dot registered presentation latency.
+void walk_char_expect(TestBench& test, const std::string& tag,
+                     const unsigned (&exp)[16][3]) {
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    for (unsigned d = 0; d < 16; ++d) {
+        test.run_dots(1);
+        if (d == 0) {
+            continue;  // dot 0 still carries the reset/previous value
+        }
+        test.expect_rgb(tag + " dot " + std::to_string(d), exp[d - 1][0],
+                        exp[d - 1][1], exp[d - 1][2]);
+    }
+}
+
+// Mode 2 (%10): eight sequential bits MSB-first per byte half, one dot per
+// pen (Grimware mode-2 row A..H; netlist tap r7). Even byte F0 = %11110000:
+// four white then four black pens; odd byte 0F mirrors it.
+void t05b_mode2_sequential_pixels(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    test.set_ga(2, 24 /* magenta border */, (15U << 8) | 0xF0U);
+    walk_char_expect(test, "mode 2", {
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+        {kBlackR, kBlackG, kBlackB}, {kBlackR, kBlackG, kBlackB},
+        {kBlackR, kBlackG, kBlackB}, {kBlackR, kBlackG, kBlackB},
+        {kBlackR, kBlackG, kBlackB}, {kBlackR, kBlackG, kBlackB},
+        {kBlackR, kBlackG, kBlackB}, {kBlackR, kBlackG, kBlackB},
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+    });
+    test.expect_pen("mode 2 pen nibble tracks the bit stream", false, 1);
+}
+
+// Mode 1 (%01): four two-bit pens per byte half, two dots each
+// (Grimware row A0 B0 C0 D0 A1 B1 C1 D1; netlist taps {r3,r7}; ink bit 1
+// comes from the high-position bit, ink bit 0 from the low-position bit).
+// Even byte 9C=%10011100: A={A1,A0}={b3,b7}={1,1}=3, B={b2,b6}={1,0}=2,
+// C={b1,b5}={0,0}=0, D={D1,D0}={b0,b4}={0,1}=1. Odd byte 63=%01100011:
+// A={b3,b7}={0,0}=0, B={b2,b6}={0,1}=1, C={b1,b5}={1,1}=3,
+// D={b0,b4}={1,0}=2.
+void t05c_mode1_pair_pixels(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    test.set_ga(1, 24, (0x63U << 8) | 0x9CU);
+    walk_char_expect(test, "mode 1", {
+        {kYellowR, kYellowG, kYellowB}, {kYellowR, kYellowG, kYellowB},
+        {kGreenR, kGreenG, kGreenB}, {kGreenR, kGreenG, kGreenB},
+        {kBlackR, kBlackG, kBlackB}, {kBlackR, kBlackG, kBlackB},
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+        {kBlackR, kBlackG, kBlackB}, {kBlackR, kBlackG, kBlackB},
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+        {kYellowR, kYellowG, kYellowB}, {kYellowR, kYellowG, kYellowB},
+        {kGreenR, kGreenG, kGreenB}, {kGreenR, kGreenG, kGreenB},
+    });
+}
+
+// Mode 0 (%00): two four-bit pens per byte half, four dots each
+// (Grimware row A0 B0 A2 B2 A1 B1 A3 B3; netlist cidx taps {r1,r5,r3,r7};
+// nibble = {A3,A2,A1,A0} = {b1,b5,b3,b7}).
+// Even byte B2=%10110010: A={b1,b5,b3,b7}={1,1,0,1}=13,
+// B={b0,b4,b2,b6}={0,1,0,0}=4. Odd byte 4B=%01001011: A={1,0,1,0}=10,
+// B={1,0,0,1}=9.
+void t05d_mode0_nibble_pixels(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    test.set_ga(0, 24, (0x4BU << 8) | 0xB2U);
+    walk_char_expect(test, "mode 0", {
+        {kRedR, kRedG, kRedB}, {kRedR, kRedG, kRedB},
+        {kRedR, kRedG, kRedB}, {kRedR, kRedG, kRedB},
+        {kBBlueR, kBBlueG, kBBlueB}, {kBBlueR, kBBlueG, kBBlueB},
+        {kBBlueR, kBBlueG, kBBlueB}, {kBBlueR, kBBlueG, kBBlueB},
+        {kSkyR, kSkyG, kSkyB}, {kSkyR, kSkyG, kSkyB},
+        {kSkyR, kSkyG, kSkyB}, {kSkyR, kSkyG, kSkyB},
+        {kPGreenR, kPGreenG, kPGreenB}, {kPGreenR, kPGreenG, kPGreenB},
+        {kPGreenR, kPGreenG, kPGreenB}, {kPGreenR, kPGreenG, kPGreenB},
+    });
+}
+
+// Outside DE the border colour is substituted; while HSYNC is active the
+// RGB pins are forced to black (netlist FORCE_BLANK analogue). Border here
+// is hw 24 = magenta (6,0,6) per [KT].
+void t05e_border_substitution_and_sync_blank(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    test.set_ga(2, 24, (15U << 8) | 0xF0U);
+    test.run_to_frame_start();
+    test.run_characters(6);  // characters 4..5: past R1=4, still clear of sync
+    test.run_characters(1);
+    test.expect_rgb("border substitution outside DE", 6, 0, 6);
+    test.expect_pen("border flag asserted outside DE", true, 0);
+    do {
+        test.run_characters(1);
+    } while (!test.hsync());
+    // Still inside the pulse (R3h=1): give the registered output two dots
+    // to pick up the forced-blank value.
+    test.run_dots(3);
+    test.expect_rgb("HSYNC forces RGB to black", 0, 0, 0);
+    test.run_until_hsync_idle();
+    test.expect_rgb("border returns after HSYNC", 6, 0, 6);
+}
+
+// Grimware §RMR: the video mode takes effect only after the next HSYNC.
+// Switching GAMODE mid-line leaves mode-2 decoding in charge until the
+// line boundary; after crossing HSYNC the same VIDEOD word decodes with
+// mode-1 cadence.
+void t05f_mode_change_latches_at_hsync(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    test.set_ga(2, 24, (0x63U << 8) | 0x9CU);
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    // Walk character 0 under mode 2, then flip GAMODE mid-line and confirm
+    // the next character still decodes as mode 2 (same word => same pattern).
+    static const unsigned m2[16][3] = {
+        {0, 0, 15},    {0, 0, 15},    {15, 15, 15},  {15, 15, 15},
+        {15, 15, 15},  {15, 15, 15},  {0, 0, 0},     {0, 0, 0},
+        {0, 0, 0},     {0, 0, 0},     {15, 15, 15},  {15, 15, 15},
+        {0, 0, 15},    {0, 0, 15},    {0, 0, 0},     {0, 0, 0},
+    };
+    // Mode-2 decode of 9C: bits b7..b0 = 1,0,0,1,1,1,0,0 -> pens 1,0,0,1,1,
+    // 1,0,0; of 63: 0,1,1,0,0,0,1,1 -> pens 0,1,1,0,0,0,1,1.
+    static const unsigned m2pix[16] = {1, 0, 0, 1, 1, 1, 0, 0,
+                                       0, 1, 1, 0, 0, 0, 1, 1};
+    auto rgb_of_pen2 = [](unsigned p, unsigned(&out)[3]) {
+        if (p == 1) { out[0] = 15; out[1] = 15; out[2] = 15; }
+        else { out[0] = 0; out[1] = 0; out[2] = 0; }
+    };
+    test.run_dots(1);  // execute dot 0
+    for (unsigned d = 1; d < 16; ++d) {
+        test.run_dots(1);
+        unsigned c[3];
+        rgb_of_pen2(m2pix[d - 1], c);
+        test.expect_rgb("pre-change mode 2 dot " + std::to_string(d),
+                        c[0], c[1], c[2]);
+    }
+    test.set_mode(1);  // lands mid-line: must stay inert
+    (void)m2;
+    for (unsigned d = 0; d < 16; ++d) {
+        test.run_dots(1);
+        if (d == 0) {
+            continue;  // boundary sample still carries the previous cell
+        }
+        unsigned c[3];
+        rgb_of_pen2(m2pix[d - 1], c);
+        test.expect_rgb("inert mid-line mode change dot " + std::to_string(d),
+                        c[0], c[1], c[2]);
+    }
+    // Cross HSYNC (characters 40-41) and realign; mode 1 now applies to the
+    // same word: pairs A={b3,b7}=3, B={b2,b6}=2, C=0, D={b0,b4}=1 for 9C;
+    // A=0, B=1, C=3, D=2 for 63.
+    test.run_characters(45);
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    static const unsigned m1[16][3] = {
+        {kYellowR, kYellowG, kYellowB}, {kYellowR, kYellowG, kYellowB},
+        {kGreenR, kGreenG, kGreenB}, {kGreenR, kGreenG, kGreenB},
+        {kBlackR, kBlackG, kBlackB}, {kBlackR, kBlackG, kBlackB},
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+        {kBlackR, kBlackG, kBlackB}, {kBlackR, kBlackG, kBlackB},
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+        {kYellowR, kYellowG, kYellowB}, {kYellowR, kYellowG, kYellowB},
+        {kGreenR, kGreenG, kGreenB}, {kGreenR, kGreenG, kGreenB},
+    };
+    for (unsigned d = 0; d < 16; ++d) {
+        test.run_dots(1);
+        if (d == 0) continue;
+        test.expect_rgb("post-HSYNC mode 1 dot " + std::to_string(d),
+                        m1[d - 1][0], m1[d - 1][1], m1[d - 1][2]);
+    }
+}
+
+// Mode 3 (%11): Grimware documents A={A1,A0}={b3,b7} then B={b2,b6} at
+// mode-0-like cadence (four dots per pen); pen value = {X1,X0}.
+// Even byte B2: A={b3,b7}={0,1}=1, B={b2,b6}={0,0}=0; odd 4B:
+// A={b3,b7}={1,0}=2, B={b2,b6}={0,1}=1.
+void t05g_mode3_two_bit_pixels(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    test.set_ga(3, 24, (0x4BU << 8) | 0xB2U);
+    walk_char_expect(test, "mode 3", {
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+        {kBlackR, kBlackG, kBlackB}, {kBlackR, kBlackG, kBlackB},
+        {kBlackR, kBlackG, kBlackB}, {kBlackR, kBlackG, kBlackB},
+        {kGreenR, kGreenG, kGreenB}, {kGreenR, kGreenG, kGreenB},
+        {kGreenR, kGreenG, kGreenB}, {kGreenR, kGreenG, kGreenB},
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+        {kWhiteR, kWhiteG, kWhiteB}, {kWhiteR, kWhiteG, kWhiteB},
+    });
+}
+
+constexpr std::array<TestCase, 35> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -951,6 +1323,13 @@ constexpr std::array<TestCase, 28> kTests = {{
     {"t04e VSYNC gate and mid-row R7 write", t04e_vsync_gate_and_r7_write},
     {"t04f VSYNC width incl. legacy 16", t04f_vsync_width},
     {"t04g VSYNC refire without protection", t04g_no_reentrancy_continuous_refire},
+    {"t05a legacy-colour ROM sweep ([KT])", t05a_legacy_colour_rom_sweep},
+    {"t05b mode 2 sequential pixels", t05b_mode2_sequential_pixels},
+    {"t05c mode 1 pair pixels", t05c_mode1_pair_pixels},
+    {"t05d mode 0 nibble pixels", t05d_mode0_nibble_pixels},
+    {"t05e border substitution and sync blank", t05e_border_substitution_and_sync_blank},
+    {"t05f mode change latches at HSYNC", t05f_mode_change_latches_at_hsync},
+    {"t05g mode 3 two-bit pixels", t05g_mode3_two_bit_pixels},
 }};
 
 }  // namespace
