@@ -248,6 +248,15 @@ the type-split refactor milestone (it forces a full read anyway).
       No GA40010 netlist RTL changed. The canonical soak hash stayed
       `0xf5f8ae01ffdf928d`. GitHub Actions run `32645547100` is green at `f6f09f5`
       (simulation plus Quartus synthesis/package/upload). Fixes await reviewer confirmation.
+- [x] Independent pass-2 fixes verification (report title: pass 3) preserved verbatim at
+      `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md`.
+      It reviewed `0773ad4..d64e449`, reran all five relevant gates, accepted all 11 fixes,
+      and cleared every branch-level review row on 2026-08-23. No blocking issue was raised.
+      Q1 (standalone GA40010 Makefile portability/warning policy) and Q3 (the R3=0 collision
+      guard is an unverified model assumption) are queued with Plus P1 follow-ups; Q2's t04a
+      isolation and Q4's fail-closed load-time WAIT policy were accepted without code change.
+      No GA40010 netlist change was made or authorized. A1/A2 remain open and were outside
+      this review.
 - [x] Expand the soak sampled field set (partial-VSYNC holdoff latch, type-1 status flops)
       and re-mint the golden hash at the next natural boundary (review Issue 4: the current
       projection is exactly how the dev-time holdoff bug escaped it). The F6 Stage 1
@@ -302,18 +311,21 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and
-note the resume point in one line here: **resume point: independent pass-2 fixes are
-implemented on `accc-review-and-fixes` and await the user's confirmation review. The P0
-MMU/service seam now rejects stale completions and waits through production-sized loads;
-the P1 foundation has 27 vectors including the ACCC p.151 live-R2 HSYNC collision; the
-GA40010 co-sim manifest elaborates from scratch; the frozen split comparator now samples
-`r6_border_condition`; canonical handoff/count/path/oracle/F6 wording is reconciled. Local
-gates are 93 classic passes plus all Plus groups, lint warnings only, clean exact-range
-`git diff --check`, soak hash `0xf5f8ae01ffdf928d`, and green GitHub Actions run
-`32645547100` at `f6f09f5` (simulation plus synthesis). No soak re-mint and no GA40010
-netlist change occurred. NEXT: stop for the user's independent review pass; do not begin new
-RTL. After confirmation, classic can continue F7 RFD → F10 while F13 waits for SHAKER/DE-pin
-hardware evidence; Plus can take the manual real-`.cpr` checkpoint and then the P1 remainder
-(pixel path plus motherboard CPU/WAIT contract) → P2. Behaviour-preserving edits run
+note the resume point in one line here: **resume point: the independent review generation is
+closed at reviewed tip `d64e449`; the verbatim pass-3 record accepts all 11 pass-2 fixes and
+all six branch-level review rows are cleared by GPT-5.6 Sol on 2026-08-23. The P0 MMU/service
+seam now rejects stale completions and waits through production-sized loads; the P1
+foundation has 27 vectors including the ACCC p.151 live-R2 HSYNC collision; the GA40010
+manifest elaborates from scratch; the frozen split comparator samples
+`r6_border_condition`; canonical handoff/count/path/oracle/F6 wording is reconciled. The
+review reran 93 classic passes plus all Plus groups, lint (warnings only), clean exact-range
+`git diff --check`, soak hash `0xf5f8ae01ffdf928d`, and the split differential. GitHub
+Actions run `32645547100` remains green at `f6f09f5` (simulation plus synthesis), with only
+documentation after it through the reviewed tip. No soak re-mint and no GA40010 netlist
+change occurred. NEXT: classic starts F7 RFD (including B6 disarm and A1; A2 remains queued),
+then F10 fixtures, while F13 waits for SHAKER/DE-pin hardware evidence. Plus takes its P1
+follow-ups per the roadmap: Q1 standalone-target tooling, Q3 assumption labelling/evidence,
+the pixel path, and the motherboard CPU/WAIT contract; the manual real-`.cpr` checkpoint
+remains outstanding. Keep the classic and Plus streams separate. Behaviour-preserving edits run
 `make -C sim soak SOAK_EXPECT=0xf5f8ae01ffdf928d`; a hash change requires a documented
 reason. See `sim/README.md` and AGENTS.md "Verification ownership" for conventions.**

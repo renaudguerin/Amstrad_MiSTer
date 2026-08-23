@@ -1,8 +1,9 @@
 # Independent review debt
 
-**Status: pass-2 fixes implemented, awaiting confirmation** — the original 2026-08-22
-per-commit rows are clear, while the branch-level rows below track the independent pass-2
-remediations that have not yet been re-reviewed. Action items A1-A5 remain separate.
+**Status: all branch-level review rows cleared 2026-08-23** — the independent pass-3
+verification accepted the pass-2 remediations at reviewed tip `d64e449`. Action items A1/A2
+and the non-blocking follow-ups recorded below remain separate implementation work; they do
+not keep the reviewed branch content open.
 
 This file tracks work that was merged without the independent cross-provider review the
 project normally requires. It exists because that review was unavailable at the time, not
@@ -13,16 +14,15 @@ independent review has run; do not clear them because a later change touched the
 
 The project's standing rule is that every non-trivial diff authored by the main model gets a
 fresh independent review from a different provider, so no model is the sole reviewer of its
-own work. That reviewer runs on GPT-5.6 Sol, and the Codex subscription quota is exhausted as
-of 2026-08-19. The only alternative that satisfies the rule is a Fable second opinion, and Fable is
-excluded for this project as of 2026-08-19 because it consumes paid credits. A same-provider
-review does not satisfy the rule and is not a substitute. There is therefore no independent
-review path available at all right now.
+own work. When this debt was opened on 2026-08-19, the GPT-5.6 Sol reviewer route was quota-
+blocked and Fable was excluded because it consumes paid credits. A same-provider review did
+not satisfy the standing rule. This is the historical reason the rows were recorded; review
+capacity later returned and the records below say exactly what cleared them.
 
-The accepted position for now: keep implementing, keep the deterministic Verilator gate and
-CI synthesis as the mechanical safety net, and record here exactly what has not been read by
-an independent reviewer. Review debt is repaid in a dedicated pass when quota returns, before
-any of this work is treated as settled.
+The accepted interim position was to keep implementing behind the deterministic Verilator
+gate and CI synthesis, and record exactly what had not been read independently. The original
+per-commit debt and the later branch-level generation have now both been repaid; open action
+items remain implementation scope rather than uncleared review rows.
 
 ## What this does not excuse
 
@@ -144,7 +144,7 @@ The original plan, for the record:
 All five steps were followed (with `90aed07` and `c9f4a4e` added per the same order);
 findings became action items A1-A5 above.
 
-## Outstanding branch-level reviews (locked decision 2026-08-22)
+## Branch-level review register (locked decision 2026-08-22)
 
 No per-commit rows are added for work on the branches below: the 2026-08-22 locked
 decision treats them as authored by a single model (ox-alpha) to be reviewed **as one whole
@@ -153,22 +153,42 @@ with per-commit rationale, evidence commands, and a prioritized reading list is
 `docs/accuracy/type-split-review-guide.md` (the `accuracy/a3-f6-stage1` row names its own
 hardest-reading guidance inline).
 
-| Branch | Scope of the pending whole-branch review | Status |
+| Branch | Scope of the whole-branch review | Status |
 |---|---|---|
-| `accc-review-and-fixes` | Canonical docs, GA40010 co-sim manifest, exact-range whitespace gate, and pass-2 remediation integration. | Pass 2 recorded at `accuracy/accc-review-and-fixes-independent-review-pass2.md`. Manifest fixed in `42e8fd2`, range whitespace in `68b8aef`, and canonical handoff in `7c40f93`; all pass-2 fixes are implemented, awaiting reviewer confirmation. |
-| `accuracy/crtc-type-split` | Per-type engine split (`27efc2d`), wrapper rename to `rtl/CRTC.v` (`63f4c01`), session docs. | **Clear within bounded evidence.** Pass 2 confirmed the earlier split-RTL verdict; the expanded private-state differential projection is tracked separately below. |
-| `accuracy/a3-f6-stage1` | A3 companion vector `t20i`; F6 Stage 1 full-character approximation and its behavior-driven hash re-mint. | **Clear for A3/Stage 1.** Pass 2 accepted the implementation within the declared approximation. F13 remains separately hardware-blocked; point-of-use wording was clarified in `b077821`. |
-| `plus/p0-parser-wiring` | Production parser → cartridge service → SDRAM → MMU/CPU-WAIT path. Review hardest: cancellation, late acknowledgements, load-time MMU waiting, and classic-mode isolation. | Pass-2 protocol failures fixed in `c889142` and `a3dc85a`: abandoned completions are discarded/rearmed, load-begin drains and replays held reads, and the MMU waits through production-sized clear/load. Awaiting reviewer confirmation. |
-| `docs/split-differential-evidence` | Frozen `418aa68` pre-split vs `2d4f880` split comparator and preserved 45,498,863-sample run. | Pass 2 confirmed provenance but found `r6_border_condition` unsampled. `b75330b` compares it on both sides and refreshes the no-divergence log; awaiting reviewer confirmation. |
-| `plus/p1-crtc3-foundation` | Plus P1 CRTC3 counter/timing foundation, now 27 vectors (`t01a`-`t04h`). Review hardest: live R2 HSYNC collision, save/reload priority, vertical equality/overflow rules, and the explicitly unverified t01e R0-shrink model assumption. | Pass-2 live-collision defect fixed from the p.151 vector in `d5d8416`; architecture follow-up `bfb2057`. The t01e claim is classified unverified in `de6e14e` without changing its assertion. Awaiting reviewer confirmation. |
+| `accc-review-and-fixes` | Canonical docs, GA40010 co-sim manifest, exact-range whitespace gate, and pass-2 remediation integration. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 accepted all 11 remediations at reviewed tip `d64e449`; full record: `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md`. |
+| `accuracy/crtc-type-split` | Per-type engine split (`27efc2d`), wrapper rename to `rtl/CRTC.v` (`63f4c01`), session docs. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 independently reconfirmed the wrapper mux seams, type-0 latch/holdoff ordering, shared captures, and expanded differential evidence. |
+| `accuracy/a3-f6-stage1` | A3 companion vector `t20i`; F6 Stage 1 full-character approximation and its behavior-driven hash re-mint. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Accepted within the declared full-character approximation. F13 remains separately hardware-blocked. |
+| `plus/p0-parser-wiring` | Production parser → cartridge service → SDRAM → MMU/CPU-WAIT path. Review hardest: cancellation, late acknowledgements, load-time MMU waiting, and classic-mode isolation. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 traced cancellation/rearm and load replay, adversarially checked fail-closed parsing, and accepted the production-sized integration proof. |
+| `docs/split-differential-evidence` | Frozen `418aa68` pre-split vs `2d4f880` split comparator and preserved 45,498,863-sample run. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 reproduced the committed run including `r6_border_condition`; no divergence. |
+| `plus/p1-crtc3-foundation` | Plus P1 CRTC3 counter/timing foundation, now 27 vectors (`t01a`-`t04h`). Review hardest: live R2 HSYNC collision, save/reload priority, vertical equality/overflow rules, and the explicitly unverified t01e R0-shrink model assumption. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 verified the live-R2 fix directly against ACCC p.151 and accepted t04a's test isolation. The t01e and R3=0 collision cases remain labelled or queued as model assumptions, not review debt. |
 
 The same rule applies here as everywhere else in this file: clear an entry only after a real
-independent review has run — not because later work touched the same files. Mechanical gates
-(93 vectors, lint, soak golden-hash equality, CI synthesis) are necessary but do not
-substitute for that review. Integrated run `32645547100` is green at `f6f09f5`; the final
-handoff commit after it is documentation-only.
+independent review has run — not because later work touched the same files. The pass-3 record
+reviewed `0773ad4..d64e449`, reran the 93-vector suite, lint, canonical soak, exact-range
+whitespace check, and split differential, and accepted every row. Integrated run
+`32645547100` remains green at `f6f09f5`; all commits after it through the reviewed tip are
+documentation-only.
 
-## Rule for new work while the debt stands
+### Pass-3 non-blocking issue triage (2026-08-23)
+
+- **Q1 — GA40010 standalone target: queued with Plus P1 tooling.** The checked-in manifest
+  now elaborates, which closes the reviewed defect, but `rtl/GA40010/Makefile` still hardcodes
+  `/usr/bin/verilator` and treats four `PINMISSING` warnings as fatal. A future bounded
+  tooling fix may honour `VERILATOR_BIN` and make the intended warning policy explicit.
+  Wiring missing pins would be a GA40010 netlist change and still requires the user's
+  explicit approval.
+- **Q2 — t04a isolation: accepted, no follow-up.** The reviewer confirmed the assertion loop
+  is unchanged and the bounded drain fails rather than hiding an infinite HSYNC.
+- **Q3 — R3=0 collision guard: queued with Plus P1 rule follow-ups.** Before new behaviour
+  depends on it, label the guard as an unverified model assumption or replace the inference
+  with a direct ACCC rule or hardware observation. Any behaviour change remains vector-first.
+- **Q4 — load-time unbounded WAIT: accepted fail-closed policy.** The HPS-wedge consequence
+  is documented and does not reopen P0. Real `.cpr` hardware boot remains a separate
+  milestone gap.
+
+Pass 3 raised no blocking issues. A1/A2 remain open and were outside its scope.
+
+## Rule for future unreviewed work
 
 New commits merged without independent review get a row in the table above in the same
 commit that introduces them. A change that is both high risk and cheaply deferrable should
