@@ -24,8 +24,10 @@ Start from:
 When simulation and hardware disagree, hardware wins and the test vector is wrong.
 
 `docs/ACCC1.10-EN.pdf` is user-owned and untracked. **Never commit it.** It is present in
-the working tree, though — untracked, not missing — and `pdftotext` reads it. Prefer it over
-the digests whenever a rule claim matters.
+the working tree, though — untracked, not missing. Prefer it over the digests whenever a rule
+claim matters, and read it through the `pdf-inspector` skill under the verification protocol
+in `docs/accuracy/extract/README.md` (two text layers must agree; figures are judged from
+rendered pages, never from a text layer).
 
 ## Commands
 

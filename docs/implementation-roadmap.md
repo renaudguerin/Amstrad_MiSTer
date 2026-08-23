@@ -314,7 +314,9 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
 2. **PRIORITY — D1: re-verify the ACCC digests against the PDF, then sweep every stale
    section reference.** `docs/ACCC1.10-EN.pdf` is present in the working tree (4.8 MB,
-   gitignored, not absent) and `pdftotext -f <first> -l <last>` extracts it cleanly. The three
+   gitignored, not absent). Work through the `pdf-inspector` skill under the verification
+   protocol in `accuracy/extract/README.md` — two text layers must agree, and figures are
+   judged from rendered pages — not through a single text extractor. The three
    digests under `docs/accuracy/compendium-0*.md` were built without using it, which left 27
    `⚠ VERIFY` flags whose stated reason is flattened-text extraction, and at least one
    downstream section mislabel that survived three review passes (the §13.6.2 p.122 CRTC-1
@@ -328,6 +330,16 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
    rule claims we implemented from a misread digest; each one is a finding, not a typo, and
    gets a vector before any RTL moves. The PDF is authority rank 2 and outranks the digests,
    so where they disagree the digest is wrong. Never commit the PDF.
+
+   **Already banked, do not redo** (2026-08-24): chapter 13's section map is verified —
+   §13.3 CRTC 1 p.113, §13.4 CRTC 2 p.117, §13.5 CRTC 3/4 p.121, §13.6 R0 UPDATE p.122-123
+   (§13.6.1 CRTC 0/2 chronogram, §13.6.2 CRTC 1 chronogram, both p.122; §13.6.3 CRTC 3/4
+   p.123), §13.7 SPECIAL CASES p.124 (§13.7.1 CRTC 1 → §13.7.1.1 R0 UPDATE: OUTI,
+   §13.7.1.2 R0 UPDATE: OUT(C),R8; §13.7.2 CRTC 0), §13.8 OFFSET p.126. Chapter 14's map is
+   verified too, including §14.5 ABSENCE OF HSYNC p.141. Digest-01 §8.5's chronogram
+   annotation is confirmed verbatim, so that half of its flag is retired. The §13.5-for-§13.3
+   citation error in `t13e`/`t13j`/`t13l` and the §13.7.1.1-for-§13.6.2 chronogram mislabel
+   are both already corrected. Everything else in the 27-flag backlog is still open.
 3. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
    and is BLOCKED-PENDING-HARDWARE-EVIDENCE. F7 RFD is complete in full (R5 route, B6
    disarm, A1/A2, and the §13.7.1.2 R0-widening trigger, vectors `t13a`-`t13m`). F10 stays

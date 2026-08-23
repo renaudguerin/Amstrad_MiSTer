@@ -23,10 +23,15 @@ misreading of the Compendium passes cheerfully and hides the very bug it was mea
 When simulation and hardware disagree, hardware wins and the vector is wrong.
 
 `docs/ACCC1.10-EN.pdf` is user-owned and deliberately untracked. Never commit it.
-**Untracked does not mean absent**: the file is in the working tree and gitignored, and
-`pdftotext -f <first> -l <last> docs/ACCC1.10-EN.pdf out.txt` reads it. Read it directly when
-a rule matters — it outranks the digests, and reviews that trusted the digests alone have
-already shipped a wrong section citation.
+**Untracked does not mean absent**: the file is in the working tree, gitignored, and
+readable. Read it directly whenever a rule matters — it outranks the digests, and reviews
+that trusted the digests alone have already shipped a wrong section citation.
+
+Read it through the `pdf-inspector` skill, and follow the verification protocol already
+written down in `docs/accuracy/extract/README.md`: a rule counts as clean prose only when
+pdf-inspector Markdown and pdftotext agree, and table or chronogram rules are judged from
+rendered pages, never from a text layer alone. Reaching for a single text extractor is how
+figure content silently flattens — which is what most of the digests' ⚠ VERIFY flags record.
 
 ## Writing test vectors
 
