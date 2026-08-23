@@ -226,12 +226,32 @@ fixtures; both are separately gated. F13 waits for hardware and does not block t
   Follow-up vector `t04i` makes the R3l=0 end/start-collision exception explicit: the
   current model keeps the documented 16-character pulse bounded, but that boundary is an
   unverified model assumption pending a direct rule, Logon observation, or hardware capture.
-- Still open in P1 before the milestone is complete: the basic locked-ASIC pixel path
-  (needs the legacy-colour table sourced from [KT] or hardware measurement), and the
-  CPU/WAIT timing-contract decision that lands with the first motherboard instantiation
-  of `asic_video` (architecture §5 Risk 1). `files.qip` is untouched until that
-  instantiation commit. The locked-ASIC title boot-point check remains the manual P0/P1
-  hardware checkpoint described above.
+- Still open in P1 before the milestone is complete: the CPU/WAIT
+  timing-contract decision that lands with the first motherboard instantiation
+  of `asic_video` (architecture §5 Risk 1), plus the intra-character pixel
+  phase validation against the ga40010 cadence named below. `files.qip` is
+  untouched until that instantiation commit. The locked-ASIC title boot-point
+  check remains the manual P0/P1 hardware checkpoint described above.
+- P1 remainder, locked-ASIC pixel path, is implemented on
+  `plus/p1-pixel-path` as a leaf extension of `asic_video`: a pen pipeline
+  decoding two video bytes per CRTC character (MA is word-addressed;
+  ga40010 latches VIDEO_BUF twice per character) at the documented
+  mode-dependent rates, border substitution outside DE, HSYNC forced blank,
+  screen mode latched on HSYNC assertion, and a registered 32-entry
+  legacy-colour ROM translating hardware colour numbers to 4-bit-per-channel
+  RGB. Sources: [KT] palette table (web.archive.org capture 20230923001014),
+  cross-checked entry by entry during extraction against this repo's own
+  ga40010 DAC equations — all 32 agree; byte/pixel layouts from the Grimware
+  Gate Array page (already cited by color_mix.sv), corroborated by the
+  netlist cidx taps ({r1,r5,r3,r7}/{r3,r7}/{r7}). Vectors t05a-t05g pin the
+  ROM sweep, all four mode layouts, border/sync blanking, and the
+  after-next-HSYNC mode latch. Explicit unverified P1 model assumption
+  (t04i discipline): the first pixel of a character's even byte is presented
+  on dot 0 with one-dot registered output latency; the real GA's pipeline
+  latencies relative to its load/DISPEN cadence (Plus INKR effects ~1/4
+  character late, 40010's one-pixel mode-2 early start) are deferred to the
+  motherboard-integration differential check. Interlace stays stored-but-
+  inert; status registers/read map remain P5.
 - CI evidence for the pre-rebase P1 foundation branch (run `32632492492`, original tip
   `0be8a60`):
   simulation and synthesis both green. Fitter: 15,295 / 41,910 ALMs (36%), 685,217
@@ -243,13 +263,17 @@ fixtures; both are separately gated. F13 waits for hardware and does not block t
   and DMA are not implemented. FDC/tape presence gating for GX4000/464+ is also still
   inert (P8 polish scope).
 
-The next Plus milestone work is the P1 remainder per `docs/plus/architecture.md` §4/§7:
-pixel path + clocking-contract decision, then P2. The P0 hardware checkpoint is manual:
+The next Plus milestone work is the P1 motherboard-integration commit per
+`docs/plus/architecture.md` §4/§5/§7: instantiate `asic_video` (deciding the
+CPU/WAIT timing contract, Risk 1: replicate ga40010 timing behaviorally vs
+keep it as clock generator), wire the video word and legacy GA-config inputs,
+add `files.qip`, record fitter utilisation, and validate the intra-character
+pixel phase assumption against the production cadence; then P2. The P0
+hardware checkpoint is manual:
 with a Plus model selected, load a real `.cpr` (e.g. the local untracked `crtc3_v2fix.cpr`
 fixture) and confirm the firmware/game reaches its first screen; classic mode must be
 re-checked side by side in the same session. Do not start Plus video by extending
-`ga40010`; the planned path is the parallel behavioral `asic_video` module now under
-construction.
+`ga40010`; the planned path is the parallel behavioral `asic_video` module.
 
 Plus P0 wiring is merged onto `accc-review-and-fixes` (merge `daf1d6f`) and has a green
 GitHub Actions build (simulation + synthesis) on the merged tip. Fitter: 15,295 / 41,910
@@ -323,9 +347,12 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    F7 RFD (R5 route, B6 disarm, A1, A2) is implemented and independently reviewed
    (`accuracy/f7-plus-followups-independent-review.md`). Next classic work is the residual
    §13.7.1.2 R0-widening trigger or the F10 fixtures; F10 stays fixture-gated.
-5. Plus: P0 and the P1 CRTC3 counter/timing foundation are merged. Next Plus steps: the
-   manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
-   classic re-checked side by side), then the P1 remainder per
-   `docs/plus/architecture.md` §4/§7 (pixel path plus motherboard CPU/WAIT contract), then
-   P2. All review-debt rows are cleared as of 2026-08-23.
+5. Plus: P0 and the P1 CRTC3 counter/timing foundation are merged, and the
+   P1 locked-ASIC pixel path is implemented on `plus/p1-pixel-path`
+   (legacy-colour ROM + pen pipeline, vectors t05a-t05g). Next Plus steps:
+   the manual hardware checkpoint named above (real `.cpr` boot with a Plus
+   model selected, classic re-checked side by side), then the P1
+   motherboard-integration commit (Risk-1 CPU/WAIT contract decision,
+   `files.qip`, fitter recording, pixel-phase differential), then P2. All
+   review-debt rows are cleared as of 2026-08-23.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.

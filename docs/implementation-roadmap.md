@@ -314,9 +314,11 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 2. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
    and is BLOCKED-PENDING-HARDWARE-EVIDENCE; it does not block F7 RFD (B6 disarm + A1
    VSYNC-corner fix). F10 stays fixture-gated behind its PDF re-checks.
-3. Plus stream: P0 and the P1 CRTC3 counter/timing foundation are done. Next: the P1
-   remainder (pixel path and the CPU/WAIT contract at first motherboard instantiation),
-   then P2. Do not combine Plus video with the classic stream.
+3. Plus stream: P0, the P1 CRTC3 counter/timing foundation, and the P1
+   locked-ASIC pixel path (legacy-colour ROM + pen pipeline, `plus/p1-pixel-path`)
+   are done. Next: the P1 motherboard-integration commit (CPU/WAIT contract
+   decision per architecture §5 Risk 1, first instantiation, `files.qip`,
+   fitter recording), then P2. Do not combine Plus video with the classic stream.
 4. F6 proceeds per `accuracy/f6-decision-gate.md`: Stage 1 is the full-character
    presence/type/skew approximation; Stage 2 measured 1 µs; Stage 2b assigns the documented
    0.5 µs to the CRTC DE phase. No CRTC, GA, or glue work before F13's hardware gate.
