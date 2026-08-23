@@ -63,7 +63,44 @@ module asic_video
 	// types 3/4, ACCC §11.2.6), and the adjustment-active flag.
 	output     [6:0] LINE,
 	output     [4:0] ROW,
-	output           ADJ
+	output           ADJ,
+
+	// ---- Locked-ASIC pixel path (P1 remainder, architecture §4/§7) ----
+	//
+	// Behavioral locked-ASIC Gate-Array emulation: decodes the video-memory
+	// word addressed by MA into pen numbers at the documented mode-dependent
+	// rate and translates pens plus border into 4-bit-per-channel RGB
+	// through the fixed legacy-colour table. Sources, cited at each point of
+	// use below:
+	//  - [KT] Kevin Thacker, "Extra CPC Plus Hardware Information",
+	//    cpctech.cpc-live.com/docs/cpcplus.html (via web.archive.org capture
+	//    20230923001014), Palette section: measured 32-entry hardware-colour
+	//    -> R,G,B table (mid level = 6). Cross-checked entry by entry against
+	//    this repository's own ga40010 netlist DAC equations during P1
+	//    extraction; all 32 agree.
+	//  - Byte/pixel structure per video mode: Grimware Gate Array page
+	//    (grimware.org/doku.php/documentations/devices/gatearray, §RMR,
+	//    "Byte/Pixel structure" table; already cited by rtl/color_mix.sv).
+	//    The checked-in netlist corroborates it: the mode-0 leftmost pixel
+	//    nibble {b1,b5,b3,b7} is exactly the netlist cidx tap order
+	//    {shift_reg[1],[5],[3],[7]} sampled on a freshly loaded register
+	//    (rtl/GA40010/video.sv).
+	//  - Two video bytes per CRTC character: ga40010 latches VIDEO_BUF twice
+	//    per character (vidbuf_clk_en, rtl/GA40010/ga40010.sv) and every CPC
+	//    display line spans 80 bytes at R1=40 characters — MA is a word
+	//    address. This port models that word directly.
+	input               PIXEN,     // 16 MHz dot enable; 16 dots per character
+	input      [15:0]   VIDEOD,    // VRAM word for the current MA address:
+	                               // {odd byte (second half), even byte}
+	input      [1:0]    GAMODE,    // legacy GA screen mode (RMR VM bits)
+	input      [4:0]    BORDER_I,  // border hardware colour number
+	input      [79:0]   INKR_I,    // 16 x 5-bit ink hardware colours; entry
+	                               // k occupies INKR_I[k*5 +: 5]
+	output reg [3:0]    RGB_R,     // 4-bit levels per channel ([KT]: 0/6/15)
+	output reg [3:0]    RGB_G,
+	output reg [3:0]    RGB_B,
+	output reg [4:0]    PEN        // observability for later raster consumers:
+	                               // {showing_border, decoded ink nibble}
 );
 
 /* verilator lint_off WIDTH */
@@ -471,5 +508,181 @@ assign ROW  = raster;
 assign ADJ  = in_adj;
 assign MA   = vma;
 assign RA   = raster;
+
+//----------------------------------------------------------------------
+// Locked-ASIC pixel path (P1 remainder).
+//
+// Contract: one video word per character arrives on VIDEOD; the even byte
+// is displayed during dots 0-7 and the odd byte during dots 8-15. Within
+// each byte half the documented nibble/bit groups are emitted leftmost
+// first at the mode-dependent rate:
+//   mode 0 (%00): 2 px/half, 4 dots each, pen = {b1,b5,b3,b7} then
+//                 {b0,b4,b2,b6}          (Grimware "Byte/Pixel structure";
+//                 == netlist cidx taps {r1,r5,r3,r7} / post-shift state)
+//   mode 1 (%01): 4 px/half, 2 dots each, pens {b3,b7} {b2,b6} {b1,b5}
+//                 {b0,b4}                (== netlist taps {r3,r7} family)
+//   mode 2 (%10): 8 px/half, 1 dot each,  bit b7 first
+//                 (== netlist tap r7)
+//   mode 3 (%11): 2 px/half, 4 dots each, pens {b3,b7} then {b2,b6}
+//                 (Grimware documents this layout for the undocumented
+//                 VM=3; the netlist decodes it through the mode-1 mux)
+// Pens select INKR_I entries (mode 2 uses only inks 0/1); outside DE the
+// border colour is substituted; RGB is forced to black while HSYNC is
+// active — the netlist FORCE_BLANK analogue (video.sv FORCE_BLANK term).
+// The vertical-blank region blanking of ga40010 (HCNTLT28) needs the
+// monitor-side timing that lands with motherboard integration.
+//
+// Unverified P1 model assumption (pinned by t05x vectors, mirrors t04i):
+// the first pixel of a character's even byte is presented on dot 0 and
+// RGB is registered once per dot (one-dot presentation latency). The real
+// GA has fixed pipeline latencies relative to its load/DISPEN cadence —
+// the Plus shows INKR effects at ~1/4 character ([KT]/Grimware INKR
+// timings) and the 40010 starts mode-2 rasterisation one pixel early —
+// both deferred to the motherboard-integration milestone (architecture
+// §5 Risk 1), where the timing contract is decided with fitter data.
+//----------------------------------------------------------------------
+
+reg  [3:0] pix_cnt;    // dot index within the character (0..15)
+reg  [7:0] vid_even;   // byte displayed during dots 0-7
+reg  [7:0] vid_odd;    // byte displayed during dots 8-15
+reg        de_hold;    // DE captured at the character edge (post-skew)
+reg  [1:0] mode_q;     // GAMODE latched on HSYNC assertion
+reg        hsync_d;
+
+always @(posedge CLOCK) begin
+	if (!nRESET) pix_cnt <= 4'd0;
+	else if (PIXEN) pix_cnt <= CLKEN ? 4'd0 : (pix_cnt + 4'd1);
+end
+
+// Byte latches mirror ga40010's twice-per-character VIDEO_BUF capture.
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		vid_even <= 8'd0;
+		vid_odd  <= 8'd0;
+		de_hold  <= 1'b0;
+	end
+	// Each half must be latched on the edge BEFORE the first dot that
+	// displays it: the even byte at the CLKEN edge that resets pix_cnt to
+	// 0, the odd byte at the edge that ends dot 7. Latching the odd byte
+	// at pix_cnt==8 instead leaves dot 8 showing the previous character's
+	// odd byte, which is invisible whenever VIDEOD is held constant (t05h).
+	else if (PIXEN) begin
+		if (CLKEN) begin
+			vid_even <= VIDEOD[7:0];
+			de_hold  <= DE;
+		end
+		else if (pix_cnt == 4'd7) begin
+			vid_odd <= VIDEOD[15:8];
+		end
+	end
+end
+
+// Grimware §RMR: "VM ... will take effect after the next HSync". The
+// netlist re-times mode identically (MODE_SYNC = ~HSYNC_O, ga40010.sv).
+//
+// This model latches on the HSYNC rising edge, so it does not depend on
+// the pulse having any particular width. That deliberately does NOT model
+// the real GA's documented requirement for an HSYNC of at least 2 us
+// before the byte=>pixel decoder updates. A shorter type-3 pulse is
+// reachable here — R3l=1 statically, or an R3l rewrite during the pulse:
+// ACCC §14.5 p.141 bounds an R3l=0 HSYNC to 16 characters only "unless it
+// is interrupted by modifying R3 during HSYNC" — and on hardware such a
+// pulse would leave the screen mode unchanged. Deferred with the rest of
+// the GA pixel-phase contract to motherboard integration (architecture
+// §5 Risk 1).
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		mode_q  <= 2'b00;
+		hsync_d <= 1'b0;
+	end
+	else if (PIXEN) begin
+		hsync_d <= HSYNC;
+		if (HSYNC && !hsync_d) mode_q <= GAMODE;
+	end
+end
+
+wire [7:0] vbyte = pix_cnt[3] ? vid_odd : vid_even;
+wire [2:0] s     = pix_cnt[2:0];
+
+reg [3:0] pen_nib;
+always @(*) begin
+	case (mode_q)
+		// Mode 0: leftmost pixel takes the odd bits, second the even bits
+		// (Grimware bit row A0 B0 A2 B2 A1 B1 A3 B3 => A={A3,A2,A1,A0}).
+		2'b00: pen_nib = s[2] ? {vbyte[0], vbyte[4], vbyte[2], vbyte[6]}
+		                      : {vbyte[1], vbyte[5], vbyte[3], vbyte[7]};
+		// Mode 1: pairs {b3,b7} {b2,b6} {b1,b5} {b0,b4}, two dots per pen;
+		// pixel p takes high bit b(3-p) and low bit b(7-p).
+		2'b01: pen_nib = {vbyte[{1'b0, ~s[2], ~s[1]}],
+		                  vbyte[{1'b1, ~s[2], ~s[1]}]};
+		// Mode 2: sequential bits, MSB first, one dot per pen.
+		2'b10: pen_nib = {3'b000, vbyte[~s]};
+		// Mode 3 (Grimware): {b3,b7} then {b2,b6}, four dots per pen.
+		2'b11: pen_nib = s[2] ? {2'b00, vbyte[2], vbyte[6]}
+		                      : {2'b00, vbyte[3], vbyte[7]};
+	endcase
+end
+
+// [KT] measured legacy-colour table (Palette section): hardware colour
+// number -> {R,G,B} nibbles, mid level = 6. Verified entry-by-entry
+// against the ga40010 netlist DAC equations during P1 extraction.
+function [11:0] legacy_colour(input [4:0] hw);
+	begin
+		case (hw)
+			5'd00: legacy_colour = {4'd6,  4'd6,  4'd6 };
+			5'd01: legacy_colour = {4'd6,  4'd6,  4'd6 };
+			5'd02: legacy_colour = {4'd0,  4'd15, 4'd6 };
+			5'd03: legacy_colour = {4'd15, 4'd15, 4'd6 };
+			5'd04: legacy_colour = {4'd0,  4'd0,  4'd6 };
+			5'd05: legacy_colour = {4'd15, 4'd0,  4'd6 };
+			5'd06: legacy_colour = {4'd0,  4'd6,  4'd6 };
+			5'd07: legacy_colour = {4'd15, 4'd6,  4'd6 };
+			5'd08: legacy_colour = {4'd15, 4'd0,  4'd6 };
+			5'd09: legacy_colour = {4'd15, 4'd15, 4'd6 };
+			5'd10: legacy_colour = {4'd15, 4'd15, 4'd0 };
+			5'd11: legacy_colour = {4'd15, 4'd15, 4'd15};
+			5'd12: legacy_colour = {4'd15, 4'd0,  4'd0 };
+			5'd13: legacy_colour = {4'd15, 4'd0,  4'd15};
+			5'd14: legacy_colour = {4'd15, 4'd6,  4'd0 };
+			5'd15: legacy_colour = {4'd15, 4'd6,  4'd15};
+			5'd16: legacy_colour = {4'd0,  4'd0,  4'd6 };
+			5'd17: legacy_colour = {4'd0,  4'd15, 4'd6 };
+			5'd18: legacy_colour = {4'd0,  4'd15, 4'd0 };
+			5'd19: legacy_colour = {4'd0,  4'd15, 4'd15};
+			5'd20: legacy_colour = {4'd0,  4'd0,  4'd0 };
+			5'd21: legacy_colour = {4'd0,  4'd0,  4'd15};
+			5'd22: legacy_colour = {4'd0,  4'd6,  4'd0 };
+			5'd23: legacy_colour = {4'd0,  4'd6,  4'd15};
+			5'd24: legacy_colour = {4'd6,  4'd0,  4'd6 };
+			5'd25: legacy_colour = {4'd6,  4'd15, 4'd6 };
+			5'd26: legacy_colour = {4'd6,  4'd15, 4'd0 };
+			5'd27: legacy_colour = {4'd6,  4'd15, 4'd15};
+			5'd28: legacy_colour = {4'd6,  4'd0,  4'd0 };
+			5'd29: legacy_colour = {4'd6,  4'd0,  4'd15};
+			5'd30: legacy_colour = {4'd6,  4'd6,  4'd0 };
+			5'd31: legacy_colour = {4'd6,  4'd6,  4'd15};
+			default: legacy_colour = 12'h000;
+		endcase
+	end
+endfunction
+
+wire [4:0] hw_sel  = de_hold ? INKR_I[pen_nib*5 +: 5] : BORDER_I;
+wire [11:0] rgb_mux = legacy_colour(hw_sel);
+wire        blank   = HSYNC;
+
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		RGB_R <= 4'h0;
+		RGB_G <= 4'h0;
+		RGB_B <= 4'h0;
+		PEN   <= 5'd0;
+	end
+	else if (PIXEN) begin
+		PEN   <= {~de_hold, pen_nib};
+		RGB_R <= blank ? 4'h0 : rgb_mux[11:8];
+		RGB_G <= blank ? 4'h0 : rgb_mux[7:4];
+		RGB_B <= blank ? 4'h0 : rgb_mux[3:0];
+	end
+end
 
 endmodule
