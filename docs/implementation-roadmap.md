@@ -28,7 +28,7 @@ merged into the same behavioral PR.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
   RBF packaging, and artifact upload through the pass-2 fix tip `f6f09f5` (run
   `32645547100`). New top-level/file-list commits still require their own run.
-- `sim/` currently reports **100** required classic CRTC passes with no expected failures
+- `sim/` currently reports **107** required classic CRTC passes with no expected failures
   (verified 2026-08-23, Verilator 5.050); the soak reproduces golden hash
   `0x512eaae74a628dca`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
@@ -42,7 +42,8 @@ merged into the same behavioral PR.
 - The v1.10 documentation rebaseline and the deterministic F12/F4/F8 milestones are complete;
   F9 closure is merged into this branch (`t12a`/`t12b`: exact-C0==R0 write → C4=39/C9=8 and
   its windowed companion → C4=38/C9=8, ACCC p.82). F6 Stage 2/2b is complete; F13 is
-  hardware-blocked. The next independent classic checkpoint is F7 RFD, then F10 fixtures.
+  hardware-blocked. F7 RFD is complete in full; the next independent classic checkpoint is
+  F10 (fixtures first).
 
 The current branch is a useful staging branch, not a requirement to publish one large PR.
 The commits may be rearranged into the small sequences below before publication.
@@ -312,8 +313,9 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
 2. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
-   and is BLOCKED-PENDING-HARDWARE-EVIDENCE; it does not block F7 RFD (B6 disarm + A1
-   VSYNC-corner fix). F10 stays fixture-gated behind its PDF re-checks.
+   and is BLOCKED-PENDING-HARDWARE-EVIDENCE. F7 RFD is complete in full (R5 route, B6
+   disarm, A1/A2, and the §13.7.1.2 R0-widening trigger, vectors `t13a`-`t13k`). F10 stays
+   fixture-gated behind its PDF re-checks and is the next classic item.
 3. Plus stream: P0 and the P1 CRTC3 counter/timing foundation are done. Next: the P1
    remainder (pixel path and the CPU/WAIT contract at first motherboard instantiation),
    then P2. Do not combine Plus video with the classic stream.

@@ -279,7 +279,7 @@ General implementation rules for all fix prompts:
   book result is an 8-mode-2-px seam with DE low only for the second byte of C0=R0. Record
   any disagreement as evidence before selecting among the already-tested candidate owners.
 
-## F7. RFD ("Rupture For Dummies") — CRTC 1 frame-parity address-reload quirk — R5 trigger implemented
+## F7. RFD ("Rupture For Dummies") — CRTC 1 frame-parity address-reload quirk — R5 and R0-widening triggers implemented
 
 - **Rule** (digest-01 §5 → ACCC §11.6, p.87-90): on type 1, writing R5 from 0 to nonzero exactly
   at C0==R0 (or the R0-widening route, §8.6) arms two flags: VMA loads from R12/R13 on **every**
@@ -292,17 +292,26 @@ General implementation rules for all fix prompts:
   and odd-R9 frame-parity state. A parity-qualified VMA' save clears the source flag; R1>R0
   uses the p.87 bare-C9 disarm. Required vectors `t13a`-`t13d` pin the never-triggered path,
   same-cycle reload and adjustment entry, parity alternation, normal disarm, and B6 route. RFD#10's optional
-  "1-B" variant is deliberately not modeled. The separate R0-widening trigger from §13.7.1.2
-  remains outside this R5-trigger milestone.
+  "1-B" variant is deliberately not modeled.
+- **Current** (§13.7.1.2 R0-widening route implemented 2026-08-23): a type-1 R0 write that
+  strictly widens R0 and lands exactly on the C0==R0 comparator edge of the frame's last line
+  (C9==R9, C4==R4, R5==0, outside adjustment) defers that line end — per §13.7.1.1's
+  "just-in-time write considered this rollover" gist — so the line runs into the widened
+  remainder (`hcc_end` in `rtl/CRTC.v`; engine term `rfd_r0_extend`). If the register state
+  held at the line's actual end no longer satisfies C9==R9 ∧ C4==R4 (the documented "by line
+  end" variant definitions), both RFD flags arm there with the same same-edge reload
+  participation as the R5 route; a condition cancelled and restored before the end does not
+  arm. Vectors `t13e`-`t13k` pin expiry, the R9 and R4 variants, restore, equal-value writes,
+  off-last-line widening, and the live-type round-trip clearing of the hidden window. Whether
+  an arbitrary mid-frame widening write at C0==R0 also extends its own line is deliberately
+  unmodeled: the checked-in evidence (p.122-123 chronogram gist, ⚠ alignment lost) covers only
+  the last-line recipe.
 - **Impact**: CRTC-1-specific demo effects (the technique is popular precisely because it's the
   easy rupture on type 1); SHAKER tests it.
-- **Confidence: medium-high for the implemented R5 route.** The deterministic V3 vectors are
-  source-derived and exercise the timing race and both disarm paths; real SHAKER hardware
-  remains the higher-authority check. The §13.7.1.2 R0-widening route needs its own wrapper-
-  sequencing design and vector before this finding is complete in full.
-- **Residual fix prompt**: implement the §13.7.1.2 p.124 R0-widening trigger without changing
-  type 0 or ordinary type-1 R0-write behavior; retain the same two RFD states and parity rules.
-- **Verify**: V3 passed for the R5 route; V2 (SHAKER RFD tests); V1 (CRTC-1 demos).
+- **Confidence: medium-high for both implemented routes.** The deterministic vectors are
+  source-derived and exercise the timing races, cancellation semantics, and disarm paths;
+  real SHAKER hardware remains the higher-authority check (Module C `(1)` / D `(9)`).
+- **Verify**: V3 passed for the R5 and R0-widening routes; V2 (SHAKER RFD tests); V1 (CRTC-1 demos).
 
 ## F8. CRTC 1 vertical adjustment must use a separate C5 counter (C4/C9 keep counting)
 

@@ -143,7 +143,7 @@ the cited ACCC rule when implemented:
 ## Definition of done (for the implementing agent)
 
 1. `make -C sim` runs the full suite non-interactively and exits zero (2026-08-23 state:
-   100 required passes, no expected failures), well under a minute total.
+   107 required passes, no expected failures), well under a minute total.
 2. A failing assertion produces a VCD + human-readable diff.
 3. `docs/accuracy/audit-findings.md` verification levels V3 references become real: each
    finding's fix prompt names its test file.
