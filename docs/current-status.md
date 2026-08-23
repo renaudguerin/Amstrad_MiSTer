@@ -11,7 +11,9 @@ classic work. The earlier whole-branch reviews are recorded in
 `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
 which accepted all pass-2 remediations); the 2026-08-23 review of the F7/A1/A2 and Plus
 follow-up deltas is `accuracy/f7-plus-followups-independent-review.md`, and both
-review-debt rows are cleared. The detailed behavioral rules remain in
+review-debt rows are cleared. The unmerged `accuracy/f7-rfd-r0-widening` branch has its own
+2026-08-23 cross-provider review, `accuracy/f7-r0-widening-independent-review.md`, which
+returned NOT CLEAR with two blocking findings. The detailed behavioral rules remain in
 `accuracy/`; the long-term ordering remains in `implementation-roadmap.md`.
 
 ## How hardware testing fits the loop
@@ -333,6 +335,11 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
    classic re-checked side by side), then the P1 remainder per
    `docs/plus/architecture.md` §4/§7 (pixel path plus motherboard CPU/WAIT contract), then
-   P2. The `accuracy/f7-rfd-r0-widening` branch carries one open review-debt row
-   (cross-provider bridge was unavailable when it was authored); all other rows are cleared.
+   P2. The `accuracy/f7-rfd-r0-widening` branch is reviewed but **not merged**: its
+   cross-provider review (Claude Opus 5 on an Ox-Alpha-authored delta,
+   `accuracy/f7-r0-widening-independent-review.md`) returned NOT CLEAR. Its review-debt row
+   stays open until F-1 (the `hcc_next == R1_h_displayed` guard suppressing a real
+   `C0==R1` DISPEN event when `R1 == R0+1`) and F-2 (`t13j` never reaching a `C0==R0` edge,
+   leaving the last-line gate untested) are remediated on that branch. All other rows are
+   cleared.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
