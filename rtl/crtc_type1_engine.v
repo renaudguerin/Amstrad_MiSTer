@@ -154,6 +154,11 @@ wire rfd_r0_widen_at_last_line = CLKEN & hcc_last & r0_write_hit &
 assign rfd_r0_extend = rfd_r0_widen_at_last_line;
 
 wire rfd_r0_cancelled = (line != crtc1_line_max) | (row != R4_v_total);
+// Raw hcc_last is safe here by an exact-negation invariant: arming requires
+// rfd_r0_widen_at_last_line false at every earlier edge, and that term's
+// line/row conjunction is precisely the complement of rfd_r0_cancelled, so
+// a re-extend and an arm can never share an edge and hcc_end == hcc_last
+// on every possible arm edge.
 wire rfd_r0_arm = rfd_r0_pending & CLKEN & hcc_last & rfd_r0_cancelled;
 
 // ACCC v1.10 section 11.3.2: Type 1 adjustment ends when C5+1 reaches R5
@@ -283,11 +288,11 @@ always @(posedge CLOCK) begin
 	end
 end
 
-// The suppressed-wrap edge continues the same line, so it must not double
-// as an odd-field count tick even if the extended total makes the
-// half-line comparison coincide.
-assign field_count_tick = (hcc_next == {1'b0, R0_h_total[7:1]}) &
-                          ~rfd_r0_extend;
+// The half-line comparison reads the stored R0, which still holds the old
+// total on the extend edge while hcc_next already carries R0_old+1; the
+// extended line's genuine midpoint tick fires later in the remainder as
+// usual.
+assign field_count_tick = (hcc_next == {1'b0, R0_h_total[7:1]});
 
 // ACCC v1.10 sections 16.1/16.4.2: while adjustment continues, C4 reaches
 // row+1 at a C9 wrap and may fire VSYNC there.  On the adjustment-ending
