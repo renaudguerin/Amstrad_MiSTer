@@ -19,9 +19,9 @@ ticks between events). After **every CLKEN edge** it compares a full state
 snapshot of both models via `memcmp`: all pins (MA, RA, DE, HSYNC, VSYNC,
 CURSOR, FIELD, DO) plus hcc, line, row, c5, in_adj, line_last_r, row_last_r,
 frame_adj_r, field, crtc1_adj_from_row0, both engines' private latches
-(8 arbitration regs + holdoff latch), status bit 5, VSYNC_r/vde/vde_r/
-vsync_allow/hde/hsc and both video-pointer registers. First mismatch aborts
-with a state dump and a 40-edge history.
+(8 arbitration regs + holdoff latch + the type-1 `r6_border_condition` latch),
+status bit 5, VSYNC_r/vde/vde_r/vsync_allow/hde/hsc and both video-pointer
+registers. First mismatch aborts with a state dump and a 40-edge history.
 
 ## Provenance
 
@@ -45,9 +45,10 @@ with a state dump and a 40-edge history.
    nothing checked in depends on them at build time — `run.sh` extracts them on
    the fly. This reproduces the reviewed split-equivalence evidence; it does not
    compare later intentional behaviour changes with the unsplit core.
-3. Pass criteria are equality of the sampled fields only; unsampled internal
-   wires could theoretically differ without detection (none of the sequential
-   state is known to be unsampled).
+3. Pass criteria are equality of the sampled fields only. The listed sequential
+   state is sampled on both sides, but unlisted combinational or temporary
+   internal wires could theoretically differ without detection if they do not
+   affect the sampled projection.
 
 ## Run
 

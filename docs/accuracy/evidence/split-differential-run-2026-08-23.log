@@ -1,11 +1,11 @@
 # Differential lockstep run — split core (base accc-review-and-fixes @ 2d4f880eefe1d992f31487bdfa8f4e3a0cd85271) vs pre-split reference (418aa68:rtl/UM6845R.v)
-# date: 2026-08-22T23:19:51Z  verilator: Verilator 5.050 2026-07-01 rev vUNKNOWN-built20260701  compiler: Apple clang version 21.0.0 (clang-2100.3.20.102)
+# date: 2026-08-23T14:23:29Z  verilator: Verilator 5.050 2026-07-01 rev vUNKNOWN-built20260701  compiler: Apple clang version 21.0.0 (clang-2100.3.20.102)
 # input sha256:
 # f81eb76034fa070be3ba5ba31e1d66990ad7f18f6fff750d66d55716e01a7b7e  rtl/CRTC.v
 # 6a32c29d45743738930d9f4b4c8bca8e2f30f1e7123470ed3a0efb07e211d81b  rtl/crtc_type0_engine.v
 # ee43081629e22017866b41f95c35d6a971dc94763c78d4bfcdaece858c502fe9  rtl/crtc_type1_engine.v
-# 974968c411f3606a51271810fd264b88e42a48cf0cadfef0a2b3db748c4209b4  /var/folders/cf/cjddkk1138z32c81pzcxkyp40000gn/T/opencode/amstrad-diff/um6845r_ref.v
-# 5166eff856aab509adcf3cf3c4c2a38aa34ed6d0f188c897e1638f6d99a9504b  /var/folders/cf/cjddkk1138z32c81pzcxkyp40000gn/T/opencode/amstrad-diff/diff_main_2d4f880.cpp
+# 974968c411f3606a51271810fd264b88e42a48cf0cadfef0a2b3db748c4209b4  /private/tmp/split-diff-99731/um6845r_ref.v
+# e98305daf1113a3c3c761cc7677066e26e37e50da1c13ddc9118022a71b37220  tools/split-differential/diff_main.cpp
 # comparator field order (Sample struct, memcmp'd whole):
 # struct Sample {
 #     std::uint16_t ma;
@@ -14,7 +14,7 @@
 #     std::uint8_t l_r4sw, l_r9live, l_r9atr0, l_c01, l_r0zc, l_zeroadj, l_r5ovr;
 #     std::uint8_t r5target;
 #     std::uint8_t line_last_r, row_last_r, frame_adj_r, fieldq, from_row0;
-#     std::uint8_t wait_latch, status5, vsync_r, vde, vde_r, allow, hde, hsc;
+#     std::uint8_t wait_latch, r6_border, status5, vsync_r, vde, vde_r, allow, hde, hsc;
 #     std::uint8_t row_addr_h, row_addr_l, row_addr_r_h, row_addr_r_l;
 # };
 # stimulus: Rng seed 0xaccc5eed20260822, kEventsPerType=150000, schedule per diff_main source
@@ -22,7 +22,7 @@ type 0 clean through 150000 events (22627500 samples)
 type 1 clean through 150000 events (45498863 samples)
 no divergence
 
-real	0m13.447s
-user	0m12.830s
-sys	0m0.096s
+real	0m11.85s
+user	0m10.84s
+sys	0m0.55s
 # exit code: 0

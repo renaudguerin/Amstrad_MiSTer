@@ -1,6 +1,6 @@
-// Differential debug harness (throwaway, not committed): pre-split reference
-// core vs split core under soak-style stimulus; both models are driven in
-// lockstep and compared after every CLKEN edge.
+// Frozen split-equivalence harness: pre-split reference core vs split core
+// under soak-style stimulus; both models are driven in lockstep and compared
+// after every CLKEN edge.
 #include <verilated.h>
 
 #include "VCRTC.h"
@@ -25,7 +25,7 @@ struct Sample {
     std::uint8_t l_r4sw, l_r9live, l_r9atr0, l_c01, l_r0zc, l_zeroadj, l_r5ovr;
     std::uint8_t r5target;
     std::uint8_t line_last_r, row_last_r, frame_adj_r, fieldq, from_row0;
-    std::uint8_t wait_latch, status5, vsync_r, vde, vde_r, allow, hde, hsc;
+    std::uint8_t wait_latch, r6_border, status5, vsync_r, vde, vde_r, allow, hde, hsc;
     std::uint8_t row_addr_h, row_addr_l, row_addr_r_h, row_addr_r_l;
 };
 
@@ -185,6 +185,7 @@ Sample sample_new() {
     s.frame_adj_r = r->CRTC__DOT__frame_adj_r;
     s.fieldq = r->CRTC__DOT__field;
     s.from_row0 = r->CRTC__DOT__crtc1_adj_from_row0;
+    s.r6_border = r->CRTC__DOT__crtc_type1_engine__DOT__r6_border_condition;
     s.status5 = r->CRTC__DOT__crtc_type1_engine__DOT__status_bit5_r;
     s.vsync_r = r->CRTC__DOT__VSYNC_r;
     s.vde = r->CRTC__DOT__vde;
@@ -220,6 +221,7 @@ Sample sample_ref() {
     s.frame_adj_r = r->UM6845R_REF__DOT__frame_adj_r;
     s.fieldq = r->UM6845R_REF__DOT__field;
     s.from_row0 = r->UM6845R_REF__DOT__crtc1_adj_from_row0;
+    s.r6_border = r->UM6845R_REF__DOT__r6_border_condition;
     s.status5 = r->UM6845R_REF__DOT__status_bit5;
     s.vsync_r = r->UM6845R_REF__DOT__VSYNC_r;
     s.vde = r->UM6845R_REF__DOT__vde;
@@ -239,9 +241,10 @@ void dump(const char* tag, const Sample& s) {
     std::printf("       hcc=%3u line=%2u row=%3u c5=%2u in_adj=%u llr=%u rlr=%u far=%u fldq=%u frow0=%u\n",
                 s.hcc, s.line5, s.row7, s.c5, s.in_adj, s.line_last_r, s.row_last_r,
                 s.frame_adj_r, s.fieldq, s.from_row0);
-    std::printf("       latches: r4sw=%u r9live=%u r9@r0=%u c01=%u r0zc=%u zeroadj=%u r5ovr=%u tgt=%u wait=%u st5=%u\n",
+    std::printf("       latches: r4sw=%u r9live=%u r9@r0=%u c01=%u r0zc=%u zeroadj=%u r5ovr=%u tgt=%u wait=%u r6border=%u st5=%u\n",
                 s.l_r4sw, s.l_r9live, s.l_r9atr0, s.l_c01, s.l_r0zc,
-                s.l_zeroadj, s.l_r5ovr, s.r5target, s.wait_latch, s.status5);
+                s.l_zeroadj, s.l_r5ovr, s.r5target, s.wait_latch, s.r6_border,
+                s.status5);
     std::printf("       vsync_r=%u vde=%u vde_r=%u allow=%u hde=%u hsc=%u ra=%02x%02x rar=%02x%02x\n",
                 s.vsync_r, s.vde, s.vde_r, s.allow, s.hde, s.hsc,
                 s.row_addr_h, s.row_addr_l, s.row_addr_r_h, s.row_addr_r_l);
