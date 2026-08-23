@@ -94,12 +94,15 @@ value).
 
 The golden hash for the type-0/type-1 engine split was minted from the
 unsplit core; the minting commit and hash value are recorded in the session
-plan (`docs/plans/2026-08-22-accc-review-plan.md`). The hash depends on the
-seed, the sampled field set/order, the event schedule, and the DUT's
-observable behaviour — any of the first three changing requires re-minting,
-recorded as such. The soak accesses internals by their Verilator names, so a
-refactor that renames them updates those accessors without touching the
-hashed values.
+plan (`docs/plans/2026-08-22-accc-review-plan.md`). It was re-minted once,
+on 2026-08-23, for the intended F6 Stage 1 behaviour change (the type-0
+spurious border byte when R1>R0, protected by the t10 vectors); both hash
+values and the reason are recorded there. The hash depends on the seed, the
+sampled field set/order, the event schedule, and the DUT's observable
+behaviour — any of the first three changing requires re-minting, recorded as
+such. The soak accesses internals by their Verilator names, so a refactor
+that renames them updates those accessors without touching the hashed
+values.
 
 For future behaviour changes the rule stays as elsewhere in this repo:
 deterministic vector first, derived from the cited ACCC rule, expectations on

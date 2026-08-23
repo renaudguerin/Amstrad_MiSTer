@@ -214,9 +214,16 @@ General implementation rules for all fix prompts:
 - **Rule** (digest-03 §17.6.2/§19.2.4 → ACCC §17.6, p.186): when R1>R0 (C0=R1 never fires),
   type 0 emits **one border byte (0.5µs)** keyed on C0=R0, "BORDER OFF" again on the following
   character; suppressible via R8 SKEW-DISPTMG. Type 1 emits nothing (rows seamlessly merge).
-- **Current** (`CRTC.v:369`): `hde` is cleared only by `hcc_next == R1_h_displayed` — never
-  fires when R1>R0, so both types show continuous display: correct for type 1, missing the
-  spurious byte for type 0.
+- **Current** (Stage 1 implemented, `accuracy/a3-f6-stage1` 2026-08-23):
+  `crtc_type0_engine.v` drives a combinational substituted border-start term
+  (`!CRTC_TYPE && R1>R0 && hcc==R0`, ACCC §17.6.2 p.186 / §19.2.4 p.195) that the wrapper
+  injects ahead of the SKEW-DISPTMG delay line, so the byte lands at C0=R0 with skew 0,
+  displaces to C0=0/C0=1 with skew 1/2 (§19.2.3), and is suppressed by non-output skew
+  2'b11. Type 1 has no such term (rows merge; §17.6.2 p.186-187). Protected by
+  t10a-t10e. Residual: the R0=0 alternating-byte extreme (p.186) is not modeled — the
+  frozen C0 holds DISPTMG off continuously; needs a toggle mechanism in a later stage.
+  Stage 2 (seam-width measurement via the GA co-simulation harness or SHAKER) is pending;
+  the §19.2.5 double-R8-write disintegration cases remain out of scope.
 - **Impact**: visual discriminator (ACCC §28.1.6); demos doing "frame merging" rely on the
   presence (type 0) or absence (type 1) of the seam.
 - **Confidence: high** for the basic byte; the half-µs phase within the character and the R8

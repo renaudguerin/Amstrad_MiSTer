@@ -180,6 +180,14 @@ the type-split refactor milestone (it forces a full read anyway).
       Reviewer logistics: whole-branch review pending per locked decision; guide written at
       `docs/accuracy/type-split-review-guide.md`; `docs/review-debt.md` now lists both
       branches as outstanding whole-diff reviews instead of per-commit rows.
+      FOLLOW-UP 2026-08-23 (branch `accuracy/a3-f6-stage1`): A3 companion vector `t20i`
+      (live-entry R0=0 VMA reload; behaviour-preserving, soak reproduced
+      `0x5b5004ff70148443`) and **F6 option C Stage 1** per
+      `accuracy/f6-decision-gate.md` (vectors t10a-t10e red first, then the type-0
+      substituted border-start term in `crtc_type0_engine.v` injected ahead of the
+      wrapper's SKEW-DISPTMG delay line). This INTENDED a behaviour change: golden hash
+      re-minted to **`0x326ea81358e7d88f`** (same seed/sampling; delta is exactly the
+      type-0 R1>R0 DE byte, protected by t10a-t10e). Suite 93 passed / lint clean.
 - [ ] Branch review note (clarification): no branch stacking is needed. Stream branches
       (`accuracy/*`, `plus/*`) cut from `accc-review-and-fixes`; the base branch itself
       carries no new review-debt rows by decision, which is only safe because its whole
@@ -226,14 +234,22 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: STOP — post-review fixes landed on
-`accc-review-and-fixes`; awaiting reviewer confirmation of the resolutions.** State: base
-branch at the tip on top of 2d4f880 (review + fixes: 6cfd4dd, 90f0cda, 72d7cf4, 4140ebb,
-d66ec23, c7558ae — docs + `rtl/GA40010/Makefile` only); suite 87 passed / soak hash
-`0x5b5004ff70148443` unchanged; GA40010 co-sim elaborates and renders from its manifest.
-Stream branches `accuracy/a3-f6-stage1` (worktree `../Amstrad_MiSTer-classic`) and
-`plus/p0-parser-wiring` (worktree `../Amstrad_MiSTer-plus`) rebase onto this tip. NEXT (after
-confirmation): F6 option C Stage 1 → F7 RFD (B6 disarm path + A1 corner fix) → F10 fixtures
-(fallback derivation above); Plus P0 unblocked and independent. Soak field expansion is
-queued for the next natural boundary — do not move the golden hash mid-stream. See
-sim/README.md (bounded soak claim) and AGENTS.md "Verification ownership" for conventions.**
+the resume point in one line here: **resume point: STOP — `accuracy/a3-f6-stage1` rebased
+onto the post-review-fix base; awaiting reviewer confirmation of the base-review resolutions
+and review of this branch's A3 + F6 Stage 1 work.** State: base tip carries the independent
+review and its fixes (6cfd4dd, 90f0cda, 72d7cf4, 4140ebb, d66ec23, c7558ae — docs +
+`rtl/GA40010/Makefile` only); GA40010 co-sim elaborates and renders from its manifest.
+`accuracy/a3-f6-stage1` adds `t20i` (A3, behaviour-preserving) and F6 option C Stage 1
+(`crtc_type0_engine.v` substituted border start + wrapper delay-line injection, vectors
+t10a-t10e red-first); suite 93 passed / lint clean / CI simulation+synthesis green per push.
+Golden soak hash re-minted to **`0x326ea81358e7d88f`** for the intended F6 delta (previously
+`0x5b5004ff70148443`, which remains the correct expectation for the split-branch commits) —
+the recorded exception to "do not move the golden hash mid-stream": it moved at the planned
+F6 boundary with vectors protecting the delta. NEXT: F6 Stage 2 seam-width measurement via
+the GA40010 co-simulation render (SHAKER Module A `(O)` at the next manual milestone), then
+F7 RFD (B6 disarm path + A1 corner fix) → F10 fixtures (fallback derivation above); Plus P0
+unblocked and independent. Behaviour-preserving edits from here run
+`make -C sim soak SOAK_EXPECT=326ea81358e7d88f`; a hash change means behaviour moved and
+needs a documented reason before proceeding. Soak field expansion stays queued for the next
+natural boundary. See sim/README.md (bounded soak claim) and AGENTS.md "Verification
+ownership" for conventions.**

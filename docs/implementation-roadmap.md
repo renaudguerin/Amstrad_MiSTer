@@ -169,8 +169,11 @@ live in `accuracy/f6-decision-gate.md` (2026-08-22). Summary: F6 documents a hal
 border byte; the original "character-granular interface" premise was wrong — the GA40010
 recreation samples DISPEN twice per microsecond, so a char-aligned DE pulse (exact pin
 behaviour) plus the existing GA pipeline may reproduce the 0.5 µs result with no netlist
-change. Default action remains defer until Renaud picks an option; the one-character
-approximation stays available as a fallback. Whatever is chosen: own commit/PR at C4,
+change. Update 2026-08-23: Renaud picked option C and Stage 1 (exact pin behaviour,
+type-0 substituted border start + SKEW-DISPTMG displacement) landed on
+`accuracy/a3-f6-stage1` with vectors t10a-t10e satisfying this gate's `t10` requirement;
+Stage 2 seam-width measurement is pending before the result may be described as exact.
+The one-character approximation stays available as a fallback. Own commit/PR at C4,
 revertible, never described as exact unless the SHAKER Module A `(O)` photo comparison says so.
 
 ### F10 scope gate
@@ -307,16 +310,16 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
-2. Classic stream: F9 closure is already merged (`t12a`/`t12b`). Next: F6 option C Stage 1
-   (exact type-0 pin behaviour plus vector `t10`) per `accuracy/f6-decision-gate.md`, then
-   F7 RFD including the B6 disarm path and the A1 VSYNC-corner fix. F10 stays fixture-gated
-   behind its PDF re-checks.
+2. Classic stream: F9 closure is merged (`t12a`/`t12b`) and F6 option C Stage 1 landed on
+   `accuracy/a3-f6-stage1` (exact type-0 pin behaviour plus vectors t10a-t10e). Next: F6
+   Stage 2 seam-width measurement, then F7 RFD including the B6 disarm path and the A1
+   VSYNC-corner fix. F10 stays fixture-gated behind its PDF re-checks.
 3. Plus stream: implement P0 MMU, bounded CPR parsing integration, `/EXP`, and boot wiring
    against the accepted P-1 service/SDRAM contract. Do not combine this with Plus video work.
-4. F6 proceeds per the staged option C plan in `accuracy/f6-decision-gate.md` (user lean
-   recorded there; revert points documented): the GA samples DISPEN at byte phase, so Stage 1
-   is an exact type-0 pin change with no Gate Array netlist edit expected; Stage 3 glue work
-   happens only if the measured seam comes out 1 µs.
+4. F6 proceeds per the staged option C plan in `accuracy/f6-decision-gate.md`: Stage 1 is
+   done (the GA samples DISPEN at byte phase, so it was an exact type-0 pin change with no
+   Gate Array netlist edit expected); Stage 2 measures the seam; Stage 3 glue work happens
+   only if the measured seam comes out 1 µs.
 5. Common dependencies for both streams (harness helpers, shared docs) land on
    `accc-review-and-fixes`; the running stream branches (`accuracy/a3-f6-stage1`,
    `plus/p0-parser-wiring`) rebase onto it rather than stacking.

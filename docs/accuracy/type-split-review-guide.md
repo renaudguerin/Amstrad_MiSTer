@@ -24,6 +24,9 @@ Scope: documentation reconciliation + verification tooling. No CRTC behaviour ch
 **Golden hash: `0x5b5004ff70148443`** (seed `0xaccc5eed20260822`). It is minted from the
 unsplit core at `418aa68` and is the contract the split branch must reproduce. Re-minting is
 only needed if the seed, sampled field set/order, or event schedule changes.
+(2026-08-23 note: the F6 Stage 1 behaviour change on `accuracy/a3-f6-stage1` later re-minted
+the golden value to `0x326ea81358e7d88f`; `5b5004ff70148443` remains the correct expectation
+for the commits of these two branches.)
 
 ## Branch 2 — `accuracy/crtc-type-split`
 
@@ -62,6 +65,10 @@ make -C sim                                  # 87 passed / 0 xfail / 0 xpass / 0
 make -C sim lint                             # no errors (pre-existing warnings only)
 make -C sim soak SOAK_EXPECT=5b5004ff70148443   # bit-identity vs the unsplit core
 ```
+
+(Counts and the expected hash above are as of these two branches; later behaviour
+work on stream branches re-mints per the protocol — see the note at the golden
+hash below the commit table.)
 
 Plus, once per push: GitHub Actions "Build core" workflow green on
 `accuracy/crtc-type-split` (Verilator gate first, then pinned Quartus 17.0.2 synthesis —

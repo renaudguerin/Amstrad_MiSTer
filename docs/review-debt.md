@@ -111,9 +111,12 @@ output. Order: `de71808` → `da79915`+`1a1233f` → `cd47d7d` → `c4c3e0f` →
 - **A2 — F8 §11.2.4 caveat pair.** Implement/test both halves: R4(>0)-rewrite at C0==R0
   entering adjustment suppresses the VMA-from-R12/R13 reload; an R9 write at C0==R0 does
   not (B5). Already noted in `audit-findings.md` F8 and `testbench-spec.md` planned additions.
-- **A3 — t20 companion vector.** Pin the live-entry R0=0 case (write R0=0 mid-frame with
-  the freeze conditions armed) so the documented "1st C0==0 reloads VMA" worked-example
-  behaviour is protected, not just the cold-reset path.
+- **A3 — t20 companion vector — DONE 2026-08-23** (`t20i` on
+  `accuracy/a3-f6-stage1`). Pins the live-entry R0=0 case (write R0=0 mid-frame landing on
+  a wrap edge, freeze conditions armed): the wrap-edge §20.3.1 VMA reload from R12/R13,
+  the single armed C4 increment consumed on the first repeated C0==0 (§13.2.6 p.108), and
+  R12/R13 writes staying ignored while frozen against a non-zero latched pointer
+  (§13.8.3 p.129).
 - **A4 — cosmetic:** rename or annotate the `expect_known_*` helpers in `sim/sim_main.cpp`
   (they are hard assertions in required-pass tests).
 - **A5 — parser observations** (`cd47d7d`): decide truncate-vs-abort for oversized `cbNN`
@@ -139,20 +142,24 @@ findings became action items A1-A5 above.
 
 ## Outstanding branch-level reviews (locked decision 2026-08-22)
 
-No per-commit rows are added for work on the two branches below: the 2026-08-22 locked
+No per-commit rows are added for work on the branches below: the 2026-08-22 locked
 decision treats them as authored by a single model (ox-alpha) to be reviewed **as one whole
 diff** before any of their content is treated as settled or upstreamed. The reviewer's guide
 with per-commit rationale, evidence commands, and a prioritized reading list is
-`docs/accuracy/type-split-review-guide.md`.
+`docs/accuracy/type-split-review-guide.md` (the `accuracy/a3-f6-stage1` row names its own
+hardest-reading guidance inline).
 
+| Branch | Scope of the pending whole-branch review | Status |
+|---|---|---|
 | Branch | Scope of the pending whole-branch review | Status |
 |---|---|---|
 | `accc-review-and-fixes` | Docs corrections/reconciliation, review record + A1–A5, soak harness (`418aa68`), F9 merge | Reviewed 2026-08-23 (`accuracy/accc-review-and-fixes-independent-review.md`). Blocking findings (broken GA40010 co-sim manifest, stale handoff/F6 premises) fixed in 90f0cda/72d7cf4/4140ebb; non-blocking ones in d66ec23/c7558ae. **Resolved pending reviewer confirmation of those fixes**; entries clear only after that confirmation |
 | `accuracy/crtc-type-split` | Per-type engine split (`27efc2d`), wrapper rename to `rtl/CRTC.v` (`63f4c01`), session docs | Reviewed 2026-08-23: split RTL accepted as sound (all five high-risk areas confirmed). Guide wording corrections landed in 6cfd4dd |
+| `accuracy/a3-f6-stage1` | A3 companion vector `t20i`; F6 option C Stage 1 (type-0 substituted border-start term in `crtc_type0_engine.v`, injected ahead of the wrapper SKEW-DISPTMG delay line; vectors t10a-t10e); golden soak hash re-minted to `0x326ea81358e7d88f` for that intended behaviour change. Reviewer should check hardest: the R1>R0 comparator semantics against ACCC §17.6.2/§19.2.4 (incl. the recorded p.195 placement assumption), the delay-line injection point, and that the re-minted hash delta is exactly the documented byte (t10a-t10e). | Implemented, merged into the classic stream, pending review |
 
 The same rule applies here as everywhere else in this file: clear an entry only after a real
 independent review has run — not because later work touched the same files. Mechanical gates
-(87 vectors, lint, soak golden-hash equality, CI synthesis) are necessary but do not
+(93 vectors, lint, soak golden-hash equality, CI synthesis) are necessary but do not
 substitute for that review.
 
 ## Rule for new work while the debt stands
