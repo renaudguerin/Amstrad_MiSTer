@@ -205,6 +205,14 @@ confirm the firmware/game reaches its first screen; classic mode must be re-chec
 side by side in the same session. Do not start Plus video by extending `ga40010`; the
 planned path is a parallel behavioral CRTC3/ASIC video module.
 
+Plus P0 wiring has a green GitHub Actions build (simulation + synthesis) at `b1ccdfd`.
+Fitter: 15,302 / 41,910 ALMs (37%), 685,217 block-memory bits (12%), 3 / 6 PLLs; worst
+setup slack +0.416 ns, worst hold slack +0.249 ns (TimeQuest still reports the repo's
+unconstrained external I/O paths, so internal slacks are not full closure). Versus the
+pre-P0 build (`4c78603`: 14,947 ALMs, +0.516/+0.246 ns), the ~355-ALM growth and small
+setup-slack shift match the added cartridge decode/bridge logic; no regression signal.
+It has not been hardware-tested.
+
 ## Build and tooling state
 
 - `.github/workflows/build.yml` runs local-style Verilator tests/lint before a pinned Quartus
