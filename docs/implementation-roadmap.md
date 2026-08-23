@@ -20,20 +20,22 @@ merged into the same behavioral PR.
   `plus/p0-parser-wiring`, which rebase onto this branch's post-review fixes).
 - The current development state contains the accuracy/reference documents, the F1-F3 and main
   F5 corrections, deterministic-complete F12/F4/F8/F9, the Verilator CRTC/Plus gates plus the
-  randomized equivalence soak (`make -C sim soak`, golden hash `0x5b5004ff70148443`), the
-  bounded CPR parser (tied off), R12/R13 reload vectors (`t20a`-`t20h`), the per-type engine
+  randomized equivalence soak (`make -C sim soak`, golden hash `0xf5f8ae01ffdf928d`), the
+  production-wired bounded CPR parser/service/MMU path, R12/R13 reload vectors
+  (`t20a`-`t20i`), the per-type engine
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
   from `rtl/UM6845R.v`), and GitHub Actions synthesis.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
-  RBF packaging, and artifact upload for the final hardware-test milestone (`ba5b629`, run
-  `31637450102`; latest synthesized build `4c78603`). New top-level/file-list commits still
-  require their own run.
-- `sim/` currently reports **87** required CRTC passes with no expected failures (verified
-  2026-08-23, Verilator 5.050); the soak reproduces golden hash `0x5b5004ff70148443`. The Plus
-  leaf and SDRAM integration suites are green.
+  RBF packaging, and artifact upload through `69da513` (run `32641514600`), which includes
+  P0 production wiring, the simulation-only P1 foundation, F6 Stage 1, and the sampled-field
+  soak expansion. New top-level/file-list commits still require their own run.
+- `sim/` currently reports **93** required classic CRTC passes with no expected failures
+  (verified 2026-08-23, Verilator 5.050); the soak reproduces golden hash
+  `0xf5f8ae01ffdf928d`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
-- P-2 model plumbing and the P-1 cartridge memory/SDRAM contract are implemented but
-  behaviorally tied off. No Plus/GX4000 firmware or cartridge boots yet.
+- P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
+  wiring are implemented. Simulation proves atomic publication and cartridge reads through
+  the production-sized clear/load path; a real Plus/GX4000 hardware boot remains unverified.
 - ACCC v1.10 is the primary Compendium baseline, verified against the PDF by the 2026-08-22
   faithfulness review (`accuracy/findings-review.md`, corrections B1-B13 applied). Prefer the
   checked-in digests and audit prompts; consult `docs/ACCC1.10-EN.pdf` only for pages still
@@ -310,9 +312,9 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 2. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
    and is BLOCKED-PENDING-HARDWARE-EVIDENCE; it does not block F7 RFD (B6 disarm + A1
    VSYNC-corner fix). F10 stays fixture-gated behind its PDF re-checks.
-3. Plus stream: P0 done on `plus/p0-parser-wiring` (MMU windows, /EXP definition, CPR
-   parsing live against the accepted P-1 service/SDRAM contract). Next: P1 CRTC3
-   foundation. Do not combine Plus video with the classic stream.
+3. Plus stream: P0 and the P1 CRTC3 counter/timing foundation are done. Next: the P1
+   remainder (pixel path and the CPU/WAIT contract at first motherboard instantiation),
+   then P2. Do not combine Plus video with the classic stream.
 4. F6 proceeds per `accuracy/f6-decision-gate.md`: Stage 1 is the full-character
    presence/type/skew approximation; Stage 2 measured 1 µs; Stage 2b assigns the documented
    0.5 µs to the CRTC DE phase. No CRTC, GA, or glue work before F13's hardware gate.

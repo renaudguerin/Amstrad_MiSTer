@@ -1,13 +1,13 @@
 # Current implementation status
 
-This is the handoff for the next development and hardware-test session. Hardware facts below
-describe `codex/exploratory-gx4000-plus-plan` as of 2026-08-19. Since then `accc-review-and-fixes`
-has absorbed the ACCC v1.10 faithfulness review and corrections B1-B13, review-debt repayment,
-the randomized equivalence-soak harness, F9 closure (`t12a`/`t12b`), and the per-type engine
-split (wrapper `rtl/CRTC.v` + two engines, renamed from `rtl/UM6845R.v`) with no behaviour
-change (soak golden-hash pinned). The whole-branch independent review is recorded in
-`accuracy/accc-review-and-fixes-independent-review.md`; its documentation findings are fixed on
-this branch. The detailed behavioral rules remain in
+This is the handoff for the next development and hardware-test session. Hardware observations
+below remain dated 2026-08-19; current simulation and synthesis evidence is newer. The
+`accc-review-and-fixes` branch now contains the ACCC review/corrections, per-type classic CRTC
+split, F6 Stage 1 full-character approximation, sampled-field soak expansion, production Plus
+P0 cartridge wiring, and the simulation-only P1 CRTC3 foundation. The two whole-branch reviews
+are recorded in `accuracy/accc-review-and-fixes-independent-review.md` and
+`accuracy/accc-review-and-fixes-independent-review-pass2.md`; pass-2 fixes await reviewer
+confirmation. The detailed behavioral rules remain in
 `accuracy/`; the long-term ordering remains in `implementation-roadmap.md`.
 
 ## How hardware testing fits the loop
@@ -20,8 +20,10 @@ never gates a commit.
 
 ## Hardware-test milestone
 
-`4c78603` is the newest synthesized milestone and the first to carry F8; it has not been
-hardware-tested yet. `5ddddef` is the newest hardware-*tested* milestone, covering the
+`69da513` is the newest successfully synthesized code milestone (GitHub Actions run
+`32641514600`); it includes P0 production wiring, the P1 simulation foundation, F6 Stage 1,
+and the sampled-field soak expansion. It has not been hardware-tested. `5ddddef` remains the
+newest hardware-*tested* milestone, covering the
 deterministic-complete F12/F4 counter work and the CPR parser. `1a1233f` is the previous one; GitHub Actions run
 `31661330994` passed the complete Verilator gate, Quartus 17.0.2 compilation, fitter,
 TimeQuest, RBF packaging, and artifact upload for it, and it carries the independently
@@ -60,11 +62,12 @@ block-memory bits (12%), and 3 / 6 PLLs, with worst setup and hold slacks of +0.
 +0.246 ns. The artifact is retained under
 `output_files/hardware-milestones/Amstrad-build-17-1/Amstrad_20260819_4c78603.rbf`. It has not
 been hardware-tested, and it is the build the next SHAKER session should use: `5ddddef`
-predates F8 and cannot produce evidence for it. Everything merged after `4c78603` (soak
-harness, F9 vectors, the per-type split and rename) provably changed no CRTC behaviour — the
-soak reproduces golden hash `0x5b5004ff70148443` minted from the unsplit core, and a ~45.5M-sample
-lockstep differential comparison against the pre-split core found no divergence — so the
-current-tip CI build is equally valid for that session.
+predates F8 and cannot produce evidence for it. The later per-type split and rename were
+behaviour-preserving within the directed, soak, and frozen differential projections, but F6
+Stage 1 intentionally changed classic DE behaviour and re-minted the soak. The current
+canonical hash is `0xf5f8ae01ffdf928d`, re-minted again when three sampled fields were added
+without RTL change. Use a current-tip RBF for F6 work; retain `4c78603` as the clean F8-era
+bisection milestone.
 
 Hardware testing on 2026-08-19 covered two milestones and returned the same result for
 both. `1a1233f` showed no regression against the stock core and no CRTC-0 compatibility
@@ -95,9 +98,11 @@ Before the next classic RTL change, close that data gap:
 Do not infer hardware accuracy from the green counter-level simulation gate alone.
 
 The build is suitable for classic CPC regression testing. It contains the F1, F2, F3, and
-main F5 CRTC accuracy work. Plus support is not bootable yet: the `Plus model` menu and
-tested leaf modules are foundations only, and the production cartridge client remains tied
-off. Selecting a Plus model is therefore not a meaningful hardware test at this milestone.
+main F5 CRTC accuracy work. Plus P0 is now production-wired: `.cpr` parsing, atomic cartridge
+publication, SDRAM service, MMU windows, and CPU WAIT are connected and covered by an
+integrated production-sized simulation. A real `.cpr` boot on MiSTer hardware is still
+unverified, and Plus video remains the uninstantiated P1 foundation; selecting a Plus model is
+therefore a manual P0 checkpoint, not evidence that Plus support is complete.
 
 For a first MiSTer pass:
 
@@ -173,7 +178,8 @@ separately fixture-gated project.
   commit, abort/detach/reset, invalid addresses, and CPU reads.
 - `sdram.v` now has a held cartridge request/acknowledge client with tested byte lanes,
   addressing, arbitration, back-to-back transfers, classic main/tape writes, and refresh
-  fairness. The top-level ties it inactive until P0 integration.
+  fairness. P0 production wiring connects it to the cartridge service when Plus mode owns a
+  cartridge window; classic mode leaves it inactive.
 - A real service-to-real-SDRAM simulation proves exact clear/load transaction counts,
   publication, and CPU readback without duplicate held requests.
 - A bounded, streaming RIFF/CPR parser now validates the `RIFF`/`AMS!` envelope, accepts
@@ -187,7 +193,9 @@ separately fixture-gated project.
   ASIC-page-enable captured but unbacked until P2). `/EXP` is a defined dynamic input,
   tied high at the top level for P0 (= no expansion connected). The cartridge memory
   service is production-connected to the reserved SDRAM port, and Z80 reads in cartridge
-  windows are bridged to the service with CPU WAIT insertion and an open-bus-FF watchdog.
+  windows are bridged to the service with CPU WAIT insertion. The watchdog pauses while the
+  cartridge service is clearing/loading, and retains fail-open behavior only for a quiescent
+  backend that does not respond.
   The CPR stream is live on ioctl index 8 (OSD "F8,CPR"), and a P0 boot integration bench
   runs parser + service + real SDRAM end to end, including reset-mid-load cleanup.
 - Dandanator uploads are bounded below the Plus cartridge reservation: bank 3
@@ -197,10 +205,11 @@ separately fixture-gated project.
   type-3 R9-forced-reset and R4-overflow rules (ACCC §10.3.4/§12.5), R5 vertical
   adjustment that freezes C4 at R4 (§11.2.6/§11.3.3), the two-stage video pointer with
   the C4=0 ∧ C0=0 reload condition (§20.3.4), DE with line-start-only R6 semantics
-  (§18.2.4) and SKEW-DISPTMG (§19.2), and HSYNC/VSYNC generation including the bounded
-  R3=0 widths and the §15.3.1/§15.3.2 infinite-HSYNC relation. 26 deterministic vectors
-  (t01a-t04g) cover them; every rule cites its ACCC section at the point of
-  implementation. `t03c` also pins the simultaneous C0=R1=R0 row-end save/reload so MA
+  (§18.2.4) and SKEW-DISPTMG (§19.2), and HSYNC/VSYNC generation including bounded
+  R3=0 widths and the live §15.3 end/start collision. 27 deterministic vectors
+  (t01a-t04h) cover them, including the p.151 live-R2 chronogram; every rule cites its ACCC
+  section at the point of implementation. `t03c` also pins the simultaneous C0=R1=R0
+  row-end save/reload so MA
   advances to the captured row base rather than restoring stale VMA'. Interlace is
   stored-but-inert; status registers/read map are P5.
 - Still open in P1 before the milestone is complete: the basic locked-ASIC pixel path
@@ -299,9 +308,9 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    half-character CRTC-side phase mismatch and is BLOCKED-PENDING-HARDWARE-EVIDENCE.
    Next independent work: F7 RFD (including B6 disarm and the A1 VSYNC-corner fix).
    F10 stays fixture-gated.
-5. Plus: P0 is merged (CPR parser -> cartridge service -> SDRAM -> `plus_mmu` windows ->
-   Z80, ioctl index 8). Next Plus steps: the manual hardware checkpoint named above (real
-   `.cpr` boot with a Plus model selected, classic re-checked side by side in the same
-   session), then P1 CRTC3 counter/timing foundation per `docs/plus/architecture.md` §4.
-   Whole-branch review of `plus/p0-parser-wiring` is pending in `docs/review-debt.md`.
+5. Plus: P0 and the P1 CRTC3 counter/timing foundation are merged. Next Plus steps: the
+   manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
+   classic re-checked side by side), then the P1 remainder per
+   `docs/plus/architecture.md` §4/§7 (pixel path plus motherboard CPU/WAIT contract), then
+   P2. Pass-2 fixes await confirmation in `docs/review-debt.md`.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
