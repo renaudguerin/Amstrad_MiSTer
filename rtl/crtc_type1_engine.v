@@ -172,6 +172,10 @@ wire rfd_vma_active = rfd_vma_flag | rfd_arm;
 
 // Section 11.6 p.87: when R1>R0, C0=R1 is unreachable, so the bare
 // C9=R9 match deactivates the VMA-source state without a VMA' save.
+// This term is level-triggered, so the flag clears at the first CLOCK
+// edge inside the last line rather than at the match edge itself;
+// that early clear is unobservable through MA because frame_new_w
+// forces an R12/R13 reload at that same row boundary anyway.
 wire rfd_r1_gt_r0_disarm = rfd_vma_flag &
                            (R1_h_displayed > R0_h_total) & line_last_w;
 
