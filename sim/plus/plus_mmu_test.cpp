@@ -37,6 +37,7 @@ public:
         dut_.exp_n = 1;
         dut_.cart_ready = 0;
         dut_.cart_data = 0;
+        dut_.cart_busy = 0;
         dut_.eval();
     }
 
@@ -378,6 +379,25 @@ void test_watchdog_releases_stuck_response() {
     tb.end_read();
 }
 
+void test_watchdog_waits_out_legitimate_load() {
+    TestBench tb;
+    tb.hard_reset();
+    tb.dut().cart_busy = 1;
+    tb.begin_read(0x2000);
+
+    tb.stall_cycles(1400);
+    require(tb.dut().cart_valid == 1,
+            "watchdog cancelled a request during cartridge load");
+    require(tb.dut().cart_stall == 1,
+            "watchdog released the CPU during cartridge load");
+
+    tb.dut().cart_busy = 0;
+    tb.respond(0x6d);
+    require(tb.dut().cart_dout == 0x6d,
+            "post-load response did not complete the held read");
+    tb.end_read();
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -397,6 +417,8 @@ int main(int argc, char** argv) {
         std::cout << "PASS: single held request per cycle and ownership window\n";
         test_watchdog_releases_stuck_response();
         std::cout << "PASS: watchdog releases stuck responses fail-open to FF\n";
+        test_watchdog_waits_out_legitimate_load();
+        std::cout << "PASS: watchdog waits out legitimate cartridge loads\n";
     } catch (const std::exception& error) {
         std::cerr << "FAIL: " << error.what() << '\n';
         return 1;
