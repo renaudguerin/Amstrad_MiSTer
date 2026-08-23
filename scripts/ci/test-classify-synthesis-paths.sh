@@ -36,6 +36,15 @@ expect true rtl/pll/pll_0002.v
 expect true rtl/Amstrad_motherboard.v
 expect true rtl/Amstrad_MMU.v
 expect true rtl/sdram.v
+# The qip-listed GA40010 netlist sources and the u765 FDC are hardware-facing:
+# a silent source edit must trigger Tier B even though the qip itself is
+# unchanged.  Their directory siblings stay simulation-only.
+expect true rtl/GA40010/ga40010.sv
+expect true rtl/GA40010/video.sv
+expect true rtl/GA40010/syncgen_sync.v
+expect true rtl/GA40010/casgen_sync.v
+expect true rtl/GA40010/rslatch.v
+expect true rtl/u765/u765.sv
 expect true rtl/plus/plus_mmu.v
 expect true rtl/plus/plus_cartridge_memory.v
 expect true rtl/color_mix.sv
@@ -46,6 +55,7 @@ expect false docs/current-status.md
 expect false sim/sim_main.cpp
 expect false tools/split-differential/diff_main.cpp
 expect false rtl/GA40010/Makefile
+expect false rtl/GA40010/ga40010_test.v
 expect false rtl/CRTC.v
 expect false rtl/crtc_type0_engine.v
 expect false rtl/plus/asic_video.v
