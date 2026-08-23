@@ -291,10 +291,11 @@ The pre-P0 and P0 packages are:
   §17.6.1), line-start-only R6 testing (§18.2.4), SKEW-DISPTMG delay/BORDER ON (§19.2).
   Vectors t03a-t03g
 - P1.4 **complete** — sync generation: HSYNC visible during character R2 with live-nibble
-  width semantics and bounded R3l=0 → 16 (§14.5, §15.2.2), the §15.3.1 re-entrancy bug as
-  its register relation W mod (R0+1) == 0 giving the §15.3.2 infinite HSYNC; VSYNC gate
+  width semantics and bounded R3l=0 → 16 (§14.5, §15.2.2), the §15.3.1 live end/start
+  collision (including the CRTC3 R2 rewrite chronogram in §15.3.5 p.151), and the
+  R0=0/R2=0/R3l=1 §15.3.2 infinite HSYNC; VSYNC gate
   C4=R7 ∧ C9=C0=0 at line starts only, R3h line widths 0 → 16 (§14.2), same-edge renewal
-  with no re-entrancy protection (§16.4.4). Vectors t04a-t04g
+  with no re-entrancy protection (§16.4.4). Vectors t04a-t04h
 
 P1 remainder (open scope, in dependency order): the basic locked-ASIC pixel path needs
 the legacy-colour translation table sourced ([KT] palette section or hardware
