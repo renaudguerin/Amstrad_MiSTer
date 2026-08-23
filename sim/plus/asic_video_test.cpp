@@ -320,10 +320,13 @@ void t01d_r0_widen_midline(TestBench& test) {
     test.expect_hcc("wrap only at the new R0", 0);
 }
 
-// Shrinking R0 below the current C0 makes the equality unreachable until
-// C0 has overflowed the full eight-bit range and returned (ACCC §13.5,
-// p.121: "R0 accepts all values without causing problems"; §28.1.1
-// general overflow form). There is no type-0-style freeze or stall.
+// ACCC §13.5 (p.121) says CRTC3/4 accept all R0 values without the type-0
+// freeze/stall. It does not provide a direct CRTC3 chronogram for shrinking
+// R0 below the current C0. The exact 20..255..0..10 sequence asserted here is
+// therefore an explicitly unverified P1 model assumption, retained as a
+// regression expectation pending a direct rule/chronogram, Logon observation,
+// or hardware capture. Do not use §28.1.1 as support: that section describes
+// C4/C9 identification overflow, not this C0 case.
 void t01e_r0_shrink_overflow(TestBench& test) {
     test.write_register(0x00, 63);
     test.run_characters(20);  // C0 now 20
@@ -887,7 +890,8 @@ constexpr std::array<TestCase, 27> kTests = {{
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
     {"t01d live R0 widen mid-line", t01d_r0_widen_midline},
-    {"t01e R0 shrink eight-bit overflow", t01e_r0_shrink_overflow},
+    {"t01e R0 shrink eight-bit overflow (unverified model assumption)",
+     t01e_r0_shrink_overflow},
     {"t02a normal frame counter cycle", t02a_normal_frame_cycle},
     {"t02b lowered R9 forces C9 reset", t02b_r9_lowered_forces_reset},
     {"t02c lowered R4 overflows C4", t02c_r4_lowered_overflows},
