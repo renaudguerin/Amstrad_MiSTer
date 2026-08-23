@@ -311,6 +311,16 @@ the type-split refactor milestone (it forces a full read anyway).
       t01e remains an explicitly unverified model assumption rather than a sourced rule.
       P1 remainder: pixel path ([KT] colour table to source) +
       CPU/WAIT contract decision at first motherboard instantiation.
+- [x] Independent pass 4 (F7/A1/A2 + Plus follow-ups + CI policy delta,
+      `df9e72f..dd3467b`) — DONE 2026-08-23, verdict CLEAR WITH NON-BLOCKING
+      FOLLOW-UPS; record preserved at
+      `accuracy/f7-plus-followups-independent-review.md`. Both outstanding
+      review-debt rows are cleared. All five findings remediated in the same
+      pass: B6 early-clear comment, GA40010/u765 Tier-B classifier coverage
+      (+tests+policy doc), status-doc hash/count refresh (current-status,
+      roadmap, testbench-spec DoD), author question 17 (§28.1.1 type-1
+      boundary). Gates rerun green after the changes; soak still
+      `0x512eaae74a628dca`.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";
       F8 build `4c78603`→Module A adjustment entries + Module E "(2)"; F7→RFD entries;
       F10→interlace suite 22C/3; Plus P1/P5→Shaker on CRTC3 setting).
@@ -337,16 +347,13 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and
-note the resume point in one line here: **resume point: `accuracy/f7-rfd` now contains the
-three focused classic changes: F7's type-1 R5 RFD route (`t13a`-`t13d`), A1's
-adjustment-ending VSYNC exclusion (`t08m` plus corrected `t08g`), and A2's §11.2.4
-exact-edge R4/R9 caveat pair (`t08n`/`t08o`). The local gate is 100 classic passes plus all
-Plus groups, lint has warnings only, and the current soak contract is
-`0x512eaae74a628dca`; each behavior-changing mint retained the seed, schedule, and sampled
-projection and is documented in `sim/README.md`. The optional RFD#10 1-B variant is not
-modeled, and the separate §13.7.1.2 R0-widening trigger remains explicit residual F7 scope.
-The combined F7/A1/A2 branch row is OUTSTANDING in `docs/review-debt.md`; the user requested
-that independent review be performed later and that Claude not be used in this session.
-NEXT: push this branch, require green branch CI, and stop for coordination without merging.
-After coordination, classic can take the residual R0 route or F10 fixtures; F13 still waits
-for SHAKER/DE-pin hardware evidence. Keep the classic and Plus streams separate.**
+note the resume point in one line here: **resume point: pass-4 review complete and both
+review-debt rows cleared; the five findings are remediated on `accc-review-and-fixes`
+(engine comment, CI classifier coverage, status-doc refresh, author question 17, debt
+clearing + record at `accuracy/f7-plus-followups-independent-review.md`). The branch is
+NOT pushed: pushing will itself trigger full Tier B synthesis because the classifier edit
+is a self-triggering policy path — that run doubles as live validation of F-C. NEXT:
+push, require green CI (simulation + synthesis + required-gate), then stop for the user
+to pick the next queue item: classic residual §13.7.1.2 R0-widening route or F10
+fixtures; Plus manual real-.cpr checkpoint then P1 remainder; F13 waits for SHAKER
+Module A (O)/DE-pin evidence. Keep the classic and Plus streams separate.**

@@ -77,11 +77,27 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     C4=R6 is considered immediately regardless of C0 (with type 3/4 separately excepted),
     and says the rule holds whatever C9. Visual reading recorded in
     `f6-decision-gate.md` Stage 2b; author confirmation remains welcome.
+17. **p.292 vs pp.86-89 (§28.1.1 vs §§11.2/11.4) — type-1 VSYNC discriminator boundary.**
+    §28.1.1 states that for R4=36, R9=7, R5=16 the type-1 discriminator is "VSYNC stops
+    occurring once R7>39", implying C4 reaches 39. But §§11.1-11.4 increment C4 once per
+    C9==R9 wrap during type-1 adjustment, i.e. once per 8 scanlines; 16 adjustment lines
+    yield two increments, so C4 tops out at 38 and R7=39 is unreachable. Our corrected
+    oracle (`t08g`/`t08h`, review action A1) therefore expects silence from R7=39 using
+    §§16.1/16.4.2 ("VSYNC starts at C4==R7"). Please confirm which reading is right: does
+    §28.1.1 count an extra increment we are missing (a third C9 wrap, an interlace line,
+    or a different R5 accounting), or is its boundary value imprecise?
 
 Also noted while verifying (no answer needed, listed for completeness): p.195 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay
 applies to type 0's substituted trigger (the placement caveat cited by
 `f6-decision-gate.md`). Corrections welcome.
+
+Implementation note on open Q4 (p.88 repeated-RFD sentence, added 2026-08-23): the F7 RTL
+(`rtl/crtc_type1_engine.v`) now models the RFD state machine that question asks about. In
+this model a same-edge R5 0→nonzero write always sets both flags and wins over any
+same-edge save-clear, so an RFD triggered on a C9==R9 line arms rather than disables; the
+documented recipe (§11.6.3) triggers where C9!=R9, so nothing observable depends on Q4
+until it is answered.
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).

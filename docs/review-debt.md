@@ -1,9 +1,10 @@
 # Independent review debt
 
-**Status: earlier branch rows cleared; `accuracy/f7-rfd` and `plus/p1-followups`
-outstanding 2026-08-23.** The independent pass-3 verification accepted the earlier
-remediations at reviewed tip `d64e449`. Both later branches are implemented and merged into
-`accc-review-and-fixes`, with review deliberately deferred to the next independent pass.
+**Status: all rows cleared 2026-08-23.** The independent pass-3 verification accepted the
+earlier remediations at reviewed tip `d64e449`, and the same-day pass-4 review accepted the
+`accuracy/f7-rfd` classic delta, the `plus/p1-followups` work, and the CI synthesis-policy
+commit (`docs/accuracy/f7-plus-followups-independent-review.md`). No row is outstanding;
+new unreviewed work must open a fresh one per the rule at the bottom of this file.
 
 This file tracks work that was merged without the independent cross-provider review the
 project normally requires. It exists because that review was unavailable at the time, not
@@ -164,8 +165,8 @@ hardest-reading guidance inline).
 | `plus/p0-parser-wiring` | Production parser → cartridge service → SDRAM → MMU/CPU-WAIT path. Review hardest: cancellation, late acknowledgements, load-time MMU waiting, and classic-mode isolation. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 traced cancellation/rearm and load replay, adversarially checked fail-closed parsing, and accepted the production-sized integration proof. |
 | `docs/split-differential-evidence` | Frozen `418aa68` pre-split vs `2d4f880` split comparator and preserved 45,498,863-sample run. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 reproduced the committed run including `r6_border_condition`; no divergence. |
 | `plus/p1-crtc3-foundation` | Plus P1 CRTC3 counter/timing foundation, now 27 vectors (`t01a`-`t04h`). Review hardest: live R2 HSYNC collision, save/reload priority, vertical equality/overflow rules, and the explicitly unverified t01e R0-shrink model assumption. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 verified the live-R2 fix directly against ACCC p.151 and accepted t04a's test isolation. The t01e and R3=0 collision cases remain labelled or queued as model assumptions, not review debt. |
-| `accuracy/f7-rfd` | Type-1 F7 R5-trigger RFD, A1 adjustment-ending VSYNC correction, and A2 §11.2.4 caveat pair. Review hardest: same-edge R5/rollover ordering; parity/save disarm; B6 bare-C9 timing; the §§16.1/16.4.2 vs §28.1.1 t08g source tension; and A2 exact-R0 write discrimination. | **OUTSTANDING — implemented, merged into base, pending review.** The next independent pass should review the three focused classic commits as one delta. |
-| `plus/p1-followups` | Pass-3 Q1 standalone GA40010 target tooling and Q3 R3l=0 collision-assumption labelling/vector. Review hardest: `VERILATOR_BIN` override isolation, non-fatal warning policy, and whether t04i pins the current assumption without implying an ACCC oracle. | **OUTSTANDING — implemented, merged into base, pending review.** Merged-tree gates: standalone GA40010 target builds, 100 classic vectors plus all Plus suites pass (28 `asic_video` vectors), lint exits cleanly, and the canonical soak remains `0x512eaae74a628dca`. |
+| `accuracy/f7-rfd` | Type-1 F7 R5-trigger RFD, A1 adjustment-ending VSYNC correction, and A2 §11.2.4 caveat pair. Review hardest: same-edge R5/rollover ordering; parity/save disarm; B6 bare-C9 timing; the §§16.1/16.4.2 vs §28.1.1 t08g source tension; and A2 exact-R0 write discrimination. | **CLEARED — ox-alpha, 2026-08-23.** Pass 4 verified the vector expectations as rule-derived (not implementation-derived), accepted the A1 §§16.1/16.4.2 reconciliation with its §28.1.1 tension routed to an author question, and recorded the B6 early-clear interpretation as unobservable. Full record: `accuracy/f7-plus-followups-independent-review.md`. |
+| `plus/p1-followups` | Pass-3 Q1 standalone GA40010 target tooling and Q3 R3l=0 collision-assumption labelling/vector. Review hardest: `VERILATOR_BIN` override isolation, non-fatal warning policy, and whether t04i pins the current assumption without implying an ACCC oracle. | **CLEARED — ox-alpha, 2026-08-23.** Pass 4 empirically verified the override in both CLI and env form, confirmed no GA40010 netlist source changed, and confirmed t04i labels the assumption without claiming an ACCC oracle. Full record: `accuracy/f7-plus-followups-independent-review.md`. |
 
 The same rule applies here as everywhere else in this file: clear an entry only after a real
 independent review has run — not because later work touched the same files. The pass-3 record
@@ -176,23 +177,23 @@ documentation-only.
 
 ### Pass-3 non-blocking issue triage (2026-08-23)
 
-- **Q1 — GA40010 standalone target: implemented on `plus/p1-followups`, pending
-  integration/review.** The target now honours `VERILATOR_BIN`, uses Verilator's generated
-  build instead of hardcoded include/compiler paths, and makes the existing warning policy
-  non-fatal. No GA40010 netlist pin was wired or otherwise changed.
+- **Q1 — GA40010 standalone target: implemented and independently reviewed.** The target
+  honours `VERILATOR_BIN`, uses Verilator's generated build instead of hardcoded
+  include/compiler paths, and makes the existing warning policy non-fatal. No GA40010
+  netlist pin was wired or otherwise changed; pass 4 confirmed all three properties.
 - **Q2 — t04a isolation: accepted, no follow-up.** The reviewer confirmed the assertion loop
   is unchanged and the bounded drain fails rather than hiding an infinite HSYNC.
-- **Q3 — R3=0 collision guard: implemented on `plus/p1-followups`, pending
-  integration/review.** RTL and handoff docs label the guard as an unverified model
-  assumption; focused vector `t04i` pins the current bounded choice without presenting it as
-  an ACCC-derived oracle. Any future behaviour change remains vector-first.
+- **Q3 — R3=0 collision guard: implemented and independently reviewed.** RTL and handoff
+  docs label the guard as an unverified model assumption; focused vector `t04i` pins the
+  current bounded choice without presenting it as an ACCC-derived oracle (confirmed by
+  pass 4). Any future behaviour change remains vector-first.
 - **Q4 — load-time unbounded WAIT: accepted fail-closed policy.** The HPS-wedge consequence
   is documented and does not reopen P0. Real `.cpr` hardware boot remains a separate
   milestone gap.
 
-Pass 3 raised no blocking issues. A1 and A2 are now implemented on the later
-`accuracy/f7-rfd` branch. Both were outside pass 3's scope, and the branch row remains debt
-until the user-requested later independent pass.
+Pass 3 raised no blocking issues. A1 and A2 were subsequently implemented on the later
+`accuracy/f7-rfd` branch; both were outside pass 3's scope and were reviewed in pass 4
+(`accuracy/f7-plus-followups-independent-review.md`), which cleared the row.
 
 ## Rule for future unreviewed work
 
