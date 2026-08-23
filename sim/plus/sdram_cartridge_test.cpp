@@ -756,24 +756,47 @@ void test_service_to_real_sdram_integration(TestState &test) {
     h.tick();
 }
 
-void test_top_level_tieoff(TestState &test) {
+void test_top_level_wiring(TestState &test) {
+    // The P-1 tie-off pin became obsolete when P0 production-connected the
+    // cartridge service (docs/plus/architecture.md, "Cartridge SDRAM
+    // contract"). This check pins the new contract: the reserved SDRAM port
+    // is driven by the service's memory interface, and the CPR loader side
+    // is still explicitly tied off until the parser joins.
     std::ifstream input("../../Amstrad.sv");
     if (!input.good()) input.open("Amstrad.sv");
     std::ostringstream text;
     text << input.rdbuf();
     const std::string source = text.str();
-    test.check(input.good() || input.eof(), "top-level source must be readable for tie-off check");
-    test.check(source.find(".cart_req(1'b0)") != std::string::npos,
-               "Amstrad top must tie the reserved cartridge request low");
-    test.check(source.find(".cart_wr(1'b0)") != std::string::npos,
-               "Amstrad top must tie the reserved cartridge write control low");
-    test.check(source.find(".cart_bank(2'b00)") != std::string::npos &&
-                   source.find(".cart_addr(23'd0)") != std::string::npos &&
-                   source.find(".cart_din(8'd0)") != std::string::npos,
-               "Amstrad top must tie every reserved cartridge request field to a constant");
-    test.check(source.find(".cart_dout()") != std::string::npos &&
-                   source.find(".cart_ack()") != std::string::npos,
-               "Amstrad top must explicitly leave reserved cartridge responses unused");
+    test.check(input.good() || input.eof(), "top-level source must be readable for wiring check");
+
+    test.check(source.find(".cart_req(cart_mem_req)") != std::string::npos &&
+                   source.find(".cart_wr(cart_mem_write)") != std::string::npos &&
+                   source.find(".cart_bank(cart_mem_bank)") != std::string::npos &&
+                   source.find(".cart_addr(cart_mem_addr)") != std::string::npos &&
+                   source.find(".cart_din(cart_mem_wdata)") != std::string::npos,
+               "Amstrad top must drive the cartridge SDRAM port from the memory service");
+    test.check(source.find(".cart_dout(cart_mem_rdata)") != std::string::npos &&
+                   source.find(".cart_ack(cart_mem_ack)") != std::string::npos,
+               "Amstrad top must consume the cartridge SDRAM responses");
+    test.check(source.find("plus_cartridge_memory cartridge_memory") != std::string::npos,
+               "Amstrad top must instantiate the cartridge memory service");
+    test.check(source.find(".cpu_valid(plus_cart_valid)") != std::string::npos,
+               "the service CPU port must face the Plus MMU read bridge");
+    test.check(source.find("plus_mmu plus_mmu") != std::string::npos,
+               "Amstrad top must instantiate the Plus MMU");
+    test.check(source.find(".plus_mem_wait(plus_cart_stall)") != std::string::npos,
+               "cartridge stalls must reach the CPU WAIT input on the motherboard");
+    test.check(source.find("plus_cpr_parser cpr_parser") != std::string::npos,
+               "Amstrad top must instantiate the CPR parser");
+    test.check(source.find("cpr_download = ioctl_download && (ioctl_index == 8)") !=
+                   std::string::npos,
+               "the CPR stream must own its own ioctl index (8)");
+    test.check(source.find("\"F8,CPR,Load Plus cartridge;\"") != std::string::npos,
+               "the OSD must offer a CPR cartridge entry");
+    test.check(source.find("| cpr_ioctl_wait") != std::string::npos,
+               "parser backpressure must join the ioctl download throttle");
+    test.check(source.find("wire cart_load_begin = 1'b0") == std::string::npos,
+               "the interim loader tie-off must be gone once the parser joins");
 }
 
 } // namespace
@@ -790,12 +813,12 @@ int main(int argc, char **argv) {
     test_held_back_to_back_and_refresh_guard(test);
     test_ordinary_refresh_resets_cart_cadence(test);
     test_service_to_real_sdram_integration(test);
-    test_top_level_tieoff(test);
+    test_top_level_wiring(test);
 
     if (test.failures != 0) {
         std::cerr << test.failures << " SDRAM cartridge assertion(s) failed\n";
         return 1;
     }
-    std::cout << "PASS: SDRAM legacy writes, held port, service integration, arbitration, refresh, and top tie-off\n";
+    std::cout << "PASS: SDRAM legacy writes, held port, service integration, arbitration, refresh, and top wiring\n";
     return 0;
 }

@@ -216,7 +216,11 @@ the type-split refactor milestone (it forces a full read anyway).
       behaviour change took the earlier re-mint slot (hash now `0x326ea81358e7d88f`,
       rationale recorded); this field-expansion re-mint is still queued and must land with
       its own minting note.
-- [ ] Plus queue: P0 parser→service/MMU/boot wiring → P1 CRTC3 foundation.
+- [x] Plus queue: P0 parser→service/MMU/boot wiring DONE on `plus/p0-parser-wiring`
+      (4556665: A5 decisions + oversized-cbNN abort; 7eaddf2: `plus_mmu` cartridge
+      windows, production service→SDRAM hookup, CPU cart read bridge with WAIT
+      insertion; 5a69ebe: CPR ioctl index 8 live, P0 boot integration bench).
+      P1 CRTC3 foundation remains.
 - [ ] Milestone→Shaker suggestions recorded per milestone (e.g. F9→Module E "(3)";
       F8 build `4c78603`→Module A adjustment entries + Module E "(2)"; F7→RFD entries;
       F10→interlace suite 22C/3; Plus P1/P5→Shaker on CRTC3 setting).
@@ -243,17 +247,19 @@ Verilator 5.050 installed locally; `make -C sim` is the gate for every commit.
 ## Handoff convention
 
 At end of any phase (or if the session must end), tick the checklist above, commit, and note
-the resume point in one line here: **resume point: STOP — A3 (`t20i`) + F6 option C Stage 1
-merged into `accc-review-and-fixes`; awaiting base CI green and reviewer confirmation, then
-user review.** State: the merge (756f3ef) sits on the post-review-fix base tip; suite 93
-passed / lint clean / soak `0x326ea81358e7d88f` verified on the merged tree before push.
-Golden soak hash re-minted to **`0x326ea81358e7d88f`** for the intended F6 delta (previously
-`0x5b5004ff70148443`, which remains the correct expectation for the split-branch commits) —
-the recorded exception to "do not move the golden hash mid-stream": it moved at the planned
-F6 boundary with vectors protecting the delta. NEXT: F6 Stage 2 seam-width measurement via
-the GA40010 co-simulation render (SHAKER Module A `(O)` at the next manual milestone), then
-F7 RFD (B6 disarm path + A1 corner fix) → F10 fixtures (fallback derivation above); Plus P0
-unblocked and independent. Behaviour-preserving edits from here run
+the resume point in one line here: **resume point: STOP — Plus P0 (`plus/p0-parser-wiring`)
+rebased onto the post-review/A3/F6-Stage-1 base and merged back; awaiting merged-base CI
+green and user review.** State: base carries the whole-branch review resolutions (90f0cda,
+72d7cf4, 4140ebb, d66ec23, c7558ae) and the classic merge 756f3ef (A3 `t20i` + F6 option C
+Stage 1), which legitimately re-minted the golden soak hash to
+**`0x326ea81358e7d88f`** (previously `0x5b5004ff70148443`, which remains the correct
+expectation for the split-branch commits). Plus P0 sits on top: A5 decisions +
+oversized-cbNN abort (4556665), `plus_mmu` + production service hookup + CPU cart read
+bridge (7eaddf2, b1ccdfd), CPR ioctl index 8 live + P0 boot integration bench (5a69ebe).
+NEXT: merged-base CI confirmation, then the manual hardware checkpoint (real `.cpr` boot
+with a Plus model selected, classic re-checked side by side), then Plus P1 CRTC3 foundation
+per `docs/plus/architecture.md` §4; classic continues F6 Stage 2 → F7 RFD → F10 fixtures.
+Behaviour-preserving edits from here run
 `make -C sim soak SOAK_EXPECT=326ea81358e7d88f`; a hash change means behaviour moved and
 needs a documented reason before proceeding. Soak field expansion stays queued for the next
 natural boundary. See sim/README.md (bounded soak claim) and AGENTS.md "Verification

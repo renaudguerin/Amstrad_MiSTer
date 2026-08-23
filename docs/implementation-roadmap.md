@@ -207,8 +207,8 @@ document them beside the existing status map.
 
 ### P-1: cartridge SDRAM contract before CPR parsing
 
-**Status:** deterministic implementation and Quartus integration complete as a tied-off
-foundation. P0 owns the first production connection of the cartridge service.
+**Status:** deterministic implementation and Quartus integration complete; production
+top-level connection landed at P0 on `plus/p0-parser-wiring`.
 
 Before accepting `.cpr`, write and test one cartridge-memory ownership design. It must fix:
 
@@ -314,8 +314,9 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
    `accuracy/a3-f6-stage1` (exact type-0 pin behaviour plus vectors t10a-t10e). Next: F6
    Stage 2 seam-width measurement, then F7 RFD including the B6 disarm path and the A1
    VSYNC-corner fix. F10 stays fixture-gated behind its PDF re-checks.
-3. Plus stream: implement P0 MMU, bounded CPR parsing integration, `/EXP`, and boot wiring
-   against the accepted P-1 service/SDRAM contract. Do not combine this with Plus video work.
+3. Plus stream: P0 done on `plus/p0-parser-wiring` (MMU windows, /EXP definition, CPR
+   parsing live against the accepted P-1 service/SDRAM contract). Next: P1 CRTC3
+   foundation. Do not combine Plus video with the classic stream.
 4. F6 proceeds per the staged option C plan in `accuracy/f6-decision-gate.md`: Stage 1 is
    done (the GA samples DISPEN at byte phase, so it was an exact type-0 pin change with no
    Gate Array netlist edit expected); Stage 2 measures the seam; Stage 3 glue work happens

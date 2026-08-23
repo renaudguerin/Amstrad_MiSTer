@@ -127,6 +127,54 @@ main edge still wins, but does not clear the pending refresh. Initialization adm
 client. Until P0 connects the cartridge service, `Amstrad.sv` ties the new port inactive,
 so the classic client behavior and SDRAM map are unchanged.
 
+### CPR parser policy (P0 decisions)
+
+Recorded against review `cd47d7d` observations (review-debt action item A5); the parser is
+fail-closed untrusted-input handling and these decisions keep it that way.
+
+- **Oversized `cbNN` chunks abort the load.** A block chunk declaring more than one
+  16 KiB page is malformed: the CPR format reference records that common loaders merely
+  ignore data beyond 16 KiB (`asic-reference.md` §11), but that is tool tolerance, not a
+  format requirement — no evidence exists that any title or producer needs oversized
+  chunks to load. Bytes past offset 16383 of a page are architecturally unreachable, so
+  truncation protects no content; it would silently commit an image that differs from the
+  file. Fail-closed discipline for spec-violating structure therefore wins. Trade-off,
+  deliberately accepted: a malformed-but-tolerated image will be refused here where other
+  emulators run it. Revisit only with concrete evidence a real title needs tolerance.
+  Only `cbNN` chunks are size-limited; metadata chunks of any length stay legal RIFF.
+- **A container with zero `cbNN` chunks still ends in ABORT, not COMMIT** (kept from
+  `cd47d7d`): committing a cleared-but-empty region would boot unspecified memory as
+  firmware with no diagnostic.
+- **Reset-time cleanup ownership.** The parser never pulses `load_commit` or `load_abort`
+  in response to a raw machine reset — its reset just returns it to idle. The cartridge
+  memory service owns reset-time cleanup through `cold_reset`: it cancels transient
+  loader/CPU activity (pending clear/load requests, `commit_pending`, outstanding
+  `mem_req`) while preserving `image_valid` and SDRAM contents, so a warm reset keeps the
+  loaded cartridge. Whoever wires P0 must drive `service.cold_reset` from the same machine
+  reset the parser sees, so both sides clear atomically; nothing may rely on `load_abort`
+  being pulsed during reset. Explicit unloading remains `detach`'s job (OSD "Reset &
+  Detach Cartridge"), which invalidates the image without scrubbing SDRAM.
+- **`/EXP` definition (P0).** The expansion-port `/EXP` input that decides the value-0
+  high-window rule is a defined dynamic input of `plus_mmu`, sampled live: high means no
+  expansion device is connected (the pulled-up bare machine), low means an expansion
+  device claims the port. P0 ties it high at the top level; a future expansion emulation
+  drives it low while attached. Unit tests pin both levels at the module boundary.
+
+### P0 wiring shape (as built)
+
+For reference when reviewing or extending: `plus_mmu` decodes both cartridge windows and
+bridges CPU reads to the service's held request/acknowledge port; a bus read in a window
+claims the service once, stretches the bus cycle via a `plus_mem_wait` term on the Z80
+WAIT input (active only under `plus_mode`), latches data one edge after completion, owns
+the CPU data mux until the cycle ends, and releases open-bus FF on a watchdog timeout so
+a wedged backend cannot hang the machine. Cartridge-owned cycles suppress the SDRAM
+main-port output enable so stale read data never participates. Consequences worth
+remembering: cartridge fetches run slower than real ROM (each window access waits out one
+SDRAM round trip), Multiface Two's `&0000-&3FFF` windows are shadowed by the cartridge
+under Plus mode (consistent with the ASIC masking expansion there), and CPU reads racing
+an active download stall until the loader finishes — the P0 boot integration bench pins
+all three behaviors deterministically.
+
 ## 4. Phasing (each phase = usable milestone, separately testable)
 
 Two integration gates precede P0. **P-2** adds a separate `Plus model` OSD field (`Off`,
@@ -207,14 +255,19 @@ The pre-P0 and P0 packages are:
 - P-1.1 **complete** — the cartridge SDRAM region, page/offset function, held request/ack
   contract, arbitration, refresh fairness, and loader/CPU ownership are documented and
   tested; Dandanator uploads are bounded below the reserved region
-- P-1.2 **complete as a tied-off foundation** — the atomic cartridge memory service and real
-  service-to-SDRAM integration are tested; production top-level hookup waits for P0
-- P0.1 `plus_mmu.v` + motherboard memory mux and cartridge page/reset mapping
-- P0.2 CPR ioctl parser in `Amstrad.sv`, using only P-1's memory-service interface, with RIFF
-  and chunk validation plus short-page zero fill
-- P0.3 **leaf complete, integration pending** — the unlock FSM is exhaustively tested but
-  does not yet gate an ASIC register page
-- P0.4 Plus bench scaffolding and the P0 boot integration test
+- P-1.2 **complete and production-connected at P0** — the atomic cartridge memory service
+  and its real service-to-SDRAM integration are tested; `plus/p0-parser-wiring` connected
+  the production top level
+- P0.1 **complete** — `plus_mmu.v` + motherboard WAIT gating and cartridge page/reset
+  mapping (high-window ROM-select rules incl. GX4000 and /EXP, unlock-gated RMR2 low
+  window, ASIC-page-enable captured unbacked)
+- P0.2 **complete** — CPR ioctl parser live in `Amstrad.sv` on ioctl index 8, using only
+  P-1's memory-service interface, with RIFF/chunk validation and clear-sweep zero fill
+- P0.3 **unlock FSM gates RMR2** — exhaustively tested leaf, now instantiated inside
+  `plus_mmu`; the ASIC register page itself stays unbacked until P2
+- P0.4 **complete** — Plus bench scaffolding and the P0 boot integration test
+  (`sim/plus/p0_boot_test.cpp`: parser + service + real SDRAM, publication, zero fill,
+  malformed-input aborts, reset-mid-load cleanup, loader/CPU arbitration)
 
 For every package, add each new synthesizable source to `files.qip` in the same commit that
 first instantiates it, and add it to the simulation file list. The package is incomplete if

@@ -57,6 +57,7 @@ localparam CONF_STR = {
 	"F5,ROM,Load Dandanator ROM;",
 	"F6,SNA,Load snapshot;",
 	"F7,E??,Load CPC464 ROM;",
+	"F8,CPR,Load Plus cartridge;",
 	"OK,Tape sound,Disabled,Enabled;",
 	"-;",
 	"O[62:61],SNAC,Off,Player 1,Player 2;",
@@ -229,6 +230,8 @@ wire        tape_download = ioctl_download && (ioctl_index == 4);
 wire        dan_download = ioctl_download && (ioctl_index == 5);
 wire        dan_write_accepted;
 wire        sna_download = ioctl_download && (ioctl_index == 6);
+wire        cpr_download = ioctl_download && (ioctl_index == 8);
+wire        cpr_ioctl_wait;
 
 dandanator_loader_bounds dandanator_loader_bounds
 (
@@ -277,7 +280,7 @@ reg   [1:0] sna_rle_state = 2'd0;
 reg   [7:0] sna_rle_count = 8'd0;
 reg   [7:0] sna_rle_value = 8'd0;
 
-assign ioctl_wait = romdl_wait | (sna_download && |sna_rle_count && (sna_rle_state == 2'd0));
+assign ioctl_wait = romdl_wait | (sna_download && |sna_rle_count && (sna_rle_state == 2'd0)) | cpr_ioctl_wait;
 
 function automatic [1:0] valid_model(input [1:0] requested);
 	begin
@@ -611,6 +614,14 @@ wire        mem_rd;
 wire [22:0] ram_a;
 wire  [7:0] ram_dout;
 
+// Plus cartridge memory service -> SDRAM held-request port. Declared ahead
+// of both the sdram instance and the service instance below.
+wire        cart_mem_req, cart_mem_write, cart_mem_ack;
+wire  [1:0] cart_mem_bank;
+wire [22:0] cart_mem_addr;
+wire  [7:0] cart_mem_wdata, cart_mem_rdata;
+wire        cart_image_valid;
+
 wire [15:0] vram_dout;
 wire [14:0] vram_addr;
 
@@ -622,21 +633,22 @@ sdram sdram
 	.clk(clk_sys),
 	.clkref(ce_ref),
 
-	.oe  (reset ? 1'b0      : mem_rd & ~mf2_ram_en),
+	.oe  (reset ? 1'b0      : mem_rd & ~mf2_ram_en & ~plus_cart_own),
 	.we  (reset ? boot_wr   : mem_wr & ~mf2_ram_en & ~mf2_rom_en),
 	.addr(reset ? boot_a    : mf2_rom_en ? {9'h0ff, cpu_addr[13:0]} : dan_ena ? {4'd0, dan_bank, cpu_addr[13:0]} : ram_a),
 	.bank(reset ? boot_bank : dan_ena ? 2'b11 : model),
 	.din (reset ? boot_dout : cpu_dout),
 	.dout(ram_dout),
-	// Reserved held-request port for the cartridge memory service. Keep it
-	// inert until P0 connects the already-tested loader/CPU owner.
-	.cart_req(1'b0),
-	.cart_wr(1'b0),
-	.cart_bank(2'b00),
-	.cart_addr(23'd0),
-	.cart_din(8'd0),
-	.cart_dout(),
-	.cart_ack(),
+	// Cartridge memory service (P-1 contract, production-connected at P0).
+	// The service owns all cartridge region policy; the controller sees a
+	// generic held request on bank 3.
+	.cart_req(cart_mem_req),
+	.cart_wr(cart_mem_write),
+	.cart_bank(cart_mem_bank),
+	.cart_addr(cart_mem_addr),
+	.cart_din(cart_mem_wdata),
+	.cart_dout(cart_mem_rdata),
+	.cart_ack(cart_mem_ack),
 	.vram_bank(model),
 	.vram_addr({2'b10,vram_addr,1'b0}),
 	.vram_dout(vram_dout),
@@ -971,7 +983,19 @@ wire        tape_rec;
 wire  [1:0] mode;
 wire        joy1_sel;
 
-wire  [7:0] cpu_din = ram_dout & mf2_dout & fdc_dout & kmouse_dout & smouse_dout & mmouse_dout & playcity_dout;
+wire        plus_cart_valid, plus_cart_ready;
+wire  [4:0] plus_cart_page;
+wire [13:0] plus_cart_offset;
+wire  [7:0] plus_cart_data;
+wire        plus_cart_own, plus_cart_stall;
+wire  [7:0] plus_cart_dout;
+
+// Cartridge-owned reads bypass the wired-AND entirely: the SDRAM main port
+// is not asked for those cycles (see the sdram oe term below), so ram_dout
+// holds stale bytes that must not participate. Classic mode never owns a
+// cycle, so the mux reduces to the historical chain.
+wire  [7:0] cpu_din_bus = ram_dout & mf2_dout & fdc_dout & kmouse_dout & smouse_dout & mmouse_dout & playcity_dout;
+wire  [7:0] cpu_din = plus_cart_own ? plus_cart_dout : cpu_din_bus;
 wire NMI = playcity_nmi | mf2_nmi;
 wire        IRQ = ~playcity_int_n;
 
@@ -995,6 +1019,115 @@ plus_model_select plus_model_decoder
 	.has_tape(plus_has_tape)
 );
 
+//////////////////// Plus cartridge path (P0) ///////////////////////////
+
+wire plus_gx4000 = (plus_model == 2'b01);
+
+// P0 definition of the expansion-port /EXP input: high means no expansion
+// device is connected (the pulled-up bare machine), so the ROM-select-0
+// rule resolves to page 3 on 464+/6128+. Future expansion emulation drives
+// it low while claiming the port; docs/plus/architecture.md records the
+// decision and the live-sampling rule.
+wire plus_exp_n = 1'b1;
+
+plus_mmu plus_mmu
+(
+	.clk(clk_sys),
+	.reset(reset),
+	.plus_mode(plus_mode),
+	.gx4000(plus_gx4000),
+	.io_wr(io_wr),
+	.mem_rd(mem_rd),
+	.A(cpu_addr),
+	.D(cpu_dout),
+	.rom_en(romen),
+	.exp_n(plus_exp_n),
+
+	.cart_valid(plus_cart_valid),
+	.cart_page(plus_cart_page),
+	.cart_offset(plus_cart_offset),
+	.cart_ready(plus_cart_ready),
+	.cart_data(plus_cart_data),
+
+	.cart_own(plus_cart_own),
+	.cart_stall(plus_cart_stall),
+	.cart_dout(plus_cart_dout),
+
+	// Captured since P0; consumed when the ASIC register page gains its
+	// backing at P2.
+	.asic_page_on()
+);
+
+// CPR loader stream (P0): the parser validates the RIFF envelope and cbNN
+// chunks and streams page bytes into the cartridge memory service. Its
+// ioctl_wait output joins the download throttle above so the HPS paces the
+// byte stream while writes are outstanding.
+wire        cart_load_begin;
+wire        cart_load_commit;
+wire        cart_load_abort;
+wire        cart_load_valid;
+wire [5:0]  cart_load_page;
+wire [14:0] cart_load_offset;
+wire [7:0]  cart_load_data;
+wire        cart_load_ready;
+wire        cart_load_error;
+
+plus_cpr_parser cpr_parser
+(
+	.clk(clk_sys),
+	.reset(reset),
+
+	.cpr_download(cpr_download),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_addr(ioctl_addr),
+	.ioctl_dout(ioctl_dout),
+	.ioctl_wait(cpr_ioctl_wait),
+
+	.load_begin(cart_load_begin),
+	.load_commit(cart_load_commit),
+	.load_abort(cart_load_abort),
+	.load_valid(cart_load_valid),
+	.load_page(cart_load_page),
+	.load_offset(cart_load_offset),
+	.load_data(cart_load_data),
+	.load_ready(cart_load_ready),
+	.load_error(cart_load_error)
+);
+
+plus_cartridge_memory cartridge_memory
+(
+	.clk(clk_sys),
+	.cold_reset(reset),
+	.detach(status[32]),
+
+	.load_begin(cart_load_begin),
+	.load_commit(cart_load_commit),
+	.load_abort(cart_load_abort),
+	.load_valid(cart_load_valid),
+	.load_page(cart_load_page),
+	.load_offset(cart_load_offset),
+	.load_data(cart_load_data),
+	.load_ready(cart_load_ready),
+	.load_error(cart_load_error),
+
+	.cpu_valid(plus_cart_valid),
+	.cpu_page({1'b0, plus_cart_page}),
+	.cpu_offset(plus_cart_offset),
+	.cpu_ready(plus_cart_ready),
+	.cpu_data(plus_cart_data),
+
+	.image_valid(cart_image_valid),
+	.busy(),
+
+	.mem_req(cart_mem_req),
+	.mem_write(cart_mem_write),
+	.mem_bank(cart_mem_bank),
+	.mem_addr(cart_mem_addr),
+	.mem_wdata(cart_mem_wdata),
+	.mem_ack(cart_mem_ack),
+	.mem_rdata(cart_mem_rdata)
+);
+
 Amstrad_motherboard motherboard
 (
 	.reset(reset),
@@ -1007,6 +1140,10 @@ Amstrad_motherboard motherboard
 	.plus_ram_128k(plus_ram_128k),
 	.plus_has_fdc(plus_has_fdc),
 	.plus_has_tape(plus_has_tape),
+
+	// Plus cartridge-window reads hold the Z80 in WAIT while the cartridge
+	// memory service fetches from SDRAM. Constant 0 in classic mode.
+	.plus_mem_wait(plus_cart_stall),
 
 	.right_shift_mod(st_right_shift_mod),
 	.keypad_mod(st_keypad_mod),

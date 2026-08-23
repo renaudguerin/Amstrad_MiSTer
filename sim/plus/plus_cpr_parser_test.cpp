@@ -325,29 +325,82 @@ void test_duplicate_pages_last_wins() {
 }
 
 void test_short_and_oversized_blocks() {
-    TestBench tb;
-    tb.hard_reset();
+    // A short cbNN chunk still commits; only the bytes present are forwarded.
+    // The service's clear sweep owns zero-filling the rest of the page.
+    {
+        TestBench tb;
+        tb.hard_reset();
 
-    std::vector<Chunk> chunks;
-    chunks.push_back({"cb01", std::vector<std::uint8_t>(256, 0x42)});
-    chunks.push_back({"cb02", std::vector<std::uint8_t>(18000, 0x99)});
+        std::vector<Chunk> chunks;
+        chunks.push_back({"cb01", std::vector<std::uint8_t>(256, 0x42)});
 
-    auto cpr = build_cpr_image(chunks);
-    tb.start_download();
-    tb.feed_bytes(cpr, 1);
-    tb.end_download();
+        auto cpr = build_cpr_image(chunks);
+        tb.start_download();
+        tb.feed_bytes(cpr, 1);
+        tb.end_download();
 
-    require(tb.commit_pulses() == 1, "short/oversized CPR failed to commit");
-    require(tb.abort_pulses() == 0, "short/oversized CPR aborted");
-    require(tb.writes().size() == 256 + 16384, "short/oversized forwarded write count mismatch");
+        require(tb.commit_pulses() == 1, "short chunk CPR failed to commit");
+        require(tb.abort_pulses() == 0, "short chunk CPR aborted");
+        require(tb.writes().size() == 256, "short chunk forwarded write count mismatch");
 
-    for (size_t i = 0; i < 256; ++i) {
-        require(tb.writes()[i].page == 1 && tb.writes()[i].offset == i && tb.writes()[i].data == 0x42,
-                "short chunk payload mismatch");
+        for (size_t i = 0; i < 256; ++i) {
+            require(tb.writes()[i].page == 1 && tb.writes()[i].offset == i && tb.writes()[i].data == 0x42,
+                    "short chunk payload mismatch");
+        }
     }
-    for (size_t i = 0; i < 16384; ++i) {
-        require(tb.writes()[256 + i].page == 2 && tb.writes()[256 + i].offset == i && tb.writes()[256 + i].data == 0x99,
-                "oversized clamped chunk payload mismatch");
+
+    // A cbNN chunk declaring more than one 16 KiB page is malformed and must
+    // abort instead of silently clamping (A5a, review cd47d7d). Bytes beyond
+    // offset 16383 of a page are architecturally unreachable, so nothing of
+    // value is lost by refusing the image; committing a file that differs
+    // from its declared content would be silent corruption.
+    {
+        TestBench tb;
+        tb.hard_reset();
+
+        std::vector<Chunk> chunks;
+        chunks.push_back({"cb01", std::vector<std::uint8_t>(256, 0x42)});
+        chunks.push_back({"cb02", std::vector<std::uint8_t>(18000, 0x99)});
+        chunks.push_back({"cb03", std::vector<std::uint8_t>(16384, 0x33)});
+
+        auto cpr = build_cpr_image(chunks);
+        tb.start_download();
+        tb.feed_bytes(cpr, 1);
+        tb.end_download();
+
+        require(tb.abort_pulses() == 1, "oversized cbNN chunk did not abort");
+        require(tb.commit_pulses() == 0, "oversized cbNN chunk committed");
+        require(tb.writes().size() == 256, "writes leaked past the aborted chunk");
+
+        for (size_t i = 0; i < 256; ++i) {
+            require(tb.writes()[i].page == 1 && tb.writes()[i].offset == i && tb.writes()[i].data == 0x42,
+                    "pre-abort short chunk payload mismatch");
+        }
+    }
+
+    // Only cbNN chunks are size-limited: metadata chunks larger than one page
+    // are legal RIFF content and must not abort.
+    {
+        TestBench tb;
+        tb.hard_reset();
+
+        std::vector<Chunk> chunks;
+        chunks.push_back({"LIST", std::vector<std::uint8_t>(20000, 0x77)});
+        chunks.push_back({"cb04", std::vector<std::uint8_t>(16384, 0x44)});
+
+        auto cpr = build_cpr_image(chunks);
+        tb.start_download();
+        tb.feed_bytes(cpr, 1);
+        tb.end_download();
+
+        require(tb.commit_pulses() == 1, "large metadata chunk CPR failed to commit");
+        require(tb.abort_pulses() == 0, "large metadata chunk CPR aborted");
+        require(tb.writes().size() == 16384, "large metadata chunk write count mismatch");
+
+        for (size_t i = 0; i < 16384; ++i) {
+            require(tb.writes()[i].page == 4 && tb.writes()[i].data == 0x44,
+                    "page 4 after large metadata chunk mismatch");
+        }
     }
 }
 
@@ -656,7 +709,7 @@ int main(int argc, char** argv) {
         run_test("nominal multi-page CPR loading", test_nominal_multi_page);
         run_test("sparse and out-of-order block chunks", test_sparse_and_out_of_order);
         run_test("duplicate pages with last-wins semantics", test_duplicate_pages_last_wins);
-        run_test("short chunks and oversized tail clamping", test_short_and_oversized_blocks);
+        run_test("short chunks forward and oversized cbNN chunks fail closed", test_short_and_oversized_blocks);
         run_test("even and odd metadata chunk skipping with odd padding", test_metadata_chunks_even_and_odd);
         run_test("bad RIFF headers and magic fail closed", test_bad_headers);
         run_test("malformed and out-of-range cb chunk IDs fail closed", test_bad_chunk_ids);

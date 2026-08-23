@@ -29,6 +29,11 @@ module Amstrad_motherboard
 	input         plus_has_fdc,
 	input         plus_has_tape,
 
+	// Active-high extra WAIT for Plus cartridge-window memory reads. The
+	// cartridge fetch path drives it; it is constant 0 in classic mode, so
+	// the wait expression is unchanged there.
+	input         plus_mem_wait,
+
 	input   [6:0] joy1,
 	input   [6:0] joy2,
 	input         right_shift_mod,
@@ -156,7 +161,9 @@ T80pa CPU
 	.busrq_n(1),
 	.int_n(INT_n & ~irq),
 	.nmi_n(~nmi),
-	.wait_n(ready | (IORQ_n & MREQ_n) | no_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
+	// plus_mem_wait stretches cartridge-window read cycles beyond the
+	// no_wait fast-timing option: correctness outranks the speed hack.
+	.wait_n((ready | (IORQ_n & MREQ_n) | no_wait) & ~plus_mem_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
 	.DIRSet(sna_load),
 	.DIR(sna_cpu_dir)
 );
