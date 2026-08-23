@@ -161,6 +161,7 @@ hardest-reading guidance inline).
 | `plus/p0-parser-wiring` | Production parser → cartridge service → SDRAM → MMU/CPU-WAIT path. Review hardest: cancellation, late acknowledgements, load-time MMU waiting, and classic-mode isolation. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 traced cancellation/rearm and load replay, adversarially checked fail-closed parsing, and accepted the production-sized integration proof. |
 | `docs/split-differential-evidence` | Frozen `418aa68` pre-split vs `2d4f880` split comparator and preserved 45,498,863-sample run. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 reproduced the committed run including `r6_border_condition`; no divergence. |
 | `plus/p1-crtc3-foundation` | Plus P1 CRTC3 counter/timing foundation, now 27 vectors (`t01a`-`t04h`). Review hardest: live R2 HSYNC collision, save/reload priority, vertical equality/overflow rules, and the explicitly unverified t01e R0-shrink model assumption. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 verified the live-R2 fix directly against ACCC p.151 and accepted t04a's test isolation. The t01e and R3=0 collision cases remain labelled or queued as model assumptions, not review debt. |
+| `plus/p1-followups` | Pass-3 Q1 standalone GA40010 target tooling and Q3 R3l=0 collision-assumption labelling/vector. Review hardest: `VERILATOR_BIN` override isolation, non-fatal warning policy, and whether t04i pins the current assumption without implying an ACCC oracle. | **PENDING — Q1/Q3 implemented, pending integration/review.** Local gates: standalone GA40010 target builds, 93 classic vectors plus all Plus suites pass (28 `asic_video` vectors), lint exits cleanly, and soak remains `0xf5f8ae01ffdf928d`. |
 
 The same rule applies here as everywhere else in this file: clear an entry only after a real
 independent review has run — not because later work touched the same files. The pass-3 record
@@ -171,17 +172,16 @@ documentation-only.
 
 ### Pass-3 non-blocking issue triage (2026-08-23)
 
-- **Q1 — GA40010 standalone target: queued with Plus P1 tooling.** The checked-in manifest
-  now elaborates, which closes the reviewed defect, but `rtl/GA40010/Makefile` still hardcodes
-  `/usr/bin/verilator` and treats four `PINMISSING` warnings as fatal. A future bounded
-  tooling fix may honour `VERILATOR_BIN` and make the intended warning policy explicit.
-  Wiring missing pins would be a GA40010 netlist change and still requires the user's
-  explicit approval.
+- **Q1 — GA40010 standalone target: implemented on `plus/p1-followups`, pending
+  integration/review.** The target now honours `VERILATOR_BIN`, uses Verilator's generated
+  build instead of hardcoded include/compiler paths, and makes the existing warning policy
+  non-fatal. No GA40010 netlist pin was wired or otherwise changed.
 - **Q2 — t04a isolation: accepted, no follow-up.** The reviewer confirmed the assertion loop
   is unchanged and the bounded drain fails rather than hiding an infinite HSYNC.
-- **Q3 — R3=0 collision guard: queued with Plus P1 rule follow-ups.** Before new behaviour
-  depends on it, label the guard as an unverified model assumption or replace the inference
-  with a direct ACCC rule or hardware observation. Any behaviour change remains vector-first.
+- **Q3 — R3=0 collision guard: implemented on `plus/p1-followups`, pending
+  integration/review.** RTL and handoff docs label the guard as an unverified model
+  assumption; focused vector `t04i` pins the current bounded choice without presenting it as
+  an ACCC-derived oracle. Any future behaviour change remains vector-first.
 - **Q4 — load-time unbounded WAIT: accepted fail-closed policy.** The HPS-wedge consequence
   is documented and does not reopen P0. Real `.cpr` hardware boot remains a separate
   milestone gap.
