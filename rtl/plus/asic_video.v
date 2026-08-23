@@ -561,22 +561,35 @@ always @(posedge CLOCK) begin
 		vid_odd  <= 8'd0;
 		de_hold  <= 1'b0;
 	end
+	// Each half must be latched on the edge BEFORE the first dot that
+	// displays it: the even byte at the CLKEN edge that resets pix_cnt to
+	// 0, the odd byte at the edge that ends dot 7. Latching the odd byte
+	// at pix_cnt==8 instead leaves dot 8 showing the previous character's
+	// odd byte, which is invisible whenever VIDEOD is held constant (t05h).
 	else if (PIXEN) begin
 		if (CLKEN) begin
 			vid_even <= VIDEOD[7:0];
 			de_hold  <= DE;
 		end
-		else if (pix_cnt == 4'd8) begin
+		else if (pix_cnt == 4'd7) begin
 			vid_odd <= VIDEOD[15:8];
 		end
 	end
 end
 
-// Grimware §RMR: "VM ... will take effect after the next HSync" (and the
-// byte=>pixels decoder needs an HSYNC >= 2 us to update; type-3 HSYNC is
-// always >= 2 us because an R3l of 0 still yields a 16-character pulse,
-// ACCC §14.5 p.141). The netlist re-times mode identically
-// (MODE_SYNC = ~HSYNC_O, ga40010.sv).
+// Grimware §RMR: "VM ... will take effect after the next HSync". The
+// netlist re-times mode identically (MODE_SYNC = ~HSYNC_O, ga40010.sv).
+//
+// This model latches on the HSYNC rising edge, so it does not depend on
+// the pulse having any particular width. That deliberately does NOT model
+// the real GA's documented requirement for an HSYNC of at least 2 us
+// before the byte=>pixel decoder updates. A shorter type-3 pulse is
+// reachable here — R3l=1 statically, or an R3l rewrite during the pulse:
+// ACCC §14.5 p.141 bounds an R3l=0 HSYNC to 16 characters only "unless it
+// is interrupted by modifying R3 during HSYNC" — and on hardware such a
+// pulse would leave the screen mode unchanged. Deferred with the rest of
+// the GA pixel-phase contract to motherboard integration (architecture
+// §5 Risk 1).
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		mode_q  <= 2'b00;

@@ -216,6 +216,7 @@ public:
 
     void set_border(unsigned hw_colour) { dut.BORDER_I = hw_colour; }
     void set_mode(unsigned mode) { dut.GAMODE = mode; }
+    void set_videod(unsigned videod_word) { dut.VIDEOD = videod_word; }
     bool hsync() const { return dut.HSYNC != 0; }
 
     void run_dots(unsigned dots) {
@@ -1098,7 +1099,9 @@ void walk_char_expect(TestBench& test, const std::string& tag,
                      const unsigned (&exp)[16][3]) {
     test.run_to_frame_start();
     test.align_to_character_start();
-    for (unsigned d = 0; d < 16; ++d) {
+    // d == 0 is the CLKEN edge itself; d == 16 is the next character's CLKEN
+    // edge, whose registered output still carries this character's dot 15.
+    for (unsigned d = 0; d < 17; ++d) {
         test.run_dots(1);
         if (d == 0) {
             continue;  // dot 0 still carries the reset/previous value
@@ -1213,12 +1216,6 @@ void t05f_mode_change_latches_at_hsync(TestBench& test) {
     test.align_to_character_start();
     // Walk character 0 under mode 2, then flip GAMODE mid-line and confirm
     // the next character still decodes as mode 2 (same word => same pattern).
-    static const unsigned m2[16][3] = {
-        {0, 0, 15},    {0, 0, 15},    {15, 15, 15},  {15, 15, 15},
-        {15, 15, 15},  {15, 15, 15},  {0, 0, 0},     {0, 0, 0},
-        {0, 0, 0},     {0, 0, 0},     {15, 15, 15},  {15, 15, 15},
-        {0, 0, 15},    {0, 0, 15},    {0, 0, 0},     {0, 0, 0},
-    };
     // Mode-2 decode of 9C: bits b7..b0 = 1,0,0,1,1,1,0,0 -> pens 1,0,0,1,1,
     // 1,0,0; of 63: 0,1,1,0,0,0,1,1 -> pens 0,1,1,0,0,0,1,1.
     static const unsigned m2pix[16] = {1, 0, 0, 1, 1, 1, 0, 0,
@@ -1236,7 +1233,6 @@ void t05f_mode_change_latches_at_hsync(TestBench& test) {
                         c[0], c[1], c[2]);
     }
     test.set_mode(1);  // lands mid-line: must stay inert
-    (void)m2;
     for (unsigned d = 0; d < 16; ++d) {
         test.run_dots(1);
         if (d == 0) {
@@ -1292,7 +1288,56 @@ void t05g_mode3_two_bit_pixels(TestBench& test) {
     });
 }
 
-constexpr std::array<TestCase, 35> kTests = {{
+// Regression for the byte-latch phase: each half of a character must
+// display THAT character's own byte. Every other t05x vector holds VIDEOD
+// constant for the whole walk, so a one-dot-late odd-byte latch is
+// invisible to them; this one changes the word exactly at the character
+// boundary. Layout source is the same Grimware mode-2 row (MSB first, one
+// dot per pen); palette from [KT] (ink0 = hw20 black, ink1 = hw11 white).
+//
+// Tick bookkeeping: after align_to_character_start() the next tick is the
+// CLKEN edge that opens character A. Because RGB is registered once per
+// dot, dot d of a character is read one tick later, so a character's dot 15
+// is read on the very tick that is also the next character's CLKEN edge.
+// The next word therefore has to be presented just before that tick.
+void t05h_byte_halves_belong_to_their_character(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    // A: even 00 -> pen 0 on dots 0-7, odd FF -> pen 1 on dots 8-15.
+    // B: even FF -> pen 1 on dots 0-7, odd 00 -> pen 0 on dots 8-15.
+    constexpr unsigned kWordA = (0xFFU << 8) | 0x00U;
+    constexpr unsigned kWordB = (0x00U << 8) | 0xFFU;
+    test.set_ga(2, 24, kWordA);
+    test.run_to_frame_start();
+    test.align_to_character_start();
+
+    auto walk = [&test](const std::string& tag, bool high_first,
+                        unsigned next_word) {
+        // Dots 0..14, then present the following word and read dot 15 on
+        // the shared boundary tick.
+        for (unsigned d = 0; d < 16; ++d) {
+            if (d == 15) {
+                test.set_videod(next_word);
+            }
+            test.run_dots(1);
+            const bool lit = (d < 8) == high_first;
+            const unsigned lvl = lit ? 15U : 0U;
+            test.expect_rgb(tag + " dot " + std::to_string(d), lvl, lvl, lvl);
+            test.expect_pen(tag + " pen at dot " + std::to_string(d), false,
+                            lit ? 1U : 0U);
+        }
+    };
+
+    test.run_dots(1);  // CLKEN edge opening character A
+    walk("char A", false, kWordB);
+    // Character B's even byte was latched on the boundary tick above. A
+    // one-dot-late odd latch shows character A's FF at B's dot 8 (white
+    // where pen 0 black is required).
+    walk("char B", true, kWordA);
+}
+
+constexpr std::array<TestCase, 36> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -1330,6 +1375,8 @@ constexpr std::array<TestCase, 35> kTests = {{
     {"t05e border substitution and sync blank", t05e_border_substitution_and_sync_blank},
     {"t05f mode change latches at HSYNC", t05f_mode_change_latches_at_hsync},
     {"t05g mode 3 two-bit pixels", t05g_mode3_two_bit_pixels},
+    {"t05h byte halves belong to their character",
+     t05h_byte_halves_belong_to_their_character},
 }};
 
 }  // namespace
