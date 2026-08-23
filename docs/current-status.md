@@ -154,12 +154,12 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 107 required CRTC passes, zero expected failures, no
+- The current local gate reports 109 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures (verified 2026-08-23, Verilator 5.050). The randomized
-  equivalence soak reproduces golden hash `0x512eaae74a628dca`, re-minted for the A2 exact-edge
-  R4 adjustment-reload suppression (previously `0x6439f9805b20acaa` from A1,
-  `0xae27f2c3c758ed87` from F7 RFD; full chain in AGENTS.md); the §13.7.1.2 trigger did not
-  move it because random traffic does not reach that window.
+  equivalence soak reproduces golden hash `0x512eaae74a628dca` (chain in AGENTS.md). The
+  §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
+  window; per review finding F-9 the soak is measurably insensitive to this region, so the
+  directed vectors — not the soak — carry the behavioral proof here.
   The Plus leaf and SDRAM integration suites are also green.
 - The core is split into a shared-state wrapper (`rtl/CRTC.v`) plus two per-type rule engines
   (`rtl/crtc_type0_engine.v`, `rtl/crtc_type1_engine.v`); live `CRTC_TYPE` round-trips stay
@@ -178,11 +178,14 @@ For a first MiSTer pass:
   frame-parity alternation, successful-save disarm, and the B6 R1>R0 bare-C9 disarm.
   A1 closes the adjustment-ending VSYNC corner (`t08m`, corrected `t08g`) and A2 implements
   the §11.2.4 exact-C0==R0 caveat pair (`t08n`/`t08o`). The §13.7.1.2 R0-widening trigger —
-  the second route — landed 2026-08-23 (`t13e`-`t13k`): a strictly widening R0 write on the
-  C0==R0 edge of the frame's last line defers that line end (wrapper `hcc_end`), and a last-line
-  condition cancelled by R9/R4 rewrites before the extended end arms the same two flags there.
-  RFD#10's "1-B" variant remains explicitly out of scope, as does generalizing the
-  just-in-time line continuation beyond the documented last-line recipe.
+  the second route — landed 2026-08-23 (`t13e`-`t13m` after cross-provider review): a strictly
+  widening R0 write on the C0==R0 edge of the frame's last line defers that line end (wrapper
+  `hcc_end`), and a last-line condition cancelled by R9/R4 rewrites before the extended end
+  arms the same two flags there. The review's blocking findings are remediated in-branch:
+  the vestigial display-end guard is removed (`t13m` pins DE blanking at `C0==R1` on the
+  extended line) and both off-last-line precondition halves now have load-bearing vectors
+  (`t13j` retimed, `t13l` added). RFD#10's "1-B" variant and the scope notes in
+  `audit-findings.md` remain as documented there.
 
 The next classic work is the F10 fixtures; F10 stays fixture-gated behind its PDF re-checks,
 and F13 waits for hardware. Neither blocks the other stream.
@@ -328,9 +331,12 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
 4. Classic: F6 Stage 2/2b is complete per `accuracy/f6-decision-gate.md`; F13 records the
    half-character CRTC-side phase mismatch and is BLOCKED-PENDING-HARDWARE-EVIDENCE.
    F7 RFD (R5 route, B6 disarm, A1, A2) is implemented and independently reviewed
-   (`accuracy/f7-plus-followups-independent-review.md`), and the residual §13.7.1.2
-   R0-widening trigger is now implemented too (vectors `t13e`-`t13k`). Next classic work
-   is the F10 fixtures; F10 stays fixture-gated.
+   (`accuracy/f7-plus-followups-independent-review.md`), and the §13.7.1.2 R0-widening
+   trigger is implemented with its blocking review findings remediated
+   (`accuracy/f7-r0-widening-independent-review.md`, vectors `t13e`-`t13m`). Before merging
+   the branch, run an independent re-review of the remediation delta (guard removals plus
+   `t13j`/`t13l`/`t13m`) to clear the open `review-debt.md` row. Next classic work after
+   that is the F10 fixtures; F10 stays fixture-gated.
 5. Plus: P0 and the P1 CRTC3 counter/timing foundation are merged. Next Plus steps: the
    manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
    classic re-checked side by side), then the P1 remainder per

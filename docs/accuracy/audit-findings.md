@@ -301,11 +301,21 @@ General implementation rules for all fix prompts:
   held at the line's actual end no longer satisfies C9==R9 ∧ C4==R4 (the documented "by line
   end" variant definitions), both RFD flags arm there with the same same-edge reload
   participation as the R5 route; a condition cancelled and restored before the end does not
-  arm. Vectors `t13e`-`t13k` pin expiry, the R9 and R4 variants, restore, equal-value writes,
-  off-last-line widening, and the live-type round-trip clearing of the hidden window. Whether
-  an arbitrary mid-frame widening write at C0==R0 also extends its own line is deliberately
-  unmodeled: the checked-in evidence (p.122-123 chronogram gist, ⚠ alignment lost) covers only
-  the last-line recipe.
+  arm. Vectors `t13e`-`t13m` pin expiry, both precondition halves off the last line, the R9
+  and R4 variants, restore, equal-value writes, display blanking at `C0==R1` on the extended
+  line, and the live-type round-trip clearing of the hidden window. Cross-provider reviewed
+  (`f7-r0-widening-independent-review.md`; blocking findings F-1/F-2 remediated same day).
+- **Deliberately unmodeled / interpretation notes** (recorded per the same review):
+  whether an arbitrary mid-frame widening write at `C0==R0` also extends its own line is left
+  unmodeled pending sourced chronograms — the gate enforcing that boundary is exercised by
+  `t13j`/`t13l`. The §8.6 R4-variant's second-frame stuck-C4 consequence emerges from the
+  armed flags only in specific geometries and is not separately modeled or vector-pinned.
+  A trigger window opened just before R0 is shrunk below the live C0 survives across that
+  legal C0-overflow line (§13.5) and can arm at its far end — unmodeled corner. The
+  end-state cancellation reading follows §8.6's parentheses against §8.5's write-event gist;
+  the tension is question 18 in `accc-author-questions.md`, discriminable via SHAKER Module
+  C `(1)` / D `(9)`. The unarmed odd-R9 frame-parity toggle (§11.6.1) is read as
+  free-running rather than armed-only; marked ⚠ for hardware.
 - **Impact**: CRTC-1-specific demo effects (the technique is popular precisely because it's the
   easy rupture on type 1); SHAKER tests it.
 - **Confidence: medium-high for both implemented routes.** The deterministic vectors are

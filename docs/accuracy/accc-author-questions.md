@@ -87,6 +87,18 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     §28.1.1 count an extra increment we are missing (a third C9 wrap, an interlace line,
     or a different R5 accounting), or is its boundary value imprecise?
 
+18. **p.122-123 vs p.124 (§13.7.1.1 gist vs §13.7.1.2) — R0-widening RFD arming condition.**
+    The p.122-123 chronogram annotation reads "RFD activated on CRTC 1 if R4 and/or R9
+    **modified** until C0=7F (new R0) on last line of frame" — a write-event condition that
+    would arm even if the written value is later restored to the original. The dedicated
+    §13.7.1.2 section defines its variants by state: "(C9 != R9 **by line end**)" /
+    "(C4 != R4 **by line end**)". Our model follows the end-state reading (`t13h` pins
+    cancel-then-restore as NOT arming), on the grounds that a real comparator has no
+    "was written" latch and §13.7.1.2 is the dedicated section (review finding F-7,
+    `f7-r0-widening-independent-review.md`). Please confirm which reading is right; SHAKER
+    Module C `(1)` / D `(9)` can discriminate by restoring R9/R4 mid-extension before the
+    widened line end.
+
 Also noted while verifying (no answer needed, listed for completeness): p.195 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay
 applies to type 0's substituted trigger (the placement caveat cited by

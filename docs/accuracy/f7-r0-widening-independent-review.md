@@ -209,3 +209,16 @@ edges C0=8 and C0=9 needed to reach the deferred end under the new R0=9.
    counters at the write point, not only the outcome.
 3. That the soak hash is re-minted if, and only if, the F-1 fix moves it (it should not; the
    soak does not reach this region).
+
+## Remediation status (added by the author after the review, 2026-08-23)
+
+All three checks above are now exercisable in-branch: F-1/F-3 guards removed (`rtl/CRTC.v`,
+`rtl/crtc_type1_engine.v`), `t13j` retimed with counter asserts at the write point, `t13l`
+covers the line-half of the precondition gate, `t13m` pins the §6.1.3 display end; each
+vector bite-tested against its reverted mechanism (reinstating the guard fails only
+`t13m`; removing either gate term fails exactly `t13j`/`t13l`). Suite 109/109, lint clean,
+soak unchanged at `0x512eaae74a628dca`. Non-blocking items: F-4 invariant comment added;
+F-5/F-6 recorded under audit-findings F7 "Deliberately unmodeled / interpretation notes";
+F-7 routed to `accc-author-questions.md` question 18; F-8 marked ⚠ for hardware there and
+in audit-findings; F-9 erratum recorded in `current-status.md`. The re-review pass itself
+remains outstanding per the `review-debt.md` row.
