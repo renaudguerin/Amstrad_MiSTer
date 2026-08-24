@@ -73,7 +73,11 @@ expect false sim/plus/asic_video_test.cpp
 expect false tools/split-differential/diff_main.cpp
 expect false rtl/GA40010/Makefile
 expect false rtl/GA40010/ga40010_test.v
-expect false rtl/plus/asic_video.v
+# asic_video.v is instantiated by Amstrad_motherboard.v since the P1
+# motherboard-integration commit, so it is on the manifest like the rest of
+# the production Plus path.
+expect true rtl/plus/asic_video.v
+expect true rtl/plus/asic_ga_timing.v
 expect false README.md
 
 actual="$(printf '%s\n' docs/current-status.md rtl/plus/asic_video.v Amstrad.sv sim/sim_main.cpp | "$classifier")"

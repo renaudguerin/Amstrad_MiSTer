@@ -312,6 +312,81 @@ fixture) and confirm the firmware/game reaches its first screen; classic mode mu
 re-checked side by side in the same session. Do not start Plus video by extending
 `ga40010`; the planned path is the parallel behavioral `asic_video` module.
 
+### P1 motherboard integration — landed on `plus/p1-motherboard-integration` (2026-08-24)
+
+Risk 1 was decided in favour of option (a): `rtl/plus/asic_ga_timing.v`
+reproduces the ga40010 timing contract behaviourally (sequencer, CCLK/PHI/
+READY/RAS/CAS/CPU_N, CAS refresh masking, monitor sync shaping, 52-line
+interrupt counter, legacy GA register file). Cycle-exact equivalence with the
+synthesised ga40010 composition is pinned by
+`sim/plus/asic_ga_timing_diff_tests`, which compiles the reference with
+`-UVERILATOR` (its simulation-only shadow domain double-drives the sync
+outputs under plain Verilator) and drives both with identical randomised
+bus/reset/sync traffic; register payloads ga40010 does not export are pinned
+by directed vectors r01-r03. Deliberate deltas are documented in the module
+header (no SNA preload — no Plus snapshots; defined INKR power-up values,
+named unverified assumption).
+
+`Amstrad_motherboard.v` instantiates both Plus subsystems unconditionally and
+muxes at the consumption points (house style); classic mode is untouched
+(soak re-verified). ga40010 stays the ROM-enable source in both modes because
+its register decode watches the same bus; plus_mmu overlays cartridge
+windows. The motherboard assembles VIDEOD on the reference VIDEO_BUF latch
+phases (e0 → even byte, 03 → odd byte). RGB reaches the existing 2-bit+OE
+path through a temporary lossless adapter for the legacy {0,6,15} levels;
+true 4-bit widening is P2's first commit. `files.qip` gained both new files.
+
+Open P1 follow-up, tracked here so it is not lost: `sim/plus/p1_video_tests`
+(`make -C sim/plus p1-video-bench`) hosts an integration bench with a classic
+CRTC+ga40010 oracle slice intended to close the t05h pixel-phase note by
+requiring the Plus PEN stream to match the classic pipeline byte-for-byte.
+Its stimulus/sampling calibration is unfinished (the first run showed a
+slot-grid/border-sampling mismatch that behaved like a bench-side phase
+error, not a production defect), so it builds but sits outside the default
+gate until calibrated; the t05h caveat therefore remains open.
+
+An Opus-5-high independent review of this P1 delta returned NOT CLEAR on
+2026-08-24 with two BLOCKING findings, both confirmed real and fixed in the
+same pass: the asic_ga_timing bus pins were wired to uppercase implicit nets
+(`MREQ_N` etc.) that synthesis tied to constants — dead GA-register decode,
+stuck irqack, no Plus interrupts — and `plus_vidword`'s reset arm had
+inverted polarity (active-high `reset`). The review also corrected the
+VIDBUF comment (byte order is assumed pending p1_video calibration, not
+validated) and flagged that the soak scopes only to `rtl/CRTC.v`, so
+'classic untouched' claims must cite the mux inspection, not the soak.
+Post-fix CI (run `32777625616`, both blocking fixes in) is fully green:
+fitter 15,716 / 41,910 ALMs (37 %), 19,966 registers, worst setup +0.519 ns,
+hold +0.252 ns. The +187-ALM delta versus the pruned 15,529 build confirms
+the reviewer's constant-bus inference; the earlier paragraph's figures are
+superseded by these.
+
+Queued from the review: a Verilator lint pass over Amstrad_motherboard.v
+(would have caught finding 1; needs stub modules for YM2149/hid), an explicit
+decision on the dead plus_phi_en_* wires vs driving T80pa/crt_filter from
+the ASIC enables in Plus mode, re-measuring the fitter delta after these
+fixes (previous numbers were taken on the constant-bus-pruned build),
+directed U204-restart and randomised-fast lockstep coverage, implementing or
+re-documenting the INKR power-up constants so r03 pins RTL rather than
+Verilator zero-init, and a minimal plus_mode=1 motherboard bench before P2.
+
+CI synthesis of the instantiation is green on the dispatched exact build
+(run `32771020608` — simulation, policy, Quartus
+17.0.2 compile/fitter/TimeQuest all pass; NOTE fitter figures below were
+measured before the two blocking fixes landed and must be re-recorded).
+Fitter: 15,529 / 41,910 ALMs
+(37 %), 20,483 registers, 145 / 314 pins (46 %), 685,217 block-memory bits
+(12 %), 34 / 112 DSP blocks; worst-case setup slack +0.410 ns, hold
++0.246 ns. Versus the pre-integration milestone `de30faf` (15,378 ALMs,
+20,168 registers, +0.581/+0.246 ns) the ~150-ALM / ~300-register growth is
+the two Plus subsystems entering the fit for the first time (`asic_video`
+was previously uninstantiated); the setup-slack shift stays comfortably
+positive — no regression signal. Three integration defects were caught by
+this CI loop and fixed en route: `plus_vidword` wire-vs-reg (Verilator
+tolerated it, Quartus did not), a double drive of `plus_gamode` from both
+`MODE` and `GAMODE_O` aliases, and two stale lint/policy expectations
+(`-UVERILATOR` on the wrapper lint line; `asic_video.v` now legitimately on
+the synthesized manifest).
+
 Plus P0 wiring is merged onto `accc-review-and-fixes` (merge `daf1d6f`) and has a green
 GitHub Actions build (simulation + synthesis) on the merged tip. Fitter: 15,295 / 41,910
 ALMs (36%), 685,217 block-memory bits (12%), 3 / 6 PLLs; worst setup slack +0.342 ns,
