@@ -286,6 +286,11 @@ public:
         // intended type-1 IVM behavior change.
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__ivm);
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__tog_stage);
+        // F10 type-0 behavior commit: the seam-latched IVM mode and the
+        // line-scoped toggle status join the projection with their
+        // behavior; random R8 traffic now reaches the type-0 seams too.
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__ivm_disp_r);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__tog_line);
     }
 
     void expect_byte(const std::string& expectation,
@@ -538,12 +543,15 @@ public:
     // Used to reach a known ParityFrame phase; leaves the bench early in
     // character kF10TargetC0 of the first line of the new frame.
     bool run_to_frame_start(unsigned max_lines) {
+        // One line per iteration (R0=63 in every fixture that calls this):
+        // advance before checking so the reset-time frame origin does not
+        // trivially satisfy the predicate.
         for (unsigned guard = 0; guard < max_lines; ++guard) {
+            run_characters(64);
             run_to_c0(kF10TargetC0);
             if (c4_reg() == 0 && line_reg() == 0) {
                 return true;
             }
-            run_characters(1);
         }
         return false;
     }
@@ -1450,7 +1458,14 @@ void test_type0_interlace_r0_zero_freezes_vsync_count(TestBench& test) {
     test.run_characters(3);
     test.expect_vsync_high(
         "type 0 interlaced R0=0 freeze does not consume C3h character-wise");
-    test.expect_ra("type 0 interlaced R0=0 keeps the raster frozen", 1);
+    // RA is the split C9.VMA now (F10, section 19.8.1): C9 frozen at 0 and
+    // ParityC9 seeded from ParityFrame, which this register set freezes at
+    // 0 because R6=1 > R4=0 (section 19.5.2 p.205: ParityR6 stops updating
+    // when C4 never reaches R6, so every frame stays even).  The pre-F10
+    // approximation OR'd the field toggle into bit 0 and expected 1; the
+    // documented value for this configuration is 0.  The assertion's intent
+    // -- the raster value holds constant through the freeze -- is unchanged.
+    test.expect_ra("type 0 interlaced R0=0 keeps the raster frozen", 0);
 
     // Widening R0 restores the real half-line predicate.  With R0=7 it lands
     // at C0=2->3: no earlier character may end VSYNC, and that count ends it.
@@ -4731,7 +4746,7 @@ void t22_configure(TestBench& test, bool odd_frame) {
         // ParityFrame snapshots the ParityR6 that C4=R6 flipped during the
         // frame, so frame 2 is the odd frame (section 19.5.2 p.205).
         test.run_to_frame_start(600);
-        test.expect_known_c4("t22 odd-frame setup reaches frame origin", 0);
+        test.expect_c4("t22 odd-frame setup reaches frame origin", 0);
     }
 }
 
@@ -4745,8 +4760,8 @@ void t22_walk(TestBench& test, const char* tag,
         }
         const std::string prefix = std::string(tag) + " line " +
                                    std::to_string(i);
-        test.expect_known_c4(prefix + " C4", steps[i].c4);
-        test.expect_known_line(prefix + " C9", steps[i].c9);
+        test.expect_c4(prefix + " C4", steps[i].c4);
+        test.expect_line(prefix + " C9", steps[i].c9);
     }
 }
 
@@ -4765,7 +4780,7 @@ void t22_run_entry(TestBench& test, bool odd_frame, std::uint8_t offset,
     // moves by 2 with bit 0 masked), so the setup walker reports the
     // divergence through the known-divergence assertion below.
     test.run_to_line_mid(offset, 40);
-    test.expect_known_line("t22 entry setup reaches C9", offset);
+    test.expect_line("t22 entry setup reaches C9", offset);
     test.run_to_c0(TestBench::kF10TargetC0);
     test.select_register(8);
     test.write_selected_register_now(3);
@@ -4813,7 +4828,7 @@ void t22_entry_even_6(TestBench& test) {
     // test immediately, so the switch line itself ends the row.
     t22_configure(test, false);
     test.run_to_line_mid(6, 40);
-    test.expect_known_line("t22 entry setup reaches C9", 6);
+    test.expect_line("t22 entry setup reaches C9", 6);
     test.run_to_c0(TestBench::kF10TargetC0);
     test.select_register(8);
     test.write_selected_register_now(3);
@@ -4832,7 +4847,7 @@ void t22_entry_odd_6(TestBench& test) {
     // against the even frame's immediate reset.
     t22_configure(test, true);
     test.run_to_line_mid(6, 40);
-    test.expect_known_line("t22 entry setup reaches C9", 6);
+    test.expect_line("t22 entry setup reaches C9", 6);
     test.run_to_c0(TestBench::kF10TargetC0);
     test.select_register(8);
     test.write_selected_register_now(3);
@@ -4848,20 +4863,23 @@ void t22_entry_odd_6(TestBench& test) {
     t22_walk(test, "t22 entry odd 6", steps);
 }
 
-// Exit fixtures: enter IVM on line 0 of the chosen frame parity, run to the
-// exit line, write R8,0 early in character 4 of that line, then walk.
+// Exit fixtures, table-shaped (pp.223-224): IVM is entered on line 0 of
+// row 0, that character row completes (C4=1 after its doubled limit), and
+// the OUT R8,0 lands early in character 4 of a second-row line.  The walk
+// starts at the exit line itself.
 void t22_run_exit(TestBench& test, bool odd_frame, std::uint8_t exit_offset,
                   const std::vector<T22Step>& steps) {
     t22_configure(test, odd_frame);
     test.run_to_c0(TestBench::kF10TargetC0);
     test.select_register(8);
     test.write_selected_register_now(3);  // enter IVM on line 0
-    // Run to the exit line: with IVM active C9 steps by 1 from 0 (p.219),
-    // so exit_offset lines later C9 == exit_offset mid-line.
-    for (std::uint8_t n = 0; n < exit_offset; ++n) {
+    // Row 0 runs C9 0..3 (doubled limit 6/7), then row 1 starts at C9=0:
+    // 4 lines to the row end plus exit_offset lines into row 1.
+    for (unsigned n = 0; n < 4 + exit_offset; ++n) {
         test.run_characters(64);
     }
-    test.expect_known_line("t22 exit setup reaches C9", exit_offset);
+    test.expect_c4("t22 exit setup reaches row 1", 1);
+    test.expect_line("t22 exit setup reaches C9", exit_offset);
     test.run_to_c0(TestBench::kF10TargetC0);
     test.select_register(8);
     test.write_selected_register_now(0);
@@ -4869,30 +4887,30 @@ void t22_run_exit(TestBench& test, bool odd_frame, std::uint8_t exit_offset,
 }
 
 void t22_exit_even_at_limit(TestBench& test) {
-    // p.223 bottom-right: exiting on the line whose C9.VMA = 6 = R9 still
-    // ends the row (parity dropped from the target only): C9 resets to 0
-    // and C4 increments.
-    t22_run_exit(test, false, 3, {{0, 3}, {1, 0}, {1, 1}, {1, 2}});
+    // p.223 bottom-right table: exiting on the second row's limit line
+    // (C9.VMA = 6 = R9) still ends the row (parity dropped from the target
+    // only): C9 resets to 0 and C4 increments; plain counting follows.
+    t22_run_exit(test, false, 3, {{1, 3}, {2, 0}, {2, 1}, {2, 2}});
 }
 
 void t22_exit_odd_at_r9_plus_1(TestBench& test) {
-    // p.224 bottom-right and the p.220 worked example: exiting on the line
-    // whose C9.VMA = 7 = R9+1 misses the parity-dropped test, so C9 is
+    // p.224 bottom-right table and the p.220 worked example: exiting on the
+    // line whose C9.VMA = 7 = R9+1 misses the parity-dropped test, so C9 is
     // incremented (to 4) instead of resetting.  The walk stops before the
     // post-exit row-end zone left open by Q19(b).
-    t22_run_exit(test, true, 3, {{0, 3}, {1, 4}, {1, 5}});
+    t22_run_exit(test, true, 3, {{1, 3}, {1, 4}, {1, 5}});
 }
 
 void t22_exit_odd_below_limit(TestBench& test) {
-    // p.224 second table: exiting at C9.VMA = 5 < 6 misses; C9 continues
+    // p.224 third table: exiting at C9.VMA = 5 < 6 misses; C9 continues
     // with the plain +1 stepping from the next line.
-    t22_run_exit(test, true, 2, {{0, 2}, {1, 3}, {1, 4}});
+    t22_run_exit(test, true, 2, {{1, 2}, {1, 3}, {1, 4}});
 }
 
 void t22_exit_even_below_limit(TestBench& test) {
-    // p.223 bottom-left: same shape on the even frame (C9.VMA = 4 < 6).
-    // Stops before the table's Q19(b) tail.
-    t22_run_exit(test, false, 2, {{0, 2}, {1, 3}, {1, 4}});
+    // p.223 bottom-left table: same shape on the even frame (C9.VMA = 4
+    // < 6).  Stops before the table's Q19(b) tail.
+    t22_run_exit(test, false, 2, {{1, 2}, {1, 3}, {1, 4}});
 }
 
 }  // namespace
@@ -5456,49 +5474,49 @@ int main(int argc, char** argv) {
         // XFAIL marker until the type-0 F10 behavior commit.
         {"t22a_type0_ivm_entry_even_c9_0",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=0, even frame); F10",
-         true, t22_entry_even_0},
+         false, t22_entry_even_0},
         {"t22b_type0_ivm_entry_even_c9_1",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=1, even frame); F10",
-         true, t22_entry_even_1},
+         false, t22_entry_even_1},
         {"t22c_type0_ivm_entry_even_c9_2",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=2, even frame); F10",
-         true, t22_entry_even_2},
+         false, t22_entry_even_2},
         {"t22d_type0_ivm_entry_even_c9_3",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=3, even frame overflow); F10",
-         true, t22_entry_even_3},
+         false, t22_entry_even_3},
         {"t22e_type0_ivm_entry_even_c9_4",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.222 (switch at C9=4, even frame); F10",
-         true, t22_entry_even_4},
+         false, t22_entry_even_4},
         {"t22f_type0_ivm_entry_even_c9_5",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.222 (switch at C9=5, even frame); F10",
-         true, t22_entry_even_5},
+         false, t22_entry_even_5},
         {"t22g_type0_ivm_entry_even_c9_6",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.223 top (switch at C9=6, even frame reset); F10",
-         true, t22_entry_even_6},
+         false, t22_entry_even_6},
         {"t22h_type0_ivm_entry_odd_c9_0",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=0, odd frame); F10",
-         true, t22_entry_odd_0},
+         false, t22_entry_odd_0},
         {"t22i_type0_ivm_entry_odd_c9_1",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=1, odd frame); F10",
-         true, t22_entry_odd_1},
+         false, t22_entry_odd_1},
         {"t22j_type0_ivm_entry_odd_c9_3",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=3, odd frame overflow); F10",
-         true, t22_entry_odd_3},
+         false, t22_entry_odd_3},
         {"t22k_type0_ivm_entry_odd_c9_6",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.223 top (switch at C9=6, odd frame overflow); F10",
-         true, t22_entry_odd_6},
+         false, t22_entry_odd_6},
         {"t22l_type0_ivm_exit_even_at_limit",
          "ACCC v1.10 section 19.8.1 p.220 and table p.223 bottom (exit at C9.VMA=R9); F10",
-         true, t22_exit_even_at_limit},
+         false, t22_exit_even_at_limit},
         {"t22m_type0_ivm_exit_odd_at_r9_plus_1",
          "ACCC v1.10 section 19.8.1 p.220 worked example and table p.224 (exit at C9.VMA=R9+1); F10",
-         true, t22_exit_odd_at_r9_plus_1},
+         false, t22_exit_odd_at_r9_plus_1},
         {"t22n_type0_ivm_exit_odd_below_limit",
          "ACCC v1.10 section 19.8.1 p.220 and table p.224 (exit at C9.VMA<R9, odd frame); F10",
-         true, t22_exit_odd_below_limit},
+         false, t22_exit_odd_below_limit},
         {"t22o_type0_ivm_exit_even_below_limit",
          "ACCC v1.10 section 19.8.1 p.220 and table p.223 bottom (exit at C9.VMA<R9, even frame); F10",
-         true, t22_exit_even_below_limit},
+         false, t22_exit_even_below_limit},
     };
 
     unsigned passed = 0;
