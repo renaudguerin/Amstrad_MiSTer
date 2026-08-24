@@ -66,8 +66,27 @@ P0BOOT_OBJ_DIR  := obj_dir/p0_boot
 P0BOOT_TEST_SRC := $(abspath p0_boot_test.cpp)
 P0BOOT_TEST_BIN := $(P0BOOT_OBJ_DIR)/p0_boot_tests
 
+# Lockstep differential bench: the Plus behavioural Gate Array support path
+# against the classic netlist-derived ga40010. Compiled without
+# --language 1364-2001 because ga40010.sv uses SystemVerilog constructs, and
+# with -UVERILATOR so its simulation-only shadow domain (whose .* instances
+# double-drive the sync outputs in pure simulation) is excluded — leaving
+# exactly the synthesised production composition as the reference.
+GADIFF_TOP      := asic_ga_diff_top
+GADIFF_REPLICA  := $(abspath ../../rtl/plus/asic_ga_timing.v)
+GADIFF_REF      := $(abspath ../../rtl/GA40010/ga40010.sv) \
+                   $(abspath ../../rtl/GA40010/casgen_sync.v) \
+                   $(abspath ../../rtl/GA40010/syncgen_sync.v) \
+                   $(abspath ../../rtl/GA40010/video.sv) \
+                   $(abspath ../../rtl/GA40010/rslatch.v)
+GADIFF_TEST_TOP := $(abspath asic_ga_diff_top.v)
+GADIFF_OBJ_DIR  := obj_dir/asic_ga_diff
+GADIFF_TEST_SRC := $(abspath asic_ga_timing_diff_test.cpp)
+GADIFF_TEST_BIN := $(GADIFF_OBJ_DIR)/asic_ga_timing_diff_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
-	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN)
+	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
+	$(GADIFF_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -89,6 +108,7 @@ test: $(TEST_BINS)
 	./$(PARSER_TEST_BIN)
 	./$(MMU_TEST_BIN)
 	./$(P0BOOT_TEST_BIN)
+	./$(GADIFF_TEST_BIN)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
@@ -144,6 +164,12 @@ $(P0BOOT_TEST_BIN): $(P0BOOT_TEST_TOP) $(P0BOOT_SDRAM) $(P0BOOT_PARSER) $(P0BOOT
 		-o $(notdir $(P0BOOT_TEST_BIN)) $(P0BOOT_TEST_TOP) $(P0BOOT_PARSER) \
 		$(P0BOOT_MEMORY) $(P0BOOT_MMU) $(P0BOOT_UNLOCK) $(P0BOOT_SDRAM) $(P0BOOT_TEST_SRC)
 
+$(GADIFF_TEST_BIN): $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF) $(GADIFF_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) --cc --exe --build -UVERILATOR --top-module $(GADIFF_TOP) \
+		--Mdir $(GADIFF_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(GADIFF_TEST_BIN)) $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) \
+		$(GADIFF_REF) $(GADIFF_TEST_SRC)
+
 $(OBJ_DIR):
 	mkdir -p -- $@
 
@@ -170,6 +196,10 @@ lint:
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(P0BOOT_TOP) -Wall -Wno-fatal $(P0BOOT_TEST_TOP) $(P0BOOT_PARSER) \
 		$(P0BOOT_MEMORY) $(P0BOOT_MMU) $(P0BOOT_UNLOCK) $(P0BOOT_SDRAM)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(GADIFF_TOP) -Wall -Wno-fatal $(GADIFF_REPLICA)
+	$(VERILATOR) --lint-only \
+		--top-module $(GADIFF_TOP) -Wall -Wno-fatal $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF)
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)
