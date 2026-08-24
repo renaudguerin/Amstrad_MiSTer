@@ -345,8 +345,21 @@ slot-grid/border-sampling mismatch that behaved like a bench-side phase
 error, not a production defect), so it builds but sits outside the default
 gate until calibrated; the t05h caveat therefore remains open.
 
-CI synthesis of the instantiation (`2a5dd4e`) was dispatched manually
-(run `32767393001`) — fitter numbers to be recorded there when complete.
+CI synthesis of the instantiation is green on the dispatched exact build
+(run `32771020608`, commit `2f0e6f7` lineage — simulation, policy, Quartus
+17.0.2 compile/fitter/TimeQuest all pass). Fitter: 15,529 / 41,910 ALMs
+(37 %), 20,483 registers, 145 / 314 pins (46 %), 685,217 block-memory bits
+(12 %), 34 / 112 DSP blocks; worst-case setup slack +0.410 ns, hold
++0.246 ns. Versus the pre-integration milestone `de30faf` (15,378 ALMs,
+20,168 registers, +0.581/+0.246 ns) the ~150-ALM / ~300-register growth is
+the two Plus subsystems entering the fit for the first time (`asic_video`
+was previously uninstantiated); the setup-slack shift stays comfortably
+positive — no regression signal. Three integration defects were caught by
+this CI loop and fixed en route: `plus_vidword` wire-vs-reg (Verilator
+tolerated it, Quartus did not), a double drive of `plus_gamode` from both
+`MODE` and `GAMODE_O` aliases, and two stale lint/policy expectations
+(`-UVERILATOR` on the wrapper lint line; `asic_video.v` now legitimately on
+the synthesized manifest).
 
 Plus P0 wiring is merged onto `accc-review-and-fixes` (merge `daf1d6f`) and has a green
 GitHub Actions build (simulation + synthesis) on the merged tip. Fitter: 15,295 / 41,910
