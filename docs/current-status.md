@@ -35,8 +35,10 @@ hardware-tested.**
 - Logic utilization 15,378 / 41,910 ALMs (37 %); 20,168 registers; 145 / 314 pins (46 %);
   685,217 / 5,662,720 block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks.
 - Worst-case setup slack +0.581 ns, hold +0.246 ns, recovery +3.328 ns, removal +0.746 ns.
-- `build_mode=quartus_database_reuse` — the cache was reused and the synthesis job still took
-  12.9 min, a third data point for queue item D2.
+- Queue item D2 closed 2026-08-24: the Quartus database cache was removed after the
+  investigation showed it saved zero time (no design partitions → `--flow compile` never
+  reuses the restored databases; evidence in `docs/ci-testing-policy.md` and the roadmap).
+  Every synthesis is now a clean compile.
 - The synthesizable delta over the previously synthesized `f6f09f5` is the CRTC change alone:
   the Plus P1 pixel path lives in `rtl/plus/asic_video.v`, which no QIP compiles, so it is
   simulation-only and contributes nothing to this bitstream. **When `asic_video` is wired into
