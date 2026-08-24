@@ -85,9 +85,9 @@ assign MA = row_addr_r;
 
 // Type 1 carries the IVM line parity in C9 itself (ACCC v1.10 section
 // 19.8.2: no separate C9.VMA concept), so RA is the raw counter.  Type 0
-// keeps its current field-OR approximation until the type-0 F10 commit
-// replaces it with the C9.VMA construction of section 19.8.1.
-assign RA = CRTC_TYPE ? line : (line | (field & interlace[0]));
+// forms the split C9.VMA of section 19.8.1 on lines that started with IVM
+// active; the old field-OR approximation is gone.
+assign RA = CRTC_TYPE ? line : (e0_ivm_disp ? e0_line_vma : line);
 
 assign DE = de[CRTC_TYPE ? e1_de_index : e0_de_index];
 
@@ -227,6 +227,9 @@ wire       e0_c0_line_last, e0_c0_row_last, e0_in_adj_route, e0_frozen_row_advan
 wire       e0_hcc2_adj_keep, e0_reload, e0_row_addr_save, e0_field_count_tick;
 wire       e0_hsync_off, e0_vsync_line_fire, e0_r7_write_fire, e0_vsync_holdoff;
 wire       e0_vde_toggle, e0_r6_vder_write, e0_r6_vder_value;
+wire       e0_pf_write, e0_pf_value, e0_pc9_write, e0_pc9_value;
+wire       e0_pr6_write, e0_pr6_value, e0_ivm_disp;
+wire [4:0] e0_line_vma;
 wire [4:0] e0_line_next, e0_c5_next;
 wire [6:0] e0_row_next;
 wire [1:0] e0_de_index;
@@ -243,6 +246,7 @@ crtc_type0_engine crtc_type0_engine
 	hcc, hcc_next, hcc_last, line, row, in_adj, field,
 	line_last_r, row_last_r, frame_adj_r,
 	VSYNC_r, vsync_allow, hsc,
+	parity_frame, parity_c9, parity_r6,
 	e0_r0_frozen, e0_line_new, e0_line_next, e0_c5_next,
 	e0_row_frame_last, e0_row_next, e0_row_new, e0_frame_adj,
 	e0_c0_line_last, e0_c0_row_last,
@@ -251,7 +255,9 @@ crtc_type0_engine crtc_type0_engine
 	e0_field_count_tick, e0_hsync_off, e0_de_index, e0_spurious_border_off,
 	e0_vsync_line_fire,
 	e0_vsc_load, e0_r7_write_fire, e0_vsync_holdoff, e0_vde_toggle,
-	e0_r6_vder_write, e0_r6_vder_value
+	e0_r6_vder_write, e0_r6_vder_value,
+	e0_pf_write, e0_pf_value, e0_pc9_write, e0_pc9_value,
+	e0_pr6_write, e0_pr6_value, e0_ivm_disp, e0_line_vma
 );
 
 wire       e1_line_last, e1_line_new, e1_row_last, e1_row_frame_last, e1_row_new, e1_frame_adj;
@@ -370,13 +376,17 @@ always @(posedge CLOCK) begin
 			end
 		end
 
-		// F10 type-1 parity updates (ACCC v1.10 section 19.5.3): the engine
-		// decides; the shared flops live here so a live CRTC_TYPE switch
-		// continues from the same state.  Type-0 rules arrive with the
-		// type-0 F10 commit; until then the flops only move on type 1.
+		// F10 parity updates: each engine decides for its type (type 1:
+		// section 19.5.3; type 0: section 19.5.2); the shared flops live
+		// here so a live CRTC_TYPE switch continues from the same state.
 		if(CRTC_TYPE) begin
 			if(e1_pf_write)  parity_frame <= e1_pf_value;
 			if(e1_pc9_write) parity_c9    <= e1_pc9_value;
+		end
+		else begin
+			if(e0_pf_write)  parity_frame <= e0_pf_value;
+			if(e0_pc9_write) parity_c9    <= e0_pc9_value;
+			if(e0_pr6_write) parity_r6    <= e0_pr6_value;
 		end
 	end
 end
