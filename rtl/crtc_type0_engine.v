@@ -73,6 +73,12 @@ module crtc_type0_engine
 	input            vsync_allow,
 	input      [3:0] hsc,
 
+	// Wrapper-owned interlace parity state (ACCC v1.10 ch.19; shared flops
+	// so a live CRTC_TYPE switch continues from the same state).
+	input            parity_frame,
+	input            parity_c9,
+	input            parity_r6,
+
 	// Counter next-state contributions.
 	output           r0_frozen,
 	output           line_new,
@@ -112,14 +118,112 @@ module crtc_type0_engine
 	output           vsync_holdoff,
 	output           vde_toggle,
 	output           r6_vder_write,
-	output           r6_vder_value
+	output           r6_vder_value,
+
+	// F10 interlace parity updates and C9.VMA view (ACCC v1.10 section
+	// 19.8.1 pp.219-220).  pf/pc9/parity_r6 write strobes drive the
+	// wrapper's shared flops; ivm_disp/line_vma feed the wrapper's RA mux.
+	output           pf_write,
+	output           pf_value,
+	output           pc9_write,
+	output           pc9_value,
+	output           pr6_write,
+	output           pr6_value,
+	output           ivm_disp,
+	output     [4:0] line_vma
 );
 
 /* verilator lint_off WIDTH */
 
 wire register_write = ENABLE & ~nCS & ~R_nW & RS;
 
-wire [4:0] interlace = &R8_interlace[1:0];
+// ------------------------------------------------------------------
+// F10: type-0 IVM counting (ACCC v1.10 section 19.8.1 pp.219-220; the
+// worked tables pp.221-224, render-verified 2026-08-24, all R9=6).
+//
+// C9 keeps counting by 1; the address-visible line value is the split
+// C9.VMA = ((C9 x 2) + ParityC9) mod 32 ("the more significant bit is
+// lost", p.219).  The line-limit test has two independent IVM bits:
+//
+//   value doubled  -- lines that started with IVM on (ivm_disp, latched
+//     at each C0=0 seam from the live R8 register: the doubled value and
+//     doubled test start "on the next C0=0, after the C9/R9 test of the
+//     line", p.219 -- so the switch line itself tests raw C9).
+//   target parity  -- "R9 or ParityFrame" on the switch line (p.219
+//     pseudocode), "R9 or ParityC9" on steady IVM lines (p.220), plain R9
+//     from the exit line on (parity dropped, p.220).
+//
+// The exit line keeps the doubled value against plain R9 (p.220 prose;
+// pp.223-224 tables), which is exactly value-doubled=1 with target
+// parity=0 -- the same form the tables show.
+//
+// ParityC9 is seeded from ParityFrame when IVM turns on at a seam (the
+// tables' doubled display carries the frame parity from the first doubled
+// line).  With even R9 it never changes afterwards: the p.219 row-end
+// ParityC9 update is gated on R9 odd per the corrected reading of the
+// source token (author question Q19; the pp.221-224 R9=6 tables show no
+// per-C4 alternation).  Odd-R9 behavior stays unimplemented until Q19 is
+// answered -- named residual in the F10 notes.
+reg        ivm_disp_r;    // this line started with IVM active
+reg        tog_line;      // an R8 toggle write landed during this line
+reg        tog_enter_line;
+
+wire r8_write_hit_t0 = !CRTC_TYPE & ENABLE & RS & ~nCS & ~R_nW & (addr == 5'd08);
+wire r8_toggle_write_t0 = r8_write_hit_t0 && ((DI[1:0] == 2'b11) != ivm_disp_r);
+
+// The seam edge (hcc==0) latches the new line's mode from the live R8
+// register and consumes the previous line's toggle status.  Both updates
+// are nonblocking, so the seam capture below reads the pre-edge values:
+// a toggle write from the previous line still qualifies this line's
+// target, and a write landing exactly on the seam edge qualifies only
+// from the next line ("after the C9/R9 test of the line").
+// Named residual (review N-7, 2026-08-25): under the R0=0 freeze C0 is
+// pinned at 0, so this seam predicate fires every CLKEN and a toggle
+// write's line-scoped status is consumed immediately.  A switch line inside
+// an R0=0 freeze therefore loses its one-line target adjustment; the
+// combination (IVM toggle during a frozen C0) is unpinned in the source.
+wire type0_seam = CLKEN && (hcc == 0);
+
+always @(posedge CLOCK) begin
+	if(~nRESET | SNA_LOAD | CRTC_TYPE) begin
+		ivm_disp_r <= 0;
+		tog_line <= 0;
+		tog_enter_line <= 0;
+	end
+	else begin
+		if(type0_seam) begin
+			ivm_disp_r <= (R8_interlace == 2'b11);
+			tog_line <= 0;
+		end
+		if(r8_toggle_write_t0) begin
+			tog_line <= 1;
+			tog_enter_line <= (DI[1:0] == 2'b11);
+		end
+		// Named residual (review N-6, 2026-08-25): OUT R8,3 followed by
+		// OUT R8,0 inside one line leaves tog_enter_line set, so that
+		// line's limit target keeps the entering R9-or-ParityFrame form
+		// even though R8 ended at 0.  The source pins neither this nor the
+		// type-1 back-to-back case; the last write winning would be an
+		// equally defensible model.  Unpinned -- do not fixture.
+	end
+end
+
+// ParityC9 seeding: IVM turning on at this seam plants the frame parity
+// (the tables' doubled display parity from the first doubled line on).
+wire type0_ivm_turn_on = type0_seam && !ivm_disp_r && (R8_interlace == 2'b11);
+
+assign pc9_write = type0_ivm_turn_on;
+assign pc9_value = parity_frame;
+assign ivm_disp  = ivm_disp_r;
+assign line_vma  = {line[3:0], parity_c9};
+
+// The IVM-aware limit comparison's target-parity bit: "R9 or ParityFrame"
+// on the switch line (p.219), "R9 or ParityC9" on steady IVM lines
+// (p.220), plain R9 from the exit line on (p.220).  The seam capture uses
+// the same form with the live R8 register for the value bit (see below).
+wire type0_tog_target_parity = tog_line ? (tog_enter_line ? parity_frame : 1'b0) : 1'b0;
+wire type0_ivm_target_parity = tog_line ? type0_tog_target_parity
+                                        : (ivm_disp_r ? parity_c9 : 1'b0);
 
 reg        type0_r4_adjust_switch;
 reg        type0_r9_live_compare;
@@ -152,12 +256,21 @@ wire       type0_c0_1_adjust_active = type0_c0_1_adjust | type0_c0_1_break_write
 wire       r0_frozen_w = !R0_h_total && !hcc;
 assign     r0_frozen = !CRTC_TYPE && r0_frozen_w;
 
-wire [4:0] crtc0_line_max = (in_adj ? (R5_v_total_adj - 1'd1) : R9_v_max_line) & ~interlace;
+// F10: the old `& ~interlace` halving of the limit is gone; the IVM limit
+// comparison below replaces it (section 19.8.1).
+wire [4:0] crtc0_line_max = (in_adj ? (R5_v_total_adj - 1'd1) : R9_v_max_line);
+
+// The live IVM-aware line-limit comparison (evaluated at hcc_last by the
+// rollover's live path, and by the VSYNC row-end consumer).
+wire [4:0] type0_limit_value = ivm_disp_r ? line_vma : line;
+wire [4:0] type0_limit_target = R9_v_max_line | {4'b0000, type0_ivm_target_parity};
+wire       type0_ivm_limit = (type0_limit_value == type0_limit_target);
 
 // ACCC v1.10 section 10.3: C9 uses equality, never magnitude.  A zero limit
 // reached from C9>0 must let C9 run to 31 and wrap, so no unconditional
-// "limit is zero" match may short-circuit the comparison.
-wire       line_last = (line == crtc0_line_max);
+// "limit is zero" match may short-circuit the comparison.  Adjustment keeps
+// its plain C9-vs-R5 reuse; outside adjustment the IVM comparison applies.
+wire       line_last = in_adj ? (line == crtc0_line_max) : type0_ivm_limit;
 wire [4:0] type0_r5_adjust_target_effective = type0_r5_window_write ?
 											(DI[4:0] - 1'd1) : type0_r5_adjust_target;
 wire       type0_r5_write = !CRTC_TYPE && register_write && addr == 5'd05;
@@ -168,14 +281,19 @@ wire       type0_zero_adj_entry_active = type0_zero_adj_entry &
 										 ~(type0_r5_write && (hcc <= 2) && (|DI[4:0]));
 wire [4:0] type0_adjust_line_max =
 					(type0_r5_override_active ? type0_r5_adjust_target_effective :
-					 (type0_effective_r5 - 1'd1)) & ~interlace;
+					 (type0_effective_r5 - 1'd1));
 wire       type0_r9_at_r0_write;
 wire       type0_r9_at_r0_active = type0_r9_at_r0_pending | type0_r9_at_r0_write;
 // Section 10.3.1.1: once `Last Line` is false, the rollover uses the live
 // C9/R9 comparison rather than the value latched at C0=0.  That is what makes
 // the section 12.2.1 first-line RLAL sequence (R9=0 written after the C0<2
 // window) increment C4 on the very next line.
-wire       type0_live_line_last = (line == (R9_v_max_line & ~interlace));
+// F10 (section 19.8.1): the live comparison is the IVM-aware limit test;
+// with IVM off it reduces to the plain C9==R9 equality.  This is the path
+// mid-line R8 toggles act through: the exit line's doubled-value-vs-plain-R9
+// form and the switch line's raw-value-vs-R9-or-ParityFrame form are both
+// carried by type0_ivm_limit's per-line bits.
+wire       type0_live_line_last = type0_ivm_limit;
 wire       type0_last_line_armed = line_last_r & row_last_r;
 wire       type0_rollover_line_last = type0_c0_1_adjust_active ? 1'b0 :
 									 type0_r9_at_r0_active ?
@@ -191,8 +309,7 @@ wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 									 type0_rollover_line_last;
 
 assign line_new = hcc_last && !r0_frozen_w;
-assign line_next = (type0_rollover_line_last ?
-						 5'd0 : line + 1'd1 + interlace) & ~interlace;
+assign line_next = type0_rollover_line_last ? 5'd0 : line + 5'd1;
 assign c5_next = 5'd0;
 
 // ACCC v1.10 section 12: outside vertical adjustment C4 is equality-compared
@@ -206,20 +323,42 @@ assign     row_next = row_frame_last ? 7'd0 : row + 1'd1;
 assign     row_new = line_new & type0_rollover_row_last;
 wire       frame_new_w = row_new & row_frame_last;
 
+// Type-0 parity rules (section 19.5.2 p.205): ParityFrame snapshots
+// ParityR6 at the frame origin (C4=C9=C0=0); ParityR6 captures
+// ParityFrame xor 1 when C4 reaches R6 -- independent of R8, frozen when
+// R6>R4 (the event then never fires).  The frame origin itself is excluded
+// from the R6 capture (same convention as the R6-border-condition
+// exclusion at C4=C9=C0=0).  The p.219 pseudocode's alternative frame-end
+// toggle (ParityFrame ^= ParityR6 when C4==R4) is equivalent to this
+// snapshot at the origin and is not duplicated here.
+assign pf_write  = frame_new_w;
+assign pf_value  = parity_r6;
+assign pr6_write = row_new && !frame_new_w && !in_adj &&
+                   (row_next == R6_v_displayed);
+assign pr6_value = parity_frame ^ 1'd1;
+
 wire       type0_r4_at_c0_write = register_write && addr == 5'd04 && hcc == 0;
 wire       type0_r9_at_c0_write = register_write && addr == 5'd09 && hcc == 0;
 wire       type0_r5_at_c0_write = type0_r5_write && hcc == 0;
 wire [6:0] type0_c0_r4 = type0_r4_at_c0_write ? DI[6:0] : R4_v_total;
 wire [4:0] type0_c0_r9 = type0_r9_at_c0_write ? DI[4:0] : R9_v_max_line;
 wire [4:0] type0_c0_r5 = type0_r5_at_c0_write ? DI[4:0] : R5_v_total_adj;
-wire [4:0] type0_c0_adjust_line_max = (type0_c0_r5 - 1'd1) & ~interlace;
+wire [4:0] type0_c0_adjust_line_max = (type0_c0_r5 - 1'd1);
 wire       type0_c0_zero_adj_entry = type0_zero_adj_entry & ~(type0_r5_at_c0_write & (|DI[4:0]));
 // The C0=0 seam evaluates `Last Line` against the effective (possibly
 // same-edge written) R4/R9.  Both are plain equalities: a zero limit is an
-// ordinary value that only matches a counter already at zero.
+// ordinary value that only matches a counter already at zero.  F10: the
+// seam forms the new line's IVM comparison from the live R8 register (the
+// mode that line will run) and the still-pending toggle status; with IVM
+// off it reduces to the plain C9==R9 equality.
+wire       type0_seam_ivm = (R8_interlace == 2'b11);
+wire [4:0] type0_seam_value = type0_seam_ivm ? line_vma : line;
+wire [4:0] type0_seam_target_parity = tog_line
+									 ? (tog_enter_line ? parity_frame : 1'b0)
+									 : (type0_seam_ivm ? parity_c9 : 1'b0);
 wire       type0_c0_row_last = (row == type0_c0_r4);
 wire       type0_c0_line_last = in_adj ? ((line == type0_c0_adjust_line_max) | type0_c0_zero_adj_entry) :
-									 (line == type0_c0_r9);
+									 ((type0_seam_value == (type0_c0_r9 | {4'b0000, type0_seam_target_parity})));
 assign     c0_line_last = type0_c0_line_last;
 assign     c0_row_last = type0_c0_row_last;
 

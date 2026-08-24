@@ -63,49 +63,39 @@ dispatch accepts a branch or tag, not an arbitrary detached commit SHA.
 
 Use the same manual route before handing off a bitstream for real-hardware testing. Record the
 commit, Actions run, fitter utilization, worst timing result, hardware purpose, and the retained
-`quartus-cache.txt` clean/incremental provenance together.
+`quartus-cache.txt` build-mode provenance together.
 
 ### Tier C: real hardware
 
 Real MiSTer and SHAKER checks remain deliberate milestone tests.  They are required where the
 roadmap names them, but are neither automated nor expected for every successful RBF.
 
-## Quartus database reuse
+## Quartus database reuse (removed 2026-08-24, D2)
 
-GitHub currently includes 10 GB of Actions cache storage per repository, and standard hosted
-runner time is free for public repositories. Feature-branch pushes which require Tier B restore
-and save a cache scoped to that branch. Pull requests, tags, and default-branch builds remain
-clean. Manual milestone builds are clean by default; set `clean_quartus_build=false` when the
-purpose is iterative development on a feature branch and database reuse is wanted. The override
-is ignored for tags and the default branch so their clean-build rule remains an invariant.
+The branch Quartus database cache (`db/` + `incremental_db/`) was removed after the D2
+investigation concluded it cannot help this project. Evidence, from the cache-restored run
+`32657783842` (`quartus_database_reuse` mode) versus clean runs:
 
-Only `db/` and `incremental_db/` are cached, and saving occurs only after a successful compile
-and package. The artifact retains the build mode plus the primary and restored cache keys in
-`reports/quartus-cache.txt`, so an incremental RBF cannot be mistaken for a clean one.
-The RBF filename itself does not encode the mode: retain this report with any RBF copied out of
-the artifact bundle.
+- Restoring the databases saved zero time: the flow took the same ~12 minutes either way
+  (the queue item's original observation). The fitter report shows why — the design has no
+  QSF design partitions exporting post-fit netlists (the only partition is the default
+  `Top` with `Netlist Type Used: Source File`), so `quartus_sh --flow compile` re-runs
+  analysis & synthesis and re-fits from source on every build and merely overwrites the
+  restored databases. No "incremental" reuse message appears anywhere in the build log.
+- Per-stage split on the restored run: Analysis & Synthesis 1:37, Fitter 8:07 (dominant),
+  Assembler 0:14, TimeQuest 0:08 — 10:06 flow total; the rest of the 12.2 min is container
+  and job overhead.
+- The primary cache key embedded `github.sha`, so the exact key could never hit; only the
+  branch-prefix restore key matched, which is why every run "restored successfully" while
+  saving nothing.
 
-The current project has one root source partition, so database reuse may save little after a real
-integration change. Treat the first measurements as a decision gate: disable automatic reuse if
-cache transfer does not improve total feedback time or if clean/cached fitter evidence diverges.
+Every synthesis is now a clean compile and `reports/quartus-cache.txt` records
+`build_mode=clean` for provenance continuity. Do not reintroduce a database cache without
+also introducing a partitioned incremental-compilation policy (QSF partitions with
+exported post-fit netlists and their review burden); a cache alone is dead weight.
 
-Benchmark database reuse in a small series:
-
-1. let a qualifying feature-branch push seed its branch cache, or manually dispatch with
-   `clean_quartus_build=false`;
-2. run the next qualifying integration change on that branch to measure reuse after a real
-   change;
-3. manually dispatch that exact branch ref with the default `clean_quartus_build=true` to build
-   the same commit cleanly;
-4. compare Analysis & Synthesis, Fitter, total job time, cache transfer time, database size,
-   timing slack, and fitter utilization between the cached and clean runs.
-
-Change the cache epoch in `.github/workflows/build.yml` whenever the Quartus image or database
-policy changes. Periodically compare a cached development build against a clean manual, tagged,
-or default-branch build. GitHub evicts cache entries under its repository limit, so cache churn
-may reduce the hit rate without affecting correctness. GitHub's current allowances and billing
-rules are documented in
-[GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+Manual milestone dispatch keeps its `workflow_dispatch` route; the former
+`clean_quartus_build` input is gone because every build is clean.
 
 ## Local Quartus route
 

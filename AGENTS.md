@@ -45,7 +45,23 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x512eaae74a628dca`, re-minted 2026-08-23 for the A2 exact-edge R4
+  (`0xa9e5026de83d287c`, re-minted 2026-08-25 for the F10 review
+  remediation: the type-1 leaving stage A now writes C9.0 (B-1), the
+  §19.8.2 match-branch ParityC9 toggle also fires at frame boundaries
+  (B-2), the leaving stage-B ParityC9 write is gated to the entering
+  case (N-1), and IVM now engages from a reset/snapshot-loaded R8=3;
+  tog_enter/tog_enter_line joined the sampled projection; previously
+  `0x83e80134f7705b46` from the F10 type-0 IVM
+  behavior: the §19.8.1 split C9/C9.VMA with the asymmetric entry/exit
+  tests is now live on type 0, and the seam-latched IVM mode plus the
+  line-scoped toggle status joined the sampled projection; previously
+  `0x7d0e5c8bd984e899` from the F10 type-1 IVM
+  behavior: the documented R8-toggle parity stages and §19.8.2 counting
+  are now live on type 1, and the IVM/stage state joined the sampled
+  projection; previously `0x1ac680cd2f12559a` from the F10 fixture-stage
+  sampled-field expansion: the shared interlace parity flops joined the
+  sampled projection while still holding reset values, no RTL behaviour
+  change; previously `0x512eaae74a628dca` from the A2 exact-edge R4
   adjustment-reload suppression; previously `0x6439f9805b20acaa` from A1,
   `0xae27f2c3c758ed87` from F7 RFD,
   `0xf5f8ae01ffdf928d` from the sampled-field expansion,

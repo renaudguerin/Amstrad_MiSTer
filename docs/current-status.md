@@ -35,8 +35,10 @@ hardware-tested.**
 - Logic utilization 15,378 / 41,910 ALMs (37 %); 20,168 registers; 145 / 314 pins (46 %);
   685,217 / 5,662,720 block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks.
 - Worst-case setup slack +0.581 ns, hold +0.246 ns, recovery +3.328 ns, removal +0.746 ns.
-- `build_mode=quartus_database_reuse` — the cache was reused and the synthesis job still took
-  12.9 min, a third data point for queue item D2.
+- Queue item D2 closed 2026-08-24: the Quartus database cache was removed after the
+  investigation showed it saved zero time (no design partitions → `--flow compile` never
+  reuses the restored databases; evidence in `docs/ci-testing-policy.md` and the roadmap).
+  Every synthesis is now a clean compile.
 - The synthesizable delta over the previously synthesized `f6f09f5` is the CRTC change alone:
   the Plus P1 pixel path lives in `rtl/plus/asic_video.v`, which no QIP compiles, so it is
   simulation-only and contributes nothing to this bitstream. **When `asic_video` is wired into
@@ -85,8 +87,9 @@ predates F8 and cannot produce evidence for it. The later per-type split and ren
 behaviour-preserving within the directed, soak, and frozen differential projections, but F6
 Stage 1 intentionally changed classic DE behaviour and re-minted the soak. F7 RFD, the A1
 VSYNC correction, and the A2 reload caveat then re-minted it again with unchanged
-seed/schedule/projection; the current canonical hash is `0x512eaae74a628dca` (full chain in
-AGENTS.md). Use a current-tip RBF for F6/F7 work; retain `4c78603` as the clean F8-era
+seed/schedule/projection; the F10 work re-minted it four more times (fixture-stage field
+expansion, one intended behavior mint per type, and the review remediation) and the
+current canonical hash is `0xa9e5026de83d287c` (full chain in AGENTS.md). Use a current-tip RBF for F6/F7 work; retain `4c78603` as the clean F8-era
 bisection milestone.
 
 Hardware testing on 2026-08-19 covered two milestones and returned the same result for
@@ -199,6 +202,18 @@ For a first MiSTer pass:
   extended line) and both off-last-line precondition halves now have load-bearing vectors
   (`t13j` retimed, `t13l` added). RFD#10's "1-B" variant and the scope notes in
   `audit-findings.md` remain as documented there.
+
+- F10 interlace parity machinery is implemented for the unblocked scope on
+  `accuracy/f10-fixtures` (2026-08-24): type-1 two-stage R8-toggle parity update and
+  §19.8.2 counting (`t21a`-`t21p`, the 16 pp.210-211 panels), type-0 split C9/C9.VMA with
+  the asymmetric entry/exit limit tests and §19.5.2 parity rules (`t22a`-`t22o`, the
+  pp.221-224 tables). All 31 vectors are required passes; the old stepping/halving
+  approximation is removed and non-IVM behavior is bit-identical. Odd-R9 alternation
+  (Q19), the additional interlace line (Q10), and the odd-C4 VSYNC-imbalance correction
+  (Q12) remain deliberately unimplemented; residuals are in
+  `accuracy/f10-implementation-notes.md`. The stack was independently reviewed 2026-08-25
+  (`accuracy/f10-independent-review.md`): NOT CLEAR on two blockings, both fixed with new
+  vectors (`t23a`-`t23c`, `t22p`-`t22s`, RA column in `t22`); review-debt row cleared.
 
 D1 is complete (2026-08-24): every remaining ⚠ VERIFY flag in the three digests was
 re-verified against the PDF (pdf-inspector Markdown primary, figures judged from rendered

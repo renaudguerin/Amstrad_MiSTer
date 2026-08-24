@@ -82,7 +82,12 @@ module CRTC
 assign FIELD = ~field & interlace[0];
 
 assign MA = row_addr_r;
-assign RA = line | (field & interlace[0]);
+
+// Type 1 carries the IVM line parity in C9 itself (ACCC v1.10 section
+// 19.8.2: no separate C9.VMA concept), so RA is the raw counter.  Type 0
+// forms the split C9.VMA of section 19.8.1 on lines that started with IVM
+// active; the old field-OR approximation is gone.
+assign RA = CRTC_TYPE ? line : (e0_ivm_disp ? e0_line_vma : line);
 
 assign DE = de[CRTC_TYPE ? e1_de_index : e0_de_index];
 
@@ -199,6 +204,21 @@ reg        row_last_r;
 reg        frame_adj_r;
 reg        field;
 
+// Interlace parity state (ACCC v1.10 ch.19, F10).  Shared flops because a
+// live CRTC_TYPE switch must continue from the same state, exactly like the
+// shared counters above; each type's engine contributes its own update rules.
+// ParityFrame: type 1 toggles every frame at C4=C9=C0=0 regardless of R8
+// (section 19.5.3 p.208); type 0 snapshots ParityR6 at the frame origin
+// (section 19.5.2 p.205).  ParityC9: bit 0 of the line value used for video
+// address construction in IVM.  ParityR6: type-0-only companion latch,
+// ParityFrame xor 1 captured when C4 reaches R6, independent of R8; frozen
+// when R6>R4 (section 19.5.2 p.205).  F10 fixture stage: the flops exist so
+// the deterministic vectors can address them; their update rules land with
+// the per-type F10 behavior commits and until then they hold reset values.
+reg        parity_frame;
+reg        parity_c9;
+reg        parity_r6;
+
 // ------------------------------------------------------------------
 // Per-type engines
 // ------------------------------------------------------------------
@@ -207,6 +227,9 @@ wire       e0_c0_line_last, e0_c0_row_last, e0_in_adj_route, e0_frozen_row_advan
 wire       e0_hcc2_adj_keep, e0_reload, e0_row_addr_save, e0_field_count_tick;
 wire       e0_hsync_off, e0_vsync_line_fire, e0_r7_write_fire, e0_vsync_holdoff;
 wire       e0_vde_toggle, e0_r6_vder_write, e0_r6_vder_value;
+wire       e0_pf_write, e0_pf_value, e0_pc9_write, e0_pc9_value;
+wire       e0_pr6_write, e0_pr6_value, e0_ivm_disp;
+wire [4:0] e0_line_vma;
 wire [4:0] e0_line_next, e0_c5_next;
 wire [6:0] e0_row_next;
 wire [1:0] e0_de_index;
@@ -223,6 +246,7 @@ crtc_type0_engine crtc_type0_engine
 	hcc, hcc_next, hcc_last, line, row, in_adj, field,
 	line_last_r, row_last_r, frame_adj_r,
 	VSYNC_r, vsync_allow, hsc,
+	parity_frame, parity_c9, parity_r6,
 	e0_r0_frozen, e0_line_new, e0_line_next, e0_c5_next,
 	e0_row_frame_last, e0_row_next, e0_row_new, e0_frame_adj,
 	e0_c0_line_last, e0_c0_row_last,
@@ -231,7 +255,9 @@ crtc_type0_engine crtc_type0_engine
 	e0_field_count_tick, e0_hsync_off, e0_de_index, e0_spurious_border_off,
 	e0_vsync_line_fire,
 	e0_vsc_load, e0_r7_write_fire, e0_vsync_holdoff, e0_vde_toggle,
-	e0_r6_vder_write, e0_r6_vder_value
+	e0_r6_vder_write, e0_r6_vder_value,
+	e0_pf_write, e0_pf_value, e0_pc9_write, e0_pc9_value,
+	e0_pr6_write, e0_pr6_value, e0_ivm_disp, e0_line_vma
 );
 
 wire       e1_line_last, e1_line_new, e1_row_last, e1_row_frame_last, e1_row_new, e1_frame_adj;
@@ -240,6 +266,8 @@ wire       e1_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
 wire       e1_vsync_line_fire, e1_r7_write_fire, e1_r6_vde_write, e1_r6_vde_value;
 wire       e1_r6_vder_write, e1_r6_vder_value, e1_status_bit5;
 wire       e1_rfd_r0_extend;
+wire       e1_pf_write, e1_pf_value, e1_pc9_write, e1_pc9_value;
+wire       e1_line_poke, e1_line_poke_bit;
 wire [4:0] e1_line_next, e1_c5_next;
 wire [6:0] e1_row_next;
 wire [1:0] e1_de_index;
@@ -253,6 +281,7 @@ crtc_type1_engine crtc_type1_engine
 	R5_v_total_adj, R6_v_displayed, R7_v_sync_pos, R8_interlace, R9_v_max_line,
 	hcc, hcc_next, hcc_last, hcc_end, line, row, c5, in_adj, crtc1_adj_from_row0,
 	VSYNC_r, vsync_allow, hsc, vde_r,
+	parity_frame, parity_c9,
 	e1_line_last, e1_line_new, e1_line_next, e1_c5_next,
 	e1_row_last, e1_row_frame_last, e1_row_next, e1_row_new, e1_frame_adj,
 	e1_adj_from_row0,
@@ -261,6 +290,8 @@ crtc_type1_engine crtc_type1_engine
 	e1_vsc_load, e1_r7_write_fire,
 	e1_r6_vde_write, e1_r6_vde_value, e1_r6_vder_write, e1_r6_vder_value,
 	e1_rfd_r0_extend,
+	e1_pf_write, e1_pf_value, e1_pc9_write, e1_pc9_value,
+	e1_line_poke, e1_line_poke_bit,
 	e1_status_bit5
 );
 
@@ -293,10 +324,20 @@ always @(posedge CLOCK) begin
 		in_adj <= 0;
 		field  <= 0;
 		crtc1_adj_from_row0 <= 0;
+		parity_frame <= 0;
+		parity_c9    <= 0;
+		parity_r6    <= 0;
 	end
 	else if(CLKEN) begin
 		hcc <= hcc_next;
 		if(line_new) line <= line_next;
+		// F10 type-1 (ACCC v1.10 section 19.5.3 pp.208-209): the R8-toggle
+		// stage edges write C9's bit 0 mid-line -- stage A plants the new
+		// parity, stage B plants the settled value.  A same-edge row end
+		// keeps the documented restart value (line_new wins; that
+		// coincidence is itself unpinned in the source).
+		else if(CRTC_TYPE && e1_line_poke)
+			line <= {line[4:1], e1_line_poke_bit};
 		c5 <= c5_next;
 		if(hcc == 0 && !r0_frozen) begin
 			line_last_r <= CRTC_TYPE ? e1_line_last : e0_c0_line_last;
@@ -333,6 +374,19 @@ always @(posedge CLOCK) begin
 			else if(CRTC_TYPE && in_adj && row_next != 1) begin
 				crtc1_adj_from_row0 <= 0;
 			end
+		end
+
+		// F10 parity updates: each engine decides for its type (type 1:
+		// section 19.5.3; type 0: section 19.5.2); the shared flops live
+		// here so a live CRTC_TYPE switch continues from the same state.
+		if(CRTC_TYPE) begin
+			if(e1_pf_write)  parity_frame <= e1_pf_value;
+			if(e1_pc9_write) parity_c9    <= e1_pc9_value;
+		end
+		else begin
+			if(e0_pf_write)  parity_frame <= e0_pf_value;
+			if(e0_pc9_write) parity_c9    <= e0_pc9_value;
+			if(e0_pr6_write) parity_r6    <= e0_pr6_value;
 		end
 	end
 end
