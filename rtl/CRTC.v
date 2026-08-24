@@ -199,6 +199,21 @@ reg        row_last_r;
 reg        frame_adj_r;
 reg        field;
 
+// Interlace parity state (ACCC v1.10 ch.19, F10).  Shared flops because a
+// live CRTC_TYPE switch must continue from the same state, exactly like the
+// shared counters above; each type's engine contributes its own update rules.
+// ParityFrame: type 1 toggles every frame at C4=C9=C0=0 regardless of R8
+// (section 19.5.3 p.208); type 0 snapshots ParityR6 at the frame origin
+// (section 19.5.2 p.205).  ParityC9: bit 0 of the line value used for video
+// address construction in IVM.  ParityR6: type-0-only companion latch,
+// ParityFrame xor 1 captured when C4 reaches R6, independent of R8; frozen
+// when R6>R4 (section 19.5.2 p.205).  F10 fixture stage: the flops exist so
+// the deterministic vectors can address them; their update rules land with
+// the per-type F10 behavior commits and until then they hold reset values.
+reg        parity_frame;
+reg        parity_c9;
+reg        parity_r6;
+
 // ------------------------------------------------------------------
 // Per-type engines
 // ------------------------------------------------------------------
@@ -293,6 +308,9 @@ always @(posedge CLOCK) begin
 		in_adj <= 0;
 		field  <= 0;
 		crtc1_adj_from_row0 <= 0;
+		parity_frame <= 0;
+		parity_c9    <= 0;
+		parity_r6    <= 0;
 	end
 	else if(CLKEN) begin
 		hcc <= hcc_next;
