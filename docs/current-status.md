@@ -27,13 +27,21 @@ never gates a commit.
 
 ## Hardware-test milestone
 
-`27078f4` (merge of `accuracy/f7-rfd-r0-widening`, 2026-08-24) is the newest merged code
-milestone. It is **not yet synthesized and not hardware-tested**: it adds the §13.7.1.2
-R0-widening RFD trigger on top of `f6f09f5` and touches only the CRTC wrapper and the type-1
-engine, so it needs its own Quartus run before any hardware session. `f6f09f5` remains the
-newest successfully *synthesized* code milestone (GitHub Actions run `32645547100`); it
-includes all independent pass-2 code/evidence remediations through the residual documentation
-sweep, and it has not been hardware-tested either. `5ddddef` remains the
+`de30faf` is the newest successfully synthesized code milestone (GitHub Actions run
+`32674839461`, 2026-08-24, Quartus 17.0.2). It carries the §13.7.1.2 R0-widening RFD trigger
+(merge `27078f4`) and the merged Plus P1 locked-ASIC pixel path. **It has not been
+hardware-tested.**
+
+- Logic utilization 15,378 / 41,910 ALMs (37 %); 20,168 registers; 145 / 314 pins (46 %);
+  685,217 / 5,662,720 block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks.
+- Worst-case setup slack +0.581 ns, hold +0.246 ns, recovery +3.328 ns, removal +0.746 ns.
+- `build_mode=quartus_database_reuse` — the cache was reused and the synthesis job still took
+  12.9 min, a third data point for queue item D2.
+- The synthesizable delta over the previously synthesized `f6f09f5` is the CRTC change alone:
+  the Plus P1 pixel path lives in `rtl/plus/asic_video.v`, which no QIP compiles, so it is
+  simulation-only and contributes nothing to this bitstream. **When `asic_video` is wired into
+  the motherboard it must be added to `files.qip`**, or no CI run will ever tell you whether it
+  fits or meets timing. `5ddddef` remains the
 newest hardware-*tested* milestone, covering the
 deterministic-complete F12/F4 counter work and the CPR parser. `1a1233f` is the previous one; GitHub Actions run
 `31661330994` passed the complete Verilator gate, Quartus 17.0.2 compilation, fitter,
