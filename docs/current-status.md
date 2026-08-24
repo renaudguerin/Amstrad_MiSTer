@@ -27,14 +27,20 @@ never gates a commit.
 
 ## Hardware-test milestone
 
-`de30faf` is the newest successfully synthesized code milestone (GitHub Actions run
-`32674839461`, 2026-08-24, Quartus 17.0.2). It carries the §13.7.1.2 R0-widening RFD trigger
-(merge `27078f4`) and the merged Plus P1 locked-ASIC pixel path. **It has not been
-hardware-tested.**
+`e78e0ab` is the newest successfully synthesized code milestone (GitHub Actions run
+`32789356344`, 2026-08-25, Quartus 17.0.2): the merge of `accuracy/f10-fixtures` (F10
+interlace parity machinery, both types, reviewed and remediated) on top of the Plus P1
+motherboard integration (merge `4cab4ec`). **It has not been hardware-tested.**
 
-- Logic utilization 15,378 / 41,910 ALMs (37 %); 20,168 registers; 145 / 314 pins (46 %);
-  685,217 / 5,662,720 block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks.
-- Worst-case setup slack +0.581 ns, hold +0.246 ns, recovery +3.328 ns, removal +0.746 ns.
+- Logic utilization 15,718 / 41,910 ALMs (38 %); 20,717 registers; 685,217 / 5,662,720
+  block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks. Versus the
+  pre-both-streams `de30faf` (15,378 ALMs, 20,168 registers) the delta covers the Plus P1
+  motherboard integration and the F10 machinery together; memory and DSP are unchanged.
+- Worst-case setup slack +0.734 ns, hold +0.246 ns — positive; no regression signal.
+- Every synthesis is now a clean compile and `reports/quartus-cache.txt` records
+  `build_mode=clean` (queue item D2, closed 2026-08-24: the Quartus database cache was
+  removed after the investigation showed it saved zero time; evidence in
+  `docs/ci-testing-policy.md` and the roadmap).
 - Queue item D2 closed 2026-08-24: the Quartus database cache was removed after the
   investigation showed it saved zero time (no design partitions → `--flow compile` never
   reuses the restored databases; evidence in `docs/ci-testing-policy.md` and the roadmap).
@@ -230,7 +236,8 @@ that an Opus adjudication settled against the renders (both disputes sided with 
 re-verification's corrected readings); all other blockings are remediated in this diff. Page
 anchors were corrected against the real TOC (§13.2.x, pp.210-211, p.247, §21.4), and the
 separate stale-reference sweep over docs/ found ten more fixes; rtl/ and sim/ citations were
-all clean. Next classic work is the F10 fixtures; F13 waits for hardware.
+all clean. F10 has since been implemented, reviewed, and merged (see the completed-work
+section); F13 waits for hardware.
 
 ## Completed Plus foundations
 
@@ -481,11 +488,12 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    passed its pass-2 cross-provider re-review on 2026-08-24 and is merged at `27078f4`, so
    F7 is complete in full. **D1 completed 2026-08-24** (digest re-verification + stale-
    reference sweep; outcomes summarized above and in the digests' 2026-08-24 notes; new
-   author question Q19). **Next classic work is F10**: its fixture-gating PDF re-checks are
-   done (pp.210-211 truth tables render-verified; the pp.221-224 IVM tables corroborate the
-   pseudocode for the tested even R9), so fixture work can start — type-1 parity fixtures and
-   type-0 even-R9 entry/exit fixtures are unblocked; only odd-R9 parity-alternation
-   expectations wait on Q19, and Q10/Q12 remain the standing extra-line gates.
+   author question Q19). **F10 is implemented, reviewed, and merged** (2026-08-25; the
+   fixture-gating PDF re-checks — pp.210-211 truth tables render-verified; the pp.221-224
+   IVM tables corroborating the pseudocode for the tested even R9 — fed fixtures first, then
+   per-type behavior commits). Remaining F10 work is Q-gated: odd-R9 parity-alternation
+   expectations wait on Q19, the additional interlace line on Q10, and the odd-C4
+   VSYNC-imbalance correction on Q12.
 5. Plus: P0, the P1 CRTC3 counter/timing foundation, and the P1 locked-ASIC pixel path
    (legacy-colour ROM + pen pipeline, vectors t05a-t05h) are merged. Next Plus steps: the
    manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
