@@ -114,6 +114,7 @@ module Amstrad_motherboard
 
 wire crtc_shift;
 
+
 wire io_rd = ~(RD_n | IORQ_n);
 wire io_wr = ~(WR_n | IORQ_n);
 
@@ -136,7 +137,8 @@ wire WR_n;
 wire MREQ_n;
 wire IORQ_n;
 wire RFSH_n;
-wire INT_n;
+wire ga_int_n;
+wire INT_n = plus_mode ? plus_int_n : ga_int_n;
 wire M1_n;
 
 T80pa CPU
@@ -202,7 +204,146 @@ CRTC crtc
 	.RA(RA)
 );
 
-wire [14:0] crtc_vram_addr = {MA[13:12], RA[2:0], MA[9:0]};
+// -----------------------------------------------------------------------
+// Plus ASIC video/timing path (plus_mode == 1). Both subsystems always
+// instantiate (the house pattern here is capability muxes, no generate);
+// in classic mode their outputs are muxed away and the classic CRTC +
+// ga40010 path is untouched bit-for-bit, which the classic suites and the
+// soak hash pin. See docs/plus/architecture.md §2/§5 Risk 1.
+// -----------------------------------------------------------------------
+wire plus_crtc_hs, plus_crtc_vs, plus_crtc_de;
+wire [13:0] plus_ma;
+wire [4:0]  plus_ra;
+wire        plus_int_n;
+wire        plus_ready, plus_ras_n, plus_cas_n, plus_cpu_n;
+wire        plus_cclk_en_p, plus_cclk_en_n;
+wire        plus_phi_en_p, plus_phi_en_n;
+wire        plus_hsync_o, plus_vsync_o, plus_vblank;
+wire [4:0]  asic_border;
+wire [79:0] asic_inkr;
+wire [1:0]  plus_gamode;
+wire [3:0]  plus_rgb_r, plus_rgb_g, plus_rgb_b;
+wire [15:0] plus_vidword;
+
+// Selected raster sources: classic path when Plus model = Off.
+wire [13:0] ma_sel = plus_mode ? plus_ma : MA;
+wire [4:0]  ra_sel = plus_mode ? plus_ra : RA;
+wire        hs_sel = plus_mode ? plus_crtc_hs : crtc_hs;
+wire        vs_sel = plus_mode ? plus_crtc_vs : crtc_vs;
+wire        de_sel = plus_mode ? plus_crtc_de : crtc_de;
+
+asic_ga_timing asic_ga
+(
+	.clk(clk),
+	.cen_16(ce_16),
+	.fast(no_wait),
+	.RESET_N(~reset),
+
+	.A(A[15:14]),
+	.D(D),
+	.MREQ_N(MREQ_N),
+	.M1_N(M1_N),
+	.RD_N(RD_N),
+	.IORQ_N(IORQ_N),
+
+	.HSYNC_I(plus_crtc_hs),
+	.VSYNC_I(plus_crtc_vs),
+
+	.CCLK(),
+	.CCLK_EN_P(plus_cclk_en_p),
+	.CCLK_EN_N(plus_cclk_en_n),
+	.PHI_N(),
+	.PHI_EN_N(plus_phi_en_n),
+	.PHI_EN_P(plus_phi_en_p),
+	.RAS_N(plus_ras_n),
+	.CASAD_N(),
+	.CAS_N(plus_cas_n),
+	.READY(plus_ready),
+	.CPU_N(plus_cpu_n),
+	.MWE_N(),
+	.E244_N(),
+	// The ASIC mirrors the GA ROM-enable decode exactly (both watch the
+	// same bus), but romen for Amstrad_MMU keeps coming from ga40010 in
+	// both modes; plus_mmu overlays cartridge windows on top of it.
+	.ROMEN_N(),
+	.RAMRD_N(),
+	.ROM(),
+
+	.HSYNC_O(plus_hsync_o),
+	.VSYNC_O(plus_vsync_o),
+	.SYNC_N(),
+	.INT_N(plus_int_n),
+	.VBLANK(plus_vblank),
+	.MODE_SYNC_EN(),
+
+	.MODE(plus_gamode),
+	.BORDER_O(asic_border),
+	.INKR_O(asic_inkr),
+	.GAMODE_O(plus_gamode)
+);
+
+// Locked-ASIC CRTC type 3 + pixel pipeline. Register writes share the
+// classic CRTC bus decode; DO readback stays unselected until P5.
+asic_video asic_vid
+(
+	.CLOCK(clk),
+	.CLKEN(plus_cclk_en_n),
+	.nRESET(~reset),
+
+	.ENABLE(io_rd | io_wr),
+	.nCS(A[14]),
+	.R_nW(A[9]),
+	.RS(A[8]),
+	.DI(~RD_n ? 8'hFF : D),
+	.DO(),
+
+	.HSYNC(plus_crtc_hs),
+	.VSYNC(plus_crtc_vs),
+	.DE(plus_crtc_de),
+	.MA(plus_ma),
+	.RA(plus_ra),
+
+	.HCC(),
+	.LINE(),
+	.ROW(),
+	.ADJ(),
+
+	.PIXEN(ce_16),
+	.VIDEOD(plus_vidword),
+	.GAMODE(plus_gamode),
+	.BORDER_I(asic_border),
+	.INKR_I(asic_inkr),
+	.RGB_R(plus_rgb_r),
+	.RGB_G(plus_rgb_g),
+	.RGB_B(plus_rgb_b),
+	.PEN()
+);
+
+// Twice-per-character word assembly on the reference VIDEO_BUF phases:
+// state e0 latches the even byte, state 03 the odd byte (ring order
+// e0 -> ... -> 03 within one character). Byte-order against the CAS pair
+// halves is validated by the P1 integration check below (t05h phase).
+always @(posedge clk) begin
+	if (!reset) plus_vidword <= 16'd0;
+	else begin
+		if (plus_cclk_en_p) plus_vidword[7:0]  <= vram_d;
+		if (plus_cclk_en_n) plus_vidword[15:8] <= vram_d;
+	end
+end
+
+// P1 temporary adapter: asic_video's legacy-colour table only emits levels
+// {0, 6, 15}, which map losslessly onto the motherboard's {level, OE_N}
+// pairs (00 = black, 01 = mid, 1x = full). P2 widens this path to true
+// 4-bit-per-channel RGB when the ASIC palette lands.
+function [1:0] lvl4_to_ga;
+	input [3:0] v;
+	begin
+		lvl4_to_ga = (v >= 4'd15) ? 2'b10 :
+		             (v >= 4'd6)  ? 2'b01 : 2'b00;
+	end
+endfunction
+
+wire [14:0] crtc_vram_addr = {ma_sel[13:12], ra_sel[2:0], ma_sel[9:0]};
 
 reg vram_bs;
 reg [7:0] vram_d;
@@ -217,7 +358,7 @@ always @(posedge clk) begin
 		if (!ras_n & !cas_n_old & cas_n) vram_bs <= 1;
 		if (!ras_n & !cas_n)
 			if (sync_filter & crtc_shift) begin
-				if (vram_bs) vram_din_shift <= crtc_de ? vram_din[15:8] : 8'd0;
+				if (vram_bs) vram_din_shift <= de_sel ? vram_din[15:8] : 8'd0;
 				vram_d <= vram_bs ? vram_din[7:0] : vram_din_shift;
 			end else
 				vram_d <= vram_bs ? vram_din[15:8] : vram_din[7:0];
@@ -225,34 +366,56 @@ always @(posedge clk) begin
 end
 
 wire cclk_en_n, cclk_en_p;
-wire e244_n, cpu_n, ras_n, cas_n;
+wire ga_cclk_en_n, ga_cclk_en_p;
+assign cclk_en_p = plus_mode ? plus_cclk_en_p : ga_cclk_en_p;
+assign cclk_en_n = plus_mode ? plus_cclk_en_n : ga_cclk_en_n;
+
+wire e244_n;
+wire ga_cpu_n, ga_ras_n, ga_cas_n;
+wire cpu_n = plus_mode ? plus_cpu_n : ga_cpu_n;
+wire ras_n = plus_mode ? plus_ras_n : ga_ras_n;
+wire cas_n = plus_mode ? plus_cas_n : ga_cas_n;
 wire [7:0] ga_din = e244_n ? vram_d : D;
-wire ready;
+wire ga_ready_o;
+wire ready = plus_mode ? plus_ready : ga_ready_o;
 wire romen_n;
 
-wire hsync_ga, hsync_filtered;
-wire vsync_ga, vsync_filtered;
+wire ga_hsync_o, hsync_filtered;
+wire ga_vsync_o, vsync_filtered;
 
 wire hblank_filtered;
-wire vblank_ga, vblank_filtered;
+wire ga_vblank_o, vblank_filtered;
+
+wire hsync_ga = plus_mode ? plus_hsync_o : ga_hsync_o;
+wire vsync_ga = plus_mode ? plus_vsync_o : ga_vsync_o;
+wire vblank_ga = plus_mode ? plus_vblank : ga_vblank_o;
 
 assign hsync = sync_filter ? hsync_filtered : hsync_ga;
 assign vsync = sync_filter ? vsync_filtered : vsync_ga;
-assign hblank = sync_filter ? hblank_filtered : crtc_hs;
+assign hblank = sync_filter ? hblank_filtered : hs_sel;
 assign vblank = sync_filter ? vblank_filtered : vblank_ga;
 
 crt_filter crt_filter
 (
 	.CLK(clk),
 	.CE_4(phi_en_n),
-	.HSYNC_I(crtc_hs),
-	.VSYNC_I(crtc_vs),
+	.HSYNC_I(hs_sel),
+	.VSYNC_I(vs_sel),
 	.HSYNC_O(hsync_filtered),
 	.VSYNC_O(vsync_filtered),
 	.HBLANK(hblank_filtered),
 	.VBLANK(vblank_filtered),
 	.SHIFT(crtc_shift)
 );
+
+// Screen mode and RGB: classic netlist outputs by default, locked-ASIC
+// equivalents under plus_mode (RGB adapted per lvl4_to_ga above).
+wire [1:0] ga_mode;
+wire [1:0] ga_red, ga_green, ga_blue;
+assign mode  = plus_mode ? plus_gamode : ga_mode;
+assign red   = plus_mode ? lvl4_to_ga(plus_rgb_r) : ga_red;
+assign green = plus_mode ? lvl4_to_ga(plus_rgb_g) : ga_green;
+assign blue  = plus_mode ? lvl4_to_ga(plus_rgb_b) : ga_blue;
 
 ga40010 GateArray (
 	.clk(clk),
@@ -269,32 +432,32 @@ ga40010 GateArray (
 	.VSYNC_I(crtc_vs),
 	.DISPEN(crtc_de),
 	.CCLK(),
-	.CCLK_EN_P(cclk_en_p),
-	.CCLK_EN_N(cclk_en_n),
+	.CCLK_EN_P(ga_cclk_en_p),
+	.CCLK_EN_N(ga_cclk_en_n),
 	.PHI_N(phi_n),
 	.PHI_EN_N(phi_en_n),
 	.PHI_EN_P(phi_en_p),
-	.RAS_N(ras_n),
-	.CAS_N(cas_n),
-	.READY(ready),
+	.RAS_N(ga_ras_n),
+	.CAS_N(ga_cas_n),
+	.READY(ga_ready_o),
 	.CASAD_N(),
-	.CPU_N(cpu_n),
+	.CPU_N(ga_cpu_n),
 	.MWE_N(),
 	.E244_N(e244_n),
 	.ROMEN_N(romen_n),
 	.RAMRD_N(),
-	.HSYNC_O(hsync_ga),
-	.VSYNC_O(vsync_ga),
-	.VBLANK(vblank_ga),
-	.MODE(mode),
+	.HSYNC_O(ga_hsync_o),
+	.VSYNC_O(ga_vsync_o),
+	.VBLANK(ga_vblank_o),
+	.MODE(ga_mode),
 	.SYNC_N(),
-	.INT_N(INT_n),
-	.BLUE_OE_N(blue[0]),
-	.BLUE(blue[1]),
-	.GREEN_OE_N(green[0]),
-	.GREEN(green[1]),
-	.RED_OE_N(red[0]),
-	.RED(red[1]),
+	.INT_N(ga_int_n),
+	.BLUE_OE_N(ga_blue[0]),
+	.BLUE(ga_blue[1]),
+	.GREEN_OE_N(ga_green[0]),
+	.GREEN(ga_green[1]),
+	.RED_OE_N(ga_red[0]),
+	.RED(ga_red[1]),
 	.SNA_LOAD(sna_load),
 	.SNA_INKSEL(sna_ga_inksel),
 	.SNA_PALETTE(sna_ga_palette),
@@ -336,7 +499,7 @@ i8255 PPI
 
 	.ipa(portAin), 
 	.opa(portAout),
-	.ipb({tape_in, 2'b11, ppi_jumpers, crtc_vs}),
+	.ipb({tape_in, 2'b11, ppi_jumpers, vs_sel}),
 	.opb(),
 	.ipc(8'hFF), 
 	.opc(portC),

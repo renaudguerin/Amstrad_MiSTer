@@ -77,7 +77,10 @@ module asic_ga_timing
 	output       ROMEN_N,
 	output       RAMRD_N,
 	output       ROM,
-	output       VIDBUF_EN, // twice-per-character video-buffer latch window
+	// Video-buffer latch windows: CCLK_EN_P (ring state e0) and CCLK_EN_N
+	// (state 03) are exactly the twice-per-character VIDEO_BUF phases of the
+	// reference; the motherboard samples the VRAM byte on each to assemble
+	// the 16-bit VIDEOD word for asic_video.
 
 	// ---- Sync shaping / interrupts (mirrors ga40010 sync outputs) ----
 	output       HSYNC_O,
@@ -137,7 +140,6 @@ module asic_ga_timing
 	assign CCLK     = ~(S[2] | S[5]);
 	assign CCLK_EN_P = cen_16 & (S == 8'he0);
 	assign CCLK_EN_N = cen_16 & (S == 8'h03);
-	assign VIDBUF_EN = cen_16 & (S == 8'he0 || S == 8'h03);
 	assign CPU_N    = ~(S[1] & ~S[7]);
 	assign MWE_N    = ~(RD_N & S[0] & S[5]);
 	assign E244_N   = ~(~IORQ_N & S[2] & S[3]);
