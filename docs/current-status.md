@@ -200,9 +200,22 @@ For a first MiSTer pass:
   (`t13j` retimed, `t13l` added). RFD#10's "1-B" variant and the scope notes in
   `audit-findings.md` remain as documented there.
 
-The next classic work is D1, the ACCC digest re-verification and reference sweep
-(`implementation-roadmap.md` queue item 2); then the F10 fixtures, still fixture-gated behind
-their PDF re-checks. F13 waits for hardware. Neither blocks the other stream.
+D1 is complete (2026-08-24): every remaining ⚠ VERIFY flag in the three digests was
+re-verified against the PDF (pdf-inspector Markdown primary, figures judged from rendered
+pages). Outcomes: most flags retired as confirmed; four genuine digest errors corrected —
+p.81 type-0 adjustment addressing is period-8 through 8 distinct addresses (never propagated
+to RTL/vectors), §17.5's R1=0 deadline boundary was inverted-ish and is now derived (type
+0/1/2 accept writes through C0=0, type 3/4 close two characters earlier), p.183's worked
+example uses R1=40/&28 not 64, and the pp.221-224 IVM tables were re-adjudicated after an
+initial misread: they use R9=6 (even, per p.220) and corroborate the §19.8.1 pseudocode; the
+surviving source-internal conflict is only the p.219 gate token `If R9.0=0` against its own
+odd-R9 gloss (author question Q19, narrowed). The re-verification was itself cross-reviewed:
+a GPT reviewer-cross pass returned five blockings, two of which contained evidence errors
+that an Opus adjudication settled against the renders (both disputes sided with the
+re-verification's corrected readings); all other blockings are remediated in this diff. Page
+anchors were corrected against the real TOC (§13.2.x, pp.210-211, p.247, §21.4), and the
+separate stale-reference sweep over docs/ found ten more fixes; rtl/ and sim/ citations were
+all clean. Next classic work is the F10 fixtures; F13 waits for hardware.
 
 ## Completed Plus foundations
 
@@ -376,10 +389,13 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    trigger is implemented with its blocking review findings remediated
    (`accuracy/f7-r0-widening-independent-review.md`, vectors `t13e`-`t13m`). That branch
    passed its pass-2 cross-provider re-review on 2026-08-24 and is merged at `27078f4`, so
-   F7 is complete in full. **Next classic work is D1, not F10**: re-verify the ACCC digests
-   against `docs/ACCC1.10-EN.pdf` — which is present in the tree, merely gitignored — then
-   sweep the stale section references it exposes. See queue item 2 in
-   `implementation-roadmap.md`. F10 follows, still fixture-gated behind its PDF re-checks.
+   F7 is complete in full. **D1 completed 2026-08-24** (digest re-verification + stale-
+   reference sweep; outcomes summarized above and in the digests' 2026-08-24 notes; new
+   author question Q19). **Next classic work is F10**: its fixture-gating PDF re-checks are
+   done (pp.210-211 truth tables render-verified; the pp.221-224 IVM tables corroborate the
+   pseudocode for the tested even R9), so fixture work can start — type-1 parity fixtures and
+   type-0 even-R9 entry/exit fixtures are unblocked; only odd-R9 parity-alternation
+   expectations wait on Q19, and Q10/Q12 remain the standing extra-line gates.
 5. Plus: P0, the P1 CRTC3 counter/timing foundation, and the P1 locked-ASIC pixel path
    (legacy-colour ROM + pen pipeline, vectors t05a-t05h) are merged. Next Plus steps: the
    manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,

@@ -160,8 +160,8 @@ Module/key names are SHAKER 2.6 menu entries.
   CRTC 1-A OR 1-B?` is the chip-variant discriminator — informative only; the variant is
   deliberately not modeled.)
 - C9 F10 → interlace suite: B `(1) INTERLACE C4/C9 COUNTERS`, B `(9) INTERLACE VM`,
-  C `(1)`–`(5)` parity entries, plus the SHAKER 22C/3 parity truth tables (ACCC pp.210-212)
-  as fixture sources.
+  C `(1)`–`(5)` parity entries, plus the SHAKER 22C/3 parity truth tables (ACCC pp.210-211;
+  p.212 is §19.5.4 CRTC 2) as fixture sources.
 - Plus P1/P5 (CRTC3 foundation, bus quirks) → run the classic entries above on the CRTC3
   setting where applicable, plus D `(U) CRTC 3/4 : STATUS` once status paths exist.
 - Any session touching R12/R13 reload → A `(5)`/`(6)`/`(7)` R13 UPDATE IN n USEC SCREENS
@@ -315,8 +315,9 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 2. **PRIORITY — D1: re-verify the ACCC digests against the PDF, then sweep every stale
    section reference.** `docs/ACCC1.10-EN.pdf` is present in the working tree (4.8 MB,
    gitignored, not absent). Work through the `pdf-inspector` skill under the verification
-   protocol in `accuracy/extract/README.md` — two text layers must agree, and figures are
-   judged from rendered pages — not through a single text extractor. The three
+   protocol in `accuracy/extract/README.md` — its position-aware Markdown is the primary
+   text layer (pdftotext only as an optional second opinion), and figures are judged from
+   rendered pages, never from raw text. The three
    digests under `docs/accuracy/compendium-0*.md` were built without using it, which left 27
    `⚠ VERIFY` flags whose stated reason is flattened-text extraction, and at least one
    downstream section mislabel that survived three review passes (the §13.6.2 p.122 CRTC-1
@@ -339,7 +340,16 @@ CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
    verified too, including §14.5 ABSENCE OF HSYNC p.141. Digest-01 §8.5's chronogram
    annotation is confirmed verbatim, so that half of its flag is retired. The §13.5-for-§13.3
    citation error in `t13e`/`t13j`/`t13l` and the §13.7.1.1-for-§13.6.2 chronogram mislabel
-   are both already corrected. Everything else in the 27-flag backlog is still open.
+   are both already corrected. **Status (2026-08-24): COMPLETE** (cross-reviewed: GPT
+   reviewer-cross pass, then Opus adjudication of two evidence disputes). Every remaining
+   flag was re-verified against the PDF renders (pdf-inspector Markdown primary per
+   `accuracy/extract/README.md`); most retired as confirmed, four genuine digest errors
+   corrected (p.81 period-8 adjustment addressing; §17.5 R1=0 deadline — type 0/1/2 accept
+   through C0=0, type 3/4 first too-late C0=3f; p.183 example R1=40/&28; the pp.221-224 IVM
+   tables re-adjudicated as R9=6-even and corroborating §19.8.1, leaving the p.219 gate-token
+   polarity as the narrowed author question Q19), anchors fixed against the real TOC, and the
+   separate stale-reference sweep applied ten further docs fixes with rtl//sim/ citations
+   clean.
 3. **D2: find out why the Quartus database cache saves nothing.** Measured 2026-08-24 across
    two runs on `accc-review-and-fixes`: run `32657783842` restored the cache
    (`Cache restored successfully`, `build_mode=incremental_db`) and its synthesis job took

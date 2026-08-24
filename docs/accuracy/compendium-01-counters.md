@@ -53,8 +53,16 @@ referenced to the CRTC's own timeline), not the Gate-Array-delayed display timel
 
 - R9 is 5 bits (0-31); only bits 0-2 feed the VRAM address ("curtain" wrap past C9=7), but full
   5-bit C9/R9 values are used for counting comparisons (§10.1, p.73).
-- **R9 update is considered while C0<=R0** — live comparator input, effective at the next
-  C0==R0 rollover (§10.2, p.74). ⚠ VERIFY p.74 (diagram-based timing table).
+- **R9 update is considered while C0<=R0** — live comparator input, honoured for the rollover
+  at the end of that same character line (§10.2, p.74). p.74 chronograms render-verified
+  2026-08-24: both groups use the same three `OUT R9,0` positions (4-cycle box starting at
+  C0=60, 61, 62), and the darker cell inside the box marks the cycle on which the write becomes
+  effective — the 3rd box cell on CRTC 0/1/2 (effective at C0=62, 63, 0) and the 4th on
+  CRTC 3/4 (effective at C0=63, 0, 1), i.e. CRTC 3/4 latches one cycle later for the same
+  instruction timing. The acceptance boundary itself is type-independent: a write effective at
+  C0==R0 (63) is honoured on every type (result bar C9=0 in both groups), and the first miss in
+  both groups is a write effective at C0==0, after the rollover (bar C9=1). What differs
+  between types is the OUT-to-effective-write latency, not the window.
 - **The CRTC does not buffer C9/C4 against R9/R4** — it re-evaluates the raw equality each
   cycle; only VMA' is actually latched (at C0==R1) (§10.3.1, p.75). If R9 is rewritten to 0
   while C9>0, C9 does **not** snap to 0 — it overflows up to 31 then wraps, unless the
@@ -120,11 +128,15 @@ was retired by the 2026-08-22 review:
 
 ### 4.1 Worked example (R4=10, R5=16, R9=3, R1=40, R0=63) (§11.2.1, p.81)
 
-- CRTC 0: C4 freezes at 11 (R4+1) for the whole adjustment; C9 counts 0..15 continuously,
-  addressing cycles every 4 steps (R9=3 → 4 distinct addresses).
+- CRTC 0: C4 freezes at 11 (R4+1) for the whole adjustment; C9 counts 0..15 continuously;
+  the VRAM address cycles with period 8 through 8 distinct values (&0000,&0800,&1000,&1800,
+  &2000,&2800,&3000,&3800 — C9 drives address bits 11-13, wrap at C9=8), not every 4 steps
+  (p.81 table, render-verified 2026-08-24; corrects this digest's earlier "4 distinct
+  addresses" misread).
 - CRTC 1/2: C4 increments once per 4 C9-steps (11,12,13,14) while C5 counts 0..15 continuously
-  across those increments; VRAM pointer still derives from **C9** (0..3 repeating), not C5.
-  ⚠ VERIFY p.81 exact table rows.
+  across those increments; VRAM pointer still derives from **C9** (0..3 repeating), not C5
+  (LINE period 4: &0,&800,&1000,&1800; PTR-VRAM steps 0,40,80,120 per C4 increment).
+  The same page's third table shows CRTC 3/4 freezing C4 at R4=10 itself.
 
 ### 4.2 CRTC 0 adjustment detail (§11.2.2, p.81-83)
 
@@ -249,17 +261,20 @@ The single most intricate dynamic-update bug in the CRTC-1 model.
 - **Recipe** (§11.6.3, p.90): `OUT R5,1` then `OUT R5,0`, with the R5,1 write landing exactly
   at C0==R0 on a line where C9!=R9 for the target C4. Modify R12/R13 the line *before* the R5
   update takes effect.
-- **CRTC 3/4 do not have RFD.** HITACHI's own CRTC-0 errata table alludes to a vaguely similar
-  R5-at-C0==R0 caveat but the author flags it self-contradictory (⚠ VERIFY p.90 — "a real
-  playground"); do not port RFD to CRTC 0 without independent verification.
+- **CRTC 3/4 do not have RFD.** HITACHI's CRTC-0 technical guide (p.120 anomaly table) is cited
+  in §11.6.4 as saying an R5 update at C0==R0 leaves "certain cases" where R5 is "not really
+  considered"; the author appends "Really?" and "The contradictions in this table are a real
+  playground!" (p.90, render-verified 2026-08-24; the HITACHI table is not reproduced in the
+  compendium). Do not port RFD to CRTC 0 without independent verification.
 
 ## 6. R6 and vertical adjustment; interlace interactions (§11.7-11.9, p.90-91)
 
 - R6 gates row display (DISPEN low at C4==R6), same general rule — must be positioned to match
   whichever C4 values occur during adjustment if those rows should display data.
 - **CRTC 1 special R6==0 case** ("split-border"): BORDER activation via C4==R6 is handled
-  non-persistently; same mechanism applies during adjustment (⚠ VERIFY p.90 — mechanism
-  asserted but not spelled out in extracted text; cross-ref Ch.19.2).
+  non-persistently; same mechanism applies during adjustment (flag kept after render check
+  2026-08-24: p.90 asserts the mechanism in prose without spelling it out and shows no figure;
+  cross-ref Ch.19.2 confirmed to start at p.193).
 - Interlace adjustment line: independent of, and appended after, any R5 lines. Its condition is
   evaluated **on the last line of the frame, at C0==R0**, using whatever R8 value is active
   **at that instant** — R8 can legally be toggled on one of the R5-adjustment lines to switch
@@ -341,7 +356,8 @@ The chip spreads end-of-line/end-of-frame decisions across three distinct instan
   begins (R5 / interlace-line conditions evaluated **at this instant**). If it begins, C4/C9
   switch to the adjustment two-step (§4.2).
 
-- **Consequences of R0==0** (§13.2.1/§13.2.4, p.104-105): C0 never advances past 0, so the
+- **Consequences of R0==0** (stated in the §13.2.1 run-on, p.104; restated under §13.2.4,
+  p.105): C0 never advances past 0, so the
   C0==1 re-authorization never runs:
   - C9!=R9 at the (only) C0==0 when R0 became 0 → **all counters freeze** entirely while
     R0 stays 0. The cost is wall-clock display time — counters are frozen, nothing progresses;
@@ -364,17 +380,17 @@ The chip spreads end-of-line/end-of-frame decisions across three distinct instan
     managed"). Further C0==0 cycles: frozen C4=1,C9=0. R0 later >2 → adjustment can't be
     cancelled this late; next real C0==0: C9+1 vs R5 → if different, C9→1. (Example 2: if R0
     set back to 0 on the very next line, C9 re-freezes at 1, adjustment-active persists.)
-- **Case R0==1** (§13.2.1/§13.2.5, p.104-108): C0 alternates 0,1,0,1... (2µs "lines"), never
+- **Case R0==1** (§13.2.1 pp.103-104; §13.2.5 p.107): C0 alternates 0,1,0,1... (2µs "lines"), never
   reaching 2, so the adjustment **disarm** step never runs — if C4==R4 && C9==R9 fires at
   C0==0/1, adjustment arms and **stays armed** (uncancellable) even though it lasts only as
   long as R5 dictates once reachable. With R4=R9=0 and R5=0 the frames strictly **alternate**
   normal/additional: each additional "frame" lasts one 2µs line before ceasing ("lasts 1 line
   of 2 µsec before ceasing", p.104; alternating pattern in the p.107 case study). The chained
-  into-another-adjustment-frame reading applies only while R5>0. ⚠ VERIFY p.105-108
-  (chronogram partially garbled in extraction — cross-check exact screen-grid before using as
-  test vectors).
+  into-another-adjustment-frame reading applies only while R5>0. No figures exist in
+  §13.2.1-13.2.6 (pp.103-108 render-verified 2026-08-24): the alternation is prose-only, and
+  the sole figure (the p.108 R0=0 worked table) extracted cleanly and matches the render.
 
-### 8.2 CRTC 0 — VSYNC freeze window (§13.2.2, p.104-105)
+### 8.2 CRTC 0 — VSYNC freeze window (§13.2.2, p.105)
 
 - Each C0==2, a flag (re)arms authorizing "check C4 vs R7 at the next C0==0" (allow VSYNC to
   fire there). Cleared again at C0==0 (single-shot per line).
@@ -466,8 +482,9 @@ R12/R13 write is honored for VMA. Initial conditions: R4=0, R9=0, R1=4, R13=0.
 
 - **R0==3 (4µs "frames")** (§13.8.1, p.127): CRTC 0 and CRTC 1 behave identically — `OUT R13,4`
   is picked up starting the VRAM-address cycle immediately following the write, effective once
-  C4 returns to/stays at 0 (R4=0 here so every row is row 0, fires every 4µs frame). ⚠ VERIFY
-  p.127 exact column alignment (grid partially smeared).
+  C4 returns to/stays at 0 (R4=0 here so every row is row 0, fires every 4µs frame). The p.127
+  grids render clean at 200 dpi (render-verified 2026-08-24; see the note at the end of this
+  section).
 - **R0==1 (2µs "frames")** (§13.8.2, p.128, IMPORTANT): explicit caption "the event C0==R0
   after 2µs leaves C4=1 for the 2nd period of 2µs, which represents a vertical adjustment 'not
   cancelled' (because C0 is never equal to 2)" — concrete restatement of §8.1/§8.4's "R0==1
@@ -478,10 +495,14 @@ R12/R13 write is honored for VMA. Initial conditions: R4=0, R9=0, R1=4, R13=0.
   reload is stuck too, gated on the same suppressed C4==0-transition event. **CRTC 1 in the
   same scenario continues to reload correctly** (reaches new address a few µs after
   `OUT R13,4`, unaffected by R0==0) — CRTC 1 has no analogous freeze state when R0==0.
-- ⚠ VERIFY p.127-129 — grids extracted as flattened numeric rows without source
-  color/alignment cues; qualitative conclusions above are explicit in the prose (safe to rely
-  on), but exact µs-by-µs address values should be re-checked against the PDF figures before
-  use as cycle-exact test vectors.
+- Grids render-verified 2026-08-24 (pp.127-129): legible at 200 dpi; captions confirmed
+  verbatim on p.128 ("The event C0 = R0 after 2 µsec leaves C4 = 1 for the 2nd period of
+  2 µsec, which represents a vertical adjustment 'not canceled' (because C0 is never equal
+  to 2)") and p.129 ("R12 / R13 cannot be considered until C4 and C9 both go back to 0");
+  the CRTC 1 and 3,4 groups show all-zero C4 rows under R0=1 and keep reloading under R0=0,
+  as claimed above. The per-µs address sequences are usable as cycle-exact vectors; one
+  low-confidence digit remains (exact zero-run length before CRTC 1's first post-write
+  pickup under R0=0, ±1 cell).
 
 ## Deliberately excluded
 

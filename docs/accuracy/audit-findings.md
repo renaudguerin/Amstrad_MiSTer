@@ -75,7 +75,8 @@ General implementation rules for all fix prompts:
   OUTI/status tricks) sees transitions up to a line early/late; detection routines checking the
   latch behavior (§28.1.8) diverge.
 - **Confidence: medium-high.** The sampled-at-C0=R0 rule is clean prose; the exact
-  ⚠ VERIFY p.247-248 diagrams should be consulted if the testbench disagrees.
+  ⚠ VERIFY p.247 diagrams should be consulted if the testbench disagrees (p.248 is §21.3.4
+  CRTC 3/4 STATUS 1 — render-verified 2026-08-24).
 - **Fix prompt**:
   > In `rtl/UM6845R.v` add a registered `status_bit5` updated only when `CLKEN && hcc_last`:
   > set to 1 if the R6-border condition is active due to `row` having reached `R6_v_displayed`
@@ -91,7 +92,7 @@ General implementation rules for all fix prompts:
 
 ## F3. CRTC 0 mid-line R7 write: VSYNC blocked at C0vs<2, else starts mid-line with duration +（R0−C0vs)
 
-- **Rule** (digest-02 §19 → ACCC §16.4.1, p.168-170): on type 0, writing R7=C4 mid-line triggers
+- **Rule** (digest-02 §19 → ACCC §16.4.1, p.168-169): on type 0, writing R7=C4 mid-line triggers
   VSYNC **immediately** — *except* when the write lands at C0vs ∈ {0,1}, which produces a
   **BLOCKED VSYNC**: no pulse, and no VSYNC can fire for this C4=R7 value until the comparison's
   truth value changes. When it does fire mid-line (C0vs>1), the line counter C3h starts counting
@@ -401,14 +402,18 @@ General implementation rules for all fix prompts:
   No parity state machines, no per-type differences, no additional interlace line, no entry/exit
   asymmetry. (Verified against the split tree 2026-08-22.)
 - **Impact**: interlace demos (SHAKER 2.x uses 1/64-line positioning tricks); most games unaffected.
-- **Confidence: medium** (digest pseudocode is complete but ⚠ p.206-212 tables unverified).
-- **Fix prompt**: deliberately NOT written yet — this is a multi-week finding. Treat
-  digest-03 §19.5-19.8 pseudocode as the spec, build V3 fixtures from the SHAKER 22C/3 tables
-  (⚠ re-extract p.210-212 from the PDF first), and implement type-by-type. Do this LAST.
-  Gate fixture work on the accepted digest corrections B10-B11 (findings-review.md) and on
-  answers to Q10-Q12 — the extra-line frame attribution and the odd-R9 total-line-count
-  reading were both corrected there, so pre-correction fixtures would encode known-wrong
-  expectations.
+- **Confidence: medium** (updated 2026-08-24: the pp.210-211 SHAKER 22C/3 truth tables and
+  the pp.221-224 IVM worked tables are render-verified; see compendium-03's 2026-08-24 notes).
+- **Fix prompt**: deliberately NOT written yet — this is a multi-week finding. Fixture
+  sources as of 2026-08-24: the SHAKER 22C/3 truth tables (pp.210-211, render-verified — no
+  p.212 re-extraction needed; p.212 is §19.5.4 CRTC 2) and the pp.221-224 IVM worked tables,
+  whose even-R9 entry/exit arithmetic is corroborated by the §19.8.1 pseudocode and may be
+  fixtured; odd-R9 parity alternation waits on author question Q19 (the p.219 gate-token
+  polarity), so the pseudocode is not a safe sole specification there. Implement
+  type-by-type. Do this LAST. Still gate fixture work on the accepted digest corrections
+  B10-B11 (findings-review.md) and on answers to Q10 and Q12 — the extra-line frame
+  attribution and the odd-C4 VSYNC imbalance reading; Q11 (even-R9 total line count) is
+  resolved by the pp.221-224 renders (R9=6 → 4 lines per character per frame).
 
 ## F11. Minor / confirmatory findings (no immediate action)
 

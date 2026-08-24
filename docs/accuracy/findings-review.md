@@ -25,7 +25,7 @@ rather than in guesses. No finding's implementation direction changes.
 |---|---|---|---|
 | F1 | R10/R11 unreadable on types 0/1 | **confirmed** | §21.2.1/21.2.2 p.245: type 0 reads R12-R17, type 1 reads R14-R17 only, unrecognized regs read 0, reg 31 returns 127/255 on type 1. Caveat: ch.28 contradicts itself (Q13); F1 correctly follows §21.2. |
 | F2 | Type 1 status bit 5 latched at C0=R0 | **confirmed** | §21.3.3 p.247: bit 5 = BORDER-R6 condition sampled only at C0=R0 (`false` = C4=C9=C0=0, `true` = C4=R6 ∧ C9=C0=0 at sample); bits 0-4/7 unused-read-0; R6=0-forced-border-while-C4>0 not reflected. All three F2 nuances verbatim. |
-| F3 | Mid-line R7 write timing per type | **confirmed** | §16.4.1 pp.168-169 (blocked at C0vs<2, mechanism-2 latch, duration +(R0−C0vs), counter starts at next C0=0, PPI &36-active/&00-inactive at +6µs) and §16.4.2 p.169-170 (unconditional trigger, partial line counts, duration −(C0+1), PPI 5µs). Every F3 element near-verbatim. |
+| F3 | Mid-line R7 write timing per type | **confirmed** | §16.4.1 pp.168-169 (blocked at C0vs<2, mechanism-2 latch, duration +(R0−C0vs), counter starts at next C0=0, PPI &36-active/&00-inactive at +6µs) and §16.4.2 p.169 (unconditional trigger, partial line counts, duration −(C0+1), PPI 5µs). Every F3 element near-verbatim. |
 | F12 | Type-0 last-line/adjustment arbitration | **confirmed** | §10.3.1 pp.75-76, §11.2.2 pp.81-83, §12.2 pp.92-94, §13.2 pp.103-106: C0<2 window, C0==0 override, C0==1 break→adjustment with R5==0, C0==2 arbitration, R5>0-before-C0==3, completion re-establishing Last Line, R4/R9 write windows, exact-C0==R0 comparator switch. All confirmed. New: p.82 example 3 documents the **companion case** (R9 written in C0∈[2,R0−1] window → next line C4=38, C9=8) that t12 should encode beside the 39/8 exact-C0==R0 case. |
 | F4 | Equality-only counter overflow | **confirmed** | §10.3 p.74 ("count to its maximum value (31) before going back to 0"), §12.1 p.92 ("C4 counts up to its limit (127) and loops back"), exception wording matches. p.78-79 tables (readable despite digest's smearing flag) corroborate. |
 | F5 | Type-0 R0=0 freeze | **confirmed, digest prose errors nearby** | Freeze machinery, single deferred increment ("C4's last hiccup", §13.2.6 p.108), R4/R5/R9 ignored while R8 live, resume behaviour, and C9-vs-R5 lock persisting through C0=2 after unfreeze (p.106) all confirmed, including the full worked-vector table. Two adjacent digest-01 §8.1 sentences are wrong — see B2/B3; they do not affect the implemented t09/t16/t20 behaviour (which matches the source and `shaker-module-a-map.md`). |
@@ -117,6 +117,12 @@ rendered PNGs before being quoted as fact: pixel-M2 positioning diagrams (pp.135
 p.246 status-register table layout. None of these blocks the F1-F12 verdicts above; they gate
 only future pin-exact vectors, where the existing protocol (derive from rule, cite page) still
 applies.
+
+(Update 2026-08-24, D1: this list is the state as of 2026-08-22 and is retained as a dated
+record. Every page group above has since been render-verified — see the 2026-08-24 notes in
+the compendium digests; corrections that fell out: the parity truth tables are pp.210-211
+only, the IVM tables use R9=6 even, the p.185 deadline boundary was corrected, and p.247
+alone carries the bit-5 diagrams. p.246 remains unverified.)
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).

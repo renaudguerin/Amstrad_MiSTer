@@ -28,10 +28,11 @@ readable. Read it directly whenever a rule matters — it outranks the digests, 
 that trusted the digests alone have already shipped a wrong section citation.
 
 Read it through the `pdf-inspector` skill, and follow the verification protocol already
-written down in `docs/accuracy/extract/README.md`: a rule counts as clean prose only when
-pdf-inspector Markdown and pdftotext agree, and table or chronogram rules are judged from
-rendered pages, never from a text layer alone. Reaching for a single text extractor is how
-figure content silently flattens — which is what most of the digests' ⚠ VERIFY flags record.
+written down in `docs/accuracy/extract/README.md`: pdf-inspector's position-aware Markdown is
+the primary text layer (2026-08-24 decision; pdftotext is a weaker extractor kept only as an
+optional second opinion), and table or chronogram rules are judged from rendered pages, never
+from a text layer alone. Reaching for raw text where a figure is involved is how figure
+content silently flattens — which is what most of the digests' ⚠ VERIFY flags record.
 
 ## Writing test vectors
 

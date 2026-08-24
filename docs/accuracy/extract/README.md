@@ -46,9 +46,10 @@ pdftotext -layout docs/ACCC1.10-EN.pdf docs/accuracy/extract/pdftotext/accc-v1.1
 .venv/bin/python - <<'EOF'
 import pymupdf, os
 d = pymupdf.open("docs/ACCC1.10-EN.pdf")
-PAGES = [34, 74, 75, 76, 78, 79, 90, 105, 106, 107, 108, 122, 123, 127, 128, 129, 130,
-         133, 135, 136, 137, 139, 140, 144, 149, 150, 152, 157, 160, 166, 183, 185,
-         196, 197, 206, 207, 210, 211, 212, 221, 222, 223, 224, 242, 247, 248]
+PAGES = [34, 74, 75, 76, 78, 79, 81, 90, 103, 104, 105, 106, 107, 108, 122, 123, 127, 128,
+         129, 130, 133, 135, 136, 137, 139, 140, 144, 149, 150, 152, 157, 160, 166, 183,
+         185, 196, 197, 205, 206, 207, 210, 211, 212, 219, 220, 221, 222, 223, 224, 225,
+         242, 247, 248]
 os.makedirs("docs/accuracy/extract/pages", exist_ok=True)
 for n in PAGES:
     d[n-1].get_pixmap(dpi=200).save(f"docs/accuracy/extract/pages/p{n:03d}.png")
@@ -57,13 +58,18 @@ EOF
 
 ## Verification protocol
 
-- A rule counts as **clean prose** only when pdf-inspector Markdown and pdftotext agree.
-- Table/chronogram rules are judged from the rendered PNGs (multimodal), never from either
+- pdf-inspector Markdown (`pdf2md/`) is the primary text layer and outranks pdftotext where
+  they disagree (2026-08-24 decision: pdftotext `-layout` is the weaker extractor; keep it
+  only as an optional second opinion when the Markdown itself looks ambiguous).
+- Table/chronogram rules are judged from the rendered PNGs (multimodal), never from any
   text layer alone. The digests' ⚠ VERIFY flags mark exactly the pages above; extend `PAGES`
   when review surfaces more.
 - Known extractor behaviour: pdf-inspector resolves Fable's "column smearing" complaints on
   prose pages (e.g. p.75 reads cleanly); genuine chronograms/pixel grids remain unusable in
   both text layers and require the visual tier.
+- Logged extraction gap (2026-08-24): pdf2md dropped the entire first paragraph of §11.6.4 on
+  p.90 (it is present in pdftotext and in the render). Do not treat a missing paragraph in
+  the Markdown layer as proof the PDF lacks it.
 
 ## Produced files
 

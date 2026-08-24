@@ -78,7 +78,7 @@ contents, LOW means a guess.
 | **B (T)** | `R3 JIT INTERACTIVE MODE ANALYZER` | — | §14.4.4 Zoom on R3.JIT (pp. 138–140) | §14.8 HSYNC Schematics (pp. 143–144), §9.3.4 Mode Splitting (pp. 53–56) | HIGH | Interactive oscilloscope-like analyzer for inspecting real-time R3.JIT HSYNC truncation and its visual impact on C-HSYNC width and monitor deflection. | 0, 1, 2 (vs 3, 4) |
 | **B (S)** | `CRTC 1 : BE00 CHECK` | — | §21.3.3 CRTC 1 (p. 247) | §21.3.1 General (p. 246), §28.1.8 Via Status Register &BE00 (p. 293) | HIGH | Verifies CRTC 1 Status register read at port `&BE00`, checking bit 5 transition on $C_0=R_0$ reflecting $C_4=R_6$ vertical border state. | 1 (vs 0, 2, 3, 4) |
 | **B (CTRL)** | `R5 SCANNER / (COPY) R5 T2` | — | §11.2 Counting in Vertical Adjustement (pp. 81–84) | §11.3 Updating R5 During an Adjustment (pp. 85–86), §11.4 R5 Update Before an Adjustment (p. 86) | HIGH | Scans and tests all possible $R_5$ vertical adjust values (0 to 31) and update timings across lines and frames. | All |
-| **B (TAB)** | `R5 BENCH (INTERACTIVE)` | INTERACTIVE | §11 Counter : Register R5 (pp. 80–91) | §11.2.1 General (pp. 81–84), §11.3 Updating R5 During an Adjustment (pp. 85–86) | HIGH | Interactive tool for real-time manipulation of $R_5$, observing vertical frame height adjustment lines and counter evolution on-screen. | All |
+| **B (TAB)** | `R5 BENCH (INTERACTIVE)` | INTERACTIVE | §11 Counter : Register R5 (pp. 80–91) | §11.2 Counting in Vertical Adjustement (pp. 81–84), §11.3 Updating R5 During an Adjustment (pp. 85–86) | HIGH | Interactive tool for real-time manipulation of $R_5$, observing vertical frame height adjustment lines and counter evolution on-screen. | All |
 | **B (0)** | `VERTICAL SCROLL SUB-PIXEL 1/8,1/16,1/32,1/64,1/128` | — | §16.6 Limitless VSYNC ! (pp. 172–174) | §7.2 VSYNC Synchronization (pp. 38–40), §16.2.1 VSYNC Area Display (p. 159) | HIGH | Demonstrates sub-pixel vertical scrolling down to 1/64th (and 1/128th) of a pixel by modulating the $C_0$ position of VSYNC trigger to shift monitor beam flyback. | All (Monitor deflector) |
 
 ---
@@ -282,7 +282,7 @@ contents, LOW means a guess.
    * **$C_0=2$:**
      > *"When C0=2,the additional management state is deactivated if there was no line programmed (R5=0 or no 'Interlace Line')... If R5 becomes greater than 0 when C0>2, then no additional line will be added to the frame. The next line will correspond to a new frame with C4=C9=0."* (§13.2.1, p. 104).
 
-3. **$C_4$ Increment Logic During Vertical Adjustment (§11.2.2, p. 81; §13.2.1, p. 106):**
+3. **$C_4$ Increment Logic During Vertical Adjustment (§11.2.2, p. 81; §13.2.4, p. 106):**
    > *"In order to prevent resetting C9 to 0 from leading to a loop if R5>R9+1, the incrementation of C4 and C9 follows a specific logic. As long as C4<>R4 in vertical adjustment, C9 can no longer be zeroed. This allows C9 to exceed R9 and reach R5, to end the vertical adjustment and start a new frame by repositioning Last Line state to true (so that C4 and C9 go to 0 on the next line)... C4 is incremented only once, whatever the value of R5. C4 returns to 0 once the adjustment is complete, whatever the value of R4."* (§11.2.2, p. 81; §13.2.4, p. 106).
 
 4. **Simultaneous Increment Bug on $C_0=R_0$ (§10.3.1.2, p. 76; §11.2.2, p. 82):**

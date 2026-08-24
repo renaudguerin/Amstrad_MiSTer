@@ -40,7 +40,9 @@ nothing here depends on conversation memory.
 - **Tooling**: poppler (`pdftotext -layout`) + uv-managed venv with `pdf-inspector`
   (primary Markdown/table extractor) and `pymupdf` (renders pages to PNG). Multimodal reading
   of rendered PNGs is the arbiter for tables/chronograms; "clean prose" requires both text
-  extractors agreeing.
+  extractors agreeing. (SUPERSEDED 2026-08-24, D1: pdf-inspector Markdown is the primary text
+  layer and pdftotext only an optional second opinion — see `accuracy/extract/README.md`;
+  the render-tier rule is unchanged.)
 - **Subagents**: available and same-model only. Use for mechanical sweeps; keep rule-judgment
   verification in the main thread.
 
@@ -162,10 +164,16 @@ the type-split refactor milestone (it forces a full read anyway).
       (BLOCKED-PENDING-HARDWARE-EVIDENCE; does not block independent work) → F7 RFD
       (incl. B6 disarm path; A1 VSYNC corner fix) → F10 fixtures+impl. F10 gating fallback:
       author answers Q10-Q12 may
-      never arrive — if so, derive fixtures from the §19.5-§19.8 pseudocode (P1-verified)
-      plus the SHAKER 22C/3 tables via the visual tier (render pp.210-212 PNGs), record
+      never arrive — if so, derive fixtures from the SHAKER 22C/3 tables via the visual
+      tier (render pp.210-211 PNGs — corrected anchor: the truth tables are pp.210-211
+      only), record
       each ambiguity as a resolved-by-default-reading note citing the page, and proceed;
-      SHAKER hardware comparison remains the arbiter.
+      SHAKER hardware comparison remains the arbiter. NOTE (2026-08-24, D1, updated after
+      Opus adjudication): the pp.221-224 IVM tables use R9=6 (even) and corroborate the
+      §19.8.1 pseudocode — even-R9 entry/exit fixtures may be derived from them directly;
+      the pseudocode remains non-authoritative only for odd-R9 parity alternation (p.219
+      gate-token polarity, author question Q19), which waits on Q19 or hardware
+      arbitration.
       TYPE SPLIT DONE (`accuracy/crtc-type-split`, 27efc2d, pushed, CI simulation +
       synthesis green): wrapper keeps ports/regfile/shared-counter sequencing; two engines
       hold all type rules + provably-private flops; singular shared state because live

@@ -86,12 +86,13 @@ for C-SYNC generation (not CRTC registers).
   - Exact JIT end offsets (prose p.138): CRTC0 — HSYNC starts 5th px-M2, lasts 4 px-M2 (R3=0
     JIT'd); CRTC1 — starts 6th px-M2, lasts 3 px-M2. Note 2: in NJIT/OUTI mode, CRTC1's HSYNC ends
     1 px-M2 later than CRTC0/2.
-  - ⚠ VERIFY pp.139–140 — R3.JIT pixel-M2 diagrams (CRTC0/1/2) extracted as unusable repeating pixel
-    index rows; trust prose offsets above only.
+  - pp.139–140 render-verified 2026-08-24: the prose offsets above match the diagrams
+    (CRTC0's 40010 dark run = px-M2 4..7; CRTC1's = px-M2 5..7; GA 40007/8 runs one cell
+    longer; CRTC4 carries a literal NO R3.JIT subsection).
   - `[T3/4 diff]` explicit "NO R3.JIT ON CRTC 4" subsection title confirms the negative.
-- ⚠ VERIFY pp.135–137 — per-type dynamic-rewrite diagrams (CRTC0/2, CRTC1, CRTC3/4) extracted as
-  disconnected C0/C3 number sequences with no reliable register binding; only the prose overflow/
-  wrap and CRTC-1-zero-exception rules above should be trusted.
+- pp.135–137 render-verified 2026-08-24: the per-type dynamic-rewrite diagrams are legible and
+  consistent with the prose overflow/wrap rules and the CRTC-1 zero exception above; CRTC3/4
+  show no R3.JIT interruption.
 
 ## 5. Absence of HSYNC (§14.5, p.141)
 
@@ -126,11 +127,15 @@ for C-SYNC generation (not CRTC registers).
 
 - At VSYNC end (end of 26th GA-tracked HSYNC, §14): CRTC0/1 → black stops **1 px-M2 after** HSYNC
   end. `[T2/3/4 diff]` CRTC2/3/4 → black stops **at the same instant**.
-- ⚠ p.144 — per-CRTC pixel-M2 tables (R2-JIT/NJIT × OUT(C),r8/OUTI × GA model 40007/8 vs
-  40010) extracted as unusable pixel-index noise and remain visual-tier. The aggregate totals
-  below survived in the **pdftotext layer only** (pdf2md drops them) and are usable as sanity
-  checks: CRTC0 NJIT=32 M2px (2µs), JIT=28 M2px (1.75µs); CRTC1 NJIT=32 M2px (2µs),
-  JIT=29 M2px (1.8125µs); CRTC2 NJIT=33 M2px (2.0625µs), JIT=29 M2px (1.8125µs).
+- ⚠ p.144 — per-CRTC pixel-M2 tables (per CRTC: an R2-NJIT table with Z80A rows OUT(C),r8 /
+  OUTI / OUTI plus an R2-JIT / OUT(C),r8 table; rows C0 from Vsync, C0 disp by Gate Array,
+  Byte Offset, Pixel Mode 2 / 0,3 / 1) extracted as unusable pixel-index noise and remain
+  visual-tier. No GA-model dimension exists on p.144 — the 40007/8-vs-40010 split lives in the
+  §14.4.4 diagrams (pp.139–140); CRTC4's table has no total bar and CRTC3 is marked "to come".
+  The aggregate totals below survived in the **pdftotext layer only** (pdf2md drops them) and
+  were re-verified against the p.144 render 2026-08-24: CRTC0 NJIT=32 M2px (2µs), JIT=28 M2px
+  (1.75µs); CRTC1 NJIT=32 M2px (2µs), JIT=29 M2px (1.8125µs); CRTC2 NJIT=33 M2px (2.0625µs),
+  JIT=29 M2px (1.8125µs).
 
 ---
 
@@ -180,9 +185,11 @@ for C-SYNC generation (not CRTC registers).
   - `[T2 diff]` **CRTC2**: no such margin — GA sees one continuous unbroken black run instead of two
     pulses. **Real, testable CRTC1-vs-CRTC2 divergence** worth asserting if the Verilog model
     distinguishes types.
-- ⚠ VERIFY pp.149–150 — per-value (R2 rewritten 17..22, R3 fixed=10) diagrams for CRTC0/CRTC1&2
-  extracted as disconnected C0/C3 rows without per-scenario separation; prose rules above are the
-  reliable takeaway.
+- pp.149–150 render-verified 2026-08-24: per-value scenarios (R2 rewritten 17..22, R3 fixed=10)
+  are cleanly separated in the diagrams and support the prose rules above, including R2=21
+  (CRTC0 restarts HSYNC when R3l is modified; CRTC1 emits two monitor-sync pulses where CRTC2
+  shows one continuous run — the testable divergence named above). Source artifact noted: one
+  p.150 scenario omits its trailing `10/R3` cell and one row carries a duplicated `53`.
 
 ## 11. VSYNC consideration during HSYNC (§15.4, p.152–155)
 
@@ -192,8 +199,8 @@ for C-SYNC generation (not CRTC registers).
   on the increment edge** (rewriting R7 to an already-equal C4 does not retrigger).
 - **No HSYNC/VSYNC pin conflict for CRTC0/1** (unlike CRTC2, below) — VSYNC pin can assert normally
   even mid-HSYNC.
-- ⚠ VERIFY p.152 — CRTC0/1 encroaching-HSYNC-vs-VSYNC-window diagrams extracted as disconnected
-  rows; prose rule stands independently.
+- p.152 render-verified 2026-08-24: the encroachment diagrams (R2=50 with R3=12..15) are legible
+  and show HSYNC and VSYNC coexisting without conflict, matching the prose rule.
 - `[T2 diff — GHOST VSYNC, §15.4.4, informational only]`: CRTC2 evaluates VSYNC on all C0/C9; if
   landing inside active HSYNC (C0=R2..R2+R3l+1), produces a GHOST VSYNC (internal line-count
   proceeds, blocks real VSYNC, pin never asserted to GA — pins 39/40 conflict). Exception: R2==0
@@ -213,8 +220,10 @@ for C-SYNC generation (not CRTC registers).
 - Mitigation: also adjust **R0** so C0 returns to the *new* R2 at the same wall-clock moment the old
   C0=R2 used to land — shrink R0 if new-R2 > old-R2, enlarge if new-R2 < old-R2 (horizontal analog
   of the R4/R7 vertical trick, §22).
-- ⚠ VERIFY p.157 — worked R2 46↔50 OUT-sequence diagrams extracted with garbled column alignment;
-  the compensation principle above is the reliable takeaway.
+- p.157 render-verified 2026-08-24: both OUT sequences are fully legible and realize exactly the
+  compensation principle above (shrink to R0=59 when going 46→50; enlarge to R0=67 when going
+  50→46), keeping the R2 hit at the same wall-clock column. A duplicated `53` cell in §15.7.2's
+  last row is a source typo.
 
 ---
 
@@ -285,8 +294,10 @@ CSYNC = SIG_GA_HSYNC XNOR SIG_GA_VSYNC
     position (bit 7, 2nd byte of word at "C0−1"). Via **OUTI** → 5th px-M2 of that same preceding
     word (bit 3, 1st byte) — **OUTI is 4 px-M2 (0.25µs) earlier** than OUT(C),r8, same asymmetry
     pattern as R2.JIT (§6).
-  - ⚠ VERIFY p.160 — pixel-M2 diagrams extracted as unusable repeating index rows; prose above is
-    the reliable source.
+  - p.160 render-verified 2026-08-24: the R7.NJIT light-cell counts (CRTC0=4, CRTC1=5, CRTC2=4,
+    CRTC4=1 leading cells before black) and both R7.JIT tables (CRTC0 identical ~20-cell extents
+    under either instruction; CRTC1/2 OUTI 4 px-M2 earlier than OUT(C),r8) match the prose
+    bullets above.
 - Reaffirms §14.2/§16.1 decoupling: R3h=1 or CRTC VSYNC cut to 2µs still gets full 26-line GA hold.
 
 ## 17. VSYNC re-trigger while GA-VSYNC in progress (§16.2.5, p.166)
@@ -571,14 +582,15 @@ Retired by the 2026-08-22 faithfulness review (text layer carries the content �
 findings-review.md): p.130 (R3 layout), p.133 (duration table — reinterpreted, §3/B1),
 p.166 (restart trace, mostly legible).
 
+Retired by the 2026-08-24 D1 visual re-verification (render-checked against
+`docs/ACCC1.10-EN.pdf`; inline notes in the sections above): pp.135–137 (R3-during-HSYNC
+dynamic-update diagrams), pp.139–140 (R3.JIT pixel-M2 positioning), pp.149–150 (R2-during-HSYNC
+per-value diagrams), p.152 (VSYNC-during-HSYNC encroachment), p.157 (R2 46↔50 OUT-sequence),
+p.160 (R7.JIT pixel-M2 positioning).
+
 Still flagged:
-- pp.135–137 — R3-during-HSYNC dynamic-update diagrams (CRTC0/2, CRTC1, CRTC3/4).
-- pp.139–140 — R3.JIT pixel-M2 positioning diagrams (CRTC0/1/2).
-- p.144 — HSYNC schematics pixel-M2 tables; aggregate totals usable from the pdftotext layer.
-- pp.149–150 — R2-during-HSYNC dynamic-update diagrams (CRTC0, CRTC1/2).
-- p.152 — VSYNC-during-HSYNC encroachment diagrams (CRTC0/1).
-- p.157 — R2 46↔50 repositioning OUT-sequence diagrams.
-- p.160 — R7.JIT pixel-M2 positioning diagrams (CRTC0/1/2/4).
+- p.144 — per-CRTC pixel-M2 tables; per-row detail remains visual-tier, but the aggregate totals
+  were re-verified against the render (see §5).
 
 All other rules are drawn from clean prose extraction. Where the source itself documents inherent
 hardware nondeterminism (§23's RMR race, §27.7.1's R52 race, §27.7.2's CRTC1 unit variance), this is

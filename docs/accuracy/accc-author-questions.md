@@ -14,7 +14,8 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
    line (i.e. is late arming possible), or does that sentence only describe an already-armed
    state surviving? A precise statement would settle how permissive the C0∈{2..R0−1} window
    is.
-2. **p.104 (§13.2.4) — cost of the R0=0 freeze.** The figure caption says freezing R0=0 for
+2. **p.104 (in the §13.2.1 run-on; rule restated under §13.2.4, p.105) — cost of the R0=0
+   freeze.** The p.104 prose says freezing R0=0 for
    64×8 µsec "amounts to 'forgetting' 8 lines (C4−1 if R9=7)". Is the intended accounting a
    loss of N/64 raster lines of display time (counters frozen, nothing progresses), or is
    there a counter-level effect we should model (what exactly does "(C4−1 …)" mean)?
@@ -100,6 +101,23 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     `f7-r0-widening-independent-review.md`). Please confirm which reading is right; SHAKER
     Module C `(1)` / D `(9)` can discriminate by restoring R9/R4 mid-extension before the
     widened line end.
+
+19. **p.219 (§19.8.1) — one-bit polarity of the type-0 IVM parity gate.** In the C9 reset
+    branch the pseudocode reads `If R9.0=0` immediately followed by the gloss "(C9 parity
+    switched if R9 is odd)", then `ParityC9 = C4.0 xor ParityFrame`. The token gates on R9
+    **even**; the gloss, §19.5.2 (p.205: with an even R9 "the parity is identical regardless of
+    the value of C4"; with an odd R9 the line parity "depends on that of C4 and on the current
+    parity at the start of the frame"), the p.206 worked R9=7 example, §19.5.3's mirror-image
+    statement for CRTC 1, and the pp.221-224 tables themselves (R9=6, no per-C4 alternation in
+    any of them, which the literal token would forbid) all point to R9 **odd**. Is `If R9.0=0`
+    a typo for `If R9.0=1`? Two related details in the same block: (a) the compared value is
+    written "R9 or ParityFrame" on p.219 but "R9 or ParityC9" on p.220 — identical while R9 is
+    even, different exactly in the alternating odd-R9 case; which one is the hardware
+    comparison? (b) in the exit tables (p.223 bottom, p.224) the character keeps counting to
+    C9=7 with R9=6 after IVM is left, without the C4 increment the parity-dropped
+    `C9.VMA == R9` test would produce at C9=6 — illustrative padding, or does leaving IVM
+    really add a line? (Render-verified 2026-08-24. The earlier three-contradiction form of
+    this question rested on misreading pp.221-224 as R9=3 and is withdrawn.)
 
 Also noted while verifying (no answer needed, listed for completeness): p.195 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay
