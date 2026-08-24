@@ -84,9 +84,27 @@ GADIFF_OBJ_DIR  := obj_dir/asic_ga_diff
 GADIFF_TEST_SRC := $(abspath asic_ga_timing_diff_test.cpp)
 GADIFF_TEST_BIN := $(GADIFF_OBJ_DIR)/asic_ga_timing_diff_tests
 
+# P1 motherboard-integration validation: pixel phase / byte order through
+# the production fetch cadence (t05h closure).
+P1VID_TOP      := p1_video_test_top
+P1VID_TOP_SRC  := $(abspath p1_video_test_top.v)
+P1VID_RTL      := $(abspath ../../rtl/plus/asic_ga_timing.v) $(abspath ../../rtl/plus/asic_video.v) \
+                   $(abspath ../../rtl/CRTC.v) $(abspath ../../rtl/crtc_type0_engine.v) \
+                   $(abspath ../../rtl/crtc_type1_engine.v) \
+                   $(abspath ../../rtl/GA40010/ga40010.sv) $(abspath ../../rtl/GA40010/casgen_sync.v) \
+                   $(abspath ../../rtl/GA40010/syncgen_sync.v) $(abspath ../../rtl/GA40010/video.sv) \
+                   $(abspath ../../rtl/GA40010/rslatch.v)
+P1VID_OBJ_DIR  := obj_dir/p1_video
+P1VID_TEST_SRC := $(abspath p1_pixel_phase_test.cpp)
+P1VID_TEST_BIN := $(P1VID_OBJ_DIR)/p1_video_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN)
+# p1_video_tests builds but is deliberately NOT in the default gate yet:
+# its stimulus/sampling calibration is unfinished (see docs/current-status.md,
+# P1 pixel-phase item). Run it explicitly via: make p1-video-bench
+OPTIN_BINS := $(P1VID_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -96,6 +114,10 @@ CXXFLAGS ?= -std=c++17 -O2
 all: test
 
 build: $(TEST_BINS)
+
+# Opt-in benches under active development; not part of `make -C sim`.
+p1-video-bench: $(P1VID_TEST_BIN)
+	./$(P1VID_TEST_BIN)
 
 test: $(TEST_BINS)
 	./$(ASIC_TEST_BIN)
@@ -164,6 +186,11 @@ $(P0BOOT_TEST_BIN): $(P0BOOT_TEST_TOP) $(P0BOOT_SDRAM) $(P0BOOT_PARSER) $(P0BOOT
 		-o $(notdir $(P0BOOT_TEST_BIN)) $(P0BOOT_TEST_TOP) $(P0BOOT_PARSER) \
 		$(P0BOOT_MEMORY) $(P0BOOT_MMU) $(P0BOOT_UNLOCK) $(P0BOOT_SDRAM) $(P0BOOT_TEST_SRC)
 
+$(P1VID_TEST_BIN): $(P1VID_TOP_SRC) $(P1VID_RTL) $(P1VID_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR --top-module $(P1VID_TOP) \
+		--Mdir $(P1VID_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(P1VID_TEST_BIN)) $(P1VID_TOP_SRC) $(P1VID_RTL) $(P1VID_TEST_SRC)
+
 $(GADIFF_TEST_BIN): $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF) $(GADIFF_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) --cc --exe --build -UVERILATOR --top-module $(GADIFF_TOP) \
 		--Mdir $(GADIFF_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
@@ -200,6 +227,8 @@ lint:
 		--top-module $(GADIFF_TOP) -Wall -Wno-fatal $(GADIFF_REPLICA)
 	$(VERILATOR) --lint-only \
 		--top-module $(GADIFF_TOP) -Wall -Wno-fatal $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF)
+	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
+		--top-module $(P1VID_TOP) -Wall -Wno-fatal $(P1VID_TOP_SRC) $(P1VID_RTL)
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)

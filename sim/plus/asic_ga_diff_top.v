@@ -77,8 +77,7 @@ module asic_ga_diff_top (
 	output wire [4:0]  as_BORDER_O,
 	output wire [79:0] as_INKR_O,
 	output wire [1:0]  as_GAMODE_O,
-	output wire        as_MODE_SYNC_EN,
-	output wire        as_VIDBUF_EN
+	output wire        as_MODE_SYNC_EN
 );
 
 	ga40010 u_ref (
@@ -159,7 +158,6 @@ module asic_ga_diff_top (
 		.ROMEN_N(as_ROMEN_N),
 		.RAMRD_N(as_RAMRD_N),
 		.ROM(as_ROM),
-		.VIDBUF_EN(as_VIDBUF_EN),
 		.HSYNC_O(as_HSYNC_O),
 		.VSYNC_O(as_VSYNC_O),
 		.SYNC_N(as_SYNC_N),
