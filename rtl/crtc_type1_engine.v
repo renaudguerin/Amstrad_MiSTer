@@ -49,6 +49,7 @@ module crtc_type1_engine
 	input      [4:0] R5_v_total_adj,
 	input      [6:0] R6_v_displayed,
 	input      [6:0] R7_v_sync_pos,
+	input      [1:0] R8_interlace,
 	input      [4:0] R9_v_max_line,
 
 	input      [7:0] hcc,
@@ -153,11 +154,12 @@ wire stage_a_edge = CLKEN && tog_stage == 2'd1;
 wire stage_b_edge = CLKEN && tog_stage == 2'd2;
 
 // Stage A (3rd us, p.209): the parity of the new C9 is the current C9.0
-// xor, when R9 is even, C4.0.  Entering IVM plants that value into C9.0
-// immediately (every pp.210-211 panel's C9 row shows the write one
-// character after the entering write); a leaving write does not touch C9.0
-// at its stage A -- the panels hold C9.0 through the "off" column and take
-// the new value only at stage B.
+// xor, when R9 is even, C4.0 -- and C9.0 takes that value immediately, in
+// BOTH directions.  p.209 states the 3rd-us rule once ("when R8 changes
+// from 3 to 0 or vice versa") and the leaving 4th-us rule is only
+// ParityFrame = ParityC9; the four X=1 panels (4(D), 2(B), 12(L), 1(A))
+// draw C9.0 changing in the leaving write's 3rd-us column, one character
+// before the off cell.  (Review finding B-1, 2026-08-25.)
 wire stage_a_x = row[0] & ~R9_v_max_line[0];
 wire stage_a_pc9 = line[0] ^ stage_a_x;
 
@@ -190,6 +192,13 @@ always @(posedge CLOCK) begin
 			else if(stage_b_edge) begin
 				tog_stage <= 2'd0;
 			end
+			else if(tog_stage == 2'd0) begin
+				// No toggle in flight: track the register.  This is what
+				// engages IVM when R8=3 is already programmed at reset or
+				// arrives through a snapshot load -- there is no toggle
+				// write to run the stage machine in that case.
+				ivm <= (R8_interlace == 2'b11);
+			end
 		end
 	end
 	else begin
@@ -212,7 +221,10 @@ wire [5:0] c9_pre = {1'b0, line} + (R9_v_max_line[0] ? 6'd0 : 6'd1);
 wire ivm_row_end = ((c9_pre[4:0] & 5'b11110) == (R9_v_max_line & 5'b11110));
 wire [4:0] c9_ivm_step = R9_v_max_line[0] ? (c9_pre[4:0] + 5'd2)
                                           : (c9_pre[4:0] + 5'd1);
-wire [4:0] pc9_toggled = R9_v_max_line[0] ? parity_c9 : ~parity_c9;
+// The concat forces 1-bit context for the invert: a bare `~parity_c9`
+// arm would be widened to 5 bits first and ~{4'b0, pc9} = 5'b11111.
+wire [4:0] pc9_toggled = {4'b0000, R9_v_max_line[0] ? parity_c9
+                                                    : ~parity_c9};
 
 wire [4:0] crtc1_line_max = R9_v_max_line;
 
@@ -328,17 +340,20 @@ wire       frame_new_w = row_new & row_frame_last;
 
 // Parity update decisions for the wrapper's shared flops.  ParityFrame
 // toggles at every C4=C9=C0=0 frame boundary regardless of R8 (p.208);
-// ParityC9 toggles at each genuine C4 increment when R9 is even (p.209).
-// A stage edge coinciding with either wins: the OUT stages carry the
+// ParityC9 toggles at each C4-increment row end when R9 is even -- per the
+// p.225 match branch, which toggles the flop and restarts C9 from it as one
+// step, including the C4=0 frame-boundary arm (review finding B-2).  A
+// stage edge coinciding with either wins: the OUT stages carry the
 // documented value semantics; that coincidence itself is unpinned.
-wire c4_increment_toggle = row_new && !frame_new_w && !R9_v_max_line[0];
-assign pc9_write = stage_a_edge || stage_b_edge || c4_increment_toggle;
+wire c4_increment_toggle = row_new && !R9_v_max_line[0];
+assign pc9_write = stage_a_edge || (stage_b_edge && tog_enter) ||
+                   c4_increment_toggle;
 assign pc9_value = stage_a_edge ? stage_a_pc9 :
                    stage_b_edge ? stage_b_pc9_value : ~parity_c9;
 assign pf_write = stage_b_edge || frame_new_w;
 assign pf_value = stage_b_edge ? (tog_enter ? stage_b_pf_value : parity_c9)
                                : ~parity_frame;
-assign line_poke = (stage_a_edge && tog_enter) || stage_b_edge;
+assign line_poke = stage_a_edge || stage_b_edge;
 assign line_poke_bit = stage_a_edge ? stage_a_pc9 :
                        tog_enter    ? stage_b_pc9_value : parity_c9;
 
