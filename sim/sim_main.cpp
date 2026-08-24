@@ -273,6 +273,12 @@ public:
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_vsync_wait_line_start);
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__r6_border_condition);
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__status_bit5_r);
+        // F10 fixture stage (2026-08-24): the shared interlace parity flops
+        // join the sampled projection while they still hold reset values.
+        // Field-set expansion only; no RTL behaviour change in this commit.
+        mix(r.CRTC__DOT__parity_frame);
+        mix(r.CRTC__DOT__parity_c9);
+        mix(r.CRTC__DOT__parity_r6);
     }
 
     void expect_byte(const std::string& expectation,
@@ -417,6 +423,99 @@ public:
                                   bool expected) const {
         expect_byte(expectation, expected,
                     dut_->rootp->CRTC__DOT__crtc_type1_engine__DOT__rfd_r0_pending);
+    }
+
+    // Known-divergence variants of the counter/parity assertions: identical
+    // checks, but a violation throws KnownDivergenceFailure so a test
+    // registered with known_divergence=true reports XFAIL instead of FAIL.
+    // House pattern from the F4 fixture commit: the F10 behavior commit
+    // replaces these with the plain expect_* forms and flips the flag.
+    void expect_known_byte(const std::string& expectation,
+                           std::uint8_t expected,
+                           std::uint8_t actual) const {
+        if (actual != expected) {
+            known_divergence(expectation + " == " + std::to_string(expected),
+                             static_cast<unsigned>(actual));
+        }
+    }
+
+    void expect_known_line(const std::string& expectation,
+                           std::uint8_t expected) const {
+        expect_known_byte(expectation, expected, dut_->rootp->CRTC__DOT__line);
+    }
+
+    void expect_known_c4(const std::string& expectation,
+                         std::uint8_t expected) const {
+        expect_known_byte(expectation, expected, dut_->rootp->CRTC__DOT__row);
+    }
+
+    void expect_known_parity_frame(const std::string& expectation,
+                                   bool expected) const {
+        expect_known_byte(expectation, expected,
+                          dut_->rootp->CRTC__DOT__parity_frame);
+    }
+
+    void expect_known_parity_c9(const std::string& expectation,
+                                bool expected) const {
+        expect_known_byte(expectation, expected,
+                          dut_->rootp->CRTC__DOT__parity_c9);
+    }
+
+    void expect_known_line_parity(const std::string& expectation,
+                                  bool expected) const {
+        expect_known_byte(expectation, expected,
+                          dut_->rootp->CRTC__DOT__line & 1);
+    }
+
+    // Internal-state accessors for the F10 fixture setup walkers.
+    std::uint8_t c0() const {
+        return dut_->rootp->CRTC__DOT__hcc;
+    }
+
+    std::uint8_t line_reg() const {
+        return dut_->rootp->CRTC__DOT__line;
+    }
+
+    std::uint8_t c4_reg() const {
+        return dut_->rootp->CRTC__DOT__row;
+    }
+
+    // Advance until the character counter equals target (early in that
+    // character: just after the CLKEN edge that loaded it).
+    void run_to_c0(std::uint8_t target) {
+        while (c0() != target) {
+            run_clock_ticks(1);
+        }
+    }
+
+    // Advance whole lines until C9 equals target mid-line, bounded so a DUT
+    // whose stepping cannot reach the value (pre-F10 approximation) returns
+    // false instead of hanging.  Leaves the bench early in the character
+    // phase kTargetC0 of the reached line.
+    static constexpr std::uint8_t kF10TargetC0 = 4;
+    bool run_to_line_mid(std::uint8_t target, unsigned max_lines) {
+        for (unsigned guard = 0; guard < max_lines; ++guard) {
+            run_to_c0(kF10TargetC0);
+            if (line_reg() == target) {
+                return true;
+            }
+            run_characters(1);
+        }
+        return line_reg() == target;
+    }
+
+    // Advance whole lines until the frame origin (C4=C9=0) recurs, bounded.
+    // Used to reach a known ParityFrame phase; leaves the bench early in
+    // character kF10TargetC0 of the first line of the new frame.
+    bool run_to_frame_start(unsigned max_lines) {
+        for (unsigned guard = 0; guard < max_lines; ++guard) {
+            run_to_c0(kF10TargetC0);
+            if (c4_reg() == 0 && line_reg() == 0) {
+                return true;
+            }
+            run_characters(1);
+        }
+        return false;
     }
 
     std::uint16_t ma() const {
@@ -4376,6 +4475,406 @@ void test_type0_skew_non_output_blanks(TestBench& test) {
                       "type 0 R1>R0 skew non-output stays blanked");
 }
 
+// ---------------------------------------------------------------------------
+// t21: F10 type-1 IVM toggle parity table (ACCC v1.10 sections 19.5.3 p.208,
+// 19.8.2 setup p.209, and the 16 SHAKER 22C/3 truth-table panels on
+// pp.210-211; render-verified 2026-08-24 under the extract protocol).
+//
+// Each panel is one configuration of {initial ParityFrame, C4.0, R9.0, C9.0}
+// with an OUT R8,3 ("on") followed by an OUT R8,0 ("off") mid-line.  The
+// panels' callouts pin the parity state after each update stage, and the
+// panels' C9 rows pin the C9.0 writes.  Both fit the documented two-stage
+// rule exactly (all 64 callouts cross-checked against the pseudocode):
+//
+//   3rd us (stage A, the character edge after the write):
+//     ParityC9 := C9.0 xor (C4.0 and not R9.0);  C9.0 := ParityC9
+//   4th us (stage B, one character edge later):
+//     entering IVM: if ParityFrame even, ParityC9 := C4.0 and not R9.0
+//                   ParityFrame := ParityFrame and (ParityC9 xor (C4.0 and
+//                                                     not R9.0))
+//                   C9.0 := ParityC9
+//     leaving IVM:  ParityFrame := ParityC9;  C9.0 := ParityC9
+//
+// Fixture timing convention (matches every panel's C9 row): the R8 write
+// lands early in character C0=W, stage A applies at the character edge that
+// starts C0=W+1 (the panel's "on"/"off" column), stage B at the edge that
+// starts C0=W+2.  The panels' drawn Parity rows are internally inconsistent
+// by one character on the ODD page (source drawing quirk, same tier as the
+// flagged C9-column quirks of the pp.221-224 tables); the callouts and the
+// C9 rows are the oracle, and this fixture asserts exactly those.
+//
+// Setup reaches each panel's precondition without IVM ever being active:
+// R9=1 gives plain 2-line rows; a mid-line R9:=0 write then realizes the
+// R9.0=0 panels with C9.0=1 (impossible to reach under R9=0 alone, since
+// C9 resets at every row end); one R4=0 frame boundary toggles ParityFrame
+// for the ODD panels (section 19.5.3: toggles every frame regardless of R8).
+// ParityC9's drawn initial value never enters an expectation: stage A
+// overwrites it first.
+
+struct T21Panel {
+    const char* shaker_tests;
+    bool parity_frame_odd;
+    bool c4_odd;
+    bool r9_odd;
+    bool c9_odd;
+};
+
+void t21_run_panel(TestBench& test, const T21Panel& panel) {
+    const bool pf1 = panel.parity_frame_odd;
+    const bool c4b = panel.c4_odd;
+    const bool r9b = panel.r9_odd;
+    const bool c9b = panel.c9_odd;
+    const bool x_term = c4b && !r9b;            // C4.0 and not R9.0
+    const bool stage_a = c9b ^ x_term;          // ParityC9 after stage A
+    const bool stage_b_pf = pf1 && c9b;         // PF and (ParC9 xor X)
+    const bool stage_b_pc9 = pf1 ? stage_a : x_term;
+    const bool off_a = stage_b_pc9 ^ x_term;    // C9.0(now) xor X
+    const std::string tag = std::string("t21 panel ") + panel.shaker_tests;
+
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, pf1 ? 0 : 63},
+        {5, 0},  {6, 63}, {7, 63}, {8, 0},    {9, 1},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    if (pf1) {
+        // One R4=0 frame (2 lines) crosses the frame origin; ParityFrame
+        // toggles to odd at C4=C9=C0=0 (section 19.5.3 p.208).  Then pin the
+        // frame length out of the way so no later row end ends the frame.
+        test.run_characters(2 * 64);
+        test.write_register(4, 63);
+    }
+
+    // Row ends (2 lines each with R9=1) advance C4; stop one row short of
+    // the R4=63 frame end.  C4 parity is now c4b and C9 restarts at 0.
+    if (c4b) {
+        test.run_characters(2 * 64);
+    }
+
+    // Reach C9=c9b mid-line.  With R9=1 the second line of a row holds C9=1;
+    // for the R9.0=0 panels the mid-line R9:=0 write then realizes the
+    // panel's register state with C9.0 already 1.
+    if (c9b) {
+        test.run_characters(64);
+    }
+    if (!r9b) {
+        test.write_register(9, 0);
+    }
+    test.expect_known_c4(tag + " setup C4 parity", c4b);
+    test.expect_known_line(tag + " setup C9", c9b);
+
+    // OUT R8,3 with enough line left that both stages and the later OUT R8,0
+    // complete inside the same line (the R9:=0 setup write above lands around
+    // C0=5, so the toggle point sits at C0=20 rather than the panels' C0=4;
+    // the panels pin the +1/+2 character stage offsets, not the absolute C0).
+    // Stage A applies at the start of the character after the write (the
+    // panel's "on" column), stage B at the start of the one after it.
+    test.run_to_c0(20);
+    test.select_register(8);
+    test.write_selected_register_now(3);
+    test.run_characters(1);
+    test.expect_known_parity_c9(tag + " stage A ParityC9", stage_a);
+    test.expect_known_line_parity(tag + " stage A C9.0", stage_a);
+    test.expect_known_parity_frame(tag + " stage A ParityFrame held", pf1);
+    test.run_characters(1);
+    test.expect_known_parity_c9(tag + " stage B ParityC9", stage_b_pc9);
+    test.expect_known_parity_frame(tag + " stage B ParityFrame", stage_b_pf);
+    test.expect_known_line_parity(tag + " stage B C9.0", stage_b_pc9);
+
+    // OUT R8,0 seven characters later; off stage A at the next character
+    // edge, off stage B at the one after.
+    test.run_to_c0(27);
+    test.select_register(8);
+    test.write_selected_register_now(0);
+    test.run_characters(1);
+    test.expect_known_parity_c9(tag + " off stage A ParityC9", off_a);
+    test.expect_known_line_parity(tag + " off stage A C9.0 held",
+                                  stage_b_pc9);
+    test.run_characters(1);
+    test.expect_known_parity_frame(tag + " off stage B ParityFrame", off_a);
+    test.expect_known_line_parity(tag + " off stage B C9.0", off_a);
+}
+
+// The 16 panel configurations in pp.210-211 layout order: EVEN page first
+// (initial parity even), ODD page second; within a page C4.0=0 quadrant
+// above C4.0=1, R9.0=0 column left of R9.0=1, C9.0=0 panel above C9.0=1.
+constexpr T21Panel kT21Panels[] = {
+    {"19(S),23(W)", false, false, false, false},
+    {"17(Q),21(U),25(Y1)", false, false, false, true},
+    {"4(D),8(H)", false, true, false, false},
+    {"2(B),6(F)", false, true, false, true},
+    {"20(T),24(X)", false, false, true, false},
+    {"18(R),22(V),26(Z1)", false, false, true, true},
+    {"5(E),9(I)", false, true, true, false},
+    {"3(C),7(G)", false, true, true, true},
+    {"27(ZA),29(ZC)", true, false, false, false},
+    {"16(P),25(Y2)", true, false, false, true},
+    {"12(L),14(N)", true, true, false, false},
+    {"1(A),10(J2)", true, true, false, true},
+    {"28(ZB),30(ZD)", true, false, true, false},
+    {"26(Z)", true, false, true, true},
+    {"(M),15(O)", true, true, true, false},
+    {"11(K2)", true, true, true, true},
+};
+
+// Configurations whose every documented expectation is zero, including the
+// held ParityFrame sample (so parity_frame_even, X = 0 and C9.0 = 0): the
+// inert-parity DUT already satisfies them, so they register as required
+// controls from the start; the other thirteen carry the XFAIL marker until
+// the type-1 F10 behavior commit flips them.
+bool t21_panel_is_zero_control(const T21Panel& panel) {
+    return !panel.parity_frame_odd && !panel.c9_odd &&
+           !(panel.c4_odd && !panel.r9_odd);
+}
+
+void t21_run_indexed(TestBench& test, unsigned index) {
+    t21_run_panel(test, kT21Panels[index]);
+}
+
+#define T21_TEST(name, idx)                                        \
+    void name(TestBench& test) { t21_run_indexed(test, idx); }
+
+T21_TEST(t21_body_00, 0)
+T21_TEST(t21_body_01, 1)
+T21_TEST(t21_body_02, 2)
+T21_TEST(t21_body_03, 3)
+T21_TEST(t21_body_04, 4)
+T21_TEST(t21_body_05, 5)
+T21_TEST(t21_body_06, 6)
+T21_TEST(t21_body_07, 7)
+T21_TEST(t21_body_08, 8)
+T21_TEST(t21_body_09, 9)
+T21_TEST(t21_body_10, 10)
+T21_TEST(t21_body_11, 11)
+T21_TEST(t21_body_12, 12)
+T21_TEST(t21_body_13, 13)
+T21_TEST(t21_body_14, 14)
+T21_TEST(t21_body_15, 15)
+
+#undef T21_TEST
+
+// ---------------------------------------------------------------------------
+// t22: F10 type-0 IVM entry/exit counting fixtures for even R9 (ACCC v1.10
+// sections 19.8.1 pp.219-220 pseudocode and prose; the worked tables
+// pp.221-224, render-verified 2026-08-24; all tables use R9=6).
+//
+// Documented model spliced from p.219-220 (all cited values from the tables'
+// C9-VMA columns and the reliable segments of their C9 columns):
+//
+//   - C9.VMA = (C9 x 2 + ParityC9) mod 32 is the address-visible line value
+//     while IVM is active ("the more significant bit is lost", p.219).
+//   - Switch line (R8 written to 3 during it): the end-of-line test uses the
+//     raw C9 against "R9 or ParityFrame"; the doubled value and doubled test
+//     start at the next C0=0 (p.219 prose, every entry table).
+//   - Steady IVM: row ends when C9.VMA == "R9 or ParityC9" (== R9 or
+//     ParityFrame for the even R9 these tables use; the p.220 "R9 or
+//     ParityC9" variant is indistinguishable here, divergence is Q19(a)).
+//   - Exit line (R8 written to 0 during it): the end test uses C9.VMA
+//     against plain R9 (p.220 prose; p.223 bottom-right table shows the
+//     matching case resetting C9 and incrementing C4; p.224 bottom-right
+//     shows the C9.VMA = R9+1 case incrementing C9 without a row end -- the
+//     documented p.220 worked example).
+//   - After the exit line, plain C9-vs-R9 counting resumes immediately.
+//
+// Fixture scope notes: the post-exit row-end behavior (six of eight exit
+// tables run C9 to 7 with R9=6 without the predicted C4 increment) is
+// author question Q19(b) and is deliberately not asserted; the settled
+// C4>=1 blocks of the tables print the doubled value in the C9 column
+// (flagged source quirk) so post-reset expectations follow the pseudocode
+// (C9 restarts at 0 and steps by 1) with the tables' C9-VMA column as the
+// cross-check.  Odd-R9 alternation waits on Q19 and is out of scope.
+
+struct T22Step {
+    std::uint8_t c4;
+    std::uint8_t c9;
+};
+
+// Common t22 register frame: R4=63 keeps frame boundaries out of every
+// sequence; R6 selects the frame parity (63 = frozen even, 1 = odd from the
+// second frame); R7=63 keeps VSYNC quiet.
+void t22_configure(TestBench& test, bool odd_frame) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, 63},
+        {5, 0},  {6, odd_frame ? 1 : 63}, {7, 63}, {8, 0}, {9, 6},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    if (odd_frame) {
+        // Run one full frame (64 rows x 7 lines) and stop at its origin:
+        // ParityFrame snapshots the ParityR6 that C4=R6 flipped during the
+        // frame, so frame 2 is the odd frame (section 19.5.2 p.205).
+        test.run_to_frame_start(600);
+        test.expect_known_c4("t22 odd-frame setup reaches frame origin", 0);
+    }
+}
+
+// Walk a documented (C4, C9) sequence, one 64-character line per step,
+// starting with the switch/exit line itself.
+void t22_walk(TestBench& test, const char* tag,
+              const std::vector<T22Step>& steps) {
+    for (size_t i = 0; i < steps.size(); ++i) {
+        if (i != 0) {
+            test.run_characters(64);
+        }
+        const std::string prefix = std::string(tag) + " line " +
+                                   std::to_string(i);
+        test.expect_known_c4(prefix + " C4", steps[i].c4);
+        test.expect_known_line(prefix + " C9", steps[i].c9);
+    }
+}
+
+std::vector<T22Step> t22_tail_after_row_end(std::uint8_t c4) {
+    // After any row end: C9 restarts at 0 and steps by 1 (pseudocode p.219);
+    // two settled lines are asserted, well before the next limit.
+    return {{c4, 0}, {c4, 1}, {c4, 2}};
+}
+
+// Entry fixtures: write R8,3 early in character 4 of the line whose C9 equals
+// `offset`, then walk the documented sequence.
+void t22_run_entry(TestBench& test, bool odd_frame, std::uint8_t offset,
+                   bool overflow) {
+    t22_configure(test, odd_frame);
+    // Odd offsets (C9=1/3) are unreachable under the pre-F10 stepping (C9
+    // moves by 2 with bit 0 masked), so the setup walker reports the
+    // divergence through the known-divergence assertion below.
+    test.run_to_line_mid(offset, 40);
+    test.expect_known_line("t22 entry setup reaches C9", offset);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(8);
+    test.write_selected_register_now(3);
+
+    const std::uint8_t c4 = 0;
+    std::vector<T22Step> steps;
+    steps.push_back({c4, offset});  // switch line: display and raw-C9 test
+    if (overflow) {
+        // C9 ran past the target on the switch line: the doubled value
+        // (C9 x 2) mod 32 first reaches R9 (even frame) / R9+1 (odd frame)
+        // again at C9=19 (38 mod 32 = 6), giving the documented 16-line run.
+        for (std::uint8_t c9 = static_cast<std::uint8_t>(offset + 1);
+             c9 <= 19; ++c9) {
+            steps.push_back({c4, c9});
+        }
+    } else {
+        // Steady IVM: the doubled value reaches the limit at
+        // C9 = 3 (even frame, 6) or C9 = 3 (odd frame, 7 = 6|1) for the
+        // offsets these fixtures use; intermediate lines step C9 by 1.
+        std::uint8_t c9 = static_cast<std::uint8_t>(offset + 1);
+        while (c9 < 3) {
+            steps.push_back({c4, c9});
+            c9 = static_cast<std::uint8_t>(c9 + 1);
+        }
+        steps.push_back({c4, 3});  // limit line: C9.VMA == R9 or parity
+    }
+    // Row end consumed the limit line: C4 increments, C9 restarts.
+    auto tail = t22_tail_after_row_end(c4 + 1);
+    steps.insert(steps.end(), tail.begin(), tail.end());
+    t22_walk(test, "t22 entry", steps);
+}
+
+void t22_entry_even_0(TestBench& test) { t22_run_entry(test, false, 0, false); }
+void t22_entry_even_1(TestBench& test) { t22_run_entry(test, false, 1, false); }
+void t22_entry_even_2(TestBench& test) { t22_run_entry(test, false, 2, false); }
+void t22_entry_even_3(TestBench& test) { t22_run_entry(test, false, 3, true); }
+void t22_entry_even_4(TestBench& test) { t22_run_entry(test, false, 4, true); }
+void t22_entry_even_5(TestBench& test) { t22_run_entry(test, false, 5, true); }
+void t22_entry_odd_0(TestBench& test) { t22_run_entry(test, true, 0, false); }
+void t22_entry_odd_1(TestBench& test) { t22_run_entry(test, true, 1, false); }
+void t22_entry_odd_3(TestBench& test) { t22_run_entry(test, true, 3, true); }
+
+void t22_entry_even_6(TestBench& test) {
+    // p.223 top-left: switching at C9=6=R9 on the even frame matches the raw
+    // test immediately, so the switch line itself ends the row.
+    t22_configure(test, false);
+    test.run_to_line_mid(6, 40);
+    test.expect_known_line("t22 entry setup reaches C9", 6);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(8);
+    test.write_selected_register_now(3);
+    const std::vector<T22Step> steps = {
+        {0, 6},  // switch line ends the row (raw C9 = 6 == R9)
+        {1, 0}, {1, 1}, {1, 2},
+        {1, 3},  // next doubled limit (C9.VMA = 6)
+        {2, 0}, {2, 1}, {2, 2},
+    };
+    t22_walk(test, "t22 entry even 6", steps);
+}
+
+void t22_entry_odd_6(TestBench& test) {
+    // p.223 top-right: on the odd frame the raw test compares 6 against
+    // R9 or ParityFrame = 7, fails, and C9 overflows -- the documented split
+    // against the even frame's immediate reset.
+    t22_configure(test, true);
+    test.run_to_line_mid(6, 40);
+    test.expect_known_line("t22 entry setup reaches C9", 6);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(8);
+    test.write_selected_register_now(3);
+    std::vector<T22Step> steps = {{0, 6}};
+    for (std::uint8_t c9 = 7; c9 <= 19; ++c9) {
+        steps.push_back({0, c9});
+    }
+    steps.push_back({1, 0});
+    steps.push_back({1, 1});
+    steps.push_back({1, 2});
+    steps.push_back({1, 3});  // doubled limit on the odd frame: C9.VMA = 7
+    steps.push_back({2, 0});
+    t22_walk(test, "t22 entry odd 6", steps);
+}
+
+// Exit fixtures: enter IVM on line 0 of the chosen frame parity, run to the
+// exit line, write R8,0 early in character 4 of that line, then walk.
+void t22_run_exit(TestBench& test, bool odd_frame, std::uint8_t exit_offset,
+                  const std::vector<T22Step>& steps) {
+    t22_configure(test, odd_frame);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(8);
+    test.write_selected_register_now(3);  // enter IVM on line 0
+    // Run to the exit line: with IVM active C9 steps by 1 from 0 (p.219),
+    // so exit_offset lines later C9 == exit_offset mid-line.
+    for (std::uint8_t n = 0; n < exit_offset; ++n) {
+        test.run_characters(64);
+    }
+    test.expect_known_line("t22 exit setup reaches C9", exit_offset);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(8);
+    test.write_selected_register_now(0);
+    t22_walk(test, "t22 exit", steps);
+}
+
+void t22_exit_even_at_limit(TestBench& test) {
+    // p.223 bottom-right: exiting on the line whose C9.VMA = 6 = R9 still
+    // ends the row (parity dropped from the target only): C9 resets to 0
+    // and C4 increments.
+    t22_run_exit(test, false, 3, {{0, 3}, {1, 0}, {1, 1}, {1, 2}});
+}
+
+void t22_exit_odd_at_r9_plus_1(TestBench& test) {
+    // p.224 bottom-right and the p.220 worked example: exiting on the line
+    // whose C9.VMA = 7 = R9+1 misses the parity-dropped test, so C9 is
+    // incremented (to 4) instead of resetting.  The walk stops before the
+    // post-exit row-end zone left open by Q19(b).
+    t22_run_exit(test, true, 3, {{0, 3}, {1, 4}, {1, 5}});
+}
+
+void t22_exit_odd_below_limit(TestBench& test) {
+    // p.224 second table: exiting at C9.VMA = 5 < 6 misses; C9 continues
+    // with the plain +1 stepping from the next line.
+    t22_run_exit(test, true, 2, {{0, 2}, {1, 3}, {1, 4}});
+}
+
+void t22_exit_even_below_limit(TestBench& test) {
+    // p.223 bottom-left: same shape on the even frame (C9.VMA = 4 < 6).
+    // Stops before the table's Q19(b) tail.
+    t22_run_exit(test, false, 2, {{0, 2}, {1, 3}, {1, 4}});
+}
+
 }  // namespace
 
 //============================================================================
@@ -4879,6 +5378,107 @@ int main(int argc, char** argv) {
         {"t10e_type0_skew_non_output_blanks",
          "ACCC v1.10 sections 19.2 and 19.1; F6 suppression path", false,
          test_type0_skew_non_output_blanks},
+        // t21: F10 type-1 IVM toggle parity table (ACCC pp.210-211 panels).
+        // The six all-zero configurations are required controls; the ten
+        // with nonzero expectations carry the XFAIL marker until the
+        // type-1 F10 behavior commit.
+        {"t21a_type1_ivm_toggle_19S_23W",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 19/23 (p.210); F10",
+         false, t21_body_00},
+        {"t21b_type1_ivm_toggle_17Q_21U_25Y1",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 17/21/25 (p.210); F10",
+         true, t21_body_01},
+        {"t21c_type1_ivm_toggle_4D_8H",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 4/8 (p.210); F10",
+         true, t21_body_02},
+        {"t21d_type1_ivm_toggle_2B_6F",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 2/6 (p.210); F10",
+         true, t21_body_03},
+        {"t21e_type1_ivm_toggle_20T_24X",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 20/24 (p.210); F10",
+         false, t21_body_04},
+        {"t21f_type1_ivm_toggle_18R_22V_26Z1",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 18/22/26 (p.210); F10",
+         true, t21_body_05},
+        {"t21g_type1_ivm_toggle_5E_9I",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 5/9 (p.210); F10",
+         false, t21_body_06},
+        {"t21h_type1_ivm_toggle_3C_7G",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 3/7 (p.210); F10",
+         true, t21_body_07},
+        {"t21i_type1_ivm_toggle_27ZA_29ZC",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 27/29 (p.211); F10",
+         true, t21_body_08},
+        {"t21j_type1_ivm_toggle_16P_25Y2",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 16/25 (p.211); F10",
+         true, t21_body_09},
+        {"t21k_type1_ivm_toggle_12L_14N",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 12/14 (p.211); F10",
+         true, t21_body_10},
+        {"t21l_type1_ivm_toggle_1A_10J2",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 1/10 (p.211); F10",
+         true, t21_body_11},
+        {"t21m_type1_ivm_toggle_28ZB_30ZD",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 28/30 (p.211); F10",
+         true, t21_body_12},
+        {"t21n_type1_ivm_toggle_26Z",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 test 26 (p.211); F10",
+         true, t21_body_13},
+        {"t21o_type1_ivm_toggle_M_15O",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests (M)/15 (p.211); F10",
+         true, t21_body_14},
+        {"t21p_type1_ivm_toggle_11K2",
+         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 test 11 (p.211); F10",
+         true, t21_body_15},
+        // t22: F10 type-0 IVM entry/exit counting for even R9 (ACCC
+        // pp.219-224).  All diverge from the pre-F10 stepping approximation
+        // (C9 stepping by 2 with bit 0 masked, halved limit) and carry the
+        // XFAIL marker until the type-0 F10 behavior commit.
+        {"t22a_type0_ivm_entry_even_c9_0",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=0, even frame); F10",
+         true, t22_entry_even_0},
+        {"t22b_type0_ivm_entry_even_c9_1",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=1, even frame); F10",
+         true, t22_entry_even_1},
+        {"t22c_type0_ivm_entry_even_c9_2",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=2, even frame); F10",
+         true, t22_entry_even_2},
+        {"t22d_type0_ivm_entry_even_c9_3",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=3, even frame overflow); F10",
+         true, t22_entry_even_3},
+        {"t22e_type0_ivm_entry_even_c9_4",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.222 (switch at C9=4, even frame); F10",
+         true, t22_entry_even_4},
+        {"t22f_type0_ivm_entry_even_c9_5",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.222 (switch at C9=5, even frame); F10",
+         true, t22_entry_even_5},
+        {"t22g_type0_ivm_entry_even_c9_6",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.223 top (switch at C9=6, even frame reset); F10",
+         true, t22_entry_even_6},
+        {"t22h_type0_ivm_entry_odd_c9_0",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=0, odd frame); F10",
+         true, t22_entry_odd_0},
+        {"t22i_type0_ivm_entry_odd_c9_1",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=1, odd frame); F10",
+         true, t22_entry_odd_1},
+        {"t22j_type0_ivm_entry_odd_c9_3",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=3, odd frame overflow); F10",
+         true, t22_entry_odd_3},
+        {"t22k_type0_ivm_entry_odd_c9_6",
+         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.223 top (switch at C9=6, odd frame overflow); F10",
+         true, t22_entry_odd_6},
+        {"t22l_type0_ivm_exit_even_at_limit",
+         "ACCC v1.10 section 19.8.1 p.220 and table p.223 bottom (exit at C9.VMA=R9); F10",
+         true, t22_exit_even_at_limit},
+        {"t22m_type0_ivm_exit_odd_at_r9_plus_1",
+         "ACCC v1.10 section 19.8.1 p.220 worked example and table p.224 (exit at C9.VMA=R9+1); F10",
+         true, t22_exit_odd_at_r9_plus_1},
+        {"t22n_type0_ivm_exit_odd_below_limit",
+         "ACCC v1.10 section 19.8.1 p.220 and table p.224 (exit at C9.VMA<R9, odd frame); F10",
+         true, t22_exit_odd_below_limit},
+        {"t22o_type0_ivm_exit_even_below_limit",
+         "ACCC v1.10 section 19.8.1 p.220 and table p.223 bottom (exit at C9.VMA<R9, even frame); F10",
+         true, t22_exit_even_below_limit},
     };
 
     unsigned passed = 0;
