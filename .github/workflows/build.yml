@@ -9,12 +9,6 @@ on:
   # required-gate check and can leave branch protection pending forever.
   pull_request:
   workflow_dispatch:
-    inputs:
-      clean_quartus_build:
-        description: "Build without restoring or saving the Quartus database"
-        required: false
-        default: true
-        type: boolean
 
 permissions:
   contents: read
@@ -32,8 +26,6 @@ jobs:
     outputs:
       required: ${{ steps.classify.outputs.required }}
       reason: ${{ steps.classify.outputs.reason }}
-      cache_enabled: ${{ steps.classify.outputs.cache_enabled }}
-
     steps:
       - name: Check out source and history
         uses: actions/checkout@v4
@@ -50,13 +42,11 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           BEFORE_SHA: ${{ github.event.before }}
-          CLEAN_QUARTUS_BUILD: ${{ inputs.clean_quartus_build }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           # Branches where work integrates and therefore must synthesize on
           # every push that touches the build.  Space-separated.
           INTEGRATION_BRANCHES: "accc-review-and-fixes"
           REF_NAME: ${{ github.ref_name }}
-          REF_TYPE: ${{ github.ref_type }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -64,7 +54,6 @@ jobs:
           set -euo pipefail
 
           required=false
-          cache_enabled=false
           compare_paths=false
           fallback_ref="origin/$DEFAULT_BRANCH"
           reason="ordinary feature-branch change"
@@ -72,10 +61,6 @@ jobs:
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             required=true
             reason="manual milestone dispatch"
-            if [[ "$CLEAN_QUARTUS_BUILD" == "false" && \
-                  "$REF_TYPE" == "branch" && "$REF_NAME" != "$DEFAULT_BRANCH" ]]; then
-              cache_enabled=true
-            fi
           elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
             required=true
             reason="tagged milestone"
@@ -96,7 +81,6 @@ jobs:
             # at the merge, at ~12 minutes a time.
             head_sha="$GITHUB_SHA"
             base_sha="$BEFORE_SHA"
-            cache_enabled=true
             compare_paths=true
             reason="integration-branch push"
           else
@@ -110,7 +94,6 @@ jobs:
                 reason="new or rewritten ref compared with its integration branch"
               else
                 required=true
-                cache_enabled=false
                 reason="unable to establish safe comparison base"
               fi
             elif [[ "$EVENT_NAME" == "pull_request" ]]; then
@@ -132,9 +115,7 @@ jobs:
 
           printf 'required=%s\n' "$required" >> "$GITHUB_OUTPUT"
           printf 'reason=%s\n' "$reason" >> "$GITHUB_OUTPUT"
-          printf 'cache_enabled=%s\n' "$cache_enabled" >> "$GITHUB_OUTPUT"
-          printf 'Full synthesis required: %s (%s); Quartus database reuse: %s\n' \
-            "$required" "$reason" "$cache_enabled"
+          printf 'Full synthesis required: %s (%s)\n' "$required" "$reason"
 
   simulation:
     runs-on: ubuntu-latest
@@ -173,19 +154,16 @@ jobs:
           # in .git/config when the checkout is mounted into the build container.
           persist-credentials: false
 
-      - name: Restore branch Quartus database
-        id: quartus-cache
-        if: needs.synthesis-policy.outputs.cache_enabled == 'true'
-        continue-on-error: true
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            db
-            incremental_db
-          # Change the epoch whenever the Quartus image or database policy moves.
-          key: quartus-db-17.0.2-55442b16-v1-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
-          restore-keys: |
-            quartus-db-17.0.2-55442b16-v1-${{ runner.os }}-${{ github.ref_name }}-
+      # D2 conclusion (2026-08-24): the branch database cache was removed.
+      # Restoring db/incremental_db saved nothing -- the design has no QSF
+      # design partitions exporting post-fit netlists (the fitter report's
+      # only partition is the default Top with 'Netlist Type Used: Source
+      # File'), so 'quartus_sh --flow compile' re-runs analysis & synthesis
+      # and re-fits from source every time and simply overwrites the
+      # restored databases.  Measured on run 32657783842 with a restored
+      # cache: 10:06 flow time (fitter 8:07 dominates), identical to clean
+      # runs.  Reintroduce only together with a partitioned incremental
+      # compilation policy.
 
       - name: Compile Amstrad core
         shell: bash
@@ -199,38 +177,17 @@ jobs:
             quartus_sh --flow compile Amstrad.qpf \
             2>&1 | tee artifacts/reports/quartus-build.log
 
-      - name: Summarize Quartus database reuse
+      - name: Record synthesis provenance
         id: cache-provenance
         if: always()
         shell: bash
-        env:
-          CACHE_ENABLED: ${{ needs.synthesis-policy.outputs.cache_enabled }}
-          CACHE_PRIMARY_KEY: ${{ steps.quartus-cache.outputs.cache-primary-key }}
-          CACHE_MATCHED_KEY: ${{ steps.quartus-cache.outputs.cache-matched-key }}
         run: |
           mkdir -p artifacts/reports
-          if [[ "$CACHE_ENABLED" != "true" ]]; then
-            build_mode=clean
-          elif [[ -n "$CACHE_MATCHED_KEY" ]]; then
-            build_mode=quartus_database_reuse
-          else
-            build_mode=clean_cache_seed
-          fi
-
-          printf 'build_mode=%s\n' "$build_mode" >> "$GITHUB_OUTPUT"
-          {
-            printf 'build_mode=%s\n' "$build_mode"
-            printf 'cache_enabled=%s\n' "$CACHE_ENABLED"
-            printf 'cache_primary_key=%s\n' "${CACHE_PRIMARY_KEY:-none}"
-            printf 'cache_matched_key=%s\n' "${CACHE_MATCHED_KEY:-none}"
-            printf 'generated_database_sizes:\n'
-            du -sh db incremental_db 2>/dev/null || true
-          } | tee artifacts/reports/quartus-cache.txt
-
-          {
-            printf '### Quartus database reuse\n\n'
-            sed 's/^/- `/' artifacts/reports/quartus-cache.txt | sed 's/$/`/'
-          } >> "$GITHUB_STEP_SUMMARY"
+          # Every synthesis is a clean compile since the D2 cache removal;
+          # build_mode is kept so the gate summary and report shape stay
+          # stable for tooling and milestone records.
+          printf 'build_mode=%s\n' "clean" >> "$GITHUB_OUTPUT"
+          printf 'build_mode=clean\n' | tee artifacts/reports/quartus-cache.txt
 
       - name: Collect synthesis reports
         if: always()
@@ -254,16 +211,6 @@ jobs:
           short_sha="${GITHUB_SHA:0:7}"
           cp output_files/Amstrad.rbf \
             "artifacts/Amstrad_${build_date}_${short_sha}.rbf"
-
-      - name: Save branch Quartus database
-        if: ${{ success() && needs.synthesis-policy.outputs.cache_enabled == 'true' && steps.quartus-cache.outputs.cache-hit != 'true' }}
-        continue-on-error: true
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            db
-            incremental_db
-          key: ${{ steps.quartus-cache.outputs.cache-primary-key }}
 
       - name: Upload bitstream and reports
         if: always()
