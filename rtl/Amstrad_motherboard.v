@@ -223,7 +223,7 @@ wire [4:0]  asic_border;
 wire [79:0] asic_inkr;
 wire [1:0]  plus_gamode;
 wire [3:0]  plus_rgb_r, plus_rgb_g, plus_rgb_b;
-wire [15:0] plus_vidword;
+reg  [15:0] plus_vidword;
 
 // Selected raster sources: classic path when Plus model = Off.
 wire [13:0] ma_sel = plus_mode ? plus_ma : MA;
