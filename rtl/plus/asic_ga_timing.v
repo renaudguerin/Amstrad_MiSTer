@@ -47,9 +47,12 @@ module asic_ga_timing
 
 	input        RESET_N,
 
-	// Z80 bus (chip-side view, same signals ga40010 samples)
+	// Z80 bus (chip-side view, same signals ga40010 samples). D[5] is
+	// genuinely undecoded, exactly as in the reference.
+	/* verilator lint_off UNUSEDSIGNAL */
 	input [15:14] A,
 	input [7:0]  D,
+	/* verilator lint_on UNUSEDSIGNAL */
 	input        MREQ_N,
 	input        M1_N,
 	input        RD_N,

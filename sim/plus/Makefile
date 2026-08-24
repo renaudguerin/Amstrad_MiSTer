@@ -224,7 +224,7 @@ lint:
 		--top-module $(P0BOOT_TOP) -Wall -Wno-fatal $(P0BOOT_TEST_TOP) $(P0BOOT_PARSER) \
 		$(P0BOOT_MEMORY) $(P0BOOT_MMU) $(P0BOOT_UNLOCK) $(P0BOOT_SDRAM)
 	$(VERILATOR) --lint-only --language 1364-2001 \
-		--top-module $(GADIFF_TOP) -Wall -Wno-fatal $(GADIFF_REPLICA)
+		--top-module asic_ga_timing -Wall $(GADIFF_REPLICA)
 	$(VERILATOR) --lint-only \
 		--top-module $(GADIFF_TOP) -Wall -Wno-fatal $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF)
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
