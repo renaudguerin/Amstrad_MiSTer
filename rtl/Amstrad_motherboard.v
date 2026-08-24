@@ -241,10 +241,10 @@ asic_ga_timing asic_ga
 
 	.A(A[15:14]),
 	.D(D),
-	.MREQ_N(MREQ_N),
-	.M1_N(M1_N),
-	.RD_N(RD_N),
-	.IORQ_N(IORQ_N),
+	.MREQ_n(MREQ_n),
+	.M1_n(M1_n),
+	.RD_n(RD_n),
+	.IORQ_n(IORQ_n),
 
 	.HSYNC_I(plus_crtc_hs),
 	.VSYNC_I(plus_crtc_vs),
@@ -323,10 +323,11 @@ asic_video asic_vid
 
 // Twice-per-character word assembly on the reference VIDEO_BUF phases:
 // state e0 latches the even byte, state 03 the odd byte (ring order
-// e0 -> ... -> 03 within one character). Byte-order against the CAS pair
-// halves is validated by the P1 integration check below (t05h phase).
+// e0 -> ... -> 03 within one character). Byte order against the CAS pair
+// halves is an ASSUMED mapping pending the parked p1_video calibration
+// (t05h); it is not yet validated by any gate.
 always @(posedge clk) begin
-	if (!reset) plus_vidword <= 16'd0;
+	if (reset) plus_vidword <= 16'd0;
 	else begin
 		if (plus_cclk_en_p) plus_vidword[7:0]  <= vram_d;
 		if (plus_cclk_en_n) plus_vidword[15:8] <= vram_d;

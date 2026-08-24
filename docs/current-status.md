@@ -345,9 +345,29 @@ slot-grid/border-sampling mismatch that behaved like a bench-side phase
 error, not a production defect), so it builds but sits outside the default
 gate until calibrated; the t05h caveat therefore remains open.
 
+An Opus-5-high independent review of this P1 delta returned NOT CLEAR on
+2026-08-24 with two BLOCKING findings, both confirmed real and fixed in the
+same pass: the asic_ga_timing bus pins were wired to uppercase implicit nets
+(`MREQ_N` etc.) that synthesis tied to constants — dead GA-register decode,
+stuck irqack, no Plus interrupts — and `plus_vidword`'s reset arm had
+inverted polarity (active-high `reset`). The review also corrected the
+VIDBUF comment (byte order is assumed pending p1_video calibration, not
+validated) and flagged that the soak scopes only to `rtl/CRTC.v`, so
+'classic untouched' claims must cite the mux inspection, not the soak.
+Queued from the review: a Verilator lint pass over Amstrad_motherboard.v
+(would have caught finding 1; needs stub modules for YM2149/hid), an explicit
+decision on the dead plus_phi_en_* wires vs driving T80pa/crt_filter from
+the ASIC enables in Plus mode, re-measuring the fitter delta after these
+fixes (previous numbers were taken on the constant-bus-pruned build),
+directed U204-restart and randomised-fast lockstep coverage, implementing or
+re-documenting the INKR power-up constants so r03 pins RTL rather than
+Verilator zero-init, and a minimal plus_mode=1 motherboard bench before P2.
+
 CI synthesis of the instantiation is green on the dispatched exact build
-(run `32771020608`, commit `2f0e6f7` lineage — simulation, policy, Quartus
-17.0.2 compile/fitter/TimeQuest all pass). Fitter: 15,529 / 41,910 ALMs
+(run `32771020608` — simulation, policy, Quartus
+17.0.2 compile/fitter/TimeQuest all pass; NOTE fitter figures below were
+measured before the two blocking fixes landed and must be re-recorded).
+Fitter: 15,529 / 41,910 ALMs
 (37 %), 20,483 registers, 145 / 314 pins (46 %), 685,217 block-memory bits
 (12 %), 34 / 112 DSP blocks; worst-case setup slack +0.410 ns, hold
 +0.246 ns. Versus the pre-integration milestone `de30faf` (15,378 ALMs,
