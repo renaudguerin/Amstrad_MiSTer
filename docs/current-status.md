@@ -354,6 +354,12 @@ inverted polarity (active-high `reset`). The review also corrected the
 VIDBUF comment (byte order is assumed pending p1_video calibration, not
 validated) and flagged that the soak scopes only to `rtl/CRTC.v`, so
 'classic untouched' claims must cite the mux inspection, not the soak.
+Post-fix CI (run `32777625616`, both blocking fixes in) is fully green:
+fitter 15,716 / 41,910 ALMs (37 %), 19,966 registers, worst setup +0.519 ns,
+hold +0.252 ns. The +187-ALM delta versus the pruned 15,529 build confirms
+the reviewer's constant-bus inference; the earlier paragraph's figures are
+superseded by these.
+
 Queued from the review: a Verilator lint pass over Amstrad_motherboard.v
 (would have caught finding 1; needs stub modules for YM2149/hid), an explicit
 decision on the dead plus_phi_en_* wires vs driving T80pa/crt_filter from
