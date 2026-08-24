@@ -276,7 +276,9 @@ asic_ga_timing asic_ga
 	.VBLANK(plus_vblank),
 	.MODE_SYNC_EN(),
 
-	.MODE(plus_gamode),
+	// MODE and GAMODE_O alias the same RMR bits inside the module; the
+	// motherboard consumes GAMODE_O, so MODE stays unconnected here.
+	.MODE(),
 	.BORDER_O(asic_border),
 	.INKR_O(asic_inkr),
 	.GAMODE_O(plus_gamode)
