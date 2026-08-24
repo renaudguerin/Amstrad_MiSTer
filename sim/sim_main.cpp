@@ -279,6 +279,13 @@ public:
         mix(r.CRTC__DOT__parity_frame);
         mix(r.CRTC__DOT__parity_c9);
         mix(r.CRTC__DOT__parity_r6);
+        // F10 type-1 behavior commit (2026-08-24): the IVM flag and toggle
+        // stage machine join the sampled projection together with their
+        // behavior; random R8 traffic now reaches the documented toggle
+        // stages, so this mint covers both the field expansion and the
+        // intended type-1 IVM behavior change.
+        mix(r.CRTC__DOT__crtc_type1_engine__DOT__ivm);
+        mix(r.CRTC__DOT__crtc_type1_engine__DOT__tog_stage);
     }
 
     void expect_byte(const std::string& expectation,
@@ -465,6 +472,29 @@ public:
                                   bool expected) const {
         expect_known_byte(expectation, expected,
                           dut_->rootp->CRTC__DOT__line & 1);
+    }
+
+    void expect_line(const std::string& expectation,
+                     std::uint8_t expected) const {
+        expect_byte(expectation, expected, dut_->rootp->CRTC__DOT__line);
+    }
+
+    void expect_parity_frame(const std::string& expectation,
+                             bool expected) const {
+        expect_byte(expectation, expected,
+                    dut_->rootp->CRTC__DOT__parity_frame);
+    }
+
+    void expect_parity_c9(const std::string& expectation,
+                          bool expected) const {
+        expect_byte(expectation, expected,
+                    dut_->rootp->CRTC__DOT__parity_c9);
+    }
+
+    void expect_line_parity(const std::string& expectation,
+                            bool expected) const {
+        expect_byte(expectation, expected,
+                    dut_->rootp->CRTC__DOT__line & 1);
     }
 
     // Internal-state accessors for the F10 fixture setup walkers.
@@ -4564,8 +4594,8 @@ void t21_run_panel(TestBench& test, const T21Panel& panel) {
     if (!r9b) {
         test.write_register(9, 0);
     }
-    test.expect_known_c4(tag + " setup C4 parity", c4b);
-    test.expect_known_line(tag + " setup C9", c9b);
+    test.expect_c4(tag + " setup C4 parity", c4b);
+    test.expect_line(tag + " setup C9", c9b);
 
     // OUT R8,3 with enough line left that both stages and the later OUT R8,0
     // complete inside the same line (the R9:=0 setup write above lands around
@@ -4577,13 +4607,13 @@ void t21_run_panel(TestBench& test, const T21Panel& panel) {
     test.select_register(8);
     test.write_selected_register_now(3);
     test.run_characters(1);
-    test.expect_known_parity_c9(tag + " stage A ParityC9", stage_a);
-    test.expect_known_line_parity(tag + " stage A C9.0", stage_a);
-    test.expect_known_parity_frame(tag + " stage A ParityFrame held", pf1);
+    test.expect_parity_c9(tag + " stage A ParityC9", stage_a);
+    test.expect_line_parity(tag + " stage A C9.0", stage_a);
+    test.expect_parity_frame(tag + " stage A ParityFrame held", pf1);
     test.run_characters(1);
-    test.expect_known_parity_c9(tag + " stage B ParityC9", stage_b_pc9);
-    test.expect_known_parity_frame(tag + " stage B ParityFrame", stage_b_pf);
-    test.expect_known_line_parity(tag + " stage B C9.0", stage_b_pc9);
+    test.expect_parity_c9(tag + " stage B ParityC9", stage_b_pc9);
+    test.expect_parity_frame(tag + " stage B ParityFrame", stage_b_pf);
+    test.expect_line_parity(tag + " stage B C9.0", stage_b_pc9);
 
     // OUT R8,0 seven characters later; off stage A at the next character
     // edge, off stage B at the one after.
@@ -4591,12 +4621,12 @@ void t21_run_panel(TestBench& test, const T21Panel& panel) {
     test.select_register(8);
     test.write_selected_register_now(0);
     test.run_characters(1);
-    test.expect_known_parity_c9(tag + " off stage A ParityC9", off_a);
-    test.expect_known_line_parity(tag + " off stage A C9.0 held",
-                                  stage_b_pc9);
+    test.expect_parity_c9(tag + " off stage A ParityC9", off_a);
+    test.expect_line_parity(tag + " off stage A C9.0 held",
+                            stage_b_pc9);
     test.run_characters(1);
-    test.expect_known_parity_frame(tag + " off stage B ParityFrame", off_a);
-    test.expect_known_line_parity(tag + " off stage B C9.0", off_a);
+    test.expect_parity_frame(tag + " off stage B ParityFrame", off_a);
+    test.expect_line_parity(tag + " off stage B C9.0", off_a);
 }
 
 // The 16 panel configurations in pp.210-211 layout order: EVEN page first
@@ -4620,16 +4650,6 @@ constexpr T21Panel kT21Panels[] = {
     {"(M),15(O)", true, true, true, false},
     {"11(K2)", true, true, true, true},
 };
-
-// Configurations whose every documented expectation is zero, including the
-// held ParityFrame sample (so parity_frame_even, X = 0 and C9.0 = 0): the
-// inert-parity DUT already satisfies them, so they register as required
-// controls from the start; the other thirteen carry the XFAIL marker until
-// the type-1 F10 behavior commit flips them.
-bool t21_panel_is_zero_control(const T21Panel& panel) {
-    return !panel.parity_frame_odd && !panel.c9_odd &&
-           !(panel.c4_odd && !panel.r9_odd);
-}
 
 void t21_run_indexed(TestBench& test, unsigned index) {
     t21_run_panel(test, kT21Panels[index]);
@@ -5387,49 +5407,49 @@ int main(int argc, char** argv) {
          false, t21_body_00},
         {"t21b_type1_ivm_toggle_17Q_21U_25Y1",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 17/21/25 (p.210); F10",
-         true, t21_body_01},
+         false, t21_body_01},
         {"t21c_type1_ivm_toggle_4D_8H",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 4/8 (p.210); F10",
-         true, t21_body_02},
+         false, t21_body_02},
         {"t21d_type1_ivm_toggle_2B_6F",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 2/6 (p.210); F10",
-         true, t21_body_03},
+         false, t21_body_03},
         {"t21e_type1_ivm_toggle_20T_24X",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 20/24 (p.210); F10",
          false, t21_body_04},
         {"t21f_type1_ivm_toggle_18R_22V_26Z1",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 18/22/26 (p.210); F10",
-         true, t21_body_05},
+         false, t21_body_05},
         {"t21g_type1_ivm_toggle_5E_9I",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 5/9 (p.210); F10",
          false, t21_body_06},
         {"t21h_type1_ivm_toggle_3C_7G",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 3/7 (p.210); F10",
-         true, t21_body_07},
+         false, t21_body_07},
         {"t21i_type1_ivm_toggle_27ZA_29ZC",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 27/29 (p.211); F10",
-         true, t21_body_08},
+         false, t21_body_08},
         {"t21j_type1_ivm_toggle_16P_25Y2",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 16/25 (p.211); F10",
-         true, t21_body_09},
+         false, t21_body_09},
         {"t21k_type1_ivm_toggle_12L_14N",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 12/14 (p.211); F10",
-         true, t21_body_10},
+         false, t21_body_10},
         {"t21l_type1_ivm_toggle_1A_10J2",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 1/10 (p.211); F10",
-         true, t21_body_11},
+         false, t21_body_11},
         {"t21m_type1_ivm_toggle_28ZB_30ZD",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 28/30 (p.211); F10",
-         true, t21_body_12},
+         false, t21_body_12},
         {"t21n_type1_ivm_toggle_26Z",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 test 26 (p.211); F10",
-         true, t21_body_13},
+         false, t21_body_13},
         {"t21o_type1_ivm_toggle_M_15O",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests (M)/15 (p.211); F10",
-         true, t21_body_14},
+         false, t21_body_14},
         {"t21p_type1_ivm_toggle_11K2",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 test 11 (p.211); F10",
-         true, t21_body_15},
+         false, t21_body_15},
         // t22: F10 type-0 IVM entry/exit counting for even R9 (ACCC
         // pp.219-224).  All diverge from the pre-F10 stepping approximation
         // (C9 stepping by 2 with bit 0 masked, halved limit) and carry the

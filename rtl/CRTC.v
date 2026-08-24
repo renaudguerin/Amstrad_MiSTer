@@ -82,7 +82,12 @@ module CRTC
 assign FIELD = ~field & interlace[0];
 
 assign MA = row_addr_r;
-assign RA = line | (field & interlace[0]);
+
+// Type 1 carries the IVM line parity in C9 itself (ACCC v1.10 section
+// 19.8.2: no separate C9.VMA concept), so RA is the raw counter.  Type 0
+// keeps its current field-OR approximation until the type-0 F10 commit
+// replaces it with the C9.VMA construction of section 19.8.1.
+assign RA = CRTC_TYPE ? line : (line | (field & interlace[0]));
 
 assign DE = de[CRTC_TYPE ? e1_de_index : e0_de_index];
 
@@ -255,6 +260,8 @@ wire       e1_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
 wire       e1_vsync_line_fire, e1_r7_write_fire, e1_r6_vde_write, e1_r6_vde_value;
 wire       e1_r6_vder_write, e1_r6_vder_value, e1_status_bit5;
 wire       e1_rfd_r0_extend;
+wire       e1_pf_write, e1_pf_value, e1_pc9_write, e1_pc9_value;
+wire       e1_line_poke, e1_line_poke_bit;
 wire [4:0] e1_line_next, e1_c5_next;
 wire [6:0] e1_row_next;
 wire [1:0] e1_de_index;
@@ -265,9 +272,10 @@ crtc_type1_engine crtc_type1_engine
 	CLOCK, CLKEN, nCLKEN, nRESET, CRTC_TYPE, SNA_LOAD,
 	ENABLE, nCS, R_nW, RS, DI, addr,
 	R0_h_total, R1_h_displayed, R3_h_sync_width, R4_v_total,
-	R5_v_total_adj, R6_v_displayed, R7_v_sync_pos, R8_interlace, R9_v_max_line,
+	R5_v_total_adj, R6_v_displayed, R7_v_sync_pos, R9_v_max_line,
 	hcc, hcc_next, hcc_last, hcc_end, line, row, c5, in_adj, crtc1_adj_from_row0,
 	VSYNC_r, vsync_allow, hsc, vde_r,
+	parity_frame, parity_c9,
 	e1_line_last, e1_line_new, e1_line_next, e1_c5_next,
 	e1_row_last, e1_row_frame_last, e1_row_next, e1_row_new, e1_frame_adj,
 	e1_adj_from_row0,
@@ -276,6 +284,8 @@ crtc_type1_engine crtc_type1_engine
 	e1_vsc_load, e1_r7_write_fire,
 	e1_r6_vde_write, e1_r6_vde_value, e1_r6_vder_write, e1_r6_vder_value,
 	e1_rfd_r0_extend,
+	e1_pf_write, e1_pf_value, e1_pc9_write, e1_pc9_value,
+	e1_line_poke, e1_line_poke_bit,
 	e1_status_bit5
 );
 
@@ -315,6 +325,13 @@ always @(posedge CLOCK) begin
 	else if(CLKEN) begin
 		hcc <= hcc_next;
 		if(line_new) line <= line_next;
+		// F10 type-1 (ACCC v1.10 section 19.5.3 pp.208-209): the R8-toggle
+		// stage edges write C9's bit 0 mid-line -- stage A plants the new
+		// parity, stage B plants the settled value.  A same-edge row end
+		// keeps the documented restart value (line_new wins; that
+		// coincidence is itself unpinned in the source).
+		else if(CRTC_TYPE && e1_line_poke)
+			line <= {line[4:1], e1_line_poke_bit};
 		c5 <= c5_next;
 		if(hcc == 0 && !r0_frozen) begin
 			line_last_r <= CRTC_TYPE ? e1_line_last : e0_c0_line_last;
@@ -351,6 +368,15 @@ always @(posedge CLOCK) begin
 			else if(CRTC_TYPE && in_adj && row_next != 1) begin
 				crtc1_adj_from_row0 <= 0;
 			end
+		end
+
+		// F10 type-1 parity updates (ACCC v1.10 section 19.5.3): the engine
+		// decides; the shared flops live here so a live CRTC_TYPE switch
+		// continues from the same state.  Type-0 rules arrive with the
+		// type-0 F10 commit; until then the flops only move on type 1.
+		if(CRTC_TYPE) begin
+			if(e1_pf_write)  parity_frame <= e1_pf_value;
+			if(e1_pc9_write) parity_c9    <= e1_pc9_value;
 		end
 	end
 end
