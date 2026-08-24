@@ -45,7 +45,13 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x83e80134f7705b46`, re-minted 2026-08-24 for the F10 type-0 IVM
+  (`0xa9e5026de83d287c`, re-minted 2026-08-25 for the F10 review
+  remediation: the type-1 leaving stage A now writes C9.0 (B-1), the
+  §19.8.2 match-branch ParityC9 toggle also fires at frame boundaries
+  (B-2), the leaving stage-B ParityC9 write is gated to the entering
+  case (N-1), and IVM now engages from a reset/snapshot-loaded R8=3;
+  tog_enter/tog_enter_line joined the sampled projection; previously
+  `0x83e80134f7705b46` from the F10 type-0 IVM
   behavior: the §19.8.1 split C9/C9.VMA with the asymmetric entry/exit
   tests is now live on type 0, and the seam-latched IVM mode plus the
   line-scoped toggle status joined the sampled projection; previously

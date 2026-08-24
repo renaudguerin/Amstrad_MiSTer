@@ -177,6 +177,11 @@ wire r8_toggle_write_t0 = r8_write_hit_t0 && ((DI[1:0] == 2'b11) != ivm_disp_r);
 // a toggle write from the previous line still qualifies this line's
 // target, and a write landing exactly on the seam edge qualifies only
 // from the next line ("after the C9/R9 test of the line").
+// Named residual (review N-7, 2026-08-25): under the R0=0 freeze C0 is
+// pinned at 0, so this seam predicate fires every CLKEN and a toggle
+// write's line-scoped status is consumed immediately.  A switch line inside
+// an R0=0 freeze therefore loses its one-line target adjustment; the
+// combination (IVM toggle during a frozen C0) is unpinned in the source.
 wire type0_seam = CLKEN && (hcc == 0);
 
 always @(posedge CLOCK) begin
@@ -194,6 +199,12 @@ always @(posedge CLOCK) begin
 			tog_line <= 1;
 			tog_enter_line <= (DI[1:0] == 2'b11);
 		end
+		// Named residual (review N-6, 2026-08-25): OUT R8,3 followed by
+		// OUT R8,0 inside one line leaves tog_enter_line set, so that
+		// line's limit target keeps the entering R9-or-ParityFrame form
+		// even though R8 ended at 0.  The source pins neither this nor the
+		// type-1 back-to-back case; the last write winning would be an
+		// equally defensible model.  Unpinned -- do not fixture.
 	end
 end
 

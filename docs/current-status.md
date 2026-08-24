@@ -87,9 +87,9 @@ predates F8 and cannot produce evidence for it. The later per-type split and ren
 behaviour-preserving within the directed, soak, and frozen differential projections, but F6
 Stage 1 intentionally changed classic DE behaviour and re-minted the soak. F7 RFD, the A1
 VSYNC correction, and the A2 reload caveat then re-minted it again with unchanged
-seed/schedule/projection; the F10 work re-minted it three more times (fixture-stage field
-expansion, then one intended behavior mint per type) and the current canonical hash is
-`0x83e80134f7705b46` (full chain in AGENTS.md). Use a current-tip RBF for F6/F7 work; retain `4c78603` as the clean F8-era
+seed/schedule/projection; the F10 work re-minted it four more times (fixture-stage field
+expansion, one intended behavior mint per type, and the review remediation) and the
+current canonical hash is `0xa9e5026de83d287c` (full chain in AGENTS.md). Use a current-tip RBF for F6/F7 work; retain `4c78603` as the clean F8-era
 bisection milestone.
 
 Hardware testing on 2026-08-19 covered two milestones and returned the same result for
@@ -210,9 +210,10 @@ For a first MiSTer pass:
   pp.221-224 tables). All 31 vectors are required passes; the old stepping/halving
   approximation is removed and non-IVM behavior is bit-identical. Odd-R9 alternation
   (Q19), the additional interlace line (Q10), and the odd-C4 VSYNC-imbalance correction
-  (Q12) remain deliberately unimplemented; residuals and reviewer guidance are in
-  `accuracy/f10-implementation-notes.md`, and a review-debt row records the operator's
-  pre-merge review deferral.
+  (Q12) remain deliberately unimplemented; residuals are in
+  `accuracy/f10-implementation-notes.md`. The stack was independently reviewed 2026-08-25
+  (`accuracy/f10-independent-review.md`): NOT CLEAR on two blockings, both fixed with new
+  vectors (`t23a`-`t23c`, `t22p`-`t22s`, RA column in `t22`); review-debt row cleared.
 
 D1 is complete (2026-08-24): every remaining ⚠ VERIFY flag in the three digests was
 re-verified against the PDF (pdf-inspector Markdown primary, figures judged from rendered

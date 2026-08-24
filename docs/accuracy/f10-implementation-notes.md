@@ -1,7 +1,8 @@
 # F10 interlace (IVM) parity machinery — implementation record
 
-Status: **implemented for the unblocked scope, both types** (2026-08-24, branch
-`accuracy/f10-fixtures`). Odd-R9 alternation and the additional interlace line remain
+Status: **implemented for the unblocked scope, both types; independently reviewed and
+remediated** (2026-08-24/25, branch `accuracy/f10-fixtures`; review record
+`accuracy/f10-independent-review.md` — NOT CLEAR on two blockings, both fixed with vectors). Odd-R9 alternation and the additional interlace line remain
 gated behind author questions Q19 / Q10 as planned; see "Deliberately unmodeled" below.
 This file is the durable record for a fresh session: what was verified against the PDF,
 what the implemented model is, which conventions the fixtures pin, and what is left open.
@@ -13,11 +14,12 @@ what the implemented model is, which conventions the fixtures pin, and what is l
 | `20eb6d5` | Fixture-only: `t21a`-`t21p` (type-1 toggle panels), `t22a`-`t22o` (type-0 entry/exit), inert shared parity flops, soak field expansion. |
 | `657ccde` | Type-1 behavior: R8-toggle two-stage parity update, §19.8.2 counting, per-frame/per-C4 parity toggles. All `t21` required. |
 | `3a2293a` | Type-0 behavior: split C9/C9.VMA, asymmetric entry/exit limit tests, §19.5.2 parity rules. All `t22` required. |
+| (remediation) | Review B-1/B-2/N-1 fixes, `t22` RA column, `t22p`-`t22s` + `t23a`-`t23c` vectors, ivm mirror for snapshot-loaded R8=3, soak re-mint. 147 required passes. |
 
-Gates at the type-0 tip: 140 required passes, 0 xfailed/xpassed/failed; lint clean apart
-from pre-existing warnings; soak golden `0x83e80134f7705b46` (chain in AGENTS.md; the
-three mints are documented there — fixture-stage field expansion, type-1 behavior,
-type-0 behavior).
+Gates at the remediated tip: 147 required passes, 0 xfailed/xpassed/failed; lint clean
+apart from pre-existing warnings; soak golden `0xa9e5026de83d287c` (chain in AGENTS.md;
+the mints are documented there — fixture-stage field expansion, type-1 behavior, type-0
+behavior, review remediation).
 
 ## Evidence base (all render-verified under `accuracy/extract/README.md`)
 
@@ -42,19 +44,27 @@ type-0 behavior).
   toggles at each genuine C4 increment when R9 is even.
 - An R8 write toggling IVM (0↔3, also 1↔3) runs the documented two-stage update:
   **stage A (3rd µs)** at the next character edge: `ParityC9 := C9.0 xor (C4.0 and not
-  R9.0)`, written into C9.0 **only when entering** (the panels hold C9.0 through a
-  leaving stage A — the four X=1 panels pin this asymmetry); **stage B (4th µs)** one
-  character later: entering, an even ParityFrame re-points ParityC9 at `C4.0 and not
+  R9.0)`, written into C9.0 **in both directions** — p.209 states the 3rd-µs rule once
+  ("when R8 changes from 3 to 0 or vice versa"), and the four X=1 panels draw the C9.0
+  change in the leaving write's 3rd-µs column (review B-1; an earlier direction-asymmetric
+  reading here was an artifact of misaligning the panels' strip columns — each OUT is a
+  4-cell structure: 2-cell label, dark µs-3 cell, on/off µs-4 cell); **stage B (4th µs)**
+  one character later: entering, an even ParityFrame re-points ParityC9 at `C4.0 and not
   R9.0` and `ParityFrame := ParityFrame and (ParityC9 xor X)` — which for an odd
   ParityFrame reduces to the old C9.0 (the documented "changes to even, except…" clause);
-  leaving, `ParityFrame := ParityC9` and `C9.0 := ParityC9` ("deactivation modifies C9").
+  leaving, `ParityFrame := ParityC9` (and C9.0 already carries that value from stage A).
 - §19.8.2 counting while IVM: C9 pre-increments when R9 is even, compares with bit 0
   masked, restarts from the toggled ParityC9 on a match, otherwise steps by two. C9
   itself carries the parity (no C9.VMA split), so RA is the raw counter.
 - Row-end plumbing is split three ways: the frame-structure limit (frame-adj/adjustment
   entry), the per-line row event (C4 increments at *every* C9 wrap during adjustment per
   §11.1 — this preserved t08i/j/l bit-identically), and the row-structure test for the
-  VMA reload/save/vsync consumers.
+  VMA reload/save/vsync consumers. Scope note (review N-4): `line_last` itself differs
+  inside type-1 adjustment (it now follows the adjustment end); observable only through
+  `line_last_r` after a live type 1→0 switch during adjustment — not a bug, but the
+  "outside IVM bit-identical" claim does not extend to that one signal.
+- §19.8.2's match branch toggles ParityC9 and restarts C9 from it as one step at every
+  row end, including the C4=0 frame-boundary arm (review B-2; vector `t23a`).
 
 ### Type 0 (§19.8.1, §19.5.2; `rtl/crtc_type0_engine.v`)
 
@@ -99,10 +109,11 @@ write/value port pairs.
 - **Type-1 toggle (`t21`)**: the R8 write lands mid-line; stage A applies at the next
   character edge (the panels' "on"/"off" column), stage B at the one after. The panels
   pin the +1/+2 character offsets, not an absolute C0 (the fixtures write at C0=20/27 to
-  stay clear of setup writes). The panels' drawn *Parity* rows are internally
-  inconsistent by one character on the ODD page — a source drawing quirk in the same tier
-  as the flagged C9-column quirks of pp.221-224 — so the fixtures assert the callouts and
-  the C9 rows, which are mutually consistent and complete.
+  stay clear of setup writes). The panels' drawn *Parity* rows, read as effective parity (`IVM ? ParityC9 :
+  ParityFrame`), validate 14 of the 16 panels cell-for-cell (review N-13); only
+  27(ZA)/29(ZC) and (M)/15(O) drop one cell early at the on-write's µs 3 — a genuine but
+  local drawing slip. The fixtures assert the callouts and the C9 rows, which are
+  mutually consistent and complete; the Parity rows serve as a cross-check.
 - **Type-0 entry/exit (`t22`)**: expectations come from the C9-VMA columns and the
   reliable C9 segments; the settled post-reset C9 column (which prints doubled values)
   is replaced by the pseudocode's raw stepping, cross-checked against the VMA column.
@@ -130,6 +141,13 @@ write/value port pairs.
   of the correction (p.208) is likewise unmodeled for the same reason.
 - **RFD × IVM interaction** (both types): unpinned; the type-1 RFD terms deliberately
   keep the bare C9==R9 comparison.
+- **Type-0 double R8 write in one line** (review N-6): the line keeps its entering-form
+  target; unpinned, documented in the engine.
+- **IVM toggle during an R0=0 freeze** (review N-7): the seam fires every CLKEN while C0
+  is pinned, consuming the toggle status immediately; unpinned, documented in the engine.
+- **Type-0 odd-R9 IVM is wrong by construction** while Q19 is open: the p.219 row-end
+  ParityC9 update is absent altogether (its corrected gate is R9 odd). Even R9 —
+  everything the tables pin — is unaffected.
 - **Adjustment during IVM** (both types): adjustment keeps its plain comparisons; the
   interaction is unpinned in the source.
 - **Same-edge coincidences** (stage edge vs row end vs frame boundary): documented
@@ -140,17 +158,17 @@ write/value port pairs.
   stage rules are written for 0↔3). The additional line and MID-VSYNC effects of R8=1
   remain under the Q10 gate.
 
-## Reviewer guidance (for the pre-merge review)
+## Review outcome
 
-- Check the type-1 stage machine against pp.210-211 directly (especially the
-  leaving-stage-A C9.0 hold and the odd-ParityFrame stage-B reduction), not against this
-  document.
-- Check the type-0 seam/toggle lifecycle against p.219's "next C0=0" rule, especially the
-  same-edge write race at the seam.
-- Check that the three-way row-end split on type 1 is truly behavior-preserving outside
-  IVM (t08i/j/l and t13a-d are the sensitive vectors; the soak is the broad guard).
-- Check the t22 exit-fixture re-derivation against pp.223-224 (the C4=1 second-row exit
-  shape), and the t09g RA re-derivation against §19.5.2.
+Reviewed 2026-08-25 by Claude Opus 5 (fresh session via the claude CLI): verdict NOT
+CLEAR on two blockings — B-1 (the leaving stage A must write C9.0; accepted against the
+panels and the p.209 prose) and B-2 (the §19.8.2 frame-boundary toggle split; accepted) —
+plus 13 non-blockings. All blockings and accepted non-blockings are remediated (see the
+remediation section of `accuracy/f10-independent-review.md`); N-4 and N-12 are recorded
+as scope note/erratum. The same-edge seam race was reviewed and judged defensible. Five
+reviewer bite-tests were reproduced during the review; the remediation adds the missing
+vectors so the mechanisms are now deterministically pinned (RA column in `t22`,
+frame-boundary continuity in `t23a`, snapshot-loaded R8=3 in `t23b`, R8=1 RA in `t23c`).
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).

@@ -405,9 +405,13 @@ General implementation rules for all fix prompts:
   from a seam-latched value-doubled bit and a line-scoped target-parity bit (switch line
   R9|ParityFrame, steady IVM R9|ParityC9, exit plain R9), ParityFrame/ParityR6 per §19.5.2,
   ParityC9 seeded from ParityFrame at IVM turn-on. Shared parity flops live in the wrapper
-  for the live-type-switch contract. 31 deterministic vectors (`t21a`-`t21p`,
-  `t22a`-`t22o`) are all required passes, derived from the pp.210-211 panels and the
-  pp.219-224 tables (render-verified 2026-08-24). The old stepping/halving/field-OR
+  for the live-type-switch contract. 38 deterministic vectors (`t21a`-`t21p`,
+  `t22a`-`t22s`, `t23a`-`t23c`) are all required passes, derived from the pp.210-211 panels
+  and the pp.219-224 tables (render-verified 2026-08-24) — including the RA (C9-VMA)
+  column, all eight exit tables, the type-1 IVM frame-boundary continuity, and
+  snapshot-loaded R8=3 activation. The stack was independently reviewed 2026-08-25
+  (`accuracy/f10-independent-review.md`; two blockings fixed, record has the remediation
+  section). The old stepping/halving/field-OR
   approximation is removed; non-IVM behavior is bit-identical (t01-t20 unchanged; t09g's
   single RA expectation re-derived from §19.5.2).
 - **Impact**: interlace demos (SHAKER 2.x uses 1/64-line positioning tricks); most games unaffected.
