@@ -388,7 +388,7 @@ General implementation rules for all fix prompts:
 - **Verify**: V3 `t16e`/`t16h` required; full t12 and a hardware trace remain desirable before
   independent F9 closure.
 
-## F10. Interlace (IVM) parity machinery — partial/approximate for both types
+## F10. Interlace (IVM) parity machinery — implemented for the unblocked scope, both types
 
 - **Rule** (digest-03 §19.4-19.8 → ACCC ch.19): type 0 keeps split C9/C9.VMA with asymmetric
   IVM entry/exit comparisons, ParityFrame/ParityR6/ParityC9 state, VSYNC-delay-by-1-line
@@ -396,24 +396,30 @@ General implementation rules for all fix prompts:
   the OUT, R9-parity-triggered alternation, and NO VSYNC drift correction. Additional interlace
   line appended per type-specific parity conditions. R9 programming formula differs (N-2 type 0
   IVM vs N-1 type 1).
-- **Current** (`CRTC.v:85`, `:316`; `crtc_type0_engine.v:191`, `crtc_type1_engine.v:121`,
-  `:159`; field count tick also `crtc_type0_engine.v:317`): minimal IVM: `line` steps by 2 with
-  bit 0 masked, RA ORs in `field`, `field` toggles at frame end, MID-VSYNC at R0/2 on `field`.
-  No parity state machines, no per-type differences, no additional interlace line, no entry/exit
-  asymmetry. (Verified against the split tree 2026-08-22.)
+- **Current** (implemented 2026-08-24 on `accuracy/f10-fixtures`, commits `20eb6d5` /
+  `657ccde` / `3a2293a`; full record `accuracy/f10-implementation-notes.md`): both types run
+  the documented machinery for everything the render-verified tables pin. Type 1: two-stage
+  R8-toggle parity update (stage A at the next character edge, stage B one later; leaving
+  stage A holds C9.0), ParityFrame/ParityC9 toggles, §19.8.2 counting with C9 carrying the
+  parity. Type 0: split C9/C9.VMA ((C9×2)+ParityC9 mod 32), per-line limit test composed
+  from a seam-latched value-doubled bit and a line-scoped target-parity bit (switch line
+  R9|ParityFrame, steady IVM R9|ParityC9, exit plain R9), ParityFrame/ParityR6 per §19.5.2,
+  ParityC9 seeded from ParityFrame at IVM turn-on. Shared parity flops live in the wrapper
+  for the live-type-switch contract. 31 deterministic vectors (`t21a`-`t21p`,
+  `t22a`-`t22o`) are all required passes, derived from the pp.210-211 panels and the
+  pp.219-224 tables (render-verified 2026-08-24). The old stepping/halving/field-OR
+  approximation is removed; non-IVM behavior is bit-identical (t01-t20 unchanged; t09g's
+  single RA expectation re-derived from §19.5.2).
 - **Impact**: interlace demos (SHAKER 2.x uses 1/64-line positioning tricks); most games unaffected.
-- **Confidence: medium** (updated 2026-08-24: the pp.210-211 SHAKER 22C/3 truth tables and
-  the pp.221-224 IVM worked tables are render-verified; see compendium-03's 2026-08-24 notes).
-- **Fix prompt**: deliberately NOT written yet — this is a multi-week finding. Fixture
-  sources as of 2026-08-24: the SHAKER 22C/3 truth tables (pp.210-211, render-verified — no
-  p.212 re-extraction needed; p.212 is §19.5.4 CRTC 2) and the pp.221-224 IVM worked tables,
-  whose even-R9 entry/exit arithmetic is corroborated by the §19.8.1 pseudocode and may be
-  fixtured; odd-R9 parity alternation waits on author question Q19 (the p.219 gate-token
-  polarity), so the pseudocode is not a safe sole specification there. Implement
-  type-by-type. Do this LAST. Still gate fixture work on the accepted digest corrections
-  B10-B11 (findings-review.md) and on answers to Q10 and Q12 — the extra-line frame
-  attribution and the odd-C4 VSYNC imbalance reading; Q11 (even-R9 total line count) is
-  resolved by the pp.221-224 renders (R9=6 → 4 lines per character per frame).
+- **Confidence: high for the implemented even-R9 surface** (every asserted value traces to a
+  render-verified table cell or the pseudocode; the type-1 model reproduces all 64 panel
+  callouts). Medium overall until hardware: the odd-R9 half of the finding and the additional
+  interlace line are deliberately unimplemented (Q19/Q10/Q12), and the residuals listed in
+  `f10-implementation-notes.md` (MID-VSYNC parity source after mid-frame R8 toggles, RFD×IVM,
+  adjustment-during-IVM) are unpinned.
+- **Remaining work**: odd-R9 alternation waits on Q19; the extra interlace line waits on Q10;
+  the odd-C4 VSYNC-imbalance correction waits on Q12. SHAKER interlace suite (Module B
+  `(1)`/`(9)`, C parity entries) is the hardware exit for what is implemented.
 
 ## F11. Minor / confirmatory findings (no immediate action)
 
