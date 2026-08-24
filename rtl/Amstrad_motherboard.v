@@ -241,10 +241,10 @@ asic_ga_timing asic_ga
 
 	.A(A[15:14]),
 	.D(D),
-	.MREQ_n(MREQ_n),
-	.M1_n(M1_n),
-	.RD_n(RD_n),
-	.IORQ_n(IORQ_n),
+	.MREQ_N(MREQ_n),
+	.M1_N(M1_n),
+	.RD_N(RD_n),
+	.IORQ_N(IORQ_n),
 
 	.HSYNC_I(plus_crtc_hs),
 	.VSYNC_I(plus_crtc_vs),
