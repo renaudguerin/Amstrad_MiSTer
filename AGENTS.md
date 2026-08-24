@@ -45,7 +45,10 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x1ac680cd2f12559a`, re-minted 2026-08-24 for the F10 fixture-stage
+  (`0x7d0e5c8bd984e899`, re-minted 2026-08-24 for the F10 type-1 IVM
+  behavior: the documented R8-toggle parity stages and §19.8.2 counting
+  are now live on type 1, and the IVM/stage state joined the sampled
+  projection; previously `0x1ac680cd2f12559a` from the F10 fixture-stage
   sampled-field expansion: the shared interlace parity flops joined the
   sampled projection while still holding reset values, no RTL behaviour
   change; previously `0x512eaae74a628dca` from the A2 exact-edge R4
