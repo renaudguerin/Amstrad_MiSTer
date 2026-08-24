@@ -1295,6 +1295,20 @@ void t05g_mode3_two_bit_pixels(TestBench& test) {
 // boundary. Layout source is the same Grimware mode-2 row (MSB first, one
 // dot per pen); palette from [KT] (ink0 = hw20 black, ink1 = hw11 white).
 //
+// What is source-backed and what is not (t04i discipline, and the same
+// deferral the module header carries). Sourced: two video bytes per CRTC
+// character, even half first, because ga40010 latches VIDEO_BUF twice per
+// character; the mode-2 bit order (Grimware); the colours ([KT]). NOT
+// sourced: the dot index at which the odd half takes over, i.e. the
+// intra-character phase. That is the unverified P1 model assumption
+// deferred to motherboard integration (architecture §5 Risk 1), so the
+// per-dot boundary asserted below moves with it and is not a hardware rule.
+// What survives any cadence is the discontinuity this vector was written
+// for: a character leaking the PREVIOUS character's byte for a single dot
+// while the dots either side of it are correct. If integration shifts the
+// phase, re-derive the boundary here; do not read a failure as proof the
+// pipeline regressed until that has been checked.
+//
 // Tick bookkeeping: after align_to_character_start() the next tick is the
 // CLKEN edge that opens character A. Because RGB is registered once per
 // dot, dot d of a character is read one tick later, so a character's dot 15
@@ -1375,7 +1389,8 @@ constexpr std::array<TestCase, 36> kTests = {{
     {"t05e border substitution and sync blank", t05e_border_substitution_and_sync_blank},
     {"t05f mode change latches at HSYNC", t05f_mode_change_latches_at_hsync},
     {"t05g mode 3 two-bit pixels", t05g_mode3_two_bit_pixels},
-    {"t05h byte halves belong to their character",
+    {"t05h byte halves belong to their character "
+     "(intra-character phase is an unverified model assumption)",
      t05h_byte_halves_belong_to_their_character},
 }};
 
