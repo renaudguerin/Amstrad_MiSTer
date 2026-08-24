@@ -312,6 +312,42 @@ fixture) and confirm the firmware/game reaches its first screen; classic mode mu
 re-checked side by side in the same session. Do not start Plus video by extending
 `ga40010`; the planned path is the parallel behavioral `asic_video` module.
 
+### P1 motherboard integration — landed on `plus/p1-motherboard-integration` (2026-08-24)
+
+Risk 1 was decided in favour of option (a): `rtl/plus/asic_ga_timing.v`
+reproduces the ga40010 timing contract behaviourally (sequencer, CCLK/PHI/
+READY/RAS/CAS/CPU_N, CAS refresh masking, monitor sync shaping, 52-line
+interrupt counter, legacy GA register file). Cycle-exact equivalence with the
+synthesised ga40010 composition is pinned by
+`sim/plus/asic_ga_timing_diff_tests`, which compiles the reference with
+`-UVERILATOR` (its simulation-only shadow domain double-drives the sync
+outputs under plain Verilator) and drives both with identical randomised
+bus/reset/sync traffic; register payloads ga40010 does not export are pinned
+by directed vectors r01-r03. Deliberate deltas are documented in the module
+header (no SNA preload — no Plus snapshots; defined INKR power-up values,
+named unverified assumption).
+
+`Amstrad_motherboard.v` instantiates both Plus subsystems unconditionally and
+muxes at the consumption points (house style); classic mode is untouched
+(soak re-verified). ga40010 stays the ROM-enable source in both modes because
+its register decode watches the same bus; plus_mmu overlays cartridge
+windows. The motherboard assembles VIDEOD on the reference VIDEO_BUF latch
+phases (e0 → even byte, 03 → odd byte). RGB reaches the existing 2-bit+OE
+path through a temporary lossless adapter for the legacy {0,6,15} levels;
+true 4-bit widening is P2's first commit. `files.qip` gained both new files.
+
+Open P1 follow-up, tracked here so it is not lost: `sim/plus/p1_video_tests`
+(`make -C sim/plus p1-video-bench`) hosts an integration bench with a classic
+CRTC+ga40010 oracle slice intended to close the t05h pixel-phase note by
+requiring the Plus PEN stream to match the classic pipeline byte-for-byte.
+Its stimulus/sampling calibration is unfinished (the first run showed a
+slot-grid/border-sampling mismatch that behaved like a bench-side phase
+error, not a production defect), so it builds but sits outside the default
+gate until calibrated; the t05h caveat therefore remains open.
+
+CI synthesis of the instantiation (`2a5dd4e`) was dispatched manually
+(run `32767393001`) — fitter numbers to be recorded there when complete.
+
 Plus P0 wiring is merged onto `accc-review-and-fixes` (merge `daf1d6f`) and has a green
 GitHub Actions build (simulation + synthesis) on the merged tip. Fitter: 15,295 / 41,910
 ALMs (36%), 685,217 block-memory bits (12%), 3 / 6 PLLs; worst setup slack +0.342 ns,
