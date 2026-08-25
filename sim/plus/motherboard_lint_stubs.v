@@ -1,59 +1,23 @@
-// Simulation-only stubs for the Verilator motherboard lint/elaboration pass
-// (`make -C sim/plus motherboard-lint`). They exist because Verilator cannot
-// read these children of Amstrad_motherboard under the pass's
-// `--language 1364-2001` setting (the T80pa instantiation's `.do(` port name
-// is a SystemVerilog keyword, which also rules out running the pass in
-// default-SV mode):
+// Simulation-only stubs for the Verilator motherboard builds. These
+// children of Amstrad_motherboard are SystemVerilog and the motherboard's
+// `.do(` T80pa pin forces --language 1364-2001 for every Verilator pass
+// that includes it, so they cannot participate as themselves:
 //
-//   - T80pa   : VHDL (rtl/T80/T80pa.vhd); Verilator has no VHDL front end.
-//   - ga40010 : SystemVerilog netlist wrapper + its casgen/syncgen/video
-//               siblings; their boundary into the motherboard is separately
-//               exercised live by the GADIFF lockstep bench and the p1_video
-//               bench, which compile the real files.
+//   - ga40010 : SystemVerilog netlist wrapper (+ casgen/syncgen/video
+//               siblings); its timing contract into the Plus path is
+//               separately pinned live by the GADIFF lockstep bench.
 //   - YM2149  : SystemVerilog (rtl/YM2149.sv).
 //   - hid     : SystemVerilog (rtl/hid.sv).
 //
-// Each stub keeps the FULL port list of its real counterpart (copied from the
-// source listed above), so pin wiring, widths, directions, and implicit-net
-// bugs at those boundaries are still checked by the pass. Behaviour is
-// deliberately absent: outputs are tied to constants, never to emulate the
-// part. Never synthesise this file; never add it to files.qip. When a port
-// list changes upstream, this file must change in the same commit — the
-// pass fails loudly if the two disagree about a *connected* pin, which is
-// the intended tripwire.
-
-module T80pa (
-	input  wire         reset_n,
-	input  wire         clk,
-	input  wire         cen_p,
-	input  wire         cen_n,
-	output wire [15:0]  a,
-	output wire [7:0]   do,
-	input  wire [7:0]   di,
-	output wire         rd_n,
-	output wire         wr_n,
-	output wire         iorq_n,
-	output wire         mreq_n,
-	output wire         m1_n,
-	output wire         rfsh_n,
-	input  wire         busrq_n,
-	input  wire         int_n,
-	input  wire         nmi_n,
-	input  wire         wait_n,
-	input  wire         DIRSet,
-	input  wire [211:0] DIR
-);
-	assign a      = 16'h0000;
-	assign do     = 8'h00;
-	assign rd_n   = 1'b1;
-	assign wr_n   = 1'b1;
-	assign iorq_n = 1'b1;
-	assign mreq_n = 1'b1;
-	assign m1_n   = 1'b1;
-	assign rfsh_n = 1'b1;
-	wire unused = &{1'b0, reset_n, clk, cen_p, cen_n, di, busrq_n,
-			int_n, nmi_n, wait_n, DIRSet, DIR, 1'b0};
-endmodule
+// Each stub keeps the FULL port list of its real counterpart (copied from
+// the source listed above), so pin wiring, widths, directions, and
+// implicit-net bugs at those boundaries are still checked. Behaviour is
+// deliberately absent: outputs tied to constants, never to emulate the
+// part. The T80pa stub is NOT here — it lives in t80pa_lint_stub.v (lint)
+// and t80pa_bench_cpu.v (mobo-bench), which pick one implementation each.
+// Never synthesise this file; never add it to files.qip. When a port list
+// changes upstream, this file must change in the same commit — the pass
+// fails loudly if the two disagree about a *connected* pin.
 
 // Port list copied from rtl/GA40010/ga40010.sv (production composition: the
 // `ifdef VERILATOR clk_16 input is excluded, matching -UVERILATOR).
@@ -116,7 +80,7 @@ module ga40010 (
 	assign CPU_N     = 1'b1;
 	assign MWE_N     = 1'b1;
 	assign E244_N    = 1'b1;
-	assign ROMEN_N   = 1'b1;
+	assign ROMEN_N   = 1'b1; // no ROM mapped — irrelevant in plus_mode benches
 	assign RAMRD_N   = 1'b1;
 	assign ROM       = 1'b0;
 	assign MODE      = 2'b00;
@@ -158,7 +122,7 @@ module YM2149 (
 	input  wire [3:0]  SNA_ADDR,
 	input  wire [127:0] SNA_REGS
 );
-	assign DO        = 8'hFF;
+	assign DO        = 8'hFF; // wired-AND neutral on the CPU data bus
 	assign CHANNEL_A = 8'h00;
 	assign CHANNEL_B = 8'h00;
 	assign CHANNEL_C = 8'h00;

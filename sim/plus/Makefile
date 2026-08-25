@@ -102,22 +102,23 @@ P1VID_TEST_BIN := $(P1VID_OBJ_DIR)/p1_video_tests
 # (queued P1 review follow-up: the gap that let two BLOCKING wiring bugs
 # reach Quartus). Runs under --language 1364-2001 like every other Plus
 # target; children Verilator cannot read in that mode are replaced by
-# full-port-list stubs (motherboard_lint_stubs.v — see its header for why
-# each is stubbed and where its port list comes from). -UVERILATOR matches
-# the production ga40010 composition (no simulation-only clk_16 port).
+# full-port-list stubs — ga40010/YM2149/hid in motherboard_lint_stubs.v and
+# T80pa in t80pa_lint_stub.v (see each file's header for why it is stubbed
+# and where its port list comes from). -UVERILATOR matches the production
+# ga40010 composition (no simulation-only clk_16 port).
 # Warning classes waived below were triaged 2026-08-25:
 #   PINCONNECTEMPTY / PINMISSING : intentionally unconnected output pins
 #   UNUSEDSIGNAL                 : reserved capability inputs and upstream/
 #                                  classic-side taps; the dead plus_phi_en_*
 #                                  pair this class surfaced is fixed by the
 #                                  phase-enable ownership mux, not waived
-#   DECLFILENAME                 : multi-module stub file
+#   DECLFILENAME                 : multi-module stub files
 #   CASEX / PROCASSINIT / IMPLICITSTATIC / SYNCASYNCNET / WIDTHTRUNC :
 #                                  upstream style idioms in files owned by
 #                                  other streams
 # Everything else under -Wall stays fatal — above all IMPLICIT (undeclared
 # nets at instance pins, the original review-finding bug class) and UNDRIVEN.
-MBOARD_LINT_RTL := $(abspath ../../rtl/Amstrad_motherboard.v) \
+MBOARD_CORE_RTL := $(abspath ../../rtl/Amstrad_motherboard.v) \
 	$(abspath motherboard_lint_stubs.v) \
 	$(abspath ../../rtl/CRTC.v) \
 	$(abspath ../../rtl/crtc_type0_engine.v) \
@@ -128,9 +129,25 @@ MBOARD_LINT_RTL := $(abspath ../../rtl/Amstrad_motherboard.v) \
 	$(abspath ../../rtl/Amstrad_MMU.v) \
 	$(abspath ../../rtl/i8255.v)
 
+MBOARD_LINT_RTL := $(MBOARD_CORE_RTL) $(abspath t80pa_lint_stub.v)
+
+# plus_mode=1 motherboard-level integration bench: the same hierarchy with a
+# scripted fake CPU (t80pa_bench_cpu.v) instead of the lint tie-off, driven
+# from p1_mobo_bench_test.cpp. --public-flat-rw exposes the fake CPU's debug
+# exports and the asic_video payload taps to C++.
+MOBO_TOP      := p1_mobo_bench_top
+MOBO_TEST_TOP := $(abspath p1_mobo_bench_top.v)
+MOBO_RTL      := $(MBOARD_CORE_RTL) \
+	$(abspath ../../rtl/GA40010/casgen_sync.v) \
+	$(abspath ../../rtl/GA40010/syncgen_sync.v)
+MOBO_CPU      := $(abspath t80pa_bench_cpu.v)
+MOBO_OBJ_DIR  := obj_dir/p1_mobo_bench
+MOBO_TEST_SRC := $(abspath p1_mobo_bench_test.cpp)
+MOBO_TEST_BIN := $(MOBO_OBJ_DIR)/p1_mobo_bench_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
-	$(GADIFF_TEST_BIN)
+	$(GADIFF_TEST_BIN) $(MOBO_TEST_BIN)
 # p1_video_tests builds but is deliberately NOT in the default gate yet:
 # its stimulus/sampling calibration is unfinished (see docs/current-status.md,
 # P1 pixel-phase item). Run it explicitly via: make p1-video-bench
@@ -161,6 +178,7 @@ test: $(TEST_BINS)
 	./$(MMU_TEST_BIN)
 	./$(P0BOOT_TEST_BIN)
 	./$(GADIFF_TEST_BIN)
+	./$(MOBO_TEST_BIN)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
@@ -226,6 +244,13 @@ $(GADIFF_TEST_BIN): $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF) $(GADIFF_
 		--Mdir $(GADIFF_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(GADIFF_TEST_BIN)) $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) \
 		$(GADIFF_REF) $(GADIFF_TEST_SRC)
+
+$(MOBO_TEST_BIN): $(MOBO_TEST_TOP) $(MOBO_RTL) $(MOBO_CPU) $(MOBO_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR --public-flat-rw \
+		--top-module $(MOBO_TOP) \
+		--Mdir $(MOBO_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(MOBO_TEST_BIN)) $(MOBO_TEST_TOP) $(MOBO_RTL) \
+		$(MOBO_CPU) $(MOBO_TEST_SRC)
 
 $(OBJ_DIR):
 	mkdir -p -- $@
