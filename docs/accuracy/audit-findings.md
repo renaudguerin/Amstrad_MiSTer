@@ -460,7 +460,10 @@ General implementation rules for all fix prompts:
   type-0 frame load misses it. Implemented 2026-08-25: the row-0 arm loads the post-edge
   register file (`r12_effective`/`r13_effective` mirror the register block's write/SNA
   priority); `t20j` pins the catch at a mid-row-0 boundary and at the frame origin, `t20k`
-  pins the type-0 miss. Deliberately unpinned residuals: writes landing mid-C0=0 or later
+  pins the type-0 miss. Scope note (review N-5, 2026-08-25): the mid-row-0 catch is the
+  drawn chronogram; the frame-origin catch is a prose inference ("when C0 and C9 go to 0
+  and C4=0" covers the frame origin) — a later hardware test should treat the two halves
+  accordingly. Deliberately unpinned residuals: writes landing mid-C0=0 or later
   (beyond the drawn window), and the same-edge phase of the §11.2.4 adjustment and §11.6
   RFD reload arms (different rules, not governed by p.242).
 - **F11i — Interrupt/R52, GA-side rules** (digest-02 §23-27): live in `rtl/GA40010` (netlist,

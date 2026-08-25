@@ -4365,8 +4365,8 @@ void test_type1_r12_write_on_row0_boundary_edge_reloads(TestBench& test) {
                    0x3078);
 
     // The frame origin is the same "C0 and C9 go to 0 and C4=0" event, so a
-    // write landing exactly there is caught by the same rule. R12 is 6 bits,
-    // so the written 0x15 truncates DI[5:0].
+    // write landing exactly there is caught by the same rule. R12 is 6 bits
+    // (DI[5:0]); the written 0x15 stays inside that range.
     test.select_register(12);
     test.run_characters(309 * 64 - 1);
     test.write_selected_register_at_clken(0x15);
@@ -5333,6 +5333,82 @@ void test_type1_ivm_vsync_no_gap_r7_even_c4(TestBench& test) {
     }
 }
 
+// t24c: type-1 IVM MID-VSYNC half-line phase (ACCC v1.10 section 19.5.3
+// p.208 prose: "If ParityFrame is even, then an additional line and a
+// MID-VSYNC are scheduled. If ParityFrame is odd, then no additional line
+// and no MID-VSYNC."; the type-0 Note on p.207 states the same half-line
+// rule as "the VSYNC occurs in the middle of the line on C0 = R0/2").
+// t24b's register set (R7=2): the pulse's first line is frame-line 9 on
+// both parities. The ParityFrame-even frame must start the pulse at the
+// half-line tick (low at C0=20, high at C0=40) and end it at the half-line
+// tick 16 lines later (high at C0=20 of line 25, low at C0=40); the
+// ParityFrame-odd frame starts and ends at line seams (high/high on line 9,
+// low/low on line 25). Known-divergence forms: the committed model starts
+// both parities at the seam, so the even-frame samples fail.
+
+void test_type1_ivm_mid_vsync_half_line_phase(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 6},
+        {5, 0},  {6, 25}, {7, 2},   {8, 0},   {9, 8},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_characters(2);
+    const std::array<std::uint8_t, 10> snapshot = {
+        63, 40, 46, 0x11, 6, 0, 25, 2, 3, 8,
+    };
+    test.load_snapshot_registers(snapshot);
+
+    // Sample helper: from a line start, land at C0=20, sample, land at
+    // C0=40, sample, complete the line.
+    test.run_characters(18);
+    test.expect_vsync_low("t24c even frame line 0: VSYNC quiet");
+    test.run_characters(44);
+    for (unsigned line = 1; line <= 31; ++line) {
+        test.run_characters(20);
+        if (line == 9) {
+            test.expect_known_vsync_low(
+                "t24c even frame line 9 at C0=20: MID-VSYNC starts at the half-line tick");
+        }
+        if (line == 25) {
+            test.expect_vsync_high(
+                "t24c even frame line 25 at C0=20: pulse still up before the half-line tick");
+        }
+        test.run_characters(20);
+        if (line == 9) {
+            test.expect_vsync_high(
+                "t24c even frame line 9 at C0=40: MID-VSYNC pulse is up");
+        }
+        if (line == 25) {
+            test.expect_known_vsync_low(
+                "t24c even frame line 25 at C0=40: pulse ends at the half-line tick");
+        }
+        test.run_characters(24);
+    }
+    for (unsigned line = 0; line <= 30; ++line) {
+        test.run_characters(20);
+        if (line == 9) {
+            test.expect_vsync_high(
+                "t24c odd frame line 9 at C0=20: seam start is already up");
+        }
+        if (line == 25) {
+            test.expect_vsync_low(
+                "t24c odd frame line 25 at C0=20: seam end already down");
+        }
+        test.run_characters(20);
+        if (line == 9) {
+            test.expect_vsync_high("t24c odd frame line 9 at C0=40: pulse is up");
+        }
+        if (line == 25) {
+            test.expect_vsync_low("t24c odd frame line 25 at C0=40: pulse is down");
+        }
+        test.run_characters(24);
+    }
+}
+
 }  // namespace
 //============================================================================
 //  Randomized equivalence soak
@@ -5969,6 +6045,9 @@ int main(int argc, char** argv) {
         {"t24b_type1_ivm_vsync_no_gap_r7_even_c4",
          "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=2 even) with section 19.8.2 p.225 alternation",
          false, test_type1_ivm_vsync_no_gap_r7_even_c4},
+        {"t24c_type1_ivm_mid_vsync_half_line_phase",
+         "ACCC v1.10 section 19.5.3 p.208 prose (MID-VSYNC on the ParityFrame-even frame); p.207 Note",
+         true, test_type1_ivm_mid_vsync_half_line_phase},
     };
 
     unsigned passed = 0;

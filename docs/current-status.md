@@ -221,12 +221,12 @@ For a first MiSTer pass:
   (`accuracy/f10-independent-review.md`): NOT CLEAR on two blockings, both fixed with new
   vectors (`t23a`-`t23c`, `t22p`-`t22s`, RA column in `t22`); review-debt row cleared.
   Remaining non-gated classic items for the next agent session: (1) F11h closure — re-read
-   ACCC p.242 (§20.3.2, render at `accuracy/extract/pages/p242.png`) and either close the
-   intra-character R12/R13-immediacy residual with a decision note or implement it behind a
-   deterministic vector; (2) a type-1 IVM VSYNC-gap fixture from the p.208 worked table
-   (render present), entering IVM at a frame boundary with R8=3 held so the MID-VSYNC
-   `field`-parity residual stays out of scope; (3) CI-only bump of `actions/checkout@v4`
-   (Node 20 deprecation warning in every run).
+  ACCC p.242 (§20.3.2, render at `accuracy/extract/pages/p242.png`) and either close the
+  intra-character R12/R13-immediacy residual with a decision note or implement it behind a
+  deterministic vector; (2) a type-1 IVM VSYNC-gap fixture from the p.208 worked table
+  (render present), entering IVM at a frame boundary with R8=3 held so the MID-VSYNC
+  `field`-parity residual stays out of scope; (3) CI-only bump of `actions/checkout@v4`
+  (Node 20 deprecation warning in every run).
 
 - F11h is closed by implementation (2026-08-25, this branch): the p.242 render shows the
   second CRTC-1 chronogram catching an R12 write that lands on the row-0 line-boundary edge
