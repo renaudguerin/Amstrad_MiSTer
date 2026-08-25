@@ -176,9 +176,9 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 109 required CRTC passes, zero expected failures, no
-  unexpected passes, and no failures (verified 2026-08-23, Verilator 5.050). The randomized
-  equivalence soak reproduces golden hash `0x512eaae74a628dca` (chain in AGENTS.md). The
+- The current local gate reports 149 required CRTC passes, zero expected failures, no
+  unexpected passes, and no failures (verified 2026-08-25, Verilator 5.050). The randomized
+  equivalence soak reproduces golden hash `0x801a59096c192d26` (chain in AGENTS.md). The
   §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
   window; per review finding F-9 the soak is measurably insensitive to this region, so the
   directed vectors — not the soak — carry the behavioral proof here.
@@ -221,12 +221,22 @@ For a first MiSTer pass:
   (`accuracy/f10-independent-review.md`): NOT CLEAR on two blockings, both fixed with new
   vectors (`t23a`-`t23c`, `t22p`-`t22s`, RA column in `t22`); review-debt row cleared.
   Remaining non-gated classic items for the next agent session: (1) F11h closure — re-read
-  ACCC p.242 (§20.3.2, render at `accuracy/extract/pages/p242.png`) and either close the
-  intra-character R12/R13-immediacy residual with a decision note or implement it behind a
-  deterministic vector; (2) a type-1 IVM VSYNC-gap fixture from the p.208 worked table
-  (render present), entering IVM at a frame boundary with R8=3 held so the MID-VSYNC
-  `field`-parity residual stays out of scope; (3) CI-only bump of `actions/checkout@v4`
-  (Node 20 deprecation warning in every run).
+   ACCC p.242 (§20.3.2, render at `accuracy/extract/pages/p242.png`) and either close the
+   intra-character R12/R13-immediacy residual with a decision note or implement it behind a
+   deterministic vector; (2) a type-1 IVM VSYNC-gap fixture from the p.208 worked table
+   (render present), entering IVM at a frame boundary with R8=3 held so the MID-VSYNC
+   `field`-parity residual stays out of scope; (3) CI-only bump of `actions/checkout@v4`
+   (Node 20 deprecation warning in every run).
+
+- F11h is closed by implementation (2026-08-25, this branch): the p.242 render shows the
+  second CRTC-1 chronogram catching an R12 write that lands on the row-0 line-boundary edge
+  itself (OFFSET=#30xx from C0=0) where the paired CRTC-0 chronogram keeps the old offset —
+  so the §20.3.2 reload samples the post-edge register file. `t20j` (fixture commit XFAIL,
+  behavior commit required pass) pins the catch at a mid-row-0 boundary and the frame
+  origin; `t20k` pins the type-0 miss. Soak re-minted `0x801a59096c192d26` (chain in
+  AGENTS.md). Unpinned residuals are recorded in the F11h entry of `audit-findings.md`.
+  Still open from the list above: the t24 IVM VSYNC-gap fixture and the CI-only
+  `actions/checkout` bump.
 
 D1 is complete (2026-08-24): every remaining ⚠ VERIFY flag in the three digests was
 re-verified against the PDF (pdf-inspector Markdown primary, figures judged from rendered

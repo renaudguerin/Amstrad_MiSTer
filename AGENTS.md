@@ -45,7 +45,11 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0xa9e5026de83d287c`, re-minted 2026-08-25 for the F10 review
+  (`0x801a59096c192d26`, re-minted 2026-08-25 for the F11h closure: the
+  type-1 §20.3.2 row-0 VMA reload now samples the post-edge register file,
+  so an R12/R13 write landing exactly on a row-0 line-boundary edge is
+  caught by that reload (ACCC p.242 chronogram 2); previously
+  `0xa9e5026de83d287c`, re-minted 2026-08-25 for the F10 review
   remediation: the type-1 leaving stage A now writes C9.0 (B-1), the
   §19.8.2 match-branch ParityC9 toggle also fires at frame boundaries
   (B-2), the leaving stage-B ParityC9 write is gated to the entering

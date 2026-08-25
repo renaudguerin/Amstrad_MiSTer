@@ -262,7 +262,7 @@ crtc_type0_engine crtc_type0_engine
 
 wire       e1_line_last, e1_line_new, e1_row_last, e1_row_frame_last, e1_row_new, e1_frame_adj;
 wire       e1_adj_from_row0;
-wire       e1_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
+wire       e1_reload, e1_row0_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
 wire       e1_vsync_line_fire, e1_r7_write_fire, e1_r6_vde_write, e1_r6_vde_value;
 wire       e1_r6_vder_write, e1_r6_vder_value, e1_status_bit5;
 wire       e1_rfd_r0_extend;
@@ -285,7 +285,7 @@ crtc_type1_engine crtc_type1_engine
 	e1_line_last, e1_line_new, e1_line_next, e1_c5_next,
 	e1_row_last, e1_row_frame_last, e1_row_next, e1_row_new, e1_frame_adj,
 	e1_adj_from_row0,
-	e1_reload, e1_row_addr_save,
+	e1_reload, e1_row0_reload, e1_row_addr_save,
 	e1_field_count_tick, e1_hsync_off, e1_de_index, e1_vsync_line_fire,
 	e1_vsc_load, e1_r7_write_fire,
 	e1_r6_vde_write, e1_r6_vde_value, e1_r6_vder_write, e1_r6_vder_value,
@@ -394,6 +394,19 @@ end
 // address
 reg  [13:0] row_addr;   // saved pointer
 reg  [13:0] row_addr_r; // current pointer
+// ACCC v1.10 section 20.3.2 p.242: the type-1 row-0 reload samples the
+// register file as of AFTER the current edge -- the second CRTC-1
+// chronogram draws an R12 write landing on the reload boundary edge itself
+// caught (OFFSET=#30xx from C0=0) where the paired CRTC-0 chronogram
+// (section 20.3.1) leaves the old offset.  Mirror the register block's
+// snapshot/write priority so a same-edge write or SNA load participates.
+wire       reg_data_write = ENABLE & ~nCS & ~R_nW & RS;
+wire [5:0] r12_effective  = SNA_LOAD ? SNA_REGS[96 +: 6] :
+                             (reg_data_write & (addr == 5'd12)) ? DI[5:0]
+                                                                : R12_start_addr_h;
+wire [7:0] r13_effective  = SNA_LOAD ? SNA_REGS[104 +: 8] :
+                             (reg_data_write & (addr == 5'd13)) ? DI
+                                                                : R13_start_addr_l;
 always @(posedge CLOCK) begin
 	if(CLKEN) begin
 		if(row_addr_save) row_addr <= row_addr_r; // save current pointer
@@ -407,6 +420,9 @@ always @(posedge CLOCK) begin
 		end
 		if(crtc1_reload) begin
 			row_addr_r <= {R12_start_addr_h, R13_start_addr_l};
+		end
+		if(e1_row0_reload) begin
+			row_addr_r <= {r12_effective, r13_effective};
 		end
 	end
 end

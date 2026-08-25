@@ -448,13 +448,21 @@ General implementation rules for all fix prompts:
   type 0 only, 0/1/2-char delay + non-output ✓
   (matches ACCC §19.1 table; the digest's wrong bit-position bullets were corrected 2026-08-22
   per B8 — the table says bits 5:4, which is what the code uses).
-- **F11h — R12/R13 mid-row immediacy on type 1** (digest-03 §20.3.2, ⚠ VERIFY p.242):
-  current model reloads VMA from R12/R13 at **every non-final line boundary within C4=0**
-  (plus row 1 after a row-0 adjustment entry) via `crtc1_row0_reload` /
-  `crtc1_adj_row1_reload` (`crtc_type1_engine.v:152-154`), so an R12/R13 write lands in VMA
-  within one line during row 0 — protected by `t20b`/`t20d`/`t20f`/`t20h`. What is still not
-  modeled is intra-character immediacy (a write taking effect inside the same character line);
-  re-read PDF p.242 before deciding whether that residual gap matters; fold into F7's work if so.
+- **F11h — R12/R13 mid-row immediacy on type 1** (ACCC §20.3.2 p.242, render-verified
+  2026-08-25): the model reloads VMA from R12/R13 at **every non-final line boundary within
+  C4=0** (plus row 1 after a row-0 adjustment entry) via `crtc1_row0_reload` /
+  `crtc1_adj_row1_reload`, so an R12/R13 write lands in VMA within one line during row 0 —
+  protected by `t20b`/`t20d`/`t20f`/`t20h`. The p.242 re-read resolved the residual: the
+  second CRTC-1 chronogram draws the OUT bus activity spanning C0=62..1 across a row-0 seam
+  (write landing on the 63→0 boundary edge) with OFFSET=#30xx from C0=0, while the paired
+  CRTC-0 chronogram (§20.3.1) with identical timing keeps OFFSET=#10xx — so the type-1
+  reload catches a write whose register update coincides with the reload edge, and the
+  type-0 frame load misses it. Implemented 2026-08-25: the row-0 arm loads the post-edge
+  register file (`r12_effective`/`r13_effective` mirror the register block's write/SNA
+  priority); `t20j` pins the catch at a mid-row-0 boundary and at the frame origin, `t20k`
+  pins the type-0 miss. Deliberately unpinned residuals: writes landing mid-C0=0 or later
+  (beyond the drawn window), and the same-edge phase of the §11.2.4 adjustment and §11.6
+  RFD reload arms (different rules, not governed by p.242).
 - **F11i — Interrupt/R52, GA-side rules** (digest-02 §23-27): live in `rtl/GA40010` (netlist,
   gate-accurate) — out of CRTC scope, nothing to do. The CRTC's job is correct HSYNC *edges*,
   which F3/F5/F6 improve.
