@@ -156,10 +156,17 @@ AREGS_OBJ_DIR  := obj_dir/asic_regs
 AREGS_TEST_SRC := $(abspath asic_regs_test.cpp)
 AREGS_TEST_BIN := $(AREGS_OBJ_DIR)/asic_regs_tests
 
+# P3 programmable raster interrupt directed vectors (exact-cycle).
+PRI_TOP      := asic_ga_timing
+PRI_RTL      := $(abspath ../../rtl/plus/asic_ga_timing.v)
+PRI_OBJ_DIR  := obj_dir/asic_pri
+PRI_TEST_SRC := $(abspath asic_pri_test.cpp)
+PRI_TEST_BIN := $(PRI_OBJ_DIR)/asic_pri_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
-	$(AREGS_TEST_BIN)
+	$(AREGS_TEST_BIN) $(PRI_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -189,6 +196,7 @@ test: $(TEST_BINS)
 	./$(P1VID_TEST_BIN)
 	./$(MOBO_TEST_BIN)
 	./$(AREGS_TEST_BIN)
+	./$(PRI_TEST_BIN)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
@@ -254,6 +262,11 @@ $(GADIFF_TEST_BIN): $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF) $(GADIFF_
 		--Mdir $(GADIFF_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(GADIFF_TEST_BIN)) $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) \
 		$(GADIFF_REF) $(GADIFF_TEST_SRC)
+
+$(PRI_TEST_BIN): $(PRI_RTL) $(PRI_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(PRI_TOP) \
+		--Mdir $(PRI_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(PRI_TEST_BIN)) $(PRI_RTL) $(PRI_TEST_SRC)
 
 $(AREGS_TEST_BIN): $(AREGS_RTL) $(AREGS_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(AREGS_TOP) \
