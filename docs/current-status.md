@@ -27,10 +27,22 @@ never gates a commit.
 
 ## Hardware-test milestone
 
-NOTE 2026-08-25: the P4 merge (`0dabcb8`) is newer than this milestone;
-its exact synthesis already ran green on `e3dd848`/`69e5d91`
-(run `32902476483`: 71 % ALMs / +0.436 ns setup), and a fresh dispatch on
-the parent will re-confirm at the merge tip. Historical paragraph:
+`b533a93` (the P4 merge plus its docs) is the newest successfully
+synthesized code milestone: GitHub Actions run `32905405634`
+(2026-08-25, Quartus 17.0.2, workflow_dispatch at the merge tip) passed
+simulation, policy, exact synthesis and the required gate. Fitter:
+29,893 / 41,910 ALMs (71 %); 37,506 registers; 685,217 block-memory bits
+(12 %); 34 / 112 DSP blocks; worst-case setup slack +0.436 ns, hold
++0.179 ns — positive; no regression signal. Versus `5d6d342` (16,198
+ALMs / 39 %) the growth is the sprite engine's flop-based staging arrays
+and datapath entering the fit for the first time; memory bits are
+unchanged by design. RBF retained as artifact of run `32905405634`
+(`Amstrad_20260825_b533a93.rbf`). Not hardware-tested. The push-run
+`32905376888` is identically green. Historical paragraph:
+
+NOTE superseded — see above.
+
+
 
 `5d6d342` is the newest successfully synthesized code milestone (GitHub Actions run
 `32852900420`, 2026-08-25, Quartus 17.0.2): the merge of `plus/p2-asic-regs`
