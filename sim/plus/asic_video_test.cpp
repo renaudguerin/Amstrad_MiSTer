@@ -214,6 +214,12 @@ public:
         dut.VIDEOD = videod_word;
     }
 
+    // Sprite-plane inputs (P4 precedence vectors t06*).
+    void set_sprite(unsigned en, unsigned r, unsigned g, unsigned b) {
+        dut.SPR_EN = en;
+        dut.SPR_RGB = (r << 8) | (g << 4) | b;
+    }
+
     void set_border(unsigned hw_colour) { dut.BORDER_I = hw_colour; }
     void set_mode(unsigned mode) { dut.GAMODE = mode; }
     void set_videod(unsigned videod_word) { dut.VIDEOD = videod_word; }
@@ -1351,7 +1357,57 @@ void t05h_byte_halves_belong_to_their_character(TestBench& test) {
     walk("char B", true, kWordA);
 }
 
-constexpr std::array<TestCase, 36> kTests = {{
+// ---- t06: sprite-plane precedence (P4) ---------------------------------
+//
+// asic_video owns the final mux. Reference §5: border > sprite 0..15 >
+// screen, with HSYNC force-blank above everything. The bench drives the
+// SPR_EN/SPR_RGB inputs directly; the engine behind them is pinned by
+// sim/plus/asic_sprites_test.cpp.
+
+// Inside DE a sprite pixel replaces the decoded ink; PEN keeps reporting
+// the screen-side decode regardless (it observes the CRTC/GA path only).
+void t06a_sprite_over_screen_ink(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    test.set_ga(2, 24, 0xFFFFU);  // mode 2, all pens = 1 (bright white)
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    // Registered RGB lags one dot: after two executed dots the sample
+    // shows body dot 0's decode.
+    test.run_dots(2);
+    test.expect_rgb("t06a screen ink before sprite", kWhiteR, kWhiteG,
+                    kWhiteB);
+    test.set_sprite(1, 5, 10, 15);
+    test.run_dots(1);
+    test.expect_rgb("t06a sprite pixel over ink", 5, 10, 15);
+    test.expect_pen("t06a PEN still reports the screen pen", false, 1);
+    test.set_sprite(0, 5, 10, 15);
+    test.run_dots(1);
+    test.expect_rgb("t06a screen ink restored", kWhiteR, kWhiteG, kWhiteB);
+}
+
+// Outside DE the border beats an active sprite pixel.
+void t06b_border_over_sprite(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    test.set_ga(2, 24, 0xFFFFU);
+    test.run_to_frame_start();
+    test.run_characters(6);  // characters 4..5: past R1=4, clear of sync
+    test.expect_rgb("t06b border without sprite", 6, 0, 6);
+    test.set_sprite(1, 5, 10, 15);
+    test.run_dots(1);
+    test.expect_rgb("t06b border still wins over sprite", 6, 0, 6);
+    // t06c: HSYNC force-blank beats everything, sprite included.
+    do {
+        test.run_characters(1);
+    } while (!test.hsync());
+    test.run_dots(3);  // registered output picks up the forced blank
+    test.expect_rgb("t06c HSYNC blanks active sprite", 0, 0, 0);
+}
+
+constexpr std::array<TestCase, 38> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -1392,6 +1448,9 @@ constexpr std::array<TestCase, 36> kTests = {{
     {"t05h byte halves belong to their character "
      "(intra-character phase is an unverified model assumption)",
      t05h_byte_halves_belong_to_their_character},
+    {"t06a sprite pixel over screen ink", t06a_sprite_over_screen_ink},
+    {"t06b border over sprite; HSYNC blank over all",
+     t06b_border_over_sprite},
 }};
 
 }  // namespace

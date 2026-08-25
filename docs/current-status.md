@@ -578,6 +578,64 @@ No-write-through into real SDRAM is enforced by the suppression terms and
 verified by construction/mux inspection; no bench drives the full top-level
 memory path yet.
 
+### P4 sprites — engine implemented on `plus/p4-sprites` (2026-08-25)
+
+`rtl/plus/asic_sprites.v` implements the [KT] coordinate model literally
+(asic-reference §5): vertical compare on `{LINE, ROW&7}` (not gated by R6),
+horizontal window on a free-running 10-bit dot counter cleared at the CRTC
+character wrap — so the documented "R0>64 repeats horizontally" falls out of
+the scale wrapping at exactly 64 characters — magnification codes
+01/10/11, transparency at nibble zero, lowest-index priority, colour c ->
+palette entry 16+c. Rows stage in DUAL banks: at each line seam a
+row-tag-matched inactive bank is promoted (zero-latency swap) while the
+background walker speculatively fills it with predicted row+1; mismatches
+(Y/mag rewrites, first frame) fall back to urgent refill. X rewrites cut
+the live window via a shadow; CPU pixel-data accesses blank that sprite only
+and flush its staged banks through `asic_regs`' new access indicator.
+`asic_video` gained HWRAP plus the final border > sprite > screen mux under
+HSYNC force-blank; the motherboard instantiates the engine; `files.qip`
+carries it with instantiation.
+
+Vectors: s01-s10 PASS (disabled codes, placement/transparency, Y-formula
+masking incl. the ROW&7 pin, x/y/quad magnification bounds and row
+duplication, priority chain + 16-stack, palette mapping/order, X extremes +
+wrap-through + negative alias, R0>64 repeat). asic_video t06a-c pin the
+precedence mux; asic_regs a09/a10 pin the fetch-port handshake/preemption
+and access-indicator decode.
+
+**SKIPPED VECTORS (next session, top priority):** s11-s14 are disabled
+with SKIP lines (exit code 65 when anything skips, so the gate cannot
+silently accept them). Independent Codex/GPT-5.6 Sol review
+(2026-08-25, NOT CLEAR) found three real defects, all fixed and
+bite-verified by re-enabling the affected vectors: suppressed port
+completions stranded sreq bits forever (completion now always releases
+the slot; only the payload write is conditional, scoped to words whose
+sprite matches ACC_IDX); the disabled-sprite block jump advanced
+walk[7:4] which crosses bank+sprite, skipping every odd sprite (now
+advances the sprite field within the bank half); and s11's own assertion
+sampled outside sprite 2's window while reading idx without EN. With
+those landed s11 passes its bystander/hole phases in simulation but char5
+recovery after the access flush still comes up incomplete across the
+next seam — the residual is bounded to post-flush cross-seam refill
+dynamics and is the exact reopening point for s11-s14 (traces:
+s11c1/s11c4/s11c5 SPRDBG prints show per-dot winner state; SEAM watcher
+in the public-flat-rw leaf build shows seam branch decisions). Also open
+from this phase: mobo-bench m8 end-to-end sprite vector, and the
+INKR-effects ~1/2-us-late GA pipeline question noted in P1 remains
+deferred.
+
+Milestone CI (workflow_dispatch run `32892544906`, Quartus 17.0.2,
+commit `e3dd848`): simulation, policy, exact synthesis all green.
+Fitter: 29,893 / 41,910 ALMs (71 %); 37,506 registers; 685,217
+block-memory bits (12 %); 34 / 112 DSP blocks; worst-case setup slack
++0.436 ns, hold +0.179 ns — positive; no regression signal. Versus the
+P2/P3 merge milestone (`5d6d342`: 16,198 ALMs / 39 %) the ~13,700-ALM
+growth is the sprite staging arrays (dual 8-byte banks x 16 sprites with
+request/delivery bitmaps) plus the engine datapath landing in fabric for
+the first time; memory bits unchanged (staging is flop-based by design).
+RBF retained as artifact `Amstrad-build-104-1`
+(`Amstrad_20260825_e3dd848.rbf`). Not hardware-tested.
+
 ### P3 interrupts — implemented on `plus/p2-asic-regs` (2026-08-25)
 
 The programmable raster interrupt lives inside `asic_ga_timing`, where the
@@ -719,7 +777,11 @@ front end.
     interrupts (PRI/DCSR/IVR) are done on `plus/p2-asic-regs`, synthesized green at
     `3d7a178`. Next Plus steps: the manual hardware checkpoint (real `.cpr` boot,
     a static-palette title for P2's exit, a raster-split title for P3's; classic
-    re-checked side by side), then P4 sprites. The branch carries unreviewed work
-    per standing session instructions; order cross-provider review(s) before
-    merging.
+    re-checked side by side), then finish P4 sprites: engine + s01-s10 +
+    t06/a09/a10 landed and synthesized green at `e3dd848` (71 % ALMs);
+    remaining P4 work is the s11-s14 skipped vectors (phantom sprite-0
+    winner under multi-sprite load — start from the proven public-flat-rw
+    leaf-test probe setup) and mobo-bench m8; see the P4 section above.
+    The branch carries unreviewed work per standing session instructions;
+    order cross-provider review(s) before merging.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.

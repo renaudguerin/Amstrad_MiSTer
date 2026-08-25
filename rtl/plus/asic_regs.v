@@ -92,7 +92,34 @@ module asic_regs
 	// P7 DMA engine asserts these on an INT instruction; they OR-set the
 	// DCSR flag bits here so write-one-to-clear is observable now rather
 	// than arriving implicit with P7. Tied low until P7 lands.
-	input  [2:0] dma_int_set   // {ch2, ch1, ch0}
+	input  [2:0] dma_int_set,  // {ch2, ch1, ch0}
+
+	// ---- P4 video-side sprite services ----
+	// Row-fetch port into spr_ram for the sprite engine (P4): a
+	// registered second read, preempted whenever the CPU port owns a
+	// page read cycle. ADDR = {sprite[3:0], row[3:0], byte[2:0]};
+	// DATA returns that byte position's two consecutive nibbles
+	// {odd nibble, even nibble}, ACK pulses one clock after each
+	// granted edge.
+	input               sprq_req,
+	input        [10:0] sprq_addr,
+	output reg   [7:0]  sprq_data,
+	output reg          sprq_ack,
+
+	// Pixel-data access indicator (reference §5 blanking side effect):
+	// asserted while the CPU reads OR writes any byte of a sprite's
+	// 256-byte image area; IDX identifies the sprite. Register-region
+	// accesses (&6000s) never assert it — writes there do not blank.
+	output              spr_acc_en,
+	output       [3:0]  spr_acc_idx,
+
+	// Live attribute view for the sprite engine (§3/§4 storage).
+	output [159:0] spr_x_view,   // sprite n X[9:0] at [n*10 +: 10]
+	output [143:0] spr_y_view,   // sprite n Y[8:0] at [n*9 +: 9]
+	output  [63:0] spr_mag_view, // sprite n magnification at [n*4 +: 4]
+
+	// Sprite colour entries 17..31 (colour c at [(c-1)*12 +: 12], §5/§6).
+	output [179:0] spr_pal_view
 );
 
 	//------------------------------------------------------------------
@@ -429,6 +456,46 @@ module asic_regs
 		if (reset) pal_r <= 12'd0;
 		else       pal_r <= pal[pal_raddr];
 	end
+
+	//------------------------------------------------------------------
+	// P4 sprite-engine services.
+	//
+	// Row fetch: a registered read of spr_ram sharing the array with the
+	// CPU port. The CPU wins every cycle (its readback path is
+	// combinational and cannot be delayed); a preempted grant simply
+	// does not assert ACK, and the engine holds REQ until served.
+	//------------------------------------------------------------------
+	wire sprq_grant = sprq_req && !(asic_cs && mem_rd);
+
+	always @(posedge clk) begin
+		if (reset) begin
+			sprq_data <= 8'd0;
+			sprq_ack  <= 1'b0;
+		end
+		else begin
+			sprq_ack  <= sprq_grant;
+			sprq_data <= {spr_ram[{sprq_addr, 1'b1}],
+			              spr_ram[{sprq_addr, 1'b0}]};
+		end
+	end
+
+	// Access indicator: any CPU cycle inside a sprite image area
+	// (&4000-&4FFF), read or write (reference §5 blanking side effect).
+	assign spr_acc_en  = asic_cs && (mem_rd || mem_wr) && (wsel == 2'b00);
+	assign spr_acc_idx = A[11:8];
+
+	// Live attribute/palette views for the sprite engine.
+	genvar gi;
+	generate
+		for (gi = 0; gi < 16; gi = gi + 1) begin: g_sprview
+			assign spr_x_view[gi*10 +: 10] = {spr_x_hi[gi], spr_x_lo[gi]};
+			assign spr_y_view[gi*9  +: 9 ] = {spr_y_hi[gi], spr_y_lo[gi]};
+			assign spr_mag_view[gi*4 +: 4] = spr_mag[gi][3:0];
+		end
+		for (gi = 0; gi < 15; gi = gi + 1) begin: g_sprpal
+			assign spr_pal_view[gi*12 +: 12] = pal[17 + gi];
+		end
+	endgenerate
 
 	// Quartus maps these synthesizable initial values to FPGA power-up
 	// state; the reset branch above defines the simulated values. The

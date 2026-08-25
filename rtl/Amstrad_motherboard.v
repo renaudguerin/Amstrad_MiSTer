@@ -243,6 +243,21 @@ wire [79:0] asic_inkr;
 wire [1:0]  plus_gamode;
 wire [3:0]  plus_rgb_r, plus_rgb_g, plus_rgb_b;
 reg  [15:0] plus_vidword;
+// P4 sprite engine plumbing (asic_video seam + composited plane, and the
+// asic_regs video services it consumes).
+wire         plus_hwrap;
+wire         plus_spr_en;
+wire  [11:0] plus_spr_rgb;
+wire         plus_spr_fq_req;
+wire  [10:0] plus_spr_fq_addr;
+wire   [7:0] plus_spr_fq_data;
+wire         plus_spr_fq_ack;
+wire         plus_spr_acc_en;
+wire   [3:0] plus_spr_acc_idx;
+wire [159:0] plus_spr_x;
+wire [143:0] plus_spr_y;
+wire  [63:0] plus_spr_mag;
+wire [179:0] plus_spr_pal;
 
 // Selected raster sources: classic path when Plus model = Off.
 wire [13:0] ma_sel = plus_mode ? plus_ma : MA;
@@ -345,7 +360,11 @@ asic_video asic_vid
 	.RGB_R(plus_rgb_r),
 	.RGB_G(plus_rgb_g),
 	.RGB_B(plus_rgb_b),
-	.PEN()
+	.PEN(),
+
+	.HWRAP(plus_hwrap),
+	.SPR_EN(plus_spr_en),
+	.SPR_RGB(plus_spr_rgb)
 );
 
 // ASIC register page (P2). The legacy GA shadow feeding its translation
@@ -390,10 +409,54 @@ asic_regs asic_page
 	// that phase lands (reference section 9).
 	.dma_int_set(3'b000),
 	.vec_byte(plus_vec_byte),
-	.vec_valid(plus_vec_valid)
+	.vec_valid(plus_vec_valid),
+
+	.sprq_req(plus_spr_fq_req),
+	.sprq_addr(plus_spr_fq_addr),
+	.sprq_data(plus_spr_fq_data),
+	.sprq_ack(plus_spr_fq_ack),
+	.spr_acc_en(plus_spr_acc_en),
+	.spr_acc_idx(plus_spr_acc_idx),
+	.spr_x_view(plus_spr_x),
+	.spr_y_view(plus_spr_y),
+	.spr_mag_view(plus_spr_mag),
+	.spr_pal_view(plus_spr_pal)
 );
 assign plus_asic_dout = asic_regs_dout;
 assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
+
+// P4 hardware sprite engine: compares against the CRTC3 taps ([KT]
+// formulas), stages row bytes through asic_page's video port, and
+// composites between screen and border inside asic_video.
+asic_sprites plus_sprites
+(
+	.CLOCK(clk),
+	.PIXEN(ce_16),
+	.CLKEN(plus_cclk_en_n),
+	.HWRAP(plus_hwrap),
+	.nRESET(~reset),
+
+	.LINE(plus_vc),
+	.ROW(plus_rc),
+
+	.SPR_X(plus_spr_x),
+	.SPR_Y(plus_spr_y),
+	.SPR_MAG(plus_spr_mag),
+	.SPR_PAL(plus_spr_pal),
+
+	.ACC_EN(plus_spr_acc_en),
+	.ACC_IDX(plus_spr_acc_idx),
+
+	.FQ_REQ(plus_spr_fq_req),
+	.FQ_ADDR(plus_spr_fq_addr),
+	.FQ_DATA(plus_spr_fq_data),
+	.FQ_ACK(plus_spr_fq_ack),
+
+	.SPR_EN(plus_spr_en),
+	.SPR_RGB(plus_spr_rgb),
+	.SPR_IDX(),
+	.SPR_WIN()
+);
 
 // The caller uses plus_asic_rd to mux the CPU data bus and to suppress
 // main-memory read AND write cycles for the whole &4000-&7FFF window
