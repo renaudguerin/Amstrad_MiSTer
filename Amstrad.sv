@@ -997,10 +997,8 @@ wire  [7:0] plus_cart_dout;
 // cycle, so the mux reduces to the historical chain.
 wire  [7:0] cpu_din_bus = ram_dout & mf2_dout & fdc_dout & kmouse_dout & smouse_dout & mmouse_dout & playcity_dout;
 wire  [7:0] cpu_din = plus_vec_valid ? plus_vec_byte :
-
                       plus_asic_rd   ? plus_asic_dout :
                       plus_cart_own  ? plus_cart_dout : cpu_din_bus;
-                      plus_cart_own ? plus_cart_dout : cpu_din_bus;
 wire NMI = playcity_nmi | mf2_nmi;
 wire        IRQ = ~playcity_int_n;
 
