@@ -176,9 +176,9 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 151 required CRTC passes, zero expected failures, no
+- The current local gate reports 152 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures (verified 2026-08-25, Verilator 5.050). The randomized
-  equivalence soak reproduces golden hash `0xd620fce8b1c05b25` (chain in AGENTS.md). The
+  equivalence soak reproduces golden hash `0x63d9de100ac9f6f2` (chain in AGENTS.md). The
   §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
   window; per review finding F-9 the soak is measurably insensitive to this region, so the
   directed vectors — not the soak — carry the behavioral proof here.
@@ -220,13 +220,9 @@ For a first MiSTer pass:
   `accuracy/f10-implementation-notes.md`. The stack was independently reviewed 2026-08-25
   (`accuracy/f10-independent-review.md`): NOT CLEAR on two blockings, both fixed with new
   vectors (`t23a`-`t23c`, `t22p`-`t22s`, RA column in `t22`); review-debt row cleared.
-  Remaining non-gated classic items for the next agent session: (1) F11h closure — re-read
-  ACCC p.242 (§20.3.2, render at `accuracy/extract/pages/p242.png`) and either close the
-  intra-character R12/R13-immediacy residual with a decision note or implement it behind a
-  deterministic vector; (2) a type-1 IVM VSYNC-gap fixture from the p.208 worked table
-  (render present), entering IVM at a frame boundary with R8=3 held so the MID-VSYNC
-  `field`-parity residual stays out of scope; (3) CI-only bump of `actions/checkout@v4`
-  (Node 20 deprecation warning in every run).
+  All three remaining non-gated classic items named for this session are done (2026-08-25):
+  the F11h closure, the t24 IVM VSYNC fixture family, and the CI-only `actions/checkout`
+  bump — see the three bullets below.
 
 - F11h is closed by implementation (2026-08-25, this branch): the p.242 render shows the
   second CRTC-1 chronogram catching an R12 write that lands on the row-0 line-boundary edge
@@ -246,8 +242,8 @@ For a first MiSTer pass:
   `vsync_line_fire` uses the IVM-aware row-structure test, and during type-1 IVM the legacy
   field=1 MID-VSYNC arm no longer hijacks fire or count tick. Soak re-minted
   `0xd620fce8b1c05b25`. The type-0 IVM VSYNC rule (the §19.5.2 delay) stays Q19-gated and
-  the f10-implementation-notes residuals are updated accordingly. Remaining from the list:
-  the CI-only `actions/checkout` bump.
+  the f10-implementation-notes residuals are updated accordingly. The CI-only
+  `actions/checkout` bump landed as `4e776f1` (v4 → v7, standalone).
 
 - Independent review of the F11h+t24 work (Claude Opus 5 xhigh via the ask-claude bridge,
   fresh session; record `accuracy/f11h-t24-independent-review.md`, review-debt row
@@ -259,12 +255,14 @@ For a first MiSTer pass:
   (`e1_vsync_line_fire` is hcc-independent, so consuming it mid-line needed the latch),
   odd-parity frames keep the seam start/end — pinned by `t24c` (fixture XFAIL `acbc51a`,
   behavior commit required). The reviewer's sandbox could not execute gates or bite-tests;
-  the gates and the reviewer's bite-tests (a)-(c) were reproduced by the parent session and
-  are logged in the remediation commit message. Soak re-minted `0x63d9de100ac9f6f2`.
+  the gates and all three of the reviewer's bite-tests were reproduced by the parent
+  session against the remediated tip: (a) forcing `vsync_type1_ivm` to 0 (legacy field mux)
+  fails exactly `t24b`+`t24c`; (b) reverting the engine row-end test to plain `C9==R9`
+  fails exactly `t24a`+`t24b`+`t24c`; (c) deleting the `e1_row0_reload` override fails
+  exactly `t20j`; each restore re-greens the suite. Soak re-minted `0x63d9de100ac9f6f2`.
   Non-blockings: N-3/N-4/N-5 fixed; N-1 recorded as a named residual comment at the gate
   (raw R8 mode vs latched engine IVM, 1-2 character window at toggles); N-2 folded into
-  action item A4; N-6's `upload-artifact@v4` bump is the next standalone CI-only item;
-  N-7 covered by synthesis-on-merge.
+  action item A4; N-7 covered by synthesis-on-merge. Review-debt row cleared 2026-08-25.
 
 D1 is complete (2026-08-24): every remaining ⚠ VERIFY flag in the three digests was
 re-verified against the PDF (pdf-inspector Markdown primary, figures judged from rendered
@@ -466,9 +464,10 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
 
 - `.github/workflows/build.yml` runs local-style Verilator tests/lint before a pinned Quartus
   17.0.2 synthesis job and uploads the RBF plus fitter/timing reports.
-- GitHub currently warns that `actions/checkout@v4` targets deprecated Node 20 and is being
-  forced onto Node 24. It does not fail the build; update the action in a separate CI-only
-  maintenance commit rather than mixing it into an RTL milestone.
+- `actions/checkout` was bumped v4 → v7 (2026-08-25, standalone CI-only commit `4e776f1`)
+  to clear the per-run Node 20 deprecation warning; the first CI run on this branch is the
+  online check that v7 resolves. `actions/upload-artifact@v4` also sits on the deprecated
+  runtime (review N-6) and is the next standalone CI-only bump.
 - `ansible/` provisions the Debian 13 arm64 UTM guest (reached as `quartus-vm.local` over
   mDNS), restores the build user's supplementary groups, mounts Rosetta, registers amd64
   binfmt, and validates
