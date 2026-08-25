@@ -466,11 +466,19 @@ end
 reg vde, vde_r;
 reg VSYNC_r;
 reg vsync_allow;
+// Section 19.5.3 p.208: during type-1 IVM the VSYNC start is pinned by the
+// row-structure rule on BOTH frame parities (the table's boxes sit at the
+// first line of C4=R7 whatever the frame parity), so the legacy field=1
+// MID-VSYNC arm -- the non-IVM interlace rule, which requires RA==0 and
+// therefore misses first lines whose C9 is odd -- must not hijack the
+// fire, and the count must tick at the line seam like the field=0 path.
+wire       vsync_type1_ivm = CRTC_TYPE && interlace[0];
 wire vsync_count_tick = CLKEN &&
-	(field ? (CRTC_TYPE ? e1_field_count_tick : e0_field_count_tick) : line_new);
+	((field && !vsync_type1_ivm) ?
+		(CRTC_TYPE ? e1_field_count_tick : e0_field_count_tick) : line_new);
 wire vsync_holdoff = e0_vsync_holdoff;
 wire vsync_fire = vsync_allow &
-	(field ? (row == R7_v_sync_pos && !line) :
+	((field && !vsync_type1_ivm) ? (row == R7_v_sync_pos && !line) :
 			 (CRTC_TYPE ? e1_vsync_line_fire : e0_vsync_line_fire));
 wire [3:0] vsc_load = CRTC_TYPE ? e1_vsc_load : e0_vsc_load;
 wire r7_write_hit = ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07;

@@ -5307,11 +5307,11 @@ void test_type1_ivm_vsync_no_gap_r7_even_c4(TestBench& test) {
             test.expect_ra("t24b even frame pulse starts at C9=0 (table box (2,0))", 0);
         }
         if (expect_high) {
-            test.expect_known_vsync_high("t24b even frame line " + std::to_string(line) +
-                                         " (R7=2 pulse from line 9, 16 lines)");
+            test.expect_vsync_high("t24b even frame line " + std::to_string(line) +
+                                   " (R7=2 pulse from line 9, 16 lines)");
         } else {
-            test.expect_known_vsync_low("t24b even frame line " + std::to_string(line) +
-                                        " outside the (2,0)-anchored pulse");
+            test.expect_vsync_low("t24b even frame line " + std::to_string(line) +
+                                  " outside the (2,0)-anchored pulse");
         }
         test.run_characters(32);
     }
@@ -5323,11 +5323,11 @@ void test_type1_ivm_vsync_no_gap_r7_even_c4(TestBench& test) {
             test.expect_ra("t24b odd frame pulse starts at C9=1 (table box (2,1))", 1);
         }
         if (expect_high) {
-            test.expect_known_vsync_high("t24b odd frame line " + std::to_string(line) +
-                                         " (R7=2 pulse from line 9, 16 lines)");
+            test.expect_vsync_high("t24b odd frame line " + std::to_string(line) +
+                                   " (R7=2 pulse from line 9, 16 lines)");
         } else {
-            test.expect_known_vsync_low("t24b odd frame line " + std::to_string(line) +
-                                        " outside the (2,1)-anchored pulse");
+            test.expect_vsync_low("t24b odd frame line " + std::to_string(line) +
+                                  " outside the (2,1)-anchored pulse");
         }
         test.run_characters(32);
     }
@@ -5968,7 +5968,7 @@ int main(int argc, char** argv) {
          false, test_type1_ivm_vsync_gap_r7_odd_c4},
         {"t24b_type1_ivm_vsync_no_gap_r7_even_c4",
          "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=2 even) with section 19.8.2 p.225 alternation",
-         true, test_type1_ivm_vsync_no_gap_r7_even_c4},
+         false, test_type1_ivm_vsync_no_gap_r7_even_c4},
     };
 
     unsigned passed = 0;
