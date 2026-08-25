@@ -131,19 +131,22 @@ write/value port pairs.
 - **Additional interlace line** (§19.6, both types): gated on Q10 (which frame receives
   it) — unchanged from the pre-existing plan; not implemented.
 - **MID-VSYNC parity coupling**: the wrapper's MID-VSYNC tick and fire still key on the
-  legacy `field` flop, which freezes while R8 is outside 1/3, whereas ParityFrame keeps
-  toggling every frame. After a mid-frame R8 toggle episode the two diverge; no sourced
-  table pins the hardware behavior (adjacent to Q12). The pre-F10 MID-VSYNC vectors
-  (t02i, t09g) are unchanged and green. Narrowed 2026-08-25 (t24 closure): during type-1
-  IVM the field arm no longer hijacks fire/count tick at all — the p.208 table pins the
-  VSYNC via the row-structure rule on both frame parities (`t24a`/`t24b`) — so the
-  residual now covers type-0 IVM and post-episode divergence only.
+  legacy `field` flop for the NON-IVM interlace paths; `field` freezes while R8 is outside
+  1/3, whereas ParityFrame keeps toggling every frame, so after a mid-frame R8 toggle
+  episode the two diverge and no sourced table pins the hardware behavior (adjacent to
+  Q12). The pre-F10 MID-VSYNC vectors (t02i, t09g) are unchanged and green. Narrowed
+  2026-08-25 (t24 closure + review B-1 remediation): during type-1 IVM the VSYNC no longer
+  keys on `field` at all — p.208 pins the start line on both parities (t24a/t24b) and
+  schedules the MID-VSYNC on the ParityFrame-even frame, which the wrapper now implements
+  from ParityFrame directly with a seam-latched fire decision consumed at the half-line
+  tick (t24c); the residual covers type-0 IVM and the non-IVM post-episode divergence only.
 - **VSYNC delay-by-1-line correction for odd C4s** (§19.5.2, p.206-207): part of the
   odd-R9 balancing scheme — Q19 territory, not implemented. Type 1's documented *lack*
   of the correction (p.208) is now modeled and pinned by `t24a`/`t24b` (2026-08-25, t24
   closure: the pulse starts at the first line of C4=R7 on both frame parities, giving the
-  documented permanent 1-line gap for odd R7); the type-0 delay itself remains
-  unimplemented.
+  documented permanent 1-line gap for odd R7), together with the p.208 MID-VSYNC on the
+  ParityFrame-even frame (`t24c`, half-line start/end via a seam-latched fire decision);
+  the type-0 delay itself remains unimplemented.
 - **RFD × IVM interaction** (both types): unpinned; the type-1 RFD terms deliberately
   keep the bare C9==R9 comparison.
 - **Type-0 double R8 write in one line** (review N-6): the line keeps its entering-form

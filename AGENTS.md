@@ -45,7 +45,12 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0xd620fce8b1c05b25`, re-minted 2026-08-25 for the t24 closure: during
+  (`0x63d9de100ac9f6f2`, re-minted 2026-08-25 for the B-1 remediation:
+  during type-1 IVM the VSYNC now starts at the half-line tick on the
+  ParityFrame-even frame (the p.208 MID-VSYNC prose) via a seam-latched
+  fire decision, while the odd-parity frame keeps the seam start;
+  previously `0xd620fce8b1c05b25`, re-minted 2026-08-25 for the t24
+  closure: during
   type-1 IVM the VSYNC now fires from the IVM-aware row-structure test on
   both frame parities and the legacy field=1 MID-VSYNC arm no longer
   hijacks it (ACCC p.208 table; the engine arm also switched from plain

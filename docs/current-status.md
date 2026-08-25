@@ -249,6 +249,23 @@ For a first MiSTer pass:
   the f10-implementation-notes residuals are updated accordingly. Remaining from the list:
   the CI-only `actions/checkout` bump.
 
+- Independent review of the F11h+t24 work (Claude Opus 5 xhigh via the ask-claude bridge,
+  fresh session; record `accuracy/f11h-t24-independent-review.md`, review-debt row
+  `accuracy/f11h-and-ivm-vsync-coverage`) returned NOT CLEAR on one blocking finding,
+  **B-1**: the t24 fix had silently removed the type-1 IVM MID-VSYNC (p.208 schedules it on
+  the ParityFrame-even frame) and no vector sampled the half-line phase. Remediated on this
+  branch: the wrapper now keys the type-1 IVM VSYNC on ParityFrame directly — even-parity
+  frames start and end the pulse at the half-line tick via a seam-latched fire decision
+  (`e1_vsync_line_fire` is hcc-independent, so consuming it mid-line needed the latch),
+  odd-parity frames keep the seam start/end — pinned by `t24c` (fixture XFAIL `acbc51a`,
+  behavior commit required). The reviewer's sandbox could not execute gates or bite-tests;
+  the gates and the reviewer's bite-tests (a)-(c) were reproduced by the parent session and
+  are logged in the remediation commit message. Soak re-minted `0x63d9de100ac9f6f2`.
+  Non-blockings: N-3/N-4/N-5 fixed; N-1 recorded as a named residual comment at the gate
+  (raw R8 mode vs latched engine IVM, 1-2 character window at toggles); N-2 folded into
+  action item A4; N-6's `upload-artifact@v4` bump is the next standalone CI-only item;
+  N-7 covered by synthesis-on-merge.
+
 D1 is complete (2026-08-24): every remaining ⚠ VERIFY flag in the three digests was
 re-verified against the PDF (pdf-inspector Markdown primary, figures judged from rendered
 pages). Outcomes: most flags retired as confirmed; four genuine digest errors corrected —
