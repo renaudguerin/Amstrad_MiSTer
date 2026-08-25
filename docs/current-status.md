@@ -520,6 +520,42 @@ No-write-through into real SDRAM is enforced by the suppression terms and
 verified by construction/mux inspection; no bench drives the full top-level
 memory path yet.
 
+### P3 interrupts — implemented on `plus/p2-asic-regs` (2026-08-25)
+
+The programmable raster interrupt lives inside `asic_ga_timing`, where the
+classic 52-line counter it modulates lives: with PRI=0 the new block is
+inert and the GADIFF lockstep equivalence is untouched; with PRI!=0 the
+counter keeps running but its assertion is suppressed, and an interrupt
+fires at the trailing edge of the shaped monitor HSYNC when
+{VC5..VC0,RC2..RC0}=={0,PRI}. The comparison's bit-8 don't-care produces
+the documented n / n+256 aliasing. Vertical adjustment gates firing. A
+raster fire pokes counter bit 5 (as an acknowledge would), so a later
+re-enabled CPC-compatible interrupt cannot occur within 32 lines.
+Clearing is shared with the classic path: CPU acknowledge or MRER bit 4.
+
+DCSR became field-wise: bit 7 is a merger-driven read-only level ("last
+INT ack was raster"), bits 6:4 are write-1-to-clear DMA flag storage
+(set-paths arrive with P7's INT instruction), bits 2:0 are plain R/W
+enables. IVR/vector supply: on every INT acknowledge the ASIC drives
+(IVR & &F8) | source; with DMA absent the source field is raster (%110)
+while a raster interrupt pends, else 0 — the no-pending behaviour is
+unspecified on hardware (named assumption). The motherboard detects the
+acknowledge cycle and Amstrad.sv gives the vector top priority on the
+CPU data mux. The A13 vectored-interrupt bug stays deliberately not
+emulated (architecture §5.4 decision).
+
+Vectors: `pr01`–`pr04` (exact 52-line cadence at PRI=0; suppression plus
+aliased fires at identical intra-line offsets; adjustment gate; MRER
+clearing a pending PRI interrupt), `a08` (DCSR bit 7 mirrors the merger
+level), mobo bench `m6` (ack-cycle vector byte 0xDE after a scripted
+IVR write). P3's remaining exit item is title-level stability (Pang,
+RoboCop 2) at the next hardware checkpoint.
+
+Open scope note: the monitor-trailing-edge trigger uses this model's
+fixed four-character shaping microsequence, so [ARNOLD-REV]'s "clamp at
+HSYNC_start+6µs" is covered by construction here; [KT]'s conflicting
+"~10µs" measurement stays recorded as ⚠ ASIC-REF §7.
+
 Tooling lesson from this branch's CI runs: CI's Verilator is **5.020** while
 local is 5.050 — three deltas bit us and were fixed version-portably:
 unknown `-Wno-<name>` flags and unknown lint metacomments are hard errors on
@@ -611,8 +647,9 @@ front end.
     p1_video bench, and the P2 ASIC register page (`asic_regs` + integration + 4-bit
     RGB widening) are done on `plus/p2-asic-regs`, synthesized green at `c7b910d`.
     Next Plus steps: the manual hardware checkpoint (real `.cpr` boot with a Plus
-    model selected AND a static-palette title for the P2 exit; classic re-checked
-    side by side), then P3 interrupts (PRI/IVR/DCSR — register storage already
-    landed in `asic_regs`). The branch is unreviewed per standing session
-    instructions; order cross-provider review(s) before merging.
+    model selected, a static-palette title for the P2 exit and a raster-split
+    title for P3; classic re-checked side by side), then P4 sprites. The branch
+    carries unreviewed work per standing session instructions (P2 asic_regs,
+    integration, RGB widening, P3 PRI/IVR); order cross-provider review(s)
+    before merging.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
