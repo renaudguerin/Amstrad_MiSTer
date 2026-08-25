@@ -1980,6 +1980,141 @@ void test_type0_adjustment_exit_reloads_frame_origin(TestBench& test) {
                      static_cast<std::uint8_t>(composed >> 11));
 }
 
+// ---------------------------------------------------------------------------
+// t26: the section 17.5 R1=0 acknowledgment deadline (ACCC v1.10 section
+// 17.5.1 p.185, four chronograms, render-verified 2026-08-24; D1
+// correction). The chronograms put the effective write cycle (the OUT's
+// register-latch character, the orange end cell) at C0=3e, 3f, 0, 1 in
+// turn on a line crossing the frame boundary: latches through C0=0 are
+// "just in time" (the new frame's first line honors R1=0 and shows
+// border); the first too-late latch is C0=1 ("Update of R1 not
+// considered" -- the line keeps the old R1's display).
+//
+// Paper-derived RTL mapping (both mechanisms already in the wrapper):
+//   - latch during the old frame's characters: the line-seam DISPTMG check
+//     compares hcc_next(=0) against the already-updated R1 and keeps
+//     DISPTMG off from C0=0 (live C0=R1 semantics, section 6.1.3);
+//   - latch during C0=0 itself: the R1 write-hit term (hcc==DI) blanks
+//     DISPTMG mid-character -- character-granular DE shows border from
+//     within C0=0 (the F13 half-character caveat applies);
+//   - latch during C0=1: neither term fires (hcc==1 != 0, and the seam
+//     check already ran with the old R1), so the old R1 governs the line
+//     and DISPTMG ends at C0=old R1.
+// The type 3/4 earlier deadline (section 17.5.2) is out of scope: the
+// classic core models no type 3/4. The chronograms' observable is the
+// DISPTMG/border state of the new frame's first characters; the VMA'
+// consequences of R1=0 (section 17.4.3) are CRTC-2-specific and unpinned
+// here.
+// Fixture: R4=2/R9=0 frames of three 64-character lines; R6/R7 parked so
+// DISPTMG is R1-gated only. Each vector probes all three latch positions
+// around successive frame boundaries.
+// ---------------------------------------------------------------------------
+constexpr std::array<std::pair<std::uint8_t, std::uint8_t>, 10> kT26Registers =
+    {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 2},
+        {5, 0},  {6, 25}, {7, 63}, {8, 0},    {9, 0},
+    }};
+
+void t26_program(TestBench& test, unsigned type) {
+    test.set_crtc_type(type);
+    for (const auto& [address, value] : kT26Registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(1);
+    test.reset();
+}
+
+void test_t26_r1_zero_deadline_type0(TestBench& test) {
+    t26_program(test, 0);
+
+    // vde only arms at a frame origin, so run one full frame first: every
+    // probe below then runs with DISPTMG gated by R1 alone (DE == hde).
+    test.run_characters(3u * 64u);  // C0=0 of frame 1, row 0.
+
+    // (A) Just in time, latch during the frame's last line at C0=63: the
+    // frame-boundary seam compares hcc_next(=0) against the already-updated
+    // R1=0 and keeps DISPTMG off from the new frame's first character.
+    test.run_characters(2u * 64u);  // C0=0 of frame 1's last line (row 2).
+    test.run_to_c0(63);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(0);              // Frame 2 origin.
+    test.expect_de_low("t26a latch at C0=63: seam sees R1=0, border from "
+                       "C0=0 (section 17.5.1 just in time)");
+
+    // (B) Just in time, latch during C0=0 itself: the write-hit term
+    // (hcc==DI) blanks DISPTMG mid-character. Restore R1=40 first.
+    test.run_to_c0(10);
+    test.write_selected_register_at_nclken(40);  // hcc=10: no write-hit.
+    test.run_to_c0(0);              // Row 1 origin.
+    test.run_characters(128);       // Two lines on: frame 3 origin.
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(1);
+    test.expect_de_low("t26a latch at C0=0 blanks by C0=1 (section 17.5.1 "
+                       "just in time, boundary chronogram)");
+    test.run_to_c0(2);
+    test.expect_de_low("t26a border holds through the new frame's early "
+                       "characters");
+
+    // (C) First too-late latch: C0=1. The acknowledgment is missed, but the
+    // live C0=R1 comparison now targets the new R1=0 (section 6.1.3), so no
+    // mid-line DISPTMG-off can fire: the line displays past the old R1's
+    // end, and R1=0 is honored from the next line.
+    test.write_selected_register_at_nclken(40);  // hcc=2: no write-hit.
+    test.run_to_c0(0);              // Row 1 origin.
+    test.run_characters(128);       // Frame 4 origin.
+    test.run_to_c0(1);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(2);
+    test.expect_de_high("t26a latch at C0=1 is too late: display continues "
+                        "(section 17.5.1)");
+    test.run_to_c0(40);
+    test.expect_de_high("t26a live C0=R1 targets the new R1: display passes "
+                        "the old R1's end (section 6.1.3)");
+    test.run_to_c0(0);              // The too-late line's wrap.
+    test.expect_de_low("t26a R1=0 honored from the line after the too-late "
+                       "write");
+}
+
+void test_t26_r1_zero_deadline_type1(TestBench& test) {
+    t26_program(test, 1);
+
+    test.run_characters(3u * 64u);
+
+    test.run_characters(2u * 64u);
+    test.run_to_c0(63);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(0);
+    test.expect_de_low("t26b latch at C0=63: seam sees R1=0, border from "
+                       "C0=0 (section 17.5.1 just in time)");
+
+    test.run_to_c0(10);
+    test.write_selected_register_at_nclken(40);
+    test.run_to_c0(0);
+    test.run_characters(128);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(1);
+    test.expect_de_low("t26b latch at C0=0 blanks by C0=1 (section 17.5.1 "
+                       "just in time, boundary chronogram)");
+    test.run_to_c0(2);
+    test.expect_de_low("t26b border holds through the new frame's early "
+                       "characters");
+
+    test.write_selected_register_at_nclken(40);
+    test.run_to_c0(0);
+    test.run_characters(128);
+    test.run_to_c0(1);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(2);
+    test.expect_de_high("t26b latch at C0=1 is too late: display continues "
+                        "(section 17.5.1)");
+    test.run_to_c0(40);
+    test.expect_de_high("t26b live C0=R1 targets the new R1: display passes "
+                        "the old R1's end (section 6.1.3)");
+    test.run_to_c0(0);
+    test.expect_de_low("t26b R1=0 honored from the line after the too-late "
+                       "write");
+}
+
 void test_type0_adjustment_r4_write_at_r0_switches_c9_to_r5(TestBench& test) {
     test.set_crtc_type(0);
 
@@ -6234,6 +6369,12 @@ int main(int argc, char** argv) {
         {"t25c_type0_adjustment_exit_reloads_frame_origin",
          "ACCC v1.10 sections 11.2.2 p.81 and 20.3.1 p.242; D1 correction",
          false, test_type0_adjustment_exit_reloads_frame_origin},
+        {"t26a_type0_r1_zero_write_deadline",
+         "ACCC v1.10 section 17.5.1 p.185 chronograms; D1 correction",
+         false, test_t26_r1_zero_deadline_type0},
+        {"t26b_type1_r1_zero_write_deadline",
+         "ACCC v1.10 section 17.5.1 p.185 chronograms; D1 correction",
+         false, test_t26_r1_zero_deadline_type1},
     };
 
     unsigned passed = 0;

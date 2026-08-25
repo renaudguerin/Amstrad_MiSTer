@@ -75,9 +75,19 @@ This is the single most important dynamic-update rule to get right per CRTC type
   "just in time" (R1=0 honored, line shows BORDER); the first "too late" write is C0=1 ("Update
   of R1 not considered", NO BORDER). This corrects this digest's earlier 3d/3e-too-late /
   3f-just-in-time transcription (review B13), which the visual tier contradicts.
+  **RTL-verified 2026-08-25** (vectors `t26a` type 0 / `t26b` type 1, required passes): the
+  wrapper's seam-time `hcc_next==R1` check carries the just-in-time latches from the old
+  frame's characters, and the R1 write-hit term (`hcc==DI`) blanks mid-character for a latch
+  landing during C0=0 itself — the deadline falls out of those two mechanisms with no
+  dedicated logic. Bite-tested: disabling the write-hit term fails exactly t26a/t26b.
+- **Too-late-line end (derived, not drawn — the chronograms stop at C0=5):** a too-late write
+  still updates the register file, so the live C0=R1 line-end comparison targets the new R1=0
+  (§6.1.3) and can never fire mid-line: the too-late line displays past the old R1's end, and
+  R1=0 is honored from the following line. t26 pins this consequence.
 - **CRTC3/4 contrast:** their acknowledgment window closes **two** characters earlier — writes
   through C0=3e are just in time; the first too-late write is C0=3f (p.185 §17.5.2, render-
-  verified 2026-08-24; §17.5.2 is a second diagram group, not a prose paragraph).
+  verified 2026-08-24; §17.5.2 is a second diagram group, not a prose paragraph). Out of
+  scope for the classic core (no type 3/4 model).
 
 ### 17.6 Interline border (§17.6, p.185-187)
 - **R1=R0 and C0=R0, all CRTC types (0 through 4):** exactly 1 µs (one character) of border is generated on the last character (`C0=R0`) even though R1=R0 — i.e. **the very last displayed character position always shows border for that cycle**, because the DISPTMG-off condition `C0=R1` and `C0=R0`'s natural wraparound coincide, forcing a 1-char border blip before the next row's `C0=0` reload. VRAM pointer offset continues normally into the next character-row's start (§17.6.1, p.185-186).
