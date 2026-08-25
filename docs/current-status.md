@@ -27,6 +27,23 @@ never gates a commit.
 
 ## Hardware-test milestone
 
+`5d6d342` is the newest successfully synthesized code milestone (GitHub Actions run
+`32852900420`, 2026-08-25, Quartus 17.0.2): the merge of `plus/p2-asic-regs`
+into this branch - P1 review follow-ups, the calibrated p1_video bench, the P2 ASIC
+register page (asic_regs + motherboard integration + 4-bit RGB widening) and P3
+interrupts (PRI merged into asic_ga_timing, DCSR fields, IVR vector supply), on top
+of the F11h/t24 classic work. Both streams' independent reviews are complete and
+remediated (`docs/plus/p2p3-independent-review.md`, plus the F10/F11h records).
+**It has not been hardware-tested.**
+
+- Logic utilization 16,198 / 41,910 ALMs (39 %); 21,030 registers; 701,601 /
+  5,662,720 block-memory bits (12 %); 34 / 112 DSP blocks.
+- Worst-case setup slack +0.665 ns, hold +0.250 ns - positive; no regression signal.
+- RBF retained as `output_files/hardware-milestones/Amstrad_20260825_5d6d342.rbf`
+  (SHA-256 `94b426a49f612895ff287072409badd452cddfa685f3bd7c27f130d3a5e75af5`).
+
+## Hardware-test milestone
+
 `3d7a178` is the newest successfully synthesized code milestone (GitHub Actions run
 `32810340518`, 2026-08-25, Quartus 17.0.2): the Plus branch `plus/p2-asic-regs` with
 the P1 review follow-ups, the calibrated p1_video bench in the gate, the P2 ASIC
