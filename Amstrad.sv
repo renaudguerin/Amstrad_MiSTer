@@ -634,8 +634,8 @@ sdram sdram
 	.clk(clk_sys),
 	.clkref(ce_ref),
 
-	.oe  (reset ? 1'b0      : mem_rd & ~mf2_ram_en & ~plus_cart_own),
-	.we  (reset ? boot_wr   : mem_wr & ~mf2_ram_en & ~mf2_rom_en),
+	.oe  (reset ? 1'b0      : mem_rd & ~mf2_ram_en & ~plus_cart_own & ~plus_aspage_sel),
+	.we  (reset ? boot_wr   : mem_wr & ~mf2_ram_en & ~mf2_rom_en & ~plus_aspage_sel),
 	.addr(reset ? boot_a    : mf2_rom_en ? {9'h0ff, cpu_addr[13:0]} : dan_ena ? {4'd0, dan_bank, cpu_addr[13:0]} : ram_a),
 	.bank(reset ? boot_bank : dan_ena ? 2'b11 : model),
 	.din (reset ? boot_dout : cpu_dout),
@@ -996,7 +996,9 @@ wire  [7:0] plus_cart_dout;
 // holds stale bytes that must not participate. Classic mode never owns a
 // cycle, so the mux reduces to the historical chain.
 wire  [7:0] cpu_din_bus = ram_dout & mf2_dout & fdc_dout & kmouse_dout & smouse_dout & mmouse_dout & playcity_dout;
-wire  [7:0] cpu_din = plus_cart_own ? plus_cart_dout : cpu_din_bus;
+wire  [7:0] cpu_din = plus_vec_valid ? plus_vec_byte :
+                      plus_asic_rd   ? plus_asic_dout :
+                      plus_cart_own  ? plus_cart_dout : cpu_din_bus;
 wire NMI = playcity_nmi | mf2_nmi;
 wire        IRQ = ~playcity_int_n;
 
@@ -1057,8 +1059,20 @@ plus_mmu plus_mmu
 
 	// Captured since P0; consumed when the ASIC register page gains its
 	// backing at P2.
-	.asic_page_on()
+	.asic_page_on(plus_aspage_on)
 );
+
+wire [7:0] plus_vec_byte;
+wire       plus_vec_valid;
+wire plus_aspage_on;
+wire [7:0] plus_asic_dout;
+wire       plus_asic_rd;
+// The whole &4000-&7FFF window while the page is enabled: reads are
+// answered by the motherboard's asic_regs instance and BOTH directions
+// must be suppressed against main memory (no read/write-through,
+// reference §2). Suppression follows the cartridge-owned-cycle pattern.
+wire plus_aspage_sel = plus_mode & plus_aspage_on &
+                       (mem_rd | mem_wr) & (cpu_addr[15:14] == 2'b01);
 
 // CPR loader stream (P0): the parser validates the RIFF envelope and cbNN
 // chunks and streams page bytes into the cartridge memory service. Its
@@ -1146,6 +1160,11 @@ Amstrad_motherboard motherboard
 	// Plus cartridge-window reads hold the Z80 in WAIT while the cartridge
 	// memory service fetches from SDRAM. Constant 0 in classic mode.
 	.plus_mem_wait(plus_cart_stall),
+	.plus_aspage_on(plus_aspage_on),
+	.plus_asic_dout(plus_asic_dout),
+	.plus_asic_rd(plus_asic_rd),
+	.plus_vec_byte(plus_vec_byte),
+	.plus_vec_valid(plus_vec_valid),
 
 	.right_shift_mod(st_right_shift_mod),
 	.keypad_mod(st_keypad_mod),
@@ -1306,7 +1325,11 @@ end
 
 wire ce_pix = (hq2x | status[30]) ? ce_pix_fs : ce_16;
 
-wire [1:0] b, g, r;
+// P2 RGB widening: the motherboard emits 4-bit channels. In classic mode
+// the low two bits are the raw netlist {level, OE_N} pair, so color_mix
+// keeps its exact GA-DAC behaviour bit-for-bit; in Plus mode the nibble is
+// the native ASIC palette level and bypasses the GA table after expansion.
+wire [3:0] b4, g4, r4;
 wire       hs, vs, hbl, vbl;
 
 color_mix color_mix
@@ -1319,9 +1342,9 @@ color_mix color_mix
 	.VSync_in(vs),
 	.HBlank_in(hbl),
 	.VBlank_in(vbl),
-	.B_in(b),
-	.G_in(g),
-	.R_in(r),
+	.B_in(b4[1:0]),
+	.G_in(g4[1:0]),
+	.R_in(r4[1:0]),
 
 	.HSync_out(HSync),
 	.VSync_out(VSync),
@@ -1334,6 +1357,11 @@ color_mix color_mix
 
 wire [7:0] B, G, R;
 wire       HSync, VSync, HBlank, VBlank;
+
+// Plus-native 4-bit expansion to the 8-bit video path (nibble * 17).
+wire [7:0] R_plus = {r4[3:0], r4[3:0]};
+wire [7:0] G_plus = {g4[3:0], g4[3:0]};
+wire [7:0] B_plus = {b4[3:0], b4[3:0]};
 
 wire [1:0] scale = status[10:9];
 wire       hq2x = (scale == 1);
@@ -1351,9 +1379,9 @@ end
 video_mixer #(.LINE_LENGTH(800), .GAMMA(1)) video_mixer
 (
 	.*,
-	.R(R[7:0] | {8{progress_pix}}),
-	.G(G[7:0] | {8{progress_pix}}),
-	.B(B[7:0] | {8{progress_pix}}),
+	.R((plus_mode ? R_plus : R) | {8{progress_pix}}),
+	.G((plus_mode ? G_plus : G) | {8{progress_pix}}),
+	.B((plus_mode ? B_plus : B) | {8{progress_pix}}),
 	.VGA_DE(vga_de),
 	.freeze_sync(),
 	.scandoubler((scale || forced_scandoubler) && !interlace)

@@ -34,6 +34,17 @@ module Amstrad_motherboard
 	// the wait expression is unchanged there.
 	input         plus_mem_wait,
 
+	// Plus ASIC register page enable (RMR2 position 11, unlock-gated,
+	// captured by plus_mmu). While high, memory accesses at &4000-&7FFF
+	// are answered by the on-chip asic_regs page and MUST be suppressed
+	// against main memory by the caller (no write-through, reference §2);
+	// the caller also owns the CPU data mux for the answered reads.
+	input         plus_aspage_on,
+	output [7:0]  plus_asic_dout, // wired-AND-neutral page read data
+	output        plus_asic_rd,   // page answering a read this cycle
+	output [7:0]  plus_vec_byte,  // INT-acknowledge vector (P3, reference §7)
+	output        plus_vec_valid, // high during the acknowledge cycle
+
 	input   [6:0] joy1,
 	input   [6:0] joy2,
 	input         right_shift_mod,
@@ -76,9 +87,14 @@ module Amstrad_motherboard
 
 	output  [1:0] mode,
 
-	output  [1:0] red,
-	output  [1:0] green,
-	output  [1:0] blue,
+	// 4-bit-per-channel video (P2 widening). In Plus mode these carry the
+	// ASIC palette's native 4-bit levels. In classic mode the low two bits
+	// hold the netlist's raw {level, OE_N} pair unchanged — the consumption
+	// point (color_mix) keeps its exact GA-DAC behaviour; the upper bits
+	// are zero there.
+	output  [3:0] red,
+	output  [3:0] green,
+	output  [3:0] blue,
 	output        hblank,
 	output        vblank,
 	output        hsync,
@@ -214,10 +230,13 @@ CRTC crtc
 wire plus_crtc_hs, plus_crtc_vs, plus_crtc_de;
 wire [13:0] plus_ma;
 wire [4:0]  plus_ra;
+wire [6:0]  plus_vc;   // CRTC3 char line counter (VC; [5:0] used by PRI)
+wire [4:0]  plus_rc;   // C9 raster count within the char line
+wire        plus_adj;  // vertical adjustment active
 wire        plus_int_n;
 wire        plus_ready, plus_ras_n, plus_cas_n, plus_cpu_n;
 wire        plus_cclk_en_p, plus_cclk_en_n;
-wire        plus_phi_en_p, plus_phi_en_n;
+wire        plus_phi_en_p, plus_phi_en_n, plus_phi_n;
 wire        plus_hsync_o, plus_vsync_o, plus_vblank;
 wire [4:0]  asic_border;
 wire [79:0] asic_inkr;
@@ -249,10 +268,18 @@ asic_ga_timing asic_ga
 	.HSYNC_I(plus_crtc_hs),
 	.VSYNC_I(plus_crtc_vs),
 
+	// P3 programmable raster interrupt: {VC5..VC0, RC2..RC0} per the
+	// reference comparison; the shaped-monitor trailing edge fires.
+	.pri(asic_pri),
+	.crtc_line({plus_vc[5:0], plus_rc[2:0]}),
+	.crtc_adj(plus_adj),
+	.intack(plus_mode & ~M1_n & iorq),
+	.int_last_raster(asic_int_last_raster),
+
 	.CCLK(),
 	.CCLK_EN_P(plus_cclk_en_p),
 	.CCLK_EN_N(plus_cclk_en_n),
-	.PHI_N(),
+	.PHI_N(plus_phi_n),
 	.PHI_EN_N(plus_phi_en_n),
 	.PHI_EN_P(plus_phi_en_p),
 	.RAS_N(plus_ras_n),
@@ -306,9 +333,9 @@ asic_video asic_vid
 	.RA(plus_ra),
 
 	.HCC(),
-	.LINE(),
-	.ROW(),
-	.ADJ(),
+	.LINE(plus_vc),
+	.ROW(plus_rc),
+	.ADJ(plus_adj),
 
 	.PIXEN(ce_16),
 	.VIDEOD(plus_vidword),
@@ -320,6 +347,57 @@ asic_video asic_vid
 	.RGB_B(plus_rgb_b),
 	.PEN()
 );
+
+// ASIC register page (P2). The legacy GA shadow feeding its translation
+// comes straight from asic_ga_timing, so PENR/INKR writes land in the
+// 12-bit palette exactly as on hardware (reference §6 secondary port).
+wire [7:0] asic_regs_dout;
+wire       asic_regs_rd;
+wire [7:0] asic_pri;
+wire       asic_int_last_raster;
+// The page answers only under Plus mode: plus_mmu captures RMR2 without a
+// mode gate, so a classic program emitting the unlock sequence could
+// otherwise hijack the &4000-&7FFF data bus (review finding 5).
+wire asic_page_active = plus_mode & plus_aspage_on;
+
+asic_regs asic_page
+(
+	.clk(clk),
+	.reset(reset),
+
+	.asic_cs(asic_page_active & (A[15:14] == 2'b01)),
+	.mem_wr(mem_wr),
+	.mem_rd(mem_rd),
+	.A(A[13:0]),
+	.D_in(D),
+	.D_out(asic_regs_dout),
+
+	.leg_border(asic_border),
+	.leg_inkr(asic_inkr),
+
+	.pal_raddr(5'd0),          // video-side palette port lands with the
+	.pal_rdata(),              // P2 RGB widening commit
+
+	.pri(asic_pri), .splt(), .sscr(), .ivr(),
+	.ssa_hi(), .ssa_lo(), .dcsr(),
+	.intack_raster(asic_int_last_raster),
+	// Acknowledge cycle (M1 low with IORQ asserted), gated to Plus mode:
+	// classic machines deliver the stale wired-AND bus byte on ack, and
+	// the review found the ungated form hijacking classic cpu_din.
+	.intack(plus_mode & ~M1_n & iorq),
+	.int_pending(~plus_int_n),
+	// P7's DMA engine asserts these on an INT instruction; tied low until
+	// that phase lands (reference section 9).
+	.dma_int_set(3'b000),
+	.vec_byte(plus_vec_byte),
+	.vec_valid(plus_vec_valid)
+);
+assign plus_asic_dout = asic_regs_dout;
+assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
+
+// The caller uses plus_asic_rd to mux the CPU data bus and to suppress
+// main-memory read AND write cycles for the whole &4000-&7FFF window
+// while the page is enabled (no read/write-through, reference §2).
 
 // Twice-per-character word assembly on the reference VIDEO_BUF phases:
 // state e0 latches the even byte, state 03 the odd byte (ring order
@@ -333,18 +411,6 @@ always @(posedge clk) begin
 		if (plus_cclk_en_n) plus_vidword[15:8] <= vram_d;
 	end
 end
-
-// P1 temporary adapter: asic_video's legacy-colour table only emits levels
-// {0, 6, 15}, which map losslessly onto the motherboard's {level, OE_N}
-// pairs (00 = black, 01 = mid, 1x = full). P2 widens this path to true
-// 4-bit-per-channel RGB when the ASIC palette lands.
-function [1:0] lvl4_to_ga;
-	input [3:0] v;
-	begin
-		lvl4_to_ga = (v >= 4'd15) ? 2'b10 :
-		             (v >= 4'd6)  ? 2'b01 : 2'b00;
-	end
-endfunction
 
 wire [14:0] crtc_vram_addr = {ma_sel[13:12], ra_sel[2:0], ma_sel[9:0]};
 
@@ -411,14 +477,25 @@ crt_filter crt_filter
 	.SHIFT(crtc_shift)
 );
 
-// Screen mode and RGB: classic netlist outputs by default, locked-ASIC
-// equivalents under plus_mode (RGB adapted per lvl4_to_ga above).
+// Screen mode and RGB: classic netlist pair passes through in the low
+// bits (consumption-point conversion), locked-ASIC 4-bit levels are
+// native (P2 widening; the temporary lvl4_to_ga adapter is gone).
 wire [1:0] ga_mode;
 wire [1:0] ga_red, ga_green, ga_blue;
 assign mode  = plus_mode ? plus_gamode : ga_mode;
-assign red   = plus_mode ? lvl4_to_ga(plus_rgb_r) : ga_red;
-assign green = plus_mode ? lvl4_to_ga(plus_rgb_g) : ga_green;
-assign blue  = plus_mode ? lvl4_to_ga(plus_rgb_b) : ga_blue;
+assign red   = plus_mode ? plus_rgb_r : {2'b00, ga_red};
+assign green = plus_mode ? plus_rgb_g : {2'b00, ga_green};
+assign blue  = plus_mode ? plus_rgb_b : {2'b00, ga_blue};
+
+// CPU/expansion phase enables follow the selected machine. The ASIC path
+// replicates ga40010's timing contract cycle-exactly today (asic_ga_timing
+// lockstep bench), so this mux is behaviour-neutral now; it makes asic_ga
+// the Plus-mode owner so any deliberate Plus timing delta lands everywhere
+// at once (CPU, crt_filter CE, expansion header).
+wire ga_phi_n, ga_phi_en_n, ga_phi_en_p;
+assign phi_n    = plus_mode ? plus_phi_n    : ga_phi_n;
+assign phi_en_n = plus_mode ? plus_phi_en_n : ga_phi_en_n;
+assign phi_en_p = plus_mode ? plus_phi_en_p : ga_phi_en_p;
 
 ga40010 GateArray (
 	.clk(clk),
@@ -437,9 +514,9 @@ ga40010 GateArray (
 	.CCLK(),
 	.CCLK_EN_P(ga_cclk_en_p),
 	.CCLK_EN_N(ga_cclk_en_n),
-	.PHI_N(phi_n),
-	.PHI_EN_N(phi_en_n),
-	.PHI_EN_P(phi_en_p),
+	.PHI_N(ga_phi_n),
+	.PHI_EN_N(ga_phi_en_n),
+	.PHI_EN_P(ga_phi_en_p),
 	.RAS_N(ga_ras_n),
 	.CAS_N(ga_cas_n),
 	.READY(ga_ready_o),
