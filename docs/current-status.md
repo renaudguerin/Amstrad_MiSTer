@@ -578,6 +578,44 @@ No-write-through into real SDRAM is enforced by the suppression terms and
 verified by construction/mux inspection; no bench drives the full top-level
 memory path yet.
 
+### P4 sprites — engine implemented on `plus/p4-sprites` (2026-08-25)
+
+`rtl/plus/asic_sprites.v` implements the [KT] coordinate model literally
+(asic-reference §5): vertical compare on `{LINE, ROW&7}` (not gated by R6),
+horizontal window on a free-running 10-bit dot counter cleared at the CRTC
+character wrap — so the documented "R0>64 repeats horizontally" falls out of
+the scale wrapping at exactly 64 characters — magnification codes
+01/10/11, transparency at nibble zero, lowest-index priority, colour c ->
+palette entry 16+c. Rows stage in DUAL banks: at each line seam a
+row-tag-matched inactive bank is promoted (zero-latency swap) while the
+background walker speculatively fills it with predicted row+1; mismatches
+(Y/mag rewrites, first frame) fall back to urgent refill. X rewrites cut
+the live window via a shadow; CPU pixel-data accesses blank that sprite only
+and flush its staged banks through `asic_regs`' new access indicator.
+`asic_video` gained HWRAP plus the final border > sprite > screen mux under
+HSYNC force-blank; the motherboard instantiates the engine; `files.qip`
+carries it with instantiation.
+
+Vectors: s01-s10 PASS (disabled codes, placement/transparency, Y-formula
+masking incl. the ROW&7 pin, x/y/quad magnification bounds and row
+duplication, priority chain + 16-stack, palette mapping/order, X extremes +
+wrap-through + negative alias, R0>64 repeat). asic_video t06a-c pin the
+precedence mux; asic_regs a09/a10 pin the fetch-port handshake/preemption
+and access-indicator decode.
+
+**SKIPPED VECTORS (next session, top priority):** s11-s14 (access-blanking
+scope/integrity, X-rewrite cut-and-continue, Y-rewrite seam granularity,
+overlap bandwidth) are disabled with SKIP lines — under multi-sprite load a
+phantom sprite-0 winner appears whose gate terms read impossible when
+probed; one more index/wiring defect is hiding in the fetch/staging path,
+and each debug round via print-shadows cost heavy time. The probe
+infrastructure that works (public-flat-rw build of the leaf test) is
+proven; start there. Also open from this phase: mobo-bench m8 end-to-end
+sprite vector, and the INKR-effects ~1/2-us-late GA pipeline question noted
+in P1 remains deferred.
+
+Fitter utilisation will be recorded after the milestone CI dispatch.
+
 ### P3 interrupts — implemented on `plus/p2-asic-regs` (2026-08-25)
 
 The programmable raster interrupt lives inside `asic_ga_timing`, where the
@@ -719,7 +757,8 @@ front end.
     interrupts (PRI/DCSR/IVR) are done on `plus/p2-asic-regs`, synthesized green at
     `3d7a178`. Next Plus steps: the manual hardware checkpoint (real `.cpr` boot,
     a static-palette title for P2's exit, a raster-split title for P3's; classic
-    re-checked side by side), then P4 sprites. The branch carries unreviewed work
-    per standing session instructions; order cross-provider review(s) before
-    merging.
+    re-checked side by side), then finish P4 sprites (engine landed on
+    `plus/p4-sprites`; s11-s14 skipped vectors + mobo m8 remain, see the P4
+    section above). The branch carries unreviewed work per standing session
+    instructions; order cross-provider review(s) before merging.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.

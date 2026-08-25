@@ -406,6 +406,81 @@ void a07_reset_contract(Regs& r) {
 	std::printf("PASS a07: reset contract (IVR bit0, positions clear)\n");
 }
 
+// a08: P4 sprite-engine services. Access indicator: any CPU cycle inside
+// a sprite image area (wsel 00) asserts EN with IDX=A[11:8]; register /
+// unused regions never assert it (reference S5: only pixel-data accesses
+// blank, and only that sprite).
+void a08_sprite_access_indicator(Regs& r) {
+	struct Probe { uint16_t off; const char* what; bool en; unsigned idx; };
+	const Probe probes[] = {
+		{0x0000, "sprite0 first byte", true, 0},
+		{0x00FF, "sprite0 last byte",  true, 0},
+		{0x0413, "sprite mid-image",   true, 4},
+		{0x0F13, "sprite15",           true, 15},
+		{0x1000, "unused &5000",       false, 0},
+		{0x2000, "X reg (no blank)",   false, 0},
+		{0x2004, "mag reg",            false, 0},
+		{0x2400, "palette",            false, 0},
+		{0x2800, "PRI",                false, 0},
+	};
+	for (const auto& p : probes) {
+		r.dut.asic_cs = 1; r.dut.mem_rd = 1; r.dut.mem_wr = 0;
+		r.dut.A = p.off; r.dut.eval();
+		if ((r.dut.spr_acc_en != 0) != p.en ||
+		    (p.en && r.dut.spr_acc_idx != p.idx))
+			fail(std::string("a08 rd ") + p.what);
+		r.dut.mem_rd = 0; r.dut.mem_wr = 1; r.dut.eval();
+		if ((r.dut.spr_acc_en != 0) != p.en)
+			fail(std::string("a08 wr ") + p.what);
+		r.dut.asic_cs = 0; r.dut.mem_wr = 0; r.dut.eval();
+		if (r.dut.spr_acc_en != 0) fail("a08 en leaks with cs low");
+	}
+	std::printf("PASS a10: sprite pixel-data access indicator decode\n");
+}
+
+// a09: row-fetch port contract. REQ held is granted when the CPU port is
+// idle; ACK pulses one clock after the grant edge with both nibbles of
+// the addressed byte position ({odd, even}); a CPU page read cycle
+// preempts the grant for that cycle.
+void a09_sprq_fetch_port(Regs& r) {
+	// Stage known nibbles via page writes (masked to low nibble):
+	// sprite1 row2 px4 <- 0xB, px5 <- 0x7. Byte2 of that row therefore
+	// reads back {odd nibble px5, even nibble px4} = 0x7B.
+	r.wr(0x0124, 0xAB);
+	r.wr(0x0125, 0xC7);
+
+	// Idle-port grant: REQ+ADDR held; ACK pulses the cycle after the
+	// granting edge, carrying both nibbles.
+	r.dut.sprq_req = 1;
+	r.dut.sprq_addr = (1u << 7) | (2u << 3) | 2u;
+	r.tick();
+	if (!r.dut.sprq_ack) fail("a09: no ACK after idle-port REQ");
+	if (r.dut.sprq_data != 0x7B)
+		fail("a09: fetched byte " + std::to_string(r.dut.sprq_data) +
+		     " != packed {odd,even} nibbles");
+
+	// REQ drop terminates the transaction cleanly.
+	r.dut.sprq_req = 0;
+	r.tick();
+	if (r.dut.sprq_ack) fail("a09: ACK stuck after REQ drop");
+	r.dut.sprq_req = 0;
+	r.dut.sprq_addr = 0;
+
+	// CPU preemption: while a page READ cycle occupies the port, a held
+	// REQ is not granted; it completes right after the CPU cycle ends.
+	r.dut.asic_cs = 1; r.dut.mem_rd = 1; r.dut.A = 0x0206; r.dut.D_in = 0;
+	r.dut.sprq_req = 1;
+	r.dut.sprq_addr = (1u << 7) | (2u << 3) | 3u;
+	r.tick();
+	if (r.dut.sprq_ack) fail("a09: granted during CPU page read");
+	r.dut.asic_cs = 0; r.dut.mem_rd = 0;
+	r.tick();   // grant edge for the held REQ
+	if (!r.dut.sprq_ack) fail("a09: no ACK after preemption clears");
+	r.dut.sprq_req = 0;
+	r.tick();
+	std::printf("PASS a09: sprq fetch port grant/data/preempt\n");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -419,6 +494,8 @@ int main(int argc, char** argv) {
 		{"a05", a05_raster_dma_regs}, {"a06", a06_open_bus},
 		{"a07", a07_reset_contract},
 		{"a08", a08_dcsr_raster_status},
+		{"a09", a09_sprq_fetch_port},
+		{"a10", a08_sprite_access_indicator},
 	};
 	for (const auto& t : tests) {
 		try {
