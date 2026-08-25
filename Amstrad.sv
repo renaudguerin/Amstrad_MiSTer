@@ -1318,7 +1318,11 @@ end
 
 wire ce_pix = (hq2x | status[30]) ? ce_pix_fs : ce_16;
 
-wire [1:0] b, g, r;
+// P2 RGB widening: the motherboard emits 4-bit channels. In classic mode
+// the low two bits are the raw netlist {level, OE_N} pair, so color_mix
+// keeps its exact GA-DAC behaviour bit-for-bit; in Plus mode the nibble is
+// the native ASIC palette level and bypasses the GA table after expansion.
+wire [3:0] b4, g4, r4;
 wire       hs, vs, hbl, vbl;
 
 color_mix color_mix
@@ -1331,9 +1335,9 @@ color_mix color_mix
 	.VSync_in(vs),
 	.HBlank_in(hbl),
 	.VBlank_in(vbl),
-	.B_in(b),
-	.G_in(g),
-	.R_in(r),
+	.B_in(b4[1:0]),
+	.G_in(g4[1:0]),
+	.R_in(r4[1:0]),
 
 	.HSync_out(HSync),
 	.VSync_out(VSync),
@@ -1346,6 +1350,11 @@ color_mix color_mix
 
 wire [7:0] B, G, R;
 wire       HSync, VSync, HBlank, VBlank;
+
+// Plus-native 4-bit expansion to the 8-bit video path (nibble * 17).
+wire [7:0] R_plus = {r4[3:0], r4[3:0]};
+wire [7:0] G_plus = {g4[3:0], g4[3:0]};
+wire [7:0] B_plus = {b4[3:0], b4[3:0]};
 
 wire [1:0] scale = status[10:9];
 wire       hq2x = (scale == 1);
@@ -1363,9 +1372,9 @@ end
 video_mixer #(.LINE_LENGTH(800), .GAMMA(1)) video_mixer
 (
 	.*,
-	.R(R[7:0] | {8{progress_pix}}),
-	.G(G[7:0] | {8{progress_pix}}),
-	.B(B[7:0] | {8{progress_pix}}),
+	.R((plus_mode ? R_plus : R) | {8{progress_pix}}),
+	.G((plus_mode ? G_plus : G) | {8{progress_pix}}),
+	.B((plus_mode ? B_plus : B) | {8{progress_pix}}),
 	.VGA_DE(vga_de),
 	.freeze_sync(),
 	.scandoubler((scale || forced_scandoubler) && !interlace)
