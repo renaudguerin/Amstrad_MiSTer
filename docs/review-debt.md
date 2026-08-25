@@ -15,16 +15,22 @@ cleared the remediation delta on 2026-08-24, after which the branch was merged i
 
 ## Open rows
 
-- `plus/p4-sprites` (merged 2026-08-25): the sprite-engine delta WAS
-  reviewed — Codex/GPT-5.6 Sol high returned NOT CLEAR with three blocking
-  findings, all remediated in `69e5d91` (suppressed-completion sreq
-  stranding; disabled-sprite walk jump crossing bank+sprite and starving
-  odd sprites; invalid out-of-window s11 assertion) — but the remediation
-  commit has not had a second pass, and vectors s11-s14 remain SKIPped on
-  one residual (post-flush cross-seam refill incompleteness; per-dot
-  traces documented in docs/current-status.md P4 section). Clear this row
-  with a follow-up pass covering 69e5d91 plus the re-enabled s11-s14 once
-  the refill defect closes.
+- `plus/p4-sprites` (merged into `accc-review-and-fixes`, latest at
+  `85b0eaa`, 2026-08-25): two passes done. Pass 1 (Codex/GPT-5.6 Sol
+  high, NOT CLEAR) found suppressed-completion sreq stranding, a
+  walk-jump stride starving odd sprites, and an out-of-window s11
+  assertion; remediated in `69e5d91`. Pass 2 over that delta (same
+  route, NOT CLEAR) found the walk-jump fix had overcorrected —
+  preserving walk[7] trapped the walker in one bank half whenever
+  sprite 15 was disabled; the documented exit-65 skip accounting never
+  existed in code; and the branch's long-standing post-flush refill
+  residual dissolved as a test bug (s11 used mag 0x5 = X1/Y1 whose
+  window is one character). Remediated in `9f77dc3`: block-number carry
+  across halves, real exit-65 accounting, s11 on mag 0xA with paper-
+  derived expectations, all fourteen vectors passing with zero skips.
+  Clear this row after pass 3 reviews the `9f77dc3` delta (walker
+  half-carry change plus the rewritten s11/s12/s13 assertions and their
+  documented recovery-latency model choice).
 
 This file tracks work that was merged without the independent cross-provider review the
 project normally requires. It exists because that review was unavailable at the time, not
