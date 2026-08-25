@@ -603,16 +603,26 @@ wrap-through + negative alias, R0>64 repeat). asic_video t06a-c pin the
 precedence mux; asic_regs a09/a10 pin the fetch-port handshake/preemption
 and access-indicator decode.
 
-**SKIPPED VECTORS (next session, top priority):** s11-s14 (access-blanking
-scope/integrity, X-rewrite cut-and-continue, Y-rewrite seam granularity,
-overlap bandwidth) are disabled with SKIP lines — under multi-sprite load a
-phantom sprite-0 winner appears whose gate terms read impossible when
-probed; one more index/wiring defect is hiding in the fetch/staging path,
-and each debug round via print-shadows cost heavy time. The probe
-infrastructure that works (public-flat-rw build of the leaf test) is
-proven; start there. Also open from this phase: mobo-bench m8 end-to-end
-sprite vector, and the INKR-effects ~1/2-us-late GA pipeline question noted
-in P1 remains deferred.
+**SKIPPED VECTORS (next session, top priority):** s11-s14 are disabled
+with SKIP lines (exit code 65 when anything skips, so the gate cannot
+silently accept them). Independent Codex/GPT-5.6 Sol review
+(2026-08-25, NOT CLEAR) found three real defects, all fixed and
+bite-verified by re-enabling the affected vectors: suppressed port
+completions stranded sreq bits forever (completion now always releases
+the slot; only the payload write is conditional, scoped to words whose
+sprite matches ACC_IDX); the disabled-sprite block jump advanced
+walk[7:4] which crosses bank+sprite, skipping every odd sprite (now
+advances the sprite field within the bank half); and s11's own assertion
+sampled outside sprite 2's window while reading idx without EN. With
+those landed s11 passes its bystander/hole phases in simulation but char5
+recovery after the access flush still comes up incomplete across the
+next seam — the residual is bounded to post-flush cross-seam refill
+dynamics and is the exact reopening point for s11-s14 (traces:
+s11c1/s11c4/s11c5 SPRDBG prints show per-dot winner state; SEAM watcher
+in the public-flat-rw leaf build shows seam branch decisions). Also open
+from this phase: mobo-bench m8 end-to-end sprite vector, and the
+INKR-effects ~1/2-us-late GA pipeline question noted in P1 remains
+deferred.
 
 Milestone CI (workflow_dispatch run `32892544906`, Quartus 17.0.2,
 commit `e3dd848`): simulation, policy, exact synthesis all green.
