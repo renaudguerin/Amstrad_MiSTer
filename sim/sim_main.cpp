@@ -571,6 +571,14 @@ public:
         }
     }
 
+    void expect_known_ma(const std::string& expectation,
+                         std::uint16_t expected) const {
+        if (dut_->MA != expected) {
+            known_divergence(expectation + " == " + std::to_string(expected),
+                             static_cast<unsigned>(dut_->MA));
+        }
+    }
+
     void expect_de_high(const std::string& expectation) const {
         expect_high(expectation, dut_->DE);
     }
@@ -4289,6 +4297,101 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
                    0x1234);
 }
 
+// F11h closure, render-verified against ACCC v1.10 section 20.3.2 page 242:
+// the second CRTC-1 chronogram draws the OUT R12,#30 bus activity spanning
+// C0=62..1 across a row-0 line seam, so the register write lands on the
+// 63->0 boundary edge itself, and OFFSET=#30xx is drawn from C0=0. The
+// paired CRTC-0 chronogram (section 20.3.1, same page) with identical bus
+// timing leaves OFFSET=#10xx. So the type-1 row-0 reload ("VMA is loaded
+// with R12/R13 while C4=0") catches a write whose register update coincides
+// with the reload edge, while the type-0 frame load misses it. Expectations
+// derived on paper from the chronograms; the type-1 same-edge assertions
+// use the known-divergence forms until the behavior commit.
+void test_type1_r12_write_on_row0_boundary_edge_reloads(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // Normal frame: 64 characters/line (R0=63), 39 character rows (R4=38),
+    // 8 scanlines/row (R9=7), no vertical adjust (R5=0): 312 lines/frame.
+    constexpr RegisterProgram kNormalRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 0},  {6, 25}, {7, 30}, {8, 0},    {9, 7},
+    }};
+    program_registers(test, kNormalRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    // Leave R12 selected so the timed writes below need no bus traffic that
+    // would disturb the character alignment (reset() re-aligns the phase).
+    test.select_register(12);
+    test.reset();
+
+    // 312*64 edges reach the genuine frame start; 63 more land on cell 63
+    // of line 0, so the write below consumes the line 0 -> line 1 boundary
+    // edge itself. MA has incremented once per edge since the origin.
+    test.run_characters(312 * 64 + 63);
+    test.expect_ma("type 1 fixture reaches line 0 cell 63 running from R12/R13",
+                   0x1234 + 63);
+    test.write_selected_register_at_clken(0x30);
+
+    // Section 20.3.2 chronogram 2: the same-edge write is caught -- the new
+    // R12 (0x30) with the still-stored R13 (0x34) loads at this boundary.
+    test.expect_known_ma(
+        "type 1 same-edge R12 write reloads (new R12, stored R13)", 0x3034);
+
+    // The next row-0 boundary reloads the stored pair; this also pins that
+    // the pre-fix model only caught the write one full line later.
+    test.run_characters(64);
+    test.expect_ma("type 1 next row-0 boundary carries the written R12", 0x3034);
+
+    // Mid-line writes keep the t20b behavior (regression continuity inside
+    // this vector): R13 written on the edge entering cell 11 of line 2.
+    test.select_register(13);
+    test.run_characters(9);
+    test.write_selected_register_at_clken(0x78);
+    test.run_characters(53);
+    test.expect_ma("type 1 mid-line R13 write still reloads at the boundary",
+                   0x3078);
+
+    // The frame origin is the same "C0 and C9 go to 0 and C4=0" event, so a
+    // write landing exactly there is caught by the same rule.
+    test.select_register(12);
+    test.run_characters(309 * 64 - 2);
+    test.write_selected_register_at_clken(0x40);
+    test.expect_known_ma(
+        "type 1 same-edge R12 write at the frame origin reloads", 0x4078);
+}
+
+void test_type0_r12_write_on_frame_origin_edge_is_missed(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // Same normal frame as t20a/t20j.
+    constexpr RegisterProgram kNormalRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 0},  {6, 25}, {7, 30}, {8, 0},    {9, 7},
+    }};
+    program_registers(test, kNormalRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(12);
+    test.reset();
+
+    // 311*64+63 edges land on cell 63 of the frame's last line (line 311,
+    // C9=7=R9 of row 38=R4), so the write below consumes the frame-origin
+    // edge itself.
+    test.run_characters(311 * 64 + 63);
+    test.write_selected_register_at_clken(0x30);
+
+    // Section 20.3.1 chronogram 2: the C4=C0=0 frame load samples the old
+    // R12/R13; the identically-timed write type 1 catches is missed here.
+    test.expect_ma(
+        "type 0 same-edge R12 write at the frame origin is not caught",
+        0x1234);
+
+    // "The updates of R12 and R13 are considered immediately" at the next
+    // C4=C0=0: one frame later the written R12 loads.
+    test.run_characters(312 * 64);
+    test.expect_ma("type 0 next frame origin loads the written R12", 0x3034);
+}
+
 void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     test.set_crtc_type(1);
 
@@ -5561,6 +5664,12 @@ int main(int argc, char** argv) {
         {"t20i_type0_r0_zero_live_entry_reloads_vma_then_freezes",
          "ACCC v1.10 sections 13.2.6, 13.8.3, and 20.3.1; F5/F12/F11h (A3)",
          false, test_type0_r0_zero_live_entry_reloads_vma_then_freezes},
+        {"t20j_type1_r12_write_on_row0_boundary_edge_reloads",
+         "ACCC v1.10 section 20.3.2 p.242 chronogram 2; F11h", true,
+         test_type1_r12_write_on_row0_boundary_edge_reloads},
+        {"t20k_type0_r12_write_on_frame_origin_edge_is_missed",
+         "ACCC v1.10 section 20.3.1 p.242 chronogram 2; F11h", false,
+         test_type0_r12_write_on_frame_origin_edge_is_missed},
         {"t10a_type0_r1_gt_r0_spurious_border_byte",
          "ACCC v1.10 sections 17.6.2, 17.6.1, and 17.2; F6", false,
          test_type0_r1_gt_r0_spurious_border_byte},
