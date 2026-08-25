@@ -386,6 +386,9 @@ asic_regs asic_page
 	// the review found the ungated form hijacking classic cpu_din.
 	.intack(plus_mode & ~M1_n & iorq),
 	.int_pending(~plus_int_n),
+	// P7's DMA engine asserts these on an INT instruction; tied low until
+	// that phase lands (reference section 9).
+	.dma_int_set(3'b000),
 	.vec_byte(plus_vec_byte),
 	.vec_valid(plus_vec_valid)
 );

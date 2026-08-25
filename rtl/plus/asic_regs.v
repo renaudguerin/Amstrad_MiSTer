@@ -67,7 +67,7 @@ module asic_regs
 	// Video-side palette read port (free-running, no CPU interference —
 	// reference §6 "dual-ported").
 	input  [4:0]  pal_raddr,
-	output [11:0] pal_rdata,   // {R,G,B} nibbles
+	output [11:0] pal_rdata,   // palette word {G,R,B} nibbles
 
 	// Register bytes later phases consume (stored from P2 on)
 	output [7:0] pri, splt, sscr, ivr, ssa_hi, ssa_lo, dcsr,
@@ -86,7 +86,13 @@ module asic_regs
 	input        intack,        // M1 & IORQ cycle in progress
 	input        int_pending,   // raster interrupt asserted (INT_N low)
 	output [7:0] vec_byte,
-	output       vec_valid      // high while the vector occupies the bus
+	output       vec_valid,     // high while the vector occupies the bus
+
+	// Per-channel DMA interrupt request lines (reference section 9): the
+	// P7 DMA engine asserts these on an INT instruction; they OR-set the
+	// DCSR flag bits here so write-one-to-clear is observable now rather
+	// than arriving implicit with P7. Tied low until P7 lands.
+	input  [2:0] dma_int_set   // {ch2, ch1, ch0}
 );
 
 	//------------------------------------------------------------------
@@ -205,6 +211,11 @@ module asic_regs
 	wire       r_pal    = (wsel == 2'b10) && (A[11:6] == 6'h10);
 	wire       r_raster = (wsel == 2'b10) && (A[11:4] == 8'h80);
 	wire       r_dma    = (wsel == 2'b10) && (A[11:4] == 8'hC0);
+	// DCSR flag write-one-to-clear window: a &6C0F write while the page is
+	// selected (reference section 9).
+	wire       dcsr_w1c_hit = !reset && asic_cs && mem_wr &&
+	                          (wsel == 2'b10) && (A[11:4] == 8'hC0) &&
+	                          (A[3:0] == 4'hF);
 
 	// Palette entry index: 64 bytes / 2 bytes per entry over &6400-&643F.
 	wire [4:0] pal_idx = A[5:1];
@@ -234,7 +245,19 @@ module asic_regs
 			leg_inkr_q   <= {80{1'b1}}; // != reset INKR: forces first translate
 			leg_border_q <= 5'b11111;   // != reset border 16
 		end
-		if (asic_cs) begin
+		// Reset dominates page writes: this used to be an else-if until the
+		// legacy-translate hoist split the chain (review part-B blocker 1) -
+		// a write cycle coinciding with reset could otherwise override
+		// reset-defined fields such as IVR bit 0.
+		// DCSR flag bits: DMA INT requests set them on any clock edge;
+		// a &6C0F write clears by ones. A simultaneous set-and-clear
+		// resolves set-dominant (no arbitration rule in the sources).
+		// Gated by !reset so reset dominates (review part-B blocker 1).
+		if (!reset)
+			dcsr_flags <= (dcsr_flags | dma_int_set) &
+			              (dcsr_w1c_hit ? ~D_in[6:4] : 3'b111);
+
+		if (!reset && asic_cs) begin
 			if (mem_wr) begin
 				if (wsel == 2'b00) begin
 					// Sprite pixel data, masked to the low nibble (§3/§4).
@@ -283,10 +306,10 @@ module asic_regs
 						4'h8: sar_lo[2] <= D_in;
 						4'h9: sar_hi[2] <= D_in;
 						4'hA: ppr[2]    <= D_in;
-						4'hF: begin // writable ONLY at &6C0F (reference §4)
-							dcsr_flags <= dcsr_flags & ~D_in[6:4]; // w1c (§9)
-							dcsr_ena   <= D_in[2:0];
-						end // bit7 is merger-driven, not CPU-writable
+						4'hF: dcsr_ena <= D_in[2:0]; // writable ONLY at
+						                             // &6C0F (reference §4);
+						                             // bit7 is merger-driven,
+						                             // flag w1c handled below
 						default: ; // &6C03/&6C0B-&6C0E unused (§3)
 						endcase
 					end

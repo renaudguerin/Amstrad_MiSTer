@@ -47,6 +47,7 @@ public:
 		dut.leg_inkr[1] = 0;
 		dut.leg_inkr[2] = 0;
 		dut.pal_raddr = 0;
+		dut.dma_int_set = 0;
 	}
 
 	void set_inkr_word(uint32_t lo, uint32_t hi) {
@@ -223,13 +224,20 @@ void a02_sprite_regs(Regs& r) {
 				fail("a02: X hi rule/mirror sprite " + std::to_string(n) +
 				     " h=" + std::to_string(h));
 		}
-		// Y high stores 1 bit; ==1 reads &FF (§4); mirrors at +7.
-		r.wr(base + 3, 0x00);
+		// Y high stores 1 bit; written&1==1 reads &FF else 0 (reference §4).
+		// Nontrivial bus values pin the masking itself.
+		r.wr(base + 3, 0xFE);
 		if (r.rd(base + 3) != 0x00 || r.rd(base + 7) != 0x00)
 			fail("a02: Y hi zero rule sprite " + std::to_string(n));
-		r.wr(base + 3, 0xFF);
+		r.wr(base + 3, 0x01);
 		if (r.rd(base + 3) != 0xFF || r.rd(base + 7) != 0xFF)
 			fail("a02: Y hi FF rule sprite " + std::to_string(n));
+		// +6 reads mirror +2 (§4).
+		if (r.rd(base + 6) != yl)
+			fail("a02: mirror +6/+2 sprite " + std::to_string(n));
+		// +6 reads mirror +2 (§4).
+		if (r.rd(base + 6) != yl)
+			fail("a02: mirror +6/+2 sprite " + std::to_string(n));
 
 		// Magnification mirrors on +4..+6 writes (§4, ⚠ ASIC-REF note for
 		// +3 which stays Y-high here); magnification reads give the
@@ -237,6 +245,7 @@ void a02_sprite_regs(Regs& r) {
 		r.wr(base + 4, 0x5A);
 		r.wr(base + 5, 0xA5);
 		r.wr(base + 6, 0xFF);
+		r.wr(base + 7, 0x00);
 		if (r.rd(base + 4) != xl || r.rd(base + 5) != ((r.rd(base + 1))))
 			fail("a02: read mirror row sprite " + std::to_string(n));
 	}
@@ -268,9 +277,11 @@ void a03_palette(Regs& r) {
 		fail("a03: split-byte packing");
 	r.wr(b0 + 1, 0x24); // G=4
 	if (r.rd(b0 + 0) != 0x12) fail("a03: odd write disturbed even byte");
+	r.wr(b0 + 0, 0x56); // even write must preserve stored G=4 (reference §6)
+	if (r.rd(b0 + 1) != 0x04) fail("a03: even write disturbed green");
 	// Video port tracks CPU writes independently (§6 dual-ported); entry
-	// word is {G,R,B} = 4,1,2.
-	if (r.pal_read(0) != 0x412)
+	// word after the sequence above is {G,R,B} = 4,5,6.
+	if (r.pal_read(0) != 0x456)
 		fail("a03: video port entry 0 = " + std::to_string(r.pal_read(0)));
 	if (r.pal_read(31) == r.pal_read(0))
 		fail("a03: video port shows aliased entries");
@@ -357,6 +368,7 @@ void a06_open_bus(Regs& r) {
 		0x1000, 0x1FFF,             // &5000s
 		0x2080, 0x23FF,             // &6080-&63FF
 		0x2440, 0x27FF,             // &6440-&67FF
+		0x2800, 0x2805,             // &6800-&6805: write-only, reads open bus
 		0x2806, 0x2807,             // &6806/&6807 (write-only region read)
 		0x2808, 0x280F,             // ADC until its phase lands
 		0x2810, 0x2BFF,             // &6810-&6BFF
