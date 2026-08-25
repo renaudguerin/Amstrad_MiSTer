@@ -41,10 +41,11 @@ public:
 	Vp1_mobo_bench_top dut;
 	uint64_t cyc = 0;
 
-	explicit MoboBench() : dut("p1_mobo_bench_top") {
+	explicit MoboBench(bool plus) : dut("p1_mobo_bench_top") {
 		dut.clk = 0;
 		dut.reset = 1;
 		dut.asic_page_on = 0;
+		dut.plus_mode_i = plus ? 1 : 0;
 	}
 
 	void tick() {
@@ -96,7 +97,7 @@ public:
 };
 
 int run() {
-	MoboBench b;
+	MoboBench b(true);
 
 	b.dut.reset = 1;
 	b.run(64);
@@ -176,6 +177,23 @@ int run() {
 		// wrote IVR=0xDA -> base 0xD8; raster-pending adds %110 -> 0xDE.
 		// The prime acknowledge legitimately sees nothing pending (0xD8);
 		// at least one pending-ack sample must show the raster vector.
+		// The byte settles on the first clock edge inside the window
+		// (ack_pending latch); the CPU samples at cycle end, so require
+		// stability only after that settle, through window close.
+		static bool prev_v = false;
+		static unsigned vticks = 0;
+		static uint8_t settled_b = 0;
+		if (!b.dut.vec_valid_o) { prev_v = false; vticks = 0; }
+		else {
+			++vticks;
+			if (vticks == 5) settled_b = b.dut.vec_byte_o; // post-settle baseline
+			if (vticks > 5 && b.dut.vec_byte_o != settled_b)
+				fail("m6: vector byte changed mid-acknowledge at cyc " +
+				     std::to_string(b.cyc) + " (" +
+				     std::to_string(settled_b) + " -> " +
+				     std::to_string(b.dut.vec_byte_o) + ")");
+			prev_v = true;
+		}
 		if (b.dut.vec_valid_o) {
 			const uint8_t v = b.dut.vec_byte_o;
 			if (v != 0xD8 && v != 0xDE)
@@ -221,14 +239,41 @@ int run() {
 	return 0;
 }
 
+// m7: classic mode must keep every new Plus term inert even with the
+// page-enable input forced high (review finding 5 class).
+void run_classic_probe() {
+	MoboBench b(false);
+	b.dut.reset = 1;
+	for (unsigned i = 0; i < 64; ++i) b.tick();
+	b.dut.reset = 0;
+	b.dut.asic_page_on = 1;
+	unsigned windows = 0;
+	bool prev = false, ok = true;
+	for (unsigned i = 0; i < 400000u; ++i) {
+		b.tick();
+		const bool low = b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__M1_n == 0 &&
+		                 b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__IORQ_n == 0;
+		if (low && !prev) ++windows;
+		prev = low;
+		if (b.dut.vec_valid_o || b.dut.asic_rd_o) ok = false;
+	}
+	if (windows == 0) fail("m7: no acknowledge window observed");
+	if (!ok) fail("m7: vec_valid or asic_rd asserted in classic mode");
+	std::printf("PASS m7: classic mode inert across %u ack windows with page forced on\n",
+	            windows);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
 	Verilated::commandArgs(argc, argv);
+	int rc = 0;
 	try {
-		return run();
+		rc = run();
+		run_classic_probe();
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;
 	}
+	return rc;
 }

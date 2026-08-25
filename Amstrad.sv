@@ -1065,6 +1065,8 @@ plus_mmu plus_mmu
 wire [7:0] plus_vec_byte;
 wire       plus_vec_valid;
 wire plus_aspage_on;
+wire [7:0] plus_asic_dout;
+wire       plus_asic_rd;
 // The whole &4000-&7FFF window while the page is enabled: reads are
 // answered by the motherboard's asic_regs instance and BOTH directions
 // must be suppressed against main memory (no read/write-through,

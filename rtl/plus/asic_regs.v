@@ -293,8 +293,16 @@ module asic_regs
 				end
 				// wsel 01/11 (&5000s / &7000s): writes ignored (§3)
 			end
+		end
 
-			// Legacy PENR/INKR translation (§6): pens 0-15 + border only.
+		// Legacy PENR/INKR translation (reference section 6): pens 0-15 + border
+		// only, keyed on changes to the legacy register shadow. This sits OUTSIDE
+		// the asic_cs gate on purpose: legacy writes arrive on the &7Fxx I/O port,
+		// which never asserts the page chip-select (review part-B flag). A legacy
+		// change and a CPU palette write on the same clock edge resolve in favour
+		// of the legacy update (source order); no arbitration rule exists in the
+		// sources.
+		if (!reset) begin
 			if (leg_inkr != leg_inkr_q || leg_border != leg_border_q) begin
 				for (k = 0; k < 16; k = k + 1)
 					if (leg_inkr[k*5 +: 5] != leg_inkr_q[k*5 +: 5])
@@ -369,8 +377,26 @@ module asic_regs
 
 	// Vector byte: (IVR & &F8) | source; source = %110 (raster) while a
 	// raster interrupt pends (reference §7 table; DMA codes arrive P7).
+	// The source field is sampled on the FIRST clock edge of the
+	// acknowledge cycle and held for its duration: INT_N rises one edge
+	// into the cycle (irqack is combinational), so an unsampled
+	// int_pending would drop the raster bits before the CPU latches the
+	// byte at cycle end (review finding 2).
+	reg       intack_d;
+	reg       ack_pending;
+	always @(posedge clk) begin
+		if (reset) begin
+			intack_d    <= 1'b0;
+			ack_pending <= 1'b0;
+		end
+		else begin
+			intack_d <= intack;
+			if (intack && !intack_d) ack_pending <= int_pending;
+		end
+	end
+
 	wire [7:0] vec_src = ivr_r & 8'hF8;
-	assign vec_byte  = vec_src | (int_pending ? 8'h06 : 8'h00);
+	assign vec_byte  = vec_src | (ack_pending ? 8'h06 : 8'h00);
 	assign vec_valid = intack;
 
 	// Video-side read port (registered, independent of the CPU port).
