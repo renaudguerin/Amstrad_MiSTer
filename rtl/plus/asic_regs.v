@@ -162,9 +162,20 @@ module asic_regs
 	// Shadow copies let the translation fire only on legacy-register
 	// changes, keeping CPU writes authoritative for entries the legacy
 	// port cannot reach (sprite colours, §6).
+	// Stored-layout wrapper: palette words keep the documented {G,R,B}
+	// order while the table above reads naturally as {R,G,B}. Blocking
+	// assignments inside a function are fine; the clocked block below
+	// stays purely nonblocking (newer Verilator errors otherwise).
+	function [11:0] legacy_colour_store(input [4:0] hw);
+		reg [3:0] rr, gg, bb;
+		begin
+			{rr, gg, bb} = legacy_colour(hw);
+			legacy_colour_store = {gg, rr, bb};
+		end
+	endfunction
+
 	reg [79:0] leg_inkr_q;
 	reg [4:0]  leg_border_q;
-	reg [3:0]  legacy_r, legacy_g, legacy_b;
 	integer k;
 
 	//------------------------------------------------------------------
@@ -271,14 +282,10 @@ module asic_regs
 			// Legacy PENR/INKR translation (§6): pens 0-15 + border only.
 			if (leg_inkr != leg_inkr_q || leg_border != leg_border_q) begin
 				for (k = 0; k < 16; k = k + 1)
-					if (leg_inkr[k*5 +: 5] != leg_inkr_q[k*5 +: 5]) begin
-						{legacy_r, legacy_g, legacy_b} = legacy_colour(leg_inkr[k*5 +: 5]);
-						pal[k] <= {legacy_g, legacy_r, legacy_b};
-					end
-				if (leg_border != leg_border_q) begin
-					{legacy_r, legacy_g, legacy_b} = legacy_colour(leg_border);
-					pal[16] <= {legacy_g, legacy_r, legacy_b};
-				end
+					if (leg_inkr[k*5 +: 5] != leg_inkr_q[k*5 +: 5])
+						pal[k] <= legacy_colour_store(leg_inkr[k*5 +: 5]);
+				if (leg_border != leg_border_q)
+					pal[16] <= legacy_colour_store(leg_border);
 				leg_inkr_q   <= leg_inkr;
 				leg_border_q <= leg_border;
 			end

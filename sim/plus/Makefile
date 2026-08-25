@@ -113,12 +113,16 @@ P1VID_TEST_BIN := $(P1VID_OBJ_DIR)/p1_video_tests
 #                                  pair this class surfaced is fixed by the
 #                                  phase-enable ownership mux, not waived
 #   DECLFILENAME                 : multi-module stub files
-#   CASEX / PROCASSINIT / IMPLICITSTATIC / SYNCASYNCNET / WIDTHTRUNC :
+#   CASEX / SYNCASYNCNET / WIDTHTRUNC :
 #                                  upstream style idioms in files owned by
 #                                  other streams
+#   PROCASSINIT / IMPLICITSTATIC are deliberately absent: their only
+#   sources were fixed (Amstrad_MMU block-local initializer) or are
+#   version-dependent, and CI's older Verilator rejects the -Wno names.
 # Everything else under -Wall stays fatal — above all IMPLICIT (undeclared
 # nets at instance pins, the original review-finding bug class) and UNDRIVEN.
 MBOARD_CORE_RTL := $(abspath ../../rtl/Amstrad_motherboard.v) \
+	$(abspath ../../rtl/plus/asic_regs.v) \
 	$(abspath motherboard_lint_stubs.v) \
 	$(abspath ../../rtl/CRTC.v) \
 	$(abspath ../../rtl/crtc_type0_engine.v) \
@@ -271,8 +275,8 @@ motherboard-lint:
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
 		--top-module Amstrad_motherboard -Wall \
 		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
-		-Wno-DECLFILENAME -Wno-CASEX -Wno-PROCASSINIT \
-		-Wno-IMPLICITSTATIC -Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
+		-Wno-DECLFILENAME -Wno-CASEX \
+		-Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
 		$(MBOARD_LINT_RTL)
 
 lint: motherboard-lint
@@ -309,8 +313,8 @@ lint: motherboard-lint
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
 		--top-module Amstrad_motherboard -Wall \
 		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
-		-Wno-DECLFILENAME -Wno-CASEX -Wno-PROCASSINIT \
-		-Wno-IMPLICITSTATIC -Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
+		-Wno-DECLFILENAME -Wno-CASEX \
+		-Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
 		$(MBOARD_LINT_RTL)
 
 clean:

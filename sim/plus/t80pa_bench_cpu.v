@@ -47,7 +47,7 @@ module T80pa (
 	localparam [2:0] S_GAP = 3'd0, S_CYC = 3'd1, S_PRIME = 3'd2,
 	                 S_WAIT = 3'd3, S_ACK = 3'd4;
 
-	localparam [5:0] NSTEPS = 6'd24;
+	localparam [5:0] NSTEPS = 6'd32;
 	localparam [7:0] HOLD = 8'd47; // >= one full sequencer ring (32 clks)
 	localparam [7:0] GAP  = 8'd15;
 	localparam [7:0] ACKS = 8'd31;
@@ -57,10 +57,14 @@ module T80pa (
 	reg [7:0]  cnt;
 	reg        int_d;
 	reg        primed;
+	reg        cyc_mem; // current scripted cycle is a memory cycle
 
 	assign rfsh_n = 1'b1;
 
-	function [23:0] step_bus(input [5:0] k);
+	// {mem_type, addr[15:0], data[7:0]}: mem_type 0 = I/O write (GA/CRTC
+	// decode), 1 = memory write (ASIC page). The distinction matters at
+	// the pins — IORQ vs MREQ — exactly like a real Z80.
+	function [24:0] step_bus(input [5:0] k);
 		begin
 			case (k)
 			6'd0:  step_bus = {16'h0800, 8'h00}; // CRTC index phase
@@ -73,21 +77,32 @@ module T80pa (
 			6'd7:  step_bus = {16'h0900, 8'h22}; // R3 = h2,v2
 			6'd8:  step_bus = {16'h0800, 8'h04};
 			6'd9:  step_bus = {16'h0900, 8'h06}; // R4 = 6
-			6'd10: step_bus = {16'h0800, 8'h05};
-			6'd11: step_bus = {16'h0900, 8'h00}; // R5 = 0
-			6'd12: step_bus = {16'h0800, 8'h06};
-			6'd13: step_bus = {16'h0900, 8'h28}; // R6 = 40
-			6'd14: step_bus = {16'h0800, 8'h07};
-			6'd15: step_bus = {16'h0900, 8'h05}; // R7 = 5
-			6'd16: step_bus = {16'h0800, 8'h09};
-			6'd17: step_bus = {16'h0900, 8'h07}; // R9 = 7
-			6'd18: step_bus = {16'h7F00, 8'h83}; // GA RMR: mode 3
-			6'd19: step_bus = {16'h7F00, 8'h82}; // GA RMR: mode 2
-			6'd20: step_bus = {16'h7F00, 8'h05}; // ink select 5
-			6'd21: step_bus = {16'h7F00, 8'h55}; // INKR[5] = 0x15
-			6'd22: step_bus = {16'h7F00, 8'h10}; // ink select 0x10 -> border
-			6'd23: step_bus = {16'h7F00, 8'h44}; // border = 0x04
-			default: step_bus = {16'h0000, 8'hFF};
+			6'd10: step_bus = {1'b0, 16'h0800, 8'h05};
+			6'd11: step_bus = {1'b0, 16'h0900, 8'h00}; // R5 = 0
+			6'd12: step_bus = {1'b0, 16'h0800, 8'h06};
+			6'd13: step_bus = {1'b0, 16'h0900, 8'h28}; // R6 = 40
+			6'd14: step_bus = {1'b0, 16'h0800, 8'h07};
+			6'd15: step_bus = {1'b0, 16'h0900, 8'h05}; // R7 = 5
+			6'd16: step_bus = {1'b0, 16'h0800, 8'h09};
+			6'd17: step_bus = {1'b0, 16'h0900, 8'h07}; // R9 = 7
+			6'd18: step_bus = {1'b0, 16'h7F00, 8'h83}; // GA RMR: mode 3
+			6'd19: step_bus = {1'b0, 16'h7F00, 8'h82}; // GA RMR: mode 2
+			6'd20: step_bus = {1'b0, 16'h7F00, 8'h05}; // ink select 5
+			6'd21: step_bus = {1'b0, 16'h7F00, 8'h55}; // INKR[5] = 0x15
+			6'd22: step_bus = {1'b0, 16'h7F00, 8'h10}; // ink select 0x10 -> border
+			6'd23: step_bus = {1'b0, 16'h7F00, 8'h44}; // border = 0x04
+			// P2 m5: with the ASIC page forced on by the bench, memory
+			// cycles at &4000-&5FFF hit the sprite RAM (offsets 0-255 =
+			// sprite 0) and the palette block.
+			6'd24: step_bus = {1'b1, 16'h4000, 8'hA5}; // sprite 0 pixel byte 0
+			6'd25: step_bus = {1'b1, 16'h4001, 8'h5C};
+			6'd26: step_bus = {1'b1, 16'h4100, 8'h3E}; // sprite 1 first pixel
+			6'd27: step_bus = {1'b1, 16'h5000, 8'hFF}; // unused region: ignored
+			6'd28: step_bus = {1'b1, 16'h6400, 8'h0F}; // pen 0 low byte R=0 B=F
+			6'd29: step_bus = {1'b1, 16'h6401, 8'h03}; // pen 0 high byte G=3
+			6'd30: step_bus = {1'b1, 16'h6420, 8'h21}; // border low byte
+			6'd31: step_bus = {1'b1, 16'h6000, 8'h66}; // sprite 0 X lo
+			default: step_bus = {1'b0, 16'h0000, 8'hFF};
 			endcase
 		end
 	endfunction
@@ -118,12 +133,17 @@ module T80pa (
 				if (cnt != 8'd0) begin
 					cnt <= cnt - 8'd1;
 				end else if (!dbg_done) begin
-					{a, do}     <= step_bus(step);
-					dbg_step    <= step;
-					iorq_n <= 1'b0; wr_n <= 1'b0;
-					rd_n <= 1'b1; mreq_n <= 1'b1; m1_n <= 1'b1;
-					cnt <= HOLD;
-					st <= S_CYC;
+					// Read the type bit straight from the function: cyc_mem
+					// would still hold last cycle's value here (NBA).
+					{cyc_mem, a, do} <= step_bus(step);
+					dbg_step         <= step;
+					wr_n   <= 1'b0;
+					rd_n   <= 1'b1;
+					m1_n   <= 1'b1;
+					iorq_n <= step_bus(step)[24] ? 1'b1 : 1'b0;
+					mreq_n <= step_bus(step)[24] ? 1'b0 : 1'b1;
+					cnt    <= HOLD;
+					st     <= S_CYC;
 				end else if (!primed) begin
 					// Script finished: clear any power-on-low interrupt
 					// level once, so subsequent fires are genuine.

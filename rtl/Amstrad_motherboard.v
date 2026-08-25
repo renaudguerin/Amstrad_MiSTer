@@ -34,6 +34,15 @@ module Amstrad_motherboard
 	// the wait expression is unchanged there.
 	input         plus_mem_wait,
 
+	// Plus ASIC register page enable (RMR2 position 11, unlock-gated,
+	// captured by plus_mmu). While high, memory accesses at &4000-&7FFF
+	// are answered by the on-chip asic_regs page and MUST be suppressed
+	// against main memory by the caller (no write-through, reference §2);
+	// the caller also owns the CPU data mux for the answered reads.
+	input         plus_aspage_on,
+	output [7:0]  plus_asic_dout, // wired-AND-neutral page read data
+	output        plus_asic_rd,   // page answering a read this cycle
+
 	input   [6:0] joy1,
 	input   [6:0] joy2,
 	input         right_shift_mod,
@@ -320,6 +329,39 @@ asic_video asic_vid
 	.RGB_B(plus_rgb_b),
 	.PEN()
 );
+
+// ASIC register page (P2). The legacy GA shadow feeding its translation
+// comes straight from asic_ga_timing, so PENR/INKR writes land in the
+// 12-bit palette exactly as on hardware (reference §6 secondary port).
+wire [7:0] asic_regs_dout;
+wire       asic_regs_rd;
+asic_regs asic_page
+(
+	.clk(clk),
+	.reset(reset),
+
+	.asic_cs(plus_aspage_on & (A[15:14] == 2'b01)),
+	.mem_wr(mem_wr),
+	.mem_rd(mem_rd),
+	.A(A[13:0]),
+	.D_in(D),
+	.D_out(asic_regs_dout),
+
+	.leg_border(asic_border),
+	.leg_inkr(asic_inkr),
+
+	.pal_raddr(5'd0),          // video-side palette port lands with the
+	.pal_rdata(),              // P2 RGB widening commit
+
+	.pri(), .splt(), .sscr(), .ivr(),
+	.ssa_hi(), .ssa_lo(), .dcsr()
+);
+assign plus_asic_dout = asic_regs_dout;
+assign plus_asic_rd   = plus_aspage_on & (A[15:14] == 2'b01) & mem_rd;
+
+// The caller uses plus_asic_rd to mux the CPU data bus and to suppress
+// main-memory read AND write cycles for the whole &4000-&7FFF window
+// while the page is enabled (no read/write-through, reference §2).
 
 // Twice-per-character word assembly on the reference VIDEO_BUF phases:
 // state e0 latches the even byte, state 03 the odd byte (ring order
