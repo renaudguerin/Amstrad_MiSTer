@@ -411,15 +411,23 @@ always @(posedge CLOCK) begin
 
 		//------------------------------------------------------------
 		// Port completion: the handshake ALWAYS completes (dropping it
-		// would wedge REQ high); the payload write alone yields to a
-		// same-edge seam swap or access flush, since bytes answered for
-		// an outgoing configuration must not outlive it.
+		// would wedge REQ high). A payload write yields only to the
+		// two events that make ITS OWN word stale: a same-edge seam
+		// swap, or an access flush of the sprite the word belongs to
+		// (fq_tag[7:4]). Other sprites' in-flight bytes stay valid —
+		// suppressing them left holes in uninvolved sprites. A
+		// suppressed request releases its slot (sreq cleared) so the
+		// walker re-demands it.
 		//------------------------------------------------------------
 		if (do_pop) begin
 			FQ_REQ <= 1'b0;
-			if (!d1w && !ACC_EN) begin
+			if (!d1w && (!ACC_EN ||
+			              fq_tag[7:4] != ACC_IDX)) begin
 				rb_dat[fq_tag] <= FQ_DATA;
 				sdone[fq_tag]  <= 1'b1;
+			end
+			else begin
+				sreq[fq_tag] <= 1'b0;
 			end
 		end
 
@@ -443,11 +451,15 @@ always @(posedge CLOCK) begin
 				FQ_REQ  <= 1'b1;
 				sreq[pb_word] <= 1'b1;
 			end
-			// Whole 16-slot sprite blocks of disabled sprites are
-			// skipped in a single clock so lap time scales with the
-			// number of ENABLED sprites, not 16.
+			// A disabled sprite's whole 16-slot span (both bank
+			// halves: sprite s occupies walks 8s..8s+7 active and
+			// 128+8s..128+8s+7 speculative) is skipped in a single
+			// clock by advancing the SPRITE field only, leaving
+			// the bank bit untouched (review finding 2: advancing
+			// walk[7:4] instead crossed into sprite+2 because the
+			// bank bit lives at walk[7]).
 			if (!c_ena[wk_s])
-				walk <= {walk[7:4] + 8'd1, 4'd0};
+				walk <= {walk[7], walk[6:3] + 4'd1, 3'd0};
 			else
 				walk <= walk + 8'd1;
 		end
