@@ -292,6 +292,7 @@ wire [2:0] wk_byte = walk[2:0];
 wire       wk_go   = walk_act &&
                      c_ena[wk_s] &&
                      (walk[7] ? sval[{wk_s[3:0], ~abit[wk_s]}] : 1'b1);
+wire [4:0] wk_blk_nxt = {walk[7], walk[6:3]} + 5'd1;
 wire       wk_bank = wk_spec ? ~abit[wk_s] : abit[wk_s];
 wire [7:0] wk_word = {wk_s, wk_bank, wk_byte};
 wire [3:0] wk_row  = wk_spec ? srowtag[{wk_s[3:0], ~abit[wk_s]}*4 +: 4]
@@ -454,12 +455,13 @@ always @(posedge CLOCK) begin
 			// A disabled sprite's whole 16-slot span (both bank
 			// halves: sprite s occupies walks 8s..8s+7 active and
 			// 128+8s..128+8s+7 speculative) is skipped in a single
-			// clock by advancing the SPRITE field only, leaving
-			// the bank bit untouched (review finding 2: advancing
-			// walk[7:4] instead crossed into sprite+2 because the
-			// bank bit lives at walk[7]).
+			// clock by advancing the {bank,sprite} block number
+			// with carry from sprite 15 into the opposite half
+			// (review pass-2 finding 1: preserving walk[7] trapped
+			// the walk inside one half whenever sprite 15 was
+			// disabled, which is the common case).
 			if (!c_ena[wk_s])
-				walk <= {walk[7], walk[6:3] + 4'd1, 3'd0};
+				walk <= {wk_blk_nxt[4], wk_blk_nxt[3:0], 3'd0};
 			else
 				walk <= walk + 8'd1;
 		end
