@@ -145,9 +145,17 @@ MOBO_OBJ_DIR  := obj_dir/p1_mobo_bench
 MOBO_TEST_SRC := $(abspath p1_mobo_bench_test.cpp)
 MOBO_TEST_BIN := $(MOBO_OBJ_DIR)/p1_mobo_bench_tests
 
+# P2 ASIC register page leaf (exhaustive decode/mask/mirror/open-bus).
+AREGS_TOP      := asic_regs
+AREGS_RTL      := $(abspath ../../rtl/plus/asic_regs.v)
+AREGS_OBJ_DIR  := obj_dir/asic_regs
+AREGS_TEST_SRC := $(abspath asic_regs_test.cpp)
+AREGS_TEST_BIN := $(AREGS_OBJ_DIR)/asic_regs_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
-	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN)
+	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
+	$(AREGS_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -176,6 +184,7 @@ test: $(TEST_BINS)
 	./$(GADIFF_TEST_BIN)
 	./$(P1VID_TEST_BIN)
 	./$(MOBO_TEST_BIN)
+	./$(AREGS_TEST_BIN)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
@@ -242,6 +251,11 @@ $(GADIFF_TEST_BIN): $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF) $(GADIFF_
 		-o $(notdir $(GADIFF_TEST_BIN)) $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) \
 		$(GADIFF_REF) $(GADIFF_TEST_SRC)
 
+$(AREGS_TEST_BIN): $(AREGS_RTL) $(AREGS_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(AREGS_TOP) \
+		--Mdir $(AREGS_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(AREGS_TEST_BIN)) $(AREGS_RTL) $(AREGS_TEST_SRC)
+
 $(MOBO_TEST_BIN): $(MOBO_TEST_TOP) $(MOBO_RTL) $(MOBO_CPU) $(MOBO_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR --public-flat-rw \
 		--top-module $(MOBO_TOP) \
@@ -264,6 +278,8 @@ motherboard-lint:
 lint: motherboard-lint
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(ASIC_TOP) -Wall $(ASIC_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(AREGS_TOP) -Wall $(AREGS_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(ASICVID_TOP) -Wall $(ASICVID_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \

@@ -46,12 +46,15 @@ reg [4:0] RAMpage;
 reg [7:0] ROMbank;
 
 always @(posedge CLK) begin
-	reg old_wr = 0;
+	reg old_wr;
 
 	if (reset) begin
 		ROMbank    <=0;
 		RAMmap     <=0;
 		RAMpage    <=3;
+		old_wr     <= 1'b0; // replaces the old block-local initializer:
+		                    // newer Verilator rejects mixed blocked/
+		                    // nonblocked assignment to the same variable.
 	end
 	else if (sna_load) begin
 		RAMmap  <= sna_ram_config[2:0];

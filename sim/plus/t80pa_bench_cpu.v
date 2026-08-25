@@ -92,11 +92,14 @@ module T80pa (
 		end
 	endfunction
 
+	// Nonblocking throughout: newer Verilator makes mixed blocking/
+	// nonblocking assignment to the same variable an error, and this task
+	// runs inside the clocked block below.
 	task bus_idle;
 		begin
-			iorq_n = 1'b1; mreq_n = 1'b1; m1_n = 1'b1;
-			rd_n = 1'b1; wr_n = 1'b1;
-			a = 16'hFFFF; do = 8'hFF;
+			iorq_n <= 1'b1; mreq_n <= 1'b1; m1_n <= 1'b1;
+			rd_n <= 1'b1; wr_n <= 1'b1;
+			a <= 16'hFFFF; do <= 8'hFF;
 		end
 	endtask
 
@@ -159,7 +162,7 @@ module T80pa (
 					dbg_int_fires <= dbg_int_fires + 32'd1;
 					m1_n <= 1'b0; iorq_n <= 1'b0;
 					rd_n <= 1'b1; wr_n <= 1'b1; mreq_n <= 1'b1;
-					a = 16'hFFFF; do = 8'hFF;
+					a <= 16'hFFFF; do <= 8'hFF;
 					cnt <= ACKS;
 					st <= S_ACK;
 				end
