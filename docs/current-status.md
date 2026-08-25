@@ -176,9 +176,9 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 149 required CRTC passes, zero expected failures, no
+- The current local gate reports 151 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures (verified 2026-08-25, Verilator 5.050). The randomized
-  equivalence soak reproduces golden hash `0x801a59096c192d26` (chain in AGENTS.md). The
+  equivalence soak reproduces golden hash `0xd620fce8b1c05b25` (chain in AGENTS.md). The
   §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
   window; per review finding F-9 the soak is measurably insensitive to this region, so the
   directed vectors — not the soak — carry the behavioral proof here.
@@ -237,6 +237,17 @@ For a first MiSTer pass:
   AGENTS.md). Unpinned residuals are recorded in the F11h entry of `audit-findings.md`.
   Still open from the list above: the t24 IVM VSYNC-gap fixture and the CI-only
   `actions/checkout` bump.
+
+- t24 is closed (2026-08-25, this branch): the p.208 table (with the §19.8.2 p.225
+  alternation, which needs an odd C4 count — the fixture uses R4=6) pins the type-1 IVM
+  VSYNC start at the first line of C4=R7 on both frame parities, with no delay correction —
+  the documented permanent 1-line gap for odd R7 (`t24a`, required pass) and the no-gap
+  contrast for even R7 (`t24b`, fixture XFAIL `e0f5b6a`, behavior commit required). The fix:
+  `vsync_line_fire` uses the IVM-aware row-structure test, and during type-1 IVM the legacy
+  field=1 MID-VSYNC arm no longer hijacks fire or count tick. Soak re-minted
+  `0xd620fce8b1c05b25`. The type-0 IVM VSYNC rule (the §19.5.2 delay) stays Q19-gated and
+  the f10-implementation-notes residuals are updated accordingly. Remaining from the list:
+  the CI-only `actions/checkout` bump.
 
 D1 is complete (2026-08-24): every remaining ⚠ VERIFY flag in the three digests was
 re-verified against the PDF (pdf-inspector Markdown primary, figures judged from rendered

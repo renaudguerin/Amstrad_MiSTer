@@ -134,11 +134,16 @@ write/value port pairs.
   legacy `field` flop, which freezes while R8 is outside 1/3, whereas ParityFrame keeps
   toggling every frame. After a mid-frame R8 toggle episode the two diverge; no sourced
   table pins the hardware behavior (adjacent to Q12). The pre-F10 MID-VSYNC vectors
-  (t02i, t09g) are unchanged and green. This is the main candidate for a follow-up
-  finding if SHAKER Module B interlace entries ever discriminate it.
+  (t02i, t09g) are unchanged and green. Narrowed 2026-08-25 (t24 closure): during type-1
+  IVM the field arm no longer hijacks fire/count tick at all — the p.208 table pins the
+  VSYNC via the row-structure rule on both frame parities (`t24a`/`t24b`) — so the
+  residual now covers type-0 IVM and post-episode divergence only.
 - **VSYNC delay-by-1-line correction for odd C4s** (§19.5.2, p.206-207): part of the
   odd-R9 balancing scheme — Q19 territory, not implemented. Type 1's documented *lack*
-  of the correction (p.208) is likewise unmodeled for the same reason.
+  of the correction (p.208) is now modeled and pinned by `t24a`/`t24b` (2026-08-25, t24
+  closure: the pulse starts at the first line of C4=R7 on both frame parities, giving the
+  documented permanent 1-line gap for odd R7); the type-0 delay itself remains
+  unimplemented.
 - **RFD × IVM interaction** (both types): unpinned; the type-1 RFD terms deliberately
   keep the bare C9==R9 comparison.
 - **Type-0 double R8 write in one line** (review N-6): the line keeps its entering-form

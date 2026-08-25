@@ -468,8 +468,12 @@ assign field_count_tick = (hcc_next == {1'b0, R0_h_total[7:1]});
 // row+1 at a C9 wrap and may fire VSYNC there.  On the adjustment-ending
 // line C4 instead returns directly to row_next=0; comparing final-row+1
 // would invent a C4 value the chip never reaches (review action A1).
+// The VSYNC fires crossing into C4=R7.  line_row_structure_last (not the
+// plain C9==R9 test) is the row-end test here: during IVM the wrap line's
+// C9 differs from R9 on parity-short rows, and the section 19.5.3 p.208
+// table starts the pulse at the first line of C4=R7 on every frame.
 assign vsync_line_fire = (((CRTC_TYPE && in_adj && !crtc1_adj_end) ?
-								 (row + 1'd1) : row_next) == R7_v_sync_pos && line_last_w);
+								 (row + 1'd1) : row_next) == R7_v_sync_pos && line_row_structure_last);
 assign vsc_load = 4'd0 - 1'd1;
 assign r7_write_fire = !VSYNC_r && vsync_allow;
 
