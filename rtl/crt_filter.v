@@ -78,7 +78,9 @@ always @(posedge CLK) begin : hsyncgen
 
 end
 
+/* verilator lint_off PROCASSINIT */
 reg hsync_mask = 0;
+/* verilator lint_on PROCASSINIT */
 // check for too frequent HSYNCs (S&KOH)
 always @(posedge CLK) begin : hsyncfilt
 	reg old_hsync;

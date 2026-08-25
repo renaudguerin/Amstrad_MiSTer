@@ -44,6 +44,7 @@ public:
 	explicit MoboBench() : dut("p1_mobo_bench_top") {
 		dut.clk = 0;
 		dut.reset = 1;
+		dut.asic_page_on = 0;
 	}
 
 	void tick() {
@@ -75,6 +76,15 @@ public:
 	auto* cpu_level() {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__dbg_int_level;
 	}
+	auto* spr_ram() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_ram[0];
+	}
+	auto* pal_word(unsigned e) {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__pal[0];
+	}
+	auto* x_lo(unsigned n) {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_x_lo[0];
+	}
 
 	static uint8_t inkr_entry(const VlWide<3>* w, unsigned k) {
 		const unsigned lo = k * 5;
@@ -92,14 +102,28 @@ int run() {
 	b.run(64);
 	b.dut.reset = 0;
 	b.run(8);
+	// The page-enable input stands in for plus_mmu's captured RMR2 state
+	// (the motherboard-level bench has no MMU instance): raise it before
+	// the scripted ASIC-page traffic and leave it on.
+	b.dut.asic_page_on = 1;
 
 	bool saw_mode3 = false;
-	bool done_checked = false;
+	bool done_checked = false, done_checked2 = false;
 	bool fired = false, cleared_after_ack = false;
 	uint8_t prev_mode = 0xFF;
 
+	const bool trace2 = getenv("MOBO_TRACE") != nullptr;
 	while (!cleared_after_ack) {
 		b.tick();
+		if (trace2 && b.cyc < 4000 && (b.cyc % 16) == 0)
+			std::printf("[t %llu] step=%u mode=%u done=%d iorq=%d mreq=%d a=%04X d=%02X\n",
+			            (unsigned long long)b.cyc,
+			            (unsigned)*b.cpu_step(), (unsigned)b.dut.mode_o,
+			            (int)*b.cpu_done(),
+			            (int)b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__iorq_n,
+			            (int)b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__mreq_n,
+			            b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__a,
+			            b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__do);
 
 		if (getenv("MOBO_DEBUG") && (b.cyc % 50000 == 0)) {
 			auto* r = b.dut.rootp;
@@ -138,6 +162,22 @@ int run() {
 		}
 		if (*b.cpu_done() && !fired && b.cyc > kFireTimeout)
 			fail("m4: no Plus interrupt reached the CPU pin before timeout");
+
+		if (!done_checked2 && *b.cpu_done()) {
+			done_checked2 = true;
+			const auto* ram = b.spr_ram();
+			if (ram[0x000] != 0x5 || ram[0x001] != 0xC || ram[0x100] != 0xE)
+				fail("m5: sprite RAM contents wrong after bus writes "
+				     "(low-nibble mask or decode)");
+			if (*b.x_lo(0) != 0x66)
+				fail("m5: sprite 0 X lo wrong");
+			// Palette entry 0 = {G=3,R=F,B=?}: low byte 0x0F -> R=0 B=F;
+			// stored word {G,R,B} = 0x30F.
+			if (b.pal_word(0)[0] != 0x30F)
+				fail("m5: palette entry 0 wrong (layout or write decode)");
+			std::printf("PASS m5: ASIC-page bus writes land in sprite RAM, "
+			            "sprite regs and palette; unused regions ignored\n");
+		}
 
 		if (*b.cpu_fires() >= 1) {
 			fired = true;
