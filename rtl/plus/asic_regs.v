@@ -117,60 +117,47 @@ module asic_regs
 
 	//------------------------------------------------------------------
 	// Legacy colour translation (reference §6): fixed ROM table, [KT]
-	// measured values; identical table to asic_video's legacy_colour.
-	//------------------------------------------------------------------
-	function [11:0] legacy_colour(input [4:0] hw);
+	// measured values; same data as asic_video's legacy_colour but stored
+	// directly in the palette's documented {G,R,B} word order. Written as
+	// plain case assignments — no function-local temporaries — because
+	// older Verilator (5.020) flags inlined blocking assignments (BLKSEQ).
+	function [11:0] legacy_colour_gbr(input [4:0] hw);
 		begin
 			case (hw)
-				5'd00: legacy_colour = {4'd6,  4'd6,  4'd6 };
-				5'd01: legacy_colour = {4'd6,  4'd6,  4'd6 };
-				5'd02: legacy_colour = {4'd0,  4'd15, 4'd6 };
-				5'd03: legacy_colour = {4'd15, 4'd15, 4'd6 };
-				5'd04: legacy_colour = {4'd0,  4'd0,  4'd6 };
-				5'd05: legacy_colour = {4'd15, 4'd0,  4'd6 };
-				5'd06: legacy_colour = {4'd0,  4'd6,  4'd6 };
-				5'd07: legacy_colour = {4'd15, 4'd6,  4'd6 };
-				5'd08: legacy_colour = {4'd15, 4'd0,  4'd6 };
-				5'd09: legacy_colour = {4'd15, 4'd15, 4'd6 };
-				5'd10: legacy_colour = {4'd15, 4'd15, 4'd0 };
-				5'd11: legacy_colour = {4'd15, 4'd15, 4'd15};
-				5'd12: legacy_colour = {4'd15, 4'd0,  4'd0 };
-				5'd13: legacy_colour = {4'd15, 4'd0,  4'd15};
-				5'd14: legacy_colour = {4'd15, 4'd6,  4'd0 };
-				5'd15: legacy_colour = {4'd15, 4'd6,  4'd15};
-				5'd16: legacy_colour = {4'd0,  4'd0,  4'd6 };
-				5'd17: legacy_colour = {4'd0,  4'd15, 4'd6 };
-				5'd18: legacy_colour = {4'd0,  4'd15, 4'd0 };
-				5'd19: legacy_colour = {4'd0,  4'd15, 4'd15};
-				5'd20: legacy_colour = {4'd0,  4'd0,  4'd0 };
-				5'd21: legacy_colour = {4'd0,  4'd0,  4'd15};
-				5'd22: legacy_colour = {4'd0,  4'd6,  4'd0 };
-				5'd23: legacy_colour = {4'd0,  4'd6,  4'd15};
-				5'd24: legacy_colour = {4'd6,  4'd0,  4'd6 };
-				5'd25: legacy_colour = {4'd6,  4'd15, 4'd6 };
-				5'd26: legacy_colour = {4'd6,  4'd15, 4'd0 };
-				5'd27: legacy_colour = {4'd6,  4'd15, 4'd15};
-				5'd28: legacy_colour = {4'd6,  4'd0,  4'd0 };
-				5'd29: legacy_colour = {4'd6,  4'd0,  4'd15};
-				5'd30: legacy_colour = {4'd6,  4'd6,  4'd0 };
-				5'd31: legacy_colour = {4'd6,  4'd6,  4'd15};
-				default: legacy_colour = 12'h000;
+				5'd00: legacy_colour_gbr = {4'd6,  4'd6,  4'd6 };
+				5'd01: legacy_colour_gbr = {4'd6,  4'd6,  4'd6 };
+				5'd02: legacy_colour_gbr = {4'd15, 4'd0,  4'd6 };
+				5'd03: legacy_colour_gbr = {4'd15, 4'd15, 4'd6 };
+				5'd04: legacy_colour_gbr = {4'd0,  4'd0,  4'd6 };
+				5'd05: legacy_colour_gbr = {4'd0,  4'd15, 4'd6 };
+				5'd06: legacy_colour_gbr = {4'd6,  4'd0,  4'd6 };
+				5'd07: legacy_colour_gbr = {4'd6,  4'd15, 4'd6 };
+				5'd08: legacy_colour_gbr = {4'd0,  4'd15, 4'd6 };
+				5'd09: legacy_colour_gbr = {4'd15, 4'd15, 4'd6 };
+				5'd10: legacy_colour_gbr = {4'd15, 4'd15, 4'd0 };
+				5'd11: legacy_colour_gbr = {4'd15, 4'd15, 4'd15};
+				5'd12: legacy_colour_gbr = {4'd0,  4'd15, 4'd0 };
+				5'd13: legacy_colour_gbr = {4'd15, 4'd15, 4'd0 };
+				5'd14: legacy_colour_gbr = {4'd6,  4'd15, 4'd0 };
+				5'd15: legacy_colour_gbr = {4'd6,  4'd15, 4'd15};
+				5'd16: legacy_colour_gbr = {4'd0,  4'd0,  4'd6 };
+				5'd17: legacy_colour_gbr = {4'd15, 4'd0,  4'd6 };
+				5'd18: legacy_colour_gbr = {4'd15, 4'd0,  4'd0 };
+				5'd19: legacy_colour_gbr = {4'd15, 4'd0,  4'd15};
+				5'd20: legacy_colour_gbr = {4'd0,  4'd0,  4'd0 };
+				5'd21: legacy_colour_gbr = {4'd0,  4'd0,  4'd15};
+				5'd22: legacy_colour_gbr = {4'd6,  4'd0,  4'd0 };
+				5'd23: legacy_colour_gbr = {4'd6,  4'd0,  4'd15};
+				5'd24: legacy_colour_gbr = {4'd0,  4'd6,  4'd6 };
+				5'd25: legacy_colour_gbr = {4'd15, 4'd6,  4'd6 };
+				5'd26: legacy_colour_gbr = {4'd15, 4'd6,  4'd0 };
+				5'd27: legacy_colour_gbr = {4'd15, 4'd6,  4'd15};
+				5'd28: legacy_colour_gbr = {4'd0,  4'd6,  4'd0 };
+				5'd29: legacy_colour_gbr = {4'd0,  4'd6,  4'd15};
+				5'd30: legacy_colour_gbr = {4'd6,  4'd6,  4'd0 };
+				5'd31: legacy_colour_gbr = {4'd6,  4'd6,  4'd15};
+				default: legacy_colour_gbr = 12'h000;
 			endcase
-		end
-	endfunction
-
-	// Shadow copies let the translation fire only on legacy-register
-	// changes, keeping CPU writes authoritative for entries the legacy
-	// port cannot reach (sprite colours, §6).
-	// Stored-layout wrapper: palette words keep the documented {G,R,B}
-	// order while the table above reads naturally as {R,G,B}. Blocking
-	// assignments inside a function are fine; the clocked block below
-	// stays purely nonblocking (newer Verilator errors otherwise).
-	function [11:0] legacy_colour_store(input [4:0] hw);
-		reg [3:0] rr, gg, bb;
-		begin
-			{rr, gg, bb} = legacy_colour(hw);
-			legacy_colour_store = {gg, rr, bb};
 		end
 	endfunction
 
@@ -283,9 +270,9 @@ module asic_regs
 			if (leg_inkr != leg_inkr_q || leg_border != leg_border_q) begin
 				for (k = 0; k < 16; k = k + 1)
 					if (leg_inkr[k*5 +: 5] != leg_inkr_q[k*5 +: 5])
-						pal[k] <= legacy_colour_store(leg_inkr[k*5 +: 5]);
+						pal[k] <= legacy_colour_gbr(leg_inkr[k*5 +: 5]);
 				if (leg_border != leg_border_q)
-					pal[16] <= legacy_colour_store(leg_border);
+					pal[16] <= legacy_colour_gbr(leg_border);
 				leg_inkr_q   <= leg_inkr;
 				leg_border_q <= leg_border;
 			end
