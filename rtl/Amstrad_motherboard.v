@@ -42,6 +42,8 @@ module Amstrad_motherboard
 	input         plus_aspage_on,
 	output [7:0]  plus_asic_dout, // wired-AND-neutral page read data
 	output        plus_asic_rd,   // page answering a read this cycle
+	output [7:0]  plus_vec_byte,  // INT-acknowledge vector (P3, reference §7)
+	output        plus_vec_valid, // high during the acknowledge cycle
 
 	input   [6:0] joy1,
 	input   [6:0] joy2,
@@ -372,7 +374,11 @@ asic_regs asic_page
 
 	.pri(asic_pri), .splt(), .sscr(), .ivr(),
 	.ssa_hi(), .ssa_lo(), .dcsr(),
-	.intack_raster(asic_int_last_raster)
+	.intack_raster(asic_int_last_raster),
+	.intack(~M1_n & iorq), // acknowledge cycle: M1 low with IORQ asserted
+	.int_pending(~plus_int_n),
+	.vec_byte(plus_vec_byte),
+	.vec_valid(plus_vec_valid)
 );
 assign plus_asic_dout = asic_regs_dout;
 assign plus_asic_rd   = plus_aspage_on & (A[15:14] == 2'b01) & mem_rd;

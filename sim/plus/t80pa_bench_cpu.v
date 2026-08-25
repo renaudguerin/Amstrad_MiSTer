@@ -47,7 +47,7 @@ module T80pa (
 	localparam [2:0] S_GAP = 3'd0, S_CYC = 3'd1, S_PRIME = 3'd2,
 	                 S_WAIT = 3'd3, S_ACK = 3'd4;
 
-	localparam [5:0] NSTEPS = 6'd32;
+	localparam [5:0] NSTEPS = 6'd34;
 	localparam [7:0] HOLD = 8'd47; // >= one full sequencer ring (32 clks)
 	localparam [7:0] GAP  = 8'd15;
 	localparam [7:0] ACKS = 8'd31;
@@ -103,6 +103,8 @@ module T80pa (
 			6'd29: step_bus = {1'b1, 16'h6401, 8'h03}; // pen 0 high byte G=3
 			6'd30: step_bus = {1'b1, 16'h6420, 8'h21}; // border low byte
 			6'd31: step_bus = {1'b1, 16'h6000, 8'h66}; // sprite 0 X lo
+			6'd32: step_bus = {1'b1, 16'h6805, 8'hDA}; // &6805 IVR = 0xDA
+			6'd33: step_bus = {1'b1, 16'h6805, 8'hDA}; // (hold; single write)
 			default: step_bus = {1'b0, 16'h0000, 8'hFF};
 			endcase
 		end
