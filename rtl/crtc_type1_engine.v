@@ -88,6 +88,10 @@ module crtc_type1_engine
 
 	// Video pointer reload / save decisions.
 	output           reload,
+	// The section 20.3.2 row-0 arm of reload alone (frame origin and every
+	// non-final row-0 line boundary).  The wrapper loads this term from the
+	// post-edge register file so a same-edge R12/R13 write is caught.
+	output           row0_reload,
 	output           row_addr_save,
 
 	// Output-stage terms.
@@ -398,6 +402,7 @@ wire crtc1_adj_row1_reload = CRTC_TYPE & (crtc1_adj_entry_from_row0 | (in_adj & 
 wire crtc1_row0_reload = CRTC_TYPE & (frame_new_w | (~line_row_structure_last & !row & !hcc_next));
 wire crtc1_rfd_reload = CRTC_TYPE & rfd_vma_active & !hcc_next;
 assign reload = crtc1_row0_reload | crtc1_adj_row1_reload | crtc1_rfd_reload;
+assign row0_reload = crtc1_row0_reload;
 
 // The VMA' save shares the line-limit test, parity included while IVM is
 // active (ACCC v1.10 section 19.8.1 p.220 Note: the C9=R9 / C9.VMA='R9 or
@@ -463,8 +468,12 @@ assign field_count_tick = (hcc_next == {1'b0, R0_h_total[7:1]});
 // row+1 at a C9 wrap and may fire VSYNC there.  On the adjustment-ending
 // line C4 instead returns directly to row_next=0; comparing final-row+1
 // would invent a C4 value the chip never reaches (review action A1).
+// The VSYNC fires crossing into C4=R7.  line_row_structure_last (not the
+// plain C9==R9 test) is the row-end test here: during IVM the wrap line's
+// C9 differs from R9 on parity-short rows, and the section 19.5.3 p.208
+// table starts the pulse at the first line of C4=R7 on every frame.
 assign vsync_line_fire = (((CRTC_TYPE && in_adj && !crtc1_adj_end) ?
-								 (row + 1'd1) : row_next) == R7_v_sync_pos && line_last_w);
+								 (row + 1'd1) : row_next) == R7_v_sync_pos && line_row_structure_last);
 assign vsc_load = 4'd0 - 1'd1;
 assign r7_write_fire = !VSYNC_r && vsync_allow;
 

@@ -262,7 +262,7 @@ crtc_type0_engine crtc_type0_engine
 
 wire       e1_line_last, e1_line_new, e1_row_last, e1_row_frame_last, e1_row_new, e1_frame_adj;
 wire       e1_adj_from_row0;
-wire       e1_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
+wire       e1_reload, e1_row0_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
 wire       e1_vsync_line_fire, e1_r7_write_fire, e1_r6_vde_write, e1_r6_vde_value;
 wire       e1_r6_vder_write, e1_r6_vder_value, e1_status_bit5;
 wire       e1_rfd_r0_extend;
@@ -285,7 +285,7 @@ crtc_type1_engine crtc_type1_engine
 	e1_line_last, e1_line_new, e1_line_next, e1_c5_next,
 	e1_row_last, e1_row_frame_last, e1_row_next, e1_row_new, e1_frame_adj,
 	e1_adj_from_row0,
-	e1_reload, e1_row_addr_save,
+	e1_reload, e1_row0_reload, e1_row_addr_save,
 	e1_field_count_tick, e1_hsync_off, e1_de_index, e1_vsync_line_fire,
 	e1_vsc_load, e1_r7_write_fire,
 	e1_r6_vde_write, e1_r6_vde_value, e1_r6_vder_write, e1_r6_vder_value,
@@ -394,6 +394,19 @@ end
 // address
 reg  [13:0] row_addr;   // saved pointer
 reg  [13:0] row_addr_r; // current pointer
+// ACCC v1.10 section 20.3.2 p.242: the type-1 row-0 reload samples the
+// register file as of AFTER the current edge -- the second CRTC-1
+// chronogram draws an R12 write landing on the reload boundary edge itself
+// caught (OFFSET=#30xx from C0=0) where the paired CRTC-0 chronogram
+// (section 20.3.1) leaves the old offset.  Mirror the register block's
+// snapshot/write priority so a same-edge write or SNA load participates.
+wire       reg_data_write = ENABLE & ~nCS & ~R_nW & RS;
+wire [5:0] r12_effective  = SNA_LOAD ? SNA_REGS[96 +: 6] :
+                             (reg_data_write & (addr == 5'd12)) ? DI[5:0]
+                                                                : R12_start_addr_h;
+wire [7:0] r13_effective  = SNA_LOAD ? SNA_REGS[104 +: 8] :
+                             (reg_data_write & (addr == 5'd13)) ? DI
+                                                                : R13_start_addr_l;
 always @(posedge CLOCK) begin
 	if(CLKEN) begin
 		if(row_addr_save) row_addr <= row_addr_r; // save current pointer
@@ -407,6 +420,9 @@ always @(posedge CLOCK) begin
 		end
 		if(crtc1_reload) begin
 			row_addr_r <= {R12_start_addr_h, R13_start_addr_l};
+		end
+		if(e1_row0_reload) begin
+			row_addr_r <= {r12_effective, r13_effective};
 		end
 	end
 end
@@ -450,12 +466,45 @@ end
 reg vde, vde_r;
 reg VSYNC_r;
 reg vsync_allow;
-wire vsync_count_tick = CLKEN &&
-	(field ? (CRTC_TYPE ? e1_field_count_tick : e0_field_count_tick) : line_new);
+// Section 19.5.3 p.208: during type-1 IVM the VSYNC start line is pinned by
+// the row-structure rule on both frame parities (the table's boxes sit at
+// the first line of C4=R7 whatever the frame parity), and the prose
+// schedules the MID-VSYNC on the ParityFrame-even frame: that frame's pulse
+// starts at the half-line tick (the p.207 type-0 Note words the same rule
+// as "the VSYNC occurs in the middle of the line on C0 = R0/2"), the
+// odd-parity frame's at the line seam. e1_vsync_line_fire is
+// hcc-independent -- true across the whole last line of C4=R7-1 -- so the
+// even-parity fire decision is latched at the seam and consumed at the
+// half-line tick of the pulse's first line; consuming the level term
+// mid-line would start the pulse a line early. The gate reads the raw R8
+// mode rather than the engine's latched IVM state: around an R8 toggle
+// write the two disagree for one to two characters, an unpinned window
+// recorded in the F10 notes (review N-1, 2026-08-25).
+wire       vsync_type1_ivm = CRTC_TYPE && interlace[0];
+wire       vsync_ivm_mid   = vsync_type1_ivm && !parity_frame;
+reg        vsync_ivm_arm;
+wire vsync_count_tick = CLKEN && (
+	vsync_ivm_mid   ? e1_field_count_tick :
+	vsync_type1_ivm ? line_new :
+	field           ? (CRTC_TYPE ? e1_field_count_tick : e0_field_count_tick) :
+	line_new);
 wire vsync_holdoff = e0_vsync_holdoff;
-wire vsync_fire = vsync_allow &
-	(field ? (row == R7_v_sync_pos && !line) :
-			 (CRTC_TYPE ? e1_vsync_line_fire : e0_vsync_line_fire));
+wire vsync_fire = vsync_allow & (
+	vsync_ivm_mid   ? vsync_ivm_arm :
+	vsync_type1_ivm ? e1_vsync_line_fire :
+	field           ? (row == R7_v_sync_pos && !line) :
+	(CRTC_TYPE ? e1_vsync_line_fire : e0_vsync_line_fire));
+
+// Seam-latched MID-VSYNC fire decision: set when the line now starting is
+// the first line of C4=R7, consumed by the half-line fire on the
+// ParityFrame-even frame (see above).
+always @(posedge CLOCK) begin
+	if(~nRESET) vsync_ivm_arm <= 0;
+	else if(CLKEN) begin
+		if(line_new) vsync_ivm_arm <= vsync_type1_ivm && e1_vsync_line_fire;
+		else if(vsync_count_tick && vsync_ivm_arm) vsync_ivm_arm <= 0;
+	end
+end
 wire [3:0] vsc_load = CRTC_TYPE ? e1_vsc_load : e0_vsc_load;
 wire r7_write_hit = ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07;
 wire r7_write_fire = CRTC_TYPE ? e1_r7_write_fire : e0_r7_write_fire;
