@@ -44,6 +44,22 @@ remediated (`docs/plus/p2p3-independent-review.md`, plus the F10/F11h records).
 
 ## Hardware-test milestone
 
+`df6c0f7` is the newest successfully synthesized code milestone of the classic stream
+(GitHub Actions run `32845921357`, 2026-08-25, Quartus 17.0.2): the merge of
+`accuracy/f11h-and-ivm-vsync-coverage` (F11h same-edge R12/R13 closure, t24 type-1 IVM VSYNC
+positions + MID-VSYNC, checkout v7 bump; reviewed and remediated) on top of the F10 merge
+`e78e0ab`. Recorded retroactively: the original recording commit (`b806502`) landed empty,
+so this section was re-inserted from its message and the session record. **It has not been
+hardware-tested.**
+
+- Logic utilization 15,745 / 41,910 ALMs (38 %); 20,651 registers; 685,217 / 5,662,720
+  block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks. Versus the previous
+  classic-stream milestone `e78e0ab` (15,718 ALMs, 20,717 registers) the delta is the classic
+  CRTC changes alone (no Plus file moved); memory and DSP are unchanged.
+- Worst-case setup slack +0.662 ns, hold +0.228 ns — positive; no regression signal.
+
+## Hardware-test milestone
+
 `3d7a178` is the newest successfully synthesized code milestone (GitHub Actions run
 `32810340518`, 2026-08-25, Quartus 17.0.2): the Plus branch `plus/p2-asic-regs` with
 the P1 review follow-ups, the calibrated p1_video bench in the gate, the P2 ASIC
