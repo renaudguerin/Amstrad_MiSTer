@@ -228,6 +228,9 @@ CRTC crtc
 wire plus_crtc_hs, plus_crtc_vs, plus_crtc_de;
 wire [13:0] plus_ma;
 wire [4:0]  plus_ra;
+wire [6:0]  plus_vc;   // CRTC3 char line counter (VC; [5:0] used by PRI)
+wire [4:0]  plus_rc;   // C9 raster count within the char line
+wire        plus_adj;  // vertical adjustment active
 wire        plus_int_n;
 wire        plus_ready, plus_ras_n, plus_cas_n, plus_cpu_n;
 wire        plus_cclk_en_p, plus_cclk_en_n;
@@ -262,6 +265,13 @@ asic_ga_timing asic_ga
 
 	.HSYNC_I(plus_crtc_hs),
 	.VSYNC_I(plus_crtc_vs),
+
+	// P3 programmable raster interrupt: {VC5..VC0, RC2..RC0} per the
+	// reference comparison; the shaped-monitor trailing edge fires.
+	.pri(asic_pri),
+	.crtc_line({plus_vc[5:0], plus_rc[2:0]}),
+	.crtc_adj(plus_adj),
+	.int_last_raster(asic_int_last_raster),
 
 	.CCLK(),
 	.CCLK_EN_P(plus_cclk_en_p),
@@ -320,9 +330,9 @@ asic_video asic_vid
 	.RA(plus_ra),
 
 	.HCC(),
-	.LINE(),
-	.ROW(),
-	.ADJ(),
+	.LINE(plus_vc),
+	.ROW(plus_rc),
+	.ADJ(plus_adj),
 
 	.PIXEN(ce_16),
 	.VIDEOD(plus_vidword),
@@ -340,6 +350,8 @@ asic_video asic_vid
 // 12-bit palette exactly as on hardware (reference §6 secondary port).
 wire [7:0] asic_regs_dout;
 wire       asic_regs_rd;
+wire [7:0] asic_pri;
+wire       asic_int_last_raster;
 asic_regs asic_page
 (
 	.clk(clk),
@@ -358,8 +370,9 @@ asic_regs asic_page
 	.pal_raddr(5'd0),          // video-side palette port lands with the
 	.pal_rdata(),              // P2 RGB widening commit
 
-	.pri(), .splt(), .sscr(), .ivr(),
-	.ssa_hi(), .ssa_lo(), .dcsr()
+	.pri(asic_pri), .splt(), .sscr(), .ivr(),
+	.ssa_hi(), .ssa_lo(), .dcsr(),
+	.intack_raster(asic_int_last_raster)
 );
 assign plus_asic_dout = asic_regs_dout;
 assign plus_asic_rd   = plus_aspage_on & (A[15:14] == 2'b01) & mem_rd;

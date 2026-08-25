@@ -86,6 +86,12 @@ module asic_ga_timing
 	// reference; the motherboard samples the VRAM byte on each to assemble
 	// the 16-bit VIDEOD word for asic_video.
 
+	// ---- P3 programmable raster interrupt (reference §7) ----
+	input  [7:0] pri,        // &6800 storage (asic_regs)
+	input  [8:0] crtc_line,  // {VC5..VC0, RC2..RC0} from asic_video
+	input        crtc_adj,   // vertical-adjust active: PRI never fires
+	output       int_last_raster, // persistent "last ack was raster" (DCSR b7)
+
 	// ---- Sync shaping / interrupts (mirrors ga40010 sync outputs) ----
 	output       HSYNC_O,
 	output       VSYNC_O,
@@ -403,8 +409,11 @@ module asic_ga_timing
 	always @(posedge clk) intcntclr_52_hold <= intcntclr_52;
 
 	wire intcntclr_4 = VSYNC_O_int & ~vsync_o_d; // u817
+	// A PRI raster fire clears counter bit 5 as an acknowledge would, so a
+	// re-enabled CPC-compatible interrupt cannot occur within 32 lines
+	// (reference §7, [KT]). The counter itself keeps counting.
 	wire intcnt_res0 = intcntclr_52 | intcntclr_4 | irq_reset; // u831
-	wire intcnt_res1 = intcnt_res0 | irqack_rst;               // u833
+	wire intcnt_res1 = intcnt_res0 | irqack_rst | raster_fire; // u833 + P3
 
 	reg [5:0] intcnt_comb;
 	always @(*) begin
@@ -431,13 +440,69 @@ module asic_ga_timing
 	end
 	always @(posedge clk) irqack_hold <= irqack_rst;
 
+	//------------------------------------------------------------------
+	// P3 programmable raster interrupt (reference §7, [ARNOLD-REV §2.4]).
+	//
+	// PRI == 0: the 52-line counter above behaves exactly like the
+	// classic Gate Array (this whole block is inert, preserving the
+	// lockstep equivalence pinned by d01-d04).
+	//
+	// PRI != 0: the counter KEEPS RUNNING but its interrupt assertion is
+	// suppressed; an interrupt is raised instead when the line value
+	// {VC5..VC0, RC2..RC0} equals {1'b0, PRI} — evaluated every line, so
+	// values aliasing within a 512-line vline period fire at every match
+	// (n and n+256 both fire on a 312-line frame when both are < 312).
+	// Never fires during vertical adjustment. Cleared by CPU acknowledge
+	// or MRER bit 4, shared with the classic path.
+	//
+	// Trigger point: the trailing edge of the MONITOR-shaped HSYNC
+	// (HSYNC_O falling). [ARNOLD-REV] clamps the fire point at
+	// HSYNC_start+6us; in this model the shaped monitor pulse is a fixed
+	// four-character microsequence (states 6,7,4,5), so the trailing edge
+	// always precedes start+6 and the clamp is covered by construction.
+	// ⚠ ASIC-REF §7: [KT] measured "~10us after HSYNC start"; treated as
+	// secondary per the reference's primary-source note.
+	//
+	// An ASIC raster fire also clears bit 5 of the 6-bit counter (as a
+	// normal acknowledge does), so a later re-enabled CPC-compatible
+	// interrupt cannot occur within 32 lines ([KT]).
+	//------------------------------------------------------------------
+
+	wire mon_hsync_fall = hsync_o_q & ~HSYNC_O;
+	reg  hsync_o_q;
+	always @(posedge clk) hsync_o_q <= HSYNC_O;
+
+	wire pri_line_match = (pri != 8'd0) &&
+	                      ({crtc_line[8], pri} == crtc_line);
+	wire raster_fire = (pri != 8'd0) && !crtc_adj &&
+	                   mon_hsync_fall && pri_line_match;
+
+	// Persistent last-ack-was-raster level for DCSR bit 7: a raster-sourced
+	// assert (classic or PRI) sets it; the next non-raster-sourced event
+	// clears it. With DMA absent (P7) every assert is raster-sourced, so
+	// the level simply follows pending-raster state.
 	wire int_reset = irq_reset | irqack_rst;
 
+	// Classic overflow event, kept in the original single-block form so
+	// the assert edge stays exactly where the lockstep bench pinned it;
+	// last_raster below observes it one cycle later, which is immaterial
+	// for the DCSR bit-7 level.
+	reg  cnt5; // counter top bit, delayed one clk (block below drives it)
+	wire classic_fire = (pri == 8'd0) & ~intcnt_comb[5] & cnt5;
+
+	reg last_raster;
 	always @(posedge clk) begin
-		reg cnt5;
+		if (reset)         last_raster <= 1'b0;
+		else if (classic_fire || raster_fire) last_raster <= 1'b1;
+		else if (int_reset) last_raster <= 1'b0;
+	end
+	assign int_last_raster = last_raster;
+
+	always @(posedge clk) begin
 		cnt5 <= intcnt_comb[5];
 		if (int_reset) INT_N <= 1'b1;
-		else if (~intcnt_comb[5] & cnt5) INT_N <= 1'b0;
+		else if (raster_fire) INT_N <= 1'b0;
+		else if ((pri == 8'd0) && ~intcnt_comb[5] & cnt5) INT_N <= 1'b0;
 	end
 
 	assign VSYNC_O = VSYNC_O_int;
