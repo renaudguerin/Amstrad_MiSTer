@@ -367,6 +367,21 @@ slot-grid/border-sampling mismatch that behaved like a bench-side phase
 error, not a production defect), so it builds but sits outside the default
 gate until calibrated; the t05h caveat therefore remains open.
 
+**Update 2026-08-25: calibrated and moved into the default gate** (commit
+`cee64cd`). Three bench-side defects explained every earlier symptom — the
+RTL was correct throughout: a wrong C++ mirror of the fake-VRAM tag pattern,
+a CLKEN level probe landing one cen_16 edge early, and tag-pattern aliasing
+across 128-byte boundaries (video base moved to &0080). Final coverage: p1a
+pins the word-granular pointer stream with dots 0-7 = even byte / dots 8-15
+= odd byte through the production VIDBUF assembly (t05h assumption closed at
+integration level), tolerating the mixed word across each line-start MA
+reload; p1b pins border-flag interiors only — the PEN flag's de_hold capture
+skews the colour-class switch at region boundaries by up to one character,
+which is the documented GA pipeline latency question and stays deliberately
+open with the motherboard timing contract; p1c checks classic VIDEO_BUF
+provenance over the same window (byte order is pinned by p1a; netlist buffer
+latency is GADIFF territory). Bite-tested against an assembly-order swap.
+
 An Opus-5-high independent review of this P1 delta returned NOT CLEAR on
 2026-08-24 with two BLOCKING findings, both confirmed real and fixed in the
 same pass: the asic_ga_timing bus pins were wired to uppercase implicit nets
@@ -390,6 +405,34 @@ fixes (previous numbers were taken on the constant-bus-pruned build),
 directed U204-restart and randomised-fast lockstep coverage, implementing or
 re-documenting the INKR power-up constants so r03 pins RTL rather than
 Verilator zero-init, and a minimal plus_mode=1 motherboard bench before P2.
+
+**All queued items implemented 2026-08-25 on `plus/p2-asic-regs`** (commits
+`5730b66`, `ea69d68`, `e9f2bca`; CI evidence below):
+
+- `make -C sim/plus motherboard-lint` (in the default lint chain) elaborates
+  the whole motherboard hierarchy under `--language 1364-2001 -UVERILATOR`
+  with full-port-list stubs for T80pa (VHDL), ga40010/YM2149/hid
+  (SystemVerilog; the `.do(` pin name rules out default-SV mode). IMPLICIT
+  and UNDRIVEN stay fatal — finding 1's exact bug class. Waived classes are
+  triaged and documented in `sim/plus/Makefile`.
+- The plus_phi_en_* decision: T80pa, crt_filter CE and the expansion phi
+  pins now take ASIC enables under plus_mode via explicit ownership muxes.
+  Cycle-neutral today (GADIFF-proven equivalence); makes asic_ga_timing the
+  Plus owner so deliberate deltas land everywhere at once later.
+- Differential bench: d04 drives an intack bus state across reset (U204's
+  reset term — previously uncovered); d01 randomises the no-wait input
+  inside lockstep traffic. r03 now proves INKR/ink-select power-up clears
+  are explicit RTL resets in `asic_ga_timing.v` (bite-tested), not simulator
+  zero-init; real ASIC power-up contents remain a named assumption.
+- Motherboard bench m1-m4 (`make -C sim` runs it): plus_mode=1 boot with a
+  scripted fake Z80; GA RMR/INKR/border writes reach asic_video through the
+  production muxes; the 52-line interrupt fires into the CPU pin and clears
+  on acknowledge. Uses --public-flat-rw taps; ga40010/YM2149/hid join as
+  stubs (same language constraint).
+
+The gate after these changes reports 256 PASS lines (147 CRTC vectors, all
+Plus leaf/integration suites including p1_video and mobo benches); lint green
+including the new hierarchy pass; soak unchanged at `0xa9e5026de83d287c`.
 
 CI synthesis of the instantiation is green on the dispatched exact build
 (run `32771020608` — simulation, policy, Quartus
