@@ -99,8 +99,17 @@ module asic_video
 	output reg [3:0]    RGB_R,     // 4-bit levels per channel ([KT]: 0/6/15)
 	output reg [3:0]    RGB_G,
 	output reg [3:0]    RGB_B,
-	output reg [4:0]    PEN        // observability for later raster consumers:
+	output reg [4:0]    PEN,       // observability for later raster consumers:
 	                               // {showing_border, decoded ink nibble}
+
+	// Sprite-plane interface (P4). HWRAP strobes the line seam (CLKEN
+	// edge where the character counter sits on R0) for the sprite
+	// engine's horizontal scale; SPR_* is the composited sprite pixel,
+	// shown between the screen and the border (asic-reference §5
+	// priority: border > sprites > screen), under HSYNC force-blank.
+	output           HWRAP,
+	input            SPR_EN,
+	input     [11:0] SPR_RGB
 );
 
 /* verilator lint_off WIDTH */
@@ -670,6 +679,14 @@ wire [4:0] hw_sel  = de_hold ? INKR_I[pen_nib*5 +: 5] : BORDER_I;
 wire [11:0] rgb_mux = legacy_colour(hw_sel);
 wire        blank   = HSYNC;
 
+// Line seam strobe for the sprite engine: the character-counter wrap edge.
+assign HWRAP = CLKEN & hcc_last;
+
+// Final precedence (asic-reference §5): HSYNC force-blank beats
+// everything; the border (outside DE) beats sprites; a sprite pixel beats
+// the decoded screen ink inside DE. SPR_RGB carries {R,G,B} nibbles.
+wire show_spr = de_hold & SPR_EN;
+
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		RGB_R <= 4'h0;
@@ -679,9 +696,12 @@ always @(posedge CLOCK) begin
 	end
 	else if (PIXEN) begin
 		PEN   <= {~de_hold, pen_nib};
-		RGB_R <= blank ? 4'h0 : rgb_mux[11:8];
-		RGB_G <= blank ? 4'h0 : rgb_mux[7:4];
-		RGB_B <= blank ? 4'h0 : rgb_mux[3:0];
+		RGB_R <= blank    ? 4'h0 :
+		         show_spr ? SPR_RGB[11:8] : rgb_mux[11:8];
+		RGB_G <= blank    ? 4'h0 :
+		         show_spr ? SPR_RGB[7:4]  : rgb_mux[7:4];
+		RGB_B <= blank    ? 4'h0 :
+		         show_spr ? SPR_RGB[3:0]  : rgb_mux[3:0];
 	end
 end
 
