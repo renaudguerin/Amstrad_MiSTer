@@ -29,9 +29,10 @@
 //  for the shared contract):
 //   - No snapshot (SNA) preload ports: snapshots are unsupported in Plus
 //     mode (architecture §5.6). Power-up values are therefore defined
-//     constants instead of the netlist's uninitialised storage: INKR entries
-//     and ink select reset to 0, border to 5'b10000 and RMR to 0 exactly as
-//     ga40010 resets them; the INKR/ink-select power-up value is a named
+//     constants instead of uninitialised storage: border resets to 5'b10000
+//     and RMR to 0 exactly as ga40010 resets them, and INKR entries plus
+//     ink select carry an explicit RTL reset to 0 (ga40010 leaves those to
+//     FPGA power-up init); the INKR/ink-select power-up value is a named
 //     unverified model assumption (real ASIC power-up contents undocumented).
 //   - No video-buffer/RGB section: asic_video owns rasterisation.
 //   - No DISPEN input: only the omitted video buffer consumed it.
@@ -208,8 +209,10 @@ module asic_ga_timing
 //----------------------------------------------------------------------
 // Legacy GA register file: port &7Fxx decode latching on the sequencer's
 // register window (or immediately in fast/no-wait mode). IRQ reset is
-// RMR bit 4. Power-up/reset values match ga40010's reset terms; INKR and
-// the ink select power up at 0 (named assumption, see header).
+// RMR bit 4. Power-up/reset values match the classic FPGA power-up state
+// (ga40010 relies on init for these; here they are explicit RTL resets):
+// INKR entries and ink select reset to 0 — the real-ASIC power-up contents
+// are undocumented (named assumption, see header).
 //----------------------------------------------------------------------
 
 	reg [4:0] inksel;
@@ -233,8 +236,17 @@ module asic_ga_timing
 		if (reset) {hromen, lromen, mode1, mode0} <= 4'd0;
 		else if (ctrl_en) {hromen, lromen, mode1, mode0} <= D[3:0];
 
-		if (ink_en) inksel <= D[4:0];
-		if (inkr_en) inkr[inksel[3:0]*5 +: 5] <= D[4:0];
+		// Explicit RTL resets: without these the power-up values would be
+		// whatever the simulator/FPGA init gives them. Zero matches the
+		// classic FPGA power-up state; the real ASIC power-up contents are
+		// undocumented (named assumption, header comment above).
+		if (reset) begin
+			inksel <= 5'd0;
+			inkr   <= 80'd0;
+		end else begin
+			if (ink_en)  inksel <= D[4:0];
+			if (inkr_en) inkr[inksel[3:0]*5 +: 5] <= D[4:0];
+		end
 	end
 
 	assign BORDER_O  = border;
