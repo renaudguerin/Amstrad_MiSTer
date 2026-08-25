@@ -28,7 +28,7 @@ jobs:
       reason: ${{ steps.classify.outputs.reason }}
     steps:
       - name: Check out source and history
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -123,7 +123,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -148,7 +148,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Quartus executes repository-controlled Tcl. Do not leave a GitHub token
           # in .git/config when the checkout is mounted into the build container.
