@@ -27,22 +27,20 @@ never gates a commit.
 
 ## Hardware-test milestone
 
-`c7b910d` is the newest successfully synthesized code milestone (GitHub Actions run
-`32805471912`, 2026-08-25, Quartus 17.0.2): the Plus branch `plus/p2-asic-regs` — P1
-review follow-ups (motherboard hierarchy lint pass, phase-enable ownership muxes,
-U204-restart/randomised-fast lockstep, INKR/inksel RTL resets, plus_mode=1 motherboard
-bench), the calibrated p1_video bench in the gate, and the P2 ASIC register page
-(`asic_regs` leaf + motherboard integration + 4-bit RGB widening). **It has not been
-hardware-tested.**
+`3d7a178` is the newest successfully synthesized code milestone (GitHub Actions run
+`32810340518`, 2026-08-25, Quartus 17.0.2): the Plus branch `plus/p2-asic-regs` with
+the P1 review follow-ups, the calibrated p1_video bench in the gate, the P2 ASIC
+register page (`asic_regs` + motherboard integration + 4-bit RGB widening), and P3
+interrupts (PRI merged into asic_ga_timing, DCSR fields, IVR vector supply on
+acknowledge). **It has not been hardware-tested.**
 
-- Logic utilization 15,830 / 41,910 ALMs (38 %); 20,513 registers; 145 / 314 pins
+- Logic utilization 15,868 / 41,910 ALMs (38 %); 20,551 registers; 145 / 314 pins
   (46 %); 689,313 / 5,662,720 block-memory bits (12 %); 34 / 112 DSP blocks. Versus
-  `e78e0ab` (15,718 ALMs, 20,717 registers, 685,217 memory bits) the +112-ALM /
-  +4,096-memory-bit delta is `asic_regs` entering the fit for the first time (sprite
-  RAM and palette); DSP unchanged.
-- Worst-case setup slack +0.586 ns, hold +0.250 ns — positive; no regression signal.
-- RBF retained as `output_files/hardware-milestones/Amstrad_20260825_c7b910d.rbf`
-  (SHA-256 `65f8b56db70cd4b7d4541dcf253c9689ae32ae917ad7ea735169864b59099525`).
+  `e78e0ab` (15,718 ALMs, 20,717 registers) the delta is `asic_regs` plus the PRI
+  merger entering the fit; memory +4,096 bits (sprite RAM); DSP unchanged.
+- Worst-case setup slack +0.657 ns, hold +0.243 ns — positive; no regression signal.
+- RBF retained as `output_files/hardware-milestones/Amstrad_20260825_3d7a178.rbf`
+  (SHA-256 `1d47554fca5d082170855c637c224c67d85cc854da91c18a958c61f47a291505`).
 
 The prior milestone paragraph is kept below for bisection history.
 
@@ -642,14 +640,12 @@ front end.
    per-type behavior commits). Remaining F10 work is Q-gated: odd-R9 parity-alternation
    expectations wait on Q19, the additional interlace line on Q10, and the odd-C4
    VSYNC-imbalance correction on Q12.
- 5. Plus: P0, both P1 milestones (counter/timing foundation + locked-ASIC pixel
-    path), the P1 motherboard integration with its review follow-ups, the calibrated
-    p1_video bench, and the P2 ASIC register page (`asic_regs` + integration + 4-bit
-    RGB widening) are done on `plus/p2-asic-regs`, synthesized green at `c7b910d`.
-    Next Plus steps: the manual hardware checkpoint (real `.cpr` boot with a Plus
-    model selected, a static-palette title for the P2 exit and a raster-split
-    title for P3; classic re-checked side by side), then P4 sprites. The branch
-    carries unreviewed work per standing session instructions (P2 asic_regs,
-    integration, RGB widening, P3 PRI/IVR); order cross-provider review(s)
-    before merging.
+ 5. Plus: P0, both P1 milestones, the P1 motherboard integration with its review
+    follow-ups, the calibrated p1_video bench, the P2 ASIC register page, and P3
+    interrupts (PRI/DCSR/IVR) are done on `plus/p2-asic-regs`, synthesized green at
+    `3d7a178`. Next Plus steps: the manual hardware checkpoint (real `.cpr` boot,
+    a static-palette title for P2's exit, a raster-split title for P3's; classic
+    re-checked side by side), then P4 sprites. The branch carries unreviewed work
+    per standing session instructions; order cross-provider review(s) before
+    merging.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
