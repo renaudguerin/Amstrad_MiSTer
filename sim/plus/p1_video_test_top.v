@@ -56,7 +56,15 @@ module p1_video_test_top (
 	output wire [4:0]  dbg_addr_sel,
 	output wire        dbg_cclk_en_n,
 	output wire        dbg_hsync,
-	output wire        dbg_vsync
+	output wire        dbg_vsync,
+	output wire [15:0] dbg_vidword,
+	output wire        dbg_vbs,
+	output wire        dbg_ep,
+	output wire [14:0] dbg_vaddr,
+	output wire [4:0]  dbg_ra,
+	output wire [3:0]  dbg_pixcnt,
+	output wire [7:0]  dbg_veven,
+	output wire [7:0]  dbg_vodd
 );
 
 	// ---- asic_ga_timing ----
@@ -82,6 +90,10 @@ module p1_video_test_top (
 		.IORQ_N(ga_iorq_n),
 		.HSYNC_I(crtc_hs),
 		.VSYNC_I(crtc_vs),
+		.pri(8'd0),
+		.crtc_line(9'd0),
+		.crtc_adj(1'b0),
+		.int_last_raster(),
 		.CCLK(),
 		.CCLK_EN_P(cclk_en_p),
 		.CCLK_EN_N(cclk_en_n),
@@ -144,6 +156,14 @@ module p1_video_test_top (
 		.RGB_B(rgb_b),
 		.PEN(pen)
 	);
+	assign dbg_vidword = vidword;
+	assign dbg_vbs = vram_bs;
+	assign dbg_ep = cclk_en_p;
+	assign dbg_vaddr = vram_addr_r;
+	assign dbg_ra = ra;
+	assign dbg_pixcnt = vid.pix_cnt;
+	assign dbg_veven = vid.vid_even;
+	assign dbg_vodd = vid.vid_odd;
 
 	// ---- [production copy] VRAM fetch block (Amstrad_motherboard.v) ----
 	wire [14:0] crtc_vram_addr = {ma[13:12], ra[2:0], ma[9:0]};

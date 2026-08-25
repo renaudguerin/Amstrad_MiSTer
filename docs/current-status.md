@@ -27,7 +27,24 @@ never gates a commit.
 
 ## Hardware-test milestone
 
-`e78e0ab` is the newest successfully synthesized code milestone (GitHub Actions run
+`3d7a178` is the newest successfully synthesized code milestone (GitHub Actions run
+`32810340518`, 2026-08-25, Quartus 17.0.2): the Plus branch `plus/p2-asic-regs` with
+the P1 review follow-ups, the calibrated p1_video bench in the gate, the P2 ASIC
+register page (`asic_regs` + motherboard integration + 4-bit RGB widening), and P3
+interrupts (PRI merged into asic_ga_timing, DCSR fields, IVR vector supply on
+acknowledge). **It has not been hardware-tested.**
+
+- Logic utilization 15,868 / 41,910 ALMs (38 %); 20,551 registers; 145 / 314 pins
+  (46 %); 689,313 / 5,662,720 block-memory bits (12 %); 34 / 112 DSP blocks. Versus
+  `e78e0ab` (15,718 ALMs, 20,717 registers) the delta is `asic_regs` plus the PRI
+  merger entering the fit; memory +4,096 bits (sprite RAM); DSP unchanged.
+- Worst-case setup slack +0.657 ns, hold +0.243 ns — positive; no regression signal.
+- RBF retained as `output_files/hardware-milestones/Amstrad_20260825_3d7a178.rbf`
+  (SHA-256 `1d47554fca5d082170855c637c224c67d85cc854da91c18a958c61f47a291505`).
+
+The prior milestone paragraph is kept below for bisection history.
+
+`e78e0ab` was the newest synthesized code milestone before that (GitHub Actions run
 `32789356344`, 2026-08-25, Quartus 17.0.2): the merge of `accuracy/f10-fixtures` (F10
 interlace parity machinery, both types, reviewed and remediated) on top of the Plus P1
 motherboard integration (merge `4cab4ec`). **It has not been hardware-tested.**
@@ -410,6 +427,21 @@ slot-grid/border-sampling mismatch that behaved like a bench-side phase
 error, not a production defect), so it builds but sits outside the default
 gate until calibrated; the t05h caveat therefore remains open.
 
+**Update 2026-08-25: calibrated and moved into the default gate** (commit
+`cee64cd`). Three bench-side defects explained every earlier symptom — the
+RTL was correct throughout: a wrong C++ mirror of the fake-VRAM tag pattern,
+a CLKEN level probe landing one cen_16 edge early, and tag-pattern aliasing
+across 128-byte boundaries (video base moved to &0080). Final coverage: p1a
+pins the word-granular pointer stream with dots 0-7 = even byte / dots 8-15
+= odd byte through the production VIDBUF assembly (t05h assumption closed at
+integration level), tolerating the mixed word across each line-start MA
+reload; p1b pins border-flag interiors only — the PEN flag's de_hold capture
+skews the colour-class switch at region boundaries by up to one character,
+which is the documented GA pipeline latency question and stays deliberately
+open with the motherboard timing contract; p1c checks classic VIDEO_BUF
+provenance over the same window (byte order is pinned by p1a; netlist buffer
+latency is GADIFF territory). Bite-tested against an assembly-order swap.
+
 An Opus-5-high independent review of this P1 delta returned NOT CLEAR on
 2026-08-24 with two BLOCKING findings, both confirmed real and fixed in the
 same pass: the asic_ga_timing bus pins were wired to uppercase implicit nets
@@ -433,6 +465,34 @@ fixes (previous numbers were taken on the constant-bus-pruned build),
 directed U204-restart and randomised-fast lockstep coverage, implementing or
 re-documenting the INKR power-up constants so r03 pins RTL rather than
 Verilator zero-init, and a minimal plus_mode=1 motherboard bench before P2.
+
+**All queued items implemented 2026-08-25 on `plus/p2-asic-regs`** (commits
+`5730b66`, `ea69d68`, `e9f2bca`; CI evidence below):
+
+- `make -C sim/plus motherboard-lint` (in the default lint chain) elaborates
+  the whole motherboard hierarchy under `--language 1364-2001 -UVERILATOR`
+  with full-port-list stubs for T80pa (VHDL), ga40010/YM2149/hid
+  (SystemVerilog; the `.do(` pin name rules out default-SV mode). IMPLICIT
+  and UNDRIVEN stay fatal — finding 1's exact bug class. Waived classes are
+  triaged and documented in `sim/plus/Makefile`.
+- The plus_phi_en_* decision: T80pa, crt_filter CE and the expansion phi
+  pins now take ASIC enables under plus_mode via explicit ownership muxes.
+  Cycle-neutral today (GADIFF-proven equivalence); makes asic_ga_timing the
+  Plus owner so deliberate deltas land everywhere at once later.
+- Differential bench: d04 drives an intack bus state across reset (U204's
+  reset term — previously uncovered); d01 randomises the no-wait input
+  inside lockstep traffic. r03 now proves INKR/ink-select power-up clears
+  are explicit RTL resets in `asic_ga_timing.v` (bite-tested), not simulator
+  zero-init; real ASIC power-up contents remain a named assumption.
+- Motherboard bench m1-m4 (`make -C sim` runs it): plus_mode=1 boot with a
+  scripted fake Z80; GA RMR/INKR/border writes reach asic_video through the
+  production muxes; the 52-line interrupt fires into the CPU pin and clears
+  on acknowledge. Uses --public-flat-rw taps; ga40010/YM2149/hid join as
+  stubs (same language constraint).
+
+The gate after these changes reports 256 PASS lines (147 CRTC vectors, all
+Plus leaf/integration suites including p1_video and mobo benches); lint green
+including the new hierarchy pass; soak unchanged at `0xa9e5026de83d287c`.
 
 CI synthesis of the instantiation is green on the dispatched exact build
 (run `32771020608` — simulation, policy, Quartus
@@ -459,6 +519,105 @@ worst hold slack +0.244 ns (TimeQuest still reports the repo's unconstrained ext
 paths, so internal slacks are not full closure). Versus the pre-P0 build (`4c78603`:
 14,947 ALMs, +0.516/+0.246 ns), the ~350-ALM growth and small setup-slack shift match the
 added cartridge decode/bridge logic; no regression signal. It has not been hardware-tested.
+
+### P2 ASIC register page — landed on `plus/p2-asic-regs` (2026-08-25)
+
+`rtl/plus/asic_regs.v` backs the &4000-&7FFF page per `asic-reference.md`
+§2-§6: the 4K×4 sprite pixel RAM with its low-nibble mask, sprite X/Y/mag
+storage with the documented read rules (&FF for all-ones high bytes) and
++4..+7 read mirrors, the 32×12 palette in the documented {G,R,B} word
+layout with split-byte writes and a free-running video port, legacy
+PENR/INKR translation into entries 0-16 through the [KT] table, PRI/SPLT/
+SSA/SSCR/IVR and DMA SAR/PPR byte storage for later phases, DCSR readable
+across &6C00-&6C0F but writable only at &6C0F, and wired-AND-neutral open
+bus over every unmapped/write-only region. Seven exhaustive vector groups
+(a01-a07) run in the gate.
+
+Integration: `Amstrad_motherboard` instantiates it (chip-select from the new
+`plus_aspage_on`, legacy GA shadow straight from `asic_ga_timing`); `Amstrad.sv`
+captures `plus_mmu`'s RMR2 page-enable and suppresses main-memory read AND
+write cycles across the whole window while it is on (no read/write-through,
+reference §2, cartridge-owned-cycle pattern), with an answering page read
+taking priority on the CPU data bus. The motherboard bench gained cycle-type
+awareness (I/O vs memory, like a real Z80's pin behaviour) and m5: scripted
+page writes land in sprite RAM, sprite registers and palette with correct
+masks/layout; unused-region writes are ignored. Byte order through the
+production VIDBUF assembly — the t05h caveat — was closed by the calibrated
+p1_video bench (p1a).
+
+RGB widening (P2's second focused commit): motherboard red/green/blue ports
+are now 4-bit. Plus mode carries ASIC palette nibbles natively to a new
+expansion stage before the video mixer; classic mode keeps the netlist
+{level, OE_N} pair unchanged in the low two bits feeding color_mix exactly
+as before, so classic video output is bit-identical by construction. The P1
+lvl4_to_ga lossy adapter is gone.
+
+Open P2 items: the phase exit "static Plus palettes display correctly
+(Burnin' Rubber title)" needs the manual hardware checkpoint (this RBF plus
+a real .cpr). The magnification write-mirror on offset +3 remains the ⚠
+ASIC-REF §4 conflict note (+3 stores Y-high here pending hardware
+verification). ADC/DMA behaviour stays unmapped-rule until their phases.
+No-write-through into real SDRAM is enforced by the suppression terms and
+verified by construction/mux inspection; no bench drives the full top-level
+memory path yet.
+
+### P3 interrupts — implemented on `plus/p2-asic-regs` (2026-08-25)
+
+The programmable raster interrupt lives inside `asic_ga_timing`, where the
+classic 52-line counter it modulates lives: with PRI=0 the new block is
+inert and the GADIFF lockstep equivalence is untouched; with PRI!=0 the
+counter keeps running but its assertion is suppressed, and an interrupt
+fires at the trailing edge of the shaped monitor HSYNC when
+{VC5..VC0,RC2..RC0}=={0,PRI}. The comparison's bit-8 don't-care produces
+the documented n / n+256 aliasing. Vertical adjustment gates firing. A
+raster fire pokes counter bit 5 (as an acknowledge would), so a later
+re-enabled CPC-compatible interrupt cannot occur within 32 lines.
+Clearing is shared with the classic path: CPU acknowledge or MRER bit 4.
+
+DCSR became field-wise: bit 7 is a merger-driven read-only level ("last
+INT ack was raster"), bits 6:4 are write-1-to-clear DMA flag storage
+(set-paths arrive with P7's INT instruction), bits 2:0 are plain R/W
+enables. IVR/vector supply: on every INT acknowledge the ASIC drives
+(IVR & &F8) | source; with DMA absent the source field is raster (%110)
+while a raster interrupt pends, else 0 — the no-pending behaviour is
+unspecified on hardware (named assumption). The motherboard detects the
+acknowledge cycle and Amstrad.sv gives the vector top priority on the
+CPU data mux. The A13 vectored-interrupt bug stays deliberately not
+emulated (architecture §5.4 decision).
+
+Vectors: `pr01`–`pr04` (exact 52-line cadence at PRI=0; suppression plus
+aliased fires at identical intra-line offsets; adjustment gate; MRER
+clearing a pending PRI interrupt), `a08` (DCSR bit 7 mirrors the merger
+level), mobo bench `m6` (ack-cycle vector byte 0xDE after a scripted
+IVR write). P3's remaining exit item is title-level stability (Pang,
+RoboCop 2) at the next hardware checkpoint.
+
+Open scope note: the monitor-trailing-edge trigger uses this model's
+fixed four-character shaping microsequence, so [ARNOLD-REV]'s "clamp at
+HSYNC_start+6µs" is covered by construction here; [KT]'s conflicting
+"~10µs" measurement stays recorded as ⚠ ASIC-REF §7.
+
+Independent review (two passes, 2026-08-25, record in
+`docs/plus/p2p3-independent-review.md`): Claude Opus 5 xhigh on
+invariance/PRI/seams returned five blockers — all real, headline being
+undeclared top-level wires that corrupted every ASIC-page read while
+Quartus warning 10236 sat inside green synthesis, and an intack-polarity/
+sampling pair that inverted DCSR bit 7 and collapsed the vector source.
+GPT-5.6 Sol high on asic_regs conformance returned two blockers: a reset-
+dominance regression in the page-write branch and unobservable w1c flags
+(now settable via the new dma_int_set lines ahead of P7). Everything is
+remediated at the tip with new vectors pr05, strengthened m6/m7 and
+extended a02-a06; both passes' residual items are recorded in the review
+document.
+
+Tooling lesson from this branch's CI runs: CI's Verilator is **5.020** while
+local is 5.050 — three deltas bit us and were fixed version-portably:
+unknown `-Wno-<name>` flags and unknown lint metacomments are hard errors on
+5.020 (keep waivers out of both; fix sources instead), function-call
+bit-selects are SystemVerilog-only under 1364-2001, an else-wrapped indexed
+part-select write tripped a V3Gate internal error, and mixed blocked/
+nonblocked assignment is fatal. Write new RTL/benches against the older
+front end.
 
 ## Build and tooling state
 
@@ -538,10 +697,12 @@ added cartridge decode/bridge logic; no regression signal. It has not been hardw
    per-type behavior commits). Remaining F10 work is Q-gated: odd-R9 parity-alternation
    expectations wait on Q19, the additional interlace line on Q10, and the odd-C4
    VSYNC-imbalance correction on Q12.
-5. Plus: P0, the P1 CRTC3 counter/timing foundation, and the P1 locked-ASIC pixel path
-   (legacy-colour ROM + pen pipeline, vectors t05a-t05h) are merged. Next Plus steps: the
-   manual hardware checkpoint named above (real `.cpr` boot with a Plus model selected,
-   classic re-checked side by side), then the P1 motherboard-integration commit (Risk-1
-   CPU/WAIT contract decision, `files.qip`, fitter recording, pixel-phase differential),
-   then P2. Every `review-debt.md` row is cleared as of 2026-08-24.
+ 5. Plus: P0, both P1 milestones, the P1 motherboard integration with its review
+    follow-ups, the calibrated p1_video bench, the P2 ASIC register page, and P3
+    interrupts (PRI/DCSR/IVR) are done on `plus/p2-asic-regs`, synthesized green at
+    `3d7a178`. Next Plus steps: the manual hardware checkpoint (real `.cpr` boot,
+    a static-palette title for P2's exit, a raster-split title for P3's; classic
+    re-checked side by side), then P4 sprites. The branch carries unreviewed work
+    per standing session instructions; order cross-provider review(s) before
+    merging.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.

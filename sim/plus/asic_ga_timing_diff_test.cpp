@@ -3,11 +3,11 @@
 // decision 2026-08-24: Plus-mode CPU/SDRAM timing is reproduced behaviourally
 // and pinned cycle-exact to the synthesised classic contract here).
 //
-// d01-d03 drive BOTH modules inside sim/plus/asic_ga_diff_top.v with identical
+// d01-d04 drive BOTH modules inside sim/plus/asic_ga_diff_top.v with identical
 // randomised bus/sync/reset traffic (fixed seed schedule) and require every
 // shared output to agree on every clock edge. Register payload decoding
 // (BORDER/INKR/mode/ROM map/INT semantics) cannot be compared against
-// ga40010, which does not export those registers, so r01-r04 pin them
+// ga40010, which does not export those registers, so r01-r03 pin them
 // directly on the replica with expectations derived from the published Gate
 // Array port description cited in the RTL header.
 
@@ -275,8 +275,14 @@ void d01_lockstep_mixed(DiffBench& b) {
 	b.frame_lines = 52;
 	for (unsigned i = 0; i < 4000; ++i) {
 		b.frame_lines = 47 + b.rng.below(12);
+		// Randomised no-wait mode inside the lockstep traffic: today `fast`
+		// only widens the register-latch window in both modules, but any
+		// future fast-dependent divergence in shared strobes must surface
+		// here rather than in hardware.
+		b.fast = b.rng.coin(20);
 		b.run_cycle(b.pick_cycle(false));
 	}
+	b.fast = false;
 }
 
 //----------------------------------------------------------------------
@@ -316,6 +322,34 @@ void d03_lockstep_lost_sync(DiffBench& b) {
 	b.vsync_suppressed = false;
 	b.lines_since_vsync = 0;
 	for (unsigned i = 0; i < 300; ++i) b.run_cycle(b.pick_cycle(false));
+}
+
+//----------------------------------------------------------------------
+// d04: directed U204 restart. U204's reset term fires when an
+// interrupt-acknowledge-flavoured bus state (M1/IORQ/RD all low) is held
+// ACROSS reset — d02 deliberately idles the bus before pulsing reset, so
+// this term was uncovered. The sequencer ring must restart from bit 1 in
+// both modules and every shared strobe must stay edge-equal through the
+// restart, the ack release, and the following traffic.
+//----------------------------------------------------------------------
+void d04_lockstep_u204_restart(DiffBench& b) {
+	b.power_on_reset();
+	b.frame_lines = 52;
+	for (unsigned i = 0; i < 12; ++i) {
+		// Ordinary traffic between restarts.
+		for (unsigned j = 0; j < 5; ++j) b.run_cycle(b.pick_cycle(false));
+		// Hold an interrupt-acknowledge cycle while reset asserts.
+		b.mreq_n = true;
+		b.m1_n = b.iorq_n = b.rd_n = false;
+		b.fast = b.rng.coin(30);
+		b.reset_n = false;
+		b.run(2 + b.rng.below(8)); // both held through several ring phases
+		b.reset_n = true;
+		b.run(2 + b.rng.below(4)); // reset released first, ack still held
+		b.m1_n = b.iorq_n = b.rd_n = true;
+		b.fast = false;
+		b.run(4);
+	}
 }
 
 //----------------------------------------------------------------------
@@ -498,6 +532,9 @@ void r02_interrupt_cadence_and_ack(DiffBench& b) {
 //----------------------------------------------------------------------
 // r03: defined power-up state (border 16, mode 0, inks cleared) survives
 // the release of RESET_N; border keeps its reset value until written.
+// The second half proves the INKR/ink-select clears are RTL resets rather
+// than simulator zero-init: written entries are scrubbed by a reset pulse
+// and the ink select returns to slot 0.
 //----------------------------------------------------------------------
 void r03_powerup_state(DiffBench& b) {
 	b.reset_n = false;
@@ -510,7 +547,28 @@ void r03_powerup_state(DiffBench& b) {
 	if (b.dut.as_MODE != 0 || b.dut.as_GAMODE_O != 0)
 		fail("r03: screen mode should power up at 0");
 	if (!DiffBench::inkr_zero(b.dut))
-		fail("r03: INKR entries should power up cleared (named assumption)");
+		fail("r03: INKR entries should power up cleared (RTL reset)");
+
+	// Park ink select on slot 15 and mark it, then reset again: the mark
+	// must be scrubbed even though it was written before the reset.
+	ga_write(b, 0x0F);            // ink select = 15
+	ga_write(b, 0x40 | 0x1F);     // INKR[15] = 0x1F
+	if (DiffBench::inkr_entry(b.dut, 15) != 0x1F)
+		fail("r03: INKR[15] should hold 0x1F before the reset");
+	b.reset_n = false;
+	b.run(16);
+	b.reset_n = true;
+	b.run(16);
+	if (!DiffBench::inkr_zero(b.dut))
+		fail("r03: INKR must be cleared by an explicit RTL reset, not only at time 0");
+
+	// With ink select back at its reset value 0, a border-gated-off ink
+	// write lands in slot 0 — proving the select itself was reset.
+	ga_write(b, 0x40 | 0x07);
+	if (DiffBench::inkr_entry(b.dut, 0) != 0x07)
+		fail("r03: post-reset ink select should be 0 (write landed in slot 0)");
+	if (DiffBench::inkr_entry(b.dut, 15) != 0x00)
+		fail("r03: slot 15 must stay clear when ink select was reset to 0");
 }
 
 struct TestCase {
@@ -519,10 +577,11 @@ struct TestCase {
 	void (*fn)(DiffBench&);
 };
 
-const std::array<TestCase, 6> kTests = {{
+const std::array<TestCase, 7> kTests = {{
 	{"d01 lockstep mixed traffic",            true,  d01_lockstep_mixed},
 	{"d02 lockstep reset/ack storm",          true,  d02_lockstep_reset_ack_storm},
 	{"d03 lockstep lost-sync park",           true,  d03_lockstep_lost_sync},
+	{"d04 lockstep directed U204 restart",    true,  d04_lockstep_u204_restart},
 	{"r01 legacy register payloads",          false, r01_register_payloads},
 	{"r02 interrupt cadence and ack",         false, r02_interrupt_cadence_and_ack},
 	{"r03 defined power-up state",            false, r03_powerup_state},

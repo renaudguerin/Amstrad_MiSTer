@@ -98,24 +98,86 @@ P1VID_OBJ_DIR  := obj_dir/p1_video
 P1VID_TEST_SRC := $(abspath p1_pixel_phase_test.cpp)
 P1VID_TEST_BIN := $(P1VID_OBJ_DIR)/p1_video_tests
 
+# Static lint/elaboration pass over the whole Amstrad_motherboard hierarchy
+# (queued P1 review follow-up: the gap that let two BLOCKING wiring bugs
+# reach Quartus). Runs under --language 1364-2001 like every other Plus
+# target; children Verilator cannot read in that mode are replaced by
+# full-port-list stubs — ga40010/YM2149/hid in motherboard_lint_stubs.v and
+# T80pa in t80pa_lint_stub.v (see each file's header for why it is stubbed
+# and where its port list comes from). -UVERILATOR matches the production
+# ga40010 composition (no simulation-only clk_16 port).
+# Warning classes waived below were triaged 2026-08-25:
+#   PINCONNECTEMPTY / PINMISSING : intentionally unconnected output pins
+#   UNUSEDSIGNAL                 : reserved capability inputs and upstream/
+#                                  classic-side taps; the dead plus_phi_en_*
+#                                  pair this class surfaced is fixed by the
+#                                  phase-enable ownership mux, not waived
+#   DECLFILENAME                 : multi-module stub files
+#   CASEX / SYNCASYNCNET / WIDTHTRUNC :
+#                                  upstream style idioms in files owned by
+#                                  other streams
+#   PROCASSINIT / IMPLICITSTATIC are deliberately absent: their only
+#   sources were fixed (Amstrad_MMU block-local initializer) or are
+#   version-dependent, and CI's older Verilator rejects the -Wno names.
+# Everything else under -Wall stays fatal — above all IMPLICIT (undeclared
+# nets at instance pins, the original review-finding bug class) and UNDRIVEN.
+MBOARD_CORE_RTL := $(abspath ../../rtl/Amstrad_motherboard.v) \
+	$(abspath ../../rtl/plus/asic_regs.v) \
+	$(abspath motherboard_lint_stubs.v) \
+	$(abspath ../../rtl/CRTC.v) \
+	$(abspath ../../rtl/crtc_type0_engine.v) \
+	$(abspath ../../rtl/crtc_type1_engine.v) \
+	$(abspath ../../rtl/plus/asic_ga_timing.v) \
+	$(abspath ../../rtl/plus/asic_video.v) \
+	$(abspath ../../rtl/crt_filter.v) \
+	$(abspath ../../rtl/Amstrad_MMU.v) \
+	$(abspath ../../rtl/i8255.v)
+
+MBOARD_LINT_RTL := $(MBOARD_CORE_RTL) $(abspath t80pa_lint_stub.v)
+
+# plus_mode=1 motherboard-level integration bench: the same hierarchy with a
+# scripted fake CPU (t80pa_bench_cpu.v) instead of the lint tie-off, driven
+# from p1_mobo_bench_test.cpp. --public-flat-rw exposes the fake CPU's debug
+# exports and the asic_video payload taps to C++.
+MOBO_TOP      := p1_mobo_bench_top
+MOBO_TEST_TOP := $(abspath p1_mobo_bench_top.v)
+MOBO_RTL      := $(MBOARD_CORE_RTL) \
+	$(abspath ../../rtl/GA40010/casgen_sync.v) \
+	$(abspath ../../rtl/GA40010/syncgen_sync.v)
+MOBO_CPU      := $(abspath t80pa_bench_cpu.v)
+MOBO_OBJ_DIR  := obj_dir/p1_mobo_bench
+MOBO_TEST_SRC := $(abspath p1_mobo_bench_test.cpp)
+MOBO_TEST_BIN := $(MOBO_OBJ_DIR)/p1_mobo_bench_tests
+
+# P2 ASIC register page leaf (exhaustive decode/mask/mirror/open-bus).
+AREGS_TOP      := asic_regs
+AREGS_RTL      := $(abspath ../../rtl/plus/asic_regs.v)
+AREGS_OBJ_DIR  := obj_dir/asic_regs
+AREGS_TEST_SRC := $(abspath asic_regs_test.cpp)
+AREGS_TEST_BIN := $(AREGS_OBJ_DIR)/asic_regs_tests
+
+# P3 programmable raster interrupt directed vectors (exact-cycle).
+PRI_TOP      := asic_ga_timing
+PRI_RTL      := $(abspath ../../rtl/plus/asic_ga_timing.v)
+PRI_OBJ_DIR  := obj_dir/asic_pri
+PRI_TEST_SRC := $(abspath asic_pri_test.cpp)
+PRI_TEST_BIN := $(PRI_OBJ_DIR)/asic_pri_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
-	$(GADIFF_TEST_BIN)
-# p1_video_tests builds but is deliberately NOT in the default gate yet:
-# its stimulus/sampling calibration is unfinished (see docs/current-status.md,
-# P1 pixel-phase item). Run it explicitly via: make p1-video-bench
-OPTIN_BINS := $(P1VID_TEST_BIN)
+	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
+	$(AREGS_TEST_BIN) $(PRI_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
 
-.PHONY: all build test lint clean
+.PHONY: all build test lint motherboard-lint clean
 
 all: test
 
 build: $(TEST_BINS)
 
-# Opt-in benches under active development; not part of `make -C sim`.
+# Convenience alias; the bench itself runs in the default gate.
 p1-video-bench: $(P1VID_TEST_BIN)
 	./$(P1VID_TEST_BIN)
 
@@ -131,6 +193,10 @@ test: $(TEST_BINS)
 	./$(MMU_TEST_BIN)
 	./$(P0BOOT_TEST_BIN)
 	./$(GADIFF_TEST_BIN)
+	./$(P1VID_TEST_BIN)
+	./$(MOBO_TEST_BIN)
+	./$(AREGS_TEST_BIN)
+	./$(PRI_TEST_BIN)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
@@ -197,12 +263,40 @@ $(GADIFF_TEST_BIN): $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF) $(GADIFF_
 		-o $(notdir $(GADIFF_TEST_BIN)) $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) \
 		$(GADIFF_REF) $(GADIFF_TEST_SRC)
 
+$(PRI_TEST_BIN): $(PRI_RTL) $(PRI_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(PRI_TOP) \
+		--Mdir $(PRI_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(PRI_TEST_BIN)) $(PRI_RTL) $(PRI_TEST_SRC)
+
+$(AREGS_TEST_BIN): $(AREGS_RTL) $(AREGS_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(AREGS_TOP) \
+		--Mdir $(AREGS_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(AREGS_TEST_BIN)) $(AREGS_RTL) $(AREGS_TEST_SRC)
+
+$(MOBO_TEST_BIN): $(MOBO_TEST_TOP) $(MOBO_RTL) $(MOBO_CPU) $(MOBO_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR --public-flat-rw \
+		--top-module $(MOBO_TOP) \
+		--Mdir $(MOBO_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(MOBO_TEST_BIN)) $(MOBO_TEST_TOP) $(MOBO_RTL) \
+		$(MOBO_CPU) $(MOBO_TEST_SRC)
+
 $(OBJ_DIR):
 	mkdir -p -- $@
 
-lint:
+# Standalone form of the motherboard hierarchy lint that `lint` runs first.
+motherboard-lint:
+	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
+		--top-module Amstrad_motherboard -Wall \
+		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
+		-Wno-DECLFILENAME -Wno-CASEX \
+		-Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
+		$(MBOARD_LINT_RTL)
+
+lint: motherboard-lint
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(ASIC_TOP) -Wall $(ASIC_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(AREGS_TOP) -Wall $(AREGS_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(ASICVID_TOP) -Wall $(ASICVID_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
@@ -229,6 +323,12 @@ lint:
 		--top-module $(GADIFF_TOP) -Wall -Wno-fatal $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF)
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
 		--top-module $(P1VID_TOP) -Wall -Wno-fatal $(P1VID_TOP_SRC) $(P1VID_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
+		--top-module Amstrad_motherboard -Wall \
+		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
+		-Wno-DECLFILENAME -Wno-CASEX \
+		-Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
+		$(MBOARD_LINT_RTL)
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)

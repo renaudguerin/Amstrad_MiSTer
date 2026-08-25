@@ -78,7 +78,11 @@ always @(posedge CLK) begin : hsyncgen
 
 end
 
-reg hsync_mask = 0;
+reg hsync_mask;
+initial hsync_mask = 0; // separate from the decl: newer Verilator flags
+                        // declaration initializers later assigned in
+                        // always blocks (PROCASSINIT), older ones reject
+                        // the lint name — this form is portable.
 // check for too frequent HSYNCs (S&KOH)
 always @(posedge CLK) begin : hsyncfilt
 	reg old_hsync;
