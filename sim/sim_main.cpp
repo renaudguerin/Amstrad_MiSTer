@@ -579,6 +579,18 @@ public:
         }
     }
 
+    void expect_known_vsync_high(const std::string& expectation) const {
+        if (dut_->VSYNC == 0) {
+            known_divergence(expectation, "VSYNC low");
+        }
+    }
+
+    void expect_known_vsync_low(const std::string& expectation) const {
+        if (dut_->VSYNC != 0) {
+            known_divergence(expectation, "VSYNC high");
+        }
+    }
+
     void expect_de_high(const std::string& expectation) const {
         expect_high(expectation, dut_->DE);
     }
@@ -5178,8 +5190,150 @@ void test_interlace_sync_leaves_ra_plain(TestBench& test) {
     }
 }
 
-}  // namespace
+// t24: type-1 IVM VSYNC positions (ACCC v1.10 section 19.5.3 p.208 table).
+//
+// R9=8 (even -> the row-pair line count R9+1 is odd), R7 on a chosen C4,
+// R8=3 held from a snapshot load (frame-boundary entry, no toggle stages,
+// so the MID-VSYNC field-vs-ParityFrame residual stays out of scope), and
+// R4=6: seven C4s per frame.  An odd C4 count is what makes consecutive
+// frames alternate their line sequences (section 19.8.2 p.225: ParityC9
+// toggles at every C9/R9 match including the frame-boundary wrap, so an
+// odd number of matches per frame flips the frame-start C9) -- the table's
+// even frame opens C4=0 at C9=0 (5-line C4 rows) and its odd frame opens
+// at C9=1 (4-line C4 rows), 32 and 31 lines per frame respectively.  The
+// table's VSYNC boxes pin the start line for every R7 on each frame
+// parity; type 1 applies no delay correction (unlike CRTC 0/3/4,
+// section 19.5.2 pp.206-207), so with R7 on an odd C4 the pulse sits one
+// frame-line earlier on the odd frame -- the documented permanent 1-line
+// VSYNC gap.
 
+void test_type1_ivm_vsync_gap_r7_odd_c4(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 6},
+        {5, 0},  {6, 25}, {7, 1},   {8, 0},   {9, 8},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_characters(2);
+
+    // Snapshot-load R8=3: IVM engages with ParityFrame=0, so the first
+    // frame runs the table's EVEN FRAME column (C4=0 at C9=0,2,4,6,8).
+    const std::array<std::uint8_t, 10> snapshot = {
+        63, 40, 46, 0x11, 6, 0, 25, 1, 3, 8,
+    };
+    test.load_snapshot_registers(snapshot);
+
+    // Even frame (32 lines): the VSYNC box for R7=1 sits at (C4,C9)=(1,1),
+    // the first line of C4=1 -- frame-line 5 after the five C4=0 lines
+    // (0,2,4,6,8).  Walk line by line, sampling mid-line; the pulse holds
+    // 16 lines (type-1 fixed width) and ends before line 21.
+    test.run_characters(30);
+    test.expect_vsync_low("t24a even frame line 0: VSYNC quiet before the gap start");
+    test.run_characters(34);
+    for (unsigned line = 1; line <= 31; ++line) {
+        test.run_characters(32);
+        const bool expect_high = line >= 5 && line <= 20;
+        if (expect_high) {
+            test.expect_vsync_high("t24a even frame line " + std::to_string(line) +
+                                   " (R7=1 gap start at line 5, 16 lines)");
+        } else {
+            test.expect_vsync_low("t24a even frame line " + std::to_string(line) +
+                                  " outside the (1,1)-anchored pulse");
+        }
+        if (line == 5) {
+            test.expect_c4("t24a even frame pulse starts on C4=1", 1);
+            test.expect_ra("t24a even frame pulse starts at C9=1 (table box (1,1))", 1);
+        }
+        test.run_characters(32);
+    }
+
+    // Odd frame (31 lines): C4=0 runs only four lines (1,3,5,7), so the
+    // first line of C4=1 is frame-line 4 and the table's box sits at
+    // (1,0).  No delay correction: the pulse is one frame-line earlier
+    // than on the even frame, and the 1-line gap repeats permanently.
+    for (unsigned line = 0; line <= 30; ++line) {
+        test.run_characters(32);
+        const bool expect_high = line >= 4 && line <= 19;
+        if (expect_high) {
+            test.expect_vsync_high("t24a odd frame line " + std::to_string(line) +
+                                   " (R7=1 gap start at line 4, 16 lines)");
+        } else {
+            test.expect_vsync_low("t24a odd frame line " + std::to_string(line) +
+                                  " outside the (1,0)-anchored pulse");
+        }
+        if (line == 4) {
+            test.expect_c4("t24a odd frame pulse starts on C4=1", 1);
+            test.expect_ra("t24a odd frame pulse starts at C9=0 (table box (1,0))", 0);
+        }
+        test.run_characters(32);
+    }
+}
+
+void test_type1_ivm_vsync_no_gap_r7_even_c4(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 6},
+        {5, 0},  {6, 25}, {7, 2},   {8, 0},   {9, 8},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_characters(2);
+    const std::array<std::uint8_t, 10> snapshot = {
+        63, 40, 46, 0x11, 6, 0, 25, 2, 3, 8,
+    };
+    test.load_snapshot_registers(snapshot);
+
+    // Contrast from the same table: with R7=2 (even C4) both frames start
+    // the pulse on frame-line 9 -- the first line of C4=2 arrives after
+    // 5+4 lines on the even frame and 4+5 on the odd frame, so no gap.
+    // Even frame box (2,0): C9=0; odd frame box (2,1): C9=1.  The VSYNC
+    // assertions are known-divergence forms: the current model misses both
+    // fires because vsync_line_fire tests the plain C9==R9 (false at the
+    // (1,7) wrap) and the field=1 MID-VSYNC arm requires RA==0 (false at
+    // (2,1)); the counters themselves are pinned by plain assertions.
+    test.run_characters(30);
+    test.expect_vsync_low("t24b even frame line 0: VSYNC quiet");
+    test.run_characters(34);
+    for (unsigned line = 1; line <= 31; ++line) {
+        test.run_characters(32);
+        const bool expect_high = line >= 9 && line <= 24;
+        if (line == 9) {
+            test.expect_c4("t24b even frame pulse starts on C4=2", 2);
+            test.expect_ra("t24b even frame pulse starts at C9=0 (table box (2,0))", 0);
+        }
+        if (expect_high) {
+            test.expect_known_vsync_high("t24b even frame line " + std::to_string(line) +
+                                         " (R7=2 pulse from line 9, 16 lines)");
+        } else {
+            test.expect_known_vsync_low("t24b even frame line " + std::to_string(line) +
+                                        " outside the (2,0)-anchored pulse");
+        }
+        test.run_characters(32);
+    }
+    for (unsigned line = 0; line <= 30; ++line) {
+        test.run_characters(32);
+        const bool expect_high = line >= 9 && line <= 24;
+        if (line == 9) {
+            test.expect_c4("t24b odd frame pulse starts on C4=2", 2);
+            test.expect_ra("t24b odd frame pulse starts at C9=1 (table box (2,1))", 1);
+        }
+        if (expect_high) {
+            test.expect_known_vsync_high("t24b odd frame line " + std::to_string(line) +
+                                         " (R7=2 pulse from line 9, 16 lines)");
+        } else {
+            test.expect_known_vsync_low("t24b odd frame line " + std::to_string(line) +
+                                        " outside the (2,1)-anchored pulse");
+        }
+        test.run_characters(32);
+    }
+}
+
+}  // namespace
 //============================================================================
 //  Randomized equivalence soak
 //
@@ -5809,6 +5963,12 @@ int main(int argc, char** argv) {
         {"t23c_interlace_sync_leaves_ra_plain",
          "ACCC v1.10 section 19.3.2.1 p.199 (INTERLACE SYNC does not touch the raster address); F10/N-9",
          false, test_interlace_sync_leaves_ra_plain},
+        {"t24a_type1_ivm_vsync_gap_r7_odd_c4",
+         "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=1 odd) with section 19.8.2 p.225 alternation",
+         false, test_type1_ivm_vsync_gap_r7_odd_c4},
+        {"t24b_type1_ivm_vsync_no_gap_r7_even_c4",
+         "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=2 even) with section 19.8.2 p.225 alternation",
+         true, test_type1_ivm_vsync_no_gap_r7_even_c4},
     };
 
     unsigned passed = 0;
