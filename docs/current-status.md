@@ -554,6 +554,19 @@ fixed four-character shaping microsequence, so [ARNOLD-REV]'s "clamp at
 HSYNC_start+6µs" is covered by construction here; [KT]'s conflicting
 "~10µs" measurement stays recorded as ⚠ ASIC-REF §7.
 
+Independent review (two passes, 2026-08-25, record in
+`docs/plus/p2p3-independent-review.md`): Claude Opus 5 xhigh on
+invariance/PRI/seams returned five blockers — all real, headline being
+undeclared top-level wires that corrupted every ASIC-page read while
+Quartus warning 10236 sat inside green synthesis, and an intack-polarity/
+sampling pair that inverted DCSR bit 7 and collapsed the vector source.
+GPT-5.6 Sol high on asic_regs conformance returned two blockers: a reset-
+dominance regression in the page-write branch and unobservable w1c flags
+(now settable via the new dma_int_set lines ahead of P7). Everything is
+remediated at the tip with new vectors pr05, strengthened m6/m7 and
+extended a02-a06; both passes' residual items are recorded in the review
+document.
+
 Tooling lesson from this branch's CI runs: CI's Verilator is **5.020** while
 local is 5.050 — three deltas bit us and were fixed version-portably:
 unknown `-Wno-<name>` flags and unknown lint metacomments are hard errors on
