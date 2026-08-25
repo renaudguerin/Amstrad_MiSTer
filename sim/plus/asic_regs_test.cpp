@@ -63,6 +63,8 @@ public:
 
 	void run(unsigned n) { for (unsigned i = 0; i < n; ++i) tick(); }
 
+	void run1() { run(1); }
+
 	void reset_pulse() {
 		dut.reset = 1;
 		run(4);
@@ -319,17 +321,28 @@ void a05_raster_dma_regs(Regs& r) {
 	r.wr(0x2807, 0xEE);
 	if (r.dut.ivr != 0x81) fail("a05: &6806/&6807 write leaked");
 	// DCSR readable across the whole range, writable only at &6C0F (§4).
-	r.wr(0x2C0F, 0x5A);
+	// Field semantics per §9: bit7 merger-driven (read-only for the CPU),
+	// bits 6:4 DMA flags write-1-to-clear, bits 2:0 enables plain R/W.
+	r.wr(0x2C0F, 0xFF); // tries everything: stat stays 0, flags cleared,
+	                    // enables all set
 	for (unsigned o = 0; o <= 0x0F; ++o)
-		if (r.rd(0x2C00 + o) != 0x5A)
-			fail("a05: DCSR window read at offset " + std::to_string(o));
-	r.wr(0x2C00, 0xA5); // SAR lo is NOT dcsr and not readable
-	if (r.rd(0x2C0F) != 0x5A) fail("a05: &6C00 write hit DCSR");
-	r.wr(0x2C01, 0x00);
-	r.wr(0x2C02, 0x77);
-	if (r.rd(0x2C00) != 0x5A || r.rd(0x2C08) != 0x5A)
-		fail("a05: SAR/PPR readable (must not be)");
-	std::printf("PASS a05: raster/DMA storage, DCSR window, SAR/PPR hidden\n");
+		if (r.rd(0x2C00 + o) != 0x07)
+			fail("a05: DCSR window read at offset " + std::to_string(o) +
+			     " = " + std::to_string(r.rd(0x2C00 + o)) + ", expected 0x07");
+	// Flag bits 6:4 have no CPU set-path (only the P7 INT instruction sets
+	// them; CPU writes are w1c), so from the bus they read zero here.
+	// Enable-bit noise immunity:
+	r.wr(0x2C0F, 0xF7); // noise above bit0 must not disturb enables
+	if (r.rd(0x2C0F) != 0x07) fail("a05: DCSR high bits leaked into enables");
+	r.wr(0x2C0F, 0x02);
+	if (r.rd(0x2C0F) != 0x02) fail("a05: DCSR enable write");
+	r.wr(0x2C0F, 0x07);
+	if (r.rd(0x2C0F) != 0x07) fail("a05: DCSR enable restore");
+	// SAR lo is not DCSR and not readable.
+	r.wr(0x2C00, 0xA5);
+	if (r.rd(0x2C0F) != 0x07) fail("a05: &6C00 write hit DCSR");
+	if (r.rd(0x2C00) != 0x07) fail("a05: SAR readable (must not be)");
+	std::printf("PASS a05: raster/DMA storage, DCSR fields/window, SAR hidden\n");
 }
 
 void a06_open_bus(Regs& r) {
@@ -349,6 +362,19 @@ void a06_open_bus(Regs& r) {
 			     std::to_string(r.rd(off)) + ", expected FF open bus");
 	if (r.idle_out() != 0xFF) fail("a06: cs-deasserted contribution not FF");
 	std::printf("PASS a06: open-bus neutrality over unmapped regions\n");
+}
+
+void a08_dcsr_raster_status(Regs& r) {
+	r.reset_pulse();
+	if ((r.rd(0x2C0F) & 0x80) != 0) fail("a08: DCSR bit7 set without ack");
+	// The merger holds the persistent level; the register page mirrors it.
+	r.dut.intack_raster = 1;
+	r.run1();
+	if ((r.rd(0x2C0F) & 0x80) == 0) fail("a08: raster ack level not visible");
+	r.dut.intack_raster = 0;
+	r.run1();
+	if ((r.rd(0x2C0F) & 0x80) != 0) fail("a08: level stuck after non-raster");
+	std::printf("PASS a08: DCSR bit7 follows merger last-raster level\n");
 }
 
 void a07_reset_contract(Regs& r) {
@@ -374,6 +400,7 @@ int main(int argc, char** argv) {
 		{"a03", a03_palette},    {"a04", a04_legacy_translation},
 		{"a05", a05_raster_dma_regs}, {"a06", a06_open_bus},
 		{"a07", a07_reset_contract},
+		{"a08", a08_dcsr_raster_status},
 	};
 	for (const auto& t : tests) {
 		try {
