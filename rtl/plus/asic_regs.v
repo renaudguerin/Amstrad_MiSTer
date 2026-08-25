@@ -207,7 +207,6 @@ module asic_regs
 			for (k = 0; k < 32; k = k + 1) pal[k] <= 12'd0;
 			leg_inkr_q   <= {80{1'b1}}; // != reset INKR: forces first translate
 			leg_border_q <= 5'b11111;   // != reset border 16
-			pal_r        <= 12'd0;
 		end
 		else if (asic_cs) begin
 			if (mem_wr) begin
@@ -340,7 +339,12 @@ module asic_regs
 	assign pal_rdata = pal_r;
 
 	// Video-side read port (registered, independent of the CPU port).
-	always @(posedge clk) pal_r <= pal[pal_raddr];
+	// Own reset here: a second always writing this reg must carry the
+	// reset itself or Quartus sees two constant drivers (error 10028).
+	always @(posedge clk) begin
+		if (reset) pal_r <= 12'd0;
+		else       pal_r <= pal[pal_raddr];
+	end
 
 	// Quartus maps these synthesizable initial values to FPGA power-up
 	// state; the reset branch above defines the simulated values. The
