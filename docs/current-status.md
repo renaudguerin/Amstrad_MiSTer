@@ -603,24 +603,44 @@ wrap-through + negative alias, R0>64 repeat). asic_video t06a-c pin the
 precedence mux; asic_regs a09/a10 pin the fetch-port handshake/preemption
 and access-indicator decode.
 
-**SKIPPED VECTORS (next session, top priority):** s11-s14 are disabled
-with SKIP lines (exit code 65 when anything skips, so the gate cannot
-silently accept them). Independent Codex/GPT-5.6 Sol review
-(2026-08-25, NOT CLEAR) found three real defects, all fixed and
-bite-verified by re-enabling the affected vectors: suppressed port
-completions stranded sreq bits forever (completion now always releases
-the slot; only the payload write is conditional, scoped to words whose
-sprite matches ACC_IDX); the disabled-sprite block jump advanced
-walk[7:4] which crosses bank+sprite, skipping every odd sprite (now
-advances the sprite field within the bank half); and s11's own assertion
-sampled outside sprite 2's window while reading idx without EN. With
-those landed s11 passes its bystander/hole phases in simulation but char5
-recovery after the access flush still comes up incomplete across the
-next seam — the residual is bounded to post-flush cross-seam refill
-dynamics and is the exact reopening point for s11-s14 (traces:
-s11c1/s11c4/s11c5 SPRDBG prints show per-dot winner state; SEAM watcher
-in the public-flat-rw leaf build shows seam branch decisions). Also open
-from this phase: mobo-bench m8 end-to-end sprite vector, and the
+**VECTOR STATUS (all 14 green, 2026-08-25):** s01-s14 all pass with zero
+skips; the runner counts skips separately and exits 65 if any vector is
+skipped, so gates cannot silently accept a disabled vector.
+
+Two independent review passes shaped this phase. Pass 1 (Codex/GPT-5.6
+Sol high, NOT CLEAR) found: suppressed port completions stranded sreq
+bits forever (fixed — the handshake always completes; only the payload
+write is conditional, scoped to words whose sprite matches ACC_IDX);
+the disabled-sprite block jump advanced walk[7:4], crossing bank+sprite
+and starving odd sprites; and an out-of-window s11 assertion.
+
+Pass 2 (same route, also NOT CLEAR on the first remediation delta)
+found the deeper truth and closed the phase: (a) the pass-1 walk-jump fix
+had overcorrected — preserving walk[7] trapped the walker inside one
+bank half whenever sprite 15 was disabled, which is the common case;
+the skip now advances the {bank,sprite} block number with carry across
+the half boundary. (b) The "exit 65" skip accounting existed only in
+prose; it is now real code. (c) The long-standing "post-flush cross-seam
+refill incompleteness" residual was never an RTL defect at all: s11 had
+been configuring its target sprite with mag code 0x5 = X1/Y1, whose
+window is ONE character, so the char5 recovery assertions sampled where
+the sprite correctly never appears. With mag 0xA (X2/Y2) and correct
+per-char expectations, plus the s12 cut bound moved to dot 6 (the
+rewrite lands after dot 5 is sampled), every vector passes honestly.
+
+One measured behaviour is pinned as a documented model choice rather
+than an S5 rule: a pixel-data access flush landing mid-walker-lap leaves
+the accessed sprite invisible for up to roughly four further characters,
+because the single continuous fetch server finishes its current sweep
+(including speculative work) before revisiting the sprite's active
+block; recovery is complete and byte-correct by the same source row's
+window on the next display line (s11 pins exactly this). Reference §5
+fixes only THAT-sprite-only scope and image integrity, not hole shape.
+Future optimisation if hardware ever needs it: urgent-first scheduling
+of active-bank misses ahead of the speculative sweep.
+
+Still open from this phase: mobo-bench m8 end-to-end sprite vector, a
+third review pass over this remediation delta (see review-debt), and the
 INKR-effects ~1/2-us-late GA pipeline question noted in P1 remains
 deferred.
 
@@ -777,11 +797,10 @@ front end.
     interrupts (PRI/DCSR/IVR) are done on `plus/p2-asic-regs`, synthesized green at
     `3d7a178`. Next Plus steps: the manual hardware checkpoint (real `.cpr` boot,
     a static-palette title for P2's exit, a raster-split title for P3's; classic
-    re-checked side by side), then finish P4 sprites: engine + s01-s10 +
+    re-checked side by side), then finish P4 sprites: engine + all of s01-s14 +
     t06/a09/a10 landed and synthesized green at `e3dd848` (71 % ALMs);
-    remaining P4 work is the s11-s14 skipped vectors (phantom sprite-0
-    winner under multi-sprite load — start from the proven public-flat-rw
-    leaf-test probe setup) and mobo-bench m8; see the P4 section above.
+    remaining P4 work is mobo-bench m8 and the pass-3 review over the
+    remediation delta; see the P4 section above.
     The branch carries unreviewed work per standing session instructions;
     order cross-provider review(s) before merging.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
