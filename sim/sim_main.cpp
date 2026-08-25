@@ -5343,8 +5343,7 @@ void test_type1_ivm_vsync_no_gap_r7_even_c4(TestBench& test) {
 // half-line tick (low at C0=20, high at C0=40) and end it at the half-line
 // tick 16 lines later (high at C0=20 of line 25, low at C0=40); the
 // ParityFrame-odd frame starts and ends at line seams (high/high on line 9,
-// low/low on line 25). Known-divergence forms: the committed model starts
-// both parities at the seam, so the even-frame samples fail.
+// low/low on line 25).
 
 void test_type1_ivm_mid_vsync_half_line_phase(TestBench& test) {
     test.set_crtc_type(1);
@@ -5370,7 +5369,7 @@ void test_type1_ivm_mid_vsync_half_line_phase(TestBench& test) {
     for (unsigned line = 1; line <= 31; ++line) {
         test.run_characters(20);
         if (line == 9) {
-            test.expect_known_vsync_low(
+            test.expect_vsync_low(
                 "t24c even frame line 9 at C0=20: MID-VSYNC starts at the half-line tick");
         }
         if (line == 25) {
@@ -5383,7 +5382,7 @@ void test_type1_ivm_mid_vsync_half_line_phase(TestBench& test) {
                 "t24c even frame line 9 at C0=40: MID-VSYNC pulse is up");
         }
         if (line == 25) {
-            test.expect_known_vsync_low(
+            test.expect_vsync_low(
                 "t24c even frame line 25 at C0=40: pulse ends at the half-line tick");
         }
         test.run_characters(24);
@@ -6047,7 +6046,7 @@ int main(int argc, char** argv) {
          false, test_type1_ivm_vsync_no_gap_r7_even_c4},
         {"t24c_type1_ivm_mid_vsync_half_line_phase",
          "ACCC v1.10 section 19.5.3 p.208 prose (MID-VSYNC on the ParityFrame-even frame); p.207 Note",
-         true, test_type1_ivm_mid_vsync_half_line_phase},
+         false, test_type1_ivm_mid_vsync_half_line_phase},
     };
 
     unsigned passed = 0;

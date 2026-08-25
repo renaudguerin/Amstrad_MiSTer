@@ -466,20 +466,45 @@ end
 reg vde, vde_r;
 reg VSYNC_r;
 reg vsync_allow;
-// Section 19.5.3 p.208: during type-1 IVM the VSYNC start is pinned by the
-// row-structure rule on BOTH frame parities (the table's boxes sit at the
-// first line of C4=R7 whatever the frame parity), so the legacy field=1
-// MID-VSYNC arm -- the non-IVM interlace rule, which requires RA==0 and
-// therefore misses first lines whose C9 is odd -- must not hijack the
-// fire, and the count must tick at the line seam like the field=0 path.
+// Section 19.5.3 p.208: during type-1 IVM the VSYNC start line is pinned by
+// the row-structure rule on both frame parities (the table's boxes sit at
+// the first line of C4=R7 whatever the frame parity), and the prose
+// schedules the MID-VSYNC on the ParityFrame-even frame: that frame's pulse
+// starts at the half-line tick (the p.207 type-0 Note words the same rule
+// as "the VSYNC occurs in the middle of the line on C0 = R0/2"), the
+// odd-parity frame's at the line seam. e1_vsync_line_fire is
+// hcc-independent -- true across the whole last line of C4=R7-1 -- so the
+// even-parity fire decision is latched at the seam and consumed at the
+// half-line tick of the pulse's first line; consuming the level term
+// mid-line would start the pulse a line early. The gate reads the raw R8
+// mode rather than the engine's latched IVM state: around an R8 toggle
+// write the two disagree for one to two characters, an unpinned window
+// recorded in the F10 notes (review N-1, 2026-08-25).
 wire       vsync_type1_ivm = CRTC_TYPE && interlace[0];
-wire vsync_count_tick = CLKEN &&
-	((field && !vsync_type1_ivm) ?
-		(CRTC_TYPE ? e1_field_count_tick : e0_field_count_tick) : line_new);
+wire       vsync_ivm_mid   = vsync_type1_ivm && !parity_frame;
+reg        vsync_ivm_arm;
+wire vsync_count_tick = CLKEN && (
+	vsync_ivm_mid   ? e1_field_count_tick :
+	vsync_type1_ivm ? line_new :
+	field           ? (CRTC_TYPE ? e1_field_count_tick : e0_field_count_tick) :
+	line_new);
 wire vsync_holdoff = e0_vsync_holdoff;
-wire vsync_fire = vsync_allow &
-	((field && !vsync_type1_ivm) ? (row == R7_v_sync_pos && !line) :
-			 (CRTC_TYPE ? e1_vsync_line_fire : e0_vsync_line_fire));
+wire vsync_fire = vsync_allow & (
+	vsync_ivm_mid   ? vsync_ivm_arm :
+	vsync_type1_ivm ? e1_vsync_line_fire :
+	field           ? (row == R7_v_sync_pos && !line) :
+	(CRTC_TYPE ? e1_vsync_line_fire : e0_vsync_line_fire));
+
+// Seam-latched MID-VSYNC fire decision: set when the line now starting is
+// the first line of C4=R7, consumed by the half-line fire on the
+// ParityFrame-even frame (see above).
+always @(posedge CLOCK) begin
+	if(~nRESET) vsync_ivm_arm <= 0;
+	else if(CLKEN) begin
+		if(line_new) vsync_ivm_arm <= vsync_type1_ivm && e1_vsync_line_fire;
+		else if(vsync_count_tick && vsync_ivm_arm) vsync_ivm_arm <= 0;
+	end
+end
 wire [3:0] vsc_load = CRTC_TYPE ? e1_vsc_load : e0_vsc_load;
 wire r7_write_hit = ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07;
 wire r7_write_fire = CRTC_TYPE ? e1_r7_write_fire : e0_r7_write_fire;
