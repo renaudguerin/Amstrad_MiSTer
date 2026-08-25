@@ -571,6 +571,26 @@ public:
         }
     }
 
+    void expect_known_ma(const std::string& expectation,
+                         std::uint16_t expected) const {
+        if (dut_->MA != expected) {
+            known_divergence(expectation + " == " + std::to_string(expected),
+                             static_cast<unsigned>(dut_->MA));
+        }
+    }
+
+    void expect_known_vsync_high(const std::string& expectation) const {
+        if (dut_->VSYNC == 0) {
+            known_divergence(expectation, "VSYNC low");
+        }
+    }
+
+    void expect_known_vsync_low(const std::string& expectation) const {
+        if (dut_->VSYNC != 0) {
+            known_divergence(expectation, "VSYNC high");
+        }
+    }
+
     void expect_de_high(const std::string& expectation) const {
         expect_high(expectation, dut_->DE);
     }
@@ -4289,6 +4309,103 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
                    0x1234);
 }
 
+// F11h closure, render-verified against ACCC v1.10 section 20.3.2 page 242:
+// the second CRTC-1 chronogram draws the OUT R12,#30 bus activity spanning
+// C0=62..1 across a row-0 line seam, so the register write lands on the
+// 63->0 boundary edge itself, and OFFSET=#30xx is drawn from C0=0. The
+// paired CRTC-0 chronogram (section 20.3.1, same page) with identical bus
+// timing leaves OFFSET=#10xx. So the type-1 row-0 reload ("VMA is loaded
+// with R12/R13 while C4=0") catches a write whose register update coincides
+// with the reload edge, while the type-0 frame load misses it. Expectations
+// derived on paper from the chronograms.
+void test_type1_r12_write_on_row0_boundary_edge_reloads(TestBench& test) {
+    test.set_crtc_type(1);
+
+    // Normal frame: 64 characters/line (R0=63), 39 character rows (R4=38),
+    // 8 scanlines/row (R9=7), no vertical adjust (R5=0): 312 lines/frame.
+    constexpr RegisterProgram kNormalRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 0},  {6, 25}, {7, 30}, {8, 0},    {9, 7},
+    }};
+    program_registers(test, kNormalRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    // Leave R12 selected so the timed writes below need no bus traffic that
+    // would disturb the character alignment (reset() re-aligns the phase).
+    test.select_register(12);
+    test.reset();
+
+    // 312*64 edges reach the genuine frame start; 63 more land on cell 63
+    // of line 0, so the write below consumes the line 0 -> line 1 boundary
+    // edge itself. MA has incremented once per edge since the origin.
+    test.run_characters(312 * 64 + 63);
+    test.expect_ma("type 1 fixture reaches line 0 cell 63 running from R12/R13",
+                   0x1234 + 63);
+    test.write_selected_register_at_clken(0x30);
+
+    // Section 20.3.2 chronogram 2: the same-edge write is caught -- the new
+    // R12 (0x30) with the still-stored R13 (0x34) loads at this boundary.
+    test.expect_ma(
+        "type 1 same-edge R12 write reloads (new R12, stored R13)", 0x3034);
+
+    // The next row-0 boundary reloads the stored pair; this also pins that
+    // the pre-fix model only caught the write one full line later.
+    test.run_characters(64);
+    test.expect_ma("type 1 next row-0 boundary carries the written R12", 0x3034);
+
+    // Mid-line writes keep the t20b behavior (regression continuity inside
+    // this vector): the R13 write lands on the edge entering cell 10 of
+    // line 2 (the phase-1 select consumes no CLKEN edge), and the next
+    // boundary reloads the updated pair.
+    test.select_register(13);
+    test.run_characters(9);
+    test.write_selected_register_at_clken(0x78);
+    test.run_characters(54);
+    test.expect_ma("type 1 mid-line R13 write still reloads at the boundary",
+                   0x3078);
+
+    // The frame origin is the same "C0 and C9 go to 0 and C4=0" event, so a
+    // write landing exactly there is caught by the same rule. R12 is 6 bits
+    // (DI[5:0]); the written 0x15 stays inside that range.
+    test.select_register(12);
+    test.run_characters(309 * 64 - 1);
+    test.write_selected_register_at_clken(0x15);
+    test.expect_ma(
+        "type 1 same-edge R12 write at the frame origin reloads", 0x1578);
+}
+
+void test_type0_r12_write_on_frame_origin_edge_is_missed(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // Same normal frame as t20a/t20j.
+    constexpr RegisterProgram kNormalRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 0},  {6, 25}, {7, 30}, {8, 0},    {9, 7},
+    }};
+    program_registers(test, kNormalRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(12);
+    test.reset();
+
+    // 311*64+63 edges land on cell 63 of the frame's last line (line 311,
+    // C9=7=R9 of row 38=R4), so the write below consumes the frame-origin
+    // edge itself.
+    test.run_characters(311 * 64 + 63);
+    test.write_selected_register_at_clken(0x30);
+
+    // Section 20.3.1 chronogram 2: the C4=C0=0 frame load samples the old
+    // R12/R13; the identically-timed write type 1 catches is missed here.
+    test.expect_ma(
+        "type 0 same-edge R12 write at the frame origin is not caught",
+        0x1234);
+
+    // "The updates of R12 and R13 are considered immediately" at the next
+    // C4=C0=0: one frame later the written R12 loads.
+    test.run_characters(312 * 64);
+    test.expect_ma("type 0 next frame origin loads the written R12", 0x3034);
+}
+
 void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     test.set_crtc_type(1);
 
@@ -5073,8 +5190,225 @@ void test_interlace_sync_leaves_ra_plain(TestBench& test) {
     }
 }
 
-}  // namespace
+// t24: type-1 IVM VSYNC positions (ACCC v1.10 section 19.5.3 p.208 table).
+//
+// R9=8 (even -> the row-pair line count R9+1 is odd), R7 on a chosen C4,
+// R8=3 held from a snapshot load (frame-boundary entry, no toggle stages,
+// so the MID-VSYNC field-vs-ParityFrame residual stays out of scope), and
+// R4=6: seven C4s per frame.  An odd C4 count is what makes consecutive
+// frames alternate their line sequences (section 19.8.2 p.225: ParityC9
+// toggles at every C9/R9 match including the frame-boundary wrap, so an
+// odd number of matches per frame flips the frame-start C9) -- the table's
+// even frame opens C4=0 at C9=0 (5-line C4 rows) and its odd frame opens
+// at C9=1 (4-line C4 rows), 32 and 31 lines per frame respectively.  The
+// table's VSYNC boxes pin the start line for every R7 on each frame
+// parity; type 1 applies no delay correction (unlike CRTC 0/3/4,
+// section 19.5.2 pp.206-207), so with R7 on an odd C4 the pulse sits one
+// frame-line earlier on the odd frame -- the documented permanent 1-line
+// VSYNC gap.
 
+void test_type1_ivm_vsync_gap_r7_odd_c4(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 6},
+        {5, 0},  {6, 25}, {7, 1},   {8, 0},   {9, 8},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_characters(2);
+
+    // Snapshot-load R8=3: IVM engages with ParityFrame=0, so the first
+    // frame runs the table's EVEN FRAME column (C4=0 at C9=0,2,4,6,8).
+    const std::array<std::uint8_t, 10> snapshot = {
+        63, 40, 46, 0x11, 6, 0, 25, 1, 3, 8,
+    };
+    test.load_snapshot_registers(snapshot);
+
+    // Even frame (32 lines): the VSYNC box for R7=1 sits at (C4,C9)=(1,1),
+    // the first line of C4=1 -- frame-line 5 after the five C4=0 lines
+    // (0,2,4,6,8).  Walk line by line, sampling mid-line; the pulse holds
+    // 16 lines (type-1 fixed width) and ends before line 21.
+    test.run_characters(30);
+    test.expect_vsync_low("t24a even frame line 0: VSYNC quiet before the gap start");
+    test.run_characters(34);
+    for (unsigned line = 1; line <= 31; ++line) {
+        test.run_characters(32);
+        const bool expect_high = line >= 5 && line <= 20;
+        if (expect_high) {
+            test.expect_vsync_high("t24a even frame line " + std::to_string(line) +
+                                   " (R7=1 gap start at line 5, 16 lines)");
+        } else {
+            test.expect_vsync_low("t24a even frame line " + std::to_string(line) +
+                                  " outside the (1,1)-anchored pulse");
+        }
+        if (line == 5) {
+            test.expect_c4("t24a even frame pulse starts on C4=1", 1);
+            test.expect_ra("t24a even frame pulse starts at C9=1 (table box (1,1))", 1);
+        }
+        test.run_characters(32);
+    }
+
+    // Odd frame (31 lines): C4=0 runs only four lines (1,3,5,7), so the
+    // first line of C4=1 is frame-line 4 and the table's box sits at
+    // (1,0).  No delay correction: the pulse is one frame-line earlier
+    // than on the even frame, and the 1-line gap repeats permanently.
+    for (unsigned line = 0; line <= 30; ++line) {
+        test.run_characters(32);
+        const bool expect_high = line >= 4 && line <= 19;
+        if (expect_high) {
+            test.expect_vsync_high("t24a odd frame line " + std::to_string(line) +
+                                   " (R7=1 gap start at line 4, 16 lines)");
+        } else {
+            test.expect_vsync_low("t24a odd frame line " + std::to_string(line) +
+                                  " outside the (1,0)-anchored pulse");
+        }
+        if (line == 4) {
+            test.expect_c4("t24a odd frame pulse starts on C4=1", 1);
+            test.expect_ra("t24a odd frame pulse starts at C9=0 (table box (1,0))", 0);
+        }
+        test.run_characters(32);
+    }
+}
+
+void test_type1_ivm_vsync_no_gap_r7_even_c4(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 6},
+        {5, 0},  {6, 25}, {7, 2},   {8, 0},   {9, 8},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_characters(2);
+    const std::array<std::uint8_t, 10> snapshot = {
+        63, 40, 46, 0x11, 6, 0, 25, 2, 3, 8,
+    };
+    test.load_snapshot_registers(snapshot);
+
+    // Contrast from the same table: with R7=2 (even C4) both frames start
+    // the pulse on frame-line 9 -- the first line of C4=2 arrives after
+    // 5+4 lines on the even frame and 4+5 on the odd frame, so no gap.
+    // Even frame box (2,0): C9=0; odd frame box (2,1): C9=1.  The VSYNC
+    // assertions are known-divergence forms: the current model misses both
+    // fires because vsync_line_fire tests the plain C9==R9 (false at the
+    // (1,7) wrap) and the field=1 MID-VSYNC arm requires RA==0 (false at
+    // (2,1)); the counters themselves are pinned by plain assertions.
+    test.run_characters(30);
+    test.expect_vsync_low("t24b even frame line 0: VSYNC quiet");
+    test.run_characters(34);
+    for (unsigned line = 1; line <= 31; ++line) {
+        test.run_characters(32);
+        const bool expect_high = line >= 9 && line <= 24;
+        if (line == 9) {
+            test.expect_c4("t24b even frame pulse starts on C4=2", 2);
+            test.expect_ra("t24b even frame pulse starts at C9=0 (table box (2,0))", 0);
+        }
+        if (expect_high) {
+            test.expect_vsync_high("t24b even frame line " + std::to_string(line) +
+                                   " (R7=2 pulse from line 9, 16 lines)");
+        } else {
+            test.expect_vsync_low("t24b even frame line " + std::to_string(line) +
+                                  " outside the (2,0)-anchored pulse");
+        }
+        test.run_characters(32);
+    }
+    for (unsigned line = 0; line <= 30; ++line) {
+        test.run_characters(32);
+        const bool expect_high = line >= 9 && line <= 24;
+        if (line == 9) {
+            test.expect_c4("t24b odd frame pulse starts on C4=2", 2);
+            test.expect_ra("t24b odd frame pulse starts at C9=1 (table box (2,1))", 1);
+        }
+        if (expect_high) {
+            test.expect_vsync_high("t24b odd frame line " + std::to_string(line) +
+                                   " (R7=2 pulse from line 9, 16 lines)");
+        } else {
+            test.expect_vsync_low("t24b odd frame line " + std::to_string(line) +
+                                  " outside the (2,1)-anchored pulse");
+        }
+        test.run_characters(32);
+    }
+}
+
+// t24c: type-1 IVM MID-VSYNC half-line phase (ACCC v1.10 section 19.5.3
+// p.208 prose: "If ParityFrame is even, then an additional line and a
+// MID-VSYNC are scheduled. If ParityFrame is odd, then no additional line
+// and no MID-VSYNC."; the type-0 Note on p.207 states the same half-line
+// rule as "the VSYNC occurs in the middle of the line on C0 = R0/2").
+// t24b's register set (R7=2): the pulse's first line is frame-line 9 on
+// both parities. The ParityFrame-even frame must start the pulse at the
+// half-line tick (low at C0=20, high at C0=40) and end it at the half-line
+// tick 16 lines later (high at C0=20 of line 25, low at C0=40); the
+// ParityFrame-odd frame starts and ends at line seams (high/high on line 9,
+// low/low on line 25).
+
+void test_type1_ivm_mid_vsync_half_line_phase(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 6},
+        {5, 0},  {6, 25}, {7, 2},   {8, 0},   {9, 8},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_characters(2);
+    const std::array<std::uint8_t, 10> snapshot = {
+        63, 40, 46, 0x11, 6, 0, 25, 2, 3, 8,
+    };
+    test.load_snapshot_registers(snapshot);
+
+    // Sample helper: from a line start, land at C0=20, sample, land at
+    // C0=40, sample, complete the line.
+    test.run_characters(18);
+    test.expect_vsync_low("t24c even frame line 0: VSYNC quiet");
+    test.run_characters(44);
+    for (unsigned line = 1; line <= 31; ++line) {
+        test.run_characters(20);
+        if (line == 9) {
+            test.expect_vsync_low(
+                "t24c even frame line 9 at C0=20: MID-VSYNC starts at the half-line tick");
+        }
+        if (line == 25) {
+            test.expect_vsync_high(
+                "t24c even frame line 25 at C0=20: pulse still up before the half-line tick");
+        }
+        test.run_characters(20);
+        if (line == 9) {
+            test.expect_vsync_high(
+                "t24c even frame line 9 at C0=40: MID-VSYNC pulse is up");
+        }
+        if (line == 25) {
+            test.expect_vsync_low(
+                "t24c even frame line 25 at C0=40: pulse ends at the half-line tick");
+        }
+        test.run_characters(24);
+    }
+    for (unsigned line = 0; line <= 30; ++line) {
+        test.run_characters(20);
+        if (line == 9) {
+            test.expect_vsync_high(
+                "t24c odd frame line 9 at C0=20: seam start is already up");
+        }
+        if (line == 25) {
+            test.expect_vsync_low(
+                "t24c odd frame line 25 at C0=20: seam end already down");
+        }
+        test.run_characters(20);
+        if (line == 9) {
+            test.expect_vsync_high("t24c odd frame line 9 at C0=40: pulse is up");
+        }
+        if (line == 25) {
+            test.expect_vsync_low("t24c odd frame line 25 at C0=40: pulse is down");
+        }
+        test.run_characters(24);
+    }
+}
+
+}  // namespace
 //============================================================================
 //  Randomized equivalence soak
 //
@@ -5561,6 +5895,12 @@ int main(int argc, char** argv) {
         {"t20i_type0_r0_zero_live_entry_reloads_vma_then_freezes",
          "ACCC v1.10 sections 13.2.6, 13.8.3, and 20.3.1; F5/F12/F11h (A3)",
          false, test_type0_r0_zero_live_entry_reloads_vma_then_freezes},
+        {"t20j_type1_r12_write_on_row0_boundary_edge_reloads",
+         "ACCC v1.10 section 20.3.2 p.242 chronogram 2; F11h", false,
+         test_type1_r12_write_on_row0_boundary_edge_reloads},
+        {"t20k_type0_r12_write_on_frame_origin_edge_is_missed",
+         "ACCC v1.10 section 20.3.1 p.242 chronogram 2; F11h", false,
+         test_type0_r12_write_on_frame_origin_edge_is_missed},
         {"t10a_type0_r1_gt_r0_spurious_border_byte",
          "ACCC v1.10 sections 17.6.2, 17.6.1, and 17.2; F6", false,
          test_type0_r1_gt_r0_spurious_border_byte},
@@ -5698,6 +6038,15 @@ int main(int argc, char** argv) {
         {"t23c_interlace_sync_leaves_ra_plain",
          "ACCC v1.10 section 19.3.2.1 p.199 (INTERLACE SYNC does not touch the raster address); F10/N-9",
          false, test_interlace_sync_leaves_ra_plain},
+        {"t24a_type1_ivm_vsync_gap_r7_odd_c4",
+         "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=1 odd) with section 19.8.2 p.225 alternation",
+         false, test_type1_ivm_vsync_gap_r7_odd_c4},
+        {"t24b_type1_ivm_vsync_no_gap_r7_even_c4",
+         "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=2 even) with section 19.8.2 p.225 alternation",
+         false, test_type1_ivm_vsync_no_gap_r7_even_c4},
+        {"t24c_type1_ivm_mid_vsync_half_line_phase",
+         "ACCC v1.10 section 19.5.3 p.208 prose (MID-VSYNC on the ParityFrame-even frame); p.207 Note",
+         false, test_type1_ivm_mid_vsync_half_line_phase},
     };
 
     unsigned passed = 0;
