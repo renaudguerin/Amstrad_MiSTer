@@ -27,8 +27,13 @@ never gates a commit.
 
 ## Hardware-test milestone
 
-`b533a93` (the P4 merge plus its docs) is the newest successfully
-synthesized code milestone: GitHub Actions run `32905405634`
+The P4 work merged twice on 2026-08-25 (`0dabcb8`, then `85b0eaa` with
+review pass-2 remediations; see the open review-debt row for pass 3).
+Exact synthesis ran green at the engine tip `e3dd848`/`69e5d91`
+(run `32902476483`: 71 % ALMs / +0.436 ns setup) and again at the first
+merge tip; a fresh dispatch re-confirms at `85b0eaa`.
+
+`b533a93` was the first merge's synthesized milestone: GitHub Actions run `32905405634`
 (2026-08-25, Quartus 17.0.2, workflow_dispatch at the merge tip) passed
 simulation, policy, exact synthesis and the required gate. Fitter:
 29,893 / 41,910 ALMs (71 %); 37,506 registers; 685,217 block-memory bits
