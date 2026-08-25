@@ -109,6 +109,8 @@ int run() {
 
 	bool saw_mode3 = false;
 	bool done_checked = false, done_checked2 = false;
+	unsigned vec_samples = 0;
+	bool vec_ok = false;
 	bool fired = false, cleared_after_ack = false;
 	uint8_t prev_mode = 0xFF;
 
@@ -163,6 +165,27 @@ int run() {
 		if (*b.cpu_done() && !fired && b.cyc > kFireTimeout)
 			fail("m4: no Plus interrupt reached the CPU pin before timeout");
 
+		if (getenv("MOBO_TRACE") && (b.cyc % 32) == 0 && b.cyc < 3600)
+			std::printf("[scr] cyc=%llu step=%u done=%d a=%04x ivr=%02x\n",
+			            (unsigned long long)b.cyc,
+			            (unsigned)*b.cpu_step(), (int)*b.cpu_done(),
+			            b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__a,
+			            (unsigned)b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__ivr_r);
+		// m6: during any Z80-style acknowledge cycle the motherboard must
+		// present (IVR & F8) | source on the CPU data bus. The script
+		// wrote IVR=0xDA -> base 0xD8; raster-pending adds %110 -> 0xDE.
+		// The prime acknowledge legitimately sees nothing pending (0xD8);
+		// at least one pending-ack sample must show the raster vector.
+		if (b.dut.vec_valid_o) {
+			const uint8_t v = b.dut.vec_byte_o;
+			if (v != 0xD8 && v != 0xDE)
+				fail("m6: illegal ack-cycle vector byte " +
+				     std::to_string(v) + " at cyc " +
+				     std::to_string(b.cyc));
+			if (v == 0xDE) vec_ok = true;
+			vec_samples++;
+		}
+
 		if (!done_checked2 && *b.cpu_done()) {
 			done_checked2 = true;
 			const auto* ram = b.spr_ram();
@@ -191,6 +214,10 @@ int run() {
 	}
 
 	std::printf("PASS m4: Plus interrupt fires into the CPU pin and clears on acknowledge\n");
+	if (!vec_ok || vec_samples < 2)
+		fail("m6: no raster-source vector observed on acknowledge cycles");
+	std::printf("PASS m6: INT-acknowledge vector byte 0xDE over %u samples\n",
+	            vec_samples);
 	return 0;
 }
 

@@ -19,7 +19,9 @@ module p1_mobo_bench_top (
 	output [1:0] green_o,
 	output [1:0] blue_o,
 	output       vsync_field,
-	input        asic_page_on
+	input        asic_page_on,
+	output [7:0] vec_byte_o,
+	output       vec_valid_o
 );
 	reg [1:0] cdiv;
 	always @(posedge clk) begin
@@ -42,6 +44,8 @@ module p1_mobo_bench_top (
 		.plus_aspage_on(asic_page_on),
 		.plus_asic_dout(),
 		.plus_asic_rd(),
+		.plus_vec_byte(vec_byte_o),
+		.plus_vec_valid(vec_valid_o),
 
 		.joy1(7'd0),
 		.joy2(7'd0),

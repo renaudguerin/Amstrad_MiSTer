@@ -76,7 +76,17 @@ module asic_regs
 	// was raster" — the merger owns the persistent level (set on a raster
 	// acknowledge, cleared by the next non-raster acknowledge) and this
 	// module only reflects it.
-	input        intack_raster
+	input        intack_raster,
+
+	// Interrupt-vector supply (reference §7): on every INT acknowledge the
+	// ASIC drives (IVR & &F8) | source onto the data bus, raster highest
+	// priority. DMA sources land with P7; until then the source field is
+	// raster (%110) whenever a raster interrupt is pending — the no-
+	// pending behaviour is unspecified on hardware (named assumption).
+	input        intack,        // M1 & IORQ cycle in progress
+	input        int_pending,   // raster interrupt asserted (INT_N low)
+	output [7:0] vec_byte,
+	output       vec_valid      // high while the vector occupies the bus
 );
 
 	//------------------------------------------------------------------
@@ -356,6 +366,12 @@ module asic_regs
 
 	assign D_out = rdata | {8{~renable}};
 	assign pal_rdata = pal_r;
+
+	// Vector byte: (IVR & &F8) | source; source = %110 (raster) while a
+	// raster interrupt pends (reference §7 table; DMA codes arrive P7).
+	wire [7:0] vec_src = ivr_r & 8'hF8;
+	assign vec_byte  = vec_src | (int_pending ? 8'h06 : 8'h00);
+	assign vec_valid = intack;
 
 	// Video-side read port (registered, independent of the CPU port).
 	// Own reset here: a second always writing this reg must carry the
