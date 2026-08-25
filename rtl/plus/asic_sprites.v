@@ -91,7 +91,7 @@ module asic_sprites
 	// magnification nibble {xcode,ycode} at [n*4 +: 4].
 	input [159:0] SPR_X,
 	input [143:0] SPR_Y,
-	input  [31:0] SPR_MAG,
+	input  [63:0] SPR_MAG,
 
 	// Sprite colour entries 17..31 from the ASIC palette: colour c (1..15)
 	// at [(c-1)*12 +: 12], word layout {G,R,B} (reference §6).
@@ -140,6 +140,7 @@ reg [2:0]  c_xsh  [0:15];   // xmag shift
 reg [9:0]  c_diff [0:15];   // vline - Y (10-bit modular)
 reg [3:0]  c_srow [0:15];   // source row index within the image
 reg [15:0] c_lact;          // line-active (vertical window) mask
+reg [15:0] c_ena;           // sprite enabled (both mag codes nonzero)
 
 integer i;
 always @(*) begin
@@ -154,8 +155,8 @@ always @(*) begin
 		c_wid[i]  = 7'd16 << c_xsh[i];
 		c_hgt[i]  = 10'd16 << c_ysh[i];
 		c_diff[i] = vline - {{2{SPR_Y[i*9+8]}}, SPR_Y[i*9 +: 8]};
-		c_lact[i] = (c_xc[i] != 2'd0) && (c_yc[i] != 2'd0) &&
-		            (c_diff[i] < c_hgt[i]);
+		c_ena[i]  = (c_xc[i] != 2'd0) && (c_yc[i] != 2'd0);
+		c_lact[i] = c_ena[i] && (c_diff[i] < c_hgt[i]);
 		c_srow[i] = c_diff[i][5:0] >> c_ysh[i];  // diff < hgt keeps [3:0]
 	end
 end
@@ -174,15 +175,8 @@ end
 
 reg  [9:0]   hp;
 reg  [15:0]  sx_on;
-reg  [95:0]  sx_cnt;    // 6 bits per sprite: dots consumed inside window
+reg  [111:0] sx_cnt;   // 7 bits per sprite: dots consumed (up to 64)
 reg  [159:0] xs_q;      // X shadows (rewrite detection)
-
-// Boundary snapshots latched at each character seam: the post-edge window
-// state and the upcoming character's hp base. The demand calculator reads
-// these, so it sees one stable picture for the whole character.
-reg  [9:0]  dm_hp;
-reg  [15:0] dm_on;
-reg  [95:0] dm_cnt;
 
 reg [3:0] blank_cnt [0:15];
 
@@ -193,24 +187,24 @@ reg [15:0] c_wact;      // emission window open this dot
 reg [5:0]  c_t    [0:15];
 reg [3:0]  c_spix [0:15];// source pixel index = t >> xshift
 reg [15:0] n_on;        // next-state window enables
-reg [95:0] n_cnt;
+reg [111:0] n_cnt;
 
 always @(*) begin
 	for (i = 0; i < 16; i = i + 1) begin
 		c_xeq[i] = (hp == c_xa[i]);
 		c_chg[i] = (xs_q[i*10 +: 10] != c_xa[i]);
-		c_t[i]   = c_xeq[i] ? 6'd0 : sx_cnt[i*6 +: 6];
+		c_t[i]   = c_xeq[i] ? 6'd0 : sx_cnt[i*7 +: 7];
 		c_spix[i]= c_t[i] >> c_xsh[i];
 		n_on[i]  = c_xeq[i] ||
 		           (sx_on[i] && !c_chg[i] &&
-		            ({1'b0, sx_cnt[i*6 +: 6]} != c_wid[i]));
+		            ({1'b0, sx_cnt[i*7 +: 7]} != c_wid[i]));
 		if (c_xeq[i])
-			n_cnt[i*6 +: 6] = 6'd1;
+			n_cnt[i*7 +: 7] = 7'd1;
 		else if (sx_on[i] && !c_chg[i] &&
-		         ({1'b0, sx_cnt[i*6 +: 6]} != c_wid[i]))
-			n_cnt[i*6 +: 6] = sx_cnt[i*6 +: 6] + 6'd1;
+		         ({1'b0, sx_cnt[i*7 +: 7]} != c_wid[i]))
+			n_cnt[i*7 +: 7] = sx_cnt[i*7 +: 7] + 7'd1;
 		else
-			n_cnt[i*6 +: 6] = sx_cnt[i*6 +: 6];
+			n_cnt[i*7 +: 7] = sx_cnt[i*7 +: 7];
 	end
 	c_wact = n_on & ~c_chg;
 end
@@ -219,32 +213,21 @@ always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		hp     <= 10'd0;
 		sx_on  <= 16'd0;
-		sx_cnt <= 96'd0;
+		sx_cnt <= 112'd0;
 		xs_q   <= 160'd0;
-		dm_hp  <= 10'd0;
-		dm_on  <= 16'd0;
-		dm_cnt <= 96'd0;
 	end
 	else if (PIXEN) begin
 		if (CLKEN && HWRAP) begin
 			hp     <= 10'd0;      // seams close every window
 			sx_on  <= 16'd0;
-			sx_cnt <= 96'd0;
+			sx_cnt <= 112'd0;
 			xs_q   <= SPR_X;
-			dm_hp  <= 10'd0;
-			dm_on  <= 16'd0;
-			dm_cnt <= 96'd0;
 		end
 		else begin
 			hp    <= hp + 10'd1;
 			sx_on <= n_on;
 			sx_cnt<= n_cnt;
 			xs_q  <= SPR_X;
-			if (CLKEN) begin      // character boundary: snapshot
-				dm_hp  <= hp + 10'd1;  // base of the upcoming character
-				dm_on  <= n_on;
-				dm_cnt <= n_cnt;
-			end
 		end
 	end
 end
@@ -283,38 +266,12 @@ end
 reg  [7:0]   rb_dat [0:255];
 reg  [255:0] sreq;             // requested (or delivered)
 reg  [255:0] sdone;            // delivered (usable for emission)
-reg  [31:0]  srowtag;          // staged row index per {sprite,bank}
-reg  [31:0]  sval;             // bank contents are tagged/meaningful
+reg  [127:0] srowtag;          // [meta*4 +: 4]: staged row per {sprite,bank}
+reg  [31:0]  sval;             // [meta]: bank contents are tagged/meaningful
 reg  [15:0]  abit;             // active (emitting) bank per sprite
 
 reg         d1w;               // one clock after the seam (taps = new line)
 reg         d2w;               // two clocks after (post-swap state visible)
-
-// Urgent demand for the UPCOMING character (from the boundary snapshots).
-reg [15:0] c_dem;              // sprite demands urgent bytes this character
-reg [3:0]  c_db0  [0:15];
-reg [3:0]  c_db1  [0:15];
-reg        c_dtwo [0:15];
-reg [9:0]  c_dlo  [0:15];
-reg [9:0]  c_dhi  [0:15];
-
-always @(*) begin
-	for (i = 0; i < 16; i = i + 1) begin
-		if (dm_on[i])
-			c_dlo[i] = {4'd0, dm_cnt[i*6 +: 6]};   // < 64 by construction
-		else
-			c_dlo[i] = c_xa[i] - dm_hp;            // modular arm offset
-		// Window extent inside the upcoming character:
-		// [dlo, min(dlo+16, width)).
-		c_dhi[i] = ((c_dlo[i] + 10'd16) < {3'd0, c_wid[i]}) ?
-		           (c_dlo[i] + 10'd16) : {3'd0, c_wid[i]};
-		c_dem[i] = (c_xc[i] != 2'd0) &&
-		           (dm_on[i] || (c_dlo[i] < 10'd16));
-		c_db0[i] = (c_dlo[i]       >> c_xsh[i]) >> 3;
-		c_db1[i] = ((c_dhi[i] - 10'd1) >> c_xsh[i]) >> 3;
-		c_dtwo[i] = (c_db1[i] != c_db0[i]);
-	end
-end
 
 // Speculation health: a predicted next row exists iff the vertical window
 // continues onto the next compare line.
@@ -324,93 +281,43 @@ always @(*) begin
 		c_predok[i] = c_lact[i] && ((c_diff[i] + 10'd1) < c_hgt[i]);
 end
 
-// First missing speculative byte per sprite (lowest index wins) against
-// the INACTIVE bank.
-reg [2:0]  fmiss [0:15];
-reg [15:0] fmissv;
-integer b;
-always @(*) begin
-	fmissv = 16'd0;
-	for (i = 0; i < 16; i = i + 1) begin
-		fmiss[i] = 3'd0;
-		for (b = 7; b >= 0; b = b - 1) begin
-			if (!sreq[{i[3:0], ~abit[i], b[2:0]}] &&
-			    !sdone[{i[3:0], ~abit[i], b[2:0]}]) begin
-				fmiss[i]  = b[2:0];
-				fmissv[i] = 1'b1;
-			end
-		end
-	end
-end
-
-// Walk FSM: slots 0..31 urgent (sprite, first/second demanded byte of the
-// upcoming character against the ACTIVE bank); slots 32..63 speculative
-// (two lowest missing bytes per sprite against the INACTIVE bank).
-reg  [5:0] walk;
+// Walk FSM: slots 0..31 emission-critical (first/second missing byte of
+// the ACTIVE bank); slots 32..63 speculative (two lowest missing bytes of
+// the INACTIVE bank). Both halves wrap continuously.
+reg  [7:0] walk;
 reg        walk_act;
-wire [3:0] wk_s    = walk[4:1];
-wire       wk_spec = walk[5];
-wire       wk_slot = walk[0];
+wire [3:0] wk_s    = walk[6:3];
+wire       wk_spec = walk[7];   // 0: ACTIVE banks, 1: INACTIVE (spec)
+wire [2:0] wk_byte = walk[2:0];
 wire       wk_go   = walk_act &&
-                     (wk_spec ?
-                         (fmissv[wk_s] &&
-                          sval[{wk_s[3:0], ~abit[wk_s]}]) :
-                         (c_dem[wk_s] &&
-                          ((wk_slot == 1'b0) || c_dtwo[wk_s])));
-wire [3:0] wk_byte = wk_spec ? fmiss[wk_s] :
-                     (wk_slot ? c_db1[wk_s] : c_db0[wk_s]);
-wire [3:0] wk_bank = wk_spec ? ~abit[wk_s] : abit[wk_s];
+                     c_ena[wk_s] &&
+                     (walk[7] ? sval[{wk_s[3:0], ~abit[wk_s]}] : 1'b1);
+wire       wk_bank = wk_spec ? ~abit[wk_s] : abit[wk_s];
 wire [7:0] wk_word = {wk_s, wk_bank, wk_byte};
-wire [3:0] wk_row  = wk_spec ? srowtag[{wk_s[3:0], ~abit[wk_s]}]
+wire [3:0] wk_row  = wk_spec ? srowtag[{wk_s[3:0], ~abit[wk_s]}*4 +: 4]
                              : c_srow[wk_s];
 
-// Fetch FIFO (power-of-two cells; one kept spare so a 4-bit counter
-// covers 0..15 entries).
-localparam FDEPTH = 4'd15;
-reg  [18:0] fq_mem [0:15];     // {word[7:0], ram_addr[10:0]}
-reg  [3:0]  fq_head, fq_tail, fq_cnt;
+// The walker IS the port server: a fresh candidate is issued straight
+// into the request registers (no intermediate queue); the walk stalls
+// while a grant is in flight, giving roughly one byte every other clock —
+// ample against the demand budget in the header note.
 reg  [7:0]  fq_tag;            // word of the request currently on the port
 wire        do_pop  = FQ_REQ && FQ_ACK;
 
 wire [7:0]  pb_word  = wk_word;
 wire        pb_fresh = wk_go && !sreq[pb_word] && !sdone[pb_word];
 
-// Same-edge hazards between the single-word FIFO mutations:
-//  - a chained next-entry read (completion with more pending) collides
-//    with a push landing on the very next cell;
-//  - an initial issue from idle reads the head cell a first-element push
-//    is writing on that edge.
-// Both resolve by skipping the overlapping action for one clock; the
-// deferred byte is re-demanded at the next opportunity (self-healing).
-wire chain_read   = do_pop && (fq_cnt != 4'd1);
-// do_pop only fires on a previously issued request, so the count never
-// underflows; fullness is an equality test to keep lint quiet.
-wire pb_space     = pb_fresh && ((fq_cnt != FDEPTH) || do_pop);
-wire pb_hazard    = pb_space && chain_read &&
-                    (fq_tail == (fq_head + 4'd1));
-wire issue_hazard = pb_space && !FQ_REQ && (
-                    ((fq_cnt == 4'd0) && !do_pop) ||
-                    ((fq_cnt == 4'd1) &&  do_pop));
-wire pb_apply     = pb_space && !pb_hazard;
-
-// Writeback loses to a same-edge seam swap or access flush: bytes
-// delivered for an outgoing configuration must not outlive it.
-wire wb_hit = do_pop && !d1w;
-
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		sreq    <= 256'd0;
 		sdone   <= 256'd0;
-		srowtag <= 32'd0;
+		srowtag <= 128'd0;
 		sval    <= 32'd0;
 		abit    <= 16'd0;
 		d1w     <= 1'b0;
 		d2w     <= 1'b0;
-		walk    <= 6'd0;
+		walk    <= 8'd0;
 		walk_act<= 1'b0;
-		fq_head <= 4'd0;
-		fq_tail <= 4'd0;
-		fq_cnt  <= 4'd0;
 		FQ_REQ  <= 1'b0;
 		FQ_ADDR <= 11'd0;
 		fq_tag  <= 8'd0;
@@ -427,29 +334,69 @@ always @(posedge CLOCK) begin
 		//------------------------------------------------------------
 		if (d1w) begin
 			for (i = 0; i < 16; i = i + 1) begin
-				if (!(sval[{i[3:0], ~abit[i]}] &&
-				      (srowtag[{i[3:0], ~abit[i]}] == c_srow[i]))) begin
-					sdone[{i[3:0], ~abit[i]} * 8 +: 8] <= 8'd0;
-					sreq [{i[3:0], ~abit[i]} * 8 +: 8] <= 8'd0;
-					srowtag[{i[3:0], ~abit[i]}] <= c_srow[i];
+				if (!c_ena[i]) begin
+					// Disabled sprite: no banks staged, nothing
+					// promoted or speculated (sval stays clear so
+					// re-enabling refills from scratch).
+					sval [{i[3:0], abit[i]}]   <= 1'b0;
+					sval [{i[3:0], ~abit[i]}]  <= 1'b0;
 				end
-				sval [{i[3:0], ~abit[i]}] <= 1'b1;
-				abit[i] <= ~abit[i];
-				if (c_predok[i]) begin
-					sdone[{i[3:0], abit[i]} * 8 +: 8] <= 8'd0;
-					sreq [{i[3:0], abit[i]} * 8 +: 8] <= 8'd0;
-					srowtag[{i[3:0], abit[i]}] <= c_srow[i] + 4'd1;
-					sval [{i[3:0], abit[i]}]   <= 1'b1;
+				else if (sval[{i[3:0], ~abit[i]}] &&
+				         (srowtag[{i[3:0], ~abit[i]}*4 +: 4]
+				          == c_srow[i])) begin
+					// ZERO-MISS PROMOTE: speculation prefilled
+					// the other bank with exactly this row.
+					abit[i] <= ~abit[i];
+					if (c_predok[i]) begin
+						sdone[{i[3:0], abit[i]}*8 +: 8] <= 8'd0;
+						sreq [{i[3:0], abit[i]}*8 +: 8] <= 8'd0;
+						srowtag[{i[3:0], abit[i]}*4 +: 4]
+							<= c_srow[i] + 4'd1;
+						sval [{i[3:0], abit[i]}] <= 1'b1;
+					end
+					else begin
+						sval [{i[3:0], abit[i]}] <= 1'b0;
+					end
+				end
+				else if (sval[{i[3:0], abit[i]}] &&
+				         (srowtag[{i[3:0], abit[i]}*4 +: 4]
+				          == c_srow[i])) begin
+					// KEEP: the running bank already shows this
+					// row (row repeated across the seam); ready
+					// the idle bank for speculating next row.
+					if (c_predok[i]) begin
+						sdone[{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
+						sreq [{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
+						srowtag[{i[3:0], ~abit[i]}*4 +: 4]
+							<= c_srow[i] + 4'd1;
+						sval [{i[3:0], ~abit[i]}] <= 1'b1;
+					end
+					else begin
+						sval [{i[3:0], ~abit[i]}] <= 1'b0;
+					end
 				end
 				else begin
-					sval [{i[3:0], abit[i]}] <= 1'b0;
+					// REFILL: neither bank holds this row —
+					// promote-and-retag the other bank; the
+					// outgoing bank becomes the speculation
+					// target for the predicted next row.
+					sdone[{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
+					sreq [{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
+					srowtag[{i[3:0], ~abit[i]}*4 +: 4] <= c_srow[i];
+					sval [{i[3:0], ~abit[i]}] <= 1'b1;
+					abit[i] <= ~abit[i];
+					if (c_predok[i]) begin
+						sdone[{i[3:0], abit[i]}*8 +: 8] <= 8'd0;
+						sreq [{i[3:0], abit[i]}*8 +: 8] <= 8'd0;
+						srowtag[{i[3:0], abit[i]}*4 +: 4]
+							<= c_srow[i] + 4'd1;
+						sval [{i[3:0], abit[i]}] <= 1'b1;
+					end
+					else begin
+						sval [{i[3:0], abit[i]}] <= 1'b0;
+					end
 				end
 			end
-		end
-
-		if (wb_hit) begin
-			rb_dat[fq_tag] <= FQ_DATA;
-			sdone[fq_tag]  <= 1'b1;
 		end
 
 		//------------------------------------------------------------
@@ -463,47 +410,47 @@ always @(posedge CLOCK) begin
 		end
 
 		//------------------------------------------------------------
-		// Port server: issue head entry, chain on completion.
+		// Port completion: the handshake ALWAYS completes (dropping it
+		// would wedge REQ high); the payload write alone yields to a
+		// same-edge seam swap or access flush, since bytes answered for
+		// an outgoing configuration must not outlive it.
 		//------------------------------------------------------------
-		if (FQ_REQ) begin
-			if (do_pop) begin
-				fq_head <= fq_head + 4'd1;
-				if (chain_read && !pb_hazard) begin
-					FQ_ADDR <= fq_mem[fq_head + 4'd1][10:0];
-					fq_tag  <= fq_mem[fq_head + 4'd1][18:11];
-				end
-				else begin
-					FQ_REQ <= 1'b0;
-				end
+		if (do_pop) begin
+			FQ_REQ <= 1'b0;
+			if (!d1w && !ACC_EN) begin
+				rb_dat[fq_tag] <= FQ_DATA;
+				sdone[fq_tag]  <= 1'b1;
 			end
-		end
-		else if ((fq_cnt != 4'd0) && !issue_hazard) begin
-			FQ_ADDR <= fq_mem[fq_head][10:0];
-			fq_tag  <= fq_mem[fq_head][18:11];
-			FQ_REQ  <= 1'b1;
 		end
 
 		//------------------------------------------------------------
-		// Demand walk: one candidate per clock keeps every counter
-		// single-writer. Starts one clock after a seam (post-swap state)
-		// and at every mid-line character boundary.
+		// Walker-server: runs CONTINUOUSLY once armed (urgent slots
+		// first, then speculative), wrapping 0..255; one candidate per
+		// clock with a one-clock stall per in-flight grant. A per-
+		// boundary restart would never reach the speculative half
+		// within one character period, which starved prefilling.
 		//------------------------------------------------------------
 		if (!walk_act) begin
-			if (d2w || (CLKEN && !HWRAP && PIXEN)) begin
+			if (d2w) begin
 				walk_act <= 1'b1;
 				walk     <= 6'd0;
 			end
 		end
-		else begin
-			if (pb_apply) begin
-				fq_mem[fq_tail] <= {pb_word, wk_s, wk_row, wk_byte};
-				fq_tail <= fq_tail + 4'd1;
+		else if (!FQ_REQ) begin
+			if (pb_fresh) begin
+				FQ_ADDR <= {wk_s, wk_row, wk_byte};
+				fq_tag  <= pb_word;
+				FQ_REQ  <= 1'b1;
 				sreq[pb_word] <= 1'b1;
 			end
-			walk <= walk + 6'd1;
-			if (walk == 6'd63) walk_act <= 1'b0;
+			// Whole 16-slot sprite blocks of disabled sprites are
+			// skipped in a single clock so lap time scales with the
+			// number of ENABLED sprites, not 16.
+			if (!c_ena[wk_s])
+				walk <= {walk[7:4] + 8'd1, 4'd0};
+			else
+				walk <= walk + 8'd1;
 		end
-		fq_cnt <= fq_cnt + {3'd0, pb_apply} - {3'd0, do_pop};
 	end
 end
 
@@ -518,18 +465,20 @@ end
 //----------------------------------------------------------------------
 
 reg [15:0] c_opq;
+reg [4:0]  c_meta [0:15];
 reg [7:0]  c_wsel [0:15];
 reg [7:0]  c_word [0:15];
 reg [3:0]  c_nibv [0:15];
 
 always @(*) begin
 	for (i = 0; i < 16; i = i + 1) begin
+		c_meta[i] = {i[3:0], abit[i]};
 		c_wsel[i] = {i[3:0], abit[i], c_spix[i][3:1]};
 		c_word[i] = rb_dat[c_wsel[i]];
 		c_nibv[i] = c_spix[i][0] ? c_word[i][7:4] : c_word[i][3:0];
 		c_opq[i]  = c_wact[i] && c_lact[i] &&
-		            sval[c_wsel[i][7:3]] &&
-		            (srowtag[c_wsel[i][7:3]] == c_srow[i]) &&
+		            sval[c_meta[i]] &&
+		            (srowtag[c_meta[i]*4 +: 4] == c_srow[i]) &&
 		            sdone[c_wsel[i]] &&
 		            (c_nibv[i] != 4'd0) &&
 		            (blank_cnt[i] == 4'd0);
