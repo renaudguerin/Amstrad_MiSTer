@@ -85,9 +85,14 @@ module Amstrad_motherboard
 
 	output  [1:0] mode,
 
-	output  [1:0] red,
-	output  [1:0] green,
-	output  [1:0] blue,
+	// 4-bit-per-channel video (P2 widening). In Plus mode these carry the
+	// ASIC palette's native 4-bit levels. In classic mode the low two bits
+	// hold the netlist's raw {level, OE_N} pair unchanged — the consumption
+	// point (color_mix) keeps its exact GA-DAC behaviour; the upper bits
+	// are zero there.
+	output  [3:0] red,
+	output  [3:0] green,
+	output  [3:0] blue,
 	output        hblank,
 	output        vblank,
 	output        hsync,
@@ -376,18 +381,6 @@ always @(posedge clk) begin
 	end
 end
 
-// P1 temporary adapter: asic_video's legacy-colour table only emits levels
-// {0, 6, 15}, which map losslessly onto the motherboard's {level, OE_N}
-// pairs (00 = black, 01 = mid, 1x = full). P2 widens this path to true
-// 4-bit-per-channel RGB when the ASIC palette lands.
-function [1:0] lvl4_to_ga;
-	input [3:0] v;
-	begin
-		lvl4_to_ga = (v >= 4'd15) ? 2'b10 :
-		             (v >= 4'd6)  ? 2'b01 : 2'b00;
-	end
-endfunction
-
 wire [14:0] crtc_vram_addr = {ma_sel[13:12], ra_sel[2:0], ma_sel[9:0]};
 
 reg vram_bs;
@@ -453,14 +446,15 @@ crt_filter crt_filter
 	.SHIFT(crtc_shift)
 );
 
-// Screen mode and RGB: classic netlist outputs by default, locked-ASIC
-// equivalents under plus_mode (RGB adapted per lvl4_to_ga above).
+// Screen mode and RGB: classic netlist pair passes through in the low
+// bits (consumption-point conversion), locked-ASIC 4-bit levels are
+// native (P2 widening; the temporary lvl4_to_ga adapter is gone).
 wire [1:0] ga_mode;
 wire [1:0] ga_red, ga_green, ga_blue;
 assign mode  = plus_mode ? plus_gamode : ga_mode;
-assign red   = plus_mode ? lvl4_to_ga(plus_rgb_r) : ga_red;
-assign green = plus_mode ? lvl4_to_ga(plus_rgb_g) : ga_green;
-assign blue  = plus_mode ? lvl4_to_ga(plus_rgb_b) : ga_blue;
+assign red   = plus_mode ? plus_rgb_r : {2'b00, ga_red};
+assign green = plus_mode ? plus_rgb_g : {2'b00, ga_green};
+assign blue  = plus_mode ? plus_rgb_b : {2'b00, ga_blue};
 
 // CPU/expansion phase enables follow the selected machine. The ASIC path
 // replicates ga40010's timing contract cycle-exactly today (asic_ga_timing
