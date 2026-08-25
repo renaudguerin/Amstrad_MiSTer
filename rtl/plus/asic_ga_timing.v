@@ -229,6 +229,13 @@ module asic_ga_timing
 
 	wire irq_reset = ctrl_en & D[4];
 
+	// Explicit RTL resets for inksel/inkr: without these the power-up
+	// values would be whatever the simulator/FPGA init gives them. Zero
+	// matches the classic FPGA power-up state; the real ASIC power-up
+	// contents are undocumented (named assumption, header comment above).
+	// The !reset guards keep the reset dominant while leaving every write
+	// a top-level if — the else-wrapped form trips an internal error in
+	// older Verilator (5.020 V3Gate ICE).
 	always @(posedge clk) begin
 		if (reset) border <= 5'b10000;
 		else if (border_en) border <= D[4:0];
@@ -236,17 +243,12 @@ module asic_ga_timing
 		if (reset) {hromen, lromen, mode1, mode0} <= 4'd0;
 		else if (ctrl_en) {hromen, lromen, mode1, mode0} <= D[3:0];
 
-		// Explicit RTL resets: without these the power-up values would be
-		// whatever the simulator/FPGA init gives them. Zero matches the
-		// classic FPGA power-up state; the real ASIC power-up contents are
-		// undocumented (named assumption, header comment above).
 		if (reset) begin
 			inksel <= 5'd0;
 			inkr   <= 80'd0;
-		end else begin
-			if (ink_en)  inksel <= D[4:0];
-			if (inkr_en) inkr[inksel[3:0]*5 +: 5] <= D[4:0];
 		end
+		if (!reset && ink_en)  inksel <= D[4:0];
+		if (!reset && inkr_en) inkr[inksel[3:0]*5 +: 5] <= D[4:0];
 	end
 
 	assign BORDER_O  = border;
