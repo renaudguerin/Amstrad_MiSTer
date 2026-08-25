@@ -217,7 +217,7 @@ wire [4:0]  plus_ra;
 wire        plus_int_n;
 wire        plus_ready, plus_ras_n, plus_cas_n, plus_cpu_n;
 wire        plus_cclk_en_p, plus_cclk_en_n;
-wire        plus_phi_en_p, plus_phi_en_n;
+wire        plus_phi_en_p, plus_phi_en_n, plus_phi_n;
 wire        plus_hsync_o, plus_vsync_o, plus_vblank;
 wire [4:0]  asic_border;
 wire [79:0] asic_inkr;
@@ -252,7 +252,7 @@ asic_ga_timing asic_ga
 	.CCLK(),
 	.CCLK_EN_P(plus_cclk_en_p),
 	.CCLK_EN_N(plus_cclk_en_n),
-	.PHI_N(),
+	.PHI_N(plus_phi_n),
 	.PHI_EN_N(plus_phi_en_n),
 	.PHI_EN_P(plus_phi_en_p),
 	.RAS_N(plus_ras_n),
@@ -420,6 +420,16 @@ assign red   = plus_mode ? lvl4_to_ga(plus_rgb_r) : ga_red;
 assign green = plus_mode ? lvl4_to_ga(plus_rgb_g) : ga_green;
 assign blue  = plus_mode ? lvl4_to_ga(plus_rgb_b) : ga_blue;
 
+// CPU/expansion phase enables follow the selected machine. The ASIC path
+// replicates ga40010's timing contract cycle-exactly today (asic_ga_timing
+// lockstep bench), so this mux is behaviour-neutral now; it makes asic_ga
+// the Plus-mode owner so any deliberate Plus timing delta lands everywhere
+// at once (CPU, crt_filter CE, expansion header).
+wire ga_phi_n, ga_phi_en_n, ga_phi_en_p;
+assign phi_n    = plus_mode ? plus_phi_n    : ga_phi_n;
+assign phi_en_n = plus_mode ? plus_phi_en_n : ga_phi_en_n;
+assign phi_en_p = plus_mode ? plus_phi_en_p : ga_phi_en_p;
+
 ga40010 GateArray (
 	.clk(clk),
 	.cen_16(ce_16),
@@ -437,9 +447,9 @@ ga40010 GateArray (
 	.CCLK(),
 	.CCLK_EN_P(ga_cclk_en_p),
 	.CCLK_EN_N(ga_cclk_en_n),
-	.PHI_N(phi_n),
-	.PHI_EN_N(phi_en_n),
-	.PHI_EN_P(phi_en_p),
+	.PHI_N(ga_phi_n),
+	.PHI_EN_N(ga_phi_en_n),
+	.PHI_EN_P(ga_phi_en_p),
 	.RAS_N(ga_ras_n),
 	.CAS_N(ga_cas_n),
 	.READY(ga_ready_o),
