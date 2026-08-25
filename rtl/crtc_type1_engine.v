@@ -88,6 +88,10 @@ module crtc_type1_engine
 
 	// Video pointer reload / save decisions.
 	output           reload,
+	// The section 20.3.2 row-0 arm of reload alone (frame origin and every
+	// non-final row-0 line boundary).  The wrapper loads this term from the
+	// post-edge register file so a same-edge R12/R13 write is caught.
+	output           row0_reload,
 	output           row_addr_save,
 
 	// Output-stage terms.
@@ -398,6 +402,7 @@ wire crtc1_adj_row1_reload = CRTC_TYPE & (crtc1_adj_entry_from_row0 | (in_adj & 
 wire crtc1_row0_reload = CRTC_TYPE & (frame_new_w | (~line_row_structure_last & !row & !hcc_next));
 wire crtc1_rfd_reload = CRTC_TYPE & rfd_vma_active & !hcc_next;
 assign reload = crtc1_row0_reload | crtc1_adj_row1_reload | crtc1_rfd_reload;
+assign row0_reload = crtc1_row0_reload;
 
 // The VMA' save shares the line-limit test, parity included while IVM is
 // active (ACCC v1.10 section 19.8.1 p.220 Note: the C9=R9 / C9.VMA='R9 or

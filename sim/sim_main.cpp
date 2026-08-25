@@ -4305,8 +4305,7 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
 // timing leaves OFFSET=#10xx. So the type-1 row-0 reload ("VMA is loaded
 // with R12/R13 while C4=0") catches a write whose register update coincides
 // with the reload edge, while the type-0 frame load misses it. Expectations
-// derived on paper from the chronograms; the type-1 same-edge assertions
-// use the known-divergence forms until the behavior commit.
+// derived on paper from the chronograms.
 void test_type1_r12_write_on_row0_boundary_edge_reloads(TestBench& test) {
     test.set_crtc_type(1);
 
@@ -4334,7 +4333,7 @@ void test_type1_r12_write_on_row0_boundary_edge_reloads(TestBench& test) {
 
     // Section 20.3.2 chronogram 2: the same-edge write is caught -- the new
     // R12 (0x30) with the still-stored R13 (0x34) loads at this boundary.
-    test.expect_known_ma(
+    test.expect_ma(
         "type 1 same-edge R12 write reloads (new R12, stored R13)", 0x3034);
 
     // The next row-0 boundary reloads the stored pair; this also pins that
@@ -4343,21 +4342,24 @@ void test_type1_r12_write_on_row0_boundary_edge_reloads(TestBench& test) {
     test.expect_ma("type 1 next row-0 boundary carries the written R12", 0x3034);
 
     // Mid-line writes keep the t20b behavior (regression continuity inside
-    // this vector): R13 written on the edge entering cell 11 of line 2.
+    // this vector): the R13 write lands on the edge entering cell 10 of
+    // line 2 (the phase-1 select consumes no CLKEN edge), and the next
+    // boundary reloads the updated pair.
     test.select_register(13);
     test.run_characters(9);
     test.write_selected_register_at_clken(0x78);
-    test.run_characters(53);
+    test.run_characters(54);
     test.expect_ma("type 1 mid-line R13 write still reloads at the boundary",
                    0x3078);
 
     // The frame origin is the same "C0 and C9 go to 0 and C4=0" event, so a
-    // write landing exactly there is caught by the same rule.
+    // write landing exactly there is caught by the same rule. R12 is 6 bits,
+    // so the written 0x15 truncates DI[5:0].
     test.select_register(12);
-    test.run_characters(309 * 64 - 2);
-    test.write_selected_register_at_clken(0x40);
-    test.expect_known_ma(
-        "type 1 same-edge R12 write at the frame origin reloads", 0x4078);
+    test.run_characters(309 * 64 - 1);
+    test.write_selected_register_at_clken(0x15);
+    test.expect_ma(
+        "type 1 same-edge R12 write at the frame origin reloads", 0x1578);
 }
 
 void test_type0_r12_write_on_frame_origin_edge_is_missed(TestBench& test) {
@@ -5665,7 +5667,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 13.2.6, 13.8.3, and 20.3.1; F5/F12/F11h (A3)",
          false, test_type0_r0_zero_live_entry_reloads_vma_then_freezes},
         {"t20j_type1_r12_write_on_row0_boundary_edge_reloads",
-         "ACCC v1.10 section 20.3.2 p.242 chronogram 2; F11h", true,
+         "ACCC v1.10 section 20.3.2 p.242 chronogram 2; F11h", false,
          test_type1_r12_write_on_row0_boundary_edge_reloads},
         {"t20k_type0_r12_write_on_frame_origin_edge_is_missed",
          "ACCC v1.10 section 20.3.1 p.242 chronogram 2; F11h", false,
