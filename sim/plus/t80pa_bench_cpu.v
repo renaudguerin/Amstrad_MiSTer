@@ -58,6 +58,7 @@ module T80pa (
 	reg        int_d;
 	reg        primed;
 	reg        cyc_mem; // current scripted cycle is a memory cycle
+	reg [24:0] sbus;    // step_bus scratch (blocking-assigned, read same pass)
 
 	assign rfsh_n = 1'b1;
 
@@ -133,15 +134,17 @@ module T80pa (
 				if (cnt != 8'd0) begin
 					cnt <= cnt - 8'd1;
 				end else if (!dbg_done) begin
-					// Read the type bit straight from the function: cyc_mem
-					// would still hold last cycle's value here (NBA).
-					{cyc_mem, a, do} <= step_bus(step);
+					// Capture the step first: function-result bit-select
+					// is SystemVerilog, and cyc_mem would still hold last
+					// cycle's value here anyway (NBA semantics).
+					sbus   = step_bus(step);
+					{cyc_mem, a, do} <= sbus;
 					dbg_step         <= step;
 					wr_n   <= 1'b0;
 					rd_n   <= 1'b1;
 					m1_n   <= 1'b1;
-					iorq_n <= step_bus(step)[24] ? 1'b1 : 1'b0;
-					mreq_n <= step_bus(step)[24] ? 1'b0 : 1'b1;
+					iorq_n <= sbus[24] ? 1'b1 : 1'b0;
+					mreq_n <= sbus[24] ? 1'b0 : 1'b1;
 					cnt    <= HOLD;
 					st     <= S_CYC;
 				end else if (!primed) begin
