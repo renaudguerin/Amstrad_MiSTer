@@ -1,6 +1,6 @@
 # Independent review debt
 
-**Status: all rows cleared 2026-08-25** (the `accuracy/f11h-and-ivm-vsync-coverage` row
+**Status: one open row (`plus/p4-sprites`, below); all earlier rows cleared by 2026-08-25** (the `accuracy/f11h-and-ivm-vsync-coverage` row
 cleared by the same-day remediation after its NOT CLEAR verdict; the `accuracy/f10-fixtures`
 row cleared by the Claude Opus 5 review + remediation; all others cleared 2026-08-24). The
 pass-3 verification accepted the earlier remediations at reviewed tip `d64e449`, and the
@@ -12,6 +12,19 @@ Ox-Alpha-authored delta): pass 1 returned NOT CLEAR on two blocking findings, an
 cleared the remediation delta on 2026-08-24, after which the branch was merged into
 `accc-review-and-fixes`. Full record:
 `docs/accuracy/f7-r0-widening-independent-review.md`.
+
+## Open rows
+
+- `plus/p4-sprites` (merged 2026-08-25): the sprite-engine delta WAS
+  reviewed — Codex/GPT-5.6 Sol high returned NOT CLEAR with three blocking
+  findings, all remediated in `69e5d91` (suppressed-completion sreq
+  stranding; disabled-sprite walk jump crossing bank+sprite and starving
+  odd sprites; invalid out-of-window s11 assertion) — but the remediation
+  commit has not had a second pass, and vectors s11-s14 remain SKIPped on
+  one residual (post-flush cross-seam refill incompleteness; per-dot
+  traces documented in docs/current-status.md P4 section). Clear this row
+  with a follow-up pass covering 69e5d91 plus the re-enabled s11-s14 once
+  the refill defect closes.
 
 This file tracks work that was merged without the independent cross-provider review the
 project normally requires. It exists because that review was unavailable at the time, not

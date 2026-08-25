@@ -27,6 +27,11 @@ never gates a commit.
 
 ## Hardware-test milestone
 
+NOTE 2026-08-25: the P4 merge (`0dabcb8`) is newer than this milestone;
+its exact synthesis already ran green on `e3dd848`/`69e5d91`
+(run `32902476483`: 71 % ALMs / +0.436 ns setup), and a fresh dispatch on
+the parent will re-confirm at the merge tip. Historical paragraph:
+
 `5d6d342` is the newest successfully synthesized code milestone (GitHub Actions run
 `32852900420`, 2026-08-25, Quartus 17.0.2): the merge of `plus/p2-asic-regs`
 into this branch - P1 review follow-ups, the calibrated p1_video bench, the P2 ASIC
@@ -577,6 +582,10 @@ verification). ADC/DMA behaviour stays unmapped-rule until their phases.
 No-write-through into real SDRAM is enforced by the suppression terms and
 verified by construction/mux inspection; no bench drives the full top-level
 memory path yet.
+
+The branch was merged into `accc-review-and-fixes` on 2026-08-25 at merge
+commit `0dabcb8`; see the open review-debt row for the outstanding second
+pass over the post-review fix delta and the skipped-vector residual.
 
 ### P4 sprites — engine implemented on `plus/p4-sprites` (2026-08-25)
 
