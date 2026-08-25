@@ -133,6 +133,21 @@ was retired by the 2026-08-22 review:
   &2000,&2800,&3000,&3800 — C9 drives address bits 11-13, wrap at C9=8), not every 4 steps
   (p.81 table, render-verified 2026-08-24; corrects this digest's earlier "4 distinct
   addresses" misread).
+- RTL mapping (adjudicated 2026-08-25 against the renders and the code; vectors t25a-t25c):
+  the LINE column is the C9-driven segment of the **composed** address — §20.2 p.241 takes
+  bits 13:11 from C9[2:0], and the motherboard forms {MA[13:12], RA[2:0], MA[9:0]} — not the
+  CRTC module's raw MA port. That port keeps carrying the video pointer, which scans per
+  character inside adjustment lines: the PTR-VRAM column plus the p.83 prose ("updated with
+  the one that has been memorized when C0=R1 and C9=R9. (R1=40)") require the memorized value
+  to be line start + R1 (drawn for the capture line; uniform-mechanism inference elsewhere,
+  corroborated by the CRTC 1/2 +40-per-row progression). The core therefore already produced
+  the documented behavior when D1 landed — no RTL change, no soak move; t25a-t25c pin the
+  segment cycle, the single +R1 pointer step at the C9==R9 crossing, the constant pointer
+  between crossings, and the exit reload as required passes. **NOT PINNED by the source**
+  (recorded boundary): the absolute pointer value at the first adjustment line — the tables
+  normalize PTR-VRAM to 0 at entry, so "entry = last-row base" and "entry = base+R1 (the
+  entry-line capture applied; this core's plain-rule choice)" are both table-consistent.
+  Only source-supported deltas are asserted.
 - CRTC 1/2: C4 increments once per 4 C9-steps (11,12,13,14) while C5 counts 0..15 continuously
   across those increments; VRAM pointer still derives from **C9** (0..3 repeating), not C5
   (LINE period 4: &0,&800,&1000,&1800; PTR-VRAM steps 0,40,80,120 per C4 increment).

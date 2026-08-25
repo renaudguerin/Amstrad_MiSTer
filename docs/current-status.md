@@ -314,6 +314,25 @@ For a first MiSTer pass:
   (raw R8 mode vs latched engine IVM, 1-2 character window at toggles); N-2 folded into
   action item A4; N-7 covered by synthesis-on-merge. Review-debt row cleared 2026-08-25.
 
+- D1 follow-up, p.81 type-0 adjustment addressing (2026-08-25, this branch): the D1
+  correction's RTL premise did not survive verification. The p.81 LINE column is the
+  C9-driven segment of the *composed* VRAM address (§20.2 p.241 takes bits 13:11 from
+  C9[2:0]; `Amstrad_motherboard.v` forms `{MA[13:12], RA[2:0], MA[9:0]}`), not the CRTC
+  module's raw MA port — that port carries the video pointer, which must scan per character
+  because the p.83 prose's memorized value is line start + R1. The wrapper already produced
+  the documented behavior (C9 counts to R5 at the seam limit, RA=C9 feeds the composition,
+  save/restore gives the pointer steps), so Item A of the session brief landed as
+  **required-pass pins, not a fix**: `t25a` (period-8 segment cycle, wrap at C9=8, DE-off
+  caveat pinned), `t25b` (constant pointer between crossings, single +R1 step at the C9==R9
+  crossing, within-line scan), `t25c` (exit resets C4/C9 and reloads R12/R13). Bite-tested:
+  reverting the seam limit to R9-based fails exactly the t25 family plus the nine existing
+  t16/t08k adjustment guards. Soak unchanged at `0x63d9de100ac9f6f2` (no behavior change —
+  the brief's expected re-mint does not apply). Recorded NOT-PINNED boundary: the tables
+  normalize PTR-VRAM to 0 at adjustment entry, so the absolute entry pointer value
+  (last-row base vs base+R1, i.e. whether the entry line's own capture applies) is not
+  source-adjudicated; this core keeps the plain-rule entry capture and t25 asserts only
+  source-supported deltas. Full adjudication in `compendium-01-counters.md` §4.1.
+
 D1 is complete (2026-08-24): every remaining ⚠ VERIFY flag in the three digests was
 re-verified against the PDF (pdf-inspector Markdown primary, figures judged from rendered
 pages). Outcomes: most flags retired as confirmed; four genuine digest errors corrected —
