@@ -70,7 +70,13 @@ module asic_regs
 	output [11:0] pal_rdata,   // {R,G,B} nibbles
 
 	// Register bytes later phases consume (stored from P2 on)
-	output [7:0] pri, splt, sscr, ivr, ssa_hi, ssa_lo, dcsr
+	output [7:0] pri, splt, sscr, ivr, ssa_hi, ssa_lo, dcsr,
+
+	// Interrupt-merger interface (P3): DCSR bit 7 tracks "last INT ack
+	// was raster" — the merger owns the persistent level (set on a raster
+	// acknowledge, cleared by the next non-raster acknowledge) and this
+	// module only reflects it.
+	input        intack_raster
 );
 
 	//------------------------------------------------------------------
@@ -98,7 +104,15 @@ module asic_regs
 	reg [11:0] pal_r;
 
 	// Raster/interrupt/DMA register bytes (§3; behaviour lands P3/P6/P7).
-	reg [7:0] pri_r, splt_r, sscr_r, ivr_r, ssa_hi_r, ssa_lo_r, dcsr_r;
+	reg [7:0] pri_r, splt_r, sscr_r, ivr_r, ssa_hi_r, ssa_lo_r;
+	// DCSR fields (reference §9): bit7 read-only status driven by the
+	// interrupt merger; bits 6:4 DMA flags write-1-to-clear; bits 2:0
+	// channel enables plain R/W. intack_dma is the merger's non-raster
+	// status sampled for reads.
+	// dcsr_stat is the merger's persistent last-ack-was-raster level.
+	reg       dcsr_stat;
+	reg [2:0] dcsr_flags;
+	reg [2:0] dcsr_ena;
 	// SAR/PPR bytes are stored from P2 so P7 needs no back-channel; the
 	// DMA engine consumes them directly.
 	/* verilator lint_off UNUSEDSIGNAL */
@@ -113,7 +127,7 @@ module asic_regs
 	assign ivr    = ivr_r;
 	assign ssa_hi = ssa_hi_r;
 	assign ssa_lo = ssa_lo_r;
-	assign dcsr   = dcsr_r;
+	assign dcsr = {dcsr_stat | intack_raster, dcsr_flags, 1'b0, dcsr_ena};
 
 	//------------------------------------------------------------------
 	// Legacy colour translation (reference §6): fixed ROM table, [KT]
@@ -193,7 +207,9 @@ module asic_regs
 			ivr_r    <= 8'b00000001; // bit0=1 at reset (§3/§7)
 			ssa_hi_r <= 8'd0;
 			ssa_lo_r <= 8'd0;
-			dcsr_r   <= 8'd0;
+			dcsr_stat  <= 1'b0;
+			dcsr_flags <= 3'd0;
+			dcsr_ena   <= 3'd0;
 			sar_lo[0]<= 8'd0; sar_hi[0] <= 8'd0; ppr[0] <= 8'd0;
 			sar_lo[1]<= 8'd0; sar_hi[1] <= 8'd0; ppr[1] <= 8'd0;
 			sar_lo[2]<= 8'd0; sar_hi[2] <= 8'd0; ppr[2] <= 8'd0;
@@ -208,7 +224,7 @@ module asic_regs
 			leg_inkr_q   <= {80{1'b1}}; // != reset INKR: forces first translate
 			leg_border_q <= 5'b11111;   // != reset border 16
 		end
-		else if (asic_cs) begin
+		if (asic_cs) begin
 			if (mem_wr) begin
 				if (wsel == 2'b00) begin
 					// Sprite pixel data, masked to the low nibble (§3/§4).
@@ -257,7 +273,10 @@ module asic_regs
 						4'h8: sar_lo[2] <= D_in;
 						4'h9: sar_hi[2] <= D_in;
 						4'hA: ppr[2]    <= D_in;
-						4'hF: dcsr_r    <= D_in; // writable ONLY at &6C0F (§4)
+						4'hF: begin // writable ONLY at &6C0F (reference §4)
+							dcsr_flags <= dcsr_flags & ~D_in[6:4]; // w1c (§9)
+							dcsr_ena   <= D_in[2:0];
+						end // bit7 is merger-driven, not CPU-writable
 						default: ; // &6C03/&6C0B-&6C0E unused (§3)
 						endcase
 					end
@@ -325,7 +344,7 @@ module asic_regs
 				else if (r_dma) begin
 					// DCSR readable across the whole &6C00-&6C0F range;
 					// SAR/PPR are not readable (§4).
-					rdata   = dcsr_r;
+					rdata   = {dcsr_stat | intack_raster, dcsr_flags, 1'b0, dcsr_ena};
 					renable = 1'b1;
 				end
 				// &6800-&6807 are write-only: reads fall through to open
@@ -352,7 +371,7 @@ module asic_regs
 	initial begin
 		pri_r = 8'd0; splt_r = 8'd0; sscr_r = 8'd0;
 		ivr_r = 8'b00000001; ssa_hi_r = 8'd0; ssa_lo_r = 8'd0;
-		dcsr_r = 8'd0;
+		dcsr_stat = 1'b0; dcsr_flags = 3'd0; dcsr_ena = 3'd0;
 		leg_inkr_q = {80{1'b1}};
 		leg_border_q = 5'b11111;
 		pal_r = 12'd0;
