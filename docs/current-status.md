@@ -767,8 +767,11 @@ front end.
     interrupts (PRI/DCSR/IVR) are done on `plus/p2-asic-regs`, synthesized green at
     `3d7a178`. Next Plus steps: the manual hardware checkpoint (real `.cpr` boot,
     a static-palette title for P2's exit, a raster-split title for P3's; classic
-    re-checked side by side), then finish P4 sprites (engine landed on
-    `plus/p4-sprites`; s11-s14 skipped vectors + mobo m8 remain, see the P4
-    section above). The branch carries unreviewed work per standing session
-    instructions; order cross-provider review(s) before merging.
+    re-checked side by side), then finish P4 sprites: engine + s01-s10 +
+    t06/a09/a10 landed and synthesized green at `e3dd848` (71 % ALMs);
+    remaining P4 work is the s11-s14 skipped vectors (phantom sprite-0
+    winner under multi-sprite load — start from the proven public-flat-rw
+    leaf-test probe setup) and mobo-bench m8; see the P4 section above.
+    The branch carries unreviewed work per standing session instructions;
+    order cross-provider review(s) before merging.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
