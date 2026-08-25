@@ -614,7 +614,17 @@ proven; start there. Also open from this phase: mobo-bench m8 end-to-end
 sprite vector, and the INKR-effects ~1/2-us-late GA pipeline question noted
 in P1 remains deferred.
 
-Fitter utilisation will be recorded after the milestone CI dispatch.
+Milestone CI (workflow_dispatch run `32892544906`, Quartus 17.0.2,
+commit `e3dd848`): simulation, policy, exact synthesis all green.
+Fitter: 29,893 / 41,910 ALMs (71 %); 37,506 registers; 685,217
+block-memory bits (12 %); 34 / 112 DSP blocks; worst-case setup slack
++0.436 ns, hold +0.179 ns — positive; no regression signal. Versus the
+P2/P3 merge milestone (`5d6d342`: 16,198 ALMs / 39 %) the ~13,700-ALM
+growth is the sprite staging arrays (dual 8-byte banks x 16 sprites with
+request/delivery bitmaps) plus the engine datapath landing in fabric for
+the first time; memory bits unchanged (staging is flop-based by design).
+RBF retained as artifact `Amstrad-build-104-1`
+(`Amstrad_20260825_e3dd848.rbf`). Not hardware-tested.
 
 ### P3 interrupts — implemented on `plus/p2-asic-regs` (2026-08-25)
 
