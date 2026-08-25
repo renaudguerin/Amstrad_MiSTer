@@ -147,11 +147,7 @@ MOBO_TEST_BIN := $(MOBO_OBJ_DIR)/p1_mobo_bench_tests
 
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
-	$(GADIFF_TEST_BIN) $(MOBO_TEST_BIN)
-# p1_video_tests builds but is deliberately NOT in the default gate yet:
-# its stimulus/sampling calibration is unfinished (see docs/current-status.md,
-# P1 pixel-phase item). Run it explicitly via: make p1-video-bench
-OPTIN_BINS := $(P1VID_TEST_BIN)
+	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -162,7 +158,7 @@ all: test
 
 build: $(TEST_BINS)
 
-# Opt-in benches under active development; not part of `make -C sim`.
+# Convenience alias; the bench itself runs in the default gate.
 p1-video-bench: $(P1VID_TEST_BIN)
 	./$(P1VID_TEST_BIN)
 
@@ -178,6 +174,7 @@ test: $(TEST_BINS)
 	./$(MMU_TEST_BIN)
 	./$(P0BOOT_TEST_BIN)
 	./$(GADIFF_TEST_BIN)
+	./$(P1VID_TEST_BIN)
 	./$(MOBO_TEST_BIN)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
