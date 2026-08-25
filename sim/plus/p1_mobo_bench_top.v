@@ -15,13 +15,15 @@ module p1_mobo_bench_top (
 	output [1:0] mode_o,
 	output       hsync_o,
 	output       vsync_o,
-	output [1:0] red_o,
-	output [1:0] green_o,
-	output [1:0] blue_o,
+	output [3:0] red_o,
+	output [3:0] green_o,
+	output [3:0] blue_o,
 	output       vsync_field,
 	input        asic_page_on,
+	input        plus_mode_i,
 	output [7:0] vec_byte_o,
-	output       vec_valid_o
+	output       vec_valid_o,
+	output       asic_rd_o
 );
 	reg [1:0] cdiv;
 	always @(posedge clk) begin
@@ -36,16 +38,16 @@ module p1_mobo_bench_top (
 		.clk(clk),
 		.ce_16(ce_16),
 
-		.plus_mode(1'b1),
+		.plus_mode(plus_mode_i),
 		.plus_ram_128k(1'b0),
 		.plus_has_fdc(1'b0),
 		.plus_has_tape(1'b0),
 		.plus_mem_wait(1'b0),
 		.plus_aspage_on(asic_page_on),
 		.plus_asic_dout(),
-		.plus_asic_rd(),
 		.plus_vec_byte(vec_byte_o),
 		.plus_vec_valid(vec_valid_o),
+		.plus_asic_rd(asic_rd_o),
 
 		.joy1(7'd0),
 		.joy2(7'd0),

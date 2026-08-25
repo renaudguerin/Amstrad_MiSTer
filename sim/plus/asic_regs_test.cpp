@@ -108,6 +108,12 @@ public:
 	// straddle the C++ 64-bit boundary, so accumulate into three Verilator
 	// words explicitly.
 	void set_legacy(const uint8_t inks[16], uint8_t border) {
+		// Legacy writes arrive on the &7Fxx I/O port, which never asserts
+		// the page chip-select: keep cs low through the update so the test
+		// proves translation fires without any page access.
+		dut.asic_cs = 0;
+		dut.mem_rd = 0;
+		dut.mem_wr = 0;
 		uint64_t w01 = 0;
 		uint32_t w2 = 0;
 		for (unsigned k = 0; k < 16; ++k) {

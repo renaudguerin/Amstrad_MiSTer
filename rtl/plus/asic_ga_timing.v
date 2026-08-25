@@ -90,6 +90,7 @@ module asic_ga_timing
 	input  [7:0] pri,        // &6800 storage (asic_regs)
 	input  [8:0] crtc_line,  // {VC5..VC0, RC2..RC0} from asic_video
 	input        crtc_adj,   // vertical-adjust active: PRI never fires
+	input        intack,     // acknowledge cycle (M1 low with IORQ low)
 	output       int_last_raster, // persistent "last ack was raster" (DCSR b7)
 
 	// ---- Sync shaping / interrupts (mirrors ga40010 sync outputs) ----
@@ -468,9 +469,9 @@ module asic_ga_timing
 	// interrupt cannot occur within 32 lines ([KT]).
 	//------------------------------------------------------------------
 
-	wire mon_hsync_fall = hsync_o_q & ~HSYNC_O;
 	reg  hsync_o_q;
 	always @(posedge clk) hsync_o_q <= HSYNC_O;
+	wire mon_hsync_fall = hsync_o_q & ~HSYNC_O;
 
 	wire pri_line_match = (pri != 8'd0) &&
 	                      ({crtc_line[8], pri} == crtc_line);
@@ -490,11 +491,30 @@ module asic_ga_timing
 	reg  cnt5; // counter top bit, delayed one clk (block below drives it)
 	wire classic_fire = (pri == 8'd0) & ~intcnt_comb[5] & cnt5;
 
+	// DCSR bit 7 semantics (reference section 9): set if the LAST INT
+	// acknowledge was raster-sourced. The level therefore SETS on any
+	// fire and HOLDS through that interrupt's acknowledge — clearing it
+	// on int_reset inverted the rule and broke the documented
+	// read-DCSR-at-handler-head dispatch (review finding 3). It clears
+	// only when an acknowledge cycle completes with nothing pending.
+	// DCSR bit 7 semantics (reference section 9): set if the LAST INT
+	// acknowledge was raster-sourced. The level therefore SETS on any
+	// fire and HOLDS through that interrupt's acknowledge - clearing it
+	// on int_reset inverted the rule and broke the documented
+	// read-DCSR-at-handler-head dispatch (review finding 3). The clear
+	// samples the START of an acknowledge cycle whose INT_N is already
+	// high (nothing pending); sampling later would see INT_N risen by the
+	// irqack path and misread a raster acknowledge as empty.
+	reg  intack_d;
+	reg  ack_empty; // nothing pending at acknowledge start
 	reg last_raster;
 	always @(posedge clk) begin
-		if (reset)         last_raster <= 1'b0;
+		intack_d <= intack;
+		if (reset)                            ack_empty <= 1'b0;
+		else if (intack && !intack_d)         ack_empty <= INT_N;
+		if (reset)                            last_raster <= 1'b0;
 		else if (classic_fire || raster_fire) last_raster <= 1'b1;
-		else if (int_reset) last_raster <= 1'b0;
+		else if (!intack && intack_d && ack_empty) last_raster <= 1'b0;
 	end
 	assign int_last_raster = last_raster;
 

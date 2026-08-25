@@ -273,6 +273,7 @@ asic_ga_timing asic_ga
 	.pri(asic_pri),
 	.crtc_line({plus_vc[5:0], plus_rc[2:0]}),
 	.crtc_adj(plus_adj),
+	.intack(plus_mode & ~M1_n & iorq),
 	.int_last_raster(asic_int_last_raster),
 
 	.CCLK(),
@@ -354,12 +355,17 @@ wire [7:0] asic_regs_dout;
 wire       asic_regs_rd;
 wire [7:0] asic_pri;
 wire       asic_int_last_raster;
+// The page answers only under Plus mode: plus_mmu captures RMR2 without a
+// mode gate, so a classic program emitting the unlock sequence could
+// otherwise hijack the &4000-&7FFF data bus (review finding 5).
+wire asic_page_active = plus_mode & plus_aspage_on;
+
 asic_regs asic_page
 (
 	.clk(clk),
 	.reset(reset),
 
-	.asic_cs(plus_aspage_on & (A[15:14] == 2'b01)),
+	.asic_cs(asic_page_active & (A[15:14] == 2'b01)),
 	.mem_wr(mem_wr),
 	.mem_rd(mem_rd),
 	.A(A[13:0]),
@@ -375,13 +381,16 @@ asic_regs asic_page
 	.pri(asic_pri), .splt(), .sscr(), .ivr(),
 	.ssa_hi(), .ssa_lo(), .dcsr(),
 	.intack_raster(asic_int_last_raster),
-	.intack(~M1_n & iorq), // acknowledge cycle: M1 low with IORQ asserted
+	// Acknowledge cycle (M1 low with IORQ asserted), gated to Plus mode:
+	// classic machines deliver the stale wired-AND bus byte on ack, and
+	// the review found the ungated form hijacking classic cpu_din.
+	.intack(plus_mode & ~M1_n & iorq),
 	.int_pending(~plus_int_n),
 	.vec_byte(plus_vec_byte),
 	.vec_valid(plus_vec_valid)
 );
 assign plus_asic_dout = asic_regs_dout;
-assign plus_asic_rd   = plus_aspage_on & (A[15:14] == 2'b01) & mem_rd;
+assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
 
 // The caller uses plus_asic_rd to mux the CPU data bus and to suppress
 // main-memory read AND write cycles for the whole &4000-&7FFF window

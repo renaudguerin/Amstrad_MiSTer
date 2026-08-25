@@ -102,8 +102,9 @@ reg [15:0] stall_count;
 
 // Unlock-sequence detector: the published sequence rides writes to the CRTC
 // register-select port, which this core decodes as I/O writes with nCS=A14=0,
-// R_nW=A9=0 and RS=A8=0 (the &BCxx range and its aliases).
-wire unlock_write = io_wr & ~A[14] & ~A[9] & ~A[8];
+// R_nW=A9=0 and RS=A8=0 (the &BCxx range and its aliases). Gated to Plus
+// mode: classic software must never arm the detector (review finding 5).
+wire unlock_write = plus_mode & io_wr & ~A[14] & ~A[9] & ~A[8];
 
 asic_unlock unlock_detector
 (
@@ -140,7 +141,8 @@ always @(posedge clk) begin
 		romsel       <= 8'h00;
 	end
 	else begin
-		if (io_wr && !A[15] && A[14] && (D[7:5] == 3'b101) && unlocked) begin
+		if (plus_mode && io_wr && !A[15] && A[14] &&
+		    (D[7:5] == 3'b101) && unlocked) begin
 			// RMR2: D4D3 position (11 => &0000 + ASIC page on), D2-D0 page
 			rmr2_pos     <= (D[4:3] == 2'b11) ? 2'b00 : D[4:3];
 			rmr2_page    <= D[2:0];

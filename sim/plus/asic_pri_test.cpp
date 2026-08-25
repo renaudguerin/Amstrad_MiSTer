@@ -78,6 +78,7 @@ public:
 		dut.HSYNC_I = hs_i;
 		dut.VSYNC_I = 1;
 		dut.pri = pri;
+		dut.intack = (!iorq_n && !m1_n) ? 1 : 0;
 		// The real input comes from asic_video's VC/RC taps which wrap at
 		// their own widths; the bench counter is unbounded, so mask to the
 		// 9-bit port here.
@@ -106,6 +107,19 @@ public:
 	}
 
 	// MRER bit 4 write through the fast GA-port path clears any interrupt.
+	// Z80-style acknowledge with nothing pending: raises a stuck INT and,
+	// per the DCSR bit-7 rule, clears the last-ack-was-raster level.
+	void empty_ack() {
+		fast = true;
+		iorq_n = false;
+		m1_n = false;
+		for (unsigned i = 0; i < 96; ++i) tick();
+		iorq_n = true;
+		m1_n = true;
+		fast = false;
+		run(8);
+	}
+
 	void ga_mrer_clear() {
 		// fast=1 widens the register-latch window beyond the ring phase
 		// (same technique as the differential bench's ga_write).
@@ -135,21 +149,19 @@ void pr01_baseline(PriBench& b) {
 	b.power_on();
 	// Clear the simulator zero-init INT level so both measured fires are
 	// genuine events (same discipline as r02).
-	b.ga_mrer_clear();
+	b.empty_ack(); // clears the simulator zero-init INT level
 	if (b.dut.int_last_raster != 0)
-		fail("pr01: last-raster level should clear with the interrupt");
+		fail("pr01: last-raster level should be zero before any fire");
 	// Two consecutive fires must be exactly 52 lines apart (reference §7:
 	// PRI=0 keeps the normal Gate Array 52-line counter).
 	uint64_t t1 = wait_fire(b, "pr01 first", 120u * kLineClks);
 	if (b.dut.int_last_raster == 0)
 		fail("pr01: last-raster level not set by a classic fire");
-	// INT_N holds low until acknowledged: clear via MRER bit 4.
-	b.ga_mrer_clear();
-	if (b.dut.INT_N != 1) fail("pr01: MRER bit4 did not raise INT_N");
-	if (b.dut.int_last_raster != 0)
-		fail("pr01: last-raster level should clear with the interrupt");
-	if (b.dut.int_last_raster != 0)
-		fail("pr01: last-raster level should clear with the interrupt");
+	// INT_N holds low until acknowledged: an empty acknowledge raises it.
+	// The acknowledge consumes the pending raster interrupt, so the
+	// last-ack-was-raster level correctly persists (pinned by pr05).
+	b.empty_ack();
+	if (b.dut.INT_N != 1) fail("pr01: acknowledge did not raise INT_N");
 	uint64_t t2 = wait_fire(b, "pr01 second", 240u * kLineClks);
 	uint64_t dt = t2 - t1;
 	if (dt != 52u * kLineClks)
@@ -271,9 +283,47 @@ void pr04_mrer_clears_pri(PriBench& b) {
 	b.ga_mrer_clear();
 	if (b.dut.INT_N != 1)
 		fail("pr04: MRER bit4 must raise INT_N for a PRI interrupt");
+	if (b.dut.int_last_raster != 1)
+		fail("pr04: MRER is not an acknowledge: the level must persist");
+	b.empty_ack();
 	if (b.dut.int_last_raster != 0)
-		fail("pr04: last-raster level must clear with the interrupt");
+		fail("pr04: empty acknowledge must clear the level");
 	std::printf("PASS pr04: MRER bit4 clears a PRI raster interrupt\n");
+}
+
+//----------------------------------------------------------------------
+// pr05: DCSR bit-7 level semantics (reference section 9). The level sets
+// on a fire and HOLDS through that interrupt acknowledge — clearing on
+// the acknowledge itself inverted the documented read-DCSR-at-handler-
+// -head dispatch (review finding 3). It clears only when an acknowledge
+// completes with nothing pending.
+//----------------------------------------------------------------------
+void tick_pub(PriBench& b) { b.tick(); }
+
+void pr05_dcsr_level(PriBench& b) {
+	b.ga_mrer_clear();
+	wait_fire(b, "pr05", 800u * kLineClks);
+	if (b.dut.INT_N != 0) fail("pr05: INT should hold pending ack");
+	// Z80-style acknowledge of the pending raster interrupt.
+	b.fast = true;
+	b.iorq_n = false; b.m1_n = false;
+	for (unsigned i = 0; i < 32; ++i) tick_pub(b);
+	b.iorq_n = true; b.m1_n = true;
+	b.fast = false;
+	b.run(8);
+	if (b.dut.INT_N != 1) fail("pr05: ack did not raise INT");
+	if (b.dut.int_last_raster != 1)
+		fail("pr05: last-raster level must persist across its own ack");
+	// Empty acknowledge (nothing pending): the level clears.
+	b.fast = true;
+	b.iorq_n = false; b.m1_n = false;
+	for (unsigned i = 0; i < 32; ++i) tick_pub(b);
+	b.iorq_n = true; b.m1_n = true;
+	b.fast = false;
+	b.run(8);
+	if (b.dut.int_last_raster != 0)
+		fail("pr05: level must clear on an empty acknowledge");
+	std::printf("PASS pr05: last-raster level persists across its ack; empty ack clears\n");
 }
 
 } // namespace
@@ -286,6 +336,7 @@ int main(int argc, char** argv) {
 		pr02_pri_line(b);
 		pr03_adjustment_gate(b);
 		pr04_mrer_clears_pri(b);
+		pr05_dcsr_level(b);
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;
