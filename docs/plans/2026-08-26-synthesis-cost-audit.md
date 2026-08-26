@@ -36,15 +36,30 @@ The entire RTL delta between the cheap and expensive builds is 12 lines in
 `{walk[7], walk[6:3] + 4'd1, 3'd0}`.  One extra carry bit into the walk register flipped the
 fitter into a much harder problem.
 
-Implications for whoever touches this next:
+### Remediation outcome (2026-08-26, resolved as accepted cost)
 
-- The design sits just under a fitting threshold; small structural nudges can move fit cost
-  or slack disproportionately.  Treat any further sprite-walker datapath change as a
-  potential cliff event and compare fitter stage times against these baselines.
-- Timing is still met (+0.260 ns) but margin thinned from +0.734 ns in the same step.
-- If remediation is wanted, candidate directions (untested): compute the bank toggle outside
-  the same adder chain as the sprite field, or register the increment result a cycle earlier;
-  verify behaviour-preservation via an unchanged soak hash as usual.
+Direction 1 (bank toggle outside the sprite adder chain) was implemented on
+`plus/p4-sprites` at `c09534c` — sprite field wraps through a standalone 4-bit
+adder, half flips by `&walk[6:3]` decode-XOR, provably cycle-exact, all
+fourteen s-vectors green unchanged, cross-provider review CLEAR.  Measured by
+full-effort dispatch `32947815127`: map 2:54 / **fit 15:40** / asm 0:16 /
+sta 0:11 / flow 19:08 — inside the post-cliff band, not the ~9-minute one.
+Falsifies the carry-chain hypothesis: what doubled the cost is that `walk[7]`
+gained *any* next-state logic coupling it to the sprite field.  Cheap builds
+had a pass-through half bit; both cliff forms (carried or decoded) give the
+register an 8-bit coupled ring spanning the two bank halves.
+
+Direction 2 (register the increment a cycle earlier) is rejected without a
+probe: it adds a cycle to the walker loop, which is exactly the latency the
+s11 recovery model and s14 bandwidth-capacity vectors pin; correctness risk
+outweighs a fitter-time saving whose operational pain is already bounded by
+the smoke tier (routine pushes fit in ~10:41 observed).
+
+Standing conclusion for whoever revisits: the lever is decoupling the two
+walker halves structurally (e.g. per-half counters with a defined lap order),
+not re-expressing the increment — and any such change is a behaviour change
+requiring its own vectors.  The `c09534c` form is kept as the readable
+equivalent; the RTL comment there records this measurement.
 
 ## What was considered and rejected
 
