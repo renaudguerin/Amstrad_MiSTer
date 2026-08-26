@@ -126,7 +126,8 @@ module asic_regs
 	output [7:0] sar1_lo, output [7:0] sar1_hi, output [7:0] ppr1, output sar1_wr,
 	output [7:0] sar2_lo, output [7:0] sar2_hi, output [7:0] ppr2, output sar2_wr,
 	output [2:0] dcsr_ena_out,
-	input  [2:0] dcsr_ena_clr
+	input  [2:0] dcsr_ena_clr,
+	output       dma_int_req
 );
 
 	//------------------------------------------------------------------
@@ -138,33 +139,37 @@ module asic_regs
 	// FPGA power-up init provides the defined-zero model assumption.
 	reg [3:0] spr_ram [0:4095];
 
-	// Sprite position/magnification: raw written fields kept for the exact
-	// read-back rules (§4). spr_mag is stored from P2 for the P4 sprite
-	// engine, which consumes it directly.
-	/* verilator lint_off UNUSEDSIGNAL */
+	// Sprite attribute registers (§3/§4):
+	//   &6000 + 8*n: X low  8 bits
+	//   &6001 + 8*n: X high 2 bits (bits 1:0; top 6 bits ignored/zero)
+	//   &6002 + 8*n: Y low  8 bits
+	//   &6003 + 8*n: Y high 1 bit  (bit 0; top 7 bits ignored/zero)
+	//   &6004 + 8*n: magnification (bits 3:0; top 4 bits ignored/zero)
+	// &6005-&6007: unused per-sprite offsets (writes ignored, open bus)
 	reg [7:0] spr_x_lo [0:15];
 	reg [1:0] spr_x_hi [0:15];
 	reg [7:0] spr_y_lo [0:15];
 	reg       spr_y_hi [0:15];
 	reg [7:0] spr_mag  [0:15];
-	/* verilator lint_on UNUSEDSIGNAL */
 
-	// Palette: 32 entries × 12 bits {R,G,B} (§6).
+	// Palette entries 0..31 (§6): 12-bit RGB {G[3:0], R[3:0], B[3:0]}
+	//   even byte (&6400+2*c): {R[3:0], B[3:0]}
+	//   odd  byte (&6401+2*c): {4'b0,   G[3:0]}
+	// Initialized to zero (black) by POR (§6).
 	reg [11:0] pal [0:31];
 	reg [11:0] pal_r;
 
-	// Raster/interrupt/DMA register bytes (§3; behaviour lands P3/P6/P7).
-	reg [7:0] pri_r, splt_r, sscr_r, ivr_r, ssa_hi_r, ssa_lo_r;
-	// DCSR fields (reference §9): bit7 read-only status driven by the
-	// interrupt merger; bits 6:4 DMA flags write-1-to-clear; bits 2:0
-	// channel enables plain R/W. intack_dma is the merger's non-raster
-	// status sampled for reads.
-	// dcsr_stat is the merger's persistent last-ack-was-raster level.
+	// Control / status registers (§3/§7)
+	reg [7:0] pri_r;
+	reg [7:0] splt_r;
+	reg [7:0] sscr_r;
+	reg [7:0] ivr_r;
+	reg [7:0] ssa_hi_r;
+	reg [7:0] ssa_lo_r;
 	reg       dcsr_stat;
-	reg [2:0] dcsr_flags;
-	reg [2:0] dcsr_ena;
-	// SAR/PPR bytes are stored from P2 so P7 needs no back-channel; the
-	// DMA engine consumes them directly.
+	reg [2:0] dcsr_flags; // [0]=ch0, [1]=ch1, [2]=ch2
+	reg [2:0] dcsr_ena;   // [0]=ch0, [1]=ch1, [2]=ch2
+
 	/* verilator lint_off UNUSEDSIGNAL */
 	reg [7:0] sar_lo [0:2];
 	reg [7:0] sar_hi [0:2];
@@ -177,22 +182,31 @@ module asic_regs
 	assign ivr    = ivr_r;
 	assign ssa_hi = ssa_hi_r;
 	assign ssa_lo = ssa_lo_r;
-	assign dcsr = {dcsr_stat | intack_raster, dcsr_flags, 1'b0, dcsr_ena};
-
-	assign sar0_lo = sar_lo[0];
-	assign sar0_hi = sar_hi[0];
-	assign ppr0    = ppr[0];
-	assign sar1_lo = sar_lo[1];
-	assign sar1_hi = sar_hi[1];
-	assign ppr1    = ppr[1];
-	assign sar2_lo = sar_lo[2];
-	assign sar2_hi = sar_hi[2];
-	assign ppr2    = ppr[2];
-	assign dcsr_ena_out = dcsr_ena;
+	// DCSR: bit 7 = last-raster, bit 6 = ch0 INT, bit 5 = ch1 INT, bit 4 = ch2 INT, bits 2:0 = enables
+	assign dcsr   = {dcsr_stat | intack_raster, dcsr_flags[0], dcsr_flags[1], dcsr_flags[2], 1'b0, dcsr_ena};
 
 	assign sar0_wr = !reset && asic_cs && mem_wr && (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h0 || A[3:0] == 4'h1);
 	assign sar1_wr = !reset && asic_cs && mem_wr && (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h4 || A[3:0] == 4'h5);
 	assign sar2_wr = !reset && asic_cs && mem_wr && (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h8 || A[3:0] == 4'h9);
+
+	wire [7:0] next_sar0_lo = (sar0_wr && A[3:0] == 4'h0) ? D_in : sar_lo[0];
+	wire [7:0] next_sar0_hi = (sar0_wr && A[3:0] == 4'h1) ? D_in : sar_hi[0];
+	wire [7:0] next_sar1_lo = (sar1_wr && A[3:0] == 4'h4) ? D_in : sar_lo[1];
+	wire [7:0] next_sar1_hi = (sar1_wr && A[3:0] == 4'h5) ? D_in : sar_hi[1];
+	wire [7:0] next_sar2_lo = (sar2_wr && A[3:0] == 4'h8) ? D_in : sar_lo[2];
+	wire [7:0] next_sar2_hi = (sar2_wr && A[3:0] == 4'h9) ? D_in : sar_hi[2];
+
+	assign sar0_lo = next_sar0_lo;
+	assign sar0_hi = next_sar0_hi;
+	assign ppr0    = ppr[0];
+	assign sar1_lo = next_sar1_lo;
+	assign sar1_hi = next_sar1_hi;
+	assign ppr1    = ppr[1];
+	assign sar2_lo = next_sar2_lo;
+	assign sar2_hi = next_sar2_hi;
+	assign ppr2    = ppr[2];
+	assign dcsr_ena_out = dcsr_ena;
+	assign dma_int_req  = |dcsr_flags;
 
 	//------------------------------------------------------------------
 	// Legacy colour translation (reference §6): fixed ROM table, [KT]
@@ -262,9 +276,11 @@ module asic_regs
 	wire       r_dma    = (wsel == 2'b10) && (A[11:4] == 8'hC0);
 	// DCSR flag write-one-to-clear window: a &6C0F write while the page is
 	// selected (reference section 9).
+	// DCSR bit 6 = ch0, bit 5 = ch1, bit 4 = ch2
 	wire       dcsr_w1c_hit = !reset && asic_cs && mem_wr &&
 	                          (wsel == 2'b10) && (A[11:4] == 8'hC0) &&
 	                          (A[3:0] == 4'hF);
+	wire [2:0] dcsr_w1c_mask = {D_in[4], D_in[5], D_in[6]}; // [2]=ch2, [1]=ch1, [0]=ch0
 	wire       auto_clr_dma = intack && !intack_d && !ivr_r[0] && !int_pending;
 	wire [2:0] auto_clr_mask = (dcsr_flags[2]) ? 3'b100 :
 	                           (dcsr_flags[1]) ? 3'b010 :
@@ -308,7 +324,7 @@ module asic_regs
 		// Gated by !reset so reset dominates (review part-B blocker 1).
 		if (!reset) begin
 			dcsr_flags <= ((dcsr_flags | dma_int_set) &
-			              (dcsr_w1c_hit ? ~D_in[6:4] : 3'b111)) &
+			              (dcsr_w1c_hit ? ~dcsr_w1c_mask : 3'b111)) &
 			              (auto_clr_dma ? ~auto_clr_mask : 3'b111);
 			if (dcsr_w1c_hit)
 				dcsr_ena <= (D_in[2:0] & ~dcsr_ena_clr);
@@ -441,7 +457,8 @@ module asic_regs
 				else if (r_dma) begin
 					// DCSR readable across the whole &6C00-&6C0F range;
 					// SAR/PPR are not readable (§4).
-					rdata   = {dcsr_stat | intack_raster, dcsr_flags, 1'b0, dcsr_ena};
+					// Bit 6 = ch0 INT, bit 5 = ch1 INT, bit 4 = ch2 INT
+					rdata   = {dcsr_stat | intack_raster, dcsr_flags[0], dcsr_flags[1], dcsr_flags[2], 1'b0, dcsr_ena};
 					renable = 1'b1;
 				end
 				// &6800-&6807 are write-only: reads fall through to open

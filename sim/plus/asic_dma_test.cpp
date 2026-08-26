@@ -61,6 +61,10 @@ struct TestBench {
 
 	void pulse_reset() {
 		dut->reset = 1;
+		dut->sar0_lo = 0; dut->sar0_hi = 0; dut->ppr0 = 0; dut->sar0_wr = 0;
+		dut->sar1_lo = 0; dut->sar1_hi = 0; dut->ppr1 = 0; dut->sar1_wr = 0;
+		dut->sar2_lo = 0; dut->sar2_hi = 0; dut->ppr2 = 0; dut->sar2_wr = 0;
+		dut->dcsr_ena = 0;
 		for (int i = 0; i < 8; ++i) step_clock();
 		dut->reset = 0;
 		step_clock();
@@ -390,6 +394,30 @@ void test_d09_undocumented_pause_repeat(TestBench& tb) {
 	std::printf("PASS d09: Undocumented &3xxx (PAUSE then REPEAT)\n");
 }
 
+// d10: Sequential 8-bit SAR byte writes
+void test_d10_byte_sar_writes(TestBench& tb) {
+	tb.pulse_reset();
+	// Write low byte 0x78 first
+	tb.dut->sar0_lo = 0x78;
+	tb.dut->sar0_wr = 1;
+	tb.step_clock();
+	tb.dut->sar0_wr = 0;
+	tb.step_clock();
+	if (tb.dut->sar0_addr != 0x0078)
+		fail("d10: Low byte write did not update SAR0 to 0x0078 (got 0x" + std::to_string(tb.dut->sar0_addr) + ")");
+
+	// Write high byte 0x56 second
+	tb.dut->sar0_hi = 0x56;
+	tb.dut->sar0_wr = 1;
+	tb.step_clock();
+	tb.dut->sar0_wr = 0;
+	tb.step_clock();
+	if (tb.dut->sar0_addr != 0x5678)
+		fail("d10: High byte write did not update SAR0 to 0x5678 (got 0x" + std::to_string(tb.dut->sar0_addr) + ")");
+
+	std::printf("PASS d10: Sequential 8-bit SAR writes\n");
+}
+
 } // namespace
 
 int main() {
@@ -404,7 +432,8 @@ int main() {
 		test_d07_compound_int_stop(tb);
 		test_d08_multi_channel_interleave(tb);
 		test_d09_undocumented_pause_repeat(tb);
-		std::printf("All 9 asic_dma unit tests PASSED.\n");
+		test_d10_byte_sar_writes(tb);
+		std::printf("All 10 asic_dma unit tests PASSED.\n");
 		return 0;
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());
