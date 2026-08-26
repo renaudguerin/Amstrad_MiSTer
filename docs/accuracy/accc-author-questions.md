@@ -97,10 +97,13 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     an odd C4," and the worked example quantifies the transition frame only (C4=0 identical at
     8 lines; C4=1 gets 5 even lines on an odd frame vs 4 odd lines on an even frame). DRAWN:
     the source is silent on subsequent frames. INFERRED from the documented mechanics
-    (§19.5.2): no parity state survives a frame origin (ParityFrame=ParityR6 at C4=C9=C0=0;
-    ParityC9 recomputed per character end), so the steady scheme resumes next frame and the
-    perturbation is a one-frame length change that shifts both fields uniformly — but that is
-    our inference, not a sourced rule. No RTL impact while the transition-frame imbalance is
+    (§19.5.2): the parity state bits re-derive per frame — ParityFrame is re-anchored from
+    ParityR6 at each C4=C9=C0=0 origin and ParityC9 is recomputed per character end — and
+    carry no timing information, so the ±1-line perturbation cannot persist in them and the
+    steady scheme resumes next frame; ParityR6 itself persists across frames by design (and
+    freezes under R6>R4) but is a parity bit, not a timing state. The perturbation is a
+    one-frame length change that shifts both fields uniformly — but that is our inference,
+    not a sourced rule. No RTL impact while the transition-frame imbalance is
     unmodeled; if it is ever implemented, it needs its own fixtures and this question
     re-opens for the author.
 13. **p.245 vs p.293 (§21.2.2 vs §28.1.9) — type-1 readable registers.** §21.2.2 documents
@@ -184,10 +187,12 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     (b): **STILL OPEN — sharpened.** The pp.223-224 exit tables are consistent with the
     line-end test comparing the **frozen C9.VMA register content** (the last IVM computation)
     against plain R9 on every line after a non-matching R8=0 write: the frozen value never
-    equals R9 in the drawn cases, so the character runs past C9=R9 (plain C9=R9+1 drawn with
-    no reset in all seven windows that reach it), while the one window whose frozen value
-    equals R9 (p.223 bottom-right, write at C9=3 on an even frame) resets exactly there
-    (C4=2, C9=0). That also matches the p.220 worked example ("program R9 with C9.VMA… (i.e.
+    equals R9 in the drawn cases, so the character runs past C9=R9: seven of the eight exit
+    windows draw plain C9=R9+1 with no reset, six of them without the C4 increment the plain
+    test predicts; the eighth window (p.223 bottom-right, write at C9=3 on an even frame)
+    resets exactly at the write line's seam (C4=2, C9=0). One window is anomalous under BOTH
+    readings: p.223 bottom-left ends at C4=2, C9=7 - a C4 increment without the C9 reset -
+    which neither the frozen-C9.VMA model nor the live plain test explains. That also matches the p.220 worked example ("program R9 with C9.VMA… (i.e.
     7) so that the comparison between C9.VMA and R9 without parity allows C9 to return back
     to 0"). It contradicts resuming a live plain C9==R9 test, which would reset at C9=6 —
     the reading our RTL currently implements on post-write lines (unpinned; the t22 exit

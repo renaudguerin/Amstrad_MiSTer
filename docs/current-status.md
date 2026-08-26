@@ -324,9 +324,10 @@ For a first MiSTer pass:
   save/restore gives the pointer steps), so Item A of the session brief landed as
   **required-pass pins, not a fix**: `t25a` (period-8 segment cycle, wrap at C9=8, DE-off
   caveat pinned), `t25b` (constant pointer between crossings, single +R1 step at the C9==R9
-  crossing, within-line scan), `t25c` (exit resets C4/C9 and reloads R12/R13). Bite-tested:
-  reverting the seam limit to R9-based fails exactly the t25 family plus the nine existing
-  t16/t08k adjustment guards. Soak unchanged at `0x63d9de100ac9f6f2` (no behavior change —
+  crossing, within-line scan), `t25c` (exit resets C4/C9 and reloads R12/R13). Bite-tested
+  (mutation: `type0_c0_adjust_line_max`, the C0=0 seam limit, retargeted to R9): fails
+  exactly the t25 family plus the nine existing t16/t08k adjustment guards; a broader
+  mutation that also retargets the live in-adjustment limit adds t12a to the failure set. Soak unchanged at `0x63d9de100ac9f6f2` (no behavior change —
   the brief's expected re-mint does not apply). Recorded NOT-PINNED boundary: the tables
   normalize PTR-VRAM to 0 at adjustment entry, so the absolute entry pointer value
   (last-row base vs base+R1, i.e. whether the entry line's own capture applies) is not
