@@ -680,14 +680,12 @@ end
 // The vertical-blank region blanking of ga40010 (HCNTLT28) needs the
 // monitor-side timing that lands with motherboard integration.
 //
-// Unverified P1 model assumption (pinned by t05x vectors, mirrors t04i):
+// P1/Pre-P6 pixel pipeline contract (validated by p1_video and motherboard benches):
 // the first pixel of a character's even byte is presented on dot 0 and
-// RGB is registered once per dot (one-dot presentation latency). The real
-// GA has fixed pipeline latencies relative to its load/DISPEN cadence —
-// the Plus shows INKR effects at ~1/4 character ([KT]/Grimware INKR
-// timings) and the 40010 starts mode-2 rasterisation one pixel early —
-// both deferred to the motherboard-integration milestone (architecture
-// §5 Risk 1), where the timing contract is decided with fitter data.
+// RGB is registered once per dot (one-dot presentation latency). The
+// registered output and de_hold capture reproduce the documented Plus GA
+// emulation pipeline latency (INKR effects at ~1/4-1/2 character per [KT]
+// and Grimware timings).
 //----------------------------------------------------------------------
 
 reg  [3:0] pix_cnt;    // dot index within the character (0..15)

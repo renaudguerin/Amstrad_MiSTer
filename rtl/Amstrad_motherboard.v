@@ -481,9 +481,8 @@ asic_sprites plus_sprites
 
 // Twice-per-character word assembly on the reference VIDEO_BUF phases:
 // state e0 latches the even byte, state 03 the odd byte (ring order
-// e0 -> ... -> 03 within one character). Byte order against the CAS pair
-// halves is an ASSUMED mapping pending the parked p1_video calibration
-// (t05h); it is not yet validated by any gate.
+// e0 -> ... -> 03 within one character). Validated end-to-end against
+// the p1_video integration bench (test p1a).
 always @(posedge clk) begin
 	if (reset) plus_vidword <= 16'd0;
 	else begin
