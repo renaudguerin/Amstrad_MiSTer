@@ -788,6 +788,15 @@ Still open from this phase: mobo-bench m8 end-to-end sprite vector,
 and the INKR-effects ~1/2-us-late GA pipeline question noted in P1
 remains deferred.
 
+The synthesis-cost audit's Plus-track finding was probed 2026-08-26 and
+resolved as accepted cost: the decode-split walker increment
+(`c09534c`, review CLEAR, cycle-exact) did not lift the fitter cliff —
+fit stayed at 15:40 in the post-cliff band — falsifying the carry-chain
+hypothesis. The cost tracks the walk half bit gaining any next-state
+logic; the pipelining alternative is rejected on vector-pinned-latency
+risk. Full record in `docs/plans/2026-08-26-synthesis-cost-audit.md`
+(remediation-outcome section).
+
 Milestone CI (workflow_dispatch run `32892544906`, Quartus 17.0.2,
 commit `e3dd848`): simulation, policy, exact synthesis all green.
 Fitter: 29,893 / 41,910 ALMs (71 %); 37,506 registers; 685,217
