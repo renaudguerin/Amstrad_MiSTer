@@ -121,6 +121,18 @@
             owner: "{{ quartus_user }}"
             group: "{{ quartus_user }}"
 
+        - name: Install the runner's native runtime dependencies
+          # The runner ships this Debian-aware installer. On Debian 13 arm64
+          # it supplies ICU plus the lttng, numa, and OpenSSL libraries needed
+          # by the bundled .NET runtime. It only runs with a fresh extraction.
+          ansible.builtin.command:
+            argv:
+              - ./bin/installdependencies.sh
+            chdir: "{{ actions_runner_dir }}"
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+          changed_when: true
+
         - name: Remove the downloaded tarball
           ansible.builtin.file:
             path: "/tmp/actions-runner-linux-arm64-{{ actions_runner_version_install }}.tar.gz"
