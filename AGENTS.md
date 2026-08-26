@@ -86,9 +86,11 @@ make -C sim clean
   why before proceeding.
 - There is no native local Quartus path on Apple Silicon. GitHub Actions runs Verilator on
   every non-documentation push, then runs the pinned Quartus 17.0.2 container only for known
-  integration paths, the default branch, pull requests to it, tags, or a manual milestone dispatch.
-  Semantic clock/memory/RGB risks still require an exact manually dispatched build. The tiered
-  rules are in `docs/ci-testing-policy.md`; local UTM/Docker options are in `docs/building.md`.
+  integration paths, the default branch, pull requests to it, tags, or a manual milestone
+  dispatch. Integration-tip pushes compile at smoke fitter effort; PRs, tags, and dispatches
+  compile at full effort and only those RBFs count as hardware-build evidence. Semantic
+  clock/memory/RGB risks still require an exact manually dispatched build. The tiered rules
+  are in `docs/ci-testing-policy.md`; local UTM/Docker options are in `docs/building.md`.
 - Use `Amstrad.qpf` as the project file; `Amstrad_Q13.*` is a legacy alternate, ignore it.
 
 ## Core layout (since the 2026-08-22 per-type split)

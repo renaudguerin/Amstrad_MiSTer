@@ -18,25 +18,70 @@ make -C sim clean test lint
 This is the per-commit gate for production RTL, simulation vectors, co-simulation manifests,
 and repository tooling.  A failed Tier A run blocks every higher tier.
 
-### Tier B: full Quartus integration
+### Tier B: Quartus integration
 
-The full `quartus_sh --flow compile Amstrad.qpf` job costs about **12 minutes** and the Quartus
-database cache does not shorten it (measured 2026-08-24: 12.2 min on a cache hit, 12.2 min on a
-clean build — see queue item D2). So the policy runs it where a milestone actually forms, and
-nowhere else.
+A Quartus compile proves that a meaningful integration checkpoint still elaborates, fits,
+meets timing, and produces an RBF.  The Quartus database cache does not shorten it (measured
+2026-08-24: 12.2 min on a cache hit, 12.2 min on a clean build — see queue item D2), so the
+policy runs it where a milestone actually forms, and nowhere else.  Since 2026-08-26 it runs
+at two effort levels (below); the *trigger* rules did not change.
 
-**Where it runs.** Tier B is triggered by *where a change has arrived*, not by which file it
-touched:
+**Effort tiers.** Both tiers are the same `quartus_sh --flow compile Amstrad.qpf`; they differ
+only in fitter settings, applied by `scripts/ci/apply-quartus-effort.sh`:
+
+- **full** — the checked-in QSF unchanged (`STANDARD FIT`, `HIGH PERFORMANCE EFFORT`, the
+  physical-synthesis suite, `FINAL_PLACEMENT_OPTIMIZATION ALWAYS`).  This is the evidence
+  tier: its RBFs are the only ones retained for hardware handoff.
+- **smoke** — appends `FAST FIT`, the physical-synthesis suite off,
+  `FINAL_PLACEMENT_OPTIMIZATION Never`, and periphery-to-core optimization off to the QSF at
+  compile time.  Fast signal that an integration tip still elaborates, fits, and roughly
+  meets timing; not hardware-build evidence.  Two constraints learned empirically from the
+  pinned container (run `32919565759`): illegal assignment *values* are fatal project-open
+  errors, not ignorable warnings (`OPTIMIZATION_MODE` has no compile-time-aggressive value in
+  this edition), and an edition that silently drops an assignment warns with
+  `Ignored assignment:`.  A post-compile guard fails the smoke leg if the log contains that
+  string, so a quiet fall-back to full cost cannot masquerade as smoke.
+
+Measured on one SHA with both legs in one run (`32921078236`, branch tip `b68d4be`,
+Quartus inputs identical to milestone `dcbc6ad`):
+
+| leg | map | fit | asm | sta | flow |
+|---|---|---|---|---|---|
+| full | 2:14 | 12:07 | 0:13 | 0:09 | 14:48 |
+| smoke | 2:45 | 10:41 | 0:16 | 0:12 | 14:00 |
+
+Read that table together with the spread of full-effort fitter times for *identical* code:
+12:07 here versus 15:32 / 15:56 / 16:19 on 2026-08-25/26 (runs `32905376888`,
+`32914211795`).  Runner-to-runner variance on free ubuntu-latest is larger than the tier
+delta of a single comparison; treat any single-run timing as one sample and use a dispatched
+`effort=both` run whenever a tier or setting claim needs to be defended.  The structural
+argument matters more than the single-sample numbers: smoke disables exactly the expensive
+passes (physical synthesis, final placement refinement) whose work explodes when a change
+crosses a congestion cliff like the P4 pass-2 event, so its worst case stays bounded while
+full effort's does not.
+
+**Where each runs.** The trigger rule is unchanged from before the tiers existed — Tier B is
+triggered by *where a change has arrived*, not by which file it touched.  The event class
+then picks the effort:
 
 - **Integration branches** — the default branch and `accc-review-and-fixes` (the
-  `INTEGRATION_BRANCHES` list in `build.yml`): every push whose changed set affects the build.
-  This is the automatic replacement for the old "named milestone" ritual. A merge is a push to
-  an integration branch, so merging a stream branch synthesizes the result with nobody having
-  to remember.
-- **Pull requests**: the same path test, giving pre-merge signal to anyone who wants it.
-- **Every pushed tag and every manual workflow dispatch**: unconditionally.
-- **Stream branches**: never. Tier A only. The same code would otherwise be synthesized twice —
-  once on the branch and again when it merges — at 12 minutes each.
+  `INTEGRATION_BRANCHES` list in `build.yml`): every push whose changed set affects the build,
+  at **smoke** effort.  This is the automatic replacement for the old "named milestone"
+  ritual.  A merge is a push to an integration branch, so merging a stream branch synthesizes
+  the result with nobody having to remember.
+- **Pull requests**: the same path test, at **full** effort — pre-merge evidence for anyone
+  who wants it.
+- **Every pushed tag and every manual workflow dispatch**: unconditionally, at **full**
+  effort.  The dispatch input also accepts `smoke`, or `both` to benchmark the two tiers on
+  one SHA.
+- **Stream branches**: never.  Tier A only.  The same code would otherwise be synthesized
+  twice — once on the branch and again when it merges.
+
+Two operational notes.  First, simulation and synthesis jobs run in parallel (they share no
+state; the required gate still enforces both), so a red simulation no longer saves the
+synthesis compute on that run.  Second, do not dispatch a milestone build right after pushing
+to an integration branch: the push already started one, and the dispatch deliberately does not
+cancel it, so the pair compiles the same SHA twice at full price.
 
 **What counts as affecting the build** is decided by `scripts/ci/classify-synthesis-paths.sh`,
 which no longer keeps a hand-written list of RTL. It resolves `files.qip` transitively through
@@ -63,7 +108,9 @@ dispatch accepts a branch or tag, not an arbitrary detached commit SHA.
 
 Use the same manual route before handing off a bitstream for real-hardware testing. Record the
 commit, Actions run, fitter utilization, worst timing result, hardware purpose, and the retained
-`quartus-cache.txt` build-mode provenance together.
+`quartus-cache.txt` build-mode provenance together.  The provenance value names the tier:
+`clean_full` for milestone evidence, `clean_smoke` for integration-tip feedback — a smoke RBF
+is not a hardware-test artifact.
 
 ### Tier C: real hardware
 
