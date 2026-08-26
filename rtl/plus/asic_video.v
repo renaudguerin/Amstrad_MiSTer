@@ -71,6 +71,11 @@ module asic_video
 	output     [4:0] ROW,
 	output           ADJ,
 
+	// Screen split & soft scroll control registers (P6, from asic_regs)
+	input      [7:0] SPLT,
+	input     [13:0] SSA,
+	input      [7:0] SSCR,
+
 	// ---- Locked-ASIC pixel path (P1 remainder, architecture §4/§7) ----
 	//
 	// Behavioral locked-ASIC Gate-Array emulation: decodes the video-memory
@@ -343,13 +348,21 @@ wire row_latch_event = CLKEN && !in_adj &&
                        (hcc == R1_h_displayed) &&
                        (raster == R9_v_max_line);
 
+// P6: Screen split comparison ({SPLT7..0} == {VC4..0, RC2..0}, asic-reference §8).
+// When matched and SPLT != 0, capture SSA into vma_latch at HCC == R1.
+wire split_match = (SPLT != 8'd0) && ({charline[4:0], raster[2:0]} == SPLT);
+wire split_latch_event = CLKEN && !in_adj && split_match && (hcc == R1_h_displayed);
+
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		vma       <= 14'd0;
 		vma_latch <= 14'd0;
 	end
 	else if (CLKEN) begin
-		if (row_latch_event) vma_latch <= vma;
+		if (split_latch_event)
+			vma_latch <= SSA;
+		else if (row_latch_event)
+			vma_latch <= vma;
 
 		if (hcc_last) begin
 			// §20.3.4 frame-start reload has highest priority. Otherwise
@@ -359,6 +372,9 @@ always @(posedge CLOCK) begin
 			if (!adj_n && (charline_n == 7'd0)) begin
 				vma       <= {R12_start_addr_h[5:0], R13_start_addr_l};
 				vma_latch <= {R12_start_addr_h[5:0], R13_start_addr_l};
+			end
+			else if (split_latch_event) begin
+				vma <= SSA;
 			end
 			else if (!row_latch_event) begin
 				vma <= vma_latch;
@@ -546,7 +562,8 @@ assign LINE = charline;
 assign ROW  = raster;
 assign ADJ  = in_adj;
 assign MA   = vma;
-assign RA   = raster;
+// P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
+assign RA   = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
 
 //----------------------------------------------------------------------
 // P5: register readback, status groups (ACCC §21.2.3 p.246, §21.3.4
@@ -812,7 +829,36 @@ function [11:0] legacy_colour(input [4:0] hw);
 	end
 endfunction
 
-wire [4:0] hw_sel  = de_hold ? INKR_I[pen_nib*5 +: 5] : BORDER_I;
+// P6: Soft scroll horizontal delay line (SSCR[3:0]) and border mask (SSCR[7]).
+reg [3:0] pen_delay [0:14];
+integer p_idx;
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		for (p_idx = 0; p_idx < 15; p_idx = p_idx + 1)
+			pen_delay[p_idx] <= 4'd0;
+	end
+	else if (PIXEN) begin
+		pen_delay[0] <= pen_nib;
+		for (p_idx = 1; p_idx < 15; p_idx = p_idx + 1)
+			pen_delay[p_idx] <= pen_delay[p_idx - 1];
+	end
+end
+
+wire [3:0] pen_delayed = (SSCR[3:0] == 4'd0) ? pen_nib : pen_delay[SSCR[3:0] - 4'd1];
+
+// Tracks the first character of active display on each line for SSCR[7] border masking.
+reg de_first_char;
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		de_first_char <= 1'b0;
+	end
+	else if (PIXEN && CLKEN) begin
+		de_first_char <= (!de_hold && DE) || (hcc_last && DE);
+	end
+end
+
+wire eff_de   = de_hold & ~(SSCR[7] & de_first_char);
+wire [4:0] hw_sel  = eff_de ? INKR_I[pen_delayed*5 +: 5] : BORDER_I;
 wire [11:0] rgb_mux = legacy_colour(hw_sel);
 wire        blank   = HSYNC;
 
@@ -832,7 +878,7 @@ always @(posedge CLOCK) begin
 		PEN   <= 5'd0;
 	end
 	else if (PIXEN) begin
-		PEN   <= {~de_hold, pen_nib};
+		PEN   <= {~eff_de, pen_delayed};
 		RGB_R <= blank    ? 4'h0 :
 		         show_spr ? SPR_RGB[11:8] : rgb_mux[11:8];
 		RGB_G <= blank    ? 4'h0 :

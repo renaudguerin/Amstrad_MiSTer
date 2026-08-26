@@ -52,7 +52,7 @@ module T80pa (
 	                 S_WAIT = 3'd3, S_ACK = 3'd4, S_FILL = 3'd5,
 	                 S_FILLC = 3'd6;
 
-	localparam [5:0] NSTEPS = 6'd58;
+	localparam [5:0] NSTEPS = 6'd62;
 	localparam [7:0] HOLD = 8'd47; // >= one full sequencer ring (32 clks)
 	localparam [7:0] GAP  = 8'd15;
 	localparam [7:0] ACKS = 8'd31;
@@ -142,6 +142,11 @@ module T80pa (
 			6'd55: step_bus = {1'b0, 16'h7F00, 8'hA3}; // IN GA: PENR=6
 			6'd56: step_bus = {1'b1, 16'hF066, 8'hFF}; // seed 66
 			6'd57: step_bus = {1'b0, 16'h7F00, 8'hA4}; // IN GA: INKR[6]=6
+			// P6 m10: screen split & scroll registers
+			6'd58: step_bus = {1'b1, 16'h6801, 8'h05}; // SPLT = 5
+			6'd59: step_bus = {1'b1, 16'h6802, 8'h24}; // SSA_HI = 0x24
+			6'd60: step_bus = {1'b1, 16'h6803, 8'h00}; // SSA_LO = 0x00
+			6'd61: step_bus = {1'b1, 16'h6804, 8'h34}; // SSCR = 0x34
 			default: step_bus = {1'b0, 16'h0000, 8'hFF};
 			endcase
 		end
