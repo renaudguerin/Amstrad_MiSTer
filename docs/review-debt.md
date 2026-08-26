@@ -151,8 +151,11 @@ output. Order: `de71808` → `da79915`+`1a1233f` → `cd47d7d` → `c4c3e0f` →
   the single armed C4 increment consumed on the first repeated C0==0 (§13.2.6 p.108), and
   R12/R13 writes staying ignored while frozen against a non-zero latched pointer
   (§13.8.3 p.129).
-- **A4 — cosmetic:** rename or annotate the `expect_known_*` helpers in `sim/sim_main.cpp`
-  (they are hard assertions in required-pass tests).
+- **A4 — cosmetic — DONE 2026-08-25** (this branch): the `expect_known_*` helpers are
+  renamed `expect_xfail_*` with a comment stating both behaviors explicitly (XFAIL in
+  known-divergence-registered tests, ordinary failure anywhere else) and the
+  use-only-in-fixture-commits house rule. They currently have no callers (the F10 behavior
+  commits converted their sites to plain `expect_*`).
 - **A5 — parser observations** (`cd47d7d`): RESOLVED 2026-08-23 on `plus/p0-parser-wiring`,
   before the parser was wired live. Oversized `cbNN` chunks abort (truncate was not
   required — the §11 "ignored" wording is tool tolerance, and excess bytes are

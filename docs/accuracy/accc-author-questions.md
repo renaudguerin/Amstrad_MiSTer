@@ -50,12 +50,62 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     **even** frame's construction; p.199 shows the odd frame lasting 20032µs "inheriting" it.
     Which frame receives the additional line, and is the odd/even labelling relative to
     MID-VSYNC frames or to ParityFrame?
+
+    **RESOLVED BY DEFAULT READING 2026-08-25** (fresh render pass pp.198-199, 205, 206, 216;
+    no author answer). The labelling is **ParityFrame-relative**, and the line is generated at
+    the end of the **even** (ParityFrame-even) frame's construction while being **duration-
+    counted in the following odd frame**:
+    - §19.6.2 p.216 (render): type 1 adds the line "at the end of the frame (after the R5
+      lines if necessary)" iff R8∈{1,3} and **ParityFrame is even**; §19.6.1 p.216: type 0
+      gates on **ParityR6 odd**, which "becomes odd when C4 reaches R6 on an even frame…
+      An additional line will then be generated at the end of this even frame. The new frame
+      becomes odd (equal to ParityR6)." With the R6>R4 freeze the gate state persists
+      (line every frame if frozen odd, never if frozen even).
+    - §19.5.1 p.205 (render): the same even frame carries both events — extra line "when the
+      construction of the even frame is completed" and MID-VSYNC "when C4=R7 on the even
+      frame"; §19.5.2 defines ParityFrame as "the parity of the first C9 of the frame". The
+      p.206 table's column headers (PARITYFRAME=ODD / PARITYFRAME=EVEN) confirm the vocabulary.
+    - §19.3 p.199 (render): "1 even frame with a duration of 19968µsec… 1 odd frame, which
+      inherits the additional line from the even frame, and lasts 20032µsec" — the odd frame's
+      313-line duration absorbs the line generated at the even→odd boundary. §19.3.1's "added
+      at the end of the first frame" is the same boundary in a pair starting even; its "VSYNC
+      not being 'shifted'" is the CPC/GA-effective statement (the GA's 2-HSYNC wait neutralises
+      the half-line shift at the gun, "-0.0"), not a claim about CRTC pin timing.
+    - Counter accounting: §19.6.1 — type 0 increments C4 once for all additional lines
+      (R5 and interlace), C4=R4+1; §19.6.2 — type 1 increments C4 once more on even frames
+      when R9+1 is a multiple of R5. Matches §11.2.4 p.84 ("added only at the end of a even
+      frame").
+    Actionable: the line is unimplemented on both types → finding candidate **F14**
+    (audit-findings.md). No RTL change until its failing fixtures exist.
 11. **p.205 (§19.5.2) — even R9 total line count.** IVM programming with even R9 yields an
     even number of lines per character (R9=6 → 2×4 = 8 lines). Please confirm the intended
     parity of the *total* line count (even), since a distilled summary inverted this.
+
+    **RESOLVED BY DEFAULT READING 2026-08-25.** The p.205 render states it directly: "In IVM
+    mode, R9 is programmed with an **even** number to define an **even** number of lines in a
+    character (For example R9=6 to obtain 2 x 4 line/char=8 lines)." Total lines per character
+    is even; the distilled inversion was already corrected at D1. Nothing further to implement
+    (the F10 even-R9 vectors pin this scheme).
 12. **p.206 (§19.5.2) — odd-C4 IVM activation imbalance.** Activating R8=3 on an odd C4 can
     imbalance the VSYNC-delay correction for that transition frame. Does the source assert
     (or could you confirm) that the imbalance self-corrects on subsequent frames?
+
+    **RESOLVED 2026-08-25 (answer: the source does not assert it).** The p.206 render's Note
+    acknowledges the misbehavior without stating recovery: "If R8 goes to 3 on an odd C4, this
+    can cause a phase of 1 line between the VSYNC of even and odd frames. Indeed, this VSYNC
+    shift technique… only works properly to manage the line imbalance between an even C4 and
+    an odd C4," and the worked example quantifies the transition frame only (C4=0 identical at
+    8 lines; C4=1 gets 5 even lines on an odd frame vs 4 odd lines on an even frame). DRAWN:
+    the source is silent on subsequent frames. INFERRED from the documented mechanics
+    (§19.5.2): the parity state bits re-derive per frame — ParityFrame is re-anchored from
+    ParityR6 at each C4=C9=C0=0 origin and ParityC9 is recomputed per character end — and
+    carry no timing information, so the ±1-line perturbation cannot persist in them and the
+    steady scheme resumes next frame; ParityR6 itself persists across frames by design (and
+    freezes under R6>R4) but is a parity bit, not a timing state. The perturbation is a
+    one-frame length change that shifts both fields uniformly — but that is our inference,
+    not a sourced rule. No RTL impact while the transition-frame imbalance is
+    unmodeled; if it is ever implemented, it needs its own fixtures and this question
+    re-opens for the author.
 13. **p.245 vs p.293 (§21.2.2 vs §28.1.9) — type-1 readable registers.** §21.2.2 documents
     readable R14-R17 (plus register 31); the identification chapter states that on CRTC 1
     "*all* registers return 0 except register 31". Which is authoritative — do R14/R15 (and
@@ -118,6 +168,38 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     `C9.VMA == R9` test would produce at C9=6 — illustrative padding, or does leaving IVM
     really add a line? (Render-verified 2026-08-24. The earlier three-contradiction form of
     this question rested on misreading pp.221-224 as R9=3 and is withdrawn.)
+
+    **Main token + (a): RESOLVED BY DEFAULT READING 2026-08-25** (fresh render pass pp.219,
+    220, 223, 224; no author answer). `If R9.0=0` is a typo for `R9.0=1` — the row-end
+    ParityC9 update fires only when R9 is **odd**. The gloss, §19.5.2 p.205 (even R9 → parity
+    identical regardless of C4, so no per-C4 update), the pp.221-224 R9=6 tables (no
+    alternation in any panel), and the p.206 R9=7 example (per-C4 alternation) are unanimous;
+    the literal token would make every one of them wrong. (a) is settled by the p.220 prose,
+    which names all three phases: the **switch line** tests raw C9 against "R9 or
+    ParityFrame"; **steady IVM lines** test C9x2+ParityFrame against "R9 or ParityC9"; the
+    **exit/write line** tests C9.VMA against plain R9 ("ParityC9 is no longer considered for
+    R9"). The p.219 pseudocode line `((C9 x 2) or ParityFrame) == (R9 + ParityFrame)` is the
+    garbled one — its two ParityFrame terms cancel, which would make odd-R9 termination
+    unsolvable. Our RTL already implements exactly this three-phase form (type-0 engine,
+    t22-family). Actionable: the odd-R9 counting machinery (row-end ParityC9 update with the
+    corrected gate, odd-R9 limit tests, and the §19.5.2 VSYNC delay correction) is
+    unimplemented → finding candidate **F15** (audit-findings.md); fixtures before RTL.
+    (b): **STILL OPEN — sharpened.** The pp.223-224 exit tables are consistent with the
+    line-end test comparing the **frozen C9.VMA register content** (the last IVM computation)
+    against plain R9 on every line after a non-matching R8=0 write: the frozen value never
+    equals R9 in the drawn cases, so the character runs past C9=R9: seven of the eight exit
+    windows draw plain C9=R9+1 with no reset, six of them without the C4 increment the plain
+    test predicts; the eighth window (p.223 bottom-right, write at C9=3 on an even frame)
+    resets exactly at the write line's seam (C4=2, C9=0). One window is anomalous under BOTH
+    readings: p.223 bottom-left ends at C4=2, C9=7 - a C4 increment without the C9 reset -
+    which neither the frozen-C9.VMA model nor the live plain test explains. That also matches the p.220 worked example ("program R9 with C9.VMA… (i.e.
+    7) so that the comparison between C9.VMA and R9 without parity allows C9 to return back
+    to 0"). It contradicts resuming a live plain C9==R9 test, which would reset at C9=6 —
+    the reading our RTL currently implements on post-write lines (unpinned; the t22 exit
+    walks stop at the write line's seam). Yes/no for the author: **after an R8=0 write that
+    does not match on the write line, does the line-end test keep comparing the frozen
+    C9.VMA value (character runs on, possibly indefinitely) rather than the live plain C9?**
+    If the frozen reading is confirmed, our post-exit behavior needs a finding + fixture.
 
 Also noted while verifying (no answer needed, listed for completeness): p.195 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay

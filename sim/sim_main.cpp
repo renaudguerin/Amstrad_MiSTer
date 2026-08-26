@@ -441,12 +441,15 @@ public:
                     dut_->rootp->CRTC__DOT__crtc_type1_engine__DOT__rfd_r0_pending);
     }
 
-    // Known-divergence variants of the counter/parity assertions: identical
-    // checks, but a violation throws KnownDivergenceFailure so a test
-    // registered with known_divergence=true reports XFAIL instead of FAIL.
-    // House pattern from the F4 fixture commit: the F10 behavior commit
-    // replaces these with the plain expect_* forms and flips the flag.
-    void expect_known_byte(const std::string& expectation,
+    // XFAIL variants of the counter/parity assertions (review A4 rename:
+    // the old expect_known_* name read like a plain assertion). Identical
+    // checks, but a violation throws KnownDivergenceFailure: in a test
+    // registered with known_divergence=true that reports XFAIL; anywhere
+    // else it is an ordinary failure. House pattern from the F4 fixture
+    // commit: use these ONLY in fixture-first XFAIL commits; the behavior
+    // commit replaces them with the plain expect_* forms and flips the
+    // flag in the same change.
+    void expect_xfail_byte(const std::string& expectation,
                            std::uint8_t expected,
                            std::uint8_t actual) const {
         if (actual != expected) {
@@ -455,31 +458,31 @@ public:
         }
     }
 
-    void expect_known_line(const std::string& expectation,
+    void expect_xfail_line(const std::string& expectation,
                            std::uint8_t expected) const {
-        expect_known_byte(expectation, expected, dut_->rootp->CRTC__DOT__line);
+        expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__line);
     }
 
-    void expect_known_c4(const std::string& expectation,
+    void expect_xfail_c4(const std::string& expectation,
                          std::uint8_t expected) const {
-        expect_known_byte(expectation, expected, dut_->rootp->CRTC__DOT__row);
+        expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__row);
     }
 
-    void expect_known_parity_frame(const std::string& expectation,
+    void expect_xfail_parity_frame(const std::string& expectation,
                                    bool expected) const {
-        expect_known_byte(expectation, expected,
+        expect_xfail_byte(expectation, expected,
                           dut_->rootp->CRTC__DOT__parity_frame);
     }
 
-    void expect_known_parity_c9(const std::string& expectation,
+    void expect_xfail_parity_c9(const std::string& expectation,
                                 bool expected) const {
-        expect_known_byte(expectation, expected,
+        expect_xfail_byte(expectation, expected,
                           dut_->rootp->CRTC__DOT__parity_c9);
     }
 
-    void expect_known_line_parity(const std::string& expectation,
+    void expect_xfail_line_parity(const std::string& expectation,
                                   bool expected) const {
-        expect_known_byte(expectation, expected,
+        expect_xfail_byte(expectation, expected,
                           dut_->rootp->CRTC__DOT__line & 1);
     }
 
@@ -564,6 +567,10 @@ public:
         return dut_->MA;
     }
 
+    std::uint8_t ra() const {
+        return dut_->RA;
+    }
+
     void expect_ma(const std::string& expectation, std::uint16_t expected) const {
         if (dut_->MA != expected) {
             fail(expectation + " == " + std::to_string(expected),
@@ -571,7 +578,7 @@ public:
         }
     }
 
-    void expect_known_ma(const std::string& expectation,
+    void expect_xfail_ma(const std::string& expectation,
                          std::uint16_t expected) const {
         if (dut_->MA != expected) {
             known_divergence(expectation + " == " + std::to_string(expected),
@@ -579,13 +586,13 @@ public:
         }
     }
 
-    void expect_known_vsync_high(const std::string& expectation) const {
+    void expect_xfail_vsync_high(const std::string& expectation) const {
         if (dut_->VSYNC == 0) {
             known_divergence(expectation, "VSYNC low");
         }
     }
 
-    void expect_known_vsync_low(const std::string& expectation) const {
+    void expect_xfail_vsync_low(const std::string& expectation) const {
         if (dut_->VSYNC != 0) {
             known_divergence(expectation, "VSYNC high");
         }
@@ -1800,6 +1807,344 @@ void test_type0_worked_example_window_write_yields_38_8(TestBench& test) {
     test.expect_adjustment_active("t12 windowed write enters adjustment");
     test.expect_c4("t12 windowed write keeps C4=38", 38);
     test.expect_ra("t12 windowed write leaves C9=8", 8);
+}
+
+// ---------------------------------------------------------------------------
+// t25: type-0 vertical-adjustment VRAM addressing -- the D1 p.81 correction
+// pinned at pin level (ACCC v1.10 section 11.2.1 p.81 table, render-verified
+// 2026-08-24; section 11.2.2 pp.81-83; section 20.2 p.241).
+//
+// Paper derivation against the p.81 worked example (R4=10, R5=16, R9=3,
+// R1=40, R0=63):
+//   - During type-0 adjustment C9's limit is R5, not R9 (section 11.2.2
+//     p.81: "The new limit of C9 is no longer R9 at the end of the line,
+//     but R5"), so C9 runs 0..15 across the sixteen adjustment lines and
+//     never wraps at R9=3.
+//   - The final VRAM address takes bits 13:11 from C9[2:0] (section 20.2
+//     p.241: "Bits 11 to 13 From bits 0 to 2 of C9"; the motherboard
+//     composes {MA[13:12], RA[2:0], MA[9:0]}), so the p.81 LINE column --
+//     &0000,&0800,&1000,&1800,&2000,&2800,&3000,&3800, then &0000 again at
+//     C9=8 -- is a period-8 cycle through eight distinct segments, one per
+//     adjustment line.
+//   - The PTR-VRAM column tracks the video pointer separately: constant
+//     across runs of adjustment lines, advancing by exactly R1=40 words
+//     across the single C0=R1 && C9==R9 crossing at line C9=3 (section
+//     11.2.2 pp.82-83: "C9 continues to be compared with R9 to consider
+//     the video pointer (VMA'=VMA) when C0=R1 and C9=R9"; p.83: "When C9
+//     reaches R9 (=3), then the video pointer is updated with the one that
+//     has been memorized when C0=R1 and C9=R9. (R1=40)"). A memorized value
+//     of R1 words requires the pointer to scan per character inside the
+//     adjustment line itself: DRAWN for the capture line by that p.83
+//     sentence, extended to the other adjustment lines as the same uniform
+//     mechanism (INFERRED; the type-1/2 tables' +40-per-character-row
+//     progression corroborates it).
+//   - Recorded boundary (NOT PINNED by the source): the tables normalize
+//     PTR-VRAM to 0 at adjustment entry, so they cannot distinguish an
+//     entry value of the last-row base from base+R1 (an entry-line capture
+//     applied). This core keeps the plain-rule entry-line capture; only
+//     source-supported deltas are asserted below.
+// ---------------------------------------------------------------------------
+
+// Final VRAM word address per the ACCC v1.10 section 20.2 p.241
+// construction, as wired on the CPC board and modelled by
+// Amstrad_motherboard.v: {MA[13:12], RA[2:0], MA[9:0]}.
+std::uint16_t composed_vram_word(std::uint16_t ma, std::uint8_t ra) {
+    return static_cast<std::uint16_t>(((ma & 0x3000) |
+                                       ((ra & 0x07) << 11) |
+                                       (ma & 0x03ff)) & 0x7fff);
+}
+
+constexpr std::array<std::pair<std::uint8_t, std::uint8_t>, 10> kT25Registers =
+    {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
+        {5, 16}, {6, 2},  {7, 63}, {8, 0},    {9, 3},
+    }};
+
+// Eleven character rows x four scanlines (R9=3) x 64 characters bring the
+// seam of the first adjustment line (C4=11, C9=0).
+constexpr unsigned kT25AdjustmentStartCharacters = 11u * 4u * 64u;
+
+void t25_program_and_reach_first_adjustment_line(TestBench& test) {
+    test.set_crtc_type(0);
+    for (const auto& [address, value] : kT25Registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+    // One character into adjustment line C9=0.
+    test.run_characters(kT25AdjustmentStartCharacters + 1u);
+}
+
+void test_type0_adjustment_segment_cycles_period_8(TestBench& test) {
+    t25_program_and_reach_first_adjustment_line(test);
+
+    for (unsigned c9 = 0; c9 < 16; ++c9) {
+        if (c9 != 0) {
+            test.run_characters(64);  // C0=1 of adjustment line C9.
+        }
+        test.expect_ra("t25a adjustment line C9 counts 0..15 against R5",
+                       c9);
+        // ACCC v1.10 section 11.2.1 p.81 LINE column via the section 20.2
+        // p.241 bit assignment: segment = C9 mod 8, period 8, wrap at C9=8.
+        const std::uint16_t composed =
+            composed_vram_word(test.ma(), test.ra());
+        test.expect_byte("t25a adjustment segment follows C9[2:0] (p.81 LINE)",
+                         static_cast<std::uint8_t>(c9 & 0x07),
+                         static_cast<std::uint8_t>(composed >> 11));
+        if (c9 == 0) {
+            // Observability caveat, pinned so it stays true: the adjustment
+            // lines sit where DISPTMG is long off (R6=2 < C4=11), so this is
+            // address-level accuracy, not a visible-display claim.
+            test.expect_de_low("t25a adjustment lines have DE off");
+        }
+    }
+}
+
+void test_type0_adjustment_pointer_steps_and_scans(TestBench& test) {
+    t25_program_and_reach_first_adjustment_line(test);
+
+    std::uint16_t line_start[16];
+    line_start[0] = test.ma();
+    for (unsigned c9 = 1; c9 < 16; ++c9) {
+        if (c9 == 4) {
+            // Entering this iteration we sit at C0=1 of line C9=3, the
+            // capture line.  The p.83 prose makes the memorized value the
+            // pointer scanned to C0=R1: 40 words past the line start.
+            test.run_characters(40);  // C0=41 of line C9=3.
+            test.expect_ma("t25b adjustment pointer scans one word per "
+                           "character (p.83 memorized-at-C0=R1)",
+                           static_cast<std::uint16_t>(
+                               (line_start[3] + 40) & 0x3fff));
+            test.run_characters(24);  // C0=1 of line C9=4.
+        }
+        else {
+            test.run_characters(64);  // C0=1 of adjustment line C9.
+        }
+        line_start[c9] = test.ma();
+    }
+
+    // ACCC v1.10 p.81 PTR-VRAM rows 1-4: no capture crossing before the
+    // C9==R9 line, so lines C9=0..3 restart from the same pointer.
+    for (unsigned c9 = 1; c9 < 4; ++c9) {
+        test.expect_byte(
+            "t25b adjustment lines before the crossing share one pointer "
+            "(p.81 PTR-VRAM 0)",
+            static_cast<std::uint8_t>(line_start[0] & 0xff),
+            static_cast<std::uint8_t>(line_start[c9] & 0xff));
+        test.expect_byte(
+            "t25b adjustment lines before the crossing share one pointer, "
+            "high byte (p.81 PTR-VRAM 0)",
+            static_cast<std::uint8_t>((line_start[0] >> 8) & 0x3f),
+            static_cast<std::uint8_t>((line_start[c9] >> 8) & 0x3f));
+    }
+    // p.81 PTR-VRAM rows 4->5 and p.83 prose: the single C0=R1 && C9==R9
+    // crossing at line C9=3 advances the pointer by exactly R1=40 words.
+    const std::uint16_t stepped =
+        static_cast<std::uint16_t>((line_start[3] + 40) & 0x3fff);
+    test.expect_byte("t25b capture crossing advances the pointer by R1 "
+                     "(p.83)",
+                     static_cast<std::uint8_t>(stepped & 0xff),
+                     static_cast<std::uint8_t>(line_start[4] & 0xff));
+    test.expect_byte("t25b capture crossing advances the pointer by R1, "
+                     "high byte (p.83)",
+                     static_cast<std::uint8_t>((stepped >> 8) & 0x3f),
+                     static_cast<std::uint8_t>((line_start[4] >> 8) & 0x3f));
+    // p.81 PTR-VRAM rows 5-16 stay at 40: C9 passes R9 once per adjustment,
+    // so no further capture fires.
+    for (unsigned c9 = 5; c9 < 16; ++c9) {
+        test.expect_byte(
+            "t25b adjustment lines after the crossing share one pointer "
+            "(p.81 PTR-VRAM 40)",
+            static_cast<std::uint8_t>(line_start[4] & 0xff),
+            static_cast<std::uint8_t>(line_start[c9] & 0xff));
+        test.expect_byte(
+            "t25b adjustment lines after the crossing share one pointer, "
+            "high byte (p.81 PTR-VRAM 40)",
+            static_cast<std::uint8_t>((line_start[4] >> 8) & 0x3f),
+            static_cast<std::uint8_t>((line_start[c9] >> 8) & 0x3f));
+    }
+}
+
+void test_type0_adjustment_exit_reloads_frame_origin(TestBench& test) {
+    t25_program_and_reach_first_adjustment_line(test);
+    test.run_characters(15u * 64u);  // C0=1 of the last adjustment line.
+    test.expect_ra("t25c last adjustment line holds C9=15", 15);
+
+    // Section 11.2.2 p.81: reaching R5 re-establishes Last Line "so that C4
+    // and C9 go to 0 on the next line", and section 20.3.1 p.242 reloads
+    // both pointers from R12/R13 when C4=C9=C0=0. Note the page tensions
+    // itself: its bold conclusion says only "C4=0 and C0=0" (no C9 term,
+    // i.e. every line of C4=0). This core implements the narrow frame-
+    // origin form (rtl/crtc_type0_engine.v reload = frame_new_w), reading
+    // the page's own framing of the type-1 "while C4=0" rule as the lenient
+    // outlier; the adjustment exit here only exercises the frame-origin
+    // edge, so both readings agree on everything this vector asserts.
+    test.run_characters(64);  // C0=1 of the new frame's first line.
+    test.expect_c4("t25c adjustment exit resets C4 to 0", 0);
+    test.expect_ra("t25c adjustment exit resets C9 to 0", 0);
+    test.expect_ma("t25c frame origin reloaded from R12/R13 then scanned "
+                   "once (section 20.3.1)", 1);
+    const std::uint16_t composed =
+        composed_vram_word(test.ma(), test.ra());
+    test.expect_byte("t25c new frame restarts at the R12/R13 segment", 0,
+                     static_cast<std::uint8_t>(composed >> 11));
+}
+
+// ---------------------------------------------------------------------------
+// t26: the section 17.5 R1=0 acknowledgment deadline (ACCC v1.10 section
+// 17.5.1 p.185, four chronograms, render-verified 2026-08-24; D1
+// correction). The chronograms put the effective write cycle (the OUT's
+// register-latch character, the orange end cell) at C0=3e, 3f, 0, 1 in
+// turn on a line crossing an R0 wrap (the chronogram shows no frame
+// involvement; the seam mechanism is line-generic, and the probes below
+// cover both a plain mid-frame seam and a frame origin): latches through C0=0 are
+// "just in time" (the new frame's first line honors R1=0 and shows
+// border); the first too-late latch is C0=1 ("Update of R1 not
+// considered" -- the line keeps the old R1's display).
+//
+// Paper-derived RTL mapping (both mechanisms already in the wrapper):
+//   - latch during the old frame's characters: the line-seam DISPTMG check
+//     compares hcc_next(=0) against the already-updated R1 and keeps
+//     DISPTMG off from C0=0 (live C0=R1 semantics, section 6.1.3);
+//   - latch during C0=0 itself: the R1 write-hit term (hcc==DI) blanks
+//     DISPTMG mid-character -- character-granular DE shows border from
+//     within C0=0 (the F13 half-character caveat applies);
+//   - latch during C0=1: neither term fires (hcc==1 != 0, and the seam
+//     check already ran with the old R1), so the old R1 governs the line
+//     and DISPTMG ends at C0=old R1.
+// The type 3/4 earlier deadline (section 17.5.2) is out of scope: the
+// classic core models no type 3/4. The chronograms' observable is the
+// DISPTMG/border state of the new frame's first characters; the VMA'
+// consequences of R1=0 (section 17.4.3) are CRTC-2-specific and unpinned
+// here.
+// Fixture: R4=2/R9=0 frames of three 64-character lines; R6/R7 parked so
+// DISPTMG is R1-gated only. Each vector probes all three latch positions
+// around successive frame boundaries.
+// ---------------------------------------------------------------------------
+constexpr std::array<std::pair<std::uint8_t, std::uint8_t>, 10> kT26Registers =
+    {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 2},
+        {5, 0},  {6, 25}, {7, 63}, {8, 0},    {9, 0},
+    }};
+
+void t26_program(TestBench& test, unsigned type) {
+    test.set_crtc_type(type);
+    for (const auto& [address, value] : kT26Registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(1);
+    test.reset();
+}
+
+void test_t26_r1_zero_deadline_type0(TestBench& test) {
+    t26_program(test, 0);
+
+    // vde only arms at a frame origin, so run one full frame first: every
+    // probe below then runs with DISPTMG gated by R1 alone (DE == hde).
+    test.run_characters(3u * 64u);  // C0=0 of frame 1, row 0.
+
+    // The p.185 chronograms draw an R0 wrap, not a frame boundary; the seam
+    // mechanism is line-generic. Probe a plain mid-frame line seam first:
+    // the write lands during row 1's C0=63 and row 2 (same frame) starts in
+    // border.
+    test.run_characters(64);  // C0=0 of frame 1 row 1.
+    test.run_to_c0(63);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(0);        // Row 2 origin, same frame.
+    test.expect_de_low("t26a latch at C0=63 before a plain line seam: "
+                       "border from C0=0 (section 17.5.1 is seam-generic)");
+
+    // (A) Just in time, latch during the frame's last line at C0=63: the
+    // frame-boundary seam compares hcc_next(=0) against the already-updated
+    // R1=0 and keeps DISPTMG off from the new frame's first character.
+    test.run_to_c0(10);
+    test.write_selected_register_at_nclken(40);  // Restore for scenario A.
+    test.run_to_c0(63);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(0);              // Frame 2 origin.
+    test.expect_de_low("t26a latch at C0=63: seam sees R1=0, border from "
+                       "C0=0 (section 17.5.1 just in time)");
+
+    // (B) Just in time, latch during C0=0 itself: the write-hit term
+    // (hcc==DI) blanks DISPTMG mid-character. Restore R1=40 first.
+    test.run_to_c0(10);
+    test.write_selected_register_at_nclken(40);  // hcc=10: no write-hit.
+    test.run_to_c0(0);              // Row 1 origin.
+    test.run_characters(128);       // Two lines on: frame 3 origin.
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(1);
+    test.expect_de_low("t26a latch at C0=0 blanks by C0=1 (section 17.5.1 "
+                       "just in time, boundary chronogram)");
+    test.run_to_c0(2);
+    test.expect_de_low("t26a border holds through the new frame's early "
+                       "characters");
+
+    // (C) First too-late latch: C0=1. The acknowledgment is missed, but the
+    // live C0=R1 comparison now targets the new R1=0 (section 6.1.3), so no
+    // mid-line DISPTMG-off can fire: the line displays past the old R1's
+    // end, and R1=0 is honored from the next line.
+    test.write_selected_register_at_nclken(40);  // hcc=2: no write-hit.
+    test.run_to_c0(0);              // Row 1 origin.
+    test.run_characters(128);       // Frame 4 origin.
+    test.run_to_c0(1);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(2);
+    test.expect_de_high("t26a latch at C0=1 is too late: display continues "
+                        "(section 17.5.1)");
+    test.run_to_c0(40);
+    test.expect_de_high("t26a live C0=R1 targets the new R1: display passes "
+                        "the old R1's end (section 6.1.3)");
+    test.run_to_c0(0);              // The too-late line's wrap.
+    test.expect_de_low("t26a R1=0 honored from the line after the too-late "
+                       "write");
+}
+
+void test_t26_r1_zero_deadline_type1(TestBench& test) {
+    t26_program(test, 1);
+
+    test.run_characters(3u * 64u);
+
+    test.run_characters(64);  // C0=0 of frame 1 row 1.
+    test.run_to_c0(63);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(0);        // Row 2 origin, same frame.
+    test.expect_de_low("t26b latch at C0=63 before a plain line seam: "
+                       "border from C0=0 (section 17.5.1 is seam-generic)");
+
+    test.run_to_c0(10);
+    test.write_selected_register_at_nclken(40);
+    test.run_to_c0(63);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(0);
+    test.expect_de_low("t26b latch at C0=63: seam sees R1=0, border from "
+                       "C0=0 (section 17.5.1 just in time)");
+
+    test.run_to_c0(10);
+    test.write_selected_register_at_nclken(40);
+    test.run_to_c0(0);
+    test.run_characters(128);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(1);
+    test.expect_de_low("t26b latch at C0=0 blanks by C0=1 (section 17.5.1 "
+                       "just in time, boundary chronogram)");
+    test.run_to_c0(2);
+    test.expect_de_low("t26b border holds through the new frame's early "
+                       "characters");
+
+    test.write_selected_register_at_nclken(40);
+    test.run_to_c0(0);
+    test.run_characters(128);
+    test.run_to_c0(1);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(2);
+    test.expect_de_high("t26b latch at C0=1 is too late: display continues "
+                        "(section 17.5.1)");
+    test.run_to_c0(40);
+    test.expect_de_high("t26b live C0=R1 targets the new R1: display passes "
+                        "the old R1's end (section 6.1.3)");
+    test.run_to_c0(0);
+    test.expect_de_low("t26b R1=0 honored from the line after the too-late "
+                       "write");
 }
 
 void test_type0_adjustment_r4_write_at_r0_switches_c9_to_r5(TestBench& test) {
@@ -6047,6 +6392,21 @@ int main(int argc, char** argv) {
         {"t24c_type1_ivm_mid_vsync_half_line_phase",
          "ACCC v1.10 section 19.5.3 p.208 prose (MID-VSYNC on the ParityFrame-even frame); p.207 Note",
          false, test_type1_ivm_mid_vsync_half_line_phase},
+        {"t25a_type0_adjustment_segment_cycles_period_8",
+         "ACCC v1.10 sections 11.2.1 p.81 and 20.2 p.241; D1 correction",
+         false, test_type0_adjustment_segment_cycles_period_8},
+        {"t25b_type0_adjustment_pointer_steps_and_scans",
+         "ACCC v1.10 sections 11.2.1 p.81 and 11.2.2 pp.82-83; D1 correction",
+         false, test_type0_adjustment_pointer_steps_and_scans},
+        {"t25c_type0_adjustment_exit_reloads_frame_origin",
+         "ACCC v1.10 sections 11.2.2 p.81 and 20.3.1 p.242; D1 correction",
+         false, test_type0_adjustment_exit_reloads_frame_origin},
+        {"t26a_type0_r1_zero_write_deadline",
+         "ACCC v1.10 section 17.5.1 p.185 chronograms; D1 correction",
+         false, test_t26_r1_zero_deadline_type0},
+        {"t26b_type1_r1_zero_write_deadline",
+         "ACCC v1.10 section 17.5.1 p.185 chronograms; D1 correction",
+         false, test_t26_r1_zero_deadline_type1},
     };
 
     unsigned passed = 0;

@@ -74,6 +74,22 @@ remediated (`docs/plus/p2p3-independent-review.md`, plus the F10/F11h records).
 
 ## Hardware-test milestone
 
+`df6c0f7` is the newest successfully synthesized code milestone of the classic stream
+(GitHub Actions run `32845921357`, 2026-08-25, Quartus 17.0.2): the merge of
+`accuracy/f11h-and-ivm-vsync-coverage` (F11h same-edge R12/R13 closure, t24 type-1 IVM VSYNC
+positions + MID-VSYNC, checkout v7 bump; reviewed and remediated) on top of the F10 merge
+`e78e0ab`. Recorded retroactively: the original recording commit (`b806502`) landed empty,
+so this section was re-inserted from its message and the session record. **It has not been
+hardware-tested.**
+
+- Logic utilization 15,745 / 41,910 ALMs (38 %); 20,651 registers; 685,217 / 5,662,720
+  block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks. Versus the previous
+  classic-stream milestone `e78e0ab` (15,718 ALMs, 20,717 registers) the delta is the classic
+  CRTC changes alone (no Plus file moved); memory and DSP are unchanged.
+- Worst-case setup slack +0.662 ns, hold +0.228 ns — positive; no regression signal.
+
+## Hardware-test milestone
+
 `3d7a178` is the newest successfully synthesized code milestone (GitHub Actions run
 `32810340518`, 2026-08-25, Quartus 17.0.2): the Plus branch `plus/p2-asic-regs` with
 the P1 review follow-ups, the calibrated p1_video bench in the gate, the P2 ASIC
@@ -327,6 +343,68 @@ For a first MiSTer pass:
   Non-blockings: N-3/N-4/N-5 fixed; N-1 recorded as a named residual comment at the gate
   (raw R8 mode vs latched engine IVM, 1-2 character window at toggles); N-2 folded into
   action item A4; N-7 covered by synthesis-on-merge. Review-debt row cleared 2026-08-25.
+
+- D1 follow-up, p.81 type-0 adjustment addressing (2026-08-25, this branch): the D1
+  correction's RTL premise did not survive verification. The p.81 LINE column is the
+  C9-driven segment of the *composed* VRAM address (§20.2 p.241 takes bits 13:11 from
+  C9[2:0]; `Amstrad_motherboard.v` forms `{MA[13:12], RA[2:0], MA[9:0]}`), not the CRTC
+  module's raw MA port — that port carries the video pointer, which must scan per character
+  because the p.83 prose's memorized value is line start + R1. The wrapper already produced
+  the documented behavior (C9 counts to R5 at the seam limit, RA=C9 feeds the composition,
+  save/restore gives the pointer steps), so Item A of the session brief landed as
+  **required-pass pins, not a fix**: `t25a` (period-8 segment cycle, wrap at C9=8, DE-off
+  caveat pinned), `t25b` (constant pointer between crossings, single +R1 step at the C9==R9
+  crossing, within-line scan), `t25c` (exit resets C4/C9 and reloads R12/R13). Bite-tested
+  (mutation: `type0_c0_adjust_line_max`, the C0=0 seam limit, retargeted to R9): fails
+  exactly the t25 family plus the nine existing t16/t08k adjustment guards; a broader
+  mutation that also retargets the live in-adjustment limit adds t12a to the failure set. Soak unchanged at `0x63d9de100ac9f6f2` (no behavior change —
+  the brief's expected re-mint does not apply). Recorded NOT-PINNED boundary: the tables
+  normalize PTR-VRAM to 0 at adjustment entry, so the absolute entry pointer value
+  (last-row base vs base+R1, i.e. whether the entry line's own capture applies) is not
+  source-adjudicated; this core keeps the plain-rule entry capture and t25 asserts only
+  source-supported deltas. Full adjudication in `compendium-01-counters.md` §4.1.
+
+- D1 follow-ups session, 2026-08-26 (branch `accuracy/d1-followups`, base `6030b4c`):
+  - **Item A** (p.81 adjustment addressing): landed as required-pass pins, not a fix —
+    see the dedicated bullet above. Soak unchanged; the brief's expected re-mint does not
+    apply.
+  - **Item B** (§17.5 R1=0 write deadline, p.185): the RTL already matches the documented
+    deadline via the seam-time `hcc_next==R1` check and the R1 write-hit term (`hcc==DI`);
+    `t26a` (type 0) / `t26b` (type 1) pin it as required passes, bite-tested (disabling the
+    write-hit term fails exactly t26a+t26b). Derived and pinned beyond the chronograms: a
+    too-late write still updates the register, so the live `C0=R1` comparison targets 0 and
+    the too-late line displays past the old R1's end; R1=0 is honored from the next line.
+    Digest §17.5 updated. Soak unchanged.
+  - **Item C** (Q19/Q10/Q12 re-adjudication, fresh renders pp.198-199/205-206/216/219-220/
+    223-224): Q10 RESOLVED — the additional interlace line is generated at the end of the
+    ParityFrame-even frame (type 1 gate ParityFrame even; type 0 gate ParityR6 odd with the
+    R6>R4 freeze) and duration-counted in the following odd frame; labelling is
+    ParityFrame-relative. Q11 RESOLVED (p.205 states even explicitly). Q12 RESOLVED (the
+    source does not assert self-correction; the no-persistent-state reading is recorded as
+    inferred). Q19 main token + (a) RESOLVED (`R9.0=0` is a typo for `R9.0=1`; the
+    three-phase comparison form is pinned by p.220 and already implemented); Q19(b) STILL
+    OPEN, sharpened — the pp.223-224 exit tables imply a frozen-C9.VMA line-end test after a
+    non-matching R8=0 write, while this core resumes a live plain `C9==R9` test on
+    post-write lines (unpinned divergence, documented in the question). Actionable rules
+    opened as finding candidates **F14** (additional interlace line, both types) and
+    **F15** (type-0 odd-R9 IVM counting incl. the §19.5.2 VSYNC delay correction) —
+    fixtures before any RTL.
+  - **Item D**: A4 closed (the `expect_known_*` helpers renamed `expect_xfail_*` with the
+    house rule in the comment; review-debt row done); N-6 closed (`actions/upload-artifact`
+    v4 → v7, standalone; first run resolves it and uploads green).
+  - **CI evidence**: dispatched run `32917100161` (2026-08-26, Quartus 17.0.2) fully green
+    — simulation, policy, synthesis, required gate; the v7 artifact upload verified online.
+    Fitter: 16,208 / 41,910 ALMs (39 %); 21,112 registers; 701,601 / 5,662,720
+    block-memory bits (12 %); 34 / 112 DSP blocks. Worst-case setup slack +0.623 ns, hold
+    +0.231 ns — positive; versus the previous milestone `5d6d342` (16,198 ALMs, 21,030
+    registers) the delta is tool noise on a comment-only RTL change. RBF retained as
+    `output_files/hardware-milestones/Amstrad_20260826_d9abf35.rbf` (SHA-256
+    `26f415d4d9d2723c98168539cbec91fd421b7b79da05c12a602f0f9a89dde259`). Not
+    hardware-tested.
+  - **Soak**: unchanged at `0x63d9de100ac9f6f2` throughout the session — no classic
+    behavior change landed (pins and docs only), so no re-mint is due.
+  - **Review status**: end-of-session cross-provider review of the branch diff happens
+    before merging; outcome recorded in the merge/branch notes.
 
 D1 is complete (2026-08-24): every remaining ⚠ VERIFY flag in the three digests was
 re-verified against the PDF (pdf-inspector Markdown primary, figures judged from rendered

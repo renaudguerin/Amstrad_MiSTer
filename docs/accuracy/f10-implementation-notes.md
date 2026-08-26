@@ -3,7 +3,8 @@
 Status: **implemented for the unblocked scope, both types; independently reviewed and
 remediated** (2026-08-24/25, branch `accuracy/f10-fixtures`; review record
 `accuracy/f10-independent-review.md` — NOT CLEAR on two blockings, both fixed with vectors). Odd-R9 alternation and the additional interlace line remain
-gated behind author questions Q19 / Q10 as planned; see "Deliberately unmodeled" below.
+gated behind author questions Q19 / Q10 as planned (both main gates adjudicated 2026-08-25,
+see "Deliberately unmodeled" below and findings F14/F15);
 This file is the durable record for a fresh session: what was verified against the PDF,
 what the implemented model is, which conventions the fixtures pin, and what is left open.
 
@@ -86,7 +87,8 @@ behavior, review remediation).
     only from the next line — the documented "after the test" race.
 - ParityC9 is seeded from ParityFrame when IVM turns on at a seam (the tables' doubled
   display carries the frame parity from the first doubled line). With even R9 it never
-  changes afterwards — the p.219 row-end update is Q19-gated (see below).
+  changes afterwards — the p.219 row-end update is absent (gate = R9 odd, Q19 resolved;
+  see below and F15).
 - §19.5.2 parity rules: ParityFrame snapshots ParityR6 at the frame origin; ParityR6
   captures ParityFrame xor 1 when C4 reaches R6 (independent of R8; frozen when R6>R4).
   The p.219 alternative frame-end toggle (`ParityFrame ^= ParityR6` at C4==R4) is
@@ -122,14 +124,25 @@ write/value port pairs.
 
 ## Deliberately unmodeled / open (with reasons)
 
-- **Odd-R9 alternation** (the p.219 `If R9.0=0` gate token vs its own gloss): author
-  question Q19. The even-R9 behavior the tables pin needs no row-end ParityC9 update, so
-  none is implemented; odd-R9 waits for Q19 before any RTL moves.
+- **Odd-R9 alternation** (the p.219 `If R9.0=0` gate token vs its own gloss): the token was
+  adjudicated 2026-08-25 as a typo for `R9.0=1` — the row-end ParityC9 update fires only when
+  R9 is **odd** (author question Q19 main token, RESOLVED by default reading; see
+  accc-author-questions.md item 19). The even-R9 behavior the tables pin needs no row-end
+  ParityC9 update, so none is implemented; odd-R9 counting is now finding candidate **F15**
+  (audit-findings.md) — fixtures before RTL.
 - **Post-exit row-end behavior** (six of eight exit tables run C9 to 7 with R9=6 without
-  the C4 increment the plain test predicts): author question Q19(b). The `t22` exit walks
-  stop before that zone.
-- **Additional interlace line** (§19.6, both types): gated on Q10 (which frame receives
-  it) — unchanged from the pre-existing plan; not implemented.
+  the C4 increment the plain test predicts): author question Q19(b), STILL OPEN, sharpened
+  2026-08-25 — the tables are consistent with the line-end test comparing the **frozen
+  C9.VMA register content** against plain R9 after a non-matching R8=0 write (never firing
+  in the drawn cases), while this core resumes a live plain C9==R9 test on post-write lines
+  (unpinned; the `t22` exit walks stop at the write line's seam). If the frozen reading is
+  confirmed, the divergence becomes a finding + fixture. See accc-author-questions.md
+  item 19(b) for the exact yes/no.
+- **Additional interlace line** (§19.6, both types): Q10 RESOLVED 2026-08-25 by default
+  reading — the line is generated at the end of the ParityFrame-even frame (type 1 gate:
+  ParityFrame even; type 0 gate: ParityR6 odd, with the R6>R4 freeze) and duration-counted
+  in the following odd frame. Now finding candidate **F14** (audit-findings.md); not
+  implemented, fixtures before RTL.
 - **MID-VSYNC parity coupling**: the wrapper's MID-VSYNC tick and fire still key on the
   legacy `field` flop for the NON-IVM interlace paths; `field` freezes while R8 is outside
   1/3, whereas ParityFrame keeps toggling every frame, so after a mid-frame R8 toggle
@@ -141,7 +154,8 @@ write/value port pairs.
   from ParityFrame directly with a seam-latched fire decision consumed at the half-line
   tick (t24c); the residual covers type-0 IVM and the non-IVM post-episode divergence only.
 - **VSYNC delay-by-1-line correction for odd C4s** (§19.5.2, p.206-207): part of the
-  odd-R9 balancing scheme — Q19 territory, not implemented. Type 1's documented *lack*
+  odd-R9 balancing scheme — now in F15 scope (Q19's main token resolved 2026-08-25; the
+  correction stays unimplemented pending F15 fixtures). Type 1's documented *lack*
   of the correction (p.208) is now modeled and pinned by `t24a`/`t24b` (2026-08-25, t24
   closure: the pulse starts at the first line of C4=R7 on both frame parities, giving the
   documented permanent 1-line gap for odd R7), together with the p.208 MID-VSYNC on the
@@ -153,9 +167,9 @@ write/value port pairs.
   target; unpinned, documented in the engine.
 - **IVM toggle during an R0=0 freeze** (review N-7): the seam fires every CLKEN while C0
   is pinned, consuming the toggle status immediately; unpinned, documented in the engine.
-- **Type-0 odd-R9 IVM is wrong by construction** while Q19 is open: the p.219 row-end
-  ParityC9 update is absent altogether (its corrected gate is R9 odd). Even R9 —
-  everything the tables pin — is unaffected.
+- **Type-0 odd-R9 IVM is wrong by construction** (finding F15): the p.219 row-end
+  ParityC9 update is absent altogether (its corrected gate is R9 odd, Q19 main token
+  resolved 2026-08-25). Even R9 — everything the tables pin — is unaffected.
 - **Adjustment during IVM** (both types): adjustment keeps its plain comparisons; the
   interaction is unpinned in the source.
 - **Same-edge coincidences** (stage edge vs row end vs frame boundary): documented
@@ -164,7 +178,7 @@ write/value port pairs.
 - **Interlace Sync mode (R8=1)**: parity state updates (frame toggle, per-C4 toggle) are
   live, but no IVM counting/display change and no toggle-stage rules fire (the source's
   stage rules are written for 0↔3). The additional line and MID-VSYNC effects of R8=1
-  remain under the Q10 gate.
+  remain under finding F14 (Q10 resolved 2026-08-25; fixtures before RTL).
 
 ## Review outcome
 
