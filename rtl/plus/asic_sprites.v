@@ -281,9 +281,10 @@ always @(*) begin
 		c_predok[i] = c_lact[i] && ((c_diff[i] + 10'd1) < c_hgt[i]);
 end
 
-// Walk FSM: slots 0..31 emission-critical (first/second missing byte of
-// the ACTIVE bank); slots 32..63 speculative (two lowest missing bytes of
-// the INACTIVE bank). Both halves wrap continuously.
+// Walk FSM: walk[7] divides two 128-slot halves — ACTIVE banks
+// (emission-critical misses) first, then INACTIVE banks (speculative
+// next-row prefill). Each half holds sixteen 8-byte blocks, one per
+// sprite; both halves wrap continuously.
 reg  [7:0] walk;
 reg        walk_act;
 wire [3:0] wk_s    = walk[6:3];
@@ -303,7 +304,13 @@ wire [3:0] wk_row  = wk_spec ? srowtag[{wk_s[3:0], ~abit[wk_s]}*4 +: 4]
 // while a grant is in flight, giving roughly one byte every other clock —
 // ample against the demand budget in the header note.
 reg  [7:0]  fq_tag;            // word of the request currently on the port
+reg  [3:0]  fq_row;            // source row the request was issued for
 wire        do_pop  = FQ_REQ && FQ_ACK;
+// The payload is only ours if the target bank still carries the row the
+// request was made for: a seam that retagged the bank between issue and
+// completion (including while an ACK sits delayed behind a CPU port
+// preemption) makes the answered data stale, whatever the timing.
+wire        fq_stale = (srowtag[fq_tag[7:3]*4 +: 4] != fq_row);
 
 wire [7:0]  pb_word  = wk_word;
 wire        pb_fresh = wk_go && !sreq[pb_word] && !sdone[pb_word];
@@ -322,6 +329,7 @@ always @(posedge CLOCK) begin
 		FQ_REQ  <= 1'b0;
 		FQ_ADDR <= 11'd0;
 		fq_tag  <= 8'd0;
+		fq_row  <= 4'd0;
 	end
 	else begin
 		d1w <= CLKEN && HWRAP;
@@ -412,17 +420,16 @@ always @(posedge CLOCK) begin
 
 		//------------------------------------------------------------
 		// Port completion: the handshake ALWAYS completes (dropping it
-		// would wedge REQ high). A payload write yields only to the
-		// two events that make ITS OWN word stale: a same-edge seam
-		// swap, or an access flush of the sprite the word belongs to
-		// (fq_tag[7:4]). Other sprites' in-flight bytes stay valid —
-		// suppressing them left holes in uninvolved sprites. A
-		// suppressed request releases its slot (sreq cleared) so the
-		// walker re-demands it.
+		// would wedge REQ high). A payload write yields only when ITS
+		// OWN word went stale since issue: a same-edge seam swap, an
+		// access flush of the sprite the word belongs to (fq_tag[7:4]),
+		// or a seam retag of the target bank detected by row-tag
+		// mismatch (fq_stale). Stale completions release sreq so the
+		// walker re-demands the byte against the new tag.
 		//------------------------------------------------------------
 		if (do_pop) begin
 			FQ_REQ <= 1'b0;
-			if (!d1w && (!ACC_EN ||
+			if (!d1w && !fq_stale && (!ACC_EN ||
 			              fq_tag[7:4] != ACC_IDX)) begin
 				rb_dat[fq_tag] <= FQ_DATA;
 				sdone[fq_tag]  <= 1'b1;
@@ -449,13 +456,15 @@ always @(posedge CLOCK) begin
 			if (pb_fresh) begin
 				FQ_ADDR <= {wk_s, wk_row, wk_byte};
 				fq_tag  <= pb_word;
+				fq_row  <= wk_row;
 				FQ_REQ  <= 1'b1;
 				sreq[pb_word] <= 1'b1;
 			end
-			// A disabled sprite's whole 16-slot span (both bank
-			// halves: sprite s occupies walks 8s..8s+7 active and
-			// 128+8s..128+8s+7 speculative) is skipped in a single
-			// clock by advancing the {bank,sprite} block number
+			// A disabled sprite's current 8-byte block is skipped
+			// in a single clock by advancing the {bank,sprite}
+			// block number (sprite s occupies walks 8s..8s+7
+			// active and 128+8s..128+8s+7 speculative; each half
+			// is skipped afresh when the lap reaches it)
 			// with carry from sprite 15 into the opposite half
 			// (review pass-2 finding 1: preserving walk[7] trapped
 			// the walk inside one half whenever sprite 15 was
