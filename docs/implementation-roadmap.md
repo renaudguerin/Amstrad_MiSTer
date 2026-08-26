@@ -37,10 +37,7 @@ merged into the same behavioral PR.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through
   the production-sized clear/load path; a real Plus/GX4000 hardware boot remains unverified.
-- ACCC v1.10 is the primary Compendium baseline, verified against the PDF by the 2026-08-22
-  faithfulness review (`accuracy/findings-review.md`, corrections B1-B13 applied). Prefer the
-  checked-in digests and audit prompts; consult `docs/ACCC1.10-EN.pdf` only for pages still
-  flagged ⚠ (visual-tier diagrams). v1.9 is disregarded — historical only.
+- ACCC v1.10 is the primary written Compendium baseline (`docs/ACCC1.10-EN.pdf`, outranking checked-in digests whenever a rule claim matters; see `accuracy/findings-review.md`, corrections B1-B13 applied). v1.9 is disregarded — historical only.
 - The v1.10 documentation rebaseline and the deterministic F12/F4/F8 milestones are complete;
   F9 closure is merged into this branch (`t12a`/`t12b`: exact-C0==R0 write → C4=39/C9=8 and
   its windowed companion → C4=38/C9=8, ACCC p.82). F6 Stage 2/2b is complete; F13 is
