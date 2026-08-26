@@ -48,6 +48,7 @@ public:
 		dut.leg_inkr[2] = 0;
 		dut.pal_raddr = 0;
 		dut.dma_int_set = 0;
+		dut.dcsr_ena_clr = 0;
 	}
 
 	void set_inkr_word(uint32_t lo, uint32_t hi) {

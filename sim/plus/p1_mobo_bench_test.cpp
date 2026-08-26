@@ -131,6 +131,18 @@ public:
 	auto* plus_rc_tap() {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_rc;
 	}
+	auto* sar0_lo_tap() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__dma_sar0_lo;
+	}
+	auto* sar0_hi_tap() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__dma_sar0_hi;
+	}
+	auto* ppr0_tap() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__dma_ppr0;
+	}
+	auto* dcsr_ena_tap() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__dma_dcsr_ena;
+	}
 
 	static uint8_t inkr_entry(const VlWide<3>* w, unsigned k) {
 		const unsigned lo = k * 5;
@@ -289,6 +301,16 @@ int run() {
 			if ((*b.plus_ra_tap() & 7) != exp_ra)
 				fail("m10: plus_ra does not reflect SSCR vertical scanline offset");
 			std::printf("PASS m10: Screen split and scroll registers reached ASIC page and video pipeline\n");
+
+			// P7 m11: DMA register writes
+			if (*b.sar0_lo_tap() != 0x34 || *b.sar0_hi_tap() != 0x12)
+				fail("m11: SAR0 register not written correctly (got lo=" +
+				     std::to_string(*b.sar0_lo_tap()) + " hi=" + std::to_string(*b.sar0_hi_tap()) + ")");
+			if (*b.ppr0_tap() != 0x05)
+				fail("m11: PPR0 register not written (got " + std::to_string(*b.ppr0_tap()) + ")");
+			if ((*b.dcsr_ena_tap() & 1) != 1)
+				fail("m11: DCSR ch0 enable not written (got " + std::to_string(*b.dcsr_ena_tap()) + ")");
+			std::printf("PASS m11: DMA registers (SAR0, PPR0, DCSR) reached ASIC page and DMA sound engine\n");
 		}
 
 		if (*b.cpu_fires() >= 1) {
