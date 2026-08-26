@@ -33,7 +33,13 @@ closed CLEAR — see the cleared review-debt row for the full record).
 Exact synthesis ran green at the engine tip `e3dd848`/`69e5d91`
 (run `32902476483`: 71 % ALMs / +0.436 ns setup), at merge tips
 `b533a93`/`dcbc6ad` (run `32914211795`: 72 % ALMs, +0.260 ns setup),
-and a fresh dispatch re-confirms at `143a213`.
+and a fresh dispatch re-confirmed at the docs tip `abfcadc`: GitHub
+Actions run `32918709419` (workflow_dispatch, Quartus 17.0.2) passed
+simulation, policy, exact synthesis and the required gate — 29,971 /
+41,910 ALMs (72 %); 37,442 registers; worst-case setup slack +0.260 ns,
+hold +0.241 ns; RBF artifact `Amstrad_20260826_abfcadc.rbf`. Identical
+fitter figures to `dcbc6ad`: the fq_row/fq_acc validation flops and
+their compare mux fit inside existing slack; no regression signal.
 
 `b533a93` was the first merge's synthesized milestone: GitHub Actions run `32905405634`
 (2026-08-25, Quartus 17.0.2, workflow_dispatch at the merge tip) passed
