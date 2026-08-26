@@ -4,7 +4,7 @@
 // build only. The lint pass uses the tie-off twin t80pa_lint_stub.v instead;
 // production never sees either.
 //
-// Behaviour: after reset release it plays a fixed script of I/O write
+// Behaviour: after reset release it plays a fixed script of I/O write/read
 // cycles that programs a sane CRTC type-3 frame through the motherboard's
 // bus decode (index/value addresses chosen with A[14]=0 to select the CRTC
 // side, A[9]=0 for write, A[8] picking index vs value, and A[11]=1 so the
@@ -44,11 +44,15 @@ module T80pa (
 	reg        dbg_ack_done   /* verilator public_flat_rd */;
 	reg        dbg_int_level  /* verilator public_flat_rd */;
 	reg [31:0] dbg_int_fires  /* verilator public_flat_rd */;
+	reg [7:0]  dbg_read_bf_r14 /* verilator public_flat_rd */;
+	reg [7:0]  dbg_read_be_r14 /* verilator public_flat_rd */;
+	reg [7:0]  dbg_read_bf_r15 /* verilator public_flat_rd */;
+	reg [7:0]  dbg_read_status2 /* verilator public_flat_rd */;
 	localparam [2:0] S_GAP = 3'd0, S_CYC = 3'd1, S_PRIME = 3'd2,
 	                 S_WAIT = 3'd3, S_ACK = 3'd4, S_FILL = 3'd5,
 	                 S_FILLC = 3'd6;
 
-	localparam [5:0] NSTEPS = 6'd42;
+	localparam [5:0] NSTEPS = 6'd58;
 	localparam [7:0] HOLD = 8'd47; // >= one full sequencer ring (32 clks)
 	localparam [7:0] GAP  = 8'd15;
 	localparam [7:0] ACKS = 8'd31;
@@ -120,7 +124,44 @@ module T80pa (
 			6'd39: step_bus = {1'b1, 16'h642B, 8'h06}; //   low R3 B4, high G6
 			6'd40: step_bus = {1'b1, 16'h6434, 8'h12}; // pal[26] (colour 10)
 			6'd41: step_bus = {1'b1, 16'h6435, 8'h0F}; //   low R1 B2, high GF
+			// P5 m9: selected CRTC reads on both documented ports, then
+			// IN-performs-write traps on CRTC data/select and GA ports.
+			6'd42: step_bus = {1'b0, 16'h0800, 8'h0E}; // select R14
+			6'd43: step_bus = {1'b0, 16'h0900, 8'h5A}; // R14 stores low 6 bits
+			6'd44: step_bus = {1'b0, 16'hBF00, 8'hE1}; // IN &BF -> R14
+			6'd45: step_bus = {1'b0, 16'hBE00, 8'hE2}; // IN &BE -> same R14
+			6'd46: step_bus = {1'b0, 16'h0800, 8'h0F}; // select R15
+			6'd47: step_bus = {1'b0, 16'h0900, 8'hC3}; // R15 = C3
+			6'd48: step_bus = {1'b1, 16'hF079, 8'hFF}; // opcode fetch seeds open bus 79
+			6'd49: step_bus = {1'b0, 16'hBD00, 8'hA1}; // IN data port writes 79, not DO
+			6'd50: step_bus = {1'b0, 16'hBF00, 8'hE3}; // read trapped R15 value
+			6'd51: step_bus = {1'b1, 16'hF003, 8'hFF}; // seed 03
+			6'd52: step_bus = {1'b0, 16'hBC00, 8'hA2}; // IN select port -> STATUS2
+			6'd53: step_bus = {1'b0, 16'hBF00, 8'hE4}; // read STATUS2
+			6'd54: step_bus = {1'b1, 16'hF006, 8'hFF}; // seed 06
+			6'd55: step_bus = {1'b0, 16'h7F00, 8'hA3}; // IN GA: PENR=6
+			6'd56: step_bus = {1'b1, 16'hF066, 8'hFF}; // seed 66
+			6'd57: step_bus = {1'b0, 16'h7F00, 8'hA4}; // IN GA: INKR[6]=6
 			default: step_bus = {1'b0, 16'h0000, 8'hFF};
+			endcase
+		end
+	endfunction
+
+	function step_is_read(input [5:0] k);
+		begin
+			case (k)
+			6'd44, 6'd45, 6'd48, 6'd49, 6'd50, 6'd51, 6'd52,
+			6'd53, 6'd54, 6'd55, 6'd56, 6'd57: step_is_read = 1'b1;
+			default: step_is_read = 1'b0;
+			endcase
+		end
+	endfunction
+
+	function step_is_fetch(input [5:0] k);
+		begin
+			case (k)
+			6'd48, 6'd51, 6'd54, 6'd56: step_is_fetch = 1'b1;
+			default: step_is_fetch = 1'b0;
 			endcase
 		end
 	endfunction
@@ -143,6 +184,8 @@ module T80pa (
 			int_d <= 1'b1; primed <= 1'b0;
 			dbg_step <= 6'd0; dbg_done <= 1'b0; dbg_ack_done <= 1'b0;
 			dbg_int_level <= 1'b1; dbg_int_fires <= 32'd0;
+			dbg_read_bf_r14 <= 8'hFF; dbg_read_be_r14 <= 8'hFF;
+			dbg_read_bf_r15 <= 8'hFF; dbg_read_status2 <= 8'hFF;
 			bus_idle;
 		end else begin
 			dbg_int_level <= int_n;
@@ -158,10 +201,10 @@ module T80pa (
 					sbus   = step_bus(step);
 					{cyc_mem, a, do} <= sbus;
 					dbg_step         <= step;
-					wr_n   <= 1'b0;
-					rd_n   <= 1'b1;
-					m1_n   <= 1'b1;
-					iorq_n <= sbus[24] ? 1'b1 : 1'b0;
+					wr_n   <= step_is_read(step) ? 1'b1 : 1'b0;
+					rd_n   <= step_is_read(step) ? 1'b0 : 1'b1;
+					m1_n   <= step_is_fetch(step) ? 1'b0 : 1'b1;
+					iorq_n <= (sbus[24] || step_is_fetch(step)) ? 1'b1 : 1'b0;
 					mreq_n <= sbus[24] ? 1'b0 : 1'b1;
 					cnt    <= HOLD;
 					st     <= S_CYC;
@@ -180,6 +223,13 @@ module T80pa (
 			if (cnt != 8'd0) begin
 				cnt <= cnt - 8'd1;
 			end else begin
+				case (step)
+				6'd44: dbg_read_bf_r14 <= di;
+				6'd45: dbg_read_be_r14 <= di;
+				6'd50: dbg_read_bf_r15 <= di;
+				6'd53: dbg_read_status2 <= di;
+				default: ;
+				endcase
 				bus_idle;
 				if (step == NSTEPS - 6'd1) begin
 					// Script done: auto-fill the sprite image before
@@ -219,7 +269,7 @@ module T80pa (
 			end else begin
 				bus_idle;
 				if (fill_i == 9'd255) begin
-					dbg_step <= 6'd42;
+					dbg_step <= NSTEPS;
 					dbg_done <= 1'b1;
 					st       <= S_GAP;
 				end else begin

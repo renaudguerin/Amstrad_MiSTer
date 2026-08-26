@@ -122,6 +122,7 @@ module Amstrad_motherboard
 	output        rd,
 	output        wr,
 	output        m1,
+	output reg [7:0] io_bus_byte,
 	output        ga_ready,
 	input         irq,
 	input         nmi,
@@ -156,6 +157,16 @@ wire RFSH_n;
 wire ga_int_n;
 wire INT_n = plus_mode ? plus_int_n : ga_int_n;
 wire M1_n;
+wire [7:0] cpu_data_bus = crtc_dout_sel & ppi_dout & cpu_din;
+wire [7:0] plus_io_data = io_rd ? io_bus_byte : D;
+
+// Write-only Plus ports see the byte left by the final opcode fetch of the
+// current instruction, not T80's undriven/stale DO value ([KT] Ports). This
+// is the ASIC's open-bus source for IN-performs-write traps.
+always @(posedge clk) begin
+	if (reset) io_bus_byte <= 8'hFF;
+	else if (~M1_n & ~MREQ_n & ~RD_n) io_bus_byte <= cpu_data_bus;
+end
 
 T80pa CPU
 (
@@ -167,7 +178,7 @@ T80pa CPU
 
 	.a(A),
 	.do(D),
-	.di(crtc_dout & ppi_dout & cpu_din),
+	.di(cpu_data_bus),
 
 	.rd_n(RD_n),
 	.wr_n(WR_n),
@@ -190,6 +201,10 @@ wire crtc_hs, crtc_vs, crtc_de;
 wire [13:0] MA;
 wire  [4:0] RA;
 wire  [7:0] crtc_dout;
+wire  [7:0] plus_crtc_dout;
+// Only the selected machine's CRTC may participate in the wired-AND CPU
+// data bus. The explicit mux also keeps plus_mode=0 invariant.
+wire  [7:0] crtc_dout_sel = plus_mode ? plus_crtc_dout : crtc_dout;
 
 CRTC crtc
 (
@@ -274,7 +289,7 @@ asic_ga_timing asic_ga
 	.RESET_N(~reset),
 
 	.A(A[15:14]),
-	.D(D),
+	.D(plus_io_data),
 	.MREQ_N(MREQ_n),
 	.M1_N(M1_n),
 	.RD_N(RD_n),
@@ -326,8 +341,10 @@ asic_ga_timing asic_ga
 	.GAMODE_O(plus_gamode)
 );
 
-// Locked-ASIC CRTC type 3 + pixel pipeline. Register writes share the
-// classic CRTC bus decode; DO readback stays unselected until P5.
+// Locked-ASIC CRTC type 3 + pixel pipeline. Register accesses share the
+// classic CRTC sparse decode. On Plus hardware an IN on either write port
+// performs the corresponding write with the live bus byte ([KT] Ports;
+// asic-reference sections 4/13), so DI remains D during read cycles too.
 asic_video asic_vid
 (
 	.CLOCK(clk),
@@ -338,8 +355,8 @@ asic_video asic_vid
 	.nCS(A[14]),
 	.R_nW(A[9]),
 	.RS(A[8]),
-	.DI(~RD_n ? 8'hFF : D),
-	.DO(),
+	.DI(plus_io_data),
+	.DO(plus_crtc_dout),
 
 	.HSYNC(plus_crtc_hs),
 	.VSYNC(plus_crtc_vs),

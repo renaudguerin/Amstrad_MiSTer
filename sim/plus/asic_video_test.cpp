@@ -73,6 +73,35 @@ public:
         dut.eval();
     }
 
+    void select_register(std::uint8_t address) {
+        run_to_bus_phase();
+        bus_edge(false, address);
+        idle_bus();
+        dut.eval();
+    }
+
+    // P5 readback is combinational and several status bits last one
+    // character only (ACCC §21.3.4 p.248). Sample without advancing the
+    // clock so the assertion names the counter state actually observed.
+    std::uint8_t sample_selected(bool rs = true, bool selected = true,
+                                 bool read_cycle = true) {
+        dut.ENABLE = 1;
+        dut.nCS = selected ? 0 : 1;
+        dut.R_nW = read_cycle ? 1 : 0;
+        dut.RS = rs ? 1 : 0;
+        dut.DI = 0;
+        dut.eval();
+        const std::uint8_t value = dut.DO;
+        idle_bus();
+        dut.eval();
+        return value;
+    }
+
+    std::uint8_t read_register(std::uint8_t address) {
+        select_register(address);
+        return sample_selected();
+    }
+
     void run_characters(std::uint64_t characters) {
         for (std::uint64_t character = 0; character < characters; ++character) {
             for (unsigned tick = 0; tick < kClockTicksPerCharacter; ++tick) {
@@ -98,6 +127,17 @@ public:
                 throw TestFailure("run_to_frame_start did not converge");
             }
         } while (!(dut.LINE == 0 && dut.ROW == 0 && dut.HCC == 0));
+    }
+
+    void run_to_state(unsigned line, unsigned row, unsigned hcc,
+                      const std::string& context) {
+        unsigned guard = 0;
+        while (!(dut.LINE == line && dut.ROW == row && dut.HCC == hcc)) {
+            run_characters(1);
+            if (++guard > 8192) {
+                throw TestFailure(context + ": counter state did not converge");
+            }
+        }
     }
 
     // Run until the VSYNC pin is observed low: flushes any pulse that
@@ -1407,7 +1447,261 @@ void t06b_border_over_sprite(TestBench& test) {
     test.expect_rgb("t06c HSYNC blanks active sprite", 0, 0, 0);
 }
 
-constexpr std::array<TestCase, 38> kTests = {{
+// ---- t07: CRTC-3 bus readback and status groups (P5) -----------------
+
+void expect_mask(const std::string& context, std::uint8_t actual,
+                 std::uint8_t mask, std::uint8_t expected) {
+    if ((actual & mask) != expected) {
+        TestBench::fail_unsigned(context, expected, actual & mask);
+    }
+}
+
+// ACCC §21.2.3 p.246: reads use addr[2:0] through the fixed
+// R16/R17/STATUS1/STATUS2/R12/R13/R14/R15 map. R12 is a full eight-bit
+// readback register (§20.5 p.244), while R14/R16 force bits 7:6 to zero.
+// Writes keep the full index: writing R4 above must not change slot 4's R12.
+void t07a_mod8_read_map_and_storage(TestBench& test) {
+    test.write_register(0, 7);
+    test.write_register(1, 4);
+    test.write_register(2, 5);
+    test.write_register(3, 0x22);
+    test.write_register(4, 2);
+    test.write_register(5, 0);
+    test.write_register(6, 100);
+    test.write_register(7, 100);
+    test.write_register(9, 3);
+    test.write_register(12, 0xD2); // D7:D6 stored for readback; VMA uses 0x12
+    test.write_register(13, 0x34);
+    test.write_register(14, 0x5A); // six-bit R14 stores 0x1A
+    test.write_register(15, 0xC3);
+    test.run_to_frame_start();
+
+    test.expect_ma("t07a VMA uses R12[5:0], not extended bits", 0x1234);
+    if (test.read_register(0) != 0x00 || test.read_register(1) != 0x00)
+        TestBench::fail_unsigned("t07a reset light-pen slots", 0, 1);
+    if (test.read_register(4) != 0xD2)
+        TestBench::fail_unsigned("t07a slot 4 returns full R12", 0xD2,
+                                 test.read_register(4));
+    if (test.read_register(12) != 0xD2 || test.read_register(20) != 0xD2)
+        TestBench::fail_unsigned("t07a modulo-8 R12 aliases", 0xD2,
+                                 test.read_register(20));
+    if (test.read_register(5) != 0x34)
+        TestBench::fail_unsigned("t07a slot 5 returns R13", 0x34,
+                                 test.read_register(5));
+    if (test.read_register(6) != 0x1A)
+        TestBench::fail_unsigned("t07a slot 6 returns masked R14", 0x1A,
+                                 test.read_register(6));
+    if (test.read_register(7) != 0xC3)
+        TestBench::fail_unsigned("t07a slot 7 returns R15", 0xC3,
+                                 test.read_register(7));
+}
+
+// ACCC §21.3.4.1 p.248, paper-derived for R0=7/R1=4/R2=5/R3l=2:
+// at C0=3 the R0/2 and R1-1 active-low flags coincide (F8); C0=5 is
+// HSYNC start (F6); §21.3.4.1 puts bit 4 low at C0=R2+R3=7, where
+// C0=R0 also sets bit 0.
+void t07b_status1_horizontal_events(TestBench& test) {
+    test.write_register(9, 3);
+    test.write_register(4, 2);
+    test.write_register(5, 0);
+    test.write_register(1, 4);
+    test.write_register(2, 5);
+    test.write_register(3, 0x22);
+    test.write_register(6, 100);
+    test.write_register(7, 100);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.write_register(0, 7);
+    test.select_register(2);
+    test.run_to_frame_start();
+
+    if (test.sample_selected() != 0xFE)
+        TestBench::fail_unsigned("t07b status1 at C0=0", 0xFE,
+                                 test.sample_selected());
+    test.run_characters(3);
+    if (test.sample_selected() != 0xF8)
+        TestBench::fail_unsigned("t07b coincident R0/2 and R1-1", 0xF8,
+                                 test.sample_selected());
+    test.run_characters(2);
+    if (test.sample_selected() != 0xF6)
+        TestBench::fail_unsigned("t07b C0=R2 active-low", 0xF6,
+                                 test.sample_selected());
+    test.run_characters(1);
+    if (test.sample_selected() != 0xFE)
+        TestBench::fail_unsigned("t07b before STATUS1 R2+R3", 0xFE,
+                                 test.sample_selected());
+    test.run_characters(1);
+    if (test.sample_selected() != 0xEF)
+        TestBench::fail_unsigned("t07b C0=R0 and R2+R3", 0xEF,
+                                 test.sample_selected());
+}
+
+// ACCC §21.3.4.1 p.248: status-1 bit 7 is active-low when the next
+// character wraps VMA.LSB, or at C0=R0 when the saved row base LSB is 00.
+void t07c_status1_pointer_preview(TestBench& test) {
+    test.write_register(0, 7);
+    test.write_register(1, 4);
+    test.write_register(4, 3);
+    test.write_register(5, 0);
+    test.write_register(6, 100);
+    test.write_register(7, 100);
+    test.write_register(9, 0);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0xFD);
+    test.select_register(2);
+    test.run_to_frame_start();
+    test.run_characters(2); // VMA=0x12FF at C0=2
+    expect_mask("t07c VMA low-byte wrap preview", test.sample_selected(),
+                0x80, 0x00);
+
+    test.reset();
+    test.write_register(0, 7);
+    test.write_register(1, 4);
+    test.write_register(4, 3);
+    test.write_register(5, 0);
+    test.write_register(6, 100);
+    test.write_register(7, 100);
+    test.write_register(9, 0);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0xFC);
+    test.select_register(2);
+    test.run_to_frame_start();
+    test.run_characters(7); // R1 capture saved 0x1300; now C0=R0
+    expect_mask("t07c VMA' zero-low-byte reload preview", test.sample_selected(),
+                0x80, 0x00);
+}
+
+// ACCC §21.3.4.1 p.248 + [KT] CRTC Status 1: bit 5 is zero only on
+// the final line of the effective VSYNC pulse. [KT] supplies the R3h=0
+// sixteenth-line result; ACCC documents only the preceding 15 lines.
+void t07d_status1_last_vsync_line(TestBench& test) {
+    auto seek_vsync = [&](const std::string& context) {
+        unsigned guard = 0;
+        while (!test.vsync()) {
+            test.run_characters(1);
+            if (++guard > 4096) throw TestFailure(context + ": no VSYNC");
+        }
+    };
+
+    test.write_register(0, 3);  // four characters per line
+    test.write_register(3, 0x22);
+    test.write_register(4, 4);
+    test.write_register(5, 0);
+    test.write_register(7, 1);
+    test.write_register(9, 7);
+    test.select_register(2);
+    test.run_to_frame_start();
+    seek_vsync("t07d width-2");
+    expect_mask("t07d first of two VSYNC lines", test.sample_selected(),
+                0x20, 0x20);
+    test.run_characters(4);
+    expect_mask("t07d second/last VSYNC line", test.sample_selected(),
+                0x20, 0x00);
+    test.run_characters(4);
+    expect_mask("t07d after width-2 VSYNC", test.sample_selected(),
+                0x20, 0x20);
+
+    test.reset();
+    test.write_register(0, 1);  // two characters per line
+    test.write_register(3, 0x02); // R3h=0 -> 16 lines
+    test.write_register(4, 4);
+    test.write_register(5, 0);
+    test.write_register(7, 1);
+    test.write_register(9, 31);
+    test.select_register(2);
+    test.run_to_frame_start();
+    seek_vsync("t07d width-16");
+    test.run_characters(28); // line index 14
+    expect_mask("t07d fifteenth of sixteen VSYNC lines",
+                test.sample_selected(), 0x20, 0x20);
+    test.run_characters(2); // line index 15
+    expect_mask("t07d sixteenth/last VSYNC line", test.sample_selected(),
+                0x20, 0x00);
+    test.run_characters(2);
+    expect_mask("t07d after width-16 VSYNC", test.sample_selected(),
+                0x20, 0x20);
+}
+
+// ACCC §21.3.4.2 p.249. Constants: bit4=1 and bit6=0. Bit5 is zero
+// throughout C9=R9. Bit7 is one at C9=0 before C0=R0 and at the final
+// C9=R9/C0=R0 character. Bits 1/2/0 pulse low at the three named line ends.
+void t07e_status2_vertical_events(TestBench& test) {
+    test.write_register(0, 3);
+    test.write_register(4, 3);
+    test.write_register(5, 0);
+    test.write_register(6, 2);
+    test.write_register(7, 3);
+    test.write_register(9, 1);
+    test.select_register(3);
+    test.run_to_frame_start();
+
+    expect_mask("t07e STATUS2 constants and C9=0 body",
+                test.sample_selected(), 0xF0, 0xB0);
+    test.run_characters(3); // C9=0, C0=R0
+    expect_mask("t07e C9=0 final character", test.sample_selected(),
+                0xA0, 0x20);
+    test.run_characters(1); // C9=R9, C0=0
+    expect_mask("t07e C9=R9 body", test.sample_selected(), 0xA0, 0x00);
+    test.run_characters(3); // C9=R9, C0=R0
+    expect_mask("t07e C9=R9 final character", test.sample_selected(),
+                0xA0, 0x80);
+    expect_mask("t07e no vertical terminal in row 0", test.sample_selected(),
+                0x07, 0x07);
+
+    test.run_to_state(1, 1, 3, "t07e last displayed");
+    expect_mask("t07e C4=R6-1 terminal", test.sample_selected(), 0x02, 0x00);
+    test.run_to_state(2, 1, 3, "t07e last before VSYNC");
+    expect_mask("t07e C4=R7-1 terminal", test.sample_selected(), 0x04, 0x00);
+    test.run_to_state(3, 1, 3, "t07e last screen character");
+    expect_mask("t07e C4=R4 terminal", test.sample_selected(), 0x01, 0x00);
+}
+
+// ACCC §21.3.4.2 p.249: bit 3 is stable for a whole frame and toggles
+// every 16 frame origins. The absolute reset phase is the RTL's named zero
+// assumption; this vector derives only the documented period.
+void t07f_status2_frame16_timer(TestBench& test) {
+    test.write_register(0, 1); // two characters per one-line frame
+    test.write_register(4, 0);
+    test.write_register(5, 0);
+    test.write_register(7, 100);
+    test.write_register(9, 0);
+    test.select_register(3);
+    test.run_to_frame_start();
+    const std::uint8_t start = test.sample_selected() & 0x08;
+    test.run_characters(32); // 16 frames * 2 characters
+    const std::uint8_t flipped = test.sample_selected() & 0x08;
+    if (flipped == start)
+        TestBench::fail_unsigned("t07f timer did not toggle after 16 frames",
+                                 start ^ 0x08, flipped);
+    test.run_characters(32);
+    if ((test.sample_selected() & 0x08) != start)
+        TestBench::fail_unsigned("t07f timer did not return after 32 frames",
+                                 start, test.sample_selected() & 0x08);
+}
+
+// §21.2.3 lists R10/R11/R16/R17 as read-only. With no light-pen strobe,
+// writes to 16/17 do not move their named-zero model. Both RS levels read
+// the selected register (&BE00/&BF00); unselected and write cycles remain
+// wired-AND neutral FF.
+void t07g_readonly_and_neutral_cycles(TestBench& test) {
+    test.write_register(16, 0xAA);
+    test.write_register(17, 0x55);
+    if (test.read_register(0) != 0 || test.read_register(1) != 0)
+        TestBench::fail_unsigned("t07g light-pen registers are read-only", 0, 1);
+    test.select_register(4);
+    const std::uint8_t bf_value = test.sample_selected(true);
+    const std::uint8_t be_value = test.sample_selected(false);
+    if (bf_value != 0 || be_value != 0)
+        TestBench::fail_unsigned("t07g BE/BF read ports differ", 0, be_value);
+    if (test.sample_selected(true, false) != 0xFF)
+        TestBench::fail_unsigned("t07g unselected read is neutral", 0xFF,
+                                 test.sample_selected(true, false));
+    if (test.sample_selected(true, true, false) != 0xFF)
+        TestBench::fail_unsigned("t07g write cycle is neutral", 0xFF,
+                                 test.sample_selected(true, true, false));
+}
+
+constexpr std::array<TestCase, 45> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -1451,6 +1745,13 @@ constexpr std::array<TestCase, 38> kTests = {{
     {"t06a sprite pixel over screen ink", t06a_sprite_over_screen_ink},
     {"t06b border over sprite; HSYNC blank over all",
      t06b_border_over_sprite},
+    {"t07a modulo-8 read map and pointer storage", t07a_mod8_read_map_and_storage},
+    {"t07b STATUS1 horizontal events", t07b_status1_horizontal_events},
+    {"t07c STATUS1 video-pointer preview", t07c_status1_pointer_preview},
+    {"t07d STATUS1 last VSYNC line", t07d_status1_last_vsync_line},
+    {"t07e STATUS2 vertical events", t07e_status2_vertical_events},
+    {"t07f STATUS2 16-frame timer", t07f_status2_frame16_timer},
+    {"t07g read-only slots, dual read ports and neutral cycles", t07g_readonly_and_neutral_cycles},
 }};
 
 }  // namespace

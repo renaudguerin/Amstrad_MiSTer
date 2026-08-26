@@ -31,6 +31,15 @@ module p1_mobo_bench_top (
 		else cdiv <= (cdiv == 2'd3) ? 2'd0 : cdiv + 2'd1;
 	end
 	wire ce_16 = (cdiv == 2'd0); // 16 MHz dot-clock enable from 64 MHz clk
+	wire [15:0] cpu_addr;
+	wire        cpu_mreq, cpu_rd, cpu_m1;
+	// Bench ROM bytes for the scripted opcode-fetch cycles. They seed the
+	// production open-bus latch before each write-side-effect IN.
+	wire [7:0] cpu_din = (cpu_mreq && cpu_rd && cpu_m1) ?
+		((cpu_addr == 16'hF079) ? 8'h79 :
+		 (cpu_addr == 16'hF003) ? 8'h03 :
+		 (cpu_addr == 16'hF006) ? 8'h06 :
+		 (cpu_addr == 16'hF066) ? 8'h66 : 8'hFF) : 8'hFF;
 
 	Amstrad_motherboard mb
 	(
@@ -112,14 +121,15 @@ module p1_mobo_bench_top (
 		.phi_n(),
 		.phi_en_n(),
 		.phi_en_p(),
-		.cpu_addr(),
+		.cpu_addr(cpu_addr),
 		.cpu_dout(),
-		.cpu_din(8'hFF),   // wired-AND neutral: only internal sources drive
+		.cpu_din(cpu_din),
 		.iorq(),
-		.mreq(),
-		.rd(),
+		.mreq(cpu_mreq),
+		.rd(cpu_rd),
 		.wr(),
-		.m1(),
+		.m1(cpu_m1),
+		.io_bus_byte(),
 		.ga_ready(),
 		.irq(1'b0),
 		.nmi(1'b0),

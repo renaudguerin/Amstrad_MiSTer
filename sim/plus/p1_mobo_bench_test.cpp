@@ -92,6 +92,18 @@ public:
 	auto* cpu_level() {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__dbg_int_level;
 	}
+	auto* cpu_read_bf_r14() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__dbg_read_bf_r14;
+	}
+	auto* cpu_read_be_r14() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__dbg_read_be_r14;
+	}
+	auto* cpu_read_bf_r15() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__dbg_read_bf_r15;
+	}
+	auto* cpu_read_status2() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__dbg_read_status2;
+	}
 	auto* spr_ram() {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_ram[0];
 	}
@@ -173,10 +185,19 @@ int run() {
 				fail("m3: INKR[5] should carry 0x15 on asic_video INKR_I");
 			if (b.inkr_entry(b.inkr_tap(), 0) != 0x00)
 				fail("m3: slot 0 must stay untouched by the scripted writes");
+			if (*b.cpu_read_bf_r14() != 0x1A || *b.cpu_read_be_r14() != 0x1A)
+				fail("m9: &BE/&BF did not return the same selected R14 value");
+			if (*b.cpu_read_bf_r15() != 0x79)
+				fail("m9: CRTC data-port IN did not write the live bus byte to R15");
+			if ((*b.cpu_read_status2() & 0x50) != 0x10)
+				fail("m9: CRTC select-port IN did not select STATUS2");
+			if (b.inkr_entry(b.inkr_tap(), 6) != 0x06)
+				fail("m9: Gate-Array IN trap did not update INKR[6]");
 			done_checked = true;
 			std::printf("PASS m1: plus_mode motherboard boots; CRTC3 programmed over the bus\n");
 			std::printf("PASS m2: GA RMR writes reach asic_video via GAMODE_O (3 -> 2)\n");
 			std::printf("PASS m3: INKR[5]/border payloads reach asic_video inputs\n");
+			std::printf("PASS m9: CRTC3 read mux, dual read ports and IN traps reach CRTC/GA state\n");
 		}
 		if (*b.cpu_done() && !fired && b.cyc > kFireTimeout)
 			fail("m4: no Plus interrupt reached the CPU pin before timeout");
@@ -399,7 +420,14 @@ void run_classic_probe() {
 		if (b.dut.vec_valid_o || b.dut.asic_rd_o) ok = false;
 	}
 	if (windows == 0) fail("m7: no acknowledge window observed");
+	if (!*b.cpu_done()) fail("m7: scripted classic-mode probe did not complete");
 	if (!ok) fail("m7: vec_valid or asic_rd asserted in classic mode");
+	// Type 0 keeps its pre-P5 port asymmetry: RS=1 (&BF) reads R14,
+	// while RS=0 (&BE) is open bus. Plus type 3 deliberately differs.
+	if (*b.cpu_read_bf_r14() != 0x1A || *b.cpu_read_be_r14() != 0xFF)
+		fail("m7: classic CRTC read path changed on &BE/&BF");
+	if (*b.cpu_read_status2() != 0x00)
+		fail("m7: Plus CRTC readback leaked onto the classic CPU bus");
 	std::printf("PASS m7: classic mode inert across %u ack windows with page forced on\n",
 	            windows);
 }

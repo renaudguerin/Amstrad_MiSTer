@@ -29,6 +29,7 @@ public:
         dut_.reset = 0;
         dut_.plus_mode = 1;
         dut_.gx4000 = 0;
+        dut_.io_rd = 0;
         dut_.io_wr = 0;
         dut_.mem_rd = 0;
         dut_.A = 0;
@@ -65,11 +66,28 @@ public:
 
     void io_write(std::uint16_t addr, std::uint8_t data) {
         dut_.mem_rd = 0;
+        dut_.io_rd = 0;
         dut_.io_wr = 1;
         dut_.A = addr;
         dut_.D = data;
-        tick();
+        for (unsigned hold = 0; hold < 4; ++hold) tick();
         dut_.io_wr = 0;
+        dut_.A = 0;
+        dut_.D = 0;
+        tick();
+    }
+
+    // Plus I/O reads on CRTC/Gate-Array write ports perform the matching
+    // write with the live bus byte ([KT] Ports; asic-reference sections
+    // 4/13). The DUT sees that byte on D exactly as production wiring does.
+    void io_read(std::uint16_t addr, std::uint8_t data) {
+        dut_.mem_rd = 0;
+        dut_.io_wr = 0;
+        dut_.io_rd = 1;
+        dut_.A = addr;
+        dut_.D = data;
+        for (unsigned hold = 0; hold < 4; ++hold) tick();
+        dut_.io_rd = 0;
         dut_.A = 0;
         dut_.D = 0;
         tick();
@@ -306,6 +324,33 @@ void test_rmr2_locking_positions_pages() {
     tb.end_read();
 }
 
+// The unlock stream and RMR2 are both write-side effects of Plus IN cycles.
+// One read byte inside the otherwise ordinary unlock stream proves the
+// detector consumes io_rd; the final RMR2 read proves its GA payload capture.
+// The second half pins the plus_mode gate around the same trap path.
+void test_io_read_traps_unlock_and_rmr2() {
+    TestBench tb;
+    tb.hard_reset();
+
+    const std::uint8_t seq[] = {0xff, 0x00, 0xff, 0x77, 0xb3, 0x51, 0xa8, 0xd4,
+                                0x62, 0x39, 0x9c, 0x46, 0x2b, 0x15, 0x8a, 0xcd};
+    for (unsigned i = 0; i < sizeof(seq); ++i) {
+        if (i == 8) tb.io_read(0xbc00, seq[i]);
+        else        tb.io_write(0xbc00, seq[i]);
+    }
+    tb.io_read(0x7f00, 0xb8);
+    require(tb.dut().asic_page_on == 1,
+            "IN trap did not carry unlock byte and RMR2 payload");
+
+    tb.hard_reset();
+    tb.dut().plus_mode = 0;
+    for (std::uint8_t byte : seq) tb.io_read(0xbc00, byte);
+    tb.dut().plus_mode = 1;
+    tb.io_read(0x7f00, 0xb8);
+    require(tb.dut().asic_page_on == 0,
+            "classic-mode IN sequence armed the Plus unlock detector");
+}
+
 // Handshake discipline: exactly one request per bus cycle, fields stable
 // while held, ownership held until the cycle ends, then re-armed.
 void test_handshake_single_request_per_cycle() {
@@ -413,6 +458,8 @@ int main(int argc, char** argv) {
         std::cout << "PASS: ROM-enable and plus_mode gating\n";
         test_rmr2_locking_positions_pages();
         std::cout << "PASS: RMR2 locking, relocation, pages, ASIC-page flag\n";
+        test_io_read_traps_unlock_and_rmr2();
+        std::cout << "PASS: IN traps reach unlock and RMR2 only in Plus mode\n";
         test_handshake_single_request_per_cycle();
         std::cout << "PASS: single held request per cycle and ownership window\n";
         test_watchdog_releases_stuck_response();
