@@ -463,6 +463,11 @@ public:
         expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__line);
     }
 
+    void expect_xfail_c5(const std::string& expectation,
+                         std::uint8_t expected) const {
+        expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__c5);
+    }
+
     void expect_xfail_c4(const std::string& expectation,
                          std::uint8_t expected) const {
         expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__row);
@@ -595,6 +600,18 @@ public:
     void expect_xfail_vsync_low(const std::string& expectation) const {
         if (dut_->VSYNC != 0) {
             known_divergence(expectation, "VSYNC high");
+        }
+    }
+
+    void expect_xfail_adjustment_active(const std::string& expectation) const {
+        if (!dut_->rootp->CRTC__DOT__in_adj) {
+            known_divergence(expectation, "adjustment inactive");
+        }
+    }
+
+    void expect_xfail_adjustment_inactive(const std::string& expectation) const {
+        if (dut_->rootp->CRTC__DOT__in_adj) {
+            known_divergence(expectation, "adjustment active");
         }
     }
 
@@ -5753,6 +5770,348 @@ void test_type1_ivm_mid_vsync_half_line_phase(TestBench& test) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// t27: F14 additional interlace line, type 0 (ACCC v1.10 section 19.6.1
+// p.216; section 19.5.2 p.205; section 11.2 pp.83-84; section 19.3 p.199;
+// Q10 resolution in accc-author-questions.md item 10).
+//
+// Paper derivation, every assertion traceable to a cited section:
+//
+//   - Gate: the line is appended "at the end of the frame (after the R5
+//     lines if necessary)" iff an interlace mode is active (R8=1 or 3) and
+//     ParityR6 is odd (section 19.6.1 p.216).  ParityR6 := ParityFrame xor 1
+//     when C4 reaches R6, independent of R8 (section 19.5.2 p.205); with
+//     R6>R4 the capture never fires and ParityR6 freezes, so the gate
+//     persists: a line every frame if frozen odd, never if frozen even
+//     (section 19.6.1 p.216, both branches stated explicitly).
+//
+//   - Position: after the R5 adjustment lines and before the frame origin;
+//     the origin's C4/C9 reset, ParityFrame snapshot and VMA reload move to
+//     the end of the additional line.  The even frame is 312 lines and the
+//     following odd frame "inherits" the line for its 313-line 20032 us
+//     duration (section 19.3 p.199).
+//
+//   - C4 accounting: "C4 is incremented only once for all additional lines
+//     (R5 and interlace) and is equal to C4=R4+1" (section 19.6.1 p.216).
+//     The type-0 adjustment already increments C4 to R4+1 at its entry
+//     (section 11.2.2 p.81; the p.83 adjustment table), so the additional
+//     line shares that single increment and the adjustment count continues
+//     through it: "the counting is done as if this line had been added to
+//     R5" (section 11.2 p.84), i.e. the additional line holds C9=R5.
+//     (The p.84 R5=7/R5=8 worked example is the section 11.2.3 CRTC 1/2
+//     accounting where C4 keeps incrementing at mid-period C9 wraps; the
+//     type-0 single-increment rule of section 19.6.1 is what is implemented
+//     here.)
+//
+// Fixture frame: R0=63 (64-character lines), R4=2 (three C4 rows), R9=2
+// (three lines per row), R6=1 (ParityR6 captured at each C4=0->1 crossing),
+// R7=63 (VSYNC quiet), R8=1.  INTERLACE SYNC arms the gate while keeping
+// IVM counting out of the walk (the parity management is independent of R8,
+// section 19.5.2 p.205), which isolates F14 from the F15 odd-R9 counting.
+//
+// Walk convention: every helper asserts at the CURRENT line's C0=4 character
+// and then advances one 64-character line.
+
+void t27_configure(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, 2},
+        {5, 0},  {6, 1},  {7, 63}, {8, 1},    {9, 2},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_to_c0(TestBench::kF10TargetC0);
+}
+
+// Assert the plain (C4, C9) row/line position at the current line start,
+// then advance one line.
+static void t27_step_plain(TestBench& test, const char* tag,
+                           std::uint8_t c4, std::uint8_t c9) {
+    test.expect_c4(std::string(tag) + " C4", c4);
+    test.expect_line(std::string(tag) + " C9", c9);
+    test.run_characters(64);
+}
+
+void t27_type0_addline_basic(TestBench& test) {
+    t27_configure(test);
+    // Frame 0 (ParityFrame even): three rows of three lines.
+    for (unsigned i = 0; i < 9; ++i) {
+        t27_step_plain(test, "t27a frame 0 line", static_cast<std::uint8_t>(i / 3),
+                       static_cast<std::uint8_t>(i % 3));
+    }
+    // Section 19.6.1 p.216: the additional line at C4=R4+1 with the
+    // adjustment count continued to C9=R5=0, adjustment still active.
+    test.expect_c4("t27a frame 0 additional line C4=R4+1", 3);
+    test.expect_line("t27a frame 0 additional line C9=R5", 0);
+    test.expect_adjustment_active("t27a frame 0 additional line is an adjustment line");
+    // The origin moves past the additional line: frame 1 opens with
+    // ParityFrame := ParityR6 = 1 (section 19.5.2 p.205 snapshot).
+    test.run_characters(64);
+    test.expect_c4("t27a frame 1 opens after the additional line", 0);
+    test.expect_line("t27a frame 1 opens at C9=0", 0);
+    test.expect_parity_frame("t27a frame 1 is odd (ParityR6 snapshot)", 1);
+    // Frame 1 (odd): its capture makes ParityR6 even, so no additional line.
+    for (unsigned i = 0; i < 9; ++i) {
+        t27_step_plain(test, "t27a frame 1 line", static_cast<std::uint8_t>(i / 3),
+                       static_cast<std::uint8_t>(i % 3));
+    }
+    test.expect_c4("t27a frame 2 opens directly (no line on the odd frame)", 0);
+    test.expect_line("t27a frame 2 opens at C9=0", 0);
+    test.expect_parity_frame("t27a frame 2 is even", 0);
+    // Frame 2 (even): ParityR6 odd again, line appended once more.
+    for (unsigned i = 0; i < 9; ++i) {
+        t27_step_plain(test, "t27a frame 2 line", static_cast<std::uint8_t>(i / 3),
+                       static_cast<std::uint8_t>(i % 3));
+    }
+    test.expect_c4("t27a frame 2 additional line C4=R4+1", 3);
+    test.expect_line("t27a frame 2 additional line C9=R5", 0);
+    test.run_characters(64);
+    test.expect_parity_frame("t27a frame 3 is odd again", 1);
+}
+
+// t27b: R5=2 -- the additional line sits after the two R5 adjustment lines
+// ("after the R5 lines if necessary", section 19.6.1 p.216) and shares
+// C4=R4+1 with them ("incremented only once", same section); its C9
+// continues the adjustment count to C9=R5 ("as if this line had been added
+// to R5", section 11.2 p.84).
+void t27_type0_addline_after_r5_lines(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, 2},
+        {5, 2},  {6, 1},  {7, 63}, {8, 1},    {9, 2},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_to_c0(TestBench::kF10TargetC0);
+    // Frame 0: rows 0..2, then the two R5 adjustment lines at C4=R4+1.
+    for (unsigned i = 0; i < 9; ++i) {
+        t27_step_plain(test, "t27b frame 0 line", static_cast<std::uint8_t>(i / 3),
+                       static_cast<std::uint8_t>(i % 3));
+    }
+    t27_step_plain(test, "t27b frame 0 adjustment 0", 3, 0);
+    t27_step_plain(test, "t27b frame 0 adjustment 1", 3, 1);
+    // The additional line: C4 held at R4+1 (single increment), C9=R5.
+    test.expect_c4("t27b additional line holds C4=R4+1", 3);
+    test.expect_line("t27b additional line continues the count to C9=R5", 2);
+    test.expect_adjustment_active("t27b additional line is an adjustment line");
+    // Frame 1 opens after it, odd.
+    test.run_characters(64);
+    test.expect_c4("t27b frame 1 opens after the additional line", 0);
+    test.expect_parity_frame("t27b frame 1 is odd", 1);
+    // Frame 1 (odd): adjustment ends the frame directly, no additional line.
+    for (unsigned i = 0; i < 9; ++i) {
+        t27_step_plain(test, "t27b frame 1 line", static_cast<std::uint8_t>(i / 3),
+                       static_cast<std::uint8_t>(i % 3));
+    }
+    t27_step_plain(test, "t27b frame 1 adjustment 0", 3, 0);
+    t27_step_plain(test, "t27b frame 1 adjustment 1", 3, 1);
+    test.expect_c4("t27b frame 2 opens directly (odd frame)", 0);
+    test.expect_parity_frame("t27b frame 2 is even", 0);
+}
+
+// t27c: R6>R4 freeze with ParityR6 frozen ODD -- the gate persists and the
+// additional line is generated every frame "as long as R6>R4 (and R8=3 or
+// 1), whatever the parity of the C9's" (section 19.6.1 p.216); every origin
+// snapshots ParityFrame := 1, so every frame is odd-parity.
+void t27_type0_addline_freeze_odd(TestBench& test) {
+    t27_configure(test);
+    // Frame 0: capture fires (C4 reaches R6=1), line appended, frame 1 odd.
+    for (unsigned i = 0; i < 9; ++i) {
+        t27_step_plain(test, "t27c frame 0 line", static_cast<std::uint8_t>(i / 3),
+                       static_cast<std::uint8_t>(i % 3));
+    }
+    test.expect_c4("t27c frame 0 additional line", 3);
+    test.run_characters(64);
+    test.expect_parity_frame("t27c frame 1 is odd", 1);
+    // Freeze R6>R4 during frame 1's C4=0 row, before its C4=0->1 crossing:
+    // ParityR6 keeps its odd value for the rest of the run.
+    test.write_register(6, 63);
+    // Frame 1 ends with an additional line despite being odd-parity.
+    for (unsigned i = 0; i < 9; ++i) {
+        t27_step_plain(test, "t27c frame 1 line", static_cast<std::uint8_t>(i / 3),
+                       static_cast<std::uint8_t>(i % 3));
+    }
+    test.expect_c4("t27c frozen-odd frame 1 still gains the line", 3);
+    test.run_characters(64);
+    test.expect_parity_frame("t27c frame 2 snapshots the frozen odd parity", 1);
+    // And frame 2 does too: the freeze persists.
+    for (unsigned i = 0; i < 9; ++i) {
+        t27_step_plain(test, "t27c frame 2 line", static_cast<std::uint8_t>(i / 3),
+                       static_cast<std::uint8_t>(i % 3));
+    }
+    test.expect_c4("t27c frozen-odd frame 2 gains the line", 3);
+    test.run_characters(64);
+    test.expect_parity_frame("t27c frame 3 odd again", 1);
+}
+
+// t27d: R6>R4 freeze with ParityR6 frozen EVEN -- "all the frames will
+// remain even and without additional line" (section 19.6.1 p.216).  The
+// freeze write lands after frame 1's capture so ParityR6=0 is the frozen
+// value.
+void t27_type0_addline_freeze_even(TestBench& test) {
+    t27_configure(test);
+    // Frame 0: capture (odd), line appended, frame 1 odd -- as t27a.
+    for (unsigned i = 0; i < 9; ++i) {
+        t27_step_plain(test, "t27d frame 0 line", static_cast<std::uint8_t>(i / 3),
+                       static_cast<std::uint8_t>(i % 3));
+    }
+    test.expect_c4("t27d frame 0 additional line", 3);
+    test.run_characters(64);
+    test.expect_parity_frame("t27d frame 1 is odd", 1);
+    // Frame 1's capture fires at its C4=0->1 crossing -- the end of the
+    // C4=0 row's last line (walk line 12, C9=R9) -- setting ParityR6 := 0.
+    // The freeze write then lands during the C4=1 row (walk line 13).
+    test.run_characters(64);
+    test.run_characters(64);
+    test.run_characters(64);
+    test.write_register(6, 63);
+    // Walk the rest of frame 1 (lines 13..18) and cross into frame 2: no
+    // additional line, the origin follows the last row directly.
+    t27_step_plain(test, "t27d frame 1 line", 1, 0);
+    t27_step_plain(test, "t27d frame 1 line", 1, 1);
+    t27_step_plain(test, "t27d frame 1 line", 1, 2);
+    t27_step_plain(test, "t27d frame 1 line", 2, 0);
+    t27_step_plain(test, "t27d frame 1 line", 2, 1);
+    t27_step_plain(test, "t27d frame 1 line", 2, 2);
+    test.expect_c4("t27d frozen-even frame 1 ends without the line", 0);
+    test.expect_line("t27d frame 2 opens at C9=0", 0);
+    test.expect_parity_frame("t27d frame 2 is even (frozen snapshot)", 0);
+    // Frame 2: no capture possible, still no line.
+    for (unsigned i = 0; i < 9; ++i) {
+        t27_step_plain(test, "t27d frame 2 line", static_cast<std::uint8_t>(i / 3),
+                       static_cast<std::uint8_t>(i % 3));
+    }
+    test.expect_c4("t27d frozen-even frame 2 ends without the line", 0);
+    test.expect_parity_frame("t27d frame 3 stays even", 0);
+}
+
+// ---------------------------------------------------------------------------
+// t28: F14 additional interlace line, type 1 (ACCC v1.10 section 19.6.2
+// p.216; section 11.2.4 p.84; Q10 resolution in accc-author-questions.md
+// item 10).
+//
+// Paper derivation:
+//
+//   - Gate: the line is added at the end of the frame (after the R5 lines)
+//     iff an interlace mode is active (R8=1 or 3) and ParityFrame is even
+//     (section 19.6.2 p.216).  The C4 increment for it happens "once again
+//     on all even frames" when R9+1 is a multiple of R5 (same section) --
+//     the adjudicated Q10 reading, which the fixture register set satisfies
+//     (R9=7, R5=4: 8 = 2x4).  With R5=0 the multiple condition is vacuous,
+//     so a type-1 frame without adjustment lines never gains one (this is
+//     what keeps the t21-t24 IVM walks, all R5=0, undisturbed).
+//
+//   - Mechanics: type-1 adjustment rows already increment C4 past R4
+//     (section 11.1; the p.83 table: adjustment rows at R4+1, R4+2, ...),
+//     and the adjustment ends when C5+1 equals R5 by equality (section
+//     11.3.2).  On a gated even frame the pending end instead runs one more
+//     line: "C9 counts up to R9 and when it goes back to 0, C4 is
+//     incremented without taking R4 into account" (section 11.2.4 p.84) --
+//     the additional line holds C9=0 and C4 one past the last adjustment
+//     row, then the frame origin follows.  This reproduces the section
+//     11.2.3 worked example's R5=8 sub-case exactly (R4=37, R9=7: the R5
+//     lines at C4=38, the additional line at C4=39); the example's R5=7
+//     sub-case (8 % 7 != 0) has no type-1 line under the section 19.6.2
+//     condition and is the CRTC 2 accounting (section 11.2.5), recorded as
+//     a source-attribution residual in the F10 notes.
+//
+// Fixture frame: R0=63, R4=2 (three rows), R9=7 (type-1 IVM rows are the
+// four lines C9=0,2,4,6 with ParityC9 held -- section 19.8.2 p.225), R5=4,
+// R8=3 from a snapshot load (frame-boundary IVM entry, no toggle stages),
+// R6/R7=63 (no capture, no VSYNC).  ParityFrame toggles at every type-1
+// frame origin regardless of R8 (section 19.5.3 p.208), so frame 0 is even
+// and frame 1 odd by construction.
+//
+// Walk (t28a): frame 0 = 12 row lines + 4 adjustment lines (C4=3, C9=0..3,
+// C5=0..3), then the additional line (C4=4, C9=0, C5=0), then the origin
+// (C4=0, ParityFrame=1).  Frame 1 (odd) runs the same 16 lines but ends
+// directly: its last adjustment line is followed immediately by C4=0.
+
+void t28_configure(TestBench& test, std::uint8_t r5) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x11}, {4, 2},
+        {5, r5}, {6, 63}, {7, 63}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_characters(2);
+    const std::array<std::uint8_t, 10> snapshot = {
+        63, 40, 50, 0x11, 2, r5, 63, 63, 3, 7,
+    };
+    test.load_snapshot_registers(snapshot);
+    test.run_to_c0(TestBench::kF10TargetC0);
+}
+
+static void t28_step_adjustment(TestBench& test, const char* tag,
+                                std::uint8_t c9) {
+    test.expect_c4(std::string(tag) + " C4", 3);
+    test.expect_line(std::string(tag) + " C9", c9);
+    test.expect_c5(std::string(tag) + " C5", c9);
+    test.run_characters(64);
+}
+
+void t28_type1_addline_basic(TestBench& test) {
+    t28_configure(test, 4);
+    // Frame 0 (even): three IVM rows of four lines (C9 = 0,2,4,6).
+    for (unsigned i = 0; i < 12; ++i) {
+        t27_step_plain(test, "t28a frame 0 line", static_cast<std::uint8_t>(i / 4),
+                       static_cast<std::uint8_t>((i % 4) * 2));
+    }
+    // Adjustment: C4=R4+1, C9 counts plainly, C5 counts the lines.
+    for (unsigned i = 0; i < 4; ++i) {
+        t28_step_adjustment(test, "t28a frame 0 adjustment", static_cast<std::uint8_t>(i));
+    }
+    // Section 19.6.2 p.216 + section 11.2.4 p.84: the additional line,
+    // C4 incremented once more, C9 back at 0.
+    test.expect_c4("t28a additional line C4 incremented once more", 4);
+    test.expect_line("t28a additional line C9=0", 0);
+    test.expect_c5("t28a additional line C5 restarts", 0);
+    // Origin: ParityFrame toggles (section 19.5.3 p.208), adjustment ends.
+    test.run_characters(64);
+    test.expect_c4("t28a frame 1 opens after the additional line", 0);
+    test.expect_line("t28a frame 1 opens at C9=0", 0);
+    test.expect_parity_frame("t28a frame 1 is odd", 1);
+    test.expect_adjustment_inactive("t28a adjustment ended at the origin");
+    // Frame 1 (odd): same rows and adjustment, but no additional line --
+    // the last adjustment line is followed directly by the origin.
+    for (unsigned i = 0; i < 12; ++i) {
+        t27_step_plain(test, "t28a frame 1 line", static_cast<std::uint8_t>(i / 4),
+                       static_cast<std::uint8_t>((i % 4) * 2));
+    }
+    for (unsigned i = 0; i < 4; ++i) {
+        t28_step_adjustment(test, "t28a frame 1 adjustment", static_cast<std::uint8_t>(i));
+    }
+    test.expect_c4("t28a frame 2 opens directly (odd frame)", 0);
+    test.expect_line("t28a frame 2 opens at C9=0", 0);
+    test.expect_parity_frame("t28a frame 2 is even", 0);
+}
+
+// t28b: condition control -- R5=3 does not divide R9+1=8, so even the
+// ParityFrame-even frame 0 must end directly after its adjustment lines
+// (section 19.6.2 p.216: the once-more increment requires the multiple).
+// Required pass from the start: it pins the gate, not the mechanism.
+void t28_type1_addline_condition_false(TestBench& test) {
+    t28_configure(test, 3);
+    for (unsigned i = 0; i < 12; ++i) {
+        t27_step_plain(test, "t28b frame 0 line", static_cast<std::uint8_t>(i / 4),
+                       static_cast<std::uint8_t>((i % 4) * 2));
+    }
+    for (unsigned i = 0; i < 3; ++i) {
+        t28_step_adjustment(test, "t28b frame 0 adjustment", static_cast<std::uint8_t>(i));
+    }
+    test.expect_c4("t28b no additional line when R9+1 is not a multiple of R5", 0);
+    test.expect_line("t28b frame 1 opens at C9=0", 0);
+    test.expect_parity_frame("t28b frame 1 is odd", 1);
+    test.expect_adjustment_inactive("t28b adjustment ended at the origin");
+}
+
 }  // namespace
 //============================================================================
 //  Randomized equivalence soak
@@ -6407,6 +6766,30 @@ int main(int argc, char** argv) {
         {"t26b_type1_r1_zero_write_deadline",
          "ACCC v1.10 section 17.5.1 p.185 chronograms; D1 correction",
          false, test_t26_r1_zero_deadline_type1},
+        // t27: F14 additional interlace line, type 0 (ACCC v1.10 section
+        // 19.6.1 p.216).  Fixture-first XFAIL pins; the behavior commit
+        // flips them to required passes.
+        {"t27a_type0_addline_basic",
+         "ACCC v1.10 sections 19.6.1 p.216, 19.5.2 p.205 and 19.3 p.199; F14",
+         false, t27_type0_addline_basic},
+        {"t27b_type0_addline_after_r5_lines",
+         "ACCC v1.10 section 19.6.1 p.216 (after the R5 lines, one increment) and 11.2 p.84; F14",
+         false, t27_type0_addline_after_r5_lines},
+        {"t27c_type0_addline_r6_gt_r4_freeze_odd",
+         "ACCC v1.10 sections 19.6.1 p.216 and 19.5.2 p.205 (frozen-odd persistence); F14",
+         false, t27_type0_addline_freeze_odd},
+        {"t27d_type0_addline_r6_gt_r4_freeze_even",
+         "ACCC v1.10 sections 19.6.1 p.216 and 19.5.2 p.205 (frozen-even persistence); F14",
+         false, t27_type0_addline_freeze_even},
+        // t28: F14 additional interlace line, type 1 (ACCC v1.10 section
+        // 19.6.2 p.216).  t28a is the fixture-first XFAIL pair member;
+        // t28b is the gate control and is required from the start.
+        {"t28a_type1_addline_basic",
+         "ACCC v1.10 sections 19.6.2 p.216 and 11.2.4 p.84; F14",
+         false, t28_type1_addline_basic},
+        {"t28b_type1_addline_condition_false",
+         "ACCC v1.10 section 19.6.2 p.216 (R9+1 multiple of R5 gate); F14",
+         false, t28_type1_addline_condition_false},
     };
 
     unsigned passed = 0;

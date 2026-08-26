@@ -310,7 +310,10 @@ wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 									 type0_rollover_line_last;
 
 assign line_new = hcc_last && !r0_frozen_w;
-assign line_next = type0_rollover_line_last ? 5'd0 : line + 5'd1;
+// F14: on the intercept edge the "line" that starts is the additional one;
+// its C9 continues the adjustment count to R5 (section 11.2 p.84).
+assign line_next = type0_add_intercept ? R5_v_total_adj :
+                   type0_rollover_line_last ? 5'd0 : line + 5'd1;
 assign c5_next = 5'd0;
 
 // ACCC v1.10 section 12: outside vertical adjustment C4 is equality-compared
@@ -318,9 +321,30 @@ assign c5_next = 5'd0;
 // arbitration above, not from a magnitude special case.
 wire       row_last_w = (row == R4_v_total);
 wire       crtc0_row_frame_last = (row_last_r | in_adj) & ~type0_adjustment_selected;
-assign     frame_adj = type0_adjustment_selected;
-assign     row_frame_last = crtc0_row_frame_last;
-assign     row_next = row_frame_last ? 7'd0 : row + 1'd1;
+// F14 (ACCC v1.10 section 19.6.1 p.216; Q10 resolution in
+// accc-author-questions.md item 10): with an interlace mode active (R8=1 or
+// 3) and ParityR6 odd, one additional line is appended after the R5
+// adjustment lines -- directly after the last character row when R5=0 --
+// before the frame origin.  ParityR6 is captured when C4 reaches R6 and
+// freezes when R6>R4 (section 19.5.2 p.205), so the gate persists: a line
+// every frame if frozen odd, never if frozen even (section 19.6.1 p.216).
+// C4 is incremented only once for the whole additional-lines period and
+// equals R4+1 there (section 19.6.1 p.216): the adjustment-entry increment
+// to R4+1 (section 11.2.2 p.81) already covers the R5 lines, so the
+// additional line holds C4=R4+1 and continues the adjustment count at
+// C9=R5 -- "the counting is done as if this line had been added to R5"
+// (section 11.2 p.84).  The frame origin (C4=C9=C0=0, ParityFrame snapshot,
+// VMA reload) moves to the end of that line; its duration counts in the
+// following odd frame (section 19.3 p.199).
+wire       type0_add_armed = R8_interlace[0] && parity_r6;
+reg        type0_add_line_active;
+wire       type0_frame_end_raw = row_new & crtc0_row_frame_last;
+wire       type0_add_intercept = type0_frame_end_raw && !type0_add_line_active &&
+								 type0_add_armed;
+assign     frame_adj = type0_adjustment_selected | type0_add_intercept;
+assign     row_frame_last = crtc0_row_frame_last & ~type0_add_intercept;
+assign     row_next = type0_add_intercept ? (in_adj ? row : row + 7'd1) :
+									 row_frame_last ? 7'd0 : row + 1'd1;
 assign     row_new = line_new & type0_rollover_row_last;
 wire       frame_new_w = row_new & row_frame_last;
 
@@ -358,8 +382,12 @@ wire [4:0] type0_seam_target_parity = tog_line
 									 ? (tog_enter_line ? parity_frame : 1'b0)
 									 : (type0_seam_ivm ? parity_c9 : 1'b0);
 wire       type0_c0_row_last = (row == type0_c0_r4);
-wire       type0_c0_line_last = in_adj ? ((line == type0_c0_adjust_line_max) | type0_c0_zero_adj_entry) :
-									 ((type0_seam_value == (type0_c0_r9 | {4'b0000, type0_seam_target_parity})));
+// F14: on the additional line (C9=R5) the seam must latch the row-end so
+// the line ends at the frame origin; the plain adjustment limit (R5-1)
+// cannot match there.
+wire       type0_c0_line_last = in_adj ? (((type0_add_line_active && (line == type0_c0_r5)) |
+											(line == type0_c0_adjust_line_max)) | type0_c0_zero_adj_entry) :
+										((type0_seam_value == (type0_c0_r9 | {4'b0000, type0_seam_target_parity})));
 assign     c0_line_last = type0_c0_line_last;
 assign     c0_row_last = type0_c0_row_last;
 
@@ -391,6 +419,19 @@ assign hcc2_adj_keep = |type0_effective_r5;
 
 assign reload = ~CRTC_TYPE & frame_new_w;
 assign row_addr_save = hcc == R1_h_displayed && type0_live_line_last;
+
+// F14 additional-line state: set on the intercept edge (the would-be frame
+// origin), cleared by the true origin that ends the additional line.  The
+// intercept priority in the if-chain matters: on the intercept edge itself
+// frame_new_w is masked to 0, but the raw end condition is what armed it.
+// CLKEN-gated: both terms are levels true across the whole hcc_last
+// character, so an ungated flop would toggle on every clock edge and feed
+// the oscillation back through the parity block.
+always @(posedge CLOCK) begin
+	if(~nRESET | SNA_LOAD | CRTC_TYPE) type0_add_line_active <= 0;
+	else if(CLKEN && type0_add_intercept) type0_add_line_active <= 1;
+	else if(CLKEN && frame_new_w) type0_add_line_active <= 0;
+end
 
 // Register writes are clocked at the 16 MHz bus rate, not only on CLKEN.
 // Retain the selected comparator for the rest of the current character line.
