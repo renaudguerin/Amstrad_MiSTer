@@ -1,6 +1,26 @@
 # Independent review debt
 
-**Status: all rows cleared (the `plus/p4-sprites` row closed 2026-08-26
+## Open rows
+
+- `hotfix/implicit-rgb-net` — OPENED 2026-08-26. Three-line hotfix:
+  connect the motherboard instance's RGB ports to the widened
+  `b4/g4/r4` nets in `Amstrad.sv`. `a5cb623` renamed the declarations
+  without updating the instance map, so Quartus created implicit
+  undriven nets for `r/g/b` (Warning 10236 at Amstrad.sv(1212-1214)):
+  black picture with intact sync/audio/CPU on every synthesized build
+  from `3d7a178` (20260825) onward, classic and Plus modes alike.
+  Committed under same-session hardware-testing pressure; validated by
+  fitter-log correlation (0 warnings in the two builds that display,
+  the trio in all four that do not) and a pending hardware retest
+  rather than independent review. Reviewer should check hardest: that
+  `b4/g4/r4` are driven only by the motherboard ports and consumed only
+  by `color_mix`'s [1:0] inputs and the R_plus/G_plus/B_plus nibble
+  expansion; that no other stale reference to the old names exists in
+  any synthesized source; and that the Plus-mode nibble path still
+  matches the P2 intent.
+
+**Status: one open row (this hotfix); all historical rows cleared (the
+`plus/p4-sprites` row closed 2026-08-26
 after a five-pass thread ended CLEAR; all earlier rows closed by
 2026-08-25)** (the `accuracy/f11h-and-ivm-vsync-coverage` row
 cleared by the same-day remediation after its NOT CLEAR verdict; the `accuracy/f10-fixtures`

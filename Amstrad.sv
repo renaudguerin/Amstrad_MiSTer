@@ -1209,9 +1209,9 @@ Amstrad_motherboard motherboard
 	.vblank(vbl),
 	.hsync(hs),
 	.vsync(vs),
-	.red(r),
-	.green(g),
-	.blue(b),
+	.red(r4),
+	.green(g4),
+	.blue(b4),
 	.field(VGA_F1),
 
 	.vram_din(vram_dout),
