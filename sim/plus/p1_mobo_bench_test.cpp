@@ -113,6 +113,24 @@ public:
 	auto* x_lo(unsigned n) {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_x_lo[0];
 	}
+	auto* splt_tap() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_splt;
+	}
+	auto* ssa_hi_tap() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_ssa_hi;
+	}
+	auto* ssa_lo_tap() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_ssa_lo;
+	}
+	auto* sscr_tap() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_sscr;
+	}
+	auto* plus_ra_tap() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_ra;
+	}
+	auto* plus_rc_tap() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_rc;
+	}
 
 	static uint8_t inkr_entry(const VlWide<3>* w, unsigned k) {
 		const unsigned lo = k * 5;
@@ -258,6 +276,19 @@ int run() {
 				fail("m5: palette entry 0 wrong (layout or write decode)");
 			std::printf("PASS m5: ASIC-page bus writes land in sprite RAM, "
 			            "sprite regs and palette; unused regions ignored\n");
+
+			// P6 m10: screen split and soft scroll register writes
+			if (*b.splt_tap() != 0x05)
+				fail("m10: SPLT register not written");
+			if (*b.ssa_hi_tap() != 0x24 || *b.ssa_lo_tap() != 0x00)
+				fail("m10: SSA register not written");
+			if (*b.sscr_tap() != 0x34)
+				fail("m10: SSCR register not written");
+			// Check that plus_ra reflects vertical scanline offset 3: plus_ra == (plus_rc + 3) & 7
+			const uint8_t exp_ra = (*b.plus_rc_tap() + 3) & 7;
+			if ((*b.plus_ra_tap() & 7) != exp_ra)
+				fail("m10: plus_ra does not reflect SSCR vertical scanline offset");
+			std::printf("PASS m10: Screen split and scroll registers reached ASIC page and video pipeline\n");
 		}
 
 		if (*b.cpu_fires() >= 1) {

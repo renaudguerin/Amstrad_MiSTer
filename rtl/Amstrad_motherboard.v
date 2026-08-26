@@ -369,6 +369,10 @@ asic_video asic_vid
 	.ROW(plus_rc),
 	.ADJ(plus_adj),
 
+	.SPLT(asic_splt),
+	.SSA({asic_ssa_hi[5:0], asic_ssa_lo[7:0]}),
+	.SSCR(asic_sscr),
+
 	.PIXEN(ce_16),
 	.VIDEOD(plus_vidword),
 	.GAMODE(plus_gamode),
@@ -390,6 +394,10 @@ asic_video asic_vid
 wire [7:0] asic_regs_dout;
 wire       asic_regs_rd;
 wire [7:0] asic_pri;
+wire [7:0] asic_splt;
+wire [7:0] asic_sscr;
+wire [7:0] asic_ssa_hi;
+wire [7:0] asic_ssa_lo;
 wire       asic_int_last_raster;
 // The page answers only under Plus mode: plus_mmu captures RMR2 without a
 // mode gate, so a classic program emitting the unlock sequence could
@@ -414,8 +422,8 @@ asic_regs asic_page
 	.pal_raddr(5'd0),          // video-side palette port lands with the
 	.pal_rdata(),              // P2 RGB widening commit
 
-	.pri(asic_pri), .splt(), .sscr(), .ivr(),
-	.ssa_hi(), .ssa_lo(), .dcsr(),
+	.pri(asic_pri), .splt(asic_splt), .sscr(asic_sscr), .ivr(),
+	.ssa_hi(asic_ssa_hi), .ssa_lo(asic_ssa_lo), .dcsr(),
 	.intack_raster(asic_int_last_raster),
 	// Acknowledge cycle (M1 low with IORQ asserted), gated to Plus mode:
 	// classic machines deliver the stale wired-AND bus byte on ack, and
