@@ -52,7 +52,8 @@ module plus_mmu
 	input             plus_mode,
 	input             gx4000,
 
-	// Z80 bus visibility (io_wr = IORQ & WR, mem_rd = MREQ & RD)
+	// Z80 bus visibility (io_rd/io_wr = IORQ & RD/WR, mem_rd = MREQ & RD)
+	input             io_rd,
 	input             io_wr,
 	input             mem_rd,
 	input      [15:0] A,
@@ -99,12 +100,26 @@ reg [7:0]  romsel;
 
 reg [1:0]  cart_state;
 reg [15:0] stall_count;
+reg        io_access_d;
+
+// Top-level io_rd/io_wr are levels held for the whole Z80 transaction;
+// convert them to one clk_sys strobe before feeding one-shot side effects.
+wire io_access = io_wr | io_rd;
+wire io_access_start = io_access & ~io_access_d;
+
+always @(posedge clk) begin
+	if (reset) io_access_d <= 1'b0;
+	else       io_access_d <= io_access;
+end
 
 // Unlock-sequence detector: the published sequence rides writes to the CRTC
-// register-select port, which this core decodes as I/O writes with nCS=A14=0,
-// R_nW=A9=0 and RS=A8=0 (the &BCxx range and its aliases). Gated to Plus
-// mode: classic software must never arm the detector (review finding 5).
-wire unlock_write = plus_mode & io_wr & ~A[14] & ~A[9] & ~A[8];
+// register-select port, decoded as nCS=A14=0, R_nW=A9=0 and RS=A8=0 (the
+// &BCxx range and aliases). On Plus hardware an IN on this port performs the
+// same write with the live bus byte ([KT] Ports; asic-reference sections
+// 4/13), so both I/O cycle directions reach the detector. plus_mode keeps
+// classic software from arming it (review finding 5).
+wire unlock_write = plus_mode & io_access_start &
+                    ~A[14] & ~A[9] & ~A[8];
 
 asic_unlock unlock_detector
 (
@@ -141,7 +156,9 @@ always @(posedge clk) begin
 		romsel       <= 8'h00;
 	end
 	else begin
-		if (plus_mode && io_wr && !A[15] && A[14] &&
+		// RMR2 is a Gate-Array port payload; the Plus IN=OUT trap applies
+		// exactly as it does to PENR/INKR/RMR in asic_ga_timing.
+		if (plus_mode && io_access_start && !A[15] && A[14] &&
 		    (D[7:5] == 3'b101) && unlocked) begin
 			// RMR2: D4D3 position (11 => &0000 + ASIC page on), D2-D0 page
 			rmr2_pos     <= (D[4:3] == 2'b11) ? 2'b00 : D[4:3];

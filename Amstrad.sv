@@ -1039,6 +1039,7 @@ plus_mmu plus_mmu
 	.reset(reset),
 	.plus_mode(plus_mode),
 	.gx4000(plus_gx4000),
+	.io_rd(io_rd),
 	.io_wr(io_wr),
 	.mem_rd(mem_rd),
 	.A(cpu_addr),

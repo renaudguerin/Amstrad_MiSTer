@@ -1678,17 +1678,19 @@ void t07f_status2_frame16_timer(TestBench& test) {
 }
 
 // §21.2.3 lists R10/R11/R16/R17 as read-only. With no light-pen strobe,
-// writes to 16/17 do not move their named-zero model. Undocumented RS=0,
-// unselected, and write cycles remain wired-AND neutral FF.
+// writes to 16/17 do not move their named-zero model. Both RS levels read
+// the selected register (&BE00/&BF00); unselected and write cycles remain
+// wired-AND neutral FF.
 void t07g_readonly_and_neutral_cycles(TestBench& test) {
     test.write_register(16, 0xAA);
     test.write_register(17, 0x55);
     if (test.read_register(0) != 0 || test.read_register(1) != 0)
         TestBench::fail_unsigned("t07g light-pen registers are read-only", 0, 1);
     test.select_register(4);
-    if (test.sample_selected(false) != 0xFF)
-        TestBench::fail_unsigned("t07g RS=0 read is neutral", 0xFF,
-                                 test.sample_selected(false));
+    const std::uint8_t bf_value = test.sample_selected(true);
+    const std::uint8_t be_value = test.sample_selected(false);
+    if (bf_value != 0 || be_value != 0)
+        TestBench::fail_unsigned("t07g BE/BF read ports differ", 0, be_value);
     if (test.sample_selected(true, false) != 0xFF)
         TestBench::fail_unsigned("t07g unselected read is neutral", 0xFF,
                                  test.sample_selected(true, false));
@@ -1747,7 +1749,7 @@ constexpr std::array<TestCase, 45> kTests = {{
     {"t07d STATUS1 last VSYNC line", t07d_status1_last_vsync_line},
     {"t07e STATUS2 vertical events", t07e_status2_vertical_events},
     {"t07f STATUS2 16-frame timer", t07f_status2_frame16_timer},
-    {"t07g read-only slots and neutral cycles", t07g_readonly_and_neutral_cycles},
+    {"t07g read-only slots, dual read ports and neutral cycles", t07g_readonly_and_neutral_cycles},
 }};
 
 }  // namespace

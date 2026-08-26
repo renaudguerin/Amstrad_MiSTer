@@ -167,7 +167,7 @@ T80pa CPU
 
 	.a(A),
 	.do(D),
-	.di(crtc_dout & ppi_dout & cpu_din),
+	.di(crtc_dout_sel & ppi_dout & cpu_din),
 
 	.rd_n(RD_n),
 	.wr_n(WR_n),
@@ -190,6 +190,10 @@ wire crtc_hs, crtc_vs, crtc_de;
 wire [13:0] MA;
 wire  [4:0] RA;
 wire  [7:0] crtc_dout;
+wire  [7:0] plus_crtc_dout;
+// Only the selected machine's CRTC may participate in the wired-AND CPU
+// data bus. The explicit mux also keeps plus_mode=0 invariant.
+wire  [7:0] crtc_dout_sel = plus_mode ? plus_crtc_dout : crtc_dout;
 
 CRTC crtc
 (
@@ -326,8 +330,10 @@ asic_ga_timing asic_ga
 	.GAMODE_O(plus_gamode)
 );
 
-// Locked-ASIC CRTC type 3 + pixel pipeline. Register writes share the
-// classic CRTC bus decode; DO readback stays unselected until P5.
+// Locked-ASIC CRTC type 3 + pixel pipeline. Register accesses share the
+// classic CRTC sparse decode. On Plus hardware an IN on either write port
+// performs the corresponding write with the live bus byte ([KT] Ports;
+// asic-reference sections 4/13), so DI remains D during read cycles too.
 asic_video asic_vid
 (
 	.CLOCK(clk),
@@ -338,8 +344,8 @@ asic_video asic_vid
 	.nCS(A[14]),
 	.R_nW(A[9]),
 	.RS(A[8]),
-	.DI(~RD_n ? 8'hFF : D),
-	.DO(),
+	.DI(D),
+	.DO(plus_crtc_dout),
 
 	.HSYNC(plus_crtc_hs),
 	.VSYNC(plus_crtc_vs),
