@@ -784,9 +784,25 @@ not 4) and an s12 early-arm coverage gap. Pass 5 reviewed exactly that
 delta and returned CLEAR with no findings, clearing the review-debt
 row.
 
-Still open from this phase: mobo-bench m8 end-to-end sprite vector,
-and the INKR-effects ~1/2-us-late GA pipeline question noted in P1
-remains deferred.
+mobo bench m8 (2026-08-26, merged `2a221e1`) closed the phase's last
+build item: the first end-to-end sprite vector through the production
+chain. The scripted fake CPU programs sprite 0 over the ASIC page
+(X=0x166 via the x_hi byte, Y=16, MAG x1/x1), a bench-CPU auto-fill
+phase writes the whole 16x16 image with the low-nibble mask exercised
+on every write, and pal[21]/pal[26] carry distinct payloads. The scan
+derives expectations on paper — [KT] compare formulas, reference S5/S6,
+the engine's {G,R,B}->{R,G,B} emission swap, and asic_video's
+registered RGB output lagging the engine plane by one dot — and
+requires exactly three 16-dot SPR_EN windows on each compare line
+16..31 per frame (and nowhere else) with alternating palette payloads
+on the top-level RGB pins. Two review passes over the scan harness
+ended CLEAR. The finding en route was fixture-side, not RTL: rows 1-15
+unwritten meant transparent pixels, and the engine had been correct all
+along.
+
+Still open from this phase: the INKR-effects ~1/2-us-late GA pipeline
+question noted in P1 remains deferred; P4 hardware checks land with the
+next board milestone.
 
 The synthesis-cost audit's Plus-track finding was probed 2026-08-26 and
 resolved as accepted cost: the decode-split walker increment
@@ -958,10 +974,9 @@ front end.
     interrupts (PRI/DCSR/IVR) are done on `plus/p2-asic-regs`, synthesized green at
     `3d7a178`. Next Plus steps: the manual hardware checkpoint (real `.cpr` boot,
     a static-palette title for P2's exit, a raster-split title for P3's; classic
-    re-checked side by side), then finish P4 sprites: engine + all of s01-s14 +
-    t06/a09/a10 landed and synthesized green at `e3dd848` (71 % ALMs);
-    remaining P4 work is mobo-bench m8 and the pass-3 review over the
-    remediation delta; see the P4 section above.
-    The branch carries unreviewed work per standing session instructions;
-    order cross-provider review(s) before merging.
+    re-checked side by side). P4 sprites are functionally complete on
+    `plus/p4-sprites` (engine, s01-s14, t06a-c/a09/a10, mobo bench m8
+    end-to-end sprite vector; all review threads closed CLEAR) — remaining
+    items are the deferred INKR pipeline question and the shared hardware
+    checkpoint above.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
