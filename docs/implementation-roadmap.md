@@ -25,6 +25,8 @@ merged into the same behavioral PR.
   (`t20a`-`t20i`), the per-type engine
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
   from `rtl/UM6845R.v`), F7's type-1 R5-route RFD with A1/A2, and GitHub Actions synthesis.
+  Platform-level references covering the ASIC, Gate Array, MMU, PPI, PSG, FDC, and file formats
+  are inventoried in [`docs/references/README.md`](references/README.md).
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
   RBF packaging, and artifact upload through the pass-2 fix tip `f6f09f5` (run
   `32645547100`). New top-level/file-list commits still require their own run.
@@ -235,7 +237,8 @@ The corrected functional phases and exact exits live in `plus/architecture.md` Â
 summary: cartridge boot is followed by the CRTC3 counter/timing and basic pixel foundation;
 only then come the ASIC page/palette, PRI, and sprites. Exact readback and I/O traps may land
 later because they do not provide timing signals consumed by PRI/sprites. Split/scroll, DMA,
-and platform quirks remain later milestones.
+and platform quirks (PPI emulation differences, ADC paddle defaults, and SNA v3 `CPC+` snapshot
+support per `docs/references/`) remain later milestones.
 
 At the ASIC-page milestone, use an exhaustive decode table and explicit read-response
 contract:

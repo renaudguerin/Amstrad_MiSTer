@@ -3,11 +3,11 @@
 Condensed, implementation-oriented reference for adding CPC Plus (464+/6128+) and
 GX4000 support to the Amstrad MiSTer core. Compiled 2026-07-07 from:
 
-- **[ARNOLD]** Original Amstrad "Arnold V Technical Specification" (1990, issue 1.4/1.5) — CPCWiki mirror: https://www.cpcwiki.eu/index.php/Arnold_V_specs (via web.archive.org)
+- **[ARNOLD]** Original Amstrad "Arnold V Technical Specification" (1990, issue 1.5) — local copy: [`docs/references/_Arnold V_ Specification - Issue 1.5 - 10th April 1990.md`](../../references/_Arnold%20V_%20Specification%20-%20Issue%201.5%20-%2010th%20April%201990.md) (CPCWiki mirror: https://www.cpcwiki.eu/index.php/Arnold_V_specs via web.archive.org)
 - **[ARNOLD-REV]** "Arnold V Specs Revised" — same doc corrected/annotated by Executioner & Arnoldemu: https://www.cpcwiki.eu/index.php/Arnold_V_Specs_Revised (via web.archive.org). **Preferred over [ARNOLD] where they differ.**
 - **[QUASAR]** Quasar Net "L'ASIC": http://quasar.cpcscene.net/doku.php?id=assem:asic (French; translated) and http://quasar.cpcscene.net/doku.php?id=dossier:plus
-- **[KT]** Kevin Thacker, "Extra CPC Plus Hardware Information": http://cpctech.cpc-live.com/docs/cpcplus.html (via web.archive.org) — measured-on-real-hardware behavior
-- **[WIKI-*]** CPCWiki pages: ASIC, Programming:Unlocking ASIC, Plus Vectored Interrupt Bug, GX4000, Format:CPR, ACID, CRTC (all via web.archive.org)
+- **[KT]** Kevin Thacker, "Extra CPC Plus Hardware Information" — local copy: [`docs/references/Extra CPC Plus Hardware Information.md`](../../references/Extra%20CPC%20Plus%20Hardware%20Information.md) (measured-on-real-hardware behavior)
+- **[WIKI-*]** CPCWiki & cpctech archives — local copies in `docs/references/`: [`Format_CPR...md`](../../references/Format_CPR%20CPC%20Plus%20cartridge%20file%20format%20-%20CPCWiki%20-%20THE%20Amstrad%20CPC%20encyclopedia!.md), [`Operation of Z80 interrupt mode 0...md`](../../references/Operation%20of%20Z80%20interrupt%20mode%200%20in%20the%20CPC+%20design.md), [`Snapshot (.SNA) file format.md`](../../references/Snapshot%20%28.SNA%29%20file%20format.md), [`8255 PPI.md`](../../references/8255%20PPI.md)
 - **[MAME]** https://github.com/mamedev/mame/blob/master/src/mame/amstrad/amstrad_m.cpp (behavioral cross-reference)
 
 Notation: `&xxxx` = hex. Bit 7 = MSB. "ASIC page" = the register/RAM page mapped at

@@ -209,7 +209,7 @@ reads. CPR parsing must not begin until that contract is accepted. See
 | **P5 CRTC-3 bus semantics — complete in simulation** | modulo-8 reads including stored R14/R15 and full-byte R12, both `&BE`/`&BF` read ports, live status groups, neutral unselected cycles, and IN-performs-write traps on CRTC/GA ports; timing remains owned by P1 | `t07a`-`t07g`, MMU held-cycle trap vectors, motherboard `m9`, and classic-inert `m7` pass; SHAKER on its CRTC3 setting remains hardware evidence |
 | **P6 split & scroll** | SPLT/SSA capture at HCC=R1 using P1's stored-MA model; SSCR H-delay/V-offset/border-mask | Exact capture/offset assertions; Plus demos and games using hardware scroll (Fluff intro screens etc.) |
 | **P7 DMA sound** | `asic_dma`, SDRAM fetch slots, PSG arbitration waits, PAUSE/REPEAT/LOOP semantics including the undocumented &3xxx note | DMA instruction/DCSR/WAIT tests; DMA-music titles/demos |
-| **P8 polish** | Plus-PPI quirks (port B input, port C latches — mod to `i8255` under `plus_mode`), ADC paddle stubs (wire defaults `3F 3F 3F 3F 3F 00 3F 00`), GX4000 `&DF=7->page 1` quirk, greyscale weights | Model-by-model compatibility sweep plus classic-mode regression |
+| **P8 polish** | Plus-PPI quirks (port B input, port C latches — mod to `i8255` under `plus_mode`), ADC paddle stubs (wire defaults `3F 3F 3F 3F 3F 00 3F 00`), GX4000 `&DF=7->page 1` quirk, greyscale weights, Plus snapshot support (SNA v3 `CPC+` chunk per `docs/references/Snapshot (.SNA) file format.md`) | Model-by-model compatibility sweep plus classic-mode regression |
 
 P1 deliberately precedes PRI and sprites: those units consume CRTC counters and edge timing,
 so implementing them against the classic stopgap would create a second timing contract to
@@ -239,8 +239,10 @@ P1.
 5. **6128+ FDC**: reuse the existing u765 implementation, but add explicit Plus-model
    selection when P0 enables behavior. The current top-level port decode is controlled by
    the drive-disable option, not by the classic model field, so do not assume model gating.
-6. **Where does `plus_mode` snapshot support land?** SNA v3 has no Plus state; punt —
-   document "no snapshots in Plus mode" initially.
+6. **Plus snapshot support (SNA v3 `CPC+` chunk).** SNA v3 explicitly defines a `CPC+`
+   chunk containing ASIC registers, sprite RAM/attributes, palette, and DMA state (see
+   `docs/references/Snapshot (.SNA) file format.md`). While initially deferred to avoid
+   blocking video development, full Plus snapshot support is scheduled for Phase P8 polish.
 7. **Reference gaps** (reference §15): PRI fire offset 6 vs ~10µs and sprite +3 write
    mirror need hardware measurement eventually — implement [ARNOLD-REV] values, tag with
    `// ⚠ ASIC-REF §15` comments so they're greppable when contradicted.
