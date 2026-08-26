@@ -404,6 +404,23 @@ wire       asic_int_last_raster;
 // otherwise hijack the &4000-&7FFF data bus (review finding 5).
 wire asic_page_active = plus_mode & plus_aspage_on;
 
+// P7 3-channel DMA sound engine signals
+wire [7:0] dma_sar0_lo, dma_sar0_hi, dma_ppr0;
+wire       dma_sar0_wr;
+wire [7:0] dma_sar1_lo, dma_sar1_hi, dma_ppr1;
+wire       dma_sar1_wr;
+wire [7:0] dma_sar2_lo, dma_sar2_hi, dma_ppr2;
+wire       dma_sar2_wr;
+wire [2:0] dma_dcsr_ena;
+wire [2:0] dma_dcsr_ena_clr;
+wire [2:0] dma_int_set;
+wire [15:0] dma_ram_addr;
+wire        dma_ram_req;
+wire        psg_dma_bdir;
+wire        psg_dma_bc1;
+wire [7:0]  psg_dma_dout;
+wire        psg_dma_active;
+
 asic_regs asic_page
 (
 	.clk(clk),
@@ -430,9 +447,7 @@ asic_regs asic_page
 	// the review found the ungated form hijacking classic cpu_din.
 	.intack(plus_mode & ~M1_n & iorq),
 	.int_pending(~plus_int_n),
-	// P7's DMA engine asserts these on an INT instruction; tied low until
-	// that phase lands (reference section 9).
-	.dma_int_set(3'b000),
+	.dma_int_set(dma_int_set),
 	.vec_byte(plus_vec_byte),
 	.vec_valid(plus_vec_valid),
 
@@ -445,10 +460,58 @@ asic_regs asic_page
 	.spr_x_view(plus_spr_x),
 	.spr_y_view(plus_spr_y),
 	.spr_mag_view(plus_spr_mag),
-	.spr_pal_view(plus_spr_pal)
+	.spr_pal_view(plus_spr_pal),
+
+	.sar0_lo(dma_sar0_lo), .sar0_hi(dma_sar0_hi), .ppr0(dma_ppr0), .sar0_wr(dma_sar0_wr),
+	.sar1_lo(dma_sar1_lo), .sar1_hi(dma_sar1_hi), .ppr1(dma_ppr1), .sar1_wr(dma_sar1_wr),
+	.sar2_lo(dma_sar2_lo), .sar2_hi(dma_sar2_hi), .ppr2(dma_ppr2), .sar2_wr(dma_sar2_wr),
+	.dcsr_ena_out(dma_dcsr_ena),
+	.dcsr_ena_clr(dma_dcsr_ena_clr)
 );
 assign plus_asic_dout = asic_regs_dout;
 assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
+
+// P7 3-channel DMA sound engine
+asic_dma dma_sound
+(
+	.clk(clk),
+	.reset(reset || !plus_mode),
+	.cclk_en_p(plus_cclk_en_p),
+	.cclk_en_n(plus_cclk_en_n),
+	.hsync(plus_crtc_hs),
+
+	.sar0_lo(dma_sar0_lo),
+	.sar0_hi(dma_sar0_hi),
+	.ppr0(dma_ppr0),
+	.sar0_wr(dma_sar0_wr),
+
+	.sar1_lo(dma_sar1_lo),
+	.sar1_hi(dma_sar1_hi),
+	.ppr1(dma_ppr1),
+	.sar1_wr(dma_sar1_wr),
+
+	.sar2_lo(dma_sar2_lo),
+	.sar2_hi(dma_sar2_hi),
+	.ppr2(dma_ppr2),
+	.sar2_wr(dma_sar2_wr),
+
+	.dcsr_ena(dma_dcsr_ena),
+	.dcsr_ena_clr(dma_dcsr_ena_clr),
+	.dma_int_set(dma_int_set),
+
+	.sar0_addr(),
+	.sar1_addr(),
+	.sar2_addr(),
+
+	.ram_req(dma_ram_req),
+	.ram_addr(dma_ram_addr),
+	.ram_data(vram_din),
+
+	.psg_bdir(psg_dma_bdir),
+	.psg_bc1(psg_dma_bc1),
+	.psg_dout(psg_dma_dout),
+	.psg_active(psg_dma_active)
+);
 
 // P4 hardware sprite engine: compares against the CRTC3 taps ([KT]
 // formulas), stages row bytes through asic_page's video port, and
@@ -510,7 +573,10 @@ always @(posedge clk) begin
 	cas_n_old <= cas_n;
 	if (!cpu_n) vram_bs <= 0;
 	else begin
-		vram_addr <= crtc_vram_addr;
+		if (plus_mode && dma_ram_req)
+			vram_addr <= {dma_ram_addr[15:14], dma_ram_addr[13:1]};
+		else
+			vram_addr <= crtc_vram_addr;
 		if (!ras_n & !cas_n_old & cas_n) vram_bs <= 1;
 		if (!ras_n & !cas_n)
 			if (sync_filter & crtc_shift) begin
@@ -684,6 +750,10 @@ assign tape_out   = portC[5];
 assign audio_l = {1'b0, ch_a[7:1]} + {2'b00, ch_b[7:2]};
 assign audio_r = {1'b0, ch_c[7:1]} + {2'b00, ch_b[7:2]};
 
+wire psg_bc_mux   = (plus_mode && psg_dma_active) ? psg_dma_bc1  : portC[6];
+wire psg_bdir_mux = (plus_mode && psg_dma_active) ? psg_dma_bdir : portC[7];
+wire [7:0] psg_di_mux = (plus_mode && psg_dma_active) ? psg_dma_dout : portAout;
+
 wire [7:0] ch_a, ch_b, ch_c;
 YM2149 PSG
 (
@@ -694,9 +764,9 @@ YM2149 PSG
 	.SEL(0),
 	.MODE(0),
 
-	.BC(portC[6]),
-	.BDIR(portC[7]),
-	.DI(portAout),
+	.BC(psg_bc_mux),
+	.BDIR(psg_bdir_mux),
+	.DI(psg_di_mux),
 	.DO(portAin),
 
 	.CHANNEL_A(ch_a),

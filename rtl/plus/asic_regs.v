@@ -119,7 +119,14 @@ module asic_regs
 	output  [63:0] spr_mag_view, // sprite n magnification at [n*4 +: 4]
 
 	// Sprite colour entries 17..31 (colour c at [(c-1)*12 +: 12], §5/§6).
-	output [179:0] spr_pal_view
+	output [179:0] spr_pal_view,
+
+	// ---- P7 DMA Sound Engine channels ----
+	output [7:0] sar0_lo, output [7:0] sar0_hi, output [7:0] ppr0, output sar0_wr,
+	output [7:0] sar1_lo, output [7:0] sar1_hi, output [7:0] ppr1, output sar1_wr,
+	output [7:0] sar2_lo, output [7:0] sar2_hi, output [7:0] ppr2, output sar2_wr,
+	output [2:0] dcsr_ena_out,
+	input  [2:0] dcsr_ena_clr
 );
 
 	//------------------------------------------------------------------
@@ -171,6 +178,21 @@ module asic_regs
 	assign ssa_hi = ssa_hi_r;
 	assign ssa_lo = ssa_lo_r;
 	assign dcsr = {dcsr_stat | intack_raster, dcsr_flags, 1'b0, dcsr_ena};
+
+	assign sar0_lo = sar_lo[0];
+	assign sar0_hi = sar_hi[0];
+	assign ppr0    = ppr[0];
+	assign sar1_lo = sar_lo[1];
+	assign sar1_hi = sar_hi[1];
+	assign ppr1    = ppr[1];
+	assign sar2_lo = sar_lo[2];
+	assign sar2_hi = sar_hi[2];
+	assign ppr2    = ppr[2];
+	assign dcsr_ena_out = dcsr_ena;
+
+	assign sar0_wr = !reset && asic_cs && mem_wr && (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h0 || A[3:0] == 4'h1);
+	assign sar1_wr = !reset && asic_cs && mem_wr && (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h4 || A[3:0] == 4'h5);
+	assign sar2_wr = !reset && asic_cs && mem_wr && (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h8 || A[3:0] == 4'h9);
 
 	//------------------------------------------------------------------
 	// Legacy colour translation (reference §6): fixed ROM table, [KT]
@@ -243,6 +265,10 @@ module asic_regs
 	wire       dcsr_w1c_hit = !reset && asic_cs && mem_wr &&
 	                          (wsel == 2'b10) && (A[11:4] == 8'hC0) &&
 	                          (A[3:0] == 4'hF);
+	wire       auto_clr_dma = intack && !intack_d && !ivr_r[0] && !int_pending;
+	wire [2:0] auto_clr_mask = (dcsr_flags[2]) ? 3'b100 :
+	                           (dcsr_flags[1]) ? 3'b010 :
+	                           (dcsr_flags[0]) ? 3'b001 : 3'b000;
 
 	// Palette entry index: 64 bytes / 2 bytes per entry over &6400-&643F.
 	wire [4:0] pal_idx = A[5:1];
@@ -280,9 +306,15 @@ module asic_regs
 		// a &6C0F write clears by ones. A simultaneous set-and-clear
 		// resolves set-dominant (no arbitration rule in the sources).
 		// Gated by !reset so reset dominates (review part-B blocker 1).
-		if (!reset)
-			dcsr_flags <= (dcsr_flags | dma_int_set) &
-			              (dcsr_w1c_hit ? ~D_in[6:4] : 3'b111);
+		if (!reset) begin
+			dcsr_flags <= ((dcsr_flags | dma_int_set) &
+			              (dcsr_w1c_hit ? ~D_in[6:4] : 3'b111)) &
+			              (auto_clr_dma ? ~auto_clr_mask : 3'b111);
+			if (dcsr_w1c_hit)
+				dcsr_ena <= (D_in[2:0] & ~dcsr_ena_clr);
+			else
+				dcsr_ena <= (dcsr_ena & ~dcsr_ena_clr);
+		end
 
 		if (!reset && asic_cs) begin
 			if (mem_wr) begin
@@ -333,11 +365,8 @@ module asic_regs
 						4'h8: sar_lo[2] <= D_in;
 						4'h9: sar_hi[2] <= D_in;
 						4'hA: ppr[2]    <= D_in;
-						4'hF: dcsr_ena <= D_in[2:0]; // writable ONLY at
-						                             // &6C0F (reference §4);
-						                             // bit7 is merger-driven,
-						                             // flag w1c handled below
-						default: ; // &6C03/&6C0B-&6C0E unused (§3)
+						4'hF: ; // dcsr_ena handled with dcsr_ena_clr priority above
+						default: ;
 						endcase
 					end
 				end
@@ -433,20 +462,31 @@ module asic_regs
 	// int_pending would drop the raster bits before the CPU latches the
 	// byte at cycle end (review finding 2).
 	reg       intack_d;
-	reg       ack_pending;
+	reg [2:0] ack_src;
 	always @(posedge clk) begin
 		if (reset) begin
-			intack_d    <= 1'b0;
-			ack_pending <= 1'b0;
+			intack_d <= 1'b0;
+			ack_src  <= 3'd0;
 		end
 		else begin
 			intack_d <= intack;
-			if (intack && !intack_d) ack_pending <= int_pending;
+			if (intack && !intack_d) begin
+				if (int_pending)
+					ack_src <= 3'b110;
+				else if (dcsr_flags[2])
+					ack_src <= 3'b000;
+				else if (dcsr_flags[1])
+					ack_src <= 3'b010;
+				else if (dcsr_flags[0])
+					ack_src <= 3'b100;
+				else
+					ack_src <= 3'b000;
+			end
 		end
 	end
 
 	wire [7:0] vec_src = ivr_r & 8'hF8;
-	assign vec_byte  = vec_src | (ack_pending ? 8'h06 : 8'h00);
+	assign vec_byte  = vec_src | {5'd0, ack_src};
 	assign vec_valid = intack;
 
 	// Video-side read port (registered, independent of the CPU port).
