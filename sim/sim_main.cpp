@@ -1939,14 +1939,15 @@ void test_type0_adjustment_pointer_steps_and_scans(TestBench& test) {
     }
     // p.81 PTR-VRAM rows 4->5 and p.83 prose: the single C0=R1 && C9==R9
     // crossing at line C9=3 advances the pointer by exactly R1=40 words.
+    const std::uint16_t stepped =
+        static_cast<std::uint16_t>((line_start[3] + 40) & 0x3fff);
     test.expect_byte("t25b capture crossing advances the pointer by R1 "
                      "(p.83)",
-                     static_cast<std::uint8_t>((line_start[3] + 40) & 0xff),
+                     static_cast<std::uint8_t>(stepped & 0xff),
                      static_cast<std::uint8_t>(line_start[4] & 0xff));
     test.expect_byte("t25b capture crossing advances the pointer by R1, "
                      "high byte (p.83)",
-                     static_cast<std::uint8_t>(((line_start[3] + 40) >> 8) &
-                                               0x3f),
+                     static_cast<std::uint8_t>((stepped >> 8) & 0x3f),
                      static_cast<std::uint8_t>((line_start[4] >> 8) & 0x3f));
     // p.81 PTR-VRAM rows 5-16 stay at 40: C9 passes R9 once per adjustment,
     // so no further capture fires.
@@ -1971,7 +1972,13 @@ void test_type0_adjustment_exit_reloads_frame_origin(TestBench& test) {
 
     // Section 11.2.2 p.81: reaching R5 re-establishes Last Line "so that C4
     // and C9 go to 0 on the next line", and section 20.3.1 p.242 reloads
-    // both pointers from R12/R13 when C4=C9=C0=0.
+    // both pointers from R12/R13 when C4=C9=C0=0. Note the page tensions
+    // itself: its bold conclusion says only "C4=0 and C0=0" (no C9 term,
+    // i.e. every line of C4=0). This core implements the narrow frame-
+    // origin form (rtl/crtc_type0_engine.v reload = frame_new_w), reading
+    // the page's own framing of the type-1 "while C4=0" rule as the lenient
+    // outlier; the adjustment exit here only exercises the frame-origin
+    // edge, so both readings agree on everything this vector asserts.
     test.run_characters(64);  // C0=1 of the new frame's first line.
     test.expect_c4("t25c adjustment exit resets C4 to 0", 0);
     test.expect_ra("t25c adjustment exit resets C9 to 0", 0);
@@ -1988,7 +1995,9 @@ void test_type0_adjustment_exit_reloads_frame_origin(TestBench& test) {
 // 17.5.1 p.185, four chronograms, render-verified 2026-08-24; D1
 // correction). The chronograms put the effective write cycle (the OUT's
 // register-latch character, the orange end cell) at C0=3e, 3f, 0, 1 in
-// turn on a line crossing the frame boundary: latches through C0=0 are
+// turn on a line crossing an R0 wrap (the chronogram shows no frame
+// involvement; the seam mechanism is line-generic, and the probes below
+// cover both a plain mid-frame seam and a frame origin): latches through C0=0 are
 // "just in time" (the new frame's first line honors R1=0 and shows
 // border); the first too-late latch is C0=1 ("Update of R1 not
 // considered" -- the line keeps the old R1's display).
@@ -2034,10 +2043,22 @@ void test_t26_r1_zero_deadline_type0(TestBench& test) {
     // probe below then runs with DISPTMG gated by R1 alone (DE == hde).
     test.run_characters(3u * 64u);  // C0=0 of frame 1, row 0.
 
+    // The p.185 chronograms draw an R0 wrap, not a frame boundary; the seam
+    // mechanism is line-generic. Probe a plain mid-frame line seam first:
+    // the write lands during row 1's C0=63 and row 2 (same frame) starts in
+    // border.
+    test.run_characters(64);  // C0=0 of frame 1 row 1.
+    test.run_to_c0(63);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(0);        // Row 2 origin, same frame.
+    test.expect_de_low("t26a latch at C0=63 before a plain line seam: "
+                       "border from C0=0 (section 17.5.1 is seam-generic)");
+
     // (A) Just in time, latch during the frame's last line at C0=63: the
     // frame-boundary seam compares hcc_next(=0) against the already-updated
     // R1=0 and keeps DISPTMG off from the new frame's first character.
-    test.run_characters(2u * 64u);  // C0=0 of frame 1's last line (row 2).
+    test.run_to_c0(10);
+    test.write_selected_register_at_nclken(40);  // Restore for scenario A.
     test.run_to_c0(63);
     test.write_selected_register_at_nclken(0);
     test.run_to_c0(0);              // Frame 2 origin.
@@ -2083,7 +2104,15 @@ void test_t26_r1_zero_deadline_type1(TestBench& test) {
 
     test.run_characters(3u * 64u);
 
-    test.run_characters(2u * 64u);
+    test.run_characters(64);  // C0=0 of frame 1 row 1.
+    test.run_to_c0(63);
+    test.write_selected_register_at_nclken(0);
+    test.run_to_c0(0);        // Row 2 origin, same frame.
+    test.expect_de_low("t26b latch at C0=63 before a plain line seam: "
+                       "border from C0=0 (section 17.5.1 is seam-generic)");
+
+    test.run_to_c0(10);
+    test.write_selected_register_at_nclken(40);
     test.run_to_c0(63);
     test.write_selected_register_at_nclken(0);
     test.run_to_c0(0);
