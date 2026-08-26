@@ -9,6 +9,17 @@ on:
   # required-gate check and can leave branch protection pending forever.
   pull_request:
   workflow_dispatch:
+    inputs:
+      effort:
+        description: Compile effort for this run
+        type: choice
+        default: full
+        options:
+          - full
+          - smoke
+          # both = full and smoke legs on the same SHA; use it to benchmark
+          # the smoke tier against full effort in one run.
+          - both
 
 permissions:
   contents: read
@@ -26,6 +37,8 @@ jobs:
     outputs:
       required: ${{ steps.classify.outputs.required }}
       reason: ${{ steps.classify.outputs.reason }}
+      mode: ${{ steps.classify.outputs.mode }}
+      legs: ${{ steps.classify.outputs.legs }}
     steps:
       - name: Check out source and history
         uses: actions/checkout@v7
@@ -50,6 +63,7 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EFFORT_INPUT: ${{ inputs.effort }}
         run: |
           set -euo pipefail
 
@@ -113,9 +127,38 @@ jobs:
             fi
           fi
 
+          # Compile-effort tier, decided only once "required" is final.
+          #
+          # Routine integration pushes (default branch and INTEGRATION_BRANCHES)
+          # get the smoke fit: fast signal that the tip still elaborates, fits,
+          # and roughly meets timing.  Full-effort evidence stays mandatory
+          # where a milestone forms: pull requests, tags, and manual
+          # dispatches.  Dispatch also accepts "both" to benchmark the tiers
+          # on one SHA.  Measured figures: docs/ci-testing-policy.md.
+          legs='[]'
+          mode=none
+          if [[ "$required" == "true" ]]; then
+            if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+              case "${EFFORT_INPUT:-full}" in
+                smoke) mode=smoke; legs='["smoke"]' ;;
+                both)  mode=full;  legs='["full", "smoke"]' ;;
+                *)     mode=full;  legs='["full"]' ;;
+              esac
+            elif [[ "$GITHUB_REF" == refs/tags/* || "$EVENT_NAME" == "pull_request" ]]; then
+              mode=full
+              legs='["full"]'
+            else
+              mode=smoke
+              legs='["smoke"]'
+            fi
+          fi
+
           printf 'required=%s\n' "$required" >> "$GITHUB_OUTPUT"
           printf 'reason=%s\n' "$reason" >> "$GITHUB_OUTPUT"
-          printf 'Full synthesis required: %s (%s)\n' "$required" "$reason"
+          printf 'mode=%s\n' "$mode" >> "$GITHUB_OUTPUT"
+          printf 'legs=%s\n' "$legs" >> "$GITHUB_OUTPUT"
+          printf 'Full synthesis required: %s (%s); effort=%s; legs=%s\n' \
+            "$required" "$reason" "$mode" "$legs"
 
   simulation:
     runs-on: ubuntu-latest
@@ -134,14 +177,20 @@ jobs:
         run: make -C sim clean test lint
 
   synthesis:
+    # Deliberately independent of the simulation job: Verilator and Quartus
+    # check different properties and share no state, so they run in parallel.
+    # The required-gate below still enforces both before anything counts as
+    # green; the trade-off is that a red simulation no longer saves the
+    # synthesis compute on that run.
     needs:
-      - simulation
       - synthesis-policy
-    if: needs.simulation.result == 'success' && needs.synthesis-policy.outputs.required == 'true'
+    if: needs.synthesis-policy.outputs.required == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        effort: ${{ fromJSON(needs.synthesis-policy.outputs.legs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    outputs:
-      build_mode: ${{ steps.cache-provenance.outputs.build_mode }}
     env:
       # Quartus 17.0.2.602 for amd64. Keep the digest deliberate: the tag is mutable.
       QUARTUS_IMAGE: raetro/quartus@sha256:55442b161163dc7723e3d4917ce046fcb682478365fe9320756c9a4ae7d7d4ce
@@ -165,6 +214,10 @@ jobs:
       # runs.  Reintroduce only together with a partitioned incremental
       # compilation policy.
 
+      - name: Select compile effort
+        shell: bash
+        run: scripts/ci/apply-quartus-effort.sh "${{ matrix.effort }}" Amstrad.qsf
+
       - name: Compile Amstrad core
         shell: bash
         run: |
@@ -177,17 +230,33 @@ jobs:
             quartus_sh --flow compile Amstrad.qpf \
             2>&1 | tee artifacts/reports/quartus-build.log
 
+      - name: Verify the effort tier was honored
+        shell: bash
+        run: |
+          log=artifacts/reports/quartus-build.log
+          # Quartus drops an assignment it does not recognize or that the
+          # running edition does not support, warns, and continues at full
+          # cost.  A smoke leg must never look green while doing that.
+          if grep -n "Ignored assignment:" "$log"; then
+            printf '::error::compile ignored effort-tier assignments; %s timings are not trustworthy\n' "${{ matrix.effort }}" >&2
+            exit 1
+          fi
+          {
+            printf '### Compile stages (%s)\n\n```\n' "${{ matrix.effort }}"
+            # Cosmetic stage timings; never fail the leg over them.
+            grep "Info: Elapsed time" "$log" | tail -5 || true
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Record synthesis provenance
-        id: cache-provenance
         if: always()
         shell: bash
         run: |
           mkdir -p artifacts/reports
           # Every synthesis is a clean compile since the D2 cache removal;
-          # build_mode is kept so the gate summary and report shape stay
-          # stable for tooling and milestone records.
-          printf 'build_mode=%s\n' "clean" >> "$GITHUB_OUTPUT"
-          printf 'build_mode=clean\n' | tee artifacts/reports/quartus-cache.txt
+          # build_mode records the tier so milestone provenance stays honest
+          # about which effort produced a retained RBF.
+          printf 'build_mode=clean_%s\n' "${{ matrix.effort }}" | tee artifacts/reports/quartus-cache.txt
 
       - name: Collect synthesis reports
         if: always()
@@ -216,7 +285,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Amstrad-build-${{ github.run_number }}-${{ github.run_attempt }}
+          name: Amstrad-build-${{ github.run_number }}-${{ github.run_attempt }}-${{ matrix.effort }}
           path: artifacts/
           if-no-files-found: error
           retention-days: 14
@@ -238,7 +307,8 @@ jobs:
           SIMULATION_RESULT: ${{ needs.simulation.result }}
           SYNTHESIS_REQUIRED: ${{ needs.synthesis-policy.outputs.required }}
           SYNTHESIS_REASON: ${{ needs.synthesis-policy.outputs.reason }}
-          SYNTHESIS_BUILD_MODE: ${{ needs.synthesis.outputs.build_mode }}
+          SYNTHESIS_MODE: ${{ needs.synthesis-policy.outputs.mode }}
+          SYNTHESIS_LEGS: ${{ needs.synthesis-policy.outputs.legs }}
           SYNTHESIS_RESULT: ${{ needs.synthesis.result }}
         run: |
           set -euo pipefail
@@ -264,6 +334,6 @@ jobs:
             exit 1
           fi
 
-          printf 'Verification gate passed; synthesis=%s (%s); build_mode=%s\n' \
+          printf 'Verification gate passed; synthesis=%s (%s); effort=%s; legs=%s\n' \
             "$SYNTHESIS_REQUIRED" "$SYNTHESIS_REASON" \
-            "${SYNTHESIS_BUILD_MODE:-not-run}"
+            "${SYNTHESIS_MODE:-not-run}" "${SYNTHESIS_LEGS:-[]}"
