@@ -559,12 +559,10 @@ assign RA   = raster;
 // ("Reading R4 therefore also means reading register 12", §21.2.3;
 // §21.3.4's note that "bit 3 of the register number is forced to 1"
 // describes the same truncation for slots 2/3). Writes keep the full
-// five-bit decode. Both documented read ports (&BE00/&BF00) present
-// RS=1, so reads require RS and the two ports are indistinct by
-// construction (§21.2.3); an RS=0 read cycle hits no documented read
-// port and stays at the unselected level (named assumption). DO is
-// HIGH-NEUTRAL (wired-AND) whenever this module does not answer, the
-// same open-bus convention as asic_regs.
+// five-bit decode. The two documented read ports (&BE00/&BF00) differ
+// only in RS (A8); type 3 ignores RS while reading, so both return the
+// selected register (§21.2.3). DO is HIGH-NEUTRAL (wired-AND) whenever
+// this module does not answer, the same open-bus convention as asic_regs.
 //
 // [KT] (cpctech cpcplus.html, CRTC section) first published this map
 // with slots 6/7 returning 0; ACCC v1.10 §21.2.3 supersedes that with
@@ -645,7 +643,7 @@ end
 
 always @(*) begin
 	DO = 8'hFF;
-	if (ENABLE & ~nCS & R_nW & RS) begin
+	if (ENABLE & ~nCS & R_nW) begin
 		case (addr[2:0])
 			3'd0: DO = {2'b00, R16_pen_h};
 			3'd1: DO = R17_pen_l;
