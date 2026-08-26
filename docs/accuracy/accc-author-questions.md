@@ -6,6 +6,11 @@ the source itself is ambiguous, self-contradictory, or silent where we need prec
 extraction failures. Page numbers are PDF pages. Companion analysis:
 [findings-review.md](findings-review.md).
 
+Re-checked 2026-08-26 against fresh pdf-inspector extraction, rendered pages where a table,
+diagram, or exact layout is evidence below, and the CRTC chip/reference documents under
+`docs/references/`. The ACCC remains authoritative where those secondary documents conflict
+with it.
+
 1. **p.75-76 (§10.3.1) — last-line state and C0>1 writes.** The text says a last-line state
    found at C0<2 "cannot become false again until the next comparison of C4 and C9 (when C0
    will again be 0 or 1)" if R9/R4 are modified when C0>1 such that equality holds — while
@@ -14,37 +19,108 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
    line (i.e. is late arming possible), or does that sentence only describe an already-armed
    state surviving? A precise statement would settle how permissive the C0∈{2..R0−1} window
    is.
+
+   **RESOLVED BY DEFAULT READING 2026-08-26** (fresh pass pp.75-76, 82, 92-93; no
+   author answer). There is **no late arming**. §12.2 p.92 says that R4/R9 must establish the
+   equality while C0<2 to validate `Last Line`; §12.2.1 p.93 then demonstrates the converse:
+   setting R4=R9=0 after that window on the first C4=C9=0 line does not make it last, and C4
+   becomes 1 on the following line. The p.75 sentence therefore describes an already-armed
+   state surviving C0>1 writes when adjustment was not selected at C0=2, not a second arming
+   window. C0>1 writes can still affect the live adjustment/line-end paths documented on p.82,
+   but cannot newly validate the latch. The existing F12 windowed-latch reading stands.
 2. **p.104 (in the §13.2.1 run-on; rule restated under §13.2.4, p.105) — cost of the R0=0
    freeze.** The p.104 prose says freezing R0=0 for
    64×8 µsec "amounts to 'forgetting' 8 lines (C4−1 if R9=7)". Is the intended accounting a
    loss of N/64 raster lines of display time (counters frozen, nothing progresses), or is
    there a counter-level effect we should model (what exactly does "(C4−1 …)" mean)?
+
+   **RESOLVED BY DEFAULT READING 2026-08-26.** This is elapsed-time accounting, not a
+   counter operation. `64 x 8 µsec` is 512 µsec, or eight normal 64-µsec raster lines; with
+   R9=7 those eight lines are one C4 character-row period. The parenthetical means that wall
+   clock advanced by the equivalent of one row while C4 did not, not that C4 is decremented.
+   The detailed p.108 case study confirms that C9 is frozen, C4 may perform only the separately
+   documented one-time "last hiccup", and no counter otherwise advances. No additional RTL
+   effect is required beyond the existing freeze.
 3. **p.107 (§13.2.5) — ending the R0=1 adjustment with R5=0.** The case study states "for some
    reason I haven't determined yet, C9 (**not C9+1**) is compared to R5" to stop the
    adjustment after one line. Why C9 rather than C9+1 — is this an internal comparator
    artefact the author later resolved, or genuinely unexplained?
+
+   **BEHAVIOR CONFIRMED; CAUSE STILL UNSOURCED 2026-08-26.** The rendered p.107 still says
+   explicitly that the author had not determined the reason. The adjacent p.108 R0=0 exit
+   example exercises the normal `C9+1` form ("C9+1 being different from R5, then C9 is
+   incremented"), so the p.107 `C9` comparison is not merely loose notation for the general
+   rule. Best inference: the R0=1 path never reaches the C0=2 cancellation stage and therefore
+   terminates the default-armed adjustment through a distinct current-C9/R5 decision; with
+   C9=R5=0 it marks the forced first adjustment line as complete. Neither the ACCC nor the
+   available chip documents expose enough internal logic to prove that mechanism. Treat the
+   observed one-line stop as authoritative, but keep the silicon rationale open for the author
+   or hardware discrimination.
 4. **p.88 (§11.6.1) — repeated-RFD sentence.** "A RFD triggered on the last line C9=R9
    disables the state allowing VMA to be updated with R12/R13" sits between the case-1/case-2
    description and the RFD#10 discussion. Does triggering another RFD on a line where
    C9==R9 disarm the VMA-source flag immediately (and does this interact with RFD#10), or is
    this sentence only about RFD#10?
+
+   **RESOLVED BY DEFAULT READING 2026-08-26; RTL DIVERGENCE F17.** The sentence belongs to
+   the ordinary case-2 rule and is not limited to RFD#10: an RFD triggered while C9=R9 leaves
+   the R12/R13-source state disabled. The following "However" introduces RFD#10 only as an
+   exception for parity management in the C9=R9 test. The source does not expose an internal
+   C0 ordering for this effect, so the externally visible disable rule is the safe fixture
+   oracle. The current F7 implementation does the opposite: it arms at C0=R0, after the
+   C0=R1 save opportunity on a normal R1<R0 line, and `t13d` explicitly requires both flags
+   armed. F17 owns re-deriving that vector and fixing the source-flag behavior before RTL.
 5. **p.130 (§14.1) — HSYNC start vs stop.** After describing C3l counting from C0=R2 until
    C3l=R3l ("end of HSYNC"), the next sentence reads "the HSYNC **starts** as soon as the C3L
    counter reaches the value of R3L". Should this read "stops"? (Everything downstream uses
    "ends".)
+
+   **RESOLVED 2026-08-26.** The render confirms that `starts` is printed, and it is a typo for
+   **stops/ends**. C3l starts at 0 when C0=R2, which is already the HSYNC start; reaching R3l
+   terminates the pulse at the start of that character. The tables and all downstream prose
+   use that interpretation.
 6. **pp.133 (§14.3) — C-HSYNC duration table cells.** Please confirm each cell gives the
    *range of observed values* within one mode (two NJIT samples / two JIT samples, e.g. CRTC0
    R3=4: NJIT {2.0625, 2.1250}, JIT {2.3125, 2.3750}), i.e. JIT ≈ NJIT + 0.25µs — and whether
    the CRTC0 R3=3 NJIT value printed as "1,0525" is a typo for 1,0625.
+
+   **RESOLVED VISUALLY 2026-08-26.** The caption immediately above the rendered table says,
+   "I indicated a range of 2 values that I could see," so each cell is the two-value observed
+   range for that CRTC/mode. The cited R3=4 values are exact, and corresponding JIT endpoints
+   are 0.25 µsec above NJIT throughout the table. `1,0525` is printed, but is a typo for
+   **1,0625**: every measurement lies on the 0.0625-µsec lattice, the paired endpoint is
+   1.1250, and 1.3125 JIT minus 0.25 is 1.0625.
 7. **p.146 (§15.1) — deflector-lock threshold.** "If the HSYNC is too short (>2 µsec and
    <6 µsec)" contradicts the surrounding rules (R3≤2 too short; R3≥6 exact). Should it read
    "<2 µsec" (with 2–6 µs partial-lock distortion)?
+
+   **RESOLVED 2026-08-26: the inequalities are correct.** The rendered parenthetical decodes
+   the band explicitly: HSYNC `>2` and `<6` gives C-HSYNC `>0` and `<4` µsec. At R3l=2 the
+   generated C-HSYNC is too short for the deflector to process at all; above 2 the monitor
+   starts trying to lock, but below 6 the pulse is still too short for clean locking and can
+   distort. Thus 3-5 µsec is the partial-lock distortion band and `too short` means too short
+   for a clean lock, not shorter than the detection threshold. Changing `>2` to `<2` would be
+   wrong.
 8. **p.167 (§16.3) — mechanism 2 on CRTC 2.** Mechanism 2 is stated present on CRTCs 0/1 and
    explicitly absent on 3/4. Does CRTC 2 carry mechanism 2, or is it mechanism-1-only like
    types 3/4?
+
+   **RESOLVED BY DEFAULT READING 2026-08-26.** CRTC 2 carries mechanism 2. §16.3 excludes
+   only CRTCs 3/4 ("This second mechanism was not renewed" for those ASICs), while §16.4.4
+   confirms that 3/4 have no VSYNC reentrancy protection. CRTC 2 is never excluded and its
+   §16.4.3 ghost-VSYNC state explicitly prevents another VSYNC while that state is active.
+   The source consistently groups mechanism-1-only reentrancy with 3/4, not type 2.
 9. **p.193 (§19.2.1) — BORDER ON pointer update condition.** BORDER ON states the current
    pointer "is updated when C0=R1 and **C9=C0=0**". Is this a typo for the row-end condition
    C9=R9 (as in §17.1), or does BORDER ON really latch VMA' under C9=C0=0?
+
+   **RESOLVED BY DEFAULT READING 2026-08-26.** It is a garbled restatement of the normal
+   pointer bookkeeping, not a BORDER-ON-specific latch. As printed, `C0=R1 and C9=C0=0` is
+   impossible unless R1=0. §17.1 p.176 gives the exact row-end rule in the same sentence
+   shape: when `C0=R1 and C9=R9`, VMA is transferred to VMA'; it separately gives the C0=0
+   line-start reload (with the frame-origin R12/R13 case at C4=C9=C0=0). BORDER ON forces
+   DISPEN off but leaves those normal pointer increments/save/reload events running. No
+   special `C9=C0=0` save condition should be implemented.
 10. **pp.198/205/216 (§19.3/§19.5.1/§19.6.1) — which frame gets the extra interlace line.**
     §19.3 says it ends "the first frame"; §19.5.1/§19.6.1 attach it to completion of the
     **even** frame's construction; p.199 shows the odd frame lasting 20032µs "inheriting" it.
@@ -75,7 +151,7 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
       (R5 and interlace), C4=R4+1; §19.6.2 — type 1 increments C4 once more on even frames
       when R9+1 is a multiple of R5. Matches §11.2.4 p.84 ("added only at the end of a even
       frame").
-    Actionable: the line is unimplemented on both types → finding candidate **F14**
+    Actionable: the line is unimplemented on both types → finding **F14**
     (audit-findings.md). No RTL change until its failing fixtures exist.
 11. **p.205 (§19.5.2) — even R9 total line count.** IVM programming with even R9 yields an
     even number of lines per character (R9=6 → 2×4 = 8 lines). Please confirm the intended
@@ -110,10 +186,32 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     readable R14-R17 (plus register 31); the identification chapter states that on CRTC 1
     "*all* registers return 0 except register 31". Which is authoritative — do R14/R15 (and
     R16/R17) really read back stored values on UM6845R?
+
+    **RESOLVED 2026-08-26 FROM ACCC + INDEPENDENT CHIP DOCUMENTATION.** §21.2.2 is correct:
+    CPC type 1 is UM6845R, R14/R15 are read/write cursor registers, and R16/R17 read the
+    read-only light-pen latch. The UM6845R Figure 3 register summary in
+    `docs/references/UM6845 Cathode Ray Tube Controller.md` marks exactly those access modes;
+    the per-CPC-type table in
+    `docs/references/The 6845 Cathode Ray Tube Controller (CRTC).md` agrees. R12/R13 remain
+    write-only on type 1 and read as 0. §28.1.9 is the outlier and should say that all
+    **other** registers return 0, with the separately observed undefined register-31 value.
+    The RTL already reads back R14/R15. It has no LPSTB input or light-pen latch, so R16/R17
+    currently fall through to 0 even though the real CPC routes the CRTC light-pen strobe to
+    expansion pin 47. That is an unsupported hardware path, not evidence that zero readback is
+    chip-correct; finding F18 owns the interface decision and any capture/readback fixture.
 14. **p.293 vs pp.246-248 (§28.1.8 vs §21.3.3) — status bit numbering.** The identification
-    test polls "the transition of **bit 6**", but §21.3.3 defines bit 5 as the only dynamic
-    status bit (bit 6 unused/read-0), while the CRTC 3/4 STATUS-1 table (p.248) has an
-    always-1 bit 6. Which bit does the &BE00 identification test actually target on UM6845R?
+    test polls "the transition of **bit 6**", but §21.3.3's frame-timed examples transition
+    bit 5, while the CRTC 3/4 STATUS-1 table (p.248) has a separate always-1 bit 6. Which bit
+    does the &BE00 identification test actually target on UM6845R?
+
+    **RESOLVED VISUALLY + CHIP DOCUMENTATION 2026-08-26.** The frame-timed identification bit
+    is **bit 5**. The p.246 render and UM6845R Figure 3 both map bit 6 to `L` (light-pen
+    register full) and bit 5 to `V` (vertical blanking/BORDER-R6 state). Thus bit 6 is not
+    generally unused, but it cannot provide the described frame-timed transition without a
+    light-pen strobe; §21.3.3's rendered examples toggle between `00100000` and `00000000`,
+    directly proving bit 5. §28.1.8's "bit 6" is a typo for **bit 5**. The ASIC STATUS-1 bit
+    6 on p.248 belongs only to CRTCs 3/4 and is a separate always-1 field. The RTL's bit-5-only
+    status view is correct for a CPC with no light-pen event source.
 
 15. **p.190 — border-alternation condition wording — RESOLVED BY DEFAULT READING
     2026-08-23.** "Alternation only takes place when the condition R1 is fulfilled
@@ -138,6 +236,15 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     §28.1.1 count an extra increment we are missing (a third C9 wrap, an interlace line,
     or a different R5 accounting), or is its boundary value imprecise?
 
+    **UNRESOLVED SOURCE CONFLICT; HARDWARE DISCRIMINATOR REQUIRED 2026-08-26.** The detailed
+    §§11.2.4/11.3.2 reading still predicts a maximum observable C4 of 38: the last normal row
+    enters adjustment at C4=37, the first eight-line C9 wrap reaches 38, and final R5
+    completion sets C4 directly to 0. That agrees with current `t08g`/`t08h`. But §28.1.1 is
+    explicit that type 1/2 overrun several times and that VSYNC persists through R7=39; no
+    available chip reference adjudicates that contradiction. Do not relabel the printed 39
+    as a typo or derive new RTL from the current simulation. A hardware/faithful SHAKER sweep
+    of R7=38 and R7=39 under the stated R4=36,R9=7,R5=16 program is the remaining gate.
+
 18. **§13.6.2 p.122 vs §13.7.1.2 p.124 — R0-widening RFD arming condition.**
     The §13.6.2 "CRTC 1 : CHRONOGRAM" annotation reads "RFD activated on CRTC 1 if R4 and/or
     R9 **modified** until C0=7F (new R0) on last line of frame" (quoted verbatim from the
@@ -151,6 +258,15 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     `f7-r0-widening-independent-review.md`). Please confirm which reading is right; SHAKER
     Module C `(1)` / D `(9)` can discriminate by restoring R9/R4 mid-extension before the
     widened line end.
+
+    **RESOLVED BY DEFAULT READING 2026-08-26.** Arming is end-state based. The p.122 render
+    contains no R9/R4 restore sequence at all; its rows vary only the R0-write acceptance
+    timing. Its annotation says R4/R9 remain modified **until** C0 reaches the new R0=7F,
+    which is consistent with persistence to line end. The dedicated §13.7.1.2 then states the
+    discriminators explicitly as `C9<>R9 at the end of the last line` and `C4<>R4 at the end
+    of the last line`, with the RFD triggered at that line end. A cancel-then-restore therefore
+    does not arm. `t13h` and the existing end-state RTL model stand; the SHAKER cases remain a
+    useful hardware confirmation but no longer block the source reading.
 
 19. **p.219 (§19.8.1) — one-bit polarity of the type-0 IVM parity gate.** In the C9 reset
     branch the pseudocode reads `If R9.0=0` immediately followed by the gloss "(C9 parity
@@ -183,35 +299,33 @@ extraction failures. Page numbers are PDF pages. Companion analysis:
     unsolvable. Our RTL already implements exactly this three-phase form (type-0 engine,
     t22-family). Actionable: the odd-R9 counting machinery (row-end ParityC9 update with the
     corrected gate, odd-R9 limit tests, and the §19.5.2 VSYNC delay correction) is
-    unimplemented → finding candidate **F15** (audit-findings.md); fixtures before RTL.
-    (b): **STILL OPEN — sharpened.** The pp.223-224 exit tables are consistent with the
-    line-end test comparing the **frozen C9.VMA register content** (the last IVM computation)
-    against plain R9 on every line after a non-matching R8=0 write: the frozen value never
-    equals R9 in the drawn cases, so the character runs past C9=R9: seven of the eight exit
-    windows draw plain C9=R9+1 with no reset, six of them without the C4 increment the plain
-    test predicts; the eighth window (p.223 bottom-right, write at C9=3 on an even frame)
-    resets exactly at the write line's seam (C4=2, C9=0). One window is anomalous under BOTH
-    readings: p.223 bottom-left ends at C4=2, C9=7 - a C4 increment without the C9 reset -
-    which neither the frozen-C9.VMA model nor the live plain test explains. That also matches the p.220 worked example ("program R9 with C9.VMA… (i.e.
-    7) so that the comparison between C9.VMA and R9 without parity allows C9 to return back
-    to 0"). It contradicts resuming a live plain C9==R9 test, which would reset at C9=6 —
-    the reading our RTL currently implements on post-write lines (unpinned; the t22 exit
-    walks stop at the write line's seam). Yes/no for the author: **after an R8=0 write that
-    does not match on the write line, does the line-end test keep comparing the frozen
-    C9.VMA value (character runs on, possibly indefinitely) rather than the live plain C9?**
-    If the frozen reading is confirmed, our post-exit behavior needs a finding + fixture.
+    unimplemented → finding **F15** (audit-findings.md); fixtures before RTL.
+    (b): **RESOLVED BY VISUAL TABLE READING 2026-08-26.** After a non-matching R8=0 write, the
+    line-end test keeps comparing the **frozen C9.VMA register content** against plain R9; it
+    does not resume a live plain-C9 test. The eight rendered exit windows form a discriminating
+    set with R9=6:
+    - even-frame frozen values 0, 2 and 4 do not match 6 and run through plain C9=7;
+    - the even-frame frozen value 6 matches R9 and resets exactly at the write-line seam;
+    - odd-frame frozen values 1, 3, 5 and 7 all fail the plain-R9 comparison and run through
+      C9=7, including frozen 7 (which would match only if parity were still considered).
+    A live C9==R9 test would reset at C9=6 in all seven run-on windows and is therefore ruled
+    out. The p.220 worked recipe, which programs R9 to the frozen C9.VMA value to recover the
+    reset, independently agrees. One p.223 bottom-left cell remains anomalous: it ends at
+    C4=2,C9=7, an impossible C4 increment without a C9 reset. It is most likely a table typo
+    (C4=1 would match the other run-on windows), but that isolated anomaly cannot overturn the
+    seven-window discriminator. Actionable: current post-exit RTL resumes the live plain-C9
+    test; finding **F16** now owns the focused failing fixtures required before any RTL change.
 
 Also noted while verifying (no answer needed, listed for completeness): p.195 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay
 applies to type 0's substituted trigger (the placement caveat cited by
 `f6-decision-gate.md`). Corrections welcome.
 
-Implementation note on open Q4 (p.88 repeated-RFD sentence, added 2026-08-23): the F7 RTL
-(`rtl/crtc_type1_engine.v`) now models the RFD state machine that question asks about. In
-this model a same-edge R5 0→nonzero write always sets both flags and wins over any
-same-edge save-clear, so an RFD triggered on a C9==R9 line arms rather than disables; the
-documented recipe (§11.6.3) triggers where C9!=R9, so nothing observable depends on Q4
-until it is answered.
+Implementation note on Q4: the F7 RTL (`rtl/crtc_type1_engine.v:239-240,432-435`) arms at
+`hcc_last`/C0=R0. On an ordinary R1<R0 line, the C0=R1 save-clear opportunity has already
+passed, so the new source flag survives into the next line; required vector `t13d` pins that
+behavior even with C9=R9. This is a direct F17 divergence from the resolved external rule,
+not a same-edge-only residual.
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).

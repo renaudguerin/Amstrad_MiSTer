@@ -166,7 +166,10 @@ General implementation rules for all fix prompts:
   `crtc_type1_engine.v:110`) and `row_last = (row == R4_v_total)` (`crtc_type0_engine.v:197`,
   type-1 twin at `:137`). Zero-limit overflow behavior is protected by `t07a`-`t07l`.
 - **Impact**: R9/R4-rewrite overflow behavior is the backbone of "rupture" timing analysis
-  (ACCC ch.10/12) and of ID test §28.1.1 (VSYNC stops at R7>37 vs R7>39 under overflow).
+  (ACCC ch.10/12) and of ID test §28.1.1. Q17 remains an internal source conflict: the
+  detailed adjustment rules and current sim predict type-1 R7=39 silence (maximum C4=38),
+  while §28.1.1 explicitly says the type-1/2 overrun repeats and VSYNC persists through R7=39.
+  Hardware must adjudicate before either boundary is promoted to an oracle.
   However — these terms were probably added to make specific R4=0/R9=0 tricks (RLAL-style
   ruptures, which many demos use) work in a model without the full two-phase latch. **Do not
   remove them blindly.**
@@ -182,8 +185,9 @@ General implementation rules for all fix prompts:
   > R0<2, and completion-rearm behavior.
   > (b) Same for `row_last`'s `(!CRTC_TYPE && !R4_v_total)` term. ACCC §12.2 handles R4=0
   > through equality plus `Last Line` / adjustment state, not a magnitude special case.
-  > (c) Run the §28.1.1 discriminator in sim: R4=36,R9=7,R5=16, sweep R7 — VSYNC must stop
-  > firing above R7=37 (type 0) / R7=39 (type 1). If (a)/(b) break RLAL scenarios, the correct
+  > (c) Run the §28.1.1 discriminator in sim and hardware: R4=36,R9=7,R5=16, sweep R7=38/39.
+  > Current sim makes R7=39 silent, but §28.1.1 predicts a pulse; preserve that conflict until
+  > hardware decides it. If (a)/(b) break RLAL scenarios, the correct
   > repair is in the latch logic, not by restoring the shortcut terms.
 - **Verify**: V3 t07/t08 plus F12's planned t16 mandatory before merging; then V2 + V1
   regression pass (demos: Batman Forever, The Demo, Yao demos exercise ruptures heavily).
@@ -327,14 +331,81 @@ General implementation rules for all fix prompts:
   unaffected (its §19.8.2 scheme is a different, already-implemented structure).
 - **Confidence: high** on the gate polarity (four mutually independent sources agree);
   medium on the full odd-R9 line sequencing (the p.206 example's within-character 5+4 split
-  is not fully derivable from the pseudocode — see Q19(b), still open, for the adjacent
-  post-exit ambiguity).
+  is not fully derivable from the pseudocode). Q19(b)'s adjacent post-exit behavior is now
+  resolved separately as F16 and does not block the odd-R9 fixtures.
 - **Fix prompt**: fixture first — paper-derive the odd-R9 line sequences from §19.5.2's
   prose plus the p.206 example (R9=7, both frame parities), encode as XFAIL pins, then
   implement the row-end update and any limit-test changes in the type-0 engine. The §19.5.2
   VSYNC delay correction needs its own fixtures. Do not start RTL without the failing
-  fixtures; re-check Q19(b)'s frozen-C9.VMA question (still open with the author) before
-  touching exit behavior.
+  fixtures. Keep exit behavior in F16 rather than coupling it to this change.
+
+## F16. Type-0 post-IVM exit keeps the frozen C9.VMA comparison
+
+- **Rule** (ACCC §19.8.1 p.220 and exit tables pp.223-224; render-verified 2026-08-26, see
+  accc-author-questions.md item 19(b)): after an R8=0 write, the exit line drops parity from
+  the target but retains the last IVM-computed **C9.VMA register content** as the value tested
+  against plain R9. If that frozen value does not match, subsequent lines keep the same test;
+  live C9 can therefore pass R9 without a row reset. With R9=6, even frozen values 0/2/4 and
+  odd values 1/3/5/7 all run through C9=7, while even frozen 6 resets at the write-line seam.
+  The mismatch persists until software changes a comparison input; p.220's explicit recovery
+  recipe programs R9 to the frozen C9.VMA value so the comparison can match.
+- **Current** (this branch): `rtl/crtc_type0_engine.v:266-268` selects live `line` as soon as
+  `ivm_disp_r` clears, so post-write lines resume plain live C9==R9 and reset at C9=6. The
+  `t22` exit walks stop at the write-line seam and do not expose the divergence.
+- **Impact**: type-0 software leaving IVM on a non-matching line sees an early row reset and
+  C4 increment instead of the documented run-on. On hardware, an unrepaired mismatch can
+  leave the character row unable to complete; software must rewrite R9 to the frozen value
+  (the p.220 recipe) or otherwise change the comparison state. That escape has no purpose in
+  the current live-C9 model.
+- **Confidence: high** on retaining frozen C9.VMA versus using live C9. The eight windows show
+  one frozen-6 match resetting and seven non-matches running through C9=7; those rows after
+  live C9=6 directly rule out resuming the plain comparison. One of the seven non-match windows
+  (p.223 bottom-left) also shows C4=2, an impossible increment without C9 reset; exclude that
+  C4 cell without discarding its independently consistent C9 run-on.
+- **Fix prompt**: fixture first. Add R9=6 exit vectors for an even-frame non-match (frozen 2 or
+  4), an odd-frame frozen-7 non-match, and the even frozen-6 matching control. Extend each
+  through the rendered C9=7 outcome, then add a p.220 recovery control that rewrites R9 to the
+  frozen value before line end and requires reset. Exclude the anomalous p.223 bottom-left C4
+  cell until hardware or the author settles it. Only then retain the exit C9.VMA snapshot in
+  the type-0 engine and run the full suite plus soak.
+
+## F17. Type-1 RFD triggered on C9=R9 must disable the R12/R13-source state
+
+- **Rule** (ACCC §11.6.1 p.88; render-verified 2026-08-26, author-question Q4): in the ordinary
+  case-2 paragraph, an RFD triggered on the last line C9=R9 disables the state that permits VMA
+  updates from R12/R13. The following RFD#10 sentence is an exception only for parity
+  management in the C9=R9 test, not for that source-state result.
+- **Current**: `rtl/crtc_type1_engine.v:239-240` forms `rfd_arm` at C0=R0 and lines 432-435 set
+  both flags. With normal R1<R0, C0=R1 has already passed, so no save-clear can neutralise the
+  newly set source flag. Required vector `t13d` uses C9=R9 and explicitly asserts both flags
+  armed, pinning the opposite behavior.
+- **Impact**: a repeated/final-line RFD can incorrectly keep per-line R12/R13 reloads active
+  into the next line/frame. This changes a CRTC-1 rupture technique and invalidates the current
+  claim that F7 covers the complete documented source-state surface.
+- **Confidence: medium-high** on the externally visible disable rule; low on undocumented
+  internal ordering. Fixture the final state rather than inventing a C0-stage mechanism.
+- **Fix prompt**: re-derive `t13d` against p.88 and first turn the C9=R9 source-flag expectation
+  into a focused XFAIL while retaining the separately documented parity effect. Then make the
+  smallest type-1-engine change that clears or suppresses only the VMA-source arm in this case;
+  run all F7 vectors and soak before accepting the sequencing change.
+
+## F18. UM6845R light-pen R16/R17 capture/readback path is absent
+
+- **Rule** (ACCC §21.2.2 p.245 and UM6845R Figure 3): R14/R15 are read/write cursor registers;
+  R16/R17 are read-only light-pen capture registers. The CPC routes the CRTC LPSTB pin to
+  expansion connector pin 47 (§20.6), so a captured value is externally observable hardware
+  behavior rather than an intrinsically zero field.
+- **Current**: `rtl/CRTC.v` reads R14/R15 but lets R16/R17 fall through to zero, and the module
+  exposes no LPSTB input or capture latch. The no-strobe state returning zero does not test the
+  missing path.
+- **Impact**: light-pen hardware and any diagnostic that strobes LPSTB cannot capture or read a
+  CRTC address. Ordinary CPC software without such hardware is unaffected.
+- **Confidence: high** on chip access modes and CPC routing; implementation scope is a top-level
+  interface decision and must be checked against the MiSTer user-I/O boundary before RTL.
+- **Fix prompt**: first decide whether expansion-port light-pen emulation belongs in this core.
+  If yes, trace a suitable top-level input, fixture the capture edge and R16/R17 readback for
+  both CRTC types, then add the latch. If no, record the unsupported physical interface
+  explicitly rather than describing zero readback as chip-correct.
 
 ## F7. RFD ("Rupture For Dummies") — CRTC 1 frame-parity address-reload quirk — R5 and R0-widening triggers implemented
 
@@ -371,15 +442,16 @@ General implementation rules for all fix prompts:
   suppress a C4 reset.
   A trigger window opened just before R0 is shrunk below the live C0 survives across that
   legal C0-overflow line (§13.5) and can arm at its far end — unmodeled corner. The
-  end-state cancellation reading follows §8.6's parentheses against §8.5's write-event gist;
-  the tension is question 18 in `accc-author-questions.md`, discriminable via SHAKER Module
-  C `(1)` / D `(9)`. The unarmed odd-R9 frame-parity toggle (§11.6.1) is read as
+  end-state cancellation reading follows §13.7.1.2's explicit variants against §13.6.2's
+  write-timing note (author question Q18, resolved 2026-08-26; SHAKER Module C `(1)` / D `(9)`
+  provides hardware confirmation). The unarmed odd-R9 frame-parity toggle (§11.6.1) is read as
   free-running rather than armed-only; marked ⚠ for hardware.
 - **Impact**: CRTC-1-specific demo effects (the technique is popular precisely because it's the
   easy rupture on type 1); SHAKER tests it.
 - **Confidence: medium-high for both implemented routes.** The deterministic vectors are
   source-derived and exercise the timing races, cancellation semantics, and disarm paths;
-  real SHAKER hardware remains the higher-authority check (Module C `(1)` / D `(9)`).
+  real SHAKER hardware remains the higher-authority check (Module C `(1)` / D `(9)`). Q4's
+  later recheck opened F17 for the C9=R9 source-flag case; it is excluded from this confidence.
 - **Verify**: V3 passed for the R5 and R0-widening routes; V2 (SHAKER RFD tests); V1 (CRTC-1 demos).
 
 ## F8. CRTC 1 vertical adjustment must use a separate C5 counter (C4/C9 keep counting)
@@ -473,13 +545,14 @@ General implementation rules for all fix prompts:
 - **Impact**: interlace demos (SHAKER 2.x uses 1/64-line positioning tricks); most games unaffected.
 - **Confidence: high for the implemented even-R9 surface** (every asserted value traces to a
   render-verified table cell or the pseudocode; the type-1 model reproduces all 64 panel
-  callouts). Medium overall until hardware: the odd-R9 half of the finding and the additional
-  interlace line are deliberately unimplemented (Q19/Q10/Q12), and the residuals listed in
-  `f10-implementation-notes.md` (MID-VSYNC parity source after mid-frame R8 toggles, RFD×IVM,
-  adjustment-during-IVM) are unpinned.
-- **Remaining work**: odd-R9 alternation waits on Q19; the extra interlace line waits on Q10;
-  the odd-C4 VSYNC-imbalance correction waits on Q12. SHAKER interlace suite (Module B
-  `(1)`/`(9)`, C parity entries) is the hardware exit for what is implemented.
+  callouts). Medium overall until hardware: the odd-R9 half (F15), additional interlace line
+  (F14), and post-exit frozen C9.VMA (F16) are deliberately unimplemented; the residuals
+  listed in `f10-implementation-notes.md` (MID-VSYNC parity source after mid-frame R8 toggles,
+  RFD×IVM, adjustment-during-IVM) are unpinned.
+- **Remaining work**: F14/F15/F16 require fixtures before RTL. Q12's odd-C4 transition
+  imbalance remains unmodeled because recovery is inferred rather than sourced. SHAKER
+  interlace suite (Module B `(1)`/`(9)`, C parity entries) is the hardware exit for what is
+  implemented.
 
 ## F11. Minor / confirmatory findings (no immediate action)
 

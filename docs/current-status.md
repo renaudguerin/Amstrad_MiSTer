@@ -44,7 +44,7 @@ their compare mux fit inside existing slack; no regression signal.
 The classic stream's `accuracy/d1-followups` branch then merged onto
 this tip as `c762d36` (2026-08-26; t25 type-0 adjustment addressing
 pins, t26 section 17.5 R1=0 deadline pins, the Q10/Q11/Q12/Q19
-re-adjudication with finding candidates F14/F15, and the A4/N-6
+re-adjudication with findings F14/F15, and the A4/N-6
 housekeeping; reviewed CLEAR pre-merge by ask-claude review at Opus 5
 high with gates and bite-tests independently reproduced, seven
 non-blocking findings remediated at `6c7c905`). Dispatched CI run
@@ -312,9 +312,10 @@ For a first MiSTer pass:
   §19.8.2 counting (`t21a`-`t21p`, the 16 pp.210-211 panels), type-0 split C9/C9.VMA with
   the asymmetric entry/exit limit tests and §19.5.2 parity rules (`t22a`-`t22o`, the
   pp.221-224 tables). All 31 vectors are required passes; the old stepping/halving
-  approximation is removed and non-IVM behavior is bit-identical. Odd-R9 alternation
-  (Q19), the additional interlace line (Q10), and the odd-C4 VSYNC-imbalance correction
-  (Q12) remain deliberately unimplemented; residuals are in
+  approximation is removed and non-IVM behavior is bit-identical. The former question gates
+  are adjudicated: F14 owns the additional interlace line, F15 owns odd-R9 alternation and
+  its VSYNC correction, and F16 owns the post-exit frozen-C9.VMA behavior. Q12's inferred
+  post-transition recovery remains deliberately unimplemented; residuals are in
   `accuracy/f10-implementation-notes.md`. The stack was independently reviewed 2026-08-25
   (`accuracy/f10-independent-review.md`): NOT CLEAR on two blockings, both fixed with new
   vectors (`t23a`-`t23c`, `t22p`-`t22s`, RA column in `t22`); review-debt row cleared.
@@ -339,8 +340,8 @@ For a first MiSTer pass:
   contrast for even R7 (`t24b`, fixture XFAIL `e0f5b6a`, behavior commit required). The fix:
   `vsync_line_fire` uses the IVM-aware row-structure test, and during type-1 IVM the legacy
   field=1 MID-VSYNC arm no longer hijacks fire or count tick. Soak re-minted
-  `0xd620fce8b1c05b25`. The type-0 IVM VSYNC rule (the §19.5.2 delay) stays Q19-gated and
-  the f10-implementation-notes residuals are updated accordingly. The CI-only
+  `0xd620fce8b1c05b25`. The type-0 IVM VSYNC rule (the §19.5.2 delay) remains unimplemented
+  under F15, with fixture-first instructions in the F10 notes. The CI-only
   `actions/checkout` bump landed as `4e776f1` (v4 → v7, standalone).
 
 - Independent review of the F11h+t24 work (Claude Opus 5 xhigh via the ask-claude bridge,
@@ -400,13 +401,19 @@ For a first MiSTer pass:
     ParityFrame-relative. Q11 RESOLVED (p.205 states even explicitly). Q12 RESOLVED (the
     source does not assert self-correction; the no-persistent-state reading is recorded as
     inferred). Q19 main token + (a) RESOLVED (`R9.0=0` is a typo for `R9.0=1`; the
-    three-phase comparison form is pinned by p.220 and already implemented); Q19(b) STILL
-    OPEN, sharpened — the pp.223-224 exit tables imply a frozen-C9.VMA line-end test after a
-    non-matching R8=0 write, while this core resumes a live plain `C9==R9` test on
-    post-write lines (unpinned divergence, documented in the question). Actionable rules
-    opened as finding candidates **F14** (additional interlace line, both types) and
-    **F15** (type-0 odd-R9 IVM counting incl. the §19.5.2 VSYNC delay correction) —
-    fixtures before any RTL.
+    three-phase comparison form is pinned by p.220 and already implemented). At merge time
+    Q19(b) remained open: the pp.223-224 exit tables implied a frozen-C9.VMA line-end test
+    after a non-matching R8=0 write, while this core resumes a live plain `C9==R9` test on
+    post-write lines. The subsequent 2026-08-26 visual pass resolved that discriminator:
+    seven non-match windows run through C9=7 and the frozen-6 control resets; one of the
+    seven run-ons also has an isolated anomalous C4=2 cell. Actionable rules are findings **F14** (additional
+    interlace line, both types), **F15** (type-0 odd-R9 IVM counting incl. the §19.5.2 VSYNC
+    delay correction), and **F16** (post-IVM-exit frozen C9.VMA) — fixtures before any RTL.
+  - **Subsequent author-question closure pass** (2026-08-26): Q4's p.88 rule exposes **F17**
+    because the current F7 arm and required `t13d` retain the R12/R13-source flag on C9=R9;
+    Q13 confirms real UM6845R R16/R17 light-pen readback and exposes the absent LPSTB path as
+    **F18**. Q17 is not closed: detailed adjustment arithmetic/current sim predict R7=39
+    silence, while §28.1.1 explicitly predicts a pulse; hardware must discriminate.
   - **Item D**: A4 closed (the `expect_known_*` helpers renamed `expect_xfail_*` with the
     house rule in the comment; review-debt row done); N-6 closed (`actions/upload-artifact`
     v4 → v7, standalone; first run resolves it and uploads green).
@@ -961,14 +968,17 @@ front end.
    trigger is implemented with its blocking review findings remediated
    (`accuracy/f7-r0-widening-independent-review.md`, vectors `t13e`-`t13m`). That branch
    passed its pass-2 cross-provider re-review on 2026-08-24 and is merged at `27078f4`, so
-   F7 is complete in full. **D1 completed 2026-08-24** (digest re-verification + stale-
+   F7's planned implementation is complete; the later Q4 recheck opens F17 for its C9=R9
+   source-flag case. **D1 completed 2026-08-24** (digest re-verification + stale-
    reference sweep; outcomes summarized above and in the digests' 2026-08-24 notes; new
    author question Q19). **F10 is implemented, reviewed, and merged** (2026-08-25; the
    fixture-gating PDF re-checks — pp.210-211 truth tables render-verified; the pp.221-224
    IVM tables corroborating the pseudocode for the tested even R9 — fed fixtures first, then
-   per-type behavior commits). Remaining F10 work is Q-gated: odd-R9 parity-alternation
-   expectations wait on Q19, the additional interlace line on Q10, and the odd-C4
-   VSYNC-imbalance correction on Q12.
+   per-type behavior commits). The former author-question gates have now been adjudicated.
+   Remaining F10-derived work is fixture-gated under **F14** (additional interlace line),
+   **F15** (odd-R9 parity alternation and VSYNC correction), and **F16** (post-exit frozen
+   C9.VMA). Q12's odd-C4 transition imbalance remains unmodeled because the source describes
+   the transition frame but does not source the inferred recovery behavior.
  5. Plus: P0, both P1 milestones, the P1 motherboard integration with its review
     follow-ups, the calibrated p1_video bench, the P2 ASIC register page, and P3
     interrupts (PRI/DCSR/IVR) are done on `plus/p2-asic-regs`, synthesized green at

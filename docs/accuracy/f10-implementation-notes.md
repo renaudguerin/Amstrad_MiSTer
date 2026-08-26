@@ -2,9 +2,10 @@
 
 Status: **implemented for the unblocked scope, both types; independently reviewed and
 remediated** (2026-08-24/25, branch `accuracy/f10-fixtures`; review record
-`accuracy/f10-independent-review.md` — NOT CLEAR on two blockings, both fixed with vectors). Odd-R9 alternation and the additional interlace line remain
-gated behind author questions Q19 / Q10 as planned (both main gates adjudicated 2026-08-25,
-see "Deliberately unmodeled" below and findings F14/F15);
+`accuracy/f10-independent-review.md` — NOT CLEAR on two blockings, both fixed with vectors).
+Odd-R9 alternation and the additional interlace line remain gated behind findings F15/F14;
+the post-exit frozen-C9.VMA behavior resolved 2026-08-26 is finding F16 (see "Deliberately
+unmodeled" below).
 This file is the durable record for a fresh session: what was verified against the PDF,
 what the implemented model is, which conventions the fixtures pin, and what is left open.
 
@@ -128,20 +129,21 @@ write/value port pairs.
   adjudicated 2026-08-25 as a typo for `R9.0=1` — the row-end ParityC9 update fires only when
   R9 is **odd** (author question Q19 main token, RESOLVED by default reading; see
   accc-author-questions.md item 19). The even-R9 behavior the tables pin needs no row-end
-  ParityC9 update, so none is implemented; odd-R9 counting is now finding candidate **F15**
+  ParityC9 update, so none is implemented; odd-R9 counting is finding **F15**
   (audit-findings.md) — fixtures before RTL.
-- **Post-exit row-end behavior** (six of eight exit tables run C9 to 7 with R9=6 without
-  the C4 increment the plain test predicts): author question Q19(b), STILL OPEN, sharpened
-  2026-08-25 — the tables are consistent with the line-end test comparing the **frozen
-  C9.VMA register content** against plain R9 after a non-matching R8=0 write (never firing
-  in the drawn cases), while this core resumes a live plain C9==R9 test on post-write lines
-  (unpinned; the `t22` exit walks stop at the write line's seam). If the frozen reading is
-  confirmed, the divergence becomes a finding + fixture. See accc-author-questions.md
-  item 19(b) for the exact yes/no.
+- **Post-exit row-end behavior** (seven non-match windows run C9 to 7 with R9=6; six keep C4
+  unchanged and one has an anomalous C4 increment): author question Q19(b) was resolved visually
+  2026-08-26. The eight tables discriminate the **frozen C9.VMA register content** against
+  plain R9 after a non-matching R8=0 write: even frozen 6 resets, while even 0/2/4 and odd
+  1/3/5/7 run through C9=7. This core instead resumes a live plain C9==R9 test on post-write
+  lines (unpinned; the `t22` exit walks stop at the write line's seam). A persistent mismatch
+  can leave the row unable to complete until software changes the comparison state; p.220's
+  recovery rewrites R9 to frozen C9.VMA. The divergence is finding **F16** and needs fixtures
+  before RTL. The anomalous p.223 C4 cell is excluded, but its C9 run-on remains usable evidence.
 - **Additional interlace line** (§19.6, both types): Q10 RESOLVED 2026-08-25 by default
   reading — the line is generated at the end of the ParityFrame-even frame (type 1 gate:
   ParityFrame even; type 0 gate: ParityR6 odd, with the R6>R4 freeze) and duration-counted
-  in the following odd frame. Now finding candidate **F14** (audit-findings.md); not
+  in the following odd frame. Now finding **F14** (audit-findings.md); not
   implemented, fixtures before RTL.
 - **MID-VSYNC parity coupling**: the wrapper's MID-VSYNC tick and fire still key on the
   legacy `field` flop for the NON-IVM interlace paths; `field` freezes while R8 is outside

@@ -5175,7 +5175,7 @@ T21_TEST(t21_body_15, 15)
 //     start at the next C0=0 (p.219 prose, every entry table).
 //   - Steady IVM: row ends when C9.VMA == "R9 or ParityC9" (== R9 or
 //     ParityFrame for the even R9 these tables use; the p.220 "R9 or
-//     ParityC9" variant is indistinguishable here, divergence is Q19(a)).
+//     ParityC9" variant is indistinguishable here, odd-R9 is finding F15).
 //   - Exit line (R8 written to 0 during it): the end test uses C9.VMA
 //     against plain R9 (p.220 prose; p.223 bottom-right table shows the
 //     matching case resetting C9 and incrementing C4; p.224 bottom-right
@@ -5183,13 +5183,14 @@ T21_TEST(t21_body_15, 15)
 //     documented p.220 worked example).
 //   - After the exit line, plain C9-vs-R9 counting resumes immediately.
 //
-// Fixture scope notes: the post-exit row-end behavior (six of eight exit
-// tables run C9 to 7 with R9=6 without the predicted C4 increment) is
-// author question Q19(b) and is deliberately not asserted; the settled
-// C4>=1 blocks of the tables print the doubled value in the C9 column
-// (flagged source quirk) so post-reset expectations follow the pseudocode
-// (C9 restarts at 0 and steps by 1) with the tables' C9-VMA column as the
-// cross-check.  Odd-R9 alternation waits on Q19 and is out of scope.
+// Fixture scope notes: the post-exit row-end behavior (seven of eight exit
+// tables run C9 to 7 with R9=6 without the predicted C4 increment) was
+// resolved 2026-08-26 (author question Q19(b) -> finding F16) and is
+// deliberately not asserted here; the settled C4>=1 blocks of the tables
+// print the doubled value in the C9 column (flagged source quirk) so
+// post-reset expectations follow the pseudocode (C9 restarts at 0 and steps
+// by 1) with the tables' C9-VMA column as the cross-check.  Odd-R9
+// alternation is finding F15 and is out of scope for these even-R9 tests.
 
 struct T22Step {
     std::uint8_t c4;
@@ -5379,7 +5380,7 @@ void t22_exit_odd_at_r9_plus_1(TestBench& test) {
     // p.224 bottom-right table and the p.220 worked example: exiting on the
     // line whose C9.VMA = 7 = R9+1 misses the parity-dropped test, so C9 is
     // incremented (to 4) instead of resetting.  The walk stops before the
-    // post-exit row-end zone left open by Q19(b).
+    // post-exit row-end zone (Finding F16).
     t22_run_exit(test, true, 3, {{1, 3, 7}, {1, 4, 4}, {1, 5, 5}});
 }
 
@@ -5391,7 +5392,7 @@ void t22_exit_odd_below_limit(TestBench& test) {
 
 void t22_exit_even_below_limit(TestBench& test) {
     // p.223 bottom-left table: same shape on the even frame (C9.VMA = 4
-    // < 6).  Stops before the table's Q19(b) tail.
+    // < 6).  Stops before the table's post-exit tail (Finding F16).
     t22_run_exit(test, false, 2, {{1, 2, 4}, {1, 3, 3}, {1, 4, 4}});
 }
 
