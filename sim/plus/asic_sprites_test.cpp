@@ -772,11 +772,14 @@ void s10_r0_gt_64_repeat(Spr& b) {
 // choice rather than an S5 rule.
 void s11_access_blanking_scope_and_integrity(Spr& b) {
     // Sprite 2 (X=16, x1/y1): bystander, window = char1. Sprite 3
-    // (X=64, x2/y2): target of the access, window = chars 4-5.
+    // (X=64, x2/y2): target of the access, window = chars 4-5. Sprite
+    // 3's fixture is pat_nib over the FULL pixel index so char5's
+    // colours differ from char4's (a half-row-symmetric pattern would
+    // let a window that restarts at char4 pass unnoticed).
     for (unsigned py = 0; py < 16; ++py)
         for (unsigned px = 0; px < 16; ++px) {
             b.wr(2, px, py, (px & 7) + 1);
-            b.wr(3, px, py, 15 - (px & 7));
+            b.wr(3, px, py, pat_nib(px, py));
         }
     b.set_x(2, 16); b.set_y(2, 8); b.set_mag(2, 0x5);
     b.set_x(3, 64); b.set_y(3, 8); b.set_mag(3, 0xa);
@@ -815,7 +818,9 @@ void s11_access_blanking_scope_and_integrity(Spr& b) {
     // asserted about sprite 3's visibility inside this first window.
     // Whatever pixels do show must belong to sprite 3 with correct
     // image data (rb_dat survives the flush; the stored image is
-    // unchanged), and no other sprite may win here.
+    // unchanged), and no other sprite may win here. Source pixel of
+    // display dot d in window char ch is (ch-4)*8 + (d>>1); this line
+    // is vline 12 -> diff 4 -> source row (4)>>1 = 2 under Y2.
     for (unsigned ch = 4; ch <= 5; ++ch) {
         for (unsigned d = 0; d < 16; ++d) {
             const Spr::Smp s = b.sample();
@@ -823,7 +828,7 @@ void s11_access_blanking_scope_and_integrity(Spr& b) {
                 fail("s11: foreign winner in sprite 3 zone");
             if (s.en && s.idx == 3) {
                 unsigned g, r, bl;
-                pal_entry(15 - ((d >> 1) & 7), g, r, bl);
+                pal_entry(pat_nib((ch - 4) * 8 + (d >> 1), 2), g, r, bl);
                 if ((s.r != r || s.g != g || s.b != bl) && !dbgB)
                     fail("s11: shown pixels corrupted mid-refill");
             }
@@ -835,7 +840,8 @@ void s11_access_blanking_scope_and_integrity(Spr& b) {
     }
 
     // Recovery model choice: by the SAME source row's window on the next
-    // display line the image is back, complete and byte-correct. The
+    // display line the image is back, complete and byte-correct (next
+    // line is vline 13 -> source row 2). The
     // reference fixes only THAT-sprite-only scope and image integrity,
     // not hole shape; the one-line bound is our bandwidth model (module
     // header), verified here against the measured walker behaviour.
@@ -849,7 +855,7 @@ void s11_access_blanking_scope_and_integrity(Spr& b) {
             if ((!s.en || s.idx != 3) && !dbgB)
                 fail("s11: sprite 3 did not recover by the next window");
             unsigned g, r, bl;
-            pal_entry(15 - ((d >> 1) & 7), g, r, bl);
+            pal_entry(pat_nib((ch - 4) * 8 + (d >> 1), 2), g, r, bl);
             if ((s.r != r || s.g != g || s.b != bl) && !dbgB)
                 fail("s11: recovered image corrupted");
             if (dbgB)
@@ -874,20 +880,36 @@ void s12_x_rewrite_cut_and_continue(Spr& b) {
         // The rewrite lands after dot 5 is sampled; the register-shadow
         // mismatch kills emission from the following edge, so dot 5 is
         // legitimately still lit and dots 6 onward must be dark.
-        if (d < 5) {
+        if (d <= 5) {
             if (!s.en) fail("s12: window lost before rewrite");
         }
-        else if (d >= 6 && s.en) {
+        else if (s.en) {
             fail("s12: rewrite did not cut the running window");
         }
         if (d == 5) b.set_x(0, 400);
         if (d == 15) b.char_end(false); else b.dot();
     }
-    for (unsigned c = 2; c < 25; ++c) b.run_char(false);
+    for (unsigned c = 2; c < 24; ++c) b.run_char(false);
+    // Character 24 sampled dark pins the new window's arm at exact
+    // equality with X=400 -- an early-armed dot here cannot hide.
     for (unsigned d = 0; d < 16; ++d) {
         const Spr::Smp s = b.sample();
-        if (d >= 2 && !s.en)
-            fail("s12: continuation missing at new X");
+        if (s.en) fail("s12: window armed before the rewritten X");
+        if (d == 15) b.char_end(false); else b.dot();
+    }
+    // Continuation: the new window arms at exact equality with X=400,
+    // i.e. character 25 dot 0, x1 so source pixel = dot, still vline 12
+    // -> source row 4, winner sprite 0 throughout.
+    for (unsigned d = 0; d < 16; ++d) {
+        const Spr::Smp s = b.sample();
+        if (!s.en || s.idx != 0)
+            fail("s12: continuation missing at new X, dot " +
+                 std::to_string(d));
+        unsigned g, r, bl;
+        pal_entry(pat_nib(d, 4), g, r, bl);
+        if (s.r != r || s.g != g || s.b != bl)
+            fail("s12: continuation shows wrong source pixel at dot " +
+                 std::to_string(d));
         if (d == 15) b.char_end(false); else b.dot();
     }
 }
