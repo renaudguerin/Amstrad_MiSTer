@@ -162,3 +162,73 @@ specified checkout and propagates Quartus's exit status. Output is written to
 that checkout's `output_files/` directory. It does not use root privileges.
 You can override the project filename with a second argument, although this
 core's supported project is `Amstrad.qpf`.
+
+## GitHub Actions self-hosted runner
+
+`local-runner.yml` registers the same VM as a self-hosted GitHub Actions
+runner, so the local hardware is driven through the normal GitHub workflow
+surface instead of hand-invoking `build-amstrad`:
+
+```bash
+gh workflow run local-build.yml --ref <branch-or-tag> -f effort=full
+```
+
+Watch and download artifacts exactly like a hosted run (`gh run watch`,
+`gh run download --name Amstrad-local-build-...`). The workflow is dispatch-only:
+starting it requires write access to `renaudguerin/Amstrad_MiSTer`, and its job
+guard rejects every other event. That protects this workflow, not the runner
+label globally: a pull request that rewrites an existing workflow could target
+`quartus-vm` if someone approves that run. The disposable, dedicated VM is the
+containment boundary. Keep host SSH keys, shared folders, repository secrets,
+and unrelated credentials out of it; use NAT rather than a bridged interface;
+and do not approve untrusted workflow changes while the VM is online. The
+runner necessarily stores its own registration credentials and receives an
+ephemeral read-only token per job. Keep `local-build.yml` dispatch-only when
+editing it.
+
+### Provision
+
+1. In GitHub: Settings -> Actions -> Runners -> New self-hosted runner, pick
+   **Linux arm64**, and copy the registration token (expires in about an hour;
+   always mint a fresh one per invocation).
+2. From the repository root on the Mac:
+
+   ```bash
+   cd ansible
+   ansible-playbook local-runner.yml --check --diff -e runner_token=<token>
+   ansible-playbook local-runner.yml -e runner_token=<token>
+   ```
+
+   Check mode validates prerequisites but never registers or installs the
+   service (those steps are guarded). The play downloads the latest arm64
+   release of `actions/runner`, extracts it under `/home/admin/actions-runner`
+   (override the location or version with `-e actions_runner_dir=` /
+   `-e actions_runner_version=X.Y.Z`), registers it with the label
+   `quartus-vm`, and installs it as a systemd service so it survives VM
+   restarts.
+3. Confirm the runner shows as **Idle** under Settings -> Actions ->
+   Runners, then dispatch `local-build.yml`. GitHub only registers a manual
+   workflow after its file reaches the repository's default branch; before
+   this change merges, the runner can be online but that workflow cannot yet
+   be dispatched by filename.
+
+### Upgrade and removal
+
+Upgrading means unregistering and uninstalling the old service before deleting
+the installation, then re-running the play with a fresh registration token:
+
+```bash
+ssh admin@quartus-vm.local
+cd ~/actions-runner
+sudo ./svc.sh stop
+sudo ./svc.sh uninstall
+./config.sh remove --token <fresh-removal-token>
+rm -rf ~/actions-runner
+```
+
+Mint the removal token in the GitHub runner UI immediately before the command;
+it expires like a registration token. Removing the runner only in the UI
+leaves the VM's `.runner` marker behind, so also run `config.sh remove` locally
+before re-provisioning.
+`local-runner.yml` itself stays idempotent: an existing `.runner` marker and
+service unit are left alone on rerun.

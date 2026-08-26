@@ -26,9 +26,11 @@ permissions:
 
 concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
-  # A routine push must never cancel the manually dispatched milestone which
-  # compensates for semantic risks the pathname classifier cannot see.
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  # Last write wins within a ref+event pair: a newer push, PR sync, or manual
+  # dispatch supersedes its older running counterpart instead of queueing
+  # behind it for a full compile. Supersession semantics across different
+  # refs are handled one level down, on the synthesis job only.
+  cancel-in-progress: true
 
 jobs:
   synthesis-policy:
@@ -187,10 +189,22 @@ jobs:
     if: needs.synthesis-policy.outputs.required == 'true'
     strategy:
       fail-fast: false
+      # effort=both legs must serialize: they contend for the single
+      # repository-wide synthesis slot below, so parallel legs would cancel
+      # each other the moment the second one queues.
+      max-parallel: 1
       matrix:
         effort: ${{ fromJSON(needs.synthesis-policy.outputs.legs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    concurrency:
+      # Expensive Quartus compiles contend for one repository-wide slot across
+      # every branch, event, and effort tier (shared with local-build.yml):
+      # the newest run cancels whichever compile is in flight, wherever it
+      # started. Runs whose policy decision skips synthesis never join this
+      # group, so a Tier-A-only stream push cannot interrupt a build.
+      group: build-core-synthesis
+      cancel-in-progress: true
     env:
       # Quartus 17.0.2.602 for amd64. Keep the digest deliberate: the tag is mutable.
       QUARTUS_IMAGE: raetro/quartus@sha256:55442b161163dc7723e3d4917ce046fcb682478365fe9320756c9a4ae7d7d4ce

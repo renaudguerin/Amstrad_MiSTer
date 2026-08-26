@@ -79,9 +79,37 @@ then picks the effort:
 
 Two operational notes.  First, simulation and synthesis jobs run in parallel (they share no
 state; the required gate still enforces both), so a red simulation no longer saves the
-synthesis compute on that run.  Second, do not dispatch a milestone build right after pushing
-to an integration branch: the push already started one, and the dispatch deliberately does not
-cancel it, so the pair compiles the same SHA twice at full price.
+synthesis compute on that run.  Second, dispatched builds are not privileged: they are
+superseded by newer builds under exactly the rules of the next section, so dispatch into a
+quiet window when a milestone RBF must complete undisturbed.
+
+**Run supersession (2026-08-26).** Builds cancel each other instead of queueing, at two
+levels:
+
+- **Workflow level**, per ref+event (`build-Build core-<ref>-<event>`): a newer push, PR
+  sync, or manual dispatch with the same ref and event type cancels the older run wholesale —
+  simulation jobs included.
+- **Synthesis-job level**, repository-wide (`build-core-synthesis`, shared with
+  `local-build.yml`): every Quartus leg contends for a single slot regardless of branch,
+  event, or effort tier, and the newest arrival cancels whichever compile is in flight. Runs
+  whose policy decision skips synthesis never join the group, so a Tier-A-only stream push
+  cannot interrupt any build.
+
+The retired rule this replaces: dispatched milestones used to be uncancellable and queued
+FIFO behind each other, so iterating by repeated dispatch stacked ~25-minute runs and the
+policy had to warn against dispatching right after pushing to an integration branch.
+
+Consequences for humans and agents watching runs:
+
+- A superseded run ends with conclusion `cancelled`. That means *superseded*, never failed,
+  and it is not regression evidence. Find the successor before diagnosing anything:
+  `gh run list --branch <ref> --limit 5` (or match the head SHA) and judge that run.
+- The required-gate check of a cancelled run stays red or pending by design; only the newest
+  synthesizing run on a ref is meaningful.
+- An `effort=both` benchmark serializes its legs (`max-parallel: 1`) because parallel matrix
+  legs would cancel each other through the shared slot.
+- A milestone build that gets superseded anyway can be replayed exactly:
+  `gh run rerun <run-id>` re-runs that attempt on the same SHA.
 
 **What counts as affecting the build** is decided by `scripts/ci/classify-synthesis-paths.sh`,
 which no longer keeps a hand-written list of RTL. It resolves `files.qip` transitively through
@@ -144,9 +172,61 @@ exported post-fit netlists and their review burden); a cache alone is dead weigh
 Manual milestone dispatch keeps its `workflow_dispatch` route; the former
 `clean_quartus_build` input is gone because every build is clean.
 
-## Local Quartus route
+## Local Quartus route and agent routing policy
 
-The existing Quartus VM is a second route to Tier B, not a weaker standard.  Bringing it into
-routine routing and benchmarking clean versus incremental builds is a separate workstream; use
-the same RBF, fitter, timing, and commit-provenance acceptance evidence when that route is
-enabled.
+The existing Quartus VM is a second route to Tier B, not a weaker standard. Since
+2026-08-26 it is reachable as a self-hosted GitHub runner: register the runner once with
+`ansible/local-runner.yml` (e.g. `ansible-playbook -i ansible/inventory.yml ansible/local-runner.yml`),
+then dispatch `.github/workflows/local-build.yml`:
+
+```sh
+gh workflow run local-build.yml --ref <branch-or-tag> -f effort=full|smoke
+```
+
+The local leg joins the same repository-wide synthesis slot (`build-core-synthesis`) as hosted builds,
+so local and hosted compiles supersede each other under the run supersession rules above. Acceptance
+evidence is identical: RBF, fitter summary, TimeQuest report, and the same `quartus-cache.txt` provenance values.
+The VM executes repository-controlled Tcl and RTL directly, without the container boundary the hosted route gets
+from Docker, which is why the checked-in workflow is dispatch-only and also guards its event and repository.
+Those controls do not secure the runner label against a malicious edit to another workflow; the disposable VM is
+the isolation boundary for this public repository. Provisioning, registration, and removal are documented in
+`ansible/README.md`; iteration-speed background remains in `docs/building.md`.
+
+### Performance benchmark (exact SHA `27cb993`, 2026-08-26)
+
+Measured clean compiles on exact commit `27cb9930a8f9dc074ae83ae16b2e23a9fd0a175d` comparing GitHub Actions
+hosted runners (`ubuntu-latest` amd64 container) versus the local Debian 13 UTM VM (Apple Silicon M-series,
+6 vCPUs, 8 GB RAM, Rosetta 2 emulation):
+
+| Tier | Route | Map | Fit | Asm | Sta | Flow Total | Total Job Turnaround |
+|---|---|---|---|---|---|---|---|
+| **Smoke** | Hosted GHA (`32970235843`) | 3:17 | 10:23 | 0:19 | 0:12 | **14:18** | **16:00** |
+| **Smoke** | Local UTM VM (`quartus-vm`) | 2:20 | 9:14 | 0:13 | 0:10 | **12:03** | **~12:15** |
+| **Full** | Hosted GHA (`32970234749`) | 3:13 | 15:46 | 0:19 | 0:13 | **19:38** | **21:17** |
+| **Full** | Local UTM VM (`quartus-vm`) | 2:23 | 15:59 | 0:13 | 0:10 | **18:45** | **~19:00** |
+
+*Note on Rosetta emulation:* In `Amstrad.qsf`, `NUM_PARALLEL_PROCESSORS ALL` causes `quartus_map` to spawn
+multi-process helper children communicating over Linux named pipes (`mkfifo`), which deadlock on `wait_for_partner`
+under Rosetta 2 virtualization. Overriding `NUM_PARALLEL_PROCESSORS 1` during local VM compilation avoids this IPC
+bottleneck and allows `quartus_map` to execute single-process multi-level synthesis in 2m20s.
+
+### Agent routing policy
+
+1. **Automatic triggers remain hosted**: Non-documentation pushes to integration branches (`master`,
+   `accc-review-and-fixes`), pull requests, and pushed tags always run through hosted GitHub Actions.
+2. **Manual dispatches prefer local when online**: For deliberate Tier B milestone dispatches, pre-merge
+   semantic-risk checks (top-level wiring, clocks, memory arbitration, RGB width), and bitstream builds for
+   real-hardware handoff, **prefer dispatching to the local VM runner** when it is reachable (`quartus-vm` status `online`):
+   ```sh
+   gh workflow run local-build.yml --ref <branch-or-tag> -f effort=full|smoke
+   ```
+   Local compilation is faster in both tiers (~4m faster turnaround for smoke, ~2m20s faster for full) and saves
+   GitHub runner queue latency.
+3. **Hosted fallback when VM is offline**: If `quartus-vm` is offline or unreachable, dispatch hosted `build.yml`
+   without hesitation:
+   ```sh
+   gh workflow run build.yml --ref <branch-or-tag> -f effort=full|smoke
+   ```
+4. **Never dispatch both routes concurrently for the same SHA**: Both routes share the single
+   `build-core-synthesis` concurrency group, so a newer dispatch will cancel the earlier in-flight build.
+
