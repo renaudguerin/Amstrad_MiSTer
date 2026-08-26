@@ -441,12 +441,15 @@ public:
                     dut_->rootp->CRTC__DOT__crtc_type1_engine__DOT__rfd_r0_pending);
     }
 
-    // Known-divergence variants of the counter/parity assertions: identical
-    // checks, but a violation throws KnownDivergenceFailure so a test
-    // registered with known_divergence=true reports XFAIL instead of FAIL.
-    // House pattern from the F4 fixture commit: the F10 behavior commit
-    // replaces these with the plain expect_* forms and flips the flag.
-    void expect_known_byte(const std::string& expectation,
+    // XFAIL variants of the counter/parity assertions (review A4 rename:
+    // the old expect_known_* name read like a plain assertion). Identical
+    // checks, but a violation throws KnownDivergenceFailure: in a test
+    // registered with known_divergence=true that reports XFAIL; anywhere
+    // else it is an ordinary failure. House pattern from the F4 fixture
+    // commit: use these ONLY in fixture-first XFAIL commits; the behavior
+    // commit replaces them with the plain expect_* forms and flips the
+    // flag in the same change.
+    void expect_xfail_byte(const std::string& expectation,
                            std::uint8_t expected,
                            std::uint8_t actual) const {
         if (actual != expected) {
@@ -455,31 +458,31 @@ public:
         }
     }
 
-    void expect_known_line(const std::string& expectation,
+    void expect_xfail_line(const std::string& expectation,
                            std::uint8_t expected) const {
-        expect_known_byte(expectation, expected, dut_->rootp->CRTC__DOT__line);
+        expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__line);
     }
 
-    void expect_known_c4(const std::string& expectation,
+    void expect_xfail_c4(const std::string& expectation,
                          std::uint8_t expected) const {
-        expect_known_byte(expectation, expected, dut_->rootp->CRTC__DOT__row);
+        expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__row);
     }
 
-    void expect_known_parity_frame(const std::string& expectation,
+    void expect_xfail_parity_frame(const std::string& expectation,
                                    bool expected) const {
-        expect_known_byte(expectation, expected,
+        expect_xfail_byte(expectation, expected,
                           dut_->rootp->CRTC__DOT__parity_frame);
     }
 
-    void expect_known_parity_c9(const std::string& expectation,
+    void expect_xfail_parity_c9(const std::string& expectation,
                                 bool expected) const {
-        expect_known_byte(expectation, expected,
+        expect_xfail_byte(expectation, expected,
                           dut_->rootp->CRTC__DOT__parity_c9);
     }
 
-    void expect_known_line_parity(const std::string& expectation,
+    void expect_xfail_line_parity(const std::string& expectation,
                                   bool expected) const {
-        expect_known_byte(expectation, expected,
+        expect_xfail_byte(expectation, expected,
                           dut_->rootp->CRTC__DOT__line & 1);
     }
 
@@ -575,7 +578,7 @@ public:
         }
     }
 
-    void expect_known_ma(const std::string& expectation,
+    void expect_xfail_ma(const std::string& expectation,
                          std::uint16_t expected) const {
         if (dut_->MA != expected) {
             known_divergence(expectation + " == " + std::to_string(expected),
@@ -583,13 +586,13 @@ public:
         }
     }
 
-    void expect_known_vsync_high(const std::string& expectation) const {
+    void expect_xfail_vsync_high(const std::string& expectation) const {
         if (dut_->VSYNC == 0) {
             known_divergence(expectation, "VSYNC low");
         }
     }
 
-    void expect_known_vsync_low(const std::string& expectation) const {
+    void expect_xfail_vsync_low(const std::string& expectation) const {
         if (dut_->VSYNC != 0) {
             known_divergence(expectation, "VSYNC high");
         }
