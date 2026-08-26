@@ -150,8 +150,8 @@ Mint a Linux arm64 registration token under GitHub Settings -> Actions ->
 Runners, then provision the runner from the Mac:
 
 ```bash
-ansible-playbook ansible/local-runner.yml -e runner_token=<token>
-gh workflow run local-build.yml --ref <branch-or-tag> -f effort=full
+ansible-playbook -i ansible/inventory.yml ansible/local-runner.yml -e runner_token=<token>
+gh workflow run local-build.yml --ref <branch-or-tag> -f effort=full|smoke
 ```
 
 The manual workflow becomes dispatchable only after `local-build.yml` reaches
@@ -167,6 +167,22 @@ free of host credentials or shared folders, and do not approve untrusted
 workflow changes while it is online. The local route emits the same RBF,
 fitter, timing, and provenance evidence as hosted Tier B. Full registration
 and removal instructions are in `ansible/README.md`.
+
+#### Measured Benchmark (2026-08-26, exact SHA `27cb993`)
+
+Benchmarked against hosted GitHub Actions runners (`ubuntu-latest` amd64):
+
+| Tier | Route | Map | Fit | Asm | Sta | Flow Total | Total Turnaround |
+|---|---|---|---|---|---|---|---|
+| **Smoke** | Hosted GHA | 3:17 | 10:23 | 0:19 | 0:12 | **14:18** | **16:00** |
+| **Smoke** | Local UTM VM | 2:20 | 9:14 | 0:13 | 0:10 | **12:03** | **~12:15** |
+| **Full** | Hosted GHA | 3:13 | 15:46 | 0:19 | 0:13 | **19:38** | **21:17** |
+| **Full** | Local UTM VM | 2:23 | 15:59 | 0:13 | 0:10 | **18:45** | **~19:00** |
+
+*Rosetta 2 IPC Note:* In `Amstrad.qsf`, `NUM_PARALLEL_PROCESSORS ALL` creates multi-process helper
+children communicating via named pipes (`mkfifo`), which deadlock on `wait_for_partner` under Rosetta.
+The workflow automatically sets `NUM_PARALLEL_PROCESSORS 1` so synthesis runs in-process at full speed (2m20s).
+
 
 ## 4. Option C — Docker Desktop on the Mac (works, but slower — skip unless you have a reason)
 
