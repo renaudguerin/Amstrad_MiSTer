@@ -100,7 +100,7 @@ localparam CONF_STR = {
 	"R0,Reset & apply model;",
 	"R[32],Reset & Detach Cartridge;",
 	"J,Fire 1,Fire 2,Fire 3;",
-	"V,v",`BUILD_DATE
+	"V,v",`BUILD_ID
 };
 
 //////////////////////////////////////////////////////////////////////////
