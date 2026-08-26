@@ -48,6 +48,7 @@ public:
 		dut.leg_inkr[2] = 0;
 		dut.pal_raddr = 0;
 		dut.dma_int_set = 0;
+		dut.dcsr_ena_clr = 0;
 	}
 
 	void set_inkr_word(uint32_t lo, uint32_t hi) {
@@ -359,6 +360,26 @@ void a05_raster_dma_regs(Regs& r) {
 	r.wr(0x2C00, 0xA5);
 	if (r.rd(0x2C0F) != 0x07) fail("a05: &6C00 write hit DCSR");
 	if (r.rd(0x2C00) != 0x07) fail("a05: SAR readable (must not be)");
+
+	// DMA INT flag setting (P7): bit 6 = ch0, bit 5 = ch1, bit 4 = ch2
+	r.dut.dma_int_set = 1; // set Ch0
+	r.tick();
+	r.dut.dma_int_set = 0;
+	if (r.rd(0x2C0F) != 0x47) fail("a05: DCSR Ch0 INT flag not at bit 6 (got " + std::to_string(r.rd(0x2C0F)) + ")");
+	if (!r.dut.dma_int_req) fail("a05: dma_int_req not asserted for Ch0 INT");
+	r.wr(0x2C0F, 0x47); // W1C bit 6
+	if (r.rd(0x2C0F) != 0x07) fail("a05: DCSR W1C bit 6 failed to clear Ch0 INT");
+	if (r.dut.dma_int_req) fail("a05: dma_int_req still asserted after W1C");
+
+	r.dut.dma_int_set = 4; // set Ch2
+	r.tick();
+	r.dut.dma_int_set = 0;
+	if (r.rd(0x2C0F) != 0x17) fail("a05: DCSR Ch2 INT flag not at bit 4 (got " + std::to_string(r.rd(0x2C0F)) + ")");
+	if (!r.dut.dma_int_req) fail("a05: dma_int_req not asserted for Ch2 INT");
+	r.wr(0x2C0F, 0x17); // W1C bit 4
+	if (r.rd(0x2C0F) != 0x07) fail("a05: DCSR W1C bit 4 failed to clear Ch2 INT");
+	if (r.dut.dma_int_req) fail("a05: dma_int_req still asserted after Ch2 W1C");
+
 	std::printf("PASS a05: raster/DMA storage, DCSR fields/window, SAR hidden\n");
 }
 
