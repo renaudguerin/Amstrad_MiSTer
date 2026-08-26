@@ -23,10 +23,9 @@
 //   - Interlace (R8 bits 1:0 stored but not acted on): the type-3 IVM
 //     counting/parity machinery is its own rule set (ACCC §19.5.5, §19.8.4)
 //     and no P1 exit criterion needs it.
-//   - Light pen R16/R17: no light-pen input exists on CPC hardware. The
+//   - Light pen R16/R17: no light-pen strobe source is emulated. The
 //     registers are stored and readable since P5 (mod-8 map slots 0/1) but
-//     nothing ever strobes them; they hold their reset value (named
-//     assumption at the readback section below).
+//     hold their reset value (named assumption at the readback section).
 //   - The R4=0-at-C0=0-with-Rom-select I/O race (ACCC §12.5 p.101) is a Z80
 //     bus-level ASIC race owned by the register-interface layer, not the
 //     counter engine.
@@ -573,17 +572,14 @@ assign RA   = raster;
 // STATUS 1 (slot 2) and STATUS 2 (slot 3) are live combinational levels
 // of the counter/pointer state — several bits hold for one character
 // only (§21.3.4 "requires great precision"). The HSYNC/VSYNC boundary
-// rows are read as "the last character/line of the pulse": [KT] states
-// bit 4 = "on last char of HSYNC" and bit 5 = "on last line of VSYNC"
-// outright, and ACCC's "the line R3h from Vsync" counts the pulse
-// 1-based for R3h>0 while its R3h=0 row (value 1, "over 15 lines")
-// describes the 15 lines preceding the 16th; both sources agree on the
-// unified rule implemented below. Effective pulse widths use the
-// documented 0 -> 16 rule (§14.5 HSYNC, §14.2 VSYNC).
+// boundaries follow the literal §21.3.4 comparators. In particular STATUS1
+// bit 4 is low at C0=R2+R3l; unlike HSYNC pulse generation, that comparator
+// does not substitute 16 for R3l=0. For bit 5, [KT]'s final-VSYNC-line rule
+// supplies the R3h=0 sixteenth-line case that ACCC leaves unspecified.
 //
 // Named assumptions (each would need its own vector against new
 // evidence):
-//  - R16/R17 hold their reset value: no CPC light-pen strobe exists.
+//  - R16/R17 hold their reset value: no light-pen strobe source is emulated.
 //  - Status 2 bit 3 resets to 0 and toggles at every 16th frame origin
 //    (§21.3.4.2 "Timer 16 CRTC frames"; §28.1.10 p.293 notes this bit
 //    differs between CRTC 3 and CRTC 4 — type 3 only here).
@@ -597,9 +593,9 @@ wire s1_bit1 = ~(hcc == {1'b0, R0_h_total[7:1]});           // 0 at C0=R0/2
 wire s1_bit2 = ~((R0_h_total >= R1_h_displayed) &&
                  (hcc == (R1_h_displayed - 8'd1)));         // 0 at C0=R1-1
 wire s1_bit3 = ~(hcc == R2_h_sync_pos);                     // 0 at C0=R2
-wire [7:0] hsync_last_char = R2_h_sync_pos +
-    ((R3_h_sync_width == 4'd0) ? 8'd16 : {4'd0, R3_h_sync_width}) - 8'd1;
-wire s1_bit4 = ~(hcc == hsync_last_char);                   // 0 on last HSYNC char
+wire [8:0] status1_hsync_end = {1'b0, R2_h_sync_pos} +
+                               {5'd0, R3_h_sync_width};
+wire s1_bit4 = ~(hcc == status1_hsync_end);                 // 0 at C0=R2+R3l
 wire s1_bit5 = ~(in_vsync &&
                  (vsc == (R3_v_sync_width - 4'd1)));        // 0 on last VSYNC line
 // C0=0..R0-1 with VMA LSB 0xFF, or C0=R0 with VMA' LSB 0x00: the next
@@ -607,7 +603,9 @@ wire s1_bit5 = ~(in_vsync &&
 wire s1_bit7 = ~(((hcc != R0_h_total) && (vma[7:0] == 8'hFF)) ||
                  ((hcc == R0_h_total) && (vma_latch[7:0] == 8'h00)));
 
-// STATUS 2 (§21.3.4.2 p.249): vertical-event group.
+// STATUS 2 (§21.3.4.2 p.249): vertical-event group. ACCC specifies literal
+// counter comparisons, so these remain live during vertical adjustment too;
+// whether hardware suppresses an adjustment-time duplicate is not evidenced.
 wire s2_bit0 = ~((charline == R4_v_total) &&
                  (raster == R9_v_max_line) && hcc_last);
 wire s2_bit1 = ~((charline == (R6_v_displayed - 7'd1)) &&

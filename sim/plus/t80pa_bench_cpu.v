@@ -52,7 +52,7 @@ module T80pa (
 	                 S_WAIT = 3'd3, S_ACK = 3'd4, S_FILL = 3'd5,
 	                 S_FILLC = 3'd6;
 
-	localparam [5:0] NSTEPS = 6'd54;
+	localparam [5:0] NSTEPS = 6'd58;
 	localparam [7:0] HOLD = 8'd47; // >= one full sequencer ring (32 clks)
 	localparam [7:0] GAP  = 8'd15;
 	localparam [7:0] ACKS = 8'd31;
@@ -132,12 +132,16 @@ module T80pa (
 			6'd45: step_bus = {1'b0, 16'hBE00, 8'hE2}; // IN &BE -> same R14
 			6'd46: step_bus = {1'b0, 16'h0800, 8'h0F}; // select R15
 			6'd47: step_bus = {1'b0, 16'h0900, 8'hC3}; // R15 = C3
-			6'd48: step_bus = {1'b0, 16'hBD00, 8'h79}; // IN data port writes R15
-			6'd49: step_bus = {1'b0, 16'hBF00, 8'hE3}; // read trapped R15 value
-			6'd50: step_bus = {1'b0, 16'hBC00, 8'h03}; // IN select port -> STATUS2
-			6'd51: step_bus = {1'b0, 16'hBF00, 8'hE4}; // read STATUS2
-			6'd52: step_bus = {1'b0, 16'h7F00, 8'h06}; // IN GA: PENR=6
-			6'd53: step_bus = {1'b0, 16'h7F00, 8'h66}; // IN GA: INKR[6]=6
+			6'd48: step_bus = {1'b1, 16'hF079, 8'hFF}; // opcode fetch seeds open bus 79
+			6'd49: step_bus = {1'b0, 16'hBD00, 8'hA1}; // IN data port writes 79, not DO
+			6'd50: step_bus = {1'b0, 16'hBF00, 8'hE3}; // read trapped R15 value
+			6'd51: step_bus = {1'b1, 16'hF003, 8'hFF}; // seed 03
+			6'd52: step_bus = {1'b0, 16'hBC00, 8'hA2}; // IN select port -> STATUS2
+			6'd53: step_bus = {1'b0, 16'hBF00, 8'hE4}; // read STATUS2
+			6'd54: step_bus = {1'b1, 16'hF006, 8'hFF}; // seed 06
+			6'd55: step_bus = {1'b0, 16'h7F00, 8'hA3}; // IN GA: PENR=6
+			6'd56: step_bus = {1'b1, 16'hF066, 8'hFF}; // seed 66
+			6'd57: step_bus = {1'b0, 16'h7F00, 8'hA4}; // IN GA: INKR[6]=6
 			default: step_bus = {1'b0, 16'h0000, 8'hFF};
 			endcase
 		end
@@ -146,9 +150,18 @@ module T80pa (
 	function step_is_read(input [5:0] k);
 		begin
 			case (k)
-			6'd44, 6'd45, 6'd48, 6'd49,
-			6'd50, 6'd51, 6'd52, 6'd53: step_is_read = 1'b1;
+			6'd44, 6'd45, 6'd48, 6'd49, 6'd50, 6'd51, 6'd52,
+			6'd53, 6'd54, 6'd55, 6'd56, 6'd57: step_is_read = 1'b1;
 			default: step_is_read = 1'b0;
+			endcase
+		end
+	endfunction
+
+	function step_is_fetch(input [5:0] k);
+		begin
+			case (k)
+			6'd48, 6'd51, 6'd54, 6'd56: step_is_fetch = 1'b1;
+			default: step_is_fetch = 1'b0;
 			endcase
 		end
 	endfunction
@@ -190,8 +203,8 @@ module T80pa (
 					dbg_step         <= step;
 					wr_n   <= step_is_read(step) ? 1'b1 : 1'b0;
 					rd_n   <= step_is_read(step) ? 1'b0 : 1'b1;
-					m1_n   <= 1'b1;
-					iorq_n <= sbus[24] ? 1'b1 : 1'b0;
+					m1_n   <= step_is_fetch(step) ? 1'b0 : 1'b1;
+					iorq_n <= (sbus[24] || step_is_fetch(step)) ? 1'b1 : 1'b0;
 					mreq_n <= sbus[24] ? 1'b0 : 1'b1;
 					cnt    <= HOLD;
 					st     <= S_CYC;
@@ -213,8 +226,8 @@ module T80pa (
 				case (step)
 				6'd44: dbg_read_bf_r14 <= di;
 				6'd45: dbg_read_be_r14 <= di;
-				6'd49: dbg_read_bf_r15 <= di;
-				6'd51: dbg_read_status2 <= di;
+				6'd50: dbg_read_bf_r15 <= di;
+				6'd53: dbg_read_status2 <= di;
 				default: ;
 				endcase
 				bus_idle;

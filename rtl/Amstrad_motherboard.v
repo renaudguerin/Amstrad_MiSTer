@@ -122,6 +122,7 @@ module Amstrad_motherboard
 	output        rd,
 	output        wr,
 	output        m1,
+	output reg [7:0] io_bus_byte,
 	output        ga_ready,
 	input         irq,
 	input         nmi,
@@ -156,6 +157,16 @@ wire RFSH_n;
 wire ga_int_n;
 wire INT_n = plus_mode ? plus_int_n : ga_int_n;
 wire M1_n;
+wire [7:0] cpu_data_bus = crtc_dout_sel & ppi_dout & cpu_din;
+wire [7:0] plus_io_data = io_rd ? io_bus_byte : D;
+
+// Write-only Plus ports see the byte left by the final opcode fetch of the
+// current instruction, not T80's undriven/stale DO value ([KT] Ports). This
+// is the ASIC's open-bus source for IN-performs-write traps.
+always @(posedge clk) begin
+	if (reset) io_bus_byte <= 8'hFF;
+	else if (~M1_n & ~MREQ_n & ~RD_n) io_bus_byte <= cpu_data_bus;
+end
 
 T80pa CPU
 (
@@ -167,7 +178,7 @@ T80pa CPU
 
 	.a(A),
 	.do(D),
-	.di(crtc_dout_sel & ppi_dout & cpu_din),
+	.di(cpu_data_bus),
 
 	.rd_n(RD_n),
 	.wr_n(WR_n),
@@ -278,7 +289,7 @@ asic_ga_timing asic_ga
 	.RESET_N(~reset),
 
 	.A(A[15:14]),
-	.D(D),
+	.D(plus_io_data),
 	.MREQ_N(MREQ_n),
 	.M1_N(M1_n),
 	.RD_N(RD_n),
@@ -344,7 +355,7 @@ asic_video asic_vid
 	.nCS(A[14]),
 	.R_nW(A[9]),
 	.RS(A[8]),
-	.DI(D),
+	.DI(plus_io_data),
 	.DO(plus_crtc_dout),
 
 	.HSYNC(plus_crtc_hs),
