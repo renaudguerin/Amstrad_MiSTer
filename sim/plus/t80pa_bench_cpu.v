@@ -45,9 +45,10 @@ module T80pa (
 	reg        dbg_int_level  /* verilator public_flat_rd */;
 	reg [31:0] dbg_int_fires  /* verilator public_flat_rd */;
 	localparam [2:0] S_GAP = 3'd0, S_CYC = 3'd1, S_PRIME = 3'd2,
-	                 S_WAIT = 3'd3, S_ACK = 3'd4;
+	                 S_WAIT = 3'd3, S_ACK = 3'd4, S_FILL = 3'd5,
+	                 S_FILLC = 3'd6;
 
-	localparam [5:0] NSTEPS = 6'd34;
+	localparam [5:0] NSTEPS = 6'd42;
 	localparam [7:0] HOLD = 8'd47; // >= one full sequencer ring (32 clks)
 	localparam [7:0] GAP  = 8'd15;
 	localparam [7:0] ACKS = 8'd31;
@@ -55,6 +56,7 @@ module T80pa (
 	reg [2:0]  st;
 	reg [5:0]  step;
 	reg [7:0]  cnt;
+	reg [8:0]  fill_i;   // sprite-image auto-fill phase (m8)
 	reg        int_d;
 	reg        primed;
 	reg        cyc_mem; // current scripted cycle is a memory cycle
@@ -105,6 +107,19 @@ module T80pa (
 			6'd31: step_bus = {1'b1, 16'h6000, 8'h66}; // sprite 0 X lo
 			6'd32: step_bus = {1'b1, 16'h6805, 8'hDA}; // &6805 IVR = 0xDA
 			6'd33: step_bus = {1'b1, 16'h6805, 8'hDA}; // (hold; single write)
+			// P4 m8 geometry and palette. The 16x16 sprite image itself
+			// is written afterwards by the S_FILL auto-phase (one nibble
+			// per CPU byte, alternating colours 10/5 on even/odd pixels
+			// for every source row), which also keeps the low-nibble
+			// mask exercised on every write.
+			6'd34: step_bus = {1'b1, 16'h6001, 8'h01}; // X hi: X = 0x166 = 358
+			6'd35: step_bus = {1'b1, 16'h6002, 8'h10}; // Y lo = 16
+			6'd36: step_bus = {1'b1, 16'h6003, 8'h00}; // Y hi = 0
+			6'd37: step_bus = {1'b1, 16'h6004, 8'h05}; // MAG x1/x1 -> enabled
+			6'd38: step_bus = {1'b1, 16'h642A, 8'h34}; // pal[21] (colour 5)
+			6'd39: step_bus = {1'b1, 16'h642B, 8'h06}; //   low R3 B4, high G6
+			6'd40: step_bus = {1'b1, 16'h6434, 8'h12}; // pal[26] (colour 10)
+			6'd41: step_bus = {1'b1, 16'h6435, 8'h0F}; //   low R1 B2, high GF
 			default: step_bus = {1'b0, 16'h0000, 8'hFF};
 			endcase
 		end
@@ -124,6 +139,7 @@ module T80pa (
 	always @(posedge clk) begin
 		if (!reset_n) begin
 			st <= S_GAP; step <= 6'd0; cnt <= 8'd0;
+			fill_i <= 9'd0;
 			int_d <= 1'b1; primed <= 1'b0;
 			dbg_step <= 6'd0; dbg_done <= 1'b0; dbg_ack_done <= 1'b0;
 			dbg_int_level <= 1'b1; dbg_int_fires <= 32'd0;
@@ -160,17 +176,59 @@ module T80pa (
 					st <= S_WAIT;
 				end
 			end
-			S_CYC: begin
-				if (cnt != 8'd0) begin
-					cnt <= cnt - 8'd1;
+		S_CYC: begin
+			if (cnt != 8'd0) begin
+				cnt <= cnt - 8'd1;
+			end else begin
+				bus_idle;
+				if (step == NSTEPS - 6'd1) begin
+					// Script done: auto-fill the sprite image before
+					// declaring completion (m8).
+					fill_i <= 9'd0;
+					cnt    <= GAP;
+					st     <= S_FILL;
 				end else begin
-					bus_idle;
-					if (step == NSTEPS - 6'd1) dbg_done <= 1'b1;
-					else step <= step + 6'd1;
-					cnt <= GAP;
-					st <= S_GAP;
+					step <= step + 6'd1;
+					cnt  <= GAP;
+					st   <= S_GAP;
 				end
 			end
+		end
+		S_FILL: begin
+			if (cnt != 8'd0) begin
+				cnt <= cnt - 8'd1;
+			end else begin
+				a   <= 16'h4000 | {7'd0, fill_i};
+				if (fill_i[0]) begin
+					do <= 8'h85; // stores nibble 5 on odd pixels
+				end else begin
+					do <= 8'hDA; // stores nibble A on even pixels
+				end
+				wr_n   <= 1'b0;
+				rd_n   <= 1'b1;
+				m1_n   <= 1'b1;
+				iorq_n <= 1'b1;
+				mreq_n <= 1'b0;
+				cnt    <= HOLD;
+				st     <= S_FILLC;
+			end
+		end
+		S_FILLC: begin
+			if (cnt != 8'd0) begin
+				cnt <= cnt - 8'd1;
+			end else begin
+				bus_idle;
+				if (fill_i == 9'd255) begin
+					dbg_step <= 6'd42;
+					dbg_done <= 1'b1;
+					st       <= S_GAP;
+				end else begin
+					fill_i <= fill_i + 9'd1;
+					cnt    <= GAP;
+					st     <= S_FILL;
+				end
+			end
+		end
 			S_PRIME: begin
 				if (cnt != 8'd0) begin
 					cnt <= cnt - 8'd1;

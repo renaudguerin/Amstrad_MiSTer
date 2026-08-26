@@ -13,6 +13,21 @@
 // m4  the 52-line interrupt fires into the CPU int_n pin (counted after
 //     the prime acknowledge, so simulator zero-init levels don't count)
 //     and clears on the fake Z80 acknowledge cycle.
+// m5  ASIC-page bus writes land in sprite RAM (one nibble per CPU byte,
+//     low bits stored), sprite regs and palette;
+// m6  INT-acknowledge presents (IVR & F8) | source on the data bus;
+// m7  classic mode keeps every Plus term inert with the page forced on;
+// m8  end-to-end sprite vector: after the script enables sprite 0
+//     (X=358, Y=16, MAG x1/x1), a bench-CPU auto-fill phase writes the
+//     whole 16x16 image as alternating colours 10/5, plus pal[26]={R1,
+//     G F,B2} / pal[21]={R3,G6,B4}. Paper expectations ([KT] compare
+//     formulas; reference S5/S6; engine emission swap; asic_video's
+//     registered RGB output lagging the engine plane by one dot):
+//     exactly one 16-dot SPR_EN window per compare line vline 16..31
+//     and nowhere else; window dot k>=1 carries source pixel k-1, so
+//     odd k shows red_o=1 green_o=F blue_o=2 and even k shows 3/6/4
+//     through the production bus -> regs -> fetch-port -> engine ->
+//     video chain.
 
 #include <cstdint>
 #include <cstdio>
@@ -207,7 +222,11 @@ int run() {
 		if (!done_checked2 && *b.cpu_done()) {
 			done_checked2 = true;
 			const auto* ram = b.spr_ram();
-			if (ram[0x000] != 0x5 || ram[0x001] != 0xC || ram[0x100] != 0xE)
+			// Sprite 0 image comes from the m8 auto-fill phase: even
+			// offsets written 0xDA -> nibble A, odd offsets 0x85 ->
+			// nibble 5, so the low-nibble mask is exercised by every
+			// one of the 256 writes.
+			if (ram[0x000] != 0xA || ram[0x001] != 0x5 || ram[0x100] != 0xE)
 				fail("m5: sprite RAM contents wrong after bus writes "
 				     "(low-nibble mask or decode)");
 			if (*b.x_lo(0) != 0x66)
@@ -236,6 +255,106 @@ int run() {
 		fail("m6: no raster-source vector observed on acknowledge cycles");
 	std::printf("PASS m6: INT-acknowledge vector byte 0xDE over %u samples\n",
 	            vec_samples);
+
+	//------------------------------------------------------------------
+	// m8: end-to-end sprite vector (expectations derived above, header).
+	// The engine asserts SPR_EN combinationally on the hp==X dot itself
+	// and window dot k emits source pixel k, so post-edge C++ sampling
+	// sees px k on the k-th EN dot with no pipeline offset.
+	//------------------------------------------------------------------
+	{
+		auto* ce16   = &b.dut.rootp->p1_mobo_bench_top__DOT__ce_16;
+		auto* en_tap = &b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_spr_en;
+		auto* vc_tap = &b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_vc;
+		auto* rc_tap = &b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_rc;
+
+		bool in_win = false;
+		unsigned win_pos = 0;
+		unsigned win_vline = 0;
+		bool vline_moved = false;
+		unsigned windows_done = 0;
+		bool width_bad = false;
+		bool rgb_bad = false;
+		std::string first_bad;
+		unsigned win_count[128] = {0};
+		const uint64_t deadline = b.cyc + 2000000;
+
+		while (windows_done < 48 && b.cyc < deadline) {
+			b.tick();
+			if (!*ce16)
+				continue;
+			const bool en = *en_tap != 0;
+			if (en && !in_win) {
+				in_win = true;
+				win_pos = 0;
+				win_vline = unsigned((*vc_tap << 3) | (*rc_tap & 7));
+				vline_moved = false;
+			}
+			else if (in_win && !en) {
+				in_win = false;
+				if (win_pos != 16) {
+					width_bad = true;
+					if (first_bad.empty())
+						first_bad = "window width " +
+						            std::to_string(win_pos) + " at vline " +
+						            std::to_string(win_vline);
+				}
+				else if (!vline_moved) {
+					win_count[win_vline & 127]++;
+					windows_done++;
+				}
+			}
+			if (!in_win)
+				continue;
+			if (win_pos > 0) {
+				const unsigned vl =
+				    unsigned((*vc_tap << 3) | (*rc_tap & 7));
+				if (vl != win_vline)
+					vline_moved = true; // straddles a seam: skip, not a vector
+			}
+			// asic_video registers RGB on PIXEN, so the output sampled in
+			// the shadow of engine dot k carries dot k-1: window dot 0
+			// still shows the pre-window background (unchecked - it is
+			// p1_video's ink chain, not the sprite plane), and dot k>=1
+			// shows source pixel k-1: odd k -> colour 10 from pal[26]
+			// {R=1,G=F,B=2}; even k -> colour 5 from pal[21]
+			// {R=3,G=6,B=4}.
+			if (win_pos >= 1) {
+				const uint8_t er = (win_pos & 1) ? 0x1 : 0x3;
+				const uint8_t eg = (win_pos & 1) ? 0xF : 0x6;
+				const uint8_t eb = (win_pos & 1) ? 0x2 : 0x4;
+				if (b.dut.red_o != er || b.dut.green_o != eg ||
+				    b.dut.blue_o != eb) {
+					rgb_bad = true;
+					if (first_bad.empty())
+						first_bad = "dot " + std::to_string(win_pos) +
+						    " vline " + std::to_string(win_vline) + ": got {" +
+						    std::to_string(b.dut.red_o) + "," +
+						    std::to_string(b.dut.green_o) + "," +
+						    std::to_string(b.dut.blue_o) + "} want {" +
+						    std::to_string(er) + "," + std::to_string(eg) +
+						    "," + std::to_string(eb) + "}";
+				}
+			}
+			win_pos++;
+		}
+		if (width_bad || rgb_bad)
+			fail("m8: " + first_bad);
+		if (in_win || windows_done < 48)
+			fail("m8: scan ended mid-window or timed out after " +
+			     std::to_string(windows_done) + " complete windows" +
+			     (first_bad.empty() ? std::string() : "; " + first_bad));
+		for (unsigned vl = 0; vl < 128; ++vl) {
+			const bool want = (vl >= 16 && vl <= 31);
+			if (want != (win_count[vl] > 0))
+				fail("m8: compare line " + std::to_string(vl) +
+				     (want ? " missing its sprite window"
+				           : " shows a sprite window outside Y..Y+15"));
+		}
+		std::printf("PASS m8: sprite plane end-to-end - %u windows on lines "
+			            "16..31, exact alternating palette payloads on RGB pins\n",
+			            windows_done);
+	}
 	return 0;
 }
 
