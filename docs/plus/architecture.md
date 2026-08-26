@@ -101,6 +101,16 @@ consume it today, and delete no classic code).
   chunk headers, route ≤16KB payloads to SDRAM cartridge slots NN, zero-fill short chunks).
   512KB cartridge region in SDRAM (the current map has room; snapshot/tape/disk paths are
   independent).
+- **TODO (Plus stream, found in 2026-08-26 hardware testing): auto-reset when a CPR
+  finishes loading.** The reset expression (the big OR feeding `reset` in `Amstrad.sv`)
+  covers ROM/Dandanator/SNA downloads but not `cpr_download`, so a cart loaded after boot
+  is never seen until the user resets manually — on a GX4000 that already gave up at
+  power-on this looks like a dead machine. Mirror the SNA pattern (download level +
+  extended completion pulse), but resolve the ordering against the parser's
+  `load_commit`/atomic publication first: the commit can land a few cycles after
+  `ioctl_download` drops, and the pulse needs `sna_apply_cnt`-style extension for the Z80
+  to actually reboot. Add a p0-boot bench assertion: download → expect reset → expect
+  cart-window reads.
 - **Boot**: no `boot.rom` in Plus mode. Reset vectors the Z80 to `&0000` with RMR2=0
   (cart page 0 low). The high window starts on page 1 for GX4000; on 464+ and 6128+ the
   external `/EXP` state dynamically selects page 1 or page 3 (reference §11). P0 must

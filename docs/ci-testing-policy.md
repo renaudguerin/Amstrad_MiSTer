@@ -18,6 +18,18 @@ make -C sim clean test lint
 This is the per-commit gate for production RTL, simulation vectors, co-simulation manifests,
 and repository tooling.  A failed Tier A run blocks every higher tier.
 
+**Queued hardening (2026-08-26 hardware session).** The classic-video black screen shipped
+because no gate elaborates `Amstrad.sv` and Quartus reports implicit nets only as Warning
+10236, three commits' worth of which sat in every build log since `3d7a178` unnoticed.
+Two queued guards, cheapest first:
+
+1. **Cheap**: fail the synthesis-policy job when the compile log contains
+   `Implicit Net warning` (Warning 10236) — catches this exact class in any synthesized
+   file for one line of policy script.
+2. **Full**: elaborate `Amstrad.sv` under Verilator in the Tier A lint chain with
+   IMPLICIT/UNDRIVEN fatal, like the motherboard hierarchy pass. Needs generated-file and
+   sys-leaf stubs first (`build_id.v` define stub, `ltc2308_tape`, hps_io dependencies).
+
 ### Tier B: Quartus integration
 
 A Quartus compile proves that a meaningful integration checkpoint still elaborates, fits,

@@ -377,8 +377,9 @@ The chip spreads end-of-line/end-of-frame decisions across three distinct instan
   - C9!=R9 at the (only) C0==0 when R0 became 0 → **all counters freeze** entirely while
     R0 stays 0. The cost is wall-clock display time — counters are frozen, nothing progresses;
     the source's own figure is that freezing R0=0 for 64×8 µsec "forgets" 8 raster lines
-    (p.104), i.e. an N-µs stall costs N/64 lines. The caption's "(C4−1 if R9=7)" gloss is
-    unresolved — author-question Q2.
+    (p.104), i.e. an N-µs stall costs N/64 lines. The "(C4−1 if R9=7)" gloss converts those
+    eight lines to one C4 character-row period; it does not decrement C4 (author-question Q2,
+    resolved 2026-08-26 against the p.108 freeze case study).
   - C9==R9 at that instant → **C4 increments exactly once** on the *second* C0==0 occurrence
     (already-armed decision, not cancellable until C0==2, unreachable while R0==0); everything
     (incl. C4) freezes after that second C0==0.

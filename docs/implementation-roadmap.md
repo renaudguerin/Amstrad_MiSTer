@@ -136,10 +136,11 @@ Classic work is intentionally serial because most findings touch the same state 
 | **C4: border decision** | F6 only if its approximation is explicitly accepted | `t10` distinguishes type 0 and type 1 and proves skew placement | Visual R1>R0 discriminator and affected demos |
 | **C5A: v1.10 type-0 adjustment arbitration — deterministic complete; hardware pending** | F12, test first | `t16a`-`t16s` prove C0=0 same-edge comparison, C0=1/R5=0 entry including exact R0=1 rollover consumption, R5 acceptance/rejection around C0=2, R4/R9 live-write windows including exact-R0 at both bus phases, the exact-R0 R9-to-R5 split, R0=0/1 default adjustment, active-adjustment R0=0 freeze, completion reset, and retained-state lifecycle | Focused SHAKER or hardware traces verify uncertain sub-character MA/DE/VSYNC timing without changing the fixed counter expectations |
 | **C5B: equality/overflow foundation** | F4 only, after F12 establishes the corrected state seam | `t07` and `t08` pass, including the tightened RLAL regression vectors; no shortcut term is retained to hide a latch bug | SHAKER overflow/rupture tests and Batman Forever, The Demo, and Yao demo sweep |
-| **C6: type-1 adjustment — deterministic complete; hardware pending** | F8 only, after F4 | `t11` proves independent C5 counting, continuing C4/C9, RA sequence, and the R5=0 mid-adjustment behavior | SHAKER adjustment vectors |
+| **C6: type-1 adjustment — deterministic complete; hardware pending** | F8 only, after F4 | `t11` proves independent C5 counting, continuing C4/C9, RA sequence, and the R5=0 mid-adjustment behavior | SHAKER adjustment vectors; Q17 hardware sweep at R7=38/39 for R4=36/R9=7/R5=16 |
 | **C7: type-0 R9 race — deterministic complete; hardware pending** | Revised F9 only, after F12/F4/F8 have stabilized the counter structure | `t12` reproduces both documented exact-cycle results using the v1.10 comparison target; it must not preserve the v1.9 rationale as an oracle | Contrived timing test; hardware trace if simulation and SHAKER disagree |
-| **C8: type-1 RFD** | F7 only, after F4/F8/F9 | `t13` proves trigger timing, frame parity, VMA reload, and no behavioral change when never armed | SHAKER RFD tests and a CRTC-1 RFD demo sweep |
-| **C9: interlace** | F10 last, split into fixtures, type-0 machinery, then type-1 machinery | New parity and entry/exit fixtures derived from the cited SHAKER tables; all t01-t15 regressions stay green | SHAKER interlace suite and hardware comparison for both CRTC types |
+| **C8: type-1 RFD** | F7, then F17's C9=R9 source-state correction, after F4/F8/F9 | `t13` proves trigger timing, frame parity, VMA reload, never-armed behavior, and the p.88 C9=R9 source-state disable; re-derive current `t13d` before RTL | SHAKER RFD tests and a CRTC-1 RFD demo sweep |
+| **C9: interlace** | Implemented F10 scope, then fixture-first F14/F15/F16 | Reviewed additional-line, odd-R9, and post-exit fixtures derived from the cited ACCC tables; all prior regressions stay green | SHAKER interlace suite and hardware comparison for both CRTC types |
+| **C10: light pen interface decision** | F18, independent of the counter stack | If supported, a captured MA value reads through R16/R17 on both types; otherwise the unsupported LPSTB path is explicitly documented | Expansion-port/light-pen hardware test if the interface is implemented |
 
 ### Suggested SHAKER targets per checkpoint
 
@@ -156,7 +157,7 @@ Module/key names are SHAKER 2.6 menu entries.
 - C6 F8 → build `4c78603` or later: E `(2) CRTC 1 VMA TRT ... ADJ LINE`, E `(1) R5 STORIES
   2ND ROUND`, B `(RETURN) R5 STORIES`, D `(E) CRTC 1 : OFS UPD IN ADD MANAGEMENT`.
 - C7 F9 → E `(3)` (same entry covers the C0==R0 comparator switch).
-- C8 F7 → C `(1) CRTC 1 : RFD & PARITY STORY`, D `(9) CRTC 1 : RFD ROUND 2`. (B `(O)
+- C8 F7/F17 → C `(1) CRTC 1 : RFD & PARITY STORY`, D `(9) CRTC 1 : RFD ROUND 2`. (B `(O)
   CRTC 1-A OR 1-B?` is the chip-variant discriminator — informative only; the variant is
   deliberately not modeled.)
 - C9 F10 → interlace suite: B `(1) INTERLACE C4/C9 COUNTERS`, B `(9) INTERLACE VM`,
@@ -351,26 +352,22 @@ milestones; then run the shared Plus hardware checkpoint.
    `accuracy/extract/README.md`); most retired as confirmed, four genuine digest errors
    corrected (p.81 period-8 adjustment addressing; §17.5 R1=0 deadline — type 0/1/2 accept
    through C0=0, type 3/4 first too-late C0=3f; p.183 example R1=40/&28; the pp.221-224 IVM
-   tables re-adjudicated as R9=6-even and corroborating §19.8.1, leaving the p.219 gate-token
-   polarity as the narrowed author question Q19), anchors fixed against the real TOC, and the
-   separate stale-reference sweep applied ten further docs fixes with rtl//sim/ citations
-   clean.
-3. **D2: find out why the Quartus database cache saves nothing.** Measured 2026-08-24 across
-   two runs on `accc-review-and-fixes`: run `32657783842` restored the cache
+   tables re-adjudicated as R9=6-even and corroborating §19.8.1, with the p.219 gate-token
+   polarity tracked as author question Q19 — subsequently resolved 2026-08-25 under F15),
+   anchors fixed against the real TOC, and the separate stale-reference sweep applied ten
+   further docs fixes with rtl//sim/ citations clean.
+3. **D2: find out why the Quartus database cache saves nothing — CLOSED 2026-08-24.** Measured
+   across two runs on `accc-review-and-fixes`: run `32657783842` restored the cache
    (`Cache restored successfully`, `build_mode=incremental_db`) and its synthesis job took
    **12.2 min**; run `32652569271` missed the cache (`build_mode=clean`) and took **12.2 min**.
-   Identical. Either the restored database is not actually being reused by
-   `quartus_sh --flow compile`, or compile is dominated by something the database does not
-   cover. Worth roughly one session: check whether the cache key changes every run (it embeds a
-   commit SHA, so it may only ever hit on a re-run of the same commit), whether Quartus reports
-   using the incremental database in its log, and what the per-stage timing split is
-   (analysis/synthesis vs fitter vs TimeQuest vs assembler). If the cache genuinely cannot help,
-   delete it — it adds moving parts and upload time for nothing. This gates nothing; it is
-   pure CI cost. Not urgent, but the 12 minutes is now the main brake on integration feedback.
+   Identical: without design partitions `--flow compile` never reused the restored databases.
+   The cache was removed; all synthesis runs are clean compiles. Evidence in
+   `docs/ci-testing-policy.md` and `docs/current-status.md`.
 4. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
-   and is BLOCKED-PENDING-HARDWARE-EVIDENCE. F7 RFD is complete in full (R5 route, B6
-   disarm, A1/A2, and the §13.7.1.2 R0-widening trigger, vectors `t13a`-`t13m`). F10 stays
-   fixture-gated behind its PDF re-checks and is the next classic item after D1.
+   and is BLOCKED-PENDING-HARDWARE-EVIDENCE. F7's planned routes are implemented, but the
+   Q4 recheck opens F17 for the C9=R9 source-state result and requires `t13d` re-derivation.
+   F10's implemented scope is complete; F14/F15/F16 are the fixture-first follow-ups. F18 is
+   an independent light-pen interface decision. Q17 remains hardware-gated.
 5. Plus stream: P0, the P1 CRTC3 counter/timing foundation, and the P1
    locked-ASIC pixel path (legacy-colour ROM + pen pipeline) are done. Next: the P1
    motherboard-integration commit (CPU/WAIT contract decision per architecture §5

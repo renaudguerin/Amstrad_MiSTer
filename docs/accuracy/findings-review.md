@@ -7,7 +7,7 @@ Method and tooling: `docs/plans/2026-08-22-accc-review-plan.md`; extraction mani
 unverifiable-from-text**. "Inaccurate" always means the *documentation*, not the RTL.
 
 Companion document: [accc-author-questions.md](accc-author-questions.md) (source ambiguities,
-numbered Q1-Q16 below).
+numbered Q1-Q16 at the time of this review; Q17-Q19 added in subsequent passes).
 
 ## Headline
 
@@ -23,7 +23,7 @@ rather than in guesses. No finding's implementation direction changes.
 
 | ID | Subject | Verdict | Evidence |
 |---|---|---|---|
-| F1 | R10/R11 unreadable on types 0/1 | **confirmed** | §21.2.1/21.2.2 p.245: type 0 reads R12-R17, type 1 reads R14-R17 only, unrecognized regs read 0, reg 31 returns 127/255 on type 1. Caveat: ch.28 contradicts itself (Q13); F1 correctly follows §21.2. |
+| F1 | R10/R11 unreadable on types 0/1 | **confirmed** | §21.2.1/21.2.2 p.245: type 0 reads R12-R17, type 1 reads R14-R17 only, unrecognized regs read 0, reg 31 returns 127/255 on type 1. Q13 was resolved 2026-08-26 in favor of §21.2.2 with corroboration from the UM6845R datasheet and independent per-type table; ch.28 is the outlier. |
 | F2 | Type 1 status bit 5 latched at C0=R0 | **confirmed** | §21.3.3 p.247: bit 5 = BORDER-R6 condition sampled only at C0=R0 (`false` = C4=C9=C0=0, `true` = C4=R6 ∧ C9=C0=0 at sample); bits 0-4/7 unused-read-0; R6=0-forced-border-while-C4>0 not reflected. All three F2 nuances verbatim. |
 | F3 | Mid-line R7 write timing per type | **confirmed** | §16.4.1 pp.168-169 (blocked at C0vs<2, mechanism-2 latch, duration +(R0−C0vs), counter starts at next C0=0, PPI &36-active/&00-inactive at +6µs) and §16.4.2 p.169 (unconditional trigger, partial line counts, duration −(C0+1), PPI 5µs). Every F3 element near-verbatim. |
 | F12 | Type-0 last-line/adjustment arbitration | **confirmed** | §10.3.1 pp.75-76, §11.2.2 pp.81-83, §12.2 pp.92-94, §13.2 pp.103-106: C0<2 window, C0==0 override, C0==1 break→adjustment with R5==0, C0==2 arbitration, R5>0-before-C0==3, completion re-establishing Last Line, R4/R9 write windows, exact-C0==R0 comparator switch. All confirmed. New: p.82 example 3 documents the **companion case** (R9 written in C0∈[2,R0−1] window → next line C4=38, C9=8) that t12 should encode beside the 39/8 exact-C0==R0 case. |
@@ -48,7 +48,8 @@ Priority order; each item names file, location, and the fix.
 2. **B2 — digest-01 §8.1 R0=0 stall accounting.** "Stall of N cycles ≈ losing N/(R9+1)
    character rows" misstates the source. Counters freeze; the cost is wall-clock time: the
    source's own figure is "freezing R0=0 for 64×8 µsec amounts to 'forgetting' 8 lines"
-   (p.104), i.e. N/64 raster lines of display time. Exact intent of "(C4-1 if R9=7)" → Q2.
+   (p.104), i.e. N/64 raster lines of display time. Q2 was resolved 2026-08-26: with R9=7,
+   "C4-1" is the equivalent one-character-row timing debit, not a counter decrement.
 3. **B3 — digest-01 §8.1 R0=1 description.** "Every 2µs frame chains into another 2µs
    adjustment frame … until C9's adjustment count reaches R5" contradicts the source: with
    R5=0 the adjustment "lasts 1 line of 2 µsec before ceasing" (p.104), giving a strictly
@@ -84,12 +85,12 @@ Priority order; each item names file, location, and the fix.
 11. **B11 — digest-03 §19.3 extra-line frame attribution.** Digest states the extra scanline
     ends "the odd frame's construction"; source pages conflict (p.198 "end of the first
     frame", p.205/216 "construction of the even frame", p.199 odd frame "inherits" it and
-    lasts 20032µs). Present both readings, pending Q10.
+    lasts 20032µs). Q10 was resolved 2026-08-25: the line is generated at the even-to-odd
+    boundary and duration-counted in the following odd frame.
 12. **B12 — digest-03 §28.1.8:** drop the "described as always-1 per §21.3" gloss (not in
-    source; "always 1" bit 6 appears only in the CRTC3/4 STATUS-1 table, p.248) and record
-    the source's internal bit-6-vs-bit-5 conflict as Q14. In §28.1.9, footnote the source
-    contradiction with §21.2.2 (Q13) and note the concrete OUT/IN acceptance steps are
-    digest-added.
+    source; "always 1" bit 6 appears only in the CRTC3/4 STATUS-1 table, p.248). Q14 resolved
+    the UM6845R identification field as bit 5; Q13 resolved R14-R17 readback in favor of
+    §21.2.2. The concrete OUT/IN acceptance steps remain digest-added.
 13. **B13 — digest-03 glosses to mark as inference:** §17.5's precise 3d/3e/3f deadline
     mapping and the "CRTC3/4 need one extra character lead" rule (diagram-shape inference;
     visual tier pending); §18.1's "checked on the row's first scanline" (source's "(1st
@@ -105,7 +106,8 @@ No finding reverses direction. Concrete follow-ups once docs are corrected:
 - **F8 corner** (review-debt row for the F8 commit): implement/test the §11.2.4 note that an
   R9 write at C0==R0 must not cancel the VMA-from-R12/R13 C4=1 behaviour (B5) before closing.
 - **F7/RFD**: include the R1>R0 disarm path (B6) in the RFD design notes.
-- **F10**: gate fixture work on B10-B11 digest fixes plus Q10/Q11/Q12 answers.
+- **F10**: the former Q10/Q11/Q12 gates were adjudicated 2026-08-25; remaining work is
+  fixture-gated under F14/F15, with the subsequently resolved post-exit behavior under F16.
 - Everything else: documentation-only.
 
 ## Part D — Not verifiable from the text layer (visual tier available)

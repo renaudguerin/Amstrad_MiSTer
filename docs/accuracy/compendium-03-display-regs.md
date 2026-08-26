@@ -105,7 +105,7 @@ This is the single most important dynamic-update rule to get right per CRTC type
 ## 18. Register R6 (vertical displayed)
 
 ### 18.1 General (§18.1, p.188)
-- Border activates when `C4=R6`. The source's "(1st line-character R6)" phrase is ambiguous; we read the check as immediate on any C0 (per "considered immediately" below), not restricted to the row's first scanline — see the closing notes in [accc-author-questions.md](accc-author-questions.md) (review B13). C9 value is irrelevant to the trigger ("true whatever the value of C9").
+- Border activates when `C4=R6`. The source's "(1st line-character R6)" phrase is ambiguous; we read the check as immediate on any C0 (per "considered immediately" below), not restricted to the row's first scanline (author question Q16, resolved 2026-08-23). C9 value is irrelevant to the trigger ("true whatever the value of C9").
 - **Except CRTC3/4**, R6 is considered **immediately** on the current C0 (i.e. mid-scanline, not just at row boundaries) — relevant for type 0/1.
 - DISPTMG goes OFF on `C4=R6` the same way it does on `C0=R1`. Normal recovery only at next full frame (`C4=C9=C0=0`).
 - VMA/VMA' pointer keeps counting through R6-triggered border exactly as through R1-triggered border.
@@ -162,7 +162,7 @@ This is the single most important dynamic-update rule to get right per CRTC type
 ### 19.2 SKEW-DISPTMG functions — types 0/3/4 (§19.2, p.193-197)
 These bits (Sd, R8 bits **5:4** in the `00xx` masks below) exist on CRTCs 0/3/4 and do not exist on type 1 — skip this whole section for a type-1 model except to confirm it's a no-op. (Heading narrowed and bit positions corrected per review B8; the section's rules are written from the type-0 CPC context.)
 
-- **BORDER ON** (`R8 = 001100xx`, §19.2.1, p.193): forces DISPTMG OFF immediately (border shown regardless of R1/R6 state). VMA keeps incrementing; VMA' is still updated normally at `C0=R1 AND C9=R9`(sic — text says "C9=C0=0", likely a typo for the row-end condition; treat as the standard VMA' latch condition). Does **not** affect R6-border state — can still transition among the other 3 R8 sub-states. ⚠ Note in source: bits 0-1 (interlace) are apparently ignored while this is active — "requires further investigation," flagged by the author themselves.
+- **BORDER ON** (`R8 = 001100xx`, §19.2.1, p.193): forces DISPTMG OFF immediately (border shown regardless of R1/R6 state). VMA keeps incrementing; VMA' is still updated normally at `C0=R1 AND C9=R9` (the printed `C9=C0=0` makes the conjunct impossible and was resolved as a garbling against §17.1 by author-question Q9, 2026-08-26). Does **not** affect R6-border state — can still transition among the other 3 R8 sub-states. ⚠ Note in source: bits 0-1 (interlace) are apparently ignored while this is active — "requires further investigation," flagged by the author themselves.
   - Type-1 analog: setting R6=0 forces DISPEN off directly, but **unlike** the type-0 BORDER-ON function, if `C4=0` simultaneously, type 1's R6=0 hits the sticky/definitive-border path (§18.2.3) — a side effect type-0's BORDER-ON function avoids.
 - **BORDER OFF** (`R8 = 000000xx`, §19.2.2, p.193): stops managing the other SKEW sub-functions (returns to normal C0=R1/C0=R0 comparator-driven border).
 - **BORDER DELAY +1 / +2** (`R8 = 000100xx` / `001000xx`, §19.2.3, p.193-194): delays the R1-border transitions by 1 or 2 CRTC characters:
@@ -178,7 +178,7 @@ These bits (Sd, R8 bits **5:4** in the `00xx` masks below) exist on CRTCs 0/3/4 
 ### 19.3 Interlace functions — general (§19.3, p.198-202)
 - Two programmable interlace modes, same 2-bit encoding on all CRTC types: **Interlace Sync Mode** (`R8 bits1:0 = 01`) and **Interlace Sync & Video Mode / IVM** (`= 11`).
 - Interlace works by delaying VSYNC by half a line on `C4=R7` for the even-numbered frame (MID-VSYNC, taking `C0=R0/2` as reference), plus adding **one extra scanline** at the end of a frame's construction (parity-dependent — see §19.5/19.6) so lines end up correctly ordered on a real interlaced CRT.
-  - Which frame receives that extra line: the source pages conflict — p.198 says it ends "the first frame", pp.205/216 attach it to the construction of the **even** frame, and p.199 shows the odd frame lasting 20032µs "inheriting" it. Both readings are carried here pending Q10 (review B11).
+  - Q10 was resolved 2026-08-25: the line is generated when the **ParityFrame-even** frame's construction completes, at the even-to-odd boundary, and is duration-counted in the following odd frame (which therefore lasts 313 lines / 20032 µsec). p.198's "first frame" is the even frame in the presented pair; p.199's "inherits" describes the following frame's duration accounting.
 - On CPC, whether this actually produces a stable interlaced image depends on the Gate Array's HSYNC/VSYNC recombination logic (§16.6, out of scope here).
 - **Interlace Sync Mode** (§19.3.2.1, p.199): same video data displayed on even and odd frames (doubles apparent resolution by filling gaps, no new data) — CRTC registers need no reprogramming between frames.
 - **IVM / Interlace Sync & Video Mode** (§19.3.2.2, p.200-201): even frame shows **even C9** scanlines, odd frame shows **odd C9** scanlines — genuinely different data per frame-half. Registers must be programmed as if building a 624-line frame (the 625th line is handled automatically). Note: UM6845R datasheet figure describing this mode is **incorrect**; the UM6845(non-R)/HD6845S figure is correct (confirms UM6845 = type 0 lineage). Line 0 alternates with a border line in this mode (not with line -1, since there isn't one) due to the even frame's VSYNC repositioning being a full line ahead of the odd frame's.
@@ -204,7 +204,7 @@ Parity state determines: extra end-of-frame line, MID-VSYNC generation on even f
 - `ParityR6 := ParityFrame XOR 1` when `C4` reaches `R6` — this anticipates next frame's parity. **If R6>R4** (C4 never reaches R6), ParityR6 stops updating and ParityFrame freezes at its last value.
 - ParityR6 management is **independent of R8's value** (keeps running even outside interlace mode).
 - C9 parity itself is only actively managed **when R8=3** (full IVM).
-- When R9 is **even** (IVM mode, N-2 formula ⇒ **even** total line-count per character — e.g. R9=6 → 2×4 = 8 lines): parity is identical regardless of C4 (simple case). (Corrected per review B10: the distilled "odd total line-count N" parenthetical was inverted; Q11 asks the author to confirm the even reading.)
+- When R9 is **even** (IVM mode, N-2 formula ⇒ **even** total line-count per character — e.g. R9=6 → 2×4 = 8 lines): parity is identical regardless of C4 (simple case). Corrected per review B10 and confirmed directly by the p.205 render under Q11 on 2026-08-25.
 - When R9 is **odd** in IVM: total line count per character is odd ⇒ line-count imbalance between frames is compensated by **alternating even/odd-only scanline sets per C4** within the same frame: `ParityC9 = C4.bit0 XOR ParityFrame` (computed whenever R8=3). On even frame, C9 parity tracks C4 parity directly; on odd frame it's inverted. This keeps the total-lines-per-C4 balanced (worked example p.206: R9=7, even frame C4=0 → 5 even lines then 4 odd lines = 9 total; odd frame C4=0 → 4 odd then 5 even = 9 total).
 - **VSYNC delay-by-1-line correction**: if R7 lands on an **odd C4** in this odd-R9 balancing scheme, VSYNC is delayed by 1 line — occurs when `C4=R7 AND C9.VMA=2` on odd C4s — to avoid phase-shifting the VSYNC relative to its position on even frames (worked tables p.206-207). Tables render-verified 2026-08-24: the double table (PARITYFRAME
 ODD|EVEN sides, C4/C9 columns, R7=1..4 centre markers) confirms odd-frame VSYNCs sit at
@@ -212,7 +212,7 @@ C9.VMA=2 vs the even frame's 1 — the documented 1-line delay; deriving a stand
 table from the pseudocode below remains the recommended fixture route. Source quirks noted:
 the p.207 right table prints C4=3 where its sequence requires 5 (source typo), and the prose's
 "4 odd lines" count for odd-frame C4=0 counts the transition line loosely.
-- Note (p.206; the digest previously cited p.207): if R8 is switched to 3 on an **odd C4** rather than at frame start, the VSYNC-delay correction can itself become imbalanced for that transition frame. The digest's "self-correcting on subsequent frames" tail is an inference not present in the source text (marked per review B10; Q12 asks whether it holds).
+- Note (p.206; the digest previously cited p.207): if R8 is switched to 3 on an **odd C4** rather than at frame start, the VSYNC-delay correction can itself become imbalanced for that transition frame. Q12 was resolved 2026-08-25: the source does **not** assert subsequent-frame recovery. Recovery follows from the documented state mechanics but remains an inference, not a fixture rule.
 - Determining current parity live: possible via the "counting bug" that appears when IVM is activated on `C9=R9` with odd parity, or deactivated on `C9.VMA=R9+1` (§19.8.1) — i.e. parity is externally observable through characteristic C9 miscounts at mode-transition boundaries.
 
 **Type 1 parity states (§19.5.3, p.208-209):**
@@ -270,7 +270,7 @@ the p.207 right table prints C4=3 where its sequence requires 5 (source typo), a
           if ParityR6: ParityFrame ^= 1
       else:
           C4 += 1
-      if R9.bit0 == 0:                    // source token reads R9.0==0; read as R9 odd per Q19 — even-R9 tables show no C4 alternation
+      if R9.bit0 == 1:                    // source prints 0; Q19 resolved it as a typo against the gloss/tables
           ParityC9 = C4.bit0 ^ ParityFrame
       C9 = 0
       C9.VMA = (C9*2) | ParityC9
@@ -279,7 +279,12 @@ the p.207 right table prints C4=3 where its sequence requires 5 (source typo), a
       C9.VMA = (C9*2) | ParityC9
   ```
 - **On the very line where R8 transitions to 3**: the end-test uses the **old, un-doubled C9** compared directly against `R9 OR ParityFrame` (not C9.VMA) — deliberately, "to prevent the C9 used for display from switching mid-line." Parity itself, however, **is** considered immediately. This can cause **C9 to overflow past R9** on the transition line if `C9=R9` and parity is odd (test `C9 == R9+1` fails, so C9 doesn't reset and instead becomes `R9+1`). Render-verified 2026-08-24: the p.223-top tables switch at C9=6=R9 and show exactly this split — the even frame resets (next row C4=1, C9=0) while the odd frame overflows (C9 7..19).
-- **On the line where R8 returns to 0** (leaving IVM): test switches to comparing `C9.VMA` (which already encodes parity) directly against plain `R9` (parity dropped from the R9 side) — i.e. `C9.VMA == R9`. This asymmetry (parity-adjusted R9 while entering IVM vs plain R9 while leaving) is the single most bug-prone edge in type-0 IVM and directly affects the `VMA'←VMA` row-end latch too, since that latch's `C9=R9` test shares this same C9/C9.VMA ambiguity (§19.8.1, p.219-220, explicit note).
+- **On and after the line where R8 returns to 0** (leaving IVM): the test compares the last
+  IVM-computed, now-frozen `C9.VMA` register content directly against plain `R9` (parity
+  dropped from the R9 side) — i.e. frozen `C9.VMA == R9`. A non-match persists on subsequent
+  lines even while live C9 advances past R9; p.220's recovery recipe programs R9 to the frozen
+  value. This asymmetry is the single most bug-prone edge in type-0 IVM and directly affects
+  the `VMA'←VMA` row-end latch too (§19.8.1, p.219-220; Q19(b), resolved visually 2026-08-26).
 - p.221-224 render-verified 2026-08-24. Entry tables switch R8→3 at C9 offsets 0,1,2,3 (p.221),
   4,5 (p.222) and 6 (p.223 top); exit tables switch R8→0 at C9 offsets 0-3 (p.223 bottom,
   p.224). **All of them use R9=6 (even), stated in prose on p.220**; an earlier reading of them
@@ -301,15 +306,14 @@ the p.207 right table prints C4=3 where its sequence requires 5 (source typo), a
     increments C4; p.224 bottom-right (odd frame, C9=3 but C9.VMA=7=R9+1) does not — C9 goes
     to 4 inside the same character. That confirms both the parity-dropped `C9.VMA == R9` exit
     test and the p.207/p.220 "IVM disabled on C9.VMA=R9+1" counting bug.
-  Residuals — do not derive fixture expectations from these; all folded into Q19:
-  - the p.219 gate `If R9.0=0` glossed "(C9 parity switched if R9 is odd)". One bit of the
-    token is wrong: p.205, the p.206 R9=7 example, p.208's type-1 contrast, and these R9=6
-    tables (which the literal token would require to alternate) all put the C4-dependent
-    formula at R9 **odd**. Read the gate as R9 odd; treat the token as a source typo.
-  - the compared value is "R9 or ParityFrame" on p.219 but "R9 or ParityC9" on p.220 —
-    indistinguishable while R9 is even, divergent exactly in the odd-R9 case.
-  - after the exit, six of eight tables run C9 to 7 with R9=6 without showing the C4 increment
-    `C9.VMA == R9` predicts at C9=6; post-exit character length is unverified.
+  Adjudicated conflicts and remaining table anomaly (Q19):
+  - the p.219 gate `If R9.0=0` is a source typo for R9 **odd**; p.205, the p.206 R9=7
+    example, p.208's type-1 contrast, and the R9=6 tables all agree. Odd-R9 behavior is F15.
+  - p.220 resolves the compared-value phases: switch line uses R9-or-ParityFrame, steady IVM
+    uses R9-or-ParityC9, and exit/post-exit uses frozen C9.VMA against plain R9.
+  - the seven non-matches all run through C9=7 and the frozen-6 control resets. One non-match,
+    p.223 bottom-left, also shows C4=2 (an increment without C9 reset); exclude only that C4
+    cell from fixtures pending hardware/author confirmation. Post-exit RTL is F16.
   - in the settled C4≥1 blocks of p.222 (both frames) and p.223-top even frame, the C9 column
     prints doubled values inconsistent with the C9-VMA beside it (p.221 and p.223-top odd print
     raw C9 for the same state). Key fixtures on C9-VMA, never on the tables' C9 column.
@@ -454,9 +458,9 @@ Each subsection below is a runnable acceptance-test recipe: **I/O sequence → e
 
 ### 28.1.1 Via C4/C9 overflow (§28.1.1, p.292)
 - **Test:** program a frame with `R4=36, R9=7, R5=16` (total 312 lines: `(36+1)*(7+1)+16=312`), then vary R7 upward and observe whether VSYNC still fires (`C4` reaching `R7`).
-  - **Type 0:** VSYNC stops occurring once `R7>37` (C4 overflows/repeats past R4 exactly once in extra management, extending the effective C4 range by 1 vs type 1/2).
-  - **Type 1:** VSYNC stops occurring once `R7>39` (C4 overflow happens multiple times, extending range further — grouped with type 2 in the text).
-  - **Discriminator:** boundary at R7=37 (type 0) vs R7=39 (type 1) for this specific R4/R9/R5 combination — a clean numeric test.
+  - **Type 0:** VSYNC stops occurring once `R7>37`; C4 overruns R4 once during adjustment.
+  - **Type 1:** §28.1.1 explicitly says VSYNC stops once `R7>39` and describes several C4 overruns. The detailed §§11.2.4/11.3.2 arithmetic instead predicts maximum C4=38, which is what the current sim pins: adjustment enters at C4=37, the first 8-line C9 wrap reaches 38, and final R5 completion appears to set C4 directly to 0.
+  - **Discriminator status:** Q17 remains unresolved. R7=39 is the hardware discriminator between the chapter-28 result and the detailed-rule/current-sim reading; do not treat either type-1 boundary as settled without that run.
 
 ### 28.1.3 Via VSYNC activation timing when C0>0 (§28.1.3, p.292)
 - **Test:** force `C4=R7` to become true while `C0>0` (mid-line), and observe the VSYNC line-counter's starting value.
@@ -486,18 +490,16 @@ Each subsection below is a runnable acceptance-test recipe: **I/O sequence → e
   - **Expected on both type 0 and type 1:** VSYNC now occurs **twice as fast** as before entering IVM, because `C4` reaches `R7` twice as fast (rows are now 4 lines instead of 8 from C4's perspective). This confirms "is this CRTC 0 or 1" as a *pair* (both behave the same way) versus type 2, which does **not** speed up C4 counting under IVM — so this test discriminates {0,1} vs {2}, not 0 vs 1 specifically. Included here because the source groups it under "CRTC identification" generally; **not** a 0-vs-1 discriminator by itself.
 
 ### 28.1.8 Via status register at &BE00 (§28.1.8, p.293) — PRIMARY 0-vs-1 TEST
-- **Test:** read `&BE00` repeatedly at a precisely-timed instant; the identification chapter polls "the transition of **bit 6**".
-  - Correction (review B12): the source never describes bit 6 as "always 1" for UM6845R — an "always-1" bit 6 appears only in the CRTC 3/4 STATUS-1 table (p.248). The earlier gloss attributing it to §21.3 is dropped.
-  - §21.3.3 defines bit 5 as the only dynamic status bit on type 1, so chapter 28's "bit 6" reference conflicts with it internally — recorded as Q14. Do not hard-code a bit index until answered. ⚠ p.293 vs pp.246-248.
+- **Test:** read `&BE00` repeatedly at a precisely-timed instant and test **bit 5**. Q14 was resolved 2026-08-26: §28.1.8's printed "bit 6" is a typo. The p.246 render and UM6845R datasheet both map bit 6 to the light-pen-full flag and bit 5 to vertical blanking/BORDER-R6; §21.3.3's `00100000` diagrams directly show the frame-timed bit-5 transition. The CRTC 3/4 STATUS-1 bit 6 on p.248 is a separate always-1 field.
   - **Type 1:** `&BE00` is a genuine, live status register — the targeted bit transitions in a well-defined, reproducible way tied to CRTC internal state (per §21.3.3's bit-5 BORDER-R6 rule, sampled at C0=R0).
   - **Type 0:** `&BE00` has **no status register** — reads are described elsewhere (§21.3.2) as returning "randomly 255 or 127" — i.e. floating bus / undefined value, NOT a value that transitions in sync with any CRTC condition.
   - **Concrete acceptance test:** poll `&BE00` across many frames at a fixed timing relative to a known raster position. **Type 1** must show bit 5 flipping deterministically at `C0=R0` in sync with the programmed R6/C4 state (§21.3.3). **Type 0** must show a value that does **not** correlate with any internal CRTC state (model this as returning the floating-bus/last-driven-value byte, e.g. from a prior OUT to the address/data bus, rather than a fixed constant — do not hardcode 0xFF).
 
 ### 28.1.9 Via register read at &BF00 — PRIMARY 0-vs-1 TEST, register-set comparison (§28.1.9, p.293)
-- **Test:** select each register 0-31 via `&BC00`, then read `&BF00`, and tabulate which numbers return non-zero.
-  - **Type 0:** non-zero (real) data returned for R12, R13, R14, R15, R16, R17 (mod-32 aliasing — e.g. selecting register 108 behaves as register 12 since `108 mod 32 = 12`). All others return 0.
-  - **Type 1:** non-zero data returned for R14, R15, R16, R17 **only** — **R12 and R13 read back as 0** (this is the headline discriminator — type 1's R12/R13 are write-only). Additionally, register 31 (and anything aliasing to bits 0-4 all set, mod 32) returns a **non-zero garbage-ish constant** (127 or 255 observed) even though it's not a "real" register — this is unique to type 1 and doubles as a second independent signal.
-  - Footnote (review B12): the source's own identification sentence — "all registers return 0 except register 31" on CRTC 1 — contradicts §21.2.2's readable-set table (R14-R17 readable); tracked as Q13. This digest, like F1, follows §21.2.2. The concrete OUT/IN acceptance steps below are digest-added scaffolding, not quoted from the source.
+- **Test:** select each register 0-31 via `&BC00`, then read `&BF00`, and identify the readable set. A readable register can legitimately contain 0; preload writable registers or strobe the light-pen latch before using a nonzero value as evidence.
+  - **Type 0:** readable data comes from R12, R13, R14, R15, R16, R17 (mod-32 aliasing — e.g. selecting register 108 behaves as register 12 since `108 mod 32 = 12`). All others return 0.
+  - **Type 1:** R14, R15, R16, R17 are readable; **R12 and R13 read back as 0** (the headline discriminator — type 1's R12/R13 are write-only). R16/R17 need a light-pen capture to prove nonzero readback. Additionally, register 31 (and anything aliasing to bits 0-4 all set, mod 32) returns a **non-zero garbage-ish constant** (127 or 255 observed) even though it is not a real register — unique to type 1 and a second independent signal.
+  - Footnote (review B12): Q13 was resolved 2026-08-26 in favor of §21.2.2. The UM6845R datasheet and independent per-type table both confirm R14/R15 read/write and R16/R17 read-only; §28.1.9 should say all **other** registers return 0 except the undefined register-31 value. This core lacks LPSTB capture and returns 0 for R16/R17 (F18), so only the R12/R13 and register-31 tests below are currently runnable. The concrete OUT/IN acceptance steps are digest-added scaffolding, not quoted from the source.
   - **Concrete acceptance test:**
     1. `OUT &BC00, 12` / `OUT &BC00, 13` with known R12/R13 values previously written; `IN A,(&BF00)`.
        - Type 0 expected: readback equals last-written value.
@@ -565,11 +567,11 @@ uses R1=40/&28, not 64), p.185 (deadline boundary corrected — see §17.5), p.1
 p.210-211 (16 type-1 parity truth tables match; p.212 is §19.5.4 CRTC 2, out of scope),
 p.247 (bit-5 transition diagrams match; p.248 is §21.3.4 CRTC 3/4 STATUS 1, out of scope).
 
-Still flagged / newly raised:
+Resolved source conflicts / remaining table anomaly:
 
-- p.219 — the IVM parity-gate token `If R9.0=0` contradicts its own gloss ("C9 parity
-  switched if R9 is odd"), §19.5.2 p.205, the p.206 R9=7 example, and the pp.221-224
-  R9=6-even tables; read as a one-bit source typo pending author confirmation (Q19).
-  The pp.221-224 tables themselves are render-verified and corroborate the pseudocode for
-  even R9 (see the §19.8.1 note).
-- p.293 — CRTC identification "bit 6" reference — source-internal conflict with §21.3.3, tracked as Q14 (not an extraction issue).
+- p.219 — the IVM parity-gate token `If R9.0=0` is a one-bit source typo for odd R9 (Q19,
+  resolved 2026-08-25); F15 owns the unimplemented odd-R9 behavior.
+- p.223 bottom-left — the C4=2,C9=7 exit cell remains anomalous under the otherwise decisive
+  frozen-C9.VMA rule (Q19(b), resolved 2026-08-26); F16 excludes that cell pending hardware.
+- p.293 — the identification "bit 6" reference is a source typo for bit 5 (Q14, resolved
+  2026-08-26 against the p.246/p.247 renders and UM6845R datasheet).
