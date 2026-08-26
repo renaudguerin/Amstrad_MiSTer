@@ -559,8 +559,9 @@ third fire line; 4 MHz bus is actually 4.44 MHz-derived timing for some signals.
 
 ## 13. CRTC "type 3" (the ASIC's CRTC) — summary of differences
 
-(Brief — a separate CRTC-focused document covers depth.) Sources: [WIKI-CRTC],
-[KT crtcnew + cpcplus].
+(Brief — a separate CRTC-focused document covers depth.) Sources: ACCC v1.10
+§21.2.3/§21.3.4, [WIKI-CRTC], [KT crtcnew + cpcplus]. ACCC v1.10 is the
+authority where the older summaries disagree.
 
 - Port decode (`&BCxx-&BFxx`, b1b0 of address): `00` select (W), `01` write data
   (W), `10` **read data** (R), `11` read data (R) — i.e. both read ports return
@@ -574,12 +575,17 @@ third fire line; 4 MHz bus is actually 4.44 MHz-derived timing for some signals.
 |---|---|
 | 0, 8, 16, 24 | R16 (light pen H) |
 | 1, 9, 17, 25 | R17 (light pen L) |
-| 2, 10, 18, 26 | "Status 1" (internal state; bits flag HCC==R0/2, HCC==R1, HCC==R2, last HSYNC char, last VSYNC line — active-low) |
-| 3, 11, 19, 27 | "Status 2" (bit7=0 when RC≠0, bit5=0 when RC==R9, rest unknown) |
-| 4, 12, 20, 28 | **R12** (readable — unlike types 1/2) |
+| 2, 10, 18, 26 | "Status 1": bit 0 high at C0=R0; bits 1-5 active-low at C0=R0/2, C0=R1-1, C0=R2, last HSYNC character, and last VSYNC line; bit 6 high; bit 7 previews a VMA low-byte wrap/reload |
+| 3, 11, 19, 27 | "Status 2": bits 0-2 active-low at the R4, R6-1 and R7-1 terminal characters; bit 3 is the 16-frame timer; bit 4 high; bit 5 active-low at C9=R9; bit 6 low; bit 7 marks the documented first/final raster regions |
+| 4, 12, 20, 28 | **R12** (all eight stored bits readable; VMA consumes bits 5:0) |
 | 5, 13, 21, 29 | **R13** |
-| 6, 14, 22, 30 | (unmapped — open bus) |
-| 7, 15, 23, 31 | (unmapped — open bus) |
+| 6, 14, 22, 30 | **R14** (stored/readable, bits 7:6 forced zero) |
+| 7, 15, 23, 31 | **R15** (stored/readable) |
+
+The older [KT] table reported slots 6/7 as zero/unmapped. ACCC v1.10
+§21.2.3 explicitly says R14/R15 can store values and be read back, so that
+later rule supersedes [KT]. R16/R17 are readable but remain zero on CPC Plus
+hardware because no light-pen strobe source is emulated.
 
 - R3: both HSYNC width (0⇒16) and VSYNC width (0⇒16) programmable, like type 0.
 - No R31 dummy register. CRTC type 4 ≡ type 3 (register reads repeat the same
