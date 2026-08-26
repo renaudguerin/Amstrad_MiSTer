@@ -22,6 +22,7 @@ expect() {
 expect true .github/workflows/build.yml
 expect true scripts/ci/classify-synthesis-paths.sh
 expect true scripts/ci/test-classify-synthesis-paths.sh
+expect true scripts/ci/apply-quartus-effort.sh
 expect true Amstrad.sv
 expect true Amstrad.qpf
 expect true Amstrad.qsf

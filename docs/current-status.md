@@ -750,6 +750,14 @@ front end.
 
 - `.github/workflows/build.yml` runs local-style Verilator tests/lint before a pinned Quartus
   17.0.2 synthesis job and uploads the RBF plus fitter/timing reports.
+- Since 2026-08-26 that synthesis job has two effort tiers: routine default/integration-branch
+  pushes compile at smoke fitter effort (`scripts/ci/apply-quartus-effort.sh` appends
+  FAST FIT / physical-synthesis-off overrides; a log guard fails the leg on any
+  `Ignored assignment:`), while PRs, tags, and manual dispatches keep full effort and are the
+  only hardware-build evidence. Simulation and synthesis run in parallel behind one gate.
+  Trigger rules, measured figures, and the dispatch `both` benchmark mode are documented in
+  `docs/ci-testing-policy.md`; the cost audit that motivated it (the P4 pass-2 fitter cliff)
+  is `plans/2026-08-26-synthesis-cost-audit.md`.
 - `actions/checkout` was bumped v4 → v7 (2026-08-25, standalone CI-only commit `4e776f1`)
   to clear the per-run Node 20 deprecation warning; the first CI run on this branch is the
   online check that v7 resolves. `actions/upload-artifact@v4` also sits on the deprecated
