@@ -45,7 +45,15 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x85b3f8e847430495`, re-minted 2026-08-26 for the F15 closure: type-0
+  (`0x48146d2b681268ab`, re-minted 2026-08-26 for the F16, F17, and F18 closures:
+  F16: type-0 post-IVM exit frozen C9.VMA line-end comparison retains the last
+  computed IVM C9.VMA in exit_frozen_vma after leaving IVM (R8->0), comparing
+  it against plain R9 until match or IVM re-entry (ACCC section 19.8.1 p.220;
+  vectors t22l-t22s extended and t30a/t30b recovery recipe added); F17: type-1
+  RFD triggered on C9=R9 disables the VMA-source state while arming the parity
+  flag (ACCC section 11.6.1 p.88 Case 2; t13d updated and t13n added); F18: type-1
+  readable register matrix validated and pinned per ACCC section 21.2.2 (t01);
+  previously `0x85b3f8e847430495`, re-minted 2026-08-26 for the F15 closure: type-0
   odd-R9 IVM counting is implemented — the limit target becomes
   R9+(ParityC9 xor R9.0) so rows end at the first C9.VMA at or past R9
   (the p.206 5/4 alternation), the p.219 row-end ParityC9 update

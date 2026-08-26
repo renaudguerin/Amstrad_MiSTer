@@ -120,6 +120,10 @@ always @(*) begin
 			case (addr)
 				// R10/R11 are not readable on CRTC types 0/1, only on 3/4 (ACCC v1.10 §21.2);
 				// they remain writable and still drive the CURSOR output.
+				// R12/R13: readable on type 0 only, return 0 on type 1 (ACCC §21.2.2 vs §28.1.9; F18).
+				// R14/R15: read/write cursor registers on both types (ACCC §21.2.2; F18).
+				// R16/R17: light-pen registers; without LPSTB attached they return 0 (default).
+				// R31: undefined dummy register, returns 0xFF on type 1, 0x00 on type 0 (§21.2.2, §28.1.9).
 				12: DO = CRTC_TYPE ? 8'h00 : R12_start_addr_h;
 				13: DO = CRTC_TYPE ? 8'h00 : R13_start_addr_l;
 				14: DO = R14_cursor_h;

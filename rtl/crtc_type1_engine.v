@@ -409,8 +409,14 @@ reg rfd_parity_flag;
 reg rfd_frame_parity;
 reg rfd_r0_pending;
 
+// Finding F17 (ACCC v1.10 §11.6.1 p.88): an RFD triggered on C9=R9
+// disables the state allowing VMA to be updated with R12/R13 (vma_flag),
+// while parity management (parity_flag) remains armed. A repeated RFD on
+// C9=R9 suppresses the source flag immediately on that same rollover edge.
+wire rfd_vma_disarm_hit = rfd_arm & (line == crtc1_line_max);
+wire rfd_vma_arm = (rfd_arm & (line != crtc1_line_max)) | rfd_r0_arm;
 wire rfd_parity_active = rfd_parity_flag | rfd_arm | rfd_r0_arm;
-wire rfd_vma_active = rfd_vma_flag | rfd_arm | rfd_r0_arm;
+wire rfd_vma_active = (rfd_vma_flag & ~rfd_vma_disarm_hit) | rfd_vma_arm;
 
 // Section 11.6 p.87: when R1>R0, C0=R1 is unreachable, so the bare
 // C9=R9 match deactivates the VMA-source state without a VMA' save.
@@ -429,7 +435,7 @@ wire r4_positive_write_at_adj_entry = CRTC_TYPE & CLKEN & hcc_last &
 									 ENABLE & RS & ~nCS & ~R_nW &
 									 (addr == 5'd04) & (|DI[6:0]);
 wire crtc1_adj_entry_from_row0 = CRTC_TYPE & !in_adj & row_last_w &
-									 line_limit_match & (|R5_v_total_adj) & (row == 0) &
+									 line_limit_match & (|crtc1_rollover_r5) & (row == 0) &
 									 ~r4_positive_write_at_adj_entry;
 assign adj_from_row0 = crtc1_adj_entry_from_row0;
 wire crtc1_adj_row1_reload = CRTC_TYPE & (crtc1_adj_entry_from_row0 | (in_adj & crtc1_adj_from_row0 & (row == 1) & ~line_row_structure_last)) & !hcc_next;
@@ -458,13 +464,17 @@ always @(posedge CLOCK) begin
 		if(CLKEN && frame_new_w && R9_v_max_line[0])
 			rfd_frame_parity <= ~rfd_frame_parity;
 
-		// Clear only when the parity-gated save really fires, or through
-		// the R1>R0 bare-C9 route.  A same-edge trigger wins so the write
-		// cannot be immediately lost to an old comparison result.
-		if((CLKEN && row_addr_save) | rfd_r1_gt_r0_disarm)
+		// Clear only when the parity-gated save really fires, through
+		// the R1>R0 bare-C9 route, or when an RFD is triggered on C9=R9
+		// (ACCC v1.10 §11.6.1 p.88; F17). A same-edge trigger on C9!=R9
+		// arms the source flag.
+		if((CLKEN && row_addr_save) | rfd_r1_gt_r0_disarm |
+		   (rfd_arm & (line == crtc1_line_max)))
 			rfd_vma_flag <= 0;
-		if(rfd_arm | rfd_r0_arm) begin
+		else if(rfd_vma_arm) begin
 			rfd_vma_flag <= 1;
+		end
+		if(rfd_arm | rfd_r0_arm) begin
 			rfd_parity_flag <= 1;
 		end
 

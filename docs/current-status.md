@@ -5,7 +5,7 @@ below remain dated 2026-08-19; current simulation and synthesis evidence is newe
 `accc-review-and-fixes` branch now contains the ACCC review/corrections, per-type classic CRTC
 split, F6 Stage 1 full-character approximation, sampled-field soak expansion, production Plus
 P0 cartridge wiring, the simulation-only P1 CRTC3 foundation, the implemented F7/A1/A2
-classic work, and the F14/F15 classic closures (2026-08-26, see the newest milestone below). The earlier whole-branch reviews are recorded in
+classic work, F14/F15 classic closures, and the F16/F17/F18 closures (2026-08-26). The earlier whole-branch reviews are recorded in
 `accuracy/accc-review-and-fixes-independent-review.md` (pass 1),
 `accuracy/accc-review-and-fixes-independent-review-pass2.md` (pass 2), and
 `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
@@ -35,8 +35,8 @@ the F15 type-0 odd-R9 IVM counting with its VSYNC delay correction, fixtures `t2
 remediated (`accuracy/f14-f15-independent-review.md`) -- on top of the Plus P4 mobo-bench tip.
 **It has not been hardware-tested.**
 
-- Simulation: 169 required CRTC passes / 0 failed, all Plus leaf/integration suites green;
-  lint clean. Soak re-minted `0x85b3f8e847430495` for F14 and F15 (full chain in AGENTS.md);
+- Simulation: 172 required CRTC passes / 0 failed, all Plus leaf/integration suites green;
+  lint clean. Soak re-minted `0x48146d2b681268ab` for F16, F17, and F18 closures (full chain in AGENTS.md);
   even-R9 and non-IVM behavior bit-identical, t21-t24 untouched.
 - Logic utilization 28,533 / 41,910 ALMs (68 %); 37,685 registers; 685,217 / 5,662,720
   block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks; 145 / 314 pins.
