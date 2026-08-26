@@ -598,8 +598,14 @@ always @(posedge CLOCK) begin
 end
 assign vsync_line_fire = (vsync_fire_seam && !type0_vsync_delay_arm) ||
                          type0_vsync_delay_d1;
-assign vsync_delay_suppress = type0_vsync_delay_d1;
-assign vsync_delay_half = type0_vsync_delay_d2;
+// Both delay outputs are qualified with the type selection: the clearing
+// edge of an armed d1/d2 is the first CLOCK edge after a live switch to
+// type 1, and the wrapper samples the pre-edge value on that same edge --
+// without the qualifier a type-1 field count tick landing exactly there
+// would see the stale suppress and lose its natural VSYNC fire (review
+// blocking 1, 2026-08-26).
+assign vsync_delay_suppress = !CRTC_TYPE && type0_vsync_delay_d1;
+assign vsync_delay_half = !CRTC_TYPE && type0_vsync_delay_d2;
 assign vsc_load = R3_v_sync_width - 1'd1;
 
 assign hsync_off = (hsc == R3_h_sync_width);

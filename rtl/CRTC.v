@@ -496,7 +496,7 @@ wire vsync_fire = vsync_allow & (
 	vsync_type1_ivm ? e1_vsync_line_fire :
 	field           ? (((row == R7_v_sync_pos && !line) &&
 						!e0_vsync_delay_suppress) ||
-				   (!CRTC_TYPE && e0_vsync_delay_half)) :
+				   e0_vsync_delay_half) :
 	(CRTC_TYPE ? e1_vsync_line_fire : e0_vsync_line_fire));
 
 // Seam-latched MID-VSYNC fire decision: set when the line now starting is
