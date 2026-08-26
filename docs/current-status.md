@@ -671,10 +671,24 @@ fixes only THAT-sprite-only scope and image integrity, not hole shape.
 Future optimisation if hardware ever needs it: urgent-first scheduling
 of active-bank misses ahead of the speculative sweep.
 
-Still open from this phase: mobo-bench m8 end-to-end sprite vector, a
-third review pass over this remediation delta (see review-debt), and the
-INKR-effects ~1/2-us-late GA pipeline question noted in P1 remains
-deferred.
+The review thread ran five passes total and closed CLEAR. Pass 3
+confirmed the walker block-carry sound but exposed a pre-existing race:
+an issue on the seam edge captured pre-edge bank state while seam
+maintenance retagged it, so a delayed ACK could land row-N data into a
+bank retagged N+1. Fixed by completion-time validation: each request
+carries its source row and is accepted only while the target bank still
+holds that tag. Pass 4 cleared that mechanism but found its own pair: a
+pixel-data WRITE during an in-flight fetch to the same sprite returned
+the pre-write byte after ACC_EN dropped (the port serves grants through
+CPU writes), fixed by poisoning the request for its whole life via
+fq_acc; plus an s11 oracle bug (source row under Y2 is (12-8)>>1 = 2,
+not 4) and an s12 early-arm coverage gap. Pass 5 reviewed exactly that
+delta and returned CLEAR with no findings, clearing the review-debt
+row.
+
+Still open from this phase: mobo-bench m8 end-to-end sprite vector,
+and the INKR-effects ~1/2-us-late GA pipeline question noted in P1
+remains deferred.
 
 Milestone CI (workflow_dispatch run `32892544906`, Quartus 17.0.2,
 commit `e3dd848`): simulation, policy, exact synthesis all green.
