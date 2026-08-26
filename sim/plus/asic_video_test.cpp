@@ -1498,7 +1498,8 @@ void t07a_mod8_read_map_and_storage(TestBench& test) {
 
 // ACCC §21.3.4.1 p.248, paper-derived for R0=7/R1=4/R2=5/R3l=2:
 // at C0=3 the R0/2 and R1-1 active-low flags coincide (F8); C0=5 is
-// HSYNC start (F6); C0=6 is its last character (EE); C0=R0 sets bit 0.
+// HSYNC start (F6); §21.3.4.1 puts bit 4 low at C0=R2+R3=7, where
+// C0=R0 also sets bit 0.
 void t07b_status1_horizontal_events(TestBench& test) {
     test.write_register(9, 3);
     test.write_register(4, 2);
@@ -1526,12 +1527,12 @@ void t07b_status1_horizontal_events(TestBench& test) {
         TestBench::fail_unsigned("t07b C0=R2 active-low", 0xF6,
                                  test.sample_selected());
     test.run_characters(1);
-    if (test.sample_selected() != 0xEE)
-        TestBench::fail_unsigned("t07b last HSYNC character", 0xEE,
+    if (test.sample_selected() != 0xFE)
+        TestBench::fail_unsigned("t07b before STATUS1 R2+R3", 0xFE,
                                  test.sample_selected());
     test.run_characters(1);
-    if (test.sample_selected() != 0xFF)
-        TestBench::fail_unsigned("t07b C0=R0 active-high", 0xFF,
+    if (test.sample_selected() != 0xEF)
+        TestBench::fail_unsigned("t07b C0=R0 and R2+R3", 0xEF,
                                  test.sample_selected());
 }
 
@@ -1571,7 +1572,8 @@ void t07c_status1_pointer_preview(TestBench& test) {
 }
 
 // ACCC §21.3.4.1 p.248 + [KT] CRTC Status 1: bit 5 is zero only on
-// the final line of the effective VSYNC pulse. R3h=0 means 16 lines.
+// the final line of the effective VSYNC pulse. [KT] supplies the R3h=0
+// sixteenth-line result; ACCC documents only the preceding 15 lines.
 void t07d_status1_last_vsync_line(TestBench& test) {
     auto seek_vsync = [&](const std::string& context) {
         unsigned guard = 0;
