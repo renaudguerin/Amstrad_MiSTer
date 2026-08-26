@@ -293,7 +293,12 @@ wire [2:0] wk_byte = walk[2:0];
 wire       wk_go   = walk_act &&
                      c_ena[wk_s] &&
                      (walk[7] ? sval[{wk_s[3:0], ~abit[wk_s]}] : 1'b1);
-wire [4:0] wk_blk_nxt = {walk[7], walk[6:3]} + 5'd1;
+// Block advance deliberately splits the old 5-bit increment (see the
+// synthesis-cost audit, docs/plans/2026-08-26): the sprite field wraps
+// with a standalone 4-bit adder and the bank-half flips by pure decode,
+// so no carry crosses the half boundary into the walk register.
+wire       wk_wrap  = &walk[6:3];
+wire [3:0] wk_s_nxt = walk[6:3] + 4'd1;
 wire       wk_bank = wk_spec ? ~abit[wk_s] : abit[wk_s];
 wire [7:0] wk_word = {wk_s, wk_bank, wk_byte};
 wire [3:0] wk_row  = wk_spec ? srowtag[{wk_s[3:0], ~abit[wk_s]}*4 +: 4]
@@ -476,12 +481,13 @@ always @(posedge CLOCK) begin
 			// block number (sprite s occupies walks 8s..8s+7
 			// active and 128+8s..128+8s+7 speculative; each half
 			// is skipped afresh when the lap reaches it)
-			// with carry from sprite 15 into the opposite half
+			// with wrap from sprite 15 into the opposite half
 			// (review pass-2 finding 1: preserving walk[7] trapped
 			// the walk inside one half whenever sprite 15 was
-			// disabled, which is the common case).
+			// disabled, which is the common case); the half flip is
+			// the decoded wk_wrap XOR, not a carried bit.
 			if (!c_ena[wk_s])
-				walk <= {wk_blk_nxt[4], wk_blk_nxt[3:0], 3'd0};
+				walk <= {walk[7] ^ wk_wrap, wk_s_nxt, 3'd0};
 			else
 				walk <= walk + 8'd1;
 		end
