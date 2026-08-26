@@ -41,6 +41,24 @@ hold +0.241 ns; RBF artifact `Amstrad_20260826_abfcadc.rbf`. Identical
 fitter figures to `dcbc6ad`: the fq_row/fq_acc validation flops and
 their compare mux fit inside existing slack; no regression signal.
 
+The classic stream's `accuracy/d1-followups` branch then merged onto
+this tip as `c762d36` (2026-08-26; t25 type-0 adjustment addressing
+pins, t26 section 17.5 R1=0 deadline pins, the Q10/Q11/Q12/Q19
+re-adjudication with finding candidates F14/F15, and the A4/N-6
+housekeeping; reviewed CLEAR pre-merge by ask-claude review at Opus 5
+high with gates and bite-tests independently reproduced, seven
+non-blocking findings remediated at `6c7c905`). Dispatched CI run
+`32921230624` (2026-08-26, Quartus 17.0.2) passed simulation, policy,
+exact synthesis and the required gate with fitter figures identical to
+`abfcadc` (29,971 / 41,910 ALMs, 37,442 registers, +0.260 ns setup) —
+the branch's RTL delta is a comment change, so the fit is neutral; RBF
+artifact `Amstrad_20260826_c762d36.rbf` (SHA-256
+`981fd9dcd7f81ed5d1c9f53447b722381b13169f086a23adcf414e55f40ec858`).
+The branch's own intermediate milestone (comment-only RTL, sim/docs
+delta) is run `32917100161` at `d9abf35`: 16,208 / 41,910 ALMs,
+21,112 registers, +0.623/+0.231 ns. Soak unchanged at
+`0x63d9de100ac9f6f2` across the whole session; nothing hardware-tested.
+
 `b533a93` was the first merge's synthesized milestone: GitHub Actions run `32905405634`
 (2026-08-25, Quartus 17.0.2, workflow_dispatch at the merge tip) passed
 simulation, policy, exact synthesis and the required gate. Fitter:
