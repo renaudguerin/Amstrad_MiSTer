@@ -32,12 +32,33 @@ only in fitter settings, applied by `scripts/ci/apply-quartus-effort.sh`:
 - **full** — the checked-in QSF unchanged (`STANDARD FIT`, `HIGH PERFORMANCE EFFORT`, the
   physical-synthesis suite, `FINAL_PLACEMENT_OPTIMIZATION ALWAYS`).  This is the evidence
   tier: its RBFs are the only ones retained for hardware handoff.
-- **smoke** — appends `FAST FIT`, `AGGRESSIVE COMPILE TIME`, physical synthesis off, and
-  final-placement/periphery optimizations off to the QSF at compile time.  Fast signal that
-  an integration tip still elaborates, fits, and roughly meets timing; not hardware-build
-  evidence.  A post-compile guard fails the leg if the log contains
-  `Ignored assignment:` — Quartus silently drops assignments it cannot honor, and a smoke
-  run that quietly compiled at full cost would be worse than no signal.
+- **smoke** — appends `FAST FIT`, the physical-synthesis suite off,
+  `FINAL_PLACEMENT_OPTIMIZATION Never`, and periphery-to-core optimization off to the QSF at
+  compile time.  Fast signal that an integration tip still elaborates, fits, and roughly
+  meets timing; not hardware-build evidence.  Two constraints learned empirically from the
+  pinned container (run `32919565759`): illegal assignment *values* are fatal project-open
+  errors, not ignorable warnings (`OPTIMIZATION_MODE` has no compile-time-aggressive value in
+  this edition), and an edition that silently drops an assignment warns with
+  `Ignored assignment:`.  A post-compile guard fails the smoke leg if the log contains that
+  string, so a quiet fall-back to full cost cannot masquerade as smoke.
+
+Measured on one SHA with both legs in one run (`32921078236`, branch tip `b68d4be`,
+Quartus inputs identical to milestone `dcbc6ad`):
+
+| leg | map | fit | asm | sta | flow |
+|---|---|---|---|---|---|
+| full | 2:14 | 12:07 | 0:13 | 0:09 | 14:48 |
+| smoke | 2:45 | 10:41 | 0:16 | 0:12 | 14:00 |
+
+Read that table together with the spread of full-effort fitter times for *identical* code:
+12:07 here versus 15:32 / 15:56 / 16:19 on 2026-08-25/26 (runs `32905376888`,
+`32914211795`).  Runner-to-runner variance on free ubuntu-latest is larger than the tier
+delta of a single comparison; treat any single-run timing as one sample and use a dispatched
+`effort=both` run whenever a tier or setting claim needs to be defended.  The structural
+argument matters more than the single-sample numbers: smoke disables exactly the expensive
+passes (physical synthesis, final placement refinement) whose work explodes when a change
+crosses a congestion cliff like the P4 pass-2 event, so its worst case stays bounded while
+full effort's does not.
 
 **Where each runs.** The trigger rule is unchanged from before the tiers existed — Tier B is
 triggered by *where a change has arrived*, not by which file it touched.  The event class

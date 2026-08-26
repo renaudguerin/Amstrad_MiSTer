@@ -83,17 +83,27 @@ Implications for whoever touches this next:
 ## Validation status and watch items
 
 - Classifier self-test passes locally (`scripts/ci/test-classify-synthesis-paths.sh`);
-  workflow YAML parses; shell scripts are bash -n clean.
-- Smoke-tier savings were **not yet measured at authoring time** — the acceptance test is a
-  dispatched `effort=both` run on the remediation branch, whose figures belong in the Tier B
-  section of `docs/ci-testing-policy.md`.  Known risk from secondary sources: FAST FIT can be
-  slower than STANDARD FIT near routing congestion; if that shows up here, drop
-  `FITTER_EFFORT`/`OPTIMIZATION_MODE` overrides and keep physical-synthesis-off as the smoke
-  definition instead.
-- Empty-matrix semantics: when no synthesis leg is required the matrix is empty and GitHub
-  should report the job as `skipped` (what the gate expects).  Not yet exercised live;
-  first sim-only integration-branch push will confirm.
+  workflow YAML parses; shell scripts are bash -n clean.  Full Verilator suite + lint green
+  (303 passes) on the remediation branch.
+- Cross-provider Gemini review of the whole diff returned CLEAR; one cosmetic suggestion
+  declined (the audit-doc link style in current-status.md matches its sibling references).
+- **Benchmark result** (dispatched `effort=both`, run `32921078236`, same SHA both legs):
+  smoke fit 10:41 / flow 14:00 versus full fit 12:07 / flow 14:48 — and full-effort fit for
+  identical code ranged 12:07–16:19 across runner draws on 2026-08-25/26, so free-runner
+  variance exceeds the single-comparison tier delta.  Figures and the sampling rule are
+  recorded in `docs/ci-testing-policy.md`.  The structural win stands regardless of the
+  sample: smoke turns off physical synthesis and final-placement refinement, the passes
+  whose cost exploded in the P4 pass-2 cliff.
+- First benchmark attempt (`32919565759`) failed the smoke leg usefully: this container makes
+  illegal assignment values a fatal project-open error (125036), so bad overrides can never
+  degrade silently into a full-cost run.  `OPTIMIZATION_MODE` has no compile-time-aggressive
+  value here (dropped); `FINAL_PLACEMENT_OPTIMIZATION` takes Always/Automatically/Never
+  (fixed to Never).  The `Ignored assignment:` guard remains for the genuinely silent case.
+- Empty-matrix semantics: when no synthesis leg is required the policy emits `[]`; the
+  job-level `if` then skips the whole matrix before expansion, so the gate's expectation of
+  result `skipped` holds by construction.  First sim-only integration-branch push will
+  confirm live.
 - Expected smoke effect on timing: worse slack by design (full-effort settings exist to buy
-  it back).  The smoke leg still asserts an RBF and STA report exist; it does not assert a
-  slack bound.  If a smoke run ever fails timing after passing full on the parent PR, treat
-  that as signal about the full run's margin, not a CI bug.
+  it back).  The smoke leg asserts an RBF and STA report exist; it does not assert a slack
+  bound.  If a smoke run ever fails timing after passing full on the parent PR, treat that
+  as signal about the full run's margin, not a CI bug.
