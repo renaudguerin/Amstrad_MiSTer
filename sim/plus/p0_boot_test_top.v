@@ -82,6 +82,7 @@ plus_mmu mmu
 	.reset(reset),
 	.plus_mode(1'b1),
 	.gx4000(1'b0),
+	.io_rd(1'b0),
 	.io_wr(1'b0),
 	.mem_rd(mmu_mem_rd),
 	.A(mmu_A),

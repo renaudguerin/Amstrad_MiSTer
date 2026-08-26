@@ -507,7 +507,7 @@ section); F13 waits for hardware.
   its ACCC section at the point of implementation. `t03c` also pins the simultaneous C0=R1=R0
   row-end save/reload so MA
   advances to the captured row base rather than restoring stale VMA'. Interlace is
-  stored-but-inert; status registers/read map are P5.
+  stored-but-inert; the status registers/read map are implemented by P5 below.
   Follow-up vector `t04i` makes the R3l=0 end/start-collision exception explicit: the
   current model keeps the documented 16-character pulse bounded, but that boundary is an
   unverified model assumption pending a direct rule, Logon observation, or hardware capture.
@@ -536,7 +536,7 @@ section); F13 waits for hardware.
   latencies relative to its load/DISPEN cadence (Plus INKR effects ~1/4
   character late, 40010's one-pixel mode-2 early start) are deferred to the
   motherboard-integration differential check. Interlace stays stored-but-
-  inert; status registers/read map remain P5.
+  inert; the status registers/read map are implemented by P5 below.
 - CI evidence for the pre-rebase P1 foundation branch (run `32632492492`, original tip
   `0be8a60`):
   simulation and synthesis both green. Fitter: 15,295 / 41,910 ALMs (36%), 685,217
@@ -848,6 +848,26 @@ the first time; memory bits unchanged (staging is flop-based by design).
 RBF retained as artifact `Amstrad-build-104-1`
 (`Amstrad_20260825_e3dd848.rbf`). Not hardware-tested.
 
+### P5 CRTC-3 bus semantics — implemented on `plus/p5-crtc3-bus` (2026-08-26)
+
+Two code commits close the deterministic P5 scope. `3891213` implements the
+ACCC v1.10 §21.2.3 modulo-8 map
+`{R16,R17,STATUS1,STATUS2,R12,R13,R14,R15}`, full-byte R12 storage/readback,
+stored R14/R15, and the §21.3.4 live status groups. `8523136` connects the
+Plus CRTC output to the CPU wired-AND path only under `plus_mode`, keeps the
+live CPU byte on CRTC DI during IN cycles, and propagates read transactions to
+the unlock/RMR2 observers. The MMU converts held Z80 I/O levels to one strobe
+per transaction before those one-shot side effects.
+
+Vectors t07a-t07g cover the map, storage widths, both `&BE`/`&BF` read ports,
+horizontal/vertical status boundaries, VMA preview and the 16-frame timer.
+MMU tests hold read/write cycles for four system clocks and prove a read byte
+inside the unlock stream plus an IN-carried RMR2 payload. Motherboard m9 proves
+the production mux and CRTC data/select plus GA traps; m7 proves classic mode
+retains its existing type-0 `&BE`/`&BF` behavior. Full simulation and lint pass;
+classic soak remains `0x85b3f8e847430495`. Hardware SHAKER/CRTC3 evidence and
+the shared Plus title checkpoint remain pending.
+
 ### P3 interrupts — implemented on `plus/p2-asic-regs` (2026-08-25)
 
 The programmable raster interrupt lives inside `asic_ga_timing`, where the
@@ -1001,5 +1021,9 @@ front end.
     `plus/p4-sprites` (engine, s01-s14, t06a-c/a09/a10, mobo bench m8
     end-to-end sprite vector; all review threads closed CLEAR) — remaining
     items are the deferred INKR pipeline question and the shared hardware
-    checkpoint above.
+    checkpoint above. P5 CRTC-3 bus semantics is complete in simulation on
+    `plus/p5-crtc3-bus` (t07a-t07g, MMU held-cycle traps, motherboard m9,
+    classic m7). Next implementation order: resolve the INKR-effects latency,
+    reconcile VIDBUF/vram sampling, then decide whether to enter optional P6
+    split/scroll before the shared hardware checkpoint.
 6. Update this file when either stream reaches its next hardware-testable checkpoint.

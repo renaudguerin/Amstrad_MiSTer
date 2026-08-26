@@ -990,6 +990,7 @@ wire [13:0] plus_cart_offset;
 wire  [7:0] plus_cart_data;
 wire        plus_cart_own, plus_cart_stall;
 wire  [7:0] plus_cart_dout;
+wire  [7:0] plus_io_bus_byte;
 
 // Cartridge-owned reads bypass the wired-AND entirely: the SDRAM main port
 // is not asked for those cycles (see the sdram oe term below), so ram_dout
@@ -1039,10 +1040,11 @@ plus_mmu plus_mmu
 	.reset(reset),
 	.plus_mode(plus_mode),
 	.gx4000(plus_gx4000),
+	.io_rd(io_rd),
 	.io_wr(io_wr),
 	.mem_rd(mem_rd),
 	.A(cpu_addr),
-	.D(cpu_dout),
+	.D(io_rd ? plus_io_bus_byte : cpu_dout),
 	.rom_en(romen),
 	.exp_n(plus_exp_n),
 
@@ -1235,6 +1237,7 @@ Amstrad_motherboard motherboard
 	.rd(rd),
 	.wr(wr),
 	.m1(m1),
+	.io_bus_byte(plus_io_bus_byte),
 	.ga_ready(ready),
 	.nmi(NMI),
 	.irq(IRQ),

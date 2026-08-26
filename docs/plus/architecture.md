@@ -196,7 +196,7 @@ reads. CPR parsing must not begin until that contract is accepted. See
 | **P2 ASIC page + palette** | `asic_regs` page decoder, unlock-gated RMR2, sprite/attribute backing RAM, palette RAM both ports, legacy PENR/INKR translation, and 4-bit RGB path; implement `8'hFF`-neutral wired-AND participation, explicit open-bus responses, per-register read/write masks, and no write-through to underlying RAM | Exhaustive page decode/read/write/mirror/mask/open-bus tests; static Plus palettes display correctly (Burnin' Rubber title) |
 | **P3 interrupts** | PRI driven from P1's CRTC3 counters, IVR + vector supply, DCSR bit 7, MRER bit-4 clear, +32-line bit-5 rule; A13 bug remains deliberately not emulated unless evidence changes the decision | Exact-cycle PRI/vector/DCSR assertions; raster-split games stable (Pang, RoboCop 2) |
 | **P4 sprites** | sprite compare/compositor driven from P1's counters, priority, magnification, and access-blanking side effect | Per-pixel overlap/priority/magnification/blanking assertions; Switchblade, Copter 271, and Klax sprite smoke tests |
-| **P5 CRTC-3 bus semantics** | modulo-8 reads, R12/R13 readable, status groups, unmapped/open-bus reads, and IN-performs-write traps on CRTC/GA ports; timing remains owned by P1 | CRTC3 detection and bus-trap tests; SHAKER on its CRTC3 setting |
+| **P5 CRTC-3 bus semantics — complete in simulation** | modulo-8 reads including stored R14/R15 and full-byte R12, both `&BE`/`&BF` read ports, live status groups, neutral unselected cycles, and IN-performs-write traps on CRTC/GA ports; timing remains owned by P1 | `t07a`-`t07g`, MMU held-cycle trap vectors, motherboard `m9`, and classic-inert `m7` pass; SHAKER on its CRTC3 setting remains hardware evidence |
 | **P6 split & scroll** | SPLT/SSA capture at HCC=R1 using P1's stored-MA model; SSCR H-delay/V-offset/border-mask | Exact capture/offset assertions; Plus demos and games using hardware scroll (Fluff intro screens etc.) |
 | **P7 DMA sound** | `asic_dma`, SDRAM fetch slots, PSG arbitration waits, PAUSE/REPEAT/LOOP semantics including the undocumented &3xxx note | DMA instruction/DCSR/WAIT tests; DMA-music titles/demos |
 | **P8 polish** | Plus-PPI quirks (port B input, port C latches — mod to `i8255` under `plus_mode`), ADC paddle stubs (wire defaults `3F 3F 3F 3F 3F 00 3F 00`), GX4000 `&DF=7->page 1` quirk, greyscale weights | Model-by-model compatibility sweep plus classic-mode regression |
@@ -299,6 +299,15 @@ The pre-P0 and P0 packages are:
   when R3l=0 is an explicitly unverified model assumption: §14.5 establishes the bounded
   16-character width, not that collision boundary. Vector t04i pins the current choice
   pending a direct rule, Logon observation, or hardware capture. Vectors t04a-t04i
+- P5.1 **complete** — `asic_video` implements the ACCC v1.10 §21.2.3
+  modulo-8 read map `{R16,R17,STATUS1,STATUS2,R12,R13,R14,R15}`, both read
+  ports, full-byte R12 storage/readback, stored R14/R15, and the live §21.3.4
+  status groups. Vectors t07a-t07g pin the leaf contract.
+- P5.2 **complete** — the motherboard selects `asic_video.DO` only in Plus
+  mode and leaves the live CPU bus byte on CRTC DI during IN cycles. MMU
+  unlock/RMR2 observers accept read and write transactions through a
+  one-strobe-per-held-cycle qualifier. Motherboard m9 proves both read ports
+  and CRTC/GA traps; m7 proves the existing classic read path remains selected.
 
 P1 remainder (open scope, in dependency order): the basic locked-ASIC pixel path needs
 the legacy-colour translation table sourced ([KT] palette section or hardware

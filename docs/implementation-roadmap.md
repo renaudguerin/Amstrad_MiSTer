@@ -277,6 +277,11 @@ Recommended stack: `P-2 model field` -> `P-1 cartridge memory contract/service` 
 boot` -> `P1 CRTC3 foundation` -> `P2 ASIC page/palette` -> `P3 PRI` -> `P4 sprites` -> `P5
 CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
 
+Current Plus position (2026-08-26): P5 is implemented and deterministically
+gated on `plus/p5-crtc3-bus`. Before optional P6, resolve the deferred INKR
+pipeline latency and the VIDBUF/vram sampling reconciliation as separate
+milestones; then run the shared Plus hardware checkpoint.
+
 - P-2 is independently mergeable because default-off behavior is invariant.
 - P-1 may be independently mergeable if the cartridge service is unselected in classic
   mode. P0 stacks on it; do not combine the parser with initial arbitration.
