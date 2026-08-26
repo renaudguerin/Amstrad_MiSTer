@@ -820,7 +820,7 @@ void s11_access_blanking_scope_and_integrity(Spr& b) {
     // image data (rb_dat survives the flush; the stored image is
     // unchanged), and no other sprite may win here. Source pixel of
     // display dot d in window char ch is (ch-4)*8 + (d>>1); this line
-    // is vline 12 -> source row 4.
+    // is vline 12 -> diff 4 -> source row (4)>>1 = 2 under Y2.
     for (unsigned ch = 4; ch <= 5; ++ch) {
         for (unsigned d = 0; d < 16; ++d) {
             const Spr::Smp s = b.sample();
@@ -828,7 +828,7 @@ void s11_access_blanking_scope_and_integrity(Spr& b) {
                 fail("s11: foreign winner in sprite 3 zone");
             if (s.en && s.idx == 3) {
                 unsigned g, r, bl;
-                pal_entry(pat_nib((ch - 4) * 8 + (d >> 1), 4), g, r, bl);
+                pal_entry(pat_nib((ch - 4) * 8 + (d >> 1), 2), g, r, bl);
                 if ((s.r != r || s.g != g || s.b != bl) && !dbgB)
                     fail("s11: shown pixels corrupted mid-refill");
             }
@@ -889,7 +889,14 @@ void s12_x_rewrite_cut_and_continue(Spr& b) {
         if (d == 5) b.set_x(0, 400);
         if (d == 15) b.char_end(false); else b.dot();
     }
-    for (unsigned c = 2; c < 25; ++c) b.run_char(false);
+    for (unsigned c = 2; c < 24; ++c) b.run_char(false);
+    // Character 24 sampled dark pins the new window's arm at exact
+    // equality with X=400 -- an early-armed dot here cannot hide.
+    for (unsigned d = 0; d < 16; ++d) {
+        const Spr::Smp s = b.sample();
+        if (s.en) fail("s12: window armed before the rewritten X");
+        if (d == 15) b.char_end(false); else b.dot();
+    }
     // Continuation: the new window arms at exact equality with X=400,
     // i.e. character 25 dot 0, x1 so source pixel = dot, still vline 12
     // -> source row 4, winner sprite 0 throughout.
