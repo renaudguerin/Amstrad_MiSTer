@@ -288,19 +288,25 @@ int run() {
 			if (!*ce16)
 				continue;
 			const bool en = *en_tap != 0;
+			const unsigned cur_vl =
+			    unsigned((*vc_tap << 3) | (*rc_tap & 7));
 			if (!en)
 				seen_quiet = true;
 			if (en && !in_win) {
 				in_win = true;
 				win_pos = 0;
-				win_vline = unsigned((*vc_tap << 3) | (*rc_tap & 7));
+				win_vline = cur_vl;
 				vline_moved = false;
 				discard_current = !seen_quiet;
 			}
 			else if (in_win && !en) {
 				in_win = false;
-				// Seam-straddling windows are skipped outright; width is
-				// only judged for windows confined to a single line.
+				// Seam-straddling windows are skipped outright; the
+				// closing sample's own line counts too - if SPR_EN fell
+				// across a line boundary the window never had a home
+				// line and width means nothing.
+				if (cur_vl != win_vline)
+					vline_moved = true;
 				if (!discard_current && !vline_moved) {
 					if (win_pos != 16) {
 						width_bad = true;
@@ -318,12 +324,8 @@ int run() {
 			}
 			if (!in_win)
 				continue;
-			if (win_pos > 0) {
-				const unsigned vl =
-				    unsigned((*vc_tap << 3) | (*rc_tap & 7));
-				if (vl != win_vline)
-					vline_moved = true; // straddles a seam: skip, not a vector
-			}
+			if (win_pos > 0 && cur_vl != win_vline)
+				vline_moved = true; // straddles a seam: skip, not a vector
 			// asic_video registers RGB on PIXEN, so the output sampled in
 			// the shadow of engine dot k carries dot k-1: window dot 0
 			// still shows the pre-window background (unchecked - it is
