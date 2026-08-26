@@ -37,6 +37,15 @@ cleared the remediation delta on 2026-08-24, after which the branch was merged i
 
 ## Cleared rows
 
+- `plus/p7-dma-sound` — CLOSED 2026-08-26. Independent cross-provider
+  review on the P7 aggregate diff (`plus/p5-crtc3-bus...HEAD`). Initial
+  verdict NOT CLEAR on three blocking findings (B1: stale SAR register
+  sampling on CPU writes; B2: DMA interrupts disconnected from CPU /INT;
+  B3: DCSR bit 6 and 4 flags swapped on read and W1C). Remediated in-branch
+  and verified with 10 unit tests (d01-d10) in asic_dma_test, DCSR tests in
+  asic_regs_test, and mobo bench m11. Full simulation, lint, and classic soak
+  (0x85b3f8e847430495) pass clean. Final verdict CLEAR. Full record:
+  `docs/plus/p7-independent-review.md`.
 - `plus/p6-split-scroll` — CLOSED 2026-08-26. Independent cross-provider
   review on the P6 aggregate diff (`plus/p5-crtc3-bus...3405d0c`). Verdict
   CLEAR with 0 blocking issues. Verified screen split (`&6801` SPLT,

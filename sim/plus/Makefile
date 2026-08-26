@@ -130,6 +130,7 @@ MBOARD_CORE_RTL := $(abspath ../../rtl/Amstrad_motherboard.v) \
 	$(abspath ../../rtl/plus/asic_ga_timing.v) \
 	$(abspath ../../rtl/plus/asic_video.v) \
 	$(abspath ../../rtl/plus/asic_sprites.v) \
+	$(abspath ../../rtl/plus/asic_dma.v) \
 	$(abspath ../../rtl/crt_filter.v) \
 	$(abspath ../../rtl/Amstrad_MMU.v) \
 	$(abspath ../../rtl/i8255.v)
@@ -171,10 +172,17 @@ SPRITES_OBJ_DIR  := obj_dir/asic_sprites
 SPRITES_TEST_SRC := $(abspath asic_sprites_test.cpp)
 SPRITES_TEST_BIN := $(SPRITES_OBJ_DIR)/asic_sprites_tests
 
+# P7 3-channel DMA sound engine leaf
+DMA_TOP      := asic_dma
+DMA_RTL      := $(abspath ../../rtl/plus/asic_dma.v)
+DMA_OBJ_DIR  := obj_dir/asic_dma
+DMA_TEST_SRC := $(abspath asic_dma_test.cpp)
+DMA_TEST_BIN := $(DMA_OBJ_DIR)/asic_dma_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
-	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN)
+	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(DMA_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -206,6 +214,7 @@ test: $(TEST_BINS)
 	./$(AREGS_TEST_BIN)
 	./$(PRI_TEST_BIN)
 	./$(SPRITES_TEST_BIN)
+	./$(DMA_TEST_BIN)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
@@ -282,6 +291,11 @@ $(SPRITES_TEST_BIN): $(SPRITES_RTL) $(SPRITES_TEST_SRC) Makefile | $(OBJ_DIR)
 		--Mdir $(SPRITES_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(SPRITES_TEST_BIN)) $(SPRITES_RTL) $(SPRITES_TEST_SRC)
 
+$(DMA_TEST_BIN): $(DMA_RTL) $(DMA_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(DMA_TOP) \
+		--Mdir $(DMA_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(DMA_TEST_BIN)) $(DMA_RTL) $(DMA_TEST_SRC)
+
 $(AREGS_TEST_BIN): $(AREGS_RTL) $(AREGS_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(AREGS_TOP) \
 		--Mdir $(AREGS_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
@@ -315,6 +329,8 @@ lint: motherboard-lint
 		--top-module $(ASICVID_TOP) -Wall $(ASICVID_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(SPRITES_TOP) -Wall $(SPRITES_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(DMA_TOP) -Wall $(DMA_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(MODEL_TOP) -Wall $(MODEL_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
