@@ -79,9 +79,37 @@ then picks the effort:
 
 Two operational notes.  First, simulation and synthesis jobs run in parallel (they share no
 state; the required gate still enforces both), so a red simulation no longer saves the
-synthesis compute on that run.  Second, do not dispatch a milestone build right after pushing
-to an integration branch: the push already started one, and the dispatch deliberately does not
-cancel it, so the pair compiles the same SHA twice at full price.
+synthesis compute on that run.  Second, dispatched builds are not privileged: they are
+superseded by newer builds under exactly the rules of the next section, so dispatch into a
+quiet window when a milestone RBF must complete undisturbed.
+
+**Run supersession (2026-08-26).** Builds cancel each other instead of queueing, at two
+levels:
+
+- **Workflow level**, per ref+event (`build-Build core-<ref>-<event>`): a newer push, PR
+  sync, or manual dispatch on the same ref cancels the older run wholesale — simulation jobs
+  included.
+- **Synthesis-job level**, repository-wide (`build-core-synthesis`, shared with
+  `local-build.yml`): every Quartus leg contends for a single slot regardless of branch,
+  event, or effort tier, and the newest arrival cancels whichever compile is in flight. Runs
+  whose policy decision skips synthesis never join the group, so a Tier-A-only stream push
+  cannot interrupt any build.
+
+The retired rule this replaces: dispatched milestones used to be uncancellable and queued
+FIFO behind each other, so iterating by repeated dispatch stacked ~25-minute runs and the
+policy had to warn against dispatching right after pushing to an integration branch.
+
+Consequences for humans and agents watching runs:
+
+- A superseded run ends with conclusion `cancelled`. That means *superseded*, never failed,
+  and it is not regression evidence. Find the successor before diagnosing anything:
+  `gh run list --branch <ref> --limit 5` (or match the head SHA) and judge that run.
+- The required-gate check of a cancelled run stays red or pending by design; only the newest
+  synthesizing run on a ref is meaningful.
+- An `effort=both` benchmark serializes its legs (`max-parallel: 1`) because parallel matrix
+  legs would cancel each other through the shared slot.
+- A milestone build that gets superseded anyway can be replayed exactly:
+  `gh run rerun <run-id>` re-runs that attempt on the same SHA.
 
 **What counts as affecting the build** is decided by `scripts/ci/classify-synthesis-paths.sh`,
 which no longer keeps a hand-written list of RTL. It resolves `files.qip` transitively through
@@ -146,7 +174,15 @@ Manual milestone dispatch keeps its `workflow_dispatch` route; the former
 
 ## Local Quartus route
 
-The existing Quartus VM is a second route to Tier B, not a weaker standard.  Bringing it into
-routine routing and benchmarking clean versus incremental builds is a separate workstream; use
-the same RBF, fitter, timing, and commit-provenance acceptance evidence when that route is
-enabled.
+The existing Quartus VM is a second route to Tier B, not a weaker standard.  Since
+2026-08-26 it is reachable as a self-hosted GitHub runner: register the runner once with
+`ansible/local-runner.yml`, then dispatch `.github/workflows/local-build.yml`
+(`gh workflow run local-build.yml --ref <branch-or-tag> -f effort=full|smoke`).  The local
+leg joins the same repository-wide synthesis slot as hosted builds, so local and hosted
+compiles supersede each other under the rules above.  Acceptance evidence is identical:
+RBF, fitter summary, TimeQuest report, and the same `quartus-cache.txt` provenance values.
+The VM executes repository-controlled Tcl and RTL directly, without the container boundary
+the hosted route gets from Docker, which is why the workflow is dispatch-only: starting it
+requires write access, and fork pull requests can never reach it.  Provisioning,
+registration, and removal are documented in `ansible/README.md`; iteration-speed background
+remains in `docs/building.md`.

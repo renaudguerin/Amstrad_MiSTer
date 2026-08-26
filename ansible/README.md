@@ -162,3 +162,64 @@ specified checkout and propagates Quartus's exit status. Output is written to
 that checkout's `output_files/` directory. It does not use root privileges.
 You can override the project filename with a second argument, although this
 core's supported project is `Amstrad.qpf`.
+
+## GitHub Actions self-hosted runner
+
+`local-runner.yml` registers the same VM as a self-hosted GitHub Actions
+runner, so the local hardware is driven through the normal GitHub workflow
+surface instead of hand-invoking `build-amstrad`:
+
+```bash
+gh workflow run local-build.yml --ref <branch-or-tag> -f effort=full
+```
+
+Watch and download artifacts exactly like a hosted run (`gh run watch`,
+`gh run download --name Amstrad-local-build-...`). The workflow is dispatch-only:
+starting it requires write access to `renaudguerin/Amstrad_MiSTer`, so fork pull
+requests can never execute on this VM — that is the containment for running a
+runner against a public repository, together with the facts that the runner
+holds no stored secrets and each job only ever receives an ephemeral read-only
+token. Keep `local-build.yml` dispatch-only when editing it.
+
+### Provision
+
+1. In GitHub: Settings -> Actions -> Runners -> New self-hosted runner, pick
+   **Linux arm64**, and copy the registration token (expires in about an hour;
+   always mint a fresh one per invocation).
+2. From the repository root on the Mac:
+
+   ```bash
+   cd ansible
+   ansible-playbook local-runner.yml --check --diff -e runner_token=<token>
+   ansible-playbook local-runner.yml -e runner_token=<token>
+   ```
+
+   Check mode validates prerequisites but never registers or installs the
+   service (those steps are guarded). The play downloads the latest arm64
+   release of `actions/runner`, extracts it under `/home/admin/actions-runner`
+   (override the location or version with `-e actions_runner_dir=` /
+   `-e actions_runner_version=X.Y.Z`), registers it with the label
+   `quartus-vm`, and installs it as a systemd service so it survives VM
+   restarts.
+3. Confirm the runner shows as **Idle** under Settings -> Actions ->
+   Runners, then dispatch `local-build.yml`.
+
+### Upgrade and removal
+
+Upgrading means stopping and deleting the old installation, then re-running
+the play with a fresh token:
+
+```bash
+ssh admin@quartus-vm.local
+sudo systemctl stop $(systemctl list-unit-files 'actions.runner.*' --no-legend | awk '{print $1}')
+sudo systemctl disable ... # same unit
+rm -rf ~/actions-runner
+sudo rm /etc/systemd/system/actions.runner.*.service
+```
+
+To unregister while keeping the software installed, either remove the runner
+in the GitHub UI (Settings -> Actions -> Runners -> Remove) or re-run
+`~/actions-runner/config.sh remove --token <fresh-token>` inside the VM.
+`local-runner.yml` itself stays idempotent: an existing `.runner` marker and
+service unit are left alone on rerun.
+

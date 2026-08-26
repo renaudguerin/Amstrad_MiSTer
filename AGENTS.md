@@ -107,6 +107,12 @@ make -C sim clean
   compile at full effort and only those RBFs count as hardware-build evidence. Semantic
   clock/memory/RGB risks still require an exact manually dispatched build. The tiered rules
   are in `docs/ci-testing-policy.md`; local UTM/Docker options are in `docs/building.md`.
+- CI is last-write-wins: newer pushes/dispatches cancel older runs (same ref outright; among
+  expensive Quartus compiles, across refs too). A `cancelled` Actions run means *superseded* —
+  find its successor with `gh run list --branch <ref> --limit 5` before diagnosing anything.
+- When the Quartus UTM VM is up, it doubles as a self-hosted runner: dispatch
+  `gh workflow run local-build.yml --ref <branch> -f effort=full|smoke` to compile there.
+  One-time registration and removal: `ansible/local-runner.yml` per `ansible/README.md`.
 - Use `Amstrad.qpf` as the project file; `Amstrad_Q13.*` is a legacy alternate, ignore it.
 
 ## Core layout (since the 2026-08-22 per-type split)

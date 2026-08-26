@@ -55,8 +55,9 @@ The checked-in workflow is `.github/workflows/build.yml`. It:
   `Amstrad.qpf` by invoking the Quartus container with `docker run`;
 - pins the `raetro/quartus` image digest currently corresponding to Quartus
   17.0.2.602, rather than trusting its mutable `17.0` tag;
-- cancels an older run for the same workflow and Git ref when a replacement is
-  queued;
+- cancels superseded runs rather than queueing them: a replacement on the same ref replaces
+  the older run, and among expensive Quartus compiles the newest wins across branches too —
+  see "Run supersession" in `docs/ci-testing-policy.md`;
 - requires the generated RBF, fitter summary, and TimeQuest report after a
   successful Quartus invocation, so a missing timing report cannot be silently
   accepted; and
