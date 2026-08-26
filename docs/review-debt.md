@@ -1,6 +1,8 @@
 # Independent review debt
 
-**Status: one open row (`plus/p4-sprites`, below); all earlier rows cleared by 2026-08-25** (the `accuracy/f11h-and-ivm-vsync-coverage` row
+**Status: all rows cleared (the `plus/p4-sprites` row closed 2026-08-26
+after a five-pass thread ended CLEAR; all earlier rows closed by
+2026-08-25)** (the `accuracy/f11h-and-ivm-vsync-coverage` row
 cleared by the same-day remediation after its NOT CLEAR verdict; the `accuracy/f10-fixtures`
 row cleared by the Claude Opus 5 review + remediation; all others cleared 2026-08-24). The
 pass-3 verification accepted the earlier remediations at reviewed tip `d64e449`, and the
@@ -13,24 +15,24 @@ cleared the remediation delta on 2026-08-24, after which the branch was merged i
 `accc-review-and-fixes`. Full record:
 `docs/accuracy/f7-r0-widening-independent-review.md`.
 
-## Open rows
+## Cleared rows
 
-- `plus/p4-sprites` (merged into `accc-review-and-fixes`, latest at
-  `85b0eaa`, 2026-08-25): two passes done. Pass 1 (Codex/GPT-5.6 Sol
-  high, NOT CLEAR) found suppressed-completion sreq stranding, a
-  walk-jump stride starving odd sprites, and an out-of-window s11
-  assertion; remediated in `69e5d91`. Pass 2 over that delta (same
-  route, NOT CLEAR) found the walk-jump fix had overcorrected —
-  preserving walk[7] trapped the walker in one bank half whenever
-  sprite 15 was disabled; the documented exit-65 skip accounting never
-  existed in code; and the branch's long-standing post-flush refill
-  residual dissolved as a test bug (s11 used mag 0x5 = X1/Y1 whose
-  window is one character). Remediated in `9f77dc3`: block-number carry
-  across halves, real exit-65 accounting, s11 on mag 0xA with paper-
-  derived expectations, all fourteen vectors passing with zero skips.
-  Clear this row after pass 3 reviews the `9f77dc3` delta (walker
-  half-carry change plus the rewritten s11/s12/s13 assertions and their
-  documented recovery-latency model choice).
+- `plus/p4-sprites` — CLOSED 2026-08-26. Five passes by Codex/GPT-5.6
+  Sol high on the sprite-engine phase. Passes 1-2 (NOT CLEAR) fixed
+  suppressed-completion sreq stranding, a walk skip that first starved
+  odd sprites then trapped the walker in one bank half when sprite 15
+  was disabled, prose-only exit-65 accounting, and a test-side mag
+  misconfiguration that had manufactured the phantom post-flush refill
+  residual (`69e5d91`, `9f77dc3`). Pass 3 (NOT CLEAR) exposed a real
+  pre-existing seam race: same-edge issues captured pre-edge bank state,
+  so delayed ACKs could mark row-N data delivered into a bank retagged
+  N+1; fixed with completion-time row-tag validation (`bb6a3a7`). Pass 4
+  (NOT CLEAR) confirmed that mechanism hazard-free but found a pixel-data
+  WRITE during an in-flight same-sprite fetch returning the pre-write
+  byte after ACC_EN dropped; fixed with whole-life request poisoning
+  via fq_acc, plus an s11 Y2 source-row oracle fix and an s12 early-arm
+  pin (`f9c93dd`). Pass 5 reviewed exactly that delta: **CLEAR**, no
+  findings; merged to `accc-review-and-fixes` at `143a213`.
 
 This file tracks work that was merged without the independent cross-provider review the
 project normally requires. It exists because that review was unavailable at the time, not
