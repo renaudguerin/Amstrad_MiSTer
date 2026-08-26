@@ -258,9 +258,9 @@ int run() {
 
 	//------------------------------------------------------------------
 	// m8: end-to-end sprite vector (expectations derived above, header).
-	// The engine asserts SPR_EN combinationally on the hp==X dot itself
-	// and window dot k emits source pixel k, so post-edge C++ sampling
-	// sees px k on the k-th EN dot with no pipeline offset.
+	// The engine asserts SPR_EN combinationally on the hp==X dot itself;
+	// asic_video registers RGB, so the output sampled against engine dot
+	// k carries pixel k-1 (one-dot pairing, see the per-dot expectation).
 	//------------------------------------------------------------------
 	{
 		auto* ce16   = &b.dut.rootp->p1_mobo_bench_top__DOT__ce_16;
@@ -278,30 +278,42 @@ int run() {
 		std::string first_bad;
 		unsigned win_count[128] = {0};
 		const uint64_t deadline = b.cyc + 2000000;
+		// If SPR_EN is already high at scan entry that first window is a
+		// partial: observe one full quiet period before trusting records.
+		bool seen_quiet = false;
+		bool discard_current = true;
 
 		while (windows_done < 48 && b.cyc < deadline) {
 			b.tick();
 			if (!*ce16)
 				continue;
 			const bool en = *en_tap != 0;
+			if (!en)
+				seen_quiet = true;
 			if (en && !in_win) {
 				in_win = true;
 				win_pos = 0;
 				win_vline = unsigned((*vc_tap << 3) | (*rc_tap & 7));
 				vline_moved = false;
+				discard_current = !seen_quiet;
 			}
 			else if (in_win && !en) {
 				in_win = false;
-				if (win_pos != 16) {
-					width_bad = true;
-					if (first_bad.empty())
-						first_bad = "window width " +
-						            std::to_string(win_pos) + " at vline " +
-						            std::to_string(win_vline);
-				}
-				else if (!vline_moved) {
-					win_count[win_vline & 127]++;
-					windows_done++;
+				// Seam-straddling windows are skipped outright; width is
+				// only judged for windows confined to a single line.
+				if (!discard_current && !vline_moved) {
+					if (win_pos != 16) {
+						width_bad = true;
+						if (first_bad.empty())
+							first_bad = "window width " +
+							            std::to_string(win_pos) +
+							            " at vline " +
+							            std::to_string(win_vline);
+					}
+					else {
+						win_count[win_vline & 127]++;
+						windows_done++;
+					}
 				}
 			}
 			if (!in_win)
@@ -319,7 +331,7 @@ int run() {
 			// shows source pixel k-1: odd k -> colour 10 from pal[26]
 			// {R=1,G=F,B=2}; even k -> colour 5 from pal[21]
 			// {R=3,G=6,B=4}.
-			if (win_pos >= 1) {
+			if (!discard_current && win_pos >= 1) {
 				const uint8_t er = (win_pos & 1) ? 0x1 : 0x3;
 				const uint8_t eg = (win_pos & 1) ? 0xF : 0x6;
 				const uint8_t eb = (win_pos & 1) ? 0x2 : 0x4;
@@ -344,12 +356,20 @@ int run() {
 			fail("m8: scan ended mid-window or timed out after " +
 			     std::to_string(windows_done) + " complete windows" +
 			     (first_bad.empty() ? std::string() : "; " + first_bad));
+		// 48 accepted windows with 16 emitting lines per frame is exactly
+		// three whole frames, so each line must carry exactly three
+		// windows - duplicates and gaps both fail.
 		for (unsigned vl = 0; vl < 128; ++vl) {
-			const bool want = (vl >= 16 && vl <= 31);
-			if (want != (win_count[vl] > 0))
+			if (vl >= 16 && vl <= 31) {
+				if (win_count[vl] != 3)
+					fail("m8: compare line " + std::to_string(vl) +
+					     " carries " + std::to_string(win_count[vl]) +
+					     " sprite windows, want exactly 3");
+			}
+			else if (win_count[vl] != 0) {
 				fail("m8: compare line " + std::to_string(vl) +
-				     (want ? " missing its sprite window"
-				           : " shows a sprite window outside Y..Y+15"));
+				     " shows a sprite window outside Y..Y+15");
+			}
 		}
 		std::printf("PASS m8: sprite plane end-to-end - %u windows on lines "
 			            "16..31, exact alternating palette payloads on RGB pins\n",
