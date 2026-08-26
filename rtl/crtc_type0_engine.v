@@ -159,11 +159,12 @@ wire register_write = ENABLE & ~nCS & ~R_nW & RS;
 //
 // ParityC9 is seeded from ParityFrame when IVM turns on at a seam (the
 // tables' doubled display carries the frame parity from the first doubled
-// line).  With even R9 it never changes afterwards: the p.219 row-end
-// ParityC9 update is gated on R9 odd per the corrected reading of the
-// source token (author question Q19; the pp.221-224 R9=6 tables show no
-// per-C4 alternation).  Odd-R9 behavior stays unimplemented until Q19 is
-// answered -- named residual in the F10 notes.
+// line on).  With even R9 it never changes afterwards: the p.219 row-end
+// ParityC9 update is gated on R9 odd -- the printed token `If R9.0=0` was
+// adjudicated 2026-08-25 as a typo for `R9.0=1` (author question Q19 main
+// token, resolved by default reading; see accc-author-questions.md item 19
+// and finding F15).  Odd-R9 behavior stays unimplemented pending F15
+// fixtures -- named residual in the F10 notes.
 reg        ivm_disp_r;    // this line started with IVM active
 reg        tog_line;      // an R8 toggle write landed during this line
 reg        tog_enter_line;
