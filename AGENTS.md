@@ -45,7 +45,16 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x627bdc9923a60677`, re-minted 2026-08-26 for the F14 closure: the
+  (`0x85b3f8e847430495`, re-minted 2026-08-26 for the F15 closure: type-0
+  odd-R9 IVM counting is implemented — the limit target becomes
+  R9+(ParityC9 xor R9.0) so rows end at the first C9.VMA at or past R9
+  (the p.206 5/4 alternation), the p.219 row-end ParityC9 update
+  ParityC9=C4.0(new) xor ParityFrame is live for odd R9 with the origin
+  re-anchoring it to the frame parity, the switch-line target is the
+  p.219 addition form R9+ParityFrame, and the section 19.5.2 VSYNC
+  delay-by-1-line correction fires on ParityFrame-odd frames when R7 is
+  odd; even-R9 behavior is bit-identical to the previous mint;
+  previously `0x627bdc9923a60677`, re-minted 2026-08-26 for the F14 closure: the
   additional interlace line is implemented on both types — type 0 appends
   one line after the R5 adjustment lines when R8∈{1,3} and ParityR6 is odd
   (the line holds C4=R4+1/C9=R5, the frame origin moves to its end, and the

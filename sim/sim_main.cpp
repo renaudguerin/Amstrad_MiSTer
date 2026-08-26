@@ -468,6 +468,11 @@ public:
         expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__c5);
     }
 
+    void expect_xfail_ra(const std::string& expectation,
+                         std::uint8_t expected) const {
+        expect_xfail_byte(expectation, expected, dut_->RA);
+    }
+
     void expect_xfail_c4(const std::string& expectation,
                          std::uint8_t expected) const {
         expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__row);
@@ -6112,6 +6117,201 @@ void t28_type1_addline_condition_false(TestBench& test) {
     test.expect_adjustment_inactive("t28b adjustment ended at the origin");
 }
 
+// ---------------------------------------------------------------------------
+// t29: F15 type-0 odd-R9 IVM counting (ACCC v1.10 section 19.5.2 pp.205-206
+// including the worked R9=7 example table (render-verified 2026-08-26);
+// section 19.8.1 pp.219-220; the p.219 row-end gate adjudicated as
+// `If R9.0=1` in author question Q19; Q19(b) post-exit behavior stays out
+// of scope).
+//
+// Paper derivation from the p.206 table (both columns reproduced line for
+// line by the model below):
+//
+//   - Row shape: a steady IVM row ends at the first C9.VMA at or past R9.
+//     With R9=7: odd-parity rows (ParityC9=1) run 1,3,5,7 and end at R9
+//     (four lines); even-parity rows run 0,2,4,6,8 and end at R9+1 (five
+//     lines).  The p.220 prose form ("C9x2+ParityFrame equals R9 or
+//     ParityC9") cannot terminate even-parity rows for odd R9 and is
+//     superseded by the rendered table, exactly as the printed p.219
+//     pseudocode line was superseded at Q19(a).
+//   - Row end: C9 restarts at 0 and (R9 odd only) ParityC9 := C4.0(new)
+//     xor ParityFrame -- the pseudocode's post-increment C4.0 -- which
+//     alternates the row parity within a frame and re-anchors it to the
+//     frame parity at each origin (the table's frame-start rows: even
+//     frame C4=0 opens at C9.VMA 0, odd frame at C9.VMA 1).
+//   - Switch line: raw C9 against R9 + ParityFrame (p.219 prose; the
+//     overflow sentence "If C9=R9 and the parity is odd, then the test
+//     C9=R9+1 is false" pins the addition form).  Even-R9 behavior is
+//     bit-identical to the implemented "R9 or ParityFrame".
+//   - VSYNC delay: with R7 odd the pulse starts one line later on the
+//     ParityFrame-odd frame -- at the second line of C4=R7, where
+//     C9.VMA=2 (p.205-206 prose and the table's VSYNC boxes; the physical
+//     line offset of C4=R7 then matches between the frames).  Even R7
+//     needs no correction (the frames already agree).  The within-line
+//     phase follows the existing field mechanics; only the start line
+//     moves.
+//
+// All three fixtures enter IVM with R8=3 programmed before reset (no
+// toggle stages; the t23b/t24 convention), R0=63.
+
+// Common per-line sample: assert C4, raw C9 and the composed RA at the
+// current line start, then advance one 64-character line.
+static void t29_step(TestBench& test, const char* tag,
+                     std::uint8_t c4, std::uint8_t c9, std::uint8_t ra) {
+    test.expect_xfail_c4(std::string(tag) + " C4", c4);
+    test.expect_xfail_line(std::string(tag) + " C9", c9);
+    test.expect_xfail_ra(std::string(tag) + " RA", ra);
+    test.run_characters(64);
+}
+
+// t29a: even frame, steady state (R4=63 keeps the origin out of the walk).
+// C4=0: C9.VMA 0,2,4,6,8 (row ends at R9+1=8); ParityC9 := 1^0 = 1.
+// C4=1: C9.VMA 1,3,5,7 (ends at R9=7); ParityC9 := 0^0 = 0.  C4=2 repeats
+// the even-parity row.  This is the p.206 table's PARITYFRAME=EVEN column.
+void t29_type0_odd_r9_even_frame(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, 63},
+        {5, 0},  {6, 63}, {7, 63}, {8, 3},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_to_c0(TestBench::kF10TargetC0);
+    // C4=0: five lines, even C9.VMA (section 19.5.2 p.206, even frame).
+    t29_step(test, "t29a c4=0", 0, 0, 0);
+    t29_step(test, "t29a c4=0", 0, 1, 2);
+    t29_step(test, "t29a c4=0", 0, 2, 4);
+    t29_step(test, "t29a c4=0", 0, 3, 6);
+    t29_step(test, "t29a c4=0", 0, 4, 8);
+    // Row end: ParityC9 = C4.0(new)=1 xor ParityFrame=0 (Q19 gate).
+    t29_step(test, "t29a c4=1", 1, 0, 1);
+    test.expect_xfail_parity_c9("t29a row-end ParityC9 update (odd R9)", 1);
+    t29_step(test, "t29a c4=1", 1, 1, 3);
+    t29_step(test, "t29a c4=1", 1, 2, 5);
+    t29_step(test, "t29a c4=1", 1, 3, 7);
+    // ParityC9 back to 0; the even-parity row shape repeats at C4=2.
+    t29_step(test, "t29a c4=2", 2, 0, 0);
+    test.expect_xfail_parity_c9("t29a row-end ParityC9 update alternates", 0);
+    t29_step(test, "t29a c4=2", 2, 1, 2);
+    t29_step(test, "t29a c4=2", 2, 2, 4);
+    t29_step(test, "t29a c4=2", 2, 3, 6);
+    t29_step(test, "t29a c4=2", 2, 4, 8);
+}
+
+// t29b: odd frame via a real frame boundary (R4=2, R6=1 so ParityR6
+// alternates the snapshot each origin).  Frame 0 (even) ends with the F14
+// additional line (C4=3, C9=0) and opens frame 1 odd.  Frame 1: C4=0 runs
+// C9.VMA 1,3,5,7 (ParityC9 = frame parity = 1), C4=1 runs 0,2,4,6,8 --
+// the p.206 table's PARITYFRAME=ODD column, steady rows.
+void t29_type0_odd_r9_odd_frame(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, 2},
+        {5, 0},  {6, 1},  {7, 63}, {8, 3},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_to_c0(TestBench::kF10TargetC0);
+    // Frame 0 (even): first row only, then hop to the F14 additional line.
+    for (unsigned i = 0; i < 5; ++i) {
+        t29_step(test, "t29b frame 0", 0, static_cast<std::uint8_t>(i),
+                 static_cast<std::uint8_t>(i * 2));
+    }
+    // Skip C4=1 (4 lines) and C4=2 (5 lines): land on the additional line.
+    test.run_characters(9 * 64);
+    test.expect_xfail_c4("t29b frame 0 additional line (F14)", 3);
+    test.expect_xfail_line("t29b frame 0 additional line C9=R5", 0);
+    // Origin opens frame 1 with ParityFrame := ParityR6 = 1.
+    test.run_characters(64);
+    test.expect_xfail_c4("t29b frame 1 opens", 0);
+    test.expect_xfail_parity_frame("t29b frame 1 is odd", 1);
+    // Frame 1 C4=0: ParityC9 = frame parity = 1: C9.VMA 1,3,5,7.
+    t29_step(test, "t29b frame 1 c4=0", 0, 0, 1);
+    t29_step(test, "t29b frame 1 c4=0", 0, 1, 3);
+    t29_step(test, "t29b frame 1 c4=0", 0, 2, 5);
+    t29_step(test, "t29b frame 1 c4=0", 0, 3, 7);
+    // Row end: ParityC9 = 1 xor 1 = 0; C4=1 runs the even-parity row.
+    t29_step(test, "t29b frame 1 c4=1", 1, 0, 0);
+    test.expect_xfail_parity_c9("t29b frame 1 row-end update", 0);
+    t29_step(test, "t29b frame 1 c4=1", 1, 1, 2);
+    t29_step(test, "t29b frame 1 c4=1", 1, 2, 4);
+    t29_step(test, "t29b frame 1 c4=1", 1, 3, 6);
+    t29_step(test, "t29b frame 1 c4=1", 1, 4, 8);
+    // C4=2 re-derives ParityC9 = 0 xor 1 = 1.
+    t29_step(test, "t29b frame 1 c4=2", 2, 0, 1);
+    test.expect_xfail_parity_c9("t29b frame 1 alternation continues", 1);
+    // Skip the rest of C4=2 (3 lines); frame 1 ends without an additional
+    // line (its capture made ParityR6 even) and frame 2 opens even.
+    test.run_characters(3 * 64);
+    test.expect_xfail_c4("t29b frame 2 opens directly (odd frame)", 0);
+    test.expect_xfail_parity_frame("t29b frame 2 is even", 0);
+}
+
+// t29c: the section 19.5.2 VSYNC delay-by-1-line correction.  R7=1 (odd):
+// the even frame starts the pulse at the first line of C4=1 (C9.VMA=1);
+// the odd frame delays it to the second line (C9.VMA=2, the documented
+// fire condition).  Sampled at C0=36, after the half-line tick the field=1
+// count uses: the delayed pulse reads high at VMA=2 (it started at that
+// line's half-line tick) where the undelayed pulse would already read low.
+void t29_type0_odd_r9_vsync_delay(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x21}, {4, 2},
+        {5, 0},  {6, 1},  {7, 1},  {8, 3},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_to_c0(36);
+    // Frame 0 (even, ParityFrame=0): no delay.  C4=0 runs five quiet lines.
+    for (unsigned i = 0; i < 5; ++i) {
+        test.expect_xfail_vsync_low("t29c even frame C4=0 line: pulse not yet due");
+        test.run_characters(64);
+    }
+    // C4=1 (VMA 1,3,5,7): pulse starts at the first line, R3v=2 wide.
+    test.expect_xfail_vsync_high("t29c even frame pulse starts at C4=1 first line");
+    test.expect_xfail_c4("t29c even frame pulse is on C4=1", 1);
+    test.expect_xfail_ra("t29c even frame pulse starts at C9.VMA=1", 1);
+    test.run_characters(64);
+    test.expect_xfail_vsync_high("t29c even frame pulse second line");
+    test.run_characters(64);
+    test.expect_xfail_vsync_low("t29c even frame pulse ended");
+    test.run_characters(64);
+    test.expect_xfail_vsync_low("t29c even frame pulse ended (2/2)");
+    test.run_characters(64);
+    // Skip the rest of frame 0 (C4=2's five lines), the F14 additional
+    // line and the origin into frame 1.
+    test.run_characters(7 * 64);
+    test.expect_xfail_parity_frame("t29c frame 1 is odd", 1);
+    // Frame 1 (odd, ParityFrame=1): C4=0 runs four quiet lines; three are
+    // sampled here and the fourth (the first C4=1 line) in the block below.
+    for (unsigned i = 0; i < 3; ++i) {
+        test.expect_xfail_vsync_low("t29c odd frame C4=0 line");
+        test.run_characters(64);
+    }
+    // C4=1 (VMA 0,2,4,6,8): the pulse is delayed one line -- quiet at
+    // VMA=0, up from VMA=2's half-line tick (the documented C4=R7 /
+    // C9.VMA=2 fire) through VMA=4, down for VMA=6..8.  R3v=2 counts two
+    // half-line ticks on the field=1 frame, i.e. one full line.
+    test.expect_xfail_vsync_low("t29c odd frame: no pulse at the first C4=1 line");
+    test.expect_xfail_c4("t29c odd frame first C4=1 line is C4=1", 1);
+    test.expect_xfail_ra("t29c odd frame first C4=1 line is C9.VMA=0", 0);
+    test.run_characters(64);
+    test.expect_xfail_vsync_high("t29c odd frame delayed pulse at C9.VMA=2");
+    test.expect_xfail_ra("t29c odd frame delayed pulse line is C9.VMA=2", 2);
+    test.run_characters(64);
+    test.expect_xfail_vsync_high("t29c odd frame delayed pulse still up at C9.VMA=4");
+    test.run_characters(64);
+    test.expect_xfail_vsync_low("t29c odd frame pulse ended at C9.VMA=6");
+    test.run_characters(64);
+    test.expect_xfail_vsync_low("t29c odd frame quiet at C9.VMA=8");
+}
+
 }  // namespace
 //============================================================================
 //  Randomized equivalence soak
@@ -6790,6 +6990,18 @@ int main(int argc, char** argv) {
         {"t28b_type1_addline_condition_false",
          "ACCC v1.10 section 19.6.2 p.216 (R9+1 multiple of R5 gate); F14",
          false, t28_type1_addline_condition_false},
+        // t29: F15 type-0 odd-R9 IVM counting (ACCC v1.10 section 19.5.2
+        // pp.205-206 and section 19.8.1 with the Q19-adjudicated gate).
+        // Fixture-first XFAIL pins; the behavior commit flips them.
+        {"t29a_type0_odd_r9_even_frame",
+         "ACCC v1.10 section 19.5.2 p.206 worked example (even frame column); F15",
+         false, t29_type0_odd_r9_even_frame},
+        {"t29b_type0_odd_r9_odd_frame",
+         "ACCC v1.10 section 19.5.2 p.206 worked example (odd frame column); F15/F14",
+         false, t29_type0_odd_r9_odd_frame},
+        {"t29c_type0_odd_r9_vsync_delay",
+         "ACCC v1.10 sections 19.5.2 pp.205-206 (odd-C4 R7 VSYNC delay); F15",
+         false, t29_type0_odd_r9_vsync_delay},
     };
 
     unsigned passed = 0;
