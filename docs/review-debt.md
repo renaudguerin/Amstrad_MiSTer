@@ -37,6 +37,17 @@ cleared the remediation delta on 2026-08-24, after which the branch was merged i
 
 ## Cleared rows
 
+- `plus/p6-split-scroll` — CLOSED 2026-08-26. Independent cross-provider
+  review on the P6 aggregate diff (`plus/p5-crtc3-bus...3405d0c`). Verdict
+  CLEAR with 0 blocking issues. Verified screen split (`&6801` SPLT,
+  `&6802/&6803` SSA) VMA latching at HCC==R1, line reload and row advance,
+  14-bit VMA overscan carry across 16K boundaries, soft scroll (`&6804`
+  SSCR) RA[2:0] vertical scanline offset, 16-dot horizontal pixel shift
+  delay, SSCR[7] border mask over active display dots 0..15, sprite
+  immunity over masked border, motherboard integration wiring, unit
+  vectors t08a-t08h in asic_video_test, and mobo bench m10. Full simulation,
+  lint, and classic soak (0x85b3f8e847430495) pass clean. Full record:
+  `docs/plus/p6-independent-review.md`.
 - `plus/p5-crtc3-bus` — CLOSED 2026-08-26. Claude Opus 5 high review on
   the P5 aggregate diff (`27cb993..8523136`). Initial verdict NOT CLEAR on
   two blockings (B1: STATUS 1 bit 4 comparator off-by-one / 0=>16

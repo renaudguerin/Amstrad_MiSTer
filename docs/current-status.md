@@ -1033,7 +1033,12 @@ front end.
     items are the deferred INKR pipeline question and the shared hardware
     checkpoint above. P5 CRTC-3 bus semantics is complete in simulation on
     `plus/p5-crtc3-bus` (t07a-t07g, MMU held-cycle traps, motherboard m9,
-    classic m7). Next implementation order: resolve the INKR-effects latency,
-    reconcile VIDBUF/vram sampling, then decide whether to enter optional P6
-    split/scroll before the shared hardware checkpoint.
+    classic m7). Phase 0 Timing Calibration resolved the INKR-effects pipeline
+    latency and reconciled VIDBUF/vram sampling (independently reviewed CLEAR).
+    Phase P6 Screen Split & Hardware Soft Scroll is complete on
+    `plus/p6-split-scroll` (SPLT/SSA VMA capture, 14-bit overscan carry, SSCR
+    RA[2:0] vertical scanline offset, 16-dot horizontal pixel shift delay,
+    SSCR[7] border mask, sprite immunity, t08a-t08h, mobo bench m10, independently
+    reviewed CLEAR). Next implementation order: Phase P7 3-channel DMA sound
+    engine (`rtl/plus/asic_dma.v`).
 6. Update this file when either stream reaches its next hardware-testable checkpoint.
