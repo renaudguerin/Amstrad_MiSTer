@@ -1,0 +1,117 @@
+name: Local VM build
+
+# Tier B on the Quartus UTM VM: the same compile the hosted route performs,
+# executed by the self-hosted runner provisioned by ansible/local-runner.yml.
+#
+# This workflow is deliberately workflow_dispatch-only. The repository is
+# public, and a self-hosted runner executes repository-controlled Tcl and RTL
+# without a container boundary; workflow_dispatch requires write access, so
+# fork pull requests can never reach this job even if a future edit changes
+# the trigger. Keep both guards below when editing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      effort:
+        description: Compile effort on the Quartus VM
+        type: choice
+        default: full
+        options:
+          - full
+          - smoke
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-build-${{ github.workflow }}-${{ github.ref }}
+  # Last dispatch wins per ref; a superseded local build is simply gone.
+  cancel-in-progress: true
+
+jobs:
+  quartus:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository == 'renaudguerin/Amstrad_MiSTer'
+    runs-on: [self-hosted, quartus-vm]
+    timeout-minutes: 90
+    concurrency:
+      # Same repository-wide slot as hosted builds (build.yml): a local
+      # compile and a hosted compile preempt each other, newest wins.
+      group: build-core-synthesis
+      cancel-in-progress: true
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          # The checkout is handed to quartus_sh directly. Do not leave a
+          # GitHub token in .git/config.
+          persist-credentials: false
+
+      - name: Select compile effort
+        shell: bash
+        run: scripts/ci/apply-quartus-effort.sh "${{ inputs.effort }}" Amstrad.qsf
+
+      - name: Compile Amstrad core
+        shell: bash
+        run: |
+          mkdir -p artifacts/reports
+          set -o pipefail
+          build-amstrad "$GITHUB_WORKSPACE" \
+            2>&1 | tee artifacts/reports/quartus-build.log
+
+      - name: Verify the effort tier was honored
+        shell: bash
+        run: |
+          log=artifacts/reports/quartus-build.log
+          # Identical guard to the hosted route: a smoke leg must never look
+          # green while Quartus silently dropped its effort-tier assignments.
+          if grep -n "Ignored assignment:" "$log"; then
+            printf '::error::compile ignored effort-tier assignments; %s timings are not trustworthy\n' "${{ inputs.effort }}" >&2
+            exit 1
+          fi
+          {
+            printf '### Compile stages (%s)\n\n```\n' "${{ inputs.effort }}"
+            grep "Info: Elapsed time" "$log" | tail -5 || true
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record synthesis provenance
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/reports
+          printf 'build_mode=clean_%s\n' "${{ inputs.effort }}" | tee artifacts/reports/quartus-cache.txt
+
+      - name: Collect synthesis reports
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/reports
+          if [[ -d output_files ]]; then
+            find output_files -maxdepth 1 -type f \
+              \( -name '*.rpt' -o -name '*.summary' -o -name '*.log' \
+                 -o -name '*.smsg' -o -name '*.done' \) \
+              -exec cp '{}' artifacts/reports/ \;
+          fi
+
+      - name: Package bitstream
+        shell: bash
+        run: |
+          test -s output_files/Amstrad.rbf
+          test -s output_files/Amstrad.fit.summary
+          test -s output_files/Amstrad.sta.rpt
+          build_date="$(date -u +'%Y%m%d')"
+          short_sha="${GITHUB_SHA:0:7}"
+          cp output_files/Amstrad.rbf \
+            "artifacts/Amstrad_${build_date}_${short_sha}.rbf"
+
+      - name: Upload bitstream and reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Amstrad-local-build-${{ github.run_number }}-${{ github.run_attempt }}-${{ inputs.effort }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
