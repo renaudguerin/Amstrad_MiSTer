@@ -72,11 +72,11 @@ answer before a merge, or for a semantic risk no path reveals (top-level wiring,
 arbitration, RGB width). Hardware results outrank simulation
 but never replace it. See `docs/ci-testing-policy.md` for the executable routing rules.
 
-CI runs supersede each other instead of queueing: a newer push or dispatch cancels the older
-run on the same ref outright, and among expensive Quartus builds the newest cancels the
-oldest across branches too. A run that ends `cancelled` therefore means *superseded*, never
-failed — check `gh run list --branch <ref> --limit 5` for its successor and judge that one
-instead of diagnosing from the corpse or blindly re-running. Full semantics:
+CI runs supersede each other instead of queueing: a newer run with the same ref and event
+type cancels the older run outright, and among expensive Quartus builds the newest cancels
+the oldest across branches and event types too. A run that ends `cancelled` therefore means
+*superseded*, never failed — check `gh run list --branch <ref> --limit 5` for its successor
+and judge that one instead of diagnosing from the corpse or blindly re-running. Full semantics:
 `docs/ci-testing-policy.md`, "Run supersession".
 
 ## Independent review

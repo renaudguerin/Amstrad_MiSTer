@@ -5,9 +5,10 @@ name: Local VM build
 #
 # This workflow is deliberately workflow_dispatch-only. The repository is
 # public, and a self-hosted runner executes repository-controlled Tcl and RTL
-# without a container boundary; workflow_dispatch requires write access, so
-# fork pull requests can never reach this job even if a future edit changes
-# the trigger. Keep both guards below when editing.
+# without a container boundary. workflow_dispatch plus the job guard prevents
+# the checked-in workflow from serving fork PRs. They do not secure the runner
+# label against a malicious edit to another workflow, so the disposable VM is
+# still the isolation boundary. Keep both guards below when editing.
 
 on:
   workflow_dispatch:

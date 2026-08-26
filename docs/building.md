@@ -73,14 +73,13 @@ gh workflow run build.yml --ref <branch-or-tag>
 
 Confirm that the ref points at the intended commit before dispatching.
 
-Qualifying feature-branch builds automatically reuse branch-scoped `db`/`incremental_db` state.
-Manual runs are clean by default; use `-f clean_quartus_build=false` for an iterative cached run.
-The override works only for feature-branch refs: tags, pull requests, and default-branch builds
-stay clean. See `docs/ci-testing-policy.md` for the provenance and benchmarking rules.
+All Quartus synthesis runs are clean compiles. Manual dispatches default to full effort; use
+`-f effort=smoke` for fast feedback or `-f effort=both` to benchmark both tiers on the same
+commit. See `docs/ci-testing-policy.md` for provenance and benchmarking rules.
 
 The uploaded artifact is named
-`Amstrad-build-<run-number>-<run-attempt>`, is retained for 14 days, and uses
-`actions/upload-artifact@v4`. The workflow grants only read access to repository
+`Amstrad-build-<run-number>-<run-attempt>-<effort>`, is retained for 14 days, and uses
+`actions/upload-artifact@v7`. The workflow grants only read access to repository
 contents.
 
 Notes:
@@ -88,7 +87,7 @@ Notes:
   GitHub's `ubuntu-latest` runners are amd64, so no emulation involved at
   all — full native speed on GitHub's hardware.
 - The image is based on Debian Stretch. The workflow deliberately runs
-  `actions/checkout@v4` and `actions/upload-artifact@v4` on the Ubuntu host,
+  `actions/checkout@v7` and `actions/upload-artifact@v7` on the Ubuntu host,
   outside that old userspace; current JavaScript actions require a newer glibc
   than Stretch provides.
 - Image is ~6GB, last pushed 2022 but still actively pulled (confirmed via
@@ -108,7 +107,7 @@ git add .github/workflows/build.yml
 git commit -m "Add CI build workflow"
 git push
 gh run watch   # or: open the Actions tab in the browser
-gh run download --name "Amstrad-build-<run-number>-<run-attempt>" \
+gh run download --name "Amstrad-build-<run-number>-<run-attempt>-<effort>" \
   --dir /tmp/amstrad-build
 ```
 
@@ -142,6 +141,32 @@ Give the VM 16GB RAM if the host can spare it (`sysctl hw.memsize` to check)
 — Cyclone V fitting is memory-hungry, 7-8GB peak is typical for cores this
 size. More setup effort than Option A, but gives a tight local loop once
 you're actively iterating on RTL rather than doing a one-off build.
+
+### Use the VM as a self-hosted runner
+
+The same VM can provide the usual `gh workflow run`, `gh run watch`, and
+artifact-download workflow instead of requiring a separate local invocation.
+Mint a Linux arm64 registration token under GitHub Settings -> Actions ->
+Runners, then provision the runner from the Mac:
+
+```bash
+ansible-playbook ansible/local-runner.yml -e runner_token=<token>
+gh workflow run local-build.yml --ref <branch-or-tag> -f effort=full
+```
+
+The manual workflow becomes dispatchable only after `local-build.yml` reaches
+the repository's default branch; registering the VM before that merge is safe,
+but GitHub will not yet list the workflow by filename.
+
+`local-build.yml` is dispatch-only and its job checks the event and repository
+name, uses a read-only ephemeral token, and leaves no checkout credential
+behind. Those controls protect this workflow, but a malicious change to an
+existing workflow could target the same runner label if its run were approved.
+The dedicated VM is therefore the security boundary: keep it disposable and
+free of host credentials or shared folders, and do not approve untrusted
+workflow changes while it is online. The local route emits the same RBF,
+fitter, timing, and provenance evidence as hosted Tier B. Full registration
+and removal instructions are in `ansible/README.md`.
 
 ## 4. Option C — Docker Desktop on the Mac (works, but slower — skip unless you have a reason)
 

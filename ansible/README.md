@@ -175,11 +175,16 @@ gh workflow run local-build.yml --ref <branch-or-tag> -f effort=full
 
 Watch and download artifacts exactly like a hosted run (`gh run watch`,
 `gh run download --name Amstrad-local-build-...`). The workflow is dispatch-only:
-starting it requires write access to `renaudguerin/Amstrad_MiSTer`, so fork pull
-requests can never execute on this VM — that is the containment for running a
-runner against a public repository, together with the facts that the runner
-holds no stored secrets and each job only ever receives an ephemeral read-only
-token. Keep `local-build.yml` dispatch-only when editing it.
+starting it requires write access to `renaudguerin/Amstrad_MiSTer`, and its job
+guard rejects every other event. That protects this workflow, not the runner
+label globally: a pull request that rewrites an existing workflow could target
+`quartus-vm` if someone approves that run. The disposable, dedicated VM is the
+containment boundary. Keep host SSH keys, shared folders, repository secrets,
+and unrelated credentials out of it; use NAT rather than a bridged interface;
+and do not approve untrusted workflow changes while the VM is online. The
+runner necessarily stores its own registration credentials and receives an
+ephemeral read-only token per job. Keep `local-build.yml` dispatch-only when
+editing it.
 
 ### Provision
 
@@ -202,24 +207,28 @@ token. Keep `local-build.yml` dispatch-only when editing it.
    `quartus-vm`, and installs it as a systemd service so it survives VM
    restarts.
 3. Confirm the runner shows as **Idle** under Settings -> Actions ->
-   Runners, then dispatch `local-build.yml`.
+   Runners, then dispatch `local-build.yml`. GitHub only registers a manual
+   workflow after its file reaches the repository's default branch; before
+   this change merges, the runner can be online but that workflow cannot yet
+   be dispatched by filename.
 
 ### Upgrade and removal
 
-Upgrading means stopping and deleting the old installation, then re-running
-the play with a fresh token:
+Upgrading means unregistering and uninstalling the old service before deleting
+the installation, then re-running the play with a fresh registration token:
 
 ```bash
 ssh admin@quartus-vm.local
-sudo systemctl stop $(systemctl list-unit-files 'actions.runner.*' --no-legend | awk '{print $1}')
-sudo systemctl disable ... # same unit
+cd ~/actions-runner
+sudo ./svc.sh stop
+sudo ./svc.sh uninstall
+./config.sh remove --token <fresh-removal-token>
 rm -rf ~/actions-runner
-sudo rm /etc/systemd/system/actions.runner.*.service
 ```
 
-To unregister while keeping the software installed, either remove the runner
-in the GitHub UI (Settings -> Actions -> Runners -> Remove) or re-run
-`~/actions-runner/config.sh remove --token <fresh-token>` inside the VM.
+Mint the removal token in the GitHub runner UI immediately before the command;
+it expires like a registration token. Removing the runner only in the UI
+leaves the VM's `.runner` marker behind, so also run `config.sh remove` locally
+before re-provisioning.
 `local-runner.yml` itself stays idempotent: an existing `.runner` marker and
 service unit are left alone on rerun.
-

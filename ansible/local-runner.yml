@@ -9,10 +9,11 @@
   # .github/workflows/local-build.yml, and installs it as a systemd service so
   # the runner survives VM restarts.
   #
-  # The repository is public: keep the runner disposable and secret-free. It
-  # holds no credentials beyond the ephemeral job token GitHub hands each
-  # run, and local-build.yml is dispatch-only precisely so fork pull requests
-  # can never execute on this machine.
+  # The repository is public: keep the runner disposable and free of host or
+  # repository secrets. The runner stores its own registration credentials and
+  # receives an ephemeral read-only job token. local-build.yml is dispatch-only,
+  # but the dedicated VM remains the isolation boundary because another
+  # workflow could be edited to target the same label.
 
   vars:
     # A registration token is minted in the GitHub UI under Settings ->
@@ -28,7 +29,14 @@
     actions_runner_labels: quartus-vm
 
   tasks:
+    - name: Check whether this guest is already registered
+      ansible.builtin.stat:
+        path: "{{ actions_runner_dir }}/.runner"
+      register: runner_registered
+
     - name: Assert a fresh registration token was supplied
+      # Only registration consumes the token, so an already-registered guest
+      # can be revalidated or upgraded without minting a new one.
       ansible.builtin.assert:
         that:
           - runner_token | length > 0
@@ -37,6 +45,7 @@
           GitHub -> Settings -> Actions -> Runners -> New self-hosted runner
           (Linux arm64). Tokens expire after about an hour, so always use a
           fresh one.
+      when: not runner_registered.stat.exists
 
     - name: Read the build user account
       ansible.builtin.getent:
@@ -48,12 +57,19 @@
         that:
           - quartus_user in ansible_facts.getent_passwd
 
+    - name: Check whether the runner software is already extracted
+      ansible.builtin.stat:
+        path: "{{ actions_runner_dir }}/config.sh"
+      register: runner_binary
+
     - name: Resolve the latest actions-runner release
       ansible.builtin.uri:
         url: https://api.github.com/repos/actions/runner/releases/latest
         return_content: true
       register: runner_release
-      when: actions_runner_version | length == 0
+      when:
+        - not runner_binary.stat.exists
+        - actions_runner_version | length == 0
       changed_when: false
       check_mode: false
 
@@ -62,6 +78,7 @@
         actions_runner_version_install: >-
           {{ actions_runner_version if actions_runner_version | length > 0
              else runner_release.json.tag_name | default('') | regex_replace('^v', '') }}
+      when: not runner_binary.stat.exists
 
     - name: Assert the resolved version looks like a release tag
       ansible.builtin.assert:
@@ -71,14 +88,12 @@
           Could not resolve an actions-runner version
           ({{ actions_runner_version_install }}). Pass one explicitly with
           -e actions_runner_version=X.Y.Z.
-
-    - name: Check whether the runner software is already extracted
-      ansible.builtin.stat:
-        path: "{{ actions_runner_dir }}/config.sh"
-      register: runner_binary
+      when: not runner_binary.stat.exists
 
     - name: Download and extract the runner
-      when: not runner_binary.stat.exists
+      when:
+        - not runner_binary.stat.exists
+        - not ansible_check_mode
       block:
         - name: Create the runner directory
           ansible.builtin.file:
@@ -110,11 +125,6 @@
           ansible.builtin.file:
             path: "/tmp/actions-runner-linux-arm64-{{ actions_runner_version_install }}.tar.gz"
             state: absent
-
-    - name: Check whether this guest is already registered
-      ansible.builtin.stat:
-        path: "{{ actions_runner_dir }}/.runner"
-      register: runner_registered
 
     - name: Register the runner against the repository
       # Idempotence comes from the .runner marker above, not from the command;
@@ -173,6 +183,7 @@
           Expected exactly one actions.runner.*.service unit after
           installation; found {{ runner_service_unit_installed.files | length }}.
           Inspect /etc/systemd/system manually before proceeding.
+      when: not ansible_check_mode
 
     - name: Enable and start the runner service
       ansible.builtin.systemd_service:
@@ -188,3 +199,12 @@
           '{{ actions_runner_labels }}'. Confirm it shows idle under
           GitHub -> {{ actions_runner_repo_url }}/settings/actions/runners,
           then dispatch local-build.yml.
+      when: not ansible_check_mode
+
+    - name: Explain check-mode scope
+      ansible.builtin.debug:
+        msg: >-
+          Check mode validated the guest account and runner release but did
+          not download, register, or install the service. Run local-runner.yml
+          normally with the same fresh registration token to provision it.
+      when: ansible_check_mode

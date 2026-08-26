@@ -87,8 +87,8 @@ quiet window when a milestone RBF must complete undisturbed.
 levels:
 
 - **Workflow level**, per ref+event (`build-Build core-<ref>-<event>`): a newer push, PR
-  sync, or manual dispatch on the same ref cancels the older run wholesale — simulation jobs
-  included.
+  sync, or manual dispatch with the same ref and event type cancels the older run wholesale —
+  simulation jobs included.
 - **Synthesis-job level**, repository-wide (`build-core-synthesis`, shared with
   `local-build.yml`): every Quartus leg contends for a single slot regardless of branch,
   event, or effort tier, and the newest arrival cancels whichever compile is in flight. Runs
@@ -182,7 +182,8 @@ leg joins the same repository-wide synthesis slot as hosted builds, so local and
 compiles supersede each other under the rules above.  Acceptance evidence is identical:
 RBF, fitter summary, TimeQuest report, and the same `quartus-cache.txt` provenance values.
 The VM executes repository-controlled Tcl and RTL directly, without the container boundary
-the hosted route gets from Docker, which is why the workflow is dispatch-only: starting it
-requires write access, and fork pull requests can never reach it.  Provisioning,
-registration, and removal are documented in `ansible/README.md`; iteration-speed background
-remains in `docs/building.md`.
+the hosted route gets from Docker, which is why the checked-in workflow is dispatch-only and
+also guards its event and repository. Those controls do not secure the runner label against a
+malicious edit to another workflow; the disposable VM is the isolation boundary for this
+public repository. Provisioning, registration, and removal are documented in
+`ansible/README.md`; iteration-speed background remains in `docs/building.md`.

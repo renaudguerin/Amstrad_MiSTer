@@ -36,6 +36,7 @@
       register: quartus_qenv_sse_marker
       changed_when: false
       failed_when: quartus_qenv_sse_marker.rc not in [0, 1]
+      check_mode: false
 
     - name: Count Quartus's bitness marker
       ansible.builtin.command:
@@ -48,6 +49,7 @@
       register: quartus_qenv_bitness_marker
       changed_when: false
       failed_when: quartus_qenv_bitness_marker.rc not in [0, 1]
+      check_mode: false
 
     - name: Assert the known Quartus 17 qenv layout before patching
       ansible.builtin.assert:
