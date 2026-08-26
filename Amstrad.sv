@@ -100,7 +100,7 @@ localparam CONF_STR = {
 	"R0,Reset & apply model;",
 	"R[32],Reset & Detach Cartridge;",
 	"J,Fire 1,Fire 2,Fire 3;",
-	"V,v",`BUILD_DATE
+	"V,v",`BUILD_ID
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -1211,9 +1211,9 @@ Amstrad_motherboard motherboard
 	.vblank(vbl),
 	.hsync(hs),
 	.vsync(vs),
-	.red(r),
-	.green(g),
-	.blue(b),
+	.red(r4),
+	.green(g4),
+	.blue(b4),
 	.field(VGA_F1),
 
 	.vram_din(vram_dout),
