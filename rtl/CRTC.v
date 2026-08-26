@@ -226,6 +226,7 @@ wire       e0_r0_frozen, e0_line_new, e0_row_frame_last, e0_row_new, e0_frame_ad
 wire       e0_c0_line_last, e0_c0_row_last, e0_in_adj_route, e0_frozen_row_advance;
 wire       e0_hcc2_adj_keep, e0_reload, e0_row_addr_save, e0_field_count_tick;
 wire       e0_hsync_off, e0_vsync_line_fire, e0_r7_write_fire, e0_vsync_holdoff;
+wire       e0_vsync_delay_suppress, e0_vsync_delay_half;
 wire       e0_vde_toggle, e0_r6_vder_write, e0_r6_vder_value;
 wire       e0_pf_write, e0_pf_value, e0_pc9_write, e0_pc9_value;
 wire       e0_pr6_write, e0_pr6_value, e0_ivm_disp;
@@ -254,6 +255,7 @@ crtc_type0_engine crtc_type0_engine
 	e0_reload, e0_row_addr_save,
 	e0_field_count_tick, e0_hsync_off, e0_de_index, e0_spurious_border_off,
 	e0_vsync_line_fire,
+	e0_vsync_delay_suppress, e0_vsync_delay_half,
 	e0_vsc_load, e0_r7_write_fire, e0_vsync_holdoff, e0_vde_toggle,
 	e0_r6_vder_write, e0_r6_vder_value,
 	e0_pf_write, e0_pf_value, e0_pc9_write, e0_pc9_value,
@@ -492,7 +494,9 @@ wire vsync_holdoff = e0_vsync_holdoff;
 wire vsync_fire = vsync_allow & (
 	vsync_ivm_mid   ? vsync_ivm_arm :
 	vsync_type1_ivm ? e1_vsync_line_fire :
-	field           ? (row == R7_v_sync_pos && !line) :
+	field           ? (((row == R7_v_sync_pos && !line) &&
+						!e0_vsync_delay_suppress) ||
+				   (!CRTC_TYPE && e0_vsync_delay_half)) :
 	(CRTC_TYPE ? e1_vsync_line_fire : e0_vsync_line_fire));
 
 // Seam-latched MID-VSYNC fire decision: set when the line now starting is
