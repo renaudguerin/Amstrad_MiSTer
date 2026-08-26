@@ -23,12 +23,19 @@
 //   - Interlace (R8 bits 1:0 stored but not acted on): the type-3 IVM
 //     counting/parity machinery is its own rule set (ACCC §19.5.5, §19.8.4)
 //     and no P1 exit criterion needs it.
-//   - Status registers R10/R11 contents and the mod-8 read map: P5 owns all
-//     readback semantics (ACCC §21.2.3, §21.3.4); DO is open-bus neutral.
-//   - Light pen R16/R17: no light-pen input exists on CPC hardware.
+//   - Light pen R16/R17: no light-pen input exists on CPC hardware. The
+//     registers are stored and readable since P5 (mod-8 map slots 0/1) but
+//     nothing ever strobes them; they hold their reset value (named
+//     assumption at the readback section below).
 //   - The R4=0-at-C0=0-with-Rom-select I/O race (ACCC §12.5 p.101) is a Z80
 //     bus-level ASIC race owned by the register-interface layer, not the
 //     counter engine.
+//
+//  P5 scope landed here: the mod-8 read map with stored R14/R15, the
+//  R10/R11 status group, and the full readback contract (section at the
+//  bottom of this file). The IN-performs-write trap is a property of the
+//  upstream bus wiring (the write strobe deliberately does not distinguish
+//  read from write cycles); the motherboard pins it.
 //============================================================================
 
 module asic_video
@@ -43,7 +50,7 @@ module asic_video
 	input            R_nW,
 	input            RS,
 	input      [7:0] DI,
-	output     [7:0] DO,
+	output reg [7:0] DO,
 
 	// Raster timing outputs. DE follows the SKEW-DISPTMG programming
 	// (ACCC §19.2, types 0/3/4); MA is the current video pointer VMA and
@@ -150,8 +157,26 @@ reg [1:0] R8_interlace;
 reg [6:0] R4_v_total;
 reg [4:0] R5_v_total_adj;
 reg [4:0] R9_v_max_line;
-reg [5:0] R12_start_addr_h;
+// Full 8-bit storage (P5): bits 7:6 are the §20.5 (p.244) extended
+// start-address bits ("These 2 bits represent bits 14 and 15 of the video
+// pointer"). The 14-bit VMA reload below consumes R12[5:0] only; the
+// >16K carry mechanism those bits take part in is not modelled, but the
+// bits are stored and readable (§21.2.3 slot 4 returns the full register).
+reg [7:0] R12_start_addr_h;
 reg [7:0] R13_start_addr_l;
+// Cursor address (§21.2.3 slots 6/7): stored and readable on types 3/4 —
+// "it is perfectly possible to store values in these registers and then
+// read them back" (§21.2.3 note). R14 is 6-bit (bits 7:6 read 0); R15
+// full 8-bit. The cursor itself is not managed on the CPC (no CUDISP
+// consumer); only the storage exists. ACCC v1.10 supersedes [KT]'s
+// earlier "always return 0" observation for these slots.
+reg [5:0] R14_cursor_h;
+reg [7:0] R15_cursor_l;
+// Light pen (§21.2.3 slots 0/1): readable pointer registers with no
+// CPC-side strobe source. They hold their reset value forever here
+// (named assumption; see the readback section).
+reg [5:0] R16_pen_h;
+reg [7:0] R17_pen_l;
 /* verilator lint_on UNUSEDSIGNAL */
 
 always @(posedge CLOCK) begin
@@ -167,8 +192,12 @@ always @(posedge CLOCK) begin
 		R7_v_sync_pos    <= 7'd0;
 		{R8_skew, R8_interlace} <= 4'd0;
 		R9_v_max_line    <= 5'd0;
-		R12_start_addr_h <= 6'd0;
+		R12_start_addr_h <= 8'd0;
 		R13_start_addr_l <= 8'd0;
+		R14_cursor_h     <= 6'd0;
+		R15_cursor_l     <= 8'd0;
+		R16_pen_h        <= 6'd0;
+		R17_pen_l        <= 8'd0;
 	end
 	else if (ENABLE & ~nCS & ~R_nW) begin
 		if (~RS) begin
@@ -176,6 +205,9 @@ always @(posedge CLOCK) begin
 		end
 		else begin
 			case (addr)
+			// Writes keep the full five-bit decode (§21.2.3 truncates
+			// READS to three bits only): aliased selects 4/20 must
+			// program R4/R12 distinctly, exactly as software assumes.
 			5'd00: R0_h_total     <= DI;
 			5'd01: R1_h_displayed <= DI;
 			5'd02: R2_h_sync_pos  <= DI;
@@ -186,17 +218,16 @@ always @(posedge CLOCK) begin
 			5'd07: R7_v_sync_pos  <= DI[6:0];
 			5'd08: {R8_skew, R8_interlace} <= {DI[5:4], DI[1:0]};
 			5'd09: R9_v_max_line  <= DI[4:0];
-			5'd12: R12_start_addr_h <= DI[5:0];
+			5'd12: R12_start_addr_h <= DI;
 			5'd13: R13_start_addr_l <= DI;
-			default: ;  // 10/11 status, 14-17 land with later phases
+			5'd14: R14_cursor_h   <= DI[5:0];
+			5'd15: R15_cursor_l   <= DI;
+			default: ;  // 10/11 status group is read-only (§21.2.3);
+			            // 16/17 light pen has no strobe source (header)
 			endcase
 		end
 	end
 end
-
-// P5 owns every readback semantic including the mod-8 select map (§21.2.3);
-// until then the data pin stays at the unselected level.
-assign DO = 8'hFF;
 
 //----------------------------------------------------------------------
 // Horizontal character counter C0 ("HCC")
@@ -327,8 +358,8 @@ always @(posedge CLOCK) begin
 			// row base, so do not overwrite VMA with the stale latch value
 			// on that same edge (ACCC §17.1 p.176 / §17.6.1 p.185).
 			if (!adj_n && (charline_n == 7'd0)) begin
-				vma       <= {R12_start_addr_h, R13_start_addr_l};
-				vma_latch <= {R12_start_addr_h, R13_start_addr_l};
+				vma       <= {R12_start_addr_h[5:0], R13_start_addr_l};
+				vma_latch <= {R12_start_addr_h[5:0], R13_start_addr_l};
 			end
 			else if (!row_latch_event) begin
 				vma <= vma_latch;
@@ -517,6 +548,118 @@ assign ROW  = raster;
 assign ADJ  = in_adj;
 assign MA   = vma;
 assign RA   = raster;
+
+//----------------------------------------------------------------------
+// P5: register readback, status groups (ACCC §21.2.3 p.246, §21.3.4
+// pp.248-249).
+//
+// Reads decode ONLY the three least significant bits of the selected
+// register number through the fixed map
+//   {R16, R17, STATUS1, STATUS2, R12, R13, R14, R15}
+// ("Reading R4 therefore also means reading register 12", §21.2.3;
+// §21.3.4's note that "bit 3 of the register number is forced to 1"
+// describes the same truncation for slots 2/3). Writes keep the full
+// five-bit decode. Both documented read ports (&BE00/&BF00) present
+// RS=1, so reads require RS and the two ports are indistinct by
+// construction (§21.2.3); an RS=0 read cycle hits no documented read
+// port and stays at the unselected level (named assumption). DO is
+// HIGH-NEUTRAL (wired-AND) whenever this module does not answer, the
+// same open-bus convention as asic_regs.
+//
+// [KT] (cpctech cpcplus.html, CRTC section) first published this map
+// with slots 6/7 returning 0; ACCC v1.10 §21.2.3 supersedes that with
+// stored, writable R14/R15. R12 reads return all eight stored bits:
+// bits 7:6 are the §20.5 (p.244) extended start-address bits, kept for
+// readback while the VMA reload consumes R12[5:0] only.
+//
+// STATUS 1 (slot 2) and STATUS 2 (slot 3) are live combinational levels
+// of the counter/pointer state — several bits hold for one character
+// only (§21.3.4 "requires great precision"). The HSYNC/VSYNC boundary
+// rows are read as "the last character/line of the pulse": [KT] states
+// bit 4 = "on last char of HSYNC" and bit 5 = "on last line of VSYNC"
+// outright, and ACCC's "the line R3h from Vsync" counts the pulse
+// 1-based for R3h>0 while its R3h=0 row (value 1, "over 15 lines")
+// describes the 15 lines preceding the 16th; both sources agree on the
+// unified rule implemented below. Effective pulse widths use the
+// documented 0 -> 16 rule (§14.5 HSYNC, §14.2 VSYNC).
+//
+// Named assumptions (each would need its own vector against new
+// evidence):
+//  - R16/R17 hold their reset value: no CPC light-pen strobe exists.
+//  - Status 2 bit 3 resets to 0 and toggles at every 16th frame origin
+//    (§21.3.4.2 "Timer 16 CRTC frames"; §28.1.10 p.293 notes this bit
+//    differs between CRTC 3 and CRTC 4 — type 3 only here).
+//  - Writes to selects 16+ are ignored (ACCC documents read truncation
+//    only; aliased-select write behaviour is not evidenced).
+//----------------------------------------------------------------------
+
+// STATUS 1 (§21.3.4.1 p.248): horizontal-event group.
+wire s1_bit0 = hcc_last;                                    // 1 at C0=R0
+wire s1_bit1 = ~(hcc == {1'b0, R0_h_total[7:1]});           // 0 at C0=R0/2
+wire s1_bit2 = ~((R0_h_total >= R1_h_displayed) &&
+                 (hcc == (R1_h_displayed - 8'd1)));         // 0 at C0=R1-1
+wire s1_bit3 = ~(hcc == R2_h_sync_pos);                     // 0 at C0=R2
+wire [7:0] hsync_last_char = R2_h_sync_pos +
+    ((R3_h_sync_width == 4'd0) ? 8'd16 : {4'd0, R3_h_sync_width}) - 8'd1;
+wire s1_bit4 = ~(hcc == hsync_last_char);                   // 0 on last HSYNC char
+wire s1_bit5 = ~(in_vsync &&
+                 (vsc == (R3_v_sync_width - 4'd1)));        // 0 on last VSYNC line
+// C0=0..R0-1 with VMA LSB 0xFF, or C0=R0 with VMA' LSB 0x00: the next
+// character resets the video-pointer low byte (§21.3.4.1 prose).
+wire s1_bit7 = ~(((hcc != R0_h_total) && (vma[7:0] == 8'hFF)) ||
+                 ((hcc == R0_h_total) && (vma_latch[7:0] == 8'h00)));
+
+// STATUS 2 (§21.3.4.2 p.249): vertical-event group.
+wire s2_bit0 = ~((charline == R4_v_total) &&
+                 (raster == R9_v_max_line) && hcc_last);
+wire s2_bit1 = ~((charline == (R6_v_displayed - 7'd1)) &&
+                 (raster == R9_v_max_line) && hcc_last);
+wire s2_bit2 = ~((charline == (R7_v_sync_pos - 7'd1)) &&
+                 (raster == R9_v_max_line) && hcc_last);
+wire s2_bit3 = frame16_toggle;
+wire s2_bit5 = ~(raster == R9_v_max_line);
+wire s2_bit7 = ((raster == R9_v_max_line) && hcc_last) ||
+               ((raster == 5'd0) && (hcc != R0_h_total));
+
+// Frame-origin strobe: the same edge the video pointers reload from
+// R12/R13 (C4=C9=C0, §20.3.4 p.243).
+reg  [3:0] frame16_cnt;
+reg        frame16_toggle;
+wire frame_origin = CLKEN && hcc_last && !adj_n && (charline_n == 7'd0);
+
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		frame16_cnt    <= 4'd0;
+		frame16_toggle <= 1'b0;
+	end
+	else if (frame_origin) begin
+		if (frame16_cnt == 4'd15) begin
+			frame16_cnt    <= 4'd0;
+			frame16_toggle <= ~frame16_toggle;
+		end
+		else begin
+			frame16_cnt <= frame16_cnt + 4'd1;
+		end
+	end
+end
+
+always @(*) begin
+	DO = 8'hFF;
+	if (ENABLE & ~nCS & R_nW & RS) begin
+		case (addr[2:0])
+			3'd0: DO = {2'b00, R16_pen_h};
+			3'd1: DO = R17_pen_l;
+			3'd2: DO = {s1_bit7, 1'b1, s1_bit5, s1_bit4,
+			            s1_bit3, s1_bit2, s1_bit1, s1_bit0};
+			3'd3: DO = {s2_bit7, 1'b0, s2_bit5, 1'b1,
+			            s2_bit3, s2_bit2, s2_bit1, s2_bit0};
+			3'd4: DO = R12_start_addr_h;
+			3'd5: DO = R13_start_addr_l;
+			3'd6: DO = {2'b00, R14_cursor_h};
+			3'd7: DO = R15_cursor_l;
+		endcase
+	end
+end
 
 //----------------------------------------------------------------------
 // Locked-ASIC pixel path (P1 remainder).
