@@ -248,7 +248,9 @@ wire [4:0]  plus_ra;
 wire [6:0]  plus_vc;   // CRTC3 char line counter (VC; [5:0] used by PRI)
 wire [4:0]  plus_rc;   // C9 raster count within the char line
 wire        plus_adj;  // vertical adjustment active
-wire        plus_int_n;
+wire        plus_ga_int_n;
+wire        plus_dma_int_req;
+wire        plus_int_n = plus_ga_int_n & ~plus_dma_int_req;
 wire        plus_ready, plus_ras_n, plus_cas_n, plus_cpu_n;
 wire        plus_cclk_en_p, plus_cclk_en_n;
 wire        plus_phi_en_p, plus_phi_en_n, plus_phi_n;
@@ -329,7 +331,7 @@ asic_ga_timing asic_ga
 	.HSYNC_O(plus_hsync_o),
 	.VSYNC_O(plus_vsync_o),
 	.SYNC_N(),
-	.INT_N(plus_int_n),
+	.INT_N(plus_ga_int_n),
 	.VBLANK(plus_vblank),
 	.MODE_SYNC_EN(),
 
@@ -446,7 +448,7 @@ asic_regs asic_page
 	// classic machines deliver the stale wired-AND bus byte on ack, and
 	// the review found the ungated form hijacking classic cpu_din.
 	.intack(plus_mode & ~M1_n & iorq),
-	.int_pending(~plus_int_n),
+	.int_pending(~plus_ga_int_n),
 	.dma_int_set(dma_int_set),
 	.vec_byte(plus_vec_byte),
 	.vec_valid(plus_vec_valid),
@@ -466,7 +468,8 @@ asic_regs asic_page
 	.sar1_lo(dma_sar1_lo), .sar1_hi(dma_sar1_hi), .ppr1(dma_ppr1), .sar1_wr(dma_sar1_wr),
 	.sar2_lo(dma_sar2_lo), .sar2_hi(dma_sar2_hi), .ppr2(dma_ppr2), .sar2_wr(dma_sar2_wr),
 	.dcsr_ena_out(dma_dcsr_ena),
-	.dcsr_ena_clr(dma_dcsr_ena_clr)
+	.dcsr_ena_clr(dma_dcsr_ena_clr),
+	.dma_int_req(plus_dma_int_req)
 );
 assign plus_asic_dout = asic_regs_dout;
 assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
