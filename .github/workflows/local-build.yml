@@ -52,7 +52,12 @@ jobs:
 
       - name: Select compile effort
         shell: bash
-        run: scripts/ci/apply-quartus-effort.sh "${{ inputs.effort }}" Amstrad.qsf
+        run: |
+          scripts/ci/apply-quartus-effort.sh "${{ inputs.effort }}" Amstrad.qsf
+          # On the local VM runner under Rosetta 2 emulation, NUM_PARALLEL_PROCESSORS ALL
+          # causes quartus_map helper child processes to deadlock on named-pipe IPC.
+          # Overriding to 1 keeps synthesis single-process and allows fast, clean completion.
+          sed -i 's/NUM_PARALLEL_PROCESSORS ALL/NUM_PARALLEL_PROCESSORS 1/' Amstrad.qsf
 
       - name: Compile Amstrad core
         shell: bash
