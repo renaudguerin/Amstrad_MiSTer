@@ -4,8 +4,8 @@ This is the handoff for the next development and hardware-test session. Hardware
 below remain dated 2026-08-19; current simulation and synthesis evidence is newer. The
 `accc-review-and-fixes` branch now contains the ACCC review/corrections, per-type classic CRTC
 split, F6 Stage 1 full-character approximation, sampled-field soak expansion, production Plus
-P0 cartridge wiring, the simulation-only P1 CRTC3 foundation, and the implemented F7/A1/A2
-classic work. The earlier whole-branch reviews are recorded in
+P0 cartridge wiring, the simulation-only P1 CRTC3 foundation, the implemented F7/A1/A2
+classic work, and the F14/F15 classic closures (2026-08-26, see the newest milestone below). The earlier whole-branch reviews are recorded in
 `accuracy/accc-review-and-fixes-independent-review.md` (pass 1),
 `accuracy/accc-review-and-fixes-independent-review-pass2.md` (pass 2), and
 `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
@@ -26,6 +26,29 @@ session. A green simulation gate is never evidence of hardware accuracy; a manua
 never gates a commit.
 
 ## Hardware-test milestone
+
+`27cb993` is the newest successfully synthesized code milestone (GitHub Actions run
+`32970234749`, 2026-08-26, workflow_dispatch, Quartus 17.0.2, full effort): the merge of
+`accuracy/f14-f15-interlace` -- the F14 additional interlace line on both classic types and
+the F15 type-0 odd-R9 IVM counting with its VSYNC delay correction, fixtures `t27a`-`t27d`,
+`t28a`-`t28c`, `t29a`-`t29e`, independently reviewed by Codex with all four findings
+remediated (`accuracy/f14-f15-independent-review.md`) -- on top of the Plus P4 mobo-bench tip.
+**It has not been hardware-tested.**
+
+- Simulation: 169 required CRTC passes / 0 failed, all Plus leaf/integration suites green;
+  lint clean. Soak re-minted `0x85b3f8e847430495` for F14 and F15 (full chain in AGENTS.md);
+  even-R9 and non-IVM behavior bit-identical, t21-t24 untouched.
+- Logic utilization 28,533 / 41,910 ALMs (68 %); 37,685 registers; 685,217 / 5,662,720
+  block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks; 145 / 314 pins.
+  Versus the previous milestone `c762d36` (29,971 ALMs, 37,442 registers) the classic
+  CRTC delta alone enters the fit: -1,438 ALMs (fitter re-placement around the new
+  frame-end intercept logic), +243 registers, memory/DSP unchanged.
+- Worst-case setup slack +0.635 ns, hold +0.151 ns -- positive; setup improved +0.375 ns
+  versus `c762d36`. No regression signal.
+- RBF retained as `output_files/hardware-milestones/Amstrad_20260826_27cb993.rbf`
+  (SHA-256 `2a94701c30c922f94e3f3bb8050f0e2a5bfa437d90930688330c7ae3d053e79a`). Use a
+  current-tip RBF for the next SHAKER session; interlace-aware tests (SHAKER 22C/3
+  toggles, Module A `(O)`) are the ones this change should move.
 
 The P4 work merged three times (`0dabcb8`, `85b0eaa`, then `143a213`
 on 2026-08-26 carrying review-pass 3-5 remediations with the thread
