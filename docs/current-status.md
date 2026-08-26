@@ -333,6 +333,48 @@ For a first MiSTer pass:
   source-adjudicated; this core keeps the plain-rule entry capture and t25 asserts only
   source-supported deltas. Full adjudication in `compendium-01-counters.md` §4.1.
 
+- D1 follow-ups session, 2026-08-26 (branch `accuracy/d1-followups`, base `6030b4c`):
+  - **Item A** (p.81 adjustment addressing): landed as required-pass pins, not a fix —
+    see the dedicated bullet above. Soak unchanged; the brief's expected re-mint does not
+    apply.
+  - **Item B** (§17.5 R1=0 write deadline, p.185): the RTL already matches the documented
+    deadline via the seam-time `hcc_next==R1` check and the R1 write-hit term (`hcc==DI`);
+    `t26a` (type 0) / `t26b` (type 1) pin it as required passes, bite-tested (disabling the
+    write-hit term fails exactly t26a+t26b). Derived and pinned beyond the chronograms: a
+    too-late write still updates the register, so the live `C0=R1` comparison targets 0 and
+    the too-late line displays past the old R1's end; R1=0 is honored from the next line.
+    Digest §17.5 updated. Soak unchanged.
+  - **Item C** (Q19/Q10/Q12 re-adjudication, fresh renders pp.198-199/205-206/216/219-220/
+    223-224): Q10 RESOLVED — the additional interlace line is generated at the end of the
+    ParityFrame-even frame (type 1 gate ParityFrame even; type 0 gate ParityR6 odd with the
+    R6>R4 freeze) and duration-counted in the following odd frame; labelling is
+    ParityFrame-relative. Q11 RESOLVED (p.205 states even explicitly). Q12 RESOLVED (the
+    source does not assert self-correction; the no-persistent-state reading is recorded as
+    inferred). Q19 main token + (a) RESOLVED (`R9.0=0` is a typo for `R9.0=1`; the
+    three-phase comparison form is pinned by p.220 and already implemented); Q19(b) STILL
+    OPEN, sharpened — the pp.223-224 exit tables imply a frozen-C9.VMA line-end test after a
+    non-matching R8=0 write, while this core resumes a live plain `C9==R9` test on
+    post-write lines (unpinned divergence, documented in the question). Actionable rules
+    opened as finding candidates **F14** (additional interlace line, both types) and
+    **F15** (type-0 odd-R9 IVM counting incl. the §19.5.2 VSYNC delay correction) —
+    fixtures before any RTL.
+  - **Item D**: A4 closed (the `expect_known_*` helpers renamed `expect_xfail_*` with the
+    house rule in the comment; review-debt row done); N-6 closed (`actions/upload-artifact`
+    v4 → v7, standalone; first run resolves it and uploads green).
+  - **CI evidence**: dispatched run `32917100161` (2026-08-26, Quartus 17.0.2) fully green
+    — simulation, policy, synthesis, required gate; the v7 artifact upload verified online.
+    Fitter: 16,208 / 41,910 ALMs (39 %); 21,112 registers; 701,601 / 5,662,720
+    block-memory bits (12 %); 34 / 112 DSP blocks. Worst-case setup slack +0.623 ns, hold
+    +0.231 ns — positive; versus the previous milestone `5d6d342` (16,198 ALMs, 21,030
+    registers) the delta is tool noise on a comment-only RTL change. RBF retained as
+    `output_files/hardware-milestones/Amstrad_20260826_d9abf35.rbf` (SHA-256
+    `26f415d4d9d2723c98168539cbec91fd421b7b79da05c12a602f0f9a89dde259`). Not
+    hardware-tested.
+  - **Soak**: unchanged at `0x63d9de100ac9f6f2` throughout the session — no classic
+    behavior change landed (pins and docs only), so no re-mint is due.
+  - **Review status**: end-of-session cross-provider review of the branch diff happens
+    before merging; outcome recorded in the merge/branch notes.
+
 D1 is complete (2026-08-24): every remaining ⚠ VERIFY flag in the three digests was
 re-verified against the PDF (pdf-inspector Markdown primary, figures judged from rendered
 pages). Outcomes: most flags retired as confirmed; four genuine digest errors corrected —
