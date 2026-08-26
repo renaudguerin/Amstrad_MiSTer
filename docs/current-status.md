@@ -30,8 +30,14 @@ never gates a commit.
 The P4 work merged twice on 2026-08-25 (`0dabcb8`, then `85b0eaa` with
 review pass-2 remediations; see the open review-debt row for pass 3).
 Exact synthesis ran green at the engine tip `e3dd848`/`69e5d91`
-(run `32902476483`: 71 % ALMs / +0.436 ns setup) and again at the first
-merge tip; a fresh dispatch re-confirms at `85b0eaa`.
+(run `32902476483`: 71 % ALMs / +0.436 ns setup), again at the first
+merge tip, and at the second merge tip `dcbc6ad`: GitHub Actions run
+`32914211795` (workflow_dispatch, Quartus 17.0.2) passed simulation,
+policy, exact synthesis and the required gate — 29,971 / 41,910 ALMs
+(72 %); 37,442 registers; worst-case setup slack +0.260 ns, hold
++0.241 ns; RBF artifact `Amstrad_20260826_dcbc6ad.rbf`. The small ALM/
+slack movement from `b533a93` is the walker block-carry fix plus its
+fanout; no regression signal.
 
 `b533a93` was the first merge's synthesized milestone: GitHub Actions run `32905405634`
 (2026-08-25, Quartus 17.0.2, workflow_dispatch at the merge tip) passed
