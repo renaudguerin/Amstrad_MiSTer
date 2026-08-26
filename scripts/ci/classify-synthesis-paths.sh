@@ -46,6 +46,7 @@ while IFS= read -r path; do
 		scripts/ci/classify-synthesis-paths.sh | \
 		scripts/ci/list-synthesized-sources.sh | \
 		scripts/ci/test-classify-synthesis-paths.sh | \
+		scripts/ci/apply-quartus-effort.sh | \
 		Amstrad.qpf | Amstrad.qsf | \
 		sys/* | \
 		rtl/*.qip | rtl/pll.v | rtl/pll/*)
