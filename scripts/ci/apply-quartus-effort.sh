@@ -41,14 +41,13 @@ esac
 cat >> "$qsf" <<'OVERRIDES'
 
 # --- CI smoke tier (scripts/ci/apply-quartus-effort.sh) ---
-set_global_assignment -name OPTIMIZATION_MODE "AGGRESSIVE COMPILE TIME"
 set_global_assignment -name FITTER_EFFORT "FAST FIT"
 set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC OFF
 set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION OFF
 set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING OFF
 set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC_FOR_AREA OFF
 set_global_assignment -name PHYSICAL_SYNTHESIS_ASYNCHRONOUS_SIGNAL_PIPELINING OFF
-set_global_assignment -name FINAL_PLACEMENT_OPTIMIZATION OFF
+set_global_assignment -name FINAL_PLACEMENT_OPTIMIZATION "Never"
 set_global_assignment -name PERIPHERY_TO_CORE_PLACEMENT_AND_ROUTING_OPTIMIZATION OFF
 OVERRIDES
 
