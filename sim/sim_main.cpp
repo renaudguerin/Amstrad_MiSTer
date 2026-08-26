@@ -3897,8 +3897,83 @@ void test_type1_rfd_final_line_write_enters_adjustment(TestBench& test) {
         "exact-R0 final-line RFD write reloads R12/R13 on that rollover",
         0x1234);
     test.expect_type1_rfd_state(
-        "exact-R0 final-line R5 write arms both RFD flags",
+        "exact-R0 final-line R5 write arms parity flag and disables source flag",
+        false, true, false);
+}
+
+void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
+    test.set_crtc_type(1);
+    RegisterProgram registers = kRfdRegisters;
+    registers[4].second = 3;  // R4=3
+    registers[9].second = 1;  // R9=1 (2 lines per row)
+    program_registers(test, registers);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(5);
+    test.reset();
+
+    // Step 1: Trigger an initial RFD on Row 0, Line 0 (C9=0 != R9=1) at C0=R0=7:
+    test.run_characters(7);
+    test.expect_c4("initial RFD trigger at row 0", 0);
+    test.expect_line("initial RFD trigger at C9=0", 0);
+    test.write_selected_register_at_clken(1);
+    test.expect_type1_rfd_state(
+        "initial RFD trigger arms both source and parity flags",
         true, true, false);
+    test.expect_ma(
+        "initial RFD trigger reloads R12/R13 on the arming rollover",
+        0x1234);
+    test.write_register(5, 0);
+
+    // During Row 0 Line 1, program a new base (0x2050):
+    test.write_register(12, 0x20);
+    test.write_register(13, 0x50);
+
+    // Advance through Row 0 Line 1 (8 chars) to Row 1 Line 0 (C4=1, C9=0):
+    test.run_characters(8);
+    test.expect_c4("reaches row 1 line 0", 1);
+    test.expect_line("reaches row 1 line 0 C9=0", 0);
+    test.expect_ma("RFD source flag reloaded 0x2050 on row 1 line 0", 0x2050);
+
+    // During Row 1 Line 0, program another base (0x3070):
+    test.write_register(12, 0x30);
+    test.write_register(13, 0x70);
+
+    // Advance to Row 1, Line 1 (C9=1 == R9=1) at C0=R0=7:
+    test.run_characters(8 + 7);
+    test.expect_c4("reaches row 1 line 1", 1);
+    test.expect_line("reaches C9=R9=1", 1);
+    test.expect_type1_rfd_state(
+        "source flag is still armed before repeated trigger",
+        true, true, false);
+
+    // Step 2: Trigger repeated RFD on line where C9==R9:
+    test.select_register(5);
+    test.write_selected_register_at_clken(1);
+
+    // Finding F17 (ACCC v1.10 §11.6.1 p.88 Case 2): a repeated RFD triggered on
+    // C9=R9 disables the VMA-source state immediately (vma_flag=false) while arming
+    // the parity flag (parity_flag=true).
+    test.expect_type1_rfd_state(
+        "repeated RFD triggered on C9=R9 disables source flag and keeps parity flag",
+        false, true, false);
+
+    // Complete the OUT R5,0 recipe so adjustment does not engage:
+    test.write_register(5, 0);
+
+    // Advance across the rollover to Row 2 Line 0 (C4=2, C9=0):
+    // Because the source flag was disabled by the C9=R9 trigger, VMA must NOT reload
+    // 0x3070 (which would produce MA=0x3071 at C0=1). Instead, it loads VMA' (0x0000).
+    test.run_characters(1);
+    test.expect_c4("advances to row 2 line 0", 2);
+    test.expect_line("reaches row 2 line 0", 0);
+    test.expect_ma("MA on row 2 line 0 did not reload from R12/R13 (0x3070)", 0x0001);
+
+    // Advance through line 0 of Row 2 to line 1 of Row 2:
+    test.run_characters(8);
+    test.expect_c4("advances to row 2 line 1", 2);
+    test.expect_line("reaches row 2 line 1", 1);
+    test.expect_ma("MA on row 2 line 1 continues without reloading 0x3070", 0x0001);
 }
 
 // ---------------------------------------------------------------------------
@@ -5395,47 +5470,167 @@ void t22_exit_even_at_limit(TestBench& test) {
     // p.223 bottom-right table: exiting on the second row's limit line
     // (C9.VMA = 6 = R9) still ends the row (parity dropped from the target
     // only): C9 resets to 0 and C4 increments; plain counting follows.
-    t22_run_exit(test, false, 3, {{1, 3, 6}, {2, 0, 0}, {2, 1, 1}, {2, 2, 2}});
+    t22_run_exit(test, false, 3, {
+        {1, 3, 6},
+        {2, 0, 0}, {2, 1, 1}, {2, 2, 2}, {2, 3, 3}, {2, 4, 4}, {2, 5, 5},
+        {2, 6, 6},  // matches live C9==R9=6
+        {3, 0, 0}, {3, 1, 1}
+    });
 }
 
 void t22_exit_odd_at_r9_plus_1(TestBench& test) {
     // p.224 bottom-right table and the p.220 worked example: exiting on the
     // line whose C9.VMA = 7 = R9+1 misses the parity-dropped test, so C9 is
-    // incremented (to 4) instead of resetting.  The walk stops before the
-    // post-exit row-end zone (Finding F16).
-    t22_run_exit(test, true, 3, {{1, 3, 7}, {1, 4, 4}, {1, 5, 5}});
+    // incremented instead of resetting.  Finding F16: frozen C9.VMA (7 != 6)
+    // keeps line_last false, running through C9=7 without resetting at C9=6.
+    t22_run_exit(test, true, 3, {
+        {1, 3, 7},
+        {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+    });
 }
 
 void t22_exit_odd_below_limit(TestBench& test) {
-    // p.224 third table: exiting at C9.VMA = 5 < 6 misses; C9 continues
-    // with the plain +1 stepping from the next line.
-    t22_run_exit(test, true, 2, {{1, 2, 5}, {1, 3, 3}, {1, 4, 4}});
+    // p.224 third table: exiting at C9.VMA = 5 < 6 misses; Finding F16:
+    // frozen C9.VMA (5 != 6) keeps line_last false, running through C9=7.
+    t22_run_exit(test, true, 2, {
+        {1, 2, 5},
+        {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+    });
 }
 
 void t22_exit_even_below_limit(TestBench& test) {
     // p.223 bottom-left table: same shape on the even frame (C9.VMA = 4
-    // < 6).  Stops before the table's post-exit tail (Finding F16).
-    t22_run_exit(test, false, 2, {{1, 2, 4}, {1, 3, 3}, {1, 4, 4}});
+    // < 6).  Finding F16: frozen C9.VMA (4 != 6) runs through C9=7.
+    t22_run_exit(test, false, 2, {
+        {1, 2, 4},
+        {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+    });
 }
 
 void t22_exit_even_c9_0(TestBench& test) {
-    // p.223 top exit table: exiting at C9.VMA = 0 misses; plain +1 follows.
-    t22_run_exit(test, false, 0, {{1, 0, 0}, {1, 1, 1}, {1, 2, 2}});
+    // p.223 top exit table: exiting at C9.VMA = 0 misses; Finding F16:
+    // frozen C9.VMA (0 != 6) runs through C9=7.
+    t22_run_exit(test, false, 0, {
+        {1, 0, 0},
+        {1, 1, 1}, {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+    });
 }
 
 void t22_exit_even_c9_1(TestBench& test) {
-    // p.223 second exit table: exiting at C9.VMA = 2 misses.
-    t22_run_exit(test, false, 1, {{1, 1, 2}, {1, 2, 2}, {1, 3, 3}});
+    // p.223 second exit table: exiting at C9.VMA = 2 misses; Finding F16:
+    // frozen C9.VMA (2 != 6) runs through C9=7.
+    t22_run_exit(test, false, 1, {
+        {1, 1, 2},
+        {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+    });
 }
 
 void t22_exit_odd_c9_0(TestBench& test) {
-    // p.224 top exit table: exiting at C9.VMA = 1 misses.
-    t22_run_exit(test, true, 0, {{1, 0, 1}, {1, 1, 1}, {1, 2, 2}});
+    // p.224 top exit table: exiting at C9.VMA = 1 misses; Finding F16:
+    // frozen C9.VMA (1 != 6) runs through C9=7.
+    t22_run_exit(test, true, 0, {
+        {1, 0, 1},
+        {1, 1, 1}, {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+    });
 }
 
 void t22_exit_odd_c9_1(TestBench& test) {
-    // p.224 second exit table: exiting at C9.VMA = 3 misses.
-    t22_run_exit(test, true, 1, {{1, 1, 3}, {1, 2, 2}, {1, 3, 3}});
+    // p.224 second exit table: exiting at C9.VMA = 3 misses; Finding F16:
+    // frozen C9.VMA (3 != 6) runs through C9=7.
+    t22_run_exit(test, true, 1, {
+        {1, 1, 3},
+        {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+    });
+}
+
+// ---------------------------------------------------------------------------
+// t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.10 §19.8.1
+// p.220 prose: "program R9 with C9.VMA before the end of the line... so that
+// the comparison between C9.VMA and R9 without parity allows C9 to return
+// back to 0").
+// ---------------------------------------------------------------------------
+
+void t30_type0_post_ivm_exit_recovery_recipe_odd(TestBench& test) {
+    // Exit IVM on odd frame at C9=3 (frozen C9.VMA=7).
+    // Run past C9=6 to C9=7. During line C9=7, write R9=7.
+    // Line ends and matches 7==7, resetting C9 to 0 and advancing C4 to 2.
+    // Row 2 runs with R9=7 in normal non-IVM mode (cycling 0..7).
+    t22_configure(test, true);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(8);
+    test.write_selected_register_now(3);  // enter IVM on line 0
+    for (unsigned n = 0; n < 4 + 3; ++n) {
+        test.run_characters(64);
+    }
+    test.expect_c4("t30 odd exit setup reaches row 1", 1);
+    test.expect_line("t30 odd exit setup reaches C9", 3);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(8);
+    test.write_selected_register_now(0);  // exit IVM at C9=3 (C9.VMA=7)
+
+    const std::vector<T22Step> unrecovered_steps = {
+        {1, 3, 7},  // exit line
+        {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+    };
+    t22_walk(test, "t30 odd exit run", unrecovered_steps);
+
+    // Mid-line during C9=7, reprogram R9 to 7 (matching frozen C9.VMA=7)
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(9);
+    test.write_selected_register_now(7);
+
+    // Complete line C9=7 and advance to line 0 of the recovered row (C4=2).
+    test.run_characters(64);
+
+    // Next line: comparator matched at line end (7==7), resetting C9 to 0 and advancing C4 to 2.
+    // Normal non-IVM counting runs with R9=7.
+    const std::vector<T22Step> recovered_steps = {
+        {2, 0, 0}, {2, 1, 1}, {2, 2, 2}, {2, 3, 3},
+        {2, 4, 4}, {2, 5, 5}, {2, 6, 6}, {2, 7, 7},  // row 2 completes at C9=7
+        {3, 0, 0}, {3, 1, 1}
+    };
+    t22_walk(test, "t30 odd recovered row", recovered_steps);
+}
+
+void t30_type0_post_ivm_exit_recovery_recipe_even(TestBench& test) {
+    // Exit IVM on even frame at C9=1 (frozen C9.VMA=2).
+    // Run past C9=1 to C9=5. During line C9=5, write R9=2.
+    // Line ends and matches 2==2, resetting C9 to 0 and advancing C4 to 2.
+    // Row 2 runs with R9=2 in normal non-IVM mode (cycling 0..2).
+    t22_configure(test, false);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(8);
+    test.write_selected_register_now(3);  // enter IVM on line 0
+    for (unsigned n = 0; n < 4 + 1; ++n) {
+        test.run_characters(64);
+    }
+    test.expect_c4("t30 even exit setup reaches row 1", 1);
+    test.expect_line("t30 even exit setup reaches C9", 1);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(8);
+    test.write_selected_register_now(0);  // exit IVM at C9=1 (C9.VMA=2)
+
+    const std::vector<T22Step> unrecovered_steps = {
+        {1, 1, 2},  // exit line
+        {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}
+    };
+    t22_walk(test, "t30 even exit run", unrecovered_steps);
+
+    // Mid-line during C9=5, reprogram R9 to 2 (matching frozen C9.VMA=2)
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.select_register(9);
+    test.write_selected_register_now(2);
+
+    // Complete line C9=5 and advance to line 0 of the recovered row (C4=2).
+    test.run_characters(64);
+
+    // Next line: comparator matched at line end (2==2), resetting C9 to 0 and advancing C4 to 2.
+    // Normal non-IVM counting runs with R9=2.
+    const std::vector<T22Step> recovered_steps = {
+        {2, 0, 0}, {2, 1, 1}, {2, 2, 2},  // row 2 completes at C9=2
+        {3, 0, 0}, {3, 1, 1}
+    };
+    t22_walk(test, "t30 even recovered row", recovered_steps);
 }
 
 // ---------------------------------------------------------------------------
@@ -6637,7 +6832,7 @@ int main(int argc, char** argv) {
     const std::vector<TestCase> tests = {
         {"t00_reset_and_idle_bus", "CRTC pin-level reset/bus contract", false,
          test_reset_and_idle_bus},
-        {"t01_register_readback", "ACCC v1.10 sections 21.2 and 28.1.9; F1/F11c/F11d",
+        {"t01_register_readback", "ACCC v1.10 sections 21.2.2 and 28.1.9; F1/F11c/F11d/F18",
          false, test_register_readback_table},
         {"t02a_type0_r7_hcc0_blocked", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_hcc0_blocked},
@@ -6901,6 +7096,9 @@ int main(int argc, char** argv) {
         {"t13m_type1_rfd_r0_extend_blanks_from_c0_r1",
          "ACCC v1.10 sections 6.1.3 p.33 and 13.7.1.2 p.124; F-1", false,
          test_type1_rfd_r0_extend_blanks_from_c0_r1},
+        {"t13n_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source",
+         "ACCC v1.10 section 11.6.1 p.88 (RFD triggered on C9=R9 disables VMA-source); F17", false,
+         test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source},
         {"t20a_type0_normal_frame_reloads_at_frame_start_only",
          "ACCC v1.10 sections 17.4.1 and 20.3.1; F11h", false,
          test_type0_normal_frame_reloads_at_frame_start_only},
@@ -7140,6 +7338,13 @@ int main(int argc, char** argv) {
         {"t29e_type0_delay_arm_clears_on_type_switch",
          "Live CRTC_TYPE contract with the F15 delay state; review blocking 1",
          false, t29_type0_delay_arm_clears_on_type_switch},
+        // t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.10 §19.8.1 p.220)
+        {"t30a_type0_post_ivm_exit_recovery_recipe_odd",
+         "ACCC v1.10 section 19.8.1 p.220 prose (recovery recipe by programming R9=C9.VMA, odd frame); F16",
+         false, t30_type0_post_ivm_exit_recovery_recipe_odd},
+        {"t30b_type0_post_ivm_exit_recovery_recipe_even",
+         "ACCC v1.10 section 19.8.1 p.220 prose (recovery recipe by programming R9=C9.VMA, even frame); F16",
+         false, t30_type0_post_ivm_exit_recovery_recipe_even},
     };
 
     unsigned passed = 0;

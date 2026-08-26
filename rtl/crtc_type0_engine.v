@@ -180,6 +180,8 @@ wire register_write = ENABLE & ~nCS & ~R_nW & RS;
 reg        ivm_disp_r;    // this line started with IVM active
 reg        tog_line;      // an R8 toggle write landed during this line
 reg        tog_enter_line;
+reg        ivm_exit_frozen;   // F16: retaining frozen C9.VMA comparator after IVM exit
+reg  [4:0] exit_frozen_vma;
 
 wire r8_write_hit_t0 = !CRTC_TYPE & ENABLE & RS & ~nCS & ~R_nW & (addr == 5'd08);
 wire r8_toggle_write_t0 = r8_write_hit_t0 && ((DI[1:0] == 2'b11) != ivm_disp_r);
@@ -196,21 +198,39 @@ wire r8_toggle_write_t0 = r8_write_hit_t0 && ((DI[1:0] == 2'b11) != ivm_disp_r);
 // an R0=0 freeze therefore loses its one-line target adjustment; the
 // combination (IVM toggle during a frozen C0) is unpinned in the source.
 wire type0_seam = CLKEN && (hcc == 0);
+wire type0_leaving_ivm_line = (tog_line && !tog_enter_line) ||
+                              (r8_toggle_write_t0 && (DI[1:0] != 2'b11));
 
 always @(posedge CLOCK) begin
 	if(~nRESET | SNA_LOAD | CRTC_TYPE) begin
 		ivm_disp_r <= 0;
 		tog_line <= 0;
 		tog_enter_line <= 0;
+		ivm_exit_frozen <= 0;
+		exit_frozen_vma <= 0;
 	end
 	else begin
 		if(type0_seam) begin
 			ivm_disp_r <= (R8_interlace == 2'b11);
 			tog_line <= 0;
 		end
+		if(CLKEN && line_new) begin
+			if(type0_leaving_ivm_line) begin
+				ivm_exit_frozen <= !type0_rollover_line_last;
+			end
+			else if(type0_rollover_line_last) begin
+				ivm_exit_frozen <= 0;
+			end
+		end
 		if(r8_toggle_write_t0) begin
 			tog_line <= 1;
 			tog_enter_line <= (DI[1:0] == 2'b11);
+			if(DI[1:0] != 2'b11) begin
+				exit_frozen_vma <= line_vma;
+			end
+			else begin
+				ivm_exit_frozen <= 0;
+			end
 		end
 		// Named residual (review N-6, 2026-08-25): OUT R8,3 followed by
 		// OUT R8,0 inside one line leaves tog_enter_line set, so that
@@ -294,7 +314,8 @@ wire [5:0] type0_limit_addend = tog_line ? (tog_enter_line ? {5'b00000, parity_f
                                                            : 6'd0) :
                              ivm_disp_r ? {4'b0000, parity_c9 ^ R9_v_max_line[0]} : 6'd0;
 wire [5:0] type0_limit_target6 = {1'b0, R9_v_max_line} + type0_limit_addend;
-wire [4:0] type0_limit_value = ivm_disp_r ? line_vma : line;
+wire [4:0] type0_limit_value = ivm_disp_r ? line_vma :
+                               ivm_exit_frozen ? exit_frozen_vma : line;
 wire       type0_ivm_limit = ({1'b0, type0_limit_value} == type0_limit_target6);
 
 // ACCC v1.10 section 10.3: C9 uses equality, never magnitude.  A zero limit
@@ -409,7 +430,8 @@ wire       type0_c0_zero_adj_entry = type0_zero_adj_entry & ~(type0_r5_at_c0_wri
 // R9-plus-addend target form as the live comparison above, with the seam's
 // own toggle/IVM bits.
 wire       type0_seam_ivm = (R8_interlace == 2'b11);
-wire [4:0] type0_seam_value = type0_seam_ivm ? line_vma : line;
+wire [4:0] type0_seam_value = type0_seam_ivm ? line_vma :
+                              ivm_exit_frozen ? exit_frozen_vma : line;
 wire [5:0] type0_seam_addend = tog_line ? (tog_enter_line ? {5'b00000, parity_frame}
                                                           : 6'd0) :
                              type0_seam_ivm ? {4'b0000, parity_c9 ^ R9_v_max_line[0]} : 6'd0;
