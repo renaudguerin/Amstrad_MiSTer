@@ -2,9 +2,11 @@
 
 Status: **implemented for the unblocked scope, both types; independently reviewed and
 remediated** (2026-08-24/25, branch `accuracy/f10-fixtures`; review record
-`accuracy/f10-independent-review.md` — NOT CLEAR on two blockings, both fixed with vectors). Odd-R9 alternation and the additional interlace line remain
-gated behind author questions Q19 / Q10 as planned (both main gates adjudicated 2026-08-25,
-see "Deliberately unmodeled" below and findings F14/F15);
+`accuracy/f10-independent-review.md` — NOT CLEAR on two blockings, both fixed with vectors).
+The two Q-gated residuals are now closed on this branch: odd-R9 alternation (finding F15)
+and the additional interlace line (finding F14) were implemented 2026-08-26 with their own
+fixture families (`t27`/`t28` for F14, `t29` for F15) — see "Deliberately unmodeled" below
+for what remains open;
 This file is the durable record for a fresh session: what was verified against the PDF,
 what the implemented model is, which conventions the fixtures pin, and what is left open.
 
@@ -124,12 +126,15 @@ write/value port pairs.
 
 ## Deliberately unmodeled / open (with reasons)
 
-- **Odd-R9 alternation** (the p.219 `If R9.0=0` gate token vs its own gloss): the token was
-  adjudicated 2026-08-25 as a typo for `R9.0=1` — the row-end ParityC9 update fires only when
-  R9 is **odd** (author question Q19 main token, RESOLVED by default reading; see
-  accc-author-questions.md item 19). The even-R9 behavior the tables pin needs no row-end
-  ParityC9 update, so none is implemented; odd-R9 counting is now finding candidate **F15**
-  (audit-findings.md) — fixtures before RTL.
+- **Odd-R9 alternation — IMPLEMENTED 2026-08-26 (finding F15, commits `5bec99a`/`1c1d084`)**
+  (the p.219 `If R9.0=0` gate token vs its own gloss): the token was
+  adjudicated 2026-08-25 as a typo for `R9.0=1`. The implemented model: a steady IVM row ends
+  at the first C9.VMA at or past R9 (target `R9 + (ParityC9 xor R9.0)`), ParityC9 :=
+  C4.0(new) xor ParityFrame at every IVM row end with the origin re-anchoring it to the frame
+  parity, and the switch line tests raw C9 against R9 + ParityFrame (the p.219 overflow
+  sentence pins the addition form). Vectors `t29a`/`t29b` reproduce the rendered p.206 R9=7
+  worked example line for line on both frame parities. Even-R9 behavior is bit-identical to
+  the pre-F15 model (the addend reduces to the old R9-or-parity form).
 - **Post-exit row-end behavior** (six of eight exit tables run C9 to 7 with R9=6 without
   the C4 increment the plain test predicts): author question Q19(b), STILL OPEN, sharpened
   2026-08-25 — the tables are consistent with the line-end test comparing the **frozen
@@ -138,11 +143,16 @@ write/value port pairs.
   (unpinned; the `t22` exit walks stop at the write line's seam). If the frozen reading is
   confirmed, the divergence becomes a finding + fixture. See accc-author-questions.md
   item 19(b) for the exact yes/no.
-- **Additional interlace line** (§19.6, both types): Q10 RESOLVED 2026-08-25 by default
-  reading — the line is generated at the end of the ParityFrame-even frame (type 1 gate:
-  ParityFrame even; type 0 gate: ParityR6 odd, with the R6>R4 freeze) and duration-counted
-  in the following odd frame. Now finding candidate **F14** (audit-findings.md); not
-  implemented, fixtures before RTL.
+- **Additional interlace line — IMPLEMENTED 2026-08-26 (finding F14, commit `5bec99a`)**
+  (§19.6, both types): type 0 appends one line after the R5 adjustment lines when R8∈{1,3}
+  and ParityR6 is odd (the line holds C4=R4+1/C9=R5, the frame origin moves to its end, and
+  the R6>R4 freeze persists the gate — vectors `t27a`-`t27d`); type 1 defers the adjustment
+  end by one line when R8∈{1,3}, ParityFrame is even and R9+1 is a multiple of R5 (the extra
+  line holds C9=0 at C4 one past the last adjustment row — vectors `t28a`/`t28b`). Recorded
+  source-attribution residual: the section 11.2.3 p.84 worked example's R5=7 sub-case (8 not
+  a multiple of 7, yet the example shows the line) has no type-1 line under the section
+  19.6.2 condition and is read as the CRTC 2 accounting (section 11.2.5); the example's
+  R5=8 sub-case does match the implemented type-1 behavior.
 - **MID-VSYNC parity coupling**: the wrapper's MID-VSYNC tick and fire still key on the
   legacy `field` flop for the NON-IVM interlace paths; `field` freezes while R8 is outside
   1/3, whereas ParityFrame keeps toggling every frame, so after a mid-frame R8 toggle
@@ -153,23 +163,25 @@ write/value port pairs.
   schedules the MID-VSYNC on the ParityFrame-even frame, which the wrapper now implements
   from ParityFrame directly with a seam-latched fire decision consumed at the half-line
   tick (t24c); the residual covers type-0 IVM and the non-IVM post-episode divergence only.
-- **VSYNC delay-by-1-line correction for odd C4s** (§19.5.2, p.206-207): part of the
-  odd-R9 balancing scheme — now in F15 scope (Q19's main token resolved 2026-08-25; the
-  correction stays unimplemented pending F15 fixtures). Type 1's documented *lack*
-  of the correction (p.208) is now modeled and pinned by `t24a`/`t24b` (2026-08-25, t24
+- **VSYNC delay-by-1-line correction for odd C4s — IMPLEMENTED 2026-08-26 (in F15,
+  commit `1c1d084`)** (§19.5.2, p.206-207): with R9 odd and R7 on an odd C4, the
+  ParityFrame-odd frame fires one line later (second line of C4=R7, C9.VMA=2), keyed
+  through two line-granular staged flops so the seam and half-line count paths move
+  together; vector `t29c`. Type 1's documented *lack*
+  of the correction (p.208) is modeled and pinned by `t24a`/`t24b` (2026-08-25, t24
   closure: the pulse starts at the first line of C4=R7 on both frame parities, giving the
   documented permanent 1-line gap for odd R7), together with the p.208 MID-VSYNC on the
-  ParityFrame-even frame (`t24c`, half-line start/end via a seam-latched fire decision);
-  the type-0 delay itself remains unimplemented.
+  ParityFrame-even frame (`t24c`, half-line start/end via a seam-latched fire decision).
+  The within-line VSYNC phase on type-0 IVM frames still follows the legacy field-keyed
+  mechanics (see the MID-VSYNC residual below) — F15 moves the start line only.
 - **RFD × IVM interaction** (both types): unpinned; the type-1 RFD terms deliberately
   keep the bare C9==R9 comparison.
 - **Type-0 double R8 write in one line** (review N-6): the line keeps its entering-form
   target; unpinned, documented in the engine.
 - **IVM toggle during an R0=0 freeze** (review N-7): the seam fires every CLKEN while C0
   is pinned, consuming the toggle status immediately; unpinned, documented in the engine.
-- **Type-0 odd-R9 IVM is wrong by construction** (finding F15): the p.219 row-end
-  ParityC9 update is absent altogether (its corrected gate is R9 odd, Q19 main token
-  resolved 2026-08-25). Even R9 — everything the tables pin — is unaffected.
+- **Type-0 odd-R9 IVM** — resolved: implemented as finding F15 on 2026-08-26 (see the
+  odd-R9 entry above); even R9 — everything the tables pin — was never affected.
 - **Adjustment during IVM** (both types): adjustment keeps its plain comparisons; the
   interaction is unpinned in the source.
 - **Same-edge coincidences** (stage edge vs row end vs frame boundary): documented
@@ -177,8 +189,8 @@ write/value port pairs.
   C9.0 poke) — the coincidences themselves are unpinned.
 - **Interlace Sync mode (R8=1)**: parity state updates (frame toggle, per-C4 toggle) are
   live, but no IVM counting/display change and no toggle-stage rules fire (the source's
-  stage rules are written for 0↔3). The additional line and MID-VSYNC effects of R8=1
-  remain under finding F14 (Q10 resolved 2026-08-25; fixtures before RTL).
+  stage rules are written for 0↔3). The additional line fires for R8=1 as well (F14: the gate is R8∈{1,3}); the
+  t27 vectors use R8=1 on type 0 precisely to isolate the line from IVM counting.
 
 ## Review outcome
 

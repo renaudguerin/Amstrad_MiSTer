@@ -280,7 +280,7 @@ General implementation rules for all fix prompts:
   book result is an 8-mode-2-px seam with DE low only for the second byte of C0=R0. Record
   any disagreement as evidence before selecting among the already-tested candidate owners.
 
-## F14. Additional interlace line — unimplemented on both types (Q10 resolved)
+## F14. Additional interlace line — IMPLEMENTED on both types (2026-08-26)
 
 - **Rule** (ACCC §19.5.1 p.205, §19.6.1/§19.6.2 p.216, §19.3 p.199, §11.2.4 p.84; renders
   2026-08-25, see accc-author-questions.md item 10): with R8∈{1,3}, one extra line is
@@ -291,23 +291,31 @@ General implementation rules for all fix prompts:
   once for all additional lines (R5 and interlace), C4=R4+1; type 1 increments C4 once more
   on even frames when R9+1 is a multiple of R5. Duration-wise the line lands in the following
   odd frame's count (even frame 19968µs/312 lines, odd frame 20032µs/313 lines, §19.3 p.199).
-- **Current** (this branch): not implemented on either type — the F10 work implemented the
-  parity machinery and the type-1 MID-VSYNC but deliberately left the additional line
-  Q10-gated (`f10-implementation-notes.md` "Additional interlace line"). Q10 was resolved
-  2026-08-25 by default reading; the gate conditions above are now fully sourced.
+- **Current** (branch `accuracy/f14-f15-interlace`, commit `5bec99a`, 2026-08-26):
+  implemented on both types behind the gates above, with the frame origin (C4/C9 reset,
+  ParityFrame snapshot, VMA reload) moved to the additional line's end. Type 0: the line
+  holds C4=R4+1 and continues the adjustment count at C9=R5 ("as if added to R5",
+  section 11.2 p.84); the R6>R4 freeze persists the gate (frozen odd → line every frame,
+  frozen even → never). Type 1: the adjustment end is deferred one line (the extra line
+  holds C9=0 at C4 one past the last adjustment row, section 11.2.4 p.84); with R5=0 the
+  R9+1-multiple condition is vacuous, so adjustment-less frames never gain the line —
+  which is what keeps the t21-t24 IVM walks (all R5=0) undisturbed. Vectors: `t27a`-`t27d`
+  (type 0: basic, after-R5 position, both freeze persistences), `t28a` (type 1 basic,
+  R9=7/R5=4), `t28b` (condition control, required pass). Bite-tested (gate disable, parity
+  term drop, condition drop).
 - **Impact**: IVM/interlace-sync frames are one line short on even frames; total frame
   cadence and any interlace-aware demo effect that depends on the 625-line structure
   diverges. Affects both classic types.
 - **Confidence: high** on the documented gates (three independent sections agree); the
   within-frame counter mechanics (where exactly the extra line sits relative to the R5 count
   and the frame-origin reset) are sourced but unfixed against hardware.
-- **Fix prompt**: fixture first — deterministic vectors deriving the extra line's position
-  and C4/C9 accounting from §19.6.1/§19.6.2 on paper (one per type, plus an R6>R4 freeze
-  case for type 0), as XFAIL pins; then implement in each type's engine. Do not start RTL
-  without the failing fixtures. Interacts with F15 (odd-R9 IVM) only through shared parity
-  state.
+- **Residual** (recorded in `f10-implementation-notes.md`): the section 11.2.3 p.84 worked
+  example's R5=7 sub-case shows the additional line where the section 19.6.2 type-1
+  condition (R9+1 multiple of R5) produces none; it is read as the CRTC 2 accounting
+  (section 11.2.5 — the p.217 bug example is likewise section 19.6.3). The example's R5=8
+  sub-case matches the implemented type-1 behavior exactly.
 
-## F15. Type-0 odd-R9 IVM counting — ParityC9 alternation unimplemented (Q19 token resolved)
+## F15. Type-0 odd-R9 IVM counting — IMPLEMENTED (2026-08-26)
 
 - **Rule** (ACCC §19.8.1 p.219-220, §19.5.2 p.205-206; renders 2026-08-25, see
   accc-author-questions.md item 19): with IVM active and **R9 odd**, the line parity
@@ -318,10 +326,18 @@ General implementation rules for all fix prompts:
   ParityFrame", steady lines C9x2+ParityFrame vs "R9 or ParityC9", exit line C9.VMA vs plain
   R9. §19.5.2's VSYNC delay-by-1-line correction for odd-C4 R7 (p.206-207) is part of the
   same odd-R9 balancing scheme.
-- **Current** (this branch): the row-end ParityC9 update is absent altogether; even R9 —
-  everything the pp.221-224 tables pin — is unaffected and fully vectorised (t22 family).
-  The engine comment records the corrected gate; Q19's main token and sub-question (a) were
-  resolved 2026-08-25 by default reading, lifting the gate that blocked this work.
+- **Current** (branch `accuracy/f14-f15-interlace`, commit `1c1d084`, 2026-08-26):
+  implemented. The limit target is R9 + (ParityC9 xor R9.0) — rows end at the first
+  C9.VMA at or past R9, reproducing the rendered p.206 R9=7 worked example line for line
+  on both frame parities (`t29a`/`t29b`); the p.219 row-end update ParityC9 :=
+  C4.0(new) xor ParityFrame fires at every IVM row end and the origin re-anchors it to
+  the frame parity; the switch line tests raw C9 against R9 + ParityFrame (the p.219
+  overflow sentence pins the addition form); and the section 19.5.2 VSYNC
+  delay-by-1-line correction fires on ParityFrame-odd frames when R7 is odd (`t29c`,
+  the pulse at the second line of C4=R7, C9.VMA=2). Even-R9 behavior is bit-identical to
+  the previous model (the addend reduces to the old R9-or-parity form), so the t22
+  family and every even-R9 vector are unchanged. Bite-tested (parity update off, target
+  form reverted, delay arm off — each fails exactly the t29 family / t29c).
 - **Impact**: type-0 IVM with odd R9 (the p.206 balancing scheme) counts wrong by
   construction; any software using odd-R9 interlace on a type-0 CRTC diverges. Type 1 is
   unaffected (its §19.8.2 scheme is a different, already-implemented structure).
@@ -329,12 +345,12 @@ General implementation rules for all fix prompts:
   medium on the full odd-R9 line sequencing (the p.206 example's within-character 5+4 split
   is not fully derivable from the pseudocode — see Q19(b), still open, for the adjacent
   post-exit ambiguity).
-- **Fix prompt**: fixture first — paper-derive the odd-R9 line sequences from §19.5.2's
-  prose plus the p.206 example (R9=7, both frame parities), encode as XFAIL pins, then
-  implement the row-end update and any limit-test changes in the type-0 engine. The §19.5.2
-  VSYNC delay correction needs its own fixtures. Do not start RTL without the failing
-  fixtures; re-check Q19(b)'s frozen-C9.VMA question (still open with the author) before
-  touching exit behavior.
+- **Residual** (Q19(b), still open with the author): post-exit behavior after a
+  non-matching R8=0 write is deliberately unpinned — the pp.223-224 exit tables imply a
+  frozen-C9.VMA line-end test while this core resumes a live plain C9==R9 test on
+  post-write lines (documented in accc-author-questions.md item 19(b)). The within-line
+  VSYNC phase on type-0 IVM frames still follows the legacy field-keyed mechanics; F15
+  moves the start line only.
 
 ## F7. RFD ("Rupture For Dummies") — CRTC 1 frame-parity address-reload quirk — R5 and R0-widening triggers implemented
 
