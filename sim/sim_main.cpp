@@ -6098,6 +6098,50 @@ void t28_type1_addline_basic(TestBench& test) {
     test.expect_parity_frame("t28a frame 2 is even", 0);
 }
 
+// t28c: the same mechanism reached through INTERLACE SYNC (R8=1) -- the
+// section 19.6.2 gate is R8 in 1,3, and every other type-1 F14 vector runs
+// R8=3 (review non-blocking 4).  Plain (non-IVM) rows of eight lines;
+// otherwise identical to t28a.
+void t28_type1_addline_interlace_sync(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x11}, {4, 2},
+        {5, 4},  {6, 63}, {7, 63}, {8, 1},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_to_c0(TestBench::kF10TargetC0);
+    // Frame 0 (even): three plain rows of eight lines (C9 = 0..7).
+    for (unsigned i = 0; i < 24; ++i) {
+        t27_step_plain(test, "t28c frame 0 line", static_cast<std::uint8_t>(i / 8),
+                       static_cast<std::uint8_t>(i % 8));
+    }
+    for (unsigned i = 0; i < 4; ++i) {
+        t28_step_adjustment(test, "t28c frame 0 adjustment", static_cast<std::uint8_t>(i));
+    }
+    // The additional line: C4 one past the last adjustment row, C9=0.
+    test.expect_c4("t28c additional line C4 incremented once more", 4);
+    test.expect_line("t28c additional line C9=0", 0);
+    test.expect_c5("t28c additional line C5 restarts", 0);
+    // Origin: ParityFrame toggles, adjustment ends.
+    test.run_characters(64);
+    test.expect_c4("t28c frame 1 opens after the additional line", 0);
+    test.expect_parity_frame("t28c frame 1 is odd", 1);
+    test.expect_adjustment_inactive("t28c adjustment ended at the origin");
+    // Frame 1 (odd): no additional line -- direct origin.
+    for (unsigned i = 0; i < 24; ++i) {
+        t27_step_plain(test, "t28c frame 1 line", static_cast<std::uint8_t>(i / 8),
+                       static_cast<std::uint8_t>(i % 8));
+    }
+    for (unsigned i = 0; i < 4; ++i) {
+        t28_step_adjustment(test, "t28c frame 1 adjustment", static_cast<std::uint8_t>(i));
+    }
+    test.expect_c4("t28c frame 2 opens directly (odd frame)", 0);
+    test.expect_parity_frame("t28c frame 2 is even", 0);
+}
+
 // t28b: condition control -- R5=3 does not divide R9+1=8, so even the
 // ParityFrame-even frame 0 must end directly after its adjustment lines
 // (section 19.6.2 p.216: the once-more increment requires the multiple).
@@ -6158,9 +6202,9 @@ void t28_type1_addline_condition_false(TestBench& test) {
 // current line start, then advance one 64-character line.
 static void t29_step(TestBench& test, const char* tag,
                      std::uint8_t c4, std::uint8_t c9, std::uint8_t ra) {
-    test.expect_xfail_c4(std::string(tag) + " C4", c4);
-    test.expect_xfail_line(std::string(tag) + " C9", c9);
-    test.expect_xfail_ra(std::string(tag) + " RA", ra);
+    test.expect_c4(std::string(tag) + " C4", c4);
+    test.expect_line(std::string(tag) + " C9", c9);
+    test.expect_ra(std::string(tag) + " RA", ra);
     test.run_characters(64);
 }
 
@@ -6187,13 +6231,13 @@ void t29_type0_odd_r9_even_frame(TestBench& test) {
     t29_step(test, "t29a c4=0", 0, 4, 8);
     // Row end: ParityC9 = C4.0(new)=1 xor ParityFrame=0 (Q19 gate).
     t29_step(test, "t29a c4=1", 1, 0, 1);
-    test.expect_xfail_parity_c9("t29a row-end ParityC9 update (odd R9)", 1);
+    test.expect_parity_c9("t29a row-end ParityC9 update (odd R9)", 1);
     t29_step(test, "t29a c4=1", 1, 1, 3);
     t29_step(test, "t29a c4=1", 1, 2, 5);
     t29_step(test, "t29a c4=1", 1, 3, 7);
     // ParityC9 back to 0; the even-parity row shape repeats at C4=2.
     t29_step(test, "t29a c4=2", 2, 0, 0);
-    test.expect_xfail_parity_c9("t29a row-end ParityC9 update alternates", 0);
+    test.expect_parity_c9("t29a row-end ParityC9 update alternates", 0);
     t29_step(test, "t29a c4=2", 2, 1, 2);
     t29_step(test, "t29a c4=2", 2, 2, 4);
     t29_step(test, "t29a c4=2", 2, 3, 6);
@@ -6223,12 +6267,12 @@ void t29_type0_odd_r9_odd_frame(TestBench& test) {
     }
     // Skip C4=1 (4 lines) and C4=2 (5 lines): land on the additional line.
     test.run_characters(9 * 64);
-    test.expect_xfail_c4("t29b frame 0 additional line (F14)", 3);
-    test.expect_xfail_line("t29b frame 0 additional line C9=R5", 0);
+    test.expect_c4("t29b frame 0 additional line (F14)", 3);
+    test.expect_line("t29b frame 0 additional line C9=R5", 0);
     // Origin opens frame 1 with ParityFrame := ParityR6 = 1.
     test.run_characters(64);
-    test.expect_xfail_c4("t29b frame 1 opens", 0);
-    test.expect_xfail_parity_frame("t29b frame 1 is odd", 1);
+    test.expect_c4("t29b frame 1 opens", 0);
+    test.expect_parity_frame("t29b frame 1 is odd", 1);
     // Frame 1 C4=0: ParityC9 = frame parity = 1: C9.VMA 1,3,5,7.
     t29_step(test, "t29b frame 1 c4=0", 0, 0, 1);
     t29_step(test, "t29b frame 1 c4=0", 0, 1, 3);
@@ -6236,19 +6280,19 @@ void t29_type0_odd_r9_odd_frame(TestBench& test) {
     t29_step(test, "t29b frame 1 c4=0", 0, 3, 7);
     // Row end: ParityC9 = 1 xor 1 = 0; C4=1 runs the even-parity row.
     t29_step(test, "t29b frame 1 c4=1", 1, 0, 0);
-    test.expect_xfail_parity_c9("t29b frame 1 row-end update", 0);
+    test.expect_parity_c9("t29b frame 1 row-end update", 0);
     t29_step(test, "t29b frame 1 c4=1", 1, 1, 2);
     t29_step(test, "t29b frame 1 c4=1", 1, 2, 4);
     t29_step(test, "t29b frame 1 c4=1", 1, 3, 6);
     t29_step(test, "t29b frame 1 c4=1", 1, 4, 8);
     // C4=2 re-derives ParityC9 = 0 xor 1 = 1.
     t29_step(test, "t29b frame 1 c4=2", 2, 0, 1);
-    test.expect_xfail_parity_c9("t29b frame 1 alternation continues", 1);
+    test.expect_parity_c9("t29b frame 1 alternation continues", 1);
     // Skip the rest of C4=2 (3 lines); frame 1 ends without an additional
     // line (its capture made ParityR6 even) and frame 2 opens even.
     test.run_characters(3 * 64);
-    test.expect_xfail_c4("t29b frame 2 opens directly (odd frame)", 0);
-    test.expect_xfail_parity_frame("t29b frame 2 is even", 0);
+    test.expect_c4("t29b frame 2 opens directly (odd frame)", 0);
+    test.expect_parity_frame("t29b frame 2 is even", 0);
 }
 
 // t29c: the section 19.5.2 VSYNC delay-by-1-line correction.  R7=1 (odd):
@@ -6270,46 +6314,130 @@ void t29_type0_odd_r9_vsync_delay(TestBench& test) {
     test.run_to_c0(36);
     // Frame 0 (even, ParityFrame=0): no delay.  C4=0 runs five quiet lines.
     for (unsigned i = 0; i < 5; ++i) {
-        test.expect_xfail_vsync_low("t29c even frame C4=0 line: pulse not yet due");
+        test.expect_vsync_low("t29c even frame C4=0 line: pulse not yet due");
         test.run_characters(64);
     }
     // C4=1 (VMA 1,3,5,7): pulse starts at the first line, R3v=2 wide.
-    test.expect_xfail_vsync_high("t29c even frame pulse starts at C4=1 first line");
-    test.expect_xfail_c4("t29c even frame pulse is on C4=1", 1);
-    test.expect_xfail_ra("t29c even frame pulse starts at C9.VMA=1", 1);
+    test.expect_vsync_high("t29c even frame pulse starts at C4=1 first line");
+    test.expect_c4("t29c even frame pulse is on C4=1", 1);
+    test.expect_ra("t29c even frame pulse starts at C9.VMA=1", 1);
     test.run_characters(64);
-    test.expect_xfail_vsync_high("t29c even frame pulse second line");
+    test.expect_vsync_high("t29c even frame pulse second line");
     test.run_characters(64);
-    test.expect_xfail_vsync_low("t29c even frame pulse ended");
+    test.expect_vsync_low("t29c even frame pulse ended");
     test.run_characters(64);
-    test.expect_xfail_vsync_low("t29c even frame pulse ended (2/2)");
+    test.expect_vsync_low("t29c even frame pulse ended (2/2)");
     test.run_characters(64);
     // Skip the rest of frame 0 (C4=2's five lines), the F14 additional
     // line and the origin into frame 1.
     test.run_characters(7 * 64);
-    test.expect_xfail_parity_frame("t29c frame 1 is odd", 1);
+    test.expect_parity_frame("t29c frame 1 is odd", 1);
     // Frame 1 (odd, ParityFrame=1): C4=0 runs four quiet lines; three are
     // sampled here and the fourth (the first C4=1 line) in the block below.
     for (unsigned i = 0; i < 3; ++i) {
-        test.expect_xfail_vsync_low("t29c odd frame C4=0 line");
+        test.expect_vsync_low("t29c odd frame C4=0 line");
         test.run_characters(64);
     }
     // C4=1 (VMA 0,2,4,6,8): the pulse is delayed one line -- quiet at
     // VMA=0, up from VMA=2's half-line tick (the documented C4=R7 /
     // C9.VMA=2 fire) through VMA=4, down for VMA=6..8.  R3v=2 counts two
     // half-line ticks on the field=1 frame, i.e. one full line.
-    test.expect_xfail_vsync_low("t29c odd frame: no pulse at the first C4=1 line");
-    test.expect_xfail_c4("t29c odd frame first C4=1 line is C4=1", 1);
-    test.expect_xfail_ra("t29c odd frame first C4=1 line is C9.VMA=0", 0);
+    test.expect_vsync_low("t29c odd frame: no pulse at the first C4=1 line");
+    test.expect_c4("t29c odd frame first C4=1 line is C4=1", 1);
+    test.expect_ra("t29c odd frame first C4=1 line is C9.VMA=0", 0);
     test.run_characters(64);
-    test.expect_xfail_vsync_high("t29c odd frame delayed pulse at C9.VMA=2");
-    test.expect_xfail_ra("t29c odd frame delayed pulse line is C9.VMA=2", 2);
+    test.expect_vsync_high("t29c odd frame delayed pulse at C9.VMA=2");
+    test.expect_ra("t29c odd frame delayed pulse line is C9.VMA=2", 2);
     test.run_characters(64);
-    test.expect_xfail_vsync_high("t29c odd frame delayed pulse still up at C9.VMA=4");
+    test.expect_vsync_high("t29c odd frame delayed pulse still up at C9.VMA=4");
     test.run_characters(64);
-    test.expect_xfail_vsync_low("t29c odd frame pulse ended at C9.VMA=6");
+    test.expect_vsync_low("t29c odd frame pulse ended at C9.VMA=6");
     test.run_characters(64);
-    test.expect_xfail_vsync_low("t29c odd frame quiet at C9.VMA=8");
+    test.expect_vsync_low("t29c odd frame quiet at C9.VMA=8");
+}
+
+// t29d: the odd-R9 switch line (section 19.8.1 p.219).  The switch line
+// tests raw C9 against R9 + ParityFrame -- the addition form, pinned by
+// the overflow sentence: on an odd frame with R9=7 the target is 8, so a
+// switch landing on the raw C9=7 line does NOT end the row and C9
+// overflows to 8 (an OR form would target 7, end the row, and reset C9).
+// The write lands mid-line on the C4=0 row of an odd frame; the next line
+// runs doubled (IVM on from its seam) with C9=8 and C9.VMA = 16+1 = 17.
+void t29_type0_odd_r9_switch_line_overflow(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, 2},
+        {5, 0},  {6, 1},  {7, 63}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    // Frame 0 (even, R8=0): 24 plain lines, no additional line, origin
+    // opens frame 1 odd (section 19.5.2 p.205 snapshot).
+    test.run_characters(24 * 64);
+    test.run_to_c0(TestBench::kF10TargetC0);
+    test.expect_c4("t29d frame 1 opens", 0);
+    test.expect_parity_frame("t29d frame 1 is odd", 1);
+    // Hop to the C4=0 row's last line (raw C9=7) and switch to IVM there.
+    test.run_characters(7 * 64);
+    test.run_to_c0(20);
+    test.select_register(8);
+    test.write_selected_register_at_nclken(3);
+    // The switch line must not end: target R9+ParityFrame = 8 != 7.
+    test.run_characters(48);  // land at C0=4 of the next line
+    test.expect_c4("t29d overflow: no row end at the switch line", 0);
+    test.expect_line("t29d overflow: C9 runs past R9", 8);
+    test.expect_ra("t29d overflow: doubled display from the frame parity", 17);
+}
+
+// t29e: the F15 delay state must not leak across a live type switch
+// (review blocking 1).  An armed d1 clears on the first CLOCK edge after
+// CRTC_TYPE rises, and the wrapper samples the pre-edge value on that same
+// edge -- so the stale window is exactly one edge, reachable only when the
+// switch happens between the last pre-count-tick posedge and the count
+// tick itself.  The vector arms d1 at the C4=0->1 crossing of an odd
+// frame (the natural type-0 fire point, suppressed by the documented
+// one-line delay), rewrites R8 to 0 so the type-1 side takes the plain
+// field branch, burns phases 1..15, switches type after phase 15's edge,
+// and requires the type-1 natural VSYNC fire on the immediately following
+// count tick (hcc_next==R0/2 with R0=3, row==R7=1, line==0).
+void t29_type0_delay_arm_clears_on_type_switch(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 3}, {1, 1}, {2, 1}, {3, 0x21}, {4, 2},
+        {5, 0}, {6, 1}, {7, 1}, {8, 3},    {9, 1},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    // Frame 0 (even, ParityFrame=0): rows 0..2 run 2/1/2 lines plus the F14
+    // additional line; the sixth line wrap opens frame 1 odd.  24
+    // characters from the post-reset hcc=1 lands at C0=1 of frame 1's
+    // first line.
+    test.run_characters(24);
+    test.expect_parity_frame("t29e frame 1 is odd", 1);
+    // Rewrite R8 to 0 during frame 1's C4=0 row: the leaving toggle keeps
+    // the plain-R9 target for the row-end match, and the type-1 side after
+    // the switch takes the plain field branch (interlace bit 0 cleared).
+    test.write_register(8, 0);
+    // Cross the row-end edge (the natural type-0 fire point: row_next==R7,
+    // line_last on C9.VMA=1): the fire is suppressed and d1 arms.  The hop
+    // stops just past that edge, at C0=0 of the C4=1 row with row==R7 and
+    // line==0.
+    test.run_to_c0(0);
+    // Burn phases 1..15 of this character; the next tick is the phase-0
+    // CLKEN that increments hcc 0->1, i.e. the field count tick.
+    test.run_clock_ticks(15);
+    // Switch type after phase 15's posedge: the count tick is then the
+    // first post-switch edge, sampling the stale pre-clear d1.
+    test.set_crtc_type(1);
+    test.run_clock_ticks(1);
+    // The fire sets VSYNC_r at that edge; the output register follows one
+    // tick later.
+    test.run_clock_ticks(2);
+    test.expect_vsync_high("t29e type-1 natural fire survives the switch");
 }
 
 }  // namespace
@@ -6990,6 +7118,9 @@ int main(int argc, char** argv) {
         {"t28b_type1_addline_condition_false",
          "ACCC v1.10 section 19.6.2 p.216 (R9+1 multiple of R5 gate); F14",
          false, t28_type1_addline_condition_false},
+        {"t28c_type1_addline_interlace_sync",
+         "ACCC v1.10 section 19.6.2 p.216 (gate R8 in 1,3); F14/review",
+         false, t28_type1_addline_interlace_sync},
         // t29: F15 type-0 odd-R9 IVM counting (ACCC v1.10 section 19.5.2
         // pp.205-206 and section 19.8.1 with the Q19-adjudicated gate).
         // Fixture-first XFAIL pins; the behavior commit flips them.
@@ -7002,6 +7133,12 @@ int main(int argc, char** argv) {
         {"t29c_type0_odd_r9_vsync_delay",
          "ACCC v1.10 sections 19.5.2 pp.205-206 (odd-C4 R7 VSYNC delay); F15",
          false, t29_type0_odd_r9_vsync_delay},
+        {"t29d_type0_odd_r9_switch_line_overflow",
+         "ACCC v1.10 section 19.8.1 p.219 (switch line R9+ParityFrame, overflow); F15/review",
+         false, t29_type0_odd_r9_switch_line_overflow},
+        {"t29e_type0_delay_arm_clears_on_type_switch",
+         "Live CRTC_TYPE contract with the F15 delay state; review blocking 1",
+         false, t29_type0_delay_arm_clears_on_type_switch},
     };
 
     unsigned passed = 0;
