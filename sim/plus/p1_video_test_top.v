@@ -146,6 +146,9 @@ module p1_video_test_top (
 		.LINE(),
 		.ROW(),
 		.ADJ(),
+		.SPLT(8'd0),
+		.SSA(14'd0),
+		.SSCR(8'd0),
 		.PIXEN(cen_16),
 		.VIDEOD(vidword),
 		.GAMODE(gamode),
@@ -154,7 +157,10 @@ module p1_video_test_top (
 		.RGB_R(rgb_r),
 		.RGB_G(rgb_g),
 		.RGB_B(rgb_b),
-		.PEN(pen)
+		.PEN(pen),
+		.HWRAP(),
+		.SPR_EN(1'b0),
+		.SPR_RGB(12'd0)
 	);
 	assign dbg_vidword = vidword;
 	assign dbg_vbs = vram_bs;

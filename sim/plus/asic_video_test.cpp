@@ -39,6 +39,11 @@ public:
         dut.VIDEOD = 0;
         dut.GAMODE = 0;
         dut.BORDER_I = 20;   // black border by default
+        dut.SPLT = 0;
+        dut.SSA = 0;
+        dut.SSCR = 0;
+        dut.SPR_EN = 0;
+        dut.SPR_RGB = 0;
         for (unsigned k = 0; k < 16; ++k) {
             set_inkr(k, 20);
         }
@@ -263,6 +268,9 @@ public:
     void set_border(unsigned hw_colour) { dut.BORDER_I = hw_colour; }
     void set_mode(unsigned mode) { dut.GAMODE = mode; }
     void set_videod(unsigned videod_word) { dut.VIDEOD = videod_word; }
+    void set_splt(std::uint8_t splt) { dut.SPLT = splt; dut.eval(); }
+    void set_ssa(std::uint16_t ssa) { dut.SSA = ssa & 0x3FFFU; dut.eval(); }
+    void set_sscr(std::uint8_t sscr) { dut.SSCR = sscr; dut.eval(); }
     bool hsync() const { return dut.HSYNC != 0; }
 
     void run_dots(unsigned dots) {
@@ -1701,7 +1709,230 @@ void t07g_readonly_and_neutral_cycles(TestBench& test) {
                                  test.sample_selected(true, true, false));
 }
 
-constexpr std::array<TestCase, 45> kTests = {{
+// P6: Screen split (SPLT &6801, SSA &6802/&6803) and Soft scroll (SSCR &6804).
+// Sources: docs/plus/references/asic-reference.md §8 ([ARNOLD §2.3/§2.5], [KT], [QUASAR], ACCC §20.5).
+
+// t08a: Screen split capture at HCC==R1 on the SPLT line, line reload from SSA,
+// and subsequent row advance from the SSA base.
+void t08a_split_screen_capture_and_advance(TestBench& test) {
+    program_display_frame(test);
+    // program_display_frame: R0=7 (8 chars/line), R1=4, R9=3 (4 lines/row), R4=2.
+    // SPLT = 9: {charline=1, raster=1} -> (1 << 3) | 1 = 9. SSA = 0x2400.
+    test.set_splt(9);
+    test.set_ssa(0x2400);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+
+    // Row 0 lines 0..3 (scanlines 0..3): MA starts at 0x1234.
+    test.expect_ma("t08a row 0 line 0", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08a row 0 line 1", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08a row 0 line 2", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08a row 0 line 3", 0x1234);
+
+    // Row 1 line 0 (scanline 4, {1, 0} = 8): starts at 0x1234 + 4 = 0x1238.
+    test.run_characters(8);
+    test.expect_ma("t08a row 1 line 0", 0x1238);
+
+    // Row 1 line 1 (scanline 5, {1, 1} = 9 == SPLT): starts at 0x1238.
+    test.run_characters(8);
+    test.expect_ma("t08a split line starts with pre-split base", 0x1238);
+
+    // Row 1 line 2 (scanline 6): line after SPLT starts with SSA (0x2400)!
+    test.run_characters(8);
+    test.expect_ma("t08a line after SPLT starts with SSA", 0x2400);
+
+    // Row 1 line 3 (scanline 7): starts with SSA (0x2400).
+    test.run_characters(8);
+    test.expect_ma("t08a row 1 line 3 starts with SSA", 0x2400);
+
+    // Row 2 line 0 (scanline 8): starts with SSA + R1 (0x2400 + 4 = 0x2404)!
+    test.run_characters(8);
+    test.expect_ma("t08a subsequent row advances from SSA base", 0x2404);
+
+    // Verify next frame start reloads from R12/R13 (0x1234).
+    test.run_to_frame_start();
+    test.expect_ma("t08a frame start restores R12/R13 base", 0x1234);
+}
+
+// t08b: SPLT=0 turns off the screen split facility; SSA is never latched.
+void t08b_split_screen_disabled_when_zero(TestBench& test) {
+    program_display_frame(test);
+    test.set_splt(0);
+    test.set_ssa(0x3000);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+
+    test.expect_ma("t08b row 0", 0x1234);
+    test.run_characters(8 * 4); // 4 lines of row 0
+    test.expect_ma("t08b row 1", 0x1234 + 4);
+    test.run_characters(8 * 4); // 4 lines of row 1
+    test.expect_ma("t08b row 2", 0x1234 + 8);
+}
+
+// t08c: Multiple splits per frame by reprogramming SPLT/SSA mid-frame.
+void t08c_split_screen_multiple_splits(TestBench& test) {
+    program_display_frame(test);
+    // Split 1 at row 1, line 0 ({1, 0} = 8) to 0x2000.
+    test.set_splt(8);
+    test.set_ssa(0x2000);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+
+    test.run_characters(8 * 4); // scanline 4 (split 1 line)
+    test.expect_ma("t08c split 1 line start", 0x1238);
+    test.run_characters(8);     // scanline 5 (line after split 1)
+    test.expect_ma("t08c split 1 applied", 0x2000);
+
+    // Reprogram mid-frame for second split at row 2, line 0 ({2, 0} = 16) to 0x3000.
+    test.set_splt(16);
+    test.set_ssa(0x3000);
+
+    test.run_characters(8 * 2); // scanlines 6 and 7 (row 1 lines 2 and 3)
+    test.expect_ma("t08c row 1 line 3 still 0x2000", 0x2000);
+
+    test.run_characters(8);     // scanline 8 (split 2 line == row 2 line 0)
+    test.expect_ma("t08c row 2 line 0 starts at 0x2004", 0x2004);
+    test.run_characters(8);     // scanline 9 (line after split 2)
+    test.expect_ma("t08c split 2 applied", 0x3000);
+}
+
+// t08d: Split on row boundary (last line of a character row: raster == R9).
+void t08d_split_screen_row_boundary(TestBench& test) {
+    program_display_frame(test);
+    // SPLT = 11: row 1, raster 3 ({1, 3} = (1 << 3) | 3 = 11).
+    test.set_splt(11);
+    test.set_ssa(0x2800);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+
+    test.run_characters(8 * 7); // scanline 7 (row 1, raster 3)
+    test.expect_ma("t08d row 1 line 3 start", 0x1238);
+    test.run_characters(8);     // scanline 8 (row 2, line 0)
+    // Next row starts directly from SSA (0x2800) because split overrode row capture.
+    test.expect_ma("t08d next row starts from SSA", 0x2800);
+}
+
+// t08e: SSCR[6:4] vertical scanline offset added to RA[2:0].
+void t08e_sscr_vertical_scanline_offset(TestBench& test) {
+    program_display_frame(test);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+
+    // Line 0: raster = 0. SSCR = 0 -> RA = 0.
+    test.set_sscr(0x00);
+    test.expect_ra("t08e sscr 0 raster 0", 0);
+    test.expect_row("t08e row 0", 0);
+
+    // Advance to line 1: raster = 1. SSCR = 0x10 (offset 1) -> RA = 2.
+    test.run_characters(8);
+    test.expect_row("t08e row 1", 1);
+    test.set_sscr(0x10);
+    test.expect_ra("t08e sscr 1 raster 1", 2);
+
+    // Advance to line 2: raster = 2. SSCR = 0x30 (offset 3) -> RA = 5.
+    test.set_sscr(0x30);
+    test.run_characters(8);
+    test.expect_row("t08e row 2", 2);
+    test.expect_ra("t08e sscr 3 raster 2", 5);
+
+    // Advance to line 3: raster = 3. SSCR = 0x30 (offset 3) -> RA = 6.
+    test.run_characters(8);
+    test.expect_row("t08e row 3", 3);
+    test.expect_ra("t08e sscr 3 raster 3", 6);
+}
+
+// t08f: SSCR[3:0] horizontal pixel delay (0-15 mode-2 pixels).
+void t08f_sscr_horizontal_pixel_delay(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    test.set_ga(2, 20 /* black border */, 0x0080 /* even byte = 0x80: bit 7 is ink 1 */);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    test.run_dots(1); // CLKEN edge: latches vid_even and decodes dot 0 pen
+
+    // Delay 0: bit 7 (ink 1 = white) is at dot 0 -> output RGB at dot 1 is white.
+    test.set_sscr(0x00);
+    test.run_dots(1); // dot 0 presented to RGB flops
+    test.expect_rgb("t08f delay 0 dot 1 is white", 15, 15, 15);
+    test.run_dots(1); // dot 1 presented
+    test.expect_rgb("t08f delay 0 dot 2 is black", 0, 0, 0);
+
+    // Delay 4: bit 7 appears at dot 4 -> output RGB at dot 5 is white.
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    test.set_sscr(0x04);
+    test.run_dots(1); // CLKEN edge
+
+    test.run_dots(1);
+    test.expect_rgb("t08f delay 4 dot 1 is black", 0, 0, 0);
+    test.run_dots(3);
+    test.expect_rgb("t08f delay 4 dot 4 is black", 0, 0, 0);
+    test.run_dots(1);
+    test.expect_rgb("t08f delay 4 dot 5 is white", 15, 15, 15);
+    test.run_dots(1);
+    test.expect_rgb("t08f delay 4 dot 6 is black", 0, 0, 0);
+}
+
+// t08g: SSCR[7] border mask over first 16 dots of active display, with sprites unaffected.
+void t08g_sscr_border_mask_and_sprites(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    test.set_ga(2, 20 /* black border */, 0xFFFF /* all ink 1 = white */);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    test.run_dots(1); // CLKEN edge
+
+    // With SSCR[7] = 1 (0x80):
+    test.set_sscr(0x80);
+    // Character 0 (dots 0..15) of active display is masked to border (black).
+    for (unsigned d = 1; d <= 16; ++d) {
+        test.run_dots(1);
+        test.expect_rgb("t08g char 0 masked to border", 0, 0, 0);
+    }
+    // Character 1 (dots 16..31) displays screen ink (white).
+    test.run_dots(1);
+    test.expect_rgb("t08g char 1 unmasked screen ink", 15, 15, 15);
+
+    // Now test with sprite enabled: sprite is green (0, 15, 0).
+    test.set_sprite(1, 0, 15, 0);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    test.run_dots(1); // CLKEN edge
+
+    test.run_dots(1);
+    test.expect_rgb("t08g sprite displays over masked border", 0, 15, 0);
+    test.set_sprite(0, 0, 0, 0);
+}
+
+// t08h: 14-bit VMA overscan carry across 10-bit and 12-bit boundaries (§20.5 p.244).
+void t08h_overscan_carry_14bit(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(12, 0x03);
+    test.write_register(13, 0xFE);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+
+    test.expect_ma("t08h row 0 line 0 start", 0x03FE);
+    test.run_characters(2);
+    test.expect_ma("t08h overscan carry across 0x03FF to 0x0400", 0x0400);
+
+    test.run_characters(6);
+    test.expect_ma("t08h row 0 line 1 start", 0x03FE);
+
+    test.run_characters(8 * 3);
+    test.expect_ma("t08h row 1 starts with overscan carried base", 0x0402);
+}
+
+constexpr std::array<TestCase, 53> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -1752,6 +1983,14 @@ constexpr std::array<TestCase, 45> kTests = {{
     {"t07e STATUS2 vertical events", t07e_status2_vertical_events},
     {"t07f STATUS2 16-frame timer", t07f_status2_frame16_timer},
     {"t07g read-only slots, dual read ports and neutral cycles", t07g_readonly_and_neutral_cycles},
+    {"t08a screen split capture and advance", t08a_split_screen_capture_and_advance},
+    {"t08b screen split disabled when zero", t08b_split_screen_disabled_when_zero},
+    {"t08c multiple splits per frame", t08c_split_screen_multiple_splits},
+    {"t08d split on row boundary", t08d_split_screen_row_boundary},
+    {"t08e SSCR vertical scanline offset", t08e_sscr_vertical_scanline_offset},
+    {"t08f SSCR horizontal pixel delay", t08f_sscr_horizontal_pixel_delay},
+    {"t08g SSCR border mask and sprites", t08g_sscr_border_mask_and_sprites},
+    {"t08h 14-bit VMA overscan carry", t08h_overscan_carry_14bit},
 }};
 
 }  // namespace

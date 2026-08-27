@@ -79,7 +79,13 @@ module plus_mmu
 	output reg  [7:0] cart_dout,   // stable while cart_own
 
 	// stored ASIC-page enable (RMR2 D4D3 = 11); consumed from P2 onward
-	output reg        asic_page_on
+	output reg        asic_page_on,
+
+	input             sna_load,
+	/* verilator lint_off UNUSEDSIGNAL */
+	input      [7:0]  sna_rmr2,
+	/* verilator lint_on UNUSEDSIGNAL */
+	input             sna_unlock
 );
 
 localparam [1:0] CART_IDLE    = 2'd0;
@@ -127,7 +133,9 @@ asic_unlock unlock_detector
 	.RESET_N(~reset),
 	.write_strobe(unlock_write),
 	.write_data(D),
-	.unlocked(unlocked)
+	.unlocked(unlocked),
+	.sna_load(sna_load),
+	.sna_unlock(sna_unlock)
 );
 
 // Window decode
@@ -140,7 +148,7 @@ wire window_hit = mem_rd & (low_hit | high_hit);
 // High-window physical page (see header table). Sampled live.
 reg [4:0] high_page;
 always @(*) begin
-	if (romsel[7])           high_page = romsel[4:0];
+	if (romsel >= 8'd128)    high_page = romsel[4:0];
 	else if (gx4000)         high_page = 5'd1;
 	else if (romsel == 8'd7) high_page = 5'd3;
 	else if (romsel == 8'd0) high_page = exp_n ? 5'd3 : 5'd1;
@@ -154,6 +162,11 @@ always @(posedge clk) begin
 		rmr2_page    <= 3'd0;
 		asic_page_on <= 1'b0;
 		romsel       <= 8'h00;
+	end
+	else if (sna_load) begin
+		rmr2_pos     <= (sna_rmr2[4:3] == 2'b11) ? 2'b00 : sna_rmr2[4:3];
+		rmr2_page    <= sna_rmr2[2:0];
+		asic_page_on <= (sna_rmr2[4:3] == 2'b11);
 	end
 	else begin
 		// RMR2 is a Gate-Array port payload; the Plus IN=OUT trap applies
