@@ -37,6 +37,17 @@ cleared the remediation delta on 2026-08-24, after which the branch was merged i
 
 ## Cleared rows
 
+- `plus/p8-polish-sna` — CLOSED 2026-08-27. Independent cross-provider
+  review on the P8 aggregate diff (`plus/p5-crtc3-bus...HEAD`). Verdict
+  CLEAR with 0 blocking issues. Verified ASIC PPI 8255 quirks (Port B
+  input-only, Port C output-only, control word rewrite latch preservation),
+  ADC paddle registers `&6808-&680F` default readings (`3F 3F 3F 3F 3F 00 3F 00`),
+  grayscale/monochrome luma weighting (`G:R:B = 9:3:1`), SNA v3 `CPC+` chunk
+  parser/unpacker (2296 bytes restoring sprite RAM, sprite attributes,
+  palette, raster/interrupt, sound DMA, RMR2, and ASIC lock), unit tests
+  `sim/plus/plus_p8_test.cpp`, and expanded `asic_regs_test.cpp`. Full simulation,
+  lint, and classic soak (`0x85b3f8e847430495`) pass clean. Full record:
+  `docs/plus/p8-independent-review.md`.
 - `plus/p7-dma-sound` — CLOSED 2026-08-26. Independent cross-provider
   review on the P7 aggregate diff (`plus/p5-crtc3-bus...HEAD`). Initial
   verdict NOT CLEAR on three blocking findings (B1: stale SAR register
