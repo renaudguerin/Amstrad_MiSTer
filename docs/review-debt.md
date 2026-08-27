@@ -37,6 +37,37 @@ cleared the remediation delta on 2026-08-24, after which the branch was merged i
 
 ## Cleared rows
 
+- `plus/p8-polish-sna` — CLOSED 2026-08-27. Independent cross-provider
+  review on the P8 aggregate diff (`plus/p5-crtc3-bus...HEAD`). Verdict
+  CLEAR with 0 blocking issues. Verified ASIC PPI 8255 quirks (Port B
+  input-only, Port C output-only, control word rewrite latch preservation),
+  ADC paddle registers `&6808-&680F` default readings (`3F 3F 3F 3F 3F 00 3F 00`),
+  grayscale/monochrome luma weighting (`G:R:B = 9:3:1`), SNA v3 `CPC+` chunk
+  parser/unpacker (2296 bytes restoring sprite RAM, sprite attributes,
+  palette, raster/interrupt, sound DMA, RMR2, and ASIC lock), unit tests
+  `sim/plus/plus_p8_test.cpp`, and expanded `asic_regs_test.cpp`. Full simulation,
+  lint, and classic soak (`0x85b3f8e847430495`) pass clean. Full record:
+  `docs/plus/p8-independent-review.md`.
+- `plus/p7-dma-sound` — CLOSED 2026-08-26. Independent cross-provider
+  review on the P7 aggregate diff (`plus/p5-crtc3-bus...HEAD`). Initial
+  verdict NOT CLEAR on three blocking findings (B1: stale SAR register
+  sampling on CPU writes; B2: DMA interrupts disconnected from CPU /INT;
+  B3: DCSR bit 6 and 4 flags swapped on read and W1C). Remediated in-branch
+  and verified with 10 unit tests (d01-d10) in asic_dma_test, DCSR tests in
+  asic_regs_test, and mobo bench m11. Full simulation, lint, and classic soak
+  (0x85b3f8e847430495) pass clean. Final verdict CLEAR. Full record:
+  `docs/plus/p7-independent-review.md`.
+- `plus/p6-split-scroll` — CLOSED 2026-08-26. Independent cross-provider
+  review on the P6 aggregate diff (`plus/p5-crtc3-bus...3405d0c`). Verdict
+  CLEAR with 0 blocking issues. Verified screen split (`&6801` SPLT,
+  `&6802/&6803` SSA) VMA latching at HCC==R1, line reload and row advance,
+  14-bit VMA overscan carry across 16K boundaries, soft scroll (`&6804`
+  SSCR) RA[2:0] vertical scanline offset, 16-dot horizontal pixel shift
+  delay, SSCR[7] border mask over active display dots 0..15, sprite
+  immunity over masked border, motherboard integration wiring, unit
+  vectors t08a-t08h in asic_video_test, and mobo bench m10. Full simulation,
+  lint, and classic soak (0x85b3f8e847430495) pass clean. Full record:
+  `docs/plus/p6-independent-review.md`.
 - `plus/p5-crtc3-bus` — CLOSED 2026-08-26. Claude Opus 5 high review on
   the P5 aggregate diff (`27cb993..8523136`). Initial verdict NOT CLEAR on
   two blockings (B1: STATUS 1 bit 4 comparator off-by-one / 0=>16

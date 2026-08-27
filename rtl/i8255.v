@@ -36,6 +36,8 @@ module i8255
 	input     [7:0] ipc, 
 	output    [7:0] opc,
 
+	input           plus_mode,
+
 	input           sna_load,
 	input     [7:0] sna_opa,
 	input     [7:0] sna_opb,
@@ -74,8 +76,8 @@ always @* begin
 	casex({oe&cs,addr})
 		'b0XX: odata = 8'hFF;
 		'b100: odata =(mode[4] | mode[6]) ? ipa : opa_r;
-		'b101: odata = mode[1] ? ipb : opb_r;
-		'b110: odata ={mode[3] ? (ipc[7:4] & maskC[7:4]) | tapemotor : opc_r[7:4], mode[0] ? ipc[3:0] & maskC[3:0] : opc_r[3:0]};
+		'b101: odata = (plus_mode | mode[1]) ? ipb : opb_r;
+		'b110: odata = plus_mode ? opc_r : {mode[3] ? (ipc[7:4] & maskC[7:4]) | tapemotor : opc_r[7:4], mode[0] ? ipc[3:0] & maskC[3:0] : opc_r[3:0]};
 		'b111: odata = mode;
 	endcase
 end
@@ -90,12 +92,16 @@ always @(posedge clk_sys) begin
 		if(~old_we & we & cs) begin
 			case(addr)
 				0: opa_r <= idata;
-				1: opb_r <= idata;
-				2: opc_r <= (idata & maskC) | (opc_r & ~maskC);
+				1: if (!plus_mode) opb_r <= idata;
+				2: opc_r <= plus_mode ? idata : ((idata & maskC) | (opc_r & ~maskC));
 
 				default: begin
-					if (~idata[7]) opc_r[idata[3:1]] <= idata[0];
-						else {opa_r,opb_r,opc_r,mode} <= {8'h00,8'h00,8'h00,idata};
+					if (~idata[7])
+						opc_r[idata[3:1]] <= idata[0];
+					else if (plus_mode)
+						mode <= idata;
+					else
+						{opa_r,opb_r,opc_r,mode} <= {8'h00,8'h00,8'h00,idata};
 				end
 			endcase
 		end

@@ -279,6 +279,16 @@ reg  [15:0] sna_chunk_out = 16'd0;
 reg   [1:0] sna_rle_state = 2'd0;
 reg   [7:0] sna_rle_count = 8'd0;
 reg   [7:0] sna_rle_value = 8'd0;
+reg         sna_chunk_cpc_plus = 1'b0;
+reg         sna_cpc_plus_start = 1'b0;
+reg         sna_cpc_plus_wr    = 1'b0;
+
+wire        plus_sna_wr;
+wire [13:0] plus_sna_addr;
+wire  [7:0] plus_sna_data;
+wire        plus_sna_active;
+wire  [7:0] plus_sna_rmr2;
+wire        plus_sna_unlock;
 
 assign ioctl_wait = romdl_wait | (sna_download && |sna_rle_count && (sna_rle_state == 2'd0)) | cpr_ioctl_wait;
 
@@ -489,6 +499,9 @@ always @(posedge clk_sys) begin
 		sna_rle_state <= 2'd0;
 		sna_rle_count <= 8'd0;
 		sna_rle_value <= 8'd0;
+		sna_chunk_cpc_plus <= 1'b0;
+		sna_cpc_plus_start <= 1'b0;
+		sna_cpc_plus_wr    <= 1'b0;
 		sna_finish_pending <= 1'b0;
 	end
 	if(sna_download && ioctl_wr && !romdl_wait && (!sna_rle_count || (sna_rle_state == 2'd2)) && (ioctl_addr >= sna_chunk_start)) begin
@@ -512,11 +525,18 @@ always @(posedge clk_sys) begin
 					sna_chunk_mem <= (next_name[31:24] == "M") && (next_name[23:16] == "E") &&
 					                 (next_name[15:8] == "M") && (next_name[7:0] >= "0") &&
 					                 (next_name[7:0] <= "1");
+					sna_chunk_cpc_plus <= (next_name[31:24] == "C") && (next_name[23:16] == "P") &&
+					                      (next_name[15:8] == "C") && (next_name[7:0] == "+");
 					sna_chunk_rle <= (next_len != 32'd65536);
 					sna_chunk_finish <= 1'b0;
 					sna_chunk_bank <= next_name[3:0];
 					if((next_name[31:24] == "M") && (next_name[23:16] == "E") &&
 					   (next_name[15:8] == "M") && (next_name[7:0] == "1")) sna_model <= 2'd0;
+					if((next_name[31:24] == "C") && (next_name[23:16] == "P") &&
+					   (next_name[15:8] == "C") && (next_name[7:0] == "+")) begin
+						sna_cpc_plus_start <= 1'b1;
+						sna_model <= 2'd0;
+					end
 					sna_chunk_out <= 16'd0;
 					sna_rle_state <= 2'd0;
 					sna_rle_count <= 8'd0;
@@ -528,6 +548,13 @@ always @(posedge clk_sys) begin
 			reg [31:0] next_rem;
 			next_rem = sna_chunk_rem - 1'd1;
 			sna_chunk_rem <= next_rem;
+			sna_cpc_plus_start <= 1'b0;
+			if(sna_chunk_cpc_plus) begin
+				sna_cpc_plus_wr <= 1'b1;
+			end
+			else begin
+				sna_cpc_plus_wr <= 1'b0;
+			end
 			if(sna_chunk_mem && (sna_chunk_bank < 4'd2)) begin
 				if(!sna_chunk_rle) begin
 					romdl_wait <= 1;
@@ -590,6 +617,8 @@ always @(posedge clk_sys) begin
 				sna_chunk_len <= 32'd0;
 				sna_chunk_mem <= 1'b0;
 				sna_chunk_rle <= 1'b0;
+				sna_chunk_cpc_plus <= 1'b0;
+				sna_cpc_plus_wr    <= 1'b0;
 				sna_chunk_finish <= 1'b0;
 				sna_rle_state <= 2'd0;
 			end
@@ -1061,7 +1090,27 @@ plus_mmu plus_mmu
 
 	// Captured since P0; consumed when the ASIC register page gains its
 	// backing at P2.
-	.asic_page_on(plus_aspage_on)
+	.asic_page_on(plus_aspage_on),
+
+	.sna_load(sna_load),
+	.sna_rmr2(plus_sna_rmr2),
+	.sna_unlock(plus_sna_unlock)
+);
+
+plus_sna_parser plus_sna_parser
+(
+	.clk(clk_sys),
+	.reset(reset),
+	.sna_download(sna_download),
+	.cpc_plus_chunk_start(sna_cpc_plus_start),
+	.cpc_plus_byte_wr(sna_cpc_plus_wr),
+	.cpc_plus_byte_data(ioctl_dout),
+	.asic_sna_wr(plus_sna_wr),
+	.asic_sna_addr(plus_sna_addr),
+	.asic_sna_data(plus_sna_data),
+	.asic_sna_active(plus_sna_active),
+	.asic_sna_rmr2(plus_sna_rmr2),
+	.asic_sna_unlock(plus_sna_unlock)
 );
 
 wire [7:0] plus_vec_byte;
@@ -1194,6 +1243,10 @@ Amstrad_motherboard motherboard
 	.sna_ppi_control(sna_ppi_control),
 	.sna_psg_addr(sna_psg_addr),
 	.sna_psg_regs(sna_psg_regs),
+
+	.plus_sna_wr(plus_sna_wr),
+	.plus_sna_addr(plus_sna_addr),
+	.plus_sna_data(plus_sna_data),
 
 	.joy1((status[21] ? amouse_dout : 7'd0) | (status[18] ? joy2 : joy1)),
 	.joy2(status[18] ? joy1 : joy2),
@@ -1362,9 +1415,25 @@ wire [7:0] B, G, R;
 wire       HSync, VSync, HBlank, VBlank;
 
 // Plus-native 4-bit expansion to the 8-bit video path (nibble * 17).
-wire [7:0] R_plus = {r4[3:0], r4[3:0]};
-wire [7:0] G_plus = {g4[3:0], g4[3:0]};
-wire [7:0] B_plus = {b4[3:0], b4[3:0]};
+wire [7:0] R_plus_raw = {r4[3:0], r4[3:0]};
+wire [7:0] G_plus_raw = {g4[3:0], g4[3:0]};
+wire [7:0] B_plus_raw = {b4[3:0], b4[3:0]};
+
+// Plus-native luma weighting (G:R:B = 9:3:1 / 13) matching CRT monitor options
+wire [15:0] px_plus = R_plus_raw * 16'd59 + G_plus_raw * 16'd177 + B_plus_raw * 16'd20;
+wire [7:0]  y_plus  = px_plus[15:8];
+
+reg [7:0] R_plus, G_plus, B_plus;
+always @(*) begin
+	case (status[13:11])
+		3'd0, 3'd1: {R_plus, G_plus, B_plus} = {R_plus_raw, G_plus_raw, B_plus_raw}; // color
+		3'd2:       {R_plus, G_plus, B_plus} = {8'd0, y_plus, 8'd0};                 // green
+		3'd3:       {R_plus, G_plus, B_plus} = {y_plus, y_plus - px_plus[15:10], 8'd0}; // amber
+		3'd4:       {R_plus, G_plus, B_plus} = {8'd0, y_plus, y_plus};               // cyan
+		3'd5:       {R_plus, G_plus, B_plus} = {y_plus, y_plus, y_plus};             // gray
+		default:    {R_plus, G_plus, B_plus} = {R_plus_raw, G_plus_raw, B_plus_raw};
+	endcase
+end
 
 wire [1:0] scale = status[10:9];
 wire       hq2x = (scale == 1);

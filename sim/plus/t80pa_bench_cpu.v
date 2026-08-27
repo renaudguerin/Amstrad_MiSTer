@@ -39,7 +39,7 @@ module T80pa (
 	// Declared as public internal signals rather than ports: unconnected
 	// output ports get dead-code-eliminated by Verilator even under
 	// --public-flat-rw, but public-marked registers are retained.
-	reg [5:0]  dbg_step       /* verilator public_flat_rd */;
+	reg [6:0]  dbg_step       /* verilator public_flat_rd */;
 	reg        dbg_done       /* verilator public_flat_rd */;
 	reg        dbg_ack_done   /* verilator public_flat_rd */;
 	reg        dbg_int_level  /* verilator public_flat_rd */;
@@ -52,13 +52,13 @@ module T80pa (
 	                 S_WAIT = 3'd3, S_ACK = 3'd4, S_FILL = 3'd5,
 	                 S_FILLC = 3'd6;
 
-	localparam [5:0] NSTEPS = 6'd58;
+	localparam [6:0] NSTEPS = 7'd66;
 	localparam [7:0] HOLD = 8'd47; // >= one full sequencer ring (32 clks)
 	localparam [7:0] GAP  = 8'd15;
 	localparam [7:0] ACKS = 8'd31;
 
 	reg [2:0]  st;
-	reg [5:0]  step;
+	reg [6:0]  step;
 	reg [7:0]  cnt;
 	reg [8:0]  fill_i;   // sprite-image auto-fill phase (m8)
 	reg        int_d;
@@ -71,7 +71,7 @@ module T80pa (
 	// {mem_type, addr[15:0], data[7:0]}: mem_type 0 = I/O write (GA/CRTC
 	// decode), 1 = memory write (ASIC page). The distinction matters at
 	// the pins — IORQ vs MREQ — exactly like a real Z80.
-	function [24:0] step_bus(input [5:0] k);
+	function [24:0] step_bus(input [6:0] k);
 		begin
 			case (k)
 			6'd0:  step_bus = {16'h0800, 8'h00}; // CRTC index phase
@@ -142,25 +142,35 @@ module T80pa (
 			6'd55: step_bus = {1'b0, 16'h7F00, 8'hA3}; // IN GA: PENR=6
 			6'd56: step_bus = {1'b1, 16'hF066, 8'hFF}; // seed 66
 			6'd57: step_bus = {1'b0, 16'h7F00, 8'hA4}; // IN GA: INKR[6]=6
+			// P6 m10: screen split & scroll registers
+			7'd58: step_bus = {1'b1, 16'h6801, 8'h05}; // SPLT = 5
+			7'd59: step_bus = {1'b1, 16'h6802, 8'h24}; // SSA_HI = 0x24
+			7'd60: step_bus = {1'b1, 16'h6803, 8'h00}; // SSA_LO = 0x00
+			7'd61: step_bus = {1'b1, 16'h6804, 8'h34}; // SSCR = 0x34
+			// P7 m11: DMA registers
+			7'd62: step_bus = {1'b1, 16'h6C00, 8'h34}; // SAR0_LO = 0x34
+			7'd63: step_bus = {1'b1, 16'h6C01, 8'h12}; // SAR0_HI = 0x12 -> SAR0 = 0x1234
+			7'd64: step_bus = {1'b1, 16'h6C02, 8'h05}; // PPR0 = 5
+			7'd65: step_bus = {1'b1, 16'h6C0F, 8'h01}; // DCSR = 1 (enable ch0)
 			default: step_bus = {1'b0, 16'h0000, 8'hFF};
 			endcase
 		end
 	endfunction
 
-	function step_is_read(input [5:0] k);
+	function step_is_read(input [6:0] k);
 		begin
 			case (k)
-			6'd44, 6'd45, 6'd48, 6'd49, 6'd50, 6'd51, 6'd52,
-			6'd53, 6'd54, 6'd55, 6'd56, 6'd57: step_is_read = 1'b1;
+			7'd44, 7'd45, 7'd48, 7'd49, 7'd50, 7'd51, 7'd52,
+			7'd53, 7'd54, 7'd55, 7'd56, 7'd57: step_is_read = 1'b1;
 			default: step_is_read = 1'b0;
 			endcase
 		end
 	endfunction
 
-	function step_is_fetch(input [5:0] k);
+	function step_is_fetch(input [6:0] k);
 		begin
 			case (k)
-			6'd48, 6'd51, 6'd54, 6'd56: step_is_fetch = 1'b1;
+			7'd48, 7'd51, 7'd54, 7'd56: step_is_fetch = 1'b1;
 			default: step_is_fetch = 1'b0;
 			endcase
 		end
@@ -179,10 +189,10 @@ module T80pa (
 
 	always @(posedge clk) begin
 		if (!reset_n) begin
-			st <= S_GAP; step <= 6'd0; cnt <= 8'd0;
+			st <= S_GAP; step <= 7'd0; cnt <= 8'd0;
 			fill_i <= 9'd0;
 			int_d <= 1'b1; primed <= 1'b0;
-			dbg_step <= 6'd0; dbg_done <= 1'b0; dbg_ack_done <= 1'b0;
+			dbg_step <= 7'd0; dbg_done <= 1'b0; dbg_ack_done <= 1'b0;
 			dbg_int_level <= 1'b1; dbg_int_fires <= 32'd0;
 			dbg_read_bf_r14 <= 8'hFF; dbg_read_be_r14 <= 8'hFF;
 			dbg_read_bf_r15 <= 8'hFF; dbg_read_status2 <= 8'hFF;
@@ -224,21 +234,21 @@ module T80pa (
 				cnt <= cnt - 8'd1;
 			end else begin
 				case (step)
-				6'd44: dbg_read_bf_r14 <= di;
-				6'd45: dbg_read_be_r14 <= di;
-				6'd50: dbg_read_bf_r15 <= di;
-				6'd53: dbg_read_status2 <= di;
+				7'd44: dbg_read_bf_r14 <= di;
+				7'd45: dbg_read_be_r14 <= di;
+				7'd50: dbg_read_bf_r15 <= di;
+				7'd53: dbg_read_status2 <= di;
 				default: ;
 				endcase
 				bus_idle;
-				if (step == NSTEPS - 6'd1) begin
+				if (step == NSTEPS - 7'd1) begin
 					// Script done: auto-fill the sprite image before
 					// declaring completion (m8).
 					fill_i <= 9'd0;
 					cnt    <= GAP;
 					st     <= S_FILL;
 				end else begin
-					step <= step + 6'd1;
+					step <= step + 7'd1;
 					cnt  <= GAP;
 					st   <= S_GAP;
 				end

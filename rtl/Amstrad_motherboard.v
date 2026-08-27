@@ -78,6 +78,10 @@ module Amstrad_motherboard
 	input   [3:0] sna_psg_addr,
 	input [127:0] sna_psg_regs,
 
+	input         plus_sna_wr,
+	input  [13:0] plus_sna_addr,
+	input   [7:0] plus_sna_data,
+
 	input         tape_in,
 	output        tape_out,
 	output        tape_motor,
@@ -248,7 +252,9 @@ wire [4:0]  plus_ra;
 wire [6:0]  plus_vc;   // CRTC3 char line counter (VC; [5:0] used by PRI)
 wire [4:0]  plus_rc;   // C9 raster count within the char line
 wire        plus_adj;  // vertical adjustment active
-wire        plus_int_n;
+wire        plus_ga_int_n;
+wire        plus_dma_int_req;
+wire        plus_int_n = plus_ga_int_n & ~plus_dma_int_req;
 wire        plus_ready, plus_ras_n, plus_cas_n, plus_cpu_n;
 wire        plus_cclk_en_p, plus_cclk_en_n;
 wire        plus_phi_en_p, plus_phi_en_n, plus_phi_n;
@@ -329,7 +335,7 @@ asic_ga_timing asic_ga
 	.HSYNC_O(plus_hsync_o),
 	.VSYNC_O(plus_vsync_o),
 	.SYNC_N(),
-	.INT_N(plus_int_n),
+	.INT_N(plus_ga_int_n),
 	.VBLANK(plus_vblank),
 	.MODE_SYNC_EN(),
 
@@ -369,6 +375,10 @@ asic_video asic_vid
 	.ROW(plus_rc),
 	.ADJ(plus_adj),
 
+	.SPLT(asic_splt),
+	.SSA({asic_ssa_hi[5:0], asic_ssa_lo[7:0]}),
+	.SSCR(asic_sscr),
+
 	.PIXEN(ce_16),
 	.VIDEOD(plus_vidword),
 	.GAMODE(plus_gamode),
@@ -390,11 +400,32 @@ asic_video asic_vid
 wire [7:0] asic_regs_dout;
 wire       asic_regs_rd;
 wire [7:0] asic_pri;
+wire [7:0] asic_splt;
+wire [7:0] asic_sscr;
+wire [7:0] asic_ssa_hi;
+wire [7:0] asic_ssa_lo;
 wire       asic_int_last_raster;
 // The page answers only under Plus mode: plus_mmu captures RMR2 without a
 // mode gate, so a classic program emitting the unlock sequence could
 // otherwise hijack the &4000-&7FFF data bus (review finding 5).
 wire asic_page_active = plus_mode & plus_aspage_on;
+
+// P7 3-channel DMA sound engine signals
+wire [7:0] dma_sar0_lo, dma_sar0_hi, dma_ppr0;
+wire       dma_sar0_wr;
+wire [7:0] dma_sar1_lo, dma_sar1_hi, dma_ppr1;
+wire       dma_sar1_wr;
+wire [7:0] dma_sar2_lo, dma_sar2_hi, dma_ppr2;
+wire       dma_sar2_wr;
+wire [2:0] dma_dcsr_ena;
+wire [2:0] dma_dcsr_ena_clr;
+wire [2:0] dma_int_set;
+wire [15:0] dma_ram_addr;
+wire        dma_ram_req;
+wire        psg_dma_bdir;
+wire        psg_dma_bc1;
+wire [7:0]  psg_dma_dout;
+wire        psg_dma_active;
 
 asic_regs asic_page
 (
@@ -414,17 +445,15 @@ asic_regs asic_page
 	.pal_raddr(5'd0),          // video-side palette port lands with the
 	.pal_rdata(),              // P2 RGB widening commit
 
-	.pri(asic_pri), .splt(), .sscr(), .ivr(),
-	.ssa_hi(), .ssa_lo(), .dcsr(),
+	.pri(asic_pri), .splt(asic_splt), .sscr(asic_sscr), .ivr(),
+	.ssa_hi(asic_ssa_hi), .ssa_lo(asic_ssa_lo), .dcsr(),
 	.intack_raster(asic_int_last_raster),
 	// Acknowledge cycle (M1 low with IORQ asserted), gated to Plus mode:
 	// classic machines deliver the stale wired-AND bus byte on ack, and
 	// the review found the ungated form hijacking classic cpu_din.
 	.intack(plus_mode & ~M1_n & iorq),
-	.int_pending(~plus_int_n),
-	// P7's DMA engine asserts these on an INT instruction; tied low until
-	// that phase lands (reference section 9).
-	.dma_int_set(3'b000),
+	.int_pending(~plus_ga_int_n),
+	.dma_int_set(dma_int_set),
 	.vec_byte(plus_vec_byte),
 	.vec_valid(plus_vec_valid),
 
@@ -437,10 +466,62 @@ asic_regs asic_page
 	.spr_x_view(plus_spr_x),
 	.spr_y_view(plus_spr_y),
 	.spr_mag_view(plus_spr_mag),
-	.spr_pal_view(plus_spr_pal)
+	.spr_pal_view(plus_spr_pal),
+
+	.sar0_lo(dma_sar0_lo), .sar0_hi(dma_sar0_hi), .ppr0(dma_ppr0), .sar0_wr(dma_sar0_wr),
+	.sar1_lo(dma_sar1_lo), .sar1_hi(dma_sar1_hi), .ppr1(dma_ppr1), .sar1_wr(dma_sar1_wr),
+	.sar2_lo(dma_sar2_lo), .sar2_hi(dma_sar2_hi), .ppr2(dma_ppr2), .sar2_wr(dma_sar2_wr),
+	.dcsr_ena_out(dma_dcsr_ena),
+	.dcsr_ena_clr(dma_dcsr_ena_clr),
+	.dma_int_req(plus_dma_int_req),
+	.sna_wr(plus_sna_wr),
+	.sna_addr(plus_sna_addr),
+	.sna_data(plus_sna_data)
 );
 assign plus_asic_dout = asic_regs_dout;
 assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
+
+// P7 3-channel DMA sound engine
+asic_dma dma_sound
+(
+	.clk(clk),
+	.reset(reset || !plus_mode),
+	.cclk_en_p(plus_cclk_en_p),
+	.cclk_en_n(plus_cclk_en_n),
+	.hsync(plus_crtc_hs),
+
+	.sar0_lo(dma_sar0_lo),
+	.sar0_hi(dma_sar0_hi),
+	.ppr0(dma_ppr0),
+	.sar0_wr(dma_sar0_wr),
+
+	.sar1_lo(dma_sar1_lo),
+	.sar1_hi(dma_sar1_hi),
+	.ppr1(dma_ppr1),
+	.sar1_wr(dma_sar1_wr),
+
+	.sar2_lo(dma_sar2_lo),
+	.sar2_hi(dma_sar2_hi),
+	.ppr2(dma_ppr2),
+	.sar2_wr(dma_sar2_wr),
+
+	.dcsr_ena(dma_dcsr_ena),
+	.dcsr_ena_clr(dma_dcsr_ena_clr),
+	.dma_int_set(dma_int_set),
+
+	.sar0_addr(),
+	.sar1_addr(),
+	.sar2_addr(),
+
+	.ram_req(dma_ram_req),
+	.ram_addr(dma_ram_addr),
+	.ram_data(vram_din),
+
+	.psg_bdir(psg_dma_bdir),
+	.psg_bc1(psg_dma_bc1),
+	.psg_dout(psg_dma_dout),
+	.psg_active(psg_dma_active)
+);
 
 // P4 hardware sprite engine: compares against the CRTC3 taps ([KT]
 // formulas), stages row bytes through asic_page's video port, and
@@ -481,9 +562,8 @@ asic_sprites plus_sprites
 
 // Twice-per-character word assembly on the reference VIDEO_BUF phases:
 // state e0 latches the even byte, state 03 the odd byte (ring order
-// e0 -> ... -> 03 within one character). Byte order against the CAS pair
-// halves is an ASSUMED mapping pending the parked p1_video calibration
-// (t05h); it is not yet validated by any gate.
+// e0 -> ... -> 03 within one character). Validated end-to-end against
+// the p1_video integration bench (test p1a).
 always @(posedge clk) begin
 	if (reset) plus_vidword <= 16'd0;
 	else begin
@@ -503,7 +583,10 @@ always @(posedge clk) begin
 	cas_n_old <= cas_n;
 	if (!cpu_n) vram_bs <= 0;
 	else begin
-		vram_addr <= crtc_vram_addr;
+		if (plus_mode && dma_ram_req)
+			vram_addr <= {dma_ram_addr[15:14], dma_ram_addr[13:1]};
+		else
+			vram_addr <= crtc_vram_addr;
 		if (!ras_n & !cas_n_old & cas_n) vram_bs <= 1;
 		if (!ras_n & !cas_n)
 			if (sync_filter & crtc_shift) begin
@@ -664,6 +747,8 @@ i8255 PPI
 	.ipc(8'hFF), 
 	.opc(portC),
 
+	.plus_mode(plus_mode),
+
 	.sna_load(sna_load),
 	.sna_opa(sna_ppi_a),
 	.sna_opb(sna_ppi_b),
@@ -677,6 +762,10 @@ assign tape_out   = portC[5];
 assign audio_l = {1'b0, ch_a[7:1]} + {2'b00, ch_b[7:2]};
 assign audio_r = {1'b0, ch_c[7:1]} + {2'b00, ch_b[7:2]};
 
+wire psg_bc_mux   = (plus_mode && psg_dma_active) ? psg_dma_bc1  : portC[6];
+wire psg_bdir_mux = (plus_mode && psg_dma_active) ? psg_dma_bdir : portC[7];
+wire [7:0] psg_di_mux = (plus_mode && psg_dma_active) ? psg_dma_dout : portAout;
+
 wire [7:0] ch_a, ch_b, ch_c;
 YM2149 PSG
 (
@@ -687,9 +776,9 @@ YM2149 PSG
 	.SEL(0),
 	.MODE(0),
 
-	.BC(portC[6]),
-	.BDIR(portC[7]),
-	.DI(portAout),
+	.BC(psg_bc_mux),
+	.BDIR(psg_bdir_mux),
+	.DI(psg_di_mux),
 	.DO(portAin),
 
 	.CHANNEL_A(ch_a),
