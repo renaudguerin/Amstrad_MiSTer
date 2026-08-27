@@ -49,6 +49,9 @@ public:
 		dut.pal_raddr = 0;
 		dut.dma_int_set = 0;
 		dut.dcsr_ena_clr = 0;
+		dut.sna_wr = 0;
+		dut.sna_addr = 0;
+		dut.sna_data = 0;
 	}
 
 	void set_inkr_word(uint32_t lo, uint32_t hi) {
@@ -391,7 +394,6 @@ void a06_open_bus(Regs& r) {
 		0x2440, 0x27FF,             // &6440-&67FF
 		0x2800, 0x2805,             // &6800-&6805: write-only, reads open bus
 		0x2806, 0x2807,             // &6806/&6807 (write-only region read)
-		0x2808, 0x280F,             // ADC until its phase lands
 		0x2810, 0x2BFF,             // &6810-&6BFF
 		0x2C10, 0x3000, 0x3FFF       // &6C10-&6FFF / &7000s
 	};
@@ -401,6 +403,18 @@ void a06_open_bus(Regs& r) {
 			     std::to_string(r.rd(off)) + ", expected FF open bus");
 	if (r.idle_out() != 0xFF) fail("a06: cs-deasserted contribution not FF");
 	std::printf("PASS a06: open-bus neutrality over unmapped regions\n");
+}
+
+void a11_adc_paddles(Regs& r) {
+	r.reset_pulse();
+	const uint8_t exp_adc[8] = { 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x00, 0x3F, 0x00 };
+	for (unsigned i = 0; i < 8; ++i) {
+		uint8_t val = r.rd(0x2808 + i);
+		if (val != exp_adc[i])
+			fail("a11: ADC paddle &680" + std::to_string(8 + i) + " read " +
+			     std::to_string(val) + ", expected " + std::to_string(exp_adc[i]));
+	}
+	std::printf("PASS a11: ADC paddle registers (&6808-&680F default values)\n");
 }
 
 void a08_dcsr_raster_status(Regs& r) {
@@ -502,6 +516,30 @@ void a09_sprq_fetch_port(Regs& r) {
 	std::printf("PASS a09: sprq fetch port grant/data/preempt\n");
 }
 
+void a12_sna_loading(Regs& r) {
+	r.reset_pulse();
+	// Load sprite 0 pixel 0 (nibble 0xA) via SNA write to &4000
+	r.dut.sna_wr = 1;
+	r.dut.sna_addr = 0x0000;
+	r.dut.sna_data = 0x0A;
+	r.tick();
+	// Load PRI &6800 = 0x5A
+	r.dut.sna_addr = 0x2800;
+	r.dut.sna_data = 0x5A;
+	r.tick();
+	// Load DCSR &6C0F = 0x45 (flags: ch0, ena: ch2+ch0)
+	r.dut.sna_addr = 0x2C0F;
+	r.dut.sna_data = 0x45;
+	r.tick();
+	r.dut.sna_wr = 0;
+	r.tick();
+
+	if (r.rd(0x0000) != 0x0A) fail("a12: Sprite RAM not loaded via SNA");
+	if (r.dut.pri != 0x5A) fail("a12: PRI not loaded via SNA");
+	if (r.rd(0x2C0F) != 0x45) fail("a12: DCSR not loaded via SNA (got " + std::to_string(r.rd(0x2C0F)) + ")");
+	std::printf("PASS a12: Direct SNA register and RAM loading\n");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -517,6 +555,8 @@ int main(int argc, char** argv) {
 		{"a08", a08_dcsr_raster_status},
 		{"a09", a09_sprq_fetch_port},
 		{"a10", a08_sprite_access_indicator},
+		{"a11", a11_adc_paddles},
+		{"a12", a12_sna_loading},
 	};
 	for (const auto& t : tests) {
 		try {

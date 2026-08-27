@@ -10,7 +10,10 @@ module asic_unlock
 	input            RESET_N,
 	input            write_strobe,
 	input      [7:0] write_data,
-	output reg       unlocked
+	output reg       unlocked,
+
+	input            sna_load,
+	input            sna_unlock
 );
 
 reg       matching_sequence;
@@ -44,6 +47,11 @@ always @(posedge clk or negedge RESET_N) begin
 		unlocked          <= 1'b0;
 		matching_sequence <= 1'b0;
 		previous_nonzero  <= 1'b0;
+		sequence_index    <= 4'd0;
+	end
+	else if (sna_load) begin
+		unlocked          <= sna_unlock;
+		matching_sequence <= 1'b0;
 		sequence_index    <= 4'd0;
 	end
 	else if (write_strobe) begin

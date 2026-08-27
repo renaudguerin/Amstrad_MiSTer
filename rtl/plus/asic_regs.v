@@ -127,7 +127,12 @@ module asic_regs
 	output [7:0] sar2_lo, output [7:0] sar2_hi, output [7:0] ppr2, output sar2_wr,
 	output [2:0] dcsr_ena_out,
 	input  [2:0] dcsr_ena_clr,
-	output       dma_int_req
+	output       dma_int_req,
+
+	// ---- P8 SNA v3 snapshot loading ----
+	input        sna_wr,
+	input [13:0] sna_addr,
+	input  [7:0] sna_data
 );
 
 	//------------------------------------------------------------------
@@ -185,16 +190,21 @@ module asic_regs
 	// DCSR: bit 7 = last-raster, bit 6 = ch0 INT, bit 5 = ch1 INT, bit 4 = ch2 INT, bits 2:0 = enables
 	assign dcsr   = {dcsr_stat | intack_raster, dcsr_flags[0], dcsr_flags[1], dcsr_flags[2], 1'b0, dcsr_ena};
 
-	assign sar0_wr = !reset && asic_cs && mem_wr && (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h0 || A[3:0] == 4'h1);
-	assign sar1_wr = !reset && asic_cs && mem_wr && (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h4 || A[3:0] == 4'h5);
-	assign sar2_wr = !reset && asic_cs && mem_wr && (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h8 || A[3:0] == 4'h9);
+	wire        eff_cs   = (asic_cs && mem_wr) || sna_wr;
+	wire [13:0] eff_addr = sna_wr ? sna_addr : A[13:0];
+	wire  [7:0] eff_data = sna_wr ? sna_data : D_in;
+	wire  [1:0] eff_wsel = eff_addr[13:12];
 
-	wire [7:0] next_sar0_lo = (sar0_wr && A[3:0] == 4'h0) ? D_in : sar_lo[0];
-	wire [7:0] next_sar0_hi = (sar0_wr && A[3:0] == 4'h1) ? D_in : sar_hi[0];
-	wire [7:0] next_sar1_lo = (sar1_wr && A[3:0] == 4'h4) ? D_in : sar_lo[1];
-	wire [7:0] next_sar1_hi = (sar1_wr && A[3:0] == 4'h5) ? D_in : sar_hi[1];
-	wire [7:0] next_sar2_lo = (sar2_wr && A[3:0] == 4'h8) ? D_in : sar_lo[2];
-	wire [7:0] next_sar2_hi = (sar2_wr && A[3:0] == 4'h9) ? D_in : sar_hi[2];
+	assign sar0_wr = !reset && eff_cs && (eff_wsel == 2'b10) && (eff_addr[11:4] == 8'hC0) && (eff_addr[3:0] == 4'h0 || eff_addr[3:0] == 4'h1);
+	assign sar1_wr = !reset && eff_cs && (eff_wsel == 2'b10) && (eff_addr[11:4] == 8'hC0) && (eff_addr[3:0] == 4'h4 || eff_addr[3:0] == 4'h5);
+	assign sar2_wr = !reset && eff_cs && (eff_wsel == 2'b10) && (eff_addr[11:4] == 8'hC0) && (eff_addr[3:0] == 4'h8 || eff_addr[3:0] == 4'h9);
+
+	wire [7:0] next_sar0_lo = (sar0_wr && eff_addr[3:0] == 4'h0) ? eff_data : sar_lo[0];
+	wire [7:0] next_sar0_hi = (sar0_wr && eff_addr[3:0] == 4'h1) ? eff_data : sar_hi[0];
+	wire [7:0] next_sar1_lo = (sar1_wr && eff_addr[3:0] == 4'h4) ? eff_data : sar_lo[1];
+	wire [7:0] next_sar1_hi = (sar1_wr && eff_addr[3:0] == 4'h5) ? eff_data : sar_hi[1];
+	wire [7:0] next_sar2_lo = (sar2_wr && eff_addr[3:0] == 4'h8) ? eff_data : sar_lo[2];
+	wire [7:0] next_sar2_hi = (sar2_wr && eff_addr[3:0] == 4'h9) ? eff_data : sar_hi[2];
 
 	assign sar0_lo = next_sar0_lo;
 	assign sar0_hi = next_sar0_hi;
@@ -268,18 +278,36 @@ module asic_regs
 	//   &6C00-&6C0F  DMA registers             (wsel 10, A[11:4]==8'hC0)
 	//   rest         unused / unmapped         (open bus on read)
 	//------------------------------------------------------------------
+	// Address decode helpers (page offsets; &4000 stripped)
+	//   &4000-&4FFF  sprite pixel RAM          (wsel 00)
+	//   &5000-&5FFF  unused                    (wsel 01)
+	//   &6000-&607F  sprite registers          (wsel 10, A[11:7]==0)
+	//   &6400-&643F  palette                   (wsel 10, A[11:6]==6'h10)
+	//   &6800-&680F  raster/interrupt bytes    (wsel 10, A[11:4]==8'h80)
+	//   &6C00-&6C0F  DMA registers             (wsel 10, A[11:4]==8'hC0)
+	//   rest         unused / unmapped         (open bus on read)
+	//------------------------------------------------------------------
 
 	wire [1:0] wsel = A[13:12];
 	wire       r_sprreg = (wsel == 2'b10) && (A[11:7] == 5'd0);
 	wire       r_pal    = (wsel == 2'b10) && (A[11:6] == 6'h10);
 	wire       r_raster = (wsel == 2'b10) && (A[11:4] == 8'h80);
 	wire       r_dma    = (wsel == 2'b10) && (A[11:4] == 8'hC0);
+
+	wire eff_r_sprreg = (eff_wsel == 2'b10) && (eff_addr[11:7] == 5'd0);
+	wire eff_r_pal    = (eff_wsel == 2'b10) && (eff_addr[11:6] == 6'h10);
+	wire eff_r_raster = (eff_wsel == 2'b10) && (eff_addr[11:4] == 8'h80);
+	wire eff_r_dma    = (eff_wsel == 2'b10) && (eff_addr[11:4] == 8'hC0);
+
 	// DCSR flag write-one-to-clear window: a &6C0F write while the page is
 	// selected (reference section 9).
 	// DCSR bit 6 = ch0, bit 5 = ch1, bit 4 = ch2
-	wire       dcsr_w1c_hit = !reset && asic_cs && mem_wr &&
+	wire       dcsr_w1c_hit = !reset && asic_cs && mem_wr && !sna_wr &&
 	                          (wsel == 2'b10) && (A[11:4] == 8'hC0) &&
 	                          (A[3:0] == 4'hF);
+	wire       dcsr_sna_hit = !reset && sna_wr &&
+	                          (sna_addr[13:12] == 2'b10) && (sna_addr[11:4] == 8'hC0) &&
+	                          (sna_addr[3:0] == 4'hF);
 	wire [2:0] dcsr_w1c_mask = {D_in[4], D_in[5], D_in[6]}; // [2]=ch2, [1]=ch1, [0]=ch0
 	wire       auto_clr_dma = intack && !intack_d && !ivr_r[0] && !int_pending;
 	wire [2:0] auto_clr_mask = (dcsr_flags[2]) ? 3'b100 :
@@ -287,7 +315,8 @@ module asic_regs
 	                           (dcsr_flags[0]) ? 3'b001 : 3'b000;
 
 	// Palette entry index: 64 bytes / 2 bytes per entry over &6400-&643F.
-	wire [4:0] pal_idx = A[5:1];
+	wire [4:0] pal_idx     = A[5:1];
+	wire [4:0] eff_pal_idx = eff_addr[5:1];
 
 	always @(posedge clk) begin
 		if (reset) begin
@@ -323,71 +352,76 @@ module asic_regs
 		// resolves set-dominant (no arbitration rule in the sources).
 		// Gated by !reset so reset dominates (review part-B blocker 1).
 		if (!reset) begin
-			dcsr_flags <= ((dcsr_flags | dma_int_set) &
-			              (dcsr_w1c_hit ? ~dcsr_w1c_mask : 3'b111)) &
-			              (auto_clr_dma ? ~auto_clr_mask : 3'b111);
-			if (dcsr_w1c_hit)
-				dcsr_ena <= (D_in[2:0] & ~dcsr_ena_clr);
-			else
-				dcsr_ena <= (dcsr_ena & ~dcsr_ena_clr);
+			if (dcsr_sna_hit) begin
+				dcsr_flags <= {sna_data[4], sna_data[5], sna_data[6]}; // bit 6=ch0, bit 5=ch1, bit 4=ch2
+				dcsr_ena   <= sna_data[2:0];
+				dcsr_stat  <= sna_data[7];
+			end
+			else begin
+				dcsr_flags <= ((dcsr_flags | dma_int_set) &
+				              (dcsr_w1c_hit ? ~dcsr_w1c_mask : 3'b111)) &
+				              (auto_clr_dma ? ~auto_clr_mask : 3'b111);
+				if (dcsr_w1c_hit)
+					dcsr_ena <= (D_in[2:0] & ~dcsr_ena_clr);
+				else
+					dcsr_ena <= (dcsr_ena & ~dcsr_ena_clr);
+			end
 		end
 
-		if (!reset && asic_cs) begin
-			if (mem_wr) begin
-				if (wsel == 2'b00) begin
-					// Sprite pixel data, masked to the low nibble (§3/§4).
-					spr_ram[A[11:0]] <= D_in[3:0];
-				end
-				else if (wsel == 2'b10) begin
-					if (r_sprreg) begin
-						case (A[2:0])
-						3'd0: spr_x_lo[A[6:3]] <= D_in;
-						3'd1: spr_x_hi[A[6:3]] <= D_in[1:0]; // 10-bit signed (§4)
-						3'd2: spr_y_lo[A[6:3]] <= D_in;
-						// +3 stores Y-high; the magnification write-mirror
-						// claim for +3 is the unresolved ⚠ ASIC-REF §4 note.
-						3'd3: spr_y_hi[A[6:3]] <= D_in[0];   // 9-bit signed (§4)
-						default: spr_mag[A[6:3]] <= D_in;    // +4..+7 mirrors (§4)
-						endcase
-					end
-					else if (r_pal) begin
-						// Low byte: D7-D4 RED, D3-D0 BLUE; high byte:
-						// D3-D0 GREEN, D7-D4 unused-reads-0 (§6). Stored
-						// in the documented word layout {G,R,B}.
-						if (!A[0])
-							pal[pal_idx] <= {pal[pal_idx][11:8], D_in[7:4], D_in[3:0]};
-						else
-							pal[pal_idx] <= {D_in[3:0], pal[pal_idx][7:4], pal[pal_idx][3:0]};
-					end
-					else if (r_raster) begin
-						case (A[3:0])
-						4'h0: pri_r    <= D_in;
-						4'h1: splt_r   <= D_in;
-						4'h2: ssa_hi_r <= D_in;
-						4'h3: ssa_lo_r <= D_in;
-						4'h4: sscr_r   <= D_in;
-						4'h5: ivr_r    <= D_in;
-						default: ; // &6806/&6807: writes have no effect (§3)
-						endcase
-					end
-					else if (r_dma) begin
-						case (A[3:0])
-						4'h0: sar_lo[0] <= D_in;
-						4'h1: sar_hi[0] <= D_in;
-						4'h2: ppr[0]    <= D_in;
-						4'h4: sar_lo[1] <= D_in;
-						4'h5: sar_hi[1] <= D_in;
-						4'h6: ppr[1]    <= D_in;
-						4'h8: sar_lo[2] <= D_in;
-						4'h9: sar_hi[2] <= D_in;
-						4'hA: ppr[2]    <= D_in;
-						4'hF: ; // dcsr_ena handled with dcsr_ena_clr priority above
-						default: ;
-						endcase
-					end
-				end
-				// wsel 01/11 (&5000s / &7000s): writes ignored (§3)
+		if (!reset && eff_cs) begin
+			if (eff_wsel == 2'b00) begin
+				// Sprite pixel data, masked to the low nibble (§3/§4).
+				spr_ram[eff_addr[11:0]] <= eff_data[3:0];
 			end
+			else if (eff_wsel == 2'b10) begin
+				if (eff_r_sprreg) begin
+					case (eff_addr[2:0])
+					3'd0: spr_x_lo[eff_addr[6:3]] <= eff_data;
+					3'd1: spr_x_hi[eff_addr[6:3]] <= eff_data[1:0]; // 10-bit signed (§4)
+					3'd2: spr_y_lo[eff_addr[6:3]] <= eff_data;
+					// +3 stores Y-high; the magnification write-mirror
+					// claim for +3 is the unresolved ⚠ ASIC-REF §4 note.
+					3'd3: spr_y_hi[eff_addr[6:3]] <= eff_data[0];   // 9-bit signed (§4)
+					default: spr_mag[eff_addr[6:3]] <= eff_data;    // +4..+7 mirrors (§4)
+					endcase
+				end
+				else if (eff_r_pal) begin
+					// Low byte: D7-D4 RED, D3-D0 BLUE; high byte:
+					// D3-D0 GREEN, D7-D4 unused-reads-0 (§6). Stored
+					// in the documented word layout {G,R,B}.
+					if (!eff_addr[0])
+						pal[eff_pal_idx] <= {pal[eff_pal_idx][11:8], eff_data[7:4], eff_data[3:0]};
+					else
+						pal[eff_pal_idx] <= {eff_data[3:0], pal[eff_pal_idx][7:4], pal[eff_pal_idx][3:0]};
+				end
+				else if (eff_r_raster) begin
+					case (eff_addr[3:0])
+					4'h0: pri_r    <= eff_data;
+					4'h1: splt_r   <= eff_data;
+					4'h2: ssa_hi_r <= eff_data;
+					4'h3: ssa_lo_r <= eff_data;
+					4'h4: sscr_r   <= eff_data;
+					4'h5: ivr_r    <= eff_data;
+					default: ; // &6806/&6807: writes have no effect (§3)
+					endcase
+				end
+				else if (eff_r_dma) begin
+					case (eff_addr[3:0])
+					4'h0: sar_lo[0] <= eff_data;
+					4'h1: sar_hi[0] <= eff_data;
+					4'h2: ppr[0]    <= eff_data;
+					4'h4: sar_lo[1] <= eff_data;
+					4'h5: sar_hi[1] <= eff_data;
+					4'h6: ppr[1]    <= eff_data;
+					4'h8: sar_lo[2] <= eff_data;
+					4'h9: sar_hi[2] <= eff_data;
+					4'hA: ppr[2]    <= eff_data;
+					4'hF: ; // dcsr_ena handled with dcsr_ena_clr priority above
+					default: ;
+					endcase
+				end
+			end
+			// eff_wsel 01/11 (&5000s / &7000s): writes ignored (§3)
 		end
 
 		// Legacy PENR/INKR translation (reference section 6): pens 0-15 + border
@@ -461,8 +495,21 @@ module asic_regs
 					rdata   = {dcsr_stat | intack_raster, dcsr_flags[0], dcsr_flags[1], dcsr_flags[2], 1'b0, dcsr_ena};
 					renable = 1'b1;
 				end
+				else if (r_raster && A[3]) begin
+					// ADC Paddle registers &6808-&680F (§11; default reading: 3F 3F 3F 3F 3F 00 3F 00)
+					case (A[2:0])
+					3'h0: begin rdata = 8'h3F; renable = 1'b1; end
+					3'h1: begin rdata = 8'h3F; renable = 1'b1; end
+					3'h2: begin rdata = 8'h3F; renable = 1'b1; end
+					3'h3: begin rdata = 8'h3F; renable = 1'b1; end
+					3'h4: begin rdata = 8'h3F; renable = 1'b1; end
+					3'h5: begin rdata = 8'h00; renable = 1'b1; end
+					3'h6: begin rdata = 8'h3F; renable = 1'b1; end
+					3'h7: begin rdata = 8'h00; renable = 1'b1; end
+					endcase
+				end
 				// &6800-&6807 are write-only: reads fall through to open
-				// bus (§4). ADC lands with its phase.
+				// bus (§4).
 			end
 			// wsel 01/11: unmapped, open bus (§4)
 		end
