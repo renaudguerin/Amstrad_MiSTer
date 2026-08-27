@@ -5,12 +5,17 @@ below remain dated 2026-08-19; current simulation and synthesis evidence is newe
 `accc-review-and-fixes` branch now contains the ACCC review/corrections, per-type classic CRTC
 split, F6 Stage 1 full-character approximation, sampled-field soak expansion, production Plus
 P0 cartridge wiring, the simulation-only P1 CRTC3 foundation, the implemented F7/A1/A2
-classic work, F14/F15 classic closures, and the F16/F17/F18 closures (2026-08-26). The earlier whole-branch reviews are recorded in
+classic work, F14/F15 classic closures, and the F16/F17/F18 closures (2026-08-26). On 2026-08-28,
+Claude Opus 5 completed an independent cross-provider re-review of all historical ox-alpha
+self-reviewed items (`de71808`, `da79915`+`1a1233f`, `cd47d7d`, `c4c3e0f`, `90aed07`, `c9f4a4e`,
+`accuracy/f7-rfd`, `plus/p1-followups`) and the open `hotfix/implicit-rgb-net` debt row, confirming
+all implementations (verdict CLEAR with non-blocking findings N1-N5 recorded in
+`docs/accuracy/ox-alpha-items-opus-review.md`) and clearing all review debt. The earlier whole-branch reviews are recorded in
 `accuracy/accc-review-and-fixes-independent-review.md` (pass 1),
 `accuracy/accc-review-and-fixes-independent-review-pass2.md` (pass 2), and
 `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
 which accepted all pass-2 remediations); the 2026-08-23 review of the F7/A1/A2 and Plus
-follow-up deltas is `accuracy/f7-plus-followups-independent-review.md`, and both
+follow-up deltas is `accuracy/f7-plus-followups-independent-review.md`, and all
 review-debt rows are cleared. The §13.7.1.2 R0-widening trigger took two cross-provider
 passes recorded in `accuracy/f7-r0-widening-independent-review.md` — pass 1 returned NOT
 CLEAR on two blocking findings, pass 2 cleared the remediation on 2026-08-24 — and the
@@ -1018,27 +1023,19 @@ front end.
    fixture-gating PDF re-checks — pp.210-211 truth tables render-verified; the pp.221-224
    IVM tables corroborating the pseudocode for the tested even R9 — fed fixtures first, then
    per-type behavior commits). The former author-question gates have now been adjudicated.
-   Remaining F10-derived work is fixture-gated under **F14** (additional interlace line),
-   **F15** (odd-R9 parity alternation and VSYNC correction), and **F16** (post-exit frozen
-   C9.VMA). Q12's odd-C4 transition imbalance remains unmodeled because the source describes
-   the transition frame but does not source the inferred recovery behavior.
- 5. Plus: P0, both P1 milestones, the P1 motherboard integration with its review
-    follow-ups, the calibrated p1_video bench, the P2 ASIC register page, and P3
-    interrupts (PRI/DCSR/IVR) are done on `plus/p2-asic-regs`, synthesized green at
-    `3d7a178`. Next Plus steps: the manual hardware checkpoint (real `.cpr` boot,
-    a static-palette title for P2's exit, a raster-split title for P3's; classic
-    re-checked side by side). P4 sprites are functionally complete on
-    `plus/p4-sprites` (engine, s01-s14, t06a-c/a09/a10, mobo bench m8
-    end-to-end sprite vector; all review threads closed CLEAR) — remaining
-    items are the deferred INKR pipeline question and the shared hardware
-    checkpoint above. P5 CRTC-3 bus semantics is complete in simulation on
-    `plus/p5-crtc3-bus` (t07a-t07g, MMU held-cycle traps, motherboard m9,
-    classic m7). Phase 0 Timing Calibration resolved the INKR-effects pipeline
-    latency and reconciled VIDBUF/vram sampling (independently reviewed CLEAR).
-    Phase P6 Screen Split & Hardware Soft Scroll is complete on
-    `plus/p6-split-scroll` (SPLT/SSA VMA capture, 14-bit overscan carry, SSCR
-    RA[2:0] vertical scanline offset, 16-dot horizontal pixel shift delay,
-    SSCR[7] border mask, sprite immunity, t08a-t08h, mobo bench m10, independently
-    reviewed CLEAR). Next implementation order: Phase P7 3-channel DMA sound
-    engine (`rtl/plus/asic_dma.v`).
-6. Update this file when either stream reaches its next hardware-testable checkpoint.
+    Remaining F10-derived work is fixture-gated under **F14** (additional interlace line),
+    **F15** (odd-R9 parity alternation and VSYNC correction), and **F16** (post-exit frozen
+    C9.VMA). Q12's odd-C4 transition imbalance remains unmodeled because the source describes
+    the transition frame but does not source the inferred recovery behavior.
+    **2026-08-28 Claude Opus 5 re-review follow-ups** (from `docs/accuracy/ox-alpha-items-opus-review.md`):
+    - **N1**: reconcile the §13.7.1.2 R0-widening RFD route (`t13g`) with F17's §11.6.1 p.88 C9=R9 VMA-source disable.
+    - **N2**: adjudicate the §11.3.2 p.85 clause ("C4, however, continues to be compared to R4 to process the change from C4 to 0") during stuck R5=0 adjustment.
+    - **N3/N4**: add CPR parser upper bound test vector (0x01FFFFF8) and tighten zero-length `cb00` chunk handling.
+    - **N5**: add CI compile-log guard in `build.yml` / `local-build.yml` for Quartus Warning 10236 (`Implicit Net warning`).
+ 5. Plus: P0, both P1 milestones, the P1 motherboard integration, the calibrated p1_video bench,
+    the P2 ASIC register page, P3 interrupts (PRI/DCSR/IVR), P4 sprites, P5 CRTC-3 bus semantics,
+    Phase P6 screen split & soft scroll, Phase P7 3-channel DMA sound, and Phase P8 platform polish
+    (PPI quirks, ADC paddles, SNA v3 CPC+ chunks) are implemented and independently reviewed CLEAR.
+    Next Plus steps: the manual hardware checkpoint (real `.cpr` boot, static-palette title,
+    raster-split title, sprite/scroll titles; classic re-checked side by side).
+ 6. Update this file when either stream reaches its next hardware-testable checkpoint.

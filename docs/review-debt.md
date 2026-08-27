@@ -2,40 +2,26 @@
 
 ## Open rows
 
-- `hotfix/implicit-rgb-net` — OPENED 2026-08-26. Three-line hotfix:
-  connect the motherboard instance's RGB ports to the widened
-  `b4/g4/r4` nets in `Amstrad.sv`. `a5cb623` renamed the declarations
-  without updating the instance map, so Quartus created implicit
-  undriven nets for `r/g/b` (Warning 10236 at Amstrad.sv(1212-1214)):
-  black picture with intact sync/audio/CPU on every synthesized build
-  from `3d7a178` (20260825) onward, classic and Plus modes alike.
-  Committed under same-session hardware-testing pressure; validated by
-  fitter-log correlation (0 warnings in the two builds that display,
-  the trio in all four that do not) and a pending hardware retest
-  rather than independent review. Reviewer should check hardest: that
-  `b4/g4/r4` are driven only by the motherboard ports and consumed only
-  by `color_mix`'s [1:0] inputs and the R_plus/G_plus/B_plus nibble
-  expansion; that no other stale reference to the old names exists in
-  any synthesized source; and that the Plus-mode nibble path still
-  matches the P2 intent.
+None.
 
-**Status: one open row (this hotfix); all historical rows cleared (the
-`plus/p4-sprites` row closed 2026-08-26
-after a five-pass thread ended CLEAR; all earlier rows closed by
-2026-08-25)** (the `accuracy/f11h-and-ivm-vsync-coverage` row
-cleared by the same-day remediation after its NOT CLEAR verdict; the `accuracy/f10-fixtures`
-row cleared by the Claude Opus 5 review + remediation; all others cleared 2026-08-24). The
-pass-3 verification accepted the earlier remediations at reviewed tip `d64e449`, and the
-same-day pass-4 review accepted the `accuracy/f7-rfd` classic delta, the `plus/p1-followups`
-work, and the CI synthesis-policy commit
-(`docs/accuracy/f7-plus-followups-independent-review.md`). The `accuracy/f7-rfd-r0-widening`
-row opened 2026-08-23 took two cross-provider passes (Claude Opus 5 reviewing an
-Ox-Alpha-authored delta): pass 1 returned NOT CLEAR on two blocking findings, and pass 2
-cleared the remediation delta on 2026-08-24, after which the branch was merged into
-`accc-review-and-fixes`. Full record:
-`docs/accuracy/f7-r0-widening-independent-review.md`.
+**Status: ALL review debt rows cleared (zero open rows).** On 2026-08-28, Claude Opus 5 completed an independent cross-provider re-review of all historical items previously reviewed under the 2026-08-22 ox-alpha locked decision (`de71808`, `da79915`, `1a1233f`, `c4c3e0f`, `90aed07`, `c9f4a4e`, `accuracy/f7-rfd`, `plus/p1-followups`), confirming all core implementations and clearing `hotfix/implicit-rgb-net`. Full review record: `docs/accuracy/ox-alpha-items-opus-review.md`.
 
 ## Cleared rows
+
+- `hotfix/implicit-rgb-net` — CLOSED 2026-08-28. Independent cross-provider
+  review by Claude Opus 5. Verified that `b4/g4/r4` are driven solely by the
+  motherboard instance output ports in `Amstrad.sv` and consumed exclusively by
+  `color_mix`'s `[1:0]` inputs and the `R_plus/G_plus/B_plus` nibble expansion,
+  with no stale net names in any synthesized source. Verdict CLEAR. Full record:
+  `docs/accuracy/ox-alpha-items-opus-review.md`.
+- `ox-alpha-historical-items` — RE-REVIEWED & CLEARED 2026-08-28. Full
+  cross-provider re-review by Claude Opus 5 over all historical items reviewed under
+  the 2026-08-22 locked decision (`de71808` F4 equality rollover, `da79915`+`1a1233f`
+  F12 adjustment arbitration, `cd47d7d` CPR parser, `c4c3e0f` F4 vectors, `90aed07`
+  R12/R13 vectors, `c9f4a4e` F8 separate C5, `accuracy/f7-rfd` R5-trigger RFD/A1/A2,
+  `plus/p1-followups`). Direct multimodal checks against ACCC v1.10 pages 75-76,
+  84-88, 92-93, 108, 124, 129. Verdict CLEAR WITH NON-BLOCKING FINDINGS (N1-N5).
+  Full record: `docs/accuracy/ox-alpha-items-opus-review.md`.
 
 - `plus/p8-polish-sna` — CLOSED 2026-08-27. Independent cross-provider
   review on the P8 aggregate diff (`plus/p5-crtc3-bus...HEAD`). Verdict
