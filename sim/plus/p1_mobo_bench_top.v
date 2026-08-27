@@ -91,6 +91,10 @@ module p1_mobo_bench_top (
 		.sna_psg_addr(4'd0),
 		.sna_psg_regs(128'd0),
 
+		.plus_sna_wr(1'b0),
+		.plus_sna_addr(14'd0),
+		.plus_sna_data(8'd0),
+
 		.tape_in(1'b0),
 		.tape_out(),
 		.tape_motor(),

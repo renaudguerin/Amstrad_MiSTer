@@ -78,6 +78,10 @@ module Amstrad_motherboard
 	input   [3:0] sna_psg_addr,
 	input [127:0] sna_psg_regs,
 
+	input         plus_sna_wr,
+	input  [13:0] plus_sna_addr,
+	input   [7:0] plus_sna_data,
+
 	input         tape_in,
 	output        tape_out,
 	output        tape_motor,
@@ -469,7 +473,10 @@ asic_regs asic_page
 	.sar2_lo(dma_sar2_lo), .sar2_hi(dma_sar2_hi), .ppr2(dma_ppr2), .sar2_wr(dma_sar2_wr),
 	.dcsr_ena_out(dma_dcsr_ena),
 	.dcsr_ena_clr(dma_dcsr_ena_clr),
-	.dma_int_req(plus_dma_int_req)
+	.dma_int_req(plus_dma_int_req),
+	.sna_wr(plus_sna_wr),
+	.sna_addr(plus_sna_addr),
+	.sna_data(plus_sna_data)
 );
 assign plus_asic_dout = asic_regs_dout;
 assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
@@ -739,6 +746,8 @@ i8255 PPI
 	.opb(),
 	.ipc(8'hFF), 
 	.opc(portC),
+
+	.plus_mode(plus_mode),
 
 	.sna_load(sna_load),
 	.sna_opa(sna_ppi_a),

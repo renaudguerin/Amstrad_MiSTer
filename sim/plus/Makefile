@@ -179,10 +179,16 @@ DMA_OBJ_DIR  := obj_dir/asic_dma
 DMA_TEST_SRC := $(abspath asic_dma_test.cpp)
 DMA_TEST_BIN := $(DMA_OBJ_DIR)/asic_dma_tests
 
+# P8 platform polish and SNA v3 CPC+ chunk parser
+P8_OBJ_DIR  := obj_dir/plus_p8
+P8_TEST_SRC := $(abspath plus_p8_test.cpp)
+P8_TEST_BIN := $(P8_OBJ_DIR)/plus_p8_tests
+P8_RTL      := $(abspath plus_p8_test_top.v) $(abspath ../../rtl/i8255.v) $(abspath ../../rtl/plus/plus_sna_parser.v) $(abspath ../../rtl/plus/plus_model_select.v)
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
-	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(DMA_TEST_BIN)
+	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -215,6 +221,12 @@ test: $(TEST_BINS)
 	./$(PRI_TEST_BIN)
 	./$(SPRITES_TEST_BIN)
 	./$(DMA_TEST_BIN)
+	./$(P8_TEST_BIN)
+
+$(P8_TEST_BIN): $(P8_RTL) $(P8_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module plus_p8_test_top -Wno-CASEX \
+		--Mdir $(P8_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(P8_TEST_BIN)) $(P8_RTL) $(P8_TEST_SRC)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
@@ -355,6 +367,10 @@ lint: motherboard-lint
 		--top-module $(GADIFF_TOP) -Wall -Wno-fatal $(GADIFF_TEST_TOP) $(GADIFF_REPLICA) $(GADIFF_REF)
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
 		--top-module $(P1VID_TOP) -Wall -Wno-fatal $(P1VID_TOP_SRC) $(P1VID_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module plus_sna_parser -Wall $(abspath ../../rtl/plus/plus_sna_parser.v)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module i8255 -Wall -Wno-CASEX $(abspath ../../rtl/i8255.v)
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
 		--top-module Amstrad_motherboard -Wall \
 		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
