@@ -675,15 +675,11 @@ wire       plus_ram_128k;
 wire       plus_has_fdc;
 wire       plus_has_tape;
 
-// RAM bank for the running machine (HF-3). In Plus mode the machine's RAM
-// size comes from plus_model_select, not from the classic Model OSD option:
-// 6128+ is 128K (bank 0), GX4000 and 464+ are 64K (bank 2). The CPU port and
-// the video port must name the same bank or the display reads foreign RAM.
-// A snapshot names its own RAM size, and `model` only picks it up one clock
-// after sna_load. Selecting sna_model directly during sna_load keeps the CPU
-// and video ports on the bank the snapshot was written into.
-wire [1:0] eff_model = plus_mode ? (plus_ram_128k ? 2'b00 : 2'b10) : model;
-wire [1:0] mem_bank = sna_load ? sna_model : eff_model;
+// RAM bank for the running machine (HF-3). In Plus mode all Plus models
+// (6128+, GX4000, 464+) use bank 0 where Plus RAM and SNA snapshot data
+// reside; .ram64k on the motherboard instance configures whether the 128K
+// banking expansion is active. In classic mode the bank follows `model`.
+wire [1:0] mem_bank = plus_mode ? 2'b00 : model;
 
 sdram sdram
 (
