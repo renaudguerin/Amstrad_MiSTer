@@ -279,6 +279,10 @@ wire [159:0] plus_spr_x;
 wire [143:0] plus_spr_y;
 wire  [63:0] plus_spr_mag;
 wire [179:0] plus_spr_pal;
+// Video-side 12-bit palette port: asic_video names the entry, asic_regs
+// answers one clock later (reference §6 secondary/dual port).
+wire   [4:0] plus_pal_raddr;
+wire  [11:0] plus_pal_rdata;
 
 // Selected raster sources: classic path when Plus model = Off.
 wire [13:0] ma_sel = plus_mode ? plus_ma : MA;
@@ -391,7 +395,14 @@ asic_video asic_vid
 
 	.HWRAP(plus_hwrap),
 	.SPR_EN(plus_spr_en),
-	.SPR_RGB(plus_spr_rgb)
+	.SPR_RGB(plus_spr_rgb),
+
+	// Plus hardware always renders through the 12-bit ASIC palette; legacy
+	// PENR/INKR programs still work because asic_regs shadows them into
+	// entries 0-16.
+	.PAL_EN(1'b1),
+	.PAL_ADDR(plus_pal_raddr),
+	.PAL_RGB(plus_pal_rdata)
 );
 
 // ASIC register page (P2). The legacy GA shadow feeding its translation
@@ -442,8 +453,8 @@ asic_regs asic_page
 	.leg_border(asic_border),
 	.leg_inkr(asic_inkr),
 
-	.pal_raddr(5'd0),          // video-side palette port lands with the
-	.pal_rdata(),              // P2 RGB widening commit
+	.pal_raddr(plus_pal_raddr),
+	.pal_rdata(plus_pal_rdata),
 
 	.pri(asic_pri), .splt(asic_splt), .sscr(asic_sscr), .ivr(),
 	.ssa_hi(asic_ssa_hi), .ssa_lo(asic_ssa_lo), .dcsr(),

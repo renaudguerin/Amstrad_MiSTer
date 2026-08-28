@@ -28,6 +28,9 @@
 //     odd k shows red_o=1 green_o=F blue_o=2 and even k shows 3/6/4
 //     through the production bus -> regs -> fetch-port -> engine ->
 //     video chain.
+// m12 the 12-bit ASIC palette reaches the top-level RGB pins (HF-2): the
+//     script's &6420 write leaves border entry 16 at {G0,R2,B1}, a level
+//     the legacy 27-colour ROM cannot produce.
 
 #include <cstdint>
 #include <cstdio>
@@ -458,6 +461,44 @@ int run() {
 		std::printf("PASS m8: sprite plane end-to-end - %u windows on lines "
 			            "16..31, exact alternating palette payloads on RGB pins\n",
 			            windows_done);
+	}
+
+	//------------------------------------------------------------------
+	// m12: the 12-bit ASIC palette reaches the RGB pins (HF-2).
+	//
+	// Script step 23 wrote legacy border = hw colour 4, which asic_regs
+	// shadows into palette entry 16 as {G0,R0,B6}; step 30 then wrote
+	// &6420 = 0x21 (even byte: D7-D4 RED = 2, D3-D0 BLUE = 1), leaving
+	// entry 16 at {G0,R2,B1}. Nothing afterwards touches the GA registers,
+	// so the border must render R=2 G=0 B=1. Level 2 is outside the legacy
+	// ROM's 0/6/15 set and matches no other programmed entry, so seeing it
+	// on the pins can only come from the 12-bit palette. Before HF-2 the
+	// border rendered the ROM colour for hw 4, (0,0,6), which is asserted
+	// absent here.
+	//------------------------------------------------------------------
+	{
+		auto* ce16 = &b.dut.rootp->p1_mobo_bench_top__DOT__ce_16;
+		unsigned asic_dots = 0;
+		unsigned legacy_dots = 0;
+		for (unsigned i = 0; i < 400000u; ++i) {
+			b.tick();
+			if (!*ce16)
+				continue;
+			if (b.dut.red_o == 0x2 && b.dut.green_o == 0x0 &&
+			    b.dut.blue_o == 0x1)
+				++asic_dots;
+			if (b.dut.red_o == 0x0 && b.dut.green_o == 0x0 &&
+			    b.dut.blue_o == 0x6)
+				++legacy_dots;
+		}
+		if (legacy_dots != 0)
+			fail("m12: legacy ROM border (0,0,6) still reaches the pins on " +
+			     std::to_string(legacy_dots) + " dots");
+		if (asic_dots < 1000)
+			fail("m12: ASIC palette border (2,0,1) reached the pins on only " +
+			     std::to_string(asic_dots) + " dots");
+		std::printf("PASS m12: 12-bit ASIC palette border on the RGB pins over "
+		            "%u dots\n", asic_dots);
 	}
 	return 0;
 }

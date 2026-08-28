@@ -44,6 +44,8 @@ public:
         dut.SSCR = 0;
         dut.SPR_EN = 0;
         dut.SPR_RGB = 0;
+        dut.PAL_EN = 0;      // default: internal [KT] legacy-colour ROM
+        dut.PAL_RGB = 0;
         for (unsigned k = 0; k < 16; ++k) {
             set_inkr(k, 20);
         }
@@ -63,7 +65,7 @@ public:
         while (tick_in_character_ != kClkEnPhase) {
             clock_tick();
         }
-        for (unsigned tick = 0; tick < kClockTicksPerCharacter; ++tick) {
+        for (unsigned tick = 0; tick < ticks_per_character_; ++tick) {
             clock_tick();
         }
         dut.nRESET = 1;
@@ -109,7 +111,7 @@ public:
 
     void run_characters(std::uint64_t characters) {
         for (std::uint64_t character = 0; character < characters; ++character) {
-            for (unsigned tick = 0; tick < kClockTicksPerCharacter; ++tick) {
+            for (unsigned tick = 0; tick < ticks_per_character_; ++tick) {
                 clock_tick();
             }
         }
@@ -265,6 +267,46 @@ public:
         dut.SPR_RGB = (r << 8) | (g << 4) | b;
     }
 
+    // Stand-in for asic_regs' 12-bit palette port (HF-2). asic_regs
+    // registers the video-side read, but on the motherboard PIXEN is one
+    // clock in four, so the registered word is already settled when the dot
+    // edge samples it. By default this bench runs PIXEN every clock, so the
+    // model is combinational to reproduce that same alignment.
+    void enable_asic_palette() {
+        dut.PAL_EN = 1;
+        pal_model_ = true;
+        pal_registered_ = false;
+        drive_palette();
+    }
+
+    // The motherboard's actual arrangement: PAL_RGB is asic_regs' registered
+    // read, one CLOCK behind PAL_ADDR. Pair with set_pixen_divider(4) so a
+    // dot lasts four clocks and the registered word has settled before the
+    // next PIXEN edge samples it (t05j).
+    void enable_asic_palette_registered() {
+        dut.PAL_EN = 1;
+        pal_model_ = true;
+        pal_registered_ = true;
+        dut.PAL_RGB = 0;
+        dut.eval();
+    }
+
+    // Slow PIXEN to one clock in `period`, keeping 16 dots per character.
+    // Must be called on a character boundary so CLKEN stays coincident with
+    // a PIXEN clock, as it is on the motherboard.
+    void set_pixen_divider(unsigned period) {
+        align_to_character_start();
+        pixen_period_ = period;
+        ticks_per_character_ = kClockTicksPerCharacter * period;
+    }
+
+    // Entry as asic_regs stores it: {G,R,B} nibbles (reference §6).
+    void set_pal(unsigned entry, unsigned g, unsigned r, unsigned b) {
+        pal_[entry & 31] = static_cast<std::uint16_t>(
+            ((g & 15) << 8) | ((r & 15) << 4) | (b & 15));
+        drive_palette();
+    }
+
     void set_border(unsigned hw_colour) { dut.BORDER_I = hw_colour; }
     void set_mode(unsigned mode) { dut.GAMODE = mode; }
     void set_videod(unsigned videod_word) { dut.VIDEOD = videod_word; }
@@ -275,7 +317,9 @@ public:
 
     void run_dots(unsigned dots) {
         for (unsigned d = 0; d < dots; ++d) {
-            clock_tick();
+            for (unsigned t = 0; t < pixen_period_; ++t) {
+                clock_tick();
+            }
         }
     }
 
@@ -292,6 +336,14 @@ public:
         if (dut.RGB_R != r || dut.RGB_G != g || dut.RGB_B != b) {
             fail(expectation + ": RGB", (r * 256) + (g * 16) + b,
                  (dut.RGB_R * 256) + (dut.RGB_G * 16) + dut.RGB_B);
+        }
+    }
+
+    void expect_pal_addr(const std::string& expectation,
+                         unsigned expected) const {
+        if (dut.PAL_ADDR != expected) {
+            fail(expectation + ": PAL_ADDR", expected,
+                 static_cast<unsigned>(dut.PAL_ADDR));
         }
     }
 
@@ -335,17 +387,38 @@ private:
         dut.DI = 0;
     }
 
+    // PAL_ADDR depends only on registered state, so one settling pass is
+    // enough; a no-op unless a test enabled the palette model.
+    void drive_palette() {
+        if (!pal_model_ || pal_registered_) {
+            return;
+        }
+        dut.PAL_RGB = pal_[dut.PAL_ADDR & 31];
+        dut.eval();
+    }
+
     void clock_tick() {
         dut.CLKEN = tick_in_character_ == kClkEnPhase ? 1 : 0;
-        dut.PIXEN = 1;  // every bench tick is one dot (16 dots per character)
+        // One dot per PIXEN clock, 16 dots per character. pixen_period_ == 1
+        // is the default (every tick is a dot); set_pixen_divider() slows it
+        // to the motherboard's one-in-four.
+        dut.PIXEN = (tick_in_character_ % pixen_period_) == 0 ? 1 : 0;
         dut.CLOCK = 0;
         dut.eval();
+        drive_palette();
+        // asic_regs samples PAL_ADDR as it stands before the rising edge.
+        const unsigned pal_addr_at_edge = dut.PAL_ADDR & 31U;
         dut.CLOCK = 1;
         dut.eval();
+        if (pal_registered_) {
+            dut.PAL_RGB = pal_[pal_addr_at_edge];
+            dut.eval();
+        }
+        drive_palette();
         dut.CLOCK = 0;
         dut.eval();
-        tick_in_character_ =
-            (tick_in_character_ + 1) % kClockTicksPerCharacter;
+        drive_palette();
+        tick_in_character_ = (tick_in_character_ + 1) % ticks_per_character_;
     }
 
     template <typename Expected, typename Actual>
@@ -358,6 +431,11 @@ private:
     Vasic_video dut;
     std::uint32_t inkr_[3] = {0, 0, 0};
     unsigned tick_in_character_ = 0;
+    unsigned pixen_period_ = 1;
+    unsigned ticks_per_character_ = kClockTicksPerCharacter;
+    std::uint16_t pal_[32] = {0};
+    bool pal_model_ = false;
+    bool pal_registered_ = false;
 };
 
 // Program a standard frame: R0=7 (8-char lines), R9=3 (4-line char rows),
@@ -1444,6 +1522,133 @@ void t05h_byte_halves_belong_to_their_character(TestBench& test) {
     walk("char B", true, kWordA);
 }
 
+// HF-2: with PAL_EN high the pen and border lookup comes from the ASIC's
+// 32-entry 12-bit palette (reference §6) instead of the fixed 27-colour [KT]
+// ROM, so colours outside the legacy set reach the pins. The legacy
+// INKR_I/BORDER_I inputs are left programmed to values whose ROM colours
+// differ from every expectation here, which is what fails if the mux is
+// still reading the ROM.
+//
+// Entries are written in asic_regs' storage order {G,R,B}; the module owes
+// the pipeline {R,G,B}, so the channel swap is under test too.
+void t05i_asic_palette_drives_rgb(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    // Legacy border 24 = magenta (6,0,6); legacy pen 1 = (15,15,15), pen 0 =
+    // (0,0,0). None of those match the palette entries below.
+    test.set_ga(2, 24, (15U << 8) | 0xF0U);
+    test.enable_asic_palette();
+    test.set_pal(0, 0x4, 0x5, 0x6);    // pen 0  -> R5 G4 B6
+    test.set_pal(1, 0x7, 0x8, 0x9);    // pen 1  -> R8 G7 B9
+    test.set_pal(16, 0x1, 0x2, 0x3);   // border -> R2 G1 B3
+
+    // Mode 2, even byte F0 = %11110000 then odd byte 0F: pen 1 four dots,
+    // pen 0 eight dots, pen 1 four dots (same stream as t05b).
+    const unsigned kP1[3] = {0x8, 0x7, 0x9};
+    const unsigned kP0[3] = {0x5, 0x4, 0x6};
+    walk_char_expect(test, "ASIC palette mode 2", {
+        {kP1[0], kP1[1], kP1[2]}, {kP1[0], kP1[1], kP1[2]},
+        {kP1[0], kP1[1], kP1[2]}, {kP1[0], kP1[1], kP1[2]},
+        {kP0[0], kP0[1], kP0[2]}, {kP0[0], kP0[1], kP0[2]},
+        {kP0[0], kP0[1], kP0[2]}, {kP0[0], kP0[1], kP0[2]},
+        {kP0[0], kP0[1], kP0[2]}, {kP0[0], kP0[1], kP0[2]},
+        {kP0[0], kP0[1], kP0[2]}, {kP0[0], kP0[1], kP0[2]},
+        {kP1[0], kP1[1], kP1[2]}, {kP1[0], kP1[1], kP1[2]},
+        {kP1[0], kP1[1], kP1[2]}, {kP1[0], kP1[1], kP1[2]},
+    });
+
+    // Outside DE the border comes from entry 16, and HSYNC still forces
+    // black ahead of the palette (reference §5 precedence unchanged).
+    test.run_to_frame_start();
+    test.run_characters(7);  // past R1=4, clear of sync at R2=40
+    test.expect_rgb("border from palette entry 16", 0x2, 0x1, 0x3);
+
+    // A sprite pixel still wins over the palette-sourced screen ink.
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    test.run_dots(2);
+    test.expect_rgb("screen ink from palette before sprite", kP1[0], kP1[1],
+                    kP1[2]);
+    test.set_sprite(1, 5, 10, 15);
+    test.run_dots(1);
+    test.expect_rgb("sprite pixel still overrides the palette", 5, 10, 15);
+    test.set_sprite(0, 0, 0, 0);
+
+    // Re-pointing an entry re-colours the pen on the next dot: the mux is a
+    // live lookup, not a value latched at DE start.
+    test.set_pal(1, 0xF, 0x0, 0xF);
+    test.run_dots(2);
+    test.expect_rgb("palette rewrite reaches the pins", 0x0, 0xF, 0xF);
+}
+
+// HF-2 follow-up: the same palette path under the motherboard's real
+// arrangement, where PAL_RGB is asic_regs' REGISTERED read (one CLOCK behind
+// PAL_ADDR) and PIXEN is one clock in four. t05i runs a combinational palette
+// with PIXEN every clock, so it cannot see a latency or skew error: there the
+// lookup and the dot edge are the same clock. Here they are not, and the
+// pen changes on every single dot, so any half-dot slip in either direction
+// shows up as a swapped colour rather than as a repeated one.
+//
+// The two pipeline facts being pinned (both read off asic_video.v, not out of
+// the simulator):
+//   - PAL_ADDR is combinational from pen_delayed, which is registered on
+//     PIXEN. So after the PIXEN edge that opens dot d, PAL_ADDR names dot d.
+//   - RGB is registered on PIXEN from rgb_mux, which reads PAL_RGB. PAL_RGB
+//     after that edge is asic_regs' read of the PREVIOUS PAL_ADDR. So after
+//     the edge that opens dot d, RGB carries dot d-1.
+// PAL_ADDR therefore leads RGB by exactly one dot, and the assertions below
+// check both pins on the same tick so a common-mode shift cannot hide.
+//
+// Mode 2 with both byte halves = AA gives an unbroken pen 1/pen 0 alternation
+// across all 16 dots (Grimware mode-2 row, MSB first, one dot per pen), which
+// also carries the alternation across the even/odd byte seam at dot 8.
+void t05j_registered_palette_alternating_pens(TestBench& test) {
+    program_pixel_frame(test);
+    TestPalette pal;
+    apply_palette(test, pal);
+    // Legacy pen 0/1 and border 24 all differ from the palette entries below,
+    // so a fallback to the [KT] ROM fails rather than passing by accident.
+    test.set_ga(2, 24, 0xAAAAU);
+    test.enable_asic_palette_registered();
+    test.set_pixen_divider(4);
+    test.set_pal(0, 0x1, 0x2, 0x3);   // pen 0 -> R2 G1 B3
+    test.set_pal(1, 0xC, 0xD, 0xE);   // pen 1 -> R13 G12 B14
+
+    const unsigned kP0[3] = {0x2, 0x1, 0x3};
+    const unsigned kP1[3] = {0xD, 0xC, 0xE};
+
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    // d == 0 is the CLKEN edge itself, whose registered output still carries
+    // the previous character; dots 0..15 are read on ticks 1..16.
+    for (unsigned d = 0; d < 17; ++d) {
+        test.run_dots(1);
+        const std::string tag = "registered palette dot " + std::to_string(d);
+        if (d > 0) {
+            // Even dot indices decode pen 1 (AA = %10101010, MSB first).
+            const bool pen1 = ((d - 1) % 2) == 0;
+            const unsigned* want = pen1 ? kP1 : kP0;
+            test.expect_rgb(tag, want[0], want[1], want[2]);
+            test.expect_pen(tag + " PEN", false, pen1 ? 1U : 0U);
+        }
+        if (d < 16) {
+            // PAL_ADDR leads RGB by one dot: on this tick it already names
+            // the pen whose colour is read back on the next one.
+            test.expect_pal_addr(tag + " PAL_ADDR leads by one dot",
+                                 (d % 2) == 0 ? 1U : 0U);
+        }
+    }
+
+    // Outside DE the address falls back to border entry 16 and the registered
+    // read still lands on the correct dot.
+    test.set_pal(16, 0x9, 0xA, 0xB);  // border -> RA G9 BB
+    test.run_to_frame_start();
+    test.run_characters(7);  // past R1=4, clear of sync at R2=40
+    test.expect_pal_addr("registered palette border address", 16U);
+    test.expect_rgb("registered palette border colour", 0xA, 0x9, 0xB);
+}
+
 // ---- t06: sprite-plane precedence (P4) ---------------------------------
 //
 // asic_video owns the final mux. Reference §5: border > sprite 0..15 >
@@ -1971,7 +2176,7 @@ void t08h_overscan_carry_14bit(TestBench& test) {
     test.expect_ma("t08h row 1 starts with overscan carried base", 0x0402);
 }
 
-constexpr std::array<TestCase, 54> kTests = {{
+constexpr std::array<TestCase, 56> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -2013,6 +2218,10 @@ constexpr std::array<TestCase, 54> kTests = {{
     {"t05h byte halves belong to their character "
      "(intra-character phase is an unverified model assumption)",
      t05h_byte_halves_belong_to_their_character},
+    {"t05i ASIC 12-bit palette drives RGB (HF-2)",
+     t05i_asic_palette_drives_rgb},
+    {"t05j registered palette, alternating pens, PIXEN 1-in-4",
+     t05j_registered_palette_alternating_pens},
     {"t06a sprite pixel over screen ink", t06a_sprite_over_screen_ink},
     {"t06b border over sprite; HSYNC blank over all",
      t06b_border_over_sprite},
