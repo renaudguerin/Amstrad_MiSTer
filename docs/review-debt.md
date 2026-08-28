@@ -15,20 +15,20 @@
   Clear this entry only after an actual cross-provider review. The introducing commit is
   the commit adding this entry; the previously cleared implementation reviews are unaffected.
 
-- **`plus/hardware-checkpoint` — 2026-08-28 (HF-1, HF-2, HF-3)**. Scope: `Amstrad.sv`,
-  `rtl/Amstrad_motherboard.v`, `rtl/plus/asic_video.v`, and testbenches (`sim/plus/asic_video_test.cpp`,
-  `sim/plus/p1_mobo_bench_test.cpp`, `sim/plus/p1_video_test_top.v`). Implements hardware test fixes:
-  HF-1 FDC/motor port decode ($A_7$ dropped, qualified with $A_9=1$ and $A_4=1$), HF-2 12-bit ASIC
-  palette pipeline connection (`PAL_EN`, `PAL_ADDR`, `PAL_RGB`) with `{G,R,B} -> {R,G,B}` conversion,
-  and HF-3 Plus MMU/SDRAM bank select (`mem_bank` following `plus_ram_128k` and `sna_load`).
-  Cross-provider reviewers (Codex and Claude) hit external rate limits during the final evaluation.
-  Self-reviewed by Antigravity (Gemini 2.5 Flash); all unit vectors (`t05i`, `t05j`, `m12`) and full
-  simulation gates (`make -C sim`, `make -C sim lint`) pass with 0 errors. Review record:
-  `docs/plus/hardware-fixes-independent-review.md`.
-
-**Status: one implementation review debt open, one documentation review open.**
+**Status: one documentation review open.** Historical implementation review debt remains cleared.
 
 ## Cleared rows
+
+- `plus/hardware-checkpoint` — **CLEARED 2026-08-28 — OpenAI Codex**. Scope: `Amstrad.sv`,
+  `rtl/Amstrad_motherboard.v`, `rtl/plus/asic_video.v`, and testbenches (`sim/plus/asic_video_test.cpp`,
+  `sim/plus/p1_mobo_bench_test.cpp`, `sim/plus/p1_video_test_top.v`). Verified hardware test fixes:
+  HF-1 FDC/motor port decode ($A_7$ dropped, qualified with $A_9=1$ and $A_4=1$), HF-2 12-bit ASIC
+  palette pipeline connection (`PAL_EN`, `PAL_ADDR`, `PAL_RGB`) with `{G,R,B} -> {R,G,B}` conversion,
+  and HF-3 Plus MMU/SDRAM bank select (`mem_bank` following Bank 0 for Plus models, `ram64k` governing
+  128KB banking, 464+ snapshot type 5 mapping, and classic `sna_load` bridge). Full simulation gates
+  (`make -C sim`, `make -C sim lint`) and unit tests (`t05i`, `t05j`, `m12`) pass clean with 0 errors.
+  Verdict CLEAR. Full record: `docs/plus/hardware-fixes-independent-review.md`.
+
 
 - `accuracy/f19-type0-c0-timing` — **CLEARED 2026-08-28 — OpenAI Codex.** Behavioral B1
   retains Type-0 same-edge `R4`/`R9` evaluation under §12.2 pp.92–94 with discriminating
