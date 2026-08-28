@@ -417,12 +417,15 @@ wire       type0_r4_at_c0_write = register_write && addr == 5'd04 && hcc == 0;
 wire       type0_r9_at_c0_write = register_write && addr == 5'd09 && hcc == 0;
 wire       type0_r5_at_c0_write = type0_r5_write && hcc == 0;
 wire [6:0] type0_c0_r4 = type0_r4_at_c0_write ? DI[6:0] : R4_v_total;
+// ACCC v1.11 §12.2 (pp. 92–94): on CRTC 0, evaluating whether C9==R9 and
+// C4==R4 at C0<2 uses the updated value if R4 or R9 is modified at C0<2
+// (unlike CRTC 2 §12.4.1 p.95 where R9 arrives too late for C0=0).
 wire [4:0] type0_c0_r9 = type0_r9_at_c0_write ? DI[4:0] : R9_v_max_line;
 wire [4:0] type0_c0_r5 = type0_r5_at_c0_write ? DI[4:0] : R5_v_total_adj;
 wire [4:0] type0_c0_adjust_line_max = (type0_c0_r5 - 1'd1);
 wire       type0_c0_zero_adj_entry = type0_zero_adj_entry & ~(type0_r5_at_c0_write & (|DI[4:0]));
 // The C0=0 seam evaluates `Last Line` against the effective (possibly
-// same-edge written) R4/R9.  Both are plain equalities: a zero limit is an
+// same-edge written) R4/R9 per section 12.2 p.92. Both are plain equalities:
 // ordinary value that only matches a counter already at zero.  F10: the
 // seam forms the new line's IVM comparison from the live R8 register (the
 // mode that line will run) and the still-pending toggle status; with IVM
