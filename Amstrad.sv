@@ -667,6 +667,24 @@ wire        cart_service_busy;
 wire [15:0] vram_dout;
 wire [14:0] vram_addr;
 
+// Plus model decode. Declared here rather than beside plus_model_select
+// below because the SDRAM bank select needs it (HF-3).
+wire [1:0] plus_model = status[34:33];
+wire       plus_mode;
+wire       plus_ram_128k;
+wire       plus_has_fdc;
+wire       plus_has_tape;
+
+// RAM bank for the running machine (HF-3). In Plus mode the machine's RAM
+// size comes from plus_model_select, not from the classic Model OSD option:
+// 6128+ is 128K (bank 0), GX4000 and 464+ are 64K (bank 2). The CPU port and
+// the video port must name the same bank or the display reads foreign RAM.
+// A snapshot names its own RAM size, and `model` only picks it up one clock
+// after sna_load. Selecting sna_model directly during sna_load keeps the CPU
+// and video ports on the bank the snapshot was written into.
+wire [1:0] eff_model = plus_mode ? (plus_ram_128k ? 2'b00 : 2'b10) : model;
+wire [1:0] mem_bank = sna_load ? sna_model : eff_model;
+
 sdram sdram
 (
 	.*,
@@ -678,7 +696,7 @@ sdram sdram
 	.oe  (reset ? 1'b0      : mem_rd & ~mf2_ram_en & ~plus_cart_own & ~plus_aspage_sel),
 	.we  (reset ? boot_wr   : mem_wr & ~mf2_ram_en & ~mf2_rom_en & ~plus_aspage_sel),
 	.addr(reset ? boot_a    : mf2_rom_en ? {9'h0ff, cpu_addr[13:0]} : dan_ena ? {4'd0, dan_bank, cpu_addr[13:0]} : ram_a),
-	.bank(reset ? boot_bank : dan_ena ? 2'b11 : model),
+	.bank(reset ? boot_bank : dan_ena ? 2'b11 : mem_bank),
 	.din (reset ? boot_dout : cpu_dout),
 	.dout(ram_dout),
 	// Cartridge memory service (P-1 contract, production-connected at P0).
@@ -691,7 +709,7 @@ sdram sdram
 	.cart_din(cart_mem_wdata),
 	.cart_dout(cart_mem_rdata),
 	.cart_ack(cart_mem_ack),
-	.vram_bank(model),
+	.vram_bank(mem_bank),
 	.vram_addr({2'b10,vram_addr,1'b0}),
 	.vram_dout(vram_dout),
 
@@ -806,7 +824,16 @@ always @(posedge clk_sys) if((tape_ready & tape_motor) || ~act_cnt[24] || act_cn
 
 //////////////////////////////////////////////////////////////////////////
 
-wire [3:0] fdc_sel = {cpu_addr[10],cpu_addr[8],cpu_addr[7],cpu_addr[0]};
+// FDC decode (HF-1). Real CPC/6128+/DDI-1 hardware decodes A10, A9 and A8
+// here; A7 is not part of the select, so the whole &FAxx/&FBxx block aliases.
+// Standard AMSDOS uses &FADD for the motor and &FBDF for command/data, both
+// with A7=1, which an A7-qualified decode drops entirely (Drive A: read fail).
+// A0 then picks FDC status (0) from data (1).
+//
+// A9 must be in the select: &FAxx/&FBxx have A9=1, but PlayCity sits at
+// &F8xx/&F9xx with A9=0. Without A9 a PlayCity write also latched the drive
+// motor.
+wire fdc_motor_sel = !cpu_addr[10] & cpu_addr[9] & !cpu_addr[8];
 wire [7:0] fdc_dout = (u765_sel & io_rd) ? u765_dout : 8'hFF;
 
 reg motor = 0;
@@ -814,13 +841,15 @@ always @(posedge clk_sys) begin
 	reg old_wr;
 	
 	old_wr <= io_wr;
-	if(~old_wr && io_wr && !fdc_sel[3:1]) begin
+	if(~old_wr && io_wr && fdc_motor_sel) begin
 		motor <= cpu_dout[0];
 	end
 end
 
 wire [7:0] u765_dout;
-wire       u765_sel = (fdc_sel[3:1] == 'b010) & ~status[17];
+// A4 separates the FDC from the Kempston mouse inside &FBxx: FDC status/data
+// (&FB7E/&FB7F/&FBDF) have A4=1, the mouse (&FBEE/&FBEF) has A4=0.
+wire       u765_sel = !cpu_addr[10] & cpu_addr[9] & cpu_addr[8] & cpu_addr[4] & ~status[17];
 
 reg  [1:0] u765_ready = 0;
 always @(posedge clk_sys) if(img_mounted[0]) u765_ready[0] <= |img_size;
@@ -835,7 +864,7 @@ u765 u765
 	
 	.fast(status[16]),
 
-	.a0(fdc_sel[0]),
+	.a0(cpu_addr[0]),
 	.ready(u765_ready),
 	.motor({motor,motor}),
 	.available(2'b11),
@@ -1052,12 +1081,6 @@ wire io_rd = rd & iorq;
 wire io_wr = wr & iorq;
 wire romen;
 wire ready;
-
-wire [1:0] plus_model = status[34:33];
-wire       plus_mode;
-wire       plus_ram_128k;
-wire       plus_has_fdc;
-wire       plus_has_tape;
 
 plus_model_select plus_model_decoder
 (
@@ -1289,7 +1312,7 @@ Amstrad_motherboard motherboard
 	.vram_addr(vram_addr),
 
 	.rom_map(rom_map),
-	.ram64k(model != 2'd0),
+	.ram64k(plus_mode ? !plus_ram_128k : (model != 2'd0)),
 	.mem_rd(mem_rd),
 	.mem_wr(mem_wr),
 	.mem_addr(ram_a),

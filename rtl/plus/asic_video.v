@@ -120,7 +120,27 @@ module asic_video
 	// priority: border > sprites > screen), under HSYNC force-blank.
 	output           HWRAP,
 	input            SPR_EN,
-	input     [11:0] SPR_RGB
+	input     [11:0] SPR_RGB,
+
+	// ---- ASIC 12-bit palette port (asic-reference §6) ----
+	//
+	// On a Plus the pen/border lookup is the 32-entry 12-bit palette held
+	// in asic_regs, not the fixed 27-colour Gate-Array ROM: PAL_ADDR names
+	// the entry this dot needs (pen 0-15 inside DE, entry 16 for the
+	// border) and PAL_RGB returns it as {G,R,B} nibbles. asic_regs
+	// registers that read, so PAL_RGB lags PAL_ADDR by one CLOCK — which
+	// still lands a dot early relative to the RGB register here, because
+	// PIXEN is one clock in four.
+	//
+	// PAL_EN low keeps the internal [KT] legacy-colour ROM below. That is
+	// the standalone-bench path (sim/plus/asic_video_test.cpp and
+	// p1_video_test_top.v elaborate this module with no asic_regs beside
+	// it); the production motherboard ties it high. Legacy PENR/INKR
+	// writes still reach the screen with PAL_EN high because asic_regs
+	// shadows them into palette entries 0-16.
+	input            PAL_EN,
+	output     [4:0] PAL_ADDR,
+	input     [11:0] PAL_RGB
 );
 
 /* verilator lint_off WIDTH */
@@ -859,7 +879,15 @@ end
 
 wire eff_de   = de_hold & ~(SSCR[7] & de_first_char);
 wire [4:0] hw_sel  = eff_de ? INKR_I[pen_delayed*5 +: 5] : BORDER_I;
-wire [11:0] rgb_mux = legacy_colour(hw_sel);
+
+// Palette entry for this dot: the decoded pen inside active display, entry
+// 16 (border) outside it (asic-reference §6).
+assign PAL_ADDR = eff_de ? {1'b0, pen_delayed} : 5'd16;
+
+// asic_regs stores the word as {G,R,B}; this pipeline carries {R,G,B}.
+wire [11:0] asic_rgb = {PAL_RGB[7:4], PAL_RGB[11:8], PAL_RGB[3:0]};
+
+wire [11:0] rgb_mux = PAL_EN ? asic_rgb : legacy_colour(hw_sel);
 wire        blank   = HSYNC;
 
 // Line seam strobe for the sprite engine: the character-counter wrap edge.

@@ -160,7 +160,11 @@ module p1_video_test_top (
 		.PEN(pen),
 		.HWRAP(),
 		.SPR_EN(1'b0),
-		.SPR_RGB(12'd0)
+		.SPR_RGB(12'd0),
+		// No asic_regs in this bench: keep the internal legacy-colour ROM.
+		.PAL_EN(1'b0),
+		.PAL_ADDR(),
+		.PAL_RGB(12'd0)
 	);
 	assign dbg_vidword = vidword;
 	assign dbg_vbs = vram_bs;

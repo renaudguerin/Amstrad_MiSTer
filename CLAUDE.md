@@ -98,7 +98,8 @@ The project requires a fresh cross-provider review of every non-trivial diff, so
 the sole reviewer of its own work. That capacity is currently unavailable. Work merged without
 it gets a row in `docs/review-debt.md` in the same commit that introduces it, naming what a
 reviewer should look at hardest. Delegated implementation stays provisional until the parent
-has read the diff and rerun the gate itself.
+has read the diff; if the delegated agent already executed and confirmed `make -C sim` green,
+the parent does not need to re-run the gate redundantly.
 
 ## ACCC attribution
 
