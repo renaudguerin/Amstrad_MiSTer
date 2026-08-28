@@ -1037,8 +1037,8 @@ front end.
     **2026-08-28 Claude Opus 5 re-review follow-ups** (from `docs/accuracy/ox-alpha-items-opus-review.md`):
     - **N1**: reconcile the §13.7.1.2 R0-widening RFD route (`t13g`) with F17's §11.6.1 p.88 C9=R9 VMA-source disable.
     - **N2**: adjudicate the §11.3.2 p.85 clause ("C4, however, continues to be compared to R4 to process the change from C4 to 0") during stuck R5=0 adjustment.
-    - **N3/N4**: add CPR parser upper bound test vector (0x01FFFFF8) and tighten zero-length `cb00` chunk handling.
-    - **N5**: add CI compile-log guard in `build.yml` / `local-build.yml` for Quartus Warning 10236 (`Implicit Net warning`).
+    - **N3/N4 (COMPLETED 2026-08-28)**: added CPR parser upper bound test vector (`0x01FFFFF8` rejected, `0x01FFFFF7` accepted) and tightened zero-length `cb00` chunk handling in `rtl/plus/plus_cpr_parser.v` (requires at least one forwarded byte to commit) with regression coverage in `plus_cpr_parser_test.cpp`.
+    - **N5 (COMPLETED 2026-08-28)**: added CI compile-log guard in `build.yml` / `local-build.yml` for Quartus Warning 10236 (`Implicit Net warning`), plus OSD menu grouping of CPR with DSK/CDT in `Amstrad.sv`.
     **2026-08-28 ACCC v1.11 finding**:
     - **F19**: implement Type-0 $C_0=0$ Last Line evaluation timing in `rtl/crtc_type0_engine.v`
       (lines 416–423: `type0_c0_r9` evaluated against `R9_v_max_line` rather than same-edge
@@ -1046,8 +1046,9 @@ front end.
       `docs/accuracy/f19-type0-c0-timing-todos.md`).
  5. Plus: P0, both P1 milestones, the P1 motherboard integration, the calibrated p1_video bench,
     the P2 ASIC register page, P3 interrupts (PRI/DCSR/IVR), P4 sprites, P5 CRTC-3 bus semantics,
-    Phase P6 screen split & soft scroll, Phase P7 3-channel DMA sound, and Phase P8 platform polish
-    (PPI quirks, ADC paddles, SNA v3 CPC+ chunks) are implemented and independently reviewed CLEAR.
-    Next Plus steps: the manual hardware checkpoint (real `.cpr` boot, static-palette title,
-    raster-split title, sprite/scroll titles; classic re-checked side by side).
+    Phase P6 screen split & soft scroll, Phase P7 3-channel DMA sound, Phase P8 platform polish
+    (PPI quirks, ADC paddles, SNA v3 CPC+ chunks), and Phase P9 cartridge boot & tolerances
+    are implemented and independently reviewed CLEAR.
+    Next Plus steps: the physical hardware checkpoint per `docs/plus/hardware-test-checklist.md`
+    (real `.cpr` boot, static-palette title, raster-split title, sprite/scroll titles; classic re-checked side by side).
  6. Update this file when either stream reaches its next hardware-testable checkpoint.
