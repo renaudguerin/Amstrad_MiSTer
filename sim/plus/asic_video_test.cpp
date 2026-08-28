@@ -879,6 +879,45 @@ void t03f_adjustment_rows_solidified(TestBench& test) {
     test.expect_de("R6=100 leaves adjustment rows displayed", true);
 }
 
+// ACCC §18.1 / §18.2.4: Active vertical display requires charline < R6.
+// Rows at or past R6 (C4 >= R6 up to R4 and vertical adjustment) must stay
+// bordered (vde=0) and not wrap back to active display.
+void t03h_vde_rows_past_r6_stay_bordered(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(4, 5);  // R4=5: 6 character rows (0..5)
+    test.write_register(6, 2);  // R6=2: rows 0 and 1 displayed, 2..5 bordered
+    test.write_register(9, 1);  // R9=1: 2 scanlines per row
+    test.write_register(1, 4);  // R1=4: C0 0..3 displayed within line
+    test.run_to_frame_start();
+
+    // Row 0 (displayed)
+    test.expect_line("row 0", 0);
+    test.expect_de("row 0 displayed", true);
+    test.run_characters(8 * 2); // 2 lines
+
+    // Row 1 (displayed)
+    test.expect_line("row 1", 1);
+    test.expect_de("row 1 displayed", true);
+    test.run_characters(8 * 2); // 2 lines
+
+    // Rows 2..5 (must stay bordered for all scanlines)
+    for (unsigned row = 2; row <= 5; ++row) {
+        test.expect_line("row >= R6", row);
+        for (unsigned c0 = 0; c0 < 8; ++c0) {
+            test.expect_de("rows past R6 must stay bordered", false);
+            test.run_characters(1);
+        }
+        for (unsigned c0 = 0; c0 < 8; ++c0) {
+            test.expect_de("scanline 1 of row past R6 must stay bordered", false);
+            test.run_characters(1);
+        }
+    }
+
+    // Frame restarts at Row 0: display resumes
+    test.expect_line("frame restart row 0", 0);
+    test.expect_de("display resumes at frame restart", true);
+}
+
 // ACCC §19.2.3 p.193-194 (SKEW-DISPTMG exists on types 0/3/4): delay +1
 // shifts both visible border edges by one character; mode 3 forces
 // BORDER ON regardless of R1/R6 state.
@@ -1932,7 +1971,7 @@ void t08h_overscan_carry_14bit(TestBench& test) {
     test.expect_ma("t08h row 1 starts with overscan carried base", 0x0402);
 }
 
-constexpr std::array<TestCase, 53> kTests = {{
+constexpr std::array<TestCase, 54> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -1951,6 +1990,7 @@ constexpr std::array<TestCase, 53> kTests = {{
     {"t03c R1==R0 single-character blip", t03c_r1_eq_r0_blip},
     {"t03d R1>R0 no substitution, frozen rows", t03d_r1_gt_r0_no_substitution},
     {"t03e R6 line-start-only semantics", t03e_r6_line_start_semantics},
+    {"t03h VDE rows past R6 stay bordered", t03h_vde_rows_past_r6_stay_bordered},
     {"t03f adjustment rows solidified", t03f_adjustment_rows_solidified},
     {"t03g SKEW-DISPTMG delay and BORDER ON", t03g_skew_delay_and_border_on},
     {"t04a HSYNC position and width", t04a_hsync_position_and_width},
