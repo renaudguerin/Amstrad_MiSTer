@@ -66,7 +66,7 @@ wire [7:0] id1 = chunk_id_prev[15:8];
 wire [7:0] id2 = chunk_id_prev[23:16];
 wire [7:0] id3 = ioctl_dout;
 
-wire is_cb_prefix = (id0 == 8'h63) && (id1 == 8'h62); // "cb"
+wire is_cb_prefix = ((id0 == 8'h63) || (id0 == 8'h43)) && ((id1 == 8'h62) || (id1 == 8'h42)); // "cb" or "CB"
 
 wire id2_is_0 = (id2 == 8'h30);
 wire id2_is_1 = (id2 == 8'h31);
@@ -280,21 +280,21 @@ always @(posedge clk) begin
 						STATE_HEADER_FORM_TYPE: begin
 							case (sub_idx)
 								2'd0: begin
-									if (ioctl_dout != 8'h41) begin // 'A'
+									if (ioctl_dout != 8'h41 && ioctl_dout != 8'h61) begin // 'A' or 'a'
 										load_abort <= 1'b1;
 										state      <= STATE_ERROR;
 									end
 									else sub_idx <= 2'd1;
 								end
 								2'd1: begin
-									if (ioctl_dout != 8'h6D) begin // 'm'
+									if (ioctl_dout != 8'h4D && ioctl_dout != 8'h6D) begin // 'M' or 'm'
 										load_abort <= 1'b1;
 										state      <= STATE_ERROR;
 									end
 									else sub_idx <= 2'd2;
 								end
 								2'd2: begin
-									if (ioctl_dout != 8'h73) begin // 's'
+									if (ioctl_dout != 8'h53 && ioctl_dout != 8'h73) begin // 'S' or 's'
 										load_abort <= 1'b1;
 										state      <= STATE_ERROR;
 									end

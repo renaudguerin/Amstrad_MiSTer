@@ -30,7 +30,7 @@ struct Chunk {
 };
 
 // Minimal CPR RIFF image builder (same envelope rules as the parser bench).
-std::vector<uint8_t> build_cpr_image(const std::vector<Chunk> &chunks) {
+std::vector<uint8_t> build_cpr_image(const std::vector<Chunk> &chunks, const std::string &form_type = "AMS!") {
     std::vector<uint8_t> image{'R', 'I', 'F', 'F'};
     uint32_t riff_len = 4;
     for (const auto &chunk : chunks) {
@@ -39,10 +39,9 @@ std::vector<uint8_t> build_cpr_image(const std::vector<Chunk> &chunks) {
     }
     for (int i = 0; i < 4; ++i)
         image.push_back(static_cast<uint8_t>((riff_len >> (8 * i)) & 0xff));
-    image.push_back('A');
-    image.push_back('m');
-    image.push_back('s');
-    image.push_back('!');
+    for (size_t i = 0; i < 4; ++i) {
+        image.push_back(i < form_type.size() ? static_cast<uint8_t>(form_type[i]) : 0x20);
+    }
     for (const auto &chunk : chunks) {
         for (size_t i = 0; i < 4; ++i)
             image.push_back(i < chunk.id.size() ? static_cast<uint8_t>(chunk.id[i]) : 0x20);
@@ -482,6 +481,38 @@ void test_mmu_read_waits_out_production_sized_load() {
     require(!h.dut.mmu_cart_own, "MMU ownership survived the bus-cycle end");
 }
 
+void test_ams_and_ams_case_boot() {
+    // Test uppercase "AMS!" form-type with uppercase "CB00" chunk prefix
+    {
+        Harness h;
+        h.initialize();
+        h.machine_reset();
+
+        std::vector<Chunk> chunks;
+        std::vector<uint8_t> p0(16384, 0x12);
+        chunks.push_back({"CB00", p0});
+        auto image = build_cpr_image(chunks, "AMS!");
+        h.download(image);
+        require(h.dut.image_valid, "AMS! / CB00 download did not publish");
+        require(h.cpu_read(0, 0x0000) == 0x12, "AMS! / CB00 page 0 read mismatch");
+    }
+
+    // Test mixed-case "Ams!" form-type with lowercase "cb00" chunk prefix
+    {
+        Harness h;
+        h.initialize();
+        h.machine_reset();
+
+        std::vector<Chunk> chunks;
+        std::vector<uint8_t> p0(16384, 0x34);
+        chunks.push_back({"cb00", p0});
+        auto image = build_cpr_image(chunks, "Ams!");
+        h.download(image);
+        require(h.dut.image_valid, "Ams! / cb00 download did not publish");
+        require(h.cpu_read(0, 0x0000) == 0x34, "Ams! / cb00 page 0 read mismatch");
+    }
+}
+
 }  // namespace
 
 int main(int argc, char **argv) {
@@ -491,6 +522,8 @@ int main(int argc, char **argv) {
         std::cout << "PASS: unpublished image fails open without SDRAM traffic\n";
         test_nominal_load_and_readback();
         std::cout << "PASS: CPR download publishes and reads back incl. short-page zero fill\n";
+        test_ams_and_ams_case_boot();
+        std::cout << "PASS: CPR case-insensitivity (AMS! and Ams!, CB00 and cb00) boots correctly\n";
         test_malformed_images_abort();
         std::cout << "PASS: malformed magic and oversized cbNN abort before publication\n";
         test_reset_during_load_cleans_up();
