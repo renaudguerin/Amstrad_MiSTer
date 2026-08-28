@@ -2,9 +2,20 @@
 
 ## Open rows
 
-None.
+- **ACCC Round 2 documentation correction, 2026-08-28** — documentation on the integration
+  branch `accc-review-and-fixes`, based on `c11c55d`. Scope: `accuracy/accc-author-feedback.md`, its Round 1
+  archive, `accuracy/accc-author-questions.md`, `accuracy/compendium-01-counters.md`,
+  `accuracy/audit-findings.md`, and `current-status.md`. No RTL or tests changed.
+  Gemini `analyze` returned a headless `read_file` permission denial and no review verdict.
+  Review the English/French v1.11 Q12 qualifier comparison, the conditional single-activation
+  deduction, the Q20/N2 preferred C4/R4 reset reading versus the unchanged model, and the
+  proposed 44-versus-512-scanline hardware discriminator. Source URLs, page references and
+  PDF hashes are recorded in the active feedback document. Local whitespace, link-target,
+  documentation-only scope and arithmetic checks passed; simulation was not required.
+  Clear this entry only after an actual cross-provider review. The introducing commit is
+  the commit adding this entry; the previously cleared implementation reviews are unaffected.
 
-**Status: ALL review debt rows cleared (zero open rows).**
+**Status: one documentation review open.** Historical implementation review debt remains cleared.
 
 ## Cleared rows
 

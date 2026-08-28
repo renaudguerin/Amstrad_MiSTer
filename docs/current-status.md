@@ -11,7 +11,13 @@ self-reviewed items (`de71808`, `da79915`+`1a1233f`, `cd47d7d`, `c4c3e0f`, `90ae
 `accuracy/f7-rfd`, `plus/p1-followups`) and the open `hotfix/implicit-rgb-net` debt row, confirming
 all implementations (verdict CLEAR with non-blocking findings N1-N5 recorded in
 `docs/accuracy/ox-alpha-items-opus-review.md`) and clearing all review debt. On 2026-08-28, Longshot
-released **ACCC v1.11** incorporating feedback from our Round 1 audit (`docs/accuracy/accc-author-feedback-round1-2026-08-27.md`). Active Round 2 feedback is tracked in `docs/accuracy/accc-author-feedback.md`.
+released **ACCC v1.11** incorporating feedback from our Round 1 audit (`docs/accuracy/accc-author-feedback-round1-2026-08-27.md`). Active Round 2 feedback is tracked in `docs/accuracy/accc-author-feedback.md`:
+Q12 is resolved by French v1.11's repeated-activation qualifier and becomes an English
+clarification; Q20/N2 remains a hardware confirmation request, with the C4/R4 reset reading
+preferred but the current free-running model unchanged. Neither is new hardware evidence.
+The Round 2 documentation correction awaits cross-provider review after a headless tool
+permission denial; see [open documentation review](review-debt.md). Historical
+implementation reviews remain cleared.
 A complete mechanical and multimodal comparison across all 295 pages (278 word-identical, 17 updated)
 resolved the author questions/errata, confirmed that our F15–F18 implementations match the corrected
 rules, and evaluated Finding **F19** (clarified as CRTC-2 specific §12.4.1 p.95, while CRTC 0 is confirmed to evaluate same-edge writes per §12.2 pp.92-94).
@@ -349,8 +355,9 @@ For a first MiSTer pass:
   pp.221-224 tables). All 31 vectors are required passes; the old stepping/halving
   approximation is removed and non-IVM behavior is bit-identical. The former question gates
   are adjudicated: F14 owns the additional interlace line, F15 owns odd-R9 alternation and
-  its VSYNC correction, and F16 owns the post-exit frozen-C9.VMA behavior. Q12's inferred
-  post-transition recovery remains deliberately unimplemented; residuals are in
+  its VSYNC correction, and F16 owns the post-exit frozen-C9.VMA behavior. Q12's source
+  question is resolved by the French v1.11 repeated-activation qualifier; local odd-C4
+  transition fixtures and post-toggle timing validation remain separate. Residuals are in
   `accuracy/f10-implementation-notes.md`. The stack was independently reviewed 2026-08-25
   (`accuracy/f10-independent-review.md`): NOT CLEAR on two blockings, both fixed with new
   vectors (`t23a`-`t23c`, `t22p`-`t22s`, RA column in `t22`); review-debt row cleared.
@@ -433,9 +440,10 @@ For a first MiSTer pass:
     223-224): Q10 RESOLVED — the additional interlace line is generated at the end of the
     ParityFrame-even frame (type 1 gate ParityFrame even; type 0 gate ParityR6 odd with the
     R6>R4 freeze) and duration-counted in the following odd frame; labelling is
-    ParityFrame-relative. Q11 RESOLVED (p.205 states even explicitly). Q12 RESOLVED (the
-    source does not assert self-correction; the no-persistent-state reading is recorded as
-    inferred). Q19 main token + (a) RESOLVED (`R9.0=0` is a typo for `R9.0=1`; the
+    ParityFrame-relative. Q11 RESOLVED (p.205 states even explicitly). Q12 RESOLVED by the
+    2026-08-28 edition comparison: French v1.11 p.208 specifies activation on every frame;
+    English p.206 omits the qualifier. This does not verify post-toggle pin timing.
+    Q19 main token + (a) RESOLVED (`R9.0=0` is a typo for `R9.0=1`; the
     three-phase comparison form is pinned by p.220 and already implemented). At merge time
     Q19(b) remained open: the pp.223-224 exit tables implied a frozen-C9.VMA line-end test
     after a non-matching R8=0 write, while this core resumes a live plain `C9==R9` test on
@@ -1032,11 +1040,16 @@ front end.
    per-type behavior commits). The former author-question gates have now been adjudicated.
     Remaining F10-derived work is fixture-gated under **F14** (additional interlace line),
     **F15** (odd-R9 parity alternation and VSYNC correction), and **F16** (post-exit frozen
-    C9.VMA). Q12's odd-C4 transition imbalance remains unmodeled because the source describes
-    the transition frame but does not source the inferred recovery behavior.
+    C9.VMA). Q12 is resolved as an English qualifier omission (French v1.11 p.208:
+    activation on every frame). Local odd-C4 transition fixtures and post-toggle pin timing
+    validation remain separate; the source comparison does not establish hardware recovery.
     **2026-08-28 Claude Opus 5 re-review follow-ups & ACCC v1.11 reviews**:
     - **N1**: reconciled the §13.7.1.2 R0-widening RFD route (`t13g`) with F17's §11.6.1 p.88 C9=R9 VMA-source disable (annotated in `t13g`, `rtl/crtc_type1_engine.v`, and `audit-findings.md` per §13.7.1.2 p.124).
-    - **N2**: adjudicated the §11.3.2 p.85 clause ("C4, however, continues to be compared to R4 to process the change from C4 to 0") during stuck R5=0 adjustment (recorded Question 20 in `accc-author-questions.md` and Section 2 in Round 2 `accc-author-feedback.md`, clarified digest, extended `t08j`).
+    - **N2 — open hardware confirmation / explicit model residual**: with R8=0 and R5=0
+      during adjustment, the preferred §11.3.2 reading permits a C4/R4 reset while C5 and
+      adjustment persist. The RTL retains free-running C4; extended `t08j` pins that choice
+      without establishing silicon behavior. Q20 and Round 2 section 2 record the narrow
+      author question and the proposed, unrun 44-versus-512-scanline VSYNC discriminator.
     - **N3/N4 (COMPLETED 2026-08-28)**: added CPR parser upper bound test vector (`0x01FFFFF8` rejected, `0x01FFFFF7` accepted) and tightened zero-length `cb00` chunk handling in `rtl/plus/plus_cpr_parser.v` (requires at least one forwarded byte to commit) with regression coverage in `plus_cpr_parser_test.cpp`.
     - **N5 (COMPLETED 2026-08-28)**: added CI compile-log guard in `build.yml` / `local-build.yml` for Quartus Warning 10236 (`Implicit Net warning`), plus OSD menu grouping of CPR with DSK/CDT in `Amstrad.sv`.
     - **F19**: adjudicated as CRTC-2 specific (§12.4.1 p.95); CRTC 0 is governed by §12.2 pp.92-94 where $R_4$ and $R_9$ same-edge $C_0<2$ writes evaluate immediately (Type-0 RTL retains same-edge evaluation, unit tests `t12c`-`t12e` verify §12.2, soak hash verified bit-identical at `0x48146d2b681268ab`).

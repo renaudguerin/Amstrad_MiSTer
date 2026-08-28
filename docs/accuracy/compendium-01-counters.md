@@ -214,18 +214,18 @@ was retired by the 2026-08-22 review:
     updated when C0>2 on that last line, the update is **ignored** — C4/C9 reset to 0 as if
     adjustment ended normally.
 - CRTC 1 (§11.3.2, p.85): same "reaches R5 stops" logic on `C5+1`; less-than → C5 overflows.
-  - **⚠ Bug: R5 set to 0 during adjustment does NOT reset C4** (IMPORTANT): CRTC 1 arms an
-    internal "additional management active" state when R5>0 at the moment C4 would otherwise
-    reset at frame end; normally cleared when `C5+1==R5` (which also resets C4). **If R5 is set
-    to 0 while active, the state is NOT cleared** — C4 stays nonzero, C5 free-runs, because
-    `C5+1==R5` can never be satisfied against R5=0. The source states: *"C4, however, continues
-    to be compared to R4 to process the change from C4 to 0. The additional management, however,
-    remains activated. Thus, if C5+1 reaches an R5>0, then the additional management changes C4 to 0
-    before deactivating its state."* C4 free-runs past R4+1 through 127 and wraps to 0 by 7-bit overflow
-    while adjustment remains active (question 20). **Only way out**: set R5 to a value >0 that C5+1
-    will actually reach; then the state clears and C4 resets. This lets you force C4/C9 to 0 on
-    an arbitrary line — an exploit technique, and a trap for models assuming "R5=0 ⇒ adjustment
-    ends this line."
+  - **⚠ Bug: R5 set to 0 does not terminate active adjustment**: C5 loops and the expected
+    adjustment-end C4 reset does not occur. Programming a reachable positive R5 permits
+    `C5+1==R5` to terminate adjustment and reset C4/C9 on an arbitrary line.
+  - **C4/R4 reset remains a source/model distinction (Q20/N2, 2026-08-28):** the specific
+    R5=0 paragraph retains the C4/R4 reset comparison while adjustment remains active,
+    whereas §11.2.4 p.84 generally describes adjustment increments ignoring R4. The
+    preferred reading is that, with R8=0, C4 resets at the next C4=R4, C9=R9 line end
+    without stopping C5 or clearing adjustment. The later positive-R5 exit rule does not
+    exclude this intermediate reset. French v1.11 §11.3.2 p.87 retains the distinction.
+    **Current model only:** C4 ignores R4 throughout stuck adjustment and wraps through 127
+    by overflow; `t08j` pins that choice, not hardware behavior. Confirmation is requested
+    in [Round 2 section 2](accc-author-feedback.md); RTL and tests remain unchanged.
 
 ### 4.5 R5 update BEFORE adjustment starts (§11.4, p.86)
 

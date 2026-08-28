@@ -4,7 +4,9 @@
 **Reference:** *The Amstrad CPC CRTC Compendium* v1.11 (Longshot / Logon System, 27 August 2026)
 **Target:** Longshot (Author of *The Amstrad CPC CRTC Compendium*)
 
-This document compiles outstanding questions and technical clarifications gathered during the ongoing hardware accuracy audit and FPGA implementation of the MiSTer Amstrad core against **ACCC v1.11**.
+This document contains one English-edition clarification and one hardware-behavior confirmation
+request from the MiSTer Amstrad core accuracy audit against **ACCC v1.11**. Source deductions,
+current model choices, and hardware observations are distinguished below.
 
 *Note: Historical Round 1 feedback (which resulted in the publication of ACCC v1.11) is archived in [accc-author-feedback-round1-2026-08-27.md](accc-author-feedback-round1-2026-08-27.md).*
 
@@ -12,37 +14,72 @@ Technical information sourced from *The Amstrad CPC CRTC Compendium* by Longshot
 
 ---
 
-## 1. §19.5.2 (p. 206) — Subsequent-Frame Recovery After Odd-$C_4$ IVM Activation
+## 1. §19.5.2 — English Edition Omits the Repeated IVM Activation Qualifier (CRTC 0)
 
-* **Location:** Chapter 19.5.2 (p. 206, Note).
-* **Context in ACCC v1.11:**
-  The Note in §19.5.2 discusses the effect of activating Interlace Video Mode ($R_8 \to 3$) on an odd character row ($C_4$):
-  > *"If R8 goes to 3 on an odd C4, this can cause a phase of 1 line between the VSYNC of even and odd frames. Indeed, this VSYNC shift technique… only works properly to manage the line imbalance between an even C4 and an odd C4."*
-  The text provides a worked example showing the line counts during the transition frame (e.g. $C_4=0$ identical at 8 lines; $C_4=1$ receives 5 even lines on an odd frame vs 4 odd lines on an even frame).
-* **Question for Author:**
-  The Compendium documents the transition-frame perturbation in detail, but is silent on what happens on subsequent frames.
+**Location:** English p.206, Note and worked-example introduction (diagram p.207);
+French pp.207–208, with the qualifier on p.208.
 
-  Does physical silicon immediately recover the steady-state interlace cadence on the very next frame (because parity state bits such as `ParityFrame` are re-anchored at each $C_4=C_9=C_0=0$ frame origin and `ParityC9` is recomputed per character end without carrying forward any timing phase shift), or does any internal latch state persist across subsequent frames?
+**Resolved by comparing editions:** The French v1.11 example specifies that R8 goes to 3
+on C4=1, C9=0 **“à chaque frame” — on every frame**. The English example omits those words.
+The example therefore describes a disturbance recreated by repeated activation, not evidence
+of an unexplained persistent state after a single activation.
 
-* **Current Implementation Behavior:**
-  Our core implements a memoryless parity model where parity state re-evaluates at the frame origin, causing the system to self-correct immediately after the transition frame and resume the steady 625-line cadence. We would appreciate confirmation of whether this matches observed hardware behavior.
+**Suggested English clarification:** Add **“on every frame”** after the example's
+R8-to-3 activation on C4=1, C9=0, matching the French edition.
+
+**Separate deduction for a single activation:** If R8 is subsequently held at 3, registers
+remain stable, frame origins continue to occur, and C4 continues to reach R6, the documented
+counter/parity rules imply a return to the normal row-count pattern at the next frame origin:
+`ParityFrame` is loaded from `ParityR6`, and for odd R9 the row parity is recalculated from
+`C4.0 xor ParityFrame` (§19.5.2 English pp.205–206; §19.8.1 p.219). This deduction does not
+undo the elapsed timing offset caused by the transition. `ParityR6` persists across frames
+and can freeze when R6 is unreachable; frame totals also depend on register programming.
+
+This is a source-reading resolution, not hardware confirmation or proof that our core's
+post-toggle pin timing is correct. Local transition/timing validation remains separate;
+there is no outstanding author question about a hidden recovery latch based on this example.
 
 ---
 
-## 2. §11.3.2 (p. 85) — $C_4$ Counter Behavior During Stuck $R_5=0$ Vertical Adjustment (CRTC 1)
+## 2. §11.3.2 — Confirm the C4 Reset Route During Stuck R5=0 Adjustment (CRTC 1)
 
-* **Location:** Chapter 11.3.2 (p. 85, Type 1 Vertical Adjustment).
-* **Context in ACCC v1.11:**
-  In §11.3.2, describing what occurs on Type 1 (UM6845R) when $R_5$ is rewritten to 0 during active vertical adjustment:
-  > *"But if R5 becomes zero during additional management, the state is not deactivated, C4 does not return to 0 and C5 loops. C4, however, continues to be compared to R4 to process the change from C4 to 0. The additional management, however, remains activated. Thus, if C5+1 reaches an R5>0, then the additional management changes C4 to 0 before deactivating its state."*
+**Location:** English §11.2.4 p.84 and §11.3.2 pp.85–86; French §11.2.4 p.85 and
+§11.3.2 p.87.
 
-* **Question for Author:**
-  Could you clarify the exact intended meaning of the sentence:
-  *"C4, however, continues to be compared to R4 to process the change from C4 to 0"*?
+**Source tension:** §11.2.4 says that C4 increments without considering R4 during adjustment.
+The more specific R5=0 case in §11.3.2 says that the C4/R4 comparison continues to process
+C4's return to zero while adjustment remains active. Both editions retain this distinction.
 
-  Specifically:
-  1. Does $C_4$ reset to 0 mid-adjustment when it next matches $R_4$ (while $C_5$ continues looping and adjustment remains active)?
-  2. Or does $C_4$ continue free-running past $R_4+1$, cycling through 127 and wrapping by 7-bit overflow while $C_5$ loops, with the reset $C_4 \to 0$ occurring only upon deactivating additional management when a reachable $R_5 > 0$ is encountered (as described in the following sentence: *"Thus, if C5+1 reaches an R5>0, then the additional management changes C4 to 0 before deactivating its state"*))?
+**Preferred reading (1), pending confirmation:** With R8=0, the R5=0 case permits the ordinary
+C4/R4 reset at a C9=R9 line end without clearing adjustment or stopping C5. The later
+positive-R5 sentence describes a reset route that also exits adjustment; it does not say
+that this is the only possible C4 reset.
 
-* **Current Implementation Behavior:**
-  Our core implements model (2): during the stuck $R_5=0$ adjustment, $C_4$ increments past $R_4+1$, free-running through 127 without resetting at $R_4$ while `in_adj=1`, and resets $C_4 \to 0$ when an $R_5 > 0$ write satisfies the $C_5+1 == R_5$ termination condition (verified by unit test `t08j`). If model (2) is what silicon executes, we suggest clarifying the wording in §11.3.2 in a future edition to avoid ambiguity.
+**Question for the author:**
+
+> With R8=0 and adjustment stuck after R5 becomes zero, does C4 reset at the next
+> C4=R4, C9=R9 line end while C5 continues counting and adjustment remains active?
+
+**Current implementation, not silicon evidence:** Our core retains reading (2): during
+stuck R5=0 adjustment, C4 ignores R4, advances through 127, and wraps by 7-bit overflow.
+A reachable positive R5 terminates adjustment and resets the counters. `t08j` pins this
+chosen model, including a pass through the next C4=R4, but cannot establish hardware behavior.
+The model residual remains open; this documentation correction does not change RTL or tests.
+
+**Proposed hardware discriminator (not yet run):** Use a Type-1 CRTC with R0=63, R4=10,
+R9=3, R7=1 and R8=0. Enter adjustment with R5=16, then set R5=0 at C5=2 and leave the
+registers unchanged. After the initial C4 overflow, measure successive VSYNC rising edges.
+Reading (1) predicts a recurring interval of `(R4+1) × (R9+1) = 44` scanlines; reading (2)
+predicts `128 × (R9+1) = 512` scanlines. These are paper-derived predictions for the two
+readings, not measured results. A later reachable positive-R5 write provides an exit control.
+
+---
+
+## Source verification
+
+The 2026-08-28 comparison used pdf-inspector extraction and rendered relevant pages from
+[English v1.11](https://shaker.logonsystem.eu/ACCC1.11-EN.pdf) and
+[French v1.11](https://shaker.logonsystem.eu/ACCC1.11-FR.pdf). SHA-256 fingerprints:
+
+- English: `3e45eb7eea7dc8f0d7211f78bec4f8d00530ce3c00da2e76034fb24f7a751868`
+- French: `4409e3a2e77cd54e499c6956446b01bce93f79a1c1ba366201d514cf6e3c0d47`

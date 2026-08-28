@@ -550,8 +550,10 @@ General implementation rules for all fix prompts:
   (F14), and post-exit frozen C9.VMA (F16) are deliberately unimplemented; the residuals
   listed in `f10-implementation-notes.md` (MID-VSYNC parity source after mid-frame R8 toggles,
   RFD×IVM, adjustment-during-IVM) are unpinned.
-- **Remaining work**: F14/F15/F16 require fixtures before RTL. Q12's odd-C4 transition
-  imbalance remains unmodeled because recovery is inferred rather than sourced. SHAKER
+- **Remaining work**: F14/F15/F16 require fixtures before RTL. Q12 is resolved as an English
+  qualifier omission: French v1.11 p.208 specifies IVM activation on every frame. The
+  odd-C4 transition case still needs local fixtures; the source resolution does not verify
+  the core's post-toggle pin timing (see `accc-author-questions.md` item 12). SHAKER
   interlace suite (Module B `(1)`/`(9)`, C parity entries) is the hardware exit for what is
   implemented.
 

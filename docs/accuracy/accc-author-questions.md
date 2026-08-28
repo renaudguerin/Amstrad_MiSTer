@@ -4,7 +4,9 @@
 > This file is the original internal working ledger of 20 questions compiled during the accuracy audit against *The Amstrad CPC CRTC Compendium* v1.10.
 >
 > - Questions submitted in **Round 1** were incorporated into **ACCC v1.11** (released August 27, 2026); see archived [accc-author-feedback-round1-2026-08-27.md](accc-author-feedback-round1-2026-08-27.md).
-> - All remaining active/outstanding questions for subsequent feedback rounds have been consolidated into the clean active document: **[accc-author-feedback.md](accc-author-feedback.md)** (covering Q12 $\to$ Section 1, Q20 $\to$ Section 2).
+> - Active feedback is consolidated in **[accc-author-feedback.md](accc-author-feedback.md)**:
+>   Q12 is resolved by the French v1.11 wording and becomes an English clarification in
+>   section 1; Q20 remains a hardware confirmation request in section 2.
 > - Individual numbered items below are preserved for historical provenance and cross-referencing from codebase comments.
 
 Collected 2026-08-22 during the faithfulness review of the repository's distillation against
@@ -170,26 +172,23 @@ with it.
     character (For example R9=6 to obtain 2 x 4 line/char=8 lines)." Total lines per character
     is even; the distilled inversion was already corrected at D1. Nothing further to implement
     (the F10 even-R9 vectors pin this scheme).
-12. **p.206 (§19.5.2) — odd-C4 IVM activation imbalance.** Activating R8=3 on an odd C4 can
-    imbalance the VSYNC-delay correction for that transition frame. Does the source assert
-    (or could you confirm) that the imbalance self-corrects on subsequent frames?
+12. **§19.5.2 — odd-C4 IVM activation imbalance; English qualifier omitted.**
 
-    **RESOLVED 2026-08-25 (answer: the source does not assert it).** The p.206 render's Note
-    acknowledges the misbehavior without stating recovery: "If R8 goes to 3 on an odd C4, this
-    can cause a phase of 1 line between the VSYNC of even and odd frames. Indeed, this VSYNC
-    shift technique… only works properly to manage the line imbalance between an even C4 and
-    an odd C4," and the worked example quantifies the transition frame only (C4=0 identical at
-    8 lines; C4=1 gets 5 even lines on an odd frame vs 4 odd lines on an even frame). DRAWN:
-    the source is silent on subsequent frames. INFERRED from the documented mechanics
-    (§19.5.2): the parity state bits re-derive per frame — ParityFrame is re-anchored from
-    ParityR6 at each C4=C9=C0=0 origin and ParityC9 is recomputed per character end — and
-    carry no timing information, so the ±1-line perturbation cannot persist in them and the
-    steady scheme resumes next frame; ParityR6 itself persists across frames by design (and
-    freezes under R6>R4) but is a parity bit, not a timing state. The perturbation is a
-    one-frame length change that shifts both fields uniformly — but that is our inference,
-    not a sourced rule. No RTL impact while the transition-frame imbalance is
-    unmodeled; if it is ever implemented, it needs its own fixtures and this question
-    re-opens for the author.
+    **RESOLVED BY EDITION COMPARISON 2026-08-28.** French v1.11 p.208 specifies that
+    R8 goes to 3 on C4=1, C9=0 “à chaque frame” (on every frame). English p.206 omits
+    those words. The example describes a disturbance recreated each frame, not evidence
+    of a hidden recovery latch following a single activation. Round 2 section 1 requests
+    that English clarification.
+
+    For a single activation followed by holding R8=3, with stable registers, continuing
+    frame origins and reachable R6, the documented parity rules imply the normal row-count
+    pattern resumes at the next origin: ParityFrame loads ParityR6 and, for odd R9,
+    ParityC9 is recalculated from C4.0 xor ParityFrame (§19.5.2 English pp.205–206;
+    §19.8.1 p.219). This does not undo an elapsed timing offset. ParityR6 persists and
+    can freeze when R6 is unreachable; total frame lengths depend on register programming.
+    This is a source deduction, not hardware confirmation or verification of the core's
+    post-toggle pin timing. Local transition fixtures and the separate MID-VSYNC coupling
+    residual in `f10-implementation-notes.md` remain implementation work.
 13. **p.245 vs p.293 (§21.2.2 vs §28.1.9) — type-1 readable registers.** §21.2.2 documents
     readable R14-R17 (plus register 31); the identification chapter states that on CRTC 1
     "*all* registers return 0 except register 31". Which is authoritative — do R14/R15 (and
@@ -324,22 +323,25 @@ with it.
     seven-window discriminator. Actionable: current post-exit RTL resumes the live plain-C9
     test; finding **F16** now owns the focused failing fixtures required before any RTL change.
 
-20. **p.85 (§11.3.2) — C4 comparison during stuck $R_5=0$ vertical adjustment.** The text says:
-    *"But if R5 becomes zero during additional management, the state is not deactivated, C4 does
-    not return to 0 and C5 loops. C4, however, continues to be compared to R4 to process the change
-    from C4 to 0. The additional management, however, remains activated. Thus, if C5+1 reaches an
-    R5>0, then the additional management changes C4 to 0 before deactivating its state."*
-    Does the sentence *"C4, however, continues to be compared to R4 to process the change from C4 to 0"*
-    mean that C4 resets to 0 when it next cycles around and reaches R4 (while C5 continues looping
-    and adjustment stays active), or does it simply restate the normal frame-end mechanism vs the
-    stuck C5 looping condition where C4 free-runs until a reachable R5>0 deactivates additional management?
+20. **§11.3.2 — C4 comparison during stuck R5=0 vertical adjustment (CRTC 1).**
 
-    **ADJUDICATED DEFAULT READING 2026-08-28 (Review finding N2):**
-    The following sentence (*"Thus, if C5+1 reaches an R5>0, then the additional management changes C4 to 0
-    before deactivating its state"*) explains that changing C4 to 0 occurs upon exiting additional
-    management when a reachable $R_5>0$ is satisfied. During the stuck $R_5=0$ adjustment, $C_4$
-    increments past $R_4+1$, free-running through 127 and wrapping to 0 by 7-bit overflow while
-    adjustment remains active (`in_adj=1`). Test `t08j` pins this behavior.
+    **OPEN HARDWARE CONFIRMATION / MODEL RESIDUAL N2, 2026-08-28.** English §11.2.4 p.84
+    says adjustment increments C4 without considering R4. The specific R5=0 case in
+    §11.3.2 pp.85–86 keeps the C4/R4 reset comparison active while adjustment persists.
+    French §11.2.4 p.85 and §11.3.2 p.87 retain the same distinction.
+
+    Preferred reading (1): with R8=0, C4 resets at the next C4=R4, C9=R9 line end while
+    C5 continues counting and adjustment remains active. The later positive-R5 sentence
+    describes a reset that also exits adjustment; it does not exclude an intermediate
+    C4/R4 reset. Ask the author to confirm that precise distinction.
+
+    The core retains reading (2): C4 ignores R4 while stuck in adjustment and wraps through
+    127 by 7-bit overflow, until a reachable positive R5 terminates adjustment. `t08j`
+    pins this model choice, not silicon behavior. No RTL or test change accompanies the
+    revised source reading. Round 2 section 2 gives the proposed, unrun hardware test:
+    R0=63, R4=10, R9=3, R7=1, R8=0; enter adjustment with R5=16, then set R5=0 at C5=2.
+    After the initial C4 overflow, the two readings predict recurring VSYNC intervals of
+    44 and 512 scanlines respectively. Author or hardware evidence must settle the residual.
 
 Also noted while verifying (no answer needed, listed for completeness): p.195 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay

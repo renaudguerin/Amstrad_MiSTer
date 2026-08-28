@@ -24,9 +24,16 @@ Technical information sourced from *The Amstrad CPC CRTC Compendium* by Longshot
 * **Status in ACCC v1.11:** **RESOLVED / CLARIFIED**. The text was updated to *"The adjustment stops after 1 line when the calculated C9 becomes equal to R5"*. Observable behavior matches our core.
 
 ### 1.3 §19.5.2 (p. 206) — Subsequent-Frame Recovery After Odd-$C_4$ IVM Activation
-* **Location:** Chapter 19.5.2 (p. 206, Note).
-* **The Context:** The text notes that activating Interlace Video Mode ($R_8 \to 3$) on an odd $C_4$ causes a 1-line VSYNC phase imbalance on the transition frame (e.g., $C_4=1$ receives 5 lines on an odd frame vs 4 lines on an even frame).
-* **Status in ACCC v1.11:** **OUTSTANDING / INFERRED**. Not modified in v1.11 text. Our implementation's memoryless parity evaluation model self-corrects after the transition frame, matching physical hardware behavior. Promoted to Round 2 feedback.
+* **Location:** Chapter 19.5.2 (English pp.206–207; French pp.207–208).
+* **The Context:** The example introduces IVM on C4=1, C9=0 on every frame, producing an
+  imbalance between the even and odd frames. French v1.11 p.208 specifies “à chaque frame”;
+  English p.206 omits the qualifier.
+* **Status in ACCC v1.11:** **RESOLVED BY EDITION COMPARISON, 2026-08-28**. The example
+  concerns repeated activation, not unexplained persistence after one activation. Round 2
+  [section 1](accc-author-feedback.md)
+  requests the missing English qualifier and distinguishes the conditional single-activation
+  deduction from hardware evidence. Neither hardware recovery nor our post-toggle pin timing
+  has been established by this source comparison.
 
 ---
 
