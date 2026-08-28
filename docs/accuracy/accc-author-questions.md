@@ -1,4 +1,11 @@
-# Questions for the ACCC author (Longshot)
+# Questions for the ACCC author (Longshot) — Working Archive
+
+> **STATUS NOTICE (2026-08-28):**
+> This file is the original internal working ledger of 20 questions compiled during the accuracy audit against *The Amstrad CPC CRTC Compendium* v1.10.
+>
+> - Questions submitted in **Round 1** were incorporated into **ACCC v1.11** (released August 27, 2026); see archived [accc-author-feedback-round1-2026-08-27.md](accc-author-feedback-round1-2026-08-27.md).
+> - All remaining active/outstanding questions for subsequent feedback rounds have been consolidated into the clean active document: **[accc-author-feedback.md](accc-author-feedback.md)** (covering Q12 $\to$ Section 1, Q20 $\to$ Section 2).
+> - Individual numbered items below are preserved for historical provenance and cross-referencing from codebase comments.
 
 Collected 2026-08-22 during the faithfulness review of the repository's distillation against
 *The Amstrad CPC CRTC Compendium* v1.10 (`docs/ACCC1.10-EN.pdf`). Each item is a place where
@@ -10,6 +17,7 @@ Re-checked 2026-08-26 against fresh pdf-inspector extraction, rendered pages whe
 diagram, or exact layout is evidence below, and the CRTC chip/reference documents under
 `docs/references/`. The ACCC remains authoritative where those secondary documents conflict
 with it.
+
 
 1. **p.75-76 (§10.3.1) — last-line state and C0>1 writes.** The text says a last-line state
    found at C0<2 "cannot become false again until the next comparison of C4 and C9 (when C0

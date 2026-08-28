@@ -11,7 +11,7 @@ self-reviewed items (`de71808`, `da79915`+`1a1233f`, `cd47d7d`, `c4c3e0f`, `90ae
 `accuracy/f7-rfd`, `plus/p1-followups`) and the open `hotfix/implicit-rgb-net` debt row, confirming
 all implementations (verdict CLEAR with non-blocking findings N1-N5 recorded in
 `docs/accuracy/ox-alpha-items-opus-review.md`) and clearing all review debt. On 2026-08-28, Longshot
-released **ACCC v1.11** incorporating feedback from our `docs/accuracy/accc-author-feedback.md` audit.
+released **ACCC v1.11** incorporating feedback from our Round 1 audit (`docs/accuracy/accc-author-feedback-round1-2026-08-27.md`). Active Round 2 feedback is tracked in `docs/accuracy/accc-author-feedback.md`.
 A complete mechanical and multimodal comparison across all 295 pages (278 word-identical, 17 updated)
 resolved the author questions/errata, confirmed that our F15–F18 implementations match the corrected
 rules, and evaluated Finding **F19** (clarified as CRTC-2 specific §12.4.1 p.95, while CRTC 0 is confirmed to evaluate same-edge writes per §12.2 pp.92-94).
@@ -1036,7 +1036,7 @@ front end.
     the transition frame but does not source the inferred recovery behavior.
     **2026-08-28 Claude Opus 5 re-review follow-ups & ACCC v1.11 reviews**:
     - **N1**: reconciled the §13.7.1.2 R0-widening RFD route (`t13g`) with F17's §11.6.1 p.88 C9=R9 VMA-source disable (annotated in `t13g`, `rtl/crtc_type1_engine.v`, and `audit-findings.md` per §13.7.1.2 p.124).
-    - **N2**: adjudicated the §11.3.2 p.85 clause ("C4, however, continues to be compared to R4 to process the change from C4 to 0") during stuck R5=0 adjustment (recorded Question 20 in `accc-author-questions.md`, clarified digest, extended `t08j`).
+    - **N2**: adjudicated the §11.3.2 p.85 clause ("C4, however, continues to be compared to R4 to process the change from C4 to 0") during stuck R5=0 adjustment (recorded Question 20 in `accc-author-questions.md` and Section 2 in Round 2 `accc-author-feedback.md`, clarified digest, extended `t08j`).
     - **N3/N4 (COMPLETED 2026-08-28)**: added CPR parser upper bound test vector (`0x01FFFFF8` rejected, `0x01FFFFF7` accepted) and tightened zero-length `cb00` chunk handling in `rtl/plus/plus_cpr_parser.v` (requires at least one forwarded byte to commit) with regression coverage in `plus_cpr_parser_test.cpp`.
     - **N5 (COMPLETED 2026-08-28)**: added CI compile-log guard in `build.yml` / `local-build.yml` for Quartus Warning 10236 (`Implicit Net warning`), plus OSD menu grouping of CPR with DSK/CDT in `Amstrad.sv`.
     - **F19**: adjudicated as CRTC-2 specific (§12.4.1 p.95); CRTC 0 is governed by §12.2 pp.92-94 where $R_4$ and $R_9$ same-edge $C_0<2$ writes evaluate immediately (Type-0 RTL retains same-edge evaluation, unit tests `t12c`-`t12e` verify §12.2, soak hash verified bit-identical at `0x48146d2b681268ab`).

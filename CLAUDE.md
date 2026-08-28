@@ -62,7 +62,7 @@ failing is a finding, not something to edit.
 
 ## Gates
 
-`make -C sim` must pass before every commit. GitHub Actions runs that fast gate on every
+`make -C sim` must pass before every code/RTL/simulation commit (pure documentation or markdown changes do not require running simulation). GitHub Actions runs that fast gate on every
 non-documentation push. Pinned Quartus 17.0.2 synthesis is automatic wherever work integrates:
 every push to an integration branch (the default branch, `accc-review-and-fixes`) that touches
 anything Quartus compiles, plus pull requests, tags, and manual dispatches. Stream branches

@@ -33,11 +33,13 @@ never from a text layer).
 ## Commands
 
 ```sh
-make -C sim          # Verilator suite: CRTC pin tests + sim/plus ASIC tests (gate for every commit)
+make -C sim          # Verilator suite: CRTC pin tests + sim/plus ASIC tests (gate for code/RTL/sim commits)
 make -C sim lint     # verilator --lint-only, both suites
 make -C sim soak     # randomized equivalence soak vs the golden hash (see sim/README.md)
 make -C sim clean
 ```
+
+- `make -C sim` is required for any change touching RTL, testbenches, simulation models, or build manifests. Pure documentation, markdown, and reference changes do not require running simulation.
 
 - Requires Verilator 5+, GNU Make, C++17 compiler (`brew install verilator` on macOS).
 - Failures exit nonzero; failing CRTC tests leave a VCD at `sim/obj_dir/<test>.vcd`.
