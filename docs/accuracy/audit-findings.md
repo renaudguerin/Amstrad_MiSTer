@@ -371,16 +371,17 @@ General implementation rules for all fix prompts:
 
 ## F17. Type-1 RFD triggered on C9=R9 disables VMA-source state
 
-- **Rule** (ACCC v1.10 §11.6.1 p.88 Case 2; author question Q4): On Type 1 (UM6845R), triggering an RFD
-  ($R_5$ written 0 $\to$ nonzero at $C_0=R_0$) on the last character line of a row where $C_9==R_9$ disables
+- **Rule** (ACCC v1.10/v1.11 §11.6.1 p.88 Case 2; author question Q4): On Type 1 (UM6845R), triggering an RFD
+  (via the general $R_5$ written 0 $\to$ nonzero route) on the last character line of a row where $C_9==R_9$ disables
   the state allowing VMA to be updated with $R_{12}/R_{13}$ (`rfd_vma_flag = false`), while the parity flag
   arms normally (`rfd_parity_flag = true`). Subsequent character lines continue sequential VMA counting
-  without reloading $R_{12}/R_{13}$.
+  without reloading $R_{12}/R_{13}$. (In contrast, the §13.7.1.2 p.124 $R_0$-widening $R_4$-variant route
+  explicitly specifies "R12/R13 considered" when $C_9==R_9$ still holds, arming both flags; review N1).
 - **Current** (implemented 2026-08-26): `rtl/crtc_type1_engine.v` disarms `rfd_vma_flag` and disables
   `rfd_vma_active` when `rfd_arm` occurs with `line == crtc1_line_max`, while keeping `rfd_parity_flag` armed.
   Effective `crtc1_rollover_r5` is also wired into `crtc1_adj_entry_from_row0`. Verified by `t13d` (source flag
   disabled on final line) and `t13n` (VMA sequential progression without $R_{12}/R_{13}$ reload).
-- **Confidence: high.** Derived directly from ACCC v1.10 §11.6.1 p.88.
+- **Confidence: high.** Derived directly from ACCC v1.10/v1.11 §11.6.1 p.88.
 
 ## F18. Type-1 readable register set validation and pinning
 
@@ -391,6 +392,21 @@ General implementation rules for all fix prompts:
 - **Current** (validated and pinned 2026-08-26): `rtl/CRTC.v` readback mux enforces §21.2.2 and §28.1.9,
   verified and pinned for all 32 register addresses on both CRTC types in `t01` (`sim/sim_main.cpp`).
 - **Confidence: high.** Verified against ACCC v1.10 §21.2.2 and §28.1.9.
+
+## F19. CRTC 2 $C_0=0$ Last Line Evaluation Timing ($R_4$ vs $R_9$) — OUT-OF-SCOPE / CRTC-2 SPECIFIC
+
+- **Rule** (ACCC v1.11 §12.4.1 p.95): On CRTC 2 (MC6845), at the beginning of a line ($C_0=0$), the `Last Line`
+  comparison uses the **updated** value of $R_4$, but the **previous** value of $R_9$ (an update of $R_9$ on
+  $C_0=0$ occurs too late for this evaluation).
+- **Adjudication & Status** (independent review 2026-08-28): This rule is located under **§12.4 CRTC 2**
+  (p.95) and applies strictly to CRTC 2's internal Last Line Management state machine. In contrast, **CRTC 0**
+  is governed by **§12.2** (pp.92–94), which explicitly specifies that modifying $R_4$ or $R_9$ on $C_0<2$
+  evaluates the updated values to validate or clear the Last Line state.
+- **Current Core State**: `rtl/crtc_type0_engine.v` evaluates both $R_4$ and $R_9$ same-edge writes on $C_0=0$
+  (`type0_c0_r4` and `type0_c0_r9`) per §12.2. Verified by unit tests `t12c` ($R_9$ write clears Last Line),
+  `t12d` ($R_9$ write validates Last Line), and `t12e` ($R_4$ write clears Last Line). Golden soak hash remains
+  `0x48146d2b681268ab`.
+- **Confidence: high.** Verified against ACCC v1.11 §12.2 pp.92-94 vs §12.4.1 p.95.
 
 ## F7. RFD ("Rupture For Dummies") — CRTC 1 frame-parity address-reload quirk — R5 and R0-widening triggers implemented
 

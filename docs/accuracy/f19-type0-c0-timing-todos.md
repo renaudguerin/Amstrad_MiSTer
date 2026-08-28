@@ -1,59 +1,37 @@
-# Finding F19 — CRTC Type-0 $C_0=0$ Last Line Evaluation Timing ($R_4$ vs $R_9$)
+# Finding F19 — CRTC 2 $C_0=0$ Last Line Evaluation Timing ($R_4$ vs $R_9$)
 
 Technical information sourced from *The Amstrad CPC CRTC Compendium* v1.11 by Longshot (CC BY-NC-ND 4.0).
 
 ---
 
-## 1. Documented Hardware Rule
+## 1. Documented Hardware Rule Analysis
 
-In **ACCC v1.11 §12.2.3 (p. 95)**:
+In **ACCC v1.11 §12.4.1 (p. 95)**:
 > *"At the beginning of a line (C0==0), the comparison uses the **updated** value of R4, but the **previous** value of R9 (an update of R9 on C0==0 occurs too late for this evaluation).*
 >
 > *Consequently:*
 > *- If C4<>R4 or C9<>R9 during this C0==0 evaluation, then the "Last Line" state is false. For instance, if C4==R4==38 and C9==R9==7 at the start of C0==0, updating R4 to 10 on position C0==0 will cause C4<>R4, setting the "Last Line" state to false. Conversely, modifying R9 on C0==0 will have no immediate effect on this evaluation.*
 > *- If C4==R4 and C9==R9, then the "Last Line" state becomes true, except in two particular cases: o if the previous line was itself a last line o if a HSYNC starts on position C0==0."*
 
----
-
-## 2. Current RTL Implementation
-
-In `rtl/crtc_type0_engine.v` (lines 416–423):
-```verilog
-wire       type0_r4_at_c0_write = register_write && addr == 5'd04 && hcc == 0;
-wire       type0_r9_at_c0_write = register_write && addr == 5'd09 && hcc == 0;
-wire       type0_r5_at_c0_write = type0_r5_write && hcc == 0;
-wire [6:0] type0_c0_r4 = type0_r4_at_c0_write ? DI[6:0] : R4_v_total;
-wire [4:0] type0_c0_r9 = type0_r9_at_c0_write ? DI[4:0] : R9_v_max_line;
-wire [4:0] type0_c0_r5 = type0_r5_at_c0_write ? DI[4:0] : R5_v_total_adj;
-```
-
-And in `rtl/CRTC.v` (lines 348–353):
-```verilog
-if(hcc == 0 && !r0_frozen) begin
-    line_last_r <= CRTC_TYPE ? e1_line_last : e0_c0_line_last;
-    row_last_r <= CRTC_TYPE ? e1_row_last : e0_c0_row_last;
-    frame_adj_r <= (CRTC_TYPE ? (e1_line_last & e1_row_last) :
-                             (e0_c0_line_last & e0_c0_row_last)) & ~in_adj;
-end
-```
-
-### Analysis of Divergence
-1. **$R_4$ handling**: Current RTL uses `type0_r4_at_c0_write ? DI[6:0] : R4_v_total`, which immediately takes the updated $R_4$ value on $C_0=0$. This is **correct** per ACCC v1.11 p. 95.
-2. **$R_9$ handling**: Current RTL uses `type0_r9_at_c0_write ? DI[4:0] : R9_v_max_line`. However, hardware evaluation of $R_9$ happens before the $C_0=0$ bus write takes effect. Therefore, `type0_c0_r9` should always evaluate against `R9_v_max_line` (the pre-edge / previous value).
-3. **Rollover handling later in line**: Modifying $R_9$ on $C_0=0$ does take effect for later operations in the line (such as the line-end rollover comparison and mid-line writes), but does **not** retroactively alter the $C_0=0$ `Last Line` latch decision.
+### Independent Review Adjudication (2026-08-28)
+- The cited sentence is located in **§12.4 CRTC 2** (MC6845, p. 95) under subsection **§12.4.1 Last Line Concept**. It describes the specific internal state machine of CRTC 2 ("Last Line", "Last Line Management", "Previous Last Line").
+- In contrast, **CRTC 0** (HD6845S / UM6845) is documented in **§12.2 (pp. 92–94)**:
+  > *"As long as C0<2, the CRTC evaluates whether C9==R9 and C4==R4 to determine if the last line of the frame has been reached. It no longer repeats this test on the other values of C0>1. It is therefore not necessary to anticipate the programming of R4 (or R9) on the current line for the last line condition to be true on the following line. It is possible to modify R4 or R9 on the current line as long as C0<2 to validate the "Last Line" state (and thus validate the reset of C4 on the following line)."*
+  > *"If R9 and/or R4 are positioned at 0 when C9=C4=0, this line will not be considered the last on the frame (the test took place when C0=0 and C0=1)."* (p. 93)
+- Therefore, the $C_0=0$ previous-$R_9$ rule is specific to CRTC 2 and does **not** apply to CRTC 0.
 
 ---
 
-## 3. Implementation Plan & Action Items for Future Session
+## 2. Core Status & Verification
 
-### TODO List
-- [ ] **Deterministic Test Vector**:
-  - Add test `t12_type0_c0_r9_write_late`: Set $C_4=R_4=38, C_9=R_9=7$. On $C_0=0$ of line 7, execute `OUT R9, 10`.
-  - Assert that `Last Line` was latched as TRUE at $C_0=0$ using the previous $R_9=7$ value, rather than evaluating false.
-  - Companion test: Set $C_4=R_4=38, C_9=7, R_9=10$. On $C_0=0$, write `OUT R9, 7`. Assert that `Last Line` evaluates FALSE at $C_0=0$ (using previous $R_9=10$), so `Last Line` is not armed at $C_0=0$.
-- [ ] **RTL Update in `rtl/crtc_type0_engine.v`**:
-  - Adjust `type0_c0_r9` definition to use `R9_v_max_line` directly for the seam $C_0=0$ `Last Line` test.
-  - Verify that mid-line / rollover live comparisons (`type0_live_line_last`) continue using the updated register file.
-- [ ] **Soak & Gate Verification**:
-  - Run `make -C sim` and `make -C sim soak`.
-  - Update golden hash if behavioral change occurs on $C_0=0$ $R_9$ writes.
+In `rtl/crtc_type0_engine.v`:
+- `type0_c0_r4` and `type0_c0_r9` both evaluate same-edge bus writes on $C_0=0$ (`hcc == 0`), conforming to §12.2 pp. 92–94.
+- Deterministic test vectors in `sim/sim_main.cpp`:
+  - `t12c_type0_c0_r9_write_immediate_clears_last_line`: OUT R9, 10 on $C_0=0$ evaluates updated $R_9=10$ ($C_9=7 \ne 10$), clearing Last Line $\implies C_9$ increments to 8 without entering adjustment.
+  - `t12d_type0_c0_r9_write_immediate_validates_last_line`: OUT R9, 7 on $C_0=0$ evaluates updated $R_9=7$ ($C_9=7==7, C_4=38==38$), validating Last Line $\implies C_9$ wraps to 0 and row enters vertical adjustment (`in_adj=1`).
+  - `t12e_type0_c0_r4_write_immediate_clears_last_line`: OUT R4, 10 on $C_0=0$ evaluates updated $R_4=10$ ($C_4=38 \ne 10$), clearing Last Line $\implies C_4$ increments to 39 without entering adjustment.
+
+### Gate Results
+- `make -C sim`: 175 tests passed, all Plus suites passed.
+- `make -C sim lint`: clean (exit 0).
+- `make -C sim soak SOAK_EXPECT=0x48146d2b681268ab`: verified bit-identical golden soak hash.

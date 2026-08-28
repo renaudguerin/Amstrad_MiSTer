@@ -14,7 +14,7 @@ all implementations (verdict CLEAR with non-blocking findings N1-N5 recorded in
 released **ACCC v1.11** incorporating feedback from our `docs/accuracy/accc-author-feedback.md` audit.
 A complete mechanical and multimodal comparison across all 295 pages (278 word-identical, 17 updated)
 resolved the author questions/errata, confirmed that our F15–F18 implementations match the corrected
-rules, and formulated Finding **F19** (Type-0 $C_0=0$ Last Line evaluation timing, §12.2.3 p.95).
+rules, and evaluated Finding **F19** (clarified as CRTC-2 specific §12.4.1 p.95, while CRTC 0 is confirmed to evaluate same-edge writes per §12.2 pp.92-94).
 Full diff and impact reports are in `docs/accuracy/accc-1.11-differences.md` and
 `docs/accuracy/f19-type0-c0-timing-todos.md`, with the repeatable process in
 `docs/accuracy/accc-update-procedure.md`. The earlier whole-branch reviews are recorded in
@@ -47,8 +47,8 @@ the F15 type-0 odd-R9 IVM counting with its VSYNC delay correction, fixtures `t2
 remediated (`accuracy/f14-f15-independent-review.md`) -- on top of the Plus P4 mobo-bench tip.
 **It has not been hardware-tested.**
 
-- Simulation: 172 required CRTC passes / 0 failed, all Plus leaf/integration suites green;
-  lint clean. Soak re-minted `0x48146d2b681268ab` for F16, F17, and F18 closures (full chain in AGENTS.md);
+- Simulation: 175 required CRTC passes / 0 failed, all Plus leaf/integration suites green;
+  lint clean. Soak verified golden hash `0x48146d2b681268ab` (full chain in AGENTS.md);
   even-R9 and non-IVM behavior bit-identical, t21-t24 untouched.
 - Logic utilization 28,533 / 41,910 ALMs (68 %); 37,685 registers; 685,217 / 5,662,720
   block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks; 145 / 314 pins.
@@ -1034,16 +1034,12 @@ front end.
     **F15** (odd-R9 parity alternation and VSYNC correction), and **F16** (post-exit frozen
     C9.VMA). Q12's odd-C4 transition imbalance remains unmodeled because the source describes
     the transition frame but does not source the inferred recovery behavior.
-    **2026-08-28 Claude Opus 5 re-review follow-ups** (from `docs/accuracy/ox-alpha-items-opus-review.md`):
-    - **N1**: reconcile the §13.7.1.2 R0-widening RFD route (`t13g`) with F17's §11.6.1 p.88 C9=R9 VMA-source disable.
-    - **N2**: adjudicate the §11.3.2 p.85 clause ("C4, however, continues to be compared to R4 to process the change from C4 to 0") during stuck R5=0 adjustment.
+    **2026-08-28 Claude Opus 5 re-review follow-ups & ACCC v1.11 reviews**:
+    - **N1**: reconciled the §13.7.1.2 R0-widening RFD route (`t13g`) with F17's §11.6.1 p.88 C9=R9 VMA-source disable (annotated in `t13g`, `rtl/crtc_type1_engine.v`, and `audit-findings.md` per §13.7.1.2 p.124).
+    - **N2**: adjudicated the §11.3.2 p.85 clause ("C4, however, continues to be compared to R4 to process the change from C4 to 0") during stuck R5=0 adjustment (recorded Question 20 in `accc-author-questions.md`, clarified digest, extended `t08j`).
     - **N3/N4**: add CPR parser upper bound test vector (0x01FFFFF8) and tighten zero-length `cb00` chunk handling.
     - **N5**: add CI compile-log guard in `build.yml` / `local-build.yml` for Quartus Warning 10236 (`Implicit Net warning`).
-    **2026-08-28 ACCC v1.11 finding**:
-    - **F19**: implement Type-0 $C_0=0$ Last Line evaluation timing in `rtl/crtc_type0_engine.v`
-      (lines 416–423: `type0_c0_r9` evaluated against `R9_v_max_line` rather than same-edge
-      $R_9$ bus write, per ACCC v1.11 §12.2.3 p.95; tracked with deterministic testbench plan in
-      `docs/accuracy/f19-type0-c0-timing-todos.md`).
+    - **F19**: adjudicated as CRTC-2 specific (§12.4.1 p.95); CRTC 0 is governed by §12.2 pp.92-94 where $R_4$ and $R_9$ same-edge $C_0<2$ writes evaluate immediately (Type-0 RTL retains same-edge evaluation, unit tests `t12c`-`t12e` verify §12.2, soak hash verified bit-identical at `0x48146d2b681268ab`).
  5. Plus: P0, both P1 milestones, the P1 motherboard integration, the calibrated p1_video bench,
     the P2 ASIC register page, P3 interrupts (PRI/DCSR/IVR), P4 sprites, P5 CRTC-3 bus semantics,
     Phase P6 screen split & soft scroll, Phase P7 3-channel DMA sound, and Phase P8 platform polish
