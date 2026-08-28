@@ -8,6 +8,17 @@ Start from `docs/implementation-roadmap.md` for dependency order and acceptance 
 `docs/current-status.md` for the handoff state, and `docs/accuracy/audit-findings.md` for the
 numbered findings F1-F12.
 
+## Worktree layout and stream lifecycle
+
+Three worktrees partition the repository:
+- `/Users/renaudg/code/Amstrad_MiSTer` — Main integration worktree (`accc-review-and-fixes` branch), generic work, docs, upstream sync (`master`).
+- `/Users/renaudg/code/Amstrad_MiSTer-accuracy` — CRTC accuracy stream (`accuracy/*` branches).
+- `/Users/renaudg/code/Amstrad_MiSTer-plus` — Amstrad Plus/GX4000 ASIC stream (`plus/*` branches).
+
+Stream workflow is formalized in two project skills (`.agents/skills/`):
+- **Start a task**: Invoke `$stream-start <accuracy|plus> [topic]`. Re-anchors the stream worktree on `accc-review-and-fixes` and cuts `<stream>/<topic>` (autofills next todo if omitted; no baseline simulation).
+- **Finish a task**: Invoke `$stream-finish <accuracy|plus>`. Performs non-fast-forward merge into `accc-review-and-fixes`, resolves conflicts, semantically reconciles shared docs (`current-status.md`, `review-debt.md`, golden hashes), runs `make -C sim` once (skipped for doc-only changes), and pushes to origin to trigger CI synthesis.
+
 ## Where authority lies
 
 Sources rank in this order, and a lower rank never overturns a higher one:
