@@ -60,7 +60,9 @@ module plus_mmu
 	input      [7:0]  D,
 
 	// Gate Array ROM enable, active high (the top-level `romen`)
+	/* verilator lint_off UNUSEDSIGNAL */
 	input             rom_en,
+	/* verilator lint_on UNUSEDSIGNAL */
 
 	// expansion-port /EXP state: 1 = nothing connected (pulled up)
 	input             exp_n,
@@ -138,10 +140,12 @@ asic_unlock unlock_detector
 	.sna_unlock(sna_unlock)
 );
 
+reg        lromen;
+reg        hromen;
+
 // Window decode
-wire rom_active = plus_mode & rom_en;
-wire low_hit    = rom_active & (A[15:14] == rmr2_pos);
-wire high_hit   = rom_active & (A[15:14] == 2'b11);
+wire low_hit    = plus_mode & ~lromen & (A[15:14] == rmr2_pos);
+wire high_hit   = plus_mode & ~hromen & (A[15:14] == 2'b11);
 // A cartridge-owned bus cycle: a read inside one of the two windows.
 wire window_hit = mem_rd & (low_hit | high_hit);
 
@@ -162,21 +166,31 @@ always @(posedge clk) begin
 		rmr2_page    <= 3'd0;
 		asic_page_on <= 1'b0;
 		romsel       <= 8'h00;
+		lromen       <= 1'b0;
+		hromen       <= 1'b0;
 	end
 	else if (sna_load) begin
 		rmr2_pos     <= (sna_rmr2[4:3] == 2'b11) ? 2'b00 : sna_rmr2[4:3];
 		rmr2_page    <= sna_rmr2[2:0];
 		asic_page_on <= (sna_rmr2[4:3] == 2'b11);
+		lromen       <= 1'b0;
+		hromen       <= 1'b0;
 	end
 	else begin
 		// RMR2 is a Gate-Array port payload; the Plus IN=OUT trap applies
 		// exactly as it does to PENR/INKR/RMR in asic_ga_timing.
-		if (plus_mode && io_access_start && !A[15] && A[14] &&
-		    (D[7:5] == 3'b101) && unlocked) begin
-			// RMR2: D4D3 position (11 => &0000 + ASIC page on), D2-D0 page
-			rmr2_pos     <= (D[4:3] == 2'b11) ? 2'b00 : D[4:3];
-			rmr2_page    <= D[2:0];
-			asic_page_on <= (D[4:3] == 2'b11);
+		if (plus_mode && io_access_start && !A[15] && A[14]) begin
+			if ((D[7:5] == 3'b101) && unlocked) begin
+				// RMR2: D4D3 position (11 => &0000 + ASIC page on), D2-D0 page
+				rmr2_pos     <= (D[4:3] == 2'b11) ? 2'b00 : D[4:3];
+				rmr2_page    <= D[2:0];
+				asic_page_on <= (D[4:3] == 2'b11);
+			end
+			else if (D[7:5] == 3'b100) begin
+				// MRER: D2=lower ROM disable, D3=upper ROM disable
+				lromen <= D[2];
+				hromen <= D[3];
+			end
 		end
 
 		if (io_wr && !A[13]) begin
@@ -268,6 +282,8 @@ initial begin
 	rmr2_page    = 3'd0;
 	asic_page_on = 1'b0;
 	romsel       = 8'h00;
+	lromen       = 1'b0;
+	hromen       = 1'b0;
 	cart_state   = CART_IDLE;
 	cart_valid   = 1'b0;
 	cart_page    = 5'd0;
