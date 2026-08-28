@@ -4,10 +4,16 @@
 
 None.
 
-**Status: ALL review debt rows cleared (zero open rows).** On 2026-08-28, Claude Opus 5 completed an independent cross-provider re-review of all historical items previously reviewed under the 2026-08-22 ox-alpha locked decision (`de71808`, `da79915`, `1a1233f`, `c4c3e0f`, `90aed07`, `c9f4a4e`, `accuracy/f7-rfd`, `plus/p1-followups`), confirming all core implementations and clearing `hotfix/implicit-rgb-net`. Full review record: `docs/accuracy/ox-alpha-items-opus-review.md`.
+**Status: ALL review debt rows cleared (zero open rows).**
 
 ## Cleared rows
 
+- `accuracy/f19-type0-c0-timing` — **CLEARED 2026-08-28 — OpenAI Codex.** Behavioral B1
+  retains Type-0 same-edge `R4`/`R9` evaluation under §12.2 pp.92–94 with discriminating
+  `t12c`–`t12e` vectors. Documentation B2 is remediated across the handoff, primary counter
+  digest, v1.11 differences inventory, and author-feedback record: §12.4.1 p.95 is consistently
+  CRTC-2-specific. Full simulation, lint, and soak `0x48146d2b681268ab` pass. Full record:
+  `docs/accuracy/f19-independent-review.md`.
 - `plus/p9-followups` — CLOSED 2026-08-28. Independent cross-provider review by
   Claude Opus (Claude Code CLI) and Codex GPT-5 (`codex review`). Verified review follow-ups
   N3 (CPR parser upper bound vector), N4 (zero-length `cb00` chunk payload tightening),

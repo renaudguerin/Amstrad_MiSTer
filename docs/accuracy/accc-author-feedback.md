@@ -29,12 +29,13 @@ Technical information sourced from *The Amstrad CPC CRTC Compendium* by Longshot
 
 ## 2. ACCC Ambiguities Resolved via Cross-Referencing (Status in v1.11)
 
-### 2.1 §10.3.1 (pp. 75–76) & §12.2.3 (p. 95) — Last-Line State, $C_0 > 1$ Writes & $C_0=0$ Evaluation Timing
+### 2.1 §10.3.1 (pp. 75–76) & §12.4.1 (p. 95) — Last-Line State, $C_0 > 1$ Writes & CRTC 2 $C_0=0$ Evaluation Timing
 * **Ambiguity in v1.10:** p. 75 stated that if $R_9$ or $R_4$ is modified when $C_0 > 1$ *"so that C4==R4 and C9==R9, then the last line state is true..."*, which could be misread as "late-arming".
 * **Status in ACCC v1.11:** **RESOLVED & SIGNIFICANTLY EXPANDED**.
   1. p. 75 updated: *"while C4 was equal to R4 and C9 was equal to R9, then the last line state remains true..."*, explicitly confirming no late-arming on $C_0 > 1$.
-  2. §12.2.3 (p. 95) added explicit silicon evaluation timing:
+  2. §12.4.1 (p. 95) added explicit silicon evaluation timing for CRTC 2:
      > *"At the beginning of a line (C0==0), the comparison uses the updated value of R4, but the previous value of R9 (an update of R9 on C0==0 occurs too late for this evaluation)."*
+     (For CRTC 0, §12.2 pp. 92–94 governs, evaluating updated $R_4$ and $R_9$ same-edge writes on $C_0<2$).
 
 ### 2.2 §13.2.1 (p. 104) / §13.2.4 (p. 105) — $R_0=0$ Freeze Duration Accounting
 * **Ambiguity in v1.10:** Notation `(C4−1 if R9=7)` could be misread as counter decrement.

@@ -68,14 +68,13 @@ referenced to the CRTC's own timeline), not the Gate-Array-delayed display timel
   while C9>0, C9 does **not** snap to 0 — it overflows up to 31 then wraps, unless the
   last-line exception applies (§10.3, p.74).
 
-### 3.1 CRTC 0 — last-line and adjustment arbitration (§10.3.1, p.75-76; §12.2.3, p.95, CRITICAL)
+### 3.1 CRTC 0 — last-line and adjustment arbitration (§10.3.1, p.75-76; §12.2, pp.92-94, CRITICAL)
 
 - CRTC 0 compares C9/R9 and C4/R4 while **C0<2** to establish `Last Line`.
-- **C0==0 evaluation timing (ACCC v1.11 §12.2.3, p.95)**: At C0==0, the evaluation uses the
-  **updated** value of R4, but the **previous** value of R9 (an update to R9 on C0==0 occurs too
-  late for this evaluation). For example, if C4==R4==38 and C9==R9==7 at the start of C0==0,
-  updating R4 to 10 on C0==0 immediately causes C4≠R4 and sets `Last Line` to false; modifying
-  R9 on C0==0 has no immediate effect on this evaluation.
+- **C0<2 evaluation timing (ACCC v1.11 §12.2, p.92)**: Modifying R4 or R9 on C0<2 immediately
+  evaluates the updated values to validate or clear the `Last Line` state (so anticipating the
+  programming on a prior line is unnecessary). (Note: on CRTC 2, §12.4.1 p.95 specifies that
+  R9 update on C0==0 occurs too late for its C0==0 evaluation, but on CRTC 0 both take same-edge effect).
 - If `Last Line` was true at C0==0 and a write at **C0==1** breaks either equality, vertical
   adjustment becomes active even with `R5==0`; the current line is its first line.
 - An otherwise armed last line is not yet an unconditional reset. At C0==2 the chip first
@@ -219,8 +218,11 @@ was retired by the 2026-08-22 review:
     internal "additional management active" state when R5>0 at the moment C4 would otherwise
     reset at frame end; normally cleared when `C5+1==R5` (which also resets C4). **If R5 is set
     to 0 while active, the state is NOT cleared** — C4 stays nonzero, C5 free-runs, because
-    `C5+1==R5` can never be satisfied against R5=0. C4 still compares against R4 for its own
-    logic, but adjustment-active persists. **Only way out**: set R5 to a value >0 that C5+1
+    `C5+1==R5` can never be satisfied against R5=0. The source states: *"C4, however, continues
+    to be compared to R4 to process the change from C4 to 0. The additional management, however,
+    remains activated. Thus, if C5+1 reaches an R5>0, then the additional management changes C4 to 0
+    before deactivating its state."* C4 free-runs past R4+1 through 127 and wraps to 0 by 7-bit overflow
+    while adjustment remains active (question 20). **Only way out**: set R5 to a value >0 that C5+1
     will actually reach; then the state clears and C4 resets. This lets you force C4/C9 to 0 on
     an arbitrary line — an exploit technique, and a trap for models assuming "R5=0 ⇒ adjustment
     ends this line."

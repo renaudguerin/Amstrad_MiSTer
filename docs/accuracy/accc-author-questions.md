@@ -316,6 +316,23 @@ with it.
     seven-window discriminator. Actionable: current post-exit RTL resumes the live plain-C9
     test; finding **F16** now owns the focused failing fixtures required before any RTL change.
 
+20. **p.85 (§11.3.2) — C4 comparison during stuck $R_5=0$ vertical adjustment.** The text says:
+    *"But if R5 becomes zero during additional management, the state is not deactivated, C4 does
+    not return to 0 and C5 loops. C4, however, continues to be compared to R4 to process the change
+    from C4 to 0. The additional management, however, remains activated. Thus, if C5+1 reaches an
+    R5>0, then the additional management changes C4 to 0 before deactivating its state."*
+    Does the sentence *"C4, however, continues to be compared to R4 to process the change from C4 to 0"*
+    mean that C4 resets to 0 when it next cycles around and reaches R4 (while C5 continues looping
+    and adjustment stays active), or does it simply restate the normal frame-end mechanism vs the
+    stuck C5 looping condition where C4 free-runs until a reachable R5>0 deactivates additional management?
+
+    **ADJUDICATED DEFAULT READING 2026-08-28 (Review finding N2):**
+    The following sentence (*"Thus, if C5+1 reaches an R5>0, then the additional management changes C4 to 0
+    before deactivating its state"*) explains that changing C4 to 0 occurs upon exiting additional
+    management when a reachable $R_5>0$ is satisfied. During the stuck $R_5=0$ adjustment, $C_4$
+    increments past $R_4+1$, free-running through 127 and wrapping to 0 by 7-bit overflow while
+    adjustment remains active (`in_adj=1`). Test `t08j` pins this behavior.
+
 Also noted while verifying (no answer needed, listed for completeness): p.195 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay
 applies to type 0's substituted trigger (the placement caveat cited by

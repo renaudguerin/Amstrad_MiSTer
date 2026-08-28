@@ -26,8 +26,8 @@ Both editions were verified page-by-page across all 295 pages:
 | **p. 12** | §1.2 Changelog | Added v1.11 entry | *"1.11 27/08/2026 Correction of several minor typos (Thanks to the AI feedback via Renaud Guerin)."* |
 | **p. 75** | §10.3.1 | Last-line state survival wording | Replaced *"so that C4==R4 and C9==R9, then the last line state is true"* $\to$ *"while C4 was equal to R4 and C9 was equal to R9, then the last line state remains true"*. Confirms no mid-line late arming. |
 | **p. 88** | §11.6.1 | RFD VMA-source disable phrasing | Removed confusing transitional *"However,"* before the RFD#10 sentence. Confirms Case 2 VMA-source suppression is general. |
-| **p. 95** | §12.2.3 | **Type-0 $C_0=0$ evaluation timing** | Added explicit silicon evaluation order: at $C_0=0$, the Last Line comparison uses the **updated** value of $R_4$, but the **previous** value of $R_9$ ($R_9$ update occurs too late for this evaluation). |
-| **p. 96** | §12.2.3 | Text reflow | Formatting adjustment following p. 95 expansion. |
+| **p. 95** | §12.4.1 | **CRTC 2 $C_0=0$ evaluation timing** | Added explicit silicon evaluation order for CRTC 2: at $C_0=0$, the Last Line comparison uses the **updated** value of $R_4$, but the **previous** value of $R_9$ ($R_9$ update occurs too late for this evaluation). |
+| **p. 96** | §12.4.1 | Text reflow | Formatting adjustment following p. 95 expansion. |
 | **p. 104** | §13.2.1 | $R_0=0$ freeze duration | Removed misleading parenthetical `(C4-1 if R9=7)`. Text states freezing $R_0=0$ for $64 \times 8\ \mu\text{s}$ amounts to "forgetting" 8 lines of wall-clock time. |
 | **p. 107** | §13.2.5 | $R_0=1, R_5=0$ adjustment termination | Replaced *"For some reason I haven't determined yet, C9 (not C9+1) is compared to R5"* $\to$ *"The adjustment stops after 1 line when the calculated C9 becomes equal to R5"*. |
 | **p. 122** | §13.6.2 | CRTC 1 $R_0$-widening chronogram | Added note *"See chapter 13.7.1 for details"* and adjusted table formatting. |
@@ -46,11 +46,11 @@ Both editions were verified page-by-page across all 295 pages:
 
 ## 3. RTL and Verification Impact Analysis
 
-1. **Type-0 $C_0=0$ Evaluation Timing (§12.2.3, p. 95) — Finding F19**:
-   - In `rtl/crtc_type0_engine.v`, `type0_c0_r4` uses `type0_r4_at_c0_write ? DI[6:0] : R4_v_total` (immediately catching $R_4$ writes on $C_0=0$).
-   - However, `type0_c0_r9` currently uses `type0_r9_at_c0_write ? DI[4:0] : R9_v_max_line;`.
-   - ACCC v1.11 explicitly specifies that an $R_9$ update on $C_0=0$ occurs **too late** for the $C_0=0$ Last Line evaluation. Modifying $R_9$ on $C_0=0$ must not affect this evaluation.
-   - Action: Documented in `docs/accuracy/f19-type0-c0-timing-todos.md`.
+1. **CRTC 2 $C_0=0$ Evaluation Timing (§12.4.1, p. 95) vs CRTC 0 (§12.2, pp. 92–94) — Finding F19**:
+   - In ACCC v1.11, §12.4.1 (p. 95) describes the internal state machine for CRTC 2 (Motorola MC6845).
+   - In contrast, CRTC 0 (HD6845S / UM6845) is governed by §12.2 (pp. 92–94), which specifies that modifying $R_4$ or $R_9$ on $C_0<2$ evaluates the updated value.
+   - Our Type-0 RTL (`rtl/crtc_type0_engine.v`) correctly implements same-edge evaluation for both $R_4$ and $R_9$ on $C_0=0$. Tests `t12c`–`t12e` verify and pin this behavior.
+   - Action: Finding F19 categorized as CRTC-2 specific (out of scope for classic Type 0/1 core).
 2. **Type-0 IVM Odd-$R_9$ Counting and Exit Panels (§19.8.1, pp. 219, 223–224)**:
    - Our RTL already implements the corrected `If R9.0==1` behavior and post-exit line comparator via Findings F15 and F16. The v1.11 text and table fixes formally validate our RTL implementation and soak hash.
 3. **Type-1 Discriminators and Readable Registers (§28.1.1, §28.1.8, §28.1.9, §21.2.2)**:
