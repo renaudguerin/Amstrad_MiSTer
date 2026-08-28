@@ -325,6 +325,50 @@ void test_duplicate_pages_last_wins() {
 }
 
 void test_short_and_oversized_blocks() {
+    // A standalone zero-length cbNN chunk delivers no bytes and must not commit
+    // an empty cartridge (N4 review follow-up).
+    {
+        TestBench tb;
+        tb.hard_reset();
+
+        std::vector<Chunk> chunks;
+        chunks.push_back({"cb00", std::vector<std::uint8_t>()});
+
+        auto cpr = build_cpr_image(chunks);
+        tb.start_download();
+        tb.feed_bytes(cpr, 1);
+        tb.end_download();
+
+        require(tb.commit_pulses() == 0, "zero-length cb00 chunk committed empty cartridge");
+        require(tb.abort_pulses() == 1, "zero-length cb00 chunk did not abort");
+        require(tb.writes().empty(), "zero-length cb00 chunk performed writes");
+    }
+
+    // A zero-length cb00 followed by a valid non-empty cb01 delivers bytes from cb01
+    // and successfully commits (N4 review follow-up).
+    {
+        TestBench tb;
+        tb.hard_reset();
+
+        std::vector<Chunk> chunks;
+        chunks.push_back({"cb00", std::vector<std::uint8_t>()});
+        chunks.push_back({"cb01", std::vector<std::uint8_t>(256, 0x42)});
+
+        auto cpr = build_cpr_image(chunks);
+        tb.start_download();
+        tb.feed_bytes(cpr, 1);
+        tb.end_download();
+
+        require(tb.commit_pulses() == 1, "valid block after zero-length block failed to commit");
+        require(tb.abort_pulses() == 0, "valid block after zero-length block aborted");
+        require(tb.writes().size() == 256, "write count mismatch after zero-length block");
+
+        for (size_t i = 0; i < 256; ++i) {
+            require(tb.writes()[i].page == 1 && tb.writes()[i].offset == i && tb.writes()[i].data == 0x42,
+                    "payload mismatch after zero-length block");
+        }
+    }
+
     // A short cbNN chunk still commits; only the bytes present are forwarded.
     // The service's clear sweep owns zero-filling the rest of the page.
     {
@@ -454,6 +498,31 @@ void test_bad_headers() {
         tb.end_download();
         require(tb.abort_pulses() == 1, "bad RIFF length < 4 did not abort");
         require(tb.commit_pulses() == 0, "bad RIFF length < 4 committed");
+    }
+
+    // Bad RIFF length > 0x01FFFFF7 (0x01FFFFF8 upper bound test, N3 review follow-up)
+    {
+        TestBench tb;
+        tb.hard_reset();
+        auto cpr = build_cpr_image({{"cb00", std::vector<std::uint8_t>(16384, 0x01)}}, true, 0x01FFFFF8);
+        tb.start_download();
+        tb.feed_bytes(cpr, 0);
+        tb.end_download();
+        require(tb.abort_pulses() == 1, "bad RIFF length > 0x01FFFFF7 (0x01FFFFF8) did not abort");
+        require(tb.commit_pulses() == 0, "bad RIFF length > 0x01FFFFF7 (0x01FFFFF8) committed");
+    }
+
+    // Valid upper boundary RIFF length 0x01FFFFF7 accepted during header validation (N3 review follow-up)
+    {
+        TestBench tb;
+        tb.hard_reset();
+        auto cpr = build_cpr_image({{"cb00", std::vector<std::uint8_t>(16, 0x01)}}, true, 0x01FFFFF7);
+        tb.start_download();
+        // Feed the 8 RIFF header bytes (RIFF + valid boundary len 0x01FFFFF7)
+        std::vector<std::uint8_t> riff_hdr(cpr.begin(), cpr.begin() + 8);
+        tb.feed_bytes(riff_hdr, 0);
+        require(tb.abort_pulses() == 0, "valid upper bound RIFF length 0x01FFFFF7 aborted during header parse");
+        require(tb.dut().load_abort == 0, "load_abort active on valid upper bound RIFF length 0x01FFFFF7");
     }
 
     // Bad form type ("WAVE")
