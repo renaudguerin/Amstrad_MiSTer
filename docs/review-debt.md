@@ -8,6 +8,14 @@ None.
 
 ## Cleared rows
 
+- `plus/p9-followups` — CLOSED 2026-08-28. Independent cross-provider review by
+  Claude Opus (Claude Code CLI) and Codex GPT-5 (`codex review`). Verified review follow-ups
+  N3 (CPR parser upper bound vector), N4 (zero-length `cb00` chunk payload tightening),
+  N5 (CI compile-log guard for Quartus Warning 10236 in `build.yml` / `local-build.yml`),
+  OSD media menu grouping in `Amstrad.sv`, and hardware test checklist
+  `docs/plus/hardware-test-checklist.md`. Full simulation, lint, and classic soak
+  (`0x48146d2b681268ab`) pass clean. Verdict CLEAR.
+  Full record: `docs/plus/p9-followups-independent-review.md`.
 - `hotfix/implicit-rgb-net` — CLOSED 2026-08-28. Independent cross-provider
   review by Claude Opus 5. Verified that `b4/g4/r4` are driven solely by the
   motherboard instance output ports in `Amstrad.sv` and consumed exclusively by

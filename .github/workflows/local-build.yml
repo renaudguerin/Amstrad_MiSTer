@@ -77,6 +77,12 @@ jobs:
             printf '::error::compile ignored effort-tier assignments; %s timings are not trustworthy\n' "${{ inputs.effort }}" >&2
             exit 1
           fi
+          # Quartus reports undeclared wires as Warning 10236 (Implicit Net).
+          # Fail synthesis immediately if any implicit net warning is emitted.
+          if grep -n -E "(Implicit Net warning|Warning \(10236\))" "$log"; then
+            printf '::error::compile emitted implicit net warnings (Warning 10236); undeclared wire detected\n' >&2
+            exit 1
+          fi
           {
             printf '### Compile stages (%s)\n\n```\n' "${{ inputs.effort }}"
             grep "Info: Elapsed time" "$log" | tail -5 || true

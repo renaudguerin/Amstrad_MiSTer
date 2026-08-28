@@ -346,7 +346,6 @@ always @(posedge clk) begin
 										else begin
 											current_page <= decoded_page;
 											is_block     <= 1'b1;
-											has_block    <= 1'b1;
 											state        <= STATE_CHUNK_LEN;
 										end
 									end
@@ -416,6 +415,7 @@ always @(posedge clk) begin
 								load_page   <= current_page;
 								load_offset <= chunk_bytes_read[14:0];
 								load_data   <= ioctl_dout;
+								has_block   <= 1'b1;
 							end
 
 							chunk_bytes_read <= chunk_bytes_read + 32'd1;
