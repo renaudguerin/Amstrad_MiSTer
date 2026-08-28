@@ -426,7 +426,7 @@ always @(posedge CLOCK) begin
 	else if (CLKEN) begin
 		if (hcc_last) begin
 			hde <= (R1_h_displayed != 8'd0);
-			vde <= (charline_n != R6_v_displayed);
+			vde <= (charline_n < R6_v_displayed);
 		end
 		else if ((hcc + 8'd1) == R1_h_displayed) begin
 			hde <= 1'b0;
