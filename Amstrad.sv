@@ -469,7 +469,7 @@ always @(posedge clk_sys) begin
 					case(ioctl_dout)
 						8'd0: sna_model <= 2'd2; // CPC464
 						8'd1: sna_model <= 2'd1; // CPC664
-						8'd2, 8'd4, 8'd6: sna_model <= 2'd0; // 6128/Plus/GX snapshots need the 128K map.
+						8'd2, 8'd4, 8'd5, 8'd6: sna_model <= 2'd0; // 6128/464+/6128+/GX snapshots need the 128K map.
 					endcase
 				end
 			end
@@ -678,8 +678,9 @@ wire       plus_has_tape;
 // RAM bank for the running machine (HF-3). In Plus mode all Plus models
 // (6128+, GX4000, 464+) use bank 0 where Plus RAM and SNA snapshot data
 // reside; .ram64k on the motherboard instance configures whether the 128K
-// banking expansion is active. In classic mode the bank follows `model`.
-wire [1:0] mem_bank = plus_mode ? 2'b00 : model;
+// banking expansion is active. In classic mode the bank follows `model` with
+// the `sna_load` bridge during snapshot restore edges.
+wire [1:0] mem_bank = plus_mode ? 2'b00 : (sna_load ? sna_model : model);
 
 sdram sdram
 (
