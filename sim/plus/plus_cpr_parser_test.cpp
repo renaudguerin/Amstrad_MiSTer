@@ -696,6 +696,47 @@ void test_simultaneous_download_and_byte_zero_write() {
     }
 }
 
+void test_form_types_and_chunk_case() {
+    // "AMS!" uppercase form-type (common in real .cpr cartridge dumps)
+    {
+        TestBench tb;
+        tb.hard_reset();
+        auto cpr = build_cpr_image({{"cb00", std::vector<std::uint8_t>(16384, 0x11)}}, false, 0, "AMS!");
+        tb.start_download();
+        tb.feed_bytes(cpr, 1);
+        tb.end_download();
+        require(tb.commit_pulses() == 1, "AMS! form-type failed to commit");
+        require(tb.abort_pulses() == 0, "AMS! form-type aborted");
+        require(tb.writes().size() == 16384, "AMS! write count mismatch");
+    }
+
+    // "ams!" lowercase form-type
+    {
+        TestBench tb;
+        tb.hard_reset();
+        auto cpr = build_cpr_image({{"cb00", std::vector<std::uint8_t>(16384, 0x22)}}, false, 0, "ams!");
+        tb.start_download();
+        tb.feed_bytes(cpr, 1);
+        tb.end_download();
+        require(tb.commit_pulses() == 1, "ams! form-type failed to commit");
+        require(tb.abort_pulses() == 0, "ams! form-type aborted");
+        require(tb.writes().size() == 16384, "ams! write count mismatch");
+    }
+
+    // "CB00" uppercase chunk prefix
+    {
+        TestBench tb;
+        tb.hard_reset();
+        auto cpr = build_cpr_image({{"CB00", std::vector<std::uint8_t>(16384, 0x33)}}, false, 0, "AMS!");
+        tb.start_download();
+        tb.feed_bytes(cpr, 1);
+        tb.end_download();
+        require(tb.commit_pulses() == 1, "CB00 chunk failed to commit");
+        require(tb.abort_pulses() == 0, "CB00 chunk aborted");
+        require(tb.writes().size() == 16384, "CB00 write count mismatch");
+    }
+}
+
 void run_test(const char* name, void (*test)()) {
     test();
     std::cout << "PASS: " << name << '\n';
@@ -713,6 +754,7 @@ int main(int argc, char** argv) {
         run_test("even and odd metadata chunk skipping with odd padding", test_metadata_chunks_even_and_odd);
         run_test("bad RIFF headers and magic fail closed", test_bad_headers);
         run_test("malformed and out-of-range cb chunk IDs fail closed", test_bad_chunk_ids);
+        run_test("case-insensitive form types (AMS!, Ams!) and chunk prefixes (cb, CB)", test_form_types_and_chunk_case);
         run_test("chunk extents beyond RIFF boundary fail closed", test_extent_beyond_riff);
         run_test("early download falls including pending writes abort cleanly", test_early_download_fall);
         run_test("extra data and non-sequential ioctl addresses fail closed", test_extra_and_nonsequential_bytes);

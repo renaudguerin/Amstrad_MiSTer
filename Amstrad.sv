@@ -263,6 +263,10 @@ reg   [1:0] sna_model = 2'd0;
 reg   [2:0] sna_apply_cnt = 3'd0;
 reg         sna_finish_pending = 1'b0;
 reg         old_sna_download_reset = 1'b0;
+reg   [2:0] cpr_apply_cnt = 3'd0;
+reg         cpr_finish_pending = 1'b0;
+reg         old_cpr_download = 1'b0;
+reg         old_cpr_download_reset = 1'b0;
 wire        sna_load = (sna_apply_cnt == 3'd1);
 wire        sna_mem_wr = sna_download && ioctl_wr && (ioctl_addr >= 25'h100) &&
                          (ioctl_addr < sna_chunk_start) && ({9'd0, sna_mem_addr[16:10]} < sna_std_mem_size);
@@ -631,6 +635,14 @@ always @(posedge clk_sys) begin
 		sna_apply_cnt <= 3'd5;
 	end
 	else if(sna_apply_cnt) sna_apply_cnt <= sna_apply_cnt - 1'd1;
+
+	old_cpr_download <= cpr_download;
+	if(old_cpr_download & ~cpr_download) cpr_finish_pending <= 1'b1;
+	if(cpr_finish_pending && !cart_service_busy) begin
+		cpr_finish_pending <= 1'b0;
+		cpr_apply_cnt <= 3'd7;
+	end
+	else if(cpr_apply_cnt) cpr_apply_cnt <= cpr_apply_cnt - 1'd1;
 	old_st0 <= status[32];
 	if (~old_st0 & status[32]) dan_eeprom_loaded <= 0;
 end
@@ -695,12 +707,16 @@ sdram sdram
 reg [1:0] model = 2'd0;
 reg reset;
 
+wire reset_base = RESET | status[0] | status[32] | buttons[1] | rom_download | key_reset | dan_download |
+                  sna_download | sna_finish_pending | (old_sna_download_reset & ~sna_download) | (sna_apply_cnt > 3'd2);
+
 always @(posedge clk_sys) begin
 	if(sna_load) model <= sna_model;
 	else if(reset) model <= menu_model;
 	old_sna_download_reset <= sna_download;
-	reset <= RESET | status[0] | status[32] | buttons[1] | rom_download | key_reset | dan_download |
-	         sna_download | sna_finish_pending | (old_sna_download_reset & ~sna_download) | (sna_apply_cnt > 3'd2);
+	old_cpr_download_reset <= cpr_download;
+	reset <= reset_base | cpr_download | cpr_finish_pending |
+	         (old_cpr_download_reset & ~cpr_download) | (cpr_apply_cnt != 3'd0);
 end
 
 ////////////////////// CDT playback ///////////////////////////////
@@ -1142,7 +1158,7 @@ wire        cart_load_error;
 plus_cpr_parser cpr_parser
 (
 	.clk(clk_sys),
-	.reset(reset),
+	.reset(reset_base),
 
 	.cpr_download(cpr_download),
 	.ioctl_wr(ioctl_wr),
@@ -1164,7 +1180,7 @@ plus_cpr_parser cpr_parser
 plus_cartridge_memory cartridge_memory
 (
 	.clk(clk_sys),
-	.cold_reset(reset),
+	.cold_reset(reset_base),
 	.detach(status[32]),
 
 	.load_begin(cart_load_begin),

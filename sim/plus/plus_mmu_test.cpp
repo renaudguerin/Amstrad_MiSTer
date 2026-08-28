@@ -243,26 +243,34 @@ void test_gx4000_overrides() {
     tb.end_read();
 }
 
-// The Gate Array ROM-enable term gates both windows, matching the classic
-// MMU: disabled ROM shows RAM through, so no cartridge request may start.
+// MRER ROM-enable bits gate both windows, matching the Gate Array / ASIC:
+// disabled ROM shows RAM through, so no cartridge request may start.
 void test_rom_enable_gating() {
     TestBench tb;
     tb.hard_reset();
 
-    tb.dut().rom_en = 0;
+    // Disable lower ROM via MRER: D[7:6]=10, D[2]=1 (8'h84)
+    tb.io_write(0x7f00, 0x84);
     tb.begin_read(0x0000);
     tb.stall_cycles(4);
-    require(tb.valid_cycles == 0, "low window claimed while ROM disabled");
-    require(tb.dut().cart_stall == 0, "stalled while ROM disabled");
+    require(tb.valid_cycles == 0, "low window claimed while lower ROM disabled via MRER");
+    require(tb.dut().cart_stall == 0, "stalled while lower ROM disabled");
     tb.end_read();
 
+    // Re-enable lower ROM, disable upper ROM via MRER: D[3]=1 (8'h88)
+    tb.io_write(0x7f00, 0x88);
     tb.begin_read(0xc000);
     tb.stall_cycles(4);
-    require(tb.valid_cycles == 0, "high window claimed while ROM disabled");
+    require(tb.valid_cycles == 0, "high window claimed while upper ROM disabled via MRER");
+    tb.end_read();
+
+    // Re-enable both ROMs (8'h80)
+    tb.io_write(0x7f00, 0x80);
+    expect_claim(tb, 0x0000, 0, "low window active when lower ROM enabled");
+    tb.respond(0x00);
     tb.end_read();
 
     // plus_mode off must gate everything, whatever the other inputs say.
-    tb.dut().rom_en = 1;
     tb.dut().plus_mode = 0;
     tb.begin_read(0x0000);
     tb.stall_cycles(4);
