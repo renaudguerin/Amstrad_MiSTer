@@ -10,7 +10,14 @@ Claude Opus 5 completed an independent cross-provider re-review of all historica
 self-reviewed items (`de71808`, `da79915`+`1a1233f`, `cd47d7d`, `c4c3e0f`, `90aed07`, `c9f4a4e`,
 `accuracy/f7-rfd`, `plus/p1-followups`) and the open `hotfix/implicit-rgb-net` debt row, confirming
 all implementations (verdict CLEAR with non-blocking findings N1-N5 recorded in
-`docs/accuracy/ox-alpha-items-opus-review.md`) and clearing all review debt. The earlier whole-branch reviews are recorded in
+`docs/accuracy/ox-alpha-items-opus-review.md`) and clearing all review debt. On 2026-08-28, Longshot
+released **ACCC v1.11** incorporating feedback from our `docs/accuracy/accc-author-feedback.md` audit.
+A complete mechanical and multimodal comparison across all 295 pages (278 word-identical, 17 updated)
+resolved the author questions/errata, confirmed that our F15–F18 implementations match the corrected
+rules, and formulated Finding **F19** (Type-0 $C_0=0$ Last Line evaluation timing, §12.2.3 p.95).
+Full diff and impact reports are in `docs/accuracy/accc-1.11-differences.md` and
+`docs/accuracy/f19-type0-c0-timing-todos.md`, with the repeatable process in
+`docs/accuracy/accc-update-procedure.md`. The earlier whole-branch reviews are recorded in
 `accuracy/accc-review-and-fixes-independent-review.md` (pass 1),
 `accuracy/accc-review-and-fixes-independent-review-pass2.md` (pass 2), and
 `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
@@ -961,11 +968,11 @@ front end.
   read-only checksum preflight for the exact Altera 17.0.2 payloads. Quartus itself still
   requires a human download and interactive EULA step; then run `ansible/post-install.yml`
   and `ansible/validate.yml -e quartus_required=true`.
-- ACCC v1.10 is now the primary documentation baseline. The checked-in digests and
-  `accuracy/accc-1.10-differences.md` capture its rules and the edition delta; consult the
+- ACCC v1.11 is now the primary documentation baseline (rebaseline 2026-08-28). The checked-in
+  digests and `accuracy/accc-1.11-differences.md` capture its rules and the edition delta; consult the
   full PDF only when a page is specifically flagged for re-extraction.
-- The local `docs/ACCC1.10-EN.pdf` is user-owned source material and must remain outside
-  commits. If v1.9 is retained locally for edition-delta or historical-citation checks, it
+- The local `docs/references/ACCC1.11-EN.pdf` is user-owned source material and must remain outside
+  commits. If v1.10/v1.9 are retained locally for edition-delta or historical-citation checks, they
   must likewise stay untracked.
 - The local example cartridge `docs/plus/references/cartridges/crtc3_v2fix.cpr` is likewise
   deliberately untracked. Use it as a real RIFF/CPR parsing fixture when P0 starts; do not
@@ -1032,6 +1039,11 @@ front end.
     - **N2**: adjudicate the §11.3.2 p.85 clause ("C4, however, continues to be compared to R4 to process the change from C4 to 0") during stuck R5=0 adjustment.
     - **N3/N4**: add CPR parser upper bound test vector (0x01FFFFF8) and tighten zero-length `cb00` chunk handling.
     - **N5**: add CI compile-log guard in `build.yml` / `local-build.yml` for Quartus Warning 10236 (`Implicit Net warning`).
+    **2026-08-28 ACCC v1.11 finding**:
+    - **F19**: implement Type-0 $C_0=0$ Last Line evaluation timing in `rtl/crtc_type0_engine.v`
+      (lines 416–423: `type0_c0_r9` evaluated against `R9_v_max_line` rather than same-edge
+      $R_9$ bus write, per ACCC v1.11 §12.2.3 p.95; tracked with deterministic testbench plan in
+      `docs/accuracy/f19-type0-c0-timing-todos.md`).
  5. Plus: P0, both P1 milestones, the P1 motherboard integration, the calibrated p1_video bench,
     the P2 ASIC register page, P3 interrupts (PRI/DCSR/IVR), P4 sprites, P5 CRTC-3 bus semantics,
     Phase P6 screen split & soft scroll, Phase P7 3-channel DMA sound, and Phase P8 platform polish

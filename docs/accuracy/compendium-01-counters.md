@@ -68,17 +68,21 @@ referenced to the CRTC's own timeline), not the Gate-Array-delayed display timel
   while C9>0, C9 does **not** snap to 0 — it overflows up to 31 then wraps, unless the
   last-line exception applies (§10.3, p.74).
 
-### 3.1 CRTC 0 — last-line and adjustment arbitration (§10.3.1, p.75-76, CRITICAL)
+### 3.1 CRTC 0 — last-line and adjustment arbitration (§10.3.1, p.75-76; §12.2.3, p.95, CRITICAL)
 
-- CRTC 0 compares C9/R9 and C4/R4 while **C0<2** to establish `Last Line`. At C0==0 an
-  R4/R9 write can still override the state. If `Last Line` was true at C0==0 and a write at
-  **C0==1** breaks either equality, vertical adjustment becomes active even with `R5==0`; the
-  current line is its first line.
+- CRTC 0 compares C9/R9 and C4/R4 while **C0<2** to establish `Last Line`.
+- **C0==0 evaluation timing (ACCC v1.11 §12.2.3, p.95)**: At C0==0, the evaluation uses the
+  **updated** value of R4, but the **previous** value of R9 (an update to R9 on C0==0 occurs too
+  late for this evaluation). For example, if C4==R4==38 and C9==R9==7 at the start of C0==0,
+  updating R4 to 10 on C0==0 immediately causes C4≠R4 and sets `Last Line` to false; modifying
+  R9 on C0==0 has no immediate effect on this evaluation.
+- If `Last Line` was true at C0==0 and a write at **C0==1** breaks either equality, vertical
+  adjustment becomes active even with `R5==0`; the current line is its first line.
 - An otherwise armed last line is not yet an unconditional reset. At C0==2 the chip first
   arbitrates additional-line handling: `R5>0` activates adjustment and cancels `Last Line`.
   The `R0<2` and interlace routes can also select adjustment (§4.2/§7.1). Only when adjustment
-  is not active does an armed `Last Line` become immutable for C0>1 and reset C4/C9 on the
-  following line.
+  is not active does an armed `Last Line` become immutable for C0>1 (while C4==R4 and C9==R9
+  held, `Last Line` remains true per §10.3.1 v1.11) and reset C4/C9 on the following line.
 - With `Last Line` false, the live general case applies at rollover: C9==R9 increments C4;
   otherwise C9 increments. R9 updated ==C9 makes C9 reset on the next line; R9 updated below
   C9 makes C9 count through 31 and wrap; R9 updated above C9 increments C9 normally

@@ -33,6 +33,7 @@ c5_pin_model_dump.txt
 *.sip
 *.spd
 *.bsf
+
 *~
 *.xml
 *_netlist
@@ -40,6 +41,7 @@ c5_pin_model_dump.txt
 .DS_Store
 
 # Local source/reference artifacts (deliberately not versioned).
+docs/**/ACCC*.pdf
 docs/ACCC*.pdf
 docs/plus/references/cartridges/
 

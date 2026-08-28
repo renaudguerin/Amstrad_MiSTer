@@ -5,7 +5,7 @@ engines `rtl/crtc_type0_engine.v` / `rtl/crtc_type1_engine.v`, types 0 & 1 via t
 `CRTC_TYPE` input (`CRTC_TYPE=0` → type 0 HD6845S/UM6845, `CRTC_TYPE=1` → type 1 UM6845R).
 The wrapper was `rtl/UM6845R.v` before the split; historical fix prompts below keep that
 original path.
-Reference: *The Amstrad CPC CRTC Compendium* v1.10 (Longshot / Logon System), via the digests in this
+Reference: *The Amstrad CPC CRTC Compendium* v1.11 (Longshot / Logon System), via the digests in this
 directory (`compendium-01-counters.md`, `compendium-02-sync.md`, `compendium-03-display-regs.md`).
 Cite chains are `digest §section → ACCC §chapter, p.N`.
 

@@ -15,14 +15,14 @@ Sources rank in this order, and a lower rank never overturns a higher one:
 1. Real hardware, and the Logon System reference photographs on `shaker.logonsystem.eu` that
    record it. SHAKER results are judged by visual comparison against those photographs. The
    stock upstream core is a regression baseline only: shared inaccuracy is invisible against it.
-2. The Amstrad CPC CRTC Compendium (ACCC) v1.10, `docs/ACCC1.10-EN.pdf`.
+2. The Amstrad CPC CRTC Compendium (ACCC) v1.11, `docs/references/ACCC1.11-EN.pdf`.
 3. The checked-in digests under `docs/accuracy/`.
 
 The ACCC is our working oracle but it is not the final authority. A vector that encodes a
 misreading of the Compendium passes cheerfully and hides the very bug it was meant to catch.
 When simulation and hardware disagree, hardware wins and the vector is wrong.
 
-`docs/ACCC1.10-EN.pdf` is user-owned and deliberately untracked. Never commit it.
+`docs/references/ACCC1.11-EN.pdf` is user-owned and deliberately untracked. Never commit it.
 **Untracked does not mean absent**: the file is in the working tree, gitignored, and
 readable. Read it directly whenever a rule matters — it outranks the digests, and reviews
 that trusted the digests alone have already shipped a wrong section citation.

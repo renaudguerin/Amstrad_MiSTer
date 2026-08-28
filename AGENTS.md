@@ -18,12 +18,12 @@ Start from:
 
 1. Real hardware / Logon System reference photos (`shaker.logonsystem.eu`). SHAKER results
    are judged against these photographs; the stock upstream core is only a regression baseline.
-2. The CRTC Compendium (ACCC) v1.10 — working oracle, not final authority.
+2. The CRTC Compendium (ACCC) v1.11 — working oracle, not final authority.
 3. Digests under `docs/accuracy/`.
 
 When simulation and hardware disagree, hardware wins and the test vector is wrong.
 
-`docs/ACCC1.10-EN.pdf` is user-owned and untracked. **Never commit it.** It is present in
+`docs/references/ACCC1.11-EN.pdf` is user-owned and untracked. **Never commit it.** It is present in
 the working tree, though — untracked, not missing. Prefer it over the digests whenever a rule
 claim matters, and read it through the `pdf-inspector` skill under the verification protocol
 in `docs/accuracy/extract/README.md` (its position-aware Markdown is the primary text layer,
