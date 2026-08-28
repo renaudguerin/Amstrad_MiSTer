@@ -358,6 +358,11 @@ wire       row_last_w = (row == R4_v_total);
 assign     row_last = row_last_w;
 wire       frame_adj_CRTC1 = row_last_w && ~in_adj && |crtc1_rollover_r5;
 assign     frame_adj = frame_adj_CRTC1;
+// Named residual N2 (ACCC v1.11 §11.3.2 p.85; question 20): during stuck
+// adjustment with R5=0, C5 loops and C4 advances past R4 at each C9==R9
+// wrap. In our model, C4 free-runs and wraps to 0 by 7-bit overflow (at
+// C4=128), remaining in adjustment until a reachable R5>0 triggers exit via
+// crtc1_adj_end_eff.
 wire       crtc1_row_frame_last = in_adj ? (crtc1_adj_end_eff & ~type1_add_intercept) :
 										 (row_last_w & ~frame_adj_CRTC1);
 assign     row_frame_last = crtc1_row_frame_last;
@@ -390,7 +395,7 @@ assign pc9_value = stage_a_edge ? stage_a_pc9 :
                    stage_b_edge ? stage_b_pc9_value : ~parity_c9;
 assign pf_write = stage_b_edge || frame_new_w;
 assign pf_value = stage_b_edge ? (tog_enter ? stage_b_pf_value : parity_c9)
-                               : ~parity_frame;
+                                : ~parity_frame;
 assign line_poke = stage_a_edge || stage_b_edge;
 assign line_poke_bit = stage_a_edge ? stage_a_pc9 :
                        tog_enter    ? stage_b_pc9_value : parity_c9;
@@ -409,10 +414,13 @@ reg rfd_parity_flag;
 reg rfd_frame_parity;
 reg rfd_r0_pending;
 
-// Finding F17 (ACCC v1.10 §11.6.1 p.88): an RFD triggered on C9=R9
-// disables the state allowing VMA to be updated with R12/R13 (vma_flag),
-// while parity management (parity_flag) remains armed. A repeated RFD on
-// C9=R9 suppresses the source flag immediately on that same rollover edge.
+// Finding F17 (ACCC v1.10 §11.6.1 p.88): an RFD triggered on C9=R9 via the
+// general R5-write route disables the state allowing VMA to be updated with
+// R12/R13 (vma_flag), while parity management (parity_flag) remains armed.
+// In contrast, the section 13.7.1.2 p.124 R0-widening R4-variant route
+// (rfd_r0_arm) explicitly specifies that when R4 is modified during the
+// extension while C9==R9 still holds, "R12/R13 is considered" (arms the
+// VMA-source state).
 wire rfd_vma_disarm_hit = rfd_arm & (line == crtc1_line_max);
 wire rfd_vma_arm = (rfd_arm & (line != crtc1_line_max)) | rfd_r0_arm;
 wire rfd_parity_active = rfd_parity_flag | rfd_arm | rfd_r0_arm;

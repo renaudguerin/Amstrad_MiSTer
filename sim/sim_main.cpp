@@ -1832,6 +1832,97 @@ void test_type0_worked_example_window_write_yields_38_8(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
+// t12c-t12e: CRTC Type-0 C0=0 Last Line same-edge evaluation
+// (ACCC v1.11 section 12.2, pp.92-94).
+// At C0<2, the Last Line comparison on CRTC 0 evaluates whether C9==R9 and
+// C4==R4 using the updated register values if R4 or R9 is modified at C0<2:
+//   - t12c: C4=R4=38, C9=7, R9=7 at C0=0. OUT R9,10 on C0=0 evaluates against
+//     updated R9=10 (C9!=R9) -> Last Line is FALSE. At line end, C9 increments
+//     to 8 and adjustment is NOT entered (in_adj=0).
+//   - t12d: C4=R4=38, C9=7, R9=10 at C0=0. OUT R9,7 on C0=0 evaluates against
+//     updated R9=7 (C9==R9, C4==R4) -> Last Line is TRUE. At line end, C9
+//     wraps to 0 and row enters vertical adjustment (in_adj=1).
+//   - t12e: C4=R4=38, C9=R9=7 at C0=0. OUT R4,10 on C0=0 evaluates against
+//     updated R4=10 -> Last Line is FALSE immediately (C4!=R4). At line end,
+//     C9 wraps to 0 and C4 increments to 39 without entering adjustment.
+// ---------------------------------------------------------------------------
+void test_type0_c0_r9_write_immediate_clears_last_line(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 16}, {6, 25}, {7, 63}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+
+    test.run_characters(kT12CriticalLineCharacters);  // C0=0 of critical line (C4=38, C9=7).
+    test.write_selected_register_at_clken(10);        // OUT R9, 10 on C0=0.
+    test.run_characters(64);                          // Consume the scanline to rollover.
+
+    // ACCC v1.11 §12.2 p.92: Updated R9=10 was used at C0=0 (C9=7 != 10), so Last Line was FALSE.
+    // At line end, C9 increments to 8 and adjustment is not entered.
+    test.expect_adjustment_inactive("t12c C0=0 R9 write evaluates updated R9 so Last Line is false and does not enter adjustment");
+    test.expect_c4("t12c C0=0 R9 write keeps C4=38", 38);
+    test.expect_ra("t12c C0=0 R9 write increments C9 to 8", 8);
+}
+
+void test_type0_c0_r9_write_immediate_validates_last_line(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 16}, {6, 25}, {7, 63}, {8, 0},    {9, 10},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+
+    // 38 rows of 11 scanlines + 7 scanlines = 425 scanlines of 64 chars.
+    constexpr unsigned kCriticalLineR9_10 = (38u * 11u + 7u) * 64u;
+    test.run_characters(kCriticalLineR9_10);   // C0=0 of critical line (C4=38, C9=7).
+    test.write_selected_register_at_clken(7);  // OUT R9, 7 on C0=0.
+    test.run_characters(64);                   // Consume the scanline to rollover.
+
+    // ACCC v1.11 §12.2 p.92: Updated R9=7 is evaluated on C0=0 (C9=7==7, C4=38==38),
+    // validating Last Line at C0=0 -> arms vertical adjustment.
+    // At line end, C9 wraps to 0 and row enters vertical adjustment (in_adj=1).
+    test.expect_adjustment_active("t12d C0=0 R9 write evaluates updated R9 validating Last Line and entering adjustment");
+    test.expect_ra("t12d C0=0 R9 write wraps C9 to 0", 0);
+}
+
+void test_type0_c0_r4_write_immediate_clears_last_line(TestBench& test) {
+    test.set_crtc_type(0);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 38},
+        {5, 16}, {6, 25}, {7, 63}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+
+    test.run_characters(kT12CriticalLineCharacters);  // C0=0 of critical line (C4=38, C9=7).
+    test.write_selected_register_at_clken(10);        // OUT R4, 10 on C0=0.
+    test.run_characters(64);                          // Consume the scanline to rollover.
+
+    // ACCC v1.11 §12.2 p.92: Updated R4=10 is used immediately at C0=0 (C4=38 != 10),
+    // so Last Line is FALSE at C0=0 (frame_adj_r not armed).
+    // At line end, C9=7==R9=7 wraps C9 to 0 and increments C4 to 39, without
+    // entering adjustment.
+    test.expect_adjustment_inactive("t12e C0=0 R4 write evaluates updated R4 so Last Line is false and does not enter adjustment");
+    test.expect_c4("t12e C0=0 R4 write increments C4 to 39", 39);
+    test.expect_ra("t12e C0=0 R4 write wraps C9 to 0", 0);
+}
+
+// ---------------------------------------------------------------------------
 // t25: type-0 vertical-adjustment VRAM addressing -- the D1 p.81 correction
 // pinned at pin level (ACCC v1.10 section 11.2.1 p.81 table, render-verified
 // 2026-08-24; section 11.2.2 pp.81-83; section 20.2 p.241).
@@ -3552,6 +3643,16 @@ void test_type1_r5_zero_mid_adjustment_keeps_counting(TestBench& test) {
     test.expect_c4("adjustment line 32: C4 increments to 19", 19);
     test.expect_ra("adjustment line 32: C9 wraps to 0", 0);
 
+    // Named residual N2 (ACCC v1.11 §11.3.2 p.85; question 20):
+    // Advance C4 through 127 and overflow wrap to 0, past R4=10 to C4=11.
+    // 120 character rows * 4 lines = 480 lines. C4: (19 + 120) % 128 = 11.
+    // c5: (0 + 480) % 32 = 0. C9: (0 + 480) % 4 = 0.
+    test.run_characters(480 * 64);
+    test.expect_c4("C4 wrapped past 127 to 0 and reached 11 past R4=10 without exiting adjustment", 11);
+    test.expect_ra("C9 at row boundary", 0);
+    test.expect_c5("c5 wrapped 15 full 32-line periods to 0", 0);
+    test.expect_adjustment_active("adjustment still active throughout stuck R5=0 free-run");
+
     // Run 5 more lines to reach c5=5.
     test.run_characters(5 * 64);
     test.expect_c5("c5 reaches 5", 5);
@@ -3569,6 +3670,7 @@ void test_type1_r5_zero_mid_adjustment_keeps_counting(TestBench& test) {
     test.expect_c4("frame 1 start: C4 resets to 0", 0);
     test.expect_ra("frame 1 start: C9 resets to 0", 0);
     test.expect_c5("frame 1 start: c5 resets to 0", 0);
+    test.expect_adjustment_inactive("adjustment exited cleanly");
 }
 
 void test_type0_adjustment_c4_frozen_c9_counts_to_r5(TestBench& test) {
@@ -4083,8 +4185,10 @@ void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
     // still holds so the row boundary fires, but C4=1 no longer matches
     // R4=2, so instead of a frame restart C4 advances past the old total
     // (paper: C4=2, C9 wraps to 0) and RFD arms with its same-edge
-    // R12/R13 reload onto that new row start.  The frame then continues
-    // until C4 genuinely reaches the raised R4.
+    // R12/R13 reload onto that new row start (ACCC §13.7.1.2 p.124 explicitly
+    // specifies "R12/R13 considered" for this R4 variant, distinguishing it
+    // from the general §11.6.1 p.88 R5-route C9=R9 disable; review N1).
+    // The frame then continues until C4 genuinely reaches the raised R4.
     test.run_characters(24);
     test.run_characters(7);
     test.write_selected_register_at_clken(9);
@@ -6901,6 +7005,15 @@ int main(int argc, char** argv) {
         {"t12b_type0_worked_example_window_write_yields_38_8",
          "ACCC v1.10 section 11.2.2 p.82 example 3; F9/B4 companion case",
          false, test_type0_worked_example_window_write_yields_38_8},
+        {"t12c_type0_c0_r9_write_immediate_clears_last_line",
+         "ACCC v1.11 section 12.2 pp.92-94; C0=0 immediate R9 clears Last Line",
+         false, test_type0_c0_r9_write_immediate_clears_last_line},
+        {"t12d_type0_c0_r9_write_immediate_validates_last_line",
+         "ACCC v1.11 section 12.2 pp.92-94; C0=0 immediate R9 validates Last Line",
+         false, test_type0_c0_r9_write_immediate_validates_last_line},
+        {"t12e_type0_c0_r4_write_immediate_clears_last_line",
+         "ACCC v1.11 section 12.2 pp.92-94; C0=0 immediate R4 clears Last Line",
+         false, test_type0_c0_r4_write_immediate_clears_last_line},
         {"t16b_type0_r9_write_uses_new_r9",
          "ACCC v1.10 section 11.2.2; F12", false,
          test_type0_adjustment_r9_write_uses_new_r9},
