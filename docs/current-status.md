@@ -1058,6 +1058,9 @@ front end.
     Phase P6 screen split & soft scroll, Phase P7 3-channel DMA sound, Phase P8 platform polish
     (PPI quirks, ADC paddles, SNA v3 CPC+ chunks), and Phase P9 cartridge boot & tolerances
     are implemented and independently reviewed CLEAR.
-    Next Plus steps: the physical hardware checkpoint per `docs/plus/hardware-test-checklist.md`
-    (real `.cpr` boot, static-palette title, raster-split title, sprite/scroll titles; classic re-checked side by side).
+    **Hardware Checkpoint Remediations (2026-08-28)**:
+    - **HF-1 (FDC Decode)**: dropped $A_7$ from FDC and motor port address decode in `Amstrad.sv` (AMSDOS `&FADD`/`&FBDF` now recognized, resolving "Drive A: read fail" during Basic cartridge boot); qualified with $A_9=1$ and $A_4=1$ to protect Kempston mouse and PlayCity ports.
+    - **HF-2 (12-bit ASIC Palette)**: connected `PAL_EN`, `PAL_ADDR`, `PAL_RGB` in `asic_video.v` and `Amstrad_motherboard.v` with `{G,R,B} -> {R,G,B}` nibble swap (resolves Burnin' Rubber / Plus custom palette rendering); verified with unit vectors `t05i`, `t05j` (registered dot-rate palette timing), and motherboard bench `m12`.
+    - **HF-3 (Plus MMU/SDRAM Banking)**: wired `mem_bank` and `.ram64k` to `plus_ram_128k` (and `sna_load`) in `Amstrad.sv` to keep CPU and video memory banks aligned.
+    - All tests pass (`make -C sim`, `make -C sim lint`), review debt logged in `docs/review-debt.md`.
  6. Update this file when either stream reaches its next hardware-testable checkpoint.
