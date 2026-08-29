@@ -196,7 +196,8 @@ T80pa CPU
 	.nmi_n(~nmi),
 	// plus_mem_wait stretches cartridge-window read cycles beyond the
 	// no_wait fast-timing option: correctness outranks the speed hack.
-	.wait_n((ready | (IORQ_n & MREQ_n) | no_wait) & ~plus_mem_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
+	// dma_ppi_wait stalls the CPU when accessing PPI/PSG during DMA LOAD.
+	.wait_n((ready | (IORQ_n & MREQ_n) | no_wait) & ~plus_mem_wait & ~dma_ppi_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
 	.DIRSet(sna_load),
 	.DIR(sna_cpu_dir)
 );
@@ -528,6 +529,9 @@ asic_dma dma_sound
 	.ram_addr(dma_ram_addr),
 	.ram_data(vram_din),
 
+	.cpu_psg_addr(cpu_psg_addr),
+	.dma_load_owner(dma_load_owner),
+
 	.psg_bdir(psg_dma_bdir),
 	.psg_bc1(psg_dma_bc1),
 	.psg_dout(psg_dma_dout),
@@ -739,6 +743,16 @@ wire [7:0] portC;
 wire [7:0] portAout;
 wire [7:0] portAin;
 
+wire dma_load_owner;
+wire dma_ppi_wait = plus_mode & dma_load_owner & ~A[11] & (io_rd | io_wr);
+
+reg [7:0] cpu_psg_addr;
+always @(posedge clk) begin
+	if (reset) cpu_psg_addr <= 8'd0;
+	else if (sna_load) cpu_psg_addr <= {4'h0, sna_psg_addr};
+	else if (~psg_dma_active && portC[7] && portC[6]) cpu_psg_addr <= portAout;
+end
+
 i8255 PPI
 (
 	.reset(reset),
@@ -748,8 +762,8 @@ i8255 PPI
 	.idata(D),
 	.odata(ppi_dout),
 	.cs(~A[11]),
-	.we(io_wr),
-	.oe(io_rd),
+	.we(io_wr & ~dma_ppi_wait),
+	.oe(io_rd & ~dma_ppi_wait),
 
 	.ipa(portAin), 
 	.opa(portAout),
