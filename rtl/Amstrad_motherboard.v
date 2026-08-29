@@ -475,6 +475,9 @@ asic_regs asic_page
 	.sprq_ack(plus_spr_fq_ack),
 	.spr_acc_en(plus_spr_acc_en),
 	.spr_acc_idx(plus_spr_acc_idx),
+	.spr_wr_en(plus_spr_wr_en),
+	.spr_wr_addr(plus_spr_wr_addr),
+	.spr_wr_data(plus_spr_wr_data),
 	.spr_x_view(plus_spr_x),
 	.spr_y_view(plus_spr_y),
 	.spr_mag_view(plus_spr_mag),
@@ -492,6 +495,10 @@ asic_regs asic_page
 );
 assign plus_asic_dout = asic_regs_dout;
 assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
+
+wire plus_spr_wr_en;
+wire [11:0] plus_spr_wr_addr;
+wire [3:0] plus_spr_wr_data;
 
 // P7 3-channel DMA sound engine
 asic_dma dma_sound
@@ -559,6 +566,9 @@ asic_sprites plus_sprites
 
 	.ACC_EN(plus_spr_acc_en),
 	.ACC_IDX(plus_spr_acc_idx),
+	.spr_wr_en(plus_spr_wr_en),
+	.spr_wr_addr(plus_spr_wr_addr),
+	.spr_wr_data(plus_spr_wr_data),
 
 	.FQ_REQ(plus_spr_fq_req),
 	.FQ_ADDR(plus_spr_fq_addr),
