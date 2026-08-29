@@ -196,7 +196,8 @@ T80pa CPU
 	.nmi_n(~nmi),
 	// plus_mem_wait stretches cartridge-window read cycles beyond the
 	// no_wait fast-timing option: correctness outranks the speed hack.
-	.wait_n((ready | (IORQ_n & MREQ_n) | no_wait) & ~plus_mem_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
+	// dma_ppi_wait stalls the CPU when accessing PPI/PSG during DMA LOAD.
+	.wait_n((ready | (IORQ_n & MREQ_n) | no_wait) & ~plus_mem_wait & ~dma_ppi_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
 	.DIRSet(sna_load),
 	.DIR(sna_cpu_dir)
 );
@@ -474,6 +475,9 @@ asic_regs asic_page
 	.sprq_ack(plus_spr_fq_ack),
 	.spr_acc_en(plus_spr_acc_en),
 	.spr_acc_idx(plus_spr_acc_idx),
+	.spr_wr_en(plus_spr_wr_en),
+	.spr_wr_addr(plus_spr_wr_addr),
+	.spr_wr_data(plus_spr_wr_data),
 	.spr_x_view(plus_spr_x),
 	.spr_y_view(plus_spr_y),
 	.spr_mag_view(plus_spr_mag),
@@ -491,6 +495,10 @@ asic_regs asic_page
 );
 assign plus_asic_dout = asic_regs_dout;
 assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
+
+wire plus_spr_wr_en;
+wire [11:0] plus_spr_wr_addr;
+wire [3:0] plus_spr_wr_data;
 
 // P7 3-channel DMA sound engine
 asic_dma dma_sound
@@ -528,6 +536,9 @@ asic_dma dma_sound
 	.ram_addr(dma_ram_addr),
 	.ram_data(vram_din),
 
+	.cpu_psg_addr(cpu_psg_addr),
+	.dma_load_owner(dma_load_owner),
+
 	.psg_bdir(psg_dma_bdir),
 	.psg_bc1(psg_dma_bc1),
 	.psg_dout(psg_dma_dout),
@@ -555,6 +566,9 @@ asic_sprites plus_sprites
 
 	.ACC_EN(plus_spr_acc_en),
 	.ACC_IDX(plus_spr_acc_idx),
+	.spr_wr_en(plus_spr_wr_en),
+	.spr_wr_addr(plus_spr_wr_addr),
+	.spr_wr_data(plus_spr_wr_data),
 
 	.FQ_REQ(plus_spr_fq_req),
 	.FQ_ADDR(plus_spr_fq_addr),
@@ -739,6 +753,16 @@ wire [7:0] portC;
 wire [7:0] portAout;
 wire [7:0] portAin;
 
+wire dma_load_owner;
+wire dma_ppi_wait = plus_mode & dma_load_owner & ~A[11] & (io_rd | io_wr);
+
+reg [7:0] cpu_psg_addr;
+always @(posedge clk) begin
+	if (reset) cpu_psg_addr <= 8'd0;
+	else if (sna_load) cpu_psg_addr <= {4'h0, sna_psg_addr};
+	else if (~psg_dma_active && portC[7] && portC[6]) cpu_psg_addr <= portAout;
+end
+
 i8255 PPI
 (
 	.reset(reset),
@@ -748,12 +772,12 @@ i8255 PPI
 	.idata(D),
 	.odata(ppi_dout),
 	.cs(~A[11]),
-	.we(io_wr),
-	.oe(io_rd),
+	.we(io_wr & ~dma_ppi_wait),
+	.oe(io_rd & ~dma_ppi_wait),
 
 	.ipa(portAin), 
 	.opa(portAout),
-	.ipb({tape_in, 2'b11, ppi_jumpers, vs_sel}),
+	.ipb({(!plus_mode || plus_has_tape) ? tape_in : 1'b1, 2'b11, ppi_jumpers, vs_sel}),
 	.opb(),
 	.ipc(8'hFF), 
 	.opc(portC),
@@ -767,8 +791,8 @@ i8255 PPI
 	.sna_control(sna_ppi_control)
 );
 
-assign tape_motor = portC[4];
-assign tape_out   = portC[5];
+assign tape_motor = (!plus_mode || plus_has_tape) ? portC[4] : 1'b0;
+assign tape_out   = (!plus_mode || plus_has_tape) ? portC[5] : 1'b0;
 
 assign audio_l = {1'b0, ch_a[7:1]} + {2'b00, ch_b[7:2]};
 assign audio_r = {1'b0, ch_c[7:1]} + {2'b00, ch_b[7:2]};

@@ -293,8 +293,9 @@ wire  [7:0] plus_sna_data;
 wire        plus_sna_active;
 wire  [7:0] plus_sna_rmr2;
 wire        plus_sna_unlock;
+wire        plus_sna_ioctl_wait;
 
-assign ioctl_wait = romdl_wait | (sna_download && |sna_rle_count && (sna_rle_state == 2'd0)) | cpr_ioctl_wait;
+assign ioctl_wait = romdl_wait | (sna_download && ((|sna_rle_count && (sna_rle_state == 2'd0)) || plus_sna_ioctl_wait)) | cpr_ioctl_wait;
 
 function automatic [1:0] valid_model(input [1:0] requested);
 	begin
@@ -830,7 +831,7 @@ always @(posedge clk_sys) if((tape_ready & tape_motor) || ~act_cnt[24] || act_cn
 // A9 must be in the select: &FAxx/&FBxx have A9=1, but PlayCity sits at
 // &F8xx/&F9xx with A9=0. Without A9 a PlayCity write also latched the drive
 // motor.
-wire fdc_motor_sel = !cpu_addr[10] & cpu_addr[9] & !cpu_addr[8];
+wire fdc_motor_sel = !cpu_addr[10] & cpu_addr[9] & !cpu_addr[8] & (!plus_mode | plus_has_fdc);
 wire [7:0] fdc_dout = (u765_sel & io_rd) ? u765_dout : 8'hFF;
 
 reg motor = 0;
@@ -838,7 +839,9 @@ always @(posedge clk_sys) begin
 	reg old_wr;
 	
 	old_wr <= io_wr;
-	if(~old_wr && io_wr && fdc_motor_sel) begin
+	if (reset) begin
+		motor <= 1'b0;
+	end else if(~old_wr && io_wr && fdc_motor_sel) begin
 		motor <= cpu_dout[0];
 	end
 end
@@ -846,7 +849,7 @@ end
 wire [7:0] u765_dout;
 // A4 separates the FDC from the Kempston mouse inside &FBxx: FDC status/data
 // (&FB7E/&FB7F/&FBDF) have A4=1, the mouse (&FBEE/&FBEF) has A4=0.
-wire       u765_sel = !cpu_addr[10] & cpu_addr[9] & cpu_addr[8] & cpu_addr[4] & ~status[17];
+wire       u765_sel = !cpu_addr[10] & cpu_addr[9] & cpu_addr[8] & cpu_addr[4] & ~status[17] & (!plus_mode | plus_has_fdc);
 
 reg  [1:0] u765_ready = 0;
 always @(posedge clk_sys) if(img_mounted[0]) u765_ready[0] <= |img_size;
@@ -854,7 +857,7 @@ always @(posedge clk_sys) if(img_mounted[1]) u765_ready[1] <= |img_size;
 
 u765 u765
 (
-	.reset(status[0]),
+	.reset(reset),
 
 	.clk_sys(clk_sys),
 	.ce(ce_u765),
@@ -1136,11 +1139,12 @@ plus_mmu plus_mmu
 plus_sna_parser plus_sna_parser
 (
 	.clk(clk_sys),
-	.reset(reset),
+	.reset(reset & ~sna_download),
 	.sna_download(sna_download),
 	.cpc_plus_chunk_start(sna_cpc_plus_start),
 	.cpc_plus_byte_wr(sna_cpc_plus_wr),
 	.cpc_plus_byte_data(ioctl_dout),
+	.ioctl_wait(plus_sna_ioctl_wait),
 	.asic_sna_wr(plus_sna_wr),
 	.asic_sna_addr(plus_sna_addr),
 	.asic_sna_data(plus_sna_data),

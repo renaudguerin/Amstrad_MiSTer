@@ -67,26 +67,41 @@ void test_p8_i8255_plus_quirks(Vplus_p8_test_top& dut) {
 	// In Plus mode, Port C read returns output latch 0x88 (not IPC pins 0xF0)
 	if (rd(2) != 0x88) fail("P8 i8255: Plus mode Port C read did not return output latch (got " + std::to_string(rd(2)) + ")");
 
+	// In Plus mode, physical Port C pins (ppi_opc) MUST drive opc_r (0x88) even if mode is reset default 0x9B
+	if (dut.ppi_opc != 0x88) fail("P8 i8255: Plus mode physical Port C pins did not drive opc_r under mode 0x9B (got " + std::to_string(dut.ppi_opc) + ")");
+
 	// In Plus mode, Port B read always returns IPB pins 0x55
 	if (rd(1) != 0x55) fail("P8 i8255: Plus mode Port B read did not return IPB pins");
 
 	// 2. Control word rewrite: write mode = 0x92 (all input)
 	wr(3, 0x92);
 
+	// In Plus mode, physical Port C pins MUST remain driven by opc_r (0x88) under mode 0x92
+	if (dut.ppi_opc != 0x88) fail("P8 i8255: Plus mode physical Port C pins were suppressed under mode 0x92 (got " + std::to_string(dut.ppi_opc) + ")");
+
 	// In Plus mode, Port A and Port C output latches must be PRESERVED (0x33 and 0x88), not cleared!
 	// Switching back to output mode (0x80)
 	wr(3, 0x80);
 	if (rd(2) != 0x88) fail("P8 i8255: Plus mode control rewrite cleared Port C latch");
+	if (dut.ppi_opc != 0x88) fail("P8 i8255: Plus mode physical Port C pins did not drive 0x88 under mode 0x80");
 
-	// 3. Classic mode test (plus_mode = 0): control word rewrite CLEARS latches
+	// 3. Classic mode test (plus_mode = 0): control word rewrite CLEARS latches and mode controls physical pins
 	dut.ppi_plus_mode = 0;
 	wr(0, 0x44);
 	wr(2, 0x77);
+	// In classic mode under mode 0x80, opc drives 0x77
+	if (dut.ppi_opc != 0x77) fail("P8 i8255: Classic mode physical Port C pins failed under mode 0x80");
+
 	// Control word rewrite in classic mode: clears latches to 0
 	wr(3, 0x80);
 	if (rd(2) != 0x00) fail("P8 i8255: Classic mode control rewrite did not clear Port C latch");
+	if (dut.ppi_opc != 0x00) fail("P8 i8255: Classic mode physical Port C pins failed to drive cleared latch 0x00");
 
-	std::printf("PASS p8_01: i8255 Plus PPI quirks (Port B in, Port C out, latch preservation)\n");
+	// Set classic mode to 0x9B (all input): physical opc pins must be clamped to 0xFF
+	wr(3, 0x9B);
+	if (dut.ppi_opc != 0xFF) fail("P8 i8255: Classic mode physical Port C pins did not float/clamp to 0xFF under mode 0x9B (got " + std::to_string(dut.ppi_opc) + ")");
+
+	std::printf("PASS p8_01: i8255 Plus PPI quirks (Port B in, Port C out, latch preservation, physical pin driving)\n");
 }
 
 // -----------------------------------------------------------------------------
@@ -129,16 +144,32 @@ void test_p8_sna_parser(Vplus_p8_test_top& dut) {
 		if (dut.asic_sna_wr) writes.push_back({dut.asic_sna_addr, dut.asic_sna_data});
 	};
 
-	// 1. Send Sprite RAM byte 0: 0xAB (pixel 0 = 0xA, pixel 1 = 0xB)
-	send_byte(0xAB);
-	if (writes.size() != 2 || writes[0].addr != 0x0000 || writes[0].data != 0x0A ||
-	    writes[1].addr != 0x0001 || writes[1].data != 0x0B) {
-		fail("P8 sna_parser: Sprite RAM nibble splitting failed");
+	// 1. Send Sprite RAM bytes 0 & 1 consecutively (0x12, 0x34) without idle cycle
+	dut.cpc_plus_byte_wr = 1; dut.cpc_plus_byte_data = 0x12; tick();
+	if (dut.asic_sna_wr) writes.push_back({dut.asic_sna_addr, dut.asic_sna_data});
+	dut.cpc_plus_byte_wr = 1; dut.cpc_plus_byte_data = 0x34; tick();
+	if (dut.asic_sna_wr) writes.push_back({dut.asic_sna_addr, dut.asic_sna_data});
+	dut.cpc_plus_byte_wr = 0;
+	// Drain FIFO
+	for (int d = 0; d < 5; ++d) {
+		tick();
+		if (dut.asic_sna_wr) writes.push_back({dut.asic_sna_addr, dut.asic_sna_data});
 	}
 
-	// 2. Fast forward through remaining sprite bytes (2047 bytes)
-	for (int i = 1; i < 2048; ++i) {
+	if (writes.size() != 4 ||
+	    writes[0].addr != 0x0000 || writes[0].data != 0x01 ||
+	    writes[1].addr != 0x0001 || writes[1].data != 0x02 ||
+	    writes[2].addr != 0x0002 || writes[2].data != 0x03 ||
+	    writes[3].addr != 0x0003 || writes[3].data != 0x04) {
+		fail("P8 sna_parser: Consecutive Sprite RAM nibble splitting failed (size=" + std::to_string(writes.size()) + ")");
+	}
+
+	// 2. Fast forward through remaining sprite bytes (2046 bytes)
+	for (int i = 2; i < 2048; ++i) {
 		send_byte(0x00);
+	}
+	while (dut.asic_sna_wr) {
+		tick();
 	}
 
 	// 3. Send Sprite 0 attributes (offset 0x800..0x804): X=0x0150, Y=0x0080, Mag=0x05
@@ -219,6 +250,54 @@ void test_p8_model_decodes(Vplus_p8_test_top& dut) {
 	std::printf("PASS p8_03: plus_model_select capability decodes (GX4000, 6128+, 464+)\n");
 }
 
+// -----------------------------------------------------------------------------
+// Test 4: P10c FDC / Motor / Tape Model Gating & Aliases
+// -----------------------------------------------------------------------------
+void test_p10c_fdc_motor_tape_gating(Vplus_p8_test_top& dut) {
+	auto check_fdc = [&](uint16_t addr, bool plus_mode, bool has_fdc, bool exp_motor, bool exp_u765, const std::string& desc) {
+		dut.fdc_test_addr = addr;
+		dut.fdc_test_status17 = 0;
+		dut.fdc_test_plus_mode = plus_mode ? 1 : 0;
+		dut.fdc_test_has_fdc = has_fdc ? 1 : 0;
+		dut.eval();
+		if (dut.fdc_motor_sel != (exp_motor ? 1 : 0))
+			fail("P10c FDC decode: " + desc + " expected fdc_motor_sel=" + std::to_string(exp_motor) + " got " + std::to_string(dut.fdc_motor_sel));
+		if (dut.u765_sel != (exp_u765 ? 1 : 0))
+			fail("P10c FDC decode: " + desc + " expected u765_sel=" + std::to_string(exp_u765) + " got " + std::to_string(dut.u765_sel));
+	};
+
+	// 1. Classic CPC (plus_mode = 0): FDC and motor active across standard and AMSDOS alias addresses
+	check_fdc(0xFA7E, false, false, true,  false, "Classic FA7E motor");
+	check_fdc(0xFADD, false, false, true,  false, "Classic FADD AMSDOS motor alias");
+	check_fdc(0xFB7E, false, false, false, true,  "Classic FB7E FDC status");
+	check_fdc(0xFB7F, false, false, false, true,  "Classic FB7F FDC data");
+	check_fdc(0xFBDF, false, false, false, true,  "Classic FBDF AMSDOS FDC alias");
+	check_fdc(0xFBEE, false, false, false, false, "Classic FBEE Kempston mouse (A4=0, no FDC)");
+	check_fdc(0xF800, false, false, false, false, "Classic F800 PlayCity (A9=0, no motor)");
+
+	// 2. 6128 Plus (plus_mode = 1, has_fdc = 1): FDC and motor active
+	check_fdc(0xFA7E, true, true, true,  false, "6128+ FA7E motor");
+	check_fdc(0xFADD, true, true, true,  false, "6128+ FADD AMSDOS motor alias");
+	check_fdc(0xFB7E, true, true, false, true,  "6128+ FB7E FDC status");
+	check_fdc(0xFB7F, true, true, false, true,  "6128+ FB7F FDC data");
+	check_fdc(0xFBDF, true, true, false, true,  "6128+ FBDF AMSDOS FDC alias");
+	check_fdc(0xFBEE, true, true, false, false, "6128+ FBEE Kempston mouse");
+	check_fdc(0xF800, true, true, false, false, "6128+ F800 PlayCity");
+
+	// 3. GX4000 (plus_mode = 1, has_fdc = 0): FDC and motor disabled (all fail open / 0)
+	check_fdc(0xFA7E, true, false, false, false, "GX4000 FA7E motor gated");
+	check_fdc(0xFADD, true, false, false, false, "GX4000 FADD motor gated");
+	check_fdc(0xFB7E, true, false, false, false, "GX4000 FB7E FDC status gated");
+	check_fdc(0xFB7F, true, false, false, false, "GX4000 FB7F FDC data gated");
+	check_fdc(0xFBDF, true, false, false, false, "GX4000 FBDF FDC alias gated");
+
+	// 4. 464 Plus (plus_mode = 1, has_fdc = 0): FDC and motor disabled
+	check_fdc(0xFA7E, true, false, false, false, "464+ FA7E motor gated");
+	check_fdc(0xFB7E, true, false, false, false, "464+ FB7E FDC gated");
+
+	std::printf("PASS p10_03: FDC/motor/tape model gating and AMSDOS aliases (&FADD, &FBDF)\n");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -228,7 +307,8 @@ int main(int argc, char** argv) {
 		test_p8_i8255_plus_quirks(dut);
 		test_p8_sna_parser(dut);
 		test_p8_model_decodes(dut);
-		std::printf("All Phase P8 platform polish and SNA v3 tests PASSED.\n");
+		test_p10c_fdc_motor_tape_gating(dut);
+		std::printf("All Phase P8 platform polish and P10 compatibility tests PASSED.\n");
 		return 0;
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());

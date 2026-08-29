@@ -418,6 +418,84 @@ void test_d10_byte_sar_writes(TestBench& tb) {
 	std::printf("PASS d10: Sequential 8-bit SAR writes\n");
 }
 
+// d11: LOAD timing (8 cycles), AY register restore, and dma_load_owner assertion
+void test_d11_load_timing_and_ay_restore(TestBench& tb) {
+	tb.pulse_reset();
+	tb.dut->cpu_psg_addr = 0x0E; // CPU currently selected register 14 (keyboard row)
+	tb.set_sar(0, 0x2000);
+	tb.set_dcsr_ena(1); // enable ch0
+
+	// Write LOAD R7, 0x3F (&073F) at 0x2000
+	tb.write_instruction(0x2000, 0x073F);
+
+	// Start scanline
+	tb.dut->hsync = 1;
+	tb.step_clock();
+
+	// Dead cycle (cyc 0)
+	auto advance_cclk = [&]() {
+		for (int clk_phase = 0; clk_phase < 16; ++clk_phase) {
+			tb.dut->cclk_en_p = (clk_phase == 0);
+			tb.dut->cclk_en_n = (clk_phase == 8);
+			tb.step_clock();
+		}
+		tb.dut->cclk_en_p = 0;
+		tb.dut->cclk_en_n = 0;
+	};
+
+	// Cycle 0: Dead cycle
+	advance_cclk();
+	// Cycle 1: Fetch channel 0
+	advance_cclk();
+	// Cycle 2: Fetch channel 1 (inactive)
+	advance_cclk();
+	// Cycle 3: Fetch channel 2 (inactive)
+	advance_cclk();
+
+	// Now Channel 0 executes LOAD R7, 0x3F (8 cycles total: ST_EXEC0_A..ST_EXEC0_H)
+	// Substep 0: Address set (R7)
+	advance_cclk();
+	if (!tb.dut->dma_load_owner || !tb.dut->psg_active || !tb.dut->psg_bdir || !tb.dut->psg_bc1 || tb.dut->psg_dout != 0x07)
+		fail("d11: Substep 0 failed (expected R7 address select with dma_load_owner=1)");
+
+	// Substep 1: Inactive sep
+	advance_cclk();
+	if (!tb.dut->dma_load_owner || !tb.dut->psg_active || tb.dut->psg_bdir || tb.dut->psg_bc1)
+		fail("d11: Substep 1 failed (expected inactive separation)");
+
+	// Substep 2: Data write (0x3F)
+	advance_cclk();
+	if (!tb.dut->dma_load_owner || !tb.dut->psg_active || !tb.dut->psg_bdir || tb.dut->psg_bc1 || tb.dut->psg_dout != 0x3F)
+		fail("d11: Substep 2 failed (expected data write 0x3F)");
+
+	// Substep 3: Inactive sep
+	advance_cclk();
+	if (!tb.dut->dma_load_owner || !tb.dut->psg_active || tb.dut->psg_bdir || tb.dut->psg_bc1)
+		fail("d11: Substep 3 failed (expected inactive separation)");
+
+	// Substep 4: Restore CPU AY register (0x0E)
+	advance_cclk();
+	if (!tb.dut->dma_load_owner || !tb.dut->psg_active || !tb.dut->psg_bdir || !tb.dut->psg_bc1 || tb.dut->psg_dout != 0x0E)
+		fail("d11: Substep 4 failed (expected CPU AY register 14 restore)");
+
+	// Substep 5: Inactive sep
+	advance_cclk();
+	if (!tb.dut->dma_load_owner || !tb.dut->psg_active || tb.dut->psg_bdir || tb.dut->psg_bc1)
+		fail("d11: Substep 5 failed (expected inactive separation)");
+
+	// Substep 6: Hold
+	advance_cclk();
+	if (!tb.dut->dma_load_owner || !tb.dut->psg_active)
+		fail("d11: Substep 6 failed (expected dma_load_owner held)");
+
+	// Substep 7: Release
+	advance_cclk();
+	if (tb.dut->dma_load_owner || tb.dut->psg_active)
+		fail("d11: Substep 7 failed (expected release of dma_load_owner and psg_active)");
+
+	std::printf("PASS d11: LOAD timing (8 cycles), AY register restore, and dma_load_owner assertion\n");
+}
+
 } // namespace
 
 int main() {
@@ -433,7 +511,8 @@ int main() {
 		test_d08_multi_channel_interleave(tb);
 		test_d09_undocumented_pause_repeat(tb);
 		test_d10_byte_sar_writes(tb);
-		std::printf("All 10 asic_dma unit tests PASSED.\n");
+		test_d11_load_timing_and_ay_restore(tb);
+		std::printf("All 11 asic_dma unit tests PASSED.\n");
 		return 0;
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());
