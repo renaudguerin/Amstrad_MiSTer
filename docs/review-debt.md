@@ -1,13 +1,15 @@
 # Independent review debt
 
-- **Plus P10a/P10b/P10c compatibility closure, 2026-08-29** — Scope: `Amstrad.sv`,
-  `rtl/Amstrad_motherboard.v`, `rtl/i8255.v`, `sim/plus/tv80/` (`tv80_core.v`, `tv80_mcode.v`, `tv80_alu.v`,
-  `tv80_reg.v`, `t80pa.v`), `sim/plus/p10_boot_test_top.v`, `sim/plus/p10_boot_test.cpp`, `sim/plus/plus_p8_test_top.v`,
-  `sim/plus/plus_p8_test.cpp`. Review:
+- **Plus P10a-P10e, P10h compatibility closure, 2026-08-29** — Scope: `Amstrad.sv`,
+  `rtl/Amstrad_motherboard.v`, `rtl/i8255.v`, `rtl/plus/asic_dma.v`, `rtl/plus/plus_sna_parser.v`,
+  `sim/plus/tv80/` (`tv80_core.v`, `tv80_mcode.v`, `tv80_alu.v`, `tv80_reg.v`, `t80pa.v`),
+  `sim/plus/p10_boot_test_top.v`, `sim/plus/p10_boot_test.cpp`, `sim/plus/plus_p8_test_top.v`,
+  `sim/plus/plus_p8_test.cpp`, `sim/plus/asic_dma_test.cpp`. Review:
   1. P10a real T80 boot harness execution and sub-cycle clock enable / WAIT integration.
   2. CF-1 physical Port C output driving from `opc_r` in Plus mode under `mode 0x9B` and `0x92` in `rtl/i8255.v`.
   3. CF-2/CF-3 FDC/motor gating with `plus_has_fdc`, tape gating with `plus_has_tape`, `u765.reset` and `motor` synchronous reset in `Amstrad.sv` and `rtl/Amstrad_motherboard.v`.
-  4. AMSDOS aliases `&FADD`/`&FBDF` and positive/negative model capability matrix (6128+, 464+, GX4000).
+  4. CF-4 DMA/PPI/PSG arbitration: 8-cycle LOAD execution, AY register tracking and restoration, `dma_ppi_wait` Z80 WAIT assertion, and PPI write/read gating in `rtl/plus/asic_dma.v` and `rtl/Amstrad_motherboard.v`.
+  5. CF-5 CPC+ SNA parser: unmasked reset during `sna_download`, 8-entry write FIFO with `ioctl_wait` backpressure, and atomic consecutive-byte/nibble unpacking in `rtl/plus/plus_sna_parser.v` and `Amstrad.sv`.
 
 - **ACCC Round 2 documentation correction, 2026-08-28** — documentation on the integration
   branch `accc-review-and-fixes`, based on `c11c55d`. Scope: `accuracy/accc-author-feedback.md`, its Round 1

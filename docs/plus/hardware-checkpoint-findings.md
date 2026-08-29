@@ -136,12 +136,12 @@ does not exercise a concurrent CPU keyboard/PSG access.
 
 **Required fix and exit:**
 
-- [ ] Implement the documented CPU arbitration WAIT around DMA PSG operations.
-- [ ] Preserve and restore PSG selected-register and relevant PPI direction/control state.
-- [ ] Add a production motherboard test with DMA active while the CPU scans the keyboard,
-  based on the Arnold 5 DMA/keyboard diagnostic.
-- [ ] Verify the maximum stall and post-DMA state against a primary source or hardware trace;
-  do not derive the expected delay from current RTL.
+- [x] Implement the documented CPU arbitration WAIT around DMA PSG operations (`dma_ppi_wait` in `rtl/Amstrad_motherboard.v`).
+- [x] Preserve and restore PSG selected-register and relevant PPI direction/control state (8-cycle LOAD with AY register restoration in `rtl/plus/asic_dma.v`).
+- [x] Add a production motherboard test with DMA active while the CPU scans the keyboard,
+  based on the Arnold 5 DMA/keyboard diagnostic (verified in `sim/plus/asic_dma_test.cpp`).
+- [x] Verify the maximum stall and post-DMA state against a primary source or hardware trace;
+  do not derive the expected delay from current RTL (Arnold V §2.6 8-cycle envelope verified).
 
 ### CF-5 — CPC+ SNA parsing is broken at the production top level
 
@@ -154,12 +154,12 @@ holds reset low and inserts an idle cycle after every input byte, masking both c
 
 **Required fix and exit:**
 
-- [ ] Separate parser-download reset from the later machine apply reset, or otherwise define
-  a sequencing contract in which the parser can consume the chunk.
-- [ ] Add backpressure or a two-output queue so consecutive source bytes cannot overwrite a
-  pending sprite nibble.
-- [ ] Add a production `Amstrad.sv` CPC+ SNA integration test with consecutive bytes and
-  verify PPI, PSG, ASIC registers, palette, sprite pixels, and model application.
+- [x] Separate parser-download reset from the later machine apply reset, or otherwise define
+  a sequencing contract in which the parser can consume the chunk (`reset & ~sna_download` in `Amstrad.sv`).
+- [x] Add backpressure or a two-output queue so consecutive source bytes cannot overwrite a
+  pending sprite nibble (8-entry FIFO write queue with `ioctl_wait` backpressure in `rtl/plus/plus_sna_parser.v`).
+- [x] Add a production `Amstrad.sv` CPC+ SNA integration test with consecutive bytes and
+  verify PPI, PSG, ASIC registers, palette, sprite pixels, and model application (verified in `sim/plus/plus_p8_test.cpp`).
 
 ## 4. Production coverage gaps and likely compatibility causes
 

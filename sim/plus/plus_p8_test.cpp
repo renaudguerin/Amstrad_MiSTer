@@ -144,16 +144,32 @@ void test_p8_sna_parser(Vplus_p8_test_top& dut) {
 		if (dut.asic_sna_wr) writes.push_back({dut.asic_sna_addr, dut.asic_sna_data});
 	};
 
-	// 1. Send Sprite RAM byte 0: 0xAB (pixel 0 = 0xA, pixel 1 = 0xB)
-	send_byte(0xAB);
-	if (writes.size() != 2 || writes[0].addr != 0x0000 || writes[0].data != 0x0A ||
-	    writes[1].addr != 0x0001 || writes[1].data != 0x0B) {
-		fail("P8 sna_parser: Sprite RAM nibble splitting failed");
+	// 1. Send Sprite RAM bytes 0 & 1 consecutively (0x12, 0x34) without idle cycle
+	dut.cpc_plus_byte_wr = 1; dut.cpc_plus_byte_data = 0x12; tick();
+	if (dut.asic_sna_wr) writes.push_back({dut.asic_sna_addr, dut.asic_sna_data});
+	dut.cpc_plus_byte_wr = 1; dut.cpc_plus_byte_data = 0x34; tick();
+	if (dut.asic_sna_wr) writes.push_back({dut.asic_sna_addr, dut.asic_sna_data});
+	dut.cpc_plus_byte_wr = 0;
+	// Drain FIFO
+	for (int d = 0; d < 5; ++d) {
+		tick();
+		if (dut.asic_sna_wr) writes.push_back({dut.asic_sna_addr, dut.asic_sna_data});
 	}
 
-	// 2. Fast forward through remaining sprite bytes (2047 bytes)
-	for (int i = 1; i < 2048; ++i) {
+	if (writes.size() != 4 ||
+	    writes[0].addr != 0x0000 || writes[0].data != 0x01 ||
+	    writes[1].addr != 0x0001 || writes[1].data != 0x02 ||
+	    writes[2].addr != 0x0002 || writes[2].data != 0x03 ||
+	    writes[3].addr != 0x0003 || writes[3].data != 0x04) {
+		fail("P8 sna_parser: Consecutive Sprite RAM nibble splitting failed (size=" + std::to_string(writes.size()) + ")");
+	}
+
+	// 2. Fast forward through remaining sprite bytes (2046 bytes)
+	for (int i = 2; i < 2048; ++i) {
 		send_byte(0x00);
+	}
+	while (dut.asic_sna_wr) {
+		tick();
 	}
 
 	// 3. Send Sprite 0 attributes (offset 0x800..0x804): X=0x0150, Y=0x0080, Mag=0x05
