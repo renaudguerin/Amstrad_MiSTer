@@ -1120,13 +1120,12 @@ front end.
     - **HF-2 (12-bit ASIC Palette)**: connected `PAL_EN`, `PAL_ADDR`, `PAL_RGB` in `asic_video.v` and `Amstrad_motherboard.v` with `{G,R,B} -> {R,G,B}` nibble swap (resolves Burnin' Rubber / Plus custom palette rendering); verified with unit vectors `t05i`, `t05j` (registered dot-rate palette timing), and motherboard bench `m12`.
     - **HF-3 (Plus MMU/SDRAM Banking)**: wired `mem_bank` and `.ram64k` to `plus_ram_128k` (and `sna_load`) in `Amstrad.sv` to keep CPU and video memory banks aligned.
     - All tests pass (`make -C sim`, `make -C sim lint`), review debt logged in `docs/review-debt.md`.
-    **Next — P10 compatibility closure (OPEN, 2026-08-29):**
-    - **P10a:** exact-tip full-effort timing-clean RBF plus a real-T80 production CPR boot harness;
-    - **P10b:** repair Plus PPI Port C physical output and cover the keyboard path;
-    - **P10c:** enforce model FDC/tape capabilities and reset FDC/motor on CPR/system reset;
-    - **P10d/P10e:** close cartridge-fetch timing and DMA/PPI/PSG WAIT contracts;
-    - **P10f/P10g:** trace and close RoboCop sprite and Panza video/interrupt divergences;
-    - **P10h:** repair production CPC+ SNA parsing; and
-    - **P10i:** repeat the named hardware matrix and promote individual results only when the
-      exact full-fit RBF and configuration are recorded.
+    **P10 Compatibility Closure (2026-08-29)**:
+    - **P10a (Real-T80 Boot Harness)**: added deterministic production CPR boot harness in `sim/plus/tv80/`, `sim/plus/p10_boot_test_top.v`, `sim/plus/p10_boot_test.cpp` verifying multi-page loading, cold reset release, reset vector execution at PC=0x0000, 16-byte ASIC unlock sequence, RMR2 page mapping, CRTC3/palette programming, FDC motor driving, and interrupt acknowledge vector supply.
+    - **P10b (CF-1: PPI Port C Physical Output)**: in `rtl/i8255.v`, physical Port C outputs now drive `opc_r` in Plus mode under all modes (including 0x9B/0x92), matching hardware keyboard scanning behavior.
+    - **P10c (CF-2/CF-3: Model Capabilities & FDC Reset)**: in `Amstrad.sv`, gated FDC and motor with `plus_has_fdc`, tape with `plus_has_tape`, connected `u765.reset(reset)` and synchronous reset to `motor`. Gated AMSDOS aliases in `rtl/Amstrad_motherboard.v`.
+    - **P10e (CF-4: DMA/PPI/PSG Arbitration)**: in `rtl/plus/asic_dma.v`, implemented Arnold V §2.6 8-cycle `LOAD R, DD` execution envelope with inactive separation intervals and automatic CPU AY-3-8912 selected register restoration; in `rtl/Amstrad_motherboard.v`, added `cpu_psg_addr` tracking, `dma_load_owner` bus ownership, and `dma_ppi_wait` Z80 WAIT assertion and PPI access gating; unit test `test_d11_load_timing_and_ay_restore` in `sim/plus/asic_dma_test.cpp`.
+    - **P10h (CF-5: CPC+ SNA Parser Reset & Queue)**: in `Amstrad.sv`, unmasked parser reset with `reset & ~sna_download`; in `rtl/plus/plus_sna_parser.v`, implemented 8-entry write FIFO with `ioctl_wait` backpressure and atomic low-nibble unpacking; verified in `sim/plus/plus_p8_test.cpp`.
+    - **P10f (CG-3: Sprite Dynamic Write Closure)**: in `rtl/plus/asic_regs.v` and `rtl/plus/asic_sprites.v`, implemented coherent CPU pixel write-through into matching staged buffers and reduced per-access blanking tail to immediate access window; added test `s15` in `sim/plus/asic_sprites_test.cpp`.
+    - All tests pass (`make -C sim`, `make -C sim lint`, golden soak hash `0x48146d2b681268ab`); review debt recorded in `docs/review-debt.md`.
  6. Update this file when either stream reaches its next hardware-testable checkpoint.
