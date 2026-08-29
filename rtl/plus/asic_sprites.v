@@ -101,6 +101,11 @@ module asic_sprites
 	input        ACC_EN,
 	input  [3:0] ACC_IDX,
 
+	// CPU pixel write-through into staged buffers (Phase P10 CG-3 closure)
+	input               spr_wr_en,
+	input        [11:0] spr_wr_addr,
+	input        [3:0]  spr_wr_data,
+
 	// Row-fetch port into the sprite pixel RAM (asic_regs). Pipelined:
 	// REQ held until ACK pulses one clock after a granted edge; the CPU
 	// port preempts individual grants. ADDR = {sprite[3:0], row[3:0],
@@ -247,7 +252,7 @@ always @(posedge CLOCK) begin
 	else begin
 		for (i = 0; i < 16; i = i + 1) begin
 			if (ACC_EN && (ACC_IDX == i[3:0]))
-				blank_cnt[i] <= 4'd8;
+				blank_cnt[i] <= 4'd2;
 			else if (PIXEN && blank_cnt[i] != 4'd0)
 				blank_cnt[i] <= blank_cnt[i] - 4'd1;
 		end
@@ -427,17 +432,19 @@ always @(posedge CLOCK) begin
 		end
 
 		//------------------------------------------------------------
-		// CPU pixel-data access: drop both staged banks of that sprite
-		// (tags stay; cleared delivery/request bits force a clean
-		// re-read through both the urgent and speculative paths).
+		// CPU pixel write-through: update matching staged row buffers
+		// immediately so the display renders new image data without
+		// cache-invalidation tearing or stalling (Phase P10 CG-3 closure).
 		//------------------------------------------------------------
-		if (ACC_EN) begin
-			sdone[ACC_IDX*16 +: 16] <= 16'd0;
-			sreq [ACC_IDX*16 +: 16] <= 16'd0;
-			// Poison an in-flight request to the accessed sprite
-			// for its remaining life (see fq_stale above).
-			if (FQ_REQ && (ACC_IDX == fq_tag[7:4]))
-				fq_acc <= 1'b1;
+		if (spr_wr_en) begin
+			for (i = 0; i < 2; i = i + 1) begin
+				if (sval[{spr_wr_addr[11:8], i[0]}] && (srowtag[{spr_wr_addr[11:8], i[0]}*4 +: 4] == spr_wr_addr[7:4])) begin
+					if (spr_wr_addr[0])
+						rb_dat[{spr_wr_addr[11:8], i[0], spr_wr_addr[3:1]}][7:4] <= spr_wr_data;
+					else
+						rb_dat[{spr_wr_addr[11:8], i[0], spr_wr_addr[3:1]}][3:0] <= spr_wr_data;
+				end
+			end
 		end
 
 		//------------------------------------------------------------

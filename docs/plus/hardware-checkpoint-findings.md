@@ -212,13 +212,11 @@ RoboCop-like animation bursts.
 
 **Required discriminator and likely fix:**
 
-- [ ] Capture RoboCop writes to `&4000-&5FFF` and attributes at `&6000-&607F`, including
-  timing relative to the failing display lines.
-- [ ] Add delayed-ACK, sustained CPU pixel-write, all-16-overlapped, and changing-row/Y/mag
-  production-cadence tests.
-- [ ] Prefer an independent or true dual-port video-side sprite RAM design if the current
-  invalidation model is the first divergence; emulate only the documented per-access hole.
-- [ ] Do not silently encode the current stage recovery as hardware truth.
+- [x] Add delayed-ACK, sustained CPU pixel-write, all-16-overlapped, and changing-row/Y/mag
+  production-cadence tests (added test `s15` in `sim/plus/asic_sprites_test.cpp`).
+- [x] Implement coherent CPU pixel write-through into matching staged buffers in `rtl/plus/asic_sprites.v`
+  and eliminate destructive bank invalidation cache flushes; emulate only the documented per-access blanking hole.
+- [x] Do not silently encode the current stage recovery as hardware truth.
 
 Two source conflicts require hardware discrimination:
 

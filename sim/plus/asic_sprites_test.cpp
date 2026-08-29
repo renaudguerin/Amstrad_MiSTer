@@ -58,6 +58,7 @@ public:
         put_field(dut.SPR_MAG, 0, 64, 0);
         for (unsigned i = 0; i < 6; ++i) dut.SPR_PAL[i] = 0;
         dut.ACC_EN = 0; dut.ACC_IDX = 0;
+        dut.spr_wr_en = 0; dut.spr_wr_addr = 0; dut.spr_wr_data = 0;
         dut.FQ_ACK = 0; dut.FQ_DATA = 0;
         dut.eval();
         reset_pulse();
@@ -992,7 +993,48 @@ void s14_overlap_bandwidth_within_capacity(Spr& b) {
     }
 }
 
-constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 14> kTests = {{
+// S15 (CG-3 RoboCop 2 closure): dynamic burst CPU pixel writes while rendering
+// must update the sprite image without cache-invalidation tearing or stalling.
+void s15_dynamic_burst_write_no_tearing(Spr& b) {
+    for (unsigned py = 0; py < 16; ++py)
+        for (unsigned px = 0; px < 16; ++px)
+            b.wr(0, px, py, 1); // initial colour 1
+    b.set_x(0, 32); b.set_y(0, 8); b.set_mag(0, 0x5);
+    program_palette(b);
+
+    b.run_to_vline(12); // vline 12 -> diff 4 -> row 4
+
+    // Char 0: burst write 16 new pixels into sprite 0 row 4 (offset 0x0040..0x004F)
+    for (unsigned px = 0; px < 16; ++px) {
+        b.wr(0, px, 4, (px & 7) + 2); // new colours 2..9
+        b.dut.spr_wr_en = 1;
+        b.dut.spr_wr_addr = (0 << 8) | (4 << 4) | px;
+        b.dut.spr_wr_data = (px & 7) + 2;
+        if (px == 15) b.char_end(false);
+        else          b.dot();
+        b.dut.spr_wr_en = 0;
+    }
+
+    // Char 1: idle char before window (dots 16..31)
+    b.run_char(false);
+
+    // Char 2: sprite window at X=32..47 (dots 32..47 = source pixels 0..15)
+    for (unsigned d = 0; d < 16; ++d) {
+        const Spr::Smp s = b.sample();
+        const unsigned px = d;
+        if (!s.en || s.idx != 0)
+            fail("s15: dynamic write caused sprite tearing/drop at px=" + std::to_string(px));
+        unsigned g, r, bl;
+        pal_entry((px & 7) + 2, g, r, bl);
+        if (s.r != r || s.g != g || s.b != bl)
+            fail("s15: dynamic write pixel mismatch at px=" + std::to_string(px) +
+                 " (got R=" + std::to_string(s.r) + " G=" + std::to_string(s.g) + " B=" + std::to_string(s.b) +
+                 " exp R=" + std::to_string(r) + " G=" + std::to_string(g) + " B=" + std::to_string(bl) + ")");
+        if (d == 15) b.char_end(false); else b.dot();
+    }
+}
+
+constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 15> kTests = {{
     {"s01 zero magnification codes disable the sprite (S5)",
      s01_disabled_codes_off},
     {"s02 x1 placement, source pixels, transparency (S5)",
@@ -1019,6 +1061,8 @@ constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 14> kTests = {{
      s13_y_rewrite_scanline_granularity},
     {"s14 ten overlapped sprites, no staging miss (bandwidth model)",
      s14_overlap_bandwidth_within_capacity},
+    {"s15 dynamic burst write without tearing/garbling (CG-3 RoboCop 2)",
+     s15_dynamic_burst_write_no_tearing},
 }};
 
 }  // namespace
