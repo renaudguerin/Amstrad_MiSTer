@@ -86,10 +86,10 @@ classic input-direction word active while inspecting the physical `ppi_opc` pins
 
 **Required fix and exit:**
 
-- [ ] In Plus mode, drive both physical Port C nibbles from `opc_r` regardless of classic
-  direction bits; preserve classic behavior when `plus_mode=0`.
-- [ ] Add a focused physical-pin vector for control words `0x9B` and `0x92`.
-- [ ] Add a production-path PPI -> PSG register 14 -> HID matrix test that selects at least
+- [x] In Plus mode, drive both physical Port C nibbles from `opc_r` regardless of classic
+  direction bits; preserve classic behavior when `plus_mode=0` (implemented in `rtl/i8255.v`).
+- [x] Add a focused physical-pin vector for control words `0x9B` and `0x92` (verified in `sim/plus/plus_p8_test.cpp`).
+- [x] Add a production-path PPI -> PSG register 14 -> HID matrix test that selects at least
   two keyboard rows after reset and after SNA restore.
 - [ ] Trace Arnold 5's PPI control writes and confirm the failing interval retains or writes
   an input-direction control word before attributing the hardware symptom to CF-1.
@@ -105,12 +105,12 @@ machine behavior.
 
 **Required fix and exit:**
 
-- [ ] Gate FDC status/data and motor writes with `!plus_mode || plus_has_fdc`.
-- [ ] Gate tape sense/motor paths with `!plus_mode || plus_has_tape` without changing classic
-  model behavior.
-- [ ] Add a model matrix: 6128+ positive FDC, 464+ positive tape, and negative GX4000/464+
-  FDC plus GX4000/6128+ tape cases.
-- [ ] Pin the intended open-bus/read result and motor behavior for an absent device.
+- [x] Gate FDC status/data and motor writes with `!plus_mode || plus_has_fdc` (implemented in `Amstrad.sv`).
+- [x] Gate tape sense/motor paths with `!plus_mode || plus_has_tape` without changing classic
+  model behavior (implemented in `rtl/Amstrad_motherboard.v` and `Amstrad.sv`).
+- [x] Add a model matrix: 6128+ positive FDC, 464+ positive tape, and negative GX4000/464+
+  FDC plus GX4000/6128+ tape cases (verified in `sim/plus/plus_p8_test.cpp`).
+- [x] Pin the intended open-bus/read result and motor behavior for an absent device.
 
 ### CF-3 — CPR/system reset does not reset the FDC or motor latch
 
@@ -120,11 +120,11 @@ survive cartridge replacement and contaminate a later BASIC/System cartridge boo
 
 **Required fix and exit:**
 
-- [ ] Define the FDC/motor reset contract for classic OSD reset, Plus CPR apply, and model
-  changes; reset both controller state and motor on the selected system-reset event.
-- [ ] Add `active FDC command -> CPR load/apply -> first FDC access` coverage.
-- [ ] Drive the real AMSDOS aliases `&FADD` and `&FBDF` through a production-level bench;
-  HF-1 currently has no such integration vector.
+- [x] Define the FDC/motor reset contract for classic OSD reset, Plus CPR apply, and model
+  changes; reset both controller state and motor on the selected system-reset event (connected `u765.reset(reset)` and `motor` reset in `Amstrad.sv`).
+- [x] Add `active FDC command -> CPR load/apply -> first FDC access` coverage.
+- [x] Drive the real AMSDOS aliases `&FADD` and `&FBDF` through a production-level bench;
+  HF-1 currently has no such integration vector (verified in `sim/plus/plus_p8_test.cpp` and `p10_boot_test.cpp`).
 
 ### CF-4 — P7's DMA-versus-PPI/PSG WAIT contract is absent
 

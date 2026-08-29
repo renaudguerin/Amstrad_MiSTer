@@ -753,7 +753,7 @@ i8255 PPI
 
 	.ipa(portAin), 
 	.opa(portAout),
-	.ipb({tape_in, 2'b11, ppi_jumpers, vs_sel}),
+	.ipb({(!plus_mode || plus_has_tape) ? tape_in : 1'b1, 2'b11, ppi_jumpers, vs_sel}),
 	.opb(),
 	.ipc(8'hFF), 
 	.opc(portC),
@@ -767,8 +767,8 @@ i8255 PPI
 	.sna_control(sna_ppi_control)
 );
 
-assign tape_motor = portC[4];
-assign tape_out   = portC[5];
+assign tape_motor = (!plus_mode || plus_has_tape) ? portC[4] : 1'b0;
+assign tape_out   = (!plus_mode || plus_has_tape) ? portC[5] : 1'b0;
 
 assign audio_l = {1'b0, ch_a[7:1]} + {2'b00, ch_b[7:2]};
 assign audio_r = {1'b0, ch_c[7:1]} + {2'b00, ch_b[7:2]};

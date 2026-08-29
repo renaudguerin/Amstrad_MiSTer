@@ -185,10 +185,28 @@ P8_TEST_SRC := $(abspath plus_p8_test.cpp)
 P8_TEST_BIN := $(P8_OBJ_DIR)/plus_p8_tests
 P8_RTL      := $(abspath plus_p8_test_top.v) $(abspath ../../rtl/i8255.v) $(abspath ../../rtl/plus/plus_sna_parser.v) $(abspath ../../rtl/plus/plus_model_select.v)
 
+# P10a real-T80 production CPR boot harness
+P10BOOT_TOP      := p10_boot_test_top
+P10BOOT_TEST_TOP := $(abspath p10_boot_test_top.v)
+P10BOOT_TV80     := $(abspath tv80/t80pa.v) $(abspath tv80/tv80_core.v) $(abspath tv80/tv80_mcode.v) \
+                    $(abspath tv80/tv80_alu.v) $(abspath tv80/tv80_reg.v)
+P10BOOT_RTL      := $(MBOARD_CORE_RTL) $(P10BOOT_TV80) \
+                    $(abspath ../../rtl/plus/plus_cpr_parser.v) \
+                    $(abspath ../../rtl/plus/plus_cartridge_memory.v) \
+                    $(abspath ../../rtl/plus/plus_mmu.v) \
+                    $(abspath ../../rtl/plus/asic_unlock.v) \
+                    $(abspath ../../rtl/plus/plus_model_select.v) \
+                    $(abspath ../../rtl/sdram.v) \
+                    $(abspath ../../rtl/GA40010/casgen_sync.v) \
+                    $(abspath ../../rtl/GA40010/syncgen_sync.v)
+P10BOOT_OBJ_DIR  := obj_dir/p10_boot
+P10BOOT_TEST_SRC := $(abspath p10_boot_test.cpp)
+P10BOOT_TEST_BIN := $(P10BOOT_OBJ_DIR)/p10_boot_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
-	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN)
+	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -222,6 +240,7 @@ test: $(TEST_BINS)
 	./$(SPRITES_TEST_BIN)
 	./$(DMA_TEST_BIN)
 	./$(P8_TEST_BIN)
+	./$(P10BOOT_TEST_BIN)
 
 $(P8_TEST_BIN): $(P8_RTL) $(P8_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module plus_p8_test_top -Wno-CASEX \
@@ -320,6 +339,13 @@ $(MOBO_TEST_BIN): $(MOBO_TEST_TOP) $(MOBO_RTL) $(MOBO_CPU) $(MOBO_TEST_SRC) Make
 		-o $(notdir $(MOBO_TEST_BIN)) $(MOBO_TEST_TOP) $(MOBO_RTL) \
 		$(MOBO_CPU) $(MOBO_TEST_SRC)
 
+$(P10BOOT_TEST_BIN): $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) $(P10BOOT_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR \
+		--top-module $(P10BOOT_TOP) \
+		--Mdir $(P10BOOT_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(P10BOOT_TEST_BIN)) $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) \
+		$(P10BOOT_TEST_SRC)
+
 $(OBJ_DIR):
 	mkdir -p -- $@
 
@@ -371,6 +397,12 @@ lint: motherboard-lint
 		--top-module plus_sna_parser -Wall $(abspath ../../rtl/plus/plus_sna_parser.v)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module i8255 -Wall -Wno-CASEX $(abspath ../../rtl/i8255.v)
+	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
+		--top-module $(P10BOOT_TOP) -Wall -Wno-fatal \
+		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
+		-Wno-DECLFILENAME -Wno-CASEX \
+		-Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
+		$(P10BOOT_TEST_TOP) $(P10BOOT_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
 		--top-module Amstrad_motherboard -Wall \
 		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
