@@ -77,17 +77,19 @@ triggered by *where a change has arrived*, not by which file it touched.  The ev
 then picks the effort:
 
 - **Integration branches** — the default branch and `accc-review-and-fixes` (the
-  `INTEGRATION_BRANCHES` list in `build.yml`): every push whose changed set affects the build,
-  at **smoke** effort.  This is the automatic replacement for the old "named milestone"
-  ritual.  A merge is a push to an integration branch, so merging a stream branch synthesizes
-  the result with nobody having to remember.
-- **Pull requests**: the same path test, at **full** effort — pre-merge evidence for anyone
-  who wants it.
-- **Every pushed tag and every manual workflow dispatch**: unconditionally, at **full**
-  effort.  The dispatch input also accepts `smoke`, or `both` to benchmark the two tiers on
-  one SHA.
-- **Stream branches**: never.  Tier A only.  The same code would otherwise be synthesized
-  twice — once on the branch and again when it merges.
+  `INTEGRATION_BRANCHES` list in `build.yml`): every push whose changed set affects the build
+  synthesizes at **full** effort by default. A merge via `/stream-finish` is a push to an
+  integration branch, so merging a stream branch automatically triggers a full-effort synthesis
+  build and generates a hardware-testable RBF.
+- **Pull requests & Pushed tags**: the same path test, at **full** effort.
+- **Manual workflow dispatch**: defaults to **full** effort. The dispatch input also accepts
+  `smoke`, or `both` to benchmark the two tiers on one SHA.
+- **Stream branches**: never synthesize by default (Tier A only). Full builds should not be
+  triggered in a stream worktree unless explicitly requested by the user. The same code will
+  otherwise be synthesized when merged into the integration branch.
+- **Local VM priority**: Whenever full synthesis is needed, check whether the self-hosted
+  `quartus-vm` runner is online via `gh api repos/:owner/:repo/actions/runners`. If online,
+  prefer `local-build.yml` (`effort=full`); if offline, hosted `build.yml` runs full effort.
 
 Two operational notes.  First, simulation and synthesis jobs run in parallel (they share no
 state; the required gate still enforces both), so a red simulation no longer saves the

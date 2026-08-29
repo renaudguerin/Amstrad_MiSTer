@@ -122,19 +122,18 @@ make -C sim clean
   A hash change on a refactor commit means behaviour moved — stop and document
   why before proceeding.
 - There is no native local Quartus path on Apple Silicon. GitHub Actions runs Verilator on
-  every non-documentation push, then runs the pinned Quartus 17.0.2 container only for known
-  integration paths, the default branch, pull requests to it, tags, or a manual milestone
-  dispatch. Integration-tip pushes compile at smoke fitter effort; PRs, tags, and dispatches
-  compile at full effort and only those RBFs count as hardware-build evidence. Semantic
-  clock/memory/RGB risks still require an exact manually dispatched build. The tiered rules
-  are in `docs/ci-testing-policy.md`; local UTM/Docker options are in `docs/building.md`.
+  every non-documentation push, then runs the pinned Quartus 17.0.2 container for known
+  integration paths (`accc-review-and-fixes`, default branch), pull requests, tags, or a manual
+  dispatch. All integration builds compile at full effort by default to produce hardware-testable
+  RBFs. Stream branches stay on Tier A (Verilator simulation) and never synthesize unless
+  explicitly requested.
+- When full synthesis is needed, always check whether the self-hosted Quartus VM is up
+  (`quartus-vm` online via `gh api repos/:owner/:repo/actions/runners`). If online, prefer it:
+  `gh workflow run local-build.yml --ref <branch> -f effort=full` (~2m–4m faster than hosted CI;
+  fallback to hosted `build.yml` when offline). One-time registration: `ansible/local-runner.yml`.
 - CI is last-write-wins: newer pushes/dispatches cancel older runs (same ref outright; among
   expensive Quartus compiles, across refs too). A `cancelled` Actions run means *superseded* —
   find its successor with `gh run list --branch <ref> --limit 5` before diagnosing anything.
-- When the Quartus UTM VM is up (`quartus-vm` online), prefer it for manual dispatches:
-  `gh workflow run local-build.yml --ref <branch> -f effort=full|smoke` (~2m–4m faster than
-  hosted CI; fallback to hosted `build.yml` when offline). One-time registration and removal:
-  `ansible/local-runner.yml` per `ansible/README.md`.
 - Use `Amstrad.qpf` as the project file; `Amstrad_Q13.*` is a legacy alternate, ignore it.
 
 ## Core layout (since the 2026-08-22 per-type split)

@@ -53,7 +53,7 @@ Finalizes the current stream branch, performs semantic merge into `accc-review-a
      ```
      *(If CRTC behavior or hash changed, also run `make -C /Users/renaudg/code/Amstrad_MiSTer/sim soak`)*.
 
-### Phase 5: Commit & Push
+### Phase 5: Commit, Push & Build Dispatch
 1. Commit the merge:
    ```sh
    git -C /Users/renaudg/code/Amstrad_MiSTer commit -m "Merge branch '<stream-branch>' into accc-review-and-fixes"
@@ -62,5 +62,16 @@ Finalizes the current stream branch, performs semantic merge into `accc-review-a
    ```sh
    git -C /Users/renaudg/code/Amstrad_MiSTer push origin accc-review-and-fixes
    ```
-   *(Note: Pushing `accc-review-and-fixes` automatically triggers the Quartus CI synthesis build if code files changed).*
-3. Summarize the completed merge and report the triggered GitHub Actions run if pushed.
+   *(Note: Pushing `accc-review-and-fixes` automatically triggers a full-effort Quartus synthesis build when code files changed, producing an RBF for hardware testing).*
+3. Check local VM availability for fast full synthesis:
+   Query the GitHub API to check if the self-hosted `quartus-vm` runner is online:
+   ```sh
+   gh api repos/renaudguerin/Amstrad_MiSTer/actions/runners --jq '.runners[] | select(.name == "quartus-vm" and .status == "online")'
+   ```
+   - **If `quartus-vm` is online**: Dispatch `local-build.yml` with `effort=full`:
+     ```sh
+     gh workflow run local-build.yml --ref accc-review-and-fixes -f effort=full
+     ```
+     *(The local UTM VM runs ~2-4m faster and automatically preempts the hosted run in the shared `build-core-synthesis` concurrency group).*
+   - **If `quartus-vm` is offline**: Let the hosted push workflow (`build.yml`) proceed (it compiles at full effort by default).
+4. Summarize the completed merge, report the triggered GitHub Actions run, and note the RBF artifact name once available.

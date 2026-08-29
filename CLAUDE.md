@@ -76,12 +76,12 @@ failing is a finding, not something to edit.
 `make -C sim` must pass before every code/RTL/simulation commit (pure documentation or markdown changes do not require running simulation). GitHub Actions runs that fast gate on every
 non-documentation push. Pinned Quartus 17.0.2 synthesis is automatic wherever work integrates:
 every push to an integration branch (the default branch, `accc-review-and-fixes`) that touches
-anything Quartus compiles, plus pull requests, tags, and manual dispatches. Stream branches
+anything Quartus compiles, plus pull requests, tags, and manual dispatches. All integration builds
+compile at full effort by default to produce hardware-testable RBFs. Stream branches
 stay on simulation only until they merge, so **merging is what triggers synthesis** — you no
-longer have to remember to name a milestone. Dispatch a build by hand only when you need the
-answer before a merge, or for a semantic risk no path reveals (top-level wiring, clocks, memory
-arbitration, RGB width). When the local Quartus VM is up (`quartus-vm` online), prefer
-dispatching to it (`gh workflow run local-build.yml --ref <branch> -f effort=full|smoke`) — it is
+longer have to remember to name a milestone. When full synthesis is needed, always check if the
+local Quartus VM is up (`quartus-vm` online via `gh api repos/:owner/:repo/actions/runners`). If online,
+prefer dispatching to it (`gh workflow run local-build.yml --ref <branch> -f effort=full`) — it is
 ~2m–4m faster than hosted CI. Fall back to hosted `build.yml` if the VM is offline. Hardware
 results outrank simulation but never replace it. See `docs/ci-testing-policy.md` for executable routing rules.
 

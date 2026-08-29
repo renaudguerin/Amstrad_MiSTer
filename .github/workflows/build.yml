@@ -131,12 +131,11 @@ jobs:
 
           # Compile-effort tier, decided only once "required" is final.
           #
-          # Routine integration pushes (default branch and INTEGRATION_BRANCHES)
-          # get the smoke fit: fast signal that the tip still elaborates, fits,
-          # and roughly meets timing.  Full-effort evidence stays mandatory
-          # where a milestone forms: pull requests, tags, and manual
-          # dispatches.  Dispatch also accepts "both" to benchmark the tiers
-          # on one SHA.  Measured figures: docs/ci-testing-policy.md.
+          # All integration builds (default branch, INTEGRATION_BRANCHES, PRs,
+          # tags, and manual dispatches) default to full effort to produce
+          # hardware-testable RBFs directly on integration merges.
+          # Manual dispatch also accepts "smoke" or "both" when explicitly requested.
+          # Measured figures: docs/ci-testing-policy.md.
           legs='[]'
           mode=none
           if [[ "$required" == "true" ]]; then
@@ -146,12 +145,9 @@ jobs:
                 both)  mode=full;  legs='["full", "smoke"]' ;;
                 *)     mode=full;  legs='["full"]' ;;
               esac
-            elif [[ "$GITHUB_REF" == refs/tags/* || "$EVENT_NAME" == "pull_request" ]]; then
+            else
               mode=full
               legs='["full"]'
-            else
-              mode=smoke
-              legs='["smoke"]'
             fi
           fi
 
