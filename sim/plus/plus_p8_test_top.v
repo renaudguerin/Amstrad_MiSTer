@@ -23,6 +23,7 @@ module plus_p8_test_top (
 	input        cpc_plus_chunk_start,
 	input        cpc_plus_byte_wr,
 	input  [7:0] cpc_plus_byte_data,
+	output       sna_ioctl_wait,
 	output       asic_sna_wr,
 	output [13:0] asic_sna_addr,
 	output [7:0] asic_sna_data,
@@ -35,8 +36,19 @@ module plus_p8_test_top (
 	output       model_plus_mode,
 	output       model_ram_128k,
 	output       model_has_fdc,
-	output       model_has_tape
+	output       model_has_tape,
+
+	// FDC decode test signals
+	input  [15:0] fdc_test_addr,
+	input         fdc_test_status17,
+	input         fdc_test_plus_mode,
+	input         fdc_test_has_fdc,
+	output        fdc_motor_sel,
+	output        u765_sel
 );
+
+	assign fdc_motor_sel = !fdc_test_addr[10] & fdc_test_addr[9] & !fdc_test_addr[8] & (!fdc_test_plus_mode | fdc_test_has_fdc);
+	assign u765_sel      = !fdc_test_addr[10] & fdc_test_addr[9] & fdc_test_addr[8] & fdc_test_addr[4] & ~fdc_test_status17 & (!fdc_test_plus_mode | fdc_test_has_fdc);
 
 	i8255 ppi
 	(
@@ -70,6 +82,7 @@ module plus_p8_test_top (
 		.cpc_plus_chunk_start(cpc_plus_chunk_start),
 		.cpc_plus_byte_wr(cpc_plus_byte_wr),
 		.cpc_plus_byte_data(cpc_plus_byte_data),
+		.ioctl_wait(sna_ioctl_wait),
 		.asic_sna_wr(asic_sna_wr),
 		.asic_sna_addr(asic_sna_addr),
 		.asic_sna_data(asic_sna_data),

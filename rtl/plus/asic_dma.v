@@ -53,7 +53,9 @@ module asic_dma (
 	// 16-bit RAM fetch interface
 	output reg         ram_req,
 	output reg  [15:0] ram_addr,
-	input  wire [15:0] ram_data,
+	input  wire [15:0] ram_data,       // CPU interface / arbitration
+	input  wire [7:0]  cpu_psg_addr,
+	output reg         dma_load_owner,
 
 	// PSG / AY-3-8912 interface
 	output reg         psg_bdir,
@@ -81,41 +83,57 @@ module asic_dma (
 	reg [2:0] active_ch;
 	reg [15:0] instr [0:2];
 
-	// State machine definition
-	localparam [3:0]
-		ST_IDLE      = 4'd0,
-		ST_DEAD      = 4'd1,
-		ST_FETCH0    = 4'd2,
-		ST_FETCH1    = 4'd3,
-		ST_FETCH2    = 4'd4,
-		ST_EXEC0_A   = 4'd5,
-		ST_EXEC0_B   = 4'd6,
-		ST_EXEC0_C   = 4'd7,
-		ST_EXEC1_A   = 4'd8,
-		ST_EXEC1_B   = 4'd9,
-		ST_EXEC1_C   = 4'd10,
-		ST_EXEC2_A   = 4'd11,
-		ST_EXEC2_B   = 4'd12,
-		ST_EXEC2_C   = 4'd13,
-		ST_DONE      = 4'd14;
+	// State machine definition (5-bit state encoding)
+	localparam [4:0]
+		ST_IDLE      = 5'd0,
+		ST_DEAD      = 5'd1,
+		ST_FETCH0    = 5'd2,
+		ST_FETCH1    = 5'd3,
+		ST_FETCH2    = 5'd4,
+		ST_EXEC0_A   = 5'd5,
+		ST_EXEC0_B   = 5'd6,
+		ST_EXEC0_C   = 5'd7,
+		ST_EXEC0_D   = 5'd8,
+		ST_EXEC0_E   = 5'd9,
+		ST_EXEC0_F   = 5'd10,
+		ST_EXEC0_G   = 5'd11,
+		ST_EXEC0_H   = 5'd12,
+		ST_EXEC1_A   = 5'd13,
+		ST_EXEC1_B   = 5'd14,
+		ST_EXEC1_C   = 5'd15,
+		ST_EXEC1_D   = 5'd16,
+		ST_EXEC1_E   = 5'd17,
+		ST_EXEC1_F   = 5'd18,
+		ST_EXEC1_G   = 5'd19,
+		ST_EXEC1_H   = 5'd20,
+		ST_EXEC2_A   = 5'd21,
+		ST_EXEC2_B   = 5'd22,
+		ST_EXEC2_C   = 5'd23,
+		ST_EXEC2_D   = 5'd24,
+		ST_EXEC2_E   = 5'd25,
+		ST_EXEC2_F   = 5'd26,
+		ST_EXEC2_G   = 5'd27,
+		ST_EXEC2_H   = 5'd28,
+		ST_DONE      = 5'd29;
 
-	reg [3:0] state;
+	reg [4:0] state;
 
 	integer c;
 
 	always @(posedge clk) begin
 		if (reset) begin
-			hsync_d       <= 1'b0;
-			state         <= ST_IDLE;
-			active_ch     <= 3'd0;
-			dcsr_ena_clr  <= 3'd0;
-			dma_int_set   <= 3'd0;
-			ram_req       <= 1'b0;
-			ram_addr      <= 16'd0;
-			psg_bdir      <= 1'b0;
-			psg_bc1       <= 1'b0;
-			psg_dout      <= 8'd0;
-			psg_active    <= 1'b0;
+			hsync_d        <= 1'b0;
+			state          <= ST_IDLE;
+			active_ch      <= 3'd0;
+			dcsr_ena_clr   <= 3'd0;
+			dma_int_set    <= 3'd0;
+			ram_req        <= 1'b0;
+			ram_addr       <= 16'd0;
+			dma_load_owner <= 1'b0;
+			psg_bdir       <= 1'b0;
+			psg_bc1        <= 1'b0;
+			psg_dout       <= 8'd0;
+			psg_active     <= 1'b0;
 
 			for (c = 0; c < 3; c = c + 1) begin
 				sar_cur[c]       <= 16'd0;
@@ -151,7 +169,7 @@ module asic_dma (
 					end
 				end
 
-				// Latch which channels are active (enabled & pause == 0)
+				// Snapshot active channels (enabled and not pausing)
 				active_ch[0] <= dcsr_ena[0] && (pause_cnt[0] == 12'd0);
 				active_ch[1] <= dcsr_ena[1] && (pause_cnt[1] == 12'd0);
 				active_ch[2] <= dcsr_ena[2] && (pause_cnt[2] == 12'd0);
@@ -161,19 +179,24 @@ module asic_dma (
 			else if (cclk_en_p) begin
 				case (state)
 				ST_IDLE: begin
-					ram_req    <= 1'b0;
-					psg_active <= 1'b0;
-					psg_bdir   <= 1'b0;
-					psg_bc1    <= 1'b0;
+					dma_load_owner <= 1'b0;
+					psg_active     <= 1'b0;
+					psg_bdir       <= 1'b0;
+					psg_bc1        <= 1'b0;
 				end
 
-				// 1us dead cycle after HSYNC
+				// 1 dead cycle (1us) after HSYNC leading edge
 				ST_DEAD: begin
-					if (active_ch[0]) begin
-						ram_req  <= 1'b1;
-						ram_addr <= {sar_cur[0][15:1], 1'b0};
+					if (|active_ch) begin
+						state <= ST_FETCH0;
+						if (active_ch[0]) begin
+							ram_req  <= 1'b1;
+							ram_addr <= {sar_cur[0][15:1], 1'b0};
+						end
 					end
-					state <= ST_FETCH0;
+					else begin
+						state <= ST_IDLE;
+					end
 				end
 
 				// Channel 0 fetch
@@ -225,13 +248,14 @@ module asic_dma (
 					end
 					else begin
 						case (instr[0][15:12])
-						4'h0: begin // LOAD R, DD
-							// Substep 0: Set PSG register address
-							psg_active <= 1'b1;
-							psg_bdir   <= 1'b1;
-							psg_bc1    <= 1'b1;
-							psg_dout   <= {4'h0, instr[0][11:8]};
-							state      <= ST_EXEC0_B;
+						4'h0: begin // LOAD R, DD (8-cycle execution)
+							// Substep 0: Acquire ownership, set target PSG register address
+							dma_load_owner <= 1'b1;
+							psg_active     <= 1'b1;
+							psg_bdir       <= 1'b1;
+							psg_bc1        <= 1'b1;
+							psg_dout       <= {4'h0, instr[0][11:8]};
+							state          <= ST_EXEC0_B;
 						end
 						4'h1: begin // PAUSE N
 							if (instr[0][11:0] != 12'd0) begin
@@ -277,20 +301,56 @@ module asic_dma (
 				end
 
 				ST_EXEC0_B: begin
-					// Substep 1: Write data to PSG
-					psg_active <= 1'b1;
-					psg_bdir   <= 1'b1;
-					psg_bc1    <= 1'b0;
-					psg_dout   <= instr[0][7:0];
-					state      <= ST_EXEC0_C;
+					// Substep 1: Inactive separation
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC0_C;
 				end
 
 				ST_EXEC0_C: begin
-					// Substep 2: Release PSG
-					psg_active <= 1'b0;
-					psg_bdir   <= 1'b0;
-					psg_bc1    <= 1'b0;
-					state      <= ST_EXEC1_A;
+					// Substep 2: Write data to PSG
+					psg_bdir <= 1'b1;
+					psg_bc1  <= 1'b0;
+					psg_dout <= instr[0][7:0];
+					state    <= ST_EXEC0_D;
+				end
+
+				ST_EXEC0_D: begin
+					// Substep 3: Inactive separation
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC0_E;
+				end
+
+				ST_EXEC0_E: begin
+					// Substep 4: Restore CPU-selected PSG register address
+					psg_bdir <= 1'b1;
+					psg_bc1  <= 1'b1;
+					psg_dout <= cpu_psg_addr;
+					state    <= ST_EXEC0_F;
+				end
+
+				ST_EXEC0_F: begin
+					// Substep 5: Inactive separation
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC0_G;
+				end
+
+				ST_EXEC0_G: begin
+					// Substep 6: Hold / collision margin
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC0_H;
+				end
+
+				ST_EXEC0_H: begin
+					// Substep 7: Release ownership
+					dma_load_owner <= 1'b0;
+					psg_active     <= 1'b0;
+					psg_bdir       <= 1'b0;
+					psg_bc1        <= 1'b0;
+					state          <= ST_EXEC1_A;
 				end
 
 				// Channel 1 execute
@@ -301,11 +361,12 @@ module asic_dma (
 					else begin
 						case (instr[1][15:12])
 						4'h0: begin // LOAD R, DD
-							psg_active <= 1'b1;
-							psg_bdir   <= 1'b1;
-							psg_bc1    <= 1'b1;
-							psg_dout   <= {4'h0, instr[1][11:8]};
-							state      <= ST_EXEC1_B;
+							dma_load_owner <= 1'b1;
+							psg_active     <= 1'b1;
+							psg_bdir       <= 1'b1;
+							psg_bc1        <= 1'b1;
+							psg_dout       <= {4'h0, instr[1][11:8]};
+							state          <= ST_EXEC1_B;
 						end
 						4'h1: begin // PAUSE N
 							if (instr[1][11:0] != 12'd0) begin
@@ -351,18 +412,49 @@ module asic_dma (
 				end
 
 				ST_EXEC1_B: begin
-					psg_active <= 1'b1;
-					psg_bdir   <= 1'b1;
-					psg_bc1    <= 1'b0;
-					psg_dout   <= instr[1][7:0];
-					state      <= ST_EXEC1_C;
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC1_C;
 				end
 
 				ST_EXEC1_C: begin
-					psg_active <= 1'b0;
-					psg_bdir   <= 1'b0;
-					psg_bc1    <= 1'b0;
-					state      <= ST_EXEC2_A;
+					psg_bdir <= 1'b1;
+					psg_bc1  <= 1'b0;
+					psg_dout <= instr[1][7:0];
+					state    <= ST_EXEC1_D;
+				end
+
+				ST_EXEC1_D: begin
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC1_E;
+				end
+
+				ST_EXEC1_E: begin
+					psg_bdir <= 1'b1;
+					psg_bc1  <= 1'b1;
+					psg_dout <= cpu_psg_addr;
+					state    <= ST_EXEC1_F;
+				end
+
+				ST_EXEC1_F: begin
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC1_G;
+				end
+
+				ST_EXEC1_G: begin
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC1_H;
+				end
+
+				ST_EXEC1_H: begin
+					dma_load_owner <= 1'b0;
+					psg_active     <= 1'b0;
+					psg_bdir       <= 1'b0;
+					psg_bc1        <= 1'b0;
+					state          <= ST_EXEC2_A;
 				end
 
 				// Channel 2 execute
@@ -373,11 +465,12 @@ module asic_dma (
 					else begin
 						case (instr[2][15:12])
 						4'h0: begin // LOAD R, DD
-							psg_active <= 1'b1;
-							psg_bdir   <= 1'b1;
-							psg_bc1    <= 1'b1;
-							psg_dout   <= {4'h0, instr[2][11:8]};
-							state      <= ST_EXEC2_B;
+							dma_load_owner <= 1'b1;
+							psg_active     <= 1'b1;
+							psg_bdir       <= 1'b1;
+							psg_bc1        <= 1'b1;
+							psg_dout       <= {4'h0, instr[2][11:8]};
+							state          <= ST_EXEC2_B;
 						end
 						4'h1: begin // PAUSE N
 							if (instr[2][11:0] != 12'd0) begin
@@ -423,25 +516,57 @@ module asic_dma (
 				end
 
 				ST_EXEC2_B: begin
-					psg_active <= 1'b1;
-					psg_bdir   <= 1'b1;
-					psg_bc1    <= 1'b0;
-					psg_dout   <= instr[2][7:0];
-					state      <= ST_EXEC2_C;
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC2_C;
 				end
 
 				ST_EXEC2_C: begin
-					psg_active <= 1'b0;
-					psg_bdir   <= 1'b0;
-					psg_bc1    <= 1'b0;
-					state      <= ST_DONE;
+					psg_bdir <= 1'b1;
+					psg_bc1  <= 1'b0;
+					psg_dout <= instr[2][7:0];
+					state    <= ST_EXEC2_D;
+				end
+
+				ST_EXEC2_D: begin
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC2_E;
+				end
+
+				ST_EXEC2_E: begin
+					psg_bdir <= 1'b1;
+					psg_bc1  <= 1'b1;
+					psg_dout <= cpu_psg_addr;
+					state    <= ST_EXEC2_F;
+				end
+
+				ST_EXEC2_F: begin
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC2_G;
+				end
+
+				ST_EXEC2_G: begin
+					psg_bdir <= 1'b0;
+					psg_bc1  <= 1'b0;
+					state    <= ST_EXEC2_H;
+				end
+
+				ST_EXEC2_H: begin
+					dma_load_owner <= 1'b0;
+					psg_active     <= 1'b0;
+					psg_bdir       <= 1'b0;
+					psg_bc1        <= 1'b0;
+					state          <= ST_DONE;
 				end
 
 				ST_DONE: begin
-					psg_active <= 1'b0;
-					psg_bdir   <= 1'b0;
-					psg_bc1    <= 1'b0;
-					state      <= ST_IDLE;
+					dma_load_owner <= 1'b0;
+					psg_active     <= 1'b0;
+					psg_bdir       <= 1'b0;
+					psg_bc1        <= 1'b0;
+					state          <= ST_IDLE;
 				end
 
 				default: state <= ST_IDLE;

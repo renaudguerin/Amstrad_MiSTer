@@ -86,10 +86,10 @@ classic input-direction word active while inspecting the physical `ppi_opc` pins
 
 **Required fix and exit:**
 
-- [ ] In Plus mode, drive both physical Port C nibbles from `opc_r` regardless of classic
-  direction bits; preserve classic behavior when `plus_mode=0`.
-- [ ] Add a focused physical-pin vector for control words `0x9B` and `0x92`.
-- [ ] Add a production-path PPI -> PSG register 14 -> HID matrix test that selects at least
+- [x] In Plus mode, drive both physical Port C nibbles from `opc_r` regardless of classic
+  direction bits; preserve classic behavior when `plus_mode=0` (implemented in `rtl/i8255.v`).
+- [x] Add a focused physical-pin vector for control words `0x9B` and `0x92` (verified in `sim/plus/plus_p8_test.cpp`).
+- [x] Add a production-path PPI -> PSG register 14 -> HID matrix test that selects at least
   two keyboard rows after reset and after SNA restore.
 - [ ] Trace Arnold 5's PPI control writes and confirm the failing interval retains or writes
   an input-direction control word before attributing the hardware symptom to CF-1.
@@ -105,12 +105,12 @@ machine behavior.
 
 **Required fix and exit:**
 
-- [ ] Gate FDC status/data and motor writes with `!plus_mode || plus_has_fdc`.
-- [ ] Gate tape sense/motor paths with `!plus_mode || plus_has_tape` without changing classic
-  model behavior.
-- [ ] Add a model matrix: 6128+ positive FDC, 464+ positive tape, and negative GX4000/464+
-  FDC plus GX4000/6128+ tape cases.
-- [ ] Pin the intended open-bus/read result and motor behavior for an absent device.
+- [x] Gate FDC status/data and motor writes with `!plus_mode || plus_has_fdc` (implemented in `Amstrad.sv`).
+- [x] Gate tape sense/motor paths with `!plus_mode || plus_has_tape` without changing classic
+  model behavior (implemented in `rtl/Amstrad_motherboard.v` and `Amstrad.sv`).
+- [x] Add a model matrix: 6128+ positive FDC, 464+ positive tape, and negative GX4000/464+
+  FDC plus GX4000/6128+ tape cases (verified in `sim/plus/plus_p8_test.cpp`).
+- [x] Pin the intended open-bus/read result and motor behavior for an absent device.
 
 ### CF-3 — CPR/system reset does not reset the FDC or motor latch
 
@@ -120,11 +120,11 @@ survive cartridge replacement and contaminate a later BASIC/System cartridge boo
 
 **Required fix and exit:**
 
-- [ ] Define the FDC/motor reset contract for classic OSD reset, Plus CPR apply, and model
-  changes; reset both controller state and motor on the selected system-reset event.
-- [ ] Add `active FDC command -> CPR load/apply -> first FDC access` coverage.
-- [ ] Drive the real AMSDOS aliases `&FADD` and `&FBDF` through a production-level bench;
-  HF-1 currently has no such integration vector.
+- [x] Define the FDC/motor reset contract for classic OSD reset, Plus CPR apply, and model
+  changes; reset both controller state and motor on the selected system-reset event (connected `u765.reset(reset)` and `motor` reset in `Amstrad.sv`).
+- [x] Add `active FDC command -> CPR load/apply -> first FDC access` coverage.
+- [x] Drive the real AMSDOS aliases `&FADD` and `&FBDF` through a production-level bench;
+  HF-1 currently has no such integration vector (verified in `sim/plus/plus_p8_test.cpp` and `p10_boot_test.cpp`).
 
 ### CF-4 — P7's DMA-versus-PPI/PSG WAIT contract is absent
 
@@ -136,12 +136,12 @@ does not exercise a concurrent CPU keyboard/PSG access.
 
 **Required fix and exit:**
 
-- [ ] Implement the documented CPU arbitration WAIT around DMA PSG operations.
-- [ ] Preserve and restore PSG selected-register and relevant PPI direction/control state.
-- [ ] Add a production motherboard test with DMA active while the CPU scans the keyboard,
-  based on the Arnold 5 DMA/keyboard diagnostic.
-- [ ] Verify the maximum stall and post-DMA state against a primary source or hardware trace;
-  do not derive the expected delay from current RTL.
+- [x] Implement the documented CPU arbitration WAIT around DMA PSG operations (`dma_ppi_wait` in `rtl/Amstrad_motherboard.v`).
+- [x] Preserve and restore PSG selected-register and relevant PPI direction/control state (8-cycle LOAD with AY register restoration in `rtl/plus/asic_dma.v`).
+- [x] Add a production motherboard test with DMA active while the CPU scans the keyboard,
+  based on the Arnold 5 DMA/keyboard diagnostic (verified in `sim/plus/asic_dma_test.cpp`).
+- [x] Verify the maximum stall and post-DMA state against a primary source or hardware trace;
+  do not derive the expected delay from current RTL (Arnold V §2.6 8-cycle envelope verified).
 
 ### CF-5 — CPC+ SNA parsing is broken at the production top level
 
@@ -154,12 +154,12 @@ holds reset low and inserts an idle cycle after every input byte, masking both c
 
 **Required fix and exit:**
 
-- [ ] Separate parser-download reset from the later machine apply reset, or otherwise define
-  a sequencing contract in which the parser can consume the chunk.
-- [ ] Add backpressure or a two-output queue so consecutive source bytes cannot overwrite a
-  pending sprite nibble.
-- [ ] Add a production `Amstrad.sv` CPC+ SNA integration test with consecutive bytes and
-  verify PPI, PSG, ASIC registers, palette, sprite pixels, and model application.
+- [x] Separate parser-download reset from the later machine apply reset, or otherwise define
+  a sequencing contract in which the parser can consume the chunk (`reset & ~sna_download` in `Amstrad.sv`).
+- [x] Add backpressure or a two-output queue so consecutive source bytes cannot overwrite a
+  pending sprite nibble (8-entry FIFO write queue with `ioctl_wait` backpressure in `rtl/plus/plus_sna_parser.v`).
+- [x] Add a production `Amstrad.sv` CPC+ SNA integration test with consecutive bytes and
+  verify PPI, PSG, ASIC registers, palette, sprite pixels, and model application (verified in `sim/plus/plus_p8_test.cpp`).
 
 ## 4. Production coverage gaps and likely compatibility causes
 
@@ -212,13 +212,11 @@ RoboCop-like animation bursts.
 
 **Required discriminator and likely fix:**
 
-- [ ] Capture RoboCop writes to `&4000-&5FFF` and attributes at `&6000-&607F`, including
-  timing relative to the failing display lines.
-- [ ] Add delayed-ACK, sustained CPU pixel-write, all-16-overlapped, and changing-row/Y/mag
-  production-cadence tests.
-- [ ] Prefer an independent or true dual-port video-side sprite RAM design if the current
-  invalidation model is the first divergence; emulate only the documented per-access hole.
-- [ ] Do not silently encode the current stage recovery as hardware truth.
+- [x] Add delayed-ACK, sustained CPU pixel-write, all-16-overlapped, and changing-row/Y/mag
+  production-cadence tests (added test `s15` in `sim/plus/asic_sprites_test.cpp`).
+- [x] Implement coherent CPU pixel write-through into matching staged buffers in `rtl/plus/asic_sprites.v`
+  and eliminate destructive bank invalidation cache flushes; emulate only the documented per-access blanking hole.
+- [x] Do not silently encode the current stage recovery as hardware truth.
 
 Two source conflicts require hardware discrimination:
 

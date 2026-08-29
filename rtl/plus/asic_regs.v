@@ -112,6 +112,9 @@ module asic_regs
 	// accesses (&6000s) never assert it — writes there do not blank.
 	output              spr_acc_en,
 	output       [3:0]  spr_acc_idx,
+	output              spr_wr_en,
+	output       [11:0] spr_wr_addr,
+	output       [3:0]  spr_wr_data,
 
 	// Live attribute view for the sprite engine (§3/§4 storage).
 	output [159:0] spr_x_view,   // sprite n X[9:0] at [n*10 +: 10]
@@ -585,8 +588,11 @@ module asic_regs
 
 	// Access indicator: any CPU cycle inside a sprite image area
 	// (&4000-&4FFF), read or write (reference §5 blanking side effect).
-	assign spr_acc_en  = asic_cs && (mem_rd || mem_wr) && (wsel == 2'b00);
-	assign spr_acc_idx = A[11:8];
+	assign spr_acc_en   = asic_cs && (mem_rd || mem_wr) && (wsel == 2'b00);
+	assign spr_acc_idx  = A[11:8];
+	assign spr_wr_en    = (asic_cs && mem_wr && (wsel == 2'b00)) || (sna_wr && (sna_addr[13:12] == 2'b00));
+	assign spr_wr_addr  = sna_wr ? sna_addr[11:0] : A[11:0];
+	assign spr_wr_data  = sna_wr ? sna_data[3:0] : D_in[3:0];
 
 	// Live attribute/palette views for the sprite engine.
 	genvar gi;
