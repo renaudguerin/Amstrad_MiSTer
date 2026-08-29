@@ -1,7 +1,8 @@
 # Current implementation status
 
-This is the handoff for the next development and hardware-test session. Hardware observations
-below remain dated 2026-08-19; current simulation and synthesis evidence is newer. The
+This is the handoff for the next development and hardware-test session. The newest Plus
+hardware observations are dated 2026-08-29; older milestone narratives below retain their
+own dates and are not evidence that later work was hardware-confirmed. The
 `accc-review-and-fixes` branch now contains the ACCC review/corrections, per-type classic CRTC
 split, F6 Stage 1 full-character approximation, sampled-field soak expansion, production Plus
 P0 cartridge wiring, the simulation-only P1 CRTC3 foundation, the implemented F7/A1/A2
@@ -42,6 +43,51 @@ SHAKER is **not** part of the automated loop. The automated loop is the Verilato
 happen only at significant milestones, against a named target list recorded before the
 session. A green simulation gate is never evidence of hardware accuracy; a manual session
 never gates a commit.
+
+## 2026-08-29 Plus cartridge checkpoint — P10 compatibility closure is next
+
+P0-P9 and HF-1/HF-2/HF-3 are implemented and simulation-verified, but the first broad
+post-P9 cartridge sample does **not** support calling the Plus implementation complete in a
+hardware or full-system sense. Approximately half the tested cartridges loaded. Panza Kick
+Boxing stopped at a grey active area with blue border; RoboCop 2 started with garbled
+sprites; Arnold 5 loaded with an inoperable keyboard; BASIC/System cartridges displayed the
+copyright banner and later reported `Drive A: read fail`. The tested RBF identity, Plus
+model, and mounted-media state were not recorded, so preserve these as checkpoint symptoms,
+not commit-specific proof.
+
+The exact findings, confidence boundaries, required discriminators, and checked todo list are
+in `docs/plus/hardware-checkpoint-findings.md`. The main confirmed production defects are:
+
+- Plus PPI Port C read/write semantics exist, but physical `opc` pins are still direction-
+  gated like a classic 8255, which selects keyboard row 15 while control `0x9B` remains
+  active; whether Arnold 5 retains or re-enters that state still needs a control-write trace;
+- `plus_has_fdc` and `plus_has_tape` are decoded but do not gate their devices;
+- CPR/system reset does not reset the FDC or motor latch;
+- P7's required DMA-versus-PPI/PSG CPU-WAIT and state-restoration contract is absent; and
+- production CPC+ SNA download holds its parser in reset and can lose sprite nibbles on
+  consecutive source bytes.
+
+The production evidence gap is equally important: P0's “boot integration” bench does not
+instantiate the real CPU/top level, and the motherboard bench uses a scripted fake CPU.
+Every cartridge-window byte also waits for a serial SDRAM service round trip, explicitly
+making execution slower than real ROM. The sprite engine's staged single-port fetch/recovery
+model is an undocumented implementation assumption and current tests do not reproduce a
+game's sustained sprite writes.
+
+The only current local RBF is the smoke-fit `7c46b8d` artifact
+`Amstrad_20260829_7c46b8d.rbf` (SHA-256
+`895bd0491e9ff249295bab27b091870ddf5728961b97b07ee1129f1316faad86`): 82% ALMs,
+main setup slack **-0.796 ns**, TNS **-10.576 ns**. Smoke builds are not hardware-build
+evidence under `docs/ci-testing-policy.md`. If this was the tested RBF, timing is a plausible
+cross-title failure source but does not identify a particular RTL rule. P10 therefore starts
+by producing an exact-tip full-effort, timing-clean baseline and a real-T80 production boot
+harness. It then lands the confirmed PPI and FDC/model/reset fixes before changing
+cartridge-fetch, sprite, or CRTC3 behavior from title traces.
+
+Status vocabulary from this checkpoint onward is: **implemented**,
+**simulation-verified**, **full-fit/timing-clean**, and **hardware-confirmed**. Promote an
+item only when its own gate is recorded. The next stream branch is
+`plus/p10-compatibility-closure`.
 
 ## Hardware-test milestone
 
@@ -492,7 +538,11 @@ separate stale-reference sweep over docs/ found ten more fixes; rtl/ and sim/ ci
 all clean. F10 has since been implemented, reviewed, and merged (see the completed-work
 section); F13 waits for hardware.
 
-## Completed Plus foundations
+## Historical Plus milestone record (P-2 through P9)
+
+This section preserves the implementation evidence and assumption boundaries at each dated
+milestone. Any “next” wording inside it is historical; the active Plus queue is P10 in the
+2026-08-29 checkpoint above and the next-session order below.
 
 - A separate default-off `Plus model` selector decodes GX4000, 6128+, and 464+ capabilities
   without reinterpreting the classic model field or selecting Plus hardware.
@@ -519,8 +569,10 @@ section); F13 waits for hardware.
   windows are bridged to the service with CPU WAIT insertion. The watchdog pauses while the
   cartridge service is clearing/loading, and retains fail-open behavior only for a quiescent
   backend that does not respond.
-  The CPR stream is live on ioctl index 8 (OSD "F8,CPR"), and a P0 boot integration bench
-  runs parser + service + real SDRAM end to end, including reset-mid-load cleanup.
+  The CPR stream is live on ioctl index 8 (OSD "F8,CPR"), and the historically named P0
+  boot integration bench runs parser + service + real SDRAM through the memory path,
+  including reset-mid-load cleanup. It does not instantiate the real CPU/top level or prove
+  reset-vector execution; P10a owns that missing coverage.
 - Dandanator uploads are bounded below the Plus cartridge reservation: bank 3
   `0x000000..0x07ffff` remains Dandanator, while `0x080000..0x0fffff` is reserved for Plus.
 - Plus P1 counter/timing foundation is implemented on `plus/p1-crtc3-foundation`:
@@ -575,7 +627,8 @@ section); F13 waits for hardware.
   and DMA are not implemented. FDC/tape presence gating for GX4000/464+ is also still
   inert (P8 polish scope).
 
-The next Plus milestone work is the P1 motherboard-integration commit per
+Historical P1 handoff (completed by later milestones): the next work at this point was the
+P1 motherboard-integration commit per
 `docs/plus/architecture.md` §4/§5/§7: instantiate `asic_video` (deciding the
 CPU/WAIT timing contract, Risk 1: replicate ga40010 timing behaviorally vs
 keep it as clock generator), wire the video word and legacy GA-config inputs,
@@ -1057,10 +1110,23 @@ front end.
     the P2 ASIC register page, P3 interrupts (PRI/DCSR/IVR), P4 sprites, P5 CRTC-3 bus semantics,
     Phase P6 screen split & soft scroll, Phase P7 3-channel DMA sound, Phase P8 platform polish
     (PPI quirks, ADC paddles, SNA v3 CPC+ chunks), and Phase P9 cartridge boot & tolerances
-    are implemented and independently reviewed CLEAR.
+    are implemented and independently reviewed at the module/simulation level. The 2026-08-29
+    cartridge checkpoint found confirmed production defects and major top-level coverage gaps,
+    so this is **not** a hardware-complete state. P10 compatibility closure is now the active
+    Plus milestone; its ordered sub-milestones and gates are in
+    `docs/plus/hardware-checkpoint-findings.md`.
     **Hardware Checkpoint Remediations (2026-08-28)**:
-    - **HF-1 (FDC Decode)**: dropped $A_7$ from FDC and motor port address decode in `Amstrad.sv` (AMSDOS `&FADD`/`&FBDF` now recognized, resolving "Drive A: read fail" during Basic cartridge boot); qualified with $A_9=1$ and $A_4=1$ to protect Kempston mouse and PlayCity ports.
+    - **HF-1 (FDC Decode)**: dropped $A_7$ from FDC and motor port address decode in `Amstrad.sv` so AMSDOS `&FADD`/`&FBDF` are recognized; qualified with $A_9=1$ and $A_4=1$ to protect Kempston mouse and PlayCity ports. This closed the identified decode defect, not the full BASIC boot symptom: the 2026-08-29 retest still reported `Drive A: read fail`, and P10c owns model gating, controller/motor reset, production alias coverage, and the known-good-DSK retest.
     - **HF-2 (12-bit ASIC Palette)**: connected `PAL_EN`, `PAL_ADDR`, `PAL_RGB` in `asic_video.v` and `Amstrad_motherboard.v` with `{G,R,B} -> {R,G,B}` nibble swap (resolves Burnin' Rubber / Plus custom palette rendering); verified with unit vectors `t05i`, `t05j` (registered dot-rate palette timing), and motherboard bench `m12`.
     - **HF-3 (Plus MMU/SDRAM Banking)**: wired `mem_bank` and `.ram64k` to `plus_ram_128k` (and `sna_load`) in `Amstrad.sv` to keep CPU and video memory banks aligned.
     - All tests pass (`make -C sim`, `make -C sim lint`), review debt logged in `docs/review-debt.md`.
+    **Next — P10 compatibility closure (OPEN, 2026-08-29):**
+    - **P10a:** exact-tip full-effort timing-clean RBF plus a real-T80 production CPR boot harness;
+    - **P10b:** repair Plus PPI Port C physical output and cover the keyboard path;
+    - **P10c:** enforce model FDC/tape capabilities and reset FDC/motor on CPR/system reset;
+    - **P10d/P10e:** close cartridge-fetch timing and DMA/PPI/PSG WAIT contracts;
+    - **P10f/P10g:** trace and close RoboCop sprite and Panza video/interrupt divergences;
+    - **P10h:** repair production CPC+ SNA parsing; and
+    - **P10i:** repeat the named hardware matrix and promote individual results only when the
+      exact full-fit RBF and configuration are recorded.
  6. Update this file when either stream reaches its next hardware-testable checkpoint.

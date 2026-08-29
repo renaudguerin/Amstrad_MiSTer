@@ -107,8 +107,9 @@ consume it today, and delete no classic code).
   during `cpr_download`, waits for `!cart_service_busy` after download end, and generates
   an extended `cpr_apply_cnt` reset pulse so the Z80 automatically resets and boots
   cartridge page 0 at `&0000`. Gate Array MRER ROM enable bits (`D[2]` / `D[3]`) are tracked
-  in `plus_mmu.v` alongside RMR2 low ROM bank relocation. Tested end-to-end in
-  `sim/plus/p0_boot_test.cpp`, `sim/plus/plus_cpr_parser_test.cpp`, and `sim/plus/plus_mmu_test.cpp`.
+  in `plus_mmu.v` alongside RMR2 low ROM bank relocation. The existing tests join the parser,
+  service, SDRAM, and MMU memory path, but do **not** instantiate `Amstrad.sv`, the real T80,
+  FDC, or video; P10a owns that production boot proof.
 - **Boot**: no `boot.rom` in Plus mode. Reset vectors the Z80 to `&0000` with RMR2=0
   (cart page 0 low). The high window starts on page 1 for GX4000; on 464+ and 6128+ the
   external `/EXP` state dynamically selects page 1 or page 3 (reference §11). P0 must
@@ -184,9 +185,12 @@ main-port output enable so stale read data never participates. Consequences wort
 remembering: cartridge fetches run slower than real ROM (each window access waits out one
 SDRAM round trip), Multiface Two's `&0000-&3FFF` windows are shadowed by the cartridge
 under Plus mode (consistent with the ASIC masking expansion there), and CPU reads racing
-an active download stall until the loader finishes. The P0 boot integration bench uses the
-production 512 KiB clear and joins MMU → service → SDRAM to pin that load-time read through
-atomic publication; service-level vectors separately pin cancellation and late-ack draining.
+an active download stall until the loader finishes. The historically named P0 boot
+integration bench is a memory-path integration bench: it uses the production 512 KiB clear
+and joins MMU → service → SDRAM to pin that load-time read through atomic publication, but it
+does not execute a reset vector. Service-level vectors separately pin cancellation and
+late-ack draining. P10a adds the real-CPU/top-level boot harness; P10d owns any fetch-path
+redesign justified by that trace.
 
 ## 4. Phasing (each phase = usable milestone, separately testable)
 
@@ -208,6 +212,13 @@ reads. CPR parsing must not begin until that contract is accepted. See
 | **P6 split & scroll** | SPLT/SSA capture at HCC=R1 using P1's stored-MA model; SSCR H-delay/V-offset/border-mask | Exact capture/offset assertions; Plus demos and games using hardware scroll (Fluff intro screens etc.) |
 | **P7 DMA sound** | `asic_dma`, SDRAM fetch slots, PSG arbitration waits, PAUSE/REPEAT/LOOP semantics including the undocumented &3xxx note | DMA instruction/DCSR/WAIT tests; DMA-music titles/demos |
 | **P8 polish** | Plus-PPI quirks (port B input, port C latches — mod to `i8255` under `plus_mode`), ADC paddle stubs (wire defaults `3F 3F 3F 3F 3F 00 3F 00`), GX4000 `&DF=7->page 1` quirk, greyscale weights, Plus snapshot support (SNA v3 `CPC+` chunk per `docs/references/Snapshot (.SNA) file format.md`) | Model-by-model compatibility sweep plus classic-mode regression |
+
+The 2026-08-29 hardware audit re-opened two nominal phase exits. P7 has the DMA PSG mux but
+not the required CPU PPI/PSG WAIT and state-restoration contract. P8 has Plus PPI latch
+read/write semantics but not always-output physical Port C pins, and the production CPC+ SNA
+parser is reset during its download window. These are P10e, P10b, and P10h respectively; see
+`hardware-checkpoint-findings.md`. Do not treat the original leaf tests as satisfying those
+production exits.
 
 P1 deliberately precedes PRI and sprites: those units consume CRTC counters and edge timing,
 so implementing them against the classic stopgap would create a second timing contract to
@@ -280,9 +291,11 @@ The pre-P0 and P0 packages are:
   P-1's memory-service interface, with RIFF/chunk validation and clear-sweep zero fill
 - P0.3 **unlock FSM gates RMR2** — exhaustively tested leaf, now instantiated inside
   `plus_mmu`; the ASIC register page itself stays unbacked until P2
-- P0.4 **complete** — Plus bench scaffolding and the P0 boot integration test
-  (`sim/plus/p0_boot_test.cpp`: parser + service + real SDRAM, publication, zero fill,
-  malformed-input aborts, reset-mid-load cleanup, loader/CPU arbitration)
+- P0.4 **complete for the memory path only** — Plus bench scaffolding joins parser +
+  service + real SDRAM + MMU for publication, zero fill, malformed-input aborts,
+  reset-mid-load cleanup, and scripted loader/read arbitration. Its historical
+  `p0_boot_test` name is not CPU/top-level boot proof; P10a adds T80, reset-vector
+  execution, I/O, FDC, and video integration.
 - P1.1 **complete** — `rtl/plus/asic_video.v` skeleton: type-3 register storage with
   full-index write decode (§28.1.9) and the C0/HCC counter with live R0 equality;
   any-R0 acceptance (§13.5 p.121). The exact lowered-R0 eight-bit sequence in t01e is

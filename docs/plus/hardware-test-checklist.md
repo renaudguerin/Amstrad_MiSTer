@@ -1,6 +1,32 @@
-# Phase P9 & Amstrad Plus Hardware Test Checklist
+# Phase P9/P10 Amstrad Plus Hardware Test Checklist
 
 Targeted hardware verification plan for physical MiSTer testing of the Amstrad Plus & GX4000 core.
+
+P0-P9 implementation is not a pass for this checklist. Check an item only against an exact,
+full-effort RBF whose constrained internal domains have non-negative setup/hold slack and
+zero TNS; record that the TimeQuest summary does not prove unconstrained external I/O paths.
+The 2026-08-29 exploratory
+sample used an unrecorded RBF/configuration and therefore supplies symptoms, not checked
+passes: Panza grey/blue; RoboCop 2 garbled sprites; Arnold 5 keyboard inoperable; BASIC
+cartridges `Drive A: read fail`; approximately half of sampled cartridges loaded. See
+`hardware-checkpoint-findings.md` for the P10 repair order.
+
+## Prerequisite gate
+
+- [ ] **Exact full-effort build accepted:** integration commit and RBF SHA-256 match;
+  Quartus effort is `full`; constrained setup and hold slack are non-negative; constrained
+  TNS is zero; external-path limitation is recorded. If this is unchecked, do not promote
+  any result below to hardware-confirmed.
+
+## Append-only test runs
+
+Add one row per distinct environment. Do not overwrite an earlier run. The complete field
+definitions are in `hardware-checkpoint-findings.md` §7; put per-title observations beneath
+the corresponding run ID.
+
+| Run ID/date | Commit | RBF SHA-256 | Effort; setup/hold/TNS | MiSTer version | Plus/classic model | CPR and mounted media | Reset/load order | Comparison source |
+|---|---|---|---|---|---|---|---|---|
+| _pending_ | | | | | | | | |
 
 ---
 

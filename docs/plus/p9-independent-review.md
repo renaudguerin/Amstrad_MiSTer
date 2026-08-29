@@ -7,6 +7,12 @@
 
 ---
 
+> **Scope correction (2026-08-29):** the verdict remains valid for the reviewed parser,
+> service, SDRAM, MMU, and reset-control logic, but this report overstated
+> `p0_boot_test.cpp` as cartridge boot proof. That bench performs scripted memory reads and
+> observes the apply-reset control; it does not instantiate `Amstrad.sv`, T80, FDC, Gate
+> Array, or video and executes no reset vector. P10a owns the missing production boot harness.
+
 ## Executive Summary
 
 Phase P9 resolves the cartridge booting failure observed during hardware testing and adds robust CPR format compatibility and MMU Gate Array ROM enable tracking:

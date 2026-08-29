@@ -228,7 +228,7 @@ address arithmetic in the parser, MMU, and motherboard. Unit tests must interlea
 writes and CPU reads over page 0, page 31, the last byte, invalid page/address values, and
 reset. Only after this interface passes may P0 connect RIFF/CPR parsing.
 
-### P0-P8 functional milestones
+### P0-P9 functional milestones
 
 The corrected functional phases and exact exits live in `plus/architecture.md` §4. In
 summary: cartridge boot is followed by the CRTC3 counter/timing and basic pixel foundation;
@@ -253,6 +253,34 @@ Each milestone ends with a classic-mode regression, a Quartus build, and the pha
 diagnostic/title named in the architecture. A title reaching a screen is useful smoke
 evidence, but it does not replace the decoder, counter, interrupt, or compositor assertions.
 
+### P10: post-implementation compatibility closure
+
+**Status:** OPEN after the 2026-08-29 cartridge checkpoint. P0-P9 are implemented and
+simulation-verified, but the first broad hardware sample exposed confirmed integration
+defects, a timing-invalid smoke artifact, and tests that stop below the real CPU/top level.
+The detailed evidence and checkboxes live in `plus/hardware-checkpoint-findings.md`.
+
+P10 is an acceptance/repair stack, not one RTL commit. Keep its sub-milestones independently
+reviewable and in this order:
+
+| Sub-milestone | Scope | Deterministic exit |
+|---|---|---|
+| **P10a: evidence baseline + production boot harness** | Exact-tip full-effort build; real T80/top-level CPR reset-vector execution and bounded trace | Dispatch `local-build.yml` with `effort=full` when the Quartus VM is online, otherwise hosted `build.yml`; constrained internal domains have non-negative setup/hold slack and zero TNS; named RBF/hash and external-path caveat recorded; tiny fixture reaches a pinned PC/page state; BASIC/Panza traces expose first divergence rather than only a screen result |
+| **P10b: Plus PPI Port C physical output** | Make Port C pins always output in Plus mode while keeping classic direction behavior | Physical-pin vectors for `0x9B`/`0x92`; PPI -> PSG register 14 -> HID row test; Arnold 5 control-write trace establishes whether CF-1 is its cause before the 6128+/464+ retest |
+| **P10c: model capabilities + FDC reset** | Enforce FDC/tape presence; reset u765 and motor on the defined CPR/system event; test AMSDOS aliases | Positive/negative 6128+/464+/GX4000 matrix; `&FADD`/`&FBDF` production-path vector; reload-after-active-command test; BASIC boots with a recorded known-good DSK |
+| **P10d: cartridge execution timing** | Replace per-byte serial SDRAM WAIT when the real-CPU trace proves incompatible pacing | Reset-vector and sustained-cartridge timing vectors; no load/clear atomicity or classic isolation regression; exact full-fit build |
+| **P10e: DMA/PPI/PSG arbitration** | Implement the missing CPU WAIT and state preservation/restoration contract | Production motherboard concurrency vector based on Arnold 5; sourced or hardware-measured maximum wait and post-DMA state |
+| **P10f: dynamic sprite writes** | Close RoboCop's first traced divergence; replace undocumented staging behavior only where evidence requires | Game-derived burst-write/delayed-ACK vector, all-16 dynamic overlap coverage, documented per-access blanking, exact full-fit build |
+| **P10g: Panza first divergence** | Close one traced MMU/CRTC3/PRI/video behavior at a time | Each fix has a primary-source or hardware-derived vector; no self-derived expectation from current RTL |
+| **P10h: production CPC+ SNA** | Correct parser reset sequencing and consecutive-byte/nibble handling | `Amstrad.sv` snapshot integration test covers model, PPI/PSG, ASIC registers, palette, and sprite data |
+| **P10i: hardware matrix** | Repeat the Plus checklist with exact environment metadata | Individual items promoted to hardware-confirmed only with commit, full-fit RBF hash, model/media configuration, and recorded result |
+
+Do not combine P10b/P10c's confirmed defects with P10f/P10g's evidence-gated ASIC changes.
+Clock, WAIT, memory, RGB, and top-level arbitration commits require exact full-effort synthesis.
+The unresolved sprite `+3` mirror, sprite coordinate formula, PRI offset, lowered-R0, R3-low-
+zero collision, and pixel-phase questions remain named assumptions until a focused source or
+hardware discriminator settles each one.
+
 ## 6. Commit and PR structure
 
 No PR needs to be created merely to follow this plan. Keep local commits in the same shape
@@ -276,19 +304,21 @@ existing F1 commit can remain distinct; C0 adds its deterministic verification.
 
 Recommended stack: `P-2 model field` -> `P-1 cartridge memory contract/service` -> `P0 CPR +
 boot` -> `P1 CRTC3 foundation` -> `P2 ASIC page/palette` -> `P3 PRI` -> `P4 sprites` -> `P5
-CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish`.
+CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish` -> `P9 cartridge
+tolerances` -> `P10 compatibility closure`.
 
-Current Plus position (2026-08-26): P5 is implemented and deterministically
-gated on `plus/p5-crtc3-bus`. Before optional P6, resolve the deferred INKR
-pipeline latency and the VIDBUF/vram sampling reconciliation as separate
-milestones; then run the shared Plus hardware checkpoint.
+Current Plus position (2026-08-29): P0-P9 are implemented and simulation-verified, and
+HF-1/HF-2/HF-3 have landed. They are not collectively hardware-confirmed. P10 compatibility
+closure is next, starting with an exact-tip full-effort baseline and production boot harness,
+then the confirmed PPI and FDC/model/reset fixes. Sprite/video changes remain trace-gated.
 
 - P-2 is independently mergeable because default-off behavior is invariant.
 - P-1 may be independently mergeable if the cartridge service is unselected in classic
   mode. P0 stacks on it; do not combine the parser with initial arbitration.
-- P1-P8 stack internally because they share the Plus ASIC interfaces. They should not stack
-  on unfinished classic findings unless they need a shared harness commit already destined
-  for merge.
+- P1-P9 stack internally because they share the Plus ASIC interfaces. P10 starts from their
+  integrated result but keeps each confirmed repair or evidence-gated behavior separate.
+  Plus work must not stack on unfinished classic findings unless it needs a shared harness
+  commit already destined for merge.
 - A Plus PR may contain several commits only when they form one vertical milestone: module
   logic, unit tests, integration wiring plus `files.qip`, and documentation. Keep each commit
   buildable where practical and the final PR deterministically testable.
@@ -368,11 +398,12 @@ milestones; then run the shared Plus hardware checkpoint.
    Q4 recheck opens F17 for the C9=R9 source-state result and requires `t13d` re-derivation.
    F10's implemented scope is complete; F14/F15/F16 are the fixture-first follow-ups. F18 is
    an independent light-pen interface decision. Q17 remains hardware-gated.
-5. Plus stream: P0, the P1 CRTC3 counter/timing foundation, and the P1
-   locked-ASIC pixel path (legacy-colour ROM + pen pipeline) are done. Next: the P1
-   motherboard-integration commit (CPU/WAIT contract decision per architecture §5
-   Risk 1, first instantiation, `files.qip`, fitter recording), then P2. Do not
-   combine Plus video with the classic stream.
+5. Plus stream: P0-P9 and HF-1/HF-2/HF-3 are implemented and simulation-verified, but the
+   2026-08-29 hardware sample exposed the open P10 compatibility-closure stack. Start with
+   P10a's full-effort timing-clean baseline and real-T80 production boot harness; then land
+   P10b's PPI Port C physical-output fix and P10c's model/FDC reset integration. Do not
+   combine these confirmed repairs with evidence-gated sprite/video changes, and do not
+   combine Plus work with the classic stream. See `plus/hardware-checkpoint-findings.md`.
 6. F6 proceeds per `accuracy/f6-decision-gate.md`: Stage 1 is the full-character
    presence/type/skew approximation; Stage 2 measured 1 µs; Stage 2b assigns the documented
    0.5 µs to the CRTC DE phase. No CRTC, GA, or glue work before F13's hardware gate.
