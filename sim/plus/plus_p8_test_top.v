@@ -35,8 +35,19 @@ module plus_p8_test_top (
 	output       model_plus_mode,
 	output       model_ram_128k,
 	output       model_has_fdc,
-	output       model_has_tape
+	output       model_has_tape,
+
+	// FDC decode test signals
+	input  [15:0] fdc_test_addr,
+	input         fdc_test_status17,
+	input         fdc_test_plus_mode,
+	input         fdc_test_has_fdc,
+	output        fdc_motor_sel,
+	output        u765_sel
 );
+
+	assign fdc_motor_sel = !fdc_test_addr[10] & fdc_test_addr[9] & !fdc_test_addr[8] & (!fdc_test_plus_mode | fdc_test_has_fdc);
+	assign u765_sel      = !fdc_test_addr[10] & fdc_test_addr[9] & fdc_test_addr[8] & fdc_test_addr[4] & ~fdc_test_status17 & (!fdc_test_plus_mode | fdc_test_has_fdc);
 
 	i8255 ppi
 	(

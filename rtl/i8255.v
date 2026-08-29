@@ -51,9 +51,9 @@ reg [7:0] opb_r;
 reg [7:0] opc_r;
 
 assign opa      =(~mode[4] | mode[6]) ? opa_r      : 8'hFF;
-assign opc[7:4] =(~mode[3])           ? opc_r[7:4] : 4'hF;
+assign opc[7:4] =(plus_mode | ~mode[3]) ? opc_r[7:4] : 4'hF;
 assign opb      =(~mode[1])           ? opb_r      : 8'hFF;
-assign opc[3:0] =(~mode[0])           ? opc_r[3:0] : 4'hF;
+assign opc[3:0] =(plus_mode | ~mode[0]) ? opc_r[3:0] : 4'hF;
 
 reg [7:0] maskC;
 always @(*) begin
