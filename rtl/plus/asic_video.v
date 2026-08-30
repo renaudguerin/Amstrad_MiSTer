@@ -576,7 +576,6 @@ reg       in_vsync;
 reg [3:0] vsc;
 reg       vsync_mid_pending;
 reg       vsync_delay_pending;
-reg       vsync_mid_phase;
 
 wire       hsync_start               = (hcc_next == R2_h_sync_pos);
 wire [3:0] hsc_next                  = hsc + 4'd1;
@@ -622,41 +621,48 @@ end
 //
 // There is no re-entrancy protection — a condition that persists across a
 // finished pulse restarts it immediately. Width is R3h lines with 0 meaning
-// 16 (§14.2), counted at the pulse's horizontal phase (line seam or R0/2)
-// with the same live-equality nibble semantics; dynamic R3h rewrites follow
-// the CRTCs-0/3/4 rule (compendium-02 §2).  The ASIC needs >=3 active lines
-// to emit monitor C-VSYNC, which belongs to the integrated pipeline phase.
+// 16 (§14.2).  §16.1 p.159 advances that line count at C0=0: MID-VSYNC
+// changes the pulse's start only, not the C3h count phase.  Dynamic R3h
+// rewrites follow the CRTCs-0/3/4 rule (compendium-02 §2).  The ASIC needs
+// >=3 active lines to emit monitor C-VSYNC, which belongs to the integrated
+// pipeline phase.
 //----------------------------------------------------------------------
 
-// A row begins either when C9 completes an ordinary character (but not when
-// the body enters R5/additional-interlace management), or at the true frame
-// restart after all additional lines.  `charline_n`/`raster_n` name the line
-// now starting on this edge.
-wire        vsync_row_start = hcc_last &&
-                              (frame_restart ||
-                               (!in_adj && !interlace_line && c9_done &&
-                                !last_charline));
-wire        vsync_target_row = vsync_row_start &&
-                               (charline_n == R7_v_sync_pos);
-wire        vsync_mid_schedule = vsync_target_row && ivm_active &&
+// `charline_n`/`raster_n` preserve the original type-3 condition on every
+// seam exposing C4=R7,C9=0, including entry into R5 and the interlace line.
+// IVM can also begin a C4 on odd C9, so the true new-C4 seam is an additional
+// target even when raster_n!=0.  Only that new-C4 case is eligible for the
+// odd-frame/odd-C4 one-line delay; R5/interlace-line refires retain the
+// ordinary seam condition unless MID-VSYNC moves them to R0/2.
+wire        vsync_new_c4_start = hcc_last &&
+                                  (frame_restart ||
+                                   (!in_adj && !interlace_line && c9_done &&
+                                    !last_charline));
+wire        vsync_new_c4_target = vsync_new_c4_start &&
+                                   (charline_n == R7_v_sync_pos);
+wire        vsync_zero_target = hcc_last &&
+                                 (charline_n == R7_v_sync_pos) &&
+                                 (raster_n == 5'd0);
+wire        vsync_target_seam = vsync_new_c4_target | vsync_zero_target;
+wire        vsync_mid_schedule = vsync_target_seam && ivm_active &&
                                   !parity_frame;
-wire        vsync_delay_schedule = vsync_target_row && ivm_active &&
+wire        vsync_delay_schedule = vsync_new_c4_target && ivm_active &&
                                     parity_frame && R9_v_max_line[0] &&
                                     R7_v_sync_pos[0];
 wire [7:0]  vsync_half_hcc = {1'b0, R0_h_total[7:1]};
 wire        vsync_half_tick = (hcc_next == vsync_half_hcc);
-wire        vsync_mid_fire = (vsync_mid_pending |
-                               vsync_mid_schedule) && vsync_half_tick;
-wire        vsync_delay_fire = vsync_delay_pending && hcc_last;
-wire        vsync_seam_fire = vsync_target_row &&
+wire        vsync_mid_fire = ivm_active &&
+                              (vsync_mid_pending | vsync_mid_schedule) &&
+                              vsync_half_tick;
+wire        vsync_delay_fire = ivm_active && vsync_delay_pending && hcc_last;
+wire        vsync_seam_fire = vsync_target_seam &&
                                !vsync_mid_schedule &&
                                !vsync_delay_schedule;
 wire        vsync_fire = vsync_seam_fire | vsync_mid_fire |
                           vsync_delay_fire;
 wire [3:0]  vsc_next        = vsc + 4'd1;
 wire        vsync_width_hit = (vsc_next == R3_v_sync_width);
-wire        vsync_count_tick = vsync_mid_phase ? vsync_half_tick :
-                                                   hcc_last;
+wire        vsync_count_tick = hcc_last;
 
 // Latch the first-line decision at its seam.  Reading parity only at the
 // later half-line would be wrong for R7=0, because ParityFrame has toggled by
@@ -674,12 +680,12 @@ always @(posedge CLOCK) begin
 		else begin
 			if (vsync_mid_fire)
 				vsync_mid_pending <= 1'b0;
-			else if (vsync_row_start)
+			else if (vsync_target_seam)
 				vsync_mid_pending <= vsync_mid_schedule;
 
 			if (vsync_delay_fire)
 				vsync_delay_pending <= 1'b0;
-			else if (vsync_row_start)
+			else if (vsync_target_seam)
 				vsync_delay_pending <= vsync_delay_schedule;
 		end
 	end
@@ -694,7 +700,6 @@ always @(posedge CLOCK) begin
 		VSYNC    <= 1'b0;
 		in_vsync <= 1'b0;
 		vsc      <= 4'd0;
-		vsync_mid_phase <= 1'b0;
 	end
 	else if (CLKEN) begin
 		if (in_vsync) begin
@@ -703,12 +708,10 @@ always @(posedge CLOCK) begin
 				if (vsync_width_hit) begin
 					if (vsync_fire) begin
 						vsc <= 4'd0;   // renewed without a gap
-						vsync_mid_phase <= vsync_mid_fire;
 					end
 					else begin
 						in_vsync <= 1'b0;
 						VSYNC    <= 1'b0;
-						vsync_mid_phase <= 1'b0;
 					end
 				end
 			end
@@ -717,7 +720,6 @@ always @(posedge CLOCK) begin
 			in_vsync <= 1'b1;
 			VSYNC    <= 1'b1;
 			vsc      <= 4'd0;
-			vsync_mid_phase <= vsync_mid_fire;
 		end
 	end
 end

@@ -1296,10 +1296,11 @@ void t02l_ivm_odd_frame_adjustment(TestBench& test) {
 // the ACCC p.214/p.218 half-line position C0=31 directly observable.  The
 // initial R0=0 reset rollover makes ParityFrame odd; run_to_frame_start()
 // consumes the programmed setup frame and therefore enters an even frame.
-void program_ivm_sync_frame(TestBench& test, unsigned r7) {
+void program_ivm_sync_frame(TestBench& test, unsigned r7,
+                            unsigned vsync_lines = 1) {
     test.write_register(0, 63);
     test.write_register(1, 2);
-    test.write_register(3, 0x11);  // one-line VSYNC
+    test.write_register(3, ((vsync_lines & 15U) << 4) | 1U);
     test.write_register(4, 3);
     test.write_register(5, 0);
     test.write_register(6, 100);
@@ -1326,12 +1327,15 @@ void t04j_ivm_mid_vsync_and_odd_frame_delay(TestBench& test) {
     test.run_characters(1);
     test.expect_hcc("t04j MID-VSYNC horizontal phase", 31);
     test.expect_vsync("t04j even frame fires at C0=R0/2", true);
-    test.run_characters(63);
-    test.expect_hcc("t04j before half-line-aligned VSYNC end", 30);
-    test.expect_vsync("t04j one-line pulse remains high before midpoint", true);
+    // ACCC v1.11 §16.1 p.159 counts R3h lines at C0=0 even when the
+    // interlace rule moved only the start to mid-line.  R3h=1 therefore
+    // ends at the immediately following seam, not at the next midpoint.
+    test.run_characters(32);
+    test.expect_hcc("t04j before C0=0 width count", 63);
+    test.expect_vsync("t04j one-line pulse remains high through C0=R0", true);
     test.run_characters(1);
-    test.expect_hcc("t04j half-line-aligned VSYNC end", 31);
-    test.expect_vsync("t04j one-line MID-VSYNC ends at next midpoint", false);
+    test.expect_hcc("t04j C0=0 width count", 0);
+    test.expect_vsync("t04j R3h=1 MID-VSYNC ends at the next seam", false);
 
     // The even frame has one §19.6.4 line; the next frame starts on odd C9.
     test.run_to_state(0, 1, 0, "t04j following odd frame origin");
@@ -1367,6 +1371,97 @@ void t04k_ivm_r7_zero_uses_outgoing_parity(TestBench& test) {
     // high at C4=C9=C0=0.
     test.run_to_state(0, 0, 0, "t04k even frame origin");
     test.expect_vsync("t04k outgoing-odd frame starts seam VSYNC", true);
+}
+
+// ACCC v1.11 §16.4.4 p.170 evaluates the type-3 VSYNC condition whenever
+// the new line exposes C4=R7,C9=C0=0.  The pre-interlace implementation's
+// charline_n/raster_n condition therefore also applies when C4 remains R4
+// while R5 management starts.  §19.7 moves an even-frame IVM occurrence to
+// mid-line but does not remove the condition on the added §19.6.4 line.
+void t04l_r7_r4_adjustment_and_interlace_line_seams(TestBench& test) {
+    // Legacy/non-IVM R5 entry: the earlier C4=R7 pulse has ended by C9=1;
+    // entering adjustment presents C4=R7=R4,C9=C0=0 and must refire.
+    test.write_register(0, 7);
+    test.write_register(3, 0x11);
+    test.write_register(4, 1);
+    test.write_register(5, 2);
+    test.write_register(7, 1);
+    test.write_register(9, 1);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    test.run_to_state(1, 1, 0, "t04l R5 precondition after first pulse");
+    test.expect_vsync("t04l first C4=R7 pulse has ended", false);
+    test.run_characters(8);
+    test.expect_adj(true, "t04l R5 adjustment has started");
+    test.expect_line("t04l R5 entry keeps C4=R7=R4", 1);
+    test.expect_row("t04l R5 entry exposes C9=0", 0);
+    test.expect_vsync("t04l R5 entry refires legacy seam VSYNC", true);
+
+    // Even-frame IVM, R7=R4=3: C4=3 has only odd body C9 values, so the
+    // next C9=0 occurrence is unambiguously the added interlace line.  That
+    // occurrence schedules a fresh MID-VSYNC at C0=31.
+    TestBench interlace;
+    program_ivm_sync_frame(interlace, 3);
+    interlace.run_to_state(3, 0, 0, "t04l even-frame interlace line seam");
+    interlace.expect_vsync("t04l interlace line is low at its seam", false);
+    interlace.run_characters(30);
+    interlace.expect_vsync("t04l interlace line stays low before midpoint", false);
+    interlace.run_characters(1);
+    interlace.expect_hcc("t04l interlace-line MID-VSYNC phase", 31);
+    interlace.expect_vsync("t04l added line preserves C4/R7 VSYNC condition", true);
+}
+
+// ACCC v1.11 §16.1 p.159: C3h advances at C0=0.  With R3h=2, a pulse
+// starting at C0=R0/2 remains high across the first seam and ends at the
+// second seam.  §19.3.4 pp.201-202 makes interlace management live, so an
+// R8 exit before the pending midpoint must cancel that scheduled start.
+void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
+    program_ivm_sync_frame(test, 1, 2);
+    test.run_to_state(1, 1, 0, "t04m R3h=2 target line");
+    test.run_characters(31);
+    test.expect_vsync("t04m R3h=2 starts at midpoint", true);
+    test.run_characters(33);
+    test.expect_hcc("t04m first C0=0 width count", 0);
+    test.expect_vsync("t04m R3h=2 remains high after first seam", true);
+    test.run_characters(64);
+    test.expect_hcc("t04m second C0=0 width count", 0);
+    test.expect_vsync("t04m R3h=2 ends at second seam", false);
+
+    TestBench exit;
+    program_ivm_sync_frame(exit, 1);
+    exit.run_to_state(1, 1, 0, "t04m pending MID-VSYNC before R8 exit");
+    exit.write_register(8, 0);
+    exit.run_to_state(1, 1, 31, "t04m former midpoint after R8 exit");
+    exit.expect_vsync("t04m R8 exit cancels pending MID-VSYNC", false);
+
+    // §19.3.4 says interlace management is real-time and §19.7.1 defines
+    // the trigger from the live R0/2 position.  A pre-midpoint R0 rewrite
+    // therefore moves the already scheduled fire to the new half position.
+    TestBench live_r0;
+    program_ivm_sync_frame(live_r0, 1);
+    live_r0.run_to_state(1, 1, 0, "t04m pending MID-VSYNC before R0 rewrite");
+    live_r0.write_register(0, 31);
+    live_r0.run_to_state(1, 1, 14, "t04m before rewritten R0 midpoint");
+    live_r0.expect_vsync("t04m low before live R0/2", false);
+    live_r0.run_characters(1);
+    live_r0.expect_hcc("t04m rewritten live R0/2 position", 15);
+    live_r0.expect_vsync("t04m pending MID-VSYNC follows live R0", true);
+
+    // §14.2 p.131 permits live R3h changes during VSYNC.  After one C0=0
+    // count of an R3h=3 MID pulse, lowering R3h to 2 makes the second seam
+    // the live equality and ends the pulse there.
+    TestBench live_r3;
+    program_ivm_sync_frame(live_r3, 1, 3);
+    live_r3.run_to_state(1, 1, 0, "t04m live-R3 target line");
+    live_r3.run_characters(31);
+    live_r3.expect_vsync("t04m live-R3 pulse starts at midpoint", true);
+    live_r3.run_characters(33);
+    live_r3.expect_vsync("t04m live-R3 pulse survives first seam", true);
+    live_r3.write_register(3, 0x21);
+    live_r3.run_to_state(1, 5, 0, "t04m live-R3 second seam");
+    live_r3.expect_vsync("t04m live R3h=2 ends on second seam", false);
+    live_r3.reset();
+    live_r3.expect_vsync("t04m reset clears VSYNC and pending state", false);
 }
 
 // ACCC v1.11 section 19.8.4 pp.235-238: entering IVM (R8=3)
@@ -2538,7 +2633,7 @@ void t08i_sscr_vertical_wrap_advances_ma(TestBench& test) {
     test.expect_ra("t08i next row starts at offset RA 1", 1);
 }
 
-constexpr std::array<TestCase, 64> kTests = {{
+constexpr std::array<TestCase, 66> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -2579,6 +2674,10 @@ constexpr std::array<TestCase, 64> kTests = {{
      t04j_ivm_mid_vsync_and_odd_frame_delay},
     {"t04k IVM R7=0 outgoing-parity priority",
      t04k_ivm_r7_zero_uses_outgoing_parity},
+    {"t04l R7=R4 adjustment/interlace-line VSYNC seams",
+     t04l_r7_r4_adjustment_and_interlace_line_seams},
+    {"t04m IVM MID-VSYNC width and R8 exit",
+     t04m_ivm_mid_vsync_width_and_exit},
     {"t05a legacy-colour ROM sweep ([KT])", t05a_legacy_colour_rom_sweep},
     {"t05b mode 2 sequential pixels", t05b_mode2_sequential_pixels},
     {"t05c mode 1 pair pixels", t05c_mode1_pair_pixels},
