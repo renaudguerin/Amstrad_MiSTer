@@ -18,6 +18,7 @@ module p10_input_test_top (
 	input  [6:0] user_in,
 	input  [1:0] snac_player,
 	input  [6:0] joy1_usb,
+	input  [6:0] joy2_usb,
 	output [7:0] key_matrix_o,
 	output [7:0] port_c_o,
 	output [7:0] psg_addr_o,
@@ -63,7 +64,7 @@ module p10_input_test_top (
 	wire [6:0] joy1_db9 = {joydb_1[10], joydb_1[6], joydb_1[4], joydb_1[3:0]};
 	wire [6:0] joy2_db9 = {joydb_2[10], joydb_2[6], joydb_2[4], joydb_2[3:0]};
 	wire [6:0] joy1 = joydb_1ena ? joy1_db9 : joy1_usb;
-	wire [6:0] joy2 = joydb_2ena ? joy2_db9 : joydb_1ena ? joy1_usb : 7'd0;
+	wire [6:0] joy2 = joydb_2ena ? joy2_db9 : joydb_1ena ? joy1_usb : joy2_usb;
 
 	wire [15:0] cpu_addr;
 	wire [7:0]  cpu_do;

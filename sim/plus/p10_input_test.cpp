@@ -29,6 +29,7 @@ public:
 		dut.user_in = 0x7F;
 		dut.snac_player = 1;
 		dut.joy1_usb = 0;
+		dut.joy2_usb = 0;
 	}
 
 	void tick() {
