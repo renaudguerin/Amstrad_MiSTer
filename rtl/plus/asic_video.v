@@ -19,10 +19,10 @@
 //  in the credits of any distributed product built from them. Individual
 //  rules cite their ACCC section at the point of implementation.
 //
-//  Deliberate P1 exclusions (each must land with its own vectors later):
-//   - Interlace (R8 bits 1:0 stored but not acted on): the type-3 IVM
-//     counting/parity machinery is its own rule set (ACCC §19.5.5, §19.8.4)
-//     and no P1 exit criterion needs it.
+//  Deliberate exclusions (each must land with its own vectors later):
+//   - IVM C9/C4 counting, frame/C9 parity, the even-frame additional line,
+//     MID-VSYNC, and the odd-frame/odd-C4 VSYNC correction are implemented
+//     below for R8=3.  R8=1 sync-only interlace timing remains excluded.
 //   - Light pen R16/R17: no light-pen strobe source is emulated. The
 //     registers are stored and readable since P5 (mod-8 map slots 0/1) but
 //     hold their reset value (named assumption at the readback section).
@@ -170,14 +170,11 @@ reg [6:0] R6_v_displayed;
 reg [6:0] R7_v_sync_pos;
 reg [1:0] R8_skew;         // bits 5:4, SKEW-DISPTMG (types 0/3/4, §19.1)
 /* verilator lint_on UNUSEDSIGNAL */
-// R8 bits 1:0 select interlace modes and stay stored-but-inert for the
-// whole P1 foundation: the type-3 IVM counting/parity machinery (ACCC
-// §19.5.5, §19.8.4) is deliberately out of P1 scope (see header). The
-// register keeps its storage so a later phase adds behaviour without a
-// bus-contract change.
-/* verilator lint_off UNUSEDSIGNAL */
+// R8 bits 1:0 select interlace modes.  Mode 3 drives the IVM counter below;
+// modes 0/1/2 retain the ordinary C9 cadence.  Mode 1 still seeds ParityC9
+// on entry as required by §19.8.4, ready for the remaining sync-interlace
+// timing rules named in the header.
 reg [1:0] R8_interlace;
-/* verilator lint_on UNUSEDSIGNAL */
 reg [6:0] R4_v_total;
 reg [4:0] R5_v_total_adj;
 reg [4:0] R9_v_max_line;
@@ -308,38 +305,112 @@ end
 reg  [6:0] charline;
 reg  [4:0] raster;
 reg        in_adj;
+reg        interlace_line;
+reg        parity_frame;
+reg        parity_c9;
 
+wire       ivm_active    = (R8_interlace == 2'b11);
 wire       c9_done       = in_adj ? 1'b0 : (raster >= R9_v_max_line);
 wire       last_charline = (charline == R4_v_total);
 wire       enter_adj     = c9_done & last_charline &
                            (R5_v_total_adj != 5'd0);
-wire       frame_wrap    = c9_done & last_charline &
-                           (R5_v_total_adj == 5'd0);
 wire       adj_end_n     = ((raster + 5'd1) >= R5_v_total_adj);
+wire       body_frame_end = c9_done & last_charline &
+                            (R5_v_total_adj == 5'd0);
+
+// §19.5.5 p.213 + §19.6.4 p.217: an IVM even frame gains exactly one
+// line after its R5 lines (or directly after the body when R5=0).  CRTC3/4
+// keep C4 on its last value and force C9=0 for that line.  The current
+// ParityFrame is sampled before it toggles at the following real origin.
+wire       extra_line_due = ivm_active & ~parity_frame;
+wire       enter_interlace_line = extra_line_due &
+                                   (body_frame_end |
+                                    (in_adj & adj_end_n));
+wire       frame_wrap = body_frame_end & ~extra_line_due;
+wire       adj_frame_wrap = in_adj & adj_end_n & ~extra_line_due;
+wire       interlace_frame_wrap = interlace_line;
+wire       frame_restart = frame_wrap | adj_frame_wrap |
+                           interlace_frame_wrap;
+
+// §19.8.4 pp.235-240: IVM advances C9 by two while retaining ParityC9.
+// Odd R9 toggles the parity at each ordinary C4 increment; a frame restart
+// instead aligns it to the newly toggled ParityFrame.  These terms are
+// deliberately IVM-gated so never-entered R8=0 counting is bit-identical
+// to the pre-IVM implementation.  On exit, the next C9<R9 seam therefore
+// resumes the documented +1 progression and the ordinary row end reloads 0.
+wire       row_parity_n = R9_v_max_line[0] ? ~parity_c9 : parity_c9;
+wire       frame_parity_n = ~parity_frame;
+wire [4:0] ivm_step = (raster + 5'd2) | {4'b0000, parity_c9};
+wire [4:0] ivm_row_reload = frame_wrap ? {4'b0000, frame_parity_n} :
+                                    enter_adj ? 5'd0 :
+                                                {4'b0000, row_parity_n};
 
 // Next-state values at the line-end edge, shared with the video-pointer
 // and display-enable logic so every consumer sees one consistent seam.
-// Adjustment end restarts the frame: C4=C9=0 (ACCC §11.3 general).
-wire [4:0] raster_n      = in_adj ? (adj_end_n ? 5'd0 : raster + 5'd1) :
-                           c9_done ? 5'd0 : raster + 5'd1;
-wire [6:0] charline_n    = (in_adj & adj_end_n) ? 7'd0 :
+// Adjustment end either starts the scheduled interlace line or restarts the
+// frame; only the latter changes C4/C9 to the new frame origin.
+wire [4:0] raster_n      = interlace_line ?
+                           (ivm_active ? {4'b0000, frame_parity_n} : 5'd0) :
+                           in_adj ?
+                           (adj_end_n ?
+                            (enter_interlace_line ? 5'd0 :
+                             (ivm_active ?
+                              {4'b0000, frame_parity_n} : 5'd0)) :
+                            raster + 5'd1) :
+                           c9_done ?
+                           (enter_interlace_line ? 5'd0 :
+                            (ivm_active ? ivm_row_reload : 5'd0)) :
+                           ivm_active ? ivm_step : raster + 5'd1;
+wire [6:0] charline_n    = interlace_line ? 7'd0 :
+                           (in_adj & adj_end_n) ?
+                           (enter_interlace_line ? charline : 7'd0) :
                            in_adj ? charline :
                            enter_adj ? charline :
                            frame_wrap ? 7'd0 :
-                           c9_done ? charline + 7'd1 : charline;
+                           c9_done ?
+                           (enter_interlace_line ? charline :
+                            charline + 7'd1) : charline;
 wire       adj_n         = in_adj ? !adj_end_n : enter_adj;
+wire       interlace_line_n = interlace_line ? 1'b0 :
+                              enter_interlace_line;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		charline <= 7'd0;
 		raster   <= 5'd0;
 		in_adj   <= 1'b0;
+		interlace_line <= 1'b0;
+		parity_frame <= 1'b0;
+		parity_c9    <= 1'b0;
 	end
-	else if (CLKEN) begin
-		if (hcc_last) begin
+	else begin
+		if (CLKEN && hcc_last) begin
 			in_adj   <= adj_n;
+			interlace_line <= interlace_line_n;
 			raster   <= raster_n;
 			charline <= charline_n;
+
+			// ParityFrame runs at every real frame origin, independent of
+			// the current R8 mode (§19.5.5).  ParityC9 alignment is visible
+			// only to IVM counting, but is maintained here so a later entry
+			// starts from a well-defined frame state.
+			if (frame_restart) begin
+				parity_frame <= frame_parity_n;
+				parity_c9    <= frame_parity_n;
+			end
+			else if (ivm_active && c9_done && !enter_adj &&
+			         R9_v_max_line[0]) begin
+				parity_c9 <= row_parity_n;
+			end
+		end
+
+		// §19.8.4 p.236: changing R8 to either interlace mode seeds
+		// ParityC9 immediately from the current C9.  Decode the live bus
+		// write so this does not wait for the stored R8 NBA update.
+		if (ENABLE & ~nCS & ~R_nW & RS & (addr == 5'd8) &
+		    ((DI[1:0] == 2'b01) | (DI[1:0] == 2'b11)) &
+		    (DI[1:0] != R8_interlace)) begin
+			parity_c9 <= raster[0];
 		end
 	end
 end
@@ -366,18 +437,21 @@ reg [13:0] vma;
 reg [13:0] vma_latch;
 
 // Selected §20.3.4 frame-origin reading; see the source-conflict note above.
-wire pointer_frame_origin = !adj_n && (charline_n == 7'd0) &&
-                            (raster_n == 5'd0);
+wire pointer_frame_origin = ivm_active ? frame_restart :
+                            (!adj_n && (charline_n == 7'd0) &&
+                             (raster_n == 5'd0));
 
 // P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
 wire [4:0] ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
 
-// Row-end VMA latch update: when the displayed scanline ra_eff reaches R9,
-// capture VMA into vma_latch at HCC == R1 so MA advances before the wrapped
-// RA 0 line under SSCR vertical scroll (Arnold V §2.5, asic-reference §8).
-wire row_latch_event = CLKEN && !in_adj &&
+// Row-end VMA latch update: outside IVM, the displayed scanline ra_eff
+// reaching R9 advances the source row before SSCR wraps RA to 0 (Arnold V
+// §2.5, asic-reference §8).  In IVM the §19.8.4 C9>=R9 decision is the
+// terminal-line test, including the even-parity overshoot line.
+wire row_latch_done = ivm_active ? c9_done : (ra_eff == R9_v_max_line);
+wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
                        (hcc == R1_h_displayed) &&
-                       (ra_eff == R9_v_max_line);
+                       row_latch_done;
 
 // P6: Screen split comparison ({SPLT7..0} == {VC4..0, RC2..0}, asic-reference §8).
 // When matched and SPLT != 0, capture SSA into vma_latch at HCC == R1.
@@ -500,6 +574,8 @@ reg       in_hsync;
 reg [3:0] hsc;
 reg       in_vsync;
 reg [3:0] vsc;
+reg       vsync_mid_pending;
+reg       vsync_delay_pending;
 
 wire       hsync_start               = (hcc_next == R2_h_sync_pos);
 wire [3:0] hsc_next                  = hsc + 4'd1;
@@ -533,23 +609,87 @@ always @(posedge CLOCK) begin
 end
 
 //----------------------------------------------------------------------
-// VSYNC (ACCC §16.4.4 p.170): starts only at line starts where
+// VSYNC.  Outside IVM, ACCC §16.4.4 p.170 starts only at line starts where
 // C4==R7 AND C9==0 AND C0==0 hold simultaneously; rewriting R7 to the
-// current C4 while C0>0 does not trigger. There is no re-entrancy
-// protection — a condition that persists across a finished pulse
-// restarts it immediately. Width is R3h lines with 0 meaning 16 (§14.2),
-// counted per line with the same live-equality nibble semantics; dynamic
-// R3h rewrites follow the CRTCs-0/3/4 rule (compendium-02 §2). Interlace
-// MID-VSYNC delays are out of P1 scope (header note); the ASIC needs >=3
-// active lines to emit monitor C-VSYNC, which belongs to the integrated
+// current C4 while C0>0 does not trigger.  In IVM, §19.5.5 pp.213-215 and
+// §19.7.3 p.218 move the even-frame start to C0=R0/2 on the first line of
+// C4=R7.  On an odd frame with odd R9 and odd R7, the start is delayed to
+// the following line.  The R7=0 priority exception naturally samples the
+// outgoing ParityFrame here because frame_restart and the parity NBA share
+// the same edge: outgoing even schedules MID-VSYNC in the new odd frame;
+// outgoing odd starts a seam pulse in the new even frame.
+//
+// There is no re-entrancy protection — a condition that persists across a
+// finished pulse restarts it immediately. Width is R3h lines with 0 meaning
+// 16 (§14.2).  §16.1 p.159 advances that line count at C0=0: MID-VSYNC
+// changes the pulse's start only, not the C3h count phase.  Dynamic R3h
+// rewrites follow the CRTCs-0/3/4 rule (compendium-02 §2).  The ASIC needs
+// >=3 active lines to emit monitor C-VSYNC, which belongs to the integrated
 // pipeline phase.
 //----------------------------------------------------------------------
 
-wire        vsync_fire      = hcc_last &&
-                              (charline_n == R7_v_sync_pos) &&
-                              (raster_n == 5'd0);
+// `charline_n`/`raster_n` preserve the original type-3 condition on every
+// seam exposing C4=R7,C9=0, including entry into R5 and the interlace line.
+// IVM can also begin a C4 on odd C9, so the true new-C4 seam is an additional
+// target even when raster_n!=0.  Only that new-C4 case is eligible for the
+// odd-frame/odd-C4 one-line delay; R5/interlace-line refires retain the
+// ordinary seam condition unless MID-VSYNC moves them to R0/2.
+wire        vsync_new_c4_start = hcc_last &&
+                                  (frame_restart ||
+                                   (!in_adj && !interlace_line && c9_done &&
+                                    !last_charline));
+wire        vsync_new_c4_target = vsync_new_c4_start &&
+                                   (charline_n == R7_v_sync_pos);
+wire        vsync_zero_target = hcc_last &&
+                                 (charline_n == R7_v_sync_pos) &&
+                                 (raster_n == 5'd0);
+wire        vsync_target_seam = vsync_new_c4_target | vsync_zero_target;
+wire        vsync_mid_schedule = vsync_target_seam && ivm_active &&
+                                  !parity_frame;
+wire        vsync_delay_schedule = vsync_new_c4_target && ivm_active &&
+                                    parity_frame && R9_v_max_line[0] &&
+                                    R7_v_sync_pos[0];
+wire [7:0]  vsync_half_hcc = {1'b0, R0_h_total[7:1]};
+wire        vsync_half_tick = (hcc_next == vsync_half_hcc);
+wire        vsync_mid_fire = ivm_active &&
+                              (vsync_mid_pending | vsync_mid_schedule) &&
+                              vsync_half_tick;
+wire        vsync_delay_fire = ivm_active && vsync_delay_pending && hcc_last;
+wire        vsync_seam_fire = vsync_target_seam &&
+                               !vsync_mid_schedule &&
+                               !vsync_delay_schedule;
+wire        vsync_fire = vsync_seam_fire | vsync_mid_fire |
+                          vsync_delay_fire;
 wire [3:0]  vsc_next        = vsc + 4'd1;
 wire        vsync_width_hit = (vsc_next == R3_v_sync_width);
+wire        vsync_count_tick = hcc_last;
+
+// Latch the first-line decision at its seam.  Reading parity only at the
+// later half-line would be wrong for R7=0, because ParityFrame has toggled by
+// then (§19.7.3).  The delay latch is consumed at the next line seam.
+always @(posedge CLOCK) begin
+	if (!nRESET) begin
+		vsync_mid_pending   <= 1'b0;
+		vsync_delay_pending <= 1'b0;
+	end
+	else if (CLKEN) begin
+		if (!ivm_active) begin
+			vsync_mid_pending   <= 1'b0;
+			vsync_delay_pending <= 1'b0;
+		end
+		else begin
+			if (vsync_mid_fire)
+				vsync_mid_pending <= 1'b0;
+			else if (vsync_target_seam)
+				vsync_mid_pending <= vsync_mid_schedule;
+
+			if (vsync_delay_fire)
+				vsync_delay_pending <= 1'b0;
+			else if (vsync_target_seam)
+				vsync_delay_pending <= vsync_delay_schedule;
+		end
+	end
+end
 
 // The width counts LINE boundaries while the pulse is active (R3h is a
 // line count), and a condition that persists across the expiring edge
@@ -563,7 +703,7 @@ always @(posedge CLOCK) begin
 	end
 	else if (CLKEN) begin
 		if (in_vsync) begin
-			if (hcc_last) begin
+			if (vsync_count_tick) begin
 				vsc <= vsc_next;
 				if (vsync_width_hit) begin
 					if (vsync_fire) begin
