@@ -282,9 +282,9 @@ reviewable and in this order:
 |---|---|---|
 | **P10a: evidence baseline + production boot harness** | Exact-tip full-effort build; real T80/top-level CPR reset-vector execution and bounded trace | Dispatch `local-build.yml` with `effort=full` when the Quartus VM is online, otherwise hosted `build.yml`; constrained internal domains have non-negative setup/hold slack and zero TNS; named RBF/hash and external-path caveat recorded; tiny fixture reaches a pinned PC/page state; BASIC/Panza traces expose first divergence rather than only a screen result |
 | **P10b: Plus PPI Port C physical output** | Make Port C pins always output in Plus mode while keeping classic direction behavior | Physical-pin vectors for `0x9B`/`0x92`; PPI -> PSG register 14 -> HID row test; Arnold 5 control-write trace establishes whether CF-1 is its cause before the 6128+/464+ retest |
-| **P10c: model capabilities + FDC reset** | Enforce FDC/tape presence; reset u765 and motor on the defined CPR/system event; test AMSDOS aliases | Positive/negative 6128+/464+/GX4000 matrix; `&FADD`/`&FBDF` production-path vector; reload-after-active-command test; BASIC boots with a recorded known-good DSK |
+| **P10c: model capabilities + FDC reset** | Enforce FDC/tape presence; reset u765 and motor on the defined CPR/system event; test AMSDOS aliases | Accuracy tip `683fcaf` closes the demonstrated production-timed EDSK READ DATA late-ACK/reset-reload alias in simulation. Hardware exit remains an exact build/media/config capture plus reset during active READ DATA. Retain no-ACK epoch/tag, two-drive overlap, sector-search reset, WRITE DATA `buff_wr`, automatic-EOT C/R, and BASIC with a recorded known-good DSK as named validation residuals |
 | **P10d: cartridge execution timing** | Replace per-byte serial SDRAM WAIT only when a real-CPU/title trace proves incompatible pacing | The production harness pins a sustained 4,096-tick cartridge window and 11-tick maximum stall; a valid ordinary-RAM/title comparison, no load/clear or classic regression, and an exact full fit remain required before redesign |
-| **P10e: DMA/PPI/PSG arbitration** | Implement the missing CPU WAIT and state preservation/restoration contract | Production motherboard concurrency vector based on Arnold 5; sourced or hardware-measured maximum wait and post-DMA state |
+| **P10e: DMA/PPI/PSG arbitration** | Implement the missing CPU WAIT and state preservation/restoration contract | The production motherboard fixture now pins physical PSG classification, bounded 8/9/10-CCLK LOADs, late upgrade, one accepted CPU strobe, and a preserved pre-owner AY R14 read. Exact full-fit timing plus Arnold 5, Plotting, and sample-pitch hardware retests remain required |
 | **P10f: dynamic sprite writes** | Close RoboCop's first traced divergence; replace undocumented staging behavior only where evidence requires | Game-derived burst-write/delayed-ACK vector, all-16 dynamic overlap coverage, documented per-access blanking, exact full-fit build |
 | **P10g: Panza first divergence** | Close one traced MMU/CRTC3/PRI/video behavior at a time | Each fix has a primary-source or hardware-derived vector; no self-derived expectation from current RTL |
 | **P10h: production CPC+ SNA** | Correct parser reset sequencing and consecutive-byte/nibble handling | `Amstrad.sv` snapshot integration test covers model, PPI/PSG, ASIC registers, palette, and sprite data |
@@ -326,10 +326,14 @@ Current Plus position (2026-08-30): P0-P9 are implemented and simulation-verifie
 HF-1/HF-2/HF-3 have landed. They are not collectively hardware-confirmed. P10 now includes
 shared FDC reset/alias hardening, a real-module input fixture, a pinned cartridge WAIT
 baseline, a real u765 READ DATA/EDSK reset-reload seam, source-backed CRTC3 R8=3 timing,
-inactive-DMA-slot correction, bounded SNA tail headroom, and stronger all-16/real-register
-sprite discriminators. Exact-tip full-effort synthesis, title traces, hardware retest,
-no-ACK epoch tagging, cross-drive FDC arbitration, DMA/input concurrency, R8=1, and
-undocumented sprite/coordinate behavior remain open.
+inactive-DMA-slot correction, bounded SNA tail headroom, stronger all-16/real-register
+sprite discriminators, ACCC-backed CRTC3 R8=1
+midpoint/additional-line timing, and a full-motherboard DMA/PPI/PSG concurrency seam. The
+u765, CRTC3, and concurrency seams are simulation-verified only. Exact-tip full-effort
+synthesis, title traces, hardware retest, no-ACK epoch/tag, two-drive overlap, sector-search
+reset, WRITE DATA `buff_wr`, automatic-EOT C/R, odd-R5 CRTC3 behavior,
+cartridge-versus-RAM pacing, top-level SNA recovery, and undocumented sprite/coordinate
+behavior remain open.
 
 - P-2 is independently mergeable because default-off behavior is invariant.
 - P-1 may be independently mergeable if the cartridge service is unselected in classic

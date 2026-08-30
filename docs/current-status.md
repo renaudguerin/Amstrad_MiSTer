@@ -45,6 +45,40 @@ happen only at significant milestones, against a named target list recorded befo
 session. A green simulation gate is never evidence of hardware accuracy; a manual session
 never gates a commit.
 
+## 2026-08-30 Plus hardware round three — prepared source-backed repairs
+
+Build 165 contained the round-two Plus RTL and produced no obvious Plus improvements; build
+166 is functionally equivalent for Plus. Those observations keep every reported title symptom
+open. The prepared `plus/p10-hardware-round3` branch adds two independently bisectable,
+simulation-verified repairs:
+
+- CRTC3 R8=1 now follows ACCC v1.11 sections 19.6.4 and 19.7.3: the outgoing even-parity field
+  gets the documented additional line and midpoint VSYNC, while the alternating field has no
+  additional line and starts VSYNC at the seam. The focused fixture first observed seam=2,
+  midpoint=0 instead of one of each, then pinned C4/C9/VMA/RA/DE, both field lengths, R4=0
+  entry, R9=0 exit, and R9=0/R5-nonzero adjustment sequencing.
+- Production DMA/PPI/PSG concurrency now preserves an already-accepted CPU transaction and
+  its read result, blocks new PPI transactions during DMA ownership, classifies physical PSG
+  writes, and implements bounded 8/9/10-CCLK LOAD duration. The full motherboard fixture
+  first failed the PSG discriminator at 9 rather than 10 CCLKs, then also caught duplicate
+  acceptance, a corrupted pre-owner AY R14 keyboard read, and an early-frozen uncontended
+  Port B read. It now passes 24 LOADs, 80 PPI transactions, and 103 CPU operations; the
+  maximum observed wait is five CCLKs.
+
+These fixes make Pang/CRTC3, Arnold 5 keyboard, Plotting held Fire, and DMA sample pitch
+direct hardware retests; they do not close those titles. Sprite top-row/colour/positioning,
+Switchblade and other cartridge crashes, CPC+ SNA/reset/reload recovery, and undocumented
+odd-R5 CRTC3 behavior remain evidence-gated. The motherboard WAIT/PPI timing change requires
+an exact full-effort synthesis before hardware testing. Full evidence, gates, and residuals
+are in `docs/plus/hardware-test-round3-2026-08-30.md`.
+
+Accuracy tip `683fcaf3afab672c9bec85c43066292eb9f6bf75` adds a real production-timed u765
+READ DATA/EDSK seam and closes the demonstrated late-ACK/reset-reload alias in simulation,
+not hardware. Its tracked track-0/head-0/R=`&41`/N=2 case resets while sector LBA1 is
+outstanding, retains cancelled ownership through the old ACK rise/fall, gates reset/cancel
+buffer writes, reloads metadata, and verifies all 512 bytes. No `Amstrad.sv` or Plus decoder
+change is indicated; BASIC hardware closure remains open.
+
 ## 2026-08-30 Plus hardware round two — focused simulation follow-up
 
 The second hardware report shows substantial CPR-loading progress but keeps P10 open. BASIC

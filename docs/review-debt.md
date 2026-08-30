@@ -133,6 +133,25 @@
 
 ## Cleared rows
 
+- **Plus P10 hardware round three CRTC3 R8=1 and DMA/PPI/PSG concurrency — CLEARED,
+  native Sol plus guarded Claude, 2026-08-30.** Initial reviews found the missing R8=1
+  additional line, R4=0 and R9=0 false frame origins, R9=0/R5-nonzero adjustment re-entry,
+  and an over-broad PPI read latch that froze live uncontended Port B. Each was remediated
+  behind a focused failing discriminator. The final native reviews returned CLEAR. The
+  guarded final CRTC micro-review independently reverted only the added-line adjustment
+  guard, reproduced `ADJ: expected 0, actual 1`, restored it, and returned CLEAR after
+  67/67 focused tests and a full-suite run. The guarded DMA review accepted the
+  post-owner-only read latch and live Port B control. Full simulation, lint, exact soak
+  `0x32d468e81eac63c9`, and whitespace gates pass. The PHI-aligned CPU substitute, exact
+  full-effort synthesis, hardware/title retests, conservative Port A input-mode collision
+  class, and CRTC3 C4 free-run wrap are validation residuals, not review debt.
+
+- **Accuracy production-timed u765 READ DATA reset seam at `683fcaf` — CLEARED by
+  cross-provider review, 2026-08-30.** The accuracy stream has no independent-review debt
+  for this commit. Exact hardware reset during active READ DATA, no-ACK epoch/tag,
+  two-drive overlap, sector-search reset, WRITE DATA `buff_wr`, and automatic-EOT C/R
+  remain validation items rather than review debt.
+
 - **Accuracy F13 + F20 R2.JIT + shared FDC transaction closure — CLEARED by
   Claude Opus 5 high, 2026-08-30.** The first review found the F20 width model
   and fixture wrong; the second accepted the remediated RTL but found the u765
