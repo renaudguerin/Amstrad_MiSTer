@@ -17,6 +17,7 @@ module p10_dma_mobo_test_top (
 	input        plus_aspage_on_i,
 	input [15:0] vram_din_i,
 	input [10:0] ps2_key_i,
+	input        tape_in_i,
 
 	output [15:0] cpu_addr_o,
 	output        cpu_iorq_o,
@@ -25,6 +26,7 @@ module p10_dma_mobo_test_top (
 	output        cpu_wr_o,
 	output        cpu_m1_o,
 	output [7:0]  cpu_di_o,
+	output [7:0]  cpu_do_o,
 	output        cpu_wait_n_o,
 	output        dma_load_owner_o,
 	output        dma_load_busy_o,
@@ -110,7 +112,7 @@ module p10_dma_mobo_test_top (
 		.plus_unlocked(1'b0),
 		.plus_ram_128k(1'b0),
 		.plus_has_fdc(1'b0),
-		.plus_has_tape(1'b0),
+		.plus_has_tape(1'b1),
 		.plus_mem_wait(1'b0),
 		.plus_aspage_on(plus_aspage_on_i),
 		.plus_asic_dout(plus_asic_dout),
@@ -156,7 +158,7 @@ module p10_dma_mobo_test_top (
 		.plus_sna_data(8'd0),
 		.plus_asic_reset(reset),
 
-		.tape_in(1'b0),
+		.tape_in(tape_in_i),
 		.tape_out(tape_out),
 		.tape_motor(tape_motor),
 
@@ -223,6 +225,7 @@ module p10_dma_mobo_test_top (
 	assign cpu_wr_o           = cpu_wr;
 	assign cpu_m1_o           = cpu_m1;
 	assign cpu_di_o           = mb.cpu_data_bus;
+	assign cpu_do_o           = cpu_dout;
 	assign cpu_wait_n_o       = cpu_wait_n;
 	assign dma_load_owner_o   = dma_load_owner;
 	assign dma_load_busy_o    = dma_load_busy;

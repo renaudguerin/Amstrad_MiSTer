@@ -643,7 +643,7 @@ void test_d13_active_channel_execute_timing(TestBench& tb) {
 void test_d14_all_channel_collision_extensions(TestBench& tb) {
 	const uint16_t addr[3] = {0x6000, 0x7000, 0x8000};
 	for (unsigned ch = 0; ch < 3; ++ch) {
-		for (unsigned extra = 1; extra <= 2; ++extra) {
+		for (unsigned extra = 1; extra <= 3; ++extra) {
 			tb.pulse_reset();
 			tb.set_sar(ch, addr[ch]);
 			tb.write_instruction(addr[ch], static_cast<uint16_t>((ch << 8) | 0x55));
@@ -657,6 +657,11 @@ void test_d14_all_channel_collision_extensions(TestBench& tb) {
 			unsigned owner_cycles = 0;
 			for (int cyc = 0; cyc < 32; ++cyc) {
 				tb.dut->hsync = (cyc < 4);
+				// A PPI-only collision may become a PSG write in the ninth
+				// extension cycle.  The source permits upgrading +1 to +2,
+				// but never extending to an eleventh LOAD cycle.
+				if ((extra == 3) && (start >= 0) && (cyc == start + 8))
+					tb.dut->cpu_psg_write = 1;
 				const bool busy_pre = tb.dut->dma_load_busy;
 				tb.dut->cclk_en_p = 1;
 				tb.step_clock();
@@ -672,15 +677,17 @@ void test_d14_all_channel_collision_extensions(TestBench& tb) {
 			tb.dut->cpu_ppi_access = 0;
 			tb.dut->cpu_psg_write = 0;
 			const int duration = end - start + 1;
-			if (start < 0 || end < 0 || duration != static_cast<int>(8 + extra))
+			const unsigned expected_extra = (extra == 3) ? 2 : extra;
+			if (start < 0 || end < 0 ||
+			    duration != static_cast<int>(8 + expected_extra))
 				fail("d14: channel " + std::to_string(ch) + " expected LOAD duration " +
-				     std::to_string(8 + extra) + ", got " + std::to_string(duration));
+				     std::to_string(8 + expected_extra) + ", got " + std::to_string(duration));
 			if (owner_cycles > 7)
 				fail("d14: channel " + std::to_string(ch) +
 				     " retained exclusive ownership beyond ordinary cycle eight");
 		}
 	}
-	std::printf("PASS d14: all channels honor +1/+2 collision duration with bounded ownership\n");
+	std::printf("PASS d14: all channels honor +1/+2 and late-upgrade duration with bounded ownership\n");
 }
 
 } // namespace

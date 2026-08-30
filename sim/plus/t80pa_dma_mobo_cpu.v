@@ -31,7 +31,7 @@ module T80pa (
 	input  wire [211:0] DIR
 );
 	localparam [1:0] S_GAP = 2'd0, S_CYCLE = 2'd1, S_DONE = 2'd2;
-	localparam [5:0] SETUP_LAST = 6'd35;
+	localparam [5:0] SETUP_LAST = 6'd42;
 	localparam [7:0] OP_COUNT = 8'd96;
 	localparam [7:0] IDLE_GAP = 8'd11;
 
@@ -104,10 +104,19 @@ module T80pa (
 			6'd31: setup_bus = {1'b0, 1'b0, 16'hF600, 8'h48}; // AY read, row 8
 			// ASIC page DMA registers.  vram_din is the LOAD instruction, so
 			// SAR is only used to exercise the production decode/feedback.
-			6'd32: setup_bus = {1'b1, 1'b0, 16'h6C00, 8'h00}; // SAR0 low
-			6'd33: setup_bus = {1'b1, 1'b0, 16'h6C01, 8'h20}; // SAR0 high
-			6'd34: setup_bus = {1'b1, 1'b0, 16'h6C02, 8'h00}; // PPR0 = 0
-			6'd35: setup_bus = {1'b1, 1'b0, 16'h6C0F, 8'h01}; // DCSR ch0 enable
+			// Exercise every physical PSG-write class through production decode:
+			// full Port C, Port A while PC7:6=10, and PC7/PC6 BSR writes.
+			6'd32: setup_bus = {1'b0, 1'b0, 16'hF600, 8'h88}; // full C -> 10
+			6'd33: setup_bus = {1'b0, 1'b0, 16'hF400, 8'h55}; // Port A under 10
+			6'd34: setup_bus = {1'b0, 1'b0, 16'hF700, 8'h0E}; // BSR PC7 reset
+			6'd35: setup_bus = {1'b0, 1'b0, 16'hF700, 8'h0F}; // BSR PC7 set -> 10
+			6'd36: setup_bus = {1'b0, 1'b0, 16'hF700, 8'h0C}; // BSR PC6 reset -> 10
+			6'd37: setup_bus = {1'b0, 1'b0, 16'hF600, 8'h48}; // restore AY read
+			6'd38: setup_bus = {1'b0, 1'b1, 16'hF500, 8'hFF}; // live Port B read
+			6'd39: setup_bus = {1'b1, 1'b0, 16'h6C00, 8'h00}; // SAR0 low
+			6'd40: setup_bus = {1'b1, 1'b0, 16'h6C01, 8'h20}; // SAR0 high
+			6'd41: setup_bus = {1'b1, 1'b0, 16'h6C02, 8'h00}; // PPR0 = 0
+			6'd42: setup_bus = {1'b1, 1'b0, 16'h6C0F, 8'h01}; // DCSR ch0 enable
 			default: setup_bus = {1'b0, 1'b0, 16'hFFFF, 8'hFF};
 			endcase
 		end
