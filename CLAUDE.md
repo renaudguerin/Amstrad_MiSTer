@@ -15,9 +15,32 @@ Three worktrees partition the repository:
 - `/Users/renaudg/code/Amstrad_MiSTer-accuracy` — CRTC accuracy stream (`accuracy/*` branches).
 - `/Users/renaudg/code/Amstrad_MiSTer-plus` — Amstrad Plus/GX4000 ASIC stream (`plus/*` branches).
 
-Stream workflow is formalized in two project skills (`.agents/skills/`):
+Stream workflow is formalized in project skills (`.agents/skills/`):
 - **Start a task**: Invoke `$stream-start <accuracy|plus> [topic]`. Re-anchors the stream worktree on `accc-review-and-fixes` and cuts `<stream>/<topic>` (autofills next todo if omitted; no baseline simulation).
 - **Finish a task**: Invoke `$stream-finish <accuracy|plus>`. Performs non-fast-forward merge into `accc-review-and-fixes`, resolves conflicts, semantically reconciles shared docs (`current-status.md`, `review-debt.md`, golden hashes), runs `make -C sim` once (skipped for doc-only changes), and pushes to origin to trigger CI synthesis.
+- **Coordinate parallel tasks**: Invoke `$stream-orchestrate` when the user explicitly asks
+  one Codex Desktop task to create and supervise separate accuracy/Plus conversations. It
+  opens tasks against the saved project, directs them to the fixed stream worktrees,
+  exchanges peer IDs and discoveries, and serializes `$stream-finish` integration.
+
+### Parallel stream coordination
+
+Parallel tasks still have one writer per worktree and one integration writer at a time.
+Stream-local files belong to that stream. Top-level/common peripheral RTL, root build/CI
+files, and shared status/review documents require an assigned owner before overlapping
+edits. A task that discovers cross-stream evidence messages its peer promptly with the
+finding, impact, proposed owner, and any commit the peer must consume.
+
+Each coordinated stream proves sibling-worktree writability, then reports WRITABLE, STARTED,
+DISCOVERY, READY, and INTEGRATED milestones. The coordinator relays messages by default and
+assigns shared owners in the initial prompts, avoiding a peer-ID startup race. A stream stops
+at READY until the coordinator grants an integration lease containing the current exact
+integration SHA. Unless dependencies require another order, accuracy integrates first; the
+Plus task then rebases with merge topology preserved onto the verified integration SHA.
+Never run two `$stream-finish` operations concurrently, and never force-push after a stale
+lease or moved integration tip. Automatic finish/push requires explicit user authorization.
+When only one stream task exists, ordinary `$stream-start`/`$stream-finish` behavior is
+unchanged.
 
 ## Where authority lies
 

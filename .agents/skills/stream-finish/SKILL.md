@@ -10,6 +10,12 @@ Finalizes the current stream branch, performs semantic merge into `accc-review-a
 ## Inputs
 - **`stream`** (required): `accuracy` or `plus`
 - **`push`** (optional flag): Push to GitHub origin by default. Pass `--no-push` only if performing an intermediate local merge without triggering synthesis.
+- **`peer-task`** (optional): Codex task ID for the other stream.
+- **`integration-base`** (optional): Exact current integration SHA supplied with the
+  coordinator's lease. It is issued at finish time, not copied from task creation. In a
+  coordinated run, do not proceed without it.
+- **`starting-base`** (optional): The task's original integration SHA. It is an ancestor
+  floor, not the expected current tip.
 
 ## Worktree Mapping
 - `accuracy` -> `/Users/renaudg/code/Amstrad_MiSTer-accuracy`
@@ -19,18 +25,41 @@ Finalizes the current stream branch, performs semantic merge into `accc-review-a
 ## Procedure
 
 ### Phase 1: Stream Worktree Pre-flight
-1. In `/Users/renaudg/code/Amstrad_MiSTer-<stream>`:
+1. Inspect the stream worktree `/Users/renaudg/code/Amstrad_MiSTer-<stream>`:
    - Identify active feature branch: `git rev-parse --abbrev-ref HEAD`.
    - Confirm working tree is clean: `git status --porcelain`.
-2. Confirm review requirements:
+2. Inspect the main worktree `/Users/renaudg/code/Amstrad_MiSTer`:
+   - Fetch origin and confirm it is clean, on `accc-review-and-fixes`, and not in a
+     merge/rebase operation. Ignored/private local assets are not dirt.
+   - If local `accc-review-and-fixes` is behind its remote, fast-forward it in the main
+     worktree before rebasing the stream. If they diverged, stop and reconcile; do not reset
+     or force either side. In a coordinated run, the resulting local and remote SHA must
+     equal `integration-base`; otherwise report a stale lease and wait for the coordinator
+     to issue the new current SHA. Repeating the old lease is not a retry.
+   - If `starting-base` was supplied, require it to be an ancestor of `integration-base` with
+     `git merge-base --is-ancestor <starting-base> <integration-base>`.
+   - Rebase the stream branch onto the current integration tip while preserving merge
+     topology:
+     ```sh
+     git -C /Users/renaudg/code/Amstrad_MiSTer-<stream> fetch origin
+     git -C /Users/renaudg/code/Amstrad_MiSTer-<stream> rebase --rebase-merges accc-review-and-fixes
+     ```
+     Resolve conflicts semantically. If main or origin moves before the merge, report the
+     stale lease and obtain a newly issued `integration-base` before repeating this phase.
+3. Confirm review requirements:
    - Check if cross-provider review occurred or if a debt row was logged in [`docs/review-debt.md`](file:///Users/renaudg/code/Amstrad_MiSTer/docs/review-debt.md).
+4. In a coordinated run, report that the integration lease is active so the coordinator can
+   relay it to the peer. Send directly only when peer messaging was explicitly confirmed.
+   In a coordinated run, do not proceed without an explicit lease: stop at READY.
 
 ### Phase 2: Merge in Main Worktree
 1. Switch to the main worktree `/Users/renaudg/code/Amstrad_MiSTer`:
    ```sh
    git -C /Users/renaudg/code/Amstrad_MiSTer checkout accc-review-and-fixes
    ```
-2. Attempt the merge without auto-committing:
+2. Re-check that main still equals the pre-flight integration SHA. Never merge on top of an
+   unexpected concurrent integration.
+3. Attempt the merge without auto-committing:
    ```sh
    git -C /Users/renaudg/code/Amstrad_MiSTer merge <stream-branch> --no-ff --no-commit
    ```
@@ -62,6 +91,9 @@ Finalizes the current stream branch, performs semantic merge into `accc-review-a
    ```sh
    git -C /Users/renaudg/code/Amstrad_MiSTer push origin accc-review-and-fixes
    ```
+   Never force-push. A non-fast-forward rejection invalidates the integration lease: abort
+   the finish, fetch, rebase/reconcile, rerun affected gates, and try again only after the
+   coordinator grants a fresh lease.
    *(Note: Pushing `accc-review-and-fixes` automatically triggers a full-effort Quartus synthesis build when code files changed, producing an RBF for hardware testing).*
 3. Check local VM availability for fast full synthesis:
    Query the GitHub API to check if the self-hosted `quartus-vm` runner is online:
@@ -74,4 +106,18 @@ Finalizes the current stream branch, performs semantic merge into `accc-review-a
      ```
      *(The local UTM VM runs ~2-4m faster and automatically preempts the hosted run in the shared `build-core-synthesis` concurrency group).*
    - **If `quartus-vm` is offline**: Let the hosted push workflow (`build.yml`) proceed (it compiles at full effort by default).
-4. Summarize the completed merge, report the triggered GitHub Actions run, and note the RBF artifact name once available.
+4. Verify the exact pushed SHA and each required CI job, not only the aggregate workflow
+   conclusion. Follow last-write-wins cancellation to the successor run. Summarize the merge,
+   CI run, and RBF artifact once available.
+   Use commands that bind evidence to the exact tip:
+   ```sh
+   git -C /Users/renaudg/code/Amstrad_MiSTer rev-parse HEAD origin/accc-review-and-fixes
+   gh run list --branch accc-review-and-fixes --limit 5 --json databaseId,headSha,status,conclusion,url
+   gh run view <run-id> --json headSha,status,conclusion,jobs,url
+   ```
+   Follow the run-supersession policy in `docs/ci-testing-policy.md` and inspect the exact
+   run's artifacts before naming the RBF.
+5. In a coordinated run, report an **INTEGRATED** message with the integration SHA, changed
+   shared files, CI job results, artifact, and residual hardware gates. The coordinator
+   relays it to the peer by default; send directly only when that capability was confirmed.
+   Release the integration lease only after the push and required CI state are known.
