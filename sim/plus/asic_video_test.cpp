@@ -1586,6 +1586,18 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
             test.expect_ra("t04n next field ordinary RA", 0);
             test.expect_de("t04n next field ordinary DE", true);
         }
+        else {
+            // The odd field has no additional line. From C4=2,C9=1, the
+            // remaining 15 ordinary lines must reach the real origin
+            // directly; an incorrectly parity-blind extra line would still
+            // expose carried C4=R4,C9=0 here.
+            test.run_characters(kLineCharacters * 15);
+            test.expect_line("t04n odd field restarts without added line", 0);
+            test.expect_row("t04n odd field origin C9", 0);
+            test.expect_hcc("t04n odd field origin seam", 0);
+            test.expect_ma("t04n odd field origin reloads VMA", 0);
+            test.expect_ra("t04n odd field origin RA", 0);
+        }
     }
 
     if (seam_starts != 1 || midpoint_starts != 1) {
