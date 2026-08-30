@@ -1135,21 +1135,33 @@ void s17_all_sprites_live_animation_cadence(Spr& b) {
     std::array<unsigned, 16> mag{};
     std::array<unsigned, 16> row13{};
     std::array<unsigned, 16> row14{};
+    std::array<unsigned, 16> row13_nib{};
+    std::array<unsigned, 16> row14_nib{};
 
-    // Give every sprite a distinct opaque image.  The animated pixels are
-    // changed in both rows used below so their data remains observable after
-    // the live row/Y/magnification transition.
+    // Give every sprite a sparse image with one unique marker in the shared
+    // early window.  The marker positions are chosen in output-dot order,
+    // accounting for each sprite's horizontal magnification, so all sixteen
+    // winners can be observed on the same line without priority hiding one
+    // behind another.  Sprite 0 also has a static pixel at source x=0,
+    // shared with sprite 15, for the access-blanking discriminator below.
+    constexpr unsigned marker_px[16] = {
+        5, 4, 4, 5, 6, 7, 6, 5, 7, 8, 9, 8, 6, 9, 10, 11};
     for (unsigned s = 0; s < 16; ++s) {
         base[s] = (s % 15) + 1;
         anim[s] = ((s + 5) % 15) + 1;
         for (unsigned py = 0; py < 16; ++py)
             for (unsigned px = 0; px < 16; ++px)
-                b.wr(s, px, py, base[s]);
+                b.wr(s, px, py,
+                     (px == marker_px[s] ||
+                      ((s == 0 || s == 15) && px == 0))
+                         ? base[s]
+                         : 0);
 
-        // Sprites 0 and 15 deliberately overlap for the priority/access
-        // checks.  Sprites 1..14 occupy separate 64-dot slots; the largest
-        // x4 window therefore still fits exactly before hp wraps.
-        x[s] = (s == 0 || s == 15) ? 32 : 128 + 64 * (s - 1);
+        // All sixteen sprites deliberately overlap at the same early
+        // visible position.  Their horizontal magnifications vary below,
+        // so this is the worst shared-window demand rather than a spread
+        // of independent slots.
+        x[s] = 32;
         b.set_x(s, x[s]);
         b.set_y(s, 8);
         b.set_mag(s, 0x5); // initial x1/y1, changed at the next seam
@@ -1177,27 +1189,42 @@ void s17_all_sprites_live_animation_cadence(Spr& b) {
         const unsigned yshift = ycode == 1 ? 0 : (ycode == 2 ? 1 : 2);
         row13[s] = ((13 - y[s]) >> yshift) & 15;
         row14[s] = ((14 - y[s]) >> yshift) & 15;
+        // Make the post-transition value row-specific.  If the active bank
+        // still carries row 13 where row 14 is required, the final palette
+        // check below must catch that stale-row emission (except where the
+        // selected vertical magnification intentionally repeats a row).
+        row13_nib[s] = ((anim[s] + row13[s]) % 15) + 1;
+        row14_nib[s] = ((anim[s] + row14[s]) % 15) + 1;
     }
 
     // Make the attribute transition at a scanline seam, then perform a
     // sustained, production-shaped CPU animation burst while the fetch
     // server is running.  Each write is a complete sprite pixel access:
     // ACC_EN stays high across its step together with spr_wr_en, matching the
-    // asic_regs level contract.  Four writes per row per sprite are enough to
-    // make the updated image observable at x1, x2 and x4.
+    // asic_regs level contract.  Touch the same marker three times per row,
+    // leaving the final animated value in place; this keeps the burst long
+    // enough to overlap the real walker while preserving one-hot output
+    // markers for the all-16 readiness check.
     b.step(true, true, true);
     b.idle(6);
     const unsigned req_before = b.n_req_obs;
-    const unsigned animated_px[] = {0, 5, 8};
     for (unsigned s = 0; s < 16; ++s) {
         for (const unsigned row : {row13[s], row14[s]}) {
-            for (const unsigned px : animated_px) {
-                b.wr(s, px, row, anim[s]);
+            const unsigned px = marker_px[s];
+            const unsigned final_nib = row == row13[s]
+                                           ? row13_nib[s]
+                                           : row14_nib[s];
+            const unsigned burst_nib[3] = {
+                ((final_nib + 3) % 15) + 1,
+                ((final_nib + 6) % 15) + 1,
+                final_nib};
+            for (const unsigned nib : burst_nib) {
+                b.wr(s, px, row, nib);
                 b.dut.ACC_EN = 1;
                 b.dut.ACC_IDX = s;
                 b.dut.spr_wr_en = 1;
                 b.dut.spr_wr_addr = (s << 8) | (row << 4) | px;
-                b.dut.spr_wr_data = anim[s];
+                b.dut.spr_wr_data = nib;
                 b.step(true, false, false);
                 b.dut.spr_wr_en = 0;
                 b.dut.ACC_EN = 0;
@@ -1216,23 +1243,21 @@ void s17_all_sprites_live_animation_cadence(Spr& b) {
         fail("s17: all-16 row refills did not use the grant cadence (requests=" +
              std::to_string(b.n_req_obs - req_before) + ")");
 
-    const auto yshift_for = [](unsigned m) {
-        const unsigned code = m & 3;
-        return code == 1 ? 0U : (code == 2 ? 1U : 2U);
-    };
     const auto xshift_for = [](unsigned m) {
         const unsigned code = (m >> 2) & 3;
         return code == 1 ? 0U : (code == 2 ? 1U : 2U);
     };
-    const auto is_animated = [](unsigned px) {
-        return px == 0 || px == 5 || px == 8;
-    };
 
-    // Scan a full 1024-dot line.  At hp=31 begin a 16-dot CPU access to
-    // sprite 0.  Sprite 15 is the only overlapping bystander and must show
-    // through for the whole access.  Once the level falls, a short registered
-    // tail is permitted by the module model; by the next 16-dot slot the
-    // accessed sprite must be back, with its newly written pixels intact.
+    // Scan a full 1024-dot line.  All sixteen windows begin at hp=32, and
+    // SPR_WIN must therefore carry the complete active mask through the
+    // first 16 visible dots despite the differing widths.  At hp=31 begin a
+    // 16-dot CPU access to sprite 0.  Sprite 15 shares sprite 0's static
+    // source-pixel marker at hp=32 and must show through the access; sprite 0
+    // then reappears at its separate animated marker after the access tail.
+    // The other fourteen markers are disjoint in this same early window, so
+    // their observed SPR_IDX values prove readiness rather than only request
+    // traffic or a total byte count.
+    std::array<bool, 16> emitted{};
     for (unsigned hp = 0; hp < 1024; ++hp) {
         if (hp == 31) {
             b.dut.ACC_EN = 1;
@@ -1243,44 +1268,40 @@ void s17_all_sprites_live_animation_cadence(Spr& b) {
 
         const Spr::Smp got = b.sample();
         const bool overlap = hp >= 32 && hp < 96;
-        unsigned expected = 16;
-        bool transition = false;
+        uint16_t expected_win = 0;
         if (overlap) {
-            if (hp < 48) {
-                // Accessed sprite 0 is blanked; lower-priority sprite 15
-                // remains visible with its own stored image.
-                expected = 15;
-            }
-            else if (hp < 64) {
-                // The source specifies access-duration blanking, while the
-                // exact registered tail is a model assumption.  Both images
-                // are acceptable during this settling interval, but neither
-                // may disappear or show a foreign sprite.
-                transition = true;
-            }
-            else {
-                expected = 0;
+            const unsigned rel = hp - 32;
+            for (unsigned s = 0; s < 16; ++s) {
+                const unsigned width = 16U << xshift_for(mag[s]);
+                if (rel < width)
+                    expected_win |= (uint16_t)1U << s;
             }
         }
-        else {
-            for (unsigned s = 1; s < 15; ++s) {
-                const unsigned width = 16U << xshift_for(mag[s]);
-                if (hp >= x[s] && hp < x[s] + width) {
+        if (got.win != expected_win)
+            fail("s17: shared early window mask mismatch at hp=" +
+                 std::to_string(hp) + " (got 0x" +
+                 std::to_string(got.win) + " expected 0x" +
+                 std::to_string(expected_win) + ")");
+
+        unsigned expected = 16;
+        if (overlap) {
+            const unsigned rel = hp - 32;
+            // The source-x=0 access marker is ×4 for both sprites 0 and 15;
+            // it is deliberately excluded from marker_px so sprite 15's
+            // independent readiness marker remains unique below.
+            if (rel < 4)
+                expected = 15;
+            for (unsigned s = 0; s < 16; ++s) {
+                const unsigned scale = 1U << xshift_for(mag[s]);
+                const unsigned marker = marker_px[s] * scale;
+                if (rel >= marker && rel < marker + scale) {
                     expected = s;
                     break;
                 }
             }
-            // hp=31 is the one pre-access dot in sprite 0's window.
-            if (hp >= x[0] && hp < x[0] + (16U << xshift_for(mag[0])))
-                expected = 0;
         }
 
-        if (transition) {
-            if (!got.en || (got.idx != 0 && got.idx != 15))
-                fail("s17: sprite 0 access disturbed its overlap at hp=" +
-                     std::to_string(hp));
-        }
-        else if (expected == 16) {
+        if (expected == 16) {
             if (got.en)
                 fail("s17: unexpected sprite " + std::to_string(got.idx) +
                      " outside its window at hp=" + std::to_string(hp));
@@ -1291,17 +1312,23 @@ void s17_all_sprites_live_animation_cadence(Spr& b) {
                      " at hp=" + std::to_string(hp) + " (got " +
                      std::to_string(got.en ? got.idx : 16) + ")");
 
-            const unsigned xshift = xshift_for(mag[expected]);
-            const unsigned px = (hp - x[expected]) >> xshift;
-            const unsigned nib = is_animated(px) ? anim[expected]
-                                                  : base[expected];
+            const unsigned nib = (expected == 15 && hp < 36)
+                                     ? base[15]
+                                     : row14_nib[expected];
             unsigned g, r, bl;
             pal_entry(nib, g, r, bl);
             if (got.r != r || got.g != g || got.b != bl)
                 fail("s17: sprite " + std::to_string(expected) +
                      " image mismatch at hp=" + std::to_string(hp) +
-                     " px=" + std::to_string(px));
+                     " marker=" + std::to_string(marker_px[expected]));
+            emitted[expected] = true;
         }
+
+        // The shared static marker is deliberately sampled while ACC_EN is
+        // high.  If the access did not blank sprite 0, it would win here;
+        // sprite 15 is the required lower-priority survivor.
+        if (hp == 32 && (!got.en || got.idx != 15))
+            fail("s17: sprite 0 access did not expose sprite 15");
 
         if ((hp & 15) == 15)
             b.char_end(hp == 1023);
@@ -1309,6 +1336,11 @@ void s17_all_sprites_live_animation_cadence(Spr& b) {
             b.dot();
     }
     b.dut.ACC_EN = 0;
+
+    for (unsigned s = 0; s < 16; ++s)
+        if (!emitted[s])
+            fail("s17: sprite " + std::to_string(s) +
+                 " was never emitted from its staged row");
 }
 
 constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 17> kTests = {{
