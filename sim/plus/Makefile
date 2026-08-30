@@ -204,10 +204,27 @@ P10BOOT_OBJ_DIR  := obj_dir/p10_boot
 P10BOOT_TEST_SRC := $(abspath p10_boot_test.cpp)
 P10BOOT_TEST_BIN := $(P10BOOT_OBJ_DIR)/p10_boot_tests
 
+# P10b production input-path fixture: the minimal exact PPI/YM2149/hid/joydb
+# slice from the motherboard, with a scripted fake Z80 and a 6128+ capability
+# set.  This target intentionally uses mixed Verilog/SystemVerilog parsing so
+# the real YM2149 and HID implementations participate.
+P10INPUT_TOP      := p10_input_test_top
+P10INPUT_TOP_SRC  := $(abspath p10_input_test_top.v)
+P10INPUT_CPU      := $(abspath t80pa_input_bench_cpu.v)
+P10INPUT_RTL      := $(abspath ../../rtl/i8255.v) \
+	$(abspath ../../rtl/YM2149.sv) \
+	$(abspath ../../rtl/hid.sv) \
+	$(abspath ../../rtl/joydb.sv)
+P10INPUT_OBJ_DIR  := obj_dir/p10_input
+P10INPUT_TEST_SRC := $(abspath p10_input_test.cpp)
+P10INPUT_TEST_BIN := $(P10INPUT_OBJ_DIR)/p10_input_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
 	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN)
+
+TEST_BINS += $(P10INPUT_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -221,6 +238,9 @@ build: $(TEST_BINS)
 # Convenience alias; the bench itself runs in the default gate.
 p1-video-bench: $(P1VID_TEST_BIN)
 	./$(P1VID_TEST_BIN)
+
+p10-input-bench: $(P10INPUT_TEST_BIN)
+	./$(P10INPUT_TEST_BIN)
 
 test: $(TEST_BINS)
 	./$(ASIC_TEST_BIN)
@@ -242,6 +262,7 @@ test: $(TEST_BINS)
 	./$(DMA_TEST_BIN)
 	./$(P8_TEST_BIN)
 	./$(P10BOOT_TEST_BIN)
+	./$(P10INPUT_TEST_BIN)
 
 $(P8_TEST_BIN): $(P8_RTL) $(P8_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module plus_p8_test_top -Wno-CASEX \
@@ -346,6 +367,13 @@ $(P10BOOT_TEST_BIN): $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) $(P10BOOT_TEST_SRC) Make
 		--Mdir $(P10BOOT_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(P10BOOT_TEST_BIN)) $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) \
 		$(P10BOOT_TEST_SRC)
+
+$(P10INPUT_TEST_BIN): $(P10INPUT_TOP_SRC) $(P10INPUT_CPU) $(P10INPUT_RTL) $(P10INPUT_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) --cc --exe --build -UVERILATOR --public-flat-rw -Wno-PROCASSWIRE \
+		--top-module $(P10INPUT_TOP) \
+		--Mdir $(P10INPUT_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(P10INPUT_TEST_BIN)) $(P10INPUT_TOP_SRC) $(P10INPUT_CPU) \
+		$(P10INPUT_RTL) $(P10INPUT_TEST_SRC)
 
 $(OBJ_DIR):
 	mkdir -p -- $@
