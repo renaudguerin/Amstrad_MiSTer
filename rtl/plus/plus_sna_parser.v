@@ -16,6 +16,7 @@ module plus_sna_parser
 	input             cpc_plus_byte_wr,    // strobe on each incoming chunk payload byte
 	input      [7:0]  cpc_plus_byte_data,  // incoming payload byte
 	output            ioctl_wait,          // throttle HPS when write FIFO fills
+	output            busy,                // high while download active or FIFO draining
 
 	// Interface to asic_regs
 	output reg        asic_sna_wr,
@@ -29,6 +30,7 @@ module plus_sna_parser
 );
 
 	reg [15:0] chunk_byte_cnt;
+	reg        sna_download_d;
 
 	// 8-entry FIFO for unpacking writes to asic_regs
 	reg [21:0] fifo_mem [0:7];
@@ -42,10 +44,16 @@ module plus_sna_parser
 	wire [3:0] fifo_count = fifo_wr_ptr - fifo_rd_ptr;
 	wire       fifo_empty = (fifo_wr_ptr == fifo_rd_ptr);
 	assign ioctl_wait     = (fifo_count >= 4'd4);
+	// The top-level registers each accepted payload byte and its strobe.  The
+	// last registered strobe can therefore reach this module one clock after
+	// sna_download falls; keep the lifecycle busy and accept that tail byte.
+	assign busy           = sna_download || cpc_plus_byte_wr ||
+	                        !fifo_empty || asic_sna_wr;
 
 	always @(posedge clk) begin
-		if (reset || !sna_download) begin
+		if (reset) begin
 			chunk_byte_cnt  <= 16'd0;
+			sna_download_d  <= 1'b0;
 			asic_sna_wr     <= 1'b0;
 			asic_sna_addr   <= 14'd0;
 			asic_sna_data   <= 8'd0;
@@ -56,6 +64,24 @@ module plus_sna_parser
 			fifo_rd_ptr     <= 4'd0;
 		end
 		else begin
+			sna_download_d <= sna_download;
+
+			// A later classic snapshot must not inherit the prior CPC+ shadow
+			// state when it contains no CPC+ chunk of its own.  A new download
+			// also aborts any residual write tail from the previous snapshot;
+			// the top-level pulses plus_asic_reset on this same edge, so neither
+			// the queued entries nor an already-presented asic_sna_wr can leak
+			// into the new ASIC image.
+			if (sna_download && !sna_download_d) begin
+				chunk_byte_cnt  <= 16'd0;
+				asic_sna_wr     <= 1'b0;
+				asic_sna_active <= 1'b0;
+				asic_sna_rmr2   <= 8'd0;
+				asic_sna_unlock <= 1'b0;
+				fifo_wr_ptr     <= 4'd0;
+				fifo_rd_ptr     <= 4'd0;
+			end
+
 			if (cpc_plus_chunk_start) begin
 				chunk_byte_cnt  <= 16'd0;
 				asic_sna_active <= 1'b1;
@@ -63,7 +89,8 @@ module plus_sna_parser
 				fifo_rd_ptr     <= 4'd0;
 			end
 
-			// Enqueue incoming writes
+			// Enqueue registered payload strobes even on the first clock after
+			// sna_download falls; that is the production pipeline's tail.
 			if (cpc_plus_byte_wr) begin
 				chunk_byte_cnt <= chunk_byte_cnt + 16'd1;
 
@@ -109,8 +136,14 @@ module plus_sna_parser
 				end
 			end
 
-			// Dequeue writes to asic_regs
-			if (!fifo_empty) begin
+			// Dequeue writes to asic_regs.  A new snapshot edge has priority:
+			// fifo_empty still reflects the old pointers during this clock, so
+			// allowing the normal branch would re-present one stale write even
+			// though the restart block above cleared the queue.
+			if (sna_download && !sna_download_d) begin
+				asic_sna_wr <= 1'b0;
+			end
+			else if (!fifo_empty) begin
 				asic_sna_wr   <= 1'b1;
 				asic_sna_addr <= fifo_mem[fifo_rd_idx][21:8];
 				asic_sna_data <= fifo_mem[fifo_rd_idx][7:0];

@@ -14,6 +14,59 @@
   4. CF-4 DMA/PPI/PSG arbitration: 8-cycle LOAD execution, AY register tracking and restoration, `dma_ppi_wait` Z80 WAIT assertion, and PPI write/read gating in `rtl/plus/asic_dma.v` and `rtl/Amstrad_motherboard.v`.
   5. CF-5 CPC+ SNA parser: unmasked reset during `sna_download`, 8-entry write FIFO with `ioctl_wait` backpressure, and atomic consecutive-byte/nibble unpacking in `rtl/plus/plus_sna_parser.v` and `Amstrad.sv`.
   6. CG-3 Sprite dynamic write closure: CPU pixel write-through into matching staged buffers without cache-invalidation tearing or stalling in `rtl/plus/asic_sprites.v` and `rtl/plus/asic_regs.v`.
+  **REVIEWED, NOT CLEARED — Claude Opus 5 xhigh, 2026-08-29.** The independent
+  review confirmed a CPC+ SNA RMR2/unlock restore defect, tautological FDC
+  decoder tests, absent production DMA/PPI WAIT and tape coverage, an unmet
+  exact-tip timing gate, and sprite test/in-flight-state gaps. The debt remains
+  open pending focused remediation, parent gates, and fresh re-review. Full
+  verbatim record: `docs/plus/p10-independent-review.md`.
+  **REMEDIATION INTEGRATED FOR HARDWARE CHECKPOINT — feature tip `1d1795b4`.**
+  The integrated checkpoint shares the classic/Plus FDC decoder between production and its
+  truth-table test, retains SNA RMR2/unlock through delayed apply, separates
+  locked MRER from unlocked RMR2 across the MMU/GA seam, suppresses classic ROM
+  ownership in Plus mode, rejects delayed stale sprite fetches, and advances the
+  SSCR vertical row base at effective-RA wrap. The full simulation suite, lint,
+  and golden soak passed before the second review.
+  **SECOND REVIEW, NOT CLEARED — Claude Opus 5 xhigh, 2026-08-30.** The reviewer
+  found no live functional defect in those four remediation paths and verified
+  their source basis, but blocked clearance on a contradictory video-pointer
+  comment, the new shared FDC decoder being absent from standalone lint, and a
+  remaining copied FDC equation in the P10 harness. The same pass found a
+  pre-existing status-2 frame timer whose origin condition disagreed with the
+  pointer reload it claimed to mirror, plus sprite-test fidelity and several
+  low-severity architecture/source-residual notes. Full verbatim record:
+  `docs/plus/p10-hardware-remediation-independent-review.md`.
+  **SECOND-REVIEW REMEDIATION INTEGRATED:** the three blockers
+  have focused fixes; the frame-timer condition has been unified with the
+  selected ACCC v1.11 section 20.3.4 reading, whose same-page C9 wording conflict
+  is explicitly retained for hardware/author confirmation. The post-fix parent
+  gates pass: 175 classic vectors and all Plus benches, full lint including the
+  decoder's standalone `-Wall` target, golden soak
+  `0x48146d2b681268ab`, and `git diff --check`. Keep this row open: a fresh
+  remediation re-review is pending, as are real-u765 and top-level SNA/DMA
+  production tests, exact-tip Quartus timing, and hardware retest.
+  **POST-REVIEW FINAL SCAN REOPENED CF-5, THEN REMEDIATED AND INTEGRATED:** the scan
+  found that production `asic_regs` was held in reset during CPC+ payload
+  writes, registered strobes used uncaptured live data and could repeat, and
+  snapshot apply did not wait for the FIFO/write tail. The integrated delta adds
+  a one-cycle ASIC-register reset at SNA start, captured one-cycle
+  byte/strobe delivery, parser `busy`/post-download drain, and an apply barrier.
+  `p8_04` now exercises valid backpressure, a falling-download tail byte, the
+  parser/ASIC-register/MMU restore seam, shadow application, and ordinary reset.
+  Parent inspection additionally removed the end-of-chunk assignment that
+  suppressed the final registered payload and connected the P10 harness's new
+  ASIC reset port to `sys_reset` rather than an undriven implicit net. The full
+  simulation gate, focused rebuilt P8/P10 benches, lint, exact golden soak, and
+  `git diff --check` pass. This materially extends the delta after Claude's
+  second review, so review debt remains open. The local seam still does not
+  elaborate `Amstrad.sv`; exact-top Quartus and hardware confirmation remain.
+  A final Luna re-scan then found a rapid-restart residual: a new snapshot
+  cleared shadows but could replay 1-3 queued writes from the previous image.
+  Restart now clears FIFO pointers and gives that edge priority over dequeue;
+  `p8_04` first failed on the stale write and now passes with a before-drain
+  restart discriminator. A requested Opus-high re-review was terminated when
+  provider quota moved onto paid extra credits and returned no report; it does
+  not clear any part of this row.
 
 - **ACCC Round 2 documentation correction, 2026-08-28** — documentation on the integration
   branch `accc-review-and-fixes`, based on `c11c55d`. Scope: `accuracy/accc-author-feedback.md`, its Round 1

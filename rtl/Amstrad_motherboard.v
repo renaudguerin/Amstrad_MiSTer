@@ -22,9 +22,12 @@ module Amstrad_motherboard
 	input         clk,
 	input         ce_16,
 
-	// Reserved capability inputs for staged Amstrad Plus integration.
-	// They intentionally do not affect the classic CPC implementation yet.
+	// Plus model capability inputs.  They are inactive in classic mode.
 	input         plus_mode,
+	// Authoritative ASIC lock state from plus_mmu.  This is consumed by the
+	// Plus Gate Array register file to split the 101xxxxx MRER alias from
+	// unlocked RMR2 writes.
+	input         plus_unlocked,
 	input         plus_ram_128k,
 	input         plus_has_fdc,
 	input         plus_has_tape,
@@ -81,6 +84,7 @@ module Amstrad_motherboard
 	input         plus_sna_wr,
 	input  [13:0] plus_sna_addr,
 	input   [7:0] plus_sna_data,
+	input         plus_asic_reset,
 
 	input         tape_in,
 	output        tape_out,
@@ -330,9 +334,10 @@ asic_ga_timing asic_ga
 	.CPU_N(plus_cpu_n),
 	.MWE_N(),
 	.E244_N(),
-	// The ASIC mirrors the GA ROM-enable decode exactly (both watch the
-	// same bus), but romen for Amstrad_MMU keeps coming from ga40010 in
-	// both modes; plus_mmu overlays cartridge windows on top of it.
+	// The Plus MMU owns cartridge ROM windows.  Its lock state is shared
+	// with the GA register decoder so an unlocked RMR2 byte cannot alter
+	// this legacy control register.
+	.plus_unlocked(plus_unlocked),
 	.ROMEN_N(),
 	.RAMRD_N(),
 	.ROM(),
@@ -442,7 +447,7 @@ wire        psg_dma_active;
 asic_regs asic_page
 (
 	.clk(clk),
-	.reset(reset),
+	.reset(plus_asic_reset),
 
 	.asic_cs(asic_page_active & (A[15:14] == 2'b01)),
 	.mem_wr(mem_wr),
@@ -737,7 +742,10 @@ Amstrad_MMU MMU
 	.CLK(clk),
 	.reset(reset),
 	.ram64k(ram64k),
-	.romen_n(romen_n),
+	// The Plus cartridge windows are overlaid by plus_mmu.  An unclaimed
+	// address in Plus mode is ordinary base RAM; do not let the concurrently
+	// instantiated classic GA ROM decoder select an onboard ROM behind it.
+	.romen_n(plus_mode ? 1'b1 : romen_n),
 	.rom_map(rom_map),
 	.A(A),
 	.D(D),

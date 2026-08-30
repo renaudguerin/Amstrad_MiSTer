@@ -286,6 +286,7 @@ reg   [7:0] sna_rle_value = 8'd0;
 reg         sna_chunk_cpc_plus = 1'b0;
 reg         sna_cpc_plus_start = 1'b0;
 reg         sna_cpc_plus_wr    = 1'b0;
+reg   [7:0] sna_cpc_plus_data  = 8'd0;
 
 wire        plus_sna_wr;
 wire [13:0] plus_sna_addr;
@@ -294,6 +295,7 @@ wire        plus_sna_active;
 wire  [7:0] plus_sna_rmr2;
 wire        plus_sna_unlock;
 wire        plus_sna_ioctl_wait;
+wire        plus_sna_busy;
 
 assign ioctl_wait = romdl_wait | (sna_download && ((|sna_rle_count && (sna_rle_state == 2'd0)) || plus_sna_ioctl_wait)) | cpr_ioctl_wait;
 
@@ -324,6 +326,9 @@ always @(posedge clk_sys) begin
 	reg 	  old_dan_download;
 	reg       old_sna_download;
 	reg  	  old_st0 = 0;
+
+	sna_cpc_plus_start <= 1'b0;
+	sna_cpc_plus_wr    <= 1'b0;
 
 	if(!romdl_wait && sna_rle_count && (sna_rle_state == 2'd0) && sna_chunk_mem && (sna_chunk_bank < 4'd2)) begin
 		romdl_wait <= 1;
@@ -507,6 +512,7 @@ always @(posedge clk_sys) begin
 		sna_chunk_cpc_plus <= 1'b0;
 		sna_cpc_plus_start <= 1'b0;
 		sna_cpc_plus_wr    <= 1'b0;
+		sna_cpc_plus_data  <= 8'd0;
 		sna_finish_pending <= 1'b0;
 	end
 	if(sna_download && ioctl_wr && !romdl_wait && (!sna_rle_count || (sna_rle_state == 2'd2)) && (ioctl_addr >= sna_chunk_start)) begin
@@ -553,12 +559,9 @@ always @(posedge clk_sys) begin
 			reg [31:0] next_rem;
 			next_rem = sna_chunk_rem - 1'd1;
 			sna_chunk_rem <= next_rem;
-			sna_cpc_plus_start <= 1'b0;
 			if(sna_chunk_cpc_plus) begin
-				sna_cpc_plus_wr <= 1'b1;
-			end
-			else begin
-				sna_cpc_plus_wr <= 1'b0;
+				sna_cpc_plus_wr   <= 1'b1;
+				sna_cpc_plus_data <= ioctl_dout;
 			end
 			if(sna_chunk_mem && (sna_chunk_bank < 4'd2)) begin
 				if(!sna_chunk_rle) begin
@@ -623,7 +626,6 @@ always @(posedge clk_sys) begin
 				sna_chunk_mem <= 1'b0;
 				sna_chunk_rle <= 1'b0;
 				sna_chunk_cpc_plus <= 1'b0;
-				sna_cpc_plus_wr    <= 1'b0;
 				sna_chunk_finish <= 1'b0;
 				sna_rle_state <= 2'd0;
 			end
@@ -631,7 +633,7 @@ always @(posedge clk_sys) begin
 	end
 	old_sna_download <= sna_download;
 	if(old_sna_download & ~sna_download) sna_finish_pending <= 1'b1;
-	if(sna_finish_pending && !romdl_wait && !boot_wr && !sna_rle_count) begin
+	if(sna_finish_pending && !romdl_wait && !boot_wr && !sna_rle_count && !plus_sna_busy) begin
 		sna_finish_pending <= 1'b0;
 		sna_apply_cnt <= 3'd5;
 	end
@@ -725,6 +727,16 @@ reg reset;
 
 wire reset_base = RESET | status[0] | status[32] | buttons[1] | rom_download | key_reset | dan_download |
                   sna_download | sna_finish_pending | (old_sna_download_reset & ~sna_download) | (sna_apply_cnt > 3'd2);
+
+// The SNA parser owns its download lifecycle.  In particular it must remain
+// live while sna_download is asserted and retain its CPC+ RMR2/unlock shadows
+// through sna_finish_pending/sna_apply_cnt until the delayed sna_load pulse.
+// Other reset/download sources still discard an incomplete or retained SNA.
+wire sna_parser_reset = RESET | status[0] | status[32] | buttons[1] | rom_download | key_reset | dan_download |
+                        cpr_download | cpr_finish_pending | (old_cpr_download_reset & ~cpr_download) |
+                        (cpr_apply_cnt != 3'd0);
+
+wire plus_asic_reset = sna_parser_reset | (sna_download & ~old_sna_download_reset);
 
 always @(posedge clk_sys) begin
 	if(sna_load) model <= sna_model;
@@ -822,16 +834,9 @@ always @(posedge clk_sys) if((tape_ready & tape_motor) || ~act_cnt[24] || act_cn
 
 //////////////////////////////////////////////////////////////////////////
 
-// FDC decode (HF-1). Real CPC/6128+/DDI-1 hardware decodes A10, A9 and A8
-// here; A7 is not part of the select, so the whole &FAxx/&FBxx block aliases.
-// Standard AMSDOS uses &FADD for the motor and &FBDF for command/data, both
-// with A7=1, which an A7-qualified decode drops entirely (Drive A: read fail).
-// A0 then picks FDC status (0) from data (1).
-//
-// A9 must be in the select: &FAxx/&FBxx have A9=1, but PlayCity sits at
-// &F8xx/&F9xx with A9=0. Without A9 a PlayCity write also latched the drive
-// motor.
-wire fdc_motor_sel = !cpu_addr[10] & cpu_addr[9] & !cpu_addr[8] & (!plus_mode | plus_has_fdc);
+// Classic and Plus FDC port selections are intentionally kept in one shared
+// decoder so the production path and its focused test use the same equations.
+wire fdc_motor_sel;
 wire [7:0] fdc_dout = (u765_sel & io_rd) ? u765_dout : 8'hFF;
 
 reg motor = 0;
@@ -847,9 +852,17 @@ always @(posedge clk_sys) begin
 end
 
 wire [7:0] u765_dout;
-// A4 separates the FDC from the Kempston mouse inside &FBxx: FDC status/data
-// (&FB7E/&FB7F/&FBDF) have A4=1, the mouse (&FBEE/&FBEF) has A4=0.
-wire       u765_sel = !cpu_addr[10] & cpu_addr[9] & cpu_addr[8] & cpu_addr[4] & ~status[17] & (!plus_mode | plus_has_fdc);
+wire       u765_sel;
+
+plus_fdc_decode fdc_decode
+(
+	.addr(cpu_addr),
+	.plus_mode(plus_mode),
+	.plus_has_fdc(plus_has_fdc),
+	.fdc_disabled(status[17]),
+	.motor_sel(fdc_motor_sel),
+	.u765_sel(u765_sel)
+);
 
 reg  [1:0] u765_ready = 0;
 always @(posedge clk_sys) if(img_mounted[0]) u765_ready[0] <= |img_size;
@@ -1065,6 +1078,7 @@ wire  [7:0] plus_cart_data;
 wire        plus_cart_own, plus_cart_stall;
 wire  [7:0] plus_cart_dout;
 wire  [7:0] plus_io_bus_byte;
+wire        plus_asic_unlocked;
 
 // Cartridge-owned reads bypass the wired-AND entirely: the SDRAM main port
 // is not asked for those cycles (see the sdram oe term below), so ram_dout
@@ -1130,6 +1144,7 @@ plus_mmu plus_mmu
 	// Captured since P0; consumed when the ASIC register page gains its
 	// backing at P2.
 	.asic_page_on(plus_aspage_on),
+	.asic_unlocked(plus_asic_unlocked),
 
 	.sna_load(sna_load),
 	.sna_rmr2(plus_sna_rmr2),
@@ -1139,12 +1154,13 @@ plus_mmu plus_mmu
 plus_sna_parser plus_sna_parser
 (
 	.clk(clk_sys),
-	.reset(reset & ~sna_download),
+	.reset(sna_parser_reset),
 	.sna_download(sna_download),
 	.cpc_plus_chunk_start(sna_cpc_plus_start),
 	.cpc_plus_byte_wr(sna_cpc_plus_wr),
-	.cpc_plus_byte_data(ioctl_dout),
+	.cpc_plus_byte_data(sna_cpc_plus_data),
 	.ioctl_wait(plus_sna_ioctl_wait),
+	.busy(plus_sna_busy),
 	.asic_sna_wr(plus_sna_wr),
 	.asic_sna_addr(plus_sna_addr),
 	.asic_sna_data(plus_sna_data),
@@ -1244,6 +1260,7 @@ Amstrad_motherboard motherboard
 	// Reserved until the Plus subsystems are integrated. Keeping these
 	// explicit prevents the classic CPC model path from changing at P-2.
 	.plus_mode(plus_mode),
+	.plus_unlocked(plus_asic_unlocked),
 	.plus_ram_128k(plus_ram_128k),
 	.plus_has_fdc(plus_has_fdc),
 	.plus_has_tape(plus_has_tape),
@@ -1287,6 +1304,7 @@ Amstrad_motherboard motherboard
 	.plus_sna_wr(plus_sna_wr),
 	.plus_sna_addr(plus_sna_addr),
 	.plus_sna_data(plus_sna_data),
+	.plus_asic_reset(plus_asic_reset),
 
 	.joy1((status[21] ? amouse_dout : 7'd0) | (status[18] ? joy2 : joy1)),
 	.joy2(status[18] ? joy1 : joy2),
