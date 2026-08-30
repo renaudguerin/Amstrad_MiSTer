@@ -206,12 +206,14 @@ P10BOOT_TEST_BIN := $(P10BOOT_OBJ_DIR)/p10_boot_tests
 
 # P10b production input-path fixture: the minimal exact PPI/YM2149/hid/joydb
 # slice from the motherboard, with a scripted fake Z80 and a 6128+ capability
-# set.  This target intentionally uses mixed Verilog/SystemVerilog parsing so
-# the real YM2149 and HID implementations participate.
+# set.  The real Plus GA timing module owns CPU phases/READY and YM CCLK_EN_P.
+# This target intentionally uses mixed Verilog/SystemVerilog parsing so the
+# real YM2149 and HID implementations participate.
 P10INPUT_TOP      := p10_input_test_top
 P10INPUT_TOP_SRC  := $(abspath p10_input_test_top.v)
 P10INPUT_CPU      := $(abspath t80pa_input_bench_cpu.v)
-P10INPUT_RTL      := $(abspath ../../rtl/i8255.v) \
+P10INPUT_RTL      := $(abspath ../../rtl/plus/asic_ga_timing.v) \
+	$(abspath ../../rtl/i8255.v) \
 	$(abspath ../../rtl/YM2149.sv) \
 	$(abspath ../../rtl/hid.sv) \
 	$(abspath ../../rtl/joydb.sv)

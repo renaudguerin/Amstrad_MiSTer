@@ -6,7 +6,8 @@
 // language mode.  This fixture therefore uses the explicitly permitted
 // minimal exact input wrapper below: it copies the motherboard's PPI,
 // YM2149, and HID wiring verbatim, while the top-level joydb selection is
-// the same as Amstrad.sv.  No Plus RTL is substituted in the tested path.
+// the same as Amstrad.sv.  The production Plus timing owner drives the fake
+// CPU phases/READY and the YM2149 character-clock enable.
 // The inputs model a CPC 6128+ (not GX4000): Plus mode is asserted and the
 // 128K/FDC/tape capability flags are not relevant to this input slice.
 
@@ -27,7 +28,14 @@ module p10_input_test_top (
 	output [7:0] read1_o,
 	output [7:0] read2_o,
 	output [7:0] read3_o,
-	output [7:0] read4_o
+	output [7:0] read4_o,
+	output [5:0] operation_count_o,
+	output [5:0] sampled_operation_count_o,
+	output [7:0] cclk_sample_count_o,
+	output [7:0] wait_stall_count_o,
+	output       timing_error_o,
+	output       cclk_en_p_o,
+	output       ym_ce_o
 );
 	reg [1:0] cdiv;
 	always @(posedge clk) begin
@@ -65,13 +73,72 @@ module p10_input_test_top (
 	wire        cpu_iorq_n;
 	wire        cpu_mreq_n;
 	wire        cpu_m1_n;
+	wire        cclk_en_p;
+	wire        phi_en_p;
+	wire        phi_en_n;
+	wire        timing_ready;
+	wire        ym_ce;
+	wire        cpu_wait_n = timing_ready | (cpu_iorq_n & cpu_mreq_n);
+
+	// Production Plus timing contract.  The fake CPU bus is the same bus the
+	// motherboard feeds into asic_ga_timing.  This input-only fixture has no
+	// raster source or programmable raster interrupt, so sync stays inactive
+	// and crtc_adj suppresses PRI comparisons.
+	asic_ga_timing timing
+	(
+		.clk(clk),
+		.cen_16(ce_16),
+		.fast(1'b0),
+		.RESET_N(~reset),
+		.plus_unlocked(1'b0),
+		.A(cpu_addr[15:14]),
+		.D(cpu_do),
+		.MREQ_N(cpu_mreq_n),
+		.M1_N(cpu_m1_n),
+		.RD_N(cpu_rd_n),
+		.IORQ_N(cpu_iorq_n),
+		.HSYNC_I(1'b1),
+		.VSYNC_I(1'b1),
+		.CCLK(),
+		.CCLK_EN_P(cclk_en_p),
+		.CCLK_EN_N(),
+		.PHI_N(),
+		.PHI_EN_N(phi_en_n),
+		.PHI_EN_P(phi_en_p),
+		.RAS_N(),
+		.CAS_N(),
+		.CASAD_N(),
+		.READY(timing_ready),
+		.CPU_N(),
+		.MWE_N(),
+		.E244_N(),
+		.ROMEN_N(),
+		.RAMRD_N(),
+		.ROM(),
+		.pri(8'd0),
+		.crtc_line(9'd0),
+		.crtc_adj(1'b1),
+		.intack(~cpu_m1_n & ~cpu_iorq_n),
+		.int_last_raster(),
+		.HSYNC_O(),
+		.VSYNC_O(),
+		.SYNC_N(),
+		.INT_N(),
+		.VBLANK(),
+		.MODE_SYNC_EN(),
+		.MODE(),
+		.BORDER_O(),
+		.INKR_O(),
+		.GAMODE_O()
+	);
 
 	T80pa_input_bench_cpu cpu
 	(
 		.reset_n(~reset),
 		.clk(clk),
-		.cen_p(ce_16),
-		.cen_n(ce_16),
+		.cen_p(phi_en_p),
+		.cen_n(phi_en_n),
+		.sample_en(cclk_en_p),
 		.a(cpu_addr),
 		.cpu_do(cpu_do),
 		.di(cpu_di),
@@ -80,21 +147,26 @@ module p10_input_test_top (
 		.iorq_n(cpu_iorq_n),
 		.mreq_n(cpu_mreq_n),
 		.m1_n(cpu_m1_n),
-		.wait_n(1'b1),
+		.wait_n(cpu_wait_n),
 		.done_o(done_o),
 		.read_count_o(read_count_o),
 		.read0_o(read0_o),
 		.read1_o(read1_o),
 		.read2_o(read2_o),
 		.read3_o(read3_o),
-		.read4_o(read4_o)
+		.read4_o(read4_o),
+		.operation_count_o(operation_count_o),
+		.sampled_operation_count_o(sampled_operation_count_o),
+		.cclk_sample_count_o(cclk_sample_count_o),
+		.wait_stall_count_o(wait_stall_count_o),
+		.timing_error_o(timing_error_o)
 	);
 
 	p10_input_motherboard mb
 	(
 		.clk(clk),
 		.reset(reset),
-		.ce_16(ce_16),
+		.psg_ce(cclk_en_p),
 		.cpu_addr(cpu_addr),
 		.cpu_do(cpu_do),
 		.cpu_di(cpu_di),
@@ -109,8 +181,12 @@ module p10_input_test_top (
 		.key_matrix_o(key_matrix_o),
 		.port_c_o(port_c_o),
 		.psg_addr_o(psg_addr_o),
-		.joy1_selected_o(joy1_selected_o)
+		.joy1_selected_o(joy1_selected_o),
+		.psg_ce_o(ym_ce)
 	);
+
+	assign cclk_en_p_o = cclk_en_p;
+	assign ym_ce_o = ym_ce;
 endmodule
 
 // Minimal exact input slice of rtl/Amstrad_motherboard.v.  Signal names and
@@ -120,7 +196,7 @@ endmodule
 module p10_input_motherboard (
 	input        clk,
 	input        reset,
-	input        ce_16,
+	input        psg_ce,
 	input [15:0] cpu_addr,
 	input  [7:0] cpu_do,
 	output [7:0] cpu_di,
@@ -135,7 +211,8 @@ module p10_input_motherboard (
 	output [7:0] key_matrix_o,
 	output [7:0] port_c_o,
 	output [7:0] psg_addr_o,
-	output [6:0] joy1_selected_o
+	output [6:0] joy1_selected_o,
+	output       psg_ce_o
 );
 	wire io_rd = ~(cpu_rd_n | cpu_iorq_n);
 	wire io_wr = ~(cpu_wr_n | cpu_iorq_n);
@@ -190,7 +267,7 @@ module p10_input_motherboard (
 	(
 		.RESET(reset),
 		.CLK(clk),
-		.CE(ce_16),
+		.CE(psg_ce),
 		.SEL(1'b0),
 		.MODE(1'b0),
 		.BC(portC[6]),
@@ -234,6 +311,7 @@ module p10_input_motherboard (
 	assign port_c_o = portC;
 	assign psg_addr_o = cpu_psg_addr;
 	assign joy1_selected_o = joy1;
+	assign psg_ce_o = psg_ce;
 
 	// Keep the intentionally unused memory-cycle pins explicit; the real
 	// motherboard's PPI cs is likewise independent of MREQ for I/O cycles.
