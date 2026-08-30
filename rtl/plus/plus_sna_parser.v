@@ -43,7 +43,11 @@ module plus_sna_parser
 
 	wire [3:0] fifo_count = fifo_wr_ptr - fifo_rd_ptr;
 	wire       fifo_empty = (fifo_wr_ptr == fifo_rd_ptr);
-	assign ioctl_wait     = (fifo_count >= 4'd4);
+	// A sprite payload byte expands to two writes.  The producer can already
+	// have two accepted bytes in flight when it observes ioctl_wait, so assert
+	// with five physical slots left: both bytes fit even without relying on a
+	// simultaneous dequeue, and one slot remains to keep the ring unambiguous.
+	assign ioctl_wait     = (fifo_count >= 4'd3);
 	// The top-level registers each accepted payload byte and its strobe.  The
 	// last registered strobe can therefore reach this module one clock after
 	// sna_download falls; keep the lifecycle busy and accept that tail byte.
