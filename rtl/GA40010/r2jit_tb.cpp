@@ -285,14 +285,9 @@ int main(int argc, char** argv) {
         if (jit.write_c0 != 46) {
             throw TestFailure("OUT(C) did not latch R2 at C0=R2");
         }
-        if (blank_delta == 4 && jit_width + 4 == normal_width) {
-            std::cout << "XFAIL r2jit_type1_out_c: expected +3 pixels and "
-                         "unchanged HSYNC width (ACCC v1.11 section 14.6.1 "
-                         "p.141)\n";
-            return 0;
-        }
         if (blank_delta != 3 || jit_width != normal_width) {
-            throw TestFailure("unexpected R2.JIT timing signature");
+            throw TestFailure("expected +3 pixels and unchanged HSYNC width "
+                              "(ACCC v1.11 section 14.6.1 p.141)");
         }
         std::cout << "PASS  r2jit_type1_out_c\n";
     } catch (const std::exception& error) {

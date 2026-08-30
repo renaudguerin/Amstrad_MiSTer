@@ -295,6 +295,19 @@ public:
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__ivm_disp_r);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__tog_line);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__tog_enter_line);
+        // F20 R2.JIT fixture stage (2026-08-30): sub-character HSYNC timing
+        // introduces wrapper-owned phase and deferred-edge state.  Fold every
+        // behavior-bearing latch into the projection so reset, live-type-switch,
+        // and delayed-trailing-edge leaks cannot hide behind identical pins.
+        mix(r.CRTC__DOT__hsync_char_phase);
+        mix(r.CRTC__DOT__hsync_start_phase);
+        mix(r.CRTC__DOT__hsync_off_count);
+        mix(r.CRTC__DOT__hsync_off_pending);
+        mix(r.CRTC__DOT__hsync_phaseful);
+        mix(r.CRTC__DOT__type1_hsync_start_pending);
+        mix(r.CRTC__DOT__type1_hsync_start_count);
+        mix(r.CRTC__DOT__r2_jit_pending);
+        mix(r.CRTC__DOT__register_write_d);
     }
 
     void expect_byte(const std::string& expectation,
