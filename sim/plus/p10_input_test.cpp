@@ -34,8 +34,12 @@ public:
 	void tick() {
 		dut.clk = 0;
 		dut.eval();
+		if (dut.ym_ce_o != dut.cclk_en_p_o)
+			fail("YM2149 CE sampled outside asic_ga_timing CCLK_EN_P");
 		dut.clk = 1;
 		dut.eval();
+		if (dut.ym_ce_o != dut.cclk_en_p_o)
+			fail("YM2149 CE sampled outside asic_ga_timing CCLK_EN_P");
 		++cycle;
 	}
 
@@ -101,6 +105,16 @@ int run() {
 	}
 	if (!b.done()) fail("script did not finish");
 	if (b.read_count() != 5) fail("expected five AY R14 samples");
+	if (b.dut.operation_count_o != 20)
+		fail("expected all 20 scripted I/O operations to complete");
+	if (b.dut.sampled_operation_count_o != 20)
+		fail("an I/O operation completed without a CCLK_EN_P sample");
+	if (b.dut.cclk_sample_count_o < 20)
+		fail("expected at least one CCLK_EN_P sample per I/O operation");
+	if (b.dut.wait_stall_count_o == 0)
+		fail("fixture never exercised an active I/O wait on READY");
+	if (b.dut.timing_error_o)
+		fail("fake CPU violated the production phase/READY contract");
 
 	check_eq(b.read_value(0), 0xFF, "row 8 idle");
 	check_eq(b.read_value(1), 0xDF, "row 8 PS2 A");
@@ -110,7 +124,12 @@ int run() {
 
 	if (b.dut.port_c_o != 0x49)
 		fail("Plus PPI Port C did not retain row-9 read selection");
-	std::printf("p10 input checks passed: PPI 0x9B, AY R7/R14, PS2 A, SNAC and USB Fire 1\n");
+	std::printf("p10 input checks passed: PPI 0x9B, AY R7/R14, PS2 A, "
+	            "SNAC and USB Fire 1; operations=%u, CCLK samples=%u, "
+	            "READY stalls=%u\n",
+	            static_cast<unsigned>(b.dut.operation_count_o),
+	            static_cast<unsigned>(b.dut.cclk_sample_count_o),
+	            static_cast<unsigned>(b.dut.wait_stall_count_o));
 	return 0;
 }
 
