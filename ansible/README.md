@@ -6,6 +6,12 @@ UTM's Rosetta runtime, registers the x86_64 ELF handler, enables Debian amd64
 multiarch, and installs the native and amd64 runtime dependencies used by
 Quartus and the repository's Verilator tests.
 
+The playbook removes Debian's older Verilator package, builds Verilator 5.050
+from its exact official upstream commit, and links it at
+`/usr/local/bin/verilator`. `validate.yml` checks both the reported version and
+the source-commit marker, so the local VM and GitHub-hosted simulation runner
+cannot silently drift apart.
+
 It deliberately does **not** download, copy, execute, or accept the license
 terms for Altera's proprietary installer. No credentials or installer files
 belong in this repository. Quartus Prime Lite needs no license file, but its
@@ -28,9 +34,10 @@ does not execute `dpkg --add-architecture amd64`. The real run enables the
 architecture; subsequent check-mode runs can cover those packages. Some
 runtime-only tasks, such as starting the systemd service, remain intentionally
 skipped in check mode. The validation play executes Debian's amd64
-`/usr/bin/hello` through Rosetta, then reports the Quartus version if Quartus
-is installed. The final acceptance command uses `-e quartus_required=true` so
-an absent toolchain fails rather than being mistaken for a complete build VM.
+`/usr/bin/hello` through Rosetta, requires the pinned Verilator version, then
+reports the Quartus version if Quartus is installed. The final acceptance
+command uses `-e quartus_required=true` so an absent toolchain fails rather
+than being mistaken for a complete build VM.
 
 ## Addressing the guest
 

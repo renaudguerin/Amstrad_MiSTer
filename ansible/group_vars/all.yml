@@ -58,22 +58,37 @@ quartus_installer_artifacts:
 # gate so a missing Quartus installation is a hard failure.
 quartus_required: false
 
+# Verilator is built from the official source rather than installed from the
+# distribution repository. Debian and Ubuntu packages lag the version used by
+# local development, and keeping both runners on the same exact release avoids
+# simulator-only RTL compatibility edits.
+verilator_version: "5.050"
+verilator_commit: "848d926ebd4addacacd294dc84e35d9d4ae8078c"
+verilator_install_prefix: "/opt/verilator-{{ verilator_version }}"
+
 quartus_native_packages:
   - avahi-daemon
+  - autoconf
   - binfmt-support
+  - bison
   - build-essential
   - ca-certificates
   - console-setup
   - curl
   - file
+  - flex
   - git
+  - help2man
   - kbd
+  - libfl-dev
+  - perl
+  - python3
   - rsync
   - tar
   - unzip
-  - verilator
   - xauth
   - xz-utils
+  - zlib1g-dev
 
 # Quartus 17's self-extracting installer launchers use an old static ELF layout
 # that Apple's Linux Rosetta loader rejects with `bss_size overflow`. Invoke

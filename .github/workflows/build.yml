@@ -160,7 +160,7 @@ jobs:
 
   simulation:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     steps:
       - name: Check out source
@@ -168,8 +168,47 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Verilator
-        run: sudo apt-get update && sudo apt-get install --yes verilator
+      - name: Restore pinned Verilator
+        id: verilator-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.tool_cache }}/amstrad-verilator
+          key: amstrad-verilator-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/ci/install-verilator.sh') }}
+
+      - name: Check cached Verilator
+        id: verilator-check
+        shell: bash
+        env:
+          VERILATOR_INSTALL_PREFIX: ${{ runner.tool_cache }}/amstrad-verilator
+        run: |
+          if scripts/ci/install-verilator.sh --check; then
+            printf 'ready=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'ready=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build pinned Verilator
+        if: steps.verilator-check.outputs.ready != 'true'
+        shell: bash
+        env:
+          VERILATOR_INSTALL_PREFIX: ${{ runner.tool_cache }}/amstrad-verilator
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes autoconf bison flex help2man libfl-dev zlib1g-dev
+          scripts/ci/install-verilator.sh
+
+      - name: Select pinned Verilator
+        shell: bash
+        env:
+          VERILATOR_INSTALL_PREFIX: ${{ runner.tool_cache }}/amstrad-verilator
+        run: |
+          printf '%s/bin\n' "$VERILATOR_INSTALL_PREFIX" >> "$GITHUB_PATH"
+          if ! scripts/ci/install-verilator.sh --check; then
+            printf '::error::cached Verilator does not match the repository pin\n' >&2
+            exit 1
+          fi
+          reported="$($VERILATOR_INSTALL_PREFIX/bin/verilator --version)"
+          printf '%s\n' "$reported"
 
       - name: Run behavioral tests and lint
         run: make -C sim clean test lint

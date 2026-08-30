@@ -18,6 +18,15 @@ make -C sim clean test lint
 This is the per-commit gate for production RTL, simulation vectors, co-simulation manifests,
 and repository tooling.  A failed Tier A run blocks every higher tier.
 
+The hosted job builds the repository-pinned Verilator 5.050 source commit and caches the
+installed prefix by operating system, architecture, and installer-script hash. Every restore
+is checked against both the exact-source marker and reported version before use. A cold run
+therefore needs a 30-minute budget; subsequent runs reuse the compiled tool. GitHub cache
+scope means the integration branch should populate a new pin before stream branches depend
+on it. If an exact-key cache is ever corrupt, validation rebuilds safely but GitHub will not
+overwrite that existing key; delete it with `gh cache delete <cache-id>` so the next green run
+can save the repaired prefix.
+
 **Hardening (2026-08-26 hardware session, N5 implemented 2026-08-28).** The classic-video black screen shipped
 because no gate elaborates `Amstrad.sv` and Quartus reports implicit nets only as Warning
 10236, three commits' worth of which sat in every build log since `3d7a178` unnoticed.
@@ -243,4 +252,3 @@ bottleneck and allows `quartus_map` to execute single-process multi-level synthe
    ```
 4. **Never dispatch both routes concurrently for the same SHA**: Both routes share the single
    `build-core-synthesis` concurrency group, so a newer dispatch will cancel the earlier in-flight build.
-

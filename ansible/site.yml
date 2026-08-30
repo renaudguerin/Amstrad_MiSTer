@@ -16,6 +16,7 @@
           {{ ansible_facts.distribution }}
           {{ ansible_facts.distribution_version }}
           {{ ansible_facts.architecture }}.
+      tags: always
 
     - name: Read the build user account
       ansible.builtin.getent:
@@ -82,6 +83,31 @@
         state: present
         update_cache: true
         cache_valid_time: 3600
+      tags: verilator
+
+    - name: Remove the distribution Verilator package
+      ansible.builtin.apt:
+        name: verilator
+        state: absent
+      tags: verilator
+
+    - name: Install the pinned Verilator release from official source
+      ansible.builtin.script: "{{ playbook_dir }}/../scripts/ci/install-verilator.sh"
+      args:
+        creates: >-
+          {{ verilator_install_prefix }}/.verilator-source-{{ verilator_commit }}
+      environment:
+        VERILATOR_INSTALL_PREFIX: "{{ verilator_install_prefix }}"
+        VERILATOR_EXPECTED_COMMIT: "{{ verilator_commit }}"
+      tags: verilator
+
+    - name: Select the pinned Verilator for all users
+      ansible.builtin.file:
+        src: "{{ verilator_install_prefix }}/bin/verilator"
+        dest: /usr/local/bin/verilator
+        state: link
+        force: true
+      tags: verilator
 
     - name: Install the direct-only legacy installer emulator
       ansible.builtin.apt:

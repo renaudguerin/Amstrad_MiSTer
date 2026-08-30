@@ -1084,14 +1084,13 @@ remediated at the tip with new vectors pr05, strengthened m6/m7 and
 extended a02-a06; both passes' residual items are recorded in the review
 document.
 
-Tooling lesson from this branch's CI runs: CI's Verilator is **5.020** while
-local is 5.050 — three deltas bit us and were fixed version-portably:
-unknown `-Wno-<name>` flags and unknown lint metacomments are hard errors on
-5.020 (keep waivers out of both; fix sources instead), function-call
-bit-selects are SystemVerilog-only under 1364-2001, an else-wrapped indexed
-part-select write tripped a V3Gate internal error, and mixed blocked/
-nonblocked assignment is fatal. Write new RTL/benches against the older
-front end.
+Tooling policy: hosted CI and the Ansible-provisioned local VM both pin
+**Verilator 5.050** from the exact official upstream commit used by local
+development. The earlier hosted 5.020 package rejected the YM2149 unpacked
+array initializer and the P10 input fixture's mixed scheduling, which led to
+temporary compatibility edits. Those edits were removed when the toolchain
+pin landed; new RTL and benches target the repository-pinned simulator rather
+than whichever older package a Linux distribution happens to carry.
 
 ## Build and tooling state
 

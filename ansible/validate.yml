@@ -79,6 +79,43 @@
           The amd64 probe did not execute through Rosetta.
           file={{ amd64_probe_file.stdout }} output={{ amd64_probe.stdout }}
 
+    - name: Query the provisioned Verilator version
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/verilator
+          - --version
+      register: verilator_version_report
+      changed_when: false
+
+    - name: Check the provisioned Verilator source marker
+      ansible.builtin.stat:
+        path: >-
+          {{ verilator_install_prefix }}/.verilator-source-{{ verilator_commit }}
+      register: verilator_source_marker
+
+    - name: Inspect the system Verilator link
+      ansible.builtin.stat:
+        path: /usr/local/bin/verilator
+        follow: false
+      register: verilator_system_link
+
+    - name: Require the repository's pinned Verilator release
+      ansible.builtin.assert:
+        that:
+          - >-
+            verilator_version_report.stdout is match(
+            '^Verilator ' + verilator_version + ' ')
+          - verilator_source_marker.stat.exists
+          - verilator_source_marker.stat.isreg
+          - verilator_system_link.stat.islnk
+          - >-
+            verilator_system_link.stat.lnk_source ==
+            verilator_install_prefix + '/bin/verilator'
+        fail_msg: >-
+          This repository requires Verilator {{ verilator_version }} from
+          {{ verilator_commit }}. Reported version:
+          {{ verilator_version_report.stdout }}
+
     - name: Check for Quartus after the manual installer handoff
       ansible.builtin.stat:
         path: "{{ quartus_rootdir }}/bin/quartus_sh"
