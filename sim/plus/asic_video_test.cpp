@@ -1671,6 +1671,29 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     r9_zero.expect_row("t04n R9=0 origin C9", 0);
     r9_zero.expect_hcc("t04n R9=0 origin sampled phase", 1);
     r9_zero.expect_ma("t04n R9=0 origin reloads R12/R13", 0x101);
+
+    // §19.6.4 places the additional line after the R5 adjustment lines.
+    // Its exit is the next frame origin, not a new adjustment entry even
+    // though forced C9=0 also satisfies C9=R9 when R9 itself is zero.
+    TestBench r5_nonzero;
+    r5_nonzero.write_register(0, 7);
+    r5_nonzero.write_register(1, 2);
+    r5_nonzero.write_register(3, 0x11);
+    r5_nonzero.write_register(4, 0);
+    r5_nonzero.write_register(5, 2);
+    r5_nonzero.write_register(6, 1);
+    r5_nonzero.write_register(7, 1);
+    r5_nonzero.write_register(9, 0);
+    r5_nonzero.write_register(12, 1);
+    r5_nonzero.write_register(13, 0);
+    r5_nonzero.run_to_frame_start();
+    r5_nonzero.write_register(8, 1);
+    r5_nonzero.run_characters(56);
+    r5_nonzero.expect_adj(false, "t04n R9=0 added-line exit does not re-enter R5");
+    r5_nonzero.expect_line("t04n R5 path exits at next-frame C4", 0);
+    r5_nonzero.expect_row("t04n R5 path exits at next-frame C9", 0);
+    r5_nonzero.expect_hcc("t04n R5 path origin sampled phase", 1);
+    r5_nonzero.expect_ma("t04n R5 path reloads next-frame pointer", 0x101);
 }
 
 // ACCC v1.11 section 19.8.4 pp.235-238: entering IVM (R8=3)
