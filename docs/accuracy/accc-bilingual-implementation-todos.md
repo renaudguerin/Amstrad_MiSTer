@@ -38,8 +38,12 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   predicts `(1,0)`; French explicit realignment predicts `(1,1)`. This is a predicted model
   mismatch, not hardware evidence.
 - **Owner:** classic accuracy stream.
-- **Gate:** directed discriminator before any RTL change; preserve all existing IVM transition
-  fixtures and explain any soak-hash movement.
+- **Gate:** the discriminator must reach the origin with **even R9**, because current RTL only
+  toggles ParityC9 there when R9 is even; odd R9 can accidentally produce the French result.
+  One paper-derived route starts with R9=3/R4=1/R8=0, reaches C4=1/C9=0, writes R9=2, then
+  enters R8=3 to create `(0,1)` before origin. Preserve all existing IVM transition fixtures,
+  explain any soak-hash movement, and migrate the affected `rtl/CRTC.v` parity comment from
+  its v1.10 English page anchor to v1.11 French §19.5.3 p.209 in the same classic commit.
 
 ## IA-3 — Type-0 R6 live condition at C0=R1
 
@@ -102,7 +106,8 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
 
 ## Items deliberately not promoted to code work
 
-BL-006, BL-010–013, BL-021, BL-027, BL-029–032, BL-035, BL-040, BL-041, and BL-044 describe
-already-correct behavior or documentation-only corrections. BL-008, BL-009, BL-014, BL-022,
-BL-033, BL-037, BL-039, BL-042, and BL-043 require author clarification, out-of-scope CRTC2
-work, or hardware evidence before an implementation premise exists.
+BL-001–004, BL-006, BL-007, BL-010–013, BL-015, BL-016, BL-021, BL-023, BL-024, BL-026–032,
+BL-034, BL-035, BL-040, BL-041, and BL-044 describe already-correct behavior,
+documentation-only corrections, or an editorial clarification. BL-008, BL-009, BL-014,
+BL-022, BL-033, BL-037, BL-039, BL-042, and BL-043 require author clarification,
+out-of-scope CRTC2 work, or hardware evidence before an implementation premise exists.

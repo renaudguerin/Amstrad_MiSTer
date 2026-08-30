@@ -97,11 +97,13 @@ as hardware confirmations.
   conjunct from the **initial programmed-increment sentence** in the R0=1 case, and says R5
   where French and the 8–31 example require `R5-1`. Both editions separately describe the
   later partially completed overflow after C4 has diverged.
-- **§16.2.1 FR p.162 / EN p.160:** the English R7.NJIT/JIT headings are logically broken.
+- **§16.2.1 FR p.162 / EN p.160:** the English R7.NJIT heading incorrectly imports the JIT
+  definition and makes its condition inconsistent.
   French defines NJIT as programming R7 before C4 reaches it and JIT as programming R7 with
   the current C4 value.
-- **§16.3 and §16.4.4 FR pp.169,172 / EN pp.167,170:** English omits the C9=0 gate for
-  CRTC3/4 twice.
+- **§16.3 and §16.4.4 FR pp.169,172 / EN pp.167,170:** English §16.3 omits the complete
+  `C4=R7,C9=0,C0=0` parenthetical. English §16.4.4 retains that headline condition but omits
+  C9>0 from the later sentence describing when an R7 write fails to trigger VSYNC.
 - **§17.2.2 FR p.180 / EN p.178:** French derives row-select bits from C9; English adds C5.
 - **§18.3.2 FR p.191 / EN p.190:** French tests whether R6 is zero when C0 reaches R1;
   English changes this into the historical condition that R6 was zero at least once.
@@ -124,7 +126,7 @@ as hardware confirmations.
    unconditional lifetime?
 4. **§14.1 FR p.132:** should “HSYNC begins when C3l reaches R3l” say **ends**? The French
    definitions, tables, and later prose all appear to require “ends.”
-5. **§16.4.1 EN p.169:** are the two English-only R0/VSYNC paragraphs normative material
+5. **§16.4.1.2 EN p.169:** are the two English-only R0/VSYNC paragraphs normative material
    accidentally omitted from French, or unsupported supplemental text?
 6. **§19.3.4:** should English retain the French warning about complete-interlace screen
    construction from VSYNC at C4=R7, rather than replacing it with frame-start-only R8 advice?
@@ -135,10 +137,11 @@ as hardware confirmations.
 
 ### Lower-risk errata
 
-The full ledger also records malformed formulas/wording in §§11.1, 12.5, 14.4, 14.8,
-15.4.1, 16.4.1–3, 19.5.4, 20.3.3, and 27.2, plus cross-reference errors at French §§7.2 and
-9.3.4.1 and English §§23.2, 23.3, and 28.1.9. These are useful for editorial cleanup but do
-not presently justify RTL changes.
+The full ledger also records malformed formulas/wording in §§11.1, 12.5, French 14.4 /
+English unnumbered continuation, French 14.8 / English 14.7, 15.4.1, 16.4.1–3, 19.5.4,
+20.3.3, and 27.2, plus cross-reference errors at French §§7.2 and 9.3.4.1 and English
+§§23.2, 23.3, and 28.1.9. These are useful for editorial cleanup but do not presently
+justify RTL changes.
 
 ---
 

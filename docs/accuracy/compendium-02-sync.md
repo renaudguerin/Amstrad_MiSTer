@@ -360,7 +360,7 @@ Two independent mechanisms against infinite VSYNC:
     (hits the C0vs<2 blocked case).
 - **R0 interaction**: C0 must be able to reach value **2** on the line preceding the C4=R7 line for
   VSYNC to be considered at all. The following two cases appear only in English v1.11
-  §16.4.1 p.169 and are absent from authoritative French p.170; treat them as supplemental,
+  §16.4.1.2 p.169 and are absent from authoritative French p.170; treat them as supplemental,
   pending author or hardware confirmation rather than as settled ACCC rules:
   - R0 (was >2) set to **0** exactly at C0=0 of the C4=R7 line: VSYNC starts at C0=0 but **C3h
     freezes** (like all CRTC0 counters at R0=0) — never reaches R3h, VSYNC **never deactivates**

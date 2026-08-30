@@ -418,16 +418,16 @@ findings became action items A1-A5 above.
 
 ## Branch-level review register (locked decision 2026-08-22)
 
-No per-commit rows are added for work on the branches below: the 2026-08-22 locked
-decision treats them as authored by a single model (ox-alpha) to be reviewed **as one whole
-diff** before any of their content is treated as settled or upstreamed. The reviewer's guide
-with per-commit rationale, evidence commands, and a prioritized reading list is
-`docs/accuracy/type-split-review-guide.md` (the `accuracy/a3-f6-stage1` row names its own
-hardest-reading guidance inline).
+Rows in this register are reviewed as one whole branch diff before their content is treated
+as settled or upstreamed. The original 2026-08-22 locked decision applied this rule to the
+ox-alpha-authored branches; later rows reuse the same branch-level mechanism and state their
+own authorship/review requirements. The original reviewer's guide with per-commit rationale,
+evidence commands, and a prioritized reading list is
+`docs/accuracy/type-split-review-guide.md`.
 
 | Branch | Scope of the whole-branch review | Status |
 |---|---|---|
-| `docs/accc-bilingual-sweep` | French/English v1.11 section-complete source ledger, authority-policy migration, high-confidence digest corrections, author courtesy report, and implementation audit queue. Review hardest: BL-019–BL-021 §13.7.2 reconstruction, BL-036 live-versus-historical R6 reading, BL-038 assignment-versus-toggle implication, and avoiding source claims unsupported by hardware. | **NOT CLEARED — pending fresh cross-provider source review.** A native Sol review confirmed the challenged source corrections but returned NOT CLEAR on missing durable per-section coverage, three unclassified premise audits, one uncascaded timing qualifier, and stale debt bookkeeping; those five documentation findings were remediated in the working tree but not re-reviewed. The available bridge was not given the user-owned PDFs because third-party payload transmission was not explicitly authorized. |
+| `docs/accc-bilingual-sweep` | French/English v1.11 section-complete source ledger, authority-policy migration, high-confidence digest corrections, author courtesy report, and implementation audit queue. Review hardest: BL-019–BL-021 §13.7.2 reconstruction, BL-036 live-versus-historical R6 reading, BL-038 assignment-versus-toggle implication, and avoiding source claims unsupported by hardware. | **NOT CLEARED — Claude Opus 5 high, 2026-08-30.** The source-equipped cross-provider review verified all 44 BL findings against both PDFs and accepted the French-primary BL-022 adjudication, but returned NOT CLEAR on eight documentation/citation issues: eight omitted clean subsections, one clean/finding contradiction, an inaccurate BL-030 author summary, incomplete disposition classification, missing even-R9 scope in IA-2, ambiguous chapter-14 author numbering, a BL-029 heading misidentification, and the affected RTL comment still anchored to v1.10 English. The documentation issues are remediated in the follow-up; the RTL-comment migration is explicitly assigned to the IA-2 classic commit and remains open. |
 | `accc-review-and-fixes` | Canonical docs, GA40010 co-sim manifest, exact-range whitespace gate, and pass-2 remediation integration. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 accepted all 11 remediations at reviewed tip `d64e449`; full record: `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md`. |
 | `accuracy/crtc-type-split` | Per-type engine split (`27efc2d`), wrapper rename to `rtl/CRTC.v` (`63f4c01`), session docs. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 independently reconfirmed the wrapper mux seams, type-0 latch/holdoff ordering, shared captures, and expanded differential evidence. |
 | `accuracy/a3-f6-stage1` | A3 companion vector `t20i`; F6 Stage 1 full-character approximation and its behavior-driven hash re-mint. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Accepted within the declared full-character approximation. F13 remains separately hardware-blocked. |
