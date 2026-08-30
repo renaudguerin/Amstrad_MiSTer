@@ -230,7 +230,20 @@ reg [31:0] i_seek_pos;
 reg        i_write_prev;
 
 always @(posedge clk_sys) begin : sdcontrol
-
+	if (reset) begin
+		// CPR/system reset may interrupt a mount, track-info, or sector
+		// transaction before the host acknowledges it. Cancel both the
+		// outward request and the arbiter ownership so the command-side reset
+		// can restart image scanning with a fresh request after reset.
+		ack <= 0;
+		sd_lba <= 0;
+		sd_rd <= 0;
+		sd_wr <= 0;
+		sd_busy_mount <= 0;
+		sd_busy_tinfo <= 0;
+		sd_busy_sector <= 0;
+		sd_buff_type <= UPD765_SD_BUFF_SECTOR;
+	end else begin
 		ack <= {ack[4:0], sd_ack};
 		if(ack[5:4] == 'b01)	begin
 			sd_rd <= 0;
@@ -265,6 +278,7 @@ always @(posedge clk_sys) begin : sdcontrol
 				sd_busy_sector <= 1;
 			end
 		end
+	end
 end
 
 ////
@@ -277,12 +291,13 @@ reg  [7:0] m_data;    //data register
 
 assign dout = a0 ? m_data : m_status;
 
-function [15:0] SECTOR_SIZE;
+function automatic [15:0] SECTOR_SIZE;
 	input [3:0] n;
 	input [15:0] stored_size;
+	reg [15:0] logical_size;
 	begin
-		reg [15:0] logical_size = (16'h80 << (n[3] ? 4'h8 : n[2:0]));
-		return (logical_size < stored_size ? logical_size : stored_size);
+		logical_size = (16'h80 << (n[3] ? 4'h8 : n[2:0]));
+		SECTOR_SIZE = logical_size < stored_size ? logical_size : stored_size;
 	end
 endfunction
 
