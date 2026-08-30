@@ -19,10 +19,10 @@
 //  in the credits of any distributed product built from them. Individual
 //  rules cite their ACCC section at the point of implementation.
 //
-//  Deliberate P1 exclusions (each must land with its own vectors later):
-//   - Interlace (R8 bits 1:0 stored but not acted on): the type-3 IVM
-//     counting/parity machinery is its own rule set (ACCC §19.5.5, §19.8.4)
-//     and no P1 exit criterion needs it.
+//  Deliberate exclusions (each must land with its own vectors later):
+//   - IVM C9/C4 counting and frame/C9 parity are implemented below.  The
+//     remaining interlace timing rules — MID-VSYNC, the additional line,
+//     and the odd-frame/odd-C4 VSYNC delay — are not yet modelled.
 //   - Light pen R16/R17: no light-pen strobe source is emulated. The
 //     registers are stored and readable since P5 (mod-8 map slots 0/1) but
 //     hold their reset value (named assumption at the readback section).
@@ -170,14 +170,11 @@ reg [6:0] R6_v_displayed;
 reg [6:0] R7_v_sync_pos;
 reg [1:0] R8_skew;         // bits 5:4, SKEW-DISPTMG (types 0/3/4, §19.1)
 /* verilator lint_on UNUSEDSIGNAL */
-// R8 bits 1:0 select interlace modes and stay stored-but-inert for the
-// whole P1 foundation: the type-3 IVM counting/parity machinery (ACCC
-// §19.5.5, §19.8.4) is deliberately out of P1 scope (see header). The
-// register keeps its storage so a later phase adds behaviour without a
-// bus-contract change.
-/* verilator lint_off UNUSEDSIGNAL */
+// R8 bits 1:0 select interlace modes.  Mode 3 drives the IVM counter below;
+// modes 0/1/2 retain the ordinary C9 cadence.  Mode 1 still seeds ParityC9
+// on entry as required by §19.8.4, ready for the remaining sync-interlace
+// timing rules named in the header.
 reg [1:0] R8_interlace;
-/* verilator lint_on UNUSEDSIGNAL */
 reg [6:0] R4_v_total;
 reg [4:0] R5_v_total_adj;
 reg [4:0] R9_v_max_line;
@@ -308,6 +305,8 @@ end
 reg  [6:0] charline;
 reg  [4:0] raster;
 reg        in_adj;
+reg        parity_frame;
+reg        parity_c9;
 
 wire       c9_done       = in_adj ? 1'b0 : (raster >= R9_v_max_line);
 wire       last_charline = (charline == R4_v_total);
@@ -316,12 +315,32 @@ wire       enter_adj     = c9_done & last_charline &
 wire       frame_wrap    = c9_done & last_charline &
                            (R5_v_total_adj == 5'd0);
 wire       adj_end_n     = ((raster + 5'd1) >= R5_v_total_adj);
+wire       adj_frame_wrap = in_adj & adj_end_n;
+wire       frame_restart = frame_wrap | adj_frame_wrap;
+wire       ivm_active    = (R8_interlace == 2'b11);
+
+// §19.8.4 pp.235-240: IVM advances C9 by two while retaining ParityC9.
+// Odd R9 toggles the parity at each ordinary C4 increment; a frame restart
+// instead aligns it to the newly toggled ParityFrame.  These terms are
+// deliberately IVM-gated so never-entered R8=0 counting is bit-identical
+// to the pre-IVM implementation.  On exit, the next C9<R9 seam therefore
+// resumes the documented +1 progression and the ordinary row end reloads 0.
+wire       row_parity_n = R9_v_max_line[0] ? ~parity_c9 : parity_c9;
+wire       frame_parity_n = ~parity_frame;
+wire [4:0] ivm_step = (raster + 5'd2) | {4'b0000, parity_c9};
+wire [4:0] ivm_row_reload = frame_wrap ? {4'b0000, frame_parity_n} :
+                                    enter_adj ? 5'd0 :
+                                                {4'b0000, row_parity_n};
 
 // Next-state values at the line-end edge, shared with the video-pointer
 // and display-enable logic so every consumer sees one consistent seam.
 // Adjustment end restarts the frame: C4=C9=0 (ACCC §11.3 general).
-wire [4:0] raster_n      = in_adj ? (adj_end_n ? 5'd0 : raster + 5'd1) :
-                           c9_done ? 5'd0 : raster + 5'd1;
+wire [4:0] raster_n      = in_adj ?
+                           (adj_end_n ? (ivm_active ?
+                                         {4'b0000, frame_parity_n} : 5'd0) :
+                                        raster + 5'd1) :
+                           c9_done ? (ivm_active ? ivm_row_reload : 5'd0) :
+                           ivm_active ? ivm_step : raster + 5'd1;
 wire [6:0] charline_n    = (in_adj & adj_end_n) ? 7'd0 :
                            in_adj ? charline :
                            enter_adj ? charline :
@@ -334,12 +353,36 @@ always @(posedge CLOCK) begin
 		charline <= 7'd0;
 		raster   <= 5'd0;
 		in_adj   <= 1'b0;
+		parity_frame <= 1'b0;
+		parity_c9    <= 1'b0;
 	end
-	else if (CLKEN) begin
-		if (hcc_last) begin
+	else begin
+		if (CLKEN && hcc_last) begin
 			in_adj   <= adj_n;
 			raster   <= raster_n;
 			charline <= charline_n;
+
+			// ParityFrame runs at every real frame origin, independent of
+			// the current R8 mode (§19.5.5).  ParityC9 alignment is visible
+			// only to IVM counting, but is maintained here so a later entry
+			// starts from a well-defined frame state.
+			if (frame_restart) begin
+				parity_frame <= frame_parity_n;
+				parity_c9    <= frame_parity_n;
+			end
+			else if (ivm_active && c9_done && !enter_adj &&
+			         R9_v_max_line[0]) begin
+				parity_c9 <= row_parity_n;
+			end
+		end
+
+		// §19.8.4 p.236: changing R8 to either interlace mode seeds
+		// ParityC9 immediately from the current C9.  Decode the live bus
+		// write so this does not wait for the stored R8 NBA update.
+		if (ENABLE & ~nCS & ~R_nW & RS & (addr == 5'd8) &
+		    ((DI[1:0] == 2'b01) | (DI[1:0] == 2'b11)) &
+		    (DI[1:0] != R8_interlace)) begin
+			parity_c9 <= raster[0];
 		end
 	end
 end
@@ -366,18 +409,21 @@ reg [13:0] vma;
 reg [13:0] vma_latch;
 
 // Selected §20.3.4 frame-origin reading; see the source-conflict note above.
-wire pointer_frame_origin = !adj_n && (charline_n == 7'd0) &&
-                            (raster_n == 5'd0);
+wire pointer_frame_origin = ivm_active ? frame_restart :
+                            (!adj_n && (charline_n == 7'd0) &&
+                             (raster_n == 5'd0));
 
 // P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
 wire [4:0] ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
 
-// Row-end VMA latch update: when the displayed scanline ra_eff reaches R9,
-// capture VMA into vma_latch at HCC == R1 so MA advances before the wrapped
-// RA 0 line under SSCR vertical scroll (Arnold V §2.5, asic-reference §8).
+// Row-end VMA latch update: outside IVM, the displayed scanline ra_eff
+// reaching R9 advances the source row before SSCR wraps RA to 0 (Arnold V
+// §2.5, asic-reference §8).  In IVM the §19.8.4 C9>=R9 decision is the
+// terminal-line test, including the even-parity overshoot line.
+wire row_latch_done = ivm_active ? c9_done : (ra_eff == R9_v_max_line);
 wire row_latch_event = CLKEN && !in_adj &&
                        (hcc == R1_h_displayed) &&
-                       (ra_eff == R9_v_max_line);
+                       row_latch_done;
 
 // P6: Screen split comparison ({SPLT7..0} == {VC4..0, RC2..0}, asic-reference §8).
 // When matched and SPLT != 0, capture SSA into vma_latch at HCC == R1.
@@ -539,8 +585,8 @@ end
 // protection — a condition that persists across a finished pulse
 // restarts it immediately. Width is R3h lines with 0 meaning 16 (§14.2),
 // counted per line with the same live-equality nibble semantics; dynamic
-// R3h rewrites follow the CRTCs-0/3/4 rule (compendium-02 §2). Interlace
-// MID-VSYNC delays are out of P1 scope (header note); the ASIC needs >=3
+// R3h rewrites follow the CRTCs-0/3/4 rule (compendium-02 §2). The remaining
+// interlace VSYNC rules are excluded (header note); the ASIC needs >=3
 // active lines to emit monitor C-VSYNC, which belongs to the integrated
 // pipeline phase.
 //----------------------------------------------------------------------
