@@ -325,10 +325,11 @@ tolerances` -> `P10 compatibility closure`.
 Current Plus position (2026-08-30): P0-P9 are implemented and simulation-verified, and
 HF-1/HF-2/HF-3 have landed. They are not collectively hardware-confirmed. P10 now includes
 shared FDC reset/alias hardening, a real-module input fixture, a pinned cartridge WAIT
-baseline, source-backed CRTC3 R8=3 timing, inactive-DMA-slot correction, bounded SNA tail
-headroom, and stronger all-16/real-register sprite discriminators. Exact-tip full-effort
-synthesis, title traces, hardware retest, DMA/input concurrency, R8=1, and undocumented
-sprite/coordinate behavior remain open.
+baseline, a real u765 READ DATA/EDSK reset-reload seam, source-backed CRTC3 R8=3 timing,
+inactive-DMA-slot correction, bounded SNA tail headroom, and stronger all-16/real-register
+sprite discriminators. Exact-tip full-effort synthesis, title traces, hardware retest,
+no-ACK epoch tagging, cross-drive FDC arbitration, DMA/input concurrency, R8=1, and
+undocumented sprite/coordinate behavior remain open.
 
 - P-2 is independently mergeable because default-off behavior is invariant.
 - P-1 may be independently mergeable if the cartridge service is unselected in classic

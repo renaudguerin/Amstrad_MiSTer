@@ -81,9 +81,15 @@ changes and discriminators:
   justified yet.
 
 Shared integration `074c182` also adds reviewed u765 reset/ACK quarantine, mount-retry
-retention, and selected-write aliases. That is a direct BASIC/System retest candidate, but the
-remaining late-stale-ACK ambiguity and absence of a full CPU READ DATA boot keep the symptom
-open. None of the 2026-08-30 changes has been synthesized or hardware-tested.
+retention, and selected-write aliases. Accuracy follow-up tip `457a3b4` adds a production-timed
+public-command READ DATA transaction against a copyright-free two-track EDSK, including exact
+LBA/payload checks and reset during an active sector request. It retains cancelled ownership
+until the old ACK rises and falls, quarantines that response's buffer writes, and prevents
+metadata reload from falsely completing behind the cancelled sector owner. This is a direct
+BASIC/System retest candidate, not title-level or hardware closure. A host that never ACKs now
+requires a power-cycle; safe bounded recovery needs an epoch/tag, while cross-drive sector
+arbitration, sector-info reset, WRITE DATA reset, and automatic-EOT C/R remain focused fixture
+gaps. None of these post-hardware-report changes has been hardware-tested.
 
 ## 2026-08-29 Plus cartridge checkpoint — historical P10 baseline
 

@@ -145,6 +145,12 @@
   gates pass. Hardware SHAKER/DE validation and a title-level The Demo trace
   remain evidence gaps, not review debt. Full record:
   `docs/accuracy/f13-f20-fdc-independent-review.md`.
+  The later real-u765 follow-up at feature tip `457a3b4` was independently reviewed by the
+  guarded Claude bridge with verdict CLEAR-with-findings. Four mutations proved cancelled
+  request retention, ACK-history drain, stale-buffer quarantine, and global metadata-reload
+  ownership load-bearing. The fixture's automatic-EOT C/R oracle was removed, and the
+  two-drive and no-ACK liveness limits are explicit residuals in `docs/fdc-review-2026-08-30.md`.
+  A final native re-review found no RTL or test blocker. This follow-up adds no review debt.
 
 - `plus/hardware-checkpoint` — **CLEARED 2026-08-28 — OpenAI Codex**. Scope: `Amstrad.sv`,
   `rtl/Amstrad_motherboard.v`, `rtl/plus/asic_video.v`, and testbenches (`sim/plus/asic_video_test.cpp`,
