@@ -1300,12 +1300,15 @@ void t02l_ivm_odd_frame_adjustment(TestBench& test) {
     test.expect_ma("t02l next frame reloads R12/R13", kBase);
 }
 
-// Program a stable IVM frame whose first active field is even.  R0=63 makes
-// the ACCC p.214/p.218 half-line position C0=31 directly observable.  The
-// initial R0=0 reset rollover makes ParityFrame odd; run_to_frame_start()
-// consumes the programmed setup frame and therefore enters an even frame.
+// Program a stable interlace frame whose first active field is even.  R0=63
+// makes the ACCC p.214/p.218 half-line position C0=31 directly observable.
+// The initial R0=0 reset rollover makes ParityFrame odd;
+// run_to_frame_start() consumes the programmed setup frame and therefore
+// enters an even frame.  The mode defaults to IVM (R8=3); the sync-only
+// vector below passes R8=1 while sharing the same deterministic setup.
 void program_ivm_sync_frame(TestBench& test, unsigned r7,
-                            unsigned vsync_lines = 1) {
+                            unsigned vsync_lines = 1,
+                            unsigned interlace_mode = 3) {
     test.write_register(0, 63);
     test.write_register(1, 2);
     test.write_register(3, ((vsync_lines & 15U) << 4) | 1U);
@@ -1315,7 +1318,7 @@ void program_ivm_sync_frame(TestBench& test, unsigned r7,
     test.write_register(7, r7);
     test.write_register(9, 7);
     test.run_to_frame_start();
-    test.write_register(8, 3);
+    test.write_register(8, interlace_mode);
 }
 
 // ACCC v1.11 §19.5.5 pp.213-215 and §19.7.1/19.7.3 p.218.  With odd R9
@@ -1502,8 +1505,108 @@ void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     active_reset.reset();
     active_reset.expect_vsync("t04m reset clears active VSYNC", false);
 
-    // R8=1 (sync-only interlace) remains an explicit residual; these
-    // source-backed phase and reset vectors exercise IVM (R8=3).
+    // The dedicated t04n vector below covers R8=1 sync-only interlace;
+    // these source-backed phase and reset vectors exercise IVM (R8=3).
+}
+
+// UM6845 §INTERLACE MODES (docs/references/UM6845 Cathode Ray Tube
+// Controller.md:372-378): R8=1 is Interlace SYNC Raster Scan.  In alternate
+// fields it delays VSYNC by one half scan-line, and this is the only change
+// to device operation; address generation and the displayed raster remain
+// ordinary.  The Hitachi HD6845 reference corroborates the same contract
+// (docs/references/Hitachi HD6845 Cathode Ray Tube Controller.md:294-315,
+// 352-362,462-464): RA and character addressing stay as in non-interlace,
+// while the odd field's display position moves down by half a raster.
+// The references do not define which field is first, so this vector accepts
+// either polarity but requires exactly one seam start and one midpoint start
+// over two complete fields.
+void t04n_sync_interlace_half_line_vsync(TestBench& test) {
+    constexpr unsigned kLineCharacters = 64;
+    constexpr unsigned kFieldLines = 4 * 8;
+    program_ivm_sync_frame(test, 1, 1, 1);
+    test.run_to_state(1, 0, 0, "t04n first field C4=R7 first line");
+
+    unsigned seam_starts = 0;
+    unsigned midpoint_starts = 0;
+    for (unsigned field = 0; field < 2; ++field) {
+        // R8=1 must leave the ordinary C4/C9, VMA, RA, and DE state intact:
+        // row 1 starts with C9=0, VMA base+R1=2, RA=0, and the first two
+        // character cells are in the display window (ACCC §17.1 p.175).
+        test.expect_line("t04n C4 at VSYNC target seam", 1);
+        test.expect_row("t04n C9 at VSYNC target seam", 0);
+        test.expect_hcc("t04n seam horizontal phase", 0);
+        test.expect_ma("t04n ordinary row-start VMA", 2);
+        test.expect_ra("t04n ordinary row-start RA", 0);
+        test.expect_de("t04n ordinary row-start DE", true);
+        const bool seam_high = test.vsync() != 0;
+        if (seam_high)
+            ++seam_starts;
+
+        test.run_characters(30);
+        test.expect_line("t04n C4 stays ordinary before midpoint", 1);
+        test.expect_row("t04n C9 stays ordinary before midpoint", 0);
+        test.expect_hcc("t04n before midpoint", 30);
+        test.expect_ma("t04n VMA advances ordinarily before midpoint", 32);
+        test.expect_ra("t04n RA stays ordinary before midpoint", 0);
+        test.expect_de("t04n DE leaves its ordinary two-character window", false);
+        test.expect_vsync("t04n seam/midpoint polarity before midpoint",
+                          seam_high);
+
+        test.run_characters(1);
+        test.expect_line("t04n C4 stays ordinary at midpoint", 1);
+        test.expect_row("t04n C9 stays ordinary at midpoint", 0);
+        test.expect_hcc("t04n half-line VSYNC phase", 31);
+        test.expect_ma("t04n VMA advances ordinarily at midpoint", 33);
+        test.expect_ra("t04n RA stays ordinary at midpoint", 0);
+        test.expect_de("t04n DE stays ordinary at midpoint", false);
+        test.expect_vsync("t04n VSYNC starts by midpoint", true);
+        if (!seam_high)
+            ++midpoint_starts;
+
+        // R3h=1 counts at the following C0=0 boundary.  Pin the falling
+        // edge explicitly so a stuck-high pulse cannot masquerade as the
+        // expected seam/midpoint alternation in the level counts below.
+        test.run_characters(33);
+        test.expect_hcc("t04n R3h=1 falling-edge seam", 0);
+        test.expect_vsync("t04n R3h=1 pulse ends at next seam", false);
+
+        // Keep the field length explicit: this mode must not gain the IVM
+        // additional line or any C9/MA/RA alteration while reaching the next
+        // C4=R7 target.
+        if (field == 0) {
+            test.run_characters(kLineCharacters * (kFieldLines - 1));
+            // A sync-only field has exactly the ordinary 32-line length; an
+            // IVM-only extra line or any C4/C9 alteration would miss this
+            // fixed next-field seam.
+            test.expect_line("t04n next field C4", 1);
+            test.expect_row("t04n next field C9", 0);
+            test.expect_hcc("t04n next field seam", 0);
+            test.expect_ma("t04n next field ordinary VMA", 2);
+            test.expect_ra("t04n next field ordinary RA", 0);
+            test.expect_de("t04n next field ordinary DE", true);
+        }
+    }
+
+    if (seam_starts != 1 || midpoint_starts != 1) {
+        throw TestFailure(
+            "t04n expected one seam-start and one midpoint-start VSYNC over "
+            "two fields: seam=" + std::to_string(seam_starts) +
+            ", midpoint=" + std::to_string(midpoint_starts));
+    }
+
+    // Live R8 exit must cancel a midpoint already scheduled at the target
+    // seam.  Locate the midpoint field without assuming its polarity, then
+    // leave sync-only interlace before R0/2 and prove no stale pulse fires.
+    TestBench exit;
+    program_ivm_sync_frame(exit, 1, 1, 1);
+    exit.run_to_state(1, 0, 0, "t04n mode-1 pending midpoint exit");
+    if (exit.vsync()) {
+        exit.run_characters(kLineCharacters * kFieldLines);
+        exit.expect_vsync("t04n alternate field schedules midpoint", false);
+    }
+    exit.write_register(8, 0);
+    exit.run_to_state(1, 0, 31, "t04n former midpoint after mode-1 exit");
+    exit.expect_vsync("t04n R8=1 exit cancels pending midpoint", false);
 }
 
 // ACCC v1.11 section 19.8.4 pp.235-238: entering IVM (R8=3)
@@ -2675,7 +2778,7 @@ void t08i_sscr_vertical_wrap_advances_ma(TestBench& test) {
     test.expect_ra("t08i next row starts at offset RA 1", 1);
 }
 
-constexpr std::array<TestCase, 66> kTests = {{
+constexpr std::array<TestCase, 67> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -2720,6 +2823,8 @@ constexpr std::array<TestCase, 66> kTests = {{
      t04l_r7_r4_adjustment_and_interlace_line_seams},
     {"t04m IVM MID-VSYNC width and R8 exit",
      t04m_ivm_mid_vsync_width_and_exit},
+    {"t04n sync-only interlace half-line VSYNC",
+     t04n_sync_interlace_half_line_vsync},
     {"t05a legacy-colour ROM sweep ([KT])", t05a_legacy_colour_rom_sweep},
     {"t05b mode 2 sequential pixels", t05b_mode2_sequential_pixels},
     {"t05c mode 1 pair pixels", t05c_mode1_pair_pixels},
