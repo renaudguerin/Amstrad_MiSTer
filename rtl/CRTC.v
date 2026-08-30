@@ -590,13 +590,25 @@ always @(posedge CLOCK) begin
 	end
 end
 
-// DISPTMG delay line. The type-0 spurious-border term (ACCC v1.10 section
-// 17.6.2 p.186, substituted border start for R1>R0) is injected here,
-// ahead of the SKEW-DISPTMG stages, so a programmed delay displaces it
-// like a natural border edge and mode 2'b11 suppresses it (section
-// 19.2.4). The term is already gated on !CRTC_TYPE in the engine: type 1
-// has no border-start substitution at all (ACCC p.186-187).
-wire [3:0] de = {1'b0, dde[1:0], hde & vde & vde_r & ~e0_spurious_border_off};
+// DISPTMG delay line. ACCC v1.11 section 17.6.2 p.186 and section 19.2.4
+// p.195: when type 0 cannot reach C0=R1 because R1>R0, its substituted
+// border event occupies only the second half of C0=R0. nCLKEN marks that
+// half-character phase and CLKEN ends it at the next C0 transition.
+//
+// The exact pulse remains ahead of the character-granular SKEW-DISPTMG
+// stages. This is deliberate: p.195 shows delay 1/2 rounding the deferred
+// event onto the full C0=0/C0=1 character respectively, while mode 2'b11
+// suppresses DISPTMG entirely. Type 1 has no substituted event.
+reg de_second_half;
+always @(posedge CLOCK) begin
+	if(~nRESET)       de_second_half <= 0;
+	else if(CLKEN)    de_second_half <= 0;
+	else if(nCLKEN)   de_second_half <= 1;
+end
+
+wire de_unskewed = hde & vde & vde_r &
+					~(e0_spurious_border_off & de_second_half);
+wire [3:0] de = {1'b0, dde[1:0], de_unskewed};
 reg  [1:0] dde;
 always @(posedge CLOCK) if (CLKEN) dde <= {dde[0],de[0]};
 
