@@ -32,14 +32,17 @@ hash/count prose.
 
 - F20 now retains only each type's ordinary trailing-edge phase. Integrated
   production-ratio controls require type 0 at +4/-4 pixels and type 1 at +3/-3
-  pixels, and require a same-value R2 rewrite to remain on the normal path.
+  pixels, plus a same-value normal-path intent control. Production bus phasing
+  lands that same-value write after HSYNC has risen, so it documents the
+  invariant but does not make the defensive inequality guard load-bearing.
 - The classic character-level suite and soak remain regression layers, not
   proof of the 64 MHz-to-16 MHz phase relationship; the integrated GA fixture
   owns that timing claim.
 - The u765 reset path now quarantines delayed ACK and `sd_buff_wr` traffic until
-  ACK has been observed low, then issues a fresh request. The focused test
-  requires no request during the stale transfer and successful recovery after
-  it retires.
+  ACK has been observed low, then issues a fresh request. The focused test uses
+  production one-in-eight CE, requires no request during the stale transfer,
+  proves a seeded sector-buffer byte was not overwritten, and requires recovery
+  after it retires.
 - The production A0 expression is qualified with the selected FDC write, which
   matches the standalone wrapper's effective seam. Decoder comments were
   corrected.
@@ -64,4 +67,27 @@ and, if possible, a DE-pin capture remain the F13 hardware gates. The Demo's
 `disc missing` report still needs an exact RBF SHA, disk hash, FDC setting, and
 first motor/status/data trace. OUTI, an R2 update during an already-active
 pulse, non-default-N/DTL reads, and a live type change during a phase-shifted
-pulse remain separately named residuals.
+pulse remain separately named residuals. ACK-low quarantine narrows but cannot
+tag a stale response which first arrives only after ACK was already seen low.
+
+## Pass 2 verdict: NOT CLEAR on test integrity, RTL accepted
+
+The focused Claude re-review confirmed both F20 blockers fixed and accepted the
+quarantine RTL, A0 seam, function syntax, hashes, and documentation. It found
+one remaining blocker in the reset regression: the delayed-ACK loop held `ce=0`
+and never read the injected stale byte back, so neither retry suppression nor
+the buffer-write gate was load-bearing.
+
+The final test now:
+
+- seeds sector-buffer byte 7 through the active pre-reset host transfer;
+- runs the stale ACK/write window at production one-in-eight CE;
+- requires no outward SD request during quarantine;
+- reads byte 7 back and requires the stale `0xa5` burst not to replace `0x3c`;
+- keeps mount state at the retry stage until quarantine ends, then requires a
+  fresh request.
+
+Two parent bite tests prove the assertions are load-bearing: removing the
+buffer-write quarantine fails with byte 7 changed to `0xa5`; removing mount
+retry retention times out waiting for the fresh request. Both mutations were
+reverted before the final green gates.

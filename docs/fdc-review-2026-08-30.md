@@ -16,9 +16,11 @@ gate and fixes two independently reproduced integration defects:
   `sd_busy_mount` asserted indefinitely. The arbiter now cancels outward requests,
   ACK history, and all ownership flags on reset. It then quarantines delayed ACK
   and buffer-write traffic until ACK has been observed low before issuing a fresh
-  request, preventing a cancelled TRACKINFO burst from entering the sector buffer.
-  The regression injects both delayed ACK and stale buffer-write traffic and
-  requires no retry while they remain active, followed by a fresh request.
+  request, preventing a cancelled transfer from overwriting the shared buffer.
+  The regression injects both delayed ACK and stale buffer-write traffic at the
+  production one-in-eight CE cadence, requires no retry while they remain
+  active, verifies a seeded sector-buffer byte was not overwritten, and then
+  requires a fresh request.
 
 The standalone harness now uses production `CYCLES=4000` and the production
 one-in-eight `ce_u765` cadence. It verifies reset recovery, the A0 write alias,
@@ -64,6 +66,9 @@ the controller passes fdctest:
   drive-A failure but needs a drive-B fixture.
 - Production still hard-wires `available=2'b11`; SENSE DRIVE STATUS can report
   ready while media parsing or motor readiness will make a later command fail.
+- ACK-low quarantine cannot reject a stale response which first arrives only
+  after ACK was already observed low; fully closing that race requires a host
+  transaction epoch/tag rather than another level-sensitive heuristic.
 
 The next useful expansion is a bounded READ ID/read-sector transaction against
 the fdctest image, followed by selected fdctest status/DTL/busy vectors. Full

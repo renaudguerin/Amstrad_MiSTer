@@ -98,8 +98,10 @@ elaboration, so the top-level reset/strobe equations remain a
 Quartus and hardware boundary. This expanded post-review delta is not independently cleared,
 synthesized, or hardware-confirmed. The report and remediation status are in
 `docs/plus/p10-hardware-remediation-independent-review.md`. RoboCop and Navy Seals causality
-therefore remain retest hypotheses. BASIC/System CPR remains open because no bench executes a
-real u765 plus mounted DSK transaction. DMA/PPI concurrency, cartridge fetch timing,
+therefore remain retest hypotheses. A bounded real-u765 bench now covers CPC
+write aliases, EDSK mount/status, and reset during an active host transfer with
+delayed ACK/buffer traffic; BASIC/System CPR remains open because no bench runs
+the full CPU boot and READ DATA path against that controller. DMA/PPI concurrency, cartridge fetch timing,
 PRI monitor-HSYNC timing, CRTC3 R8 interlace/IVM, SSCR raw-bit horizontal shifting, and the
 first adjustment-line split also remain open.
 

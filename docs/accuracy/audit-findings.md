@@ -428,7 +428,9 @@ General implementation rules for all fix prompts:
   edge; JIT retains only that type-specific trailing phase, not the later write
   phase. The integrated CRTC+GA regressions drive production-phased Z80 I/O
   writes and pin type 0 at +4/-4 pixels and type 1 at +3/-3 pixels (start/pulse
-  width), plus a same-value-write normal-path control. The classic CRTC suite
+  width), plus a same-value normal-path intent control. Production bus phasing
+  lands that write after HSYNC has risen, so it documents the invariant rather
+  than making the defensive same-value guard load-bearing. The classic CRTC suite
   retains the R3=0, live-R3, reset, and type
   round-trip controls; all new phase/deferred-edge latches join the soak
   projection.

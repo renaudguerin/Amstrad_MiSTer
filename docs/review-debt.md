@@ -25,6 +25,14 @@
   selected-write seam; stale baseline hash/count prose is corrected. Fresh
   remediation re-review is pending. Full record:
   `docs/accuracy/f13-f20-fdc-independent-review.md`.
+  **SECOND REVIEW NOT CLEAR ON TEST INTEGRITY — Claude Opus 5 high, 2026-08-30.**
+  It confirmed both F20 blockers genuinely fixed and accepted the shipped
+  quarantine/A0 RTL, but showed the stale-ACK loop had `ce=0` and no buffer
+  readback. The final test now uses production one-in-eight CE, preserves the
+  mount retry until quarantine exits, and verifies a seeded sector byte is not
+  overwritten. Parent bite tests fail on the exact buffer value when the write
+  gate is removed and time out on fresh recovery when retry retention is
+  removed. Fresh narrow clearance review is pending.
 
 - **Plus P10a-P10f, P10h compatibility closure, 2026-08-29** — Scope: `Amstrad.sv`,
   `rtl/Amstrad_motherboard.v`, `rtl/i8255.v`, `rtl/plus/asic_dma.v`, `rtl/plus/plus_sna_parser.v`,
