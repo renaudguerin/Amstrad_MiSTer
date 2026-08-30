@@ -67,6 +67,17 @@
   restart discriminator. A requested Opus-high re-review was terminated when
   provider quota moved onto paid extra credits and returned no report; it does
   not clear any part of this row.
+  **POST-INTEGRATION REMEDIATION RE-REVIEW, NOT CLEARED — Claude Opus 5 high,
+  2026-08-30.** The reviewer confirmed that all three prior blockers and
+  findings 5-12 are closed, and independently checked the exact-tip CI evidence.
+  One medium test-integrity blocker remains: `plus_p8_test.cpp` reads `sna_busy`
+  without re-evaluating combinational logic after dropping `sna_download`, and
+  its drain-count fallback does not discriminate a lost registered tail. The
+  reviewer also reframed the already-open FIFO-full gap as an apply-barrier risk:
+  enough accepted bytes beyond the wait watermark can lap the pointers and make
+  `busy` deassert with writes outstanding. The production lifecycle expressions
+  were traced as sound but remain outside local top-level elaboration. Full
+  verbatim record: `docs/plus/p10-hardware-remediation-independent-review.md`.
 
 - **ACCC Round 2 documentation correction, 2026-08-28** — documentation on the integration
   branch `accc-review-and-fixes`, based on `c11c55d`. Scope: `accuracy/accc-author-feedback.md`, its Round 1

@@ -214,3 +214,64 @@ It failed before the dequeue-priority correction and passes afterward.
 A later requested Opus-high surgical re-review was stopped when provider quota
 entered paid extra-credit usage. It returned no review text and therefore does
 not alter the verbatim verdict or clear this debt.
+
+## Post-integration remediation re-review — 2026-08-30
+
+**Reviewer:** Claude Opus 5, high, through the guarded `ask-claude` bridge
+**Reviewed base:** `d621230`
+**Reviewed feature tip:** `1d1795b`
+**Integrated merge:** `c985b63`
+**Mode:** read-only
+
+The report below is preserved verbatim. Any later remediation status belongs
+after the report rather than editing the reviewer's words.
+
+---
+
+**NOT CLEAR** for closing the Plus review-debt row — but all three prior blockers are genuinely closed, and only one small test fix blocks on the new delta.
+
+---
+
+## Prior blockers: closed and verified
+
+**→ Blocker 1 (video-pointer comment contradicted the code) — CLOSED.** `rtl/plus/asic_video.v:369` now names one `pointer_frame_origin`, consumed by both the pointer reload (`:403`) and the status-2 timer (`:672`). I read `docs/references/ACCC1.11-EN.pdf` p.243 directly: §20.3.4 opens with *"When the counters C4, C9 and C0 change to 0, the video pointers (VMA' & VMA) are initialized with R12/R13"* and closes with *"On CRTC 3 and 4 VMA' & VMA are loaded with R12/R13 if C4=0 and C0=0."* Both readings are on that page, exactly as the comment and CF-9 describe. The v1.11 citation is real, not inherited from the v1.10 digest.
+
+**→ Blocker 3 (new module outside the lint gate) — CLOSED.** I ran the identical standalone command; `plus_fdc_decode -Wall` is clean, and the target exists at `sim/plus/Makefile:401-402`.
+
+**→ Blocker 4 (divergent third FDC copy) — CLOSED.** One module, three instantiations (`Amstrad.sv:857`, `p10_boot_test_top.v:413`, `plus_p8_test_top.v:94`). Repo-wide grep finds no residual copied equations. The classic path is bit-identical to `master`'s `fdc_sel` decode, including the un-gated motor latch.
+
+**→ Findings 5-12 — CLOSED.** `fq_acc` now covers all three windows (launch `:490`, in-flight `:509-511`, ACK edge via `!fq_acc_hit` at `:463`) with no dead statement. The MRER/RMR2 citations check out verbatim at `asic-reference.md:54-55,73` and `Amstrad CPC Gate-Array.md:169`.
+
+---
+
+## New findings
+
+**→ 1 · MEDIUM · `sim/plus/plus_p8_test.cpp:442` cannot fail.** The one assertion that covers the newly added `busy` tail term reads `dut.sna_busy` with no `eval()` after `dut.sna_download = 0` at `:440`, so it returns the previous tick's value when `sna_download` was still 1. The backup check at `:465` (`drain_cycles < 3`) doesn't discriminate either: three bytes queue six FIFO entries, dropping the tail leaves four, both pass. **The RTL is correct** (`plus_sna_parser.v:94` enqueues without a `sna_download` guard) — but the suite would stay green if that were reverted, while three docs claim the tail is covered. Same class as prior blocker 4: a true fix with a false evidence claim.
+
+**→ 2 · LOW-MEDIUM · `busy` inherits the still-open FIFO-overflow gap.** `plus_sna_parser.v:50-51` derives `busy` from `fifo_empty`, and `Amstrad.sv:636` now gates snapshot apply on `!plus_sna_busy`. `ioctl_wait` asserts at `fifo_count >= 4`, each sprite byte pushes two entries into an 8-deep FIFO, so **two accepted bytes of HPS latency past the watermark laps the pointers**; `fifo_empty` then reads true with writes outstanding and apply starts mid-restore. Overflow (prior finding 11) was data loss; it is now also an apply-barrier bug.
+
+**→ 3 · LOW · the production lifecycle expressions are still unelaborated.** `plus_asic_reset` (`Amstrad.sv:739`), `sna_parser_reset` (`:735`), the `!plus_sna_busy` barrier (`:636`) and the `sna_cpc_plus_data` capture (`:559-563`) are hand-mirrored by `seam_*` inputs in `p8_04`. I traced them by hand and found them sound: `old_sna_download_reset <= sna_download` makes `plus_asic_reset` a real one-clock pulse; `sna_finish_pending` sets one clock after download falls, by which time the tail byte is already in the FIFO; and `sna_parser_reset` is a strict superset of the non-SNA terms of `reset_base`, so no reset source was lost when `asic_regs` moved off `reset`.
+
+**→ 4 · LOW · stale doc claims.** `docs/current-status.md` still calls the delta "uncommitted" and "not … synthesized". It merged as `c985b63` and full synthesis passed on the identical RTL tree.
+
+**→ 5 · INFO, do not re-raise.** The restart block (`:75-83`) precedes the enqueue (`:94`), so a coincident `cpc_plus_byte_wr` would override the pointer clear — **unreachable**: a restart edge needs `sna_download` low the previous clock, a tail strobe needs it high on that same clock. The `:139-145` dequeue-priority guard *is* load-bearing: without it the dequeue's `fifo_rd_ptr` write overrides the restart clear, leaving `(wr=0, rd=old+1)` and a non-empty garbage FIFO. That is what `p8_04` step 5 correctly discriminates.
+
+---
+
+## Evidence boundaries
+
+**→ Simulation:** I did not re-run `make -C sim` (it writes build artifacts into the repo). The parent's PASS claim is unverified by me; I verified the vectors by reading them, and the test-count claims (57 video / 16 sprite / 8 GA) match the arrays.
+
+**→ Synthesis:** CI run `33283242802` on `c985b63` — `simulation`, `synthesis-policy`, `synthesis (full)`, `required-gate` all success. `git diff 1d1795b c985b63` touches four doc files only, so this is exact-tip integration evidence for the RTL.
+
+**→ Hardware:** nothing here is hardware evidence. Burnin' Rubber / RoboCop / Navy Seals / World of Sports causality, the p.243 C9 conflict, the SSCR R9>7 model, and the sprite access-blanking duration all remain hypotheses.
+
+---
+
+## Minimal blocking remediation
+
+Call `eval()` before the `:442` check, and assert the post-drain FIFO write count (or the final `asic_sna_addr`/`asic_sna_data`) so a dropped tail byte fails. That is the whole blocking set for the delta.
+
+Separately, the row cannot close on any simulation delta: it still names real-u765 DSK coverage, `dma_ppi_wait` and tape production tests, DMA `+1/+2`, `blank_cnt`, `asic_regs` mux priority, FIFO-full detection, and hardware retest.
+
+**Also found:** `/Users/renaudg/.claude/plans/` is not writable (EPERM), same as the prior reviewer hit — this report is the complete deliverable.
