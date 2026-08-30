@@ -4,10 +4,12 @@
 
 - **Plus P10a-P10f, P10h compatibility closure, 2026-08-29** — Scope: `Amstrad.sv`,
   `rtl/Amstrad_motherboard.v`, `rtl/i8255.v`, `rtl/plus/asic_dma.v`, `rtl/plus/plus_sna_parser.v`,
-  `rtl/plus/asic_regs.v`, `rtl/plus/asic_sprites.v`,
+  `rtl/plus/asic_regs.v`, `rtl/plus/asic_sprites.v`, `rtl/plus/asic_video.v`,
   `sim/plus/tv80/` (`tv80_core.v`, `tv80_mcode.v`, `tv80_alu.v`, `tv80_reg.v`, `t80pa.v`),
   `sim/plus/p10_boot_test_top.v`, `sim/plus/p10_boot_test.cpp`, `sim/plus/plus_p8_test_top.v`,
-  `sim/plus/plus_p8_test.cpp`, `sim/plus/asic_dma_test.cpp`, `sim/plus/asic_sprites_test.cpp`. Review:
+  `sim/plus/plus_p8_test.cpp`, `sim/plus/asic_dma_test.cpp`, `sim/plus/asic_sprites_test.cpp`,
+  `sim/plus/asic_video_test.cpp`, the P10 input and P4 real-register sprite fixtures, and
+  `docs/plus/hardware-test-round2-2026-08-30.md`. Review:
   1. P10a real T80 boot harness execution and sub-cycle clock enable / WAIT integration.
   2. CF-1 physical Port C output driving from `opc_r` in Plus mode under `mode 0x9B` and `0x92` in `rtl/i8255.v`.
   3. CF-2/CF-3 FDC/motor gating with `plus_has_fdc`, tape gating with `plus_has_tape`, `u765.reset` and `motor` synchronous reset in `Amstrad.sv` and `rtl/Amstrad_motherboard.v`.
@@ -78,6 +80,41 @@
   `busy` deassert with writes outstanding. The production lifecycle expressions
   were traced as sound but remain outside local top-level elaboration. Full
   verbatim record: `docs/plus/p10-hardware-remediation-independent-review.md`.
+  **TAIL/FIFO REMEDIATION IN THIS FOLLOW-UP:** the P8 fixture now evaluates the falling
+  `sna_download` edge before reading `sna_busy` and requires the exact six writes produced by
+  its two already-admitted tail bytes. The FIFO wait watermark is three entries rather than
+  four. With the checked HPS/top producer pipeline, at most two payload bytes can still reach
+  the parser after wait becomes visible, so three queued entries plus four expanded writes
+  remain below the eight-entry capacity. The local fixture injects that bound; it does not
+  elaborate the full `hps_io`/`Amstrad.sv` producer seam, which remains evidence debt.
+  **2026-08-30 HARDWARE-ROUND-TWO REVIEW — initially NOT CLEAR, GPT-5.6 Sol high.**
+  No High production RTL defect was found in the DMA inactive-slot or CRTC3 R8=3 work.
+  Three Medium integration findings were remediated in the feature branch: the mixed-language
+  P10 input fixture is now in lint, `s17` overlaps all 16 live-updated sprites in one early
+  window and observes each emitted marker, and the hardware symptoms plus confidence limits
+  are durably reconciled. A Low mismatch in joystick-2 fallback was also corrected to mirror
+  production. Focused DMA, P8, CRTC3 video, sprite leaf, real-register sprite, P10 input, and
+  cartridge-boot tests pass. The cartridge harness pins an 11-tick deterministic stall run,
+  but its no-wait RAM side cannot support a valid speed comparison. Keep this row open until
+  the complete rebased gates and a fresh remediation re-review pass.
+  **FRESH SOL REMEDIATION REVIEW — CLEAR at `3ce8268`, GPT-5.6 Sol high, 2026-08-30.**
+  The reviewer independently reproduced the focused benches and accepted the input-lint,
+  exact joystick fallback, all-16 overlap, cartridge-address reconstruction, and durable
+  residual wording. A subsequent guarded Claude review found one Medium production defect:
+  inactive DMA channels skipped fetch slots but still delayed the execute phase. The new
+  `d13` discriminator first failed unchanged RTL for channel 1 alone (CCLK 3 rather than 2),
+  then passed all eight masks after fetch completion and channel transitions were routed
+  directly to the next active execute state.
+  **DMA REMEDIATION RE-REVIEW — CLEAR at `d17a1bc`, Claude Opus 5 high, 2026-08-30.**
+  The first narrow pass accepted the production routing and found one Low test gap: cadence
+  alone did not prove channel identity/order for partial masks. `d13` now requires the
+  distinct PSG register/data writes in ascending active-channel order for all masks; the
+  final narrow pass verified the oracle and bounds path and returned CLEAR. Full post-fix
+  simulation and lint pass, the golden soak remains `0x32d468e81eac63c9`, and no unreviewed
+  hardware-round-two RTL/test delta remains. Keep this broader historical row open only for
+  evidence outside the reviewed local seam: physical sprite bandwidth/access blanking, the
+  full HPS-to-SNA producer boundary, DMA/PPI concurrency, exact-top synthesis, and hardware
+  retest.
 
 - **ACCC Round 2 documentation correction, 2026-08-28** — documentation on the integration
   branch `accc-review-and-fixes`, based on `c11c55d`. Scope: `accuracy/accc-author-feedback.md`, its Round 1

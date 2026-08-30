@@ -118,6 +118,17 @@ module asic_dma (
 
 	reg [4:0] state;
 
+	// Once the fetch phase is complete, enter the first active channel
+	// directly and skip inactive execute slots.  The same routing is used
+	// after each channel so a line's execution cadence depends only on the
+	// channels captured in active_ch, while retaining channel order.
+	wire [4:0] exec_first_state = active_ch[0] ? ST_EXEC0_A :
+	                              active_ch[1] ? ST_EXEC1_A :
+	                              active_ch[2] ? ST_EXEC2_A : ST_DONE;
+	wire [4:0] exec_after0_state = active_ch[1] ? ST_EXEC1_A :
+	                               active_ch[2] ? ST_EXEC2_A : ST_DONE;
+	wire [4:0] exec_after1_state = active_ch[2] ? ST_EXEC2_A : ST_DONE;
+
 	integer c;
 
 	always @(posedge clk) begin
@@ -187,11 +198,26 @@ module asic_dma (
 
 				// 1 dead cycle (1us) after HSYNC leading edge
 				ST_DEAD: begin
+					ram_req <= 1'b0;
 					if (|active_ch) begin
-						state <= ST_FETCH0;
 						if (active_ch[0]) begin
+							// The Arnold V timing rule provides one fetch cycle for
+							// each active channel, in channel order.  Select the
+							// first active channel here so an inactive lower-numbered
+							// channel does not consume a fetch slot.
+							state    <= ST_FETCH0;
 							ram_req  <= 1'b1;
 							ram_addr <= {sar_cur[0][15:1], 1'b0};
+						end
+						else if (active_ch[1]) begin
+							state    <= ST_FETCH1;
+							ram_req  <= 1'b1;
+							ram_addr <= {sar_cur[1][15:1], 1'b0};
+						end
+						else begin
+							state    <= ST_FETCH2;
+							ram_req  <= 1'b1;
+							ram_addr <= {sar_cur[2][15:1], 1'b0};
 						end
 					end
 					else begin
@@ -208,11 +234,17 @@ module asic_dma (
 					if (active_ch[1]) begin
 						ram_req  <= 1'b1;
 						ram_addr <= {sar_cur[1][15:1], 1'b0};
+						state    <= ST_FETCH1;
+					end
+					else if (active_ch[2]) begin
+						ram_req  <= 1'b1;
+						ram_addr <= {sar_cur[2][15:1], 1'b0};
+						state    <= ST_FETCH2;
 					end
 					else begin
 						ram_req  <= 1'b0;
+						state    <= exec_first_state;
 					end
-					state <= ST_FETCH1;
 				end
 
 				// Channel 1 fetch
@@ -224,11 +256,12 @@ module asic_dma (
 					if (active_ch[2]) begin
 						ram_req  <= 1'b1;
 						ram_addr <= {sar_cur[2][15:1], 1'b0};
+						state    <= ST_FETCH2;
 					end
 					else begin
 						ram_req  <= 1'b0;
+						state    <= exec_first_state;
 					end
-					state <= ST_FETCH2;
 				end
 
 				// Channel 2 fetch
@@ -238,13 +271,13 @@ module asic_dma (
 						sar_cur[2] <= sar_cur[2] + 16'd2;
 					end
 					ram_req <= 1'b0;
-					state   <= ST_EXEC0_A;
+					state   <= exec_first_state;
 				end
 
 				// Channel 0 execute
 				ST_EXEC0_A: begin
 					if (!active_ch[0]) begin
-						state <= ST_EXEC1_A;
+						state <= exec_after0_state;
 					end
 					else begin
 						case (instr[0][15:12])
@@ -262,21 +295,21 @@ module asic_dma (
 								pause_cnt[0]     <= instr[0][11:0];
 								prescaler_cnt[0] <= ppr0;
 							end
-							state <= ST_EXEC1_A;
+							state <= exec_after0_state;
 						end
 						4'h2: begin // REPEAT N
 							if (instr[0][11:0] != 12'd0) begin
 								loop_cnt[0]  <= instr[0][11:0];
 								loop_addr[0] <= sar_cur[0];
 							end
-							state <= ST_EXEC1_A;
+							state <= exec_after0_state;
 						end
 						4'h3: begin // PAUSE then REPEAT (undocumented)
 							pause_cnt[0]     <= instr[0][11:0];
 							prescaler_cnt[0] <= ppr0;
 							loop_cnt[0]      <= instr[0][11:0];
 							loop_addr[0]     <= sar_cur[0];
-							state <= ST_EXEC1_A;
+							state <= exec_after0_state;
 						end
 						4'h4: begin // Control group: NOP / LOOP / INT / STOP
 							if (instr[0][5]) begin // STOP
@@ -291,10 +324,10 @@ module asic_dma (
 									sar_cur[0]  <= loop_addr[0];
 								end
 							end
-							state <= ST_EXEC1_A;
+							state <= exec_after0_state;
 						end
 						default: begin
-							state <= ST_EXEC1_A;
+							state <= exec_after0_state;
 						end
 						endcase
 					end
@@ -350,13 +383,13 @@ module asic_dma (
 					psg_active     <= 1'b0;
 					psg_bdir       <= 1'b0;
 					psg_bc1        <= 1'b0;
-					state          <= ST_EXEC1_A;
+					state          <= exec_after0_state;
 				end
 
 				// Channel 1 execute
 				ST_EXEC1_A: begin
 					if (!active_ch[1]) begin
-						state <= ST_EXEC2_A;
+						state <= exec_after1_state;
 					end
 					else begin
 						case (instr[1][15:12])
@@ -373,21 +406,21 @@ module asic_dma (
 								pause_cnt[1]     <= instr[1][11:0];
 								prescaler_cnt[1] <= ppr1;
 							end
-							state <= ST_EXEC2_A;
+							state <= exec_after1_state;
 						end
 						4'h2: begin // REPEAT N
 							if (instr[1][11:0] != 12'd0) begin
 								loop_cnt[1]  <= instr[1][11:0];
 								loop_addr[1] <= sar_cur[1];
 							end
-							state <= ST_EXEC2_A;
+							state <= exec_after1_state;
 						end
 						4'h3: begin // PAUSE then REPEAT
 							pause_cnt[1]     <= instr[1][11:0];
 							prescaler_cnt[1] <= ppr1;
 							loop_cnt[1]      <= instr[1][11:0];
 							loop_addr[1]     <= sar_cur[1];
-							state <= ST_EXEC2_A;
+							state <= exec_after1_state;
 						end
 						4'h4: begin // Control group
 							if (instr[1][5]) begin // STOP
@@ -402,10 +435,10 @@ module asic_dma (
 									sar_cur[1]  <= loop_addr[1];
 								end
 							end
-							state <= ST_EXEC2_A;
+							state <= exec_after1_state;
 						end
 						default: begin
-							state <= ST_EXEC2_A;
+							state <= exec_after1_state;
 						end
 						endcase
 					end
@@ -454,7 +487,7 @@ module asic_dma (
 					psg_active     <= 1'b0;
 					psg_bdir       <= 1'b0;
 					psg_bc1        <= 1'b0;
-					state          <= ST_EXEC2_A;
+					state          <= exec_after1_state;
 				end
 
 				// Channel 2 execute

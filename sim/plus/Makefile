@@ -172,6 +172,16 @@ SPRITES_OBJ_DIR  := obj_dir/asic_sprites
 SPRITES_TEST_SRC := $(abspath asic_sprites_test.cpp)
 SPRITES_TEST_BIN := $(SPRITES_OBJ_DIR)/asic_sprites_tests
 
+# P4 production seam: ASIC-page register storage and sprite row-fetch
+# arbitration are connected directly to the sprite engine.
+SPRREGS_TOP      := p4_sprites_regs_test_top
+SPRREGS_TOP_SRC  := $(abspath p4_sprites_regs_test_top.v)
+SPRREGS_RTL      := $(abspath ../../rtl/plus/asic_regs.v) \
+	$(abspath ../../rtl/plus/asic_sprites.v)
+SPRREGS_OBJ_DIR  := obj_dir/p4_sprites_regs
+SPRREGS_TEST_SRC := $(abspath p4_sprites_regs_test.cpp)
+SPRREGS_TEST_BIN := $(SPRREGS_OBJ_DIR)/p4_sprites_regs_tests
+
 # P7 3-channel DMA sound engine leaf
 DMA_TOP      := asic_dma
 DMA_RTL      := $(abspath ../../rtl/plus/asic_dma.v)
@@ -204,15 +214,34 @@ P10BOOT_OBJ_DIR  := obj_dir/p10_boot
 P10BOOT_TEST_SRC := $(abspath p10_boot_test.cpp)
 P10BOOT_TEST_BIN := $(P10BOOT_OBJ_DIR)/p10_boot_tests
 
+# P10b production input-path fixture: the minimal exact PPI/YM2149/hid/joydb
+# slice from the motherboard, with a scripted fake Z80 and a 6128+ capability
+# set.  The real Plus GA timing module owns CPU phases/READY and YM CCLK_EN_P.
+# This target intentionally uses mixed Verilog/SystemVerilog parsing so the
+# real YM2149 and HID implementations participate.
+P10INPUT_TOP      := p10_input_test_top
+P10INPUT_TOP_SRC  := $(abspath p10_input_test_top.v)
+P10INPUT_CPU      := $(abspath t80pa_input_bench_cpu.v)
+P10INPUT_RTL      := $(abspath ../../rtl/plus/asic_ga_timing.v) \
+	$(abspath ../../rtl/i8255.v) \
+	$(abspath ../../rtl/YM2149.sv) \
+	$(abspath ../../rtl/hid.sv) \
+	$(abspath ../../rtl/joydb.sv)
+P10INPUT_OBJ_DIR  := obj_dir/p10_input
+P10INPUT_TEST_SRC := $(abspath p10_input_test.cpp)
+P10INPUT_TEST_BIN := $(P10INPUT_OBJ_DIR)/p10_input_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
-	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN)
+	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN)
+
+TEST_BINS += $(P10INPUT_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
 
-.PHONY: all build test lint motherboard-lint clean
+.PHONY: all build test lint motherboard-lint p4-sprites-regs clean
 
 all: test
 
@@ -221,6 +250,12 @@ build: $(TEST_BINS)
 # Convenience alias; the bench itself runs in the default gate.
 p1-video-bench: $(P1VID_TEST_BIN)
 	./$(P1VID_TEST_BIN)
+
+p10-input-bench: $(P10INPUT_TEST_BIN)
+	./$(P10INPUT_TEST_BIN)
+
+p4-sprites-regs: $(SPRREGS_TEST_BIN)
+	./$(SPRREGS_TEST_BIN)
 
 test: $(TEST_BINS)
 	./$(ASIC_TEST_BIN)
@@ -239,9 +274,11 @@ test: $(TEST_BINS)
 	./$(AREGS_TEST_BIN)
 	./$(PRI_TEST_BIN)
 	./$(SPRITES_TEST_BIN)
+	./$(SPRREGS_TEST_BIN)
 	./$(DMA_TEST_BIN)
 	./$(P8_TEST_BIN)
 	./$(P10BOOT_TEST_BIN)
+	./$(P10INPUT_TEST_BIN)
 
 $(P8_TEST_BIN): $(P8_RTL) $(P8_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module plus_p8_test_top -Wno-CASEX \
@@ -323,6 +360,12 @@ $(SPRITES_TEST_BIN): $(SPRITES_RTL) $(SPRITES_TEST_SRC) Makefile | $(OBJ_DIR)
 		--Mdir $(SPRITES_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(SPRITES_TEST_BIN)) $(SPRITES_RTL) $(SPRITES_TEST_SRC)
 
+$(SPRREGS_TEST_BIN): $(SPRREGS_TOP_SRC) $(SPRREGS_RTL) $(SPRREGS_TEST_SRC) Makefile | $(SPRREGS_OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(SPRREGS_TOP) \
+		--Mdir $(SPRREGS_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(SPRREGS_TEST_BIN)) $(SPRREGS_TOP_SRC) $(SPRREGS_RTL) \
+		$(SPRREGS_TEST_SRC)
+
 $(DMA_TEST_BIN): $(DMA_RTL) $(DMA_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(DMA_TOP) \
 		--Mdir $(DMA_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
@@ -347,7 +390,17 @@ $(P10BOOT_TEST_BIN): $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) $(P10BOOT_TEST_SRC) Make
 		-o $(notdir $(P10BOOT_TEST_BIN)) $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) \
 		$(P10BOOT_TEST_SRC)
 
+$(P10INPUT_TEST_BIN): $(P10INPUT_TOP_SRC) $(P10INPUT_CPU) $(P10INPUT_RTL) $(P10INPUT_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) --cc --exe --build -UVERILATOR --public-flat-rw -Wno-PROCASSWIRE \
+		--top-module $(P10INPUT_TOP) \
+		--Mdir $(P10INPUT_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(P10INPUT_TEST_BIN)) $(P10INPUT_TOP_SRC) $(P10INPUT_CPU) \
+		$(P10INPUT_RTL) $(P10INPUT_TEST_SRC)
+
 $(OBJ_DIR):
+	mkdir -p -- $@
+
+$(SPRREGS_OBJ_DIR): | $(OBJ_DIR)
 	mkdir -p -- $@
 
 # Standalone form of the motherboard hierarchy lint that `lint` runs first.
@@ -368,6 +421,9 @@ lint: motherboard-lint
 		--top-module $(ASICVID_TOP) -Wall $(ASICVID_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(SPRITES_TOP) -Wall $(SPRITES_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
+		--top-module $(SPRREGS_TOP) -Wall -Wno-fatal \
+		$(SPRREGS_TOP_SRC) $(SPRREGS_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(DMA_TOP) -Wall $(DMA_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
@@ -398,6 +454,9 @@ lint: motherboard-lint
 		--top-module plus_sna_parser -Wall $(abspath ../../rtl/plus/plus_sna_parser.v)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module i8255 -Wall -Wno-CASEX $(abspath ../../rtl/i8255.v)
+	$(VERILATOR) --lint-only -UVERILATOR --public-flat-rw \
+		--top-module $(P10INPUT_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
+		$(P10INPUT_TOP_SRC) $(P10INPUT_CPU) $(P10INPUT_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module plus_fdc_decode -Wall $(abspath ../../rtl/plus/plus_fdc_decode.v)
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
