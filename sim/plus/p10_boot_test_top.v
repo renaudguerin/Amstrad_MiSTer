@@ -225,6 +225,7 @@ module p10_boot_test_top
 	wire        plus_vec_valid;
 	wire  [7:0] plus_asic_dout;
 	wire        plus_asic_rd;
+	wire        plus_asic_unlocked;
 
 	wire io_rd = cpu_rd & cpu_iorq;
 	wire io_wr = cpu_wr & cpu_iorq;
@@ -252,6 +253,7 @@ module p10_boot_test_top
 		.cart_stall(plus_cart_stall),
 		.cart_dout(plus_cart_dout),
 		.asic_page_on(plus_aspage_on),
+		.asic_unlocked(plus_asic_unlocked),
 		.sna_load(1'b0),
 		.sna_rmr2(8'd0),
 		.sna_unlock(1'b0)
@@ -323,6 +325,7 @@ module p10_boot_test_top
 		.clk(clk),
 		.ce_16(ce_16),
 		.plus_mode(plus_mode),
+		.plus_unlocked(plus_asic_unlocked),
 		.plus_ram_128k(plus_ram_128k),
 		.plus_has_fdc(plus_has_fdc),
 		.plus_has_tape(plus_has_tape),
@@ -363,6 +366,7 @@ module p10_boot_test_top
 		.plus_sna_wr(1'b0),
 		.plus_sna_addr(14'd0),
 		.plus_sna_data(8'd0),
+		.plus_asic_reset(sys_reset),
 		.joy1(7'd0),
 		.joy2(7'd0),
 		.tape_in(1'b0),
@@ -406,8 +410,14 @@ module p10_boot_test_top
 	);
 
 	// FDC select decode and motor latch
-	assign dbg_fdc_motor_sel = (!plus_mode || plus_has_fdc) && !cpu_addr[10] && cpu_addr[9] && !cpu_addr[8];
-	assign dbg_fdc_data_sel  = (!plus_mode || plus_has_fdc) && !cpu_addr[10] && cpu_addr[9] && cpu_addr[8] && cpu_addr[4];
+	plus_fdc_decode fdc_decode (
+		.addr(cpu_addr),
+		.plus_mode(plus_mode),
+		.plus_has_fdc(plus_has_fdc),
+		.fdc_disabled(1'b0),
+		.motor_sel(dbg_fdc_motor_sel),
+		.u765_sel(dbg_fdc_data_sel)
+	);
 
 	always @(posedge clk) begin
 		reg old_wr;
@@ -487,7 +497,6 @@ module p10_boot_test_top
 	assign dbg_mcmax  = mb.CPU.u0.mc_max;
 	assign dbg_cen_p  = mb.CPU.cen_p;
 	assign dbg_cpu_waitn = mb.CPU.wait_n;
-
 endmodule
 
 // Quartus supplies this primitive.

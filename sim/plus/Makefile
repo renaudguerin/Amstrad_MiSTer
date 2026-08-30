@@ -183,7 +183,7 @@ DMA_TEST_BIN := $(DMA_OBJ_DIR)/asic_dma_tests
 P8_OBJ_DIR  := obj_dir/plus_p8
 P8_TEST_SRC := $(abspath plus_p8_test.cpp)
 P8_TEST_BIN := $(P8_OBJ_DIR)/plus_p8_tests
-P8_RTL      := $(abspath plus_p8_test_top.v) $(abspath ../../rtl/i8255.v) $(abspath ../../rtl/plus/plus_sna_parser.v) $(abspath ../../rtl/plus/plus_model_select.v)
+P8_RTL      := $(abspath plus_p8_test_top.v) $(abspath ../../rtl/i8255.v) $(abspath ../../rtl/plus/plus_sna_parser.v) $(abspath ../../rtl/plus/plus_model_select.v) $(abspath ../../rtl/plus/plus_fdc_decode.v) $(abspath ../../rtl/plus/asic_regs.v) $(abspath ../../rtl/plus/plus_mmu.v) $(abspath ../../rtl/plus/asic_unlock.v)
 
 # P10a real-T80 production CPR boot harness
 P10BOOT_TOP      := p10_boot_test_top
@@ -196,6 +196,7 @@ P10BOOT_RTL      := $(MBOARD_CORE_RTL) $(P10BOOT_TV80) \
                     $(abspath ../../rtl/plus/plus_mmu.v) \
                     $(abspath ../../rtl/plus/asic_unlock.v) \
                     $(abspath ../../rtl/plus/plus_model_select.v) \
+                    $(abspath ../../rtl/plus/plus_fdc_decode.v) \
                     $(abspath ../../rtl/sdram.v) \
                     $(abspath ../../rtl/GA40010/casgen_sync.v) \
                     $(abspath ../../rtl/GA40010/syncgen_sync.v)
@@ -397,6 +398,8 @@ lint: motherboard-lint
 		--top-module plus_sna_parser -Wall $(abspath ../../rtl/plus/plus_sna_parser.v)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module i8255 -Wall -Wno-CASEX $(abspath ../../rtl/i8255.v)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module plus_fdc_decode -Wall $(abspath ../../rtl/plus/plus_fdc_decode.v)
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
 		--top-module $(P10BOOT_TOP) -Wall -Wno-fatal \
 		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \

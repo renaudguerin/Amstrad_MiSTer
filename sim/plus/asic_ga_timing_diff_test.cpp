@@ -56,6 +56,7 @@ public:
 	uint8_t cen_phase = 0;
 	bool fast = false;
 	bool reset_n = false;
+	bool plus_unlocked = false;
 	uint16_t addr = 0;
 	uint8_t data = 0;
 	bool mreq_n = true, m1_n = true, rd_n = true, iorq_n = true;
@@ -76,6 +77,7 @@ public:
 		dut.cen_16 = (cen_phase == 0);
 		dut.fast = fast;
 		dut.RESET_N = reset_n;
+		dut.plus_unlocked = plus_unlocked;
 		dut.A = addr;
 		dut.D = data;
 		dut.MREQ_N = mreq_n;
@@ -160,6 +162,10 @@ public:
 	} while (0)
 
 	void compare(const char* phase) {
+		// The netlist reference is the locked/classic GA. Directed Plus-only
+		// vectors deliberately suppress lockstep comparison after unlock and
+		// assert the replica's register state directly.
+		if (plus_unlocked) return;
 		CMP(CCLK); CMP(CCLK_EN_P); CMP(CCLK_EN_N);
 		CMP(PHI_N); CMP(PHI_EN_N); CMP(PHI_EN_P);
 		CMP(RAS_N); CMP(CASAD_N); CMP(CAS_N);
@@ -571,13 +577,45 @@ void r03_powerup_state(DiffBench& b) {
 		fail("r03: slot 15 must stay clear when ink select was reset to 0");
 }
 
+//----------------------------------------------------------------------
+// r04: once the Plus ASIC is unlocked, 101xxxxx belongs to RMR2 and must
+// not also update the legacy GA control register (mode, ROM enables, IRQ).
+//----------------------------------------------------------------------
+void r04_unlocked_rmr2_is_not_legacy_rmr(DiffBench& b) {
+	b.power_on_reset();
+
+	ga_write(b, 0x83); // mode 3, both ROM windows enabled
+	if (b.dut.as_MODE != 3 || b.dut.as_GAMODE_O != 3)
+		fail("r04: locked setup RMR did not select mode 3");
+
+	b.plus_unlocked = true;
+	ga_write(b, 0xB8); // RMR2 position 11/page 0; legacy view would change mode/ROM
+	if (b.dut.as_MODE != 3 || b.dut.as_GAMODE_O != 3)
+		fail("r04: unlocked RMR2 leaked into legacy GA mode");
+
+	// The prior 0x83 left both legacy ROM windows enabled. An erroneous
+	// legacy interpretation of 0xB8 would disable the upper window via D3.
+	b.mreq_n = false;
+	b.rd_n = false;
+	b.iorq_n = true;
+	b.m1_n = true;
+	b.addr = 0xC000;
+	b.settle();
+	if (b.dut.as_ROMEN_N != 0 || b.dut.as_RAMRD_N != 1)
+		fail("r04: unlocked RMR2 altered legacy upper-ROM enable");
+	b.addr = 0x0000;
+	b.settle();
+	if (b.dut.as_ROMEN_N != 0)
+		fail("r04: unlocked RMR2 altered legacy lower-ROM enable");
+}
+
 struct TestCase {
 	const char* name;
 	bool differential; // true = lockstep comparison active throughout
 	void (*fn)(DiffBench&);
 };
 
-const std::array<TestCase, 7> kTests = {{
+const std::array<TestCase, 8> kTests = {{
 	{"d01 lockstep mixed traffic",            true,  d01_lockstep_mixed},
 	{"d02 lockstep reset/ack storm",          true,  d02_lockstep_reset_ack_storm},
 	{"d03 lockstep lost-sync park",           true,  d03_lockstep_lost_sync},
@@ -585,6 +623,7 @@ const std::array<TestCase, 7> kTests = {{
 	{"r01 legacy register payloads",          false, r01_register_payloads},
 	{"r02 interrupt cadence and ack",         false, r02_interrupt_cadence_and_ack},
 	{"r03 defined power-up state",            false, r03_powerup_state},
+	{"r04 unlocked RMR2 does not update legacy GA", false, r04_unlocked_rmr2_is_not_legacy_rmr},
 }};
 
 } // namespace

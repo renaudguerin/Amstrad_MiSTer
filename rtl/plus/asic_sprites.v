@@ -321,15 +321,17 @@ wire [3:0] wk_row  = wk_spec ? srowtag[{wk_s[3:0], ~abit[wk_s]}*4 +: 4]
 // ample against the demand budget in the header note.
 reg  [7:0]  fq_tag;            // word of the request currently on the port
 reg  [3:0]  fq_row;            // source row the request was issued for
-reg         fq_acc;            // target sprite accessed while in flight
+reg         fq_acc;            // target sprite accessed during this request
 wire        do_pop  = FQ_REQ && FQ_ACK;
 // The payload is only ours if nothing made it stale since issue: a seam
 // retag of the target bank (row mismatch, robust to ACKs delayed behind
 // CPU-port preemption), or a pixel-data access to the word's own sprite
-// while the request sat in flight -- the port serves grants through CPU
-// WRITE cycles too, and a registered read can return the pre-write byte,
-// so the access must poison the request for its whole life, not just the
-// cycles ACC_EN is high.
+// while the request sat in flight. ACC_EN is a level for the complete Z80
+// memory cycle: the launch assignment below captures a hit on the issue
+// edge, the in-flight walker tail records later high cycles, and the
+// completion predicate checks fq_acc_hit for a hit on the ACK edge itself.
+// This keeps a level that falls before the registered response from allowing
+// the queued pre-write byte to overwrite a write-through nibble.
 wire        fq_stale = fq_acc ||
                        (srowtag[fq_tag[7:3]*4 +: 4] != fq_row);
 wire        fq_acc_hit = ACC_EN && (ACC_IDX == fq_tag[7:4]);
@@ -485,7 +487,7 @@ always @(posedge CLOCK) begin
 				FQ_ADDR <= {wk_s, wk_row, wk_byte};
 				fq_tag  <= pb_word;
 				fq_row  <= wk_row;
-				fq_acc  <= 1'b0;
+				fq_acc  <= ACC_EN && (ACC_IDX == pb_word[7:4]);
 				FQ_REQ  <= 1'b1;
 				sreq[pb_word] <= 1'b1;
 			end
@@ -503,6 +505,9 @@ always @(posedge CLOCK) begin
 				walk <= {walk[7] ^ wk_wrap, wk_s_nxt, 3'd0};
 			else
 				walk <= walk + 8'd1;
+		end
+		else if (fq_acc_hit) begin
+			fq_acc <= 1'b1;
 		end
 	end
 end

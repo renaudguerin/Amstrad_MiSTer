@@ -48,6 +48,7 @@ module p1_mobo_bench_top (
 		.ce_16(ce_16),
 
 		.plus_mode(plus_mode_i),
+		.plus_unlocked(1'b0),
 		.plus_ram_128k(1'b0),
 		.plus_has_fdc(1'b0),
 		.plus_has_tape(1'b0),
@@ -94,6 +95,7 @@ module p1_mobo_bench_top (
 		.plus_sna_wr(1'b0),
 		.plus_sna_addr(14'd0),
 		.plus_sna_data(8'd0),
+		.plus_asic_reset(reset),
 
 		.tape_in(1'b0),
 		.tape_out(),

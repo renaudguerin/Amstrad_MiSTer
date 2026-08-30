@@ -83,6 +83,11 @@ module plus_mmu
 	// stored ASIC-page enable (RMR2 D4D3 = 11); consumed from P2 onward
 	output reg        asic_page_on,
 
+	// The single Plus ASIC lock state.  The Gate Array register file consumes
+	// this same state when deciding whether a 101xxxxx write is MRER or RMR2;
+	// keeping the detector here avoids two unlock machines drifting apart.
+	output            asic_unlocked,
+
 	input             sna_load,
 	/* verilator lint_off UNUSEDSIGNAL */
 	input      [7:0]  sna_rmr2,
@@ -140,6 +145,12 @@ asic_unlock unlock_detector
 	.sna_unlock(sna_unlock)
 );
 
+// Do not let the Plus lock status act as a classic-mode control input if the
+// model selector is changed without a reset.  The raw detector state remains
+// in the child for diagnostics and for resuming Plus mode; this is the
+// authoritative state exposed to the other Plus blocks.
+assign asic_unlocked = plus_mode & unlocked;
+
 reg        lromen;
 reg        hromen;
 
@@ -178,7 +189,12 @@ always @(posedge clk) begin
 	end
 	else begin
 		// RMR2 is a Gate-Array port payload; the Plus IN=OUT trap applies
-		// exactly as it does to PENR/INKR/RMR in asic_ga_timing.
+		// exactly as it does to PENR/INKR/RMR in asic_ga_timing.  While the
+		// ASIC is locked, 101xxxxx is the old CPC MRER decode (bit 5 is
+		// ignored), so the local window gates must mirror that write too.
+		// Sources: docs/plus/references/asic-reference.md sections 1-2 and
+		// docs/references/Amstrad CPC Gate-Array.md, "Rom configuration
+		// selection" (classic MRER bit 5 is unused).
 		if (plus_mode && io_access_start && !A[15] && A[14]) begin
 			if ((D[7:5] == 3'b101) && unlocked) begin
 				// RMR2: D4D3 position (11 => &0000 + ASIC page on), D2-D0 page
@@ -186,8 +202,10 @@ always @(posedge clk) begin
 				rmr2_page    <= D[2:0];
 				asic_page_on <= (D[4:3] == 2'b11);
 			end
-			else if (D[7:5] == 3'b100) begin
-				// MRER: D2=lower ROM disable, D3=upper ROM disable
+			else if ((D[7:5] == 3'b100) ||
+			         ((D[7:5] == 3'b101) && !unlocked)) begin
+				// MRER: D2=lower ROM disable, D3=upper ROM disable.
+				// The 101 alias is active only while locked.
 				lromen <= D[2];
 				hromen <= D[3];
 			end

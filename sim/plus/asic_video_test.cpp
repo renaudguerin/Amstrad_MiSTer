@@ -1909,23 +1909,27 @@ void t07e_status2_vertical_events(TestBench& test) {
 }
 
 // ACCC §21.3.4.2 p.249: bit 3 is stable for a whole frame and toggles
-// every 16 frame origins. The absolute reset phase is the RTL's named zero
-// assumption; this vector derives only the documented period.
+// every 16 frame origins. With R9=7, R4=0, and R0=1, each frame has eight
+// scanlines and 16 characters. Two 16-frame intervals catch a frame-origin
+// pulse that fires on every C9 line end, independent of the reset phase.
+// The absolute reset phase is the RTL's named zero assumption; this vector
+// derives only the documented period.
 void t07f_status2_frame16_timer(TestBench& test) {
-    test.write_register(0, 1); // two characters per one-line frame
+    test.write_register(0, 1); // two characters per scanline
     test.write_register(4, 0);
     test.write_register(5, 0);
     test.write_register(7, 100);
-    test.write_register(9, 0);
+    test.write_register(9, 7); // eight scanlines per frame
     test.select_register(3);
     test.run_to_frame_start();
     const std::uint8_t start = test.sample_selected() & 0x08;
-    test.run_characters(32); // 16 frames * 2 characters
+    constexpr unsigned kFrameCharacters = 8 * 2;
+    test.run_characters(kFrameCharacters * 16); // 16 frames * 8 lines * 2 chars
     const std::uint8_t flipped = test.sample_selected() & 0x08;
     if (flipped == start)
         TestBench::fail_unsigned("t07f timer did not toggle after 16 frames",
                                  start ^ 0x08, flipped);
-    test.run_characters(32);
+    test.run_characters(kFrameCharacters * 16);
     if ((test.sample_selected() & 0x08) != start)
         TestBench::fail_unsigned("t07f timer did not return after 32 frames",
                                  start, test.sample_selected() & 0x08);
@@ -2176,7 +2180,49 @@ void t08h_overscan_carry_14bit(TestBench& test) {
     test.expect_ma("t08h row 1 starts with overscan carried base", 0x0402);
 }
 
-constexpr std::array<TestCase, 56> kTests = {{
+// t08i: SSCR vertical offset wraps RA at the row boundary and advances the
+// source row base on the raw-raster-7/RA0 line (asic-reference §8).
+void t08i_sscr_vertical_wrap_advances_ma(TestBench& test) {
+    // Eight scanlines per source row, four displayed characters per line,
+    // and a deliberately quiet VSYNC position make the boundary observable.
+    test.write_register(9, 7);
+    test.write_register(4, 2);
+    test.write_register(5, 0);
+    test.write_register(1, 4);
+    test.write_register(6, 100);
+    test.write_register(7, 100);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.write_register(0, 7);
+    test.set_sscr(0x10); // vertical offset = 1
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+
+    // The offset changes only RA's low three bits.  The source row base must
+    // nevertheless advance before the wrapped RA=0 line: raw raster 0..6
+    // are source row 0 (RA 1..7), raw raster 7 is source row 1 (RA 0), and
+    // the following raw raster 0 remains on source row 1 (RA 1).
+    for (unsigned raw_raster = 0; raw_raster < 7; ++raw_raster) {
+        test.expect_line("t08i source row 0", 0);
+        test.expect_row("t08i raw raster before wrap", raw_raster);
+        test.expect_ma("t08i source base before wrap", 0x1234);
+        test.expect_ra("t08i offset raster before wrap", raw_raster + 1);
+        test.run_characters(8);
+    }
+
+    test.expect_line("t08i source row 1 at raw raster 7", 0);
+    test.expect_row("t08i raw raster 7", 7);
+    test.expect_ma("t08i raw raster 7 advances source base", 0x1238);
+    test.expect_ra("t08i raw raster 7 wraps to RA 0", 0);
+    test.run_characters(8);
+
+    test.expect_line("t08i next source row", 1);
+    test.expect_row("t08i next row starts at raw raster 0", 0);
+    test.expect_ma("t08i next row keeps advanced source base", 0x1238);
+    test.expect_ra("t08i next row starts at offset RA 1", 1);
+}
+
+constexpr std::array<TestCase, 57> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -2240,6 +2286,7 @@ constexpr std::array<TestCase, 56> kTests = {{
     {"t08f SSCR horizontal pixel delay", t08f_sscr_horizontal_pixel_delay},
     {"t08g SSCR border mask and sprites", t08g_sscr_border_mask_and_sprites},
     {"t08h 14-bit VMA overscan carry", t08h_overscan_carry_14bit},
+    {"t08i SSCR vertical wrap advances MA", t08i_sscr_vertical_wrap_advances_ma},
 }};
 
 }  // namespace
