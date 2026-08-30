@@ -347,11 +347,12 @@ end
 //----------------------------------------------------------------------
 // Video pointer: VMA (current) and VMA' (row-start latch).
 //
-// Two-stage {R12,R13} -> VMA' -> VMA behaviour, as on type 0 (ACCC
-// §20.3.4 p.243): at every C0=0 while C4=0 BOTH pointers reload from
-// R12/R13 — note there is no C9 term in the type-3/4 condition, unlike
-// type 0's C4=C9=C0=0 (§20.3.1). At any other line start VMA loads from
-// VMA'. The row-end capture VMA' <- VMA fires on the live comparison
+// Two-stage {R12,R13} -> VMA' -> VMA behaviour, as on type 0. The ACCC
+// v1.11 §20.3.4 p.243 opening-sentence/current-pointer-model reading (the
+// later prose drops C9; hardware confirmation remains open) is used here:
+// at the frame origin C4=C9=C0=0 BOTH pointers reload from R12/R13. At any
+// other line start VMA loads from VMA'. The row-end capture VMA' <- VMA fires
+// on the live comparison
 // C0==R1 && C9==R9 and is suppressed during vertical adjustment, which
 // instead re-solidifies the captured row base each adjustment line
 // ("without updating the video pointer", ACCC §11.2.6 p.84).
@@ -364,9 +365,19 @@ end
 reg [13:0] vma;
 reg [13:0] vma_latch;
 
+// Selected §20.3.4 frame-origin reading; see the source-conflict note above.
+wire pointer_frame_origin = !adj_n && (charline_n == 7'd0) &&
+                            (raster_n == 5'd0);
+
+// P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
+wire [4:0] ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
+
+// Row-end VMA latch update: when the displayed scanline ra_eff reaches R9,
+// capture VMA into vma_latch at HCC == R1 so MA advances before the wrapped
+// RA 0 line under SSCR vertical scroll (Arnold V §2.5, asic-reference §8).
 wire row_latch_event = CLKEN && !in_adj &&
                        (hcc == R1_h_displayed) &&
-                       (raster == R9_v_max_line);
+                       (ra_eff == R9_v_max_line);
 
 // P6: Screen split comparison ({SPLT7..0} == {VC4..0, RC2..0}, asic-reference §8).
 // When matched and SPLT != 0, capture SSA into vma_latch at HCC == R1.
@@ -389,7 +400,7 @@ always @(posedge CLOCK) begin
 			// a simultaneous C0=R1=R0 row-end capture supplies the next
 			// row base, so do not overwrite VMA with the stale latch value
 			// on that same edge (ACCC §17.1 p.176 / §17.6.1 p.185).
-			if (!adj_n && (charline_n == 7'd0)) begin
+			if (pointer_frame_origin) begin
 				vma       <= {R12_start_addr_h[5:0], R13_start_addr_l};
 				vma_latch <= {R12_start_addr_h[5:0], R13_start_addr_l};
 			end
@@ -583,7 +594,7 @@ assign ROW  = raster;
 assign ADJ  = in_adj;
 assign MA   = vma;
 // P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
-assign RA   = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
+assign RA   = ra_eff;
 
 //----------------------------------------------------------------------
 // P5: register readback, status groups (ACCC §21.2.3 p.246, §21.3.4
@@ -658,7 +669,7 @@ wire s2_bit7 = ((raster == R9_v_max_line) && hcc_last) ||
 // R12/R13 (C4=C9=C0, §20.3.4 p.243).
 reg  [3:0] frame16_cnt;
 reg        frame16_toggle;
-wire frame_origin = CLKEN && hcc_last && !adj_n && (charline_n == 7'd0);
+wire frame_origin = CLKEN && hcc_last && pointer_frame_origin;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin

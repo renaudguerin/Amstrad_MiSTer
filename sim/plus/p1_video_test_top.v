@@ -82,6 +82,7 @@ module p1_video_test_top (
 		.cen_16(cen_16),
 		.fast(fast),
 		.RESET_N(RESET_N),
+		.plus_unlocked(1'b0),
 		.A(ga_addr[15:14]),
 		.D(ga_data),
 		.MREQ_N(1'b1),

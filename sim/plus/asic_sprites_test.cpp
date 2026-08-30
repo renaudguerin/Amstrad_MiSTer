@@ -1034,7 +1034,88 @@ void s15_dynamic_burst_write_no_tearing(Spr& b) {
     }
 }
 
-constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 15> kTests = {{
+// CG-3 review regression: a CPU pixel access level can span request issue
+// and the following delayed ACK.  The write-through must update the staged
+// row, and the queued pre-write byte must be discarded for the request's
+// whole lifetime rather than replacing the new nibble.
+void s16_delayed_ack_same_row_write_collision(Spr& b) {
+    for (unsigned py = 0; py < 16; ++py)
+        for (unsigned px = 0; px < 16; ++px)
+            b.wr(0, px, py, 1); // old image: byte 0 is 0x11
+    b.set_x(0, 2); // hold the first source pixel at hp 2 while fetching
+    b.set_y(0, 0);
+    b.set_mag(0, 0x5);
+    program_palette(b);
+    b.force_taps(0, 0);
+
+    // Arm both banks and the continuous walker without advancing hp.  With
+    // only sprite 0 enabled, the first request is its active-bank row-0 byte
+    // 0, exactly the byte changed by the collision below.
+    b.step(true, true, true);
+    b.step(false, false, false);
+
+    // Production ACC_EN is a level held for the complete Z80 memory cycle,
+    // not a one-clock pulse.  Keep the access (and its write-through strobe)
+    // high for the walker-arm edge, the request-issue edge, and one further
+    // in-flight edge.  The request's registered old byte is returned only
+    // after the access level falls below.
+    b.dut.ACC_EN = 1;
+    b.dut.ACC_IDX = 0;
+    b.dut.spr_wr_en = 1;
+    b.dut.spr_wr_addr = 0; // sprite 0, row 0, pixel 0 (low nibble)
+    b.dut.spr_wr_data = 0xA;
+    b.step(false, false, false); // arm the walker; no request is issued yet
+    if (b.dut.FQ_REQ)
+        fail("s16: request issued before the walker-arm edge");
+    b.step(false, false, false); // issue the fetch and perform write-through
+    if (!b.dut.FQ_REQ)
+        fail("s16: did not observe the initial row-0 fetch");
+    const unsigned fetch_addr = b.dut.FQ_ADDR;
+    if ((fetch_addr >> 7) != 0 || ((fetch_addr >> 3) & 0xF) != 0 ||
+        (fetch_addr & 7) != 0)
+        fail("s16: initial fetch was not sprite 0 row 0 byte 0");
+
+    // Keep the production-shaped access level high for one in-flight edge;
+    // the queued response is still the old 0x11 byte.  Drop ACC_EN before
+    // the following edge, where the delayed ACK returns, then update the
+    // backing RAM so any re-demand observes the post-write image.
+    b.step(false, false, false);
+    b.dut.ACC_EN = 0;
+    b.dut.spr_wr_en = 0;
+    b.ram[0][0] = 0xA;
+
+    // The access tail is two PIXEN clocks.  Drain it while hp advances to X,
+    // then hold hp there so the first completed refetch is sampled directly.
+    b.step(true, false, false);
+    b.step(true, false, false);
+    bool req_level = b.dut.FQ_REQ != 0;
+    bool redemanded = false;
+    bool rendered_new_nibble = false;
+    for (unsigned cycle = 0; cycle < 512; ++cycle) {
+        const bool req = b.dut.FQ_REQ != 0;
+        if (req && !req_level && b.dut.FQ_ADDR == fetch_addr)
+            redemanded = true;
+        req_level = req;
+        const Spr::Smp s = b.sample();
+        if (s.en) {
+            if (!redemanded)
+                fail("s16: sprite became visible before stale byte was re-demanded");
+            unsigned g, r, bl;
+            pal_entry(0xA, g, r, bl);
+            if (s.idx != 0 || s.r != r || s.g != g || s.b != bl)
+                fail("s16: delayed stale fetch overwrote the write-through nibble");
+            rendered_new_nibble = true;
+            break;
+        }
+        b.step(false, false, false);
+    }
+    if (!redemanded)
+        fail("s16: stale completion did not re-demand the same row-0 byte");
+    if (!rendered_new_nibble)
+        fail("s16: new row-0 nibble did not render after stale ACK recovery");
+}
+
+constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 16> kTests = {{
     {"s01 zero magnification codes disable the sprite (S5)",
      s01_disabled_codes_off},
     {"s02 x1 placement, source pixels, transparency (S5)",
@@ -1063,6 +1144,8 @@ constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 15> kTests = {{
      s14_overlap_bandwidth_within_capacity},
     {"s15 dynamic burst write without tearing/garbling (CG-3 RoboCop 2)",
      s15_dynamic_burst_write_no_tearing},
+    {"s16 sustained access poisons delayed ACK and re-demands (CG-3 review)",
+     s16_delayed_ack_same_row_write_collision},
 }};
 
 }  // namespace

@@ -56,38 +56,68 @@ model, and mounted-media state were not recorded, so preserve these as checkpoin
 not commit-specific proof.
 
 The exact findings, confidence boundaries, required discriminators, and checked todo list are
-in `docs/plus/hardware-checkpoint-findings.md`. The main confirmed production defects are:
+in `docs/plus/hardware-checkpoint-findings.md`. P10 implemented the first PPI, model/FDC,
+DMA-arbitration, SNA-parser, and sprite-write remediations, but the 2026-08-29 independent
+review found that several claimed production tests were leaf tests or copies of production
+equations. The review is preserved verbatim in `docs/plus/p10-independent-review.md`; its
+debt remains open. The hardware observations themselves, future model/media/ROM UX work, and
+simulation-versus-hardware automation options are preserved separately in
+`docs/plans/2026-08-29-real-hardware-session.md`,
+`docs/plans/2026-08-29-plus-ui-ux-architecture.md`, and
+`docs/plans/2026-08-29-verification-automation-research.md`.
 
-- Plus PPI Port C read/write semantics exist, but physical `opc` pins are still direction-
-  gated like a classic 8255, which selects keyboard row 15 while control `0x9B` remains
-  active; whether Arnold 5 retains or re-enters that state still needs a control-write trace;
-- `plus_has_fdc` and `plus_has_tape` are decoded but do not gate their devices;
-- CPR/system reset does not reset the FDC or motor latch;
-- P7's required DMA-versus-PPI/PSG CPU-WAIT and state-restoration contract is absent; and
-- production CPC+ SNA download holds its parser in reset and can lose sprite nibbles on
-  consecutive source bytes.
+The current uncommitted `plus/p10-hardware-remediation` worktree has since produced focused
+simulation fixes for four hardware-correlated defects:
 
-The production evidence gap is equally important: P0's “boot integration” bench does not
-instantiate the real CPU/top level, and the motherboard bench uses a scripted fake CPU.
-Every cartridge-window byte also waits for a serial SDRAM service round trip, explicitly
-making execution slower than real ROM. The sprite engine's staged single-port fetch/recovery
-model is an undocumented implementation assumption and current tests do not reproduce a
-game's sustained sprite writes.
+- one shared classic/Plus FDC decoder restores the upstream classic A10/A8/A7 partial decode
+  while retaining 6128+ `&FADD`/`&FBDF` aliases and model gating;
+- the CPC+ SNA path captures each accepted payload byte with a one-cycle strobe, keeps the
+  parser and ASIC register loader live while the ordinary machine is reset, drains the FIFO
+  and final registered tail before apply, retains RMR2/unlock through that apply, and clears
+  retained state plus any residual prior FIFO/write tail when a later snapshot starts;
+- the authoritative ASIC lock state now separates locked `101xxxxx` MRER writes from
+  unlocked RMR2 writes in both the cartridge MMU and Gate Array path, and the classic
+  onboard-ROM path is suppressed in Plus mode; this is the confirmed source-level mechanism
+  for AmstradDiag content appearing during Burnin' Rubber relocation;
+- sprite fetches remember a same-sprite access for the whole delayed request, and SSCR
+  vertical wrap advances the video row base before the wrapped RA=0 line;
+- the status-2 16-frame timer now shares the selected C4/C9/C0 frame-origin condition with
+  the video-pointer reload it mirrors; ACCC v1.11 §20.3.4 p.243 also gives a later C4/C0-only
+  form, so the source conflict and hardware confirmation remain open.
+
+These changes pass the complete Verilator suite, lint, and the classic golden soak. A second
+independent review found the intended four remediation paths functionally correct but returned
+NOT CLEAR on three small integrity blockers and the frame-timer mismatch; the blockers and
+timer now have focused fixes. A later final scan then found and locally remediated three HIGH
+production SNA lifecycle defects: writes discarded by ASIC-register reset, registered strobe/
+data misalignment or repetition, and apply racing the undrained FIFO/tail. The new `p8_04`
+test elaborates the production parser, `asic_regs`, and MMU and covers backpressure, the final
+post-download strobe, a rapid new snapshot before the prior FIFO drains, register/palette/
+sprite restore, shadow apply, and ordinary reset. It is
+still not a full `Amstrad.sv` elaboration, so the top-level reset/strobe equations remain a
+Quartus and hardware boundary. This expanded post-review delta is not independently cleared,
+synthesized, or hardware-confirmed. The report and remediation status are in
+`docs/plus/p10-hardware-remediation-independent-review.md`. RoboCop and Navy Seals causality
+therefore remain retest hypotheses. BASIC/System CPR remains open because no bench executes a
+real u765 plus mounted DSK transaction. DMA/PPI concurrency, cartridge fetch timing,
+PRI monitor-HSYNC timing, CRTC3 R8 interlace/IVM, SSCR raw-bit horizontal shifting, and the
+first adjustment-line split also remain open.
 
 The only current local RBF is the smoke-fit `7c46b8d` artifact
 `Amstrad_20260829_7c46b8d.rbf` (SHA-256
 `895bd0491e9ff249295bab27b091870ddf5728961b97b07ee1129f1316faad86`): 82% ALMs,
 main setup slack **-0.796 ns**, TNS **-10.576 ns**. Smoke builds are not hardware-build
 evidence under `docs/ci-testing-policy.md`. If this was the tested RBF, timing is a plausible
-cross-title failure source but does not identify a particular RTL rule. P10 therefore starts
-by producing an exact-tip full-effort, timing-clean baseline and a real-T80 production boot
-harness. It then lands the confirmed PPI and FDC/model/reset fixes before changing
-cartridge-fetch, sprite, or CRTC3 behavior from title traces.
+cross-title failure source but does not identify a particular RTL rule. P10a delivered a
+deterministic TV80-under-T80pa-contract production-motherboard harness, not the required
+exact-tip full-effort timing-clean baseline and not a faithful title oracle. P10d cartridge
+execution timing and P10g Panza/CRTC3 first-divergence work have not started.
 
 Status vocabulary from this checkpoint onward is: **implemented**,
 **simulation-verified**, **full-fit/timing-clean**, and **hardware-confirmed**. Promote an
-item only when its own gate is recorded. The next stream branch is
-`plus/p10-compatibility-closure`.
+item only when its own gate is recorded. The active provisional remediation branch is
+`plus/p10-hardware-remediation`; do not promote it until fresh review and the open production
+gates are recorded.
 
 ## Hardware-test milestone
 
@@ -1120,12 +1150,16 @@ front end.
     - **HF-2 (12-bit ASIC Palette)**: connected `PAL_EN`, `PAL_ADDR`, `PAL_RGB` in `asic_video.v` and `Amstrad_motherboard.v` with `{G,R,B} -> {R,G,B}` nibble swap (resolves Burnin' Rubber / Plus custom palette rendering); verified with unit vectors `t05i`, `t05j` (registered dot-rate palette timing), and motherboard bench `m12`.
     - **HF-3 (Plus MMU/SDRAM Banking)**: wired `mem_bank` and `.ram64k` to `plus_ram_128k` (and `sna_load`) in `Amstrad.sv` to keep CPU and video memory banks aligned.
     - All tests pass (`make -C sim`, `make -C sim lint`), review debt logged in `docs/review-debt.md`.
-    **P10 Compatibility Closure (2026-08-29)**:
-    - **P10a (Real-T80 Boot Harness)**: added deterministic production CPR boot harness in `sim/plus/tv80/`, `sim/plus/p10_boot_test_top.v`, `sim/plus/p10_boot_test.cpp` verifying multi-page loading, cold reset release, reset vector execution at PC=0x0000, 16-byte ASIC unlock sequence, RMR2 page mapping, CRTC3/palette programming, FDC motor driving, and interrupt acknowledge vector supply.
+    **P10 Compatibility Closure (2026-08-29, independently reviewed but not cleared)**:
+    - **P10a (TV80-under-T80pa-contract Boot Harness)**: added a deterministic production-motherboard CPR fixture in `sim/plus/tv80/`, `sim/plus/p10_boot_test_top.v`, and `sim/plus/p10_boot_test.cpp`. It covers the synthetic fixture's load/reset/execution path, but substitutes TV80 for T80, has no normal SDRAM WAIT, real u765/DSK, or title-level positive control, and does not satisfy the still-open exact-tip full-effort timing gate.
     - **P10b (CF-1: PPI Port C Physical Output)**: in `rtl/i8255.v`, physical Port C outputs now drive `opc_r` in Plus mode under all modes (including 0x9B/0x92), matching hardware keyboard scanning behavior.
-    - **P10c (CF-2/CF-3: Model Capabilities & FDC Reset)**: in `Amstrad.sv`, gated FDC and motor with `plus_has_fdc`, tape with `plus_has_tape`, connected `u765.reset(reset)` and synchronous reset to `motor`. Gated AMSDOS aliases in `rtl/Amstrad_motherboard.v`.
-    - **P10e (CF-4: DMA/PPI/PSG Arbitration)**: in `rtl/plus/asic_dma.v`, implemented Arnold V §2.6 8-cycle `LOAD R, DD` execution envelope with inactive separation intervals and automatic CPU AY-3-8912 selected register restoration; in `rtl/Amstrad_motherboard.v`, added `cpu_psg_addr` tracking, `dma_load_owner` bus ownership, and `dma_ppi_wait` Z80 WAIT assertion and PPI access gating; unit test `test_d11_load_timing_and_ay_restore` in `sim/plus/asic_dma_test.cpp`.
-    - **P10h (CF-5: CPC+ SNA Parser Reset & Queue)**: in `Amstrad.sv`, unmasked parser reset with `reset & ~sna_download`; in `rtl/plus/plus_sna_parser.v`, implemented 8-entry write FIFO with `ioctl_wait` backpressure and atomic low-nibble unpacking; verified in `sim/plus/plus_p8_test.cpp`.
-    - **P10f (CG-3: Sprite Dynamic Write Closure)**: in `rtl/plus/asic_regs.v` and `rtl/plus/asic_sprites.v`, implemented coherent CPU pixel write-through into matching staged buffers and reduced per-access blanking tail to immediate access window; added test `s15` in `sim/plus/asic_sprites_test.cpp`.
-    - All tests pass (`make -C sim`, `make -C sim lint`, golden soak hash `0x48146d2b681268ab`); review debt recorded in `docs/review-debt.md`.
+    - **P10c (CF-2/CF-3: Model Capabilities & FDC Reset)**: gated FDC/motor/tape by model and reset the controller/motor. The original decoder assertions copied production equations; the remediation branch now shares `rtl/plus/plus_fdc_decode.v` with the focused truth-table test and restores classic decode. A real u765 command/reset/DSK transaction remains open.
+    - **P10e (CF-4: DMA/PPI/PSG Arbitration)**: implemented the base 8-cycle `LOAD R, DD` envelope, AY selected-register restoration, CPU WAIT, and PPI gating. `d11` is a leaf test; the required production motherboard CPU-versus-DMA concurrency test and Arnold `+1/+2` contention extension remain open.
+    - **P10h (CF-5: CPC+ SNA Production Restore)**: implemented captured one-cycle payload delivery, FIFO backpressure and post-download drain, a one-cycle ASIC-register reset at SNA start, an apply barrier, RMR2/unlock retention through apply, and atomic abort of an old FIFO/write tail on rapid snapshot restart. `p8_04` verifies the production parser/ASIC-register/MMU seam, including the final registered tail and a before-drain restart; full `Amstrad.sv` ioctl/reset/model/PPI/PSG coverage remains open.
+    - **P10f (CG-3: Sprite Dynamic Write Closure)**: implemented coherent staged-buffer write-through. The remediation branch adds `s16`, which models a delayed pre-write ACK colliding with a one-cycle access and proves that payload is discarded; hardware causality for RoboCop remains open.
+    - **Post-review MRER/RMR2 and SSCR fixes**: the remediation branch shares the ASIC lock state across MMU/GA ownership, isolates classic onboard ROMs in Plus mode, and advances VMA at the effective-RA soft-scroll wrap. Focused MMU, GA/motherboard, sprite, and video vectors plus the pre-second-review full suite are green.
+    - **Second independent review, NOT CLEARED (Claude Opus 5 xhigh, 2026-08-30):** the reviewer found the four intended remediation paths functionally correct, then identified three small integrity blockers (a contradictory video comment, missing standalone FDC-module lint, and one copied P10 FDC decoder) plus a pre-existing status-2 frame-origin mismatch. Focused fixes are complete. A later final scan reopened CF-5 with three HIGH production lifecycle defects; those now have the scoped repair and `p8_04` seam above, materially extending the unreviewed delta. ACCC v1.11 §20.3.4 p.243 itself states both C4/C9/C0 and later C4/C0-only forms; the model follows the opening rule and leaves hardware/author confirmation open.
+    - Post-fix parent verification: 175 classic vectors and all Plus benches pass; focused P8 and P10 rebuilds pass after the last wiring fixes; full lint includes and passes the shared FDC decoder's standalone `-Wall` target; the golden soak matches `0x48146d2b681268ab`; `git diff --check` is clean.
+    - A final Luna re-scan found and pinned one medium rapid-snapshot-restart FIFO leak after those gates. Restart now clears the old FIFO and suppresses same-edge dequeue; the focused P8 regression first failed and then passed. The final full gates are rerun before merge. An attempted narrow Opus-high re-review returned no report after being stopped when provider usage reached paid extra credits; review debt remains open.
+    - P10d and P10g are unstarted; real-u765 and full top-level SNA/DMA production coverage, exact-tip Quartus timing, hardware retest, and review clearance remain required. Review debt stays open in `docs/review-debt.md`.
  6. Update this file when either stream reaches its next hardware-testable checkpoint.

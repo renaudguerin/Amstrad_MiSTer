@@ -98,7 +98,8 @@ plus_mmu mmu
 	.cart_own(mmu_cart_own),
 	.cart_stall(mmu_cart_stall),
 	.cart_dout(mmu_cart_dout),
-	.asic_page_on()
+	.asic_page_on(),
+	.asic_unlocked()
 );
 
 plus_cpr_parser parser

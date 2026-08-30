@@ -6,6 +6,7 @@
 // 3. plus_model_select model decodes.
 
 #include <cstdint>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -221,6 +222,23 @@ void test_p8_sna_parser(Vplus_p8_test_top& dut) {
 	send_byte(0x01);
 	if (dut.asic_sna_unlock != 1) fail("P8 sna_parser: Unlock status capture failed");
 
+	// The top-level applies sna_load only after the file download has ended
+	// and the ordinary snapshot writes have drained.  These shadow values
+	// must survive that gap so plus_mmu and asic_unlock can consume them.
+	dut.sna_download = 0;
+	tick();
+	if (dut.asic_sna_rmr2 != 0x19)
+		fail("P8 sna_parser: RMR2 was cleared before delayed sna_load apply");
+	if (dut.asic_sna_unlock != 1)
+		fail("P8 sna_parser: Unlock state was cleared before delayed sna_load apply");
+
+	// Starting a later snapshot clears the retained shadow immediately; a
+	// classic SNA with no CPC+ chunk must not inherit the previous Plus map.
+	dut.sna_download = 1;
+	tick();
+	if (dut.asic_sna_rmr2 != 0 || dut.asic_sna_unlock != 0 || dut.asic_sna_active != 0)
+		fail("P8 sna_parser: New snapshot inherited prior CPC+ shadow state");
+
 	std::printf("PASS p8_02: plus_sna_parser CPC+ chunk decoding (Sprite RAM, Pal, Regs, MMU)\n");
 }
 
@@ -254,48 +272,428 @@ void test_p8_model_decodes(Vplus_p8_test_top& dut) {
 // Test 4: P10c FDC / Motor / Tape Model Gating & Aliases
 // -----------------------------------------------------------------------------
 void test_p10c_fdc_motor_tape_gating(Vplus_p8_test_top& dut) {
-	auto check_fdc = [&](uint16_t addr, bool plus_mode, bool has_fdc, bool exp_motor, bool exp_u765, const std::string& desc) {
-		dut.fdc_test_addr = addr;
-		dut.fdc_test_status17 = 0;
-		dut.fdc_test_plus_mode = plus_mode ? 1 : 0;
-		dut.fdc_test_has_fdc = has_fdc ? 1 : 0;
-		dut.eval();
-		if (dut.fdc_motor_sel != (exp_motor ? 1 : 0))
-			fail("P10c FDC decode: " + desc + " expected fdc_motor_sel=" + std::to_string(exp_motor) + " got " + std::to_string(dut.fdc_motor_sel));
-		if (dut.u765_sel != (exp_u765 ? 1 : 0))
-			fail("P10c FDC decode: " + desc + " expected u765_sel=" + std::to_string(exp_u765) + " got " + std::to_string(dut.u765_sel));
+	struct FdcCase {
+		const char *name;
+		uint16_t addr;
+		bool plus_mode;
+		bool has_fdc;
+		bool fdc_disabled;
+		bool expect_motor;
+		bool expect_u765;
 	};
 
-	// 1. Classic CPC (plus_mode = 0): FDC and motor active across standard and AMSDOS alias addresses
-	check_fdc(0xFA7E, false, false, true,  false, "Classic FA7E motor");
-	check_fdc(0xFADD, false, false, true,  false, "Classic FADD AMSDOS motor alias");
-	check_fdc(0xFB7E, false, false, false, true,  "Classic FB7E FDC status");
-	check_fdc(0xFB7F, false, false, false, true,  "Classic FB7F FDC data");
-	check_fdc(0xFBDF, false, false, false, true,  "Classic FBDF AMSDOS FDC alias");
-	check_fdc(0xFBEE, false, false, false, false, "Classic FBEE Kempston mouse (A4=0, no FDC)");
-	check_fdc(0xF800, false, false, false, false, "Classic F800 PlayCity (A9=0, no motor)");
+	auto check_cases = [&](const FdcCase *cases, std::size_t count) {
+		for (std::size_t i = 0; i < count; ++i) {
+			const FdcCase &test = cases[i];
+			dut.fdc_test_addr = test.addr;
+			dut.fdc_test_status17 = test.fdc_disabled ? 1 : 0;
+			dut.fdc_test_plus_mode = test.plus_mode ? 1 : 0;
+			dut.fdc_test_has_fdc = test.has_fdc ? 1 : 0;
+			dut.eval();
+			if (dut.fdc_motor_sel != (test.expect_motor ? 1 : 0))
+				fail("P10c FDC decode: " + std::string(test.name) +
+				     " expected fdc_motor_sel=" + std::to_string(test.expect_motor) +
+				     " got " + std::to_string(dut.fdc_motor_sel));
+			if (dut.u765_sel != (test.expect_u765 ? 1 : 0))
+				fail("P10c FDC decode: " + std::string(test.name) +
+				     " expected u765_sel=" + std::to_string(test.expect_u765) +
+				     " got " + std::to_string(dut.u765_sel));
+		}
+	};
 
-	// 2. 6128 Plus (plus_mode = 1, has_fdc = 1): FDC and motor active
-	check_fdc(0xFA7E, true, true, true,  false, "6128+ FA7E motor");
-	check_fdc(0xFADD, true, true, true,  false, "6128+ FADD AMSDOS motor alias");
-	check_fdc(0xFB7E, true, true, false, true,  "6128+ FB7E FDC status");
-	check_fdc(0xFB7F, true, true, false, true,  "6128+ FB7F FDC data");
-	check_fdc(0xFBDF, true, true, false, true,  "6128+ FBDF AMSDOS FDC alias");
-	check_fdc(0xFBEE, true, true, false, false, "6128+ FBEE Kempston mouse");
-	check_fdc(0xF800, true, true, false, false, "6128+ F800 PlayCity");
+	// Classic CPC: A10, A8 and A7 are decoded; A9 and A4-A1 are ignored.
+	// A0 is passed to the uPD765 as its status/data register select.
+	const FdcCase classic_cases[] = {
+		{"Classic F87E motor (A9=0)", 0xF87E, false, false, false, true,  false},
+		{"Classic F96E status (A9=0,A4=0)", 0xF96E, false, false, false, false, true},
+		{"Classic FB6F data (A9=1)", 0xFB6F, false, false, false, false, true},
+		{"Classic F800 motor (ignored lower bits)", 0xF800, false, false, false, true,  false},
+		{"Classic FADD rejects A7=1 motor alias", 0xFADD, false, false, false, false, false},
+		{"Classic FBDF rejects A7=1 data alias", 0xFBDF, false, false, false, false, false},
+		// The menu switch disables controller access, not the independent motor
+		// latch, matching the production wiring that existed before this split.
+		{"Classic FB6F uPD765 suppressed when FDC disabled", 0xFB6F, false, false, true, false, false},
+		{"Classic F87E motor remains decoded when FDC disabled", 0xF87E, false, false, true, true, false},
+	};
+	check_cases(classic_cases, sizeof(classic_cases) / sizeof(classic_cases[0]));
 
-	// 3. GX4000 (plus_mode = 1, has_fdc = 0): FDC and motor disabled (all fail open / 0)
-	check_fdc(0xFA7E, true, false, false, false, "GX4000 FA7E motor gated");
-	check_fdc(0xFADD, true, false, false, false, "GX4000 FADD motor gated");
-	check_fdc(0xFB7E, true, false, false, false, "GX4000 FB7E FDC status gated");
-	check_fdc(0xFB7F, true, false, false, false, "GX4000 FB7F FDC data gated");
-	check_fdc(0xFBDF, true, false, false, false, "GX4000 FBDF FDC alias gated");
+	// 6128 Plus: retain the firmware aliases while keeping PlayCity and the
+	// Kempston mouse out of the FDC path.
+	const FdcCase plus_cases[] = {
+		{"6128+ FA7E motor", 0xFA7E, true, true, false, true,  false},
+		{"6128+ FADD motor alias", 0xFADD, true, true, false, true,  false},
+		{"6128+ FB7E status", 0xFB7E, true, true, false, false, true},
+		{"6128+ FB7F data", 0xFB7F, true, true, false, false, true},
+		{"6128+ FBDF data alias", 0xFBDF, true, true, false, false, true},
+		{"6128+ FB7E suppressed when FDC disabled", 0xFB7E, true, true, true, false, false},
+		{"6128+ FBEE rejects Kempston mouse", 0xFBEE, true, true, false, false, false},
+		{"6128+ F800 rejects PlayCity", 0xF800, true, true, false, false, false},
+		{"6128+ F87E rejects A9=0 motor", 0xF87E, true, true, false, false, false},
+		{"6128+ F96E rejects A9=0 uPD765", 0xF96E, true, true, false, false, false},
+	};
+	check_cases(plus_cases, sizeof(plus_cases) / sizeof(plus_cases[0]));
 
-	// 4. 464 Plus (plus_mode = 1, has_fdc = 0): FDC and motor disabled
-	check_fdc(0xFA7E, true, false, false, false, "464+ FA7E motor gated");
-	check_fdc(0xFB7E, true, false, false, false, "464+ FB7E FDC gated");
+	// GX4000 and 464 Plus expose no FDC, regardless of the address.
+	const FdcCase no_fdc_cases[] = {
+		{"GX4000 FA7E motor gated", 0xFA7E, true, false, false, false, false},
+		{"GX4000 FADD motor gated", 0xFADD, true, false, false, false, false},
+		{"GX4000 FB7E status gated", 0xFB7E, true, false, false, false, false},
+		{"GX4000 FBDF data gated", 0xFBDF, true, false, false, false, false},
+		{"464+ FA7E motor gated", 0xFA7E, true, false, false, false, false},
+		{"464+ FB7E status gated", 0xFB7E, true, false, false, false, false},
+	};
+	check_cases(no_fdc_cases, sizeof(no_fdc_cases) / sizeof(no_fdc_cases[0]));
 
-	std::printf("PASS p10_03: FDC/motor/tape model gating and AMSDOS aliases (&FADD, &FBDF)\n");
+	std::printf("PASS p10_03: model-specific FDC/motor decode aliases\n");
+}
+
+// -----------------------------------------------------------------------------
+// Test 5: Integrated SNA parser + motherboard / asic_regs / MMU reset seam
+// -----------------------------------------------------------------------------
+void test_p8_sna_integration_seam(Vplus_p8_test_top& dut) {
+	auto tick = [&]() {
+		dut.clk = 0; dut.eval();
+		dut.clk = 1; dut.eval();
+	};
+
+	// Helper to read from asic_regs via the CPU memory port
+	auto aregs_read = [&](uint16_t addr) -> uint8_t {
+		dut.aregs_cs = 1;
+		dut.aregs_mem_rd = 1;
+		dut.aregs_mem_wr = 0;
+		dut.aregs_addr = addr;
+		dut.eval();
+		uint8_t d = dut.aregs_dout;
+		dut.aregs_cs = 0;
+		dut.aregs_mem_rd = 0;
+		dut.eval();
+		return d;
+	};
+
+	// 1. Initial State: Machine running in Plus mode, initial values in asic_regs
+	dut.clk = 0;
+	dut.reset = 0;
+	dut.seam_machine_reset = 0;
+	dut.seam_plus_asic_reset = 1; // start from clean reset
+	dut.seam_plus_mode = 1;
+	dut.seam_sna_load = 0;
+	dut.sna_download = 0;
+	dut.cpc_plus_chunk_start = 0;
+	dut.cpc_plus_byte_wr = 0;
+	dut.cpc_plus_byte_data = 0;
+	dut.aregs_cs = 0;
+	dut.aregs_mem_rd = 0;
+	dut.aregs_mem_wr = 0;
+	dut.aregs_pal_raddr = 0;
+	dut.eval();
+
+	tick(); tick();
+	dut.seam_plus_asic_reset = 0;
+	tick();
+
+	// 2. SNA download begins:
+	// - seam_machine_reset asserts (holding CPU/MMU/motherboard in reset)
+	// - seam_plus_asic_reset pulses for 1 clock cycle to reset asic_regs once
+	dut.sna_download = 1;
+	dut.seam_machine_reset = 1;
+	dut.seam_plus_asic_reset = 1; // 1-clock start pulse
+	tick();
+	dut.seam_plus_asic_reset = 0; // returns to 0 while machine_reset stays 1
+	tick();
+
+	if (dut.aregs_pri != 0 || dut.aregs_ivr != 1 || dut.aregs_dcsr != 0) {
+		fail("P8 seam: asic_regs was not reset cleanly at SNA start pulse");
+	}
+
+	// 3. Send CPC+ chunk header: 1-clock start strobe
+	dut.cpc_plus_chunk_start = 1;
+	tick();
+	dut.cpc_plus_chunk_start = 0;
+
+	// Simulate HPS stall: 4 idle clock cycles where cpc_plus_byte_wr == 0
+	for (int i = 0; i < 4; ++i) {
+		tick();
+		if (dut.asic_sna_wr) {
+			fail("P8 seam: asic_sna_wr asserted before any payload byte arrived");
+		}
+	}
+
+	// Helper to send a byte as a 1-clock accepted pulse followed by possible stall
+	auto stream_byte = [&](uint8_t byte, int stall_cycles = 0) {
+		while (dut.sna_ioctl_wait) tick();
+		dut.cpc_plus_byte_wr = 1;
+		dut.cpc_plus_byte_data = byte;
+		tick();
+		dut.cpc_plus_byte_wr = 0;
+		dut.cpc_plus_byte_data = 0xFF; // change data bus to confirm parser captured byte
+		for (int s = 0; s < stall_cycles; ++s) {
+			tick();
+		}
+	};
+
+	// 4. Test the production pipeline tail and FIFO drain. The top-level
+	// registers accepted payloads, so its final strobe can reach the parser on
+	// the first clock after sna_download falls. That byte must still enqueue.
+	// Send two ordinary bytes, then the third on the falling-download clock.
+	dut.cpc_plus_byte_wr = 1; dut.cpc_plus_byte_data = 0x12; tick();
+	dut.cpc_plus_byte_wr = 1; dut.cpc_plus_byte_data = 0x34; tick();
+	dut.sna_download = 0;
+	dut.cpc_plus_byte_wr = 1; dut.cpc_plus_byte_data = 0x56;
+	if (!dut.sna_busy) {
+		fail("P8 seam: tail payload strobe did not hold sna_busy after download fell");
+	}
+	tick();
+	dut.cpc_plus_byte_wr = 0;
+	dut.cpc_plus_byte_data = 0xFF;
+	dut.eval();
+
+	// Verify sna_busy handshake is asserted while FIFO has queued writes
+	if (!dut.sna_busy) {
+		fail("P8 seam: sna_busy was not asserted when sna_download dropped with queued FIFO writes");
+	}
+
+	// Drain FIFO until sna_busy clears
+	int drain_cycles = 0;
+	while (dut.sna_busy && drain_cycles < 20) {
+		tick();
+		drain_cycles++;
+	}
+
+	if (dut.sna_busy) {
+		fail("P8 seam: sna_busy failed to clear after FIFO drain");
+	}
+	if (drain_cycles < 3) {
+		fail("P8 seam: FIFO was prematurely discarded instead of draining (cycles=" + std::to_string(drain_cycles) + ")");
+	}
+
+	// 5. A rapid new snapshot must abort a stale write tail. Queue another
+	// partial CPC+ image, let download fall for one clock, then start the next
+	// snapshot before the old FIFO can drain. Production pulses ASIC reset on
+	// the restart edge, while the parser must discard its old pointers/write.
+	dut.sna_download = 1;
+	dut.seam_plus_asic_reset = 1;
+	tick();
+	dut.seam_plus_asic_reset = 0;
+	dut.cpc_plus_chunk_start = 1;
+	tick();
+	dut.cpc_plus_chunk_start = 0;
+	stream_byte(0xAB);
+	stream_byte(0xCD);
+	stream_byte(0xEF);
+	dut.sna_download = 0;
+	tick();
+	if (!dut.sna_busy) {
+		fail("P8 seam: stale pre-restart FIFO unexpectedly drained in one clock");
+	}
+
+	dut.sna_download = 1;
+	dut.seam_plus_asic_reset = 1;
+	tick();
+	dut.seam_plus_asic_reset = 0;
+	for (int i = 0; i < 4; ++i) {
+		tick();
+		if (dut.asic_sna_wr) {
+			fail("P8 seam: prior snapshot write tail leaked after rapid restart");
+		}
+	}
+
+	// 6. Now stream the full CPC+ snapshot chunk.
+	dut.cpc_plus_chunk_start = 1;
+	tick();
+	dut.cpc_plus_chunk_start = 0;
+
+	// 6a. Stream Sprite RAM bytes (0x000-0x003: 4 bytes = 8 pixels).
+	// Each input byte expands to two writes while the output drains one per
+	// clock, so the third consecutive byte reaches the production wait
+	// watermark. Stop accepting input until the parser releases wait.
+	// Payload 0x12 -> pixels 1, 2; 0x34 -> pixels 3, 4; 0x56 -> pixels 5, 6; 0x78 -> pixels 7, 8
+	stream_byte(0x12);
+	stream_byte(0x34);
+	stream_byte(0x56);
+	if (!dut.sna_ioctl_wait) {
+		fail("P8 seam: sprite expansion did not assert parser backpressure");
+	}
+	while (dut.sna_ioctl_wait) tick();
+	stream_byte(0x78);
+
+	// Fast-forward through remaining sprite RAM (total 2048 bytes)
+	for (int i = 4; i < 2048; ++i) {
+		stream_byte(0x00);
+	}
+	while (dut.sna_ioctl_wait) tick();
+
+	// 6b. Sprite 0 attributes (0x800-0x807): X=0x150, Y=0x080, Mag=0x05
+	stream_byte(0x50, 2); // X lo (&6000) with 2-clock stall
+	stream_byte(0x01, 1); // X hi (&6001)
+	stream_byte(0x80, 0); // Y lo (&6002)
+	stream_byte(0x00, 3); // Y hi (&6003)
+	stream_byte(0x05, 1); // Mag  (&6004)
+	stream_byte(0x00); stream_byte(0x00); stream_byte(0x00); // 0x805-0x807 unused
+
+	// Sprite 1 attributes (0x808-0x80F): X=0x0A0, Y=0x030, Mag=0x0A
+	stream_byte(0xA0); // X lo
+	stream_byte(0x00); // X hi
+	stream_byte(0x30); // Y lo
+	stream_byte(0x00); // Y hi
+	stream_byte(0x0A); // Mag
+	stream_byte(0x00); stream_byte(0x00); stream_byte(0x00);
+
+	// Fast-forward remaining 14 sprites * 8 bytes = 112 bytes
+	for (int i = 0; i < 112; ++i) stream_byte(0x00);
+
+	// 6c. Palette entries:
+	// Entry 0 (&6400/&6401): 0x24 (R=2, B=4), 0x09 (G=9) -> {G:9, R:2, B:4} = 0x924
+	stream_byte(0x24, 1);
+	stream_byte(0x09, 2);
+	// Entry 1 (&6402/&6403): 0x56 (R=5, B=6), 0x0C (G=12) -> {G:12, R:5, B:6} = 0xC56
+	stream_byte(0x56);
+	stream_byte(0x0C);
+	// Fast forward to entry 16 (Border): 14 entries * 2 = 28 bytes
+	for (int i = 0; i < 28; ++i) stream_byte(0x00);
+	// Entry 16 (&6420/&6421): 0x78 (R=7, B=8), 0x0E (G=14) -> {G:14, R:7, B:8} = 0xE78
+	stream_byte(0x78);
+	stream_byte(0x0E);
+	// Fast forward remaining 15 entries * 2 = 30 bytes
+	for (int i = 0; i < 30; ++i) stream_byte(0x00);
+
+	// 6d. Control registers (0x8C0-0x8C5):
+	stream_byte(0x2A); // PRI  (&6800)
+	stream_byte(0x55); // SPLT (&6801)
+	stream_byte(0x30); // SSA hi (&6802)
+	stream_byte(0x40); // SSA lo (&6803)
+	stream_byte(0x03); // SSCR (&6804)
+	stream_byte(0xFE); // IVR  (&6805)
+
+	// Fast forward to DMA registers (0x8D0): 10 bytes (0x8C6-0x8CF)
+	for (int i = 0; i < 10; ++i) stream_byte(0x00);
+
+	// 6e. Sound DMA registers (0x8D0-0x8DB, 0x8DF):
+	stream_byte(0x11); // SAR0 lo (&6C00)
+	stream_byte(0x22); // SAR0 hi (&6C01)
+	stream_byte(0x33); // PPR0    (&6C02)
+	stream_byte(0x00); // 0x8D3
+	stream_byte(0x44); // SAR1 lo (&6C04)
+	stream_byte(0x55); // SAR1 hi (&6C05)
+	stream_byte(0x66); // PPR1    (&6C06)
+	stream_byte(0x00); // 0x8D7
+	stream_byte(0x77); // SAR2 lo (&6C08)
+	stream_byte(0x88); // SAR2 hi (&6C09)
+	stream_byte(0x99); // PPR2    (&6C0A)
+	stream_byte(0x00); // 0x8DB
+	// Fast forward to 0x8DF (DCSR): 3 bytes (0x8DC-0x8DE)
+	stream_byte(0x00); stream_byte(0x00); stream_byte(0x00);
+	stream_byte(0x87); // DCSR (&6C0F): stat=1, ena=3'b111
+
+	// Fast forward to RMR2 (0x8F5): 21 bytes (0x8E0-0x8F4)
+	for (int i = 0; i < 21; ++i) stream_byte(0x00);
+	stream_byte(0x19); // RMR2 (0x8F5): D4D3=11 (ASIC page on), page 1
+	stream_byte(0x01); // Unlock (0x8F6): 1=unlocked
+
+	// 7. Snapshot stream ends: sna_download falls to 0
+	dut.sna_download = 0;
+	tick();
+
+	// Drain any remaining cycles until sna_busy clears
+	int drain_count = 0;
+	while (dut.sna_busy && drain_count < 30) {
+		tick();
+		drain_count++;
+	}
+
+	if (dut.sna_busy) {
+		fail("P8 seam: sna_busy failed to clear after stream end");
+	}
+
+	// 10. Verify retention during gap before sna_load
+	if (dut.asic_sna_rmr2 != 0x19 || dut.asic_sna_unlock != 1) {
+		fail("P8 seam: Shadow RMR2/unlock corrupted before sna_load");
+	}
+
+	// 11. Machine reset drops, sna_load fires
+	dut.seam_machine_reset = 0;
+	dut.seam_sna_load = 1;
+	tick();
+	dut.seam_sna_load = 0;
+	tick();
+
+	// 12. Verify MMU and Unlock state applied
+	if (!dut.mmu_asic_page_on) {
+		fail("P8 seam: plus_mmu asic_page_on not enabled after sna_load");
+	}
+	if (!dut.mmu_asic_unlocked) {
+		fail("P8 seam: asic_unlock unlocked status not set after sna_load");
+	}
+
+	// 13. Verify all ASIC registers survived machine reset:
+	if (dut.aregs_pri != 0x2A) fail("P8 seam: PRI mismatch (expected 0x2A, got " + std::to_string(dut.aregs_pri) + ")");
+	if (dut.aregs_splt != 0x55) fail("P8 seam: SPLT mismatch (expected 0x55, got " + std::to_string(dut.aregs_splt) + ")");
+	if (dut.aregs_ssa_hi != 0x30) fail("P8 seam: SSA_HI mismatch (expected 0x30, got " + std::to_string(dut.aregs_ssa_hi) + ")");
+	if (dut.aregs_ssa_lo != 0x40) fail("P8 seam: SSA_LO mismatch (expected 0x40, got " + std::to_string(dut.aregs_ssa_lo) + ")");
+	if (dut.aregs_sscr != 0x03) fail("P8 seam: SSCR mismatch (expected 0x03, got " + std::to_string(dut.aregs_sscr) + ")");
+	if (dut.aregs_ivr != 0xFE) fail("P8 seam: IVR mismatch (expected 0xFE, got " + std::to_string(dut.aregs_ivr) + ")");
+
+	// Sound DMA registers:
+	if (dut.aregs_sar0_lo != 0x11 || dut.aregs_sar0_hi != 0x22 || dut.aregs_ppr0 != 0x33) {
+		fail("P8 seam: Channel 0 DMA registers mismatch");
+	}
+	if (dut.aregs_sar1_lo != 0x44 || dut.aregs_sar1_hi != 0x55 || dut.aregs_ppr1 != 0x66) {
+		fail("P8 seam: Channel 1 DMA registers mismatch");
+	}
+	if (dut.aregs_sar2_lo != 0x77 || dut.aregs_sar2_hi != 0x88 || dut.aregs_ppr2 != 0x99) {
+		fail("P8 seam: Channel 2 DMA registers mismatch");
+	}
+	if ((dut.aregs_dcsr & 0x87) != 0x87) {
+		fail("P8 seam: DCSR mismatch (expected bit7=1, bits2:0=7)");
+	}
+
+	// Palette entries:
+	dut.aregs_pal_raddr = 0; tick();
+	if (dut.aregs_pal_rdata != 0x924) {
+		fail("P8 seam: Palette entry 0 mismatch (expected 0x924, got " + std::to_string(dut.aregs_pal_rdata) + ")");
+	}
+	dut.aregs_pal_raddr = 1; tick();
+	if (dut.aregs_pal_rdata != 0xC56) {
+		fail("P8 seam: Palette entry 1 mismatch (expected 0xC56, got " + std::to_string(dut.aregs_pal_rdata) + ")");
+	}
+	dut.aregs_pal_raddr = 16; tick();
+	if (dut.aregs_pal_rdata != 0xE78) {
+		fail("P8 seam: Palette entry 16 mismatch (expected 0xE78, got " + std::to_string(dut.aregs_pal_rdata) + ")");
+	}
+
+	// Sprite RAM bytes read via CPU memory port (&4000-&4003):
+	uint8_t s0 = aregs_read(0x0000);
+	uint8_t s1 = aregs_read(0x0001);
+	uint8_t s2 = aregs_read(0x0002);
+	uint8_t s3 = aregs_read(0x0003);
+	if (s0 != 0x01 || s1 != 0x02 || s2 != 0x03 || s3 != 0x04) {
+		fail("P8 seam: Sprite RAM readback mismatch (s0=" + std::to_string(s0) + " s1=" + std::to_string(s1) + ")");
+	}
+
+	// 14. Subsequent Ordinary Machine Reset:
+	dut.seam_machine_reset = 1;
+	dut.seam_plus_asic_reset = 1;
+	tick();
+	dut.seam_machine_reset = 0;
+	dut.seam_plus_asic_reset = 0;
+	tick();
+
+	// Verify ordinary reset restored default values
+	if (dut.aregs_pri != 0 || dut.aregs_ivr != 1 || dut.mmu_asic_page_on != 0 || dut.mmu_asic_unlocked != 0) {
+		fail("P8 seam: Ordinary machine reset did not reset asic_regs/MMU state");
+	}
+	if (aregs_read(0x2000) != 0 || aregs_read(0x2001) != 0 || aregs_read(0x2002) != 0) {
+		fail("P8 seam: Ordinary machine reset did not clear sprite position registers");
+	}
+	dut.aregs_pal_raddr = 17; tick(); // Sprite 0 Ink 1 (unmapped from legacy GA)
+	if (dut.aregs_pal_rdata != 0x000) {
+		fail("P8 seam: Ordinary machine reset did not clear sprite palette");
+	}
+	dut.aregs_pal_raddr = 0; tick(); // Pen 0 translated from default leg_inkr
+	if (dut.aregs_pal_rdata != 0x666) {
+		fail("P8 seam: Ordinary machine reset did not restore default legacy translation for pen 0");
+	}
+
+	std::printf("PASS p8_04: production parser / asic_regs / MMU lifecycle and reset seam\n");
 }
 
 } // namespace
@@ -308,6 +706,7 @@ int main(int argc, char** argv) {
 		test_p8_sna_parser(dut);
 		test_p8_model_decodes(dut);
 		test_p10c_fdc_motor_tape_gating(dut);
+		test_p8_sna_integration_seam(dut);
 		std::printf("All Phase P8 platform polish and P10 compatibility tests PASSED.\n");
 		return 0;
 	} catch (const std::exception& e) {
