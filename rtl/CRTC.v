@@ -436,21 +436,103 @@ end
 // horizontal output
 reg        hde;
 reg  [3:0] hsc;
+reg  [6:0] hsync_char_phase;
+reg  [6:0] hsync_start_phase;
+reg  [6:0] hsync_off_count;
+reg        hsync_off_pending;
+reg        hsync_phaseful;
+reg        type1_hsync_start_pending;
+reg  [1:0] type1_hsync_start_count;
+reg        r2_jit_pending;
+reg        register_write_d;
 
 wire hsync_on = hcc == R2_h_sync_pos && R3_h_sync_width != 0;
 wire hsync_off = CRTC_TYPE ? e1_hsync_off : e0_hsync_off;
+wire register_write = ENABLE & RS & ~nCS & ~R_nW;
+// ACCC v1.11 section 14.6.1 p.141: an OUT(C),r8 update which makes
+// R2 equal to the current C0 is the R2.JIT event.  The bus write is a level
+// for several master clocks in the integrated machine, so recognize only its
+// first edge and let the updated comparator fire on the following edge.
+wire r2_jit_write = register_write & ~register_write_d &
+					(addr == 5'd02) & (hcc == DI) & (R3_h_sync_width != 0);
 
 always @(posedge CLOCK) begin
 
 	if(~nRESET) begin
-		hsc    <= 0;
-		hde    <= 0;
-		HSYNC  <= 0;
+		hsc                       <= 0;
+		hde                       <= 0;
+		HSYNC                     <= 0;
+		hsync_char_phase          <= 0;
+		hsync_start_phase         <= 0;
+		hsync_off_count           <= 0;
+		hsync_off_pending         <= 0;
+		hsync_phaseful            <= 0;
+		type1_hsync_start_pending <= 0;
+		type1_hsync_start_count   <= 0;
+		r2_jit_pending            <= 0;
+		register_write_d          <= 0;
 	end
 	else begin
-		// should be a half char delay (other edge of the clock?)
-		if (hsync_off)     HSYNC <= 0;
-		else if (hsync_on) HSYNC <= 1;
+		register_write_d <= register_write;
+		if (CLKEN) hsync_char_phase <= 0;
+		else       hsync_char_phase <= hsync_char_phase + 1'd1;
+
+		if (r2_jit_write) r2_jit_pending <= 1;
+		if (!CRTC_TYPE) type1_hsync_start_pending <= 0;
+
+		// Through the GA's 16 MHz video sampler CRTC1's normal start is the
+		// documented sixth rather than fifth pixel-M2.  Four 64 MHz master
+		// edges express that one-pixel phase in production; the fixture uses
+		// the same relative CLOCK/CLKEN phase contract.  A JIT comparator hit
+		// starts immediately at the write phase.  In either sub-character case,
+		// replay the captured start phase at the trailing edge so R3 still
+		// describes an unchanged pulse width rather than truncating the pulse.
+		if (hsync_off_pending) begin
+			if (hsync_off_count == 0) begin
+				HSYNC             <= 0;
+				hsync_off_pending <= 0;
+				hsync_phaseful    <= 0;
+			end else begin
+				hsync_off_count <= hsync_off_count - 1'd1;
+			end
+		end else if (hsync_off) begin
+			if (HSYNC && hsync_phaseful && hsync_start_phase != 0) begin
+				hsync_off_pending <= 1;
+				hsync_off_count   <= hsync_start_phase - 1'd1;
+			end else begin
+				HSYNC          <= 0;
+				hsync_phaseful <= 0;
+			end
+		end else if (!HSYNC) begin
+			if (r2_jit_pending && hsync_on) begin
+				HSYNC                     <= 1;
+				hsync_phaseful            <= 1;
+				hsync_start_phase         <= hsync_char_phase;
+				r2_jit_pending            <= 0;
+				type1_hsync_start_pending <= 0;
+			end else if (CRTC_TYPE) begin
+				if (type1_hsync_start_pending) begin
+					if (type1_hsync_start_count == 0) begin
+						HSYNC                     <= 1;
+						hsync_phaseful            <= 1;
+						hsync_start_phase         <= hsync_char_phase;
+						type1_hsync_start_pending <= 0;
+					end else begin
+						type1_hsync_start_count <= type1_hsync_start_count - 1'd1;
+					end
+				end else if (hsync_on) begin
+					type1_hsync_start_pending <= 1;
+					type1_hsync_start_count   <= 3;
+				end
+			end else if (hsync_on) begin
+				HSYNC          <= 1;
+				hsync_phaseful <= 0;
+			end
+		end
+
+		// A comparator opportunity that has passed cannot leak into a later
+		// line or a live CRTC type switch.
+		if (CLKEN && hcc != R2_h_sync_pos) r2_jit_pending <= 0;
 
 		if (ENABLE & RS & ~nCS & ~R_nW & addr == 5'd01 & hcc == DI) hde <= 0;
 

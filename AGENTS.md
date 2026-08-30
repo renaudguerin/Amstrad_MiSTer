@@ -58,7 +58,10 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0xc769ea4605afbe04`, re-minted 2026-08-30 for the F13 half-character type-0
+  (`0x005deed28be80fa1`, re-minted 2026-08-30 for F20's CRTC1 R2.JIT
+  sub-character HSYNC start, phase-preserved trailing edge, and sampled-state
+  expansion; previously `0xc769ea4605afbe04`, re-minted 2026-08-30 for the F13
+  half-character type-0
   R1>R0 border pulse: the no-skew C0=R0 event is now low only from nCLKEN to
   the following CLKEN, while SKEW-DISPTMG 1/2 retains the documented rounded
   full-character displacement; previously `0x48146d2b681268ab`, re-minted

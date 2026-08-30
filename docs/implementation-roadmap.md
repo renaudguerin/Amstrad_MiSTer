@@ -41,7 +41,9 @@ merged into the same behavioral PR.
 - The v1.10 documentation rebaseline and the deterministic F12/F4/F8 milestones are complete;
   F9 closure is merged into this branch (`t12a`/`t12b`: exact-C0==R0 write → C4=39/C9=8 and
   its windowed companion → C4=38/C9=8, ACCC p.82). F13's ACCC-model half-character DE
-  phase is implemented; SHAKER/DE-pin hardware validation remains open. F7 RFD is complete
+  phase is implemented; SHAKER/DE-pin hardware validation remains open. F20's CRTC-1
+  R2.JIT start phase and pulse-width preservation are implemented through the integrated
+  CRTC+GA path; DSC4 and SHAKER `(TAB)` remain hardware gates. F7 RFD is complete
   in full; the next independent classic checkpoint is
   F10 (fixtures first).
 
@@ -178,6 +180,16 @@ SKEW-DISPTMG handling (`accuracy/a3-f6-stage1`, t10a-t10e). Stage 2 rendered a 1
 and both GA buffer paths agree. F13 is implemented in the CRTC wrapper with `t31a` pinning
 the no-skew half-phases; SHAKER Module A `(O)` plus a DE-pin capture remain required hardware
 validation. SKEW-DISPTMG 1/2 retains the p.195 rounded full-character displacement.
+
+### F20 R2.JIT hardware gate
+
+ACCC v1.11 §14.6.1 p.141 is pinned through the production CRTC+GA timing path:
+CRTC-1's dynamic `OUT (C),r8` equality starts blanking three Mode-2 pixels after
+its normal start while preserving the raw HSYNC width. The deterministic fixture
+is complete; the next acceptance layer is DSC4 plus SHAKER `(TAB)` on real CRTC-1
+hardware. Keep RFD×IVM, same-value R2 writes, and instruction-form distinctions
+as separately named residuals rather than attributing a remaining DSC4 failure
+to R2.JIT without a first-divergence trace.
 
 ### F10 scope gate
 
@@ -395,7 +407,9 @@ then the confirmed PPI and FDC/model/reset fixes. Sprite/video changes remain tr
    The cache was removed; all synthesis runs are clean compiles. Evidence in
    `docs/ci-testing-policy.md` and `docs/current-status.md`.
 4. Classic stream: F13's CRTC-side half-character phase is implemented from the
-   render-verified ACCC rule and is pending SHAKER/DE-pin validation. F7's planned routes
+   render-verified ACCC rule and is pending SHAKER/DE-pin validation. F20's CRTC-1
+   R2.JIT phase is implemented and waits for DSC4/SHAKER `(TAB)` hardware validation.
+   F7's planned routes
    are implemented, but the
    Q4 recheck opens F17 for the C9=R9 source-state result and requires `t13d` re-derivation.
    F10's implemented scope is complete; F14/F15/F16 are the fixture-first follow-ups. F18 is

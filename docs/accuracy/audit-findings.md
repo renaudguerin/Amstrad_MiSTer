@@ -411,6 +411,33 @@ General implementation rules for all fix prompts:
   `0x48146d2b681268ab`.
 - **Confidence: high.** Verified against ACCC v1.11 §12.2 pp.92-94 vs §12.4.1 p.95.
 
+## F20. CRTC-1 R2.JIT sub-character HSYNC start — IMPLEMENTED-PENDING-HARDWARE-VALIDATION
+
+- **Rule** (ACCC v1.11 §14.6.1 p.141): in the static Mode-2 case the CRTC-1
+  blank starts one pixel later than CRTC-0. An `OUT (C),r8` write that makes
+  R2 equal to the current C0 exactly at the comparator position delays the
+  CRTC-1 start by a further three Mode-2 pixels. The pulse width remains the
+  programmed R3 width; the trailing edge moves with the start.
+- **Current** (`accuracy/f13-dsc4-fdc-investigation`, 2026-08-30): the wrapper
+  tracks the master-clock phase within a character. CRTC-1's ordinary
+  comparator start is deferred by four 64 MHz clocks, while the first edge of
+  an R2 write that creates the live equality starts at the actual write phase.
+  Both paths capture that phase and replay it at the trailing edge. The
+  integrated CRTC+GA `r2jit_type1_out_c` regression drives production-phased
+  Z80 I/O writes and pins a +3 Mode-2-pixel JIT displacement with identical raw
+  HSYNC width. The classic CRTC suite retains the R3=0, live-R3, reset, and type
+  round-trip controls; all new phase/deferred-edge latches join the soak
+  projection.
+- **Residuals**: DSC4 on real CRTC-1 hardware remains the title-level gate.
+  The current bus interface cannot distinguish `OUTI` from an otherwise
+  identical write, and the fixture deliberately uses an R2 value-changing
+  write; same-value rewrite and R2 updates during an already-active pulse need
+  separate vectors before broader §14/§15 closure. RFD×IVM remains an
+  independent compound DSC4 discriminator.
+- **Confidence: high for the ACCC model and integrated timing fixture;
+  hardware confirmation pending.** Simulation is not evidence that DSC4 now
+  passes on MiSTer.
+
 ## F7. RFD ("Rupture For Dummies") — CRTC 1 frame-parity address-reload quirk — R5 and R0-widening triggers implemented
 
 - **Rule** (digest-01 §5 → ACCC §11.6, p.87-90): on type 1, writing R5 from 0 to nonzero exactly

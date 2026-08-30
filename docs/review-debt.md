@@ -2,14 +2,17 @@
 
 ## Open rows
 
-- **Accuracy F13 + shared FDC transaction closure, 2026-08-30** — Scope:
-  `rtl/CRTC.v`, `rtl/crtc_type0_engine.v`, `sim/sim_main.cpp`, the GA test phase
-  connection and F13 documentation; plus `Amstrad.sv`, `rtl/u765/`, `sim/Makefile`,
-  and `docs/fdc-review-2026-08-30.md`. Review hardest: F13's nCLKEN/CLKEN phase
-  ordering, especially R0=0 and SKEW-DISPTMG 1/2 rounding; CPC A0 read/write
+- **Accuracy F13 + F20 R2.JIT + shared FDC transaction closure, 2026-08-30** — Scope:
+  `rtl/CRTC.v`, `rtl/crtc_type0_engine.v`, `sim/sim_main.cpp`, `rtl/GA40010/`,
+  the GA test phase connection and F13/F20 documentation; plus `Amstrad.sv`,
+  `rtl/u765/`, `sim/Makefile`, and `docs/fdc-review-2026-08-30.md`. Review hardest:
+  F13's nCLKEN/CLKEN phase ordering, especially R0=0 and SKEW-DISPTMG 1/2
+  rounding; F20's four-master-clock normal deferral, first-write-edge detector,
+  phase-preserved trailing edge, hsync-off priority, reset/type-switch lifecycle,
+  same-value/OUTI residual boundary; CPC A0 read/write
   semantics; SD ACK/reset ownership and stale-host-ACK behavior; whether the new
   EDSK mount/status harness accurately models hps_io handshaking and production CE.
-  Directed CRTC, GA-build, soak, u765 tracked/supplied-image, and u765 lint gates
+  Directed CRTC, integrated GA R2.JIT, soak, u765 tracked/supplied-image, and u765 lint gates
   pass. **NOT CLEARED — fresh cross-provider review pending.** Hardware SHAKER/DE
   validation and a title-level The Demo trace remain separate evidence gaps.
 

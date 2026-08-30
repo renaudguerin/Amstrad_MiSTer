@@ -115,8 +115,10 @@ DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0xc769ea4605afbe04`** after F13's exact half-character DE
-pulse. The hash depends on the seed, the
+current hash is **`0x005deed28be80fa1`** after F20's CRTC1 R2.JIT
+sub-character start, pulse-width preservation, and addition of all new phase
+and deferred-edge latches to the sampled projection (previously
+`0xc769ea4605afbe04` after F13). The hash depends on the seed, the
 sampled field set/order, the event schedule, and the DUT's observable
 behaviour — any of the first three changing requires re-minting, recorded as
 such. The soak accesses internals by their Verilator names, so a refactor

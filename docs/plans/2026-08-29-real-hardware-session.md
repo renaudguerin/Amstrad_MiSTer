@@ -43,8 +43,11 @@ yet returned to hardware.
 - This does not refute the recent accuracy fixes: most target Module B/C/D/E,
   rare adjustment/interlace states, type 0 only, or readback. The Module A
   entries actually run were not named.
-- The current core still has no CRTC-1 R2.JIT sub-character implementation.
-  DSC4 is therefore a high-value discriminator, not an expected pass today.
+- The 2026-08-29 hardware sample predated the CRTC-1 R2.JIT implementation.
+  F20 now pins the production CRTC+GA path: a dynamic `OUT (C),r8` start is
+  three Mode-2 pixels later than the normal CRTC-1 start and the raw HSYNC
+  width is preserved. DSC4 is now a high-value hardware re-test, not a claimed
+  pass; RFD×IVM remains a separate compound discriminator if it still fails.
 - Longshot's guidance, retained verbatim for the next accuracy session:
 
   > les chapitres 14.7.1 et 9.3.4.1 abordent les spécificités de la technique
@@ -56,9 +59,11 @@ yet returned to hardware.
   The checked ACCC v1.11 material places R2.JIT in section 14.6.1, not 14.7.1;
   section 9.3.4.1 remains relevant. Preserve Longshot's wording but verify the
   edition/section mismatch before implementing.
-- `The Demo` still reports `disc missing`. Treat this as an FDC integration
-  result, not CRTC evidence. A confirmed regression currently applies the Plus
-  internal-FDC alias decoder to classic mode and must be corrected separately.
+- `The Demo` reported `disc missing`. Treat this as an FDC integration result,
+  not CRTC evidence. The shared classic decoder regression, CPC A0=0 write
+  rejection, and reset-stale SD request are now corrected and covered. None is
+  proven causal for that title because the sample lacks the RBF SHA, disk hash,
+  FDC setting, and first motor/status/data trace; capture those on re-test.
 
 ## Required re-test matrix
 
@@ -73,5 +78,5 @@ whether settings were restored from saved status.
 3. Classic `The Demo` with a trace of the first motor/status/data port.
 4. Named SHAKER entries, not only Module A as a whole: confirm SHAKER's detected
    CRTC, then use the target map in `docs/accuracy/shaker-module-a-map.md`.
-5. DSC4 on CRTC 1 after an R2.JIT fixture exists; keep RFD+IVM as a separate
-   compound discriminator.
+5. DSC4 on CRTC 1 with the integrated F20 R2.JIT build; keep RFD+IVM as a
+   separate compound discriminator and record the first visible divergence.

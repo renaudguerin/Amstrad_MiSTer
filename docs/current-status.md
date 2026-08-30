@@ -333,10 +333,12 @@ Before the next classic RTL change, close that data gap:
   does not, every Module A comparison so far is uninterpretable and that is the first bug to
   chase.
 - Map each persistent difference to an implemented finding or to a named gap. The current
-  leading hypothesis is that Module A leans on behaviour that is still unimplemented —
+  leading hypothesis is that Module A leans on behaviour that was still unimplemented —
   F10 interlace parity and, before 2026-08-30, F13's missing half-character F6 seam — rather
   than on the counter internals already fixed. F13 is now implemented but still requires
-  that named hardware retest. F8 (type-1 C5) and F7's type-1 R5-route RFD
+  that named hardware retest. F20 now also implements CRTC-1's normal/R2.JIT sub-character
+  HSYNC start through the integrated GA path; DSC4 and SHAKER `(TAB)` are its hardware gates.
+  F8 (type-1 C5) and F7's type-1 R5-route RFD
   are now implemented, so they are no longer candidate explanations; F6 Stage 1's
   presence/type/skew approximation landed 2026-08-23.
 
@@ -392,13 +394,14 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 152 required CRTC passes, zero expected failures, no
-  unexpected passes, and no failures (verified 2026-08-25, Verilator 5.050). The randomized
-  equivalence soak reproduces golden hash `0x63d9de100ac9f6f2` (chain in AGENTS.md). The
+- The current local gate reports 176 required CRTC passes, zero expected failures, no
+  unexpected passes, and no failures (verified 2026-08-30, Verilator 5.050), plus the
+  integrated GA R2.JIT and u765 transaction benches. The randomized equivalence soak
+  reproduces golden hash `0x005deed28be80fa1` (chain in AGENTS.md). The
   §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
   window; per review finding F-9 the soak is measurably insensitive to this region, so the
   directed vectors — not the soak — carry the behavioral proof here.
-  The Plus leaf and SDRAM integration suites are also green.
+  The Plus leaf, SDRAM, and boot integration suites are also green.
 - The core is split into a shared-state wrapper (`rtl/CRTC.v`) plus two per-type rule engines
   (`rtl/crtc_type0_engine.v`, `rtl/crtc_type1_engine.v`); live `CRTC_TYPE` round-trips stay
   pinned by t02j/t06d/t09f/t16l, and bit-identity with the pre-split core is pinned by the
@@ -411,6 +414,13 @@ For a first MiSTer pass:
   presence/type/skew controls and SKEW 1/2's rounded full-character displacement. This is
   an ACCC-model correction pending SHAKER Module A `(O)` and, if possible, DE-pin validation;
   it is not yet hardware evidence.
+- F20 implements ACCC v1.11 §14.6.1 p.141 CRTC-1 R2.JIT timing through the
+  integrated production CRTC+GA clock path. `r2jit_type1_out_c` drives a real
+  Z80-phased `OUT (C),r8`, requires the JIT blank/raw start three Mode-2 pixels
+  after the normal CRTC-1 start, and requires identical raw HSYNC width. Every
+  new phase/deferred-edge latch joins the soak projection. DSC4/SHAKER `(TAB)`
+  hardware confirmation, same-value/OUTI distinctions, and the independent
+  RFD×IVM compound case remain open.
 - F7 RFD is implemented for the type-1 R5 route (`t13a`-`t13d`): same-edge `R5 0→nonzero`
   arming at C0=R0, VMA-from-R12/R13 on every row, parity-gated VMA' saves with odd-R9
   frame-parity alternation, successful-save disarm, and the B6 R1>R0 bare-C9 disarm.
@@ -1110,6 +1120,8 @@ front end.
    deterministic regression before repairing any newly understood behavior.
 4. Classic: F13's half-character CRTC-side phase is implemented per
    `accuracy/f6-decision-gate.md` and remains pending SHAKER/DE-pin hardware validation.
+   F20's CRTC-1 R2.JIT start and phase-preserved trailing edge are implemented
+   through the integrated GA fixture; re-test DSC4 and SHAKER `(TAB)` on hardware.
    F7 RFD (R5 route, B6 disarm, A1, A2) is implemented and independently reviewed
    (`accuracy/f7-plus-followups-independent-review.md`), and the §13.7.1.2 R0-widening
    trigger is implemented with its blocking review findings remediated
