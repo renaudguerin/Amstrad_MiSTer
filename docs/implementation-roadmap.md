@@ -37,7 +37,10 @@ merged into the same behavioral PR.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through
   the production-sized clear/load path; a real Plus/GX4000 hardware boot remains unverified.
-- ACCC v1.10 is the primary written Compendium baseline (`docs/ACCC1.10-EN.pdf`, outranking checked-in digests whenever a rule claim matters; see `accuracy/findings-review.md`, corrections B1-B13 applied). v1.9 is disregarded — historical only.
+- ACCC v1.11 French is the primary written Compendium baseline
+  (`docs/references/ACCC1.11-FR.pdf`, user-owned and untracked); v1.11 English is a working
+  translation. The bilingual ledger is `accuracy/accc-1.11-fr-en-differences.md`. Historical
+  v1.10/v1.9 reports remain provenance, not the current oracle.
 - The v1.10 documentation rebaseline and the deterministic F12/F4/F8 milestones are complete;
   F9 closure is merged into this branch (`t12a`/`t12b`: exact-C0==R0 write → C4=39/C9=8 and
   its windowed companion → C4=38/C9=8, ACCC p.82). F13's ACCC-model half-character DE
@@ -383,20 +386,15 @@ acceptance. It deliberately does not require a separate upstream utilization bui
 
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
-2. **PRIORITY — D1: re-verify the ACCC digests against the PDF, then sweep every stale
-   section reference.** `docs/ACCC1.10-EN.pdf` is present in the working tree (4.8 MB,
-   gitignored, not absent). Work through the `pdf-inspector` skill under the verification
-   protocol in `accuracy/extract/README.md` — its position-aware Markdown is the primary
-   text layer (pdftotext only as an optional second opinion), and figures are judged from
-   rendered pages, never from raw text. The three
-   digests under `docs/accuracy/compendium-0*.md` were built without using it, which left 27
-   `⚠ VERIFY` flags whose stated reason is flattened-text extraction, and at least one
-   downstream section mislabel that survived three review passes (the §13.6.2 p.122 CRTC-1
-   chronogram cited as §13.7.1.1, which is actually "R0 UPDATE: OUTI"; see N-8 in
-   `accuracy/f7-r0-widening-independent-review.md`). Do it in two steps and do not merge them:
-   first re-check each digest section against the PDF, retiring or re-scoping every `⚠ VERIFY`
-   flag it can settle and correcting section numbers and page anchors against the real table of
-   contents; then, as a separate pass, sweep `docs/` plus `rtl/` and `sim/` for references to
+2. **PRIORITY — D1: finish the v1.11 bilingual cascade.** The section-complete French/English
+   sweep and visual calibration are recorded in
+   `accuracy/accc-1.11-fr-en-differences.md`. The high-confidence digest corrections are
+   applied first; behavioral candidates then move through
+   `accuracy/accc-bilingual-implementation-todos.md`, with a paper-derived directed vector
+   before any RTL change. Source PDFs and generated extracts remain user-owned and ignored.
+   **Historical digest verification already banked, do not redo:** the earlier English-v1.10
+   pass retired each extraction flag it could settle and corrected section/page anchors against
+   the real table of contents; it then swept `docs/`, `rtl/`, and `sim/` for references to
    the corrected sections. RTL and vector citations count — `t13e`/`t13j`/`t13l` cited §13.5
    p.121 (CRTC 3/4) for a type-1 rule that belongs to §13.3 p.113. Expect this to surface
    rule claims we implemented from a misread digest; each one is a finding, not a typo, and

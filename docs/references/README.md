@@ -10,8 +10,11 @@ When implementing and testing core behavior:
 
 1. **Real Hardware & SHAKER Reference Photographs** (`shaker.logonsystem.eu`):
    Observed hardware behavior on real silicon outranks all written documentation.
-2. **The Amstrad CPC CRTC Compendium (ACCC) v1.10** (`docs/ACCC1.10-EN.pdf`):
-   Primary written authority for CRTC timing, internal counters, sync generation, and per-type behavior (Types 0, 1, 2, 3, 4). Where reference documents in this directory disagree with ACCC v1.10 on CRTC behavior, **ACCC v1.10 is the higher truth**.
+2. **The Amstrad CPC CRTC Compendium (ACCC) v1.11 French edition**
+   (`docs/references/ACCC1.11-FR.pdf`; user-owned and untracked): Primary written oracle for
+   CRTC timing, counters, sync generation, and per-type behavior. The matching English PDF is
+   a working translation and reader aid. When language editions differ, the French reading
+   controls unless hardware or an author clarification supersedes it.
 3. **Hardware Specifications & Reverse-Engineering Documents** (this directory):
    Primary references for non-CRTC platform subsystems (ASIC registers, memory paging, DMA audio, Gate Array, PPI quirks, PSG masking, and container formats).
 
@@ -81,7 +84,9 @@ These documents form the foundation for the **Amstrad Plus / GX4000 workstream**
 ### 5. Classic CRTC Datasheets & Summaries *(Reference Only)*
 
 > [!NOTE]
-> For all CRTC behavior and counter edge cases, **ACCC v1.10 (`docs/ACCC1.10-EN.pdf`) takes strict precedence** over these datasheets.
+> For all CRTC behavior and counter edge cases, the latest **French ACCC edition takes
+> precedence** over these datasheets. The English edition remains useful, but language
+> differences must be checked against the French source.
 
 | Document | Description |
 |---|---|

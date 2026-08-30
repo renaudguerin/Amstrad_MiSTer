@@ -129,7 +129,8 @@
   Clear this entry only after an actual cross-provider review. The introducing commit is
   the commit adding this entry; the previously cleared implementation reviews are unaffected.
 
-**Status: two reviews open.** Historical implementation review debt remains cleared.
+**Status: three reviews open:** Plus P10, ACCC Round 2, and the v1.11 bilingual sweep.
+Historical implementation review debt remains cleared.
 
 ## Cleared rows
 
@@ -426,6 +427,7 @@ hardest-reading guidance inline).
 
 | Branch | Scope of the whole-branch review | Status |
 |---|---|---|
+| `docs/accc-bilingual-sweep` | French/English v1.11 section-complete source ledger, authority-policy migration, high-confidence digest corrections, author courtesy report, and implementation audit queue. Review hardest: BL-019–BL-021 §13.7.2 reconstruction, BL-036 live-versus-historical R6 reading, BL-038 assignment-versus-toggle implication, and avoiding source claims unsupported by hardware. | **NOT CLEARED — pending fresh cross-provider source review.** A native Sol review confirmed the challenged source corrections but returned NOT CLEAR on missing durable per-section coverage, three unclassified premise audits, one uncascaded timing qualifier, and stale debt bookkeeping; those five documentation findings were remediated in the working tree but not re-reviewed. The available bridge was not given the user-owned PDFs because third-party payload transmission was not explicitly authorized. |
 | `accc-review-and-fixes` | Canonical docs, GA40010 co-sim manifest, exact-range whitespace gate, and pass-2 remediation integration. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 accepted all 11 remediations at reviewed tip `d64e449`; full record: `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md`. |
 | `accuracy/crtc-type-split` | Per-type engine split (`27efc2d`), wrapper rename to `rtl/CRTC.v` (`63f4c01`), session docs. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 independently reconfirmed the wrapper mux seams, type-0 latch/holdoff ordering, shared captures, and expanded differential evidence. |
 | `accuracy/a3-f6-stage1` | A3 companion vector `t20i`; F6 Stage 1 full-character approximation and its behavior-driven hash re-mint. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Accepted within the declared full-character approximation. F13 remains separately hardware-blocked. |

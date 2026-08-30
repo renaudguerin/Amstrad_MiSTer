@@ -71,8 +71,8 @@ Each finding receives a stable `BL-nnn` identifier and records:
 - disposition: docs only, test expectation, RTL candidate, author courtesy note, hardware
   discriminator, or no action.
 
-Coverage is section-complete: every technical section must be marked reviewed, deferred with
-a reason, or represented by a finding. The main thread owns adjudication and integration.
+Coverage is section-complete in `../accuracy/accc-1.11-fr-en-coverage.md`: every technical
+section is marked reviewed, deferred with a reason, or represented by a finding. The main thread owns adjudication and integration.
 Reader agents return candidate records only and do not edit or delegate.
 
 ## Work packages and gates
@@ -96,31 +96,31 @@ Reader agents return candidate records only and do not edit or delegate.
 - [x] Check the known §19.5.2 qualifier difference without giving the reader its answer.
 - [x] Check §12.2 as a negative control. It was not clean: the French source exposed the
       consequential BL-002 write-window omission in English.
-- [ ] Fix the output schema or packet size if the calibration invents differences, loses
+- [x] Fix the output schema or packet size if the calibration invents differences, loses
       qualifiers, or confuses deduction with source text.
 
 ### P2 — full consequential sweep
 
-- [ ] Build a section-to-page map for both editions.
-- [ ] Review all technical sections in bounded packets.
-- [ ] Maintain the section coverage ledger and deduplicate candidates by section/rule.
-- [ ] Render any table, chronogram, diagram, or extraction disagreement before adjudication.
+- [x] Build a section-to-page map for both editions.
+- [x] Review all technical sections in bounded packets.
+- [x] Maintain the section coverage ledger and deduplicate candidates by section/rule.
+- [x] Render any table, chronogram, diagram, or extraction disagreement before adjudication.
 
 ### P3 — adjudication and author courtesy report
 
-- [ ] Adjudicate each candidate against the original pages.
+- [x] Adjudicate each candidate against the original pages.
 - [ ] Obtain targeted independent review for high-impact findings.
-- [ ] Write the curated French/English v1.11 difference report.
-- [ ] Add unresolved English translation differences and source ambiguities to the author
+- [x] Write the curated French/English v1.11 difference report.
+- [x] Add unresolved English translation differences and source ambiguities to the author
       feedback document as courtesy notes, without overstating implementation or hardware
       consequences.
 
 ### P4 — documentation cascade
 
-- [ ] Update affected compendium digests and `audit-findings.md`.
+- [x] Update affected compendium digests and create the implementation-audit queue.
 - [ ] Update testbench and SHAKER mappings only where a finding changes their rule premise.
-- [ ] Reconcile current status, roadmap, references, and authority prose.
-- [ ] Preserve historical provenance instead of bulk-replacing old English citations.
+- [x] Reconcile current status, roadmap, references, and authority prose.
+- [x] Preserve historical provenance instead of bulk-replacing old English citations.
 
 ### P5 — implementation map
 

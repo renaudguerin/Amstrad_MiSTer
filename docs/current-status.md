@@ -30,8 +30,8 @@ Full diff and impact reports are in `docs/accuracy/accc-1.11-differences.md` and
 `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
 which accepted all pass-2 remediations); the 2026-08-23 review of the F7/A1/A2 and Plus
 follow-up deltas is `accuracy/f7-plus-followups-independent-review.md`, and all
-historical rows covered by those reviews are cleared. The current Plus P10 and ACCC Round 2
-documentation rows remain in `review-debt.md`. The §13.7.1.2 R0-widening trigger took two cross-provider
+historical rows covered by those reviews are cleared. The current Plus P10, ACCC Round 2,
+and v1.11 bilingual-sweep documentation rows remain in `review-debt.md`. The §13.7.1.2 R0-widening trigger took two cross-provider
 passes recorded in `accuracy/f7-r0-widening-independent-review.md` — pass 1 returned NOT
 CLEAR on two blocking findings, pass 2 cleared the remediation on 2026-08-24 — and the
 branch is merged, so no review-debt row is outstanding. The detailed behavioral rules remain in
@@ -1155,12 +1155,13 @@ than whichever older package a Linux distribution happens to carry.
   read-only checksum preflight for the exact Altera 17.0.2 payloads. Quartus itself still
   requires a human download and interactive EULA step; then run `ansible/post-install.yml`
   and `ansible/validate.yml -e quartus_required=true`.
-- ACCC v1.11 is now the primary documentation baseline (rebaseline 2026-08-28). The checked-in
-  digests and `accuracy/accc-1.11-differences.md` capture its rules and the edition delta; consult the
-  full PDF only when a page is specifically flagged for re-extraction.
-- The local `docs/references/ACCC1.11-EN.pdf` is user-owned source material and must remain outside
-  commits. If v1.10/v1.9 are retained locally for edition-delta or historical-citation checks, they
-  must likewise stay untracked.
+- ACCC v1.11 French is now the primary written baseline; English v1.11 is a working
+  translation. The section-complete language audit is
+  `accuracy/accc-1.11-fr-en-differences.md`. Digests are navigation aids: consult the French
+  PDF whenever a rule claim matters and render tables/figures when layout carries meaning.
+- The local `docs/references/ACCC1.11-FR.pdf` and `ACCC1.11-EN.pdf` are user-owned source
+  material and must remain outside commits. Retained v1.10/v1.9 editions and generated
+  extracts must likewise stay untracked.
 - The local example cartridge `docs/plus/references/cartridges/crtc3_v2fix.cpr` is likewise
   deliberately untracked. Use it as a real RIFF/CPR parsing fixture when P0 starts; do not
   make it a build dependency or redistribute it from this repository.

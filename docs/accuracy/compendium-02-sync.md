@@ -1,7 +1,8 @@
 # ACCC v1.11 Digest 02 — CRTC Sync Rules (R3, R2, R7, Interrupts; Chapters 14–16, 27)
 
-Source: ["The Amstrad CPC CRTC Compendium" v1.11](../references/ACCC1.11-EN.pdf#page=130), pages 130–174,
-283–291. See the [v1.9-to-v1.10 comparison report](accc-1.10-differences.md).
+Primary source: ["The Amstrad CPC CRTC Compendium" v1.11 French edition](../references/ACCC1.11-FR.pdf#page=132),
+chapters 14–16 and 27. The [English edition](../references/ACCC1.11-EN.pdf#page=130) is a
+working translation; see the [bilingual ledger](accc-1.11-fr-en-differences.md).
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot (CC BY-NC-ND).
 Scope: **CRTC type 0 (HD6845S/UM6845) and type 1 (UM6845R) only.** Type 2/3/4 contrasts are marked
 `[Tn diff]`, one line, informational only. Counter names: **C0** = horizontal char counter, **C0vs**
@@ -167,7 +168,8 @@ for C-SYNC generation (not CRTC registers).
 - **CRTC0**: at the exact position where C3l reaches R3l (HSYNC end — black cutoff is
   sub-character-granular, from bit 3 of the displayed byte onward, not a clean char boundary), if
   C0==R2 again **and R3l was modified there**, a new HSYNC begins **without C3l resetting to 0** —
-  starts ~3.5 px-M2 after the one that just ended, timing-equivalent to an R2.JIT start. If R3l was
+  starts at earliest approximately 3.5 px-M2 after the one that just ended, an R2.JIT-style
+  restart rather than a universal exact offset. If R3l was
   *not* modified at that exact position, no new HSYNC restarts (this is what distinguishes CRTC0
   from the CRTC1/2/3/4 shared bug below).
 - **CRTC1/2/3/4 shared bug (§15.3.1)**: if C0==R2 again exactly at **C0 = R2+R3** (one past normal
@@ -285,8 +287,8 @@ CSYNC = SIG_GA_HSYNC XNOR SIG_GA_VSYNC
 - **R7 pre-set before natural C4=R7** (normal case): black starts CRTC0/2 = 5th pixel of VMA word
   preceding C4=R7 (8 px of BORDER shown instead of 2nd byte of that word); CRTC1 = 6th pixel.
   `[T4 diff]` CRTC4 = 2nd pixel.
-- **"R7.JIT"** (rewrite R7=C4 while C4≠R7 yet; does **not** work CRTC3/4, whose VSYNC only starts at
-  C0=0):
+- **"R7.JIT"** (program R7 with the **current C4**, thereby making R7=C4; does **not** work
+  CRTC3/4, whose VSYNC also requires C9=C0=0):
   - CRTC0: black starts 5th px-M2 of the word where R7 becomes==C4 (bit 3 of 1st byte), regardless
     of OUT(C),r8 vs OUTI — but actual VSYNC-pin activation/C-SYNC delayed **1µs** (R7 not considered
     fast enough for immediate effect).
@@ -357,7 +359,9 @@ Two independent mechanisms against infinite VSYNC:
     C0vs=&36 shows VSYNC active; read 6µs after a rewrite at C0vs=&00 shows VSYNC **inactive**
     (hits the C0vs<2 blocked case).
 - **R0 interaction**: C0 must be able to reach value **2** on the line preceding the C4=R7 line for
-  VSYNC to be considered at all.
+  VSYNC to be considered at all. The following two cases appear only in English v1.11
+  §16.4.1 p.169 and are absent from authoritative French p.170; treat them as supplemental,
+  pending author or hardware confirmation rather than as settled ACCC rules:
   - R0 (was >2) set to **0** exactly at C0=0 of the C4=R7 line: VSYNC starts at C0=0 but **C3h
     freezes** (like all CRTC0 counters at R0=0) — never reaches R3h, VSYNC **never deactivates**
     (distinct lockup from §18's re-entrancy bug).

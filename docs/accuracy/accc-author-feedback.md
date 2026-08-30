@@ -1,12 +1,14 @@
 # ACCC v1.11 — Author Feedback & Clarifications (Round 2)
 
-**Date:** August 28, 2026
+**Date:** August 30, 2026
 **Reference:** *The Amstrad CPC CRTC Compendium* v1.11 (Longshot / Logon System, 27 August 2026)
 **Target:** Longshot (Author of *The Amstrad CPC CRTC Compendium*)
 
-This document contains one English-edition clarification and one hardware-behavior confirmation
-request from the MiSTer Amstrad core accuracy audit against **ACCC v1.11**. Source deductions,
-current model choices, and hardware observations are distinguished below.
+This document contains the courtesy corrections and clarification requests from the MiSTer
+Amstrad core audit against **ACCC v1.11**. Source deductions, current model choices, and
+hardware observations are distinguished below. The complete section-audited register is
+[the bilingual difference ledger](accc-1.11-fr-en-differences.md); this note keeps the
+author-facing report compact.
 
 *Note: Historical Round 1 feedback (which resulted in the publication of ACCC v1.11) is archived in [accc-author-feedback-round1-2026-08-27.md](accc-author-feedback-round1-2026-08-27.md).*
 
@@ -75,9 +77,75 @@ readings, not measured results. A later reachable positive-R5 write provides an 
 
 ---
 
+## 3. French/English v1.11 corrections from the section-complete sweep
+
+The comparison covered every technical section in chapters 3–29 and checked candidate
+tables/diagrams on rendered original pages. These are offered as edition corrections, not
+as hardware confirmations.
+
+### Highest-impact English corrections
+
+- **§4.2 p.18:** French says the two extra U.S.-ROM lines make the GA interrupt request arrive
+  on the same scanline as CRTC VSYNC, but before it; English says “not the same line.”
+- **§4.4.2 p.24:** French correctly says `INI` increments HL; English says it decrements HL.
+- **§10.3.1.2 FR p.77 / EN p.76:** French uses `C9<>R9`; English's `C9<=R9` loses the
+  C9>R9 overflow route.
+- **§12.2.1 FR p.96 / EN p.94:** French gives complementary RLAL write windows—line N at
+  `C0>1`, or N+1 at `C0<2`. English omits the line-N condition.
+- **§13.7.2 FR pp.126–128 / EN pp.124–126:** English changes `C0=0` to `C0=R0`,
+  `C4=R4` to `C4=C4`, reverses the no-adjustment condition, omits the additional `C4=R4`
+  conjunct from the **initial programmed-increment sentence** in the R0=1 case, and says R5
+  where French and the 8–31 example require `R5-1`. Both editions separately describe the
+  later partially completed overflow after C4 has diverged.
+- **§16.2.1 FR p.162 / EN p.160:** the English R7.NJIT/JIT headings are logically broken.
+  French defines NJIT as programming R7 before C4 reaches it and JIT as programming R7 with
+  the current C4 value.
+- **§16.3 and §16.4.4 FR pp.169,172 / EN pp.167,170:** English omits the C9=0 gate for
+  CRTC3/4 twice.
+- **§17.2.2 FR p.180 / EN p.178:** French derives row-select bits from C9; English adds C5.
+- **§18.3.2 FR p.191 / EN p.190:** French tests whether R6 is zero when C0 reaches R1;
+  English changes this into the historical condition that R6 was zero at least once.
+- **§19.5.5 FR p.214 / EN p.213:** French and the later English explanation say CRTC3/4
+  ParityC9 changes for odd R9; the opening English bullet says even.
+- **§20.3.2 p.242:** French says type 1 reloads VMA at every C0=0 while C4=0,
+  independently of C9. English omits the recurrence and independence qualifiers.
+- **§28.1.9 p.293:** French lists the full type-3/4 readback map through R14/R15 and points
+  to §21.2.3; English stops at R13 and points to §20.3.4.
+
+### Clarifications requested
+
+1. **§7.2:** which synchronization routine is intended: French `19968-21` with `1+1+3`, or
+   English `19968-23` with `2+1+3` and the separate −1 µs positioning adjustment?
+2. **§4.4.3–4:** is English's addition of `OUTD` intentional, and does the ASIC use the same
+   `/WAIT` request/repetition mechanism as the Gate Array? The generic English “write I/O
+   instruction 1 µs earlier” appears broader than the French `OUT(C),r8` rule.
+3. **§11.6:** does the French statement that the RFD VMA-source state persists independently
+   of a C0/R1 test describe persistence before the later comparative event, rather than an
+   unconditional lifetime?
+4. **§14.1 FR p.132:** should “HSYNC begins when C3l reaches R3l” say **ends**? The French
+   definitions, tables, and later prose all appear to require “ends.”
+5. **§16.4.1 EN p.169:** are the two English-only R0/VSYNC paragraphs normative material
+   accidentally omitted from French, or unsupported supplemental text?
+6. **§19.3.4:** should English retain the French warning about complete-interlace screen
+   construction from VSYNC at C4=R7, rather than replacing it with frame-start-only R8 advice?
+7. **§19.5.3 FR p.209:** is `ParityC9=ParityFrame` at every type-1 frame start an explicit
+   realignment assignment even after the states have been made unequal by an R8 transition?
+8. **§22 EN p.250:** can the English-only warning about effects on “other registers” be made
+   concrete, or should it be removed/added to French as intentionally non-normative guidance?
+
+### Lower-risk errata
+
+The full ledger also records malformed formulas/wording in §§11.1, 12.5, 14.4, 14.8,
+15.4.1, 16.4.1–3, 19.5.4, 20.3.3, and 27.2, plus cross-reference errors at French §§7.2 and
+9.3.4.1 and English §§23.2, 23.3, and 28.1.9. These are useful for editorial cleanup but do
+not presently justify RTL changes.
+
+---
+
 ## Source verification
 
-The 2026-08-28 comparison used pdf-inspector extraction and rendered relevant pages from
+The initial 2026-08-28 comparison and section-complete 2026-08-30 sweep used pdf-inspector
+extraction and rendered relevant pages from
 [English v1.11](https://shaker.logonsystem.eu/ACCC1.11-EN.pdf) and
 [French v1.11](https://shaker.logonsystem.eu/ACCC1.11-FR.pdf). SHA-256 fingerprints:
 
