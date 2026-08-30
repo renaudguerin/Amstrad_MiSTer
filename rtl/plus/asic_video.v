@@ -443,7 +443,8 @@ reg [13:0] vma_latch;
 // Selected §20.3.4 frame-origin reading; see the source-conflict note above.
 wire pointer_frame_origin = ivm_active ? frame_restart :
                             (!adj_n && (charline_n == 7'd0) &&
-                             (raster_n == 5'd0));
+                             (raster_n == 5'd0) &&
+                             !enter_interlace_line);
 
 // P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
 wire [4:0] ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};

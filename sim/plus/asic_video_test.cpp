@@ -1620,6 +1620,28 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     exit.write_register(8, 0);
     exit.run_to_state(2, 0, 31, "t04n former midpoint after mode-1 exit");
     exit.expect_vsync("t04n R8=1 exit cancels pending midpoint", false);
+
+    // §19.6.4 p.217 says the added line starts from the VMA' captured at
+    // C9=R9,C0=R1.  R4=0 is the aliasing discriminator: the added line has
+    // C4=C9=0, but it is not a real frame origin and must not reload R12/R13.
+    TestBench r4_zero;
+    r4_zero.write_register(0, 7);
+    r4_zero.write_register(1, 2);
+    r4_zero.write_register(3, 0x11);
+    r4_zero.write_register(4, 0);
+    r4_zero.write_register(5, 0);
+    r4_zero.write_register(6, 1);
+    r4_zero.write_register(7, 1);
+    r4_zero.write_register(9, 1);
+    r4_zero.write_register(12, 1);
+    r4_zero.write_register(13, 0);
+    r4_zero.run_to_frame_start();
+    r4_zero.write_register(8, 1);
+    r4_zero.run_characters(16);
+    r4_zero.expect_line("t04n R4=0 added line keeps C4", 0);
+    r4_zero.expect_row("t04n R4=0 added line forces C9", 0);
+    r4_zero.expect_hcc("t04n R4=0 added line sampled phase", 1);
+    r4_zero.expect_ma("t04n R4=0 added line uses captured VMA'", 0x103);
 }
 
 // ACCC v1.11 section 19.8.4 pp.235-238: entering IVM (R8=3)
