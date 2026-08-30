@@ -72,8 +72,11 @@ focused fixtures. A guarded Claude review found one Medium DMA scheduler defect:
 change skipped inactive fetch states but inactive lower-numbered channels still delayed the
 execute phase. The new `d13` discriminator failed unchanged RTL (channel 1 alone began at CCLK
 3 instead of 2); direct active-channel routing now passes every enable mask while preserving
-LOAD's eight-cycle sequence. A narrow cross-provider re-review of that remediation is still
-required. This is review evidence, not synthesis or hardware confirmation.
+LOAD's eight-cycle sequence. Claude's narrow remediation review accepted the production
+routing and found one Low test gap: partial masks did not pin channel identity. `d13` now also
+requires each distinct PSG register/data pair in ascending active-channel order, and the final
+narrow review returned CLEAR at `d17a1bc`. This is review evidence, not synthesis or hardware
+confirmation.
 
 ## Required hardware rerun
 

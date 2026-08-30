@@ -104,11 +104,17 @@
   inactive DMA channels skipped fetch slots but still delayed the execute phase. The new
   `d13` discriminator first failed unchanged RTL for channel 1 alone (CCLK 3 rather than 2),
   then passed all eight masks after fetch completion and channel transitions were routed
-  directly to the next active execute state. Focused DMA tests and lint pass. Keep this row
-  open pending a narrow cross-provider re-review of that final scheduler remediation, the
-  full post-fix rebased gates, exact-top synthesis, and hardware retest. Remaining review
-  emphasis: sprite bandwidth/access blanking, the SNA HPS producer boundary, DMA/PPI
-  concurrency, and exact-top behavior.
+  directly to the next active execute state.
+  **DMA REMEDIATION RE-REVIEW — CLEAR at `d17a1bc`, Claude Opus 5 high, 2026-08-30.**
+  The first narrow pass accepted the production routing and found one Low test gap: cadence
+  alone did not prove channel identity/order for partial masks. `d13` now requires the
+  distinct PSG register/data writes in ascending active-channel order for all masks; the
+  final narrow pass verified the oracle and bounds path and returned CLEAR. Full post-fix
+  simulation and lint pass, the golden soak remains `0x32d468e81eac63c9`, and no unreviewed
+  hardware-round-two RTL/test delta remains. Keep this broader historical row open only for
+  evidence outside the reviewed local seam: physical sprite bandwidth/access blanking, the
+  full HPS-to-SNA producer boundary, DMA/PPI concurrency, exact-top synthesis, and hardware
+  retest.
 
 - **ACCC Round 2 documentation correction, 2026-08-28** — documentation on the integration
   branch `accc-review-and-fixes`, based on `c11c55d`. Scope: `accuracy/accc-author-feedback.md`, its Round 1
