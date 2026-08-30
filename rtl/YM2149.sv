@@ -309,22 +309,86 @@ always @(posedge CLK) begin
 	C <= {MODE, ~((ymreg[7][2] | tone_gen_op[3]) & (ymreg[7][5] | noise_gen_op[2])) ? 5'd0 : ymreg[10][4] ? env_vol[4:0] : {ymreg[10][3:0], ymreg[10][3]}};
 end
 
-wire [7:0] volTable[64] = '{
-	//YM2149
-	8'h00, 8'h01, 8'h01, 8'h02, 8'h02, 8'h03, 8'h03, 8'h04, 
-	8'h06, 8'h07, 8'h09, 8'h0a, 8'h0c, 8'h0e, 8'h11, 8'h13, 
-	8'h17, 8'h1b, 8'h20, 8'h25, 8'h2c, 8'h35, 8'h3e, 8'h47, 
-	8'h54, 8'h66, 8'h77, 8'h88, 8'ha1, 8'hc0, 8'he0, 8'hff,
+// Keep this as a case lookup rather than an initialized unpacked array.  The
+// latter is accepted by newer simulator versions but is rejected by the
+// older simulator/Quartus toolchain used for the production build.
+function [7:0] volume_table;
+	input [5:0] index;
+	begin
+		case (index)
+			// YM2149
+			6'h00: volume_table = 8'h00;
+			6'h01: volume_table = 8'h01;
+			6'h02: volume_table = 8'h01;
+			6'h03: volume_table = 8'h02;
+			6'h04: volume_table = 8'h02;
+			6'h05: volume_table = 8'h03;
+			6'h06: volume_table = 8'h03;
+			6'h07: volume_table = 8'h04;
+			6'h08: volume_table = 8'h06;
+			6'h09: volume_table = 8'h07;
+			6'h0a: volume_table = 8'h09;
+			6'h0b: volume_table = 8'h0a;
+			6'h0c: volume_table = 8'h0c;
+			6'h0d: volume_table = 8'h0e;
+			6'h0e: volume_table = 8'h11;
+			6'h0f: volume_table = 8'h13;
+			6'h10: volume_table = 8'h17;
+			6'h11: volume_table = 8'h1b;
+			6'h12: volume_table = 8'h20;
+			6'h13: volume_table = 8'h25;
+			6'h14: volume_table = 8'h2c;
+			6'h15: volume_table = 8'h35;
+			6'h16: volume_table = 8'h3e;
+			6'h17: volume_table = 8'h47;
+			6'h18: volume_table = 8'h54;
+			6'h19: volume_table = 8'h66;
+			6'h1a: volume_table = 8'h77;
+			6'h1b: volume_table = 8'h88;
+			6'h1c: volume_table = 8'ha1;
+			6'h1d: volume_table = 8'hc0;
+			6'h1e: volume_table = 8'he0;
+			6'h1f: volume_table = 8'hff;
 
-	//AY8910
-	8'h00, 8'h00, 8'h03, 8'h03, 8'h04, 8'h04, 8'h06, 8'h06, 
-	8'h0a, 8'h0a, 8'h0f, 8'h0f, 8'h15, 8'h15, 8'h22, 8'h22, 
-	8'h28, 8'h28, 8'h41, 8'h41, 8'h5b, 8'h5b, 8'h72, 8'h72, 
-	8'h90, 8'h90, 8'hb5, 8'hb5, 8'hd7, 8'hd7, 8'hff, 8'hff 
-};
+			// AY8910
+			6'h20: volume_table = 8'h00;
+			6'h21: volume_table = 8'h00;
+			6'h22: volume_table = 8'h03;
+			6'h23: volume_table = 8'h03;
+			6'h24: volume_table = 8'h04;
+			6'h25: volume_table = 8'h04;
+			6'h26: volume_table = 8'h06;
+			6'h27: volume_table = 8'h06;
+			6'h28: volume_table = 8'h0a;
+			6'h29: volume_table = 8'h0a;
+			6'h2a: volume_table = 8'h0f;
+			6'h2b: volume_table = 8'h0f;
+			6'h2c: volume_table = 8'h15;
+			6'h2d: volume_table = 8'h15;
+			6'h2e: volume_table = 8'h22;
+			6'h2f: volume_table = 8'h22;
+			6'h30: volume_table = 8'h28;
+			6'h31: volume_table = 8'h28;
+			6'h32: volume_table = 8'h41;
+			6'h33: volume_table = 8'h41;
+			6'h34: volume_table = 8'h5b;
+			6'h35: volume_table = 8'h5b;
+			6'h36: volume_table = 8'h72;
+			6'h37: volume_table = 8'h72;
+			6'h38: volume_table = 8'h90;
+			6'h39: volume_table = 8'h90;
+			6'h3a: volume_table = 8'hb5;
+			6'h3b: volume_table = 8'hb5;
+			6'h3c: volume_table = 8'hd7;
+			6'h3d: volume_table = 8'hd7;
+			6'h3e: volume_table = 8'hff;
+			6'h3f: volume_table = 8'hff;
+		endcase
+	end
+endfunction
 
-assign CHANNEL_A = volTable[A];
-assign CHANNEL_B = volTable[B];
-assign CHANNEL_C = volTable[C];
+assign CHANNEL_A = volume_table(A);
+assign CHANNEL_B = volume_table(B);
+assign CHANNEL_C = volume_table(C);
 
 endmodule
