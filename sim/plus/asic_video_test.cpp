@@ -1220,10 +1220,18 @@ void t02k_ivm_even_frame_adjustment(TestBench& test) {
     // ACCC v1.11 §19.6.4 p.217: after the R5 lines, an even frame gains
     // one interlace line.  C4 is not incremented, C9 is unconditionally 0,
     // and the solidified pointer from the last C4 remains in use.
+    test.expect_adj(false, "t02k added interlace line is not R5 adjustment");
     test.expect_line("t02k interlace line keeps C4 at R4", 1);
     test.expect_row("t02k interlace line forces C9 to zero", 0);
+    test.expect_de("t02k carried C4 remains inside the R6 display window", true);
     test.expect_ma("t02k interlace line keeps captured VMA'", kAdjustmentMa);
-    test.run_characters(kLineCharacters);
+    test.run_characters(17);
+    test.expect_adj(false, "t02k mid-line remains outside R5 adjustment");
+    test.expect_line("t02k mid-line keeps the terminal C4", 1);
+    test.expect_row("t02k mid-line keeps the forced C9", 0);
+    test.expect_ma("t02k pointer advances within the added line",
+                   kAdjustmentMa + 17);
+    test.run_characters(kLineCharacters - 17);
 
     test.expect_line("t02k frame restart resets C4 after interlace line", 0);
     test.expect_row("t02k frame restart aligns C9 with odd ParityFrame", 1);
@@ -1403,12 +1411,28 @@ void t04l_r7_r4_adjustment_and_interlace_line_seams(TestBench& test) {
     TestBench interlace;
     program_ivm_sync_frame(interlace, 3);
     interlace.run_to_state(3, 0, 0, "t04l even-frame interlace line seam");
+    interlace.expect_adj(false, "t04l added interlace line is not R5 adjustment");
+    interlace.expect_line("t04l added line carries C4=R4", 3);
+    interlace.expect_row("t04l added line forces C9=0", 0);
+    interlace.expect_de("t04l carried C4 remains inside the R6 display window", true);
+    interlace.expect_ma("t04l added line starts from terminal captured VMA'", 8);
     interlace.expect_vsync("t04l interlace line is low at its seam", false);
     interlace.run_characters(30);
+    interlace.expect_adj(false, "t04l mid-line remains outside R5 adjustment");
+    interlace.expect_ma("t04l pointer progresses before the true origin reload", 38);
     interlace.expect_vsync("t04l interlace line stays low before midpoint", false);
     interlace.run_characters(1);
     interlace.expect_hcc("t04l interlace-line MID-VSYNC phase", 31);
     interlace.expect_vsync("t04l added line preserves C4/R7 VSYNC condition", true);
+    interlace.run_characters(33);
+    interlace.expect_line("t04l true origin reloads C4 after the added line", 0);
+    interlace.expect_row("t04l true origin exposes odd-frame C9", 1);
+    interlace.expect_adj(false, "t04l true origin remains outside adjustment");
+    interlace.expect_ma("t04l true origin reloads R12/R13", 0);
+    interlace.expect_vsync("t04l R3h=1 ends at the true-origin seam", false);
+
+    // Odd-frame R5 recurrence is intentionally left as a residual: this
+    // vector pins the source-backed even-frame added-line seam only.
 }
 
 // ACCC v1.11 §16.1 p.159: C3h advances at C0=0.  With R3h=2, a pulse
@@ -1460,8 +1484,26 @@ void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     live_r3.write_register(3, 0x21);
     live_r3.run_to_state(1, 5, 0, "t04m live-R3 second seam");
     live_r3.expect_vsync("t04m live R3h=2 ends on second seam", false);
-    live_r3.reset();
-    live_r3.expect_vsync("t04m reset clears VSYNC and pending state", false);
+
+    // Reset must cancel latent and visible sync state, rather than merely
+    // being sampled after a pulse has already ended.
+    TestBench pending_reset;
+    program_ivm_sync_frame(pending_reset, 1);
+    pending_reset.run_to_state(1, 1, 0, "t04m pending MID-VSYNC reset seam");
+    pending_reset.expect_vsync("t04m midpoint start is pending at the seam", false);
+    pending_reset.reset();
+    pending_reset.expect_vsync("t04m reset clears pending MID-VSYNC", false);
+
+    TestBench active_reset;
+    program_ivm_sync_frame(active_reset, 1);
+    active_reset.run_to_state(1, 1, 0, "t04m active VSYNC reset target");
+    active_reset.run_characters(31);
+    active_reset.expect_vsync("t04m active-reset precondition", true);
+    active_reset.reset();
+    active_reset.expect_vsync("t04m reset clears active VSYNC", false);
+
+    // R8=1 (sync-only interlace) remains an explicit residual; these
+    // source-backed phase and reset vectors exercise IVM (R8=3).
 }
 
 // ACCC v1.11 section 19.8.4 pp.235-238: entering IVM (R8=3)
