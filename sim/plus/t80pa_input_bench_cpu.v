@@ -39,6 +39,9 @@ module T80pa_input_bench_cpu (
 	reg [2:0] st;
 	reg [5:0] step;
 	reg [7:0] op_sample_count;
+	reg [7:0] sbus_data;
+	reg [15:0] sbus_addr;
+	reg sbus_read;
 	reg [28:0] bus_d;
 	reg bus_change_allowed_d;
 
@@ -81,11 +84,6 @@ module T80pa_input_bench_cpu (
 		end
 	endfunction
 
-	// Keep the transaction description combinational so the registered bus
-	// pins below use nonblocking assignments throughout the sequential process.
-	wire [23:0] current_bus = step_bus(step);
-	wire current_read = step_is_read(step);
-
 	task bus_idle;
 		begin
 			rd_n <= 1'b1;
@@ -103,6 +101,9 @@ module T80pa_input_bench_cpu (
 			st <= S_GAP;
 			step <= 6'd0;
 			op_sample_count <= 8'd0;
+			sbus_data <= 8'hFF;
+			sbus_addr <= 16'hFFFF;
+			sbus_read <= 1'b0;
 			done_o <= 1'b0;
 			read_count_o <= 3'd0;
 			read0_o <= 8'hFF;
@@ -121,10 +122,12 @@ module T80pa_input_bench_cpu (
 				bus_idle;
 				// T80pa changes the bus on its positive CPU enable phase.
 				if (!done_o && cen_p) begin
-					a <= current_bus[23:8];
-					cpu_do <= current_bus[7:0];
-					rd_n <= current_read ? 1'b0 : 1'b1;
-					wr_n <= current_read ? 1'b1 : 1'b0;
+					{sbus_addr, sbus_data} = step_bus(step);
+					sbus_read = step_is_read(step);
+					a <= sbus_addr;
+					cpu_do <= sbus_data;
+					rd_n <= sbus_read ? 1'b0 : 1'b1;
+					wr_n <= sbus_read ? 1'b1 : 1'b0;
 					iorq_n <= 1'b0;
 					mreq_n <= 1'b1;
 					m1_n <= 1'b1;
