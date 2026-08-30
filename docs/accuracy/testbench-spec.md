@@ -97,7 +97,7 @@ lags a sub-vector name.
 | t08 type-1 adjustment: §28.1.1 identification fixture plus C5/C4/C9 sequencing; A1 makes the adjustment-ending final-row+1 VSYNC comparison silent; A2 pins the §11.2.4 exact-C0==R0 caveat pair (R4>0 suppresses the C4=1 R12/R13 reload, R9 does not) | digest-01 §11.2.4 + digest-02 §§16.1/16.4.2 + digest-03 §28.1.1 | F4/F8/A1/A2 |
 | t09 R0=0 freeze (type 0): counters halt, no HSYNC unless R2=0, resume clean; C9=R9 entry consumes exactly one C4 increment — implemented | digest-01 §8.1 | F5/F12 boundary |
 | t10a-t10e + t31a R1>R0: type 0 no-skew DE is high for C0=R0's first half and low for its second 0.5 µs; type 1 none; SKEW-DISPTMG 1/2 rounds the deferred event to a full delayed character and mode 3 suppresses output — implemented, hardware validation pending | digest-03 §17.6.2/§19.2.3/§19.2.4 | F6/F13 |
-| integrated GA `r2jit_type1_out_c`: production-phased `OUT (C),r8` makes R2 equal current C0; CRTC-1 visible/raw start moves +3 Mode-2 pixels versus its normal start while raw HSYNC width is unchanged — implemented, hardware validation pending | ACCC v1.11 §14.6.1 p.141 | F20 |
+| integrated GA R2.JIT controls: production-phased `OUT (C),r8` makes R2 equal current C0; type-0/type-1 visible/raw starts move +4/+3 Mode-2 pixels while raw width shortens by 4/3 and the type-specific display-reactivation edge stays fixed; same-value rewrite stays normal — implemented, hardware validation pending | ACCC v1.11 §9.3.4.1 pp.53-54, §9.3.4.3 p.57, §14.6.1 p.141 | F20 |
 | t11 type 1 adjustment: C9 keeps cycling (RA!), C4 increments, R5=0 doesn't end | digest-01 §4 | F8 |
 | t12a/t12b documented R4=38/R9=7 worked example pair (type 0): exact-C0==R0 R9 write leaves C4=39,C9=8; windowed write (C0∈[2,R0−1]) leaves C4=38,C9=8 — both encoded from ACCC §11.2.2 p.82 ex.3 — implemented | digest-01 §3.1/§4.2 | F9/F12 |
 | t13a-t13d RFD — implemented: away-from-R0 never-triggered control, R5 0→1 at C0==R0, same-cycle VMA reload/adjustment entry, frame-parity VMA' alternation, successful-save disarm, and R1>R0 bare-C9 disarm | digest-01 §4.5/§5 | F7/B6 |
@@ -146,7 +146,7 @@ the cited ACCC rule when implemented:
 ## Definition of done (for the implementing agent)
 
 1. `make -C sim` runs the full suite non-interactively and exits zero (2026-08-23 state:
-   107 required passes, no expected failures), well under a minute total.
+   176 required passes, no expected failures), well under a minute total.
 2. A failing assertion produces a VCD + human-readable diff.
 3. `docs/accuracy/audit-findings.md` verification levels V3 references become real: each
    finding's fix prompt names its test file.

@@ -239,9 +239,10 @@ struct Measurement {
     unsigned raw_fall_pixel;
 };
 
-Measurement measure(bool dynamic, std::uint8_t start_c0) {
-    Bench bench(true);
-    bench.configure(dynamic ? 55 : 46);
+Measurement measure(bool crtc_type, bool dynamic, std::uint8_t initial_r2,
+                    std::uint8_t start_c0, std::uint8_t written_r2) {
+    Bench bench(crtc_type);
+    bench.configure(initial_r2);
     if (dynamic) {
         bench.select_crtc_register(2);
     }
@@ -250,8 +251,8 @@ Measurement measure(bool dynamic, std::uint8_t start_c0) {
     if (dynamic) {
         bench.wait_for_c0(start_c0);
         bench.arm_r2_write_monitor();
-        bench.write_selected(46);
-        if (!bench.r2_write_seen()) {
+        bench.write_selected(written_r2);
+        if (initial_r2 != written_r2 && !bench.r2_write_seen()) {
             throw TestFailure("R2 write did not reach the CRTC");
         }
     }
@@ -267,8 +268,8 @@ Measurement measure(bool dynamic, std::uint8_t start_c0) {
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     try {
-        const Measurement normal = measure(false, 0);
-        const Measurement jit = measure(true, 46);
+        const Measurement normal = measure(true, false, 46, 0, 0);
+        const Measurement jit = measure(true, true, 55, 46, 46);
         const int blank_delta = static_cast<int>(jit.blank_pixel) -
                                 static_cast<int>(normal.blank_pixel);
         const unsigned normal_width = normal.raw_fall_pixel - normal.raw_rise_pixel;
@@ -285,13 +286,36 @@ int main(int argc, char** argv) {
         if (jit.write_c0 != 46) {
             throw TestFailure("OUT(C) did not latch R2 at C0=R2");
         }
-        if (blank_delta != 3 || jit_width != normal_width) {
-            throw TestFailure("expected +3 pixels and unchanged HSYNC width "
-                              "(ACCC v1.11 section 14.6.1 p.141)");
+        if (blank_delta != 3 || jit_width + 3 != normal_width) {
+            throw TestFailure("expected +3-pixel start and -3-pixel pulse "
+                              "(ACCC v1.11 sections 9.3.4.1/9.3.4.3 "
+                              "pp.53-57 and 14.6.1 p.141)");
         }
         std::cout << "PASS  r2jit_type1_out_c\n";
+
+        const Measurement type0_normal = measure(false, false, 46, 0, 0);
+        const Measurement type0_jit = measure(false, true, 55, 46, 46);
+        const int type0_delta = static_cast<int>(type0_jit.blank_pixel) -
+                                static_cast<int>(type0_normal.blank_pixel);
+        const unsigned type0_normal_width = type0_normal.raw_fall_pixel -
+                                            type0_normal.raw_rise_pixel;
+        const unsigned type0_jit_width = type0_jit.raw_fall_pixel -
+                                         type0_jit.raw_rise_pixel;
+        if (type0_delta != 4 || type0_jit_width + 4 != type0_normal_width) {
+            throw TestFailure("expected type-0 +4-pixel start and -4-pixel pulse "
+                              "(ACCC v1.11 section 9.3.4.3 p.57)");
+        }
+        std::cout << "PASS  r2jit_type0_out_c\n";
+
+        const Measurement same_value = measure(true, true, 46, 46, 46);
+        if (same_value.blank_pixel != normal.blank_pixel ||
+            same_value.raw_rise_pixel != normal.raw_rise_pixel ||
+            same_value.raw_fall_pixel != normal.raw_fall_pixel) {
+            throw TestFailure("same-value R2 rewrite changed normal HSYNC timing");
+        }
+        std::cout << "PASS  r2jit_same_value_control\n";
     } catch (const std::exception& error) {
-        std::cerr << "FAIL  r2jit_type1_out_c\n      " << error.what() << '\n';
+        std::cerr << "FAIL  r2jit_integrated_controls\n      " << error.what() << '\n';
         return 1;
     }
     return 0;

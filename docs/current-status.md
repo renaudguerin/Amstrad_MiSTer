@@ -397,7 +397,7 @@ For a first MiSTer pass:
 - The current local gate reports 176 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures (verified 2026-08-30, Verilator 5.050), plus the
   integrated GA R2.JIT and u765 transaction benches. The randomized equivalence soak
-  reproduces golden hash `0x005deed28be80fa1` (chain in AGENTS.md). The
+  reproduces golden hash `0x32d468e81eac63c9` (chain in AGENTS.md). The
   §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
   window; per review finding F-9 the soak is measurably insensitive to this region, so the
   directed vectors — not the soak — carry the behavioral proof here.
@@ -414,12 +414,13 @@ For a first MiSTer pass:
   presence/type/skew controls and SKEW 1/2's rounded full-character displacement. This is
   an ACCC-model correction pending SHAKER Module A `(O)` and, if possible, DE-pin validation;
   it is not yet hardware evidence.
-- F20 implements ACCC v1.11 §14.6.1 p.141 CRTC-1 R2.JIT timing through the
-  integrated production CRTC+GA clock path. `r2jit_type1_out_c` drives a real
-  Z80-phased `OUT (C),r8`, requires the JIT blank/raw start three Mode-2 pixels
-  after the normal CRTC-1 start, and requires identical raw HSYNC width. Every
-  new phase/deferred-edge latch joins the soak projection. DSC4/SHAKER `(TAB)`
-  hardware confirmation, same-value/OUTI distinctions, and the independent
+- F20 implements ACCC v1.11 §9.3.4.1/§9.3.4.3/§14.6.1 R2.JIT timing through
+  the integrated production CRTC+GA clock path. Real Z80-phased `OUT (C),r8`
+  controls require type-0/type-1 starts +4/+3 Mode-2 pixels later, raw widths
+  shorter by 4/3, fixed type-specific display-reactivation edges, and a
+  same-value rewrite on the normal path. Every new phase/deferred-edge latch
+  joins the soak projection. DSC4/SHAKER `(TAB)` hardware confirmation, OUTI,
+  active-pulse R2 updates, and the independent
   RFD×IVM compound case remain open.
 - F7 RFD is implemented for the type-1 R5 route (`t13a`-`t13d`): same-edge `R5 0→nonzero`
   arming at C0=R0, VMA-from-R12/R13 on every row, parity-gated VMA' saves with odd-R9
@@ -1120,8 +1121,9 @@ front end.
    deterministic regression before repairing any newly understood behavior.
 4. Classic: F13's half-character CRTC-side phase is implemented per
    `accuracy/f6-decision-gate.md` and remains pending SHAKER/DE-pin hardware validation.
-   F20's CRTC-1 R2.JIT start and phase-preserved trailing edge are implemented
-   through the integrated GA fixture; re-test DSC4 and SHAKER `(TAB)` on hardware.
+   F20's type-0/type-1 R2.JIT starts and fixed display-reactivation edges are
+   implemented through the integrated GA fixture; re-test DSC4 and SHAKER
+   `(TAB)` on hardware.
    F7 RFD (R5 route, B6 disarm, A1, A2) is implemented and independently reviewed
    (`accuracy/f7-plus-followups-independent-review.md`), and the §13.7.1.2 R0-widening
    trigger is implemented with its blocking review findings remediated

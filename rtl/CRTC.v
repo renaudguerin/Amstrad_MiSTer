@@ -454,7 +454,8 @@ wire register_write = ENABLE & RS & ~nCS & ~R_nW;
 // for several master clocks in the integrated machine, so recognize only its
 // first edge and let the updated comparator fire on the following edge.
 wire r2_jit_write = register_write & ~register_write_d &
-					(addr == 5'd02) & (hcc == DI) & (R3_h_sync_width != 0);
+					(addr == 5'd02) & (hcc == DI) &
+					(R2_h_sync_pos != DI) & (R3_h_sync_width != 0);
 
 always @(posedge CLOCK) begin
 
@@ -481,12 +482,14 @@ always @(posedge CLOCK) begin
 		if (!CRTC_TYPE) type1_hsync_start_pending <= 0;
 
 		// Through the GA's 16 MHz video sampler CRTC1's normal start is the
-		// documented sixth rather than fifth pixel-M2.  Four 64 MHz master
-		// edges express that one-pixel phase in production; the fixture uses
-		// the same relative CLOCK/CLKEN phase contract.  A JIT comparator hit
-		// starts immediately at the write phase.  In either sub-character case,
-		// replay the captured start phase at the trailing edge so R3 still
-		// describes an unchanged pulse width rather than truncating the pulse.
+		// documented sixth rather than fifth pixel-M2. Four 64 MHz master edges
+		// express that one-pixel phase in production; the integrated GA fixture
+		// pins this production ratio. A JIT comparator hit starts immediately at
+		// the write phase. A JIT pulse keeps only the ordinary type-specific
+		// trailing-edge phase, not the later write phase: ACCC sections
+		// 9.3.4.1/9.3.4.3 pp.53-57 state that R2.JIT removes the left part of
+		// blanking without delaying display reactivation, shortening the physical
+		// pulse by 4/3 pixel-M2 on type 0/1 respectively.
 		if (hsync_off_pending) begin
 			if (hsync_off_count == 0) begin
 				HSYNC             <= 0;
@@ -506,8 +509,8 @@ always @(posedge CLOCK) begin
 		end else if (!HSYNC) begin
 			if (r2_jit_pending && hsync_on) begin
 				HSYNC                     <= 1;
-				hsync_phaseful            <= 1;
-				hsync_start_phase         <= hsync_char_phase;
+				hsync_phaseful            <= CRTC_TYPE;
+				hsync_start_phase         <= CRTC_TYPE ? 7'd4 : 7'd0;
 				r2_jit_pending            <= 0;
 				type1_hsync_start_pending <= 0;
 			end else if (CRTC_TYPE) begin

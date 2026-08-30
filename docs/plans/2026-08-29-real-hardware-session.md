@@ -45,8 +45,9 @@ yet returned to hardware.
   entries actually run were not named.
 - The 2026-08-29 hardware sample predated the CRTC-1 R2.JIT implementation.
   F20 now pins the production CRTC+GA path: a dynamic `OUT (C),r8` start is
-  three Mode-2 pixels later than the normal CRTC-1 start and the raw HSYNC
-  width is preserved. DSC4 is now a high-value hardware re-test, not a claimed
+  three Mode-2 pixels later than the normal CRTC-1 start while display
+  reactivation stays fixed, shortening the raw pulse by three pixels. DSC4 is
+  now a high-value hardware re-test, not a claimed
   pass; RFD×IVM remains a separate compound discriminator if it still fails.
 - Longshot's guidance, retained verbatim for the next accuracy session:
 

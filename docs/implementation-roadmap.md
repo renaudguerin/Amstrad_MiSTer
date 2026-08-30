@@ -20,7 +20,7 @@ merged into the same behavioral PR.
   `plus/p0-parser-wiring`, which rebase onto this branch's post-review fixes).
 - The current development state contains the accuracy/reference documents, the F1-F3 and main
   F5 corrections, deterministic-complete F12/F4/F8/F9, the Verilator CRTC/Plus gates plus the
-  randomized equivalence soak (`make -C sim soak`, golden hash `0x512eaae74a628dca`), the
+  randomized equivalence soak (`make -C sim soak`, golden hash `0x32d468e81eac63c9`), the
   production-wired bounded CPR parser/service/MMU path, R12/R13 reload vectors
   (`t20a`-`t20i`), the per-type engine
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
@@ -30,9 +30,9 @@ merged into the same behavioral PR.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
   RBF packaging, and artifact upload through the pass-2 fix tip `f6f09f5` (run
   `32645547100`). New top-level/file-list commits still require their own run.
-- `sim/` currently reports **107** required classic CRTC passes with no expected failures
-  (verified 2026-08-23, Verilator 5.050); the soak reproduces golden hash
-  `0x512eaae74a628dca`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
+- `sim/` currently reports **176** required classic CRTC passes with no expected failures
+  (verified 2026-08-30, Verilator 5.050); the soak reproduces golden hash
+  `0x32d468e81eac63c9`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through
@@ -42,7 +42,7 @@ merged into the same behavioral PR.
   F9 closure is merged into this branch (`t12a`/`t12b`: exact-C0==R0 write → C4=39/C9=8 and
   its windowed companion → C4=38/C9=8, ACCC p.82). F13's ACCC-model half-character DE
   phase is implemented; SHAKER/DE-pin hardware validation remains open. F20's CRTC-1
-  R2.JIT start phase and pulse-width preservation are implemented through the integrated
+  R2.JIT start phase and fixed display-reactivation edge are implemented through the integrated
   CRTC+GA path; DSC4 and SHAKER `(TAB)` remain hardware gates. F7 RFD is complete
   in full; the next independent classic checkpoint is
   F10 (fixtures first).
@@ -184,10 +184,11 @@ validation. SKEW-DISPTMG 1/2 retains the p.195 rounded full-character displaceme
 ### F20 R2.JIT hardware gate
 
 ACCC v1.11 §14.6.1 p.141 is pinned through the production CRTC+GA timing path:
-CRTC-1's dynamic `OUT (C),r8` equality starts blanking three Mode-2 pixels after
-its normal start while preserving the raw HSYNC width. The deterministic fixture
+type-0/type-1 dynamic `OUT (C),r8` equality starts blanking four/three Mode-2
+pixels after the normal start while the type-specific display-reactivation edge
+stays fixed, shortening the raw pulse by four/three pixels. The deterministic fixture
 is complete; the next acceptance layer is DSC4 plus SHAKER `(TAB)` on real CRTC-1
-hardware. Keep RFD×IVM, same-value R2 writes, and instruction-form distinctions
+hardware. Keep RFD×IVM, active-pulse R2 updates, and instruction-form distinctions
 as separately named residuals rather than attributing a remaining DSC4 failure
 to R2.JIT without a first-divergence trace.
 

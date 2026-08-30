@@ -46,7 +46,7 @@ Names and test counts are verbatim from the menu. ACCC sections are from the cro
 | **(Y)** R3 UPD DURING HSYNC | 8 | §14.4 pp.134–140, §14.4.4 pp.138–140 | Same as (T). R3.JIT sub-microsecond behaviour untested. |
 | **(4)** UPDATE CRTC R0 TIMING | 17 | §13.6 pp.122–123, §4.4.3 p.26 | Partial, via F5/F12. Probes `OUT (C),r` versus `OUTI` phase, which our vectors do not distinguish. |
 | **(2)** SKEW DISP ON R0 RUPTURE | 4 | §19.2 pp.193–197 | Partial. Skew path is F11g and believed correct; the R0-rupture interaction is untested. |
-| **(TAB)** HSYNC START POSITION | 4 interactive | §14.6 pp.141–142 | **Integrated model pinned; hardware pending.** `r2jit_type1_out_c` drives the production CRTC+GA path and pins CRTC-1's normal start plus the §14.6.1 R2.JIT +3 Mode-2-pixel displacement with unchanged raw pulse width. Run this SHAKER entry on both real CRTC types; a disagreement reopens F20. |
+| **(TAB)** HSYNC START POSITION | 4 interactive | §14.6 pp.141–142 | **Integrated model pinned; hardware pending.** The production CRTC+GA controls pin type-0/type-1 R2.JIT starts at +4/+3 Mode-2 pixels, raw widths shorter by 4/3, fixed type-specific display-reactivation edges, and a same-value-write control. Run this SHAKER entry on both real CRTC types; a disagreement reopens F20. |
 | **(1)** UPDATE VRAM VS CRTC | 79 | §8 pp.43–44 | **Out of reach.** Z80 write versus fetch phase inside the 1 MHz cycle; not representable at the current character-granular interface. |
 | **(8)** GATE ARRAY PIXELISATION | — | §9.1 pp.46–47 | **Out of CRTC scope** (F11i). Lives in the netlist-derived `GA40010`. |
 | **(9)** GATE ARRAY INKERISATION | 3 | §9.2 pp.48–50 | Out of CRTC scope. |

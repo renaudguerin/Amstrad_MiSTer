@@ -14,9 +14,11 @@ gate and fixes two independently reproduced integration defects:
 - CPR/system reset cleared command-side request tokens but not the independent SD
   arbiter. Reset during an unacknowledged mount request left `sd_rd` and
   `sd_busy_mount` asserted indefinitely. The arbiter now cancels outward requests,
-  ACK history, and all ownership flags on reset; the parser then issues a fresh
-  mount request after reset. The regression also injects a delayed ACK from the
-  cancelled transaction and requires another fresh request after that ACK retires.
+  ACK history, and all ownership flags on reset. It then quarantines delayed ACK
+  and buffer-write traffic until ACK has been observed low before issuing a fresh
+  request, preventing a cancelled TRACKINFO burst from entering the sector buffer.
+  The regression injects both delayed ACK and stale buffer-write traffic and
+  requires no retry while they remain active, followed by a fresh request.
 
 The standalone harness now uses production `CYCLES=4000` and the production
 one-in-eight `ce_u765` cadence. It verifies reset recovery, the A0 write alias,
@@ -26,6 +28,12 @@ EDSK recognition, and SENSE DRIVE STATUS ready/track-0 bits. Both the tracked
 pass this mount/status path. The supplied fdctest source uses `&FB7E` for main
 status and `&FB7F` for data, and explicitly covers ready, track 0, busy bits,
 DTL=0, READ ID, SCAN, and status/error cases.
+
+The controller's `SECTOR_SIZE` helper was also rewritten into portable
+Verilog function-result syntax so Verilator and the Quartus 17-era compiler see
+an explicit assignment on every call. This is not claimed as a disk fix: the
+current transaction slice does not yet exercise non-default N values, so a
+READ DATA/DTL expansion remains required before assigning title causality.
 
 ## What this does and does not explain
 

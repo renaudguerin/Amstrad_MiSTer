@@ -413,26 +413,31 @@ General implementation rules for all fix prompts:
 
 ## F20. CRTC-1 R2.JIT sub-character HSYNC start — IMPLEMENTED-PENDING-HARDWARE-VALIDATION
 
-- **Rule** (ACCC v1.11 §14.6.1 p.141): in the static Mode-2 case the CRTC-1
-  blank starts one pixel later than CRTC-0. An `OUT (C),r8` write that makes
-  R2 equal to the current C0 exactly at the comparator position delays the
-  CRTC-1 start by a further three Mode-2 pixels. The pulse width remains the
-  programmed R3 width; the trailing edge moves with the start.
+- **Rule** (ACCC v1.11 §9.3.4.1 pp.53-54, §9.3.4.3 p.57, §14.6.1 p.141):
+  in the static Mode-2 case the CRTC-1 blank starts one pixel later than
+  CRTC-0. An `OUT (C),r8` write that makes R2 equal to the current C0 exactly
+  at the comparator position delays the start by four Mode-2 pixels on type 0
+  and three on type 1. Display reactivation does not move: the physical raw
+  pulse therefore shortens by the same four/three pixels even though the
+  character-count duration remains governed by R3.
 - **Current** (`accuracy/f13-dsc4-fdc-investigation`, 2026-08-30): the wrapper
   tracks the master-clock phase within a character. CRTC-1's ordinary
   comparator start is deferred by four 64 MHz clocks, while the first edge of
   an R2 write that creates the live equality starts at the actual write phase.
-  Both paths capture that phase and replay it at the trailing edge. The
-  integrated CRTC+GA `r2jit_type1_out_c` regression drives production-phased
-  Z80 I/O writes and pins a +3 Mode-2-pixel JIT displacement with identical raw
-  HSYNC width. The classic CRTC suite retains the R3=0, live-R3, reset, and type
+  The normal type-1 path replays its ordinary one-pixel phase at the trailing
+  edge; JIT retains only that type-specific trailing phase, not the later write
+  phase. The integrated CRTC+GA regressions drive production-phased Z80 I/O
+  writes and pin type 0 at +4/-4 pixels and type 1 at +3/-3 pixels (start/pulse
+  width), plus a same-value-write normal-path control. The classic CRTC suite
+  retains the R3=0, live-R3, reset, and type
   round-trip controls; all new phase/deferred-edge latches join the soak
   projection.
 - **Residuals**: DSC4 on real CRTC-1 hardware remains the title-level gate.
   The current bus interface cannot distinguish `OUTI` from an otherwise
-  identical write, and the fixture deliberately uses an R2 value-changing
-  write; same-value rewrite and R2 updates during an already-active pulse need
-  separate vectors before broader §14/§15 closure. RFD×IVM remains an
+  identical write, and R2 updates during an already-active pulse need a
+  separate vector before broader §14/§15 closure. A live CRTC-type switch
+  during an already phase-shifted pulse keeps that pulse's origin timing; no
+  hardware rule currently justifies a mid-pulse reinterpretation. RFD×IVM remains an
   independent compound DSC4 discriminator.
 - **Confidence: high for the ACCC model and integrated timing fixture;
   hardware confirmation pending.** Simulation is not evidence that DSC4 now
