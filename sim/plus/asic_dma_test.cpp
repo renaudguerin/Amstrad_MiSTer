@@ -563,8 +563,9 @@ void test_d13_active_channel_execute_timing(TestBench& tb) {
 		}
 		tb.set_dcsr_ena(static_cast<uint8_t>(mask));
 
+		std::vector<std::pair<uint8_t, uint8_t>> psg_writes;
 		std::vector<int> psg_active_cycles;
-		tb.run_scanline(nullptr, nullptr, &psg_active_cycles);
+		tb.run_scanline(&psg_writes, nullptr, &psg_active_cycles);
 
 		unsigned active_count = 0;
 		for (unsigned ch = 0; ch < 3; ++ch)
@@ -609,6 +610,26 @@ void test_d13_active_channel_execute_timing(TestBench& tb) {
 				     " LOAD " + std::to_string(i) + " started at CCLK " +
 				     std::to_string(execute_starts[i]) + ", expected " +
 				     std::to_string(expected));
+		}
+
+		// The cadence alone cannot distinguish swapped partial-mask channels.
+		// Each LOAD uses a unique register/data pair, so also require ascending
+		// active-channel identity and order for every mask.
+		if (psg_writes.size() != active_count)
+			fail("d13: mask 0x" + std::to_string(mask) +
+			     " expected " + std::to_string(active_count) +
+			     " PSG writes, got " + std::to_string(psg_writes.size()));
+		unsigned write_index = 0;
+		for (unsigned ch = 0; ch < 3; ++ch) {
+			if (((mask >> ch) & 1u) == 0)
+				continue;
+			const std::pair<uint8_t, uint8_t> expected = {
+				static_cast<uint8_t>(ch), static_cast<uint8_t>(0x11u * (ch + 1u))};
+			if (psg_writes[write_index] != expected)
+				fail("d13: mask 0x" + std::to_string(mask) +
+				     " PSG write " + std::to_string(write_index) +
+				     " did not preserve ascending active-channel order");
+			++write_index;
 		}
 	}
 
