@@ -1161,6 +1161,129 @@ void t02g_r5_grow_extends_adjustment(TestBench& test) {
     test.expect_line("fresh frame", 0);
 }
 
+// ACCC v1.11 §19.8.4 pp.235-240 and §19.5.5 pp.213-215: in IVM (R8=3),
+// an odd R9 alternates ParityC9 at each C4 transition, while a frame restart
+// reloads ParityC9 from the newly toggled ParityFrame.  This fixture uses
+// R9=7 (the documented 4/5-line alternation), R4=1, and R5=2.  R0=63 keeps
+// the setup seam deterministic: its first reset-frame rollover is followed
+// by one no-adjustment frame, leaving the next frame's ParityFrame even.
+// R5 and R8 are then written at that frame origin, so the first adjustment
+// below is the even-frame case.  No MID-VSYNC or additional-line timing is
+// asserted here.
+void program_ivm_adjustment_frame(TestBench& test) {
+    test.write_register(0, 63);
+    test.write_register(1, 2);
+    test.write_register(4, 1);
+    // R5 remains zero while setup is aligned; this avoids an adjustment
+    // during the parity-normalising frame below.
+    test.write_register(6, 100);
+    test.write_register(7, 100);
+    test.write_register(9, 7);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.run_to_frame_start();
+    test.write_register(5, 2);
+    test.write_register(8, 3);
+}
+
+// ACCC v1.11 §19.8.4 pp.235-240: the even-frame terminal C9 is 7 on the
+// final (odd-parity) C4, then R5 adjustment starts with C4 held at R4 and
+// C9 reset to the adjustment index 0.  §11.2.6 p.84 says adjustment lines do
+// not update the video pointer.  §20.3.4 p.243 supplies the row-end capture
+// and frame-origin reload used to derive MA: R1=2 and two character rows
+// place the adjustment at R12/R13 + 4, then the frame restart reloads the
+// programmed base.  §19.5.5 pp.213-215 requires the restart C9 to expose the
+// newly toggled ParityFrame (odd, hence C9=1 here).
+void t02k_ivm_even_frame_adjustment(TestBench& test) {
+    constexpr unsigned kLineCharacters = 64;
+    constexpr unsigned kAdjustmentMa = kBase + 4;
+    program_ivm_adjustment_frame(test);
+
+    test.run_until_adjustment();
+    test.expect_adj(true, "t02k even-frame adjustment entry is active");
+    test.expect_line("t02k adjustment entry holds C4 at R4", 1);
+    test.expect_row("t02k adjustment entry resets C9 to index 0", 0);
+    test.expect_ma("t02k adjustment entry uses captured row base", kAdjustmentMa);
+
+    test.expect_adj(true, "t02k adjustment line 0 remains active");
+    test.expect_line("t02k adjustment line 0 holds C4", 1);
+    test.expect_row("t02k adjustment line 0 has C9 index 0", 0);
+    test.expect_ma("t02k adjustment line 0 reuses captured VMA'", kAdjustmentMa);
+    test.run_characters(kLineCharacters);
+
+    test.expect_adj(true, "t02k adjustment line 1 remains active");
+    test.expect_line("t02k adjustment line 1 holds C4", 1);
+    test.expect_row("t02k adjustment line 1 has C9 index 1", 1);
+    test.expect_ma("t02k adjustment line 1 reuses captured VMA'", kAdjustmentMa);
+    test.run_characters(kLineCharacters);
+
+    test.expect_adj(false, "t02k R5 ends adjustment after two lines");
+    test.expect_line("t02k frame restart resets C4", 0);
+    test.expect_row("t02k frame restart aligns C9 with odd ParityFrame", 1);
+    test.expect_ma("t02k frame restart reloads R12/R13", kBase);
+}
+
+// ACCC v1.11 §19.8.4 pp.235-240: after the even-frame adjustment restarts
+// into an odd frame, the first C4 uses C9=1,3,5,7 and the next C4 uses
+// C9=0,2,4,6,8.  §19.5.5 pp.213-215 then aligns ParityC9 to the toggled
+// ParityFrame at the following restart.  This is the odd-frame companion to
+// t02k; it deliberately checks the body sequence only to establish which
+// parity reaches the adjustment seam, and makes no VSYNC/additional-line
+// claim.
+void t02l_ivm_odd_frame_adjustment(TestBench& test) {
+    constexpr unsigned kLineCharacters = 64;
+    constexpr unsigned kAdjustmentMa = kBase + 4;
+    program_ivm_adjustment_frame(test);
+
+    // Consume the even frame's adjustment, exposing the next frame's odd
+    // ParityFrame and the simultaneous R12/R13 VMA reload.
+    test.run_until_adjustment();
+    test.run_characters(kLineCharacters * 2);
+    test.expect_adj(false, "t02l even-frame adjustment has ended");
+    test.expect_line("t02l odd frame restarts C4 at zero", 0);
+    test.expect_row("t02l odd frame starts on C9 parity 1", 1);
+    test.expect_ma("t02l odd frame reloads R12/R13", kBase);
+
+    for (unsigned expected : {1U, 3U, 5U, 7U}) {
+        test.expect_line("t02l odd frame first C4", 0);
+        test.expect_row("t02l odd frame C9 sequence", expected);
+        test.expect_ma("t02l odd frame first row base", kBase);
+        test.run_characters(kLineCharacters);
+    }
+    test.expect_line("t02l odd frame advances C4 after C9=7", 1);
+    test.expect_row("t02l odd frame toggles ParityC9 for C4=1", 0);
+    test.expect_ma("t02l odd frame advances captured VMA'", kBase + 2);
+
+    for (unsigned expected : {0U, 2U, 4U, 6U, 8U}) {
+        test.expect_line("t02l odd frame second C4", 1);
+        test.expect_row("t02l odd frame even C9 sequence", expected);
+        test.expect_ma("t02l odd frame second row base", kBase + 2);
+        test.run_characters(kLineCharacters);
+    }
+
+    test.expect_adj(true, "t02l odd-frame adjustment entry is active");
+    test.expect_line("t02l adjustment entry holds C4 at R4", 1);
+    test.expect_row("t02l adjustment entry resets C9 to index 0", 0);
+    test.expect_ma("t02l adjustment entry uses captured row base", kAdjustmentMa);
+
+    test.expect_adj(true, "t02l adjustment line 0 remains active");
+    test.expect_line("t02l adjustment line 0 holds C4", 1);
+    test.expect_row("t02l adjustment line 0 has C9 index 0", 0);
+    test.expect_ma("t02l adjustment line 0 reuses captured VMA'", kAdjustmentMa);
+    test.run_characters(kLineCharacters);
+
+    test.expect_adj(true, "t02l adjustment line 1 remains active");
+    test.expect_line("t02l adjustment line 1 holds C4", 1);
+    test.expect_row("t02l adjustment line 1 has C9 index 1", 1);
+    test.expect_ma("t02l adjustment line 1 reuses captured VMA'", kAdjustmentMa);
+    test.run_characters(kLineCharacters);
+
+    test.expect_adj(false, "t02l R5 ends adjustment after two lines");
+    test.expect_line("t02l next frame restart resets C4", 0);
+    test.expect_row("t02l next frame aligns C9 with even ParityFrame", 0);
+    test.expect_ma("t02l next frame reloads R12/R13", kBase);
+}
+
 // ACCC v1.11 section 19.8.4 pp.235-238: entering IVM (R8=3)
 // immediately seeds ParityC9 from the current C9 parity.  Thereafter C9
 // advances by two and ORs that parity.  With even R9 the parity is retained
@@ -2327,7 +2450,7 @@ void t08i_sscr_vertical_wrap_advances_ma(TestBench& test) {
     test.expect_ra("t08i next row starts at offset RA 1", 1);
 }
 
-constexpr std::array<TestCase, 60> kTests = {{
+constexpr std::array<TestCase, 62> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -2344,6 +2467,8 @@ constexpr std::array<TestCase, 60> kTests = {{
     {"t02h IVM even-R9 entry parity", t02h_ivm_even_r9_preserves_entry_parity},
     {"t02i IVM odd-R9 row/frame parity", t02i_ivm_odd_r9_balances_rows_and_frames},
     {"t02j IVM exit to plain counting", t02j_ivm_exit_returns_to_plain_counting},
+    {"t02k IVM even-frame adjustment", t02k_ivm_even_frame_adjustment},
+    {"t02l IVM odd-frame adjustment", t02l_ivm_odd_frame_adjustment},
     {"t03a VMA reload and row advance", t03a_ma_reload_and_row_advance},
     {"t03b R1 border edges", t03b_r1_border_edges},
     {"t03c R1==R0 single-character blip", t03c_r1_eq_r0_blip},
