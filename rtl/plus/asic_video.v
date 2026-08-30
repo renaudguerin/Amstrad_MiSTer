@@ -315,7 +315,10 @@ wire       ivm_active    = (R8_interlace == 2'b11);
 wire       sync_interlace_active = (R8_interlace == 2'b01);
 wire       c9_done       = in_adj ? 1'b0 : (raster >= R9_v_max_line);
 wire       last_charline = (charline == R4_v_total);
-wire       enter_adj     = c9_done & last_charline &
+// The additional line follows the completed R5 block and exits directly at
+// the real frame origin (§19.6.4 p.217).  Its forced C9=0 must not re-enter
+// adjustment when R9 is also zero.
+wire       enter_adj     = ~interlace_line & c9_done & last_charline &
                            (R5_v_total_adj != 5'd0);
 wire       adj_end_n     = ((raster + 5'd1) >= R5_v_total_adj);
 wire       body_frame_end = c9_done & last_charline &
