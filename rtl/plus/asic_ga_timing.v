@@ -48,6 +48,14 @@ module asic_ga_timing
 
 	input        RESET_N,
 
+	// Authoritative Plus ASIC lock state from plus_mmu.  A locked 101xxxxx
+	// write is the legacy MRER alias; once unlocked it belongs exclusively to
+	// RMR2 and must not update mode, ROM enables, or the IRQ-clear bit.
+	// Source: docs/plus/references/asic-reference.md sections 1-2; the classic
+	// MRER bit-5 don't-care is also tabulated in
+	// docs/references/Amstrad CPC Gate-Array.md, "Rom configuration selection".
+	input        plus_unlocked,
+
 	// Z80 bus (chip-side view, same signals ga40010 samples). D[5] is
 	// genuinely undecoded, exactly as in the reference.
 	/* verilator lint_off UNUSEDSIGNAL */
@@ -231,7 +239,9 @@ module asic_ga_timing
 	wire reg_sel   = reg_latch & ~IORQ_N & ~A[15] & A[14] & M1_N;
 	wire ink_en    = reg_sel & ~D[7] & ~D[6];
 	wire border_en = reg_sel & ~D[7] &  D[6] &  inksel[4];
-	wire ctrl_en   = reg_sel &  D[7] & ~D[6];
+	// Locked 101xxxxx aliases MRER; unlocked 101xxxxx is RMR2 only (sources at
+	// the plus_unlocked port declaration above).
+	wire ctrl_en   = reg_sel &  D[7] & ~D[6] & (~plus_unlocked | ~D[5]);
 	wire inkr_en   = reg_sel & ~D[7] &  D[6] & ~inksel[4];
 
 	wire irq_reset = ctrl_en & D[4];

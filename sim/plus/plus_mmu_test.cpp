@@ -279,15 +279,26 @@ void test_rom_enable_gating() {
     tb.dut().plus_mode = 1;
 }
 
-// §1/§2: RMR2 writes only take effect after the unlock sequence; positions
-// relocate the low window and D4D3=11 stores the ASIC-page-enable flag.
+// docs/plus/references/asic-reference.md §1-§2: while locked, 101xxxxx is
+// the legacy MRER alias (bit 5 ignored); after unlock it is RMR2, whose
+// positions relocate the low window and whose D4D3=11 sets ASIC-page-enable.
 void test_rmr2_locking_positions_pages() {
     TestBench tb;
     tb.hard_reset();
 
-    // Locked: pattern 101xxxxx acts as plain MRER; our RMR2 ignores it.
-    tb.io_write(0x7f00, 0xa4);  // 101_00_100: would be page 4
-    expect_claim(tb, 0x0000, 0, "locked RMR2 write must be ignored");
+    // Locked: bit 5 is ignored by the legacy MRER decoder, so 10100100
+    // disables the lower ROM rather than selecting RMR2 page 4.
+    tb.io_write(0x7f00, 0xa4);
+    tb.begin_read(0x0000);
+    tb.stall_cycles(4);
+    require(tb.valid_cycles == 0,
+            "locked 10100100 did not act as MRER lower-ROM disable");
+    tb.end_read();
+
+    // Its locked 10100000 alias re-enables both ROM windows.  RMR2 position
+    // and page remain at their reset values until the unlock sequence.
+    tb.io_write(0x7f00, 0xa0);
+    expect_claim(tb, 0x0000, 0, "locked 10100000 MRER re-enable");
     tb.respond(0x00);
     tb.end_read();
 
