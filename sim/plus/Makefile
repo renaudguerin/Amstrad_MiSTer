@@ -454,6 +454,9 @@ lint: motherboard-lint
 		--top-module plus_sna_parser -Wall $(abspath ../../rtl/plus/plus_sna_parser.v)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module i8255 -Wall -Wno-CASEX $(abspath ../../rtl/i8255.v)
+	$(VERILATOR) --lint-only -UVERILATOR --public-flat-rw \
+		--top-module $(P10INPUT_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
+		$(P10INPUT_TOP_SRC) $(P10INPUT_CPU) $(P10INPUT_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module plus_fdc_decode -Wall $(abspath ../../rtl/plus/plus_fdc_decode.v)
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
