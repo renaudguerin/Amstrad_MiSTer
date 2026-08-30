@@ -99,6 +99,9 @@ module ga40010 (
 			SNA_INKSEL, SNA_PALETTE, SNA_CONFIG, 1'b0};
 endmodule
 
+// The production DMA/PPI motherboard fixture supplies the real YM2149 and
+// HID so it can validate PHI-aligned keyboard read data under DMA ownership.
+`ifndef P10_DMA_MOBO_REAL_IO
 // Port list copied from rtl/YM2149.sv.
 module YM2149 (
 	input  wire        CLK,
@@ -158,3 +161,4 @@ module hid (
 	wire unused = &{1'b0, reset, clk, ps2_key, ps2_mouse,
 			right_shift_mod, keypad_mod, joystick1, joystick2, Y, 1'b0};
 endmodule
+`endif

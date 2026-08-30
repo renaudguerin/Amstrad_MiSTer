@@ -22,7 +22,9 @@
 //  Deliberate exclusions (each must land with its own vectors later):
 //   - IVM C9/C4 counting, frame/C9 parity, the even-frame additional line,
 //     MID-VSYNC, and the odd-frame/odd-C4 VSYNC correction are implemented
-//     below for R8=3.  R8=1 sync-only interlace timing remains excluded.
+//     below for R8=3.  R8=1 sync-only interlace keeps ordinary body-line
+//     raster/address generation, adds the CRTC3/4 even-frame line, and applies
+//     its alternate-field VSYNC midpoint (§19.6.4/§19.7.3 pp.217-218).
 //   - Light pen R16/R17: no light-pen strobe source is emulated. The
 //     registers are stored and readable since P5 (mod-8 map slots 0/1) but
 //     hold their reset value (named assumption at the readback section).
@@ -171,9 +173,9 @@ reg [6:0] R7_v_sync_pos;
 reg [1:0] R8_skew;         // bits 5:4, SKEW-DISPTMG (types 0/3/4, §19.1)
 /* verilator lint_on UNUSEDSIGNAL */
 // R8 bits 1:0 select interlace modes.  Mode 3 drives the IVM counter below;
-// modes 0/1/2 retain the ordinary C9 cadence.  Mode 1 still seeds ParityC9
-// on entry as required by §19.8.4, ready for the remaining sync-interlace
-// timing rules named in the header.
+// modes 0/1/2 retain the ordinary body-line C9 cadence. Mode 1 still seeds
+// ParityC9 on entry as required by §19.8.4; §19.6.4/§19.7.3 additionally give
+// it the CRTC3/4 even-frame line and MID-VSYNC phase.
 reg [1:0] R8_interlace;
 reg [6:0] R4_v_total;
 reg [4:0] R5_v_total_adj;
@@ -310,19 +312,24 @@ reg        parity_frame;
 reg        parity_c9;
 
 wire       ivm_active    = (R8_interlace == 2'b11);
+wire       sync_interlace_active = (R8_interlace == 2'b01);
 wire       c9_done       = in_adj ? 1'b0 : (raster >= R9_v_max_line);
 wire       last_charline = (charline == R4_v_total);
-wire       enter_adj     = c9_done & last_charline &
+// The additional line follows the completed R5 block and exits directly at
+// the real frame origin (§19.6.4 p.217).  Its forced C9=0 must not re-enter
+// adjustment when R9 is also zero.
+wire       enter_adj     = ~interlace_line & c9_done & last_charline &
                            (R5_v_total_adj != 5'd0);
 wire       adj_end_n     = ((raster + 5'd1) >= R5_v_total_adj);
 wire       body_frame_end = c9_done & last_charline &
                             (R5_v_total_adj == 5'd0);
 
-// §19.5.5 p.213 + §19.6.4 p.217: an IVM even frame gains exactly one
-// line after its R5 lines (or directly after the body when R5=0).  CRTC3/4
-// keep C4 on its last value and force C9=0 for that line.  The current
+// ACCC v1.11 §19.6.4 p.217: either R8=3 or R8=1 gives the even frame exactly
+// one line after its R5 lines (or directly after the body when R5=0).
+// CRTC3/4 keep C4 on its last value and force C9=0 for that line. The current
 // ParityFrame is sampled before it toggles at the following real origin.
-wire       extra_line_due = ivm_active & ~parity_frame;
+wire       extra_line_due = (ivm_active | sync_interlace_active) &
+                             ~parity_frame;
 wire       enter_interlace_line = extra_line_due &
                                    (body_frame_end |
                                     (in_adj & adj_end_n));
@@ -437,7 +444,8 @@ reg [13:0] vma;
 reg [13:0] vma_latch;
 
 // Selected §20.3.4 frame-origin reading; see the source-conflict note above.
-wire pointer_frame_origin = ivm_active ? frame_restart :
+wire pointer_frame_origin = (ivm_active | sync_interlace_active) ?
+                            frame_restart :
                             (!adj_n && (charline_n == 7'd0) &&
                              (raster_n == 5'd0));
 
@@ -644,14 +652,18 @@ wire        vsync_zero_target = hcc_last &&
                                  (charline_n == R7_v_sync_pos) &&
                                  (raster_n == 5'd0);
 wire        vsync_target_seam = vsync_new_c4_target | vsync_zero_target;
-wire        vsync_mid_schedule = vsync_target_seam && ivm_active &&
+// ACCC v1.11 §19.7.3 p.218: on CRTC3/4 either R8=3 or R8=1 moves VSYNC to
+// C0=R0/2 when the target C4 belongs to the even ParityFrame. Reuse the
+// established outgoing-parity phase so the R7=0 priority rule stays intact.
+wire        vsync_mid_schedule = vsync_target_seam &&
+                                  (ivm_active || sync_interlace_active) &&
                                   !parity_frame;
 wire        vsync_delay_schedule = vsync_new_c4_target && ivm_active &&
                                     parity_frame && R9_v_max_line[0] &&
                                     R7_v_sync_pos[0];
 wire [7:0]  vsync_half_hcc = {1'b0, R0_h_total[7:1]};
 wire        vsync_half_tick = (hcc_next == vsync_half_hcc);
-wire        vsync_mid_fire = ivm_active &&
+wire        vsync_mid_fire = (ivm_active || sync_interlace_active) &&
                               (vsync_mid_pending | vsync_mid_schedule) &&
                               vsync_half_tick;
 wire        vsync_delay_fire = ivm_active && vsync_delay_pending && hcc_last;
@@ -673,7 +685,7 @@ always @(posedge CLOCK) begin
 		vsync_delay_pending <= 1'b0;
 	end
 	else if (CLKEN) begin
-		if (!ivm_active) begin
+		if (!ivm_active && !sync_interlace_active) begin
 			vsync_mid_pending   <= 1'b0;
 			vsync_delay_pending <= 1'b0;
 		end
