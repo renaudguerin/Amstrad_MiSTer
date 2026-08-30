@@ -1509,33 +1509,28 @@ void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     // these source-backed phase and reset vectors exercise IVM (R8=3).
 }
 
-// UM6845 §INTERLACE MODES (docs/references/UM6845 Cathode Ray Tube
-// Controller.md:372-378): R8=1 is Interlace SYNC Raster Scan.  In alternate
-// fields it delays VSYNC by one half scan-line, and this is the only change
-// to device operation; address generation and the displayed raster remain
-// ordinary.  The Hitachi HD6845 reference corroborates the same contract
-// (docs/references/Hitachi HD6845 Cathode Ray Tube Controller.md:294-315,
-// 352-362,462-464): RA and character addressing stay as in non-interlace,
-// while the odd field's display position moves down by half a raster.
-// The references do not define which field is first, so this vector accepts
-// either polarity but requires exactly one seam start and one midpoint start
-// over two complete fields.
+// ACCC v1.11 §19.6.4 p.217 and §19.7.3 p.218: R8=1 adds one C9=0 line
+// after the even frame without incrementing C4, and moves that frame's VSYNC
+// to C0=R0/2. The added line starts from the VMA captured at C4=R4,C9=R9;
+// ordinary R8=1 body lines retain their non-IVM C9/RA/address cadence. Use an
+// even R7 so the separate odd-C4 IVM correction cannot obscure the required
+// one seam start and one midpoint start over the two fields.
 void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     constexpr unsigned kLineCharacters = 64;
     constexpr unsigned kFieldLines = 4 * 8;
-    program_ivm_sync_frame(test, 1, 1, 1);
-    test.run_to_state(1, 0, 0, "t04n first field C4=R7 first line");
+    program_ivm_sync_frame(test, 2, 1, 1);
+    test.run_to_state(2, 0, 0, "t04n first field C4=R7 first line");
 
     unsigned seam_starts = 0;
     unsigned midpoint_starts = 0;
     for (unsigned field = 0; field < 2; ++field) {
         // R8=1 must leave the ordinary C4/C9, VMA, RA, and DE state intact:
-        // row 1 starts with C9=0, VMA base+R1=2, RA=0, and the first two
+        // row 2 starts with C9=0, VMA base+2*R1=4, RA=0, and the first two
         // character cells are in the display window (ACCC §17.1 p.175).
-        test.expect_line("t04n C4 at VSYNC target seam", 1);
+        test.expect_line("t04n C4 at VSYNC target seam", 2);
         test.expect_row("t04n C9 at VSYNC target seam", 0);
         test.expect_hcc("t04n seam horizontal phase", 0);
-        test.expect_ma("t04n ordinary row-start VMA", 2);
+        test.expect_ma("t04n ordinary row-start VMA", 4);
         test.expect_ra("t04n ordinary row-start RA", 0);
         test.expect_de("t04n ordinary row-start DE", true);
         const bool seam_high = test.vsync() != 0;
@@ -1543,20 +1538,20 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
             ++seam_starts;
 
         test.run_characters(30);
-        test.expect_line("t04n C4 stays ordinary before midpoint", 1);
+        test.expect_line("t04n C4 stays ordinary before midpoint", 2);
         test.expect_row("t04n C9 stays ordinary before midpoint", 0);
         test.expect_hcc("t04n before midpoint", 30);
-        test.expect_ma("t04n VMA advances ordinarily before midpoint", 32);
+        test.expect_ma("t04n VMA advances ordinarily before midpoint", 34);
         test.expect_ra("t04n RA stays ordinary before midpoint", 0);
         test.expect_de("t04n DE leaves its ordinary two-character window", false);
         test.expect_vsync("t04n seam/midpoint polarity before midpoint",
                           seam_high);
 
         test.run_characters(1);
-        test.expect_line("t04n C4 stays ordinary at midpoint", 1);
+        test.expect_line("t04n C4 stays ordinary at midpoint", 2);
         test.expect_row("t04n C9 stays ordinary at midpoint", 0);
         test.expect_hcc("t04n half-line VSYNC phase", 31);
-        test.expect_ma("t04n VMA advances ordinarily at midpoint", 33);
+        test.expect_ma("t04n VMA advances ordinarily at midpoint", 35);
         test.expect_ra("t04n RA stays ordinary at midpoint", 0);
         test.expect_de("t04n DE stays ordinary at midpoint", false);
         test.expect_vsync("t04n VSYNC starts by midpoint", true);
@@ -1570,18 +1565,24 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
         test.expect_hcc("t04n R3h=1 falling-edge seam", 0);
         test.expect_vsync("t04n R3h=1 pulse ends at next seam", false);
 
-        // Keep the field length explicit: this mode must not gain the IVM
-        // additional line or any C9/MA/RA alteration while reaching the next
-        // C4=R7 target.
+        // The even field must gain exactly the §19.6.4 additional line. From
+        // C4=2,C9=1 after the falling seam, 15 ordinary lines reach the added
+        // line; it carries C4=R4=3, forces C9=RA=0, and starts at terminal
+        // VMA'. One added line plus 16 body lines then reach C4=R7 again.
         if (field == 0) {
-            test.run_characters(kLineCharacters * (kFieldLines - 1));
-            // A sync-only field has exactly the ordinary 32-line length; an
-            // IVM-only extra line or any C4/C9 alteration would miss this
-            // fixed next-field seam.
-            test.expect_line("t04n next field C4", 1);
+            test.run_characters(kLineCharacters * 15);
+            test.expect_line("t04n added line keeps C4=R4", 3);
+            test.expect_row("t04n added line forces C9=0", 0);
+            test.expect_hcc("t04n added line seam", 0);
+            test.expect_ma("t04n added line uses terminal captured VMA", 8);
+            test.expect_ra("t04n added line forces RA=0", 0);
+            test.expect_de("t04n added line retains ordinary C4 display state", true);
+
+            test.run_characters(kLineCharacters * 17);
+            test.expect_line("t04n next field C4", 2);
             test.expect_row("t04n next field C9", 0);
             test.expect_hcc("t04n next field seam", 0);
-            test.expect_ma("t04n next field ordinary VMA", 2);
+            test.expect_ma("t04n next field ordinary VMA", 4);
             test.expect_ra("t04n next field ordinary RA", 0);
             test.expect_de("t04n next field ordinary DE", true);
         }
@@ -1598,14 +1599,14 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     // seam.  Locate the midpoint field without assuming its polarity, then
     // leave sync-only interlace before R0/2 and prove no stale pulse fires.
     TestBench exit;
-    program_ivm_sync_frame(exit, 1, 1, 1);
-    exit.run_to_state(1, 0, 0, "t04n mode-1 pending midpoint exit");
+    program_ivm_sync_frame(exit, 2, 1, 1);
+    exit.run_to_state(2, 0, 0, "t04n mode-1 pending midpoint exit");
     if (exit.vsync()) {
-        exit.run_characters(kLineCharacters * kFieldLines);
+        exit.run_characters(kLineCharacters * (kFieldLines + 1));
         exit.expect_vsync("t04n alternate field schedules midpoint", false);
     }
     exit.write_register(8, 0);
-    exit.run_to_state(1, 0, 31, "t04n former midpoint after mode-1 exit");
+    exit.run_to_state(2, 0, 31, "t04n former midpoint after mode-1 exit");
     exit.expect_vsync("t04n R8=1 exit cancels pending midpoint", false);
 }
 
