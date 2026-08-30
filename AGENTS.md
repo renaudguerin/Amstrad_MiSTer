@@ -52,17 +52,25 @@ unchanged.
 
 1. Real hardware / Logon System reference photos (`shaker.logonsystem.eu`). SHAKER results
    are judged against these photographs; the stock upstream core is only a regression baseline.
-2. The CRTC Compendium (ACCC) v1.11 — working oracle, not final authority.
+2. The latest French CRTC Compendium (ACCC), currently v1.11 — working documentary oracle,
+   not final authority. The matching English edition is a working translation; French wins
+   when the editions differ unless hardware or an author clarification supersedes it.
 3. Digests under `docs/accuracy/`.
 
 When simulation and hardware disagree, hardware wins and the test vector is wrong.
 
-`docs/references/ACCC1.11-EN.pdf` is user-owned and untracked. **Never commit it.** It is present in
-the working tree, though — untracked, not missing. Prefer it over the digests whenever a rule
-claim matters, and read it through the `pdf-inspector` skill under the verification protocol
-in `docs/accuracy/extract/README.md` (its position-aware Markdown is the primary text layer,
-with pdftotext only an optional second opinion; figures are judged from rendered pages,
-never from a text layer).
+`docs/references/ACCC1.11-FR.pdf` and `docs/references/ACCC1.11-EN.pdf` are user-owned and
+untracked. **Never commit them.** They are present in the working tree — untracked, not
+missing. Prefer the French source over the digests whenever a rule claim matters; use the
+English edition for navigation and review. Read both through the `pdf-inspector` skill under
+the verification protocol in `docs/accuracy/extract/README.md` (position-aware Markdown is
+the primary text layer, with pdftotext only an optional second opinion; figures are judged
+from rendered pages, never from a text layer).
+
+Use ACCC section numbers as durable anchors. New or materially revised rule claims cite the
+French page and may also give the English page. Do not bulk-rewrite historical reports or
+unaffected code comments merely to replace English page numbers; migrate citations when a
+bilingual finding affects the claim or the surrounding text is substantively revised.
 
 ## Commands
 

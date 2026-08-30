@@ -3,21 +3,23 @@
 Local, regenerable extraction of the project's accuracy reference for verification work
 (Phase 1 of `docs/plans/2026-08-22-accc-review-plan.md`).
 
-**Everything in this directory is untracked** (see `.gitignore`). Bulk full-text extraction of
-*The Amstrad CPC CRTC Compendium* (CC BY-NC-ND, Longshot / Logon System) must not be
-committed; this file documents how to rebuild it in under a minute. Only curated, cited
+**All generated artifacts in this directory are untracked** (see `.gitignore`); this manifest
+is the tracked exception. Bulk full-text extraction of *The Amstrad CPC CRTC Compendium*
+(CC BY-NC-ND, Longshot / Logon System) must not be committed. Only curated, cited
 transcriptions inside review docs get committed, matching the existing digests' practice.
 
 ## Source
 
 - `docs/references/ACCC1.11-EN.pdf`, 295 PDF pages
 - SHA-256 `3e45eb7eea7dc8f0d7211f78bec4f8d00530ce3c00da2e76034fb24f7a751868`
+- `docs/references/ACCC1.11-FR.pdf`, 295 PDF pages
+- SHA-256 `4409e3a2e77cd54e499c6956446b01bce93f79a1c1ba366201d514cf6e3c0d47`
 - (Legacy v1.10: `docs/references/ACCC1.10-EN.pdf`, SHA-256 `1bd6f0e3a06022d03fd40b51d4d622afef2675954a483780f0922cdf1e33a560`)
 
 Verify before regenerating:
 
 ```sh
-shasum -a 256 docs/references/ACCC1.11-EN.pdf
+shasum -a 256 docs/references/ACCC1.11-EN.pdf docs/references/ACCC1.11-FR.pdf
 ```
 
 ## Regeneration
@@ -25,6 +27,17 @@ shasum -a 256 docs/references/ACCC1.11-EN.pdf
 ```sh
 uv venv .venv && uv pip install --python .venv/bin/python pdf-inspector pymupdf
 mkdir -p docs/accuracy/extract/pdf2md docs/accuracy/extract/pdftotext docs/accuracy/extract/pages
+
+# Current first-pass classifier/extractor for both editions. Its reports decide which
+# pages need rendered fallback; keep a writable uv cache outside the repository if needed.
+env UV_CACHE_DIR=/tmp/accc-uv-cache uv run \
+  /Users/renaudg/.claude/skills/pdf-inspector/scripts/inspect_pdf.py \
+  docs/references/ACCC1.11-EN.pdf \
+  --output-dir docs/accuracy/extract/inspector-v1.11-en
+env UV_CACHE_DIR=/tmp/accc-uv-cache uv run \
+  /Users/renaudg/.claude/skills/pdf-inspector/scripts/inspect_pdf.py \
+  docs/references/ACCC1.11-FR.pdf \
+  --output-dir docs/accuracy/extract/inspector-v1.11-fr
 
 # Primary extractor: position-aware Markdown, one <!-- ======== PAGE N ======== --> marker per page
 .venv/bin/python - <<'EOF'
@@ -71,6 +84,11 @@ EOF
 - Logged extraction gap (2026-08-24): pdf2md dropped the entire first paragraph of §11.6.4 on
   p.90 (it is present in pdftotext and in the render). Do not treat a missing paragraph in
   the Markdown layer as proof the PDF lacks it.
+- The v1.11 first-pass reports classify both editions as `native_partial`, text-based, and
+  complex-layout. English fallback pages are 39-40, 180-181, and 280; the corresponding
+  French pages are 40-41, 182-183, and 280. Render these before comparing their contents.
+- French and English pagination diverges because translated prose reflows. Align by section
+  number and then record both page anchors; never assume equal PDF page numbers.
 
 ## Produced files
 
@@ -80,6 +98,8 @@ EOF
 | `pdf2md/accc-v1.11-notags.txt` | Same content without markers, form-feed separated |
 | `pdftotext/accc-v1.11.txt` | poppler `-layout` text (~922 kB) |
 | `pages/pNNN.png` | 200 dpi renders of the flagged pages listed above |
+| `inspector-v1.11-en/` | Current English first-pass report and Markdown (untracked) |
+| `inspector-v1.11-fr/` | Current French first-pass report and Markdown (untracked) |
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).

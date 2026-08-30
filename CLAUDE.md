@@ -49,19 +49,28 @@ Sources rank in this order, and a lower rank never overturns a higher one:
 1. Real hardware, and the Logon System reference photographs on `shaker.logonsystem.eu` that
    record it. SHAKER results are judged by visual comparison against those photographs. The
    stock upstream core is a regression baseline only: shared inaccuracy is invisible against it.
-2. The Amstrad CPC CRTC Compendium (ACCC) v1.11, `docs/references/ACCC1.11-EN.pdf`.
+2. The latest French edition of the Amstrad CPC CRTC Compendium (ACCC), currently v1.11 at
+   `docs/references/ACCC1.11-FR.pdf`. The matching English edition is a working translation
+   and accessibility aid, not the tie-breaker when the editions differ.
 3. The checked-in digests under `docs/accuracy/`.
 
 The ACCC is our working oracle but it is not the final authority. A vector that encodes a
 misreading of the Compendium passes cheerfully and hides the very bug it was meant to catch.
 When simulation and hardware disagree, hardware wins and the vector is wrong.
 
-`docs/references/ACCC1.11-EN.pdf` is user-owned and deliberately untracked. Never commit it.
-**Untracked does not mean absent**: the file is in the working tree, gitignored, and
-readable. Read it directly whenever a rule matters — it outranks the digests, and reviews
-that trusted the digests alone have already shipped a wrong section citation.
+`docs/references/ACCC1.11-FR.pdf` and `docs/references/ACCC1.11-EN.pdf` are user-owned and
+deliberately untracked. Never commit them. **Untracked does not mean absent**: both files are
+in the working tree, gitignored, and readable. Read the French source directly whenever a
+rule matters; use the English edition to aid navigation and review. If they differ, record
+both readings and use the French reading unless hardware or an author clarification
+supersedes it.
 
-Read it through the `pdf-inspector` skill, and follow the verification protocol already
+Use ACCC section numbers as the durable citation key. New or materially revised rule claims
+cite the French page and may add the English page for readers. Do not mechanically rewrite
+historical reports, quotations, or unaffected code comments: migrate an English-only anchor
+when a bilingual finding affects it or when the surrounding claim is substantively revised.
+
+Read the PDFs through the `pdf-inspector` skill, and follow the verification protocol already
 written down in `docs/accuracy/extract/README.md`: pdf-inspector's position-aware Markdown is
 the primary text layer (2026-08-24 decision; pdftotext is a weaker extractor kept only as an
 optional second opinion), and table or chronogram rules are judged from rendered pages, never
