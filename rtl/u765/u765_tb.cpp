@@ -197,6 +197,11 @@ public:
         }
     }
 
+    std::uint8_t sector_byte(unsigned address) const {
+        return dut_->rootp
+            ->u765_test__DOT__u765__DOT__sector_ram__DOT__ram[address];
+    }
+
     Vu765_test& dut() { return *dut_; }
 
 private:
@@ -248,6 +253,17 @@ void test_reset_cancels_and_restarts_mount_request() {
         return bench.dut().sd_rd != 0;
     });
 
+    // Seed byte 7 through the active pre-reset host transfer so the delayed
+    // post-reset burst has a value it must demonstrably fail to overwrite.
+    bench.dut().sd_ack = 1;
+    bench.dut().sd_buff_wr = 1;
+    bench.dut().sd_buff_addr = 7;
+    bench.dut().sd_buff_dout = 0x3c;
+    bench.tick();
+    bench.dut().sd_buff_wr = 0;
+    bench.expect_equal("pre-reset transfer seeds sector buffer", 0x3c,
+                       bench.sector_byte(7));
+
     bench.dut().reset = 1;
     bench.tick(true);
     bench.expect_equal("reset clears outstanding sd_rd", 0,
@@ -266,10 +282,12 @@ void test_reset_cancels_and_restarts_mount_request() {
     bench.dut().sd_buff_addr = 7;
     bench.dut().sd_buff_dout = 0xa5;
     for (unsigned cycle = 0; cycle < 16; ++cycle) {
-        bench.tick();
+        bench.tick(cycle % 8 == 0);
         bench.expect_equal("delayed ACK cannot claim a retry", 0,
                            bench.dut().sd_rd | bench.dut().sd_wr);
     }
+    bench.expect_equal("stale burst cannot overwrite sector buffer", 0x3c,
+                       bench.sector_byte(7));
     bench.dut().sd_buff_wr = 0;
     bench.dut().sd_ack = 0;
 

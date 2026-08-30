@@ -248,7 +248,9 @@ always @(posedge clk_sys) begin : sdcontrol
 		sd_buff_type <= UPD765_SD_BUFF_SECTOR;
 		// The host can finish the cancelled transfer after reset. Ignore both
 		// its ACK and buffer burst until ACK has been observed low once; only
-		// then may a fresh request claim the shared buffer.
+		// then may a fresh request claim the shared buffer. This narrows the
+		// stale-response race but cannot identify an ACK which first arrives only
+		// after ACK was already observed low; that needs a host transaction tag.
 		sd_wait_ack_low <= 1;
 	end else begin
 		ack <= {ack[4:0], sd_ack};
@@ -437,7 +439,8 @@ always @(posedge clk_sys) begin : fdc
 		case (image_scan_state[i_current_drive])
 			0: ;//no new image
 			1: //read the first 512 byte
-				if (!sd_busy_mount & !i_scan_lock & state == COMMAND_IDLE) begin
+				if (!sd_wait_ack_low & !sd_busy_mount &
+					!i_scan_lock & state == COMMAND_IDLE) begin
 					i_scan_lock <= 1;
 					sd_rd_mount[i_current_drive] <= 1;
 					i_track_offset<= 16'h1; //offset 100h
