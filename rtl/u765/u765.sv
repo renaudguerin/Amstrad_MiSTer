@@ -167,9 +167,15 @@ reg    [7:0] buff_data_in, buff_data_out, tinfo_data;
 reg    [8:0] buff_addr, tinfo_addr;
 reg          buff_wr, buff_wait;
 reg          sd_buff_type;
-reg          sd_wait_ack_low;
+reg          sd_cancel_active;
+reg          sd_cancel_ack_seen;
 reg          tinfo_hds, tinfo_ds0, tinfo_lock, tinfo_wait;
 reg          hds, ds0;
+
+// hps_io samples sd_rd/sd_wr as held requests and can acknowledge them after
+// a CPC reset. Buffer data belongs to the cancelled command until that old
+// request has completed its full ACK high/low handshake.
+wire sd_accept_buff = ~reset & ~sd_cancel_active;
 
 u765_dpram #(8, 11) tinfo_ram
 (
@@ -177,7 +183,7 @@ u765_dpram #(8, 11) tinfo_ram
 
 	.address_a({tinfo_ds0,tinfo_hds,sd_buff_addr}),
 	.data_a(sd_buff_dout),
-	.wren_a(sd_buff_wr & sd_ack & ~sd_wait_ack_low &
+	.wren_a(sd_buff_wr & sd_ack & sd_accept_buff &
 			sd_buff_type == UPD765_SD_BUFF_TRACKINFO),
 	.q_a(),
 
@@ -193,7 +199,7 @@ u765_dpram #(8, 9) sector_ram
 
 	.address_a(sd_buff_addr),
 	.data_a(sd_buff_dout),
-	.wren_a(sd_buff_wr & sd_ack & ~sd_wait_ack_low &
+	.wren_a(sd_buff_wr & sd_ack & sd_accept_buff &
 			sd_buff_type == UPD765_SD_BUFF_SECTOR),
 	.q_a(sd_buff_din),
 
@@ -231,67 +237,83 @@ reg  [1:0] sd_wr_sector;
 reg        sd_busy_sector;
 reg [31:0] i_seek_pos;
 reg        i_write_prev;
+wire       sd_arbiter_idle = !sd_cancel_active & !sd_busy_mount &
+							 !sd_busy_tinfo & !sd_busy_sector;
 
 always @(posedge clk_sys) begin : sdcontrol
-	if (reset) begin
-		// CPR/system reset may interrupt a mount, track-info, or sector
-		// transaction before the host acknowledges it. Cancel both the
-		// outward request and the arbiter ownership so the command-side reset
-		// can restart image scanning with a fresh request after reset.
+	if (reset && !sd_cancel_active) begin
 		ack <= 0;
-		sd_lba <= 0;
-		sd_rd <= 0;
-		sd_wr <= 0;
-		sd_busy_mount <= 0;
-		sd_busy_tinfo <= 0;
-		sd_busy_sector <= 0;
-		sd_buff_type <= UPD765_SD_BUFF_SECTOR;
-		// The host can finish the cancelled transfer after reset. Ignore both
-		// its ACK and buffer burst until ACK has been observed low once; only
-		// then may a fresh request claim the shared buffer. This narrows the
-		// stale-response race but cannot identify an ACK which first arrives only
-		// after ACK was already observed low; that needs a host transaction tag.
-		sd_wait_ack_low <= 1;
-	end else begin
-		ack <= {ack[4:0], sd_ack};
-		if (sd_wait_ack_low) begin
-			ack <= 0;
-			sd_rd <= 0;
-			sd_wr <= 0;
-			if (!sd_ack) sd_wait_ack_low <= 0;
-		end else begin
-			if(ack[5:4] == 'b01)	begin
+		if (sd_busy_mount | sd_busy_tinfo | sd_busy_sector) begin
+			// Do not withdraw a request which hps_io may already have sampled.
+			// Without a transaction tag, retaining ownership until ACK falls is
+			// the only way to keep its late response from acknowledging a fresh
+			// mount, track-info, or sector request after reset.
+			sd_cancel_active <= 1;
+			sd_cancel_ack_seen <= sd_ack | (|ack);
+			if (sd_ack | (|ack)) begin
 				sd_rd <= 0;
 				sd_wr <= 0;
 			end
-			if(ack[5:4] == 'b10) begin
-				sd_busy_mount <= 0;
-				sd_busy_tinfo <= 0;
-				sd_busy_sector <= 0;
-			end
+		end else begin
+			sd_lba <= 0;
+			sd_rd <= 0;
+			sd_wr <= 0;
+			sd_busy_mount <= 0;
+			sd_busy_tinfo <= 0;
+			sd_busy_sector <= 0;
+			sd_buff_type <= UPD765_SD_BUFF_SECTOR;
+			sd_cancel_active <= 0;
+			sd_cancel_ack_seen <= 0;
+		end
+	end else if (sd_cancel_active) begin
+		ack <= 0;
+		if (sd_ack) begin
+			sd_cancel_ack_seen <= 1;
+			sd_rd <= 0;
+			sd_wr <= 0;
+		end
+		if (sd_cancel_ack_seen && !sd_ack) begin
+			sd_busy_mount <= 0;
+			sd_busy_tinfo <= 0;
+			sd_busy_sector <= 0;
+			sd_cancel_active <= 0;
+			sd_cancel_ack_seen <= 0;
+			sd_lba <= 0;
+			sd_buff_type <= UPD765_SD_BUFF_SECTOR;
+		end
+	end else begin
+		ack <= {ack[4:0], sd_ack};
+		if(ack[5:4] == 'b01)	begin
+			sd_rd <= 0;
+			sd_wr <= 0;
+		end
+		if(ack[5:4] == 'b10) begin
+			sd_busy_mount <= 0;
+			sd_busy_tinfo <= 0;
+			sd_busy_sector <= 0;
+		end
 
-			if (!sd_busy_mount & !sd_busy_tinfo & !sd_busy_sector) begin
-				if (sd_rd_mount != 2'b00) begin
-					sd_lba <= 0;
-					sd_rd  <= sd_rd_mount;
-					sd_buff_type <= UPD765_SD_BUFF_SECTOR;
-					sd_busy_mount <= 1;
-				end else if (sd_rd_tinfo != 2'b00) begin
-					sd_lba <= image_track_offsets_in[15:1];
-					sd_rd  <= sd_rd_tinfo;
-					sd_buff_type <= UPD765_SD_BUFF_TRACKINFO;
-					sd_busy_tinfo <= 1;
-				end else if (sd_rd_sector != 2'b00) begin
-					sd_lba <= i_seek_pos[31:9];
-					sd_rd  <= sd_rd_sector;
-					sd_buff_type <= UPD765_SD_BUFF_SECTOR;
-					sd_busy_sector <= 1;
-				end else if (sd_wr_sector != 2'b00) begin
-					sd_lba <= i_seek_pos[31:9] - i_write_prev;
-					sd_wr  <= sd_wr_sector;
-					sd_buff_type <= UPD765_SD_BUFF_SECTOR;
-					sd_busy_sector <= 1;
-				end
+		if (sd_arbiter_idle) begin
+			if (sd_rd_mount != 2'b00) begin
+				sd_lba <= 0;
+				sd_rd  <= sd_rd_mount;
+				sd_buff_type <= UPD765_SD_BUFF_SECTOR;
+				sd_busy_mount <= 1;
+			end else if (sd_rd_tinfo != 2'b00) begin
+				sd_lba <= image_track_offsets_in[15:1];
+				sd_rd  <= sd_rd_tinfo;
+				sd_buff_type <= UPD765_SD_BUFF_TRACKINFO;
+				sd_busy_tinfo <= 1;
+			end else if (sd_rd_sector != 2'b00) begin
+				sd_lba <= i_seek_pos[31:9];
+				sd_rd  <= sd_rd_sector;
+				sd_buff_type <= UPD765_SD_BUFF_SECTOR;
+				sd_busy_sector <= 1;
+			end else if (sd_wr_sector != 2'b00) begin
+				sd_lba <= i_seek_pos[31:9] - i_write_prev;
+				sd_wr  <= sd_wr_sector;
+				sd_buff_type <= UPD765_SD_BUFF_SECTOR;
+				sd_busy_sector <= 1;
 			end
 		end
 	end
@@ -439,7 +461,7 @@ always @(posedge clk_sys) begin : fdc
 		case (image_scan_state[i_current_drive])
 			0: ;//no new image
 			1: //read the first 512 byte
-				if (!sd_wait_ack_low & !sd_busy_mount &
+				if (sd_arbiter_idle &
 					!i_scan_lock & state == COMMAND_IDLE) begin
 					i_scan_lock <= 1;
 					sd_rd_mount[i_current_drive] <= 1;
@@ -579,7 +601,7 @@ always @(posedge clk_sys) begin : fdc
 			end
 
 			4:
-			if (!sd_busy_tinfo & !tinfo_wait) begin
+			if (sd_arbiter_idle & !tinfo_wait) begin
 				if (image_ready[i_current_drive] && image_track_offsets_in) begin
 					sd_rd_tinfo[i_current_drive] <= 1;
 					seek_state[i_current_drive] <= 5;
@@ -593,7 +615,7 @@ always @(posedge clk_sys) begin : fdc
 			end
 
 			5:
-			if (!sd_busy_tinfo & sd_rd_tinfo == 2'b00) begin
+			if (sd_arbiter_idle & sd_rd_tinfo == 2'b00) begin
 				tinfo_addr <= {image_track_offsets_in[0], 8'h16}; //gap3 length
 				tinfo_wait <= 1;
 				seek_state[i_current_drive] <= 6;
