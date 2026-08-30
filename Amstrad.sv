@@ -877,7 +877,9 @@ u765 u765
 	
 	.fast(status[16]),
 
-	.a0(cpu_addr[0]),
+	// CPC I/O map: A0 selects status/data on reads, but both A0 write
+	// aliases address the uPD765 data register.
+	.a0(cpu_addr[0] | io_wr),
 	.ready(u765_ready),
 	.motor({motor,motor}),
 	.available(2'b11),

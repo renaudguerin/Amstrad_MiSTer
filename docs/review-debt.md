@@ -2,6 +2,17 @@
 
 ## Open rows
 
+- **Accuracy F13 + shared FDC transaction closure, 2026-08-30** — Scope:
+  `rtl/CRTC.v`, `rtl/crtc_type0_engine.v`, `sim/sim_main.cpp`, the GA test phase
+  connection and F13 documentation; plus `Amstrad.sv`, `rtl/u765/`, `sim/Makefile`,
+  and `docs/fdc-review-2026-08-30.md`. Review hardest: F13's nCLKEN/CLKEN phase
+  ordering, especially R0=0 and SKEW-DISPTMG 1/2 rounding; CPC A0 read/write
+  semantics; SD ACK/reset ownership and stale-host-ACK behavior; whether the new
+  EDSK mount/status harness accurately models hps_io handshaking and production CE.
+  Directed CRTC, GA-build, soak, u765 tracked/supplied-image, and u765 lint gates
+  pass. **NOT CLEARED — fresh cross-provider review pending.** Hardware SHAKER/DE
+  validation and a title-level The Demo trace remain separate evidence gaps.
+
 - **Plus P10a-P10f, P10h compatibility closure, 2026-08-29** — Scope: `Amstrad.sv`,
   `rtl/Amstrad_motherboard.v`, `rtl/i8255.v`, `rtl/plus/asic_dma.v`, `rtl/plus/plus_sna_parser.v`,
   `rtl/plus/asic_regs.v`, `rtl/plus/asic_sprites.v`,
