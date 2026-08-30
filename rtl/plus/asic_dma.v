@@ -55,7 +55,10 @@ module asic_dma (
 	output reg  [15:0] ram_addr,
 	input  wire [15:0] ram_data,       // CPU interface / arbitration
 	input  wire [7:0]  cpu_psg_addr,
+	input  wire        cpu_ppi_access, // CPU is concurrently accessing the 8255
+	input  wire        cpu_psg_write,  // Concurrent access writes a PSG register
 	output reg         dma_load_owner,
+	output reg         dma_load_busy,
 
 	// PSG / AY-3-8912 interface
 	output reg         psg_bdir,
@@ -117,6 +120,13 @@ module asic_dma (
 		ST_DONE      = 5'd29;
 
 	reg [4:0] state;
+	// Arnold V §2.6 extends a LOAD by one 1us cycle for an overlapping
+	// 8255 access, or by two cycles when that access is a PSG register write.
+	// Capture the strongest collision while the LOAD remains busy. Exclusive
+	// ownership ends after the ordinary eighth cycle, but a PSG write arriving
+	// in a PPI-created ninth cycle still upgrades the bounded total to ten.
+	reg [1:0] load_extra;
+	reg       load_extension;
 
 	// Once the fetch phase is complete, enter the first active channel
 	// directly and skip inactive execute slots.  The same routing is used
@@ -141,6 +151,9 @@ module asic_dma (
 			ram_req        <= 1'b0;
 			ram_addr       <= 16'd0;
 			dma_load_owner <= 1'b0;
+			dma_load_busy  <= 1'b0;
+			load_extra     <= 2'd0;
+			load_extension <= 1'b0;
 			psg_bdir       <= 1'b0;
 			psg_bc1        <= 1'b0;
 			psg_dout       <= 8'd0;
@@ -191,6 +204,7 @@ module asic_dma (
 				case (state)
 				ST_IDLE: begin
 					dma_load_owner <= 1'b0;
+					dma_load_busy  <= 1'b0;
 					psg_active     <= 1'b0;
 					psg_bdir       <= 1'b0;
 					psg_bc1        <= 1'b0;
@@ -284,6 +298,10 @@ module asic_dma (
 						4'h0: begin // LOAD R, DD (8-cycle execution)
 							// Substep 0: Acquire ownership, set target PSG register address
 							dma_load_owner <= 1'b1;
+							dma_load_busy  <= 1'b1;
+							load_extra     <= cpu_psg_write ? 2'd2 :
+							                  cpu_ppi_access ? 2'd1 : 2'd0;
+							load_extension <= 1'b0;
 							psg_active     <= 1'b1;
 							psg_bdir       <= 1'b1;
 							psg_bc1        <= 1'b1;
@@ -334,6 +352,8 @@ module asic_dma (
 				end
 
 				ST_EXEC0_B: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					// Substep 1: Inactive separation
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
@@ -341,6 +361,8 @@ module asic_dma (
 				end
 
 				ST_EXEC0_C: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					// Substep 2: Write data to PSG
 					psg_bdir <= 1'b1;
 					psg_bc1  <= 1'b0;
@@ -349,6 +371,8 @@ module asic_dma (
 				end
 
 				ST_EXEC0_D: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					// Substep 3: Inactive separation
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
@@ -356,6 +380,8 @@ module asic_dma (
 				end
 
 				ST_EXEC0_E: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					// Substep 4: Restore CPU-selected PSG register address
 					psg_bdir <= 1'b1;
 					psg_bc1  <= 1'b1;
@@ -364,6 +390,8 @@ module asic_dma (
 				end
 
 				ST_EXEC0_F: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					// Substep 5: Inactive separation
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
@@ -371,6 +399,8 @@ module asic_dma (
 				end
 
 				ST_EXEC0_G: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					// Substep 6: Hold / collision margin
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
@@ -378,12 +408,38 @@ module asic_dma (
 				end
 
 				ST_EXEC0_H: begin
-					// Substep 7: Release ownership
-					dma_load_owner <= 1'b0;
-					psg_active     <= 1'b0;
-					psg_bdir       <= 1'b0;
-					psg_bc1        <= 1'b0;
-					state          <= exec_after0_state;
+					// The ordinary eighth cycle ends exclusive PPI/PSG
+					// ownership. Arnold caps the CPU wait at 8us even
+					// though LOAD remains busy for its +1/+2 cycles.
+					if (!load_extension) begin
+						dma_load_owner <= 1'b0;
+						psg_active     <= 1'b0;
+						psg_bdir       <= 1'b0;
+						psg_bc1        <= 1'b0;
+						load_extension <= 1'b1;
+						if (cpu_psg_write) load_extra <= 2'd2;
+						else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
+						if (!cpu_ppi_access && (load_extra == 2'd0)) begin
+							dma_load_busy <= 1'b0;
+							state <= exec_after0_state;
+						end
+					end
+					else if (load_extra > 2'd1) begin
+						// The first +2 extension cycle leaves exactly one
+						// final cycle, represented by zero to prevent a held
+						// PSG level from being classified a second time.
+						load_extra <= 2'd0;
+					end
+					else if (cpu_psg_write && (load_extra == 2'd1)) begin
+						// Consume the late upgrade now so a held CPU level
+						// cannot extend the LOAD beyond the documented +2.
+						load_extra <= 2'd0;
+					end
+					else begin
+						load_extra <= 2'd0;
+						dma_load_busy <= 1'b0;
+						state <= exec_after0_state;
+					end
 				end
 
 				// Channel 1 execute
@@ -395,6 +451,10 @@ module asic_dma (
 						case (instr[1][15:12])
 						4'h0: begin // LOAD R, DD
 							dma_load_owner <= 1'b1;
+							dma_load_busy  <= 1'b1;
+							load_extra     <= cpu_psg_write ? 2'd2 :
+							                  cpu_ppi_access ? 2'd1 : 2'd0;
+							load_extension <= 1'b0;
 							psg_active     <= 1'b1;
 							psg_bdir       <= 1'b1;
 							psg_bc1        <= 1'b1;
@@ -445,12 +505,16 @@ module asic_dma (
 				end
 
 				ST_EXEC1_B: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
 					state    <= ST_EXEC1_C;
 				end
 
 				ST_EXEC1_C: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b1;
 					psg_bc1  <= 1'b0;
 					psg_dout <= instr[1][7:0];
@@ -458,12 +522,16 @@ module asic_dma (
 				end
 
 				ST_EXEC1_D: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
 					state    <= ST_EXEC1_E;
 				end
 
 				ST_EXEC1_E: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b1;
 					psg_bc1  <= 1'b1;
 					psg_dout <= cpu_psg_addr;
@@ -471,23 +539,46 @@ module asic_dma (
 				end
 
 				ST_EXEC1_F: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
 					state    <= ST_EXEC1_G;
 				end
 
 				ST_EXEC1_G: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
 					state    <= ST_EXEC1_H;
 				end
 
 				ST_EXEC1_H: begin
-					dma_load_owner <= 1'b0;
-					psg_active     <= 1'b0;
-					psg_bdir       <= 1'b0;
-					psg_bc1        <= 1'b0;
-					state          <= exec_after1_state;
+					if (!load_extension) begin
+						dma_load_owner <= 1'b0;
+						psg_active     <= 1'b0;
+						psg_bdir       <= 1'b0;
+						psg_bc1        <= 1'b0;
+						load_extension <= 1'b1;
+						if (cpu_psg_write) load_extra <= 2'd2;
+						else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
+						if (!cpu_ppi_access && (load_extra == 2'd0)) begin
+							dma_load_busy <= 1'b0;
+							state <= exec_after1_state;
+						end
+					end
+					else if (load_extra > 2'd1) begin
+						load_extra <= 2'd0;
+					end
+					else if (cpu_psg_write && (load_extra == 2'd1)) begin
+						load_extra <= 2'd0;
+					end
+					else begin
+						load_extra <= 2'd0;
+						dma_load_busy <= 1'b0;
+						state <= exec_after1_state;
+					end
 				end
 
 				// Channel 2 execute
@@ -499,6 +590,10 @@ module asic_dma (
 						case (instr[2][15:12])
 						4'h0: begin // LOAD R, DD
 							dma_load_owner <= 1'b1;
+							dma_load_busy  <= 1'b1;
+							load_extra     <= cpu_psg_write ? 2'd2 :
+							                  cpu_ppi_access ? 2'd1 : 2'd0;
+							load_extension <= 1'b0;
 							psg_active     <= 1'b1;
 							psg_bdir       <= 1'b1;
 							psg_bc1        <= 1'b1;
@@ -549,12 +644,16 @@ module asic_dma (
 				end
 
 				ST_EXEC2_B: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
 					state    <= ST_EXEC2_C;
 				end
 
 				ST_EXEC2_C: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b1;
 					psg_bc1  <= 1'b0;
 					psg_dout <= instr[2][7:0];
@@ -562,12 +661,16 @@ module asic_dma (
 				end
 
 				ST_EXEC2_D: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
 					state    <= ST_EXEC2_E;
 				end
 
 				ST_EXEC2_E: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b1;
 					psg_bc1  <= 1'b1;
 					psg_dout <= cpu_psg_addr;
@@ -575,27 +678,51 @@ module asic_dma (
 				end
 
 				ST_EXEC2_F: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
 					state    <= ST_EXEC2_G;
 				end
 
 				ST_EXEC2_G: begin
+					if (cpu_psg_write) load_extra <= 2'd2;
+					else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
 					psg_bdir <= 1'b0;
 					psg_bc1  <= 1'b0;
 					state    <= ST_EXEC2_H;
 				end
 
 				ST_EXEC2_H: begin
-					dma_load_owner <= 1'b0;
-					psg_active     <= 1'b0;
-					psg_bdir       <= 1'b0;
-					psg_bc1        <= 1'b0;
-					state          <= ST_DONE;
+					if (!load_extension) begin
+						dma_load_owner <= 1'b0;
+						psg_active     <= 1'b0;
+						psg_bdir       <= 1'b0;
+						psg_bc1        <= 1'b0;
+						load_extension <= 1'b1;
+						if (cpu_psg_write) load_extra <= 2'd2;
+						else if (cpu_ppi_access && (load_extra == 2'd0)) load_extra <= 2'd1;
+						if (!cpu_ppi_access && (load_extra == 2'd0)) begin
+							dma_load_busy <= 1'b0;
+							state <= ST_DONE;
+						end
+					end
+					else if (load_extra > 2'd1) begin
+						load_extra <= 2'd0;
+					end
+					else if (cpu_psg_write && (load_extra == 2'd1)) begin
+						load_extra <= 2'd0;
+					end
+					else begin
+						load_extra <= 2'd0;
+						dma_load_busy <= 1'b0;
+						state <= ST_DONE;
+					end
 				end
 
 				ST_DONE: begin
 					dma_load_owner <= 1'b0;
+					dma_load_busy  <= 1'b0;
 					psg_active     <= 1'b0;
 					psg_bdir       <= 1'b0;
 					psg_bc1        <= 1'b0;

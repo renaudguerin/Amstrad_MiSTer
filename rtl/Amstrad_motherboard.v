@@ -165,7 +165,9 @@ wire RFSH_n;
 wire ga_int_n;
 wire INT_n = plus_mode ? plus_int_n : ga_int_n;
 wire M1_n;
-wire [7:0] cpu_data_bus = crtc_dout_sel & ppi_dout & cpu_din;
+wire [7:0] ppi_dout;
+wire [7:0] ppi_cpu_dout;
+wire [7:0] cpu_data_bus = crtc_dout_sel & ppi_cpu_dout & cpu_din;
 wire [7:0] plus_io_data = io_rd ? io_bus_byte : D;
 
 // Write-only Plus ports see the byte left by the final opcode fetch of the
@@ -506,6 +508,43 @@ wire [11:0] plus_spr_wr_addr;
 wire [3:0] plus_spr_wr_data;
 
 // P7 3-channel DMA sound engine
+wire dma_load_owner;
+wire cpu_ppi_access = plus_mode & ~A[11] & (io_rd | io_wr);
+wire cpu_ppi_write = cpu_ppi_access & io_wr;
+// A CPU PPI cycle which was accepted before registered DMA ownership rises
+// must retire without being gated low and replayed afterwards. New accesses
+// which begin while the DMA owns the integrated PPI/PSG still wait normally.
+reg cpu_ppi_started;
+reg [7:0] cpu_ppi_read_latch;
+always @(posedge clk) begin
+	if (reset) begin
+		cpu_ppi_started <= 1'b0;
+		cpu_ppi_read_latch <= 8'hFF;
+	end
+	else begin
+		if (~cpu_ppi_access) cpu_ppi_started <= 1'b0;
+		else if (~dma_load_owner) cpu_ppi_started <= 1'b1;
+		if (cpu_ppi_access & io_rd & ~dma_load_owner & ~cpu_ppi_started)
+			cpu_ppi_read_latch <= ppi_dout;
+	end
+end
+// A read accepted before DMA ownership must keep the byte sampled from the
+// CPU-selected AY/PPI path. DMA may replace the live AY bus before T80's
+// PHI_EN_N retirement edge, but it must not change an in-flight CPU result.
+assign ppi_cpu_dout = (plus_mode & cpu_ppi_started & io_rd) ?
+	cpu_ppi_read_latch : ppi_dout;
+// Classify the physical PPI operation, not only the usual F6xx full-Port-C
+// encoding. A Port-A write while BDIR/BC1 already selects PSG data, or a
+// BSR write which enters that state, is also a PSG register write.
+wire cpu_bsr_pc7 = cpu_ppi_write & (A[9:8] == 2'b11) & ~D[7] &
+	(D[3:1] == 3'd7);
+wire cpu_bsr_pc6 = cpu_ppi_write & (A[9:8] == 2'b11) & ~D[7] &
+	(D[3:1] == 3'd6);
+wire [1:0] cpu_pc76_after = (A[9:8] == 2'b10) ? D[7:6] :
+	{cpu_bsr_pc7 ? D[0] : portC[7], cpu_bsr_pc6 ? D[0] : portC[6]};
+wire cpu_psg_write = cpu_ppi_write & (cpu_pc76_after == 2'b10) &
+	((A[9:8] == 2'b00) | (A[9:8] == 2'b10) |
+	 cpu_bsr_pc7 | cpu_bsr_pc6);
 asic_dma dma_sound
 (
 	.clk(clk),
@@ -542,7 +581,10 @@ asic_dma dma_sound
 	.ram_data(vram_din),
 
 	.cpu_psg_addr(cpu_psg_addr),
+	.cpu_ppi_access(cpu_ppi_access),
+	.cpu_psg_write(cpu_psg_write),
 	.dma_load_owner(dma_load_owner),
+	.dma_load_busy(),
 
 	.psg_bdir(psg_dma_bdir),
 	.psg_bc1(psg_dma_bc1),
@@ -756,13 +798,11 @@ Amstrad_MMU MMU
 	.ram_A(mem_addr)
 );
 
-wire [7:0] ppi_dout;
 wire [7:0] portC;
 wire [7:0] portAout;
 wire [7:0] portAin;
 
-wire dma_load_owner;
-wire dma_ppi_wait = plus_mode & dma_load_owner & ~A[11] & (io_rd | io_wr);
+wire dma_ppi_wait = dma_load_owner & cpu_ppi_access & ~cpu_ppi_started;
 
 reg [7:0] cpu_psg_addr;
 always @(posedge clk) begin

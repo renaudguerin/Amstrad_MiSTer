@@ -42,6 +42,8 @@ struct TestBench {
 		dut->sar2_lo = 0; dut->sar2_hi = 0; dut->ppr2 = 0; dut->sar2_wr = 0;
 		dut->dcsr_ena = 0;
 		dut->ram_data = 0;
+		dut->cpu_ppi_access = 0;
+		dut->cpu_psg_write = 0;
 	}
 
 	void step_clock() {
@@ -636,6 +638,51 @@ void test_d13_active_channel_execute_timing(TestBench& tb) {
 	std::printf("PASS d13: execute cadence uses only active channels (0/1/2/3 active)\n");
 }
 
+// d14: Arnold V §2.6 collision extensions apply identically to every
+// channel copy, while exclusive PSG ownership still ends on cycle eight.
+void test_d14_all_channel_collision_extensions(TestBench& tb) {
+	const uint16_t addr[3] = {0x6000, 0x7000, 0x8000};
+	for (unsigned ch = 0; ch < 3; ++ch) {
+		for (unsigned extra = 1; extra <= 2; ++extra) {
+			tb.pulse_reset();
+			tb.set_sar(ch, addr[ch]);
+			tb.write_instruction(addr[ch], static_cast<uint16_t>((ch << 8) | 0x55));
+			tb.set_dcsr_ena(static_cast<uint8_t>(1u << ch));
+			tb.dut->cpu_ppi_access = 1;
+			tb.dut->cpu_psg_write = (extra == 2);
+			tb.dut->hsync = 1;
+			tb.step_clock();
+
+			int start = -1, end = -1;
+			unsigned owner_cycles = 0;
+			for (int cyc = 0; cyc < 32; ++cyc) {
+				tb.dut->hsync = (cyc < 4);
+				const bool busy_pre = tb.dut->dma_load_busy;
+				tb.dut->cclk_en_p = 1;
+				tb.step_clock();
+				const bool busy_post = tb.dut->dma_load_busy;
+				if (!busy_pre && busy_post) start = cyc;
+				if (busy_pre && !busy_post) { end = cyc; break; }
+				if (tb.dut->dma_load_owner) ++owner_cycles;
+				tb.dut->cclk_en_p = 0;
+				for (int phase = 1; phase < 16; ++phase)
+					tb.step_clock();
+			}
+			tb.dut->cclk_en_p = 0;
+			tb.dut->cpu_ppi_access = 0;
+			tb.dut->cpu_psg_write = 0;
+			const int duration = end - start + 1;
+			if (start < 0 || end < 0 || duration != static_cast<int>(8 + extra))
+				fail("d14: channel " + std::to_string(ch) + " expected LOAD duration " +
+				     std::to_string(8 + extra) + ", got " + std::to_string(duration));
+			if (owner_cycles > 7)
+				fail("d14: channel " + std::to_string(ch) +
+				     " retained exclusive ownership beyond ordinary cycle eight");
+		}
+	}
+	std::printf("PASS d14: all channels honor +1/+2 collision duration with bounded ownership\n");
+}
+
 } // namespace
 
 int main() {
@@ -654,7 +701,8 @@ int main() {
 		test_d11_load_timing_and_ay_restore(tb);
 		test_d12_active_channel_fetch_timing(tb);
 		test_d13_active_channel_execute_timing(tb);
-		std::printf("All 13 asic_dma unit tests PASSED.\n");
+		test_d14_all_channel_collision_extensions(tb);
+		std::printf("All 14 asic_dma unit tests PASSED.\n");
 		return 0;
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());
