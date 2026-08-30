@@ -1115,7 +1115,203 @@ void s16_delayed_ack_same_row_write_collision(Spr& b) {
         fail("s16: new row-0 nibble did not render after stale ACK recovery");
 }
 
-constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 16> kTests = {{
+// CG-3 production-cadence discriminator: keep every sprite enabled while a
+// row/Y/magnification transition and a burst of CPU pixel writes compete with
+// the one-byte, one-clock-later row-fetch server.  The reference requires all
+// 16 sprites to be possible on one line, lowest index to win overlaps, and a
+// pixel-data access to blank only the accessed sprite for the access duration;
+// its stored image must survive ([asic-reference.md] S5, lines 183-210).
+//
+// The bench's normal step() path is deliberately used throughout: each fetch
+// request is returned as FQ_ACK/FQ_DATA on the following bench edge.  No direct
+// staging or cache state is injected.  X positions stay on the existing bench
+// dot-counter scale; this vector is about production load, not the unresolved
+// X-unit source conflict.
+void s17_all_sprites_live_animation_cadence(Spr& b) {
+    std::array<unsigned, 16> base{};
+    std::array<unsigned, 16> anim{};
+    std::array<unsigned, 16> x{};
+    std::array<unsigned, 16> y{};
+    std::array<unsigned, 16> mag{};
+    std::array<unsigned, 16> row13{};
+    std::array<unsigned, 16> row14{};
+
+    // Give every sprite a distinct opaque image.  The animated pixels are
+    // changed in both rows used below so their data remains observable after
+    // the live row/Y/magnification transition.
+    for (unsigned s = 0; s < 16; ++s) {
+        base[s] = (s % 15) + 1;
+        anim[s] = ((s + 5) % 15) + 1;
+        for (unsigned py = 0; py < 16; ++py)
+            for (unsigned px = 0; px < 16; ++px)
+                b.wr(s, px, py, base[s]);
+
+        // Sprites 0 and 15 deliberately overlap for the priority/access
+        // checks.  Sprites 1..14 occupy separate 64-dot slots; the largest
+        // x4 window therefore still fits exactly before hp wraps.
+        x[s] = (s == 0 || s == 15) ? 32 : 128 + 64 * (s - 1);
+        b.set_x(s, x[s]);
+        b.set_y(s, 8);
+        b.set_mag(s, 0x5); // initial x1/y1, changed at the next seam
+    }
+    program_palette(b);
+
+    // Establish a completely populated initial row set before introducing
+    // the live attribute changes.  At vline 12, Y=8 selects source row 4.
+    b.run_to_vline(12);
+    b.run_line(); // vline 13, still with the initial attributes
+
+    // Change every Y and magnification live.  Y=10..13 keeps all sprites
+    // active at vline 13/14 while making the source row and both scale axes
+    // vary across the population.  The documented compare line is
+    // (LineCounter<<3)|(RasterCounter&7); vline 14 is therefore used for the
+    // exact post-transition expectations below.
+    const unsigned mag_cycle[5] = {0xD, 0x9, 0x6, 0xA, 0xF};
+    for (unsigned s = 0; s < 16; ++s) {
+        y[s] = 10 + (s & 3);
+        mag[s] = mag_cycle[s % 5];
+        b.set_y(s, y[s]);
+        b.set_mag(s, mag[s]);
+
+        const unsigned ycode = mag[s] & 3;
+        const unsigned yshift = ycode == 1 ? 0 : (ycode == 2 ? 1 : 2);
+        row13[s] = ((13 - y[s]) >> yshift) & 15;
+        row14[s] = ((14 - y[s]) >> yshift) & 15;
+    }
+
+    // Make the attribute transition at a scanline seam, then perform a
+    // sustained, production-shaped CPU animation burst while the fetch
+    // server is running.  Each write is a complete sprite pixel access:
+    // ACC_EN stays high across its step together with spr_wr_en, matching the
+    // asic_regs level contract.  Four writes per row per sprite are enough to
+    // make the updated image observable at x1, x2 and x4.
+    b.step(true, true, true);
+    b.idle(6);
+    const unsigned req_before = b.n_req_obs;
+    const unsigned animated_px[] = {0, 5, 8};
+    for (unsigned s = 0; s < 16; ++s) {
+        for (const unsigned row : {row13[s], row14[s]}) {
+            for (const unsigned px : animated_px) {
+                b.wr(s, px, row, anim[s]);
+                b.dut.ACC_EN = 1;
+                b.dut.ACC_IDX = s;
+                b.dut.spr_wr_en = 1;
+                b.dut.spr_wr_addr = (s << 8) | (row << 4) | px;
+                b.dut.spr_wr_data = anim[s];
+                b.step(true, false, false);
+                b.dut.spr_wr_en = 0;
+                b.dut.ACC_EN = 0;
+            }
+        }
+    }
+    if (b.n_req_obs == req_before)
+        fail("s17: animation burst did not overlap a row-fetch request");
+
+    // Give the real request/grant server the remainder of the line to finish
+    // all current and speculative rows.  Every changed current row differs
+    // from the old Y=8 row, so the production-cadence model must service at
+    // least eight bytes for each of the 16 active sprites.
+    b.run_line(); // vline 14, hp reset to zero
+    if (b.n_req_obs - req_before < 16 * 8)
+        fail("s17: all-16 row refills did not use the grant cadence (requests=" +
+             std::to_string(b.n_req_obs - req_before) + ")");
+
+    const auto yshift_for = [](unsigned m) {
+        const unsigned code = m & 3;
+        return code == 1 ? 0U : (code == 2 ? 1U : 2U);
+    };
+    const auto xshift_for = [](unsigned m) {
+        const unsigned code = (m >> 2) & 3;
+        return code == 1 ? 0U : (code == 2 ? 1U : 2U);
+    };
+    const auto is_animated = [](unsigned px) {
+        return px == 0 || px == 5 || px == 8;
+    };
+
+    // Scan a full 1024-dot line.  At hp=31 begin a 16-dot CPU access to
+    // sprite 0.  Sprite 15 is the only overlapping bystander and must show
+    // through for the whole access.  Once the level falls, a short registered
+    // tail is permitted by the module model; by the next 16-dot slot the
+    // accessed sprite must be back, with its newly written pixels intact.
+    for (unsigned hp = 0; hp < 1024; ++hp) {
+        if (hp == 31) {
+            b.dut.ACC_EN = 1;
+            b.dut.ACC_IDX = 0;
+        }
+        if (hp == 48)
+            b.dut.ACC_EN = 0;
+
+        const Spr::Smp got = b.sample();
+        const bool overlap = hp >= 32 && hp < 96;
+        unsigned expected = 16;
+        bool transition = false;
+        if (overlap) {
+            if (hp < 48) {
+                // Accessed sprite 0 is blanked; lower-priority sprite 15
+                // remains visible with its own stored image.
+                expected = 15;
+            }
+            else if (hp < 64) {
+                // The source specifies access-duration blanking, while the
+                // exact registered tail is a model assumption.  Both images
+                // are acceptable during this settling interval, but neither
+                // may disappear or show a foreign sprite.
+                transition = true;
+            }
+            else {
+                expected = 0;
+            }
+        }
+        else {
+            for (unsigned s = 1; s < 15; ++s) {
+                const unsigned width = 16U << xshift_for(mag[s]);
+                if (hp >= x[s] && hp < x[s] + width) {
+                    expected = s;
+                    break;
+                }
+            }
+            // hp=31 is the one pre-access dot in sprite 0's window.
+            if (hp >= x[0] && hp < x[0] + (16U << xshift_for(mag[0])))
+                expected = 0;
+        }
+
+        if (transition) {
+            if (!got.en || (got.idx != 0 && got.idx != 15))
+                fail("s17: sprite 0 access disturbed its overlap at hp=" +
+                     std::to_string(hp));
+        }
+        else if (expected == 16) {
+            if (got.en)
+                fail("s17: unexpected sprite " + std::to_string(got.idx) +
+                     " outside its window at hp=" + std::to_string(hp));
+        }
+        else {
+            if (!got.en || got.idx != expected)
+                fail("s17: expected sprite " + std::to_string(expected) +
+                     " at hp=" + std::to_string(hp) + " (got " +
+                     std::to_string(got.en ? got.idx : 16) + ")");
+
+            const unsigned xshift = xshift_for(mag[expected]);
+            const unsigned px = (hp - x[expected]) >> xshift;
+            const unsigned nib = is_animated(px) ? anim[expected]
+                                                  : base[expected];
+            unsigned g, r, bl;
+            pal_entry(nib, g, r, bl);
+            if (got.r != r || got.g != g || got.b != bl)
+                fail("s17: sprite " + std::to_string(expected) +
+                     " image mismatch at hp=" + std::to_string(hp) +
+                     " px=" + std::to_string(px));
+        }
+
+        if ((hp & 15) == 15)
+            b.char_end(hp == 1023);
+        else
+            b.dot();
+    }
+    b.dut.ACC_EN = 0;
+}
+
+constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 17> kTests = {{
     {"s01 zero magnification codes disable the sprite (S5)",
      s01_disabled_codes_off},
     {"s02 x1 placement, source pixels, transparency (S5)",
@@ -1146,6 +1342,8 @@ constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 16> kTests = {{
      s15_dynamic_burst_write_no_tearing},
     {"s16 sustained access poisons delayed ACK and re-demands (CG-3 review)",
      s16_delayed_ack_same_row_write_collision},
+    {"s17 all sprites, live animation, and grant cadence (CG-3)",
+     s17_all_sprites_live_animation_cadence},
 }};
 
 }  // namespace
