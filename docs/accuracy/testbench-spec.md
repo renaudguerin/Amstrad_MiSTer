@@ -109,8 +109,7 @@ All implemented groups are required passes. The classic suite currently has **17
 passes**, zero expected failures, zero unexpected passes, and zero failures. It has had no
 expected failures since
 the F8 commit (`c9f4a4e`): the former type-1 adjustment-identification xfails
-(`t08f`/`t08g`) became required passes. Current state (2026-08-23, after A3 `t20i` and F6
-Stage 1 `t10a`-`t10e`, F7 `t13a`-`t13d`, A1 `t08m`, and A2 `t08n`/`t08o`): 100 passed / 0 xfailed / 0 xpassed / 0 failed. These vectors fix
+(`t08f`/`t08g`) became required passes. These vectors fix
 the v1.10 counter and adjustment-state expectations while
 deliberately avoiding unsupported sub-character MA/DE/VSYNC claims. If later hardware
 evidence introduces a true pin-level uncertainty, keep any expected failure narrow; never

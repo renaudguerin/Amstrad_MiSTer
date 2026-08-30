@@ -2,38 +2,6 @@
 
 ## Open rows
 
-- **Accuracy F13 + F20 R2.JIT + shared FDC transaction closure, 2026-08-30** — Scope:
-  `rtl/CRTC.v`, `rtl/crtc_type0_engine.v`, `sim/sim_main.cpp`, `rtl/GA40010/`,
-  the GA test phase connection and F13/F20 documentation; plus `Amstrad.sv`,
-  `rtl/u765/`, `sim/Makefile`, and `docs/fdc-review-2026-08-30.md`. Review hardest:
-  F13's nCLKEN/CLKEN phase ordering, especially R0=0 and SKEW-DISPTMG 1/2
-  rounding; F20's four-master-clock normal deferral, first-write-edge detector,
-  fixed display-reactivation edge, hsync-off priority, reset/type-switch lifecycle,
-  active-pulse/OUTI residual boundary; CPC A0 read/write
-  semantics; SD ACK/reset ownership and stale-host-ACK behavior; whether the new
-  EDSK mount/status harness accurately models hps_io handshaking and production CE.
-  Directed CRTC, integrated GA R2.JIT, soak, u765 tracked/supplied-image, and u765 lint gates
-  pass. **NOT CLEARED — fresh cross-provider review pending.** Hardware SHAKER/DE
-  validation and a title-level The Demo trace remain separate evidence gaps.
-  **FIRST REVIEW NOT CLEAR — Claude Opus 5 xhigh, 2026-08-30.** It found that
-  the initial F20 model incorrectly replayed the write phase at the trailing
-  edge and its fixture locked in that error. ACCC pp.53-57 require R2.JIT to
-  remove the left side of blanking while leaving display reactivation fixed.
-  Remediation now pins +4/-4 pixels on type 0, +3/-3 on type 1, and a same-value
-  normal-path control. The FDC reset path now also quarantines stale ACK/buffer
-  bursts until ACK-low; production and bench A0 expressions match at the
-  selected-write seam; stale baseline hash/count prose is corrected. Fresh
-  remediation re-review is pending. Full record:
-  `docs/accuracy/f13-f20-fdc-independent-review.md`.
-  **SECOND REVIEW NOT CLEAR ON TEST INTEGRITY — Claude Opus 5 high, 2026-08-30.**
-  It confirmed both F20 blockers genuinely fixed and accepted the shipped
-  quarantine/A0 RTL, but showed the stale-ACK loop had `ce=0` and no buffer
-  readback. The final test now uses production one-in-eight CE, preserves the
-  mount retry until quarantine exits, and verifies a seeded sector byte is not
-  overwritten. Parent bite tests fail on the exact buffer value when the write
-  gate is removed and time out on fresh recovery when retry retention is
-  removed. Fresh narrow clearance review is pending.
-
 - **Plus P10a-P10f, P10h compatibility closure, 2026-08-29** — Scope: `Amstrad.sv`,
   `rtl/Amstrad_motherboard.v`, `rtl/i8255.v`, `rtl/plus/asic_dma.v`, `rtl/plus/plus_sna_parser.v`,
   `rtl/plus/asic_regs.v`, `rtl/plus/asic_sprites.v`,
@@ -127,6 +95,19 @@
 **Status: two reviews open.** Historical implementation review debt remains cleared.
 
 ## Cleared rows
+
+- **Accuracy F13 + F20 R2.JIT + shared FDC transaction closure — CLEARED by
+  Claude Opus 5 high, 2026-08-30.** The first review found the F20 width model
+  and fixture wrong; the second accepted the remediated RTL but found the u765
+  reset test non-discriminating. The final narrow review confirmed production
+  one-in-eight CE during stale ACK/write traffic, direct seeded sector-RAM
+  readback, load-bearing mount-retry retention, and honest transaction-tag/The
+  Demo residuals. Parent bite tests fail on the exact stale byte and lost retry
+  when their respective gates are removed. Full simulation, lint, exact soak
+  `0x32d468e81eac63c9`, tracked and supplied EDSK image tests, and whitespace
+  gates pass. Hardware SHAKER/DE validation and a title-level The Demo trace
+  remain evidence gaps, not review debt. Full record:
+  `docs/accuracy/f13-f20-fdc-independent-review.md`.
 
 - `plus/hardware-checkpoint` — **CLEARED 2026-08-28 — OpenAI Codex**. Scope: `Amstrad.sv`,
   `rtl/Amstrad_motherboard.v`, `rtl/plus/asic_video.v`, and testbenches (`sim/plus/asic_video_test.cpp`,
