@@ -88,6 +88,7 @@ CPC6128 model has 64KB+512KB RAM. Upper 448KB are visible in special OS ROM or a
 ## Technical references
 
 Technical information for the CRTC accuracy work is sourced from the "Amstrad CPC CRTC
-Compendium" by Longshot (CC BY-NC-ND). The documentation baseline is ACCC v1.10; see the
-[v1.9-to-v1.10 comparison](docs/accuracy/accc-1.10-differences.md) for the changed rules and
-their implementation impact.
+Compendium" by Longshot (CC BY-NC-ND). The latest French ACCC edition is the primary written
+oracle; the matching English edition is a working translation. The current baseline is
+v1.11; see the [bilingual consequential-difference ledger](docs/accuracy/accc-1.11-fr-en-differences.md)
+and [update procedure](docs/accuracy/accc-update-procedure.md).
