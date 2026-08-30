@@ -45,6 +45,11 @@ docs/**/ACCC*.pdf
 docs/ACCC*.pdf
 docs/plus/references/cartridges/
 
+# Copyrighted local test media: keep private and share between worktrees via
+# ignored symlinks to one external asset directory.
+/docs/fdctest/
+/docs/plus/cartridges/
+
 # SHAKER capture screenshots: kept locally as provenance, not committed
 docs/accuracy/shaker/*.png
 
