@@ -269,10 +269,11 @@ evidence, but it does not replace the decoder, counter, interrupt, or compositor
 
 ### P10: post-implementation compatibility closure
 
-**Status:** OPEN after the 2026-08-29 cartridge checkpoint. P0-P9 are implemented and
-simulation-verified, but the first broad hardware sample exposed confirmed integration
-defects, a timing-invalid smoke artifact, and tests that stop below the real CPU/top level.
-The detailed evidence and checkboxes live in `plus/hardware-checkpoint-findings.md`.
+**Status:** OPEN after the 2026-08-30 hardware round two. P0-P9 are implemented and
+simulation-verified, but the two broad hardware samples expose remaining title, input, FDC,
+sprite, DMA, CRTC3, cartridge-timing, and recovery failures. The detailed evidence and
+checkboxes live in `plus/hardware-checkpoint-findings.md`; the newest symptom-to-evidence
+mapping is `plus/hardware-test-round2-2026-08-30.md`.
 
 P10 is an acceptance/repair stack, not one RTL commit. Keep its sub-milestones independently
 reviewable and in this order:
@@ -282,7 +283,7 @@ reviewable and in this order:
 | **P10a: evidence baseline + production boot harness** | Exact-tip full-effort build; real T80/top-level CPR reset-vector execution and bounded trace | Dispatch `local-build.yml` with `effort=full` when the Quartus VM is online, otherwise hosted `build.yml`; constrained internal domains have non-negative setup/hold slack and zero TNS; named RBF/hash and external-path caveat recorded; tiny fixture reaches a pinned PC/page state; BASIC/Panza traces expose first divergence rather than only a screen result |
 | **P10b: Plus PPI Port C physical output** | Make Port C pins always output in Plus mode while keeping classic direction behavior | Physical-pin vectors for `0x9B`/`0x92`; PPI -> PSG register 14 -> HID row test; Arnold 5 control-write trace establishes whether CF-1 is its cause before the 6128+/464+ retest |
 | **P10c: model capabilities + FDC reset** | Enforce FDC/tape presence; reset u765 and motor on the defined CPR/system event; test AMSDOS aliases | Positive/negative 6128+/464+/GX4000 matrix; `&FADD`/`&FBDF` production-path vector; reload-after-active-command test; BASIC boots with a recorded known-good DSK |
-| **P10d: cartridge execution timing** | Replace per-byte serial SDRAM WAIT when the real-CPU trace proves incompatible pacing | Reset-vector and sustained-cartridge timing vectors; no load/clear atomicity or classic isolation regression; exact full-fit build |
+| **P10d: cartridge execution timing** | Replace per-byte serial SDRAM WAIT only when a real-CPU/title trace proves incompatible pacing | The production harness pins a sustained 4,096-tick cartridge window and 11-tick maximum stall; a valid ordinary-RAM/title comparison, no load/clear or classic regression, and an exact full fit remain required before redesign |
 | **P10e: DMA/PPI/PSG arbitration** | Implement the missing CPU WAIT and state preservation/restoration contract | Production motherboard concurrency vector based on Arnold 5; sourced or hardware-measured maximum wait and post-DMA state |
 | **P10f: dynamic sprite writes** | Close RoboCop's first traced divergence; replace undocumented staging behavior only where evidence requires | Game-derived burst-write/delayed-ACK vector, all-16 dynamic overlap coverage, documented per-access blanking, exact full-fit build |
 | **P10g: Panza first divergence** | Close one traced MMU/CRTC3/PRI/video behavior at a time | Each fix has a primary-source or hardware-derived vector; no self-derived expectation from current RTL |
@@ -321,10 +322,13 @@ boot` -> `P1 CRTC3 foundation` -> `P2 ASIC page/palette` -> `P3 PRI` -> `P4 spri
 CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish` -> `P9 cartridge
 tolerances` -> `P10 compatibility closure`.
 
-Current Plus position (2026-08-29): P0-P9 are implemented and simulation-verified, and
-HF-1/HF-2/HF-3 have landed. They are not collectively hardware-confirmed. P10 compatibility
-closure is next, starting with an exact-tip full-effort baseline and production boot harness,
-then the confirmed PPI and FDC/model/reset fixes. Sprite/video changes remain trace-gated.
+Current Plus position (2026-08-30): P0-P9 are implemented and simulation-verified, and
+HF-1/HF-2/HF-3 have landed. They are not collectively hardware-confirmed. P10 now includes
+shared FDC reset/alias hardening, a real-module input fixture, a pinned cartridge WAIT
+baseline, source-backed CRTC3 R8=3 timing, inactive-DMA-slot correction, bounded SNA tail
+headroom, and stronger all-16/real-register sprite discriminators. Exact-tip full-effort
+synthesis, title traces, hardware retest, DMA/input concurrency, R8=1, and undocumented
+sprite/coordinate behavior remain open.
 
 - P-2 is independently mergeable because default-off behavior is invariant.
 - P-1 may be independently mergeable if the cartridge service is unselected in classic
@@ -416,11 +420,11 @@ then the confirmed PPI and FDC/model/reset fixes. Sprite/video changes remain tr
    F10's implemented scope is complete; F14/F15/F16 are the fixture-first follow-ups. F18 is
    an independent light-pen interface decision. Q17 remains hardware-gated.
 5. Plus stream: P0-P9 and HF-1/HF-2/HF-3 are implemented and simulation-verified, but the
-   2026-08-29 hardware sample exposed the open P10 compatibility-closure stack. Start with
-   P10a's full-effort timing-clean baseline and real-T80 production boot harness; then land
-   P10b's PPI Port C physical-output fix and P10c's model/FDC reset integration. Do not
-   combine these confirmed repairs with evidence-gated sprite/video changes, and do not
-   combine Plus work with the classic stream. See `plus/hardware-checkpoint-findings.md`.
+   2026-08-29 and 2026-08-30 hardware samples keep P10 open. Build an exact-tip full-effort
+   timing-clean RBF, repeat the recorded matrix, and capture title-level first divergences.
+   Keep input/DMA concurrency, cartridge timing redesign, and undocumented sprite/video
+   behavior evidence-gated. Do not combine Plus work with the classic stream. See
+   `plus/hardware-checkpoint-findings.md` and `plus/hardware-test-round2-2026-08-30.md`.
 6. F6/F13 proceeds per `accuracy/f6-decision-gate.md`: Stage 2 measured the old 1 µs input;
    Stage 2b assigned the documented 0.5 µs to the CRTC DE phase; the wrapper correction and
    exact `t31a` vector are now implemented. Hardware remains the authority and can reopen it.

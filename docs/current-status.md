@@ -1,7 +1,7 @@
 # Current implementation status
 
 This is the handoff for the next development and hardware-test session. The newest Plus
-hardware observations are dated 2026-08-29; older milestone narratives below retain their
+hardware observations are dated 2026-08-30; older milestone narratives below retain their
 own dates and are not evidence that later work was hardware-confirmed. The
 `accc-review-and-fixes` branch now contains the ACCC review/corrections, per-type classic CRTC
 split, F6 Stage 1 full-character approximation, sampled-field soak expansion, production Plus
@@ -30,7 +30,8 @@ Full diff and impact reports are in `docs/accuracy/accc-1.11-differences.md` and
 `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
 which accepted all pass-2 remediations); the 2026-08-23 review of the F7/A1/A2 and Plus
 follow-up deltas is `accuracy/f7-plus-followups-independent-review.md`, and all
-review-debt rows are cleared. The §13.7.1.2 R0-widening trigger took two cross-provider
+historical rows covered by those reviews are cleared. The current Plus P10 and ACCC Round 2
+documentation rows remain in `review-debt.md`. The §13.7.1.2 R0-widening trigger took two cross-provider
 passes recorded in `accuracy/f7-r0-widening-independent-review.md` — pass 1 returned NOT
 CLEAR on two blocking findings, pass 2 cleared the remediation on 2026-08-24 — and the
 branch is merged, so no review-debt row is outstanding. The detailed behavioral rules remain in
@@ -44,7 +45,46 @@ happen only at significant milestones, against a named target list recorded befo
 session. A green simulation gate is never evidence of hardware accuracy; a manual session
 never gates a commit.
 
-## 2026-08-29 Plus cartridge checkpoint — P10 compatibility closure is next
+## 2026-08-30 Plus hardware round two — focused simulation follow-up
+
+The second hardware report shows substantial CPR-loading progress but keeps P10 open. BASIC
+cartridges still report `disc missing`/`read fail`; Switchblade remains black; Pang reaches
+level select then crashes; Plotting reads Fire as held; Arnold 5 has no keyboard; Copter 271
+and other titles show sprite top-row/colour defects; Burnin' Rubber exposes columns of an
+initially hidden sprite; and the CRTC3 demo still detects an emulator, has sample-pitch and
+picture corruption, then crashes. Some reload failures require reloading the whole core.
+The tested RBF and media/model metadata were not recorded, so these remain hardware symptoms,
+not commit-specific causality. The full symptom mapping and retest order are in
+`docs/plus/hardware-test-round2-2026-08-30.md`.
+
+The rebased `plus/p10-hardware-test-round2` follow-up provides these simulation-verified
+changes and discriminators:
+
+- CRTC3 R8=3 now implements IVM `+2` counting, adjustment parity, the even-frame additional
+  line, MID-VSYNC, odd-frame delay, R7=0 priority, live writes, reset, exit, and the DE/ADJ/VMA
+  consumers. R8=1 sync-only interlace and odd-frame R5 recurrence remain explicit residuals.
+- DMA skips inactive channel fetch slots; all eight channel masks are pinned. This is a direct
+  retest candidate for the reported sample pitch, not hardware confirmation.
+- The production-shaped PPI/YM2149/hid/joydb fixture passes PS/2 A, SNAC Fire 1, and USB Fire 1
+  under real ASIC phase/READY timing. It excludes DMA ownership, so Plotting and Arnold 5 are
+  not attributed or closed.
+- The SNA FIFO reserves the checked two-byte post-wait producer tail. The local seam injects
+  that bound but still does not elaborate `hps_io` and `Amstrad.sv` together.
+- Sprite regressions now overlap all 16 live-updated sprites at one early window and connect
+  real `asic_regs` storage to delayed sprite arbitration, stale-ACK rejection, re-demand, and
+  modeled access blanking. These validate the implementation model, not undocumented hardware
+  bandwidth, sprite coordinates, or access-hole duration.
+- The production boot harness pins a 4,096-tick sustained cartridge window: 38 M1 fetch phases,
+  73 physical reads, 803 WAIT-low ticks, and an 11-tick maximum stall. Its hardwired no-wait
+  ordinary-RAM side cannot provide a like-for-like speed comparison, so no cache redesign is
+  justified yet.
+
+Shared integration `074c182` also adds reviewed u765 reset/ACK quarantine, mount-retry
+retention, and selected-write aliases. That is a direct BASIC/System retest candidate, but the
+remaining late-stale-ACK ambiguity and absence of a full CPU READ DATA boot keep the symptom
+open. None of the 2026-08-30 changes has been synthesized or hardware-tested.
+
+## 2026-08-29 Plus cartridge checkpoint — historical P10 baseline
 
 P0-P9 and HF-1/HF-2/HF-3 are implemented and simulation-verified, but the first broad
 post-P9 cartridge sample does **not** support calling the Plus implementation complete in a
@@ -101,8 +141,9 @@ synthesized, or hardware-confirmed. The report and remediation status are in
 therefore remain retest hypotheses. A bounded real-u765 bench now covers CPC
 write aliases, EDSK mount/status, and reset during an active host transfer with
 delayed ACK/buffer traffic; BASIC/System CPR remains open because no bench runs
-the full CPU boot and READ DATA path against that controller. DMA/PPI concurrency, cartridge fetch timing,
-PRI monitor-HSYNC timing, CRTC3 R8 interlace/IVM, SSCR raw-bit horizontal shifting, and the
+the full CPU boot and READ DATA path against that controller. DMA/PPI concurrency, a
+cartridge-versus-RAM/title timing comparison, PRI monitor-HSYNC timing, CRTC3 R8=1 sync-only
+interlace and odd-frame R5 recurrence, SSCR raw-bit horizontal shifting, and the
 first adjustment-line split also remain open.
 
 The only current local RBF is the smoke-fit `7c46b8d` artifact
@@ -112,8 +153,9 @@ main setup slack **-0.796 ns**, TNS **-10.576 ns**. Smoke builds are not hardwar
 evidence under `docs/ci-testing-policy.md`. If this was the tested RBF, timing is a plausible
 cross-title failure source but does not identify a particular RTL rule. P10a delivered a
 deterministic TV80-under-T80pa-contract production-motherboard harness, not the required
-exact-tip full-effort timing-clean baseline and not a faithful title oracle. P10d cartridge
-execution timing and P10g Panza/CRTC3 first-divergence work have not started.
+exact-tip full-effort timing-clean baseline and not a faithful title oracle. P10d now has a
+sustained-cartridge WAIT baseline but no valid ordinary-RAM/title comparison; P10g title-level
+Pang/CRTC3 first-divergence work has not started.
 
 Status vocabulary from this checkpoint onward is: **implemented**,
 **simulation-verified**, **full-fit/timing-clean**, and **hardware-confirmed**. Promote an

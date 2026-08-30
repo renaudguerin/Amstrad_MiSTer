@@ -122,10 +122,11 @@ reset to both, but no real-controller transaction test proves that contract yet.
 
 - [x] Define the FDC/motor reset contract for classic OSD reset, Plus CPR apply, and model
   changes; reset both controller state and motor on the selected system-reset event (connected `u765.reset(reset)` and `motor` reset in `Amstrad.sv`).
-- [ ] Add `active FDC command -> CPR load/apply -> first FDC access` coverage with the real
-  u765 model and a deterministic mounted disk.
-- [ ] Drive the real AMSDOS aliases `&FADD` and `&FBDF` through a production-level bench.
-  They are pinned in the shared decoder truth table, not through u765 or `Amstrad.sv`.
+- [x] Add `active FDC request -> reset -> delayed stale ACK/buffer traffic -> fresh request`
+  coverage with the real u765 model and a deterministic mounted disk. Integration `074c182`
+  also retains a mount retry across the quarantine. A full CPU READ DATA boot remains open.
+- [x] Drive CPC selected-write aliases through the production `Amstrad.sv` decode and bounded
+  u765 bench. A full CPU/AMSDOS transaction at `&FADD`/`&FBDF` remains a hardware/top-level gate.
 
 ### CF-4 — P7's DMA-versus-PPI/PSG WAIT contract is absent
 
@@ -294,13 +295,16 @@ cartridge windows.
 
 **Required discriminator and likely fix:**
 
-- [ ] Use the production CPU trace to measure cartridge wait cycles and compare title progress
-  before changing the memory path.
+- [x] Use the production CPU trace to measure a sustained cartridge window before changing
+  the memory path: 4,096 64-MHz ticks produce 38 M1 fetch phases, 73 physical reads, 803
+  WAIT-low ticks, and an 11-tick maximum stall in the deterministic P10 harness.
+- [ ] Compare equivalent ordinary-RAM or title progress. The current harness hardwires the
+  no-wait RAM side and cannot provide that like-for-like result.
 - [ ] If the trace confirms timing sensitivity, serve cartridge reads through the normal CPU
   SDRAM slot or a synthesis-affordable cache/window rather than a serial request round trip
   for every byte.
-- [ ] Pin reset-vector and sustained-cartridge-execution timing with deterministic tests;
-  retain fail-closed behavior during load/clear and classic-mode isolation.
+- [x] Pin reset-vector, upper-page data, and sustained-cartridge-execution timing with a
+  deterministic test; retain fail-closed behavior during load/clear and classic isolation.
 
 ### CG-3 — The sprite engine uses an undocumented staging/bandwidth model
 
@@ -315,8 +319,9 @@ RoboCop-like animation bursts.
 
 - [x] Add a sustained 16-pixel burst (`s15`) and a one-cycle access colliding with a delayed
   pre-write ACK (`s16`) in `sim/plus/asic_sprites_test.cpp`.
-- [ ] Add the remaining production-cadence discriminator: all 16 sprites under concurrent
-  CPU animation writes, with changing row/Y/magnification and the real memory grant cadence.
+- [x] Add the remaining production-cadence discriminator: `s17` overlaps all 16 sprites in
+  one early window under concurrent CPU animation writes, changing row/Y/magnification, and
+  the real leaf memory-grant cadence; a unique emitted marker proves every staged row ready.
 - [x] Implement coherent CPU pixel write-through into matching staged buffers in `rtl/plus/asic_sprites.v`
   and eliminate destructive bank invalidation cache flushes; emulate only the documented per-access blanking hole.
 - [ ] Confirm the access-blanking duration and staging model on hardware; until then keep
