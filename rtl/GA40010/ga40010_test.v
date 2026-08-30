@@ -32,6 +32,7 @@ module ga40010_test (
 	input RD_N,
 	input WR_N,
 	input IORQ_N,
+	input CRTC_TYPE,
 
 	output reg CEN_16,
 	output PHI_N,
@@ -46,6 +47,10 @@ module ga40010_test (
 
 	output HSYNC,
 	output VSYNC,
+	output CRTC_HSYNC_RAW,
+	output CRTC_DE_RAW,
+	output [7:0] CRTC_C0,
+	output [7:0] CRTC_R2,
 	output BLUE_OE_N,
 	output BLUE,
 	output GREEN_OE_N,
@@ -130,13 +135,21 @@ wire CRTC_VSYNC;
 wire CRTC_DE;
 
 assign VRAM_ADDR = {MA[13:12], RA[2:0], MA[9:0]};
+assign CRTC_HSYNC_RAW = CRTC_HSYNC;
+assign CRTC_DE_RAW = CRTC_DE;
+// Test-only timing taps. Keeping these at the integration boundary lets the
+// fixture schedule a real CPC OUT cycle and measure the GA-visible result
+// without adding observability ports to production CRTC RTL.
+assign CRTC_C0 = crtc.hcc;
+assign CRTC_R2 = crtc.R2_h_sync_pos;
 
 CRTC crtc
 (
 	.CLOCK(clk),
 	.CLKEN(CCLK_EN_N),
+	.nCLKEN(CCLK_EN_P),
 	.nRESET(RESET_N),
-	.CRTC_TYPE(1'b0),
+	.CRTC_TYPE(CRTC_TYPE),
 
 	.ENABLE(io_rd | io_wr),
 	.nCS(A[14]),
