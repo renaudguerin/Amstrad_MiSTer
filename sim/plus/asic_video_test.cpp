@@ -1168,8 +1168,8 @@ void t02g_r5_grow_extends_adjustment(TestBench& test) {
 // the setup seam deterministic: its first reset-frame rollover is followed
 // by one no-adjustment frame, leaving the next frame's ParityFrame even.
 // R5 and R8 are then written at that frame origin, so the first adjustment
-// below is the even-frame case.  No MID-VSYNC or additional-line timing is
-// asserted here.
+// below is the even-frame case.  The companion vectors below separately pin
+// the additional-line and VSYNC phase rules.
 void program_ivm_adjustment_frame(TestBench& test) {
     test.write_register(0, 63);
     test.write_register(1, 2);
@@ -1217,8 +1217,15 @@ void t02k_ivm_even_frame_adjustment(TestBench& test) {
     test.expect_ma("t02k adjustment line 1 reuses captured VMA'", kAdjustmentMa);
     test.run_characters(kLineCharacters);
 
-    test.expect_adj(false, "t02k R5 ends adjustment after two lines");
-    test.expect_line("t02k frame restart resets C4", 0);
+    // ACCC v1.11 §19.6.4 p.217: after the R5 lines, an even frame gains
+    // one interlace line.  C4 is not incremented, C9 is unconditionally 0,
+    // and the solidified pointer from the last C4 remains in use.
+    test.expect_line("t02k interlace line keeps C4 at R4", 1);
+    test.expect_row("t02k interlace line forces C9 to zero", 0);
+    test.expect_ma("t02k interlace line keeps captured VMA'", kAdjustmentMa);
+    test.run_characters(kLineCharacters);
+
+    test.expect_line("t02k frame restart resets C4 after interlace line", 0);
     test.expect_row("t02k frame restart aligns C9 with odd ParityFrame", 1);
     test.expect_ma("t02k frame restart reloads R12/R13", kBase);
 }
@@ -1238,7 +1245,8 @@ void t02l_ivm_odd_frame_adjustment(TestBench& test) {
     // Consume the even frame's adjustment, exposing the next frame's odd
     // ParityFrame and the simultaneous R12/R13 VMA reload.
     test.run_until_adjustment();
-    test.run_characters(kLineCharacters * 2);
+    // Two R5 lines plus the even frame's §19.6.4 interlace line.
+    test.run_characters(kLineCharacters * 3);
     test.expect_adj(false, "t02l even-frame adjustment has ended");
     test.expect_line("t02l odd frame restarts C4 at zero", 0);
     test.expect_row("t02l odd frame starts on C9 parity 1", 1);
@@ -1282,6 +1290,83 @@ void t02l_ivm_odd_frame_adjustment(TestBench& test) {
     test.expect_line("t02l next frame restart resets C4", 0);
     test.expect_row("t02l next frame aligns C9 with even ParityFrame", 0);
     test.expect_ma("t02l next frame reloads R12/R13", kBase);
+}
+
+// Program a stable IVM frame whose first active field is even.  R0=63 makes
+// the ACCC p.214/p.218 half-line position C0=31 directly observable.  The
+// initial R0=0 reset rollover makes ParityFrame odd; run_to_frame_start()
+// consumes the programmed setup frame and therefore enters an even frame.
+void program_ivm_sync_frame(TestBench& test, unsigned r7) {
+    test.write_register(0, 63);
+    test.write_register(1, 2);
+    test.write_register(3, 0x11);  // one-line VSYNC
+    test.write_register(4, 3);
+    test.write_register(5, 0);
+    test.write_register(6, 100);
+    test.write_register(7, r7);
+    test.write_register(9, 7);
+    test.run_to_frame_start();
+    test.write_register(8, 3);
+}
+
+// ACCC v1.11 §19.5.5 pp.213-215 and §19.7.1/19.7.3 p.218.  With odd R9
+// and R7=1, the even frame starts VSYNC in the middle of the first line of
+// C4=1 (C9=1, C0=R0/2).  On the following odd frame C4=1 begins at C9=0,
+// but the odd-C4 balancing rule delays VSYNC by one whole line to C9=2.
+// These expectations are the highlighted R7=1 rows in the p.214 diagram.
+void t04j_ivm_mid_vsync_and_odd_frame_delay(TestBench& test) {
+    constexpr unsigned kLineCharacters = 64;
+    program_ivm_sync_frame(test, 1);
+
+    test.run_to_state(1, 1, 0, "t04j even frame C4=R7 first line");
+    test.expect_vsync("t04j even frame is low at first-line seam", false);
+    test.run_characters(30);
+    test.expect_hcc("t04j before MID-VSYNC", 30);
+    test.expect_vsync("t04j low before C0=R0/2", false);
+    test.run_characters(1);
+    test.expect_hcc("t04j MID-VSYNC horizontal phase", 31);
+    test.expect_vsync("t04j even frame fires at C0=R0/2", true);
+    test.run_characters(63);
+    test.expect_hcc("t04j before half-line-aligned VSYNC end", 30);
+    test.expect_vsync("t04j one-line pulse remains high before midpoint", true);
+    test.run_characters(1);
+    test.expect_hcc("t04j half-line-aligned VSYNC end", 31);
+    test.expect_vsync("t04j one-line MID-VSYNC ends at next midpoint", false);
+
+    // The even frame has one §19.6.4 line; the next frame starts on odd C9.
+    test.run_to_state(0, 1, 0, "t04j following odd frame origin");
+    test.run_to_state(1, 0, 0, "t04j odd frame C4=R7 first line");
+    test.expect_vsync("t04j odd frame suppresses first-line VSYNC", false);
+    test.run_characters(kLineCharacters);
+    test.expect_line("t04j delayed VSYNC remains on C4=R7", 1);
+    test.expect_row("t04j delayed VSYNC starts on second line C9=2", 2);
+    test.expect_hcc("t04j delayed VSYNC is line-aligned", 0);
+    test.expect_vsync("t04j odd frame fires one line late", true);
+}
+
+// ACCC v1.11 §19.7.3 p.218 gives CRTC3/4 a special R7=0 priority rule:
+// the outgoing ParityFrame is sampled before it toggles.  Therefore an even
+// outgoing frame schedules MID-VSYNC in the new odd frame, while an odd
+// outgoing frame starts an ordinary seam VSYNC in the new even frame.
+void t04k_ivm_r7_zero_uses_outgoing_parity(TestBench& test) {
+    program_ivm_sync_frame(test, 100);
+    test.write_register(7, 0);
+
+    // End the active even frame.  Its additional line precedes the new odd
+    // origin; the outgoing-even decision schedules a mid-line start there.
+    test.run_to_state(0, 1, 0, "t04k odd frame origin");
+    test.expect_vsync("t04k outgoing-even frame suppresses seam start", false);
+    test.run_characters(30);
+    test.expect_vsync("t04k R7=0 remains low before half line", false);
+    test.run_characters(1);
+    test.expect_hcc("t04k R7=0 MID-VSYNC phase", 31);
+    test.expect_vsync("t04k outgoing-even frame schedules MID-VSYNC", true);
+
+    // The odd frame has no additional line.  At its end, the outgoing-odd
+    // comparison fires before ParityFrame becomes even, so VSYNC is already
+    // high at C4=C9=C0=0.
+    test.run_to_state(0, 0, 0, "t04k even frame origin");
+    test.expect_vsync("t04k outgoing-odd frame starts seam VSYNC", true);
 }
 
 // ACCC v1.11 section 19.8.4 pp.235-238: entering IVM (R8=3)
@@ -1358,7 +1443,10 @@ void t02i_ivm_odd_r9_balances_rows_and_frames(TestBench& test) {
         test.expect_row("t02i odd C4 uses odd C9", expected);
     }
     test.run_characters(8);
-    test.expect_line("t02i frame boundary resets C4", 0);
+    test.expect_line("t02i even-frame interlace line keeps C4 at R4", 1);
+    test.expect_row("t02i even-frame interlace line forces C9=0", 0);
+    test.run_characters(8);
+    test.expect_line("t02i frame boundary resets C4 after interlace line", 0);
     test.expect_row("t02i new frame starts on toggled frame parity", 1);
     test.expect_ma("t02i odd-parity frame still reloads R12/R13", 0x1235);
 }
@@ -2450,7 +2538,7 @@ void t08i_sscr_vertical_wrap_advances_ma(TestBench& test) {
     test.expect_ra("t08i next row starts at offset RA 1", 1);
 }
 
-constexpr std::array<TestCase, 62> kTests = {{
+constexpr std::array<TestCase, 64> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -2487,6 +2575,10 @@ constexpr std::array<TestCase, 62> kTests = {{
     {"t04e VSYNC gate and mid-row R7 write", t04e_vsync_gate_and_r7_write},
     {"t04f VSYNC width incl. legacy 16", t04f_vsync_width},
     {"t04g VSYNC refire without protection", t04g_no_reentrancy_continuous_refire},
+    {"t04j IVM MID-VSYNC and odd-frame delay",
+     t04j_ivm_mid_vsync_and_odd_frame_delay},
+    {"t04k IVM R7=0 outgoing-parity priority",
+     t04k_ivm_r7_zero_uses_outgoing_parity},
     {"t05a legacy-colour ROM sweep ([KT])", t05a_legacy_colour_rom_sweep},
     {"t05b mode 2 sequential pixels", t05b_mode2_sequential_pixels},
     {"t05c mode 1 pair pixels", t05c_mode1_pair_pixels},
