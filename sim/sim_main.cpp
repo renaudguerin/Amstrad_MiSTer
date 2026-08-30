@@ -295,6 +295,19 @@ public:
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__ivm_disp_r);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__tog_line);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__tog_enter_line);
+        // F20 R2.JIT fixture stage (2026-08-30): sub-character HSYNC timing
+        // introduces wrapper-owned phase and deferred-edge state.  Fold every
+        // behavior-bearing latch into the projection so reset, live-type-switch,
+        // and delayed-trailing-edge leaks cannot hide behind identical pins.
+        mix(r.CRTC__DOT__hsync_char_phase);
+        mix(r.CRTC__DOT__hsync_start_phase);
+        mix(r.CRTC__DOT__hsync_off_count);
+        mix(r.CRTC__DOT__hsync_off_pending);
+        mix(r.CRTC__DOT__hsync_phaseful);
+        mix(r.CRTC__DOT__type1_hsync_start_pending);
+        mix(r.CRTC__DOT__type1_hsync_start_count);
+        mix(r.CRTC__DOT__r2_jit_pending);
+        mix(r.CRTC__DOT__register_write_d);
     }
 
     void expect_byte(const std::string& expectation,
@@ -5016,15 +5029,13 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
 // ACCC v1.10 section 17.6.2 (page 186): when R1 > R0 the C0=R1 DISPTMG-off
 // comparison can never fire (C0 wraps at R0 first), so a type-0 CRTC
 // substitutes C0=R0 as the border-start trigger. The source describes the
-// resulting border byte as 0.5 us, but this character-granular Stage 1 bench
-// deliberately pins DE low for the full 1 us character containing that
-// trigger; these assertions are for that accepted approximation, not exact
-// ACCC pin timing. F13 remains hardware-blocked for the half-character
-// distinction. Type 1 emits nothing at all in this configuration (pages
+// resulting second-half byte as 0.5 us; the character walker below samples
+// that late phase, while t31 pins both halves exactly. Type 1 emits nothing at
+// all in this configuration (pages
 // 186-187) -- the documented type discriminator of section 28.1.6. Section
 // 19.2.4 (page 195) counts a programmed SKEW-DISPTMG delay from the
-// substituted trigger as if C0=R1 had fired there, so delay=1/2 displaces the
-// approximated full-character blank onto C0=0/C0=1 of the following line
+// substituted trigger as if C0=R1 had fired there, so delay=1/2 rounds and
+// displaces the event onto the full C0=0/C0=1 character of the following line
 // (delay arithmetic per section 19.2.3, pages 193-194), and SKEW mode 2'b11
 // suppresses all DISPTMG output entirely.
 // ---------------------------------------------------------------------------
@@ -5061,7 +5072,8 @@ void f6_expect_line_de(TestBench& test,
 }
 
 // Display runs through every character of the line; the only gap is the
-// substituted-trigger border byte itself.
+// The line walker samples the late half of each character, so the no-skew
+// type-0 border byte is visible at C0=R0.
 constexpr std::array<bool, kF6LineCharacters> kF6SpuriousByteAtR0 = {
     true, true, true, true, true, true, true, true,
     true, true, true, true, true, true, true, false,
@@ -5109,7 +5121,7 @@ void test_type0_r1_gt_r0_spurious_border_byte(TestBench& test) {
     test.expect_ma("type 0 R1>R0 pointer keeps counting through the border byte",
                    0x1234 + 15);
     test.expect_de_low(
-        "type 0 R1>R0 spurious border byte keyed on C0=R0 "
+        "type 0 R1>R0 second half of C0=R0 is the border byte "
         "(ACCC v1.10 section 17.6.2 p.186)");
 
     // ACCC v1.10 section 17.6.2 (page 186): BORDER OFF on the character
@@ -5185,6 +5197,42 @@ void test_type0_skew_non_output_blanks(TestBench& test) {
     test.run_characters(1);
     f6_expect_line_de(test, blanked,
                       "type 0 R1>R0 skew non-output stays blanked");
+}
+
+// ---------------------------------------------------------------------------
+// t31: F13 -- exact half-character type-0 border pulse when R1 > R0
+//
+// ACCC v1.11 section 17.6.2 p.186 splits C0=R0 into a displayed first byte
+// and a border second byte. Section 19.2.4 p.195 states the pin-level rule:
+// BORDER is sent 0.5 us after C0=R0 and disabled on the next character 0.5 us
+// later. The p.195 diagrams separately show that SKEW-DISPTMG rounds the
+// deferred event onto a full delayed character; t10c/t10d already pin those
+// cases. This fixture pins the no-skew phase that differs from those rounded
+// delayed events.
+// ---------------------------------------------------------------------------
+
+void f13_expect_first_half_displayed(TestBench& test,
+                                     unsigned skew,
+                                     unsigned target_c0,
+                                     const std::string& context) {
+    test.set_crtc_type(0);
+    f6_settle_one_frame(test, skew);
+    // f6_settle_one_frame leaves phase 0 immediately before CLKEN with the
+    // late half-phase still latched. Stop one character early, then process
+    // CLKEN to enter target_c0 at its exact first half.
+    test.run_characters(target_c0 - 1);
+    test.run_clock_ticks(1);
+    test.expect_de_high(context + " first half remains displayed");
+    test.run_clock_ticks(kClockTicksPerCharacter / 2);
+    test.expect_de_low(context + " second half is the border byte");
+    test.run_clock_ticks(kClockTicksPerCharacter / 2);
+    test.expect_de_high(context + " next character resumes display");
+}
+
+void t31_type0_half_character_border_no_skew(TestBench& test) {
+    f13_expect_first_half_displayed(
+        test, 0, 15,
+        "F13 no-skew C0=R0 (ACCC v1.11 sections 17.6.2 p.186 and 19.2.4 p.195)");
 }
 
 // ---------------------------------------------------------------------------
@@ -7458,6 +7506,10 @@ int main(int argc, char** argv) {
         {"t30b_type0_post_ivm_exit_recovery_recipe_even",
          "ACCC v1.10 section 19.8.1 p.220 prose (recovery recipe by programming R9=C9.VMA, even frame); F16",
          false, t30_type0_post_ivm_exit_recovery_recipe_even},
+        // t31: F13 exact half-character border pulse.
+        {"t31a_type0_half_character_border_no_skew",
+         "ACCC v1.11 sections 17.6.2 p.186 and 19.2.4 p.195; F13",
+         false, t31_type0_half_character_border_no_skew},
     };
 
     unsigned passed = 0;

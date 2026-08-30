@@ -20,7 +20,7 @@ merged into the same behavioral PR.
   `plus/p0-parser-wiring`, which rebase onto this branch's post-review fixes).
 - The current development state contains the accuracy/reference documents, the F1-F3 and main
   F5 corrections, deterministic-complete F12/F4/F8/F9, the Verilator CRTC/Plus gates plus the
-  randomized equivalence soak (`make -C sim soak`, golden hash `0x512eaae74a628dca`), the
+  randomized equivalence soak (`make -C sim soak`, golden hash `0x32d468e81eac63c9`), the
   production-wired bounded CPR parser/service/MMU path, R12/R13 reload vectors
   (`t20a`-`t20i`), the per-type engine
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
@@ -30,9 +30,9 @@ merged into the same behavioral PR.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
   RBF packaging, and artifact upload through the pass-2 fix tip `f6f09f5` (run
   `32645547100`). New top-level/file-list commits still require their own run.
-- `sim/` currently reports **107** required classic CRTC passes with no expected failures
-  (verified 2026-08-23, Verilator 5.050); the soak reproduces golden hash
-  `0x512eaae74a628dca`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
+- `sim/` currently reports **176** required classic CRTC passes with no expected failures
+  (verified 2026-08-30, Verilator 5.050); the soak reproduces golden hash
+  `0x32d468e81eac63c9`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through
@@ -40,8 +40,11 @@ merged into the same behavioral PR.
 - ACCC v1.10 is the primary written Compendium baseline (`docs/ACCC1.10-EN.pdf`, outranking checked-in digests whenever a rule claim matters; see `accuracy/findings-review.md`, corrections B1-B13 applied). v1.9 is disregarded — historical only.
 - The v1.10 documentation rebaseline and the deterministic F12/F4/F8 milestones are complete;
   F9 closure is merged into this branch (`t12a`/`t12b`: exact-C0==R0 write → C4=39/C9=8 and
-  its windowed companion → C4=38/C9=8, ACCC p.82). F6 Stage 2/2b is complete; F13 is
-  hardware-blocked. F7 RFD is complete in full; the next independent classic checkpoint is
+  its windowed companion → C4=38/C9=8, ACCC p.82). F13's ACCC-model half-character DE
+  phase is implemented; SHAKER/DE-pin hardware validation remains open. F20's CRTC-1
+  R2.JIT start phase and fixed display-reactivation edge are implemented through the integrated
+  CRTC+GA path; DSC4 and SHAKER `(TAB)` remain hardware gates. F7 RFD is complete
+  in full; the next independent classic checkpoint is
   F10 (fixtures first).
 
 The current branch is a useful staging branch, not a requirement to publish one large PR.
@@ -174,9 +177,20 @@ The full options analysis, evidence, staged plan, and revert conditions live in
 SKEW-DISPTMG handling (`accuracy/a3-f6-stage1`, t10a-t10e). Stage 2 rendered a 16-mode-2-px
 (1 µs) seam. Stage 2b's visual reading of ACCC pp.186/195 establishes that the documented
 0.5 µs belongs to a sub-character CRTC DE pulse; test/production CRTC clock phase matches
-and both GA buffer paths agree. Formal finding F13 is BLOCKED-PENDING-HARDWARE-EVIDENCE:
-SHAKER Module A `(O)` plus a DE-pin capture if possible. Stage 1 remains the presence/type/
-skew approximation and must not be described as exact.
+and both GA buffer paths agree. F13 is implemented in the CRTC wrapper with `t31a` pinning
+the no-skew half-phases; SHAKER Module A `(O)` plus a DE-pin capture remain required hardware
+validation. SKEW-DISPTMG 1/2 retains the p.195 rounded full-character displacement.
+
+### F20 R2.JIT hardware gate
+
+ACCC v1.11 §14.6.1 p.141 is pinned through the production CRTC+GA timing path:
+type-0/type-1 dynamic `OUT (C),r8` equality starts blanking four/three Mode-2
+pixels after the normal start while the type-specific display-reactivation edge
+stays fixed, shortening the raw pulse by four/three pixels. The deterministic fixture
+is complete; the next acceptance layer is DSC4 plus SHAKER `(TAB)` on real CRTC-1
+hardware. Keep RFD×IVM, active-pulse R2 updates, and instruction-form distinctions
+as separately named residuals rather than attributing a remaining DSC4 failure
+to R2.JIT without a first-divergence trace.
 
 ### F10 scope gate
 
@@ -393,8 +407,11 @@ then the confirmed PPI and FDC/model/reset fixes. Sprite/video changes remain tr
    Identical: without design partitions `--flow compile` never reused the restored databases.
    The cache was removed; all synthesis runs are clean compiles. Evidence in
    `docs/ci-testing-policy.md` and `docs/current-status.md`.
-4. Classic stream: F6 Stage 2/2b is complete. F13 owns the CRTC-side half-character phase
-   and is BLOCKED-PENDING-HARDWARE-EVIDENCE. F7's planned routes are implemented, but the
+4. Classic stream: F13's CRTC-side half-character phase is implemented from the
+   render-verified ACCC rule and is pending SHAKER/DE-pin validation. F20's CRTC-1
+   R2.JIT phase is implemented and waits for DSC4/SHAKER `(TAB)` hardware validation.
+   F7's planned routes
+   are implemented, but the
    Q4 recheck opens F17 for the C9=R9 source-state result and requires `t13d` re-derivation.
    F10's implemented scope is complete; F14/F15/F16 are the fixture-first follow-ups. F18 is
    an independent light-pen interface decision. Q17 remains hardware-gated.
@@ -404,9 +421,9 @@ then the confirmed PPI and FDC/model/reset fixes. Sprite/video changes remain tr
    P10b's PPI Port C physical-output fix and P10c's model/FDC reset integration. Do not
    combine these confirmed repairs with evidence-gated sprite/video changes, and do not
    combine Plus work with the classic stream. See `plus/hardware-checkpoint-findings.md`.
-6. F6 proceeds per `accuracy/f6-decision-gate.md`: Stage 1 is the full-character
-   presence/type/skew approximation; Stage 2 measured 1 µs; Stage 2b assigns the documented
-   0.5 µs to the CRTC DE phase. No CRTC, GA, or glue work before F13's hardware gate.
+6. F6/F13 proceeds per `accuracy/f6-decision-gate.md`: Stage 2 measured the old 1 µs input;
+   Stage 2b assigned the documented 0.5 µs to the CRTC DE phase; the wrapper correction and
+   exact `t31a` vector are now implemented. Hardware remains the authority and can reopen it.
 7. Common dependencies for both streams (harness helpers, shared docs) land on
    `accc-review-and-fixes`; the running stream branches (`accuracy/a3-f6-stage1`,
    `plus/p0-parser-wiring`) rebase onto it rather than stacking.

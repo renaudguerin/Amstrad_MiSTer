@@ -111,10 +111,17 @@ The F7/A1/A2 mints kept the seed, event schedule, and sampled-field
 set/order unchanged; random R5 writes now sometimes arm RFD, so the observed
 DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 `0xae27f2c3c758ed87`, A1 moved it to `0x6439f9805b20acaa`, and A2 moved it to
-the current **`0x512eaae74a628dca`** because the fixed random schedule reaches
+`0x512eaae74a628dca` because the fixed random schedule reaches
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
-session plan. The hash depends on the seed, the
+session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
+current hash is **`0x32d468e81eac63c9`** after the reviewed F20 correction:
+type-0/type-1 R2.JIT starts move by 4/3 Mode-2 pixels while display reactivation
+stays at each type's normal position, shortening the raw pulse by 4/3 pixels;
+same-value rewrites remain on the normal path. The preceding
+`0x005deed28be80fa1` mint encoded the rejected width-preserving model plus the
+addition of all new phase/deferred-edge latches to the sampled projection
+(previously `0xc769ea4605afbe04` after F13). The hash depends on the seed, the
 sampled field set/order, the event schedule, and the DUT's observable
 behaviour — any of the first three changing requires re-minting, recorded as
 such. The soak accesses internals by their Verilator names, so a refactor

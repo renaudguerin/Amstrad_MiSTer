@@ -96,7 +96,8 @@ lags a sub-vector name.
 | t07a-t07m equality overflow and live VMA capture — implemented: R9<C9 counts C9 through 31/wrap; outside adjustment R4<C4 counts C4 through 127/wrap; a late live R9 match also feeds VMA' capture at C0=R1 | digest-01 §3/§7/§17.1 | F4, while preserving F12 arbitration |
 | t08 type-1 adjustment: §28.1.1 identification fixture plus C5/C4/C9 sequencing; A1 makes the adjustment-ending final-row+1 VSYNC comparison silent; A2 pins the §11.2.4 exact-C0==R0 caveat pair (R4>0 suppresses the C4=1 R12/R13 reload, R9 does not) | digest-01 §11.2.4 + digest-02 §§16.1/16.4.2 + digest-03 §28.1.1 | F4/F8/A1/A2 |
 | t09 R0=0 freeze (type 0): counters halt, no HSYNC unless R2=0, resume clean; C9=R9 entry consumes exactly one C4 increment — implemented | digest-01 §8.1 | F5/F12 boundary |
-| t10a-t10e R1>R0: type 0 one **full-character Stage 1 approximation** of the border event at C0=R0 (+MA counting/repetition), type 1 none; SKEW-DISPTMG displacement 1/2 and non-output suppression — implemented; exact ACCC 0.5 µs pin timing remains F13 hardware-blocked | digest-03 §17.6.2/§19.2.3/§19.2.4 | F6 Stage 1 |
+| t10a-t10e + t31a R1>R0: type 0 no-skew DE is high for C0=R0's first half and low for its second 0.5 µs; type 1 none; SKEW-DISPTMG 1/2 rounds the deferred event to a full delayed character and mode 3 suppresses output — implemented, hardware validation pending | digest-03 §17.6.2/§19.2.3/§19.2.4 | F6/F13 |
+| integrated GA R2.JIT controls: production-phased `OUT (C),r8` makes R2 equal current C0; type-0/type-1 visible/raw starts move +4/+3 Mode-2 pixels while raw width shortens by 4/3 and the type-specific display-reactivation edge stays fixed; same-value intent control stays normal but lands after HSYNC rise — implemented, hardware validation pending | ACCC v1.11 §9.3.4.1 pp.53-54, §9.3.4.3 p.57, §14.6.1 p.141 | F20 |
 | t11 type 1 adjustment: C9 keeps cycling (RA!), C4 increments, R5=0 doesn't end | digest-01 §4 | F8 |
 | t12a/t12b documented R4=38/R9=7 worked example pair (type 0): exact-C0==R0 R9 write leaves C4=39,C9=8; windowed write (C0∈[2,R0−1]) leaves C4=38,C9=8 — both encoded from ACCC §11.2.2 p.82 ex.3 — implemented | digest-01 §3.1/§4.2 | F9/F12 |
 | t13a-t13d RFD — implemented: away-from-R0 never-triggered control, R5 0→1 at C0==R0, same-cycle VMA reload/adjustment entry, frame-parity VMA' alternation, successful-save disarm, and R1>R0 bare-C9 disarm | digest-01 §4.5/§5 | F7/B6 |
@@ -104,10 +105,11 @@ lags a sub-vector name.
 | t15 R12/R13 overscan-bit carry into MA[13:12] | digest-03 §20.5 | regression |
 | t16a-t16y type-0 last-line/adjustment arbitration — implemented: same-edge C0=0 R4 comparison; C0=1 R4/R9 equality breaks with R5=0, including exact R0=1 rollover consumption; R5 accepted through C0==2 and rejected after it with the accepted current-line target retained; R9 updates at C0==2..R0-1; R4 updates switch C9/R9 to C9/R5 through exact-R0; exact-R0 R9 increments C4 and C9; active adjustment reuses C9 against R5 even when R9 differs, including R5=0 overflow and zero-entry extension; R0=0/1 default adjustment; R0=0 during active adjustment freezes C4/C9; completion and retained-state lifecycle | digest-01 §3.1/§4.2/§7.1/§8.1 | F12 deterministic counter milestone and F5/F9 boundaries |
 
-All implemented groups are required passes. The suite has **no expected failures** since
+All implemented groups are required passes. The classic suite currently has **176 required
+passes**, zero expected failures, zero unexpected passes, and zero failures. It has had no
+expected failures since
 the F8 commit (`c9f4a4e`): the former type-1 adjustment-identification xfails
-(`t08f`/`t08g`) became required passes. Current state (2026-08-23, after A3 `t20i` and F6
-Stage 1 `t10a`-`t10e`, F7 `t13a`-`t13d`, A1 `t08m`, and A2 `t08n`/`t08o`): 100 passed / 0 xfailed / 0 xpassed / 0 failed. These vectors fix
+(`t08f`/`t08g`) became required passes. These vectors fix
 the v1.10 counter and adjustment-state expectations while
 deliberately avoiding unsupported sub-character MA/DE/VSYNC claims. If later hardware
 evidence introduces a true pin-level uncertainty, keep any expected failure narrow; never
@@ -143,7 +145,7 @@ the cited ACCC rule when implemented:
 ## Definition of done (for the implementing agent)
 
 1. `make -C sim` runs the full suite non-interactively and exits zero (2026-08-23 state:
-   107 required passes, no expected failures), well under a minute total.
+   176 required passes, no expected failures), well under a minute total.
 2. A failing assertion produces a VCD + human-readable diff.
 3. `docs/accuracy/audit-findings.md` verification levels V3 references become real: each
    finding's fix prompt names its test file.

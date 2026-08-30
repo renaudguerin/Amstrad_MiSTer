@@ -74,13 +74,14 @@ zero separation benefit.
 ### Evidence stack (run these)
 
 ```sh
-make -C sim                                  # 100 passed / 0 xfail / 0 xpass / 0 failed
+make -C sim                                  # 176 passed / 0 xfail / 0 xpass / 0 failed
 make -C sim lint                             # no errors (pre-existing warnings only)
-make -C sim soak SOAK_EXPECT=0x512eaae74a628dca # current sampled-field contract
+make -C sim soak SOAK_EXPECT=0x32d468e81eac63c9 # current sampled-field contract
 ```
 
-The current checkout has 100 classic passes and uses `0x512eaae74a628dca`, re-minted
-for A2 after the A1, F7 RFD, F6 Stage 1, and sampled-field re-mints. The historical
+The current checkout has 176 classic passes and uses `0x32d468e81eac63c9`; the
+full supersession chain is in `AGENTS.md`. The historical `0x512eaae74a628dca`
+was the A2-era value after A1, F7 RFD, F6 Stage 1, and sampled-field re-mints. The historical
 `0x5b5004ff70148443` value remains the correct expectation for the unsplit-core
 comparison commit recorded above; the split-equivalence claim is bounded to the
 sampled fields, stimulus, and phase documented in `sim/README.md`.

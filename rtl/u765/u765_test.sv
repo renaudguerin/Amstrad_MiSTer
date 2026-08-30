@@ -26,7 +26,9 @@ module u765_test
 	input            sd_buff_wr
 );
 
-u765 #(100) u765 (
+// Match production's 8 MHz timing parameter. The C++ harness also pulses ce
+// once per eight clk_sys cycles, as Amstrad.sv does for ce_u765.
+u765 #(4000) u765 (
 	.clk_sys(clk_sys),
 	.ce(ce),
 	.reset(reset),
@@ -34,7 +36,8 @@ u765 #(100) u765 (
 	.motor(motor),
 	.available(available),
 	.fast(fast),
-	.a0(a0),
+	// Production CPC board mapping: both A0 write aliases select data.
+	.a0(a0 | ~nWR),
 	.nRD(nRD),
 	.nWR(nWR),
 	.din(din),

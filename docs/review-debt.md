@@ -96,6 +96,19 @@
 
 ## Cleared rows
 
+- **Accuracy F13 + F20 R2.JIT + shared FDC transaction closure — CLEARED by
+  Claude Opus 5 high, 2026-08-30.** The first review found the F20 width model
+  and fixture wrong; the second accepted the remediated RTL but found the u765
+  reset test non-discriminating. The final narrow review confirmed production
+  one-in-eight CE during stale ACK/write traffic, direct seeded sector-RAM
+  readback, load-bearing mount-retry retention, and honest transaction-tag/The
+  Demo residuals. Parent bite tests fail on the exact stale byte and lost retry
+  when their respective gates are removed. Full simulation, lint, exact soak
+  `0x32d468e81eac63c9`, tracked and supplied EDSK image tests, and whitespace
+  gates pass. Hardware SHAKER/DE validation and a title-level The Demo trace
+  remain evidence gaps, not review debt. Full record:
+  `docs/accuracy/f13-f20-fdc-independent-review.md`.
+
 - `plus/hardware-checkpoint` — **CLEARED 2026-08-28 — OpenAI Codex**. Scope: `Amstrad.sv`,
   `rtl/Amstrad_motherboard.v`, `rtl/plus/asic_video.v`, and testbenches (`sim/plus/asic_video_test.cpp`,
   `sim/plus/p1_mobo_bench_test.cpp`, `sim/plus/p1_video_test_top.v`). Verified hardware test fixes:

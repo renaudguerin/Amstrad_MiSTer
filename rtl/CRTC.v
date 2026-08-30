@@ -436,21 +436,106 @@ end
 // horizontal output
 reg        hde;
 reg  [3:0] hsc;
+reg  [6:0] hsync_char_phase;
+reg  [6:0] hsync_start_phase;
+reg  [6:0] hsync_off_count;
+reg        hsync_off_pending;
+reg        hsync_phaseful;
+reg        type1_hsync_start_pending;
+reg  [1:0] type1_hsync_start_count;
+reg        r2_jit_pending;
+reg        register_write_d;
 
 wire hsync_on = hcc == R2_h_sync_pos && R3_h_sync_width != 0;
 wire hsync_off = CRTC_TYPE ? e1_hsync_off : e0_hsync_off;
+wire register_write = ENABLE & RS & ~nCS & ~R_nW;
+// ACCC v1.11 section 14.6.1 p.141: an OUT(C),r8 update which makes
+// R2 equal to the current C0 is the R2.JIT event.  The bus write is a level
+// for several master clocks in the integrated machine, so recognize only its
+// first edge and let the updated comparator fire on the following edge.
+wire r2_jit_write = register_write & ~register_write_d &
+					(addr == 5'd02) & (hcc == DI) &
+					(R2_h_sync_pos != DI) & (R3_h_sync_width != 0);
 
 always @(posedge CLOCK) begin
 
 	if(~nRESET) begin
-		hsc    <= 0;
-		hde    <= 0;
-		HSYNC  <= 0;
+		hsc                       <= 0;
+		hde                       <= 0;
+		HSYNC                     <= 0;
+		hsync_char_phase          <= 0;
+		hsync_start_phase         <= 0;
+		hsync_off_count           <= 0;
+		hsync_off_pending         <= 0;
+		hsync_phaseful            <= 0;
+		type1_hsync_start_pending <= 0;
+		type1_hsync_start_count   <= 0;
+		r2_jit_pending            <= 0;
+		register_write_d          <= 0;
 	end
 	else begin
-		// should be a half char delay (other edge of the clock?)
-		if (hsync_off)     HSYNC <= 0;
-		else if (hsync_on) HSYNC <= 1;
+		register_write_d <= register_write;
+		if (CLKEN) hsync_char_phase <= 0;
+		else       hsync_char_phase <= hsync_char_phase + 1'd1;
+
+		if (r2_jit_write) r2_jit_pending <= 1;
+		if (!CRTC_TYPE) type1_hsync_start_pending <= 0;
+
+		// Through the GA's 16 MHz video sampler CRTC1's normal start is the
+		// documented sixth rather than fifth pixel-M2. Four 64 MHz master edges
+		// express that one-pixel phase in production; the integrated GA fixture
+		// pins this production ratio. A JIT comparator hit starts immediately at
+		// the write phase. A JIT pulse keeps only the ordinary type-specific
+		// trailing-edge phase, not the later write phase: ACCC sections
+		// 9.3.4.1/9.3.4.3 pp.53-57 state that R2.JIT removes the left part of
+		// blanking without delaying display reactivation, shortening the physical
+		// pulse by 4/3 pixel-M2 on type 0/1 respectively.
+		if (hsync_off_pending) begin
+			if (hsync_off_count == 0) begin
+				HSYNC             <= 0;
+				hsync_off_pending <= 0;
+				hsync_phaseful    <= 0;
+			end else begin
+				hsync_off_count <= hsync_off_count - 1'd1;
+			end
+		end else if (hsync_off) begin
+			if (HSYNC && hsync_phaseful && hsync_start_phase != 0) begin
+				hsync_off_pending <= 1;
+				hsync_off_count   <= hsync_start_phase - 1'd1;
+			end else begin
+				HSYNC          <= 0;
+				hsync_phaseful <= 0;
+			end
+		end else if (!HSYNC) begin
+			if (r2_jit_pending && hsync_on) begin
+				HSYNC                     <= 1;
+				hsync_phaseful            <= CRTC_TYPE;
+				hsync_start_phase         <= CRTC_TYPE ? 7'd4 : 7'd0;
+				r2_jit_pending            <= 0;
+				type1_hsync_start_pending <= 0;
+			end else if (CRTC_TYPE) begin
+				if (type1_hsync_start_pending) begin
+					if (type1_hsync_start_count == 0) begin
+						HSYNC                     <= 1;
+						hsync_phaseful            <= 1;
+						hsync_start_phase         <= hsync_char_phase;
+						type1_hsync_start_pending <= 0;
+					end else begin
+						type1_hsync_start_count <= type1_hsync_start_count - 1'd1;
+					end
+				end else if (hsync_on) begin
+					type1_hsync_start_pending <= 1;
+					type1_hsync_start_count   <= 3;
+				end
+			end else if (hsync_on) begin
+				HSYNC          <= 1;
+				hsync_phaseful <= 0;
+			end
+		end
+
+		// A comparator opportunity that has passed cannot leak into a later
+		// line or a live CRTC type switch.
+		if (CLKEN && hcc != R2_h_sync_pos) r2_jit_pending <= 0;
 
 		if (ENABLE & RS & ~nCS & ~R_nW & addr == 5'd01 & hcc == DI) hde <= 0;
 
@@ -590,13 +675,25 @@ always @(posedge CLOCK) begin
 	end
 end
 
-// DISPTMG delay line. The type-0 spurious-border term (ACCC v1.10 section
-// 17.6.2 p.186, substituted border start for R1>R0) is injected here,
-// ahead of the SKEW-DISPTMG stages, so a programmed delay displaces it
-// like a natural border edge and mode 2'b11 suppresses it (section
-// 19.2.4). The term is already gated on !CRTC_TYPE in the engine: type 1
-// has no border-start substitution at all (ACCC p.186-187).
-wire [3:0] de = {1'b0, dde[1:0], hde & vde & vde_r & ~e0_spurious_border_off};
+// DISPTMG delay line. ACCC v1.11 section 17.6.2 p.186 and section 19.2.4
+// p.195: when type 0 cannot reach C0=R1 because R1>R0, its substituted
+// border event occupies only the second half of C0=R0. nCLKEN marks that
+// half-character phase and CLKEN ends it at the next C0 transition.
+//
+// The exact pulse remains ahead of the character-granular SKEW-DISPTMG
+// stages. This is deliberate: p.195 shows delay 1/2 rounding the deferred
+// event onto the full C0=0/C0=1 character respectively, while mode 2'b11
+// suppresses DISPTMG entirely. Type 1 has no substituted event.
+reg de_second_half;
+always @(posedge CLOCK) begin
+	if(~nRESET)       de_second_half <= 0;
+	else if(CLKEN)    de_second_half <= 0;
+	else if(nCLKEN)   de_second_half <= 1;
+end
+
+wire de_unskewed = hde & vde & vde_r &
+					~(e0_spurious_border_off & de_second_half);
+wire [3:0] de = {1'b0, dde[1:0], de_unskewed};
 reg  [1:0] dde;
 always @(posedge CLOCK) if (CLKEN) dde <= {dde[0],de[0]};
 

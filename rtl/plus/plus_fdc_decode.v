@@ -2,8 +2,8 @@
 //
 // Classic CPC decoding follows the partial I/O map in
 // docs/references/I_O port allocation.md: A10, A8 and A7 select the FDC;
-// A9 and A4-A1 are deliberately ignored.  The uPD765 receives A0 to choose
-// its status or data register at the caller.
+// A9 and A4-A1 are deliberately ignored. The caller uses A0 only for reads;
+// either selected CPC write alias is mapped to the uPD765 data register.
 //
 // The Plus 6128 firmware also uses the A7=1 aliases &FADD and &FBDF.  Its
 // board-level decode retains the A9 qualification and the A4 qualification

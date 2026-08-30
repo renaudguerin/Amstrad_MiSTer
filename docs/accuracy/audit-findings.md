@@ -262,27 +262,30 @@ General implementation rules for all fix prompts:
   R1>R0, C0=R0 contains one DISP-ON byte followed by one BORDER byte; the BORDER signal is
   sent 0.5 µs after C0=R0 and disabled at the following character boundary, 0.5 µs later.
   R1=R0 is the p.185 control (full 1 µs border character). Type 1 emits no seam (p.187).
-- **Current** (`accuracy/f6stage2-soak-expand`, Stage 2/2b): Stage 1 drives DE low for a
-  full character. The GA co-sim renders 16 mode-2 px (1 µs) on 199/199 display rows across
-  two geometries; type 1 renders none. VCD evidence shows `DISPEN_BUF`, `u1008`, and
-  `border_sel` preserve that full-character input width. Candidate-owner elimination:
+- **Current** (`accuracy/f13-dsc4-fdc-investigation`, 2026-08-30): the wrapper now gates the
+  substituted type-0 event with the opposite CRTC phase. With no skew, DE is high for the
+  first half of C0=R0, low from nCLKEN to the following CLKEN, then high at C0=0. The p.195
+  SKEW-DISPTMG 1/2 diagrams remain full-character delayed events at C0=0/C0=1; type 1 emits
+  none. `t31a` pins all three no-skew edges and `t10a`-`t10e` retain type/skew controls.
+  Candidate-owner elimination preceding the change remains relevant:
   test-top phase mismatch is false (`ga40010_test.v` and `Amstrad_motherboard.v` both use
   CCLK_EN_N/S=03; adding production's `nCLKEN` connection does not move the result);
   original async and synchronous GA paths transition identically; ACCC nuance is ruled out
   by the p.186 chronogram plus p.195 prose. Remaining owner: CRTC-side sub-character DE
   phase.
-- **Impact**: the §28.1.6 presence/absence discriminator is implemented, but type-0 seam
-  width/phase is 2x wrong. SHAKER Module A (O) is the hardware gate; effects relying on the
-  exact byte seam may differ despite passing the coarse type discriminator.
+- **Impact**: the §28.1.6 presence/absence discriminator and the ACCC-model width/phase are
+  implemented. SHAKER Module A (O) and a DE-pin capture remain the hardware validation gate;
+  simulation is not hardware evidence.
 - **Confidence: high for document/mechanism ownership; hardware confirmation pending.**
   Multimodal source reading plus agreement between the original async and synchronous
   GA buffer/sequencer realizations (which feed the same `video` module) excludes a
   path-specific discrepancy for the tested full-character pulse. It does not substitute
   for the proposed half-character hardware stimulus; real hardware remains authoritative.
-- **Fix prompt: BLOCKED-PENDING-HARDWARE-EVIDENCE.** Do not change CRTC, GA, or glue RTL.
-  Capture SHAKER Module A (O) on a real type-0 CPC and, if possible, the CRTC DE pin: expected
-  book result is an 8-mode-2-px seam with DE low only for the second byte of C0=R0. Record
-  any disagreement as evidence before selecting among the already-tested candidate owners.
+- **Status: IMPLEMENTED-PENDING-HARDWARE-VALIDATION.** The 2026-08-30 accuracy task
+  explicitly authorized proceeding from the render-verified ACCC model. Capture SHAKER
+  Module A (O) on a real type-0 CPC and, if possible, the CRTC DE pin: expected book result
+  is an 8-mode-2-px seam with DE low only for the second byte of C0=R0. Any disagreement
+  reopens F13; it does not get explained away by the model.
 
 ## F14. Additional interlace line — IMPLEMENTED on both types (2026-08-26)
 
@@ -407,6 +410,40 @@ General implementation rules for all fix prompts:
   `t12d` ($R_9$ write validates Last Line), and `t12e` ($R_4$ write clears Last Line). Golden soak hash remains
   `0x48146d2b681268ab`.
 - **Confidence: high.** Verified against ACCC v1.11 §12.2 pp.92-94 vs §12.4.1 p.95.
+
+## F20. CRTC-1 R2.JIT sub-character HSYNC start — IMPLEMENTED-PENDING-HARDWARE-VALIDATION
+
+- **Rule** (ACCC v1.11 §9.3.4.1 pp.53-54, §9.3.4.3 p.57, §14.6.1 p.141):
+  in the static Mode-2 case the CRTC-1 blank starts one pixel later than
+  CRTC-0. An `OUT (C),r8` write that makes R2 equal to the current C0 exactly
+  at the comparator position delays the start by four Mode-2 pixels on type 0
+  and three on type 1. Display reactivation does not move: the physical raw
+  pulse therefore shortens by the same four/three pixels even though the
+  character-count duration remains governed by R3.
+- **Current** (`accuracy/f13-dsc4-fdc-investigation`, 2026-08-30): the wrapper
+  tracks the master-clock phase within a character. CRTC-1's ordinary
+  comparator start is deferred by four 64 MHz clocks, while the first edge of
+  an R2 write that creates the live equality starts at the actual write phase.
+  The normal type-1 path replays its ordinary one-pixel phase at the trailing
+  edge; JIT retains only that type-specific trailing phase, not the later write
+  phase. The integrated CRTC+GA regressions drive production-phased Z80 I/O
+  writes and pin type 0 at +4/-4 pixels and type 1 at +3/-3 pixels (start/pulse
+  width), plus a same-value normal-path intent control. Production bus phasing
+  lands that write after HSYNC has risen, so it documents the invariant rather
+  than making the defensive same-value guard load-bearing. The classic CRTC suite
+  retains the R3=0, live-R3, reset, and type
+  round-trip controls; all new phase/deferred-edge latches join the soak
+  projection.
+- **Residuals**: DSC4 on real CRTC-1 hardware remains the title-level gate.
+  The current bus interface cannot distinguish `OUTI` from an otherwise
+  identical write, and R2 updates during an already-active pulse need a
+  separate vector before broader §14/§15 closure. A live CRTC-type switch
+  during an already phase-shifted pulse keeps that pulse's origin timing; no
+  hardware rule currently justifies a mid-pulse reinterpretation. RFD×IVM remains an
+  independent compound DSC4 discriminator.
+- **Confidence: high for the ACCC model and integrated timing fixture;
+  hardware confirmation pending.** Simulation is not evidence that DSC4 now
+  passes on MiSTer.
 
 ## F7. RFD ("Rupture For Dummies") — CRTC 1 frame-parity address-reload quirk — R5 and R0-widening triggers implemented
 
