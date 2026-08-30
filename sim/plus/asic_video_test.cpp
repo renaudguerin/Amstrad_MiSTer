@@ -1300,12 +1300,15 @@ void t02l_ivm_odd_frame_adjustment(TestBench& test) {
     test.expect_ma("t02l next frame reloads R12/R13", kBase);
 }
 
-// Program a stable IVM frame whose first active field is even.  R0=63 makes
-// the ACCC p.214/p.218 half-line position C0=31 directly observable.  The
-// initial R0=0 reset rollover makes ParityFrame odd; run_to_frame_start()
-// consumes the programmed setup frame and therefore enters an even frame.
+// Program a stable interlace frame whose first active field is even.  R0=63
+// makes the ACCC p.214/p.218 half-line position C0=31 directly observable.
+// The initial R0=0 reset rollover makes ParityFrame odd;
+// run_to_frame_start() consumes the programmed setup frame and therefore
+// enters an even frame.  The mode defaults to IVM (R8=3); the sync-only
+// vector below passes R8=1 while sharing the same deterministic setup.
 void program_ivm_sync_frame(TestBench& test, unsigned r7,
-                            unsigned vsync_lines = 1) {
+                            unsigned vsync_lines = 1,
+                            unsigned interlace_mode = 3) {
     test.write_register(0, 63);
     test.write_register(1, 2);
     test.write_register(3, ((vsync_lines & 15U) << 4) | 1U);
@@ -1315,7 +1318,7 @@ void program_ivm_sync_frame(TestBench& test, unsigned r7,
     test.write_register(7, r7);
     test.write_register(9, 7);
     test.run_to_frame_start();
-    test.write_register(8, 3);
+    test.write_register(8, interlace_mode);
 }
 
 // ACCC v1.11 §19.5.5 pp.213-215 and §19.7.1/19.7.3 p.218.  With odd R9
@@ -1502,8 +1505,195 @@ void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     active_reset.reset();
     active_reset.expect_vsync("t04m reset clears active VSYNC", false);
 
-    // R8=1 (sync-only interlace) remains an explicit residual; these
-    // source-backed phase and reset vectors exercise IVM (R8=3).
+    // The dedicated t04n vector below covers R8=1 sync-only interlace;
+    // these source-backed phase and reset vectors exercise IVM (R8=3).
+}
+
+// ACCC v1.11 §19.6.4 p.217 and §19.7.3 p.218: R8=1 adds one C9=0 line
+// after the even frame without incrementing C4, and moves that frame's VSYNC
+// to C0=R0/2. The added line starts from the VMA captured at C4=R4,C9=R9;
+// ordinary R8=1 body lines retain their non-IVM C9/RA/address cadence. Use an
+// even R7 so the separate odd-C4 IVM correction cannot obscure the required
+// one seam start and one midpoint start over the two fields.
+void t04n_sync_interlace_half_line_vsync(TestBench& test) {
+    constexpr unsigned kLineCharacters = 64;
+    constexpr unsigned kFieldLines = 4 * 8;
+    program_ivm_sync_frame(test, 2, 1, 1);
+    test.run_to_state(2, 0, 0, "t04n first field C4=R7 first line");
+
+    unsigned seam_starts = 0;
+    unsigned midpoint_starts = 0;
+    for (unsigned field = 0; field < 2; ++field) {
+        // R8=1 must leave the ordinary C4/C9, VMA, RA, and DE state intact:
+        // row 2 starts with C9=0, VMA base+2*R1=4, RA=0, and the first two
+        // character cells are in the display window (ACCC §17.1 p.175).
+        test.expect_line("t04n C4 at VSYNC target seam", 2);
+        test.expect_row("t04n C9 at VSYNC target seam", 0);
+        test.expect_hcc("t04n seam horizontal phase", 0);
+        test.expect_ma("t04n ordinary row-start VMA", 4);
+        test.expect_ra("t04n ordinary row-start RA", 0);
+        test.expect_de("t04n ordinary row-start DE", true);
+        const bool seam_high = test.vsync() != 0;
+        if (seam_high)
+            ++seam_starts;
+
+        test.run_characters(30);
+        test.expect_line("t04n C4 stays ordinary before midpoint", 2);
+        test.expect_row("t04n C9 stays ordinary before midpoint", 0);
+        test.expect_hcc("t04n before midpoint", 30);
+        test.expect_ma("t04n VMA advances ordinarily before midpoint", 34);
+        test.expect_ra("t04n RA stays ordinary before midpoint", 0);
+        test.expect_de("t04n DE leaves its ordinary two-character window", false);
+        test.expect_vsync("t04n seam/midpoint polarity before midpoint",
+                          seam_high);
+
+        test.run_characters(1);
+        test.expect_line("t04n C4 stays ordinary at midpoint", 2);
+        test.expect_row("t04n C9 stays ordinary at midpoint", 0);
+        test.expect_hcc("t04n half-line VSYNC phase", 31);
+        test.expect_ma("t04n VMA advances ordinarily at midpoint", 35);
+        test.expect_ra("t04n RA stays ordinary at midpoint", 0);
+        test.expect_de("t04n DE stays ordinary at midpoint", false);
+        test.expect_vsync("t04n VSYNC starts by midpoint", true);
+        if (!seam_high)
+            ++midpoint_starts;
+
+        // R3h=1 counts at the following C0=0 boundary.  Pin the falling
+        // edge explicitly so a stuck-high pulse cannot masquerade as the
+        // expected seam/midpoint alternation in the level counts below.
+        test.run_characters(33);
+        test.expect_hcc("t04n R3h=1 falling-edge seam", 0);
+        test.expect_vsync("t04n R3h=1 pulse ends at next seam", false);
+
+        // The even field must gain exactly the §19.6.4 additional line. From
+        // C4=2,C9=1 after the falling seam, 15 ordinary lines reach the added
+        // line; it carries C4=R4=3, forces C9=RA=0, and starts at terminal
+        // VMA'. One added line plus 16 body lines then reach C4=R7 again.
+        if (field == 0) {
+            test.run_characters(kLineCharacters * 15);
+            test.expect_line("t04n added line keeps C4=R4", 3);
+            test.expect_row("t04n added line forces C9=0", 0);
+            test.expect_hcc("t04n added line seam", 0);
+            test.expect_ma("t04n added line uses terminal captured VMA", 8);
+            test.expect_ra("t04n added line forces RA=0", 0);
+            test.expect_de("t04n added line retains ordinary C4 display state", true);
+
+            test.run_characters(kLineCharacters * 17);
+            test.expect_line("t04n next field C4", 2);
+            test.expect_row("t04n next field C9", 0);
+            test.expect_hcc("t04n next field seam", 0);
+            test.expect_ma("t04n next field ordinary VMA", 4);
+            test.expect_ra("t04n next field ordinary RA", 0);
+            test.expect_de("t04n next field ordinary DE", true);
+        }
+        else {
+            // The odd field has no additional line. From C4=2,C9=1, the
+            // remaining 15 ordinary lines must reach the real origin
+            // directly; an incorrectly parity-blind extra line would still
+            // expose carried C4=R4,C9=0 here.
+            test.run_characters(kLineCharacters * 15);
+            test.expect_line("t04n odd field restarts without added line", 0);
+            test.expect_row("t04n odd field origin C9", 0);
+            test.expect_hcc("t04n odd field origin seam", 0);
+            test.expect_ma("t04n odd field origin reloads VMA", 0);
+            test.expect_ra("t04n odd field origin RA", 0);
+        }
+    }
+
+    if (seam_starts != 1 || midpoint_starts != 1) {
+        throw TestFailure(
+            "t04n expected one seam-start and one midpoint-start VSYNC over "
+            "two fields: seam=" + std::to_string(seam_starts) +
+            ", midpoint=" + std::to_string(midpoint_starts));
+    }
+
+    // Live R8 exit must cancel a midpoint already scheduled at the target
+    // seam.  Locate the midpoint field without assuming its polarity, then
+    // leave sync-only interlace before R0/2 and prove no stale pulse fires.
+    TestBench exit;
+    program_ivm_sync_frame(exit, 2, 1, 1);
+    exit.run_to_state(2, 0, 0, "t04n mode-1 pending midpoint exit");
+    if (exit.vsync()) {
+        exit.run_characters(kLineCharacters * (kFieldLines + 1));
+        exit.expect_vsync("t04n alternate field schedules midpoint", false);
+    }
+    exit.write_register(8, 0);
+    exit.run_to_state(2, 0, 31, "t04n former midpoint after mode-1 exit");
+    exit.expect_vsync("t04n R8=1 exit cancels pending midpoint", false);
+
+    // §19.6.4 p.217 says the added line starts from the VMA' captured at
+    // C9=R9,C0=R1.  R4=0 is the aliasing discriminator: the added line has
+    // C4=C9=0, but it is not a real frame origin and must not reload R12/R13.
+    TestBench r4_zero;
+    r4_zero.write_register(0, 7);
+    r4_zero.write_register(1, 2);
+    r4_zero.write_register(3, 0x11);
+    r4_zero.write_register(4, 0);
+    r4_zero.write_register(5, 0);
+    r4_zero.write_register(6, 1);
+    r4_zero.write_register(7, 1);
+    r4_zero.write_register(9, 1);
+    r4_zero.write_register(12, 1);
+    r4_zero.write_register(13, 0);
+    r4_zero.run_to_frame_start();
+    r4_zero.write_register(8, 1);
+    r4_zero.run_characters(16);
+    r4_zero.expect_line("t04n R4=0 added line keeps C4", 0);
+    r4_zero.expect_row("t04n R4=0 added line forces C9", 0);
+    r4_zero.expect_hcc("t04n R4=0 added line sampled phase", 1);
+    r4_zero.expect_ma("t04n R4=0 added line uses captured VMA'", 0x103);
+
+    // With R9=0 the forced C9=0 of the added line also satisfies c9_done.
+    // Its exit is nevertheless the real frame origin and must reload both
+    // pointers from R12/R13 (§20.3.4 p.243 selected origin reading).
+    TestBench r9_zero;
+    r9_zero.write_register(0, 7);
+    r9_zero.write_register(1, 2);
+    r9_zero.write_register(3, 0x11);
+    r9_zero.write_register(4, 0);
+    r9_zero.write_register(5, 0);
+    r9_zero.write_register(6, 1);
+    r9_zero.write_register(7, 1);
+    r9_zero.write_register(9, 0);
+    r9_zero.write_register(12, 1);
+    r9_zero.write_register(13, 0);
+    r9_zero.run_to_frame_start();
+    r9_zero.write_register(8, 1);
+    // This setup reaches the even-parity field after one ordinary one-line
+    // field, so the second line is the added line.  Advance one more line to
+    // discriminate its exit from its C4=C9=0 entry state.
+    r9_zero.run_characters(16);
+    r9_zero.expect_line("t04n R9=0 added line keeps C4", 0);
+    r9_zero.expect_row("t04n R9=0 added line forces C9", 0);
+    r9_zero.expect_hcc("t04n R9=0 added line sampled phase", 1);
+    r9_zero.run_characters(8);
+    r9_zero.expect_line("t04n R9=0 exits added line at frame origin", 0);
+    r9_zero.expect_row("t04n R9=0 origin C9", 0);
+    r9_zero.expect_hcc("t04n R9=0 origin sampled phase", 1);
+    r9_zero.expect_ma("t04n R9=0 origin reloads R12/R13", 0x101);
+
+    // §19.6.4 places the additional line after the R5 adjustment lines.
+    // Its exit is the next frame origin, not a new adjustment entry even
+    // though forced C9=0 also satisfies C9=R9 when R9 itself is zero.
+    TestBench r5_nonzero;
+    r5_nonzero.write_register(0, 7);
+    r5_nonzero.write_register(1, 2);
+    r5_nonzero.write_register(3, 0x11);
+    r5_nonzero.write_register(4, 0);
+    r5_nonzero.write_register(5, 2);
+    r5_nonzero.write_register(6, 1);
+    r5_nonzero.write_register(7, 1);
+    r5_nonzero.write_register(9, 0);
+    r5_nonzero.write_register(12, 1);
+    r5_nonzero.write_register(13, 0);
+    r5_nonzero.run_to_frame_start();
+    r5_nonzero.write_register(8, 1);
+    r5_nonzero.run_characters(56);
+    r5_nonzero.expect_adj(false, "t04n R9=0 added-line exit does not re-enter R5");
+    r5_nonzero.expect_line("t04n R5 path exits at next-frame C4", 0);
+    r5_nonzero.expect_row("t04n R5 path exits at next-frame C9", 0);
+    r5_nonzero.expect_hcc("t04n R5 path origin sampled phase", 1);
+    r5_nonzero.expect_ma("t04n R5 path reloads next-frame pointer", 0x101);
 }
 
 // ACCC v1.11 section 19.8.4 pp.235-238: entering IVM (R8=3)
@@ -2675,7 +2865,7 @@ void t08i_sscr_vertical_wrap_advances_ma(TestBench& test) {
     test.expect_ra("t08i next row starts at offset RA 1", 1);
 }
 
-constexpr std::array<TestCase, 66> kTests = {{
+constexpr std::array<TestCase, 67> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -2720,6 +2910,8 @@ constexpr std::array<TestCase, 66> kTests = {{
      t04l_r7_r4_adjustment_and_interlace_line_seams},
     {"t04m IVM MID-VSYNC width and R8 exit",
      t04m_ivm_mid_vsync_width_and_exit},
+    {"t04n sync-only interlace half-line VSYNC",
+     t04n_sync_interlace_half_line_vsync},
     {"t05a legacy-colour ROM sweep ([KT])", t05a_legacy_colour_rom_sweep},
     {"t05b mode 2 sequential pixels", t05b_mode2_sequential_pixels},
     {"t05c mode 1 pair pixels", t05c_mode1_pair_pixels},

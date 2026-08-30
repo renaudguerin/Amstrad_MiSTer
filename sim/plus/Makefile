@@ -231,17 +231,54 @@ P10INPUT_OBJ_DIR  := obj_dir/p10_input
 P10INPUT_TEST_SRC := $(abspath p10_input_test.cpp)
 P10INPUT_TEST_BIN := $(P10INPUT_OBJ_DIR)/p10_input_tests
 
+# P10e production-shaped DMA/PPI/PSG/input concurrency fixture.
+P10DMA_TOP      := p10_dma_ppi_test_top
+P10DMA_TOP_SRC  := $(abspath p10_dma_ppi_test_top.v)
+P10DMA_RTL      := $(abspath ../../rtl/plus/asic_dma.v) \
+	$(abspath ../../rtl/plus/asic_ga_timing.v) \
+	$(abspath ../../rtl/i8255.v) \
+	$(abspath ../../rtl/YM2149.sv) \
+	$(abspath ../../rtl/hid.sv) \
+	$(abspath ../../rtl/joydb.sv)
+P10DMA_OBJ_DIR  := obj_dir/p10_dma_ppi
+P10DMA_TEST_SRC := $(abspath p10_dma_ppi_test.cpp)
+P10DMA_TEST_BIN := $(P10DMA_OBJ_DIR)/p10_dma_ppi_tests
+
+# P10e full production-motherboard DMA/PPI/PSG concurrency fixture.
+P10DMAMOBO_TOP      := p10_dma_mobo_test_top
+P10DMAMOBO_TOP_SRC  := $(abspath p10_dma_mobo_test_top.v)
+P10DMAMOBO_CPU      := $(abspath t80pa_dma_mobo_cpu.v)
+P10DMAMOBO_RTL      := $(abspath ../../rtl/Amstrad_motherboard.v) \
+	$(abspath ../../rtl/plus/asic_regs.v) \
+	$(abspath ../../rtl/plus/asic_ga_timing.v) \
+	$(abspath ../../rtl/plus/asic_video.v) \
+	$(abspath ../../rtl/plus/asic_sprites.v) \
+	$(abspath ../../rtl/plus/asic_dma.v) \
+	$(abspath ../../rtl/crt_filter.v) \
+	$(abspath ../../rtl/CRTC.v) \
+	$(abspath ../../rtl/crtc_type0_engine.v) \
+	$(abspath ../../rtl/crtc_type1_engine.v) \
+	$(abspath ../../rtl/Amstrad_MMU.v) \
+	$(abspath ../../rtl/i8255.v) \
+	$(abspath ../../rtl/YM2149.sv) \
+	$(abspath ../../rtl/hid.sv) \
+	$(abspath motherboard_lint_stubs.v)
+P10DMAMOBO_OBJ_DIR  := obj_dir/p10_dma_mobo
+P10DMAMOBO_TEST_SRC := $(abspath p10_dma_mobo_test.cpp)
+P10DMAMOBO_TEST_BIN := $(P10DMAMOBO_OBJ_DIR)/p10_dma_mobo_tests
+
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
 	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN)
 
-TEST_BINS += $(P10INPUT_TEST_BIN)
+TEST_BINS += $(P10INPUT_TEST_BIN) $(P10DMA_TEST_BIN) $(P10DMAMOBO_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
 
-.PHONY: all build test lint motherboard-lint p4-sprites-regs clean
+.PHONY: all build test lint motherboard-lint p4-sprites-regs clean \
+	p10-dma-ppi-bench p10-dma-ppi-lint p10-dma-mobo-bench p10-dma-mobo-lint
 
 all: test
 
@@ -253,6 +290,22 @@ p1-video-bench: $(P1VID_TEST_BIN)
 
 p10-input-bench: $(P10INPUT_TEST_BIN)
 	./$(P10INPUT_TEST_BIN)
+
+p10-dma-ppi-bench: $(P10DMA_TEST_BIN)
+	./$(P10DMA_TEST_BIN)
+
+p10-dma-ppi-lint:
+	$(VERILATOR) --lint-only -UVERILATOR --public-flat-rw \
+		--top-module $(P10DMA_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
+		$(P10DMA_TOP_SRC) $(P10DMA_RTL)
+
+p10-dma-mobo-bench: $(P10DMAMOBO_TEST_BIN)
+	./$(P10DMAMOBO_TEST_BIN)
+
+p10-dma-mobo-lint:
+	$(VERILATOR) --lint-only +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --public-flat-rw \
+		--top-module $(P10DMAMOBO_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
+		$(P10DMAMOBO_TOP_SRC) $(P10DMAMOBO_CPU) $(P10DMAMOBO_RTL)
 
 p4-sprites-regs: $(SPRREGS_TEST_BIN)
 	./$(SPRREGS_TEST_BIN)
@@ -279,6 +332,8 @@ test: $(TEST_BINS)
 	./$(P8_TEST_BIN)
 	./$(P10BOOT_TEST_BIN)
 	./$(P10INPUT_TEST_BIN)
+	./$(P10DMA_TEST_BIN)
+	./$(P10DMAMOBO_TEST_BIN)
 
 $(P8_TEST_BIN): $(P8_RTL) $(P8_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module plus_p8_test_top -Wno-CASEX \
@@ -397,6 +452,21 @@ $(P10INPUT_TEST_BIN): $(P10INPUT_TOP_SRC) $(P10INPUT_CPU) $(P10INPUT_RTL) $(P10I
 		-o $(notdir $(P10INPUT_TEST_BIN)) $(P10INPUT_TOP_SRC) $(P10INPUT_CPU) \
 		$(P10INPUT_RTL) $(P10INPUT_TEST_SRC)
 
+$(P10DMA_TEST_BIN): $(P10DMA_TOP_SRC) $(P10DMA_RTL) $(P10DMA_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) --cc --exe --build -UVERILATOR --public-flat-rw -Wno-PROCASSWIRE \
+		--top-module $(P10DMA_TOP) \
+		--Mdir $(P10DMA_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(P10DMA_TEST_BIN)) $(P10DMA_TOP_SRC) $(P10DMA_RTL) \
+		$(P10DMA_TEST_SRC)
+
+$(P10DMAMOBO_TEST_BIN): $(P10DMAMOBO_TOP_SRC) $(P10DMAMOBO_CPU) $(P10DMAMOBO_RTL) $(P10DMAMOBO_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) --cc --exe --build +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO \
+		--public-flat-rw --top-module $(P10DMAMOBO_TOP) \
+		--Mdir $(P10DMAMOBO_OBJ_DIR) -Wall -Wno-fatal -Wno-PROCASSWIRE \
+		-CFLAGS "$(CXXFLAGS)" -o $(notdir $(P10DMAMOBO_TEST_BIN)) \
+		$(P10DMAMOBO_TOP_SRC) $(P10DMAMOBO_CPU) $(P10DMAMOBO_RTL) \
+		$(P10DMAMOBO_TEST_SRC)
+
 $(OBJ_DIR):
 	mkdir -p -- $@
 
@@ -457,6 +527,12 @@ lint: motherboard-lint
 	$(VERILATOR) --lint-only -UVERILATOR --public-flat-rw \
 		--top-module $(P10INPUT_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
 		$(P10INPUT_TOP_SRC) $(P10INPUT_CPU) $(P10INPUT_RTL)
+	$(VERILATOR) --lint-only -UVERILATOR --public-flat-rw \
+		--top-module $(P10DMA_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
+		$(P10DMA_TOP_SRC) $(P10DMA_RTL)
+	$(VERILATOR) --lint-only +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --public-flat-rw \
+		--top-module $(P10DMAMOBO_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
+		$(P10DMAMOBO_TOP_SRC) $(P10DMAMOBO_CPU) $(P10DMAMOBO_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module plus_fdc_decode -Wall $(abspath ../../rtl/plus/plus_fdc_decode.v)
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
