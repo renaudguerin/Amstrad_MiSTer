@@ -1642,6 +1642,35 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     r4_zero.expect_row("t04n R4=0 added line forces C9", 0);
     r4_zero.expect_hcc("t04n R4=0 added line sampled phase", 1);
     r4_zero.expect_ma("t04n R4=0 added line uses captured VMA'", 0x103);
+
+    // With R9=0 the forced C9=0 of the added line also satisfies c9_done.
+    // Its exit is nevertheless the real frame origin and must reload both
+    // pointers from R12/R13 (§20.3.4 p.243 selected origin reading).
+    TestBench r9_zero;
+    r9_zero.write_register(0, 7);
+    r9_zero.write_register(1, 2);
+    r9_zero.write_register(3, 0x11);
+    r9_zero.write_register(4, 0);
+    r9_zero.write_register(5, 0);
+    r9_zero.write_register(6, 1);
+    r9_zero.write_register(7, 1);
+    r9_zero.write_register(9, 0);
+    r9_zero.write_register(12, 1);
+    r9_zero.write_register(13, 0);
+    r9_zero.run_to_frame_start();
+    r9_zero.write_register(8, 1);
+    // This setup reaches the even-parity field after one ordinary one-line
+    // field, so the second line is the added line.  Advance one more line to
+    // discriminate its exit from its C4=C9=0 entry state.
+    r9_zero.run_characters(16);
+    r9_zero.expect_line("t04n R9=0 added line keeps C4", 0);
+    r9_zero.expect_row("t04n R9=0 added line forces C9", 0);
+    r9_zero.expect_hcc("t04n R9=0 added line sampled phase", 1);
+    r9_zero.run_characters(8);
+    r9_zero.expect_line("t04n R9=0 exits added line at frame origin", 0);
+    r9_zero.expect_row("t04n R9=0 origin C9", 0);
+    r9_zero.expect_hcc("t04n R9=0 origin sampled phase", 1);
+    r9_zero.expect_ma("t04n R9=0 origin reloads R12/R13", 0x101);
 }
 
 // ACCC v1.11 section 19.8.4 pp.235-238: entering IVM (R8=3)
