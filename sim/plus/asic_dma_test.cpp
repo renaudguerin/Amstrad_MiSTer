@@ -116,10 +116,13 @@ struct TestBench {
 	uint8_t last_ena_clr = 0;
 	uint8_t last_int_set = 0;
 
-	// Simulate one scanline: pulse HSYNC, then generate 64 1us CCLK pulses (64us standard scanline)
-	void run_scanline(std::vector<std::pair<uint8_t, uint8_t>>* psg_writes = nullptr) {
+	// Simulate one scanline: pulse HSYNC, then generate 64 1us CCLK pulses (64us standard scanline).
+	// If requested, record the CCLK indices at which the DMA RAM request is active.
+	void run_scanline(std::vector<std::pair<uint8_t, uint8_t>>* psg_writes = nullptr,
+	                  std::vector<int>* dma_fetch_cycles = nullptr) {
 		last_ena_clr = 0;
 		last_int_set = 0;
+		if (dma_fetch_cycles) dma_fetch_cycles->clear();
 
 		// HSYNC leading edge
 		dut->hsync = 1;
@@ -136,6 +139,9 @@ struct TestBench {
 			for (int clk_phase = 0; clk_phase < 16; ++clk_phase) {
 				dut->cclk_en_p = (clk_phase == 0);
 				dut->cclk_en_n = (clk_phase == 8);
+
+				if (dut->cclk_en_p && dut->ram_req && dma_fetch_cycles)
+					dma_fetch_cycles->push_back(cyc);
 
 				if (dut->dcsr_ena_clr) {
 					last_ena_clr |= dut->dcsr_ena_clr;
@@ -445,11 +451,8 @@ void test_d11_load_timing_and_ay_restore(TestBench& tb) {
 
 	// Cycle 0: Dead cycle
 	advance_cclk();
-	// Cycle 1: Fetch channel 0
-	advance_cclk();
-	// Cycle 2: Fetch channel 1 (inactive)
-	advance_cclk();
-	// Cycle 3: Fetch channel 2 (inactive)
+	// Cycle 1: Fetch the sole active channel 0.  Inactive channel slots are
+	// not present in the documented per-active-channel cadence.
 	advance_cclk();
 
 	// Now Channel 0 executes LOAD R7, 0x3F (8 cycles total: ST_EXEC0_A..ST_EXEC0_H)
@@ -496,6 +499,48 @@ void test_d11_load_timing_and_ay_restore(TestBench& tb) {
 	std::printf("PASS d11: LOAD timing (8 cycles), AY register restore, and dma_load_owner assertion\n");
 }
 
+// d12: Per-active-channel RAM fetch cadence (§9, Timing & bus interaction)
+void test_d12_active_channel_fetch_timing(TestBench& tb) {
+	const uint16_t sar_start[3] = {0x6000, 0x7000, 0x8000};
+	const uint16_t load_instr[3] = {0x0011, 0x0122, 0x0233};
+
+	for (unsigned mask = 0; mask < 8; ++mask) {
+		tb.pulse_reset();
+		for (unsigned ch = 0; ch < 3; ++ch) {
+			tb.set_sar(ch, sar_start[ch]);
+			tb.write_instruction(sar_start[ch], load_instr[ch]);
+		}
+		tb.set_dcsr_ena(static_cast<uint8_t>(mask));
+
+		std::vector<int> fetch_cycles;
+		tb.run_scanline(nullptr, &fetch_cycles);
+
+		const unsigned expected_count =
+			((mask & 0x1u) ? 1u : 0u) +
+			((mask & 0x2u) ? 1u : 0u) +
+			((mask & 0x4u) ? 1u : 0u);
+		if (fetch_cycles.size() != expected_count) {
+			fail("d12: mask 0x" + std::to_string(mask) +
+			     " expected " + std::to_string(expected_count) +
+			     " fetch cycles, got " + std::to_string(fetch_cycles.size()));
+		}
+
+		// HSYNC's CCLK edge is cycle 0 (the one dead cycle).  Every active
+		// channel must then occupy one consecutive fetch cycle, with no holes
+		// for inactive lower-numbered channels.
+		for (unsigned i = 0; i < expected_count; ++i) {
+			if (fetch_cycles[i] != static_cast<int>(i + 1)) {
+				fail("d12: mask 0x" + std::to_string(mask) +
+				     " fetch " + std::to_string(i) +
+				     " occurred at CCLK " + std::to_string(fetch_cycles[i]) +
+				     ", expected " + std::to_string(i + 1));
+			}
+		}
+	}
+
+	std::printf("PASS d12: one consecutive fetch cycle per active channel (0/1/2/3 active)\n");
+}
+
 } // namespace
 
 int main() {
@@ -512,7 +557,8 @@ int main() {
 		test_d09_undocumented_pause_repeat(tb);
 		test_d10_byte_sar_writes(tb);
 		test_d11_load_timing_and_ay_restore(tb);
-		std::printf("All 11 asic_dma unit tests PASSED.\n");
+		test_d12_active_channel_fetch_timing(tb);
+		std::printf("All 12 asic_dma unit tests PASSED.\n");
 		return 0;
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());

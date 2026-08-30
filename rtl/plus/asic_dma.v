@@ -187,11 +187,26 @@ module asic_dma (
 
 				// 1 dead cycle (1us) after HSYNC leading edge
 				ST_DEAD: begin
+					ram_req <= 1'b0;
 					if (|active_ch) begin
-						state <= ST_FETCH0;
 						if (active_ch[0]) begin
+							// The Arnold V timing rule provides one fetch cycle for
+							// each active channel, in channel order.  Select the
+							// first active channel here so an inactive lower-numbered
+							// channel does not consume a fetch slot.
+							state    <= ST_FETCH0;
 							ram_req  <= 1'b1;
 							ram_addr <= {sar_cur[0][15:1], 1'b0};
+						end
+						else if (active_ch[1]) begin
+							state    <= ST_FETCH1;
+							ram_req  <= 1'b1;
+							ram_addr <= {sar_cur[1][15:1], 1'b0};
+						end
+						else begin
+							state    <= ST_FETCH2;
+							ram_req  <= 1'b1;
+							ram_addr <= {sar_cur[2][15:1], 1'b0};
 						end
 					end
 					else begin
@@ -208,11 +223,17 @@ module asic_dma (
 					if (active_ch[1]) begin
 						ram_req  <= 1'b1;
 						ram_addr <= {sar_cur[1][15:1], 1'b0};
+						state    <= ST_FETCH1;
+					end
+					else if (active_ch[2]) begin
+						ram_req  <= 1'b1;
+						ram_addr <= {sar_cur[2][15:1], 1'b0};
+						state    <= ST_FETCH2;
 					end
 					else begin
 						ram_req  <= 1'b0;
+						state    <= ST_EXEC0_A;
 					end
-					state <= ST_FETCH1;
 				end
 
 				// Channel 1 fetch
@@ -224,11 +245,12 @@ module asic_dma (
 					if (active_ch[2]) begin
 						ram_req  <= 1'b1;
 						ram_addr <= {sar_cur[2][15:1], 1'b0};
+						state    <= ST_FETCH2;
 					end
 					else begin
 						ram_req  <= 1'b0;
+						state    <= ST_EXEC0_A;
 					end
-					state <= ST_FETCH2;
 				end
 
 				// Channel 2 fetch
