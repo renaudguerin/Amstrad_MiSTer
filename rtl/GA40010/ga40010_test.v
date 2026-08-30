@@ -135,6 +135,7 @@ CRTC crtc
 (
 	.CLOCK(clk),
 	.CLKEN(CCLK_EN_N),
+	.nCLKEN(CCLK_EN_P),
 	.nRESET(RESET_N),
 	.CRTC_TYPE(1'b0),
 

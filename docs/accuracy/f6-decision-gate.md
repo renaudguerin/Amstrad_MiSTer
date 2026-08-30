@@ -8,8 +8,10 @@ SKEW-DISPTMG delay line in `rtl/CRTC.v`; golden soak hash re-minted to
 2026-08-23**: the visible seam through the GA40010 co-sim route is 1 µs.
 **Stage 2b disambiguated 2026-08-23**: ACCC pp.186/195 require a 0.5 µs
 CRTC-side DE pulse; test and motherboard clock phase match, and the original
-and synchronous GA paths agree. Finding promoted as F13, blocked on hardware;
-no production RTL changed. Renaud's stated priority 2026-08-22:
+and synchronous GA paths agree. **F13 implemented 2026-08-30** after explicit
+authorization to proceed from the ACCC model: `nCLKEN` narrows the no-skew
+type-0 pulse to C0=R0's second half, while SKEW 1/2 keeps the p.195 rounded
+full-character displacement. Hardware validation remains open. Renaud's stated priority 2026-08-22:
 exact hardware preservation, materialised by passing all SHAKER tests — strongly leaning
 toward the full-fidelity path (option C), conditional on the validation gates below. This
 file exists so any option can be picked up or abandoned without re-deriving the analysis.
@@ -87,17 +89,18 @@ premise is wrong, but Stage 2b also refuted this gate's first replacement premis
      in `testbench-spec.md`.
    - **Hardware**: SHAKER Module A `(O)` against the Logon System reference photos for the
      selected CRTC type, at the next manual milestone session.
-3. **Stage 3 — BLOCKED-PENDING-HARDWARE-EVIDENCE (F13):** confirm the CRTC DE transition
-   phase on real type-0 hardware, then replace the Stage-1 full-character pulse at the CRTC
-   engine/wrapper boundary if confirmed. The GA and motherboard glue are not implicated by
-   current evidence; no production change before SHAKER/logic-analyser confirmation.
+3. **Stage 3 — IMPLEMENTED-PENDING-HARDWARE-VALIDATION (F13):** the CRTC wrapper now emits
+   the exact ACCC-model half-character no-skew pulse and `t31a` pins its three edges. Confirm
+   it on real type-0 hardware. The GA and motherboard glue remain unchanged; a hardware
+   disagreement reopens the model.
 4. **Stage 4 (optional, much later): §19.2.5 disintegration** double-R8-write cases — only
    after Stage 2/3 evidence, and gated on the ⚠ p.196-197 visual-tier diagrams.
 
 ## Upstream justifiability (the condition attached to choosing C)
 
-- `CRTC.v`/engine change: current code implements the discriminator but not the documented
-  half-character pin phase. A correction is justifiable only after the F13 hardware gate.
+- `CRTC.v`/engine change: the discriminator and documented half-character pin phase are
+  implemented; the justification is the render-verified ACCC rule plus the explicit
+  2026-08-30 direction to proceed before hardware validation.
 - `GA40010`: expected **zero changes**. If Stage 3 ever seemed to require them, stop and
   re-examine the glue first; changing the netlist recreation is out of scope for F6.
 - Motherboard glue change (if needed): defensible as removing fork-added behaviour that real
@@ -208,8 +211,8 @@ The 16-state Johnson sequence is
 **Owner: CRTC-side sub-character DE phase required.** The test harness uses the
 production phase, both GA implementations agree, and the book directly specifies
 the half-character CRTC signal. ACCC-reading nuance is ruled out by the p.186
-chronogram plus p.195 prose. No production RTL changed. F13 records the formal
-hardware block: a SHAKER Module A (O) capture should measure eight mode-2 pixels,
+chronogram plus p.195 prose. F13 now carries the production wrapper correction;
+hardware validation remains open: a SHAKER Module A (O) capture should measure eight mode-2 pixels,
 and a logic-analyser capture of type-0 DE should show low only from the midpoint
-of C0=R0 to the next C0=0 boundary. Only that evidence graduates a CRTC
-engine/wrapper correction; GA/glue changes are not indicated.
+of C0=R0 to the next C0=0 boundary. A disagreement reopens the wrapper model;
+GA/glue changes are not indicated by current evidence.

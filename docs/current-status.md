@@ -129,8 +129,8 @@ the F15 type-0 odd-R9 IVM counting with its VSYNC delay correction, fixtures `t2
 remediated (`accuracy/f14-f15-independent-review.md`) -- on top of the Plus P4 mobo-bench tip.
 **It has not been hardware-tested.**
 
-- Simulation: 175 required CRTC passes / 0 failed, all Plus leaf/integration suites green;
-  lint clean. Soak verified golden hash `0x48146d2b681268ab` (full chain in AGENTS.md);
+- Simulation at this hardware milestone: 175 required CRTC passes / 0 failed, all Plus
+  leaf/integration suites green; lint clean. Its soak hash was `0x48146d2b681268ab`;
   even-R9 and non-IVM behavior bit-identical, t21-t24 untouched.
 - Logic utilization 28,533 / 41,910 ALMs (68 %); 37,685 registers; 685,217 / 5,662,720
   block-memory bits (12 %); 100 / 553 RAM blocks; 34 / 112 DSP blocks; 145 / 314 pins.
@@ -334,8 +334,9 @@ Before the next classic RTL change, close that data gap:
   chase.
 - Map each persistent difference to an implemented finding or to a named gap. The current
   leading hypothesis is that Module A leans on behaviour that is still unimplemented —
-  F10 interlace parity and F13's hardware-blocked half-character F6 seam — rather
-  than on the counter internals already fixed. F8 (type-1 C5) and F7's type-1 R5-route RFD
+  F10 interlace parity and, before 2026-08-30, F13's missing half-character F6 seam — rather
+  than on the counter internals already fixed. F13 is now implemented but still requires
+  that named hardware retest. F8 (type-1 C5) and F7's type-1 R5-route RFD
   are now implemented, so they are no longer candidate explanations; F6 Stage 1's
   presence/type/skew approximation landed 2026-08-23.
 
@@ -405,11 +406,11 @@ For a first MiSTer pass:
 - F9 closure is merged into this branch: the documented `t12` worked-example pair — R9 write
   at exact C0==R0 → C4=39/C9=8, and its windowed companion in C0∈[2,R0−1] → C4=38/C9=8
   (ACCC p.82) — is encoded as `t12a`/`t12b` (`aea80b5`, merged via `d5cab8f`).
-- F6 Stage 1 implements the presence/type/skew discriminator but uses a full-character DE
-  gap (t10a-t10e). Stage 2 measured a 16-mode-2-px (1 µs) seam. Stage 2b visual evidence
-  from ACCC pp.186/195 assigns the documented 0.5 µs to a sub-character CRTC DE pulse;
-  test/production phase matches and both GA paths agree. Formal finding F13 blocks a
-  correction pending SHAKER Module A `(O)` and, if possible, a DE-pin capture.
+- F13 implements the ACCC pp.186/195 no-skew type-0 half-character DE pulse: `t31a` pins
+  first-half display, second-half border, and next-character recovery; t10a-t10e retain
+  presence/type/skew controls and SKEW 1/2's rounded full-character displacement. This is
+  an ACCC-model correction pending SHAKER Module A `(O)` and, if possible, DE-pin validation;
+  it is not yet hardware evidence.
 - F7 RFD is implemented for the type-1 R5 route (`t13a`-`t13d`): same-edge `R5 0→nonzero`
   arming at C0=R0, VMA-from-R12/R13 on every row, parity-gated VMA' saves with odd-R9
   frame-parity alternation, successful-save disarm, and the B6 R1>R0 bare-C9 disarm.
@@ -566,7 +567,7 @@ re-verification's corrected readings); all other blockings are remediated in thi
 anchors were corrected against the real TOC (§13.2.x, pp.210-211, p.247, §21.4), and the
 separate stale-reference sweep over docs/ found ten more fixes; rtl/ and sim/ citations were
 all clean. F10 has since been implemented, reviewed, and merged (see the completed-work
-section); F13 waits for hardware.
+section); F13's ACCC-model correction is now implemented and waits for hardware validation.
 
 ## Historical Plus milestone record (P-2 through P9)
 
@@ -1107,8 +1108,8 @@ front end.
    Confirm SHAKER's own CRTC identification agrees with the OSD selection before comparing.
 3. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
    deterministic regression before repairing any newly understood behavior.
-4. Classic: F6 Stage 2/2b is complete per `accuracy/f6-decision-gate.md`; F13 records the
-   half-character CRTC-side phase mismatch and is BLOCKED-PENDING-HARDWARE-EVIDENCE.
+4. Classic: F13's half-character CRTC-side phase is implemented per
+   `accuracy/f6-decision-gate.md` and remains pending SHAKER/DE-pin hardware validation.
    F7 RFD (R5 route, B6 disarm, A1, A2) is implemented and independently reviewed
    (`accuracy/f7-plus-followups-independent-review.md`), and the §13.7.1.2 R0-widening
    trigger is implemented with its blocking review findings remediated

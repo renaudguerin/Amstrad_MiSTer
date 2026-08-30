@@ -58,7 +58,11 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x48146d2b681268ab`, re-minted 2026-08-26 for the F16, F17, and F18 closures:
+  (`0xc769ea4605afbe04`, re-minted 2026-08-30 for the F13 half-character type-0
+  R1>R0 border pulse: the no-skew C0=R0 event is now low only from nCLKEN to
+  the following CLKEN, while SKEW-DISPTMG 1/2 retains the documented rounded
+  full-character displacement; previously `0x48146d2b681268ab`, re-minted
+  2026-08-26 for the F16, F17, and F18 closures:
   F16: type-0 post-IVM exit frozen C9.VMA line-end comparison retains the last
   computed IVM C9.VMA in exit_frozen_vma after leaving IVM (R8->0), comparing
   it against plain R9 until match or IVM re-entry (ACCC section 19.8.1 p.220;

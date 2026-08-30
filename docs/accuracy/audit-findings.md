@@ -262,27 +262,30 @@ General implementation rules for all fix prompts:
   R1>R0, C0=R0 contains one DISP-ON byte followed by one BORDER byte; the BORDER signal is
   sent 0.5 µs after C0=R0 and disabled at the following character boundary, 0.5 µs later.
   R1=R0 is the p.185 control (full 1 µs border character). Type 1 emits no seam (p.187).
-- **Current** (`accuracy/f6stage2-soak-expand`, Stage 2/2b): Stage 1 drives DE low for a
-  full character. The GA co-sim renders 16 mode-2 px (1 µs) on 199/199 display rows across
-  two geometries; type 1 renders none. VCD evidence shows `DISPEN_BUF`, `u1008`, and
-  `border_sel` preserve that full-character input width. Candidate-owner elimination:
+- **Current** (`accuracy/f13-dsc4-fdc-investigation`, 2026-08-30): the wrapper now gates the
+  substituted type-0 event with the opposite CRTC phase. With no skew, DE is high for the
+  first half of C0=R0, low from nCLKEN to the following CLKEN, then high at C0=0. The p.195
+  SKEW-DISPTMG 1/2 diagrams remain full-character delayed events at C0=0/C0=1; type 1 emits
+  none. `t31a` pins all three no-skew edges and `t10a`-`t10e` retain type/skew controls.
+  Candidate-owner elimination preceding the change remains relevant:
   test-top phase mismatch is false (`ga40010_test.v` and `Amstrad_motherboard.v` both use
   CCLK_EN_N/S=03; adding production's `nCLKEN` connection does not move the result);
   original async and synchronous GA paths transition identically; ACCC nuance is ruled out
   by the p.186 chronogram plus p.195 prose. Remaining owner: CRTC-side sub-character DE
   phase.
-- **Impact**: the §28.1.6 presence/absence discriminator is implemented, but type-0 seam
-  width/phase is 2x wrong. SHAKER Module A (O) is the hardware gate; effects relying on the
-  exact byte seam may differ despite passing the coarse type discriminator.
+- **Impact**: the §28.1.6 presence/absence discriminator and the ACCC-model width/phase are
+  implemented. SHAKER Module A (O) and a DE-pin capture remain the hardware validation gate;
+  simulation is not hardware evidence.
 - **Confidence: high for document/mechanism ownership; hardware confirmation pending.**
   Multimodal source reading plus agreement between the original async and synchronous
   GA buffer/sequencer realizations (which feed the same `video` module) excludes a
   path-specific discrepancy for the tested full-character pulse. It does not substitute
   for the proposed half-character hardware stimulus; real hardware remains authoritative.
-- **Fix prompt: BLOCKED-PENDING-HARDWARE-EVIDENCE.** Do not change CRTC, GA, or glue RTL.
-  Capture SHAKER Module A (O) on a real type-0 CPC and, if possible, the CRTC DE pin: expected
-  book result is an 8-mode-2-px seam with DE low only for the second byte of C0=R0. Record
-  any disagreement as evidence before selecting among the already-tested candidate owners.
+- **Status: IMPLEMENTED-PENDING-HARDWARE-VALIDATION.** The 2026-08-30 accuracy task
+  explicitly authorized proceeding from the render-verified ACCC model. Capture SHAKER
+  Module A (O) on a real type-0 CPC and, if possible, the CRTC DE pin: expected book result
+  is an 8-mode-2-px seam with DE low only for the second byte of C0=R0. Any disagreement
+  reopens F13; it does not get explained away by the model.
 
 ## F14. Additional interlace line — IMPLEMENTED on both types (2026-08-26)
 
