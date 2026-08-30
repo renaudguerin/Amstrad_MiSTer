@@ -257,14 +257,20 @@ void test_reset_cancels_and_restarts_mount_request() {
     bench.tick();
     bench.dut().reset = 0;
 
-    // Model a host response that was already in flight when CPR reset
-    // cancelled the old request. It may retire the first post-reset retry,
-    // but must not leave ownership wedged: after ACK falls the parser has to
-    // present a request again without another core reload.
+    // Model a host response and data burst that were already in flight when
+    // CPR reset cancelled the old request. No retry or shared-buffer write is
+    // accepted until ACK has returned low; after that the parser must present
+    // a fresh request without another core reload.
     bench.dut().sd_ack = 1;
+    bench.dut().sd_buff_wr = 1;
+    bench.dut().sd_buff_addr = 7;
+    bench.dut().sd_buff_dout = 0xa5;
     for (unsigned cycle = 0; cycle < 16; ++cycle) {
         bench.tick();
+        bench.expect_equal("delayed ACK cannot claim a retry", 0,
+                           bench.dut().sd_rd | bench.dut().sd_wr);
     }
+    bench.dut().sd_buff_wr = 0;
     bench.dut().sd_ack = 0;
 
     bench.wait_until("fresh mount request after reset", [&] {

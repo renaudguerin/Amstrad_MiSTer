@@ -167,6 +167,7 @@ reg    [7:0] buff_data_in, buff_data_out, tinfo_data;
 reg    [8:0] buff_addr, tinfo_addr;
 reg          buff_wr, buff_wait;
 reg          sd_buff_type;
+reg          sd_wait_ack_low;
 reg          tinfo_hds, tinfo_ds0, tinfo_lock, tinfo_wait;
 reg          hds, ds0;
 
@@ -176,7 +177,8 @@ u765_dpram #(8, 11) tinfo_ram
 
 	.address_a({tinfo_ds0,tinfo_hds,sd_buff_addr}),
 	.data_a(sd_buff_dout),
-	.wren_a(sd_buff_wr & sd_ack & sd_buff_type == UPD765_SD_BUFF_TRACKINFO),
+	.wren_a(sd_buff_wr & sd_ack & ~sd_wait_ack_low &
+			sd_buff_type == UPD765_SD_BUFF_TRACKINFO),
 	.q_a(),
 
 	.address_b({tinfo_ds0,tinfo_hds,tinfo_addr}),
@@ -191,7 +193,8 @@ u765_dpram #(8, 9) sector_ram
 
 	.address_a(sd_buff_addr),
 	.data_a(sd_buff_dout),
-	.wren_a(sd_buff_wr & sd_ack & sd_buff_type == UPD765_SD_BUFF_SECTOR),
+	.wren_a(sd_buff_wr & sd_ack & ~sd_wait_ack_low &
+			sd_buff_type == UPD765_SD_BUFF_SECTOR),
 	.q_a(sd_buff_din),
 
 	.address_b(buff_addr),
@@ -243,39 +246,50 @@ always @(posedge clk_sys) begin : sdcontrol
 		sd_busy_tinfo <= 0;
 		sd_busy_sector <= 0;
 		sd_buff_type <= UPD765_SD_BUFF_SECTOR;
+		// The host can finish the cancelled transfer after reset. Ignore both
+		// its ACK and buffer burst until ACK has been observed low once; only
+		// then may a fresh request claim the shared buffer.
+		sd_wait_ack_low <= 1;
 	end else begin
 		ack <= {ack[4:0], sd_ack};
-		if(ack[5:4] == 'b01)	begin
+		if (sd_wait_ack_low) begin
+			ack <= 0;
 			sd_rd <= 0;
 			sd_wr <= 0;
-		end
-		if(ack[5:4] == 'b10) begin
-			sd_busy_mount <= 0;
-			sd_busy_tinfo <= 0;
-			sd_busy_sector <= 0;
-		end
+			if (!sd_ack) sd_wait_ack_low <= 0;
+		end else begin
+			if(ack[5:4] == 'b01)	begin
+				sd_rd <= 0;
+				sd_wr <= 0;
+			end
+			if(ack[5:4] == 'b10) begin
+				sd_busy_mount <= 0;
+				sd_busy_tinfo <= 0;
+				sd_busy_sector <= 0;
+			end
 
-		if (!sd_busy_mount & !sd_busy_tinfo & !sd_busy_sector) begin
-			if (sd_rd_mount != 2'b00) begin
-				sd_lba <= 0;
-				sd_rd  <= sd_rd_mount;
-				sd_buff_type <= UPD765_SD_BUFF_SECTOR;
-				sd_busy_mount <= 1;
-			end else if (sd_rd_tinfo != 2'b00) begin
-				sd_lba <= image_track_offsets_in[15:1];
-				sd_rd  <= sd_rd_tinfo;
-				sd_buff_type <= UPD765_SD_BUFF_TRACKINFO;
-				sd_busy_tinfo <= 1;
-			end else if (sd_rd_sector != 2'b00) begin
-				sd_lba <= i_seek_pos[31:9];
-				sd_rd  <= sd_rd_sector;
-				sd_buff_type <= UPD765_SD_BUFF_SECTOR;
-				sd_busy_sector <= 1;
-			end else if (sd_wr_sector != 2'b00) begin
-				sd_lba <= i_seek_pos[31:9] - i_write_prev;
-				sd_wr  <= sd_wr_sector;
-				sd_buff_type <= UPD765_SD_BUFF_SECTOR;
-				sd_busy_sector <= 1;
+			if (!sd_busy_mount & !sd_busy_tinfo & !sd_busy_sector) begin
+				if (sd_rd_mount != 2'b00) begin
+					sd_lba <= 0;
+					sd_rd  <= sd_rd_mount;
+					sd_buff_type <= UPD765_SD_BUFF_SECTOR;
+					sd_busy_mount <= 1;
+				end else if (sd_rd_tinfo != 2'b00) begin
+					sd_lba <= image_track_offsets_in[15:1];
+					sd_rd  <= sd_rd_tinfo;
+					sd_buff_type <= UPD765_SD_BUFF_TRACKINFO;
+					sd_busy_tinfo <= 1;
+				end else if (sd_rd_sector != 2'b00) begin
+					sd_lba <= i_seek_pos[31:9];
+					sd_rd  <= sd_rd_sector;
+					sd_buff_type <= UPD765_SD_BUFF_SECTOR;
+					sd_busy_sector <= 1;
+				end else if (sd_wr_sector != 2'b00) begin
+					sd_lba <= i_seek_pos[31:9] - i_write_prev;
+					sd_wr  <= sd_wr_sector;
+					sd_buff_type <= UPD765_SD_BUFF_SECTOR;
+					sd_busy_sector <= 1;
+				end
 			end
 		end
 	end
@@ -291,7 +305,7 @@ reg  [7:0] m_data;    //data register
 
 assign dout = a0 ? m_data : m_status;
 
-function automatic [15:0] SECTOR_SIZE;
+function [15:0] SECTOR_SIZE;
 	input [3:0] n;
 	input [15:0] stored_size;
 	reg [15:0] logical_size;
