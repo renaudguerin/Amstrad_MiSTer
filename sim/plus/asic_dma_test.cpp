@@ -117,12 +117,15 @@ struct TestBench {
 	uint8_t last_int_set = 0;
 
 	// Simulate one scanline: pulse HSYNC, then generate 64 1us CCLK pulses (64us standard scanline).
-	// If requested, record the CCLK indices at which the DMA RAM request is active.
+	// If requested, record the CCLK indices at which the DMA RAM request is active
+	// or the post-edge PSG activity is observed.
 	void run_scanline(std::vector<std::pair<uint8_t, uint8_t>>* psg_writes = nullptr,
-	                  std::vector<int>* dma_fetch_cycles = nullptr) {
+	                  std::vector<int>* dma_fetch_cycles = nullptr,
+	                  std::vector<int>* psg_active_cycles = nullptr) {
 		last_ena_clr = 0;
 		last_int_set = 0;
 		if (dma_fetch_cycles) dma_fetch_cycles->clear();
+		if (psg_active_cycles) psg_active_cycles->clear();
 
 		// HSYNC leading edge
 		dut->hsync = 1;
@@ -165,6 +168,12 @@ struct TestBench {
 				}
 
 				step_clock();
+
+				// Capture the state produced by this CCLK's rising edge.  This
+				// makes the first execute edge unambiguous: one dead cycle and one
+				// fetch cycle for a single active channel means CCLK 2.
+				if (clk_phase == 0 && psg_active_cycles && dut->psg_active)
+					psg_active_cycles->push_back(cyc);
 			}
 		}
 		dut->cclk_en_p = 0;
@@ -541,6 +550,71 @@ void test_d12_active_channel_fetch_timing(TestBench& tb) {
 	std::printf("PASS d12: one consecutive fetch cycle per active channel (0/1/2/3 active)\n");
 }
 
+// d13: Execute cadence must skip inactive channels (§9, Timing & bus interaction)
+void test_d13_active_channel_execute_timing(TestBench& tb) {
+	const uint16_t sar_start[3] = {0x6000, 0x7000, 0x8000};
+	const uint16_t load_instr[3] = {0x0011, 0x0122, 0x0233};
+
+	for (unsigned mask = 0; mask < 8; ++mask) {
+		tb.pulse_reset();
+		for (unsigned ch = 0; ch < 3; ++ch) {
+			tb.set_sar(ch, sar_start[ch]);
+			tb.write_instruction(sar_start[ch], load_instr[ch]);
+		}
+		tb.set_dcsr_ena(static_cast<uint8_t>(mask));
+
+		std::vector<int> psg_active_cycles;
+		tb.run_scanline(nullptr, nullptr, &psg_active_cycles);
+
+		unsigned active_count = 0;
+		for (unsigned ch = 0; ch < 3; ++ch)
+			active_count += (mask >> ch) & 1u;
+		if (active_count == 0) {
+			if (!psg_active_cycles.empty())
+				fail("d13: mask 0x" + std::to_string(mask) +
+				     " unexpectedly executed with no active channels");
+			continue;
+		}
+
+		std::vector<int> execute_starts;
+		int previous_active_cycle = -2;
+		for (int cyc : psg_active_cycles) {
+			if (cyc != previous_active_cycle + 1)
+				execute_starts.push_back(cyc);
+			previous_active_cycle = cyc;
+		}
+		if (execute_starts.size() != active_count)
+		{
+			std::string observed;
+			for (int cyc : psg_active_cycles)
+				observed += " " + std::to_string(cyc);
+			fail("d13: mask 0x" + std::to_string(mask) +
+			     " expected " + std::to_string(active_count) +
+			     " LOAD execute windows, got " + std::to_string(execute_starts.size()) +
+			     "; active CCLKs:" + observed);
+		}
+
+		// One dead CCLK (0), then one fetch CCLK per active channel.  The
+		// first active LOAD therefore starts at 1 + popcount(mask), and each
+		// following LOAD starts after its fixed eight CCLK execute sequence.
+		const int expected_first = 1 + static_cast<int>(active_count);
+		if (execute_starts[0] != expected_first)
+			fail("d13: mask 0x" + std::to_string(mask) +
+			     " first LOAD execute started at CCLK " + std::to_string(execute_starts[0]) +
+			     ", expected " + std::to_string(expected_first));
+		for (unsigned i = 1; i < execute_starts.size(); ++i) {
+			const int expected = expected_first + 8 * static_cast<int>(i);
+			if (execute_starts[i] != expected)
+				fail("d13: mask 0x" + std::to_string(mask) +
+				     " LOAD " + std::to_string(i) + " started at CCLK " +
+				     std::to_string(execute_starts[i]) + ", expected " +
+				     std::to_string(expected));
+		}
+	}
+
+	std::printf("PASS d13: execute cadence uses only active channels (0/1/2/3 active)\n");
+}
+
 } // namespace
 
 int main() {
@@ -558,7 +632,8 @@ int main() {
 		test_d10_byte_sar_writes(tb);
 		test_d11_load_timing_and_ay_restore(tb);
 		test_d12_active_channel_fetch_timing(tb);
-		std::printf("All 12 asic_dma unit tests PASSED.\n");
+		test_d13_active_channel_execute_timing(tb);
+		std::printf("All 13 asic_dma unit tests PASSED.\n");
 		return 0;
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());
