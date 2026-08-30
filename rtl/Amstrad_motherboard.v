@@ -515,15 +515,23 @@ wire cpu_ppi_write = cpu_ppi_access & io_wr;
 // must retire without being gated low and replayed afterwards. New accesses
 // which begin while the DMA owns the integrated PPI/PSG still wait normally.
 reg cpu_ppi_started;
+reg cpu_ppi_stolen;
 reg [7:0] cpu_ppi_read_latch;
 always @(posedge clk) begin
 	if (reset) begin
 		cpu_ppi_started <= 1'b0;
+		cpu_ppi_stolen <= 1'b0;
 		cpu_ppi_read_latch <= 8'hFF;
 	end
 	else begin
-		if (~cpu_ppi_access) cpu_ppi_started <= 1'b0;
-		else if (~dma_load_owner) cpu_ppi_started <= 1'b1;
+		if (~cpu_ppi_access) begin
+			cpu_ppi_started <= 1'b0;
+			cpu_ppi_stolen <= 1'b0;
+		end
+		else begin
+			if (~dma_load_owner) cpu_ppi_started <= 1'b1;
+			if (cpu_ppi_started & dma_load_owner) cpu_ppi_stolen <= 1'b1;
+		end
 		if (cpu_ppi_access & io_rd & ~dma_load_owner & ~cpu_ppi_started)
 			cpu_ppi_read_latch <= ppi_dout;
 	end
@@ -531,7 +539,10 @@ end
 // A read accepted before DMA ownership must keep the byte sampled from the
 // CPU-selected AY/PPI path. DMA may replace the live AY bus before T80's
 // PHI_EN_N retirement edge, but it must not change an in-flight CPU result.
-assign ppi_cpu_dout = (plus_mode & cpu_ppi_started & io_rd) ?
+// An uncontended read remains live through retirement (notably Port B VSYNC
+// and tape input); substitute the latch only after DMA actually steals AY.
+assign ppi_cpu_dout = (plus_mode & cpu_ppi_started & io_rd &
+	(cpu_ppi_stolen | dma_load_owner)) ?
 	cpu_ppi_read_latch : ppi_dout;
 // Classify the physical PPI operation, not only the usual F6xx full-Port-C
 // encoding. A Port-A write while BDIR/BC1 already selects PSG data, or a

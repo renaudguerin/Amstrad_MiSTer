@@ -50,6 +50,7 @@ struct Sample {
 	bool ppi_oe = false;
 	uint16_t address = 0;
 	uint8_t data = 0xFF;
+	uint8_t write_data = 0xFF;
 };
 
 struct LoadWindow {
@@ -85,6 +86,12 @@ public:
 	bool saw_accept_on_owner = false;
 	bool saw_wait_without_owner = false;
 	bool saw_preowner_read_overlap = false;
+	bool live_portb_candidate = false;
+	bool live_portb_updated = false;
+	bool saw_live_portb_read = false;
+	bool saw_porta_psg_class = false;
+	bool saw_pc7_bsr_psg_class = false;
+	bool saw_pc6_bsr_psg_class = false;
 
 	Bench() : dut("p10_dma_mobo_test_top") {
 		dut.clk = 0;
@@ -92,6 +99,7 @@ public:
 		dut.plus_aspage_on_i = 0;
 		dut.vram_din_i = 0x0700; // LOAD R7, #00, held on the DMA VRAM bus
 		dut.ps2_key_i = 0;
+		dut.tape_in_i = 0;
 	}
 
 	Sample tick(bool keep_trace = true) {
@@ -114,6 +122,7 @@ public:
 		s.ppi_oe = dut.ppi_oe_o;
 		s.address = dut.cpu_addr_o;
 		s.data = dut.cpu_di_o;
+		s.write_data = dut.cpu_do_o;
 		if (s.cclk_p)
 			++cclk_count;
 
@@ -155,9 +164,26 @@ public:
 			io_is_read = s.cpu_rd;
 			io_address = s.address;
 			++io_transactions;
+			if (s.cpu_rd && (s.address == 0xF500) &&
+			    !s.owner_pre && !s.owner_post) {
+				live_portb_candidate = true;
+				live_portb_updated = false;
+				dut.tape_in_i = 1;
+			}
 		}
 		if (io_open)
 			io_owner_seen = io_owner_seen || s.owner_pre || s.owner_post;
+		if (live_portb_candidate && (s.address == 0xF500) && s.cpu_rd &&
+		    ((s.data & 0x80) != 0))
+			live_portb_updated = true;
+		if (s.ppi_we && s.psg_write && (s.address == 0xF400))
+			saw_porta_psg_class = true;
+		if (s.ppi_we && s.psg_write && (s.address == 0xF700) &&
+		    (s.write_data == 0x0F))
+			saw_pc7_bsr_psg_class = true;
+		if (s.ppi_we && s.psg_write && (s.address == 0xF700) &&
+		    (s.write_data == 0x0C))
+			saw_pc6_bsr_psg_class = true;
 		if (io_open && s.phi_n && s.wait_n && s.cpu_rd &&
 		    (s.address == 0xF400) && (s.data != 0xDF)) {
 			fail("AY R14 read returned " + std::to_string(s.data) +
@@ -180,6 +206,14 @@ public:
 			if (io_is_read && (io_address == 0xF400) &&
 			    !io_started_under_owner && io_owner_seen)
 				saw_preowner_read_overlap = true;
+			if (live_portb_candidate) {
+				if (!io_owner_seen && !live_portb_updated)
+					fail("uncontended Plus Port-B read did not follow live tape input");
+				if (!io_owner_seen)
+					saw_live_portb_read = true;
+				live_portb_candidate = false;
+				dut.tape_in_i = 0;
+			}
 			io_max_wait_cclks = (io_wait_cclks > io_max_wait_cclks) ?
 				io_wait_cclks : io_max_wait_cclks;
 			io_open = false;
@@ -266,6 +300,14 @@ int run() {
 	        "fake T80pa observed a bus transition outside PHI_EN_P/PHI_EN_N");
 	require(b.saw_preowner_read_overlap,
 	        "phase sweep did not exercise a Port-A read started before DMA ownership");
+	require(b.saw_live_portb_read,
+	        "phase sweep did not exercise an uncontended live Port-B read");
+	require(b.saw_porta_psg_class,
+	        "production decode did not classify Port A under PC7:6=10 as a PSG write");
+	require(b.saw_pc7_bsr_psg_class,
+	        "production decode did not classify the PC7 BSR transition as a PSG write");
+	require(b.saw_pc6_bsr_psg_class,
+	        "production decode did not classify the PC6 BSR transition as a PSG write");
 	require(b.dut.cpu_read_error_o == 0,
 	        "PHI-aligned AY R14 keyboard read lost its 0xDF sentinel during DMA ownership");
 
