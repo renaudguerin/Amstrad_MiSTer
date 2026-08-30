@@ -458,6 +458,10 @@ public:
         }
     }
 
+    void expect_xfail_de_high(const std::string& expectation) const {
+        expect_xfail_byte(expectation, 1, dut_->DE);
+    }
+
     void expect_xfail_line(const std::string& expectation,
                            std::uint8_t expected) const {
         expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__line);
@@ -5188,6 +5192,34 @@ void test_type0_skew_non_output_blanks(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
+// t31: F13 -- exact half-character type-0 border pulse when R1 > R0
+//
+// ACCC v1.11 section 17.6.2 p.186 splits C0=R0 into a displayed first byte
+// and a border second byte. Section 19.2.4 p.195 states the pin-level rule:
+// BORDER is sent 0.5 us after C0=R0 and disabled on the next character 0.5 us
+// later. The p.195 diagrams separately show that SKEW-DISPTMG rounds the
+// deferred event onto a full delayed character; t10c/t10d already pin those
+// cases. This fixture distinguishes the no-skew rule from t10's accepted
+// full-character approximation before the F13 behavior change lands.
+// ---------------------------------------------------------------------------
+
+void f13_expect_first_half_displayed(TestBench& test,
+                                     unsigned skew,
+                                     unsigned target_c0,
+                                     const std::string& context) {
+    test.set_crtc_type(0);
+    f6_settle_one_frame(test, skew);
+    test.run_characters(target_c0);
+    test.expect_xfail_de_high(context + " first half remains displayed");
+}
+
+void t31_type0_half_character_border_no_skew(TestBench& test) {
+    f13_expect_first_half_displayed(
+        test, 0, 15,
+        "F13 no-skew C0=R0 (ACCC v1.11 sections 17.6.2 p.186 and 19.2.4 p.195)");
+}
+
+// ---------------------------------------------------------------------------
 // t21: F10 type-1 IVM toggle parity table (ACCC v1.10 sections 19.5.3 p.208,
 // 19.8.2 setup p.209, and the 16 SHAKER 22C/3 truth-table panels on
 // pp.210-211; render-verified 2026-08-24 under the extract protocol).
@@ -7458,6 +7490,12 @@ int main(int argc, char** argv) {
         {"t30b_type0_post_ivm_exit_recovery_recipe_even",
          "ACCC v1.10 section 19.8.1 p.220 prose (recovery recipe by programming R9=C9.VMA, even frame); F16",
          false, t30_type0_post_ivm_exit_recovery_recipe_even},
+        // t31: F13 exact half-character border pulse. These fixture-first
+        // vectors XFAIL against the accepted t10 full-character Stage 1
+        // approximation until the two-phase DISPTMG pipeline lands.
+        {"t31a_type0_half_character_border_no_skew",
+         "ACCC v1.11 sections 17.6.2 p.186 and 19.2.4 p.195; F13",
+         true, t31_type0_half_character_border_no_skew},
     };
 
     unsigned passed = 0;
