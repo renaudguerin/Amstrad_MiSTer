@@ -20,15 +20,16 @@ claim about undocumented ASIC internals or a title's first divergence.
 | Plotting behaves as if Fire is held | The production-shaped PPI/YM2149/hid/joydb slice reads PS/2, SNAC, and USB Fire 1 with real ASIC CPU phases and READY stalls. It finds no constant-fire condition in that slice. This does not cover a title-specific joystick port, model selection, or DMA collision. | Capture Plotting's selected input row, AY R7/R14 state, both joystick sources, and model on hardware. |
 | Arnold 5 keyboard is dead | Not closed. The same input fixture proves normal keyboard rows and Fire 1 through real PPI/YM/HID modules, but intentionally excludes DMA ownership and does not establish Arnold's control-write sequence. | Trace Arnold's PPI control words, AY register selection, keyboard row, and concurrent DMA PSG activity on 6128+ or 464+. |
 | Copter 271 logo has wrong-colour top rows | Not claimed fixed. The symptom is compatible with a sprite row/palette seam, but no cartridge-derived vector identifies one. | Record whether the logo is sprites, the affected sprite/Y rows, palette writes, and the first wrong pixel phase. |
-| CRTC3 demo detects an emulator, has wrong DMA sample pitch, fixed-picture corruption, then crashes | Two source-backed mechanisms changed: R8=3 interlace/IVM counting and VSYNC timing are implemented, and inactive DMA slots no longer perform redundant sample fetches. These are direct retest candidates for detection and pitch. R8=1 sync-only interlace, odd-frame R5 recurrence, the picture corruption, and the eventual crash remain open. | Retest each phase separately. Record the first discriminator result, DMA channel mask/sample, and the first corrupted line before the crash. |
+| CRTC3 demo detects an emulator, has wrong DMA sample pitch, fixed-picture corruption, then crashes | Two source-backed mechanisms changed: R8=3 interlace/IVM counting and VSYNC timing are implemented, and inactive DMA slots no longer consume fetch or execute cycles. These are direct retest candidates for detection and pitch. R8=1 sync-only interlace, odd-frame R5 recurrence, the picture corruption, and the eventual crash remain open. | Retest each phase separately. Record the first discriminator result, DMA channel mask/sample, and the first corrupted line before the crash. |
 | Reset or CPR reload sometimes cannot recover the core | Only partial mechanisms are addressed. The Plus SNA FIFO now reserves the checked two-byte HPS tail, while the shared FDC stream is hardening reset during an active SD request. Neither proves the reported whole-core wedge. | When wedged, record whether CPU, cartridge service, u765 SD request/ACK, snapshot busy, and video counters still advance before reloading the core. |
 | Burnin' Rubber initially reveals columns of a sprite that should be off-screen | Not claimed fixed. The sprite fixtures cover register mapping, fetch arbitration, access blanking, and live updates, but no sourced coordinate change was made. | Capture sprite X/Y/magnification and the compositor pixel position before the word enters from the right. Keep the unresolved coordinate formula as hardware debt. |
 
 ## Implemented and focused evidence
 
-- DMA fetch issue: inactive channel slots are skipped, so each active channel receives one
-  fetch per DMA scan. All eight channel masks are pinned. This is the only change in this
-  round that directly targets the reported sample-pitch symptom.
+- DMA cadence issue: inactive channel slots are skipped in both phases, so each active channel
+  receives one fetch and one channel-ordered execute slot per DMA scan. All eight channel
+  masks are pinned; LOAD retains its fixed eight-cycle execute sequence. This is the only
+  change in this round that directly targets the reported sample-pitch symptom.
 - CRTC3 R8=3: the counter now implements IVM `+2` counting, parity seeding/toggling,
   adjustment behavior, even-frame added line, MID-VSYNC, odd-frame delay, R7=0 priority,
   live R0/R3/R8 handling, reset, exit, DE, ADJ, and VMA consumers. ACCC v1.11 sections
@@ -66,11 +67,13 @@ sprites in one early window and observes a unique emitted marker from each. This
 the durable symptom/status reconciliation; the shared handoff documents are reconciled after
 rebasing onto the accuracy/FDC integration.
 
-Guarded cross-provider review did not return a verdict for this Plus range: Claude OAuth was
-expired during the attempted call, and Gemini's headless repository permission was denied.
-Do not describe those attempts as review clearance. Re-run a cross-family review when the
-provider is available, with special attention to CRTC3 sync state, sprite fetch bandwidth,
-and the SNA producer/consumer boundary.
+A fresh exact-tip Sol remediation review returned CLEAR after independently reproducing the
+focused fixtures. A guarded Claude review found one Medium DMA scheduler defect: the first
+change skipped inactive fetch states but inactive lower-numbered channels still delayed the
+execute phase. The new `d13` discriminator failed unchanged RTL (channel 1 alone began at CCLK
+3 instead of 2); direct active-channel routing now passes every enable mask while preserving
+LOAD's eight-cycle sequence. A narrow cross-provider re-review of that remediation is still
+required. This is review evidence, not synthesis or hardware confirmation.
 
 ## Required hardware rerun
 

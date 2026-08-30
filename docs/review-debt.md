@@ -96,11 +96,19 @@
   production. Focused DMA, P8, CRTC3 video, sprite leaf, real-register sprite, P10 input, and
   cartridge-boot tests pass. The cartridge harness pins an 11-tick deterministic stall run,
   but its no-wait RAM side cannot support a valid speed comparison. Keep this row open until
-  the complete rebased gates and a fresh remediation re-review pass. Guarded Claude returned
-  no Plus verdict because OAuth was expired, and Gemini returned no verdict after headless
-  repository permission denial; neither attempt clears cross-provider debt. Review hardest:
-  CRTC3 sync state, sprite fetch bandwidth/access blanking, the SNA HPS producer boundary,
-  DMA/PPI concurrency, and exact-top synthesis/hardware behavior.
+  the complete rebased gates and a fresh remediation re-review pass.
+  **FRESH SOL REMEDIATION REVIEW — CLEAR at `3ce8268`, GPT-5.6 Sol high, 2026-08-30.**
+  The reviewer independently reproduced the focused benches and accepted the input-lint,
+  exact joystick fallback, all-16 overlap, cartridge-address reconstruction, and durable
+  residual wording. A subsequent guarded Claude review found one Medium production defect:
+  inactive DMA channels skipped fetch slots but still delayed the execute phase. The new
+  `d13` discriminator first failed unchanged RTL for channel 1 alone (CCLK 3 rather than 2),
+  then passed all eight masks after fetch completion and channel transitions were routed
+  directly to the next active execute state. Focused DMA tests and lint pass. Keep this row
+  open pending a narrow cross-provider re-review of that final scheduler remediation, the
+  full post-fix rebased gates, exact-top synthesis, and hardware retest. Remaining review
+  emphasis: sprite bandwidth/access blanking, the SNA HPS producer boundary, DMA/PPI
+  concurrency, and exact-top behavior.
 
 - **ACCC Round 2 documentation correction, 2026-08-28** — documentation on the integration
   branch `accc-review-and-fixes`, based on `c11c55d`. Scope: `accuracy/accc-author-feedback.md`, its Round 1

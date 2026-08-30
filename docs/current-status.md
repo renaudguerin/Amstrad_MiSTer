@@ -63,8 +63,9 @@ changes and discriminators:
 - CRTC3 R8=3 now implements IVM `+2` counting, adjustment parity, the even-frame additional
   line, MID-VSYNC, odd-frame delay, R7=0 priority, live writes, reset, exit, and the DE/ADJ/VMA
   consumers. R8=1 sync-only interlace and odd-frame R5 recurrence remain explicit residuals.
-- DMA skips inactive channel fetch slots; all eight channel masks are pinned. This is a direct
-  retest candidate for the reported sample pitch, not hardware confirmation.
+- DMA skips inactive channel fetch and execute slots; all eight channel masks are pinned for
+  both phases. This is a direct retest candidate for the reported sample pitch, not hardware
+  confirmation.
 - The production-shaped PPI/YM2149/hid/joydb fixture passes PS/2 A, SNAC Fire 1, and USB Fire 1
   under real ASIC phase/READY timing. It excludes DMA ownership, so Plotting and Arnold 5 are
   not attributed or closed.
