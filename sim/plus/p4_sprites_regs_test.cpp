@@ -219,6 +219,8 @@ public:
 		}
 		if (!found)
 			fail("did not reach an ungranted row3 fetch request");
+		const std::array<unsigned, 8> starts_before_access = row3_starts;
+		const std::array<unsigned, 8> pops_before_access = row3_pops;
 
 		// A real CPU read of row3 pixel data.  D_out is the register-file
 		// readback (low nibble only), while the same access suppresses sprq ACK
@@ -271,8 +273,11 @@ public:
 		}
 		if (!all_bytes)
 			fail("did not complete all row3 bytes, including the stale-fetch re-demand");
-		if (row3_starts[held_addr - kRow3FetchBase] < 2)
+		const unsigned held_byte = held_addr - kRow3FetchBase;
+		if (row3_starts[held_byte] - starts_before_access[held_byte] < 1)
 			fail("stale row3 request was not re-issued after CPU access blanking");
+		if (row3_pops[held_byte] - pops_before_access[held_byte] < 2)
+			fail("held row3 request did not produce stale plus fresh completions");
 
 		// The access blanking tail is two PIXEN clocks in the production
 		// engine.  Advance inside the x1 window and require the new row and
@@ -289,6 +294,36 @@ public:
 		}
 		if (!saw_row3)
 			fail("sprite 0 did not reappear with palette colour 3 after blanking");
+
+		// A second, post-staging discriminator exercises the visible access
+		// side effect independently of the in-flight stale-response case above.
+		// The real register-file access indicator drives this same-sprite blank
+		// level; keep PIXEN live so the two-clock tail is consumed exactly as in
+		// production.  The engine reappears on the edge that consumes tail 2.
+		dut.asic_cs = 1;
+		dut.mem_wr = 0;
+		dut.mem_rd = 1;
+		dut.A = kRow3PageBase;
+		dut.D_in = 0;
+		dut.clk = 0;
+		dut.eval();
+		if (dut.D_out != 0x03)
+			fail("post-stage same-sprite pixel read lost its real page response");
+		for (unsigned access = 0; access < 3; ++access) {
+			const Edge edge = tick(true, false, false);
+			note(edge, watching);
+			if (dut.spr_en)
+				fail("sprite remained visible during a same-sprite pixel read");
+		}
+		bus_idle();
+		for (unsigned tail = 0; tail < 2; ++tail) {
+			if (dut.spr_en)
+				fail("sprite reappeared before the two-clock access tail elapsed");
+			const Edge edge = tick(true, false, false);
+			note(edge, watching);
+		}
+		if (!dut.spr_en || dut.spr_idx != 0 || dut.spr_rgb != kPalette3Rgb)
+			fail("sprite did not reappear with palette 3 after the access tail");
 	}
 };
 
