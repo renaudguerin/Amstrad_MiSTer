@@ -6,6 +6,8 @@ unexport VERILATOR_BIN
 OBJ_DIR   := obj_dir
 TOP       := ga40010_test
 TEST_BIN  := $(OBJ_DIR)/ga40010_tb
+R2JIT_OBJ := obj_r2jit
+R2JIT_BIN := $(R2JIT_OBJ)/r2jit_tests
 
 HDL_FILES := ga40010_test.v ga40010.sv syncgen.v syncgen_sync.v casgen.v \
 	casgen_sync.v video.sv rslatch.v ../CRTC.v \
@@ -15,13 +17,24 @@ VERILATOR_FLAGS := --cc --exe --build --trace --top-module $(TOP) \
 	--Mdir $(OBJ_DIR) -Wno-fatal
 CXXFLAGS ?= -std=c++17 -O2
 
-.PHONY: all video clean
+.PHONY: all test lint video clean
 
 all: $(TEST_BIN)
+
+test: $(R2JIT_BIN)
+	./$(R2JIT_BIN)
 
 $(TEST_BIN): $(HDL_FILES) ga40010_tb.cpp Makefile
 	$(VERILATOR_BIN) $(VERILATOR_FLAGS) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(TEST_BIN)) $(HDL_FILES) ga40010_tb.cpp
+
+$(R2JIT_BIN): $(HDL_FILES) r2jit_tb.cpp Makefile
+	$(VERILATOR_BIN) $(VERILATOR_FLAGS) --Mdir $(R2JIT_OBJ) \
+		-CFLAGS "$(CXXFLAGS)" -o $(notdir $(R2JIT_BIN)) \
+		$(HDL_FILES) r2jit_tb.cpp
+
+lint:
+	$(VERILATOR_BIN) --lint-only --top-module $(TOP) -Wall -Wno-fatal $(HDL_FILES)
 
 video: video.png
 
@@ -33,4 +46,5 @@ video.png: video.rgb
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)
+	$(RM) -r -- $(R2JIT_OBJ)
 	$(RM) -- ga40010_tb video.png

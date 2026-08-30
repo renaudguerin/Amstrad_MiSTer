@@ -16,11 +16,13 @@ all: test
 
 build: $(TEST_BIN)
 	$(MAKE) -C plus build
+	$(MAKE) -C ../rtl/GA40010 all
 	$(MAKE) -C ../rtl/u765 build
 
 test: $(TEST_BIN)
 	./$(TEST_BIN)
 	$(MAKE) -C plus test
+	$(MAKE) -C ../rtl/GA40010 test
 	$(MAKE) -C ../rtl/u765 test
 
 # Randomized equivalence soak (sim/README.md). Override the golden hash to
@@ -37,9 +39,11 @@ $(TEST_BIN): $(RTL) $(TEST_SRC) Makefile
 lint:
 	$(VERILATOR) --lint-only --top-module $(TOP) -Wall -Wno-fatal $(RTL)
 	$(MAKE) -C plus lint
+	$(MAKE) -C ../rtl/GA40010 lint
 	$(MAKE) -C ../rtl/u765 lint
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)
 	$(MAKE) -C plus clean
+	$(MAKE) -C ../rtl/GA40010 clean
 	$(MAKE) -C ../rtl/u765 clean
