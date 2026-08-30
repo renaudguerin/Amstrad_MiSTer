@@ -435,14 +435,24 @@ void test_p8_sna_integration_seam(Vplus_p8_test_top& dut) {
 	// registers accepted payloads, so its final strobe can reach the parser on
 	// the first clock after sna_download falls. That byte must still enqueue.
 	// Send two ordinary bytes, then the third on the falling-download clock.
+	struct AsicWrite { uint16_t addr; uint8_t data; };
+	std::vector<AsicWrite> writes;
+	auto capture_write = [&]() {
+		if (dut.asic_sna_wr) writes.push_back({dut.asic_sna_addr, dut.asic_sna_data});
+	};
+
 	dut.cpc_plus_byte_wr = 1; dut.cpc_plus_byte_data = 0x12; tick();
+	capture_write();
 	dut.cpc_plus_byte_wr = 1; dut.cpc_plus_byte_data = 0x34; tick();
+	capture_write();
 	dut.sna_download = 0;
 	dut.cpc_plus_byte_wr = 1; dut.cpc_plus_byte_data = 0x56;
+	dut.eval();
 	if (!dut.sna_busy) {
 		fail("P8 seam: tail payload strobe did not hold sna_busy after download fell");
 	}
 	tick();
+	capture_write();
 	dut.cpc_plus_byte_wr = 0;
 	dut.cpc_plus_byte_data = 0xFF;
 	dut.eval();
@@ -456,14 +466,33 @@ void test_p8_sna_integration_seam(Vplus_p8_test_top& dut) {
 	int drain_cycles = 0;
 	while (dut.sna_busy && drain_cycles < 20) {
 		tick();
+		capture_write();
 		drain_cycles++;
 	}
 
 	if (dut.sna_busy) {
 		fail("P8 seam: sna_busy failed to clear after FIFO drain");
 	}
-	if (drain_cycles < 3) {
-		fail("P8 seam: FIFO was prematurely discarded instead of draining (cycles=" + std::to_string(drain_cycles) + ")");
+	const std::vector<AsicWrite> expected_writes = {
+		{0x0000, 0x01},
+		{0x0001, 0x02},
+		{0x0002, 0x03},
+		{0x0003, 0x04},
+		{0x0004, 0x05},
+		{0x0005, 0x06}
+	};
+	if (writes.size() != expected_writes.size()) {
+		fail("P8 seam: FIFO write count mismatch after tail drain (expected " +
+		     std::to_string(expected_writes.size()) + ", got " + std::to_string(writes.size()) + ")");
+	}
+	for (std::size_t i = 0; i < expected_writes.size(); ++i) {
+		if (writes[i].addr != expected_writes[i].addr || writes[i].data != expected_writes[i].data) {
+			fail("P8 seam: FIFO write mismatch at index " + std::to_string(i) +
+			     " (expected addr=" + std::to_string(expected_writes[i].addr) +
+			     " data=" + std::to_string(expected_writes[i].data) +
+			     ", got addr=" + std::to_string(writes[i].addr) +
+			     " data=" + std::to_string(writes[i].data) + ")");
+		}
 	}
 
 	// 5. A rapid new snapshot must abort a stale write tail. Queue another
