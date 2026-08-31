@@ -394,6 +394,15 @@ MiSTer's convention is only that the HPS pushes a file over `ioctl` with an inde
 already routes several indices separately (`ioctl_index < 4`, `== 7` for the CPC464 ROM, `== 8`
 for CPR), so per-slot loading partly exists.
 
+**Concrete example of why the current model is awkward.** The "Load CPC464 ROM" menu entry
+exists only because the generic expansion-ROM loader hardcodes which banks it fills.
+`Amstrad.sv` writes a loaded expansion ROM into bank 0 and then promotes it to bank 1
+(`if(rom_download && ... && !boot_bank) boot_bank <= 1;`), so expansion ROMs reach the 6128 and
+664 banks and never bank 2, the 464. The separate menu entry forces `boot_bank <= 2'd2` via
+`ioctl_index == 7` and is the only way to write that bank. Upstream added a dedicated slot
+rather than generalise the loop, which is the same pain this item exists to fix, one bank at a
+time. A proper per-bank model would make that entry unnecessary.
+
 The Amstrad world thinks in lower/upper ROM banks, and hardware expansions such as the M4 let
 each bank be set independently. Today, changing the keyboard layout between English, French and
 Spanish requires rebuilding the concatenated blob, which is hostile.
