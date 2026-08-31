@@ -90,5 +90,5 @@ mutation/dark-silicon harness.
 
 ## Verdict
 
-No action required from this audit. The one follow-up is to confirm the R16/R17 light-pen
-stuck-at-GND finding against F18 when that finding is taken up, rather than assuming it.
+No memory-inference action required. One follow-up: decide and record what the CRTC3 light-pen
+registers should do, since nothing currently owns that behaviour.
