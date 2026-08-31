@@ -277,7 +277,15 @@ reports for the current build and check, for every memory-shaped structure in th
 whether it inferred as block RAM or as registers. Also read the removed/stuck-register report:
 anything optimized away as unreachable is either dead code or a wiring bug.
 
-**Audit 2 — dark silicon test.** For each Plus module, deliberately corrupt it in simulation
+**Audit 2 — dark silicon test. DONE 2026-09-01 on `plus/b7-dark-silicon-audit`, see
+`docs/plus/b7-dark-silicon-audit.md`.** Result, reproduced independently by the parent rather
+than accepted from the delegated report: **the classic-path-leaks-into-Plus hypothesis is
+ruled out.** Mutating `CRTC`, `crtc_type0_engine`, `crtc_type1_engine` or `ga40010` in Plus
+mode leaves the Plus signature bit-identical, while the same mutations in classic mode do move
+it, so the null result is meaningful rather than vacuous. All nine Plus modules shift the
+signature when corrupted, so there is no dead Plus code either. Two recorded limits: the two
+classic engines are not independently proven, and the fixture does not reach CRTC-type-divergent
+behaviour. Original scope follows. For each Plus module, deliberately corrupt it in simulation
 and assert that a Plus-mode output changes. Anything that stays green is not in the active
 path. Do the mirror test for classic modules in classic mode. This directly answers "are we
 running everything we built, and is a classic path overriding a Plus path".
