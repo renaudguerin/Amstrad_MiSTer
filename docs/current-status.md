@@ -11,13 +11,14 @@ Claude Opus 5 completed an independent cross-provider re-review of all historica
 self-reviewed items (`de71808`, `da79915`+`1a1233f`, `cd47d7d`, `c4c3e0f`, `90aed07`, `c9f4a4e`,
 `accuracy/f7-rfd`, `plus/p1-followups`) and the open `hotfix/implicit-rgb-net` debt row, confirming
 all implementations (verdict CLEAR with non-blocking findings N1-N5 recorded in
-`docs/accuracy/ox-alpha-items-opus-review.md`) and clearing all review debt. On 2026-08-28, Longshot
+`docs/accuracy/ox-alpha-items-opus-review.md`) and clearing all review debt. On 2026-08-27, Longshot
 released **ACCC v1.11** incorporating feedback from our Round 1 audit (`docs/accuracy/accc-author-feedback-round1-2026-08-27.md`). Active Round 2 feedback is tracked in `docs/accuracy/accc-author-feedback.md`:
 Q12 is resolved by French v1.11's repeated-activation qualifier and becomes an English
 clarification; Q20/N2 remains a hardware confirmation request, with the C4/R4 reset reading
 preferred but the current free-running model unchanged. Neither is new hardware evidence.
-The Round 2 documentation correction awaits cross-provider review after a headless tool
-permission denial; see [open documentation review](review-debt.md). Historical
+The Round 2 documentation correction was independently reviewed CLEAR by Claude Opus 5 on
+2026-08-31; see [the review record](accuracy/accc-round2-documentation-independent-review.md).
+Historical
 implementation reviews remain cleared.
 A complete mechanical and multimodal comparison across all 295 pages (278 word-identical, 17 updated)
 resolved the author questions/errata, confirmed that our F15–F18 implementations match the corrected
@@ -30,8 +31,11 @@ Full diff and impact reports are in `docs/accuracy/accc-1.11-differences.md` and
 `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
 which accepted all pass-2 remediations); the 2026-08-23 review of the F7/A1/A2 and Plus
 follow-up deltas is `accuracy/f7-plus-followups-independent-review.md`, and all
-historical rows covered by those reviews are cleared. The current Plus P10 and ACCC Round 2
-rows remain open in `review-debt.md`; the v1.11 bilingual-sweep row is cleared there. The
+historical rows covered by those reviews are cleared. On 2026-08-31 the Plus stream
+classified the P10 local RTL/test review chain as cleared through round two `d17a1bc` and
+round three `5275879`/`275a9a4`; the remaining top-level, timing, and hardware questions are
+validation residuals. The ACCC Round 2 documentation row is also cleared by the source-first
+review recorded in `accuracy/accc-round2-documentation-independent-review.md`. The
 §13.7.1.2 R0-widening trigger took two cross-provider
 passes recorded in `accuracy/f7-r0-widening-independent-review.md` — pass 1 returned NOT
 CLEAR on two blocking findings, pass 2 cleared the remediation on 2026-08-24 — and the
@@ -1252,7 +1256,8 @@ than whichever older package a Linux distribution happens to carry.
     - **HF-2 (12-bit ASIC Palette)**: connected `PAL_EN`, `PAL_ADDR`, `PAL_RGB` in `asic_video.v` and `Amstrad_motherboard.v` with `{G,R,B} -> {R,G,B}` nibble swap (resolves Burnin' Rubber / Plus custom palette rendering); verified with unit vectors `t05i`, `t05j` (registered dot-rate palette timing), and motherboard bench `m12`.
     - **HF-3 (Plus MMU/SDRAM Banking)**: wired `mem_bank` and `.ram64k` to `plus_ram_128k` (and `sna_load`) in `Amstrad.sv` to keep CPU and video memory banks aligned.
     - All tests pass (`make -C sim`, `make -C sim lint`), review debt logged in `docs/review-debt.md`.
-    **P10 Compatibility Closure (2026-08-29, independently reviewed but not cleared)**:
+    **P10 Compatibility Closure (historical review progression; final local clearance
+    completed 2026-08-30)**:
     - **P10a (TV80-under-T80pa-contract Boot Harness)**: added a deterministic production-motherboard CPR fixture in `sim/plus/tv80/`, `sim/plus/p10_boot_test_top.v`, and `sim/plus/p10_boot_test.cpp`. It covers the synthetic fixture's load/reset/execution path, but substitutes TV80 for T80, has no normal SDRAM WAIT, real u765/DSK, or title-level positive control, and does not satisfy the still-open exact-tip full-effort timing gate.
     - **P10b (CF-1: PPI Port C Physical Output)**: in `rtl/i8255.v`, physical Port C outputs now drive `opc_r` in Plus mode under all modes (including 0x9B/0x92), matching hardware keyboard scanning behavior.
     - **P10c (CF-2/CF-3: Model Capabilities & FDC Reset)**: gated FDC/motor/tape by model and reset the controller/motor. The original decoder assertions copied production equations; the integrated remediation now shares `rtl/plus/plus_fdc_decode.v` with the focused truth-table test and restores classic decode. A real u765 command/reset/DSK transaction remains open.
@@ -1262,6 +1267,11 @@ than whichever older package a Linux distribution happens to carry.
     - **Post-review MRER/RMR2 and SSCR fixes**: the integrated remediation shares the ASIC lock state across MMU/GA ownership, isolates classic onboard ROMs in Plus mode, and advances VMA at the effective-RA soft-scroll wrap. Focused MMU, GA/motherboard, sprite, and video vectors plus the pre-second-review full suite are green.
     - **Second independent review, NOT CLEARED (Claude Opus 5 xhigh, 2026-08-30):** the reviewer found the four intended remediation paths functionally correct, then identified three small integrity blockers (a contradictory video comment, missing standalone FDC-module lint, and one copied P10 FDC decoder) plus a pre-existing status-2 frame-origin mismatch. Focused fixes are complete. A later final scan reopened CF-5 with three HIGH production lifecycle defects; those now have the scoped repair and `p8_04` seam above, materially extending the unreviewed delta. ACCC v1.11 §20.3.4 p.243 itself states both C4/C9/C0 and later C4/C0-only forms; the model follows the opening rule and leaves hardware/author confirmation open.
     - Post-fix parent verification: 175 classic vectors and all Plus benches pass; focused P8 and P10 rebuilds pass after the last wiring fixes; full lint includes and passes the shared FDC decoder's standalone `-Wall` target; the golden soak matches `0x48146d2b681268ab`; `git diff --check` is clean.
-    - A final Luna re-scan found and pinned one medium rapid-snapshot-restart FIFO leak after those gates. Restart now clears the old FIFO and suppresses same-edge dequeue; the focused P8 regression first failed and then passed. The final full simulation, lint, soak, and whitespace gates passed immediately before integration. An attempted narrow Opus-high re-review returned no report after being stopped when provider usage reached paid extra credits; review debt remains open.
-    - P10d and P10g are unstarted; real-u765 and full top-level SNA/DMA production coverage, exact-tip Quartus timing, hardware retest, and review clearance remain required. Review debt stays open in `docs/review-debt.md`.
+    - A final Luna re-scan found and pinned one medium rapid-snapshot-restart FIFO leak after those gates. Restart now clears FIFO pointers and suppresses same-edge dequeue; the focused P8 regression first failed and then passed. The final full simulation, lint, soak, and whitespace gates passed immediately before integration. An attempted narrow Opus-high re-review returned no report after being stopped when provider usage reached paid extra credits, so the debt correctly remained open at that point.
+    - Subsequent Sol and guarded Claude passes cleared the focused SNA tail/headroom,
+      all-16 sprite cadence, inactive-DMA ordering, CRTC3 R8=1, and production DMA/PPI/PSG
+      deltas through round-two `d17a1bc` and round-three `5275879`/`275a9a4`. P10d and P10g
+      remain unstarted; real-u765 and full top-level SNA/DMA production coverage, exact-tip
+      Quartus timing, and hardware/title retests remain validation work rather than local
+      independent-review debt. See `docs/review-debt.md`.
  6. Update this file when either stream reaches its next hardware-testable checkpoint.

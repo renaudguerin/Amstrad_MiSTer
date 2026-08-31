@@ -204,7 +204,7 @@ was retired by the 2026-08-22 review:
   adjustment. But if the equality still holds AND R4/R9 are rewritten *simultaneously* at that
   same C0==R0, adjustment stays committed using the **new** R4/R9 values for the ensuing count.
 
-### 4.4 R5 updated mid-adjustment (§11.3, p.84-85)
+### 4.4 R5 updated mid-adjustment (§11.3, EN pp.85–86; FR pp.87–88)
 
 - Both CRTC 0/1: if R5 is rewritten to exactly `C5+1` (CRTC1) / `C9+1` (CRTC0) on the current
   adjustment line, adjustment stops — next line **C4=C9=0 unconditionally**, regardless of C9's
@@ -220,7 +220,8 @@ was retired by the 2026-08-22 review:
     `C5+1==R5` to terminate adjustment and reset C4/C9 on an arbitrary line.
   - **C4/R4 reset remains a source/model distinction (Q20/N2, 2026-08-28):** the specific
     R5=0 paragraph retains the C4/R4 reset comparison while adjustment remains active,
-    whereas §11.2.4 p.84 generally describes adjustment increments ignoring R4. The
+    whereas §11.2.4 FR p.85 (EN p.84) generally describes adjustment increments ignoring
+    R4. The
     preferred reading is that, with R8=0, C4 resets at the next C4=R4, C9=R9 line end
     without stopping C5 or clearing adjustment. The later positive-R5 exit rule does not
     exclude this intermediate reset. French v1.11 §11.3.2 p.87 retains the distinction.

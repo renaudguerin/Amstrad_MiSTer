@@ -2,7 +2,7 @@
 
 > **ARCHIVE NOTICE (2026-08-28):**
 > This document records **Round 1** of feedback and clarifications submitted to Longshot (author of *The Amstrad CPC CRTC Compendium*) based on the ACCC v1.10 audit.
-> 
+>
 > Following submission of this feedback, the author released **ACCC v1.11** on **August 27, 2026**, incorporating and acknowledging these clarifications.
 >
 > Outstanding questions for subsequent rounds are tracked in the active [accc-author-feedback.md](accc-author-feedback.md).
