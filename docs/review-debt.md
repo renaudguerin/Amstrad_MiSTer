@@ -2,9 +2,20 @@
 
 ## Open rows
 
-None.
+- **Plus P10j exact-tip Cyclone V primitive corrections, 2026-08-31.** One
+  guarded Gemini 3.7 Flash high lane reviewed the block-RAM architecture, access
+  semantics, tests, manifests, and fail-closed timing CI incrementally through
+  `f16020e`. Its exact-tip continuation was then blocked by the managed export
+  permission layer, so it did not review the final `db60f8d` CLOCK1 parameter
+  correction or `c047a7d` supported same-port collision-mode correction. Review
+  those two mechanical but synthesis-sensitive deltas against the behavioral
+  branch and the proven Quartus 17 pattern. Exact full-effort run `33392854459`
+  establishes two M10Ks, 16,384 bits, no soft mirror, positive setup/hold slack,
+  zero TNS, and a packaged RBF; that is synthesis evidence, not an independent
+  exact-tip source-review verdict. Full scope and rejected intermediate fits:
+  `docs/plus/p10-review-debt-status-2026-08-31.md`.
 
-**Status: no independent-review debt rows are open.** The validation residuals retained in
+**Status: one independent-review debt row is open.** The validation residuals retained in
 the cleared rows below are not hardware evidence and do not reopen local RTL/test review.
 
 ## Cleared rows

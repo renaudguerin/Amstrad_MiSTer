@@ -443,7 +443,12 @@ void test_p8_sna_integration_seam(Vplus_p8_test_top& dut) {
 		dut.aregs_mem_rd = 1;
 		dut.aregs_mem_wr = 0;
 		dut.aregs_addr = addr;
-		dut.eval();
+		// Sprite storage is a synchronous M10K-compatible host read. Sample
+		// after its one 64 MHz edge without adding WAIT or a second bus cycle.
+		if ((addr & 0x3000) == 0x0000)
+			tick();
+		else
+			dut.eval();
 		uint8_t d = dut.aregs_dout;
 		dut.aregs_cs = 0;
 		dut.aregs_mem_rd = 0;

@@ -300,7 +300,7 @@ measured local cost.
 | **P10g: Panza first divergence** | Close one traced MMU/CRTC3/PRI/video behavior at a time | Each fix has a primary-source or hardware-derived vector; no self-derived expectation from current RTL |
 | **P10h: production CPC+ SNA** | Correct parser reset sequencing and consecutive-byte/nibble handling | `Amstrad.sv` snapshot integration test covers model, PPI/PSG, ASIC registers, palette, and sprite data |
 | **P10i: hardware matrix** | Repeat the Plus checklist with exact environment metadata | Individual items promoted to hardware-confirmed only with commit, full-fit RBF hash, model/media configuration, and recorded result |
-| **P10j: Plus resource and timing closure** | Replace the sprite-pixel array's register/ALM implementation with an M10K-compatible dual-port design; optimize the parallel sprite renderer only if memory conversion leaves insufficient margin | Focused fixtures preserve CPU read/write, SNA write, video-fetch, access-blanking, and CPU/video collision semantics; CPU-visible timing is unchanged unless a traced and tested WAIT contract is introduced; the fitter proves sprite storage uses block memory and records the `asic_regs`/`asic_sprites` and total-ALM deltas; all Plus/classic gates and the soak pass; the exact full-effort RBF has non-negative constrained setup/hold slack and zero TNS, with CI failing closed on a timing violation |
+| **P10j: Plus resource and timing closure — synthesis complete, hardware pending** | Sprite pixels now use one explicit Cyclone V true-dual-port M10K per even/odd bank; the renderer did not need redesign because the memory conversion restored sufficient margin | Focused fixtures preserve CPU read/write, SNA write, video-fetch, access-blanking, and mixed-port collision semantics; full simulation/lint and the soak pass; exact feature build `c047a7d` uses 2 M10Ks / 16,384 bits with no soft mirror, total use is 22,057 ALMs (53%), setup/hold are +0.323/+0.251 ns with zero TNS, and CI fails closed on timing violations. Final integration build, hardware matrix, and the exact-tip review-debt row remain |
 
 Do not combine P10b/P10c's confirmed defects with P10f/P10g's evidence-gated ASIC changes.
 Clock, WAIT, memory, RGB, and top-level arbitration commits require exact full-effort synthesis.
@@ -334,7 +334,7 @@ boot` -> `P1 CRTC3 foundation` -> `P2 ASIC page/palette` -> `P3 PRI` -> `P4 spri
 CRTC3 bus quirks` -> `P6 split/scroll` -> `P7 DMA` -> `P8 polish` -> `P9 cartridge
 tolerances` -> `P10 compatibility closure`.
 
-Current Plus position (2026-08-30): P0-P9 are implemented and simulation-verified, and
+Current Plus position (2026-08-31): P0-P9 are implemented and simulation-verified, and
 HF-1/HF-2/HF-3 have landed. They are not collectively hardware-confirmed. P10 now includes
 shared FDC reset/alias hardening, a real-module input fixture, a pinned cartridge WAIT
 baseline, a real u765 READ DATA/EDSK reset-reload seam, source-backed CRTC3 R8=3 timing,
@@ -345,10 +345,12 @@ u765, CRTC3, and concurrency seams are simulation-verified only. Exact-tip full-
 synthesis, title traces, hardware retest, no-ACK epoch/tag, two-drive overlap, sector-search
 reset, WRITE DATA `buff_wr`, automatic-EOT C/R, odd-R5 CRTC3 behavior,
 cartridge-versus-RAM pacing, top-level SNA recovery, and undocumented sprite/coordinate
-behavior remain open. P10j additionally owns conversion of the register-backed sprite-pixel
-array to M10K storage, preservation of its multi-client access semantics, any subsequent
-sprite-renderer resource work justified by a fresh entity report, and timing-clean CI/RBF
-acceptance. It deliberately does not require a separate upstream utilization build.
+behavior remain open. P10j has converted the register-backed sprite-pixel array to exactly
+two M10Ks while preserving its multi-client access semantics. Exact feature fit `c047a7d`
+uses 22,057 ALMs (53%), so no sprite-renderer redesign is justified by the resource report;
+setup/hold are positive with zero TNS and a named RBF is packaged. Final integration
+synthesis, exact-tip independent review of the two Quartus-compatibility parameter fixes,
+and hardware retest remain. No separate upstream utilization build was required.
 
 - P-2 is independently mergeable because default-off behavior is invariant.
 - P-1 may be independently mergeable if the cartridge service is unselected in classic
@@ -442,10 +444,10 @@ acceptance. It deliberately does not require a separate upstream utilization bui
    2026-08-29 and 2026-08-30 hardware samples keep P10 open. Build an exact-tip full-effort
    timing-clean RBF, repeat the recorded matrix, and capture title-level first divergences.
    Keep input/DMA concurrency, cartridge timing redesign, and undocumented sprite/video
-   behavior evidence-gated. Complete P10j by moving sprite-pixel storage out of ALMs and into
-   M10K memory without weakening CPU/video collision semantics, then record the fitter delta
-   and require timing-clean CI; no exact upstream utilization build is needed. Do not combine
-   Plus work with the classic stream. See
+   behavior evidence-gated. P10j's sprite-pixel M10K conversion and timing-clean exact
+   feature fit are complete; next produce the combined integration RBF, close its narrow
+   exact-tip review row, and run the recorded hardware matrix. Do not combine Plus work with
+   the classic stream. See
    `plus/hardware-checkpoint-findings.md` and `plus/hardware-test-round2-2026-08-30.md`.
 6. F6/F13 proceeds per `accuracy/f6-decision-gate.md`: Stage 2 measured the old 1 µs input;
    Stage 2b assigned the documented 0.5 µs to the CRTC DE phase; the wrapper correction and

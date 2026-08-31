@@ -39,8 +39,18 @@ review recorded in `accuracy/accc-round2-documentation-independent-review.md`. T
 §13.7.1.2 R0-widening trigger took two cross-provider
 passes recorded in `accuracy/f7-r0-widening-independent-review.md` — pass 1 returned NOT
 CLEAR on two blocking findings, pass 2 cleared the remediation on 2026-08-24 — and the
-branch is merged, so no review-debt row is outstanding. The detailed behavioral rules remain in
-`accuracy/`; the long-term ordering remains in `implementation-roadmap.md`.
+branch is merged. The 2026-08-31 IA-1 through IA-6 source/model audit is also integrated:
+183 classic vectors pass and the current soak hash is `0xd6bc1649ff2058a1`; IA-5 retains a
+real-hardware U.S.-ROM phase capture rather than a circular synthetic oracle.
+
+Plus P10j moved the sprite-pixel array from soft registers to exactly two M10Ks. Exact
+feature build `c047a7d` (run `33392854459`) reports 22,057 ALMs (53%), 16,384 sprite-RAM
+bits, setup/hold +0.323/+0.251 ns, zero TNS, and a packaged RBF. One guarded Gemini 3.7
+Flash high lane reviewed the architecture and CI work through `f16020e`; managed export
+permission blocked its exact-tip continuation over the final two Quartus-compatibility
+parameter fixes, so that narrow review-debt row remains open. This fit is synthesis
+evidence, not hardware confirmation. The detailed behavioral rules remain in `accuracy/`;
+the long-term ordering remains in `implementation-roadmap.md`.
 
 ## How hardware testing fits the loop
 
@@ -296,6 +306,26 @@ remediated (`docs/plus/p2p3-independent-review.md`, plus the F10/F11h records).
 - Worst-case setup slack +0.665 ns, hold +0.250 ns - positive; no regression signal.
 - RBF retained as `output_files/hardware-milestones/Amstrad_20260825_5d6d342.rbf`
   (SHA-256 `94b426a49f612895ff287072409badd452cddfa685f3bd7c27f130d3a5e75af5`).
+
+## Hardware-test milestone
+
+`c047a7d` is the accepted P10j feature-build milestone (local-VM run
+`33392854459`, job `99490354763`, Quartus 17.0.2). It replaces the 4Kx4
+register-backed sprite pixel store with one 2,048x4 true-dual-port M10K per
+even/odd bank and adds fail-closed setup/hold timing checks. **It has not been
+hardware-tested and predates the final combined Accuracy/Plus integration
+build.**
+
+- Logic utilization 22,057 / 41,910 ALMs (53%); 26,101 registers;
+  701,596 block-memory bits; 102 RAM blocks. `plus_sprite_ram` itself uses
+  exactly 16,384 bits, 2 M10Ks, 20 ALUTs, and 3 registers, with no soft mirror
+  or duplicate bank copies.
+- Worst-case setup slack +0.323 ns and hold slack +0.251 ns; setup and hold TNS
+  are both 0.000.
+- RBF `Amstrad_20260831_c047a7d.rbf`, SHA-256
+  `b0ccf327bcc5054466ef19828af50b21fbce9b3079a6d92655ba582968030945`.
+  Exact reports, rejected intermediates, and the reviewer limitation are in
+  `plus/p10-review-debt-status-2026-08-31.md`.
 
 ## Hardware-test milestone
 
