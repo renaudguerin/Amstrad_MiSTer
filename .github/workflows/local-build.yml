@@ -20,6 +20,15 @@ on:
         options:
           - full
           - smoke
+  # Called by build.yml when its route job finds the Quartus VM online and
+  # idle. Only that caller reaches this path, and it refuses to route
+  # pull_request events, so the fork-PR guard below still holds.
+  workflow_call:
+    inputs:
+      effort:
+        description: Compile effort on the Quartus VM
+        type: string
+        default: full
 
 permissions:
   contents: read
@@ -32,7 +41,7 @@ concurrency:
 jobs:
   quartus:
     if: >-
-      github.event_name == 'workflow_dispatch' &&
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'push') &&
       github.repository == 'renaudguerin/Amstrad_MiSTer'
     runs-on: [self-hosted, quartus-vm]
     timeout-minutes: 90

@@ -215,6 +215,88 @@ jobs:
       - name: Run behavioral tests and lint
         run: make -C sim clean test lint
 
+  route:
+    # Chooses which runner performs the expensive Quartus compile. The local
+    # Quartus VM is roughly 2-4 minutes faster than the hosted container, so
+    # it wins whenever it is online and idle; otherwise the hosted route runs
+    # and a build is always produced.
+    #
+    # Reading self-hosted runner state needs the repository "administration"
+    # permission, which GITHUB_TOKEN cannot hold, so this uses a fine-grained
+    # PAT in QUARTUS_VM_TOKEN. Every failure path -- missing secret, API
+    # error, malformed response -- falls back to hosted, so CI keeps working
+    # if the secret is absent or expires.
+    needs:
+      - synthesis-policy
+    if: needs.synthesis-policy.outputs.required == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      target: ${{ steps.pick.outputs.target }}
+    steps:
+      - name: Pick the synthesis runner
+        id: pick
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.QUARTUS_VM_TOKEN }}
+          LEGS: ${{ needs.synthesis-policy.outputs.legs }}
+        run: |
+          set -uo pipefail
+
+          decide() {
+            printf 'target=%s\n' "$1" >> "$GITHUB_OUTPUT"
+            printf 'Synthesis routed to: %s (%s)\n' "$1" "$2"
+            exit 0
+          }
+
+          # A fork pull request must never reach the self-hosted runner: it
+          # would execute untrusted Tcl and RTL outside a container. This
+          # mirrors the guard inside local-build.yml; keep both.
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            decide hosted "pull_request never uses the self-hosted runner"
+          fi
+          if [[ "${{ github.repository }}" != "renaudguerin/Amstrad_MiSTer" ]]; then
+            decide hosted "not the owning repository"
+          fi
+
+          # effort=both produces two legs; the reusable local workflow compiles
+          # one. Multi-leg benchmark runs stay hosted.
+          if [[ "$(jq -r 'length' <<<"$LEGS")" != "1" ]]; then
+            decide hosted "multi-leg run ($LEGS)"
+          fi
+
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            decide hosted "QUARTUS_VM_TOKEN not configured"
+          fi
+
+          runners=$(gh api "repos/${{ github.repository }}/actions/runners" 2>/dev/null) || \
+            decide hosted "runners API call failed"
+
+          available=$(jq -r '
+            [.runners[]?
+             | select(.status == "online")
+             | select(.busy == false)
+             | select([.labels[]?.name] | index("quartus-vm"))]
+            | length' <<<"$runners" 2>/dev/null) || \
+            decide hosted "could not parse runners response"
+
+          if [[ "$available" == "1" || "$available" -gt 1 ]] 2>/dev/null; then
+            decide vm "quartus-vm online and idle"
+          fi
+          decide hosted "quartus-vm offline or busy"
+
+  synthesis-local:
+    # The local Quartus VM leg. Exactly one of synthesis-local and synthesis
+    # runs; both share the repository-wide build-core-synthesis slot, so
+    # routing rather than racing is what stops them cancelling each other.
+    needs:
+      - synthesis-policy
+      - route
+    if: needs.synthesis-policy.outputs.required == 'true' && needs.route.outputs.target == 'vm'
+    uses: ./.github/workflows/local-build.yml
+    with:
+      effort: ${{ fromJSON(needs.synthesis-policy.outputs.legs)[0] }}
+
   synthesis:
     # Deliberately independent of the simulation job: Verilator and Quartus
     # check different properties and share no state, so they run in parallel.
@@ -223,7 +305,8 @@ jobs:
     # synthesis compute on that run.
     needs:
       - synthesis-policy
-    if: needs.synthesis-policy.outputs.required == 'true'
+      - route
+    if: needs.synthesis-policy.outputs.required == 'true' && needs.route.outputs.target == 'hosted'
     strategy:
       fail-fast: false
       # effort=both legs must serialize: they contend for the single
@@ -358,7 +441,9 @@ jobs:
     needs:
       - synthesis-policy
       - simulation
+      - route
       - synthesis
+      - synthesis-local
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -373,6 +458,8 @@ jobs:
           SYNTHESIS_MODE: ${{ needs.synthesis-policy.outputs.mode }}
           SYNTHESIS_LEGS: ${{ needs.synthesis-policy.outputs.legs }}
           SYNTHESIS_RESULT: ${{ needs.synthesis.result }}
+          SYNTHESIS_LOCAL_RESULT: ${{ needs.synthesis-local.result }}
+          ROUTE_TARGET: ${{ needs.route.outputs.target }}
         run: |
           set -euo pipefail
 
@@ -385,18 +472,33 @@ jobs:
             exit 1
           fi
 
+          # Exactly one synthesis route runs; the other must be skipped. The
+          # gate checks the routed one so a green result can never come from
+          # a build that did not happen.
           if [[ "$SYNTHESIS_REQUIRED" == "true" ]]; then
-            if [[ "$SYNTHESIS_RESULT" != "success" ]]; then
-              printf 'Required synthesis did not pass: %s (%s)\n' \
-                "$SYNTHESIS_RESULT" "$SYNTHESIS_REASON" >&2
+            if [[ "$ROUTE_TARGET" == "vm" ]]; then
+              ROUTED_RESULT="$SYNTHESIS_LOCAL_RESULT"
+              OTHER_RESULT="$SYNTHESIS_RESULT"
+            else
+              ROUTED_RESULT="$SYNTHESIS_RESULT"
+              OTHER_RESULT="$SYNTHESIS_LOCAL_RESULT"
+            fi
+            if [[ "$ROUTED_RESULT" != "success" ]]; then
+              printf 'Required synthesis did not pass on the %s route: %s (%s)\n' \
+                "${ROUTE_TARGET:-hosted}" "$ROUTED_RESULT" "$SYNTHESIS_REASON" >&2
               exit 1
             fi
-          elif [[ "$SYNTHESIS_RESULT" != "skipped" ]]; then
-            printf 'Unexpected synthesis result for simulation-only change: %s\n' \
-              "$SYNTHESIS_RESULT" >&2
+            if [[ "$OTHER_RESULT" != "skipped" ]]; then
+              printf 'Both synthesis routes ran; routing is broken: hosted=%s local=%s\n' \
+                "$SYNTHESIS_RESULT" "$SYNTHESIS_LOCAL_RESULT" >&2
+              exit 1
+            fi
+          elif [[ "$SYNTHESIS_RESULT" != "skipped" || "$SYNTHESIS_LOCAL_RESULT" != "skipped" ]]; then
+            printf 'Unexpected synthesis result for simulation-only change: hosted=%s local=%s\n' \
+              "$SYNTHESIS_RESULT" "$SYNTHESIS_LOCAL_RESULT" >&2
             exit 1
           fi
 
-          printf 'Verification gate passed; synthesis=%s (%s); effort=%s; legs=%s\n' \
-            "$SYNTHESIS_REQUIRED" "$SYNTHESIS_REASON" \
+          printf 'Verification gate passed; synthesis=%s (%s); route=%s; effort=%s; legs=%s\n' \
+            "$SYNTHESIS_REQUIRED" "$SYNTHESIS_REASON" "${ROUTE_TARGET:-none}" \
             "${SYNTHESIS_MODE:-not-run}" "${SYNTHESIS_LEGS:-[]}"
