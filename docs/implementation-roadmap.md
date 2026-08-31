@@ -386,13 +386,16 @@ acceptance. It deliberately does not require a separate upstream utilization bui
 
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
-2. **PRIORITY — D1: finish the v1.11 bilingual cascade.** The section-complete French/English
-   sweep and visual calibration are recorded in
+2. **D1 source/model audit COMPLETE; hardware follow-up remains.** The section-complete
+   French/English sweep and visual calibration are recorded in
    `accuracy/accc-1.11-fr-en-differences.md`. The high-confidence digest corrections are
-   applied first; behavioral candidates then move through
+   applied, and the six behavioral candidates have moved through
    `accuracy/accc-bilingual-implementation-todos.md`, with a paper-derived directed vector
-   before any RTL change. Source PDFs remain user-owned and ignored; the reproducible v1.11
-   extraction snapshot is versioned, while unselected generated intermediates stay ignored.
+   before every justified RTL change. IA-5 deliberately closes with a hardware discriminator:
+   the current integrated CRTC/GA harness has no independent U.S.-ROM phase oracle and a
+   synthetic vector would only restate the existing model. Source PDFs remain user-owned and
+   ignored; the reproducible v1.11 extraction snapshot is versioned, while unselected
+   generated intermediates stay ignored.
    **Historical digest verification already banked, do not redo:** the earlier English-v1.10
    pass retired each extraction flag it could settle and corrected section/page anchors against
    the real table of contents; it then swept `docs/`, `rtl/`, and `sim/` for references to

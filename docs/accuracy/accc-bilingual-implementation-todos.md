@@ -110,19 +110,35 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   fixed random schedule does not reach this history. Hardware confirmation remains open.
   Full record: `ia4-r4-history-independent-review.md`.
 
-## IA-5 — U.S.-ROM GA interrupt/VSYNC scanline phase
+## IA-5 — U.S.-ROM GA interrupt/VSYNC scanline phase — COMPLETE (hardware discriminator)
 
 - **Source:** BL-005; v1.11 §4.2 p.18. French says same scanline, before VSYNC; English says a
   different scanline.
-- **Prediction to derive:** reproduce the documented U.S.-ROM two-line compensation and
-  measure the GA interrupt-request edge relative to the CRTC VSYNC start.
-- **Current evidence:** the 52-line GA counter exists, but no dedicated regression for this
-  historical phase case was found. No hardware evidence was reviewed.
+- **Prediction audited:** reproduce the documented U.S.-ROM two-line excess and measure the
+  GA interrupt-request edge relative to the CRTC VSYNC start. French §4.2 gives the source
+  arithmetic: R5=6 produces 262 lines, while R5=4 would produce the 260 lines needed for
+  five exact 52-HSYNC periods. French §27.6.1 pp.285-286 separately places an interrupt
+  request about 1 us after the CRTC HSYNC ends. Neither passage supplies a complete U.S.-ROM
+  register/boot chronogram from which to derive every simulated phase without assumptions.
+- **Repository audit (2026-08-31):** `rtl/GA40010/ga40010_test.v` exposes the integrated raw
+  CRTC syncs and GA `INT_N`, and `rtl/GA40010/syncgen.v` implements the 52-HSYNC counter and
+  VSYNC resynchronization. The harness does not execute the physical U.S. ROM, select its
+  LK4 path, or provide an independent trace for the historical phase. Injecting a guessed
+  register vector and asserting the phase produced by the same `syncgen.v` model would test
+  the model against itself. No dedicated vector or RTL change is justified.
 - **Owner:** classic accuracy stream for behavior; assign the shared GA/peripheral file owner
   explicitly before edits.
-- **Gate:** first determine whether the production model exposes enough ROM/phase context for
-  a meaningful deterministic test. If not, record a hardware discriminator rather than
-  building a synthetic oracle.
+- **Hardware discriminator:** on a documented U.S. CPC 6128 configuration, record the ROM
+  identity, CRTC/GA types, and programmed R0/R2/R3/R4/R5/R7/R9 values; then capture raw CRTC
+  HSYNC, raw CRTC VSYNC, and GA/Z80 `INT_N` together after steady state with interrupts being
+  acknowledged. A pre-trigger capture at CRTC VSYNC must decide whether `INT_N` falls on the
+  same scanline and before the CRTC VSYNC edge. Preserve the exact line convention and
+  sub-character offset rather than inferring them from the current RTL.
+- **Acceptance:** the guarded Gemini 3.7 Flash high read-only audit agreed that the repository
+  supports only a circular model characterization, not the historical claim. Its suggested
+  synthetic register/scanline recipe was not accepted because its R7/line arithmetic did not
+  establish the claimed ordering. Full reasoning: `ia5-us-rom-phase-audit.md`. No simulation
+  gate is required for this documentation-only closeout; hardware confirmation remains open.
 
 ## IA-6 — Type-0 adjustment and R0=1 premise reconciliation — COMPLETE (source model)
 

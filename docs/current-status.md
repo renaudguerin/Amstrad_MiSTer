@@ -518,6 +518,12 @@ For a first MiSTer pass:
   §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
   window; per review finding F-9 the soak is measurably insensitive to this region, so the
   directed vectors — not the soak — carry the behavioral proof here.
+  IA-5 closes without an RTL or vector change: French §4.2 p.18 supplies the U.S.-ROM
+  R5=6 versus R5=4 frame arithmetic, but the repository has neither the physical U.S. ROM
+  initialization path nor an independent phase trace. The integrated CRTC/GA harness can
+  only replay `syncgen.v`'s own answer. A simultaneous real-hardware capture of raw CRTC
+  HSYNC/VSYNC and GA `INT_N`, with exact ROM/register/type metadata, is the retained
+  discriminator for the French same-scanline-before-VSYNC claim.
   The Plus leaf, SDRAM, and boot integration suites are also green.
 - The core is split into a shared-state wrapper (`rtl/CRTC.v`) plus two per-type rule engines
   (`rtl/crtc_type0_engine.v`, `rtl/crtc_type1_engine.v`); live `CRTC_TYPE` round-trips stay

@@ -86,7 +86,7 @@ the current model is wrong. Page pairs are French/English.
 
 | ID | Section; pages FR/EN | Consequential difference | Disposition |
 |---|---|---|---|
-| BL-005 | §4.2; 18/18 | French says the extra two U.S.-ROM lines make the GA interrupt request arrive on the same scanline as CRTC VSYNC, but before it; English says it is not on the same line. | Audit the historical U.S.-ROM phase case; author correction. |
+| BL-005 | §4.2; 18/18 | French says the extra two U.S.-ROM lines make the GA interrupt request arrive on the same scanline as CRTC VSYNC, but before it; English says it is not on the same line. | IA-5 found no independent ROM/phase oracle: keep the French reading and author correction, with the exact ordering left to the recorded hardware discriminator rather than a circular model test. |
 | BL-006 | §4.4.2; 24/24 | French correctly says `INI` increments HL; English says it decrements HL and thereby duplicates `IND`. | English correction only; T80 already implements the increment direction. |
 | BL-007 | §4.4.3; 26/26 | French's practical 1 µs-early placement applies specifically to `OUT(C),r8` and separately exempts `OUTI` on CRTC3/4. English broadens it to generic write-I/O and adds `OUTD` to the exception. | Keep instruction-specific repository wording; ask whether `OUTD` is an intended clarification. |
 | BL-008 | §7.2; 40–41/39–40 | The synchronization routine differs: French uses `19968-21` and derives 5 µs as `1+1+3`; English uses `19968-23`, derives `2+1+3`, then subtracts 1 µs. | Do not adopt either routine without a complete cycle audit; author question. |
