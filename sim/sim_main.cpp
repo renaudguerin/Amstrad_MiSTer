@@ -265,12 +265,19 @@ public:
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_override);
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r5_adjust_target);
+        // IA-6 / BL-018-BL-020: the one-character R0-widening action is
+        // behavior-bearing private state and must be lifecycle-visible.
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_r0_widen_pending);
         // Review issue 4 remediation (2026-08-23): the relocated partial-VSYNC
         // holdoff latch and the type-1 private status flops join the sampled
         // projection. The dev-time holdoff bug escaped exactly because this
         // latch was unsampled; expanding the field set re-mints the golden
         // hash by design (no RTL behaviour change).
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_vsync_wait_line_start);
+        // IA-3 / BL-036: sample the type-0 first-line R6=0 definitive-border
+        // latch so reset, snapshot and live-type lifecycle leaks cannot hide
+        // behind an unchanged pin sample.
+        mix(r.CRTC__DOT__type0_r6_zero_origin_border);
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__r6_border_condition);
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__status_bit5_r);
         // F10 fixture stage (2026-08-24): the shared interlace parity flops
@@ -306,6 +313,8 @@ public:
         mix(r.CRTC__DOT__hsync_phaseful);
         mix(r.CRTC__DOT__type1_hsync_start_pending);
         mix(r.CRTC__DOT__type1_hsync_start_count);
+        mix(r.CRTC__DOT__type0_hsync_restart_pending);
+        mix(r.CRTC__DOT__type0_hsync_restart_count);
         mix(r.CRTC__DOT__r2_jit_pending);
         mix(r.CRTC__DOT__register_write_d);
     }
@@ -535,6 +544,21 @@ public:
     // Internal-state accessors for the F10 fixture setup walkers.
     std::uint8_t c0() const {
         return dut_->rootp->CRTC__DOT__hcc;
+    }
+
+    void expect_hsync_counter(const std::string& expectation,
+                              std::uint8_t expected) const {
+        expect_byte(expectation, expected,
+                    dut_->rootp->CRTC__DOT__hsc);
+    }
+
+    void expect_type0_hsync_restart_state(const std::string& expectation,
+                                          bool pending,
+                                          std::uint8_t count) const {
+        expect_byte(expectation + " pending", pending,
+                    dut_->rootp->CRTC__DOT__type0_hsync_restart_pending);
+        expect_byte(expectation + " count", count,
+                    dut_->rootp->CRTC__DOT__type0_hsync_restart_count);
     }
 
     std::uint8_t line_reg() const {
@@ -2999,6 +3023,76 @@ void test_type0_zero_adj_entry_r5_positive_extends_adjustment(TestBench& test) {
     test.expect_ra("type 0 late R5 write resets C9", 0);
 }
 
+void test_type0_r4_unequal_history_retains_switch(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // French ACCC v1.11 section 13.2.1 p.106 specifies that vertical
+    // adjustment with ordinary increment to C4=R4+1 on the following line
+    // occurs only if R4 remained equal to C4 throughout the line ("et que R4
+    // est resté égal à C4 durant la ligne").
+    // If R4 was modified away from C4 within the C0 in [2, R0] window, section
+    // 11.2.2 switches the line-end comparison from C9/R9 to C9/R5, keeping C4
+    // at R4 and advancing C9 toward R5, even if R4 is restored to equal C4
+    // before the line completes.
+    //
+    // Geometry: R0=7 (8 chars/line), R4=2 (3 rows), R9=3 (4 lines/row).
+    // Total lines before the final line (C4=2, C9=3): 4 + 4 + 3 = 11 lines.
+    // At C0=2 of the final line, write R5=5 to arm vertical adjustment.
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 0}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+
+    constexpr unsigned line_characters = 8;
+    constexpr unsigned lines_before_last = 11;
+
+    // --- Control arm: R4 untouched ---
+    // R4 remains equal to C4 throughout the final line.
+    // At C0=2, R5 is written to 5.
+    // Line-end C9==R9 matches normally; ordinary adjustment path is taken:
+    // C4 increments to R4+1 = 3, C9 resets to 0, vertical adjustment is active.
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(5);
+    test.reset();
+
+    test.run_characters(lines_before_last * line_characters);
+    test.run_characters(2);  // Reach C0=2 on final line (C4=2, C9=3).
+    test.write_selected_register_at_clken(5);  // Write R5=5 at C0=2.
+    test.run_characters(line_characters - 3);  // Complete C0=3..7 to next line.
+
+    test.expect_adjustment_active("control: type 0 untouched R4 enters vertical adjustment");
+    test.expect_c4("control: untouched R4 advances C4 to R4+1", 3);
+    test.expect_ra("control: untouched R4 resets C9 to 0", 0);
+
+    // --- Transient arm: R4 written 2 -> 1 at C0=3, then 1 -> 2 at C0=4 ---
+    // R4 becomes unequal to C4 at C0=3. Restoring R4=2 at C0=4 must not clear
+    // the history of the inequality.
+    // Per French ACCC v1.11 section 13.2.1 p.106 and section 11.2.2:
+    // The comparator switch to C9/R5 remains active.
+    // C9 (3) does not match R5-1 (4), so C9 advances to 4, C4 stays at 2,
+    // and vertical adjustment is active.
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(5);
+    test.reset();
+
+    test.run_characters(lines_before_last * line_characters);
+    test.run_characters(2);  // Reach C0=2 on final line (C4=2, C9=3).
+    test.write_selected_register_at_clken(5);  // Write R5=5 at C0=2.
+    test.select_register(4);                   // Select R4 within C0=2.
+    test.write_selected_register_at_clken(1);  // Write R4=1 at C0=3 (2 -> 1).
+    test.write_selected_register_at_clken(2);  // Write R4=2 at C0=4 (1 -> 2).
+    test.run_characters(line_characters - 5);  // Complete C0=5..7 (3 chars) to next line.
+
+    test.expect_adjustment_active("transient: type 0 unequal R4 history enters vertical adjustment");
+    test.expect_c4("transient: unequal R4 history keeps C4 at 2 (French v1.11 §13.2.1 p.106)", 2);
+    test.expect_ra("transient: unequal R4 history advances C9 toward R5 (C9=4)", 4);
+}
+
 // ---------------------------------------------------------------------------
 // t07 / t08: F4 equality-only counter overflow and the section 28.1.1 CRTC
 // identification boundaries.  Test-only checkpoint: these vectors encode the
@@ -5235,6 +5329,193 @@ void t31_type0_half_character_border_no_skew(TestBench& test) {
         "F13 no-skew C0=R0 (ACCC v1.11 sections 17.6.2 p.186 and 19.2.4 p.195)");
 }
 
+// t34: IA-3 / BL-036 -- a type-0 R6=0 first-line conflict is cancellable.
+// ACCC v1.11 French section 18.3.2 p.191 says that C4=R6=C9=0 alternates
+// DISPLAY ENABLE high at each character start and low 0.5 us later.  Updating
+// R6 to a nonzero value on that first line cancels the conflict; if C0=R1 is
+// then reached with R6 nonzero, the R1 border is only a line-local event.  The
+// control leaves R6 at zero and therefore keeps the following line blank, so
+// the passing assertion is load-bearing rather than an unconditional DE check.
+void t34_type0_r6_zero_first_line_cancellation(TestBench& test) {
+    constexpr RegisterProgram registers = {{
+        {0, 7}, {1, 4}, {2, 2}, {3, 0x11}, {4, 3},
+        {5, 0}, {6, 0}, {7, 63}, {8, 0}, {9, 0},
+    }};
+
+    test.set_crtc_type(0);
+    program_registers(test, registers);
+    test.select_register(6);
+    test.reset();
+    // Reset leaves the horizontal display latch low; stop one character before
+    // the short four-row frame boundary, then process that boundary explicitly
+    // so the sample is the first half of a real C4=C9=0 frame line.
+    test.run_characters(4 * 8 - 1);
+    test.run_clock_ticks(1);
+
+    // Control: with R6 still zero, the first-line conflict is observable and
+    // the following line remains blank.  This also proves that the fixture is
+    // on C4=C9=0 rather than accidentally checking an ordinary displayed line.
+    test.expect_c4("t34 control starts on C4=0", 0);
+    test.expect_line("t34 control starts on C9=0", 0);
+    test.expect_de_high(
+        "t34 control sees the p.191 displayed half of the R6=0 conflict");
+    test.run_clock_ticks(7);
+    test.run_clock_ticks(1);
+    test.expect_de_low(
+        "t34 control sees the p.191 border half 0.5 us after character start");
+    test.run_characters(4);  // C0=4 is the reachable R1 border point.
+    test.expect_byte("t34 control reaches C0=R1", 4, test.c0());
+    test.expect_de_low(
+        "t34 control reaches the R1 border while R6 remains zero "
+        "(French p.191)");
+    test.run_characters(4);
+    test.expect_c4("t34 control enters the following line", 1);
+    test.expect_byte("t34 control following line starts at C0=0", 0,
+                     test.c0());
+    test.expect_de_low(
+        "t34 control keeps border after R6=0 at C0=R1 (French p.191)");
+
+    // Main case: reset to the same first-line state, then write R6=2 at the
+    // CLKEN edge that starts C0=3, before the reachable C0=R1=4 point.  The
+    // old R6=0 value still drives the preceding alternation, while the live
+    // nonzero value must prevent that earlier conflict from becoming a
+    // definitive border at R1 (French p.191).
+    test.write_selected_register_at_clken(0);
+    test.reset();
+    test.run_characters(4 * 8 - 1);
+    test.run_clock_ticks(1);
+    test.expect_de_high(
+        "t34 cancellation reaches the first displayed half of the conflict");
+    test.run_clock_ticks(7);
+    test.run_clock_ticks(1);
+    test.expect_de_low(
+        "t34 cancellation reaches the first border half before the write");
+    test.run_characters(2);
+    test.select_register(6);
+    test.write_selected_register_at_clken(2);
+    test.expect_byte("t34 R6 update lands before C0=R1=4", 3, test.c0());
+    test.expect_de_high(
+        "t34 R6>0 cancels the conflict before the reachable R1 point "
+        "(French ACCC v1.11 section 18.3.2 p.191)");
+    test.run_characters(1);
+    test.expect_byte("t34 cancellation reaches the live C0=R1 point", 4,
+                     test.c0());
+    test.expect_de_low(
+        "t34 R1 border is asserted at C0=R1 even after R6 cancellation "
+        "(French ACCC v1.11 section 18.3.2 p.191)");
+    test.run_characters(4);
+    test.expect_c4("t34 cancellation enters the following line", 1);
+    test.expect_byte("t34 cancellation reaches C0=0", 0, test.c0());
+    test.expect_de_high(
+        "t34 border is not definitive after an earlier R6=0 conflict at R1 "
+        "(French ACCC v1.11 section 18.3.2 p.191)");
+}
+
+// t35: IA-6 / BL-018–BL-020 -- type-0 R0=1 widening at C0=1 persists adjustment.
+// French ACCC v1.11 section 13.7.2 pp.126-127 and compendium-01-counters.md
+// section 8.4: on CRTC 0, when C0=0 of a true last frame line (C4==R4 &&
+// C9==R9) occurs with R0=1, the next-line C4 increment / adjustment is
+// programmed.
+// Widening R0 from 1 to a larger value during C0=1 allows C0 to advance to 2;
+// at C0=2, C4 increments to R4+1 (diverging from R4) and the chip remains in
+// the "additional management" state. If R5 remains 0, C9 counts through 31
+// and completes adjustment at effective target R5-1 = 31 before resetting C4
+// and C9 to 0 at the true frame origin (French §13.7.2.2 p.127).
+// Conversely, widening R0 during the safe C0=0 phase performs a normal frame
+// reset without entering abnormal additional management (French §13.7.2.2 p.127).
+void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
+    constexpr RegisterProgram registers = {{
+        {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 2},
+        {5, 0}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+
+    test.set_crtc_type(0);
+
+    // Geometry: R0=1 (2 chars/line), R4=2 (3 rows), R9=3 (4 lines/row).
+    // Total lines before the final line (C4=2, C9=3): 4 + 4 + 3 = 11 lines.
+    // Total characters before final line: 11 * 2 = 22 characters.
+    constexpr unsigned kLinesBeforeLast = 11;
+    constexpr unsigned kShortLineChars = 2;
+    constexpr unsigned kWidenedLineChars = 8;
+    constexpr std::uint8_t kWidenedR0 = 7;
+
+    // --- Control arm: safe-phase widening at C0=0 (French §13.7.2.2 p.127) ---
+    // Widening R0 from 1 at C0=0 cancels the abnormal adjustment route,
+    // allowing normal frame reset at the end of the widened line.
+    program_registers(test, registers);
+    test.select_register(0);
+    test.reset();
+
+    test.run_characters(kLinesBeforeLast * kShortLineChars);
+    test.expect_c4("control: reached C4=R4 (2) on last line", 2);
+    test.expect_ra("control: reached C9=R9 (3) on last line", 3);
+    test.expect_byte("control: at C0=0 before widening write", 0, test.c0());
+
+    test.write_selected_register_at_clken(kWidenedR0);
+    test.run_characters(kWidenedLineChars);
+
+    test.expect_adjustment_inactive(
+        "control: C0=0 widening avoids abnormal adjustment (French ACCC v1.11 §13.7.2.2 p.127)");
+    test.expect_c4(
+        "control: C0=0 widening resets C4 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+    test.expect_ra(
+        "control: C0=0 widening resets C9 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+
+    // --- Main test arm: widening at C0=1 (French ACCC v1.11 §13.7.2 pp.126-127) ---
+    // With C4=R4 and C9=R9, C0=R0 (with R0=1) evaluates before R0 is updated at C0=1.
+    // C0 advances past 1 to 2; at C0=2, C4 increments to R4+1 (3), diverging from R4.
+    // Additional management remains active; with R5=0, C9 counts through 31,
+    // completing adjustment after line C9=31.
+    program_registers(test, registers);
+    test.select_register(0);
+    test.reset();
+
+    test.run_characters(kLinesBeforeLast * kShortLineChars);
+    test.expect_c4("main: reached C4=R4 (2) on last line", 2);
+    test.expect_ra("main: reached C9=R9 (3) on last line", 3);
+    test.expect_byte("main: at C0=0 of last line", 0, test.c0());
+
+    test.run_characters(1);
+    test.expect_byte("main: reached C0=1 of last line", 1, test.c0());
+    test.write_selected_register_at_clken(kWidenedR0);
+
+    // Advance to C0=2: C4 increments from R4 (2) to R4+1 (3) and adjustment is active.
+    test.run_characters(1);
+    test.expect_byte("main: reached C0=2 on widened line", 2, test.c0());
+    test.expect_c4(
+        "main: C0=1 widening increments C4 to R4+1 (3) at C0=2 (French ACCC v1.11 §13.7.2.2 p.127)", 3);
+    test.expect_ra(
+        "main: C0=1 widening holds C9 at R9 (3) on widening line (French ACCC v1.11 §13.7.2 pp.126-127)", 3);
+    test.expect_adjustment_active(
+        "main: C0=1 widening leaves additional management active at C0=2 (French ACCC v1.11 §13.7.2.2 p.127)");
+
+    // Complete the rest of this line (C0=3..7, 6 characters).
+    test.run_characters(kWidenedLineChars - 2);
+
+    // Following lines: in additional management with R5=0, C9 counts 4..31
+    // while C4 stays frozen at R4+1 (3).
+    for (unsigned adj_c9 = 4; adj_c9 <= 31; ++adj_c9) {
+        test.expect_adjustment_active(
+            "main: C0=1 widening persists adjustment at C9=" + std::to_string(adj_c9) +
+            " (French ACCC v1.11 §13.7.2.2 p.127)");
+        test.expect_c4(
+            "main: C0=1 widening keeps C4 diverged at R4+1 (3) at C9=" + std::to_string(adj_c9) +
+            " (French ACCC v1.11 §13.7.2.2 p.127)", 3);
+        test.expect_ra(
+            "main: C0=1 widening advances C9 in additional management to " + std::to_string(adj_c9) +
+            " (French ACCC v1.11 §13.7.2.2 p.127)", adj_c9);
+        test.run_characters(kWidenedLineChars);
+    }
+
+    // After C9=31 completes: adjustment finishes, resetting C4 and C9 to 0.
+    test.expect_adjustment_inactive(
+        "main: C0=1 widening completes adjustment after C9=31 (French ACCC v1.11 §13.7.2.2 p.127)");
+    test.expect_c4(
+        "main: C0=1 widening resets C4 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+    test.expect_ra(
+        "main: C0=1 widening resets C9 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+}
+
 // ---------------------------------------------------------------------------
 // t21: F10 type-1 IVM toggle parity table (ACCC v1.10 sections 19.5.3 p.208,
 // 19.8.2 setup p.209, and the 16 SHAKER 22C/3 truth-table panels on
@@ -5795,11 +6076,13 @@ void t30_type0_post_ivm_exit_recovery_recipe_even(TestBench& test) {
 // ParityC9 and restarts C9 from it as one step, so row 1 runs C9=1,3 --
 // wait, C9=1 pre-increments to 2 and (2 and ~1) == 2 matches immediately,
 // so row 1 is the single line C9=1 and it is also the frame boundary
-// (C4==R4=1).  At that boundary the match branch must toggle ParityC9
-// (1 -> 0) AND restart C9 from the toggled value (C9=0); before the B-2
-// fix the flop kept 1 while C9 took 0, and every later row ran with the
-// two disagreeing.  The walk asserts C4/C9/RA per line plus ParityC9
-// across the boundary.
+// (C4==R4=1).  At that boundary the French v1.11 section 19.5.3 p.209
+// frame-origin assignment takes priority over the match-branch toggle:
+// ParityFrame changes 0 -> 1 and ParityC9 is realigned to that new value.
+// The French p.209 worked table starts that odd frame at C9=1 as well as
+// ParityC9=1.  Its first even-R9 match then advances C4 and toggles both
+// back to zero.  The walk asserts C4/C9/RA per line plus ParityC9 across
+// the boundary.
 
 void test_type1_ivm_frame_boundary_parity_continuity(TestBench& test) {
     test.set_crtc_type(1);
@@ -5823,9 +6106,9 @@ void test_type1_ivm_frame_boundary_parity_continuity(TestBench& test) {
         {0, 0, 0, 0},
         {0, 2, 2, 0},
         {1, 1, 1, 1},   // row 1: C9 restarted from the toggled ParityC9
-        {0, 0, 0, 0},   // frame boundary: ParityC9 toggled 1 -> 0 (B-2)
-        {0, 2, 2, 0},
-        {1, 1, 1, 1},
+        {0, 1, 1, 1},   // frame boundary: new ParityFrame seeds C9/ParityC9
+        {1, 0, 0, 0},
+        {1, 2, 2, 0},
     }};
     for (size_t i = 0; i < steps.size(); ++i) {
         if (i != 0) {
@@ -5866,7 +6149,7 @@ void test_type1_ivm_engages_from_snapshot_r8_3(TestBench& test) {
 
     // Same hand-derived sequence as t23a, from the load point.
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 4> steps = {
-        {{0, 0}, {0, 2}, {1, 1}, {0, 0}},
+        {{0, 0}, {0, 2}, {1, 1}, {0, 1}},
     };
     for (size_t i = 0; i < steps.size(); ++i) {
         if (i != 0) {
@@ -5877,8 +6160,213 @@ void test_type1_ivm_engages_from_snapshot_r8_3(TestBench& test) {
         test.expect_line(prefix + " C9", steps[i].second);
         test.expect_ra(prefix + " RA", steps[i].second);
     }
-    // ParityC9 toggled at the frame-boundary row end (B-2 continuity).
-    test.expect_parity_c9("t23b ParityC9 after the frame boundary", 1 - 1);
+    // The frame-origin assignment realigns ParityC9 to the newly toggled
+    // ParityFrame (French v1.11 section 19.5.3 p.209; IA-2).
+    test.expect_parity_c9("t23b ParityC9 after the frame boundary", 1);
+}
+
+// IA-2 / BL-038: the French v1.11 section 19.5.3 p.209 frame-origin rule
+// explicitly assigns ParityC9 from the frame parity.  An aligned fixture
+// cannot distinguish that assignment from the older even-R9 row-end toggle,
+// so first create the documented unequal state (ParityFrame=0,
+// ParityC9=1) with an R8=3 entry.  The route starts with odd R9 to reach
+// C4=1/C9=0, changes R9 to even, then enters IVM; the next frame origin is
+// therefore an even-R9 discriminator for the stale toggle-both logic.
+//
+// Both state updates happen on the same CLKEN edge.  The source operation is
+// the newly toggled ParityFrame followed by ParityC9 := ParityFrame, so the
+// post-edge value is !old ParityFrame.  In this registered RTL the RHS sees
+// the old flop value; the explicit inversion below represents that new frame
+// parity rather than assigning the stale pre-edge value.
+void test_type1_frame_origin_realigns_parity_c9(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, 1},
+        {5, 0},  {6, 63}, {7, 63}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    // R9=3 gives four plain lines in C4=0.  The fourth line ends that row,
+    // leaving C4=1/C9=0 at the start of its first line.
+    test.run_characters(4 * 64);
+    test.expect_c4("t32a precondition reaches C4=1", 1);
+    test.expect_line("t32a precondition reaches C9=0", 0);
+    test.expect_parity_frame("t32a precondition ParityFrame is even", false);
+    test.expect_parity_c9("t32a precondition ParityC9 is even", false);
+
+    // Make R9 even while retaining C4=1/C9=0, then enter IVM.  Stage A/B
+    // make ParityC9 odd while ParityFrame remains even.
+    test.write_register(9, 2);
+    test.run_to_c0(20);
+    test.select_register(8);
+    test.write_selected_register_now(3);
+    test.run_characters(1);
+    test.expect_parity_frame("t32a stage A keeps ParityFrame even", false);
+    test.expect_parity_c9("t32a stage A makes ParityC9 odd", true);
+    test.expect_line("t32a stage A pokes C9.0 odd", 1);
+    test.run_characters(1);
+    test.expect_parity_frame("t32a stage B keeps ParityFrame even", false);
+    test.expect_parity_c9("t32a stage B keeps ParityC9 odd", true);
+    test.expect_line("t32a stage B keeps C9.0 odd", 1);
+
+    // Stage A's documented C9.0 poke leaves line 1 as the terminal IVM line,
+    // so one line completes C4=1/R4=1 and crosses the frame origin.  French
+    // §19.5.3 requires the new odd ParityFrame to be copied into ParityC9.
+    test.run_characters(64);
+    test.expect_c4("t32a frame origin resets C4", 0);
+    test.expect_line("t32a odd frame origin seeds C9=1", 1);
+    test.expect_parity_frame("t32a frame origin toggles ParityFrame", true);
+    test.expect_parity_c9("t32a frame origin realigns ParityC9", true);
+}
+
+// IA-1 / BL-025: French ACCC v1.11 sections 15.3.2-15.3.3 pp.150-151.
+//
+// Paper route (the p.151 chronogram): start type 0 with R2=11/R3l=10,
+// relocate R2 to 21 while the first pulse is active, and update R3l to 1
+// exactly after the C0=21 CLKEN edge has advanced C3l to 10.  At that
+// instant C0 is both the relocated R2 and the old R2+R3l terminal position.
+// The R3l modification makes C3l overflow rather than reset: 10, 11, ...,
+// 15, 0, 1.  The raw CRTC HSYNC nevertheless falls at the old terminal and
+// restarts without resetting C3l.
+//
+// run_to_c0() stops immediately after the CLKEN edge, at testbench phase 1.
+// The data write therefore lands on the following master CLOCK edge.  The
+// standalone harness has kClockTicksPerCharacter=16; the existing F20
+// production phase model represents one Pixel-M2 by four master ticks, so
+// the French "3.5 Pixel-M2 environ" earliest restart is 14 ticks for this
+// deliberately controlled phase.  This is not a universal timing oracle for
+// other bus phases.
+void t33_prepare_type0_r3_terminal_collision(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 11}, {3, 0x0a}, {4, 63},
+        {5, 0},  {6, 63}, {7, 63}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    // Move R2 to the old terminal position while the original pulse is
+    // active, but far enough ahead that this write is not itself R2.JIT.
+    test.run_to_c0(15);
+    test.write_register(2, 21);
+
+    // Select R3 ahead of the collision so only the data strobe lands at the
+    // controlled phase after C0=21/C3l=10 has been reached.
+    test.run_to_c0(19);
+    test.select_register(3);
+    test.run_to_c0(21);
+    test.expect_hsync_counter("t33 terminal precondition C3l=10", 10);
+    test.expect_hsync_high("t33 terminal precondition first HSYNC still high");
+}
+
+void t33_type0_r3_terminal_write_preserves_c3_overflow(TestBench& test) {
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(1);
+
+    // Section 15.3.3 p.151: the old terminal drops the raw pin, but C3l is
+    // not reset by the unexpected restart.
+    test.expect_hsync_low("t33a old R3l terminal drops raw HSYNC");
+    test.expect_hsync_counter("t33a collision retains C3l=10", 10);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 7> overflow = {{
+        {22, 11}, {23, 12}, {24, 13}, {25, 14},
+        {26, 15}, {27, 0},  {28, 1},
+    }};
+    for (const auto& [c0, c3] : overflow) {
+        test.run_to_c0(c0);
+        test.expect_hsync_counter(
+            "t33a C3l overflow at C0=" + std::to_string(c0), c3);
+    }
+
+    // The new R3l=1 ends the restarted pulse only after the counter has
+    // wrapped to 1; it does not manufacture an early reset to reach it.
+    test.expect_hsync_high("t33a restarted pulse reaches wrapped C3l=1");
+    test.run_clock_ticks(1);
+    test.expect_hsync_low("t33a new R3l=1 terminates after the overflow");
+    test.expect_hsync_counter("t33a terminal counter remains C3l=1", 1);
+}
+
+void t33_type0_r3_terminal_write_earliest_restart_phase(TestBench& test) {
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(1);
+    test.expect_hsync_low("t33b old pulse ends on the R3l write edge");
+
+    // Four master ticks per Pixel-M2 in the F20 production-phase contract:
+    // 13 intervening ticks remain low, and the 14th raises the raw pin.
+    for (unsigned tick = 0; tick < 13; ++tick) {
+        test.run_clock_ticks(1);
+        test.expect_hsync_low(
+            "t33b earliest restart stays low through master tick " +
+            std::to_string(tick + 1));
+    }
+    test.run_clock_ticks(1);
+    test.expect_hsync_high(
+        "t33b controlled write restarts after 14 ticks (about 3.5 Pixel-M2)");
+
+    // Control from section 15.3.1 p.150: without modifying R3l at the same
+    // terminal position, type 0 must not glue a second HSYNC onto the first.
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.run_clock_ticks(1);  // ordinary old-R3l terminal at phase 1
+    test.expect_hsync_low("t33b no-R3-write control ends the first pulse");
+    for (unsigned tick = 0; tick < 14; ++tick) {
+        test.run_clock_ticks(1);
+        test.expect_hsync_low(
+            "t33b no-R3-write control stays low at master tick " +
+            std::to_string(tick + 1));
+    }
+    test.run_to_c0(22);
+    test.expect_hsync_counter("t33b no-R3-write control resets C3l", 0);
+    test.expect_hsync_low("t33b no-R3-write control has no restart");
+}
+
+void t33_type0_r3_terminal_restart_lifecycle(TestBench& test) {
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(1);
+    test.expect_type0_hsync_restart_state(
+        "t33c terminal write arms the countdown", true, 13);
+
+    test.reset();
+    test.expect_type0_hsync_restart_state(
+        "t33c reset clears the countdown", false, 0);
+
+    // The pending event belongs only to the live type-0 pipeline.  A type
+    // switch clears it on the next CLOCK edge rather than letting it fire
+    // after a round trip.
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(1);
+    test.set_crtc_type(1);
+    test.run_clock_ticks(1);
+    test.expect_type0_hsync_restart_state(
+        "t33c live type switch clears the countdown", false, 0);
+
+    // A snapshot replaces the counter/register context that justified the
+    // terminal event, so the pending phase must not survive it either.
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(1);
+    const std::array<std::uint8_t, 10> snapshot = {
+        63, 40, 50, 0x01, 63, 0, 63, 63, 0, 7,
+    };
+    test.load_snapshot_registers(snapshot);
+    test.expect_type0_hsync_restart_state(
+        "t33c snapshot load clears the countdown", false, 0);
+
+    // R3l=0 remains the established no-HSYNC request on type 0: even at the
+    // terminal collision it must not arm the unexpected restart path.
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(0);
+    test.expect_type0_hsync_restart_state(
+        "t33c R3l=0 does not arm the countdown", false, 0);
+    for (unsigned tick = 0; tick < 14; ++tick) {
+        test.run_clock_ticks(1);
+        test.expect_hsync_low(
+            "t33c R3l=0 remains low at master tick " +
+            std::to_string(tick + 1));
+    }
 }
 
 // N-9: INTERLACE SYNC (R8=1) offsets VSYNC by half a line but does not
@@ -6403,10 +6891,10 @@ void t28_configure(TestBench& test, std::uint8_t r5) {
 }
 
 static void t28_step_adjustment(TestBench& test, const char* tag,
-                                std::uint8_t c9) {
+                                std::uint8_t c9, std::uint8_t c5) {
     test.expect_c4(std::string(tag) + " C4", 3);
     test.expect_line(std::string(tag) + " C9", c9);
-    test.expect_c5(std::string(tag) + " C5", c9);
+    test.expect_c5(std::string(tag) + " C5", c5);
     test.run_characters(64);
 }
 
@@ -6419,7 +6907,8 @@ void t28_type1_addline_basic(TestBench& test) {
     }
     // Adjustment: C4=R4+1, C9 counts plainly, C5 counts the lines.
     for (unsigned i = 0; i < 4; ++i) {
-        t28_step_adjustment(test, "t28a frame 0 adjustment", static_cast<std::uint8_t>(i));
+        t28_step_adjustment(test, "t28a frame 0 adjustment",
+                            static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
     }
     // Section 19.6.2 p.216 + section 11.2.4 p.84: the additional line,
     // C4 incremented once more, C9 back at 0.
@@ -6429,21 +6918,29 @@ void t28_type1_addline_basic(TestBench& test) {
     // Origin: ParityFrame toggles (section 19.5.3 p.208), adjustment ends.
     test.run_characters(64);
     test.expect_c4("t28a frame 1 opens after the additional line", 0);
-    test.expect_line("t28a frame 1 opens at C9=0", 0);
+    test.expect_line("t28a odd frame 1 opens at C9=1", 1);
     test.expect_parity_frame("t28a frame 1 is odd", 1);
     test.expect_adjustment_inactive("t28a adjustment ended at the origin");
     // Frame 1 (odd): same rows and adjustment, but no additional line --
     // the last adjustment line is followed directly by the origin.
+    // IA-2's origin realignment sets ParityC9=1 for this odd frame.  The
+    // p.209 worked table starts the odd IVM frame at C9=1, and R9 odd
+    // retains that value at every subsequent row restart.
+    const std::array<std::array<std::uint8_t, 4>, 3> frame1_lines = {{
+        {{1, 3, 5, 7}}, {{1, 3, 5, 7}}, {{1, 3, 5, 7}}
+    }};
     for (unsigned i = 0; i < 12; ++i) {
         t27_step_plain(test, "t28a frame 1 line", static_cast<std::uint8_t>(i / 4),
-                       static_cast<std::uint8_t>((i % 4) * 2));
+                       frame1_lines[i / 4][i % 4]);
     }
     for (unsigned i = 0; i < 4; ++i) {
-        t28_step_adjustment(test, "t28a frame 1 adjustment", static_cast<std::uint8_t>(i));
+        t28_step_adjustment(test, "t28a frame 1 adjustment",
+                            static_cast<std::uint8_t>(i + 1), static_cast<std::uint8_t>(i));
     }
     test.expect_c4("t28a frame 2 opens directly (odd frame)", 0);
     test.expect_line("t28a frame 2 opens at C9=0", 0);
     test.expect_parity_frame("t28a frame 2 is even", 0);
+    test.expect_parity_c9("t28a frame 2 realigns ParityC9 even", 0);
 }
 
 // t28c: the same mechanism reached through INTERLACE SYNC (R8=1) -- the
@@ -6467,7 +6964,8 @@ void t28_type1_addline_interlace_sync(TestBench& test) {
                        static_cast<std::uint8_t>(i % 8));
     }
     for (unsigned i = 0; i < 4; ++i) {
-        t28_step_adjustment(test, "t28c frame 0 adjustment", static_cast<std::uint8_t>(i));
+        t28_step_adjustment(test, "t28c frame 0 adjustment",
+                            static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
     }
     // The additional line: C4 one past the last adjustment row, C9=0.
     test.expect_c4("t28c additional line C4 incremented once more", 4);
@@ -6484,7 +6982,8 @@ void t28_type1_addline_interlace_sync(TestBench& test) {
                        static_cast<std::uint8_t>(i % 8));
     }
     for (unsigned i = 0; i < 4; ++i) {
-        t28_step_adjustment(test, "t28c frame 1 adjustment", static_cast<std::uint8_t>(i));
+        t28_step_adjustment(test, "t28c frame 1 adjustment",
+                            static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
     }
     test.expect_c4("t28c frame 2 opens directly (odd frame)", 0);
     test.expect_parity_frame("t28c frame 2 is even", 0);
@@ -6501,10 +7000,11 @@ void t28_type1_addline_condition_false(TestBench& test) {
                        static_cast<std::uint8_t>((i % 4) * 2));
     }
     for (unsigned i = 0; i < 3; ++i) {
-        t28_step_adjustment(test, "t28b frame 0 adjustment", static_cast<std::uint8_t>(i));
+        t28_step_adjustment(test, "t28b frame 0 adjustment",
+                            static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
     }
     test.expect_c4("t28b no additional line when R9+1 is not a multiple of R5", 0);
-    test.expect_line("t28b frame 1 opens at C9=0", 0);
+    test.expect_line("t28b odd frame 1 opens at C9=1", 1);
     test.expect_parity_frame("t28b frame 1 is odd", 1);
     test.expect_adjustment_inactive("t28b adjustment ended at the origin");
 }
@@ -7134,6 +7634,9 @@ int main(int argc, char** argv) {
         {"t16w_type0_zero_adj_entry_r5_positive_extends_adjustment",
          "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12 zero-entry positive R5",
          false, test_type0_zero_adj_entry_r5_positive_extends_adjustment},
+        {"t16z_type0_r4_unequal_history_retains_switch",
+         "ACCC v1.11 section 13.2.1 p.106 and section 11.2.2; IA-4/BL-017 R4 history",
+         false, test_type0_r4_unequal_history_retains_switch},
         {"t07a_type1_c9_counts_through_31_and_wraps",
          "ACCC v1.10 sections 10.3 and 10.3.2; F4", false,
          test_type1_c9_counts_through_31_and_wraps},
@@ -7427,6 +7930,18 @@ int main(int argc, char** argv) {
         {"t23b_type1_ivm_engages_from_snapshot_r8_3",
          "ACCC v1.10 section 19.8.2 p.225 with R8=3 snapshot-loaded; F10 ivm seeding",
          false, test_type1_ivm_engages_from_snapshot_r8_3},
+        {"t32a_type1_frame_origin_realigns_parity_c9",
+         "ACCC v1.11 French section 19.5.3 p.209; BL-038/IA-2",
+         false, test_type1_frame_origin_realigns_parity_c9},
+        {"t33a_type0_r3_terminal_write_preserves_c3_overflow",
+         "ACCC v1.11 French sections 15.3.2-15.3.3 pp.150-151; BL-025/IA-1 counter",
+         false, t33_type0_r3_terminal_write_preserves_c3_overflow},
+        {"t33b_type0_r3_terminal_write_earliest_restart_phase",
+         "ACCC v1.11 French section 15.3.3 p.151; BL-025/IA-1 controlled phase",
+         false, t33_type0_r3_terminal_write_earliest_restart_phase},
+        {"t33c_type0_r3_terminal_restart_lifecycle",
+         "IA-1 pending-state reset/snapshot/live-type/R3l=0 contract",
+         false, t33_type0_r3_terminal_restart_lifecycle},
         {"t23c_interlace_sync_leaves_ra_plain",
          "ACCC v1.10 section 19.3.2.1 p.199 (INTERLACE SYNC does not touch the raster address); F10/N-9",
          false, test_interlace_sync_leaves_ra_plain},
@@ -7510,6 +8025,13 @@ int main(int argc, char** argv) {
         {"t31a_type0_half_character_border_no_skew",
          "ACCC v1.11 sections 17.6.2 p.186 and 19.2.4 p.195; F13",
          false, t31_type0_half_character_border_no_skew},
+        {"t34a_type0_r6_zero_first_line_cancellation",
+         "ACCC v1.11 French section 18.3.2 p.191; BL-036/IA-3",
+         false, t34_type0_r6_zero_first_line_cancellation},
+        // t35: IA-6 / BL-018–BL-020 -- type-0 R0=1 widening at C0=1 persists adjustment.
+        {"t35a_type0_r0_one_c0_1_widening_persists_adjustment",
+         "ACCC v1.11 French section 13.7.2 pp.126-127; IA-6",
+         false, t35_type0_r0_one_c0_1_widening_persists_adjustment},
     };
 
     unsigned passed = 0;
