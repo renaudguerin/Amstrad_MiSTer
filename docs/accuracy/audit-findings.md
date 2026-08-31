@@ -606,12 +606,14 @@ General implementation rules for all fix prompts:
 
 ## F11. Minor / confirmatory findings (no immediate action)
 
-- **F11a — HSYNC width semantics** (`CRTC.v:350-351`; type-1 zero-width cut at
-  `crtc_type1_engine.v:164`): equality-based `hsc == R3l` end +
+- **F11a — HSYNC width semantics**: equality-based `hsc == R3l` end +
   4-bit wrap naturally reproduces the "overflow on shrink" rule (digest-02 §4) ✓; type 1
   R3l=0-cancels-immediately ✓ explicitly coded. Type 0 mid-HSYNC write of R3l=0 wraps (correct).
-  Only gap: CRTC 0's "restart without C3l reset if R3l modified at the exact end position"
-  (§10) — exotic; leave.
+  IA-1 now implements type 0's exact-terminal R3l-modified restart from French v1.11
+  sections 15.3.2-15.3.3 pp.150-151. `t33a` protects the already-correct C3l overflow;
+  `t33b` protects the separate earliest approximately 3.5-pixel pin restart only at its
+  controlled bus phase and includes a no-write control; `t33c` protects lifecycle and
+  R3l=0 suppression. Hardware phase confirmation remains open.
 - **F11b — VSYNC re-entrancy** (`vsync_allow`, `CRTC.v:380`, `:383-388`, `:436-451`):
   reproduces mechanism 2 including the R7=0/R4=0 lock and the R7=0,R4=1,R9=7 infinite-VSYNC
   bypass (digest-02 §18) ✓. Protected by `t03a`/`t03b`.

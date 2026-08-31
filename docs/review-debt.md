@@ -9,6 +9,17 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
 
 ## Cleared rows
 
+- **Accuracy IA-1 type-0 R3-terminal HSYNC restart — CLEARED, Gemini 3.7
+  Flash high, 2026-08-31.** A GPT-5.6 Sol xhigh worker authored the bounded
+  two-file delta. The guarded Gemini reviewer independently checked French
+  ACCC v1.11 sections 15.3.2-15.3.3 pp.150-151, the controlled 14-tick mapping,
+  trigger and nonblocking priority, all `t33` oracles, lifecycle guards, and
+  soak projection. Full simulation reports 181 required classic passes, lint
+  passes, exact soak `0x87a9d80a91381c9b` passes, and whitespace checks pass.
+  The source says earliest/approximately; real hardware phase remains
+  validation evidence, not review debt. Full record:
+  `docs/accuracy/ia1-r3-terminal-hsync-independent-review.md`.
+
 - **Accuracy IA-4 type-0 R4 equality history — CLEARED, GPT-5.6 Sol high,
   2026-08-31.** Gemini 3.7 Flash high authored the bounded two-file delta;
   the independent Sol reviewer freshly checked French ACCC v1.11 section

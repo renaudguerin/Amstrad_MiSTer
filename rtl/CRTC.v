@@ -445,6 +445,8 @@ reg        hsync_off_pending;
 reg        hsync_phaseful;
 reg        type1_hsync_start_pending;
 reg  [1:0] type1_hsync_start_count;
+reg        type0_hsync_restart_pending;
+reg  [3:0] type0_hsync_restart_count;
 reg        r2_jit_pending;
 reg        register_write_d;
 
@@ -458,6 +460,15 @@ wire register_write = ENABLE & RS & ~nCS & ~R_nW;
 wire r2_jit_write = register_write & ~register_write_d &
 					(addr == 5'd02) & (hcc == DI) &
 					(R2_h_sync_pos != DI) & (R3_h_sync_width != 0);
+// ACCC v1.11 sections 15.3.2-15.3.3 pp.150-151: on type 0, changing
+// R3l at the old terminal count while C0 is again equal to a relocated R2
+// drops the current raw HSYNC but starts another one without resetting C3l.
+// A zero low nibble retains the existing R3=0 suppression contract; changing
+// only R3v is not an R3l modification.
+wire type0_r3_terminal_write = register_write & ~register_write_d &
+					!CRTC_TYPE & (addr == 5'd03) & HSYNC &
+					(hcc == R2_h_sync_pos) & (hsc == R3_h_sync_width) &
+					(DI[3:0] != 0) & (DI[3:0] != R3_h_sync_width);
 
 always @(posedge CLOCK) begin
 
@@ -472,6 +483,8 @@ always @(posedge CLOCK) begin
 		hsync_phaseful            <= 0;
 		type1_hsync_start_pending <= 0;
 		type1_hsync_start_count   <= 0;
+		type0_hsync_restart_pending <= 0;
+		type0_hsync_restart_count   <= 0;
 		r2_jit_pending            <= 0;
 		register_write_d          <= 0;
 	end
@@ -482,6 +495,18 @@ always @(posedge CLOCK) begin
 
 		if (r2_jit_write) r2_jit_pending <= 1;
 		if (!CRTC_TYPE) type1_hsync_start_pending <= 0;
+		// The p.151 earliest restart is approximately 3.5 Pixel-M2 after the
+		// old pulse ends.  Reuse F20's production phase scale (four master
+		// CLOCK ticks per Pixel-M2): count thirteen intervening ticks, then
+		// raise the pin on the fourteenth.  Snapshot load and a live switch to
+		// type 1 discard this type-0-only pending event.
+		if (SNA_LOAD || CRTC_TYPE) begin
+			type0_hsync_restart_pending <= 0;
+			type0_hsync_restart_count   <= 0;
+		end else if (type0_r3_terminal_write) begin
+			type0_hsync_restart_pending <= 1;
+			type0_hsync_restart_count   <= 4'd13;
+		end
 
 		// Through the GA's 16 MHz video sampler CRTC1's normal start is the
 		// documented sixth rather than fifth pixel-M2. Four 64 MHz master edges
@@ -509,7 +534,17 @@ always @(posedge CLOCK) begin
 				hsync_phaseful <= 0;
 			end
 		end else if (!HSYNC) begin
-			if (r2_jit_pending && hsync_on) begin
+			if (!SNA_LOAD && !CRTC_TYPE && type0_hsync_restart_pending) begin
+				if (type0_hsync_restart_count == 0) begin
+					HSYNC                       <= 1;
+					hsync_phaseful              <= 0;
+					hsync_start_phase           <= 0;
+					type0_hsync_restart_pending <= 0;
+				end else begin
+					type0_hsync_restart_count <=
+						type0_hsync_restart_count - 1'd1;
+				end
+			end else if (r2_jit_pending && hsync_on) begin
 				HSYNC                     <= 1;
 				hsync_phaseful            <= CRTC_TYPE;
 				hsync_start_phase         <= CRTC_TYPE ? 7'd4 : 7'd0;

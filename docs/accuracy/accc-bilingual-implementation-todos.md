@@ -11,21 +11,28 @@ For each item, read the French page and the current RTL before writing a vector.
 expected result on paper and cite the section beside the assertion. A model pass is not
 hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams.
 
-## IA-1 — Type-0 live R3 update at exact HSYNC end
+## IA-1 — Type-0 live R3 update at exact HSYNC end — COMPLETE (controlled source model)
 
 - **Source:** BL-025; v1.11 French §15.3.2 p.150. English p.148 omits the sentence.
 - **Prediction to test:** in the documented infinite/re-entry configuration, a type-0 R3
   change landing exactly at `C0=R2+R3` makes C3l overflow rather than taking the ordinary
   clean end route.
-- **Current evidence:** no classic vector dynamically writes R3 during HSYNC. The current
-  live comparator preserves the coarse C3l overflow sequence, but its pin waveform predicts
-  either a one-raw-tick gap or no gap rather than the documented earliest approximately
-  3.5-pixel restart. This is a phase discriminator, not a counter-reset defect.
+- **Implemented evidence (2026-08-31):** `t33a` proves unchanged RTL already preserved the
+  paper-derived C3l sequence 10,11,...,15,0,1. `t33b` then fails unchanged RTL at its first
+  post-write sample (character 21, tick 3/16: expected HSYNC low, actual high), isolating the
+  missing pin gap. A type-0-only pending restart suppresses the still-live comparator and
+  raises HSYNC after 14 master ticks for this controlled phase, using the existing F20
+  four-ticks-per-Mode-2-pixel scale. The source's earliest/approximately qualifier is retained;
+  14 ticks is not a universal bus-phase or hardware oracle. `t33c` pins reset, snapshot,
+  live-type, and R3l=0 lifecycle controls.
 - **Owner:** classic accuracy stream.
-- **Gate:** use the French worked shape (old R2=11/R3l=10, new R2=21, exact-edge R3l=1)
-  with a no-write control. Assert the paper-derived C3l sequence and pin phase separately;
-  only the phase is presently predicted to fail. Run `make -C sim`, lint, and soak if
-  behavior changes.
+- **Gate:** the implemented French worked shape uses old R2=11/R3l=10, new R2=21, and
+  exact-edge R3l=1 with a no-write control. It asserts the paper-derived C3l sequence and
+  pin phase separately; unchanged RTL passed only the counter half and failed the pin phase.
+- **Acceptance:** GPT-5.6 Sol xhigh authored the two-file delta; guarded Gemini 3.7 Flash high
+  independently returned CLEAR. Full simulation reports 181 required classic passes, lint
+  passes, and exact soak `0x87a9d80a91381c9b` passes. Real type-0 hardware confirmation
+  remains open. Full record: `ia1-r3-terminal-hsync-independent-review.md`.
 
 ## IA-2 — Type-1 frame-origin ParityC9 realignment — COMPLETE (source model)
 

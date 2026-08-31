@@ -115,11 +115,16 @@ DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0x654a244c2cce6e0b`** after IA-2's type-1 frame-origin
-correction: French ACCC v1.11 section 19.5.3 p.209 assigns ParityC9 from the
-newly toggled ParityFrame, and its worked table starts an odd IVM frame at
-C9=1. Directed vector `t32a` first fails the stale toggle-both model from an
-even-R9 unequal-parity state. The preceding `0x32d468e81eac63c9` hash was the
+current hash is **`0x87a9d80a91381c9b`** after IA-1's controlled type-0
+R3-terminal HSYNC restart. French ACCC v1.11 sections 15.3.2-15.3.3
+pp.150-151 preserve the C3l overflow while the earliest approximately
+3.5-Mode-2-pixel restart maps to 14 master ticks only for `t33b`'s pinned bus
+phase. The new pending/count state joins the sampled projection. The preceding
+`0x654a244c2cce6e0b` hash was IA-2's frame-origin correction: French section
+19.5.3 p.209 assigns ParityC9 from the newly toggled ParityFrame, and its
+worked table starts an odd IVM frame at C9=1. Directed vector `t32a` first
+fails the stale toggle-both model from an even-R9 unequal-parity state. The
+earlier `0x32d468e81eac63c9` hash was the
 reviewed F20 correction: type-0/type-1 R2.JIT starts move by 4/3 Mode-2 pixels
 while display reactivation stays at each type's normal position, shortening
 the raw pulse by 4/3 pixels; same-value rewrites remain on the normal path.

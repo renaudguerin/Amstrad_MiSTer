@@ -485,17 +485,23 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 178 required CRTC passes, zero expected failures, no
+- The current local gate reports 181 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures (verified 2026-08-31, Verilator 5.050), plus the
   integrated GA R2.JIT and u765 transaction benches. The randomized equivalence soak
-  reproduces golden hash `0x654a244c2cce6e0b` (chain in AGENTS.md). IA-2's `t32a`
+  reproduces golden hash `0x87a9d80a91381c9b` (chain in AGENTS.md). IA-1's `t33a`
+  confirms that unchanged RTL already preserved the p.150-151 C3l overflow sequence;
+  `t33b` independently failed its first post-write pin sample because the live comparator
+  restarted HSYNC after one master tick. The corrected type-0-only path models the p.151
+  earliest approximately 3.5-pixel restart as 14 ticks for that controlled bus phase,
+  without claiming a universal hardware constant. `t33c` pins lifecycle and R3l=0 guards.
+  IA-2's `t32a`
   discriminator first failed the stale type-1 frame-origin toggle-both model from an
   even-R9 unequal-parity state. French ACCC v1.11 section 19.5.3 p.209 now governs the
   origin: the new ParityFrame seeds ParityC9 and, in IVM, C9. This is source-model
   evidence; hardware confirmation remains open. IA-4's `t16z` discriminator likewise
   first failed unchanged RTL at C4=3 instead of the
-  source-derived C4=2/C9=4 transient result. Its sticky history correction leaves the
-  soak unchanged, so the directed vector carries that proof. The
+  source-derived C4=2/C9=4 transient result. Its sticky history correction did not move the
+  then-current soak, so the directed vector carries that proof. The
   §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
   window; per review finding F-9 the soak is measurably insensitive to this region, so the
   directed vectors — not the soak — carry the behavioral proof here.
