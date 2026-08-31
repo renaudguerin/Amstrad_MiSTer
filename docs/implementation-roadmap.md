@@ -308,6 +308,49 @@ The unresolved sprite `+3` mirror, sprite coordinate formula, PRI offset, lowere
 zero collision, and pixel-phase questions remain named assumptions until a focused source or
 hardware discriminator settles each one.
 
+### Optional feature: light pen and light gun (LOW priority, opened 2026-09-01)
+
+Not required for accuracy or for any current finding. Recorded because the hardware picture
+turned out to be more interesting than "unimplemented register", and because MiSTer's existing
+mouse support makes it reachable without any adapter.
+
+**Current state.** The CRTC light-pen address registers R16/R17 read as zero on both paths and
+nothing latches them. On the classic side that is a recorded decision (F11f, and the §21.2
+digest footnote: "This core lacks LPSTB capture and returns 0 for R16/R17"). On the Plus side
+it is an unowned gap discovered by synthesis as a stuck-at-GND register; see
+`docs/b7-synthesis-inference-audit.md`. The minimum action, independent of this feature, is to
+record the Plus-side decision in `rtl/plus/asic_video.v` and in the findings table.
+
+**Three CPC light-pen designs, and they do not share an input.**
+
+- **Amstrad LP-1** connects to the **joystick port**, with the light sensor read on
+  Keyboard Row 9 Bit 1. It never touches the CRTC. LP-1 support therefore needs no R16/R17
+  work at all: it is a keyboard-matrix bit plus timing.
+- **Dk'tronics Lightpen** uses the CRTC `/LPEN` strobe on **expansion port pin 47** (CRTC pin
+  3, per the §22 digest). This is the design R16/R17 exist to serve.
+- **CPC Plus Aux socket** combines the expansion port's LPEN signal with the joystick fire
+  lines. Amstrad added it specifically so a light gun could work on the **GX4000**, which has
+  no expansion port. The Trojan Light Phazer used it.
+
+That last point is the interesting one: on the Plus this is a first-class Amstrad connector,
+not an expansion-bus hack, so **the Plus Aux socket is the more defensible starting point** if
+this is ever implemented. Several Plus cartridges support a light gun.
+
+**No hardware adapter is required.** A light pen physically asserts LPEN when the raster passes
+beneath it. Emulators synthesise that from a pointing device's screen coordinates, and the same
+approach works here: take MiSTer's existing mouse (or a light-gun device), convert its screen
+position to a raster position, and assert the LPEN strobe at that moment so the CRTC latches MA
+into R16/R17. A real CRT and a real photodiode would also work but are not needed to make the
+feature real.
+
+**Prior art is thin but exists.** Caprice Forever lists Lightpen among its supported
+peripherals, and Caprice32 under RetroArch exposes an "Amstrad Lightgun" device type. No
+light-pen support is documented for WinAPE or Arnold. So there is something to compare against,
+but this is not a widely-copied solved feature.
+
+**Sequencing.** Do the decision-recording now, as part of ordinary hygiene. Treat the feature
+itself as optional and independent: it is not blocked by anything and blocks nothing.
+
 ## 6. Commit and PR structure
 
 No PR needs to be created merely to follow this plan. Keep local commits in the same shape
