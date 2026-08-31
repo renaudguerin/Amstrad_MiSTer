@@ -27,16 +27,20 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   only the phase is presently predicted to fail. Run `make -C sim`, lint, and soak if
   behavior changes.
 
-## IA-2 — Type-1 frame-origin ParityC9 realignment
+## IA-2 — Type-1 frame-origin ParityC9 realignment — COMPLETE (source model)
 
 - **Source:** BL-038; v1.11 French §19.5.3 p.209. English p.208 omits the assignment.
 - **Prediction to test:** first make ParityC9 differ from ParityFrame through a documented R8
   transition, then cross a frame origin. An aligned-start fixture cannot distinguish explicit
   `ParityC9=ParityFrame` realignment from toggling both states.
-- **Current evidence:** a documented R8 transition can reach `(ParityFrame,ParityC9)=(0,1)`
-  before origin. Existing fixtures begin aligned. Current RTL then toggles both states and
-  predicts `(1,0)`; French explicit realignment predicts `(1,1)`. This is a predicted model
-  mismatch, not hardware evidence.
+- **Implemented evidence (2026-08-31):** `t32a` uses the paper-derived even-R9 route below
+  to reach `(ParityFrame,ParityC9)=(0,1)`. With the RTL correction temporarily absent it
+  fails at the origin (`ParityC9` actual 0, expected 1), distinguishing the old toggle-both
+  model from the French assignment. Type 1 now seeds both ParityC9 and the IVM C9 restart
+  from the newly toggled ParityFrame at every frame origin, while retaining the documented
+  R8 stage-A/entering-stage-B priority. Existing IVM and adjustment expectations were
+  re-derived against the p.209 worked table; the complementary odd-to-even origin is pinned
+  in `t28a`.
 - **Owner:** classic accuracy stream.
 - **Gate:** the discriminator must reach the origin with **even R9**, because current RTL only
   toggles ParityC9 there when R9 is even; odd R9 can accidentally produce the French result.
@@ -45,6 +49,13 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   and explain any soak-hash movement. The affected comments in `rtl/CRTC.v` and at the
   actual update logic in `rtl/crtc_type1_engine.v` use the v1.11 French §19.5.3 p.209 anchor
   and point back to this discriminator.
+- **Acceptance:** 177 required classic vectors, full repository simulation, lint, exact soak
+  `0x654a244c2cce6e0b`, and whitespace checks pass. The soak moved because random IVM traffic
+  reaches the corrected origin. This confirms the local source model, not physical CRTC-1
+  hardware; SHAKER or pin-trace confirmation remains open. The load-bearing stage-B
+  priority finding was fixed and the narrow remediation re-review returned CLEAR using
+  Gemini 3.7 Flash high through the guarded bridge; Claude was quota-unavailable. Full
+  record: `ia2-frame-origin-independent-review.md`.
 
 ## IA-3 — Type-0 R6 live condition at C0=R1
 

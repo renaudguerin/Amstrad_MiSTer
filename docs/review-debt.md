@@ -9,6 +9,17 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
 
 ## Cleared rows
 
+- **Accuracy IA-2 type-1 frame-origin parity — CLEARED, Gemini 3.7 Flash high,
+  2026-08-31.** French ACCC v1.11 section 19.5.3 p.209 governs the corrected
+  frame-origin assignment. `t32a` first fails the stale even-R9 toggle-both model;
+  `t28a` pins the complementary origin. The initial review found a load-bearing
+  stage-B value-mux qualification defect, which was fixed before the narrow
+  remediation re-review returned CLEAR. Full simulation, lint, exact soak
+  `0x654a244c2cce6e0b`, and whitespace gates pass. Claude Opus was requested but
+  quota-unavailable and produced no verdict; the exact reviewer tier is retained.
+  Hardware confirmation remains validation evidence, not review debt. Full record:
+  `docs/accuracy/ia2-frame-origin-independent-review.md`.
+
 - **Plus P10a-P10f/P10h local implementation review — CLEARED through
   `d17a1bc` (round two); round three separately CLEARED through feature tip
   `5275879`, integration `275a9a4`, 2026-08-30.** Scope: `Amstrad.sv`,

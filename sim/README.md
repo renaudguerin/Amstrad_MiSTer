@@ -115,11 +115,15 @@ DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0x32d468e81eac63c9`** after the reviewed F20 correction:
-type-0/type-1 R2.JIT starts move by 4/3 Mode-2 pixels while display reactivation
-stays at each type's normal position, shortening the raw pulse by 4/3 pixels;
-same-value rewrites remain on the normal path. The preceding
-`0x005deed28be80fa1` mint encoded the rejected width-preserving model plus the
+current hash is **`0x654a244c2cce6e0b`** after IA-2's type-1 frame-origin
+correction: French ACCC v1.11 section 19.5.3 p.209 assigns ParityC9 from the
+newly toggled ParityFrame, and its worked table starts an odd IVM frame at
+C9=1. Directed vector `t32a` first fails the stale toggle-both model from an
+even-R9 unequal-parity state. The preceding `0x32d468e81eac63c9` hash was the
+reviewed F20 correction: type-0/type-1 R2.JIT starts move by 4/3 Mode-2 pixels
+while display reactivation stays at each type's normal position, shortening
+the raw pulse by 4/3 pixels; same-value rewrites remain on the normal path.
+The earlier `0x005deed28be80fa1` mint encoded the rejected width-preserving model plus the
 addition of all new phase/deferred-edge latches to the sampled projection
 (previously `0xc769ea4605afbe04` after F13). The hash depends on the seed, the
 sampled field set/order, the event schedule, and the DUT's observable

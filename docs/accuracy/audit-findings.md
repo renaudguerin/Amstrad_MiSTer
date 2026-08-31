@@ -580,6 +580,13 @@ General implementation rules for all fix prompts:
   section). The old stepping/halving/field-OR
   approximation is removed; non-IVM behavior is bit-identical (t01-t20 unchanged; t09g's
   single RA expectation re-derived from §19.5.2).
+- **IA-2 correction (2026-08-31):** French v1.11 §19.5.3 p.209 explicitly assigns
+  ParityC9 from ParityFrame at the frame origin, and its worked table starts an odd IVM
+  frame at C9=1. `t32a` first creates `(ParityFrame,ParityC9)=(0,1)` with the documented
+  R8 transition and even R9, then fails the stale toggle-both model at the origin. The
+  corrected type-1 engine seeds ParityC9 and the IVM C9 restart from the newly toggled
+  ParityFrame. `t28a` pins the complementary odd-to-even origin. The full gate has 177
+  required classic passes and soak `0x654a244c2cce6e0b`; hardware confirmation remains open.
 - **Impact**: interlace demos (SHAKER 2.x uses 1/64-line positioning tricks); most games unaffected.
 - **Confidence: high for the implemented even-R9 surface** (every asserted value traces to a
   render-verified table cell or the pseudocode; the type-1 model reproduces all 64 panel

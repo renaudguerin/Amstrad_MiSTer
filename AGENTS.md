@@ -89,7 +89,11 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x32d468e81eac63c9`, re-minted 2026-08-30 for the reviewed F20 R2.JIT
+  (`0x654a244c2cce6e0b`, re-minted 2026-08-31 for the IA-2 type-1 frame-origin
+  correction: French ACCC v1.11 section 19.5.3 p.209 assigns ParityC9 from the
+  newly toggled ParityFrame and starts an odd IVM frame at C9=1; `t32a` first
+  fails the stale toggle-both model from an even-R9 unequal-parity state;
+  previously `0x32d468e81eac63c9`, re-minted 2026-08-30 for the reviewed F20 R2.JIT
   correction: type-0/type-1 starts move by 4/3 mode-2 pixels while their
   ordinary trailing-edge positions remain fixed, shortening the raw pulse by
   4/3 pixels; same-value writes remain normal; previously `0x005deed28be80fa1`

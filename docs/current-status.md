@@ -484,10 +484,14 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 176 required CRTC passes, zero expected failures, no
-  unexpected passes, and no failures (verified 2026-08-30, Verilator 5.050), plus the
+- The current local gate reports 177 required CRTC passes, zero expected failures, no
+  unexpected passes, and no failures (verified 2026-08-31, Verilator 5.050), plus the
   integrated GA R2.JIT and u765 transaction benches. The randomized equivalence soak
-  reproduces golden hash `0x32d468e81eac63c9` (chain in AGENTS.md). The
+  reproduces golden hash `0x654a244c2cce6e0b` (chain in AGENTS.md). IA-2's `t32a`
+  discriminator first failed the stale type-1 frame-origin toggle-both model from an
+  even-R9 unequal-parity state. French ACCC v1.11 section 19.5.3 p.209 now governs the
+  origin: the new ParityFrame seeds ParityC9 and, in IVM, C9. This is source-model
+  evidence; hardware confirmation remains open. The
   §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
   window; per review finding F-9 the soak is measurably insensitive to this region, so the
   directed vectors — not the soak — carry the behavioral proof here.
