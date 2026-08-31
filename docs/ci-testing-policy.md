@@ -252,3 +252,43 @@ bottleneck and allows `quartus_map` to execute single-process multi-level synthe
    ```
 4. **Never dispatch both routes concurrently for the same SHA**: Both routes share the single
    `build-core-synthesis` concurrency group, so a newer dispatch will cancel the earlier in-flight build.
+
+## Synthesis runner routing (2026-09-01)
+
+Expensive Quartus compiles run on whichever runner is faster and available. `build.yml` has a
+`route` job that decides, and exactly one of two synthesis jobs then runs:
+
+- `synthesis-local` calls `local-build.yml` as a reusable workflow on the self-hosted
+  `quartus-vm` runner. Roughly 2-4 minutes faster.
+- `synthesis` runs the hosted Quartus container on `ubuntu-latest`.
+
+Both still share the repository-wide `build-core-synthesis` concurrency slot. Routing rather
+than racing is what fixed the old failure mode, where a manual VM dispatch and a push-triggered
+hosted build started in the same second and cancelled each other, leaving the slower one to
+finish. A `cancelled` local build is still supersession, never failure.
+
+**The route is hosted unless every condition for the VM holds.** It picks `vm` only when the
+event is not `pull_request`, the repository is the owning one, the run has a single effort leg,
+the `QUARTUS_VM_TOKEN` secret exists, and the runners API reports a `quartus-vm` runner that is
+both `online` and not `busy`. Every failure path — missing secret, API error, unparseable
+response — falls back to hosted, so CI keeps producing an RBF if the secret is absent or
+expires.
+
+**Why a PAT.** Reading self-hosted runner state requires the repository `administration`
+permission, which `GITHUB_TOKEN` cannot hold. `QUARTUS_VM_TOKEN` must be a fine-grained personal
+access token scoped to this repository with **Administration: Read-only**, stored as a
+repository secret. Without it the routing silently degrades to hosted-always, which is the
+previous behaviour and is safe.
+
+**The fork-PR guard is duplicated on purpose.** `route` refuses to send a `pull_request` to the
+self-hosted runner, and `local-build.yml`'s own job condition independently refuses any event
+other than `push` or `workflow_dispatch` and any repository other than the owning one. The
+repository is public and the VM executes repository-controlled Tcl and RTL without a container
+boundary, so keep both guards when editing either file.
+
+**The required gate checks the routed leg.** It requires the routed job to succeed and the
+other to be `skipped`, and fails loudly if both ran, so a green gate can never come from a
+build that did not happen.
+
+`workflow_dispatch` on `local-build.yml` still works and still forces the VM. It is no longer
+needed for ordinary integration pushes.
