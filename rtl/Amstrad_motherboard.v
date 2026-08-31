@@ -62,7 +62,7 @@ module Amstrad_motherboard
 
 	input   [3:0] ppi_jumpers,
 	input         crtc_type,
-	input         sync_filter,
+	input   [1:0] sync_filter,
 	input         no_wait,
 
 	input         sna_load,
@@ -672,7 +672,7 @@ always @(posedge clk) begin
 			vram_addr <= crtc_vram_addr;
 		if (!ras_n & !cas_n_old & cas_n) vram_bs <= 1;
 		if (!ras_n & !cas_n)
-			if (sync_filter & crtc_shift) begin
+			if ((sync_filter != 2'd2) & crtc_shift) begin
 				if (vram_bs) vram_din_shift <= de_sel ? vram_din[15:8] : 8'd0;
 				vram_d <= vram_bs ? vram_din[7:0] : vram_din_shift;
 			end else
@@ -705,10 +705,31 @@ wire hsync_ga = plus_mode ? plus_hsync_o : ga_hsync_o;
 wire vsync_ga = plus_mode ? plus_vsync_o : ga_vsync_o;
 wire vblank_ga = plus_mode ? plus_vblank : ga_vblank_o;
 
-assign hsync = sync_filter ? hsync_filtered : hsync_ga;
-assign vsync = sync_filter ? vsync_filtered : vsync_ga;
-assign hblank = sync_filter ? hblank_filtered : hs_sel;
-assign vblank = sync_filter ? vblank_filtered : vblank_ga;
+// Sync filter modes.  crt_filter does two separable jobs: it regenerates a
+// stable HSYNC/VSYNC so the scaler can lock even when the CRTC emits
+// irregular lines, and it derives HBLANK/VBLANK from fixed constants counted
+// off that regenerated HSYNC.  Only the first is needed.  The second is what
+// pins the black zone around HSYNC to a constant position, which hides the
+// ACCC R2.JIT family: writing R2 at C0==R2 delays the start of that zone, and
+// a blanking window derived from constants cannot express the delay.
+//
+//   0 Full         Both jobs, as upstream.  Bit-for-bit previous behaviour.
+//   1 Live blank   Sync still regenerated so the scaler keeps its lock, but
+//                  blanking follows the live Gate Array outputs, so the black
+//                  zone moves with the CRTC.  The GA's shaped HSYNC is the
+//                  black region on real hardware, which is why it is the
+//                  blanking source here rather than the raw CRTC signal.
+//   2 Off          Raw path: GA sync, CRTC HSYNC as blanking.  Faithful, but
+//                  hardware testing on 2026-09-01 showed software that varies
+//                  line geometry (SHAKER, DSC4) garbles, because nothing holds
+//                  a stable lock.  Kept for diagnosis, not for normal use.
+//
+// See docs/backlog.md B1 for the hardware evidence behind the split.
+assign hsync  = (sync_filter != 2'd2) ? hsync_filtered : hsync_ga;
+assign vsync  = (sync_filter != 2'd2) ? vsync_filtered : vsync_ga;
+assign hblank = (sync_filter == 2'd0) ? hblank_filtered :
+                (sync_filter == 2'd1) ? hsync_ga        : hs_sel;
+assign vblank = (sync_filter == 2'd0) ? vblank_filtered : vblank_ga;
 
 crt_filter crt_filter
 (
