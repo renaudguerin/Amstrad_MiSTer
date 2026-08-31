@@ -107,8 +107,11 @@ public:
 	auto* cpu_read_status2() {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__dbg_read_status2;
 	}
-	auto* spr_ram() {
-		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_ram[0];
+	auto* spr_ram_even() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_ram_inst__DOT__bank_even[0];
+	}
+	auto* spr_ram_odd() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_ram_inst__DOT__bank_odd[0];
 	}
 	auto* pal_word(unsigned e) {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__pal[0];
@@ -281,12 +284,14 @@ int run() {
 
 		if (!done_checked2 && *b.cpu_done()) {
 			done_checked2 = true;
-			const auto* ram = b.spr_ram();
+			const auto* ram_even = b.spr_ram_even();
+			const auto* ram_odd = b.spr_ram_odd();
 			// Sprite 0 image comes from the m8 auto-fill phase: even
 			// offsets written 0xDA -> nibble A, odd offsets 0x85 ->
 			// nibble 5, so the low-nibble mask is exercised by every
 			// one of the 256 writes.
-			if (ram[0x000] != 0xA || ram[0x001] != 0x5 || ram[0x100] != 0xE)
+			if (ram_even[0x000] != 0xA || ram_odd[0x000] != 0x5 ||
+			    ram_even[0x080] != 0xE)
 				fail("m5: sprite RAM contents wrong after bus writes "
 				     "(low-nibble mask or decode)");
 			if (*b.x_lo(0) != 0x66)

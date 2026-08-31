@@ -100,6 +100,23 @@ public:
 		return v;
 	}
 
+	// Sprite RAM moved behind the one-edge synchronous host port in P10j.
+	// Sample D_out after exactly the edge that sees this CPU read; the cleanup
+	// edge below only releases the bus and does not add a WAIT state or another
+	// CPU transaction.  Other register/palette reads retain their established
+	// combinational sampling above.
+	uint8_t spr_rd(uint16_t off) {
+		dut.asic_cs = 1;
+		dut.mem_wr = 0;
+		dut.mem_rd = 1;
+		dut.A = off;
+		tick();
+		const uint8_t v = dut.D_out;
+		dut.mem_rd = 0;
+		run(1);
+		return v;
+	}
+
 	uint8_t idle_out() {
 		dut.asic_cs = 0;
 		dut.mem_rd = 0;
@@ -193,15 +210,15 @@ void a01_sprite_ram(Regs& r) {
 		r.wr(uint16_t(a), uint8_t((a * 7 + 3) & 0xFF));
 	for (uint32_t a = 0; a < 4096; ++a) {
 		const uint8_t expect = uint8_t((a * 7 + 3) & 0x0F); // §4 mask
-		const uint8_t got = r.rd(uint16_t(a));
+		const uint8_t got = r.spr_rd(uint16_t(a));
 		if (got != expect)
 			fail("a01: sprite RAM[" + std::to_string(a) + "] reads " +
 			     std::to_string(got) + ", expected masked " +
 			     std::to_string(expect));
 	}
 	r.wr(0x0100, 0xA5);
-	if (r.rd(0x0100) != 0x05) fail("a01: rewrite lost");
-	if (r.rd(0x0101) != uint8_t((0x0101u * 7 + 3) & 0x0F))
+	if (r.spr_rd(0x0100) != 0x05) fail("a01: rewrite lost");
+	if (r.spr_rd(0x0101) != uint8_t((0x0101u * 7 + 3) & 0x0F))
 		fail("a01: neighbour byte disturbed");
 	std::printf("PASS a01: sprite pixel RAM sweep, nibble mask, isolation\n");
 }
@@ -534,7 +551,7 @@ void a12_sna_loading(Regs& r) {
 	r.dut.sna_wr = 0;
 	r.tick();
 
-	if (r.rd(0x0000) != 0x0A) fail("a12: Sprite RAM not loaded via SNA");
+	if (r.spr_rd(0x0000) != 0x0A) fail("a12: Sprite RAM not loaded via SNA");
 	if (r.dut.pri != 0x5A) fail("a12: PRI not loaded via SNA");
 	if (r.rd(0x2C0F) != 0x45) fail("a12: DCSR not loaded via SNA (got " + std::to_string(r.rd(0x2C0F)) + ")");
 	std::printf("PASS a12: Direct SNA register and RAM loading\n");
