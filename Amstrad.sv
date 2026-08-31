@@ -75,6 +75,7 @@ localparam CONF_STR = {
 	"P1OU,Pixel Clock,16MHz,Adaptive;",
 	"P1-;",
 	"P1O2,CRTC,Type 1,Type 0;",
+	"P1O[35],Sync filter,On,Off;",
 	"P1OBD,Display,Color(GA),Color(ASIC),Green,Amber,Cyan,White;",
 	"P1-;",
 	"P1O78,Stereo mix,none,25%,50%,100%;",
@@ -1285,7 +1286,11 @@ Amstrad_motherboard motherboard
 	.no_wait(status[6] & ~tape_motor),
 	.ppi_jumpers({1'b1, ~status[44:42]}),
 	.crtc_type(~status[2]),
-	.sync_filter(1),
+	// crt_filter regenerates sync and derives blanking from fixed constants.
+	// Turning it off is required to observe real CRTC HSYNC-position behaviour
+	// (ACCC R2.JIT family). With the filter off, HBLANK falls back to raw CRTC
+	// HSYNC, so the visible window is wider and may be off-centre.
+	.sync_filter(~status[35]),
 
 	.sna_load(sna_load),
 	.sna_cpu_dir(sna_cpu_dir),
