@@ -25,6 +25,7 @@ set_global_assignment -name VERILOG_FILE rtl/plus/asic_unlock.v
 set_global_assignment -name VERILOG_FILE rtl/plus/asic_ga_timing.v
 set_global_assignment -name VERILOG_FILE rtl/plus/asic_video.v
 set_global_assignment -name VERILOG_FILE rtl/plus/asic_sprites.v
+set_global_assignment -name VERILOG_FILE rtl/plus/plus_sprite_ram.v
 set_global_assignment -name VERILOG_FILE rtl/plus/asic_regs.v
 set_global_assignment -name VERILOG_FILE rtl/plus/asic_dma.v
 set_global_assignment -name VERILOG_FILE rtl/plus/plus_mmu.v
