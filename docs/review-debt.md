@@ -2,6 +2,12 @@
 
 ## Open rows
 
+- **Accuracy OSD sync-filter toggle — OPEN, no independent cross-provider review,
+  2026-08-31.** This change was merged without independent cross-provider review.
+  A reviewer should check that the default value preserves bit-for-bit current
+  behaviour and that status bit 35 collides with nothing in `Amstrad.sv` or
+  `sys/`.
+
 - **Plus P10j primitive/model contract notes — OPEN LOW, Claude Opus 5 high,
   2026-08-31.** A guarded Claude exact-tip review at integration SHA `bf1e785`
   found no defect in the final CLOCK1 (`1248d06`, originally `db60f8d`) or
