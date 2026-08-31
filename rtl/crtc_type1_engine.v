@@ -383,13 +383,13 @@ end
 
 // Parity update decisions for the wrapper's shared flops.  ParityFrame toggles
 // at every C4=C9=C0=0 frame boundary regardless of R8 (French v1.11 section
-// 19.5.3 p.209).  ParityC9 toggles at each C4-increment row end when R9 is even
-// per the section 19.8.2 p.225 match branch, which toggles the flop and restarts
-// C9 from it as one step, including the C4=0 frame-boundary arm (review finding
-// B-2).  At the frame origin, however, French section 19.5.3 explicitly assigns
-// ParityC9=ParityFrame; BL-038/IA-2 owns the even-R9 discriminator and any
-// resulting correction at this edit site.  A
-// stage edge coinciding with either wins: the OUT stages carry the
+// 19.5.3 p.209).  ParityC9 toggles at each C4-increment row end when R9 is even,
+// per French v1.11 section 19.8.2 p.226; that match branch toggles the flop and
+// restarts C9 from it as one step, including the C4=0 frame-boundary arm (review
+// finding B-2).  At the frame origin, however, French section 19.5.3 explicitly
+// assigns ParityC9=ParityFrame; BL-038/IA-2 owns the even-R9 discriminator and
+// any resulting correction at this edit site.  A stage edge coinciding with
+// either wins: the OUT stages carry the
 // documented value semantics; that coincidence itself is unpinned.
 wire c4_increment_toggle = row_new && !R9_v_max_line[0];
 assign pc9_write = stage_a_edge || (stage_b_edge && tog_enter) ||
