@@ -181,12 +181,12 @@ module plus_sprite_ram_bank
 		ram.numwords_b = 2048,
 		ram.widthad_b = 11,
 		ram.width_b = 4,
-		ram.address_reg_b = "CLOCK0",
+		ram.address_reg_b = "CLOCK1",
 		ram.clock_enable_input_a = "BYPASS",
 		ram.clock_enable_input_b = "BYPASS",
 		ram.clock_enable_output_a = "BYPASS",
 		ram.clock_enable_output_b = "BYPASS",
-		ram.indata_reg_b = "CLOCK0",
+		ram.indata_reg_b = "CLOCK1",
 		ram.intended_device_family = "Cyclone V",
 		ram.lpm_type = "altsyncram",
 		ram.operation_mode = "BIDIR_DUAL_PORT",
@@ -201,7 +201,7 @@ module plus_sprite_ram_bank
 		ram.read_during_write_mode_port_b = "OLD_DATA",
 		ram.width_byteena_a = 1,
 		ram.width_byteena_b = 1,
-		ram.wrcontrol_wraddress_reg_b = "CLOCK0";
+		ram.wrcontrol_wraddress_reg_b = "CLOCK1";
 `endif
 
 endmodule
