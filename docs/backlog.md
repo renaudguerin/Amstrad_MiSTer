@@ -251,8 +251,8 @@ finding *mistakes* rather than reconsidering the *approach* will not catch its s
 **Audit 1 — synthesis inference sweep. DONE 2026-08-31, see
 `docs/b7-synthesis-inference-audit.md`.** Result: no second sprite-RAM-class defect. All 28
 "uninferred RAM" instances are correctly too small for block RAM; every real memory inferred.
-One follow-up: `asic_video` R16/R17 are stuck at GND because nothing writes them, consistent
-with the open F18 light-pen decision but not proven to be deliberate. Original scope follows. Read the Quartus fitter and Analysis & Synthesis
+One follow-up: `asic_video` R16/R17 (CRTC3 light pen) are stuck at GND because nothing writes
+them, and this is an unowned gap — F18 covers the classic CRTC readback only and is closed. Original scope follows. Read the Quartus fitter and Analysis & Synthesis
 reports for the current build and check, for every memory-shaped structure in the design,
 whether it inferred as block RAM or as registers. Also read the removed/stuck-register report:
 anything optimized away as unreachable is either dead code or a wiring bug.

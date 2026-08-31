@@ -65,11 +65,17 @@ signature of a register nothing ever drives. Both were traced to source:
 - **`asic_video R16_pen_h[0..5]` and `R17_pen_l[0..7]`** (`rtl/plus/asic_video.v:201-202`) are
   declared, cleared at reset, and returned on the register read path
   (`rtl/plus/asic_video.v:846-847`), but **written nowhere**. Reading CRTC3 R16/R17 therefore
-  always returns zero. These are the 6845 light-pen address registers, and roadmap finding
-  **F18 is the open light-pen interface decision**, so this is consistent with a known,
-  deliberate gap rather than an accident. It should be confirmed as such when F18 is taken up:
-  the synthesis signature cannot distinguish "deliberately unimplemented" from "write path
-  accidentally dead".
+  always returns zero. These are the 6845 light-pen address registers.
+
+  **This is an unowned gap, not a known one.** Finding F18 covers the *classic* CRTC's
+  readable register set in `rtl/CRTC.v`, and it was validated and pinned on 2026-08-26 for all
+  32 addresses on both types. It says nothing about the Plus path. Nothing in the CRTC3/ASIC
+  implementation latches a light-pen position, and no finding records that as a decision.
+
+  Practical impact is probably nil, since light-pen use on a CPC+ is vanishingly rare, but the
+  gap should be made explicit rather than left as a stuck-at-GND artifact discovered by
+  synthesis. Open it as a small finding, or state in `asic_video.v` that the light-pen
+  registers are deliberately read-as-zero on this implementation.
 - **`asic_regs ack_src[0]`** (`rtl/plus/asic_regs.v:528`) is a three-bit field whose every
   assignment (`3'd0`, `3'b110`, `3'b000`, `3'b010`, `3'b100`) leaves bit 0 clear, so the
   optimizer is right to drop it. Not a defect. Worth a comment in the source noting the LSB is
