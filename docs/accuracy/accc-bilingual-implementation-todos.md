@@ -42,8 +42,9 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   toggles ParityC9 there when R9 is even; odd R9 can accidentally produce the French result.
   One paper-derived route starts with R9=3/R4=1/R8=0, reaches C4=1/C9=0, writes R9=2, then
   enters R8=3 to create `(0,1)` before origin. Preserve all existing IVM transition fixtures,
-  and explain any soak-hash movement. The affected `rtl/CRTC.v` parity comment already uses
-  the v1.11 French §19.5.3 p.209 anchor and points back to this discriminator.
+  and explain any soak-hash movement. The affected comments in `rtl/CRTC.v` and at the
+  actual update logic in `rtl/crtc_type1_engine.v` use the v1.11 French §19.5.3 p.209 anchor
+  and point back to this discriminator.
 
 ## IA-3 — Type-0 R6 live condition at C0=R1
 

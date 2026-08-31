@@ -381,11 +381,14 @@ always @(posedge CLOCK) begin
 	else if(CLKEN && frame_new_w) type1_add_line_active <= 0;
 end
 
-// Parity update decisions for the wrapper's shared flops.  ParityFrame
-// toggles at every C4=C9=C0=0 frame boundary regardless of R8 (p.208);
-// ParityC9 toggles at each C4-increment row end when R9 is even -- per the
-// p.225 match branch, which toggles the flop and restarts C9 from it as one
-// step, including the C4=0 frame-boundary arm (review finding B-2).  A
+// Parity update decisions for the wrapper's shared flops.  ParityFrame toggles
+// at every C4=C9=C0=0 frame boundary regardless of R8 (French v1.11 section
+// 19.5.3 p.209).  ParityC9 toggles at each C4-increment row end when R9 is even
+// per the section 19.8.2 p.225 match branch, which toggles the flop and restarts
+// C9 from it as one step, including the C4=0 frame-boundary arm (review finding
+// B-2).  At the frame origin, however, French section 19.5.3 explicitly assigns
+// ParityC9=ParityFrame; BL-038/IA-2 owns the even-R9 discriminator and any
+// resulting correction at this edit site.  A
 // stage edge coinciding with either wins: the OUT stages carry the
 // documented value semantics; that coincidence itself is unpinned.
 wire c4_increment_toggle = row_new && !R9_v_max_line[0];
