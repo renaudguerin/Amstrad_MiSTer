@@ -48,8 +48,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Test synthesis path classification
-        run: scripts/ci/test-classify-synthesis-paths.sh
+      - name: Test synthesis policy helpers
+        run: |
+          scripts/ci/test-classify-synthesis-paths.sh
+          scripts/ci/test-check-quartus-timing.sh
 
       - name: Decide whether full synthesis is required
         id: classify
@@ -302,6 +304,12 @@ jobs:
             grep "Info: Elapsed time" "$log" | tail -5 || true
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Require setup and hold timing closure
+        shell: bash
+        run: |
+          scripts/ci/check-quartus-timing.sh output_files/Amstrad.sta.summary | \
+            tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Record synthesis provenance
         if: always()
