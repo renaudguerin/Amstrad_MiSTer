@@ -61,8 +61,9 @@ and operates after this stage. Removing or redesigning it does not affect those.
 
 **Steps.**
 
-1. **Done / in flight (`accuracy/sync-filter-toggle`)**: expose `sync_filter` as an OSD
-   option so the effect can be A/B tested on hardware. Default preserves current behaviour.
+1. **Done, merged 2026-08-31 (`accuracy/sync-filter-toggle`)**: `sync_filter` is now an OSD
+   option, "Sync filter, On/Off" on the Audio & Video page, backed by `status[35]`. The
+   default is On, preserving previous behaviour bit-for-bit. Awaiting hardware test.
 2. **Run the experiment.** DSC4 and SHAKER Module A (T), (Y), (TAB) with the filter off, on
    both CRTC types. The question is not whether the picture is pretty; it is *whether the
    black zone moves at all*. Record the result here.

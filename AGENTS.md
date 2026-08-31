@@ -10,6 +10,9 @@ Classic CRTC accuracy (types 0/1) and Amstrad Plus/GX4000 ASIC support are separ
 streams. Do not merge them into one commit or one PR.
 
 Start from:
+- `docs/backlog.md` — cross-cutting architecture and methodology items (observability,
+  harnesses, structural debt) that sit underneath feature work; several roadmap items are
+  blocked by them in ways the roadmap does not show
 - `docs/implementation-roadmap.md` — dependency order and acceptance gates
 - `docs/current-status.md` — handoff state, hardware-test milestones
 - `docs/accuracy/audit-findings.md` — numbered findings F1–F12
@@ -210,6 +213,13 @@ the old name survives only in history and historical documents.
 
 - Write a vector only where reading the RTL against the documented ACCC rule predicts a
   mismatch. Read the rule and the RTL first; blanket coverage is not progress by default.
+- **A test earns its place only if it could fail for a reason you did not already know.** A
+  vector derived from an ACCC rule you have just implemented, asserting that same rule, is
+  documentation with a `make` target: it cannot fail until someone edits the line it mirrors.
+  Prefer vectors pinning a cross-module interaction, a degenerate case, or an unimplemented
+  rule. A large green suite that cannot surprise you is what lets a wrong core look verified.
+  This applies to review passes too: do not run independent review on documentation-only
+  changes.
 - Derive every expected value from the documented rule on paper and cite the ACCC section
   and page next to the assertion. Never read expectations back out of the simulator.
 - Every behaviour change lands with a focused deterministic vector. A timing-sensitive
