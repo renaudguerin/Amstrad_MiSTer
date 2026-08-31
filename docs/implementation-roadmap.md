@@ -279,6 +279,13 @@ hardware retest. The detailed evidence and checkboxes live in
 P10 is an acceptance/repair stack, not one RTL commit. Keep its sub-milestones independently
 reviewable and in this order:
 
+Build 168's full fitter report makes resource closure a concrete Plus task rather than a
+general optimization wish: the combined core uses 37,728 / 41,910 ALMs (90%), with
+`asic_regs` accounting for about 16,666 ALMs and `asic_sprites` another 4,184. The dominant
+candidate is the 4Kx4 sprite-pixel array currently implemented as logic/registers instead of
+M10K memory. An exact upstream utilization baseline is not required before addressing this
+measured local cost.
+
 | Sub-milestone | Scope | Deterministic exit |
 |---|---|---|
 | **P10a: evidence baseline + production boot harness** | Exact-tip full-effort build; real T80/top-level CPR reset-vector execution and bounded trace | Dispatch `local-build.yml` with `effort=full` when the Quartus VM is online, otherwise hosted `build.yml`; constrained internal domains have non-negative setup/hold slack and zero TNS; named RBF/hash and external-path caveat recorded; tiny fixture reaches a pinned PC/page state; BASIC/Panza traces expose first divergence rather than only a screen result |
@@ -290,6 +297,7 @@ reviewable and in this order:
 | **P10g: Panza first divergence** | Close one traced MMU/CRTC3/PRI/video behavior at a time | Each fix has a primary-source or hardware-derived vector; no self-derived expectation from current RTL |
 | **P10h: production CPC+ SNA** | Correct parser reset sequencing and consecutive-byte/nibble handling | `Amstrad.sv` snapshot integration test covers model, PPI/PSG, ASIC registers, palette, and sprite data |
 | **P10i: hardware matrix** | Repeat the Plus checklist with exact environment metadata | Individual items promoted to hardware-confirmed only with commit, full-fit RBF hash, model/media configuration, and recorded result |
+| **P10j: Plus resource and timing closure** | Replace the sprite-pixel array's register/ALM implementation with an M10K-compatible dual-port design; optimize the parallel sprite renderer only if memory conversion leaves insufficient margin | Focused fixtures preserve CPU read/write, SNA write, video-fetch, access-blanking, and CPU/video collision semantics; CPU-visible timing is unchanged unless a traced and tested WAIT contract is introduced; the fitter proves sprite storage uses block memory and records the `asic_regs`/`asic_sprites` and total-ALM deltas; all Plus/classic gates and the soak pass; the exact full-effort RBF has non-negative constrained setup/hold slack and zero TNS, with CI failing closed on a timing violation |
 
 Do not combine P10b/P10c's confirmed defects with P10f/P10g's evidence-gated ASIC changes.
 Clock, WAIT, memory, RGB, and top-level arbitration commits require exact full-effort synthesis.
@@ -334,7 +342,10 @@ u765, CRTC3, and concurrency seams are simulation-verified only. Exact-tip full-
 synthesis, title traces, hardware retest, no-ACK epoch/tag, two-drive overlap, sector-search
 reset, WRITE DATA `buff_wr`, automatic-EOT C/R, odd-R5 CRTC3 behavior,
 cartridge-versus-RAM pacing, top-level SNA recovery, and undocumented sprite/coordinate
-behavior remain open.
+behavior remain open. P10j additionally owns conversion of the register-backed sprite-pixel
+array to M10K storage, preservation of its multi-client access semantics, any subsequent
+sprite-renderer resource work justified by a fresh entity report, and timing-clean CI/RBF
+acceptance. It deliberately does not require a separate upstream utilization build.
 
 - P-2 is independently mergeable because default-off behavior is invariant.
 - P-1 may be independently mergeable if the cartridge service is unselected in classic
@@ -429,7 +440,10 @@ behavior remain open.
    2026-08-29 and 2026-08-30 hardware samples keep P10 open. Build an exact-tip full-effort
    timing-clean RBF, repeat the recorded matrix, and capture title-level first divergences.
    Keep input/DMA concurrency, cartridge timing redesign, and undocumented sprite/video
-   behavior evidence-gated. Do not combine Plus work with the classic stream. See
+   behavior evidence-gated. Complete P10j by moving sprite-pixel storage out of ALMs and into
+   M10K memory without weakening CPU/video collision semantics, then record the fitter delta
+   and require timing-clean CI; no exact upstream utilization build is needed. Do not combine
+   Plus work with the classic stream. See
    `plus/hardware-checkpoint-findings.md` and `plus/hardware-test-round2-2026-08-30.md`.
 6. F6/F13 proceeds per `accuracy/f6-decision-gate.md`: Stage 2 measured the old 1 µs input;
    Stage 2b assigned the documented 0.5 µs to the CRTC DE phase; the wrapper correction and
