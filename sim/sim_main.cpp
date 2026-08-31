@@ -306,6 +306,8 @@ public:
         mix(r.CRTC__DOT__hsync_phaseful);
         mix(r.CRTC__DOT__type1_hsync_start_pending);
         mix(r.CRTC__DOT__type1_hsync_start_count);
+        mix(r.CRTC__DOT__type0_hsync_restart_pending);
+        mix(r.CRTC__DOT__type0_hsync_restart_count);
         mix(r.CRTC__DOT__r2_jit_pending);
         mix(r.CRTC__DOT__register_write_d);
     }
@@ -535,6 +537,21 @@ public:
     // Internal-state accessors for the F10 fixture setup walkers.
     std::uint8_t c0() const {
         return dut_->rootp->CRTC__DOT__hcc;
+    }
+
+    void expect_hsync_counter(const std::string& expectation,
+                              std::uint8_t expected) const {
+        expect_byte(expectation, expected,
+                    dut_->rootp->CRTC__DOT__hsc);
+    }
+
+    void expect_type0_hsync_restart_state(const std::string& expectation,
+                                          bool pending,
+                                          std::uint8_t count) const {
+        expect_byte(expectation + " pending", pending,
+                    dut_->rootp->CRTC__DOT__type0_hsync_restart_pending);
+        expect_byte(expectation + " count", count,
+                    dut_->rootp->CRTC__DOT__type0_hsync_restart_count);
     }
 
     std::uint8_t line_reg() const {
@@ -6011,6 +6028,153 @@ void test_type1_frame_origin_realigns_parity_c9(TestBench& test) {
     test.expect_parity_c9("t32a frame origin realigns ParityC9", true);
 }
 
+// IA-1 / BL-025: French ACCC v1.11 sections 15.3.2-15.3.3 pp.150-151.
+//
+// Paper route (the p.151 chronogram): start type 0 with R2=11/R3l=10,
+// relocate R2 to 21 while the first pulse is active, and update R3l to 1
+// exactly after the C0=21 CLKEN edge has advanced C3l to 10.  At that
+// instant C0 is both the relocated R2 and the old R2+R3l terminal position.
+// The R3l modification makes C3l overflow rather than reset: 10, 11, ...,
+// 15, 0, 1.  The raw CRTC HSYNC nevertheless falls at the old terminal and
+// restarts without resetting C3l.
+//
+// run_to_c0() stops immediately after the CLKEN edge, at testbench phase 1.
+// The data write therefore lands on the following master CLOCK edge.  The
+// standalone harness has kClockTicksPerCharacter=16; the existing F20
+// production phase model represents one Pixel-M2 by four master ticks, so
+// the French "3.5 Pixel-M2 environ" earliest restart is 14 ticks for this
+// deliberately controlled phase.  This is not a universal timing oracle for
+// other bus phases.
+void t33_prepare_type0_r3_terminal_collision(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 11}, {3, 0x0a}, {4, 63},
+        {5, 0},  {6, 63}, {7, 63}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    // Move R2 to the old terminal position while the original pulse is
+    // active, but far enough ahead that this write is not itself R2.JIT.
+    test.run_to_c0(15);
+    test.write_register(2, 21);
+
+    // Select R3 ahead of the collision so only the data strobe lands at the
+    // controlled phase after C0=21/C3l=10 has been reached.
+    test.run_to_c0(19);
+    test.select_register(3);
+    test.run_to_c0(21);
+    test.expect_hsync_counter("t33 terminal precondition C3l=10", 10);
+    test.expect_hsync_high("t33 terminal precondition first HSYNC still high");
+}
+
+void t33_type0_r3_terminal_write_preserves_c3_overflow(TestBench& test) {
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(1);
+
+    // Section 15.3.3 p.151: the old terminal drops the raw pin, but C3l is
+    // not reset by the unexpected restart.
+    test.expect_hsync_low("t33a old R3l terminal drops raw HSYNC");
+    test.expect_hsync_counter("t33a collision retains C3l=10", 10);
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 7> overflow = {{
+        {22, 11}, {23, 12}, {24, 13}, {25, 14},
+        {26, 15}, {27, 0},  {28, 1},
+    }};
+    for (const auto& [c0, c3] : overflow) {
+        test.run_to_c0(c0);
+        test.expect_hsync_counter(
+            "t33a C3l overflow at C0=" + std::to_string(c0), c3);
+    }
+
+    // The new R3l=1 ends the restarted pulse only after the counter has
+    // wrapped to 1; it does not manufacture an early reset to reach it.
+    test.expect_hsync_high("t33a restarted pulse reaches wrapped C3l=1");
+    test.run_clock_ticks(1);
+    test.expect_hsync_low("t33a new R3l=1 terminates after the overflow");
+    test.expect_hsync_counter("t33a terminal counter remains C3l=1", 1);
+}
+
+void t33_type0_r3_terminal_write_earliest_restart_phase(TestBench& test) {
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(1);
+    test.expect_hsync_low("t33b old pulse ends on the R3l write edge");
+
+    // Four master ticks per Pixel-M2 in the F20 production-phase contract:
+    // 13 intervening ticks remain low, and the 14th raises the raw pin.
+    for (unsigned tick = 0; tick < 13; ++tick) {
+        test.run_clock_ticks(1);
+        test.expect_hsync_low(
+            "t33b earliest restart stays low through master tick " +
+            std::to_string(tick + 1));
+    }
+    test.run_clock_ticks(1);
+    test.expect_hsync_high(
+        "t33b controlled write restarts after 14 ticks (about 3.5 Pixel-M2)");
+
+    // Control from section 15.3.1 p.150: without modifying R3l at the same
+    // terminal position, type 0 must not glue a second HSYNC onto the first.
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.run_clock_ticks(1);  // ordinary old-R3l terminal at phase 1
+    test.expect_hsync_low("t33b no-R3-write control ends the first pulse");
+    for (unsigned tick = 0; tick < 14; ++tick) {
+        test.run_clock_ticks(1);
+        test.expect_hsync_low(
+            "t33b no-R3-write control stays low at master tick " +
+            std::to_string(tick + 1));
+    }
+    test.run_to_c0(22);
+    test.expect_hsync_counter("t33b no-R3-write control resets C3l", 0);
+    test.expect_hsync_low("t33b no-R3-write control has no restart");
+}
+
+void t33_type0_r3_terminal_restart_lifecycle(TestBench& test) {
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(1);
+    test.expect_type0_hsync_restart_state(
+        "t33c terminal write arms the countdown", true, 13);
+
+    test.reset();
+    test.expect_type0_hsync_restart_state(
+        "t33c reset clears the countdown", false, 0);
+
+    // The pending event belongs only to the live type-0 pipeline.  A type
+    // switch clears it on the next CLOCK edge rather than letting it fire
+    // after a round trip.
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(1);
+    test.set_crtc_type(1);
+    test.run_clock_ticks(1);
+    test.expect_type0_hsync_restart_state(
+        "t33c live type switch clears the countdown", false, 0);
+
+    // A snapshot replaces the counter/register context that justified the
+    // terminal event, so the pending phase must not survive it either.
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(1);
+    const std::array<std::uint8_t, 10> snapshot = {
+        63, 40, 50, 0x01, 63, 0, 63, 63, 0, 7,
+    };
+    test.load_snapshot_registers(snapshot);
+    test.expect_type0_hsync_restart_state(
+        "t33c snapshot load clears the countdown", false, 0);
+
+    // R3l=0 remains the established no-HSYNC request on type 0: even at the
+    // terminal collision it must not arm the unexpected restart path.
+    t33_prepare_type0_r3_terminal_collision(test);
+    test.write_selected_register_now(0);
+    test.expect_type0_hsync_restart_state(
+        "t33c R3l=0 does not arm the countdown", false, 0);
+    for (unsigned tick = 0; tick < 14; ++tick) {
+        test.run_clock_ticks(1);
+        test.expect_hsync_low(
+            "t33c R3l=0 remains low at master tick " +
+            std::to_string(tick + 1));
+    }
+}
+
 // N-9: INTERLACE SYNC (R8=1) offsets VSYNC by half a line but does not
 // touch the raster address on either type -- pin RA == C9 with no field OR.
 
@@ -7575,6 +7739,15 @@ int main(int argc, char** argv) {
         {"t32a_type1_frame_origin_realigns_parity_c9",
          "ACCC v1.11 French section 19.5.3 p.209; BL-038/IA-2",
          false, test_type1_frame_origin_realigns_parity_c9},
+        {"t33a_type0_r3_terminal_write_preserves_c3_overflow",
+         "ACCC v1.11 French sections 15.3.2-15.3.3 pp.150-151; BL-025/IA-1 counter",
+         false, t33_type0_r3_terminal_write_preserves_c3_overflow},
+        {"t33b_type0_r3_terminal_write_earliest_restart_phase",
+         "ACCC v1.11 French section 15.3.3 p.151; BL-025/IA-1 controlled phase",
+         false, t33_type0_r3_terminal_write_earliest_restart_phase},
+        {"t33c_type0_r3_terminal_restart_lifecycle",
+         "IA-1 pending-state reset/snapshot/live-type/R3l=0 contract",
+         false, t33_type0_r3_terminal_restart_lifecycle},
         {"t23c_interlace_sync_leaves_ra_plain",
          "ACCC v1.10 section 19.3.2.1 p.199 (INTERLACE SYNC does not touch the raster address); F10/N-9",
          false, test_interlace_sync_leaves_ra_plain},
