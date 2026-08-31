@@ -139,8 +139,11 @@ General implementation rules for all fix prompts:
   activates the R5=0 C0=1 equality-break route, applies a same-cycle R5 write at C0=2,
   retains the selected comparator across the documented C0>=2 windows, and separates the
   exact-R0 C4 and C9 comparisons. The short-R0 path consumes the C4 increment once for R0=0
-  and runs the default zero-adjustment line for R0=0/1. `t16a`-`t16s` protect those counter
-  results, active-adjustment freeze, exact R0=1 latch consumption, completion, bus phases,
+  and runs the default zero-adjustment line for R0=0/1. IA-4 adds French v1.11 section
+  13.2.1 p.106's history condition: once an accepted R4 write is unequal to C4, restoring
+  equality later in the line cannot erase the C9/R5 comparator switch. `t16a`-`t16z`
+  protect those counter results, active-adjustment freeze, exact R0=1 latch consumption,
+  completion, bus phases,
   and retained-state lifecycle; t09h protects the correlated R0=0 freeze entry.
 - **Impact**: the documented deterministic C4/C9/RA and adjustment-state paths are now
   guarded. Remaining risk is pin-level sub-character timing for ruptures and short-R0 entry,
@@ -151,7 +154,7 @@ General implementation rules for all fix prompts:
 - **Fix prompt**:
   > Preserve `t09h` and `t16a`-`t16s` as required passes while implementing F4. Keep type 1
   > unchanged and do not infer sub-character MA/DE/VSYNC timing from internal counter state.
-- **Verify**: V3 `t09h` and `t16a`-`t16s` required passes; V2/hardware evidence remains for
+- **Verify**: V3 `t09h` and `t16a`-`t16z` required passes; V2/hardware evidence remains for
   sub-character output timing and the complete CRTC-0 rupture matrix.
 
 ## F4. Counter overflow defeated by `!line_max` / type 0 `!R4` shortcut terms

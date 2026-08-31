@@ -9,6 +9,17 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
 
 ## Cleared rows
 
+- **Accuracy IA-4 type-0 R4 equality history — CLEARED, GPT-5.6 Sol high,
+  2026-08-31.** Gemini 3.7 Flash high authored the bounded two-file delta;
+  the independent Sol reviewer freshly checked French ACCC v1.11 section
+  13.2.1 p.106, section 11.2.2 pp.82-83, the sticky-latch lifecycle and
+  exact-R0 priority, the failure-first `t16z` control/transient oracle, and
+  unchanged sampled topology. Full simulation reports 178 required classic
+  passes, lint passes, exact soak `0x654a244c2cce6e0b` remains unchanged, and
+  whitespace checks pass. Hardware confirmation is validation evidence, not
+  review debt. Full record:
+  `docs/accuracy/ia4-r4-history-independent-review.md`.
+
 - **Accuracy IA-2 type-1 frame-origin parity — CLEARED, Gemini 3.7 Flash high,
   2026-08-31.** French ACCC v1.11 section 19.5.3 p.209 governs the corrected
   frame-origin assignment. `t32a` first fails the stale even-R9 toggle-both model;

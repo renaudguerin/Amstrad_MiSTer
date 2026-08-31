@@ -269,15 +269,14 @@ reg        type0_r5_adjust_override;
 reg  [4:0] type0_r5_adjust_target;
 
 // Technical information sourced from the "Amstrad CPC CRTC Compendium" by
-// Longshot (CC BY-NC-ND). ACCC v1.10 section 11.2.2 specifies that an R4
-// write on a type-0 last line from C0=2 through C0=R0 switches the line-end
-// comparison from C9/R9 to C9/R5 before the next line is calculated.
+// Longshot (CC BY-NC-ND). ACCC v1.10 section 11.2.2 and v1.11 French section
+// 13.2.1 p.106 specify that an R4 write on a type-0 last line from C0=2 through
+// C0=R0 switches the line-end comparison from C9/R9 to C9/R5 before the next line
+// is calculated if R4 does not remain equal to C4 throughout the line.
 wire       type0_r4_window_write;
 wire       type0_r4_switch_write;
-wire       type0_r4_switch_clear_write;
 wire       type0_r9_compare_write;
-wire       type0_r4_switch_active = (type0_r4_adjust_switch | type0_r4_switch_write) &
-									~type0_r4_switch_clear_write;
+wire       type0_r4_switch_active = type0_r4_adjust_switch | type0_r4_switch_write;
 wire       type0_r9_compare_active = type0_r9_live_compare | type0_r9_compare_write;
 wire       type0_c0_1_break_write = !CRTC_TYPE && register_write && hcc == 1 &&
 									frame_adj_r && !in_adj &&
@@ -456,7 +455,6 @@ assign type0_r4_window_write = !CRTC_TYPE && register_write && addr == 5'd04 &&
 								  hcc >= 2 && hcc <= R0_h_total &&
 								  type0_adjustment_selected && !in_adj;
 assign type0_r4_switch_write = type0_r4_window_write && DI[6:0] != row;
-assign type0_r4_switch_clear_write = type0_r4_window_write && DI[6:0] == row;
 assign type0_r9_compare_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
 								  hcc >= 2 && hcc < R0_h_total &&
 								  type0_adjustment_selected && !in_adj;
@@ -505,8 +503,13 @@ always @(posedge CLOCK) begin
 		type0_r5_adjust_target <= 0;
 	end
 	else begin
-		if(type0_r4_window_write) type0_r4_adjust_switch <= DI[6:0] != row;
-		else if(CLKEN && line_new) type0_r4_adjust_switch <= 0;
+		// French ACCC v1.11 section 13.2.1 p.106: vertical adjustment with
+		// ordinary C4=R4+1 progression requires R4 to have remained equal to
+		// C4 throughout the line. Any unequal R4 write within C0 in [2, R0]
+		// sets type0_r4_adjust_switch sticky for the rest of the line; an
+		// equal restoring write must not clear the current-line history.
+		if(CLKEN && line_new) type0_r4_adjust_switch <= 0;
+		else if(type0_r4_switch_write) type0_r4_adjust_switch <= 1;
 		if(type0_r9_compare_write) type0_r9_live_compare <= 1;
 		else if(CLKEN && line_new) type0_r9_live_compare <= 0;
 		if(type0_r9_at_r0_write) type0_r9_at_r0_pending <= 1;

@@ -2999,6 +2999,76 @@ void test_type0_zero_adj_entry_r5_positive_extends_adjustment(TestBench& test) {
     test.expect_ra("type 0 late R5 write resets C9", 0);
 }
 
+void test_type0_r4_unequal_history_retains_switch(TestBench& test) {
+    test.set_crtc_type(0);
+
+    // French ACCC v1.11 section 13.2.1 p.106 specifies that vertical
+    // adjustment with ordinary increment to C4=R4+1 on the following line
+    // occurs only if R4 remained equal to C4 throughout the line ("et que R4
+    // est resté égal à C4 durant la ligne").
+    // If R4 was modified away from C4 within the C0 in [2, R0] window, section
+    // 11.2.2 switches the line-end comparison from C9/R9 to C9/R5, keeping C4
+    // at R4 and advancing C9 toward R5, even if R4 is restored to equal C4
+    // before the line completes.
+    //
+    // Geometry: R0=7 (8 chars/line), R4=2 (3 rows), R9=3 (4 lines/row).
+    // Total lines before the final line (C4=2, C9=3): 4 + 4 + 3 = 11 lines.
+    // At C0=2 of the final line, write R5=5 to arm vertical adjustment.
+
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+        {5, 0}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
+    }};
+
+    constexpr unsigned line_characters = 8;
+    constexpr unsigned lines_before_last = 11;
+
+    // --- Control arm: R4 untouched ---
+    // R4 remains equal to C4 throughout the final line.
+    // At C0=2, R5 is written to 5.
+    // Line-end C9==R9 matches normally; ordinary adjustment path is taken:
+    // C4 increments to R4+1 = 3, C9 resets to 0, vertical adjustment is active.
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(5);
+    test.reset();
+
+    test.run_characters(lines_before_last * line_characters);
+    test.run_characters(2);  // Reach C0=2 on final line (C4=2, C9=3).
+    test.write_selected_register_at_clken(5);  // Write R5=5 at C0=2.
+    test.run_characters(line_characters - 3);  // Complete C0=3..7 to next line.
+
+    test.expect_adjustment_active("control: type 0 untouched R4 enters vertical adjustment");
+    test.expect_c4("control: untouched R4 advances C4 to R4+1", 3);
+    test.expect_ra("control: untouched R4 resets C9 to 0", 0);
+
+    // --- Transient arm: R4 written 2 -> 1 at C0=3, then 1 -> 2 at C0=4 ---
+    // R4 becomes unequal to C4 at C0=3. Restoring R4=2 at C0=4 must not clear
+    // the history of the inequality.
+    // Per French ACCC v1.11 section 13.2.1 p.106 and section 11.2.2:
+    // The comparator switch to C9/R5 remains active.
+    // C9 (3) does not match R5-1 (4), so C9 advances to 4, C4 stays at 2,
+    // and vertical adjustment is active.
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(5);
+    test.reset();
+
+    test.run_characters(lines_before_last * line_characters);
+    test.run_characters(2);  // Reach C0=2 on final line (C4=2, C9=3).
+    test.write_selected_register_at_clken(5);  // Write R5=5 at C0=2.
+    test.select_register(4);                   // Select R4 within C0=2.
+    test.write_selected_register_at_clken(1);  // Write R4=1 at C0=3 (2 -> 1).
+    test.write_selected_register_at_clken(2);  // Write R4=2 at C0=4 (1 -> 2).
+    test.run_characters(line_characters - 5);  // Complete C0=5..7 (3 chars) to next line.
+
+    test.expect_adjustment_active("transient: type 0 unequal R4 history enters vertical adjustment");
+    test.expect_c4("transient: unequal R4 history keeps C4 at 2 (French v1.11 §13.2.1 p.106)", 2);
+    test.expect_ra("transient: unequal R4 history advances C9 toward R5 (C9=4)", 4);
+}
+
 // ---------------------------------------------------------------------------
 // t07 / t08: F4 equality-only counter overflow and the section 28.1.1 CRTC
 // identification boundaries.  Test-only checkpoint: these vectors encode the
@@ -7206,6 +7276,9 @@ int main(int argc, char** argv) {
         {"t16w_type0_zero_adj_entry_r5_positive_extends_adjustment",
          "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12 zero-entry positive R5",
          false, test_type0_zero_adj_entry_r5_positive_extends_adjustment},
+        {"t16z_type0_r4_unequal_history_retains_switch",
+         "ACCC v1.11 section 13.2.1 p.106 and section 11.2.2; IA-4/BL-017 R4 history",
+         false, test_type0_r4_unequal_history_retains_switch},
         {"t07a_type1_c9_counts_through_31_and_wraps",
          "ACCC v1.10 sections 10.3 and 10.3.2; F4", false,
          test_type1_c9_counts_through_31_and_wraps},

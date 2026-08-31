@@ -70,21 +70,29 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
 - **Gate:** add a directed passing guard for the existing French-compatible behavior. An RTL
   edit is warranted only if the vector reveals a mismatch.
 
-## IA-4 — Type-0 R4-equality history during additional management
+## IA-4 — Type-0 R4-equality history during additional management — COMPLETE (source model)
 
 - **Source:** BL-017; v1.11 French §13.2.1 p.106. English p.104 omits the requirement that R4
   remained equal to C4 throughout the line.
 - **Prediction to test:** use identical line-end values with different mid-line history. In
   the transient arm, change R4 away from C4 after C0=2 and restore it before line end. French
   “remained equal” predicts a different next-line result from the no-write control.
-- **Current evidence:** the current `type0_r4_adjust_switch` records only the latest write's
-  equality; restoring R4 clears the switch. It therefore predicts the same result for both
-  histories, a model mismatch. The narrow expected negative path is C4 held with C9 advancing
-  toward R5, but that value is an inference from §11.2.2 and must be derived beside the test.
+- **Implemented evidence (2026-08-31):** `t16z` gives the control and transient histories
+  identical line-end register values. On unchanged RTL the transient arm fails at C4
+  (expected 2, actual 3), proving that the restoring write erased the required history.
+  The corrected latch becomes sticky after any accepted unequal R4 write and clears only
+  when the line is consumed or by reset/snapshot/type lifecycle events. The control reaches
+  adjustment at C4=3/C9=0; the transient reaches C4=2/C9=4 from the p.106 history condition
+  and section 11.2.2 comparator switch.
 - **Owner:** classic accuracy stream.
 - **Gate:** add the two-history discriminator before RTL. A minimal shape is R0=7, R4=2,
   R9=3, R5 written to 5 at final-line C0=2; transient arm writes R4 2→1→2 at C0=3/4.
   Bite-test any new “ever unequal” history latch against the control and existing t16 paths.
+- **Acceptance:** Gemini 3.7 Flash high authored the bounded two-file delta; an independent
+  GPT-5.6 Sol high review returned CLEAR. Full simulation reports 178 required classic
+  passes, lint passes, and exact soak `0x654a244c2cce6e0b` remains unchanged because its
+  fixed random schedule does not reach this history. Hardware confirmation remains open.
+  Full record: `ia4-r4-history-independent-review.md`.
 
 ## IA-5 — U.S.-ROM GA interrupt/VSYNC scanline phase
 

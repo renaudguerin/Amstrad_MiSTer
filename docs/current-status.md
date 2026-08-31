@@ -469,10 +469,11 @@ For a first MiSTer pass:
   recovery, MA/RA behavior, type switching, odd-field VSYNC freeze, and the single C4
   increment when C9 already equals R9 at freeze entry.
 - ACCC v1.10 F12 counter arbitration is deterministic-complete for the documented entry
-  paths. `t16a`-`t16s` cover R5 arbitration at C0=2, the R4/R9 last-line write windows,
+  paths. `t16a`-`t16z` cover R5 arbitration at C0=2, the R4/R9 last-line write windows,
   same-edge C0=0 writes, the C0=1/R5=0 equality-break route, exact-C0=R0 switching,
   `R0=0` and `R0=1` default adjustment, active-adjustment freeze, exact short-line latch
-  consumption, bus phases, completion, and retained-state lifecycle. Exact sub-character MA/DE/VSYNC behavior still requires hardware or SHAKER
+  consumption, bus phases, completion, retained-state lifecycle, and IA-4's p.106
+  two-history case where R4 becomes unequal and is restored before line end. Exact sub-character MA/DE/VSYNC behavior still requires hardware or SHAKER
   traces; the deterministic assertions use C4/C9/RA and adjustment state.
 - F4 removes the non-equality C9/C4 zero-limit shortcuts for both CRTC types and preserves
   type-0's live-versus-latched Last Line/RLAL behavior. Live R9 writes now also feed the
@@ -484,14 +485,17 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 177 required CRTC passes, zero expected failures, no
+- The current local gate reports 178 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures (verified 2026-08-31, Verilator 5.050), plus the
   integrated GA R2.JIT and u765 transaction benches. The randomized equivalence soak
   reproduces golden hash `0x654a244c2cce6e0b` (chain in AGENTS.md). IA-2's `t32a`
   discriminator first failed the stale type-1 frame-origin toggle-both model from an
   even-R9 unequal-parity state. French ACCC v1.11 section 19.5.3 p.209 now governs the
   origin: the new ParityFrame seeds ParityC9 and, in IVM, C9. This is source-model
-  evidence; hardware confirmation remains open. The
+  evidence; hardware confirmation remains open. IA-4's `t16z` discriminator likewise
+  first failed unchanged RTL at C4=3 instead of the
+  source-derived C4=2/C9=4 transient result. Its sticky history correction leaves the
+  soak unchanged, so the directed vector carries that proof. The
   §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
   window; per review finding F-9 the soak is measurably insensitive to this region, so the
   directed vectors — not the soak — carry the behavioral proof here.
