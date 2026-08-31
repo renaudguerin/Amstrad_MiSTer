@@ -129,7 +129,9 @@
   Clear this entry only after an actual cross-provider review. The introducing commit is
   the commit adding this entry; the previously cleared implementation reviews are unaffected.
 
-**Status: two reviews open.** Historical implementation review debt remains cleared.
+**Status: two reviews open:** Plus P10 and ACCC Round 2. The v1.11 bilingual sweep is
+cleared in the branch-level register below; historical implementation review debt remains
+cleared.
 
 ## Cleared rows
 
@@ -417,15 +419,16 @@ findings became action items A1-A5 above.
 
 ## Branch-level review register (locked decision 2026-08-22)
 
-No per-commit rows are added for work on the branches below: the 2026-08-22 locked
-decision treats them as authored by a single model (ox-alpha) to be reviewed **as one whole
-diff** before any of their content is treated as settled or upstreamed. The reviewer's guide
-with per-commit rationale, evidence commands, and a prioritized reading list is
-`docs/accuracy/type-split-review-guide.md` (the `accuracy/a3-f6-stage1` row names its own
-hardest-reading guidance inline).
+Rows in this register are reviewed as one whole branch diff before their content is treated
+as settled or upstreamed. The original 2026-08-22 locked decision applied this rule to the
+ox-alpha-authored branches; later rows reuse the same branch-level mechanism and state their
+own authorship/review requirements. The original reviewer's guide with per-commit rationale,
+evidence commands, and a prioritized reading list is
+`docs/accuracy/type-split-review-guide.md`.
 
 | Branch | Scope of the whole-branch review | Status |
 |---|---|---|
+| `docs/accc-bilingual-sweep` | French/English v1.11 section-complete source ledger and versioned extraction snapshot, authority-policy migration, high-confidence digest corrections, author courtesy report, implementation audit queue, and parity-comment citation migrations in `rtl/CRTC.v` and `rtl/crtc_type1_engine.v`. Review hardest: BL-019–BL-021 §13.7.2 reconstruction, BL-036 live-versus-historical R6 reading, BL-038 assignment-versus-toggle implication, and avoiding source claims unsupported by hardware. | **CLEARED — Claude Opus 5 high, 2026-08-31, reviewed through `eb9ee00`.** The source-equipped review verified all 44 BL findings against both original PDFs, confirmed complete section coverage, and accepted the BL-022 adjudication of a French internal typo. Its documentation/citation findings were remediated and the final source pass returned CLEAR. The extraction review also returned CLEAR after replacing 13 stale v1.10 renders: all 76 tracked PNGs reproduce byte-for-byte from the documented PyMuPDF 1.28.2 command and identify the matching v1.11 English pages. The RTL changes are comments only; simulation was explicitly waived by the user. |
 | `accc-review-and-fixes` | Canonical docs, GA40010 co-sim manifest, exact-range whitespace gate, and pass-2 remediation integration. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 accepted all 11 remediations at reviewed tip `d64e449`; full record: `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md`. |
 | `accuracy/crtc-type-split` | Per-type engine split (`27efc2d`), wrapper rename to `rtl/CRTC.v` (`63f4c01`), session docs. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 independently reconfirmed the wrapper mux seams, type-0 latch/holdoff ordering, shared captures, and expanded differential evidence. |
 | `accuracy/a3-f6-stage1` | A3 companion vector `t20i`; F6 Stage 1 full-character approximation and its behavior-driven hash re-mint. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Accepted within the declared full-character approximation. F13 remains separately hardware-blocked. |

@@ -1,7 +1,8 @@
-# ACCC v1.10 Digest 01 — Counters (R0, R4, R5, R9) and Frame Sync
+# ACCC v1.11 Digest 01 — Counters (R0, R4, R5, R9) and Frame Sync
 
-Source: *The Amstrad CPC CRTC Compendium* v1.10 (Longshot / Logon System), printed/PDF
-pages 33-42 and 73-129.
+Primary source: *The Amstrad CPC CRTC Compendium* v1.11 French edition (Longshot / Logon
+System), chapters 6–13. English v1.11 is a working translation; consequential differences
+are tracked in [the bilingual ledger](accc-1.11-fr-en-differences.md).
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).
 Scope: **CRTC type 0 (HD6845S/UM6845) and type 1 (UM6845R) only.** Types 2/3/4 (MC6845/ASIC)
@@ -334,10 +335,12 @@ The single most intricate dynamic-update bug in the CRTC-1 model.
   evaluated at the *next* line's C0<2 window). Line 2: C4 becomes 1, C4==R4(1) && C9==R9(0)
   true at that line's C0<2 → arms → line 3 resets C4=C9=0. To perpetuate, change R4 back to 0
   on line 2 while C0>1.
-- **RLAL from the genuine last line** (§12.2.1, p.94): rewrite R9=R4=0 on the last line or the
-  next, **while C0<2**, to perpetuate C9=C4=0 on every subsequent line. **Caveat**: after C9
-  first becomes ==R9, must **wait until C0==2** before writing R9 again — CRTC 0 needs C0∈{0,1}
-  exclusively for its own internal bookkeeping around that transition.
+- **RLAL from the genuine last line** (v1.11 FR §12.2.1 p.96; EN p.94): the two write windows
+  are complementary. Rewrite R9/R4 on line N only after its early decision window
+  (**C0>1**), or on line N+1 while **C0<2**, to perpetuate C9=C4=0. In particular, once C9
+  first becomes equal to R9 on N, wait until C0==2 before rewriting R9; CRTC 0 reserves
+  C0∈{0,1} for its transition bookkeeping. The English edition omits the line-N `C0>1`
+  qualifier; the French wording controls here.
 
 ### 7.2 CRTC 1 (§12.3, p.94)
 
@@ -431,23 +434,25 @@ The chip spreads end-of-line/end-of-frame decisions across three distinct instan
 
 ### 8.4 CRTC 0 — R0==1 overflow trap (§13.7.2, p.124-126)
 
-- General: at C0==R0, C4 increments unless reset-to-0 was already scheduled; this reset becomes
-  fully effective starting at C0==2.
-- **⚠ Hazard**: R0 (re)programmed to **1**, and the line reaches `C0==1` while `C9==R9` →
-  **C4 overflows WITHOUT C0 or C9 resetting**, even if `C4!=R4`. Mechanism: `C0==R0` comparison
-  (R0=1) fires *before* the write is applied for that purpose, entering "additional management"
-  unconditionally (C4 forced to increment regardless of R4; C9 can no longer reset even on
-  C9==R9) — but R0's new value is still picked up in time for the *next* C0 increment decision.
-  Same hazard class as §3.1's R9-at-C0==R0 case, but with R0 itself threading between two
-  internal uses within one cycle.
+- General (v1.11 FR §13.7.2 pp.126–128; EN pp.124–126): at **C0==0**, the CRTC programs the
+  next-line C4 increment or reset. The normal reset route requires `C4==R4 && C9==R9` and no
+  additional/interlace management (`R5==0 && R8==0`); it becomes definitive from C0==2. The
+  English paragraph corrupts these conditions as C0=R0, C4=C4, and positive adjustment/
+  interlace, so it must not be used for this premise.
+- **⚠ R0==1 hazard**: when the action has been programmed and the temporary R0=1 prevents C0
+  reaching the C0==2 resolution point, C4 can overflow without C0/C9 taking the ordinary
+  reset route. The initial programmed-increment condition includes **both** `C9==R9` and
+  `C4==R4`; a later partially completed case can retain the abnormal state after C4 has
+  diverged. Do not generalize the English omission of `C4==R4` into an unconditional entry.
   - Worked example (R9=7, R4>=6; `OUT R0,1` then later `OUT R0,63`): on the line where C9
     reaches 7 (==R9) and C0 reaches the (temporarily 1) R0:
     - Not a true last line (C4!=R4): disarm never runs (R0=1 keeps C0<2) → C4 overflows past R4
       once C0 finally reaches 2 after R0 is widened back; needs an R9 compensation trick to fix
       line count (§13.7.2.1, p.125).
     - True last line (C4==R4): same overflow, but chip is left in "additional management"
-      state afterward — recoverable by programming R5 once R0 is widened back, or letting C9
-      free-run to R5 (§13.7.2.2, p.125-126).
+      state afterward — recoverable by programming R5 once R0 is widened back. If R5 remains
+      zero, C9 runs through 8..31 and terminates at the effective `R5-1` target (v1.11 FR
+      §13.7.2.2 p.128); English incorrectly says R5.
   - **Mitigation**: to widen R0 from 1 without this side effect, the widening write must land
     while **C0==0** (not C0==1).
 

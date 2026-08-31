@@ -3,10 +3,10 @@
 Local, regenerable extraction of the project's accuracy reference for verification work
 (Phase 1 of `docs/plans/2026-08-22-accc-review-plan.md`).
 
-**All generated artifacts in this directory are untracked** (see `.gitignore`); this manifest
-is the tracked exception. Bulk full-text extraction of *The Amstrad CPC CRTC Compendium*
-(CC BY-NC-ND, Longshot / Logon System) must not be committed. Only curated, cited
-transcriptions inside review docs get committed, matching the existing digests' practice.
+The v1.11 extraction snapshot listed below is intentionally versioned so a fresh session can
+reproduce and audit the bilingual findings without regenerating the text and render layers.
+The source PDFs remain local and ignored. Other regenerated or ad-hoc intermediate files in
+this directory remain ignored unless they are deliberately added to the snapshot.
 
 ## Source
 
@@ -56,14 +56,15 @@ EOF
 # Independent second opinion (plain layout-preserving text)
 pdftotext -layout docs/references/ACCC1.11-EN.pdf docs/accuracy/extract/pdftotext/accc-v1.11.txt
 
-# Visual tier: render diagram/table-heavy pages at 200 dpi (0-indexed page numbers below)
+# Visual tier: render diagram/table-heavy pages at 200 dpi (1-indexed page numbers below)
 .venv/bin/python - <<'EOF'
 import pymupdf, os
 d = pymupdf.open("docs/references/ACCC1.11-EN.pdf")
-PAGES = [12, 34, 74, 75, 76, 78, 79, 81, 88, 90, 95, 96, 98, 103, 104, 105, 106, 107, 108,
-         122, 123, 127, 128, 129, 130, 133, 135, 136, 137, 139, 140, 144, 149, 150, 152,
-         157, 160, 166, 177, 183, 185, 196, 197, 198, 199, 205, 206, 207, 210, 211, 212,
-         219, 220, 221, 222, 223, 224, 225, 242, 247, 248, 292, 293]
+PAGES = [12, 34, 74, 75, 76, 78, 79, 81, 84, 86, 87, 88, 89, 90, 92, 93, 95, 96, 98,
+         103, 104, 105, 106, 107, 108, 122, 123, 124, 127, 128, 129, 130, 133, 135, 136,
+         137, 139, 140, 144, 146, 149, 150, 152, 157, 160, 166, 167, 177, 183, 185, 190,
+         193, 196, 197, 198, 199, 205, 206, 207, 210, 211, 212, 219, 220, 221, 222, 223,
+         224, 225, 242, 245, 246, 247, 248, 292, 293]
 os.makedirs("docs/accuracy/extract/pages", exist_ok=True)
 for n in PAGES:
     d[n-1].get_pixmap(dpi=200).save(f"docs/accuracy/extract/pages/p{n:03d}.png")
@@ -94,12 +95,12 @@ EOF
 
 | Path | Contents |
 |---|---|
-| `pdf2md/accc-v1.11-paged.md` | Full document, page-anchored Markdown (~607 kB) |
-| `pdf2md/accc-v1.11-notags.txt` | Same content without markers, form-feed separated |
-| `pdftotext/accc-v1.11.txt` | poppler `-layout` text (~922 kB) |
-| `pages/pNNN.png` | 200 dpi renders of the flagged pages listed above |
-| `inspector-v1.11-en/` | Current English first-pass report and Markdown (untracked) |
-| `inspector-v1.11-fr/` | Current French first-pass report and Markdown (untracked) |
+| `pdf2md/accc-v1.11-paged.md` | English full document, page-anchored Markdown (~607 kB) |
+| `pdf2md/accc-v1.11-notags.txt` | Same English content without markers, form-feed separated |
+| `pdftotext/accc-v1.11.txt` | English poppler `-layout` text (~922 kB) |
+| `pages/pNNN.png` | 200 dpi renders of the flagged English pages listed above |
+| `inspector-v1.11-en/` | English first-pass report and full Markdown |
+| `inspector-v1.11-fr/` | French first-pass report and full Markdown |
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).

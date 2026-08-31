@@ -53,6 +53,6 @@ docs/plus/references/cartridges/
 # SHAKER capture screenshots: kept locally as provenance, not committed
 docs/accuracy/shaker/*.png
 
-# ACCC v1.10 bulk extraction (regenerable, see docs/accuracy/extract/README.md)
+# ACCC extraction environment and unselected intermediates (see tracked manifest/snapshot)
 .venv/
 docs/accuracy/extract/

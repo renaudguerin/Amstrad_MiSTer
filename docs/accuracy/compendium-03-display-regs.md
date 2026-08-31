@@ -1,7 +1,8 @@
 # ACCC v1.11 Digest 03 — Display Registers (R1, R6, R8), Video Pointer (R12/R13), Read Registers, CRTC/CPC ID
 
-Source: ["The Amstrad CPC CRTC Compendium" v1.11](../references/ACCC1.11-EN.pdf#page=175), chapters 17–22,
-28–29. See the [v1.9-to-v1.10 comparison report](accc-1.10-differences.md).
+Primary source: ["The Amstrad CPC CRTC Compendium" v1.11 French edition](../references/ACCC1.11-FR.pdf#page=177),
+chapters 17–22 and 28–29. The [English edition](../references/ACCC1.11-EN.pdf#page=175) is a
+working translation; see the [bilingual ledger](accc-1.11-fr-en-differences.md).
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot (CC BY-NC-ND).
 Scope: **CRTC type 0 (HD6845S/UM6845) and type 1 (UM6845R) only.** CRTC 2/3/4 behavior is
 noted only where it sharpens the type-0/type-1 contrast (one line, prefixed "cf. CRTC2/3/4:").
@@ -36,7 +37,7 @@ Counter names used throughout, matching the compendium's own notation:
 
 ### 17.2 R1 vs R0 relationship (§17.2, p.177-181)
 - **R1 ≤ R0** (normal case): VMA'←VMA happens once per row on the `C9=R9` scanline at `C0=R1`; VMA←VMA' happens at `C0=0` of the next scanline. Standard incrementing addresses row to row.
-- **R1 > R0**: `C0` never reaches R1 (C0 wraps at R0 first), so **VMA' is never updated from VMA** — the row-end latch condition is never satisfied. Consequence: **character-line repetition** — every scanline of every row re-displays the same base address (only C9/C5-derived row-select bits differ; the first 10 address bits from VMA are frozen). ⚠ Practical effect: whatever address was last latched into VMA' (from R12/R13 at start of frame, see §17.4) is reused for **all** rows for the rest of the frame.
+- **R1 > R0**: `C0` never reaches R1 (C0 wraps at R0 first), so **VMA' is never updated from VMA** — the row-end latch condition is never satisfied. Consequence: **character-line repetition** — every scanline of every row re-displays the same base address (only C9-derived row-select bits differ; the first 10 address bits from VMA are frozen). French v1.11 §17.2.2 p.180 names C9; English p.178's “C9 or C5” broadening is unsupported. ⚠ Practical effect: whatever address was last latched into VMA' (from R12/R13 at start of frame, see §17.4) is reused for **all** rows for the rest of the frame.
 - Note 2 (p.179): if conditions allow the address update, **modifying R12/R13 mid-frame** can be used deliberately to force new "lines" each time C0 returns to 0, working around the repetition — this is the mechanism many effects use to fake per-line addressing when R1>R0. Type 0 can still additionally emit a spurious border byte in this configuration (see §17.6.2); type 0 can suppress it via R8 SKEW-DISPTMG (§19.2).
 
 ### 17.3 Dynamic R1 update (§17.3, p.179, diagrams p.180-181)
@@ -133,7 +134,10 @@ This is the single most important dynamic-update rule to get right per CRTC type
 - When it occurs: DISPTMG toggles **ON at the start of the CRTC character, OFF again 0.5 µs later**, on **every** CRTC character of that first line — producing a byte-by-byte alternation of border/character bytes on the whole first scanline (VMA still counts through this normally).
 - Mechanism: each character cell, `BORDER R6 := true` (because `C4=R6 AND C9=0`), then immediately `BORDER R6 := false` (because it's re-evaluated as a "new frame" state, `C4=C9=0`).
 - This alternation **only** happens if the R1-condition doesn't also force border (i.e., border-via-R1 is false) and the conflict conditions (`C4=R6=C9=0`) hold.
-- If R6 is subsequently updated to a value >0, the alternation stops — border does **not** stay permanently on (unlike the "normal" C4=R6 sticky rule) for the rest of that first line, **but** since R6 was 0 at least once, border **does** become definitive/final once `C0=R1` is reached later on this same line.
+- If R6 is subsequently updated to a value >0, the alternation stops — border does **not**
+  stay permanently on (unlike the "normal" C4=R6 sticky rule). Border becomes definitive at
+  `C0=R1` only if **R6 is still 0 then** (v1.11 FR §18.3.2 p.191). English p.190 changes this
+  into a historical “was 0 at least once” condition; that is not the authoritative rule.
 - If C0=R1 is prevented from firing on this `C4=C9=0` line (e.g. by setting R1>R0) and R6 is no longer 0, border deactivates on the **following** line — i.e. the whole `C4=R6=0` conflict-border is cancellable if handled entirely within the first line.
 - Enables byte-precise border/character alternation effects (the compendium's "Mode <write your nickname here>" joke) — achievable even with R0=0 per the text, though then C4/C9 can't count further.
 
@@ -356,7 +360,10 @@ the p.207 right table prints C4=3 where its sequence requires 5 (source typo), a
 - Degenerate case noted: with R4=R9=0 and R0=1 ("2 µs frames"), C4 alternates 0/1 every 2 characters via the R5-additional-line mechanism, so this reload condition can recur **every 4 µs** — i.e. R12/R13 effectively become live-updatable at very high frequency in this extreme configuration.
 
 **Type 1 (§20.3.2, p.242-243):**
-- `VMA` (only — **not** VMA') is initialized from `{R12,R13}` whenever `C0=0 AND C9=0 AND C4=0` — textually the same trigger condition as type 0's, but **only VMA is touched, VMA' is untouched** by this path (consistent with the two-stage vs single-stage distinction already established in §17.4).
+- `VMA` (only — **not** VMA') is initialized from `{R12,R13}` **every time `C0=0` while
+  `C4=0`, independently of C9** (v1.11 FR §20.3.2 p.242). English p.242 truncates this
+  recurrence qualifier. VMA' remains untouched by this path, consistent with the two-stage
+  versus single-stage distinction established in §17.4.
 - R12/R13 writes considered immediately.
 - **Known real-world consequence** (p.242, explicit game reference): because type 1 keeps applying `VMA=R12/R13` throughout the entire C4=0 character row (not just the very first scanline), software written for/tested against type 0 that changes R12/R13 "too early" while still nominally in row C4=0 can have that new address **prematurely override** the row it was meant for, on type 1 only. Cited bug: *007 The Living Daylights* (Domark, 1987) — vegetation/decor corruption from a score-zone address write landing during C4=0 on a type-1 machine. **This is a direct behavioral divergence a naive model must reproduce**: type 0 only re-applies R12/R13 at the single instant `C4=C9=C0=0`; type 1 re-applies it (to VMA, immediately) on **every** write that occurs anywhere within `C4=0` (any C9, any C0=0 boundary) — see worked timing diagram p.242 (`OUT R12,#30` mid-row, offset changes on the very next character despite still being within C4=0 on type 1, whereas the analogous type-0 diagram would only pick it up at exact `C4=C9=C0=0`).
 
