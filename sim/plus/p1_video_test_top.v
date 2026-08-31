@@ -187,7 +187,7 @@ module p1_video_test_top (
 	reg vram_bs;
 	reg [7:0] vram_d;
 	reg [7:0] vram_din_shift;
-	wire sync_filter = 1'b0; // bench uses the plain path
+	wire [1:0] sync_filter = 2'd2; // bench uses the raw path
 
 	always @(posedge clk) begin
 		reg cas_n_old;
