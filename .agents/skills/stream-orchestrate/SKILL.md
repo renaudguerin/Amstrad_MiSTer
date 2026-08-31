@@ -20,7 +20,9 @@ request, and do not use separate Desktop tasks for routine same-task delegation.
 - **`plus`**: Plus-stream brief, or omitted.
 - **`integration-order`**: `auto` by default, otherwise `accuracy-first` or `plus-first`.
 - **`finish`**: `auto` only when the user explicitly asks to finish, integrate, merge, or
-  push unattended. Otherwise default to `prepare-only` and stop at READY.
+  push unattended. This authorization belongs to the coordinator that received it directly;
+  child tasks are not expected to inherit or reinterpret it. Otherwise default to
+  `prepare-only` and stop at READY.
 
 At least one stream brief is required. Preserve the user's wording and acceptance criteria;
 do not move work between streams merely to balance workload.
@@ -73,8 +75,9 @@ supervision.
    - a prohibition on nested delegation by child agents unless the user requested it;
    - an instruction to perform the writability handshake below before real work, and to
      report BLOCKED rather than relying on unattended approval prompts;
-   - an instruction to stop at a committed, reviewed, gated **READY** handoff without
-     invoking `$stream-finish` until the coordinator grants the integration lease.
+   - an instruction to stop at a committed, reviewed, gated **READY** handoff. The child
+     must not push, dispatch CI, or invoke `$stream-finish`; the coordinator owns those
+     actions when `finish: auto` is directly authorized.
 6. Task creation is asynchronous. Resolve a real task ID before messaging it; never pass a
    provisional client ID to task tools.
 7. After all task IDs are known, send each task the peer task ID, title, and confirmed
@@ -146,6 +149,24 @@ If one task fails, preserve the other task's valid work. Retry or redirect only 
 task. Do not let a provider/reviewer failure silently weaken repository review policy: obtain
 another valid review or record review debt as the repository requires.
 
+### Remote-action ownership
+
+Keep external mutations in the coordinator that received the user's authorization. Do not
+relay phrases such as "the user authorized push" and ask a child task to treat them as direct
+permission: task-local approval layers may correctly refuse inherited authority, creating an
+unnecessary dead end.
+
+When `finish: auto` is authorized, the coordinator may push an exact committed stream tip for
+a pre-merge build, dispatch CI for that tip, and perform serialized integration under the
+lease protocol below. Verify the local tip and remote ref exactly before dispatch. The child
+continues to own implementation and fixes; after a coordinator-run build or review, send it
+the evidence or blocking findings and let it produce a new READY tip. If the tip changes,
+the coordinator repeats the exact-ref push/build as needed.
+
+If the coordinator itself lacks direct authorization or its host requires user approval,
+surface that prompt once. Do not bounce the action through a child, broaden permission, or
+interrupt valid running work merely to reduce elapsed time.
+
 ## 4. Serialized integration lease
 
 Only one task may mutate or push `accc-review-and-fixes` at a time.
@@ -154,21 +175,25 @@ Otherwise `finish` is `prepare-only`: stop at READY, report the stream tips, and
 an integration lease.
 
 1. Wait until the selected first task reports READY. Fetch the current integration ref and
-   verify that the task's original base is its ancestor. Send the task an explicit
-   integration lease containing the **current** exact integration SHA as `integration-base`,
-   then instruct it to invoke `$stream-finish <stream>`. Tell the peer not to finish yet.
-2. Wait for the first task's INTEGRATED report and verify the exact integration SHA and the
-   required CI jobs. A queued or merely aggregate-green run is insufficient.
-3. Send the verified SHA and changed shared-file list to the second task. Grant the second
-   integration lease only after the first push/CI is settled, using that current verified
-   SHA as its `integration-base`. Instruct it to rebase with merge topology preserved, rerun
-   any conflict-sensitive checks, and invoke `$stream-finish` only under that lease.
-4. Verify the second task's final exact SHA and CI jobs in the same way.
+   verify that the task's original base is its ancestor. Acquire the coordinator's exclusive
+   integration lease against the **current** exact integration SHA, tell the peer not to
+   mutate integration, and invoke `$stream-finish <stream>` from the coordinator with that
+   SHA as `integration-base`.
+2. Verify the first exact integration SHA and the required CI jobs. A queued or merely
+   aggregate-green run is insufficient. The coordinator records the INTEGRATED milestone.
+3. Send the verified SHA and changed shared-file list to the second task. After it confirms
+   its READY tip and any conflict-sensitive assumptions against that SHA, acquire a new
+   coordinator lease and invoke `$stream-finish <stream>` with the verified current SHA as
+   `integration-base`. The finish procedure performs the topology-preserving rebase and
+   required post-rebase gates.
+4. Verify the second exact integration SHA and CI jobs in the same way, then record its
+   INTEGRATED milestone.
 5. A non-fast-forward push rejection or a moved integration SHA means the lease is stale.
    Stop, fetch, rebase/reconcile, and rerun the affected gate; never force-push.
 
-When only one stream task exists, the same READY -> lease -> `$stream-finish` protocol applies
-without peer messaging, provided `finish: auto` was explicitly authorized.
+When only one stream task exists, the same READY -> coordinator lease -> coordinator-run
+`$stream-finish` protocol applies without peer messaging, provided `finish: auto` was
+explicitly authorized.
 
 ## 5. Final report
 
