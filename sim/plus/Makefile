@@ -167,6 +167,7 @@ SPRRAM_RTL      := $(abspath ../../rtl/plus/plus_sprite_ram.v)
 SPRRAM_OBJ_DIR  := obj_dir/plus_sprite_ram
 SPRRAM_TEST_SRC := $(abspath plus_sprite_ram_test.cpp)
 SPRRAM_TEST_BIN := $(SPRRAM_OBJ_DIR)/plus_sprite_ram_tests
+SPRRAM_VENDOR_STUB := $(abspath altsyncram_lint_stub.v)
 
 # P3 programmable raster interrupt directed vectors (exact-cycle).
 PRI_TOP      := asic_ga_timing
@@ -329,6 +330,10 @@ plus-sprite-ram: $(SPRRAM_TEST_BIN)
 plus-sprite-ram-lint:
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(SPRRAM_TOP) -Wall $(SPRRAM_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		-DPLUS_SPRITE_RAM_ALTSYNCRAM --top-module $(SPRRAM_TOP) \
+		-Wall -Wno-UNUSEDPARAM -Wno-PINCONNECTEMPTY \
+		-Wno-DECLFILENAME -Wno-DEFPARAM $(SPRRAM_RTL) $(SPRRAM_VENDOR_STUB)
 
 test: $(TEST_BINS)
 	./$(ASIC_TEST_BIN)
@@ -515,6 +520,10 @@ lint: motherboard-lint
 		--top-module $(AREGS_TOP) -Wall $(AREGS_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(SPRRAM_TOP) -Wall $(SPRRAM_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		-DPLUS_SPRITE_RAM_ALTSYNCRAM --top-module $(SPRRAM_TOP) \
+		-Wall -Wno-UNUSEDPARAM -Wno-PINCONNECTEMPTY \
+		-Wno-DECLFILENAME -Wno-DEFPARAM $(SPRRAM_RTL) $(SPRRAM_VENDOR_STUB)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(ASICVID_TOP) -Wall $(ASICVID_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \

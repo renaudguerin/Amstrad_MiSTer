@@ -108,10 +108,10 @@ public:
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__CPU__DOT__dbg_read_status2;
 	}
 	auto* spr_ram_even() {
-		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_ram_inst__DOT__bank_even[0];
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_ram_inst__DOT__even_bank__DOT__mem[0];
 	}
 	auto* spr_ram_odd() {
-		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_ram_inst__DOT__bank_odd[0];
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_ram_inst__DOT__odd_bank__DOT__mem[0];
 	}
 	auto* pal_word(unsigned e) {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__pal[0];
