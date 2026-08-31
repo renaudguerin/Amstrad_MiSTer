@@ -215,13 +215,12 @@ reg        field;
 // (French section 19.5.3 p.209); type 0 snapshots ParityR6 at the frame origin
 // (French section 19.5.2 pp.206-208).  French section 19.5.3 also requires
 // ParityC9=ParityFrame at the type-1 frame origin; BL-038/IA-2 owns the directed
-// even-R9 discriminator and any resulting behavior correction.  ParityC9 is
-// bit 0 of the line value used for video
-// address construction in IVM.  ParityR6: type-0-only companion latch,
+// even-R9 discriminator and any resulting behavior correction.  ParityC9 is bit
+// 0 of the line value used for video address construction in IVM.  ParityR6 is
+// the type-0-only companion latch:
 // ParityFrame xor 1 captured when C4 reaches R6, independent of R8; frozen
-// when R6>R4 (French section 19.5.2 pp.206-208).  F10 fixture stage: the flops
-// exist so the deterministic vectors can address them; their update rules land
-// with the per-type F10 behavior commits and until then they hold reset values.
+// when R6>R4 (French section 19.5.2 pp.206-208).  The F10 per-type engines drive
+// the update strobes and values for these shared flops below.
 reg        parity_frame;
 reg        parity_c9;
 reg        parity_r6;
