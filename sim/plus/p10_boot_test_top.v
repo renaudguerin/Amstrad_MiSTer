@@ -84,6 +84,22 @@ module p10_boot_test_top
 	output      [2:0] dbg_mcmax,
 	output            dbg_cen_p,
 	output            dbg_cpu_waitn
+`ifdef B7_DARK_SILICON_MUTATION
+	,
+	output reg  [4:0] b7_mutation_id,
+	output reg        b7_mutation_enable,
+	input             b7_crtc_type,
+	output     [11:0] b7_rgb,
+	output            b7_hsync,
+	output            b7_vsync,
+	output            b7_de,
+	output     [13:0] b7_ma,
+	output      [4:0] b7_ra,
+	output      [1:0] b7_mode,
+	output      [7:0] b7_audio_l,
+	output      [7:0] b7_audio_r,
+	output            b7_cpu_irq_n
+`endif
 );
 
 	// 16 MHz dot clock enable from 64 MHz clk
@@ -181,7 +197,11 @@ module p10_boot_test_top
 	wire        plus_cart_own, plus_cart_stall;
 	wire  [7:0] plus_cart_dout;
 
-	plus_cartridge_memory cartridge_memory (
+	plus_cartridge_memory
+`ifdef B7_DARK_SILICON_MUTATION
+	#(.CLEAR_BYTES(20'd32))
+`endif
+	cartridge_memory (
 		.clk(clk),
 		.cold_reset(reset_base),
 		.detach(1'b0),
@@ -317,8 +337,15 @@ module p10_boot_test_top
 	                 plus_asic_rd   ? plus_asic_dout :
 	                 plus_cart_own  ? plus_cart_dout : cpu_din_bus;
 
-	// Motherboard
-	wire motherboard_int_n;
+	// Motherboard outputs retained by the B7 production-path signature.
+	wire [1:0] mb_mode;
+	wire [3:0] mb_red;
+	wire [3:0] mb_green;
+	wire [3:0] mb_blue;
+	wire       mb_hsync;
+	wire       mb_vsync;
+	wire [7:0] mb_audio_l;
+	wire [7:0] mb_audio_r;
 
 	Amstrad_motherboard mb (
 		.reset(sys_reset),
@@ -346,7 +373,13 @@ module p10_boot_test_top
 		.Fn(),
 		.no_wait(1'b1),
 		.ppi_jumpers(4'd0),
-		.crtc_type(1'b0),
+		.crtc_type(
+`ifdef B7_DARK_SILICON_MUTATION
+			b7_crtc_type
+`else
+			1'b0
+`endif
+		),
 		.sync_filter(1'b0),
 		.sna_load(1'b0),
 		.sna_cpu_dir(212'd0),
@@ -372,16 +405,16 @@ module p10_boot_test_top
 		.tape_in(1'b0),
 		.tape_out(),
 		.tape_motor(),
-		.audio_l(),
-		.audio_r(),
-		.mode(),
+		.audio_l(mb_audio_l),
+		.audio_r(mb_audio_r),
+		.mode(mb_mode),
 		.hblank(),
 		.vblank(),
-		.hsync(),
-		.vsync(),
-		.red(),
-		.green(),
-		.blue(),
+		.hsync(mb_hsync),
+		.vsync(mb_vsync),
+		.red(mb_red),
+		.green(mb_green),
+		.blue(mb_blue),
 		.field(),
 		.vram_din(vram_dout),
 		.vram_addr(),
@@ -497,6 +530,153 @@ module p10_boot_test_top
 	assign dbg_mcmax  = mb.CPU.u0.mc_max;
 	assign dbg_cen_p  = mb.CPU.cen_p;
 	assign dbg_cpu_waitn = mb.CPU.wait_n;
+
+`ifdef B7_DARK_SILICON_MUTATION
+	// B7 is a Verilator-only path-ownership audit.  These are selected
+	// motherboard outputs and CPU-bound signals; no raw mutation-control bit
+	// enters the signature.  p10_boot_test_top.v is absent from files.qip and
+	// this block is additionally unavailable unless the B7-only define is
+	// supplied by sim/plus/Makefile.
+	assign b7_rgb       = {mb_red, mb_green, mb_blue};
+	assign b7_hsync     = mb_hsync;
+	assign b7_vsync     = mb_vsync;
+	assign b7_de        = mb.de_sel;
+	assign b7_ma        = mb.ma_sel;
+	assign b7_ra        = mb.ra_sel;
+	assign b7_mode      = mb_mode;
+	assign b7_audio_l   = mb_audio_l;
+	assign b7_audio_r   = mb_audio_r;
+	assign b7_cpu_irq_n = mb.INT_n & ~force_irq;
+
+	// Runtime-selected corruptions are applied at module output boundaries,
+	// before the production ownership muxes.  Constants are deliberately
+	// local: no mutation touches reset, clock, plus_mode, or the signature
+	// probes themselves.  The paired active/inactive-mode runs prove whether
+	// each corrupted boundary is selected.
+	// synthesis translate_off
+	reg [8*64-1:0] b7_mutation_name;
+	initial begin
+		b7_mutation_name = "";
+		b7_mutation_id = 5'd0;
+		b7_mutation_enable = 1'b0;
+		if ($value$plusargs("mutate_module=%s", b7_mutation_name)) begin
+			if      (b7_mutation_name == "asic_video")             b7_mutation_id = 5'd1;
+			else if (b7_mutation_name == "asic_sprites")           b7_mutation_id = 5'd2;
+			else if (b7_mutation_name == "asic_dma")               b7_mutation_id = 5'd3;
+			else if (b7_mutation_name == "asic_regs")              b7_mutation_id = 5'd4;
+			else if (b7_mutation_name == "asic_ga_timing")         b7_mutation_id = 5'd5;
+			else if (b7_mutation_name == "asic_unlock")             b7_mutation_id = 5'd6;
+			else if (b7_mutation_name == "plus_mmu")                b7_mutation_id = 5'd7;
+			else if (b7_mutation_name == "plus_sprite_ram")         b7_mutation_id = 5'd8;
+			else if (b7_mutation_name == "plus_cartridge_memory")   b7_mutation_id = 5'd9;
+			else if (b7_mutation_name == "CRTC")                    b7_mutation_id = 5'd10;
+			else if (b7_mutation_name == "crtc_type0_engine")       b7_mutation_id = 5'd11;
+			else if (b7_mutation_name == "crtc_type1_engine")       b7_mutation_id = 5'd12;
+			else if (b7_mutation_name == "ga40010")                 b7_mutation_id = 5'd13;
+			else if (b7_mutation_name == "negative_control")        b7_mutation_id = 5'd14;
+			b7_mutation_enable = (b7_mutation_id != 5'd0);
+		end
+	end
+	always @(b7_mutation_enable or b7_mutation_id) begin
+		release mb.asic_vid.RGB_R;
+		release mb.asic_vid.RGB_G;
+		release mb.asic_vid.RGB_B;
+		release mb.plus_sprites.SPR_EN;
+		release mb.plus_sprites.SPR_RGB;
+		release mb.dma_sound.dma_int_set;
+		release mb.asic_page.pal_rdata;
+		release mb.asic_ga.HSYNC_O;
+		release mmu.unlock_detector.unlocked;
+		release mmu.cart_dout;
+		release mmu.asic_page_on;
+		release mb.asic_page.spr_host_rdata;
+		release cartridge_memory.cpu_data;
+		release mb.crtc.MA;
+		release mb.crtc.RA;
+		release mb.crtc.DE;
+		release mb.crtc.HSYNC;
+		release mb.crtc.VSYNC;
+		release mb.crtc.crtc_type0_engine.de_index;
+		release mb.crtc.crtc_type0_engine.line_new;
+		release mb.crtc.crtc_type0_engine.line_next;
+		release mb.crtc.crtc_type0_engine.vsync_line_fire;
+		release mb.crtc.crtc_type1_engine.de_index;
+		release mb.crtc.crtc_type1_engine.line_new;
+		release mb.crtc.crtc_type1_engine.line_next;
+		release mb.crtc.crtc_type1_engine.vsync_line_fire;
+		release mb.GateArray.HSYNC_O;
+		release mb.GateArray.VSYNC_O;
+		release mb.GateArray.RED_OE_N;
+		release mb.GateArray.RED;
+		release mb.asic_ga.MODE;
+
+		if (b7_mutation_enable) begin
+			case (b7_mutation_id)
+				5'd1: begin // asic_video
+					force mb.asic_vid.RGB_R = 4'hf;
+					force mb.asic_vid.RGB_G = 4'h1;
+					force mb.asic_vid.RGB_B = 4'he;
+				end
+				5'd2: begin // asic_sprites
+					force mb.plus_sprites.SPR_EN = 1'b1;
+					force mb.plus_sprites.SPR_RGB = 12'hd3a;
+				end
+				5'd3: begin // asic_dma
+					force mb.dma_sound.dma_int_set = 3'b111;
+				end
+				5'd4: begin // asic_regs
+					force mb.asic_page.pal_rdata = 12'ha5c;
+				end
+				5'd5: begin // asic_ga_timing
+					force mb.asic_ga.HSYNC_O = 1'b1;
+				end
+				5'd6: begin // asic_unlock
+					force mmu.unlock_detector.unlocked = 1'b0;
+				end
+				5'd7: begin // plus_mmu
+					force mmu.cart_dout = 8'h00;
+					force mmu.asic_page_on = 1'b0;
+				end
+				5'd8: begin // plus_sprite_ram
+					force mb.asic_page.spr_host_rdata = 4'hf;
+				end
+				5'd9: begin // plus_cartridge_memory
+					force cartridge_memory.cpu_data = 8'h00;
+				end
+				5'd10: begin // CRTC wrapper
+					force mb.crtc.MA = 14'h2aaa;
+					force mb.crtc.RA = 5'h1f;
+					force mb.crtc.DE = 1'b1;
+					force mb.crtc.HSYNC = 1'b1;
+					force mb.crtc.VSYNC = 1'b1;
+				end
+				5'd11: begin // crtc_type0_engine
+					force mb.crtc.crtc_type0_engine.de_index = 2'b11;
+					force mb.crtc.crtc_type0_engine.line_new = 1'b1;
+					force mb.crtc.crtc_type0_engine.line_next = 5'h1f;
+					force mb.crtc.crtc_type0_engine.vsync_line_fire = 1'b1;
+				end
+				5'd12: begin // crtc_type1_engine
+					force mb.crtc.crtc_type1_engine.de_index = 2'b11;
+					force mb.crtc.crtc_type1_engine.line_new = 1'b1;
+					force mb.crtc.crtc_type1_engine.line_next = 5'h1f;
+					force mb.crtc.crtc_type1_engine.vsync_line_fire = 1'b1;
+				end
+				5'd13: begin // classic ga40010
+					force mb.GateArray.HSYNC_O = 1'b1;
+					force mb.GateArray.VSYNC_O = 1'b1;
+					force mb.GateArray.RED_OE_N = 1'b0;
+					force mb.GateArray.RED = 1'b1;
+				end
+				5'd14: begin // negative control: MODE is deliberately unconnected
+					force mb.asic_ga.MODE = 2'b11;
+				end
+				default: ;
+			endcase
+		end
+	end
+	// synthesis translate_on
+`endif
 endmodule
 
 // Quartus supplies this primitive.
