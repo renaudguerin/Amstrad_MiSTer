@@ -197,8 +197,8 @@ module plus_sprite_ram_bank
 		ram.power_up_uninitialized = "FALSE",
 		ram.ram_block_type = "M10K",
 		ram.read_during_write_mode_mixed_ports = "OLD_DATA",
-		ram.read_during_write_mode_port_a = "OLD_DATA",
-		ram.read_during_write_mode_port_b = "OLD_DATA",
+		ram.read_during_write_mode_port_a = "NEW_DATA_NO_NBE_READ",
+		ram.read_during_write_mode_port_b = "NEW_DATA_NO_NBE_READ",
 		ram.width_byteena_a = 1,
 		ram.width_byteena_b = 1,
 		ram.wrcontrol_wraddress_reg_b = "CLOCK1";
