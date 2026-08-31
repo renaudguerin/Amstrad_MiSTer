@@ -149,7 +149,7 @@ If one task fails, preserve the other task's valid work. Retry or redirect only 
 task. Do not let a provider/reviewer failure silently weaken repository review policy: obtain
 another valid review or record review debt as the repository requires.
 
-### Remote-action ownership
+### Direct-authorization ownership
 
 Keep external mutations in the coordinator that received the user's authorization. Do not
 relay phrases such as "the user authorized push" and ask a child task to treat them as direct
@@ -166,6 +166,15 @@ the coordinator repeats the exact-ref push/build as needed.
 If the coordinator itself lacks direct authorization or its host requires user approval,
 surface that prompt once. Do not bounce the action through a child, broaden permission, or
 interrupt valid running work merely to reduce elapsed time.
+
+Apply the same rule to cross-provider code or document export. When the user directly asks
+the coordinator to use a bridge provider, a child may use that route only if its own host
+accepts the task prompt as sufficient authorization. If it refuses before export, the child
+reports the exact committed tip, scope, and proposed brief; the coordinator runs the single
+authorized bridge call and returns its findings. Do not ask the child to reinterpret a
+relayed permission, and do not launch a duplicate reviewer while the coordinator-owned call
+is active. A bridge writer additionally requires an explicit file boundary and a confirmed
+single-writer window in the stream worktree.
 
 ## 4. Serialized integration lease
 
