@@ -226,6 +226,24 @@ P10BOOT_OBJ_DIR  := obj_dir/p10_boot
 P10BOOT_TEST_SRC := $(abspath p10_boot_test.cpp)
 P10BOOT_TEST_BIN := $(P10BOOT_OBJ_DIR)/p10_boot_tests
 
+# B7 dark-silicon audit: P10a's real-T80 production motherboard fixture,
+# compiled with runtime-selectable force/release mutations at module output
+# boundaries.  The B7 define exists only on this command line; the fixture and
+# C++ driver are absent from files.qip.  Real ga40010/YM2149/hid sources replace
+# their ordinary motherboard-bench stubs so the inactive-path controls exercise
+# the production classic boundary as well as the selected Plus path.
+B7_OBJ_DIR  := obj_dir/b7_dark_silicon
+B7_TEST_SRC := $(abspath b7_dark_silicon_audit.cpp)
+B7_TEST_BIN := $(B7_OBJ_DIR)/b7_dark_silicon_audit_tests
+B7_PLUS_MODULES := asic_video asic_sprites asic_dma asic_regs asic_ga_timing asic_unlock plus_mmu plus_sprite_ram plus_cartridge_memory
+B7_CLASSIC_MODULES := CRTC crtc_type0_engine crtc_type1_engine ga40010
+B7_REAL_RTL := $(abspath ../../rtl/GA40010/ga40010.sv) \
+	$(abspath ../../rtl/GA40010/video.sv) \
+	$(abspath ../../rtl/GA40010/rslatch.v) \
+	$(abspath ../../rtl/YM2149.sv) \
+	$(abspath ../../rtl/hid.sv)
+B7_RTL := $(P10BOOT_RTL) $(B7_REAL_RTL)
+
 # P10b production input-path fixture: the minimal exact PPI/YM2149/hid/joydb
 # slice from the motherboard, with a scripted fake Z80 and a 6128+ capability
 # set.  The real Plus GA timing module owns CPU phases/READY and YM CCLK_EN_P.
@@ -283,7 +301,7 @@ P10DMAMOBO_TEST_BIN := $(P10DMAMOBO_OBJ_DIR)/p10_dma_mobo_tests
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
-	$(AREGS_TEST_BIN) $(SPRRAM_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN)
+	$(AREGS_TEST_BIN) $(SPRRAM_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN) $(B7_TEST_BIN)
 
 TEST_BINS += $(P10INPUT_TEST_BIN) $(P10DMA_TEST_BIN) $(P10DMAMOBO_TEST_BIN)
 
@@ -292,7 +310,8 @@ CXXFLAGS ?= -std=c++17 -O2
 
 .PHONY: all build test lint motherboard-lint p4-sprites-regs plus-sprite-ram \
 	plus-sprite-ram-lint clean \
-	p10-dma-ppi-bench p10-dma-ppi-lint p10-dma-mobo-bench p10-dma-mobo-lint
+	p10-dma-ppi-bench p10-dma-ppi-lint p10-dma-mobo-bench p10-dma-mobo-lint \
+	b7-dark-silicon b7-dark-silicon-audit
 
 all: test
 
@@ -315,6 +334,43 @@ p10-dma-ppi-lint:
 
 p10-dma-mobo-bench: $(P10DMAMOBO_TEST_BIN)
 	./$(P10DMAMOBO_TEST_BIN)
+
+b7-dark-silicon: b7-dark-silicon-audit
+
+b7-dark-silicon-audit: $(B7_TEST_BIN)
+	@set -eu; \
+	plus0_sig=$$(./$(B7_TEST_BIN) --mode plus --crtc-type 0 --signature-only | awk '/^SIGNATURE / {print $$2}'); \
+	plus0_repeat=$$(./$(B7_TEST_BIN) --mode plus --crtc-type 0 --signature-only | awk '/^SIGNATURE / {print $$2}'); \
+	plus1_sig=$$(./$(B7_TEST_BIN) --mode plus --crtc-type 1 --signature-only | awk '/^SIGNATURE / {print $$2}'); \
+	plus1_repeat=$$(./$(B7_TEST_BIN) --mode plus --crtc-type 1 --signature-only | awk '/^SIGNATURE / {print $$2}'); \
+	classic0_sig=$$(./$(B7_TEST_BIN) --mode classic --crtc-type 0 --signature-only | awk '/^SIGNATURE / {print $$2}'); \
+	classic0_repeat=$$(./$(B7_TEST_BIN) --mode classic --crtc-type 0 --signature-only | awk '/^SIGNATURE / {print $$2}'); \
+	classic1_sig=$$(./$(B7_TEST_BIN) --mode classic --crtc-type 1 --signature-only | awk '/^SIGNATURE / {print $$2}'); \
+	classic1_repeat=$$(./$(B7_TEST_BIN) --mode classic --crtc-type 1 --signature-only | awk '/^SIGNATURE / {print $$2}'); \
+	test "$$plus0_sig" = "$$plus0_repeat"; \
+	test "$$plus1_sig" = "$$plus1_repeat"; \
+	test "$$classic0_sig" = "$$classic0_repeat"; \
+	test "$$classic1_sig" = "$$classic1_repeat"; \
+	echo "B7 BASELINE mode=plus crtc_type=0 signature=$$plus0_sig repeat=$$plus0_repeat"; \
+	echo "B7 BASELINE mode=plus crtc_type=1 signature=$$plus1_sig repeat=$$plus1_repeat"; \
+	echo "B7 BASELINE mode=classic crtc_type=0 signature=$$classic0_sig repeat=$$classic0_repeat"; \
+	echo "B7 BASELINE mode=classic crtc_type=1 signature=$$classic1_sig repeat=$$classic1_repeat"; \
+	for module in $(B7_PLUS_MODULES); do \
+		./$(B7_TEST_BIN) --mode plus --crtc-type 0 --group plus-active --expected changed --baseline $$plus0_sig +mutate_module=$$module; \
+	done; \
+	for module in $(B7_PLUS_MODULES); do \
+		./$(B7_TEST_BIN) --mode classic --crtc-type 0 --group plus-in-classic --expected unchanged --baseline $$classic0_sig +mutate_module=$$module; \
+	done; \
+	./$(B7_TEST_BIN) --mode plus --crtc-type 0 --group classic-in-plus --expected unchanged --baseline $$plus0_sig +mutate_module=CRTC; \
+	./$(B7_TEST_BIN) --mode plus --crtc-type 0 --group classic-in-plus --expected unchanged --baseline $$plus0_sig +mutate_module=crtc_type0_engine; \
+	./$(B7_TEST_BIN) --mode plus --crtc-type 1 --group classic-in-plus --expected unchanged --baseline $$plus1_sig +mutate_module=crtc_type1_engine; \
+	./$(B7_TEST_BIN) --mode plus --crtc-type 0 --group classic-in-plus --expected unchanged --baseline $$plus0_sig +mutate_module=ga40010; \
+	./$(B7_TEST_BIN) --mode classic --crtc-type 0 --group classic-active-control --expected changed --baseline $$classic0_sig +mutate_module=CRTC; \
+	./$(B7_TEST_BIN) --mode classic --crtc-type 0 --group classic-active-control --expected changed --baseline $$classic0_sig +mutate_module=crtc_type0_engine; \
+	./$(B7_TEST_BIN) --mode classic --crtc-type 1 --group classic-active-control --expected changed --baseline $$classic1_sig +mutate_module=crtc_type1_engine; \
+	./$(B7_TEST_BIN) --mode classic --crtc-type 0 --group classic-active-control --expected changed --baseline $$classic0_sig +mutate_module=ga40010; \
+	./$(B7_TEST_BIN) --mode plus --crtc-type 0 --group negative-control --expected unchanged --baseline $$plus0_sig +mutate_module=negative_control; \
+	echo "All B7 dark-silicon audit assertions PASSED (expected findings remain visible as XFAIL)"
 
 p10-dma-mobo-lint:
 	$(VERILATOR) --lint-only +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --public-flat-rw \
@@ -357,6 +413,7 @@ test: $(TEST_BINS)
 	./$(DMA_TEST_BIN)
 	./$(P8_TEST_BIN)
 	./$(P10BOOT_TEST_BIN)
+	$(MAKE) --no-print-directory b7-dark-silicon-audit
 	./$(P10INPUT_TEST_BIN)
 	./$(P10DMA_TEST_BIN)
 	./$(P10DMAMOBO_TEST_BIN)
@@ -475,6 +532,14 @@ $(P10BOOT_TEST_BIN): $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) $(P10BOOT_TEST_SRC) Make
 		--Mdir $(P10BOOT_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(P10BOOT_TEST_BIN)) $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) \
 		$(P10BOOT_TEST_SRC)
+
+$(B7_TEST_BIN): $(P10BOOT_TEST_TOP) $(B7_RTL) $(B7_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) --cc --exe --build +1364-2001ext+.v +1800-2017ext+.sv \
+		-UVERILATOR -DB7_DARK_SILICON_MUTATION -DP10_DMA_MOBO_REAL_IO \
+		--public-flat-rw --top-module $(P10BOOT_TOP) \
+		--Mdir $(B7_OBJ_DIR) -Wall -Wno-fatal -Wno-PROCASSWIRE \
+		-CFLAGS "$(CXXFLAGS)" -o $(notdir $(B7_TEST_BIN)) \
+		$(P10BOOT_TEST_TOP) $(B7_RTL) $(B7_TEST_SRC)
 
 $(P10INPUT_TEST_BIN): $(P10INPUT_TOP_SRC) $(P10INPUT_CPU) $(P10INPUT_RTL) $(P10INPUT_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) --cc --exe --build -UVERILATOR --public-flat-rw -Wno-PROCASSWIRE \
