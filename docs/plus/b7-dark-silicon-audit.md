@@ -199,3 +199,27 @@ All B7 dark-silicon audit assertions PASSED (expected findings remain visible as
 
 The target is part of the default `sim/plus` test recipe, so `make -C sim`
 also executes it.
+
+## Limits found when the parent independently reran the audit (2026-09-01)
+
+The audit was rerun in full by the parent session rather than accepted from the delegated
+report. Every assertion reproduced, and the classic-active-control group behaves as intended:
+mutating CRTC, crtc_type0_engine, crtc_type1_engine and ga40010 in classic mode moves the
+signature, which is what makes the unchanged result for those same modules in Plus mode
+meaningful rather than vacuous. Two limits were visible in that run and are not recorded above.
+
+The two classic rule engines are not independently proven. In classic-active-control,
+crtc_type0_engine and crtc_type1_engine both produce the same mutated signature,
+0xa3a62ef6a7438799. Either both mutations reach the same shared wrapper state, or the mutation
+selector is not distinguishing the two engines. The audit's conclusion about the Plus path does
+not depend on this, but no claim should be made that either engine was separately exercised
+until the cause is known.
+
+The fixture does not reach CRTC-type-divergent behaviour. Classic-mode baselines are identical
+for crtc_type 0 and crtc_type 1 (0x4ace163975bf3441 in both cases). A run long enough to
+exercise the documented type differences would diverge. This caps what the audit can say about
+the classic path generally: it proves the classic modules are reachable and mutable in classic
+mode, not that the run covers type-specific behaviour. Extending the fixture, or accepting the
+limit explicitly, is the follow-up.
+
+Neither limit affects the audit's primary result, which concerns the Plus path.
