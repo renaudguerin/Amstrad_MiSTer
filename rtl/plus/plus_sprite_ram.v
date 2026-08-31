@@ -48,17 +48,18 @@ module plus_sprite_ram
 		video_rdata = 8'd0;
 	end
 
+	// Keep the host and video ports in separate clocked processes. Quartus uses
+	// this true-dual-port template to map the host read/write address to one
+	// M10K port and the independent video read address to the other. Combining
+	// both reads in one process leaves an asynchronous register-array mirror for
+	// the host path in Quartus 17 even though it also emits an M10K instance.
 	always @(posedge clk) begin
 		if (reset) begin
-			// Reset only the observable pipeline registers. Pixel storage is
-			// not part of the ASIC reset contract and must survive reset.
-			host_rdata  <= 4'd0;
-			video_rdata <= 8'd0;
+			// Reset only the observable host pipeline register. Pixel storage
+			// is not part of the ASIC reset contract and must survive reset.
+			host_rdata <= 4'd0;
 		end
 		else begin
-			if (video_rd)
-				video_rdata <= {bank_odd[video_addr], bank_even[video_addr]};
-
 			if (host_rd)
 				host_rdata <= host_addr[0] ? bank_odd[host_addr[11:1]] : bank_even[host_addr[11:1]];
 
@@ -69,6 +70,13 @@ module plus_sprite_ram
 					bank_even[host_addr[11:1]] <= host_wdata;
 			end
 		end
+	end
+
+	always @(posedge clk) begin
+		if (reset)
+			video_rdata <= 8'd0;
+		else if (video_rd)
+			video_rdata <= {bank_odd[video_addr], bank_even[video_addr]};
 	end
 
 endmodule
