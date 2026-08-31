@@ -56,7 +56,7 @@ EOF
 # Independent second opinion (plain layout-preserving text)
 pdftotext -layout docs/references/ACCC1.11-EN.pdf docs/accuracy/extract/pdftotext/accc-v1.11.txt
 
-# Visual tier: render diagram/table-heavy pages at 200 dpi (0-indexed page numbers below)
+# Visual tier: render diagram/table-heavy pages at 200 dpi (1-indexed page numbers below)
 .venv/bin/python - <<'EOF'
 import pymupdf, os
 d = pymupdf.open("docs/references/ACCC1.11-EN.pdf")
