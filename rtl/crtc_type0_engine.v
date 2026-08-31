@@ -99,6 +99,10 @@ module crtc_type0_engine
 	output           frozen_row_advance,
 	// |effective R5| term for the wrapper's hcc==2 adjustment-schedule update.
 	output           hcc2_adj_keep,
+	// Section 13.7.2.2 R0=1 widening: hold C0=1 on the accepting edge,
+	// then consume the programmed C4/adjustment transition at the next CLKEN.
+	output           r0_widen_hold,
+	output           r0_widen_step,
 
 	// Video pointer reload / save decisions.
 	output           reload,
@@ -267,6 +271,7 @@ reg        type0_r0_zero_entry_consumed;
 reg        type0_zero_adj_entry;
 reg        type0_r5_adjust_override;
 reg  [4:0] type0_r5_adjust_target;
+reg        type0_r0_widen_pending;
 
 // Technical information sourced from the "Amstrad CPC CRTC Compendium" by
 // Longshot (CC BY-NC-ND). ACCC v1.10 section 11.2.2 and v1.11 French section
@@ -283,6 +288,23 @@ wire       type0_c0_1_break_write = !CRTC_TYPE && register_write && hcc == 1 &&
 									((addr == 5'd04 && DI[6:0] != row) ||
 									 (addr == 5'd09 && DI[4:0] != line));
 wire       type0_c0_1_adjust_active = type0_c0_1_adjust | type0_c0_1_break_write;
+
+// Technical information sourced from the "Amstrad CPC CRTC Compendium" by
+// Longshot (CC BY-NC-ND). French ACCC v1.11 section 13.7.2.2 pp.126-127:
+// on a true last frame line, an R0=1 -> R0>1 write accepted during C0=1
+// evaluates the old C0=R0 equality first, but the new total prevents the old
+// horizontal wrap. C0 reaches 2 with C4 incremented, C9 retained, and the
+// additional-management state still active even though R5 was zero. Limit
+// this correction to that fully sourced R5=0/R8=0 recipe; section 13.7.2.1's
+// non-last-line overflow variant remains a separate behavior boundary.
+wire       type0_r0_widen_accept = nRESET && !SNA_LOAD && !CRTC_TYPE &&
+									 CLKEN && register_write &&
+									 (addr == 5'd00) && (hcc == 1) &&
+									 (R0_h_total == 1) && (DI > 1) &&
+									 frame_adj_r && !in_adj &&
+									 (R5_v_total_adj == 0) && (R8_interlace == 0);
+assign     r0_widen_hold = type0_r0_widen_accept;
+assign     r0_widen_step = type0_r0_widen_pending && !SNA_LOAD && !CRTC_TYPE;
 
 // Type 0 still compares C0 with R0 when both are zero, but that repeated
 // equality pins C0 rather than completing a stream of one-character lines.
@@ -359,7 +381,7 @@ wire       type0_rollover_line_last = type0_c0_1_adjust_active ? 1'b0 :
 wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 									 type0_rollover_line_last;
 
-assign line_new = hcc_last && !r0_frozen_w;
+assign line_new = hcc_last && !r0_frozen_w && !type0_r0_widen_accept;
 // F14: on the intercept edge the "line" that starts is the additional one;
 // its C9 continues the adjustment count to R5 (section 11.2 p.84).
 assign line_next = type0_add_intercept ? R5_v_total_adj :
@@ -501,8 +523,18 @@ always @(posedge CLOCK) begin
 		type0_zero_adj_entry <= 0;
 		type0_r5_adjust_override <= 0;
 		type0_r5_adjust_target <= 0;
+		type0_r0_widen_pending <= 0;
 	end
 	else begin
+		// The accepting edge is not a real line boundary: hold C0=1 and
+		// remember the already-evaluated last-line action.  One character
+		// later the wrapper advances into C0=2, increments C4 without
+		// resetting C9, and consumes this private state.  Snapshot load and a
+		// live switch away from type 0 discard the pending transition above.
+		if(type0_r0_widen_accept)
+			type0_r0_widen_pending <= 1;
+		else if(CLKEN && type0_r0_widen_pending)
+			type0_r0_widen_pending <= 0;
 		// French ACCC v1.11 section 13.2.1 p.106: vertical adjustment with
 		// ordinary C4=R4+1 progression requires R4 to have remained equal to
 		// C4 throughout the line. Any unequal R4 write within C0 in [2, R0]
@@ -619,7 +651,7 @@ always @(posedge CLOCK) begin
 		type0_vsync_delay_d1 <= 0;
 		type0_vsync_delay_d2 <= 0;
 	end
-	else if(CLKEN && hcc_last) begin
+	else if(CLKEN && hcc_last && !type0_r0_widen_accept) begin
 		type0_vsync_delay_d1 <= vsync_fire_seam && type0_vsync_delay_arm;
 		type0_vsync_delay_d2 <= type0_vsync_delay_d1;
 	end

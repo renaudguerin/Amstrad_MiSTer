@@ -196,8 +196,10 @@ wire       hcc_last  = hcc == R0_h_total;
 // hcc_end is the effective line-end strobe every line-event consumer uses;
 // raw hcc_last stays for terms whose documented semantics are tied to the
 // comparator edge itself.
-wire       hcc_end   = hcc_last & ~(CRTC_TYPE & e1_rfd_r0_extend);
-wire [7:0] hcc_next  = hcc_end ? 8'h00 : hcc + 1'd1;
+wire       hcc_end   = hcc_last & ~(CRTC_TYPE ? e1_rfd_r0_extend :
+									 e0_r0_widen_hold);
+wire [7:0] hcc_next  = e0_r0_widen_hold ? hcc :
+						 hcc_end ? 8'h00 : hcc + 1'd1;
 
 reg  [4:0] line;
 reg  [6:0] row;
@@ -230,6 +232,7 @@ reg        parity_r6;
 // ------------------------------------------------------------------
 wire       e0_r0_frozen, e0_line_new, e0_row_frame_last, e0_row_new, e0_frame_adj;
 wire       e0_c0_line_last, e0_c0_row_last, e0_in_adj_route, e0_frozen_row_advance;
+wire       e0_r0_widen_hold, e0_r0_widen_step;
 wire       e0_hcc2_adj_keep, e0_reload, e0_row_addr_save, e0_field_count_tick;
 wire       e0_hsync_off, e0_vsync_line_fire, e0_r7_write_fire, e0_vsync_holdoff;
 wire       e0_vsync_delay_suppress, e0_vsync_delay_half;
@@ -258,6 +261,7 @@ crtc_type0_engine crtc_type0_engine
 	e0_row_frame_last, e0_row_next, e0_row_new, e0_frame_adj,
 	e0_c0_line_last, e0_c0_row_last,
 	e0_in_adj_route, e0_frozen_row_advance, e0_hcc2_adj_keep,
+	e0_r0_widen_hold, e0_r0_widen_step,
 	e0_reload, e0_row_addr_save,
 	e0_field_count_tick, e0_hsync_off, e0_de_index, e0_spurious_border_off,
 	e0_vsync_line_fire,
@@ -365,6 +369,21 @@ always @(posedge CLOCK) begin
 		if(e0_frozen_row_advance) begin
 			row <= row + 1'd1;
 			if(row == R4_v_total) in_adj <= 1;
+		end
+		// French ACCC v1.11 section 13.7.2.2 pp.126-127: a type-0
+		// R0=1 widening accepted on C0=1 of a true last frame line first
+		// consumes the old equality, then reaches C0=2 with C4=R4+1 while
+		// C9 is retained.  The engine's one-character pending state separates
+		// that vertical side effect from a real horizontal line boundary.
+		if(e0_r0_widen_step) begin
+			row <= row + 1'd1;
+			in_adj <= 1;
+			// The old last-line capture has now been consumed into adjustment.
+			// Clear it so the end of the widened remainder compares C9 with
+			// the live adjustment target instead of ending immediately on R9.
+			line_last_r <= 0;
+			row_last_r <= 0;
+			frame_adj_r <= 0;
 		end
 
 		if(row_new) begin

@@ -144,7 +144,10 @@ General implementation rules for all fix prompts:
   equality later in the line cannot erase the C9/R5 comparator switch. `t16a`-`t16z`
   protect those counter results, active-adjustment freeze, exact R0=1 latch consumption,
   completion, bus phases,
-  and retained-state lifecycle; t09h protects the correlated R0=0 freeze entry.
+  and retained-state lifecycle; t09h protects the correlated R0=0 freeze entry. IA-6 adds
+  `t35a` for French v1.11 section 13.7.2 pp.126-127: a true-last-line R0=1 widening at C0=1
+  continues to the new total, enters C4=R4+1/C9-retained additional management at C0=2,
+  and runs R5=0 through effective target 31; its C0=0 arm is the safe-widening control.
 - **Impact**: the documented deterministic C4/C9/RA and adjustment-state paths are now
   guarded. Remaining risk is pin-level sub-character timing for ruptures and short-R0 entry,
   plus interactions exposed when F4 removes the older zero-comparator shortcuts.
@@ -154,7 +157,7 @@ General implementation rules for all fix prompts:
 - **Fix prompt**:
   > Preserve `t09h` and `t16a`-`t16s` as required passes while implementing F4. Keep type 1
   > unchanged and do not infer sub-character MA/DE/VSYNC timing from internal counter state.
-- **Verify**: V3 `t09h` and `t16a`-`t16z` required passes; V2/hardware evidence remains for
+- **Verify**: V3 `t09h`, `t16a`-`t16z`, and `t35a` required passes; V2/hardware evidence remains for
   sub-character output timing and the complete CRTC-0 rupture matrix.
 
 ## F4. Counter overflow defeated by `!line_max` / type 0 `!R4` shortcut terms

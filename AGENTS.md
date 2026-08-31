@@ -89,7 +89,13 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x21bbf9c29ab08413`, re-minted 2026-08-31 for IA-3's type-0 R6=0
+  (`0xd6bc1649ff2058a1`, re-minted 2026-08-31 for IA-6's type-0 R0=1
+  widening route: French ACCC v1.11 section 13.7.2 pp.126-127 requires an
+  unsafe R0 1-to-larger write at C0=1 on a true last line to preserve the
+  old equality while continuing horizontally, enter additional management
+  at C0=2 with C4=R4+1/C9 retained, and count R5=0 through effective target
+  31; the one-character pending action joins the sampled projection;
+  previously `0x21bbf9c29ab08413`, re-minted 2026-08-31 for IA-3's type-0 R6=0
   first-frame-line conflict: French ACCC v1.11 section 18.3.2 p.191 requires
   DISPLAY ENABLE on at character start and off 0.5 us later until live C0=R1;
   an R6 0-to-nonzero write before R1 cancels the conflict, while R6 still zero

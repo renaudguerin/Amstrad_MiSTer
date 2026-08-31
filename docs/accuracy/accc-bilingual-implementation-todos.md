@@ -124,7 +124,7 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   a meaningful deterministic test. If not, record a hardware discriminator rather than
   building a synthetic oracle.
 
-## IA-6 — Type-0 adjustment and R0=1 premise reconciliation
+## IA-6 — Type-0 adjustment and R0=1 premise reconciliation — COMPLETE (source model)
 
 - **Source:** BL-018–BL-020; v1.11 French §13.2.4 pp.107–108 and §13.7.2
   pp.126–127 versus English pp.105–106 and 124–125.
@@ -133,12 +133,32 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   `C4=R4 && C9=R9` with no adjustment/interlace; (c) the initial R0=1 programmed increment
   includes C4=R4, while the later partially completed overflow case can persist after C4 has
   diverged.
-- **Current evidence:** the digest has been reconstructed from French and existing R0=1/R5
-  vectors cover much of the behavior, but this pass has not yet mapped each assertion back to
-  the corrected premise.
+- **Vector-to-premise audit (2026-08-31):**
+
+  | Premise | Existing focused evidence | Result |
+  |---|---|---|
+  | C4/R4 inequality selects R5 as C9's target | `t16a`, `t16e`, `t12a`/`t12b`, `t16t`, and IA-4 `t16z` distinguish the R5 route, exact-R0 race, equality companion, frozen C4, and retained unequal history. | Covered. |
+  | C0=0 programs the normal next-line action from `C4=R4 && C9=R9`, with R5=0/R8=0 | `t07i` and `t20c` are equality controls; `t16o` is the R4-break negative control; `t07l` covers genuine-last-line continuation. | Covered at counter/MA outputs. |
+  | The initial R0=1 programmed increment requires C4=R4 | `t16p`, `t20e`, and `t16s` cover the equal start, alternating short-frame result, and C0=1 break. | Covered. |
+  | A partially completed R0=1 route can persist after R0 widens and C4 diverges | `t35a` compares safe C0=0 widening with unsafe C0=1 widening on a true last line, then follows C4=R4+1 and C9=R9..31 through R5=0 additional management. | Closed by the only new discriminator. |
 - **Owner:** classic accuracy stream.
-- **Gate:** produce a vector-to-premise table first. Add a new discriminator only for an
-  uncovered condition; do not churn already-correct RTL or duplicate an existing test.
+- **Implemented evidence (2026-08-31):** `t35a` uses R0=1, R4=2, R9=3,
+  R5=R8=0. Its control widens R0 at safe C0=0 and observes a normal C4=C9=0 frame reset.
+  Its main arm widens R0 1→7 at C0=1 on C4=R4/C9=R9. On unchanged RTL it failed at the
+  first post-write discriminator (expected C0=2, actual C0=1), then reset normally instead
+  of retaining the additional-management route. The corrected type-0 path consumes the old
+  equality without treating it as a horizontal boundary, reaches C0=2 with C4=R4+1/C9
+  retained, and counts C9 through effective R5-1=31 before frame reset. A private
+  one-character pending action carries the vertical side effect and joins the soak projection.
+- **Acceptance:** Gemini 3.7 Flash high authored the focused failure-first vector; a GPT-5.6
+  Sol xhigh deep worker authored the phase-sensitive two-file RTL correction. Claude review
+  was attempted once but quota-unavailable and produced no verdict. The authorized guarded
+  Gemini 3.7 Flash high fallback independently returned CLEAR with no findings. Full
+  simulation reports 183 required classic passes, lint passes, exact soak
+  `0xd6bc1649ff2058a1` passes, and whitespace checks pass. French section 13.7.2.1's
+  non-last-line overflow and positive-R5/interlace variants remain outside this bounded
+  source model; real hardware confirmation remains open. Full record:
+  `ia6-r0-widen-independent-review.md`.
 
 ## Items deliberately not promoted to code work
 

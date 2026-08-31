@@ -9,6 +9,20 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
 
 ## Cleared rows
 
+- **Accuracy IA-6 type-0 R0=1 widening persistence — CLEARED, Gemini 3.7
+  Flash high fallback, 2026-08-31.** Gemini authored the focused `t35a`
+  control/main oracle; a GPT-5.6 Sol xhigh worker authored the phase-sensitive
+  wrapper/type-0-engine correction. Claude review was attempted once but was
+  quota-unavailable and produced no verdict. The authorized guarded Gemini
+  fallback independently checked French ACCC v1.11 section 13.7.2 pp.126-127,
+  test phase, horizontal/vertical consumer separation, last-line capture
+  consumption, lifecycle, type/non-recipe isolation, and soak projection, and
+  returned CLEAR with no findings. Full simulation reports 183 required
+  classic passes, lint passes, exact soak `0xd6bc1649ff2058a1` passes, and
+  whitespace checks pass. The explicitly unimplemented variants and hardware
+  confirmation are validation scope, not review debt. Full record:
+  `docs/accuracy/ia6-r0-widen-independent-review.md`.
+
 - **Accuracy IA-3 type-0 live R6 first-line conflict — CLEARED, Gemini 3.7
   Flash high, 2026-08-31.** Separate Luna leaves produced the failure-first
   `t34a` oracle and bounded wrapper correction. The guarded Gemini reviewer
