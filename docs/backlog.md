@@ -64,9 +64,34 @@ and operates after this stage. Removing or redesigning it does not affect those.
 1. **Done, merged 2026-08-31 (`accuracy/sync-filter-toggle`)**: `sync_filter` is now an OSD
    option, "Sync filter, On/Off" on the Audio & Video page, backed by `status[35]`. The
    default is On, preserving previous behaviour bit-for-bit. Awaiting hardware test.
-2. **Run the experiment.** DSC4 and SHAKER Module A (T), (Y), (TAB) with the filter off, on
-   both CRTC types. The question is not whether the picture is pretty; it is *whether the
-   black zone moves at all*. Record the result here.
+2. **Run the experiment. DONE 2026-09-01, hardware.** Result: with the filter off, normal
+   software displays correctly, but software using HSYNC tricks (SHAKER, DSC4) is **garbled** —
+   not merely wide or off-centre as predicted, but unusable. Turning the filter off also fixed
+   none of the Plus title defects, which is consistent with the scope limit stated above.
+
+   **What that tells us.** The unfiltered path cannot hold a lock when line geometry varies,
+   which is exactly the condition the CRTC-trickery software creates. That is not an argument
+   for keeping `crt_filter` as it is; it is evidence that the module conflates two separate
+   jobs, and that only one of them is wanted:
+
+   - **(a) Making sync safe for the scaler.** Regenerating a stable HSYNC/VSYNC so ASCAL and
+     the display can lock even when the CRTC emits irregular lines. This is genuinely needed,
+     and removing it is what produced the garbling.
+   - **(b) Deriving blanking from fixed constants.** `BEGIN_HBORDER`, `END_HBORDER`,
+     `BEGIN_VBORDER`, `END_VBORDER` counted off the regenerated HSYNC. This is what destroys
+     the R2.JIT black-zone position, and nothing requires it.
+
+   **Proposed third mode: keep (a), replace (b).** Regenerate sync for scaler lock as today,
+   but derive HBLANK/VBLANK from the live Gate Array and CRTC signals instead of constants. The
+   black zone would then move with the CRTC while the scaler stays locked. This is the design
+   to build and test next, and it is a different experiment from the on/off toggle already
+   shipped.
+
+   Open question that experiment must answer: whether the visible effect the SHAKER entries and
+   DSC4 test lives in the blanking geometry (recoverable this way) or in the sync edges
+   themselves (not recoverable while sync is regenerated). If the latter, the honest conclusion
+   is that these tests cannot be judged on a scaler-driven display at all, and they need the
+   analog output path or a pre-filter capture tap.
 3. **Fix the fallback.** With the filter off, blanking currently falls back to
    `hblank = hs_sel` — the raw CRTC HSYNC — so the visible window is much wider than normal and
    likely off-centre. That is acceptable for the experiment and not acceptable as a shipped
@@ -327,6 +352,36 @@ was just implemented, asserting that same rule, is documentation with a `make` t
 3. Move superseded review records into `docs/accuracy/archive/` and `docs/plus/archive/`,
    leaving the currently-load-bearing ones in place. `docs/current-status.md` should link the
    archive rather than narrate its contents.
+
+---
+
+## B13. Stale `rom_map` survives every reset (suspected)
+
+**Priority: high. Concrete lead with a reproduction.**
+
+**Symptom, observed on hardware 2026-09-01.** In Plus mode, running a cartridge that had
+previously misbehaved left the machine in a state where a subsequently loaded, known-good
+cartridge (Navy Seals) produced a **black screen with working music**. Loading a CPR performs a
+reset, and that did not clear it. Only reloading the core entirely did.
+
+**Suspect.** `Amstrad.sv` declares `reg [255:0] rom_map = '0;`. The only other assignment is
+`rom_map[boot_a[21:14]] <= 1;` — the array is **set-only and no reset clears it**. The `'0`
+initialiser applies at FPGA configuration, which is precisely the boundary the user found
+themselves needing to cross. Mapped ROM pages therefore accumulate across cartridge and
+expansion loads for the lifetime of the configuration.
+
+That matches the symptom shape well: music playing means the CPU is executing, so this is a
+paging or ROM-presence fault rather than a dead machine, and "survives reset, dies on
+reconfigure" is the exact signature of state with an initialiser but no reset.
+
+**Not yet proven.** No test reproduces it, and `rom_map` may not be the only such state; the
+same audit should look for other registers with a configuration-time initialiser and no reset
+path.
+
+**First moves.** Reproduce in simulation by mapping pages, resetting, and asserting the map is
+clear. Then decide what the correct behaviour is: a full clear on cold reset is the obvious
+candidate, but expansion ROMs loaded before boot are presumably meant to persist across a soft
+reset, so the two reset tiers need separating rather than collapsing.
 
 ---
 
