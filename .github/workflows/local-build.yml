@@ -89,6 +89,12 @@ jobs:
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Require setup and hold timing closure
+        shell: bash
+        run: |
+          scripts/ci/check-quartus-timing.sh output_files/Amstrad.sta.summary | \
+            tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Record synthesis provenance
         if: always()
         shell: bash
