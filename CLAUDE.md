@@ -4,7 +4,9 @@ This is a fork of the MiSTer Amstrad CPC core. Two work streams run in parallel 
 be merged into one commit or one PR: classic CRTC accuracy for types 0 (HD6845S) and 1
 (UM6845R), and Amstrad Plus/GX4000 ASIC support.
 
-Start from `docs/implementation-roadmap.md` for dependency order and acceptance gates,
+Start from `docs/backlog.md` for the cross-cutting architecture and methodology items
+(observability, harnesses, structural debt) that sit underneath feature work,
+`docs/implementation-roadmap.md` for dependency order and acceptance gates,
 `docs/current-status.md` for the handoff state, and `docs/accuracy/audit-findings.md` for the
 numbered findings F1-F12.
 
@@ -87,6 +89,14 @@ they actually disagree. That costs a fraction of a vector and it is what turns t
 progress. A batch of vectors that all pass on first run bought regression armour, not a
 finding; that is occasionally worth doing on purpose, but it should be a deliberate choice
 rather than the default motion.
+
+**A test earns its place only if it could fail for a reason you did not already know.** A
+vector derived from an ACCC rule you have just implemented, asserting that same rule, is
+documentation with a `make` target: it will never fail until someone edits the line it mirrors.
+Prefer vectors that pin a *cross-module* interaction, a degenerate case, or a rule you have not
+yet implemented. Suites grow without limit otherwise, and a large green suite that cannot
+surprise you is what lets a wrong core look verified. This applies to review passes too: do not
+run independent review on documentation-only changes.
 
 This does not license skipping tests for behaviour changes. The classic CRTC core keeps
 singular shared state across three files (wrapper `rtl/CRTC.v` plus the two per-type rule

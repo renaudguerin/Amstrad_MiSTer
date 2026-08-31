@@ -1,5 +1,12 @@
 # Current implementation status
 
+**Next session: read `docs/backlog.md` first.** A 2026-08-31 methodology review concluded the
+project's bottleneck is observability rather than implementation quality, and opened a
+prioritized cross-cutting backlog (B1-B12). Its top item is a suspected reason why classic CRTC
+sync work has produced no visible hardware change: `rtl/crt_filter.v` discards the CRTC's sync
+and blanking geometry and is hardwired on. That hypothesis is untested as of this writing.
+
+
 This is the handoff for the next development and hardware-test session. The newest Plus
 hardware observations are dated 2026-08-30; older milestone narratives below retain their
 own dates and are not evidence that later work was hardware-confirmed. The

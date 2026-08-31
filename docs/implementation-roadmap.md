@@ -386,6 +386,16 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 ## 8. Immediate execution queue
 
+**Read `docs/backlog.md` before picking from this queue.** It holds the cross-cutting
+architecture and methodology items opened on 2026-08-31, and several entries below are blocked
+in ways this section does not show. In particular **backlog B1**: `rtl/crt_filter.v`
+regenerates HSYNC/VSYNC and derives HBLANK/VBLANK from hardcoded constants, discarding the real
+CRTC sync geometry, and it is currently hardwired on. Until that is settled, the F20 R2.JIT
+hardware gate, the DSC4 validation, and SHAKER Module A entries (T), (Y), (TAB) and (R) cannot
+produce a readable result, because the effect they measure is removed after the CRTC and before
+the display. The `accuracy/sync-filter-toggle` branch adds the OSD toggle needed to test this.
+
+
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
 2. **D1 source/model audit COMPLETE; hardware follow-up remains.** The section-complete
