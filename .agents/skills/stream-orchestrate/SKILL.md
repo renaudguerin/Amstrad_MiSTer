@@ -211,3 +211,10 @@ results, artifacts, hardware-only residuals, and any review debt. If both stream
 label the first stream's RBF as an intermediate artifact and the final stream's exact-SHA RBF
 as the combined hardware-test artifact. Distinguish implemented and simulated behavior from
 hardware-confirmed behavior.
+
+After the final exact-SHA synthesis succeeds, download its artifact, independently verify
+the reported timing/resource evidence and RBF SHA-256, and copy the combined hardware-test
+RBF into `/Users/renaudg/code/Amstrad_MiSTer/output_files/`. Preserve the artifact's
+SHA-bearing filename, confirm the copied file has the same hash, and give the user a clickable
+local path. Do not consider the hardware-build handoff complete while the final RBF exists
+only in GitHub Actions or a temporary download directory.
