@@ -46,11 +46,12 @@ real-hardware U.S.-ROM phase capture rather than a circular synthetic oracle.
 Plus P10j moved the sprite-pixel array from soft registers to exactly two M10Ks. Exact
 feature build `c047a7d` (run `33392854459`) reports 22,057 ALMs (53%), 16,384 sprite-RAM
 bits, setup/hold +0.323/+0.251 ns, zero TNS, and a packaged RBF. One guarded Gemini 3.7
-Flash high lane reviewed the architecture and CI work through `f16020e`; managed export
-permission blocked its exact-tip continuation over the final two Quartus-compatibility
-parameter fixes, so that narrow review-debt row remains open. This fit is synthesis
-evidence, not hardware confirmation. The detailed behavioral rules remain in `accuracy/`;
-the long-term ordering remains in `implementation-roadmap.md`.
+Flash high lane reviewed the architecture and CI work through `f16020e`. A later guarded
+Claude Opus 5 high review at integrated SHA `bf1e785` found no defect in the final two
+Quartus-compatibility corrections; three low model/invariant documentation and primitive-
+stub coverage notes keep the narrow row open. This fit is synthesis evidence, not hardware
+confirmation. The detailed behavioral rules remain in `accuracy/`; the long-term ordering
+remains in `implementation-roadmap.md`.
 
 ## How hardware testing fits the loop
 
@@ -306,6 +307,23 @@ remediated (`docs/plus/p2p3-independent-review.md`, plus the F10/F11h records).
 - Worst-case setup slack +0.665 ns, hold +0.250 ns - positive; no regression signal.
 - RBF retained as `output_files/hardware-milestones/Amstrad_20260825_5d6d342.rbf`
   (SHA-256 `94b426a49f612895ff287072409badd452cddfa685f3bd7c27f130d3a5e75af5`).
+
+## Hardware-test milestone
+
+`bf1e785` is the final combined Accuracy/Plus integration milestone (GitHub
+Actions full-effort run `33396320914`, synthesis job `99501803549`, artifact
+`9760139200`, Quartus 17.0.2). It includes the IA-1 through IA-6 accuracy audit
+closures and the P10j two-M10K sprite-pixel store. **It has not been
+hardware-tested.**
+
+- Logic utilization 22,120 / 41,910 ALMs (53%); 26,045 registers; 701,596 /
+  5,662,720 block-memory bits (12%); 102 / 553 RAM blocks (18%).
+  `plus_sprite_ram` uses exactly 16,384 bits and 2 M10Ks, with no soft mirror or
+  duplicate bank copy.
+- Worst-case setup slack +0.613 ns and hold slack +0.187 ns across seven clocks;
+  setup and hold TNS are both zero.
+- RBF retained as `output_files/Amstrad_20260831_bf1e785.rbf`, SHA-256
+  `6dc8fddcb44098eafee485830323070f0421de68c13e273e39489a6c53c3ef19`.
 
 ## Hardware-test milestone
 

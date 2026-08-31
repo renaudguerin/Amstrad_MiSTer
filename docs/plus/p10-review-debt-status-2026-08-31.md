@@ -52,10 +52,30 @@ four issues that source review and local vendor-stub lint did not prove:
 After the permission layer rejected export of the private-repository snapshot,
 the existing Gemini lane could not review the final mechanical corrections
 `db60f8d` and `c047a7d`; the task did not retry or substitute a second reviewer.
-The non-trivial architecture and CI changes therefore have one independent
-review lane, while exact-tip review coverage has this explicit limitation.
-Quartus run `33392854459` proves the corrected primitive contract and fit, not an
-independent source-review verdict.
+That limitation was later resolved at integrated SHA `bf1e785` by one guarded
+Claude Opus 5 high review. The rebased correction commits are `1248d06` and
+`cd56d66`; their in-scope blobs are identical to the accepted `c047a7d` feature
+tip. Claude found no defect in either correction and independently cleared the
+primitive legality, CLOCK1 grouping, even/odd and packed-pixel mapping, one-edge
+latency, reset-preserved storage, `files.qip`, and exact-fit provenance.
+
+The exact-tip verdict remains technically NOT CLEAR for three low contract and
+coverage notes, not a known production defect:
+
+1. `plus_sprite_ram.v`'s behavioral same-port read/write path returns old data,
+   while the accepted M10K uses NEW_DATA. This collision is unreachable in the
+   current integration because SNA drain holds the CPU in reset, but that
+   invariant is not documented at the RAM boundary.
+2. The constant-zero `altsyncram_lint_stub.v` proves port/parameter elaboration,
+   not primitive data semantics; the behavioral collision assertions therefore
+   remain distinct from exact-synthesis evidence.
+3. `asic_regs.v` selects `host_addr=eff_addr`, so hypothetical concurrent SNA
+   write and CPU read would redirect the CPU read. Current CPU-reset sequencing
+   makes that case unreachable, but the local invariant is undocumented.
+
+Quartus run `33392854459` remains the feature-tip primitive/fit evidence. Final
+combined integration run `33396320914` separately proves the whole `bf1e785`
+build and packaged RBF.
 
 ## P10j exact gate and fit evidence
 
@@ -107,7 +127,7 @@ Rejected intermediate fits remain evidence, not accepted deliverables:
 | Tail/FIFO and hardware-round-two remediation | from `f3b96b94140b2791f642a9d7844b97d415b4c95e` through status tip `3ce8268e4db3855f2d644fef9c158e0ef99790ba` | GPT-5.6 Sol high: clear after focused fixture reproduction |
 | Inactive-DMA execute remediation | through `d17a1bc773c12427ea980a102f5e4054ae7fa827`, merged as `4d26cadde1bff93b8f63ca61bacc538da0588e26` | Claude Opus 5 high: clear after `d13` pinned channel identity and order; no unreviewed round-two RTL/test delta remained |
 | Hardware round three | feature tip `5275879ad96d87ede7fc484e890dd1f0804ff78e`, merged as `275a9a42a3569e460c83de10cfc9781fc00fbb9a` | Native Sol plus guarded Claude: clear; CRTC3 R8=1 and DMA/PPI/PSG concurrency findings were remediated behind focused discriminators |
-| P10j block-RAM and timing closure | base `d74cd2429f1a0fef0a3b00cf45e900d6d02c518c`, accepted code tip `c047a7dc7bf348be6bdd0637e1e6e2ee154412f1` | One guarded Gemini lane reviewed the non-trivial architecture and CI work incrementally through `f16020e`; the final two mechanical primitive-compatibility corrections were parent-owned and exact-Quartus-gated after further export was permission-blocked |
+| P10j block-RAM and timing closure | base `d74cd2429f1a0fef0a3b00cf45e900d6d02c518c`, accepted code tip `c047a7dc7bf348be6bdd0637e1e6e2ee154412f1`, integrated as `bf1e78538afda195476276ecce89f5fbc79df4a0` | Gemini 3.7 Flash high reviewed the architecture/CI chain through `f16020e`; Claude Opus 5 high then found no defect in the final CLOCK1 and collision-mode corrections, retaining only three low contract/coverage notes |
 
 No P10-scoped implementation file changed between `275a9a4` and the inspected
 base `d74cd242`: `Amstrad.sv`, `rtl/Amstrad_motherboard.v`, `rtl/i8255.v`,
@@ -129,8 +149,8 @@ separately cleared ACCC bilingual stream.
   exact bus timing remain synthesis/hardware boundaries.
 - P10j exact fit, resource shape, timing closure, fail-closed CI enforcement, and
   named RBF evidence are complete at `c047a7d`. This is synthesis evidence, not
-  hardware confirmation. Exact-tip independent review retains the documented
-  two-commit permission-blocked limitation.
+  hardware confirmation. Claude's integrated exact-tip review found the final
+  two primitive corrections clean; three low contract/coverage notes remain.
 - Arnold 5, Plotting, Pang, the CRTC3 demo, Switchblade, Burnin' Rubber, Copter 271,
   BASIC/System disk access, and reset/reload recovery remain named hardware retests.
 
@@ -148,9 +168,9 @@ The Accuracy/shared-doc owner can replace the historical open row with:
 > production DMA/PPI/PSG concurrency. P10j moved sprite pixels from soft
 > registers to exactly two M10Ks, closed setup/hold timing with zero TNS, and
 > produced the named `c047a7d` RBF. One guarded Gemini lane reviewed the
-> non-trivial P10j architecture/CI work through `f16020e`; export for the final
-> two mechanical primitive corrections was permission-blocked, so that exact-tip
-> review limitation remains explicit. Physical sprite bandwidth/access blanking,
+> non-trivial P10j architecture/CI work through `f16020e`; a guarded Claude Opus
+> 5 high exact-tip pass found no defect in the final two mechanical primitive
+> corrections and retained three low contract/coverage notes. Physical sprite bandwidth/access blanking,
 > the full HPS-to-SNA and exact T80/top-level boundaries, and title-level hardware
 > retests remain validation residuals. See
 > `docs/plus/p10-review-debt-status-2026-08-31.md` and the round-two/round-three
