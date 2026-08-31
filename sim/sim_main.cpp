@@ -271,6 +271,10 @@ public:
         // latch was unsampled; expanding the field set re-mints the golden
         // hash by design (no RTL behaviour change).
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_vsync_wait_line_start);
+        // IA-3 / BL-036: sample the type-0 first-line R6=0 definitive-border
+        // latch so reset, snapshot and live-type lifecycle leaks cannot hide
+        // behind an unchanged pin sample.
+        mix(r.CRTC__DOT__type0_r6_zero_origin_border);
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__r6_border_condition);
         mix(r.CRTC__DOT__crtc_type1_engine__DOT__status_bit5_r);
         // F10 fixture stage (2026-08-24): the shared interlace parity flops
@@ -5322,6 +5326,88 @@ void t31_type0_half_character_border_no_skew(TestBench& test) {
         "F13 no-skew C0=R0 (ACCC v1.11 sections 17.6.2 p.186 and 19.2.4 p.195)");
 }
 
+// t34: IA-3 / BL-036 -- a type-0 R6=0 first-line conflict is cancellable.
+// ACCC v1.11 French section 18.3.2 p.191 says that C4=R6=C9=0 alternates
+// DISPLAY ENABLE high at each character start and low 0.5 us later.  Updating
+// R6 to a nonzero value on that first line cancels the conflict; if C0=R1 is
+// then reached with R6 nonzero, the R1 border is only a line-local event.  The
+// control leaves R6 at zero and therefore keeps the following line blank, so
+// the passing assertion is load-bearing rather than an unconditional DE check.
+void t34_type0_r6_zero_first_line_cancellation(TestBench& test) {
+    constexpr RegisterProgram registers = {{
+        {0, 7}, {1, 4}, {2, 2}, {3, 0x11}, {4, 3},
+        {5, 0}, {6, 0}, {7, 63}, {8, 0}, {9, 0},
+    }};
+
+    test.set_crtc_type(0);
+    program_registers(test, registers);
+    test.select_register(6);
+    test.reset();
+    // Reset leaves the horizontal display latch low; stop one character before
+    // the short four-row frame boundary, then process that boundary explicitly
+    // so the sample is the first half of a real C4=C9=0 frame line.
+    test.run_characters(4 * 8 - 1);
+    test.run_clock_ticks(1);
+
+    // Control: with R6 still zero, the first-line conflict is observable and
+    // the following line remains blank.  This also proves that the fixture is
+    // on C4=C9=0 rather than accidentally checking an ordinary displayed line.
+    test.expect_c4("t34 control starts on C4=0", 0);
+    test.expect_line("t34 control starts on C9=0", 0);
+    test.expect_de_high(
+        "t34 control sees the p.191 displayed half of the R6=0 conflict");
+    test.run_clock_ticks(7);
+    test.run_clock_ticks(1);
+    test.expect_de_low(
+        "t34 control sees the p.191 border half 0.5 us after character start");
+    test.run_characters(4);  // C0=4 is the reachable R1 border point.
+    test.expect_byte("t34 control reaches C0=R1", 4, test.c0());
+    test.expect_de_low(
+        "t34 control reaches the R1 border while R6 remains zero "
+        "(French p.191)");
+    test.run_characters(4);
+    test.expect_c4("t34 control enters the following line", 1);
+    test.expect_byte("t34 control following line starts at C0=0", 0,
+                     test.c0());
+    test.expect_de_low(
+        "t34 control keeps border after R6=0 at C0=R1 (French p.191)");
+
+    // Main case: reset to the same first-line state, then write R6=2 at the
+    // CLKEN edge that starts C0=3, before the reachable C0=R1=4 point.  The
+    // old R6=0 value still drives the preceding alternation, while the live
+    // nonzero value must prevent that earlier conflict from becoming a
+    // definitive border at R1 (French p.191).
+    test.write_selected_register_at_clken(0);
+    test.reset();
+    test.run_characters(4 * 8 - 1);
+    test.run_clock_ticks(1);
+    test.expect_de_high(
+        "t34 cancellation reaches the first displayed half of the conflict");
+    test.run_clock_ticks(7);
+    test.run_clock_ticks(1);
+    test.expect_de_low(
+        "t34 cancellation reaches the first border half before the write");
+    test.run_characters(2);
+    test.select_register(6);
+    test.write_selected_register_at_clken(2);
+    test.expect_byte("t34 R6 update lands before C0=R1=4", 3, test.c0());
+    test.expect_de_high(
+        "t34 R6>0 cancels the conflict before the reachable R1 point "
+        "(French ACCC v1.11 section 18.3.2 p.191)");
+    test.run_characters(1);
+    test.expect_byte("t34 cancellation reaches the live C0=R1 point", 4,
+                     test.c0());
+    test.expect_de_low(
+        "t34 R1 border is asserted at C0=R1 even after R6 cancellation "
+        "(French ACCC v1.11 section 18.3.2 p.191)");
+    test.run_characters(4);
+    test.expect_c4("t34 cancellation enters the following line", 1);
+    test.expect_byte("t34 cancellation reaches C0=0", 0, test.c0());
+    test.expect_de_high(
+        "t34 border is not definitive after an earlier R6=0 conflict at R1 "
+        "(French ACCC v1.11 section 18.3.2 p.191)");
+}
+
 // ---------------------------------------------------------------------------
 // t21: F10 type-1 IVM toggle parity table (ACCC v1.10 sections 19.5.3 p.208,
 // 19.8.2 setup p.209, and the 16 SHAKER 22C/3 truth-table panels on
@@ -7831,6 +7917,9 @@ int main(int argc, char** argv) {
         {"t31a_type0_half_character_border_no_skew",
          "ACCC v1.11 sections 17.6.2 p.186 and 19.2.4 p.195; F13",
          false, t31_type0_half_character_border_no_skew},
+        {"t34a_type0_r6_zero_first_line_cancellation",
+         "ACCC v1.11 French section 18.3.2 p.191; BL-036/IA-3",
+         false, t34_type0_r6_zero_first_line_cancellation},
     };
 
     unsigned passed = 0;
