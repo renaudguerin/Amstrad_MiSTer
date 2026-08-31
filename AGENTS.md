@@ -89,7 +89,27 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x32d468e81eac63c9`, re-minted 2026-08-30 for the reviewed F20 R2.JIT
+  (`0xd6bc1649ff2058a1`, re-minted 2026-08-31 for IA-6's type-0 R0=1
+  widening route: French ACCC v1.11 section 13.7.2 pp.126-127 requires an
+  unsafe R0 1-to-larger write at C0=1 on a true last line to preserve the
+  old equality while continuing horizontally, enter additional management
+  at C0=2 with C4=R4+1/C9 retained, and count R5=0 through effective target
+  31; the one-character pending action joins the sampled projection;
+  previously `0x21bbf9c29ab08413`, re-minted 2026-08-31 for IA-3's type-0 R6=0
+  first-frame-line conflict: French ACCC v1.11 section 18.3.2 p.191 requires
+  DISPLAY ENABLE on at character start and off 0.5 us later until live C0=R1;
+  an R6 0-to-nonzero write before R1 cancels the conflict, while R6 still zero
+  at R1 makes border definitive; the new lifecycle latch joins the sampled
+  projection; previously `0x87a9d80a91381c9b`, re-minted 2026-08-31 for IA-1's controlled type-0
+  R3-terminal HSYNC restart: French ACCC v1.11 sections 15.3.2-15.3.3
+  pp.150-151 preserve the C3l overflow while the p.151 earliest approximately
+  3.5-pixel restart maps to 14 master ticks only for the pinned `t33b` bus
+  phase; the new pending/count state joins the sampled projection; previously
+  `0x654a244c2cce6e0b`, re-minted 2026-08-31 for the IA-2 type-1 frame-origin
+  correction: French ACCC v1.11 section 19.5.3 p.209 assigns ParityC9 from the
+  newly toggled ParityFrame and starts an odd IVM frame at C9=1; `t32a` first
+  fails the stale toggle-both model from an even-R9 unequal-parity state;
+  previously `0x32d468e81eac63c9`, re-minted 2026-08-30 for the reviewed F20 R2.JIT
   correction: type-0/type-1 starts move by 4/3 mode-2 pixels while their
   ordinary trailing-edge positions remain fixed, shortening the raw pulse by
   4/3 pixels; same-value writes remain normal; previously `0x005deed28be80fa1`

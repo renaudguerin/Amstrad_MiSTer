@@ -115,11 +115,24 @@ DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0x32d468e81eac63c9`** after the reviewed F20 correction:
-type-0/type-1 R2.JIT starts move by 4/3 Mode-2 pixels while display reactivation
-stays at each type's normal position, shortening the raw pulse by 4/3 pixels;
-same-value rewrites remain on the normal path. The preceding
-`0x005deed28be80fa1` mint encoded the rejected width-preserving model plus the
+current hash is **`0xd6bc1649ff2058a1`** after IA-6's type-0 R0=1 widening
+route and its one-character pending action joined the sampled projection.
+The preceding `0x21bbf9c29ab08413` hash recorded IA-3's live-R6 first-line
+conflict and lifecycle latch; before that, `0x87a9d80a91381c9b` recorded
+IA-1's controlled type-0 R3-terminal HSYNC restart. French ACCC v1.11
+sections 15.3.2-15.3.3 pp.150-151 preserve the C3l overflow while the
+earliest approximately 3.5-Mode-2-pixel restart maps to 14 master ticks only
+for `t33b`'s pinned bus phase. The new pending/count state joined the sampled
+projection. The earlier `0x654a244c2cce6e0b` hash was IA-2's frame-origin
+correction: French section
+19.5.3 p.209 assigns ParityC9 from the newly toggled ParityFrame, and its
+worked table starts an odd IVM frame at C9=1. Directed vector `t32a` first
+fails the stale toggle-both model from an even-R9 unequal-parity state. The
+earlier `0x32d468e81eac63c9` hash was the
+reviewed F20 correction: type-0/type-1 R2.JIT starts move by 4/3 Mode-2 pixels
+while display reactivation stays at each type's normal position, shortening
+the raw pulse by 4/3 pixels; same-value rewrites remain on the normal path.
+The earlier `0x005deed28be80fa1` mint encoded the rejected width-preserving model plus the
 addition of all new phase/deferred-edge latches to the sampled projection
 (previously `0xc769ea4605afbe04` after F13). The hash depends on the seed, the
 sampled field set/order, the event schedule, and the DUT's observable

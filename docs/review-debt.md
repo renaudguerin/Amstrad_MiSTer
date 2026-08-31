@@ -2,7 +2,74 @@
 
 ## Open rows
 
-- **Plus P10a-P10f, P10h compatibility closure, 2026-08-29** — Scope: `Amstrad.sv`,
+None.
+
+**Status: no independent-review debt rows are open.** The validation residuals retained in
+the cleared rows below are not hardware evidence and do not reopen local RTL/test review.
+
+## Cleared rows
+
+- **Accuracy IA-6 type-0 R0=1 widening persistence — CLEARED, Gemini 3.7
+  Flash high fallback, 2026-08-31.** Gemini authored the focused `t35a`
+  control/main oracle; a GPT-5.6 Sol xhigh worker authored the phase-sensitive
+  wrapper/type-0-engine correction. Claude review was attempted once but was
+  quota-unavailable and produced no verdict. The authorized guarded Gemini
+  fallback independently checked French ACCC v1.11 section 13.7.2 pp.126-127,
+  test phase, horizontal/vertical consumer separation, last-line capture
+  consumption, lifecycle, type/non-recipe isolation, and soak projection, and
+  returned CLEAR with no findings. Full simulation reports 183 required
+  classic passes, lint passes, exact soak `0xd6bc1649ff2058a1` passes, and
+  whitespace checks pass. The explicitly unimplemented variants and hardware
+  confirmation are validation scope, not review debt. Full record:
+  `docs/accuracy/ia6-r0-widen-independent-review.md`.
+
+- **Accuracy IA-3 type-0 live R6 first-line conflict — CLEARED, Gemini 3.7
+  Flash high, 2026-08-31.** Separate Luna leaves produced the failure-first
+  `t34a` oracle and bounded wrapper correction. The guarded Gemini reviewer
+  independently checked French ACCC v1.11 section 18.3.2 p.191, nonblocking
+  priority, reachable-R1 timing, live R6 cancellation, lifecycle, type-1
+  isolation, and ordinary R6 behavior. Its soak-projection recommendation was
+  accepted. Full simulation reports 182 required classic passes, lint passes,
+  exact soak `0x21bbf9c29ab08413` passes, and whitespace checks pass. Hardware
+  confirmation remains validation evidence, not review debt. Full record:
+  `docs/accuracy/ia3-r6-live-independent-review.md`.
+
+- **Accuracy IA-1 type-0 R3-terminal HSYNC restart — CLEARED, Gemini 3.7
+  Flash high, 2026-08-31.** A GPT-5.6 Sol xhigh worker authored the bounded
+  two-file delta. The guarded Gemini reviewer independently checked French
+  ACCC v1.11 sections 15.3.2-15.3.3 pp.150-151, the controlled 14-tick mapping,
+  trigger and nonblocking priority, all `t33` oracles, lifecycle guards, and
+  soak projection. Full simulation reports 181 required classic passes, lint
+  passes, exact soak `0x87a9d80a91381c9b` passes, and whitespace checks pass.
+  The source says earliest/approximately; real hardware phase remains
+  validation evidence, not review debt. Full record:
+  `docs/accuracy/ia1-r3-terminal-hsync-independent-review.md`.
+
+- **Accuracy IA-4 type-0 R4 equality history — CLEARED, GPT-5.6 Sol high,
+  2026-08-31.** Gemini 3.7 Flash high authored the bounded two-file delta;
+  the independent Sol reviewer freshly checked French ACCC v1.11 section
+  13.2.1 p.106, section 11.2.2 pp.82-83, the sticky-latch lifecycle and
+  exact-R0 priority, the failure-first `t16z` control/transient oracle, and
+  unchanged sampled topology. Full simulation reports 178 required classic
+  passes, lint passes, exact soak `0x654a244c2cce6e0b` remains unchanged, and
+  whitespace checks pass. Hardware confirmation is validation evidence, not
+  review debt. Full record:
+  `docs/accuracy/ia4-r4-history-independent-review.md`.
+
+- **Accuracy IA-2 type-1 frame-origin parity — CLEARED, Gemini 3.7 Flash high,
+  2026-08-31.** French ACCC v1.11 section 19.5.3 p.209 governs the corrected
+  frame-origin assignment. `t32a` first fails the stale even-R9 toggle-both model;
+  `t28a` pins the complementary origin. The initial review found a load-bearing
+  stage-B value-mux qualification defect, which was fixed before the narrow
+  remediation re-review returned CLEAR. Full simulation, lint, exact soak
+  `0x654a244c2cce6e0b`, and whitespace gates pass. Claude Opus was requested but
+  quota-unavailable and produced no verdict; the exact reviewer tier is retained.
+  Hardware confirmation remains validation evidence, not review debt. Full record:
+  `docs/accuracy/ia2-frame-origin-independent-review.md`.
+
+- **Plus P10a-P10f/P10h local implementation review — CLEARED through
+  `d17a1bc` (round two); round three separately CLEARED through feature tip
+  `5275879`, integration `275a9a4`, 2026-08-30.** Scope: `Amstrad.sv`,
   `rtl/Amstrad_motherboard.v`, `rtl/i8255.v`, `rtl/plus/asic_dma.v`, `rtl/plus/plus_sna_parser.v`,
   `rtl/plus/asic_regs.v`, `rtl/plus/asic_sprites.v`, `rtl/plus/asic_video.v`,
   `sim/plus/tv80/` (`tv80_core.v`, `tv80_mcode.v`, `tv80_alu.v`, `tv80_reg.v`, `t80pa.v`),
@@ -16,6 +83,16 @@
   4. CF-4 DMA/PPI/PSG arbitration: 8-cycle LOAD execution, AY register tracking and restoration, `dma_ppi_wait` Z80 WAIT assertion, and PPI write/read gating in `rtl/plus/asic_dma.v` and `rtl/Amstrad_motherboard.v`.
   5. CF-5 CPC+ SNA parser: unmasked reset during `sna_download`, 8-entry write FIFO with `ioctl_wait` backpressure, and atomic consecutive-byte/nibble unpacking in `rtl/plus/plus_sna_parser.v` and `Amstrad.sv`.
   6. CG-3 Sprite dynamic write closure: CPU pixel write-through into matching staged buffers without cache-invalidation tearing or stalling in `rtl/plus/asic_sprites.v` and `rtl/plus/asic_regs.v`.
+  The initial and remediation reviews found real RTL and test-integrity defects; the final
+  Sol and guarded Claude passes accepted the focused remediations, including SNA
+  tail/headroom, all-16 sprite cadence, DMA inactive-slot ordering, CRTC3 R8=1 timing, and
+  production DMA/PPI/PSG concurrency. No unreviewed local P10 RTL/test delta remains.
+  Physical sprite bandwidth/access blanking, the full HPS-to-SNA and exact T80/top-level
+  boundaries, exact full-effort timing/RBF evidence, and title-level hardware retests remain
+  validation residuals, not independent-review debt. Classification record prepared by the
+  Plus stream at commit `688fb7ad` in
+  `docs/plus/p10-review-debt-status-2026-08-31.md`; the file joins this history when that
+  stream integrates.
   **REVIEWED, NOT CLEARED — Claude Opus 5 xhigh, 2026-08-29.** The independent
   review confirmed a CPC+ SNA RMR2/unlock restore defect, tautological FDC
   decoder tests, absent production DMA/PPI WAIT and tape coverage, an unmet
@@ -111,29 +188,25 @@
   distinct PSG register/data writes in ascending active-channel order for all masks; the
   final narrow pass verified the oracle and bounds path and returned CLEAR. Full post-fix
   simulation and lint pass, the golden soak remains `0x32d468e81eac63c9`, and no unreviewed
-  hardware-round-two RTL/test delta remains. Keep this broader historical row open only for
-  evidence outside the reviewed local seam: physical sprite bandwidth/access blanking, the
-  full HPS-to-SNA producer boundary, DMA/PPI concurrency, exact-top synthesis, and hardware
-  retest.
+  hardware-round-two RTL/test delta remains. The remaining evidence outside the reviewed
+  local seam — physical sprite bandwidth/access blanking, the full HPS-to-SNA producer
+  boundary, DMA/PPI concurrency, exact-top synthesis, and hardware retest — is validation
+  work, not independent-review debt.
 
-- **ACCC Round 2 documentation correction, 2026-08-28** — documentation on the integration
-  branch `accc-review-and-fixes`, based on `c11c55d`. Scope: `accuracy/accc-author-feedback.md`, its Round 1
-  archive, `accuracy/accc-author-questions.md`, `accuracy/compendium-01-counters.md`,
-  `accuracy/audit-findings.md`, and `current-status.md`. No RTL or tests changed.
-  Gemini `analyze` returned a headless `read_file` permission denial and no review verdict.
-  Review the English/French v1.11 Q12 qualifier comparison, the conditional single-activation
-  deduction, the Q20/N2 preferred C4/R4 reset reading versus the unchanged model, and the
-  proposed 44-versus-512-scanline hardware discriminator. Source URLs, page references and
-  PDF hashes are recorded in the active feedback document. Local whitespace, link-target,
-  documentation-only scope and arithmetic checks passed; simulation was not required.
-  Clear this entry only after an actual cross-provider review. The introducing commit is
-  the commit adding this entry; the previously cleared implementation reviews are unaffected.
-
-**Status: two reviews open:** Plus P10 and ACCC Round 2. The v1.11 bilingual sweep is
-cleared in the branch-level register below; historical implementation review debt remains
-cleared.
-
-## Cleared rows
+- **ACCC Round 2 documentation correction — CLEARED, Claude Opus 5 high,
+  2026-08-31.** Reviewed source-first at `d74cd242` over `c11c55d^..605d29f`, including
+  `AGENTS.md`, `CLAUDE.md`, `accuracy/accc-author-feedback.md`, its Round 1 archive,
+  `accuracy/accc-author-questions.md`, `accuracy/compendium-01-counters.md`,
+  `accuracy/audit-findings.md`, `current-status.md`, and this debt row. The original French
+  and English v1.11 PDFs matched their recorded hashes. French §19.5.2 p.208 contains the
+  repeated-activation qualifier omitted by English p.206; the conditional single-activation
+  deduction is accurately separated from source text and hardware evidence. Both editions
+  retain the §11.3.2 C4/R4 comparison during stuck R5=0 adjustment; the preferred reading,
+  unchanged free-running model, and unrun 44-versus-512-scanline discriminator are clearly
+  distinguished. Five non-blocking provenance/citation defects were corrected. No RTL or
+  tests changed and simulation was not required. Q20/N2, post-toggle pin timing, and the
+  discriminator remain validation residuals, not hardware evidence. Full record:
+  `docs/accuracy/accc-round2-documentation-independent-review.md`.
 
 - **Plus P10 hardware round three CRTC3 R8=1 and DMA/PPI/PSG concurrency — CLEARED,
   native Sol plus guarded Claude, 2026-08-30.** Initial reviews found the missing R8=1

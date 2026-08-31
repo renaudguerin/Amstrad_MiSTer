@@ -20,7 +20,7 @@ merged into the same behavioral PR.
   `plus/p0-parser-wiring`, which rebase onto this branch's post-review fixes).
 - The current development state contains the accuracy/reference documents, the F1-F3 and main
   F5 corrections, deterministic-complete F12/F4/F8/F9, the Verilator CRTC/Plus gates plus the
-  randomized equivalence soak (`make -C sim soak`, golden hash `0x32d468e81eac63c9`), the
+  randomized equivalence soak (`make -C sim soak`, golden hash `0xd6bc1649ff2058a1`), the
   production-wired bounded CPR parser/service/MMU path, R12/R13 reload vectors
   (`t20a`-`t20i`), the per-type engine
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
@@ -30,9 +30,9 @@ merged into the same behavioral PR.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
   RBF packaging, and artifact upload through the pass-2 fix tip `f6f09f5` (run
   `32645547100`). New top-level/file-list commits still require their own run.
-- `sim/` currently reports **176** required classic CRTC passes with no expected failures
-  (verified 2026-08-30, Verilator 5.050); the soak reproduces golden hash
-  `0x32d468e81eac63c9`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
+- `sim/` currently reports **183** required classic CRTC passes with no expected failures
+  (verified 2026-08-31, Verilator 5.050); the soak reproduces golden hash
+  `0xd6bc1649ff2058a1`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through
@@ -139,7 +139,7 @@ Classic work is intentionally serial because most findings touch the same state 
 | **C2: VSYNC write timing — deterministic complete; hardware pending** | F3 only | `t02` covers type-0 blocked writes at C0=0/1, type-0 extended duration, and unchanged type-1 partial-line duration; `t03` protects re-entrancy | SHAKER VSYNC tests plus Onescreen Colonies and PHX regression |
 | **C3: R0 stall — deterministic complete; hardware pending** | F5 only | `t09` proves type-0 freeze, the single deferred C4 increment, R2-dependent HSYNC, clean resume, and unchanged type-1 one-character lines | SHAKER R0 tests; monitor sync and GA interrupt behavior remain stable |
 | **C4: border decision** | F6 only if its approximation is explicitly accepted | `t10` distinguishes type 0 and type 1 and proves skew placement | Visual R1>R0 discriminator and affected demos |
-| **C5A: v1.10 type-0 adjustment arbitration — deterministic complete; hardware pending** | F12, test first | `t16a`-`t16s` prove C0=0 same-edge comparison, C0=1/R5=0 entry including exact R0=1 rollover consumption, R5 acceptance/rejection around C0=2, R4/R9 live-write windows including exact-R0 at both bus phases, the exact-R0 R9-to-R5 split, R0=0/1 default adjustment, active-adjustment R0=0 freeze, completion reset, and retained-state lifecycle | Focused SHAKER or hardware traces verify uncertain sub-character MA/DE/VSYNC timing without changing the fixed counter expectations |
+| **C5A: type-0 adjustment arbitration — deterministic complete; hardware pending** | F12 and IA-4, test first | `t16a`-`t16z` prove C0=0 same-edge comparison, C0=1/R5=0 entry including exact R0=1 rollover consumption, R5 acceptance/rejection around C0=2, R4/R9 live-write windows including exact-R0 at both bus phases, the exact-R0 R9-to-R5 split, R0=0/1 default adjustment, active-adjustment R0=0 freeze, completion reset, retained-state lifecycle, and the French v1.11 p.106 R4-equality history condition | Focused SHAKER or hardware traces verify uncertain sub-character MA/DE/VSYNC timing and the transient R4 restore case without changing the fixed counter expectations |
 | **C5B: equality/overflow foundation** | F4 only, after F12 establishes the corrected state seam | `t07` and `t08` pass, including the tightened RLAL regression vectors; no shortcut term is retained to hide a latch bug | SHAKER overflow/rupture tests and Batman Forever, The Demo, and Yao demo sweep |
 | **C6: type-1 adjustment — deterministic complete; hardware pending** | F8 only, after F4 | `t11` proves independent C5 counting, continuing C4/C9, RA sequence, and the R5=0 mid-adjustment behavior | SHAKER adjustment vectors; Q17 hardware sweep at R7=38/39 for R4=36/R9=7/R5=16 |
 | **C7: type-0 R9 race — deterministic complete; hardware pending** | Revised F9 only, after F12/F4/F8 have stabilized the counter structure | `t12` reproduces both documented exact-cycle results using the v1.10 comparison target; it must not preserve the v1.9 rationale as an oracle | Contrived timing test; hardware trace if simulation and SHAKER disagree |
@@ -386,13 +386,16 @@ acceptance. It deliberately does not require a separate upstream utilization bui
 
 1. Test the synthesized current milestone on real MiSTer hardware using
    `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
-2. **PRIORITY — D1: finish the v1.11 bilingual cascade.** The section-complete French/English
-   sweep and visual calibration are recorded in
+2. **D1 source/model audit COMPLETE; hardware follow-up remains.** The section-complete
+   French/English sweep and visual calibration are recorded in
    `accuracy/accc-1.11-fr-en-differences.md`. The high-confidence digest corrections are
-   applied first; behavioral candidates then move through
+   applied, and the six behavioral candidates have moved through
    `accuracy/accc-bilingual-implementation-todos.md`, with a paper-derived directed vector
-   before any RTL change. Source PDFs remain user-owned and ignored; the reproducible v1.11
-   extraction snapshot is versioned, while unselected generated intermediates stay ignored.
+   before every justified RTL change. IA-5 deliberately closes with a hardware discriminator:
+   the current integrated CRTC/GA harness has no independent U.S.-ROM phase oracle and a
+   synthetic vector would only restate the existing model. Source PDFs remain user-owned and
+   ignored; the reproducible v1.11 extraction snapshot is versioned, while unselected
+   generated intermediates stay ignored.
    **Historical digest verification already banked, do not redo:** the earlier English-v1.10
    pass retired each extraction flag it could settle and corrected section/page anchors against
    the real table of contents; it then swept `docs/`, `rtl/`, and `sim/` for references to

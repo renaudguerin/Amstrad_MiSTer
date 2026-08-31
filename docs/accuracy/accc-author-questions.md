@@ -184,7 +184,8 @@ with it.
     frame origins and reachable R6, the documented parity rules imply the normal row-count
     pattern resumes at the next origin: ParityFrame loads ParityR6 and, for odd R9,
     ParityC9 is recalculated from C4.0 xor ParityFrame (§19.5.2 English pp.205–206;
-    §19.8.1 p.219). This does not undo an elapsed timing offset. ParityR6 persists and
+    §19.8.1 FR p.220, EN p.219). This does not undo an elapsed timing offset. ParityR6
+    persists and
     can freeze when R6 is unreachable; total frame lengths depend on register programming.
     This is a source deduction, not hardware confirmation or verification of the core's
     post-toggle pin timing. Local transition fixtures and the separate MID-VSYNC coupling

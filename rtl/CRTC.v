@@ -196,8 +196,10 @@ wire       hcc_last  = hcc == R0_h_total;
 // hcc_end is the effective line-end strobe every line-event consumer uses;
 // raw hcc_last stays for terms whose documented semantics are tied to the
 // comparator edge itself.
-wire       hcc_end   = hcc_last & ~(CRTC_TYPE & e1_rfd_r0_extend);
-wire [7:0] hcc_next  = hcc_end ? 8'h00 : hcc + 1'd1;
+wire       hcc_end   = hcc_last & ~(CRTC_TYPE ? e1_rfd_r0_extend :
+									 e0_r0_widen_hold);
+wire [7:0] hcc_next  = e0_r0_widen_hold ? hcc :
+						 hcc_end ? 8'h00 : hcc + 1'd1;
 
 reg  [4:0] line;
 reg  [6:0] row;
@@ -230,6 +232,7 @@ reg        parity_r6;
 // ------------------------------------------------------------------
 wire       e0_r0_frozen, e0_line_new, e0_row_frame_last, e0_row_new, e0_frame_adj;
 wire       e0_c0_line_last, e0_c0_row_last, e0_in_adj_route, e0_frozen_row_advance;
+wire       e0_r0_widen_hold, e0_r0_widen_step;
 wire       e0_hcc2_adj_keep, e0_reload, e0_row_addr_save, e0_field_count_tick;
 wire       e0_hsync_off, e0_vsync_line_fire, e0_r7_write_fire, e0_vsync_holdoff;
 wire       e0_vsync_delay_suppress, e0_vsync_delay_half;
@@ -258,6 +261,7 @@ crtc_type0_engine crtc_type0_engine
 	e0_row_frame_last, e0_row_next, e0_row_new, e0_frame_adj,
 	e0_c0_line_last, e0_c0_row_last,
 	e0_in_adj_route, e0_frozen_row_advance, e0_hcc2_adj_keep,
+	e0_r0_widen_hold, e0_r0_widen_step,
 	e0_reload, e0_row_addr_save,
 	e0_field_count_tick, e0_hsync_off, e0_de_index, e0_spurious_border_off,
 	e0_vsync_line_fire,
@@ -366,6 +370,21 @@ always @(posedge CLOCK) begin
 			row <= row + 1'd1;
 			if(row == R4_v_total) in_adj <= 1;
 		end
+		// French ACCC v1.11 section 13.7.2.2 pp.126-127: a type-0
+		// R0=1 widening accepted on C0=1 of a true last frame line first
+		// consumes the old equality, then reaches C0=2 with C4=R4+1 while
+		// C9 is retained.  The engine's one-character pending state separates
+		// that vertical side effect from a real horizontal line boundary.
+		if(e0_r0_widen_step) begin
+			row <= row + 1'd1;
+			in_adj <= 1;
+			// The old last-line capture has now been consumed into adjustment.
+			// Clear it so the end of the widened remainder compares C9 with
+			// the live adjustment target instead of ending immediately on R9.
+			line_last_r <= 0;
+			row_last_r <= 0;
+			frame_adj_r <= 0;
+		end
 
 		if(row_new) begin
 			row <= row_next;
@@ -445,6 +464,8 @@ reg        hsync_off_pending;
 reg        hsync_phaseful;
 reg        type1_hsync_start_pending;
 reg  [1:0] type1_hsync_start_count;
+reg        type0_hsync_restart_pending;
+reg  [3:0] type0_hsync_restart_count;
 reg        r2_jit_pending;
 reg        register_write_d;
 
@@ -458,6 +479,15 @@ wire register_write = ENABLE & RS & ~nCS & ~R_nW;
 wire r2_jit_write = register_write & ~register_write_d &
 					(addr == 5'd02) & (hcc == DI) &
 					(R2_h_sync_pos != DI) & (R3_h_sync_width != 0);
+// ACCC v1.11 sections 15.3.2-15.3.3 pp.150-151: on type 0, changing
+// R3l at the old terminal count while C0 is again equal to a relocated R2
+// drops the current raw HSYNC but starts another one without resetting C3l.
+// A zero low nibble retains the existing R3=0 suppression contract; changing
+// only R3v is not an R3l modification.
+wire type0_r3_terminal_write = register_write & ~register_write_d &
+					!CRTC_TYPE & (addr == 5'd03) & HSYNC &
+					(hcc == R2_h_sync_pos) & (hsc == R3_h_sync_width) &
+					(DI[3:0] != 0) & (DI[3:0] != R3_h_sync_width);
 
 always @(posedge CLOCK) begin
 
@@ -472,6 +502,8 @@ always @(posedge CLOCK) begin
 		hsync_phaseful            <= 0;
 		type1_hsync_start_pending <= 0;
 		type1_hsync_start_count   <= 0;
+		type0_hsync_restart_pending <= 0;
+		type0_hsync_restart_count   <= 0;
 		r2_jit_pending            <= 0;
 		register_write_d          <= 0;
 	end
@@ -482,6 +514,18 @@ always @(posedge CLOCK) begin
 
 		if (r2_jit_write) r2_jit_pending <= 1;
 		if (!CRTC_TYPE) type1_hsync_start_pending <= 0;
+		// The p.151 earliest restart is approximately 3.5 Pixel-M2 after the
+		// old pulse ends.  Reuse F20's production phase scale (four master
+		// CLOCK ticks per Pixel-M2): count thirteen intervening ticks, then
+		// raise the pin on the fourteenth.  Snapshot load and a live switch to
+		// type 1 discard this type-0-only pending event.
+		if (SNA_LOAD || CRTC_TYPE) begin
+			type0_hsync_restart_pending <= 0;
+			type0_hsync_restart_count   <= 0;
+		end else if (type0_r3_terminal_write) begin
+			type0_hsync_restart_pending <= 1;
+			type0_hsync_restart_count   <= 4'd13;
+		end
 
 		// Through the GA's 16 MHz video sampler CRTC1's normal start is the
 		// documented sixth rather than fifth pixel-M2. Four 64 MHz master edges
@@ -509,7 +553,17 @@ always @(posedge CLOCK) begin
 				hsync_phaseful <= 0;
 			end
 		end else if (!HSYNC) begin
-			if (r2_jit_pending && hsync_on) begin
+			if (!SNA_LOAD && !CRTC_TYPE && type0_hsync_restart_pending) begin
+				if (type0_hsync_restart_count == 0) begin
+					HSYNC                       <= 1;
+					hsync_phaseful              <= 0;
+					hsync_start_phase           <= 0;
+					type0_hsync_restart_pending <= 0;
+				end else begin
+					type0_hsync_restart_count <=
+						type0_hsync_restart_count - 1'd1;
+				end
+			end else if (r2_jit_pending && hsync_on) begin
 				HSYNC                     <= 1;
 				hsync_phaseful            <= CRTC_TYPE;
 				hsync_start_phase         <= CRTC_TYPE ? 7'd4 : 7'd0;
@@ -557,6 +611,11 @@ end
 
 // vertical output
 reg vde, vde_r;
+// ACCC v1.11 French section 18.3.2 p.191: the C4=R6=C9=0 first-line
+// alternation ends permanently when the live C0=R1 border condition is
+// reached with R6 still zero. Keep that condition separate from vde so the
+// half-character toggle cannot reassert DISPLAY ENABLE after the R1 edge.
+reg type0_r6_zero_origin_border;
 reg VSYNC_r;
 reg vsync_allow;
 // Section 19.5.3 p.208: during type-1 IVM the VSYNC start line is pinned by
@@ -603,6 +662,21 @@ end
 wire [3:0] vsc_load = CRTC_TYPE ? e1_vsc_load : e0_vsc_load;
 wire r7_write_hit = ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07;
 wire r7_write_fire = CRTC_TYPE ? e1_r7_write_fire : e0_r7_write_fire;
+wire type0_r6_zero_origin_r1_hit = !CRTC_TYPE && !row_new &&
+									(row == 0) && (line == 0) &&
+									(R6_v_displayed == 0) &&
+									(hcc_next == R1_h_displayed);
+
+always @(posedge CLOCK) begin
+	if(~nRESET | SNA_LOAD | CRTC_TYPE)
+		type0_r6_zero_origin_border <= 0;
+	else if(CLKEN) begin
+		if(row_new)
+			type0_r6_zero_origin_border <= 0;
+		else if(type0_r6_zero_origin_r1_hit)
+			type0_r6_zero_origin_border <= 1;
+	end
+end
 
 always @(posedge CLOCK) VSYNC <= VSYNC_r; // delay the same as HSYNC to not confuse the GA
 always @(posedge CLOCK) begin
@@ -616,7 +690,7 @@ always @(posedge CLOCK) begin
 		vsync_allow <= 1;
 	end
 	else if (CLKEN) begin
-		if (e0_vde_toggle) begin
+		if (e0_vde_toggle && !type0_r6_zero_origin_border) begin
 			vde <= ~vde;
 			vde_r <= ~vde_r;
 		end
@@ -624,7 +698,18 @@ always @(posedge CLOCK) begin
 		if(row_new) begin
 			if((frame_new & row !=0) | row_next != row) vsync_allow <= 1;
 			if(frame_new)                  begin vde <= 1; vde_r <= 1; end
-			if(row_next == R6_v_displayed) begin vde <= 0; vde_r <= 0; end
+			// ACCC v1.11 French section 18.3.2 p.191: on a type-0
+			// frame-origin line with C4=R6=C9=0, DISPLAY ENABLE starts
+			// high and falls at nCLKEN.  Do not let the ordinary R6
+			// border assignment below overwrite frame_new's start value;
+			// all non-origin matches, including type 1, keep the normal
+			// priority.
+			if(row_next == R6_v_displayed && !(frame_new && !CRTC_TYPE)) begin
+				vde <= 0; vde_r <= 0;
+			end
+		end
+		if(type0_r6_zero_origin_r1_hit) begin
+			vde <= 0; vde_r <= 0;
 		end
 		if(vsync_count_tick) begin
 			// A type 0 VSYNC started by an R7=C4 write after C0=1
@@ -643,7 +728,7 @@ always @(posedge CLOCK) begin
 		end
 	end
 	else if (nCLKEN) begin
-		if (e0_vde_toggle) begin
+		if (e0_vde_toggle && !type0_r6_zero_origin_border) begin
 			vde <= ~vde;
 			vde_r <= ~vde_r;
 		end

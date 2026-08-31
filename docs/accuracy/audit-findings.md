@@ -139,9 +139,15 @@ General implementation rules for all fix prompts:
   activates the R5=0 C0=1 equality-break route, applies a same-cycle R5 write at C0=2,
   retains the selected comparator across the documented C0>=2 windows, and separates the
   exact-R0 C4 and C9 comparisons. The short-R0 path consumes the C4 increment once for R0=0
-  and runs the default zero-adjustment line for R0=0/1. `t16a`-`t16s` protect those counter
-  results, active-adjustment freeze, exact R0=1 latch consumption, completion, bus phases,
-  and retained-state lifecycle; t09h protects the correlated R0=0 freeze entry.
+  and runs the default zero-adjustment line for R0=0/1. IA-4 adds French v1.11 section
+  13.2.1 p.106's history condition: once an accepted R4 write is unequal to C4, restoring
+  equality later in the line cannot erase the C9/R5 comparator switch. `t16a`-`t16z`
+  protect those counter results, active-adjustment freeze, exact R0=1 latch consumption,
+  completion, bus phases,
+  and retained-state lifecycle; t09h protects the correlated R0=0 freeze entry. IA-6 adds
+  `t35a` for French v1.11 section 13.7.2 pp.126-127: a true-last-line R0=1 widening at C0=1
+  continues to the new total, enters C4=R4+1/C9-retained additional management at C0=2,
+  and runs R5=0 through effective target 31; its C0=0 arm is the safe-widening control.
 - **Impact**: the documented deterministic C4/C9/RA and adjustment-state paths are now
   guarded. Remaining risk is pin-level sub-character timing for ruptures and short-R0 entry,
   plus interactions exposed when F4 removes the older zero-comparator shortcuts.
@@ -151,7 +157,7 @@ General implementation rules for all fix prompts:
 - **Fix prompt**:
   > Preserve `t09h` and `t16a`-`t16s` as required passes while implementing F4. Keep type 1
   > unchanged and do not infer sub-character MA/DE/VSYNC timing from internal counter state.
-- **Verify**: V3 `t09h` and `t16a`-`t16s` required passes; V2/hardware evidence remains for
+- **Verify**: V3 `t09h`, `t16a`-`t16z`, and `t35a` required passes; V2/hardware evidence remains for
   sub-character output timing and the complete CRTC-0 rupture matrix.
 
 ## F4. Counter overflow defeated by `!line_max` / type 0 `!R4` shortcut terms
@@ -580,6 +586,13 @@ General implementation rules for all fix prompts:
   section). The old stepping/halving/field-OR
   approximation is removed; non-IVM behavior is bit-identical (t01-t20 unchanged; t09g's
   single RA expectation re-derived from §19.5.2).
+- **IA-2 correction (2026-08-31):** French v1.11 §19.5.3 p.209 explicitly assigns
+  ParityC9 from ParityFrame at the frame origin, and its worked table starts an odd IVM
+  frame at C9=1. `t32a` first creates `(ParityFrame,ParityC9)=(0,1)` with the documented
+  R8 transition and even R9, then fails the stale toggle-both model at the origin. The
+  corrected type-1 engine seeds ParityC9 and the IVM C9 restart from the newly toggled
+  ParityFrame. `t28a` pins the complementary odd-to-even origin. The full gate has 177
+  required classic passes and soak `0x654a244c2cce6e0b`; hardware confirmation remains open.
 - **Impact**: interlace demos (SHAKER 2.x uses 1/64-line positioning tricks); most games unaffected.
 - **Confidence: high for the implemented even-R9 surface** (every asserted value traces to a
   render-verified table cell or the pseudocode; the type-1 model reproduces all 64 panel
@@ -596,12 +609,14 @@ General implementation rules for all fix prompts:
 
 ## F11. Minor / confirmatory findings (no immediate action)
 
-- **F11a — HSYNC width semantics** (`CRTC.v:350-351`; type-1 zero-width cut at
-  `crtc_type1_engine.v:164`): equality-based `hsc == R3l` end +
+- **F11a — HSYNC width semantics**: equality-based `hsc == R3l` end +
   4-bit wrap naturally reproduces the "overflow on shrink" rule (digest-02 §4) ✓; type 1
   R3l=0-cancels-immediately ✓ explicitly coded. Type 0 mid-HSYNC write of R3l=0 wraps (correct).
-  Only gap: CRTC 0's "restart without C3l reset if R3l modified at the exact end position"
-  (§10) — exotic; leave.
+  IA-1 now implements type 0's exact-terminal R3l-modified restart from French v1.11
+  sections 15.3.2-15.3.3 pp.150-151. `t33a` protects the already-correct C3l overflow;
+  `t33b` protects the separate earliest approximately 3.5-pixel pin restart only at its
+  controlled bus phase and includes a no-write control; `t33c` protects lifecycle and
+  R3l=0 suppression. Hardware phase confirmation remains open.
 - **F11b — VSYNC re-entrancy** (`vsync_allow`, `CRTC.v:380`, `:383-388`, `:436-451`):
   reproduces mechanism 2 including the R7=0/R4=0 lock and the R7=0,R4=1,R9=7 infinite-VSYNC
   bypass (digest-02 §18) ✓. Protected by `t03a`/`t03b`.

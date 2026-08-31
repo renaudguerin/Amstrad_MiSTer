@@ -334,10 +334,6 @@ wire rfd_r0_cancelled = (line != crtc1_line_max) | (row != R4_v_total);
 // at some prior edge; that is what set rfd_r0_pending.)
 wire rfd_r0_arm = rfd_r0_pending & CLKEN & hcc_last & rfd_r0_cancelled;
 
-assign line_next = in_adj ? ((line_last_w | crtc1_adj_end_eff) ? 5'd0 : line + 5'd1)
-                 : ivm    ? (ivm_row_end ? pc9_toggled : c9_ivm_step)
-                 :          (line_last_w ? 5'd0 : line + 5'd1);
-
 // ACCC v1.10 section 11.1 specifies that CRTC 1 has a separate C5 counter
 // for vertical adjustment, while C9 continues cycling 0..R9 and C4
 // increments at each C9==R9 wrap.
@@ -371,6 +367,16 @@ assign     row_new = line_new & line_row_event;
 
 wire       frame_new_w = row_new & row_frame_last;
 
+// French v1.11 section 19.5.3 p.209 aligns ParityC9 to the new frame
+// parity at the origin.  Its worked table starts an odd IVM frame at C9=1,
+// so the C9 restart must carry that same newly toggled parity rather than
+// the ordinary row-end value derived from the old ParityC9.
+assign line_next = frame_new_w ? (ivm ? {4'b0000, ~parity_frame} : 5'd0)
+                 : in_adj     ? ((line_last_w | crtc1_adj_end_eff) ? 5'd0 :
+                                  line + 5'd1)
+                 : ivm        ? (ivm_row_end ? pc9_toggled : c9_ivm_step)
+                 :              (line_last_w ? 5'd0 : line + 5'd1);
+
 // F14 additional-line state: set on the intercept edge (the gated
 // adjustment end), cleared by the true origin that ends the additional
 // line.  Intercept priority matters on the shared edge; CLKEN-gated for
@@ -387,15 +393,19 @@ end
 // per French v1.11 section 19.8.2 p.226; that match branch toggles the flop and
 // restarts C9 from it as one step, including the C4=0 frame-boundary arm (review
 // finding B-2).  At the frame origin, however, French section 19.5.3 explicitly
-// assigns ParityC9=ParityFrame; BL-038/IA-2 owns the even-R9 discriminator and
-// any resulting correction at this edit site.  A stage edge coinciding with
-// either wins: the OUT stages carry the
-// documented value semantics; that coincidence itself is unpinned.
+// assigns ParityC9=ParityFrame; BL-038/IA-2's even-R9 discriminator shows that
+// this assignment must take priority over the row-end toggle.  Since both
+// shared flops update on this edge, the assigned value is the newly toggled
+// ParityFrame (the inversion of the old registered value).  Stage A and an
+// entering stage B retain priority because they write ParityC9 explicitly;
+// a leaving stage B writes only ParityFrame, so an origin or row-end write
+// still supplies ParityC9 on that coincidence.
 wire c4_increment_toggle = row_new && !R9_v_max_line[0];
 assign pc9_write = stage_a_edge || (stage_b_edge && tog_enter) ||
-                   c4_increment_toggle;
+                   frame_new_w || c4_increment_toggle;
 assign pc9_value = stage_a_edge ? stage_a_pc9 :
-                   stage_b_edge ? stage_b_pc9_value : ~parity_c9;
+                   (stage_b_edge && tog_enter) ? stage_b_pc9_value :
+                   frame_new_w ? ~parity_frame : ~parity_c9;
 assign pf_write = stage_b_edge || frame_new_w;
 assign pf_value = stage_b_edge ? (tog_enter ? stage_b_pf_value : parity_c9)
                                 : ~parity_frame;

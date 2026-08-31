@@ -33,7 +33,8 @@ R8-to-3 activation on C4=1, C9=0, matching the French edition.
 remain stable, frame origins continue to occur, and C4 continues to reach R6, the documented
 counter/parity rules imply a return to the normal row-count pattern at the next frame origin:
 `ParityFrame` is loaded from `ParityR6`, and for odd R9 the row parity is recalculated from
-`C4.0 xor ParityFrame` (§19.5.2 English pp.205–206; §19.8.1 p.219). This deduction does not
+`C4.0 xor ParityFrame` (§19.5.2 English pp.205–206; §19.8.1 French p.220, English p.219).
+This deduction does not
 undo the elapsed timing offset caused by the transition. `ParityR6` persists across frames
 and can freeze when R6 is unreachable; frame totals also depend on register programming.
 
