@@ -24,7 +24,18 @@
   3.7 Flash high review provenance, rejected intermediate fits, and exact
   Quartus evidence: `docs/plus/p10-review-debt-status-2026-08-31.md`.
 
-**Status: one independent-review debt row is open.** The validation residuals retained in
+- **Plus B7 dark-silicon signal-path mutation audit — OPEN, no independent
+  cross-provider review, 2026-09-01.** The audit adds a production-shaped
+  P10a motherboard mutation matrix covering selected RGB/raster outputs and
+  CPU-visible bus, cycle, wait, and interrupt state in Plus and classic modes.
+  A reviewer should check hardest that the exact `B7_DARK_SILICON_MUTATION`
+  conditional and `synthesis translate_off` block cannot reach Quartus, and
+  that passing the signature-changed assertion is not trivially satisfiable by
+  run noise, raw mutation-control signals, or an unverified mutation decoder.
+  The full method and measured matrix are in
+  `docs/plus/b7-dark-silicon-audit.md`.
+
+**Status: three independent-review debt rows are open.** The validation residuals retained in
 the cleared rows below are not hardware evidence and do not reopen local RTL/test review.
 
 ## Cleared rows

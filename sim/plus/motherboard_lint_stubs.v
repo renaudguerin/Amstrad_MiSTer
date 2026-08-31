@@ -21,6 +21,7 @@
 
 // Port list copied from rtl/GA40010/ga40010.sv (production composition: the
 // `ifdef VERILATOR clk_16 input is excluded, matching -UVERILATOR).
+`ifndef B7_DARK_SILICON_MUTATION
 module ga40010 (
 	input  wire        clk,
 	input  wire        cen_16,
@@ -98,6 +99,7 @@ module ga40010 (
 			RD_N, IORQ_N, HSYNC_I, VSYNC_I, DISPEN, SNA_LOAD,
 			SNA_INKSEL, SNA_PALETTE, SNA_CONFIG, 1'b0};
 endmodule
+`endif
 
 // The production DMA/PPI motherboard fixture supplies the real YM2149 and
 // HID so it can validate PHI-aligned keyboard read data under DMA ownership.
