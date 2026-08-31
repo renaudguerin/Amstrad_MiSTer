@@ -56,3 +56,7 @@ docs/accuracy/shaker/*.png
 # ACCC extraction environment and unselected intermediates (see tracked manifest/snapshot)
 .venv/
 docs/accuracy/extract/
+
+# Local strategy/positioning notes: public repo, keep private.
+docs/strategy-notes.local.md
+docs/**/*.local.md
