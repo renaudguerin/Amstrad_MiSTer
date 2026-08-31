@@ -224,16 +224,14 @@ public:
 
 		// A real CPU read of row3 pixel data.  D_out is the register-file
 		// readback (low nibble only), while the same access suppresses sprq ACK
-		// and arms the sprite's access-blanking side effect.
+		// and arms the sprite's access-blanking side effect.  The pixel RAM now
+		// has one internal 64 MHz read edge: sample D_out after the first held
+		// edge, with no WAIT state or extra CPU transaction.
 		dut.asic_cs = 1;
 		dut.mem_wr = 0;
 		dut.mem_rd = 1;
 		dut.A = kRow3PageBase + ((held_addr - kRow3FetchBase) << 1);
 		dut.D_in = 0;
-		dut.clk = 0;
-		dut.eval();
-		if (dut.D_out != 0x03)
-			fail("real ASIC-page row3 read did not return the programmed nibble");
 
 		for (unsigned hold = 0; hold < 4; ++hold) {
 			const Edge edge = tick(false, false, false);
@@ -305,13 +303,11 @@ public:
 		dut.mem_rd = 1;
 		dut.A = kRow3PageBase;
 		dut.D_in = 0;
-		dut.clk = 0;
-		dut.eval();
-		if (dut.D_out != 0x03)
-			fail("post-stage same-sprite pixel read lost its real page response");
 		for (unsigned access = 0; access < 3; ++access) {
 			const Edge edge = tick(true, false, false);
 			note(edge, watching);
+			if (dut.D_out != 0x03)
+				fail("post-stage same-sprite pixel read lost its real page response");
 			if (dut.spr_en)
 				fail("sprite remained visible during a same-sprite pixel read");
 		}
