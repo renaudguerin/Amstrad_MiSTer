@@ -592,6 +592,11 @@ end
 
 // vertical output
 reg vde, vde_r;
+// ACCC v1.11 French section 18.3.2 p.191: the C4=R6=C9=0 first-line
+// alternation ends permanently when the live C0=R1 border condition is
+// reached with R6 still zero. Keep that condition separate from vde so the
+// half-character toggle cannot reassert DISPLAY ENABLE after the R1 edge.
+reg type0_r6_zero_origin_border;
 reg VSYNC_r;
 reg vsync_allow;
 // Section 19.5.3 p.208: during type-1 IVM the VSYNC start line is pinned by
@@ -638,6 +643,21 @@ end
 wire [3:0] vsc_load = CRTC_TYPE ? e1_vsc_load : e0_vsc_load;
 wire r7_write_hit = ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07;
 wire r7_write_fire = CRTC_TYPE ? e1_r7_write_fire : e0_r7_write_fire;
+wire type0_r6_zero_origin_r1_hit = !CRTC_TYPE && !row_new &&
+									(row == 0) && (line == 0) &&
+									(R6_v_displayed == 0) &&
+									(hcc_next == R1_h_displayed);
+
+always @(posedge CLOCK) begin
+	if(~nRESET | SNA_LOAD | CRTC_TYPE)
+		type0_r6_zero_origin_border <= 0;
+	else if(CLKEN) begin
+		if(row_new)
+			type0_r6_zero_origin_border <= 0;
+		else if(type0_r6_zero_origin_r1_hit)
+			type0_r6_zero_origin_border <= 1;
+	end
+end
 
 always @(posedge CLOCK) VSYNC <= VSYNC_r; // delay the same as HSYNC to not confuse the GA
 always @(posedge CLOCK) begin
@@ -651,7 +671,7 @@ always @(posedge CLOCK) begin
 		vsync_allow <= 1;
 	end
 	else if (CLKEN) begin
-		if (e0_vde_toggle) begin
+		if (e0_vde_toggle && !type0_r6_zero_origin_border) begin
 			vde <= ~vde;
 			vde_r <= ~vde_r;
 		end
@@ -659,7 +679,18 @@ always @(posedge CLOCK) begin
 		if(row_new) begin
 			if((frame_new & row !=0) | row_next != row) vsync_allow <= 1;
 			if(frame_new)                  begin vde <= 1; vde_r <= 1; end
-			if(row_next == R6_v_displayed) begin vde <= 0; vde_r <= 0; end
+			// ACCC v1.11 French section 18.3.2 p.191: on a type-0
+			// frame-origin line with C4=R6=C9=0, DISPLAY ENABLE starts
+			// high and falls at nCLKEN.  Do not let the ordinary R6
+			// border assignment below overwrite frame_new's start value;
+			// all non-origin matches, including type 1, keep the normal
+			// priority.
+			if(row_next == R6_v_displayed && !(frame_new && !CRTC_TYPE)) begin
+				vde <= 0; vde_r <= 0;
+			end
+		end
+		if(type0_r6_zero_origin_r1_hit) begin
+			vde <= 0; vde_r <= 0;
 		end
 		if(vsync_count_tick) begin
 			// A type 0 VSYNC started by an R7=C4 write after C0=1
@@ -678,7 +709,7 @@ always @(posedge CLOCK) begin
 		end
 	end
 	else if (nCLKEN) begin
-		if (e0_vde_toggle) begin
+		if (e0_vde_toggle && !type0_r6_zero_origin_border) begin
 			vde <= ~vde;
 			vde_r <= ~vde_r;
 		end

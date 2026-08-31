@@ -485,10 +485,10 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 181 required CRTC passes, zero expected failures, no
+- The current local gate reports 182 required CRTC passes, zero expected failures, no
   unexpected passes, and no failures (verified 2026-08-31, Verilator 5.050), plus the
   integrated GA R2.JIT and u765 transaction benches. The randomized equivalence soak
-  reproduces golden hash `0x87a9d80a91381c9b` (chain in AGENTS.md). IA-1's `t33a`
+  reproduces golden hash `0x21bbf9c29ab08413` (chain in AGENTS.md). IA-1's `t33a`
   confirms that unchanged RTL already preserved the p.150-151 C3l overflow sequence;
   `t33b` independently failed its first post-write pin sample because the live comparator
   restarted HSYNC after one master tick. The corrected type-0-only path models the p.151
@@ -501,7 +501,13 @@ For a first MiSTer pass:
   evidence; hardware confirmation remains open. IA-4's `t16z` discriminator likewise
   first failed unchanged RTL at C4=3 instead of the
   source-derived C4=2/C9=4 transient result. Its sticky history correction did not move the
-  then-current soak, so the directed vector carries that proof. The
+  then-current soak, so the directed vector carries that proof. IA-3's `t34a` first failed
+  unchanged RTL at the frame-origin first half: French v1.11 section 18.3.2 p.191 expects
+  DE high, but the ordinary row-next/R6 priority forced it low. The corrected type-0 path
+  preserves the documented high-then-low half-character alternation and uses live R6 at a
+  reachable C0=R1: R6 still zero makes border definitive, while an earlier R6 0-to-nonzero
+  write cancels the conflict. The new lifecycle latch joins the soak projection; this is
+  source-model evidence and real type-0 hardware confirmation remains open. The
   §13.7.1.2 trigger leaves the hash unchanged because random traffic does not reach that
   window; per review finding F-9 the soak is measurably insensitive to this region, so the
   directed vectors — not the soak — carry the behavioral proof here.

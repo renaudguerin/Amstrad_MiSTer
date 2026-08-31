@@ -64,18 +64,27 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   Gemini 3.7 Flash high through the guarded bridge; Claude was quota-unavailable. Full
   record: `ia2-frame-origin-independent-review.md`.
 
-## IA-3 — Type-0 R6 live condition at C0=R1
+## IA-3 — Type-0 R6 live condition at C0=R1 — COMPLETE (source model)
 
 - **Source:** BL-036; v1.11 French §18.3.2 p.191 versus English p.190.
 - **Prediction to test:** on the first frame line, enter the R6=0 alternation, change R6 to a
   nonzero value before C0 reaches R1, and observe that border does not become definitive at
   R1 solely because R6 was zero earlier.
-- **Current evidence:** RTL uses live R6 and therefore appears French-compatible; the old
-  digest encoded the English historical condition. No focused 0→nonzero-before-R1 vector was
-  found.
+- **Implemented evidence (2026-08-31):** `t34a` uses reachable R0=7/R1=4, with a control
+  that leaves R6=0 and a main arm that writes R6 0→2 at C0=3. On unchanged RTL the control
+  failed at the first frame-line half (expected DE high, actual low): the ordinary
+  `row_next==R6` assignment overrode the frame-origin display start. The corrected type-0
+  priority preserves the p.191 high-then-low half-character alternation. A dedicated latch
+  makes border definitive only when live R6 is still zero at C0=R1; the main arm proves the
+  earlier zero does not persist after the live nonzero write. Reset, snapshot, type-switch,
+  and row-transition lifecycle are explicit.
 - **Owner:** classic accuracy stream.
-- **Gate:** add a directed passing guard for the existing French-compatible behavior. An RTL
-  edit is warranted only if the vector reveals a mismatch.
+- **Acceptance:** the failure-first vector and bounded RTL correction were separate Luna
+  leaves. Guarded Gemini 3.7 Flash high independently returned CLEAR; its recommendation to
+  add the new latch to the soak projection was accepted. Full simulation reports 182
+  required classic passes, lint passes, exact soak `0x21bbf9c29ab08413` passes, and
+  whitespace checks pass. Real type-0 hardware confirmation remains open. Full record:
+  `ia3-r6-live-independent-review.md`.
 
 ## IA-4 — Type-0 R4-equality history during additional management — COMPLETE (source model)
 

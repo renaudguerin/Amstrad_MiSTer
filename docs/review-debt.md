@@ -9,6 +9,17 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
 
 ## Cleared rows
 
+- **Accuracy IA-3 type-0 live R6 first-line conflict — CLEARED, Gemini 3.7
+  Flash high, 2026-08-31.** Separate Luna leaves produced the failure-first
+  `t34a` oracle and bounded wrapper correction. The guarded Gemini reviewer
+  independently checked French ACCC v1.11 section 18.3.2 p.191, nonblocking
+  priority, reachable-R1 timing, live R6 cancellation, lifecycle, type-1
+  isolation, and ordinary R6 behavior. Its soak-projection recommendation was
+  accepted. Full simulation reports 182 required classic passes, lint passes,
+  exact soak `0x21bbf9c29ab08413` passes, and whitespace checks pass. Hardware
+  confirmation remains validation evidence, not review debt. Full record:
+  `docs/accuracy/ia3-r6-live-independent-review.md`.
+
 - **Accuracy IA-1 type-0 R3-terminal HSYNC restart — CLEARED, Gemini 3.7
   Flash high, 2026-08-31.** A GPT-5.6 Sol xhigh worker authored the bounded
   two-file delta. The guarded Gemini reviewer independently checked French

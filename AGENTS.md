@@ -89,7 +89,12 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x87a9d80a91381c9b`, re-minted 2026-08-31 for IA-1's controlled type-0
+  (`0x21bbf9c29ab08413`, re-minted 2026-08-31 for IA-3's type-0 R6=0
+  first-frame-line conflict: French ACCC v1.11 section 18.3.2 p.191 requires
+  DISPLAY ENABLE on at character start and off 0.5 us later until live C0=R1;
+  an R6 0-to-nonzero write before R1 cancels the conflict, while R6 still zero
+  at R1 makes border definitive; the new lifecycle latch joins the sampled
+  projection; previously `0x87a9d80a91381c9b`, re-minted 2026-08-31 for IA-1's controlled type-0
   R3-terminal HSYNC restart: French ACCC v1.11 sections 15.3.2-15.3.3
   pp.150-151 preserve the C3l overflow while the p.151 earliest approximately
   3.5-pixel restart maps to 14 master ticks only for the pinned `t33b` bus
