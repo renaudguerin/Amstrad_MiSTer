@@ -5795,11 +5795,13 @@ void t30_type0_post_ivm_exit_recovery_recipe_even(TestBench& test) {
 // ParityC9 and restarts C9 from it as one step, so row 1 runs C9=1,3 --
 // wait, C9=1 pre-increments to 2 and (2 and ~1) == 2 matches immediately,
 // so row 1 is the single line C9=1 and it is also the frame boundary
-// (C4==R4=1).  At that boundary the match branch must toggle ParityC9
-// (1 -> 0) AND restart C9 from the toggled value (C9=0); before the B-2
-// fix the flop kept 1 while C9 took 0, and every later row ran with the
-// two disagreeing.  The walk asserts C4/C9/RA per line plus ParityC9
-// across the boundary.
+// (C4==R4=1).  At that boundary the French v1.11 section 19.5.3 p.209
+// frame-origin assignment takes priority over the match-branch toggle:
+// ParityFrame changes 0 -> 1 and ParityC9 is realigned to that new value.
+// The French p.209 worked table starts that odd frame at C9=1 as well as
+// ParityC9=1.  Its first even-R9 match then advances C4 and toggles both
+// back to zero.  The walk asserts C4/C9/RA per line plus ParityC9 across
+// the boundary.
 
 void test_type1_ivm_frame_boundary_parity_continuity(TestBench& test) {
     test.set_crtc_type(1);
@@ -5823,9 +5825,9 @@ void test_type1_ivm_frame_boundary_parity_continuity(TestBench& test) {
         {0, 0, 0, 0},
         {0, 2, 2, 0},
         {1, 1, 1, 1},   // row 1: C9 restarted from the toggled ParityC9
-        {0, 0, 0, 0},   // frame boundary: ParityC9 toggled 1 -> 0 (B-2)
-        {0, 2, 2, 0},
-        {1, 1, 1, 1},
+        {0, 1, 1, 1},   // frame boundary: new ParityFrame seeds C9/ParityC9
+        {1, 0, 0, 0},
+        {1, 2, 2, 0},
     }};
     for (size_t i = 0; i < steps.size(); ++i) {
         if (i != 0) {
@@ -5866,7 +5868,7 @@ void test_type1_ivm_engages_from_snapshot_r8_3(TestBench& test) {
 
     // Same hand-derived sequence as t23a, from the load point.
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 4> steps = {
-        {{0, 0}, {0, 2}, {1, 1}, {0, 0}},
+        {{0, 0}, {0, 2}, {1, 1}, {0, 1}},
     };
     for (size_t i = 0; i < steps.size(); ++i) {
         if (i != 0) {
@@ -5877,8 +5879,66 @@ void test_type1_ivm_engages_from_snapshot_r8_3(TestBench& test) {
         test.expect_line(prefix + " C9", steps[i].second);
         test.expect_ra(prefix + " RA", steps[i].second);
     }
-    // ParityC9 toggled at the frame-boundary row end (B-2 continuity).
-    test.expect_parity_c9("t23b ParityC9 after the frame boundary", 1 - 1);
+    // The frame-origin assignment realigns ParityC9 to the newly toggled
+    // ParityFrame (French v1.11 section 19.5.3 p.209; IA-2).
+    test.expect_parity_c9("t23b ParityC9 after the frame boundary", 1);
+}
+
+// IA-2 / BL-038: the French v1.11 section 19.5.3 p.209 frame-origin rule
+// explicitly assigns ParityC9 from the frame parity.  An aligned fixture
+// cannot distinguish that assignment from the older even-R9 row-end toggle,
+// so first create the documented unequal state (ParityFrame=0,
+// ParityC9=1) with an R8=3 entry.  The route starts with odd R9 to reach
+// C4=1/C9=0, changes R9 to even, then enters IVM; the next frame origin is
+// therefore an even-R9 discriminator for the stale toggle-both logic.
+//
+// Both state updates happen on the same CLKEN edge.  The source operation is
+// the newly toggled ParityFrame followed by ParityC9 := ParityFrame, so the
+// post-edge value is !old ParityFrame.  In this registered RTL the RHS sees
+// the old flop value; the explicit inversion below represents that new frame
+// parity rather than assigning the stale pre-edge value.
+void test_type1_frame_origin_realigns_parity_c9(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, 1},
+        {5, 0},  {6, 63}, {7, 63}, {8, 0},    {9, 3},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    // R9=3 gives four plain lines in C4=0.  The fourth line ends that row,
+    // leaving C4=1/C9=0 at the start of its first line.
+    test.run_characters(4 * 64);
+    test.expect_c4("t32a precondition reaches C4=1", 1);
+    test.expect_line("t32a precondition reaches C9=0", 0);
+    test.expect_parity_frame("t32a precondition ParityFrame is even", false);
+    test.expect_parity_c9("t32a precondition ParityC9 is even", false);
+
+    // Make R9 even while retaining C4=1/C9=0, then enter IVM.  Stage A/B
+    // make ParityC9 odd while ParityFrame remains even.
+    test.write_register(9, 2);
+    test.run_to_c0(20);
+    test.select_register(8);
+    test.write_selected_register_now(3);
+    test.run_characters(1);
+    test.expect_parity_frame("t32a stage A keeps ParityFrame even", false);
+    test.expect_parity_c9("t32a stage A makes ParityC9 odd", true);
+    test.expect_line("t32a stage A pokes C9.0 odd", 1);
+    test.run_characters(1);
+    test.expect_parity_frame("t32a stage B keeps ParityFrame even", false);
+    test.expect_parity_c9("t32a stage B keeps ParityC9 odd", true);
+    test.expect_line("t32a stage B keeps C9.0 odd", 1);
+
+    // Stage A's documented C9.0 poke leaves line 1 as the terminal IVM line,
+    // so one line completes C4=1/R4=1 and crosses the frame origin.  French
+    // §19.5.3 requires the new odd ParityFrame to be copied into ParityC9.
+    test.run_characters(64);
+    test.expect_c4("t32a frame origin resets C4", 0);
+    test.expect_line("t32a odd frame origin seeds C9=1", 1);
+    test.expect_parity_frame("t32a frame origin toggles ParityFrame", true);
+    test.expect_parity_c9("t32a frame origin realigns ParityC9", true);
 }
 
 // N-9: INTERLACE SYNC (R8=1) offsets VSYNC by half a line but does not
@@ -6403,10 +6463,10 @@ void t28_configure(TestBench& test, std::uint8_t r5) {
 }
 
 static void t28_step_adjustment(TestBench& test, const char* tag,
-                                std::uint8_t c9) {
+                                std::uint8_t c9, std::uint8_t c5) {
     test.expect_c4(std::string(tag) + " C4", 3);
     test.expect_line(std::string(tag) + " C9", c9);
-    test.expect_c5(std::string(tag) + " C5", c9);
+    test.expect_c5(std::string(tag) + " C5", c5);
     test.run_characters(64);
 }
 
@@ -6419,7 +6479,8 @@ void t28_type1_addline_basic(TestBench& test) {
     }
     // Adjustment: C4=R4+1, C9 counts plainly, C5 counts the lines.
     for (unsigned i = 0; i < 4; ++i) {
-        t28_step_adjustment(test, "t28a frame 0 adjustment", static_cast<std::uint8_t>(i));
+        t28_step_adjustment(test, "t28a frame 0 adjustment",
+                            static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
     }
     // Section 19.6.2 p.216 + section 11.2.4 p.84: the additional line,
     // C4 incremented once more, C9 back at 0.
@@ -6429,21 +6490,29 @@ void t28_type1_addline_basic(TestBench& test) {
     // Origin: ParityFrame toggles (section 19.5.3 p.208), adjustment ends.
     test.run_characters(64);
     test.expect_c4("t28a frame 1 opens after the additional line", 0);
-    test.expect_line("t28a frame 1 opens at C9=0", 0);
+    test.expect_line("t28a odd frame 1 opens at C9=1", 1);
     test.expect_parity_frame("t28a frame 1 is odd", 1);
     test.expect_adjustment_inactive("t28a adjustment ended at the origin");
     // Frame 1 (odd): same rows and adjustment, but no additional line --
     // the last adjustment line is followed directly by the origin.
+    // IA-2's origin realignment sets ParityC9=1 for this odd frame.  The
+    // p.209 worked table starts the odd IVM frame at C9=1, and R9 odd
+    // retains that value at every subsequent row restart.
+    const std::array<std::array<std::uint8_t, 4>, 3> frame1_lines = {{
+        {{1, 3, 5, 7}}, {{1, 3, 5, 7}}, {{1, 3, 5, 7}}
+    }};
     for (unsigned i = 0; i < 12; ++i) {
         t27_step_plain(test, "t28a frame 1 line", static_cast<std::uint8_t>(i / 4),
-                       static_cast<std::uint8_t>((i % 4) * 2));
+                       frame1_lines[i / 4][i % 4]);
     }
     for (unsigned i = 0; i < 4; ++i) {
-        t28_step_adjustment(test, "t28a frame 1 adjustment", static_cast<std::uint8_t>(i));
+        t28_step_adjustment(test, "t28a frame 1 adjustment",
+                            static_cast<std::uint8_t>(i + 1), static_cast<std::uint8_t>(i));
     }
     test.expect_c4("t28a frame 2 opens directly (odd frame)", 0);
     test.expect_line("t28a frame 2 opens at C9=0", 0);
     test.expect_parity_frame("t28a frame 2 is even", 0);
+    test.expect_parity_c9("t28a frame 2 realigns ParityC9 even", 0);
 }
 
 // t28c: the same mechanism reached through INTERLACE SYNC (R8=1) -- the
@@ -6467,7 +6536,8 @@ void t28_type1_addline_interlace_sync(TestBench& test) {
                        static_cast<std::uint8_t>(i % 8));
     }
     for (unsigned i = 0; i < 4; ++i) {
-        t28_step_adjustment(test, "t28c frame 0 adjustment", static_cast<std::uint8_t>(i));
+        t28_step_adjustment(test, "t28c frame 0 adjustment",
+                            static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
     }
     // The additional line: C4 one past the last adjustment row, C9=0.
     test.expect_c4("t28c additional line C4 incremented once more", 4);
@@ -6484,7 +6554,8 @@ void t28_type1_addline_interlace_sync(TestBench& test) {
                        static_cast<std::uint8_t>(i % 8));
     }
     for (unsigned i = 0; i < 4; ++i) {
-        t28_step_adjustment(test, "t28c frame 1 adjustment", static_cast<std::uint8_t>(i));
+        t28_step_adjustment(test, "t28c frame 1 adjustment",
+                            static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
     }
     test.expect_c4("t28c frame 2 opens directly (odd frame)", 0);
     test.expect_parity_frame("t28c frame 2 is even", 0);
@@ -6501,10 +6572,11 @@ void t28_type1_addline_condition_false(TestBench& test) {
                        static_cast<std::uint8_t>((i % 4) * 2));
     }
     for (unsigned i = 0; i < 3; ++i) {
-        t28_step_adjustment(test, "t28b frame 0 adjustment", static_cast<std::uint8_t>(i));
+        t28_step_adjustment(test, "t28b frame 0 adjustment",
+                            static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
     }
     test.expect_c4("t28b no additional line when R9+1 is not a multiple of R5", 0);
-    test.expect_line("t28b frame 1 opens at C9=0", 0);
+    test.expect_line("t28b odd frame 1 opens at C9=1", 1);
     test.expect_parity_frame("t28b frame 1 is odd", 1);
     test.expect_adjustment_inactive("t28b adjustment ended at the origin");
 }
@@ -7427,6 +7499,9 @@ int main(int argc, char** argv) {
         {"t23b_type1_ivm_engages_from_snapshot_r8_3",
          "ACCC v1.10 section 19.8.2 p.225 with R8=3 snapshot-loaded; F10 ivm seeding",
          false, test_type1_ivm_engages_from_snapshot_r8_3},
+        {"t32a_type1_frame_origin_realigns_parity_c9",
+         "ACCC v1.11 French section 19.5.3 p.209; BL-038/IA-2",
+         false, test_type1_frame_origin_realigns_parity_c9},
         {"t23c_interlace_sync_leaves_ra_plain",
          "ACCC v1.10 section 19.3.2.1 p.199 (INTERLACE SYNC does not touch the raster address); F10/N-9",
          false, test_interlace_sync_leaves_ra_plain},
