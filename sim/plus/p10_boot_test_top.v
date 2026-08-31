@@ -380,7 +380,7 @@ module p10_boot_test_top
 			1'b0
 `endif
 		),
-		.sync_filter(1'b0),
+		.sync_filter(2'd2),  // raw path: benches predate the filter modes
 		.sna_load(1'b0),
 		.sna_cpu_dir(212'd0),
 		.sna_crtc_addr(5'd0),
