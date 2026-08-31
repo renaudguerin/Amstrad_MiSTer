@@ -226,6 +226,26 @@ this core already uses it once (`d1P1OR,Vertical Crop,...`) and currently wires 
 bits (`.status_menumask({en270p,1'b0})`). Extending the mask to gate the Plus options on Plus
 mode, and the classic model options on classic mode, is a contained change.
 
+**The menu problem is wider than greying out.** Conditional visibility via `status_menumask`
+solves impossible combinations, but two further asks stand:
+
+- **Group items into presets.** Selecting a machine should carry its sensible companion
+  settings rather than leaving the user to assemble a valid machine from orthogonal switches.
+- **Remove granularity where it does not earn its place.** Not every option needs to be
+  independently settable; some exist only because it was easier to add a switch than to decide.
+
+Both are design work, not mechanism work, and belong in the same pass as the mask wiring.
+
+**Two upstream oddities worth resolving in that pass**, both inherited rather than introduced
+here:
+
+- `"F7,E??,Load CPC464 ROM;"` exists because `boot.rom` ends with OS464 + BASIC464 and the only
+  way to change that half is to rebuild the whole 160 KB blob. The separate slot is a targeted
+  workaround for exactly the pain B10 describes, added upstream rather than in this fork.
+- `"R[32],Reset & Detach Cartridge;"` drives `plus_cartridge_memory`'s `detach`, so it *is*
+  about Plus CPR cartridges, and it additionally clears the Dandanator EEPROM-loaded flag. The
+  label does not say either. It should be Plus-conditional and more clearly named.
+
 **Architect brief (for a strong model — this is the pass to run before B2/B3):**
 
 1. **Sync and blanking ownership.** Given B1, who should own HBLANK/VBLANK, and what is the
