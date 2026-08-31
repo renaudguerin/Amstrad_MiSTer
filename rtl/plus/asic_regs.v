@@ -103,7 +103,7 @@ module asic_regs
 	// granted edge.
 	input               sprq_req,
 	input        [10:0] sprq_addr,
-	output reg   [7:0]  sprq_data,
+	output       [7:0]  sprq_data,
 	output reg          sprq_ack,
 
 	// Pixel-data access indicator (reference §5 blanking side effect):
@@ -143,9 +143,9 @@ module asic_regs
 	//------------------------------------------------------------------
 
 	// Sprite pixel RAM: 16 sprites × 256 bytes, low nibble used (§3/§5).
-	// No reset branch: contents are undefined at POR per the reference;
-	// FPGA power-up init provides the defined-zero model assumption.
-	reg [3:0] spr_ram [0:4095];
+	// Dedicated M10K-compatible dual-port module (plus_sprite_ram).
+	wire [3:0] spr_host_rdata;
+	wire [7:0] spr_video_rdata;
 
 	// Sprite attribute registers (§3/§4):
 	//   &6000 + 8*n: X low  8 bits
@@ -372,11 +372,7 @@ module asic_regs
 		end
 
 		if (!reset && eff_cs) begin
-			if (eff_wsel == 2'b00) begin
-				// Sprite pixel data, masked to the low nibble (§3/§4).
-				spr_ram[eff_addr[11:0]] <= eff_data[3:0];
-			end
-			else if (eff_wsel == 2'b10) begin
+			if (eff_wsel == 2'b10) begin
 				if (eff_r_sprreg) begin
 					case (eff_addr[2:0])
 					3'd0: spr_x_lo[eff_addr[6:3]] <= eff_data;
@@ -470,7 +466,7 @@ module asic_regs
 		if (asic_cs && mem_rd) begin
 			if (wsel == 2'b00) begin
 				// Sprite pixel RAM reads return written & &0F (§4).
-				rdata   = {4'h0, spr_ram[A[11:0]]};
+				rdata   = {4'h0, spr_host_rdata};
 				renable = 1'b1;
 			end
 			else if (wsel == 2'b10) begin
@@ -567,22 +563,36 @@ module asic_regs
 	//------------------------------------------------------------------
 	// P4 sprite-engine services.
 	//
-	// Row fetch: a registered read of spr_ram sharing the array with the
-	// CPU port. The CPU wins every cycle (its readback path is
-	// combinational and cannot be delayed); a preempted grant simply
+	// Row fetch: a registered read of plus_sprite_ram. CPU reads
+	// preempt acknowledgement in asic_regs; a preempted grant simply
 	// does not assert ACK, and the engine holds REQ until served.
 	//------------------------------------------------------------------
 	wire sprq_grant = sprq_req && !(asic_cs && mem_rd);
 
+	wire spr_host_wr = !reset && eff_cs && (eff_wsel == 2'b00);
+	wire spr_host_rd = asic_cs && mem_rd && (wsel == 2'b00);
+
+	plus_sprite_ram spr_ram_inst (
+		.clk        (clk),
+		.reset      (reset),
+		.host_rd    (spr_host_rd),
+		.host_wr    (spr_host_wr),
+		.host_addr  (eff_addr[11:0]),
+		.host_wdata (eff_data[3:0]),
+		.host_rdata (spr_host_rdata),
+		.video_rd   (sprq_req),
+		.video_addr (sprq_addr),
+		.video_rdata(spr_video_rdata)
+	);
+
+	assign sprq_data = spr_video_rdata;
+
 	always @(posedge clk) begin
 		if (reset) begin
-			sprq_data <= 8'd0;
 			sprq_ack  <= 1'b0;
 		end
 		else begin
 			sprq_ack  <= sprq_grant;
-			sprq_data <= {spr_ram[{sprq_addr, 1'b1}],
-			              spr_ram[{sprq_addr, 1'b0}]};
 		end
 	end
 

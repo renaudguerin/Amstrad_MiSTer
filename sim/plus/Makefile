@@ -123,6 +123,7 @@ P1VID_TEST_BIN := $(P1VID_OBJ_DIR)/p1_video_tests
 # nets at instance pins, the original review-finding bug class) and UNDRIVEN.
 MBOARD_CORE_RTL := $(abspath ../../rtl/Amstrad_motherboard.v) \
 	$(abspath ../../rtl/plus/asic_regs.v) \
+	$(abspath ../../rtl/plus/plus_sprite_ram.v) \
 	$(abspath motherboard_lint_stubs.v) \
 	$(abspath ../../rtl/CRTC.v) \
 	$(abspath ../../rtl/crtc_type0_engine.v) \
@@ -153,10 +154,20 @@ MOBO_TEST_BIN := $(MOBO_OBJ_DIR)/p1_mobo_bench_tests
 
 # P2 ASIC register page leaf (exhaustive decode/mask/mirror/open-bus).
 AREGS_TOP      := asic_regs
-AREGS_RTL      := $(abspath ../../rtl/plus/asic_regs.v)
+AREGS_RTL      := $(abspath ../../rtl/plus/asic_regs.v) \
+	$(abspath ../../rtl/plus/plus_sprite_ram.v)
 AREGS_OBJ_DIR  := obj_dir/asic_regs
 AREGS_TEST_SRC := $(abspath asic_regs_test.cpp)
 AREGS_TEST_BIN := $(AREGS_OBJ_DIR)/asic_regs_tests
+
+# P10j sprite pixel storage leaf: two synchronous 2Kx4 banks forming the
+# 4096x4 ASIC image, with independent host and video read ports.
+SPRRAM_TOP      := plus_sprite_ram
+SPRRAM_RTL      := $(abspath ../../rtl/plus/plus_sprite_ram.v)
+SPRRAM_OBJ_DIR  := obj_dir/plus_sprite_ram
+SPRRAM_TEST_SRC := $(abspath plus_sprite_ram_test.cpp)
+SPRRAM_TEST_BIN := $(SPRRAM_OBJ_DIR)/plus_sprite_ram_tests
+SPRRAM_VENDOR_STUB := $(abspath altsyncram_lint_stub.v)
 
 # P3 programmable raster interrupt directed vectors (exact-cycle).
 PRI_TOP      := asic_ga_timing
@@ -177,6 +188,7 @@ SPRITES_TEST_BIN := $(SPRITES_OBJ_DIR)/asic_sprites_tests
 SPRREGS_TOP      := p4_sprites_regs_test_top
 SPRREGS_TOP_SRC  := $(abspath p4_sprites_regs_test_top.v)
 SPRREGS_RTL      := $(abspath ../../rtl/plus/asic_regs.v) \
+	$(abspath ../../rtl/plus/plus_sprite_ram.v) \
 	$(abspath ../../rtl/plus/asic_sprites.v)
 SPRREGS_OBJ_DIR  := obj_dir/p4_sprites_regs
 SPRREGS_TEST_SRC := $(abspath p4_sprites_regs_test.cpp)
@@ -193,7 +205,7 @@ DMA_TEST_BIN := $(DMA_OBJ_DIR)/asic_dma_tests
 P8_OBJ_DIR  := obj_dir/plus_p8
 P8_TEST_SRC := $(abspath plus_p8_test.cpp)
 P8_TEST_BIN := $(P8_OBJ_DIR)/plus_p8_tests
-P8_RTL      := $(abspath plus_p8_test_top.v) $(abspath ../../rtl/i8255.v) $(abspath ../../rtl/plus/plus_sna_parser.v) $(abspath ../../rtl/plus/plus_model_select.v) $(abspath ../../rtl/plus/plus_fdc_decode.v) $(abspath ../../rtl/plus/asic_regs.v) $(abspath ../../rtl/plus/plus_mmu.v) $(abspath ../../rtl/plus/asic_unlock.v)
+P8_RTL      := $(abspath plus_p8_test_top.v) $(abspath ../../rtl/i8255.v) $(abspath ../../rtl/plus/plus_sna_parser.v) $(abspath ../../rtl/plus/plus_model_select.v) $(abspath ../../rtl/plus/plus_fdc_decode.v) $(abspath ../../rtl/plus/asic_regs.v) $(abspath ../../rtl/plus/plus_sprite_ram.v) $(abspath ../../rtl/plus/plus_mmu.v) $(abspath ../../rtl/plus/asic_unlock.v)
 
 # P10a real-T80 production CPR boot harness
 P10BOOT_TOP      := p10_boot_test_top
@@ -250,6 +262,7 @@ P10DMAMOBO_TOP_SRC  := $(abspath p10_dma_mobo_test_top.v)
 P10DMAMOBO_CPU      := $(abspath t80pa_dma_mobo_cpu.v)
 P10DMAMOBO_RTL      := $(abspath ../../rtl/Amstrad_motherboard.v) \
 	$(abspath ../../rtl/plus/asic_regs.v) \
+	$(abspath ../../rtl/plus/plus_sprite_ram.v) \
 	$(abspath ../../rtl/plus/asic_ga_timing.v) \
 	$(abspath ../../rtl/plus/asic_video.v) \
 	$(abspath ../../rtl/plus/asic_sprites.v) \
@@ -270,14 +283,15 @@ P10DMAMOBO_TEST_BIN := $(P10DMAMOBO_OBJ_DIR)/p10_dma_mobo_tests
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
-	$(AREGS_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN)
+	$(AREGS_TEST_BIN) $(SPRRAM_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN)
 
 TEST_BINS += $(P10INPUT_TEST_BIN) $(P10DMA_TEST_BIN) $(P10DMAMOBO_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
 
-.PHONY: all build test lint motherboard-lint p4-sprites-regs clean \
+.PHONY: all build test lint motherboard-lint p4-sprites-regs plus-sprite-ram \
+	plus-sprite-ram-lint clean \
 	p10-dma-ppi-bench p10-dma-ppi-lint p10-dma-mobo-bench p10-dma-mobo-lint
 
 all: test
@@ -310,6 +324,17 @@ p10-dma-mobo-lint:
 p4-sprites-regs: $(SPRREGS_TEST_BIN)
 	./$(SPRREGS_TEST_BIN)
 
+plus-sprite-ram: $(SPRRAM_TEST_BIN)
+	./$(SPRRAM_TEST_BIN)
+
+plus-sprite-ram-lint:
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(SPRRAM_TOP) -Wall $(SPRRAM_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		-DPLUS_SPRITE_RAM_ALTSYNCRAM --top-module $(SPRRAM_TOP) \
+		-Wall -Wno-UNUSEDPARAM -Wno-PINCONNECTEMPTY \
+		-Wno-DECLFILENAME -Wno-DEFPARAM $(SPRRAM_RTL) $(SPRRAM_VENDOR_STUB)
+
 test: $(TEST_BINS)
 	./$(ASIC_TEST_BIN)
 	./$(ASICVID_TEST_BIN)
@@ -325,6 +350,7 @@ test: $(TEST_BINS)
 	./$(P1VID_TEST_BIN)
 	./$(MOBO_TEST_BIN)
 	./$(AREGS_TEST_BIN)
+	./$(SPRRAM_TEST_BIN)
 	./$(PRI_TEST_BIN)
 	./$(SPRITES_TEST_BIN)
 	./$(SPRREGS_TEST_BIN)
@@ -431,6 +457,11 @@ $(AREGS_TEST_BIN): $(AREGS_RTL) $(AREGS_TEST_SRC) Makefile | $(OBJ_DIR)
 		--Mdir $(AREGS_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(AREGS_TEST_BIN)) $(AREGS_RTL) $(AREGS_TEST_SRC)
 
+$(SPRRAM_TEST_BIN): $(SPRRAM_RTL) $(SPRRAM_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(SPRRAM_TOP) \
+		--Mdir $(SPRRAM_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(SPRRAM_TEST_BIN)) $(SPRRAM_RTL) $(SPRRAM_TEST_SRC)
+
 $(MOBO_TEST_BIN): $(MOBO_TEST_TOP) $(MOBO_RTL) $(MOBO_CPU) $(MOBO_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR --public-flat-rw \
 		--top-module $(MOBO_TOP) \
@@ -487,6 +518,12 @@ lint: motherboard-lint
 		--top-module $(ASIC_TOP) -Wall $(ASIC_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(AREGS_TOP) -Wall $(AREGS_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(SPRRAM_TOP) -Wall $(SPRRAM_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		-DPLUS_SPRITE_RAM_ALTSYNCRAM --top-module $(SPRRAM_TOP) \
+		-Wall -Wno-UNUSEDPARAM -Wno-PINCONNECTEMPTY \
+		-Wno-DECLFILENAME -Wno-DEFPARAM $(SPRRAM_RTL) $(SPRRAM_VENDOR_STUB)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(ASICVID_TOP) -Wall $(ASICVID_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
