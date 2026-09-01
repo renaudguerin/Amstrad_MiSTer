@@ -349,15 +349,35 @@ void test_masked_retrigger_preserves_watchdog_period() {
     if (!sample.no_hsync)
         fail("masked retrigger fixture never entered missing-sync fallback");
 
-    bool saw_blank = false;
-    bool saw_active = false;
+    std::vector<unsigned> rising_edges;
+    std::vector<unsigned> falling_edges;
+    bool previous_blank = sample.hblank != 0;
     for (unsigned tick = 0; tick < 2300; ++tick) {
         sample = tb.tick_ce(true, false);
-        saw_blank |= sample.hblank != 0;
-        saw_active |= sample.hblank == 0;
+        const bool blank = sample.hblank != 0;
+        if (!previous_blank && blank) rising_edges.push_back(tick);
+        if (previous_blank && !blank) falling_edges.push_back(tick);
+        previous_blank = blank;
     }
-    if (!saw_blank || !saw_active)
-        fail("masked short retrigger poisoned the learned Full cadence");
+    if (rising_edges.size() < 3)
+        fail("masked short retrigger did not recover three Full HBLANK starts");
+    for (unsigned edge = 1; edge < 3; ++edge) {
+        if (rising_edges[edge] - rising_edges[edge - 1] != kLineCeTicks)
+            fail("masked short retrigger changed the recovered 256-CE period");
+    }
+    for (unsigned edge = 0; edge < 3; ++edge) {
+        auto falling = falling_edges.end();
+        for (auto candidate = falling_edges.begin(); candidate != falling_edges.end();
+             ++candidate) {
+            if (*candidate > rising_edges[edge]) {
+                falling = candidate;
+                break;
+            }
+        }
+        if (falling == falling_edges.end() ||
+            *falling - rising_edges[edge] != kFullBlankTicks)
+            fail("masked short retrigger changed the recovered 64-CE blank width");
+    }
 }
 
 void test_production_mode_selector() {
