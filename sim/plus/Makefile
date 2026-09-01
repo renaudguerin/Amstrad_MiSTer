@@ -19,6 +19,16 @@ MODEL_OBJ_DIR  := obj_dir/plus_model_select
 MODEL_TEST_SRC := $(abspath plus_model_select_test.cpp)
 MODEL_TEST_BIN := $(MODEL_OBJ_DIR)/plus_model_select_tests
 
+# B6 menu capability mask: exercise the production helper in Amstrad.sv
+# through the same Plus model decoder used by the core.
+B6_MENU_TOP      := b6_menu_mask_test_top
+B6_MENU_TOP_SRC  := $(abspath b6_menu_mask_test_top.v)
+B6_MENU_RTL      := $(abspath ../../Amstrad.sv) \
+	$(abspath ../../rtl/plus/plus_model_select.v)
+B6_MENU_OBJ_DIR  := obj_dir/b6_menu_mask
+B6_MENU_TEST_SRC := $(abspath b6_menu_mask_test.cpp)
+B6_MENU_TEST_BIN := $(B6_MENU_OBJ_DIR)/b6_menu_mask_tests
+
 DAN_BOUNDS_TOP      := dandanator_loader_bounds
 DAN_BOUNDS_RTL      := $(abspath ../../rtl/dandanator/dandanator_loader_bounds.v)
 DAN_BOUNDS_OBJ_DIR  := obj_dir/dandanator_loader_bounds
@@ -305,7 +315,7 @@ P10DMAMOBO_OBJ_DIR  := obj_dir/p10_dma_mobo
 P10DMAMOBO_TEST_SRC := $(abspath p10_dma_mobo_test.cpp)
 P10DMAMOBO_TEST_BIN := $(P10DMAMOBO_OBJ_DIR)/p10_dma_mobo_tests
 
-TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(LEGACY_CART_TEST_BIN) $(MEMORY_TEST_BIN) \
+TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(B6_MENU_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(LEGACY_CART_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
 	$(AREGS_TEST_BIN) $(SPRRAM_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN) $(B7_TEST_BIN)
@@ -318,11 +328,14 @@ CXXFLAGS ?= -std=c++17 -O2
 .PHONY: all build test lint motherboard-lint p4-sprites-regs plus-sprite-ram \
 	plus-sprite-ram-lint clean \
 	p10-dma-ppi-bench p10-dma-ppi-lint p10-dma-mobo-bench p10-dma-mobo-lint \
-	b7-dark-silicon b7-dark-silicon-audit
+	b7-dark-silicon b7-dark-silicon-audit b6-menu-mask
 
 all: test
 
 build: $(TEST_BINS)
+
+b6-menu-mask: $(B6_MENU_TEST_BIN)
+	./$(B6_MENU_TEST_BIN)
 
 # Convenience alias; the bench itself runs in the default gate.
 p1-video-bench: $(P1VID_TEST_BIN)
@@ -402,6 +415,7 @@ test: $(TEST_BINS)
 	./$(ASIC_TEST_BIN)
 	./$(ASICVID_TEST_BIN)
 	./$(MODEL_TEST_BIN)
+	./$(B6_MENU_TEST_BIN)
 	./$(DAN_BOUNDS_TEST_BIN)
 	./$(LEGACY_CART_TEST_BIN)
 	./$(MEMORY_TEST_BIN)
@@ -445,6 +459,12 @@ $(MODEL_TEST_BIN): $(MODEL_RTL) $(MODEL_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(MODEL_TOP) \
 		--Mdir $(MODEL_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(MODEL_TEST_BIN)) $(MODEL_RTL) $(MODEL_TEST_SRC)
+
+$(B6_MENU_TEST_BIN): $(B6_MENU_TOP_SRC) $(B6_MENU_RTL) $(B6_MENU_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) --cc --exe --build --language 1800-2017 -Wno-fatal -I$(abspath ../..) \
+		--top-module $(B6_MENU_TOP) --Mdir $(B6_MENU_OBJ_DIR) \
+		-CFLAGS "$(CXXFLAGS)" -o $(notdir $(B6_MENU_TEST_BIN)) \
+		$(B6_MENU_TOP_SRC) $(B6_MENU_RTL) $(B6_MENU_TEST_SRC)
 
 $(DAN_BOUNDS_TEST_BIN): $(DAN_BOUNDS_RTL) $(DAN_BOUNDS_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(DAN_BOUNDS_TOP) \

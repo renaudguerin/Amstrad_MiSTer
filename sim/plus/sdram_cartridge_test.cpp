@@ -819,8 +819,8 @@ void test_top_level_wiring(TestState &test) {
     test.check(source.find("cpr_download = ioctl_download && (ioctl_index == 8)") !=
                    std::string::npos,
                "the CPR stream must own its own ioctl index (8)");
-    test.check(source.find("\"F8,CPR,Load Plus cartridge;\"") != std::string::npos,
-               "the OSD must offer a CPR cartridge entry");
+    test.check(source.find("\"d2F8,CPR,Load Plus cartridge;\"") != std::string::npos,
+               "the OSD must offer CPR only for a selected Plus model");
     test.check(source.find("| cpr_ioctl_wait") != std::string::npos,
                "parser backpressure must join the ioctl download throttle");
     test.check(source.find("wire cart_load_begin = 1'b0") == std::string::npos,
