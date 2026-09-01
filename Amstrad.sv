@@ -1228,7 +1228,10 @@ plus_cartridge_memory cartridge_memory
 (
 	.clk(clk_sys),
 	.cold_reset(reset_base),
-	.detach(status[32]),
+	// B6: Reset & Detach Cartridge is a Dandanator-only control.  The Plus
+	// image is replaced atomically by CPR loads and keeps its module-level
+	// detach API for standalone users without exposing it here.
+	.detach(1'b0),
 
 	.load_begin(cart_load_begin),
 	.load_commit(cart_load_commit),

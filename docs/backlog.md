@@ -299,7 +299,9 @@ here:
   workaround for exactly the pain B10 describes, added upstream rather than in this fork.
 - `"R[32],Reset & Detach Cartridge;"` is an upstream Dandanator control (added by `9da7bf7`,
   "add Dandanator") that this fork additionally wired to `plus_cartridge_memory`'s `detach`.
-  **Decision, 2026-09-01: revert it to Dandanator-only and drop the Plus wiring.** Reasoning:
+  **Done 2026-09-01: reverted to Dandanator-only and dropped the Plus wiring.** The production
+  wiring fixture requires the Plus service's detach input to remain inactive while retaining
+  `status[32]` on the Dandanator lifecycle gate. Reasoning:
 
   - A CPR load already cold-boots. `Amstrad.sv` holds `reset` across the whole load
     (`reset <= reset_base | cpr_download | cpr_finish_pending | ...`), so detaching is not
@@ -421,8 +423,8 @@ cause: the classic MMU's ROM enable is forced inactive in Plus mode and CPR page
 discard classic expansion-ROM state that is meant to survive a soft reset.
 
 **Detach is not the answer, and neither is any existing reset.** A CPR load already asserts the
-main `reset` for its whole duration, and the "Reset & Detach Cartridge" control (being removed,
-see B6) never touched `rom_map` either. Nothing in the design clears it short of reconfiguring
+main `reset` for its whole duration, and the "Reset & Detach Cartridge" control (now
+Dandanator-only; see B6) never touched `rom_map` either. Nothing in the design clears it short of reconfiguring
 the FPGA. Do not close this by pointing at a reset that already runs.
 
 The sibling-state audit instead found a live route: `dan_eeprom_loaded` also persisted from a

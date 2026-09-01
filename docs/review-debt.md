@@ -5,14 +5,15 @@
 - **B6 conditional menu visibility — OPEN, no cross-provider review,
   2026-09-01.** A Luna Max bounded implementation adds the production
   `plus_menu_capability_mask`, conditionally prefixes the existing OSD entries,
-  and exercises all four machine selections through the real
-  `plus_model_select` decoder. A fresh parent Sol review corrected the classic
+  exercises all four machine selections through the real `plus_model_select`
+  decoder, and restores `status[32]` to Dandanator-only ownership. A fresh parent Sol review corrected the classic
   media-capability expression before acceptance, renamed the production helper,
   moved its declaration ahead of the HPS connection, and caught the stale CPR
   top-wiring assertion through the full gate. A reviewer should check hardest
   MiSTer's `d<n>` prefix grammar and bit ordering; that classic mode retains DSK
   and tape; GX4000 exposes neither, 6128+ only DSK/FDC, and 464+ only tape; and
-  hidden fields retain their values without colliding with crop mask bit 1.
+  hidden fields retain their values without colliding with crop mask bit 1; and
+  that no ordinary top-level control can invalidate a committed Plus CPR image.
   Focused mask, full simulation, and lint gates pass. Actual OSD rendering is a
   UI/hardware validation residual, not review closure. Claude was quota-limited
   and Gemini remained bridge-unavailable, so no cross-provider verdict exists.

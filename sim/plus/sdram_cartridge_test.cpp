@@ -780,6 +780,19 @@ void test_top_level_wiring(TestState &test) {
                "Amstrad top must consume the cartridge SDRAM responses");
     test.check(source.find("plus_cartridge_memory cartridge_memory") != std::string::npos,
                "Amstrad top must instantiate the cartridge memory service");
+    const auto cartridge_start =
+        source.find("plus_cartridge_memory cartridge_memory");
+    const auto cartridge_end = source.find(");", cartridge_start);
+    const std::string cartridge_service =
+        cartridge_start != std::string::npos &&
+                cartridge_end != std::string::npos
+            ? source.substr(cartridge_start,
+                            cartridge_end - cartridge_start)
+            : std::string();
+    test.check(!cartridge_service.empty() &&
+                   cartridge_service.find(".detach(1'b0)") != std::string::npos &&
+                   cartridge_service.find("status[32]") == std::string::npos,
+               "Plus cartridge detach must stay inactive; status[32] belongs only to Dandanator");
     test.check(source.find(".cpu_valid(plus_cart_valid)") != std::string::npos,
                "the service CPU port must face the Plus MMU read bridge");
     test.check(source.find("plus_mmu plus_mmu") != std::string::npos,

@@ -18,7 +18,9 @@ gating is rejected for now because it cannot reduce fitted resources and is unsa
 current non-atomic model/reset transition. The first bounded slice conditionally hides Plus-only,
 classic-only, FDC, and tape menu entries from the selected model's capabilities while preserving
 all status encodings and hidden values. Its focused four-model mask fixture, full simulation, and
-lint pass. MiSTer OSD rendering remains a hardware/UI confirmation rather than local proof.
+lint pass. `Reset & Detach Cartridge` is also restored to its original Dandanator-only scope;
+the Plus CPR image can now be replaced only through its atomic loader/reset lifecycle. MiSTer
+OSD rendering remains a hardware/UI confirmation rather than local proof.
 
 ## 2026-09-01 combined accuracy/Plus integration artifact
 
