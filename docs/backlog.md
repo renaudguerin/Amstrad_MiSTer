@@ -243,6 +243,14 @@ document, the CPCWiki ASIC pages, and Longshot himself are the real references.
 
 **Priority: high. This is the architect-pass item.**
 
+**ARCHITECTURE COMPLETE 2026-09-01:** `docs/b6-architecture-decision.md` records the
+production-path audit and staged decision. Keep one dynamically selectable core; do not gate
+register writes or clocks from raw `plus_mode`, because this cannot reduce fitted resources and
+would create stale-state hazards before `Reset & apply model`. Implement conditional menu
+visibility first. Keep scaler acquisition on the Full tuple; any B1 follow-up must separate raw
+RGB/sync phase before `crt_filter` rather than sending live HBLANK into geometry measurement.
+The prose below is retained as the problem statement and historical design brief.
+
 Both machines are always instantiated and always clocked; only their outputs are muxed.
 Concretely, the classic `CRTC` and `asic_video` **both receive every CRTC register write in
 both modes** — each carries `.ENABLE(io_rd | io_wr)` with no `plus_mode` gate
