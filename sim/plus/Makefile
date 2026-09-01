@@ -699,12 +699,6 @@ lint: motherboard-lint
 		-Wno-DECLFILENAME -Wno-CASEX \
 		-Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
 		$(P10BOOT_TEST_TOP) $(P10BOOT_RTL)
-	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
-		--top-module Amstrad_motherboard -Wall \
-		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
-		-Wno-DECLFILENAME -Wno-CASEX \
-		-Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
-		$(MBOARD_LINT_RTL)
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)
