@@ -32,7 +32,7 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
 - **Acceptance:** GPT-5.6 Sol xhigh authored the two-file delta; guarded Gemini 3.7 Flash high
   independently returned CLEAR. Full simulation reports 181 required classic passes, lint
   passes, and exact soak `0x87a9d80a91381c9b` passes. Real type-0 hardware confirmation
-  remains open. Full record: `ia1-r3-terminal-hsync-independent-review.md`.
+  remains open. Full record: `archive/ia1-r3-terminal-hsync-independent-review.md`.
 
 ## IA-2 — Type-1 frame-origin ParityC9 realignment — COMPLETE (source model)
 
@@ -62,7 +62,7 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   hardware; SHAKER or pin-trace confirmation remains open. The load-bearing stage-B
   priority finding was fixed and the narrow remediation re-review returned CLEAR using
   Gemini 3.7 Flash high through the guarded bridge; Claude was quota-unavailable. Full
-  record: `ia2-frame-origin-independent-review.md`.
+  record: `archive/ia2-frame-origin-independent-review.md`.
 
 ## IA-3 — Type-0 R6 live condition at C0=R1 — COMPLETE (source model)
 
@@ -84,7 +84,7 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   add the new latch to the soak projection was accepted. Full simulation reports 182
   required classic passes, lint passes, exact soak `0x21bbf9c29ab08413` passes, and
   whitespace checks pass. Real type-0 hardware confirmation remains open. Full record:
-  `ia3-r6-live-independent-review.md`.
+  `archive/ia3-r6-live-independent-review.md`.
 
 ## IA-4 — Type-0 R4-equality history during additional management — COMPLETE (source model)
 
@@ -108,7 +108,7 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   GPT-5.6 Sol high review returned CLEAR. Full simulation reports 178 required classic
   passes, lint passes, and exact soak `0x654a244c2cce6e0b` remains unchanged because its
   fixed random schedule does not reach this history. Hardware confirmation remains open.
-  Full record: `ia4-r4-history-independent-review.md`.
+  Full record: `archive/ia4-r4-history-independent-review.md`.
 
 ## IA-5 — U.S.-ROM GA interrupt/VSYNC scanline phase — COMPLETE (hardware discriminator)
 
@@ -174,7 +174,7 @@ hardware confirmation. Classic CRTC and Plus/GX4000 work remain separate streams
   `0xd6bc1649ff2058a1` passes, and whitespace checks pass. French section 13.7.2.1's
   non-last-line overflow and positive-R5/interlace variants remain outside this bounded
   source model; real hardware confirmation remains open. Full record:
-  `ia6-r0-widen-independent-review.md`.
+  `archive/ia6-r0-widen-independent-review.md`.
 
 ## Items deliberately not promoted to code work
 

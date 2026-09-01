@@ -234,7 +234,7 @@ the type-split refactor milestone (it forces a full read anyway).
       The pass-1 and pass-2 records now exist; the pass-2 remediation commits await the
       user's next independent confirmation pass before the rows clear.
 - [x] Whole-branch independent review ran 2026-08-23
-      (`accuracy/accc-review-and-fixes-independent-review.md`): per-type split accepted as
+      (`accuracy/archive/accc-review-and-fixes-independent-review.md`): per-type split accepted as
       sound (mux seams, latch cluster, holdoff, hcc==0 capture all confirmed; ~45.5M-sample
       differential reproduced). Its six issues fixed on `accc-review-and-fixes`: 90f0cda
       GA40010 co-sim manifest (+ lint/render proof), 72d7cf4 handoff/roadmap tip-grounding,
@@ -243,7 +243,7 @@ the type-split refactor milestone (it forces a full read anyway).
       6cfd4dd beforehand. At that pass-1 tip, gates were 87 required passes and soak hash
       `0x5b5004ff70148443`. Those resolutions awaited pass 2.
 - [x] Independent pass 2 preserved verbatim at
-      `accuracy/accc-review-and-fixes-independent-review-pass2.md` (reviewed tip
+      `accuracy/archive/accc-review-and-fixes-independent-review-pass2.md` (reviewed tip
       `0773ad47369f983094201c142122f6e2a1425d29`). All 11 findings were confirmed and
       remediated in focused commits: P0 cancellation/late-response safety (`c889142`) and
       load-time MMU waiting with a production-sized integrated vector (`a3dc85a`); exact
@@ -257,7 +257,7 @@ the type-split refactor milestone (it forces a full read anyway).
       `0xf5f8ae01ffdf928d`. GitHub Actions run `32645547100` is green at `f6f09f5`
       (simulation plus Quartus synthesis/package/upload). Fixes await reviewer confirmation.
 - [x] Independent pass-2 fixes verification (report title: pass 3) preserved verbatim at
-      `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md`.
+      `accuracy/archive/accc-review-and-fixes-independent-review-pass2-fixes-verification.md`.
       It reviewed `0773ad4..d64e449`, reran all five relevant gates, accepted all 11 fixes,
       and cleared every branch-level review row on 2026-08-23. No blocking issue was raised.
       Q1 (standalone GA40010 Makefile portability/warning policy) and Q3 (the R3=0 collision
@@ -322,7 +322,7 @@ the type-split refactor milestone (it forces a full read anyway).
 - [x] Independent pass 4 (F7/A1/A2 + Plus follow-ups + CI policy delta,
       `df9e72f..dd3467b`) — DONE 2026-08-23, verdict CLEAR WITH NON-BLOCKING
       FOLLOW-UPS; record preserved at
-      `accuracy/f7-plus-followups-independent-review.md`. Both outstanding
+      `accuracy/archive/f7-plus-followups-independent-review.md`. Both outstanding
       review-debt rows are cleared. All five findings remediated in the same
       pass: B6 early-clear comment, GA40010/u765 Tier-B classifier coverage
       (+tests+policy doc), status-doc hash/count refresh (current-status,
@@ -358,7 +358,7 @@ At end of any phase (or if the session must end), tick the checklist above, comm
 note the resume point in one line here: **resume point: pass-4 review complete and both
 review-debt rows cleared; the five findings are remediated on `accc-review-and-fixes`
 (engine comment, CI classifier coverage, status-doc refresh, author question 17, debt
-clearing + record at `accuracy/f7-plus-followups-independent-review.md`). The branch is
+clearing + record at `accuracy/archive/f7-plus-followups-independent-review.md`). The branch is
 NOT pushed: pushing will itself trigger full Tier B synthesis because the classifier edit
 is a self-triggering policy path — that run doubles as live validation of F-C. NEXT:
 push, require green CI (simulation + synthesis + required-gate), then stop for the user

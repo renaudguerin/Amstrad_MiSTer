@@ -97,7 +97,7 @@ now preserved and reproducible: `tools/split-differential/run.sh` (branch
 `docs/split-differential-evidence`, `c68459b`), which extracts the reference from git
 history automatically. An independently rerun capture against this branch's tip is at
 `docs/accuracy/evidence/split-differential-run-2026-08-23.log`; see also the independent
-review, `docs/accuracy/accc-review-and-fixes-independent-review.md`, which reproduced it.
+review, `docs/accuracy/archive/accc-review-and-fixes-independent-review.md`, which reproduced it.
 
 The one real bug it caught (fixed before any commit): the relocated type-0 partial-VSYNC
 holdoff latch initially applied its *set* path on R7 writes whose comparison was false

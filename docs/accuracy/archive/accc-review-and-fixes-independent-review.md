@@ -64,7 +64,7 @@ synthesis, but:
 - `docs/current-status.md:228-231` schedules F9 as future work.
 - `docs/implementation-roadmap.md:27-29` and `:301-313` repeat the obsolete count and queue.
 
-These are not harmless historical notes: `current-status.md` declares itself the fresh-session
+These are not harmless historical notes: `../../current-status.md` declares itself the fresh-session
 handoff. The resulting instructions can direct the next session onto completed or rejected
 work.
 

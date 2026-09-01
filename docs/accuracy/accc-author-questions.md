@@ -264,7 +264,7 @@ with it.
     "(C4 != R4 **by line end**)". Our model follows the end-state reading (`t13h` pins
     cancel-then-restore as NOT arming), on the grounds that a real comparator has no
     "was written" latch and §13.7.1.2 is the dedicated section (review finding F-7,
-    `f7-r0-widening-independent-review.md`). Please confirm which reading is right; SHAKER
+    `archive/f7-r0-widening-independent-review.md`). Please confirm which reading is right; SHAKER
     Module C `(1)` / D `(9)` can discriminate by restoring R9/R4 mid-extension before the
     widened line end.
 

@@ -121,7 +121,7 @@ header is right; the RTL and the assertion are wrong.
 
 **Fix.** Drop `&& tog_enter` from `line_poke`, and change
 `sim/sim_main.cpp:4640` from `expect_line_parity(… " off stage A C9.0 held", stage_b_pc9)` to
-`expect_line_parity(… " off stage A C9.0", off_a)`. `f10-implementation-notes.md:44-46` needs
+`expect_line_parity(… " off stage A C9.0", off_a)`. `../f10-implementation-notes.md:44-46` needs
 the same correction.
 
 **Evidence it is the assertion, not the RTL semantics, that pins this:** bite-test A below.
@@ -441,7 +441,7 @@ caveat as (D).
    with even R9 and R5 = 0 (there is currently none).
 3. **N-3 / N-2** — add `expect_ra` to the `t22` walk. One change closes the largest coverage
    gap in the type-0 half and pins the output mux.
-4. **N-1**, then the documentation corrections (`f10-implementation-notes.md:44-46`,
+4. **N-1**, then the documentation corrections (`../f10-implementation-notes.md:44-46`,
    `crtc_type1_engine.v:155-160`, N-5, N-13) and the CI tidy-ups (N-11, N-12).
 
 The `docs/review-debt.md` row for this branch is accurate and names four of the five areas I

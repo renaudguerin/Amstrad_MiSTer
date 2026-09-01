@@ -3,7 +3,7 @@
 > **Later evidence:** The author's direct 2026-08-31 answer to Q20 resolves N2 against the
 > free-running C4 model reviewed here. The subsequent failure-first `t08j` correction retains
 > adjustment/C5 while restoring the ordinary C4==R4 reset. This dated review remains an exact
-> verdict on its original target; see `accc-author-response-round2-2026-08-31.md`.
+> verdict on its original target; see `../accc-author-response-round2-2026-08-31.md`.
 
 **Date:** 2026-08-28  
 **Reviewed target:** branch `accuracy/f19-type0-c0-timing`, working-tree remediation over `7e7420d`  

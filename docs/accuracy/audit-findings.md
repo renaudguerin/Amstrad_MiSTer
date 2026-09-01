@@ -476,7 +476,7 @@ General implementation rules for all fix prompts:
   arm. Vectors `t13e`-`t13m` pin expiry, both precondition halves off the last line, the R9
   and R4 variants, restore, equal-value writes, display blanking at `C0==R1` on the extended
   line, and the live-type round-trip clearing of the hidden window. Cross-provider reviewed
-  (`f7-r0-widening-independent-review.md`; blocking findings F-1/F-2 remediated same day).
+  (`archive/f7-r0-widening-independent-review.md`; blocking findings F-1/F-2 remediated same day).
 - **Deliberately unmodeled / interpretation notes** (recorded per the same review):
   whether an arbitrary mid-frame widening write at `C0==R0` also extends its own line is left
   unmodeled pending sourced chronograms — the gate enforcing that boundary is exercised by
@@ -588,7 +588,7 @@ General implementation rules for all fix prompts:
   and the pp.219-224 tables (render-verified 2026-08-24) — including the RA (C9-VMA)
   column, all eight exit tables, the type-1 IVM frame-boundary continuity, and
   snapshot-loaded R8=3 activation. The stack was independently reviewed 2026-08-25
-  (`accuracy/f10-independent-review.md`; two blockings fixed, record has the remediation
+  (`accuracy/archive/f10-independent-review.md`; two blockings fixed, record has the remediation
   section). The old stepping/halving/field-OR
   approximation is removed; non-IVM behavior is bit-identical (t01-t20 unchanged; t09g's
   single RA expectation re-derived from §19.5.2).

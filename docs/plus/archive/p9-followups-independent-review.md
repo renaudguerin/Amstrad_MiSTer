@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-This review covers the implementation of review follow-up items N3, N4, and N5 from `docs/accuracy/ox-alpha-items-opus-review.md`, OSD menu grouping of CPR cartridge loading, and the creation of the hardware testing checklist:
+This review covers the implementation of review follow-up items N3, N4, and N5 from `docs/accuracy/archive/ox-alpha-items-opus-review.md`, OSD menu grouping of CPR cartridge loading, and the creation of the hardware testing checklist:
 
 1. **N3: CPR Parser Upper-Bound RIFF Length Tests (`sim/plus/plus_cpr_parser_test.cpp`)**:
    - `riff_len_valid` bounds check in `plus_cpr_parser.v` rejects `full_riff_len > 32'h01FFFFF7`.

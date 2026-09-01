@@ -43,6 +43,18 @@ indices/chunks over representative pages with a frozen model of the former
 inline decoder. No locale assets or visible menu
 states are introduced, preserving the documented asset/policy blocker.
 
+The exact B10 source/QIP tip `44eb1b782a21312c3447b3170eb0b168e7e23713`
+also passes GitHub Actions run `33482930072`: the required simulation gate and
+full-effort Quartus 17.0.2 Build 602 synthesis both succeeded, with setup
++0.511 ns, hold +0.248 ns and zero TNS. Fit is 22,513/41,910 ALMs (54%),
+26,417 registers, 701,596/5,662,720 block-memory bits (12%), 102/553 RAM
+blocks (18%), and 35/112 DSPs (31%). Artifact
+`Amstrad_20260901_44eb1b7.rbf` has SHA-256
+`d73f355a5ff3843cc4e4485921a1154e136ecf353e439ccfbb5816ccaf65a235`
+and is retained under `output_files/Amstrad-local-build-186-1-full/`. This is
+exact synthesis, timing and packaging evidence, not a ROM-locale decision or
+hardware confirmation.
+
 ## 2026-09-01 combined accuracy/Plus integration artifact
 
 Source-bearing integration SHA `ea0e0bd4a0c2557f6cce2c0e1e60b84d389bf101` combines the
@@ -79,40 +91,28 @@ own dates and are not evidence that later work was hardware-confirmed. The
 split, F6 Stage 1 full-character approximation, sampled-field soak expansion, production Plus
 P0 cartridge wiring, the simulation-only P1 CRTC3 foundation, the implemented F7/A1/A2
 classic work, F14/F15 classic closures, and the F16/F17/F18 closures (2026-08-26). On 2026-08-28,
-Claude Opus 5 completed an independent cross-provider re-review of all historical ox-alpha
-self-reviewed items (`de71808`, `da79915`+`1a1233f`, `cd47d7d`, `c4c3e0f`, `90aed07`, `c9f4a4e`,
-`accuracy/f7-rfd`, `plus/p1-followups`) and the open `hotfix/implicit-rgb-net` debt row, confirming
-all implementations (verdict CLEAR with non-blocking findings N1-N5 recorded in
-`docs/accuracy/ox-alpha-items-opus-review.md`) and clearing all review debt. On 2026-08-27, Longshot
-released **ACCC v1.11** incorporating feedback from our Round 1 audit (`docs/accuracy/accc-author-feedback-round1-2026-08-27.md`). Active Round 2 feedback is tracked in `docs/accuracy/accc-author-feedback.md`:
+Longshot released **ACCC v1.11** incorporating feedback from our Round 1 audit
+(`docs/accuracy/accc-author-feedback-round1-2026-08-27.md`). Active Round 2 feedback is tracked in
+`docs/accuracy/accc-author-feedback.md`. The author's 2026-08-31 response describes intended
+future corrections; the published v1.11 PDFs remain unchanged and no corrected full edition
+exists yet.
+
 Q12 is resolved by French v1.11's repeated-activation qualifier and becomes an English
 clarification. The author confirmed Q20's row-only C4 reset while R5=0 adjustment and C5 remain
 active; that behavior is now implemented and independently checked locally, while hardware
 confirmation and the separate ParityC9 residual remain open. Neither is new hardware evidence.
-The Round 2 documentation correction was independently reviewed CLEAR by Claude Opus 5 on
-2026-08-31; see [the review record](accuracy/accc-round2-documentation-independent-review.md).
-Historical
-implementation reviews remain cleared.
 A complete mechanical and multimodal comparison across all 295 pages (278 word-identical, 17 updated)
 resolved the author questions/errata, confirmed that our F15–F18 implementations match the corrected
 rules, and evaluated Finding **F19** (clarified as CRTC-2 specific §12.4.1 p.95, while CRTC 0 is confirmed to evaluate same-edge writes per §12.2 pp.92-94).
 Full diff and impact reports are in `docs/accuracy/accc-1.11-differences.md` and
 `docs/accuracy/f19-type0-c0-timing-todos.md`, with the repeatable process in
-`docs/accuracy/accc-update-procedure.md`. The earlier whole-branch reviews are recorded in
-`accuracy/accc-review-and-fixes-independent-review.md` (pass 1),
-`accuracy/accc-review-and-fixes-independent-review-pass2.md` (pass 2), and
-`accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md` (pass 3,
-which accepted all pass-2 remediations); the 2026-08-23 review of the F7/A1/A2 and Plus
-follow-up deltas is `accuracy/f7-plus-followups-independent-review.md`, and all
-historical rows covered by those reviews are cleared. On 2026-08-31 the Plus stream
-classified the P10 local RTL/test review chain as cleared through round two `d17a1bc` and
-round three `5275879`/`275a9a4`; the remaining top-level, timing, and hardware questions are
-validation residuals. The ACCC Round 2 documentation row is also cleared by the source-first
-review recorded in `accuracy/accc-round2-documentation-independent-review.md`. The
-§13.7.1.2 R0-widening trigger took two cross-provider
-passes recorded in `accuracy/f7-r0-widening-independent-review.md` — pass 1 returned NOT
-CLEAR on two blocking findings, pass 2 cleared the remediation on 2026-08-24 — and the
-branch is merged. The 2026-08-31 IA-1 through IA-6 source/model audit and 2026-09-01 Round 2
+`docs/accuracy/accc-update-procedure.md`.
+
+Settled pass-by-pass review records are indexed in the
+[accuracy archive](accuracy/archive/README.md) and
+[Plus archive](plus/archive/README.md); their cleared verdicts remain summarized in
+`docs/review-debt.md`. Those archives preserve provenance, not current status or hardware
+evidence. The 2026-08-31 IA-1 through IA-6 source/model audit and 2026-09-01 Round 2
 consequence/B1 work are also integrated: 192 classic vectors and all nine focused hybrid-
 blanking vectors pass, and the current soak hash is `0x2263c9fc44af4ee7`. The author-response
 work corrects Q20, type-0 short-line VSYNC qualification, type-1 interlace isolation, and
@@ -304,7 +304,7 @@ exact-tip synthesis/timing, and the open production/hardware gates are recorded.
 `accuracy/f14-f15-interlace` -- the F14 additional interlace line on both classic types and
 the F15 type-0 odd-R9 IVM counting with its VSYNC delay correction, fixtures `t27a`-`t27d`,
 `t28a`-`t28c`, `t29a`-`t29e`, independently reviewed by Codex with all four findings
-remediated (`accuracy/f14-f15-independent-review.md`) -- on top of the Plus P4 mobo-bench tip.
+remediated (`accuracy/archive/f14-f15-independent-review.md`) -- on top of the Plus P4 mobo-bench tip.
 **It has not been hardware-tested.**
 
 - Simulation at this hardware milestone: 175 required CRTC passes / 0 failed, all Plus
@@ -376,7 +376,7 @@ into this branch - P1 review follow-ups, the calibrated p1_video bench, the P2 A
 register page (asic_regs + motherboard integration + 4-bit RGB widening) and P3
 interrupts (PRI merged into asic_ga_timing, DCSR fields, IVR vector supply), on top
 of the F11h/t24 classic work. Both streams' independent reviews are complete and
-remediated (`docs/plus/p2p3-independent-review.md`, plus the F10/F11h records).
+remediated (`docs/plus/archive/p2p3-independent-review.md`, plus the F10/F11h records).
 **It has not been hardware-tested.**
 
 - Logic utilization 16,198 / 41,910 ALMs (39 %); 21,030 registers; 701,601 /
@@ -696,7 +696,7 @@ For a first MiSTer pass:
   question is resolved by the French v1.11 repeated-activation qualifier; local odd-C4
   transition fixtures and post-toggle timing validation remain separate. Residuals are in
   `accuracy/f10-implementation-notes.md`. The stack was independently reviewed 2026-08-25
-  (`accuracy/f10-independent-review.md`): NOT CLEAR on two blockings, both fixed with new
+  (`accuracy/archive/f10-independent-review.md`): NOT CLEAR on two blockings, both fixed with new
   vectors (`t23a`-`t23c`, `t22p`-`t22s`, RA column in `t22`); review-debt row cleared.
   All three remaining non-gated classic items named for this session are done (2026-08-25):
   the F11h closure, the t24 IVM VSYNC fixture family, and the CI-only `actions/checkout`
@@ -724,7 +724,7 @@ For a first MiSTer pass:
   `actions/checkout` bump landed as `4e776f1` (v4 → v7, standalone).
 
 - Independent review of the F11h+t24 work (Claude Opus 5 xhigh via the ask-claude bridge,
-  fresh session; record `accuracy/f11h-t24-independent-review.md`, review-debt row
+  fresh session; record `accuracy/archive/f11h-t24-independent-review.md`, review-debt row
   `accuracy/f11h-and-ivm-vsync-coverage`) returned NOT CLEAR on one blocking finding,
   **B-1**: the t24 fix had silently removed the type-1 IVM MID-VSYNC (p.208 schedules it on
   the ParityFrame-even frame) and no vector sampled the half-line phase. Remediated on this
@@ -1276,7 +1276,7 @@ HSYNC_start+6µs" is covered by construction here; [KT]'s conflicting
 "~10µs" measurement stays recorded as ⚠ ASIC-REF §7.
 
 Independent review (two passes, 2026-08-25, record in
-`docs/plus/p2p3-independent-review.md`): Claude Opus 5 xhigh on
+`docs/plus/archive/p2p3-independent-review.md`): Claude Opus 5 xhigh on
 invariance/PRI/seams returned five blockers — all real, headline being
 undeclared top-level wires that corrupted every ASIC-page read while
 Quartus warning 10236 sat inside green synthesis, and an intack-polarity/
@@ -1337,7 +1337,7 @@ than whichever older package a Linux distribution happens to carry.
   same-model independent review under the 2026-08-22 locked decision (cross-provider review
   unavailable on this harness); findings became action items A1-A5. The whole-diff review of
   this branch plus the type-split branch then ran on 2026-08-23
-  (`accuracy/accc-review-and-fixes-independent-review.md`): split RTL accepted as sound; its
+  (`accuracy/archive/accc-review-and-fixes-independent-review.md`): split RTL accepted as sound; its
   blocking findings (broken GA40010 co-sim manifest, stale handoff/F6 premises) and
   non-blocking ones (soak claim bounds, sweep leftovers) are addressed on this branch. New
   work here still deliberately takes no per-commit debt rows — stream branches cut from this
@@ -1375,9 +1375,9 @@ than whichever older package a Linux distribution happens to carry.
    implemented through the integrated GA fixture; re-test DSC4 and SHAKER
    `(TAB)` on hardware.
    F7 RFD (R5 route, B6 disarm, A1, A2) is implemented and independently reviewed
-   (`accuracy/f7-plus-followups-independent-review.md`), and the §13.7.1.2 R0-widening
+   (`accuracy/archive/f7-plus-followups-independent-review.md`), and the §13.7.1.2 R0-widening
    trigger is implemented with its blocking review findings remediated
-   (`accuracy/f7-r0-widening-independent-review.md`, vectors `t13e`-`t13m`). That branch
+   (`accuracy/archive/f7-r0-widening-independent-review.md`, vectors `t13e`-`t13m`). That branch
    passed its pass-2 cross-provider re-review on 2026-08-24 and is merged at `27078f4`, so
    F7's planned implementation is complete; the later Q4 recheck opens F17 for its C9=R9
    source-flag case. **D1 completed 2026-08-24** (digest re-verification + stale-

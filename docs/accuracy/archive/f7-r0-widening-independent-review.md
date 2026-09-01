@@ -75,7 +75,7 @@ at **`C0=6`, `C4=1`, `C9=0`** (measured, probe P-1).
 The assertion still holds, but only because `hcc_last` is false — which is `t13a`'s subject,
 not this vector's. The mid-frame-**at**-`C0==R0` gating (`line == crtc1_line_max && row ==
 R4_v_total` in `rfd_r0_widen_at_last_line`) is never exercised by any vector. That gate is the
-single guard `audit-findings.md` and the commit message rely on when declaring arbitrary
+single guard `../audit-findings.md` and the commit message rely on when declaring arbitrary
 mid-frame widening "deliberately unmodeled", so the coverage claim is not earned.
 
 **Action**: retime the fixture so the write lands on a genuine `C0==R0` edge off the last line
@@ -107,7 +107,7 @@ survives into the next line and can arm at *its* end. Type 1 accepts any `R0` (�
 ### F-6 · Low — the §8.6 R4-variant's second-frame consequence is neither modelled nor listed
 Digest §8.6 says that for the R4 variant, "on the second frame specifically, C4 is NOT reset
 to 0 (stuck C4 instead of a repeated line)". Nothing in the engine can suppress a C4 reset,
-`t13g` stops at the first frame, and `audit-findings.md` lists only the mid-frame
+`t13g` stops at the first frame, and `../audit-findings.md` lists only the mid-frame
 generalization as a deliberate omission. Add it to the stated scope.
 
 ### F-7 · Info — digest tension behind the `t13h` end-state reading is real and unrecorded
@@ -144,7 +144,7 @@ unchanged, but the "pins" wording overstates what the evidence supports.
 | 1. Completeness of the `hcc_end` consumer switch | **Finding F-1.** The line-event set is otherwise right: `hcc_next` derivation, wrapper `row_addr_r` increment, engine `line_new`, the `status_bit5` sample point, and the `!hcc_next` reload terms all key on the deferred end. The intended raw-only set (R5-route arm `:119`, A2 R4-at-entry caveat `:223`, trigger detection `:149`) is correctly raw. `rfd_r0_arm` `:157` is raw and safe (F-4). Type-0 engine uses (`:193`, `:238`, `:319`, `:321`) are unreachable by the new term, which is `CRTC_TYPE`-gated twice. The one over-suppression is the `R1` display-end guard, plus its dead twin on `field_count_tick` (F-3). |
 | 2. Same-edge ordering in the type-1 flag block | **Accepted.** Arm (`rfd_arm \| rfd_r0_arm`) is written after the `row_addr_save` / `rfd_r1_gt_r0_disarm` clear, so a same-edge trigger wins, matching the R5 route's documented intent. The pending-window block touches only `rfd_r0_pending` and prioritises set over clear; on the extend edge `hcc_end` is low anyway. No self-contradictory `rfd_r0_cancelled` arm edge exists (F-4). |
 | 3. End-state cancellation reading behind `t13h` | **Accepted with F-7.** Supported by §8.6's "by line end" parentheses; in tension with §8.5's chronogram gist; record the tension. |
-| 4. Scope honesty on the mid-frame generalization | **Partly accepted.** The mid-frame omission is documented in the RTL comment, the commit message, and `audit-findings.md`. But the guard that enforces it is untested (F-2), and a second documented consequence is silently absent (F-6). |
+| 4. Scope honesty on the mid-frame generalization | **Partly accepted.** The mid-frame omission is documented in the RTL comment, the commit message, and `../audit-findings.md`. But the guard that enforces it is untested (F-2), and a second documented consequence is silently absent (F-6). |
 | 5a. Unarmed frame-parity toggle | **Accepted with F-8.** Re-derived independently for `t13e` (parity 0→1 at the ordinary restart), `t13h` and `t13i`; all three match. |
 | 5b. `t13k`'s one-CLOCK-edge window clear | **Accepted, not a relaxation.** `set_crtc_type(x); run_clock_ticks(1);` is the established house pattern for hidden-flop clearing in `t02j` and `t16l` (`t06d` and `t09f` test combinational round-trip behaviour instead). The clear branch is `always @(posedge CLOCK) ... else <clear>` with no CLKEN gate, so one CLOCK edge is exactly right. |
 | 6. Bit-identity outside the recipe | **Accepted, with F-9 on the strength of the evidence.** Every new term is `CRTC_TYPE`-gated (`r0_write_hit` carries `CRTC_TYPE`; `hcc_end` masks with it again), so type-0 paths cannot see the extension. Directed type-0 vectors and the full suite stay green. |
@@ -219,9 +219,9 @@ vector bite-tested against its reverted mechanism (reinstating the guard fails o
 `t13m`; removing either gate term fails exactly `t13j`/`t13l`). Suite 109/109, lint clean,
 soak unchanged at `0x512eaae74a628dca`. Non-blocking items: F-4 invariant comment added;
 F-5/F-6 recorded under audit-findings F7 "Deliberately unmodeled / interpretation notes";
-F-7 routed to `accc-author-questions.md` question 18; F-8 marked ⚠ for hardware there and
-in audit-findings; F-9 erratum recorded in `current-status.md`. The re-review pass itself
-remains outstanding per the `review-debt.md` row.
+F-7 routed to `../accc-author-questions.md` question 18; F-8 marked ⚠ for hardware there and
+in audit-findings; F-9 erratum recorded in `../../current-status.md`. The re-review pass itself
+remains outstanding per the `../../review-debt.md` row.
 
 ## Pass 2 — re-review of the remediation delta (2026-08-24)
 
@@ -296,12 +296,12 @@ passages and neither is strawmanned: the p.122-123 gist keeps its "**modified**"
 the §13.7.1.2 parentheses are quoted in full, our choice is given with its two reasons, and a
 discriminating SHAKER experiment is named. (Pass 3 corrected an overstatement here: the
 question originally presented "would arm on a restore" as if the figure said it, when that is
-our inference from one word. See N-7.) `current-status.md` carries the F-9 erratum and now
+our inference from one word. See N-7.) `../../current-status.md` carries the F-9 erratum and now
 says the directed vectors, not the soak, carry the behavioural proof.
 
 ### Non-blocking follow-ups
 
-- **N-1 · Low — the `review-debt.md` row was malformed.** The remediation edit appended a
+- **N-1 · Low — the `../../review-debt.md` row was malformed.** The remediation edit appended a
   fourth cell (`**Open — remediation delta awaits independent re-review before merge.**`) to a
   three-column table, so most Markdown renderers drop it silently — hiding the open status in
   the one file whose job is to track it. Fixed as part of flipping the row to CLEARED in this
@@ -325,7 +325,7 @@ says the directed vectors, not the soak, carry the behavioural proof.
   See the table above for the measured per-probe result.
 - **N-5 · Info — the debt row's scope cell still reads "vectors `t13e`-`t13k`".** Accurate as a
   description of what pass 1 targeted, now stale as a description of the branch. Left as
-  historical scope; `audit-findings.md` and `current-status.md` both carry `t13e`-`t13m`.
+  historical scope; `../audit-findings.md` and `../../current-status.md` both carry `t13e`-`t13m`.
 
 ### Evidence (rerun on branch tip `ab98c6b`, Verilator 5.050)
 
@@ -386,9 +386,9 @@ were applied in the follow-up commit that carries this section.
   "CRTC 3, 4 : CHRONOGRAM" (p.123); **§13.7 "SPECIAL CASES" p.124** holds §13.7.1 "CRTC 1"
   with §13.7.1.1 "R0 UPDATE: OUTI" and §13.7.1.2 "R0 UPDATE: OUT(C),R8", and §13.7.2 "CRTC 0".
   So the just-in-time chronogram gist belongs to **§13.6.2 p.122**, not §13.7.1.1. Corrected
-  in `rtl/crtc_type1_engine.v`, `audit-findings.md` and question 18. Two citations were
+  in `rtl/crtc_type1_engine.v`, `../audit-findings.md` and question 18. Two citations were
   already right and were left alone: digest-01 §8.5's bullet header uses §13.7.1.1 for the
-  OUTI hazard, which is exactly what that section is, and `shaker-accc-crossref.md` does the
+  OUTI hazard, which is exactly what that section is, and `../shaker/shaker-accc-crossref.md` does the
   same. Digest-01 §8.5 was not mislabelled — it anchored the chronogram on page numbers only;
   it now carries the §13.6.x labels and a warning not to confuse them with §13.7.1.1.
   The chronogram annotation quoted in digest-01 §8.5 was re-checked verbatim against the PDF

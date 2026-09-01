@@ -2,7 +2,7 @@
 
 Status: **implemented for the unblocked scope, both types; independently reviewed and
 remediated** (2026-08-24/25, branch `accuracy/f10-fixtures`; review record
-`accuracy/f10-independent-review.md` — NOT CLEAR on two blockings, both fixed with vectors).
+`accuracy/archive/f10-independent-review.md` — NOT CLEAR on two blockings, both fixed with vectors).
 The two Q-gated residuals are now closed on this branch: odd-R9 alternation (finding F15)
 and the additional interlace line (finding F14) were implemented 2026-08-26 with their own
 fixture families (`t27`/`t28` for F14, `t29` for F15); the post-exit frozen-C9.VMA behavior
@@ -199,7 +199,7 @@ Reviewed 2026-08-25 by Claude Opus 5 (fresh session via the claude CLI): verdict
 CLEAR on two blockings — B-1 (the leaving stage A must write C9.0; accepted against the
 panels and the p.209 prose) and B-2 (the §19.8.2 frame-boundary toggle split; accepted) —
 plus 13 non-blockings. All blockings and accepted non-blockings are remediated (see the
-remediation section of `accuracy/f10-independent-review.md`); N-4 and N-12 are recorded
+remediation section of `accuracy/archive/f10-independent-review.md`); N-4 and N-12 are recorded
 as scope note/erratum. The same-edge seam race was reviewed and judged defensible. Five
 reviewer bite-tests were reproduced during the review; the remediation adds the missing
 vectors so the mechanisms are now deterministically pinned (RA column in `t22`,

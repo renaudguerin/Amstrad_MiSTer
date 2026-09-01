@@ -18,7 +18,7 @@ unchanged; return the review as your response for the coordinator to preserve se
 2. `CLAUDE.md`
 3. `docs/plans/2026-08-22-accc-review-plan.md`
 4. `docs/review-debt.md`
-5. `docs/accuracy/accc-review-and-fixes-independent-review.md`
+5. `docs/accuracy/archive/accc-review-and-fixes-independent-review.md`
 6. `docs/accuracy/type-split-review-guide.md`
 7. `docs/accuracy/audit-findings.md`
 8. `docs/accuracy/f6-decision-gate.md`

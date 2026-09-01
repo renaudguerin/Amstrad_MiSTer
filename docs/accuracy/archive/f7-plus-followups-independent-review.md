@@ -25,13 +25,13 @@ commit as the fix with derivation comments.
 ## Findings (by severity)
 
 ### F-A · Low — stale status/handoff documents
-`current-status.md` carried the pre-F7 canonical hash (`0xf5f8ae01ffdf928d`), a stale
-93-pass count, and a "next independent work: F7 RFD" pointer; `implementation-roadmap.md`
+`../../current-status.md` carried the pre-F7 canonical hash (`0xf5f8ae01ffdf928d`), a stale
+93-pass count, and a "next independent work: F7 RFD" pointer; `../../implementation-roadmap.md`
 repeated both stale values. Not covered by the four-file hash-consistency check named in
 the review brief. Remediated by refreshing both files (canonical hash, 100-pass count,
 completed-F7 wording).
 
-### F-B · Low — internal inconsistency in `testbench-spec.md`
+### F-B · Low — internal inconsistency in `../testbench-spec.md`
 Line 110 said 100 passed while the Definition-of-done (line 146) still said 93.
 Remediated.
 
@@ -57,7 +57,7 @@ ACCC §28.1.1 p.292 implies type-1 C4 reaches 39 for R4=36/R9=7/R5=16, but §§1
 increment C4 once per 8 adjustment scanlines ⇒ max C4=38; the corrected oracle
 (`t08g`/`t08h`) expects silence from R7=39 via §§16.1/16.4.2. The tension was documented
 in the plan and vector comments but not in the designated author-questions channel.
-Remediated as question 17 in `accc-author-questions.md`, which also records how open
+Remediated as question 17 in `../accc-author-questions.md`, which also records how open
 question 4 (repeated-RFD sentence, p.88) interacts with the now-implemented F7 state
 machine (arm wins same-edge; recipe triggers where C9!=R9, so nothing observable awaits
 Q4).
@@ -66,7 +66,7 @@ Q4).
 
 | Area | Verdict | Key evidence |
 |---|---|---|
-| F7 RFD | Clear | Trigger/flags/disarm match digest §5 (`compendium-01-counters.md:212-254`): two independent flags (parity flag cleared only by reset/SNA/type-switch), parity-gated save, Case1/Case2 alternation via odd-R9 frame-boundary toggle, same-edge arming using old-R5+live-DI with the register-file decode duplicated exactly (`rtl/crtc_type1_engine.v:111` ≡ `rtl/CRTC.v:152`). `t13a` is the directed never-triggered proof backing the soak claim; `t13d` derives live-R5 adjustment entry from §11.4 p.86. RFD#10 and the §13.7.1.2 residual are explicitly out of scope. |
+| F7 RFD | Clear | Trigger/flags/disarm match digest §5 (`../compendium-01-counters.md:212-254`): two independent flags (parity flag cleared only by reset/SNA/type-switch), parity-gated save, Case1/Case2 alternation via odd-R9 frame-boundary toggle, same-edge arming using old-R5+live-DI with the register-file decode duplicated exactly (`rtl/crtc_type1_engine.v:111` ≡ `rtl/CRTC.v:152`). `t13a` is the directed never-triggered proof backing the soak claim; `t13d` derives live-R5 adjustment entry from §11.4 p.86. RFD#10 and the §13.7.1.2 residual are explicitly out of scope. |
 | A1 VSYNC | Clear | Substitution exclusion `!crtc1_adj_end` is correct: during non-ending adjustment lines `row_next==row+1` anyway, so the substitution only ever mattered on the ending line where C4 goes directly to 0 (§§16.1/16.4.2). `t08m` minimal paper-derived fixture. Source tension handled per F-E. |
 | A2 reload caveat | Clear | Suppression touches only the origin marker; wrapper consumes the exported predicate. `t08n`/`t08o` assert the documented §11.2.4 p.84 pair with discriminating fixtures (VMA'=0x1238 vs R12/R13=0x2050). Widths/priorities correct (DI[6:0] R4, DI[4:0] R5; arm wins over save-clear). |
 | Plus Q1 tooling | Clear | Generated-Verilator build flow replaces hardcoded paths; `VERILATOR_BIN ?=` override verified working via CLI and env; `unexport` isolates the wrapper variable; `-Wno-fatal` is the intended non-fatal warning policy; dependencies include the Makefile; clean target complete. No GA40010 netlist source touched. |

@@ -2,6 +2,24 @@
 
 ## Open rows
 
+- **B9 review-record archive — OPEN, native Sol CLEAR; no cross-provider review,
+  2026-09-01.**
+  A Luna Max bounded documentation pass moved settled independent-review
+  records into indexed `docs/accuracy/archive/` and `docs/plus/archive/`
+  directories, updated repository-local inbound references, and replaced the
+  active handoff's pass-by-pass chronology with durable archive links. Active
+  rule sources, open-debt evidence, the dated ACCC author response and
+  consequence audit, IA-5 hardware discriminator, FDC records, and ambiguous
+  review records remain in place. The parent corrected two moved documents'
+  relative links and retained the explicit boundary that published ACCC v1.11
+  is unchanged and no corrected full edition exists. A cross-provider reviewer
+  should check hardest the keep/move classification, relative-link integrity,
+  and whether any archived record still carries an active technical obligation.
+  The independent native Sol review found and closed stale sibling-path and
+  count-wording blockers, then returned CLEAR after the generalized path/link
+  audits passed. This documentation-only change has not yet received
+  cross-provider review.
+
 - **B3 P10 VRAM/frame-tap foundation — OPEN, independent Codex review only,
   2026-09-01.** The production-shaped P10 fixture now connects the motherboard
   VRAM address to the SDRAM video client, exports raw motherboard timing,
@@ -104,7 +122,7 @@
   focused mutation controls, and whitespace checks pass. FDC title behavior,
   exact-tip Quartus, and real hardware remain validation gates.
 
-**Status: seven independent-review debt rows are open.** The validation residuals retained in
+**Status: eight independent-review debt rows are open.** The validation residuals retained in
 the cleared rows below are not hardware evidence and do not reopen local RTL/test review.
 
 ## Cleared rows
@@ -123,7 +141,10 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   remediation it reran the default Plus gate, observed the decoder PASS, and
   returned CLEAR. No locale assets, menu state, or user-visible behavior were
   added. Full simulation, lint, soak `0x2263c9fc44af4ee7`, and whitespace checks
-  pass; exact-tip Quartus remains an artifact gate, not review debt.
+  pass. Exact-tip run `33482930072` now also passes full Quartus 17.0.2
+  synthesis and timing (+0.511/+0.248 ns, zero TNS); its packaged RBF SHA-256
+  is recorded in `docs/current-status.md`. This is artifact evidence, not
+  review debt or hardware closure.
 
 - **Accuracy IA-6 type-0 R0=1 widening persistence — CLEARED, Gemini 3.7
   Flash high fallback, 2026-08-31.** Gemini authored the focused `t35a`
@@ -137,7 +158,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   classic passes, lint passes, exact soak `0xd6bc1649ff2058a1` passes, and
   whitespace checks pass. The explicitly unimplemented variants and hardware
   confirmation are validation scope, not review debt. Full record:
-  `docs/accuracy/ia6-r0-widen-independent-review.md`.
+  `docs/accuracy/archive/ia6-r0-widen-independent-review.md`.
 
 - **Accuracy IA-3 type-0 live R6 first-line conflict — CLEARED, Gemini 3.7
   Flash high, 2026-08-31.** Separate Luna leaves produced the failure-first
@@ -148,7 +169,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   accepted. Full simulation reports 182 required classic passes, lint passes,
   exact soak `0x21bbf9c29ab08413` passes, and whitespace checks pass. Hardware
   confirmation remains validation evidence, not review debt. Full record:
-  `docs/accuracy/ia3-r6-live-independent-review.md`.
+  `docs/accuracy/archive/ia3-r6-live-independent-review.md`.
 
 - **Accuracy IA-1 type-0 R3-terminal HSYNC restart — CLEARED, Gemini 3.7
   Flash high, 2026-08-31.** A GPT-5.6 Sol xhigh worker authored the bounded
@@ -159,7 +180,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   passes, exact soak `0x87a9d80a91381c9b` passes, and whitespace checks pass.
   The source says earliest/approximately; real hardware phase remains
   validation evidence, not review debt. Full record:
-  `docs/accuracy/ia1-r3-terminal-hsync-independent-review.md`.
+  `docs/accuracy/archive/ia1-r3-terminal-hsync-independent-review.md`.
 
 - **Accuracy IA-4 type-0 R4 equality history — CLEARED, GPT-5.6 Sol high,
   2026-08-31.** Gemini 3.7 Flash high authored the bounded two-file delta;
@@ -170,7 +191,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   passes, lint passes, exact soak `0x654a244c2cce6e0b` remains unchanged, and
   whitespace checks pass. Hardware confirmation is validation evidence, not
   review debt. Full record:
-  `docs/accuracy/ia4-r4-history-independent-review.md`.
+  `docs/accuracy/archive/ia4-r4-history-independent-review.md`.
 
 - **Accuracy IA-2 type-1 frame-origin parity — CLEARED, Gemini 3.7 Flash high,
   2026-08-31.** French ACCC v1.11 section 19.5.3 p.209 governs the corrected
@@ -181,7 +202,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   `0x654a244c2cce6e0b`, and whitespace gates pass. Claude Opus was requested but
   quota-unavailable and produced no verdict; the exact reviewer tier is retained.
   Hardware confirmation remains validation evidence, not review debt. Full record:
-  `docs/accuracy/ia2-frame-origin-independent-review.md`.
+  `docs/accuracy/archive/ia2-frame-origin-independent-review.md`.
 
 - **Plus P10a-P10f/P10h local implementation review — CLEARED through
   `d17a1bc` (round two); round three separately CLEARED through feature tip
@@ -322,7 +343,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   distinguished. Five non-blocking provenance/citation defects were corrected. No RTL or
   tests changed and simulation was not required. Q20/N2, post-toggle pin timing, and the
   discriminator remain validation residuals, not hardware evidence. Full record:
-  `docs/accuracy/accc-round2-documentation-independent-review.md`.
+  `docs/accuracy/archive/accc-round2-documentation-independent-review.md`.
 
 - **Plus P10 hardware round three CRTC3 R8=1 and DMA/PPI/PSG concurrency — CLEARED,
   native Sol plus guarded Claude, 2026-08-30.** Initial reviews found the missing R8=1
@@ -378,7 +399,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   `t12c`–`t12e` vectors. Documentation B2 is remediated across the handoff, primary counter
   digest, v1.11 differences inventory, and author-feedback record: §12.4.1 p.95 is consistently
   CRTC-2-specific. Full simulation, lint, and soak `0x48146d2b681268ab` pass. Full record:
-  `docs/accuracy/f19-independent-review.md`.
+  `docs/accuracy/archive/f19-independent-review.md`.
 - `plus/p9-followups` — CLOSED 2026-08-28. Independent cross-provider review by
   Claude Opus (Claude Code CLI) and Codex GPT-5 (`codex review`). Verified review follow-ups
   N3 (CPR parser upper bound vector), N4 (zero-length `cb00` chunk payload tightening),
@@ -386,13 +407,13 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   OSD media menu grouping in `Amstrad.sv`, and hardware test checklist
   `docs/plus/hardware-test-checklist.md`. Full simulation, lint, and classic soak
   (`0x48146d2b681268ab`) pass clean. Verdict CLEAR.
-  Full record: `docs/plus/p9-followups-independent-review.md`.
+  Full record: `docs/plus/archive/p9-followups-independent-review.md`.
 - `hotfix/implicit-rgb-net` — CLOSED 2026-08-28. Independent cross-provider
   review by Claude Opus 5. Verified that `b4/g4/r4` are driven solely by the
   motherboard instance output ports in `Amstrad.sv` and consumed exclusively by
   `color_mix`'s `[1:0]` inputs and the `R_plus/G_plus/B_plus` nibble expansion,
   with no stale net names in any synthesized source. Verdict CLEAR. Full record:
-  `docs/accuracy/ox-alpha-items-opus-review.md`.
+  `docs/accuracy/archive/ox-alpha-items-opus-review.md`.
 - `ox-alpha-historical-items` — RE-REVIEWED & CLEARED 2026-08-28. Full
   cross-provider re-review by Claude Opus 5 over all historical items reviewed under
   the 2026-08-22 locked decision (`de71808` F4 equality rollover, `da79915`+`1a1233f`
@@ -400,7 +421,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   R12/R13 vectors, `c9f4a4e` F8 separate C5, `accuracy/f7-rfd` R5-trigger RFD/A1/A2,
   `plus/p1-followups`). Direct multimodal checks against ACCC v1.10 pages 75-76,
   84-88, 92-93, 108, 124, 129. Verdict CLEAR WITH NON-BLOCKING FINDINGS (N1-N5).
-  Full record: `docs/accuracy/ox-alpha-items-opus-review.md`.
+  Full record: `docs/accuracy/archive/ox-alpha-items-opus-review.md`.
 
 - `plus/p8-polish-sna` — CLOSED 2026-08-27. Independent cross-provider
   review on the P8 aggregate diff (`plus/p5-crtc3-bus...HEAD`). Verdict
@@ -412,7 +433,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   palette, raster/interrupt, sound DMA, RMR2, and ASIC lock), unit tests
   `sim/plus/plus_p8_test.cpp`, and expanded `asic_regs_test.cpp`. Full simulation,
   lint, and classic soak (`0x85b3f8e847430495`) pass clean. Full record:
-  `docs/plus/p8-independent-review.md`.
+  `docs/plus/archive/p8-independent-review.md`.
 - `plus/p7-dma-sound` — CLOSED 2026-08-26. Independent cross-provider
   review on the P7 aggregate diff (`plus/p5-crtc3-bus...HEAD`). Initial
   verdict NOT CLEAR on three blocking findings (B1: stale SAR register
@@ -421,7 +442,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   and verified with 10 unit tests (d01-d10) in asic_dma_test, DCSR tests in
   asic_regs_test, and mobo bench m11. Full simulation, lint, and classic soak
   (0x85b3f8e847430495) pass clean. Final verdict CLEAR. Full record:
-  `docs/plus/p7-independent-review.md`.
+  `docs/plus/archive/p7-independent-review.md`.
 - `plus/p6-split-scroll` — CLOSED 2026-08-26. Independent cross-provider
   review on the P6 aggregate diff (`plus/p5-crtc3-bus...3405d0c`). Verdict
   CLEAR with 0 blocking issues. Verified screen split (`&6801` SPLT,
@@ -432,7 +453,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   immunity over masked border, motherboard integration wiring, unit
   vectors t08a-t08h in asic_video_test, and mobo bench m10. Full simulation,
   lint, and classic soak (0x85b3f8e847430495) pass clean. Full record:
-  `docs/plus/p6-independent-review.md`.
+  `docs/plus/archive/p6-independent-review.md`.
 - `plus/p5-crtc3-bus` — CLOSED 2026-08-26. Claude Opus 5 high review on
   the P5 aggregate diff (`27cb993..8523136`). Initial verdict NOT CLEAR on
   two blockings (B1: STATUS 1 bit 4 comparator off-by-one / 0=>16
@@ -442,7 +463,7 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   io_bus_byte open-bus routing and opcode-seeded mobo benches; N1-N4
   documented/sourced. Full simulation (all 45 video tests, m1-m9 mobo
   bench), lint, and soak (0x85b3f8e847430495) pass clean. Full record:
-  `docs/plus/p5-independent-review.md`.
+  `docs/plus/archive/p5-independent-review.md`.
 - `plus/p4-sprites` — CLOSED 2026-08-26. Five passes by Codex/GPT-5.6
   Sol high on the sprite-engine phase. Passes 1-2 (NOT CLEAR) fixed
   suppressed-completion sreq stranding, a walk skip that first starved
@@ -618,18 +639,18 @@ evidence commands, and a prioritized reading list is
 | Branch | Scope of the whole-branch review | Status |
 |---|---|---|
 | `docs/accc-bilingual-sweep` | French/English v1.11 section-complete source ledger and versioned extraction snapshot, authority-policy migration, high-confidence digest corrections, author courtesy report, implementation audit queue, and parity-comment citation migrations in `rtl/CRTC.v` and `rtl/crtc_type1_engine.v`. Review hardest: BL-019–BL-021 §13.7.2 reconstruction, BL-036 live-versus-historical R6 reading, BL-038 assignment-versus-toggle implication, and avoiding source claims unsupported by hardware. | **CLEARED — Claude Opus 5 high, 2026-08-31, reviewed through `eb9ee00`.** The source-equipped review verified all 44 BL findings against both original PDFs, confirmed complete section coverage, and accepted the BL-022 adjudication of a French internal typo. Its documentation/citation findings were remediated and the final source pass returned CLEAR. The extraction review also returned CLEAR after replacing 13 stale v1.10 renders: all 76 tracked PNGs reproduce byte-for-byte from the documented PyMuPDF 1.28.2 command and identify the matching v1.11 English pages. The RTL changes are comments only; simulation was explicitly waived by the user. |
-| `accc-review-and-fixes` | Canonical docs, GA40010 co-sim manifest, exact-range whitespace gate, and pass-2 remediation integration. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 accepted all 11 remediations at reviewed tip `d64e449`; full record: `accuracy/accc-review-and-fixes-independent-review-pass2-fixes-verification.md`. |
+| `accc-review-and-fixes` | Canonical docs, GA40010 co-sim manifest, exact-range whitespace gate, and pass-2 remediation integration. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 accepted all 11 remediations at reviewed tip `d64e449`; full record: `accuracy/archive/accc-review-and-fixes-independent-review-pass2-fixes-verification.md`. |
 | `accuracy/crtc-type-split` | Per-type engine split (`27efc2d`), wrapper rename to `rtl/CRTC.v` (`63f4c01`), session docs. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 independently reconfirmed the wrapper mux seams, type-0 latch/holdoff ordering, shared captures, and expanded differential evidence. |
 | `accuracy/a3-f6-stage1` | A3 companion vector `t20i`; F6 Stage 1 full-character approximation and its behavior-driven hash re-mint. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Accepted within the declared full-character approximation. F13 remains separately hardware-blocked. |
 | `plus/p0-parser-wiring` | Production parser → cartridge service → SDRAM → MMU/CPU-WAIT path. Review hardest: cancellation, late acknowledgements, load-time MMU waiting, and classic-mode isolation. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 traced cancellation/rearm and load replay, adversarially checked fail-closed parsing, and accepted the production-sized integration proof. |
 | `docs/split-differential-evidence` | Frozen `418aa68` pre-split vs `2d4f880` split comparator and preserved 45,498,863-sample run. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 reproduced the committed run including `r6_border_condition`; no divergence. |
 | `plus/p1-crtc3-foundation` | Plus P1 CRTC3 counter/timing foundation, now 27 vectors (`t01a`-`t04h`). Review hardest: live R2 HSYNC collision, save/reload priority, vertical equality/overflow rules, and the explicitly unverified t01e R0-shrink model assumption. | **CLEARED — GPT-5.6 Sol, 2026-08-23.** Pass 3 verified the live-R2 fix directly against ACCC p.151 and accepted t04a's test isolation. The t01e and R3=0 collision cases remain labelled or queued as model assumptions, not review debt. |
-| `accuracy/f7-rfd` | Type-1 F7 R5-trigger RFD, A1 adjustment-ending VSYNC correction, and A2 §11.2.4 caveat pair. Review hardest: same-edge R5/rollover ordering; parity/save disarm; B6 bare-C9 timing; the §§16.1/16.4.2 vs §28.1.1 t08g source tension; and A2 exact-R0 write discrimination. | **CLEARED — ox-alpha, 2026-08-23.** Pass 4 verified the vector expectations as rule-derived (not implementation-derived), accepted the A1 §§16.1/16.4.2 reconciliation with its §28.1.1 tension routed to an author question, and recorded the B6 early-clear interpretation as unobservable. Full record: `accuracy/f7-plus-followups-independent-review.md`. |
-| `plus/p1-followups` | Pass-3 Q1 standalone GA40010 target tooling and Q3 R3l=0 collision-assumption labelling/vector. Review hardest: `VERILATOR_BIN` override isolation, non-fatal warning policy, and whether t04i pins the current assumption without implying an ACCC oracle. | **CLEARED — ox-alpha, 2026-08-23.** Pass 4 empirically verified the override in both CLI and env form, confirmed no GA40010 netlist source changed, and confirmed t04i labels the assumption without claiming an ACCC oracle. Full record: `accuracy/f7-plus-followups-independent-review.md`. |
-| `accuracy/f7-rfd-r0-widening` | §13.7.1.2 p.124 R0-widening RFD trigger: wrapper `hcc_end` line-end strobe (defers C0 wrap, MA increment, roll-into-R1 display end, odd-field count tick), engine pending-window/arm state, vectors `t13e`-`t13k`. Review hardest: completeness of the `hcc_end` consumer switch (any line-event consumer still on raw `hcc_last` fires at the suppressed edge); same-edge ordering of window-set vs -clear vs arm against the R5-route flag updates; the end-state reading of the documented "(C9 != R9 / C4 != R4 by line end)" variant definitions behind `t13h`; and bit-identical type-0/ordinary-type-1 behavior outside the recipe (directed guards plus an unchanged soak hash). | **NOT CLEARED — Claude Opus 5, 2026-08-23** (cross-provider: the delta was authored by Ox-Alpha). Record: `accuracy/f7-r0-widening-independent-review.md`. Two blocking findings, both inside the new feature; nothing pre-existing regresses and all three gates pass as reported. **F-1**: the `~(CRTC_TYPE & e1_rfd_r0_extend)` guard on the `hcc_next == R1_h_displayed` term in `rtl/CRTC.v:385` is vestigial — `hcc_next` already carries the correct continuation value `R0_old+1` at the suppressed edge — and its only effect is to block the legitimate DISPEN-off at `C0==R1` when `R1 == R0_old+1` (ACCC §6.1.3 p.33), a configuration family §11.6 p.87 ties directly to RFD; measured DE stays high through the widened remainder, and removing the guard fixes it with all 107 passes and the soak hash unchanged. **F-2**: `t13j`'s fixture lands the write at `C0=6, C4=1, C9=0`, not at `C0==R0` off the last line as documented, so the `rfd_r0_widen_at_last_line` last-line gate — the guard the "mid-frame widening deliberately unmodeled" scope claim rests on — is exercised by no vector. Non-blocking follow-ups F-3 to F-9 are in the record: dead `field_count_tick` guard, raw-`hcc_last` arm invariant left uncommented, stale window surviving a C0 overflow line, the unmodelled §8.6 second-frame stuck-C4 consequence, the §8.5-vs-§8.6 write-event/end-state tension behind `t13h`, the unarmed-parity interpretation, and the overstated "pins bit-identity" soak claim (the soak is measurably insensitive in this region). **Remediated in-branch 2026-08-23** (post-review commits): F-1/F-3 guards removed from `rtl/CRTC.v` and `rtl/crtc_type1_engine.v`; F-4 invariant comment added at `rfd_r0_arm`; F-2 fixed by retiming `t13j` onto a genuine `C0==R0` edge and adding `t13l` (line-half gate) and `t13m` (DE blanking at `C0==R1`, ACCC §6.1.3); each new vector bite-tested against its reverted mechanism; F-5/F-6 scope notes added to `audit-findings.md`, F-7 routed to author question 18, F-8 marked ⚠ for hardware, F-9 erratum recorded in `current-status.md`. Suite 109/109, lint clean, soak `0x512eaae74a628dca` unchanged. **CLEARED — Claude Opus 5, 2026-08-24.** Pass 2 re-reviewed the remediation delta (`729ba02..ab98c6b`): both blocking findings are genuinely fixed, `t13m`'s DE expectations re-derive from ACCC §6.1.3 p.33 rather than from the simulator, `t13j`/`t13l` now sit on genuine `C0==R0` edges with counter asserts at the write point, and the three bite-tests were reproduced independently (reinstating the F-1 guard fails only `t13m`; dropping the row gate fails only `t13j`; dropping the line gate fails only `t13l`). Five non-blocking follow-ups N-1 to N-5 recorded in the pass-2 section of `accuracy/f7-r0-widening-independent-review.md`, including a backwards clause in the new `rfd_r0_arm` invariant comment and an unverified emergence claim in the F-6 scope note. Merged into `accc-review-and-fixes` on 2026-08-24. **Pass 3 — GPT-5.6 Sol high, 2026-08-24:** fresh-eyes cross-check of the pass-2 verdict, requested because passes 1 and 2 shared a reviewer. AGREE with CLEAR, no blocking findings, gates independently reproduced. Sol found one thing both earlier passes missed — `t13e`/`t13j`/`t13l` cited §13.5 p.121, which is the CRTC 2/3/4 contrast (digest §8.7), for a type-1 rule that belongs to §13.3 p.113 — and argued that the N-2/N-3 wording defects should be fixed rather than deferred. All corrected in the follow-up commit; details as N-6/N-7 in the pass-3 section of the record. |
-| `accuracy/f10-fixtures` | F10 interlace parity machinery, three commits `20eb6d5`/`657ccde`/`3a2293a`: type-1 two-stage R8-toggle parity update + §19.8.2 counting; type-0 split C9/C9.VMA with seam-latched value-doubled and line-scoped target-parity bits; §19.5.2/§19.5.3 parity rules; 31 required vectors (`t21a`-`t21p`, `t22a`-`t22o`); soak re-mints to `0x83e80134f7705b46`. Review hardest: the type-1 stage machine against the pp.210-211 panels directly (leaving-stage-A C9.0 hold; odd-ParityFrame stage-B reduction); the type-0 seam/toggle lifecycle against p.219's "next C0=0" rule incl. the same-edge write race; the three-way type-1 row-end split as bit-identical outside IVM (t08i/j/l, t13a-d sensitive); the t22 exit-fixture C4=1 shape against pp.223-224; and the t09g RA re-derivation against §19.5.2. Reviewer guidance in `accuracy/f10-implementation-notes.md`. | **CLEARED — Claude Opus 5 (claude CLI, fresh session), 2026-08-25.** Verdict NOT CLEAR on two blockings, both inside the new F10 behavior; full record `accuracy/f10-independent-review.md`. B-1: the type-1 leaving stage A must write C9.0 (the four X=1 pp.210-211 panels draw the change in the 3rd-µs column; the p.209 prose states the 3rd-µs rule once for both directions). B-2: the §19.8.2 match-branch ParityC9 toggle and the C9 restart were split at frame boundaries. Five bite-tests reproduced; gates verified. All blockings and accepted non-blockings (N-1..N-3, N-5..N-11, N-13) remediated in the follow-up commit; N-4/N-12 recorded as scope notes/errata. Post-remediation gates: 147 required passes, 0 failed, soak `0xa9e5026de83d287c`. |
-| `accuracy/f11h-and-ivm-vsync-coverage` | F11h closure (same-edge R12/R13 write caught by the type-1 row-0 VMA reload, §20.3.2 p.242; vectors `t20j`/`t20k`), t24 type-1 IVM VSYNC positions from the p.208 table with the §19.8.2 p.225 alternation (vectors `t24a`-`t24c`), and a CI-only checkout bump. Review hardest: the p.242 shaded-cell semantics derived from the CRTC-0 contrast pair; the harness same-edge write phase in `t20j`/`t20k`; the p.208 box grid and the odd-C4-count alternation arithmetic behind the R4=6 fixture geometry; and the VSYNC fire/count-tick mux changes against the p.208 prose (MID-VSYNC on the ParityFrame-even frame). | **CLEARED — Claude Opus 5 xhigh (ask-claude bridge, fresh session), 2026-08-25.** Record: `accuracy/f11h-t24-independent-review.md`. Verdict was NOT CLEAR on one blocking finding: **B-1** — the t24 fix removed the type-1 IVM MID-VSYNC (§19.5.3 p.208 schedules it on the ParityFrame-even frame) and no vector sampled the half-line phase, while `f10-implementation-notes.md` claimed the residual narrowed. All four rule claims had been verified PDF-first and confirmed; no vector weakened. Remediated at `0304afa`: the wrapper keys the type-1 IVM VSYNC on ParityFrame directly (even-parity frames start/end at the half-line tick via a seam-latched fire decision, odd-parity frames keep the seam), `t24c` pins the phase, the notes bullets corrected. The reviewer sandbox could not execute gates or bite-tests; the parent reproduced the gates (152 required passes, soak `0x63d9de100ac9f6f2`) and all three specified bite-tests — (a) legacy-mux revert fails exactly t24b+t24c, (b) plain-C9==R9 row-end revert fails exactly t24a+t24b+t24c, (c) F11h override removal fails exactly t20j — each restoring to green. Non-blockings: N-3/N-4/N-5 fixed; N-1 recorded as a residual comment; N-2 folded into A4; N-6's upload-artifact bump queued as the next CI-only item; N-7 covered by synthesis-on-merge. |
-| `plus/p5-crtc3-bus` | P5 CRTC-3 bus semantics: modulo-8 read map, full-byte R12 storage/readback, stored R14/R15, live status groups 1 & 2 (§21.3.4), dual `&BE`/`&BF` read ports, open-bus IN-performs-write traps on CRTC, GA, unlock, and RMR2. | **CLEARED — Claude Opus 5 high, 2026-08-26.** Initial verdict NOT CLEAR on B1 (STATUS 1 bit 4 comparator off-by-one / 0=>16 substitution) and B2 (IN traps writing stale internal CPU `DO` rather than open-bus opcode byte). Remediated in-branch: literal `C0=R2+R3` comparator and updated `t07b` vector; M1-latched `io_bus_byte` open-bus routing and opcode-seeded mobo benches; N1-N4 documented/sourced. Suite passes (all 45 video tests, m1-m9 mobo bench), lint clean, soak golden `0x85b3f8e847430495`. Full record: `docs/plus/p5-independent-review.md`. |
+| `accuracy/f7-rfd` | Type-1 F7 R5-trigger RFD, A1 adjustment-ending VSYNC correction, and A2 §11.2.4 caveat pair. Review hardest: same-edge R5/rollover ordering; parity/save disarm; B6 bare-C9 timing; the §§16.1/16.4.2 vs §28.1.1 t08g source tension; and A2 exact-R0 write discrimination. | **CLEARED — ox-alpha, 2026-08-23.** Pass 4 verified the vector expectations as rule-derived (not implementation-derived), accepted the A1 §§16.1/16.4.2 reconciliation with its §28.1.1 tension routed to an author question, and recorded the B6 early-clear interpretation as unobservable. Full record: `accuracy/archive/f7-plus-followups-independent-review.md`. |
+| `plus/p1-followups` | Pass-3 Q1 standalone GA40010 target tooling and Q3 R3l=0 collision-assumption labelling/vector. Review hardest: `VERILATOR_BIN` override isolation, non-fatal warning policy, and whether t04i pins the current assumption without implying an ACCC oracle. | **CLEARED — ox-alpha, 2026-08-23.** Pass 4 empirically verified the override in both CLI and env form, confirmed no GA40010 netlist source changed, and confirmed t04i labels the assumption without claiming an ACCC oracle. Full record: `accuracy/archive/f7-plus-followups-independent-review.md`. |
+| `accuracy/f7-rfd-r0-widening` | §13.7.1.2 p.124 R0-widening RFD trigger: wrapper `hcc_end` line-end strobe (defers C0 wrap, MA increment, roll-into-R1 display end, odd-field count tick), engine pending-window/arm state, vectors `t13e`-`t13k`. Review hardest: completeness of the `hcc_end` consumer switch (any line-event consumer still on raw `hcc_last` fires at the suppressed edge); same-edge ordering of window-set vs -clear vs arm against the R5-route flag updates; the end-state reading of the documented "(C9 != R9 / C4 != R4 by line end)" variant definitions behind `t13h`; and bit-identical type-0/ordinary-type-1 behavior outside the recipe (directed guards plus an unchanged soak hash). | **NOT CLEARED — Claude Opus 5, 2026-08-23** (cross-provider: the delta was authored by Ox-Alpha). Record: `accuracy/archive/f7-r0-widening-independent-review.md`. Two blocking findings, both inside the new feature; nothing pre-existing regresses and all three gates pass as reported. **F-1**: the `~(CRTC_TYPE & e1_rfd_r0_extend)` guard on the `hcc_next == R1_h_displayed` term in `rtl/CRTC.v:385` is vestigial — `hcc_next` already carries the correct continuation value `R0_old+1` at the suppressed edge — and its only effect is to block the legitimate DISPEN-off at `C0==R1` when `R1 == R0_old+1` (ACCC §6.1.3 p.33), a configuration family §11.6 p.87 ties directly to RFD; measured DE stays high through the widened remainder, and removing the guard fixes it with all 107 passes and the soak hash unchanged. **F-2**: `t13j`'s fixture lands the write at `C0=6, C4=1, C9=0`, not at `C0==R0` off the last line as documented, so the `rfd_r0_widen_at_last_line` last-line gate — the guard the "mid-frame widening deliberately unmodeled" scope claim rests on — is exercised by no vector. Non-blocking follow-ups F-3 to F-9 are in the record: dead `field_count_tick` guard, raw-`hcc_last` arm invariant left uncommented, stale window surviving a C0 overflow line, the unmodelled §8.6 second-frame stuck-C4 consequence, the §8.5-vs-§8.6 write-event/end-state tension behind `t13h`, the unarmed-parity interpretation, and the overstated "pins bit-identity" soak claim (the soak is measurably insensitive in this region). **Remediated in-branch 2026-08-23** (post-review commits): F-1/F-3 guards removed from `rtl/CRTC.v` and `rtl/crtc_type1_engine.v`; F-4 invariant comment added at `rfd_r0_arm`; F-2 fixed by retiming `t13j` onto a genuine `C0==R0` edge and adding `t13l` (line-half gate) and `t13m` (DE blanking at `C0==R1`, ACCC §6.1.3); each new vector bite-tested against its reverted mechanism; F-5/F-6 scope notes added to `audit-findings.md`, F-7 routed to author question 18, F-8 marked ⚠ for hardware, F-9 erratum recorded in `current-status.md`. Suite 109/109, lint clean, soak `0x512eaae74a628dca` unchanged. **CLEARED — Claude Opus 5, 2026-08-24.** Pass 2 re-reviewed the remediation delta (`729ba02..ab98c6b`): both blocking findings are genuinely fixed, `t13m`'s DE expectations re-derive from ACCC §6.1.3 p.33 rather than from the simulator, `t13j`/`t13l` now sit on genuine `C0==R0` edges with counter asserts at the write point, and the three bite-tests were reproduced independently (reinstating the F-1 guard fails only `t13m`; dropping the row gate fails only `t13j`; dropping the line gate fails only `t13l`). Five non-blocking follow-ups N-1 to N-5 recorded in the pass-2 section of `accuracy/archive/f7-r0-widening-independent-review.md`, including a backwards clause in the new `rfd_r0_arm` invariant comment and an unverified emergence claim in the F-6 scope note. Merged into `accc-review-and-fixes` on 2026-08-24. **Pass 3 — GPT-5.6 Sol high, 2026-08-24:** fresh-eyes cross-check of the pass-2 verdict, requested because passes 1 and 2 shared a reviewer. AGREE with CLEAR, no blocking findings, gates independently reproduced. Sol found one thing both earlier passes missed — `t13e`/`t13j`/`t13l` cited §13.5 p.121, which is the CRTC 2/3/4 contrast (digest §8.7), for a type-1 rule that belongs to §13.3 p.113 — and argued that the N-2/N-3 wording defects should be fixed rather than deferred. All corrected in the follow-up commit; details as N-6/N-7 in the pass-3 section of the record. |
+| `accuracy/f10-fixtures` | F10 interlace parity machinery, three commits `20eb6d5`/`657ccde`/`3a2293a`: type-1 two-stage R8-toggle parity update + §19.8.2 counting; type-0 split C9/C9.VMA with seam-latched value-doubled and line-scoped target-parity bits; §19.5.2/§19.5.3 parity rules; 31 required vectors (`t21a`-`t21p`, `t22a`-`t22o`); soak re-mints to `0x83e80134f7705b46`. Review hardest: the type-1 stage machine against the pp.210-211 panels directly (leaving-stage-A C9.0 hold; odd-ParityFrame stage-B reduction); the type-0 seam/toggle lifecycle against p.219's "next C0=0" rule incl. the same-edge write race; the three-way type-1 row-end split as bit-identical outside IVM (t08i/j/l, t13a-d sensitive); the t22 exit-fixture C4=1 shape against pp.223-224; and the t09g RA re-derivation against §19.5.2. Reviewer guidance in `accuracy/f10-implementation-notes.md`. | **CLEARED — Claude Opus 5 (claude CLI, fresh session), 2026-08-25.** Verdict NOT CLEAR on two blockings, both inside the new F10 behavior; full record `accuracy/archive/f10-independent-review.md`. B-1: the type-1 leaving stage A must write C9.0 (the four X=1 pp.210-211 panels draw the change in the 3rd-µs column; the p.209 prose states the 3rd-µs rule once for both directions). B-2: the §19.8.2 match-branch ParityC9 toggle and the C9 restart were split at frame boundaries. Five bite-tests reproduced; gates verified. All blockings and accepted non-blockings (N-1..N-3, N-5..N-11, N-13) remediated in the follow-up commit; N-4/N-12 recorded as scope notes/errata. Post-remediation gates: 147 required passes, 0 failed, soak `0xa9e5026de83d287c`. |
+| `accuracy/f11h-and-ivm-vsync-coverage` | F11h closure (same-edge R12/R13 write caught by the type-1 row-0 VMA reload, §20.3.2 p.242; vectors `t20j`/`t20k`), t24 type-1 IVM VSYNC positions from the p.208 table with the §19.8.2 p.225 alternation (vectors `t24a`-`t24c`), and a CI-only checkout bump. Review hardest: the p.242 shaded-cell semantics derived from the CRTC-0 contrast pair; the harness same-edge write phase in `t20j`/`t20k`; the p.208 box grid and the odd-C4-count alternation arithmetic behind the R4=6 fixture geometry; and the VSYNC fire/count-tick mux changes against the p.208 prose (MID-VSYNC on the ParityFrame-even frame). | **CLEARED — Claude Opus 5 xhigh (ask-claude bridge, fresh session), 2026-08-25.** Record: `accuracy/archive/f11h-t24-independent-review.md`. Verdict was NOT CLEAR on one blocking finding: **B-1** — the t24 fix removed the type-1 IVM MID-VSYNC (§19.5.3 p.208 schedules it on the ParityFrame-even frame) and no vector sampled the half-line phase, while `f10-implementation-notes.md` claimed the residual narrowed. All four rule claims had been verified PDF-first and confirmed; no vector weakened. Remediated at `0304afa`: the wrapper keys the type-1 IVM VSYNC on ParityFrame directly (even-parity frames start/end at the half-line tick via a seam-latched fire decision, odd-parity frames keep the seam), `t24c` pins the phase, the notes bullets corrected. The reviewer sandbox could not execute gates or bite-tests; the parent reproduced the gates (152 required passes, soak `0x63d9de100ac9f6f2`) and all three specified bite-tests — (a) legacy-mux revert fails exactly t24b+t24c, (b) plain-C9==R9 row-end revert fails exactly t24a+t24b+t24c, (c) F11h override removal fails exactly t20j — each restoring to green. Non-blockings: N-3/N-4/N-5 fixed; N-1 recorded as a residual comment; N-2 folded into A4; N-6's upload-artifact bump queued as the next CI-only item; N-7 covered by synthesis-on-merge. |
+| `plus/p5-crtc3-bus` | P5 CRTC-3 bus semantics: modulo-8 read map, full-byte R12 storage/readback, stored R14/R15, live status groups 1 & 2 (§21.3.4), dual `&BE`/`&BF` read ports, open-bus IN-performs-write traps on CRTC, GA, unlock, and RMR2. | **CLEARED — Claude Opus 5 high, 2026-08-26.** Initial verdict NOT CLEAR on B1 (STATUS 1 bit 4 comparator off-by-one / 0=>16 substitution) and B2 (IN traps writing stale internal CPU `DO` rather than open-bus opcode byte). Remediated in-branch: literal `C0=R2+R3` comparator and updated `t07b` vector; M1-latched `io_bus_byte` open-bus routing and opcode-seeded mobo benches; N1-N4 documented/sourced. Suite passes (all 45 video tests, m1-m9 mobo bench), lint clean, soak golden `0x85b3f8e847430495`. Full record: `docs/plus/archive/p5-independent-review.md`. |
 
 
 The same rule applies here as everywhere else in this file: clear an entry only after a real
@@ -657,7 +678,7 @@ documentation-only.
 
 Pass 3 raised no blocking issues. A1 and A2 were subsequently implemented on the later
 `accuracy/f7-rfd` branch; both were outside pass 3's scope and were reviewed in pass 4
-(`accuracy/f7-plus-followups-independent-review.md`), which cleared the row.
+(`accuracy/archive/f7-plus-followups-independent-review.md`), which cleared the row.
 
 ## Rule for future unreviewed work
 

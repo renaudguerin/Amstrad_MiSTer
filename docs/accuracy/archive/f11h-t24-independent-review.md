@@ -60,7 +60,7 @@ evidence for B-1 and is worth running first.
 ### Claim 1 — F11h, §20.3.2 p.242, second CRTC-1 chronogram: CONFIRMED
 
 Judged from the render `docs/accuracy/extract/pages/p242.png`; the pdf2md text
-layer (`accc-v1.10-paged.md:7789-7823`) was used only to confirm the prose and
+layer (`../extract/pdf2md/accc-v1.10-paged.md:7789-7823`) was used only to confirm the prose and
 to prove that the layer flattens the geometry, which is why the render decides.
 
 The page carries four chronograms in two pairs, all with the identical cell
@@ -89,14 +89,14 @@ says "Note that the update of both R12 and R13 are immediate" and "On CRTC 1,
 force; only the drawn geometry separates the types. The commits' reading is the
 correct one.
 
-The commit messages and `audit-findings.md` describe the box as spanning
+The commit messages and `../audit-findings.md` describe the box as spanning
 "C0=62..1", which matches the render.
 
 ### Claim 2 — t24, §19.5.3 p.208 table: CONFIRMED, cell by cell
 
 Judged from `docs/accuracy/extract/pages/p208.png`; the pdf-inspector layer
 happens to reconstruct this table as a real Markdown table
-(`accc-v1.10-paged.md:6436-6461`), and it agrees with the render exactly, which
+(`../extract/pdf2md/accc-v1.10-paged.md:6436-6461`), and it agrees with the render exactly, which
 is unusually strong corroboration for a figure.
 
 Column order is `+32 | even C4 | even C9 | left VSYNC | right VSYNC | odd C4 | odd C9`.
@@ -183,7 +183,7 @@ directly: "When R9 is **odd** in IVM (unlike CRTC 1), this implies a difference
 between the number of even and odd lines for a character between 2 frames".
 p.206 then gives the correction inside that scheme, with an R9=7 worked example:
 "if R7 is scheduled on an odd C4, then the VSYNC is delayed by 1 line. It occurs
-when C4=R7 and C9.VMA=2 on the odd C4s." So the `f10-implementation-notes.md`
+when C4=R7 and C9.VMA=2 on the odd C4s." So the `../f10-implementation-notes.md`
 characterisation ("part of the odd-R9 balancing scheme — Q19 territory") is
 correct and it stays unimplemented. The p.207 table's four `R7=n` pairs show the
 one-row displacement in the PARITYFRAME=ODD column, and its Note ("On an even
@@ -228,7 +228,7 @@ register file as of after the current edge".
 Correctly *not* changed: `row_addr` (VMA') is still never loaded from R12/R13 on
 type 1, matching "On CRTC 1, **VMA** is loaded with R12/R13 while C4=0"; the
 §11.2.4 adjustment arm and the §11.6 RFD arm keep the stored registers and are
-named as unpinned residuals in `audit-findings.md`.
+named as unpinned residuals in `../audit-findings.md`.
 
 ### t24 — `rtl/CRTC.v:469-482`, `rtl/crtc_type1_engine.v:475-476`
 
@@ -319,7 +319,7 @@ MID-VSYNC for the even ParityFrame is not emitted; cite p.208 and note that
 `e1_vsync_line_fire` is `hcc`-independent so implementing it requires a latched
 fire decision. Correct the "residual now covers type-0 IVM and post-episode
 divergence only" sentence. Add the same residual to the t24 closure bullet in
-`docs/current-status.md:241-250` and, if t24 gets an `audit-findings.md` entry,
+`docs/current-status.md:241-250` and, if t24 gets an `../audit-findings.md` entry,
 there too.
 
 *(b) Implement it.* Latch, at the `line_new` CLKEN edge, the current value of
@@ -371,7 +371,7 @@ drawing.** `crtc1_row0_reload` is `frame_new_w | (~line_row_structure_last & !ro
 that arm extends the same-edge catch to the frame origin as well as the mid-row-0
 seam that p.242 actually draws. It is a defensible reading of "VMA is loaded
 with R12/R13 while C4=0" — the frame origin is one such event — and `t20j` pins
-both forms deliberately. But the `audit-findings.md` F11h entry presents both as
+both forms deliberately. But the `../audit-findings.md` F11h entry presents both as
 p.242-derived. Suggest one clause naming the frame-origin case as the inference
 it is, so a later hardware test knows which half is drawn and which is deduced.
 
@@ -504,12 +504,12 @@ the type-1 IVM MID-VSYNC removal as the thing to read hardest.
 
 | # | Severity | Finding | Remediation |
 |---|---|---|---|
-| B-1 | Blocking | Type-1 IVM MID-VSYNC (§19.5.3 p.208) removed on both parities; unpinned by any vector; `f10-implementation-notes.md` claims the residual narrowed | Record the residual and correct the two bullets (minimum), or latch the fire decision and add `t24c` |
+| B-1 | Blocking | Type-1 IVM MID-VSYNC (§19.5.3 p.208) removed on both parities; unpinned by any vector; `../f10-implementation-notes.md` claims the residual narrowed | Record the residual and correct the two bullets (minimum), or latch the fire decision and add `t24c` |
 | N-1 | Non-blocking | IVM gate uses raw `interlace[0]`, not the engine's latched `ivm`; 1-2 character disagreement window at R8 toggles | Export `e1_ivm` and gate on it, or comment the residual |
 | N-2 | Non-blocking | Three `expect_known_*` helpers left dead at HEAD | Remove, or fold into action item A4 |
 | N-3 | Non-blocking | Stray one-space indent, `docs/current-status.md:224-229` | Whitespace fix |
 | N-4 | Non-blocking | `t20j` comment claims a truncation that does not occur | Reword |
-| N-5 | Non-blocking | Frame-origin same-edge catch is an inference from p.242, presented as drawn | One clause in the `audit-findings.md` F11h entry |
+| N-5 | Non-blocking | Frame-origin same-edge catch is an inference from p.242, presented as drawn | One clause in the `../audit-findings.md` F11h entry |
 | N-6 | Non-blocking | `upload-artifact@v4` left on the deprecated runtime; `checkout@v7` unverifiable offline | Bump or scope the commit message; confirm on the first CI run |
 | N-7 | Non-blocking | New combinational `DI`→`row_addr_r` path awaiting synthesis | Covered by synthesis-on-merge; noted only |
 

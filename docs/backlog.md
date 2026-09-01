@@ -402,6 +402,17 @@ needs to look at.
 
 **Priority: high. Cheap, and it reduces the cost of everything else.**
 
+**ARCHIVE SLICE COMPLETE 2026-09-01.** Eighteen settled accuracy review
+documents and seven settled Plus review records now live under indexed
+`docs/accuracy/archive/` and `docs/plus/archive/` directories. Active rule
+sources, open-debt evidence, the current author clarification/consequence
+audit, IA-5 hardware discriminator, FDC records, and ambiguous P10 reviews
+remain outside the archives. Repository-local inbound paths, archive-relative
+Markdown links, path-like prose references, and whitespace have dedicated
+passing checks. `docs/current-status.md` now links the archives instead of
+repeating the pass chronology. The test-suite sweep in action 1 remains open;
+this archive slice does not imply that any validation residual is closed.
+
 `sim/sim_main.cpp` is 8088 lines carrying 71 tests, alongside roughly twenty separate Plus
 benches. `docs/accuracy/` and `docs/plus/` hold roughly twenty independent-review documents,
 including multi-pass cross-provider reviews of corrections to *prose*.

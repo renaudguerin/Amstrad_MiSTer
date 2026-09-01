@@ -2,7 +2,7 @@
 
 Reviewed 2026-08-28 by **Claude Opus 5** (independent cross-provider pass over items previously
 reviewed by ox-alpha under the 2026-08-22 locked decision recorded in `docs/review-debt.md` and
-`docs/accuracy/f7-plus-followups-independent-review.md`).
+`docs/accuracy/archive/f7-plus-followups-independent-review.md`).
 
 - Repository branch: `accc-review-and-fixes`, reviewed tip `feb57d364efedebd006d0af32224a929fa40d889`.
 - Working tree clean apart from this document.
@@ -356,7 +356,7 @@ with R5=0, `frame_adj_CRTC1` is gated on `~in_adj`, `crtc1_adj_end` is gated on
 1` free-runs C4 through 127 and wraps by 7-bit overflow. Under the literal reading, C4 would
 instead cycle with period R4+1. That is observable through R6 and R7 comparisons.
 
-Two problems compound here. The digest at `compendium-01-counters.md:218` paraphrases the clause as
+Two problems compound here. The digest at `../compendium-01-counters.md:218` paraphrases the clause as
 "C4 still compares against R4 for its own logic, but adjustment-active persists", which drops the
 "to process the change from C4 to 0" that carries the whole content. And `t08j` cannot discriminate:
 it runs R4=10 with C4 from 11 to 19, never approaching a second C4==R4, so both readings pass.

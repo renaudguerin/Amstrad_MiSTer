@@ -46,7 +46,7 @@ The Phase P6 implementation cleanly and faithfully realizes the Amstrad Plus ASI
   - Masks decoded screen ink to `BORDER_I` during the first 16 dots of active display when `SSCR[7] == 1`.
 - **Sprite Invariance (`rtl/plus/asic_video.v:871, 882-888`):**
   - `wire show_spr = de_hold & SPR_EN;` uses `de_hold` rather than `eff_de`.
-  - Sprites display over the `SSCR[7]`-masked border area inside `de_hold`, while natural border outside `de_hold` beats sprites and `blank` (HSYNC) blanks all, matching `asic-reference.md` §5 priority rules.
+  - Sprites display over the `SSCR[7]`-masked border area inside `de_hold`, while natural border outside `de_hold` beats sprites and `blank` (HSYNC) blanks all, matching `../references/asic-reference.md` §5 priority rules.
 
 ### 3. Motherboard Wiring & Integration
 - **`rtl/Amstrad_motherboard.v:372-374, 397-400, 425-426`:**

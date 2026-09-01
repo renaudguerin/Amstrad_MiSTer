@@ -3,7 +3,7 @@
 > **Later evidence:** The author's direct 2026-08-31 response resolves Q20/N2 in favor of
 > the C4/R4 reset route and answers the eight Round 2 clarifications. This review remains an
 > exact verdict on its dated state, not the current Q20 disposition. See
-> [the response record](accc-author-response-round2-2026-08-31.md).
+> [the response record](../accc-author-response-round2-2026-08-31.md).
 
 **Date:** 2026-08-31
 
@@ -50,7 +50,7 @@ did not issue a second review verdict.
    English pp.85–86 and French pp.87–88.
 4. English-only page anchors in French-primary prose are now edition-labelled and paired
    with the French anchor where appropriate.
-5. `current-status.md` used 2026-08-28 for a release whose PDF changelog and feedback archive
+5. `../../current-status.md` used 2026-08-28 for a release whose PDF changelog and feedback archive
    record 2026-08-27; the handoff now uses the source date.
 
 The ACCC Round 2 documentation row is therefore cleared. Q20/N2 and both hardware timing
