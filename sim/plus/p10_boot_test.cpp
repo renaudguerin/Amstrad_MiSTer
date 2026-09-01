@@ -1,9 +1,13 @@
 #include "Vp10_boot_test_top.h"
 #include "verilated.h"
 
+#include <algorithm>
+#include <array>
 #include <cstdint>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -31,6 +35,19 @@ void require(bool condition, const std::string &message) {
 struct Chunk {
     std::string id;
     std::vector<uint8_t> data;
+};
+
+struct FdcCpuLatchRead {
+	uint16_t addr;
+	uint8_t cpu_di;
+	uint8_t fdc_dout;
+	uint8_t expected;
+	uint8_t fdc_bus;
+	uint8_t ram_dout;
+	uint8_t top_bus;
+	uint8_t mb_bus;
+	uint8_t msr;
+	uint8_t state;
 };
 
 std::vector<uint8_t> build_cpr_image(const std::vector<Chunk> &chunks, const std::string &form_type = "AMS!") {
@@ -63,6 +80,20 @@ public:
     std::unordered_map<uint32_t, uint8_t> memory;
     uint64_t cycles = 0;
     uint32_t physical_cart_reads = 0;
+	uint32_t fdc_sd_reads = 0;
+	uint32_t fdc_last_lba = 0;
+	std::vector<uint32_t> fdc_sd_lbas;
+	std::vector<uint8_t> disk_image;
+	std::vector<uint8_t> fdc_writes;
+	std::vector<uint8_t> fdc_reads;
+	std::vector<FdcCpuLatchRead> fdc_cpu_latch_reads;
+	std::array<uint8_t, 512> fdc_payload{};
+	std::array<bool, 512> fdc_payload_seen{};
+	size_t fdc_first_payload_latch_count = 0;
+	bool fdc_first_payload_latch_count_seen = false;
+	std::array<uint8_t, 7> fdc_results{};
+	std::array<bool, 7> fdc_result_seen{};
+	bool fdc_success = false;
 
     Harness() {
         dut.clk = 0;
@@ -77,12 +108,20 @@ public:
         dut.memory_dq = 0;
         dut.memory_dq_oe = 0;
         dut.force_irq = 0;
+		dut.production_clocking = 0;
+		dut.fdc_img_mounted = 0;
+		dut.fdc_img_wp = 1;
+		dut.fdc_img_size = 0;
+		dut.fdc_sd_ack = 0;
+		dut.fdc_sd_buff_addr = 0;
+		dut.fdc_sd_buff_dout = 0;
+		dut.fdc_sd_buff_wr = 0;
         dut.eval();
     }
 
     ~Harness() { dut.final(); }
 
-    void tick() {
+    void raw_tick() {
         dut.clkref = ((cycles & 7U) == 0U);
         dut.memory_dq_oe = read_drive_cycles > 0;
         dut.memory_dq = read_word;
@@ -118,8 +157,88 @@ public:
             !dut.dbg_rd_n && dut.dbg_addr == 0xC000 && dut.dbg_din == 0x42) {
             upper_page_magic_seen = true;
         }
+
+		const bool fdc_io = !dut.dbg_iorq_n &&
+		                    (!dut.dbg_rd_n || !dut.dbg_wr_n) &&
+		                    dut.dbg_fdc_data_sel;
+		if (fdc_io && !fdc_io_active) {
+			if (!dut.dbg_wr_n) {
+				fdc_writes.push_back(dut.dbg_dout);
+			}
+			if (!dut.dbg_rd_n) {
+				fdc_reads.push_back(dut.dbg_din);
+			}
+		}
+		fdc_io_active = fdc_io;
+
+		if (dut.dbg_cpu_di_latch && dut.dbg_cpu_di_fdc_sel &&
+		    dut.dbg_cpu_di_io_rd) {
+			fdc_cpu_latch_reads.push_back({
+				static_cast<uint16_t>(dut.dbg_cpu_di_addr),
+				static_cast<uint8_t>(dut.dbg_cpu_di_reg),
+				static_cast<uint8_t>(dut.dbg_cpu_di_fdc_dout),
+				static_cast<uint8_t>(dut.dbg_cpu_di_expected),
+				static_cast<uint8_t>(dut.dbg_cpu_di_fdc_bus),
+				static_cast<uint8_t>(dut.dbg_cpu_di_ram_dout),
+				static_cast<uint8_t>(dut.dbg_cpu_di_top_bus),
+				static_cast<uint8_t>(dut.dbg_cpu_di_mb_bus),
+				static_cast<uint8_t>(dut.dbg_cpu_di_msr),
+				static_cast<uint8_t>(dut.dbg_cpu_di_fdc_state),
+			});
+		}
+
+		if (!dut.dbg_mreq_n && !dut.dbg_wr_n) {
+			if (dut.dbg_addr >= 0x8000 && dut.dbg_addr < 0x8200) {
+				const unsigned offset = dut.dbg_addr - 0x8000;
+				fdc_payload[offset] = dut.dbg_dout;
+				fdc_payload_seen[offset] = true;
+				if (offset == 0 && !fdc_first_payload_latch_count_seen) {
+					fdc_first_payload_latch_count_seen = true;
+					fdc_first_payload_latch_count = fdc_cpu_latch_reads.size();
+				}
+			}
+			if (dut.dbg_addr >= 0x8200 && dut.dbg_addr < 0x8207) {
+				const unsigned offset = dut.dbg_addr - 0x8200;
+				fdc_results[offset] = dut.dbg_dout;
+				fdc_result_seen[offset] = true;
+			}
+			if (dut.dbg_addr == 0x82ff && dut.dbg_dout == 0xa5)
+				fdc_success = true;
+		}
         ++cycles;
     }
+
+	void tick() {
+		raw_tick();
+		if (dut.fdc_sd_rd == 0) sd_request_serviced = false;
+		if (dut.fdc_sd_wr != 0)
+			throw TestFailure("read-only FDC fixture received an SD write request");
+		if (dut.fdc_sd_rd != 0 && !sd_request_serviced) {
+			sd_request_serviced = true;
+			service_sd_read();
+		}
+	}
+
+	void load_disk(const std::string &path) {
+		std::ifstream input(path, std::ios::binary);
+		if (!input) throw TestFailure("cannot open disk image " + path);
+		disk_image.assign(std::istreambuf_iterator<char>(input),
+		                  std::istreambuf_iterator<char>());
+		require(!disk_image.empty(), "known-good disk image is empty");
+	}
+
+	void mount_disk() {
+		require(!disk_image.empty(), "mount requested without a disk image");
+		dut.fdc_img_size = static_cast<uint32_t>(disk_image.size());
+		dut.fdc_img_mounted = 1;
+		tick();
+		dut.fdc_img_mounted = 0;
+		for (unsigned wait = 0; wait < 4000000 && !dut.dbg_fdc_image_ready;
+		     ++wait)
+			tick();
+		require(dut.dbg_fdc_image_ready,
+		        "real u765 did not finish parsing the known-good EDSK");
+	}
 
     void initialize() {
         for (int i = 0; i < 16; ++i) tick();
@@ -171,6 +290,29 @@ private:
     uint8_t active_bank = 0;
     uint16_t read_word = 0;
     int read_drive_cycles = 0;
+	bool sd_request_serviced = false;
+	bool fdc_io_active = false;
+
+	void service_sd_read() {
+		const uint32_t lba = dut.fdc_sd_lba;
+		const uint64_t offset = static_cast<uint64_t>(lba) * 512U;
+		fdc_last_lba = lba;
+		++fdc_sd_reads;
+		fdc_sd_lbas.push_back(lba);
+		for (unsigned address = 0; address < 512; ++address) {
+			dut.fdc_sd_ack = 1;
+			dut.fdc_sd_buff_wr = 1;
+			dut.fdc_sd_buff_addr = address;
+			const uint64_t image_address = offset + address;
+			dut.fdc_sd_buff_dout = image_address < disk_image.size()
+			                         ? disk_image[image_address]
+			                         : 0;
+			raw_tick();
+		}
+		dut.fdc_sd_buff_wr = 0;
+		dut.fdc_sd_ack = 0;
+		raw_tick();
+	}
 
     uint8_t command() const {
         return (dut.sdram_nras ? 0b100 : 0b000) |
@@ -527,13 +669,196 @@ void test_p10a_deterministic_boot() {
     std::cout << "PASS: test_p10a_deterministic_boot" << std::endl;
 }
 
+void test_real_u765_edsk_read() {
+	std::cout << "Running test_real_u765_edsk_read..." << std::endl;
+	Harness h;
+	h.dut.production_clocking = 1;
+	h.initialize();
+	h.load_disk("../../rtl/u765/test.dsk");
+	h.mount_disk();
+	const uint32_t mount_reads = h.fdc_sd_reads;
+
+	std::vector<uint8_t> page(16384, 0x00);
+	page[0] = 0xc3; // JP &0100
+	page[1] = 0x00;
+	page[2] = 0x01;
+	size_t pc = 0x0100;
+	auto emit = [&](uint8_t byte) { page[pc++] = byte; };
+	auto patch_relative = [&](size_t operand, size_t target) {
+		const int offset = static_cast<int>(target) -
+		                   static_cast<int>(operand + 1);
+		require(offset >= -128 && offset <= 127,
+		        "fixture relative branch is out of range");
+		page[operand] = static_cast<uint8_t>(offset);
+	};
+	auto emit_wait_rqm = [&]() {
+		emit(0x01); emit(0xde); emit(0xfb); // LD BC,&FBDE (MSR)
+		const size_t poll = pc;
+		emit(0xed); emit(0x78);             // IN A,(C)
+		emit(0xe6); emit(0x80);             // AND &80 (RQM)
+		emit(0x28);                         // JR Z,poll
+		const size_t displacement = pc;
+		emit(0x00);
+		patch_relative(displacement, poll);
+	};
+	auto emit_fdc_byte = [&](uint8_t byte) {
+		emit_wait_rqm();
+		emit(0x0c);                         // INC C -> &FBDF data
+		emit(0x3e); emit(byte);             // LD A,byte
+		emit(0xed); emit(0x79);             // OUT (C),A
+	};
+
+	emit(0xf3);                            // DI
+	emit(0x31); emit(0x00); emit(0xc0);   // LD SP,&C000
+	emit(0x01); emit(0xdd); emit(0xfa);   // LD BC,&FADD (Plus motor alias)
+	emit(0x3e); emit(0x01);               // LD A,1
+	emit(0xed); emit(0x79);               // OUT (C),A
+	// Track 0/head 0/sector &41 is the first independently described sector
+	// in the tracked known-good EDSK. Its 512-byte payload starts at file LBA 1.
+	const uint8_t read_command[] = {
+		0x46, 0x00, 0x00, 0x00, 0x41, 0x02, 0x41, 0x1e, 0xff
+	};
+	for (const uint8_t byte : read_command) emit_fdc_byte(byte);
+	emit(0x01); emit(0xde); emit(0xfb);   // LD BC,&FBDE (MSR)
+	auto emit_fdc_read_to = [&](uint16_t address, uint8_t mask,
+	                            uint8_t expected) {
+		const size_t poll = pc;
+		emit(0xed); emit(0x78);             // IN A,(C)
+		emit(0xe6); emit(mask);             // AND mask
+		emit(0xfe); emit(expected);         // CP expected
+		emit(0x20);                         // JR NZ,poll
+		const size_t displacement = pc;
+		emit(0x00);
+		patch_relative(displacement, poll);
+		emit(0x0c);                         // INC C -> data
+		emit(0xed); emit(0x78);             // IN A,(C)
+		emit(0x32);                         // LD (address),A
+		emit(static_cast<uint8_t>(address & 0xff));
+		emit(static_cast<uint8_t>(address >> 8));
+		emit(0x0d);                         // DEC C -> status
+	};
+	// Unroll the transfer so this production-path discriminator depends only
+	// on IN/OUT and absolute stores, not on TV80 loop-register corner cases.
+	for (unsigned byte = 0; byte < 512; ++byte)
+		emit_fdc_read_to(static_cast<uint16_t>(0x8000 + byte), 0xf0, 0xf0);
+	for (unsigned delay = 0; delay < 128; ++delay) emit(0x00); // result settle
+
+	// Consume and preserve the seven-byte result phase at &8200..&8206.
+	for (unsigned result = 0; result < 7; ++result)
+		emit_fdc_read_to(static_cast<uint16_t>(0x8200 + result), 0xf0, 0xd0);
+	emit(0x3e); emit(0xa5);               // LD A,&A5
+	emit(0x32); emit(0xff); emit(0x82);   // LD (&82FF),A completion marker
+	emit(0x76);                           // HALT
+
+	h.download(build_cpr_image({{"cb00", page}}));
+	require(h.dut.dbg_reset,
+	        "CPR apply must reset the mounted controller before execution");
+	for (uint64_t ticks = 0; ticks < 30000000 && !h.fdc_success; ++ticks)
+		h.tick();
+	require(h.fdc_success,
+	        "production CPU did not complete the real-u765 READ DATA program");
+	std::cout << "  trace checkpoint: mount_sd_reads=" << mount_reads
+	          << " total_sd_reads=" << h.fdc_sd_reads
+	          << " last_lba=" << h.fdc_last_lba
+	          << " pending_rd=" << static_cast<unsigned>(h.dut.fdc_sd_rd)
+	          << " pending_lba=" << h.dut.fdc_sd_lba
+	          << " fdc_writes=" << h.fdc_writes.size()
+	          << " fdc_reads=" << h.fdc_reads.size()
+	          << " fdc_cpu_latches=" << h.fdc_cpu_latch_reads.size()
+	          << " state=" << static_cast<unsigned>(h.dut.dbg_fdc_state)
+	          << " msr=" << std::hex
+	          << static_cast<unsigned>(h.dut.dbg_fdc_msr)
+	          << " seek=" << h.dut.dbg_fdc_seek_pos
+	          << " dirty=" << static_cast<unsigned>(h.dut.dbg_fdc_trackinfo_dirty)
+	          << " sector_pos=" << h.dut.dbg_fdc_sector_pos
+	          << " byte_count=" << static_cast<unsigned>(h.dut.dbg_fdc_byte_count)
+	          << " results=" << std::hex
+	          << static_cast<unsigned>(h.fdc_results[0]) << "/"
+	          << static_cast<unsigned>(h.fdc_results[1]) << "/"
+	          << static_cast<unsigned>(h.fdc_results[2]) << std::dec << '\n';
+	require(h.dut.dbg_motor, "Plus motor alias did not enable Drive A");
+	require(h.fdc_sd_reads > mount_reads,
+	        "READ DATA did not issue a post-reset SD request");
+	require(std::find(h.fdc_sd_lbas.begin(), h.fdc_sd_lbas.end(), 1) !=
+	            h.fdc_sd_lbas.end(),
+	        "first EDSK sector read did not request payload LBA 1");
+	require(h.fdc_writes.size() >= 9,
+	        "CPU/FDC trace missed READ DATA command bytes");
+	for (unsigned i = 0; i < 9; ++i)
+		require(h.fdc_writes[h.fdc_writes.size() - 9 + i] == read_command[i],
+		        "CPU/FDC command trace diverged at byte " + std::to_string(i));
+	unsigned first_payload_mismatch = 512;
+	for (unsigned i = 0; i < 512; ++i) {
+		require(h.fdc_payload_seen[i],
+		        "CPU did not store payload byte " + std::to_string(i));
+		if (first_payload_mismatch == 512 &&
+		    h.fdc_payload[i] != h.disk_image[0x200 + i])
+			first_payload_mismatch = i;
+	}
+	for (unsigned i = 0; i < 7; ++i)
+		require(h.fdc_result_seen[i],
+		        "CPU did not consume result byte " + std::to_string(i));
+	require(h.fdc_first_payload_latch_count_seen,
+	        "first payload store did not capture the preceding CPU latch boundary");
+	require(h.fdc_first_payload_latch_count >= 2,
+	        "first payload store lacks preceding FDC status/data latch events");
+	const FdcCpuLatchRead &data_latch =
+		h.fdc_cpu_latch_reads[h.fdc_first_payload_latch_count - 1];
+	const FdcCpuLatchRead *status_latch = nullptr;
+	for (size_t i = h.fdc_first_payload_latch_count - 1; i-- > 0;) {
+		if (h.fdc_cpu_latch_reads[i].addr == 0xfbde) {
+			status_latch = &h.fdc_cpu_latch_reads[i];
+			break;
+		}
+	}
+	require(status_latch != nullptr,
+	        "first payload store lacks a preceding FDC status latch");
+	require(data_latch.addr == 0xfbdf,
+	        "last FDC latch before the first payload store was not the data port");
+	auto require_clean_fdc_path = [](const FdcCpuLatchRead &sample,
+	                                const char *kind) {
+		require(sample.expected == sample.fdc_dout &&
+		            sample.fdc_dout == sample.fdc_bus &&
+		            static_cast<uint8_t>(sample.ram_dout & sample.fdc_bus) ==
+		                sample.top_bus &&
+		            sample.fdc_bus == sample.top_bus &&
+		            sample.top_bus == sample.mb_bus &&
+		            sample.mb_bus == sample.cpu_di,
+		        std::string("FDC ") + kind +
+		            " differed across controller, bus muxes, and CPU latch");
+	};
+	require_clean_fdc_path(*status_latch, "status");
+	require(status_latch->expected == status_latch->msr,
+	        "FDC status-port source differed from the controller MSR");
+	require_clean_fdc_path(data_latch, "data");
+	require(h.fdc_payload[0] == data_latch.cpu_di,
+	        "first payload store differed from the preceding CPU data latch");
+	require(first_payload_mismatch != 512,
+	        "XPASS: production-clock TV80 consumed the complete EDSK payload; remove the XFAIL");
+	require(first_payload_mismatch == 0,
+	        "payload XFAIL changed shape; re-trace the first divergence");
+	std::cout << "XFAIL fdc-payload-poll: production-clock TV80 stored 0x"
+	          << std::hex << static_cast<unsigned>(h.fdc_payload[0])
+	          << " instead of 0x"
+	          << static_cast<unsigned>(h.disk_image[0x200])
+	          << " at payload byte 0; exact CPU latch saw selected u765 data/state/MSR="
+	          << static_cast<unsigned>(data_latch.cpu_di) << "/"
+	          << static_cast<unsigned>(data_latch.state) << "/"
+	          << static_cast<unsigned>(data_latch.msr)
+	          << " after status latch=" << static_cast<unsigned>(status_latch->cpu_di)
+	          << "/" << static_cast<unsigned>(status_latch->state) << std::dec << '\n';
+	std::cout << "PASS: production decode/command/media request; payload divergence retained as XFAIL"
+	          << std::endl;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
     try {
         test_p10a_deterministic_boot();
-        std::cout << "\nAll P10a Production CPR Boot Harness tests PASSED.\n";
+		test_real_u765_edsk_read();
+		std::cout << "\nAll P10 Production CPR Boot Harness tests PASSED.\n";
         return 0;
     } catch (const std::exception &e) {
         std::cerr << "\nFAILED: " << e.what() << "\n";

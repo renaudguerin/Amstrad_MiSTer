@@ -31,6 +31,12 @@
 // m12 the 12-bit ASIC palette reaches the top-level RGB pins (HF-2): the
 //     script's &6420 write leaves border entry 16 at {G0,R2,B1}, a level
 //     the legacy 27-colour ROM cannot produce.
+// m13 integrates the real sprite leaf and video compositor at both display
+//     edges: X=0/-8 align with the locked-ASIC's delayed display origin;
+//     SSCR[7] selects border for the first screen character without hiding
+//     an opaque X=0 sprite;
+//     X=640/+767 still arm in the leaf, standard R1=40 masks them with border,
+//     and widened R1=50 exposes the same sprite pixels.
 
 #include <cstdint>
 #include <cstdio>
@@ -117,7 +123,37 @@ public:
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__pal[0];
 	}
 	auto* x_lo(unsigned n) {
-		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_x_lo[0];
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_x_lo[n];
+	}
+	auto* x_hi(unsigned n) {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__spr_x_hi[n];
+	}
+	auto* asic_r0() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_vid__DOT__R0_h_total;
+	}
+	auto* asic_r1() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_vid__DOT__R1_h_displayed;
+	}
+	auto* asic_r2() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_vid__DOT__R2_h_sync_pos;
+	}
+	auto* asic_sscr() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_page__DOT__sscr_r;
+	}
+	auto* asic_hcc() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_vid__DOT__hcc;
+	}
+	auto* asic_pix_cnt() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_vid__DOT__pix_cnt;
+	}
+	auto* asic_de_hold() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_vid__DOT__de_hold;
+	}
+	auto* asic_eff_de() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_vid__DOT__eff_de;
+	}
+	auto* asic_pal_addr() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_pal_raddr;
 	}
 	auto* splt_tap() {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_splt;
@@ -504,6 +540,143 @@ int run() {
 			     std::to_string(asic_dots) + " dots");
 		std::printf("PASS m12: 12-bit ASIC palette border on the RGB pins over "
 		            "%u dots\n", asic_dots);
+	}
+
+	//------------------------------------------------------------------
+	// m13: source-backed display-origin, SSCR[7], and right-edge discriminator.
+	//
+	// Arnold §2.1 qualifies +639 as the right edge for STANDARD timing;
+	// [KT] retains positive X through +767 and derives it from the CRTC
+	// horizontal counter. The sprite leaf must therefore arm at 640/767,
+	// while the real compositor hides those windows behind the border at
+	// R1=40 and exposes them when R1=50 widens DE through dot 799.
+	//------------------------------------------------------------------
+	{
+		auto* ce16   = &b.dut.rootp->p1_mobo_bench_top__DOT__ce_16;
+		auto* en_tap = &b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_spr_en;
+		auto* vc_tap = &b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_vc;
+		auto* rc_tap = &b.dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_rc;
+
+		// Keep HSYNC beyond both windows so this vector distinguishes DE/border
+		// precedence from force-blanking. Disable the earlier soft-scroll setup.
+		*b.asic_r0() = 63;
+		*b.asic_r2() = 55;
+		*b.asic_sscr() = 0;
+
+		auto check_sscr_screen_mask = [&](uint8_t sscr, bool expect_mask,
+		                                  const char* label) {
+			*b.asic_sscr() = sscr;
+			unsigned samples = 0;
+			const uint64_t deadline = b.cyc + 500000;
+			while (b.cyc < deadline && samples < 8) {
+				b.tick();
+				if (!*ce16 || !*b.asic_de_hold() || *b.asic_hcc() != 1 ||
+				    *b.asic_pix_cnt() < 2 || *b.asic_pix_cnt() > 13)
+					continue;
+				const bool masked = !*b.asic_eff_de();
+				if (masked != expect_mask)
+					fail(std::string("m13 ") + label +
+					     ": SSCR screen mask did not reach the compositor");
+				if ((*b.asic_pal_addr() == 16) != expect_mask)
+					fail(std::string("m13 ") + label +
+					     ": first-character palette selection did not follow SSCR");
+				++samples;
+			}
+			if (samples != 8)
+				fail(std::string("m13 ") + label +
+				     ": no stable first-character screen samples");
+		};
+
+		auto check_case = [&](unsigned xpos, unsigned r1, unsigned visible_dots,
+		                      unsigned expected_width, unsigned source_offset,
+		                      unsigned expected_start_hcc,
+		                      unsigned expected_start_pix, const char* label) {
+			*b.x_lo(0) = uint8_t(xpos);
+			*b.x_hi(0) = uint8_t((xpos >> 8) & 3);
+			*b.asic_r1() = uint8_t(r1);
+
+			bool in_win = false;
+			bool seen_quiet = false;
+			bool discard = true;
+			unsigned win_pos = 0;
+			unsigned win_vline = 0;
+			const uint64_t deadline = b.cyc + 500000;
+			while (b.cyc < deadline) {
+				b.tick();
+				if (!*ce16)
+					continue;
+				const bool en = *en_tap != 0;
+				const unsigned cur_vline =
+				    unsigned((*vc_tap << 3) | (*rc_tap & 7));
+				if (!en)
+					seen_quiet = true;
+				if (en && !in_win) {
+					in_win = true;
+					win_pos = 0;
+					win_vline = cur_vline;
+					discard = !seen_quiet;
+				}
+				else if (in_win && !en) {
+					in_win = false;
+					if (!discard && cur_vline == win_vline) {
+						if (win_pos != expected_width)
+							fail(std::string("m13 ") + label +
+							     ": leaf width " + std::to_string(win_pos));
+						return;
+					}
+				}
+				if (!in_win || discard)
+					continue;
+				if (cur_vline != win_vline)
+					discard = true;
+				else if (win_pos == 0) {
+					if (*b.asic_hcc() != expected_start_hcc ||
+					    *b.asic_pix_cnt() != expected_start_pix)
+						fail(std::string("m13 ") + label +
+						     ": raw window starts at hcc/pix=" +
+						     std::to_string(*b.asic_hcc()) + "/" +
+						     std::to_string(*b.asic_pix_cnt()));
+				}
+				else {
+					const bool visible = win_pos <= visible_dots;
+					if (visible) {
+						const bool even_source =
+						    ((source_offset + win_pos - 1) & 1) == 0;
+						const uint8_t er = even_source ? 0x1 : 0x3;
+						const uint8_t eg = even_source ? 0xF : 0x6;
+						const uint8_t eb = even_source ? 0x2 : 0x4;
+						if (b.dut.red_o != er || b.dut.green_o != eg ||
+						    b.dut.blue_o != eb)
+							fail(std::string("m13 ") + label +
+								     ": display DE did not expose sprite RGB");
+					}
+					else if (b.dut.red_o != 0x2 || b.dut.green_o != 0x0 ||
+					         b.dut.blue_o != 0x1) {
+						fail(std::string("m13 ") + label +
+						     ": standard border did not mask sprite RGB");
+					}
+				}
+				++win_pos;
+			}
+			fail(std::string("m13 ") + label +
+			     ": no complete raw sprite window before timeout");
+		};
+
+		check_case(0,    40, 16, 16, 0, 1,  0,  "standard X=0");
+		check_sscr_screen_mask(0x00, false, "SSCR=0 control");
+		check_sscr_screen_mask(0x80, true,  "SSCR[7] screen mask");
+		*b.asic_sscr() = 0x80;
+		check_case(0,    40, 16, 16, 0, 1,  0,  "SSCR[7] X=0");
+		*b.asic_sscr() = 0;
+		check_case(1016, 40,  8,  8, 8, 1,  0,  "standard X=-8");
+		check_case(639,  40,  1, 16, 0, 40, 15, "standard X=639");
+		check_case(640,  40,  0, 16, 0, 41, 0,  "standard X=640");
+		check_case(767,  40,  0, 16, 0, 48, 15, "standard X=767");
+		check_case(640,  50, 16, 16, 0, 41, 0,  "widened X=640");
+		check_case(767,  50, 16, 16, 0, 48, 15, "widened X=767");
+		std::printf("PASS m13: X=0/-8 align to the delayed display origin; "
+		            "SSCR[7] leaves X=0 visible; X=640/+767 are masked at "
+		            "R1=40 and visible at R1=50\n");
 	}
 	return 0;
 }

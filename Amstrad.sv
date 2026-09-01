@@ -324,9 +324,7 @@ always @(posedge clk_sys) begin
 	reg [8:0] page = 0;
 	reg       combo = 0;
 	reg       old_download;
-	reg 	  old_dan_download;
 	reg       old_sna_download;
-	reg  	  old_st0 = 0;
 
 	sna_cpc_plus_start <= 1'b0;
 	sna_cpc_plus_wr    <= 1'b0;
@@ -419,10 +417,6 @@ always @(posedge clk_sys) begin
 			if(ioctl_file_ext[15:0] == "Z0") begin page <= 0; combo <= 1; end
 		end
 	end
-	old_dan_download <= dan_download;
-    if (old_dan_download & ~dan_download)  begin
-        dan_eeprom_loaded <= 1'b1;
-    end
 	if(sna_download && ioctl_wr && (ioctl_addr < 25'h100)) begin
 		case(ioctl_addr[7:0])
 			8'h11: sna_cpu_dir[15:8]    <= ioctl_dout;          // F
@@ -647,8 +641,6 @@ always @(posedge clk_sys) begin
 		cpr_apply_cnt <= 3'd7;
 	end
 	else if(cpr_apply_cnt) cpr_apply_cnt <= cpr_apply_cnt - 1'd1;
-	old_st0 <= status[32];
-	if (~old_st0 & status[32]) dan_eeprom_loaded <= 0;
 end
 
 
@@ -1374,8 +1366,19 @@ wire dan_ramdis;
 wire dan_eeprom_nce;
 wire dan_eeprom_nwr;
 //wire dan_nnmi;
-reg dan_eeprom_loaded = 1'b0;
-wire dan_ena = ~dan_eeprom_nce & dan_eeprom_loaded;
+wire dan_eeprom_loaded;
+wire dan_ena;
+
+plus_legacy_cart_gate legacy_cart_gate
+(
+	.clk(clk_sys),
+	.plus_mode(plus_mode),
+	.dandanator_download(dan_download),
+	.dandanator_detach(status[32]),
+	.dandanator_nce(dan_eeprom_nce),
+	.dandanator_loaded(dan_eeprom_loaded),
+	.dandanator_active(dan_ena)
+);
 
 CPC_Dandanator dandanator(
     .clk(clk_sys),

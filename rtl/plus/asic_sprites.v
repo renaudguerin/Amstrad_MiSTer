@@ -28,9 +28,13 @@
 //     X + (16<<xmag)). The scale wraps at exactly 64 characters, so a line
 //     longer than 64 chars (R0 > 64) passes the sprite window again —
 //     [KT]: "If CRTC R0>64, then the sprites may repeat horizontally".
-//     X is compared on its stored 10 bits (unsigned view of the signed
-//     field), so negative X values alias into the far end of the scale,
-//     the exact horizontal counterpart of the modular Y compare above.
+//     X uses Arnold's unusual signed range: raw 0..767 is non-negative and
+//     raw 768..1023 represents -256..-1. A negative sprite overlapping X=0
+//     begins part-way through its source row; one wholly to the left stays
+//     hidden instead of aliasing near the counter's far end. Positive values
+//     remain available through 767 for widened CRTC displays. The compositor
+//     clips them behind the border under standard timing, and the 10-bit
+//     counter still makes them repeat when R0 exceeds 64 characters [KT].
 //
 //  Staging architecture: each sprite has TWO row banks. The active bank
 //  feeds emission; at every line seam the engine promotes the inactive
@@ -74,6 +78,12 @@
 //============================================================================
 
 module asic_sprites
+#(
+	// The locked-ASIC pixel path delays the display area by one character.
+	// Production sets this to 16 so sprite X=0 remains the top-left display
+	// coordinate; standalone leaf vectors use the abstract zero-origin default.
+	parameter [9:0] H_ORIGIN_DOTS = 10'd0
+)
 (
 	input        CLOCK,
 	input        PIXEN,      // 16 MHz dot enable
@@ -135,7 +145,9 @@ wire unused = &{ROW[4:3], 1'b0};
 
 wire [9:0] vline = {LINE, ROW[2:0]};   // (LineCounter<<3)|(RasterCounter&7) [KT]
 
-reg [9:0]  c_xa   [0:15];   // stored X, 10-bit unsigned view
+reg [9:0]  c_xa   [0:15];   // stored X, Arnold raw range 0..767/-256..-1
+reg        c_xneg [0:15];   // raw 768..1023 encodes -256..-1
+reg [8:0]  c_xmag [0:15];   // magnitude for a negative X
 reg [1:0]  c_xc   [0:15];   // X mag code (00 off, 01 x1, 10 x2, 11 x4)
 reg [1:0]  c_yc   [0:15];   // Y mag code
 reg [6:0]  c_wid  [0:15];   // horizontal window width in dots
@@ -151,6 +163,8 @@ integer i;
 always @(*) begin
 	for (i = 0; i < 16; i = i + 1) begin
 		c_xa[i]   = SPR_X[i*10 +: 10];
+		c_xneg[i] = &SPR_X[i*10+9 -: 2];
+		c_xmag[i] = (~SPR_X[i*10 +: 10]) + 10'd1;
 		c_xc[i]   = SPR_MAG[i*4+3 -: 2];
 		c_yc[i]   = SPR_MAG[i*4+1 -: 2];
 		c_xsh[i]  = (c_xc[i] == 2'd1) ? 3'd0 :
@@ -169,8 +183,9 @@ end
 //----------------------------------------------------------------------
 // Horizontal window state.
 //
-// hp counts dots continuously through the line and clears at HWRAP, so
-// hp mod 1024 IS the {char,dot} position on the 64-character scale. A
+// hp counts dots continuously through the line and reloads at HWRAP so
+// hp mod 1024 reaches zero H_ORIGIN_DOTS after the CRTC seam. It therefore
+// remains the display-relative {char,dot} position on a 64-character scale. A
 // window arms when hp equals the stored X (once per 1024-dot pass — the
 // documented R0>64 repeat falls out), advances one dot per PIXEN, and
 // retires after c_wid dots. An X rewrite while a window is open kills
@@ -185,8 +200,11 @@ reg  [159:0] xs_q;      // X shadows (rewrite detection)
 
 reg [3:0] blank_cnt [0:15];
 
+localparam [9:0] HP_SEAM = 10'd0 - H_ORIGIN_DOTS;
+
 // Combinational window terms shared by emission, next-state and snapshots.
 reg [15:0] c_xeq;       // hp hits stored X this dot
+reg [15:0] c_xleft;     // negative X overlaps the visible left edge
 reg [15:0] c_chg;       // X rewritten since the shadow was sampled
 reg [15:0] c_wact;      // emission window open this dot
 reg [5:0]  c_t    [0:15];
@@ -196,14 +214,19 @@ reg [111:0] n_cnt;
 
 always @(*) begin
 	for (i = 0; i < 16; i = i + 1) begin
-		c_xeq[i] = (hp == c_xa[i]);
+		c_xeq[i] = !c_xneg[i] && (hp == c_xa[i]);
+		c_xleft[i] = (hp == 10'd0) && c_xneg[i] &&
+		               ({2'b00, c_xmag[i]} < {4'b0000, c_wid[i]});
 		c_chg[i] = (xs_q[i*10 +: 10] != c_xa[i]);
-		c_t[i]   = c_xeq[i] ? 6'd0 : sx_cnt[i*7 +: 7];
+		c_t[i]   = c_xleft[i] ? c_xmag[i][5:0] :
+		             c_xeq[i] ? 6'd0 : sx_cnt[i*7 +: 7];
 		c_spix[i]= c_t[i] >> c_xsh[i];
-		n_on[i]  = c_xeq[i] ||
+		n_on[i]  = c_xleft[i] || c_xeq[i] ||
 		           (sx_on[i] && !c_chg[i] &&
 		            ({1'b0, sx_cnt[i*7 +: 7]} != c_wid[i]));
-		if (c_xeq[i])
+		if (c_xleft[i])
+			n_cnt[i*7 +: 7] = {1'b0, c_xmag[i][5:0]} + 7'd1;
+		else if (c_xeq[i])
 			n_cnt[i*7 +: 7] = 7'd1;
 		else if (sx_on[i] && !c_chg[i] &&
 		         ({1'b0, sx_cnt[i*7 +: 7]} != c_wid[i]))
@@ -216,14 +239,14 @@ end
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
-		hp     <= 10'd0;
+		hp     <= HP_SEAM;
 		sx_on  <= 16'd0;
 		sx_cnt <= 112'd0;
 		xs_q   <= 160'd0;
 	end
 	else if (PIXEN) begin
 		if (CLKEN && HWRAP) begin
-			hp     <= 10'd0;      // seams close every window
+			hp     <= HP_SEAM;     // seams close every window
 			sx_on  <= 16'd0;
 			sx_cnt <= 112'd0;
 			xs_q   <= SPR_X;

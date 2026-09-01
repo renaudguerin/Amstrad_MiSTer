@@ -51,6 +51,7 @@ expect true rtl/GA40010/rslatch.v
 expect true rtl/u765/u765.sv
 expect true rtl/plus/plus_mmu.v
 expect true rtl/plus/plus_cartridge_memory.v
+expect true rtl/plus/plus_legacy_cart_gate.v
 expect true rtl/color_mix.sv
 expect true rtl/T80/T80s.vhd
 expect true rtl/playcity/Z80CTC/z80ctc_top.vhd
@@ -104,7 +105,7 @@ printf 'synthesis path classification: passed\n'
 # through nested QIPs, and every path it prints must exist.  A silent resolver
 # failure would make the classifier quietly under-report.
 sources="$("$script_dir/list-synthesized-sources.sh")"
-for required_source in rtl/CRTC.v rtl/GA40010/ga40010.sv rtl/u765/u765.sv rtl/T80/T80s.vhd; do
+for required_source in rtl/CRTC.v rtl/GA40010/ga40010.sv rtl/u765/u765.sv rtl/plus/plus_legacy_cart_gate.v rtl/T80/T80s.vhd; do
 	if ! printf '%s\n' "$sources" | grep -qxF -- "$required_source"; then
 		printf 'manifest resolver did not reach %s\n' "$required_source" >&2
 		exit 1
@@ -120,5 +121,19 @@ while IFS= read -r resolved_source; do
 		exit 1
 	fi
 done <<< "$sources"
+
+# Synthesizable modules have one production owner.  A top-level `include`
+# can hide a source from files.qip (and therefore from path classification), while
+# retaining both forms compiles the same module twice.  Keep the legacy-cart
+# isolation gate on the ordinary manifest path and reject either drift.
+legacy_gate_qip_count="$(grep -cE '^[[:space:]]*set_global_assignment -name VERILOG_FILE[[:space:]]+rtl/plus/plus_legacy_cart_gate\.v[[:space:]]*$' \
+	"$repo_root/files.qip" || true)"
+legacy_gate_include_count="$(grep -cF '`include "rtl/plus/plus_legacy_cart_gate.v"' \
+	"$repo_root/Amstrad.sv" || true)"
+if [[ "$legacy_gate_qip_count" != "1" || "$legacy_gate_include_count" != "0" ]]; then
+	printf 'legacy-cart gate must have exactly one files.qip entry and no top-level include (qip=%s include=%s)\n' \
+		"$legacy_gate_qip_count" "$legacy_gate_include_count" >&2
+	exit 1
+fi
 
 printf 'synthesized-source manifest resolution: passed\n'
