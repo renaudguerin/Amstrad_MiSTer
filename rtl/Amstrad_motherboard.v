@@ -606,7 +606,11 @@ asic_dma dma_sound
 // P4 hardware sprite engine: compares against the CRTC3 taps ([KT]
 // formulas), stages row bytes through asic_page's video port, and
 // composites between screen and border inside asic_video.
-asic_sprites plus_sprites
+asic_sprites #(
+	// asic_video delays the locked-ASIC display area by one 16-dot
+	// character; sprite coordinates are relative to that visible origin.
+	.H_ORIGIN_DOTS(10'd16)
+) plus_sprites
 (
 	.CLOCK(clk),
 	.PIXEN(ce_16),
