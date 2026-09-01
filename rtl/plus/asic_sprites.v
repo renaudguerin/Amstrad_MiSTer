@@ -78,6 +78,12 @@
 //============================================================================
 
 module asic_sprites
+#(
+	// The locked-ASIC pixel path delays the display area by one character.
+	// Production sets this to 16 so sprite X=0 remains the top-left display
+	// coordinate; standalone leaf vectors use the abstract zero-origin default.
+	parameter [9:0] H_ORIGIN_DOTS = 10'd0
+)
 (
 	input        CLOCK,
 	input        PIXEN,      // 16 MHz dot enable
@@ -177,8 +183,9 @@ end
 //----------------------------------------------------------------------
 // Horizontal window state.
 //
-// hp counts dots continuously through the line and clears at HWRAP, so
-// hp mod 1024 IS the {char,dot} position on the 64-character scale. A
+// hp counts dots continuously through the line and reloads at HWRAP so
+// hp mod 1024 reaches zero H_ORIGIN_DOTS after the CRTC seam. It therefore
+// remains the display-relative {char,dot} position on a 64-character scale. A
 // window arms when hp equals the stored X (once per 1024-dot pass — the
 // documented R0>64 repeat falls out), advances one dot per PIXEN, and
 // retires after c_wid dots. An X rewrite while a window is open kills
@@ -192,6 +199,8 @@ reg  [111:0] sx_cnt;   // 7 bits per sprite: dots consumed (up to 64)
 reg  [159:0] xs_q;      // X shadows (rewrite detection)
 
 reg [3:0] blank_cnt [0:15];
+
+localparam [9:0] HP_SEAM = 10'd0 - H_ORIGIN_DOTS;
 
 // Combinational window terms shared by emission, next-state and snapshots.
 reg [15:0] c_xeq;       // hp hits stored X this dot
@@ -230,14 +239,14 @@ end
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
-		hp     <= 10'd0;
+		hp     <= HP_SEAM;
 		sx_on  <= 16'd0;
 		sx_cnt <= 112'd0;
 		xs_q   <= 160'd0;
 	end
 	else if (PIXEN) begin
 		if (CLKEN && HWRAP) begin
-			hp     <= 10'd0;      // seams close every window
+			hp     <= HP_SEAM;     // seams close every window
 			sx_on  <= 16'd0;
 			sx_cnt <= 112'd0;
 			xs_q   <= SPR_X;
