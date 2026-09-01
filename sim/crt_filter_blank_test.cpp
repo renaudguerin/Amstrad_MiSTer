@@ -266,6 +266,21 @@ void test_frequent_sync_does_not_restart_window() {
         fail("A too-frequent raw sync restarted and lengthened Live blanking");
 }
 
+void test_expiry_clock_sync_starts_new_window() {
+    CrtFilterBench tb;
+    tb.settle();
+    const auto samples = tb.run_pulses_master(
+        {{0, 64}, {kFullBlankClks - 1, kFullBlankClks - 1 + 64}},
+        2 * kFullBlankClks + 32);
+    const unsigned second_expiry = (kFullBlankClks - 1) + kFullBlankClks;
+    for (unsigned clock = 0; clock < second_expiry; ++clock) {
+        if (!samples[clock].hblank_live)
+            fail("HSYNC on the exact expiry clock failed to acquire a new Live window");
+    }
+    if (samples[second_expiry].hblank_live)
+        fail("expiry-clock reacquisition extended beyond its own 1024 clocks");
+}
+
 void test_missing_sync_uses_full_blank() {
     CrtFilterBench tb;
     tb.settle();
@@ -287,6 +302,32 @@ void test_missing_sync_uses_full_blank() {
     }
     if (!saw_blank || !saw_active)
         fail("Missing-sync recovery did not produce both Full blank and active intervals");
+}
+
+void test_stuck_high_without_vsync_uses_full_blank() {
+    CrtFilterBench tb;
+    tb.settle();
+
+    // Neither a new HSYNC edge nor VSYNC is available after the input sticks
+    // high. The horizontal watchdog must still promote the already learned
+    // Full cadence instead of leaving Live permanently forced blank.
+    Sample sample{};
+    for (unsigned tick = 0; tick < 65540; ++tick)
+        sample = tb.tick_ce(true, false);
+    if (!sample.no_hsync)
+        fail("stuck-high HSYNC without VSYNC never promoted missing-sync fallback");
+
+    bool saw_blank = false;
+    bool saw_active = false;
+    for (unsigned tick = 0; tick < 2300; ++tick) {
+        sample = tb.tick_ce(true, false);
+        if (sample.hblank_live != sample.hblank)
+            fail("stuck-high fallback did not select established Full HBLANK");
+        saw_blank |= sample.hblank != 0;
+        saw_active |= sample.hblank == 0;
+    }
+    if (!saw_blank || !saw_active)
+        fail("stuck-high fallback did not recover alternating blank/active intervals");
 }
 
 void test_production_mode_selector() {
@@ -322,12 +363,14 @@ struct TestCase {
     void (*run)();
 };
 
-constexpr std::array<TestCase, 6> kTests = {{
+constexpr std::array<TestCase, 8> kTests = {{
     {"settled regenerated HSYNC and Full HBLANK baseline", test_full_mode_baseline},
     {"Live HBLANK preserves master phase and the +3-pixel R2.JIT shift", test_live_blank_master_phase_and_r2jit},
     {"raw force blank longer than the scaler minimum remains blank", test_long_raw_force_blank_wins},
     {"too-frequent raw sync does not restart the acquisition window", test_frequent_sync_does_not_restart_window},
+    {"sync on the exact expiry clock starts a new Live window", test_expiry_clock_sync_starts_new_window},
     {"missing raw sync falls back to the established Full HBLANK", test_missing_sync_uses_full_blank},
+    {"stuck-high raw sync without VSYNC falls back to Full HBLANK", test_stuck_high_without_vsync_uses_full_blank},
     {"production selector pins Full, Live, and Off output tuples", test_production_mode_selector},
 }};
 
