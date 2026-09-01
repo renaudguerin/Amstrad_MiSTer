@@ -267,9 +267,23 @@ here:
 - `"F7,E??,Load CPC464 ROM;"` exists because `boot.rom` ends with OS464 + BASIC464 and the only
   way to change that half is to rebuild the whole 160 KB blob. The separate slot is a targeted
   workaround for exactly the pain B10 describes, added upstream rather than in this fork.
-- `"R[32],Reset & Detach Cartridge;"` drives `plus_cartridge_memory`'s `detach`, so it *is*
-  about Plus CPR cartridges, and it additionally clears the Dandanator EEPROM-loaded flag. The
-  label does not say either. It should be Plus-conditional and more clearly named.
+- `"R[32],Reset & Detach Cartridge;"` is an upstream Dandanator control (added by `9da7bf7`,
+  "add Dandanator") that this fork additionally wired to `plus_cartridge_memory`'s `detach`.
+  **Decision, 2026-09-01: revert it to Dandanator-only and drop the Plus wiring.** Reasoning:
+
+  - A CPR load already cold-boots. `Amstrad.sv` holds `reset` across the whole load
+    (`reset <= reset_base | cpr_download | cpr_finish_pending | ...`), so detaching is not
+    needed to get a clean machine for the next cartridge. `plus_cartridge_memory` takes
+    `.cold_reset(reset_base)`, which deliberately excludes `cpr_download` so the image being
+    written is not wiped mid-load; the atomic load protocol handles replacement.
+  - The only capability lost is deliberately emptying the slot, and a running GX4000 with no
+    cartridge is not a state that meaningfully exists.
+  - One control doing two unrelated things, visible in classic mode where half of it is
+    meaningless, is exactly the menu problem this item exists to fix.
+
+  **This is not the fix for the observed black screen.** `rom_map` has no reset at all, so
+  neither `reset`, `reset_base` nor `detach` clears it. See B13; do not let this decision
+  absorb that bug.
 
 **Architect brief (for a strong model — this is the pass to run before B2/B3):**
 
@@ -373,6 +387,11 @@ expansion loads for the lifetime of the configuration.
 That matches the symptom shape well: music playing means the CPU is executing, so this is a
 paging or ROM-presence fault rather than a dead machine, and "survives reset, dies on
 reconfigure" is the exact signature of state with an initialiser but no reset.
+
+**Detach is not the answer, and neither is any existing reset.** A CPR load already asserts the
+main `reset` for its whole duration, and the "Reset & Detach Cartridge" control (being removed,
+see B6) never touched `rom_map` either. Nothing in the design clears it short of reconfiguring
+the FPGA. Do not close this by pointing at a reset that already runs.
 
 **Not yet proven.** No test reproduces it, and `rom_map` may not be the only such state; the
 same audit should look for other registers with a configuration-time initialiser and no reset
