@@ -788,6 +788,34 @@ void test_top_level_wiring(TestState &test) {
                "cartridge stalls must reach the CPU WAIT input on the motherboard");
     test.check(source.find("plus_cpr_parser cpr_parser") != std::string::npos,
                "Amstrad top must instantiate the CPR parser");
+    const auto legacy_gate_start =
+        source.find("plus_legacy_cart_gate legacy_cart_gate");
+    const auto legacy_gate_end = source.find(");", legacy_gate_start);
+    const std::string legacy_gate =
+        legacy_gate_start != std::string::npos &&
+                legacy_gate_end != std::string::npos
+            ? source.substr(legacy_gate_start,
+                            legacy_gate_end - legacy_gate_start)
+            : std::string();
+    test.check(!legacy_gate.empty() &&
+                   legacy_gate.find(".clk(clk_sys)") != std::string::npos &&
+                   legacy_gate.find(".plus_mode(plus_mode)") !=
+                       std::string::npos &&
+                   legacy_gate.find(".dandanator_download(dan_download)") !=
+                       std::string::npos &&
+                   legacy_gate.find(".dandanator_detach(status[32])") !=
+                       std::string::npos &&
+                   legacy_gate.find(".dandanator_nce(dan_eeprom_nce)") !=
+                       std::string::npos &&
+                   legacy_gate.find(".dandanator_loaded(dan_eeprom_loaded)") !=
+                       std::string::npos &&
+                   legacy_gate.find(".dandanator_active(dan_ena)") !=
+                       std::string::npos &&
+                   source.find("dan_ena ? {4'd0, dan_bank, cpu_addr[13:0]} : ram_a") !=
+                       std::string::npos &&
+                   source.find("dan_ena ? 2'b11 : mem_bank") !=
+                       std::string::npos,
+               "the production Dandanator lifecycle and both SDRAM overrides must pass through the Plus isolation gate");
     test.check(source.find("cpr_download = ioctl_download && (ioctl_index == 8)") !=
                    std::string::npos,
                "the CPR stream must own its own ioctl index (8)");

@@ -25,6 +25,12 @@ DAN_BOUNDS_OBJ_DIR  := obj_dir/dandanator_loader_bounds
 DAN_BOUNDS_TEST_SRC := $(abspath dandanator_loader_bounds_test.cpp)
 DAN_BOUNDS_TEST_BIN := $(DAN_BOUNDS_OBJ_DIR)/dandanator_loader_bounds_tests
 
+LEGACY_CART_TOP      := plus_legacy_cart_gate
+LEGACY_CART_RTL      := $(abspath ../../rtl/plus/plus_legacy_cart_gate.v)
+LEGACY_CART_OBJ_DIR  := obj_dir/plus_legacy_cart_gate
+LEGACY_CART_TEST_SRC := $(abspath plus_legacy_cart_gate_test.cpp)
+LEGACY_CART_TEST_BIN := $(LEGACY_CART_OBJ_DIR)/plus_legacy_cart_gate_tests
+
 MEMORY_TOP        := plus_cartridge_memory
 MEMORY_RTL        := $(abspath ../../rtl/plus/plus_cartridge_memory.v)
 MEMORY_OBJ_DIR    := obj_dir/plus_cartridge_memory
@@ -298,7 +304,7 @@ P10DMAMOBO_OBJ_DIR  := obj_dir/p10_dma_mobo
 P10DMAMOBO_TEST_SRC := $(abspath p10_dma_mobo_test.cpp)
 P10DMAMOBO_TEST_BIN := $(P10DMAMOBO_OBJ_DIR)/p10_dma_mobo_tests
 
-TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(MEMORY_TEST_BIN) \
+TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(MODEL_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(LEGACY_CART_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
 	$(AREGS_TEST_BIN) $(SPRRAM_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN) $(B7_TEST_BIN)
@@ -396,6 +402,7 @@ test: $(TEST_BINS)
 	./$(ASICVID_TEST_BIN)
 	./$(MODEL_TEST_BIN)
 	./$(DAN_BOUNDS_TEST_BIN)
+	./$(LEGACY_CART_TEST_BIN)
 	./$(MEMORY_TEST_BIN)
 	./$(MEMORY_MIN_TEST_BIN)
 	./$(SDRAM_TEST_BIN)
@@ -442,6 +449,11 @@ $(DAN_BOUNDS_TEST_BIN): $(DAN_BOUNDS_RTL) $(DAN_BOUNDS_TEST_SRC) Makefile | $(OB
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(DAN_BOUNDS_TOP) \
 		--Mdir $(DAN_BOUNDS_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(DAN_BOUNDS_TEST_BIN)) $(DAN_BOUNDS_RTL) $(DAN_BOUNDS_TEST_SRC)
+
+$(LEGACY_CART_TEST_BIN): $(LEGACY_CART_RTL) $(LEGACY_CART_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(LEGACY_CART_TOP) \
+		--Mdir $(LEGACY_CART_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(LEGACY_CART_TEST_BIN)) $(LEGACY_CART_RTL) $(LEGACY_CART_TEST_SRC)
 
 $(MEMORY_TEST_BIN): $(MEMORY_RTL) $(MEMORY_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(MEMORY_TOP) \
@@ -602,6 +614,8 @@ lint: motherboard-lint
 		--top-module $(MODEL_TOP) -Wall $(MODEL_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(DAN_BOUNDS_TOP) -Wall $(DAN_BOUNDS_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(LEGACY_CART_TOP) -Wall $(LEGACY_CART_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(MEMORY_TOP) -Wall $(MEMORY_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
