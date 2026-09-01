@@ -2,6 +2,26 @@
 
 ## Open rows
 
+- **B3 P10 VRAM/frame-tap foundation — OPEN, independent Codex review only,
+  2026-09-01.** The production-shaped P10 fixture now connects the motherboard
+  VRAM address to the SDRAM video client, exports raw motherboard timing,
+  selected monitor timing and shared filter-dependent payload taps, and pins the
+  cross-module address path with a failure-first cartridge program. The old
+  address-zero tie-off admitted no video requests. The first independent Sol
+  review caught misleading pre/post payload labels and a bank assertion sampled
+  before the external command; both are remediated, and its focused re-review
+  returned CLEAR. The proof now reconstructs
+  the physical byte address from SDRAM ACTIVE/READ pins, checks the physical bank,
+  and deliberately fails when that bank is forced wrong. During parent gating,
+  changing the shared fixture default to Full masked the B7 ASIC-GA mutation;
+  the established Off default was restored and the complete mutation matrix
+  passes. A cross-provider reviewer should check hardest the request-to-command
+  correlation, the 15-bit word-to-23-bit byte mapping, and whether the timing and
+  shared-payload taps are sufficient without implying distinct pre/post payload
+  or ASCAL/full-top coverage. Full simulation and lint pass. Claude remained
+  quota-limited and Gemini bridge-unavailable, so no independent cross-provider
+  verdict exists.
+
 - **B6 conditional menu visibility — OPEN, no cross-provider review,
   2026-09-01.** A Luna Max bounded implementation adds the production
   `plus_menu_capability_mask`, conditionally prefixes the existing OSD entries,
@@ -84,7 +104,7 @@
   focused mutation controls, and whitespace checks pass. FDC title behavior,
   exact-tip Quartus, and real hardware remain validation gates.
 
-**Status: six independent-review debt rows are open.** The validation residuals retained in
+**Status: seven independent-review debt rows are open.** The validation residuals retained in
 the cleared rows below are not hardware evidence and do not reopen local RTL/test review.
 
 ## Cleared rows

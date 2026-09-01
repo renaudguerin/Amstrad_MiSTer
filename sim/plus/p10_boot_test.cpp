@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace {
@@ -669,6 +670,90 @@ void test_p10a_deterministic_boot() {
     std::cout << "PASS: test_p10a_deterministic_boot" << std::endl;
 }
 
+void test_p10a_vram_client_wiring() {
+    std::cout << "Running test_p10a_vram_client_wiring..." << std::endl;
+    Harness h;
+    h.initialize();
+
+    std::vector<uint8_t> program(16384, 0x00);
+    size_t pc = 0;
+    auto emit = [&](uint8_t byte) { program[pc++] = byte; };
+    auto write_crtc = [&](uint8_t reg, uint8_t value) {
+        emit(0x01); emit(0x00); emit(0xBC); // LD BC,&BC00
+        emit(0x3E); emit(reg);              // LD A,register
+        emit(0xED); emit(0x79);             // OUT (C),A
+        emit(0x01); emit(0x00); emit(0xBD); // LD BC,&BD00
+        emit(0x3E); emit(value);            // LD A,value
+        emit(0xED); emit(0x79);             // OUT (C),A
+    };
+    write_crtc(0, 63);
+    write_crtc(1, 40);
+    write_crtc(4, 38);
+    write_crtc(6, 25);
+    write_crtc(9, 7);
+    emit(0x76); // HALT: the programmed video path keeps running.
+
+    h.download(build_cpr_image({{"cb00", program}}));
+    while (h.dut.dbg_reset) h.tick();
+
+    bool programmed = false;
+    for (uint64_t tick = 0; tick < 100000 && !programmed; ++tick) {
+        h.tick();
+        programmed = h.dut.dbg_crtc_wr && h.dut.dbg_crtc_reg == 9 &&
+                     h.dut.dbg_crtc_val == 7;
+    }
+    require(programmed, "fixture program did not configure the production CRTC path");
+
+    bool previous_request = h.dut.dbg_sdram_vram_req;
+    unsigned checked = 0;
+    std::unordered_set<uint32_t> distinct_addresses;
+    bool transaction_pending = false;
+    uint32_t expected_address = 0;
+    uint32_t active_row = 0;
+    bool active_seen = false;
+
+    for (uint64_t tick = 0; tick < 400000 && checked < 32; ++tick) {
+        const uint32_t source_word_addr = h.dut.dbg_video_vram_addr;
+        h.tick();
+        const bool request = h.dut.dbg_sdram_vram_req;
+        if (request && !previous_request) {
+            require(!transaction_pending,
+                    "second VRAM request admitted before the first physical read");
+            expected_address = 0x20000U | (source_word_addr << 1U);
+            transaction_pending = true;
+            active_seen = false;
+        }
+
+        const uint8_t command = (h.dut.sdram_nras ? 0b100 : 0b000) |
+                                (h.dut.sdram_ncas ? 0b010 : 0b000) |
+                                (h.dut.sdram_nwe  ? 0b001 : 0b000);
+        if (transaction_pending && command == CMD_ACTIVE) {
+            require(!active_seen, "VRAM transaction issued two ACTIVE commands");
+            require(h.dut.sdram_ba == 0,
+                    "6128+ fixture VRAM transaction used the wrong physical SDRAM bank");
+            active_row = h.dut.sdram_a & 0x1fffU;
+            active_seen = true;
+        } else if (transaction_pending && command == CMD_READ) {
+            require(active_seen, "VRAM READ appeared without its ACTIVE command");
+            const uint32_t physical_address = (active_row << 9U) |
+                ((static_cast<uint32_t>(h.dut.sdram_a) & 0x100U) << 14U) |
+                ((static_cast<uint32_t>(h.dut.sdram_a) & 0xffU) << 1U);
+            require(physical_address == expected_address,
+                    "motherboard VRAM word address did not reach the physical SDRAM read");
+            distinct_addresses.insert(physical_address);
+            ++checked;
+            transaction_pending = false;
+        }
+        previous_request = request;
+    }
+
+    require(checked == 32, "too few SDRAM video-client requests for a wiring proof");
+    require(distinct_addresses.size() >= 4,
+            "VRAM wiring proof observed fewer than four unique physical addresses");
+    std::cout << "PASS: production VRAM address/bank reaches the SDRAM video client"
+              << std::endl;
+}
+
 void test_real_u765_edsk_read() {
 	std::cout << "Running test_real_u765_edsk_read..." << std::endl;
 	Harness h;
@@ -856,6 +941,7 @@ void test_real_u765_edsk_read() {
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
     try {
+		test_p10a_vram_client_wiring();
         test_p10a_deterministic_boot();
 		test_real_u765_edsk_read();
 		std::cout << "\nAll P10 Production CPR Boot Harness tests PASSED.\n";

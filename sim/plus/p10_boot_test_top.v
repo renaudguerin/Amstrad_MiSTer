@@ -8,7 +8,11 @@
 // under production reset sequencing and I/O decode.
 // ===========================================================================
 
-module p10_boot_test_top
+module p10_boot_test_top #(
+	// Preserve the established P10/B7 Off route by default. A frame-capture
+	// target can override this with Full without masking the B7 GA mutation.
+	parameter [1:0] SYNC_FILTER = 2'd2
+)
 (
 	input             clk,
 	input             clkref,
@@ -124,7 +128,29 @@ module p10_boot_test_top
 	output      [7:0] dbg_ir,
 	output      [2:0] dbg_mcmax,
 	output            dbg_cen_p,
-	output            dbg_cpu_waitn
+	output            dbg_cpu_waitn,
+
+	// Simulation-only frame foundations. Raw CRTC/ASIC sync is kept separate
+	// from the selected monitor tuple. Payload is intentionally labelled shared:
+	// crt_filter.SHIFT can already affect VRAM byte selection before RGB here.
+	output            dbg_raw_hsync,
+	output            dbg_raw_vsync,
+	output            dbg_raw_de,
+	output            dbg_selected_hsync,
+	output            dbg_selected_vsync,
+	output            dbg_selected_hblank,
+	output            dbg_selected_vblank,
+	output     [11:0] dbg_video_rgb,
+	output     [13:0] dbg_video_ma,
+	output      [4:0] dbg_video_ra,
+	output     [14:0] dbg_video_vram_addr,
+	output     [15:0] dbg_video_vram_word,
+	output      [7:0] dbg_video_vram_byte,
+	output            dbg_sdram_vram_req,
+	output            dbg_cart_image_valid,
+	output            dbg_cart_service_busy,
+	output            dbg_cpr_load_error,
+	output      [1:0] dbg_sync_filter
 `ifdef B7_DARK_SILICON_MUTATION
 	,
 	output reg  [4:0] b7_mutation_id,
@@ -336,6 +362,11 @@ module p10_boot_test_top
 	wire [15:0] sdram_dq;
 	wire        unused_sdram_clk, unused_sdram_cke, unused_sdram_ncs;
 	wire [15:0] vram_dout;
+	wire [14:0] vram_addr;
+	// The P10 fixture selects the 6128+ Plus model, whose production RAM
+	// bank is zero. Keep this as a named bank term so both CPU and video SDRAM
+	// clients use the same production-equivalent selector.
+	wire  [1:0] mem_bank = 2'b00;
 
 	assign sdram_dq = memory_dq_oe ? memory_dq : 16'hzzzz;
 	assign observed_dq = sdram_dq;
@@ -358,7 +389,7 @@ module p10_boot_test_top
 		.init(init),
 		.clk(clk),
 		.clkref(clkref),
-		.bank(2'b00),
+		.bank(mem_bank),
 		.din(cpu_dout),
 		.dout(ram_dout),
 		.addr(ram_a),
@@ -372,8 +403,10 @@ module p10_boot_test_top
 		.cart_dout(cart_mem_rdata),
 		.cart_ack(cart_mem_ack),
 		.vram_dout(vram_dout),
-		.vram_addr(23'd0),
-		.vram_bank(2'b00),
+		// Match Amstrad.sv: motherboard vram_addr is a 15-bit word address,
+		// mapped into the physical SDRAM video region as {2'b10,addr,1'b0}.
+		.vram_addr({5'd0,2'b10,vram_addr,1'b0}),
+		.vram_bank(mem_bank),
 		.tape_addr(23'd0),
 		.tape_din(8'd0),
 		.tape_dout(),
@@ -396,6 +429,8 @@ module p10_boot_test_top
 	wire [3:0] mb_red;
 	wire [3:0] mb_green;
 	wire [3:0] mb_blue;
+	wire       mb_hblank;
+	wire       mb_vblank;
 	wire       mb_hsync;
 	wire       mb_vsync;
 	wire [7:0] mb_audio_l;
@@ -434,7 +469,7 @@ module p10_boot_test_top
 			1'b0
 `endif
 		),
-		.sync_filter(2'd2),  // raw path: benches predate the filter modes
+		.sync_filter(SYNC_FILTER),
 		.sna_load(1'b0),
 		.sna_cpu_dir(212'd0),
 		.sna_crtc_addr(5'd0),
@@ -462,8 +497,8 @@ module p10_boot_test_top
 		.audio_l(mb_audio_l),
 		.audio_r(mb_audio_r),
 		.mode(mb_mode),
-		.hblank(),
-		.vblank(),
+		.hblank(mb_hblank),
+		.vblank(mb_vblank),
 		.hsync(mb_hsync),
 		.vsync(mb_vsync),
 		.red(mb_red),
@@ -471,7 +506,7 @@ module p10_boot_test_top
 		.blue(mb_blue),
 		.field(),
 		.vram_din(vram_dout),
-		.vram_addr(),
+		.vram_addr(vram_addr),
 		.rom_map(256'd0),
 		.ram64k(!plus_ram_128k),
 		.mem_rd(mem_rd),
@@ -674,6 +709,30 @@ module p10_boot_test_top
 	assign dbg_mcmax  = mb.CPU.u0.mc_max;
 	assign dbg_cen_p  = mb.CPU.cen_p;
 	assign dbg_cpu_waitn = mb.CPU.wait_n;
+
+	// These taps stay in this simulation-only wrapper so the production
+	// motherboard interface remains unchanged. `hs_sel`/`vs_sel` enter the
+	// filter; motherboard outputs form the selected monitor tuple. Payload is
+	// shared and filter-dependent because crtc_shift participates in vram_d.
+	assign dbg_raw_hsync          = mb.hs_sel;
+	assign dbg_raw_vsync          = mb.vs_sel;
+	assign dbg_raw_de             = mb.de_sel;
+	assign dbg_selected_hsync     = mb_hsync;
+	assign dbg_selected_vsync     = mb_vsync;
+	assign dbg_selected_hblank    = mb_hblank;
+	assign dbg_selected_vblank    = mb_vblank;
+	assign dbg_video_rgb          = {mb_red, mb_green, mb_blue};
+	assign dbg_video_ma           = mb.ma_sel;
+	assign dbg_video_ra           = mb.ra_sel;
+	assign dbg_video_vram_addr    = vram_addr;
+	assign dbg_video_vram_word    = vram_dout;
+	assign dbg_video_vram_byte    = mb.vram_d;
+	assign dbg_sdram_vram_req     = sdram_inst.vram_req;
+
+	assign dbg_cart_image_valid  = cart_image_valid;
+	assign dbg_cart_service_busy = cart_service_busy;
+	assign dbg_cpr_load_error    = cart_load_error;
+	assign dbg_sync_filter       = SYNC_FILTER;
 
 `ifdef B7_DARK_SILICON_MUTATION
 	// B7 is a Verilator-only path-ownership audit.  These are selected

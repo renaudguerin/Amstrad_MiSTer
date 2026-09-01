@@ -22,6 +22,14 @@ lint pass. `Reset & Detach Cartridge` is also restored to its original Dandanato
 the Plus CPR image can now be replaced only through its atomic loader/reset lifecycle. MiSTer
 OSD rendering remains a hardware/UI confirmation rather than local proof.
 
+B3's first whole-core-frame-harness foundation is also live in the existing P10
+fixture. The previously disconnected SDRAM video client now receives the real
+motherboard VRAM address, a failure-first cartridge program pins changing
+cross-module requests through the physical SDRAM ACTIVE/READ commands, and raw
+motherboard timing, selected monitor timing, and shared filter-dependent payload
+taps are available for the next capture slice. The fixture still has no runtime
+CPR-to-frame writer and is not an image oracle.
+
 ## 2026-09-01 combined accuracy/Plus integration artifact
 
 Source-bearing integration SHA `ea0e0bd4a0c2557f6cce2c0e1e60b84d389bf101` combines the
@@ -37,7 +45,6 @@ reports under `output_files/Amstrad-local-build-11-1-full/`. This is simulation,
 timing, and packaging evidence—not hardware closure. Priority hardware retests are Live
 blanking/DSC4/SHAKER, BASIC/System CPR FDC payload, Dandanator-to-Plus isolation, and the
 signed/offscreen sprite plus display-origin/SSCR seams.
-
 
 This is the handoff for the next development and hardware-test session. The newest Plus
 hardware observations are dated 2026-08-30; older milestone narratives below retain their

@@ -161,6 +161,27 @@ Decide this before building the comparison half; the capture half is useful eith
 
 **Priority: medium. Portable, and the right debugger for whatever B2 flags.**
 
+**FIRST FOUNDATION SLICE DONE 2026-09-01.** The production-shaped P10 fixture
+now connects the motherboard's live VRAM word address to the SDRAM video client
+using the same `{2'b10, vram_addr, 1'b0}` mapping as `Amstrad.sv`, instead of
+leaving that client permanently at address zero. A failure-first cartridge
+program configures the real motherboard CRTC path and requires 32 physical
+SDRAM reads spanning at least four addresses to preserve their source address
+and bank through the ACTIVE/READ command seam. With the old tie-off it failed
+because no video request was admitted; forcing the wrong bank fails at the
+physical ACTIVE command.
+
+The fixture also exposes raw motherboard timing and selected monitor timing,
+plus the shared RGB, MA/RA and VRAM payload. The payload is deliberately not
+labelled pre/post-filter: `crtc_shift` affects the motherboard VRAM byte path
+before both observation points. Its established Off default is retained because
+changing the shared P10/B7 default to Full hid the ASIC GA timing mutation; a
+future capture target may override the parameter to Full explicitly. Full
+simulation and lint pass, including the B7 mutation matrix. This is
+observability infrastructure only: runtime CPR ingestion, a self-describing
+frame stream, repeatable hashes and any image comparison remain the next B3
+slice.
+
 Runs on a laptop with no MiSTer attached, and gives cycle-level visibility and bisectability
 that hardware capture cannot.
 
