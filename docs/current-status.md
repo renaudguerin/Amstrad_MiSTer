@@ -5,7 +5,29 @@ project's bottleneck is observability rather than implementation quality, and op
 prioritized cross-cutting backlog (B1-B12). Its top item identified why classic CRTC sync work
 could produce no visible hardware change: the original `rtl/crt_filter.v` Live route reduced
 HBLANK to the shaped sync pulse. A simulation-gated hybrid now preserves raw horizontal phase
-for Live HBLANK while retaining regenerated scaler sync; hardware A/B confirmation remains open.
+for Live HBLANK while retaining regenerated scaler sync; the first hardware A/B rejected that
+candidate as sufficient.
+
+The 2026-09-01 hardware A/B has now rejected that Live route as sufficient: the supplied
+Amazing Demo and Pulpo captures are materially narrower than Full, and DSC4/SHAKER remain
+incorrect. The exact-expiry and watchdog repairs below harden fallback behavior but do not
+alter that steady-state result. B1 therefore remains open as an ownership/observability problem.
+
+## 2026-09-01 combined accuracy/Plus integration artifact
+
+Source-bearing integration SHA `ea0e0bd4a0c2557f6cce2c0e1e60b84d389bf101` combines the
+Round 2 author consequences and hybrid-blanking diagnostics with the Plus hardware-defect
+triage. Full simulation, lint, manifest checks, and soak `0x2263c9fc44af4ee7` pass. Local
+full-effort Quartus run `33474427903` (Quartus 17.0.2 Build 602) closes setup at +0.451 ns and
+hold at +0.242 ns with zero TNS. Fit is 22,517/41,910 ALMs (54%), 26,238 registers,
+701,596/5,662,720 block-memory bits (12%), 102/553 M10Ks (18%), and 35/112 DSPs (31%).
+
+Artifact `Amstrad_20260901_ea0e0bd.rbf` has SHA-256
+`02665b2ae907591aa858e26970da6218a2b822c834af9595811085880309fef7` and is retained with
+reports under `output_files/Amstrad-local-build-11-1-full/`. This is simulation, synthesis,
+timing, and packaging evidence—not hardware closure. Priority hardware retests are Live
+blanking/DSC4/SHAKER, BASIC/System CPR FDC payload, Dandanator-to-Plus isolation, and the
+signed/offscreen sprite plus display-origin/SSCR seams.
 
 
 This is the handoff for the next development and hardware-test session. The newest Plus

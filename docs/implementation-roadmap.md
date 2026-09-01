@@ -498,8 +498,9 @@ require a named hardware A/B run; simulation, synthesis, and an RBF cannot close
    timing-clean RBF, repeat the recorded matrix, and capture title-level first divergences.
    Keep input/DMA concurrency, cartridge timing redesign, and undocumented sprite/video
    behavior evidence-gated. P10j's sprite-pixel M10K conversion and timing-clean exact
-   feature fit are complete; next produce the combined integration RBF, close its narrow
-   exact-tip review row, and run the recorded hardware matrix. Do not combine Plus work with
+   feature fit and the combined integration RBF are complete at source SHA `ea0e0bd4` (local
+   full-effort run `33474427903`, timing clean). Next run the recorded hardware matrix; the
+   real-u765 byte-0 XFAIL and title symptoms remain open. Do not combine Plus work with
    the classic stream. See
    `plus/hardware-checkpoint-findings.md` and `plus/hardware-test-round2-2026-08-30.md`.
 6. F6/F13 proceeds per `accuracy/f6-decision-gate.md`: Stage 2 measured the old 1 µs input;

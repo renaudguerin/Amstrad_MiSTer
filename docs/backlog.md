@@ -86,7 +86,15 @@ and operates after this stage. Removing or redesigning it does not affect those.
    new Live mode anchors HBLANK to raw CRTC/ASIC HSYNC phase and extends it to the established
    64-CE acquisition width; VBLANK remains live. Exact-expiry, missing-sync, stuck-high/no-VSYNC,
    malformed-cadence, and mode-selector behavior are pinned in a nine-case seam fixture. This
-   is simulation/model evidence and still needs the hardware A/B experiment below.
+   is simulation/model evidence.
+
+   **Hardware result, 2026-09-01: insufficient.** The supplied Amazing Demo and Pulpo
+   Full/Live captures show that Live produces a substantially narrower active picture with
+   black side margins. DSC4 remains corrupted in Live, while Off changes the failure shape
+   without producing the reference image. The SHAKER Live captures likewise do not close the
+   named entries. The later exact-expiry and stuck-high watchdog repairs make the fallback
+   deterministic but do not change this steady-state geometry, so they do not invalidate the
+   observation. Treat the present Live route as a diagnosed experiment, not as B1 closure.
 
    Open question that experiment must answer: whether the visible effect the SHAKER entries and
    DSC4 test lives in the blanking geometry (recoverable this way) or in the sync edges
@@ -370,38 +378,40 @@ was just implemented, asserting that same rule, is documentation with a `make` t
 
 ---
 
-## B13. Stale `rom_map` survives every reset (suspected)
+## B13. Stale `rom_map` survives every reset
 
-**Priority: high. Concrete lead with a reproduction.**
+**Status: original Plus-causality hypothesis rejected; sibling ownership leak fixed in
+simulation on 2026-09-01; hardware retest remains.**
 
 **Symptom, observed on hardware 2026-09-01.** In Plus mode, running a cartridge that had
 previously misbehaved left the machine in a state where a subsequently loaded, known-good
 cartridge (Navy Seals) produced a **black screen with working music**. Loading a CPR performs a
 reset, and that did not clear it. Only reloading the core entirely did.
 
-**Suspect.** `Amstrad.sv` declares `reg [255:0] rom_map = '0;`. The only other assignment is
+`Amstrad.sv` declares `reg [255:0] rom_map = '0;`. The only other assignment is
 `rom_map[boot_a[21:14]] <= 1;` — the array is **set-only and no reset clears it**. The `'0`
 initialiser applies at FPGA configuration, which is precisely the boundary the user found
 themselves needing to cross. Mapped ROM pages therefore accumulate across cartridge and
 expansion loads for the lifetime of the configuration.
 
-That matches the symptom shape well: music playing means the CPU is executing, so this is a
-paging or ROM-presence fault rather than a dead machine, and "survives reset, dies on
-reconfigure" is the exact signature of state with an initialiser but no reset.
+The state-lifetime observation is correct, but the production wiring excludes it as the Plus
+cause: the classic MMU's ROM enable is forced inactive in Plus mode and CPR pages are owned by
+`plus_mmu`. Clearing `rom_map` on CPR load would therefore be speculative and would wrongly
+discard classic expansion-ROM state that is meant to survive a soft reset.
 
 **Detach is not the answer, and neither is any existing reset.** A CPR load already asserts the
 main `reset` for its whole duration, and the "Reset & Detach Cartridge" control (being removed,
 see B6) never touched `rom_map` either. Nothing in the design clears it short of reconfiguring
 the FPGA. Do not close this by pointing at a reset that already runs.
 
-**Not yet proven.** No test reproduces it, and `rom_map` may not be the only such state; the
-same audit should look for other registers with a configuration-time initialiser and no reset
-path.
-
-**First moves.** Reproduce in simulation by mapping pages, resetting, and asserting the map is
-clear. Then decide what the correct behaviour is: a full clear on cold reset is the obvious
-candidate, but expansion ROMs loaded before boot are presumably meant to persist across a soft
-reset, so the two reset tiers need separating rather than collapsing.
+The sibling-state audit instead found a live route: `dan_eeprom_loaded` also persisted from a
+configuration-time/download boundary, and Dandanator could retain SDRAM ownership after a
+switch into Plus mode. `plus_legacy_cart_gate` now suppresses that ownership whenever
+`plus_mode` is selected while deliberately preserving the image for a later return to classic
+mode. The source has one manifest owner and a lifecycle regression. A Navy Seals hardware
+retest must first load an active Dandanator image; without that prerequisite the original
+black-screen symptom remains unassigned. Full reset-tier reasoning and evidence are in
+`docs/plus/hardware-defect-triage-2026-09-01.md`.
 
 ---
 
