@@ -19,11 +19,11 @@ MODEL_OBJ_DIR  := obj_dir/plus_model_select
 MODEL_TEST_SRC := $(abspath plus_model_select_test.cpp)
 MODEL_TEST_BIN := $(MODEL_OBJ_DIR)/plus_model_select_tests
 
-# B6 menu capability mask: exercise the production helper in Amstrad.sv
-# through the same Plus model decoder used by the core.
+# B6 menu capability mask: exercise the production helper through the same
+# Plus model decoder used by the core.
 B6_MENU_TOP      := b6_menu_mask_test_top
 B6_MENU_TOP_SRC  := $(abspath b6_menu_mask_test_top.v)
-B6_MENU_RTL      := $(abspath ../../Amstrad.sv) \
+B6_MENU_RTL      := $(abspath ../../rtl/plus/plus_menu_capability_mask.v) \
 	$(abspath ../../rtl/plus/plus_model_select.v)
 B6_MENU_OBJ_DIR  := obj_dir/b6_menu_mask
 B6_MENU_TEST_SRC := $(abspath b6_menu_mask_test.cpp)
@@ -461,7 +461,7 @@ $(MODEL_TEST_BIN): $(MODEL_RTL) $(MODEL_TEST_SRC) Makefile | $(OBJ_DIR)
 		-o $(notdir $(MODEL_TEST_BIN)) $(MODEL_RTL) $(MODEL_TEST_SRC)
 
 $(B6_MENU_TEST_BIN): $(B6_MENU_TOP_SRC) $(B6_MENU_RTL) $(B6_MENU_TEST_SRC) Makefile | $(OBJ_DIR)
-	$(VERILATOR) --cc --exe --build --language 1800-2017 -Wno-fatal -I$(abspath ../..) \
+	$(VERILATOR) --cc --exe --build --language 1364-2001 -Wall \
 		--top-module $(B6_MENU_TOP) --Mdir $(B6_MENU_OBJ_DIR) \
 		-CFLAGS "$(CXXFLAGS)" -o $(notdir $(B6_MENU_TEST_BIN)) \
 		$(B6_MENU_TOP_SRC) $(B6_MENU_RTL) $(B6_MENU_TEST_SRC)
@@ -634,6 +634,9 @@ lint: motherboard-lint
 		--top-module $(DMA_TOP) -Wall $(DMA_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(MODEL_TOP) -Wall $(MODEL_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module plus_menu_capability_mask -Wall \
+		$(abspath ../../rtl/plus/plus_menu_capability_mask.v)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(DAN_BOUNDS_TOP) -Wall $(DAN_BOUNDS_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
