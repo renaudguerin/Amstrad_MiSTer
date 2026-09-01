@@ -117,6 +117,12 @@ module crtc_type0_engine
 	// delay line. See the assign below for the rule.
 	output           spurious_border_off,
 	output           vsync_line_fire,
+	// English ACCC v1.11 section 16.4.1.2 p.168: the natural type-0
+	// comparison is considered only if C0 reached 2 on the preceding line.
+	// The wrapper needs the retained line result for the field half-line path
+	// and the blocked-comparison term to consume vsync_allow without a pulse.
+	output           vsync_preceding_c0_2,
+	output           vsync_line_blocked,
 	// F15 VSYNC delay correction (section 19.5.2): suppress holds the
 	// natural field=1 fire off during the first line of C4=R7 on a
 	// ParityFrame-odd frame; half fires the delayed pulse one line later.
@@ -589,6 +595,32 @@ end
 // selected or a snapshot loads; never carried across either boundary.
 reg        type0_vsync_wait_line_start;
 
+// English ACCC v1.11 section 16.4.1.2 p.168 (confirmed normative by the
+// author on 2026-08-31): C0 must actually reach 2 on the line preceding
+// C4=R7.  This is line history, not a test of the live R0 register: changing
+// R0 from >2 to 0 or 1 at C0=0 of the target line retains the qualifying
+// preceding line and therefore still starts VSYNC as documented.
+reg type0_vsync_c0_2_seen;
+reg type0_vsync_preceding_c0_2;
+wire type0_vsync_line_reached_c0_2 = type0_vsync_c0_2_seen || (hcc == 8'd2);
+assign vsync_preceding_c0_2 = type0_vsync_preceding_c0_2;
+
+always @(posedge CLOCK) begin
+	if(~nRESET | SNA_LOAD | CRTC_TYPE) begin
+		type0_vsync_c0_2_seen <= 0;
+		type0_vsync_preceding_c0_2 <= 0;
+	end
+	else if(CLKEN) begin
+		if(line_new) begin
+			type0_vsync_preceding_c0_2 <= type0_vsync_line_reached_c0_2;
+			type0_vsync_c0_2_seen <= 0;
+		end
+		else if(hcc == 8'd2) begin
+			type0_vsync_c0_2_seen <= 1;
+		end
+	end
+end
+
 wire vsync_count_tick_t0 = CLKEN &&
 	(field ? (!r0_frozen_w && (hcc_next == {1'b0, R0_h_total[7:1]})) : line_new);
 
@@ -641,7 +673,14 @@ assign vde_toggle = !CRTC_TYPE && row == 0 && line == 0 && R6_v_displayed == 0;
 //   d2 -- high for the line after that; the field=1 half-line path
 //         consumes it at the second line's half-line tick (its natural
 //         fire point, one line late).
-wire       vsync_fire_seam = ((row_next) == R7_v_sync_pos && line_last);
+wire       vsync_fire_seam_raw = ((row_next) == R7_v_sync_pos && line_last);
+wire       vsync_fire_seam = vsync_fire_seam_raw && type0_vsync_line_reached_c0_2;
+// Non-interlace consumes a blocked comparison at the row-entry seam.  In a
+// field the comparison is consumed at its half-line count point, using the
+// preceding-line result retained across that seam.
+assign vsync_line_blocked = field ?
+	((row == R7_v_sync_pos) && !line && !type0_vsync_preceding_c0_2) :
+	(vsync_fire_seam_raw && !type0_vsync_line_reached_c0_2);
 wire       type0_vsync_delay_arm = R9_v_max_line[0] && ivm_disp_r &&
                                    R7_v_sync_pos[0] && parity_frame && !in_adj;
 reg        type0_vsync_delay_d1;
