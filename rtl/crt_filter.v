@@ -28,6 +28,7 @@ module crt_filter
 	output reg HSYNC_O,
 	output reg VSYNC_O,
 	output reg HBLANK,
+	output     HBLANK_LIVE,
 	output reg VBLANK,
 	output     SHIFT
 );
@@ -36,9 +37,51 @@ wire resync = 1;
 reg hs4,shift;
 assign SHIFT = shift ^ hs4;
 
-
 // generate HSync if original is absent for almost whole frame
 reg hsync, no_hsync;
+
+// Hybrid live blanking for the scaler.  HSYNC_I is the Gate Array/ASIC force-
+// blank event and therefore owns the live horizontal phase, but the pulse is
+// not by itself a complete acquisition blank.  The production ratio is
+// 64 MHz CLK / 4 MHz CE_4, so 1024 master clocks preserve the 64-CE Full
+// blank width without quantising a three-pixel-M2 (12-master-clock) R2.JIT
+// displacement to the next CE_4 edge.  CRTC/ASIC HSYNC changes after a CLK
+// edge; the remainder therefore starts when that edge is observed one CLK
+// later and expires exactly 1024 clocks after the original pin transition.
+// Further edges inside the window do not restart it.  A longer live pulse
+// still wins directly, and the established Full blank takes over when the
+// filter has classified horizontal sync as absent.
+localparam [9:0] LIVE_HBLANK_REMAINDER = 10'd1022;
+reg live_hblank_ext;
+reg old_live_hsync;
+reg [9:0] live_hblank_count;
+
+initial begin
+	live_hblank_ext = 0;
+	old_live_hsync = 0;
+	live_hblank_count = 0;
+end
+
+assign HBLANK_LIVE = no_hsync ? HBLANK : (HSYNC_I | live_hblank_ext);
+
+always @(posedge CLK) begin : liveblankgen
+	old_live_hsync <= HSYNC_I;
+	// A transition observed on the expiry edge belongs to the next window.
+	// Earlier in-window transitions remain ignored so malformed short cadence
+	// cannot extend the acquisition blank indefinitely.
+	if (~old_live_hsync & HSYNC_I &
+			(~live_hblank_ext || live_hblank_count == 0)) begin
+		live_hblank_ext <= 1;
+		live_hblank_count <= LIVE_HBLANK_REMAINDER;
+	end
+	else if (live_hblank_ext) begin
+		if (live_hblank_count == 0)
+			live_hblank_ext <= 0;
+		else
+			live_hblank_count <= live_hblank_count - 1'd1;
+	end
+end
+
 always @(posedge CLK) begin : hsyncgen
 	reg [15:0] dcnt;
 	reg [10:0] hsz, hcnt;
@@ -47,19 +90,29 @@ always @(posedge CLK) begin : hsyncgen
 	reg no_hsync_next;
 	
 	if(CE_4) begin
-		if(&dcnt) no_hsync_next <= 1; else dcnt <= dcnt + 1'd1;
+		if(&dcnt) begin
+			no_hsync_next <= 1;
+			// VSYNC normally commits the absence detector, but a missing or
+			// stuck VSYNC must not leave Live blanking permanently asserted.
+			// Reuse the cadence learned from healthy raw HSYNC edges.
+			if(|hsz) no_hsync <= 1;
+		end
+		else dcnt <= dcnt + 1'd1;
 		
 		old_hsync <= HSYNC_I;
 		if(~old_hsync & HSYNC_I) begin
 			dcnt <= 0;
-			if(no_hsync && !hsz) begin
+			if(!no_hsync) begin
+				hsz <= dcnt[10:0];
+			end
+			else if(!(|hsz)) begin
 				hsz <= dcnt[10:0];
 				hsync <= 1;
 				hcnt <= 0;
 			end
 		end
 		
-		if(no_hsync && hsz) begin
+		if(no_hsync && (|hsz)) begin
 			hcnt <= hcnt + 1'd1;
 			if(hcnt == 13) hsync <= 0;
 			if(hcnt == hsz) begin
@@ -228,3 +281,33 @@ always @(posedge CLK) begin : blankgen
 end
 
 endmodule
+
+// Keep the mode contract in one production-owned seam so the focused fixture
+// can pin the complete output tuple rather than only crt_filter internals.
+/* verilator lint_off DECLFILENAME */
+module crt_filter_output_select
+(
+	input  [1:0] MODE,
+	input        HSYNC_FILTERED,
+	input        VSYNC_FILTERED,
+	input        HBLANK_FILTERED,
+	input        VBLANK_FILTERED,
+	input        HBLANK_LIVE,
+	input        HSYNC_RAW,
+	input        VSYNC_RAW,
+	input        HBLANK_RAW,
+	input        VBLANK_RAW,
+	output       HSYNC_OUT,
+	output       VSYNC_OUT,
+	output       HBLANK_OUT,
+	output       VBLANK_OUT
+);
+
+assign HSYNC_OUT  = (MODE != 2'd2) ? HSYNC_FILTERED : HSYNC_RAW;
+assign VSYNC_OUT  = (MODE != 2'd2) ? VSYNC_FILTERED : VSYNC_RAW;
+assign HBLANK_OUT = (MODE == 2'd0) ? HBLANK_FILTERED :
+					(MODE == 2'd1) ? HBLANK_LIVE     : HBLANK_RAW;
+assign VBLANK_OUT = (MODE == 2'd0) ? VBLANK_FILTERED : VBLANK_RAW;
+
+endmodule
+/* verilator lint_on DECLFILENAME */
