@@ -17,8 +17,6 @@
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //============================================================================
 
-`include "rtl/plus/plus_legacy_cart_gate.v"
-
 module emu
 (
 	`include "sys/emu_ports.vh"
