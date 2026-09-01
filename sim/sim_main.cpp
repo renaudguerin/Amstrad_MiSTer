@@ -1207,11 +1207,12 @@ void test_type0_interlace_vsync_rebuilds_after_snapshot(TestBench& test) {
     test.run_characters(16);
     test.expect_field_low("snapshot fixture reaches the half-line-count field");
 
-    // Enter type 0 at C4=0/C9=0/C0=0, then snapshot-load R7=0. SNA_LOAD
-    // deliberately clears derived type-0 line history. The current target
-    // line nevertheless reaches C0=2 before its half-line fire point and
-    // must reconstruct the qualification instead of consuming it blocked.
+    // Enter type 0 at C4=0/C9=0, let the target line pass C0=2, then
+    // snapshot-load R7=0 at C0=4. SNA_LOAD deliberately clears derived
+    // type-0 history, so eligibility must be reconstructed from the live C0
+    // position rather than only from an edge observed after the clear.
     test.set_crtc_type(0);
+    test.run_to_c0(4);
     const std::array<std::uint8_t, 10> snapshot = {
         15, 8, 10, 0x11, 0, 0, 1, 0, 1, 0,
     };
@@ -1248,8 +1249,10 @@ void test_type0_interlace_vsync_rebuilds_after_live_type_switch(TestBench& test)
     test.expect_c4("live-switch fixture reaches target C4=1", 1);
     test.expect_vsync_low("type 1 has not reached the target half-line tick");
 
-    // The live switch clears type-0 private history. C0 still reaches 2 in
-    // this target line, which must be sufficient to rebuild eligibility.
+    // Switch only after this target line has passed C0=2. Type-0 private
+    // history was held clear while type 1 was selected, so the live C0
+    // position must reconstruct the already-earned qualification.
+    test.run_to_c0(4);
     test.set_crtc_type(0);
     test.run_to_c0(6);
     test.expect_ra("live-switch half-line remains C9=0", 0);
