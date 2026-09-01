@@ -46,6 +46,19 @@ timing, and packaging evidence—not hardware closure. Priority hardware retests
 blanking/DSC4/SHAKER, BASIC/System CPR FDC payload, Dandanator-to-Plus isolation, and the
 signed/offscreen sprite plus display-origin/SSCR seams.
 
+The later B6 source-bearing tip `7618e39a17739963968cc77206421eb59e1eb029`
+(conditional menu visibility, Dandanator-only detach, and the standalone
+CI-portable menu helper) also has an exact full-effort artifact. Local-runner
+workflow `33479031612` passed simulation, lint, synthesis policy and Quartus
+17.0.2 Build 602 with setup +0.601 ns, hold +0.247 ns and zero TNS. Fit is
+22,375/41,910 ALMs (53%), 26,440 registers, 701,596/5,662,720 block-memory
+bits (12%), 102/553 RAM blocks (18%), and 35/112 DSPs (31%). Artifact
+`Amstrad_20260901_7618e39.rbf` has SHA-256
+`31b03baeae09d45d72096a8d3e07bb736cd427c36cb208dc850eab323e15097d`
+and is retained under `output_files/Amstrad-local-build-184-1-full/`. This
+supersedes the earlier RBF for B6 hardware/UI checks; it does not change the
+recorded Live-blanking hardware verdict.
+
 This is the handoff for the next development and hardware-test session. The newest Plus
 hardware observations are dated 2026-08-30; older milestone narratives below retain their
 own dates and are not evidence that later work was hardware-confirmed. The
