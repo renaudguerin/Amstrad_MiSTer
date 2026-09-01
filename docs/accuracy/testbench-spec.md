@@ -101,6 +101,7 @@ lags a sub-vector name.
 | t33a-t33c type-0 live R3 terminal collision: C3l overflow, controlled earliest restart phase, and lifecycle controls — implemented, hardware validation pending | ACCC v1.11 French §§15.3.2-15.3.3 pp.150-151 | IA-1/BL-025 |
 | t34a type-0 R6=0 first-frame-line conflict: high/low half-character polarity, reachable live R1, and R6 0→nonzero cancellation control — implemented, hardware validation pending | ACCC v1.11 French §18.3.2 p.191 | IA-3/BL-036 |
 | t35a type-0 R0=1 true-last-line widening: safe C0=0 control versus unsafe C0=1 continuation into C4=R4+1/C9=R9..31 additional management — implemented, hardware validation pending | ACCC v1.11 French §13.7.2 pp.126-127 | IA-6/BL-018-BL-020 |
+| t02l-t02o type-0 natural VSYNC requires the preceding line to have reached C0=2; steady R0=1 consumes C4=R7 as blocked, while qualified exact-C0=0 writes to R0=0/1 retain the pulse and exercise the documented frozen/two-character outcomes — implemented, hardware validation pending | ACCC v1.11 English §16.4.1.2 pp.168-169, author-confirmed 2026-08-31 | Round-2 consequence audit |
 | integrated GA R2.JIT controls: production-phased `OUT (C),r8` makes R2 equal current C0; type-0/type-1 visible/raw starts move +4/+3 Mode-2 pixels while raw width shortens by 4/3 and the type-specific display-reactivation edge stays fixed; same-value intent control stays normal but lands after HSYNC rise — implemented, hardware validation pending | ACCC v1.11 §9.3.4.1 pp.53-54, §9.3.4.3 p.57, §14.6.1 p.141 | F20 |
 | t11 type 1 adjustment: C9 keeps cycling (RA!), C4 increments, and R5=0 does not end adjustment; the ordinary C4=R4 reset remains live per Q20 | digest-01 §4 + 2026-08-31 author response Q20 | F8 |
 | t12a/t12b documented R4=38/R9=7 worked example pair (type 0): exact-C0==R0 R9 write leaves C4=39,C9=8; windowed write (C0∈[2,R0−1]) leaves C4=38,C9=8 — both encoded from ACCC §11.2.2 p.82 ex.3 — implemented | digest-01 §3.1/§4.2 | F9/F12 |
@@ -109,7 +110,7 @@ lags a sub-vector name.
 | t15 R12/R13 overscan-bit carry into MA[13:12] | digest-03 §20.5 | regression |
 | t16a-t16y type-0 last-line/adjustment arbitration — implemented: same-edge C0=0 R4 comparison; C0=1 R4/R9 equality breaks with R5=0, including exact R0=1 rollover consumption; R5 accepted through C0==2 and rejected after it with the accepted current-line target retained; R9 updates at C0==2..R0-1; R4 updates switch C9/R9 to C9/R5 through exact-R0; exact-R0 R9 increments C4 and C9; active adjustment reuses C9 against R5 even when R9 differs, including R5=0 overflow and zero-entry extension; R0=0/1 default adjustment; R0=0 during active adjustment freezes C4/C9; completion and retained-state lifecycle | digest-01 §3.1/§4.2/§7.1/§8.1 | F12 deterministic counter milestone and F5/F9 boundaries |
 
-All implemented groups are required passes. The classic suite currently has **185 required
+All implemented groups are required passes. The classic suite currently has **189 required
 passes**, zero expected failures, zero unexpected passes, and zero failures. It has had no
 expected failures since
 the F8 commit (`c9f4a4e`): the former type-1 adjustment-identification xfails

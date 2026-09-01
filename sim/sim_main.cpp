@@ -274,6 +274,11 @@ public:
         // latch was unsampled; expanding the field set re-mints the golden
         // hash by design (no RTL behaviour change).
         mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_vsync_wait_line_start);
+        // Author-confirmed section 16.4.1.2 line history: both the current
+        // C0=2 observation and the retained preceding-line qualification are
+        // behavior-bearing state with reset/snapshot/live-type lifecycles.
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_vsync_c0_2_seen);
+        mix(r.CRTC__DOT__crtc_type0_engine__DOT__type0_vsync_preceding_c0_2);
         // IA-3 / BL-036: sample the type-0 first-line R6=0 definitive-border
         // latch so reset, snapshot and live-type lifecycle leaks cannot hide
         // behind an unchanged pin sample.
@@ -1051,6 +1056,111 @@ void test_type0_pending_skip_clears_on_snapshot_load(TestBench& test) {
     test.load_snapshot_registers(snapshot_registers);
     test.run_characters((kF3LineCharacters - 1) - kF3MidlineHcc);
     test.expect_vsync_low("snapshot load clears the derived pending-line skip");
+}
+
+void test_type0_vsync_requires_preceding_c0_2(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 1},
+        {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    // ACCC v1.11 English section 16.4.1.2 p.168 (author-confirmed as
+    // normative on 2026-08-31): type 0 considers the natural C4=R7 VSYNC
+    // only when C0 reached 2 on the preceding line.  A steady R0=1 line
+    // visits only C0=0,1, so the comparison is consumed as blocked even
+    // though the line boundary advances C4 from 0 to R7=1.
+    test.run_characters(2);
+    test.expect_c4("t02l precondition reaches C4=R7", 1);
+    test.expect_vsync_low(
+        "type 0 R0=1 blocks VSYNC when the preceding line never reached C0=2");
+
+    // Remaining at C4=R7 cannot turn the consumed comparison into a delayed
+    // pulse; a later C4 or R7 change is required to re-arm it.
+    test.run_characters(2);
+    test.expect_vsync_low("type 0 blocked R0=1 VSYNC remains consumed");
+}
+
+void configure_type0_dynamic_r0_vsync(TestBench& test,
+                                      std::uint8_t target_r0) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 3}, {1, 1}, {2, 1}, {3, 0x11}, {4, 2},
+        {5, 0}, {6, 2}, {7, 1}, {8, 0},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(0);
+    test.reset();
+
+    // Stop just after the C0=3->0 boundary which advances C4 to R7=1.
+    // The completed line visited C0=2, so natural VSYNC has qualified and
+    // started.  A raw phase-1 write changes R0 while the new line is still
+    // at C0=0 without introducing another CLKEN.
+    test.run_characters(3);
+    test.run_clock_ticks(1);
+    test.expect_c4("dynamic R0 fixture enters C4=R7", 1);
+    test.expect_byte("dynamic R0 fixture is at target-line C0=0", 0, test.c0());
+    test.write_selected_register_now(target_r0);
+}
+
+void test_type0_vsync_qualified_r0_zero_freezes_count(TestBench& test) {
+    configure_type0_dynamic_r0_vsync(test, 0);
+    test.expect_vsync_high(
+        "qualified VSYNC survives an R0=0 write at target-line C0=0");
+
+    // R3h=1 would normally end at the next line count. R0=0 pins C0 and
+    // suppresses that count, so the author-confirmed pulse remains active.
+    test.run_characters(4);
+    test.expect_byte("R0=0 keeps C0 frozen after qualified VSYNC", 0, test.c0());
+    test.expect_vsync_high("R0=0 freezes C3h and leaves qualified VSYNC active");
+}
+
+void test_type0_vsync_qualified_r0_one_counts_two_characters(TestBench& test) {
+    configure_type0_dynamic_r0_vsync(test, 1);
+    test.expect_vsync_high(
+        "qualified VSYNC survives an R0=1 write at target-line C0=0");
+
+    test.run_characters(1);
+    test.expect_vsync_high("R0=1 qualified VSYNC remains high through C0=0");
+    test.run_characters(1);
+    test.expect_vsync_low(
+        "R0=1 increments C3h on 1-to-0 and ends R3h=1 after two characters");
+}
+
+void test_type0_vsync_blocked_comparison_is_consumed(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 2},
+        {5, 0}, {6, 2}, {7, 1}, {8, 0},    {9, 1},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(0);
+    test.reset();
+
+    // Two R0=1 lines complete C4=0. The boundary into C4=R7 is blocked
+    // because the immediately preceding line visited only C0=0,1.
+    test.run_characters(4);
+    test.expect_c4("blocked-consumption fixture enters C4=R7", 1);
+    test.expect_vsync_low("short preceding line blocks natural VSYNC");
+
+    // Widen the current C4=R7 line, then make an equal R7 write after C0=1.
+    // Without consuming vsync_allow at the blocked natural comparison, this
+    // otherwise-valid mid-line write would incorrectly assert VSYNC.
+    test.write_selected_register_at_nclken(7);
+    test.select_register(7);
+    test.run_to_c0(3);
+    test.write_selected_register_now(1);
+    test.run_clock_ticks(1);
+    test.expect_vsync_low(
+        "blocked natural comparison consumes the later equal-R7 trigger");
 }
 
 void configure_vsync_reentrancy_fixture(TestBench& test,
@@ -7549,6 +7659,18 @@ int main(int argc, char** argv) {
          false, test_type0_pending_skip_clears_on_type_roundtrip},
         {"t02k_type0_pending_skip_snapshot_load", "CRTC snapshot-load contract; F3/F11d",
          false, test_type0_pending_skip_clears_on_snapshot_load},
+        {"t02l_type0_vsync_requires_preceding_c0_2",
+         "ACCC v1.11 English section 16.4.1.2 p.168; author-confirmed 2026-08-31",
+         false, test_type0_vsync_requires_preceding_c0_2},
+        {"t02m_type0_vsync_qualified_r0_zero_freezes_count",
+         "ACCC v1.11 English section 16.4.1.2 p.169; author-confirmed 2026-08-31",
+         false, test_type0_vsync_qualified_r0_zero_freezes_count},
+        {"t02n_type0_vsync_qualified_r0_one_counts_two_characters",
+         "ACCC v1.11 English section 16.4.1.2 p.169; author-confirmed 2026-08-31",
+         false, test_type0_vsync_qualified_r0_one_counts_two_characters},
+        {"t02o_type0_vsync_blocked_comparison_is_consumed",
+         "ACCC v1.11 English section 16.4.1.2 pp.168-169; author-confirmed 2026-08-31",
+         false, test_type0_vsync_blocked_comparison_is_consumed},
         {"t03a_vsync_compare_lock_and_rearm", "ACCC v1.10 section 16.3; F11b",
          false, test_vsync_compare_lock_and_rearm},
         {"t03b_vsync_reentrancy_bypass", "ACCC v1.10 section 16.3; F11b",

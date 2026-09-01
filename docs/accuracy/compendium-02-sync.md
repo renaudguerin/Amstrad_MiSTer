@@ -365,7 +365,9 @@ Two independent mechanisms against infinite VSYNC:
   VSYNC to be considered at all. The following two cases appear only in English v1.11
   §16.4.1.2 p.169 and are absent from French p.170. The author confirmed on 2026-08-31 that
   they are normative and were intended for French; use English p.169 as the current published
-  anchor, and require a failure-first premise/vector audit before changing RTL:
+  anchor. The 2026-09-01 consequence audit found that steady R0=1 lacked the preceding-line
+  qualification; failure-first `t02l` now pins the corrected behavior. Native-review follow-ups
+  `t02m`-`t02o` pin the exact dynamic writes and blocked-comparison consumption:
   - R0 (was >2) set to **0** exactly at C0=0 of the C4=R7 line: VSYNC starts at C0=0 but **C3h
     freezes** (like all CRTC0 counters at R0=0) — never reaches R3h, VSYNC **never deactivates**
     (distinct lockup from §18's re-entrancy bug).

@@ -96,8 +96,8 @@ by the FNV-1a prime (1099511628211) — rather than byte-wise FNV-1a over a
 serialized stream. Samples are taken after every CLKEN edge: every pin (MA,
 RA, DE, HSYNC, VSYNC, CURSOR, FIELD, DO) plus `hcc`, `line`, `row`, `c5`,
 `in_adj`, the type-0 arbitration latches (including the R5 retarget value),
-the type-0 partial-VSYNC holdoff latch, and the two type-1 private status
-flops (`r6_border_condition`, `status_bit5_r`).
+the type-0 partial-VSYNC holdoff and C0=2 line-history latches, and the two
+type-1 private status flops (`r6_border_condition`, `status_bit5_r`).
 
 The golden hash for the type-0/type-1 engine split was minted from the
 unsplit core; the minting commit and hash value are recorded in the session
@@ -115,11 +115,15 @@ DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0x9d8cd95357d1d752`** after Q20's author-confirmed type-1
-R5=0 adjustment correction: the fixed random schedule reaches C4=R4 while
+current hash is **`0x8a2c2290bcef06a7`** after the author-confirmed type-0
+section 16.4.1.2 preceding-line qualification: the fixed random schedule and
+sampled projection now include whether C0 reached 2 on the current and
+preceding lines, and natural C4=R7 VSYNC is blocked when that prerequisite was
+not met. The preceding `0x9d8cd95357d1d752` hash recorded Q20's author-confirmed
+type-1 R5=0 adjustment correction: the fixed random schedule reaches C4=R4 while
 adjustment remains active, so C4 now resets to zero without ending adjustment
 or resetting C5; the resulting C4=0 row reloads R12/R13 and VSYNC compares
-the actual reset value. The preceding `0xd6bc1649ff2058a1` hash recorded IA-6's
+the actual reset value. The earlier `0xd6bc1649ff2058a1` hash recorded IA-6's
 type-0 R0=1 widening route and its one-character pending action joining the
 sampled projection. The earlier `0x21bbf9c29ab08413` hash recorded IA-3's live-R6 first-line
 conflict and lifecycle latch; before that, `0x87a9d80a91381c9b` recorded
