@@ -330,6 +330,36 @@ void test_stuck_high_without_vsync_uses_full_blank() {
         fail("stuck-high fallback did not recover alternating blank/active intervals");
 }
 
+void test_masked_retrigger_preserves_watchdog_period() {
+    CrtFilterBench tb;
+    tb.settle();
+
+    // Establish one healthy line edge, then present another raw edge only
+    // 32 CE later while the too-frequent-sync mask is still active. Holding
+    // that second pulse high removes both later HSYNC edges and VSYNC. The
+    // fallback must reuse the accepted 256-CE cadence, not the masked 32-CE
+    // interval (which would keep Full HBLANK permanently high).
+    tb.tick_ce(true, false);
+    tb.tick_ce(false, false);
+    for (unsigned tick = 0; tick < 30; ++tick) tb.tick_ce(false, false);
+
+    Sample sample = tb.tick_ce(true, false);
+    for (unsigned tick = 0; tick < 65540; ++tick)
+        sample = tb.tick_ce(true, false);
+    if (!sample.no_hsync)
+        fail("masked retrigger fixture never entered missing-sync fallback");
+
+    bool saw_blank = false;
+    bool saw_active = false;
+    for (unsigned tick = 0; tick < 2300; ++tick) {
+        sample = tb.tick_ce(true, false);
+        saw_blank |= sample.hblank != 0;
+        saw_active |= sample.hblank == 0;
+    }
+    if (!saw_blank || !saw_active)
+        fail("masked short retrigger poisoned the learned Full cadence");
+}
+
 void test_production_mode_selector() {
     CrtFilterBench tb;
     tb.settle();
@@ -363,7 +393,7 @@ struct TestCase {
     void (*run)();
 };
 
-constexpr std::array<TestCase, 8> kTests = {{
+constexpr std::array<TestCase, 9> kTests = {{
     {"settled regenerated HSYNC and Full HBLANK baseline", test_full_mode_baseline},
     {"Live HBLANK preserves master phase and the +3-pixel R2.JIT shift", test_live_blank_master_phase_and_r2jit},
     {"raw force blank longer than the scaler minimum remains blank", test_long_raw_force_blank_wins},
@@ -371,6 +401,7 @@ constexpr std::array<TestCase, 8> kTests = {{
     {"sync on the exact expiry clock starts a new Live window", test_expiry_clock_sync_starts_new_window},
     {"missing raw sync falls back to the established Full HBLANK", test_missing_sync_uses_full_blank},
     {"stuck-high raw sync without VSYNC falls back to Full HBLANK", test_stuck_high_without_vsync_uses_full_blank},
+    {"masked short retrigger preserves the learned watchdog cadence", test_masked_retrigger_preserves_watchdog_period},
     {"production selector pins Full, Live, and Off output tuples", test_production_mode_selector},
 }};
 
