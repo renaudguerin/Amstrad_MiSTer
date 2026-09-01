@@ -51,8 +51,10 @@ inside an open window is ignored, but an edge at or after expiry may open anothe
 cadence can therefore create adjacent or repeated acquisition windows; Live preserves raw blanking
 intent and is not a sync sanitizer. Once the horizontal watchdog classifies sync as absent, Live
 falls back to Full HBLANK and its synthetic cadence. The watchdog now retains the last healthy
-horizontal period and promotes that fallback on timeout even if raw HSYNC is stuck high and VSYNC
-never arrives. VBLANK continues to use the live Gate Array/ASIC vertical blank output.
+Full cadence downstream and promotes that fallback on timeout even if raw HSYNC is stuck high and
+VSYNC never arrives. A composed guard confirms that a masked short retrigger cannot disturb final
+Full HBLANK cadence even though raw `HSYNC_I` remains Live's force-blank input. VBLANK continues to
+use the live Gate Array/ASIC vertical blank output.
 
 The focused seam vector first failed on the old route:
 
@@ -60,11 +62,12 @@ The focused seam vector first failed on the old route:
 HBLANK_LIVE fell early at CE tick 4 (observed width 4 CE ticks, expected 64 CE ticks)
 ```
 
-It now pins eight distinct properties: the unchanged Full geometry; an exact 1024-master-clock
+It now pins nine distinct properties: the unchanged Full geometry; an exact 1024-master-clock
 Live window at both the normal and +3-Pixel-M2 R2.JIT phases; the live force-blank override for
 a longer pulse; non-restarting behavior for too-frequent raw pulses; exact-expiry reacquisition;
 Full fallback after the existing missing-sync lifecycle; no-VSYNC stuck-high watchdog recovery;
-and the production Full/Live/Off selector tuple for final HSYNC, VSYNC, HBLANK, and VBLANK.
+masked-retrigger composition with that fallback; and the production Full/Live/Off selector tuple
+for final HSYNC, VSYNC, HBLANK, and VBLANK.
 
 ## Honest hardware boundary
 
