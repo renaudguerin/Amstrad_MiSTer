@@ -36,7 +36,8 @@ comparison consumes the shared `vsync_allow` latch. That `t02o` behavior is a
 model inference retained as a hardware discriminator, not an author-confirmed
 rule. The lifecycle vectors `t02p`-`t02r` additionally keep the type-1 field
 path independent of type-0 history and reconstruct type-0 half-line
-qualification after snapshot load or a live type switch.
+qualification after snapshot load or a live type switch, including a clear
+that lands after the current line has already passed C0=2.
 
 ## §11.6 — type-1 RFD VMA source
 
@@ -67,7 +68,7 @@ This remains local model evidence, not hardware evidence.
   on the unmodified §16.4.1.2 behavior.
 - Final `make -C sim test`: 192 classic vectors and every integrated suite pass.
 - Final `make -C sim lint`: passes with pre-existing warnings only.
-- Fixed-seed soak: `0x8a2c2290bcef06a7`, reproduced twice across 2,845,088
+- Fixed-seed soak: `0x2263c9fc44af4ee7`, reproduced twice across 2,845,088
   CLKEN samples per run.
 - Native Sol review initially found the missing dynamic/consumption evidence;
   after `t02m`-`t02o` were added, its focused re-review was clear.

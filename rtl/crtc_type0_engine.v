@@ -603,7 +603,9 @@ reg        type0_vsync_wait_line_start;
 // preceding line and therefore still starts VSYNC as documented.
 reg type0_vsync_c0_2_seen;
 reg type0_vsync_preceding_c0_2;
-wire type0_vsync_line_reached_c0_2 = type0_vsync_c0_2_seen || (hcc == 8'd2);
+// The live value also reconstructs history after a lifecycle clear: if the
+// retained latch was cleared at C0>2, this line necessarily passed C0=2.
+wire type0_vsync_line_reached_c0_2 = type0_vsync_c0_2_seen || (hcc >= 8'd2);
 wire type0_vsync_field_c0_2 = type0_vsync_preceding_c0_2 ||
 								 type0_vsync_line_reached_c0_2;
 assign vsync_c0_2_qualified = field ? type0_vsync_field_c0_2 :
