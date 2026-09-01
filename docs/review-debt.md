@@ -51,7 +51,24 @@
   The full method and measured matrix are in
   `docs/plus/b7-dark-silicon-audit.md`.
 
-**Status: four independent-review debt rows are open.** The validation residuals retained in
+- **Plus hardware-defect triage and production seam follow-up — OPEN, no fresh
+  cross-provider review, 2026-09-01.** Rebased feature tip
+  `00173fbecc8020393680a886655b174dbdffcc82` isolates persistent
+  Dandanator ownership from Plus mode, adds the production-clock real-u765
+  diagnostic and exact TV80 T3 latch tracing, corrects signed sprite clipping
+  and display-origin alignment, adds integrated right-edge and SSCR[7] seam
+  discriminators, and puts `plus_legacy_cart_gate` on the ordinary Quartus
+  manifest path. A fresh native Sol review found and closed reduced-bench
+  overclaim, SSCR connectivity, and Dandanator-policy wording issues, but no
+  cross-provider review was performed. A reviewer should check hardest the
+  T80pa latch/sample inference versus production VHDL T80; omitted full-top bus
+  contributors; signed X/display-origin geometry and compositor phase; the
+  SSCR[7] screen-mask/sprite precedence pair; and single-owner QIP reachability.
+  Full simulation/lint, soak `0x2263c9fc44af4ee7`, manifest classification,
+  focused mutation controls, and whitespace checks pass. FDC title behavior,
+  exact-tip Quartus, and real hardware remain validation gates.
+
+**Status: five independent-review debt rows are open.** The validation residuals retained in
 the cleared rows below are not hardware evidence and do not reopen local RTL/test review.
 
 ## Cleared rows

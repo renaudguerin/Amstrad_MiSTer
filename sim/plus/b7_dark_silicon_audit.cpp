@@ -227,6 +227,14 @@ public:
 		dut.memory_dq = 0;
 		dut.memory_dq_oe = 0;
 		dut.force_irq = 0;
+		dut.production_clocking = 0;
+		dut.fdc_img_mounted = 0;
+		dut.fdc_img_wp = 1;
+		dut.fdc_img_size = 0;
+		dut.fdc_sd_ack = 0;
+		dut.fdc_sd_buff_addr = 0;
+		dut.fdc_sd_buff_dout = 0;
+		dut.fdc_sd_buff_wr = 0;
 		dut.b7_crtc_type = crtc_type;
 		dut.eval();
 	}
