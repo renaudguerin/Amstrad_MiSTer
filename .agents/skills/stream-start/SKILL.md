@@ -33,6 +33,11 @@ Prepares the dedicated stream worktree for a new task and branches from the inte
    - Check `git status --porcelain` in the main worktree (`/Users/renaudg/code/Amstrad_MiSTer`).
    - Check `git status --porcelain` in the stream worktree (`/Users/renaudg/code/Amstrad_MiSTer-<stream>`).
    - If either worktree is dirty with uncommitted changes, pause and report them before touching branches. Ignored/private local assets are not dirt.
+   - Inspect `git stash list` for named WIP from an earlier session. Report any stash whose
+     message or paths overlap the selected stream before resetting its branch. Never apply a
+     stash automatically: a stash may span streams or shared files, so recover only the
+     explicitly owned paths after branch preparation and keep the original stash until the
+     recovered work is committed and verified.
    - Fetch origin. Fast-forward a behind local `accc-review-and-fixes`; stop if local and
      remote diverged.
    - Inspect the stream worktree's current branch and the requested target branch. If either
