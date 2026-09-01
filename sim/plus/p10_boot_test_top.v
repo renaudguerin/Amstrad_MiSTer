@@ -38,6 +38,23 @@ module p10_boot_test_top
 
 	// Testbench IRQ stimulus
 	input             force_irq,
+	// Select the production shared CPU/u765 divider for timing diagnostics.
+	// The legacy P10a fixture remains selectable to preserve its pinned trace.
+	input             production_clocking,
+
+	// Real u765 / MiSTer SD-block interface. The host drives only the media
+	// transport; CPU port decode and command execution stay in production RTL.
+	input      [1:0]  fdc_img_mounted,
+	input             fdc_img_wp,
+	input      [31:0] fdc_img_size,
+	output     [31:0] fdc_sd_lba,
+	output      [1:0] fdc_sd_rd,
+	output      [1:0] fdc_sd_wr,
+	input             fdc_sd_ack,
+	input       [8:0] fdc_sd_buff_addr,
+	input       [7:0] fdc_sd_buff_dout,
+	output      [7:0] fdc_sd_buff_din,
+	input             fdc_sd_buff_wr,
 
 	// Trace and probe outputs for C++ verification
 	output reg [15:0] dbg_pc,
@@ -77,6 +94,17 @@ module p10_boot_test_top
 	output            dbg_fdc_motor_sel,
 	output            dbg_fdc_data_sel,
 	output reg        dbg_motor,
+	output            dbg_fdc_image_ready,
+	output      [7:0] dbg_fdc_dout,
+	output      [7:0] dbg_fdc_state,
+	output      [7:0] dbg_fdc_msr,
+	output     [31:0] dbg_fdc_seek_pos,
+	output            dbg_fdc_trackinfo_dirty,
+	output     [16:0] dbg_fdc_sector_pos,
+	output      [7:0] dbg_fdc_byte_count,
+	output      [7:0] dbg_fdc_status0,
+	output      [7:0] dbg_fdc_status1,
+	output      [7:0] dbg_fdc_status2,
 	output            dbg_reset,
 	output      [2:0] dbg_mcycle,
 	output      [2:0] dbg_tstate,
@@ -108,7 +136,19 @@ module p10_boot_test_top
 		if (dbg_reset) cdiv <= 2'd0;
 		else cdiv <= cdiv + 2'd1;
 	end
-	wire ce_16 = (cdiv == 2'd0);
+	wire fixture_ce_16 = (cdiv == 2'd0);
+
+	// Exact Amstrad.sv enable topology: both registered enables are derived
+	// from the same free-running three-bit divider.
+	reg [2:0] production_div = 3'd0;
+	reg       production_ce_16 = 1'b0;
+	reg       production_ce_u765 = 1'b0;
+	always @(posedge clk) begin
+		production_div     <= production_div + 3'd1;
+		production_ce_16   <= (production_div[1:0] == 2'd0);
+		production_ce_u765 <= (production_div == 3'd0);
+	end
+	wire ce_16 = production_clocking ? production_ce_16 : fixture_ce_16;
 
 	// Model capabilities
 	wire plus_mode;
@@ -331,7 +371,8 @@ module p10_boot_test_top
 	);
 
 	// CPU DIN MUX
-	wire [7:0] fdc_dout = 8'hFF;
+	wire [7:0] u765_dout;
+	wire [7:0] fdc_dout = (dbg_fdc_data_sel & io_rd) ? u765_dout : 8'hFF;
 	wire [7:0] cpu_din_bus = ram_dout & fdc_dout;
 	assign cpu_din = plus_vec_valid ? plus_vec_byte :
 	                 plus_asic_rd   ? plus_asic_dout :
@@ -451,6 +492,57 @@ module p10_boot_test_top
 		.motor_sel(dbg_fdc_motor_sel),
 		.u765_sel(dbg_fdc_data_sel)
 	);
+
+	// Legacy P10a controller phase. Real-u765 diagnostics select the shared
+	// production divider above instead.
+	reg [2:0] fdc_div = 3'd0;
+	always @(posedge clk) fdc_div <= fdc_div + 3'd1;
+	wire fixture_ce_u765 = (fdc_div == 3'd0);
+	wire ce_u765 = production_clocking ? production_ce_u765 : fixture_ce_u765;
+
+	// Match Amstrad.sv's mount-ready lifetime: mounting either drive updates
+	// only that drive, and ordinary machine resets do not eject the image.
+	reg [1:0] fdc_ready = 2'b00;
+	always @(posedge clk) if(fdc_img_mounted[0]) fdc_ready[0] <= |fdc_img_size;
+	always @(posedge clk) if(fdc_img_mounted[1]) fdc_ready[1] <= |fdc_img_size;
+
+	u765 #(4000) fdc (
+		.clk_sys(clk),
+		.ce(ce_u765),
+		.reset(sys_reset),
+		.ready(fdc_ready),
+		.motor({dbg_motor, dbg_motor}),
+		.available(2'b11),
+		.fast(1'b0),
+		.a0(cpu_addr[0] | (dbg_fdc_data_sel & io_wr)),
+		.nRD(~(dbg_fdc_data_sel & io_rd)),
+		.nWR(~(dbg_fdc_data_sel & io_wr)),
+		.din(cpu_dout),
+		.dout(u765_dout),
+		.img_mounted(fdc_img_mounted),
+		.img_wp(fdc_img_wp),
+		.img_size(fdc_img_size),
+		.sd_lba(fdc_sd_lba),
+		.sd_rd(fdc_sd_rd),
+		.sd_wr(fdc_sd_wr),
+		.sd_ack(fdc_sd_ack),
+		.sd_buff_addr(fdc_sd_buff_addr),
+		.sd_buff_dout(fdc_sd_buff_dout),
+		.sd_buff_din(fdc_sd_buff_din),
+		.sd_buff_wr(fdc_sd_buff_wr)
+	);
+
+	assign dbg_fdc_image_ready = fdc.fdc.image_ready[0];
+	assign dbg_fdc_dout = u765_dout;
+	assign dbg_fdc_state = fdc.fdc.state[7:0];
+	assign dbg_fdc_msr = fdc.m_status;
+	assign dbg_fdc_seek_pos = fdc.i_seek_pos;
+	assign dbg_fdc_trackinfo_dirty = fdc.fdc.image_trackinfo_dirty[0];
+	assign dbg_fdc_sector_pos = fdc.fdc.sector_byte_pos[0][0];
+	assign dbg_fdc_byte_count = fdc.fdc.i_byte_clk_cnt;
+	assign dbg_fdc_status0 = fdc.fdc.status[0];
+	assign dbg_fdc_status1 = fdc.fdc.status[1];
+	assign dbg_fdc_status2 = fdc.fdc.status[2];
 
 	always @(posedge clk) begin
 		reg old_wr;

@@ -225,6 +225,7 @@ P10BOOT_RTL      := $(MBOARD_CORE_RTL) $(P10BOOT_TV80) \
                     $(abspath ../../rtl/plus/asic_unlock.v) \
                     $(abspath ../../rtl/plus/plus_model_select.v) \
                     $(abspath ../../rtl/plus/plus_fdc_decode.v) \
+                    $(abspath ../../rtl/u765/u765.sv) \
                     $(abspath ../../rtl/sdram.v) \
                     $(abspath ../../rtl/GA40010/casgen_sync.v) \
                     $(abspath ../../rtl/GA40010/syncgen_sync.v)
@@ -539,7 +540,8 @@ $(MOBO_TEST_BIN): $(MOBO_TEST_TOP) $(MOBO_RTL) $(MOBO_CPU) $(MOBO_TEST_SRC) Make
 		$(MOBO_CPU) $(MOBO_TEST_SRC)
 
 $(P10BOOT_TEST_BIN): $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) $(P10BOOT_TEST_SRC) Makefile | $(OBJ_DIR)
-	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR \
+	$(VERILATOR) --cc --exe --build +1364-2001ext+.v +1800-2017ext+.sv \
+		-UVERILATOR \
 		--top-module $(P10BOOT_TOP) \
 		--Mdir $(P10BOOT_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(P10BOOT_TEST_BIN)) $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) \
@@ -651,7 +653,7 @@ lint: motherboard-lint
 		$(P10DMAMOBO_TOP_SRC) $(P10DMAMOBO_CPU) $(P10DMAMOBO_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module plus_fdc_decode -Wall $(abspath ../../rtl/plus/plus_fdc_decode.v)
-	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
+	$(VERILATOR) --lint-only +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR \
 		--top-module $(P10BOOT_TOP) -Wall -Wno-fatal \
 		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
 		-Wno-DECLFILENAME -Wno-CASEX \

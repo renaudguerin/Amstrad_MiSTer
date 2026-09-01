@@ -66,7 +66,52 @@ being attributed to this fix.
 
 ## BASIC/System CPR disk failure
 
-Pending production CPU/u765/known-good-media trace.  No RTL conclusion yet.
+The production-path control uses the tracked `rtl/u765/test.dsk` EDSK
+(`SHA-256 591027f461e77cea900d3781e479afcf8a44c95a3131e5ea9ceb1d6bf6d005cc`).
+That image is already the real-u765 leaf control; track 0/head 0 independently
+describes sector `&41`, N=2, with 512 payload bytes beginning at file offset
+`&200`.
+
+`p10_boot_test_top` now connects its existing TV80/T80pa production
+motherboard path to the real `rtl/u765/u765.sv` and exposes only the MiSTer SD
+block transport to C++.  A cartridge-resident CPU program uses the Plus aliases
+`&FADD` and `&FBDE/&FBDF` and issues:
+
+```text
+46 00 00 00 41 02 41 1E FF
+```
+
+The first-divergence trace is:
+
+1. motor select and all nine command bytes reach the real decoder/controller;
+2. the post-CPR-reset track-info reload completes;
+3. u765 finds sector `&41` at physical byte position 30 and requests payload
+   LBA 1;
+4. with CPU and u765 enables derived from the exact production shared divider,
+   the TV80 surrogate's first payload store is `&00` instead of the EDSK's
+   `&21`; at that exact store edge u765 is still before data-ready (state 9,
+   MSR `&50`).
+
+Step 4 is the first divergence and is retained as `XFAIL fdc-payload-poll`; a
+complete matching 512-byte payload is an XPASS so the marker cannot silently
+hide a repair.  The real-u765 leaf suite independently keeps its EDSK parser,
+reset/reload, and READ DATA controls green.  The production-path result does
+not distinguish a TV80 instruction/polling limitation from behavior of the
+production VHDL T80, which Verilator cannot compile, so it is not evidence for
+changing u765 media, sector, or status RTL.
+
+The FDC diagnostic selects a production-clock mode that derives both registered
+enables from the same free-running three-bit counter.  The older P10a mode
+remains isolated for its pre-existing cartridge trace.  An attempted sweep
+with unrelated CPU/u765 dividers changed the payload result immediately and
+was rejected as non-production evidence.  No speculative controller fix is
+made.
+
+This also prevents a no-media observation from being mislabeled: without an
+image, there can be no LBA/payload trace, so a BASIC/AMSDOS prompt is not a
+controller-read reproduction.  Hardware closure still requires the failing
+System CPR with a known-good AMSDOS disk plus either a real-T80-capable trace or
+hardware capture at the first MSR/data-read transition.
 
 ## Sprite X and screenshot defects
 
