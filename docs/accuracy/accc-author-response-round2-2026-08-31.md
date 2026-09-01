@@ -29,9 +29,12 @@ The author confirms the specific R5=0 reading. Once type-1 vertical adjustment h
   the adjustment-exit route.
 
 This resolves the documentary/model residual in favor of the previously preferred reading.
-It is direct author evidence, not a hardware observation. The existing `t08j` and RTL must be
-changed failure-first; positive-R5 exit, §11.2.4 VMA behavior, VSYNC, RFD, and interlace
-additional-line behavior remain separate invariants.
+It is direct author evidence, not a hardware observation. The failure-first `t08j` discriminator
+now pins the distinction and the type-1 engine resets C4 through a row-only route. The same
+focused group pins the resulting row-0 R12/R13 reload and VSYNC comparison against actual
+`row_next=0`; positive-R5 exit, §11.2.4 VMA behavior, RFD, and interlace additional-line
+behavior remain separate invariants. ParityC9 behavior on this non-frame C4 reset remains an
+explicit source/hardware evidence gap rather than an inferred Q20 consequence.
 
 ## Answers to the compact Round 2 clarification list
 

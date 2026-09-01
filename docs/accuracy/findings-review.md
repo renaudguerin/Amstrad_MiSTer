@@ -1,5 +1,10 @@
 # Findings review — Fable's ACCC v1.10 distillation vs the source document
 
+> **Later evidence:** The author's direct 2026-08-31 response to round-2 Q20 clarifies the F8
+> R5=0 sentence: adjustment remains active and C5 loops, but the ordinary C4==R4 reset still
+> applies. See `accc-author-response-round2-2026-08-31.md`; this dated source review otherwise
+> remains unchanged.
+
 Reviewed 2026-08-22 against `docs/ACCC1.10-EN.pdf`
 (SHA-256 `1bd6f0e3a06022d03fd40b51d4d622afef2675954a483780f0922cdf1e33a560`, 295 pp).
 Method and tooling: `docs/plans/2026-08-22-accc-review-plan.md`; extraction manifest:

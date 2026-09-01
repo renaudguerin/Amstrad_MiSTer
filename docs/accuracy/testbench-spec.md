@@ -94,7 +94,7 @@ lags a sub-vector name.
 | t05 R3l=0 static → no HSYNC (both types) | digest-02 §5 | F11a |
 | t06 status bit 5 latch at C0=R0; not set by R6=0-while-C4>0 (type 1) — implemented | digest-03 §21.3.3 | F2 |
 | t07a-t07m equality overflow and live VMA capture — implemented: R9<C9 counts C9 through 31/wrap; outside adjustment R4<C4 counts C4 through 127/wrap; a late live R9 match also feeds VMA' capture at C0=R1 | digest-01 §3/§7/§17.1 | F4, while preserving F12 arbitration |
-| t08 type-1 adjustment: §28.1.1 identification fixture plus C5/C4/C9 sequencing; A1 makes the adjustment-ending final-row+1 VSYNC comparison silent; A2 pins the §11.2.4 exact-C0==R0 caveat pair (R4>0 suppresses the C4=1 R12/R13 reload, R9 does not) | digest-01 §11.2.4 + digest-02 §§16.1/16.4.2 + digest-03 §28.1.1 | F4/F8/A1/A2 |
+| t08 type-1 adjustment: §28.1.1 identification fixture plus C5/C4/C9 sequencing; `t08j` pins the author-confirmed Q20 behavior where R5=0 keeps C5 and adjustment active but C4 still resets on C4=R4, including the row-0 R12/R13 reload; `t08p`/`t08q` pin VSYNC to actual `row_next=0`; A1 makes the adjustment-ending final-row+1 VSYNC comparison silent; A2 pins the §11.2.4 exact-C0==R0 caveat pair (R4>0 suppresses the C4=1 R12/R13 reload, R9 does not) | ACCC v1.11 §11.3.2 p.85 + 2026-08-31 author response Q20; digest-01 §11.2.4 + digest-02 §§16.1/16.4.2 + digest-03 §28.1.1 | F4/F8/A1/A2/Q20 |
 | t09 R0=0 freeze (type 0): counters halt, no HSYNC unless R2=0, resume clean; C9=R9 entry consumes exactly one C4 increment — implemented | digest-01 §8.1 | F5/F12 boundary |
 | t10a-t10e + t31a R1>R0: type 0 no-skew DE is high for C0=R0's first half and low for its second 0.5 µs; type 1 none; SKEW-DISPTMG 1/2 rounds the deferred event to a full delayed character and mode 3 suppresses output — implemented, hardware validation pending | digest-03 §17.6.2/§19.2.3/§19.2.4 | F6/F13 |
 | t32a type-1 frame-origin ParityC9 realignment from a deliberately unequal pre-origin state — implemented, hardware validation pending | ACCC v1.11 French §19.5.3 p.209 | IA-2/BL-038 |
@@ -102,14 +102,14 @@ lags a sub-vector name.
 | t34a type-0 R6=0 first-frame-line conflict: high/low half-character polarity, reachable live R1, and R6 0→nonzero cancellation control — implemented, hardware validation pending | ACCC v1.11 French §18.3.2 p.191 | IA-3/BL-036 |
 | t35a type-0 R0=1 true-last-line widening: safe C0=0 control versus unsafe C0=1 continuation into C4=R4+1/C9=R9..31 additional management — implemented, hardware validation pending | ACCC v1.11 French §13.7.2 pp.126-127 | IA-6/BL-018-BL-020 |
 | integrated GA R2.JIT controls: production-phased `OUT (C),r8` makes R2 equal current C0; type-0/type-1 visible/raw starts move +4/+3 Mode-2 pixels while raw width shortens by 4/3 and the type-specific display-reactivation edge stays fixed; same-value intent control stays normal but lands after HSYNC rise — implemented, hardware validation pending | ACCC v1.11 §9.3.4.1 pp.53-54, §9.3.4.3 p.57, §14.6.1 p.141 | F20 |
-| t11 type 1 adjustment: C9 keeps cycling (RA!), C4 increments, R5=0 doesn't end | digest-01 §4 | F8 |
+| t11 type 1 adjustment: C9 keeps cycling (RA!), C4 increments, and R5=0 does not end adjustment; the ordinary C4=R4 reset remains live per Q20 | digest-01 §4 + 2026-08-31 author response Q20 | F8 |
 | t12a/t12b documented R4=38/R9=7 worked example pair (type 0): exact-C0==R0 R9 write leaves C4=39,C9=8; windowed write (C0∈[2,R0−1]) leaves C4=38,C9=8 — both encoded from ACCC §11.2.2 p.82 ex.3 — implemented | digest-01 §3.1/§4.2 | F9/F12 |
 | t13a-t13d RFD — implemented: away-from-R0 never-triggered control, R5 0→1 at C0==R0, same-cycle VMA reload/adjustment entry, frame-parity VMA' alternation, successful-save disarm, and R1>R0 bare-C9 disarm | digest-01 §4.5/§5 | F7/B6 |
 | t14 VMA reload: type 0 only at C4=C9=C0=0; type 1 every line of C4=0 row | digest-03 §17.4/§20.3 | F11h + regression |
 | t15 R12/R13 overscan-bit carry into MA[13:12] | digest-03 §20.5 | regression |
 | t16a-t16y type-0 last-line/adjustment arbitration — implemented: same-edge C0=0 R4 comparison; C0=1 R4/R9 equality breaks with R5=0, including exact R0=1 rollover consumption; R5 accepted through C0==2 and rejected after it with the accepted current-line target retained; R9 updates at C0==2..R0-1; R4 updates switch C9/R9 to C9/R5 through exact-R0; exact-R0 R9 increments C4 and C9; active adjustment reuses C9 against R5 even when R9 differs, including R5=0 overflow and zero-entry extension; R0=0/1 default adjustment; R0=0 during active adjustment freezes C4/C9; completion and retained-state lifecycle | digest-01 §3.1/§4.2/§7.1/§8.1 | F12 deterministic counter milestone and F5/F9 boundaries |
 
-All implemented groups are required passes. The classic suite currently has **183 required
+All implemented groups are required passes. The classic suite currently has **185 required
 passes**, zero expected failures, zero unexpected passes, and zero failures. It has had no
 expected failures since
 the F8 commit (`c9f4a4e`): the former type-1 adjustment-identification xfails

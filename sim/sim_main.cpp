@@ -3699,16 +3699,17 @@ void test_type1_adjustment_c4_c9_c5_worked_example(TestBench& test) {
 void test_type1_r5_zero_mid_adjustment_keeps_counting(TestBench& test) {
     test.set_crtc_type(1);
 
-    // Compendium section 4.4 (ACCC v1.10 section 11.3.2, page 85):
-    // Bug: R5 set to 0 during adjustment does NOT reset C4/end adjustment.
-    // CRTC 1 compares C5+1 == R5 by equality, which cannot match R5=0.
-    // C5 free-runs, C4 continues incrementing at C9==R9 wraps.
-    // Only setting R5 to a reachable positive value clears adjustment.
+    // ACCC v1.11 section 11.3.2 p.85 plus the author's 2026-08-31
+    // response to round-2 question 20: R5=0 keeps vertical adjustment
+    // active and C5 looping, while the ordinary C4==R4 reset remains live.
+    // Only setting R5 to a reachable positive value ends adjustment.
     constexpr RegisterProgram kRegisters = {{
         {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
         {5, 16}, {6, 25}, {7, 30}, {8, 0},    {9, 3},
     }};
     program_registers(test, kRegisters);
+    test.write_register(12, 0x20);
+    test.write_register(13, 0x50);
     test.reset();
 
     // Advance 44 lines into the frame to enter vertical adjustment.
@@ -3750,34 +3751,74 @@ void test_type1_r5_zero_mid_adjustment_keeps_counting(TestBench& test) {
     test.expect_c4("adjustment line 32: C4 increments to 19", 19);
     test.expect_ra("adjustment line 32: C9 wraps to 0", 0);
 
-    // Named residual N2 (ACCC v1.11 §11.3.2 p.85; question 20):
-    // Advance C4 through 127 and overflow wrap to 0, past R4=10 to C4=11.
-    // 120 character rows * 4 lines = 480 lines. C4: (19 + 120) % 128 = 11.
-    // c5: (0 + 480) % 32 = 0. C9: (0 + 480) % 4 = 0.
-    test.run_characters(480 * 64);
-    test.expect_c4("C4 wrapped past 127 to 0 and reached 11 past R4=10 without exiting adjustment", 11);
-    test.expect_ra("C9 at row boundary", 0);
-    test.expect_c5("c5 wrapped 15 full 32-line periods to 0", 0);
-    test.expect_adjustment_active("adjustment still active throughout stuck R5=0 free-run");
+    // Change the raster limit so the Q20 reset lands at a nonzero C5 phase.
+    // This makes continuity distinguishable from an accidental C5 reset.
+    test.write_register(9, 2);
 
-    // Run 5 more lines to reach c5=5.
-    test.run_characters(5 * 64);
-    test.expect_c5("c5 reaches 5", 5);
+    // Advance through the seven-bit overflow until the next C4==R4 row end.
+    // The ordinary R4 reset must take C4 to 0 without ending adjustment or
+    // resetting C5.  120 character rows * 3 lines = 360 lines, so C5 moves
+    // from 0 to 8 while C9 returns to 0.
+    test.run_characters(360 * 64);
+    test.expect_c5("c5 continues through the Q20 C4 reset to nonzero phase 8", 8);
+    test.expect_adjustment_active("R5=0 keeps adjustment active across the R4 reset");
+    test.expect_ra("C9 at the R4 row boundary", 0);
+    test.expect_c4("C4 resets to 0 when it reaches R4=10 while adjustment remains active", 0);
+    // The sampling phase is one scanned character after the boundary, so
+    // the R12/R13 base 0x2050 has advanced to 0x2051.  The rejected VMA'
+    // restore reaches a different address and fails this assertion.
+    test.expect_ma("Q20 C4=0 line scans from the reloaded R12/R13 base", 0x2051);
 
-    // Now write a reachable non-zero value: R5 = 8.
-    test.write_register(5, 8);
+    // Now write a reachable non-zero value: R5 = 11.
+    test.write_register(5, 11);
 
-    // Run 2 lines: line with c5=6, line with c5=7.
+    // Run 2 lines: line with c5=9, line with c5=10.
     test.run_characters(2 * 64);
-    test.expect_c5("c5 reaches 7", 7);
+    test.expect_c5("c5 reaches 10", 10);
 
-    // At the end of line with c5=7, c5+1 == 8 == R5 matches!
+    // At the end of line with c5=10, c5+1 == 11 == R5 matches!
     // Next line should be frame 1 start (C4=0, C9=0, c5=0).
     test.run_characters(64);
     test.expect_c4("frame 1 start: C4 resets to 0", 0);
     test.expect_ra("frame 1 start: C9 resets to 0", 0);
     test.expect_c5("frame 1 start: c5 resets to 0", 0);
     test.expect_adjustment_inactive("adjustment exited cleanly");
+}
+
+void run_type1_r5_zero_to_q20_reset(TestBench& test, std::uint8_t r7) {
+    constexpr RegisterProgram kRegisters = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
+        {5, 16}, {6, 25}, {7, 30}, {8, 0},    {9, 3},
+    }};
+    program_registers(test, kRegisters);
+    test.write_register(7, r7);
+    test.reset();
+
+    test.run_characters(44 * 64);
+    test.run_characters(2 * 64);
+    test.write_register(5, 0);
+    test.run_characters(30 * 64);
+    test.expect_c4("Q20 VSYNC fixture reaches C4=19", 19);
+    test.expect_c5("Q20 VSYNC fixture reaches C5=0", 0);
+    test.expect_ra("Q20 VSYNC fixture reaches C9=0", 0);
+
+    test.write_register(9, 2);
+    test.run_characters(360 * 64);
+    test.expect_c4("Q20 VSYNC fixture takes the row-only C4 reset", 0);
+    test.expect_c5("Q20 VSYNC fixture preserves C5 continuity", 8);
+    test.expect_adjustment_active("Q20 VSYNC fixture remains in adjustment");
+}
+
+void test_type1_r5_zero_r4_reset_fires_vsync_at_r7_zero(TestBench& test) {
+    test.set_crtc_type(1);
+    run_type1_r5_zero_to_q20_reset(test, 0);
+    test.expect_vsync_high("Q20 row_next=0 fires VSYNC for R7=0");
+}
+
+void test_type1_r5_zero_r4_reset_does_not_fire_r4_plus_one_vsync(TestBench& test) {
+    test.set_crtc_type(1);
+    run_type1_r5_zero_to_q20_reset(test, 11);
+    test.expect_vsync_low("Q20 row_next=0 does not invent C4=R4+1 VSYNC");
 }
 
 void test_type0_adjustment_c4_frozen_c9_counts_to_r5(TestBench& test) {
@@ -7704,7 +7745,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 section 11.2.1; F8 worked example sequence", false,
          test_type1_adjustment_c4_c9_c5_worked_example},
         {"t08j_type1_r5_zero_mid_adjustment_keeps_counting",
-         "ACCC v1.10 section 11.3.2; F8 zero R5 free-run and recovery", false,
+         "ACCC v1.11 section 11.3.2 p.85 and 2026-08-31 author response Q20; zero-R5 C4 reset and recovery", false,
          test_type1_r5_zero_mid_adjustment_keeps_counting},
         {"t08k_type0_adjustment_c4_frozen_c9_counts_to_r5",
          "ACCC v1.10 section 11.2.1; F8 type-0 control", false,
@@ -7721,6 +7762,12 @@ int main(int argc, char** argv) {
         {"t08o_type1_r9_write_at_adjustment_entry_keeps_r12_reload",
          "ACCC v1.10 section 11.2.4 p.84; F8/A2/B5", false,
          test_type1_r9_write_at_adjustment_entry_keeps_r12_reload},
+        {"t08p_type1_r5_zero_r4_reset_fires_vsync_at_r7_zero",
+         "ACCC v1.11 section 11.3.2 p.85 and 2026-08-31 author response Q20; actual row-next VSYNC", false,
+         test_type1_r5_zero_r4_reset_fires_vsync_at_r7_zero},
+        {"t08q_type1_r5_zero_r4_reset_does_not_fire_r4_plus_one_vsync",
+         "ACCC v1.11 section 11.3.2 p.85 and 2026-08-31 author response Q20; no hypothetical row+1 VSYNC", false,
+         test_type1_r5_zero_r4_reset_does_not_fire_r4_plus_one_vsync},
         {"t13a_type1_rfd_write_away_from_r0_stays_unarmed",
          "ACCC v1.10 section 11.6 p.87; F7 never-triggered control", false,
          test_type1_rfd_write_away_from_r0_stays_unarmed},

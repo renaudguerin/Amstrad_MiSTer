@@ -115,9 +115,13 @@ DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0xd6bc1649ff2058a1`** after IA-6's type-0 R0=1 widening
-route and its one-character pending action joined the sampled projection.
-The preceding `0x21bbf9c29ab08413` hash recorded IA-3's live-R6 first-line
+current hash is **`0x9d8cd95357d1d752`** after Q20's author-confirmed type-1
+R5=0 adjustment correction: the fixed random schedule reaches C4=R4 while
+adjustment remains active, so C4 now resets to zero without ending adjustment
+or resetting C5; the resulting C4=0 row reloads R12/R13 and VSYNC compares
+the actual reset value. The preceding `0xd6bc1649ff2058a1` hash recorded IA-6's
+type-0 R0=1 widening route and its one-character pending action joining the
+sampled projection. The earlier `0x21bbf9c29ab08413` hash recorded IA-3's live-R6 first-line
 conflict and lifecycle latch; before that, `0x87a9d80a91381c9b` recorded
 IA-1's controlled type-0 R3-terminal HSYNC restart. French ACCC v1.11
 sections 15.3.2-15.3.3 pp.150-151 preserve the C3l overflow while the
