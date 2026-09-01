@@ -109,6 +109,22 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
 
 ## Cleared rows
 
+- **B10 ROM loader destination decoder extraction — CLEARED, Gemini 3.7 Flash
+  high author / GPT-5.6 Sol high review, 2026-09-01.** The production decoder is
+  extracted from `Amstrad.sv` into `rtl/rom_loader_route.v` and registered in
+  `files.qip`, preserving accepted-write behavior and invalid index-zero chunk
+  state retention. Named routes plus exhaustive comparison against an
+  independently expressed model of the former inline decoder cover every
+  8-bit index and 11-bit chunk over representative carry/page values. Parent
+  review restored invalid-chunk register retention and replaced tautological
+  expected-value sentinels; a real index-7 bank mutation then failed both the
+  directed and exhaustive checks. Independent Sol review caught that the new
+  binary was built but not executed by the default `make -C sim` recipe; after
+  remediation it reran the default Plus gate, observed the decoder PASS, and
+  returned CLEAR. No locale assets, menu state, or user-visible behavior were
+  added. Full simulation, lint, soak `0x2263c9fc44af4ee7`, and whitespace checks
+  pass; exact-tip Quartus remains an artifact gate, not review debt.
+
 - **Accuracy IA-6 type-0 R0=1 widening persistence — CLEARED, Gemini 3.7
   Flash high fallback, 2026-08-31.** Gemini authored the focused `t35a`
   control/main oracle; a GPT-5.6 Sol xhigh worker authored the phase-sensitive

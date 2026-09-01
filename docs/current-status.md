@@ -30,6 +30,19 @@ motherboard timing, selected monitor timing, and shared filter-dependent payload
 taps are available for the next capture slice. The fixture still has no runtime
 CPR-to-frame writer and is not an image oracle.
 
+B10's safe production ROM-loader destination decoder prerequisite is complete
+in `rtl/rom_loader_route.v`. It extracts destination decoding from `Amstrad.sv`
+without changing accepted-write behavior or invalid-chunk state retention: the
+index-zero ten-chunk boot bundle mapping (6128 OS/BASIC/AMSDOS/MF2, 664
+OS/BASIC/AMSDOS/MF2, 464 OS/BASIC),
+index 7 forced bank 2 route, generic nonzero index bank selection including
+inferred 0x40/0x80/0xC0 auto routes, and separate bank-zero to bank-one
+second-write promotion. Its dedicated deterministic simulation suite in
+`sim/plus/` checks named policy-significant cases and exhaustively compares all
+indices/chunks over representative pages with a frozen model of the former
+inline decoder. No locale assets or visible menu
+states are introduced, preserving the documented asset/policy blocker.
+
 ## 2026-09-01 combined accuracy/Plus integration artifact
 
 Source-bearing integration SHA `ea0e0bd4a0c2557f6cce2c0e1e60b84d389bf101` combines the

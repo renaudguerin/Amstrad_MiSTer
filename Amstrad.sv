@@ -227,7 +227,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 	.ioctl_wait(ioctl_wait)
 );
 
-wire        rom_download = ioctl_download && ((ioctl_index[4:0] < 4) || (ioctl_index == 7));
+wire        rom_download = ioctl_download && rom_route_active;
 wire        tape_download = ioctl_download && (ioctl_index == 4);
 wire        dan_download = ioctl_download && (ioctl_index == 5);
 wire        dan_write_accepted;
@@ -320,10 +320,29 @@ reg   [7:0] boot_dout;
 
 reg [255:0] rom_map = '0;
 
+reg   [8:0] page = 0;
+reg         combo = 0;
+
+wire        rom_route_active;
+wire        rom_route_valid;
+wire  [1:0] rom_route_initial_bank;
+wire  [8:0] rom_route_dest_a_hi;
+wire        rom_route_promote;
+
+rom_loader_route rom_loader_route
+(
+	.ioctl_index(ioctl_index),
+	.ioctl_addr(ioctl_addr[24:14]),
+	.page(page),
+	.rom_active(rom_route_active),
+	.addr_valid(rom_route_valid),
+	.initial_bank(rom_route_initial_bank),
+	.dest_a_hi(rom_route_dest_a_hi),
+	.promote_bank0_to_bank1(rom_route_promote)
+);
+
 reg         romdl_wait = 0;
 always @(posedge clk_sys) begin
-	reg [8:0] page = 0;
-	reg       combo = 0;
 	reg       old_download;
 	reg       old_sna_download;
 
@@ -364,27 +383,12 @@ always @(posedge clk_sys) begin
 			boot_bank <= 2'b11;
 			boot_a[22:14] <= ioctl_addr[22:14];
 		end 
-		else if(ioctl_index) begin
-			boot_a[22]    <= page[8];
-			boot_a[21:14] <= page[7:0] + ioctl_addr[21:14];
-			boot_bank     <= (ioctl_index == 7) ? 2'd2 : {1'b0, &ioctl_index[7:6]};
-		end
-		else begin
-			case(ioctl_addr[24:14])
-					0,4: boot_a[22:14] <= 9'h000; //OS
-					1,5: boot_a[22:14] <= 9'h100; //BASIC
-					2,6: boot_a[22:14] <= 9'h107; //AMSDOS
-					3,7: boot_a[22:14] <= 9'h0ff; //MF2
-					8:   boot_a[22:14] <= 9'h000; //CPC464 OS
-					9:   boot_a[22:14] <= 9'h100; //CPC464 BASIC
-			  default:    romdl_wait <= 0;
-			endcase
-
-			case(ioctl_addr[24:14])
-			  0,1,2,3: boot_bank <= 0; //CPC6128
-			  4,5,6,7: boot_bank <= 1; //CPC664
-			  8,9:     boot_bank <= 2; //CPC464
-			endcase
+		else if (rom_download) begin
+			if (rom_route_valid) begin
+				boot_bank     <= rom_route_initial_bank;
+				boot_a[22:14] <= rom_route_dest_a_hi;
+			end
+			else romdl_wait <= 0;
 		end
 	end
 
@@ -393,7 +397,7 @@ always @(posedge clk_sys) begin
 		if(boot_wr & romdl_wait) begin
 			boot_wr <= 0;
 			// load expansion ROM into both banks if manually loaded or boot name is boot.eXX
-			if(rom_download && (ioctl_index[7:6]==1 || ioctl_index[5:0]) && !boot_bank) boot_bank <= 1;
+			if(rom_download && rom_route_promote && !boot_bank) boot_bank <= 1;
 			else begin
 				{boot_wr, romdl_wait} <= 0;
 				if(boot_a[22]) rom_map[boot_a[21:14]] <= 1;

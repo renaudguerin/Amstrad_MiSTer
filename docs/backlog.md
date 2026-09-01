@@ -468,8 +468,15 @@ chunks: OS/BASIC/AMSDOS/MF2 for the 6128, the same four slots for the 664, then
 OS/BASIC for the 464. `Amstrad.sv` maps those chunks into model banks 0, 1 and
 2 respectively. The separate index-7 CPC464 route is therefore an adapter for
 that fixed bundle shape, while the generic expansion route loads bank 0 and
-then repeats the accepted write into bank 1. Keep all of those routes compatible
-while the loader is decomposed.
+then repeats the accepted write into bank 1.
+
+The production ROM-download destination decoder is now extracted into
+`rtl/rom_loader_route.v` and instantiated in `Amstrad.sv` (with manifest
+registration in `files.qip`), preserving bit-for-bit behavior across all
+index-zero chunks, index 7, generic slots, inferred auto routes (0x40, 0x80, 0xC0),
+and second-write promotion. Its focused deterministic unit test checks named
+routes and exhaustively compares the helper against an independently expressed
+model of the former inline decoder.
 
 The keyboard matrix is not locale-selectable today. `rtl/hid.sv` has one fixed
 PS/2-to-CPC matrix, and the Distributor option drives PPI manufacturer straps;
@@ -479,15 +486,12 @@ no reproducible generator for them, are present in the repository. Consequently,
 an unattended pass must not invent the visible UK/French/Spanish selector or
 silently reinterpret the host keyboard.
 
-**NEXT UNBLOCKED SLICE.** Isolate the existing ROM-download destination decoder
-behind a small production seam and pin it with independently chosen sentinel
-writes. The fixture must cover the ten-chunk main bundle, index 7 to model bank
-2, generic expansion promotion from bank 0 to bank 1, and the existing bank-0/
-bank-1 automatic routes. This is infrastructure for per-bank loading, not a
-locale feature. Preserve the legacy `boot.rom` path as the default and do not
-change Plus expansion-ROM policy. A later user-facing locale slice requires
-provenance-backed ROM sets plus a decision on whether locale means firmware
-only, host-keyboard translation, or both.
+**NEXT UNBLOCKED SLICE.** With the destination decoder foundation isolated and
+pinned, subsequent work on per-bank ROM selection or locale support remains
+blocked on acquiring provenance-backed localized ROM sets and defining a
+clean policy on whether locale means firmware only, host-keyboard translation,
+or both. Preserve the legacy `boot.rom` path as the default and do not change
+Plus expansion-ROM policy.
 
 `boot.rom` as a single concatenated blob is this core's choice, not a MiSTer-wide requirement —
 MiSTer's convention is only that the HPS pushes a file over `ioctl` with an index. This core
