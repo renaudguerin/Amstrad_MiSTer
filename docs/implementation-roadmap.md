@@ -20,7 +20,7 @@ merged into the same behavioral PR.
   `plus/p0-parser-wiring`, which rebase onto this branch's post-review fixes).
 - The current development state contains the accuracy/reference documents, the F1-F3 and main
   F5 corrections, deterministic-complete F12/F4/F8/F9, the Verilator CRTC/Plus gates plus the
-  randomized equivalence soak (`make -C sim soak`, golden hash `0xd6bc1649ff2058a1`), the
+  randomized equivalence soak (`make -C sim soak`, golden hash `0x2263c9fc44af4ee7`), the
   production-wired bounded CPR parser/service/MMU path, R12/R13 reload vectors
   (`t20a`-`t20i`), the per-type engine
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
@@ -30,9 +30,9 @@ merged into the same behavioral PR.
 - GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
   RBF packaging, and artifact upload through the pass-2 fix tip `f6f09f5` (run
   `32645547100`). New top-level/file-list commits still require their own run.
-- `sim/` currently reports **183** required classic CRTC passes with no expected failures
-  (verified 2026-08-31, Verilator 5.050); the soak reproduces golden hash
-  `0xd6bc1649ff2058a1`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
+- `sim/` currently reports **192** required classic CRTC passes with no expected failures
+  (verified 2026-09-01, Verilator 5.050); the soak reproduces golden hash
+  `0x2263c9fc44af4ee7`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through
@@ -431,12 +431,12 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 **Read `docs/backlog.md` before picking from this queue.** It holds the cross-cutting
 architecture and methodology items opened on 2026-08-31, and several entries below are blocked
-in ways this section does not show. In particular **backlog B1**: `rtl/crt_filter.v`
-regenerates HSYNC/VSYNC and derives HBLANK/VBLANK from hardcoded constants, discarding the real
-CRTC sync geometry, and it is currently hardwired on. Until that is settled, the F20 R2.JIT
-hardware gate, the DSC4 validation, and SHAKER Module A entries (T), (Y), (TAB) and (R) cannot
-produce a readable result, because the effect they measure is removed after the CRTC and before
-the display. The `accuracy/sync-filter-toggle` branch adds the OSD toggle needed to test this.
+in ways this section does not show. **Backlog B1 now has a simulation-gated hybrid candidate:**
+Live HBLANK starts from raw CRTC/ASIC HSYNC phase and keeps a 64-CE acquisition window, while
+HSYNC/VSYNC remain regenerated for scaler stability and missing-sync falls back to Full. The
+nine-case seam fixture pins R2.JIT phase, expiry, malformed cadence, watchdog recovery, and the
+production selector. F20 R2.JIT, DSC4, and SHAKER Module A entries (T), (Y), (TAB) and (R) still
+require a named hardware A/B run; simulation, synthesis, and an RBF cannot close them.
 
 
 1. Test the synthesized current milestone on real MiSTer hardware using

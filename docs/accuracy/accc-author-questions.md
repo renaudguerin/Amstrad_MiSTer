@@ -4,9 +4,10 @@
 > This file is the original internal working ledger of 20 questions compiled during the accuracy audit against *The Amstrad CPC CRTC Compendium* v1.10.
 >
 > - Questions submitted in **Round 1** were incorporated into **ACCC v1.11** (released August 27, 2026); see archived [accc-author-feedback-round1-2026-08-27.md](accc-author-feedback-round1-2026-08-27.md).
-> - Active feedback is consolidated in **[accc-author-feedback.md](accc-author-feedback.md)**:
->   Q12 is resolved by the French v1.11 wording and becomes an English clarification in
->   section 1; Q20 remains a hardware confirmation request in section 2.
+> - Active feedback is consolidated in **[accc-author-feedback.md](accc-author-feedback.md)**.
+>   Q12 is resolved by the French v1.11 wording. Q20 was explicitly answered in the dated
+>   [Round 2 author response](accc-author-response-round2-2026-08-31.md): the C4/R4 reset
+>   remains active while R5=0 adjustment persists.
 > - Individual numbered items below are preserved for historical provenance and cross-referencing from codebase comments.
 
 Collected 2026-08-22 during the faithfulness review of the repository's distillation against
@@ -326,23 +327,24 @@ with it.
 
 20. **§11.3.2 — C4 comparison during stuck R5=0 vertical adjustment (CRTC 1).**
 
-    **OPEN HARDWARE CONFIRMATION / MODEL RESIDUAL N2, 2026-08-28.** English §11.2.4 p.84
+    **RESOLVED BY AUTHOR CORRESPONDENCE, 2026-08-31.** English §11.2.4 p.84
     says adjustment increments C4 without considering R4. The specific R5=0 case in
     §11.3.2 pp.85–86 keeps the C4/R4 reset comparison active while adjustment persists.
     French §11.2.4 p.85 and §11.3.2 p.87 retain the same distinction.
 
-    Preferred reading (1): with R8=0, C4 resets at the next C4=R4, C9=R9 line end while
+    Confirmed reading (1): with R8=0, C4 resets at the next C4=R4, C9=R9 line end while
     C5 continues counting and adjustment remains active. The later positive-R5 sentence
-    describes a reset that also exits adjustment; it does not exclude an intermediate
-    C4/R4 reset. Ask the author to confirm that precise distinction.
+    describes a reset that also exits adjustment; it does not exclude this intermediate
+    C4/R4 reset. The author explicitly confirmed those counter and lifecycle effects.
 
-    The core retains reading (2): C4 ignores R4 while stuck in adjustment and wraps through
-    127 by 7-bit overflow, until a reachable positive R5 terminates adjustment. `t08j`
-    pins this model choice, not silicon behavior. No RTL or test change accompanies the
-    revised source reading. Round 2 section 2 gives the proposed, unrun hardware test:
+    The core at the response boundary retained reading (2): C4 ignored R4 while stuck in
+    adjustment and wrapped through 127 by seven-bit overflow until a reachable positive R5
+    terminated adjustment. `t08j` therefore became a failure-first target rather than an
+    oracle. Round 2 section 2 gives the optional, unrun hardware confirmation:
     R0=63, R4=10, R9=3, R7=1, R8=0; enter adjustment with R5=16, then set R5=0 at C5=2.
     After the initial C4 overflow, the two readings predict recurring VSYNC intervals of
-    44 and 512 scanlines respectively. Author or hardware evidence must settle the residual.
+    44 and 512 scanlines respectively. Those predictions remain unmeasured; the documentary
+    residual itself is closed by the author's direct answer.
 
 Also noted while verifying (no answer needed, listed for completeness): p.195 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay

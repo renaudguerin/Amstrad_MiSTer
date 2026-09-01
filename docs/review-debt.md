@@ -2,11 +2,27 @@
 
 ## Open rows
 
+- **Accuracy Round 2 consequence and B1 hybrid blanking — OPEN, no fresh
+  cross-provider remediation review, 2026-09-01.** Feature tip
+  `eb45555a2f1156dc153d2f7c6f88c9271757a827` implements the author-confirmed
+  Q20 C4 reset, type-0 C0=2 VSYNC qualification and lifecycle reconstruction,
+  type-1 interlace isolation, plus hybrid Live HBLANK expiry/watchdog recovery.
+  A fresh native Sol review found and closed late-lifecycle and composed-
+  fallback test gaps, but the guarded cross-provider route remained unavailable.
+  A reviewer should check hardest the `hcc>=2` reconstruction across wrap and
+  live type/snapshot boundaries; the neutral type-1 field route; `t02o`'s
+  inference-only `vsync_allow` consumption; exact-expiry priority; and the
+  stuck-high/no-VSYNC fallback through the downstream Full resynchronizer.
+  Full simulation and lint pass, the classic suite is 192/192, the focused
+  blanking suite is 9/9, and soak `0x2263c9fc44af4ee7` passes. Hardware A/B
+  results remain validation evidence, not review closure.
+
 - **Accuracy OSD sync-filter toggle — OPEN, no independent cross-provider review,
   2026-08-31.** This change was merged without independent cross-provider review.
-  A reviewer should check that the default value preserves bit-for-bit current
-  behaviour and that status bit 35 collides with nothing in `Amstrad.sv` or
-  `sys/`.
+  The control is now the two-bit Full/Live blanking/Off selector at
+  `status[36:35]`. A reviewer should check that Full remains the default and
+  preserves the established output tuple, and that neither status bit collides
+  with another `Amstrad.sv` or `sys/` control.
 
 - **Plus P10j primitive/model contract notes — OPEN LOW, Claude Opus 5 high,
   2026-08-31.** A guarded Claude exact-tip review at integration SHA `bf1e785`
@@ -35,7 +51,7 @@
   The full method and measured matrix are in
   `docs/plus/b7-dark-silicon-audit.md`.
 
-**Status: three independent-review debt rows are open.** The validation residuals retained in
+**Status: four independent-review debt rows are open.** The validation residuals retained in
 the cleared rows below are not hardware evidence and do not reopen local RTL/test review.
 
 ## Cleared rows

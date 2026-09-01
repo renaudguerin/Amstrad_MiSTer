@@ -354,15 +354,21 @@ wire       row_last_w = (row == R4_v_total);
 assign     row_last = row_last_w;
 wire       frame_adj_CRTC1 = row_last_w && ~in_adj && |crtc1_rollover_r5;
 assign     frame_adj = frame_adj_CRTC1;
-// Named residual N2 (ACCC v1.11 §11.3.2 p.85; question 20): during stuck
-// adjustment with R5=0, C5 loops and C4 advances past R4 at each C9==R9
-// wrap. In our model, C4 free-runs and wraps to 0 by 7-bit overflow (at
-// C4=128), remaining in adjustment until a reachable R5>0 triggers exit via
-// crtc1_adj_end_eff.
+// ACCC v1.11 section 11.3.2 p.85 plus the author's 2026-08-31 response to
+// round-2 question 20: R5=0 prevents the C5 equality from ending vertical
+// adjustment, but does not disable the ordinary C4==R4 reset.  Keep that
+// reset separate from row_frame_last so C5 and adjustment remain active.
+// Use the rollover-effective R5 so a same-edge 0->positive RFD write retains
+// the documented positive-R5 exit path rather than taking this reset.
+wire       crtc1_stuck_r5_row_reset = in_adj && !(|crtc1_rollover_r5) &&
+									 row_last_w && line_last_w;
+wire       crtc1_stuck_r5_row_reset_event = crtc1_stuck_r5_row_reset &&
+										 line_new;
 wire       crtc1_row_frame_last = in_adj ? (crtc1_adj_end_eff & ~type1_add_intercept) :
 										 (row_last_w & ~frame_adj_CRTC1);
 assign     row_frame_last = crtc1_row_frame_last;
-assign     row_next = row_frame_last ? 7'd0 : row + 1'd1;
+assign     row_next = (row_frame_last | crtc1_stuck_r5_row_reset) ? 7'd0 :
+					 row + 1'd1;
 assign     row_new = line_new & line_row_event;
 
 wire       frame_new_w = row_new & row_frame_last;
@@ -460,7 +466,9 @@ wire crtc1_adj_entry_from_row0 = CRTC_TYPE & !in_adj & row_last_w &
 									 ~r4_positive_write_at_adj_entry;
 assign adj_from_row0 = crtc1_adj_entry_from_row0;
 wire crtc1_adj_row1_reload = CRTC_TYPE & (crtc1_adj_entry_from_row0 | (in_adj & crtc1_adj_from_row0 & (row == 1) & ~line_row_structure_last)) & !hcc_next;
-wire crtc1_row0_reload = CRTC_TYPE & (frame_new_w | (~line_row_structure_last & !row & !hcc_next));
+wire crtc1_row0_reload = CRTC_TYPE &
+							 (frame_new_w | crtc1_stuck_r5_row_reset_event |
+							  (~line_row_structure_last & !row & !hcc_next));
 wire crtc1_rfd_reload = CRTC_TYPE & rfd_vma_active & !hcc_next;
 assign reload = crtc1_row0_reload | crtc1_adj_row1_reload | crtc1_rfd_reload;
 assign row0_reload = crtc1_row0_reload;
@@ -537,7 +545,8 @@ assign field_count_tick = (hcc_next == {1'b0, R0_h_total[7:1]});
 // plain C9==R9 test) is the row-end test here: during IVM the wrap line's
 // C9 differs from R9 on parity-short rows, and the section 19.5.3 p.208
 // table starts the pulse at the first line of C4=R7 on every frame.
-assign vsync_line_fire = (((CRTC_TYPE && in_adj && !crtc1_adj_end) ?
+assign vsync_line_fire = (((CRTC_TYPE && in_adj && !crtc1_adj_end &&
+									 !crtc1_stuck_r5_row_reset) ?
 								 (row + 1'd1) : row_next) == R7_v_sync_pos && line_row_structure_last);
 assign vsc_load = 4'd0 - 1'd1;
 assign r7_write_fire = !VSYNC_r && vsync_allow;

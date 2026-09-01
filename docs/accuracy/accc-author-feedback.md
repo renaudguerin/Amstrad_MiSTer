@@ -4,6 +4,10 @@
 **Reference:** *The Amstrad CPC CRTC Compendium* v1.11 (Longshot / Logon System, 27 August 2026)
 **Target:** Longshot (Author of *The Amstrad CPC CRTC Compendium*)
 
+**Response received:** 2026-08-31. The dated answers and evidence boundary are recorded in
+[the Round 2 author-response note](accc-author-response-round2-2026-08-31.md). Promised
+edition corrections are future/unpublished; the published v1.11 PDFs remain unchanged.
+
 This document contains the courtesy corrections and clarification requests from the MiSTer
 Amstrad core audit against **ACCC v1.11**. Source deductions, current model choices, and
 hardware observations are distinguished below. The complete section-audited register is
@@ -53,7 +57,7 @@ there is no outstanding author question about a hidden recovery latch based on t
 The more specific R5=0 case in §11.3.2 says that the C4/R4 comparison continues to process
 C4's return to zero while adjustment remains active. Both editions retain this distinction.
 
-**Preferred reading (1), pending confirmation:** With R8=0, the R5=0 case permits the ordinary
+**Author-confirmed reading (2026-08-31):** With R8=0, the R5=0 case permits the ordinary
 C4/R4 reset at a C9=R9 line end without clearing adjustment or stopping C5. The later
 positive-R5 sentence describes a reset route that also exits adjustment; it does not say
 that this is the only possible C4 reset.
@@ -63,18 +67,18 @@ that this is the only possible C4 reset.
 > With R8=0 and adjustment stuck after R5 becomes zero, does C4 reset at the next
 > C4=R4, C9=R9 line end while C5 continues counting and adjustment remains active?
 
-**Current implementation, not silicon evidence:** Our core retains reading (2): during
-stuck R5=0 adjustment, C4 ignores R4, advances through 127, and wraps by 7-bit overflow.
-A reachable positive R5 terminates adjustment and resets the counters. `t08j` pins this
-chosen model, including a pass through the next C4=R4, but cannot establish hardware behavior.
-The model residual remains open; this documentation correction does not change RTL or tests.
+**Implementation consequence:** At the response boundary the core retained reading (2):
+during stuck R5=0 adjustment, C4 ignored R4, advanced through 127, and wrapped by seven-bit
+overflow. `t08j` pinned that model. The author answer resolves Q20/N2 against that behavior;
+the vector must first fail on the missing C4/R4 reset while C5 and adjustment remain active,
+then the smallest type-1 correction can land. This is author evidence, not silicon evidence.
 
-**Proposed hardware discriminator (not yet run):** Use a Type-1 CRTC with R0=63, R4=10,
+**Optional hardware confirmation (not yet run):** Use a Type-1 CRTC with R0=63, R4=10,
 R9=3, R7=1 and R8=0. Enter adjustment with R5=16, then set R5=0 at C5=2 and leave the
 registers unchanged. After the initial C4 overflow, measure successive VSYNC rising edges.
-Reading (1) predicts a recurring interval of `(R4+1) × (R9+1) = 44` scanlines; reading (2)
-predicts `128 × (R9+1) = 512` scanlines. These are paper-derived predictions for the two
-readings, not measured results. A later reachable positive-R5 write provides an exit control.
+The confirmed reading predicts a recurring interval of `(R4+1) × (R9+1) = 44` scanlines;
+the superseded model predicts `128 × (R9+1) = 512` scanlines. These are paper-derived
+predictions, not measured results. A later reachable positive-R5 write provides an exit control.
 
 ---
 
@@ -115,26 +119,23 @@ as hardware confirmations.
 - **§28.1.9 p.293:** French lists the full type-3/4 readback map through R14/R15 and points
   to §21.2.3; English stops at R13 and points to §20.3.4.
 
-### Clarifications requested
+### Clarifications answered in the 2026-08-31 correspondence
 
-1. **§7.2:** which synchronization routine is intended: French `19968-21` with `1+1+3`, or
-   English `19968-23` with `2+1+3` and the separate −1 µs positioning adjustment?
-2. **§4.4.3–4:** is English's addition of `OUTD` intentional, and does the ASIC use the same
-   `/WAIT` request/repetition mechanism as the Gate Array? The generic English “write I/O
-   instruction 1 µs earlier” appears broader than the French `OUT(C),r8` rule.
-3. **§11.6:** does the French statement that the RFD VMA-source state persists independently
-   of a C0/R1 test describe persistence before the later comparative event, rather than an
-   unconditional lifetime?
-4. **§14.1 FR p.132:** should “HSYNC begins when C3l reaches R3l” say **ends**? The French
-   definitions, tables, and later prose all appear to require “ends.”
-5. **§16.4.1.2 EN p.169:** are the two English-only R0/VSYNC paragraphs normative material
-   accidentally omitted from French, or unsupported supplemental text?
-6. **§19.3.4:** should English retain the French warning about complete-interlace screen
-   construction from VSYNC at C4=R7, rather than replacing it with frame-start-only R8 advice?
-7. **§19.5.3 FR p.209:** is `ParityC9=ParityFrame` at every type-1 frame start an explicit
-   realignment assignment even after the states have been made unequal by an R8 transition?
-8. **§22 EN p.250:** can the English-only warning about effects on “other registers” be made
-   concrete, or should it be removed/added to French as intentionally non-normative guidance?
+1. **§7.2:** align on `19968-21`; the author chose it because it finds VSYNC faster.
+2. **§4.4.3–4:** `OUTD` is intentional, and the ASIC uses the same `/WAIT`
+   request/repetition mechanism as the Gate Array.
+3. **§11.6:** C0=R1 does not clear the VMA-source state; C9=R9 does, and parity can make that
+   equality fail so the state remains active.
+4. **§14.1 FR p.132:** “begins” is a French typo; reaching C3l=R3l ends HSYNC.
+5. **§16.4.1.2 EN p.169:** the English-only R0/VSYNC paragraphs are normative; the author
+   intends to add them to French.
+6. **§19.3.4:** the French advice is wrong; R8 should be changed at frame start.
+7. **§19.5.3 FR p.209:** yes, `ParityC9=ParityFrame` is explicit at every type-1 frame start.
+8. **§22 EN p.250:** the warning is intentionally low-importance guidance and is intended to
+   be restored to French.
+
+These answers are correspondence. Every described edition change remains future/unpublished
+until a new PDF is released and fingerprinted.
 
 ### Lower-risk errata
 
@@ -155,3 +156,6 @@ extraction and rendered relevant pages from
 
 - English: `3e45eb7eea7dc8f0d7211f78bec4f8d00530ce3c00da2e76034fb24f7a751868`
 - French: `4409e3a2e77cd54e499c6956446b01bce93f79a1c1ba366201d514cf6e3c0d47`
+
+The 2026-08-31 author-response source is separately fingerprinted in the response note. It
+does not change either v1.11 fingerprint or page anchor above.

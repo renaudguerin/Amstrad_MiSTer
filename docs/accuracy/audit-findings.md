@@ -508,14 +508,18 @@ General implementation rules for all fix prompts:
 - **Current** (fixed, `c9f4a4e`): type 1 has a genuine C5 (`crtc_type1_engine.v:116` equality
   end, `:124-135` counter next-state) while C9 keeps cycling 0..R9 and C4 increments at each
   wrap; type 0 still reuses C9 vs R5 (`crtc_type0_engine.v:151` line-max selection). The §4.4
-  R5=0 free-run bug is deliberately reproduced. Protected by `t08i`-`t08o`. A1's
+  R5=0 bug is reproduced with the author-confirmed Q20 distinction: adjustment and C5
+  continue, while an ordinary C4==R4 row end resets C4 without ending adjustment.
+  Protected by `t08i`-`t08q`; `t08j` is the focused Q20 counter/VMA discriminator and
+  `t08p`/`t08q` pin VSYNC to the actual row-next value. A1's
   adjustment-ending VSYNC correction is now protected by `t08m` (and the corrected `t08g`
   oracle). A2 is protected in both directions: `t08n` requires a positive R4 rewrite on the
   exact adjustment-entry edge to suppress the C4=1 reload, while `t08o` requires an R9 write
   on that edge to retain it.
 - **Impact**: type 1 ruptures/overscan using adjustment rows show wrong row addressing (RA
-  bits come from C9, which real type 1 keeps cycling); the R5=0 escape trick (force C4/C9=0 on
-  an arbitrary line) doesn't work.
+  bits come from C9, which real type 1 keeps cycling). With R5 stuck at zero, C4 can still
+  return to zero at the next reachable C4==R4 row end; ending adjustment still requires a
+  reachable positive R5.
 - **Confidence: medium-high** on the structure; interactions with F4/F7 mean sequencing matters
   (do F4 first).
 - **Fix prompt**:
@@ -524,7 +528,9 @@ General implementation rules for all fix prompts:
   > user-visible change), `row` increments at each `line`==R9 wrap, and `c5` increments once
   > per line, with adjustment ending when `c5 + 1 == R5_v_total_adj` evaluated at the line
   > boundary (equality, not magnitude — R5=0 therefore never ends it: ACCC §11.3.2 bug,
-  > reproduce it). On adjustment end, C4=C9=0 unconditionally. Type 0 path unchanged (C9-vs-R5
+  > reproduce it). While R5 remains zero, retain the ordinary C4==R4 reset without treating
+  > it as a frame or adjustment end (author response Q20, 2026-08-31). On adjustment end,
+  > C4=C9=0 unconditionally. Type 0 path unchanged (C9-vs-R5
   > reuse is correct there). Read `compendium-01-counters.md` §4 fully first; mind §4.3's
   > "VMA from R12/R13 while C4==1" special case — implement it only if the existing
 > CRTC1_reload logic doesn't already produce it, and add the §4.1 worked example

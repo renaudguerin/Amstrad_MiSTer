@@ -184,6 +184,10 @@ These bits (Sd, R8 bits **5:4** in the `00xx` masks below) exist on CRTCs 0/3/4 
 - Interlace works by delaying VSYNC by half a line on `C4=R7` for the even-numbered frame (MID-VSYNC, taking `C0=R0/2` as reference), plus adding **one extra scanline** at the end of a frame's construction (parity-dependent — see §19.5/19.6) so lines end up correctly ordered on a real interlaced CRT.
   - Q10 was resolved 2026-08-25: the line is generated when the **ParityFrame-even** frame's construction completes, at the even-to-odd boundary, and is duration-counted in the following odd frame (which therefore lasts 313 lines / 20032 µsec). p.198's "first frame" is the even frame in the presented pair; p.199's "inherits" describes the following frame's duration accounting.
 - On CPC, whether this actually produces a stable interlaced image depends on the Gate Array's HSYNC/VSYNC recombination logic (§16.6, out of scope here).
+- **Construction advice (§19.3.4):** program R8 at frame start. The author confirmed on
+  2026-08-31 that the published French advice centered on C4=R7/VSYNC is erroneous and the
+  English frame-start rule is intended. Mid-frame R8 tests remain valuable robustness and
+  transition coverage, but they are not the normative screen-construction recipe.
 - **Interlace Sync Mode** (§19.3.2.1, p.199): same video data displayed on even and odd frames (doubles apparent resolution by filling gaps, no new data) — CRTC registers need no reprogramming between frames.
 - **IVM / Interlace Sync & Video Mode** (§19.3.2.2, p.200-201): even frame shows **even C9** scanlines, odd frame shows **odd C9** scanlines — genuinely different data per frame-half. Registers must be programmed as if building a 624-line frame (the 625th line is handled automatically). Note: UM6845R datasheet figure describing this mode is **incorrect**; the UM6845(non-R)/HD6845S figure is correct (confirms UM6845 = type 0 lineage). Line 0 alternates with a border line in this mode (not with line -1, since there isn't one) due to the even frame's VSYNC repositioning being a full line ahead of the odd frame's.
 
@@ -216,11 +220,11 @@ C9.VMA=2 vs the even frame's 1 — the documented 1-line delay; deriving a stand
 table from the pseudocode below remains the recommended fixture route. Source quirks noted:
 the p.207 right table prints C4=3 where its sequence requires 5 (source typo), and the prose's
 "4 odd lines" count for odd-frame C4=0 counts the transition line loosely.
-- Note (p.206; the digest previously cited p.207): if R8 is switched to 3 on an **odd C4** rather than at frame start, the VSYNC-delay correction can itself become imbalanced for that transition frame. Q12 was resolved 2026-08-25: the source does **not** assert subsequent-frame recovery. Recovery follows from the documented state mechanics but remains an inference, not a fixture rule.
+- Note (p.206; the digest previously cited p.207): if R8 is switched to 3 on an **odd C4** rather than at frame start, the VSYNC-delay correction can itself become imbalanced for that transition frame. French v1.11 explicitly repeats this activation **on every frame**; the author's 2026-08-31 response confirms that wording is deliberate even though English omits it. Recovery after a single activation follows from the documented state mechanics but remains an inference, not a fixture or hardware rule.
 - Determining current parity live: possible via the "counting bug" that appears when IVM is activated on `C9=R9` with odd parity, or deactivated on `C9.VMA=R9+1` (§19.8.1) — i.e. parity is externally observable through characteristic C9 miscounts at mode-transition boundaries.
 
 **Type 1 parity states (§19.5.3, p.208-209):**
-- Only **two** parity states (simpler than type 0's three): `ParityFrame` (toggles every frame at `C4=C9=C0=0`, regardless of R8) and `ParityC9` (toggles every C4 increment **only if R9 is even**).
+- Only **two** parity states (simpler than type 0's three): `ParityFrame` (toggles every frame at `C4=C9=C0=0`, regardless of R8) and `ParityC9` (toggles every C4 increment **only if R9 is even**). At every frame start, after the frame-parity update, `ParityC9 := ParityFrame` explicitly realigns the states even if an R8 transition previously made them unequal. The author confirmed this assignment on 2026-08-31; IA-2/`t32a` pins it.
 - R9 even (odd total line count) ⇒ same even/odd-per-C4 alternation concept as type 0's odd-R9 case, but **triggered by R9-even instead of R9-odd** — this parity(R9) trigger condition is inverted vs type 0. Formula/pseudocode differs (see below).
 - **Key type-1 vs type-0 divergence:** type 1 has **no VSYNC delay-by-1-line correction** for odd C4s — positioning R7 on an odd C4 when R9 is even **will** create a permanent 1-line VSYNC gap between even/odd frames (no self-correction mechanism) (worked table p.208, "EVEN FRAME"/"ODD FRAME" with `+32` markers).
 - **R8 toggle timing is cycle-precise and documented exactly** (§19.5.3, p.209) — this is implementation-critical:
@@ -456,6 +460,10 @@ Register select port: `&BC00` (both types). Register data port: `&BF00` (both ty
   - Pin 19 (CUDISP/CURSOR) → expansion port pin 46 (some expansions use this).
   - Pin 3 (LPSTB/LPEN, light pen strobe) → expansion port pin 47.
 - No dynamic-update or type-divergence rules are given for R10/R11/R14-R17 beyond the readback-table facts already captured in §21.2.
+- English v1.11 adds a vague warning that short/sync-period writes may affect “other
+  registers.” The author calls it a low-importance remark and intends to restore it to
+  French. Without a concrete condition or outcome it remains non-operational guidance, not
+  a test oracle; the promised French addition is unpublished.
 
 ---
 

@@ -2,9 +2,10 @@
 
 **Next session: read `docs/backlog.md` first.** A 2026-08-31 methodology review concluded the
 project's bottleneck is observability rather than implementation quality, and opened a
-prioritized cross-cutting backlog (B1-B12). Its top item is a suspected reason why classic CRTC
-sync work has produced no visible hardware change: `rtl/crt_filter.v` discards the CRTC's sync
-and blanking geometry and is hardwired on. That hypothesis is untested as of this writing.
+prioritized cross-cutting backlog (B1-B12). Its top item identified why classic CRTC sync work
+could produce no visible hardware change: the original `rtl/crt_filter.v` Live route reduced
+HBLANK to the shaped sync pulse. A simulation-gated hybrid now preserves raw horizontal phase
+for Live HBLANK while retaining regenerated scaler sync; hardware A/B confirmation remains open.
 
 
 This is the handoff for the next development and hardware-test session. The newest Plus
@@ -21,8 +22,9 @@ all implementations (verdict CLEAR with non-blocking findings N1-N5 recorded in
 `docs/accuracy/ox-alpha-items-opus-review.md`) and clearing all review debt. On 2026-08-27, Longshot
 released **ACCC v1.11** incorporating feedback from our Round 1 audit (`docs/accuracy/accc-author-feedback-round1-2026-08-27.md`). Active Round 2 feedback is tracked in `docs/accuracy/accc-author-feedback.md`:
 Q12 is resolved by French v1.11's repeated-activation qualifier and becomes an English
-clarification; Q20/N2 remains a hardware confirmation request, with the C4/R4 reset reading
-preferred but the current free-running model unchanged. Neither is new hardware evidence.
+clarification. The author confirmed Q20's row-only C4 reset while R5=0 adjustment and C5 remain
+active; that behavior is now implemented and independently checked locally, while hardware
+confirmation and the separate ParityC9 residual remain open. Neither is new hardware evidence.
 The Round 2 documentation correction was independently reviewed CLEAR by Claude Opus 5 on
 2026-08-31; see [the review record](accuracy/accc-round2-documentation-independent-review.md).
 Historical
@@ -46,9 +48,13 @@ review recorded in `accuracy/accc-round2-documentation-independent-review.md`. T
 §13.7.1.2 R0-widening trigger took two cross-provider
 passes recorded in `accuracy/f7-r0-widening-independent-review.md` — pass 1 returned NOT
 CLEAR on two blocking findings, pass 2 cleared the remediation on 2026-08-24 — and the
-branch is merged. The 2026-08-31 IA-1 through IA-6 source/model audit is also integrated:
-183 classic vectors pass and the current soak hash is `0xd6bc1649ff2058a1`; IA-5 retains a
-real-hardware U.S.-ROM phase capture rather than a circular synthetic oracle.
+branch is merged. The 2026-08-31 IA-1 through IA-6 source/model audit and 2026-09-01 Round 2
+consequence/B1 work are also integrated: 192 classic vectors and all nine focused hybrid-
+blanking vectors pass, and the current soak hash is `0x2263c9fc44af4ee7`. The author-response
+work corrects Q20, type-0 short-line VSYNC qualification, type-1 interlace isolation, and
+snapshot/live-type lifecycle reconstruction. `t02o` remains explicitly a model inference and
+hardware discriminator. IA-5 retains a real-hardware U.S.-ROM phase capture rather than a
+circular synthetic oracle; the hybrid blanking path also remains hardware-test pending.
 
 Plus P10j moved the sprite-pixel array from soft registers to exactly two M10Ks. Exact
 feature build `c047a7d` (run `33392854459`) reports 22,057 ALMs (53%), 16,384 sprite-RAM
@@ -540,10 +546,11 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 183 required CRTC passes, zero expected failures, no
-  unexpected passes, and no failures (verified 2026-08-31, Verilator 5.050), plus the
-  integrated GA R2.JIT and u765 transaction benches. The randomized equivalence soak
-  reproduces golden hash `0xd6bc1649ff2058a1` (chain in AGENTS.md). IA-1's `t33a`
+- The current local gate reports 192 required CRTC passes, zero expected failures, no
+  unexpected passes, and no failures (verified 2026-09-01, Verilator 5.050), plus the
+  nine-case hybrid blanking seam, integrated GA R2.JIT, and u765 transaction benches. The
+  randomized equivalence soak reproduces golden hash `0x2263c9fc44af4ee7` (chain in
+  AGENTS.md). IA-1's `t33a`
   confirms that unchanged RTL already preserved the p.150-151 C3l overflow sequence;
   `t33b` independently failed its first post-write pin sample because the live comparator
   restarted HSYNC after one master tick. The corrected type-0-only path models the p.151

@@ -92,7 +92,15 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0xd6bc1649ff2058a1`, re-minted 2026-08-31 for IA-6's type-0 R0=1
+  (`0x2263c9fc44af4ee7`, re-minted 2026-09-01 for the reviewed interlace
+  VSYNC lifecycle correction: type 1 no longer depends on type-0 C0 history,
+  while type 0 reconstructs an already-earned C0=2 qualification from the
+  live counter when snapshot load or a live type switch clears private
+  history after C0=2; previously candidate `0xf96f243f594acecf`, which covered
+  only clears before C0=2; previously `0x8a2c2290bcef06a7` for the type-0
+  preceding-line C0=2 qualification and blocked-comparison model; previously
+  `0x9d8cd95357d1d752` for Q20's author-confirmed row-only C4 reset during
+  R5=0 adjustment; previously `0xd6bc1649ff2058a1`, re-minted 2026-08-31 for IA-6's type-0 R0=1
   widening route: French ACCC v1.11 section 13.7.2 pp.126-127 requires an
   unsafe R0 1-to-larger write at C0=1 on a true last line to preserve the
   old equality while continuing horizontally, enter additional management

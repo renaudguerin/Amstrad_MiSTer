@@ -61,9 +61,9 @@ and operates after this stage. Removing or redesigning it does not affect those.
 
 **Steps.**
 
-1. **Done, merged 2026-08-31 (`accuracy/sync-filter-toggle`)**: `sync_filter` is now an OSD
-   option, "Sync filter, On/Off" on the Audio & Video page, backed by `status[35]`. The
-   default is On, preserving previous behaviour bit-for-bit. Awaiting hardware test.
+1. **Done, extended 2026-09-01**: `sync_filter` is now a two-bit OSD option,
+   "Sync filter, Full/Live blanking/Off" on the Audio & Video page, backed by
+   `status[36:35]`. Full is the default and preserves the established filtered path.
 2. **Run the experiment. DONE 2026-09-01, hardware.** Result: with the filter off, normal
    software displays correctly, but software using HSYNC tricks (SHAKER, DSC4) is **garbled** —
    not merely wide or off-centre as predicted, but unusable. Turning the filter off also fixed
@@ -81,11 +81,12 @@ and operates after this stage. Removing or redesigning it does not affect those.
      `BEGIN_VBORDER`, `END_VBORDER` counted off the regenerated HSYNC. This is what destroys
      the R2.JIT black-zone position, and nothing requires it.
 
-   **Proposed third mode: keep (a), replace (b).** Regenerate sync for scaler lock as today,
+   **Implemented candidate: keep (a), replace (b).** Regenerate sync for scaler lock as today,
    but derive HBLANK/VBLANK from the live Gate Array and CRTC signals instead of constants. The
-   black zone would then move with the CRTC while the scaler stays locked. This is the design
-   to build and test next, and it is a different experiment from the on/off toggle already
-   shipped.
+   new Live mode anchors HBLANK to raw CRTC/ASIC HSYNC phase and extends it to the established
+   64-CE acquisition width; VBLANK remains live. Exact-expiry, missing-sync, stuck-high/no-VSYNC,
+   malformed-cadence, and mode-selector behavior are pinned in a nine-case seam fixture. This
+   is simulation/model evidence and still needs the hardware A/B experiment below.
 
    Open question that experiment must answer: whether the visible effect the SHAKER entries and
    DSC4 test lives in the blanking geometry (recoverable this way) or in the sync edges

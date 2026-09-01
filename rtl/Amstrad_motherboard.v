@@ -698,7 +698,7 @@ wire romen_n;
 wire ga_hsync_o, hsync_filtered;
 wire ga_vsync_o, vsync_filtered;
 
-wire hblank_filtered;
+wire hblank_filtered, hblank_live;
 wire ga_vblank_o, vblank_filtered;
 
 wire hsync_ga = plus_mode ? plus_hsync_o : ga_hsync_o;
@@ -714,22 +714,33 @@ wire vblank_ga = plus_mode ? plus_vblank : ga_vblank_o;
 // a blanking window derived from constants cannot express the delay.
 //
 //   0 Full         Both jobs, as upstream.  Bit-for-bit previous behaviour.
-//   1 Live blank   Sync still regenerated so the scaler keeps its lock, but
-//                  blanking follows the live Gate Array outputs, so the black
-//                  zone moves with the CRTC.  The GA's shaped HSYNC is the
-//                  black region on real hardware, which is why it is the
-//                  blanking source here rather than the raw CRTC signal.
+//   1 Live blank   Sync still regenerated so the scaler keeps its lock.  The
+//                  raw CRTC/ASIC HSYNC force-blank edge anchors a full-width
+//                  acquisition blank, so live phase moves with the CRTC
+//                  without mislabelling a short sync pulse as all of HBLANK.
 //   2 Off          Raw path: GA sync, CRTC HSYNC as blanking.  Faithful, but
 //                  hardware testing on 2026-09-01 showed software that varies
 //                  line geometry (SHAKER, DSC4) garbles, because nothing holds
 //                  a stable lock.  Kept for diagnosis, not for normal use.
 //
 // See docs/backlog.md B1 for the hardware evidence behind the split.
-assign hsync  = (sync_filter != 2'd2) ? hsync_filtered : hsync_ga;
-assign vsync  = (sync_filter != 2'd2) ? vsync_filtered : vsync_ga;
-assign hblank = (sync_filter == 2'd0) ? hblank_filtered :
-                (sync_filter == 2'd1) ? hsync_ga        : hs_sel;
-assign vblank = (sync_filter == 2'd0) ? vblank_filtered : vblank_ga;
+crt_filter_output_select crt_filter_output_select
+(
+	.MODE(sync_filter),
+	.HSYNC_FILTERED(hsync_filtered),
+	.VSYNC_FILTERED(vsync_filtered),
+	.HBLANK_FILTERED(hblank_filtered),
+	.VBLANK_FILTERED(vblank_filtered),
+	.HBLANK_LIVE(hblank_live),
+	.HSYNC_RAW(hsync_ga),
+	.VSYNC_RAW(vsync_ga),
+	.HBLANK_RAW(hs_sel),
+	.VBLANK_RAW(vblank_ga),
+	.HSYNC_OUT(hsync),
+	.VSYNC_OUT(vsync),
+	.HBLANK_OUT(hblank),
+	.VBLANK_OUT(vblank)
+);
 
 crt_filter crt_filter
 (
@@ -740,6 +751,7 @@ crt_filter crt_filter
 	.HSYNC_O(hsync_filtered),
 	.VSYNC_O(vsync_filtered),
 	.HBLANK(hblank_filtered),
+	.HBLANK_LIVE(hblank_live),
 	.VBLANK(vblank_filtered),
 	.SHIFT(crtc_shift)
 );
