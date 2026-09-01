@@ -33,6 +33,8 @@
 //     the legacy 27-colour ROM cannot produce.
 // m13 integrates the real sprite leaf and video compositor at both display
 //     edges: X=0/-8 align with the locked-ASIC's delayed display origin;
+//     SSCR[7] selects border for the first screen character without hiding
+//     an opaque X=0 sprite;
 //     X=640/+767 still arm in the leaf, standard R1=40 masks them with border,
 //     and widened R1=50 exposes the same sprite pixels.
 
@@ -143,6 +145,15 @@ public:
 	}
 	auto* asic_pix_cnt() {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_vid__DOT__pix_cnt;
+	}
+	auto* asic_de_hold() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_vid__DOT__de_hold;
+	}
+	auto* asic_eff_de() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_vid__DOT__eff_de;
+	}
+	auto* asic_pal_addr() {
+		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__plus_pal_raddr;
 	}
 	auto* splt_tap() {
 		return &dut.rootp->p1_mobo_bench_top__DOT__mb__DOT__asic_splt;
@@ -532,7 +543,7 @@ int run() {
 	}
 
 	//------------------------------------------------------------------
-	// m13: source-backed display-origin and right-edge discriminator.
+	// m13: source-backed display-origin, SSCR[7], and right-edge discriminator.
 	//
 	// Arnold §2.1 qualifies +639 as the right edge for STANDARD timing;
 	// [KT] retains positive X through +767 and derives it from the CRTC
@@ -551,6 +562,30 @@ int run() {
 		*b.asic_r0() = 63;
 		*b.asic_r2() = 55;
 		*b.asic_sscr() = 0;
+
+		auto check_sscr_screen_mask = [&](uint8_t sscr, bool expect_mask,
+		                                  const char* label) {
+			*b.asic_sscr() = sscr;
+			unsigned samples = 0;
+			const uint64_t deadline = b.cyc + 500000;
+			while (b.cyc < deadline && samples < 8) {
+				b.tick();
+				if (!*ce16 || !*b.asic_de_hold() || *b.asic_hcc() != 1 ||
+				    *b.asic_pix_cnt() < 2 || *b.asic_pix_cnt() > 13)
+					continue;
+				const bool masked = !*b.asic_eff_de();
+				if (masked != expect_mask)
+					fail(std::string("m13 ") + label +
+					     ": SSCR screen mask did not reach the compositor");
+				if ((*b.asic_pal_addr() == 16) != expect_mask)
+					fail(std::string("m13 ") + label +
+					     ": first-character palette selection did not follow SSCR");
+				++samples;
+			}
+			if (samples != 8)
+				fail(std::string("m13 ") + label +
+				     ": no stable first-character screen samples");
+		};
 
 		auto check_case = [&](unsigned xpos, unsigned r1, unsigned visible_dots,
 		                      unsigned expected_width, unsigned source_offset,
@@ -628,6 +663,11 @@ int run() {
 		};
 
 		check_case(0,    40, 16, 16, 0, 1,  0,  "standard X=0");
+		check_sscr_screen_mask(0x00, false, "SSCR=0 control");
+		check_sscr_screen_mask(0x80, true,  "SSCR[7] screen mask");
+		*b.asic_sscr() = 0x80;
+		check_case(0,    40, 16, 16, 0, 1,  0,  "SSCR[7] X=0");
+		*b.asic_sscr() = 0;
 		check_case(1016, 40,  8,  8, 8, 1,  0,  "standard X=-8");
 		check_case(639,  40,  1, 16, 0, 40, 15, "standard X=639");
 		check_case(640,  40,  0, 16, 0, 41, 0,  "standard X=640");
@@ -635,7 +675,8 @@ int run() {
 		check_case(640,  50, 16, 16, 0, 41, 0,  "widened X=640");
 		check_case(767,  50, 16, 16, 0, 48, 15, "widened X=767");
 		std::printf("PASS m13: X=0/-8 align to the delayed display origin; "
-		            "X=640/+767 are masked at R1=40 and visible at R1=50\n");
+		            "SSCR[7] leaves X=0 visible; X=640/+767 are masked at "
+		            "R1=40 and visible at R1=50\n");
 	}
 	return 0;
 }
