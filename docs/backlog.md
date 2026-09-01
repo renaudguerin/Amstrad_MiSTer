@@ -413,9 +413,21 @@ passing checks. `docs/current-status.md` now links the archives instead of
 repeating the pass chronology. The test-suite sweep in action 1 remains open;
 this archive slice does not imply that any validation residual is closed.
 
-`sim/sim_main.cpp` is 8088 lines carrying 71 tests, alongside roughly twenty separate Plus
-benches. `docs/accuracy/` and `docs/plus/` hold roughly twenty independent-review documents,
-including multi-pass cross-provider reviews of corrections to *prose*.
+`sim/sim_main.cpp` is a single large C++ harness carrying 192 registered classic vectors,
+alongside the separate Plus and peripheral benches. `docs/accuracy/` and `docs/plus/` had also
+accumulated many independent-review documents, including multi-pass reviews of corrections to
+*prose*.
+
+**FIRST TEST-SUITE SLICE DONE 2026-09-01.** The default Plus gate no longer runs a second copy
+of the four-case `plus_model_select` leaf truth table through the P8 fixture, and the default
+lint target no longer invokes the same motherboard lint recipe twice. The classic harness's
+unused `expect_xfail_*` wrapper family is removed while the generic XFAIL/XPASS runner remains
+available for a future genuine divergence. Stale fixture-first comments now describe their
+current required-pass status. All 192 classic vectors remain registered; the independent t21
+panel combinations, t22 entry/exit walks, P10c model/FDC integration cases, and leaf-versus-
+integration pairs remain intact. Focused P8/model/motherboard gates, full lint, and the exact
+`0x2263c9fc44af4ee7` soak pass. The aggregate test currently stops only at the separate
+failure-first u765 pre-edge staging discriminator, as intended pending its RTL repair.
 
 **Standing rule, now recorded in `CLAUDE.md`:** a test earns its place only if it could have
 failed for a reason the author did not already know. A vector derived from an ACCC rule that

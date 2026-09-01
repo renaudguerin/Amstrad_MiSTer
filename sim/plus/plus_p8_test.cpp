@@ -3,7 +3,6 @@
 // Tests:
 // 1. i8255 Plus PPI quirks (Port B input-only, Port C output-only, control word rewrite latch preservation).
 // 2. plus_sna_parser CPC+ chunk unpacking (sprite RAM nibbles, sprite attributes, palette, control regs, DMA, lock).
-// 3. plus_model_select model decodes.
 
 #include <cstdint>
 #include <cstddef>
@@ -324,33 +323,7 @@ void test_p8_sna_fifo_headroom(Vplus_p8_test_top& dut) {
 }
 
 // -----------------------------------------------------------------------------
-// Test 3: Model Capability Decodes
-// -----------------------------------------------------------------------------
-void test_p8_model_decodes(Vplus_p8_test_top& dut) {
-	// 2'b00: Classic CPC
-	dut.model_plus_model = 0; dut.eval();
-	if (dut.model_plus_mode != 0) fail("P8 model: Classic mode not plus_mode=0");
-
-	// 2'b01: GX4000
-	dut.model_plus_model = 1; dut.eval();
-	if (dut.model_plus_mode != 1 || dut.model_ram_128k != 0 || dut.model_has_fdc != 0 || dut.model_has_tape != 0)
-		fail("P8 model: GX4000 capability decode incorrect");
-
-	// 2'b10: CPC 6128 Plus
-	dut.model_plus_model = 2; dut.eval();
-	if (dut.model_plus_mode != 1 || dut.model_ram_128k != 1 || dut.model_has_fdc != 1 || dut.model_has_tape != 0)
-		fail("P8 model: 6128 Plus capability decode incorrect");
-
-	// 2'b11: CPC 464 Plus
-	dut.model_plus_model = 3; dut.eval();
-	if (dut.model_plus_mode != 1 || dut.model_ram_128k != 0 || dut.model_has_fdc != 0 || dut.model_has_tape != 1)
-		fail("P8 model: 464 Plus capability decode incorrect");
-
-	std::printf("PASS p8_03: plus_model_select capability decodes (GX4000, 6128+, 464+)\n");
-}
-
-// -----------------------------------------------------------------------------
-// Test 4: P10c FDC / Motor / Tape Model Gating & Aliases
+// Test 3: P10c FDC / Motor / Tape Model Gating & Aliases
 // -----------------------------------------------------------------------------
 void test_p10c_fdc_motor_tape_gating(Vplus_p8_test_top& dut) {
 	struct FdcCase {
@@ -429,7 +402,7 @@ void test_p10c_fdc_motor_tape_gating(Vplus_p8_test_top& dut) {
 }
 
 // -----------------------------------------------------------------------------
-// Test 5: Integrated SNA parser + motherboard / asic_regs / MMU reset seam
+// Test 4: Integrated SNA parser + motherboard / asic_regs / MMU reset seam
 // -----------------------------------------------------------------------------
 void test_p8_sna_integration_seam(Vplus_p8_test_top& dut) {
 	auto tick = [&]() {
@@ -820,7 +793,6 @@ int main(int argc, char** argv) {
 		test_p8_i8255_plus_quirks(dut);
 		test_p8_sna_parser(dut);
 		test_p8_sna_fifo_headroom(dut);
-		test_p8_model_decodes(dut);
 		test_p10c_fdc_motor_tape_gating(dut);
 		test_p8_sna_integration_seam(dut);
 		std::printf("All Phase P8 platform polish and P10 compatibility tests PASSED.\n");

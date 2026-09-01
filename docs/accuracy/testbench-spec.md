@@ -7,7 +7,7 @@ future agent or human can verify CRTC changes in seconds instead of a 30-minute 
 hardware test. This is the verification backbone for findings F3–F10 and F12 in
 `audit-findings.md`.
 
-Primary reference: *The Amstrad CPC CRTC Compendium* v1.10 (Longshot / Logon System).
+Primary reference: *The Amstrad CPC CRTC Compendium* v1.11 (Longshot / Logon System).
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).
 
@@ -23,15 +23,18 @@ Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 
 ```
 sim/
-  Makefile              # verilator --cc CRTC.v crtc_type0_engine.v crtc_type1_engine.v --exe sim_main.cpp; make -C obj_dir
-  sim_main.cpp          # harness: clocking, register I/O helpers, trace hooks
-  crtc_script.h/.cpp    # tiny "test program" interpreter (see below)
-  tests/
-    t01_readback.txt    # one file per test case
-    t02_vsync_midline.txt
-    ...
-  golden/               # optional captured signal traces for diffing
+  Makefile                    # aggregate build/test/lint/soak entry points
+  sim_main.cpp                # CRTC harness, helpers, 192-vector registry, soak
+  crt_filter_blank_test.*     # focused filter/blanking seam fixture
+  plus/                       # Plus, motherboard, memory, DMA and CPR benches
+rtl/u765/
+  Makefile + u765_tb.cpp      # real controller/EDSK transaction fixture
 ```
+
+No separate `crtc_script` interpreter, text-vector directory or golden-trace directory exists.
+The implemented suite keeps each directed vector in `sim_main.cpp`, where the timing setup,
+independently derived expectation and registration are reviewed together. A failing classic
+vector writes a named VCD under `sim/obj_dir/`; passing traces are removed.
 
 ### Clocking model
 
@@ -50,25 +53,15 @@ are all "write lands at C0==X" — the harness must be able to place a write on 
 character boundary, and (for OUTI-vs-OUT(C),r8 rules, digest-01 §8.5) one tick later. Model
 only the CRTC-visible strobe timing, not full Z80 instruction execution.
 
-### Test script format
+### Vector format
 
-Plain-text micro-language, one directive per line, so tests are reviewable data rather than
-C++ (future agents can add cases without recompiling knowledge):
-
-```
-# t02: CRTC0 mid-line R7 write extends VSYNC by R0-C0vs (digest-02 §19, ACCC §16.4.1)
-type 0
-init R0=63 R1=40 R2=46 R3=0x8E R4=38 R5=0 R6=25 R7=30 R9=7
-run_lines 100                 # settle into a stable frame
-at_line 200 c0 20 write R7 <current_C4>   # symbolic: harness resolves current C4
-expect vsync_start within 1 char
-expect vsync_len 16*64 + (63-20) chars    # arithmetic on R0/C0
-```
-
-Keep the interpreter dumb: `type`, `init`, `run_lines`, `run_chars`, `at_line/at_c0 ... write`,
-`expect <signal> <edge|level|duration>`, `expect_reg`, `read` (for readback tests),
-`dump_vcd on|off`. Symbolic values (`<current_C4>`) and simple arithmetic are worth the ~100
-lines of parser they cost.
+Vectors are named C++ functions registered in the table at the end of `sim_main.cpp`. They use
+shared helpers for register writes, exact C0/line positioning, half-character phases, bounded
+walks, output assertions and internal counter assertions. Keep expectations on the vector and
+citation side of that boundary: do not read expected values from the DUT or add a parser that
+merely restates newly implemented RTL. A new timing-sensitive behavior starts as a failing
+required vector (or a narrowly registered XFAIL when the repository deliberately lands the
+fixture first), and the behavior change removes that XFAIL in the same coherent slice.
 
 ### Assertions / observables
 
@@ -115,7 +108,7 @@ passes**, zero expected failures, zero unexpected passes, and zero failures. It 
 expected failures since
 the F8 commit (`c9f4a4e`): the former type-1 adjustment-identification xfails
 (`t08f`/`t08g`) became required passes. These vectors fix
-the v1.10 counter and adjustment-state expectations while
+the counter and adjustment-state expectations carried forward into v1.11 while
 deliberately avoiding unsupported sub-character MA/DE/VSYNC claims. If later hardware
 evidence introduces a true pin-level uncertainty, keep any expected failure narrow; never
 wrap setup assertions in a whole-test expected failure.
@@ -143,16 +136,18 @@ the cited ACCC rule when implemented:
   schematic-derived SystemVerilog recreation, not a black-box netlist, and simulates fine.
   Use that harness when a rule's observable lives downstream of the CRTC (e.g. F6 seam
   width). GA interaction rules (C-SYNC state machine, R52) remain out of scope here.
-- No Z80 instruction-level modeling; the `at_c0 write` abstraction plus a ±1-tick offset knob
-  covers the OUT/OUTI distinction the Compendium cares about.
+- No Z80 instruction-level modeling in the classic pin suite; its timed bus helpers place
+  writes at explicit character or half-character phases. The separate integrated GA fixture
+  owns production-phased `OUT (C),r8`/OUTI distinctions.
 - No cycle-exact pixel pipeline — DE/MA/RA at character granularity is the contract.
 
 ## Definition of done (for the implementing agent)
 
-1. `make -C sim` runs the full suite non-interactively and exits zero (2026-08-23 state:
-   183 required passes, no expected failures), well under a minute total.
+1. `make -C sim` runs the full suite non-interactively and exits zero (current classic state:
+   192 required passes, no expected failures), with Plus and peripheral benches included by
+   the aggregate target.
 2. A failing assertion produces a VCD + human-readable diff.
-3. `docs/accuracy/audit-findings.md` verification levels V3 references become real: each
-   finding's fix prompt names its test file.
+3. `docs/accuracy/audit-findings.md` verification levels V3 reference a named vector or
+   focused fixture that actually exercises the stated boundary.
 4. CI-friendly: exits nonzero on failure; no interactive steps. (Optionally add to the GitHub
    Actions workflow from `docs/building.md` as a pre-synthesis gate.)

@@ -468,61 +468,6 @@ public:
                     dut_->rootp->CRTC__DOT__crtc_type1_engine__DOT__rfd_r0_pending);
     }
 
-    // XFAIL variants of the counter/parity assertions (review A4 rename:
-    // the old expect_known_* name read like a plain assertion). Identical
-    // checks, but a violation throws KnownDivergenceFailure: in a test
-    // registered with known_divergence=true that reports XFAIL; anywhere
-    // else it is an ordinary failure. House pattern from the F4 fixture
-    // commit: use these ONLY in fixture-first XFAIL commits; the behavior
-    // commit replaces them with the plain expect_* forms and flips the
-    // flag in the same change.
-    void expect_xfail_byte(const std::string& expectation,
-                           std::uint8_t expected,
-                           std::uint8_t actual) const {
-        if (actual != expected) {
-            known_divergence(expectation + " == " + std::to_string(expected),
-                             static_cast<unsigned>(actual));
-        }
-    }
-
-    void expect_xfail_line(const std::string& expectation,
-                           std::uint8_t expected) const {
-        expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__line);
-    }
-
-    void expect_xfail_c5(const std::string& expectation,
-                         std::uint8_t expected) const {
-        expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__c5);
-    }
-
-    void expect_xfail_ra(const std::string& expectation,
-                         std::uint8_t expected) const {
-        expect_xfail_byte(expectation, expected, dut_->RA);
-    }
-
-    void expect_xfail_c4(const std::string& expectation,
-                         std::uint8_t expected) const {
-        expect_xfail_byte(expectation, expected, dut_->rootp->CRTC__DOT__row);
-    }
-
-    void expect_xfail_parity_frame(const std::string& expectation,
-                                   bool expected) const {
-        expect_xfail_byte(expectation, expected,
-                          dut_->rootp->CRTC__DOT__parity_frame);
-    }
-
-    void expect_xfail_parity_c9(const std::string& expectation,
-                                bool expected) const {
-        expect_xfail_byte(expectation, expected,
-                          dut_->rootp->CRTC__DOT__parity_c9);
-    }
-
-    void expect_xfail_line_parity(const std::string& expectation,
-                                  bool expected) const {
-        expect_xfail_byte(expectation, expected,
-                          dut_->rootp->CRTC__DOT__line & 1);
-    }
-
     void expect_line(const std::string& expectation,
                      std::uint8_t expected) const {
         expect_byte(expectation, expected, dut_->rootp->CRTC__DOT__line);
@@ -627,38 +572,6 @@ public:
         if (dut_->MA != expected) {
             fail(expectation + " == " + std::to_string(expected),
                  static_cast<unsigned>(dut_->MA));
-        }
-    }
-
-    void expect_xfail_ma(const std::string& expectation,
-                         std::uint16_t expected) const {
-        if (dut_->MA != expected) {
-            known_divergence(expectation + " == " + std::to_string(expected),
-                             static_cast<unsigned>(dut_->MA));
-        }
-    }
-
-    void expect_xfail_vsync_high(const std::string& expectation) const {
-        if (dut_->VSYNC == 0) {
-            known_divergence(expectation, "VSYNC low");
-        }
-    }
-
-    void expect_xfail_vsync_low(const std::string& expectation) const {
-        if (dut_->VSYNC != 0) {
-            known_divergence(expectation, "VSYNC high");
-        }
-    }
-
-    void expect_xfail_adjustment_active(const std::string& expectation) const {
-        if (!dut_->rootp->CRTC__DOT__in_adj) {
-            known_divergence(expectation, "adjustment inactive");
-        }
-    }
-
-    void expect_xfail_adjustment_inactive(const std::string& expectation) const {
-        if (dut_->rootp->CRTC__DOT__in_adj) {
-            known_divergence(expectation, "adjustment active");
         }
     }
 
@@ -3304,9 +3217,8 @@ void test_type0_r4_unequal_history_retains_switch(TestBench& test) {
 
 // ---------------------------------------------------------------------------
 // t07 / t08: F4 equality-only counter overflow and the section 28.1.1 CRTC
-// identification boundaries.  Test-only checkpoint: these vectors encode the
-// v1.10 rules, and the cases the current comparator shortcuts cannot satisfy
-// are registered as named known divergences rather than weakened.
+// identification boundaries.  These vectors are required passes covering the
+// v1.10 counter, overflow, adjustment, and identification rules.
 // ---------------------------------------------------------------------------
 
 using RegisterProgram = std::array<std::pair<std::uint8_t, std::uint8_t>, 10>;
@@ -6039,9 +5951,8 @@ std::vector<T22Step> t22_tail_after_row_end(std::uint8_t c4, bool odd) {
 void t22_run_entry(TestBench& test, bool odd_frame, std::uint8_t offset,
                    bool overflow) {
     t22_configure(test, odd_frame);
-    // Odd offsets (C9=1/3) are unreachable under the pre-F10 stepping (C9
-    // moves by 2 with bit 0 masked), so the setup walker reports the
-    // divergence through the known-divergence assertion below.
+    // The live IVM stepping reaches both odd and even C9 offsets; the bounded
+    // setup walker and following assertion pin each documented entry point.
     test.run_to_line_mid(offset, 40);
     test.expect_line("t22 entry setup reaches C9", offset);
     test.run_to_c0(TestBench::kF10TargetC0);
@@ -6745,10 +6656,8 @@ void test_type1_ivm_vsync_no_gap_r7_even_c4(TestBench& test) {
     // the pulse on frame-line 9 -- the first line of C4=2 arrives after
     // 5+4 lines on the even frame and 4+5 on the odd frame, so no gap.
     // Even frame box (2,0): C9=0; odd frame box (2,1): C9=1.  The VSYNC
-    // assertions are known-divergence forms: the current model misses both
-    // fires because vsync_line_fire tests the plain C9==R9 (false at the
-    // (1,7) wrap) and the field=1 MID-VSYNC arm requires RA==0 (false at
-    // (2,1)); the counters themselves are pinned by plain assertions.
+    // assertions pin the IVM-aware line-start test on both frame parities;
+    // the counters are pinned alongside the required pulse assertions.
     test.run_characters(30);
     test.expect_vsync_low("t24b even frame line 0: VSYNC quiet");
     test.run_characters(34);
@@ -8089,9 +7998,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 19.2 and 19.1; F6 suppression path", false,
          test_type0_skew_non_output_blanks},
         // t21: F10 type-1 IVM toggle parity table (ACCC pp.210-211 panels).
-        // The six all-zero configurations are required controls; the ten
-        // with nonzero expectations carry the XFAIL marker until the
-        // type-1 F10 behavior commit.
+        // All sixteen parity configurations are required passes.
         {"t21a_type1_ivm_toggle_19S_23W",
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 19/23 (p.210); F10",
          false, t21_body_00},
@@ -8141,9 +8048,8 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 test 11 (p.211); F10",
          false, t21_body_15},
         // t22: F10 type-0 IVM entry/exit counting for even R9 (ACCC
-        // pp.219-224).  All diverge from the pre-F10 stepping approximation
-        // (C9 stepping by 2 with bit 0 masked, halved limit) and carry the
-        // XFAIL marker until the type-0 F10 behavior commit.
+        // pp.219-224).  These entry and exit walks are required passes for
+        // the documented C9/C9.VMA stepping and row-end behavior.
         {"t22a_type0_ivm_entry_even_c9_0",
          "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=0, even frame); F10",
          false, t22_entry_even_0},
@@ -8247,8 +8153,8 @@ int main(int argc, char** argv) {
          "ACCC v1.10 section 17.5.1 p.185 chronograms; D1 correction",
          false, test_t26_r1_zero_deadline_type1},
         // t27: F14 additional interlace line, type 0 (ACCC v1.10 section
-        // 19.6.1 p.216).  Fixture-first XFAIL pins; the behavior commit
-        // flips them to required passes.
+        // 19.6.1 p.216).  Required passes cover placement and both freeze
+        // parity outcomes.
         {"t27a_type0_addline_basic",
          "ACCC v1.10 sections 19.6.1 p.216, 19.5.2 p.205 and 19.3 p.199; F14",
          false, t27_type0_addline_basic},
@@ -8262,8 +8168,8 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 19.6.1 p.216 and 19.5.2 p.205 (frozen-even persistence); F14",
          false, t27_type0_addline_freeze_even},
         // t28: F14 additional interlace line, type 1 (ACCC v1.10 section
-        // 19.6.2 p.216).  t28a is the fixture-first XFAIL pair member;
-        // t28b is the gate control and is required from the start.
+        // 19.6.2 p.216).  The required cases cover the active gate and its
+        // false-condition control.
         {"t28a_type1_addline_basic",
          "ACCC v1.10 sections 19.6.2 p.216 and 11.2.4 p.84; F14",
          false, t28_type1_addline_basic},
@@ -8275,7 +8181,7 @@ int main(int argc, char** argv) {
          false, t28_type1_addline_interlace_sync},
         // t29: F15 type-0 odd-R9 IVM counting (ACCC v1.10 section 19.5.2
         // pp.205-206 and section 19.8.1 with the Q19-adjudicated gate).
-        // Fixture-first XFAIL pins; the behavior commit flips them.
+        // Required passes cover both frame parities, VSYNC delay, and exit.
         {"t29a_type0_odd_r9_even_frame",
          "ACCC v1.10 section 19.5.2 p.206 worked example (even frame column); F15",
          false, t29_type0_odd_r9_even_frame},

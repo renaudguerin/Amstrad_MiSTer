@@ -2,7 +2,8 @@
 
 ## Open rows
 
-- **B9 review-record archive — OPEN, native Sol CLEAR; no cross-provider review,
+- **B9 review-record archive and first test-suite cleanup — OPEN, native Sol CLEAR;
+  no cross-provider review,
   2026-09-01.**
   A Luna Max bounded documentation pass moved settled independent-review
   records into indexed `docs/accuracy/archive/` and `docs/plus/archive/`
@@ -17,8 +18,17 @@
   and whether any archived record still carries an active technical obligation.
   The independent native Sol review found and closed stale sibling-path and
   count-wording blockers, then returned CLEAR after the generalized path/link
-  audits passed. This documentation-only change has not yet received
-  cross-provider review.
+  audits passed. A subsequent Luna Max pass removed one duplicated direct
+  `plus_model_select` truth table from the P8 fixture, one duplicate invocation
+  of the canonical motherboard lint recipe, unused classic `expect_xfail_*`
+  wrappers, and stale fixture-first comments. It retained the generic
+  XFAIL/XPASS runner, all 192 classic vectors, t21/t22, P10c, and every
+  leaf-versus-integration boundary. A fresh native Sol review returned CLEAR;
+  focused P8/model/motherboard checks, full lint, and exact soak
+  `0x2263c9fc44af4ee7` pass. The aggregate test reaches and fails only the
+  separate failure-first u765 pre-edge discriminator pending its RTL repair.
+  Active suite documentation now describes the actual in-source harness and
+  current vector count. Neither slice has yet received cross-provider review.
 
 - **B3 P10 VRAM/frame-tap foundation — OPEN, independent Codex review only,
   2026-09-01.** The production-shaped P10 fixture now connects the motherboard
