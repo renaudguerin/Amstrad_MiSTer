@@ -184,11 +184,17 @@ From [ARNOLD App.1] / [ARNOLD-REV App.1]. POR = defined state at power-on reset
   the **sprite palette** (`&6422-&643F`). Sprite palette entry 0 does not exist.
 - Pixel data: 1 byte per pixel (low nibble), row-major from top-left;
   16 bytes/row × 16 rows = 256 bytes per sprite at `&4n00`.
-- **Coordinate system**: X and Y are signed 2's complement; unmagnified pixel =
-  **mode 2 pixel** horizontally, 1 scan line vertically, independent of screen
-  mode. X range −256..+767, Y range −256..+255. Position (0,0) = top-left of the
-  *display area* (not border). With a standard 64µs/312-line screen, visible
-  positions span −64..+639 (X) and −63..+199 (Y) at max magnification.
+- **Coordinate system**: X and Y accept two's-complement values; unmagnified
+  pixel = **mode 2 pixel** horizontally, 1 scan line vertically, independent of
+  screen mode. The 10-bit X field represents `0..767` directly and
+  `768..1023` as `−256..−1` (the low ten bits of `&FF00..&FFFF`); it must not be
+  interpreted as an ordinary signed 10-bit `−512..+511` value. Y spans
+  −256..+255. Position (0,0) = top-left of the *display area* (not border).
+  With a standard 64µs/312-line screen, on-screen positions at maximum
+  magnification span −64..+639 (X) and −63..+199 (Y); a coordinate wholly
+  outside that standard display is not visible. The geometry engine still
+  accepts positive X through 767 for non-standard CRTC widths, with final
+  visibility determined by the border/display compositor. [ARNOLD §2.1, KT]
 - The compare line for Y is `(CRTC_char_line << 3) | (raster_count & 7)` and the
   X compare uses the CRTC horizontal character counter: char = `(X & &FFF8)>>3`,
   pixel-in-char = `X & 7`. If CRTC R0 > 64 sprites can repeat horizontally.

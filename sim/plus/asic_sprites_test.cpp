@@ -639,91 +639,79 @@ void s08_palette_mapping_and_order(Spr& b) {
     }
 }
 
-// [KT] X model: stored 10-bit view compared against the modular dot
-// scale. X=+767 arms mid-character (X&7=7); X=-8 (stored 1016) wraps the
-// scale mid-window and completes after the wrap (named model choice,
-// module header); X=-256 (stored 512) aliases into mid-line.
-void s09_x_extremes_wrap_and_negative(Spr& b) {
+// [ARNOLD §2.1] positions are two's-complement -256..+767. The source-derived
+// discriminator for the two far-right hardware leaks is the negative encoding:
+// raw 768..1023 must not alias into the positive counter range. Arnold's
+// 0..639 limit is qualified as standard timing and is enforced by the
+// integrated DE/border compositor, not this geometry leaf; +767 therefore
+// remains a valid engine coordinate. [KT]'s R0>64 repeat is the separate s10.
+void s09_x_signed_clip_and_offscreen(Spr& b) {
     fill_pattern(b, 0);
     b.set_y(0, 8);
     b.set_mag(0, 0x5);
     program_palette(b);
 
-    // (c) FIRST, on clean default 64-char lines: stored 512 (= -256)
-    // aliases to mid-line window hp512..527; sampled at vl22 (row 14).
-    b.set_x(0, 512);
-    b.jump_vline(22);
-    for (unsigned c = 0; c < 32; ++c) b.run_char(false);
-    const bool dbg9 = std::getenv("SPRDBG") != nullptr;
-    for (unsigned d = 0; d < 16; ++d) {
-        const Spr::Smp s = b.sample();
-        if (!s.en && !dbg9)
-            fail("s09(c): negative-X alias window missing");
-        if (s.en) {
-            unsigned g, r, bl;
-            pal_entry(pat_nib(d, 14), g, r, bl);
-            if ((s.r != r || s.g != g || s.b != bl) && !dbg9)
-                fail("s09(c): wrong pixel");
+    auto require_hidden_line = [&](const char* label) {
+        for (unsigned c = 0; c < 64; ++c) {
+            for (unsigned d = 0; d < 16; ++d) {
+                if (b.sample().en)
+                    fail(std::string("s09: ") + label +
+                         " leaked at hp=" + std::to_string(c * 16 + d));
+                if (d == 15) b.char_end(c == 63); else b.dot();
+            }
+            if (c == 63) { ++b.vline; b.idle(6); }
         }
-        if (d == 15) b.char_end(false); else b.dot();
-    }
+    };
 
-    // (a) +767: lit exactly 767..782 with source pixels in order;
-    // sampled at vl12 (row 4).
-    b.set_x(0, 767);
+    // Fully left of the display at x1: -256 is encoded as stored 768.
+    b.set_x(0, 768);
     b.jump_vline(12);
-    for (unsigned c = 0; c < 46; ++c) b.run_char(false);
-    for (unsigned c = 46; c <= 49; ++c) {
+    require_hidden_line("X=-256");
+
+    // Partial left clip: X=-8 (stored 1016) shows only source pixels 8..15
+    // at visible hp0..7 and must not reappear at hp1016..1023.
+    b.set_x(0, 1016);
+    b.jump_vline(20);
+    for (unsigned c = 0; c < 64; ++c) {
         for (unsigned d = 0; d < 16; ++d) {
             const unsigned hp = c * 16 + d;
             const Spr::Smp s = b.sample();
-            const bool inside = hp >= 767 && hp < 783;
-            if (s.en != inside && !dbg9)
-                fail("s09(a): window extent at hp=" + std::to_string(hp));
+            const bool inside = hp < 8;
+            if (s.en != inside)
+                fail("s09: X=-8 clip extent at hp=" + std::to_string(hp));
             if (inside) {
-                const unsigned srcpx = hp - 767;
+                const unsigned srcpx = hp + 8;
                 unsigned g, r, bl;
-                pal_entry(pat_nib(srcpx, 4), g, r, bl);
-                if ((s.r != r || s.g != g || s.b != bl) && !dbg9)
-                    fail("s09(a): wrong source pixel");
+                pal_entry(pat_nib(srcpx, 12), g, r, bl);
+                if (s.r != r || s.g != g || s.b != bl)
+                    fail("s09: X=-8 wrong clipped source pixel");
             }
-            if (d == 15) b.char_end(false); else b.dot();
+            if (d == 15) b.char_end(c == 63); else b.dot();
         }
+        if (c == 63) { ++b.vline; b.idle(6); }
     }
 
-    // (b) stored 1016 (= -8): eight dots before the 1024-wrap, then the
-    // window CONTINUES after the wrap with source pixels 8..15.
-    b.chars_per_line = 70;
-    b.set_x(0, 1016);
-    b.jump_vline(20);
-    for (unsigned c = 0; c < 60; ++c) b.run_char(false);
-    for (unsigned c = 60; c <= 69; ++c) {
-        for (unsigned d = 0; d < 16; ++d) {
-            const unsigned hp_abs = c * 16 + d;
-            const unsigned hp = hp_abs % 1024;
-            const bool pre  = hp >= 1016;
-            const bool post = hp_abs >= 1024 && hp_abs < 1032;
-            const Spr::Smp s = b.sample();
-            if (pre != post) {
-                if (!s.en && !dbg9)
-                    fail("s09(b): wrapped window missing at hp=" +
-                         std::to_string(hp_abs));
-                const unsigned srcpx =
-                    pre ? hp - 1016 : hp_abs - 1024 + 8;
-                unsigned g, r, bl;
-                pal_entry(pat_nib(srcpx, 12), g, r, bl);   // vl20 -> row 12
-                if ((s.r != r || s.g != g || s.b != bl) && !dbg9)
-                    fail("s09(b): wrong source pixel across wrap");
-            }
-            else if (s.en && !dbg9) {
-                fail("s09(b): unexpected pixel near wrap at hp=" +
-                     std::to_string(hp_abs));
-            }
-            if (d == 15) b.char_end(c == 69); else b.dot();
+    // Positive coordinates remain valid through +767 for non-standard CRTC
+    // widths. A standard screen hides these dots at the integrated border/DE
+    // compositor; the leaf must still arm at the documented coordinate.
+    b.set_x(0, 767);
+    b.jump_vline(22);
+    for (unsigned c = 0; c < 47; ++c) b.run_char(false);
+    for (unsigned d = 0; d < 32; ++d) {
+        const unsigned hp = 752 + d;
+        const Spr::Smp s = b.sample();
+        const bool inside = hp >= 767 && hp < 783;
+        if (s.en != inside)
+            fail("s09: X=+767 extent at hp=" + std::to_string(hp));
+        if (inside) {
+            const unsigned srcpx = hp - 767;
+            unsigned g, r, bl;
+            pal_entry(pat_nib(srcpx, 14), g, r, bl);
+            if (s.r != r || s.g != g || s.b != bl)
+                fail("s09: X=+767 wrong source pixel");
         }
-        if (c == 69) { ++b.vline; b.idle(6); }
+        if ((d & 15) == 15) b.char_end(false); else b.dot();
     }
-    b.chars_per_line = 64;
 }
 
 // [KT]: "If CRTC R0>64, then the sprites may repeat horizontally." The
@@ -1359,8 +1347,8 @@ constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 17> kTests = {{
      s07_priority_and_transparency},
     {"s08 colour c -> entry 16+c, {G,R,B} word order (S5/S6)",
      s08_palette_mapping_and_order},
-    {"s09 X extremes: +767, wrap-through, negative alias ([KT])",
-     s09_x_extremes_wrap_and_negative},
+    {"s09 signed X clip and off-screen suppression ([ARNOLD §2.1]/[KT])",
+     s09_x_signed_clip_and_offscreen},
     {"s10 R0>64 horizontal repeat ([KT])", s10_r0_gt_64_repeat},
     {"s11 access blanking scope and image integrity ([ARNOLD-REV S2.1])",
      s11_access_blanking_scope_and_integrity},
