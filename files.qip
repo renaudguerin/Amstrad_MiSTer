@@ -31,6 +31,7 @@ set_global_assignment -name VERILOG_FILE rtl/plus/asic_regs.v
 set_global_assignment -name VERILOG_FILE rtl/plus/asic_dma.v
 set_global_assignment -name VERILOG_FILE rtl/plus/plus_mmu.v
 set_global_assignment -name VERILOG_FILE rtl/plus/plus_model_select.v
+set_global_assignment -name VERILOG_FILE rtl/plus/plus_menu_capability_mask.v
 set_global_assignment -name VERILOG_FILE rtl/plus/plus_legacy_cart_gate.v
 set_global_assignment -name VERILOG_FILE rtl/plus/plus_fdc_decode.v
 set_global_assignment -name VERILOG_FILE rtl/plus/plus_cartridge_memory.v

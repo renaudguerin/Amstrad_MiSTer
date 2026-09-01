@@ -2,6 +2,7 @@ module b6_menu_mask_test_top
 (
 	input  [1:0]  plus_model,
 	input         en270p,
+	output        ram_128k,
 	output [15:0] status_menumask
 );
 
@@ -13,7 +14,7 @@ plus_model_select model_decode
 (
 	.plus_model(plus_model),
 	.plus_mode(plus_mode),
-	.ram_128k(),
+	.ram_128k(ram_128k),
 	.has_fdc(plus_has_fdc),
 	.has_tape(plus_has_tape)
 );
