@@ -218,16 +218,13 @@ was retired by the 2026-08-22 review:
   - **⚠ Bug: R5 set to 0 does not terminate active adjustment**: C5 loops and the expected
     adjustment-end C4 reset does not occur. Programming a reachable positive R5 permits
     `C5+1==R5` to terminate adjustment and reset C4/C9 on an arbitrary line.
-  - **C4/R4 reset remains a source/model distinction (Q20/N2, 2026-08-28):** the specific
+  - **C4/R4 reset confirmed by the author (Q20/N2, response 2026-08-31):** the specific
     R5=0 paragraph retains the C4/R4 reset comparison while adjustment remains active,
     whereas §11.2.4 FR p.85 (EN p.84) generally describes adjustment increments ignoring
-    R4. The
-    preferred reading is that, with R8=0, C4 resets at the next C4=R4, C9=R9 line end
-    without stopping C5 or clearing adjustment. The later positive-R5 exit rule does not
-    exclude this intermediate reset. French v1.11 §11.3.2 p.87 retains the distinction.
-    **Current model only:** C4 ignores R4 throughout stuck adjustment and wraps through 127
-    by overflow; `t08j` pins that choice, not hardware behavior. Confirmation is requested
-    in [Round 2 section 2](accc-author-feedback.md); RTL and tests remain unchanged.
+    R4. With R8=0, C4 resets at the next C4=R4, C9=R9 line end without stopping C5 or
+    clearing adjustment. The later positive-R5 exit rule is a separate reset that also ends
+    adjustment. This direct clarification resolves the documentary/model distinction but is
+    not hardware evidence; see the dated [Round 2 response](accc-author-response-round2-2026-08-31.md).
 
 ### 4.5 R5 update BEFORE adjustment starts (§11.4, p.86)
 
@@ -254,10 +251,10 @@ The single most intricate dynamic-update bug in the CRTC-1 model.
 - **Two independent flags activated** (§11.6, restated §11.6.2 p.88-89):
   1. **VMA-source flag**: normally VMA loads from R12/R13 only at C4==0/C0==0; RFD forces this
       "load from R12/R13" to stay **true regardless of C4** — address changeable on every row
-      for the rest of the frame. Disarmed again once `C9==R9` at `C0==R1` next succeeds (see
-      parity below). **R1>R0 disarm path** (p.87): if R1>R0, `C0==R1` can never fire, so the
-      bare `C9==R9` match alone deactivates the VMA-source state. F7's design must include
-      this route.
+      for the rest of the frame. The author clarified on 2026-08-31 that C0==R1 itself does
+      not clear this state; the decisive event is the C9==R9 comparison, which parity can make
+      fail and thereby leave the state active. The existing ordinary and R1>R0 routes must be
+      read against that comparator rule, not as a C0 equality lifetime rule.
   2. **Parity-management flag** in the C9==R9 test at C0==R1 (used by IVM): RFD arms
      consideration of frame parity in that test, otherwise parity-blind.
 - **Frame-parity alternation** (§11.6.1, p.88-89): once armed, C9==R9-at-C0==R1 becomes

@@ -20,6 +20,9 @@ for C-SYNC generation (not CRTC registers).
   = VSYNC height in lines, meaningful on CRTC 0 only (`[T3/4 diff]` also on 3/4). CRTC 1 ignores R3h
   entirely — always 16-line VSYNC.
 - C3l starts at 0 the instant C0vs reaches R2; HSYNC is asserted until C3l reaches R3l.
+  The author's 2026-08-31 response confirms that French §14.1 p.132 saying HSYNC “begins”
+  at that terminal count is a typo for **ends**; the promised French correction is not in
+  the published v1.11 PDF.
 - The p.130 bit-layout comparison table reads cleanly in the text layer (extraction-noise
   flag retired by the 2026-08-22 review); the rule above is prose-confirmed either way.
 
@@ -360,8 +363,9 @@ Two independent mechanisms against infinite VSYNC:
     (hits the C0vs<2 blocked case).
 - **R0 interaction**: C0 must be able to reach value **2** on the line preceding the C4=R7 line for
   VSYNC to be considered at all. The following two cases appear only in English v1.11
-  §16.4.1.2 p.169 and are absent from authoritative French p.170; treat them as supplemental,
-  pending author or hardware confirmation rather than as settled ACCC rules:
+  §16.4.1.2 p.169 and are absent from French p.170. The author confirmed on 2026-08-31 that
+  they are normative and were intended for French; use English p.169 as the current published
+  anchor, and require a failure-first premise/vector audit before changing RTL:
   - R0 (was >2) set to **0** exactly at C0=0 of the C4=R7 line: VSYNC starts at C0=0 but **C3h
     freezes** (like all CRTC0 counters at R0=0) — never reaches R3h, VSYNC **never deactivates**
     (distinct lockup from §18's re-entrancy bug).

@@ -1,5 +1,10 @@
 # ACCC Round 2 documentation correction — independent review
 
+> **Later evidence:** The author's direct 2026-08-31 response resolves Q20/N2 in favor of
+> the C4/R4 reset route and answers the eight Round 2 clarifications. This review remains an
+> exact verdict on its dated state, not the current Q20 disposition. See
+> [the response record](accc-author-response-round2-2026-08-31.md).
+
 **Date:** 2026-08-31
 
 **Reviewer:** Claude Opus 5, high effort, guarded read-only bridge
