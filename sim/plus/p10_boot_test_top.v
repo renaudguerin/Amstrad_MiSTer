@@ -105,6 +105,19 @@ module p10_boot_test_top
 	output      [7:0] dbg_fdc_status0,
 	output      [7:0] dbg_fdc_status1,
 	output      [7:0] dbg_fdc_status2,
+	output reg        dbg_cpu_di_latch,
+	output reg [15:0] dbg_cpu_di_addr,
+	output reg        dbg_cpu_di_fdc_sel,
+	output reg        dbg_cpu_di_io_rd,
+	output reg  [7:0] dbg_cpu_di_fdc_dout,
+	output reg  [7:0] dbg_cpu_di_expected,
+	output reg  [7:0] dbg_cpu_di_fdc_bus,
+	output reg  [7:0] dbg_cpu_di_ram_dout,
+	output reg  [7:0] dbg_cpu_di_top_bus,
+	output reg  [7:0] dbg_cpu_di_mb_bus,
+	output reg  [7:0] dbg_cpu_di_msr,
+	output reg  [7:0] dbg_cpu_di_fdc_state,
+	output      [7:0] dbg_cpu_di_reg,
 	output            dbg_reset,
 	output      [2:0] dbg_mcycle,
 	output      [2:0] dbg_tstate,
@@ -543,6 +556,45 @@ module p10_boot_test_top
 	assign dbg_fdc_status0 = fdc.fdc.status[0];
 	assign dbg_fdc_status1 = fdc.fdc.status[1];
 	assign dbg_fdc_status2 = fdc.fdc.status[2];
+
+	// T80pa captures external DI in the middle of T3, on the wrapper's
+	// negative CPU-enable phase. Capture the bus selection and controller
+	// values from that exact edge; observing the first IORQ clock is too early
+	// to prove which byte the CPU actually consumed.
+	wire cpu_di_latch_edge = mb.CPU.cen_n && mb.CPU.cen_pol &&
+	                         (mb.CPU.u0.tstate == 3'b011) && mb.CPU.busak;
+	assign dbg_cpu_di_reg = mb.CPU.di_reg;
+	always @(posedge clk) begin
+		if (sys_reset) begin
+			dbg_cpu_di_latch     <= 1'b0;
+			dbg_cpu_di_addr      <= 16'd0;
+			dbg_cpu_di_fdc_sel   <= 1'b0;
+			dbg_cpu_di_io_rd     <= 1'b0;
+			dbg_cpu_di_fdc_dout  <= 8'd0;
+			dbg_cpu_di_expected  <= 8'd0;
+			dbg_cpu_di_fdc_bus   <= 8'd0;
+			dbg_cpu_di_ram_dout  <= 8'd0;
+			dbg_cpu_di_top_bus   <= 8'd0;
+			dbg_cpu_di_mb_bus    <= 8'd0;
+			dbg_cpu_di_msr       <= 8'd0;
+			dbg_cpu_di_fdc_state <= 8'd0;
+		end else begin
+			dbg_cpu_di_latch <= cpu_di_latch_edge;
+			if (cpu_di_latch_edge) begin
+				dbg_cpu_di_addr      <= cpu_addr;
+				dbg_cpu_di_fdc_sel   <= dbg_fdc_data_sel;
+				dbg_cpu_di_io_rd     <= io_rd;
+				dbg_cpu_di_fdc_dout  <= u765_dout;
+				dbg_cpu_di_expected  <= cpu_addr[0] ? fdc.m_data : fdc.m_status;
+				dbg_cpu_di_fdc_bus   <= fdc_dout;
+				dbg_cpu_di_ram_dout  <= ram_dout;
+				dbg_cpu_di_top_bus   <= cpu_din;
+				dbg_cpu_di_mb_bus    <= mb.cpu_data_bus;
+				dbg_cpu_di_msr       <= fdc.m_status;
+				dbg_cpu_di_fdc_state <= fdc.fdc.state[7:0];
+			end
+		end
+	end
 
 	always @(posedge clk) begin
 		reg old_wr;

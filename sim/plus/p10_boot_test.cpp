@@ -37,6 +37,19 @@ struct Chunk {
     std::vector<uint8_t> data;
 };
 
+struct FdcCpuLatchRead {
+	uint16_t addr;
+	uint8_t cpu_di;
+	uint8_t fdc_dout;
+	uint8_t expected;
+	uint8_t fdc_bus;
+	uint8_t ram_dout;
+	uint8_t top_bus;
+	uint8_t mb_bus;
+	uint8_t msr;
+	uint8_t state;
+};
+
 std::vector<uint8_t> build_cpr_image(const std::vector<Chunk> &chunks, const std::string &form_type = "AMS!") {
     std::vector<uint8_t> image{'R', 'I', 'F', 'F'};
     uint32_t riff_len = 4;
@@ -73,11 +86,11 @@ public:
 	std::vector<uint8_t> disk_image;
 	std::vector<uint8_t> fdc_writes;
 	std::vector<uint8_t> fdc_reads;
+	std::vector<FdcCpuLatchRead> fdc_cpu_latch_reads;
 	std::array<uint8_t, 512> fdc_payload{};
 	std::array<bool, 512> fdc_payload_seen{};
-	uint8_t fdc_first_payload_state = 0;
-	uint8_t fdc_first_payload_msr = 0;
-	bool fdc_first_payload_trace_seen = false;
+	size_t fdc_first_payload_latch_count = 0;
+	bool fdc_first_payload_latch_count_seen = false;
 	std::array<uint8_t, 7> fdc_results{};
 	std::array<bool, 7> fdc_result_seen{};
 	bool fdc_success = false;
@@ -158,15 +171,30 @@ public:
 		}
 		fdc_io_active = fdc_io;
 
+		if (dut.dbg_cpu_di_latch && dut.dbg_cpu_di_fdc_sel &&
+		    dut.dbg_cpu_di_io_rd) {
+			fdc_cpu_latch_reads.push_back({
+				static_cast<uint16_t>(dut.dbg_cpu_di_addr),
+				static_cast<uint8_t>(dut.dbg_cpu_di_reg),
+				static_cast<uint8_t>(dut.dbg_cpu_di_fdc_dout),
+				static_cast<uint8_t>(dut.dbg_cpu_di_expected),
+				static_cast<uint8_t>(dut.dbg_cpu_di_fdc_bus),
+				static_cast<uint8_t>(dut.dbg_cpu_di_ram_dout),
+				static_cast<uint8_t>(dut.dbg_cpu_di_top_bus),
+				static_cast<uint8_t>(dut.dbg_cpu_di_mb_bus),
+				static_cast<uint8_t>(dut.dbg_cpu_di_msr),
+				static_cast<uint8_t>(dut.dbg_cpu_di_fdc_state),
+			});
+		}
+
 		if (!dut.dbg_mreq_n && !dut.dbg_wr_n) {
 			if (dut.dbg_addr >= 0x8000 && dut.dbg_addr < 0x8200) {
 				const unsigned offset = dut.dbg_addr - 0x8000;
 				fdc_payload[offset] = dut.dbg_dout;
 				fdc_payload_seen[offset] = true;
-				if (offset == 0 && !fdc_first_payload_trace_seen) {
-					fdc_first_payload_trace_seen = true;
-					fdc_first_payload_state = dut.dbg_fdc_state;
-					fdc_first_payload_msr = dut.dbg_fdc_msr;
+				if (offset == 0 && !fdc_first_payload_latch_count_seen) {
+					fdc_first_payload_latch_count_seen = true;
+					fdc_first_payload_latch_count = fdc_cpu_latch_reads.size();
 				}
 			}
 			if (dut.dbg_addr >= 0x8200 && dut.dbg_addr < 0x8207) {
@@ -736,10 +764,7 @@ void test_real_u765_edsk_read() {
 	          << " pending_lba=" << h.dut.fdc_sd_lba
 	          << " fdc_writes=" << h.fdc_writes.size()
 	          << " fdc_reads=" << h.fdc_reads.size()
-	          << " first_payload_state="
-	          << static_cast<unsigned>(h.fdc_first_payload_state)
-	          << " first_payload_msr=" << std::hex
-	          << static_cast<unsigned>(h.fdc_first_payload_msr) << std::dec
+	          << " fdc_cpu_latches=" << h.fdc_cpu_latch_reads.size()
 	          << " state=" << static_cast<unsigned>(h.dut.dbg_fdc_state)
 	          << " msr=" << std::hex
 	          << static_cast<unsigned>(h.dut.dbg_fdc_msr)
@@ -773,21 +798,55 @@ void test_real_u765_edsk_read() {
 	for (unsigned i = 0; i < 7; ++i)
 		require(h.fdc_result_seen[i],
 		        "CPU did not consume result byte " + std::to_string(i));
+	require(h.fdc_first_payload_latch_count_seen,
+	        "first payload store did not capture the preceding CPU latch boundary");
+	require(h.fdc_first_payload_latch_count >= 2,
+	        "first payload store lacks preceding FDC status/data latch events");
+	const FdcCpuLatchRead &data_latch =
+		h.fdc_cpu_latch_reads[h.fdc_first_payload_latch_count - 1];
+	const FdcCpuLatchRead *status_latch = nullptr;
+	for (size_t i = h.fdc_first_payload_latch_count - 1; i-- > 0;) {
+		if (h.fdc_cpu_latch_reads[i].addr == 0xfbde) {
+			status_latch = &h.fdc_cpu_latch_reads[i];
+			break;
+		}
+	}
+	require(status_latch != nullptr,
+	        "first payload store lacks a preceding FDC status latch");
+	require(data_latch.addr == 0xfbdf,
+	        "last FDC latch before the first payload store was not the data port");
+	auto require_clean_fdc_path = [](const FdcCpuLatchRead &sample,
+	                                const char *kind) {
+		require(sample.expected == sample.fdc_dout &&
+		            sample.fdc_dout == sample.fdc_bus &&
+		            static_cast<uint8_t>(sample.ram_dout & sample.fdc_bus) ==
+		                sample.top_bus &&
+		            sample.fdc_bus == sample.top_bus &&
+		            sample.top_bus == sample.mb_bus &&
+		            sample.mb_bus == sample.cpu_di,
+		        std::string("FDC ") + kind +
+		            " differed across controller, bus muxes, and CPU latch");
+	};
+	require_clean_fdc_path(*status_latch, "status");
+	require(status_latch->expected == status_latch->msr,
+	        "FDC status-port source differed from the controller MSR");
+	require_clean_fdc_path(data_latch, "data");
+	require(h.fdc_payload[0] == data_latch.cpu_di,
+	        "first payload store differed from the preceding CPU data latch");
 	require(first_payload_mismatch != 512,
 	        "XPASS: production-clock TV80 consumed the complete EDSK payload; remove the XFAIL");
-	require(h.fdc_first_payload_trace_seen,
-	        "first payload store did not capture controller state");
-	require(first_payload_mismatch == 0 && h.fdc_payload[0] == 0x00 &&
-	            h.fdc_first_payload_state == 9 &&
-	            (h.fdc_first_payload_msr & 0xf0) == 0x50,
+	require(first_payload_mismatch == 0,
 	        "payload XFAIL changed shape; re-trace the first divergence");
 	std::cout << "XFAIL fdc-payload-poll: production-clock TV80 stored 0x"
 	          << std::hex << static_cast<unsigned>(h.fdc_payload[0])
 	          << " instead of 0x"
 	          << static_cast<unsigned>(h.disk_image[0x200])
-	          << " at payload byte 0 while u765 state/MSR="
-	          << static_cast<unsigned>(h.fdc_first_payload_state) << "/"
-	          << static_cast<unsigned>(h.fdc_first_payload_msr) << std::dec << '\n';
+	          << " at payload byte 0; exact CPU latch saw selected u765 data/state/MSR="
+	          << static_cast<unsigned>(data_latch.cpu_di) << "/"
+	          << static_cast<unsigned>(data_latch.state) << "/"
+	          << static_cast<unsigned>(data_latch.msr)
+	          << " after status latch=" << static_cast<unsigned>(status_latch->cpu_di)
+	          << "/" << static_cast<unsigned>(status_latch->state) << std::dec << '\n';
 	std::cout << "PASS: production decode/command/media request; payload divergence retained as XFAIL"
 	          << std::endl;
 }
