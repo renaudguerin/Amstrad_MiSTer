@@ -251,6 +251,12 @@ visibility first. Keep scaler acquisition on the Full tuple; any B1 follow-up mu
 RGB/sync phase before `crt_filter` rather than sending live HBLANK into geometry measurement.
 The prose below is retained as the problem statement and historical design brief.
 
+**MENU SLICE DONE 2026-09-01:** the existing Plus-model capability decoder now drives menu-mask
+groups for Plus-only, classic-only, FDC-capable, and tape-capable controls. Off retains all
+classic media controls; GX4000 hides disk/tape; 6128+ exposes disk; 464+ exposes tape. The
+focused model-to-mask fixture and the full simulation/lint gates pass. This changes visibility
+only: it does not rewrite retained settings or make machine selection atomic.
+
 Both machines are always instantiated and always clocked; only their outputs are muxed.
 Concretely, the classic `CRTC` and `asic_video` **both receive every CRTC register write in
 both modes** — each carries `.ENABLE(io_rd | io_wr)` with no `plus_mode` gate

@@ -13,6 +13,13 @@ Amazing Demo and Pulpo captures are materially narrower than Full, and DSC4/SHAK
 incorrect. The exact-expiry and watchdog repairs below harden fallback behavior but do not
 alter that steady-state result. B1 therefore remains open as an ownership/observability problem.
 
+B6's architecture pass is complete in `docs/b6-architecture-decision.md`. Runtime clock/write
+gating is rejected for now because it cannot reduce fitted resources and is unsafe against the
+current non-atomic model/reset transition. The first bounded slice conditionally hides Plus-only,
+classic-only, FDC, and tape menu entries from the selected model's capabilities while preserving
+all status encodings and hidden values. Its focused four-model mask fixture, full simulation, and
+lint pass. MiSTer OSD rendering remains a hardware/UI confirmation rather than local proof.
+
 ## 2026-09-01 combined accuracy/Plus integration artifact
 
 Source-bearing integration SHA `ea0e0bd4a0c2557f6cce2c0e1e60b84d389bf101` combines the

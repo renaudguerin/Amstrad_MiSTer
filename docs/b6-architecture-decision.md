@@ -66,21 +66,25 @@ crop bit:
 |---|---|---|
 | 2 | Plus selected | Load CPR |
 | 3 | classic selected | CRTC type, classic Model |
-| 4 | selected model has FDC | mounted DSK slots, FDC option |
-| 5 | selected model has tape | Load CDT, Tape sound |
+| 4 | classic, or selected Plus model has FDC | mounted DSK slots, FDC option |
+| 5 | classic, or selected Plus model has tape | Load CDT, Tape sound |
 
 `Machine preset` (`P2O[34:33]`) and `Reset & apply model` stay visible. Common display controls,
 SNAC, Multiface, PlayCity, Dandanator, and ordinary ROM loaders stay unchanged until their
 ownership or policy is explicit. The intended mask expression is:
 
 ```verilog
-status_menumask = {10'b0, plus_has_tape, plus_has_fdc,
+status_menumask = {10'b0,
+                   (!plus_mode || plus_has_tape),
+                   (!plus_mode || plus_has_fdc),
                    !plus_mode, plus_mode, en270p, 1'b0};
 ```
 
 The associated `CONF_STR` entries use `d2` for Plus-only, `d3` for classic-only, `d4` for
-FDC-capable, and `d5` for tape-capable visibility. This changes reachability only; it does not
-renumber status bits or silently coerce retained settings.
+FDC-capable, and `d5` for tape-capable visibility. Classic mode deliberately keeps disk and
+tape controls visible, matching the existing `!plus_mode` capability gates; the Plus models
+then narrow those controls to their physical capabilities. This changes reachability only; it
+does not renumber status bits or silently coerce retained settings.
 
 ## B1 follow-up sequence
 
@@ -106,4 +110,3 @@ same pre-scaler HBLANK/DE contract. Do not route live HBLANK to either path as a
 - Multi-field presets: `status_menumask` controls visibility, not atomic status rewrites.
 - B5 G1-G7, which each retain their own evidence or UI prerequisite.
 - A raw physical-sync output mode, pending the hardware discriminator above.
-

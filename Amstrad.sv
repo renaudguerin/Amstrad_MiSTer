@@ -47,11 +47,11 @@ assign HDMI_BOB_DEINT = 0;
 `include "build_id.v"
 localparam CONF_STR = {
 	"Amstrad;;",
-	"S0,DSK,Mount A:;",
-	"S1,DSK,Mount B:;",
-	"F4,CDT,Load tape;",
-	"F8,CPR,Load Plus cartridge;",
-	"OK,Tape sound,Disabled,Enabled;",
+	"d4S0,DSK,Mount A:;",
+	"d4S1,DSK,Mount B:;",
+	"d5F4,CDT,Load tape;",
+	"d2F8,CPR,Load Plus cartridge;",
+	"d5OK,Tape sound,Disabled,Enabled;",
 	"-;",
 	"FC0,ROM,Load Main ROM;",
 	"FC3,E??,Load expansion;",
@@ -74,7 +74,7 @@ localparam CONF_STR = {
 	"P1OST,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 	"P1OU,Pixel Clock,16MHz,Adaptive;",
 	"P1-;",
-	"P1O2,CRTC,Type 1,Type 0;",
+	"d3P1O2,CRTC,Type 1,Type 0;",
 	"P1O[36:35],Sync filter,Full,Live blanking,Off;",
 	"P1OBD,Display,Color(GA),Color(ASIC),Green,Amber,Cyan,White;",
 	"P1-;",
@@ -90,10 +90,10 @@ localparam CONF_STR = {
 	"P2-;",
 	"P2OEF,Multiface 2,Enabled,Hidden,Disabled;",
 	"P2O6,CPU timings,Original,Fast;",
-	"P2OGH,FDC,Original,Fast,Disabled;",
+	"d4P2OGH,FDC,Original,Fast,Disabled;",
 	"P2-;",
 	"P2oAC,Distributor,Amstrad,Orion,Schneider,Awa,Solavox,Saisho,Triumph,Isp;",
-	"P2O[5:4],Model,CPC 6128,CPC 664,CPC 464;",
+	"d3P2O[5:4],Model,CPC 6128,CPC 664,CPC 464;",
 	"P2O[34:33],Plus model,Off,GX4000,6128+,464+;",
 	"P2OV,Tape progressbar,Off,On;",
 
@@ -108,6 +108,7 @@ localparam CONF_STR = {
 
 wire clk_sys;
 wire locked;
+wire [15:0] status_menumask;
 wire st_right_shift_mod = status[22];
 wire st_keypad_mod = status[23];
 wire st_progressbar = status[31];
@@ -212,7 +213,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 	.status(status),
 	.status_in({64'd0,status[63:33],1'b0,status[31:21],~status[20],status[19:0]}),
 	.status_set(Fn[1]),
-	.status_menumask({en270p,1'b0}),
+	.status_menumask(status_menumask),
 
 	.forced_scandoubler(forced_scandoubler),
 	.gamma_bus(gamma_bus),
@@ -1100,6 +1101,17 @@ plus_model_select plus_model_decoder
 	.has_tape(plus_has_tape)
 );
 
+// B6 capability visibility: classic machines retain both media controls;
+// selected Plus models narrow them to the devices they actually provide.
+plus_menu_capability_mask menu_capability_mask
+(
+	.en270p(en270p),
+	.plus_mode(plus_mode),
+	.plus_has_fdc(plus_has_fdc),
+	.plus_has_tape(plus_has_tape),
+	.status_menumask(status_menumask)
+);
+
 //////////////////// Plus cartridge path (P0) ///////////////////////////
 
 wire plus_gx4000 = (plus_model == 2'b01);
@@ -1572,5 +1584,27 @@ ltc2308_tape ltc2308_tape
 	.dout(tape_adc),
 	.active(tape_adc_act)
 );
+
+endmodule
+
+// MiSTer hides a CONF_STR item when its d<n> prefix addresses a clear bit in
+// status_menumask.  Keep this mapping in a small production module so the
+// model/capability interaction has a deterministic simulation boundary.
+module plus_menu_capability_mask
+(
+	input  en270p,
+	input  plus_mode,
+	input  plus_has_fdc,
+	input  plus_has_tape,
+	output [15:0] status_menumask
+);
+
+assign status_menumask = {10'b0,
+	(!plus_mode || plus_has_tape),
+	(!plus_mode || plus_has_fdc),
+	!plus_mode,
+	plus_mode,
+	en270p,
+	1'b0};
 
 endmodule
