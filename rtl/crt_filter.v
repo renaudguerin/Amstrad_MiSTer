@@ -66,7 +66,11 @@ assign HBLANK_LIVE = no_hsync ? HBLANK : (HSYNC_I | live_hblank_ext);
 
 always @(posedge CLK) begin : liveblankgen
 	old_live_hsync <= HSYNC_I;
-	if (~old_live_hsync & HSYNC_I & ~live_hblank_ext) begin
+	// A transition observed on the expiry edge belongs to the next window.
+	// Earlier in-window transitions remain ignored so malformed short cadence
+	// cannot extend the acquisition blank indefinitely.
+	if (~old_live_hsync & HSYNC_I &
+			(~live_hblank_ext || live_hblank_count == 0)) begin
 		live_hblank_ext <= 1;
 		live_hblank_count <= LIVE_HBLANK_REMAINDER;
 	end
@@ -86,19 +90,29 @@ always @(posedge CLK) begin : hsyncgen
 	reg no_hsync_next;
 	
 	if(CE_4) begin
-		if(&dcnt) no_hsync_next <= 1; else dcnt <= dcnt + 1'd1;
+		if(&dcnt) begin
+			no_hsync_next <= 1;
+			// VSYNC normally commits the absence detector, but a missing or
+			// stuck VSYNC must not leave Live blanking permanently asserted.
+			// Reuse the cadence learned from healthy raw HSYNC edges.
+			if(|hsz) no_hsync <= 1;
+		end
+		else dcnt <= dcnt + 1'd1;
 		
 		old_hsync <= HSYNC_I;
 		if(~old_hsync & HSYNC_I) begin
 			dcnt <= 0;
-			if(no_hsync && !hsz) begin
+			if(!no_hsync) begin
+				hsz <= dcnt[10:0];
+			end
+			else if(!(|hsz)) begin
 				hsz <= dcnt[10:0];
 				hsync <= 1;
 				hcnt <= 0;
 			end
 		end
 		
-		if(no_hsync && hsz) begin
+		if(no_hsync && (|hsz)) begin
 			hcnt <= hcnt + 1'd1;
 			if(hcnt == 13) hsync <= 0;
 			if(hcnt == hsz) begin
