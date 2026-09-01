@@ -95,17 +95,20 @@ Finalizes the current stream branch, performs semantic merge into `accc-review-a
    the finish, fetch, rebase/reconcile, rerun affected gates, and try again only after the
    coordinator grants a fresh lease.
    *(Note: Pushing `accc-review-and-fixes` automatically triggers a full-effort Quartus synthesis build when code files changed, producing an RBF for hardware testing).*
-3. Check local VM availability for fast full synthesis:
-   Query the GitHub API to check if the self-hosted `quartus-vm` runner is online:
-   ```sh
-   gh api repos/renaudguerin/Amstrad_MiSTer/actions/runners --jq '.runners[] | select(.name == "quartus-vm" and .status == "online")'
-   ```
-   - **If `quartus-vm` is online**: Dispatch `local-build.yml` with `effort=full`:
-     ```sh
-     gh workflow run local-build.yml --ref accc-review-and-fixes -f effort=full
-     ```
-     *(The local UTM VM runs ~2-4m faster and automatically preempts the hosted run in the shared `build-core-synthesis` concurrency group).*
-   - **If `quartus-vm` is offline**: Let the hosted push workflow (`build.yml`) proceed (it compiles at full effort by default).
+3. Let the push-triggered `build.yml` policy decide whether synthesis is needed and, when
+   needed, route it to the available runner. **Do not dispatch `local-build.yml` merely
+   because the VM is online.** The push workflow already selects the local VM when appropriate;
+   a second dispatch duplicates or cancels useful work.
+   - Inspect the exact push run's `synthesis-policy` result. When it says synthesis is required,
+     follow the automatically selected local or hosted leg.
+   - When it says synthesis is not required, verify that the changed paths classify false with
+     `scripts/ci/classify-synthesis-paths.sh`. Reuse the most recent successful full-effort RBF
+     whose commit is an ancestor of the new tip, and report both the artifact commit and the new
+     tip. This is valid because the classifier covers the transitive Quartus manifest plus the
+     explicit build-affecting paths documented in `docs/ci-testing-policy.md`; simulation-only
+     and documentation-only commits do not change the bitstream.
+   - A manual `local-build.yml` dispatch is reserved for an explicitly requested milestone or
+     pre-merge hardware answer that the ordinary push policy cannot provide.
 4. Verify the exact pushed SHA and each required CI job, not only the aggregate workflow
    conclusion. Follow last-write-wins cancellation to the successor run. Summarize the merge,
    CI run, and RBF artifact once available.

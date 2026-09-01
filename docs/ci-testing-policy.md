@@ -157,9 +157,13 @@ gh workflow run build.yml --ref <branch-or-tag>
 Confirm that the named ref points at the intended commit before dispatching; GitHub workflow
 dispatch accepts a branch or tag, not an arbitrary detached commit SHA.
 
-Use the same manual route before handing off a bitstream for real-hardware testing. Record the
-commit, Actions run, fitter utilization, worst timing result, hardware purpose, and the retained
-`quartus-cache.txt` build-mode provenance together.  The provenance value names the tier:
+Use the same manual route before handing off a bitstream for real-hardware testing **when the
+target commit changes a synthesized input or no suitable full-effort artifact exists**. When all
+changes since the latest successful full-effort artifact classify false through
+`scripts/ci/classify-synthesis-paths.sh`, reuse that artifact instead of rebuilding. Record both
+the artifact commit and the newer behavior-equivalent tip, along with the Actions run, fitter
+utilization, worst timing result, hardware purpose, and retained `quartus-cache.txt` build-mode
+provenance. The provenance value names the tier:
 `clean_full` for milestone evidence, `clean_smoke` for integration-tip feedback — a smoke RBF
 is not a hardware-test artifact.
 
