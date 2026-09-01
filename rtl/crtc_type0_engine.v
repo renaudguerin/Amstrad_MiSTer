@@ -119,9 +119,10 @@ module crtc_type0_engine
 	output           vsync_line_fire,
 	// English ACCC v1.11 section 16.4.1.2 p.168: the natural type-0
 	// comparison is considered only if C0 reached 2 on the preceding line.
-	// The wrapper needs the retained line result for the field half-line path
-	// and the blocked-comparison term to consume vsync_allow without a pulse.
-	output           vsync_preceding_c0_2,
+	// At an ordinary seam the just-finished line supplies the result.  The
+	// field half-line path can also reconstruct it from the line in progress
+	// after a snapshot load or live type switch cleared the private history.
+	output           vsync_c0_2_qualified,
 	output           vsync_line_blocked,
 	// F15 VSYNC delay correction (section 19.5.2): suppress holds the
 	// natural field=1 fire off during the first line of C4=R7 on a
@@ -603,7 +604,10 @@ reg        type0_vsync_wait_line_start;
 reg type0_vsync_c0_2_seen;
 reg type0_vsync_preceding_c0_2;
 wire type0_vsync_line_reached_c0_2 = type0_vsync_c0_2_seen || (hcc == 8'd2);
-assign vsync_preceding_c0_2 = type0_vsync_preceding_c0_2;
+wire type0_vsync_field_c0_2 = type0_vsync_preceding_c0_2 ||
+								 type0_vsync_line_reached_c0_2;
+assign vsync_c0_2_qualified = field ? type0_vsync_field_c0_2 :
+									 type0_vsync_line_reached_c0_2;
 
 always @(posedge CLOCK) begin
 	if(~nRESET | SNA_LOAD | CRTC_TYPE) begin
@@ -676,10 +680,10 @@ assign vde_toggle = !CRTC_TYPE && row == 0 && line == 0 && R6_v_displayed == 0;
 wire       vsync_fire_seam_raw = ((row_next) == R7_v_sync_pos && line_last);
 wire       vsync_fire_seam = vsync_fire_seam_raw && type0_vsync_line_reached_c0_2;
 // Non-interlace consumes a blocked comparison at the row-entry seam.  In a
-// field the comparison is consumed at its half-line count point, using the
-// preceding-line result retained across that seam.
+// field the comparison is consumed at its half-line count point, using either
+// retained history or C0=2 reconstructed on the current lifecycle-reset line.
 assign vsync_line_blocked = field ?
-	((row == R7_v_sync_pos) && !line && !type0_vsync_preceding_c0_2) :
+	((row == R7_v_sync_pos) && !line && !type0_vsync_field_c0_2) :
 	(vsync_fire_seam_raw && !type0_vsync_line_reached_c0_2);
 wire       type0_vsync_delay_arm = R9_v_max_line[0] && ivm_disp_r &&
                                    R7_v_sync_pos[0] && parity_frame && !in_adj;

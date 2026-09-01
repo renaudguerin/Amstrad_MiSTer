@@ -1163,6 +1163,102 @@ void test_type0_vsync_blocked_comparison_is_consumed(TestBench& test) {
         "blocked natural comparison consumes the later equal-R7 trigger");
 }
 
+void test_type1_interlace_sync_odd_field_vsync(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 15}, {1, 8},  {2, 10}, {3, 0x11}, {4, 16},
+        {5, 0},  {6, 17}, {7, 127}, {8, 1},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(7);
+    test.reset();
+
+    // Keep R7 unreachable throughout the first 17-line frame, then program
+    // R7=1 while row 0 of the half-line-count field is active. The false
+    // comparison re-arms VSYNC without producing an earlier pulse.
+    test.run_characters(17 * 16);
+    test.expect_field_low("type 1 R8=1 enters the half-line-count field");
+    test.expect_c4("type 1 odd-field fixture begins at C4=0", 0);
+    test.expect_vsync_low("type 1 odd-field fixture has no earlier VSYNC");
+    test.write_selected_register_at_nclken(1);
+
+    // Type 1 crosses into C4=R7 without firing at the seam in R8=1 field 1;
+    // it fires at the half-line point instead. Type-0-only C0-history state
+    // must not qualify this type-1 path.
+    test.run_characters(16);
+    test.expect_c4("type 1 odd-field fixture reaches C4=R7", 1);
+    test.expect_vsync_low("type 1 odd-field VSYNC waits for the half-line tick");
+    test.run_characters(7);
+    test.expect_vsync_high("type 1 R8=1 odd-field VSYNC fires at the half-line tick");
+}
+
+void test_type0_interlace_vsync_rebuilds_after_snapshot(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> initial = {{
+        {0, 15}, {1, 8}, {2, 10}, {3, 0x11}, {4, 0},
+        {5, 0},  {6, 1}, {7, 1},  {8, 1},    {9, 0},
+    }};
+    for (const auto& [address, value] : initial) {
+        test.write_register(address, value);
+    }
+    test.reset();
+    test.run_characters(16);
+    test.expect_field_low("snapshot fixture reaches the half-line-count field");
+
+    // Enter type 0 at C4=0/C9=0/C0=0, then snapshot-load R7=0. SNA_LOAD
+    // deliberately clears derived type-0 line history. The current target
+    // line nevertheless reaches C0=2 before its half-line fire point and
+    // must reconstruct the qualification instead of consuming it blocked.
+    test.set_crtc_type(0);
+    const std::array<std::uint8_t, 10> snapshot = {
+        15, 8, 10, 0x11, 0, 0, 1, 0, 1, 0,
+    };
+    test.load_snapshot_registers(snapshot);
+    test.run_to_c0(6);
+    test.expect_ra("snapshot-rebuilt half-line remains C9=0", 0);
+    test.expect_vsync_low("snapshot-rebuilt VSYNC waits for the half-line tick");
+    test.run_characters(1);
+    test.run_clock_ticks(1);  // VSYNC pin follows the internal pulse by one clock.
+    test.expect_vsync_high(
+        "type 0 reconstructs C0=2 qualification after snapshot lifecycle clear");
+}
+
+void test_type0_interlace_vsync_rebuilds_after_live_type_switch(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 15}, {1, 8}, {2, 10}, {3, 0x11}, {4, 2},
+        {5, 0},  {6, 3}, {7, 3},  {8, 1},    {9, 0},
+    }};
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(7);
+    test.reset();
+
+    // Complete the three-line first frame with R7 unreachable, then program
+    // R7=1 while C4=0 in the half-line-count field. Type 1 crosses the seam
+    // into C4=1 but has not reached that line's half-line fire point yet.
+    test.run_characters(3 * 16);
+    test.expect_field_low("live-switch fixture reaches the half-line-count field");
+    test.expect_c4("live-switch fixture begins field at C4=0", 0);
+    test.write_selected_register_at_nclken(1);
+    test.run_characters(16);
+    test.expect_c4("live-switch fixture reaches target C4=1", 1);
+    test.expect_vsync_low("type 1 has not reached the target half-line tick");
+
+    // The live switch clears type-0 private history. C0 still reaches 2 in
+    // this target line, which must be sufficient to rebuild eligibility.
+    test.set_crtc_type(0);
+    test.run_to_c0(6);
+    test.expect_ra("live-switch half-line remains C9=0", 0);
+    test.run_characters(1);
+    test.run_clock_ticks(1);  // VSYNC pin follows the internal pulse by one clock.
+    test.expect_vsync_high(
+        "type 0 reconstructs C0=2 qualification after live type switch");
+}
+
 void configure_vsync_reentrancy_fixture(TestBench& test,
                                         unsigned type,
                                         unsigned vertical_total,
@@ -7669,8 +7765,17 @@ int main(int argc, char** argv) {
          "ACCC v1.11 English section 16.4.1.2 p.169; author-confirmed 2026-08-31",
          false, test_type0_vsync_qualified_r0_one_counts_two_characters},
         {"t02o_type0_vsync_blocked_comparison_is_consumed",
-         "ACCC v1.11 English section 16.4.1.2 pp.168-169; author-confirmed 2026-08-31",
+         "ACCC v1.11 English section 16.4.1.2 pp.168-169; model inference/hardware discriminator",
          false, test_type0_vsync_blocked_comparison_is_consumed},
+        {"t02p_type1_interlace_sync_odd_field_vsync",
+         "ACCC v1.10 sections 16.4.2 and 19.3.2.1; type-1 R8=1 half-line route",
+         false, test_type1_interlace_sync_odd_field_vsync},
+        {"t02q_type0_interlace_vsync_rebuilds_after_snapshot",
+         "ACCC v1.11 English section 16.4.1.2 with snapshot lifecycle",
+         false, test_type0_interlace_vsync_rebuilds_after_snapshot},
+        {"t02r_type0_interlace_vsync_rebuilds_after_live_type_switch",
+         "ACCC v1.11 English section 16.4.1.2 with live CRTC_TYPE lifecycle",
+         false, test_type0_interlace_vsync_rebuilds_after_live_type_switch},
         {"t03a_vsync_compare_lock_and_rearm", "ACCC v1.10 section 16.3; F11b",
          false, test_vsync_compare_lock_and_rearm},
         {"t03b_vsync_reentrancy_bypass", "ACCC v1.10 section 16.3; F11b",
