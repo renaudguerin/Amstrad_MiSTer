@@ -215,6 +215,13 @@ problem from unsolved into solved, and would justify the RTL work immediately.
 
 **Priority: high. Cheap, and it converts "we don't know what we don't know" into a list.**
 
+**DONE 2026-09-01:** `docs/plus/asic-documentation-gap-map.md` inventories the Arnold/CPCWiki
+register families and externally visible behaviors against their production owner and
+deterministic fixture. Most of the register page is owned. The actionable gaps are CRTC3
+light-pen input, live ADC routing, sprite access-blank timing, three source-conflict
+discriminators, undocumented DMA-fetch stalls, external-expansion semantics, and printer BUSY
+sampling. B6 should consume that narrowed list rather than reopening the whole ASIC page.
+
 The Plus symptoms are stubborn because the ASIC is far less documented than the CRTC, and we
 have no explicit statement of where the documentation runs out.
 
