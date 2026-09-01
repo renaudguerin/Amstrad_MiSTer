@@ -367,13 +367,18 @@ Two independent mechanisms against infinite VSYNC:
   they are normative and were intended for French; use English p.169 as the current published
   anchor. The 2026-09-01 consequence audit found that steady R0=1 lacked the preceding-line
   qualification; failure-first `t02l` now pins the corrected behavior. Native-review follow-ups
-  `t02m`-`t02o` pin the exact dynamic writes and blocked-comparison consumption:
+  `t02m` and `t02n` pin the exact dynamic writes. `t02o` pins blocked-comparison consumption as
+  a model inference and hardware discriminator; that latch-level consequence was not explicitly
+  confirmed by the source or author response:
   - R0 (was >2) set to **0** exactly at C0=0 of the C4=R7 line: VSYNC starts at C0=0 but **C3h
     freezes** (like all CRTC0 counters at R0=0) — never reaches R3h, VSYNC **never deactivates**
     (distinct lockup from §18's re-entrancy bug).
   - R0 (was >2) set to **1** at that same C0=0: VSYNC starts at C0=0, C3h *can* still increment once
     (on C0 wrap 1→0); if R3h=1, VSYNC correctly stops after **2µs total** — sufficient to arm GA's
     V26 sequence regardless (§14/§16.1 decoupling).
+  - Interlace lifecycle guards `t02p`-`t02r` keep the type-1 half-line route independent of
+    type-0 history and require type 0 to rebuild C0=2 eligibility after snapshot load or a live
+    type switch. These are model-lifecycle contracts pending hardware validation.
 
 ### CRTC 1 (§16.4.2)
 

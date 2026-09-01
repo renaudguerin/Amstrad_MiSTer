@@ -115,8 +115,12 @@ DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0x8a2c2290bcef06a7`** after the author-confirmed type-0
-section 16.4.1.2 preceding-line qualification: the fixed random schedule and
+current hash is **`0xf96f243f594acecf`** after the interlace VSYNC lifecycle
+correction: type 1 no longer depends on type-0 C0 history, while type 0 can
+reconstruct C0=2 qualification on the current half-line after snapshot load or
+a live type switch clears its private retained history. The preceding
+`0x8a2c2290bcef06a7` hash recorded the author-confirmed type-0 section 16.4.1.2
+preceding-line qualification: the fixed random schedule and
 sampled projection now include whether C0 reached 2 on the current and
 preceding lines, and natural C4=R7 VSYNC is blocked when that prerequisite was
 not met. The preceding `0x9d8cd95357d1d752` hash recorded Q20's author-confirmed

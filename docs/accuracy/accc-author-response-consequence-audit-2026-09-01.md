@@ -20,8 +20,7 @@ after the preceding line visited only C0=0,1.
 
 The engine now retains whether C0 actually reached 2 on the current and
 preceding lines. The natural row-entry comparison and the interlace half-line
-consumer use that history, and a failed qualification consumes the comparison
-as blocked without producing a pulse. This deliberately does not reduce the
+consumer use that history. This deliberately does not reduce the
 rule to `R0>=2`: a change from R0>2 to R0=0 or 1 at C0=0 of the target line
 retains the qualifying preceding-line history, preserving the two confirmed
 dynamic cases. `t02l` is now a required failure-first pass. Native review then
@@ -30,6 +29,14 @@ two timing-sensitive dynamic interactions. `t02m` pins the qualified R0=0
 freeze, `t02n` pins the qualified R0=1 two-character pulse, and `t02o` widens
 an ineligible target line before attempting a later equal-R7 write, so removal
 of blocked-comparison consumption would fail.
+
+The source and author response establish the short-line block and the two
+dynamic R0 outcomes. They do not explicitly establish that a blocked natural
+comparison consumes the shared `vsync_allow` latch. That `t02o` behavior is a
+model inference retained as a hardware discriminator, not an author-confirmed
+rule. The lifecycle vectors `t02p`-`t02r` additionally keep the type-1 field
+path independent of type-0 history and reconstruct type-0 half-line
+qualification after snapshot load or a live type switch.
 
 ## §11.6 — type-1 RFD VMA source
 
@@ -58,7 +65,7 @@ This remains local model evidence, not hardware evidence.
 
 - Failure-first: 185 pre-existing classic vectors passed; `t02l` alone failed
   on the unmodified §16.4.1.2 behavior.
-- Final `make -C sim test`: 189 classic vectors and every integrated suite pass.
+- Final `make -C sim test`: 192 classic vectors and every integrated suite pass.
 - Final `make -C sim lint`: passes with pre-existing warnings only.
 - Fixed-seed soak: `0x8a2c2290bcef06a7`, reproduced twice across 2,845,088
   CLKEN samples per run.
