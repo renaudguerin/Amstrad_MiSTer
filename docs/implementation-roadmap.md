@@ -429,6 +429,14 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 ## 8. Immediate execution queue
 
+**2026-09-02 handoff:** the [partial hardware report and proposed queue](hardware-evidence-2026-09-02.md)
+take precedence over the older checkpoint targets below. Amazing Demo's Live
+blanking defect appears fixed and Burnin' Rubber's right-edge sprite defect is
+reported fixed on `84e6969`. DSC4/SHAKER still fail, possibly differently;
+accuracy RTL work is deferred pending captures. All other retests remain open. The next work is
+shared FDC recovery with classic AMSDOS coverage, B1 hardware discrimination,
+and the B3 capture slice, with explicit ownership of the overlapping P10 harness.
+
 **Read `docs/backlog.md` before picking from this queue.** It holds the cross-cutting
 architecture and methodology items opened on 2026-08-31, and several entries below are blocked
 in ways this section does not show. **Backlog B1 now has a simulation-gated hybrid candidate:**

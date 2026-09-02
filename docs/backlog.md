@@ -27,8 +27,9 @@ interest.
 
 **Priority: highest. Everything sync-related is downstream of this.**
 
-`rtl/crt_filter.v` sits at the end of the video path and is currently hardwired on
-(`Amstrad.sv`, `.sync_filter(1)`). It does three things that matter:
+`rtl/crt_filter.v` sits at the end of the video path. Before the mode selector
+below, it was hardwired on (`Amstrad.sv`, `.sync_filter(1)`). Its original Full
+path does three things that matter:
 
 - It **regenerates HSYNC** as a fixed-width pulse at a fixed offset (asserted at
   `hSyncCount == 2*4`, cleared at `6*4`), re-aligned to a line length it measures from the two
@@ -94,7 +95,17 @@ and operates after this stage. Removing or redesigning it does not affect those.
    without producing the reference image. The SHAKER Live captures likewise do not close the
    named entries. The later exact-expiry and stuck-high watchdog repairs make the fallback
    deterministic but do not change this steady-state geometry, so they do not invalidate the
-   observation. Treat the present Live route as a diagnosed experiment, not as B1 closure.
+   observation by themselves.
+
+   **Partial retest reported 2026-09-02:** with Live blanking selected on
+   `Amstrad_20260901_84e6969.rbf`, the user reports that
+   `amazingdemo_sync_live_blanking` **appears fixed**. This supersedes that
+   symptom's earlier verdict for the named build, without establishing the
+   responsible change. The user later confirms DSC4/SHAKER still fail, possibly
+   with different failure shapes; current captures are unavailable. Pulpo has
+   no new verdict. Accuracy RTL work is deferred while capture and shared
+   peripheral work progress. B1 remains
+   open; see [the hardware report](hardware-evidence-2026-09-02.md).
 
    Open question that experiment must answer: whether the visible effect the SHAKER entries and
    DSC4 test lives in the blanking geometry (recoverable this way) or in the sync edges
@@ -181,6 +192,12 @@ simulation and lint pass, including the B7 mutation matrix. This is
 observability infrastructure only: runtime CPR ingestion, a self-describing
 frame stream, repeatable hashes and any image comparison remain the next B3
 slice.
+
+Unfinished capture work is preserved alongside shared FDC work in stash
+`0fe18a4513a47e4f21e0f504f002673a853388c3`. It is not part of the accepted
+foundation. Recover only owned paths and coordinate the overlapping P10 harness
+edits; the [next-session queue](hardware-evidence-2026-09-02.md#proposed-next-session--not-started)
+keeps FDC acceptance explicitly shared with classic AMSDOS.
 
 Runs on a laptop with no MiSTer attached, and gives cycle-level visibility and bisectability
 that hardware capture cannot.
@@ -426,8 +443,10 @@ available for a future genuine divergence. Stale fixture-first comments now desc
 current required-pass status. All 192 classic vectors remain registered; the independent t21
 panel combinations, t22 entry/exit walks, P10c model/FDC integration cases, and leaf-versus-
 integration pairs remain intact. Focused P8/model/motherboard gates, full lint, and the exact
-`0x2263c9fc44af4ee7` soak pass. The aggregate test currently stops only at the separate
-failure-first u765 pre-edge staging discriminator, as intended pending its RTL repair.
+`0x2263c9fc44af4ee7` soak pass. During that session, the aggregate test stopped at the
+separate, uncommitted failure-first u765 pre-edge staging discriminator. That
+discriminator is now preserved in stash `0fe18a4513a47e4f21e0f504f002673a853388c3`,
+pending recovery and investigation; it is not a failure in the checked-in suite.
 
 **Standing rule, now recorded in `CLAUDE.md`:** a test earns its place only if it could have
 failed for a reason the author did not already know. A vector derived from an ACCC rule that

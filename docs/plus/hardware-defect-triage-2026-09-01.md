@@ -4,6 +4,13 @@ This record separates the new hardware symptoms from mechanisms proven in the
 current RTL.  Simulation evidence identifies a retest candidate; it is not a
 hardware closure claim.
 
+**Partial hardware follow-up reported 2026-09-02:** the user reports
+`burnin_rubber_sprite_on_the_right_should_be_hidden` fixed on
+`Amstrad_20260901_84e6969.rbf` with Live blanking selected. This is a hardware
+pass for that visible symptom only; it does not prove the signed-X repair was
+the cause. The CRTC3 demo's separate sprite leak and all other defects below
+remain TBD. See [the dated hardware record](../hardware-evidence-2026-09-02.md).
+
 ## B13 lifecycle: stale classic cartridge state before a CPR
 
 Hardware sequence: after a cartridge had misbehaved, a subsequently loaded
@@ -171,8 +178,9 @@ partial sprite columns at the far right where the title expected the sprite
 hidden. That observation
 is consistent with the removed unsigned alias, but the screenshots do not
 provide the programmed coordinate or prove title causality.  Hardware closure
-therefore requires an exact-tip retest and, if either leak remains, a trace of
+for the CRTC3 demo still requires an exact-tip retest and, if that leak remains, a trace of
 the sprite X/magnification register and compositor X at the first bad pixel.
+The Burnin' Rubber symptom now has the later user-reported pass above.
 
 ### Independent classification of the other screenshots
 

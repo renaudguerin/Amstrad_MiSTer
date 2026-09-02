@@ -25,8 +25,10 @@
   XFAIL/XPASS runner, all 192 classic vectors, t21/t22, P10c, and every
   leaf-versus-integration boundary. A fresh native Sol review returned CLEAR;
   focused P8/model/motherboard checks, full lint, and exact soak
-  `0x2263c9fc44af4ee7` pass. The aggregate test reaches and fails only the
-  separate failure-first u765 pre-edge discriminator pending its RTL repair.
+  `0x2263c9fc44af4ee7` pass. In that session's working tree, the aggregate test
+  failed only the separate uncommitted u765 pre-edge discriminator. That WIP
+  is now in stash `0fe18a4513a47e4f21e0f504f002673a853388c3`, pending recovery
+  and investigation; the failure is not in the checked-in suite.
   Active suite documentation now describes the actual in-source harness and
   current vector count. Neither slice has yet received cross-provider review.
 

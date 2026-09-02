@@ -1,5 +1,18 @@
 # Current implementation status
 
+**Latest hardware report, 2026-09-02:** on `Amstrad_20260901_84e6969.rbf`
+with Live blanking selected, the user reports that
+`amazingdemo_sync_live_blanking` **appears fixed** and
+`burnin_rubber_sprite_on_the_right_should_be_hidden` **is fixed**. Other
+Plus defects remain **TBD**. DSC4 and SHAKER are still failing, possibly with
+changed failure shapes; current captures are unavailable. These are symptom-specific hardware observations, not
+B1/P10 closure or proof of the individual cause. The
+[dated report](hardware-evidence-2026-09-02.md) records artifact identity,
+evidence limits and the authorized FDC/Plus/review scope. Accuracy RTL work is
+deferred pending discriminating captures. Shared FDC and B3 WIP remains in stash
+`0fe18a4513a47e4f21e0f504f002673a853388c3`; recovery requires explicit ownership
+and a classic AMSDOS regression as well as Plus disk coverage.
+
 **Next session: read `docs/backlog.md` first.** A 2026-08-31 methodology review concluded the
 project's bottleneck is observability rather than implementation quality, and opened a
 prioritized cross-cutting backlog (B1-B12). Its top item identified why classic CRTC sync work
@@ -8,10 +21,13 @@ HBLANK to the shaped sync pulse. A simulation-gated hybrid now preserves raw hor
 for Live HBLANK while retaining regenerated scaler sync; the first hardware A/B rejected that
 candidate as sufficient.
 
-The 2026-09-01 hardware A/B has now rejected that Live route as sufficient: the supplied
+The earlier 2026-09-01 hardware A/B rejected that Live route as sufficient: the supplied
 Amazing Demo and Pulpo captures are materially narrower than Full, and DSC4/SHAKER remain
 incorrect. The exact-expiry and watchdog repairs below harden fallback behavior but do not
-alter that steady-state result. B1 therefore remains open as an ownership/observability problem.
+establish a steady-state hardware improvement by themselves. The 2026-09-02 report above
+supersedes the Amazing Demo verdict for the named build; Pulpo awaits retest.
+DSC4/SHAKER still fail, but the changed failure shapes are not yet characterized.
+B1 therefore remains open as an ownership/observability problem.
 
 B6's architecture pass is complete in `docs/b6-architecture-decision.md`. Runtime clock/write
 gating is rejected for now because it cannot reduce fitted resources and is unsafe against the
@@ -84,8 +100,8 @@ and is retained under `output_files/Amstrad-local-build-184-1-full/`. This
 supersedes the earlier RBF for B6 hardware/UI checks; it does not change the
 recorded Live-blanking hardware verdict.
 
-This is the handoff for the next development and hardware-test session. The newest Plus
-hardware observations are dated 2026-08-30; older milestone narratives below retain their
+This is the handoff for the next development and hardware-test session. The newest partial
+hardware observations were reported on 2026-09-02 above; older milestone narratives below retain their
 own dates and are not evidence that later work was hardware-confirmed. The
 `accc-review-and-fixes` branch now contains the ACCC review/corrections, per-type classic CRTC
 split, F6 Stage 1 full-character approximation, sampled-field soak expansion, production Plus
@@ -1344,6 +1360,10 @@ than whichever older package a Linux distribution happens to carry.
   tip rebase onto these fixes.
 
 ## Next-session order
+
+Use the [2026-09-02 proposed queue](hardware-evidence-2026-09-02.md#proposed-next-session--not-started)
+for the next session. The dated checkpoint instructions below preserve older
+context; their old artifact targets and implementation states are not the launch plan.
 
 1. Quartus VM post-install is a future-session task and must only run after explicit user
    authorization. Until then, keep synthesis on GitHub Actions. When authorized, run
