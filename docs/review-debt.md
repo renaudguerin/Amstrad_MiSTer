@@ -2,96 +2,9 @@
 
 ## Open rows
 
-- **B9 review-record archive and first test-suite cleanup — OPEN, native Sol CLEAR;
-  no cross-provider review,
-  2026-09-01.**
-  A Luna Max bounded documentation pass moved settled independent-review
-  records into indexed `docs/accuracy/archive/` and `docs/plus/archive/`
-  directories, updated repository-local inbound references, and replaced the
-  active handoff's pass-by-pass chronology with durable archive links. Active
-  rule sources, open-debt evidence, the dated ACCC author response and
-  consequence audit, IA-5 hardware discriminator, FDC records, and ambiguous
-  review records remain in place. The parent corrected two moved documents'
-  relative links and retained the explicit boundary that published ACCC v1.11
-  is unchanged and no corrected full edition exists. A cross-provider reviewer
-  should check hardest the keep/move classification, relative-link integrity,
-  and whether any archived record still carries an active technical obligation.
-  The independent native Sol review found and closed stale sibling-path and
-  count-wording blockers, then returned CLEAR after the generalized path/link
-  audits passed. A subsequent Luna Max pass removed one duplicated direct
-  `plus_model_select` truth table from the P8 fixture, one duplicate invocation
-  of the canonical motherboard lint recipe, unused classic `expect_xfail_*`
-  wrappers, and stale fixture-first comments. It retained the generic
-  XFAIL/XPASS runner, all 192 classic vectors, t21/t22, P10c, and every
-  leaf-versus-integration boundary. A fresh native Sol review returned CLEAR;
-  focused P8/model/motherboard checks, full lint, and exact soak
-  `0x2263c9fc44af4ee7` pass. In that session's working tree, the aggregate test
-  failed only the separate uncommitted u765 pre-edge discriminator. That WIP
-  is now in stash `0fe18a4513a47e4f21e0f504f002673a853388c3`, pending recovery
-  and investigation; the failure is not in the checked-in suite.
-  Active suite documentation now describes the actual in-source harness and
-  current vector count. Neither slice has yet received cross-provider review.
-
-- **B3 P10 VRAM/frame-tap foundation — OPEN, independent Codex review only,
-  2026-09-01.** The production-shaped P10 fixture now connects the motherboard
-  VRAM address to the SDRAM video client, exports raw motherboard timing,
-  selected monitor timing and shared filter-dependent payload taps, and pins the
-  cross-module address path with a failure-first cartridge program. The old
-  address-zero tie-off admitted no video requests. The first independent Sol
-  review caught misleading pre/post payload labels and a bank assertion sampled
-  before the external command; both are remediated, and its focused re-review
-  returned CLEAR. The proof now reconstructs
-  the physical byte address from SDRAM ACTIVE/READ pins, checks the physical bank,
-  and deliberately fails when that bank is forced wrong. During parent gating,
-  changing the shared fixture default to Full masked the B7 ASIC-GA mutation;
-  the established Off default was restored and the complete mutation matrix
-  passes. A cross-provider reviewer should check hardest the request-to-command
-  correlation, the 15-bit word-to-23-bit byte mapping, and whether the timing and
-  shared-payload taps are sufficient without implying distinct pre/post payload
-  or ASCAL/full-top coverage. Full simulation and lint pass. Claude remained
-  quota-limited and Gemini bridge-unavailable, so no independent cross-provider
-  verdict exists.
-
-- **B6 conditional menu visibility — OPEN, no cross-provider review,
-  2026-09-01.** A Luna Max bounded implementation adds the production
-  `plus_menu_capability_mask`, conditionally prefixes the existing OSD entries,
-  exercises all four machine selections through the real `plus_model_select`
-  decoder, and restores `status[32]` to Dandanator-only ownership. A fresh parent Sol review corrected the classic
-  media-capability expression before acceptance, renamed the production helper,
-  moved its declaration ahead of the HPS connection, and caught the stale CPR
-  top-wiring assertion through the full gate. A reviewer should check hardest
-  MiSTer's `d<n>` prefix grammar and bit ordering; that classic mode retains DSK
-  and tape; GX4000 exposes neither, 6128+ only DSK/FDC, and 464+ only tape; and
-  hidden fields retain their values without colliding with crop mask bit 1; and
-  that no ordinary top-level control can invalidate a committed Plus CPR image.
-  Focused mask, full simulation, and lint gates pass. Actual OSD rendering is a
-  UI/hardware validation residual, not review closure. Claude was quota-limited
-  and Gemini remained bridge-unavailable, so no cross-provider verdict exists.
-
-- **Accuracy Round 2 consequence and B1 hybrid blanking — OPEN, no fresh
-  cross-provider remediation review, 2026-09-01.** Feature tip
-  `eb45555a2f1156dc153d2f7c6f88c9271757a827` implements the author-confirmed
-  Q20 C4 reset, type-0 C0=2 VSYNC qualification and lifecycle reconstruction,
-  type-1 interlace isolation, plus hybrid Live HBLANK expiry/watchdog recovery.
-  A fresh native Sol review found and closed late-lifecycle and composed-
-  fallback test gaps, but the guarded cross-provider route remained unavailable.
-  A reviewer should check hardest the `hcc>=2` reconstruction across wrap and
-  live type/snapshot boundaries; the neutral type-1 field route; `t02o`'s
-  inference-only `vsync_allow` consumption; exact-expiry priority; and the
-  stuck-high/no-VSYNC fallback through the downstream Full resynchronizer.
-  Full simulation and lint pass, the classic suite is 192/192, the focused
-  blanking suite is 9/9, and soak `0x2263c9fc44af4ee7` passes. Hardware A/B
-  results remain validation evidence, not review closure.
-
-- **Accuracy OSD sync-filter toggle — OPEN, no independent cross-provider review,
-  2026-08-31.** This change was merged without independent cross-provider review.
-  The control is now the two-bit Full/Live blanking/Off selector at
-  `status[36:35]`. A reviewer should check that Full remains the default and
-  preserves the established output tuple, and that neither status bit collides
-  with another `Amstrad.sv` or `sys/` control.
-
 - **Plus P10j primitive/model contract notes — OPEN LOW, Claude Opus 5 high,
-  2026-08-31.** A guarded Claude exact-tip review at integration SHA `bf1e785`
+  2026-08-31; confirmed still open by read-only review 2026-09-03.** A guarded
+  Claude exact-tip review at integration SHA `bf1e785`
   found no defect in the final CLOCK1 (`1248d06`, originally `db60f8d`) or
   supported collision-mode (`cd56d66`, originally `c047a7d`) corrections. It
   independently checked primitive legality, even/odd and packed-pixel mapping,
@@ -101,43 +14,142 @@
   NEW_DATA setting but is unreachable while SNA drain holds CPU reset; the
   constant-zero lint stub cannot validate primitive data semantics; and
   `host_addr=eff_addr` assumes the same CPU-reset invariant during SNA writes.
-  Document those invariants and the exact-synthesis boundary before clearing
-  the row. No known production RTL defect remains. Full scope, initial Gemini
+  A 2026-09-03 read-only pass at `a98590a` confirmed all three remain
+  undocumented (`rtl/plus/plus_sprite_ram.v:15-16,199-201`,
+  `rtl/plus/asic_regs.v:197-199,580`) and reported no production defect.
+  Clearance is blocked only on the bounded remediation: a 3–5 line comment at
+  the `plus_sprite_ram` boundary (collision-unreachable invariant, NEW_DATA vs
+  behavioral divergence, exact-fit authority `33392854459`) plus a one-line
+  invariant at the `asic_regs.v:197` `eff_addr` selection, with source
+  verification. No known production RTL defect remains. Full scope, initial Gemini
   3.7 Flash high review provenance, rejected intermediate fits, and exact
   Quartus evidence: `docs/plus/p10-review-debt-status-2026-08-31.md`.
+  Read-only confirmation: `docs/plus/plus-review-2026-09-03.md` §4.
 
-- **Plus B7 dark-silicon signal-path mutation audit — OPEN, no independent
-  cross-provider review, 2026-09-01.** The audit adds a production-shaped
-  P10a motherboard mutation matrix covering selected RGB/raster outputs and
-  CPU-visible bus, cycle, wait, and interrupt state in Plus and classic modes.
-  A reviewer should check hardest that the exact `B7_DARK_SILICON_MUTATION`
-  conditional and `synthesis translate_off` block cannot reach Quartus, and
-  that passing the signature-changed assertion is not trivially satisfiable by
-  run noise, raw mutation-control signals, or an unverified mutation decoder.
-  The full method and measured matrix are in
-  `docs/plus/b7-dark-silicon-audit.md`.
-
-- **Plus hardware-defect triage and production seam follow-up — OPEN, no fresh
-  cross-provider review, 2026-09-01.** Rebased feature tip
-  `00173fbecc8020393680a886655b174dbdffcc82` isolates persistent
-  Dandanator ownership from Plus mode, adds the production-clock real-u765
-  diagnostic and exact TV80 T3 latch tracing, corrects signed sprite clipping
-  and display-origin alignment, adds integrated right-edge and SSCR[7] seam
-  discriminators, and puts `plus_legacy_cart_gate` on the ordinary Quartus
-  manifest path. A fresh native Sol review found and closed reduced-bench
-  overclaim, SSCR connectivity, and Dandanator-policy wording issues, but no
-  cross-provider review was performed. A reviewer should check hardest the
-  T80pa latch/sample inference versus production VHDL T80; omitted full-top bus
-  contributors; signed X/display-origin geometry and compositor phase; the
-  SSCR[7] screen-mask/sprite precedence pair; and single-owner QIP reachability.
-  Full simulation/lint, soak `0x2263c9fc44af4ee7`, manifest classification,
-  focused mutation controls, and whitespace checks pass. FDC title behavior,
-  exact-tip Quartus, and real hardware remain validation gates.
-
-**Status: eight independent-review debt rows are open.** The validation residuals retained in
+**Status: one independent-review debt row is open.** The validation residuals retained in
 the cleared rows below are not hardware evidence and do not reopen local RTL/test review.
+A CLEAR verdict on source/test review is never hardware closure.
 
 ## Cleared rows
+
+- **B9 review-record archive and first test-suite cleanup — CLEARED, native Sol
+  + Muse classic/plus read-only passes + mechanical reconciliation,
+  2026-09-03 at `a98590a`.** The Luna Max bounded pass (`825ecef`) moved
+  settled records into indexed `docs/accuracy/archive/` and
+  `docs/plus/archive/`, updated inbound references, and replaced the handoff
+  chronology with archive links; the trim (`84e6969`) removed the duplicated
+  P8 `plus_model_select` table, the duplicate motherboard-lint invocation,
+  unused classic `expect_xfail_*` wrappers, and stale fixture-first comments,
+  retaining the generic XFAIL/XPASS runner, all 192 classic vectors, t21/t22,
+  P10c, and every leaf-versus-integration boundary. Native Sol returned CLEAR
+  twice (archive blockers, then P8/model/motherboard checks with full lint and
+  exact soak `0x2263c9fc44af4ee7`). The Muse classic pass verified the
+  classic slice (wrappers dead, runner retained, 192-vector registry honest)
+  and the Muse plus pass verified the Plus slice (P8 dedup re-derivable from
+  the B6 mask contract, lint canonical target retained, HF-3 integration
+  coverage intact). The 2026-09-03 mechanical reconciliation verified every
+  archived file exists, no non-archive reference to a moved record remains
+  (remaining mentions are branch names, not doc links), and the keep/move
+  boundary holds: active rule sources, open-debt evidence, the dated ACCC
+  author response and consequence audit, IA-5 discriminator, and FDC records
+  stay in place; published ACCC v1.11 unchanged. The stashed u765 pre-edge
+  discriminator (`0fe18a4513a47e4f21e0f504f002673a853388c3`) is FDC recovery,
+  not suite failure. Records: `docs/accuracy/classic-review-2026-09-03.md`
+  §1, `docs/plus/plus-review-2026-09-03.md` §1. No hardware residual for this
+  row.
+
+- **B3 P10 VRAM/frame-tap foundation — CLEARED, read-only review 2026-09-03
+  at `a98590a` (principal `12672d9`).** The production-shaped P10 fixture
+  connects the motherboard VRAM address to the SDRAM video client, exports raw
+  motherboard timing, selected monitor timing, and shared filter-dependent
+  payload taps, and pins the cross-module address path with a failure-first
+  cartridge program. Verified: single-transaction request-to-COMMAND
+  correlation with no skew/overlap; 15-bit word to 23-bit byte mapping
+  bit-equivalent with production `Amstrad.sv:711` and base `0x20000` aligned
+  with the MMU map; physical ACTIVE/READ pin reconstruction of the byte
+  address; bank checked inside `CMD_ACTIVE`; raw-vs-selected timing kept
+  distinct from the shared filter-dependent `dbg_video_*` payload
+  (`crtc_shift` acts upstream of both observation points, so no
+  filter-independent "pre-filter" payload exists). Scope stays observability
+  infrastructure: no full-top, ASCAL, production-T80, or image-oracle claims.
+  Retained limits: Off/raw default, 32-read/≥4-address coverage, no runtime
+  CPR writer yet, TV80-surrogate CPU boundary, unfinished capture work in
+  stash `0fe18a4513a47e4f21e0f504f002673a853388c3`. Record:
+  `docs/plus/b3-frame-harness-review-2026-09-03.md`.
+
+- **B6 conditional menu visibility — CLEARED, Claude Opus 5 high 2026-09-02
+  at `a98590a`, reconciliation 2026-09-03.** The production
+  `plus_menu_capability_mask` conditionally prefixes OSD entries, all four
+  machine selections run through the real `plus_model_select` decoder, and
+  `status[32]` is Dandanator-only. Opus verified bit ordering, the capability
+  table (GX4000 neither medium, 6128+ FDC only, 464+ tape only, fail-closed),
+  encoded-slot preservation (`S0/S1/F4/F8/OK/O2/OGH/O[5:4]`, no
+  `ioctl_index`/VDNUM renumbering), and detach ownership with CPR-image
+  survival. Non-blocking doc follow-ups retained: **B6-1** `R[32]` mislabeled,
+  no capability prefix; **B6-2** raw-`status[34:33]` mask timing undocumented
+  in `docs/b6-architecture-decision.md`. Actual OSD rendering (hide-vs-grey,
+  `S`/`F` vs `O` rows, HPS path read-verified only) is UI/hardware
+  validation, not review closure. Focused mask, full simulation, and lint
+  pass. Records: `docs/b6-b10-review-2026-09-02.md`,
+  `docs/plus/plus-review-2026-09-03.md` §2.
+
+- **Accuracy Round 2 consequence and B1 hybrid blanking — CLEARED, Muse
+  read-only review 2026-09-03 at `a98590a` (feature tip `eb45555`).**
+  Verified against cited sources: author-confirmed Q20 row-only C4 reset
+  (row_next only, same-edge 0→positive exit, row-0 reload/VSYNC paths;
+  ParityC9-on-reset left as an explicit gap); type-0 C0=2 VSYNC qualification
+  with live `hcc>=2` reconstruction across snapshot/type-switch clears and a
+  neutral type-1 field route (`t02o` correctly labelled model
+  inference/hardware discriminator); Live blanking phase anchor, exact-expiry
+  reacquisition, healthy-cadence-only learning, stuck-high/no-VSYNC watchdog,
+  and the nine-case seam fixture matching the `b1-hybrid-live-blanking.md`
+  contract (+7-CE offset labelled model measurement). Full simulation/lint,
+  192 classic + 9 blanking vectors, soak `0x2263c9fc44af4ee7` reported (gates
+  confirmed by the integration owner on the next touching commit).
+  SHAKER/DSC4/Amazing-Demo A/B remain validation evidence, not review
+  closure. Record: `docs/accuracy/classic-review-2026-09-03.md` §2.
+
+- **Accuracy OSD sync-filter toggle — CLEARED, Muse read-only reviews
+  2026-09-03 at `a98590a` (`74882c7`, merge `0e3a248`).** Two-bit
+  Full/Live-blanking/Off selector at `status[36:35]`; default `00` = Full,
+  bit-for-bit the old filtered path; no `35`/`36` collision in the `status`
+  map; benches retargeted to explicit raw; production tuple pinned by
+  `test_production_mode_selector`. Live-blanking geometry is owned by the B1
+  row; actual OSD rendering is UI/hardware validation. Records:
+  `docs/accuracy/classic-review-2026-09-03.md` §3,
+  `docs/plus/plus-review-2026-09-03.md` §3.
+
+- **Plus B7 dark-silicon signal-path mutation audit — CLEARED (primary claim),
+  Muse read-only review 2026-09-03 at `a98590a` (`d942435` + `1bcf65a`).**
+  Verified: the `B7_DARK_SILICON_MUTATION` + `synthesis translate_off` guard
+  cannot reach Quartus (fixture absent from `files.qip`, flag only in the B7
+  Makefile rule), and the anti-faking checks hold (decoder-ID gate, failing
+  unknown/inactive mutations, negative control `0xea03a76a5520e7eb`, 9/9
+  Plus-changed in Plus mode, 9/9 unchanged in classic, 4/4 classic-unchanged
+  in Plus but moved in classic controls). The classic-path-leaks-into-Plus
+  hypothesis is ruled out; no dead Plus code. Retained limits: type-0/1
+  engines share one mutated signature (not independently proven), classic
+  baselines identical across CRTC types (no type-divergent coverage), and the
+  CPU bus/cycle/IRQ signature uses the TV80/T80pa-wrapper surrogate —
+  interrupt-ack/exact bus timing remain synthesis/hardware boundaries.
+  Record: `docs/plus/plus-review-2026-09-03.md` §5.
+
+- **Plus hardware-defect triage and production seam — CLEARED (source/test),
+  Muse read-only review 2026-09-03 at `a98590a` (scope `ea0e0bd`).**
+  Verified: `plus_legacy_cart_gate` single-owner isolation preserving the
+  image for classic return (`rom_map` correctly left uncleared); signed
+  sprite clip with failed-first `s09` (literal `-64..639` vs implemented
+  `-63..639` explicit pending hardware); display-origin `m13` cross-module
+  pair with SSCR[7] precedence proof (`H_ORIGIN=16` a model assumption
+  pending a CRTC3-leak trace); production-clock TV80 FDC diagnostic with
+  honest `fdc-payload-poll` XFAIL and no speculative u765 change; QIP
+  reachability. Retained validation only: Navy-Seals prerequisite retest,
+  CRTC3-leak trace, System-CPR + real-T80/full-top closure, exact-tip
+  Quartus/hardware, TV80-vs-VHDL-T80 and mag/model limits. Burnin' Rubber
+  right-edge stays a regression target without proven causality. Record:
+  `docs/plus/plus-review-2026-09-03.md` §6. FDC remains shared classic/Plus
+  work owned by the active recovery session (stash
+  `0fe18a4513a47e4f21e0f504f002673a853388c3` preserved).
 
 - **B10 ROM loader destination decoder extraction — CLEARED, Gemini 3.7 Flash
   high author / GPT-5.6 Sol high review, 2026-09-01.** The production decoder is
@@ -156,7 +168,13 @@ the cleared rows below are not hardware evidence and do not reopen local RTL/tes
   pass. Exact-tip run `33482930072` now also passes full Quartus 17.0.2
   synthesis and timing (+0.511/+0.248 ns, zero TNS); its packaged RBF SHA-256
   is recorded in `docs/current-status.md`. This is artifact evidence, not
-  review debt or hardware closure.
+  review debt or hardware closure. **Follow-ups retained without reopening
+  (Opus 2026-09-02, reconciled 2026-09-03): B10-1** (medium) wrapper-side
+  invalid-chunk retention unpinned — fixture proves only `addr_valid=0`;
+  **B10-2** (low) instance shadows module name; **B10-3** (low)
+  `page`/`combo` ownership comment. Records:
+  `docs/b6-b10-review-2026-09-02.md`,
+  `docs/plus/plus-review-2026-09-03.md` §2.
 
 - **Accuracy IA-6 type-0 R0=1 widening persistence — CLEARED, Gemini 3.7
   Flash high fallback, 2026-08-31.** Gemini authored the focused `t35a`

@@ -275,7 +275,12 @@ evidence, but it does not replace the decoder, counter, interrupt, or compositor
 **Status:** OPEN after the 2026-08-30 round-three simulation repairs. P0-P9 are implemented
 and simulation-verified, but the two broad hardware samples still expose title, input, FDC,
 sprite, DMA, CRTC3, cartridge-timing, and recovery failures pending an exact new build and
-hardware retest. The detailed evidence and checkboxes live in
+hardware retest. Source/test review of the triage seam is CLEAR (Muse read-only 2026-09-03
+at `a98590a`; record `docs/plus/plus-review-2026-09-03.md` §6) with Navy-Seals prerequisite,
+CRTC3-leak, System-CPR/real-T80/full-top, exact-tip Quartus, and TV80/model limits retained
+as validation; B3 foundation (§8 queue) is likewise review-CLEAR
+(`docs/plus/b3-frame-harness-review-2026-09-03.md`); P10j stays OPEN LOW on doc comments
+only. The detailed evidence and checkboxes live in
 `plus/hardware-checkpoint-findings.md`; the newest repair-to-retest mapping is
 `plus/hardware-test-round3-2026-08-30.md`.
 

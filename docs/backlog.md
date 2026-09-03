@@ -103,9 +103,14 @@ and operates after this stage. Removing or redesigning it does not affect those.
    symptom's earlier verdict for the named build, without establishing the
    responsible change. The user later confirms DSC4/SHAKER still fail, possibly
    with different failure shapes; current captures are unavailable. Pulpo has
-   no new verdict. Accuracy RTL work is deferred while capture and shared
-   peripheral work progress. B1 remains
-   open; see [the hardware report](hardware-evidence-2026-09-02.md).
+    no new verdict. Accuracy RTL work is deferred while capture and shared
+    peripheral work progress. B1 remains
+    open; see [the hardware report](hardware-evidence-2026-09-02.md).
+    Source/test review of the hybrid candidate is CLEAR (Muse read-only
+    2026-09-03 at `a98590a`; record
+    `docs/accuracy/classic-review-2026-09-03.md` §2) with the
+    regenerated-sync-vs-physical-edge limit and all A/B results retained as
+    validation — a CLEAR verdict is not hardware closure.
 
    Open question that experiment must answer: whether the visible effect the SHAKER entries and
    DSC4 test lives in the blanking geometry (recoverable this way) or in the sync edges
@@ -189,9 +194,11 @@ before both observation points. Its established Off default is retained because
 changing the shared P10/B7 default to Full hid the ASIC GA timing mutation; a
 future capture target may override the parameter to Full explicitly. Full
 simulation and lint pass, including the B7 mutation matrix. This is
-observability infrastructure only: runtime CPR ingestion, a self-describing
-frame stream, repeatable hashes and any image comparison remain the next B3
-slice.
+ observability infrastructure only: runtime CPR ingestion, a self-describing
+ frame stream, repeatable hashes and any image comparison remain the next B3
+ slice. Read-only independent review 2026-09-03 at `a98590a` returned CLEAR
+ (record `docs/plus/b3-frame-harness-review-2026-09-03.md`); Off/raw default,
+ 32-read/≥4-address coverage, TV80-surrogate CPU, and stash limits retained.
 
 Unfinished capture work is preserved alongside shared FDC work in stash
 `0fe18a4513a47e4f21e0f504f002673a853388c3`. It is not part of the accepted
@@ -207,8 +214,12 @@ M-series Mac runs a design of this size at a few MHz, so roughly 0.1–0.3 s per
 hundred frames in under a minute. This is ordinary practice in FPGA retro development.
 
 **Most of it already exists.** `sim/plus/p10_boot_test_top.v` already instantiates the
-production motherboard with a real T80 and the SDRAM model. What it lacks is real software and
+production motherboard with a reduced TV80 surrogate under the T80pa-shaped wrapper
+(Verilator cannot compile the production VHDL T80) and the SDRAM model. What it lacks is real software and
 a framebuffer dump; it currently executes hand-written stub programs of a few dozen bytes.
+Pending FDC findings expose the surrogate's polling-instruction limits, so CPU-bound
+disk-path conclusions still require the production T80 boundary stated in
+[the triage record](plus/hardware-defect-triage-2026-09-01.md).
 
 **Design notes.**
 
@@ -294,6 +305,9 @@ groups for Plus-only, classic-only, FDC-capable, and tape-capable controls. Off 
 classic media controls; GX4000 hides disk/tape; 6128+ exposes disk; 464+ exposes tape. The
 focused model-to-mask fixture and the full simulation/lint gates pass. This changes visibility
 only: it does not rewrite retained settings or make machine selection atomic.
+Opus source review 2026-09-02 at `a98590a` returned CLEAR (record
+`docs/b6-b10-review-2026-09-02.md`; reconciliation `docs/plus/plus-review-2026-09-03.md`
+§2); B6-1/B6-2 doc follow-ups and OSD-rendering validation retained.
 
 Both machines are always instantiated and always clocked; only their outputs are muxed.
 Concretely, the classic `CRTC` and `asic_video` **both receive every CRTC register write in
@@ -392,9 +406,11 @@ than accepted from the delegated report: **the classic-path-leaks-into-Plus hypo
 ruled out.** Mutating `CRTC`, `crtc_type0_engine`, `crtc_type1_engine` or `ga40010` in Plus
 mode leaves the Plus signature bit-identical, while the same mutations in classic mode do move
 it, so the null result is meaningful rather than vacuous. All nine Plus modules shift the
-signature when corrupted, so there is no dead Plus code either. Two recorded limits: the two
-classic engines are not independently proven, and the fixture does not reach CRTC-type-divergent
-behaviour. Original scope follows. For each Plus module, deliberately corrupt it in simulation
+ signature when corrupted, so there is no dead Plus code either. Two recorded limits: the two
+ classic engines are not independently proven, and the fixture does not reach CRTC-type-divergent
+ behaviour. Read-only review 2026-09-03 at `a98590a` records CLEAR on the primary
+ Plus-live/classic-isolated result with those limits plus the TV80-surrogate CPU bound
+ retained (`docs/plus/plus-review-2026-09-03.md` §5). Original scope follows. For each Plus module, deliberately corrupt it in simulation
 and assert that a Plus-mode output changes. Anything that stays green is not in the active
 path. Do the mirror test for classic modules in classic mode. This directly answers "are we
 running everything we built, and is a classic path overriding a Plus path".
@@ -445,8 +461,12 @@ panel combinations, t22 entry/exit walks, P10c model/FDC integration cases, and 
 integration pairs remain intact. Focused P8/model/motherboard gates, full lint, and the exact
 `0x2263c9fc44af4ee7` soak pass. During that session, the aggregate test stopped at the
 separate, uncommitted failure-first u765 pre-edge staging discriminator. That
-discriminator is now preserved in stash `0fe18a4513a47e4f21e0f504f002673a853388c3`,
-pending recovery and investigation; it is not a failure in the checked-in suite.
+  discriminator is now preserved in stash `0fe18a4513a47e4f21e0f504f002673a853388c3`,
+  pending recovery and investigation; it is not a failure in the checked-in suite.
+  Review bookkeeping closed 2026-09-03 at `a98590a` (native Sol CLEAR twice,
+  Muse classic/plus read-only passes, mechanical link/keep-move reconciliation;
+  records `docs/accuracy/classic-review-2026-09-03.md` §1,
+  `docs/plus/plus-review-2026-09-03.md` §1).
 
 **Standing rule, now recorded in `CLAUDE.md`:** a test earns its place only if it could have
 failed for a reason the author did not already know. A vector derived from an ACCC rule that

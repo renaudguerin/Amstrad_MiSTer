@@ -11,7 +11,27 @@ B1/P10 closure or proof of the individual cause. The
 evidence limits and the authorized FDC/Plus/review scope. Accuracy RTL work is
 deferred pending discriminating captures. Shared FDC and B3 WIP remains in stash
 `0fe18a4513a47e4f21e0f504f002673a853388c3`; recovery requires explicit ownership
-and a classic AMSDOS regression as well as Plus disk coverage.
+and a classic AMSDOS regression as well as Plus disk coverage. A Muse FDC
+diagnostic investigation is active in the main worktree: its result, commit,
+or fix is not claimed here, and FDC stays shared classic/Plus work.
+
+**Independent-review pass recorded 2026-09-03, all at committed `a98590a`
+(NOT concurrent FDC work).** Round 2 consequence/B1 hybrid blanking, OSD
+sync-filter wiring, B9 archive/bookkeeping, B3 frame-harness foundation, B6
+menu visibility, B7 dark-silicon audit, and the Plus hardware-defect triage
+are review-CLEAR on source/test with hardware, full-T80/top, and
+model-oracle residuals retained as validation, not debt. Prior Opus CLEARs
+for B6/B10 (2026-09-02) are recorded without re-review, with B6-1/B6-2 and
+B10-1/B10-2/B10-3 doc follow-ups retained. P10j stays OPEN LOW: no production
+defect, clearance blocked only on the primitive/model invariant comments and
+source verification. IA rows already cleared stay cleared; the B8
+architecture audit remains excluded by decision. A CLEAR verdict is not
+hardware closure. Records: `accuracy/classic-review-2026-09-03.md`,
+`plus/plus-review-2026-09-03.md`,
+`plus/b3-frame-harness-review-2026-09-03.md`,
+`b6-b10-review-2026-09-02.md`; ledger: `review-debt.md`. No simulation was
+run for this docs-only pass. Published ACCC v1.11 remains unchanged; the
+author message is dated clarification only.
 
 **Next session: read `docs/backlog.md` first.** A 2026-08-31 methodology review concluded the
 project's bottleneck is observability rather than implementation quality, and opened a
