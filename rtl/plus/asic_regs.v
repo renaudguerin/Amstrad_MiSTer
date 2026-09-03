@@ -194,6 +194,14 @@ module asic_regs
 	assign dcsr   = {dcsr_stat | intack_raster, dcsr_flags[0], dcsr_flags[1], dcsr_flags[2], 1'b0, dcsr_ena};
 
 	wire        eff_cs   = (asic_cs && mem_wr) || sna_wr;
+	// P10j: host_addr follows the write side (sna_addr while sna_wr), so a
+	// CPU host read coinciding with an SNA write would also read the wrong
+	// address. That coincidence is excluded by reset ownership, not by this
+	// mux: the SNA drain retires before sna_finish_pending clears
+	// (Amstrad.sv), top-level reset holds the CPU through the drain, and the
+	// production T80pa holds RD_n/MREQ_n high in reset (rtl/T80/T80pa.vhd),
+	// keeping spr_host_rd low. This module's own reset is plus_asic_reset,
+	// which is deliberately NOT held during the drain so SNA writes land.
 	wire [13:0] eff_addr = sna_wr ? sna_addr : A[13:0];
 	wire  [7:0] eff_data = sna_wr ? sna_data : D_in;
 	wire  [1:0] eff_wsel = eff_addr[13:12];
