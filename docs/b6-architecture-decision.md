@@ -86,6 +86,14 @@ tape controls visible, matching the existing `!plus_mode` capability gates; the 
 then narrow those controls to their physical capabilities. This changes reachability only; it
 does not renumber status bits or silently coerce retained settings.
 
+Mask timing (B6-2): `status_menumask` is combinational on the raw selection
+`status[34:33]` (the `plus_model = status[34:33]` wire → `plus_model_select`
+`always @(*)` → `plus_menu_capability_mask` continuous assign → the
+`.status_menumask(status_menumask)` port on the `hps_io` instance), so visibility
+changes at selection time; the classic `model` register only latches `menu_model` during
+reset (the `else if(reset) model <= menu_model` assignment), applied via
+`Reset & apply model` (R0).
+
 ## B1 follow-up sequence
 
 The current Live mode is a rejected hardware candidate, not a closure. Its HBLANK window moves

@@ -99,7 +99,7 @@ localparam CONF_STR = {
 
 	"-;",
 	"R0,Reset & apply model;",
-	"R[32],Reset & Detach Cartridge;",
+	"R[32],Reset & Detach Dandanator;",
 	"J,Fire 1,Fire 2,Fire 3;",
 	"V,v",`BUILD_ID
 };
@@ -320,6 +320,9 @@ reg   [7:0] boot_dout;
 
 reg [255:0] rom_map = '0;
 
+// B10-3: page/combo have a single sequential driver (the download
+// always block below, the only page <= / combo <= writer); rom_loader_route
+// reads page combinationally and never writes it.
 reg   [8:0] page = 0;
 reg         combo = 0;
 
@@ -1232,9 +1235,10 @@ plus_cartridge_memory cartridge_memory
 (
 	.clk(clk_sys),
 	.cold_reset(reset_base),
-	// B6: Reset & Detach Cartridge is a Dandanator-only control.  The Plus
-	// image is replaced atomically by CPR loads and keeps its module-level
-	// detach API for standalone users without exposing it here.
+	// B6: Reset & Detach Dandanator (R[32]) resets the machine and detaches
+	// the Dandanator only.  The Plus image is replaced atomically by CPR
+	// loads and keeps its module-level detach API for standalone users
+	// without exposing it here.
 	.detach(1'b0),
 
 	.load_begin(cart_load_begin),
