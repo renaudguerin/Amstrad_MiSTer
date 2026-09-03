@@ -121,6 +121,9 @@ module p10_boot_test_top #(
 	output reg  [7:0] dbg_cpu_di_mb_bus,
 	output reg  [7:0] dbg_cpu_di_msr,
 	output reg  [7:0] dbg_cpu_di_fdc_state,
+	output reg  [7:0] dbg_cpu_di_m_data,
+	output reg        dbg_cpu_di_buff_wait,
+	output reg [15:0] dbg_cpu_di_bytes_left,
 	output      [7:0] dbg_cpu_di_reg,
 	output            dbg_reset,
 	output      [2:0] dbg_mcycle,
@@ -613,6 +616,9 @@ module p10_boot_test_top #(
 			dbg_cpu_di_mb_bus    <= 8'd0;
 			dbg_cpu_di_msr       <= 8'd0;
 			dbg_cpu_di_fdc_state <= 8'd0;
+			dbg_cpu_di_m_data    <= 8'd0;
+			dbg_cpu_di_buff_wait <= 1'b0;
+			dbg_cpu_di_bytes_left <= 16'd0;
 		end else begin
 			dbg_cpu_di_latch <= cpu_di_latch_edge;
 			if (cpu_di_latch_edge) begin
@@ -627,6 +633,9 @@ module p10_boot_test_top #(
 				dbg_cpu_di_mb_bus    <= mb.cpu_data_bus;
 				dbg_cpu_di_msr       <= fdc.m_status;
 				dbg_cpu_di_fdc_state <= fdc.fdc.state[7:0];
+				dbg_cpu_di_m_data    <= fdc.m_data;
+				dbg_cpu_di_buff_wait <= fdc.buff_wait;
+				dbg_cpu_di_bytes_left <= fdc.fdc.i_bytes_to_read;
 			end
 		end
 	end
