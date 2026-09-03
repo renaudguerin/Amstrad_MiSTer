@@ -1,5 +1,10 @@
 # Current implementation status
 
+**Main source tip: `a8286bd` (docs-only B6/B10 wording/comments). This handoff
+is docs-only and adds no new validated source.** The Plus READY tip below is
+**not** on main: serial integration, CI/gates, and artifact handoff remain
+pending separate authorization.
+
 **Latest hardware report, 2026-09-02:** on `Amstrad_20260901_84e6969.rbf`
 with Live blanking selected, the user reports that
 `amazingdemo_sync_live_blanking` **appears fixed** and
@@ -9,11 +14,22 @@ changed failure shapes; current captures are unavailable. These are symptom-spec
 B1/P10 closure or proof of the individual cause. The
 [dated report](hardware-evidence-2026-09-02.md) records artifact identity,
 evidence limits and the authorized FDC/Plus/review scope. Accuracy RTL work is
-deferred pending discriminating captures. Shared FDC and B3 WIP remains in stash
-`0fe18a4513a47e4f21e0f504f002673a853388c3`; recovery requires explicit ownership
-and a classic AMSDOS regression as well as Plus disk coverage. A Muse FDC
-diagnostic investigation is active in the main worktree: its result, commit,
-or fix is not claimed here, and FDC stays shared classic/Plus work.
+deferred pending discriminating captures. No new screenshots, RBF, CI, or
+hardware closure this session; B8 remains excluded by decision.
+
+Shared FDC state is the accepted observe-only diagnostics at `d3aabbc`
+(`docs/fdc-recovery-2026-09-03.md`, independently reviewed CLEAR in
+`docs/fdc-diagnostics-review-2026-09-03.md`): passive taps plus a print-only
+DIAG block, XFAIL byte-identical in strength. Boundaries retained: the
+**classic AMSDOS full command/data regression is required and unmet** (the P10
+harness runs a synthetic unrolled sequence, not an AMSDOS ROM boot); the
+reduced-TV80 surrogate never executes `JR`/`JP cc` conditionally
+(`jump_e` unconnected, `Jump_r` forced), so the old polling fixture proves
+nothing about the controller; the original `fdc-payload-poll` XFAIL stays.
+Stash `0fe18a4513a47e4f21e0f504f002673a853388c3` is intact; B3 capture is
+recovered only on the Plus branch; the six stashed u765 pre-edge tests remain
+unaccepted and unapplied. The failed FDC experiment is preserved under
+`.fdc-scratch/` (untracked scratch, not committed evidence).
 
 **Independent-review pass recorded 2026-09-03, all at committed `a98590a`
 (NOT concurrent FDC work).** Round 2 consequence/B1 hybrid blanking, OSD
@@ -22,16 +38,40 @@ menu visibility, B7 dark-silicon audit, and the Plus hardware-defect triage
 are review-CLEAR on source/test with hardware, full-T80/top, and
 model-oracle residuals retained as validation, not debt. Prior Opus CLEARs
 for B6/B10 (2026-09-02) are recorded without re-review, with B6-1/B6-2 and
-B10-1/B10-2/B10-3 doc follow-ups retained. P10j stays OPEN LOW: no production
-defect, clearance blocked only on the primitive/model invariant comments and
-source verification. IA rows already cleared stay cleared; the B8
+B10-1/B10-2/B10-3 doc follow-ups retained. **P10j is independently CLEARED
+on the prepared Plus branch but that commit is not on main:** `3db81d0`
+(comment-only sprite-RAM/asic_regs invariant notes, Gemini 3.8 Flash high
+CLEAR, source-verified SNA-drain/CPU-reset chain) awaits serial integration
+with the B3 capture commit `bb77075` (see READY paragraph below), so the
+pending-integration row remains until integration lands; zero unresolved
+review findings. IA rows already
+cleared stay cleared; the B8
 architecture audit remains excluded by decision. A CLEAR verdict is not
-hardware closure. Records: `accuracy/classic-review-2026-09-03.md`,
+hardware closure, and comments not yet integrated are distinct from the many
+retained validation residuals. Records: `accuracy/classic-review-2026-09-03.md`,
 `plus/plus-review-2026-09-03.md`,
 `plus/b3-frame-harness-review-2026-09-03.md`,
 `b6-b10-review-2026-09-02.md`; ledger: `review-debt.md`. No simulation was
 run for this docs-only pass. Published ACCC v1.11 remains unchanged; the
 author message is dated clarification only.
+
+**Plus READY (pending integration, NOT on main): `bb77075` on
+`plus/b3-capture-recovery`, based exactly on main `a8286bd`.**
+Range-diff proves the two reviewed patches unchanged since review
+(`d52df41`=`3db81d0` P10j comments, `1e2fb3e`=`bb77075` B3 capture); final
+parent `make -C sim` and `make -C sim lint` on exact `bb77075` both exit 0
+(2026-09-03). B3 adds a bounded steady-state frame capture over the real P10
+cartridge path with fail-closed `--capture-cpr` CLI, atomic-exclusive output,
+self-equality (not hardware-oracle) evidence, and the reduced-TV80 opcode
+boundary honestly recorded. Independent Gemini 3.8 Flash high review is CLEAR
+with one non-blocking test-tightening suggestion (assert the dangling-symlink
+target/link state on the filesystem; refusal itself already passes). Inspect
+without checking out Plus paths, e.g.
+`git show bb77075 --stat` from a clone containing the Plus branch. No
+integration, merge, push, CI dispatch, or new RBF this session. A B10-1
+proper wrapper coupled test remains a residual without source-scraping; the
+symlink postcondition suggestion is non-blocking and recorded in the dated
+handoff, not a gate.
 
 **Next session: read `docs/backlog.md` first.** A 2026-08-31 methodology review concluded the
 project's bottleneck is observability rather than implementation quality, and opened a

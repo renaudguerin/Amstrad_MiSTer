@@ -434,6 +434,15 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 ## 8. Immediate execution queue
 
+**2026-09-03 handoff (docs-only, no new validated source on main):** main
+source tip is `a8286bd`; FDC state is the accepted observe-only diagnostics
+`d3aabbc` with the classic AMSDOS regression still required/unmet and the
+original XFAIL intact. The Plus B3-capture + P10j-comments candidate
+(`bb77075`, exactly based on `a8286bd`, reviewed CLEAR, parent sim+lint exit
+0) is READY on `plus/b3-capture-recovery` and **not** on main: serial
+integration, CI/gates, and artifact handoff need separate authorization.
+Summary: `session-handoff-2026-09-03.md`.
+
 **2026-09-02 handoff:** the [partial hardware report and proposed queue](hardware-evidence-2026-09-02.md)
 take precedence over the older checkpoint targets below. Amazing Demo's Live
 blanking defect appears fixed and Burnin' Rubber's right-edge sprite defect is

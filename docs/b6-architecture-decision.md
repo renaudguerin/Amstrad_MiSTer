@@ -96,7 +96,12 @@ reset (the `else if(reset) model <= menu_model` assignment), applied via
 
 ## B1 follow-up sequence
 
-The current Live mode is a rejected hardware candidate, not a closure. Its HBLANK window moves
+The current Live mode is a hardware-insufficient candidate, not a closure:
+the 2026-09-01 A/B found it narrower than Full with DSC4/SHAKER still
+failing, while the 2026-09-02 partial retest reports the named Amazing Demo
+symptom **appears fixed** on `Amstrad_20260901_84e6969.rbf` (DSC4/SHAKER
+still failing, possibly changed shapes; see
+[hardware-evidence-2026-09-02.md](hardware-evidence-2026-09-02.md)). Its HBLANK window moves
 the acquisition boundary, so a narrower image is an architectural consequence rather than a
 remaining off-by-one bug. The next useful steps are:
 

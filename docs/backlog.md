@@ -201,9 +201,11 @@ simulation and lint pass, including the B7 mutation matrix. This is
  32-read/≥4-address coverage, TV80-surrogate CPU, and stash limits retained.
 
 Unfinished capture work is preserved alongside shared FDC work in stash
-`0fe18a4513a47e4f21e0f504f002673a853388c3`. It is not part of the accepted
-foundation. Recover only owned paths and coordinate the overlapping P10 harness
-edits; the [next-session queue](hardware-evidence-2026-09-02.md#proposed-next-session--not-started)
+`0fe18a4513a47e4f21e0f504f002673a853388c3`, which stays intact. The bounded
+B3 capture slice is recovered and reviewed only on the Plus branch
+(`bb77075`, based exactly on main `a8286bd`, READY pending separately
+authorized integration — not on main); the six stashed u765 pre-edge tests
+remain unaccepted. The [next-session queue](hardware-evidence-2026-09-02.md#proposed-next-session--not-started)
 keeps FDC acceptance explicitly shared with classic AMSDOS.
 
 Runs on a laptop with no MiSTer attached, and gives cycle-level visibility and bisectability

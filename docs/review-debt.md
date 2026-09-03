@@ -1,32 +1,43 @@
 # Independent review debt
 
-## Open rows
+## Pending integration / review-complete rows (zero open review findings)
 
-- **Plus P10j primitive/model contract notes — OPEN LOW, Claude Opus 5 high,
-  2026-08-31; confirmed still open by read-only review 2026-09-03.** A guarded
-  Claude exact-tip review at integration SHA `bf1e785`
-  found no defect in the final CLOCK1 (`1248d06`, originally `db60f8d`) or
-  supported collision-mode (`cd56d66`, originally `c047a7d`) corrections. It
-  independently checked primitive legality, even/odd and packed-pixel mapping,
-  one-edge latency, reset-preserved storage, `files.qip`, and the exact-fit
-  provenance. Three low contract/coverage notes keep the verdict technically
-  NOT CLEAR: the behavioral same-port read/write result differs from the M10K
-  NEW_DATA setting but is unreachable while SNA drain holds CPU reset; the
-  constant-zero lint stub cannot validate primitive data semantics; and
-  `host_addr=eff_addr` assumes the same CPU-reset invariant during SNA writes.
-  A 2026-09-03 read-only pass at `a98590a` confirmed all three remain
-  undocumented (`rtl/plus/plus_sprite_ram.v:15-16,199-201`,
-  `rtl/plus/asic_regs.v:197-199,580`) and reported no production defect.
-  Clearance is blocked only on the bounded remediation: a 3–5 line comment at
-  the `plus_sprite_ram` boundary (collision-unreachable invariant, NEW_DATA vs
-  behavioral divergence, exact-fit authority `33392854459`) plus a one-line
-  invariant at the `asic_regs.v:197` `eff_addr` selection, with source
-  verification. No known production RTL defect remains. Full scope, initial Gemini
-  3.7 Flash high review provenance, rejected intermediate fits, and exact
-  Quartus evidence: `docs/plus/p10-review-debt-status-2026-08-31.md`.
+- **Plus P10j primitive/model contract notes — OPEN on main; independently
+  CLEARED on the prepared Plus branch (READY, pending integration).**
+  The 2026-08-31 Opus 5 high exact-tip review at `bf1e785` found no defect
+  but kept the verdict NOT CLEAR on three low contract/coverage notes
+  (behavioral same-port read/write vs M10K NEW_DATA unreachability, lint-stub
+  coverage, `host_addr=eff_addr` reset invariant), confirmed still
+  undocumented by the 2026-09-03 read-only pass at `a98590a`. The bounded
+  remediation (comment-only notes in `plus_sprite_ram.v`/`asic_regs.v` plus
+  the SNA-drain → apply-barrier → CPU-reset-hold → decoupled-ASIC-reset
+  source chain) is implemented as Plus commit `3db81d0` and independently
+  verified CLEAR by Gemini 3.8 Flash high on 2026-09-03 — but **`3db81d0`
+  is not on main**. It is READY on `plus/b3-capture-recovery` (`bb77075`,
+  based exactly on main `a8286bd`; `git show 3db81d0 --stat` from a clone
+  containing the Plus branch) awaiting separately authorized serial
+  integration. This row clears on main when that integration lands; no
+  production RTL defect is claimed meanwhile. Full scope and exact Quartus
+  evidence: `docs/plus/p10-review-debt-status-2026-08-31.md`.
   Read-only confirmation: `docs/plus/plus-review-2026-09-03.md` §4.
 
-**Status: one independent-review debt row is open.** The validation residuals retained in
+- **Plus B3 bounded frame capture — CLEARED on the prepared Plus branch
+  (READY, pending integration); not on main.** Plus commit `bb77075`
+  (base `a8286bd`) adds steady-state capture over the real P10 cartridge
+  path with fail-closed CLI, atomic-exclusive output, and self-equality
+  evidence only. Gemini 3.8 Flash high independent review is CLEAR with one
+  non-blocking test-tightening suggestion (filesystem-level dangling-symlink
+  target/link assertion). Parent `make -C sim` and `make -C sim lint` on
+  exact `bb77075` both exit 0 (2026-09-03). Range-diff proves the reviewed
+  patches unchanged. Inspect via `git show bb77075 --stat`; no Plus-branch
+  doc path is linked here because those paths do not exist on main. This
+  becomes a cleared main row only after authorized integration. Summary in
+  `docs/session-handoff-2026-09-03.md`.
+
+**Status: zero unresolved independent-review findings on the reviewed
+candidates; two review-CLEAR integration items remain (P10j `3db81d0` and B3
+`bb77075`), source changes NOT in main yet, READY at `bb77075` pending
+separately authorized integration.** The validation residuals retained in
 the cleared rows below are not hardware evidence and do not reopen local RTL/test review.
 A CLEAR verdict on source/test review is never hardware closure.
 
