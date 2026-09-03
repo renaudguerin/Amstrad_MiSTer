@@ -49,6 +49,9 @@ struct FdcCpuLatchRead {
 	uint8_t mb_bus;
 	uint8_t msr;
 	uint8_t state;
+	uint8_t m_data;
+	uint8_t buff_wait;
+	uint16_t bytes_left;
 };
 
 std::vector<uint8_t> build_cpr_image(const std::vector<Chunk> &chunks, const std::string &form_type = "AMS!") {
@@ -185,6 +188,9 @@ public:
 				static_cast<uint8_t>(dut.dbg_cpu_di_mb_bus),
 				static_cast<uint8_t>(dut.dbg_cpu_di_msr),
 				static_cast<uint8_t>(dut.dbg_cpu_di_fdc_state),
+				static_cast<uint8_t>(dut.dbg_cpu_di_m_data),
+				static_cast<uint8_t>(dut.dbg_cpu_di_buff_wait),
+				static_cast<uint16_t>(dut.dbg_cpu_di_bytes_left),
 			});
 		}
 
@@ -861,6 +867,70 @@ void test_real_u765_edsk_read() {
 	          << static_cast<unsigned>(h.fdc_results[0]) << "/"
 	          << static_cast<unsigned>(h.fdc_results[1]) << "/"
 	          << static_cast<unsigned>(h.fdc_results[2]) << std::dec << '\n';
+	// DIAG (bounded first-divergence record, 2026-09-03; recovered from the
+	// preserved experiment's early observe-only revision, not its later
+	// synthetic stop/resume workaround): poll-spin histogram,
+	// shifted-payload signature, and raw result-slot reads. Prints only;
+	// asserts nothing. Result slots are phase-unverified (controller state
+	// 13 at the trace checkpoint, before COMMAND_READ_RESULTS): overrun is
+	// UNKNOWN from this trace. The XFAIL below is unchanged in strength.
+	{
+		unsigned data_blocks = 0;
+		unsigned blocks_with_spin = 0;
+		unsigned polls_since_data = 0;
+		unsigned max_polls_per_block = 0;
+		for (const auto &latch : h.fdc_cpu_latch_reads) {
+			if (latch.addr == 0xfbdf) {
+				++data_blocks;
+				max_polls_per_block = std::max(max_polls_per_block,
+				                               polls_since_data);
+				if (polls_since_data > 1) ++blocks_with_spin;
+				polls_since_data = 0;
+			} else if (latch.addr == 0xfbde) {
+				++polls_since_data;
+			}
+		}
+		std::cout << "  DIAG polls: data_blocks=" << data_blocks
+		          << " blocks_with_spin(>1 poll)=" << blocks_with_spin
+		          << " max_polls_per_block=" << max_polls_per_block
+		          << " total_latches=" << h.fdc_cpu_latch_reads.size()
+		          << '\n';
+		unsigned shift_match = 0;
+		for (unsigned i = 1; i < 512; ++i)
+			if (h.fdc_payload[i] == h.disk_image[0x200 + i - 1])
+				++shift_match;
+		std::cout << "  DIAG shift: payload[0]=0x" << std::hex
+		          << static_cast<unsigned>(h.fdc_payload[0])
+		          << " disk[0x200]=0x"
+		          << static_cast<unsigned>(h.disk_image[0x200])
+		          << " shifted_bytes_matching=" << std::dec << shift_match
+		          << "/511 last_disk_byte=0x" << std::hex
+		          << static_cast<unsigned>(h.disk_image[0x3ff]) << std::dec
+		          << '\n';
+		unsigned shown = 0;
+		for (unsigned i = 1; i < 512 && shown < 8; ++i) {
+			if (h.fdc_payload[i] != h.disk_image[0x200 + i - 1]) {
+				std::cout << "  DIAG shift deviation at byte " << i
+				          << ": got 0x" << std::hex
+				          << static_cast<unsigned>(h.fdc_payload[i])
+				          << " shifted-expect 0x"
+				          << static_cast<unsigned>(
+				                 h.disk_image[0x200 + i - 1])
+				          << " unshifted-expect 0x"
+				          << static_cast<unsigned>(h.disk_image[0x200 + i])
+				          << std::dec << '\n';
+				++shown;
+			}
+		}
+		std::cout << "  DIAG result-slots (raw, phase-unverified):";
+		for (unsigned i = 0; i < 7; ++i)
+			std::cout << (i ? "/" : " ") << std::hex
+			          << static_cast<unsigned>(h.fdc_results[i]);
+		std::cout << std::dec
+		          << " results_shifted_by_one="
+		          << ((h.fdc_results[0] == h.disk_image[0x3ff]) ? 1 : 0)
+		          << '\n';
+	}
 	require(h.dut.dbg_motor, "Plus motor alias did not enable Drive A");
 	require(h.fdc_sd_reads > mount_reads,
 	        "READ DATA did not issue a post-reset SD request");
@@ -929,8 +999,12 @@ void test_real_u765_edsk_read() {
 	          << " at payload byte 0; exact CPU latch saw selected u765 data/state/MSR="
 	          << static_cast<unsigned>(data_latch.cpu_di) << "/"
 	          << static_cast<unsigned>(data_latch.state) << "/"
-	          << static_cast<unsigned>(data_latch.msr)
-	          << " after status latch=" << static_cast<unsigned>(status_latch->cpu_di)
+          << static_cast<unsigned>(data_latch.msr)
+          << " m_data/buff_wait/bytes_left="
+          << static_cast<unsigned>(data_latch.m_data) << "/"
+          << static_cast<unsigned>(data_latch.buff_wait) << "/"
+          << static_cast<unsigned>(data_latch.bytes_left)
+          << " after status latch=" << static_cast<unsigned>(status_latch->cpu_di)
 	          << "/" << static_cast<unsigned>(status_latch->state) << std::dec << '\n';
 	std::cout << "PASS: production decode/command/media request; payload divergence retained as XFAIL"
 	          << std::endl;
