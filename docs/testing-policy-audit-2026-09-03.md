@@ -166,25 +166,100 @@ differential fixtures with honest caveats (§5) are not mirrors.
 
 ## 5. UNCERTAIN / residuals (no change; owners noted)
 
-1. **U1 — `p1_video_test_top.v` `[production copy]` blocks.** Fixture
-   copies two motherboard always-blocks verbatim ("must stay textually in
-   sync"). The asserted contract (Plus pixel phase vs classic
-   CRTC+ga40010 oracle slice) is differential against an independent
-   oracle, so the test is not a mirror — but a motherboard edit that
-   forgets the copy silently voids the premise. No bounded fix available
-   (instantiating the full motherboard here duplicates `p1_mobo_bench`/
-   P10). Residual: consider a textual-sync CI grep or a comment pointing
-   at the owning bench. Owner: Plus stream.
+1. **U1 — `p1_video_test_top.v` `[production copy]` blocks: VERIFIED
+   2026-09-03 (read-only comparison, no fixture/test edits).** Compared
+   `sim/plus/p1_video_test_top.v:192-204` (VRAM fetch) and `:218-224`
+   (word assembler) against `rtl/Amstrad_motherboard.v:667-685` and
+   `:654-660`, with bench bindings from `p1_pixel_phase_test.cpp` and
+   the top's port map.
+   - Word assembler: equivalent modulo naming. Same latch mapping
+     (`[7:0]` on `cclk_en_p`, `[15:8]` on `cclk_en_n`); bench
+     `!RESET_N` ≡ production `reset`; bench strobes come from its own
+     `asic_ga_timing` instance, production's from `plus_cclk_en_p/n` —
+     same source contract (lockstep-pinned by `asic_ga_timing_diff`).
+   - VRAM fetch strobes/data path: equivalent under bench bindings.
+     Identical `vram_bs` set (`!ras_n & !cas_old & cas_n`) and sample
+     (`!ras_n & !cas_n`) expressions and raw-path byte order
+     (`vram_bs ? [15:8] : [7:0]`). Omitted branches are vacuous here:
+     DMA (`plus_mode && dma_ram_req`, motherboard `:673`) — no DMA
+     engine in the bench; shift path
+     (`(sync_filter != 2'd2) & crtc_shift`, motherboard `:679`) — bench
+     hardwires `sync_filter = 2'd2`, selecting the same raw `else`
+     branch. `ma`/`ra` ≡ `ma_sel`/`ra_sel` under the bench's Plus-only
+     wiring; `vram_din_shift` is declared-but-unused on both sides of
+     the raw path.
+   - Documented non-equivalence (not drift): the address-register
+     branch placement differs — fixture latches `vram_addr_r` in the
+     `!cpu_n` branch (`:195-198`), production latches `vram_addr` in
+     the `else` branch (`:671-676`). Lineage anchor
+     (`git show 2a5dd4e` both files): the motherboard already latched
+     in the `else` branch when the bench was born, so the header's
+     "verbatim copy / must stay textually in sync" claim was never
+     literally true — this is a day-one modelling adaptation
+     (zero-latency fake backend needs the address ahead of the CAS
+     window; renamed signals; fake `vram_din_plus` vs the `vram_din`
+     port), not rot from a later production edit.
+   - Contract standing: p1a/p1b/p1c remain differential against an
+     independent oracle (classic CRTC type-0 + ga40010 netlist slice,
+     self-describing VRAM tags, C++ `pat()` re-derived in the test),
+     so the test earns its place under the policy regardless of copy
+     fidelity. Both bench sides share the same latch-window
+     discipline, so the verdicts are insensitive to the placement
+     difference; absolute production VRAM timing is owned by
+     `p1_mobo_bench` (`p1_mobo_bench_top.v:44` elaborates the real
+     `Amstrad_motherboard`). No fixture/test change made (brief
+     forbids inventing a violation from duplication and
+     textual-scraping tests).
+    - Next action CLOSED 2026-09-03 (comment-only, this branch): the top's sync-claim header now names the
+      maintained functional points (strobe→latch mapping, byte order,
+      reset behaviour), records the day-one zero-latency-model
+      address-latch adaptation, and cross-references `p1_mobo_bench`
+      as the production-wiring owner. Proof limit retained honestly:
+      absolute latch-window equivalence (MA/RA stability across the
+      `cpu_n` window per `asic_ga_timing` phasing) is not proven
+      here; if ever needed, the executable slice is a waveform-level
+      check of MA/RA vs `cpu_n`/CAS phasing, not a grep test. Owner:
+      Plus stream.
 2. **U2 — MAME as secondary oracle** (`asic_sprites_test.cpp`: Y-compare,
    render order corroborated against MAME). Primary is KT measured
    formulas; MAME is corroboration only, consistent with B5's ranking.
    No action; do not promote MAME to sole oracle anywhere.
-3. **U3 — `rom_loader_route` non-ROM-index behaviour.** Old inline code
-   ran the `else if (ioctl_index)` assignment branch for indices the new
-   code gates with `rom_download`; test and RTL agree with each other,
-   directed cases pin `rom_active=false`. Whether old≡new there is a
-   don't-care or a preserved quirk was not decided. No action; flagged
-   for the owning stream if that path is ever touched.
+3. **U3 — `rom_loader_route` non-ROM-index behaviour: VERIFIED
+   EQUIVALENT 2026-09-03 (report-only, no implementation).** Compared
+   the old inline route (`git show 44eb1b7^:Amstrad.sv`, `always`
+   block) against the new gated route (`Amstrad.sv:374-396`,
+   `rtl/rom_loader_route.v:17-51`) and downstream consumers
+   (`Amstrad.sv:398-413`).
+   - Correction to the audit premise: the old `else if(ioctl_index)`
+     body was nested inside
+     `else if((rom_download && ioctl_wr) || dan_write_accepted ||
+     sna_mem_wr)` with the `sna_mem_wr`/`dan_write_accepted` branches
+     taking priority above it — so it executed only when
+     `rom_download && ioctl_wr && !sna && !dan && index != 0`, and
+     `rom_download=true` already implies a ROM index. The old code
+     NEVER wrote `boot_a`/`boot_bank` for non-ROM indices on the ROM
+     path; the "old ran the branch for indices the new code gates"
+     reading is withdrawn.
+   - New path is identical: outer chain unchanged (`:374`), inner
+     `else if (rom_download)` + `rom_route_valid` gate (`:389-394`);
+     module combinational outputs match the old formulas
+     (`:29-32` nonzero-index bank/address; `:35-50` index-0 chunk
+     map); the module's default `bank=0` is masked by `valid=0` so the
+     sequential hold is preserved (the old second-case default
+     likewise held `boot_bank` while clearing `romdl_wait`).
+     `rom_download` predicate and promote expression are textually
+     identical old vs new.
+   - Downstream: `boot_wr`/`rom_map`/promotion are all gated by
+     `romdl_wait`/`rom_download` (`:398-413`), and `romdl_wait` is
+     never set via the ROM path for non-ROM indices — so the retained
+     `boot_a`/`boot_bank` values are don't-care, never strobed.
+     Active strobes vs retained address distinguished; no preserved
+     quirk.
+   - Standing: the `legacy_route` exhaustive equivalence plus the
+     directed `rom_active=false` cases remain an honest refactor
+     characterization. No implementation need. Next slice: none
+     required; if that path is ever touched, the owner re-checks the
+     outer gating first.
 4. **U4 — GA40010 legacy bench** (`ga40010_tb.cpp`) is built but not run
    by the default gate (`test:` runs only `r2jit`). Upstream-inherited;
    leaving as-is (running it would add an unowned gate, deleting it
@@ -264,17 +339,37 @@ pending authorized integration).
 - Residuals for owner: U1–U4 above; stashed u765 pre-edge
   discriminator (`0fe18a4…`); B3/P10j integration (`bb77075`) awaiting
   authorization; private assets and unrelated work untouched.
+- Follow-up pass 2026-09-03 (U1/U3 verification, this branch): read-only
+  comparison only — no RTL/fixture/test/build-manifest change, so no
+  simulation, lint, soak, or independent review was required or run;
+  all §8 gates/receipts above stand unmodified.
 
 ## 9. Prioritized findings (summary)
 
 1. **Done:** V1 leaf consolidation committed (`c04991ea`) — Plus group;
    Gemini follow-up CLEAR, B1 repaired; parent `make -C sim` / `lint`
    reruns exit 0.
-2. **Next (Plus owner):** U1 production-copy sync guard (cheap grep or
-   cross-reference; not this pass).
+2. **Done (this pass, documentary only):** U1 verified — no p1
+   fixture drift demonstrated (branch-placement difference is a day-one
+   modelling adaptation, lineage `2a5dd4e`; omitted DMA/shift branches
+   vacuous under bench bindings); U3 verified equivalent (old index
+   branch was already outer-gated by `rom_download`, retained
+   address is don't-care). No fixture/test/production edits, so no
+   simulation or independent doc review per brief. Named next slice:
+   Plus owner rewords the p1 top's sync-claim header to functional
+   sync points + `p1_mobo_bench` cross-reference (no grep test).
 3. **Shared/FDC owner:** stashed u765 pre-edge acceptance per the
    next-session queue; FDC acceptance stays shared with classic AMSDOS.
 4. **Process:** the suite is in good shape — oracles are documentary and
    independent (ACCC/Arnold/KT/EDSK/netlist), differentials pin seams,
    and the B9 precedent (dedup + archive + no-review-on-docs) is being
    followed. The main risk is fixture-copy drift (U1), not bloat.
+
+## Follow-up acceptance — 2026-09-03
+
+Muse resolved U1/U3 and corrected the fixture comments (runs
+`20260903T120747Z-27506-03f0` and `20260903T121150Z-30754-6277`).
+The coordinator verified identical executable contents after removing comments
+and whitespace, and reran `make -C sim` and `make -C sim lint`; both exited 0
+(`.coord-inputs/u1-parent-final-{sim,lint}.log`). This follow-up changes only
+comments and documentation; no independent code review was required.
