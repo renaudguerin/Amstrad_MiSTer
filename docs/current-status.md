@@ -1,5 +1,15 @@
 # Current implementation status
 
+**Continuation, 2026-09-03:** local testing-policy candidate `c12c264` and shared FDC
+held-read test `c1a8ff9` are committed on isolated branches with simulation/lint passing;
+Plus READY remains `bb77075`. None is integrated. The uncommitted CPU-model candidate
+passes its focused test and lint but makes P10 fail at an obsolete XFAIL because all 512
+payload bytes now match; seven result bytes still need phase-verified acceptance.
+Claude hit its session limit and the single authorized retry failed, so implementation
+stopped as instructed. B10 has no code changes. Exact branches, recovery files, evidence,
+review debt, reference preservation, and repair backlog are in
+[the continuation handoff](session-continuation-2026-09-03.md).
+
 **Main source tip: `a8286bd` (docs-only B6/B10 wording/comments). This handoff
 is docs-only and adds no new validated source.** The Plus READY tip below is
 **not** on main: serial integration, CI/gates, and artifact handoff remain
