@@ -60,3 +60,7 @@ docs/accuracy/extract/
 # Local strategy/positioning notes: public repo, keep private.
 docs/strategy-notes.local.md
 docs/**/*.local.md
+
+/docs/screenshots/
+/docs/references/
+/.fdc-scratch/

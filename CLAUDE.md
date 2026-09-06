@@ -21,9 +21,9 @@ Stream workflow is formalized in project skills (`.agents/skills/`):
 - **Start a task**: Invoke `$stream-start <accuracy|plus> [topic]`. Re-anchors the stream worktree on `accc-review-and-fixes` and cuts `<stream>/<topic>` (autofills next todo if omitted; no baseline simulation).
 - **Finish a task**: Invoke `$stream-finish <accuracy|plus>`. Performs non-fast-forward merge into `accc-review-and-fixes`, resolves conflicts, semantically reconciles shared docs (`current-status.md`, `review-debt.md`, golden hashes), runs `make -C sim` once (skipped for doc-only changes), and pushes to origin to trigger CI synthesis.
 - **Coordinate parallel tasks**: Invoke `$stream-orchestrate` when the user explicitly asks
-  one Codex Desktop task to create and supervise separate accuracy/Plus conversations. It
-  opens tasks against the saved project, directs them to the fixed stream worktrees,
-  exchanges peer IDs and discoveries, and serializes `$stream-finish` integration.
+  a coordinator task to create and supervise separate accuracy/Plus conversations across
+  supported harnesses (Codex, Antigravity, Claude, OpenCode). It launches tasks against the
+  fixed stream worktrees, exchanges peer IDs and discoveries, and serializes `$stream-finish` integration.
 
 ### Parallel stream coordination
 

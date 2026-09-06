@@ -1,18 +1,17 @@
 ---
 name: stream-orchestrate
-description: Creates and supervises parallel Codex Desktop tasks for the accuracy and Plus streams, coordinates shared-file ownership and discoveries, and serializes stream-finish integration. Use when the user explicitly asks one task to open or manage separate stream conversations; do not use for ordinary same-task subagents.
+description: Creates and supervises parallel tasks for the accuracy and Plus streams across supported harnesses (Codex Desktop, Antigravity, Claude Code, OpenCode), coordinates shared-file ownership and discoveries, and serializes stream-finish integration. Use when the user explicitly asks one coordinator task to open or manage separate stream conversations; do not use for ordinary same-task subagents.
 ---
 
 # stream-orchestrate
 
-Turn one explicit user request into coordinated, user-visible Codex Desktop tasks for the
-dedicated accuracy and Plus worktrees. The coordinator owns decomposition, cross-task
-messaging, integration order, and final acceptance. Stream tasks own implementation only in
-their assigned worktree.
+Turn one explicit user request into coordinated stream tasks for the dedicated accuracy and
+Plus worktrees. The coordinator owns decomposition, cross-task messaging, integration order,
+and final acceptance. Stream tasks own implementation only in their assigned worktree.
 
-This skill may create Desktop tasks because invoking it or explicitly asking to open stream
+This skill may create tasks/subagents because invoking it or explicitly asking to open stream
 conversations is authorization to do so. Do not create tasks from a merely related coding
-request, and do not use separate Desktop tasks for routine same-task delegation.
+request, and do not use separate tasks for routine same-task delegation.
 
 ## Inputs
 
@@ -27,44 +26,50 @@ request, and do not use separate Desktop tasks for routine same-task delegation.
 At least one stream brief is required. Preserve the user's wording and acceptance criteria;
 do not move work between streams merely to balance workload.
 
-## Fixed topology
+## Fixed Topology
 
-- Main project: `/Users/renaudg/code/Amstrad_MiSTer`, branch
-  `accc-review-and-fixes`.
+- Main project: `/Users/renaudg/code/Amstrad_MiSTer`, branch `accc-review-and-fixes`.
 - Accuracy task: `/Users/renaudg/code/Amstrad_MiSTer-accuracy`, `accuracy/*`.
 - Plus task: `/Users/renaudg/code/Amstrad_MiSTer-plus`, `plus/*`.
 
-Use the Codex project whose saved path is exactly the main project. Create each task with the
-saved project's **local** environment, then tell it to run every stream command with the
-fixed worktree as `workdir` or through `git -C`. Do not request a generated Codex worktree:
-it would bypass this repository's stream partition.
+Every stream command must run with the fixed worktree as `workdir`/`Cwd` or through `git -C`.
+**Do not request or generate ephemeral/isolated worktrees**: doing so would bypass this
+repository's stream partition.
 
-The coordinator uses the Codex Desktop task capabilities directly: `list_projects` to
-resolve the saved project, `list_threads` and `read_thread` to detect existing owners,
-`create_thread` with
-`{type: "project", projectId, environment: {type: "local"}}`,
-`send_message_to_thread` for relayed peer/lease messages, and `wait_threads` for bounded
-supervision.
+## Harness Dispatch
 
-## 1. Pre-flight and task creation
+The core coordination invariants below apply across all hosts. Before spawning stream tasks,
+inspect your available tools and read the matching harness adapter:
+
+| Available Tool Primitives | Host Harness | Adapter Reference |
+| :--- | :--- | :--- |
+| `create_thread`, `wait_threads`, `send_message_to_thread` | OpenAI Codex Desktop | [references/codex.md](references/codex.md) |
+| `invoke_subagent`, `manage_subagents`, `send_message` | Google Antigravity / AGY | [references/antigravity.md](references/antigravity.md) |
+| `Agent`, `ask-claude` | Claude Code / Bridges | [references/claude.md](references/claude.md) |
+| `task` (`external_directory`) | OpenCode | [references/opencode.md](references/opencode.md) |
+
+Only load the reference for your active host harness.
+
+## 1. Pre-flight and Task Creation
 
 1. Read `AGENTS.md`, `docs/current-status.md`, and `docs/implementation-roadmap.md`. Check
    the main and requested stream worktrees for uncommitted changes or an in-progress Git
    operation. Preserve ignored/private local assets.
-2. Use `list_threads` and, when needed, `read_thread` to detect an active task claiming a
-   requested stream. Cross-check with `git worktree list --porcelain`, the stream worktree's
-   current branch, and whether that branch is already an ancestor of the integration tip.
-   Do not create a duplicate writer. Reuse an active task only when the user asked to
-   continue it; otherwise report the ownership conflict before mutation. A clean branch with
-   commits not yet integrated is unfinished ownership even when no task is active.
+2. Detect active tasks claiming a requested stream using your harness adapter. Cross-check
+   with `git worktree list --porcelain`, the stream worktree's current branch, and whether
+   that branch is already an ancestor of the integration tip. Do not create a duplicate writer.
+   Reuse an active task only when the user asked to continue it; otherwise report the ownership
+   conflict before mutation. A clean branch with commits not yet integrated is unfinished
+   ownership even when no task is active.
 3. Record the exact starting `accc-review-and-fixes` SHA and choose the integration order.
    In `auto`, honor data dependencies first; otherwise finish accuracy before Plus so the
    Plus task can rebase onto the classic/shared baseline.
 4. Before task creation, assign initial ownership for every shared area named or reasonably
    implied by the briefs. Embed that split in both initial prompts; do not defer the initial
    ownership decision until peer IDs exist.
-5. Create one Codex Desktop task per requested stream. Omit model/effort overrides so each
-   task uses the user's configured defaults. The initial prompt must include:
+5. Create one stream task/subagent per requested stream following your harness adapter.
+   Omit model/effort overrides so each task uses the user's configured defaults. The initial
+   prompt must include:
    - the complete stream-specific brief and acceptance gates;
    - the exact fixed worktree path and a prohibition on editing the other stream worktree;
    - an instruction to invoke `$stream-start <stream> [topic]` with the pre-flight SHA as
@@ -78,33 +83,27 @@ supervision.
    - an instruction to stop at a committed, reviewed, gated **READY** handoff. The child
      must not push, dispatch CI, or invoke `$stream-finish`; the coordinator owns those
      actions when `finish: auto` is directly authorized.
-6. Task creation is asynchronous. Resolve a real task ID before messaging it; never pass a
-   provisional client ID to task tools.
-7. After all task IDs are known, send each task the peer task ID, title, and confirmed
-   ownership split. Include the coordinator task ID when it is available; otherwise the
-   coordinator collects milestones through bounded waits/reads. State plainly when no peer
-   exists. Tasks buffer early milestones until this follow-up and do not negotiate shared
-   ownership directly before it. Report the created task links/IDs to the user.
+6. Once task/subagent IDs are resolved, send each task the peer task ID, title, and confirmed
+   ownership split. Include the coordinator task ID when available. State plainly when no peer
+   exists. Tasks buffer early milestones until this follow-up. Report the created task links/IDs
+   to the user.
 
-### Writability handshake
+### Writability Handshake
 
-Tasks created against the main saved project may need managed approval to write a sibling
-stream worktree. Before `$stream-start` or any real edit, each child must prove both checkout
-and shared Git-metadata writes in its exact assigned path:
+Tasks created against the main workspace may need managed approval to write a sibling stream
+worktree. Before `$stream-start` or any real edit, each child must prove both checkout and
+shared Git-metadata writes in its exact assigned path:
 
-1. Confirm the stream worktree is clean.
-2. Use `apply_patch` to add a uniquely named `.codex-stream-write-probe-<run-id>` marker in
-   that worktree.
-3. Run `git add -N` for that marker, then unstage it with a path-scoped reset.
-4. Delete the marker with `apply_patch` and verify the worktree is clean again.
+1. Confirm the stream worktree is clean (`git status --porcelain`).
+2. Add a uniquely named `.stream-write-probe-<run-id>` marker in that worktree.
+3. Run `git add -N` for that marker, then unstage it with a path-scoped reset (`git reset HEAD`).
+4. Delete the marker and verify the worktree is clean again.
 
-Use normal scoped managed escalation when required. If any step is denied or leaves drift,
-the child reports **BLOCKED-WRITABILITY**, names the exact leftover path or Git state, and
-stops without changing branches. The coordinator does not treat task creation as successful
-until every child passes this handshake. This fail-closed probe is required because the
-saved project root and fixed stream worktrees are siblings.
+If any step is denied or leaves drift, the child reports **BLOCKED-WRITABILITY**, names the
+exact leftover path or Git state, and stops without changing branches. The coordinator does
+not treat task creation as successful until every child passes this handshake.
 
-## 2. Shared-file and discovery protocol
+## 2. Shared-file and Discovery Protocol
 
 Stream-local RTL, tests, and stream-specific documents belong to their stream. Treat these
 as shared unless the initial decomposition explicitly assigns one owner:
@@ -124,12 +123,10 @@ its peer with:
 - the proposed owner;
 - any commit SHA the peer must consume.
 
-The coordinator relays milestone and ownership messages between tasks by default. Direct
-child-to-child messaging is only an optimization after the coordinator confirms both
-children expose that capability. The receiver acknowledges the ownership decision or raises
-a concrete conflict. A task may continue disjoint work while waiting, but must not guess
-ownership. Keep relayed messages concise, human-readable, and useful in both visible task
-histories.
+The coordinator relays milestone and ownership messages between tasks by default. The receiver
+acknowledges the ownership decision or raises a concrete conflict. A task may continue disjoint
+work while waiting, but must not guess ownership. Keep relayed messages concise, human-readable,
+and useful in visible task histories.
 
 Each task reports these milestones when applicable:
 
@@ -141,7 +138,7 @@ Each task reports these milestones when applicable:
 
 ## 3. Supervision
 
-Use bounded multi-task waits for the requested task IDs rather than frequent status polling.
+Supervise tasks according to your harness adapter (bounded waits or reactive message wakeups).
 Read a task when it completes, needs attention, or reports a coordination milestone. Resolve
 scope/ownership questions from the user's original request; do not broaden authority.
 
@@ -149,7 +146,7 @@ If one task fails, preserve the other task's valid work. Retry or redirect only 
 task. Do not let a provider/reviewer failure silently weaken repository review policy: obtain
 another valid review or record review debt as the repository requires.
 
-### Direct-authorization ownership
+### Direct-Authorization Ownership
 
 Keep external mutations in the coordinator that received the user's authorization. Do not
 relay phrases such as "the user authorized push" and ask a child task to treat them as direct
@@ -176,7 +173,7 @@ relayed permission, and do not launch a duplicate reviewer while the coordinator
 is active. A bridge writer additionally requires an explicit file boundary and a confirmed
 single-writer window in the stream worktree.
 
-## 4. Serialized integration lease
+## 4. Serialized Integration Lease
 
 Only one task may mutate or push `accc-review-and-fixes` at a time.
 Execute this section only when `finish: auto` was explicitly authorized by the user.
@@ -204,7 +201,7 @@ When only one stream task exists, the same READY -> coordinator lease -> coordin
 `$stream-finish` protocol applies without peer messaging, provided `finish: auto` was
 explicitly authorized.
 
-## 5. Final report
+## 5. Final Report
 
 Report the task titles/IDs, stream tip SHAs, serialized integration SHA(s), exact CI job
 results, artifacts, hardware-only residuals, and any review debt. If both streams integrate,
