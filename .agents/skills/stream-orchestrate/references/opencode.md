@@ -19,7 +19,7 @@ Use this adapter when running inside **OpenCode** (`task` subagent tool, child s
 ## 2. Task Spawning via `task` Tool
 
 1. **Subagent Invocation**:
-   - Spawn stream tasks using OpenCode's `task` tool (using the general worker agent or `@builder` / `@builder-spark` per project roster).
+   - Spawn stream tasks using OpenCode's `task` tool. Use the host's configured implementation agent: one that can write in the target worktree and be messaged after it starts. Do not hardcode a role name here; they change.
    - If the model supports concurrent tool calls, dispatch both `task` calls in parallel in a single turn.
    - Explicitly pin the subagent to its target worktree via the `workdir` parameter or command flags:
      - Accuracy: `/Users/renaudg/code/Amstrad_MiSTer-accuracy`

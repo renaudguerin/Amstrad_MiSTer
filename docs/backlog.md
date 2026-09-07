@@ -624,3 +624,21 @@ realistic after several hundred commits. Merge `accc-review-and-fixes` into `mas
 minimum land a README on `master` describing the fork's aims, its two work streams, and its
 current state. See `docs/strategy-notes.local.md` (untracked) for the upstream-relationship
 question that sits behind this.
+
+---
+
+## B14. Stream orchestration assumes a fixed three-worktree topology
+
+**Priority: medium. Blocks nothing today; blocks any second harness.**
+
+`$stream-orchestrate` partitions the repository into three fixed worktrees and forbids generated
+ones. That is what makes single-writer ownership checkable, and it is also why the skill runs on
+exactly one harness: Codex Desktop, where a user-visible task can be pointed at an existing
+directory. A 2026-09-07 attempt to add a Claude Code path was abandoned rather than bent around
+the prohibition.
+
+The user's direction is to accept ad-hoc per-task worktrees and redesign from there, which
+reopens single-writer guarantees, cleanup, and whether a coordinator is wanted at all. Full
+statement of the decision, the open questions, and the facts already established:
+`docs/stream-orchestration-revisit-2026-09-07.md`.
+

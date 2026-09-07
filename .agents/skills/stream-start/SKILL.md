@@ -11,7 +11,7 @@ Prepares the dedicated stream worktree for a new task and branches from the inte
 - **`stream`** (required): `accuracy` or `plus`
 - **`topic`** (optional): Short descriptive branch topic (e.g. `f20-type0-c0-timing`, `p10-dma-audio`).
   - **Autofill rule**: If `<topic>` is omitted, read [`docs/current-status.md`](file:///Users/renaudg/code/Amstrad_MiSTer/docs/current-status.md) and [`docs/implementation-roadmap.md`](file:///Users/renaudg/code/Amstrad_MiSTer/docs/implementation-roadmap.md) (or `docs/accuracy/audit-findings.md` / `docs/plus/`) to determine the next pending task for that stream, format a concise slug, and state the chosen topic to the user.
-- **`peer-task`** (optional): Codex task ID for the concurrently running other stream. Omit
+- **`peer-task`** (optional): Harness task/session ID for the concurrently running other stream. Omit
   for an ordinary single-stream task.
 - **`integration-order`** (optional): Integration order assigned by `$stream-orchestrate`.
 - **`starting-base`** (optional): Coordinator's pre-flight integration SHA. Verify it remains

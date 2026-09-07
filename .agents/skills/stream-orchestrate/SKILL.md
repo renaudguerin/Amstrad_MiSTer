@@ -45,10 +45,11 @@ inspect your available tools and read the matching harness adapter:
 | :--- | :--- | :--- |
 | `create_thread`, `wait_threads`, `send_message_to_thread` | OpenAI Codex Desktop | [references/codex.md](references/codex.md) |
 | `invoke_subagent`, `manage_subagents`, `send_message` | Google Antigravity / AGY | [references/antigravity.md](references/antigravity.md) |
-| `Agent`, `ask-claude` | Claude Code / Bridges | [references/claude.md](references/claude.md) |
+| `Agent` (background subagents only) | Claude Code | **Unsupported.** See `docs/stream-orchestration-revisit-2026-09-07.md` |
 | `task` (`external_directory`) | OpenCode | [references/opencode.md](references/opencode.md) |
 
-Only load the reference for your active host harness.
+Only load the reference for your active host harness. If your harness is marked unsupported,
+say so and stop; do not improvise a substitute mechanism.
 
 ## 1. Pre-flight and Task Creation
 
@@ -164,14 +165,11 @@ If the coordinator itself lacks direct authorization or its host requires user a
 surface that prompt once. Do not bounce the action through a child, broaden permission, or
 interrupt valid running work merely to reduce elapsed time.
 
-Apply the same rule to cross-provider code or document export. When the user directly asks
-the coordinator to use a bridge provider, a child may use that route only if its own host
-accepts the task prompt as sufficient authorization. If it refuses before export, the child
-reports the exact committed tip, scope, and proposed brief; the coordinator runs the single
-authorized bridge call and returns its findings. Do not ask the child to reinterpret a
-relayed permission, and do not launch a duplicate reviewer while the coordinator-owned call
-is active. A bridge writer additionally requires an explicit file boundary and a confirmed
-single-writer window in the stream worktree.
+External review or analysis of a stream tip follows the host's own delegation routing. This
+skill adds no approval step of its own to it. Two constraints do belong here: do not start a
+second reviewer on a tip that one is already reviewing, and an external worker permitted to
+write needs an explicit file boundary and a confirmed single-writer window in the stream
+worktree.
 
 ## 4. Serialized Integration Lease
 

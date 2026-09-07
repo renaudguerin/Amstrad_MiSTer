@@ -10,7 +10,7 @@ Finalizes the current stream branch, performs semantic merge into `accc-review-a
 ## Inputs
 - **`stream`** (required): `accuracy` or `plus`
 - **`push`** (optional flag): Push to GitHub origin by default. Pass `--no-push` only if performing an intermediate local merge without triggering synthesis.
-- **`peer-task`** (optional): Codex task ID for the other stream.
+- **`peer-task`** (optional): Harness task/session ID for the other stream.
 - **`integration-base`** (optional): Exact current integration SHA supplied with the
   coordinator's lease. It is issued at finish time, not copied from task creation. In a
   coordinated run, do not proceed without it.
