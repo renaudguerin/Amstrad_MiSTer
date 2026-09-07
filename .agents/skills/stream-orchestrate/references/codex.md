@@ -1,55 +1,49 @@
-# Codex Desktop Harness Adapter
+# Codex Desktop
 
-Use this adapter when running inside **OpenAI Codex Desktop** (`create_thread`, `list_threads`, `send_message_to_thread`, `wait_threads`).
+Use loaded task tools, not guessed API fields. `list_projects` resolves the saved Git project;
+`list_threads`/targeted `read_thread` identify existing task owners. Cross-check actual Git
+worktrees, branch diffs and task briefs. Task titles are not authoritative scope records.
 
----
+## New coordinated tasks
 
-## 1. Pre-flight & Task Creation
+When the user requests new tasks, `create_thread` accepts a project target with
+`environment: {"type": "worktree"}`. Use the returned project ID, not a hardcoded path.
+Only set `startingState` when the user explicitly requested a particular Git starting state,
+as required by the tool schema. Otherwise omit it, pass the intended integration SHA in the
+initial brief, and have `stream-start` verify and prepare the fresh branch in the resulting
+checkout before editing. Never assume the project's default branch equals integration.
 
-1. **Resolve Saved Project**:
-   - Call `list_projects` to resolve the saved project matching `/Users/renaudg/code/Amstrad_MiSTer`.
-2. **Detect Active Owners**:
-   - Call `list_threads` and, when needed, `read_thread` to detect an active task claiming a requested stream.
-   - Cross-check with `git worktree list --porcelain`, the stream worktree's current branch, and whether that branch is already an ancestor of the integration tip.
-   - Do not create a duplicate writer. Reuse an active task only when the user asked to continue it; otherwise report the ownership conflict before mutation.
-3. **Spawn Stream Threads**:
-   - Create one Codex Desktop task per requested stream using:
-     ```json
-     {
-       "type": "project",
-       "projectId": "<resolved-project-id>",
-       "environment": {
-         "type": "local"
-       }
-     }
-     ```
-   - Omit model/effort overrides so each task uses the user's configured defaults.
-   - Tell each task to run every stream command with the fixed worktree as `workdir` or through `git -C`. **Do not request a generated Codex worktree**: it would bypass this repository's stream partition.
-   - Initial prompt must include the brief, fixed worktree path, starting integration SHA, shared ownership split, prohibition on nested delegation, the writability probe, and the requirement to stop at READY.
-4. **Resolve Task IDs & Exchange Peer Info**:
-   - Task creation is asynchronous. Resolve a real task ID before messaging it; never pass a provisional client ID to task tools.
-   - After all task IDs are known, call `send_message_to_thread` with the peer task ID, title, confirmed ownership split, and coordinator task ID. Report created task links/IDs to the user.
+Omit model/effort overrides unless requested. Creation may return a provisional
+`clientThreadId`: do not pass that to task tools requiring a real `threadId`. Resolve setup
+completion using the available task listing/status tools, then record actual checkout and
+base from STARTED. Include the app's created-task directive in the final response.
 
----
+Use bounded `wait_threads` calls and returned cursors; inspect full history only when needed.
+Relay discoveries with `send_message_to_thread`, and retain direct publication authorization
+in the coordinator. Adding tasks adopts the selected existing task without recreating it.
 
-## 2. Writability Handshake
+## Starting in the current conversation
 
-Tasks created against the main saved project may need managed approval to write a sibling stream worktree. Before `$stream-start` or any real edit, each child must prove both checkout and shared Git-metadata writes in its exact assigned path:
+An existing Codex-managed worktree is the task checkout; do not create a nested replacement.
+If the current conversation runs directly in the shared integration checkout, prefer the
+app's current-task worktree/handoff UI. With the currently exposed task tools,
+`handoff_thread` can move another task but cannot move the calling task itself.
+`stream-start` alone does not authorize `create_thread`, which creates a separate visible
+conversation. Finish read-only task selection/preflight, then give the user the one required
+app action to move this task to a worktree and resume. Do not create an orphan checkout,
+pretend `git -C` moves the task's sandbox, or spawn a helper task to evade this boundary.
+If the user explicitly requests a new task instead, use `create_thread` as above.
 
-1. Confirm the stream worktree is clean (`git status --porcelain`).
-2. Use `apply_patch` to add a uniquely named `.codex-stream-write-probe-<run-id>` marker in that worktree.
-3. Run `git add -N` for that marker, then unstage it with a path-scoped reset.
-4. Delete the marker with `apply_patch` and verify the worktree is clean again.
+An explicitly user-assigned isolated checkout may be used directly. For sandboxed integration,
+use a task that already has access to the destination; do not assume sibling writes work.
 
-If any step is denied or leaves drift, the child reports **BLOCKED-WRITABILITY**, names the exact leftover path or Git state, and stops without changing branches. The coordinator does not proceed until every child passes this handshake.
+## Optional setup
 
----
+Codex local-environment setup scripts can run at worktree creation. They may copy missing
+reference PDFs from an accessible source checkout into the assigned worktree. They must not
+select a roadmap item or switch branches. `stream-start` remains responsible for checking
+and filling missing references, so correctness does not depend on a configured hook.
 
-## 3. Supervision & Messaging
-
-1. **Multi-Task Wait**:
-   - Supervise stream tasks using `wait_threads` with bounded timeouts for the requested task IDs rather than frequent status polling.
-   - Call `read_thread` when a task completes, needs attention, or reports a coordination milestone (`WRITABLE`, `STARTED`, `DISCOVERY`, `READY`, `INTEGRATED`).
-2. **Relayed Messaging**:
-   - Use `send_message_to_thread` to relay cross-stream discovery or ownership changes between child threads.
-   - When a child reports `READY`, proceed with the serialized integration lease protocol described in the main skill specification.
+Source: [local environments](https://learn.chatgpt.com/docs/environments/local-environment).
+The task API rules above come from loaded Codex Desktop tools; recheck their schema when it
+changes. No new-task dispatch or current-task move was exercised by this workflow rewrite.

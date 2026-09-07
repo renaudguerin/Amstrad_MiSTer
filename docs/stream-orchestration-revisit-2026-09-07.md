@@ -1,5 +1,10 @@
 # Stream orchestration: revisit the design before porting it further
 
+> Historical investigation. The fixed-topology contract below is superseded by
+> [the ad-hoc task workflow](task-workflow.md). Preserve this note as evidence of the port
+> boundary; current skills no longer forbid generated worktrees. Live host validation remains
+> separate from the workflow rewrite.
+
 **Status (2026-09-07): the Claude Code port of `$stream-orchestrate` is abandoned on purpose.
 The skill remains supported on Codex Desktop, where it was written and is the only harness on
 which it has actually run. Antigravity and OpenCode adapters exist but are unproven.**

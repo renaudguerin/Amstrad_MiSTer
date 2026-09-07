@@ -627,18 +627,18 @@ question that sits behind this.
 
 ---
 
-## B14. Stream orchestration assumes a fixed three-worktree topology
+## B14. Ad-hoc task workflow replaces fixed stream worktrees
 
-**Priority: medium. Blocks nothing today; blocks any second harness.**
+**Implementation prepared 2026-09-07; live host smoke validation remains open.**
 
-`$stream-orchestrate` partitions the repository into three fixed worktrees and forbids generated
-ones. That is what makes single-writer ownership checkable, and it is also why the skill runs on
-exactly one harness: Codex Desktop, where a user-visible task can be pointed at an existing
-directory. A 2026-09-07 attempt to add a Claude Code path was abandoned rather than bent around
-the prohibition.
+The three skills now accept environment-owned task worktrees, general/auto scope, and adoption
+of existing tasks before adding compatible work. Reference provisioning belongs to start;
+finish remains push-by-default with serialized local integration and exact artifact evidence.
+See [the operating workflow](task-workflow.md). Existing fixed checkouts remain preserved.
 
-The user's direction is to accept ad-hoc per-task worktrees and redesign from there, which
-reopens single-writer guarantees, cleanup, and whether a coordinator is wanted at all. Full
-statement of the decision, the open questions, and the facts already established:
-`docs/stream-orchestration-revisit-2026-09-07.md`.
-
+Remaining validation: exercise generated-worktree start, resume, adding a compatible task,
+and finish/cleanup in the installed hosts. Claude Desktop and OpenCode orchestration must
+prove steerable-task creation and available messaging rather than assuming background workers
+are equivalent. No live dispatch or merge is authorized merely by testing the documentation.
+The [dated revisit note](stream-orchestration-revisit-2026-09-07.md) retains the rejected port's
+rationale; it is historical evidence rather than the active fixed-topology policy.

@@ -1,5 +1,12 @@
 # Current implementation status
 
+**Workflow update, 2026-09-07:** manual start/orchestrate/finish now use ad-hoc task worktrees,
+including general/auto scope and adding tasks to an existing run. Start provisions local
+reference PDFs; finish retains push-by-default and CI/artifact gates. See
+[task workflow](task-workflow.md). Existing fixed checkouts and pending hardware work below
+are preserved. Host dispatch/adoption/cleanup smoke tests remain open; this workflow update
+adds no RTL, synthesis artifact or hardware evidence.
+
 **Continuation, 2026-09-03:** local testing-policy candidate `c12c264` and shared FDC
 held-read test `c1a8ff9` are committed on isolated branches with simulation/lint passing;
 Plus READY remains `bb77075`. None is integrated. The uncommitted CPU-model candidate

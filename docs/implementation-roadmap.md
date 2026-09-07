@@ -16,8 +16,9 @@ merged into the same behavioral PR.
 - `master` is the upstream baseline.
 - Review/correction work lands on `accc-review-and-fixes` (cut from
   `codex/exploratory-gx4000-plus-plan`); stream branches (`accuracy/*`, `plus/*`) cut from it
-  only after shared dependencies land there (currently `accuracy/a3-f6-stage1` and
-  `plus/p0-parser-wiring`, which rebase onto this branch's post-review fixes).
+  only after shared dependencies land there. Tasks use ad-hoc worktrees; general tasks use
+  `general/*` and host-required prefixes may wrap the scope (for example `codex/accuracy/*`).
+  See [the task workflow](task-workflow.md); directory names do not encode stream ownership.
 - The current development state contains the accuracy/reference documents, the F1-F3 and main
   F5 corrections, deterministic-complete F12/F4/F8/F9, the Verilator CRTC/Plus gates plus the
   randomized equivalence soak (`make -C sim soak`, golden hash `0x2263c9fc44af4ee7`), the

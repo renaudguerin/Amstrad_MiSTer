@@ -17,39 +17,44 @@ Start from:
 - `docs/current-status.md` — handoff state, hardware-test milestones
 - `docs/accuracy/audit-findings.md` — numbered findings F1–F12
 
-## Worktree layout and stream lifecycle
+## Proportionate engineering
 
-Three worktrees partition the repository:
-- `/Users/renaudg/code/Amstrad_MiSTer` — Main integration worktree (`accc-review-and-fixes` branch), generic work, docs, upstream sync (`master`).
-- `/Users/renaudg/code/Amstrad_MiSTer-accuracy` — CRTC accuracy stream (`accuracy/*` branches).
-- `/Users/renaudg/code/Amstrad_MiSTer-plus` — Amstrad Plus/GX4000 ASIC stream (`plus/*` branches).
+This is a solo hobby project. Prefer the simplest solution that handles the normal workflow.
+Use existing Git, shell and host features before adding custom infrastructure. Routine local
+setup does not need integrity manifests, exhaustive failure recovery, portability hardening,
+or a dedicated test suite without a concrete recurring problem. Treat occasional manual
+recovery as acceptable when the cost and risk are small. Do not turn a minor edge case into
+a review/fix cycle; explain material tradeoffs briefly and keep scope proportionate.
 
-Stream workflow is formalized in project skills (`.agents/skills/`):
-- **Start a task**: Invoke `$stream-start <accuracy|plus> [topic]`. Re-anchors the stream worktree on `accc-review-and-fixes` and cuts `<stream>/<topic>` (autofills next todo if omitted; no baseline simulation).
-- **Finish a task**: Invoke `$stream-finish <accuracy|plus>`. Performs non-fast-forward merge into `accc-review-and-fixes`, resolves conflicts, semantically reconciles shared docs (`current-status.md`, `review-debt.md`, golden hashes), runs `make -C sim` once (skipped for doc-only changes), and pushes to origin to trigger CI synthesis.
-- **Coordinate parallel tasks**: Invoke `$stream-orchestrate` when the user explicitly asks
-  a coordinator task to create and supervise separate accuracy/Plus conversations across
-  supported harnesses (Codex, Antigravity, Claude, OpenCode). It launches tasks against the
-  fixed stream worktrees, exchanges peer IDs and discoveries, and serializes `$stream-finish` integration.
+Retain rigorous source-derived tests and review for RTL, timing/state behavior, and changes
+that could lose valuable work. Scale verification to consequences; these hardware correctness
+requirements do not justify production-grade machinery around copying local reference files.
 
-### Parallel stream coordination
+## Worktree layout and task lifecycle
 
-Parallel tasks still have one writer per worktree and one integration writer at a time.
-Stream-local files belong to that stream. Top-level/common peripheral RTL, root build/CI
-files, and shared status/review documents require an assigned owner before overlapping
-edits. A task that discovers cross-stream evidence messages its peer promptly with the
-finding, impact, proposed owner, and any commit the peer must consume.
+Tasks use ad-hoc, environment-owned worktrees; accuracy and Plus remain separate behavior
+streams. General work covers shared infrastructure, peripherals, docs and tooling. Existing
+fixed worktrees may hold unfinished work: preserve them, but do not require or recreate them.
+Integration normally targets `accc-review-and-fixes` from a checkout the integration task can
+access. Discover actual paths and branch ownership with Git and host task metadata.
 
-Each coordinated stream proves sibling-worktree writability, then reports WRITABLE, STARTED,
-DISCOVERY, READY, and INTEGRATED milestones. The coordinator relays messages by default and
-assigns shared owners in the initial prompts, avoiding a peer-ID startup race. A stream stops
-at READY until the coordinator grants an integration lease containing the current exact
-integration SHA. Unless dependencies require another order, accuracy integrates first; the
-Plus task then rebases with merge topology preserved onto the verified integration SHA.
-Never run two `$stream-finish` operations concurrently, and never force-push after a stale
-lease or moved integration tip. Automatic finish/push requires explicit user authorization.
-When only one stream task exists, ordinary `$stream-start`/`$stream-finish` behavior is
-unchanged.
+- `$stream-start [accuracy|plus|general|auto] [brief]` is the manual shortcut for selection,
+  overlap assessment, a named branch, and reference provisioning. Omitted scope means auto.
+- `$stream-orchestrate` creates compatible steerable tasks, or adopts existing tasks and adds
+  more without restarting them. The agent assesses shared-interface risks; the user need not
+  know which files collide. Ordinary textual overlap can wait for merge reconciliation.
+- `$stream-finish [source] [--no-push]` integrates and validates one branch, reconciles shared
+  docs, and pushes by default. Explicit invocation supplies that authorization. Coordinated
+  tasks stop at READY unless finish was requested; the integrator finishes them sequentially.
+
+Keep one writer per checkout and one integrator at a time. No permanent directory mapping,
+sibling-write probe or custom lease protocol is required. `stream-start` prepares the ignored
+ACCC PDFs in the assigned checkout; bridge workers use that same checkout without another
+clone/worktree. Never commit the PDFs or reset unfinished branches for a fresh start.
+
+See [docs/task-workflow.md](docs/task-workflow.md) for host routing, task briefs, provisioning,
+artifact delivery and cleanup. Hooks may prepare the environment but never select roadmap
+work just because a conversation opened.
 
 ## Authority ranking
 
@@ -199,10 +204,11 @@ make -C sim clean
   dispatch. All integration builds compile at full effort by default to produce hardware-testable
   RBFs. Stream branches stay on Tier A (Verilator simulation) and never synthesize unless
   explicitly requested.
-- When full synthesis is needed, always check whether the self-hosted Quartus VM is up
-  (`quartus-vm` online via `gh api repos/:owner/:repo/actions/runners`). If online, prefer it:
-  `gh workflow run local-build.yml --ref <branch> -f effort=full` (~2m–4m faster than hosted CI;
-  fallback to hosted `build.yml` when offline). One-time registration: `ansible/local-runner.yml`.
+- Let the integration push workflow classify synthesis and select its local/hosted runner.
+  Do not duplicate it with a manual dispatch merely because the VM is online. For an explicitly
+  requested pre-merge/milestone build, check `quartus-vm` availability and prefer
+  `local-build.yml --ref <branch> -f effort=full` when online; use hosted `build.yml` otherwise.
+  See `docs/ci-testing-policy.md`. One-time runner registration: `ansible/local-runner.yml`.
 - CI is last-write-wins: newer pushes/dispatches cancel older runs (same ref outright; among
   expensive Quartus compiles, across refs too). A `cancelled` Actions run means *superseded* —
   find its successor with `gh run list --branch <ref> --limit 5` before diagnosing anything.

@@ -64,3 +64,5 @@ docs/**/*.local.md
 /docs/screenshots/
 /docs/references/
 /.fdc-scratch/
+# Per-worktree task context (not a lock or committed status document)
+/.stream-task.md
