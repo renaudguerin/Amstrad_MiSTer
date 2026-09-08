@@ -618,6 +618,10 @@ $(OBJ_DIR):
 $(SPRREGS_OBJ_DIR): | $(OBJ_DIR)
 	mkdir -p -- $@
 
+# Accept this style-rule name on older Verilator pins; only the five existing
+# file/message pairs in the control file are waived on versions that emit it.
+SIMILAR_NAME_WAIVERS := -Wfuture-SIMILARNAME $(abspath legacy-similar-names.vlt)
+
 # Standalone form of the motherboard hierarchy lint that `lint` runs first.
 motherboard-lint:
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
@@ -625,7 +629,7 @@ motherboard-lint:
 		-Wno-PINCONNECTEMPTY -Wno-PINMISSING -Wno-UNUSEDSIGNAL \
 		-Wno-DECLFILENAME -Wno-CASEX \
 		-Wno-SYNCASYNCNET -Wno-WIDTHTRUNC \
-		$(MBOARD_LINT_RTL)
+		$(SIMILAR_NAME_WAIVERS) $(MBOARD_LINT_RTL)
 
 lint: motherboard-lint
 	$(VERILATOR) --lint-only --language 1364-2001 \
@@ -639,7 +643,7 @@ lint: motherboard-lint
 		-Wall -Wno-UNUSEDPARAM -Wno-PINCONNECTEMPTY \
 		-Wno-DECLFILENAME -Wno-DEFPARAM $(SPRRAM_RTL) $(SPRRAM_VENDOR_STUB)
 	$(VERILATOR) --lint-only --language 1364-2001 \
-		--top-module $(ASICVID_TOP) -Wall $(ASICVID_RTL)
+		--top-module $(ASICVID_TOP) -Wall $(SIMILAR_NAME_WAIVERS) $(ASICVID_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(SPRITES_TOP) -Wall $(SPRITES_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR \
