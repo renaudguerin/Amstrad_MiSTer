@@ -618,9 +618,14 @@ $(OBJ_DIR):
 $(SPRREGS_OBJ_DIR): | $(OBJ_DIR)
 	mkdir -p -- $@
 
-# Accept this style-rule name on older Verilator pins; only the five existing
-# file/message pairs in the control file are waived on versions that emit it.
-SIMILAR_NAME_WAIVERS := -Wfuture-SIMILARNAME $(abspath legacy-similar-names.vlt)
+# 5.050 rejects unknown rule names inside control files even with -Wfuture.
+# Load the five exact file/message waivers only on 5.052 or newer; older
+# versions do not emit this style warning and keep their existing lint policy.
+VERILATOR_HAS_SIMILARNAME := $(shell $(VERILATOR) --version | awk '{split($$2,v,"."); if (v[1] > 5 || (v[1] == 5 && v[2] >= 52)) print "yes"}')
+SIMILAR_NAME_WAIVERS :=
+ifeq ($(VERILATOR_HAS_SIMILARNAME),yes)
+SIMILAR_NAME_WAIVERS := $(abspath legacy-similar-names.vlt)
+endif
 
 # Standalone form of the motherboard hierarchy lint that `lint` runs first.
 motherboard-lint:
