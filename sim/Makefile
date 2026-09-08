@@ -94,3 +94,87 @@ $(OBJ_DIR)/cpu_phase/crtc_cpu_phase_tests: $(CPU_PHASE_RTL) crtc_cpu_phase_test.
 	$(VERILATOR) --cc --exe --build --top-module crtc_cpu_phase_top -UVERILATOR \
 		--Mdir $(OBJ_DIR)/cpu_phase -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o crtc_cpu_phase_tests $(CPU_PHASE_RTL) crtc_cpu_phase_test.cpp
+
+# Bounded production-T80 executed-instruction validation harness (B8-1).
+GHDL ?= ghdl
+T80_VHDL_SRC := $(addprefix ../rtl/T80/,T80_Pack.vhd T80_ALU.vhd T80_MCode.vhd T80_Reg.vhd T80.vhd T80pa.vhd)
+T80_NETLIST  := $(OBJ_DIR)/t80/T80pa.v
+
+.DELETE_ON_ERROR:
+
+.PHONY: t80-netlist
+t80-netlist: $(T80_NETLIST)
+
+$(T80_NETLIST): $(T80_VHDL_SRC)
+	mkdir -p $(OBJ_DIR)/t80
+	$(GHDL) --synth --std=08 -fsynopsys --workdir=$(OBJ_DIR)/t80 --out=verilog $(T80_VHDL_SRC) -e T80pa > $@.tmp && mv $@.tmp $@
+
+# T80 native VHDL vs translated Verilog trace equivalence test
+T80_TRACE_TB_SRC   := t80_trace_tb.vhd
+T80_VHDL_TRACE_LOG := $(OBJ_DIR)/t80/vhdl_trace.log
+T80_TRACE_TEST_BIN := $(OBJ_DIR)/t80_verilog/t80_trace_tests
+
+.PHONY: t80-trace-test
+t80-trace-test: $(T80_TRACE_TEST_BIN) $(T80_VHDL_TRACE_LOG)
+	$(T80_TRACE_TEST_BIN) $(T80_VHDL_TRACE_LOG)
+
+$(T80_VHDL_TRACE_LOG): $(T80_TRACE_TB_SRC) $(T80_VHDL_SRC)
+	mkdir -p $(OBJ_DIR)/t80
+	$(GHDL) -a --std=08 -fsynopsys --workdir=$(OBJ_DIR)/t80 $(T80_VHDL_SRC) $(T80_TRACE_TB_SRC)
+	$(GHDL) -e --std=08 -fsynopsys --workdir=$(OBJ_DIR)/t80 -o $(OBJ_DIR)/t80/t80_trace_tb t80_trace_tb
+	$(OBJ_DIR)/t80/t80_trace_tb > $@.tmp && mv $@.tmp $@
+
+$(T80_TRACE_TEST_BIN): $(T80_NETLIST) t80_trace_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/t80_verilog
+	$(VERILATOR) --cc --exe --build --top-module T80pa \
+		--Mdir $(OBJ_DIR)/t80_verilog -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o t80_trace_tests $(T80_NETLIST) t80_trace_test.cpp
+
+# Executed-instruction validation with production T80pa, real GA divider/enables/WAIT, and CRTC
+CRTC_T80_RTL := crtc_t80_top.sv $(T80_NETLIST) $(RTL) $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
+CRTC_T80_BIN := $(OBJ_DIR)/crtc_t80/crtc_t80_tests
+
+.PHONY: crtc-t80-test
+crtc-t80-test: $(CRTC_T80_BIN)
+	$<
+
+$(CRTC_T80_BIN): $(CRTC_T80_RTL) crtc_t80_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/crtc_t80
+	$(VERILATOR) --cc --exe --build --top-module crtc_t80_top -UVERILATOR \
+		--Mdir $(OBJ_DIR)/crtc_t80 -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o crtc_t80_tests $(CRTC_T80_RTL) crtc_t80_test.cpp
+
+# Negative discriminator on old pre-B8 engines (commit d46609d066aafb6b182fd6fa504a91719500cd91)
+CRTC_OLD_ENGINES_DIR := $(OBJ_DIR)/old_engines
+CRTC_T80_OLD_RTL := crtc_t80_top.sv $(T80_NETLIST) ../rtl/CRTC.v $(CRTC_OLD_ENGINES_DIR)/crtc_type0_engine.v $(CRTC_OLD_ENGINES_DIR)/crtc_type1_engine.v $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
+CRTC_T80_OLD_BIN := $(OBJ_DIR)/crtc_t80_old/crtc_t80_old_tests
+
+$(CRTC_OLD_ENGINES_DIR)/crtc_type0_engine.v:
+	mkdir -p $(CRTC_OLD_ENGINES_DIR)
+	git show d46609d066aafb6b182fd6fa504a91719500cd91:rtl/crtc_type0_engine.v > $@.tmp && mv $@.tmp $@
+
+$(CRTC_OLD_ENGINES_DIR)/crtc_type1_engine.v:
+	mkdir -p $(CRTC_OLD_ENGINES_DIR)
+	git show d46609d066aafb6b182fd6fa504a91719500cd91:rtl/crtc_type1_engine.v > $@.tmp && mv $@.tmp $@
+
+.PHONY: crtc-t80-old-test
+crtc-t80-old-test: $(CRTC_T80_OLD_BIN)
+	@echo "Running old-engine discriminator (expecting 4 B8 failures)..."
+	@set +e; \
+	out=$$($< 2>&1); \
+	status=$$?; \
+	echo "$$out"; \
+	if [ $$status -eq 0 ]; then \
+		echo "ERROR: Old pre-B8 engine unexpectedly passed!"; exit 1; \
+	fi; \
+	echo "$$out" | grep -q "Type 1 OUT (C), C.*vma_flag" || { echo "FAIL: Missing Case 1 B8 failure (vma_flag)"; exit 1; }; \
+	echo "$$out" | grep -q "Type 1 OUTI.*vma_flag" || { echo "FAIL: Missing Case 2 B8 failure (vma_flag)"; exit 1; }; \
+	echo "$$out" | grep -q "Type 0 OUT (C), C.*row" || { echo "FAIL: Missing Case 3 B8 failure (row)"; exit 1; }; \
+	echo "$$out" | grep -q "Type 1 OUT (C), C.*pending" || { echo "FAIL: Missing Case 4 B8 failure (pending)"; exit 1; }; \
+	echo "PASS: Old pre-B8 engine correctly failed all 4 B8 side-effect checks"
+
+$(CRTC_T80_OLD_BIN): $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/crtc_t80_old
+	$(VERILATOR) --cc --exe --build --top-module crtc_t80_top -UVERILATOR \
+		--Mdir $(OBJ_DIR)/crtc_t80_old -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o crtc_t80_old_tests $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp
