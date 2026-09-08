@@ -66,6 +66,14 @@ class Harness {
         dut.tape_din = 0;
         dut.tape_wr = 0;
         dut.tape_rd = 0;
+        dut.tape_seam_enable = 0;
+        dut.tape_seam_download = 0;
+        dut.tape_seam_ioctl_wr = 0;
+        dut.tape_seam_ioctl_dout = 0;
+        dut.tape_seam_ioctl_addr = 0;
+        dut.tape_seam_play_addr = 0;
+        dut.tape_seam_reset = 0;
+        dut.tape_seam_clear = 0;
         dut.memory_dq = 0;
         dut.memory_dq_oe = 0;
         dut.service_cold_reset = 0;
@@ -882,7 +890,389 @@ void test_video_coherence_write_next_slot(TestState &test) {
                "RAM must hold the next-slot low byte");
     test.check(b84::poll_video_word(h, 0xbb5a, 64),
                "B8-4: write admitted right after a video fetch must update the retained word (stays " +
-                   b84::hex16(h.dut.vram_dout) + ")");
+                    b84::hex16(h.dut.vram_dout) + ")");
+}
+
+namespace b87 {
+
+// B8-7 tape write lifetime: the production queue (rtl/tape_write_queue.v)
+// and sdram.v execute here on the same clock with the physical-DQ model.
+// The C++ side drives only the download/ioctl seam (never tape_wr directly),
+// so the synchronous producer/ACK race cannot be hidden by immediate C++
+// ack lowering. Tape bytes live in bank 2; playback is parked at 0.
+
+void seam_idle(Harness &h) {
+    h.dut.tape_seam_enable = 1;
+    h.dut.tape_seam_download = 0;
+    h.dut.tape_seam_ioctl_wr = 0;
+    h.dut.tape_seam_ioctl_dout = 0;
+    h.dut.tape_seam_ioctl_addr = 0;
+    h.dut.tape_seam_play_addr = 0;
+    h.dut.tape_seam_reset = 0;
+    h.dut.tape_seam_clear = 0;
+    h.dut.tape_rd = 0;
+    h.dut.cart_req = 0;
+    h.dut.cart_wr = 0;
+    h.dut.oe = 0;
+    h.dut.we = 0;
+}
+
+void seam_reset_queue(Harness &h) {
+    h.dut.tape_seam_reset = 1;
+    h.dut.tape_seam_clear = 1;
+    for (int i = 0; i < 4; ++i) h.tick();
+    h.dut.tape_seam_reset = 0;
+    h.dut.tape_seam_clear = 0;
+    h.tick();
+}
+
+void seam_strobe(Harness &h, uint32_t addr, uint8_t data) {
+    h.dut.tape_seam_ioctl_addr = addr;
+    h.dut.tape_seam_ioctl_dout = data;
+    h.dut.tape_seam_ioctl_wr = 1;
+    h.tick();
+    h.dut.tape_seam_ioctl_wr = 0;
+}
+
+std::vector<Command> tape_writes_since(const Harness &h, size_t start) {
+    std::vector<Command> out;
+    for (size_t i = start; i < h.commands.size(); ++i)
+        if (h.commands[i].kind == CMD_WRITE && h.commands[i].bank == 2)
+            out.push_back(h.commands[i]);
+    return out;
+}
+
+int tape_reads_since(const Harness &h, size_t start) {
+    int n = 0;
+    for (size_t i = start; i < h.commands.size(); ++i)
+        if (h.commands[i].kind == CMD_READ && h.commands[i].bank == 2) ++n;
+    return n;
+}
+
+bool wait_for_tape_ack(Harness &h, int max_ticks, int &pulses) {
+    pulses = 0;
+    bool seen = false;
+    for (int i = 0; i < max_ticks; ++i) {
+        h.tick();
+        if (h.dut.tape_wr_ack) {
+            ++pulses;
+            seen = true;
+        } else if (seen) {
+            return true;
+        }
+    }
+    return seen;
+}
+
+} // namespace b87
+
+// B8-7 headline: one held download byte must produce exactly one physical
+// WRITE. The synchronous producer samples tape_wr_ack and clears after the
+// edge; the old READY ack is still visible at the next IDLE arbitration, so
+// the completed write is admitted again.
+void test_tape_single_write_no_duplicate(TestState &test) {
+    Harness h;
+    h.initialize(test);
+    b87::seam_idle(h);
+    b87::seam_reset_queue(h);
+    h.dut.vram_bank = 0;
+    h.dut.vram_addr = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+    h.align_before_idle();
+
+    const size_t marker = h.commands.size();
+    h.dut.tape_seam_download = 1;
+    b87::seam_strobe(h, 0x120, 0x35);
+    int pulses = 0;
+    test.check(b87::wait_for_tape_ack(h, 48, pulses),
+               "B8-7: single tape byte must be acknowledged");
+    for (int i = 0; i < 40; ++i) h.tick();
+    h.dut.tape_seam_download = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+
+    const auto writes = b87::tape_writes_since(h, marker);
+    test.check(writes.size() == 1,
+               "B8-7: one held tape byte must issue exactly one physical WRITE (saw " +
+                   std::to_string(writes.size()) + ")");
+    if (writes.size() >= 1) {
+        test.check(writes[0].address == 0x120 && writes[0].data == 0x3535 &&
+                       !writes[0].dqml && writes[0].dqmh,
+                   "B8-7: single WRITE must carry bank-2 word 0x120 data 0x3535 low-byte");
+    }
+    test.check(h.load(2, 0x120) == 0x35,
+               "B8-7: RAM must hold the single downloaded byte 0x35");
+}
+
+// B8-7 corruption: the next payload accepted one edge after ACK consumption
+// must not rewrite the previous address. The old controller samples live
+// tape_din three clocks after admission, so the duplicate takes the new
+// payload at the old address; there is also no ioctl backpressure, so the
+// queued byte is overwritten before its grant.
+void test_tape_consecutive_no_corruption(TestState &test) {
+    Harness h;
+    h.initialize(test);
+    b87::seam_idle(h);
+    b87::seam_reset_queue(h);
+    h.dut.vram_bank = 0;
+    h.dut.vram_addr = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+    h.align_before_idle();
+
+    const size_t marker = h.commands.size();
+    h.dut.tape_seam_download = 1;
+    b87::seam_strobe(h, 0x120, 0x35);
+
+    // Backpressure must be visible while the first byte is outstanding.
+    bool saw_wait_while_busy = false;
+    bool acked = false;
+    for (int i = 0; i < 48 && !acked; ++i) {
+        h.tick();
+        if (h.dut.tape_seam_wait) saw_wait_while_busy = true;
+        if (h.dut.tape_wr_ack) acked = true;
+    }
+    test.check(acked, "B8-7: first consecutive byte must be acknowledged");
+    test.check(saw_wait_while_busy,
+               "B8-7: ioctl backpressure must hold while a tape write is outstanding");
+    // One edge after ACK consumption present the next payload.
+    h.tick();
+    b87::seam_strobe(h, 0x121, 0xa6);
+    int pulses = 0;
+    test.check(b87::wait_for_tape_ack(h, 48, pulses),
+               "B8-7: second consecutive byte must be acknowledged");
+    for (int i = 0; i < 40; ++i) h.tick();
+    h.dut.tape_seam_download = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+
+    const auto writes = b87::tape_writes_since(h, marker);
+    test.check(writes.size() == 2,
+               "B8-7: two consecutive bytes must issue exactly two physical WRITEs (saw " +
+                   std::to_string(writes.size()) + ")");
+    test.check(h.load(2, 0x120) == 0x35 && h.load(2, 0x121) == 0xa6,
+               "B8-7: consecutive payload must not corrupt the previous address");
+    if (writes.size() == 2) {
+        test.check(writes[0].address == 0x120 && writes[1].address == 0x120,
+                   "B8-7: even/odd pair shares word 0x120 with complementary masks");
+    }
+}
+
+// B8-7 ownership: ending download before the grant (under contention) and at
+// ACK must not switch the write address to the parked playback address.
+// The owned mux must hold the queued address until the pending write drains.
+void test_tape_download_end_holds_address(TestState &test) {
+    Harness h;
+    h.initialize(test);
+    b87::seam_idle(h);
+    b87::seam_reset_queue(h);
+    h.dut.vram_bank = 0;
+    h.dut.vram_addr = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+    h.store(2, 0x000, 0xff);
+    h.store(3, 0x080000, 0x11);
+
+    // Contention: hold a cartridge read so the tape grant is delayed.
+    h.dut.cart_req = 1;
+    h.dut.cart_wr = 0;
+    h.dut.cart_bank = 3;
+    h.dut.cart_addr = 0x080000;
+    h.align_before_idle();
+    const size_t marker = h.commands.size();
+    h.dut.tape_seam_download = 1;
+    h.dut.tape_seam_play_addr = 0;
+    b87::seam_strobe(h, 0x120, 0x35);
+    h.tick();
+    // End download before the tape grant while contention holds.
+    h.dut.tape_seam_download = 0;
+    test.check(h.dut.tape_seam_pending,
+               "B8-7: pending write must survive download end before grant");
+    test.check(h.dut.tape_seam_addr == 0x120,
+               "B8-7: owned address must hold the queued byte after download end");
+    for (int i = 0; i < 8; ++i) h.tick();
+    h.dut.cart_req = 0;
+    int pulses = 0;
+    test.check(b87::wait_for_tape_ack(h, 64, pulses),
+               "B8-7: pre-grant pending byte must still complete after contention");
+    for (int i = 0; i < 40; ++i) h.tick();
+
+    const auto writes = b87::tape_writes_since(h, marker);
+    test.check(writes.size() == 1,
+               "B8-7: download end before grant must still issue exactly one WRITE (saw " +
+                   std::to_string(writes.size()) + ")");
+    test.check(h.load(2, 0x120) == 0x35,
+               "B8-7: pre-grant byte must land at its queued address");
+    test.check(h.load(2, 0x000) == 0xff,
+               "B8-7: parked header must survive download end before grant");
+
+    // At-ACK variant: end download exactly at ACK and drain extra slots.
+    const size_t marker2 = h.commands.size();
+    h.dut.tape_seam_download = 1;
+    b87::seam_strobe(h, 0x122, 0x77);
+    bool acked = false;
+    for (int i = 0; i < 64 && !acked; ++i) {
+        h.tick();
+        if (h.dut.tape_wr_ack) {
+            acked = true;
+            h.dut.tape_seam_download = 0;
+        }
+    }
+    test.check(acked, "B8-7: at-ACK byte must be acknowledged");
+    for (int i = 0; i < 48; ++i) h.tick();
+    const auto writes2 = b87::tape_writes_since(h, marker2);
+    test.check(writes2.size() == 1,
+               "B8-7: download end at ACK must not admit a duplicate (saw " +
+                   std::to_string(writes2.size()) + ")");
+    test.check(h.load(2, 0x122) == 0x77 && h.load(2, 0x000) == 0xff,
+               "B8-7: at-ACK byte must land queued while the header survives");
+}
+
+// B8-7 drain contract: simultaneous ACK + next payload follows the
+// ioctl_wait/producer handshake. The fixture ties tape_rd = 0 (parked input),
+// so the zero bank-2 READ check below pins parked input control only — it is
+// not proof that the tzx player reset holds in production.
+void test_tape_simultaneous_ack_and_quiet_playback(TestState &test) {
+    Harness h;
+    h.initialize(test);
+    b87::seam_idle(h);
+    b87::seam_reset_queue(h);
+    h.dut.vram_bank = 0;
+    h.dut.vram_addr = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+    h.align_before_idle();
+
+    const size_t marker = h.commands.size();
+    h.dut.tape_seam_download = 1;
+    b87::seam_strobe(h, 0x130, 0x5a);
+    // Present the next payload in the same cycle the ACK is sampled: wait
+    // until ACK is visible, then strobe before the next edge so helper and
+    // controller sample ACK + new byte together.
+    bool acked = false;
+    for (int i = 0; i < 48 && !acked; ++i) {
+        h.tick();
+        if (h.dut.tape_wr_ack) acked = true;
+    }
+    test.check(acked, "B8-7: first simultaneous byte must be acknowledged");
+    test.check(!h.dut.tape_seam_wait,
+               "B8-7: wait must release in the ACK cycle so the next byte may advance");
+    b87::seam_strobe(h, 0x131, 0xb7);
+    int pulses = 0;
+    test.check(b87::wait_for_tape_ack(h, 48, pulses),
+               "B8-7: simultaneous next byte must complete");
+    for (int i = 0; i < 40; ++i) h.tick();
+    h.dut.tape_seam_download = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+
+    const auto writes = b87::tape_writes_since(h, marker);
+    test.check(writes.size() == 2,
+               "B8-7: simultaneous ACK+payload must issue exactly two WRITEs (saw " +
+                   std::to_string(writes.size()) + ")");
+    test.check(h.load(2, 0x130) == 0x5a && h.load(2, 0x131) == 0xb7,
+               "B8-7: simultaneous payload must not overwrite the queued byte");
+    test.check(b87::tape_reads_since(h, marker) == 0,
+               "B8-7: parked tape_rd=0 input must produce no bank-2 READ (input control, not player-reset proof)");
+    test.check(!h.dut.tape_seam_pending,
+               "B8-7: pending must drain once both simultaneous bytes complete");
+}
+
+// B8-7 review P1: Fn[2] clear while a byte is pending must not redirect the
+// delayed grant to header 0. The sender (HPS side) honors tape_wait as
+// backpressure: sys/sys_top.v freezes rack/io_ack under ioctl_wait and
+// sys/hps_io.sv emits each strobe+address-advance once with no retry of a
+// busy ioctl_wr, so the queue must drain the original pending tuple while the
+// clear affects only the logical last-address metadata.
+void test_tape_fn2_clear_preserves_pending_drain(TestState &test) {
+    Harness h;
+    h.initialize(test);
+    b87::seam_idle(h);
+    b87::seam_reset_queue(h);
+    h.dut.vram_bank = 0;
+    h.dut.vram_addr = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+    h.store(2, 0x000, 0xff);
+    h.store(2, 0x120, 0x00);
+    h.store(3, 0x080000, 0x11);
+
+    // Contention: hold a cartridge read so the tape grant is delayed.
+    h.dut.cart_req = 1;
+    h.dut.cart_wr = 0;
+    h.dut.cart_bank = 3;
+    h.dut.cart_addr = 0x080000;
+    h.align_before_idle();
+    const size_t marker = h.commands.size();
+    h.dut.tape_seam_download = 1;
+    h.dut.tape_seam_play_addr = 0;
+    b87::seam_strobe(h, 0x120, 0x35);
+    h.tick();
+    test.check(h.dut.tape_seam_pending,
+               "B8-7: byte must be pending while cart contention blocks its grant");
+    // Pulse Fn[2] clear alone (no reset) while the grant is still blocked.
+    h.dut.tape_seam_clear = 1;
+    h.tick();
+    h.dut.tape_seam_clear = 0;
+    test.check(h.dut.tape_seam_queued == 0,
+               "B8-7: Fn[2] clear must reset the logical last address to 0");
+    test.check(h.dut.tape_seam_pending,
+               "B8-7: Fn[2] clear must not drop the pending drain");
+    // Release download and contention; the original tuple must still drain.
+    h.dut.tape_seam_download = 0;
+    h.dut.cart_req = 0;
+    int pulses = 0;
+    test.check(b87::wait_for_tape_ack(h, 64, pulses),
+               "B8-7: cleared pending byte must still complete after contention");
+    for (int i = 0; i < 40; ++i) h.tick();
+
+    const auto writes = b87::tape_writes_since(h, marker);
+    test.check(writes.size() == 1,
+               "B8-7: Fn[2] clear under contention must still issue exactly one WRITE (saw " +
+                   std::to_string(writes.size()) + ")");
+    if (writes.size() >= 1) {
+        test.check(writes[0].address == 0x120,
+                   "B8-7: cleared pending byte must drain to its original address 0x120");
+    }
+    test.check(h.load(2, 0x120) == 0x35,
+               "B8-7: cleared pending byte must land at 0x120");
+    test.check(h.load(2, 0x000) == 0xff,
+               "B8-7: Fn[2] clear must not redirect the pending byte into header 0");
+    test.check(h.dut.tape_seam_queued == 0,
+               "B8-7: logical last address must stay 0 after the cleared drain");
+}
+
+// B8-7 review P1: reset must dominate a simultaneous ioctl strobe. The old
+// helper let the accept assignment win over reset in the same edge, creating
+// a held request that (with clear) drains as a spurious WRITE to 0.
+void test_tape_reset_dominates_strobe(TestState &test) {
+    Harness h;
+    h.initialize(test);
+    b87::seam_idle(h);
+    b87::seam_reset_queue(h);
+    h.dut.vram_bank = 0;
+    h.dut.vram_addr = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+    h.store(2, 0x000, 0xff);
+    h.align_before_idle();
+
+    const size_t marker = h.commands.size();
+    h.dut.tape_seam_download = 1;
+    h.dut.tape_seam_reset = 1;
+    h.dut.tape_seam_clear = 1;
+    h.dut.tape_seam_ioctl_addr = 0x140;
+    h.dut.tape_seam_ioctl_dout = 0x9e;
+    h.dut.tape_seam_ioctl_wr = 1;
+    h.tick();
+    h.dut.tape_seam_ioctl_wr = 0;
+    h.dut.tape_seam_reset = 0;
+    h.dut.tape_seam_clear = 0;
+    test.check(!h.dut.tape_seam_wr && !h.dut.tape_seam_pending,
+               "B8-7: reset must dominate a simultaneous strobe (no held request)");
+    test.check(h.dut.tape_seam_queued == 0,
+               "B8-7: reset must leave the logical last address at 0");
+    h.dut.tape_seam_download = 0;
+    for (int i = 0; i < 64; ++i) h.tick();
+
+    const auto writes = b87::tape_writes_since(h, marker);
+    test.check(writes.empty(),
+               "B8-7: reset+strobe must not create any WRITE (saw " +
+                   std::to_string(writes.size()) + ")");
+    test.check(h.load(2, 0x000) == 0xff,
+               "B8-7: reset+strobe must not write header 0");
 }
 
 void test_top_level_wiring(TestState &test) {
@@ -986,6 +1376,12 @@ int main(int argc, char **argv) {
     test_video_coherence_after_cpu_write(test);
     test_video_bank_change_refetch(test);
     test_video_coherence_write_next_slot(test);
+    test_tape_single_write_no_duplicate(test);
+    test_tape_consecutive_no_corruption(test);
+    test_tape_download_end_holds_address(test);
+    test_tape_simultaneous_ack_and_quiet_playback(test);
+    test_tape_fn2_clear_preserves_pending_drain(test);
+    test_tape_reset_dominates_strobe(test);
     test_top_level_wiring(test);
 
     if (test.failures != 0) {

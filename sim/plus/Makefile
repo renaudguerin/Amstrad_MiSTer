@@ -52,7 +52,7 @@ MEMORY_MIN_OBJ_DIR  := obj_dir/plus_cartridge_memory_min
 MEMORY_MIN_TEST_BIN := $(MEMORY_MIN_OBJ_DIR)/plus_cartridge_memory_min_tests
 
 SDRAM_TOP      := sdram_cartridge_test_top
-SDRAM_RTL      := $(abspath ../../rtl/sdram.v)
+SDRAM_RTL      := $(abspath ../../rtl/sdram.v) $(abspath ../../rtl/tape_write_queue.v)
 SDRAM_TEST_TOP := $(abspath sdram_cartridge_test_top.v)
 SDRAM_OBJ_DIR  := obj_dir/sdram_cartridge
 SDRAM_TEST_SRC := $(abspath sdram_cartridge_test.cpp)

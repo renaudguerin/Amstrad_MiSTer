@@ -108,6 +108,7 @@ reg [22:1] vram_cached_addr;
 reg  [1:0] vram_cached_bank;
 reg        vram_cached_valid = 0;
 reg  [7:0] cart_write_data;
+reg  [7:0] tape_write_data;
 reg  [5:0] cart_grants_since_refresh=0;
 reg        refresh_due=0;
 
@@ -181,6 +182,11 @@ always @(posedge clk) begin
 			tape_req <= 1;
 			wr <= tape_wr;
 			a <= tape_addr;
+			// B8-7: latch the accepted payload with the address. The write
+			// data stage runs three clocks after admission; sampling live
+			// tape_din there lets a next payload corrupt a duplicate or a
+			// still-queued byte.
+			tape_write_data <= tape_din;
 			active_bank <= 2'b10;
 			if(tape_wr && vram_cached_valid && (2'b10 == vram_cached_bank) &&
 			   (tape_addr[22:1] == vram_cached_addr)) begin
@@ -275,7 +281,7 @@ always @(posedge clk) begin
 	data <= SDRAM_DQ;
 	sdram_dq_oe <= 0;
 	if(q == STATE_CONT && wr) begin
-		sdram_dq_out <= tape_req ? {tape_din, tape_din} :
+		sdram_dq_out <= tape_req ? {tape_write_data, tape_write_data} :
 		                cart_active ? {cart_write_data, cart_write_data} : {din, din};
 		sdram_dq_oe <= 1;
 	end
@@ -290,14 +296,16 @@ always @(posedge clk) begin
 		if(!wr) cart_dout <= a[0] ? SDRAM_DQ[15:8] : SDRAM_DQ[7:0];
 		cart_ack <= 1;
 	end
+	// B8-7: the tape producer is synchronous like the cartridge client, so
+	// a tape write acknowledges at STATE_READ too. The next IDLE edge then
+	// sees the cleared request instead of re-admitting the completed write.
+	// Tape reads keep their READY toggle/data timing.
+	if(q == STATE_READ && tape_req && wr) tape_wr_ack <= 1;
 	if (q == STATE_READY) begin
 		if (~wr & ram_req) ram_dout <= a[0] ? data[15:8] : data[7:0];
 		else if (vram_req) vram_dout<=data;
 		else if (~wr & tape_req) tape_dout <= a[0] ? data[15:8] : data[7:0];
-		if(tape_req) begin
-			if(wr) tape_wr_ack <= 1;
-			else tape_rd_ack <= ~tape_rd_ack;
-		end
+		if(tape_req && !wr) tape_rd_ack <= ~tape_rd_ack;
 	end
 end
 
