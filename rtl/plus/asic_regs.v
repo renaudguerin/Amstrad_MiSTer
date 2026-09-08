@@ -32,10 +32,14 @@
 //   - ADC (&6808-&680F) and DMA bus behaviour are later phases; their
 //     regions follow the unmapped rule until landed (DMA register BYTES
 //     are stored now so P7 needs no back-channel).
-//   - Power-up contents: sprite RAM, palette and position registers are
-//     defined-zero here; the reference marks most of them N (undefined),
-//     and the border specifically undefined. Zero matches Verilator and
-//     FPGA init; named model assumption like asic_ga_timing's INKR reset.
+//  - Power-up contents: sprite RAM, palette and position registers are
+//    defined-zero here; the reference marks most of them N (undefined),
+//    and the border specifically undefined. Zero matches Verilator and
+//    FPGA init; named model assumption like asic_ga_timing's INKR reset.
+//    The palette then takes the one-shot reset import below, so a cold
+//    GA reset still lands pens at HW0 grey 666 / border at HW16 blue 006
+//    ([KT] rows 0/16), while an ASIC-only reset re-imports the retained
+//    GA shadows (B8-3 reset boundary).
 //
 //  This module implements no CRTC behaviour, so no Compendium attribution
 //  applies; the legacy-colour translation table carries the same [KT]
@@ -58,9 +62,25 @@ module asic_regs
 	// Wired-AND-neutral read data: 1s wherever this module does not answer
 	output [7:0] D_out,
 
-	// Legacy Gate Array register shadow (asic_ga_timing outputs); changes
-	// are translated into palette entries 0-16 through the fixed [KT] table
-	// (reference §6, secondary port).
+	// Legacy Gate Array accepted write event (B8-3, Arnold V §2.2 secondary
+	// port): each accepted INKR write maps its 5-bit HW colour into the
+	// palette entry at the pointer. Carried from asic_ga_timing's
+	// inkr_en/border_en acceptance (sequencer window + &7Fxx decode), not
+	// deduced from shadow values, so repeated same-value writes restore the
+	// entry. ADDR is canonical 0..15 pens / 16 border; DATA is the HW
+	// colour. Reset-gated in the producer; a snapshot restore of the GA
+	// shadows must not drive WR (B8-5: restored 12-bit palette survives).
+	// This is the ONLY runtime palette path from the legacy port.
+	input        leg_pal_wr,
+	input  [4:0] leg_pal_addr,
+	input  [4:0] leg_pal_data,
+
+	// Legacy Gate Array register shadow (asic_ga_timing outputs) for the
+	// RESET/INITIAL IMPORT ONLY (reference §6, secondary port). Sampled once
+	// on the first clock after reset release (see import_pending below) to
+	// reproduce the prior shadow-import colours; never sampled again, so a
+	// later page write cannot be overwritten by idle shadows. The same
+	// arrays also feed the asic_video fallback path on the motherboard.
 	input  [4:0]  leg_border,
 	input [79:0]  leg_inkr,     // entry k at [k*5 +: 5]
 
@@ -269,6 +289,10 @@ module asic_regs
 
 	reg [79:0] leg_inkr_q;
 	reg [4:0]  leg_border_q;
+	// One-shot reset-import pending flag. Set by reset (and FPGA init, to
+	// match), cleared on the first post-reset clock once the shadows above
+	// have been imported. Runtime shadow changes never set it again.
+	reg import_pending;
 	integer k;
 
 	//------------------------------------------------------------------
@@ -342,9 +366,15 @@ module asic_regs
 				spr_y_hi[k] <= 1'b0;
 				spr_mag[k]  <= 8'd0; // magnification cleared at reset (§5)
 			end
+			// Prior reset-zero state, then the one-shot import below reproduces
+			// the old shadow-import colours: cold GA shadows (INKR=0, border=16)
+			// land pens at HW0 grey 666 / border at HW16 blue 006 ([KT] rows
+			// 0/16); an ASIC-only reset re-imports the retained GA shadows.
+			// Sprite entries stay 0.
 			for (k = 0; k < 32; k = k + 1) pal[k] <= 12'd0;
-			leg_inkr_q   <= {80{1'b1}}; // != reset INKR: forces first translate
-			leg_border_q <= 5'b11111;   // != reset border 16
+			leg_inkr_q     <= {80{1'b1}}; // != reset INKR: forces first import
+			leg_border_q   <= 5'b11111;   // != reset border 16 (sentinel, as before)
+			import_pending <= 1'b1;
 		end
 		// Reset dominates page writes: this used to be an else-if until the
 		// legacy-translate hoist split the chain (review part-B blocker 1) -
@@ -423,23 +453,40 @@ module asic_regs
 			// eff_wsel 01/11 (&5000s / &7000s): writes ignored (§3)
 		end
 
-		// Legacy PENR/INKR translation (reference section 6): pens 0-15 + border
-		// only, keyed on changes to the legacy register shadow. This sits OUTSIDE
-		// the asic_cs gate on purpose: legacy writes arrive on the &7Fxx I/O port,
-		// which never asserts the page chip-select (review part-B flag). A legacy
-		// change and a CPU palette write on the same clock edge resolve in favour
-		// of the legacy update (source order); no arbitration rule exists in the
-		// sources.
-		if (!reset) begin
-			if (leg_inkr != leg_inkr_q || leg_border != leg_border_q) begin
-				for (k = 0; k < 16; k = k + 1)
-					if (leg_inkr[k*5 +: 5] != leg_inkr_q[k*5 +: 5])
-						pal[k] <= legacy_colour_gbr(leg_inkr[k*5 +: 5]);
-				if (leg_border != leg_border_q)
-					pal[16] <= legacy_colour_gbr(leg_border);
-				leg_inkr_q   <= leg_inkr;
-				leg_border_q <= leg_border;
-			end
+		// One-shot reset import (reference §6, prior shadow-import semantics):
+		// on the first clock after reset release, translate the CURRENT GA
+		// shadows into entries 0-16 through the fixed [KT] table. Gated by
+		// import_pending so idle shadows can never overwrite a later page
+		// write. Sits AFTER the page block on purpose (import wins over a
+		// coinciding page write, as the old translate did) and BEFORE the
+		// event block (a coinciding accepted write carries the newer colour
+		// and wins). Reset-gated like every other write, so reset dominates.
+		// Sentinel note: q resets to all-1s (HW31) exactly as before, so a
+		// retained HW31 shadow imports as 0 (no diff) rather than 0x66F.
+		// Preserve that existing quirk to keep the reset contract unchanged.
+		if (!reset && import_pending) begin
+			for (k = 0; k < 16; k = k + 1)
+				if (leg_inkr[k*5 +: 5] != leg_inkr_q[k*5 +: 5])
+					pal[k] <= legacy_colour_gbr(leg_inkr[k*5 +: 5]);
+			if (leg_border != leg_border_q)
+				pal[16] <= legacy_colour_gbr(leg_border);
+			leg_inkr_q     <= leg_inkr;
+			leg_border_q   <= leg_border;
+			import_pending <= 1'b0;
+		end
+
+		// B8-3 legacy PENR/INKR event (Arnold V §2.2 secondary port, reference
+		// §6): each accepted write maps its HW colour into entries 0-16 only.
+		// Event-driven, never deduced from shadow values, so same-value
+		// repeats restore the entry. Sits OUTSIDE the asic_cs gate on purpose:
+		// legacy writes arrive on the &7Fxx I/O port, which never asserts the
+		// page chip-select. A legacy event and a CPU palette write on the same
+		// clock edge resolve in favour of the legacy update (source order, as
+		// before); no arbitration rule exists in the sources. After the import
+		// above, so a coinciding event wins with the newer colour. Once
+		// import_pending clears, idle shadows never touch the palette again.
+		if (!reset && leg_pal_wr && leg_pal_addr <= 5'd16) begin
+			pal[leg_pal_addr] <= legacy_colour_gbr(leg_pal_data);
 		end
 	end
 
@@ -620,12 +667,15 @@ module asic_regs
 	// Quartus maps these synthesizable initial values to FPGA power-up
 	// state; the reset branch above defines the simulated values. The
 	// undefined-at-POR reference fields are a named zero assumption (header).
+	// The import-pending sentinel init matches the reset branch above, so a
+	// power-up without an explicit reset still takes the one-shot import.
 	initial begin
 		pri_r = 8'd0; splt_r = 8'd0; sscr_r = 8'd0;
 		ivr_r = 8'b00000001; ssa_hi_r = 8'd0; ssa_lo_r = 8'd0;
 		dcsr_stat = 1'b0; dcsr_flags = 3'd0; dcsr_ena = 3'd0;
 		leg_inkr_q = {80{1'b1}};
 		leg_border_q = 5'b11111;
+		import_pending = 1'b1;
 		pal_r = 12'd0;
 	end
 
