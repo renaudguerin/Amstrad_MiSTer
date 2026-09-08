@@ -26,6 +26,12 @@ synthesis classification is false. This test/documentation-only change reuses
 the existing `dba49d5` RBF with its original source identity; CI evidence is
 reported against the resulting integration SHA.
 
+Integration `5c201a8d081e646cfca32c9294ad38359fb4ca09` passed simulation/lint,
+synthesis policy and the required gate in
+[CI run 34187708364](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34187708364);
+Quartus was skipped. The task worktree was removed after this check, with its
+branch retained and unique evidence copied into the integration checkout.
+
 The B3 capture branch remains pending coordination with SDRAM/P10 changes.
 Both stashes and private recovery files are retained. The missing temporary
 CPU candidate has no staged recovery diff or additional commit in its retained

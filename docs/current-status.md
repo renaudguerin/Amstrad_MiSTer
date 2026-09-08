@@ -1,5 +1,15 @@
 # Current implementation status
 
+**Accepted integration, 2026-09-08:** `9d238dafc3a9950c276f91a3e928d5cfeb013bff`
+passed simulation/lint, synthesis policy and the required gate in
+[CI run 34188386354](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34188386354).
+Its preceding preserved-work merge `5c201a8` passed the same required jobs in
+[CI run 34187708364](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34187708364).
+Both correctly skipped Quartus and reuse the `dba49d5` RBF below. The completed
+FDC/test and host-tooling worktrees have been removed; their integrated branches,
+review/build evidence and host tools remain available. Active B8 task worktrees,
+the pending B3 branch and private recovery stashes are retained.
+
 **B2 host tooling prepared, 2026-09-08:** accepted source `7e39204` adds the
 [SSH/MGL capture driver](mister-hardware-loop-driver.md) and
 [pinned ARM MBC cross-build](mister-mbc-cross-build.md). The integration checkout
