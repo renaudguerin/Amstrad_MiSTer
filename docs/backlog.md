@@ -194,9 +194,10 @@ simulation and lint pass, including the B7 mutation matrix. This is
 Unfinished capture work is preserved alongside shared FDC work in stash
 `0fe18a4513a47e4f21e0f504f002673a853388c3`, which stays intact. The bounded
 B3 capture slice is recovered and reviewed only on the Plus branch
-(`bb77075`, based exactly on main `a8286bd`, READY pending separately
-authorized integration — not on main); the six stashed u765 pre-edge tests
-remain unaccepted. The [next-session queue](hardware-evidence-2026-09-02.md#proposed-next-session--not-started)
+(`bb77075`, originally based on `a8286bd`), pending refresh after the active
+SDRAM/P10 repair. The separate held-read FDC regression and test consolidation
+are integrated through `5fcf223`; they do not establish full-sector result-phase
+correctness or classic AMSDOS success. The stash itself remains preserved. The [next-session queue](hardware-evidence-2026-09-02.md#proposed-next-session--not-started)
 keeps FDC acceptance explicitly shared with classic AMSDOS.
 
 Runs on a laptop with no MiSTer attached, and gives cycle-level visibility and bisectability
@@ -426,6 +427,12 @@ survive until the CRTC character decision. The real-GA/scripted-bus fixture has
 integrated from `84f3106`, with historical-engine discrimination and fresh
 GHDL checks. Full motherboard execution and hardware confirmation remain open.
 See [the bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md). See [the timing evidence](accuracy/b8-1-cpu-write-timing-2026-09-08.md).
+
+**B8-2 integrated from `55151a0`, 2026-09-08:** Plus FIELD comes from the
+selected ASIC frame parity and reaches the production interlace-history
+consumer. Corrected transition and selected-edge controls pass; Opus functional
+review plus Gemini closure is scoped clear. Full ASCAL and hardware validation
+remain open. See [FIELD evidence](plus/b8-2-field-ownership-2026-09-08.md).
 
 **B8-6 integrated from refreshed `2bb75b5`, 2026-09-08:** Plus RGB now crosses the
 same enabled conversion boundary as sync/blanking. Source review and the updated

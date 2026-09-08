@@ -15,8 +15,10 @@ merged into the same behavioral PR.
 
 - B8-1 production-phase R5/R0 event retention and B8-6 Plus RGB/metadata
   alignment are integrated as separate changes. Their real-GA/scripted-write
-  and production-colour/gamma fixtures run in the default gate; executed T80,
-  full vendor video processing and named hardware retests remain separate.
+  and production-colour/gamma fixtures run in the default gate. B8-2 selected
+  FIELD ownership is integrated with a motherboard/consumer fixture, and four
+  optional executed-T80 cases pass. Full vendor video processing, full
+  motherboard CPU execution and named hardware retests remain separate.
   See the dated [accuracy](accuracy/b8-1-cpu-write-timing-2026-09-08.md) and
   [Plus](plus/b8-6-colour-boundary-2026-09-08.md) evidence.
 
@@ -453,14 +455,15 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 The September 8 [B8 architecture review](b8-architecture-methodology-review-2026-09-08.md)
 sets the current repair order. B8-1 R5/R0 write-event retention and B8-6 Plus
-RGB/metadata alignment are integrated; do not restart those implementations.
+RGB/metadata alignment, plus B8-2 selected FIELD ownership, are integrated;
+do not restart those implementations.
 Their successful simulation and Quartus artifact do not close hardware symptoms.
 See [current status](current-status.md) for accepted source and artifact identities.
 
-1. **Plus B8-2, then B8-3:** select the correct FIELD owner through the downstream
-   video path, then carry accepted legacy palette writes to the palette owner.
-   Keep these as separate focused fixes. Verify polarity/timing and repeated
-   same-value pen/border writes at production boundaries before title attribution.
+1. **Plus B8-3:** carry accepted legacy palette writes to the palette owner.
+   B8-2 FIELD ownership is integrated separately from `55151a0`; its full
+   ASCAL/hardware validation remains open. Verify repeated same-value pen/border
+   writes at production boundaries before title attribution.
 2. **Shared B8-4, then B8-7:** repair retained video-word coherence after CPU
    writes, then tape request/ACK and payload lifetime. These share `rtl/sdram.v`
    and must run serially with preserved CPU/cartridge/refresh scheduling. They
