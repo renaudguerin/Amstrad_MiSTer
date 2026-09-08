@@ -20,9 +20,11 @@
 // are vacuous under bench bindings (no DMA engine here; sync_filter
 // hardwired to 2'd2 selects the raw path). The two always blocks marked
 // [functional model — see header] are kept functionally aligned on the
-// points above, not textually in sync. Production wiring/timing ownership
-// lives in p1_mobo_bench (p1_mobo_bench_top.v elaborates the real
-// Amstrad_motherboard); no absolute latch-window phase equivalence is
+// points above, not textually in sync. p1_mobo_bench elaborates the real
+// Amstrad_motherboard for bus/GA seam checks, but its vram_din is tied to 0;
+// it therefore does not prove absolute VRAM latch-window timing. No current
+// fixture observes the complete address->return->pixel path, so that
+// production-path coverage remains open and no absolute phase equivalence is
 // claimed here.
 //
 // Simulation-only: never added to files.qip.
