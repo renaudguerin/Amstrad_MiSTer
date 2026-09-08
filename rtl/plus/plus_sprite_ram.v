@@ -15,6 +15,22 @@
 //  Mixed-port read-during-write semantics:
 //    Read-first / old-data on write collisions.
 //    Untouched locations initialize to zero (defined-zero FPGA model assumption).
+//
+//  P10j collision note (verified against production sources, 2026-09-03):
+//    Same-port (host) read-during-write is unreachable, so the behavioral
+//    model's old-data return never diverges from the M10K mapping below
+//    (port A NEW_DATA_NO_NBE_READ, mixed-port OLD_DATA; exact-fit authority
+//    Quartus run 33392854459). The only port-A writer besides the CPU is the
+//    SNA drain (sna_wr), and a CPU host read cannot coincide with it: the
+//    SNA parser stays busy (plus_sna_parser.v busy covers download, FIFO
+//    drain and the asic_sna_wr tail) until every SNA write has retired;
+//    Amstrad.sv only then clears sna_finish_pending and starts sna_apply_cnt;
+//    top-level reset holds the CPU through sna_download, sna_finish_pending
+//    and sna_apply_cnt > 2; and the production T80pa forces RD_n/WR_n/MREQ_n
+//    high while RESET_n is low (rtl/T80/T80pa.vhd), which keeps mem_rd low
+//    (Amstrad_motherboard.v) and hence spr_host_rd low (asic_regs.v). The
+//    video port is read-only, so no port-B write collision exists; mixed-port
+//    SNA-write/video-read returns OLD_DATA on both model and silicon.
 //============================================================================
 
 module plus_sprite_ram

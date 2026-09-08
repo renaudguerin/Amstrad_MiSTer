@@ -89,6 +89,13 @@ Astra closure of the Gemini-authored timing remediation). See the
 native-VHDL equivalence, full motherboard execution and DSC4/SHAKER hardware
 evidence remain open. CI and artifact delivery are tracked separately.
 
+**Preserved B3 capture integrated, 2026-09-08, from `bb77075`:** the bounded
+P10 frame-capture CLI and P10j contract notes are restored after the SDRAM
+repair. Original Gemini implementation review plus fresh merge-compatibility
+review are clear. Capture proves repeatability of synthetic frames with the
+reduced TV80 and fixture clocking; it is not a hardware/title oracle. See
+[preserved-work evidence](preserved-work-integration-2026-09-08.md).
+
 **Shared B8-4 integrated, 2026-09-08, from `7a58f88`:** retained SDRAM
 video words are keyed by physical word address and bank, invalidated by accepted
 writes and initialization, and refetched without requiring a raster-address
@@ -1596,9 +1603,9 @@ their old branch names, hashes and proposed tasks are not the current launch pla
 - Extend the bounded executed-T80 evidence only where a specific missing
   interaction warrants it. Hardware DSC4/SHAKER, IA-5/Q17 and Plus title
   acceptance remain open.
-- Refresh the preserved B3 capture candidate against integration,
-  retaining private evidence and stashes. A recorded temporary path may be gone
-  even when its committed branch remains recoverable.
+- Use the integrated bounded B3 capture CLI within its documented CPU/clock
+  limits. Preserve private evidence and stashes until their distinct remaining
+  acceptance questions are resolved.
 - Use the prepared B2 host driver when device access returns; real capture
   repeatability and selected-machine identity require the MiSTer. CSL/SSM
   execution and exact event capture remain separate work.

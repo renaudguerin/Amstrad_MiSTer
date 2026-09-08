@@ -477,8 +477,9 @@ See [current status](current-status.md) for accepted source and artifact identit
 4. **Plus B8-5:** complete snapshot apply across DMA, selected video/GA and MMU
    owners after drain and before CPU release. Coordinate motherboard interfaces
    after FIELD/palette work. Use DSK/CPR for early automation until this is proven.
-5. **Preserved candidates:** refresh and integrate the reviewed B3 capture
-   candidate `bb77075` after the SDRAM/P10 changes settle. FDC held-read test
+5. **Preserved work:** B3 capture `bb77075` and P10j notes `3db81d0` are
+   integrated after the SDRAM repair; retain their bounded synthetic/CPU limits.
+   FDC held-read test
    `c1a8ff9` and test consolidation `c12c264` are integrated through refreshed
    `5fcf223`, including the P1 timing-ownership correction; see
    [integration evidence](preserved-work-integration-2026-09-08.md).

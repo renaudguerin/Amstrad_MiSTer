@@ -12,44 +12,25 @@
   report because of its session limit; the coordinator authorized the
   cross-provider native fallback. See [scope, evidence and hardware limits](b8-4-video-coherence-2026-09-08.md).
 
-- **Plus P10j primitive/model contract notes — OPEN on main; independently
-  CLEARED on the prepared Plus branch (READY, pending integration).**
-  The 2026-08-31 Opus 5 high exact-tip review at `bf1e785` found no defect
-  but kept the verdict NOT CLEAR on three low contract/coverage notes
-  (behavioral same-port read/write vs M10K NEW_DATA unreachability, lint-stub
-  coverage, `host_addr=eff_addr` reset invariant), confirmed still
-  undocumented by the 2026-09-03 read-only pass at `a98590a`. The bounded
-  remediation (comment-only notes in `plus_sprite_ram.v`/`asic_regs.v` plus
-  the SNA-drain → apply-barrier → CPU-reset-hold → decoupled-ASIC-reset
-  source chain) is implemented as Plus commit `3db81d0` and independently
-  verified CLEAR by Gemini 3.8 Flash high on 2026-09-03 — but **`3db81d0`
-  is not on main**. It is READY on `plus/b3-capture-recovery` (`bb77075`,
-  based exactly on main `a8286bd`; `git show 3db81d0 --stat` from a clone
-  containing the Plus branch) awaiting separately authorized serial
-  integration. This row clears on main when that integration lands; no
-  production RTL defect is claimed meanwhile. Full scope and exact Quartus
-  evidence: `docs/plus/p10-review-debt-status-2026-08-31.md`.
-  Read-only confirmation: `docs/plus/plus-review-2026-09-03.md` §4.
+- **Plus P10j primitive/model contract notes — CLEAR, integrated from `3db81d0`.**
+  The comment-only collision/reset-ownership notes and their source proof are
+  present. The original Gemini review cleared the recorded M10K/model
+  distinction; the fresh B3 integration review confirmed the notes remain
+  comment-only and compatible with the current drain/reset path. Snapshot
+  apply changes must keep these current comments accurate. See the
+  [contract record](plus/p10j-contract-review-2026-09-03.md).
 
-- **Plus B3 bounded frame capture — CLEARED on the prepared Plus branch
-  (READY, pending integration); not on main.** Plus commit `bb77075`
-  (base `a8286bd`) adds steady-state capture over the real P10 cartridge
-  path with fail-closed CLI, atomic-exclusive output, and self-equality
-  evidence only. Gemini 3.8 Flash high independent review is CLEAR with one
-  non-blocking test-tightening suggestion (filesystem-level dangling-symlink
-  target/link assertion). Parent `make -C sim` and `make -C sim lint` on
-  exact `bb77075` both exit 0 (2026-09-03). Range-diff proves the reviewed
-  patches unchanged. Inspect via `git show bb77075 --stat`; no Plus-branch
-  doc path is linked here because those paths do not exist on main. This
-  becomes a cleared main row only after authorized integration. Summary in
-  `docs/session-handoff-2026-09-03.md`.
+- **Plus B3 bounded frame capture — CLEAR, integrated from `bb77075`.**
+  The original Gemini review cleared the capture/CLI implementation with one
+  non-blocking test suggestion. Fresh Gemini review
+  `20260908T053839Z-2528-42c3` clears compatibility with `22202b8`, including
+  both merge resolutions, retained B8-4/FDC test bodies, exclusive output and
+  reduced-TV80/fixture-clock limits. It did not rerun the full gates. See
+  [integration evidence](preserved-work-integration-2026-09-08.md).
 
-**Status: zero unresolved independent-review findings on the reviewed
-candidates; two review-CLEAR integration items remain (P10j `3db81d0` and B3
-`bb77075`), source changes NOT in main yet, READY at `bb77075` pending
-separately authorized integration.** The validation residuals retained in
-the cleared rows below are not hardware evidence and do not reopen local RTL/test review.
-A CLEAR verdict on source/test review is never hardware closure.
+**Status: zero unresolved independent-review findings on these reviewed
+candidates.** The validation residuals below are not hardware evidence and do
+not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
 
 ## Cleared rows
 

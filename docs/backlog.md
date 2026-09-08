@@ -183,29 +183,31 @@ plus the shared RGB, MA/RA and VRAM payload. The payload is deliberately not
 labelled pre/post-filter: `crtc_shift` affects the motherboard VRAM byte path
 before both observation points. Its established Off default is retained because
 changing the shared P10/B7 default to Full hid the ASIC GA timing mutation; a
-future capture target may override the parameter to Full explicitly. Full
-simulation and lint pass, including the B7 mutation matrix. This is
- observability infrastructure only: runtime CPR ingestion, a self-describing
- frame stream, repeatable hashes and any image comparison remain the next B3
- slice. Read-only independent review 2026-09-03 at `a98590a` returned CLEAR
- (record `docs/plus/b3-frame-harness-review-2026-09-03.md`); Off/raw default,
- 32-read/≥4-address coverage, TV80-surrogate CPU, and stash limits retained.
+capture build may override the parameter to Full explicitly. The foundation
+passed full simulation/lint and the B7 mutation matrix; read-only review at
+`a98590a` was CLEAR (`docs/plus/b3-frame-harness-review-2026-09-03.md`).
+The integrated `bb77075` extension adds runtime CPR ingestion, a self-describing
+frame stream and repeatability checks. Image comparison against an independent
+or hardware oracle remains open; Off/raw default and TV80 limits remain.
 
 Unfinished capture work is preserved alongside shared FDC work in stash
 `0fe18a4513a47e4f21e0f504f002673a853388c3`, which stays intact. The bounded
-B3 capture slice is recovered and reviewed only on the Plus branch
-(`bb77075`, originally based on `a8286bd`), pending refresh after the active
-SDRAM/P10 repair. The separate held-read FDC regression and test consolidation
+B3 capture slice `bb77075` (originally based on `a8286bd`) is integrated
+after the SDRAM/P10 repair with fresh compatibility review. Its bounded capture CLI proves
+synthetic frame repeatability, with reduced-TV80 and fixture-clock limits.
+The separate held-read FDC regression and test consolidation
 are integrated through `5fcf223`; they do not establish full-sector result-phase
-correctness or classic AMSDOS success. The stash itself remains preserved. The [next-session queue](hardware-evidence-2026-09-02.md#proposed-next-session--not-started)
+correctness or classic AMSDOS success. The stash itself remains preserved. The
+[dated hardware queue](hardware-evidence-2026-09-02.md#proposed-next-session--not-started)
 keeps FDC acceptance explicitly shared with classic AMSDOS.
 
 Runs on a laptop with no MiSTer attached, and gives cycle-level visibility and bisectability
 that hardware capture cannot.
 
-**Feasibility.** Core clock is 16 MHz; one frame is about 320k clocks. Verilator on an
-M-series Mac runs a design of this size at a few MHz, so roughly 0.1–0.3 s per frame — a
-hundred frames in under a minute. This is ordinary practice in FPGA retro development.
+**Measured fixture scope.** Capture samples the 64 MHz fixture clock; the
+September 8 one-frame CLI run emitted 1,277,952 samples for its synthetic
+program. Host throughput depends on compilation, tracing and output costs; no
+hundred-frame speed claim is established by this bounded run.
 
 **Most of it already exists.** `sim/plus/p10_boot_test_top.v` already instantiates the
 production motherboard with a reduced TV80 surrogate under the T80pa-shaped wrapper
