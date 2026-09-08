@@ -208,7 +208,7 @@ T80pa CPU
 	.DIR(sna_cpu_dir)
 );
 
-wire crtc_hs, crtc_vs, crtc_de;
+wire crtc_hs, crtc_vs, crtc_de, crtc_field;
 wire [13:0] MA;
 wire  [4:0] RA;
 wire  [7:0] crtc_dout;
@@ -239,7 +239,7 @@ CRTC crtc
 	.VSYNC(crtc_vs),
 	.HSYNC(crtc_hs),
 	.DE(crtc_de),
-	.FIELD(field),
+	.FIELD(crtc_field),
 	.CURSOR(cursor),
 
 	.MA(MA),
@@ -297,6 +297,12 @@ wire [4:0]  ra_sel = plus_mode ? plus_ra : RA;
 wire        hs_sel = plus_mode ? plus_crtc_hs : crtc_hs;
 wire        vs_sel = plus_mode ? plus_crtc_vs : crtc_vs;
 wire        de_sel = plus_mode ? plus_crtc_de : crtc_de;
+// B8-2: the scaler-facing FIELD (VGA_F1) belongs to the selected machine.
+// Classic FIELD stays with the classic CRTC; Plus FIELD comes from the ASIC's
+// own frame parity (see asic_video FIELD). Unselected-engine perturbation must
+// not reach the pin.
+wire        plus_field;
+assign field = plus_mode ? plus_field : crtc_field;
 
 asic_ga_timing asic_ga
 (
@@ -379,6 +385,7 @@ asic_video asic_vid
 	.HSYNC(plus_crtc_hs),
 	.VSYNC(plus_crtc_vs),
 	.DE(plus_crtc_de),
+	.FIELD(plus_field),
 	.MA(plus_ma),
 	.RA(plus_ra),
 
