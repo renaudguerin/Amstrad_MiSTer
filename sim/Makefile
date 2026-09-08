@@ -17,11 +17,16 @@ VERILATOR_FLAGS := --cc --exe --build --trace \
 	--top-module $(TOP) --Mdir $(OBJ_DIR) -Wno-fatal
 CXXFLAGS ?= -std=c++17 -O2
 
+VIDEO_COLOR_SRC := plus/video_color_test.sv ../rtl/amstrad_video_color.sv \
+    ../rtl/color_mix.sv ../sys/gamma_corr.sv
+VIDEO_COLOR_BIN := $(OBJ_DIR)/video_color/Vvideo_color_test
+
+
 .PHONY: all build test lint soak clean crt-filter-blank-build crt-filter-blank-test
 
 all: test
 
-build: $(TEST_BIN) crt-filter-blank-build
+build: $(TEST_BIN) crt-filter-blank-build $(VIDEO_COLOR_BIN)
 	$(MAKE) -C plus build
 	$(MAKE) -C ../rtl/GA40010 all
 	$(MAKE) -C ../rtl/u765 build
@@ -31,7 +36,7 @@ crt-filter-blank-build: $(CRTF_TEST_BIN)
 crt-filter-blank-test: $(CRTF_TEST_BIN)
 	./$(CRTF_TEST_BIN)
 
-test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test
+test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test
 	./$(TEST_BIN)
 	$(MAKE) -C plus test
 	$(MAKE) -C ../rtl/GA40010 test
@@ -54,8 +59,19 @@ $(CRTF_TEST_BIN): $(CRTF_TOP_SRC) $(CRTF_RTL) $(CRTF_TEST_SRC) Makefile
 		-CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(CRTF_TEST_BIN)) $(CRTF_TOP_SRC) $(CRTF_RTL) $(CRTF_TEST_SRC)
 
+# B8-6: production colour/CE selector plus gamma, without the vendor scaler.
+.PHONY: video-color-test
+video-color-test: $(VIDEO_COLOR_BIN)
+	./$(VIDEO_COLOR_BIN)
+
+$(VIDEO_COLOR_BIN): $(VIDEO_COLOR_SRC) Makefile
+	$(VERILATOR) --binary --timing --top-module video_color_test \
+		--Mdir $(OBJ_DIR)/video_color -Wno-fatal $(VIDEO_COLOR_SRC)
+
 lint:
 	$(VERILATOR) --lint-only --top-module crtc_cpu_phase_top -UVERILATOR -Wall -Wno-fatal $(CPU_PHASE_RTL)
+	$(VERILATOR) --lint-only --timing --top-module video_color_test \
+		-Wall -Wno-fatal $(VIDEO_COLOR_SRC)
 	$(VERILATOR) --lint-only --top-module $(TOP) -Wall -Wno-fatal $(RTL)
 	$(VERILATOR) --lint-only --top-module $(CRTF_TOP) -Wall -Wno-fatal $(CRTF_TOP_SRC) $(CRTF_RTL)
 	$(MAKE) -C plus lint
