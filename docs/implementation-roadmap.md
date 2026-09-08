@@ -456,7 +456,8 @@ and hardware retest remain. No separate upstream utilization build was required.
 The September 8 [B8 architecture review](b8-architecture-methodology-review-2026-09-08.md)
 sets the current repair order. B8-1 R5/R0 write-event retention and B8-6 Plus
 RGB/metadata alignment, plus B8-2 selected FIELD ownership, are integrated;
-do not restart those implementations.
+B8-4 retained video-word coherence is also integrated. Do not restart those
+implementations.
 Their successful simulation and Quartus artifact do not close hardware symptoms.
 See [current status](current-status.md) for accepted source and artifact identities.
 
@@ -464,11 +465,10 @@ See [current status](current-status.md) for accepted source and artifact identit
    B8-2 FIELD ownership is integrated separately from `55151a0`; its full
    ASCAL/hardware validation remains open. Verify repeated same-value pen/border
    writes at production boundaries before title attribution.
-2. **Shared B8-4, then B8-7:** repair retained video-word coherence after CPU
-   writes, then tape request/ACK and payload lifetime. These share `rtl/sdram.v`
-   and must run serially with preserved CPU/cartridge/refresh scheduling. They
-   may proceed alongside the Plus work in isolated checkouts; coordinate P10
-   fixture changes with B3/FDC recovery.
+2. **Shared B8-7:** repair tape request/ACK and payload lifetime while preserving
+   the integrated B8-4 cache-coherence repair, CPU/cartridge admission and
+   refresh scheduling. B8-4 source `7a58f88` releases the P10 fixture for
+   B3/FDC follow-ups; coordinate any new shared changes before editing.
 3. **Classic validation:** four production-T80 OUT(C)/OUTI cases through the
    real GA/CRTC boundary are integrated from `84f3106`, alongside the 45-case
    scripted fixture. Native dynamic-wait comparison, complete frame-level RFD

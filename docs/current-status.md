@@ -89,6 +89,16 @@ Astra closure of the Gemini-authored timing remediation). See the
 native-VHDL equivalence, full motherboard execution and DSC4/SHAKER hardware
 evidence remain open. CI and artifact delivery are tracked separately.
 
+**Shared B8-4 integrated, 2026-09-08, from `7a58f88`:** retained SDRAM
+video words are keyed by physical word address and bank, invalidated by accepted
+writes and initialization, and refetched without requiring a raster-address
+change. The physical-DQ fixture and a production motherboard byte-to-pixel
+witness fail on original RTL and pass after repair. Astra medium cleared the
+foreign-authored repair and the corrected pre/post-edge assertions. See
+[coherence evidence](b8-4-video-coherence-2026-09-08.md). The merged checkout passes full simulation, lint and soak
+`0x6e8258198d6e6137`. Hardware/title acceptance and dedicated cartridge/tape
+invalidation vectors remain separate.
+
 **Plus B8-2 integrated, 2026-09-08, from `55151a0`:** the selected ASIC now
 owns Plus FIELD; classic FIELD remains selected in classic mode. The production
 interlace-history consumer is shared with a motherboard fixture. Eleven cases
@@ -1581,7 +1591,7 @@ which incorporates the September 8 production-boundary findings. Older dated
 hardware and implementation records above are evidence for their named source;
 their old branch names, hashes and proposed tasks are not the current launch plan.
 
-- B8-1, B8-2 and B8-6 are integrated. Complete B8-3, shared B8-4/B8-7, and
+- B8-1, B8-2, B8-4 and B8-6 are integrated. Complete B8-3, shared B8-7, and
   B8-5 with separate behavior changes and production-boundary regressions.
 - Extend the bounded executed-T80 evidence only where a specific missing
   interaction warrants it. Hardware DSC4/SHAKER, IA-5/Q17 and Plus title

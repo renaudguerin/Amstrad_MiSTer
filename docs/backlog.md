@@ -294,7 +294,8 @@ visibility first. Keep scaler acquisition on the Full tuple; any B1 follow-up mu
 RGB/sync phase without sending live HBLANK into geometry measurement. B8 narrows
 this premise: `crt_filter.SHIFT` already affects VRAM byte assembly before RGB;
 there is no filter-independent RGB tap today. B8 also found classic FIELD leaking
-into Plus despite the earlier RGB/bus isolation result.
+into Plus despite the earlier RGB/bus isolation result. B8-2 corrects that
+selected-owner leak in `9052a08`; full ASCAL and hardware validation remain open.
 The prose below is retained as the problem statement and historical design brief.
 
 **MENU SLICE DONE 2026-09-01:** the existing Plus-model capability decoder now drives menu-mask
@@ -433,6 +434,12 @@ selected ASIC frame parity and reaches the production interlace-history
 consumer. Corrected transition and selected-edge controls pass; Opus functional
 review plus Gemini closure is scoped clear. Full ASCAL and hardware validation
 remain open. See [FIELD evidence](plus/b8-2-field-ownership-2026-09-08.md).
+
+**B8-4 integrated from `7a58f88`, 2026-09-08:** the retained SDRAM video
+word now uses a full address/bank key and invalidates on accepted matching
+writes. Physical-DQ and motherboard byte-to-pixel regressions pass; Astra
+medium review and its narrow assertion closure are clear. Hardware acceptance
+remains open. See [coherence evidence](b8-4-video-coherence-2026-09-08.md).
 
 **B8-6 integrated from refreshed `2bb75b5`, 2026-09-08:** Plus RGB now crosses the
 same enabled conversion boundary as sync/blanking. Source review and the updated
@@ -622,7 +629,9 @@ not an established character-granularity ceiling. The
 [B8 findings](b8-architecture-methodology-review-2026-09-08.md) identify two
 specific boundaries: old-register CRTC side effects miss legal CPU write phases
 (B8-1), and the SDRAM video cache can retain stale data after a CPU write to an
-unchanged fetch address (B8-4).
+unchanged fetch address (B8-4). Both have scoped repairs integrated; remaining
+work must distinguish these accepted regressions from unverified full-system
+and hardware behavior.
 
 The CRTC already resolves half-characters and some system-clock write events;
 GA40010 already supplies finer clock and byte-sampling phases. SHAKER Module A

@@ -104,6 +104,9 @@ reg        vram_req=0;
 reg        tape_req=0;
 reg        cart_active=0;
 reg  [1:0] active_bank;
+reg [22:1] vram_cached_addr;
+reg  [1:0] vram_cached_bank;
+reg        vram_cached_valid = 0;
 reg  [7:0] cart_write_data;
 reg  [5:0] cart_grants_since_refresh=0;
 reg        refresh_due=0;
@@ -119,12 +122,15 @@ reg       init_old = 0;
 
 // access manager
 always @(posedge clk) begin
-	reg [22:0] old_addr;
 	reg old_rd, old_we, old_ref;
 
 	old_rd<=oe;
 	old_we<=we;
 	old_ref<=clkref;
+
+	if(reset != 0 || init || init_old) begin
+		vram_cached_valid <= 0;
+	end
 
 	if(q==STATE_IDLE) begin
 		ram_req <= 0;
@@ -140,6 +146,11 @@ always @(posedge clk) begin
 			ram_req <= 1;
 			wr <= we;
 			a <= addr;
+			active_bank <= bank;
+			if(we && vram_cached_valid && (bank == vram_cached_bank) &&
+			   (addr[22:1] == vram_cached_addr)) begin
+				vram_cached_valid <= 0;
+			end
 		end
 		// A due refresh outranks every new client except the edge-triggered
 		// main port. Keeping refresh_due set across a main grant makes that
@@ -155,6 +166,10 @@ always @(posedge clk) begin
 			a <= cart_addr;
 			active_bank <= cart_bank;
 			cart_write_data <= cart_din;
+			if(cart_wr && vram_cached_valid && (cart_bank == vram_cached_bank) &&
+			   (cart_addr[22:1] == vram_cached_addr)) begin
+				vram_cached_valid <= 0;
+			end
 			if(cart_grants_since_refresh == 6'd31) begin
 				cart_grants_since_refresh <= 6'd32;
 				refresh_due <= 1;
@@ -166,11 +181,20 @@ always @(posedge clk) begin
 			tape_req <= 1;
 			wr <= tape_wr;
 			a <= tape_addr;
+			active_bank <= 2'b10;
+			if(tape_wr && vram_cached_valid && (2'b10 == vram_cached_bank) &&
+			   (tape_addr[22:1] == vram_cached_addr)) begin
+				vram_cached_valid <= 0;
+			end
 		end
 		else if((mode == MODE_NORMAL) && (reset == 0) && !init && !init_old &&
-		        (old_addr[15:1] != vram_addr[15:1])) begin
+		        (!vram_cached_valid || (vram_cached_bank != vram_bank) ||
+		         (vram_cached_addr != vram_addr[22:1]))) begin
 			vram_req <= 1;
-			old_addr <= vram_addr;
+			vram_cached_valid <= 1;
+			vram_cached_bank <= vram_bank;
+			vram_cached_addr <= vram_addr[22:1];
+			active_bank <= vram_bank;
 			a <= vram_addr;
 		end
 		else if(mode == MODE_NORMAL) begin
@@ -244,9 +268,7 @@ always @(posedge clk) begin
 	endcase
 
 	if(q == STATE_START) begin
-		SDRAM_BA <= (mode == MODE_NORMAL) ?
-		            (cart_active ? active_bank : tape_req ? 2'b10 :
-		             vram_req ? vram_bank : bank) : 2'b00;
+		SDRAM_BA <= (mode == MODE_NORMAL) ? active_bank : 2'b00;
 		if(ram_req & wr) ram_dout <= din;
 	end
 

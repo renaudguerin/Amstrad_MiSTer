@@ -2,6 +2,16 @@
 
 ## Pending integration / review-complete rows (zero open review findings)
 
+- **B8-4 retained-video coherence — CLEAR, integrated from `7a58f88`.**
+  Astra medium independently reviewed the foreign-authored SDRAM key,
+  accepted-write invalidation, bank capture and production pixel witness.
+  Its two test-timing findings were corrected and cleared in a narrow
+  follow-up: sample sources/enables before the edge and assert destinations
+  afterward; preserve next-slot admission without an extra polling tick.
+  Full simulation, lint and soak `0x6e8258198d6e6137` pass. Opus returned no
+  report because of its session limit; the coordinator authorized the
+  cross-provider native fallback. See [scope, evidence and hardware limits](b8-4-video-coherence-2026-09-08.md).
+
 - **Plus P10j primitive/model contract notes — OPEN on main; independently
   CLEARED on the prepared Plus branch (READY, pending integration).**
   The 2026-08-31 Opus 5 high exact-tip review at `bf1e785` found no defect
