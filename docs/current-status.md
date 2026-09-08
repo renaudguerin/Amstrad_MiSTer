@@ -128,12 +128,15 @@ stopped as instructed. B10 has no code changes. Exact branches, recovery files, 
 review debt, reference preservation, and repair backlog are in
 [the continuation handoff](session-continuation-2026-09-03.md).
 
-**CPU-candidate recovery check, 2026-09-08:** the old temporary worktree now
-contains directory scaffolding, but its uncommitted source and documented recovery
-patch were not found in the checked repository and temporary paths. The branch
-still names its original base; the September 3 candidate results above are historical,
-not a currently runnable checkout. The FDC stash and main `.fdc-scratch/` evidence
-remain present. Check retained records/backups before attempting to resume the candidate.
+**CPU-candidate recovery check, 2026-09-08:** the old temporary worktree contained
+only empty directories, with no staged source or additional commit in its retained
+Git metadata. Its uncommitted source and documented recovery patch were not found
+in the checked repository and temporary paths. The empty temporary worktrees have
+been cleaned up; branches and stashes remain. The review-debt branch's patch was
+already integrated as `22ad766` (matching patch ID). The CPU branch still names
+its original base, so the September 3 candidate results are historical, not a
+currently runnable checkout. The FDC stash and main `.fdc-scratch/` evidence remain
+present. Check retained records/backups before attempting to resume the candidate.
 
 **September 3 handoff source tip: `a8286bd` (docs-only B6/B10 wording/comments). This handoff
 is docs-only and adds no new validated source.** The Plus READY tip below is
