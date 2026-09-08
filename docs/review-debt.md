@@ -43,6 +43,13 @@ A CLEAR verdict on source/test review is never hardware closure.
 
 ## Cleared rows
 
+- **B8-1 production-phase R5/R0 event retention — SCOPED CLEAR, integrated
+  from `c1d2add`, 2026-09-08.** Accuracy source `8c29248` has Gemini/high and
+  requested Muse Spark/xhigh review; both are explicitly weaker than Opus.
+  The shared five-pair lint waiver has separate scoped Gemini/high review.
+  Review scope, independently executed checks, and retained production-T80
+  and hardware validation gaps are in the [B8-1 evidence](accuracy/b8-1-cpu-write-timing-2026-09-08.md).
+
 - **B9 review-record archive and first test-suite cleanup — CLEARED, native Sol
   + Muse classic/plus read-only passes + mechanical reconciliation,
   2026-09-03 at `a98590a`.** The Luna Max bounded pass (`825ecef`) moved

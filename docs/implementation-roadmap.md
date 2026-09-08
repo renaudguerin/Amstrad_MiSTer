@@ -21,7 +21,7 @@ merged into the same behavioral PR.
   See [the task workflow](task-workflow.md); directory names do not encode stream ownership.
 - The current development state contains the accuracy/reference documents, the F1-F3 and main
   F5 corrections, deterministic-complete F12/F4/F8/F9, the Verilator CRTC/Plus gates plus the
-  randomized equivalence soak (`make -C sim soak`, golden hash `0x2263c9fc44af4ee7`), the
+  randomized equivalence soak (`make -C sim soak`, golden hash `0x6e8258198d6e6137`), the
   production-wired bounded CPR parser/service/MMU path, R12/R13 reload vectors
   (`t20a`-`t20i`), the per-type engine
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
@@ -32,8 +32,9 @@ merged into the same behavioral PR.
   RBF packaging, and artifact upload through the pass-2 fix tip `f6f09f5` (run
   `32645547100`). New top-level/file-list commits still require their own run.
 - `sim/` currently reports **192** required classic CRTC passes with no expected failures
-  (verified 2026-09-01, Verilator 5.050); the soak reproduces golden hash
-  `0x2263c9fc44af4ee7`. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
+  plus 45 production-GA/scripted-write cases (B8-1, Verilator 5.052); the soak
+  reproduces golden hash `0x6e8258198d6e6137` after the R5/R0 event repair.
+  Executed production-T80 instruction coverage remains a separate gap. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through

@@ -420,6 +420,11 @@ running everything we built, and is a classic path overriding a Plus path".
 
 ## B8. Full independent architecture audit
 
+**B8-1 integrated, 2026-09-08:** qualified production-phase R5/R0 events now
+survive until the CRTC character decision. The real-GA/scripted-bus fixture has
+45 passing cases; executed production-T80 instruction coverage and hardware
+confirmation remain separate validation gaps. See [the timing evidence](accuracy/b8-1-cpu-write-timing-2026-09-08.md).
+
 **FIRST ARCHITECTURE/METHODOLOGY PASS COMPLETE 2026-09-08.** The user-authorized
 Astra audit examined production boundaries and fixture/process fidelity; see
 [the findings and repair order](b8-architecture-methodology-review-2026-09-08.md).

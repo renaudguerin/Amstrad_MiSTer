@@ -1,0 +1,8 @@
+`verilator_config
+// Intentional port/internal case pairs in the existing production modules.
+// Keep new similar names visible; these waivers match both file and message.
+lint_off -rule SIMILARNAME -file "*/rtl/CRTC.v" -match "Declaration overlaps another with different case: 'field'"
+lint_off -rule SIMILARNAME -file "*/rtl/CRTC.v" -match "Declaration overlaps another with different case: 'de'"
+lint_off -rule SIMILARNAME -file "*/rtl/plus/asic_video.v" -match "Declaration overlaps another with different case: 'hcc'"
+lint_off -rule SIMILARNAME -file "*/rtl/crt_filter.v" -match "Declaration overlaps another with different case: 'shift'"
+lint_off -rule SIMILARNAME -file "*/rtl/crt_filter.v" -match "Declaration overlaps another with different case: 'hsync_i'"

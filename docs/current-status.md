@@ -1,5 +1,18 @@
 # Current implementation status
 
+**Accuracy B8-1 integrated, 2026-09-08, from `c1d2add`:** the repair
+retains qualified R5/R0 events from system-clock register capture to the CRTC
+character decision. Source `8c29248` has scoped Gemini/high and requested
+Muse Spark/xhigh clearance (both weaker than Opus); the separately reviewed
+build-only lint delta is `d52152a`. Full simulation, aggregate Verilator 5.052
+lint, and soak `0x6e8258198d6e6137` pass. Its production-GA fixture fails 20 cases on unchanged
+`d46609d` and passes all 45 after repair. R6 RTL remains unchanged: sticky
+C4=R6 and temporary R6=0 border are distinct controls. See the
+[timing contract, gates, and review status](accuracy/b8-1-cpu-write-timing-2026-09-08.md).
+Executed production T80, OUT(C)/OUTI instruction distinctions, and DSC4/SHAKER
+hardware evidence remain open. Integration CI and artifact delivery are tracked
+separately from these local gates.
+
 **Architecture/methodology review, 2026-09-08:** the user-authorized B8 first pass
 is complete against source `65364ee`; see
 [findings and repair order](b8-architecture-methodology-review-2026-09-08.md).
@@ -28,6 +41,13 @@ Claude hit its session limit and the single authorized retry failed, so implemen
 stopped as instructed. B10 has no code changes. Exact branches, recovery files, evidence,
 review debt, reference preservation, and repair backlog are in
 [the continuation handoff](session-continuation-2026-09-03.md).
+
+**CPU-candidate recovery check, 2026-09-08:** the old temporary worktree now
+contains directory scaffolding, but its uncommitted source and documented recovery
+patch were not found in the checked repository and temporary paths. The branch
+still names its original base; the September 3 candidate results above are historical,
+not a currently runnable checkout. The FDC stash and main `.fdc-scratch/` evidence
+remain present. Check retained records/backups before attempting to resume the candidate.
 
 **September 3 handoff source tip: `a8286bd` (docs-only B6/B10 wording/comments). This handoff
 is docs-only and adds no new validated source.** The Plus READY tip below is

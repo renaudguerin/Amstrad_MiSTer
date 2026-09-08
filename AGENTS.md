@@ -97,7 +97,12 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x2263c9fc44af4ee7`, re-minted 2026-09-01 for the reviewed interlace
+  (`0x6e8258198d6e6137`, re-minted 2026-09-08 for B8-1 production-phase
+  R5/R0 write-event retention (French ACCC v1.11 sections 11.6 pp.89-92 and
+  13.7 pp.126-128). The seed, stimulus and sampled projection are unchanged;
+  old-value side effects now survive register writes between character enables.
+  See `docs/accuracy/b8-1-cpu-write-timing-2026-09-08.md`; previously
+  `0x2263c9fc44af4ee7`, re-minted 2026-09-01 for the reviewed interlace
   VSYNC lifecycle correction: type 1 no longer depends on type-0 C0 history,
   while type 0 reconstructs an already-earned C0=2 qualification from the
   live counter when snapshot load or a live type switch clears private

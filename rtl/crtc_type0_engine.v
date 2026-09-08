@@ -297,21 +297,34 @@ wire       type0_c0_1_break_write = !CRTC_TYPE && register_write && hcc == 1 &&
 wire       type0_c0_1_adjust_active = type0_c0_1_adjust | type0_c0_1_break_write;
 
 // Technical information sourced from the "Amstrad CPC CRTC Compendium" by
-// Longshot (CC BY-NC-ND). French ACCC v1.11 section 13.7.2.2 pp.126-127:
+// Longshot (CC BY-NC-ND). French ACCC v1.11 section 13.7.2 pp.126-128:
 // on a true last frame line, an R0=1 -> R0>1 write accepted during C0=1
 // evaluates the old C0=R0 equality first, but the new total prevents the old
 // horizontal wrap. C0 reaches 2 with C4 incremented, C9 retained, and the
 // additional-management state still active even though R5 was zero. Limit
 // this correction to that fully sourced R5=0/R8=0 recipe; section 13.7.2.1's
 // non-last-line overflow variant remains a separate behavior boundary.
-wire       type0_r0_widen_accept = nRESET && !SNA_LOAD && !CRTC_TYPE &&
-									 CLKEN && register_write &&
+wire       type0_r0_widen_write_accept = nRESET && !SNA_LOAD && !CRTC_TYPE &&
+									 register_write &&
 									 (addr == 5'd00) && (hcc == 1) &&
 									 (R0_h_total == 1) && (DI > 1) &&
 									 frame_adj_r && !in_adj &&
 									 (R5_v_total_adj == 0) && (R8_interlace == 0);
+// French section 13.7.2 p.127: an early write has already updated R0
+// before CLKEN, so C0 must advance 1->2 on that edge, with no duplicate
+// C0=1 character. Retain the vertical action until that edge. The existing
+// direct-CLKEN path still separates its accepting edge from the C0=2 step.
+reg        type0_r0_widen_write_pending;
+wire       type0_r0_widen_accept = CLKEN && type0_r0_widen_write_accept;
+always @(posedge CLOCK) begin
+    if(!nRESET || SNA_LOAD || CRTC_TYPE || CLKEN)
+        type0_r0_widen_write_pending <= 0;
+    else if(type0_r0_widen_write_accept)
+        type0_r0_widen_write_pending <= 1;
+end
 assign     r0_widen_hold = type0_r0_widen_accept;
-assign     r0_widen_step = type0_r0_widen_pending && !SNA_LOAD && !CRTC_TYPE;
+assign     r0_widen_step = (type0_r0_widen_pending || type0_r0_widen_write_pending) &&
+                          !SNA_LOAD && !CRTC_TYPE;
 
 // Type 0 still compares C0 with R0 when both are zero, but that repeated
 // equality pins C0 rather than completing a stream of one-character lines.

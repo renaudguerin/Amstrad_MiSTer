@@ -232,13 +232,25 @@ wire [4:0] pc9_toggled = {4'b0000, R9_v_max_line[0] ? parity_c9
 
 wire [4:0] crtc1_line_max = R9_v_max_line;
 
-// The register file and this engine sample the same CLOCK edge.  For the
-// RFD-forming R5 0->nonzero write, use the old stored R5 to recognize the
-// transition and the live DI value in this edge's rollover decisions.
+// French ACCC v1.11 section 11.6 pp.89-90: capture the R5 0->nonzero
+// transition with the old register/C0 on the first system-clock write edge.
+// Production CPU writes arrive between CLKENs; the register file updates
+// immediately. Retain the qualified event until the character decision,
+// with a bypass for a write accepted on CLKEN itself. A held write cannot
+// recapture the transition because the stored R5 already has the new value.
 wire r5_write_hit = CRTC_TYPE & ENABLE & RS & ~nCS & ~R_nW & (addr == 5'd05);
-wire rfd_arm = CLKEN & hcc_last & r5_write_hit &
-               (R5_v_total_adj == 0) & (|DI[4:0]);
-wire [4:0] crtc1_rollover_r5 = rfd_arm ? DI[4:0] : R5_v_total_adj;
+wire rfd_r5_accept = nRESET && !SNA_LOAD && hcc_last && r5_write_hit &&
+                     (R5_v_total_adj == 0) && (|DI[4:0]);
+reg rfd_r5_write_pending;
+wire rfd_arm = nRESET && !SNA_LOAD && CRTC_TYPE && CLKEN &&
+               (rfd_r5_accept || rfd_r5_write_pending);
+wire [4:0] crtc1_rollover_r5 = (CLKEN && rfd_r5_accept) ? DI[4:0] : R5_v_total_adj;
+always @(posedge CLOCK) begin
+    if(!nRESET || SNA_LOAD || !CRTC_TYPE || CLKEN)
+        rfd_r5_write_pending <= 0;
+    else if(rfd_r5_accept)
+        rfd_r5_write_pending <= 1;
+end
 
 // ACCC v1.10 section 11.3.2: Type 1 adjustment ends when C5+1 reaches R5
 // evaluated by equality at the line boundary. R5=0 never satisfies this comparison.
@@ -297,11 +309,11 @@ wire       line_row_structure_last = in_adj ? line_last_w : line_limit_match;
 assign     line_last = line_limit_match;
 assign     line_new = hcc_end;
 
-// ACCC v1.10 section 13.7.1.2 p.124 (digest-01 section 8.6): a second RFD
+// French ACCC v1.11 section 13.7.1.2 p.126: a second RFD
 // trigger route exists on CRTC 1.  Widening R0 with an OUT(C),reg8 write
 // landing exactly at C0==R0 on the last line of the frame (C9==R9, C4==R4,
 // R5==0, outside adjustment beforehand) does not end that line: per the
-// section 13.6.2 chronogram gist, p.122 ("just-in-time write considered
+// French section 13.6.2 chronogram, p.124 ("just-in-time write considered
 // this rollover") the widened total is used by this rollover's own
 // decision, so
 // the comparator match is overridden and the line runs on into the widened
@@ -317,22 +329,29 @@ assign     line_new = hcc_end;
 // Every term below requires CRTC_TYPE, so type 0 and ordinary type-1 R0
 // writes keep their existing registered-comparator behaviour.
 wire r0_write_hit = CRTC_TYPE & ENABLE & RS & ~nCS & ~R_nW & (addr == 5'd00);
-wire rfd_r0_widen_at_last_line = CLKEN & hcc_last & r0_write_hit &
+wire rfd_r0_write_accept = nRESET & ~SNA_LOAD & hcc_last & r0_write_hit &
                                  ({1'b0, DI} > {1'b0, R0_h_total}) &
                                  (line == crtc1_line_max) &
                                  (row == R4_v_total) &
                                  (R5_v_total_adj == 0) & ~in_adj;
+// Capture the old-R0 equality and last-line qualification before the
+// system-clock register write destroys them. The extended-line window opens
+// at the next CLKEN; subsequent R4/R9 cancellation remains live at its end.
+reg rfd_r0_write_pending;
+wire rfd_r0_widen_at_last_line = nRESET && !SNA_LOAD && CRTC_TYPE && CLKEN &&
+                                (rfd_r0_write_accept || rfd_r0_write_pending);
+always @(posedge CLOCK) begin
+    if(!nRESET || SNA_LOAD || !CRTC_TYPE || CLKEN)
+        rfd_r0_write_pending <= 0;
+    else if(rfd_r0_write_accept)
+        rfd_r0_write_pending <= 1;
+end
 assign rfd_r0_extend = rfd_r0_widen_at_last_line;
 
 wire rfd_r0_cancelled = (line != crtc1_line_max) | (row != R4_v_total);
-// Raw hcc_last is safe here by an exact-negation invariant: arming requires
-// rfd_r0_cancelled at this edge, and that is the precise complement of the
-// line/row conjunction inside rfd_r0_widen_at_last_line, so that term is
-// necessarily false on an arm edge.  A re-extend and an arm can therefore
-// never share an edge, and hcc_end == hcc_last on every possible arm edge.
-// (Opening the window earlier does require rfd_r0_widen_at_last_line true
-// at some prior edge; that is what set rfd_r0_pending.)
-wire rfd_r0_arm = rfd_r0_pending & CLKEN & hcc_last & rfd_r0_cancelled;
+// Consume the RFD window only at the effective end of the extended line.
+// A further qualified extension must postpone this decision as well.
+wire rfd_r0_arm = rfd_r0_pending & CLKEN & hcc_end & rfd_r0_cancelled;
 
 // ACCC v1.10 section 11.1 specifies that CRTC 1 has a separate C5 counter
 // for vertical adjustment, while C9 continues cycling 0..R9 and C4
@@ -509,8 +528,8 @@ always @(posedge CLOCK) begin
 
 		// Section 13.7.1.2 trigger window: opened only by the qualifying
 		// widening write, closed by the next line end (the extended line's
-		// actual end) whether or not that end arms.  CLKEN gates both so a
-		// mid-character bus phase can neither open nor close the window.
+		// actual end) whether or not that end arms. CLKEN consumes the
+		// retained bus event; only the extended line end closes the window.
 		if(CLKEN) begin
 			if(rfd_r0_widen_at_last_line)
 				rfd_r0_pending <= 1;
