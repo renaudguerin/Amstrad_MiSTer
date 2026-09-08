@@ -24,7 +24,8 @@
 //     MID-VSYNC, and the odd-frame/odd-C4 VSYNC correction are implemented
 //     below for R8=3.  R8=1 sync-only interlace keeps ordinary body-line
 //     raster/address generation, adds the CRTC3/4 even-frame line, and applies
-//     its alternate-field VSYNC midpoint (§19.6.4/§19.7.3 pp.217-218).
+//     its alternate-field VSYNC midpoint (FR §19.6.4 p.218 / §19.7.3 p.219;
+//     EN pp.217-218).
 //   - Light pen R16/R17: no light-pen strobe source is emulated. The
 //     registers are stored and readable since P5 (mod-8 map slots 0/1) but
 //     hold their reset value (named assumption at the readback section).
@@ -60,6 +61,7 @@ module asic_video
 	output reg       HSYNC,
 	output reg       VSYNC,
 	output           DE,
+	output           FIELD,
 	output    [13:0] MA,
 	output     [4:0] RA,
 
@@ -324,7 +326,7 @@ wire       adj_end_n     = ((raster + 5'd1) >= R5_v_total_adj);
 wire       body_frame_end = c9_done & last_charline &
                             (R5_v_total_adj == 5'd0);
 
-// ACCC v1.11 §19.6.4 p.217: either R8=3 or R8=1 gives the even frame exactly
+// ACCC v1.11 FR §19.6.4 p.218 (EN p.217): either R8=3 or R8=1 gives the even frame exactly
 // one line after its R5 lines (or directly after the body when R5=0).
 // CRTC3/4 keep C4 on its last value and force C9=0 for that line. The current
 // ParityFrame is sampled before it toggles at the following real origin.
@@ -619,8 +621,8 @@ end
 //----------------------------------------------------------------------
 // VSYNC.  Outside IVM, ACCC §16.4.4 p.170 starts only at line starts where
 // C4==R7 AND C9==0 AND C0==0 hold simultaneously; rewriting R7 to the
-// current C4 while C0>0 does not trigger.  In IVM, §19.5.5 pp.213-215 and
-// §19.7.3 p.218 move the even-frame start to C0=R0/2 on the first line of
+// current C4 while C0>0 does not trigger.  In IVM, FR §19.5.5 pp.214-216
+// (EN pp.213-215) and FR §19.7.3 p.219 (EN p.218) move the even-frame start to C0=R0/2 on the first line of
 // C4=R7.  On an odd frame with odd R9 and odd R7, the start is delayed to
 // the following line.  The R7=0 priority exception naturally samples the
 // outgoing ParityFrame here because frame_restart and the parity NBA share
@@ -652,7 +654,7 @@ wire        vsync_zero_target = hcc_last &&
                                  (charline_n == R7_v_sync_pos) &&
                                  (raster_n == 5'd0);
 wire        vsync_target_seam = vsync_new_c4_target | vsync_zero_target;
-// ACCC v1.11 §19.7.3 p.218: on CRTC3/4 either R8=3 or R8=1 moves VSYNC to
+// ACCC v1.11 FR §19.7.3 p.219 (EN p.218): on CRTC3/4 either R8=3 or R8=1 moves VSYNC to
 // C0=R0/2 when the target C4 belongs to the even ParityFrame. Reuse the
 // established outgoing-parity phase so the R7=0 priority rule stays intact.
 wire        vsync_mid_schedule = vsync_target_seam &&
@@ -744,6 +746,23 @@ assign HCC  = hcc;
 assign LINE = charline;
 assign ROW  = raster;
 assign ADJ  = in_adj;
+// B8-2 selected-field ownership (ACCC v1.11 FR §19.5.5 pp.214-216,
+// EN pp.213-215; FR §19.6.4 p.218; FR §19.7.3 p.219): ParityFrame toggles
+// every frame whatever R8, and either interlace mode (R8=1 or 3) schedules
+// the additional line and the MID-VSYNC on the ParityFrame-even frame,
+// except R7=0 which samples the OUTGOING parity (so MID then carries the
+// opposite FIELD; FIELD itself is never inverted by R7). FIELD is therefore
+// 1 on the even field and 0 on the odd field for ordinary R7, and 0
+// constantly when progressive. Polarity is a SOURCE-DERIVED MiSTer
+// convention from sys/ascal.vhd:1233-1252 (FIELD1 writes the first woven
+// line, FIELD0 the one-line-offset line; settled even-R9 IVM aligns C9
+// parity to frame parity): it is not hardware-measured ASCAL clearance, and
+// the classic FIELD=~field resemblance (separate legacy flop) is not
+// evidence. Transition C9/frame mismatch after an odd-C9 entry is real per
+// FR §19.5.5 p.214: FIELD follows frame parity, not raster parity.
+// Combinational from the frame-origin flop, so it is stable across the
+// mid-frame C4=R7 VSYNC it qualifies.
+assign FIELD = ~parity_frame & R8_interlace[0];
 assign MA   = vma;
 // P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
 assign RA   = ra_eff;

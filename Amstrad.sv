@@ -1461,13 +1461,18 @@ wire       hq2x = (scale == 1);
 
 assign VGA_SL = scale[1] ? scale : 2'b00;
 
-reg [2:0] interlace;
-always @(posedge CLK_VIDEO) begin
-	reg old_vs;
-	
-	old_vs <= vs;
-	if(~old_vs & vs) interlace <= {interlace[1:0], VGA_F1};
-end
+wire [2:0] interlace;
+wire       scandoubler_en;
+video_interlace interlace_hist
+(
+	.clk(CLK_VIDEO),
+	.vsync_in(vs),
+	.field_in(VGA_F1),
+	.scale(scale),
+	.forced_scandoubler(forced_scandoubler),
+	.interlace(interlace),
+	.scandoubler(scandoubler_en)
+);
 
 video_mixer #(.LINE_LENGTH(800), .GAMMA(1)) video_mixer
 (
@@ -1477,7 +1482,7 @@ video_mixer #(.LINE_LENGTH(800), .GAMMA(1)) video_mixer
 	.B(B | {8{progress_pix}}),
 	.VGA_DE(vga_de),
 	.freeze_sync(),
-	.scandoubler((scale || forced_scandoubler) && !interlace)
+	.scandoubler(scandoubler_en)
 );
 
 reg en270p;
