@@ -183,6 +183,19 @@ B8FIELD_OBJ_DIR  := obj_dir/b8_field
 B8FIELD_TEST_SRC := $(abspath b8_field_test.cpp)
 B8FIELD_TEST_BIN := $(B8FIELD_OBJ_DIR)/b8_field_tests
 
+# B8-3 palette events: production motherboard with a C++-driven bus source
+# supporting legacy I/O writes and ASIC-page memory writes/reads, driven by
+# b8_palette_test.cpp (real bus cycles, no shadow pokes).
+B8PAL_TOP      := b8_palette_bench_top
+B8PAL_TEST_TOP := $(abspath b8_palette_bench_top.v)
+B8PAL_CPU      := $(abspath b8_palette_cpu.v)
+B8PAL_RTL      := $(MBOARD_CORE_RTL) \
+	$(abspath ../../rtl/GA40010/casgen_sync.v) \
+	$(abspath ../../rtl/GA40010/syncgen_sync.v)
+B8PAL_OBJ_DIR  := obj_dir/b8_palette
+B8PAL_TEST_SRC := $(abspath b8_palette_test.cpp)
+B8PAL_TEST_BIN := $(B8PAL_OBJ_DIR)/b8_palette_tests
+
 # P2 ASIC register page leaf (exhaustive decode/mask/mirror/open-bus).
 AREGS_TOP      := asic_regs
 AREGS_RTL      := $(abspath ../../rtl/plus/asic_regs.v) \
@@ -336,7 +349,7 @@ TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(B6_MENU_TEST_BIN) $(DAN_BOUN
 	$(AREGS_TEST_BIN) $(SPRRAM_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN) $(B7_TEST_BIN)
 
 TEST_BINS += $(P10INPUT_TEST_BIN) $(P10DMA_TEST_BIN) $(P10DMAMOBO_TEST_BIN)
-TEST_BINS += $(B8FIELD_TEST_BIN)
+TEST_BINS += $(B8FIELD_TEST_BIN) $(B8PAL_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -459,6 +472,7 @@ test: $(TEST_BINS)
 	./$(P10DMA_TEST_BIN)
 	./$(P10DMAMOBO_TEST_BIN)
 	./$(B8FIELD_TEST_BIN)
+	./$(B8PAL_TEST_BIN)
 
 $(P8_TEST_BIN): $(P8_RTL) $(P8_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module plus_p8_test_top -Wno-CASEX \
@@ -585,6 +599,13 @@ $(B8FIELD_TEST_BIN): $(B8FIELD_TEST_TOP) $(B8FIELD_RTL) $(B8FIELD_CPU) $(B8FIELD
 		--Mdir $(B8FIELD_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(B8FIELD_TEST_BIN)) $(B8FIELD_TEST_TOP) $(B8FIELD_RTL) \
 		$(B8FIELD_CPU) $(B8FIELD_TEST_SRC)
+
+$(B8PAL_TEST_BIN): $(B8PAL_TEST_TOP) $(B8PAL_RTL) $(B8PAL_CPU) $(B8PAL_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) -UVERILATOR --public-flat-rw \
+		--top-module $(B8PAL_TOP) \
+		--Mdir $(B8PAL_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(B8PAL_TEST_BIN)) $(B8PAL_TEST_TOP) $(B8PAL_RTL) \
+		$(B8PAL_CPU) $(B8PAL_TEST_SRC)
 
 $(P10BOOT_TEST_BIN): $(P10BOOT_TEST_TOP) $(P10BOOT_RTL) $(P10BOOT_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) --cc --exe --build +1364-2001ext+.v +1800-2017ext+.sv \
@@ -718,6 +739,9 @@ lint: motherboard-lint
 	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR --public-flat-rw \
 		--top-module $(B8FIELD_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
 		$(B8FIELD_TEST_TOP) $(B8FIELD_RTL) $(B8FIELD_CPU)
+	$(VERILATOR) --lint-only --language 1364-2001 -UVERILATOR --public-flat-rw \
+		--top-module $(B8PAL_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
+		$(B8PAL_TEST_TOP) $(B8PAL_RTL) $(B8PAL_CPU)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module plus_fdc_decode -Wall $(abspath ../../rtl/plus/plus_fdc_decode.v)
 	$(VERILATOR) --lint-only +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR \

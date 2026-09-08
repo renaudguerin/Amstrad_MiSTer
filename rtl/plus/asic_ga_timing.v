@@ -117,8 +117,23 @@ module asic_ga_timing
 	output [4:0]  BORDER_O,   // border hardware colour number
 	output [79:0] INKR_O,     // 16 hardware colour numbers, entry k at
 	                          // [k*5 +: 5] (asic_video INKR_I packing)
-	output [1:0]  GAMODE_O    // RMR VM bits, unsynchronised (asic_video
+	output [1:0]  GAMODE_O,   // RMR VM bits, unsynchronised (asic_video
 	                          // re-latches on HSYNC itself)
+
+	// ---- B8-3 accepted legacy palette write event (Arnold V §2.2 ----
+	// secondary port: each accepted INKR write maps its 5-bit colour into
+	// the palette entry at the pointer). inkr_en/border_en below already
+	// ARE the accepted strobes (sequencer window + &7Fxx decode); they are
+	// exposed here so the palette owner sees write EVENTS, not shadow
+	// values. WR is combinational with the acceptance (reset-gated);
+	// ADDR is canonical 0..15 pens / 16 border; DATA is the 5-bit HW
+	// colour. inksel cannot change on the same cycle (ink_en vs
+	// inkr/border are mutually exclusive on D[7:6]), so ADDR is coherent.
+	// A future snapshot restore of the GA shadows must NOT drive WR, so a
+	// restored 12-bit palette survives (B8-5 boundary).
+	output        LEGACY_PAL_WR,
+	output [4:0]  LEGACY_PAL_ADDR,
+	output [4:0]  LEGACY_PAL_DATA
 );
 
 	wire reset = ~RESET_N;
@@ -272,6 +287,10 @@ module asic_ga_timing
 	assign INKR_O    = inkr;
 	assign GAMODE_O  = {mode1, mode0};
 	assign MODE      = {mode1, mode0};
+
+	assign LEGACY_PAL_WR   = ~reset & (inkr_en | border_en);
+	assign LEGACY_PAL_ADDR = border_en ? 5'd16 : {1'b0, inksel[3:0]};
+	assign LEGACY_PAL_DATA = D[4:0];
 
 	// Lower/upper ROM mapping exactly as the classic Gate Array decodes it;
 	// in Plus mode plus_mmu overlays cartridge windows on top of this.

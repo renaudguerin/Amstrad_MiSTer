@@ -268,6 +268,9 @@ wire        plus_phi_en_p, plus_phi_en_n, plus_phi_n;
 wire        plus_hsync_o, plus_vsync_o, plus_vblank;
 wire [4:0]  asic_border;
 wire [79:0] asic_inkr;
+wire        leg_pal_wr;
+wire [4:0]  leg_pal_addr;
+wire [4:0]  leg_pal_data;
 wire [1:0]  plus_gamode;
 wire [3:0]  plus_rgb_r, plus_rgb_g, plus_rgb_b;
 reg  [15:0] plus_vidword;
@@ -362,7 +365,12 @@ asic_ga_timing asic_ga
 	.MODE(),
 	.BORDER_O(asic_border),
 	.INKR_O(asic_inkr),
-	.GAMODE_O(plus_gamode)
+	.GAMODE_O(plus_gamode),
+
+	// B8-3 accepted legacy palette write event to the palette owner.
+	.LEGACY_PAL_WR(leg_pal_wr),
+	.LEGACY_PAL_ADDR(leg_pal_addr),
+	.LEGACY_PAL_DATA(leg_pal_data)
 );
 
 // Locked-ASIC CRTC type 3 + pixel pipeline. Register accesses share the
@@ -420,9 +428,11 @@ asic_video asic_vid
 	.PAL_RGB(plus_pal_rdata)
 );
 
-// ASIC register page (P2). The legacy GA shadow feeding its translation
-// comes straight from asic_ga_timing, so PENR/INKR writes land in the
-// 12-bit palette exactly as on hardware (reference §6 secondary port).
+// ASIC register page (P2). The accepted legacy palette write event comes
+// straight from asic_ga_timing, so PENR/INKR writes land in the 12-bit
+// palette exactly as on hardware (Arnold V §2.2 secondary port, reference §6).
+// The GA colour shadows feed the asic_video fallback path AND the one-shot
+// reset import only; they are not runtime write provenance (B8-3).
 wire [7:0] asic_regs_dout;
 wire       asic_regs_rd;
 wire [7:0] asic_pri;
@@ -464,6 +474,10 @@ asic_regs asic_page
 	.A(A[13:0]),
 	.D_in(D),
 	.D_out(asic_regs_dout),
+
+	.leg_pal_wr(leg_pal_wr),
+	.leg_pal_addr(leg_pal_addr),
+	.leg_pal_data(leg_pal_data),
 
 	.leg_border(asic_border),
 	.leg_inkr(asic_inkr),
