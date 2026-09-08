@@ -97,7 +97,9 @@ module plus_mmu
 	// header (0x40 multi-config bits 2/3 = lower/upper ROM disable,
 	// 0x55 full ROM-select byte) and the CPC+ unlock sequence state
 	// (0x8F7) accompanying sna_unlock (0x8F6 lock).
+	/* verilator lint_off UNUSEDSIGNAL */
 	input      [7:0]  sna_ga_config,
+	/* verilator lint_on UNUSEDSIGNAL */
 	input      [7:0]  sna_romsel,
 	input      [4:0]  sna_seq_state
 );

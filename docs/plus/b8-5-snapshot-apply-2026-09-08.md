@@ -1,8 +1,11 @@
 # B8-5: Plus snapshot owner apply
 
-The parser restores ASIC storage while the DMA, selected CRTC/GA and ordinary
-Plus ROM controls still retain reset state. B8-5 repairs the transaction from
-storage drain to owner apply and CPU resume. This work is not yet accepted.
+The parser restored ASIC storage while the DMA, selected CRTC/GA and ordinary
+Plus ROM controls still retained reset state. B8-5 repairs the transaction from
+storage drain to owner apply and CPU resume. The full agreed scope is now
+implemented and the twelve focused restore cases pass. Full simulation, lint,
+the unchanged classic soak and fresh independent review pass. The branch is
+READY for integration, subject to the format and hardware limits below.
 
 ## Source and restore contract
 
@@ -81,57 +84,139 @@ and direct restoration of all mapped serialized counters/flags. It does not
 promise exact first-frame pixels, monitor shaping, arbitrary SNA raster
 fidelity or hardware closure.
 
-## Checkpoint and acceptance debt
+## Where the restore lives
 
-This branch is paused for provider quota recovery. It is not READY and must
-not be integrated or its worktree removed. The agreed full B8-5 scope remains
-unchanged. No foreign worker remains live at this checkpoint.
+| Concern | Owner |
+|---|---|
+| Header decode (10, 2E, 2F–3F, 40, 42, 43–54, 55, A9–B4) | `rtl/plus/plus_sna_header.v` |
+| Drain → apply → CPU-resume sequencing | `rtl/plus/plus_sna_apply.v` |
+| CPC+ chunk unpacking into ASIC storage | `rtl/plus/plus_sna_parser.v` |
+| Selected CRTC-3 register file and v3 counters | `rtl/plus/asic_video.v` |
+| Legacy GA register file, sync/interrupt phase | `rtl/plus/asic_ga_timing.v` |
+| Palette provenance (CPC+ 12-bit vs plain 5-bit) | `rtl/plus/asic_regs.v` |
+| DMA live SAR/loop/pause/prescaler and HSYNC history | `rtl/plus/asic_dma.v` |
+| RAM/ROM mapping, RMR2, lock, unlock sequence state | `rtl/plus/plus_mmu.v` |
+| B4 interrupt-source attribution | `rtl/Amstrad_motherboard.v` |
 
-Slice A now implements the shared drain/apply controller, both CPU CEN holds,
-DMA SAR/loop/pause/prescaler restore, settled HSYNC history, ordinary ROM
-mapping, unlock sequence state, and production top-level connections.
-The parent rebuilt P8 and ran `plus_p8_tests --b8-dma-mmu`: all eight cases
-passed. The new-download-at-count-1 case first failed before the controller
-masked `sna_load` with raw download; seven other cases passed in that red run.
-This is focused simulation evidence, not independent acceptance of slice A.
+The header decode moved out of `Amstrad.sv` on purpose. `Amstrad.sv` is neither
+linted nor simulated, so an offset typo there would only ever surface in
+hardware; `plus_sna_header` is linted and the P8 fixture drives it from a real
+byte stream at real file offsets. `Amstrad.sv` keeps the Z80, PPI, PSG,
+RAM-configuration and memory-size bytes, which are outside this slice.
 
-The older P8 omission vector still uses `--xfail`. Its manual-header setup and
-printed omission descriptions predate slice A and must be consolidated during
-slice B. Its successful XFAIL exit is not proof that the repaired MMU or DMA
-owners still fail, nor does it close video/GA/palette restoration.
+## Decisions a reviewer should check hardest
 
-Before implementation continues, refresh the checkpoint onto the coordinator's
-latest committed integration (last reported `2831b46`, documentation-only over
-`3acc8e6`). Preserve the accepted palette interface from `807f081`, tape queue
-and ioctl-wait changes, P10 clocking, and B3 comments. Do not integrate this
-unfinished branch into the coordinator's branch.
+**B2 → hcnt phase.** `asic_ga_timing` walks hcnt 00 → 01 → 06 on CRTC HSYNC
+falling edges and raises the shaped monitor VSYNC (and the interrupt-counter
+re-sync) at 06, so B2 maps to hcnt 00 / 01 / 06-or-parked-1E for 2 / 1 / 0.
+`hcnt_next` is a registered successor and is seeded alongside `hcnt`.
 
-Remaining work:
+**B4 attribution.** The field is one aggregate pending flag, but a Plus has two
+INT sources. A pending flag the restored DCSR already explains is credited to
+the DMA path, so the interrupt vector's source field stays right; only an
+otherwise-unexplained flag is held by the Gate Array. The aggregate level on
+INT_n is preserved either way. A simultaneous GA-and-DMA pending pair is not
+representable and restores as DMA-only. Subsequent GA interrupts follow the
+restored counter and ordinary runtime rules; there is no guarantee of recovering
+the omitted pending GA interrupt or of doing so within one frame.
 
-- Finish production header capture and selected video apply: CRTC index and
-  mapped registers, v3 counters/sync widths/flags, settled mode, deterministic
-  address/private-state seeds, and first post-apply transitions. R10/R11 remain
-  dynamic type-3 status groups; R16/R17 can seed the existing light-pen latches.
-- Restore selected GA inks, border, selection, mode and mapped B2/B3/B4 state.
-  Verify B2 values 0/1/2 and the first interrupt/acknowledge transition. Preserve
-  DCSR state and document the unencoded simultaneous GA/DMA interrupt history.
-- Add explicit palette apply provenance: retain CPC+ 12-bit palettes, translate
-  plain-SNA header colours for entries 0–16, emit no legacy I/O event, and prove
-  the first subsequent accepted CPU palette write. Use the accepted peer event
-  interface and actual palette/video consumption in P8.
-- Prove CPC+/plain/CPC+ isolation with actual header payload and the shared
-  controller; consolidate the temporary omission test and remove XFAIL.
-- Inspect the final production wiring/manifests, run focused required-pass
-  vectors, full simulation, lint and soak `0x6e8258198d6e6137`, then obtain fresh
-  native Astra medium review of the foreign-authored frozen implementation.
-  Opus review was replaced only because its session quota was exhausted.
+**DCSR bit 7.** Restored `dcsr_stat` carries the last-ack-was-raster
+provenance during idle before the first acknowledge. The GA's own `last_raster`
+level starts clear on `SNA_LOAD`. On the first acknowledge cycle, `dcsr_stat`
+in `asic_regs` is retired to hand ownership of DCSR bit 7 to runtime GA
+provenance (`intack_raster`). If the acknowledged interrupt was a restored
+pending raster interrupt (`intack` with `!INT_N`), `last_raster` sets to 1 in
+`asic_ga_timing` exactly as a normal fire would have set it. If the acknowledge
+was for a DMA interrupt (or empty), `last_raster` clears to 0 on cycle
+completion (`!intack && intack_d && ack_empty`). `cnt5` is seeded from the
+restored counter for the same reason: without it, the counter's top bit would
+appear to fall on the next clock and fabricate an interrupt.
 
-No full final gates or independent review have run. Hardware remains unavailable;
-there is no hardware closure or promise of arbitrary mid-frame pixel fidelity.
+**Approximation, not fidelity.** Mapped counters are restored exactly. The
+video pointer, frame/C9 parity, interlace pending events, the pixel serializer
+phase and the monitor sync-shaping phase are NOT serialized by the format;
+they take the deterministic seeds described under "Format limits". First-frame
+pixels are therefore approximate for an arbitrary mid-frame snapshot. R10/R11
+stay read-only type-3 status groups with no storage, so their serialized bytes
+are dropped rather than inventing writable cursor registers; R16/R17 do have
+storage and are seeded.
 
-Private recovery diagnostics and prepared implementation briefs are preserved
-under the checkout's ignored `docs/references/b8-5-recovery/` directory. The
-Muse continuation ended with guarded hard timeout (exit 70, provider -15,
-cleanup clean); Gemini then made the controller/top-level changes but exited
-on individual quota exhaustion. Provider success is not assumed from partial
-edits. Resume only with available provider capacity and the same full scope.
+## Independent-review P2 remediation (first ACK provenance)
+
+Independent Astra review identified a first-ACK provenance failure on snapshot-restored
+interrupts:
+1. When restoring a pending GA raster interrupt (B4=1, B3=0, DCSR=0), `INT_N` was
+   asserted directly on `SNA_LOAD`, bypassing `classic_fire` and `raster_fire`. The
+   first GA acknowledge cycle retired the interrupt but never set `last_raster`,
+   leaving DCSR bit 7 at 0 after a raster-sourced acknowledge.
+2. Conversely, snapshot-loaded `dcsr_stat` in `asic_regs` was permanently ORed into
+   DCSR readback and never retired at runtime. A restore attributing B4 to DMA with
+   DCSR bit 7 set (e.g. DCSR=0xC1) correctly serviced the DMA interrupt, but DCSR
+   bit 7 remained sticky 1 even after DMA acknowledge.
+3. The P8 test fixture had tied `.intack_raster(1'b0)`, `.intack(1'b0)`, and
+   `.int_pending(1'b0)` on `aregs` and `asic_ga`, preventing existing tests from
+   exercising CPU acknowledge cycles.
+
+**Remediation & verification:**
+- `sim/plus/plus_p8_test_top.v` mirrors production motherboard acknowledge wiring
+  (`cpu_ack = ~ga_m1_n & ~ga_iorq_n`, `ga_last_raster`, `~ga_int_n_out`, vector byte/valid).
+- `test_b8_ga_interrupt_restore` in `sim/plus/plus_p8_test.cpp` verifies vector presentation,
+  aggregate INT_n retirement, and DCSR bit 7 readback across both payloads. Restored DCSR
+  bit 7 is verified during idle before acknowledge, and ownership transitions to runtime
+  source tracking on first ACK.
+- A red run was captured before production RTL changes (`docs/references/b8-5-recovery/b8-5-p8-ack-red.log`),
+  failing on both counts.
+- In `rtl/plus/asic_ga_timing.v`, `last_raster` is set to 1 on the first acknowledge
+  of a restored pending raster interrupt scoped via a dedicated lifecycle latch
+  (`sna_raster_pending`), preventing uninitialized simulator-startup `INT_N` levels from
+  erroneously asserting raster provenance during initial empty acknowledges (`asic_pri` `pr01`).
+- In `rtl/plus/asic_regs.v`, snapshot-loaded `dcsr_stat` is retired on the first acknowledge
+  cycle (`intack && !intack_d`), allowing runtime `intack_raster` to report interrupt provenance.
+- In `rtl/plus/plus_mmu.v`, documented unused/reserved bits of `sna_ga_config` are annotated
+  with local Verilator `UNUSEDSIGNAL` pragmas to maintain clean module lint.
+- All 12 B8-5 focused snapshot-apply tests pass (`docs/references/b8-5-recovery/b8-5-p8-b8-green.log`)
+  and existing `asic_pri` tests pass cleanly (`docs/references/b8-5-recovery/b8-5-pri-green.log`).
+
+## Acceptance evidence and limits
+
+The temporary `--xfail` omission vector is removed. All twelve focused cases
+(`--b8`) are required-pass checks on owner-visible state: CRTC register
+readback, counters, sync levels, interrupt vector and retirement, DCSR readback,
+and consumed palette RGB. They compile and pass, including repeated
+CPC+/plain/CPC+ restores and first CPU activity after apply.
+
+Slice B has a failure-first chronology gap: its worker changed production RTL
+before obtaining an executable red run because its build commands were denied.
+The parent subsequently compiled the new fixture against the prior video/GA/
+palette owner bodies, retaining current port declarations only. All four slice
+B cases and repeated-restore palette isolation failed. This demonstrates that
+the assertions discriminate the prior omissions; it does not retroactively
+satisfy failure-first ordering. The P2 acknowledgement remediation above has
+separate, genuine pre-fix red evidence.
+
+The first independent review found a missing closing `end` in `Amstrad.sv`
+and the first-acknowledge provenance failure. Both are repaired. An explicit
+production-top syntax check fails with the missing `end` restored and passes
+with the repair. That check uses missing-module black boxes and waives existing
+`mf2_store_addr` procedural-assignment diagnostics; it is not full Quartus
+elaboration or synthesis evidence.
+
+Final parent-run acceptance on 2026-09-08:
+
+- `make -C sim`: exit 0, including all twelve B8-5 cases and the existing PRI,
+  P10 concurrency, B7 audit, field and palette tests. Existing unrelated XFAILs
+  remain; none was added or weakened for B8-5.
+- `make -C sim lint`: exit 0.
+- `make -C sim soak SOAK_EXPECT=0x6e8258198d6e6137`: exit 0, matching the
+  recorded hash over 2,845,088 sampled characters.
+- Fresh native Astra medium review of the foreign-authored complete branch:
+  CLEAR, including the snapshot-origin acknowledgement latch and both original
+  findings. The final code/manifests/tests diff against `98d5e07` has SHA256
+  `6ef753f10807a4ea7b04525da5ab4c22192022ff41faec3ff3e6c4471c34f191`;
+  the separately reviewed new header decoder has SHA256
+  `64c720a8eb9c114135dc5c73e1b7c21eb9f4ec2e9d90dc4cccde483c45bb4bc5`.
+  Documentation is excluded from the diff hash.
+
+Hardware has not run; there is no hardware closure or promise of arbitrary
+mid-frame pixel fidelity. Local red/green logs and reproduction scripts are
+preserved in the ignored `docs/references/b8-5-recovery/` directory.

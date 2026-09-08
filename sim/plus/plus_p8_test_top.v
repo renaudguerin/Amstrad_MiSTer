@@ -3,6 +3,8 @@
 module plus_p8_test_top (
 	input clk,
 	input reset,
+	output [7:0] ack_vec_byte,
+	output       ack_vec_valid,
 
 	// i8255 ports
 	input        ppi_cs,
@@ -54,13 +56,18 @@ module plus_p8_test_top (
 	input         seam_sna_load,
 	input         seam_plus_mode,
 
-	// B8-5 slice A: shared production apply controller + settled header stimuli.
-	// seam_use_ctl=0 keeps the manual seam above (old tests); =1 drives the
-	// owners from the shared controller exactly as production does (new tests).
+	// B8-5: shared production apply controller + the production header
+	// decoder driven from a real byte stream. seam_use_ctl=0 keeps the manual
+	// seam above (old tests); =1 drives the owners from the shared controller
+	// exactly as production does (new tests).
 	input         seam_use_ctl,
-	input  [7:0] hdr_ga_config,   // SNA header 0x40: RMR bits incl. ROM disables
-	input  [7:0] hdr_romsel,      // SNA header 0x55: full ROM-select byte
-	input         hdr_hsync,       // SNA v3 header B0 bit1: settled HSYNC
+	input         hdr_wr,          // one header byte of the current download
+	input   [7:0] hdr_addr,        // its SNA file offset
+	input   [7:0] hdr_data,
+	output  [7:0] hdr_version,
+	output  [7:0] hdr_ga_config,   // decoded 0x40, for assertions
+	output  [7:0] hdr_romsel,      // decoded 0x55, for assertions
+	output        hdr_hsync,       // decoded B0 bit 1
 	input         mmu_test_io_wr,  // unlock-sequence write strobe stimulus
 	input  [7:0] mmu_test_D,       // unlock-sequence write data stimulus
 	output        ctl_finish_pending,
@@ -83,6 +90,20 @@ module plus_p8_test_top (
 	output  [7:0] sna_pause_presc2,
 	output  [4:0] sna_seq_state,
 
+	// Legacy Gate Array I/O bus stimulus (B8-5 slice B): real &7Fxx writes, so
+	// the accepted-palette-event path into asic_regs is exercised rather than
+	// poked. Held inactive by default.
+	input         ga_iorq_n,
+	input         ga_m1_n,
+	input   [1:0] ga_A,
+	input   [7:0] ga_D,
+	output        ga_leg_pal_wr,
+	output  [4:0] ga_leg_pal_addr,
+	output  [4:0] ga_leg_pal_data,
+	output  [3:0] video_rgb_r,
+	output  [3:0] video_rgb_g,
+	output  [3:0] video_rgb_b,
+
 	// CPU-side read port into asic_regs for test verification
 	input         aregs_cs,
 	input         aregs_mem_rd,
@@ -91,7 +112,10 @@ module plus_p8_test_top (
 	input   [7:0] aregs_din,
 	output  [7:0] aregs_dout,
 
-	// Direct probed views from asic_regs
+	// Direct probed views from asic_regs. pal_probe_sel=1 hands the single
+	// video-side read port to the test probe; =0 leaves it wired to asic_video
+	// as production does, so palette restores can be judged from consumed RGB.
+	input         pal_probe_sel,
 	input   [4:0] aregs_pal_raddr,
 	output [11:0] aregs_pal_rdata,
 	output  [7:0] aregs_pri,
@@ -142,6 +166,10 @@ module plus_p8_test_top (
 	output  [4:0] ga_border_out,
 	output [79:0] ga_inkr_out,
 	output        ga_int_n_out,
+	output        ga_vsync_o,     // shaped monitor VSYNC (hcnt in 4..7)
+	// Production INT_n composition (Amstrad_motherboard: the GA line and the
+	// ASIC DMA request are ORed), so the aggregate level can be judged.
+	output        int_n_merged,
 
 	// Video owner ports
 	input         video_crtc_cs,
@@ -154,6 +182,10 @@ module plus_p8_test_top (
 	output        video_de,
 	output [13:0] video_ma,
 	output  [4:0] video_ra,
+	output  [7:0] video_hcc,      // C0
+	output  [6:0] video_line_out, // C4
+	output  [4:0] video_row_out,  // C9
+	output        video_adj_out,  // vertical total adjust active
 
 	// MMU test access ports
 	input  [15:0] mmu_test_A,
@@ -164,6 +196,9 @@ module plus_p8_test_top (
 	output        mmu_cart_own,
 	output        mmu_cart_stall
 );
+
+	wire ga_last_raster;
+	wire cpu_ack = ~ga_m1_n & ~ga_iorq_n;
 
 	plus_fdc_decode fdc_decode
 	(
@@ -226,7 +261,62 @@ module plus_p8_test_top (
 	wire dma_rst_src = seam_use_ctl ? (reset | ctl_owner_reset | ~seam_plus_mode) :
 	                                  (seam_machine_reset | ~seam_plus_mode);
 	wire mmu_rst_src = seam_use_ctl ? (reset | ctl_owner_reset) : seam_machine_reset;
+	wire vid_rst_src = seam_use_ctl ? (reset | ctl_owner_reset) : seam_machine_reset;
 	wire sna_load_src = seam_use_ctl ? ctl_sna_load : seam_sna_load;
+
+	// Production header decoder, driven by the test's real byte stream.
+	wire  [4:0] hdr_inksel;
+	wire [135:0] hdr_palette;
+	wire  [4:0] hdr_crtc_addr;
+	wire [143:0] hdr_crtc_regs;
+	wire  [7:0] hdr_crtc_hcc;
+	wire  [6:0] hdr_crtc_line;
+	wire  [4:0] hdr_crtc_raster;
+	wire  [4:0] hdr_crtc_vta;
+	wire  [3:0] hdr_crtc_hsw;
+	wire  [3:0] hdr_crtc_vsw;
+	wire        hdr_crtc_vs;
+	wire        hdr_crtc_adj;
+	wire  [1:0] hdr_ga_vsdelay;
+	wire  [5:0] hdr_ga_intcnt;
+	wire        hdr_int_pending;
+
+	plus_sna_header sna_header
+	(
+		.clk(clk),
+		.sna_download(sna_download),
+		.wr(hdr_wr),
+		.addr(hdr_addr),
+		.data(hdr_data),
+
+		.version(hdr_version),
+		.v3(),
+
+		.ga_inksel(hdr_inksel),
+		.ga_palette(hdr_palette),
+		.ga_config(hdr_ga_config),
+		.crtc_addr(hdr_crtc_addr),
+		.crtc_regs(hdr_crtc_regs),
+		.rom_select(hdr_romsel),
+
+		.crtc_hcc(hdr_crtc_hcc),
+		.crtc_line(hdr_crtc_line),
+		.crtc_raster(hdr_crtc_raster),
+		.crtc_vta(hdr_crtc_vta),
+		.crtc_hsw(hdr_crtc_hsw),
+		.crtc_vsw(hdr_crtc_vsw),
+		.crtc_vs(hdr_crtc_vs),
+		.crtc_hs(hdr_hsync),
+		.crtc_adj(hdr_crtc_adj),
+		.ga_vsdelay(hdr_ga_vsdelay),
+		.ga_intcnt(hdr_ga_intcnt),
+		.int_pending(hdr_int_pending)
+	);
+
+	// Same B4 attribution rule as Amstrad_motherboard: a pending flag the
+	// restored DCSR already explains belongs to the DMA path, not the GA.
+	wire aregs_dma_int_req;
+	wire hdr_ga_int_pending = hdr_int_pending & ~aregs_dma_int_req;
 
 	plus_sna_parser sna_parser
 	(
@@ -280,14 +370,17 @@ module plus_p8_test_top (
 		.D_in(aregs_din),
 		.D_out(aregs_dout),
 
-		.leg_pal_wr(1'b0),
-		.leg_pal_addr(5'd0),
-		.leg_pal_data(5'd0),
+		// B8-3 accepted legacy palette event, straight from the GA as
+		// production wires it (B8-5 slice B: proves a snapshot apply emits no
+		// event, and that the first CPU write afterwards still lands).
+		.leg_pal_wr(ga_leg_pal_wr),
+		.leg_pal_addr(ga_leg_pal_addr),
+		.leg_pal_data(ga_leg_pal_data),
 
 		.leg_border(5'd16),
 		.leg_inkr(80'd0),
 
-		.pal_raddr(aregs_pal_raddr),
+		.pal_raddr(pal_probe_sel ? aregs_pal_raddr : video_pal_addr),
 		.pal_rdata(aregs_pal_rdata),
 
 		.pri(aregs_pri),
@@ -298,11 +391,11 @@ module plus_p8_test_top (
 		.ssa_lo(aregs_ssa_lo),
 		.dcsr(aregs_dcsr),
 
-		.intack_raster(1'b0),
-		.intack(1'b0),
-		.int_pending(1'b0),
-		.vec_byte(),
-		.vec_valid(),
+		.intack_raster(ga_last_raster),
+		.intack(cpu_ack),
+		.int_pending(~ga_int_n_out),
+		.vec_byte(ack_vec_byte),
+		.vec_valid(ack_vec_valid),
 
 		.dma_int_set(dma_int_set),
 
@@ -327,11 +420,17 @@ module plus_p8_test_top (
 		.sar2_lo(aregs_sar2_lo), .sar2_hi(aregs_sar2_hi), .ppr2(aregs_ppr2), .sar2_wr(dma_sar2_wr),
 		.dcsr_ena_out(dma_dcsr_ena),
 		.dcsr_ena_clr(dma_dcsr_ena_clr),
-		.dma_int_req(),
+		.dma_int_req(aregs_dma_int_req),
 
 		.sna_wr(asic_sna_wr),
 		.sna_addr(asic_sna_addr),
-		.sna_data(asic_sna_data)
+		.sna_data(asic_sna_data),
+
+		// B8-5 palette provenance: a plain SNA (no CPC+ chunk) translates the
+		// header's hardware colours; a CPC+ snapshot keeps its 12-bit entries.
+		.sna_pal_load(sna_load_src),
+		.sna_pal_plain(~asic_sna_active),
+		.sna_pal_hdr(hdr_palette)
 	);
 
 	wire        dma_sar0_wr;
@@ -417,27 +516,33 @@ module plus_p8_test_top (
 	wire video_adj;
 	wire [6:0] video_line;
 	wire [4:0] video_row;
+	wire [4:0] video_pal_addr;
+
+	assign video_line_out = video_line;
+	assign video_row_out  = video_row;
+	assign video_adj_out  = video_adj;
+	assign int_n_merged   = ga_int_n_out & ~aregs_dma_int_req;
 
 	asic_ga_timing asic_ga
 	(
 		.clk(clk),
 		.cen_16(1'b1),
 		.fast(1'b0),
-		.RESET_N(~seam_machine_reset),
+		.RESET_N(~vid_rst_src),
 		.plus_unlocked(mmu_asic_unlocked),
-		.A(2'b00),
-		.D(8'd0),
+		.A(ga_A),
+		.D(ga_D),
 		.MREQ_N(1'b1),
-		.M1_N(1'b1),
+		.M1_N(ga_m1_n),
 		.RD_N(1'b1),
-		.IORQ_N(1'b1),
+		.IORQ_N(ga_iorq_n),
 		.HSYNC_I(video_hs),
 		.VSYNC_I(video_vs),
 		.pri(aregs_pri),
 		.crtc_line({video_line[5:0], video_row[2:0]}),
 		.crtc_adj(video_adj),
-		.intack(1'b0),
-		.int_last_raster(),
+		.intack(cpu_ack),
+		.int_last_raster(ga_last_raster),
 		.CCLK(),
 		.CCLK_EN_P(plus_cclk_en_p),
 		.CCLK_EN_N(plus_cclk_en_n),
@@ -455,7 +560,7 @@ module plus_p8_test_top (
 		.RAMRD_N(),
 		.ROM(),
 		.HSYNC_O(),
-		.VSYNC_O(),
+		.VSYNC_O(ga_vsync_o),
 		.SYNC_N(),
 		.INT_N(ga_int_n_out),
 		.VBLANK(),
@@ -463,14 +568,28 @@ module plus_p8_test_top (
 		.MODE(),
 		.BORDER_O(ga_border_out),
 		.INKR_O(ga_inkr_out),
-		.GAMODE_O(ga_mode_out)
+		.GAMODE_O(ga_mode_out),
+
+		.LEGACY_PAL_WR(ga_leg_pal_wr),
+		.LEGACY_PAL_ADDR(ga_leg_pal_addr),
+		.LEGACY_PAL_DATA(ga_leg_pal_data),
+
+		.SNA_LOAD(sna_load_src),
+		.SNA_INKSEL(hdr_inksel),
+		.SNA_PALETTE(hdr_palette),
+		.SNA_CONFIG(hdr_ga_config),
+		.SNA_VSDELAY(hdr_ga_vsdelay),
+		.SNA_INTCNT(hdr_ga_intcnt),
+		.SNA_INT(hdr_ga_int_pending),
+		.SNA_VS(hdr_crtc_vs),
+		.SNA_HS(hdr_hsync)
 	);
 
 	asic_video asic_vid
 	(
 		.CLOCK(clk),
 		.CLKEN(plus_cclk_en_n),
-		.nRESET(~seam_machine_reset),
+		.nRESET(~vid_rst_src),
 
 		.ENABLE(video_crtc_cs),
 		.nCS(~video_crtc_cs),
@@ -481,11 +600,12 @@ module plus_p8_test_top (
 
 		.HSYNC(video_hs),
 		.VSYNC(video_vs),
+		.FIELD(),
 		.DE(video_de),
 		.MA(video_ma),
 		.RA(video_ra),
 
-		.HCC(),
+		.HCC(video_hcc),
 		.LINE(video_line),
 		.ROW(video_row),
 		.ADJ(video_adj),
@@ -499,18 +619,35 @@ module plus_p8_test_top (
 		.GAMODE(ga_mode_out),
 		.BORDER_I(ga_border_out),
 		.INKR_I(ga_inkr_out),
-		.RGB_R(),
-		.RGB_G(),
-		.RGB_B(),
+		.RGB_R(video_rgb_r),
+		.RGB_G(video_rgb_g),
+		.RGB_B(video_rgb_b),
 		.PEN(),
 
 		.HWRAP(),
 		.SPR_EN(1'b0),
 		.SPR_RGB(12'd0),
 
+		// Production palette consumption: the restored 12-bit entries reach
+		// the screen through this port, so palette assertions can be made on
+		// consumed RGB rather than on a shadow register.
 		.PAL_EN(1'b1),
-		.PAL_ADDR(),
-		.PAL_RGB(12'd0)
+		.PAL_ADDR(video_pal_addr),
+		.PAL_RGB(aregs_pal_rdata),
+
+		.SNA_LOAD(sna_load_src),
+		.SNA_ADDR(hdr_crtc_addr),
+		.SNA_REGS(hdr_crtc_regs),
+		.SNA_HCC(hdr_crtc_hcc),
+		.SNA_LINE(hdr_crtc_line),
+		.SNA_RASTER(hdr_crtc_raster),
+		.SNA_VTA(hdr_crtc_vta),
+		.SNA_HSW(hdr_crtc_hsw),
+		.SNA_VSW(hdr_crtc_vsw),
+		.SNA_VS(hdr_crtc_vs),
+		.SNA_HS(hdr_hsync),
+		.SNA_ADJ(hdr_crtc_adj),
+		.SNA_MODE(hdr_ga_config[1:0])
 	);
 
 	plus_mmu mmu

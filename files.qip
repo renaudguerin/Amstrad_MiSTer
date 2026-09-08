@@ -42,6 +42,7 @@ set_global_assignment -name VERILOG_FILE rtl/plus/plus_cartridge_memory.v
 set_global_assignment -name VERILOG_FILE rtl/plus/plus_cpr_parser.v
 set_global_assignment -name VERILOG_FILE rtl/plus/plus_sna_parser.v
 set_global_assignment -name VERILOG_FILE rtl/plus/plus_sna_apply.v
+set_global_assignment -name VERILOG_FILE rtl/plus/plus_sna_header.v
 set_global_assignment -name VERILOG_FILE rtl/Amstrad_motherboard.v
 set_global_assignment -name VERILOG_FILE rtl/progressbar.v
 set_global_assignment -name SDC_FILE Amstrad.sdc
