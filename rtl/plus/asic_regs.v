@@ -155,7 +155,29 @@ module asic_regs
 	// ---- P8 SNA v3 snapshot loading ----
 	input        sna_wr,
 	input [13:0] sna_addr,
-	input  [7:0] sna_data
+	input  [7:0] sna_data,
+
+	// ---- B8-5 snapshot palette provenance ----
+	//
+	// A third, explicit palette source, distinct from both runtime paths
+	// above. It fires once on the shared apply pulse and never raises a
+	// legacy write event, so:
+	//  - a CPC+ snapshot keeps the full 12-bit, 32-entry palette its chunk
+	//    already wrote through sna_wr (sna_pal_plain low: nothing happens
+	//    here, and the one-shot reset import has long since retired), and
+	//  - a plain SNA, which carries only 5-bit hardware colours, translates
+	//    header 2F-3F into entries 0..16 unconditionally. Unconditionally
+	//    matters: the reset import's "differs from the sentinel" test would
+	//    silently skip a genuine HW31 entry.
+	// Sprite entries 17..31 are untouched by a plain SNA; the format has no
+	// field for them.
+	input          sna_pal_load,
+	input          sna_pal_plain,
+	// Hardware colours occupy the low five bits of each header byte; the rest
+	// is reserved in the format and deliberately unread.
+	/* verilator lint_off UNUSEDSIGNAL */
+	input  [135:0] sna_pal_hdr   // header 2F-3F, entry k HW colour at [k*8 +: 5]
+	/* verilator lint_on UNUSEDSIGNAL */
 );
 
 	//------------------------------------------------------------------
@@ -195,6 +217,7 @@ module asic_regs
 	reg [7:0] ssa_hi_r;
 	reg [7:0] ssa_lo_r;
 	reg       dcsr_stat;
+	reg       intack_d;
 	reg [2:0] dcsr_flags; // [0]=ch0, [1]=ch1, [2]=ch2
 	reg [2:0] dcsr_ena;   // [0]=ch0, [1]=ch1, [2]=ch2
 
@@ -399,6 +422,11 @@ module asic_regs
 				dcsr_stat  <= sna_data[7];
 			end
 			else begin
+				// First acknowledge retires the snapshot-only dcsr_stat level,
+				// handing ownership of DCSR bit 7 to runtime GA provenance
+				// (intack_raster).
+				if (intack && !intack_d)
+					dcsr_stat <= 1'b0;
 				dcsr_flags <= ((dcsr_flags | dma_int_set) &
 				              (dcsr_w1c_hit ? ~dcsr_w1c_mask : 3'b111)) &
 				              (auto_clr_dma ? ~auto_clr_mask : 3'b111);
@@ -496,6 +524,14 @@ module asic_regs
 		if (!reset && leg_pal_wr && leg_pal_addr <= 5'd16) begin
 			pal[leg_pal_addr] <= legacy_colour_gbr(leg_pal_data);
 		end
+
+		// B8-5 snapshot palette apply (see the port declaration). Last in the
+		// chain: the restore is the authoritative value for this edge, and no
+		// legacy event can coincide with it because the CPU is still held.
+		if (!reset && sna_pal_load && sna_pal_plain) begin
+			for (k = 0; k < 17; k = k + 1)
+				pal[k] <= legacy_colour_gbr(sna_pal_hdr[k*8 +: 5]);
+		end
 	end
 
 	//------------------------------------------------------------------
@@ -579,7 +615,6 @@ module asic_regs
 	// into the cycle (irqack is combinational), so an unsampled
 	// int_pending would drop the raster bits before the CPU latches the
 	// byte at cycle end (review finding 2).
-	reg       intack_d;
 	reg [2:0] ack_src;
 	always @(posedge clk) begin
 		if (reset) begin

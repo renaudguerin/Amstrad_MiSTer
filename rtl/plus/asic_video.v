@@ -27,8 +27,9 @@
 //     its alternate-field VSYNC midpoint (FR §19.6.4 p.218 / §19.7.3 p.219;
 //     EN pp.217-218).
 //   - Light pen R16/R17: no light-pen strobe source is emulated. The
-//     registers are stored and readable since P5 (mod-8 map slots 0/1) but
-//     hold their reset value (named assumption at the readback section).
+//     registers are stored and readable since P5 (mod-8 map slots 0/1) and
+//     seedable from an SNA header (B8-5), but nothing at runtime ever writes
+//     them (named assumption at the readback section).
 //   - The R4=0-at-C0=0-with-Rom-select I/O race (ACCC §12.5 p.101) is a Z80
 //     bus-level ASIC race owned by the register-interface layer, not the
 //     counter engine.
@@ -144,7 +145,40 @@ module asic_video
 	// shadows them into palette entries 0-16.
 	input            PAL_EN,
 	output     [4:0] PAL_ADDR,
-	input     [11:0] PAL_RGB
+	input     [11:0] PAL_RGB,
+
+	// ---- B8-5 snapshot apply (SNA v1 register file + v3 counters) ----
+	//
+	// SNA_LOAD is the shared plus_sna_apply pulse. Every input here is a
+	// SETTLED header value: the drain finished several clocks earlier, so
+	// nothing sampled on this edge can be a same-edge owner output. The
+	// registered owner reset released one clock before the pulse, so this
+	// module is out of reset while it applies.
+	//
+	// Scope note (docs/plus/b8-5-snapshot-apply-2026-09-08.md): SNA v3 does
+	// serialize the counters below, but it does NOT serialize the video
+	// pointer latches, frame/C9 parity, interlace pending events or the
+	// pixel-serializer phase. Those take an explicit deterministic seed
+	// (VMA/VMA' from the settled R12/R13, everything else its reset value);
+	// arbitrary mid-frame pixel fidelity is therefore not promised.
+	input            SNA_LOAD,
+	input      [4:0] SNA_ADDR,   // header 42: selected register index
+	// The header carries whole bytes while several CRTC registers are
+	// narrower, and R10/R11 are read-only status groups with no storage on
+	// type 3, so parts of this bus are deliberately never read.
+	/* verilator lint_off UNUSEDSIGNAL */
+	input    [143:0] SNA_REGS,   // header 43-54: R0..R17, Rn at [n*8 +: 8]
+	/* verilator lint_on UNUSEDSIGNAL */
+	input      [7:0] SNA_HCC,    // header A9: C0
+	input      [6:0] SNA_LINE,   // header AB: C4
+	input      [4:0] SNA_RASTER, // header AC: C9
+	input      [4:0] SNA_VTA,    // header AD: adjustment line index
+	input      [3:0] SNA_HSW,    // header AE: HSYNC width count
+	input      [3:0] SNA_VSW,    // header AF: VSYNC width count
+	input            SNA_VS,     // header B0 bit 0
+	input            SNA_HS,     // header B0 bit 1
+	input            SNA_ADJ,    // header B0 bit 7
+	input      [1:0] SNA_MODE    // header 40 bits 1:0, settled GA mode
 );
 
 /* verilator lint_off WIDTH */
@@ -198,8 +232,8 @@ reg [7:0] R13_start_addr_l;
 reg [5:0] R14_cursor_h;
 reg [7:0] R15_cursor_l;
 // Light pen (§21.2.3 slots 0/1): readable pointer registers with no
-// CPC-side strobe source. They hold their reset value forever here
-// (named assumption; see the readback section).
+// CPC-side strobe source. Nothing at runtime writes them; only reset and an
+// SNA header restore set them (named assumption; see the readback section).
 reg [5:0] R16_pen_h;
 reg [7:0] R17_pen_l;
 /* verilator lint_on UNUSEDSIGNAL */
@@ -223,6 +257,30 @@ always @(posedge CLOCK) begin
 		R15_cursor_l     <= 8'd0;
 		R16_pen_h        <= 6'd0;
 		R17_pen_l        <= 8'd0;
+	end
+	else if (SNA_LOAD) begin
+		// Header 42/43-54. R10/R11 are the read-only type-3 status groups
+		// (§21.2.3) and have no storage here, so their serialized bytes are
+		// deliberately dropped rather than inventing writable cursor
+		// registers. R16/R17 DO have storage (light-pen latches with no CPC
+		// strobe source), so the header seeds them.
+		addr             <= SNA_ADDR;
+		R0_h_total       <= SNA_REGS[  0 +: 8];
+		R1_h_displayed   <= SNA_REGS[  8 +: 8];
+		R2_h_sync_pos    <= SNA_REGS[ 16 +: 8];
+		{R3_v_sync_width, R3_h_sync_width} <= SNA_REGS[24 +: 8];
+		R4_v_total       <= SNA_REGS[ 32 +: 7];
+		R5_v_total_adj   <= SNA_REGS[ 40 +: 5];
+		R6_v_displayed   <= SNA_REGS[ 48 +: 7];
+		R7_v_sync_pos    <= SNA_REGS[ 56 +: 7];
+		{R8_skew, R8_interlace} <= {SNA_REGS[69:68], SNA_REGS[65:64]};
+		R9_v_max_line    <= SNA_REGS[ 72 +: 5];
+		R12_start_addr_h <= SNA_REGS[ 96 +: 8];
+		R13_start_addr_l <= SNA_REGS[104 +: 8];
+		R14_cursor_h     <= SNA_REGS[112 +: 6];
+		R15_cursor_l     <= SNA_REGS[120 +: 8];
+		R16_pen_h        <= SNA_REGS[128 +: 6];
+		R17_pen_l        <= SNA_REGS[136 +: 8];
 	end
 	else if (ENABLE & ~nCS & ~R_nW) begin
 		if (~RS) begin
@@ -275,6 +333,7 @@ wire [7:0]  hcc_next = hcc_last ? 8'h00 : hcc + 8'd1;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) hcc <= 8'h00;
+	else if (SNA_LOAD) hcc <= SNA_HCC;   // header A9
 	else if (CLKEN) hcc <= hcc_next;
 end
 
@@ -392,6 +451,19 @@ always @(posedge CLOCK) begin
 		parity_frame <= 1'b0;
 		parity_c9    <= 1'b0;
 	end
+	else if (SNA_LOAD) begin
+		// Headers AB/AC/AD/B0 bit 7. During vertical total adjust the
+		// serialized adjustment counter (AD) is the live index and AC is
+		// meaningless (format note 4); on types 3/4 that index lives in C9
+		// itself (ACCC §11.2.6 p.84), so it lands in `raster` either way.
+		charline       <= SNA_LINE;
+		raster         <= SNA_ADJ ? SNA_VTA : SNA_RASTER;
+		in_adj         <= SNA_ADJ;
+		// Not serialized by the format: deterministic reset seed.
+		interlace_line <= 1'b0;
+		parity_frame   <= 1'b0;
+		parity_c9      <= 1'b0;
+	end
 	else begin
 		if (CLKEN && hcc_last) begin
 			in_adj   <= adj_n;
@@ -473,6 +545,14 @@ always @(posedge CLOCK) begin
 		vma       <= 14'd0;
 		vma_latch <= 14'd0;
 	end
+	else if (SNA_LOAD) begin
+		// The format serializes no video-pointer state, and split history plus
+		// mid-frame R12/R13 writes make it non-unique. Both pointers therefore
+		// take the deterministic frame-origin seed from the SETTLED header
+		// R12/R13 — the same value the next real frame origin would reload.
+		vma       <= {SNA_REGS[96 +: 6], SNA_REGS[104 +: 8]};
+		vma_latch <= {SNA_REGS[96 +: 6], SNA_REGS[104 +: 8]};
+	end
 	else if (CLKEN) begin
 		if (split_latch_event)
 			vma_latch <= SSA;
@@ -534,6 +614,13 @@ wire      disp_raw = hde & vde;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
+		hde <= 1'b0;
+		vde <= 1'b0;
+		dde <= 2'b00;
+	end
+	else if (SNA_LOAD) begin
+		// Not serialized: the display-enable phase re-derives at the next
+		// line seam from the restored counters and R1/R6.
 		hde <= 1'b0;
 		vde <= 1'b0;
 		dde <= 2'b00;
@@ -600,6 +687,14 @@ always @(posedge CLOCK) begin
 		HSYNC    <= 1'b0;
 		in_hsync <= 1'b0;
 		hsc      <= 4'd0;
+	end
+	else if (SNA_LOAD) begin
+		// Header B0 bit 1 + AE. The width counter is only meaningful while
+		// HSYNC is executing (format note 9), so an inactive restore starts
+		// the counter at 0 rather than carrying a stale count.
+		HSYNC    <= SNA_HS;
+		in_hsync <= SNA_HS;
+		hsc      <= SNA_HS ? SNA_HSW : 4'd0;
 	end
 	else if (CLKEN) begin
 		if (in_hsync) begin
@@ -686,6 +781,11 @@ always @(posedge CLOCK) begin
 		vsync_mid_pending   <= 1'b0;
 		vsync_delay_pending <= 1'b0;
 	end
+	else if (SNA_LOAD) begin
+		// Interlace pending events are not serialized: deterministic clear.
+		vsync_mid_pending   <= 1'b0;
+		vsync_delay_pending <= 1'b0;
+	end
 	else if (CLKEN) begin
 		if (!ivm_active && !sync_interlace_active) begin
 			vsync_mid_pending   <= 1'b0;
@@ -714,6 +814,13 @@ always @(posedge CLOCK) begin
 		VSYNC    <= 1'b0;
 		in_vsync <= 1'b0;
 		vsc      <= 4'd0;
+	end
+	else if (SNA_LOAD) begin
+		// Header B0 bit 0 + AF, same "only meaningful while executing" rule
+		// as HSYNC above (format note 8).
+		VSYNC    <= SNA_VS;
+		in_vsync <= SNA_VS;
+		vsc      <= SNA_VS ? SNA_VSW : 4'd0;
 	end
 	else if (CLKEN) begin
 		if (in_vsync) begin
@@ -798,7 +905,8 @@ assign RA   = ra_eff;
 //
 // Named assumptions (each would need its own vector against new
 // evidence):
-//  - R16/R17 hold their reset value: no light-pen strobe source is emulated.
+//  - R16/R17 change only at reset or SNA restore: no light-pen strobe
+//    source is emulated.
 //  - Status 2 bit 3 resets to 0 and toggles at every 16th frame origin
 //    (§21.3.4.2 "Timer 16 CRTC frames"; §28.1.10 p.293 notes this bit
 //    differs between CRTC 3 and CRTC 4 — type 3 only here).
@@ -844,6 +952,11 @@ wire frame_origin = CLKEN && hcc_last && pointer_frame_origin;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
+		frame16_cnt    <= 4'd0;
+		frame16_toggle <= 1'b0;
+	end
+	else if (SNA_LOAD) begin
+		// STATUS2 bit 3's 16-frame timer is not serialized: deterministic seed.
 		frame16_cnt    <= 4'd0;
 		frame16_toggle <= 1'b0;
 	end
@@ -916,12 +1029,20 @@ reg        hsync_d;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) pix_cnt <= 4'd0;
+	else if (SNA_LOAD) pix_cnt <= 4'd0;   // serializer phase not serialized
 	else if (PIXEN) pix_cnt <= CLKEN ? 4'd0 : (pix_cnt + 4'd1);
 end
 
 // Byte latches mirror ga40010's twice-per-character VIDEO_BUF capture.
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
+		vid_even <= 8'd0;
+		vid_odd  <= 8'd0;
+		de_hold  <= 1'b0;
+	end
+	else if (SNA_LOAD) begin
+		// Pending byte latches discarded: pre-restore fetches must not escape
+		// after resume.
 		vid_even <= 8'd0;
 		vid_odd  <= 8'd0;
 		de_hold  <= 1'b0;
@@ -959,6 +1080,15 @@ always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		mode_q  <= 2'b00;
 		hsync_d <= 1'b0;
+	end
+	else if (SNA_LOAD) begin
+		// The decoder mode comes from the SETTLED header RMR (SNA_MODE), not
+		// from GAMODE: the Gate Array restores its own RMR shadow on this same
+		// edge, so sampling GAMODE here would read the pre-restore value.
+		// hsync_d takes the restored HSYNC level so the pulse already in
+		// progress does not re-latch the mode on a phantom rising edge.
+		mode_q  <= SNA_MODE;
+		hsync_d <= SNA_HS;
 	end
 	else if (PIXEN) begin
 		hsync_d <= HSYNC;
@@ -1039,6 +1169,11 @@ always @(posedge CLOCK) begin
 		for (p_idx = 0; p_idx < 15; p_idx = p_idx + 1)
 			pen_delay[p_idx] <= 4'd0;
 	end
+	else if (SNA_LOAD) begin
+		// Soft-scroll delay line holds pre-restore pens: discard.
+		for (p_idx = 0; p_idx < 15; p_idx = p_idx + 1)
+			pen_delay[p_idx] <= 4'd0;
+	end
 	else if (PIXEN) begin
 		pen_delay[0] <= pen_nib;
 		for (p_idx = 1; p_idx < 15; p_idx = p_idx + 1)
@@ -1052,6 +1187,9 @@ wire [3:0] pen_delayed = (SSCR[3:0] == 4'd0) ? pen_nib : pen_delay[SSCR[3:0] - 4
 reg de_first_char;
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
+		de_first_char <= 1'b0;
+	end
+	else if (SNA_LOAD) begin
 		de_first_char <= 1'b0;
 	end
 	else if (PIXEN && CLKEN) begin
@@ -1082,6 +1220,12 @@ wire show_spr = de_hold & SPR_EN;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
+		RGB_R <= 4'h0;
+		RGB_G <= 4'h0;
+		RGB_B <= 4'h0;
+		PEN   <= 5'd0;
+	end
+	else if (SNA_LOAD) begin
 		RGB_R <= 4'h0;
 		RGB_G <= 4'h0;
 		RGB_B <= 4'h0;

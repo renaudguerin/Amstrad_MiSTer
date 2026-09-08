@@ -12,14 +12,16 @@ Fit: 22,354/41,910 ALMs (53%); minimum setup +0.450 ns, hold +0.225 ns,
 zero setup/hold TNS and no unconstrained clocks. Some I/O paths remain
 unconstrained (27 input and 90 output ports). Reports are retained under ignored
 `docs/references/tape-artifact-34194119970/`. No hardware test occurred.
-Snapshot apply remains unfinished and is not included in this RBF. Its preserved
-`codex/plus/b8-snapshot-apply` checkpoint `60402fa8538c8d936c81d219ec896be5c9b4a094`
-is **NOT READY**, paused for provider quota recovery. The task reports eight focused
-DMA/MMU tests and motherboard lint passing; full video/GA/raster/IRQ restoration,
-palette provenance, production-consumer validation, full gates and independent
-review remain outstanding. Resume from its committed
-`docs/plus/b8-5-snapshot-apply-2026-09-08.md` acceptance debt before integrating.
-The unfinished worktree is deliberately retained; no provider worker remains live.
+This RBF predates B8-5 snapshot apply. Reviewed source
+`f2300be6ae2075dff41c6a96ec59f65286feb67f` restores mapped DMA, selected video/GA,
+MMU and palette state after storage drain, holding CPU execution through apply.
+All twelve focused cases, full simulation, lint and the unchanged soak pass in
+both source and integration checkouts; fresh Astra medium review is CLEAR. CI and a
+new full Quartus artifact remain pending. See the
+[restore contract and acceptance evidence](plus/b8-5-snapshot-apply-2026-09-08.md),
+including the documented failure-first chronology gap for the initial video/GA
+implementation. First-frame pixels remain approximate where SNA omits internal
+address/phase history; no hardware closure is claimed.
 
 The preceding `b945c1b` build
 [34192429871](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34192429871)
@@ -32,7 +34,8 @@ The completed T80, memory/tape, palette and preserved Plus worktrees have been
 removed after successful CI, idle/clean checks and verification that all private
 non-build files and symlinks were preserved under `docs/references/retired-*/`.
 Their branches and recovery stashes are retained. Only the integration checkout
-and preserved snapshot task worktree remain.
+and snapshot task worktree remain; remove the latter only after successful
+integration CI/artifact delivery and preservation of its private evidence.
 
 **Earlier test/tooling integration, 2026-09-08:** `9d238dafc3a9950c276f91a3e928d5cfeb013bff`
 passed simulation/lint, synthesis policy and the required gate in

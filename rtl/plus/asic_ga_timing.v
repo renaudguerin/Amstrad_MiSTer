@@ -27,13 +27,14 @@
 //
 //  Deliberate differences from ga40010 (each documented, none behavioural
 //  for the shared contract):
-//   - No snapshot (SNA) preload ports: snapshots are unsupported in Plus
-//     mode (architecture §5.6). Power-up values are therefore defined
-//     constants instead of uninitialised storage: border resets to 5'b10000
-//     and RMR to 0 exactly as ga40010 resets them, and INKR entries plus
-//     ink select carry an explicit RTL reset to 0 (ga40010 leaves those to
-//     FPGA power-up init); the INKR/ink-select power-up value is a named
-//     unverified model assumption (real ASIC power-up contents undocumented).
+//   - Snapshot (SNA) preload covers more than ga40010's: besides the register
+//     file it seeds the sync/interrupt phase from the v3 header (B8-5).
+//     Power-up values are defined constants rather than uninitialised
+//     storage: border resets to 5'b10000 and RMR to 0 exactly as ga40010
+//     resets them, and INKR entries plus ink select carry an explicit RTL
+//     reset to 0 (ga40010 leaves those to FPGA power-up init); the
+//     INKR/ink-select power-up value is a named unverified model assumption
+//     (real ASIC power-up contents undocumented).
 //   - No video-buffer/RGB section: asic_video owns rasterisation.
 //   - No DISPEN input: only the omitted video buffer consumed it.
 //   - No ``ifdef VERILATOR`` shadow domain: the *_sync variants this module
@@ -133,7 +134,34 @@ module asic_ga_timing
 	// restored 12-bit palette survives (B8-5 boundary).
 	output        LEGACY_PAL_WR,
 	output [4:0]  LEGACY_PAL_ADDR,
-	output [4:0]  LEGACY_PAL_DATA
+	output [4:0]  LEGACY_PAL_DATA,
+
+	// ---- B8-5 snapshot apply ----
+	//
+	// SNA_LOAD is the shared plus_sna_apply pulse and every input is a
+	// SETTLED header value. Restoring the register file here deliberately
+	// does NOT raise LEGACY_PAL_WR: a snapshot must not impersonate an
+	// ordinary I/O write, so a CPC+ 12-bit palette survives the apply.
+	//
+	// The sync/interrupt state below is seeded from the serialized counters
+	// AND from the settled raw sync levels, so the first clock after the
+	// apply cannot manufacture an HSYNC or VSYNC edge that the file did not
+	// contain (which would advance hcnt, reset the interrupt counter or fire
+	// a spurious interrupt).
+	input         SNA_LOAD,
+	input   [4:0] SNA_INKSEL,   // header 2E
+	// Hardware colours occupy the low five bits of each palette byte, and only
+	// the low nibble of the RMR byte is a Gate Array control field; the rest is
+	// reserved in the format and deliberately unread here.
+	/* verilator lint_off UNUSEDSIGNAL */
+	input [135:0] SNA_PALETTE,  // header 2F-3F, pen k at [k*8 +: 5]
+	input   [7:0] SNA_CONFIG,   // header 40 (RMR: ROM enables + mode)
+	/* verilator lint_on UNUSEDSIGNAL */
+	input   [1:0] SNA_VSDELAY,  // header B2, REMAINING delayed-HSYNC count
+	input   [5:0] SNA_INTCNT,   // header B3, interrupt scanline counter 0..51
+	input         SNA_INT,      // header B4 (already attributed to this owner)
+	input         SNA_VS,       // header B0 bit 0, raw CRTC VSYNC level
+	input         SNA_HS        // header B0 bit 1, raw CRTC HSYNC level
 );
 
 	wire reset = ~RESET_N;
@@ -268,19 +296,27 @@ module asic_ga_timing
 	// The !reset guards keep the reset dominant while leaving every write
 	// a top-level if — the else-wrapped form trips an internal error in
 	// older Verilator (5.020 V3Gate ICE).
+	integer sna_i;
 	always @(posedge clk) begin
 		if (reset) border <= 5'b10000;
+		else if (SNA_LOAD) border <= SNA_PALETTE[128 +: 5];
 		else if (border_en) border <= D[4:0];
 
 		if (reset) {hromen, lromen, mode1, mode0} <= 4'd0;
+		else if (SNA_LOAD) {hromen, lromen, mode1, mode0} <= SNA_CONFIG[3:0];
 		else if (ctrl_en) {hromen, lromen, mode1, mode0} <= D[3:0];
 
 		if (reset) begin
 			inksel <= 5'd0;
 			inkr   <= 80'd0;
 		end
-		if (!reset && ink_en)  inksel <= D[4:0];
-		if (!reset && inkr_en) inkr[inksel[3:0]*5 +: 5] <= D[4:0];
+		if (!reset && SNA_LOAD) begin
+			inksel <= SNA_INKSEL;
+			for (sna_i = 0; sna_i < 16; sna_i = sna_i + 1)
+				inkr[sna_i*5 +: 5] <= SNA_PALETTE[sna_i*8 +: 5];
+		end
+		if (!reset && !SNA_LOAD && ink_en)  inksel <= D[4:0];
+		if (!reset && !SNA_LOAD && inkr_en) inkr[inksel[3:0]*5 +: 5] <= D[4:0];
 	end
 
 	assign BORDER_O  = border;
@@ -325,12 +361,49 @@ module asic_ga_timing
 	reg  vsync_o_d;  // u812
 	reg  irqack_rst;
 
-	// Edge detectors.
+	//------------------------------------------------------------------
+	// B8-5 snapshot phase seeds for the hcnt VSYNC-delay chain.
+	//
+	// hcnt walks 00 -> 01 -> 06 -> ... on each CRTC HSYNC falling edge and is
+	// forced to {0000,b0} at the raw VSYNC rising edge; the shaped VSYNC_O
+	// (and with it the interrupt-counter re-sync, intcntclr_4) rises when
+	// hcnt reaches 06. Two or three HSYNCs therefore separate the raw VSYNC
+	// start from that re-sync, which is exactly the "0..2, counts down to the
+	// reset action" B2 field (docs/plus/b8-5-snapshot-apply-2026-09-08.md,
+	// where the format's own prose is resolved against Caprice32's runtime
+	// and loader):
+	//   B2 = 2 -> no HSYNC seen yet     -> hcnt 00, next 01
+	//   B2 = 1 -> one HSYNC seen        -> hcnt 01, next 06
+	//   B2 = 0 -> delay already expired -> hcnt 06 while a raw VSYNC is still
+	//             active (vsync_o_d seeded 1 so the re-sync does not fire a
+	//             second time), otherwise the parked lost-sync state 1E.
+	// hcnt_next is seeded with hcnt's successor because it is a registered
+	// lookup: a stale value would jump the chain on the next HSYNC. B2 = 3 is
+	// outside the documented range and falls into the B2 = 0 case.
+	//------------------------------------------------------------------
+	wire [4:0] sna_hcnt_seed = (SNA_VSDELAY == 2'd2) ? 5'h00 :
+	                           (SNA_VSDELAY == 2'd1) ? 5'h01 :
+	                           SNA_VS                ? 5'h06 : 5'h1E;
+	wire [4:0] sna_hcnt_next_seed = (SNA_VSDELAY == 2'd2) ? 5'h01 :
+	                                (SNA_VSDELAY == 2'd1) ? 5'h06 :
+	                                SNA_VS                ? 5'h07 : 5'h1E;
+	wire       sna_vsync_o_seed = (SNA_VSDELAY == 2'd0) & SNA_VS;
+
+	// Edge detectors. On the apply edge the raw sync histories take the
+	// SETTLED header levels: without that, an active restored HSYNC or VSYNC
+	// reads as a fresh edge on the very next clock.
 	always @(posedge clk) begin
-		hsync_n_d <= hsync_n;
-		if (CCLK_EN_N) begin
-			vsync_d   <= VSYNC_I;
-			vsync_o_d <= VSYNC_O_int;
+		if (SNA_LOAD) begin
+			hsync_n_d <= ~SNA_HS;
+			vsync_d   <= SNA_VS;
+			vsync_o_d <= sna_vsync_o_seed;
+		end
+		else begin
+			hsync_n_d <= hsync_n;
+			if (CCLK_EN_N) begin
+				vsync_d   <= VSYNC_I;
+				vsync_o_d <= VSYNC_O_int;
+			end
 		end
 	end
 
@@ -352,6 +425,11 @@ module asic_ga_timing
 	wire VBLANK_comb = ~(hcnt_comb[2] & hcnt_comb[3] & hcnt_comb[4]);
 
 	always @(posedge clk) begin
+		if (SNA_LOAD) begin
+			hcnt_reg  <= sna_hcnt_seed;
+			hcnt_next <= sna_hcnt_next_seed;
+		end
+		else begin
 		hcnt_reg <= hcnt_comb;
 		case (hcnt_comb)
 		5'h00: hcnt_next <= 5'h01;
@@ -382,6 +460,7 @@ module asic_ga_timing
 		5'h19: hcnt_next <= 5'h1E;
 		default: ;
 		endcase
+		end
 	end
 
 	// Monitor HSYNC microsequence.
@@ -390,8 +469,16 @@ module asic_ga_timing
 
 	reg hdelay_res0_d, hdelay2d;
 	always @(posedge clk) begin
-		hdelay_res0_d <= hdelay_res0;
-		hdelay2d      <= hdelay_comb[2];
+		if (SNA_LOAD) begin
+			// Consistent with the hdelay_reg = 0 seed below: HSYNC_O low, so
+			// no mode-resync strobe and no shaped trailing edge next clock.
+			hdelay_res0_d <= ~SNA_HS;
+			hdelay2d      <= 1'b0;
+		end
+		else begin
+			hdelay_res0_d <= hdelay_res0;
+			hdelay2d      <= hdelay_comb[2];
+		end
 	end
 
 	reg [3:0] hdelay_comb;
@@ -405,7 +492,10 @@ module asic_ga_timing
 	assign MODE_SYNC_EN = mode_sync_en_w;
 
 	always @(posedge clk) begin
-		if (hdelay_res0 | hdelay_res1) hdelay_reg <= hdelay_comb;
+		// The monitor-side shaping phase is not serialized by the format:
+		// deterministic restart of the microsequence.
+		if (SNA_LOAD) hdelay_reg <= 4'd0;
+		else if (hdelay_res0 | hdelay_res1) hdelay_reg <= hdelay_comb;
 		else if (CCLK_EN_N) begin
 			case (hdelay_comb)
 			4'h0: hdelay_reg <= 4'h1;
@@ -436,7 +526,7 @@ module asic_ga_timing
 		else if (intcntclr_52_s) intcntclr_52 = 1'b1;
 		else                     intcntclr_52 = intcntclr_52_hold;
 	end
-	always @(posedge clk) intcntclr_52_hold <= intcntclr_52;
+	always @(posedge clk) intcntclr_52_hold <= SNA_LOAD ? 1'b0 : intcntclr_52;
 
 	wire intcntclr_4 = VSYNC_O_int & ~vsync_o_d; // u817
 	// A PRI raster fire clears counter bit 5 as an acknowledge would, so a
@@ -454,8 +544,18 @@ module asic_ga_timing
 	end
 
 	always @(posedge clk) begin
-		intcnt_reg  <= intcnt_comb;
-		intcnt_next <= intcnt_comb + 6'd1;
+		if (SNA_LOAD) begin
+			// Header B3, the GA interrupt scanline counter (0..51). intcnt_next
+			// is a registered successor, so it is seeded too: the 52nd-line
+			// comparator reads it directly and a stale value would either lose
+			// or duplicate the next interrupt.
+			intcnt_reg  <= SNA_INTCNT;
+			intcnt_next <= SNA_INTCNT + 6'd1;
+		end
+		else begin
+			intcnt_reg  <= intcnt_comb;
+			intcnt_next <= intcnt_comb + 6'd1;
+		end
 	end
 
 	// Interrupt acknowledge: any INT-sampled I/O or M1 cycle sets
@@ -468,7 +568,7 @@ module asic_ga_timing
 		else if (irqack_r) irqack_rst = 1'b0;
 		else               irqack_rst = irqack_hold;
 	end
-	always @(posedge clk) irqack_hold <= irqack_rst;
+	always @(posedge clk) irqack_hold <= SNA_LOAD ? 1'b0 : irqack_rst;
 
 	//------------------------------------------------------------------
 	// P3 programmable raster interrupt (reference §7, [ARNOLD-REV §2.4]).
@@ -499,7 +599,7 @@ module asic_ga_timing
 	//------------------------------------------------------------------
 
 	reg  hsync_o_q;
-	always @(posedge clk) hsync_o_q <= HSYNC_O;
+	always @(posedge clk) hsync_o_q <= SNA_LOAD ? 1'b0 : HSYNC_O;
 	wire mon_hsync_fall = hsync_o_q & ~HSYNC_O;
 
 	wire pri_line_match = (pri != 8'd0) &&
@@ -536,22 +636,54 @@ module asic_ga_timing
 	// irqack path and misread a raster acknowledge as empty.
 	reg  intack_d;
 	reg  ack_empty; // nothing pending at acknowledge start
-	reg last_raster;
+	reg  sna_raster_pending;
+	reg  last_raster;
 	always @(posedge clk) begin
 		intack_d <= intack;
-		if (reset)                            ack_empty <= 1'b0;
-		else if (intack && !intack_d)         ack_empty <= INT_N;
-		if (reset)                            last_raster <= 1'b0;
-		else if (classic_fire || raster_fire) last_raster <= 1'b1;
-		else if (!intack && intack_d && ack_empty) last_raster <= 1'b0;
+		if (reset)                                    ack_empty <= 1'b0;
+		else if (SNA_LOAD)                            ack_empty <= 1'b0;
+		else if (intack && !intack_d)                 ack_empty <= INT_N;
+
+		if (reset)                                    sna_raster_pending <= 1'b0;
+		else if (SNA_LOAD)                            sna_raster_pending <= SNA_INT;
+		else if (int_reset || classic_fire || raster_fire || (intack && !intack_d))
+		                                              sna_raster_pending <= 1'b0;
+
+		// DCSR bit 7's restored provenance lives in asic_regs (CPC+ chunk byte
+		// 8DF bit 7) during idle before ACK. The level itself starts clear on
+		// SNA_LOAD (the apply asserts INT_N directly rather than through a fire
+		// term). When the first acknowledge cycle arrives for a restored pending
+		// raster interrupt (intack with !INT_N scoped to sna_raster_pending),
+		// last_raster is set to 1 exactly as a normal fire would have set it,
+		// and asic_regs retires its loaded dcsr_stat. If an acknowledge completes
+		// with nothing pending (ack_empty), last_raster clears to 0.
+		if (reset)                                    last_raster <= 1'b0;
+		else if (SNA_LOAD)                            last_raster <= 1'b0;
+		else if (classic_fire || raster_fire ||
+		         (intack && !intack_d && sna_raster_pending && !INT_N))
+		                                              last_raster <= 1'b1;
+		else if (!intack && intack_d && ack_empty)    last_raster <= 1'b0;
 	end
 	assign int_last_raster = last_raster;
 
 	always @(posedge clk) begin
-		cnt5 <= intcnt_comb[5];
-		if (int_reset) INT_N <= 1'b1;
-		else if (raster_fire) INT_N <= 1'b0;
-		else if ((pri == 8'd0) && ~intcnt_comb[5] & cnt5) INT_N <= 1'b0;
+		if (SNA_LOAD) begin
+			// cnt5 is the delayed top counter bit and classic_fire is its
+			// FALLING edge: seeding it from the restored counter is what stops
+			// the apply from manufacturing an interrupt on the next clock.
+			cnt5  <= SNA_INTCNT[5];
+			// Header B4. It is an aggregate "an interrupt is pending" flag and
+			// cannot say whether the GA or the ASIC DMA raised it; the caller
+			// resolves that (see Amstrad_motherboard) and passes the part this
+			// owner must hold.
+			INT_N <= ~SNA_INT;
+		end
+		else begin
+			cnt5 <= intcnt_comb[5];
+			if (int_reset) INT_N <= 1'b1;
+			else if (raster_fire) INT_N <= 1'b0;
+			else if ((pri == 8'd0) && ~intcnt_comb[5] & cnt5) INT_N <= 1'b0;
+		end
 	end
 
 	assign VSYNC_O = VSYNC_O_int;

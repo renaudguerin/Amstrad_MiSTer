@@ -81,6 +81,46 @@ module Amstrad_motherboard
 	input   [3:0] sna_psg_addr,
 	input [127:0] sna_psg_regs,
 
+	// B8-5 slice A: snapshot CPU execution hold (high through the apply
+	// pulse) and settled CPC+/header DMA payload. sna_hold gates both T80
+	// CEN enables: T80 RESET has priority over DIRSet while DIRSet loads
+	// independently of CEN (rtl/T80/T80pa.vhd, T80.vhd, T80_Reg.vhd), so
+	// the CPU cannot execute until the owners settle yet the register
+	// load still lands. Non-SNA fixtures tie all of these to zero.
+	input         sna_hold,
+	input         sna_hsync,
+	input  [11:0] sna_dma_loop_cnt0,
+	input  [11:0] sna_dma_loop_cnt1,
+	input  [11:0] sna_dma_loop_cnt2,
+	input  [15:0] sna_dma_loop_addr0,
+	input  [15:0] sna_dma_loop_addr1,
+	input  [15:0] sna_dma_loop_addr2,
+	input  [11:0] sna_dma_pause_cnt0,
+	input  [11:0] sna_dma_pause_cnt1,
+	input  [11:0] sna_dma_pause_cnt2,
+	input   [7:0] sna_dma_pause_presc0,
+	input   [7:0] sna_dma_pause_presc1,
+	input   [7:0] sna_dma_pause_presc2,
+
+	// B8-5 slice B: settled SNA v3 header state for the selected video and
+	// Gate Array owners (plus_sna_header decodes it; zero for v1/v2 files).
+	// sna_hsync above is the same B0 bit 1 these use.
+	input   [7:0] sna_crtc_hcc,
+	input   [6:0] sna_crtc_line,
+	input   [4:0] sna_crtc_raster,
+	input   [4:0] sna_crtc_vta,
+	input   [3:0] sna_crtc_hsw,
+	input   [3:0] sna_crtc_vsw,
+	input         sna_crtc_vs,
+	input         sna_crtc_adj,
+	input   [1:0] sna_ga_vsdelay,
+	input   [5:0] sna_ga_intcnt,
+	input         sna_int_pending,
+	// High when the snapshot carried a CPC+ chunk, so the ASIC palette was
+	// restored at full 12-bit depth and must not be overwritten by the
+	// header's 5-bit hardware colours.
+	input         sna_plus_chunk,
+
 	input         plus_sna_wr,
 	input  [13:0] plus_sna_addr,
 	input   [7:0] plus_sna_data,
@@ -178,13 +218,13 @@ always @(posedge clk) begin
 	else if (~M1_n & ~MREQ_n & ~RD_n) io_bus_byte <= cpu_data_bus;
 end
 
-T80pa CPU
+	T80pa CPU
 (
 	.reset_n(~reset),
-	
+
 	.clk(clk),
-	.cen_p(phi_en_p),
-	.cen_n(phi_en_n),
+	.cen_p(phi_en_p & ~sna_hold),
+	.cen_n(phi_en_n & ~sna_hold),
 
 	.a(A),
 	.do(D),
@@ -370,8 +410,33 @@ asic_ga_timing asic_ga
 	// B8-3 accepted legacy palette write event to the palette owner.
 	.LEGACY_PAL_WR(leg_pal_wr),
 	.LEGACY_PAL_ADDR(leg_pal_addr),
-	.LEGACY_PAL_DATA(leg_pal_data)
+	.LEGACY_PAL_DATA(leg_pal_data),
+
+	// B8-5 snapshot apply: settled header register file plus sync/interrupt
+	// phase. Restoring the shadows here never raises LEGACY_PAL_WR.
+	.SNA_LOAD(sna_load),
+	.SNA_INKSEL(sna_ga_inksel),
+	.SNA_PALETTE(sna_ga_palette),
+	.SNA_CONFIG(sna_ga_config),
+	.SNA_VSDELAY(sna_ga_vsdelay),
+	.SNA_INTCNT(sna_ga_intcnt),
+	.SNA_INT(sna_ga_int_pending),
+	.SNA_VS(sna_crtc_vs),
+	.SNA_HS(sna_hsync)
 );
+
+// Header B4 attribution (B8-5). The field is a single aggregate "an interrupt
+// is pending" flag, but on a Plus two independent sources feed INT_n: this
+// Gate Array and the ASIC DMA channels through DCSR. The CPC+ chunk restores
+// DCSR separately and its pending flags already assert plus_dma_int_req, so
+// crediting B4 to the DMA whenever DCSR explains it keeps the interrupt VECTOR
+// source right; only an otherwise-unexplained pending flag is held by the GA.
+// The aggregate LEVEL on INT_n is preserved either way. What the format cannot
+// encode is a simultaneous GA-and-DMA pending pair: that restores as DMA-only.
+// Later GA interrupts follow the restored counter and runtime rules; recovery
+// of the omitted pending GA interrupt is not guaranteed. DCSR is settled before
+// the apply pulse (it retires during the drain), so this is not a same-edge sample.
+wire sna_ga_int_pending = sna_int_pending & ~plus_dma_int_req;
 
 // Locked-ASIC CRTC type 3 + pixel pipeline. Register accesses share the
 // classic CRTC sparse decode. On Plus hardware an IN on either write port
@@ -425,7 +490,24 @@ asic_video asic_vid
 	// entries 0-16.
 	.PAL_EN(1'b1),
 	.PAL_ADDR(plus_pal_raddr),
-	.PAL_RGB(plus_pal_rdata)
+	.PAL_RGB(plus_pal_rdata),
+
+	// B8-5 snapshot apply: settled header register file and v3 counters.
+	// SNA_MODE comes from the header RMR, not from plus_gamode, because the
+	// Gate Array restores that shadow on this very edge.
+	.SNA_LOAD(sna_load),
+	.SNA_ADDR(sna_crtc_addr),
+	.SNA_REGS(sna_crtc_regs),
+	.SNA_HCC(sna_crtc_hcc),
+	.SNA_LINE(sna_crtc_line),
+	.SNA_RASTER(sna_crtc_raster),
+	.SNA_VTA(sna_crtc_vta),
+	.SNA_HSW(sna_crtc_hsw),
+	.SNA_VSW(sna_crtc_vsw),
+	.SNA_VS(sna_crtc_vs),
+	.SNA_HS(sna_hsync),
+	.SNA_ADJ(sna_crtc_adj),
+	.SNA_MODE(sna_ga_config[1:0])
 );
 
 // ASIC register page (P2). The accepted legacy palette write event comes
@@ -519,7 +601,13 @@ asic_regs asic_page
 	.dma_int_req(plus_dma_int_req),
 	.sna_wr(plus_sna_wr),
 	.sna_addr(plus_sna_addr),
-	.sna_data(plus_sna_data)
+	.sna_data(plus_sna_data),
+
+	// B8-5 palette provenance: a plain SNA has only the header's 5-bit
+	// hardware colours, a CPC+ snapshot already restored 12-bit entries.
+	.sna_pal_load(sna_load),
+	.sna_pal_plain(~sna_plus_chunk),
+	.sna_pal_hdr(sna_ga_palette)
 );
 assign plus_asic_dout = asic_regs_dout;
 assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
@@ -584,6 +672,21 @@ asic_dma dma_sound
 	.cclk_en_p(plus_cclk_en_p),
 	.cclk_en_n(plus_cclk_en_n),
 	.hsync(plus_crtc_hs),
+
+	.sna_load(sna_load),
+	.sna_loop_cnt0(sna_dma_loop_cnt0),
+	.sna_loop_cnt1(sna_dma_loop_cnt1),
+	.sna_loop_cnt2(sna_dma_loop_cnt2),
+	.sna_loop_addr0(sna_dma_loop_addr0),
+	.sna_loop_addr1(sna_dma_loop_addr1),
+	.sna_loop_addr2(sna_dma_loop_addr2),
+	.sna_pause_cnt0(sna_dma_pause_cnt0),
+	.sna_pause_cnt1(sna_dma_pause_cnt1),
+	.sna_pause_cnt2(sna_dma_pause_cnt2),
+	.sna_pause_presc0(sna_dma_pause_presc0),
+	.sna_pause_presc1(sna_dma_pause_presc1),
+	.sna_pause_presc2(sna_dma_pause_presc2),
+	.sna_hsync(sna_hsync),
 
 	.sar0_lo(dma_sar0_lo),
 	.sar0_hi(dma_sar0_hi),

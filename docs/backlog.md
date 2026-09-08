@@ -223,9 +223,10 @@ disk-path conclusions still require the production T80 boundary stated in
   feeds VRAM byte assembly before RGB; the existing two timing taps therefore
   share filter-dependent pixels. A filter-independent image requires an explicit
   phase/data contract, not just another RGB output port.
-- **Input:** CPR auto-boots; DSK needs scripted input. SNA can shorten setup once
-  selected-machine restore is complete, but does not freeze the video engine at
-  an exact frame. B8-5 identifies concrete Plus restore omissions.
+- **Input:** CPR auto-boots; DSK needs scripted input. B8-5 restores the mapped
+  Plus snapshot state, but SNA does not freeze the video engine at an exact frame
+  or serialize all address/phase history. See the
+  [restore limits](plus/b8-5-snapshot-apply-2026-09-08.md) before using SNA for capture.
 - **Known limitation**: for SHAKER specifically, SNA is a poor fit. Each test needs a snapshot
   taken after its menu key, and some tests advance with further keypresses, so covering a module
   means dozens of hand-made snapshots. That is more manual work than scripted input on

@@ -2,6 +2,16 @@
 
 ## Pending integration / review-complete rows (zero open review findings)
 
+- **B8-5 snapshot owner apply — CLEAR, source `f2300be`.**
+  Fresh Astra medium review covers the foreign-authored DMA/video/GA/MMU restore,
+  production header/apply wiring, palette provenance and first interrupt ACK.
+  The top-level syntax and ACK ownership findings are repaired; the existing
+  empty-ACK regression remains intact. Full simulation, lint and the unchanged
+  soak pass. The initial video/GA implementation has a documented failure-first
+  chronology gap, with later baseline discrimination; the ACK corrections have
+  genuine pre-fix red evidence. See the
+  [scope, review evidence and format limits](plus/b8-5-snapshot-apply-2026-09-08.md).
+
 - **B8-7 tape write lifetime — CLEAR, integrated from `e7d73ba`.**
   Astra medium independently reviewed the foreign-authored queue, SDRAM
   write ACK/data capture, top-level ownership and physical-DQ tests. The

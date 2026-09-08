@@ -473,9 +473,12 @@ See [current status](current-status.md) for accepted source and artifact identit
    scripted fixture. Native dynamic-wait comparison, complete frame-level RFD
    and full motherboard execution remain bounded follow-ups; do not infer
    production instruction behavior from the TV80 substitute.
-4. **Plus B8-5:** complete snapshot apply across DMA, selected video/GA and MMU
-   owners after drain and before CPU release. Coordinate motherboard interfaces
-   after FIELD/palette work. Use DSK/CPR for early automation until this is proven.
+4. **Plus B8-5:** snapshot apply across DMA, selected video/GA, MMU and palette
+   owners is implemented from `f2300be`, with twelve focused cases, full gates
+   and fresh independent review. CPU execution remains held through apply after
+   storage drain. See the [restore contract](plus/b8-5-snapshot-apply-2026-09-08.md)
+   for unrepresented address/phase history and first-frame limitations. Hardware
+   validation remains open; prefer DSK/CPR for early automation.
 5. **Preserved work:** B3 capture `bb77075` and P10j notes `3db81d0` are
    integrated after the SDRAM repair; retain their bounded synthetic/CPU limits.
    FDC held-read test
