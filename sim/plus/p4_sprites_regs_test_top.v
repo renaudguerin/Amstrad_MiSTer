@@ -91,9 +91,13 @@ module p4_sprites_regs_test_top (
 	wire [7:0]  sprq_data;
 	wire        sprq_ack;
 
-	// Legacy palette inputs are deliberately held at their reset values.  The
-	// fixture only programs sprite colours 1..15 through the ASIC page.
-	wire [4:0]  leg_border = 5'd0;
+	// B8-3: no legacy palette events in this fixture; shadows held at GA
+	// reset values (INKR=0, border=16) for the one-shot reset import only.
+	// The page programs sprite colours 1..15 directly.
+	wire        leg_pal_wr = 1'b0;
+	wire [4:0]  leg_pal_addr = 5'd0;
+	wire [4:0]  leg_pal_data = 5'd0;
+	wire [4:0]  leg_border = 5'd16;
 	wire [79:0] leg_inkr = 80'd0;
 
 	asic_regs regs (
@@ -105,6 +109,9 @@ module p4_sprites_regs_test_top (
 		.A(A),
 		.D_in(D_in),
 		.D_out(D_out),
+		.leg_pal_wr(leg_pal_wr),
+		.leg_pal_addr(leg_pal_addr),
+		.leg_pal_data(leg_pal_data),
 		.leg_border(leg_border),
 		.leg_inkr(leg_inkr),
 		.pal_raddr(pal_raddr),
