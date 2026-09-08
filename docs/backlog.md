@@ -452,8 +452,10 @@ an optional, separately authorized second opinion on a concrete disputed choice.
 
 **B8 REVIEW COMPLETE 2026-09-08:** priorities are production-boundary fidelity,
 removing redundant source-string checks, reusing real peripheral composition,
-and completing the existing `c12c264` consolidation after correcting its fixture
-ownership claim. See [the test/process review](b8-architecture-methodology-review-2026-09-08.md#test-and-process-review).
+and preserving coverage while consolidating redundant tests. The `c12c264`
+consolidation is integrated through refreshed `5fcf223`, with its fixture
+ownership claim corrected; see [integration evidence](preserved-work-integration-2026-09-08.md).
+See [the test/process review](b8-architecture-methodology-review-2026-09-08.md#test-and-process-review).
 Measured full-suite wall time on a clean exact-source archive was 198 seconds;
 the warm run was 57 seconds. No default gate was removed. Reducing test count
 alone would not address the reproduced defects.

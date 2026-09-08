@@ -113,6 +113,29 @@ public:
         return value;
     }
 
+    // Production-shaped data read: the T80 IO read pulse spans T2+wait+T3
+    // (several 8 MHz ce ticks), and T80pa latches DI at mid-T3
+    // (tstate==011 on cen_n), near the END of the pulse while RD is still
+    // asserted. So hold nRD across three ce pulses and sample at the end.
+    // Intermediate samples pin that a held level does not re-trigger the
+    // edge detector (one edge, one byte).
+    std::uint8_t read_data_production() {
+        dut_->a0 = 1;
+        dut_->nWR = 1;
+        dut_->nRD = 0;
+        fdc_step();
+        const std::uint8_t early = dut_->dout;
+        fdc_step();
+        const std::uint8_t mid = dut_->dout;
+        fdc_step();
+        const std::uint8_t late = dut_->dout;
+        dut_->nRD = 1;
+        fdc_step();
+        expect_equal("held-RD sample 2 stable", early, mid);
+        expect_equal("held-RD sample 3 stable", early, late);
+        return late;
+    }
+
     void mount_without_ack(std::uint32_t size) {
         dut_->img_size = size;
         dut_->img_mounted = 1;
@@ -632,6 +655,29 @@ void test_short_reset_waits_to_reload_trackinfo() {
     expect_sector_1_payload(bench);
 }
 
+void test_read_data_production_shaped_first_byte() {
+    Bench bench;
+    mount_synthetic_edsk(bench);
+    issue_read_data(bench, 0, 1);
+    wait_for_sector_read_request(bench, 1);
+    bench.service_read_request();
+    bench.wait_until("READ DATA first payload byte ready", [&] {
+        return (bench.status() & 0xf0) == 0xf0;
+    }, 20000);
+    // Byte 0 of the synthetic sector-1 payload is fixed by the in-file
+    // generator ((0*37+0x5a)&0xff), independent of the simulator and of
+    // test.dsk.
+    bench.expect_equal("production-shaped first payload byte", 0x5a,
+                       bench.read_data_production());
+    // The held pulse must have consumed exactly one byte: the next
+    // production-shaped read returns byte 1 ((1*37+0x5a)&0xff).
+    bench.wait_until("READ DATA second payload byte ready", [&] {
+        return (bench.status() & 0xf0) == 0xf0;
+    }, 20000);
+    bench.expect_equal("production-shaped second payload byte", 0x7f,
+                       bench.read_data_production());
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -663,6 +709,8 @@ int main(int argc, char** argv) {
         });
         run("u765_short_reset_waits_to_reload_trackinfo",
             test_short_reset_waits_to_reload_trackinfo);
+        run("u765_read_data_production_shaped_first_byte",
+            test_read_data_production_shaped_first_byte);
     } catch (...) {
         return 1;
     }

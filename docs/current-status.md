@@ -1,5 +1,14 @@
 # Current implementation status
 
+**Preserved FDC/test consolidation integrated, 2026-09-08:** refreshed source
+`5fcf223` retains the separate histories of `c1a8ff9` and `c12c264`. The held-read
+test checks payload bytes 0/1 and one-byte consumption across a three-CE strobe;
+the B6 fixture now retains RAM-capability coverage while the duplicate model
+test is removed. P1 remains a functional model, and the real-motherboard P1
+fixture's constant-zero VRAM return does not establish physical return timing.
+See [integration evidence](preserved-work-integration-2026-09-08.md).
+Full-sector result/ST1, classic AMSDOS and hardware acceptance remain open.
+
 **CI toolchain aligned, 2026-09-08:** CI and local testing now use Verilator
 5.052 for consistent diagnostics. The installer and matching Ansible
 provisioning variables pin official upstream commit
@@ -90,7 +99,8 @@ adds no RTL, synthesis artifact or hardware evidence.
 
 **Continuation, 2026-09-03:** local testing-policy candidate `c12c264` and shared FDC
 held-read test `c1a8ff9` are committed on isolated branches with simulation/lint passing;
-Plus READY remains `bb77075`. None is integrated. The uncommitted CPU-model candidate
+Plus READY remains `bb77075`. The FDC/test candidates are now integrated through
+the September 8 refresh above; B3 remains pending. The uncommitted CPU-model candidate
 passes its focused test and lint but makes P10 fail at an obsolete XFAIL because all 512
 payload bytes now match; seven result bytes still need phase-verified acceptance.
 Claude hit its session limit and the single authorized retry failed, so implementation
@@ -1536,7 +1546,7 @@ their old branch names, hashes and proposed tasks are not the current launch pla
   B8-5 with separate behavior changes and production-boundary regressions.
 - Add executed production-T80 validation to the current scripted-GA evidence.
   Hardware DSC4/SHAKER, IA-5/Q17 and Plus title acceptance remain open.
-- Refresh preserved B3/FDC/test-consolidation candidates against integration,
+- Refresh the preserved B3 capture candidate against integration,
   retaining private evidence and stashes. A recorded temporary path may be gone
   even when its committed branch remains recoverable.
 - Prepare B2/B4 host tooling without device access; real capture repeatability

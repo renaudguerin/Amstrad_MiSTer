@@ -471,10 +471,11 @@ See [current status](current-status.md) for accepted source and artifact identit
    owners after drain and before CPU release. Coordinate motherboard interfaces
    after FIELD/palette work. Use DSK/CPR for early automation until this is proven.
 5. **Preserved candidates:** refresh and integrate the reviewed B3 capture
-   candidate `bb77075`, FDC held-read test `c1a8ff9`, and test consolidation
-   `c12c264` only after inspecting their current diffs and rerunning affected
-   gates. Correct the consolidation's P1 timing-ownership claim using B8's
-   findings. The [September 3 handoff](session-continuation-2026-09-03.md)
+   candidate `bb77075` after the SDRAM/P10 changes settle. FDC held-read test
+   `c1a8ff9` and test consolidation `c12c264` are integrated through refreshed
+   `5fcf223`, including the P1 timing-ownership correction; see
+   [integration evidence](preserved-work-integration-2026-09-08.md).
+   The [September 3 handoff](session-continuation-2026-09-03.md)
    records provenance, not proof that its temporary worktree paths still exist.
    Preserve stashes/private recovery files; do not auto-apply them. Full-sector
    result-phase and classic AMSDOS acceptance remain open.
