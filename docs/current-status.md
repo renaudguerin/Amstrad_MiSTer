@@ -1,31 +1,31 @@
 # Current implementation status
 
-**Integration timing pending, 2026-09-08:** `b945c1b` passed CI simulation
-and compiled successfully, but
-[run 34192429871](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34192429871)
-failed its required timing gate: HDMI-domain setup −0.030 ns (TNS −0.030),
-core setup +0.013 ns, minimum hold +0.248 ns, 54% ALMs. No RBF was packaged.
-Reports and the job log are retained under ignored
-`docs/references/b945-timing-failure-34192429871/`; they do not include the
-failing path endpoints. The documented runner mDNS address was unresolved
-when retrieving the retained database. The subsequent tape integration has
-its own required full build; this failed result is not timing closure.
-
-**Latest verified CI/RBF, 2026-09-08:** `9052a08673142eed11d852abd29d4427dedf0875`
+**Latest verified CI/RBF, 2026-09-08:** `3acc8e671f91ea52ea4eb5b5a09c2b369c30e6bb`
 passed simulation, policy and full local Quartus 17.0.2 in
-[run 34190523944](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34190523944).
-This includes production-T80 validation and Plus FIELD ownership. Artifact
-`Amstrad-local-build-196-1-full` is downloaded as
-`output_files/Amstrad_20260908_9052a08.rbf`; SHA256
-`f8cd8c9518b57bea281039511cdc07e0e6396c9ccd1d60a02f152c246b84b0ab`. Fit: 22,305/41,910 ALMs (53%);
-minimum setup +0.530 ns, hold +0.244 ns, zero TNS and no unconstrained clocks.
-Some I/O paths remain unconstrained. Reports are retained under ignored
-`docs/references/field-artifact-34190523944/`. This RBF predates the subsequent
-SDRAM, B3 and palette integrations; their source acceptance is recorded below
-and their later CI/artifact must keep its own identity. No hardware test occurred.
-The T80-only run `34190188480` was superseded by this successful descendant.
-Its completed worktree is removed after idle/clean checks; the branch and all
-unique non-build evidence are retained.
+[run 34194119970](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34194119970).
+This includes production-T80 validation, Plus FIELD ownership, SDRAM coherence,
+preserved B3/P10j work, palette ownership and tape backpressure. Artifact
+`Amstrad-local-build-198-1-full` (ID `10043654323`) is downloaded as
+`output_files/Amstrad_20260908_3acc8e6.rbf`; SHA256
+`d847e542f49f545be739f4adacceb491f6f8ccd698bc349bb6eac04e2a4a8216`.
+Fit: 22,354/41,910 ALMs (53%); minimum setup +0.450 ns, hold +0.225 ns,
+zero setup/hold TNS and no unconstrained clocks. Some I/O paths remain
+unconstrained (27 input and 90 output ports). Reports are retained under ignored
+`docs/references/tape-artifact-34194119970/`. No hardware test occurred.
+Snapshot apply remains a separate unfinished task and is not included in this RBF.
+
+The preceding `b945c1b` build
+[34192429871](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34192429871)
+failed HDMI setup by 0.030 ns and packaged no RBF. Its retained reports under
+`docs/references/b945-timing-failure-34192429871/` remain diagnostic evidence;
+the successful descendant above establishes current timing closure.
+The earlier `9052a08` RBF and reports remain available as a comparison baseline.
+
+The completed T80, memory/tape, palette and preserved Plus worktrees have been
+removed after successful CI, idle/clean checks and verification that all private
+non-build files and symlinks were preserved under `docs/references/retired-*/`.
+Their branches and recovery stashes are retained. Only the integration checkout
+and active snapshot task worktree remain.
 
 **Earlier test/tooling integration, 2026-09-08:** `9d238dafc3a9950c276f91a3e928d5cfeb013bff`
 passed simulation/lint, synthesis policy and the required gate in
@@ -34,8 +34,8 @@ Its preceding preserved-work merge `5c201a8` passed the same required jobs in
 [CI run 34187708364](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34187708364).
 Both correctly skipped Quartus and reuse the `dba49d5` RBF below. The completed
 FDC/test and host-tooling worktrees have been removed; their integrated branches,
-review/build evidence and host tools remain available. Active B8 task worktrees,
-the pending B3 branch and private recovery stashes are retained.
+review/build evidence and host tools remain available. The active snapshot worktree, integrated branches and private recovery stashes
+are retained.
 
 **B2 host tooling prepared, 2026-09-08:** accepted source `7e39204` adds the
 [SSH/MGL capture driver](mister-hardware-loop-driver.md) and
