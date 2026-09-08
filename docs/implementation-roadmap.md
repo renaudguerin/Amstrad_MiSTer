@@ -480,8 +480,10 @@ See [current status](current-status.md) for accepted source and artifact identit
    Preserve stashes/private recovery files; do not auto-apply them. Full-sector
    result-phase and classic AMSDOS acceptance remain open.
 6. **B2/B4 hardware automation:** follow the existing
-   [hardware-loop plan](mister-hardware-loop-plan.md). Prepare the host driver,
-   existing input/capture tools and a bounded CSL subset without a device.
+   [hardware-loop plan](mister-hardware-loop-plan.md). The host driver and ARM
+   MBC cross-build are prepared at `7e39204`; see the
+   [driver guide](mister-hardware-loop-driver.md). A bounded CSL subset is
+   still separate work.
    Once SSH access is available, require three repeatable stable-screen captures
    with build/media/model/CRTC/filter identity. Exact SSM event-to-image capture
    remains a later gate.

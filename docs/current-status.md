@@ -1,5 +1,15 @@
 # Current implementation status
 
+**B2 host tooling prepared, 2026-09-08:** accepted source `7e39204` adds the
+[SSH/MGL capture driver](mister-hardware-loop-driver.md) and
+[pinned ARM MBC cross-build](mister-mbc-cross-build.md). The integration checkout
+passed all 24 focused tests and an offline dry-run; Opus 5 high returned CLEAR
+in closure run `20260908T044131Z-35882-569d`. The ARM binary and cross compiler
+are preserved under ignored `docs/references/b2-host-tools/`; the binary hash
+is recorded in the build recipe. No MiSTer was accessed. Configure real SHAKER
+navigation and verify target/model/settings and repeated images on the device
+before treating the tooling as hardware evidence.
+
 **Preserved FDC/test consolidation integrated, 2026-09-08:** refreshed source
 `5fcf223` retains the separate histories of `c1a8ff9` and `c12c264`. The held-read
 test checks payload bytes 0/1 and one-byte consumption across a three-CE strobe;
@@ -1549,8 +1559,9 @@ their old branch names, hashes and proposed tasks are not the current launch pla
 - Refresh the preserved B3 capture candidate against integration,
   retaining private evidence and stashes. A recorded temporary path may be gone
   even when its committed branch remains recoverable.
-- Prepare B2/B4 host tooling without device access; real capture repeatability
-  and selected-machine identity require the MiSTer.
+- Use the prepared B2 host driver when device access returns; real capture
+  repeatability and selected-machine identity require the MiSTer. CSL/SSM
+  execution and exact event capture remain separate work.
 
 F10 and F14–F18 are implemented within their recorded scope. Physical light-pen
 capture is optional and is not the completed F18 readable-register validation.

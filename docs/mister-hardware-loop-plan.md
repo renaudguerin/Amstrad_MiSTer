@@ -4,6 +4,11 @@ Plan researched 2026-09-08 for backlog B2/B4. No device was accessed or changed.
 The first deliverable is a repeatable capture of one stable SHAKER screen through
 SSH, using existing Linux facilities. Exact SSM capture is a later, separate gate.
 
+Host preparation is implemented at `7e39204`: see the
+[driver guide](mister-hardware-loop-driver.md) and
+[ARM cross-build recipe](mister-mbc-cross-build.md). Offline validation and
+review pass; target access, actual input and stable-screen capture remain pending.
+
 ## Start with the tools already available
 
 Current Main_MiSTer source at
