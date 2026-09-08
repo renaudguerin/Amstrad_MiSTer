@@ -1,8 +1,11 @@
 # Current implementation status
 
-**Accuracy B8-1 task, 2026-09-08 (not yet integrated):** the isolated repair
+**Accuracy B8-1 READY, 2026-09-08 (not yet integrated):** the isolated repair
 retains qualified R5/R0 events from system-clock register capture to the CRTC
-character decision. Its production-GA fixture fails 20 cases on unchanged
+character decision. Source `8c29248` has scoped Gemini/high and requested
+Muse Spark/xhigh clearance (both weaker than Opus); the separately reviewed
+build-only lint delta is `d52152a`. Full simulation, aggregate Verilator 5.052
+lint, and soak `0x6e8258198d6e6137` pass. Its production-GA fixture fails 20 cases on unchanged
 `d46609d` and passes all 45 after repair. R6 RTL remains unchanged: sticky
 C4=R6 and temporary R6=0 border are distinct controls. See the
 [timing contract, gates, and review status](accuracy/b8-1-cpu-write-timing-2026-09-08.md).

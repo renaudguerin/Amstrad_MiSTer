@@ -1,6 +1,8 @@
 # B8-1: production CPU write phases
 
-Accuracy task based on `d46609d066aafb6b182fd6fa504a91719500cd91`.
+**READY for coordinator integration; not integrated or pushed.**
+Accuracy source commit `8c292487ba7aff881fc136884fde990907357991`, based on
+`d46609d066aafb6b182fd6fa504a91719500cd91`; shared build-only gate delta `d52152a`.
 The type engines now retain qualified R5/R0 write events across the interval
 between a production CPU write and the CRTC character decision. Register storage
 still updates on every system clock. This repairs the real-GA/scripted-bus
@@ -90,14 +92,59 @@ acceptance failure logs, and final validation logs. Tests were not weakened.
   fatal SIMILARNAME warnings reproduced from the exact-base RTL/sim archive
   (CRTC field/FIELD and de/DE; asic_crtc hcc/HCC; crt_filter shift/SHIFT and
   hsync_i/HSYNC_I). No warning policy or unrelated source was changed.
-  Aggregate lint with CI-pinned Verilator 5.050 is pending toolchain availability.
+  The separately reviewed build-only compatibility change `f12f998` was
+  cherry-picked as `d52152a`; it waives only five exact file/message pairs.
+  The existing fatal/nonfatal warning policies otherwise remain unchanged.
+  Aggregate `make -C sim lint` and full `make -C sim` both PASS with installed
+  5.052 on this combined branch. Local 5.050 execution was not achieved; its
+  CI pin is unchanged, and per the user's updated direction it is not a local
+  readiness requirement.
 - `git diff --check`: PASS.
 
-Review status: **REVIEW PENDING**. The coordinator sequences the fresh guarded
-cross-provider review. The complete source/diff and French rules above must be
-reviewed, especially early-versus-direct type-0 timing, event lifetime, live
-cancellation of the type-1 extended line, and preservation of sub-character
-paths. A partial review is not clearance. No integration is authorized here.
+Review: **SCOPED CLEAR** on the full `d46609d..8c29248` candidate from guarded
+`ask-gemini -m gemini-3.8-flash-high`, run `20260908T011544Z-78589-10b7`, exit 0
+with clean process cleanup. The configured provider/model is verified by run
+metadata; high is the model route's effort tier. This is the explicitly
+authorized **weaker reviewer**, replacing Opus/high after Claude headroom fell;
+it does not provide equivalent review confidence.
+
+The reviewer inspected the actual diff, production timing sources, French text,
+and rendered pp.124/127. It independently ran all 45 focused cases successfully.
+Full-suite, soak, and baseline-failure results were reviewed from parent logs,
+not independently reproduced. It reported no actionable findings. Its broad
+"fully faithful" wording is accepted only within the inspected scenarios,
+not as general equivalence or hardware proof. Raw output and clean process-state
+metadata are retained in the ignored evidence directory.
+
+The two-file build-only lint delta has separate Gemini 3.8 Flash/high review
+`20260908T012217Z-93148-1064`: SCOPED CLEAR from source/docs/log inspection,
+without independent execution, also weaker than Opus. The coordinator inspected
+its negative-control results; this task independently passed the resulting
+aggregate lint and full simulation gate. The code stream remains accuracy-only.
+
+The user's requested independent Muse Spark review also returned **SCOPED
+CLEAR**, with no actionable findings, on the full `d46609d..8c29248` accuracy
+range. The coordinator-owned guarded run `20260908T012702Z-99191-5f09` exited 0
+with provider exit 0, complete handoff, and clean cleanup. Run metadata records
+`opencode/muse-spark-1.3-contributor-free`; the invocation uses variant `xhigh`.
+This verifies the configured route, not the model's underlying identity. Muse
+is also recorded as a weaker-than-Opus reviewer; the user's preference over
+Gemini is routing guidance, not benchmark evidence.
+
+Muse inspected the full diff, production CPU/GA/wrapper/engine contract,
+relevant bilingual prose, and rendered French pp.124/127. It independently
+passed all 45 focused cases, new-top lint, and diff checks. It inspected parent
+full-suite/soak/baseline-failure logs without rerunning those gates. The parent
+accepts this scoped source/fixture review, not a general faithfulness or
+hardware certification. Two report metadata corrections are recorded without
+altering the raw report: `d52152a` is the single cherry-pick of `f12f998`, not
+two extra commits; its stale aggregate-lint-pending statement is superseded by
+this task's passing 5.052 aggregate lint and full simulation after that delta.
+The original Gemini result is preserved separately. The task-owned interrupted
+overlapping Muse attempt is not acceptance evidence.
+
+Local acceptance is complete. No integration, push, synthesis, or publication
+was performed; the coordinator owns integration.
 
 ## Evidence limits
 
