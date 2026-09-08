@@ -19,7 +19,16 @@ runs:
   parser, MMU windows/boot integration, and (since Plus P1) the `asic_video`
   CRTC3 counter/timing foundation bench (`rtl/plus/asic_video.v`).
 
-Requirements: Verilator 5 or later, GNU Make, and a C++17 compiler. On macOS:
+- The B8-6 colour boundary test uses the production top-level colour/CE selector,
+  `color_mix`, and `gamma_corr`; run it alone with `make -C sim video-color-test`.
+  It checks Plus pixel/metadata alignment and classic equivalence across monitor
+  options, native/frame-selected pixel enables and gamma bypass/enabled modes.
+  It excludes the vendor scandoubler/HQ2x pipeline and freeze mode. See
+  [the boundary evidence](../docs/plus/b8-6-colour-boundary-2026-09-08.md).
+
+Requirements: Verilator 5 or later, GNU Make, and a C++20-capable compiler
+(for the timed SystemVerilog colour fixture; C++ harnesses still use C++17).
+On macOS:
 
 ```sh
 brew install verilator

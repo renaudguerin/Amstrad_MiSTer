@@ -425,6 +425,11 @@ survive until the CRTC character decision. The real-GA/scripted-bus fixture has
 45 passing cases; executed production-T80 instruction coverage and hardware
 confirmation remain separate validation gaps. See [the timing evidence](accuracy/b8-1-cpu-write-timing-2026-09-08.md).
 
+**B8-6 integrated from refreshed `2bb75b5`, 2026-09-08:** Plus RGB now crosses the
+same enabled conversion boundary as sync/blanking. Source review and the updated
+5.052 sim/lint/soak gates pass; CI-pin compatibility and hardware
+acceptance remain separate. See [the bounded repair evidence](plus/b8-6-colour-boundary-2026-09-08.md).
+
 **FIRST ARCHITECTURE/METHODOLOGY PASS COMPLETE 2026-09-08.** The user-authorized
 Astra audit examined production boundaries and fixture/process fidelity; see
 [the findings and repair order](b8-architecture-methodology-review-2026-09-08.md).

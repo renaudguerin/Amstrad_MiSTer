@@ -43,6 +43,14 @@ A CLEAR verdict on source/test review is never hardware closure.
 
 ## Cleared rows
 
+- **B8-6 Plus RGB/sync/blanking alignment — CLEAR, integrated from refreshed
+  `2bb75b5` (original accepted `023d020`), 2026-09-08.** Opus/high reviewed
+  the extraction and repair; the separate lint-waiver delta has weaker scoped
+  Gemini/high review. Refresh changed only shared manifest/document reconciliation;
+  production RTL and the test body are identical to the reviewed source.
+  Full mixer/HQ2x/freeze, production-T80 and hardware acceptance remain outside
+  this review. See the [B8-6 evidence](plus/b8-6-colour-boundary-2026-09-08.md).
+
 - **B8-1 production-phase R5/R0 event retention — SCOPED CLEAR, integrated
   from `c1d2add`, 2026-09-08.** Accuracy source `8c29248` has Gemini/high and
   requested Muse Spark/xhigh review; both are explicitly weaker than Opus.

@@ -13,6 +13,20 @@ Executed production T80, OUT(C)/OUTI instruction distinctions, and DSC4/SHAKER
 hardware evidence remain open. Integration CI and artifact delivery are tracked
 separately from these local gates.
 
+**Plus B8-6 integrated, 2026-09-08, from refreshed `2bb75b5`:** branch `codex/plus/b8-6-colour-alignment`,
+originally accepted at `023d020` from base `d46609d`, contains the reviewed
+colour/CE extraction (`f08a3ca`) and Plus RGB/metadata alignment fix (`51b61e3`).
+It is refreshed onto Accuracy integration `35ae03b` with only shared manifest/doc
+reconciliation. The original Plus Verilator 5.052 sim/lint and soak passed;
+combined integration simulation, lint and soak pass with Accuracy's expected
+hash `0x6e8258198d6e6137`. Opus/high source review is CLEAR; the separately
+reusable build-only lint compatibility commit `f12f998`, already present as
+`d52152a`, has supplementary Gemini/high source/log review with lower-confidence scope recorded.
+[Evidence and residuals](plus/b8-6-colour-boundary-2026-09-08.md) distinguish
+unexecuted CI-pin 5.050 compatibility, full vendor HQ2x/freeze/top/T80 coverage,
+and hardware/title retests. CI and artifact evidence are separate from local
+acceptance; no hardware verdict is claimed.
+
 **Architecture/methodology review, 2026-09-08:** the user-authorized B8 first pass
 is complete against source `65364ee`; see
 [findings and repair order](b8-architecture-methodology-review-2026-09-08.md).

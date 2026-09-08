@@ -13,6 +13,13 @@ merged into the same behavioral PR.
 
 ## 1. Current baseline
 
+- B8-1 production-phase R5/R0 event retention and B8-6 Plus RGB/metadata
+  alignment are integrated as separate changes. Their real-GA/scripted-write
+  and production-colour/gamma fixtures run in the default gate; executed T80,
+  full vendor video processing and named hardware retests remain separate.
+  See the dated [accuracy](accuracy/b8-1-cpu-write-timing-2026-09-08.md) and
+  [Plus](plus/b8-6-colour-boundary-2026-09-08.md) evidence.
+
 - `master` is the upstream baseline.
 - Review/correction work lands on `accc-review-and-fixes` (cut from
   `codex/exploratory-gx4000-plus-plan`); stream branches (`accuracy/*`, `plus/*`) cut from it
