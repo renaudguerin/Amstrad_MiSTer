@@ -150,6 +150,18 @@ module p10_boot_test_top #(
 	output     [15:0] dbg_video_vram_word,
 	output      [7:0] dbg_video_vram_byte,
 	output            dbg_sdram_vram_req,
+	// B8-4 byte-to-pixel association: read-only pixel/load/CE taps so the
+	// test pins the consumed even byte at its pixel-load edge instead of a
+	// guessed window. PIXEN is ce_16; CLKEN is cclk_en_n (vid_even load);
+	// cclk_p is the plus_vidword low-half load consuming vram_d.
+	output            dbg_video_ce16,
+	output            dbg_video_cclk_p,
+	output            dbg_video_cclk_n,
+	output      [7:0] dbg_video_vid_even,
+	output      [3:0] dbg_video_pixcnt,
+	output      [1:0] dbg_video_modeq,
+	output      [1:0] dbg_video_gamode,
+	output     [15:0] dbg_video_plus_vidword,
 	output            dbg_cart_image_valid,
 	output            dbg_cart_service_busy,
 	output            dbg_cpr_load_error,
@@ -180,8 +192,17 @@ module p10_boot_test_top #(
 	end
 	wire fixture_ce_16 = (cdiv == 2'd0);
 
-	// Exact Amstrad.sv enable topology: both registered enables are derived
-	// from the same free-running three-bit divider.
+	// Exact Amstrad.sv enable topology: all registered enables are derived
+	// from the same free-running three-bit divider (Amstrad.sv:123-132:
+	// ce_ref <= !div and ce_16 <= !div[1:0], with ce_u765 identical to
+	// ce_ref). The SDRAM slot counter resets on the clkref rising edge
+	// (rtl/sdram.v), so the CPU-edge-to-IDLE phase is only
+	// production-faithful when clkref comes from this same divider. The
+	// Harness-driven clkref (cycles&7==0) is an independent phase
+	// reference: it systematically misses main-port write edges while
+	// reads still land, which is why the B8-4 draft saw thousands of CPU
+	// write edges with zero physical WRITEs. Legacy tests keep the old
+	// path via production_clocking=0.
 	reg [2:0] production_div = 3'd0;
 	reg       production_ce_16 = 1'b0;
 	reg       production_ce_u765 = 1'b0;
@@ -191,6 +212,7 @@ module p10_boot_test_top #(
 		production_ce_u765 <= (production_div == 3'd0);
 	end
 	wire ce_16 = production_clocking ? production_ce_16 : fixture_ce_16;
+	wire clkref_int = production_clocking ? production_ce_u765 : clkref;
 
 	// Model capabilities
 	wire plus_mode;
@@ -391,7 +413,7 @@ module p10_boot_test_top #(
 		.SDRAM_CKE(unused_sdram_cke),
 		.init(init),
 		.clk(clk),
-		.clkref(clkref),
+		.clkref(clkref_int),
 		.bank(mem_bank),
 		.din(cpu_dout),
 		.dout(ram_dout),
@@ -737,6 +759,14 @@ module p10_boot_test_top #(
 	assign dbg_video_vram_word    = vram_dout;
 	assign dbg_video_vram_byte    = mb.vram_d;
 	assign dbg_sdram_vram_req     = sdram_inst.vram_req;
+	assign dbg_video_ce16         = ce_16;
+	assign dbg_video_cclk_p       = mb.cclk_en_p;
+	assign dbg_video_cclk_n       = mb.cclk_en_n;
+	assign dbg_video_vid_even     = mb.asic_vid.vid_even;
+	assign dbg_video_pixcnt       = mb.asic_vid.pix_cnt;
+	assign dbg_video_modeq        = mb.asic_vid.mode_q;
+	assign dbg_video_gamode       = mb.plus_gamode;
+	assign dbg_video_plus_vidword = mb.plus_vidword;
 
 	assign dbg_cart_image_valid  = cart_image_valid;
 	assign dbg_cart_service_busy = cart_service_busy;
