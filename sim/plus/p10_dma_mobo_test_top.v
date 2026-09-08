@@ -153,6 +153,23 @@ module p10_dma_mobo_test_top (
 		.sna_psg_addr(4'd0),
 		.sna_psg_regs(128'd0),
 
+		// B8-5 slice A: no snapshot in this bench; CPU hold and settled
+		// DMA payload tie off (production drives them during SNA restore).
+		.sna_hold(1'b0),
+		.sna_hsync(1'b0),
+		.sna_dma_loop_cnt0(12'd0),
+		.sna_dma_loop_cnt1(12'd0),
+		.sna_dma_loop_cnt2(12'd0),
+		.sna_dma_loop_addr0(16'd0),
+		.sna_dma_loop_addr1(16'd0),
+		.sna_dma_loop_addr2(16'd0),
+		.sna_dma_pause_cnt0(12'd0),
+		.sna_dma_pause_cnt1(12'd0),
+		.sna_dma_pause_cnt2(12'd0),
+		.sna_dma_pause_presc0(8'd0),
+		.sna_dma_pause_presc1(8'd0),
+		.sna_dma_pause_presc2(8'd0),
+
 		.plus_sna_wr(1'b0),
 		.plus_sna_addr(14'd0),
 		.plus_sna_data(8'd0),

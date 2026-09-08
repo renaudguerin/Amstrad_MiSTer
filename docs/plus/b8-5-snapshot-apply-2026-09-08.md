@@ -81,23 +81,57 @@ and direct restoration of all mapped serialized counters/flags. It does not
 promise exact first-frame pixels, monitor shaping, arbitrary SNA raster
 fidelity or hardware closure.
 
-## Failure-first evidence and pending acceptance
+## Checkpoint and acceptance debt
 
-On base `f0ed9b6121afc5078185171546d5ea5f723c376c`, P8 now composes the real
-DMA, video and GA alongside parser/register/MMU owners. The focused binary
-exits 1 without its temporary XFAIL switch: live SARs and first fetch remain
-zero despite nondefault stored bytes, GA mode/border and CRTC remain defaults,
-and ordinary ROM disables are lost. The parent reran this failure. The initial
-ROM-page check while high ROM is disabled is insufficient; replace it with a
-separate enabled-ROM transaction before accepting the regression.
+This branch is paused for provider quota recovery. It is not READY and must
+not be integrated or its worktree removed. The agreed full B8-5 scope remains
+unchanged. No foreign worker remains live at this checkpoint.
 
-This initial fixture still drives the apply seam manually, has no shared
-header collector/controller, and does not yet prove full counter restore,
-CPU hold ordering, active-HSYNC isolation, real palette/video consumption or
-repeated restore isolation. Those are required implementation gates. The
-worker's final textual offset summary was inconsistent with the primary
-format and is not evidence; the map above is authoritative for this task.
+Slice A now implements the shared drain/apply controller, both CPU CEN holds,
+DMA SAR/loop/pause/prescaler restore, settled HSYNC history, ordinary ROM
+mapping, unlock sequence state, and production top-level connections.
+The parent rebuilt P8 and ran `plus_p8_tests --b8-dma-mmu`: all eight cases
+passed. The new-download-at-count-1 case first failed before the controller
+masked `sna_load` with raw download; seven other cases passed in that red run.
+This is focused simulation evidence, not independent acceptance of slice A.
 
-Final acceptance requires required-pass focused vectors, full simulation,
-lint and soak `0x6e8258198d6e6137`, followed by fresh Opus 5/high review of the
-frozen diff. No hardware is available.
+The older P8 omission vector still uses `--xfail`. Its manual-header setup and
+printed omission descriptions predate slice A and must be consolidated during
+slice B. Its successful XFAIL exit is not proof that the repaired MMU or DMA
+owners still fail, nor does it close video/GA/palette restoration.
+
+Before implementation continues, refresh the checkpoint onto the coordinator's
+latest committed integration (last reported `2831b46`, documentation-only over
+`3acc8e6`). Preserve the accepted palette interface from `807f081`, tape queue
+and ioctl-wait changes, P10 clocking, and B3 comments. Do not integrate this
+unfinished branch into the coordinator's branch.
+
+Remaining work:
+
+- Finish production header capture and selected video apply: CRTC index and
+  mapped registers, v3 counters/sync widths/flags, settled mode, deterministic
+  address/private-state seeds, and first post-apply transitions. R10/R11 remain
+  dynamic type-3 status groups; R16/R17 can seed the existing light-pen latches.
+- Restore selected GA inks, border, selection, mode and mapped B2/B3/B4 state.
+  Verify B2 values 0/1/2 and the first interrupt/acknowledge transition. Preserve
+  DCSR state and document the unencoded simultaneous GA/DMA interrupt history.
+- Add explicit palette apply provenance: retain CPC+ 12-bit palettes, translate
+  plain-SNA header colours for entries 0–16, emit no legacy I/O event, and prove
+  the first subsequent accepted CPU palette write. Use the accepted peer event
+  interface and actual palette/video consumption in P8.
+- Prove CPC+/plain/CPC+ isolation with actual header payload and the shared
+  controller; consolidate the temporary omission test and remove XFAIL.
+- Inspect the final production wiring/manifests, run focused required-pass
+  vectors, full simulation, lint and soak `0x6e8258198d6e6137`, then obtain fresh
+  native Astra medium review of the foreign-authored frozen implementation.
+  Opus review was replaced only because its session quota was exhausted.
+
+No full final gates or independent review have run. Hardware remains unavailable;
+there is no hardware closure or promise of arbitrary mid-frame pixel fidelity.
+
+Private recovery diagnostics and prepared implementation briefs are preserved
+under the checkout's ignored `docs/references/b8-5-recovery/` directory. The
+Muse continuation ended with guarded hard timeout (exit 70, provider -15,
+cleanup clean); Gemini then made the controller/top-level changes but exited
+on individual quota exhaustion. Provider success is not assumed from partial
+edits. Resume only with available provider capacity and the same full scope.

@@ -54,6 +54,35 @@ module plus_p8_test_top (
 	input         seam_sna_load,
 	input         seam_plus_mode,
 
+	// B8-5 slice A: shared production apply controller + settled header stimuli.
+	// seam_use_ctl=0 keeps the manual seam above (old tests); =1 drives the
+	// owners from the shared controller exactly as production does (new tests).
+	input         seam_use_ctl,
+	input  [7:0] hdr_ga_config,   // SNA header 0x40: RMR bits incl. ROM disables
+	input  [7:0] hdr_romsel,      // SNA header 0x55: full ROM-select byte
+	input         hdr_hsync,       // SNA v3 header B0 bit1: settled HSYNC
+	input         mmu_test_io_wr,  // unlock-sequence write strobe stimulus
+	input  [7:0] mmu_test_D,       // unlock-sequence write data stimulus
+	output        ctl_finish_pending,
+	output  [2:0] ctl_apply_cnt,
+	output        ctl_sna_load,
+	output        ctl_sna_hold,
+	output        ctl_owner_hold,
+	output        ctl_owner_reset, // registered, production-equivalent owner reset
+	output [11:0] sna_loop_cnt0,
+	output [11:0] sna_loop_cnt1,
+	output [11:0] sna_loop_cnt2,
+	output [15:0] sna_loop_addr0,
+	output [15:0] sna_loop_addr1,
+	output [15:0] sna_loop_addr2,
+	output [11:0] sna_pause_cnt0,
+	output [11:0] sna_pause_cnt1,
+	output [11:0] sna_pause_cnt2,
+	output  [7:0] sna_pause_presc0,
+	output  [7:0] sna_pause_presc1,
+	output  [7:0] sna_pause_presc2,
+	output  [4:0] sna_seq_state,
+
 	// CPU-side read port into asic_regs for test verification
 	input         aregs_cs,
 	input         aregs_mem_rd,
@@ -99,6 +128,14 @@ module plus_p8_test_top (
 	output        dma_ram_req,
 	output [15:0] dma_ram_addr,
 	input  [15:0] dma_ram_data,
+	output        dma_load_owner_o,
+	output        dma_psg_active_o,
+	// B8-5 slice A: actual GA consume cadence. ST_FETCH0/1/2 latch
+	// ram_data at the pre-edge cclk_en_p && ram_req with no ACK, and
+	// ram_req can stay high across channels (even at the same address),
+	// so the C++ collector samples ram_addr on this enable, not on
+	// ram_req rising edges.
+	output        dma_cclk_en_p,
 
 	// GA timing owner ports
 	output  [1:0] ga_mode_out,
@@ -162,6 +199,35 @@ module plus_p8_test_top (
 		.sna_control(8'd0)
 	);
 
+	plus_sna_apply sna_ctl
+	(
+		.clk(clk),
+		.sna_download(sna_download),
+		.romdl_wait(1'b0),
+		.boot_wr(1'b0),
+		.sna_rle_count(8'd0),
+		.plus_sna_busy(sna_busy),
+		.finish_pending(ctl_finish_pending),
+		.apply_cnt(ctl_apply_cnt),
+		.sna_load(ctl_sna_load),
+		.sna_hold(ctl_sna_hold),
+		.owner_reset_hold(ctl_owner_hold)
+	);
+
+	// Production registers the top reset; the owners therefore release one
+	// cycle before the apply pulse and DIRSet is never held through reset.
+	reg ctl_reset_q;
+	initial ctl_reset_q = 1'b0;
+	always @(posedge clk) ctl_reset_q <= ctl_owner_hold;
+	assign ctl_owner_reset = ctl_reset_q;
+
+	// Owner reset/load source: manual seam (old tests) or shared
+	// controller (new B8-5 tests), selected per test.
+	wire dma_rst_src = seam_use_ctl ? (reset | ctl_owner_reset | ~seam_plus_mode) :
+	                                  (seam_machine_reset | ~seam_plus_mode);
+	wire mmu_rst_src = seam_use_ctl ? (reset | ctl_owner_reset) : seam_machine_reset;
+	wire sna_load_src = seam_use_ctl ? ctl_sna_load : seam_sna_load;
+
 	plus_sna_parser sna_parser
 	(
 		.clk(clk),
@@ -177,7 +243,20 @@ module plus_p8_test_top (
 		.asic_sna_data(asic_sna_data),
 		.asic_sna_active(asic_sna_active),
 		.asic_sna_rmr2(asic_sna_rmr2),
-		.asic_sna_unlock(asic_sna_unlock)
+		.asic_sna_unlock(asic_sna_unlock),
+		.asic_sna_loop_cnt0(sna_loop_cnt0),
+		.asic_sna_loop_cnt1(sna_loop_cnt1),
+		.asic_sna_loop_cnt2(sna_loop_cnt2),
+		.asic_sna_loop_addr0(sna_loop_addr0),
+		.asic_sna_loop_addr1(sna_loop_addr1),
+		.asic_sna_loop_addr2(sna_loop_addr2),
+		.asic_sna_pause_cnt0(sna_pause_cnt0),
+		.asic_sna_pause_cnt1(sna_pause_cnt1),
+		.asic_sna_pause_cnt2(sna_pause_cnt2),
+		.asic_sna_pause_presc0(sna_pause_presc0),
+		.asic_sna_pause_presc1(sna_pause_presc1),
+		.asic_sna_pause_presc2(sna_pause_presc2),
+		.asic_sna_seq_state(sna_seq_state)
 	);
 
 	plus_model_select model_select
@@ -263,14 +342,39 @@ module plus_p8_test_top (
 	wire [2:0]  dma_int_set;
 	wire        plus_cclk_en_p;
 	wire        plus_cclk_en_n;
+	assign dma_cclk_en_p = plus_cclk_en_p;
+
+	// DMA HSYNC source: production wires the selected video HSYNC straight
+	// into the DMA (as the old tests do via the OR below). The new B8-5
+	// tests drive the settled header/source boundary deliberately through
+	// dma_test_hsync alone — the free-running reset-default video would
+	// otherwise inject uncounted edges — and the final slice connects the
+	// real selected video.
+	wire dma_hsync_src = seam_use_ctl ? dma_test_hsync :
+	                                   (video_hs | dma_test_hsync);
 
 	asic_dma dma_sound
 	(
 		.clk(clk),
-		.reset(seam_machine_reset || !seam_plus_mode),
+		.reset(dma_rst_src),
 		.cclk_en_p(plus_cclk_en_p),
 		.cclk_en_n(plus_cclk_en_n),
-		.hsync(video_hs | dma_test_hsync),
+		.hsync(dma_hsync_src),
+
+		.sna_load(sna_load_src),
+		.sna_loop_cnt0(sna_loop_cnt0),
+		.sna_loop_cnt1(sna_loop_cnt1),
+		.sna_loop_cnt2(sna_loop_cnt2),
+		.sna_loop_addr0(sna_loop_addr0),
+		.sna_loop_addr1(sna_loop_addr1),
+		.sna_loop_addr2(sna_loop_addr2),
+		.sna_pause_cnt0(sna_pause_cnt0),
+		.sna_pause_cnt1(sna_pause_cnt1),
+		.sna_pause_cnt2(sna_pause_cnt2),
+		.sna_pause_presc0(sna_pause_presc0),
+		.sna_pause_presc1(sna_pause_presc1),
+		.sna_pause_presc2(sna_pause_presc2),
+		.sna_hsync(hdr_hsync),
 
 		.sar0_lo(aregs_sar0_lo),
 		.sar0_hi(aregs_sar0_hi),
@@ -301,13 +405,13 @@ module plus_p8_test_top (
 		.cpu_psg_addr(8'd0),
 		.cpu_ppi_access(1'b0),
 		.cpu_psg_write(1'b0),
-		.dma_load_owner(),
+		.dma_load_owner(dma_load_owner_o),
 		.dma_load_busy(),
 
 		.psg_bdir(),
 		.psg_bc1(),
 		.psg_dout(),
-		.psg_active()
+		.psg_active(dma_psg_active_o)
 	);
 
 	wire video_adj;
@@ -412,14 +516,14 @@ module plus_p8_test_top (
 	plus_mmu mmu
 	(
 		.clk(clk),
-		.reset(seam_machine_reset),
+		.reset(mmu_rst_src),
 		.plus_mode(seam_plus_mode),
 		.gx4000(1'b0),
 		.io_rd(1'b0),
-		.io_wr(1'b0),
+		.io_wr(seam_use_ctl ? mmu_test_io_wr : 1'b0),
 		.mem_rd(mmu_test_mem_rd),
 		.A(mmu_test_A),
-		.D(8'd0),
+		.D(seam_use_ctl ? mmu_test_D : 8'd0),
 		.rom_en(1'b1),
 		.exp_n(1'b1),
 		.cart_valid(mmu_cart_valid),
@@ -433,9 +537,12 @@ module plus_p8_test_top (
 		.cart_dout(),
 		.asic_page_on(mmu_asic_page_on),
 		.asic_unlocked(mmu_asic_unlocked),
-		.sna_load(seam_sna_load),
+		.sna_load(sna_load_src),
 		.sna_rmr2(asic_sna_rmr2),
-		.sna_unlock(asic_sna_unlock)
+		.sna_unlock(asic_sna_unlock),
+		.sna_ga_config(hdr_ga_config),
+		.sna_romsel(hdr_romsel),
+		.sna_seq_state(sna_seq_state)
 	);
 
 endmodule

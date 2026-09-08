@@ -23,6 +23,28 @@ module asic_dma (
 	// Timing synchronization
 	input  wire        hsync,          // CRTC HSYNC (active high)
 
+	// B8-5 slice A: snapshot apply. sna_load consumes one apply
+	// transaction: live SARs reload from the settled register-file
+	// outputs (not replayed CPU SAR writes), loop/pause/prescaler fields
+	// restore from the settled CPC+ internal-register shadows, pending
+	// FSM/instruction/RAM/LOAD/PSG transactions reset, and the HSYNC
+	// edge history seeds from the settled header payload so restoring an
+	// active HSYNC cannot fabricate a line edge on the next clock.
+	input  wire        sna_load,
+	input  wire [11:0] sna_loop_cnt0,
+	input  wire [11:0] sna_loop_cnt1,
+	input  wire [11:0] sna_loop_cnt2,
+	input  wire [15:0] sna_loop_addr0,
+	input  wire [15:0] sna_loop_addr1,
+	input  wire [15:0] sna_loop_addr2,
+	input  wire [11:0] sna_pause_cnt0,
+	input  wire [11:0] sna_pause_cnt1,
+	input  wire [11:0] sna_pause_cnt2,
+	input  wire [7:0]  sna_pause_presc0,
+	input  wire [7:0]  sna_pause_presc1,
+	input  wire [7:0]  sna_pause_presc2,
+	input  wire        sna_hsync,
+
 	// Channel register inputs from asic_regs
 	input  wire [7:0]  sar0_lo,
 	input  wire [7:0]  sar0_hi,
@@ -167,6 +189,53 @@ module asic_dma (
 				loop_addr[c]     <= 16'd0;
 				instr[c]         <= 16'd0;
 			end
+		end
+		else if (sna_load) begin
+			// One snapshot apply transaction: discard every unspecified
+			// pending transfer (line FSM, latched instructions, RAM
+			// request, LOAD ownership/busy, PSG drive) while restoring
+			// every serialized field. Live SARs reload from the settled
+			// register-file outputs — the drain already wrote them, and
+			// no CPU SAR strobe is replayed. The pause field is the
+			// remaining prescaled tick count and the prescaler field its
+			// remaining phase, restored directly, never reset. hsync_d
+			// seeds from the settled header HSYNC so an apply edge that
+			// restores HSYNC=1 cannot look like a new line edge; the
+			// FSM parks in IDLE so the seeded level triggers nothing.
+			hsync_d        <= sna_hsync;
+			state          <= ST_IDLE;
+			active_ch      <= 3'd0;
+			dcsr_ena_clr   <= 3'd0;
+			dma_int_set    <= 3'd0;
+			ram_req        <= 1'b0;
+			ram_addr       <= 16'd0;
+			dma_load_owner <= 1'b0;
+			dma_load_busy  <= 1'b0;
+			load_extra     <= 2'd0;
+			load_extension <= 1'b0;
+			psg_bdir       <= 1'b0;
+			psg_bc1        <= 1'b0;
+			psg_dout       <= 8'd0;
+			psg_active     <= 1'b0;
+
+			sar_cur[0]       <= {sar0_hi, sar0_lo};
+			sar_cur[1]       <= {sar1_hi, sar1_lo};
+			sar_cur[2]       <= {sar2_hi, sar2_lo};
+			pause_cnt[0]     <= sna_pause_cnt0;
+			pause_cnt[1]     <= sna_pause_cnt1;
+			pause_cnt[2]     <= sna_pause_cnt2;
+			prescaler_cnt[0] <= sna_pause_presc0;
+			prescaler_cnt[1] <= sna_pause_presc1;
+			prescaler_cnt[2] <= sna_pause_presc2;
+			loop_cnt[0]      <= sna_loop_cnt0;
+			loop_cnt[1]      <= sna_loop_cnt1;
+			loop_cnt[2]      <= sna_loop_cnt2;
+			loop_addr[0]     <= sna_loop_addr0;
+			loop_addr[1]     <= sna_loop_addr1;
+			loop_addr[2]     <= sna_loop_addr2;
+			instr[0]         <= 16'd0;
+			instr[1]         <= 16'd0;
+			instr[2]         <= 16'd0;
 		end
 		else begin
 			hsync_d <= hsync;

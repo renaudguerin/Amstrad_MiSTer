@@ -262,14 +262,35 @@ reg   [3:0] sna_psg_addr = 4'd0;
 reg [127:0] sna_psg_regs = 128'd0;
 reg  [15:0] sna_mem_size = 16'd64;
 reg   [1:0] sna_model = 2'd0;
-reg   [2:0] sna_apply_cnt = 3'd0;
-reg         sna_finish_pending = 1'b0;
+wire  [2:0] sna_apply_cnt;
+wire        sna_finish_pending;
+wire        sna_load;
+wire        sna_hold;
+wire        sna_owner_reset_hold;
 reg         old_sna_download_reset = 1'b0;
 reg   [2:0] cpr_apply_cnt = 3'd0;
 reg         cpr_finish_pending = 1'b0;
 reg         old_cpr_download = 1'b0;
 reg         old_cpr_download_reset = 1'b0;
-wire        sna_load = (sna_apply_cnt == 3'd1);
+
+reg   [7:0] sna_version = 8'd0;
+reg   [7:0] sna_b0_flags = 8'd0;
+wire        sna_hsync = (sna_version == 8'd3) ? sna_b0_flags[1] : 1'b0;
+
+wire [11:0] plus_sna_loop_cnt0;
+wire [11:0] plus_sna_loop_cnt1;
+wire [11:0] plus_sna_loop_cnt2;
+wire [15:0] plus_sna_loop_addr0;
+wire [15:0] plus_sna_loop_addr1;
+wire [15:0] plus_sna_loop_addr2;
+wire [11:0] plus_sna_pause_cnt0;
+wire [11:0] plus_sna_pause_cnt1;
+wire [11:0] plus_sna_pause_cnt2;
+wire  [7:0] plus_sna_pause_presc0;
+wire  [7:0] plus_sna_pause_presc1;
+wire  [7:0] plus_sna_pause_presc2;
+wire  [4:0] plus_sna_seq_state;
+
 wire        sna_mem_wr = sna_download && ioctl_wr && (ioctl_addr >= 25'h100) &&
                          (ioctl_addr < sna_chunk_start) && ({9'd0, sna_mem_addr[16:10]} < sna_std_mem_size);
 reg  [31:0] sna_chunk_name = 32'd0;
@@ -347,7 +368,6 @@ rom_loader_route rom_loader_route
 reg         romdl_wait = 0;
 always @(posedge clk_sys) begin
 	reg       old_download;
-	reg       old_sna_download;
 
 	sna_cpc_plus_start <= 1'b0;
 	sna_cpc_plus_wr    <= 1'b0;
@@ -427,6 +447,7 @@ always @(posedge clk_sys) begin
 	end
 	if(sna_download && ioctl_wr && (ioctl_addr < 25'h100)) begin
 		case(ioctl_addr[7:0])
+			8'h10: sna_version          <= ioctl_dout;
 			8'h11: sna_cpu_dir[15:8]    <= ioctl_dout;          // F
 			8'h12: sna_cpu_dir[7:0]     <= ioctl_dout;          // A
 			8'h13: sna_cpu_dir[87:80]   <= ioctl_dout;          // C
@@ -482,6 +503,7 @@ always @(posedge clk_sys) begin
 					endcase
 				end
 			end
+			8'hb0: sna_b0_flags         <= ioctl_dout;
 		endcase
 
 		if(ioctl_addr[7:0] >= 8'h2f && ioctl_addr[7:0] <= 8'h3f)
@@ -499,6 +521,8 @@ always @(posedge clk_sys) begin
 		sna_mem_size <= 16'd64;
 		sna_model <= menu_model;
 		sna_ppi_control <= 8'h9b;
+		sna_version <= 8'd0;
+		sna_b0_flags <= 8'd0;
 		sna_chunk_name <= 32'd0;
 		sna_chunk_len <= 32'd0;
 		sna_chunk_rem <= 32'd0;
@@ -516,7 +540,10 @@ always @(posedge clk_sys) begin
 		sna_cpc_plus_start <= 1'b0;
 		sna_cpc_plus_wr    <= 1'b0;
 		sna_cpc_plus_data  <= 8'd0;
-		sna_finish_pending <= 1'b0;
+	end
+	if(sna_download & ~old_sna_download_reset) begin
+		sna_version  <= 8'd0;
+		sna_b0_flags <= 8'd0;
 	end
 	if(sna_download && ioctl_wr && !romdl_wait && (!sna_rle_count || (sna_rle_state == 2'd2)) && (ioctl_addr >= sna_chunk_start)) begin
 		if(!sna_chunk_data) begin
@@ -633,15 +660,6 @@ always @(posedge clk_sys) begin
 				sna_rle_state <= 2'd0;
 			end
 		end
-	end
-	old_sna_download <= sna_download;
-	if(old_sna_download & ~sna_download) sna_finish_pending <= 1'b1;
-	if(sna_finish_pending && !romdl_wait && !boot_wr && !sna_rle_count && !plus_sna_busy) begin
-		sna_finish_pending <= 1'b0;
-		sna_apply_cnt <= 3'd5;
-	end
-	else if(sna_apply_cnt) sna_apply_cnt <= sna_apply_cnt - 1'd1;
-
 	old_cpr_download <= cpr_download;
 	if(old_cpr_download & ~cpr_download) cpr_finish_pending <= 1'b1;
 	if(cpr_finish_pending && !cart_service_busy) begin
@@ -650,6 +668,21 @@ always @(posedge clk_sys) begin
 	end
 	else if(cpr_apply_cnt) cpr_apply_cnt <= cpr_apply_cnt - 1'd1;
 end
+
+plus_sna_apply sna_apply
+(
+	.clk(clk_sys),
+	.sna_download(sna_download),
+	.romdl_wait(romdl_wait),
+	.boot_wr(boot_wr),
+	.sna_rle_count(sna_rle_count),
+	.plus_sna_busy(plus_sna_busy),
+	.finish_pending(sna_finish_pending),
+	.apply_cnt(sna_apply_cnt),
+	.sna_load(sna_load),
+	.sna_hold(sna_hold),
+	.owner_reset_hold(sna_owner_reset_hold)
+);
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -727,7 +760,7 @@ reg [1:0] model = 2'd0;
 reg reset;
 
 wire reset_base = RESET | status[0] | status[32] | buttons[1] | rom_download | key_reset | dan_download |
-                  sna_download | sna_finish_pending | (old_sna_download_reset & ~sna_download) | (sna_apply_cnt > 3'd2);
+                  sna_owner_reset_hold;
 
 // The SNA parser owns its download lifecycle.  In particular it must remain
 // live while sna_download is asserted and retain its CPC+ RMR2/unlock shadows
@@ -1181,7 +1214,10 @@ plus_mmu plus_mmu
 
 	.sna_load(sna_load),
 	.sna_rmr2(plus_sna_rmr2),
-	.sna_unlock(plus_sna_unlock)
+	.sna_unlock(plus_sna_unlock),
+	.sna_ga_config(sna_ga_config),
+	.sna_romsel(sna_rom_select),
+	.sna_seq_state(plus_sna_seq_state)
 );
 
 plus_sna_parser plus_sna_parser
@@ -1199,7 +1235,20 @@ plus_sna_parser plus_sna_parser
 	.asic_sna_data(plus_sna_data),
 	.asic_sna_active(plus_sna_active),
 	.asic_sna_rmr2(plus_sna_rmr2),
-	.asic_sna_unlock(plus_sna_unlock)
+	.asic_sna_unlock(plus_sna_unlock),
+	.asic_sna_loop_cnt0(plus_sna_loop_cnt0),
+	.asic_sna_loop_cnt1(plus_sna_loop_cnt1),
+	.asic_sna_loop_cnt2(plus_sna_loop_cnt2),
+	.asic_sna_loop_addr0(plus_sna_loop_addr0),
+	.asic_sna_loop_addr1(plus_sna_loop_addr1),
+	.asic_sna_loop_addr2(plus_sna_loop_addr2),
+	.asic_sna_pause_cnt0(plus_sna_pause_cnt0),
+	.asic_sna_pause_cnt1(plus_sna_pause_cnt1),
+	.asic_sna_pause_cnt2(plus_sna_pause_cnt2),
+	.asic_sna_pause_presc0(plus_sna_pause_presc0),
+	.asic_sna_pause_presc1(plus_sna_pause_presc1),
+	.asic_sna_pause_presc2(plus_sna_pause_presc2),
+	.asic_sna_seq_state(plus_sna_seq_state)
 );
 
 wire [7:0] plus_vec_byte;
@@ -1342,6 +1391,21 @@ Amstrad_motherboard motherboard
 	.sna_ppi_control(sna_ppi_control),
 	.sna_psg_addr(sna_psg_addr),
 	.sna_psg_regs(sna_psg_regs),
+
+	.sna_hold(sna_hold),
+	.sna_hsync(sna_hsync),
+	.sna_dma_loop_cnt0(plus_sna_loop_cnt0),
+	.sna_dma_loop_cnt1(plus_sna_loop_cnt1),
+	.sna_dma_loop_cnt2(plus_sna_loop_cnt2),
+	.sna_dma_loop_addr0(plus_sna_loop_addr0),
+	.sna_dma_loop_addr1(plus_sna_loop_addr1),
+	.sna_dma_loop_addr2(plus_sna_loop_addr2),
+	.sna_dma_pause_cnt0(plus_sna_pause_cnt0),
+	.sna_dma_pause_cnt1(plus_sna_pause_cnt1),
+	.sna_dma_pause_cnt2(plus_sna_pause_cnt2),
+	.sna_dma_pause_presc0(plus_sna_pause_presc0),
+	.sna_dma_pause_presc1(plus_sna_pause_presc1),
+	.sna_dma_pause_presc2(plus_sna_pause_presc2),
 
 	.plus_sna_wr(plus_sna_wr),
 	.plus_sna_addr(plus_sna_addr),
