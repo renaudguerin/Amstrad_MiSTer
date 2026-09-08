@@ -422,8 +422,10 @@ running everything we built, and is a classic path overriding a Plus path".
 
 **B8-1 integrated, 2026-09-08:** qualified production-phase R5/R0 events now
 survive until the CRTC character decision. The real-GA/scripted-bus fixture has
-45 passing cases; executed production-T80 instruction coverage and hardware
-confirmation remain separate validation gaps. See [the timing evidence](accuracy/b8-1-cpu-write-timing-2026-09-08.md).
+45 passing cases. Four executed production-T80 OUT(C)/OUTI cases are also
+integrated from `84f3106`, with historical-engine discrimination and fresh
+GHDL checks. Full motherboard execution and hardware confirmation remain open.
+See [the bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md). See [the timing evidence](accuracy/b8-1-cpu-write-timing-2026-09-08.md).
 
 **B8-6 integrated from refreshed `2bb75b5`, 2026-09-08:** Plus RGB now crosses the
 same enabled conversion boundary as sync/blanking. Source review and the updated

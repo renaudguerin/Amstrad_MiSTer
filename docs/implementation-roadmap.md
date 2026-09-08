@@ -44,7 +44,10 @@ merged into the same behavioral PR.
 - `sim/` currently reports **192** required classic CRTC passes with no expected failures
   plus 45 production-GA/scripted-write cases (B8-1, Verilator 5.052); the soak
   reproduces golden hash `0x6e8258198d6e6137` after the R5/R0 event repair.
-  Executed production-T80 instruction coverage remains a separate gap. The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
+  Four optional executed production-T80 cases and the native/translated bus
+  trace pass; full motherboard execution remains open. See the
+  [bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md).
+  The Plus leaf, MMU, SDRAM, and boot-integration suites are green.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through
@@ -156,7 +159,7 @@ Classic work is intentionally serial because most findings touch the same state 
 | **C5B: equality/overflow foundation — deterministic complete; hardware pending** | F4 implemented after F12 | `t07` and `t08` pass, including the tightened RLAL regression vectors; no shortcut term is retained to hide a latch bug | SHAKER overflow/rupture tests and Batman Forever, The Demo, and Yao demo sweep |
 | **C6: type-1 adjustment — deterministic complete; hardware pending** | F8 only, after F4 | `t11` proves independent C5 counting, continuing C4/C9, RA sequence, and the R5=0 mid-adjustment behavior | SHAKER adjustment vectors; Q17 hardware sweep at R7=38/39 for R4=36/R9=7/R5=16 |
 | **C7: type-0 R9 race — deterministic complete; hardware pending** | Revised F9 only, after F12/F4/F8 have stabilized the counter structure | `t12` reproduces both documented exact-cycle results using the v1.10 comparison target; it must not preserve the v1.9 rationale as an oracle | Contrived timing test; hardware trace if simulation and SHAKER disagree |
-| **C8: type-1 RFD — deterministic complete; CPU/hardware validation pending** | F7/F17 and B8-1 production-phase event retention implemented | `t13` and the real-GA scripted-write fixture cover trigger timing and source-state controls; executed T80 instruction coverage remains open | SHAKER RFD tests and a CRTC-1 RFD demo sweep |
+| **C8: type-1 RFD — deterministic complete; CPU/hardware validation pending** | F7/F17 and B8-1 production-phase event retention implemented | `t13` and the real-GA scripted-write fixture cover trigger timing and source-state controls; two executed T80 R5 recipes also pass; complete frame-level RFD and hardware validation remain open | SHAKER RFD tests and a CRTC-1 RFD demo sweep |
 | **C9: interlace — deterministic complete; hardware pending** | F10/F14/F15/F16 implemented; retain documented residuals | Reviewed additional-line, odd-R9, and post-exit fixtures derived from the cited ACCC tables; all prior regressions stay green | SHAKER interlace suite and hardware comparison for both CRTC types |
 | **C10: readable register matrix — deterministic complete** | F18 readback validation implemented; physical LPSTB capture is a separate optional feature | `t01` pins the supported readback matrix; R16/R17 have no live capture source | See the optional light-pen/light-gun feature below |
 
@@ -463,10 +466,11 @@ See [current status](current-status.md) for accepted source and artifact identit
    and must run serially with preserved CPU/cartridge/refresh scheduling. They
    may proceed alongside the Plus work in isolated checkouts; coordinate P10
    fixture changes with B3/FDC recovery.
-3. **Classic validation:** execute production T80 OUT(C)/OUTI cases through the
-   real GA/CRTC boundary for B8-1. The current 45-case fixture uses scripted bus
-   writes. Preserve its deterministic evidence while adding the missing CPU
-   layer; do not infer instruction behavior from the TV80 substitute.
+3. **Classic validation:** four production-T80 OUT(C)/OUTI cases through the
+   real GA/CRTC boundary are integrated from `84f3106`, alongside the 45-case
+   scripted fixture. Native dynamic-wait comparison, complete frame-level RFD
+   and full motherboard execution remain bounded follow-ups; do not infer
+   production instruction behavior from the TV80 substitute.
 4. **Plus B8-5:** complete snapshot apply across DMA, selected video/GA and MMU
    owners after drain and before CPU release. Coordinate motherboard interfaces
    after FIELD/palette work. Use DSK/CPR for early automation until this is proven.

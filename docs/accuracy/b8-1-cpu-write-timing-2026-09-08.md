@@ -10,6 +10,10 @@ between a production CPU write and the CRTC character decision. Register storage
 still updates on every system clock. This repairs the real-GA/scripted-bus
 regressions described below; it is not a DSC4 or SHAKER hardware fix verdict.
 
+The [bounded production-T80 follow-up](b8-production-t80-2026-09-08.md) adds executed
+OUT(C),C/OUTI evidence. The original scripted-bus results and their limits below
+remain the record for this implementation's acceptance.
+
 ## Capture and consumption contract
 
 The production divider in `Amstrad.sv` supplies one `ce_16` pulse per four system

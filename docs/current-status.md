@@ -80,9 +80,14 @@ lint, and soak `0x6e8258198d6e6137` pass. Its production-GA fixture fails 20 cas
 `d46609d` and passes all 45 after repair. R6 RTL remains unchanged: sticky
 C4=R6 and temporary R6=0 border are distinct controls. See the
 [timing contract, gates, and review status](accuracy/b8-1-cpu-write-timing-2026-09-08.md).
-Executed production T80, OUT(C)/OUTI instruction distinctions, and DSC4/SHAKER
-hardware evidence remain open. Integration CI and artifact delivery are tracked
-separately from these local gates.
+Executed production T80 validation is integrated from `84f3106`: four OUT(C)/OUTI
+cases pass through the real GA/CRTC boundary and fail their named side effects
+with historical rule engines. Fresh optional GHDL checks, full simulation, lint
+and the unchanged soak pass on integration. Review is scoped clear (Opus plus
+Astra closure of the Gemini-authored timing remediation). See the
+[bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md). Dynamic-wait
+native-VHDL equivalence, full motherboard execution and DSC4/SHAKER hardware
+evidence remain open. CI and artifact delivery are tracked separately.
 
 **Plus B8-6 integrated, 2026-09-08, from refreshed `2bb75b5`:** branch `codex/plus/b8-6-colour-alignment`,
 originally accepted at `023d020` from base `d46609d`, contains the reviewed
@@ -1567,8 +1572,9 @@ their old branch names, hashes and proposed tasks are not the current launch pla
 
 - B8-1 and B8-6 are integrated. Complete B8-2/B8-3, shared B8-4/B8-7, and
   B8-5 with separate behavior changes and production-boundary regressions.
-- Add executed production-T80 validation to the current scripted-GA evidence.
-  Hardware DSC4/SHAKER, IA-5/Q17 and Plus title acceptance remain open.
+- Extend the bounded executed-T80 evidence only where a specific missing
+  interaction warrants it. Hardware DSC4/SHAKER, IA-5/Q17 and Plus title
+  acceptance remain open.
 - Refresh the preserved B3 capture candidate against integration,
   retaining private evidence and stashes. A recorded temporary path may be gone
   even when its committed branch remains recoverable.
