@@ -437,6 +437,12 @@ consumer. Corrected transition and selected-edge controls pass; Opus functional
 review plus Gemini closure is scoped clear. Full ASCAL and hardware validation
 remain open. See [FIELD evidence](plus/b8-2-field-ownership-2026-09-08.md).
 
+**B8-3 integrated from `807f081`, 2026-09-08:** accepted legacy palette
+writes reach their owner even when the stored GA value is unchanged. Repeated
+pen/border writes and retained-GA ASIC-only reset are covered through the
+motherboard; the reset import remains distinct from runtime events. Gemini
+review is clear. See [palette evidence](plus/b8-3-palette-events-2026-09-08.md).
+
 **B8-4 integrated from `7a58f88`, 2026-09-08:** the retained SDRAM video
 word now uses a full address/bank key and invalidates on accepted matching
 writes. Physical-DQ and motherboard byte-to-pixel regressions pass; Astra

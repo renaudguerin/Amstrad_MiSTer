@@ -42,6 +42,11 @@ public:
 		dut.mem_rd = 0;
 		dut.A = 0;
 		dut.D_in = 0;
+		dut.leg_pal_wr = 0;
+		dut.leg_pal_addr = 0;
+		dut.leg_pal_data = 0;
+		// Reset/import shadows held at GA reset values (INKR=0, border=16);
+		// runtime translation uses leg_pal_* events only.
 		dut.leg_border = 16;
 		dut.leg_inkr[0] = 0;
 		dut.leg_inkr[1] = 0;
@@ -52,12 +57,6 @@ public:
 		dut.sna_wr = 0;
 		dut.sna_addr = 0;
 		dut.sna_data = 0;
-	}
-
-	void set_inkr_word(uint32_t lo, uint32_t hi) {
-		dut.leg_inkr[0] = lo;
-		dut.leg_inkr[1] = hi;
-		dut.leg_inkr[2] = 0;
 	}
 
 	void tick() {
@@ -125,38 +124,25 @@ public:
 		return dut.D_out;
 	}
 
-	// Legacy register shadow update (asic_ga_timing output analogue).
-	// Entry k sits at bits [k*5 +: 5] of the 80-bit port; entries 12-15
-	// straddle the C++ 64-bit boundary, so accumulate into three Verilator
-	// words explicitly.
-	void set_legacy(const uint8_t inks[16], uint8_t border) {
-		// Legacy writes arrive on the &7Fxx I/O port, which never asserts
-		// the page chip-select: keep cs low through the update so the test
-		// proves translation fires without any page access.
+	// B8-3 accepted legacy write event (asic_ga_timing LEGACY_PAL_* analogue).
+	// Each call pulses one event outside the page chip-select, exactly like
+	// the production &7Fxx I/O path. No shadow arrays are driven as events.
+	void legacy_event(uint8_t addr, uint8_t hw) {
 		dut.asic_cs = 0;
 		dut.mem_rd = 0;
 		dut.mem_wr = 0;
-		uint64_t w01 = 0;
-		uint32_t w2 = 0;
-		for (unsigned k = 0; k < 16; ++k) {
-			const uint64_t v = inks[k] & 0x1F;
-			const unsigned base = k * 5;
-			if (base < 64) {
-				w01 |= v << base;
-				if (base + 5 > 64) {
-					const unsigned spill = base + 5 - 64;
-					w2 |= uint32_t(v >> (5 - spill));
-				}
-			} else {
-				w2 |= uint32_t(v << (base - 64));
-			}
-		}
-		dut.leg_inkr[0] = uint32_t(w01);
-		dut.leg_inkr[1] = uint32_t(w01 >> 32);
-		dut.leg_inkr[2] = w2;
-		dut.leg_border = border;
+		dut.leg_pal_addr = addr & 0x1F;
+		dut.leg_pal_data = hw & 0x1F;
+		dut.leg_pal_wr = 1;
 		tick();
+		dut.leg_pal_wr = 0;
 		run(1);
+	}
+
+	void set_legacy(const uint8_t inks[16], uint8_t border) {
+		for (unsigned k = 0; k < 16; ++k)
+			legacy_event(uint8_t(k), inks[k]);
+		legacy_event(16, border);
 	}
 
 	uint16_t pal_read(uint8_t entry) {

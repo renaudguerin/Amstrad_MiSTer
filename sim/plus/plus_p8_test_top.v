@@ -164,6 +164,10 @@ module plus_p8_test_top (
 		.D_in(aregs_din),
 		.D_out(aregs_dout),
 
+		.leg_pal_wr(1'b0),
+		.leg_pal_addr(5'd0),
+		.leg_pal_data(5'd0),
+
 		.leg_border(5'd16),
 		.leg_inkr(80'd0),
 

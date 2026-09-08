@@ -461,10 +461,10 @@ implementations.
 Their successful simulation and Quartus artifact do not close hardware symptoms.
 See [current status](current-status.md) for accepted source and artifact identities.
 
-1. **Plus B8-3:** carry accepted legacy palette writes to the palette owner.
-   B8-2 FIELD ownership is integrated separately from `55151a0`; its full
-   ASCAL/hardware validation remains open. Verify repeated same-value pen/border
-   writes at production boundaries before title attribution.
+1. **Plus validation:** B8-2 FIELD ownership and B8-3 accepted palette-write
+   events are integrated separately from `55151a0` and `807f081`. Full ASCAL,
+   executed titles and hardware retests remain open; the scripted regressions
+   do not establish Copter causality.
 2. **Shared B8-7:** repair tape request/ACK and payload lifetime while preserving
    the integrated B8-4 cache-coherence repair, CPU/cartridge admission and
    refresh scheduling. B8-4 source `7a58f88` releases the P10 fixture for

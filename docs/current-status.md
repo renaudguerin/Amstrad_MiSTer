@@ -1,6 +1,22 @@
 # Current implementation status
 
-**Accepted integration, 2026-09-08:** `9d238dafc3a9950c276f91a3e928d5cfeb013bff`
+**Latest verified CI/RBF, 2026-09-08:** `9052a08673142eed11d852abd29d4427dedf0875`
+passed simulation, policy and full local Quartus 17.0.2 in
+[run 34190523944](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34190523944).
+This includes production-T80 validation and Plus FIELD ownership. Artifact
+`Amstrad-local-build-196-1-full` is downloaded as
+`output_files/Amstrad_20260908_9052a08.rbf`; SHA256
+`f8cd8c9518b57bea281039511cdc07e0e6396c9ccd1d60a02f152c246b84b0ab`. Fit: 22,305/41,910 ALMs (53%);
+minimum setup +0.530 ns, hold +0.244 ns, zero TNS and no unconstrained clocks.
+Some I/O paths remain unconstrained. Reports are retained under ignored
+`docs/references/field-artifact-34190523944/`. This RBF predates the subsequent
+SDRAM, B3 and palette integrations; their source acceptance is recorded below
+and their later CI/artifact must keep its own identity. No hardware test occurred.
+The T80-only run `34190188480` was superseded by this successful descendant.
+Its completed worktree is removed after idle/clean checks; the branch and all
+unique non-build evidence are retained.
+
+**Earlier test/tooling integration, 2026-09-08:** `9d238dafc3a9950c276f91a3e928d5cfeb013bff`
 passed simulation/lint, synthesis policy and the required gate in
 [CI run 34188386354](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34188386354).
 Its preceding preserved-work merge `5c201a8` passed the same required jobs in
@@ -88,6 +104,17 @@ Astra closure of the Gemini-authored timing remediation). See the
 [bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md). Dynamic-wait
 native-VHDL equivalence, full motherboard execution and DSC4/SHAKER hardware
 evidence remain open. CI and artifact delivery are tracked separately.
+
+**Plus B8-3 integrated, 2026-09-08, from `807f081`:** each accepted legacy
+palette write now reaches the 12-bit palette, including repeated same-value
+pen and border writes after direct ASIC-page edits. One-time reset import
+preserves retained GA colours without replaying idle shadows over later page
+writes. The failure-first motherboard regression includes ASIC-only reset;
+Gemini independently cleared the frozen Muse-authored change. See
+[palette evidence](plus/b8-3-palette-events-2026-09-08.md). Scripted-bus evidence
+does not establish Copter causality, executed-title or hardware acceptance.
+The merged checkout passes full simulation, aggregate lint and unchanged soak
+`0x6e8258198d6e6137`.
 
 **Preserved B3 capture integrated, 2026-09-08, from `bb77075`:** the bounded
 P10 frame-capture CLI and P10j contract notes are restored after the SDRAM
@@ -1598,7 +1625,7 @@ which incorporates the September 8 production-boundary findings. Older dated
 hardware and implementation records above are evidence for their named source;
 their old branch names, hashes and proposed tasks are not the current launch plan.
 
-- B8-1, B8-2, B8-4 and B8-6 are integrated. Complete B8-3, shared B8-7, and
+- B8-1 through B8-4 and B8-6 are integrated. Complete shared B8-7 and
   B8-5 with separate behavior changes and production-boundary regressions.
 - Extend the bounded executed-T80 evidence only where a specific missing
   interaction warrants it. Hardware DSC4/SHAKER, IA-5/Q17 and Plus title
