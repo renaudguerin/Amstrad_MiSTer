@@ -756,6 +756,135 @@ void test_service_to_real_sdram_integration(TestState &test) {
     h.tick();
 }
 
+namespace b84 {
+
+bool poll_video_word(Harness &h, uint16_t expected, int max_ticks) {
+    for (int i = 0; i < max_ticks; ++i) {
+        h.tick();
+        if (h.dut.vram_dout == expected) return true;
+    }
+    return false;
+}
+
+// Accepted main-port write with the exact production tuple used by the P10
+// fixture: bank 0, byte address ram_A (sdram.v BA mux serves the main port
+// with `bank`). Returns true once the physical WRITE command is observed.
+bool main_write(Harness &h, uint8_t bank, uint32_t address, uint8_t data) {
+    h.align_before_idle();
+    const size_t marker = h.commands.size();
+    h.dut.bank = bank;
+    h.dut.addr = address;
+    h.dut.din = data;
+    h.dut.we = 1;
+    h.tick();
+    bool wrote = false;
+    for (int i = 0; i < 12 && !wrote; ++i) {
+        h.tick();
+        for (size_t j = marker; j < h.commands.size(); ++j)
+            if (h.commands[j].kind == CMD_WRITE) wrote = true;
+    }
+    h.dut.we = 0;
+    for (int i = 0; i < 8; ++i) h.tick();
+    return wrote;
+}
+
+std::string hex16(uint16_t value) {
+    std::ostringstream out;
+    out << std::hex << value;
+    return out.str();
+}
+
+} // namespace b84
+
+// B8-4 headline: the production alias CPU 0100 -> physical 20100 (bank 0) is
+// the low byte of SDRAM video word 0080. Base-map MMU gives ram_A = 0x20100
+// for A = 0x0100 (Amstrad_MMU.v:86,89); the P10 fixture ties both main and
+// video banks to 0 (p10_boot_test_top.v:372,395,412) and maps video word
+// 0x0080 to byte 0x20100 (p10_boot_test_top.v:411). With the video address
+// held, an accepted CPU write must become visible without moving the address
+// (sdram.v:170-175 only refetches on address bits [15:1] changing).
+void test_video_coherence_after_cpu_write(TestState &test) {
+    Harness h;
+    h.initialize(test);
+    h.store(0, 0x20100, 0x12);
+    h.store(0, 0x20101, 0x34);
+    h.dut.vram_bank = 0;
+    h.dut.vram_addr = 0x20100;
+    test.check(b84::poll_video_word(h, 0x3412, 48),
+               "video must fetch word 0x3412 at physical 0x20100");
+
+    test.check(b84::main_write(h, 0, 0x20100, 0x56),
+               "accepted main-port write (production CPU-0100 tuple) must issue WRITE");
+    test.check(h.load(0, 0x20100) == 0x56,
+               "RAM must hold the accepted low byte 0x56");
+    test.check(h.load(0, 0x20101) == 0x34,
+               "accepted even write must preserve the high byte");
+
+    test.check(b84::poll_video_word(h, 0x3456, 64),
+               "B8-4: unchanged video address must return CPU-written word 0x3456 (stays " +
+                   b84::hex16(h.dut.vram_dout) + ")");
+
+    // Positive control: moving the address away and back refreshes, proving
+    // the write itself landed in RAM and only the retained word is stale.
+    h.dut.vram_addr = 0x20200;
+    test.check(b84::poll_video_word(h, 0xffff, 48),
+               "video must fetch the new address after moving away");
+    h.dut.vram_addr = 0x20100;
+    test.check(b84::poll_video_word(h, 0x3456, 48),
+               "video must return the written word after address move-away-and-back");
+}
+
+// B8-4 complete-key control: vram_bank is not part of the request key
+// (sdram.v:171 compares only address bits), so a bank-only change must also
+// refetch. Ordinary steady-state Plus operation uses bank zero; this pins the
+// key contract, not a general Plus banking failure.
+void test_video_bank_change_refetch(TestState &test) {
+    Harness h;
+    h.initialize(test);
+    h.store(0, 0x20300, 0x11);
+    h.store(0, 0x20301, 0x22);
+    h.store(1, 0x20300, 0x33);
+    h.store(1, 0x20301, 0x44);
+    h.dut.vram_bank = 0;
+    h.dut.vram_addr = 0x20300;
+    test.check(b84::poll_video_word(h, 0x2211, 48),
+               "video must fetch bank-0 word 0x2211");
+    h.dut.vram_bank = 1;
+    test.check(b84::poll_video_word(h, 0x4433, 64),
+               "B8-4: bank-only video change must refetch bank-1 word 0x4433 (stays " +
+                   b84::hex16(h.dut.vram_dout) + ")");
+}
+
+// B8-4 ordering control: a main-port write admitted in the slot immediately
+// after a video fetch must still invalidate the retained word. Admission is
+// strictly one client per IDLE slot, so this is the tightest overlap the
+// accepted-transaction lifetime allows; the slot-N fetch deterministically
+// samples pre-write data and the word must update afterwards.
+void test_video_coherence_write_next_slot(TestState &test) {
+    Harness h;
+    h.initialize(test);
+    h.store(0, 0x20400, 0xaa);
+    h.store(0, 0x20401, 0xbb);
+    h.dut.vram_bank = 0;
+    h.dut.vram_addr = 0x20400;
+    h.align_before_idle();
+    h.tick(); // slot N: video fetch for the new address is admitted here
+    h.align_before_idle(); // spin through slot N to the next IDLE eve
+    // Non-advancing boundary check: the slot-N fetch has already sampled
+    // pre-write 0xbbaa at this eve. A polling tick here would consume slot
+    // N+1 and push the main write to N+2; the direct dout assertion keeps
+    // the write at N+1, the tightest overlap.
+    test.check(h.dut.vram_dout == 0xbbaa,
+               "slot-N fetch must sample the pre-write word 0xbbaa");
+    test.check(b84::main_write(h, 0, 0x20400, 0x5a),
+               "slot N+1 main-port write must issue WRITE");
+    test.check(h.load(0, 0x20400) == 0x5a,
+               "RAM must hold the next-slot low byte");
+    test.check(b84::poll_video_word(h, 0xbb5a, 64),
+               "B8-4: write admitted right after a video fetch must update the retained word (stays " +
+                   b84::hex16(h.dut.vram_dout) + ")");
+}
+
 void test_top_level_wiring(TestState &test) {
     // The P-1 tie-off pin became obsolete when P0 production-connected the
     // cartridge service (docs/plus/architecture.md, "Cartridge SDRAM
@@ -854,6 +983,9 @@ int main(int argc, char **argv) {
     test_held_back_to_back_and_refresh_guard(test);
     test_ordinary_refresh_resets_cart_cadence(test);
     test_service_to_real_sdram_integration(test);
+    test_video_coherence_after_cpu_write(test);
+    test_video_bank_change_refetch(test);
+    test_video_coherence_write_next_slot(test);
     test_top_level_wiring(test);
 
     if (test.failures != 0) {

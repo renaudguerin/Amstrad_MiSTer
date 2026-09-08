@@ -150,8 +150,16 @@ public:
         } else if (cmd == CMD_WRITE) {
             const uint32_t address = command_address();
             const uint16_t data = dut.observed_dq;
-            if (!dut.sdram_dqml) store(active_bank, address, data & 0xffU);
-            if (!dut.sdram_dqmh) store(active_bank, address + 1, data >> 8);
+            if (!dut.sdram_dqml) {
+                store(active_bank, address, data & 0xffU);
+                if (active_bank == 0)
+                    bank0_writes.push_back({address, static_cast<uint8_t>(data & 0xffU), cycles});
+            }
+            if (!dut.sdram_dqmh) {
+                store(active_bank, address + 1, data >> 8);
+                if (active_bank == 0)
+                    bank0_writes.push_back({address + 1, static_cast<uint8_t>(data >> 8), cycles});
+            }
         }
         if (read_drive_cycles > 0 && !started_read) --read_drive_cycles;
 
@@ -291,6 +299,17 @@ public:
     }
 
     bool upper_page_magic_seen = false;
+
+    struct SdramWrite {
+        uint32_t byte_address;
+        uint8_t value;
+        uint64_t tick;
+    };
+    std::vector<SdramWrite> bank0_writes;
+
+    void preload(uint8_t bank, uint32_t address, uint8_t byte) {
+        store(bank, address, byte);
+    }
 
 private:
     uint16_t active_row = 0;
@@ -1010,12 +1029,258 @@ void test_real_u765_edsk_read() {
 	          << std::endl;
 }
 
+// B8-4 production-motherboard coherence: CPU 0x0000 aliases the low byte
+// of SDRAM video word 0 (Amstrad_MMU base map; fixture banks 0;
+// p10_boot_test_top maps word 0 to byte 0x20000). Degenerate raster
+// R0=0,R1=1,R2=255,R4=0,R6=1,R7=127,R9=0 holds VA=0 with DE active and no
+// HSYNC/VSYNC blanking. production_clocking=1 uses the Amstrad.sv divider
+// for ce_16 and clkref_int. GA RMR 0x82 programs gamode 2, but with no HSYNC
+// the pixel decoder never re-latches: mode_q stays 0, so this fixture pins
+// mode-0 mapping, not mode-2 accuracy. Pen 0/border HW20 black, pens 1..15
+// HW11 white. Byte path (Amstrad_motherboard/asic_video): vram_dout word ->
+// vram_d byte -> plus_vidword low half on cclk_p -> vid_even on
+// CLKEN(cclk_n)&PIXEN(ce_16) with pix_cnt reset to 0 -> mode-0 pen ->
+// palette -> RGB registered on the next PIXEN (one-dot presentation
+// latency). Mode-0 byte 0xFF gives pen 15 ({b1,b5,b3,b7}/{b0,b4,b2,b6} all
+// ones, programmed white) for both pixels of the half; 0x00 gives pen 0.
+// Steady baseline is reset-grey HW0 0x666, not programmed black.
+void test_p10b_video_coherence_pixel() {
+    std::cout << "Running test_p10b_video_coherence_pixel..." << std::endl;
+    Harness h;
+    for (unsigned w = 0; w < 128; ++w) {
+        h.preload(0, 0x20000U + (w << 1), 0x00);
+        h.preload(0, 0x20000U + (w << 1) + 1, 0x00);
+    }
+    h.dut.production_clocking = 1;
+    h.initialize();
+
+    std::vector<uint8_t> program(16384, 0x00);
+    size_t pc = 0;
+    auto emit = [&](uint8_t byte) { program[pc++] = byte; };
+    auto write_crtc = [&](uint8_t reg, uint8_t value) {
+        emit(0x01); emit(0x00); emit(0xBC); // LD BC,&BC00
+        emit(0x3E); emit(reg);              // LD A,reg
+        emit(0xED); emit(0x79);             // OUT (C),A
+        emit(0x01); emit(0x00); emit(0xBD); // LD BC,&BD00
+        emit(0x3E); emit(value);            // LD A,value
+        emit(0xED); emit(0x79);             // OUT (C),A
+    };
+    auto write_ga = [&](uint8_t value) {
+        emit(0x01); emit(0x00); emit(0x7F); // LD BC,&7F00
+        emit(0x3E); emit(value);            // LD A,value
+        emit(0xED); emit(0x79);             // OUT (C),A
+    };
+
+    emit(0xF3); // DI
+
+    // Degenerate raster holding video address at word 0 continuously
+    write_crtc(0, 0);   // R0 = 0 (1 char per line)
+    write_crtc(1, 1);   // R1 = 1 (1 char displayed)
+    write_crtc(2, 255); // R2 = 255 (no HSYNC blanking)
+    write_crtc(4, 0);   // R4 = 0 (1 row per frame)
+    write_crtc(6, 1);   // R6 = 1 (1 row displayed)
+    write_crtc(7, 127); // R7 = 127 (no VSYNC blanking)
+    write_crtc(9, 0);   // R9 = 0 (1 scanline per row)
+
+    // GA configuration: mode 2, ROMs enabled, black pen 0, white pens 1..15, black border
+    write_ga(0x82); // RMR: mode 2, ROMs enabled
+    write_ga(0x00); write_ga(0x40 | 20); // pen 0 <- HW20 black
+    for (uint8_t p = 1; p <= 15; ++p) {
+        write_ga(p); write_ga(0x40 | 11); // pens 1..15 <- HW11 white
+    }
+    write_ga(0x10); write_ga(0x40 | 20); // border <- HW20 black
+
+    const size_t setup_end_pc = pc;
+
+    // Straight-line NOP baseline delay: 256 NOPs (no jumps)
+    for (int i = 0; i < 256; ++i) emit(0x00);
+
+    // Write 0xFF to watched RAM alias (CPU 0x0000 -> physical RAM 0x20000)
+    emit(0x3E); emit(0xFF);             // LD A, &FF
+    emit(0x32); emit(0x00); emit(0x00); // LD (0000), A
+    emit(0x76);                         // HALT
+
+    require(pc < 0x0400, "coherence fixture program overflowed initial area");
+
+    h.download(build_cpr_image({{"cb00", program}}));
+    while (h.dut.dbg_reset) h.tick();
+
+    const uint32_t kPhys = 0x20000U;
+    const uint16_t kWhite = 0x0FFF;
+    const uint64_t kBudget = 200000;
+
+    size_t write_index = h.bank0_writes.size();
+    bool accepted = false;
+    uint64_t accepted_tick = 0;
+    // Baseline is steady reset-grey (HW0, 0x666) with DE active and no
+    // HSYNC blanking, not programmed black: RMR mode-2 lands (gamode==2
+    // observed) but pen-0 black does not yield black RGB in this degenerate
+    // fixture (observed steady 0x666 with word 0, addr 0). Forbid white
+    // throughout the baseline; white after the write remains discriminating
+    // because pens 1..15 are programmed white (proven by white appearing).
+    unsigned baseline_ticks = 0;
+    bool gamode_ok = false;
+    uint8_t modeq_seen = 0xff;
+    uint16_t baseline_rgb = 0xffff;
+
+    bool word_ok = false;
+    uint64_t word_tick = 0;
+    bool byte_ok = false;
+    uint64_t byte_tick = 0;
+    bool load_ok = false;
+    uint64_t load_tick = 0;
+    bool white_ok = false;
+    uint64_t white_tick = 0;
+
+    for (uint64_t i = 0; i < kBudget; ++i) {
+        // Pre-edge sample: the enables/source the posedge inside tick()
+        // will consume. Post-edge assertions below prove actual loads,
+        // not already-held levels.
+        const bool pre_cclk_p = h.dut.dbg_video_cclk_p;
+        const uint8_t pre_vram_d = h.dut.dbg_video_vram_byte;
+        const bool pre_ce16 = h.dut.dbg_video_ce16;
+        const bool pre_cclk_n = h.dut.dbg_video_cclk_n;
+        const uint8_t pre_plus_lo =
+            static_cast<uint8_t>(h.dut.dbg_video_plus_vidword & 0xffU);
+        const uint8_t pre_vid_even = h.dut.dbg_video_vid_even;
+        const uint8_t pre_pixcnt = h.dut.dbg_video_pixcnt;
+        const uint8_t pre_modeq = h.dut.dbg_video_modeq;
+
+        h.tick();
+
+        for (; write_index < h.bank0_writes.size(); ++write_index) {
+            const auto &wr = h.bank0_writes[write_index];
+            if (wr.byte_address == kPhys && wr.value == 0xFF && !accepted) {
+                accepted = true;
+                accepted_tick = wr.tick;
+                require(baseline_ticks >= 1000,
+                        "write accepted before 1000 baseline ticks");
+                require(gamode_ok, "RMR mode-2 programming never observed before write");
+                std::cout << "  accepted: LD (0000),A -> phys 0x20000 = 0xff @t="
+                          << accepted_tick << " (baseline_ticks=" << baseline_ticks
+                          << " baseline_rgb=0x" << std::hex << baseline_rgb << std::dec
+                          << " gamode=2 modeq=" << (unsigned)modeq_seen << ")\n";
+            }
+        }
+
+        const uint16_t rgb = h.dut.dbg_video_rgb;
+        const bool is_white = (rgb == kWhite);
+        const bool de = h.dut.dbg_raw_de;
+        const bool hsync = h.dut.dbg_raw_hsync;
+        const uint8_t post_plus_lo =
+            static_cast<uint8_t>(h.dut.dbg_video_plus_vidword & 0xffU);
+        const uint8_t post_vid_even = h.dut.dbg_video_vid_even;
+        const uint8_t post_pixcnt = h.dut.dbg_video_pixcnt;
+        const uint8_t post_modeq = h.dut.dbg_video_modeq;
+
+        if (!accepted) {
+            if (h.dut.dbg_pc >= setup_end_pc) {
+                require(!is_white, "white observed before CPU write");
+                require((h.dut.dbg_video_vram_addr & 0x7fff) == 0,
+                        "video address moved away from 0 during baseline");
+                require(h.dut.dbg_video_vram_word == 0x0000,
+                        "video word non-zero during baseline");
+                if (h.dut.dbg_video_gamode == 2) gamode_ok = true;
+                modeq_seen = h.dut.dbg_video_modeq;
+                baseline_rgb = rgb;
+                ++baseline_ticks;
+            }
+        } else {
+            require((h.dut.dbg_video_vram_addr & 0x7fff) == 0,
+                    "video address moved away from word 0 after CPU write");
+
+            if (!word_ok && h.dut.dbg_video_vram_word == 0x00FF) {
+                word_ok = true;
+                word_tick = h.cycles;
+                std::cout << "  word: same-address video word 0x00ff @t=" << word_tick << "\n";
+            }
+
+            // Consumed source byte at its load edge: pre-edge vram_d==FF
+            // with cclk_p asserted must capture into the plus_vidword
+            // low half on this posedge. Post-edge plus low proves the
+            // actual load, not a held level.
+            if (word_ok && !byte_ok && pre_cclk_p && pre_vram_d == 0xFF) {
+                require(post_plus_lo == 0xFF,
+                        "cclk_p pre-edge vram_d=FF did not load plus_vidword low half");
+                byte_ok = true;
+                byte_tick = h.cycles;
+                std::cout << "  byte: pre cclk_p vram_d=0xff -> post plus_lo=0xff @t=" << byte_tick << "\n";
+            }
+
+            // Pixel-load boundary: pre-edge CLKEN&PIXEN with source low
+            // half FF must load vid_even on this posedge and reset
+            // pix_cnt to 0 (asic_video: PIXEN&&CLKEN -> vid_even<=VIDEOD,
+            // pix_cnt<=0). A held vid_even with nonzero pix_cnt is not a
+            // load. Must follow the byte load within two chars (2x64).
+            if (byte_ok && !load_ok && pre_ce16 && pre_cclk_n &&
+                pre_plus_lo == 0xFF) {
+                require(post_vid_even == 0xFF,
+                        "CLKEN&PIXEN pre-edge source FF did not load vid_even");
+                require(post_pixcnt == 0,
+                        "vid_even load did not reset pix_cnt to 0 (held level, not load)");
+                require(post_modeq == 0,
+                        "pixel latch ran with mode_q!=0; fixture pins mode-0 mapping");
+                require(h.cycles - byte_tick <= 128,
+                        "vid_even load did not follow consumed byte within 2 chars");
+                load_ok = true;
+                load_tick = h.cycles;
+                std::cout << "  load: pre CLKEN&PIXEN src=0xff -> post vid_even=0xff pix=0 @t=" << load_tick
+                          << " (pre_pix=" << (unsigned)pre_pixcnt << ")\n";
+            }
+
+            // Corresponding pixel: pre-edge PIXEN presentation of the
+            // loaded even byte under latched mode 0. Mode-0 0xFF selects
+            // pen 15 on both pixels ({b1,b5,b3,b7}/{b0,b4,b2,b6} all ones,
+            // programmed white). Post-edge RGB on that PIXEN is the
+            // presentation; require white within two dots with DE/no blank.
+            if (load_ok && !white_ok && pre_ce16 && pre_vid_even == 0xFF &&
+                pre_modeq == 0 && ((pre_pixcnt & 0x8U) == 0U)) {
+                require(de && !hsync, "white outside active display");
+                require(h.cycles - load_tick <= 8,
+                        "white did not follow pixel load within 2 dots");
+                require(is_white,
+                        "PIXEN presentation of mode-0 vid_even=FF was not white");
+                white_ok = true;
+                white_tick = h.cycles;
+                std::cout << "  pixel: pre PIXEN even=0xff mode0 -> post white RGB @t=" << white_tick
+                          << " pix=" << (unsigned)post_pixcnt
+                          << " latency=" << (white_tick - load_tick) << "\n";
+            }
+
+            if (word_ok && byte_ok && load_ok && white_ok) {
+                std::cout << "PASS: accepted 0x20000=FF -> word 0x00ff @t=" << word_tick
+                          << " -> byte @t=" << byte_tick << " -> load @t=" << load_tick
+                          << " -> white @t=" << white_tick << "\n";
+                return;
+            }
+
+            if (h.cycles - accepted_tick > 20000) {
+                std::ostringstream msg;
+                msg << "B8-4: stale video after accepted 0xff to phys 0x20000 @t="
+                    << accepted_tick << " (word=0x" << std::hex
+                    << h.dut.dbg_video_vram_word << " byte=0x"
+                    << (unsigned)h.dut.dbg_video_vram_byte << " vid_even=0x"
+                    << (unsigned)h.dut.dbg_video_vid_even << " rgb=0x" << rgb
+                    << std::dec << " word/byte/load/white="
+                    << word_ok << "/" << byte_ok << "/" << load_ok << "/" << white_ok << ")";
+                throw TestFailure(msg.str());
+            }
+        }
+    }
+
+    if (!accepted) {
+        throw TestFailure("timeout waiting for physical write to be accepted");
+    }
+    throw TestFailure("budget exhausted without a verdict");
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
     try {
 		test_p10a_vram_client_wiring();
+		test_p10b_video_coherence_pixel();
         test_p10a_deterministic_boot();
 		test_real_u765_edsk_read();
 		std::cout << "\nAll P10 Production CPR Boot Harness tests PASSED.\n";
