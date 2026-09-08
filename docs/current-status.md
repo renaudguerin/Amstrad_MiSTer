@@ -1,5 +1,16 @@
 # Current implementation status
 
+**Integration timing pending, 2026-09-08:** `b945c1b` passed CI simulation
+and compiled successfully, but
+[run 34192429871](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34192429871)
+failed its required timing gate: HDMI-domain setup −0.030 ns (TNS −0.030),
+core setup +0.013 ns, minimum hold +0.248 ns, 54% ALMs. No RBF was packaged.
+Reports and the job log are retained under ignored
+`docs/references/b945-timing-failure-34192429871/`; they do not include the
+failing path endpoints. The documented runner mDNS address was unresolved
+when retrieving the retained database. The subsequent tape integration has
+its own required full build; this failed result is not timing closure.
+
 **Latest verified CI/RBF, 2026-09-08:** `9052a08673142eed11d852abd29d4427dedf0875`
 passed simulation, policy and full local Quartus 17.0.2 in
 [run 34190523944](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34190523944).
