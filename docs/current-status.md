@@ -1,5 +1,14 @@
 # Current implementation status
 
+**Accuracy B8-1 task, 2026-09-08 (not yet integrated):** the isolated repair
+retains qualified R5/R0 events from system-clock register capture to the CRTC
+character decision. Its production-GA fixture fails 20 cases on unchanged
+`d46609d` and passes all 45 after repair. R6 RTL remains unchanged: sticky
+C4=R6 and temporary R6=0 border are distinct controls. See the
+[timing contract, gates, and review status](accuracy/b8-1-cpu-write-timing-2026-09-08.md).
+Executed production T80, OUT(C)/OUTI instruction distinctions, and DSC4/SHAKER
+hardware evidence remain open.
+
 **Architecture/methodology review, 2026-09-08:** the user-authorized B8 first pass
 is complete against source `65364ee`; see
 [findings and repair order](b8-architecture-methodology-review-2026-09-08.md).

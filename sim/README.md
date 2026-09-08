@@ -9,6 +9,11 @@ runs:
   with `CLKEN` at character-clock phase 0 and `nCLKEN` at phase 8, and exercises
   the CRTC register bus directly. Counter-state assertions are used only for
   Compendium cases whose documented C4/C9 result is not distinguishable from pins alone.
+- Production GA/CRTC write-phase cases in `crtc_cpu_phase_test.cpp`, using the
+  real GA, production clock divider, and scripted post-enable bus launches.
+  Run `make -C sim crtc-cpu-phase-test`; this also runs in the default gate.
+  [B8-1's contract and evidence](../docs/accuracy/b8-1-cpu-write-timing-2026-09-08.md)
+  distinguish this coverage from executed T80 and hardware evidence.
 - Standalone Amstrad Plus suites in `sim/plus`: ASIC lock/unlock, model select,
   Dandanator bounds, cartridge memory service, real-SDRAM cartridge client, CPR
   parser, MMU windows/boot integration, and (since Plus P1) the `asic_video`
@@ -116,7 +121,14 @@ DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0x2263c9fc44af4ee7`** after the reviewed interlace VSYNC
+current hash is **`0x6e8258198d6e6137`** after B8-1 retained production-phase
+R5/R0 events across the register-write/character-decision boundary. The seed,
+stimulus, and sampled fields/order are unchanged: the hash moves because the
+old-value side effects now execute. Event bits are consumed before the existing
+post-CLKEN sampler; their lifecycle is covered by the focused phase fixture,
+without adding constant-zero fields to the sampled projection. See the
+[B8-1 evidence](../docs/accuracy/b8-1-cpu-write-timing-2026-09-08.md).
+The previous hash was **`0x2263c9fc44af4ee7`** after the reviewed interlace VSYNC
 lifecycle correction: type 1 no longer depends on type-0 C0 history, while
 type 0 reconstructs C0=2 qualification from the live counter even when a
 snapshot load or type switch clears its private history after C0=2. The

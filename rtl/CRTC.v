@@ -138,6 +138,10 @@ always @(*) begin
 	end
 end
 
+// Register storage is intentionally system-clocked, including sub-character
+// R2/R3/R6/R8 behavior. The type engines capture qualified old-value R5/R0
+// events before this same edge updates storage, then consume them at CLKEN.
+// Do not move the register file to CLKEN to recover a lost bus event.
 always @(posedge CLOCK) begin
 	if (SNA_LOAD) begin
 		addr <= SNA_ADDR;
