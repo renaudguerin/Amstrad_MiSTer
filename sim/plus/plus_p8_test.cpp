@@ -21,6 +21,12 @@ void fail(const std::string& msg) {
 	throw std::runtime_error(msg);
 }
 
+std::string hex_str(uint32_t val, int width) {
+	char buf[32];
+	std::snprintf(buf, sizeof(buf), "%0*X", width, val);
+	return std::string(buf);
+}
+
 // -----------------------------------------------------------------------------
 // Test 1: i8255 Plus PPI quirks
 // -----------------------------------------------------------------------------
@@ -784,10 +790,370 @@ void test_p8_sna_integration_seam(Vplus_p8_test_top& dut) {
 	std::printf("PASS p8_04: production parser / asic_regs / MMU lifecycle and reset seam\n");
 }
 
+// -----------------------------------------------------------------------------
+// Test 6: B8-5 snapshot apply regression across resumed selected owners
+// (asic_dma, asic_ga_timing, asic_video, plus_mmu)
+// -----------------------------------------------------------------------------
+void test_b8_5_snapshot_apply_regression(Vplus_p8_test_top& dut, bool xfail_mode) {
+	dut.reset = 0;
+	dut.seam_machine_reset = 1;
+	dut.seam_plus_asic_reset = 1;
+	dut.seam_plus_mode = 1;
+	dut.seam_sna_load = 0;
+	dut.sna_download = 0;
+	dut.cpc_plus_chunk_start = 0;
+	dut.cpc_plus_byte_wr = 0;
+	dut.cpc_plus_byte_data = 0;
+	dut.aregs_cs = 0;
+	dut.aregs_mem_rd = 0;
+	dut.aregs_mem_wr = 0;
+	dut.aregs_addr = 0;
+	dut.aregs_din = 0;
+	dut.aregs_pal_raddr = 0;
+	dut.dma_test_hsync = 0;
+	dut.dma_ram_data = 0;
+	dut.video_crtc_cs = 0;
+	dut.video_crtc_rd = 0;
+	dut.video_crtc_rs = 0;
+	dut.video_crtc_din = 0;
+	dut.mmu_test_A = 0;
+	dut.mmu_test_mem_rd = 0;
+	dut.eval();
+
+	auto tick = [&]() {
+		dut.clk = 0; dut.eval();
+		dut.clk = 1; dut.eval();
+	};
+
+	// Reset pulse
+	dut.seam_machine_reset = 1;
+	dut.seam_plus_asic_reset = 1;
+	tick();
+	tick();
+	// Start pulse for plus_asic_reset falls while machine_reset remains held
+	dut.seam_plus_asic_reset = 0;
+	tick();
+
+	// Pre-apply check: DMA RAM request must be 0 while in reset
+	if (dut.dma_ram_req != 0) {
+		fail("B8-5 pre-apply: dma_ram_req asserted prematurely during reset");
+	}
+
+	auto stream_byte = [&](uint8_t b) {
+		dut.cpc_plus_byte_wr = 1;
+		dut.cpc_plus_byte_data = b;
+		tick();
+		dut.cpc_plus_byte_wr = 0;
+		while (dut.sna_ioctl_wait) {
+			tick();
+		}
+	};
+
+	// Start SNA CPC+ chunk download
+	dut.sna_download = 1;
+	dut.cpc_plus_chunk_start = 1;
+	tick();
+	dut.cpc_plus_chunk_start = 0;
+
+	// Stream Sprite Bitmaps (0x000-0x7FF = 2048 bytes)
+	for (int i = 0; i < 2048; ++i) stream_byte(0x00);
+
+	// Stream Sprite Attributes (0x800-0x87F = 128 bytes)
+	for (int i = 0; i < 128; ++i) stream_byte(0x00);
+
+	// Stream 12-bit Palette (0x880-0x8BF = 64 bytes)
+	// Entry 0 (Pen 0): 0x924 (low byte 0x24, hi byte 0x09)
+	stream_byte(0x24); stream_byte(0x09);
+	// Entry 1 (Pen 1): 0xC56 (low byte 0x56, hi byte 0x0C)
+	stream_byte(0x56); stream_byte(0x0C);
+	for (int i = 2; i < 16; ++i) { stream_byte(0x00); stream_byte(0x00); }
+	// Entry 16 (Border): 0xE78 (low byte 0x78, hi byte 0x0E)
+	stream_byte(0x78); stream_byte(0x0E);
+	for (int i = 17; i < 32; ++i) { stream_byte(0x00); stream_byte(0x00); }
+
+	// Control registers 0x8C0-0x8C5:
+	stream_byte(0x2A); // PRI (&6800)
+	stream_byte(0x55); // SPLT (&6801)
+	stream_byte(0x30); // SSA hi (&6802)
+	stream_byte(0x40); // SSA lo (&6803)
+	stream_byte(0x03); // SSCR (&6804)
+	stream_byte(0xFE); // IVR (&6805)
+
+	// Unused / Analog inputs 0x8C6-0x8CF (10 bytes)
+	for (int i = 0; i < 10; ++i) stream_byte(0x00);
+
+	// Sound DMA attributes 0x8D0-0x8DB:
+	// Ch0: SAR=0x2211, PPR=0x10, unused=0
+	stream_byte(0x11); // SAR0 lo (&6C00)
+	stream_byte(0x22); // SAR0 hi (&6C01)
+	stream_byte(0x10); // PPR0    (&6C02)
+	stream_byte(0x00); // unused  (&6C03)
+	// Ch1: SAR=0x5544, PPR=0x20, unused=0
+	stream_byte(0x44); // SAR1 lo (&6C04)
+	stream_byte(0x55); // SAR1 hi (&6C05)
+	stream_byte(0x20); // PPR1    (&6C06)
+	stream_byte(0x00); // unused  (&6C07)
+	// Ch2: SAR=0x8877, PPR=0x30, unused=0
+	stream_byte(0x77); // SAR2 lo (&6C08)
+	stream_byte(0x88); // SAR2 hi (&6C09)
+	stream_byte(0x30); // PPR2    (&6C0A)
+	stream_byte(0x00); // unused  (&6C0B)
+
+	// Unused 0x8DC-0x8DE (3 bytes)
+	stream_byte(0x00); stream_byte(0x00); stream_byte(0x00);
+
+	// DCSR (&6C0F at 0x8DF): bit 7=1, ena=3'b111 -> 0x87
+	stream_byte(0x87);
+
+	// Internal DMA registers 0x8E0-0x8F4 (21 bytes, 7 bytes per channel):
+	// Ch0 internal (0x8E0-0x8E6):
+	stream_byte(0x05); stream_byte(0x00); // loop count = 5
+	stream_byte(0x00); stream_byte(0x10); // loop addr = 0x1000
+	stream_byte(0x00); stream_byte(0x00); // pause count = 0
+	stream_byte(0x00);                   // pause prescaler = 0
+	// Ch1 internal (0x8E7-0x8ED):
+	stream_byte(0x0A); stream_byte(0x00); // loop count = 10
+	stream_byte(0x00); stream_byte(0x20); // loop addr = 0x2000
+	stream_byte(0x00); stream_byte(0x00); // pause count = 0
+	stream_byte(0x00);                   // pause prescaler = 0
+	// Ch2 internal (0x8EE-0x8F4):
+	stream_byte(0x0F); stream_byte(0x00); // loop count = 15
+	stream_byte(0x00); stream_byte(0x30); // loop addr = 0x3000
+	stream_byte(0x00); stream_byte(0x00); // pause count = 0
+	stream_byte(0x00);                   // pause prescaler = 0
+
+	// Gate Array A0 (RMR2) at 0x8F5:
+	// D4D3=11 (ASIC page on at &4000), page 1 -> 0x19
+	stream_byte(0x19);
+
+	// Gate Array A0 lock at 0x8F6: 1=unlocked
+	stream_byte(0x01);
+
+	// End of download stream
+	dut.sna_download = 0;
+	tick();
+
+	// Drain FIFO
+	int drain = 0;
+	while (dut.sna_busy && drain < 30) {
+		tick();
+		drain++;
+	}
+	if (dut.sna_busy) fail("B8-5: sna_busy failed to clear during drain");
+
+	// Pre-apply check: no RAM request before reset release
+	if (dut.dma_ram_req != 0) {
+		fail("B8-5 pre-apply: dma_ram_req asserted after drain but before apply/reset release");
+	}
+
+	// Pulse snapshot apply seam (existing fixture model: machine reset falls, sna_load pulses)
+	dut.seam_machine_reset = 0;
+	dut.seam_sna_load = 1;
+	tick();
+	dut.seam_sna_load = 0;
+	tick();
+
+	struct FailureDetail {
+		std::string owner;
+		std::string target;
+		std::string expected;
+		std::string observed;
+		std::string gap_explanation;
+	};
+	std::vector<FailureDetail> gaps;
+
+	auto record_gap = [&](const std::string& owner, const std::string& target,
+	                      const std::string& exp, const std::string& obs,
+	                      const std::string& explanation) {
+		gaps.push_back({owner, target, exp, obs, explanation});
+	};
+
+	// -------------------------------------------------------------------------
+	// 1. DMA SAR address checks across all 3 channels
+	// -------------------------------------------------------------------------
+	// Register file in asic_regs holds the restored SAR values:
+	if (dut.aregs_sar0_lo != 0x11 || dut.aregs_sar0_hi != 0x22) {
+		fail("B8-5: asic_regs failed to hold SAR0 byte storage");
+	}
+	if (dut.aregs_sar1_lo != 0x44 || dut.aregs_sar1_hi != 0x55) {
+		fail("B8-5: asic_regs failed to hold SAR1 byte storage");
+	}
+	if (dut.aregs_sar2_lo != 0x77 || dut.aregs_sar2_hi != 0x88) {
+		fail("B8-5: asic_regs failed to hold SAR2 byte storage");
+	}
+
+	// But resumed DMA owner asic_dma had reset asserted during download:
+	if (dut.dma_sar0_addr != 0x2211) {
+		record_gap("asic_dma", "sar0_addr (Ch0 live SAR)", "0x2211",
+		           "0x" + hex_str(dut.dma_sar0_addr, 4),
+		           "DMA was held in reset during download; SAR writes were lost; sar_cur[0] cleared to 0 on reset");
+	}
+	if (dut.dma_sar1_addr != 0x5544) {
+		record_gap("asic_dma", "sar1_addr (Ch1 live SAR)", "0x5544",
+		           "0x" + hex_str(dut.dma_sar1_addr, 4),
+		           "DMA was held in reset during download; SAR writes were lost; sar_cur[1] cleared to 0 on reset");
+	}
+	if (dut.dma_sar2_addr != 0x8877) {
+		record_gap("asic_dma", "sar2_addr (Ch2 live SAR)", "0x8877",
+		           "0x" + hex_str(dut.dma_sar2_addr, 4),
+		           "DMA was held in reset during download; SAR writes were lost; sar_cur[2] cleared to 0 on reset");
+	}
+
+	// -------------------------------------------------------------------------
+	// 2. DMA first fetch on HSYNC
+	// -------------------------------------------------------------------------
+	// With Ch0 enabled in DCSR and pause_cnt=0, rising HSYNC initiates fetch
+	dut.dma_test_hsync = 1;
+	tick();
+	dut.dma_test_hsync = 0;
+	int hsync_ticks = 0;
+	while (!dut.dma_ram_req && hsync_ticks < 10) {
+		tick();
+		hsync_ticks++;
+	}
+	if (!dut.dma_ram_req) {
+		record_gap("asic_dma", "dma_ram_req (Ch0 first fetch)", "1 (asserted)", "0 (idle)",
+		           "DMA failed to trigger RAM fetch upon HSYNC");
+	} else if (dut.dma_ram_addr != 0x2211) {
+		record_gap("asic_dma", "dma_ram_addr (Ch0 fetch address)", "0x2211",
+		           "0x" + hex_str(dut.dma_ram_addr, 4),
+		           "DMA fetches from 0x0000 instead of loaded SAR0 address 0x2211");
+	}
+
+	// -------------------------------------------------------------------------
+	// 3. Selected GA outputs (Mode and Border)
+	// -------------------------------------------------------------------------
+	// SNA format specifies Mode 1 (multi-config byte 0x8D, bits 1:0 = 2'b01)
+	if (dut.ga_mode_out != 1) {
+		record_gap("asic_ga_timing", "GAMODE_O (selected screen mode)", "1 (Mode 1)",
+		           std::to_string(dut.ga_mode_out) + " (Mode 0)",
+		           "asic_ga_timing has no SNA restore ports; mode stays at power-up reset default 0");
+	}
+	// SNA format specifies border hardware color = 4
+	if (dut.ga_border_out != 4) {
+		record_gap("asic_ga_timing", "BORDER_O (border hardware color)", "4",
+		           std::to_string(dut.ga_border_out) + " (default 16)",
+		           "asic_ga_timing has no SNA restore ports; border stays at power-up reset default 16");
+	}
+
+	// -------------------------------------------------------------------------
+	// 4. Selected Video / CRTC register readback and Display Enable
+	// -------------------------------------------------------------------------
+	// In SNA format, CRTC R12 = 0x30 (video RAM start address hi)
+	dut.video_crtc_cs = 1;
+	dut.video_crtc_rs = 0;
+	dut.video_crtc_rd = 0;
+	dut.video_crtc_din = 12; // select R12
+	tick();
+	dut.video_crtc_rs = 1;
+	dut.video_crtc_rd = 1;
+	dut.eval();
+	uint8_t r12_read = dut.video_crtc_dout;
+	if (r12_read != 0x30) {
+		record_gap("asic_video", "CRTC R12 (start address hi)", "0x30",
+		           "0x" + hex_str(r12_read, 2),
+		           "asic_video has no SNA restore ports; CRTC registers remain uninitialized/0");
+	}
+	dut.video_crtc_cs = 0;
+	dut.video_crtc_rd = 0;
+	dut.eval();
+
+	// In SNA format, active display DE is asserted for 40 characters per line (R1=40).
+	// When R1 is 0, DE remains permanently low.
+	int de_seen = 0;
+	for (int i = 0; i < 200; ++i) {
+		if (dut.video_de) de_seen++;
+		tick();
+	}
+	if (de_seen == 0) {
+		record_gap("asic_video", "video_de (Display Enable active pulses)", ">0", "0",
+		           "asic_video R1 is 0; Display Enable is permanently low");
+	}
+
+	// -------------------------------------------------------------------------
+	// 5. MMU ordinary ROM gates & Upper ROM selection
+	// -------------------------------------------------------------------------
+	// In SNA format, multi-config 0x8D specifies Lower ROM disabled (bit 2=1)
+	// and Upper ROM disabled (bit 3=1). Base RAM should show through!
+	// Test Lower ROM window (&0000-&3FFF):
+	dut.mmu_test_A = 0x0000;
+	dut.mmu_test_mem_rd = 1;
+	tick();
+	if (dut.mmu_cart_own != 0) {
+		record_gap("plus_mmu", "cart_own at 0x0000 (Lower ROM disabled)", "0 (RAM active)",
+		           "1 (cartridge claimed)",
+		           "plus_mmu unconditionally forces lromen <= 0 on sna_load, ignoring SNA GA config bit 2");
+	}
+	dut.mmu_test_mem_rd = 0;
+	tick();
+	tick();
+
+	// Test Upper ROM window (&C000-&FFFF):
+	dut.mmu_test_A = 0xC000;
+	dut.mmu_test_mem_rd = 1;
+	tick();
+	if (dut.mmu_cart_own != 0) {
+		record_gap("plus_mmu", "cart_own at 0xC000 (Upper ROM disabled)", "0 (RAM active)",
+		           "1 (cartridge claimed)",
+		           "plus_mmu unconditionally forces hromen <= 0 on sna_load, ignoring SNA GA config bit 3");
+	}
+
+	// Test Upper ROM bank selection:
+	// SNA format specifies sna_rom_select = 128 (cartridge page 0)
+	// In unchanged RTL, romsel stays 0, resolving to page 3
+	if (dut.mmu_cart_page != 0) {
+		record_gap("plus_mmu", "cart_page for romsel=128", "0 (cartridge page 0)",
+		           std::to_string(dut.mmu_cart_page) + " (page 3)",
+		           "plus_mmu does not restore romsel from sna_rom_select; defaults to page 3");
+	}
+	dut.mmu_test_mem_rd = 0;
+	tick();
+	tick();
+
+	// -------------------------------------------------------------------------
+	// Report findings
+	// -------------------------------------------------------------------------
+	std::printf("\n================================================================================\n");
+	std::printf("B8-5 REGRESSION AUDIT: Production Snapshot Apply Omissions (%zu detected)\n", gaps.size());
+	std::printf("================================================================================\n");
+	for (size_t i = 0; i < gaps.size(); ++i) {
+		std::printf("[%zu] Owner: %-15s | Target: %s\n", i + 1, gaps[i].owner.c_str(), gaps[i].target.c_str());
+		std::printf("    Expected from format: %s\n", gaps[i].expected.c_str());
+		std::printf("    Observed from RTL:    %s\n", gaps[i].observed.c_str());
+		std::printf("    Omission root cause:  %s\n\n", gaps[i].gap_explanation.c_str());
+	}
+	std::printf("================================================================================\n\n");
+
+	if (!gaps.empty()) {
+		if (xfail_mode) {
+			std::printf("XFAIL b8_5_snapshot_apply: %zu production apply omissions reproduced against unchanged RTL\n",
+			            gaps.size());
+		} else {
+			fail("B8-5 regression: " + std::to_string(gaps.size()) +
+			     " snapshot apply omissions detected across asic_dma, asic_ga_timing, asic_video, plus_mmu");
+		}
+	} else {
+		if (xfail_mode) {
+			fail("XPASS b8_5_snapshot_apply: all snapshot apply omissions unexpectedly passed; remove XFAIL");
+		} else {
+			std::printf("PASS b8_5_snapshot_apply: all snapshot apply checks passed\n");
+		}
+	}
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
 	Verilated::commandArgs(argc, argv);
+	bool xfail_mode = false;
+	for (int i = 1; i < argc; ++i) {
+		std::string arg = argv[i];
+		if (arg == "--xfail") xfail_mode = true;
+	}
+	if (std::getenv("PLUS_P8_XFAIL") != nullptr) {
+		xfail_mode = true;
+	}
+
 	try {
 		Vplus_p8_test_top dut;
 		test_p8_i8255_plus_quirks(dut);
@@ -795,6 +1161,7 @@ int main(int argc, char** argv) {
 		test_p8_sna_fifo_headroom(dut);
 		test_p10c_fdc_motor_tape_gating(dut);
 		test_p8_sna_integration_seam(dut);
+		test_b8_5_snapshot_apply_regression(dut, xfail_mode);
 		std::printf("All Phase P8 platform polish and P10 compatibility tests PASSED.\n");
 		return 0;
 	} catch (const std::exception& e) {
