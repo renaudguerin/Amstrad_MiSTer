@@ -23,11 +23,12 @@ hardware**, published per CRTC type on `shaker.logonsystem.eu`. There is no nume
 no published pass/fail table, and the ACCC explains the behaviour without stating the expected
 picture per test.
 
-This invalidates how the first two hardware sessions were run. Comparing our core against the
-stock core answers "did anything change", not "is it correct": if both cores are wrong the same
-way the pictures match and the session reports no progress, which is what was observed at
-`1a1233f` and `5ddddef`. The reference photograph for the selected CRTC type is the oracle; the
-stock core is only a regression baseline.
+The user clarified that the monitored tests were already failing against reference
+images on the stock core, and the fork did not change those failures. That is valid
+evidence of no observed improvement in the selected cases. Stock alone cannot
+establish correctness, but a reference-confirmed failing stock result is a useful
+regression baseline. Record selected entries and CRTC type; do not dismiss their
+unchanged failures because they do not cover the whole module.
 
 ## Module A entries, with our coverage
 
@@ -47,7 +48,7 @@ Names and test counts are verbatim from the menu. ACCC sections are from the cro
 | **(4)** UPDATE CRTC R0 TIMING | 17 | §13.6 pp.122–123, §4.4.3 p.26 | Partial, via F5/F12. Probes `OUT (C),r` versus `OUTI` phase, which our vectors do not distinguish. |
 | **(2)** SKEW DISP ON R0 RUPTURE | 4 | §19.2 pp.193–197 | Partial. Skew path is F11g and believed correct; the R0-rupture interaction is untested. |
 | **(TAB)** HSYNC START POSITION | 4 interactive | §14.6 pp.141–142 | **Integrated model pinned; hardware pending.** The production CRTC+GA controls pin type-0/type-1 R2.JIT starts at +4/+3 Mode-2 pixels, raw widths shorter by 4/3, fixed type-specific display-reactivation edges, and a same-value-write control. Run this SHAKER entry on both real CRTC types; a disagreement reopens F20. |
-| **(1)** UPDATE VRAM VS CRTC | 79 | §8 pp.43–44 | **Out of reach.** Z80 write versus fetch phase inside the 1 MHz cycle; not representable at the current character-granular interface. |
+| **(1)** UPDATE VRAM VS CRTC | 79 | §8 pp.43–44 | **Production memory/GA boundary unverified.** CPU writes, SDRAM service/cache and GA byte sampling determine visibility; this is not an established CRTC granularity ceiling. B8-4 reproduces stale video data after a write to an unchanged fetch address, without yet assigning it to a particular SHAKER case. |
 | **(8)** GATE ARRAY PIXELISATION | — | §9.1 pp.46–47 | **Out of CRTC scope** (F11i). Lives in the netlist-derived `GA40010`. |
 | **(9)** GATE ARRAY INKERISATION | 3 | §9.2 pp.48–50 | Out of CRTC scope. |
 | **(E)** GATE ARRAY MODERISATION | — | §9.3 pp.51–52 | Out of CRTC scope. |
@@ -57,18 +58,18 @@ Names and test counts are verbatim from the menu. ACCC sections are from the cro
 | **(COPY)** CRTC 2 OFFSET | — | §17.4.3 p.183, §20.3.3 p.243 | Out of project scope. |
 
 Module A totals over 600 individual tests. Roughly two thirds sit in `(I) VSYNC CONDITIONS`
-alone, and a further 79 in `(1)`, which we cannot reach at all.
+alone, and a further 79 in `(1)` require the complete write-to-pixel boundary.
 
-## Why the flat hardware result is consistent
+## What an unchanged hardware result means
 
-Three independent reasons, none of which implies the F4/F12 work is wrong:
-
-1. The oracle was the stock core, not the reference photographs, so shared inaccuracy is
-   invisible.
-2. "A few tests" is a very small sample of 600+, and the entries actually moved by F4/F12 are
-   `(U)` and parts of `(P)`.
-3. Of the 20 entries, 8 are Gate Array, CRTC 2, or sub-character scope and cannot move at all
-   from type 0/1 CRTC work.
+The result is scoped to the observed cases; it neither disproves every rule fix
+nor validates the implementation. The September 8
+[B8 review](../b8-architecture-methodology-review-2026-09-08.md) supplies a concrete
+reason to investigate production integration: several CRTC old-value side effects
+miss normal CPU write phases although direct-edge vectors pass. Type-1 RFD is
+reproduced locally and is relevant to Longshot's DSC4 prerequisite; title causality
+still needs a repair and hardware test. Gate Array and CRTC2 cases retain their
+separate ownership/scope, while VRAM timing needs the CPU/SDRAM/GA chain.
 
 ## R12/R13: the strongest next candidate
 

@@ -2,6 +2,13 @@
 
 Date: 2026-09-01
 
+**Scope correction, 2026-09-08:** the
+[B8 production-boundary review](../b8-architecture-methodology-review-2026-09-08.md)
+reproduces classic FIELD leaking into Plus; FIELD was absent from this audit's
+signature. The recorded RGB/bus isolation result remains valid within that
+observation scope. The P10 CPU below is the reduced TV80 surrogate behind a
+T80pa-shaped wrapper, not execution of the production VHDL T80.
+
 This audit tests the ownership boundary in `rtl/Amstrad_motherboard.v`. The
 classic CPC logic and the Plus logic are both instantiated, so a module can be
 correct in isolation while its output is discarded by the selected-machine

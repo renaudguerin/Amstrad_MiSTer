@@ -1,5 +1,17 @@
 # Current implementation status
 
+**Architecture/methodology review, 2026-09-08:** the user-authorized B8 first pass
+is complete against source `65364ee`; see
+[findings and repair order](b8-architecture-methodology-review-2026-09-08.md).
+The strongest accuracy finding is that CRTC old-value side effects, including
+type-1 RFD, miss production CPU write phases while direct-edge tests pass.
+Additional Plus video/palette/restore and shared-memory defects have local
+reproductions. These justify focused failure-first repair work; they do not
+establish the cause of a named hardware symptom. The clean baseline suite passes.
+The [SSH hardware-loop plan](mister-hardware-loop-plan.md) is ready for a first
+stable-screen capture once device access is supplied. No production RTL, pending
+branch, RBF or hardware verdict changed during this review.
+
 **Workflow update, 2026-09-07:** manual start/orchestrate/finish now use ad-hoc task worktrees,
 including general/auto scope and adding tasks to an existing run. Start provisions local
 reference PDFs; finish retains push-by-default and CI/artifact gates. See
@@ -17,7 +29,7 @@ stopped as instructed. B10 has no code changes. Exact branches, recovery files, 
 review debt, reference preservation, and repair backlog are in
 [the continuation handoff](session-continuation-2026-09-03.md).
 
-**Main source tip: `a8286bd` (docs-only B6/B10 wording/comments). This handoff
+**September 3 handoff source tip: `a8286bd` (docs-only B6/B10 wording/comments). This handoff
 is docs-only and adds no new validated source.** The Plus READY tip below is
 **not** on main: serial integration, CI/gates, and artifact handoff remain
 pending separate authorization.
@@ -32,7 +44,8 @@ B1/P10 closure or proof of the individual cause. The
 [dated report](hardware-evidence-2026-09-02.md) records artifact identity,
 evidence limits and the authorized FDC/Plus/review scope. Accuracy RTL work is
 deferred pending discriminating captures. No new screenshots, RBF, CI, or
-hardware closure this session; B8 remains excluded by decision.
+hardware closure in that session. B8 was subsequently authorized and reviewed
+on September 8; see the current review above.
 
 Shared FDC state is the accepted observe-only diagnostics at `d3aabbc`
 (`docs/fdc-recovery-2026-09-03.md`, independently reviewed CLEAR in
@@ -62,8 +75,8 @@ CLEAR, source-verified SNA-drain/CPU-reset chain) awaits serial integration
 with the B3 capture commit `bb77075` (see READY paragraph below), so the
 pending-integration row remains until integration lands; zero unresolved
 review findings. IA rows already
-cleared stay cleared; the B8
-architecture audit remains excluded by decision. A CLEAR verdict is not
+cleared retain their scoped evidence; the B8
+architecture audit was outside that September 3 review. A CLEAR verdict is not
 hardware closure, and comments not yet integrated are distinct from the many
 retained validation residuals. Records: `accuracy/classic-review-2026-09-03.md`,
 `plus/plus-review-2026-09-03.md`,

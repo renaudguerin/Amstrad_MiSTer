@@ -134,31 +134,19 @@ and operates after this stage. Removing or redesigning it does not affect those.
 
 **Priority: high. Cheapest route to a real oracle.**
 
-This is the only loop that can use Logon System's reference photographs as the oracle, and it
-tests the real signal path including the scaler. Every piece already exists in the MiSTer
-ecosystem; what is missing is glue.
+**RESEARCH/PLAN COMPLETE 2026-09-08; implementation awaits SSH access.** The
+[hardware-loop plan](mister-hardware-loop-plan.md) starts with Main's existing
+`/dev/MiSTer_cmd` core-load/screenshot commands, verified MGL media slots and
+Linux input injection. Prefer an installed tool or the small MiSTer Batch Control
+utility; a new daemon and custom framebuffer reader are not prerequisites.
 
-**Screen capture.** MiSTer has a built-in screenshot feature (Win+PrtScr for the scaled output,
-Win+Shift+PrtScr at the core's native resolution, written to `/media/fat/screenshots/`). For
-scripting, `alanswx/Screenshot_MiSTer` reads the ASCAL scaler's framebuffer directly from
-`/dev/mem` above the 512 MB boundary — Linux on the MiSTer is configured to use only the low
-512 MB, and ASCAL's buffers sit above it. The buffer carries a header describing the image
-format followed by raw RGB, with a frame counter at `0x20000005` and, under triple buffering,
-further frames at `0x2080_0000` and `0x2100_0000`. The triple-buffering caveats in that
-project's README must be handled or the capture will tear.
+First gate: reach one stable SHAKER screen, capture/copy it three times and verify
+build, media, model, CRTC and filter settings. Main captures the scaler buffer,
+not raw video pins or an exact instruction event. Capture coherence under
+buffering/interlace must be checked. Start with DSK/CPR: B8 found incomplete Plus
+snapshot restoration, so SNA is not an assumed shortcut.
 
-**Input injection.** The Remote Input Server Daemon runs a TCP server and synthesizes
-keystrokes through Linux `uinput`, so the FPGA receives them exactly as it would USB input.
-That solves keyboard scripting without any RTL change. MiSTer Companion is an SSH management
-GUI and is not the tool for this.
-
-**Shape of the work.** An SSH-driven script that loads the core, mounts a DSK/SNA/CPR, plays a
-recorded input sequence with delays, captures the ASCAL buffer at a named moment, and stores it
-under a test name. Expect to need: the capture utility built for the MiSTer's ARM target, the
-input daemon installed and started, and a host-side driver script. Treat "compile something on
-the ARM side" as in scope.
-
-**Comparison strategy — the unsolved part.** Reference material at
+**Comparison strategy.** Reference material at
 `https://shaker.logonsystem.eu/tests` exists as CRT photographs of real hardware *and* as
 emulator screenshots, multiplied across up to five CRTC types. Photographs will not survive
 pixel-exact comparison, and visual-LLM comparison is expensive and unreliable for exactly this
@@ -166,10 +154,13 @@ class of small geometric difference. Two practical positions:
 
 - Use **our own captures as the regression baseline** (does this build differ from the last
   build, and where), which needs no reference at all and is immediately useful for bisecting.
-- Use **emulator screenshots** rather than photographs for direct comparison, accepting the
-  emulator as a rank-2.5 oracle. Reaching Amspirit's accuracy level is an acceptable target.
+- Use **emulator screenshots** for direct comparison, with Amspirit as a useful
+  accuracy target below hardware and documentary evidence.
 
-Decide this before building the comparison half; the capture half is useful either way.
+Use our repeated captures to establish repeatability, then compare selected cases
+with the site's Amspirit references. The plan records the test/image mapping and
+keeps original references locally with attribution. Hardware remains the final
+authority; differing pixels alone do not establish which result is correct.
 
 ---
 
@@ -225,11 +216,13 @@ disk-path conclusions still require the production T80 boundary stated in
 
 **Design notes.**
 
-- **Tap video both before and after `crt_filter`.** Given B1, the pre-filter tap is where the
-  truth lives, and having both makes the filter's effect directly visible as a diff.
-- **Input**: SNA loads full Z80, RAM and CRTC state, so it skips booting and typing entirely,
-  and it freezes the exact frame of interest. CPR auto-boots and needs nothing. A scripted
-  keyboard-matrix driver is the last resort.
+- **Observe raw and selected timing together with pixels.** `crt_filter.SHIFT`
+  feeds VRAM byte assembly before RGB; the existing two timing taps therefore
+  share filter-dependent pixels. A filter-independent image requires an explicit
+  phase/data contract, not just another RGB output port.
+- **Input:** CPR auto-boots; DSK needs scripted input. SNA can shorten setup once
+  selected-machine restore is complete, but does not freeze the video engine at
+  an exact frame. B8-5 identifies concrete Plus restore omissions.
 - **Known limitation**: for SHAKER specifically, SNA is a poor fit. Each test needs a snapshot
   taken after its menu key, and some tests advance with further keypresses, so covering a module
   means dozens of hand-made snapshots. That is more manual work than scripted input on
@@ -242,23 +235,21 @@ disk-path conclusions still require the production T80 boundary stated in
 
 **Priority: medium, but the payoff is an oracle, so raise it if B2 stalls on comparison.**
 
-Longshot's two testing standards (`https://shaker.logonsystem.eu/ssmcsl`):
+**RESEARCH COMPLETE 2026-09-08:** current CSL v1.4/SSM v1.1, supplied scripts and
+reference-image routing are available; see the source-backed
+[hardware-loop plan](mister-hardware-loop-plan.md). No author conversation is a
+prerequisite for the first bounded implementation.
 
-- **CSL** (CPC Scripting Language) is an ASCII script controlling the *emulator*: insert a
-  disk, reset, select the CRTC type, send keystrokes, wait, capture a named screenshot. That
-  vocabulary maps almost one-to-one onto the B2 driver script. Implementing it is mostly a
-  matter of adopting his format instead of inventing one, and it makes our harness able to
-  consume scripts he already publishes.
-- **SSM** (ScreenShot Management) is a set of Z80 `ED`-prefixed instruction sequences that the
-  *running program* executes to request a screenshot tagged with a 16-bit identifier. This
-  requires RTL: detect the sequence in the CPU path and raise a flag the HPS can poll. More
-  work, but it produces captures at exactly the moment the test program intends, which is the
-  only way to compare against Longshot's reference set without guessing at timing.
+- **CSL:** reuse the published command format for reset, model/media selection,
+  input and capture. Declare the supported subset; host delays approximate
+  emulated microseconds, and exact VSYNC/motor/SSM waits need another layer.
+- **SSM:** recognize executed `ED LL ED HH` markers in the real CPU path, once
+  and in order. Marker observation alone does not preserve its requested image.
+  Exact capture needs an explicit event-to-framebuffer ownership contract,
+  including buffering/interlace; HPS polling or CPU pause alone is insufficient.
 
-**First move is a conversation, not code.** Ask Longshot whether the reference image sets
-behind `shaker.logonsystem.eu/tests` are available in a machine-comparable form, and whether
-SSM's opcode sequences are documented well enough to implement. A yes turns B2's comparison
-problem from unsolved into solved, and would justify the RTL work immediately.
+Start with stable-screen B2 capture, then a supplied CSL fragment. Keep passive
+event detection and exact event-to-image retention as separate later gates.
 
 ---
 
@@ -299,7 +290,10 @@ production-path audit and staged decision. Keep one dynamically selectable core;
 register writes or clocks from raw `plus_mode`, because this cannot reduce fitted resources and
 would create stale-state hazards before `Reset & apply model`. Implement conditional menu
 visibility first. Keep scaler acquisition on the Full tuple; any B1 follow-up must separate raw
-RGB/sync phase before `crt_filter` rather than sending live HBLANK into geometry measurement.
+RGB/sync phase without sending live HBLANK into geometry measurement. B8 narrows
+this premise: `crt_filter.SHIFT` already affects VRAM byte assembly before RGB;
+there is no filter-independent RGB tap today. B8 also found classic FIELD leaking
+into Plus despite the earlier RGB/bus isolation result.
 The prose below is retained as the problem statement and historical design brief.
 
 **MENU SLICE DONE 2026-09-01:** the existing Plus-model capability decoder now drives menu-mask
@@ -317,10 +311,10 @@ both modes** — each carries `.ENABLE(io_rd | io_wr)` with no `plus_mode` gate
 (`rtl/Amstrad_motherboard.v`, the `CRTC crtc` and `asic_video asic_vid` instantiations). The
 same pattern repeats for `ga40010` versus `asic_ga_timing`.
 
-This is benign for outputs *today*, because the muxes are correct as far as a fast reading
-shows. It is not benign as a structure: it is exactly the shape in which a classic code path
-silently overrides a Plus fix (which has happened in this project before), and it spends a
-large share of the 53% ALM utilization on a machine that is not running.
+The 2026-09-08 B8 audit confirms an omitted output mux: FIELD still comes from
+classic CRTC in Plus mode. Complete the selected-machine interfaces. Keeping
+both machines fitted is a separate resource choice; runtime gating does not
+recover their ALMs.
 
 **Do not split the core in two.** MiSTer convention is one core per machine *family* with a
 model selector — the ZX Spectrum core covers 48k/128k/+2/+3/Pentagon, Minimig covers multiple
@@ -404,15 +398,20 @@ anything optimized away as unreachable is either dead code or a wiring bug.
 
 **Audit 2 — dark silicon test. DONE 2026-09-01 on `plus/b7-dark-silicon-audit`, see
 `docs/plus/b7-dark-silicon-audit.md`.** Result, reproduced independently by the parent rather
-than accepted from the delegated report: **the classic-path-leaks-into-Plus hypothesis is
-ruled out.** Mutating `CRTC`, `crtc_type0_engine`, `crtc_type1_engine` or `ga40010` in Plus
-mode leaves the Plus signature bit-identical, while the same mutations in classic mode do move
+than accepted from the delegated report: **the observed Plus RGB/bus signature is
+isolated from the tested classic mutations.** Mutating `CRTC`, `crtc_type0_engine`,
+`crtc_type1_engine` or `ga40010` in Plus mode leaves the Plus signature bit-identical,
+while the same mutations in classic mode do move
 it, so the null result is meaningful rather than vacuous. All nine Plus modules shift the
- signature when corrupted, so there is no dead Plus code either. Two recorded limits: the two
+ signature when corrupted, demonstrating that each participates in that exercised
+ path; this does not prove every feature within each module is live. Two recorded limits: the two
  classic engines are not independently proven, and the fixture does not reach CRTC-type-divergent
  behaviour. Read-only review 2026-09-03 at `a98590a` records CLEAR on the primary
  Plus-live/classic-isolated result with those limits plus the TV80-surrogate CPU bound
- retained (`docs/plus/plus-review-2026-09-03.md` §5). Original scope follows. For each Plus module, deliberately corrupt it in simulation
+ retained (`docs/plus/plus-review-2026-09-03.md` §5). **B8 correction, 2026-09-08:**
+ FIELD was not observed; its production output still belongs to classic CRTC in
+ Plus mode. The earlier signature result remains valid, but does not establish
+ complete output isolation. Original scope follows. For each Plus module, deliberately corrupt it in simulation
 and assert that a Plus-mode output changes. Anything that stays green is not in the active
 path. Do the mirror test for classic modules in classic mode. This directly answers "are we
 running everything we built, and is a classic path overriding a Plus path".
@@ -421,21 +420,32 @@ running everything we built, and is a classic path overriding a Plus path".
 
 ## B8. Full independent architecture audit
 
-**Priority: medium, deliberately deferred.**
+**FIRST ARCHITECTURE/METHODOLOGY PASS COMPLETE 2026-09-08.** The user-authorized
+Astra audit examined production boundaries and fixture/process fidelity; see
+[the findings and repair order](b8-architecture-methodology-review-2026-09-08.md).
+Several defects have controlled local reproductions, led by CRTC old-value side
+effects that cannot activate at production CPU write phases. No RTL was changed;
+the clean baseline suite passes, and hardware/title causality remains unproved.
 
-The 2026-08-31 review that produced this backlog was a fast pass, not an audit: it read the
-motherboard's wiring, the video path, and the simulation layout, and stopped there. A proper
-audit of the whole design has not been done by any model.
-
-Deferred by decision pending a stronger reviewer (Fable, awaiting a rumoured new version, and
-costing usage credits). Run B6 and B7 first — they are cheaper and will narrow what the audit
-needs to look at.
+Repair the reproduced boundaries before another broad implementation campaign.
+Keep accuracy, Plus and shared-memory fixes separate. The hardware-loop research
+is complete under B2/B4; test simplification priorities feed B9. This is a scoped
+architecture pass, not exhaustive or cross-provider certification. Fable remains
+an optional, separately authorized second opinion on a concrete disputed choice.
 
 ---
 
 ## B9. Test-suite bloat and review-document archive
 
 **Priority: high. Cheap, and it reduces the cost of everything else.**
+
+**B8 REVIEW COMPLETE 2026-09-08:** priorities are production-boundary fidelity,
+removing redundant source-string checks, reusing real peripheral composition,
+and completing the existing `c12c264` consolidation after correcting its fixture
+ownership claim. See [the test/process review](b8-architecture-methodology-review-2026-09-08.md#test-and-process-review).
+Measured full-suite wall time on a clean exact-source archive was 198 seconds;
+the warm run was 57 seconds. No default gate was removed. Reducing test count
+alone would not address the reproduced defects.
 
 **ARCHIVE SLICE COMPLETE 2026-09-01.** Eighteen settled accuracy review
 documents and seven settled Plus review records now live under indexed
@@ -585,30 +595,25 @@ this after B6, since the menu model is the same conversation.
 
 **Priority: medium. Back in scope by decision, 2026-08-31.**
 
-**Plain statement of the limit.** The CRTC engines make their decisions on character phases.
-Real hardware resolves events *inside* a character: a Z80 write can land partway through a
-fetch and the outcome depends on exactly where. SHAKER Module A entry (1) UPDATE VRAM VS CRTC
-(79 tests) and part of entry (4) test precisely that, and cannot pass at the current
-granularity however correct everything else becomes.
+**SCOPE CORRECTED 2026-09-08:** this is a CPU-write-to-observed-output contract,
+not an established character-granularity ceiling. The
+[B8 findings](b8-architecture-methodology-review-2026-09-08.md) identify two
+specific boundaries: old-register CRTC side effects miss legal CPU write phases
+(B8-1), and the SDRAM video cache can retain stale data after a CPU write to an
+unchanged fetch address (B8-4).
 
-**Correction to the earlier framing.** The CRTC is not purely character-granular today: it
-already resolves half-characters, using both `CLKEN` and `nCLKEN` with explicit
-`de_second_half`, `hsync_char_phase` and `r2_jit_pending` state. The remaining gap is finer
-than that — resolving the Z80's position within the character, which the (4) entry probes as
-`OUT (C),r` third microsecond versus `OUTI` fifth microsecond.
+The CRTC already resolves half-characters and some system-clock write events;
+GA40010 already supplies finer clock and byte-sampling phases. SHAKER Module A
+(4) needs the documented CPU instruction/write phase carried into the CRTC rules.
+Entry (1), UPDATE VRAM VS CRTC, also depends on CPU writes, SDRAM service/cache
+and GA byte sampling. CPU memory writes do not pass through the CRTC. It is
+therefore unsupported to call that entry impossible or all its work CRTC-side.
 
-**Compatibility with GA40010 — this is the good news.** `ga40010` is netlist-derived (from a
-decapped chip; see the history at `https://github.com/codedchip/AMSGateArray#other-peoples-work`,
-meaning it was reconstructed from the physical gate layout rather than written from a behavioural
-description, and is therefore the most trustworthy module in the project). It already runs on the
-16 MHz clock and generates CCLK, RAS and CAS, so it is *already* sub-character and needs no
-change. It is in fact the phase reference the rework would use. **The work is entirely
-CRTC-side**: give the engines awareness of the finer phase the Gate Array already provides,
-rather than only the character enables.
-
-This was parked early in the project, and the user has since asked for it back in scope. Treat
-it as a genuine structural change: it touches state shared across `rtl/CRTC.v` and both engines,
-so it needs its own failing vectors first and a careful soak-hash story.
+Preserve the netlist-derived GA as the phase reference unless contrary evidence
+requires changing it. Start from a source-derived failing vector across the
+relevant production boundary. A shared-counter change still needs the full
+suite and an explained soak hash; a memory-service fix belongs to general/shared
+work and must preserve CPU, cartridge and refresh scheduling.
 
 ---
 

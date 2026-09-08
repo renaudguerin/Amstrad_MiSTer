@@ -17,8 +17,9 @@ audits the mode selector, register-write enables, persistent state, and MiSTer m
 2. **Do not gate either engine from raw `plus_mode`.** `plus_mode` changes combinationally from
    `status[34:33]`, while the menu instructs the user to apply `Reset & apply model` separately.
    Gating on the raw selection can therefore freeze one engine before reset, miss a boundary
-   write, and later resume stale timing or cartridge/DMA state. Output selection already keeps
-   the inactive engine off the visible and bus-facing paths.
+   write, and later resume stale timing or cartridge/DMA state. Preserve this
+   decision while completing output ownership: B8 found that FIELD still comes
+   from classic CRTC in Plus mode, outside B7's observed RGB/bus signature.
 3. **Use conditional menu visibility now.** A wider `status_menumask` can hide Plus-only,
    classic-only, disk-capable, and tape-capable options without changing any persisted status
    encoding. Hidden options retain their values; applying a machine remains an explicit reset.
@@ -31,9 +32,12 @@ audits the mode selector, register-write enables, persistent state, and MiSTer m
    VBLANK.
 5. **Preserve raw phase before the filter.** Classic `ga40010` and Plus `asic_video` already
    use raw CRTC HSYNC to force RGB blanking. Any next B1 experiment should observe or explicitly
-   select that pre-filter RGB/sync phase while leaving scaler geometry stable. The ownership
-   split belongs at `crt_filter_output_select` / `Amstrad_motherboard`, not after ASCAL, where
-   raw HBLANK no longer exists.
+   select that phase while leaving scaler geometry stable. **B8 clarification,
+   2026-09-08:** `crt_filter.SHIFT` feeds VRAM byte assembly before RGB, so the
+   existing raw/selected timing taps share filter-dependent pixels. A raw image
+   needs an explicit byte-phase contract, not just a pre-filter RGB port. The
+   ownership split belongs at `crt_filter_output_select` / `Amstrad_motherboard`,
+   before ASCAL consumes the geometry.
 6. **Do not reopen the complete ASIC register page.** The B5 map shows that most ordinary ASIC
    behavior already has a production owner and deterministic fixture. Follow-up work is limited
    to its named G1-G7 gaps and evidence boundaries.
@@ -52,8 +56,11 @@ tests exist:
 - Dandanator ownership, `rom_map`, SNA parser drain and snapshot shadows;
 - DMA reset and restart behavior.
 
-The B7 mutation audit establishes output isolation for steady-state selections. It does not prove
-arbitrary menu-transition edges safe. Before any future power-oriented gate, add a transition
+The B7 mutation audit establishes isolation for its observed RGB/bus signature;
+it omitted FIELD and therefore did not prove complete output isolation. B8's
+[production-boundary review](b8-architecture-methodology-review-2026-09-08.md)
+records the counterexample. It also does not prove arbitrary menu-transition
+edges safe. Before any future power-oriented gate, add a transition
 matrix covering writes immediately before/after selection, snapshot load/drain, CPR completion,
 DMA and sprite seams, then measure switching power. Do not promise a fit reduction from that work.
 

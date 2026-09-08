@@ -435,6 +435,16 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 ## 8. Immediate execution queue
 
+**2026-09-08 architecture review:** prioritize the reproduced production-boundary
+defects in [B8's repair order](b8-architecture-methodology-review-2026-09-08.md#architecture-choices-and-next-work),
+starting with classic RFD write-event timing and bounded Plus video/palette fixes.
+This is new integration evidence that permits focused investigation before
+another manual hardware round; it does not close DSC4/SHAKER or any Plus title.
+Keep the shared FDC work and pending branches below intact. The
+[B2/B4 hardware-loop plan](mister-hardware-loop-plan.md) starts with existing
+Main capture/input tools when SSH access is supplied. B9's next cleanup follows
+the same review's measured cost and fixture-fidelity findings.
+
 **2026-09-03 handoff (docs-only, no new validated source on main):** main
 source tip is `a8286bd`; FDC state is the accepted observe-only diagnostics
 `d3aabbc` with the classic AMSDOS regression still required/unmet and the
