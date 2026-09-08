@@ -13,7 +13,11 @@ module asic_unlock
 	output reg       unlocked,
 
 	input            sna_load,
-	input            sna_unlock
+	input            sna_unlock,
+	// B8-5 slice A: SNA CPC+ 0x8F7 next-expected-unlock-byte state.
+	// 0 waits nonzero, 1 waits zero, 2..E wait FF..8A, F waits CD, 10h
+	// waits the terminal EE (which never alters the lock decision).
+	input      [4:0] sna_seq_state
 );
 
 reg       matching_sequence;
@@ -50,9 +54,50 @@ always @(posedge clk or negedge RESET_N) begin
 		sequence_index    <= 4'd0;
 	end
 	else if (sna_load) begin
-		unlocked          <= sna_unlock;
-		matching_sequence <= 1'b0;
-		sequence_index    <= 4'd0;
+		// 8F6 restores the lock independently; 8F7 restores the next
+		// expected sequence state (SNA format note 10). Mid-sequence
+		// states resume with the previous byte's nonzero status so a
+		// later mismatch re-arms exactly as if the prefix had been
+		// written live: only the state-2 prefix (after the sync zero)
+		// resumes with previous_nonzero clear. The terminal EE state
+		// (10h) is the ordinary post-CD unsynchronised state with a
+		// pending nonzero: the EE byte itself never touches the lock,
+		// and no CD is replayed.
+		unlocked <= sna_unlock;
+		case (sna_seq_state)
+		5'd0: begin
+			matching_sequence <= 1'b0;
+			previous_nonzero  <= 1'b0;
+			sequence_index    <= 4'd0;
+		end
+		5'd1: begin
+			matching_sequence <= 1'b0;
+			previous_nonzero  <= 1'b1;
+			sequence_index    <= 4'd0;
+		end
+		5'd15: begin
+			matching_sequence <= 1'b1;
+			previous_nonzero  <= 1'b1;
+			sequence_index    <= 4'd13;
+		end
+		5'd16: begin
+			matching_sequence <= 1'b0;
+			previous_nonzero  <= 1'b1;
+			sequence_index    <= 4'd0;
+		end
+		default: begin
+			if (sna_seq_state >= 5'd2 && sna_seq_state <= 5'd14) begin
+				matching_sequence <= 1'b1;
+				previous_nonzero  <= (sna_seq_state == 5'd2) ? 1'b0 : 1'b1;
+				sequence_index    <= sna_seq_state[3:0] - 4'd2;
+			end
+			else begin
+				matching_sequence <= 1'b0;
+				previous_nonzero  <= 1'b0;
+				sequence_index    <= 4'd0;
+			end
+		end
+		endcase
 	end
 	else if (write_strobe) begin
 		previous_nonzero <= (write_data != 8'h00);
