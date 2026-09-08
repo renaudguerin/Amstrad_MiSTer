@@ -36,6 +36,25 @@ module sdram_cartridge_test_top
 	input             tape_rd,
 	output            tape_rd_ack,
 
+	// B8-7 tape seam: the production write queue executes here against the
+	// same physical-DQ controller. When tape_seam_enable is set the direct
+	// tape_addr/tape_din/tape_wr inputs above are ignored and the helper
+	// owns them; C++ drives the download/ioctl side instead.
+	input             tape_seam_enable,
+	input             tape_seam_download,
+	input             tape_seam_ioctl_wr,
+	input       [7:0] tape_seam_ioctl_dout,
+	input      [22:0] tape_seam_ioctl_addr,
+	input      [22:0] tape_seam_play_addr,
+	input             tape_seam_reset,
+	input             tape_seam_clear,
+	output            tape_seam_wr,
+	output      [7:0] tape_seam_din,
+	output     [22:0] tape_seam_queued,
+	output     [22:0] tape_seam_addr,
+	output            tape_seam_wait,
+	output            tape_seam_pending,
+
 	input      [15:0] memory_dq,
 	input             memory_dq_oe,
 	output     [15:0] observed_dq,
@@ -97,6 +116,44 @@ wire        unused_sdram_ncs;
 assign sdram_dq = memory_dq_oe ? memory_dq : 16'hzzzz;
 assign observed_dq = sdram_dq;
 
+// B8-7 production seam wiring.
+wire        seam_tape_wr;
+wire  [7:0] seam_tape_din;
+wire [22:0] seam_tape_queued;
+wire [22:0] seam_tape_addr;
+wire        seam_tape_wait;
+wire        seam_tape_pending;
+
+tape_write_queue tape_queue
+(
+	.clk(clk),
+	.reset(tape_seam_reset),
+	.clear(tape_seam_clear),
+	.tape_download(tape_seam_download),
+	.ioctl_wr(tape_seam_ioctl_wr),
+	.ioctl_dout(tape_seam_ioctl_dout),
+	.ioctl_addr(tape_seam_ioctl_addr),
+	.tape_wr_ack(tape_wr_ack),
+	.tape_play_addr(tape_seam_play_addr),
+	.tape_wr(seam_tape_wr),
+	.tape_din(seam_tape_din),
+	.tape_queued_addr(seam_tape_queued),
+	.tape_addr(seam_tape_addr),
+	.tape_wait(seam_tape_wait),
+	.tape_pending(seam_tape_pending)
+);
+
+assign tape_seam_wr = seam_tape_wr;
+assign tape_seam_din = seam_tape_din;
+assign tape_seam_queued = seam_tape_queued;
+assign tape_seam_addr = seam_tape_addr;
+assign tape_seam_wait = seam_tape_wait;
+assign tape_seam_pending = seam_tape_pending;
+
+wire [22:0] dut_tape_addr = tape_seam_enable ? seam_tape_addr : tape_addr;
+wire  [7:0] dut_tape_din  = tape_seam_enable ? seam_tape_din  : tape_din;
+wire        dut_tape_wr   = tape_seam_enable ? seam_tape_wr   : tape_wr;
+
 sdram dut
 (
 	.SDRAM_DQ(sdram_dq),
@@ -129,10 +186,10 @@ sdram dut
 	.vram_dout(vram_dout),
 	.vram_addr(vram_addr),
 	.vram_bank(vram_bank),
-	.tape_addr(tape_addr),
-	.tape_din(tape_din),
+	.tape_addr(dut_tape_addr),
+	.tape_din(dut_tape_din),
 	.tape_dout(tape_dout),
-	.tape_wr(tape_wr),
+	.tape_wr(dut_tape_wr),
 	.tape_wr_ack(tape_wr_ack),
 	.tape_rd(tape_rd),
 	.tape_rd_ack(tape_rd_ack)

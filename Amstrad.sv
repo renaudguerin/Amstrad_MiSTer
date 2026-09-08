@@ -299,7 +299,7 @@ wire        plus_sna_unlock;
 wire        plus_sna_ioctl_wait;
 wire        plus_sna_busy;
 
-assign ioctl_wait = romdl_wait | (sna_download && ((|sna_rle_count && (sna_rle_state == 2'd0)) || plus_sna_ioctl_wait)) | cpr_ioctl_wait;
+assign ioctl_wait = romdl_wait | (sna_download && ((|sna_rle_count && (sna_rle_state == 2'd0)) || plus_sna_ioctl_wait)) | cpr_ioctl_wait | tape_queue_wait;
 
 function automatic [1:0] valid_model(input [1:0] requested);
 	begin
@@ -714,7 +714,7 @@ sdram sdram
 	.vram_addr({2'b10,vram_addr,1'b0}),
 	.vram_dout(vram_dout),
 
-	.tape_addr(tape_download ? tape_last_addr : tape_play_addr),
+	.tape_addr(tape_sdram_addr),
 	.tape_din(tape_din),
 	.tape_dout(tape_dout),
 	.tape_wr(tape_wr),
@@ -750,10 +750,16 @@ end
 
 ////////////////////// CDT playback ///////////////////////////////
 
-reg  [22:0] tape_last_addr;
-reg   [7:0] tape_din;
-reg         tape_wr = 0;
+// B8-7: the download write queue (held request, queued payload/address,
+// ioctl backpressure, drain-held address ownership) lives in
+// rtl/tape_write_queue.v so the physical-DQ fixture executes the same seam.
+wire [22:0] tape_last_addr;
+wire  [7:0] tape_din;
+wire        tape_wr;
 wire        tape_wr_ack;
+wire [22:0] tape_sdram_addr;
+wire        tape_queue_wait;
+wire        tape_queue_pending;
 wire        tape_read;
 wire        tape_running;
 wire        tape_data_req;
@@ -763,27 +769,40 @@ wire  [7:0] tape_dout;
 reg  [22:0] tape_play_addr;
 wire        tape_motor;
 
+tape_write_queue tape_queue
+(
+	.clk(clk_sys),
+	.reset(reset),
+	.clear(reset | Fn[2]),
+	.tape_download(tape_download),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_dout(ioctl_dout),
+	.ioctl_addr(ioctl_addr[22:0]),
+	.tape_wr_ack(tape_wr_ack),
+	.tape_play_addr(tape_play_addr),
+	.tape_wr(tape_wr),
+	.tape_din(tape_din),
+	.tape_queued_addr(tape_last_addr),
+	.tape_addr(tape_sdram_addr),
+	.tape_wait(tape_queue_wait),
+	.tape_pending(tape_queue_pending)
+);
+
 always @(posedge clk_sys) begin
 	reg old_tape_ack;
 	reg old_dan_download;
-
-	if(tape_wr_ack | reset) tape_wr <= 0;
-	if(tape_download && ioctl_wr) begin
-		tape_wr <= 1;
-		tape_din <= ioctl_dout;
-		tape_last_addr <= ioctl_addr[22:0];
-	end
 
 	old_tape_ack <= tape_data_ack;
 
 	if (reset | Fn[2]) begin
 		tape_play_addr <= 0;
-		tape_last_addr <= 0;
 		tape_reset <= 1;
 	end
 	else begin
 		tape_reset <= 0;
-		if (tape_download) begin
+		// B8-7: keep download address ownership and the player reset until
+		// the pending write drains, even if the download ends first.
+		if (tape_download | tape_queue_pending) begin
 			tape_play_addr <= 0;
 			tape_reset <= 1;
 		end
