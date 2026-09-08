@@ -18,7 +18,7 @@ make -C sim clean test lint
 This is the per-commit gate for production RTL, simulation vectors, co-simulation manifests,
 and repository tooling.  A failed Tier A run blocks every higher tier.
 
-The hosted job builds the repository-pinned Verilator 5.050 source commit and caches the
+The hosted job builds the repository-pinned Verilator 5.052 source commit and caches the
 installed prefix by operating system, architecture, and installer-script hash. Every restore
 is checked against both the exact-source marker and reported version before use. A cold run
 therefore needs a 30-minute budget; subsequent runs reuse the compiled tool. GitHub cache

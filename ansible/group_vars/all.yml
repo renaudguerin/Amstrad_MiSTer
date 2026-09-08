@@ -62,8 +62,8 @@ quartus_required: false
 # distribution repository. Debian and Ubuntu packages lag the version used by
 # local development, and keeping both runners on the same exact release avoids
 # simulator-only RTL compatibility edits.
-verilator_version: "5.050"
-verilator_commit: "848d926ebd4addacacd294dc84e35d9d4ae8078c"
+verilator_version: "5.052"
+verilator_commit: "ea338be98e1e838d3518809ce8899f85a009963c"
 verilator_install_prefix: "/opt/verilator-{{ verilator_version }}"
 
 quartus_native_packages:

@@ -1,5 +1,18 @@
 # Current implementation status
 
+**CI toolchain alignment, 2026-09-08:** after the B8 build and corrected 5.050
+CI completed, the user requested matching the local simulator version. The
+installer and matching Ansible provisioning variables now pin Verilator 5.052 to official upstream commit
+`ea338be98e1e838d3518809ce8899f85a009963c` (peeled `v5.052` release tag).
+The installer-hash cache key selects a fresh cache automatically; source-marker
+and reported-version checks remain unchanged. CI execution on this new pin is
+pending. This toolchain-only change does not alter the synthesized inputs or
+the delivered B8 RBF below. The older-version waiver guard is retained.
+Muse Spark/xhigh returned scoped CLEAR in guarded run
+`20260908T024401Z-24341-f068` (clean exit and complete handoff), checking the
+release ref, matching pins, cache/check contract and shell/YAML syntax. This
+weaker-than-Opus source review did not install or execute the new CI toolchain.
+
 **B8 integration artifact, 2026-09-08:** Accuracy merge `35ae03b` and Plus
 merge `dba49d5` are pushed. Full-effort Quartus 17.0.2 on exact source
 `dba49d57ab2e3e2f024b070bd6efa023073d902f` passed in
@@ -1455,7 +1468,7 @@ extended a02-a06; both passes' residual items are recorded in the review
 document.
 
 Tooling policy: hosted CI and the Ansible-provisioned local VM both pin
-**Verilator 5.050** from the exact official upstream commit used by local
+**Verilator 5.052** from the exact official upstream release matching local
 development. The earlier hosted 5.020 package rejected the YM2149 unpacked
 array initializer and the P10 input fixture's mixed scheduling, which led to
 temporary compatibility edits. Those edits were removed when the toolchain

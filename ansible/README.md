@@ -6,7 +6,7 @@ UTM's Rosetta runtime, registers the x86_64 ELF handler, enables Debian amd64
 multiarch, and installs the native and amd64 runtime dependencies used by
 Quartus and the repository's Verilator tests.
 
-The playbook removes Debian's older Verilator package, builds Verilator 5.050
+The playbook removes Debian's older Verilator package, builds Verilator 5.052
 from its exact official upstream commit, and links it at
 `/usr/local/bin/verilator`. `validate.yml` checks both the reported version and
 the source-commit marker, so the local VM and GitHub-hosted simulation runner
