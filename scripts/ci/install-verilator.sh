@@ -6,8 +6,8 @@ set -euo pipefail
 # VERILATOR_INSTALL_PREFIX.  The exact upstream commit keeps hosted CI and the
 # local Quartus VM on the same reproducible simulator rather than their older
 # distribution packages.
-readonly verilator_version="5.050"
-readonly verilator_commit="848d926ebd4addacacd294dc84e35d9d4ae8078c"
+readonly verilator_version="5.052"
+readonly verilator_commit="ea338be98e1e838d3518809ce8899f85a009963c"
 readonly verilator_repo="https://github.com/verilator/verilator.git"
 install_prefix="${VERILATOR_INSTALL_PREFIX:-/usr/local}"
 install_marker="$install_prefix/.verilator-source-$verilator_commit"
