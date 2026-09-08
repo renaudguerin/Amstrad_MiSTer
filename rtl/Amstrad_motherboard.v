@@ -81,6 +81,27 @@ module Amstrad_motherboard
 	input   [3:0] sna_psg_addr,
 	input [127:0] sna_psg_regs,
 
+	// B8-5 slice A: snapshot CPU execution hold (high through the apply
+	// pulse) and settled CPC+/header DMA payload. sna_hold gates both T80
+	// CEN enables: T80 RESET has priority over DIRSet while DIRSet loads
+	// independently of CEN (rtl/T80/T80pa.vhd, T80.vhd, T80_Reg.vhd), so
+	// the CPU cannot execute until the owners settle yet the register
+	// load still lands. Non-SNA fixtures tie all of these to zero.
+	input         sna_hold,
+	input         sna_hsync,
+	input  [11:0] sna_dma_loop_cnt0,
+	input  [11:0] sna_dma_loop_cnt1,
+	input  [11:0] sna_dma_loop_cnt2,
+	input  [15:0] sna_dma_loop_addr0,
+	input  [15:0] sna_dma_loop_addr1,
+	input  [15:0] sna_dma_loop_addr2,
+	input  [11:0] sna_dma_pause_cnt0,
+	input  [11:0] sna_dma_pause_cnt1,
+	input  [11:0] sna_dma_pause_cnt2,
+	input   [7:0] sna_dma_pause_presc0,
+	input   [7:0] sna_dma_pause_presc1,
+	input   [7:0] sna_dma_pause_presc2,
+
 	input         plus_sna_wr,
 	input  [13:0] plus_sna_addr,
 	input   [7:0] plus_sna_data,
@@ -178,13 +199,13 @@ always @(posedge clk) begin
 	else if (~M1_n & ~MREQ_n & ~RD_n) io_bus_byte <= cpu_data_bus;
 end
 
-T80pa CPU
+	T80pa CPU
 (
 	.reset_n(~reset),
-	
+
 	.clk(clk),
-	.cen_p(phi_en_p),
-	.cen_n(phi_en_n),
+	.cen_p(phi_en_p & ~sna_hold),
+	.cen_n(phi_en_n & ~sna_hold),
 
 	.a(A),
 	.do(D),
@@ -584,6 +605,21 @@ asic_dma dma_sound
 	.cclk_en_p(plus_cclk_en_p),
 	.cclk_en_n(plus_cclk_en_n),
 	.hsync(plus_crtc_hs),
+
+	.sna_load(sna_load),
+	.sna_loop_cnt0(sna_dma_loop_cnt0),
+	.sna_loop_cnt1(sna_dma_loop_cnt1),
+	.sna_loop_cnt2(sna_dma_loop_cnt2),
+	.sna_loop_addr0(sna_dma_loop_addr0),
+	.sna_loop_addr1(sna_dma_loop_addr1),
+	.sna_loop_addr2(sna_dma_loop_addr2),
+	.sna_pause_cnt0(sna_dma_pause_cnt0),
+	.sna_pause_cnt1(sna_dma_pause_cnt1),
+	.sna_pause_cnt2(sna_dma_pause_cnt2),
+	.sna_pause_presc0(sna_dma_pause_presc0),
+	.sna_pause_presc1(sna_dma_pause_presc1),
+	.sna_pause_presc2(sna_dma_pause_presc2),
+	.sna_hsync(sna_hsync),
 
 	.sar0_lo(dma_sar0_lo),
 	.sar0_hi(dma_sar0_hi),

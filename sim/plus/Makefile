@@ -249,7 +249,7 @@ DMA_TEST_BIN := $(DMA_OBJ_DIR)/asic_dma_tests
 P8_OBJ_DIR  := obj_dir/plus_p8
 P8_TEST_SRC := $(abspath plus_p8_test.cpp)
 P8_TEST_BIN := $(P8_OBJ_DIR)/plus_p8_tests
-P8_RTL      := $(abspath plus_p8_test_top.v) $(abspath ../../rtl/i8255.v) $(abspath ../../rtl/plus/plus_sna_parser.v) $(abspath ../../rtl/plus/plus_model_select.v) $(abspath ../../rtl/plus/plus_fdc_decode.v) $(abspath ../../rtl/plus/asic_regs.v) $(abspath ../../rtl/plus/plus_sprite_ram.v) $(abspath ../../rtl/plus/plus_mmu.v) $(abspath ../../rtl/plus/asic_unlock.v) \
+P8_RTL      := $(abspath plus_p8_test_top.v) $(abspath ../../rtl/plus/plus_sna_apply.v) $(abspath ../../rtl/i8255.v) $(abspath ../../rtl/plus/plus_sna_parser.v) $(abspath ../../rtl/plus/plus_model_select.v) $(abspath ../../rtl/plus/plus_fdc_decode.v) $(abspath ../../rtl/plus/asic_regs.v) $(abspath ../../rtl/plus/plus_sprite_ram.v) $(abspath ../../rtl/plus/plus_mmu.v) $(abspath ../../rtl/plus/asic_unlock.v) \
 	$(abspath ../../rtl/plus/asic_dma.v) $(abspath ../../rtl/plus/asic_video.v) $(abspath ../../rtl/plus/asic_ga_timing.v)
 
 # P10a real-T80 production CPR boot harness
@@ -724,6 +724,8 @@ lint: motherboard-lint
 		--top-module $(P1VID_TOP) -Wall -Wno-fatal $(P1VID_TOP_SRC) $(P1VID_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module plus_sna_parser -Wall $(abspath ../../rtl/plus/plus_sna_parser.v)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module plus_sna_apply -Wall $(abspath ../../rtl/plus/plus_sna_apply.v)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module i8255 -Wall -Wno-CASEX $(abspath ../../rtl/i8255.v)
 	$(VERILATOR) --lint-only -UVERILATOR --public-flat-rw \

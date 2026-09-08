@@ -26,8 +26,33 @@ module plus_sna_parser
 	// Interface to plus_mmu / asic_unlock
 	output reg        asic_sna_active,     // goes high if a valid CPC+ chunk is found
 	output reg  [7:0] asic_sna_rmr2,
-	output reg        asic_sna_unlock
+	output reg        asic_sna_unlock,
+
+	// B8-5 slice A: CPC+ DMA internal-state shadows (chunk 0x8E0-0x8F4,
+	// three seven-byte records) and unlock sequence state (0x8F7).
+	// SNA format map: per channel LE16 loop count (lower 12 bits), LE16
+	// loop address, LE16 pause count (lower 12 bits), prescaler8.
+	output [11:0] asic_sna_loop_cnt0,
+	output [11:0] asic_sna_loop_cnt1,
+	output [11:0] asic_sna_loop_cnt2,
+	output [15:0] asic_sna_loop_addr0,
+	output [15:0] asic_sna_loop_addr1,
+	output [15:0] asic_sna_loop_addr2,
+	output [11:0] asic_sna_pause_cnt0,
+	output [11:0] asic_sna_pause_cnt1,
+	output [11:0] asic_sna_pause_cnt2,
+	output  [7:0] asic_sna_pause_presc0,
+	output  [7:0] asic_sna_pause_presc1,
+	output  [7:0] asic_sna_pause_presc2,
+	output  [4:0] asic_sna_seq_state
 );
+
+	reg [11:0] sna_loop_cnt [0:2];
+	reg [15:0] sna_loop_addr [0:2];
+	reg [11:0] sna_pause_cnt [0:2];
+	reg  [7:0] sna_pause_presc [0:2];
+	reg  [4:0] sna_seq_state_r;
+	reg  [7:0] pair_lo;
 
 	reg [15:0] chunk_byte_cnt;
 	reg        sna_download_d;
@@ -43,6 +68,30 @@ module plus_sna_parser
 
 	wire [3:0] fifo_count = fifo_wr_ptr - fifo_rd_ptr;
 	wire       fifo_empty = (fifo_wr_ptr == fifo_rd_ptr);
+
+	assign asic_sna_loop_cnt0    = sna_loop_cnt[0];
+	assign asic_sna_loop_cnt1    = sna_loop_cnt[1];
+	assign asic_sna_loop_cnt2    = sna_loop_cnt[2];
+	assign asic_sna_loop_addr0   = sna_loop_addr[0];
+	assign asic_sna_loop_addr1   = sna_loop_addr[1];
+	assign asic_sna_loop_addr2   = sna_loop_addr[2];
+	assign asic_sna_pause_cnt0   = sna_pause_cnt[0];
+	assign asic_sna_pause_cnt1   = sna_pause_cnt[1];
+	assign asic_sna_pause_cnt2   = sna_pause_cnt[2];
+	assign asic_sna_pause_presc0 = sna_pause_presc[0];
+	assign asic_sna_pause_presc1 = sna_pause_presc[1];
+	assign asic_sna_pause_presc2 = sna_pause_presc[2];
+	assign asic_sna_seq_state    = sna_seq_state_r;
+
+	// Channel and sub-offset of a 0x8E0-0x8F4 internal-register byte.
+	// The record boundaries (0x8E0/0x8E7/0x8EE) select the channel; the
+	// low 3 bits relative to the record base select the sub-offset 0..6
+	// with 3-bit wrap, keeping the 7-record framing without division.
+	wire [1:0] sna_int_ch = (chunk_byte_cnt >= 16'h08EE) ? 2'd2 :
+	                        (chunk_byte_cnt >= 16'h08E7) ? 2'd1 : 2'd0;
+	wire [2:0] sna_int_base_l3 = (sna_int_ch == 2'd2) ? 3'd6 :
+	                             (sna_int_ch == 2'd1) ? 3'd7 : 3'd0;
+	wire [2:0] sna_int_sub = chunk_byte_cnt[2:0] - sna_int_base_l3;
 	// A sprite payload byte expands to two writes.  The producer can already
 	// have two accepted bytes in flight when it observes ioctl_wait, so assert
 	// with five physical slots left: both bytes fit even without relying on a
@@ -64,6 +113,20 @@ module plus_sna_parser
 			asic_sna_active <= 1'b0;
 			asic_sna_rmr2   <= 8'd0;
 			asic_sna_unlock <= 1'b0;
+			sna_loop_cnt[0]  <= 12'd0;
+			sna_loop_cnt[1]  <= 12'd0;
+			sna_loop_cnt[2]  <= 12'd0;
+			sna_loop_addr[0] <= 16'd0;
+			sna_loop_addr[1] <= 16'd0;
+			sna_loop_addr[2] <= 16'd0;
+			sna_pause_cnt[0] <= 12'd0;
+			sna_pause_cnt[1] <= 12'd0;
+			sna_pause_cnt[2] <= 12'd0;
+			sna_pause_presc[0] <= 8'd0;
+			sna_pause_presc[1] <= 8'd0;
+			sna_pause_presc[2] <= 8'd0;
+			sna_seq_state_r  <= 5'd0;
+			pair_lo          <= 8'd0;
 			fifo_wr_ptr     <= 4'd0;
 			fifo_rd_ptr     <= 4'd0;
 		end
@@ -82,6 +145,20 @@ module plus_sna_parser
 				asic_sna_active <= 1'b0;
 				asic_sna_rmr2   <= 8'd0;
 				asic_sna_unlock <= 1'b0;
+				sna_loop_cnt[0]  <= 12'd0;
+				sna_loop_cnt[1]  <= 12'd0;
+				sna_loop_cnt[2]  <= 12'd0;
+				sna_loop_addr[0] <= 16'd0;
+				sna_loop_addr[1] <= 16'd0;
+				sna_loop_addr[2] <= 16'd0;
+				sna_pause_cnt[0] <= 12'd0;
+				sna_pause_cnt[1] <= 12'd0;
+				sna_pause_cnt[2] <= 12'd0;
+				sna_pause_presc[0] <= 8'd0;
+				sna_pause_presc[1] <= 8'd0;
+				sna_pause_presc[2] <= 8'd0;
+				sna_seq_state_r  <= 5'd0;
+				pair_lo          <= 8'd0;
 				fifo_wr_ptr     <= 4'd0;
 				fifo_rd_ptr     <= 4'd0;
 			end
@@ -137,6 +214,34 @@ module plus_sna_parser
 				else if (chunk_byte_cnt == 16'h08F6) begin
 					// Gate array A0 lock (0=locked, 1=unlocked)
 					asic_sna_unlock <= cpc_plus_byte_data[0];
+				end
+				else if (chunk_byte_cnt == 16'h08F7) begin
+					// ASIC unlock sequence state: the next expected byte
+					// (SNA format note 10; 0..16 fit 5 bits).
+					sna_seq_state_r <= cpc_plus_byte_data[4:0];
+				end
+				else if (chunk_byte_cnt >= 16'h08E0 &&
+				         chunk_byte_cnt <= 16'h08F4) begin
+					// DMA channel internal registers: each record is
+					// LE16 loop count (12 meaningful bits), LE16 loop
+					// address, LE16 pause count (12 bits), prescaler8.
+					// The pause field is a remaining prescaled tick count
+					// and the prescaler field its remaining phase
+					// (audit: Arnold V PAUSE + runtime, B8-5 doc).
+					case (sna_int_sub)
+					3'd0: pair_lo <= cpc_plus_byte_data;
+					3'd1: sna_loop_cnt[sna_int_ch] <=
+						{cpc_plus_byte_data[3:0], pair_lo};
+					3'd2: pair_lo <= cpc_plus_byte_data;
+					3'd3: sna_loop_addr[sna_int_ch] <=
+						{cpc_plus_byte_data, pair_lo};
+					3'd4: pair_lo <= cpc_plus_byte_data;
+					3'd5: sna_pause_cnt[sna_int_ch] <=
+						{cpc_plus_byte_data[3:0], pair_lo};
+					3'd6: sna_pause_presc[sna_int_ch] <=
+						cpc_plus_byte_data;
+					default: ;
+					endcase
 				end
 			end
 

@@ -95,12 +95,18 @@ plus_mmu mmu
 	.cart_ready(mmu_cart_ready),
 	.cart_data(mmu_cart_data),
 	.cart_busy(service_busy),
-	.cart_own(mmu_cart_own),
-	.cart_stall(mmu_cart_stall),
-	.cart_dout(mmu_cart_dout),
-	.asic_page_on(),
-	.asic_unlocked()
-);
+		.cart_own(mmu_cart_own),
+		.cart_stall(mmu_cart_stall),
+		.cart_dout(mmu_cart_dout),
+		.asic_page_on(),
+		.asic_unlocked(),
+		.sna_load(1'b0),
+		.sna_rmr2(8'd0),
+		.sna_unlock(1'b0),
+		.sna_ga_config(8'd0),
+		.sna_romsel(8'd0),
+		.sna_seq_state(5'd0)
+	);
 
 plus_cpr_parser parser
 (

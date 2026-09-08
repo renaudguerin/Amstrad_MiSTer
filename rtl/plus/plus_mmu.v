@@ -92,7 +92,14 @@ module plus_mmu
 	/* verilator lint_off UNUSEDSIGNAL */
 	input      [7:0]  sna_rmr2,
 	/* verilator lint_on UNUSEDSIGNAL */
-	input             sna_unlock
+	input             sna_unlock,
+	// B8-5 slice A: ordinary Plus ROM controls from the SNA standard
+	// header (0x40 multi-config bits 2/3 = lower/upper ROM disable,
+	// 0x55 full ROM-select byte) and the CPC+ unlock sequence state
+	// (0x8F7) accompanying sna_unlock (0x8F6 lock).
+	input      [7:0]  sna_ga_config,
+	input      [7:0]  sna_romsel,
+	input      [4:0]  sna_seq_state
 );
 
 localparam [1:0] CART_IDLE    = 2'd0;
@@ -142,7 +149,8 @@ asic_unlock unlock_detector
 	.write_data(D),
 	.unlocked(unlocked),
 	.sna_load(sna_load),
-	.sna_unlock(sna_unlock)
+	.sna_unlock(sna_unlock),
+	.sna_seq_state(sna_seq_state)
 );
 
 // Do not let the Plus lock status act as a classic-mode control input if the
@@ -184,8 +192,12 @@ always @(posedge clk) begin
 		rmr2_pos     <= (sna_rmr2[4:3] == 2'b11) ? 2'b00 : sna_rmr2[4:3];
 		rmr2_page    <= sna_rmr2[2:0];
 		asic_page_on <= (sna_rmr2[4:3] == 2'b11);
-		lromen       <= 1'b0;
-		hromen       <= 1'b0;
+		// Ordinary header ROM controls (SNA 0x40 multi-config bit 2 =
+		// lower disable, bit 3 = upper disable; 0x55 full ROM-select
+		// byte), alongside the existing RMR2/unlock restore.
+		lromen       <= sna_ga_config[2];
+		hromen       <= sna_ga_config[3];
+		romsel       <= sna_romsel;
 	end
 	else begin
 		// RMR2 is a Gate-Array port payload; the Plus IN=OUT trap applies
