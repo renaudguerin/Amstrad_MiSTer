@@ -792,11 +792,11 @@ For a first MiSTer pass:
   by equality, so R5=0 never ends it — the documented ACCC 11.3.2 hardware bug, reproduced
   deliberately. The comparison is widened to six bits so C5=31 (32) cannot alias R5=0.
   The two former F8 expected-failure cases (`t08f`, `t08g`) are now required passes.
-- The current local gate reports 192 required CRTC passes, zero expected failures, no
-  unexpected passes, and no failures (verified 2026-09-01, Verilator 5.050), plus the
+- The September 1 gate recorded 192 required CRTC passes, zero expected failures, no
+  unexpected passes, and no failures (Verilator 5.050), plus the
   nine-case hybrid blanking seam, integrated GA R2.JIT, and u765 transaction benches. The
-  randomized equivalence soak reproduces golden hash `0x2263c9fc44af4ee7` (chain in
-  AGENTS.md). IA-1's `t33a`
+  randomized equivalence soak then reproduced `0x2263c9fc44af4ee7`; the current
+  B8-1 golden is recorded at the top of this file and in AGENTS.md. IA-1's `t33a`
   confirms that unchanged RTL already preserved the p.150-151 C3l overflow sequence;
   `t33b` independently failed its first post-write pin sample because the live comparator
   restarted HSYNC after one master tick. The corrected type-0-only path models the p.151
@@ -891,8 +891,8 @@ For a first MiSTer pass:
   behavior commit required pass) pins the catch at a mid-row-0 boundary and the frame
   origin; `t20k` pins the type-0 miss. Soak re-minted `0x801a59096c192d26` (chain in
   AGENTS.md). Unpinned residuals are recorded in the F11h entry of `audit-findings.md`.
-  Still open from the list above: the t24 IVM VSYNC-gap fixture and the CI-only
-  `actions/checkout` bump.
+  The t24 IVM VSYNC fixture and CI-only `actions/checkout` bump also landed;
+  their dated evidence follows.
 
 - t24 is closed (2026-08-25, this branch): the p.208 table (with the §19.8.2 p.225
   alternation, which needs an odd C4 count — the fixture uses R4=6) pins the type-1 IVM
@@ -901,8 +901,8 @@ For a first MiSTer pass:
   contrast for even R7 (`t24b`, fixture XFAIL `e0f5b6a`, behavior commit required). The fix:
   `vsync_line_fire` uses the IVM-aware row-structure test, and during type-1 IVM the legacy
   field=1 MID-VSYNC arm no longer hijacks fire or count tick. Soak re-minted
-  `0xd620fce8b1c05b25`. The type-0 IVM VSYNC rule (the §19.5.2 delay) remains unimplemented
-  under F15, with fixture-first instructions in the F10 notes. The CI-only
+  `0xd620fce8b1c05b25`. The type-0 IVM VSYNC rule (the §19.5.2 delay) was
+  subsequently implemented under F15. The CI-only
   `actions/checkout` bump landed as `4e776f1` (v4 → v7, standalone).
 
 - Independent review of the F11h+t24 work (Claude Opus 5 xhigh via the ask-claude bridge,
@@ -1527,96 +1527,21 @@ than whichever older package a Linux distribution happens to carry.
 
 ## Next-session order
 
-Use the [2026-09-02 proposed queue](hardware-evidence-2026-09-02.md#proposed-next-session--not-started)
-for the next session. The dated checkpoint instructions below preserve older
-context; their old artifact targets and implementation states are not the launch plan.
+Use the [current roadmap queue](implementation-roadmap.md#8-immediate-execution-queue),
+which incorporates the September 8 production-boundary findings. Older dated
+hardware and implementation records above are evidence for their named source;
+their old branch names, hashes and proposed tasks are not the current launch plan.
 
-1. Quartus VM post-install is a future-session task and must only run after explicit user
-   authorization. Until then, keep synthesis on GitHub Actions. When authorized, run
-   the four-command post-install sequence in `ansible/README.md` from the `ansible/`
-   directory: check, apply, repeat the check, then validate with
-   `quartus_required=true`.
-2. Re-run SHAKER on `4c78603` with Plus model disabled, recording every subtest by name and
-   result for both CRTC selections, alongside the stock core — but judged against the Logon
-   System reference photographs, not against the stock core (`shaker-module-a-map.md`; the
-   stock core is a regression baseline only). Suggested target list for this session, drawn
-   from `accuracy/shaker/shaker-accc-crossref.md` (confirm each cited page before acting on
-   a result):
-   - Module E `(3)` (CRTC 0 C4/C9 counter logic — the F12/F4 work),
-   - Module E `(2)` and `(1)`, Module B `(RETURN) R5 STORIES`, Module D `(E)` (F8 type-1
-     C5 adjustment),
-   - Module A `(U)` and `(P)` (counter/border edges moved by F12/F4),
-   - Module A `(5)`/`(6)`/`(7)` R13 UPDATE IN n USEC SCREENS (mechanism vectors `t20a`-
-     `t20h` now exist locally, so a divergence here maps straight to code),
-   - Module C `(1)` and Module D `(9)` (RFD — both trigger routes are now implemented,
-     `t13a`-`t13m`; these are also the tests that discriminate author question 18, the
-     end-state vs write-event reading of the R0-widening cancellation).
-   The first two passes produced only an aggregate impression and are not actionable.
-   Confirm SHAKER's own CRTC identification agrees with the OSD selection before comparing.
-3. Map each persistent SHAKER difference to an implemented finding or a named gap; add a
-   deterministic regression before repairing any newly understood behavior.
-4. Classic: F13's half-character CRTC-side phase is implemented per
-   `accuracy/f6-decision-gate.md` and remains pending SHAKER/DE-pin hardware validation.
-   F20's type-0/type-1 R2.JIT starts and fixed display-reactivation edges are
-   implemented through the integrated GA fixture; re-test DSC4 and SHAKER
-   `(TAB)` on hardware.
-   F7 RFD (R5 route, B6 disarm, A1, A2) is implemented and independently reviewed
-   (`accuracy/archive/f7-plus-followups-independent-review.md`), and the §13.7.1.2 R0-widening
-   trigger is implemented with its blocking review findings remediated
-   (`accuracy/archive/f7-r0-widening-independent-review.md`, vectors `t13e`-`t13m`). That branch
-   passed its pass-2 cross-provider re-review on 2026-08-24 and is merged at `27078f4`, so
-   F7's planned implementation is complete; the later Q4 recheck opens F17 for its C9=R9
-   source-flag case. **D1 completed 2026-08-24** (digest re-verification + stale-
-   reference sweep; outcomes summarized above and in the digests' 2026-08-24 notes; new
-   author question Q19). **F10 is implemented, reviewed, and merged** (2026-08-25; the
-   fixture-gating PDF re-checks — pp.210-211 truth tables render-verified; the pp.221-224
-   IVM tables corroborating the pseudocode for the tested even R9 — fed fixtures first, then
-   per-type behavior commits). The former author-question gates have now been adjudicated.
-    Remaining F10-derived work is fixture-gated under **F14** (additional interlace line),
-    **F15** (odd-R9 parity alternation and VSYNC correction), and **F16** (post-exit frozen
-    C9.VMA). Q12 is resolved as an English qualifier omission (French v1.11 p.208:
-    activation on every frame). Local odd-C4 transition fixtures and post-toggle pin timing
-    validation remain separate; the source comparison does not establish hardware recovery.
-    **2026-08-28 Claude Opus 5 re-review follow-ups & ACCC v1.11 reviews**:
-    - **N1**: reconciled the §13.7.1.2 R0-widening RFD route (`t13g`) with F17's §11.6.1 p.88 C9=R9 VMA-source disable (annotated in `t13g`, `rtl/crtc_type1_engine.v`, and `audit-findings.md` per §13.7.1.2 p.124).
-    - **N2 — open hardware confirmation / explicit model residual**: with R8=0 and R5=0
-      during adjustment, the preferred §11.3.2 reading permits a C4/R4 reset while C5 and
-      adjustment persist. The RTL retains free-running C4; extended `t08j` pins that choice
-      without establishing silicon behavior. Q20 and Round 2 section 2 record the narrow
-      author question and the proposed, unrun 44-versus-512-scanline VSYNC discriminator.
-    - **N3/N4 (COMPLETED 2026-08-28)**: added CPR parser upper bound test vector (`0x01FFFFF8` rejected, `0x01FFFFF7` accepted) and tightened zero-length `cb00` chunk handling in `rtl/plus/plus_cpr_parser.v` (requires at least one forwarded byte to commit) with regression coverage in `plus_cpr_parser_test.cpp`.
-    - **N5 (COMPLETED 2026-08-28)**: added CI compile-log guard in `build.yml` / `local-build.yml` for Quartus Warning 10236 (`Implicit Net warning`), plus OSD menu grouping of CPR with DSK/CDT in `Amstrad.sv`.
-    - **F19**: adjudicated as CRTC-2 specific (§12.4.1 p.95); CRTC 0 is governed by §12.2 pp.92-94 where $R_4$ and $R_9$ same-edge $C_0<2$ writes evaluate immediately (Type-0 RTL retains same-edge evaluation, unit tests `t12c`-`t12e` verify §12.2, soak hash verified bit-identical at `0x48146d2b681268ab`).
- 5. Plus: P0, both P1 milestones, the P1 motherboard integration, the calibrated p1_video bench,
-    the P2 ASIC register page, P3 interrupts (PRI/DCSR/IVR), P4 sprites, P5 CRTC-3 bus semantics,
-    Phase P6 screen split & soft scroll, Phase P7 3-channel DMA sound, Phase P8 platform polish
-    (PPI quirks, ADC paddles, SNA v3 CPC+ chunks), and Phase P9 cartridge boot & tolerances
-    are implemented and independently reviewed at the module/simulation level. The 2026-08-29
-    cartridge checkpoint found confirmed production defects and major top-level coverage gaps,
-    so this is **not** a hardware-complete state. P10 compatibility closure is now the active
-    Plus milestone; its ordered sub-milestones and gates are in
-    `docs/plus/hardware-checkpoint-findings.md`.
-    **Hardware Checkpoint Remediations (2026-08-28)**:
-    - **HF-1 (FDC Decode)**: dropped $A_7$ from FDC and motor port address decode in `Amstrad.sv` so AMSDOS `&FADD`/`&FBDF` are recognized; qualified with $A_9=1$ and $A_4=1$ to protect Kempston mouse and PlayCity ports. This closed the identified decode defect, not the full BASIC boot symptom: the 2026-08-29 retest still reported `Drive A: read fail`, and P10c owns model gating, controller/motor reset, production alias coverage, and the known-good-DSK retest.
-    - **HF-2 (12-bit ASIC Palette)**: connected `PAL_EN`, `PAL_ADDR`, `PAL_RGB` in `asic_video.v` and `Amstrad_motherboard.v` with `{G,R,B} -> {R,G,B}` nibble swap (resolves Burnin' Rubber / Plus custom palette rendering); verified with unit vectors `t05i`, `t05j` (registered dot-rate palette timing), and motherboard bench `m12`.
-    - **HF-3 (Plus MMU/SDRAM Banking)**: wired `mem_bank` and `.ram64k` to `plus_ram_128k` (and `sna_load`) in `Amstrad.sv` to keep CPU and video memory banks aligned.
-    - All tests pass (`make -C sim`, `make -C sim lint`), review debt logged in `docs/review-debt.md`.
-    **P10 Compatibility Closure (historical review progression; final local clearance
-    completed 2026-08-30)**:
-    - **P10a (TV80-under-T80pa-contract Boot Harness)**: added a deterministic production-motherboard CPR fixture in `sim/plus/tv80/`, `sim/plus/p10_boot_test_top.v`, and `sim/plus/p10_boot_test.cpp`. It covers the synthetic fixture's load/reset/execution path, but substitutes TV80 for T80, has no normal SDRAM WAIT, real u765/DSK, or title-level positive control, and does not satisfy the still-open exact-tip full-effort timing gate.
-    - **P10b (CF-1: PPI Port C Physical Output)**: in `rtl/i8255.v`, physical Port C outputs now drive `opc_r` in Plus mode under all modes (including 0x9B/0x92), matching hardware keyboard scanning behavior.
-    - **P10c (CF-2/CF-3: Model Capabilities & FDC Reset)**: gated FDC/motor/tape by model and reset the controller/motor. The original decoder assertions copied production equations; the integrated remediation now shares `rtl/plus/plus_fdc_decode.v` with the focused truth-table test and restores classic decode. A real u765 command/reset/DSK transaction remains open.
-    - **P10e (CF-4: DMA/PPI/PSG Arbitration)**: implemented the base 8-cycle `LOAD R, DD` envelope, AY selected-register restoration, CPU WAIT, and PPI gating. `d11` is a leaf test; the required production motherboard CPU-versus-DMA concurrency test and Arnold `+1/+2` contention extension remain open.
-    - **P10h (CF-5: CPC+ SNA Production Restore)**: implemented captured one-cycle payload delivery, FIFO backpressure and post-download drain, a one-cycle ASIC-register reset at SNA start, an apply barrier, RMR2/unlock retention through apply, and atomic abort of an old FIFO/write tail on rapid snapshot restart. `p8_04` verifies the production parser/ASIC-register/MMU seam, including the final registered tail and a before-drain restart; full `Amstrad.sv` ioctl/reset/model/PPI/PSG coverage remains open.
-    - **P10f (CG-3: Sprite Dynamic Write Closure)**: implemented coherent staged-buffer write-through. The integrated remediation adds `s16`, which models a delayed pre-write ACK colliding with a one-cycle access and proves that payload is discarded; hardware causality for RoboCop remains open.
-    - **Post-review MRER/RMR2 and SSCR fixes**: the integrated remediation shares the ASIC lock state across MMU/GA ownership, isolates classic onboard ROMs in Plus mode, and advances VMA at the effective-RA soft-scroll wrap. Focused MMU, GA/motherboard, sprite, and video vectors plus the pre-second-review full suite are green.
-    - **Second independent review, NOT CLEARED (Claude Opus 5 xhigh, 2026-08-30):** the reviewer found the four intended remediation paths functionally correct, then identified three small integrity blockers (a contradictory video comment, missing standalone FDC-module lint, and one copied P10 FDC decoder) plus a pre-existing status-2 frame-origin mismatch. Focused fixes are complete. A later final scan reopened CF-5 with three HIGH production lifecycle defects; those now have the scoped repair and `p8_04` seam above, materially extending the unreviewed delta. ACCC v1.11 §20.3.4 p.243 itself states both C4/C9/C0 and later C4/C0-only forms; the model follows the opening rule and leaves hardware/author confirmation open.
-    - Post-fix parent verification: 175 classic vectors and all Plus benches pass; focused P8 and P10 rebuilds pass after the last wiring fixes; full lint includes and passes the shared FDC decoder's standalone `-Wall` target; the golden soak matches `0x48146d2b681268ab`; `git diff --check` is clean.
-    - A final Luna re-scan found and pinned one medium rapid-snapshot-restart FIFO leak after those gates. Restart now clears FIFO pointers and suppresses same-edge dequeue; the focused P8 regression first failed and then passed. The final full simulation, lint, soak, and whitespace gates passed immediately before integration. An attempted narrow Opus-high re-review returned no report after being stopped when provider usage reached paid extra credits, so the debt correctly remained open at that point.
-    - Subsequent Sol and guarded Claude passes cleared the focused SNA tail/headroom,
-      all-16 sprite cadence, inactive-DMA ordering, CRTC3 R8=1, and production DMA/PPI/PSG
-      deltas through round-two `d17a1bc` and round-three `5275879`/`275a9a4`. P10d and P10g
-      remain unstarted; real-u765 and full top-level SNA/DMA production coverage, exact-tip
-      Quartus timing, and hardware/title retests remain validation work rather than local
-      independent-review debt. See `docs/review-debt.md`.
- 6. Update this file when either stream reaches its next hardware-testable checkpoint.
+- B8-1 and B8-6 are integrated. Complete B8-2/B8-3, shared B8-4/B8-7, and
+  B8-5 with separate behavior changes and production-boundary regressions.
+- Add executed production-T80 validation to the current scripted-GA evidence.
+  Hardware DSC4/SHAKER, IA-5/Q17 and Plus title acceptance remain open.
+- Refresh preserved B3/FDC/test-consolidation candidates against integration,
+  retaining private evidence and stashes. A recorded temporary path may be gone
+  even when its committed branch remains recoverable.
+- Prepare B2/B4 host tooling without device access; real capture repeatability
+  and selected-machine identity require the MiSTer.
+
+F10 and F14–F18 are implemented within their recorded scope. Physical light-pen
+capture is optional and is not the completed F18 readable-register validation.
+The latest accepted CI/artifact identities are at the top of this document.

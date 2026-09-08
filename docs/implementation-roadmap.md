@@ -58,9 +58,10 @@ merged into the same behavioral PR.
   its windowed companion → C4=38/C9=8, ACCC p.82). F13's ACCC-model half-character DE
   phase is implemented; SHAKER/DE-pin hardware validation remains open. F20's CRTC-1
   R2.JIT start phase and fixed display-reactivation edge are implemented through the integrated
-  CRTC+GA path; DSC4 and SHAKER `(TAB)` remain hardware gates. F7 RFD is complete
-  in full; the next independent classic checkpoint is
-  F10 (fixtures first).
+  CRTC+GA path; DSC4 and SHAKER `(TAB)` remain hardware gates. F7 RFD and the
+  implemented F10/F14/F15/F16 interlace scope are complete
+  at the deterministic-model level. F17/F18 are also implemented; production-CPU
+  timing and named hardware residuals remain separate acceptance work.
 
 The current branch is a useful staging branch, not a requirement to publish one large PR.
 The commits may be rearranged into the small sequences below before publication.
@@ -150,14 +151,14 @@ Classic work is intentionally serial because most findings touch the same state 
 | **C1: status readback — deterministic complete; hardware pending** | F2 only | `t06` proves bit 5 changes only at the required C0=R0 sample and excludes the dynamic R6=0 border case; `t01` remains green | SHAKER/type-detection status test |
 | **C2: VSYNC write timing — deterministic complete; hardware pending** | F3 only | `t02` covers type-0 blocked writes at C0=0/1, type-0 extended duration, and unchanged type-1 partial-line duration; `t03` protects re-entrancy | SHAKER VSYNC tests plus Onescreen Colonies and PHX regression |
 | **C3: R0 stall — deterministic complete; hardware pending** | F5 only | `t09` proves type-0 freeze, the single deferred C4 increment, R2-dependent HSYNC, clean resume, and unchanged type-1 one-character lines | SHAKER R0 tests; monitor sync and GA interrupt behavior remain stable |
-| **C4: border decision** | F6 only if its approximation is explicitly accepted | `t10` distinguishes type 0 and type 1 and proves skew placement | Visual R1>R0 discriminator and affected demos |
+| **C4: border decision — deterministic complete; hardware pending** | F6/F13 half-character correction implemented | `t31a` pins the half-character phase; `t10` retains type and skew controls | Visual R1>R0 discriminator and affected demos |
 | **C5A: type-0 adjustment arbitration — deterministic complete; hardware pending** | F12 and IA-4, test first | `t16a`-`t16z` prove C0=0 same-edge comparison, C0=1/R5=0 entry including exact R0=1 rollover consumption, R5 acceptance/rejection around C0=2, R4/R9 live-write windows including exact-R0 at both bus phases, the exact-R0 R9-to-R5 split, R0=0/1 default adjustment, active-adjustment R0=0 freeze, completion reset, retained-state lifecycle, and the French v1.11 p.106 R4-equality history condition | Focused SHAKER or hardware traces verify uncertain sub-character MA/DE/VSYNC timing and the transient R4 restore case without changing the fixed counter expectations |
-| **C5B: equality/overflow foundation** | F4 only, after F12 establishes the corrected state seam | `t07` and `t08` pass, including the tightened RLAL regression vectors; no shortcut term is retained to hide a latch bug | SHAKER overflow/rupture tests and Batman Forever, The Demo, and Yao demo sweep |
+| **C5B: equality/overflow foundation — deterministic complete; hardware pending** | F4 implemented after F12 | `t07` and `t08` pass, including the tightened RLAL regression vectors; no shortcut term is retained to hide a latch bug | SHAKER overflow/rupture tests and Batman Forever, The Demo, and Yao demo sweep |
 | **C6: type-1 adjustment — deterministic complete; hardware pending** | F8 only, after F4 | `t11` proves independent C5 counting, continuing C4/C9, RA sequence, and the R5=0 mid-adjustment behavior | SHAKER adjustment vectors; Q17 hardware sweep at R7=38/39 for R4=36/R9=7/R5=16 |
 | **C7: type-0 R9 race — deterministic complete; hardware pending** | Revised F9 only, after F12/F4/F8 have stabilized the counter structure | `t12` reproduces both documented exact-cycle results using the v1.10 comparison target; it must not preserve the v1.9 rationale as an oracle | Contrived timing test; hardware trace if simulation and SHAKER disagree |
-| **C8: type-1 RFD** | F7, then F17's C9=R9 source-state correction, after F4/F8/F9 | `t13` proves trigger timing, frame parity, VMA reload, never-armed behavior, and the p.88 C9=R9 source-state disable; re-derive current `t13d` before RTL | SHAKER RFD tests and a CRTC-1 RFD demo sweep |
-| **C9: interlace** | Implemented F10 scope, then fixture-first F14/F15/F16 | Reviewed additional-line, odd-R9, and post-exit fixtures derived from the cited ACCC tables; all prior regressions stay green | SHAKER interlace suite and hardware comparison for both CRTC types |
-| **C10: light pen interface decision** | F18, independent of the counter stack | If supported, a captured MA value reads through R16/R17 on both types; otherwise the unsupported LPSTB path is explicitly documented | Expansion-port/light-pen hardware test if the interface is implemented |
+| **C8: type-1 RFD — deterministic complete; CPU/hardware validation pending** | F7/F17 and B8-1 production-phase event retention implemented | `t13` and the real-GA scripted-write fixture cover trigger timing and source-state controls; executed T80 instruction coverage remains open | SHAKER RFD tests and a CRTC-1 RFD demo sweep |
+| **C9: interlace — deterministic complete; hardware pending** | F10/F14/F15/F16 implemented; retain documented residuals | Reviewed additional-line, odd-R9, and post-exit fixtures derived from the cited ACCC tables; all prior regressions stay green | SHAKER interlace suite and hardware comparison for both CRTC types |
+| **C10: readable register matrix — deterministic complete** | F18 readback validation implemented; physical LPSTB capture is a separate optional feature | `t01` pins the supported readback matrix; R16/R17 have no live capture source | See the optional light-pen/light-gun feature below |
 
 ### Suggested SHAKER targets per checkpoint
 
@@ -209,10 +210,11 @@ to R2.JIT without a first-divergence trace.
 
 ### F10 scope gate
 
-F10 is not a normal one-commit finding. Before RTL work, turn the SHAKER 22C/3 tables into
-reviewed fixtures and re-check only the PDF pages flagged by the audit. Keep type-0 and
-type-1 implementations separate, with a passing fixture-only commit before each behavioral
-commit. F10 is allowed to remain a later project after C8 ships.
+F10 and its F14/F15/F16 follow-ups are implemented within the recorded scope.
+The [implementation notes](accuracy/f10-implementation-notes.md) retain the
+source derivations and remaining cases; they are not a request to restart the
+completed fixture stack. New interlace work needs a specific source or hardware
+disagreement and a failing vector, with type-0 and type-1 behavior kept separate.
 
 ## 5. Plus/GX4000 checkpoints
 
@@ -446,110 +448,50 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 ## 8. Immediate execution queue
 
-**2026-09-08 architecture review:** prioritize the reproduced production-boundary
-defects in [B8's repair order](b8-architecture-methodology-review-2026-09-08.md#architecture-choices-and-next-work),
-starting with classic RFD write-event timing and bounded Plus video/palette fixes.
-This is new integration evidence that permits focused investigation before
-another manual hardware round; it does not close DSC4/SHAKER or any Plus title.
-Keep the shared FDC work and pending branches below intact. The
-[B2/B4 hardware-loop plan](mister-hardware-loop-plan.md) starts with existing
-Main capture/input tools when SSH access is supplied. B9's next cleanup follows
-the same review's measured cost and fixture-fidelity findings.
+The September 8 [B8 architecture review](b8-architecture-methodology-review-2026-09-08.md)
+sets the current repair order. B8-1 R5/R0 write-event retention and B8-6 Plus
+RGB/metadata alignment are integrated; do not restart those implementations.
+Their successful simulation and Quartus artifact do not close hardware symptoms.
+See [current status](current-status.md) for accepted source and artifact identities.
 
-**2026-09-03 handoff (docs-only, no new validated source on main):** main
-source tip is `a8286bd`; FDC state is the accepted observe-only diagnostics
-`d3aabbc` with the classic AMSDOS regression still required/unmet and the
-original XFAIL intact. The Plus B3-capture + P10j-comments candidate
-(`bb77075`, exactly based on `a8286bd`, reviewed CLEAR, parent sim+lint exit
-0) is READY on `plus/b3-capture-recovery` and **not** on main: serial
-integration, CI/gates, and artifact handoff need separate authorization.
-Summary: `session-handoff-2026-09-03.md`.
+1. **Plus B8-2, then B8-3:** select the correct FIELD owner through the downstream
+   video path, then carry accepted legacy palette writes to the palette owner.
+   Keep these as separate focused fixes. Verify polarity/timing and repeated
+   same-value pen/border writes at production boundaries before title attribution.
+2. **Shared B8-4, then B8-7:** repair retained video-word coherence after CPU
+   writes, then tape request/ACK and payload lifetime. These share `rtl/sdram.v`
+   and must run serially with preserved CPU/cartridge/refresh scheduling. They
+   may proceed alongside the Plus work in isolated checkouts; coordinate P10
+   fixture changes with B3/FDC recovery.
+3. **Classic validation:** execute production T80 OUT(C)/OUTI cases through the
+   real GA/CRTC boundary for B8-1. The current 45-case fixture uses scripted bus
+   writes. Preserve its deterministic evidence while adding the missing CPU
+   layer; do not infer instruction behavior from the TV80 substitute.
+4. **Plus B8-5:** complete snapshot apply across DMA, selected video/GA and MMU
+   owners after drain and before CPU release. Coordinate motherboard interfaces
+   after FIELD/palette work. Use DSK/CPR for early automation until this is proven.
+5. **Preserved candidates:** refresh and integrate the reviewed B3 capture
+   candidate `bb77075`, FDC held-read test `c1a8ff9`, and test consolidation
+   `c12c264` only after inspecting their current diffs and rerunning affected
+   gates. Correct the consolidation's P1 timing-ownership claim using B8's
+   findings. The [September 3 handoff](session-continuation-2026-09-03.md)
+   records provenance, not proof that its temporary worktree paths still exist.
+   Preserve stashes/private recovery files; do not auto-apply them. Full-sector
+   result-phase and classic AMSDOS acceptance remain open.
+6. **B2/B4 hardware automation:** follow the existing
+   [hardware-loop plan](mister-hardware-loop-plan.md). Prepare the host driver,
+   existing input/capture tools and a bounded CSL subset without a device.
+   Once SSH access is available, require three repeatable stable-screen captures
+   with build/media/model/CRTC/filter identity. Exact SSM event-to-image capture
+   remains a later gate.
+7. **Hardware retests:** use the delivered SHA-labelled RBF for DSC4/SHAKER,
+   IA-5/Q17 and the named Plus title matrix. Retain the
+   [September 2 observations](hardware-evidence-2026-09-02.md) as regression
+   evidence, not blanket closure. New title-driven RTL work starts from an
+   actionable capture or another independently reproduced production defect.
 
-**2026-09-02 handoff:** the [partial hardware report and proposed queue](hardware-evidence-2026-09-02.md)
-take precedence over the older checkpoint targets below. Amazing Demo's Live
-blanking defect appears fixed and Burnin' Rubber's right-edge sprite defect is
-reported fixed on `84e6969`. DSC4/SHAKER still fail, possibly differently;
-accuracy RTL work is deferred pending captures. All other retests remain open. The next work is
-shared FDC recovery with classic AMSDOS coverage, B1 hardware discrimination,
-and the B3 capture slice, with explicit ownership of the overlapping P10 harness.
-
-**Read `docs/backlog.md` before picking from this queue.** It holds the cross-cutting
-architecture and methodology items opened on 2026-08-31, and several entries below are blocked
-in ways this section does not show. **Backlog B1 now has a simulation-gated hybrid candidate:**
-Live HBLANK starts from raw CRTC/ASIC HSYNC phase and keeps a 64-CE acquisition window, while
-HSYNC/VSYNC remain regenerated for scaler stability and missing-sync falls back to Full. The
-nine-case seam fixture pins R2.JIT phase, expiry, malformed cadence, watchdog recovery, and the
-production selector. F20 R2.JIT, DSC4, and SHAKER Module A entries (T), (Y), (TAB) and (R) still
-require a named hardware A/B run; simulation, synthesis, and an RBF cannot close them.
-
-
-1. Test the synthesized current milestone on real MiSTer hardware using
-   `current-status.md`; record classic CPC and F2/F3/F5/F8 results per entry.
-2. **D1 source/model audit COMPLETE; hardware follow-up remains.** The section-complete
-   French/English sweep and visual calibration are recorded in
-   `accuracy/accc-1.11-fr-en-differences.md`. The high-confidence digest corrections are
-   applied, and the six behavioral candidates have moved through
-   `accuracy/accc-bilingual-implementation-todos.md`, with a paper-derived directed vector
-   before every justified RTL change. IA-5 deliberately closes with a hardware discriminator:
-   the current integrated CRTC/GA harness has no independent U.S.-ROM phase oracle and a
-   synthetic vector would only restate the existing model. Source PDFs remain user-owned and
-   ignored; the reproducible v1.11 extraction snapshot is versioned, while unselected
-   generated intermediates stay ignored.
-   **Historical digest verification already banked, do not redo:** the earlier English-v1.10
-   pass retired each extraction flag it could settle and corrected section/page anchors against
-   the real table of contents; it then swept `docs/`, `rtl/`, and `sim/` for references to
-   the corrected sections. RTL and vector citations count — `t13e`/`t13j`/`t13l` cited §13.5
-   p.121 (CRTC 3/4) for a type-1 rule that belongs to §13.3 p.113. Expect this to surface
-   rule claims we implemented from a misread digest; each one is a finding, not a typo, and
-   gets a vector before any RTL moves. The PDF is authority rank 2 and outranks the digests,
-   so where they disagree the digest is wrong. Never commit the PDF.
-
-   **Already banked, do not redo** (2026-08-24): chapter 13's section map is verified —
-   §13.3 CRTC 1 p.113, §13.4 CRTC 2 p.117, §13.5 CRTC 3/4 p.121, §13.6 R0 UPDATE p.122-123
-   (§13.6.1 CRTC 0/2 chronogram, §13.6.2 CRTC 1 chronogram, both p.122; §13.6.3 CRTC 3/4
-   p.123), §13.7 SPECIAL CASES p.124 (§13.7.1 CRTC 1 → §13.7.1.1 R0 UPDATE: OUTI,
-   §13.7.1.2 R0 UPDATE: OUT(C),R8; §13.7.2 CRTC 0), §13.8 OFFSET p.126. Chapter 14's map is
-   verified too, including §14.5 ABSENCE OF HSYNC p.141. Digest-01 §8.5's chronogram
-   annotation is confirmed verbatim, so that half of its flag is retired. The §13.5-for-§13.3
-   citation error in `t13e`/`t13j`/`t13l` and the §13.7.1.1-for-§13.6.2 chronogram mislabel
-   are both already corrected. **Status (2026-08-24): COMPLETE** (cross-reviewed: GPT
-   reviewer-cross pass, then Opus adjudication of two evidence disputes). Every remaining
-   flag was re-verified against the PDF renders (pdf-inspector Markdown primary per
-   `accuracy/extract/README.md`); most retired as confirmed, four genuine digest errors
-   corrected (p.81 period-8 adjustment addressing; §17.5 R1=0 deadline — type 0/1/2 accept
-   through C0=0, type 3/4 first too-late C0=3f; p.183 example R1=40/&28; the pp.221-224 IVM
-   tables re-adjudicated as R9=6-even and corroborating §19.8.1, with the p.219 gate-token
-   polarity tracked as author question Q19 — subsequently resolved 2026-08-25 under F15),
-   anchors fixed against the real TOC, and the separate stale-reference sweep applied ten
-   further docs fixes with rtl//sim/ citations clean.
-3. **D2: find out why the Quartus database cache saves nothing — CLOSED 2026-08-24.** Measured
-   across two runs on `accc-review-and-fixes`: run `32657783842` restored the cache
-   (`Cache restored successfully`, `build_mode=incremental_db`) and its synthesis job took
-   **12.2 min**; run `32652569271` missed the cache (`build_mode=clean`) and took **12.2 min**.
-   Identical: without design partitions `--flow compile` never reused the restored databases.
-   The cache was removed; all synthesis runs are clean compiles. Evidence in
-   `docs/ci-testing-policy.md` and `docs/current-status.md`.
-4. Classic stream: F13's CRTC-side half-character phase is implemented from the
-   render-verified ACCC rule and is pending SHAKER/DE-pin validation. F20's CRTC-1
-   R2.JIT phase is implemented and waits for DSC4/SHAKER `(TAB)` hardware validation.
-   F7's planned routes
-   are implemented, but the
-   Q4 recheck opens F17 for the C9=R9 source-state result and requires `t13d` re-derivation.
-   F10's implemented scope is complete; F14/F15/F16 are the fixture-first follow-ups. F18 is
-   an independent light-pen interface decision. Q17 remains hardware-gated.
-5. Plus stream: P0-P9 and HF-1/HF-2/HF-3 are implemented and simulation-verified, but the
-   2026-08-29 and 2026-08-30 hardware samples keep P10 open. Build an exact-tip full-effort
-   timing-clean RBF, repeat the recorded matrix, and capture title-level first divergences.
-   Keep input/DMA concurrency, cartridge timing redesign, and undocumented sprite/video
-   behavior evidence-gated. P10j's sprite-pixel M10K conversion and timing-clean exact
-   feature fit and the combined integration RBF are complete at source SHA `ea0e0bd4` (local
-   full-effort run `33474427903`, timing clean). Next run the recorded hardware matrix; the
-   real-u765 byte-0 XFAIL and title symptoms remain open. Do not combine Plus work with
-   the classic stream. See
-   `plus/hardware-checkpoint-findings.md` and `plus/hardware-test-round2-2026-08-30.md`.
-6. F6/F13 proceeds per `accuracy/f6-decision-gate.md`: Stage 2 measured the old 1 µs input;
-   Stage 2b assigned the documented 0.5 µs to the CRTC DE phase; the wrapper correction and
-   exact `t31a` vector are now implemented. Hardware remains the authority and can reopen it.
-7. Common dependencies for both streams (harness helpers, shared docs) land on
-   `accc-review-and-fixes`; the running stream branches (`accuracy/a3-f6-stage1`,
-   `plus/p0-parser-wiring`) rebase onto it rather than stacking.
+F10/F14/F15/F16/F17/F18 and P0–P9 are implemented within their documented scope.
+P10 compatibility, production-boundary validation and hardware acceptance remain
+open. B10 locale work still needs provenance-backed ROM assets and a firmware/
+keyboard policy; light-pen/light-gun input remains optional. Completed D1 source
+verification and D2 Quartus-cache investigation are not new execution tasks.
