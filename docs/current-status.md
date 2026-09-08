@@ -1,27 +1,32 @@
 # Current implementation status
 
-**Latest verified CI/RBF, 2026-09-08:** `3acc8e671f91ea52ea4eb5b5a09c2b369c30e6bb`
-passed simulation, policy and full local Quartus 17.0.2 in
-[run 34194119970](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34194119970).
-This includes production-T80 validation, Plus FIELD ownership, SDRAM coherence,
-preserved B3/P10j work, palette ownership and tape backpressure. Artifact
-`Amstrad-local-build-198-1-full` (ID `10043654323`) is downloaded as
-`output_files/Amstrad_20260908_3acc8e6.rbf`; SHA256
-`d847e542f49f545be739f4adacceb491f6f8ccd698bc349bb6eac04e2a4a8216`.
-Fit: 22,354/41,910 ALMs (53%); minimum setup +0.450 ns, hold +0.225 ns,
+**Latest verified CI/RBF, 2026-09-08:** `ce1d2da67c2598c0dd06208b9fc14c52ada01712`
+passed simulation, policy, required gate and full local Quartus 17.0.2 in
+[run 34228275825](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34228275825).
+This includes the completed B8-5 snapshot restore plus production-T80 validation,
+Plus FIELD ownership, SDRAM coherence, preserved B3/P10j work, palette ownership
+and tape backpressure. Artifact `Amstrad-local-build-199-1-full`
+(ID `10057418042`, `build_mode=clean_full`) is downloaded as
+`output_files/Amstrad_20260908_ce1d2da.rbf`; SHA256
+`fef2c8553e85456a86bc6d28753cdbb43c386106b5cd719bbf808cea84dc6144`.
+Fit: 22,945/41,910 ALMs (55%); minimum setup +0.098 ns, hold +0.238 ns,
 zero setup/hold TNS and no unconstrained clocks. Some I/O paths remain
 unconstrained (27 input and 90 output ports). Reports are retained under ignored
-`docs/references/tape-artifact-34194119970/`. No hardware test occurred.
-This RBF predates B8-5 snapshot apply. Reviewed source
-`f2300be6ae2075dff41c6a96ec59f65286feb67f` restores mapped DMA, selected video/GA,
-MMU and palette state after storage drain, holding CPU execution through apply.
-All twelve focused cases, full simulation, lint and the unchanged soak pass in
-both source and integration checkouts; fresh Astra medium review is CLEAR. CI and a
-new full Quartus artifact remain pending. See the
+`docs/references/snapshot-artifact-34228275825/`. No hardware test occurred.
+
+B8-5 source `f2300be6ae2075dff41c6a96ec59f65286feb67f` restores mapped DMA,
+selected video/GA, MMU and palette state after storage drain, holding CPU
+execution through apply. All twelve focused cases, full simulation, lint and
+the unchanged soak pass in both source and integration checkouts; fresh Astra
+medium review is CLEAR. See the
 [restore contract and acceptance evidence](plus/b8-5-snapshot-apply-2026-09-08.md),
 including the documented failure-first chronology gap for the initial video/GA
 implementation. First-frame pixels remain approximate where SNA omits internal
 address/phase history; no hardware closure is claimed.
+
+The prior `3acc8e6` RBF from successful run `34194119970` remains available as a
+comparison baseline; it predates snapshot apply. Its hash is
+`d847e542f49f545be739f4adacceb491f6f8ccd698bc349bb6eac04e2a4a8216`.
 
 The preceding `b945c1b` build
 [34192429871](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34192429871)
@@ -30,12 +35,12 @@ failed HDMI setup by 0.030 ns and packaged no RBF. Its retained reports under
 the successful descendant above establishes current timing closure.
 The earlier `9052a08` RBF and reports remain available as a comparison baseline.
 
-The completed T80, memory/tape, palette and preserved Plus worktrees have been
+The completed T80, memory/tape, palette, preserved Plus and snapshot worktrees have been
 removed after successful CI, idle/clean checks and verification that all private
 non-build files and symlinks were preserved under `docs/references/retired-*/`.
-Their branches and recovery stashes are retained. Only the integration checkout
-and snapshot task worktree remain; remove the latter only after successful
-integration CI/artifact delivery and preservation of its private evidence.
+Their branches and recovery stashes are retained. The snapshot cleanup preserved
+and verified all 48 private non-build files/links. Only the integration checkout
+remains. The requested task batch is complete; no further tasks were started.
 
 **Earlier test/tooling integration, 2026-09-08:** `9d238dafc3a9950c276f91a3e928d5cfeb013bff`
 passed simulation/lint, synthesis policy and the required gate in
@@ -44,8 +49,8 @@ Its preceding preserved-work merge `5c201a8` passed the same required jobs in
 [CI run 34187708364](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34187708364).
 Both correctly skipped Quartus and reuse the `dba49d5` RBF below. The completed
 FDC/test and host-tooling worktrees have been removed; their integrated branches,
-review/build evidence and host tools remain available. The preserved snapshot worktree, integrated branches and private recovery stashes
-are retained.
+review/build evidence and host tools remain available. Integrated branches and private recovery stashes are retained; snapshot cleanup
+is recorded above.
 
 **B2 host tooling prepared, 2026-09-08:** accepted source `7e39204` adds the
 [SSH/MGL capture driver](mister-hardware-loop-driver.md) and

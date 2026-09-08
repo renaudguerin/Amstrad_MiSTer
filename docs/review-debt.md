@@ -2,7 +2,7 @@
 
 ## Pending integration / review-complete rows (zero open review findings)
 
-- **B8-5 snapshot owner apply — CLEAR, source `f2300be`.**
+- **B8-5 snapshot owner apply — CLEAR, integrated from `f2300be` through `ce1d2da`.**
   Fresh Astra medium review covers the foreign-authored DMA/video/GA/MMU restore,
   production header/apply wiring, palette provenance and first interrupt ACK.
   The top-level syntax and ACK ownership findings are repaired; the existing
