@@ -1,17 +1,31 @@
 // P1 motherboard-integration validation bench (architecture §4 P1 exit,
 // "intra-character pixel phase" item; mirrors the t05h assumption check).
 //
-// Reproduces the production Plus video slice exactly as wired in
-// rtl/Amstrad_motherboard.v: asic_ga_timing strobes drive a verbatim copy of
-// the motherboard's VRAM fetch block and twice-per-character word assembler,
-// and asic_video consumes the resulting VIDEOD word. A fake VRAM returns
-// words that encode their own address, so the displayed PEN stream can be
-// decoded end to end: if the e0/03 latch windows were swapped relative to
-// the CAS pair halves, or asic_video's dot phase were off by one character,
-// the reconstructed byte sequence misaligns and the test fails.
+// Functional model of the production Plus video slice in
+// rtl/Amstrad_motherboard.v: asic_ga_timing strobes drive a VRAM fetch block
+// and twice-per-character word assembler with the same maintained functional
+// points as the motherboard — vram_bs set on the rising CAS edge under
+// !ras_n, raw-path byte order (vram_bs ? [15:8] : [7:0]), word-assembler
+// latch mapping ([7:0] on cclk_en_p, [15:8] on cclk_en_n), and reset
+// behaviour. A fake VRAM returns words that encode their own address, so
+// the displayed PEN stream can be decoded end to end: if the e0/03 latch
+// windows were swapped relative to the CAS pair halves, or asic_video's dot
+// phase were off by one character, the reconstructed byte sequence misaligns
+// and the test fails.
 //
-// The two always blocks marked [production copy] must stay textually in
-// sync with Amstrad_motherboard.v.
+// Modelling adaptation (day-one, not drift): this fixture latches the
+// presented address in the !cpu_n branch so the zero-latency fake backend
+// has the address ahead of the CAS window; production
+// (Amstrad_motherboard.v) latches it in the else branch. Omitted branches
+// are vacuous under bench bindings (no DMA engine here; sync_filter
+// hardwired to 2'd2 selects the raw path). The two always blocks marked
+// [functional model — see header] are kept functionally aligned on the
+// points above, not textually in sync. p1_mobo_bench elaborates the real
+// Amstrad_motherboard for bus/GA seam checks, but its vram_din is tied to 0;
+// it therefore does not prove absolute VRAM latch-window timing. No current
+// fixture observes the complete address->return->pixel path, so that
+// production-path coverage remains open and no absolute phase equivalence is
+// claimed here.
 //
 // Simulation-only: never added to files.qip.
 
@@ -176,7 +190,7 @@ module p1_video_test_top (
 	assign dbg_veven = vid.vid_even;
 	assign dbg_vodd = vid.vid_odd;
 
-	// ---- [production copy] VRAM fetch block (Amstrad_motherboard.v) ----
+	// ---- [functional model — see header] VRAM fetch block (cf. Amstrad_motherboard.v) ----
 	wire [14:0] crtc_vram_addr = {ma[13:12], ra[2:0], ma[9:0]};
 	// Production registers the presented address (the sdram.v request
 	// address); the fake backend returns the word for that registered
@@ -214,7 +228,7 @@ module p1_video_test_top (
 	wire [14:0] c_even_a = {c_vram_addr_r[14:1], 1'b0};
 	wire [15:0] vram_din_classic = {pat(c_even_a | 15'd1), pat(c_even_a)};
 
-	// ---- [production copy] word assembler ----
+	// ---- [functional model — see header] word assembler ----
 	always @(posedge clk) begin
 		if (!RESET_N) vidword <= 16'd0;
 		else begin
