@@ -35,9 +35,12 @@ merged into the same behavioral PR.
   from `rtl/UM6845R.v`), F7's type-1 R5-route RFD with A1/A2, and GitHub Actions synthesis.
   Platform-level references covering the ASIC, Gate Array, MMU, PPI, PSG, FDC, and file formats
   are inventoried in [`docs/references/README.md`](references/README.md).
-- GitHub Actions has completed simulation, Quartus 17.0.2 compilation, fitter, TimeQuest,
-  RBF packaging, and artifact upload through the pass-2 fix tip `f6f09f5` (run
-  `32645547100`). New top-level/file-list commits still require their own run.
+- B8 integration source `dba49d5` has a successful full-effort Quartus 17.0.2
+  job, timing checks and uploaded RBF in run `34179032281`. Its original lint
+  failure was corrected by build-only `9cfe743`, whose simulation/lint and
+  required gate passed on pinned Verilator 5.050 in run `34180289243`.
+  The synthesized inputs are unchanged by that correction; the original RBF
+  is delivered with its source SHA and hash in [current status](current-status.md).
 - `sim/` currently reports **192** required classic CRTC passes with no expected failures
   plus 45 production-GA/scripted-write cases (B8-1, Verilator 5.052); the soak
   reproduces golden hash `0x6e8258198d6e6137` after the R5/R0 event repair.

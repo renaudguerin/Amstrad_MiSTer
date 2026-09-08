@@ -1,5 +1,31 @@
 # Current implementation status
 
+**B8 integration artifact, 2026-09-08:** Accuracy merge `35ae03b` and Plus
+merge `dba49d5` are pushed. Full-effort Quartus 17.0.2 on exact source
+`dba49d57ab2e3e2f024b070bd6efa023073d902f` passed in
+[run 34179032281](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34179032281),
+job `synthesis-local / quartus`; artifact `Amstrad-local-build-190-1-full`.
+ALMs: 22,306/41,910 (53%); constrained setup/hold minima +0.063/+0.241 ns
+across seven clocks, zero TNS. External I/O remains partly unconstrained
+(27 input and 90 output ports); this is not full board-interface timing proof.
+The downloaded `output_files/Amstrad_20260908_dba49d5.rbf` has SHA-256
+`64a13ce721b5d5323e984e5fd4e30b78a204e9253c25252acec9f4c53b6c7870`.
+Reports and `clean_full` provenance are retained under ignored
+`docs/references/b8-integration-2026-09-08/quartus-dba49d5/`.
+
+The first run's behavioral tests passed on pinned Verilator 5.050, but its lint
+and aggregate gate failed on unknown `SIMILARNAME` control-file rules. Reviewed
+build-only correction `9cfe743` preserves the CI pin and loads the five waivers
+only on 5.052 or newer. Its corrected
+[CI run 34180289243](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34180289243)
+passed simulation, lint, synthesis-policy and the required gate on exact
+`9cfe743a79fb896ddf8b80b7b8750759a9e46452`, using pinned Verilator 5.050.
+Changed-path classification from `dba49d5` to `9cfe743` is false;
+the RBF above is reused with its original source identity, not relabelled.
+Local combined simulation/lint and soak `0x6e8258198d6e6137` pass on 5.052.
+No DSC4/SHAKER, named-title or real-hardware closure is claimed. Task worktrees,
+private evidence, older READY branches and both stashes are retained.
+
 **Accuracy B8-1 integrated, 2026-09-08, from `c1d2add`:** the repair
 retains qualified R5/R0 events from system-clock register capture to the CRTC
 character decision. Source `8c29248` has scoped Gemini/high and requested
@@ -23,7 +49,7 @@ hash `0x6e8258198d6e6137`. Opus/high source review is CLEAR; the separately
 reusable build-only lint compatibility commit `f12f998`, already present as
 `d52152a`, has supplementary Gemini/high source/log review with lower-confidence scope recorded.
 [Evidence and residuals](plus/b8-6-colour-boundary-2026-09-08.md) distinguish
-unexecuted CI-pin 5.050 compatibility, full vendor HQ2x/freeze/top/T80 coverage,
+the CI-pin compatibility correction, full vendor HQ2x/freeze/top/T80 coverage,
 and hardware/title retests. CI and artifact evidence are separate from local
 acceptance; no hardware verdict is claimed.
 

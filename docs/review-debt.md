@@ -48,7 +48,9 @@ A CLEAR verdict on source/test review is never hardware closure.
   correction after CI `34179032281` rejected unknown control-file rule names
   on pinned Verilator 5.050. Source, CI error and routing dry checks were
   independently inspected; parent full simulation/lint pass on 5.052.
-  This weaker-than-Opus review does not claim local 5.050 execution. See
+  Corrected CI `34180289243` independently executed the full simulation/lint
+  gate successfully on pinned 5.050 at `9cfe743`. The weaker-than-Opus model
+  review itself does not claim local 5.050 execution. See
   the [B8-6 evidence](plus/b8-6-colour-boundary-2026-09-08.md).
 
 - **B8-6 Plus RGB/sync/blanking alignment — CLEAR, integrated from refreshed

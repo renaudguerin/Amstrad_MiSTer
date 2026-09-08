@@ -139,7 +139,13 @@ handoff, clean cleanup). It independently checked the source diff, actual
 5.050 CI error, version parsing and both lint command routes using dry runs.
 Neither reviewer nor parent claims a local 5.050 execution from those routing
 controls. Parent full simulation and aggregate lint pass on 5.052; actual
-5.050 acceptance belongs to the corrected CI run. This remains a weaker-than-Opus
+5.050 acceptance is now supplied by successful CI run `34180289243` on exact
+`9cfe743a79fb896ddf8b80b7b8750759a9e46452` (simulation, lint and required gate).
+The full-effort Quartus job on ancestor `dba49d5` passed in run `34179032281`;
+the latter run's aggregate failure was the original lint error. The corrected
+build-only delta classifies as not affecting synthesis, so the original
+`dba49d5` RBF is retained; timing, hash and local delivery are recorded in
+`docs/current-status.md`. This remains a weaker-than-Opus
 review, with no new RTL or test behavior in its scope. Raw review and process
 metadata are retained in ignored `docs/references/b8-integration-2026-09-08/`.
 

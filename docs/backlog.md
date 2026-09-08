@@ -427,8 +427,9 @@ confirmation remain separate validation gaps. See [the timing evidence](accuracy
 
 **B8-6 integrated from refreshed `2bb75b5`, 2026-09-08:** Plus RGB now crosses the
 same enabled conversion boundary as sync/blanking. Source review and the updated
-5.052 sim/lint/soak gates pass; CI-pin compatibility and hardware
-acceptance remain separate. See [the bounded repair evidence](plus/b8-6-colour-boundary-2026-09-08.md).
+5.052 sim/lint/soak gates pass. CI 5.050 compatibility passed with the reviewed
+waiver-version guard at `9cfe743`; hardware acceptance remains separate.
+See [the bounded repair evidence](plus/b8-6-colour-boundary-2026-09-08.md).
 
 **FIRST ARCHITECTURE/METHODOLOGY PASS COMPLETE 2026-09-08.** The user-authorized
 Astra audit examined production boundaries and fixture/process fidelity; see
