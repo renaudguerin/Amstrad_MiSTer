@@ -449,6 +449,13 @@ writes. Physical-DQ and motherboard byte-to-pixel regressions pass; Astra
 medium review and its narrow assertion closure are clear. Hardware acceptance
 remains open. See [coherence evidence](b8-4-video-coherence-2026-09-08.md).
 
+**B8-7 integrated from `e7d73ba`, 2026-09-08:** tape writes retain their
+accepted tuple and complete without duplicate admission; queue backpressure
+and drain address ownership are shared by production and the physical-DQ
+fixture. Fn[2]/reset contention regressions and the corrected manifest are
+review-clear. Real-CDT playback remains open. See
+[tape evidence](b8-7-tape-write-lifetime-2026-09-08.md).
+
 **B8-6 integrated from refreshed `2bb75b5`, 2026-09-08:** Plus RGB now crosses the
 same enabled conversion boundary as sync/blanking. Source review and the updated
 5.052 sim/lint/soak gates pass. CI 5.050 compatibility passed with the reviewed

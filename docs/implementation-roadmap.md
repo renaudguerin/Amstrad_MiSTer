@@ -465,10 +465,9 @@ See [current status](current-status.md) for accepted source and artifact identit
    events are integrated separately from `55151a0` and `807f081`. Full ASCAL,
    executed titles and hardware retests remain open; the scripted regressions
    do not establish Copter causality.
-2. **Shared B8-7:** repair tape request/ACK and payload lifetime while preserving
-   the integrated B8-4 cache-coherence repair, CPU/cartridge admission and
-   refresh scheduling. B8-4 source `7a58f88` releases the P10 fixture for
-   B3/FDC follow-ups; coordinate any new shared changes before editing.
+2. **Shared validation:** B8-4 coherence and B8-7 tape write lifetime are
+   integrated from `7a58f88` and `e7d73ba`. Real-CDT playback remains open.
+   These are future validation items, not new tasks for the current run.
 3. **Classic validation:** four production-T80 OUT(C)/OUTI cases through the
    real GA/CRTC boundary are integrated from `84f3106`, alongside the 45-case
    scripted fixture. Native dynamic-wait comparison, complete frame-level RFD

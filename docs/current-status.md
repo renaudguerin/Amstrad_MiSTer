@@ -105,6 +105,18 @@ Astra closure of the Gemini-authored timing remediation). See the
 native-VHDL equivalence, full motherboard execution and DSC4/SHAKER hardware
 evidence remain open. CI and artifact delivery are tracked separately.
 
+**Shared B8-7 integrated, 2026-09-08, from `e7d73ba`:** tape download
+writes retain their address and payload through synchronous completion.
+Backpressure, early write acknowledgement and drain-held playback reset
+prevent lost or duplicate writes; Fn[2] clears metadata without redirecting a
+queued write, and machine reset dominates a simultaneous strobe. Physical-DQ
+regressions fail before repair and pass afterward; Astra independently cleared
+the repair and its two review corrections. See
+[tape evidence](b8-7-tape-write-lifetime-2026-09-08.md). Actual HPS cadence,
+player reset and real-CDT playback remain hardware/source boundaries.
+The merged checkout passes full simulation, lint and unchanged soak
+`0x6e8258198d6e6137`.
+
 **Plus B8-3 integrated, 2026-09-08, from `807f081`:** each accepted legacy
 palette write now reaches the 12-bit palette, including repeated same-value
 pen and border writes after direct ASIC-page edits. One-time reset import
@@ -1625,8 +1637,9 @@ which incorporates the September 8 production-boundary findings. Older dated
 hardware and implementation records above are evidence for their named source;
 their old branch names, hashes and proposed tasks are not the current launch plan.
 
-- B8-1 through B8-4 and B8-6 are integrated. Complete shared B8-7 and
-  B8-5 with separate behavior changes and production-boundary regressions.
+- B8-1 through B8-4, B8-6 and B8-7 are integrated. Finish the existing
+  B8-5 snapshot task, then complete CI/artifact delivery and worktree cleanup.
+  The current unattended run stops there; do not launch successor tasks.
 - Extend the bounded executed-T80 evidence only where a specific missing
   interaction warrants it. Hardware DSC4/SHAKER, IA-5/Q17 and Plus title
   acceptance remain open.

@@ -2,6 +2,13 @@
 
 ## Pending integration / review-complete rows (zero open review findings)
 
+- **B8-7 tape write lifetime — CLEAR, integrated from `e7d73ba`.**
+  Astra medium independently reviewed the foreign-authored queue, SDRAM
+  write ACK/data capture, top-level ownership and physical-DQ tests. The
+  production manifest and Fn2/reset findings were fixed and cleared in a
+  narrow follow-up, with failing-before vectors for both state defects.
+  Full simulation, lint and soak pass. See [contract and evidence limits](b8-7-tape-write-lifetime-2026-09-08.md).
+
 - **B8-4 retained-video coherence — CLEAR, integrated from `7a58f88`.**
   Astra medium independently reviewed the foreign-authored SDRAM key,
   accepted-write invalidation, bank capture and production pixel witness.
