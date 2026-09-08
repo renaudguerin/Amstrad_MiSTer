@@ -79,9 +79,12 @@ were provisioned and remain ignored; no new CRTC rule was inferred from them.
   or `-Wno-fatal` was added, and all existing warning policies are otherwise
   unchanged. One-off controls still exit 1 for an unlisted similar name and
   for width truncation on a listed name.
-- The CI pin remains 5.050. `-Wfuture-SIMILARNAME` provides the documented
-  older-version handling of the rule name; this was source/documentation
-  reviewed, not executed on 5.050. See the official
+- The CI pin remains 5.050. Integration run `34179032281` passed behavioral
+  tests on that pin but failed lint: control-file rule names still reject
+  unknown `SIMILARNAME` even with `-Wfuture-SIMILARNAME`. The Makefile now
+  loads the unchanged five-pair waiver file only for 5.052 or newer; the
+  5.050 route retains its original lint arguments without that file.
+  This corrects the earlier source-review compatibility assumption. See the official
   [warning classification](https://verilator.org/guide/latest/warnings.html#cmdoption-arg-SIMILARNAME)
   and [future-message option](https://verilator.org/guide/latest/exe_verilator.html#cmdoption-Wfuture-message).
 - Two temporary 5.050 build attempts failed on Apple/upstream Flex signature and
@@ -129,6 +132,16 @@ exceptions. The one-off controls substantiate the narrower claim above.
 The raw review and process status are retained as `video-gemini-gate-review.log`
 and `video-gemini-gate-review-process.json`. This review was already running
 when the user selected Muse for subsequent reviews.
+
+The follow-up Makefile version guard received Muse Spark/xhigh **CLEAR** from
+guarded run `20260908T022122Z-19796-5140` (provider/bridge exit 0, complete
+handoff, clean cleanup). It independently checked the source diff, actual
+5.050 CI error, version parsing and both lint command routes using dry runs.
+Neither reviewer nor parent claims a local 5.050 execution from those routing
+controls. Parent full simulation and aggregate lint pass on 5.052; actual
+5.050 acceptance belongs to the corrected CI run. This remains a weaker-than-Opus
+review, with no new RTL or test behavior in its scope. Raw review and process
+metadata are retained in ignored `docs/references/b8-integration-2026-09-08/`.
 
 ## Residual acceptance
 

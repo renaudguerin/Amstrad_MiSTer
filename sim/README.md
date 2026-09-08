@@ -28,6 +28,9 @@ runs:
 
 Requirements: Verilator 5 or later, GNU Make, and a C++20-capable compiler
 (for the timed SystemVerilog colour fixture; C++ harnesses still use C++17).
+CI pins 5.050; local 5.052 is also supported. The strict Plus lint recipes load
+five exact legacy `SIMILARNAME` waivers only on 5.052 or newer, since 5.050
+rejects that rule name in control files even with `-Wfuture`.
 On macOS:
 
 ```sh

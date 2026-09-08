@@ -43,6 +43,14 @@ A CLEAR verdict on source/test review is never hardware closure.
 
 ## Cleared rows
 
+- **B8 lint compatibility version guard — CLEAR, Muse Spark/xhigh,
+  2026-09-08.** Run `20260908T022122Z-19796-5140` reviewed the Makefile-only
+  correction after CI `34179032281` rejected unknown control-file rule names
+  on pinned Verilator 5.050. Source, CI error and routing dry checks were
+  independently inspected; parent full simulation/lint pass on 5.052.
+  This weaker-than-Opus review does not claim local 5.050 execution. See
+  the [B8-6 evidence](plus/b8-6-colour-boundary-2026-09-08.md).
+
 - **B8-6 Plus RGB/sync/blanking alignment — CLEAR, integrated from refreshed
   `2bb75b5` (original accepted `023d020`), 2026-09-08.** Opus/high reviewed
   the extraction and repair; the separate lint-waiver delta has weaker scoped
