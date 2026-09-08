@@ -96,7 +96,15 @@ always @(*) begin
 	endcase
 end
 
-assign R_out = plus_mode ? R_plus : R;
-assign G_out = plus_mode ? G_plus : G;
-assign B_out = plus_mode ? B_plus : B;
+// Keep the converted Plus pixel with the sync/blanking tuple captured by
+// color_mix on this same enable. gamma_corr consumes the previous tuple at
+// the next pixel edge, so bypassing this register advances RGB by one pixel.
+reg [23:0] plus_rgb;
+always @(posedge CLK_VIDEO) begin
+    if (ce_pix) plus_rgb <= {R_plus, G_plus, B_plus};
+end
+
+assign R_out = plus_mode ? plus_rgb[23:16] : R;
+assign G_out = plus_mode ? plus_rgb[15:8] : G;
+assign B_out = plus_mode ? plus_rgb[7:0] : B;
 endmodule
