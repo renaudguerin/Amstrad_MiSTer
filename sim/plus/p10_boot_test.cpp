@@ -3,13 +3,23 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
+#include <cerrno>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fcntl.h>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <streambuf>
+#include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -23,6 +33,12 @@ constexpr unsigned kIoctlWaitLimit = 20000000;
 constexpr uint16_t kCartridgeLoopPc = 0x0200;
 constexpr uint64_t kLoopMeasureTicks = 4096;
 constexpr unsigned kCartridgeLinkCount = 60;
+constexpr uint64_t kCaptureWaitLimit = 16000000;
+constexpr uint64_t kCaptureFrameTickLimit = 16000000;
+constexpr uint64_t kCaptureWarmupFrames = 2;
+constexpr uint64_t kCaptureMaxFrames = 16;
+constexpr uint64_t kCaptureMaxCprBytes = 0x02000000;
+constexpr uint64_t kCaptureMaxOutputBytes = 2ULL * 1024ULL * 1024ULL * 1024ULL;
 
 class TestFailure : public std::runtime_error {
 public:
@@ -78,6 +94,222 @@ std::vector<uint8_t> build_cpr_image(const std::vector<Chunk> &chunks, const std
     return image;
 }
 
+// Keep the capture smoke on the same small, static CRTC program as the
+// production VRAM-client proof below.  It is deliberately a real cartridge
+// image: the T80, CPR parser/service, Plus MMU, motherboard and SDRAM client
+// all participate before the frame taps are sampled.
+std::vector<uint8_t> build_static_crtc_cpr() {
+    std::vector<uint8_t> program(16384, 0x00);
+    size_t pc = 0;
+    auto emit = [&](uint8_t byte) { program[pc++] = byte; };
+    auto write_crtc = [&](uint8_t reg, uint8_t value) {
+        emit(0x01); emit(0x00); emit(0xBC); // LD BC,&BC00
+        emit(0x3E); emit(reg);              // LD A,register
+        emit(0xED); emit(0x79);             // OUT (C),A
+        emit(0x01); emit(0x00); emit(0xBD); // LD BC,&BD00
+        emit(0x3E); emit(value);            // LD A,value
+        emit(0xED); emit(0x79);             // OUT (C),A
+    };
+    write_crtc(0, 63);
+    write_crtc(1, 40);
+    write_crtc(4, 38);
+    write_crtc(6, 25);
+    write_crtc(9, 7);
+    emit(0x76); // HALT: the programmed video path keeps running.
+    return build_cpr_image({{"cb00", program}});
+}
+
+class Harness;
+
+struct VideoSample {
+    bool raw_hsync = false;
+    bool raw_vsync = false;
+    bool raw_de = false;
+    bool selected_hsync = false;
+    bool selected_vsync = false;
+    bool selected_hblank = false;
+    bool selected_vblank = false;
+    uint16_t rgb = 0;
+    uint16_t ma = 0;
+    uint8_t ra = 0;
+    uint16_t vram_addr = 0;
+    uint16_t vram_word = 0;
+    uint8_t vram_byte = 0;
+    uint8_t filter_selector = 0;
+};
+
+VideoSample sample_video(const Harness &h);
+
+struct FrameCaptureStats {
+    uint64_t frame_index = 0;
+    uint64_t sample_count = 0;
+    uint64_t hash = 0;
+    uint64_t raw_hsync_edges = 0;
+    uint64_t raw_hsync_rises = 0;
+    uint64_t raw_vsync_edges = 0;
+    uint64_t raw_vsync_rises = 0;
+    uint64_t selected_hsync_edges = 0;
+    uint64_t selected_hsync_rises = 0;
+    uint64_t selected_vsync_edges = 0;
+    uint64_t selected_vsync_rises = 0;
+    uint64_t de_active_ticks = 0;
+    uint64_t hblank_active_ticks = 0;
+    uint64_t vblank_active_ticks = 0;
+};
+
+class Fnv1a64 {
+public:
+    static constexpr uint64_t kOffsetBasis = 14695981039346656037ULL;
+    static constexpr uint64_t kPrime = 1099511628211ULL;
+
+    void update(const void *data, size_t size) {
+        const auto *bytes = static_cast<const unsigned char *>(data);
+        for (size_t index = 0; index < size; ++index) {
+            const unsigned char byte = bytes[index];
+            value_ ^= byte;
+            value_ *= kPrime;
+        }
+    }
+
+    void update(std::string_view bytes) { update(bytes.data(), bytes.size()); }
+
+    uint64_t value() const { return value_; }
+
+private:
+    uint64_t value_ = kOffsetBasis;
+};
+
+struct CaptureResult {
+    uint8_t filter_selector = 0;
+    std::vector<FrameCaptureStats> frames;
+    uint64_t serialized_bytes = 0;
+};
+
+struct CaptureProvenance {
+    uint64_t cpr_size_bytes = 0;
+    uint64_t cpr_content_hash = 0;
+    uint8_t plus_model = 0;
+    bool production_clocking = false;
+    std::string simulator_binary_identity;
+};
+
+uint64_t hash_bytes(const std::vector<uint8_t> &bytes);
+
+void require_stream_ok(const std::ostream &output, const char *context);
+
+class NullStreamBuf : public std::streambuf {
+protected:
+    int_type overflow(int_type character) override {
+        return traits_type::not_eof(character);
+    }
+};
+
+class ExclusiveFileBuf : public std::streambuf {
+public:
+    ExclusiveFileBuf() { setp(buffer_.data(), buffer_.data() + buffer_.size()); }
+    ~ExclusiveFileBuf() override { close(); }
+
+    bool open(const std::string &path) {
+        if (fd_ >= 0) return false;
+        // O_EXCL makes creation atomic against create races; O_NOFOLLOW
+        // refuses a symlink at the output path (including a dangling link
+        // the pre-check cannot see) instead of following it.
+        fd_ = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0666);
+        if (fd_ < 0) {
+            error_number_ = errno;
+            error_ = std::strerror(errno);
+            return false;
+        }
+        setp(buffer_.data(), buffer_.data() + buffer_.size());
+        return true;
+    }
+
+    bool close() {
+        bool okay = sync() == 0;
+        if (fd_ >= 0) {
+            if (::close(fd_) != 0) okay = false;
+            fd_ = -1;
+        }
+        return okay;
+    }
+
+    const std::string &error() const { return error_; }
+    int error_number() const { return error_number_; }
+
+protected:
+    int_type overflow(int_type character) override {
+        if (!flush_buffer()) return traits_type::eof();
+        if (!traits_type::eq_int_type(character, traits_type::eof())) {
+            *pptr() = traits_type::to_char_type(character);
+            pbump(1);
+        }
+        return traits_type::not_eof(character);
+    }
+
+    std::streamsize xsputn(const char *data, std::streamsize size) override {
+        std::streamsize written = 0;
+        while (written < size) {
+            const std::streamsize available = epptr() - pptr();
+            if (available == 0 && !flush_buffer()) break;
+            const std::streamsize chunk = std::min(available, size - written);
+            std::memcpy(pptr(), data + written, static_cast<size_t>(chunk));
+            pbump(static_cast<int>(chunk));
+            written += chunk;
+        }
+        return written;
+    }
+
+    int sync() override { return flush_buffer() ? 0 : -1; }
+
+private:
+    bool flush_buffer() {
+        if (fd_ < 0) return true;
+        const char *data = pbase();
+        std::streamsize remaining = pptr() - pbase();
+        while (remaining > 0) {
+            const ssize_t written = ::write(fd_, data, static_cast<size_t>(remaining));
+            if (written <= 0) {
+                error_number_ = errno;
+                error_ = std::strerror(errno);
+                return false;
+            }
+            data += written;
+            remaining -= written;
+        }
+        setp(buffer_.data(), buffer_.data() + buffer_.size());
+        return true;
+    }
+
+    int fd_ = -1;
+    int error_number_ = 0;
+    std::array<char, 64 * 1024> buffer_{};
+    std::string error_;
+};
+
+class CaptureWriter {
+public:
+    explicit CaptureWriter(std::ostream &output) : output_(output) {}
+
+    void write(std::string_view text) {
+        if (text.size() > kCaptureMaxOutputBytes - bytes_written_)
+            throw TestFailure("serialized capture exceeds 2 GiB output budget");
+        output_.write(text.data(), static_cast<std::streamsize>(text.size()));
+        require_stream_ok(output_, "stream write");
+        bytes_written_ += text.size();
+    }
+
+    void flush() {
+        output_.flush();
+        require_stream_ok(output_, "stream flush");
+    }
+
+    uint64_t bytes_written() const { return bytes_written_; }
+
+private:
+    std::ostream &output_;
+    uint64_t bytes_written_ = 0;
+};
+
 class Harness {
 public:
     Vp10_boot_test_top dut;
@@ -98,6 +330,8 @@ public:
 	std::array<uint8_t, 7> fdc_results{};
 	std::array<bool, 7> fdc_result_seen{};
 	bool fdc_success = false;
+	bool cpr_load_abort_seen = false;
+	bool cpr_load_error_seen = false;
 
     Harness() {
         dut.clk = 0;
@@ -165,6 +399,8 @@ public:
 
         dut.clk = 0;
         dut.eval();
+		if (dut.dbg_cpr_load_abort) cpr_load_abort_seen = true;
+		if (dut.dbg_cpr_load_error) cpr_load_error_seen = true;
         if (dut.dbg_cart_own && !dut.dbg_cart_stall && !dut.dbg_mreq_n &&
             !dut.dbg_rd_n && dut.dbg_addr == 0xC000 && dut.dbg_din == 0x42) {
             upper_page_magic_seen = true;
@@ -264,11 +500,15 @@ public:
     void download(const std::vector<uint8_t> &image) {
         dut.cpr_download = 1;
         tick();
+        if (cpr_load_abort_seen)
+            throw TestFailure("CPR parser aborted during download");
         for (size_t i = 0; i < image.size(); ++i) {
             dut.ioctl_addr = static_cast<uint32_t>(i);
             dut.ioctl_dout = image[i];
             dut.ioctl_wr = 1;
             tick();
+            if (cpr_load_abort_seen)
+                throw TestFailure("CPR parser aborted during download");
             dut.ioctl_wr = 0;
             unsigned wait_count = 0;
             while (dut.ioctl_wait) {
@@ -280,6 +520,8 @@ public:
         }
         dut.cpr_download = 0;
         tick();
+        if (cpr_load_abort_seen)
+            throw TestFailure("CPR parser aborted while applying download");
     }
 
     void run_until_pc(uint16_t target_pc, uint64_t max_cycles = 100000) {
@@ -366,6 +608,307 @@ private:
         memory[key] = byte;
     }
 };
+
+VideoSample sample_video(const Harness &h) {
+    VideoSample sample;
+    sample.raw_hsync = h.dut.dbg_raw_hsync != 0;
+    sample.raw_vsync = h.dut.dbg_raw_vsync != 0;
+    sample.raw_de = h.dut.dbg_raw_de != 0;
+    sample.selected_hsync = h.dut.dbg_selected_hsync != 0;
+    sample.selected_vsync = h.dut.dbg_selected_vsync != 0;
+    sample.selected_hblank = h.dut.dbg_selected_hblank != 0;
+    sample.selected_vblank = h.dut.dbg_selected_vblank != 0;
+    sample.rgb = static_cast<uint16_t>(h.dut.dbg_video_rgb);
+    sample.ma = static_cast<uint16_t>(h.dut.dbg_video_ma);
+    sample.ra = static_cast<uint8_t>(h.dut.dbg_video_ra);
+    sample.vram_addr = static_cast<uint16_t>(h.dut.dbg_video_vram_addr);
+    sample.vram_word = static_cast<uint16_t>(h.dut.dbg_video_vram_word);
+    sample.vram_byte = static_cast<uint8_t>(h.dut.dbg_video_vram_byte);
+    sample.filter_selector = static_cast<uint8_t>(h.dut.dbg_sync_filter);
+    return sample;
+}
+
+// The first column (frame) is framing metadata.  The remaining serialized
+// fields are also the exact byte sequence fed to the per-frame FNV-1a hash;
+// this keeps equal steady-state frames hash-equal while retaining frame
+// numbering in the text stream.
+std::string serialize_sample_fields(uint64_t sample_index,
+                                    const VideoSample &sample) {
+    std::string fields = std::to_string(sample_index);
+    const auto append = [&](uint64_t value) {
+        fields.push_back(' ');
+        fields += std::to_string(value);
+    };
+    append(sample.raw_hsync ? 1 : 0);
+    append(sample.raw_vsync ? 1 : 0);
+    append(sample.raw_de ? 1 : 0);
+    append(sample.selected_hsync ? 1 : 0);
+    append(sample.selected_vsync ? 1 : 0);
+    append(sample.selected_hblank ? 1 : 0);
+    append(sample.selected_vblank ? 1 : 0);
+    append(sample.rgb);
+    append(sample.ma);
+    append(sample.ra);
+    append(sample.vram_addr);
+    append(sample.vram_word);
+    append(sample.vram_byte);
+    append(sample.filter_selector);
+    return fields;
+}
+
+std::string format_hash(uint64_t hash) {
+    std::ostringstream text;
+    text << "0x" << std::hex << std::setw(16) << std::setfill('0') << hash;
+    return text.str();
+}
+
+void require_stream_ok(const std::ostream &output, const char *context) {
+    require(static_cast<bool>(output), std::string("capture ") + context + " failed");
+}
+
+const char *plus_model_name(uint8_t plus_model) {
+    switch (plus_model) {
+    case 0: return "Off";
+    case 1: return "GX4000";
+    case 2: return "6128+";
+    case 3: return "464+";
+    default: return "unknown";
+    }
+}
+
+std::string sanitize_header_text(std::string text) {
+    for (char &character : text) {
+        if (character == '\n' || character == '\r') character = '_';
+    }
+    return text;
+}
+
+void write_capture_header(CaptureWriter &writer, uint8_t filter_selector,
+                          uint64_t requested_frames, uint64_t warmup_frames,
+                          const CaptureProvenance &provenance) {
+    std::ostringstream header;
+    header << "# p10_frame_capture version=1\n"
+           << "# clock_hz=64000000\n"
+           << "# delimiter=selected_vsync rising edge (0-to-1)\n"
+           << "# cpu_surrogate=t80pa_wrapped_reduced_tv80 (fixture only; the production VHDL T80 is not compiled under Verilator, so JR/DJNZ/JP-cc/interrupt software is out of scope)\n"
+           << "# raw_* = motherboard hs_sel/vs_sel/de_sel source taps; selected_* = production output tuple\n"
+           << "# RGB/MA/RA/VRAM are shared and filter-dependent taps, not pre/post-filter taps\n"
+           << "# GA/filter internal stages are absent and reserved for a future capture version\n"
+           << "# numeric_encoding=decimal; boolean_encoding=0_or_1\n"
+           << "# hash=FNV1A-64 over serialized sample fields from sample through filter_selector; frame and line ending excluded\n"
+           << "# serialized_output_budget_bytes=" << kCaptureMaxOutputBytes << "\n"
+           << "# cpr_size_bytes=" << provenance.cpr_size_bytes << "\n"
+           << "# cpr_content_hash=" << format_hash(provenance.cpr_content_hash) << "\n"
+           << "# plus_model_i=" << static_cast<unsigned>(provenance.plus_model)
+           << " (" << plus_model_name(provenance.plus_model) << ")\n"
+           << "# production_clocking=" << (provenance.production_clocking ? 1 : 0)
+           << " (" << (provenance.production_clocking ? "production_divider" :
+                           "fixture_divider") << ")\n"
+           << "# simulator_binary="
+           << sanitize_header_text(provenance.simulator_binary_identity) << "\n"
+           << "# filter_selector=" << static_cast<unsigned>(filter_selector)
+           << " (0=Full,1=Live_blank,2=Off)\n"
+           << "# requested_frames=" << requested_frames << "\n"
+           << "# warmup_frames_discarded=" << warmup_frames << "\n"
+           << "frame sample raw_hsync raw_vsync raw_de selected_hsync selected_vsync selected_hblank selected_vblank rgb ma ra vram_addr vram_word vram_byte filter_selector\n";
+    writer.write(header.str());
+}
+
+void write_frame_summary(CaptureWriter &writer, const FrameCaptureStats &stats) {
+    std::ostringstream summary;
+    summary << "# frame_summary frame=" << stats.frame_index
+            << " samples=" << stats.sample_count
+            << " hash=" << format_hash(stats.hash)
+            << " raw_hsync_edges=" << stats.raw_hsync_edges
+            << " raw_hsync_rises=" << stats.raw_hsync_rises
+            << " raw_vsync_edges=" << stats.raw_vsync_edges
+            << " raw_vsync_rises=" << stats.raw_vsync_rises
+            << " selected_hsync_edges=" << stats.selected_hsync_edges
+            << " selected_hsync_rises=" << stats.selected_hsync_rises
+            << " selected_vsync_edges=" << stats.selected_vsync_edges
+            << " selected_vsync_rises=" << stats.selected_vsync_rises
+            << " de_active_ticks=" << stats.de_active_ticks
+            << " hblank_active_ticks=" << stats.hblank_active_ticks
+            << " vblank_active_ticks=" << stats.vblank_active_ticks << "\n";
+    writer.write(summary.str());
+}
+
+void report_frame_summary(const FrameCaptureStats &stats) {
+    std::cout << "CAPTURE frame=" << stats.frame_index
+              << " samples=" << stats.sample_count
+              << " hash=" << format_hash(stats.hash)
+              << " raw_hsync_edges=" << stats.raw_hsync_edges
+              << " raw_vsync_edges=" << stats.raw_vsync_edges
+              << " selected_hsync_edges=" << stats.selected_hsync_edges
+              << " selected_vsync_edges=" << stats.selected_vsync_edges
+              << " de_active_ticks=" << stats.de_active_ticks
+              << " hblank_active_ticks=" << stats.hblank_active_ticks
+              << " vblank_active_ticks=" << stats.vblank_active_ticks << std::endl;
+}
+
+void update_frame_counts(FrameCaptureStats &stats, const VideoSample &sample,
+                         const VideoSample *previous) {
+    if (sample.raw_de) ++stats.de_active_ticks;
+    if (sample.selected_hblank) ++stats.hblank_active_ticks;
+    if (sample.selected_vblank) ++stats.vblank_active_ticks;
+    if (!previous) return;
+
+    if (sample.raw_hsync != previous->raw_hsync) ++stats.raw_hsync_edges;
+    if (!previous->raw_hsync && sample.raw_hsync) ++stats.raw_hsync_rises;
+    if (sample.raw_vsync != previous->raw_vsync) ++stats.raw_vsync_edges;
+    if (!previous->raw_vsync && sample.raw_vsync) ++stats.raw_vsync_rises;
+    if (sample.selected_hsync != previous->selected_hsync)
+        ++stats.selected_hsync_edges;
+    if (!previous->selected_hsync && sample.selected_hsync)
+        ++stats.selected_hsync_rises;
+    if (sample.selected_vsync != previous->selected_vsync)
+        ++stats.selected_vsync_edges;
+    if (!previous->selected_vsync && sample.selected_vsync)
+        ++stats.selected_vsync_rises;
+}
+
+void append_capture_sample(CaptureWriter &writer, FrameCaptureStats &stats,
+                           Fnv1a64 &hasher, uint64_t sample_index,
+                           const VideoSample &sample,
+                           const VideoSample *previous) {
+    const std::string fields = serialize_sample_fields(sample_index, sample);
+    const std::string row = std::to_string(stats.frame_index) + " " + fields + "\n";
+    writer.write(row);
+    hasher.update(fields);
+    ++stats.sample_count;
+    update_frame_counts(stats, sample, previous);
+}
+
+void wait_for_reset_release(Harness &h, const char *name) {
+    for (uint64_t tick = 0; tick < kCaptureWaitLimit; ++tick) {
+        if (!h.dut.dbg_reset) return;
+        h.tick();
+    }
+    throw TestFailure(std::string("timed out waiting for ") + name + " reset release");
+}
+
+void wait_for_cpr_apply(Harness &h) {
+    for (uint64_t tick = 0; tick < kCaptureWaitLimit; ++tick) {
+        if (h.cpr_load_abort_seen)
+            throw TestFailure("CPR parser aborted while applying download");
+        if (h.cpr_load_error_seen || h.dut.dbg_cpr_load_error)
+            throw TestFailure("CPR cartridge service reported a load error");
+        if (!h.dut.dbg_reset && h.dut.dbg_cart_image_valid &&
+            !h.dut.dbg_cart_service_busy)
+            return;
+        h.tick();
+    }
+    throw TestFailure("timed out waiting for CPR apply/reset to finish");
+}
+
+bool m1_memory_read(const Harness &h);
+
+void wait_for_m1_read(Harness &h, const char *name,
+                      uint64_t max_ticks = kCaptureWaitLimit) {
+    for (uint64_t tick = 0; tick < max_ticks; ++tick) {
+        if (m1_memory_read(h)) return;
+        h.tick();
+    }
+    throw TestFailure(std::string("timed out waiting for ") + name + " M1 read");
+}
+
+VideoSample wait_for_selected_vsync_rising(
+    Harness &h, VideoSample &previous, const char *phase,
+    uint64_t max_ticks = kCaptureWaitLimit,
+    VideoSample *before_edge = nullptr) {
+    for (uint64_t tick = 0; tick < max_ticks; ++tick) {
+        h.tick();
+        const VideoSample current = sample_video(h);
+        const bool rising = !previous.selected_vsync && current.selected_vsync;
+        const VideoSample prior = previous;
+        previous = current;
+        if (rising) {
+            if (before_edge) *before_edge = prior;
+            return current;
+        }
+    }
+    throw TestFailure(std::string("timed out waiting for selected VSYNC rising edge during ") +
+                      phase);
+}
+
+CaptureResult capture_video_frames(Harness &h, uint64_t frame_count,
+                                   std::ostream &output,
+                                   const CaptureProvenance &provenance,
+                                   uint64_t warmup_frames = kCaptureWarmupFrames) {
+    require(frame_count > 0, "capture frame count must be positive");
+    require(frame_count <= kCaptureMaxFrames,
+            "capture frame count exceeds bounded harness limit");
+
+    CaptureResult result;
+    result.frames.reserve(static_cast<size_t>(frame_count));
+    VideoSample previous = sample_video(h);
+    result.filter_selector = previous.filter_selector;
+    require(provenance.cpr_size_bytes > 0, "capture provenance is missing CPR size");
+    require(!provenance.simulator_binary_identity.empty(),
+            "capture provenance is missing simulator-binary identity");
+    CaptureWriter writer(output);
+    write_capture_header(writer, result.filter_selector, frame_count,
+                         warmup_frames, provenance);
+
+    // Establish a boundary, then discard exactly warmup_frames complete
+    // intervals.  The final boundary reached by that loop is the first
+    // captured sample, so no unreported synchronization frame is inserted.
+    VideoSample boundary_before;
+    VideoSample boundary = wait_for_selected_vsync_rising(
+        h, previous, "initial frame boundary", kCaptureWaitLimit,
+        &boundary_before);
+    for (uint64_t warmup = 0; warmup < warmup_frames; ++warmup) {
+        boundary = wait_for_selected_vsync_rising(
+            h, previous, "warm-up", kCaptureWaitLimit, &boundary_before);
+    }
+
+    FrameCaptureStats current;
+    Fnv1a64 hasher;
+    uint64_t sample_index = 0;
+    uint64_t ticks_since_rising = 0;
+    current.frame_index = 0;
+    hasher = Fnv1a64{};
+    append_capture_sample(writer, current, hasher, sample_index++, boundary,
+                          &boundary_before);
+
+    while (result.frames.size() < frame_count) {
+        h.tick();
+        const VideoSample sample = sample_video(h);
+        const bool rising = !previous.selected_vsync && sample.selected_vsync;
+
+        if (rising) {
+            current.hash = hasher.value();
+            write_frame_summary(writer, current);
+            report_frame_summary(current);
+            result.frames.push_back(current);
+            if (result.frames.size() == frame_count) {
+                previous = sample;
+                break;
+            }
+
+            current = FrameCaptureStats{};
+            current.frame_index = result.frames.size();
+            hasher = Fnv1a64{};
+            sample_index = 0;
+            append_capture_sample(writer, current, hasher, sample_index++,
+                                  sample, &previous);
+            ticks_since_rising = 0;
+        }
+        else {
+            if (ticks_since_rising++ >= kCaptureFrameTickLimit)
+                throw TestFailure("timed out waiting for complete captured frame");
+            append_capture_sample(writer, current, hasher, sample_index++,
+                                  sample, &previous);
+        }
+        previous = sample;
+    }
+
+    require(result.frames.size() == frame_count,
+            "capture did not produce the requested number of complete frames");
+    writer.flush();
+    result.serialized_bytes = writer.bytes_written();
+    return result;
+}
 
 struct LoopMeasurement {
     uint64_t elapsed_ticks = 0;
@@ -541,17 +1084,13 @@ void test_p10a_deterministic_boot() {
 
     // 2. Observe reset apply countdown & release
     require(h.dut.dbg_reset == 1, "Reset must be asserted after CPR download");
-    while (h.dut.dbg_reset) {
-        h.tick();
-    }
+    wait_for_reset_release(h, "deterministic CPR apply");
     require(h.dut.dbg_reset == 0, "Reset must release after apply countdown");
 
     // 3. Observe real T80 opcode fetch at PC = 0x0000 from cartridge page 0
     std::cout << "  Observing reset-vector execution at PC=0x0000..." << std::endl;
     // Step until M1 memory read phase
-    while (h.dut.dbg_m1_n || h.dut.dbg_mreq_n || h.dut.dbg_rd_n) {
-        h.tick();
-    }
+    wait_for_m1_read(h, "reset-vector");
     require(h.dut.dbg_pc == 0x0000, "First instruction PC must be 0x0000");
 
     // 4. Run until ASIC unlock sequence completes
@@ -700,26 +1239,8 @@ void test_p10a_vram_client_wiring() {
     Harness h;
     h.initialize();
 
-    std::vector<uint8_t> program(16384, 0x00);
-    size_t pc = 0;
-    auto emit = [&](uint8_t byte) { program[pc++] = byte; };
-    auto write_crtc = [&](uint8_t reg, uint8_t value) {
-        emit(0x01); emit(0x00); emit(0xBC); // LD BC,&BC00
-        emit(0x3E); emit(reg);              // LD A,register
-        emit(0xED); emit(0x79);             // OUT (C),A
-        emit(0x01); emit(0x00); emit(0xBD); // LD BC,&BD00
-        emit(0x3E); emit(value);            // LD A,value
-        emit(0xED); emit(0x79);             // OUT (C),A
-    };
-    write_crtc(0, 63);
-    write_crtc(1, 40);
-    write_crtc(4, 38);
-    write_crtc(6, 25);
-    write_crtc(9, 7);
-    emit(0x76); // HALT: the programmed video path keeps running.
-
-    h.download(build_cpr_image({{"cb00", program}}));
-    while (h.dut.dbg_reset) h.tick();
+    h.download(build_static_crtc_cpr());
+    wait_for_reset_release(h, "VRAM wiring CPR apply");
 
     bool programmed = false;
     for (uint64_t tick = 0; tick < 100000 && !programmed; ++tick) {
@@ -776,6 +1297,164 @@ void test_p10a_vram_client_wiring() {
     require(distinct_addresses.size() >= 4,
             "VRAM wiring proof observed fewer than four unique physical addresses");
     std::cout << "PASS: production VRAM address/bank reaches the SDRAM video client"
+              << std::endl;
+}
+
+void require_capture_shape_equal(const FrameCaptureStats &first,
+                                 const FrameCaptureStats &second) {
+    require(first.sample_count == second.sample_count,
+            "consecutive capture frames have different sample counts");
+    require(first.raw_hsync_edges == second.raw_hsync_edges &&
+                first.raw_hsync_rises == second.raw_hsync_rises &&
+                first.raw_vsync_edges == second.raw_vsync_edges &&
+                first.raw_vsync_rises == second.raw_vsync_rises,
+            "consecutive capture frames have different raw sync edge counts");
+    require(first.selected_hsync_edges == second.selected_hsync_edges &&
+                first.selected_hsync_rises == second.selected_hsync_rises &&
+                first.selected_vsync_edges == second.selected_vsync_edges &&
+                first.selected_vsync_rises == second.selected_vsync_rises,
+            "consecutive capture frames have different selected sync edge counts");
+    require(first.de_active_ticks == second.de_active_ticks &&
+                first.hblank_active_ticks == second.hblank_active_ticks &&
+                first.vblank_active_ticks == second.vblank_active_ticks,
+            "consecutive capture frames have different active/blank counts");
+}
+
+CaptureProvenance make_synthetic_provenance(const Harness &h,
+                                            const std::vector<uint8_t> &image,
+                                            const std::string &simulator_identity) {
+    CaptureProvenance provenance;
+    provenance.cpr_size_bytes = image.size();
+    provenance.cpr_content_hash = hash_bytes(image);
+    provenance.plus_model = static_cast<uint8_t>(h.dut.plus_model_i);
+    provenance.production_clocking = h.dut.production_clocking != 0;
+    provenance.simulator_binary_identity = simulator_identity;
+    return provenance;
+}
+
+void test_b3_frame_capture_smoke(const std::string &simulator_identity) {
+    std::cout << "Running test_b3_frame_capture_smoke..." << std::endl;
+    Harness h;
+    h.initialize();
+    const std::vector<uint8_t> image = build_static_crtc_cpr();
+    h.download(image);
+    wait_for_cpr_apply(h);
+
+    bool programmed = false;
+    for (uint64_t tick = 0; tick < 100000 && !programmed; ++tick) {
+        h.tick();
+        programmed = h.dut.dbg_crtc_wr && h.dut.dbg_crtc_reg == 9 &&
+                     h.dut.dbg_crtc_val == 7;
+    }
+    require(programmed, "capture smoke program did not configure the CRTC");
+
+    // Discard two complete frame delimiters after the last CRTC write.  This
+    // leaves the capture on a repeatable steady-state boundary without
+    // baking a current-RTL image or hash into the test.
+    NullStreamBuf stream_buffer;
+    std::ostream stream(&stream_buffer);
+    const CaptureProvenance provenance =
+        make_synthetic_provenance(h, image, simulator_identity);
+    const CaptureResult capture = capture_video_frames(
+        h, 2, stream, provenance, kCaptureWarmupFrames);
+    require(capture.frames.size() == 2,
+            "capture smoke did not return two complete frames");
+    const FrameCaptureStats &first = capture.frames[0];
+    const FrameCaptureStats &second = capture.frames[1];
+    require_capture_shape_equal(first, second);
+    require(first.hash != 0 && second.hash != 0,
+            "capture smoke produced an empty frame hash");
+    require(first.hash == second.hash,
+            "steady-state capture frames produced different hashes");
+    require(first.de_active_ticks > 0 && second.de_active_ticks > 0,
+            "capture smoke observed no active video ticks");
+    require(first.selected_hsync_edges > 0 &&
+                first.selected_vsync_rises > 0 &&
+                second.selected_hsync_edges > 0 &&
+                second.selected_vsync_rises > 0,
+            "capture smoke observed no selected sync edges");
+    std::cout << "PASS: B3 two complete steady-state frames capture identically"
+              << std::endl;
+}
+
+// A CPR with a corrupt RIFF magic must trip the parser's STATE_ERROR abort
+// (plus_cpr_parser.v STATE_HEADER_RIFF expects 'R' first) instead of
+// booting into an undefined machine state.
+void test_b3_malformed_cpr_rejected() {
+    std::cout << "Running test_b3_malformed_cpr_rejected..." << std::endl;
+    Harness h;
+    h.initialize();
+    std::vector<uint8_t> image = build_static_crtc_cpr();
+    image[0] = 0x58; // 'X': not 'R', so the header state aborts.
+    bool rejected = false;
+    try {
+        h.download(image);
+    } catch (const TestFailure &) {
+        rejected = true;
+    }
+    require(rejected, "corrupt-magic CPR download did not abort");
+    std::cout << "PASS: corrupt-magic CPR cannot boot" << std::endl;
+}
+
+// A truncated-but-well-formed prefix must abort at apply time (parser never
+// reaches STATE_DONE, so no load_commit): the harness must fail, not run.
+void test_b3_truncated_cpr_rejected() {
+    std::cout << "Running test_b3_truncated_cpr_rejected..." << std::endl;
+    Harness h;
+    h.initialize();
+    const std::vector<uint8_t> image = build_static_crtc_cpr();
+    const std::vector<uint8_t> prefix(image.begin(), image.begin() + 8);
+    bool rejected = false;
+    try {
+        h.download(prefix);
+        wait_for_cpr_apply(h);
+    } catch (const TestFailure &) {
+        rejected = true;
+    }
+    require(rejected, "truncated CPR prefix was accepted as a cartridge");
+    std::cout << "PASS: truncated CPR cannot boot" << std::endl;
+}
+
+// Two independent harnesses capturing the same synthetic cartridge must emit
+// byte-identical serializations.  This pins determinism of the declared
+// stream format; it is not a hardware oracle (no golden hash is minted).
+void test_b3_repeat_capture_stable(const std::string &simulator_identity) {
+    std::cout << "Running test_b3_repeat_capture_stable..." << std::endl;
+    const std::vector<uint8_t> image = build_static_crtc_cpr();
+    std::string first_serialized;
+    FrameCaptureStats first_stats;
+    {
+        Harness h;
+        h.initialize();
+        h.download(image);
+        wait_for_cpr_apply(h);
+        std::ostringstream stream;
+        const CaptureResult capture = capture_video_frames(
+            h, 1, stream, make_synthetic_provenance(h, image, simulator_identity),
+            kCaptureWarmupFrames);
+        require(capture.frames.size() == 1,
+                "first repeat capture did not return one complete frame");
+        first_serialized = stream.str();
+        first_stats = capture.frames[0];
+    }
+    {
+        Harness h;
+        h.initialize();
+        h.download(image);
+        wait_for_cpr_apply(h);
+        std::ostringstream stream;
+        const CaptureResult capture = capture_video_frames(
+            h, 1, stream, make_synthetic_provenance(h, image, simulator_identity),
+            kCaptureWarmupFrames);
+        require(capture.frames.size() == 1,
+                "second repeat capture did not return one complete frame");
+        require(stream.str() == first_serialized,
+                "independent synthetic captures serialized differently");
+        require_capture_shape_equal(first_stats, capture.frames[0]);
+        require(first_stats.hash == capture.frames[0].hash,
+                "independent synthetic captures hashed differently");
+    }
+    std::cout << "PASS: independent synthetic captures serialize identically"
               << std::endl;
 }
 
@@ -1274,19 +1953,408 @@ void test_p10b_video_coherence_pixel() {
     throw TestFailure("budget exhausted without a verdict");
 }
 
+struct CaptureOptions {
+    bool show_help = false;
+    bool capture_requested = false;
+    bool have_cpr_path = false;
+    bool have_frame_count = false;
+    bool have_output_path = false;
+    bool have_build_id = false;
+    std::string cpr_path;
+    std::string output_path;
+    std::string build_id;
+    uint64_t frame_count = 0;
+};
+
+void print_capture_usage(std::ostream &output) {
+    output << "Usage: p10_boot_tests [--capture-cpr <path> --frames <n> "
+              "--output <path> [--build-id <text>]]\n"
+           << "       p10_boot_tests --help\n"
+           << "Default mode runs the P10 regression suite. Capture mode uploads "
+              "a CPR and writes 64-MHz frame samples.\n";
+}
+
+uint64_t parse_capture_frame_count(const std::string &text) {
+    if (text.empty())
+        throw TestFailure("--frames requires a positive decimal integer");
+    uint64_t value = 0;
+    const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value);
+    if (parsed.ec != std::errc() || parsed.ptr != text.data() + text.size() ||
+        value == 0)
+        throw TestFailure("--frames requires a positive decimal integer");
+    if (value > kCaptureMaxFrames)
+        throw TestFailure("--frames exceeds bounded harness limit of " +
+                          std::to_string(kCaptureMaxFrames));
+    return value;
+}
+
+CaptureOptions parse_capture_options(int argc, char **argv) {
+    CaptureOptions options;
+    for (int i = 1; i < argc; ++i) {
+        const std::string argument = argv[i] ? argv[i] : "";
+        if (argument == "--help") {
+            if (argc != 2)
+                throw TestFailure("--help cannot be combined with other arguments");
+            options.show_help = true;
+            continue;
+        }
+
+        if (argument == "--capture-cpr") {
+            if (options.have_cpr_path)
+                throw TestFailure("--capture-cpr specified more than once");
+            if (++i >= argc || !argv[i] || argv[i][0] == '\0' ||
+                argv[i][0] == '-')
+                throw TestFailure("--capture-cpr requires a file path");
+            options.have_cpr_path = true;
+            options.capture_requested = true;
+            options.cpr_path = argv[i];
+        }
+        else if (argument == "--frames") {
+            if (options.have_frame_count)
+                throw TestFailure("--frames specified more than once");
+            if (++i >= argc || !argv[i] || argv[i][0] == '\0' ||
+                argv[i][0] == '-')
+                throw TestFailure("--frames requires a positive decimal integer");
+            options.have_frame_count = true;
+            options.capture_requested = true;
+            options.frame_count = parse_capture_frame_count(argv[i]);
+        }
+        else if (argument == "--output") {
+            if (options.have_output_path)
+                throw TestFailure("--output specified more than once");
+            if (++i >= argc || !argv[i] || argv[i][0] == '\0' ||
+                argv[i][0] == '-')
+                throw TestFailure("--output requires a file path");
+            options.have_output_path = true;
+            options.capture_requested = true;
+            options.output_path = argv[i];
+        }
+        else if (argument == "--build-id") {
+            if (options.have_build_id)
+                throw TestFailure("--build-id specified more than once");
+            if (++i >= argc || !argv[i] || argv[i][0] == '\0' ||
+                argv[i][0] == '-')
+                throw TestFailure("--build-id requires non-empty text");
+            options.have_build_id = true;
+            options.capture_requested = true;
+            options.build_id = argv[i];
+        }
+        else {
+            if (!argument.empty() && argument[0] == '+') continue;
+            throw TestFailure("unknown argument '" + argument + "'");
+        }
+    }
+
+    if (options.show_help) return options;
+    if (options.capture_requested &&
+        (!options.have_cpr_path || !options.have_frame_count ||
+         !options.have_output_path))
+        throw TestFailure("capture mode requires --capture-cpr, --frames, and --output");
+    return options;
+}
+
+std::vector<uint8_t> read_cpr_file(const std::string &path) {
+    std::ifstream input(path, std::ios::binary | std::ios::ate);
+    if (!input)
+        throw TestFailure("cannot open CPR file " + path);
+    const std::streamoff size = input.tellg();
+    if (size <= 0)
+        throw TestFailure("CPR file is empty: " + path);
+    if (static_cast<uint64_t>(size) > kCaptureMaxCprBytes)
+        throw TestFailure("CPR file exceeds bounded size limit of " +
+                          std::to_string(kCaptureMaxCprBytes) + " bytes");
+    input.seekg(0, std::ios::beg);
+    std::vector<uint8_t> image(static_cast<size_t>(size));
+    input.read(reinterpret_cast<char *>(image.data()),
+               static_cast<std::streamsize>(image.size()));
+    if (input.gcount() != static_cast<std::streamsize>(image.size()))
+        throw TestFailure("could not read complete CPR file " + path);
+    return image;
+}
+
+uint64_t hash_bytes(const std::vector<uint8_t> &bytes) {
+    Fnv1a64 hasher;
+    if (!bytes.empty()) hasher.update(bytes.data(), bytes.size());
+    return hasher.value();
+}
+
+std::string simulator_binary_identity(const std::string &argv0) {
+    if (argv0.empty()) return {};
+    std::error_code error;
+    std::filesystem::path path(argv0);
+    if (path.is_relative()) {
+        path = std::filesystem::absolute(path, error);
+        if (error) return {};
+    }
+    const std::filesystem::path canonical =
+        std::filesystem::weakly_canonical(path, error);
+    if (!error) path = canonical;
+
+    std::ifstream input(path, std::ios::binary | std::ios::ate);
+    if (!input) return {};
+    const std::streamoff size = input.tellg();
+    if (size < 0) return {};
+    input.seekg(0, std::ios::beg);
+    Fnv1a64 hasher;
+    std::array<char, 64 * 1024> buffer{};
+    while (input) {
+        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const std::streamsize count = input.gcount();
+        if (count > 0) hasher.update(buffer.data(), static_cast<size_t>(count));
+    }
+    if (!input.eof()) return {};
+    return path.string() + " size=" + std::to_string(size) +
+           " fnv1a64=" + format_hash(hasher.value());
+}
+
+bool paths_identical(const std::string &first, const std::string &second) {
+    std::error_code first_error;
+    std::error_code second_error;
+    const std::filesystem::path first_canonical =
+        std::filesystem::weakly_canonical(first, first_error);
+    const std::filesystem::path second_canonical =
+        std::filesystem::weakly_canonical(second, second_error);
+    if (!first_error && !second_error && first_canonical == second_canonical)
+        return true;
+
+    first_error.clear();
+    second_error.clear();
+    if (std::filesystem::exists(first, first_error) &&
+        std::filesystem::exists(second, second_error) &&
+        !first_error && !second_error) {
+        std::error_code equivalent_error;
+        const bool equivalent =
+            std::filesystem::equivalent(first, second, equivalent_error);
+        if (!equivalent_error && equivalent) return true;
+    }
+    return false;
+}
+
+void reject_existing_capture_output(const std::string &cpr_path,
+                                    const std::string &output_path) {
+    if (paths_identical(cpr_path, output_path))
+        throw TestFailure("capture output path must differ from CPR input path");
+    std::error_code error;
+    const bool exists = std::filesystem::exists(output_path, error);
+    if (error)
+        throw TestFailure("cannot inspect capture output path " + output_path +
+                          ": " + error.message());
+    if (exists)
+        throw TestFailure("capture output already exists; choose a fresh path");
+}
+
+std::string resolve_simulator_identity(const CaptureOptions &options,
+                                       const char *argv0) {
+    if (options.have_build_id)
+        return "user_build_id=" + sanitize_header_text(options.build_id);
+    const std::string identity = simulator_binary_identity(argv0 ? argv0 : "");
+    if (identity.empty())
+        throw TestFailure("simulator-binary identity unavailable; pass --build-id <text>");
+    return identity;
+}
+
+void run_capture_cli(const CaptureOptions &options,
+                     const std::string &binary_identity) {
+    const std::vector<uint8_t> image = read_cpr_file(options.cpr_path);
+    reject_existing_capture_output(options.cpr_path, options.output_path);
+
+    Harness h;
+    h.initialize();
+    h.download(image);
+    wait_for_cpr_apply(h);
+
+    ExclusiveFileBuf output_buffer;
+    if (!output_buffer.open(options.output_path)) {
+        // A symlink at the output path is refused without being followed.
+        // Depending on the platform the exclusive open reports ELOOP
+        // (follow refused) or EEXIST (the link entry itself collides with
+        // O_CREAT|O_EXCL); symlink_status distinguishes it either way.
+        std::error_code status_error;
+        const bool is_link = std::filesystem::is_symlink(
+            std::filesystem::symlink_status(options.output_path, status_error));
+        if (!status_error && is_link)
+            throw TestFailure("capture output path is a symlink; refusing to follow it");
+        if (output_buffer.error_number() == EEXIST)
+            throw TestFailure("capture output appeared during simulation; refusing to overwrite");
+        throw TestFailure("cannot create capture output " + options.output_path +
+                          ": " + output_buffer.error());
+    }
+    std::ostream output(&output_buffer);
+    CaptureProvenance provenance;
+    provenance.cpr_size_bytes = image.size();
+    provenance.cpr_content_hash = hash_bytes(image);
+    provenance.plus_model = static_cast<uint8_t>(h.dut.plus_model_i);
+    provenance.production_clocking = h.dut.production_clocking != 0;
+    provenance.simulator_binary_identity = binary_identity;
+    const CaptureResult capture = capture_video_frames(
+        h, options.frame_count, output, provenance, kCaptureWarmupFrames);
+    require(capture.frames.size() == options.frame_count,
+            "capture result count differs from requested frame count");
+    if (!output_buffer.close())
+        throw TestFailure("failed to close capture output " + options.output_path +
+                          ": " + output_buffer.error());
+    std::cout << "CAPTURE complete: frames=" << capture.frames.size()
+              << " filter_selector="
+              << static_cast<unsigned>(capture.filter_selector)
+              << " serialized_bytes=" << capture.serialized_bytes
+              << " output=" << options.output_path << std::endl;
+}
+
+// One focused case per CLI boundary class (parse shape, non-clobbering
+// output).  These pin the fail-closed contract without enumerating every
+// micro-variant; simulation is not involved.
+void test_b3_capture_cli_validation() {
+    std::cout << "Running test_b3_capture_cli_validation..." << std::endl;
+    auto parse = [](std::vector<const char *> args) {
+        std::vector<char *> mutable_args;
+        for (const char *arg : args)
+            mutable_args.push_back(const_cast<char *>(arg));
+        return parse_capture_options(static_cast<int>(mutable_args.size()),
+                                     mutable_args.data());
+    };
+    auto expect_reject = [&](std::vector<const char *> args, const char *why) {
+        bool rejected = false;
+        try {
+            parse(args);
+        } catch (const TestFailure &) {
+            rejected = true;
+        }
+        require(rejected, std::string("CLI accepted invalid input: ") + why);
+    };
+    expect_reject({"p10_boot_tests", "--capture-cpr", "a.cpr", "--frames", "0",
+                   "--output", "o.txt"}, "zero frame count");
+    expect_reject({"p10_boot_tests", "--capture-cpr", "a.cpr", "--frames", "17",
+                   "--output", "o.txt"}, "over-limit frame count");
+    expect_reject({"p10_boot_tests", "--capture-cpr", "a.cpr", "--frames", "two",
+                   "--output", "o.txt"}, "non-numeric frame count");
+    expect_reject({"p10_boot_tests", "--capture-cpr", "a.cpr", "--frames", "2"},
+                  "missing --output");
+    expect_reject({"p10_boot_tests", "--frames", "2", "--frames", "2",
+                   "--capture-cpr", "a.cpr", "--output", "o.txt"},
+                  "duplicate --frames");
+    expect_reject({"p10_boot_tests", "--help", "--frames", "2"},
+                  "--help combined with other arguments");
+    expect_reject({"p10_boot_tests", "--frobnicate"}, "unknown argument");
+
+    const CaptureOptions valid = parse({"p10_boot_tests", "--capture-cpr", "a.cpr",
+                                        "--frames", "2", "--output", "o.txt"});
+    require(valid.capture_requested && valid.frame_count == 2 &&
+                valid.cpr_path == "a.cpr" && valid.output_path == "o.txt",
+            "CLI rejected a well-formed capture invocation");
+
+    // Non-clobbering output: same input/output path and pre-existing output
+    // must both fail before any simulation starts.
+    {
+        bool rejected_same = false;
+        try {
+            reject_existing_capture_output("same.cpr", "same.cpr");
+        } catch (const TestFailure &) {
+            rejected_same = true;
+        }
+        require(rejected_same,
+                "CLI accepted an output path identical to its CPR input");
+    }
+    // Non-clobbering output probes live in the test working directory and
+    // are removed afterwards: the harness must not depend on an OS temp
+    // directory.  A stale probe from a crashed run is cleared first so a
+    // leftover cannot wedge the suite.
+    const std::string existing = "b3_cli_exists_probe.tmp";
+    const std::string link_to_existing = "b3_cli_link_probe.tmp";
+    const std::string dangling_link = "b3_cli_dangling_probe.tmp";
+    {
+        std::error_code ignored;
+        std::filesystem::remove(existing, ignored);
+        std::filesystem::remove(link_to_existing, ignored);
+        std::filesystem::remove(dangling_link, ignored);
+    }
+    {
+        std::ofstream probe(existing, std::ios::binary);
+        require(static_cast<bool>(probe), "could not create CLI probe file");
+        probe << "occupied";
+    }
+    bool rejected_existing = false;
+    try {
+        reject_existing_capture_output("some.cpr", existing);
+    } catch (const TestFailure &) {
+        rejected_existing = true;
+    }
+    // A symlink to an existing file is an existing output: the pre-check
+    // follows it to the occupied target and refuses before any simulation.
+    bool rejected_link = false;
+    {
+        std::error_code link_error;
+        std::filesystem::create_symlink("b3_cli_exists_probe.tmp",
+                                        link_to_existing, link_error);
+        require(!link_error,
+                "could not create CLI symlink probe: " + link_error.message());
+        try {
+            reject_existing_capture_output("some.cpr", link_to_existing);
+        } catch (const TestFailure &) {
+            rejected_link = true;
+        }
+    }
+    // A dangling symlink is invisible to the pre-check (no target exists),
+    // so the exclusive open must refuse it rather than follow it: prove the
+    // boundary on the primitive directly, without simulation. Either errno
+    // is a refusal (ELOOP where O_NOFOLLOW reports the refused follow,
+    // EEXIST where the link entry itself collides with O_CREAT|O_EXCL, as
+    // on macOS); what matters is that nothing is followed or created.
+    bool refused_dangling = false;
+    {
+        std::error_code link_error;
+        std::filesystem::create_symlink("b3_cli_no_such_target.tmp",
+                                        dangling_link, link_error);
+        require(!link_error,
+                "could not create CLI dangling probe: " + link_error.message());
+        ExclusiveFileBuf dangling;
+        refused_dangling = !dangling.open(dangling_link);
+        require(refused_dangling &&
+                    (dangling.error_number() == ELOOP ||
+                     dangling.error_number() == EEXIST),
+                "exclusive open followed a dangling symlink instead of refusing it");
+    }
+    {
+        std::error_code remove_error;
+        std::filesystem::remove(existing, remove_error);
+        std::filesystem::remove(link_to_existing, remove_error);
+        std::filesystem::remove(dangling_link, remove_error);
+    }
+    require(rejected_existing, "CLI accepted a pre-existing output path");
+    require(rejected_link, "CLI accepted a symlink to a pre-existing output path");
+    require(refused_dangling, "CLI exclusive open followed a dangling symlink");
+    std::cout << "PASS: capture CLI fails closed on invalid input" << std::endl;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
-    Verilated::commandArgs(argc, argv);
     try {
+		const CaptureOptions options = parse_capture_options(argc, argv);
+		if (options.show_help) {
+			print_capture_usage(std::cout);
+			return 0;
+		}
+		Verilated::commandArgs(argc, argv);
+		const std::string binary_identity =
+			resolve_simulator_identity(options, argc > 0 ? argv[0] : nullptr);
+		if (options.capture_requested) {
+			run_capture_cli(options, binary_identity);
+			return 0;
+		}
 		test_p10a_vram_client_wiring();
 		test_p10b_video_coherence_pixel();
+		test_b3_frame_capture_smoke(binary_identity);
+		test_b3_malformed_cpr_rejected();
+		test_b3_truncated_cpr_rejected();
+		test_b3_repeat_capture_stable(binary_identity);
+		test_b3_capture_cli_validation();
         test_p10a_deterministic_boot();
 		test_real_u765_edsk_read();
 		std::cout << "\nAll P10 Production CPR Boot Harness tests PASSED.\n";
         return 0;
     } catch (const std::exception &e) {
         std::cerr << "\nFAILED: " << e.what() << "\n";
+		if (argc > 1) print_capture_usage(std::cerr);
         return 1;
     }
 }

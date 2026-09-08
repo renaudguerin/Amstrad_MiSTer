@@ -164,6 +164,7 @@ module p10_boot_test_top #(
 	output     [15:0] dbg_video_plus_vidword,
 	output            dbg_cart_image_valid,
 	output            dbg_cart_service_busy,
+	output            dbg_cpr_load_abort,
 	output            dbg_cpr_load_error,
 	output      [1:0] dbg_sync_filter
 `ifdef B7_DARK_SILICON_MUTATION
@@ -770,6 +771,7 @@ module p10_boot_test_top #(
 
 	assign dbg_cart_image_valid  = cart_image_valid;
 	assign dbg_cart_service_busy = cart_service_busy;
+	assign dbg_cpr_load_abort    = cart_load_abort;
 	assign dbg_cpr_load_error    = cart_load_error;
 	assign dbg_sync_filter       = SYNC_FILTER;
 
