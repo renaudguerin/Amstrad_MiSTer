@@ -3,6 +3,18 @@
 // Tests:
 // 1. i8255 Plus PPI quirks (Port B input-only, Port C output-only, control word rewrite latch preservation).
 // 2. plus_sna_parser CPC+ chunk unpacking (sprite RAM nibbles, sprite attributes, palette, control regs, DMA, lock).
+// 3. plus_fdc_decode model gating, and the parser/asic_regs/MMU reset seam.
+// 4. B8-5 snapshot owner apply, run through the shared production
+//    plus_sna_apply controller and the production plus_sna_header decoder fed
+//    a real header byte stream:
+//      a1-a8  DMA live SAR/pause/loop restore, the HSYNC same-edge race, MMU
+//             ROM gates and unlock sequence state, controller sequencing,
+//             repeated CPC+/plain/CPC+ isolation.
+//      b1-b4  selected video register file and v3 counters, the Gate Array
+//             VSYNC-delay phase (B2), interrupt counter and pending flag
+//             (B3/B4), and palette provenance.
+//    All of these are required passes; the temporary XFAIL omission vector
+//    they replaced is gone.
 
 #include <cstdint>
 #include <cstddef>
@@ -451,6 +463,14 @@ void test_p8_sna_integration_seam(Vplus_p8_test_top& dut) {
 	dut.aregs_mem_rd = 0;
 	dut.aregs_mem_wr = 0;
 	dut.aregs_pal_raddr = 0;
+	dut.pal_probe_sel = 1;   // this test probes the palette storage directly
+	dut.ga_iorq_n = 1;       // no legacy I/O traffic here
+	dut.ga_m1_n = 1;
+	dut.ga_A = 0;
+	dut.ga_D = 0;
+	dut.hdr_wr = 0;
+	dut.hdr_addr = 0;
+	dut.hdr_data = 0;
 	dut.eval();
 
 	tick(); tick();
@@ -791,356 +811,10 @@ void test_p8_sna_integration_seam(Vplus_p8_test_top& dut) {
 	std::printf("PASS p8_04: production parser / asic_regs / MMU lifecycle and reset seam\n");
 }
 
-// -----------------------------------------------------------------------------
-// Test 6: B8-5 snapshot apply regression across resumed selected owners
-// (asic_dma, asic_ga_timing, asic_video, plus_mmu)
-// -----------------------------------------------------------------------------
-void test_b8_5_snapshot_apply_regression(Vplus_p8_test_top& dut, bool xfail_mode) {
-	dut.reset = 0;
-	dut.seam_machine_reset = 1;
-	dut.seam_plus_asic_reset = 1;
-	dut.seam_plus_mode = 1;
-	dut.seam_sna_load = 0;
-	dut.sna_download = 0;
-	dut.cpc_plus_chunk_start = 0;
-	dut.cpc_plus_byte_wr = 0;
-	dut.cpc_plus_byte_data = 0;
-	dut.aregs_cs = 0;
-	dut.aregs_mem_rd = 0;
-	dut.aregs_mem_wr = 0;
-	dut.aregs_addr = 0;
-	dut.aregs_din = 0;
-	dut.aregs_pal_raddr = 0;
-	dut.dma_test_hsync = 0;
-	dut.dma_ram_data = 0;
-	dut.video_crtc_cs = 0;
-	dut.video_crtc_rd = 0;
-	dut.video_crtc_rs = 0;
-	dut.video_crtc_din = 0;
-	dut.mmu_test_A = 0;
-	dut.mmu_test_mem_rd = 0;
-	dut.eval();
-
-	auto tick = [&]() {
-		dut.clk = 0; dut.eval();
-		dut.clk = 1; dut.eval();
-	};
-
-	// Reset pulse
-	dut.seam_machine_reset = 1;
-	dut.seam_plus_asic_reset = 1;
-	tick();
-	tick();
-	// Start pulse for plus_asic_reset falls while machine_reset remains held
-	dut.seam_plus_asic_reset = 0;
-	tick();
-
-	// Pre-apply check: DMA RAM request must be 0 while in reset
-	if (dut.dma_ram_req != 0) {
-		fail("B8-5 pre-apply: dma_ram_req asserted prematurely during reset");
-	}
-
-	auto stream_byte = [&](uint8_t b) {
-		dut.cpc_plus_byte_wr = 1;
-		dut.cpc_plus_byte_data = b;
-		tick();
-		dut.cpc_plus_byte_wr = 0;
-		while (dut.sna_ioctl_wait) {
-			tick();
-		}
-	};
-
-	// Start SNA CPC+ chunk download
-	dut.sna_download = 1;
-	dut.cpc_plus_chunk_start = 1;
-	tick();
-	dut.cpc_plus_chunk_start = 0;
-
-	// Stream Sprite Bitmaps (0x000-0x7FF = 2048 bytes)
-	for (int i = 0; i < 2048; ++i) stream_byte(0x00);
-
-	// Stream Sprite Attributes (0x800-0x87F = 128 bytes)
-	for (int i = 0; i < 128; ++i) stream_byte(0x00);
-
-	// Stream 12-bit Palette (0x880-0x8BF = 64 bytes)
-	// Entry 0 (Pen 0): 0x924 (low byte 0x24, hi byte 0x09)
-	stream_byte(0x24); stream_byte(0x09);
-	// Entry 1 (Pen 1): 0xC56 (low byte 0x56, hi byte 0x0C)
-	stream_byte(0x56); stream_byte(0x0C);
-	for (int i = 2; i < 16; ++i) { stream_byte(0x00); stream_byte(0x00); }
-	// Entry 16 (Border): 0xE78 (low byte 0x78, hi byte 0x0E)
-	stream_byte(0x78); stream_byte(0x0E);
-	for (int i = 17; i < 32; ++i) { stream_byte(0x00); stream_byte(0x00); }
-
-	// Control registers 0x8C0-0x8C5:
-	stream_byte(0x2A); // PRI (&6800)
-	stream_byte(0x55); // SPLT (&6801)
-	stream_byte(0x30); // SSA hi (&6802)
-	stream_byte(0x40); // SSA lo (&6803)
-	stream_byte(0x03); // SSCR (&6804)
-	stream_byte(0xFE); // IVR (&6805)
-
-	// Unused / Analog inputs 0x8C6-0x8CF (10 bytes)
-	for (int i = 0; i < 10; ++i) stream_byte(0x00);
-
-	// Sound DMA attributes 0x8D0-0x8DB:
-	// Ch0: SAR=0x2211, PPR=0x10, unused=0
-	stream_byte(0x11); // SAR0 lo (&6C00)
-	stream_byte(0x22); // SAR0 hi (&6C01)
-	stream_byte(0x10); // PPR0    (&6C02)
-	stream_byte(0x00); // unused  (&6C03)
-	// Ch1: SAR=0x5544, PPR=0x20, unused=0
-	stream_byte(0x44); // SAR1 lo (&6C04)
-	stream_byte(0x55); // SAR1 hi (&6C05)
-	stream_byte(0x20); // PPR1    (&6C06)
-	stream_byte(0x00); // unused  (&6C07)
-	// Ch2: SAR=0x8877, PPR=0x30, unused=0
-	stream_byte(0x77); // SAR2 lo (&6C08)
-	stream_byte(0x88); // SAR2 hi (&6C09)
-	stream_byte(0x30); // PPR2    (&6C0A)
-	stream_byte(0x00); // unused  (&6C0B)
-
-	// Unused 0x8DC-0x8DE (3 bytes)
-	stream_byte(0x00); stream_byte(0x00); stream_byte(0x00);
-
-	// DCSR (&6C0F at 0x8DF): bit 7=1, ena=3'b111 -> 0x87
-	stream_byte(0x87);
-
-	// Internal DMA registers 0x8E0-0x8F4 (21 bytes, 7 bytes per channel):
-	// Ch0 internal (0x8E0-0x8E6):
-	stream_byte(0x05); stream_byte(0x00); // loop count = 5
-	stream_byte(0x00); stream_byte(0x10); // loop addr = 0x1000
-	stream_byte(0x00); stream_byte(0x00); // pause count = 0
-	stream_byte(0x00);                   // pause prescaler = 0
-	// Ch1 internal (0x8E7-0x8ED):
-	stream_byte(0x0A); stream_byte(0x00); // loop count = 10
-	stream_byte(0x00); stream_byte(0x20); // loop addr = 0x2000
-	stream_byte(0x00); stream_byte(0x00); // pause count = 0
-	stream_byte(0x00);                   // pause prescaler = 0
-	// Ch2 internal (0x8EE-0x8F4):
-	stream_byte(0x0F); stream_byte(0x00); // loop count = 15
-	stream_byte(0x00); stream_byte(0x30); // loop addr = 0x3000
-	stream_byte(0x00); stream_byte(0x00); // pause count = 0
-	stream_byte(0x00);                   // pause prescaler = 0
-
-	// Gate Array A0 (RMR2) at 0x8F5:
-	// D4D3=11 (ASIC page on at &4000), page 1 -> 0x19
-	stream_byte(0x19);
-
-	// Gate Array A0 lock at 0x8F6: 1=unlocked
-	stream_byte(0x01);
-
-	// End of download stream
-	dut.sna_download = 0;
-	tick();
-
-	// Drain FIFO
-	int drain = 0;
-	while (dut.sna_busy && drain < 30) {
-		tick();
-		drain++;
-	}
-	if (dut.sna_busy) fail("B8-5: sna_busy failed to clear during drain");
-
-	// Pre-apply check: no RAM request before reset release
-	if (dut.dma_ram_req != 0) {
-		fail("B8-5 pre-apply: dma_ram_req asserted after drain but before apply/reset release");
-	}
-
-	// Pulse snapshot apply seam (existing fixture model: machine reset falls, sna_load pulses)
-	dut.seam_machine_reset = 0;
-	dut.seam_sna_load = 1;
-	tick();
-	dut.seam_sna_load = 0;
-	tick();
-
-	struct FailureDetail {
-		std::string owner;
-		std::string target;
-		std::string expected;
-		std::string observed;
-		std::string gap_explanation;
-	};
-	std::vector<FailureDetail> gaps;
-
-	auto record_gap = [&](const std::string& owner, const std::string& target,
-	                      const std::string& exp, const std::string& obs,
-	                      const std::string& explanation) {
-		gaps.push_back({owner, target, exp, obs, explanation});
-	};
-
-	// -------------------------------------------------------------------------
-	// 1. DMA SAR address checks across all 3 channels
-	// -------------------------------------------------------------------------
-	// Register file in asic_regs holds the restored SAR values:
-	if (dut.aregs_sar0_lo != 0x11 || dut.aregs_sar0_hi != 0x22) {
-		fail("B8-5: asic_regs failed to hold SAR0 byte storage");
-	}
-	if (dut.aregs_sar1_lo != 0x44 || dut.aregs_sar1_hi != 0x55) {
-		fail("B8-5: asic_regs failed to hold SAR1 byte storage");
-	}
-	if (dut.aregs_sar2_lo != 0x77 || dut.aregs_sar2_hi != 0x88) {
-		fail("B8-5: asic_regs failed to hold SAR2 byte storage");
-	}
-
-	// But resumed DMA owner asic_dma had reset asserted during download:
-	if (dut.dma_sar0_addr != 0x2211) {
-		record_gap("asic_dma", "sar0_addr (Ch0 live SAR)", "0x2211",
-		           "0x" + hex_str(dut.dma_sar0_addr, 4),
-		           "DMA was held in reset during download; SAR writes were lost; sar_cur[0] cleared to 0 on reset");
-	}
-	if (dut.dma_sar1_addr != 0x5544) {
-		record_gap("asic_dma", "sar1_addr (Ch1 live SAR)", "0x5544",
-		           "0x" + hex_str(dut.dma_sar1_addr, 4),
-		           "DMA was held in reset during download; SAR writes were lost; sar_cur[1] cleared to 0 on reset");
-	}
-	if (dut.dma_sar2_addr != 0x8877) {
-		record_gap("asic_dma", "sar2_addr (Ch2 live SAR)", "0x8877",
-		           "0x" + hex_str(dut.dma_sar2_addr, 4),
-		           "DMA was held in reset during download; SAR writes were lost; sar_cur[2] cleared to 0 on reset");
-	}
-
-	// -------------------------------------------------------------------------
-	// 2. DMA first fetch on HSYNC
-	// -------------------------------------------------------------------------
-	// With Ch0 enabled in DCSR and pause_cnt=0, rising HSYNC initiates fetch
-	dut.dma_test_hsync = 1;
-	tick();
-	dut.dma_test_hsync = 0;
-	int hsync_ticks = 0;
-	while (!dut.dma_ram_req && hsync_ticks < 10) {
-		tick();
-		hsync_ticks++;
-	}
-	if (!dut.dma_ram_req) {
-		record_gap("asic_dma", "dma_ram_req (Ch0 first fetch)", "1 (asserted)", "0 (idle)",
-		           "DMA failed to trigger RAM fetch upon HSYNC");
-	} else if (dut.dma_ram_addr != 0x2211) {
-		record_gap("asic_dma", "dma_ram_addr (Ch0 fetch address)", "0x2211",
-		           "0x" + hex_str(dut.dma_ram_addr, 4),
-		           "DMA fetches from 0x0000 instead of loaded SAR0 address 0x2211");
-	}
-
-	// -------------------------------------------------------------------------
-	// 3. Selected GA outputs (Mode and Border)
-	// -------------------------------------------------------------------------
-	// SNA format specifies Mode 1 (multi-config byte 0x8D, bits 1:0 = 2'b01)
-	if (dut.ga_mode_out != 1) {
-		record_gap("asic_ga_timing", "GAMODE_O (selected screen mode)", "1 (Mode 1)",
-		           std::to_string(dut.ga_mode_out) + " (Mode 0)",
-		           "asic_ga_timing has no SNA restore ports; mode stays at power-up reset default 0");
-	}
-	// SNA format specifies border hardware color = 4
-	if (dut.ga_border_out != 4) {
-		record_gap("asic_ga_timing", "BORDER_O (border hardware color)", "4",
-		           std::to_string(dut.ga_border_out) + " (default 16)",
-		           "asic_ga_timing has no SNA restore ports; border stays at power-up reset default 16");
-	}
-
-	// -------------------------------------------------------------------------
-	// 4. Selected Video / CRTC register readback and Display Enable
-	// -------------------------------------------------------------------------
-	// In SNA format, CRTC R12 = 0x30 (video RAM start address hi)
-	dut.video_crtc_cs = 1;
-	dut.video_crtc_rs = 0;
-	dut.video_crtc_rd = 0;
-	dut.video_crtc_din = 12; // select R12
-	tick();
-	dut.video_crtc_rs = 1;
-	dut.video_crtc_rd = 1;
-	dut.eval();
-	uint8_t r12_read = dut.video_crtc_dout;
-	if (r12_read != 0x30) {
-		record_gap("asic_video", "CRTC R12 (start address hi)", "0x30",
-		           "0x" + hex_str(r12_read, 2),
-		           "asic_video has no SNA restore ports; CRTC registers remain uninitialized/0");
-	}
-	dut.video_crtc_cs = 0;
-	dut.video_crtc_rd = 0;
-	dut.eval();
-
-	// In SNA format, active display DE is asserted for 40 characters per line (R1=40).
-	// When R1 is 0, DE remains permanently low.
-	int de_seen = 0;
-	for (int i = 0; i < 200; ++i) {
-		if (dut.video_de) de_seen++;
-		tick();
-	}
-	if (de_seen == 0) {
-		record_gap("asic_video", "video_de (Display Enable active pulses)", ">0", "0",
-		           "asic_video R1 is 0; Display Enable is permanently low");
-	}
-
-	// -------------------------------------------------------------------------
-	// 5. MMU ordinary ROM gates & Upper ROM selection
-	// -------------------------------------------------------------------------
-	// In SNA format, multi-config 0x8D specifies Lower ROM disabled (bit 2=1)
-	// and Upper ROM disabled (bit 3=1). Base RAM should show through!
-	// Test Lower ROM window (&0000-&3FFF):
-	dut.mmu_test_A = 0x0000;
-	dut.mmu_test_mem_rd = 1;
-	tick();
-	if (dut.mmu_cart_own != 0) {
-		record_gap("plus_mmu", "cart_own at 0x0000 (Lower ROM disabled)", "0 (RAM active)",
-		           "1 (cartridge claimed)",
-		           "plus_mmu unconditionally forces lromen <= 0 on sna_load, ignoring SNA GA config bit 2");
-	}
-	dut.mmu_test_mem_rd = 0;
-	tick();
-	tick();
-
-	// Test Upper ROM window (&C000-&FFFF):
-	dut.mmu_test_A = 0xC000;
-	dut.mmu_test_mem_rd = 1;
-	tick();
-	if (dut.mmu_cart_own != 0) {
-		record_gap("plus_mmu", "cart_own at 0xC000 (Upper ROM disabled)", "0 (RAM active)",
-		           "1 (cartridge claimed)",
-		           "plus_mmu unconditionally forces hromen <= 0 on sna_load, ignoring SNA GA config bit 3");
-	}
-
-	// Test Upper ROM bank selection:
-	// SNA format specifies sna_rom_select = 128 (cartridge page 0)
-	// In unchanged RTL, romsel stays 0, resolving to page 3
-	if (dut.mmu_cart_page != 0) {
-		record_gap("plus_mmu", "cart_page for romsel=128", "0 (cartridge page 0)",
-		           std::to_string(dut.mmu_cart_page) + " (page 3)",
-		           "plus_mmu does not restore romsel from sna_rom_select; defaults to page 3");
-	}
-	dut.mmu_test_mem_rd = 0;
-	tick();
-	tick();
-
-	// -------------------------------------------------------------------------
-	// Report findings
-	// -------------------------------------------------------------------------
-	std::printf("\n================================================================================\n");
-	std::printf("B8-5 REGRESSION AUDIT: Production Snapshot Apply Omissions (%zu detected)\n", gaps.size());
-	std::printf("================================================================================\n");
-	for (size_t i = 0; i < gaps.size(); ++i) {
-		std::printf("[%zu] Owner: %-15s | Target: %s\n", i + 1, gaps[i].owner.c_str(), gaps[i].target.c_str());
-		std::printf("    Expected from format: %s\n", gaps[i].expected.c_str());
-		std::printf("    Observed from RTL:    %s\n", gaps[i].observed.c_str());
-		std::printf("    Omission root cause:  %s\n\n", gaps[i].gap_explanation.c_str());
-	}
-	std::printf("================================================================================\n\n");
-
-	if (!gaps.empty()) {
-		if (xfail_mode) {
-			std::printf("XFAIL b8_5_snapshot_apply: %zu production apply omissions reproduced against unchanged RTL\n",
-			            gaps.size());
-		} else {
-			fail("B8-5 regression: " + std::to_string(gaps.size()) +
-			     " snapshot apply omissions detected across asic_dma, asic_ga_timing, asic_video, plus_mmu");
-		}
-	} else {
-		if (xfail_mode) {
-			fail("XPASS b8_5_snapshot_apply: all snapshot apply omissions unexpectedly passed; remove XFAIL");
-		} else {
-			std::printf("PASS b8_5_snapshot_apply: all snapshot apply checks passed\n");
-		}
-	}
-}
+// The temporary B8-5 omission vector that used to live here is gone: every gap
+// it reproduced is now a required-pass assertion in the slice A/B focused
+// tests below, made through the shared production apply controller and a real
+// header byte stream instead of a hand-driven seam.
 
 // -----------------------------------------------------------------------------
 // B8-5 slice A: DMA/MMU/apply focused tests (required-pass, --b8-dma-mmu).
@@ -1166,6 +840,97 @@ void test_b8_5_snapshot_apply_regression(Vplus_p8_test_top& dut, bool xfail_mode
 //   ClkEn branches, T80se.vhd async RESET_n).
 // -----------------------------------------------------------------------------
 
+// SNA header payload for one restore. Streamed byte by byte into the
+// production plus_sna_header decoder, at the real file offsets, so a
+// mis-mapped offset fails here instead of only in hardware.
+struct B8Header {
+	uint8_t version   = 3;
+	uint8_t inksel    = 0;      // 2E
+	uint8_t palette[17] = {0};  // 2F-3F: pens 0-15 then border, HW colours
+	uint8_t ga_config = 0x80;   // 40:  RMR (bit7 set for CPCEMU, ROM enables
+	                            //      in bits 3:2, mode in bits 1:0)
+	uint8_t crtc_sel  = 0;      // 42
+	uint8_t crtc[18]  = {0};    // 43-54: R0..R17
+	uint8_t romsel    = 0;      // 55
+	uint8_t hcc       = 0;      // A9
+	uint8_t line      = 0;      // AB
+	uint8_t raster    = 0;      // AC
+	uint8_t vta       = 0;      // AD
+	uint8_t hsw       = 0;      // AE
+	uint8_t vsw       = 0;      // AF
+	uint8_t b0        = 0;      // B0: bit0 VSYNC, bit1 HSYNC, bit7 adjust
+	uint8_t vsdelay   = 0;      // B2
+	uint8_t intcnt    = 0;      // B3
+	uint8_t intreq    = 0;      // B4
+};
+
+// A CRTC programming that produces short, countable lines and a VSYNC long
+// enough to hold still across the phase checks below. R0=15 -> 16-character
+// lines, R2=8 with R3l=2 -> a two-character HSYNC each line, R3h=8 -> an
+// eight-line VSYNC, R7=6 keeps the next natural VSYNC far away.
+void b8_set_short_frame_crtc(B8Header& h) {
+	h.crtc[0]  = 15;    // R0 horizontal total
+	h.crtc[1]  = 8;     // R1 horizontal displayed
+	h.crtc[2]  = 8;     // R2 HSYNC position
+	h.crtc[3]  = 0x82;  // R3: v width 8, h width 2
+	h.crtc[4]  = 7;     // R4 vertical total
+	h.crtc[5]  = 0;     // R5 vertical total adjust
+	h.crtc[6]  = 4;     // R6 vertical displayed
+	h.crtc[7]  = 6;     // R7 VSYNC position
+	h.crtc[8]  = 0;     // R8
+	h.crtc[9]  = 1;     // R9 max raster
+}
+
+// Legacy [KT] hardware colour -> asic_regs palette word {G,R,B}. Mirrors
+// legacy_colour_gbr in rtl/plus/asic_regs.v; kept as an independent copy so a
+// silent edit to that table shows up as a test failure.
+uint16_t hw_colour_gbr(int hw) {
+	static const uint16_t tab[32] = {
+		0x666, 0x666, 0xF06, 0xFF6, 0x006, 0x0F6, 0x606, 0x6F6,
+		0x0F6, 0xFF6, 0xFF0, 0xFFF, 0x0F0, 0xFF0, 0x6F0, 0x6FF,
+		0x006, 0xF06, 0xF00, 0xF0F, 0x000, 0x00F, 0x600, 0x60F,
+		0x066, 0xF66, 0xF60, 0xF6F, 0x060, 0x06F, 0x660, 0x66F,
+	};
+	return tab[hw & 31];
+}
+
+// Owner state captured on the clock that consumes the apply pulse. The CRTC
+// counters advance on the 1 us character enable, so reading them "shortly
+// after" the apply is not deterministic; every counter assertion below uses
+// this sample instead.
+struct B8ApplySample {
+	uint8_t  hcc = 0;
+	uint8_t  line = 0;
+	uint8_t  row = 0;
+	uint8_t  adj = 0;
+	uint8_t  hs = 0;
+	uint8_t  vs = 0;
+	uint16_t ma = 0;
+	uint8_t  ga_mode = 0;
+	uint8_t  ga_border = 0;
+	uint8_t  ga_vsync_o = 0;
+	uint8_t  ga_int_n = 0;
+	uint8_t  int_n_merged = 0;
+	bool     valid = false;
+};
+
+void b8_capture(Vplus_p8_test_top& dut, B8ApplySample* s) {
+	if (!s) return;
+	s->hcc          = dut.video_hcc;
+	s->line         = dut.video_line_out;
+	s->row          = dut.video_row_out;
+	s->adj          = dut.video_adj_out;
+	s->hs           = dut.video_hs;
+	s->vs           = dut.video_vs;
+	s->ma           = dut.video_ma;
+	s->ga_mode      = dut.ga_mode_out;
+	s->ga_border    = dut.ga_border_out;
+	s->ga_vsync_o   = dut.ga_vsync_o;
+	s->ga_int_n     = dut.ga_int_n_out;
+	s->int_n_merged = dut.int_n_merged;
+	s->valid        = true;
+}
+
 // Snapshot DMA/loop/pause parameters for one CPC+ chunk.
 struct B8ChunkParams {
 	uint8_t sar_lo[3] = {0x11, 0x44, 0x77};
@@ -1179,6 +944,10 @@ struct B8ChunkParams {
 	uint8_t rmr2 = 0x19;
 	uint8_t unlock = 1;
 	uint8_t seq_state = 0;
+	// Chunk 0x880-0x8BF: 32 x 12-bit palette entries, low byte {R,B} then
+	// high byte {-,G} (asic_regs stores the word as {G,R,B}).
+	uint8_t pal_lo[32] = {0};
+	uint8_t pal_hi[32] = {0};
 };
 
 void b8_ctl_quiesce(Vplus_p8_test_top& dut) {
@@ -1208,10 +977,101 @@ void b8_ctl_quiesce(Vplus_p8_test_top& dut) {
 	dut.mmu_test_mem_rd = 0;
 	dut.mmu_test_io_wr = 0;
 	dut.mmu_test_D = 0;
-	dut.hdr_ga_config = 0;
-	dut.hdr_romsel = 0;
-	dut.hdr_hsync = 0;
+	dut.hdr_wr = 0;
+	dut.hdr_addr = 0;
+	dut.hdr_data = 0;
+	dut.ga_iorq_n = 1;
+	dut.ga_m1_n = 1;
+	dut.ga_A = 0;
+	dut.ga_D = 0;
+	dut.pal_probe_sel = 1;
 	dut.eval();
+}
+
+// Stream one SNA header into the production decoder, at real file offsets.
+void b8_stream_header(Vplus_p8_test_top& dut,
+                      const std::function<void()>& tick,
+                      const B8Header& h) {
+	auto put = [&](uint8_t addr, uint8_t data) {
+		dut.hdr_wr = 1;
+		dut.hdr_addr = addr;
+		dut.hdr_data = data;
+		tick();
+		dut.hdr_wr = 0;
+	};
+	put(0x10, h.version);
+	put(0x2e, h.inksel);
+	for (int i = 0; i < 17; ++i) put(0x2f + i, h.palette[i]);
+	put(0x40, h.ga_config);
+	put(0x42, h.crtc_sel);
+	for (int i = 0; i < 18; ++i) put(0x43 + i, h.crtc[i]);
+	put(0x55, h.romsel);
+	put(0xa9, h.hcc);
+	put(0xab, h.line);
+	put(0xac, h.raster);
+	put(0xad, h.vta);
+	put(0xae, h.hsw);
+	put(0xaf, h.vsw);
+	put(0xb0, h.b0);
+	put(0xb2, h.vsdelay);
+	put(0xb3, h.intcnt);
+	put(0xb4, h.intreq);
+	tick();
+}
+
+// One 5-bit ink entry out of the 80-bit INKR_O bus (entry k at [k*5 +: 5]).
+uint32_t ga_ink_entry(Vplus_p8_test_top& dut, int k) {
+	int bit = k * 5;
+	int w = bit / 32;
+	int off = bit % 32;
+	uint64_t v = (uint64_t)dut.ga_inkr_out[w];
+	if (w < 2) v |= (uint64_t)dut.ga_inkr_out[w + 1] << 32;
+	return (uint32_t)((v >> off) & 0x1F);
+}
+
+// Read one CRTC register through the production mod-8 readback map
+// (asic_video §21.2.3: slots {R16,R17,STATUS1,STATUS2,R12,R13,R14,R15}).
+uint8_t b8_crtc_read(Vplus_p8_test_top& dut,
+                     const std::function<void()>& tick, uint8_t sel) {
+	dut.video_crtc_cs = 1;
+	dut.video_crtc_rs = 0;
+	dut.video_crtc_rd = 0;
+	dut.video_crtc_din = sel;
+	tick();
+	dut.video_crtc_rs = 1;
+	dut.video_crtc_rd = 1;
+	dut.eval();
+	uint8_t v = dut.video_crtc_dout;
+	dut.video_crtc_cs = 0;
+	dut.video_crtc_rd = 0;
+	dut.video_crtc_rs = 0;
+	dut.eval();
+	return v;
+}
+
+// Read one palette entry through the video-side port (probe mux).
+uint16_t b8_pal_read(Vplus_p8_test_top& dut,
+                     const std::function<void()>& tick, int entry) {
+	dut.pal_probe_sel = 1;
+	dut.aregs_pal_raddr = entry;
+	tick(); tick();
+	return (uint16_t)dut.aregs_pal_rdata;
+}
+
+// Hold a legacy Gate Array I/O write (&7Fxx: A15=0, A14=1) long enough to
+// cross at least one register-latch window of the sequencer ring, then
+// release. Repeats within the hold are idempotent for PENR/INKR.
+void b8_ga_io_write(Vplus_p8_test_top& dut,
+                    const std::function<void()>& tick, uint8_t d) {
+	dut.ga_A = 0x1;      // A[15:14] = 01
+	dut.ga_D = d;
+	dut.ga_iorq_n = 0;
+	dut.ga_m1_n = 1;
+	for (int i = 0; i < 40; ++i) tick();
+	dut.ga_iorq_n = 1;
+	dut.ga_D = 0;
+	dut.ga_A = 0;
+	tick(); tick();
 }
 
 void b8_global_reset(Vplus_p8_test_top& dut,
@@ -1243,7 +1103,9 @@ void b8_require_video_hs_static(Vplus_p8_test_top& dut,
 // one apply pulse fired.
 int b8_stream_chunk_apply(Vplus_p8_test_top& dut,
                           const std::function<void()>& tick,
-                          const B8ChunkParams& p) {
+                          const B8ChunkParams& p,
+                          const B8Header& hdr = B8Header(),
+                          B8ApplySample* sample = nullptr) {
 	auto stream_byte = [&](uint8_t b) {
 		while (dut.sna_ioctl_wait) tick();
 		dut.cpc_plus_byte_wr = 1;
@@ -1257,13 +1119,18 @@ int b8_stream_chunk_apply(Vplus_p8_test_top& dut,
 	tick();
 	dut.seam_plus_asic_reset = 0;
 	tick();
+	// Header bytes precede the memory dump and the chunks in the file.
+	b8_stream_header(dut, tick, hdr);
 	dut.cpc_plus_chunk_start = 1;
 	tick();
 	dut.cpc_plus_chunk_start = 0;
 
 	for (int i = 0; i < 2048; ++i) stream_byte(0x00); // sprite bitmaps
 	for (int i = 0; i < 128; ++i) stream_byte(0x00);  // sprite attributes
-	for (int i = 0; i < 64; ++i) stream_byte(0x00);   // palette
+	for (int i = 0; i < 32; ++i) {                   // palette
+		stream_byte(p.pal_lo[i]);
+		stream_byte(p.pal_hi[i]);
+	}
 	stream_byte(0x00); stream_byte(0x00); stream_byte(0x00); // PRI/SPLT/SSA
 	stream_byte(0x00); stream_byte(0x00); stream_byte(0x00); // SSA/SSCR/IVR
 	for (int i = 0; i < 10; ++i) stream_byte(0x00);   // 0x8C6-0x8CF
@@ -1292,16 +1159,25 @@ int b8_stream_chunk_apply(Vplus_p8_test_top& dut,
 
 	int loads = 0;
 	int last_load = 0;
+	bool consume_next = false;
 	for (int i = 0; i < 4000; ++i) {
 		tick();
 		int cur = dut.ctl_sna_load ? 1 : 0;
-		if (cur && !last_load) ++loads;
+		if (consume_next) {
+			// This edge is the one the owners latched the pulse on.
+			b8_capture(dut, sample);
+			consume_next = false;
+		}
+		if (cur && !last_load) { ++loads; consume_next = true; }
 		last_load = cur;
-		if (!dut.sna_busy && !dut.ctl_finish_pending && dut.ctl_apply_cnt == 0 && i > 10)
+		if (!dut.sna_busy && !dut.ctl_finish_pending && dut.ctl_apply_cnt == 0 &&
+		    !consume_next && i > 10)
 			break;
 	}
 	if (loads != 1)
 		fail("B8-5 apply: expected exactly one sna_load pulse, saw " + std::to_string(loads));
+	if (sample && !sample->valid)
+		fail("B8-5 apply: owner state was never sampled at the apply edge");
 	tick(); tick();
 	return loads;
 }
@@ -1309,25 +1185,36 @@ int b8_stream_chunk_apply(Vplus_p8_test_top& dut,
 // Plain SNA: download with no CPC+ chunk. Parser shadows must clear; the
 // controller still produces exactly one apply.
 void b8_stream_plain_apply(Vplus_p8_test_top& dut,
-                           const std::function<void()>& tick) {
+                           const std::function<void()>& tick,
+                           const B8Header& hdr = B8Header(),
+                           B8ApplySample* sample = nullptr) {
 	dut.sna_download = 1;
 	dut.seam_plus_asic_reset = 1;
 	tick();
 	dut.seam_plus_asic_reset = 0;
+	b8_stream_header(dut, tick, hdr);
 	for (int i = 0; i < 3; ++i) tick();
 	dut.sna_download = 0;
 	int loads = 0;
 	int last = 0;
+	bool consume_next = false;
 	for (int i = 0; i < 1000; ++i) {
 		tick();
 		int cur = dut.ctl_sna_load ? 1 : 0;
-		if (cur && !last) ++loads;
+		if (consume_next) {
+			b8_capture(dut, sample);
+			consume_next = false;
+		}
+		if (cur && !last) { ++loads; consume_next = true; }
 		last = cur;
-		if (!dut.sna_busy && !dut.ctl_finish_pending && dut.ctl_apply_cnt == 0 && i > 10)
+		if (!dut.sna_busy && !dut.ctl_finish_pending && dut.ctl_apply_cnt == 0 &&
+		    !consume_next && i > 10)
 			break;
 	}
 	if (loads != 1)
 		fail("B8-5 apply: plain SNA produced " + std::to_string(loads) + " loads, expected 1");
+	if (sample && !sample->valid)
+		fail("B8-5 apply: owner state was never sampled at the plain apply edge");
 	tick(); tick();
 }
 
@@ -1502,9 +1389,10 @@ void test_b8_dma_hsync_race(Vplus_p8_test_top& dut) {
 	B8ChunkParams p;
 	p.sar_lo[0] = 0x11; p.sar_hi[0] = 0x22;
 	p.dcsr = 0x81; // ch0 enabled, no pause
-	dut.hdr_hsync = 1; // settled v3 B0 bit1 = HS active
+	B8Header h;
+	h.b0 = 0x02;            // settled v3 B0 bit 1 = HSYNC active
 	dut.dma_test_hsync = 1; // live line active through download/drain/apply
-	b8_stream_chunk_apply(dut, tick, p);
+	b8_stream_chunk_apply(dut, tick, p, h);
 	for (int i = 0; i < 30; ++i) {
 		dut.dma_ram_data = 0x4020;
 		tick();
@@ -1525,9 +1413,8 @@ void test_b8_dma_hsync_race(Vplus_p8_test_top& dut) {
 	b8_global_reset(dut, tick);
 	B8ChunkParams q;
 	q.dcsr = 0x00;
-	dut.hdr_hsync = 1;
 	dut.dma_test_hsync = 1;
-	b8_stream_chunk_apply(dut, tick, q);
+	b8_stream_chunk_apply(dut, tick, q, h);
 	b8_expect_idle_dma(dut, tick, "race disabled");
 	dut.dma_test_hsync = 0;
 	tick(); tick();
@@ -1557,9 +1444,10 @@ void test_b8_mmu_rom_gates(Vplus_p8_test_top& dut) {
 	// upper): base RAM shows through on both windows.
 	B8ChunkParams p;
 	p.dcsr = 0x00;
-	dut.hdr_ga_config = 0x8D;
-	dut.hdr_romsel = 0x85;
-	b8_stream_chunk_apply(dut, tick, p);
+	B8Header h;
+	h.ga_config = 0x8D; // bit2 lower ROM disabled, bit3 upper ROM disabled
+	h.romsel = 0x85;
+	b8_stream_chunk_apply(dut, tick, p, h);
 	cart_read(0x0000);
 	if (dut.mmu_cart_own != 0)
 		fail("B8-5 MMU: lower window owned with header lower-ROM disabled");
@@ -1576,9 +1464,10 @@ void test_b8_mmu_rom_gates(Vplus_p8_test_top& dut) {
 	B8ChunkParams q;
 	q.dcsr = 0x00;
 	q.rmr2 = 0x1A; // pos 00 (ASIC-page case), page 2
-	dut.hdr_ga_config = 0x80; // neither disable bit set
-	dut.hdr_romsel = 0x85;    // cartridge page 5
-	b8_stream_chunk_apply(dut, tick, q);
+	B8Header hq;
+	hq.ga_config = 0x80; // neither disable bit set
+	hq.romsel = 0x85;    // cartridge page 5
+	b8_stream_chunk_apply(dut, tick, q, hq);
 	cart_read(0xC000);
 	if (dut.mmu_cart_own != 1)
 		fail("B8-5 MMU: upper window not owned with header upper-ROM enabled");
@@ -1842,8 +1731,12 @@ void test_b8_restore_isolation(Vplus_p8_test_top& dut) {
 	b8_global_reset(dut, tick);
 	b8_require_video_hs_static(dut, tick);
 
-	dut.hdr_ga_config = 0x80;
-	dut.hdr_romsel = 0x85;
+	B8Header h;
+	h.ga_config = 0x80;
+	h.romsel = 0x85;
+	// A CPC+ palette entry that no 5-bit hardware colour can express, so a
+	// later plain restore cannot accidentally look correct.
+	h.palette[0] = 26; h.palette[16] = 31;
 
 	// Nonzero CPC+ restore.
 	B8ChunkParams a;
@@ -1851,17 +1744,25 @@ void test_b8_restore_isolation(Vplus_p8_test_top& dut) {
 	a.loop_cnt[0] = 5; a.loop_addr[0] = 0x1000;
 	a.pause_cnt[1] = 7; a.pause_presc[1] = 2;
 	a.dcsr = 0x87; a.rmr2 = 0x19; a.unlock = 1; a.seq_state = 5;
-	b8_stream_chunk_apply(dut, tick, a);
+	a.pal_lo[0] = 0x24; a.pal_hi[0] = 0x09;   // entry 0 = 0x924
+	a.pal_lo[16] = 0x78; a.pal_hi[16] = 0x0E; // entry 16 = 0xE78
+	b8_stream_chunk_apply(dut, tick, a, h);
 	if (dut.dma_sar0_addr != 0x2211 || dut.sna_loop_cnt0 != 5 ||
 	    dut.sna_pause_cnt1 != 7 || dut.sna_seq_state != 5)
 		fail("B8-5 isolation: first CPC+ restore did not land");
 	if (!dut.mmu_asic_page_on || !dut.mmu_asic_unlocked)
 		fail("B8-5 isolation: first CPC+ MMU/unlock did not land");
+	if (b8_pal_read(dut, tick, 0) != 0x924 || b8_pal_read(dut, tick, 16) != 0xE78)
+		fail("B8-5 isolation: CPC+ 12-bit palette was quantised by the apply");
 	b8_expect_idle_dma(dut, tick, "isolation post-A");
 
 	// Plain SNA: no chunk, but the ASIC-reset edge still clears storage, so
-	// nothing of A may survive; header ROM controls still apply.
-	b8_stream_plain_apply(dut, tick);
+	// nothing of A may survive; header ROM controls still apply. Its 5-bit
+	// header colours must now replace the retained 12-bit entries.
+	b8_stream_plain_apply(dut, tick, h);
+	if (b8_pal_read(dut, tick, 0) != hw_colour_gbr(26) ||
+	    b8_pal_read(dut, tick, 16) != hw_colour_gbr(31))
+		fail("B8-5 isolation: plain SNA did not translate the header colours");
 	if (dut.dma_sar0_addr != 0 || dut.dma_sar1_addr != 0 || dut.dma_sar2_addr != 0)
 		fail("B8-5 isolation: plain SNA inherited live SARs");
 	if (dut.sna_loop_cnt0 != 0 || dut.sna_pause_cnt1 != 0 || dut.sna_seq_state != 0)
@@ -1882,10 +1783,13 @@ void test_b8_restore_isolation(Vplus_p8_test_top& dut) {
 	b.sar_lo[0] = 0x33; b.sar_hi[0] = 0x66;
 	b.loop_cnt[0] = 9; b.loop_addr[0] = 0x2000;
 	b.dcsr = 0x81; b.rmr2 = 0x1A; b.unlock = 1; b.seq_state = 0;
-	b8_stream_chunk_apply(dut, tick, b);
+	b.pal_lo[0] = 0x35; b.pal_hi[0] = 0x0B;   // entry 0 = 0xB35
+	b8_stream_chunk_apply(dut, tick, b, h);
 	if (dut.dma_sar0_addr != 0x6633 || dut.sna_loop_cnt0 != 9 ||
 	    dut.sna_loop_addr0 != 0x2000)
 		fail("B8-5 isolation: second CPC+ restore did not replace the first");
+	if (b8_pal_read(dut, tick, 0) != 0xB35)
+		fail("B8-5 isolation: second CPC+ palette did not replace the plain translation");
 	if (!dut.mmu_asic_page_on || !dut.mmu_asic_unlocked)
 		fail("B8-5 isolation: second CPC+ MMU/unlock did not land");
 	dut.mmu_test_A = 0x0005;
@@ -1900,47 +1804,502 @@ void test_b8_restore_isolation(Vplus_p8_test_top& dut) {
 	std::printf("PASS b8_5_a8: repeated restore isolation (CPC+/plain/CPC+)\n");
 }
 
+// -----------------------------------------------------------------------------
+// B8-5 slice B: selected video / Gate Array / palette apply (required-pass).
+//
+// These replace the temporary XFAIL omission vector: every gap it printed is
+// now an assertion here, made on owner-visible state (register readback,
+// counter outputs, sync levels, INT_n, consumed palette RGB) rather than on
+// the new restore ports themselves.
+// -----------------------------------------------------------------------------
+
+// Advance until the CRTC HSYNC output falls `n` times, or fail.
+void b8_wait_hsync_falls(Vplus_p8_test_top& dut,
+                         const std::function<void()>& tick,
+                         int n, const std::string& where) {
+	int seen = 0;
+	int last = dut.video_hs;
+	for (int i = 0; i < 20000 && seen < n; ++i) {
+		tick();
+		int cur = dut.video_hs;
+		if (last && !cur) ++seen;
+		last = cur;
+	}
+	if (seen < n)
+		fail("B8-5 " + where + ": only " + std::to_string(seen) + " of " +
+		     std::to_string(n) + " CRTC HSYNC falling edges arrived");
+}
+
+// --- Test 9: selected video register file, mapped v3 counters, sync state.
+void test_b8_video_restore(Vplus_p8_test_top& dut) {
+	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
+	b8_global_reset(dut, tick);
+
+	B8Header h;
+	b8_set_short_frame_crtc(h);
+	h.crtc_sel   = 13;    // header 42: selected register index
+	h.crtc[12]   = 0x31;  // R12: start address high (bits 7:6 are §20.5 extras)
+	h.crtc[13]   = 0x84;  // R13: start address low
+	h.crtc[14]   = 0x2A;  // R14 cursor high (6-bit)
+	h.crtc[15]   = 0x5C;  // R15 cursor low
+	h.crtc[16]   = 0x15;  // R16 light-pen high (6-bit)
+	h.crtc[17]   = 0x73;  // R17 light-pen low
+	h.crtc[10]   = 0x6F;  // R10/R11 are read-only status groups on type 3:
+	h.crtc[11]   = 0x1F;  // present in the file, deliberately not stored
+	h.hcc        = 5;     // A9
+	h.line       = 3;     // AB
+	h.raster     = 1;     // AC
+	h.hsw        = 1;     // AE
+	h.vsw        = 2;     // AF
+	h.b0         = 0x03;  // VSYNC active + HSYNC active
+	h.ga_config  = 0x81;  // RMR: mode 1, both ROMs enabled
+	h.inksel     = 3;
+	h.palette[0] = 26; h.palette[1] = 11; h.palette[16] = 4;
+
+	B8ChunkParams p;
+	p.dcsr = 0x00;
+	B8ApplySample s;
+	b8_stream_chunk_apply(dut, tick, p, h, &s);
+
+	// Header 42, the selected register index: read WITHOUT writing a new
+	// select, so the answering mod-8 slot is the restored one (13 -> slot 5,
+	// which returns R13).
+	dut.video_crtc_cs = 1;
+	dut.video_crtc_rs = 1;
+	dut.video_crtc_rd = 1;
+	dut.eval();
+	uint8_t selected = dut.video_crtc_dout;
+	dut.video_crtc_cs = 0;
+	dut.video_crtc_rd = 0;
+	dut.video_crtc_rs = 0;
+	dut.eval();
+	if (selected != 0x84)
+		fail("B8-5 video: the restored register index does not select R13 (read 0x" +
+		     hex_str(selected, 2) + ", expected the R13 value 0x84)");
+
+	// Register file, through the production mod-8 readback map.
+	if (b8_crtc_read(dut, tick, 12) != 0x31)
+		fail("B8-5 video: R12 readback is not the restored 0x31");
+	if (b8_crtc_read(dut, tick, 13) != 0x84)
+		fail("B8-5 video: R13 readback is not the restored 0x84");
+	if (b8_crtc_read(dut, tick, 14) != 0x2A)
+		fail("B8-5 video: R14 readback is not the restored 0x2A");
+	if (b8_crtc_read(dut, tick, 15) != 0x5C)
+		fail("B8-5 video: R15 readback is not the restored 0x5C");
+	if (b8_crtc_read(dut, tick, 16) != 0x15)
+		fail("B8-5 video: R16 light-pen latch was not seeded from the header");
+	if (b8_crtc_read(dut, tick, 17) != 0x73)
+		fail("B8-5 video: R17 light-pen latch was not seeded from the header");
+
+	// Mapped v3 counters land on the owner's own outputs.
+	if (s.hcc != 5)
+		fail("B8-5 video: C0 is " + std::to_string(s.hcc) + ", expected header A9 = 5");
+	if (s.line != 3)
+		fail("B8-5 video: C4 is " + std::to_string(s.line) + ", expected header AB = 3");
+	if (s.row != 1)
+		fail("B8-5 video: C9 is " + std::to_string(s.row) + ", expected header AC = 1");
+	if (s.adj)
+		fail("B8-5 video: vertical adjust active with header B0 bit 7 clear");
+	if (!s.hs)
+		fail("B8-5 video: header B0 bit 1 set but HSYNC is inactive after apply");
+	if (!s.vs)
+		fail("B8-5 video: header B0 bit 0 set but VSYNC is inactive after apply");
+	// Deterministic address seed from the settled R12/R13 (the format does not
+	// serialize the pointer; see the module comment).
+	if (s.ma != (uint16_t)(((0x31 & 0x3F) << 8) | 0x84))
+		fail("B8-5 video: VMA is 0x" + hex_str(s.ma, 4) +
+		     ", expected the R12/R13 seed 0x3184");
+
+	// The Gate Array shadows come from the same header.
+	if (s.ga_mode != 1)
+		fail("B8-5 video: GA mode is " + std::to_string(s.ga_mode) + ", expected header RMR mode 1");
+	if (s.ga_border != 4)
+		fail("B8-5 video: GA border is " + std::to_string(s.ga_border) + ", expected header colour 4");
+	if (ga_ink_entry(dut, 0) != 26 || ga_ink_entry(dut, 1) != 11)
+		fail("B8-5 video: GA ink entries 0/1 were not restored from header 2F-30");
+
+	// Vertical total adjust: header AD is the live index, AC is meaningless.
+	b8_global_reset(dut, tick);
+	B8Header hv = h;
+	hv.b0     = 0x80;  // adjust active, no sync
+	hv.raster = 9;     // must be ignored
+	hv.vta    = 2;
+	hv.crtc[5] = 4;    // R5 vertical total adjust
+	B8ApplySample sv;
+	b8_stream_chunk_apply(dut, tick, p, hv, &sv);
+	if (!sv.adj)
+		fail("B8-5 video: header B0 bit 7 did not restore vertical total adjust");
+	if (sv.row != 2)
+		fail("B8-5 video: adjust index is " + std::to_string(sv.row) +
+		     ", expected header AD = 2 (type 3 carries it in C9)");
+	if (sv.hs || sv.vs)
+		fail("B8-5 video: sync asserted with both B0 sync bits clear");
+
+	// A v1 snapshot has none of these fields: deterministic reset phase, never
+	// a stale v3 value from the previous restore.
+	b8_global_reset(dut, tick);
+	B8Header h1 = h;
+	h1.version = 1;
+	B8ApplySample s1;
+	b8_stream_chunk_apply(dut, tick, p, h1, &s1);
+	if (s1.hcc != 0 || s1.line != 0 || s1.row != 0 || s1.adj || s1.hs || s1.vs)
+		fail("B8-5 video: a v1 snapshot applied v3 counter/flag fields");
+	if (b8_crtc_read(dut, tick, 12) != 0x31)
+		fail("B8-5 video: a v1 snapshot lost the v1 CRTC register file");
+
+	std::printf("PASS b8_5_b1: video register file, v3 counters, sync flags, v1 gating\n");
+}
+
+// --- Test 10: Gate Array VSYNC-delay phase (header B2).
+void test_b8_ga_vsync_delay(Vplus_p8_test_top& dut) {
+	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
+
+	// hcnt walks 00 -> 01 -> 06 on HSYNC falling edges and the shaped monitor
+	// VSYNC is high from state 06: B2 is exactly how many of those edges are
+	// still owed. Each case restores an active raw VSYNC and counts real CRTC
+	// HSYNC falling edges.
+	struct Case { uint8_t vsdelay; uint8_t b0; int falls_to_shaped; const char* name; };
+	const Case cases[] = {
+		{2, 0x01, 2, "B2=2 (no HSYNC seen yet)"},
+		{1, 0x01, 1, "B2=1 (one HSYNC seen)"},
+	};
+
+	for (const Case& c : cases) {
+		b8_global_reset(dut, tick);
+		B8Header h;
+		b8_set_short_frame_crtc(h);
+		h.b0 = c.b0;
+		h.vsdelay = c.vsdelay;
+		B8ChunkParams p;
+		p.dcsr = 0x00;
+		B8ApplySample s;
+		b8_stream_chunk_apply(dut, tick, p, h, &s);
+
+		if (s.ga_vsync_o)
+			fail(std::string("B8-5 GA delay: ") + c.name +
+			     " restored an already-shaped VSYNC");
+		for (int i = 1; i < c.falls_to_shaped; ++i) {
+			b8_wait_hsync_falls(dut, tick, 1, "GA delay");
+			if (dut.ga_vsync_o)
+				fail(std::string("B8-5 GA delay: ") + c.name +
+				     " shaped VSYNC rose one HSYNC early");
+		}
+		b8_wait_hsync_falls(dut, tick, 1, "GA delay");
+		// The shaped level follows the combinational hcnt, so it is up within
+		// a couple of clocks of the edge.
+		bool up = false;
+		for (int i = 0; i < 8 && !up; ++i) { if (dut.ga_vsync_o) up = true; tick(); }
+		if (!up)
+			fail(std::string("B8-5 GA delay: ") + c.name +
+			     " shaped VSYNC did not rise on its owed HSYNC");
+	}
+
+	// B2=0 with an active raw VSYNC: the re-sync already happened, so the
+	// shaped pulse is up at the apply and no second re-sync is manufactured.
+	b8_global_reset(dut, tick);
+	B8Header h0;
+	b8_set_short_frame_crtc(h0);
+	h0.b0 = 0x01;
+	h0.vsdelay = 0;
+	B8ChunkParams p0;
+	p0.dcsr = 0x00;
+	B8ApplySample s0;
+	b8_stream_chunk_apply(dut, tick, p0, h0, &s0);
+	if (!s0.ga_vsync_o)
+		fail("B8-5 GA delay: B2=0 with active VSYNC did not restore the shaped pulse");
+
+	// B2=0 with no VSYNC: parked lost-sync state, nothing shapes.
+	b8_global_reset(dut, tick);
+	B8Header hp;
+	b8_set_short_frame_crtc(hp);
+	hp.crtc[7] = 60;  // R7 beyond R4: no natural VSYNC during the window
+	hp.b0 = 0x00;
+	hp.vsdelay = 0;
+	B8ApplySample sp;
+	b8_stream_chunk_apply(dut, tick, p0, hp, &sp);
+	if (sp.ga_vsync_o)
+		fail("B8-5 GA delay: B2=0 without VSYNC shaped a pulse anyway");
+	for (int i = 0; i < 3; ++i) {
+		b8_wait_hsync_falls(dut, tick, 1, "GA delay parked");
+		if (dut.ga_vsync_o)
+			fail("B8-5 GA delay: parked state shaped a VSYNC from HSYNCs alone");
+	}
+
+	std::printf("PASS b8_5_b2: GA VSYNC-delay phase for B2 = 2/1/0\n");
+}
+
+// --- Test 11: GA interrupt counter (B3) and pending flag (B4).
+void test_b8_ga_interrupt_restore(Vplus_p8_test_top& dut) {
+	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
+
+	// B3 = 51: the very next shaped line completes the 52-line count and the
+	// classic interrupt fires. Nothing may fire before that edge.
+	b8_global_reset(dut, tick);
+	B8Header h;
+	b8_set_short_frame_crtc(h);
+	h.crtc[7] = 60;   // keep VSYNC (and its counter re-sync) out of the window
+	h.intcnt = 51;
+	B8ChunkParams p;
+	p.dcsr = 0x00;
+	B8ApplySample s51;
+	b8_stream_chunk_apply(dut, tick, p, h, &s51);
+	if (!s51.ga_int_n)
+		fail("B8-5 GA int: restoring B3=51 with B4=0 asserted an interrupt at the apply");
+	b8_wait_hsync_falls(dut, tick, 1, "GA int");
+	bool fired = false;
+	for (int i = 0; i < 8 && !fired; ++i) { if (!dut.ga_int_n_out) fired = true; tick(); }
+	if (!fired)
+		fail("B8-5 GA int: B3=51 did not complete the 52-line count on the next line");
+
+	// B3 = 0: the counter is at the start of its cycle, so no interrupt for
+	// several lines.
+	b8_global_reset(dut, tick);
+	B8Header h0 = h;
+	h0.intcnt = 0;
+	b8_stream_chunk_apply(dut, tick, p, h0);
+	for (int i = 0; i < 4; ++i) {
+		b8_wait_hsync_falls(dut, tick, 1, "GA int early");
+		if (!dut.ga_int_n_out)
+			fail("B8-5 GA int: B3=0 fired within four lines of the apply");
+	}
+
+	auto aregs_read = [&](uint16_t addr) -> uint8_t {
+		dut.aregs_cs = 1;
+		dut.aregs_mem_rd = 1;
+		dut.aregs_mem_wr = 0;
+		dut.aregs_addr = addr;
+		dut.eval();
+		uint8_t d = dut.aregs_dout;
+		dut.aregs_cs = 0;
+		dut.aregs_mem_rd = 0;
+		dut.eval();
+		return d;
+	};
+
+	// B4 = 1 with no DMA flag pending: the GA holds the level, the first
+	// acknowledge retires it, and it does not come back on its own.
+	b8_global_reset(dut, tick);
+	B8Header hi = h;
+	hi.intcnt = 0;
+	hi.intreq = 1;
+	B8ApplySample si;
+	b8_stream_chunk_apply(dut, tick, p, hi, &si);
+	if (si.ga_int_n)
+		fail("B8-5 GA int: header B4=1 did not restore a pending interrupt");
+	if (si.int_n_merged)
+		fail("B8-5 GA int: aggregate INT_n level lost after restore");
+	if (aregs_read(0x2C0F) & 0x80)
+		fail("B8-5 GA int: restored DCSR bit 7 set before raster acknowledge");
+	// Acknowledge: M1 and IORQ low together while INT is asserted.
+	dut.ga_m1_n = 0;
+	dut.ga_iorq_n = 0;
+	for (int i = 0; i < 8; ++i) tick();
+	if (!dut.ack_vec_valid || dut.ack_vec_byte != 0x06)
+		fail("B8-5 GA int: raster acknowledge did not present vector 0x06");
+	if (!dut.ga_int_n_out)
+		fail("B8-5 GA int: the first acknowledge did not retire the restored interrupt");
+	dut.ga_iorq_n = 1;
+	dut.ga_m1_n = 1;
+	for (int i = 0; i < 4; ++i) tick();
+	if (dut.int_n_merged != 1)
+		fail("B8-5 GA int: aggregate INT_n not retired after raster acknowledge");
+	bool raster_stat_ok = ((aregs_read(0x2C0F) & 0x80) != 0);
+	for (int i = 0; i < 200; ++i) {
+		tick();
+		if (!dut.ga_int_n_out)
+			fail("B8-5 GA int: the restored interrupt was duplicated after its acknowledge");
+	}
+
+	// B4 = 1 that the restored DCSR already explains: attributed to the DMA
+	// path, so the GA line stays clear while the aggregate level is preserved.
+	// DCSR bit 7 (last-ack-was-raster) survives the apply untouched.
+	b8_global_reset(dut, tick);
+	B8ChunkParams pd;
+	pd.dcsr = 0xC1;   // bit7 stat, bit6 = ch0 flag, ch0 enabled
+	B8ApplySample sd;
+	b8_stream_chunk_apply(dut, tick, pd, hi, &sd);
+	if (!sd.ga_int_n)
+		fail("B8-5 GA int: a DMA-explained pending flag was also credited to the GA");
+	if (sd.int_n_merged)
+		fail("B8-5 GA int: aggregate INT_n level lost for a DMA-sourced pending flag");
+	if (!(dut.aregs_dcsr & 0x80) || !(aregs_read(0x2C0F) & 0x80))
+		fail("B8-5 GA int: restored DCSR bit 7 was cleared by the apply");
+	for (int i = 0; i < 200; ++i) {
+		tick();
+		if (!(dut.aregs_dcsr & 0x80))
+			fail("B8-5 GA int: a post-apply runtime edge overwrote the restored DCSR bit 7");
+	}
+
+	// First DMA acknowledge: IVR bit 0 was cleared to 0 by chunk apply (&6805=0),
+	// so automatic flag retirement is enabled.
+	dut.ga_m1_n = 0;
+	dut.ga_iorq_n = 0;
+	for (int i = 0; i < 8; ++i) tick();
+	if (!dut.ack_vec_valid || dut.ack_vec_byte != 0x04)
+		fail("B8-5 GA int: DMA acknowledge did not present vector 0x04");
+	dut.ga_iorq_n = 1;
+	dut.ga_m1_n = 1;
+	for (int i = 0; i < 4; ++i) tick();
+	if (dut.int_n_merged != 1)
+		fail("B8-5 GA int: aggregate INT_n not retired after DMA acknowledge");
+	bool dma_stat_ok = ((aregs_read(0x2C0F) & 0x80) == 0);
+
+	if (!raster_stat_ok && !dma_stat_ok)
+		fail("B8-5 GA int: both first-ack provenances failed: raster did not set bit 7 and DMA left bit 7 sticky");
+	else if (!raster_stat_ok)
+		fail("B8-5 GA int: first raster acknowledge did not set DCSR bit 7");
+	else if (!dma_stat_ok)
+		fail("B8-5 GA int: first DMA acknowledge left restored DCSR bit 7 sticky");
+
+	std::printf("PASS b8_5_b3: GA interrupt counter B3 and pending-flag B4 attribution\n");
+}
+
+// --- Test 12: palette provenance, no phantom legacy event, first CPU write.
+void test_b8_palette_provenance(Vplus_p8_test_top& dut) {
+	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
+
+	// Plain SNA: the header's 5-bit colours translate into entries 0-16,
+	// including hardware colour 31 which the reset import's sentinel would
+	// have skipped. Sprite entries stay untouched.
+	b8_global_reset(dut, tick);
+	B8Header h;
+	b8_set_short_frame_crtc(h);
+	h.inksel      = 7;    // header 2E, the selected pen
+	h.palette[0]  = 31;   // sentinel-shaped value
+	h.palette[1]  = 11;
+	h.palette[15] = 20;
+	h.palette[16] = 26;   // border
+	b8_stream_plain_apply(dut, tick, h);
+	if (b8_pal_read(dut, tick, 0) != hw_colour_gbr(31))
+		fail("B8-5 palette: plain SNA skipped hardware colour 31 at entry 0");
+	if (b8_pal_read(dut, tick, 1) != hw_colour_gbr(11))
+		fail("B8-5 palette: plain SNA entry 1 mistranslated");
+	if (b8_pal_read(dut, tick, 15) != hw_colour_gbr(20))
+		fail("B8-5 palette: plain SNA entry 15 mistranslated");
+	if (b8_pal_read(dut, tick, 16) != hw_colour_gbr(26))
+		fail("B8-5 palette: plain SNA border entry mistranslated");
+	if (b8_pal_read(dut, tick, 17) != 0)
+		fail("B8-5 palette: plain SNA disturbed a sprite palette entry");
+
+	// The restored border colour reaches the screen through the production
+	// palette read port, not just the storage array.
+	dut.pal_probe_sel = 0;
+	int settled = 0;
+	uint16_t want = hw_colour_gbr(26);
+	for (int i = 0; i < 4000 && !settled; ++i) {
+		tick();
+		if (!dut.video_de && !dut.video_hs &&
+		    dut.video_rgb_r == ((want >> 4) & 0xF) &&
+		    dut.video_rgb_g == ((want >> 8) & 0xF) &&
+		    dut.video_rgb_b == (want & 0xF))
+			settled = 1;
+	}
+	if (!settled)
+		fail("B8-5 palette: the restored border colour never reached the video RGB output");
+	dut.pal_probe_sel = 1;
+
+	// CPC+ snapshot: a 12-bit entry no hardware colour can express survives,
+	// and the differing header colours must not overwrite it.
+	b8_global_reset(dut, tick);
+	B8ChunkParams p;
+	p.dcsr = 0x00;
+	p.pal_lo[0] = 0x24; p.pal_hi[0] = 0x09;   // 0x924
+	p.pal_lo[16] = 0x78; p.pal_hi[16] = 0x0E; // 0xE78
+	p.pal_lo[20] = 0x11; p.pal_hi[20] = 0x02; // sprite entry 0x211
+	b8_stream_chunk_apply(dut, tick, p, h);
+	if (b8_pal_read(dut, tick, 0) != 0x924 || b8_pal_read(dut, tick, 16) != 0xE78)
+		fail("B8-5 palette: CPC+ 12-bit entries were overwritten by the header colours");
+	if (b8_pal_read(dut, tick, 20) != 0x211)
+		fail("B8-5 palette: CPC+ sprite palette entry did not survive the apply");
+
+	// The apply emits no legacy write event at any point (a snapshot must not
+	// impersonate an ordinary I/O write).
+	b8_global_reset(dut, tick);
+	dut.sna_download = 1;
+	dut.seam_plus_asic_reset = 1;
+	tick();
+	dut.seam_plus_asic_reset = 0;
+	int events = 0;
+	auto watch = [&]() {
+		tick();
+		if (dut.ga_leg_pal_wr) ++events;
+	};
+	b8_stream_header(dut, watch, h);
+	dut.sna_download = 0;
+	for (int i = 0; i < 400; ++i) watch();
+	if (events)
+		fail("B8-5 palette: the snapshot apply raised " + std::to_string(events) +
+		     " phantom legacy palette write events");
+
+	// Header 2E: an INKR write with no preceding PENR must land at the
+	// RESTORED selected pen, which is the only owner-visible proof that the
+	// pen index came back.
+	b8_ga_io_write(dut, tick, 0x40 | 12);   // INKR: hardware colour 12
+	if (ga_ink_entry(dut, 7) != 12)
+		fail("B8-5 palette: header 2E did not restore the selected pen (INKR landed elsewhere)");
+	if (b8_pal_read(dut, tick, 7) != hw_colour_gbr(12))
+		fail("B8-5 palette: the restored-pen INKR write did not reach the palette");
+
+	// An ordinary PENR + INKR pair still works afterwards.
+	b8_ga_io_write(dut, tick, 0x02);        // PENR: select pen 2
+	b8_ga_io_write(dut, tick, 0x40 | 18);   // INKR: hardware colour 18
+	if (ga_ink_entry(dut, 2) != 18)
+		fail("B8-5 palette: the first post-restore INKR write did not reach the GA shadow");
+	if (b8_pal_read(dut, tick, 2) != hw_colour_gbr(18))
+		fail("B8-5 palette: the first post-restore INKR write did not reach the palette");
+
+	std::printf("PASS b8_5_b4: palette provenance (plain/CPC+, no phantom event, first CPU write)\n");
+}
+
 } // namespace
+
+// Every B8-5 focused case. Each runs on its own DUT instance so a restore
+// under test cannot inherit another case's state.
+int run_b8_focused() {
+	struct Entry { const char* name; void (*fn)(Vplus_p8_test_top&); };
+	static const Entry entries[] = {
+		{"b8_5_a1", test_b8_dma_sar_restore},
+		{"b8_5_a2", test_b8_dma_pause_prescaler},
+		{"b8_5_a3", test_b8_dma_loop_restore},
+		{"b8_5_a4", test_b8_dma_hsync_race},
+		{"b8_5_a5", test_b8_mmu_rom_gates},
+		{"b8_5_a6", test_b8_unlock_restore},
+		{"b8_5_a7", test_b8_apply_controller},
+		{"b8_5_a8", test_b8_restore_isolation},
+		{"b8_5_b1", test_b8_video_restore},
+		{"b8_5_b2", test_b8_ga_vsync_delay},
+		{"b8_5_b3", test_b8_ga_interrupt_restore},
+		{"b8_5_b4", test_b8_palette_provenance},
+	};
+	const int total = (int)(sizeof(entries) / sizeof(entries[0]));
+	int failures = 0;
+	for (const Entry& e : entries) {
+		try {
+			Vplus_p8_test_top dut;
+			e.fn(dut);
+		} catch (const std::exception& ex) {
+			std::fprintf(stderr, "FAIL %s: %s\n", e.name, ex.what());
+			++failures;
+		}
+	}
+	if (failures) {
+		std::fprintf(stderr, "B8-5: %d/%d focused snapshot-apply tests FAILED\n",
+		             failures, total);
+		return 1;
+	}
+	std::printf("All %d B8-5 focused snapshot-apply tests PASSED.\n", total);
+	return 0;
+}
 
 int main(int argc, char** argv) {
 	Verilated::commandArgs(argc, argv);
-	bool xfail_mode = false;
 	bool b8_only = false;
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
-		if (arg == "--xfail") xfail_mode = true;
-		if (arg == "--b8-dma-mmu") b8_only = true;
-	}
-	if (std::getenv("PLUS_P8_XFAIL") != nullptr) {
-		xfail_mode = true;
+		if (arg == "--b8-dma-mmu" || arg == "--b8") b8_only = true;
 	}
 
-	if (b8_only) {
-		int failures = 0;
-		auto run = [&](const char* name, void (*fn)(Vplus_p8_test_top&)) {
-			try {
-				Vplus_p8_test_top dut;
-				fn(dut);
-			} catch (const std::exception& e) {
-				std::fprintf(stderr, "FAIL %s: %s\n", name, e.what());
-				++failures;
-			}
-		};
-		run("b8_5_a1", test_b8_dma_sar_restore);
-		run("b8_5_a2", test_b8_dma_pause_prescaler);
-		run("b8_5_a3", test_b8_dma_loop_restore);
-		run("b8_5_a4", test_b8_dma_hsync_race);
-		run("b8_5_a5", test_b8_mmu_rom_gates);
-		run("b8_5_a6", test_b8_unlock_restore);
-		run("b8_5_a7", test_b8_apply_controller);
-		run("b8_5_a8", test_b8_restore_isolation);
-		if (failures) {
-			std::fprintf(stderr, "B8-5 slice A: %d/8 focused tests FAILED\n", failures);
-			return 1;
-		}
-		std::printf("All 8 B8-5 slice A focused tests PASSED.\n");
-		return 0;
-	}
+	if (b8_only) return run_b8_focused();
 
 	try {
 		Vplus_p8_test_top dut;
@@ -1949,11 +2308,11 @@ int main(int argc, char** argv) {
 		test_p8_sna_fifo_headroom(dut);
 		test_p10c_fdc_motor_tape_gating(dut);
 		test_p8_sna_integration_seam(dut);
-		test_b8_5_snapshot_apply_regression(dut, xfail_mode);
-		std::printf("All Phase P8 platform polish and P10 compatibility tests PASSED.\n");
-		return 0;
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());
 		return 1;
 	}
+	if (run_b8_focused()) return 1;
+	std::printf("All Phase P8 platform polish and P10 compatibility tests PASSED.\n");
+	return 0;
 }

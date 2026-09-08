@@ -170,6 +170,20 @@ module p10_dma_mobo_test_top (
 		.sna_dma_pause_presc1(8'd0),
 		.sna_dma_pause_presc2(8'd0),
 
+		// B8-5 slice B: settled v3 video/GA header state, unused here.
+		.sna_crtc_hcc(8'd0),
+		.sna_crtc_line(7'd0),
+		.sna_crtc_raster(5'd0),
+		.sna_crtc_vta(5'd0),
+		.sna_crtc_hsw(4'd0),
+		.sna_crtc_vsw(4'd0),
+		.sna_crtc_vs(1'b0),
+		.sna_crtc_adj(1'b0),
+		.sna_ga_vsdelay(2'd0),
+		.sna_ga_intcnt(6'd0),
+		.sna_int_pending(1'b0),
+		.sna_plus_chunk(1'b0),
+
 		.plus_sna_wr(1'b0),
 		.plus_sna_addr(14'd0),
 		.plus_sna_data(8'd0),

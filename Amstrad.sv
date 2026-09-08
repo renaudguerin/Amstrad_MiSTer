@@ -247,13 +247,16 @@ wire [15:0] sna_std_mem_size = (sna_mem_size > 16'd128) ? 16'd128 : sna_mem_size
 wire [24:0] sna_chunk_start = 25'h100 + {sna_std_mem_size[14:0], 10'd0};
 
 reg [211:0] sna_cpu_dir = 212'd0;
-reg   [4:0] sna_crtc_addr = 5'd0;
-reg [143:0] sna_crtc_regs = 144'd0;
-reg   [4:0] sna_ga_inksel = 5'd0;
-reg [135:0] sna_ga_palette = 136'd0;
-reg   [7:0] sna_ga_config = 8'd0;
+// The selected video/GA header fields (10, 2E, 2F-3F, 40, 42, 43-54, 55,
+// A9-B4) are decoded by rtl/plus/plus_sna_header.v instead of inline here, so
+// the P8 fixture drives the same decoder from a real byte stream (B8-5).
+wire  [4:0] sna_crtc_addr;
+wire [143:0] sna_crtc_regs;
+wire  [4:0] sna_ga_inksel;
+wire [135:0] sna_ga_palette;
+wire  [7:0] sna_ga_config;
 reg   [7:0] sna_ram_config = 8'd0;
-reg   [7:0] sna_rom_select = 8'd0;
+wire  [7:0] sna_rom_select;
 reg   [7:0] sna_ppi_a = 8'd0;
 reg   [7:0] sna_ppi_b = 8'd0;
 reg   [7:0] sna_ppi_c = 8'd0;
@@ -273,9 +276,53 @@ reg         cpr_finish_pending = 1'b0;
 reg         old_cpr_download = 1'b0;
 reg         old_cpr_download_reset = 1'b0;
 
-reg   [7:0] sna_version = 8'd0;
-reg   [7:0] sna_b0_flags = 8'd0;
-wire        sna_hsync = (sna_version == 8'd3) ? sna_b0_flags[1] : 1'b0;
+wire        sna_hsync;
+wire        sna_crtc_vs;
+wire        sna_crtc_adj;
+wire  [7:0] sna_crtc_hcc;
+wire  [6:0] sna_crtc_line;
+wire  [4:0] sna_crtc_raster;
+wire  [4:0] sna_crtc_vta;
+wire  [3:0] sna_crtc_hsw;
+wire  [3:0] sna_crtc_vsw;
+wire  [1:0] sna_ga_vsdelay;
+wire  [5:0] sna_ga_intcnt;
+wire        sna_int_pending;
+
+// Selected video / Gate-Array header decode, shared with sim/plus's P8
+// fixture. `wr` is exactly the old inline condition: a header byte of the
+// snapshot currently downloading.
+plus_sna_header sna_header
+(
+	.clk(clk_sys),
+	.sna_download(sna_download),
+	.wr(sna_download && ioctl_wr && (ioctl_addr < 25'h100)),
+	.addr(ioctl_addr[7:0]),
+	.data(ioctl_dout),
+
+	.version(),
+	.v3(),
+
+	.ga_inksel(sna_ga_inksel),
+	.ga_palette(sna_ga_palette),
+	.ga_config(sna_ga_config),
+	.crtc_addr(sna_crtc_addr),
+	.crtc_regs(sna_crtc_regs),
+	.rom_select(sna_rom_select),
+
+	.crtc_hcc(sna_crtc_hcc),
+	.crtc_line(sna_crtc_line),
+	.crtc_raster(sna_crtc_raster),
+	.crtc_vta(sna_crtc_vta),
+	.crtc_hsw(sna_crtc_hsw),
+	.crtc_vsw(sna_crtc_vsw),
+	.crtc_vs(sna_crtc_vs),
+	.crtc_hs(sna_hsync),
+	.crtc_adj(sna_crtc_adj),
+	.ga_vsdelay(sna_ga_vsdelay),
+	.ga_intcnt(sna_ga_intcnt),
+	.int_pending(sna_int_pending)
+);
 
 wire [11:0] plus_sna_loop_cnt0;
 wire [11:0] plus_sna_loop_cnt1;
@@ -447,7 +494,6 @@ always @(posedge clk_sys) begin
 	end
 	if(sna_download && ioctl_wr && (ioctl_addr < 25'h100)) begin
 		case(ioctl_addr[7:0])
-			8'h10: sna_version          <= ioctl_dout;
 			8'h11: sna_cpu_dir[15:8]    <= ioctl_dout;          // F
 			8'h12: sna_cpu_dir[7:0]     <= ioctl_dout;          // A
 			8'h13: sna_cpu_dir[87:80]   <= ioctl_dout;          // C
@@ -477,11 +523,7 @@ always @(posedge clk_sys) begin
 			8'h2b: sna_cpu_dir[175:168] <= ioctl_dout;          // D'
 			8'h2c: sna_cpu_dir[183:176] <= ioctl_dout;          // L'
 			8'h2d: sna_cpu_dir[191:184] <= ioctl_dout;          // H'
-			8'h2e: sna_ga_inksel        <= ioctl_dout[4:0];
-			8'h40: sna_ga_config        <= ioctl_dout;
 			8'h41: sna_ram_config       <= ioctl_dout;
-			8'h42: sna_crtc_addr        <= ioctl_dout[4:0];
-			8'h55: sna_rom_select       <= ioctl_dout;
 			8'h56: sna_ppi_a            <= ioctl_dout;
 			8'h57: sna_ppi_b            <= ioctl_dout;
 			8'h58: sna_ppi_c            <= ioctl_dout;
@@ -503,26 +545,17 @@ always @(posedge clk_sys) begin
 					endcase
 				end
 			end
-			8'hb0: sna_b0_flags         <= ioctl_dout;
 		endcase
 
-		if(ioctl_addr[7:0] >= 8'h2f && ioctl_addr[7:0] <= 8'h3f)
-			sna_ga_palette[((ioctl_addr[7:0] - 8'h2f) * 8) +: 8] <= ioctl_dout;
-		if(ioctl_addr[7:0] >= 8'h43 && ioctl_addr[7:0] <= 8'h54)
-			sna_crtc_regs[((ioctl_addr[7:0] - 8'h43) * 8) +: 8] <= ioctl_dout;
 		if(ioctl_addr[7:0] >= 8'h5b && ioctl_addr[7:0] <= 8'h6a)
 			sna_psg_regs[((ioctl_addr[7:0] - 8'h5b) * 8) +: 8] <= ioctl_dout;
 	end
 	if(~old_download & ioctl_download & sna_download) begin
 		sna_cpu_dir <= 212'd0;
-		sna_crtc_regs <= 144'd0;
-		sna_ga_palette <= 136'd0;
 		sna_psg_regs <= 128'd0;
 		sna_mem_size <= 16'd64;
 		sna_model <= menu_model;
 		sna_ppi_control <= 8'h9b;
-		sna_version <= 8'd0;
-		sna_b0_flags <= 8'd0;
 		sna_chunk_name <= 32'd0;
 		sna_chunk_len <= 32'd0;
 		sna_chunk_rem <= 32'd0;
@@ -540,10 +573,6 @@ always @(posedge clk_sys) begin
 		sna_cpc_plus_start <= 1'b0;
 		sna_cpc_plus_wr    <= 1'b0;
 		sna_cpc_plus_data  <= 8'd0;
-	end
-	if(sna_download & ~old_sna_download_reset) begin
-		sna_version  <= 8'd0;
-		sna_b0_flags <= 8'd0;
 	end
 	if(sna_download && ioctl_wr && !romdl_wait && (!sna_rle_count || (sna_rle_state == 2'd2)) && (ioctl_addr >= sna_chunk_start)) begin
 		if(!sna_chunk_data) begin
@@ -660,6 +689,7 @@ always @(posedge clk_sys) begin
 				sna_rle_state <= 2'd0;
 			end
 		end
+	end
 	old_cpr_download <= cpr_download;
 	if(old_cpr_download & ~cpr_download) cpr_finish_pending <= 1'b1;
 	if(cpr_finish_pending && !cart_service_busy) begin
@@ -1406,6 +1436,19 @@ Amstrad_motherboard motherboard
 	.sna_dma_pause_presc0(plus_sna_pause_presc0),
 	.sna_dma_pause_presc1(plus_sna_pause_presc1),
 	.sna_dma_pause_presc2(plus_sna_pause_presc2),
+
+	.sna_crtc_hcc(sna_crtc_hcc),
+	.sna_crtc_line(sna_crtc_line),
+	.sna_crtc_raster(sna_crtc_raster),
+	.sna_crtc_vta(sna_crtc_vta),
+	.sna_crtc_hsw(sna_crtc_hsw),
+	.sna_crtc_vsw(sna_crtc_vsw),
+	.sna_crtc_vs(sna_crtc_vs),
+	.sna_crtc_adj(sna_crtc_adj),
+	.sna_ga_vsdelay(sna_ga_vsdelay),
+	.sna_ga_intcnt(sna_ga_intcnt),
+	.sna_int_pending(sna_int_pending),
+	.sna_plus_chunk(plus_sna_active),
 
 	.plus_sna_wr(plus_sna_wr),
 	.plus_sna_addr(plus_sna_addr),
