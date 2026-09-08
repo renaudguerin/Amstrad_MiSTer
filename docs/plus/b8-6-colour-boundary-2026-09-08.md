@@ -1,9 +1,18 @@
 # B8-6 Plus colour boundary
 
-Task branch `codex/plus/b8-6-colour-alignment`, exact requested base
-`d46609d066aafb6b182fd6fa504a91719500cd91`. This is a simulation candidate;
-independent review and the aggregate lint gate remain pending. Nothing has
-been integrated, synthesized, or tested on hardware.
+Task branch `codex/plus/b8-6-colour-alignment` was accepted at `023d020`
+from exact requested base `d46609d066aafb6b182fd6fa504a91719500cd91`.
+**Refreshed READY for integration** onto exact Accuracy destination
+`35ae03b0dc8b8708bf963dcddf89c4c0e5c0e451`. Refresh reconciles shared manifests
+and status documentation only; Plus RTL/test behavior is unchanged. Both fixtures
+remain in the default test and lint gates. The identical waiver commit `f12f998`
+is already present as `d52152a` and is not duplicated.
+
+The original Plus source passed the user-selected Verilator 5.052 local gate
+and scoped independent reviews below. The coordinator owns refreshed merged
+gates, whose expected CRTC soak is now Accuracy's `0x6e8258198d6e6137`.
+The older hash below records pre-refresh evidence, not a new expected value.
+Plus has not been integrated, synthesized, or tested on hardware.
 
 ## Contract and change
 
@@ -56,13 +65,65 @@ were provisioned and remain ignored; no new CRTC rule was inferred from them.
   `0x2263c9fc44af4ee7` over 2,845,088 samples. This soak covers CRTC state, not RGB.
 - Timing repair: focused fixture and full `make -C sim` passed; the existing
   FDC payload XFAIL remains. Final CRTC soak also retains the recorded hash.
-- Raw `make -C sim lint` on installed Verilator 5.052 exits 2 at the existing
-  `motherboard-lint` target on five `SIMILARNAME` warnings. The exact base
-  Makefile replay against unchanged motherboard dependencies produces the same
-  failure. The repository CI installer pins Verilator 5.050. No lint assertions
-  or production dependencies were weakened to hide the tool-version issue.
-- Fresh cross-provider review must cover the complete base-to-final diff,
-  including extraction, top-level wiring, enabled register, and test oracle.
+- Final `make -C sim` and `make -C sim lint` pass on Verilator 5.052 after the
+  separate build-only compatibility commit `f12f998f8107b7a07871944149ac22889b0ad0c8`.
+  The exact-base strict motherboard lint previously exited 2 on five existing
+  `SIMILARNAME` warnings. `sim/plus/legacy-similar-names.vlt` waives only those
+  five file/message pairs; the Makefile loads it before sources in the two
+  affected strict recipes. No RTL was renamed, no blanket category suppression
+  or `-Wno-fatal` was added, and all existing warning policies are otherwise
+  unchanged. One-off controls still exit 1 for an unlisted similar name and
+  for width truncation on a listed name.
+- The CI pin remains 5.050. `-Wfuture-SIMILARNAME` provides the documented
+  older-version handling of the rule name; this was source/documentation
+  reviewed, not executed on 5.050. See the official
+  [warning classification](https://verilator.org/guide/latest/warnings.html#cmdoption-arg-SIMILARNAME)
+  and [future-message option](https://verilator.org/guide/latest/exe_verilator.html#cmdoption-Wfuture-message).
+- Two temporary 5.050 build attempts failed on Apple/upstream Flex signature and
+  header mismatches. Logs are preserved; provisioning stopped when the user
+  selected the narrow 5.052 gate adjustment. No local 5.050 fixture run, CI run,
+  synthesis result or hardware closure is claimed. New timed-fixture and waiver
+  compatibility with the unchanged CI pin remains a CI acceptance residual.
+
+## Independent review
+
+Anthropic `claude-opus-5`, effort `high`, reviewed the complete range
+`d46609d066aafb6b182fd6fa504a91719500cd91..51b61e3557c44480eb2f935f7d05a779acc557f7`.
+Guarded run `20260908T010716Z-66508-26b4` exited 0 with clean handoff; the
+bridge reaper confirmed no remaining live run. Verdict: **CLEAR on correctness**,
+with no defects in the seven-file diff. Review covered the pipeline algebra,
+line-by-line extraction fidelity, classic controls, test oracle, and top/QIP wiring.
+
+The reviewer inspected sources and retained logs. Its `verilator --version`,
+focused test, and mechanical extraction-diff commands were automatically denied
+by its sandbox. This is independent source/log review, not independent execution.
+The reviewer identified the new `--binary`/`--timing` fixture's compatibility
+with the repository's 5.050 pin as a pre-merge risk. The user's subsequent gate
+instruction accepts the updated 5.052 local gate; unexecuted 5.050 compatibility
+remains explicitly pending CI evidence.
+The full output and process status are retained in the ignored evidence directory
+as `video-opus-review.log` and `video-opus-review-process.json`.
+
+The optional coverage gap is explicit: VSYNC alignment transitions are checked
+on native CE, while frame-selected routes check changing HSYNC/HBLANK/VBLANK
+with steady cadence. Training crosses VSYNC, but those transitions are outside
+the frame-selected scoreboard window. Full mixer/freezer behavior remains outside
+this patch. The historical B8 audit retains its original source anchors.
+
+The separate two-file gate delta, committed as `f12f998`, received a
+supplementary Google `gemini-3.8-flash-high` review (high effort route), run
+`20260908T012217Z-93148-1064`: **CLEAR**, exit 0, clean handoff, no remaining
+live bridge. It inspected source, official documentation and parent execution
+logs, without independent execution. Treat this as a lower-capability,
+lower-confidence review than the Opus RTL review, limited to waiver scope,
+command ordering, warning policy and documented older-version handling.
+It is not an Opus-equivalent RTL certification or proof of a 5.050 run.
+Its wording about all warnings remaining fatal is qualified here: the actual
+change preserves the existing severity/suppression policy, which already had
+exceptions. The one-off controls substantiate the narrower claim above.
+The raw review and process status are retained as `video-gemini-gate-review.log`
+and `video-gemini-gate-review-process.json`. This review was already running
+when the user selected Muse for subsequent reviews.
 
 ## Residual acceptance
 
