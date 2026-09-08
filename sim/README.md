@@ -183,3 +183,49 @@ values.
 For future behaviour changes the rule stays as elsewhere in this repo:
 deterministic vector first, derived from the cited ACCC rule, expectations on
 paper — the soak complements that; it never replaces it.
+
+## Production T80 executed-instruction validation (B8-1)
+
+Complementing the scripted CPU bus phase harness (`crtc_cpu_phase_test.cpp`),
+the optional production-T80 suite executes real Z80 instructions through the
+production `T80pa.vhd` core synthesized to Verilog, connected to the real
+`ga40010` clock divider/enables/WAIT generator and `CRTC.v`.
+
+Available make targets:
+
+```sh
+# 1. Synthesize production T80pa VHDL to Verilog via GHDL
+make -C sim t80-netlist
+
+# 2. Verify bounded defined-field trace equivalence between native VHDL and translated Verilog
+make -C sim t80-trace-test
+
+# 3. Build and run executed-instruction tests against current B8-1 CRTC engines
+make -C sim crtc-t80-test
+
+# 4. Build and run discriminator tests against old pre-B8 engines (verifying all 4 B8 failures)
+make -C sim crtc-t80-old-test
+```
+
+Requirements: GHDL with LLVM or GCC backend for standalone executable targets (verified with GHDL 6.0.0 LLVM on macOS aarch64; mcode backend does not support executable generation; default `ghdl`, overridable via `GHDL=...`), Verilator 5+, C++17 compiler.
+
+The executed-instruction suite asserts:
+1. First system-edge storage capture: the CPU launches write cycles on `CEN_p`,
+   and CRTC register values update on the immediate next system clock tick (`tick+1`),
+   with positive margin verified before later character decisions (`CLKEN`).
+2. Source-derived instruction timing windows: `OUT (C), C` critical I/O write executes
+   in the 3rd microsecond ([128, 192) master ticks from opcode fetch start), whereas
+   `OUTI` executes in the 5th microsecond ([256, 320) master ticks), strictly enforcing
+   French ACCC v1.11 §13.7.1 p.126. Measured intervals (152 ticks = 2.375 µs for OUT;
+   264 ticks = 4.125 µs for OUTI) are simulation observations within these documentary windows.
+3. Exact seam behavior and counter progression: Type 1 R5 RFD (MA reload to `0x1234`),
+   Type 0 R0 widening (C0 advances 1->2 without duplication, row increments to R4+1,
+   C9 retained, enters adjustment), and Type 1 R0 widening (C0 advances past 15 to 16,
+   line extended, `pending=1`). OUTI tests materially distinguish memory data from
+   register C (`C=0x02` writing `RAM[0x40]=0x01` to port `0xBD02`).
+4. Engine-isolated discrimination: all 4 cases independently fail when pre-B8 engines
+   (`d46609d066aafb6b182fd6fa504a91719500cd91`) are paired with the current `CRTC.v`
+   wrapper, because pre-B8 engines evaluated write qualification only at CLKEN, at which
+   point the register was already overwritten with its new value.
+
+See [B8 production T80 evidence](../docs/accuracy/b8-production-t80-2026-09-08.md) for full analysis.
