@@ -31,7 +31,7 @@ crt-filter-blank-build: $(CRTF_TEST_BIN)
 crt-filter-blank-test: $(CRTF_TEST_BIN)
 	./$(CRTF_TEST_BIN)
 
-test: $(TEST_BIN) crt-filter-blank-test
+test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test
 	./$(TEST_BIN)
 	$(MAKE) -C plus test
 	$(MAKE) -C ../rtl/GA40010 test
@@ -55,6 +55,7 @@ $(CRTF_TEST_BIN): $(CRTF_TOP_SRC) $(CRTF_RTL) $(CRTF_TEST_SRC) Makefile
 		-o $(notdir $(CRTF_TEST_BIN)) $(CRTF_TOP_SRC) $(CRTF_RTL) $(CRTF_TEST_SRC)
 
 lint:
+	$(VERILATOR) --lint-only --top-module crtc_cpu_phase_top -UVERILATOR -Wall -Wno-fatal $(CPU_PHASE_RTL)
 	$(VERILATOR) --lint-only --top-module $(TOP) -Wall -Wno-fatal $(RTL)
 	$(VERILATOR) --lint-only --top-module $(CRTF_TOP) -Wall -Wno-fatal $(CRTF_TOP_SRC) $(CRTF_RTL)
 	$(MAKE) -C plus lint
@@ -66,3 +67,14 @@ clean:
 	$(MAKE) -C plus clean
 	$(MAKE) -C ../rtl/GA40010 clean
 	$(MAKE) -C ../rtl/u765 clean
+
+# Real GA divider/enables with post-edge CPU bus launches (B8-1).
+CPU_PHASE_RTL := crtc_cpu_phase_top.sv $(RTL) $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
+.PHONY: crtc-cpu-phase-test
+crtc-cpu-phase-test: $(OBJ_DIR)/cpu_phase/crtc_cpu_phase_tests
+	./$<
+$(OBJ_DIR)/cpu_phase/crtc_cpu_phase_tests: $(CPU_PHASE_RTL) crtc_cpu_phase_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/cpu_phase
+	$(VERILATOR) --cc --exe --build --top-module crtc_cpu_phase_top -UVERILATOR \
+		--Mdir $(OBJ_DIR)/cpu_phase -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o crtc_cpu_phase_tests $(CPU_PHASE_RTL) crtc_cpu_phase_test.cpp
