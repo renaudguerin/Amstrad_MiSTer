@@ -678,16 +678,15 @@ work and must preserve CPU, cartridge and refresh scheduling.
 
 ## B12. Merge to `master` for an accurate README
 
-**Priority: high. Cheap, and it is currently a reputational risk.**
+**Status: Prepared 2026-09-10 ahead of merge to `master`.**
 
-`master` still presents the upstream core. A casual visitor who finds the fork sees no
+`master` previously presented the upstream core. A casual visitor who found the fork saw no
 statement of its aims and no sign of the work on `accc-review-and-fixes`.
 
-The original plan — clean separated PRs upstream, accuracy and Plus split cleanly — is no longer
-realistic after several hundred commits. Merge `accc-review-and-fixes` into `master`, or at
-minimum land a README on `master` describing the fork's aims, its two work streams, and its
-current state. See `docs/strategy-notes.local.md` (untracked) for the upstream-relationship
-question that sits behind this.
+The original plan — clean separated PRs upstream, accuracy and Plus split cleanly — became
+unrealistic after several hundred commits. The README has been rewritten to describe the fork's
+aims, its two work streams, and its current status, and integration references have been aligned
+to `master` ahead of merging `accc-review-and-fixes` into `master`.
 
 ---
 

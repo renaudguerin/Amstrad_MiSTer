@@ -2,7 +2,7 @@
 
 Accuracy and Plus remain separate behavior streams, not permanent directories. General work
 covers shared infrastructure, peripherals, documentation and tools. Tasks use short-lived,
-environment-owned worktrees and integrate into `accc-review-and-fixes` unless instructed
+environment-owned worktrees and integrate into `master` unless instructed
 otherwise. Existing fixed worktrees remain valid unfinished-work locations; never delete or
 reset them merely because the topology is deprecated.
 

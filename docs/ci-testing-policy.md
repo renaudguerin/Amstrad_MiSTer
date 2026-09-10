@@ -85,7 +85,7 @@ full effort's does not.
 triggered by *where a change has arrived*, not by which file it touched.  The event class
 then picks the effort:
 
-- **Integration branches** — the default branch and `accc-review-and-fixes` (the
+- **Integration branches** — the default branch `master` (the
   `INTEGRATION_BRANCHES` list in `build.yml`): every push whose changed set affects the build
   synthesizes at **full** effort by default. A merge via `/stream-finish` is a push to an
   integration branch, so merging a stream branch automatically triggers a full-effort synthesis
@@ -239,8 +239,8 @@ bottleneck and allows `quartus_map` to execute single-process multi-level synthe
 
 ### Agent routing policy
 
-1. **Automatic triggers remain hosted**: Non-documentation pushes to integration branches (`master`,
-   `accc-review-and-fixes`), pull requests, and pushed tags always run through hosted GitHub Actions.
+1. **Automatic triggers remain hosted**: Non-documentation pushes to integration branches (`master`),
+   pull requests, and pushed tags always run through hosted GitHub Actions.
 2. **Manual dispatches prefer local when online**: For deliberate Tier B milestone dispatches, pre-merge
    semantic-risk checks (top-level wiring, clocks, memory arbitration, RGB width), and bitstream builds for
    real-hardware handoff, **prefer dispatching to the local VM runner** when it is reachable (`quartus-vm` status `online`):

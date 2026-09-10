@@ -1,6 +1,6 @@
 ---
 name: stream-finish
-description: Finish a task branch, merge into accc-review-and-fixes, reconcile shared docs, run relevant gates, and push by default with exact-SHA CI/artifact verification. Accepts any task scope and ad-hoc worktree.
+description: Finish a task branch, merge into master, reconcile shared docs, run relevant gates, and push by default with exact-SHA CI/artifact verification. Accepts any task scope and ad-hoc worktree.
 ---
 
 # stream-finish
@@ -16,7 +16,7 @@ publication. Discussing or editing the skill is not invocation. Read
   `accuracy`/`plus` and `general` select a scope only when exactly one eligible READY task
   matches. With multiple candidates, resolve the source before mutation; never guess a path.
 - **--no-push**: local merge only, without publication/build dispatch.
-- **Destination**: `accc-review-and-fixes` by default; explicit alternate destination allowed.
+- **Destination**: `master` by default; explicit alternate destination allowed.
 - **starting-base**: optional original base SHA from the task handoff.
 
 ## Pre-flight

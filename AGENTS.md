@@ -35,7 +35,7 @@ requirements do not justify production-grade machinery around copying local refe
 Tasks use ad-hoc, environment-owned worktrees; accuracy and Plus remain separate behavior
 streams. General work covers shared infrastructure, peripherals, docs and tooling. Existing
 fixed worktrees may hold unfinished work: preserve them, but do not require or recreate them.
-Integration normally targets `accc-review-and-fixes` from a checkout the integration task can
+Integration normally targets `master` from a checkout the integration task can
 access. Discover actual paths and branch ownership with Git and host task metadata.
 
 - `$stream-start [accuracy|plus|general|auto] [brief]` is the manual shortcut for selection,
@@ -205,7 +205,7 @@ make -C sim clean
   why before proceeding.
 - There is no native local Quartus path on Apple Silicon. GitHub Actions runs Verilator on
   every non-documentation push, then runs the pinned Quartus 17.0.2 container for known
-  integration paths (`accc-review-and-fixes`, default branch), pull requests, tags, or a manual
+  integration paths (default branch `master`), pull requests, tags, or a manual
   dispatch. All integration builds compile at full effort by default to produce hardware-testable
   RBFs. Stream branches stay on Tier A (Verilator simulation) and never synthesize unless
   explicitly requested.

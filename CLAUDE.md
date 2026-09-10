@@ -28,7 +28,7 @@ requirements do not justify production-grade machinery around copying local refe
 Tasks use ad-hoc, environment-owned worktrees; accuracy and Plus remain separate behavior
 streams. General work covers shared infrastructure, peripherals, docs and tooling. Existing
 fixed worktrees may hold unfinished work: preserve them, but do not require or recreate them.
-Integration normally targets `accc-review-and-fixes` from a checkout the integration task can
+Integration normally targets `master` from a checkout the integration task can
 access. Discover actual paths and branch ownership with Git and host task metadata.
 
 - `$stream-start [accuracy|plus|general|auto] [brief]` is the manual shortcut for selection,
@@ -122,7 +122,7 @@ failing is a finding, not something to edit.
 
 `make -C sim` must pass before every code/RTL/simulation commit (pure documentation or markdown changes do not require running simulation). GitHub Actions runs that fast gate on every
 non-documentation push. Pinned Quartus 17.0.2 synthesis is automatic wherever work integrates:
-every push to an integration branch (the default branch, `accc-review-and-fixes`) that touches
+every push to an integration branch (the default branch `master`) that touches
 anything Quartus compiles, plus pull requests, tags, and manual dispatches. All integration builds
 compile at full effort by default to produce hardware-testable RBFs. Stream branches
 stay on simulation until integration. The integration push workflow classifies synthesis and

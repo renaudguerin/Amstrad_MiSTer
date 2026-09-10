@@ -41,7 +41,7 @@ selects suitable unclaimed work across the roadmap and backlog when no brief is 
    Check its status and any merge/rebase operation before switching branches. Preserve dirty
    work and existing commits. Unrelated dirt elsewhere is not a global blocker. Inspect
    named stashes for relevant WIP and report overlaps; never auto-apply or drop a stash.
-5. Fetch origin; compare local and remote `accc-review-and-fixes`. Select the descendant tip
+5. Fetch origin; compare local and remote `master`. Select the descendant tip
    when one is ahead; stop branch preparation on divergence. Do not mutate another task's
    integration checkout just to start work. Record the exact selected SHA. If `starting-base`
    was supplied, require it to be an ancestor of this base, unless the user requested a
