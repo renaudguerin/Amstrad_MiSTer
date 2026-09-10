@@ -7,6 +7,18 @@ proc generateBuildID_Verilog {} {
 	# Get the timestamp (see: http://www.altera.com/support/examples/tcl/tcl-date-time-stamp.html)
 	set buildDate "`define BUILD_DATE \"[clock format [ clock seconds ] -format %y%m%d]\""
 
+	# Stamp the git commit so a flashed RBF is identifiable from the OSD.
+	# Matches the CI artifact naming (YYYYMMDD_shortsha). Falls back to
+	# "unknown" outside a git checkout; the date alone stays unique enough
+	# to disambiguate that case.
+	set buildHash "unknown"
+	catch { exec git rev-parse --short=7 HEAD } gitHash
+	if { ![catch { string length $gitHash } len] && $len == 7 } {
+		set buildHash $gitHash
+	}
+	set buildId "`define BUILD_ID \"[clock format [ clock seconds ] -format %Y%m%d]_$buildHash\""
+	set buildDate "$buildDate\n$buildId"
+
 	# Create a Verilog file for output
 	set outputFileName "build_id.v"
 	

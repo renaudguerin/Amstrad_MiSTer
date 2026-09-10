@@ -33,7 +33,36 @@ c5_pin_model_dump.txt
 *.sip
 *.spd
 *.bsf
+
 *~
 *.xml
 *_netlist
 *.cdf
+.DS_Store
+
+# Local source/reference artifacts (deliberately not versioned).
+docs/**/ACCC*.pdf
+docs/ACCC*.pdf
+docs/plus/references/cartridges/
+
+# Copyrighted local test media: keep private and share between worktrees via
+# ignored symlinks to one external asset directory.
+/docs/fdctest/
+/docs/plus/cartridges/
+
+# SHAKER capture screenshots: kept locally as provenance, not committed
+docs/accuracy/shaker/*.png
+
+# ACCC extraction environment and unselected intermediates (see tracked manifest/snapshot)
+.venv/
+docs/accuracy/extract/
+
+# Local strategy/positioning notes: public repo, keep private.
+docs/strategy-notes.local.md
+docs/**/*.local.md
+
+/docs/screenshots/
+/docs/references/
+/.fdc-scratch/
+# Per-worktree task context (not a lock or committed status document)
+/.stream-task.md

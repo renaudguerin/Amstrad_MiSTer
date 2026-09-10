@@ -1,0 +1,32 @@
+{
+  "case_id": "shaker_template",
+  "description": "Template case definition for MiSTer automated test capture. Configure minimal raw_seq to reach the desired test screen, verify emulated model and test footer manually, and compare captured frames.",
+  "rbf_path": "/media/fat/_Computer/Amstrad.rbf",
+  "media": {
+    "type": "dsk",
+    "slot": "S0",
+    "path": "/media/fat/games/Amstrad/shaker26.dsk"
+  },
+  "declared_settings": {
+    "model": "CPC 6128",
+    "crtc": 0,
+    "sync_filter": "Off",
+    "display": "Color(GA)",
+    "scandoubler_fx": "None"
+  },
+  "boot_delay": 5.0,
+  "settle_delay": 2.0,
+  "capture_delay": 1.0,
+  "captures_count": 3,
+  "input": {
+    "raw_seq": ":1C"
+  },
+  "timeouts": {
+    "cmd_timeout": 10.0,
+    "capture_timeout": 15.0,
+    "poll_interval": 0.5,
+    "max_retries": 3
+  },
+  "ack_main_cmd": false,
+  "mbc_path": "mbc"
+}

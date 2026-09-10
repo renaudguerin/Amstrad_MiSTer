@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+project_dir="${1:-$PWD}"
+project_file="${2:-Amstrad.qpf}"
+quartus_sh="{{ quartus_rootdir }}/bin/quartus_sh"
+
+if [ ! -x "$quartus_sh" ]; then
+    echo "Quartus is not installed at {{ quartus_rootdir }}." >&2
+    echo "Complete the manual handoff in ansible/README.md." >&2
+    exit 2
+fi
+
+if [ ! -f "$project_dir/$project_file" ]; then
+    echo "Project file not found: $project_dir/$project_file" >&2
+    exit 2
+fi
+
+cd "$project_dir"
+export QUARTUS_ROOTDIR="{{ quartus_rootdir }}"
+export QUARTUS_CPUID_BYPASS=1
+export PATH="${QUARTUS_ROOTDIR}/bin:${PATH}"
+exec "$quartus_sh" --flow compile "$project_file"

@@ -1,0 +1,4 @@
+# Managed by Ansible. Quartus itself is installed manually; see ansible/README.md.
+export QUARTUS_ROOTDIR="{{ quartus_rootdir }}"
+export QUARTUS_CPUID_BYPASS=1
+export PATH="${QUARTUS_ROOTDIR}/bin:${PATH}"

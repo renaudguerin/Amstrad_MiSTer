@@ -1,0 +1,707 @@
+# Architecture and methodology backlog
+
+Opened 2026-08-31 after a session that reviewed the project's methodology rather than any
+single finding. `docs/implementation-roadmap.md` orders the *accuracy and Plus feature* work.
+This file holds the cross-cutting items that sit underneath it: the things that decide whether
+feature work is visible, verifiable, and maintainable at all.
+
+Read this before picking up roadmap section 8. Several roadmap items are blocked on B1 in a way
+that is not obvious from the roadmap itself.
+
+## Why this file exists
+
+By 2026-08-31 the project had accumulated roughly 400 commits, 183 classic vectors, about
+twenty Plus simulation benches and about twenty independent-review documents, and produced no
+measurable change in the SHAKER Module A entries under observation and no change in any of the
+four reported Plus title symptoms. The methodology review concluded the bottleneck is not
+model strength or code quality but **observability**: nothing in the automated loop can fail
+for a reason the authors did not already know, and the one loop that could (hardware) is
+manual, rare, and was being judged against the wrong baseline.
+
+The items below are ordered by expected information gained per unit of effort, not by
+interest.
+
+---
+
+## B1. crt_filter owns the sync and blanking geometry, and discards the CRTC's
+
+**Priority: highest. Everything sync-related is downstream of this.**
+
+`rtl/crt_filter.v` sits at the end of the video path. Before the mode selector
+below, it was hardwired on (`Amstrad.sv`, `.sync_filter(1)`). Its original Full
+path does three things that matter:
+
+- It **regenerates HSYNC** as a fixed-width pulse at a fixed offset (asserted at
+  `hSyncCount == 2*4`, cleared at `6*4`), re-aligned to a line length it measures from the two
+  lines following VSYNC.
+- It **regenerates VSYNC** with a two-line delay and a length limit.
+- It derives **HBLANK and VBLANK from hardcoded constants** (`BEGIN_HBORDER = 49`,
+  `END_HBORDER = 241`, `BEGIN_VBORDER`, `END_VBORDER`) counted from its own regenerated HSYNC,
+  not from the CRTC or the Gate Array.
+
+It also actively suppresses HSYNC pulses that arrive sooner than expected (the `hsync_mask` /
+`line_time >= 190` block, commented "too frequent HSYNCs (S&KOH)") — precisely the signal a
+CRTC-trickery demo produces on purpose.
+
+**Consequence.** Longshot's description of the R2.JIT technique is that writing R2 exactly at
+`C0 == R2` *delays the start of the HSYNC black zone*. That effect is HSYNC edge position plus
+blanking geometry. A filter that re-synthesizes both from constants cannot pass it through.
+The R2.JIT and RFD implementations can be perfectly correct and DSC4 will still look identical
+to upstream, because upstream carries the same filter. The same argument covers SHAKER Module A
+entries (T), (Y), (TAB) and (R).
+
+**Scope limit, stated honestly.** VRAM addressing (`ma_sel` / `ra_sel`), DE-gated data, border
+and ink, screen mode, and the whole Plus sprite and palette path bypass `crt_filter`. This
+hypothesis explains the sync-geometry family only. It does not explain the Plus title
+symptoms.
+
+**Provenance.** `crt_filter` is core-specific: it is referenced only by `files.qip` and
+`rtl/Amstrad_motherboard.v`, and originates from Sorgelig's 2018 CoreAmstrad work. It has
+nothing to do with MiSTer's Scandoubler Fx / CRT 25%/50% post-processing, which lives in `sys/`
+and operates after this stage. Removing or redesigning it does not affect those.
+
+**Steps.**
+
+1. **Done, extended 2026-09-01**: `sync_filter` is now a two-bit OSD option,
+   "Sync filter, Full/Live blanking/Off" on the Audio & Video page, backed by
+   `status[36:35]`. Full is the default and preserves the established filtered path.
+2. **Run the experiment. DONE 2026-09-01, hardware.** Result: with the filter off, normal
+   software displays correctly, but software using HSYNC tricks (SHAKER, DSC4) is **garbled** —
+   not merely wide or off-centre as predicted, but unusable. Turning the filter off also fixed
+   none of the Plus title defects, which is consistent with the scope limit stated above.
+
+   **What that tells us.** The unfiltered path cannot hold a lock when line geometry varies,
+   which is exactly the condition the CRTC-trickery software creates. That is not an argument
+   for keeping `crt_filter` as it is; it is evidence that the module conflates two separate
+   jobs, and that only one of them is wanted:
+
+   - **(a) Making sync safe for the scaler.** Regenerating a stable HSYNC/VSYNC so ASCAL and
+     the display can lock even when the CRTC emits irregular lines. This is genuinely needed,
+     and removing it is what produced the garbling.
+   - **(b) Deriving blanking from fixed constants.** `BEGIN_HBORDER`, `END_HBORDER`,
+     `BEGIN_VBORDER`, `END_VBORDER` counted off the regenerated HSYNC. This is what destroys
+     the R2.JIT black-zone position, and nothing requires it.
+
+   **Implemented candidate: keep (a), replace (b).** Regenerate sync for scaler lock as today,
+   but derive HBLANK/VBLANK from the live Gate Array and CRTC signals instead of constants. The
+   new Live mode anchors HBLANK to raw CRTC/ASIC HSYNC phase and extends it to the established
+   64-CE acquisition width; VBLANK remains live. Exact-expiry, missing-sync, stuck-high/no-VSYNC,
+   malformed-cadence, and mode-selector behavior are pinned in a nine-case seam fixture. This
+   is simulation/model evidence.
+
+   **Hardware result, 2026-09-01: insufficient.** The supplied Amazing Demo and Pulpo
+   Full/Live captures show that Live produces a substantially narrower active picture with
+   black side margins. DSC4 remains corrupted in Live, while Off changes the failure shape
+   without producing the reference image. The SHAKER Live captures likewise do not close the
+   named entries. The later exact-expiry and stuck-high watchdog repairs make the fallback
+   deterministic but do not change this steady-state geometry, so they do not invalidate the
+   observation by themselves.
+
+   **Partial retest reported 2026-09-02:** with Live blanking selected on
+   `Amstrad_20260901_84e6969.rbf`, the user reports that
+   `amazingdemo_sync_live_blanking` **appears fixed**. This supersedes that
+   symptom's earlier verdict for the named build, without establishing the
+   responsible change. The user later confirms DSC4/SHAKER still fail, possibly
+   with different failure shapes; captures were unavailable at that retest. **September 9:** `ce1d2da`
+    captures are now supplied. DSC4/SHAKER still fail, and Amazing Demo still
+    has lower-screen corruption despite apparently correct Live HSYNC behaviour.
+    Pulpo has no new verdict. B1 remains open; use the
+    [latest results and capture index](hardware-evidence-2026-09-09.md) and
+    [September 10 diagnostics](hardware-diagnosis-2026-09-10.md). The latter
+    reproduces type-1 origin VSYNC loss and actual ASCAL geometry changes from
+    split DE. Prioritize the bounded VSYNC repair and a stable-acquisition
+    experiment; neither is yet a DSC4 hardware fix.
+    Source/test review of the hybrid candidate is CLEAR (Muse read-only
+    2026-09-03 at `a98590a`; record
+    `docs/accuracy/classic-review-2026-09-03.md` §2) with the
+    regenerated-sync-vs-physical-edge limit and all A/B results retained as
+    validation — a CLEAR verdict is not hardware closure.
+
+   Open question that experiment must answer: whether the visible effect the SHAKER entries and
+   DSC4 test lives in the blanking geometry (recoverable this way) or in the sync edges
+   themselves (not recoverable while sync is regenerated). If the latter, the honest conclusion
+   is that these tests cannot be judged on a scaler-driven display at all, and they need the
+   analog output path or a pre-filter capture tap.
+3. **Fix the fallback.** With the filter off, blanking currently falls back to
+   `hblank = hs_sel` — the raw CRTC HSYNC — so the visible window is much wider than normal and
+   likely off-centre. That is acceptable for the experiment and not acceptable as a shipped
+   path. Design a real unfiltered blanking derivation from the Gate Array's own outputs
+   (`ga40010` exposes `HSYNC_O`, `VSYNC_O`, `VBLANK`, and the ASIC path exposes the
+   equivalents).
+4. **Decide crt_filter's future.** Options, in rough order of preference: keep it as an opt-in
+   compatibility mode for software that relies on a stable monitor-like sync; narrow it so it
+   only rescues genuinely absent sync rather than rewriting present sync; or remove it. The
+   deciding evidence is step 2 plus a survey of which titles actually break without it.
+
+---
+
+## B2. Hardware-in-the-loop screenshot harness
+
+**Priority: high. Cheapest route to a real oracle.**
+
+**HOST DRIVER IMPLEMENTED; first device acceptance pending.** The
+[driver and cross-build](mister-hardware-loop-driver.md) are available locally.
+On September 10 the user supplied `root@mister`, with cores under
+`/media/fat/_Computer/Amstrad` and media under `/media/fat/games/Amstrad`.
+The current investigation did not contact the device. The
+[hardware-loop plan](mister-hardware-loop-plan.md) starts with Main's existing
+`/dev/MiSTer_cmd` core-load/screenshot commands, verified MGL media slots and
+Linux input injection. Prefer an installed tool or the small MiSTer Batch Control
+utility; a new daemon and custom framebuffer reader are not prerequisites.
+
+First gate: reach one stable SHAKER screen, capture/copy it three times and verify
+build, media, model, CRTC and filter settings. Main captures the scaler buffer,
+not raw video pins or an exact instruction event. Capture coherence under
+buffering/interlace must be checked. Start with DSK/CPR: B8 found incomplete Plus
+snapshot restoration, so SNA is not an assumed shortcut.
+
+**Comparison strategy.** Reference material at
+`https://shaker.logonsystem.eu/tests` exists as CRT photographs of real hardware *and* as
+emulator screenshots, multiplied across up to five CRTC types. Photographs will not survive
+pixel-exact comparison, and visual-LLM comparison is expensive and unreliable for exactly this
+class of small geometric difference. Two practical positions:
+
+- Use **our own captures as the regression baseline** (does this build differ from the last
+  build, and where), which needs no reference at all and is immediately useful for bisecting.
+- Use **emulator screenshots** for direct comparison, with Amspirit as a useful
+  accuracy target below hardware and documentary evidence.
+
+Use our repeated captures to establish repeatability, then compare selected cases
+with the site's Amspirit references. The plan records the test/image mapping and
+keeps original references locally with attribution. Hardware remains the final
+authority; differing pixels alone do not establish which result is correct.
+
+---
+
+## B3. Whole-core Verilator frame harness
+
+**Priority: medium. Portable, and the right debugger for whatever B2 flags.**
+
+**FIRST FOUNDATION SLICE DONE 2026-09-01.** The production-shaped P10 fixture
+now connects the motherboard's live VRAM word address to the SDRAM video client
+using the same `{2'b10, vram_addr, 1'b0}` mapping as `Amstrad.sv`, instead of
+leaving that client permanently at address zero. A failure-first cartridge
+program configures the real motherboard CRTC path and requires 32 physical
+SDRAM reads spanning at least four addresses to preserve their source address
+and bank through the ACTIVE/READ command seam. With the old tie-off it failed
+because no video request was admitted; forcing the wrong bank fails at the
+physical ACTIVE command.
+
+The fixture also exposes raw motherboard timing and selected monitor timing,
+plus the shared RGB, MA/RA and VRAM payload. The payload is deliberately not
+labelled pre/post-filter: `crtc_shift` affects the motherboard VRAM byte path
+before both observation points. Its established Off default is retained because
+changing the shared P10/B7 default to Full hid the ASIC GA timing mutation; a
+capture build may override the parameter to Full explicitly. The foundation
+passed full simulation/lint and the B7 mutation matrix; read-only review at
+`a98590a` was CLEAR (`docs/plus/b3-frame-harness-review-2026-09-03.md`).
+The integrated `bb77075` extension adds runtime CPR ingestion, a self-describing
+frame stream and repeatability checks. Image comparison against an independent
+or hardware oracle remains open; Off/raw default and TV80 limits remain.
+
+Unfinished capture work is preserved alongside shared FDC work in stash
+`0fe18a4513a47e4f21e0f504f002673a853388c3`, which stays intact. The bounded
+B3 capture slice `bb77075` (originally based on `a8286bd`) is integrated
+after the SDRAM/P10 repair with fresh compatibility review. Its bounded capture CLI proves
+synthetic frame repeatability, with reduced-TV80 and fixture-clock limits.
+The separate held-read FDC regression and test consolidation
+are integrated through `5fcf223`; they do not establish full-sector result-phase
+correctness or classic AMSDOS success. The stash itself remains preserved. The
+[dated hardware queue](hardware-evidence-2026-09-02.md#proposed-next-session--not-started)
+keeps FDC acceptance explicitly shared with classic AMSDOS.
+
+Runs on a laptop with no MiSTer attached, and gives cycle-level visibility and bisectability
+that hardware capture cannot.
+
+**Measured fixture scope.** Capture samples the 64 MHz fixture clock; the
+September 8 one-frame CLI run emitted 1,277,952 samples for its synthetic
+program. Host throughput depends on compilation, tracing and output costs; no
+hundred-frame speed claim is established by this bounded run.
+
+**Most of it already exists.** `sim/plus/p10_boot_test_top.v` already instantiates the
+production motherboard with a reduced TV80 surrogate under the T80pa-shaped wrapper
+(Verilator cannot compile the production VHDL T80) and the SDRAM model. What it lacks is real software and
+a framebuffer dump; it currently executes hand-written stub programs of a few dozen bytes.
+Pending FDC findings expose the surrogate's polling-instruction limits, so CPU-bound
+disk-path conclusions still require the production T80 boundary stated in
+[the triage record](plus/hardware-defect-triage-2026-09-01.md).
+
+**Design notes.**
+
+- **Observe raw and selected timing together with pixels.** `crt_filter.SHIFT`
+  feeds VRAM byte assembly before RGB; the existing two timing taps therefore
+  share filter-dependent pixels. A filter-independent image requires an explicit
+  phase/data contract, not just another RGB output port.
+- **Input:** CPR auto-boots; DSK needs scripted input. B8-5 restores the mapped
+  Plus snapshot state, but SNA does not freeze the video engine at an exact frame
+  or serialize all address/phase history. See the
+  [restore limits](plus/b8-5-snapshot-apply-2026-09-08.md) before using SNA for capture.
+- **Known limitation**: for SHAKER specifically, SNA is a poor fit. Each test needs a snapshot
+  taken after its menu key, and some tests advance with further keypresses, so covering a module
+  means dozens of hand-made snapshots. That is more manual work than scripted input on
+  hardware. **For SHAKER, prefer B2 or B4; use this harness for titles and demos**, where one
+  SNA or CPR per case is sufficient.
+
+---
+
+## B4. CSL and SSM support
+
+**Priority: medium, but the payoff is an oracle, so raise it if B2 stalls on comparison.**
+
+**RESEARCH COMPLETE 2026-09-08:** current CSL v1.4/SSM v1.1, supplied scripts and
+reference-image routing are available; see the source-backed
+[hardware-loop plan](mister-hardware-loop-plan.md). No author conversation is a
+prerequisite for the first bounded implementation.
+
+- **CSL:** reuse the published command format for reset, model/media selection,
+  input and capture. Declare the supported subset; host delays approximate
+  emulated microseconds, and exact VSYNC/motor/SSM waits need another layer.
+- **SSM:** recognize executed `ED LL ED HH` markers in the real CPU path, once
+  and in order. Marker observation alone does not preserve its requested image.
+  Exact capture needs an explicit event-to-framebuffer ownership contract,
+  including buffering/interlace; HPS polling or CPU pause alone is insufficient.
+
+Start with stable-screen B2 capture, then a supplied CSL fragment. Keep passive
+event detection and exact event-to-image retention as separate later gates.
+
+---
+
+## B5. ASIC documentation-gap map
+
+**Priority: high. Cheap, and it converts "we don't know what we don't know" into a list.**
+
+**DONE 2026-09-01:** `docs/plus/asic-documentation-gap-map.md` inventories the Arnold/CPCWiki
+register families and externally visible behaviors against their production owner and
+deterministic fixture. Most of the register page is owned. The actionable gaps are CRTC3
+light-pen input, live ADC routing, sprite access-blank timing, three source-conflict
+discriminators, undocumented DMA-fetch stalls, external-expansion semantics, and printer BUSY
+sampling. B6 should consume that narrowed list rather than reopening the whole ASIC page.
+
+The Plus symptoms are stubborn because the ASIC is far less documented than the CRTC, and we
+have no explicit statement of where the documentation runs out.
+
+**Method — invert the problem.** Enumerate every ASIC register and behaviour named in
+`docs/references/ArnoldV15.txt` and the CPCWiki ASIC pages already in `docs/references/`. For
+each row record: which RTL module owns it, which simulation test exercises it, and which
+source documents it. The rows with no owner, no test, or no source *are* the gaps, made
+explicit and prioritizable.
+
+**Note on sources.** Arnold 5 is the Plus's development codename, so `ArnoldV15.txt` is
+Amstrad's own documentation and outranks any emulator. Amspirit is the most accurate emulator
+but is closed-source. Open alternatives (MAME's CPC driver, Caprice32) are weaker on the Plus
+than the material already held. Emulator source is not a promising avenue here; the ArnoldV15
+document, the CPCWiki ASIC pages, and Longshot himself are the real references.
+
+---
+
+## B6. Plus and classic are structurally entangled
+
+**Priority: high. This is the architect-pass item.**
+
+**ARCHITECTURE COMPLETE 2026-09-01:** `docs/b6-architecture-decision.md` records the
+production-path audit and staged decision. Keep one dynamically selectable core; do not gate
+register writes or clocks from raw `plus_mode`, because this cannot reduce fitted resources and
+would create stale-state hazards before `Reset & apply model`. Implement conditional menu
+visibility first. Keep scaler acquisition on the Full tuple; any B1 follow-up must separate raw
+RGB/sync phase without sending live HBLANK into geometry measurement. B8 narrows
+this premise: `crt_filter.SHIFT` already affects VRAM byte assembly before RGB;
+there is no filter-independent RGB tap today. B8 also found classic FIELD leaking
+into Plus despite the earlier RGB/bus isolation result. B8-2 corrects that
+selected-owner leak in `9052a08`; full ASCAL and hardware validation remain open.
+The prose below is retained as the problem statement and historical design brief.
+
+**MENU SLICE DONE 2026-09-01:** the existing Plus-model capability decoder now drives menu-mask
+groups for Plus-only, classic-only, FDC-capable, and tape-capable controls. Off retains all
+classic media controls; GX4000 hides disk/tape; 6128+ exposes disk; 464+ exposes tape. The
+focused model-to-mask fixture and the full simulation/lint gates pass. This changes visibility
+only: it does not rewrite retained settings or make machine selection atomic.
+Opus source review 2026-09-02 at `a98590a` returned CLEAR (record
+`docs/b6-b10-review-2026-09-02.md`; reconciliation `docs/plus/plus-review-2026-09-03.md`
+§2); B6-1/B6-2 doc follow-ups and OSD-rendering validation retained.
+
+Both machines are always instantiated and always clocked; only their outputs are muxed.
+Concretely, the classic `CRTC` and `asic_video` **both receive every CRTC register write in
+both modes** — each carries `.ENABLE(io_rd | io_wr)` with no `plus_mode` gate
+(`rtl/Amstrad_motherboard.v`, the `CRTC crtc` and `asic_video asic_vid` instantiations). The
+same pattern repeats for `ga40010` versus `asic_ga_timing`.
+
+The 2026-09-08 B8 audit confirms an omitted output mux: FIELD still comes from
+classic CRTC in Plus mode. Complete the selected-machine interfaces. Keeping
+both machines fitted is a separate resource choice; runtime gating does not
+recover their ALMs.
+
+**Do not split the core in two.** MiSTer convention is one core per machine *family* with a
+model selector — the ZX Spectrum core covers 48k/128k/+2/+3/Pentagon, Minimig covers multiple
+Amiga configurations, the Atari core switches ST/STE. Splitting would be against convention and
+would double the maintenance surface.
+
+**The menu problem has a standard solution.** The OSD usability complaints — "Model" and "Plus
+model" both live and only one meaningful, "Load CPR" offered when Plus is off, impossible
+combinations reachable — are solved by MiSTer's conditional-option mechanism, not by splitting
+cores. `CONF_STR` entries prefixed `d<n>` are hidden when bit *n* of `status_menumask` is clear;
+this core already uses it once (`d1P1OR,Vertical Crop,...`) and currently wires only two mask
+bits (`.status_menumask({en270p,1'b0})`). Extending the mask to gate the Plus options on Plus
+mode, and the classic model options on classic mode, is a contained change.
+
+**The menu problem is wider than greying out.** Conditional visibility via `status_menumask`
+solves impossible combinations, but two further asks stand:
+
+- **Group items into presets.** Selecting a machine should carry its sensible companion
+  settings rather than leaving the user to assemble a valid machine from orthogonal switches.
+- **Remove granularity where it does not earn its place.** Not every option needs to be
+  independently settable; some exist only because it was easier to add a switch than to decide.
+
+Both are design work, not mechanism work, and belong in the same pass as the mask wiring.
+
+**Two upstream oddities worth resolving in that pass**, both inherited rather than introduced
+here:
+
+- `"F7,E??,Load CPC464 ROM;"` exists because `boot.rom` ends with OS464 + BASIC464 and the only
+  way to change that half is to rebuild the whole 160 KB blob. The separate slot is a targeted
+  workaround for exactly the pain B10 describes, added upstream rather than in this fork.
+- `"R[32],Reset & Detach Cartridge;"` is an upstream Dandanator control (added by `9da7bf7`,
+  "add Dandanator") that this fork additionally wired to `plus_cartridge_memory`'s `detach`.
+  **Done 2026-09-01: reverted to Dandanator-only and dropped the Plus wiring.** The production
+  wiring fixture requires the Plus service's detach input to remain inactive while retaining
+  `status[32]` on the Dandanator lifecycle gate. Reasoning:
+
+  - A CPR load already cold-boots. `Amstrad.sv` holds `reset` across the whole load
+    (`reset <= reset_base | cpr_download | cpr_finish_pending | ...`), so detaching is not
+    needed to get a clean machine for the next cartridge. `plus_cartridge_memory` takes
+    `.cold_reset(reset_base)`, which deliberately excludes `cpr_download` so the image being
+    written is not wiped mid-load; the atomic load protocol handles replacement.
+  - The only capability lost is deliberately emptying the slot, and a running GX4000 with no
+    cartridge is not a state that meaningfully exists.
+  - One control doing two unrelated things, visible in classic mode where half of it is
+    meaningless, is exactly the menu problem this item exists to fix.
+
+  **This is not the fix for the observed black screen.** `rom_map` has no reset at all, so
+  neither `reset`, `reset_base` nor `detach` clears it. See B13; do not let this decision
+  absorb that bug.
+
+**Architect brief (for a strong model — this is the pass to run before B2/B3):**
+
+1. **Sync and blanking ownership.** Given B1, who should own HBLANK/VBLANK, and what is the
+   right unfiltered path? Should `crt_filter` survive at all?
+2. **Classic/Plus separation.** Is the always-both-live mux structure defensible, or should
+   register writes and clock enables be gated by `plus_mode`? What is the resource and risk
+   trade-off, and what is the migration path that keeps the classic soak hash stable?
+3. **ASIC feature ownership.** Consume B5's map and identify features with no RTL owner.
+4. **Menu model.** Specify the `status_menumask` gating so impossible combinations become
+   unreachable.
+
+---
+
+## B7. Two cheap audits
+
+**Priority: high. Both are small and both target a class of defect already observed.**
+
+Motivated by the P10j sprite-RAM incident, where a large memory was inferred as thousands of
+flip-flops instead of M10K block RAM and was only caught because ALM utilization approached
+90%. That is a "knows Verilog, does not know synthesis" failure, and reviewers focused on
+finding *mistakes* rather than reconsidering the *approach* will not catch its siblings.
+
+**Audit 1 — synthesis inference sweep. DONE 2026-08-31, see
+`docs/b7-synthesis-inference-audit.md`.** Result: no second sprite-RAM-class defect. All 28
+"uninferred RAM" instances are correctly too small for block RAM; every real memory inferred.
+One follow-up: `asic_video` R16/R17 (CRTC3 light pen) are stuck at GND because nothing writes
+them, and this is an unowned gap — F18 covers the classic CRTC readback only and is closed. Original scope follows. Read the Quartus fitter and Analysis & Synthesis
+reports for the current build and check, for every memory-shaped structure in the design,
+whether it inferred as block RAM or as registers. Also read the removed/stuck-register report:
+anything optimized away as unreachable is either dead code or a wiring bug.
+
+**Audit 2 — dark silicon test. DONE 2026-09-01 on `plus/b7-dark-silicon-audit`, see
+`docs/plus/b7-dark-silicon-audit.md`.** Result, reproduced independently by the parent rather
+than accepted from the delegated report: **the observed Plus RGB/bus signature is
+isolated from the tested classic mutations.** Mutating `CRTC`, `crtc_type0_engine`,
+`crtc_type1_engine` or `ga40010` in Plus mode leaves the Plus signature bit-identical,
+while the same mutations in classic mode do move
+it, so the null result is meaningful rather than vacuous. All nine Plus modules shift the
+ signature when corrupted, demonstrating that each participates in that exercised
+ path; this does not prove every feature within each module is live. Two recorded limits: the two
+ classic engines are not independently proven, and the fixture does not reach CRTC-type-divergent
+ behaviour. Read-only review 2026-09-03 at `a98590a` records CLEAR on the primary
+ Plus-live/classic-isolated result with those limits plus the TV80-surrogate CPU bound
+ retained (`docs/plus/plus-review-2026-09-03.md` §5). **B8 correction, 2026-09-08:**
+ FIELD was not observed; its production output still belongs to classic CRTC in
+ Plus mode. The earlier signature result remains valid, but does not establish
+ complete output isolation. Original scope follows. For each Plus module, deliberately corrupt it in simulation
+and assert that a Plus-mode output changes. Anything that stays green is not in the active
+path. Do the mirror test for classic modules in classic mode. This directly answers "are we
+running everything we built, and is a classic path overriding a Plus path".
+
+---
+
+## B8. Full independent architecture audit
+
+**B8-1 integrated, 2026-09-08:** qualified production-phase R5/R0 events now
+survive until the CRTC character decision. The real-GA/scripted-bus fixture has
+45 passing cases. Four executed production-T80 OUT(C)/OUTI cases are also
+integrated from `84f3106`, with historical-engine discrimination and fresh
+GHDL checks. Full motherboard execution and hardware confirmation remain open.
+See [the bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md). See [the timing evidence](accuracy/b8-1-cpu-write-timing-2026-09-08.md).
+
+**B8-2 integrated from `55151a0`, 2026-09-08:** Plus FIELD comes from the
+selected ASIC frame parity and reaches the production interlace-history
+consumer. Corrected transition and selected-edge controls pass; Opus functional
+review plus Gemini closure is scoped clear. Full ASCAL and hardware validation
+remain open. See [FIELD evidence](plus/b8-2-field-ownership-2026-09-08.md).
+
+**B8-3 integrated from `807f081`, 2026-09-08:** accepted legacy palette
+writes reach their owner even when the stored GA value is unchanged. Repeated
+pen/border writes and retained-GA ASIC-only reset are covered through the
+motherboard; the reset import remains distinct from runtime events. Gemini
+review is clear. See [palette evidence](plus/b8-3-palette-events-2026-09-08.md).
+
+**B8-4 integrated from `7a58f88`, 2026-09-08:** the retained SDRAM video
+word now uses a full address/bank key and invalidates on accepted matching
+writes. Physical-DQ and motherboard byte-to-pixel regressions pass; Astra
+medium review and its narrow assertion closure are clear. Hardware acceptance
+remains open. See [coherence evidence](b8-4-video-coherence-2026-09-08.md).
+
+**B8-7 integrated from `e7d73ba`, 2026-09-08:** tape writes retain their
+accepted tuple and complete without duplicate admission; queue backpressure
+and drain address ownership are shared by production and the physical-DQ
+fixture. Fn[2]/reset contention regressions and the corrected manifest are
+review-clear. Real-CDT playback remains open. See
+[tape evidence](b8-7-tape-write-lifetime-2026-09-08.md).
+
+**B8-6 integrated from refreshed `2bb75b5`, 2026-09-08:** Plus RGB now crosses the
+same enabled conversion boundary as sync/blanking. Source review and the updated
+5.052 sim/lint/soak gates pass. CI 5.050 compatibility passed with the reviewed
+waiver-version guard at `9cfe743`; hardware acceptance remains separate.
+See [the bounded repair evidence](plus/b8-6-colour-boundary-2026-09-08.md).
+
+**FIRST ARCHITECTURE/METHODOLOGY PASS COMPLETE 2026-09-08.** The user-authorized
+Astra audit examined production boundaries and fixture/process fidelity; see
+[the findings and repair order](b8-architecture-methodology-review-2026-09-08.md).
+Several defects have controlled local reproductions, led by CRTC old-value side
+effects that cannot activate at production CPU write phases. No RTL was changed;
+the clean baseline suite passes, and hardware/title causality remains unproved.
+
+Repair the reproduced boundaries before another broad implementation campaign.
+Keep accuracy, Plus and shared-memory fixes separate. The hardware-loop research
+is complete under B2/B4; test simplification priorities feed B9. This is a scoped
+architecture pass, not exhaustive or cross-provider certification. Fable remains
+an optional, separately authorized second opinion on a concrete disputed choice.
+
+---
+
+## B9. Test-suite bloat and review-document archive
+
+**Priority: high. Cheap, and it reduces the cost of everything else.**
+
+**B8 REVIEW COMPLETE 2026-09-08:** priorities are production-boundary fidelity,
+removing redundant source-string checks, reusing real peripheral composition,
+and preserving coverage while consolidating redundant tests. The `c12c264`
+consolidation is integrated through refreshed `5fcf223`, with its fixture
+ownership claim corrected; see [integration evidence](preserved-work-integration-2026-09-08.md).
+See [the test/process review](b8-architecture-methodology-review-2026-09-08.md#test-and-process-review).
+Measured full-suite wall time on a clean exact-source archive was 198 seconds;
+the warm run was 57 seconds. No default gate was removed. Reducing test count
+alone would not address the reproduced defects.
+
+**ARCHIVE SLICE COMPLETE 2026-09-01.** Eighteen settled accuracy review
+documents and seven settled Plus review records now live under indexed
+`docs/accuracy/archive/` and `docs/plus/archive/` directories. Active rule
+sources, open-debt evidence, the current author clarification/consequence
+audit, IA-5 hardware discriminator, FDC records, and ambiguous P10 reviews
+remain outside the archives. Repository-local inbound paths, archive-relative
+Markdown links, path-like prose references, and whitespace have dedicated
+passing checks. `docs/current-status.md` now links the archives instead of
+repeating the pass chronology. The test-suite sweep in action 1 remains open;
+this archive slice does not imply that any validation residual is closed.
+
+`sim/sim_main.cpp` is a single large C++ harness carrying 192 registered classic vectors,
+alongside the separate Plus and peripheral benches. `docs/accuracy/` and `docs/plus/` had also
+accumulated many independent-review documents, including multi-pass reviews of corrections to
+*prose*.
+
+**FIRST TEST-SUITE SLICE DONE 2026-09-01.** The default Plus gate no longer runs a second copy
+of the four-case `plus_model_select` leaf truth table through the P8 fixture, and the default
+lint target no longer invokes the same motherboard lint recipe twice. The classic harness's
+unused `expect_xfail_*` wrapper family is removed while the generic XFAIL/XPASS runner remains
+available for a future genuine divergence. Stale fixture-first comments now describe their
+current required-pass status. All 192 classic vectors remain registered; the independent t21
+panel combinations, t22 entry/exit walks, P10c model/FDC integration cases, and leaf-versus-
+integration pairs remain intact. Focused P8/model/motherboard gates, full lint, and the exact
+`0x2263c9fc44af4ee7` soak pass. During that session, the aggregate test stopped at the
+separate, uncommitted failure-first u765 pre-edge staging discriminator. That
+  discriminator is now preserved in stash `0fe18a4513a47e4f21e0f504f002673a853388c3`,
+  pending recovery and investigation; it is not a failure in the checked-in suite.
+  Review bookkeeping closed 2026-09-03 at `a98590a` (native Sol CLEAR twice,
+  Muse classic/plus read-only passes, mechanical link/keep-move reconciliation;
+  records `docs/accuracy/classic-review-2026-09-03.md` §1,
+  `docs/plus/plus-review-2026-09-03.md` §1).
+
+**Standing rule, now recorded in `CLAUDE.md`:** a test earns its place only if it could have
+failed for a reason the author did not already know. A vector derived from an ACCC rule that
+was just implemented, asserting that same rule, is documentation with a `make` target.
+
+**Actions.**
+
+1. Sweep the existing suites against that rule and delete what only restates its own
+   implementation. Keep everything that pins a *cross-module* interaction, since the shared
+   state across `CRTC.v` and the two engines is what the suite genuinely protects.
+2. Stop running independent review passes on documentation-only changes.
+3. Move superseded review records into `docs/accuracy/archive/` and `docs/plus/archive/`,
+   leaving the currently-load-bearing ones in place. `docs/current-status.md` should link the
+   archive rather than narrate its contents.
+
+---
+
+## B13. Stale `rom_map` survives every reset
+
+**Status: original Plus-causality hypothesis rejected; sibling ownership leak fixed in
+simulation on 2026-09-01; hardware retest remains.**
+
+**Symptom, observed on hardware 2026-09-01.** In Plus mode, running a cartridge that had
+previously misbehaved left the machine in a state where a subsequently loaded, known-good
+cartridge (Navy Seals) produced a **black screen with working music**. Loading a CPR performs a
+reset, and that did not clear it. Only reloading the core entirely did.
+
+`Amstrad.sv` declares `reg [255:0] rom_map = '0;`. The only other assignment is
+`rom_map[boot_a[21:14]] <= 1;` — the array is **set-only and no reset clears it**. The `'0`
+initialiser applies at FPGA configuration, which is precisely the boundary the user found
+themselves needing to cross. Mapped ROM pages therefore accumulate across cartridge and
+expansion loads for the lifetime of the configuration.
+
+The state-lifetime observation is correct, but the production wiring excludes it as the Plus
+cause: the classic MMU's ROM enable is forced inactive in Plus mode and CPR pages are owned by
+`plus_mmu`. Clearing `rom_map` on CPR load would therefore be speculative and would wrongly
+discard classic expansion-ROM state that is meant to survive a soft reset.
+
+**Detach is not the answer, and neither is any existing reset.** A CPR load already asserts the
+main `reset` for its whole duration, and the "Reset & Detach Cartridge" control (now
+Dandanator-only; see B6) never touched `rom_map` either. Nothing in the design clears it short of reconfiguring
+the FPGA. Do not close this by pointing at a reset that already runs.
+
+The sibling-state audit instead found a live route: `dan_eeprom_loaded` also persisted from a
+configuration-time/download boundary, and Dandanator could retain SDRAM ownership after a
+switch into Plus mode. `plus_legacy_cart_gate` now suppresses that ownership whenever
+`plus_mode` is selected while deliberately preserving the image for a later return to classic
+mode. The source has one manifest owner and a lifecycle regression.
+**September 9 correction:** the user never tested Dandanator; the ownership leak
+cannot explain their Navy Seals incident. The black screen was not reproduced
+on `ce1d2da`, but left-edge sprite flicker remains. A Dandanator-to-Plus test
+would validate the separate ownership repair, not reproduce the reported
+sequence. See [the latest hardware record](hardware-evidence-2026-09-09.md). Full reset-tier reasoning and evidence are in
+`docs/plus/hardware-defect-triage-2026-09-01.md`.
+
+---
+
+## B10. ROM slot model and keyboard layout
+
+**Priority: medium.**
+
+**CURRENT EVIDENCE, 2026-09-01.** The tracked `releases/boot.rom` is ten 16 KiB
+chunks: OS/BASIC/AMSDOS/MF2 for the 6128, the same four slots for the 664, then
+OS/BASIC for the 464. `Amstrad.sv` maps those chunks into model banks 0, 1 and
+2 respectively. The separate index-7 CPC464 route is therefore an adapter for
+that fixed bundle shape, while the generic expansion route loads bank 0 and
+then repeats the accepted write into bank 1.
+
+The production ROM-download destination decoder is now extracted into
+`rtl/rom_loader_route.v` and instantiated in `Amstrad.sv` (with manifest
+registration in `files.qip`), preserving bit-for-bit behavior across all
+index-zero chunks, index 7, generic slots, inferred auto routes (0x40, 0x80, 0xC0),
+and second-write promotion. Its focused deterministic unit test checks named
+routes and exhaustively compares the helper against an independently expressed
+model of the former inline decoder.
+
+The keyboard matrix is not locale-selectable today. `rtl/hid.sv` has one fixed
+PS/2-to-CPC matrix, and the Distributor option drives PPI manufacturer straps;
+it is not a language selector. The currently evidenced locale-bearing artifact
+is the firmware ROM set. No provenance-backed French or Spanish ROM assets, and
+no reproducible generator for them, are present in the repository. Consequently,
+an unattended pass must not invent the visible UK/French/Spanish selector or
+silently reinterpret the host keyboard.
+
+**NEXT UNBLOCKED SLICE.** With the destination decoder foundation isolated and
+pinned, subsequent work on per-bank ROM selection or locale support remains
+blocked on acquiring provenance-backed localized ROM sets and defining a
+clean policy on whether locale means firmware only, host-keyboard translation,
+or both. Preserve the legacy `boot.rom` path as the default and do not change
+Plus expansion-ROM policy.
+
+`boot.rom` as a single concatenated blob is this core's choice, not a MiSTer-wide requirement —
+MiSTer's convention is only that the HPS pushes a file over `ioctl` with an index. This core
+already routes several indices separately (`ioctl_index < 4`, `== 7` for the CPC464 ROM, `== 8`
+for CPR), so per-slot loading partly exists.
+
+**Concrete example of why the current model is awkward.** The "Load CPC464 ROM" menu entry
+exists only because the generic expansion-ROM loader hardcodes which banks it fills.
+`Amstrad.sv` writes a loaded expansion ROM into bank 0 and then promotes it to bank 1
+(`if(rom_download && ... && !boot_bank) boot_bank <= 1;`), so expansion ROMs reach the 6128 and
+664 banks and never bank 2, the 464. The separate menu entry forces `boot_bank <= 2'd2` via
+`ioctl_index == 7` and is the only way to write that bank. Upstream added a dedicated slot
+rather than generalise the loop, which is the same pain this item exists to fix, one bank at a
+time. A proper per-bank model would make that entry unnecessary.
+
+The Amstrad world thinks in lower/upper ROM banks, and hardware expansions such as the M4 let
+each bank be set independently. Today, changing the keyboard layout between English, French and
+Spanish requires rebuilding the concatenated blob, which is hostile.
+
+**Target:** an OSD keyboard-layout selector backed by per-bank ROM selection, keeping the
+existing `boot.rom` path working as the default so nothing breaks for current users. Sequence
+this after B6, since the menu model is the same conversation.
+
+---
+
+## B11. Sub-character CRTC granularity
+
+**Priority: medium. Back in scope by decision, 2026-08-31.**
+
+**SCOPE CORRECTED 2026-09-08:** this is a CPU-write-to-observed-output contract,
+not an established character-granularity ceiling. The
+[B8 findings](b8-architecture-methodology-review-2026-09-08.md) identify two
+specific boundaries: old-register CRTC side effects miss legal CPU write phases
+(B8-1), and the SDRAM video cache can retain stale data after a CPU write to an
+unchanged fetch address (B8-4). Both have scoped repairs integrated; remaining
+work must distinguish these accepted regressions from unverified full-system
+and hardware behavior.
+
+The CRTC already resolves half-characters and some system-clock write events;
+GA40010 already supplies finer clock and byte-sampling phases. SHAKER Module A
+(4) needs the documented CPU instruction/write phase carried into the CRTC rules.
+Entry (1), UPDATE VRAM VS CRTC, also depends on CPU writes, SDRAM service/cache
+and GA byte sampling. CPU memory writes do not pass through the CRTC. It is
+therefore unsupported to call that entry impossible or all its work CRTC-side.
+
+Preserve the netlist-derived GA as the phase reference unless contrary evidence
+requires changing it. Start from a source-derived failing vector across the
+relevant production boundary. A shared-counter change still needs the full
+suite and an explained soak hash; a memory-service fix belongs to general/shared
+work and must preserve CPU, cartridge and refresh scheduling.
+
+---
+
+## B12. Merge to `master` for an accurate README
+
+**Status: Prepared 2026-09-10 ahead of merge to `master`.**
+
+`master` previously presented the upstream core. A casual visitor who found the fork saw no
+statement of its aims and no sign of the work on `accc-review-and-fixes`.
+
+The original plan — clean separated PRs upstream, accuracy and Plus split cleanly — became
+unrealistic after several hundred commits. The README has been rewritten to describe the fork's
+aims, its two work streams, and its current status, and integration references have been aligned
+to `master` ahead of merging `accc-review-and-fixes` into `master`.
+
+---
+
+## B14. Ad-hoc task workflow replaces fixed stream worktrees
+
+**Implementation prepared 2026-09-07; live host smoke validation remains open.**
+
+The three skills now accept environment-owned task worktrees, general/auto scope, and adoption
+of existing tasks before adding compatible work. Reference provisioning belongs to start;
+finish remains push-by-default with serialized local integration and exact artifact evidence.
+See [the operating workflow](task-workflow.md). Existing fixed checkouts remain preserved.
+
+Remaining validation: exercise generated-worktree start, resume, adding a compatible task,
+and finish/cleanup in the installed hosts. Claude Desktop and OpenCode orchestration must
+prove steerable-task creation and available messaging rather than assuming background workers
+are equivalent. No live dispatch or merge is authorized merely by testing the documentation.
+The [dated revisit note](stream-orchestration-revisit-2026-09-07.md) retains the rejected port's
+rationale; it is historical evidence rather than the active fixed-topology policy.

@@ -1,0 +1,504 @@
+name: Build core
+
+on:
+  push:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  # Do not path-filter pull requests: a filtered workflow never reports its
+  # required-gate check and can leave branch protection pending forever.
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      effort:
+        description: Compile effort for this run
+        type: choice
+        default: full
+        options:
+          - full
+          - smoke
+          # both = full and smoke legs on the same SHA; use it to benchmark
+          # the smoke tier against full effort in one run.
+          - both
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  # Last write wins within a ref+event pair: a newer push, PR sync, or manual
+  # dispatch supersedes its older running counterpart instead of queueing
+  # behind it for a full compile. Supersession semantics across different
+  # refs are handled one level down, on the synthesis job only.
+  cancel-in-progress: true
+
+jobs:
+  synthesis-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      required: ${{ steps.classify.outputs.required }}
+      reason: ${{ steps.classify.outputs.reason }}
+      mode: ${{ steps.classify.outputs.mode }}
+      legs: ${{ steps.classify.outputs.legs }}
+    steps:
+      - name: Check out source and history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Test synthesis policy helpers
+        run: |
+          scripts/ci/test-classify-synthesis-paths.sh
+          scripts/ci/test-check-quartus-timing.sh
+
+      - name: Decide whether full synthesis is required
+        id: classify
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          # Branches where work integrates and therefore must synthesize on
+          # every push that touches the build.  Space-separated.
+          INTEGRATION_BRANCHES: "master"
+          REF_NAME: ${{ github.ref_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EFFORT_INPUT: ${{ inputs.effort }}
+        run: |
+          set -euo pipefail
+
+          required=false
+          compare_paths=false
+          fallback_ref="origin/$DEFAULT_BRANCH"
+          reason="ordinary feature-branch change"
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            required=true
+            reason="manual milestone dispatch"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            required=true
+            reason="tagged milestone"
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            head_sha="$PR_HEAD_SHA"
+            base_sha="$PR_BASE_SHA"
+            fallback_ref="origin/$PR_BASE_REF"
+            compare_paths=true
+            reason="pull request change"
+          elif [[ "$GITHUB_REF" == "refs/heads/$DEFAULT_BRANCH" ]]; then
+            required=true
+            reason="default-branch integration tip"
+          elif [[ " $INTEGRATION_BRANCHES " == *" $REF_NAME "* ]]; then
+            # An integration branch is where a milestone actually lands, so this
+            # is the point that must synthesize without anyone remembering to
+            # dispatch it.  Stream branches below stay on Tier A: the same code
+            # would otherwise be synthesized twice, once on the branch and again
+            # at the merge, at ~12 minutes a time.
+            head_sha="$GITHUB_SHA"
+            base_sha="$BEFORE_SHA"
+            compare_paths=true
+            reason="integration-branch push"
+          else
+            reason="stream branch: Tier A only until it reaches an integration branch"
+          fi
+
+          if [[ "$compare_paths" == "true" ]]; then
+            if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]] || \
+               ! git cat-file -e "$base_sha^{commit}" 2>/dev/null; then
+              if base_sha="$(git merge-base "$head_sha" "$fallback_ref")"; then
+                reason="new or rewritten ref compared with its integration branch"
+              else
+                required=true
+                reason="unable to establish safe comparison base"
+              fi
+            elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+              if ! base_sha="$(git merge-base "$base_sha" "$head_sha")"; then
+                required=true
+                reason="unable to establish pull-request merge base"
+              fi
+            fi
+
+            if [[ "$required" == "false" ]]; then
+              changed_paths="$RUNNER_TEMP/synthesis-changed-paths.txt"
+              git diff --name-only --no-renames "$base_sha" "$head_sha" > "$changed_paths"
+              required="$(scripts/ci/classify-synthesis-paths.sh < "$changed_paths")"
+              if [[ "$required" == "true" ]]; then
+                reason="known synthesis integration path changed"
+              fi
+            fi
+          fi
+
+          # Compile-effort tier, decided only once "required" is final.
+          #
+          # All integration builds (default branch, INTEGRATION_BRANCHES, PRs,
+          # tags, and manual dispatches) default to full effort to produce
+          # hardware-testable RBFs directly on integration merges.
+          # Manual dispatch also accepts "smoke" or "both" when explicitly requested.
+          # Measured figures: docs/ci-testing-policy.md.
+          legs='[]'
+          mode=none
+          if [[ "$required" == "true" ]]; then
+            if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+              case "${EFFORT_INPUT:-full}" in
+                smoke) mode=smoke; legs='["smoke"]' ;;
+                both)  mode=full;  legs='["full", "smoke"]' ;;
+                *)     mode=full;  legs='["full"]' ;;
+              esac
+            else
+              mode=full
+              legs='["full"]'
+            fi
+          fi
+
+          printf 'required=%s\n' "$required" >> "$GITHUB_OUTPUT"
+          printf 'reason=%s\n' "$reason" >> "$GITHUB_OUTPUT"
+          printf 'mode=%s\n' "$mode" >> "$GITHUB_OUTPUT"
+          printf 'legs=%s\n' "$legs" >> "$GITHUB_OUTPUT"
+          printf 'Full synthesis required: %s (%s); effort=%s; legs=%s\n' \
+            "$required" "$reason" "$mode" "$legs"
+
+  simulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Restore pinned Verilator
+        id: verilator-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.tool_cache }}/amstrad-verilator
+          key: amstrad-verilator-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/ci/install-verilator.sh') }}
+
+      - name: Check cached Verilator
+        id: verilator-check
+        shell: bash
+        env:
+          VERILATOR_INSTALL_PREFIX: ${{ runner.tool_cache }}/amstrad-verilator
+        run: |
+          if scripts/ci/install-verilator.sh --check; then
+            printf 'ready=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'ready=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build pinned Verilator
+        if: steps.verilator-check.outputs.ready != 'true'
+        shell: bash
+        env:
+          VERILATOR_INSTALL_PREFIX: ${{ runner.tool_cache }}/amstrad-verilator
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes autoconf bison flex help2man libfl-dev zlib1g-dev
+          scripts/ci/install-verilator.sh
+
+      - name: Select pinned Verilator
+        shell: bash
+        env:
+          VERILATOR_INSTALL_PREFIX: ${{ runner.tool_cache }}/amstrad-verilator
+        run: |
+          printf '%s/bin\n' "$VERILATOR_INSTALL_PREFIX" >> "$GITHUB_PATH"
+          if ! scripts/ci/install-verilator.sh --check; then
+            printf '::error::cached Verilator does not match the repository pin\n' >&2
+            exit 1
+          fi
+          reported="$($VERILATOR_INSTALL_PREFIX/bin/verilator --version)"
+          printf '%s\n' "$reported"
+
+      - name: Run behavioral tests and lint
+        run: make -C sim clean test lint
+
+  route:
+    # Chooses which runner performs the expensive Quartus compile. The local
+    # Quartus VM is roughly 2-4 minutes faster than the hosted container, so
+    # it wins whenever it is online and idle; otherwise the hosted route runs
+    # and a build is always produced.
+    #
+    # Reading self-hosted runner state needs the repository "administration"
+    # permission, which GITHUB_TOKEN cannot hold, so this uses a fine-grained
+    # PAT in QUARTUS_VM_TOKEN. Every failure path -- missing secret, API
+    # error, malformed response -- falls back to hosted, so CI keeps working
+    # if the secret is absent or expires.
+    needs:
+      - synthesis-policy
+    if: needs.synthesis-policy.outputs.required == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      target: ${{ steps.pick.outputs.target }}
+    steps:
+      - name: Pick the synthesis runner
+        id: pick
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.QUARTUS_VM_TOKEN }}
+          LEGS: ${{ needs.synthesis-policy.outputs.legs }}
+        run: |
+          set -uo pipefail
+
+          decide() {
+            printf 'target=%s\n' "$1" >> "$GITHUB_OUTPUT"
+            printf 'Synthesis routed to: %s (%s)\n' "$1" "$2"
+            exit 0
+          }
+
+          # A fork pull request must never reach the self-hosted runner: it
+          # would execute untrusted Tcl and RTL outside a container. This
+          # mirrors the guard inside local-build.yml; keep both.
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            decide hosted "pull_request never uses the self-hosted runner"
+          fi
+          if [[ "${{ github.repository }}" != "renaudguerin/Amstrad_MiSTer" ]]; then
+            decide hosted "not the owning repository"
+          fi
+
+          # effort=both produces two legs; the reusable local workflow compiles
+          # one. Multi-leg benchmark runs stay hosted.
+          if [[ "$(jq -r 'length' <<<"$LEGS")" != "1" ]]; then
+            decide hosted "multi-leg run ($LEGS)"
+          fi
+
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            decide hosted "QUARTUS_VM_TOKEN not configured"
+          fi
+
+          runners=$(gh api "repos/${{ github.repository }}/actions/runners" 2>/dev/null) || \
+            decide hosted "runners API call failed"
+
+          available=$(jq -r '
+            [.runners[]?
+             | select(.status == "online")
+             | select(.busy == false)
+             | select([.labels[]?.name] | index("quartus-vm"))]
+            | length' <<<"$runners" 2>/dev/null) || \
+            decide hosted "could not parse runners response"
+
+          if [[ "$available" == "1" || "$available" -gt 1 ]] 2>/dev/null; then
+            decide vm "quartus-vm online and idle"
+          fi
+          decide hosted "quartus-vm offline or busy"
+
+  synthesis-local:
+    # The local Quartus VM leg. Exactly one of synthesis-local and synthesis
+    # runs; both share the repository-wide build-core-synthesis slot, so
+    # routing rather than racing is what stops them cancelling each other.
+    needs:
+      - synthesis-policy
+      - route
+    if: needs.synthesis-policy.outputs.required == 'true' && needs.route.outputs.target == 'vm'
+    uses: ./.github/workflows/local-build.yml
+    with:
+      effort: ${{ fromJSON(needs.synthesis-policy.outputs.legs)[0] }}
+
+  synthesis:
+    # Deliberately independent of the simulation job: Verilator and Quartus
+    # check different properties and share no state, so they run in parallel.
+    # The required-gate below still enforces both before anything counts as
+    # green; the trade-off is that a red simulation no longer saves the
+    # synthesis compute on that run.
+    needs:
+      - synthesis-policy
+      - route
+    if: needs.synthesis-policy.outputs.required == 'true' && needs.route.outputs.target == 'hosted'
+    strategy:
+      fail-fast: false
+      # effort=both legs must serialize: they contend for the single
+      # repository-wide synthesis slot below, so parallel legs would cancel
+      # each other the moment the second one queues.
+      max-parallel: 1
+      matrix:
+        effort: ${{ fromJSON(needs.synthesis-policy.outputs.legs) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    concurrency:
+      # Expensive Quartus compiles contend for one repository-wide slot across
+      # every branch, event, and effort tier (shared with local-build.yml):
+      # the newest run cancels whichever compile is in flight, wherever it
+      # started. Runs whose policy decision skips synthesis never join this
+      # group, so a Tier-A-only stream push cannot interrupt a build.
+      group: build-core-synthesis
+      cancel-in-progress: true
+    env:
+      # Quartus 17.0.2.602 for amd64. Keep the digest deliberate: the tag is mutable.
+      QUARTUS_IMAGE: raetro/quartus@sha256:55442b161163dc7723e3d4917ce046fcb682478365fe9320756c9a4ae7d7d4ce
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          # Quartus executes repository-controlled Tcl. Do not leave a GitHub token
+          # in .git/config when the checkout is mounted into the build container.
+          persist-credentials: false
+
+      # D2 conclusion (2026-08-24): the branch database cache was removed.
+      # Restoring db/incremental_db saved nothing -- the design has no QSF
+      # design partitions exporting post-fit netlists (the fitter report's
+      # only partition is the default Top with 'Netlist Type Used: Source
+      # File'), so 'quartus_sh --flow compile' re-runs analysis & synthesis
+      # and re-fits from source every time and simply overwrites the
+      # restored databases.  Measured on run 32657783842 with a restored
+      # cache: 10:06 flow time (fitter 8:07 dominates), identical to clean
+      # runs.  Reintroduce only together with a partitioned incremental
+      # compilation policy.
+
+      - name: Select compile effort
+        shell: bash
+        run: scripts/ci/apply-quartus-effort.sh "${{ matrix.effort }}" Amstrad.qsf
+
+      - name: Compile Amstrad core
+        shell: bash
+        run: |
+          mkdir -p artifacts/reports
+          set -o pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/build" \
+            --workdir /build \
+            "$QUARTUS_IMAGE" \
+            quartus_sh --flow compile Amstrad.qpf \
+            2>&1 | tee artifacts/reports/quartus-build.log
+
+      - name: Verify the effort tier was honored
+        shell: bash
+        run: |
+          log=artifacts/reports/quartus-build.log
+          # Quartus drops an assignment it does not recognize or that the
+          # running edition does not support, warns, and continues at full
+          # cost.  A smoke leg must never look green while doing that.
+          if grep -n "Ignored assignment:" "$log"; then
+            printf '::error::compile ignored effort-tier assignments; %s timings are not trustworthy\n' "${{ matrix.effort }}" >&2
+            exit 1
+          fi
+          # Quartus reports undeclared wires as Warning 10236 (Implicit Net).
+          # Fail synthesis immediately if any implicit net warning is emitted.
+          if grep -n -E "(Implicit Net warning|Warning \(10236\))" "$log"; then
+            printf '::error::compile emitted implicit net warnings (Warning 10236); undeclared wire detected\n' >&2
+            exit 1
+          fi
+          {
+            printf '### Compile stages (%s)\n\n```\n' "${{ matrix.effort }}"
+            # Cosmetic stage timings; never fail the leg over them.
+            grep "Info: Elapsed time" "$log" | tail -5 || true
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Require setup and hold timing closure
+        shell: bash
+        run: |
+          scripts/ci/check-quartus-timing.sh output_files/Amstrad.sta.summary | \
+            tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Record synthesis provenance
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/reports
+          # Every synthesis is a clean compile since the D2 cache removal;
+          # build_mode records the tier so milestone provenance stays honest
+          # about which effort produced a retained RBF.
+          printf 'build_mode=clean_%s\n' "${{ matrix.effort }}" | tee artifacts/reports/quartus-cache.txt
+
+      - name: Collect synthesis reports
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/reports
+          if [[ -d output_files ]]; then
+            find output_files -maxdepth 1 -type f \
+              \( -name '*.rpt' -o -name '*.summary' -o -name '*.log' \
+                 -o -name '*.smsg' -o -name '*.done' \) \
+              -exec cp '{}' artifacts/reports/ \;
+          fi
+
+      - name: Package bitstream
+        shell: bash
+        run: |
+          test -s output_files/Amstrad.rbf
+          test -s output_files/Amstrad.fit.summary
+          test -s output_files/Amstrad.sta.rpt
+          build_date="$(date -u +'%Y%m%d')"
+          short_sha="${GITHUB_SHA:0:7}"
+          cp output_files/Amstrad.rbf \
+            "artifacts/Amstrad_${build_date}_${short_sha}.rbf"
+
+      - name: Upload bitstream and reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Amstrad-build-${{ github.run_number }}-${{ github.run_attempt }}-${{ matrix.effort }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+  required-gate:
+    if: always()
+    needs:
+      - synthesis-policy
+      - simulation
+      - route
+      - synthesis
+      - synthesis-local
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Enforce the selected verification tier
+        shell: bash
+        env:
+          POLICY_RESULT: ${{ needs.synthesis-policy.result }}
+          SIMULATION_RESULT: ${{ needs.simulation.result }}
+          SYNTHESIS_REQUIRED: ${{ needs.synthesis-policy.outputs.required }}
+          SYNTHESIS_REASON: ${{ needs.synthesis-policy.outputs.reason }}
+          SYNTHESIS_MODE: ${{ needs.synthesis-policy.outputs.mode }}
+          SYNTHESIS_LEGS: ${{ needs.synthesis-policy.outputs.legs }}
+          SYNTHESIS_RESULT: ${{ needs.synthesis.result }}
+          SYNTHESIS_LOCAL_RESULT: ${{ needs.synthesis-local.result }}
+          ROUTE_TARGET: ${{ needs.route.outputs.target }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$POLICY_RESULT" != "success" ]]; then
+            printf 'Synthesis policy job did not pass: %s\n' "$POLICY_RESULT" >&2
+            exit 1
+          fi
+          if [[ "$SIMULATION_RESULT" != "success" ]]; then
+            printf 'Simulation job did not pass: %s\n' "$SIMULATION_RESULT" >&2
+            exit 1
+          fi
+
+          # Exactly one synthesis route runs; the other must be skipped. The
+          # gate checks the routed one so a green result can never come from
+          # a build that did not happen.
+          if [[ "$SYNTHESIS_REQUIRED" == "true" ]]; then
+            if [[ "$ROUTE_TARGET" == "vm" ]]; then
+              ROUTED_RESULT="$SYNTHESIS_LOCAL_RESULT"
+              OTHER_RESULT="$SYNTHESIS_RESULT"
+            else
+              ROUTED_RESULT="$SYNTHESIS_RESULT"
+              OTHER_RESULT="$SYNTHESIS_LOCAL_RESULT"
+            fi
+            if [[ "$ROUTED_RESULT" != "success" ]]; then
+              printf 'Required synthesis did not pass on the %s route: %s (%s)\n' \
+                "${ROUTE_TARGET:-hosted}" "$ROUTED_RESULT" "$SYNTHESIS_REASON" >&2
+              exit 1
+            fi
+            if [[ "$OTHER_RESULT" != "skipped" ]]; then
+              printf 'Both synthesis routes ran; routing is broken: hosted=%s local=%s\n' \
+                "$SYNTHESIS_RESULT" "$SYNTHESIS_LOCAL_RESULT" >&2
+              exit 1
+            fi
+          elif [[ "$SYNTHESIS_RESULT" != "skipped" || "$SYNTHESIS_LOCAL_RESULT" != "skipped" ]]; then
+            printf 'Unexpected synthesis result for simulation-only change: hosted=%s local=%s\n' \
+              "$SYNTHESIS_RESULT" "$SYNTHESIS_LOCAL_RESULT" >&2
+            exit 1
+          fi
+
+          printf 'Verification gate passed; synthesis=%s (%s); route=%s; effort=%s; legs=%s\n' \
+            "$SYNTHESIS_REQUIRED" "$SYNTHESIS_REASON" "${ROUTE_TARGET:-none}" \
+            "${SYNTHESIS_MODE:-not-run}" "${SYNTHESIS_LEGS:-[]}"

@@ -1,0 +1,108 @@
+# F6 option C Stage 2 — seam-width measurement via the GA40010 co-sim render
+
+Date: 2026-08-23. Branch: `accuracy/f6stage2-soak-expand` (base 4ede88a + soak
+field-expansion re-mint commit). Measurement only — no RTL changed; render
+artifacts (rgb/png/vcd) kept out of the repository per the 90f0cda precedent.
+This log is the raw record behind the dated Stage 2 section in
+`docs/accuracy/f6-decision-gate.md`.
+
+Stage 2b supersession (2026-08-23): the measurements and VCD transitions below
+remain valid, but the original disposition assigning the width correction
+downstream of the CRTC pin is superseded. Visual ACCC pp.186/195 specify that
+the CRTC BORDER/DE pulse itself begins 0.5 us after C0=R0 and ends 0.5 us later.
+Test and production CLKEN phase match; original async and synchronous GA paths
+agree. See the decision gate's Stage 2b section and formal finding F13.
+
+## Method
+
+Route: `rtl/GA40010/ga40010_test.v` CRTC+GA40010 co-simulation (manifest fixed
+by 90f0cda; verified to elaborate cleanly from rtl/GA40010 with the checked-in
+HDL list, Verilator 5.050). This route contains CRTC wrapper + both engines +
+GA40010 netlist recreation only — no `Amstrad_motherboard.v` glue — so it
+measures the GA's response to the CRTC DE pin in isolation.
+
+Temporary harness (uncommitted copies of `ga40010_test.v` / `ga40010_tb.cpp`
+in an opencode temp dir; repo HDL referenced by absolute path):
+
+- `CRTC_TYPE` exposed as a testbench input; CRTC `DE` tapped out.
+- Video RAM zeroed after loading `cpcram.bin`: uniform display field (pen 0),
+  border pen 16 = colour 0x1C — display and border colours distinct by
+  construction.
+- GA mode register written to mode 2, so each captured sample is literally one
+  mode-2 pixel (16 px per µs horizontally).
+- Registers stock except those under test; two geometries:
+  - A: R0=62, R1=63 (R2=30, R3=128+4)
+  - B: R0=49, R1=50 (R2=30, R3=128+4)
+  R2/hsw chosen so the reshaped GA HSYNC band does not overlap the seam
+  character (with stock R2=46/R3=128+14 the sync band swallows it entirely —
+  first attempt, negative result worth recording).
+- One full frame captured per run at the tb's existing frame-3 window
+  (`video.rgb`, 16-bit rgb444 samples, plus a parallel byte stream of the CRTC
+  DE pin for temporal cross-check). A short VCD window (~2500 ticks early in
+  frame 3) captured `DISPEN_BUF`, video.sv `u1008`/`border_sel` and the S ring.
+
+## Numbers
+
+Seam definition: interior run of border colour bounded both sides by display
+colour, counted over every raster row of the captured frame.
+
+| Config | Type | Display rows with exactly one interior seam | Seam width |
+|---|---|---|---|
+| A (R0=62,R1=63) | 0 | 199/199 | 16 px = 1 µs, all rows identical x |
+| A | 1 | 0 | — (rows merge seamlessly) |
+| B (R0=49,R1=50) | 0 | 199/199 | 16 px = 1 µs |
+| B | 1 | 0 | — |
+
+(200 display lines per frame from R6=25/R9=7; one row per frame is lost to the
+vsync overlay in the capture.)
+
+Pin-level cross-check from the DE tap: type 0 DE low for exactly 16 samples =
+one character at C0=R0, once per line; type 1 DE never low inside the line.
+Consistent with vectors t10a-t10e.
+
+## Mechanism (VCD trace, type 0)
+
+Per seam event, in S-ring order (one char = 16 S steps):
+
+1. CRTC DE falls at C0=R0 (just after the S=0x03 CCLK_EN_N edge).
+2. The same char's later byte-phase sample (S=0xE0) latches DE=0 into
+   `DISPEN_BUF` — the GA does resolve the pin at byte phase, as claimed in the
+   decision gate's interface evidence.
+3. `u1008 = load ? DISPEN_BUF : u1005` picks the new value at the next load
+   window; `border_sel` rises and stays high for **exactly 128 units = one
+   full character**, falling after DE has already returned high and been
+   re-latched.
+4. Rendered result: a full-character border byte displaced ~one character late
+   relative to the DE drop (the video fetch pipeline's latency), width
+   unchanged.
+
+## Finding / disposition
+
+The visible seam through this recreation measures **1 µs (16 mode-2 px)**,
+twice the 0.5 µs "one byte" blip documented in ACCC §17.6.2 p.186. The
+byte-phase DISPEN sampling exists but does not halve or anticipate a
+character-aligned DE gap: the border_sel pipeline renders it one-for-one,
+displaced late rather than anticipated early.
+
+Stage 2 correctly stopped at measurement. Stage 2b later established that
+narrowing the seam belongs at the CRTC-side sub-character DE phase, not in GA
+or glue; formal finding F13 blocks any production change pending SHAKER/DE-pin
+hardware evidence.
+
+## Reproduction sketch
+
+From a temp dir with modified copies of `rtl/GA40010/ga40010_test.v`
+(CRTC_TYPE input + DE tap) and `ga40010_tb.cpp` (argv-driven type/R0/R1/R2/R3,
+zeroed VRAM, mode 2 write, frame capture):
+
+```sh
+verilator --cc --trace -Wno-fatal --top-module ga40010_test -Mdir obj_dir \
+  $G/ga40010.sv $G/syncgen.v $G/syncgen_sync.v $G/casgen.v $G/casgen_sync.v \
+  $G/video.sv $G/rslatch.v ../CRTC.v ../crtc_type0_engine.v \
+  ../crtc_type1_engine.v ga40010_test_stage2.v
+# g++ with verilated.cpp verilated_vcd_c.cpp verilated_threads.cpp + sc_time_stamp stub
+./tb 0 62 63 30 132 t0 && ./tb 1 62 63 30 132 t1   # type, R0, R1, R2, R3
+```
+
+Analysis: border-run histogram over the rgb stream; DE run lengths from the
+parallel byte stream; optional short VCD for the internal pipeline.

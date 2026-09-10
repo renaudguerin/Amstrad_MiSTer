@@ -145,7 +145,9 @@ int main(int argc, char **argv) {
 	tb->M1_N = 1;
 	tb->IORQ_N = 1;
 	tb->RD_N = 1;
+	tb->WR_N = 1;
 	tb->MREQ_N = 1;
+	tb->CRTC_TYPE = 0;
 
 	tick(1);
 	tick(0);

@@ -1,0 +1,12 @@
+[Unit]
+Description=Enable the UTM Rosetta x86_64 binfmt handler
+RequiresMountsFor={{ rosetta_mountpoint }}
+After=local-fs.target binfmt-support.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/update-binfmts --enable rosetta
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
