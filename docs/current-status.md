@@ -1,5 +1,27 @@
 # Current implementation status
 
+**Latest hardware retest, 2026-09-09:** `Amstrad_20260908_ce1d2da.rbf` was tested
+on 6128 Plus / Live blanking and classic 6128 / CRTC1 (DSC4 also CRTC0).
+Most defects persist. Burnin' Rubber is reported OK; CRTC3's earlier right-edge
+sprite fix has not regressed, but warning/audio/crash defects remain. Navy Seals black
+screen was not reproduced; left-edge sprite flicker remains, and the user
+confirms no Dandanator was ever tested. System/BASIC fails before disk access.
+DSC4 and SHAKER still fail; Amazing Demo has improved HSYNC behaviour with
+Live blanking but remaining lower-screen corruption. See the
+[full results and SHAKER capture index](hardware-evidence-2026-09-09.md).
+B1/P10 remain open. The subsequent diagnostic assessment is recorded below;
+unassessed entries do not become passes by association.
+
+**Code diagnosis, 2026-09-10:** the [retained investigation](hardware-diagnosis-2026-09-10.md)
+reproduces a type-1 frame-origin VSYNC parity bug matching SHAKER B (9)'s
+`#4E00` interval, ASCAL geometry changes under split DE, a Plus sprite first-row
+refill failure, and Plus PPI control-readback differences. Production RTL is
+unchanged. Local diagnostic sources, reference images and rerun logs are
+preserved; the full existing simulation suite passes with its known FDC XFAIL.
+The recommended next Classic work is the bounded VSYNC repair plus a first
+repeatable B2 hardware capture. Plus System/BASIC boot remains a blocker for
+Plus disk-based testing; its separate ROM/input investigation is in the report.
+
 **Latest verified CI/RBF, 2026-09-08:** `ce1d2da67c2598c0dd06208b9fc14c52ada01712`
 passed simulation, policy, required gate and full local Quartus 17.0.2 in
 [run 34228275825](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34228275825).
@@ -12,7 +34,8 @@ and tape backpressure. Artifact `Amstrad-local-build-199-1-full`
 Fit: 22,945/41,910 ALMs (55%); minimum setup +0.098 ns, hold +0.238 ns,
 zero setup/hold TNS and no unconstrained clocks. Some I/O paths remain
 unconstrained (27 input and 90 output ports). Reports are retained under ignored
-`docs/references/snapshot-artifact-34228275825/`. No hardware test occurred.
+`docs/references/snapshot-artifact-34228275825/`. Hardware retest is now recorded
+in the September 9 report above; snapshot-specific acceptance remains untested.
 
 B8-5 source `f2300be6ae2075dff41c6a96ec59f65286feb67f` restores mapped DMA,
 selected video/GA, MMU and palette state after storage drain, holding CPU
@@ -128,8 +151,9 @@ with historical rule engines. Fresh optional GHDL checks, full simulation, lint
 and the unchanged soak pass on integration. Review is scoped clear (Opus plus
 Astra closure of the Gemini-authored timing remediation). See the
 [bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md). Dynamic-wait
-native-VHDL equivalence, full motherboard execution and DSC4/SHAKER hardware
-evidence remain open. CI and artifact delivery are tracked separately.
+native-VHDL equivalence and full motherboard execution remain open.
+September 9 hardware captures show DSC4/SHAKER still failing; acceptance
+remains open. CI and artifact delivery are tracked separately.
 
 **Shared B8-7 integrated, 2026-09-08, from `e7d73ba`:** tape download
 writes retain their address and payload through synchronous completion.
@@ -241,12 +265,12 @@ is docs-only and adds no new validated source.** The Plus READY tip below is
 **not** on main: serial integration, CI/gates, and artifact handoff remain
 pending separate authorization.
 
-**Latest hardware report, 2026-09-02:** on `Amstrad_20260901_84e6969.rbf`
+**Earlier hardware report, 2026-09-02 (superseded for current results by September 9 above):** on `Amstrad_20260901_84e6969.rbf`
 with Live blanking selected, the user reports that
 `amazingdemo_sync_live_blanking` **appears fixed** and
 `burnin_rubber_sprite_on_the_right_should_be_hidden` **is fixed**. Other
 Plus defects remain **TBD**. DSC4 and SHAKER are still failing, possibly with
-changed failure shapes; current captures are unavailable. These are symptom-specific hardware observations, not
+changed failure shapes; captures were unavailable then (September 9 captures are now indexed above). These are symptom-specific hardware observations, not
 B1/P10 closure or proof of the individual cause. The
 [dated report](hardware-evidence-2026-09-02.md) records artifact identity,
 evidence limits and the authorized FDC/Plus/review scope. Accuracy RTL work is
@@ -793,7 +817,7 @@ motherboard integration (merge `4cab4ec`). **It has not been hardware-tested.**
   simulation-only and contributes nothing to this bitstream. **When `asic_video` is wired into
   the motherboard it must be added to `files.qip`**, or no CI run will ever tell you whether it
   fits or meets timing. `5ddddef` remains the
-newest hardware-*tested* milestone, covering the
+hardware-*tested* milestone as of August 19, covering the
 deterministic-complete F12/F4 counter work and the CPR parser. `1a1233f` is the previous one; GitHub Actions run
 `31661330994` passed the complete Verilator gate, Quartus 17.0.2 compilation, fitter,
 TimeQuest, RBF packaging, and artifact upload for it, and it carries the independently
@@ -831,7 +855,8 @@ top of that F12/F4 and CPR-parser state. Its fitter used 14,947 / 41,910 ALMs (3
 block-memory bits (12%), and 3 / 6 PLLs, with worst setup and hold slacks of +0.516 ns and
 +0.246 ns. The artifact is retained under
 `output_files/hardware-milestones/Amstrad-build-17-1/Amstrad_20260819_4c78603.rbf`. It has not
-been hardware-tested, and it is the build the next SHAKER session should use: `5ddddef`
+been hardware-tested. It was the proposed next SHAKER build at that milestone;
+current testing uses `ce1d2da` (September 9 report above). `5ddddef`
 predates F8 and cannot produce evidence for it. The later per-type split and rename were
 behaviour-preserving within the directed, soak, and frozen differential projections, but F6
 Stage 1 intentionally changed classic DE behaviour and re-minted the soak. F7 RFD, the A1
@@ -1663,9 +1688,9 @@ which incorporates the September 8 production-boundary findings. Older dated
 hardware and implementation records above are evidence for their named source;
 their old branch names, hashes and proposed tasks are not the current launch plan.
 
-- B8-1 through B8-4, B8-6 and B8-7 are integrated. Finish the existing
-  B8-5 snapshot task, then complete CI/artifact delivery and worktree cleanup.
-  The current unattended run stops there; do not launch successor tasks.
+- B8-1 through B8-7, artifact delivery and worktree cleanup are complete as
+  recorded above. The September 9 hardware retest still exposes defects; use
+  its capture index for a dedicated diagnostic session before choosing repairs.
 - Extend the bounded executed-T80 evidence only where a specific missing
   interaction warrants it. Hardware DSC4/SHAKER, IA-5/Q17 and Plus title
   acceptance remain open.

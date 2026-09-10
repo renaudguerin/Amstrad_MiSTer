@@ -11,6 +11,18 @@ changes landed in `ee50c33`, with the later banking/SNA corrections in `421aec6`
 `7c46b8d`. The new observations show that passing leaf benches and review is not equivalent
 to a timing-clean, production-top-level, real-title acceptance result.
 
+**Latest retest:** [September 9 results](../hardware-evidence-2026-09-09.md)
+on `ce1d2da` supersede current-result assumptions from this initial checkpoint.
+Most defects remain; CRTC3's earlier right-edge fix has not regressed, and Navy Seals
+black screen was not reproduced. No Dandanator was tested. Keep the historical
+observations below tied to their original build and evidence limits.
+
+The [September 10 diagnosis](../hardware-diagnosis-2026-09-10.md) retains
+separate first-row sprite-refill and PPI-readback failures, with no claimed
+title-level repair. System/BASIC boot blocks disk-based testing in Plus mode;
+the report records that investigation without attributing it to the earlier
+reduced-TV80 FDC payload XFAIL.
+
 ## 1. Hardware observations
 
 The tested RBF hash, fitter effort, OSD Plus model, mounted DSK/CDT, and MiSTer version were

@@ -11,6 +11,12 @@ pass for that visible symptom only; it does not prove the signed-X repair was
 the cause. The CRTC3 demo's separate sprite leak and all other defects below
 remain TBD. See [the dated hardware record](../hardware-evidence-2026-09-02.md).
 
+**September 9 follow-up:** [current results](../hardware-evidence-2026-09-09.md)
+supersede the TBD retest status above. CRTC3's right-edge leak appears fixed;
+its other defects persist. Navy Seals black screen was not reproduced, and
+the user confirms no Dandanator was ever tested. The ownership repair below
+is therefore separate from that incident; left-edge sprite flicker remains.
+
 ## B13 lifecycle: stale classic cartridge state before a CPR
 
 Hardware sequence: after a cartridge had misbehaved, a subsequently loaded
@@ -70,10 +76,10 @@ support remains a separate question.
 
 Plus/classic selection comes from the OSD model setting, not from the CPR
 artifact itself.  With a Plus model selected, this closes the deterministic
-state-leak mechanism in simulation.  Navy Seals must still be retested after
-first loading a Dandanator image that makes its reset mapping active; without
-that prerequisite, the original title symptom remains unassigned rather than
-being attributed to this fix.
+state-leak mechanism in simulation. A test after an active Dandanator load
+would validate this separate mechanism. It is not a prerequisite for reproducing
+the user's Navy Seals incident: the September 9 correction establishes that
+Dandanator was never loaded. The original cause remains unassigned.
 
 ## BASIC/System CPR disk failure
 

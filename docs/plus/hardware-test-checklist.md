@@ -11,6 +11,15 @@ passes: Panza grey/blue; RoboCop 2 garbled sprites; Arnold 5 keyboard inoperable
 cartridges `Drive A: read fail`; approximately half of sampled cartridges loaded. See
 `hardware-checkpoint-findings.md` for the P10 repair order.
 
+## Latest recorded results
+
+The [September 9 report](../hardware-evidence-2026-09-09.md) records the
+`ce1d2da` retest and maps the SHAKER captures. Burnin' Rubber was reported OK,
+Enforcer/Tintin seem good, and CRTC3's right-edge leak appears fixed. These
+limited observations do not check the multi-feature title/subsystem boxes below.
+System/BASIC boot, input, sprite flicker, DMA pitch and classic diagnostic
+failures remain open; disk access was blocked by boot failure.
+
 ## Prerequisite gate
 
 - [ ] **Exact full-effort build accepted:** integration commit and RBF SHA-256 match;
@@ -26,7 +35,8 @@ the corresponding run ID.
 
 | Run ID/date | Commit | RBF SHA-256 | Effort; setup/hold/TNS | MiSTer version | Plus/classic model | CPR and mounted media | Reset/load order | Comparison source |
 |---|---|---|---|---|---|---|---|---|
-| _pending_ | | | | | | | | |
+| 2026-09-09 Plus | `ce1d2da67c2598c0dd06208b9fc14c52ada01712` | `fef2c8553e85456a86bc6d28753cdbb43c386106b5cd719bbf808cea84dc6144` (local; device unverified) | full; +0.098/+0.238 ns; zero TNS | Unrecorded | 6128 Plus; Live blanking | Named titles in report; hashes/mounted media unrecorded | Partial; see report; no Dandanator | User observations / supplied captures |
+| 2026-09-09 Classic | Same build | Same local hash | Same build | Unrecorded | 6128, Plus off; CRTC1, DSC4 also CRTC0; Full/Live/Off as recorded | SHAKER 2.7, DSC4, Amazing Demo; hashes unrecorded | DSC4 before SHAKER; reset reported; full sequence unrecorded | User observations / supplied captures; reference comparison pending |
 
 ---
 

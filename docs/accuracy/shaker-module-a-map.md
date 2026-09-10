@@ -13,8 +13,15 @@ Sources, both now firsthand rather than inferred:
   section and page. That file is dated evidence and its citations are **not** independently
   re-checked; confirm a quote against the PDF before turning it into RTL or a vector.
 
-Modules B–E are covered only in the cross-reference. This file stays focused on Module A
-because that is what has been run on hardware.
+This file stays focused on Module A; Modules B–E are covered in the cross-reference.
+The [September 9 SHAKER 2.7 retest](../hardware-evidence-2026-09-09.md#shaker-capture-index)
+includes A (T)/(4)/(U), B (1)/(9) and C (1) captures on CRTC1. A (T) and B (1)
+remain defective. The [September 10 diagnosis](../hardware-diagnosis-2026-09-10.md)
+identifies a B (9) numerical mismatch and reproduces its frame-origin VSYNC
+mechanism. A (4) has reference/version ambiguity; A (U) and C (1) retain their
+unassessed whole-test status.
+Menu labels below originate from 2.6; the new report records visible headings
+and distinguishes confirmed identification from capture-order inference.
 
 ## How Module A results must be judged
 

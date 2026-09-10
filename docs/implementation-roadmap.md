@@ -293,9 +293,12 @@ evidence, but it does not replace the decoder, counter, interrupt, or compositor
 
 **Status:** OPEN after the 2026-08-30 round-three simulation repairs. P0-P9 are implemented
 and simulation-verified, but the two broad hardware samples still expose title, input, FDC,
-sprite, DMA, CRTC3, cartridge-timing, and recovery failures pending an exact new build and
-hardware retest. Source/test review of the triage seam is CLEAR (Muse read-only 2026-09-03
-at `a98590a`; record `docs/plus/plus-review-2026-09-03.md` §6) with Navy-Seals prerequisite,
+sprite, DMA, CRTC3, cartridge-timing, and recovery failures. The exact
+`ce1d2da` retest on September 9 confirms many persist; CRTC3's right-edge leak
+appears fixed and Navy Seals black screen was not reproduced. See
+[latest results](hardware-evidence-2026-09-09.md). Further targeted validation
+remains open; no Dandanator was involved in the reported Navy Seals incident. Source/test review of the triage seam is CLEAR (Muse read-only 2026-09-03
+at `a98590a`; record `docs/plus/plus-review-2026-09-03.md` §6) with separate Dandanator ownership validation,
 CRTC3-leak, System-CPR/real-T80/full-top, exact-tip Quartus, and TV80/model limits retained
 as validation; B3 foundation (§8 queue) is likewise review-CLEAR
 (`docs/plus/b3-frame-harness-review-2026-09-03.md`); P10j stays OPEN LOW on doc comments
@@ -499,7 +502,7 @@ See [current status](current-status.md) for accepted source and artifact identit
    remains a later gate.
 7. **Hardware retests:** use the delivered SHA-labelled RBF for DSC4/SHAKER,
    IA-5/Q17 and the named Plus title matrix. Retain the
-   [September 2 observations](hardware-evidence-2026-09-02.md) as regression
+   [September 9 results and capture index](hardware-evidence-2026-09-09.md) as regression
    evidence, not blanket closure. New title-driven RTL work starts from an
    actionable capture or another independently reproduced production defect.
 

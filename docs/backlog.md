@@ -102,10 +102,15 @@ and operates after this stage. Removing or redesigning it does not affect those.
    `amazingdemo_sync_live_blanking` **appears fixed**. This supersedes that
    symptom's earlier verdict for the named build, without establishing the
    responsible change. The user later confirms DSC4/SHAKER still fail, possibly
-   with different failure shapes; current captures are unavailable. Pulpo has
-    no new verdict. Accuracy RTL work is deferred while capture and shared
-    peripheral work progress. B1 remains
-    open; see [the hardware report](hardware-evidence-2026-09-02.md).
+   with different failure shapes; captures were unavailable at that retest. **September 9:** `ce1d2da`
+    captures are now supplied. DSC4/SHAKER still fail, and Amazing Demo still
+    has lower-screen corruption despite apparently correct Live HSYNC behaviour.
+    Pulpo has no new verdict. B1 remains open; use the
+    [latest results and capture index](hardware-evidence-2026-09-09.md) and
+    [September 10 diagnostics](hardware-diagnosis-2026-09-10.md). The latter
+    reproduces type-1 origin VSYNC loss and actual ASCAL geometry changes from
+    split DE. Prioritize the bounded VSYNC repair and a stable-acquisition
+    experiment; neither is yet a DSC4 hardware fix.
     Source/test review of the hybrid candidate is CLEAR (Muse read-only
     2026-09-03 at `a98590a`; record
     `docs/accuracy/classic-review-2026-09-03.md` §2) with the
@@ -134,7 +139,11 @@ and operates after this stage. Removing or redesigning it does not affect those.
 
 **Priority: high. Cheapest route to a real oracle.**
 
-**RESEARCH/PLAN COMPLETE 2026-09-08; implementation awaits SSH access.** The
+**HOST DRIVER IMPLEMENTED; first device acceptance pending.** The
+[driver and cross-build](mister-hardware-loop-driver.md) are available locally.
+On September 10 the user supplied `root@mister`, with cores under
+`/media/fat/_Computer/Amstrad` and media under `/media/fat/games/Amstrad`.
+The current investigation did not contact the device. The
 [hardware-loop plan](mister-hardware-loop-plan.md) starts with Main's existing
 `/dev/MiSTer_cmd` core-load/screenshot commands, verified MGL media slots and
 Linux input injection. Prefer an installed tool or the small MiSTer Batch Control
@@ -571,9 +580,12 @@ The sibling-state audit instead found a live route: `dan_eeprom_loaded` also per
 configuration-time/download boundary, and Dandanator could retain SDRAM ownership after a
 switch into Plus mode. `plus_legacy_cart_gate` now suppresses that ownership whenever
 `plus_mode` is selected while deliberately preserving the image for a later return to classic
-mode. The source has one manifest owner and a lifecycle regression. A Navy Seals hardware
-retest must first load an active Dandanator image; without that prerequisite the original
-black-screen symptom remains unassigned. Full reset-tier reasoning and evidence are in
+mode. The source has one manifest owner and a lifecycle regression.
+**September 9 correction:** the user never tested Dandanator; the ownership leak
+cannot explain their Navy Seals incident. The black screen was not reproduced
+on `ce1d2da`, but left-edge sprite flicker remains. A Dandanator-to-Plus test
+would validate the separate ownership repair, not reproduce the reported
+sequence. See [the latest hardware record](hardware-evidence-2026-09-09.md). Full reset-tier reasoning and evidence are in
 `docs/plus/hardware-defect-triage-2026-09-01.md`.
 
 ---
