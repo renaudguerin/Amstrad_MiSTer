@@ -100,3 +100,7 @@ origin-VSYNC defect, while retaining the distinction between a code finding
 and hardware closure. It also records the user's clarification that the
 right-edge sprite result is a nonregression, and that System/BASIC boot blocks
 disk-based software specifically in Plus/CRTC3 mode.
+The [same-day second pass](hardware-diagnosis-2026-09-10-second-pass.md)
+transcribes every SHAKER capture against the reference photographs: A (U) and
+C (1) match, B (9) shows the origin-VSYNC defect on both CRTC types, and the A (4)
+`FEFF` versus `5E5F` difference is PPI port B configuration bits, not CRTC timing.

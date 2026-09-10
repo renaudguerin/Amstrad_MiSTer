@@ -34,6 +34,27 @@ The Plus stream already follows Longshot's principle by decision: roadmap integr
 keeps ASIC CRTC3/4 out of `UM6845R.v` entirely (`plus/architecture.md` behavioural path).
 So the open question is only the type-0/type-1 split.
 
+**Author's qualification (Longshot, correspondence 2026-09-11), recorded so the model
+is not oversimplified:**
+
+- The Plus ASIC 40489 is not a fifth design. It uses the exact model of Amstrad's own
+  CRTC 40226, the "type 4" fitted to the late low-cost classic CPCs, plus a few extra
+  variables that read as 0 until the ASIC page is unlocked. Those variables reuse the
+  CRTC counters, or slightly change the VMA assignment, to provide the Plus-specific
+  functions: the C4/C9 combination that selects interrupt lines, the sprite/split Y
+  positions, and line-level rupture. So a correct type 4 is the base of a correct
+  CRTC3 path, and the ASIC additions are a thin layer over it, not a separate engine.
+- Classic CPCs carry **four** CRTC designs, not two: types 0 and 1 (modelled here),
+  plus type 2 (MC6845 family) and type 4 (40226). Every type-specific area
+  (interlace, VSYNC, adjustment, RFD) multiplies by four, which is the author's
+  argument for keeping rule engines separate rather than sharing state.
+
+Consequence for this fork: the type-0/type-1 split stays the current scope; type 2 and
+type 4 are out of scope for the accuracy stream today, but the wrapper/engine boundary
+should be one that a type-2 or type-4 engine could drop into. The Plus stream should
+read its CRTC3 rules as "type 4 plus unlocked variables" when the ACCC gives a type 4
+rule and is silent on CRTC 3.
+
 ## Why it matters (evidence it is already costing us)
 
 - Review action item **A1** (`docs/review-debt.md`): a type-1 adjustment behaviour was

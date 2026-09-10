@@ -705,3 +705,26 @@ prove steerable-task creation and available messaging rather than assuming backg
 are equivalent. No live dispatch or merge is authorized merely by testing the documentation.
 The [dated revisit note](stream-orchestration-revisit-2026-09-07.md) retains the rejected port's
 rationale; it is historical evidence rather than the active fixed-topology policy.
+
+---
+
+## B15. Re-diff the re-issued ACCC v1.11 PDFs
+
+**Filed 2026-09-11.** Longshot re-issued both v1.11 editions with our round-1/round-2
+feedback applied, without changing the version number. The user's copies are
+`docs/references/ACCC1.11-EN(b).pdf` (SHA-256
+`69d6a6a77de472937d41778ad48fc4fb427a937a24d3054f6d42c0b6ccfcc3e9`) and
+`docs/references/ACCC1.11-FR(b).pdf` (SHA-256
+`28f25c73c1797578522f34ce9ff558210386972c9257b5b8081927483ee02c3b`); both are
+gitignored like the originals.
+
+Work: extract both new editions with pdf-inspector into
+`docs/accuracy/extract/inspector-v1.11b-{en,fr}/`, diff them page by page
+against the existing v1.11 extractions, and record every changed rule or
+wording in `docs/accuracy/accc-1.11-differences.md` (new dated section) and in
+`docs/accuracy/accc-author-feedback.md` (mark which answered items are now in
+print, update the fingerprints under "Source verification"). Then audit every
+code comment or vector that cites a changed page and migrate the citation. The
+`(b)` copies become the working oracle; keep the old files for provenance.
+Text-only diff is fine for prose; render any changed page that carries a table
+or chronogram.

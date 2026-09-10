@@ -145,6 +145,31 @@ English unnumbered continuation, French 14.8 / English 14.7, 15.4.1, 16.4.1–3,
 §§23.2, 23.3, and 28.1.9. These are useful for editorial cleanup but do not presently
 justify RTL changes.
 
+## 4. SHAKER module A test (4) — `OUTI ON C0vs=#3c` and photograph version
+
+Filed 2026-09-10 from the MiSTer hardware comparison
+([second-pass diagnosis](../hardware-diagnosis-2026-09-10-second-pass.md), D7).
+
+On the CRTC 1 `R0=3F / CRTC IO ON R0 (OUT(C),C)` result screen, the site's
+real-machine photograph reads `OUTI ON C0vs=#3c:01` (I/O on the 5th NOP), while
+Amspirit 2.0 and the MiSTer core both read `00` (4th NOP); the Amspirit CRTC 0
+screen reads `01`. The photograph lacks the `OUTI C0vs 3C ON C9=0..7` row that
+SHAKER 2.7 prints. Questions for Longshot: which SHAKER version and machine
+produced the A4 CRTC 1 photograph, and is the `01` expected on every CRTC 1, or
+does it depend on the machine (Z80 wait-state alignment, expansion on `/EXP`)?
+The `UPD R0=3F ...` bytes are understood to be PPI port B reads (VSYNC bit 0
+before and after), so no question there.
+
+## 5. Correspondence 2026-09-11: re-issued v1.11 and the four classic CRTC types
+
+Longshot re-issued both v1.11 PDFs with the feedback applied and the version number
+unchanged; the diff task is backlog B15. He also qualified the CRTC separation note:
+the ASIC 40489 uses the exact CRTC 40226 (type 4) model with extra variables that are
+0 until the ASIC page is unlocked, and classic CPCs carry four CRTC designs (types 0,
+1, 2 and 4), not two. Recorded in
+[crtc-per-type-separation.md](crtc-per-type-separation.md).
+
+
 ---
 
 ## Source verification

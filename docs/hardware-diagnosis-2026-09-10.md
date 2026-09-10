@@ -12,6 +12,11 @@ Plus BASIC boot blocker does not prevent that work. Repeating broad RTL audits
 without a repeatable capture and a named hardware discriminator has diminishing
 returns, even though specific code defects remain discoverable.
 
+**Second pass (same day):** [hardware-diagnosis-2026-09-10-second-pass.md](hardware-diagnosis-2026-09-10-second-pass.md)
+confirms D1–D5, extends D1 to CRTC 0 under French §19.7.2, and adds D6 (RFD
+parity cannot be fixed by IVM ON/OFF), D7 (the SHAKER A (4) byte difference is PPI port B configuration, not CRTC) and
+D8 (scaler-framebuffer reading of the "leftover" band).
+
 ## Source and retained evidence
 
 - Checkout: `accc-review-and-fixes`, HEAD
