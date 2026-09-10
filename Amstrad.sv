@@ -47,17 +47,18 @@ assign HDMI_BOB_DEINT = 0;
 `include "build_id.v"
 localparam CONF_STR = {
 	"Amstrad;;",
-	"S0,DSK,Mount A:;",
-	"S1,DSK,Mount B:;",
+	"d4S0,DSK,Mount A:;",
+	"d4S1,DSK,Mount B:;",
+	"d5F4,CDT,Load tape;",
+	"d2F8,CPR,Load Plus cartridge;",
+	"d5OK,Tape sound,Disabled,Enabled;",
 	"-;",
 	"FC0,ROM,Load Main ROM;",
 	"FC3,E??,Load expansion;",
 	"-;",
-	"F4,CDT,Load tape;",
 	"F5,ROM,Load Dandanator ROM;",
 	"F6,SNA,Load snapshot;",
 	"F7,E??,Load CPC464 ROM;",
-	"OK,Tape sound,Disabled,Enabled;",
 	"-;",
 	"O[62:61],SNAC,Off,Player 1,Player 2;",
 	"-;",
@@ -73,7 +74,8 @@ localparam CONF_STR = {
 	"P1OST,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 	"P1OU,Pixel Clock,16MHz,Adaptive;",
 	"P1-;",
-	"P1O2,CRTC,Type 1,Type 0;",
+	"d3P1O2,CRTC,Type 1,Type 0;",
+	"P1O[36:35],Sync filter,Full,Live blanking,Off;",
 	"P1OBD,Display,Color(GA),Color(ASIC),Green,Amber,Cyan,White;",
 	"P1-;",
 	"P1O78,Stereo mix,none,25%,50%,100%;",
@@ -88,23 +90,25 @@ localparam CONF_STR = {
 	"P2-;",
 	"P2OEF,Multiface 2,Enabled,Hidden,Disabled;",
 	"P2O6,CPU timings,Original,Fast;",
-	"P2OGH,FDC,Original,Fast,Disabled;",
+	"d4P2OGH,FDC,Original,Fast,Disabled;",
 	"P2-;",
 	"P2oAC,Distributor,Amstrad,Orion,Schneider,Awa,Solavox,Saisho,Triumph,Isp;",
-	"P2O[5:4],Model,CPC 6128,CPC 664,CPC 464;",
+	"d3P2O[5:4],Model,CPC 6128,CPC 664,CPC 464;",
+	"P2O[34:33],Plus model,Off,GX4000,6128+,464+;",
 	"P2OV,Tape progressbar,Off,On;",
 
 	"-;",
 	"R0,Reset & apply model;",
-	"R[32],Reset & Detach Cartridge;",
+	"R[32],Reset & Detach Dandanator;",
 	"J,Fire 1,Fire 2,Fire 3;",
-	"V,v",`BUILD_DATE
+	"V,v",`BUILD_ID
 };
 
 //////////////////////////////////////////////////////////////////////////
 
 wire clk_sys;
 wire locked;
+wire [15:0] status_menumask;
 wire st_right_shift_mod = status[22];
 wire st_keypad_mod = status[23];
 wire st_progressbar = status[31];
@@ -207,9 +211,9 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 
 	.buttons(buttons),
 	.status(status),
-	.status_in({status[31:21],~status[20],status[19:0]}),
+	.status_in({64'd0,status[63:33],1'b0,status[31:21],~status[20],status[19:0]}),
 	.status_set(Fn[1]),
-	.status_menumask({en270p,1'b0}),
+	.status_menumask(status_menumask),
 
 	.forced_scandoubler(forced_scandoubler),
 	.gamma_bus(gamma_bus),
@@ -223,22 +227,36 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 	.ioctl_wait(ioctl_wait)
 );
 
-wire        rom_download = ioctl_download && ((ioctl_index[4:0] < 4) || (ioctl_index == 7));
+wire        rom_download = ioctl_download && rom_route_active;
 wire        tape_download = ioctl_download && (ioctl_index == 4);
 wire        dan_download = ioctl_download && (ioctl_index == 5);
+wire        dan_write_accepted;
 wire        sna_download = ioctl_download && (ioctl_index == 6);
+wire        cpr_download = ioctl_download && (ioctl_index == 8);
+wire        cpr_ioctl_wait;
+
+dandanator_loader_bounds dandanator_loader_bounds
+(
+	.dan_download(dan_download),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_addr(ioctl_addr),
+	.write_accepted(dan_write_accepted)
+);
 wire [24:0] sna_mem_addr = ioctl_addr - 25'h100;
 wire [15:0] sna_std_mem_size = (sna_mem_size > 16'd128) ? 16'd128 : sna_mem_size;
 wire [24:0] sna_chunk_start = 25'h100 + {sna_std_mem_size[14:0], 10'd0};
 
 reg [211:0] sna_cpu_dir = 212'd0;
-reg   [4:0] sna_crtc_addr = 5'd0;
-reg [143:0] sna_crtc_regs = 144'd0;
-reg   [4:0] sna_ga_inksel = 5'd0;
-reg [135:0] sna_ga_palette = 136'd0;
-reg   [7:0] sna_ga_config = 8'd0;
+// The selected video/GA header fields (10, 2E, 2F-3F, 40, 42, 43-54, 55,
+// A9-B4) are decoded by rtl/plus/plus_sna_header.v instead of inline here, so
+// the P8 fixture drives the same decoder from a real byte stream (B8-5).
+wire  [4:0] sna_crtc_addr;
+wire [143:0] sna_crtc_regs;
+wire  [4:0] sna_ga_inksel;
+wire [135:0] sna_ga_palette;
+wire  [7:0] sna_ga_config;
 reg   [7:0] sna_ram_config = 8'd0;
-reg   [7:0] sna_rom_select = 8'd0;
+wire  [7:0] sna_rom_select;
 reg   [7:0] sna_ppi_a = 8'd0;
 reg   [7:0] sna_ppi_b = 8'd0;
 reg   [7:0] sna_ppi_c = 8'd0;
@@ -247,10 +265,79 @@ reg   [3:0] sna_psg_addr = 4'd0;
 reg [127:0] sna_psg_regs = 128'd0;
 reg  [15:0] sna_mem_size = 16'd64;
 reg   [1:0] sna_model = 2'd0;
-reg   [2:0] sna_apply_cnt = 3'd0;
-reg         sna_finish_pending = 1'b0;
+wire  [2:0] sna_apply_cnt;
+wire        sna_finish_pending;
+wire        sna_load;
+wire        sna_hold;
+wire        sna_owner_reset_hold;
 reg         old_sna_download_reset = 1'b0;
-wire        sna_load = (sna_apply_cnt == 3'd1);
+reg   [2:0] cpr_apply_cnt = 3'd0;
+reg         cpr_finish_pending = 1'b0;
+reg         old_cpr_download = 1'b0;
+reg         old_cpr_download_reset = 1'b0;
+
+wire        sna_hsync;
+wire        sna_crtc_vs;
+wire        sna_crtc_adj;
+wire  [7:0] sna_crtc_hcc;
+wire  [6:0] sna_crtc_line;
+wire  [4:0] sna_crtc_raster;
+wire  [4:0] sna_crtc_vta;
+wire  [3:0] sna_crtc_hsw;
+wire  [3:0] sna_crtc_vsw;
+wire  [1:0] sna_ga_vsdelay;
+wire  [5:0] sna_ga_intcnt;
+wire        sna_int_pending;
+
+// Selected video / Gate-Array header decode, shared with sim/plus's P8
+// fixture. `wr` is exactly the old inline condition: a header byte of the
+// snapshot currently downloading.
+plus_sna_header sna_header
+(
+	.clk(clk_sys),
+	.sna_download(sna_download),
+	.wr(sna_download && ioctl_wr && (ioctl_addr < 25'h100)),
+	.addr(ioctl_addr[7:0]),
+	.data(ioctl_dout),
+
+	.version(),
+	.v3(),
+
+	.ga_inksel(sna_ga_inksel),
+	.ga_palette(sna_ga_palette),
+	.ga_config(sna_ga_config),
+	.crtc_addr(sna_crtc_addr),
+	.crtc_regs(sna_crtc_regs),
+	.rom_select(sna_rom_select),
+
+	.crtc_hcc(sna_crtc_hcc),
+	.crtc_line(sna_crtc_line),
+	.crtc_raster(sna_crtc_raster),
+	.crtc_vta(sna_crtc_vta),
+	.crtc_hsw(sna_crtc_hsw),
+	.crtc_vsw(sna_crtc_vsw),
+	.crtc_vs(sna_crtc_vs),
+	.crtc_hs(sna_hsync),
+	.crtc_adj(sna_crtc_adj),
+	.ga_vsdelay(sna_ga_vsdelay),
+	.ga_intcnt(sna_ga_intcnt),
+	.int_pending(sna_int_pending)
+);
+
+wire [11:0] plus_sna_loop_cnt0;
+wire [11:0] plus_sna_loop_cnt1;
+wire [11:0] plus_sna_loop_cnt2;
+wire [15:0] plus_sna_loop_addr0;
+wire [15:0] plus_sna_loop_addr1;
+wire [15:0] plus_sna_loop_addr2;
+wire [11:0] plus_sna_pause_cnt0;
+wire [11:0] plus_sna_pause_cnt1;
+wire [11:0] plus_sna_pause_cnt2;
+wire  [7:0] plus_sna_pause_presc0;
+wire  [7:0] plus_sna_pause_presc1;
+wire  [7:0] plus_sna_pause_presc2;
+wire  [4:0] plus_sna_seq_state;
+
 wire        sna_mem_wr = sna_download && ioctl_wr && (ioctl_addr >= 25'h100) &&
                          (ioctl_addr < sna_chunk_start) && ({9'd0, sna_mem_addr[16:10]} < sna_std_mem_size);
 reg  [31:0] sna_chunk_name = 32'd0;
@@ -266,8 +353,21 @@ reg  [15:0] sna_chunk_out = 16'd0;
 reg   [1:0] sna_rle_state = 2'd0;
 reg   [7:0] sna_rle_count = 8'd0;
 reg   [7:0] sna_rle_value = 8'd0;
+reg         sna_chunk_cpc_plus = 1'b0;
+reg         sna_cpc_plus_start = 1'b0;
+reg         sna_cpc_plus_wr    = 1'b0;
+reg   [7:0] sna_cpc_plus_data  = 8'd0;
 
-assign ioctl_wait = romdl_wait | (sna_download && |sna_rle_count && (sna_rle_state == 2'd0));
+wire        plus_sna_wr;
+wire [13:0] plus_sna_addr;
+wire  [7:0] plus_sna_data;
+wire        plus_sna_active;
+wire  [7:0] plus_sna_rmr2;
+wire        plus_sna_unlock;
+wire        plus_sna_ioctl_wait;
+wire        plus_sna_busy;
+
+assign ioctl_wait = romdl_wait | (sna_download && ((|sna_rle_count && (sna_rle_state == 2'd0)) || plus_sna_ioctl_wait)) | cpr_ioctl_wait | tape_queue_wait;
 
 function automatic [1:0] valid_model(input [1:0] requested);
 	begin
@@ -288,14 +388,36 @@ reg   [7:0] boot_dout;
 
 reg [255:0] rom_map = '0;
 
+// B10-3: page/combo have a single sequential driver (the download
+// always block below, the only page <= / combo <= writer); rom_loader_route
+// reads page combinationally and never writes it.
+reg   [8:0] page = 0;
+reg         combo = 0;
+
+wire        rom_route_active;
+wire        rom_route_valid;
+wire  [1:0] rom_route_initial_bank;
+wire  [8:0] rom_route_dest_a_hi;
+wire        rom_route_promote;
+
+rom_loader_route rom_loader_route
+(
+	.ioctl_index(ioctl_index),
+	.ioctl_addr(ioctl_addr[24:14]),
+	.page(page),
+	.rom_active(rom_route_active),
+	.addr_valid(rom_route_valid),
+	.initial_bank(rom_route_initial_bank),
+	.dest_a_hi(rom_route_dest_a_hi),
+	.promote_bank0_to_bank1(rom_route_promote)
+);
+
 reg         romdl_wait = 0;
 always @(posedge clk_sys) begin
-	reg [8:0] page = 0;
-	reg       combo = 0;
 	reg       old_download;
-	reg 	  old_dan_download;
-	reg       old_sna_download;
-	reg  	  old_st0 = 0;
+
+	sna_cpc_plus_start <= 1'b0;
+	sna_cpc_plus_wr    <= 1'b0;
 
 	if(!romdl_wait && sna_rle_count && (sna_rle_state == 2'd0) && sna_chunk_mem && (sna_chunk_bank < 4'd2)) begin
 		romdl_wait <= 1;
@@ -316,7 +438,7 @@ always @(posedge clk_sys) begin
 			sna_rle_state <= 2'd0;
 		end
 	end
-	else if((rom_download | dan_download | sna_mem_wr)  & ioctl_wr) begin
+	else if((rom_download && ioctl_wr) || dan_write_accepted || sna_mem_wr) begin
 		romdl_wait <= 1;
 		boot_dout <= ioctl_dout;
 
@@ -327,31 +449,16 @@ always @(posedge clk_sys) begin
 			boot_a[22:14] <= 9'd8 + {6'd0, sna_mem_addr[16:14]};
 			boot_a[13:0] <= sna_mem_addr[13:0];
 		end
-		else if (dan_download) begin
+		else if (dan_write_accepted) begin
 			boot_bank <= 2'b11;
 			boot_a[22:14] <= ioctl_addr[22:14];
 		end 
-		else if(ioctl_index) begin
-			boot_a[22]    <= page[8];
-			boot_a[21:14] <= page[7:0] + ioctl_addr[21:14];
-			boot_bank     <= (ioctl_index == 7) ? 2'd2 : {1'b0, &ioctl_index[7:6]};
-		end
-		else begin
-			case(ioctl_addr[24:14])
-					0,4: boot_a[22:14] <= 9'h000; //OS
-					1,5: boot_a[22:14] <= 9'h100; //BASIC
-					2,6: boot_a[22:14] <= 9'h107; //AMSDOS
-					3,7: boot_a[22:14] <= 9'h0ff; //MF2
-					8:   boot_a[22:14] <= 9'h000; //CPC464 OS
-					9:   boot_a[22:14] <= 9'h100; //CPC464 BASIC
-			  default:    romdl_wait <= 0;
-			endcase
-
-			case(ioctl_addr[24:14])
-			  0,1,2,3: boot_bank <= 0; //CPC6128
-			  4,5,6,7: boot_bank <= 1; //CPC664
-			  8,9:     boot_bank <= 2; //CPC464
-			endcase
+		else if (rom_download) begin
+			if (rom_route_valid) begin
+				boot_bank     <= rom_route_initial_bank;
+				boot_a[22:14] <= rom_route_dest_a_hi;
+			end
+			else romdl_wait <= 0;
 		end
 	end
 
@@ -360,7 +467,7 @@ always @(posedge clk_sys) begin
 		if(boot_wr & romdl_wait) begin
 			boot_wr <= 0;
 			// load expansion ROM into both banks if manually loaded or boot name is boot.eXX
-			if(rom_download && (ioctl_index[7:6]==1 || ioctl_index[5:0]) && !boot_bank) boot_bank <= 1;
+			if(rom_download && rom_route_promote && !boot_bank) boot_bank <= 1;
 			else begin
 				{boot_wr, romdl_wait} <= 0;
 				if(boot_a[22]) rom_map[boot_a[21:14]] <= 1;
@@ -385,10 +492,6 @@ always @(posedge clk_sys) begin
 			if(ioctl_file_ext[15:0] == "Z0") begin page <= 0; combo <= 1; end
 		end
 	end
-	old_dan_download <= dan_download;
-    if (old_dan_download & ~dan_download)  begin
-        dan_eeprom_loaded <= 1'b1;
-    end
 	if(sna_download && ioctl_wr && (ioctl_addr < 25'h100)) begin
 		case(ioctl_addr[7:0])
 			8'h11: sna_cpu_dir[15:8]    <= ioctl_dout;          // F
@@ -420,11 +523,7 @@ always @(posedge clk_sys) begin
 			8'h2b: sna_cpu_dir[175:168] <= ioctl_dout;          // D'
 			8'h2c: sna_cpu_dir[183:176] <= ioctl_dout;          // L'
 			8'h2d: sna_cpu_dir[191:184] <= ioctl_dout;          // H'
-			8'h2e: sna_ga_inksel        <= ioctl_dout[4:0];
-			8'h40: sna_ga_config        <= ioctl_dout;
 			8'h41: sna_ram_config       <= ioctl_dout;
-			8'h42: sna_crtc_addr        <= ioctl_dout[4:0];
-			8'h55: sna_rom_select       <= ioctl_dout;
 			8'h56: sna_ppi_a            <= ioctl_dout;
 			8'h57: sna_ppi_b            <= ioctl_dout;
 			8'h58: sna_ppi_c            <= ioctl_dout;
@@ -442,23 +541,17 @@ always @(posedge clk_sys) begin
 					case(ioctl_dout)
 						8'd0: sna_model <= 2'd2; // CPC464
 						8'd1: sna_model <= 2'd1; // CPC664
-						8'd2, 8'd4, 8'd6: sna_model <= 2'd0; // 6128/Plus/GX snapshots need the 128K map.
+						8'd2, 8'd4, 8'd5, 8'd6: sna_model <= 2'd0; // 6128/464+/6128+/GX snapshots need the 128K map.
 					endcase
 				end
 			end
 		endcase
 
-		if(ioctl_addr[7:0] >= 8'h2f && ioctl_addr[7:0] <= 8'h3f)
-			sna_ga_palette[((ioctl_addr[7:0] - 8'h2f) * 8) +: 8] <= ioctl_dout;
-		if(ioctl_addr[7:0] >= 8'h43 && ioctl_addr[7:0] <= 8'h54)
-			sna_crtc_regs[((ioctl_addr[7:0] - 8'h43) * 8) +: 8] <= ioctl_dout;
 		if(ioctl_addr[7:0] >= 8'h5b && ioctl_addr[7:0] <= 8'h6a)
 			sna_psg_regs[((ioctl_addr[7:0] - 8'h5b) * 8) +: 8] <= ioctl_dout;
 	end
 	if(~old_download & ioctl_download & sna_download) begin
 		sna_cpu_dir <= 212'd0;
-		sna_crtc_regs <= 144'd0;
-		sna_ga_palette <= 136'd0;
 		sna_psg_regs <= 128'd0;
 		sna_mem_size <= 16'd64;
 		sna_model <= menu_model;
@@ -476,7 +569,10 @@ always @(posedge clk_sys) begin
 		sna_rle_state <= 2'd0;
 		sna_rle_count <= 8'd0;
 		sna_rle_value <= 8'd0;
-		sna_finish_pending <= 1'b0;
+		sna_chunk_cpc_plus <= 1'b0;
+		sna_cpc_plus_start <= 1'b0;
+		sna_cpc_plus_wr    <= 1'b0;
+		sna_cpc_plus_data  <= 8'd0;
 	end
 	if(sna_download && ioctl_wr && !romdl_wait && (!sna_rle_count || (sna_rle_state == 2'd2)) && (ioctl_addr >= sna_chunk_start)) begin
 		if(!sna_chunk_data) begin
@@ -499,11 +595,18 @@ always @(posedge clk_sys) begin
 					sna_chunk_mem <= (next_name[31:24] == "M") && (next_name[23:16] == "E") &&
 					                 (next_name[15:8] == "M") && (next_name[7:0] >= "0") &&
 					                 (next_name[7:0] <= "1");
+					sna_chunk_cpc_plus <= (next_name[31:24] == "C") && (next_name[23:16] == "P") &&
+					                      (next_name[15:8] == "C") && (next_name[7:0] == "+");
 					sna_chunk_rle <= (next_len != 32'd65536);
 					sna_chunk_finish <= 1'b0;
 					sna_chunk_bank <= next_name[3:0];
 					if((next_name[31:24] == "M") && (next_name[23:16] == "E") &&
 					   (next_name[15:8] == "M") && (next_name[7:0] == "1")) sna_model <= 2'd0;
+					if((next_name[31:24] == "C") && (next_name[23:16] == "P") &&
+					   (next_name[15:8] == "C") && (next_name[7:0] == "+")) begin
+						sna_cpc_plus_start <= 1'b1;
+						sna_model <= 2'd0;
+					end
 					sna_chunk_out <= 16'd0;
 					sna_rle_state <= 2'd0;
 					sna_rle_count <= 8'd0;
@@ -515,6 +618,10 @@ always @(posedge clk_sys) begin
 			reg [31:0] next_rem;
 			next_rem = sna_chunk_rem - 1'd1;
 			sna_chunk_rem <= next_rem;
+			if(sna_chunk_cpc_plus) begin
+				sna_cpc_plus_wr   <= 1'b1;
+				sna_cpc_plus_data <= ioctl_dout;
+			end
 			if(sna_chunk_mem && (sna_chunk_bank < 4'd2)) begin
 				if(!sna_chunk_rle) begin
 					romdl_wait <= 1;
@@ -577,21 +684,35 @@ always @(posedge clk_sys) begin
 				sna_chunk_len <= 32'd0;
 				sna_chunk_mem <= 1'b0;
 				sna_chunk_rle <= 1'b0;
+				sna_chunk_cpc_plus <= 1'b0;
 				sna_chunk_finish <= 1'b0;
 				sna_rle_state <= 2'd0;
 			end
 		end
 	end
-	old_sna_download <= sna_download;
-	if(old_sna_download & ~sna_download) sna_finish_pending <= 1'b1;
-	if(sna_finish_pending && !romdl_wait && !boot_wr && !sna_rle_count) begin
-		sna_finish_pending <= 1'b0;
-		sna_apply_cnt <= 3'd5;
+	old_cpr_download <= cpr_download;
+	if(old_cpr_download & ~cpr_download) cpr_finish_pending <= 1'b1;
+	if(cpr_finish_pending && !cart_service_busy) begin
+		cpr_finish_pending <= 1'b0;
+		cpr_apply_cnt <= 3'd7;
 	end
-	else if(sna_apply_cnt) sna_apply_cnt <= sna_apply_cnt - 1'd1;
-	old_st0 <= status[32];
-	if (~old_st0 & status[32]) dan_eeprom_loaded <= 0;
+	else if(cpr_apply_cnt) cpr_apply_cnt <= cpr_apply_cnt - 1'd1;
 end
+
+plus_sna_apply sna_apply
+(
+	.clk(clk_sys),
+	.sna_download(sna_download),
+	.romdl_wait(romdl_wait),
+	.boot_wr(boot_wr),
+	.sna_rle_count(sna_rle_count),
+	.plus_sna_busy(plus_sna_busy),
+	.finish_pending(sna_finish_pending),
+	.apply_cnt(sna_apply_cnt),
+	.sna_load(sna_load),
+	.sna_hold(sna_hold),
+	.owner_reset_hold(sna_owner_reset_hold)
+);
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -601,8 +722,32 @@ wire        mem_rd;
 wire [22:0] ram_a;
 wire  [7:0] ram_dout;
 
+// Plus cartridge memory service -> SDRAM held-request port. Declared ahead
+// of both the sdram instance and the service instance below.
+wire        cart_mem_req, cart_mem_write, cart_mem_ack;
+wire  [1:0] cart_mem_bank;
+wire [22:0] cart_mem_addr;
+wire  [7:0] cart_mem_wdata, cart_mem_rdata;
+wire        cart_image_valid;
+wire        cart_service_busy;
+
 wire [15:0] vram_dout;
 wire [14:0] vram_addr;
+
+// Plus model decode. Declared here rather than beside plus_model_select
+// below because the SDRAM bank select needs it (HF-3).
+wire [1:0] plus_model = status[34:33];
+wire       plus_mode;
+wire       plus_ram_128k;
+wire       plus_has_fdc;
+wire       plus_has_tape;
+
+// RAM bank for the running machine (HF-3). In Plus mode all Plus models
+// (6128+, GX4000, 464+) use bank 0 where Plus RAM and SNA snapshot data
+// reside; .ram64k on the motherboard instance configures whether the 128K
+// banking expansion is active. In classic mode the bank follows `model` with
+// the `sna_load` bridge during snapshot restore edges.
+wire [1:0] mem_bank = plus_mode ? 2'b00 : (sna_load ? sna_model : model);
 
 sdram sdram
 (
@@ -612,17 +757,27 @@ sdram sdram
 	.clk(clk_sys),
 	.clkref(ce_ref),
 
-	.oe  (reset ? 1'b0      : mem_rd & ~mf2_ram_en),
-	.we  (reset ? boot_wr   : mem_wr & ~mf2_ram_en & ~mf2_rom_en),
+	.oe  (reset ? 1'b0      : mem_rd & ~mf2_ram_en & ~plus_cart_own & ~plus_aspage_sel),
+	.we  (reset ? boot_wr   : mem_wr & ~mf2_ram_en & ~mf2_rom_en & ~plus_aspage_sel),
 	.addr(reset ? boot_a    : mf2_rom_en ? {9'h0ff, cpu_addr[13:0]} : dan_ena ? {4'd0, dan_bank, cpu_addr[13:0]} : ram_a),
-	.bank(reset ? boot_bank : dan_ena ? 2'b11 : model),
+	.bank(reset ? boot_bank : dan_ena ? 2'b11 : mem_bank),
 	.din (reset ? boot_dout : cpu_dout),
 	.dout(ram_dout),
-	.vram_bank(model),
+	// Cartridge memory service (P-1 contract, production-connected at P0).
+	// The service owns all cartridge region policy; the controller sees a
+	// generic held request on bank 3.
+	.cart_req(cart_mem_req),
+	.cart_wr(cart_mem_write),
+	.cart_bank(cart_mem_bank),
+	.cart_addr(cart_mem_addr),
+	.cart_din(cart_mem_wdata),
+	.cart_dout(cart_mem_rdata),
+	.cart_ack(cart_mem_ack),
+	.vram_bank(mem_bank),
 	.vram_addr({2'b10,vram_addr,1'b0}),
 	.vram_dout(vram_dout),
 
-	.tape_addr(tape_download ? tape_last_addr : tape_play_addr),
+	.tape_addr(tape_sdram_addr),
 	.tape_din(tape_din),
 	.tape_dout(tape_dout),
 	.tape_wr(tape_wr),
@@ -634,20 +789,40 @@ sdram sdram
 reg [1:0] model = 2'd0;
 reg reset;
 
+wire reset_base = RESET | status[0] | status[32] | buttons[1] | rom_download | key_reset | dan_download |
+                  sna_owner_reset_hold;
+
+// The SNA parser owns its download lifecycle.  In particular it must remain
+// live while sna_download is asserted and retain its CPC+ RMR2/unlock shadows
+// through sna_finish_pending/sna_apply_cnt until the delayed sna_load pulse.
+// Other reset/download sources still discard an incomplete or retained SNA.
+wire sna_parser_reset = RESET | status[0] | status[32] | buttons[1] | rom_download | key_reset | dan_download |
+                        cpr_download | cpr_finish_pending | (old_cpr_download_reset & ~cpr_download) |
+                        (cpr_apply_cnt != 3'd0);
+
+wire plus_asic_reset = sna_parser_reset | (sna_download & ~old_sna_download_reset);
+
 always @(posedge clk_sys) begin
 	if(sna_load) model <= sna_model;
 	else if(reset) model <= menu_model;
 	old_sna_download_reset <= sna_download;
-	reset <= RESET | status[0] | status[32] | buttons[1] | rom_download | key_reset | dan_download |
-	         sna_download | sna_finish_pending | (old_sna_download_reset & ~sna_download) | (sna_apply_cnt > 3'd2);
+	old_cpr_download_reset <= cpr_download;
+	reset <= reset_base | cpr_download | cpr_finish_pending |
+	         (old_cpr_download_reset & ~cpr_download) | (cpr_apply_cnt != 3'd0);
 end
 
 ////////////////////// CDT playback ///////////////////////////////
 
-reg  [22:0] tape_last_addr;
-reg   [7:0] tape_din;
-reg         tape_wr = 0;
+// B8-7: the download write queue (held request, queued payload/address,
+// ioctl backpressure, drain-held address ownership) lives in
+// rtl/tape_write_queue.v so the physical-DQ fixture executes the same seam.
+wire [22:0] tape_last_addr;
+wire  [7:0] tape_din;
+wire        tape_wr;
 wire        tape_wr_ack;
+wire [22:0] tape_sdram_addr;
+wire        tape_queue_wait;
+wire        tape_queue_pending;
 wire        tape_read;
 wire        tape_running;
 wire        tape_data_req;
@@ -657,27 +832,40 @@ wire  [7:0] tape_dout;
 reg  [22:0] tape_play_addr;
 wire        tape_motor;
 
+tape_write_queue tape_queue
+(
+	.clk(clk_sys),
+	.reset(reset),
+	.clear(reset | Fn[2]),
+	.tape_download(tape_download),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_dout(ioctl_dout),
+	.ioctl_addr(ioctl_addr[22:0]),
+	.tape_wr_ack(tape_wr_ack),
+	.tape_play_addr(tape_play_addr),
+	.tape_wr(tape_wr),
+	.tape_din(tape_din),
+	.tape_queued_addr(tape_last_addr),
+	.tape_addr(tape_sdram_addr),
+	.tape_wait(tape_queue_wait),
+	.tape_pending(tape_queue_pending)
+);
+
 always @(posedge clk_sys) begin
 	reg old_tape_ack;
 	reg old_dan_download;
-
-	if(tape_wr_ack | reset) tape_wr <= 0;
-	if(tape_download && ioctl_wr) begin
-		tape_wr <= 1;
-		tape_din <= ioctl_dout;
-		tape_last_addr <= ioctl_addr[22:0];
-	end
 
 	old_tape_ack <= tape_data_ack;
 
 	if (reset | Fn[2]) begin
 		tape_play_addr <= 0;
-		tape_last_addr <= 0;
 		tape_reset <= 1;
 	end
 	else begin
 		tape_reset <= 0;
-		if (tape_download) begin
+		// B8-7: keep download address ownership and the player reset until
+		// the pending write drains, even if the download ends first.
+		if (tape_download | tape_queue_pending) begin
 			tape_play_addr <= 0;
 			tape_reset <= 1;
 		end
@@ -729,7 +917,9 @@ always @(posedge clk_sys) if((tape_ready & tape_motor) || ~act_cnt[24] || act_cn
 
 //////////////////////////////////////////////////////////////////////////
 
-wire [3:0] fdc_sel = {cpu_addr[10],cpu_addr[8],cpu_addr[7],cpu_addr[0]};
+// Classic and Plus FDC port selections are intentionally kept in one shared
+// decoder so the production path and its focused test use the same equations.
+wire fdc_motor_sel;
 wire [7:0] fdc_dout = (u765_sel & io_rd) ? u765_dout : 8'hFF;
 
 reg motor = 0;
@@ -737,13 +927,25 @@ always @(posedge clk_sys) begin
 	reg old_wr;
 	
 	old_wr <= io_wr;
-	if(~old_wr && io_wr && !fdc_sel[3:1]) begin
+	if (reset) begin
+		motor <= 1'b0;
+	end else if(~old_wr && io_wr && fdc_motor_sel) begin
 		motor <= cpu_dout[0];
 	end
 end
 
 wire [7:0] u765_dout;
-wire       u765_sel = (fdc_sel[3:1] == 'b010) & ~status[17];
+wire       u765_sel;
+
+plus_fdc_decode fdc_decode
+(
+	.addr(cpu_addr),
+	.plus_mode(plus_mode),
+	.plus_has_fdc(plus_has_fdc),
+	.fdc_disabled(status[17]),
+	.motor_sel(fdc_motor_sel),
+	.u765_sel(u765_sel)
+);
 
 reg  [1:0] u765_ready = 0;
 always @(posedge clk_sys) if(img_mounted[0]) u765_ready[0] <= |img_size;
@@ -751,14 +953,16 @@ always @(posedge clk_sys) if(img_mounted[1]) u765_ready[1] <= |img_size;
 
 u765 u765
 (
-	.reset(status[0]),
+	.reset(reset),
 
 	.clk_sys(clk_sys),
 	.ce(ce_u765),
 	
 	.fast(status[16]),
 
-	.a0(fdc_sel[0]),
+	// CPC I/O map: A0 selects status/data on reads, but both A0 write
+	// aliases address the uPD765 data register.
+	.a0(cpu_addr[0] | (u765_sel & io_wr)),
 	.ready(u765_ready),
 	.motor({motor,motor}),
 	.available(2'b11),
@@ -952,7 +1156,23 @@ wire        tape_rec;
 wire  [1:0] mode;
 wire        joy1_sel;
 
-wire  [7:0] cpu_din = ram_dout & mf2_dout & fdc_dout & kmouse_dout & smouse_dout & mmouse_dout & playcity_dout;
+wire        plus_cart_valid, plus_cart_ready;
+wire  [4:0] plus_cart_page;
+wire [13:0] plus_cart_offset;
+wire  [7:0] plus_cart_data;
+wire        plus_cart_own, plus_cart_stall;
+wire  [7:0] plus_cart_dout;
+wire  [7:0] plus_io_bus_byte;
+wire        plus_asic_unlocked;
+
+// Cartridge-owned reads bypass the wired-AND entirely: the SDRAM main port
+// is not asked for those cycles (see the sdram oe term below), so ram_dout
+// holds stale bytes that must not participate. Classic mode never owns a
+// cycle, so the mux reduces to the historical chain.
+wire  [7:0] cpu_din_bus = ram_dout & mf2_dout & fdc_dout & kmouse_dout & smouse_dout & mmouse_dout & playcity_dout;
+wire  [7:0] cpu_din = plus_vec_valid ? plus_vec_byte :
+                      plus_asic_rd   ? plus_asic_dout :
+                      plus_cart_own  ? plus_cart_dout : cpu_din_bus;
 wire NMI = playcity_nmi | mf2_nmi;
 wire        IRQ = ~playcity_int_n;
 
@@ -961,11 +1181,214 @@ wire io_wr = wr & iorq;
 wire romen;
 wire ready;
 
+plus_model_select plus_model_decoder
+(
+	.plus_model(plus_model),
+	.plus_mode(plus_mode),
+	.ram_128k(plus_ram_128k),
+	.has_fdc(plus_has_fdc),
+	.has_tape(plus_has_tape)
+);
+
+// B6 capability visibility: classic machines retain both media controls;
+// selected Plus models narrow them to the devices they actually provide.
+plus_menu_capability_mask menu_capability_mask
+(
+	.en270p(en270p),
+	.plus_mode(plus_mode),
+	.plus_has_fdc(plus_has_fdc),
+	.plus_has_tape(plus_has_tape),
+	.status_menumask(status_menumask)
+);
+
+//////////////////// Plus cartridge path (P0) ///////////////////////////
+
+wire plus_gx4000 = (plus_model == 2'b01);
+
+// P0 definition of the expansion-port /EXP input: high means no expansion
+// device is connected (the pulled-up bare machine), so the ROM-select-0
+// rule resolves to page 3 on 464+/6128+. Future expansion emulation drives
+// it low while claiming the port; docs/plus/architecture.md records the
+// decision and the live-sampling rule.
+wire plus_exp_n = 1'b1;
+
+plus_mmu plus_mmu
+(
+	.clk(clk_sys),
+	.reset(reset),
+	.plus_mode(plus_mode),
+	.gx4000(plus_gx4000),
+	.io_rd(io_rd),
+	.io_wr(io_wr),
+	.mem_rd(mem_rd),
+	.A(cpu_addr),
+	.D(io_rd ? plus_io_bus_byte : cpu_dout),
+	.rom_en(romen),
+	.exp_n(plus_exp_n),
+
+	.cart_valid(plus_cart_valid),
+	.cart_page(plus_cart_page),
+	.cart_offset(plus_cart_offset),
+	.cart_ready(plus_cart_ready),
+	.cart_data(plus_cart_data),
+	.cart_busy(cart_service_busy),
+
+	.cart_own(plus_cart_own),
+	.cart_stall(plus_cart_stall),
+	.cart_dout(plus_cart_dout),
+
+	// Captured since P0; consumed when the ASIC register page gains its
+	// backing at P2.
+	.asic_page_on(plus_aspage_on),
+	.asic_unlocked(plus_asic_unlocked),
+
+	.sna_load(sna_load),
+	.sna_rmr2(plus_sna_rmr2),
+	.sna_unlock(plus_sna_unlock),
+	.sna_ga_config(sna_ga_config),
+	.sna_romsel(sna_rom_select),
+	.sna_seq_state(plus_sna_seq_state)
+);
+
+plus_sna_parser plus_sna_parser
+(
+	.clk(clk_sys),
+	.reset(sna_parser_reset),
+	.sna_download(sna_download),
+	.cpc_plus_chunk_start(sna_cpc_plus_start),
+	.cpc_plus_byte_wr(sna_cpc_plus_wr),
+	.cpc_plus_byte_data(sna_cpc_plus_data),
+	.ioctl_wait(plus_sna_ioctl_wait),
+	.busy(plus_sna_busy),
+	.asic_sna_wr(plus_sna_wr),
+	.asic_sna_addr(plus_sna_addr),
+	.asic_sna_data(plus_sna_data),
+	.asic_sna_active(plus_sna_active),
+	.asic_sna_rmr2(plus_sna_rmr2),
+	.asic_sna_unlock(plus_sna_unlock),
+	.asic_sna_loop_cnt0(plus_sna_loop_cnt0),
+	.asic_sna_loop_cnt1(plus_sna_loop_cnt1),
+	.asic_sna_loop_cnt2(plus_sna_loop_cnt2),
+	.asic_sna_loop_addr0(plus_sna_loop_addr0),
+	.asic_sna_loop_addr1(plus_sna_loop_addr1),
+	.asic_sna_loop_addr2(plus_sna_loop_addr2),
+	.asic_sna_pause_cnt0(plus_sna_pause_cnt0),
+	.asic_sna_pause_cnt1(plus_sna_pause_cnt1),
+	.asic_sna_pause_cnt2(plus_sna_pause_cnt2),
+	.asic_sna_pause_presc0(plus_sna_pause_presc0),
+	.asic_sna_pause_presc1(plus_sna_pause_presc1),
+	.asic_sna_pause_presc2(plus_sna_pause_presc2),
+	.asic_sna_seq_state(plus_sna_seq_state)
+);
+
+wire [7:0] plus_vec_byte;
+wire       plus_vec_valid;
+wire plus_aspage_on;
+wire [7:0] plus_asic_dout;
+wire       plus_asic_rd;
+// The whole &4000-&7FFF window while the page is enabled: reads are
+// answered by the motherboard's asic_regs instance and BOTH directions
+// must be suppressed against main memory (no read/write-through,
+// reference §2). Suppression follows the cartridge-owned-cycle pattern.
+wire plus_aspage_sel = plus_mode & plus_aspage_on &
+                       (mem_rd | mem_wr) & (cpu_addr[15:14] == 2'b01);
+
+// CPR loader stream (P0): the parser validates the RIFF envelope and cbNN
+// chunks and streams page bytes into the cartridge memory service. Its
+// ioctl_wait output joins the download throttle above so the HPS paces the
+// byte stream while writes are outstanding.
+wire        cart_load_begin;
+wire        cart_load_commit;
+wire        cart_load_abort;
+wire        cart_load_valid;
+wire [5:0]  cart_load_page;
+wire [14:0] cart_load_offset;
+wire [7:0]  cart_load_data;
+wire        cart_load_ready;
+wire        cart_load_error;
+
+plus_cpr_parser cpr_parser
+(
+	.clk(clk_sys),
+	.reset(reset_base),
+
+	.cpr_download(cpr_download),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_addr(ioctl_addr),
+	.ioctl_dout(ioctl_dout),
+	.ioctl_wait(cpr_ioctl_wait),
+
+	.load_begin(cart_load_begin),
+	.load_commit(cart_load_commit),
+	.load_abort(cart_load_abort),
+	.load_valid(cart_load_valid),
+	.load_page(cart_load_page),
+	.load_offset(cart_load_offset),
+	.load_data(cart_load_data),
+	.load_ready(cart_load_ready),
+	.load_error(cart_load_error)
+);
+
+plus_cartridge_memory cartridge_memory
+(
+	.clk(clk_sys),
+	.cold_reset(reset_base),
+	// B6: Reset & Detach Dandanator (R[32]) resets the machine and detaches
+	// the Dandanator only.  The Plus image is replaced atomically by CPR
+	// loads and keeps its module-level detach API for standalone users
+	// without exposing it here.
+	.detach(1'b0),
+
+	.load_begin(cart_load_begin),
+	.load_commit(cart_load_commit),
+	.load_abort(cart_load_abort),
+	.load_valid(cart_load_valid),
+	.load_page(cart_load_page),
+	.load_offset(cart_load_offset),
+	.load_data(cart_load_data),
+	.load_ready(cart_load_ready),
+	.load_error(cart_load_error),
+
+	.cpu_valid(plus_cart_valid),
+	.cpu_page({1'b0, plus_cart_page}),
+	.cpu_offset(plus_cart_offset),
+	.cpu_ready(plus_cart_ready),
+	.cpu_data(plus_cart_data),
+
+	.image_valid(cart_image_valid),
+	.busy(cart_service_busy),
+
+	.mem_req(cart_mem_req),
+	.mem_write(cart_mem_write),
+	.mem_bank(cart_mem_bank),
+	.mem_addr(cart_mem_addr),
+	.mem_wdata(cart_mem_wdata),
+	.mem_ack(cart_mem_ack),
+	.mem_rdata(cart_mem_rdata)
+);
+
 Amstrad_motherboard motherboard
 (
 	.reset(reset),
 	.clk(clk_sys),
 	.ce_16(ce_16),
+
+	// Reserved until the Plus subsystems are integrated. Keeping these
+	// explicit prevents the classic CPC model path from changing at P-2.
+	.plus_mode(plus_mode),
+	.plus_unlocked(plus_asic_unlocked),
+	.plus_ram_128k(plus_ram_128k),
+	.plus_has_fdc(plus_has_fdc),
+	.plus_has_tape(plus_has_tape),
+
+	// Plus cartridge-window reads hold the Z80 in WAIT while the cartridge
+	// memory service fetches from SDRAM. Constant 0 in classic mode.
+	.plus_mem_wait(plus_cart_stall),
+	.plus_aspage_on(plus_aspage_on),
+	.plus_asic_dout(plus_asic_dout),
+	.plus_asic_rd(plus_asic_rd),
+	.plus_vec_byte(plus_vec_byte),
+	.plus_vec_valid(plus_vec_valid),
 
 	.right_shift_mod(st_right_shift_mod),
 	.keypad_mod(st_keypad_mod),
@@ -976,7 +1399,12 @@ Amstrad_motherboard motherboard
 	.no_wait(status[6] & ~tape_motor),
 	.ppi_jumpers({1'b1, ~status[44:42]}),
 	.crtc_type(~status[2]),
-	.sync_filter(1),
+	// 0 Full, 1 Live blanking, 2 Off.  Mode 1 keeps the regenerated sync the
+	// scaler needs while letting blanking follow the live Gate Array, so the
+	// HSYNC black zone moves with the CRTC (ACCC R2.JIT family).  Mode 2 is
+	// the raw path and garbles software that varies line geometry.  See
+	// rtl/Amstrad_motherboard.v and docs/backlog.md B1.
+	.sync_filter(status[36:35]),
 
 	.sna_load(sna_load),
 	.sna_cpu_dir(sna_cpu_dir),
@@ -994,6 +1422,39 @@ Amstrad_motherboard motherboard
 	.sna_psg_addr(sna_psg_addr),
 	.sna_psg_regs(sna_psg_regs),
 
+	.sna_hold(sna_hold),
+	.sna_hsync(sna_hsync),
+	.sna_dma_loop_cnt0(plus_sna_loop_cnt0),
+	.sna_dma_loop_cnt1(plus_sna_loop_cnt1),
+	.sna_dma_loop_cnt2(plus_sna_loop_cnt2),
+	.sna_dma_loop_addr0(plus_sna_loop_addr0),
+	.sna_dma_loop_addr1(plus_sna_loop_addr1),
+	.sna_dma_loop_addr2(plus_sna_loop_addr2),
+	.sna_dma_pause_cnt0(plus_sna_pause_cnt0),
+	.sna_dma_pause_cnt1(plus_sna_pause_cnt1),
+	.sna_dma_pause_cnt2(plus_sna_pause_cnt2),
+	.sna_dma_pause_presc0(plus_sna_pause_presc0),
+	.sna_dma_pause_presc1(plus_sna_pause_presc1),
+	.sna_dma_pause_presc2(plus_sna_pause_presc2),
+
+	.sna_crtc_hcc(sna_crtc_hcc),
+	.sna_crtc_line(sna_crtc_line),
+	.sna_crtc_raster(sna_crtc_raster),
+	.sna_crtc_vta(sna_crtc_vta),
+	.sna_crtc_hsw(sna_crtc_hsw),
+	.sna_crtc_vsw(sna_crtc_vsw),
+	.sna_crtc_vs(sna_crtc_vs),
+	.sna_crtc_adj(sna_crtc_adj),
+	.sna_ga_vsdelay(sna_ga_vsdelay),
+	.sna_ga_intcnt(sna_ga_intcnt),
+	.sna_int_pending(sna_int_pending),
+	.sna_plus_chunk(plus_sna_active),
+
+	.plus_sna_wr(plus_sna_wr),
+	.plus_sna_addr(plus_sna_addr),
+	.plus_sna_data(plus_sna_data),
+	.plus_asic_reset(plus_asic_reset),
+
 	.joy1((status[21] ? amouse_dout : 7'd0) | (status[18] ? joy2 : joy1)),
 	.joy2(status[18] ? joy1 : joy2),
 
@@ -1010,16 +1471,16 @@ Amstrad_motherboard motherboard
 	.vblank(vbl),
 	.hsync(hs),
 	.vsync(vs),
-	.red(r),
-	.green(g),
-	.blue(b),
+	.red(r4),
+	.green(g4),
+	.blue(b4),
 	.field(VGA_F1),
 
 	.vram_din(vram_dout),
 	.vram_addr(vram_addr),
 
 	.rom_map(rom_map),
-	.ram64k(model != 2'd0),
+	.ram64k(plus_mode ? !plus_ram_128k : (model != 2'd0)),
 	.mem_rd(mem_rd),
 	.mem_wr(mem_wr),
 	.mem_addr(ram_a),
@@ -1036,6 +1497,7 @@ Amstrad_motherboard motherboard
 	.rd(rd),
 	.wr(wr),
 	.m1(m1),
+	.io_bus_byte(plus_io_bus_byte),
 	.ga_ready(ready),
 	.nmi(NMI),
 	.irq(IRQ),
@@ -1053,8 +1515,19 @@ wire dan_ramdis;
 wire dan_eeprom_nce;
 wire dan_eeprom_nwr;
 //wire dan_nnmi;
-reg dan_eeprom_loaded = 1'b0;
-wire dan_ena = ~dan_eeprom_nce & dan_eeprom_loaded;
+wire dan_eeprom_loaded;
+wire dan_ena;
+
+plus_legacy_cart_gate legacy_cart_gate
+(
+	.clk(clk_sys),
+	.plus_mode(plus_mode),
+	.dandanator_download(dan_download),
+	.dandanator_detach(status[32]),
+	.dandanator_nce(dan_eeprom_nce),
+	.dandanator_loaded(dan_eeprom_loaded),
+	.dandanator_active(dan_ena)
+);
 
 CPC_Dandanator dandanator(
     .clk(clk_sys),
@@ -1094,89 +1567,48 @@ CPC_Dandanator dandanator(
 
 assign CLK_VIDEO = clk_sys;
 
-reg ce_pix_fs;
-always @(posedge CLK_VIDEO) begin
-	reg [1:0] mode_fs;
-	reg [1:0] mode_next;
-	reg [1:0] cycle;
-	reg       old_vsync;
-
-	ce_pix_fs <= 0;
-
-	if (ce_16) begin
-		cycle <= cycle + 1'd1;
-
-		case(mode_fs)
-			2:   ce_pix_fs <= 1;
-			1:   ce_pix_fs <= !cycle[0];
-			0,3: ce_pix_fs <= !cycle[1:0];
-		endcase
-
-		old_vsync <= vs;
-		if(~old_vsync & vs) begin
-			mode_fs <= mode_next; //HQ2x friendly vmode
-			mode_next <= 0;
-			cycle <= 0;
-		end
-
-		// choose highest pixel rate during the whole active time
-		if (~hbl && ~vbl && ~&mode && mode > mode_next) mode_next <= mode;
-	end
-end
-
-wire ce_pix = (hq2x | status[30]) ? ce_pix_fs : ce_16;
-
-wire [1:0] b, g, r;
-wire       hs, vs, hbl, vbl;
-
-color_mix color_mix
-(
-	.clk_vid(CLK_VIDEO),
-	.ce_pix(ce_pix),
-	.mix(status[13:11]),
-
-	.HSync_in(hs),
-	.VSync_in(vs),
-	.HBlank_in(hbl),
-	.VBlank_in(vbl),
-	.B_in(b),
-	.G_in(g),
-	.R_in(r),
-
-	.HSync_out(HSync),
-	.VSync_out(VSync),
-	.HBlank_out(HBlank),
-	.VBlank_out(VBlank),
-	.B_out(B),
-	.G_out(G),
-	.R_out(R)
-);
-
+wire [3:0] b4, g4, r4;
+wire hs, vs, hbl, vbl;
+wire ce_pix;
 wire [7:0] B, G, R;
-wire       HSync, VSync, HBlank, VBlank;
+wire HSync, VSync, HBlank, VBlank;
+
+amstrad_video_color video_color (
+    .CLK_VIDEO(CLK_VIDEO), .ce_16(ce_16),
+    .hq2x(hq2x), .pixel_rate_select(status[30]), .plus_mode(plus_mode),
+    .mode(mode), .mix(status[13:11]), .r4(r4), .g4(g4), .b4(b4),
+    .hs(hs), .vs(vs), .hbl(hbl), .vbl(vbl), .ce_pix(ce_pix),
+    .R_out(R), .G_out(G), .B_out(B),
+    .HSync(HSync), .VSync(VSync), .HBlank(HBlank), .VBlank(VBlank)
+);
 
 wire [1:0] scale = status[10:9];
 wire       hq2x = (scale == 1);
 
 assign VGA_SL = scale[1] ? scale : 2'b00;
 
-reg [2:0] interlace;
-always @(posedge CLK_VIDEO) begin
-	reg old_vs;
-	
-	old_vs <= vs;
-	if(~old_vs & vs) interlace <= {interlace[1:0], VGA_F1};
-end
+wire [2:0] interlace;
+wire       scandoubler_en;
+video_interlace interlace_hist
+(
+	.clk(CLK_VIDEO),
+	.vsync_in(vs),
+	.field_in(VGA_F1),
+	.scale(scale),
+	.forced_scandoubler(forced_scandoubler),
+	.interlace(interlace),
+	.scandoubler(scandoubler_en)
+);
 
 video_mixer #(.LINE_LENGTH(800), .GAMMA(1)) video_mixer
 (
 	.*,
-	.R(R[7:0] | {8{progress_pix}}),
-	.G(G[7:0] | {8{progress_pix}}),
-	.B(B[7:0] | {8{progress_pix}}),
+	.R(R | {8{progress_pix}}),
+	.G(G | {8{progress_pix}}),
+	.B(B | {8{progress_pix}}),
 	.VGA_DE(vga_de),
 	.freeze_sync(),
-	.scandoubler((scale || forced_scandoubler) && !interlace)
+	.scandoubler(scandoubler_en)
 );
 
 reg en270p;

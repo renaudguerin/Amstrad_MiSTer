@@ -22,6 +22,32 @@ module Amstrad_motherboard
 	input         clk,
 	input         ce_16,
 
+	// Plus model capability inputs.  They are inactive in classic mode.
+	input         plus_mode,
+	// Authoritative ASIC lock state from plus_mmu.  This is consumed by the
+	// Plus Gate Array register file to split the 101xxxxx MRER alias from
+	// unlocked RMR2 writes.
+	input         plus_unlocked,
+	input         plus_ram_128k,
+	input         plus_has_fdc,
+	input         plus_has_tape,
+
+	// Active-high extra WAIT for Plus cartridge-window memory reads. The
+	// cartridge fetch path drives it; it is constant 0 in classic mode, so
+	// the wait expression is unchanged there.
+	input         plus_mem_wait,
+
+	// Plus ASIC register page enable (RMR2 position 11, unlock-gated,
+	// captured by plus_mmu). While high, memory accesses at &4000-&7FFF
+	// are answered by the on-chip asic_regs page and MUST be suppressed
+	// against main memory by the caller (no write-through, reference §2);
+	// the caller also owns the CPU data mux for the answered reads.
+	input         plus_aspage_on,
+	output [7:0]  plus_asic_dout, // wired-AND-neutral page read data
+	output        plus_asic_rd,   // page answering a read this cycle
+	output [7:0]  plus_vec_byte,  // INT-acknowledge vector (P3, reference §7)
+	output        plus_vec_valid, // high during the acknowledge cycle
+
 	input   [6:0] joy1,
 	input   [6:0] joy2,
 	input         right_shift_mod,
@@ -36,7 +62,7 @@ module Amstrad_motherboard
 
 	input   [3:0] ppi_jumpers,
 	input         crtc_type,
-	input         sync_filter,
+	input   [1:0] sync_filter,
 	input         no_wait,
 
 	input         sna_load,
@@ -55,6 +81,51 @@ module Amstrad_motherboard
 	input   [3:0] sna_psg_addr,
 	input [127:0] sna_psg_regs,
 
+	// B8-5 slice A: snapshot CPU execution hold (high through the apply
+	// pulse) and settled CPC+/header DMA payload. sna_hold gates both T80
+	// CEN enables: T80 RESET has priority over DIRSet while DIRSet loads
+	// independently of CEN (rtl/T80/T80pa.vhd, T80.vhd, T80_Reg.vhd), so
+	// the CPU cannot execute until the owners settle yet the register
+	// load still lands. Non-SNA fixtures tie all of these to zero.
+	input         sna_hold,
+	input         sna_hsync,
+	input  [11:0] sna_dma_loop_cnt0,
+	input  [11:0] sna_dma_loop_cnt1,
+	input  [11:0] sna_dma_loop_cnt2,
+	input  [15:0] sna_dma_loop_addr0,
+	input  [15:0] sna_dma_loop_addr1,
+	input  [15:0] sna_dma_loop_addr2,
+	input  [11:0] sna_dma_pause_cnt0,
+	input  [11:0] sna_dma_pause_cnt1,
+	input  [11:0] sna_dma_pause_cnt2,
+	input   [7:0] sna_dma_pause_presc0,
+	input   [7:0] sna_dma_pause_presc1,
+	input   [7:0] sna_dma_pause_presc2,
+
+	// B8-5 slice B: settled SNA v3 header state for the selected video and
+	// Gate Array owners (plus_sna_header decodes it; zero for v1/v2 files).
+	// sna_hsync above is the same B0 bit 1 these use.
+	input   [7:0] sna_crtc_hcc,
+	input   [6:0] sna_crtc_line,
+	input   [4:0] sna_crtc_raster,
+	input   [4:0] sna_crtc_vta,
+	input   [3:0] sna_crtc_hsw,
+	input   [3:0] sna_crtc_vsw,
+	input         sna_crtc_vs,
+	input         sna_crtc_adj,
+	input   [1:0] sna_ga_vsdelay,
+	input   [5:0] sna_ga_intcnt,
+	input         sna_int_pending,
+	// High when the snapshot carried a CPC+ chunk, so the ASIC palette was
+	// restored at full 12-bit depth and must not be overwritten by the
+	// header's 5-bit hardware colours.
+	input         sna_plus_chunk,
+
+	input         plus_sna_wr,
+	input  [13:0] plus_sna_addr,
+	input   [7:0] plus_sna_data,
+	input         plus_asic_reset,
+
 	input         tape_in,
 	output        tape_out,
 	output        tape_motor,
@@ -64,9 +135,14 @@ module Amstrad_motherboard
 
 	output  [1:0] mode,
 
-	output  [1:0] red,
-	output  [1:0] green,
-	output  [1:0] blue,
+	// 4-bit-per-channel video (P2 widening). In Plus mode these carry the
+	// ASIC palette's native 4-bit levels. In classic mode the low two bits
+	// hold the netlist's raw {level, OE_N} pair unchanged — the consumption
+	// point (color_mix) keeps its exact GA-DAC behaviour; the upper bits
+	// are zero there.
+	output  [3:0] red,
+	output  [3:0] green,
+	output  [3:0] blue,
 	output        hblank,
 	output        vblank,
 	output        hsync,
@@ -94,6 +170,7 @@ module Amstrad_motherboard
 	output        rd,
 	output        wr,
 	output        m1,
+	output reg [7:0] io_bus_byte,
 	output        ga_ready,
 	input         irq,
 	input         nmi,
@@ -101,6 +178,7 @@ module Amstrad_motherboard
 );
 
 wire crtc_shift;
+
 
 wire io_rd = ~(RD_n | IORQ_n);
 wire io_wr = ~(WR_n | IORQ_n);
@@ -124,20 +202,33 @@ wire WR_n;
 wire MREQ_n;
 wire IORQ_n;
 wire RFSH_n;
-wire INT_n;
+wire ga_int_n;
+wire INT_n = plus_mode ? plus_int_n : ga_int_n;
 wire M1_n;
+wire [7:0] ppi_dout;
+wire [7:0] ppi_cpu_dout;
+wire [7:0] cpu_data_bus = crtc_dout_sel & ppi_cpu_dout & cpu_din;
+wire [7:0] plus_io_data = io_rd ? io_bus_byte : D;
 
-T80pa CPU
+// Write-only Plus ports see the byte left by the final opcode fetch of the
+// current instruction, not T80's undriven/stale DO value ([KT] Ports). This
+// is the ASIC's open-bus source for IN-performs-write traps.
+always @(posedge clk) begin
+	if (reset) io_bus_byte <= 8'hFF;
+	else if (~M1_n & ~MREQ_n & ~RD_n) io_bus_byte <= cpu_data_bus;
+end
+
+	T80pa CPU
 (
 	.reset_n(~reset),
-	
+
 	.clk(clk),
-	.cen_p(phi_en_p),
-	.cen_n(phi_en_n),
+	.cen_p(phi_en_p & ~sna_hold),
+	.cen_n(phi_en_n & ~sna_hold),
 
 	.a(A),
 	.do(D),
-	.di(crtc_dout & ppi_dout & cpu_din),
+	.di(cpu_data_bus),
 
 	.rd_n(RD_n),
 	.wr_n(WR_n),
@@ -149,17 +240,24 @@ T80pa CPU
 	.busrq_n(1),
 	.int_n(INT_n & ~irq),
 	.nmi_n(~nmi),
-	.wait_n(ready | (IORQ_n & MREQ_n) | no_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
+	// plus_mem_wait stretches cartridge-window read cycles beyond the
+	// no_wait fast-timing option: correctness outranks the speed hack.
+	// dma_ppi_wait stalls the CPU when accessing PPI/PSG during DMA LOAD.
+	.wait_n((ready | (IORQ_n & MREQ_n) | no_wait) & ~plus_mem_wait & ~dma_ppi_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
 	.DIRSet(sna_load),
 	.DIR(sna_cpu_dir)
 );
 
-wire crtc_hs, crtc_vs, crtc_de;
+wire crtc_hs, crtc_vs, crtc_de, crtc_field;
 wire [13:0] MA;
 wire  [4:0] RA;
 wire  [7:0] crtc_dout;
+wire  [7:0] plus_crtc_dout;
+// Only the selected machine's CRTC may participate in the wired-AND CPU
+// data bus. The explicit mux also keeps plus_mode=0 invariant.
+wire  [7:0] crtc_dout_sel = plus_mode ? plus_crtc_dout : crtc_dout;
 
-UM6845R CRTC
+CRTC crtc
 (
 	.CLOCK(clk),
 	.CLKEN(cclk_en_n),
@@ -181,14 +279,511 @@ UM6845R CRTC
 	.VSYNC(crtc_vs),
 	.HSYNC(crtc_hs),
 	.DE(crtc_de),
-	.FIELD(field),
+	.FIELD(crtc_field),
 	.CURSOR(cursor),
 
 	.MA(MA),
 	.RA(RA)
 );
 
-wire [14:0] crtc_vram_addr = {MA[13:12], RA[2:0], MA[9:0]};
+// -----------------------------------------------------------------------
+// Plus ASIC video/timing path (plus_mode == 1). Both subsystems always
+// instantiate (the house pattern here is capability muxes, no generate);
+// in classic mode their outputs are muxed away and the classic CRTC +
+// ga40010 path is untouched bit-for-bit, which the classic suites and the
+// soak hash pin. See docs/plus/architecture.md §2/§5 Risk 1.
+// -----------------------------------------------------------------------
+wire plus_crtc_hs, plus_crtc_vs, plus_crtc_de;
+wire [13:0] plus_ma;
+wire [4:0]  plus_ra;
+wire [6:0]  plus_vc;   // CRTC3 char line counter (VC; [5:0] used by PRI)
+wire [4:0]  plus_rc;   // C9 raster count within the char line
+wire        plus_adj;  // vertical adjustment active
+wire        plus_ga_int_n;
+wire        plus_dma_int_req;
+wire        plus_int_n = plus_ga_int_n & ~plus_dma_int_req;
+wire        plus_ready, plus_ras_n, plus_cas_n, plus_cpu_n;
+wire        plus_cclk_en_p, plus_cclk_en_n;
+wire        plus_phi_en_p, plus_phi_en_n, plus_phi_n;
+wire        plus_hsync_o, plus_vsync_o, plus_vblank;
+wire [4:0]  asic_border;
+wire [79:0] asic_inkr;
+wire        leg_pal_wr;
+wire [4:0]  leg_pal_addr;
+wire [4:0]  leg_pal_data;
+wire [1:0]  plus_gamode;
+wire [3:0]  plus_rgb_r, plus_rgb_g, plus_rgb_b;
+reg  [15:0] plus_vidword;
+// P4 sprite engine plumbing (asic_video seam + composited plane, and the
+// asic_regs video services it consumes).
+wire         plus_hwrap;
+wire         plus_spr_en;
+wire  [11:0] plus_spr_rgb;
+wire         plus_spr_fq_req;
+wire  [10:0] plus_spr_fq_addr;
+wire   [7:0] plus_spr_fq_data;
+wire         plus_spr_fq_ack;
+wire         plus_spr_acc_en;
+wire   [3:0] plus_spr_acc_idx;
+wire [159:0] plus_spr_x;
+wire [143:0] plus_spr_y;
+wire  [63:0] plus_spr_mag;
+wire [179:0] plus_spr_pal;
+// Video-side 12-bit palette port: asic_video names the entry, asic_regs
+// answers one clock later (reference §6 secondary/dual port).
+wire   [4:0] plus_pal_raddr;
+wire  [11:0] plus_pal_rdata;
+
+// Selected raster sources: classic path when Plus model = Off.
+wire [13:0] ma_sel = plus_mode ? plus_ma : MA;
+wire [4:0]  ra_sel = plus_mode ? plus_ra : RA;
+wire        hs_sel = plus_mode ? plus_crtc_hs : crtc_hs;
+wire        vs_sel = plus_mode ? plus_crtc_vs : crtc_vs;
+wire        de_sel = plus_mode ? plus_crtc_de : crtc_de;
+// B8-2: the scaler-facing FIELD (VGA_F1) belongs to the selected machine.
+// Classic FIELD stays with the classic CRTC; Plus FIELD comes from the ASIC's
+// own frame parity (see asic_video FIELD). Unselected-engine perturbation must
+// not reach the pin.
+wire        plus_field;
+assign field = plus_mode ? plus_field : crtc_field;
+
+asic_ga_timing asic_ga
+(
+	.clk(clk),
+	.cen_16(ce_16),
+	.fast(no_wait),
+	.RESET_N(~reset),
+
+	.A(A[15:14]),
+	.D(plus_io_data),
+	.MREQ_N(MREQ_n),
+	.M1_N(M1_n),
+	.RD_N(RD_n),
+	.IORQ_N(IORQ_n),
+
+	.HSYNC_I(plus_crtc_hs),
+	.VSYNC_I(plus_crtc_vs),
+
+	// P3 programmable raster interrupt: {VC5..VC0, RC2..RC0} per the
+	// reference comparison; the shaped-monitor trailing edge fires.
+	.pri(asic_pri),
+	.crtc_line({plus_vc[5:0], plus_rc[2:0]}),
+	.crtc_adj(plus_adj),
+	.intack(plus_mode & ~M1_n & iorq),
+	.int_last_raster(asic_int_last_raster),
+
+	.CCLK(),
+	.CCLK_EN_P(plus_cclk_en_p),
+	.CCLK_EN_N(plus_cclk_en_n),
+	.PHI_N(plus_phi_n),
+	.PHI_EN_N(plus_phi_en_n),
+	.PHI_EN_P(plus_phi_en_p),
+	.RAS_N(plus_ras_n),
+	.CASAD_N(),
+	.CAS_N(plus_cas_n),
+	.READY(plus_ready),
+	.CPU_N(plus_cpu_n),
+	.MWE_N(),
+	.E244_N(),
+	// The Plus MMU owns cartridge ROM windows.  Its lock state is shared
+	// with the GA register decoder so an unlocked RMR2 byte cannot alter
+	// this legacy control register.
+	.plus_unlocked(plus_unlocked),
+	.ROMEN_N(),
+	.RAMRD_N(),
+	.ROM(),
+
+	.HSYNC_O(plus_hsync_o),
+	.VSYNC_O(plus_vsync_o),
+	.SYNC_N(),
+	.INT_N(plus_ga_int_n),
+	.VBLANK(plus_vblank),
+	.MODE_SYNC_EN(),
+
+	// MODE and GAMODE_O alias the same RMR bits inside the module; the
+	// motherboard consumes GAMODE_O, so MODE stays unconnected here.
+	.MODE(),
+	.BORDER_O(asic_border),
+	.INKR_O(asic_inkr),
+	.GAMODE_O(plus_gamode),
+
+	// B8-3 accepted legacy palette write event to the palette owner.
+	.LEGACY_PAL_WR(leg_pal_wr),
+	.LEGACY_PAL_ADDR(leg_pal_addr),
+	.LEGACY_PAL_DATA(leg_pal_data),
+
+	// B8-5 snapshot apply: settled header register file plus sync/interrupt
+	// phase. Restoring the shadows here never raises LEGACY_PAL_WR.
+	.SNA_LOAD(sna_load),
+	.SNA_INKSEL(sna_ga_inksel),
+	.SNA_PALETTE(sna_ga_palette),
+	.SNA_CONFIG(sna_ga_config),
+	.SNA_VSDELAY(sna_ga_vsdelay),
+	.SNA_INTCNT(sna_ga_intcnt),
+	.SNA_INT(sna_ga_int_pending),
+	.SNA_VS(sna_crtc_vs),
+	.SNA_HS(sna_hsync)
+);
+
+// Header B4 attribution (B8-5). The field is a single aggregate "an interrupt
+// is pending" flag, but on a Plus two independent sources feed INT_n: this
+// Gate Array and the ASIC DMA channels through DCSR. The CPC+ chunk restores
+// DCSR separately and its pending flags already assert plus_dma_int_req, so
+// crediting B4 to the DMA whenever DCSR explains it keeps the interrupt VECTOR
+// source right; only an otherwise-unexplained pending flag is held by the GA.
+// The aggregate LEVEL on INT_n is preserved either way. What the format cannot
+// encode is a simultaneous GA-and-DMA pending pair: that restores as DMA-only.
+// Later GA interrupts follow the restored counter and runtime rules; recovery
+// of the omitted pending GA interrupt is not guaranteed. DCSR is settled before
+// the apply pulse (it retires during the drain), so this is not a same-edge sample.
+wire sna_ga_int_pending = sna_int_pending & ~plus_dma_int_req;
+
+// Locked-ASIC CRTC type 3 + pixel pipeline. Register accesses share the
+// classic CRTC sparse decode. On Plus hardware an IN on either write port
+// performs the corresponding write with the live bus byte ([KT] Ports;
+// asic-reference sections 4/13), so DI remains D during read cycles too.
+asic_video asic_vid
+(
+	.CLOCK(clk),
+	.CLKEN(plus_cclk_en_n),
+	.nRESET(~reset),
+
+	.ENABLE(io_rd | io_wr),
+	.nCS(A[14]),
+	.R_nW(A[9]),
+	.RS(A[8]),
+	.DI(plus_io_data),
+	.DO(plus_crtc_dout),
+
+	.HSYNC(plus_crtc_hs),
+	.VSYNC(plus_crtc_vs),
+	.DE(plus_crtc_de),
+	.FIELD(plus_field),
+	.MA(plus_ma),
+	.RA(plus_ra),
+
+	.HCC(),
+	.LINE(plus_vc),
+	.ROW(plus_rc),
+	.ADJ(plus_adj),
+
+	.SPLT(asic_splt),
+	.SSA({asic_ssa_hi[5:0], asic_ssa_lo[7:0]}),
+	.SSCR(asic_sscr),
+
+	.PIXEN(ce_16),
+	.VIDEOD(plus_vidword),
+	.GAMODE(plus_gamode),
+	.BORDER_I(asic_border),
+	.INKR_I(asic_inkr),
+	.RGB_R(plus_rgb_r),
+	.RGB_G(plus_rgb_g),
+	.RGB_B(plus_rgb_b),
+	.PEN(),
+
+	.HWRAP(plus_hwrap),
+	.SPR_EN(plus_spr_en),
+	.SPR_RGB(plus_spr_rgb),
+
+	// Plus hardware always renders through the 12-bit ASIC palette; legacy
+	// PENR/INKR programs still work because asic_regs shadows them into
+	// entries 0-16.
+	.PAL_EN(1'b1),
+	.PAL_ADDR(plus_pal_raddr),
+	.PAL_RGB(plus_pal_rdata),
+
+	// B8-5 snapshot apply: settled header register file and v3 counters.
+	// SNA_MODE comes from the header RMR, not from plus_gamode, because the
+	// Gate Array restores that shadow on this very edge.
+	.SNA_LOAD(sna_load),
+	.SNA_ADDR(sna_crtc_addr),
+	.SNA_REGS(sna_crtc_regs),
+	.SNA_HCC(sna_crtc_hcc),
+	.SNA_LINE(sna_crtc_line),
+	.SNA_RASTER(sna_crtc_raster),
+	.SNA_VTA(sna_crtc_vta),
+	.SNA_HSW(sna_crtc_hsw),
+	.SNA_VSW(sna_crtc_vsw),
+	.SNA_VS(sna_crtc_vs),
+	.SNA_HS(sna_hsync),
+	.SNA_ADJ(sna_crtc_adj),
+	.SNA_MODE(sna_ga_config[1:0])
+);
+
+// ASIC register page (P2). The accepted legacy palette write event comes
+// straight from asic_ga_timing, so PENR/INKR writes land in the 12-bit
+// palette exactly as on hardware (Arnold V §2.2 secondary port, reference §6).
+// The GA colour shadows feed the asic_video fallback path AND the one-shot
+// reset import only; they are not runtime write provenance (B8-3).
+wire [7:0] asic_regs_dout;
+wire       asic_regs_rd;
+wire [7:0] asic_pri;
+wire [7:0] asic_splt;
+wire [7:0] asic_sscr;
+wire [7:0] asic_ssa_hi;
+wire [7:0] asic_ssa_lo;
+wire       asic_int_last_raster;
+// The page answers only under Plus mode: plus_mmu captures RMR2 without a
+// mode gate, so a classic program emitting the unlock sequence could
+// otherwise hijack the &4000-&7FFF data bus (review finding 5).
+wire asic_page_active = plus_mode & plus_aspage_on;
+
+// P7 3-channel DMA sound engine signals
+wire [7:0] dma_sar0_lo, dma_sar0_hi, dma_ppr0;
+wire       dma_sar0_wr;
+wire [7:0] dma_sar1_lo, dma_sar1_hi, dma_ppr1;
+wire       dma_sar1_wr;
+wire [7:0] dma_sar2_lo, dma_sar2_hi, dma_ppr2;
+wire       dma_sar2_wr;
+wire [2:0] dma_dcsr_ena;
+wire [2:0] dma_dcsr_ena_clr;
+wire [2:0] dma_int_set;
+wire [15:0] dma_ram_addr;
+wire        dma_ram_req;
+wire        psg_dma_bdir;
+wire        psg_dma_bc1;
+wire [7:0]  psg_dma_dout;
+wire        psg_dma_active;
+
+asic_regs asic_page
+(
+	.clk(clk),
+	.reset(plus_asic_reset),
+
+	.asic_cs(asic_page_active & (A[15:14] == 2'b01)),
+	.mem_wr(mem_wr),
+	.mem_rd(mem_rd),
+	.A(A[13:0]),
+	.D_in(D),
+	.D_out(asic_regs_dout),
+
+	.leg_pal_wr(leg_pal_wr),
+	.leg_pal_addr(leg_pal_addr),
+	.leg_pal_data(leg_pal_data),
+
+	.leg_border(asic_border),
+	.leg_inkr(asic_inkr),
+
+	.pal_raddr(plus_pal_raddr),
+	.pal_rdata(plus_pal_rdata),
+
+	.pri(asic_pri), .splt(asic_splt), .sscr(asic_sscr), .ivr(),
+	.ssa_hi(asic_ssa_hi), .ssa_lo(asic_ssa_lo), .dcsr(),
+	.intack_raster(asic_int_last_raster),
+	// Acknowledge cycle (M1 low with IORQ asserted), gated to Plus mode:
+	// classic machines deliver the stale wired-AND bus byte on ack, and
+	// the review found the ungated form hijacking classic cpu_din.
+	.intack(plus_mode & ~M1_n & iorq),
+	.int_pending(~plus_ga_int_n),
+	.dma_int_set(dma_int_set),
+	.vec_byte(plus_vec_byte),
+	.vec_valid(plus_vec_valid),
+
+	.sprq_req(plus_spr_fq_req),
+	.sprq_addr(plus_spr_fq_addr),
+	.sprq_data(plus_spr_fq_data),
+	.sprq_ack(plus_spr_fq_ack),
+	.spr_acc_en(plus_spr_acc_en),
+	.spr_acc_idx(plus_spr_acc_idx),
+	.spr_wr_en(plus_spr_wr_en),
+	.spr_wr_addr(plus_spr_wr_addr),
+	.spr_wr_data(plus_spr_wr_data),
+	.spr_x_view(plus_spr_x),
+	.spr_y_view(plus_spr_y),
+	.spr_mag_view(plus_spr_mag),
+	.spr_pal_view(plus_spr_pal),
+
+	.sar0_lo(dma_sar0_lo), .sar0_hi(dma_sar0_hi), .ppr0(dma_ppr0), .sar0_wr(dma_sar0_wr),
+	.sar1_lo(dma_sar1_lo), .sar1_hi(dma_sar1_hi), .ppr1(dma_ppr1), .sar1_wr(dma_sar1_wr),
+	.sar2_lo(dma_sar2_lo), .sar2_hi(dma_sar2_hi), .ppr2(dma_ppr2), .sar2_wr(dma_sar2_wr),
+	.dcsr_ena_out(dma_dcsr_ena),
+	.dcsr_ena_clr(dma_dcsr_ena_clr),
+	.dma_int_req(plus_dma_int_req),
+	.sna_wr(plus_sna_wr),
+	.sna_addr(plus_sna_addr),
+	.sna_data(plus_sna_data),
+
+	// B8-5 palette provenance: a plain SNA has only the header's 5-bit
+	// hardware colours, a CPC+ snapshot already restored 12-bit entries.
+	.sna_pal_load(sna_load),
+	.sna_pal_plain(~sna_plus_chunk),
+	.sna_pal_hdr(sna_ga_palette)
+);
+assign plus_asic_dout = asic_regs_dout;
+assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
+
+wire plus_spr_wr_en;
+wire [11:0] plus_spr_wr_addr;
+wire [3:0] plus_spr_wr_data;
+
+// P7 3-channel DMA sound engine
+wire dma_load_owner;
+wire cpu_ppi_access = plus_mode & ~A[11] & (io_rd | io_wr);
+wire cpu_ppi_write = cpu_ppi_access & io_wr;
+// A CPU PPI cycle which was accepted before registered DMA ownership rises
+// must retire without being gated low and replayed afterwards. New accesses
+// which begin while the DMA owns the integrated PPI/PSG still wait normally.
+reg cpu_ppi_started;
+reg cpu_ppi_stolen;
+reg [7:0] cpu_ppi_read_latch;
+always @(posedge clk) begin
+	if (reset) begin
+		cpu_ppi_started <= 1'b0;
+		cpu_ppi_stolen <= 1'b0;
+		cpu_ppi_read_latch <= 8'hFF;
+	end
+	else begin
+		if (~cpu_ppi_access) begin
+			cpu_ppi_started <= 1'b0;
+			cpu_ppi_stolen <= 1'b0;
+		end
+		else begin
+			if (~dma_load_owner) cpu_ppi_started <= 1'b1;
+			if (cpu_ppi_started & dma_load_owner) cpu_ppi_stolen <= 1'b1;
+		end
+		if (cpu_ppi_access & io_rd & ~dma_load_owner & ~cpu_ppi_started)
+			cpu_ppi_read_latch <= ppi_dout;
+	end
+end
+// A read accepted before DMA ownership must keep the byte sampled from the
+// CPU-selected AY/PPI path. DMA may replace the live AY bus before T80's
+// PHI_EN_N retirement edge, but it must not change an in-flight CPU result.
+// An uncontended read remains live through retirement (notably Port B VSYNC
+// and tape input); substitute the latch only after DMA actually steals AY.
+assign ppi_cpu_dout = (plus_mode & cpu_ppi_started & io_rd &
+	(cpu_ppi_stolen | dma_load_owner)) ?
+	cpu_ppi_read_latch : ppi_dout;
+// Classify the physical PPI operation, not only the usual F6xx full-Port-C
+// encoding. A Port-A write while BDIR/BC1 already selects PSG data, or a
+// BSR write which enters that state, is also a PSG register write.
+wire cpu_bsr_pc7 = cpu_ppi_write & (A[9:8] == 2'b11) & ~D[7] &
+	(D[3:1] == 3'd7);
+wire cpu_bsr_pc6 = cpu_ppi_write & (A[9:8] == 2'b11) & ~D[7] &
+	(D[3:1] == 3'd6);
+wire [1:0] cpu_pc76_after = (A[9:8] == 2'b10) ? D[7:6] :
+	{cpu_bsr_pc7 ? D[0] : portC[7], cpu_bsr_pc6 ? D[0] : portC[6]};
+wire cpu_psg_write = cpu_ppi_write & (cpu_pc76_after == 2'b10) &
+	((A[9:8] == 2'b00) | (A[9:8] == 2'b10) |
+	 cpu_bsr_pc7 | cpu_bsr_pc6);
+asic_dma dma_sound
+(
+	.clk(clk),
+	.reset(reset || !plus_mode),
+	.cclk_en_p(plus_cclk_en_p),
+	.cclk_en_n(plus_cclk_en_n),
+	.hsync(plus_crtc_hs),
+
+	.sna_load(sna_load),
+	.sna_loop_cnt0(sna_dma_loop_cnt0),
+	.sna_loop_cnt1(sna_dma_loop_cnt1),
+	.sna_loop_cnt2(sna_dma_loop_cnt2),
+	.sna_loop_addr0(sna_dma_loop_addr0),
+	.sna_loop_addr1(sna_dma_loop_addr1),
+	.sna_loop_addr2(sna_dma_loop_addr2),
+	.sna_pause_cnt0(sna_dma_pause_cnt0),
+	.sna_pause_cnt1(sna_dma_pause_cnt1),
+	.sna_pause_cnt2(sna_dma_pause_cnt2),
+	.sna_pause_presc0(sna_dma_pause_presc0),
+	.sna_pause_presc1(sna_dma_pause_presc1),
+	.sna_pause_presc2(sna_dma_pause_presc2),
+	.sna_hsync(sna_hsync),
+
+	.sar0_lo(dma_sar0_lo),
+	.sar0_hi(dma_sar0_hi),
+	.ppr0(dma_ppr0),
+	.sar0_wr(dma_sar0_wr),
+
+	.sar1_lo(dma_sar1_lo),
+	.sar1_hi(dma_sar1_hi),
+	.ppr1(dma_ppr1),
+	.sar1_wr(dma_sar1_wr),
+
+	.sar2_lo(dma_sar2_lo),
+	.sar2_hi(dma_sar2_hi),
+	.ppr2(dma_ppr2),
+	.sar2_wr(dma_sar2_wr),
+
+	.dcsr_ena(dma_dcsr_ena),
+	.dcsr_ena_clr(dma_dcsr_ena_clr),
+	.dma_int_set(dma_int_set),
+
+	.sar0_addr(),
+	.sar1_addr(),
+	.sar2_addr(),
+
+	.ram_req(dma_ram_req),
+	.ram_addr(dma_ram_addr),
+	.ram_data(vram_din),
+
+	.cpu_psg_addr(cpu_psg_addr),
+	.cpu_ppi_access(cpu_ppi_access),
+	.cpu_psg_write(cpu_psg_write),
+	.dma_load_owner(dma_load_owner),
+	.dma_load_busy(),
+
+	.psg_bdir(psg_dma_bdir),
+	.psg_bc1(psg_dma_bc1),
+	.psg_dout(psg_dma_dout),
+	.psg_active(psg_dma_active)
+);
+
+// P4 hardware sprite engine: compares against the CRTC3 taps ([KT]
+// formulas), stages row bytes through asic_page's video port, and
+// composites between screen and border inside asic_video.
+asic_sprites #(
+	// asic_video delays the locked-ASIC display area by one 16-dot
+	// character; sprite coordinates are relative to that visible origin.
+	.H_ORIGIN_DOTS(10'd16)
+) plus_sprites
+(
+	.CLOCK(clk),
+	.PIXEN(ce_16),
+	.CLKEN(plus_cclk_en_n),
+	.HWRAP(plus_hwrap),
+	.nRESET(~reset),
+
+	.LINE(plus_vc),
+	.ROW(plus_rc),
+
+	.SPR_X(plus_spr_x),
+	.SPR_Y(plus_spr_y),
+	.SPR_MAG(plus_spr_mag),
+	.SPR_PAL(plus_spr_pal),
+
+	.ACC_EN(plus_spr_acc_en),
+	.ACC_IDX(plus_spr_acc_idx),
+	.spr_wr_en(plus_spr_wr_en),
+	.spr_wr_addr(plus_spr_wr_addr),
+	.spr_wr_data(plus_spr_wr_data),
+
+	.FQ_REQ(plus_spr_fq_req),
+	.FQ_ADDR(plus_spr_fq_addr),
+	.FQ_DATA(plus_spr_fq_data),
+	.FQ_ACK(plus_spr_fq_ack),
+
+	.SPR_EN(plus_spr_en),
+	.SPR_RGB(plus_spr_rgb),
+	.SPR_IDX(),
+	.SPR_WIN()
+);
+
+// The caller uses plus_asic_rd to mux the CPU data bus and to suppress
+// main-memory read AND write cycles for the whole &4000-&7FFF window
+// while the page is enabled (no read/write-through, reference §2).
+
+// Twice-per-character word assembly on the reference VIDEO_BUF phases:
+// state e0 latches the even byte, state 03 the odd byte (ring order
+// e0 -> ... -> 03 within one character). Validated end-to-end against
+// the p1_video integration bench (test p1a).
+always @(posedge clk) begin
+	if (reset) plus_vidword <= 16'd0;
+	else begin
+		if (plus_cclk_en_p) plus_vidword[7:0]  <= vram_d;
+		if (plus_cclk_en_n) plus_vidword[15:8] <= vram_d;
+	end
+end
+
+wire [14:0] crtc_vram_addr = {ma_sel[13:12], ra_sel[2:0], ma_sel[9:0]};
 
 reg vram_bs;
 reg [7:0] vram_d;
@@ -199,11 +794,14 @@ always @(posedge clk) begin
 	cas_n_old <= cas_n;
 	if (!cpu_n) vram_bs <= 0;
 	else begin
-		vram_addr <= crtc_vram_addr;
+		if (plus_mode && dma_ram_req)
+			vram_addr <= {dma_ram_addr[15:14], dma_ram_addr[13:1]};
+		else
+			vram_addr <= crtc_vram_addr;
 		if (!ras_n & !cas_n_old & cas_n) vram_bs <= 1;
 		if (!ras_n & !cas_n)
-			if (sync_filter & crtc_shift) begin
-				if (vram_bs) vram_din_shift <= crtc_de ? vram_din[15:8] : 8'd0;
+			if ((sync_filter != 2'd2) & crtc_shift) begin
+				if (vram_bs) vram_din_shift <= de_sel ? vram_din[15:8] : 8'd0;
 				vram_d <= vram_bs ? vram_din[7:0] : vram_din_shift;
 			end else
 				vram_d <= vram_bs ? vram_din[15:8] : vram_din[7:0];
@@ -211,34 +809,100 @@ always @(posedge clk) begin
 end
 
 wire cclk_en_n, cclk_en_p;
-wire e244_n, cpu_n, ras_n, cas_n;
+wire ga_cclk_en_n, ga_cclk_en_p;
+assign cclk_en_p = plus_mode ? plus_cclk_en_p : ga_cclk_en_p;
+assign cclk_en_n = plus_mode ? plus_cclk_en_n : ga_cclk_en_n;
+
+wire e244_n;
+wire ga_cpu_n, ga_ras_n, ga_cas_n;
+wire cpu_n = plus_mode ? plus_cpu_n : ga_cpu_n;
+wire ras_n = plus_mode ? plus_ras_n : ga_ras_n;
+wire cas_n = plus_mode ? plus_cas_n : ga_cas_n;
 wire [7:0] ga_din = e244_n ? vram_d : D;
-wire ready;
+wire ga_ready_o;
+wire ready = plus_mode ? plus_ready : ga_ready_o;
 wire romen_n;
 
-wire hsync_ga, hsync_filtered;
-wire vsync_ga, vsync_filtered;
+wire ga_hsync_o, hsync_filtered;
+wire ga_vsync_o, vsync_filtered;
 
-wire hblank_filtered;
-wire vblank_ga, vblank_filtered;
+wire hblank_filtered, hblank_live;
+wire ga_vblank_o, vblank_filtered;
 
-assign hsync = sync_filter ? hsync_filtered : hsync_ga;
-assign vsync = sync_filter ? vsync_filtered : vsync_ga;
-assign hblank = sync_filter ? hblank_filtered : crtc_hs;
-assign vblank = sync_filter ? vblank_filtered : vblank_ga;
+wire hsync_ga = plus_mode ? plus_hsync_o : ga_hsync_o;
+wire vsync_ga = plus_mode ? plus_vsync_o : ga_vsync_o;
+wire vblank_ga = plus_mode ? plus_vblank : ga_vblank_o;
+
+// Sync filter modes.  crt_filter does two separable jobs: it regenerates a
+// stable HSYNC/VSYNC so the scaler can lock even when the CRTC emits
+// irregular lines, and it derives HBLANK/VBLANK from fixed constants counted
+// off that regenerated HSYNC.  Only the first is needed.  The second is what
+// pins the black zone around HSYNC to a constant position, which hides the
+// ACCC R2.JIT family: writing R2 at C0==R2 delays the start of that zone, and
+// a blanking window derived from constants cannot express the delay.
+//
+//   0 Full         Both jobs, as upstream.  Bit-for-bit previous behaviour.
+//   1 Live blank   Sync still regenerated so the scaler keeps its lock.  The
+//                  raw CRTC/ASIC HSYNC force-blank edge anchors a full-width
+//                  acquisition blank, so live phase moves with the CRTC
+//                  without mislabelling a short sync pulse as all of HBLANK.
+//   2 Off          Raw path: GA sync, CRTC HSYNC as blanking.  Faithful, but
+//                  hardware testing on 2026-09-01 showed software that varies
+//                  line geometry (SHAKER, DSC4) garbles, because nothing holds
+//                  a stable lock.  Kept for diagnosis, not for normal use.
+//
+// See docs/backlog.md B1 for the hardware evidence behind the split.
+crt_filter_output_select crt_filter_output_select
+(
+	.MODE(sync_filter),
+	.HSYNC_FILTERED(hsync_filtered),
+	.VSYNC_FILTERED(vsync_filtered),
+	.HBLANK_FILTERED(hblank_filtered),
+	.VBLANK_FILTERED(vblank_filtered),
+	.HBLANK_LIVE(hblank_live),
+	.HSYNC_RAW(hsync_ga),
+	.VSYNC_RAW(vsync_ga),
+	.HBLANK_RAW(hs_sel),
+	.VBLANK_RAW(vblank_ga),
+	.HSYNC_OUT(hsync),
+	.VSYNC_OUT(vsync),
+	.HBLANK_OUT(hblank),
+	.VBLANK_OUT(vblank)
+);
 
 crt_filter crt_filter
 (
 	.CLK(clk),
 	.CE_4(phi_en_n),
-	.HSYNC_I(crtc_hs),
-	.VSYNC_I(crtc_vs),
+	.HSYNC_I(hs_sel),
+	.VSYNC_I(vs_sel),
 	.HSYNC_O(hsync_filtered),
 	.VSYNC_O(vsync_filtered),
 	.HBLANK(hblank_filtered),
+	.HBLANK_LIVE(hblank_live),
 	.VBLANK(vblank_filtered),
 	.SHIFT(crtc_shift)
 );
+
+// Screen mode and RGB: classic netlist pair passes through in the low
+// bits (consumption-point conversion), locked-ASIC 4-bit levels are
+// native (P2 widening; the temporary lvl4_to_ga adapter is gone).
+wire [1:0] ga_mode;
+wire [1:0] ga_red, ga_green, ga_blue;
+assign mode  = plus_mode ? plus_gamode : ga_mode;
+assign red   = plus_mode ? plus_rgb_r : {2'b00, ga_red};
+assign green = plus_mode ? plus_rgb_g : {2'b00, ga_green};
+assign blue  = plus_mode ? plus_rgb_b : {2'b00, ga_blue};
+
+// CPU/expansion phase enables follow the selected machine. The ASIC path
+// replicates ga40010's timing contract cycle-exactly today (asic_ga_timing
+// lockstep bench), so this mux is behaviour-neutral now; it makes asic_ga
+// the Plus-mode owner so any deliberate Plus timing delta lands everywhere
+// at once (CPU, crt_filter CE, expansion header).
+wire ga_phi_n, ga_phi_en_n, ga_phi_en_p;
+assign phi_n    = plus_mode ? plus_phi_n    : ga_phi_n;
+assign phi_en_n = plus_mode ? plus_phi_en_n : ga_phi_en_n;
+assign phi_en_p = plus_mode ? plus_phi_en_p : ga_phi_en_p;
 
 ga40010 GateArray (
 	.clk(clk),
@@ -255,32 +919,32 @@ ga40010 GateArray (
 	.VSYNC_I(crtc_vs),
 	.DISPEN(crtc_de),
 	.CCLK(),
-	.CCLK_EN_P(cclk_en_p),
-	.CCLK_EN_N(cclk_en_n),
-	.PHI_N(phi_n),
-	.PHI_EN_N(phi_en_n),
-	.PHI_EN_P(phi_en_p),
-	.RAS_N(ras_n),
-	.CAS_N(cas_n),
-	.READY(ready),
+	.CCLK_EN_P(ga_cclk_en_p),
+	.CCLK_EN_N(ga_cclk_en_n),
+	.PHI_N(ga_phi_n),
+	.PHI_EN_N(ga_phi_en_n),
+	.PHI_EN_P(ga_phi_en_p),
+	.RAS_N(ga_ras_n),
+	.CAS_N(ga_cas_n),
+	.READY(ga_ready_o),
 	.CASAD_N(),
-	.CPU_N(cpu_n),
+	.CPU_N(ga_cpu_n),
 	.MWE_N(),
 	.E244_N(e244_n),
 	.ROMEN_N(romen_n),
 	.RAMRD_N(),
-	.HSYNC_O(hsync_ga),
-	.VSYNC_O(vsync_ga),
-	.VBLANK(vblank_ga),
-	.MODE(mode),
+	.HSYNC_O(ga_hsync_o),
+	.VSYNC_O(ga_vsync_o),
+	.VBLANK(ga_vblank_o),
+	.MODE(ga_mode),
 	.SYNC_N(),
-	.INT_N(INT_n),
-	.BLUE_OE_N(blue[0]),
-	.BLUE(blue[1]),
-	.GREEN_OE_N(green[0]),
-	.GREEN(green[1]),
-	.RED_OE_N(red[0]),
-	.RED(red[1]),
+	.INT_N(ga_int_n),
+	.BLUE_OE_N(ga_blue[0]),
+	.BLUE(ga_blue[1]),
+	.GREEN_OE_N(ga_green[0]),
+	.GREEN(ga_green[1]),
+	.RED_OE_N(ga_red[0]),
+	.RED(ga_red[1]),
 	.SNA_LOAD(sna_load),
 	.SNA_INKSEL(sna_ga_inksel),
 	.SNA_PALETTE(sna_ga_palette),
@@ -292,7 +956,10 @@ Amstrad_MMU MMU
 	.CLK(clk),
 	.reset(reset),
 	.ram64k(ram64k),
-	.romen_n(romen_n),
+	// The Plus cartridge windows are overlaid by plus_mmu.  An unclaimed
+	// address in Plus mode is ordinary base RAM; do not let the concurrently
+	// instantiated classic GA ROM decoder select an onboard ROM behind it.
+	.romen_n(plus_mode ? 1'b1 : romen_n),
 	.rom_map(rom_map),
 	.A(A),
 	.D(D),
@@ -303,10 +970,18 @@ Amstrad_MMU MMU
 	.ram_A(mem_addr)
 );
 
-wire [7:0] ppi_dout;
 wire [7:0] portC;
 wire [7:0] portAout;
 wire [7:0] portAin;
+
+wire dma_ppi_wait = dma_load_owner & cpu_ppi_access & ~cpu_ppi_started;
+
+reg [7:0] cpu_psg_addr;
+always @(posedge clk) begin
+	if (reset) cpu_psg_addr <= 8'd0;
+	else if (sna_load) cpu_psg_addr <= {4'h0, sna_psg_addr};
+	else if (~psg_dma_active && portC[7] && portC[6]) cpu_psg_addr <= portAout;
+end
 
 i8255 PPI
 (
@@ -317,15 +992,17 @@ i8255 PPI
 	.idata(D),
 	.odata(ppi_dout),
 	.cs(~A[11]),
-	.we(io_wr),
-	.oe(io_rd),
+	.we(io_wr & ~dma_ppi_wait),
+	.oe(io_rd & ~dma_ppi_wait),
 
 	.ipa(portAin), 
 	.opa(portAout),
-	.ipb({tape_in, 2'b11, ppi_jumpers, crtc_vs}),
+	.ipb({(!plus_mode || plus_has_tape) ? tape_in : 1'b1, 2'b11, ppi_jumpers, vs_sel}),
 	.opb(),
 	.ipc(8'hFF), 
 	.opc(portC),
+
+	.plus_mode(plus_mode),
 
 	.sna_load(sna_load),
 	.sna_opa(sna_ppi_a),
@@ -334,11 +1011,15 @@ i8255 PPI
 	.sna_control(sna_ppi_control)
 );
 
-assign tape_motor = portC[4];
-assign tape_out   = portC[5];
+assign tape_motor = (!plus_mode || plus_has_tape) ? portC[4] : 1'b0;
+assign tape_out   = (!plus_mode || plus_has_tape) ? portC[5] : 1'b0;
 
 assign audio_l = {1'b0, ch_a[7:1]} + {2'b00, ch_b[7:2]};
 assign audio_r = {1'b0, ch_c[7:1]} + {2'b00, ch_b[7:2]};
+
+wire psg_bc_mux   = (plus_mode && psg_dma_active) ? psg_dma_bc1  : portC[6];
+wire psg_bdir_mux = (plus_mode && psg_dma_active) ? psg_dma_bdir : portC[7];
+wire [7:0] psg_di_mux = (plus_mode && psg_dma_active) ? psg_dma_dout : portAout;
 
 wire [7:0] ch_a, ch_b, ch_c;
 YM2149 PSG
@@ -350,9 +1031,9 @@ YM2149 PSG
 	.SEL(0),
 	.MODE(0),
 
-	.BC(portC[6]),
-	.BDIR(portC[7]),
-	.DI(portAout),
+	.BC(psg_bc_mux),
+	.BDIR(psg_bdir_mux),
+	.DI(psg_di_mux),
 	.DO(portAin),
 
 	.CHANNEL_A(ch_a),
