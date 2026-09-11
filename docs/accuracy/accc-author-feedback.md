@@ -32,6 +32,7 @@ of an unexplained persistent state after a single activation.
 
 **Suggested English clarification:** Add **“on every frame”** after the example's
 R8-to-3 activation on C4=1, C9=0, matching the French edition.
+*(**In print** in English v1.11b p.207: "on every frame")*
 
 **Separate deduction for a single activation:** If R8 is subsequently held at 3, registers
 remain stable, frame origins continue to occur, and C4 continues to reach R6, the documented
@@ -90,60 +91,87 @@ as hardware confirmations.
 
 ### Highest-impact English corrections
 
+*(All items below are **IN PRINT** in re-issue v1.11(b), fingerprinted below)*
+
 - **§4.2 p.18:** French says the two extra U.S.-ROM lines make the GA interrupt request arrive
   on the same scanline as CRTC VSYNC, but before it; English says “not the same line.”
+  *(Fixed in English v1.11b p.18: "same line ... BUT before it")*
 - **§4.4.2 p.24:** French correctly says `INI` increments HL; English says it decrements HL.
+  *(Fixed in English v1.11b p.24: "HL increment, B decrement")*
 - **§10.3.1.2 FR p.77 / EN p.76:** French uses `C9<>R9`; English's `C9<=R9` loses the
   C9>R9 overflow route.
+  *(Fixed in English v1.11b p.67: "C9 <> R9")*
 - **§12.2.1 FR p.96 / EN p.94:** French gives complementary RLAL write windows—line N at
   `C0>1`, or N+1 at `C0<2`. English omits the line-N condition.
+  *(Fixed in English v1.11b p.85: "on this line N when C0>1 or on the line N+1 when C0<2")*
 - **§13.7.2 FR pp.126–128 / EN pp.124–126:** English changes `C0=0` to `C0=R0`,
   `C4=R4` to `C4=C4`, reverses the no-adjustment condition, omits the additional `C4=R4`
   conjunct from the **initial programmed-increment sentence** in the R0=1 case, and says R5
   where French and the 8–31 example require `R5-1`. Both editions separately describe the
   later partially completed overflow after C4 has diverged.
+  *(Fixed in English v1.11b pp.115–116, aligned with French text)*
 - **§16.2.1 FR p.162 / EN p.160:** the English R7.NJIT heading incorrectly imports the JIT
   definition and makes its condition inconsistent.
   French defines NJIT as programming R7 before C4 reaches it and JIT as programming R7 with
   the current C4 value.
+  *(Fixed in English v1.11b p.161: "If R7 is programmed before C4=R7:"; French p.162 also clarified with "lorsque C4<>R7")*
 - **§16.3 and §16.4.4 FR pp.169,172 / EN pp.167,170:** English §16.3 omits the complete
   `C4=R7,C9=0,C0=0` parenthetical. English §16.4.4 retains that headline condition but omits
   C9>0 from the later sentence describing when an R7 write fails to trigger VSYNC.
+  *(Fixed in English v1.11b pp.168, 171: parenthetical added to §16.3, "and/or C9>0" added to §16.4.4)*
 - **§17.2.2 FR p.180 / EN p.178:** French derives row-select bits from C9; English adds C5.
+  *(Fixed in English v1.11b p.179: "(C9)" without C5)*
 - **§18.3.2 FR p.191 / EN p.190:** French tests whether R6 is zero when C0 reaches R1;
   English changes this into the historical condition that R6 was zero at least once.
+  *(Fixed in English v1.11b p.191: "if R6 is 0 when C0=R1, the BORDER becomes definitive")*
 - **§19.5.5 FR p.214 / EN p.213:** French and the later English explanation say CRTC3/4
   ParityC9 changes for odd R9; the opening English bullet says even.
+  *(Fixed in English v1.11b p.214: "if R9 is odd")*
 - **§20.3.2 p.242:** French says type 1 reloads VMA at every C0=0 while C4=0,
   independently of C9. English omits the recurrence and independence qualifiers.
+  *(Fixed in English v1.11b p.243: "loads VMA with R12/R13 as long as C4=0 and each time C0 returns to 0, regardless of the value of C9")*
 - **§28.1.9 p.293:** French lists the full type-3/4 readback map through R14/R15 and points
   to §21.2.3; English stops at R13 and points to §20.3.4.
+  *(Cross-reference fixed in English v1.11b p.294: points to §21.3.4)*
 
 ### Clarifications answered in the 2026-08-31 correspondence
 
+*(All items below are **IN PRINT** in re-issue v1.11(b), fingerprinted below)*
+
 1. **§7.2:** align on `19968-21`; the author chose it because it finds VSYNC faster.
+   *(In print in English v1.11b p.30)*
 2. **§4.4.3–4:** `OUTD` is intentional, and the ASIC uses the same `/WAIT`
    request/repetition mechanism as the Gate Array.
+   *(In print in French v1.11b pp.26–27 and English v1.11b pp.26–27)*
 3. **§11.6:** C0=R1 does not clear the VMA-source state; C9=R9 does, and parity can make that
    equality fail so the state remains active.
+   *(Text reflowed in English v1.11b pp.78–79; French unchanged)*
 4. **§14.1 FR p.132:** “begins” is a French typo; reaching C3l=R3l ends HSYNC.
+   *(In print in French v1.11b p.132: "se termine")*
 5. **§16.4.1.2 EN p.169:** the English-only R0/VSYNC paragraphs are normative; the author
    intends to add them to French.
+   *(In print in French v1.11b p.171)*
 6. **§19.3.4:** the French advice is wrong; R8 should be changed at frame start.
+   *(In print in French v1.11b p.202: "lorsqu’un nouveau frame débute (lorsque C4=C9=0)")*
 7. **§19.5.3 FR p.209:** yes, `ParityC9=ParityFrame` is explicit at every type-1 frame start.
+   *(In print in English v1.11b p.209: "At the beginning of the Frame, ParityC9=ParityFrame.")*
 8. **§22 EN p.250:** the warning is intentionally low-importance guidance and is intended to
    be restored to French.
-
-These answers are correspondence. Every described edition change remains future/unpublished
-until a new PDF is released and fingerprinted.
+   *(In print in French v1.11b p.250)*
 
 ### Lower-risk errata
 
 The full ledger also records malformed formulas/wording in §§11.1, 12.5, French 14.4 /
 English unnumbered continuation, French 14.8 / English 14.7, 15.4.1, 16.4.1–3, 19.5.4,
 20.3.3, and 27.2, plus cross-reference errors at French §§7.2 and 9.3.4.1 and English
-§§23.2, 23.3, and 28.1.9. These are useful for editorial cleanup but do not presently
-justify RTL changes.
+§§23.2, 23.3, and 28.1.9.
+
+**Status in v1.11(b)**:
+- English §14.4 heading numbered and restored on p. 123.
+- English §14.9 ("HSYNC SCHEMATICS", pp. 144–145) added to match French §14.9 with complete chronograms.
+- Dangling §20.3.3 CRTC 3/4 sentence removed from both editions (FR p. 243, EN p. 244).
+- Z80 instruction timing table typo `LD R,A / LD A,R` fixed in both editions (FR p. 282, EN p. 283).
+- English cross-references in §§23.2, 23.3, and 28.1.9 corrected.
 
 ## 4. SHAKER module A test (4) — `OUTI ON C0vs=#3c` and photograph version
 
@@ -163,12 +191,12 @@ before and after), so no question there.
 ## 5. Correspondence 2026-09-11: re-issued v1.11 and the four classic CRTC types
 
 Longshot re-issued both v1.11 PDFs with the feedback applied and the version number
-unchanged; the diff task is backlog B15. He also qualified the CRTC separation note:
-the ASIC 40489 uses the exact CRTC 40226 (type 4) model with extra variables that are
-0 until the ASIC page is unlocked, and classic CPCs carry four CRTC designs (types 0,
-1, 2 and 4), not two. Recorded in
+unchanged; the diff task is backlog B15 (completed in
+[accc-1.11-differences.md §4](accc-1.11-differences.md#4-accc-v111-to-v111b-re-issue-differences--accuracy-impact-report-2026-09-11)).
+He also qualified the CRTC separation note: the ASIC 40489 uses the exact CRTC 40226 (type 4)
+model with extra variables that are 0 until the ASIC page is unlocked, and classic CPCs carry
+four CRTC designs (types 0, 1, 2 and 4), not two. Recorded in
 [crtc-per-type-separation.md](crtc-per-type-separation.md).
-
 
 ---
 
@@ -179,8 +207,11 @@ extraction and rendered relevant pages from
 [English v1.11](https://shaker.logonsystem.eu/ACCC1.11-EN.pdf) and
 [French v1.11](https://shaker.logonsystem.eu/ACCC1.11-FR.pdf). SHA-256 fingerprints:
 
-- English: `3e45eb7eea7dc8f0d7211f78bec4f8d00530ce3c00da2e76034fb24f7a751868`
-- French: `4409e3a2e77cd54e499c6956446b01bce93f79a1c1ba366201d514cf6e3c0d47`
+- **Original v1.11 English (2026-08-27)**: `3e45eb7eea7dc8f0d7211f78bec4f8d00530ce3c00da2e76034fb24f7a751868` (295 pages)
+- **Original v1.11 French (2026-08-27)**: `4409e3a2e77cd54e499c6956446b01bce93f79a1c1ba366201d514cf6e3c0d47` (295 pages)
+- **Re-issued v1.11(b) English (2026-09-11)**: `69d6a6a77de472937d41778ad48fc4fb427a937a24d3054f6d42c0b6ccfcc3e9` (296 pages)
+- **Re-issued v1.11(b) French (2026-09-11)**: `28f25c73c1797578522f34ce9ff558210386972c9257b5b8081927483ee02c3b` (295 pages)
 
 The 2026-08-31 author-response source is separately fingerprinted in the response note. It
-does not change either v1.11 fingerprint or page anchor above.
+does not change either original v1.11 fingerprint or page anchor above. The re-issued `(b)`
+editions are the active working oracle for verification work going forward.

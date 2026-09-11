@@ -14,12 +14,16 @@ this directory remain ignored unless they are deliberately added to the snapshot
 - SHA-256 `3e45eb7eea7dc8f0d7211f78bec4f8d00530ce3c00da2e76034fb24f7a751868`
 - `docs/references/ACCC1.11-FR.pdf`, 295 PDF pages
 - SHA-256 `4409e3a2e77cd54e499c6956446b01bce93f79a1c1ba366201d514cf6e3c0d47`
+- `docs/references/ACCC1.11-EN(b).pdf` (re-issued v1.11b), 296 PDF pages
+- SHA-256 `69d6a6a77de472937d41778ad48fc4fb427a937a24d3054f6d42c0b6ccfcc3e9`
+- `docs/references/ACCC1.11-FR(b).pdf` (re-issued v1.11b), 295 PDF pages
+- SHA-256 `28f25c73c1797578522f34ce9ff558210386972c9257b5b8081927483ee02c3b`
 - (Legacy v1.10: `docs/references/ACCC1.10-EN.pdf`, SHA-256 `1bd6f0e3a06022d03fd40b51d4d622afef2675954a483780f0922cdf1e33a560`)
 
 Verify before regenerating:
 
 ```sh
-shasum -a 256 docs/references/ACCC1.11-EN.pdf docs/references/ACCC1.11-FR.pdf
+shasum -a 256 docs/references/ACCC1.11-EN.pdf docs/references/ACCC1.11-FR.pdf docs/references/ACCC1.11-EN\(b\).pdf docs/references/ACCC1.11-FR\(b\).pdf
 ```
 
 ## Regeneration
@@ -38,6 +42,16 @@ env UV_CACHE_DIR=/tmp/accc-uv-cache uv run \
   /Users/renaudg/.claude/skills/pdf-inspector/scripts/inspect_pdf.py \
   docs/references/ACCC1.11-FR.pdf \
   --output-dir docs/accuracy/extract/inspector-v1.11-fr
+
+# Re-issued v1.11b editions (B15):
+env UV_CACHE_DIR=/tmp/accc-uv-cache uv run \
+  /Users/renaudg/.claude/skills/pdf-inspector/scripts/inspect_pdf.py \
+  docs/references/ACCC1.11-EN\(b\).pdf \
+  --output-dir docs/accuracy/extract/inspector-v1.11b-en
+env UV_CACHE_DIR=/tmp/accc-uv-cache uv run \
+  /Users/renaudg/.claude/skills/pdf-inspector/scripts/inspect_pdf.py \
+  docs/references/ACCC1.11-FR\(b\).pdf \
+  --output-dir docs/accuracy/extract/inspector-v1.11b-fr
 
 # Primary extractor: position-aware Markdown, one <!-- ======== PAGE N ======== --> marker per page
 .venv/bin/python - <<'EOF'
@@ -101,6 +115,9 @@ EOF
 | `pages/pNNN.png` | 200 dpi renders of the flagged English pages listed above |
 | `inspector-v1.11-en/` | English first-pass report and full Markdown |
 | `inspector-v1.11-fr/` | French first-pass report and full Markdown |
+| `inspector-v1.11b-en/` | English v1.11b first-pass report and full Markdown (296 pages) |
+| `inspector-v1.11b-fr/` | French v1.11b first-pass report and full Markdown (295 pages) |
+| `pages-v1.11b/` | 200 dpi renders of changed pages with tables or chronograms |
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).

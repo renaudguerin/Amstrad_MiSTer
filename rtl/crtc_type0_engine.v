@@ -117,7 +117,7 @@ module crtc_type0_engine
 	// delay line. See the assign below for the rule.
 	output           spurious_border_off,
 	output           vsync_line_fire,
-	// English ACCC v1.11 section 16.4.1.2 p.168: the natural type-0
+	// English ACCC v1.11 section 16.4.1.2 p.169 (FR §16.4.1.2 p.170): the natural type-0
 	// comparison is considered only if C0 reached 2 on the preceding line.
 	// At an ordinary seam the just-finished line supplies the result.  The
 	// field half-line path can also reconstruct it from the line in progress
@@ -609,11 +609,11 @@ end
 // selected or a snapshot loads; never carried across either boundary.
 reg        type0_vsync_wait_line_start;
 
-// English ACCC v1.11 section 16.4.1.2 p.168 (confirmed normative by the
-// author on 2026-08-31): C0 must actually reach 2 on the line preceding
-// C4=R7.  This is line history, not a test of the live R0 register: changing
-// R0 from >2 to 0 or 1 at C0=0 of the target line retains the qualifying
-// preceding line and therefore still starts VSYNC as documented.
+// English ACCC v1.11 section 16.4.1.2 p.169 (FR §16.4.1.2 p.170, confirmed
+// normative by the author on 2026-08-31): C0 must actually reach 2 on the
+// line preceding C4=R7.  This is line history, not a test of the live R0
+// register: changing R0 from >2 to 0 or 1 at C0=0 of the target line retains
+// the qualifying preceding line and therefore still starts VSYNC as documented.
 reg type0_vsync_c0_2_seen;
 reg type0_vsync_preceding_c0_2;
 // The live value also reconstructs history after a lifecycle clear: if the
@@ -730,18 +730,18 @@ assign hsync_off = (hsc == R3_h_sync_width);
 assign de_index = R8_skew;
 
 // Technical information sourced from the "Amstrad CPC CRTC Compendium" by
-// Longshot (CC BY-NC-ND). ACCC v1.11 section 17.6.2 (p.186): when R1>R0 the
+// Longshot (CC BY-NC-ND). ACCC v1.11 section 17.6.2 p.187 (FR p.188): when R1>R0 the
 // C0=R1 DISPTMG-off comparison can never fire (C0 wraps at R0 first), so a
 // type-0 CRTC substitutes C0=R0 as the border-start trigger. The wrapper uses
 // nCLKEN to narrow this condition to the documented second 0.5 us of C0=R0.
-// Section 19.2.4 (p.195): a programmed SKEW-DISPTMG delay is counted from the
+// Section 19.2.4 p.196 (FR p.196): a programmed SKEW-DISPTMG delay is counted from the
 // substituted trigger, so the wrapper injects it ahead of the delay line;
 // mode 2'b11 (non-output) suppresses it entirely.
 // The term is combinational by intent: section 17.3 has the C0=R1
 // comparison evaluate live, so the substitution tracks live R1/R0 writes
 // too. Gated on !CRTC_TYPE because type 1 emits no border byte at all in
-// this configuration (ACCC pp.186-187; section 28.1.6 discriminator). With
-// R0=0 the half-phase gate naturally produces the p.186 alternating display /
+// this configuration (ACCC pp.187-188, FR pp.188-189; section 28.1.6 discriminator). With
+// R0=0 the half-phase gate naturally produces the p.187 (FR p.188) alternating display /
 // border bytes while C0 remains pinned at zero.
 assign spurious_border_off = !CRTC_TYPE &&
 							 (R1_h_displayed > R0_h_total) &&
