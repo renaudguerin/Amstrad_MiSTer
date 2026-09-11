@@ -1,7 +1,8 @@
 # B6 classic/Plus and video-boundary architecture decision
 
 **Decision date:** 2026-09-01  
-**Status:** architecture complete; menu-only separation is the first implementation slice
+**Status:** menu slice complete; the [2026-09-11 video-boundary design](b6-video-boundary.md)
+extends this decision with native byte policy and the explicitly selected Raw CRT exception.
 
 This note closes the design question in backlog B6 without claiming that the hardware-only
 DSC4/SHAKER failures are understood. It follows the production signals from each timing engine
@@ -29,7 +30,9 @@ audits the mode selector, register-write enables, persistent state, and MiSTer m
    `video_mixer`; the scandoubler and ASCAL measure geometry from it. Sending live/raw HBLANK
    downstream necessarily changes acquisition width, exactly as the supplied hardware captures
    show. The scaler-bound tuple should therefore retain Full/filtered HSYNC, VSYNC, HBLANK, and
-   VBLANK.
+   VBLANK in Full and Raw pixels. The later video-boundary design permits Raw CRT to send
+   raw geometry through the shared analog/ASCAL interface; it promises no simultaneous stable
+   HDMI acquisition in that explicit mode.
 5. **Preserve raw phase before the filter.** Classic `ga40010` and Plus `asic_video` already
    use raw CRTC HSYNC to force RGB blanking. Any next B1 experiment should observe or explicitly
    select that phase while leaving scaler geometry stable. **B8 clarification,
@@ -129,4 +132,4 @@ same pre-scaler HBLANK/DE contract. Do not route live HBLANK to either path as a
   measured value.
 - Multi-field presets: `status_menumask` controls visibility, not atomic status rewrites.
 - B5 G1-G7, which each retain their own evidence or UI prerequisite.
-- A raw physical-sync output mode, pending the hardware discriminator above.
+- Physical CRT acceptance of the Raw CRT mode specified in the later video-boundary design.

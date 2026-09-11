@@ -2,6 +2,13 @@
 
 ## Pending integration / review-complete rows (zero open review findings)
 
+- **B6 video boundary — CLEAR, integrated from `843cd5b`.** Sol high
+  reviewed Opus production changes; Gemini high reviewed OpenAI fixtures and
+  output extraction against the final integration. Both returned CLEAR.
+  The broader malformed-raster and scroll/sprite matrix, final mixer RGB
+  under Verilator and physical HDMI/CRT acceptance remain open. See
+  [review and validation](b6-video-boundary-review-2026-09-11.md).
+
 - **D3 render timing selector — CLEAR.** Fresh Gemini 3.8 Flash high review
   of the bounded combinational rewrite found no material issue. All 2,097,152
   binary selector inputs match `f8e9372`; full simulation and lint pass.

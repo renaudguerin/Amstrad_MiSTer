@@ -323,6 +323,16 @@ into Plus despite the earlier RGB/bus isolation result. B8-2 corrects that
 selected-owner leak in `9052a08`; full ASCAL and hardware validation remain open.
 The prose below is retained as the problem statement and historical design brief.
 
+**VIDEO SOURCE INTEGRATED 2026-09-11:** [the boundary contract](b6-video-boundary.md)
+keeps the complete Full acquisition tuple in Full and Raw pixels, makes native versus
+SHIFT-compensated byte order explicit, and carries raw vertical blank as aligned pixel
+metadata. Raw CRT is the approved exception through the shared analog/ASCAL stream; it
+bypasses core resampling and cannot promise stable HDMI. Fable's conditional design review
+is resolved by the production P10/B7 motherboard/SDRAM fixture. Full simulation,
+lint, unchanged canonical soak and fresh Sol/Gemini code review pass. The
+source `843cd5b` is integrated; the wider diagnostic matrix and hardware acceptance remain
+open. See the [validation record](b6-video-boundary-review-2026-09-11.md).
+
 **MENU SLICE DONE 2026-09-01:** the existing Plus-model capability decoder now drives menu-mask
 groups for Plus-only, classic-only, FDC-capable, and tape-capable controls. Off retains all
 classic media controls; GX4000 hides disk/tape; 6128+ exposes disk; 464+ exposes tape. The
