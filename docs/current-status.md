@@ -5,7 +5,9 @@ and published at `f8e9372`. All destination simulation, lint, canonical soak
 and unchanged-CPR boot checks pass. The full Quartus fit failed setup at
 −0.217 ns on the sprite render path. A behavior-preserving selector rewrite
 passes exhaustive combinational equivalence, full simulation, lint and fresh
-Gemini review; a new full fit is required before delivering an accepted RBF.
+Gemini review. Follow-up `6a06ec9` passes all required CI and full-fit timing
+(setup +0.368 ns, hold +0.228 ns, zero TNS). The exact artifact is delivered as
+`output_files/Amstrad_20260911_6a06ec9.rbf`; hardware retests remain pending.
 See [timing evidence](plus/d3-render-timing-2026-09-11.md).
 
 **Accuracy repair integrated, 2026-09-11:** D1 uses the selected engine’s incoming

@@ -5,7 +5,7 @@
 - **D3 render timing selector — CLEAR.** Fresh Gemini 3.8 Flash high review
   of the bounded combinational rewrite found no material issue. All 2,097,152
   binary selector inputs match `f8e9372`; full simulation and lint pass.
-  Physical timing acceptance requires a new full fit. See
+  Full-fit CI for `6a06ec9` passes setup/hold timing with zero TNS. See
   [timing follow-up](plus/d3-render-timing-2026-09-11.md).
 
 - **D3/D4 sprite prefetch and PPI readback — CLEAR, integrated from refreshed
