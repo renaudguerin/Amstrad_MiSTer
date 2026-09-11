@@ -1,5 +1,17 @@
 # Current implementation status
 
+## 2026-09-11 D5 investigation handoff — implementation pending
+
+Both BASIC cartridges reproduce the reported disc-missing message in the
+production-T80 experiment; both page-1 controls reach Ready. New hardware
+references favor correcting the top-level EXP input while preserving decoder
+polarity. The user accepted this evidence as sufficient to implement; further
+physical measurement is not a prerequisite. No RTL,
+RBF or hardware acceptance change is claimed. Resume the existing
+`codex/plus/d5-rom0-boot` task using the [D5 continuation](plus/architecture.md#additional-evidence-and-implementation-handoff)
+and [backlog entry](backlog.md#active-plus-follow-up-d5-rom-0-boot-configuration).
+
+
 **Latest hardware retest, 2026-09-09:** `Amstrad_20260908_ce1d2da.rbf` was tested
 on 6128 Plus / Live blanking and classic 6128 / CRTC1 (DSC4 also CRTC0).
 Most defects persist. Burnin' Rubber is reported OK; CRTC3's earlier right-edge

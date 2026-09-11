@@ -8,6 +8,21 @@ feature work is visible, verifiable, and maintainable at all.
 Read this before picking up roadmap section 8. Several roadmap items are blocked on B1 in a way
 that is not obvious from the roadmap itself.
 
+## Active Plus follow-up: D5 ROM 0 boot configuration
+
+**Open — likely incorrect top-level `/EXP` constant; no RTL fix yet.** Both
+Plus_EN and menu-free 6128_FR reproduce pre-BASIC `Drive A: disc missing` in
+the production-T80 fixture; scratch ROM0→page1 controls reach `Ready`.
+Arnold4 hardware findings, GX4000 conversion wiring and revised Arnold V now
+favor retaining the decoder and correcting the machine input. Factory 6128
+Plus PB5/LK105 grounding remains the narrow evidence gap.
+
+Resume the existing `codex/plus/d5-rom0-boot` task or start from integrated master,
+and land a failing production-input boot regression before the repair. Keep
+ROM7/direct/GX4000/464 Plus controls, full simulation/lint, cross-provider review
+and real-hardware acceptance separate. Sources, fixture provenance and exact
+continuation scope: [D5 handoff](plus/architecture.md#additional-evidence-and-implementation-handoff).
+
 ## Why this file exists
 
 By 2026-08-31 the project had accumulated roughly 400 commits, 183 classic vectors, about

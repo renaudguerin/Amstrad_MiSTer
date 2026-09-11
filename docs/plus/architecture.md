@@ -166,11 +166,162 @@ fail-closed untrusted-input handling and these decisions keep it that way.
   reset the parser sees, so both sides clear atomically; nothing may rely on `load_abort`
   being pulsed during reset. Explicit unloading remains `detach`'s job (OSD "Reset &
   Detach Cartridge"), which invalidates the image without scrubbing SDRAM.
-- **`/EXP` definition (P0).** The expansion-port `/EXP` input that decides the value-0
-  high-window rule is a defined dynamic input of `plus_mmu`, sampled live: high means no
-  expansion device is connected (the pulled-up bare machine), low means an expansion
-  device claims the port. P0 ties it high at the top level; a future expansion emulation
-  drives it low while attached. Unit tests pin both levels at the module boundary.
+- **`/EXP` implementation and open configuration defect.** `plus_mmu` samples
+  `exp_n` live: ROM 0 selects page 1 when low and page 3 when high. `Amstrad.sv`
+  currently ties it high. The former explanation that a bare machine necessarily
+  supplies high is not established for a 6128 Plus; motherboard straps matter.
+  Preserve the decoder polarity while investigating the machine input below.
+
+### D5 ROM 0 source check (2026-09-11)
+
+**Recommended repair direction: correct the machine's `/EXP` input, not invert
+ROM 0 decoding.** Both scratch page-1 controls boot BASIC. The user accepted the combined hardware
+references as sufficient to implement this direction; factory 6128 Plus link
+population is a residual detail, not a prerequisite. Production RTL remains unchanged.
+
+Sources were checked in the requested order:
+
+1. Amstrad's [Arnold V issue 1.5 §2.8](https://cpctech.cpcwiki.de/docs/arnold5a.html)
+   and its logical/physical mapping table specify BASIC page 1 for non-disc
+   logical ROMs below 128, disc page 3 for the disc code (0 or 7), and direct
+   low-five-bit selection for 128–255. They do **not** assign either electrical
+   `/EXP` level to disc code 0. Section 3 identifies page 1 as BASIC and page 3
+   as disc firmware. The [local original text](../references/_Arnold%20V_%20Specification%20-%20Issue%201.5%20-%2010th%20April%201990.md)
+   preserves these sections.
+2. The [6128 Plus service manual, printed p.18](https://retronik.silicium.org/DOCUMENTS/Info/Amstrad_CPC/Amstrad-464plus-6128plus-GX4000-MM12-MM14-Service-Manual.pdf)
+   shows ASIC IC101 PB5 at pin 119 and R119 (2.2 kΩ) connected to the +5 V
+   rail, with LK105 providing a ground-link position on PB5; its fitted state
+   was not established here. Pin 130 is GND; R116 is a ROMDIS pull-down.
+   The alleged pin-130
+   `/NEXP` pull-up is incorrect. This external schematic establishes wiring,
+   not the ASIC's internal ROM-selection truth table. The scan and p.18 image
+   are retained in `docs/references/hardware-diagnosis-2026-09-10/plus-boot/`.
+3. The [CPCWiki revised Arnold V page, §2.8](https://oldwiki.cpcwiki.eu/index.php/Arnold_V_Specs_Revised)
+   explicitly assigns low to page 1 and high to page 3 at reset, with CP/M
+   auto-boot in the latter case. This is the provenance of the existing digest,
+   not an independent confirmation. The statement is an addition to the
+   original Amstrad text and the page does not provide a measurement or
+   primary-source citation for it. Its GX4000 note separately says logical
+   ROM 7 selects page 1. The fetched page is retained beside the manual as
+   `revised-spec-2026-09-11.html`.
+
+#### Additional evidence and implementation handoff
+
+- [Arnold4 hardware findings](https://oldwiki.cpcwiki.eu/index.php/Arnold4#/EXP)
+  attribute pin testing to Gerald. In the pre-Plus cost-down chip's 6128 mode,
+  low EXP selects disc ROM at logical 7; high selects it at logical 0, replacing
+  BASIC. The page states that a 6128 grounds EXP. This is measured predecessor
+  evidence, not a direct Plus measurement.
+- [Wolfgang Noisternig's GX4000-to-CPC conversion](https://re-enthused.com/information/converting-an-amstrad-gx4000-to-a-full-cpc-by-wolfgang-noisternig/)
+  identifies ASIC pin 119 as EXP and instructs connecting that node through
+  2.2 kΩ to ground (also connecting it to the specified side of C17). This is
+  Plus-ASIC hardware-modification evidence supporting a low CPC configuration;
+  it does not establish the factory 6128 Plus link population.
+- The revised Arnold V passage above explicitly gives low→page 1 and high→page 3.
+  Together these references favor the existing decoder and a wrong top-level
+  constant. Do not equate the successful scratch decoder override with proof
+  that the electrical truth table should be inverted.
+- User-local `~/code/cpcec/cpcec.c`, version `20220531`, `mmu_update()` lines
+  590–593 maps logical ROM 0 to page 1, ROM 7 to page 3, and 128–255 directly
+  (absent external-ROM overrides). It does not model EXP explicitly. This
+  independently supports normal BASIC mapping, not electrical polarity.
+- New main-checkout references `ASIC - CPCWiki.md` and `Gate Array and ASIC
+  Pin-Outs - CPCWiki.md` identify PB5/pin 119 and claim an R128 machine strap.
+  The supplied forum excerpt only discusses 64K/128K RAM banking: it does not
+  substantiate R128, AMSDOS mapping or EXP polarity. Keep that claim unverified.
+  The other supplied DSK/SNA/video/sprite documents are adjacent references,
+  not evidence for D5 polarity.
+
+**Fresh-session scope:** resume `codex/plus/d5-rom0-boot` in its existing task
+checkout or start a new Plus implementation task from integrated master; preserve
+other tasks. Add a failing production-configuration boot regression before
+changing the top-level input. No further physical measurement is required to
+start: on 2026-09-11 the user accepted the conversion evidence as sufficient.
+Use both unchanged CPRs and actual firmware `Ready` output, with explicit
+missing-message and timeout failure reasons. The old scratch control changed
+only high-EXP ROM0 decoding; rerun with the unchanged decoder and the proposed
+machine input, rather than relabeling that old result as an input-level test.
+
+Pin ROM 7, direct 128–255 selection, GX4000 and 464 Plus behavior separately;
+do not extrapolate the 6128 configuration to every model. Run `make -C sim`
+and lint, and obtain fresh cross-provider review for the implementation. The
+user requested no further Opus tasks in this investigation; use another
+appropriate authorized provider. The Gemini emulator-source research was
+stopped cleanly after stalling without a report; it contributes no findings.
+Hardware BASIC boot with an empty drive remains a separate acceptance gate.
+
+The user also supplied an old motherboard photograph showing the ASIC and a
+link bank labelled LK01–LK05. Link connectivity cannot be established from
+the photograph; do not equate these silkscreen labels with the manual without
+tracing. No additional disassembly or measurement is an implementation gate.
+
+#### Production-T80 controlled experiment
+
+Two unpatched local cartridges were run through production T80 VHDL translated
+by GHDL 6.0.0, the existing CPR loader/cartridge service/SDRAM fixture, and real
+PPI/YM2149/HID paths:
+
+- `Plus_EN.cpr`: SHA256
+  `3ce35dfccf79ee6bf8f990124aa4e0af1ce9753cbca03af8545abef21cf081ae`.
+- User-supplied menu-free `6128_FR.cpr`: SHA256
+  `ab241580c9b6a9fa9aeae94ca6847ea70dca386d305e38fc2ac03fce603360cf`.
+
+Configuration: 6128 Plus, `/EXP` high, default CPU timing (`no_wait=0`), shared
+production divider, empty drive. English uses a real PS/2 F1 event held through
+the menu's selection branch; French receives no key input. The control changes
+only ROM 0 with `/EXP` high to page 1 in a scratch MMU.
+
+| Observation | Unchanged MMU | Page-1 control |
+|---|---|---|
+| English menu and F1 branch CE1B | ROM 7 / page 3 | ROM 7 / page 3 |
+| Foreground ROM 0 entry C006, both images | Page 3, opcode C3 | Page 1, opcode 31 (`LD SP,&C000`) |
+| English page-3 C1B3 → C1D3 disc-boot branch | Reached | Not reached |
+| French page-3 C1BC → C1DC disc-boot branch | Reached without menu input | Not reached |
+| Firmware text output | `Drive A: disc missing`, both images | `Ready`, both images |
+| FDC writes before stopping | English 7; French 6 | English 4; French 3 |
+
+The English runs select ROM 0 at tick 57,057,610 and execute C006 at
+67,530,436; only the physical page differs. The unchanged decoder reaches
+C1D3 at 67,532,308. French reaches C006 at 38,741,804 and its unchanged
+mapping reaches C1DC at 38,743,676. The controls continue beyond entry and
+observe `Ready` through firmware TXT OUTPUT (`BB5A`) with the real T80's A
+register; success is independent of the MMU page diagnostic. Normal FDC
+initialization writes occur even in the successful controls.
+
+**The reported pre-`Ready` message is reproduced in simulation for both
+unchanged-mapping cartridges.** The extended baselines emit
+`Drive A: disc missing`; their page-1 counterparts emit `Ready`. This is a
+firmware text-call observation, not screenshot/OCR evidence: the monitor
+captures the A-register character at executed `BB5A` calls. It neither scans
+RAM/ROM for strings nor verifies rendered video.
+
+Both messages appear after entering the disc-boot branch and **before** the
+later C21A (English) / C223 (French) return/error branch; neither later address
+is reached before the monitor stops on `missing`. Requiring C21A alone would
+miss this earlier firmware error output. The run bound is 320 million ticks;
+the initial 160-million-tick bound was too short to reach the message.
+
+This isolates foreground ROM selection from background AMSDOS initialization
+and, with the French image, from menu handling. It establishes the effect of
+the mapping change in this fixture, **not** the ASIC's correct `/EXP` polarity
+or a hardware pass.
+
+The original P10 fixture used a reduced TV80 CPU; this experiment replaces
+it with production T80 and adapts only the Verilog port casing/defaults and
+diagnostic taps. The classic GA remains a stub; full `Amstrad.sv`, vendor
+video and physical memory timing are not covered. The local
+[experiment bundle](../references/hardware-diagnosis-2026-09-10/plus-boot/d5-experiment/README.md)
+contains regenerable scratch sources, commands and traces. User-owned ROMs
+and the bundle remain ignored. Cross-provider review confirmed the CPU
+adaptation and accumulator/text capture but retained
+provenance/diagnostic caveats; parent disposition is in the bundle. The
+English `Ready` log uses the earlier extended driver with the same character
+monitor; it is not a final-driver rerun. No whole-regression CLEAR verdict
+or production gate is claimed.
+
+**Acceptance boundary:** production RTL is unchanged. The conditional repair,
+required boot regression, ROM-7/direct/GX4000 gates and hardware BASIC `Ready.`
+check remain pending the implementation and validation above.
 
 ### P0 wiring shape (as built)
 
