@@ -41,27 +41,32 @@
 //  bank when its row tag matches the new source row (zero-latency swap),
 //  else promotes-and-retags it for refill. While a line runs, a background
 //  walker speculatively fills the inactive bank with the predicted next
-//  source row (current row + 1 while the vertical window continues), so
-//  the common static-Y case never shows an unfetched pixel. Mismatches
-//  (Y/mag rewrite, R9-wrap jump, first frame) fall back to urgent refill:
-//  the walker's urgent half covers the current character immediately and
-//  the rest of the row trails by a few characters. Emission is gated on
-//  bank validity, delivery bits AND live row-tag equality, so a mid-line
-//  Y rewrite blanks the sprite rather than showing stale rows.
+//  source row (current row + 1 while the vertical window continues). When
+//  static attributes are established by the preceding line seam and the
+//  normal line has uncontended service, the same prediction also stages the
+//  first visible row before the Y seam. Mismatches (Y/mag rewrite, R9-wrap
+//  jump, first frame) fall back to refill; the walker scans active banks
+//  before speculative banks, and late bytes remain transparent until
+//  delivered. Emission is gated on bank validity, delivery bits AND live
+//  row-tag equality, so a mid-line Y rewrite blanks the sprite rather than
+//  showing stale rows.
 //
 //  Bandwidth model (named assumption ⚠ ASIC-REF §5): real hardware reads
 //  sprite RAM with an undocumented internal mechanism. This model stages
-//  row bytes through one shared port in asic_regs, one byte per clock when
-//  uncontended (~60 grants per 16-dot character at the production 4:1
-//  clock ratio) against a worst-case urgent demand of 32 bytes/character
-//  (sixteen fully overlapped x1 sprites) plus 2 bytes/character of
-//  speculative steady-state traffic. CPU page traffic preempts individual
-//  grants; a CPU pixel-data access invalidates the accessed sprite's
-//  staged banks so the display re-reads the fresh image (the underlying
-//  RAM is never corrupted, reference §5). Sustained overload beyond port
-//  capacity leaves late sprites transparent for the affected characters
-//  and self-heals next character; no vector pins beyond-capacity
-//  behaviour because no rule documents it.
+//  row bytes through one shared registered port in asic_regs, sustaining
+//  roughly one byte per three master clocks when uncontended (about 21
+//  grants per 16-dot character at the production 4:1 clock ratio). That
+//  capacity is finite against a worst-case urgent demand of 32
+//  bytes/character (sixteen fully overlapped x1 sprites) plus 2
+//  bytes/character of speculative steady-state traffic; no urgent refill is
+//  promised to complete within one character. CPU page traffic preempts
+//  individual grants; a CPU pixel-data access blanks that sprite briefly
+//  and rejects its in-flight response. Pixel writes also update matching
+//  staged bytes through write-through; accesses do not invalidate whole
+//  banks (the underlying RAM is never corrupted, reference §5). Sustained overload
+//  beyond port capacity leaves late bytes transparent until the walker
+//  delivers them; no vector pins beyond-capacity behaviour because no rule
+//  documents it.
 //
 //  Named model choices (each pinned by a vector):
 //   - An X rewrite mid-window cuts the sprite immediately and it reappears
@@ -301,12 +306,17 @@ reg  [15:0]  abit;             // active (emitting) bank per sprite
 reg         d1w;               // one clock after the seam (taps = new line)
 reg         d2w;               // two clocks after (post-swap state visible)
 
-// Speculation health: a predicted next row exists iff the vertical window
-// continues onto the next compare line.
+// Speculation health: a predicted next row exists iff the next sequential
+// compare line is in the vertical window. The 10-bit compare difference
+// wraps from 1023 to 0 on the line immediately before Y, which deliberately
+// arms the bounded first-visible-row prefetch contract above. Attribute
+// stability before that seam and normal uncontended service are assumptions
+// of the contract; discontinuities, invalidation, and short-line overload
+// retain the existing urgent-refill behavior.
 reg [15:0] c_predok;
 always @(*) begin
 	for (i = 0; i < 16; i = i + 1)
-		c_predok[i] = c_lact[i] && ((c_diff[i] + 10'd1) < c_hgt[i]);
+		c_predok[i] = c_ena[i] && ((c_diff[i] + 10'd1) < c_hgt[i]);
 end
 
 // Walk FSM: walk[7] divides two 128-slot halves — ACTIVE banks
@@ -339,9 +349,10 @@ wire [3:0] wk_row  = wk_spec ? srowtag[{wk_s[3:0], ~abit[wk_s]}*4 +: 4]
                              : c_srow[wk_s];
 
 // The walker IS the port server: a fresh candidate is issued straight
-// into the request registers (no intermediate queue); the walk stalls
-// while a grant is in flight, giving roughly one byte every other clock —
-// ample against the demand budget in the header note.
+// into the request registers (no intermediate queue). The registered
+// issue/grant/completion handshake stalls the walk while a grant is in
+// flight and sustains roughly one byte every three master clocks when
+// uncontended; urgent refill therefore remains capacity-limited.
 reg  [7:0]  fq_tag;            // word of the request currently on the port
 reg  [3:0]  fq_row;            // source row the request was issued for
 reg         fq_acc;            // target sprite accessed during this request
