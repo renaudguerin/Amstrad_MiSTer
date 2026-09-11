@@ -248,8 +248,12 @@ issues FDC commands; a missing-disk screen alone is not that trace.
 
 ### D5 — ROM 0 selects the cartridge's disc-boot path
 
-**Status: strong boot hypothesis from verified ROM bytes and mapping; correct
-hardware `/EXP` rule still needs resolution before a production change.**
+**Status (updated 2026-09-11): both cartridges reproduce in production-T80
+simulation and page-1 controls reach Ready. Additional hardware references
+favor correcting the top-level EXP input while preserving decoder polarity;
+factory 6128 Plus PB5/LK105 configuration remains to be confirmed. See the
+[D5 implementation handoff](plus/architecture.md#additional-evidence-and-implementation-handoff).
+Production RTL and hardware acceptance remain unchanged.**
 
 **User clarification, 2026-09-11:** the “disc missing” message appears during
 BASIC CPR firmware boot, before the BASIC interpreter takes over and prints

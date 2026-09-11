@@ -166,18 +166,18 @@ fail-closed untrusted-input handling and these decisions keep it that way.
   reset the parser sees, so both sides clear atomically; nothing may rely on `load_abort`
   being pulsed during reset. Explicit unloading remains `detach`'s job (OSD "Reset &
   Detach Cartridge"), which invalidates the image without scrubbing SDRAM.
-- **`/EXP` definition (P0).** The expansion-port `/EXP` input that decides the value-0
-  high-window rule is a defined dynamic input of `plus_mmu`, sampled live: high means no
-  expansion device is connected (the pulled-up bare machine), low means an expansion
-  device claims the port. P0 ties it high at the top level; a future expansion emulation
-  drives it low while attached. Unit tests pin both levels at the module boundary.
+- **`/EXP` implementation and open configuration defect.** `plus_mmu` samples
+  `exp_n` live: ROM 0 selects page 1 when low and page 3 when high. `Amstrad.sv`
+  currently ties it high. The former explanation that a bare machine necessarily
+  supplies high is not established for a 6128 Plus; motherboard straps matter.
+  Preserve the decoder polarity while investigating the machine input below.
 
 ### D5 ROM 0 source check (2026-09-11)
 
-**The proposed `exp_n=1` → page 1 correction is not yet source-confirmed.**
-Keep the production decoder unchanged until the polarity conflict is resolved.
-A page-1 boot experiment can test the failure mechanism, but cannot establish
-ASIC behavior.
+**Recommended repair direction: correct the machine's `/EXP` input, not invert
+ROM 0 decoding.** Both scratch page-1 controls boot BASIC. Subsequent hardware
+references support low selecting BASIC, but factory 6128 Plus PB5/LK105 wiring
+still needs confirmation. Production RTL remains unchanged.
 
 Sources were checked in the requested order:
 
@@ -205,11 +205,49 @@ Sources were checked in the requested order:
    ROM 7 selects page 1. The fetched page is retained beside the manual as
    `revised-spec-2026-09-11.html`.
 
-Thus neither the two provisional Gemini reports nor the digest resolves the
-polarity. Do not promote a successful BASIC simulation into silicon evidence.
-The next source discriminator is an explicit Plus decoder truth table or a
-real 6128 Plus read of physical-page signatures at logical ROM 0 with `/EXP`
-high. ROM 7, direct page selects and GX4000 must retain independent controls.
+#### Additional evidence and implementation handoff
+
+- [Arnold4 hardware findings](https://oldwiki.cpcwiki.eu/index.php/Arnold4#/EXP)
+  attribute pin testing to Gerald. In the pre-Plus cost-down chip's 6128 mode,
+  low EXP selects disc ROM at logical 7; high selects it at logical 0, replacing
+  BASIC. The page states that a 6128 grounds EXP. This is measured predecessor
+  evidence, not a direct Plus measurement.
+- [Wolfgang Noisternig's GX4000-to-CPC conversion](https://re-enthused.com/information/converting-an-amstrad-gx4000-to-a-full-cpc-by-wolfgang-noisternig/)
+  identifies ASIC pin 119 as EXP and instructs connecting that node through
+  2.2 kΩ to ground (also connecting it to the specified side of C17). This is
+  Plus-ASIC hardware-modification evidence supporting a low CPC configuration;
+  it does not establish the factory 6128 Plus link population.
+- The revised Arnold V passage above explicitly gives low→page 1 and high→page 3.
+  Together these references favor the existing decoder and a wrong top-level
+  constant. Do not equate the successful scratch decoder override with proof
+  that the electrical truth table should be inverted.
+- User-local `~/code/cpcec/cpcec.c`, version `20220531`, `mmu_update()` lines
+  590–593 maps logical ROM 0 to page 1, ROM 7 to page 3, and 128–255 directly
+  (absent external-ROM overrides). It does not model EXP explicitly. This
+  independently supports normal BASIC mapping, not electrical polarity.
+- New main-checkout references `ASIC - CPCWiki.md` and `Gate Array and ASIC
+  Pin-Outs - CPCWiki.md` identify PB5/pin 119 and claim an R128 machine strap.
+  The supplied forum excerpt only discusses 64K/128K RAM banking: it does not
+  substantiate R128, AMSDOS mapping or EXP polarity. Keep that claim unverified.
+  The other supplied DSK/SNA/video/sprite documents are adjacent references,
+  not evidence for D5 polarity.
+
+**Fresh-session scope:** resume `codex/plus/d5-rom0-boot` in its existing task
+checkout; preserve other tasks. Confirm the factory PB5/LK105 connection from
+Plus board evidence or explicit primary documentation. Then add a failing
+production-configuration boot regression before changing the top-level input.
+Use both unchanged CPRs and actual firmware `Ready` output, with explicit
+missing-message and timeout failure reasons. The old scratch control changed
+only high-EXP ROM0 decoding; rerun with the unchanged decoder and the proposed
+machine input, rather than relabeling that old result as an input-level test.
+
+Pin ROM 7, direct 128–255 selection, GX4000 and 464 Plus behavior separately;
+do not extrapolate the 6128 configuration to every model. Run `make -C sim`
+and lint, and obtain fresh cross-provider review for the implementation. The
+user requested no further Opus tasks in this investigation; use another
+appropriate authorized provider. The Gemini emulator-source research was
+stopped cleanly after stalling without a report; it contributes no findings.
+Hardware BASIC boot with an empty drive remains a separate acceptance gate.
 
 #### Production-T80 controlled experiment
 
@@ -277,7 +315,7 @@ or production gate is claimed.
 
 **Acceptance boundary:** production RTL is unchanged. The conditional repair,
 required boot regression, ROM-7/direct/GX4000 gates and hardware BASIC `Ready.`
-check remain pending resolution of the primary-source polarity conflict.
+check remain pending the factory-configuration check and implementation above.
 
 ### P0 wiring shape (as built)
 
