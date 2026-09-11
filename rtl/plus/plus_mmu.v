@@ -8,7 +8,7 @@
 //     128-255 -> physical cartridge page value[4:0]
 //     GX4000, any value < 128 -> page 1 (no disc-select hardware)
 //     otherwise value == 7 -> page 3 (AMSDOS)
-//     value == 0 -> /EXP low selects page 1, else page 3 (reset default)
+//     value == 0 (reset ROM select) -> /EXP low: page 1, high: page 3
 //     remaining 1..126 -> page 1 (BASIC)                        (§11, §12)
 //
 //   Low window position/page from RMR2 (Gate Array port pattern 101xxxxx).
@@ -22,11 +22,10 @@
 //   the classic MMU applies to its ROM windows, so MRER ROM-disable lets
 //   RAM show through, as upstream.
 //
-// The exp_n input is a defined dynamic input, not a modelled constant: high
-// means no expansion device is connected (the pulled-up bare machine). P0
-// wires it high at the top level; future expansion emulation drives it low
-// while claiming the port. It is sampled live whenever the ROM-select value
-// resolves through the value-0 rule.
+// exp_n is sampled live whenever ROM-select 0 resolves through its rule.
+// Low selects BASIC page 1; high selects disc page 3. The top-level CPC Plus
+// configuration supplies low; this decoder also retains the high auto-boot
+// route for a future externally driven input (see architecture.md D5).
 //
 // Read bridging: a bus read hitting a cartridge window claims the held
 // request/acknowledge CPU port of the memory service, holds the Z80 in WAIT
@@ -64,7 +63,7 @@ module plus_mmu
 	input             rom_en,
 	/* verilator lint_on UNUSEDSIGNAL */
 
-	// expansion-port /EXP state: 1 = nothing connected (pulled up)
+	// expansion-port /EXP level: low = BASIC, high = disc at ROM 0
 	input             exp_n,
 
 	// cartridge memory service CPU port (held request/acknowledge)
