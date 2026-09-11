@@ -13,6 +13,12 @@ merged into the same behavioral PR.
 
 ## 1. Current baseline
 
+- D3's bounded first-visible-row sprite prefetch and D4's Plus PPI mode-word
+  readback are integrated. Their required regressions retain sprite row-colour
+  checks and DMA/PPI direction behavior. Post-BSR control reads and real-title
+  flicker/input acceptance remain open; see the
+  [repair contracts](hardware-diagnosis-2026-09-10.md#d3-repair-contract).
+
 - D5's production `/EXP` input repair is integrated with unchanged MMU
   decoder polarity. The opt-in production-T80 gate requires both unchanged
   BASIC CPRs to emit `Ready` on 6128 Plus and 464 Plus, retaining ROM7,

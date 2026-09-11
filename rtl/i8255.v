@@ -78,7 +78,13 @@ always @* begin
 		'b100: odata =(mode[4] | mode[6]) ? ipa : opa_r;
 		'b101: odata = (plus_mode | mode[1]) ? ipb : opb_r;
 		'b110: odata = plus_mode ? opc_r : {mode[3] ? (ipc[7:4] & maskC[7:4]) | tapemotor : opc_r[7:4], mode[0] ? ipc[3:0] & maskC[3:0] : opc_r[3:0]};
-		'b111: odata = mode;
+		'b111: begin
+			// Thacker's Plus readback decodes the control word to a repeated
+			// bit-4 value across the 80-FF range. BSR writes still preserve the
+			// mode; post-BSR control-read behaviour is outside this fix. Classic
+			// mode retains stored-word readback.
+			odata = plus_mode ? {8{mode[4]}} : mode;
+		end
 	endcase
 end
 

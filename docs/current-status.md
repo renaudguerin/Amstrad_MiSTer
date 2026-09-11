@@ -38,10 +38,35 @@ refill failure, and Plus PPI control-readback differences. Production RTL was
 unchanged by that diagnostic pass. Local diagnostic sources, reference images and rerun logs are
 preserved; the full existing simulation suite passes with its known FDC XFAIL.
 The D1/D6 source repair is integrated above; the next Classic hardware work
-is its SHAKER retest plus a first repeatable B2 capture. Plus System/BASIC boot remains a blocker for
-Plus disk-based testing; its separate ROM/input investigation is in the report.
+is its SHAKER retest plus a first repeatable B2 capture. D5 resolves the
+System/BASIC boot input in firmware simulation; hardware boot and disk-based
+testing remain pending, as described above.
 
-**Latest verified CI/RBF, 2026-09-08:** `ce1d2da67c2598c0dd06208b9fc14c52ada01712`
+**Plus D3/D4 repair, 2026-09-11:** the sprite predictor now stages row zero on
+the preceding compare line under the [bounded first-row service contract](hardware-diagnosis-2026-09-10.md#d3-repair-contract).
+The required production-cadence regression checks all 16 sprites enabled with
+sprite 15 opaque at X=0/16/32/64/256, including distinct first/second-row colours.
+Plus PPI mode-word control reads follow Thacker's `00`/`FF` bit-4 pattern;
+DMA direction retention is checked through Port-A behavior before setup writes.
+See the [D4 scope and BSR residual](hardware-diagnosis-2026-09-10.md#d4-repair-boundary).
+Reviewed feature tip `5c58fe7`, refreshed as `cc9d704`, is integrated after
+D5 merge `24b2520`. Both refreshes preserved reviewed behavior and resolved
+only status wording; the Makefile retained both test targets. Destination
+full simulation (225 classic vectors), lint and canonical soak
+`0xb1cb70da95c2e44f` pass. The private D5 gate also passes with D4's PPI
+change present: both unchanged BASIC CPRs emit `Ready` on both CPC Plus
+models, and ROM0/ROM7/all direct-page controls pass on all three Plus models.
+Fresh Opus 5 high feature review is CLEAR on correctness; no new review was
+needed for documentation-only resolutions. Title/input/flicker symptoms,
+post-BSR control readback and hardware acceptance remain open.
+
+The batch makes one final integration push for full-fit CI, including the
+previously integrated D1/D6 changes. Exact-SHA job results, reports and the
+copied RBF hash are retained in the local ignored
+`docs/references/d3-d5-integration-2026-09-11/` record. Source/test success
+does not close the September 9 hardware findings.
+
+**Hardware-tested baseline, built 2026-09-08:** `ce1d2da67c2598c0dd06208b9fc14c52ada01712`
 passed simulation, policy, required gate and full local Quartus 17.0.2 in
 [run 34228275825](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34228275825).
 This includes the completed B8-5 snapshot restore plus production-T80 validation,

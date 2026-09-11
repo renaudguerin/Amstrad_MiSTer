@@ -2,6 +2,15 @@
 
 ## Pending integration / review-complete rows (zero open review findings)
 
+- **D3/D4 sprite prefetch and PPI readback — CLEAR, integrated from refreshed
+  `cc9d704` (feature tip `5c58fe7`).** Opus 5 high reviewed the prediction
+  wrap, row-tag promotion, stale-ACK rules, PPI readback and required tests.
+  Its requested baseline failure was verified and stale comments corrected.
+  Refresh against D1/D6 plus D5 preserved both sides' reviewed behavior;
+  only status prose conflicted, and the Makefile merged both test targets.
+  Post-BSR control readback and hardware/title/flicker acceptance remain
+  separate. See [review and validation](hardware-diagnosis-2026-09-10.md#d3d4-validation--2026-09-11).
+
 - **D5 BASIC boot input — CLEAR, integrated from refreshed `8e2f280`.**
   Gemini 3.8 Flash high reviewed the production `/EXP` configuration and
   production-T80 firmware monitor in source `f0af3d6`, returning no material

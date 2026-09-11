@@ -83,6 +83,14 @@ execute Plus video logic, but rendered text is not the success oracle.
 Logs and the raw review are retained locally under ignored
 `docs/references/d5-input-validation-2026-09-11/`.
 
+### Combined D3/D4 integration gate
+
+The destination reran `d5-boot` after importing D4's actual PPI readback
+change. All four unchanged-firmware boots emitted `Ready`, with no
+disc-missing or timeout result, and all three executed model-control sets
+passed. Full simulation, lint and the D1/D6 canonical soak also passed.
+Logs are retained in `docs/references/d3-d5-integration-2026-09-11/`.
+
 ## Acceptance boundary
 
 This uses the production T80 VHDL translated with GHDL, CPR loader/service,
