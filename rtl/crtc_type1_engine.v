@@ -449,7 +449,6 @@ assign line_poke_bit = stage_a_edge ? stage_a_pc9 :
 
 reg rfd_vma_flag;
 reg rfd_parity_flag;
-reg rfd_frame_parity;
 reg rfd_r0_pending;
 
 // Finding F17 (ACCC v1.10 §11.6.1 p.88): an RFD triggered on C9=R9 via the
@@ -496,22 +495,19 @@ assign row0_reload = crtc1_row0_reload;
 // active (ACCC v1.10 section 19.8.1 p.220 Note: the C9=R9 / C9.VMA='R9 or
 // ParityC9' test also governs the VMA' assignment).
 wire row_addr_save_base = hcc == R1_h_displayed && line_row_structure_last;
+// French ACCC v1.11 section 11.6.1 p.90: odd ParityC9 suppresses
+// the RFD save. Section 19.5.3 pp.209-210 shares this parity with IVM
+// ON/OFF; a private frame toggle cannot observe that normalization.
 assign row_addr_save = row_addr_save_base &
-                       (~rfd_parity_active | rfd_frame_parity);
+                       (~rfd_parity_active | ~parity_c9);
 
 always @(posedge CLOCK) begin
 	if(~nRESET | SNA_LOAD) begin
 		rfd_vma_flag <= 0;
 		rfd_parity_flag <= 0;
-		rfd_frame_parity <= 0;
 		rfd_r0_pending <= 0;
 	end
 	else if(CRTC_TYPE) begin
-		// ACCC v1.10 section 11.6.1, pages 88-89: parity changes only
-		// at a genuine C4=C9=C0=0 frame boundary when R9 is odd.
-		if(CLKEN && frame_new_w && R9_v_max_line[0])
-			rfd_frame_parity <= ~rfd_frame_parity;
-
 		// Clear only when the parity-gated save really fires, through
 		// the R1>R0 bare-C9 route, or when an RFD is triggered on C9=R9
 		// (ACCC v1.10 §11.6.1 p.88; F17). A same-edge trigger on C9!=R9
@@ -545,7 +541,6 @@ always @(posedge CLOCK) begin
 		// across a round-trip through type 0.
 		rfd_vma_flag <= 0;
 		rfd_parity_flag <= 0;
-		rfd_frame_parity <= 0;
 		rfd_r0_pending <= 0;
 	end
 end
