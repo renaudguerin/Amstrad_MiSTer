@@ -61,7 +61,7 @@ module crtc_type0_engine
 	input      [4:0] line,
 	input      [6:0] row,
 	input            in_adj,
-	input            field,
+	input            vsync_mid_phase, // wrapper-selected count phase, including active pulse
 
 	// Wrapper-owned shared counter state read by type-0 rules.
 	input            line_last_r,
@@ -621,7 +621,7 @@ reg type0_vsync_preceding_c0_2;
 wire type0_vsync_line_reached_c0_2 = type0_vsync_c0_2_seen || (hcc >= 8'd2);
 wire type0_vsync_field_c0_2 = type0_vsync_preceding_c0_2 ||
 								 type0_vsync_line_reached_c0_2;
-assign vsync_c0_2_qualified = field ? type0_vsync_field_c0_2 :
+assign vsync_c0_2_qualified = vsync_mid_phase ? type0_vsync_field_c0_2 :
 									 type0_vsync_line_reached_c0_2;
 
 always @(posedge CLOCK) begin
@@ -641,7 +641,7 @@ always @(posedge CLOCK) begin
 end
 
 wire vsync_count_tick_t0 = CLKEN &&
-	(field ? (!r0_frozen_w && (hcc_next == {1'b0, R0_h_total[7:1]})) : line_new);
+	(vsync_mid_phase ? (!r0_frozen_w && (hcc_next == {1'b0, R0_h_total[7:1]})) : line_new);
 
 assign field_count_tick = !r0_frozen_w && (hcc_next == {1'b0, R0_h_total[7:1]});
 
@@ -689,15 +689,15 @@ assign vde_toggle = !CRTC_TYPE && row == 0 && line == 0 && R6_v_displayed == 0;
 //         the natural fires for the next line (the first line of C4=R7)
 //         and fires the seam path at its end, so the pulse starts at the
 //         second line's seam;
-//   d2 -- high for the line after that; the field=1 half-line path
-//         consumes it at the second line's half-line tick (its natural
-//         fire point, one line late).
+//   d2 -- retains the following-line half-count event for the legacy
+//         R8-exit lifecycle. In steady IVM the odd-parity pulse uses d1
+//         at the seam; d2 is not its normal start path.
 wire       vsync_fire_seam_raw = ((row_next) == R7_v_sync_pos && line_last);
 wire       vsync_fire_seam = vsync_fire_seam_raw && type0_vsync_line_reached_c0_2;
 // Non-interlace consumes a blocked comparison at the row-entry seam.  In a
 // field the comparison is consumed at its half-line count point, using either
 // retained history or C0=2 reconstructed on the current lifecycle-reset line.
-assign vsync_line_blocked = field ?
+assign vsync_line_blocked = vsync_mid_phase ?
 	((row == R7_v_sync_pos) && !line && !type0_vsync_field_c0_2) :
 	(vsync_fire_seam_raw && !type0_vsync_line_reached_c0_2);
 wire       type0_vsync_delay_arm = R9_v_max_line[0] && ivm_disp_r &&
