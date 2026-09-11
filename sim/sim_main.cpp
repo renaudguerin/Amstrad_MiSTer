@@ -291,6 +291,10 @@ public:
         mix(r.CRTC__DOT__parity_frame);
         mix(r.CRTC__DOT__parity_c9);
         mix(r.CRTC__DOT__parity_r6);
+        // D1: midpoint scheduling and active-pulse phase survive origins
+        // and register writes; include both in the lifecycle projection.
+        mix(r.CRTC__DOT__vsync_mid_arm);
+        mix(r.CRTC__DOT__vsync_active_mid);
         // F10 type-1 behavior commit (2026-08-24): the IVM flag and toggle
         // stage machine join the sampled projection together with their
         // behavior; random R8 traffic now reaches the documented toggle
@@ -349,6 +353,12 @@ public:
             fail(signal + " high", static_cast<unsigned>(actual));
         }
     }
+
+    bool raw_vsync() const { return dut_->rootp->CRTC__DOT__VSYNC_r; }
+    bool frame_parity() const { return dut_->rootp->CRTC__DOT__parity_frame; }
+    bool frame_end_pending() const { return dut_->rootp->CRTC__DOT__frame_new; }
+    unsigned row_counter() const { return dut_->rootp->CRTC__DOT__row; }
+    unsigned line_counter() const { return dut_->rootp->CRTC__DOT__line; }
 
     void expect_vsync_low(const std::string& expectation) const {
         expect_low(expectation, dut_->VSYNC);
@@ -449,17 +459,19 @@ public:
                     dut_->rootp->CRTC__DOT__crtc_type0_engine__DOT__type0_zero_adj_entry);
     }
 
+    void expect_saved_address(const std::string& label, unsigned value) const {
+        const unsigned actual = dut_->rootp->CRTC__DOT__row_addr;
+        if (actual != value) fail(label + " == " + std::to_string(value), actual);
+    }
+
     void expect_type1_rfd_state(const std::string& expectation,
                                 bool vma_flag,
-                                bool parity_flag,
-                                bool frame_parity) const {
+                                bool parity_flag) const {
         const auto& root = *dut_->rootp;
         expect_byte(expectation + " VMA-source flag", vma_flag,
                     root.CRTC__DOT__crtc_type1_engine__DOT__rfd_vma_flag);
         expect_byte(expectation + " parity-management flag", parity_flag,
                     root.CRTC__DOT__crtc_type1_engine__DOT__rfd_parity_flag);
-        expect_byte(expectation + " frame parity", frame_parity,
-                    root.CRTC__DOT__crtc_type1_engine__DOT__rfd_frame_parity);
     }
 
     void expect_type1_rfd_pending(const std::string& expectation,
@@ -921,7 +933,7 @@ void configure_f3_interlace_fixture(TestBench& test) {
     test.select_register(7);
     test.reset();
     test.run_characters(16);
-    test.expect_field_low("interlace fixture reaches the half-line-count field");
+    test.expect_parity_frame("interlace fixture reaches even MID-VSYNC parity", false);
 }
 
 void expect_interlace_dynamic_vsync_end(TestBench& test,
@@ -937,11 +949,14 @@ void expect_interlace_dynamic_vsync_end(TestBench& test,
 }
 
 void test_type0_interlace_count_boundaries(TestBench& test) {
-    // In the second field with R0=15, the count tick sees old C0=6
-    // (hcc_next=R0/2).  Before/on/after exercise the shared predicate; C0=15
-    // proves that hcc_last itself is not a count tick in this field.
-    expect_interlace_dynamic_vsync_end(test, 5, 26);
-    expect_interlace_dynamic_vsync_end(test, 6, 25);
+    // French 19.7.2 p.219 and 19.5.2 p.206: R6>R4 freezes parity.
+    // This fixture starts even because the model resets ParityR6 to zero;
+    // the source rule specifies the freeze, not that reset choice. It keeps even
+    // ParityFrame, so every count remains at old C0=6 (next C0=7).
+    // French 16.4.1.1 p.170: a partial first count is skipped. The write
+    // at C0=5 ends 1+16 characters later, at C0=6 exactly 16 later.
+    expect_interlace_dynamic_vsync_end(test, 5, 17);
+    expect_interlace_dynamic_vsync_end(test, 6, 16);
     expect_interlace_dynamic_vsync_end(test, 7, 31);
     expect_interlace_dynamic_vsync_end(test, 15, 23);
 }
@@ -1076,7 +1091,34 @@ void test_type0_vsync_blocked_comparison_is_consumed(TestBench& test) {
         "blocked natural comparison consumes the later equal-R7 trigger");
 }
 
-void test_type1_interlace_sync_odd_field_vsync(TestBench& test) {
+// French 16.4.1.2 and 19.7.2: an origin on the additional line
+// still consumes a comparison blocked by a preceding line shorter than C0=2.
+void test_type0_vsync_blocked_addline_origin(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 7}, {1, 1}, {2, 1}, {3, 0x11}, {4, 2},
+        {5, 0}, {6, 1}, {7, 0}, {8, 1}, {9, 1}}};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.select_register(0);
+    test.reset();
+    // Six normal lines reach the ParityR6-odd additional line.
+    test.run_characters(48);
+    test.expect_c4("fixture enters the additional line", 3);
+    test.write_selected_register_at_nclken(1);
+    test.run_characters(2);
+    test.expect_parity_frame("blocked additional-line origin is odd", true);
+    test.expect_c4("blocked additional-line origin reaches row zero", 0);
+    test.expect_line("blocked additional-line origin reaches line zero", 0);
+    test.expect_vsync_low("short extra line blocks the origin pulse");
+    test.write_selected_register_at_nclken(7);
+    test.select_register(7);
+    test.run_to_c0(3);
+    test.write_selected_register_now(0);
+    test.run_clock_ticks(1);
+    test.expect_vsync_low("blocked origin consumes a later equal-R7 trigger");
+}
+
+void test_type1_interlace_sync_even_parity_vsync(TestBench& test) {
     test.set_crtc_type(1);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
         {0, 15}, {1, 8},  {2, 10}, {3, 0x11}, {4, 16},
@@ -1088,23 +1130,23 @@ void test_type1_interlace_sync_odd_field_vsync(TestBench& test) {
     test.select_register(7);
     test.reset();
 
-    // Keep R7 unreachable throughout the first 17-line frame, then program
-    // R7=1 while row 0 of the half-line-count field is active. The false
-    // comparison re-arms VSYNC without producing an earlier pulse.
-    test.run_characters(17 * 16);
-    test.expect_field_low("type 1 R8=1 enters the half-line-count field");
-    test.expect_c4("type 1 odd-field fixture begins at C4=0", 0);
-    test.expect_vsync_low("type 1 odd-field fixture has no earlier VSYNC");
+    // French 19.7.2 p.219: the even frame owns MID-VSYNC in R8=1.
+    // Keep R7 unreachable for two 17-line frames, then program R7=1
+    // while row 0 of the even frame is active.
+    test.run_characters(2 * 17 * 16);
+    test.expect_parity_frame("French 19.7.2: R8=1 midpoint frame is even", false);
+    test.expect_c4("type 1 even-parity fixture begins at C4=0", 0);
+    test.expect_vsync_low("type 1 even-parity fixture has no earlier VSYNC");
     test.write_selected_register_at_nclken(1);
 
-    // Type 1 crosses into C4=R7 without firing at the seam in R8=1 field 1;
+    // Type 1 crosses into C4=R7 without firing at the seam on even parity;
     // it fires at the half-line point instead. Type-0-only C0-history state
     // must not qualify this type-1 path.
     test.run_characters(16);
-    test.expect_c4("type 1 odd-field fixture reaches C4=R7", 1);
-    test.expect_vsync_low("type 1 odd-field VSYNC waits for the half-line tick");
+    test.expect_c4("type 1 even-parity fixture reaches C4=R7", 1);
+    test.expect_vsync_low("type 1 even-parity VSYNC waits for the half-line tick");
     test.run_characters(7);
-    test.expect_vsync_high("type 1 R8=1 odd-field VSYNC fires at the half-line tick");
+    test.expect_vsync_high("type 1 R8=1 even-parity VSYNC fires at the half-line tick");
 }
 
 void test_type0_interlace_vsync_rebuilds_after_snapshot(TestBench& test) {
@@ -1117,8 +1159,8 @@ void test_type0_interlace_vsync_rebuilds_after_snapshot(TestBench& test) {
         test.write_register(address, value);
     }
     test.reset();
-    test.run_characters(16);
-    test.expect_field_low("snapshot fixture reaches the half-line-count field");
+    test.run_characters(2 * 16);
+    test.expect_parity_frame("snapshot fixture reaches even midpoint parity", false);
 
     // Enter type 0 at C4=0/C9=0, let the target line pass C0=2, then
     // snapshot-load R7=0 at C0=4. SNA_LOAD deliberately clears derived
@@ -1151,11 +1193,11 @@ void test_type0_interlace_vsync_rebuilds_after_live_type_switch(TestBench& test)
     test.select_register(7);
     test.reset();
 
-    // Complete the three-line first frame with R7 unreachable, then program
-    // R7=1 while C4=0 in the half-line-count field. Type 1 crosses the seam
+    // Complete two three-line frames with R7 unreachable, then program
+    // R7=1 while C4=0 on even parity (French 19.7.2 p.219). Type 1 crosses the seam
     // into C4=1 but has not reached that line's half-line fire point yet.
-    test.run_characters(3 * 16);
-    test.expect_field_low("live-switch fixture reaches the half-line-count field");
+    test.run_characters(2 * 3 * 16);
+    test.expect_parity_frame("live-switch fixture reaches even midpoint parity", false);
     test.expect_c4("live-switch fixture begins field at C4=0", 0);
     test.write_selected_register_at_nclken(1);
     test.run_characters(16);
@@ -4148,6 +4190,75 @@ constexpr RegisterProgram kRfdRegisters = {{
     {5, 0}, {6, 2}, {7, 20}, {8, 0},   {9, 1},
 }};
 
+// French ACCC 1.11 sections 11.6.1-11.6.2 p.90, 19.5.3 pp.209-210.
+// Odd parity makes the C9/R9 save fail; IVM ON/OFF on even C9 sets it even.
+void d6_wait_position(TestBench& test, unsigned row, unsigned line, unsigned c0) {
+    for (unsigned n = 0; n < 100000; ++n) {
+        if (test.row_counter() == row && test.line_counter() == line && test.c0() == c0)
+            return;
+        test.run_characters(1);
+    }
+    throw TestFailure("D6 position timeout");
+}
+
+void test_d6_rfd_ivm_on_off(TestBench& test, bool initial_odd) {
+    test.set_crtc_type(1);
+    RegisterProgram registers = kRfdRegisters;
+    registers[0].second = 63;
+    registers[1].second = 40;
+    registers[2].second = 46;
+    registers[4].second = 2;
+    registers[6].second = 2;
+    registers[7].second = 127;
+    registers[9].second = 3;
+    program_registers(test, registers);
+    test.write_register(12, 0x10);
+    test.write_register(13, 0);
+    test.reset();
+    if (initial_odd) test.run_characters(12 * 64);
+    test.expect_parity_frame("D6 initial frame parity", initial_odd);
+
+    for (unsigned frame = 0; frame < 4; ++frame) {
+        // Execute the whole recipe every frame. A fresh RFD makes the
+        // VMA-source flag observable until the first parity-qualified save.
+        test.select_register(5);
+        d6_wait_position(test, 0, 0, 63);
+        test.write_selected_register_at_clken(1);
+        test.write_register(5, 0);
+        test.expect_ma("D6 RFD reloads the configured base", 0x1000);
+        d6_wait_position(test, 0, 2, 20);
+        test.write_register(8, 3);
+        test.run_characters(2);
+        test.run_to_c0(27);
+        test.write_register(8, 0);
+        test.run_characters(2);
+        test.expect_parity_frame("D6 ON/OFF fixes current frame even", false);
+        test.expect_parity_c9("D6 odd R9 gives even ParityC9 after ON/OFF", false);
+        for (unsigned row = 0; row < 3; ++row) {
+            d6_wait_position(test, row, 3, 41);
+            // VMA'=base+(row+1)*R1, sampled after the C0=R1 save.
+            test.expect_saved_address("D6 every row saves VMA prime", 0x1000 + (row + 1) * 40);
+            if (row != 2) {
+                d6_wait_position(test, row + 1, 0, 0);
+                test.expect_ma("D6 next row consumes saved VMA prime", 0x1000 + (row + 1) * 40);
+            }
+        }
+        d6_wait_position(test, 0, 0, 0);
+        // 19.5.3: an origin still toggles, rather than permanently locking
+        // parity. The next execution of ON/OFF has work to do again.
+        test.expect_parity_frame("D6 following origin toggles to odd", true);
+    }
+    // Omit ON/OFF in this following odd frame. Section 19.5.3 still
+    // toggles at the origin, so 11.6.1 suppresses saves again; the last
+    // preceding even-frame save remains base+3*R1. This distinguishes
+    // per-frame normalization from an unsupported permanent parity lock.
+    d6_wait_position(test, 0, 3, 41);
+    test.expect_saved_address("D6 no-ON/OFF odd control suppresses save", 0x1000 + 120);
+    d6_wait_position(test, 1, 0, 0);
+    test.expect_ma("D6 odd control consumes retained preceding-frame save", 0x1000 + 120);
+
+}
+
 void test_type1_rfd_write_away_from_r0_stays_unarmed(TestBench& test) {
     test.set_crtc_type(1);
     program_registers(test, kRfdRegisters);
@@ -4163,7 +4274,7 @@ void test_type1_rfd_write_away_from_r0_stays_unarmed(TestBench& test) {
     test.run_characters(3);
     test.write_selected_register_at_clken(1);
     test.expect_type1_rfd_state(
-        "type 1 off-R0 R5 write leaves RFD unarmed", false, false, false);
+        "type 1 off-R0 R5 write leaves RFD unarmed", false, false);
 }
 
 void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
@@ -4173,15 +4284,19 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
     test.write_register(13, 0x34);
     test.select_register(5);
     test.reset();
+    // French 11.6.1 p.90: case 1 is odd. One complete frame
+    // (19.5.3 p.209) advances the fixture from reset-even to odd.
+    test.run_characters(32);
+    test.expect_parity_c9("RFD case-1 fixture is odd", true);
 
-    // ACCC v1.10 section 11.6 and 11.6.3, pages 87-90: with R5 previously
+    // French ACCC v1.11 section 11.6.1 p.90: with R5 previously
     // zero and C9=0 != R9=1, the 0->1 write landing at C0=R0=7 arms both
-    // independent RFD flags.  The current (reset) parity is case 1, so the
+    // independent RFD flags.  The current odd parity is case 1, so the
     // C9=R9-at-C0=R1 save is suppressed during this frame.
     test.run_characters(7);
     test.write_selected_register_at_clken(1);
     test.expect_type1_rfd_state(
-        "type 1 exact-R0 R5 write arms both RFD flags", true, true, false);
+        "type 1 exact-R0 R5 write arms both RFD flags", true, true);
     test.expect_ma(
         "type 1 exact-R0 R5 write reloads R12/R13 on the arming rollover",
         0x1234);
@@ -4199,15 +4314,16 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
     test.expect_ra("RFD case 1 begins the next row at C9=0", 0);
     test.expect_ma("RFD case 1 reloads R12/R13 on a nonzero row", 0x2050);
     test.expect_type1_rfd_state(
-        "RFD case 1 leaves the VMA-source flag armed", true, true, false);
+        "RFD case 1 leaves the VMA-source flag armed", true, true);
 
     // The tiny fixture has four lines per frame.  Two more line endings
     // reach C4=C9=C0=0; odd R9 toggles parity (section 11.6.1, pp.88-89).
     test.run_characters(16);
+    test.expect_parity_c9("French 11.6.1: even parity selects case 2", false);
     test.expect_c4("RFD parity boundary resets C4", 0);
     test.expect_ra("RFD parity boundary resets C9", 0);
     test.expect_type1_rfd_state(
-        "RFD odd-R9 frame boundary selects case 2", true, true, true);
+        "RFD odd-R9 frame boundary selects case 2", true, true);
 
     // In case 2, the next C9=R9/C0=R1 comparison succeeds.  The actual
     // VMA' save clears only the VMA-source flag; parity management remains
@@ -4215,7 +4331,7 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
     test.run_characters(13);
     test.expect_type1_rfd_state(
         "RFD case 2 successful VMA' save disarms only the source flag",
-        false, true, true);
+        false, true);
 }
 
 void test_type1_rfd_r1_gt_r0_bare_c9_disarms(TestBench& test) {
@@ -4234,11 +4350,11 @@ void test_type1_rfd_r1_gt_r0_bare_c9_disarms(TestBench& test) {
     test.run_characters(3);
     test.write_selected_register_at_clken(1);
     test.expect_type1_rfd_state(
-        "R1>R0 exact-R0 write initially arms RFD", true, true, false);
+        "R1>R0 exact-R0 write initially arms RFD", true, true);
     test.run_clock_ticks(1);
     test.expect_type1_rfd_state(
         "R1>R0 bare C9 match disarms the RFD VMA-source flag",
-        false, true, false);
+        false, true);
 }
 
 void test_type1_rfd_final_line_write_enters_adjustment(TestBench& test) {
@@ -4269,7 +4385,7 @@ void test_type1_rfd_final_line_write_enters_adjustment(TestBench& test) {
         0x1234);
     test.expect_type1_rfd_state(
         "exact-R0 final-line R5 write arms parity flag and disables source flag",
-        false, true, false);
+        false, true);
 }
 
 void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
@@ -4282,6 +4398,10 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
     test.write_register(13, 0x34);
     test.select_register(5);
     test.reset();
+    // French 11.6.1 p.90: case 1 is odd. One complete frame
+    // (19.5.3 p.209) advances the fixture from reset-even to odd.
+    test.run_characters(64);
+    test.expect_parity_c9("RFD case-1 fixture is odd", true);
 
     // Step 1: Trigger an initial RFD on Row 0, Line 0 (C9=0 != R9=1) at C0=R0=7:
     test.run_characters(7);
@@ -4290,7 +4410,7 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
     test.write_selected_register_at_clken(1);
     test.expect_type1_rfd_state(
         "initial RFD trigger arms both source and parity flags",
-        true, true, false);
+        true, true);
     test.expect_ma(
         "initial RFD trigger reloads R12/R13 on the arming rollover",
         0x1234);
@@ -4316,7 +4436,7 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
     test.expect_line("reaches C9=R9=1", 1);
     test.expect_type1_rfd_state(
         "source flag is still armed before repeated trigger",
-        true, true, false);
+        true, true);
 
     // Step 2: Trigger repeated RFD on line where C9==R9:
     test.select_register(5);
@@ -4327,24 +4447,25 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
     // the parity flag (parity_flag=true).
     test.expect_type1_rfd_state(
         "repeated RFD triggered on C9=R9 disables source flag and keeps parity flag",
-        false, true, false);
+        false, true);
 
     // Complete the OUT R5,0 recipe so adjustment does not engage:
     test.write_register(5, 0);
 
     // Advance across the rollover to Row 2 Line 0 (C4=2, C9=0):
     // Because the source flag was disabled by the C9=R9 trigger, VMA must NOT reload
-    // 0x3070 (which would produce MA=0x3071 at C0=1). Instead, it loads VMA' (0x0000).
+    // 0x3070 (which would produce MA=0x3071 at C0=1). Instead, it loads VMA' (0x1244), retained from the preceding even frame:
+    // base 0x1234 + four rows * R1=4 (French 11.6.1 p.90).
     test.run_characters(1);
     test.expect_c4("advances to row 2 line 0", 2);
     test.expect_line("reaches row 2 line 0", 0);
-    test.expect_ma("MA on row 2 line 0 did not reload from R12/R13 (0x3070)", 0x0001);
+    test.expect_ma("MA on row 2 line 0 did not reload from R12/R13 (0x3070)", 0x1245);
 
     // Advance through line 0 of Row 2 to line 1 of Row 2:
     test.run_characters(8);
     test.expect_c4("advances to row 2 line 1", 2);
     test.expect_line("reaches row 2 line 1", 1);
-    test.expect_ma("MA on row 2 line 1 continues without reloading 0x3070", 0x0001);
+    test.expect_ma("MA on row 2 line 1 continues without reloading 0x3070", 0x1245);
 }
 
 // ---------------------------------------------------------------------------
@@ -4386,7 +4507,7 @@ void test_type1_rfd_r0_widen_without_cancel_ends_normally(TestBench& test) {
     test.expect_type1_rfd_pending(
         "widening R0 write on the last line opens the trigger window", true);
     test.expect_type1_rfd_state(
-        "opening the window alone does not arm RFD", false, false, false);
+        "opening the window alone does not arm RFD", false, false);
     // The comparator match is overridden this rollover, so C0 runs 7 -> 8
     // -> 9 and the deferred line end fires on the second following edge.
     test.run_characters(2);
@@ -4396,7 +4517,7 @@ void test_type1_rfd_r0_widen_without_cancel_ends_normally(TestBench& test) {
         "window expiry keeps the ordinary frame-start reload", 0x1234);
     test.expect_type1_rfd_pending("expired window closes", false);
     test.expect_type1_rfd_state(
-        "no cancellation means no RFD arm", false, false, true);
+        "no cancellation means no RFD arm", false, false);
 }
 
 void test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end(TestBench& test) {
@@ -4406,6 +4527,10 @@ void test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end(TestBench& test) {
     test.write_register(13, 0x34);
     test.select_register(0);
     test.reset();
+    // French 11.6.1 p.90: case 1 is odd. One complete frame
+    // (19.5.3 p.209) advances the fixture from reset-even to odd.
+    test.run_characters(32);
+    test.expect_parity_c9("RFD case-1 fixture is odd", true);
 
     // ACCC v1.10 section 13.7.1.2 p.124, R9 variant ("C9 != R9 by line
     // end"): widen R0 7->9 on the last line, then raise R9 to 3 inside the
@@ -4426,7 +4551,7 @@ void test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end(TestBench& test) {
     test.run_characters(2);
     test.expect_type1_rfd_state(
         "R9-cancelled widened last line arms both RFD flags",
-        true, true, false);
+        true, true);
     test.expect_type1_rfd_pending("arming closes the window", false);
     test.expect_ma("armed RFD reloads R12/R13 at the extended end", 0x1234);
     test.expect_c4("cancelled condition does not end the frame", 1);
@@ -4437,7 +4562,7 @@ void test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end(TestBench& test) {
     test.expect_ma("frame start reloads R12/R13 as usual", 0x1234);
     test.expect_type1_rfd_state(
         "case-1 save suppression leaves the source flag armed",
-        true, true, true);
+        true, true);
 }
 
 void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
@@ -4447,6 +4572,10 @@ void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
     test.write_register(13, 0x34);
     test.select_register(0);
     test.reset();
+    // French 11.6.1 p.90: case 1 is odd. One complete frame
+    // (19.5.3 p.209) advances the fixture from reset-even to odd.
+    test.run_characters(32);
+    test.expect_parity_c9("RFD case-1 fixture is odd", true);
 
     // ACCC v1.10 section 13.7.1.2 p.124, R4 variant ("C4 != R4 by line
     // end, C9==R9 still held"): widen R0 7->9 on the last line, then raise
@@ -4468,7 +4597,7 @@ void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
     test.run_characters(2);
     test.expect_type1_rfd_state(
         "R4-cancelled widened last line arms both RFD flags",
-        true, true, false);
+        true, true);
     test.expect_type1_rfd_pending("arming closes the window", false);
     test.expect_c4("cancelled condition advances C4 past old R4", 2);
     test.expect_ra("row boundary still resets C9", 0);
@@ -4478,7 +4607,7 @@ void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
     test.expect_c4("frame ends once C4 reaches the raised R4", 0);
     test.expect_type1_rfd_state(
         "case-1 save suppression leaves the source flag armed",
-        true, true, true);
+        true, true);
 }
 
 void test_type1_rfd_r0_widen_restored_condition_does_not_arm(TestBench& test) {
@@ -4508,7 +4637,7 @@ void test_type1_rfd_r0_widen_restored_condition_does_not_arm(TestBench& test) {
     test.expect_type1_rfd_pending("window closes either way", false);
     test.expect_type1_rfd_state(
         "restored last-line condition does not arm RFD",
-        false, false, true);
+        false, false);
     test.expect_c4("restored condition ends the frame normally", 0);
     test.expect_ra("restored condition resets C9", 0);
     test.expect_ma(
@@ -4539,7 +4668,7 @@ void test_type1_rfd_equal_r0_write_opens_no_window(TestBench& test) {
     test.run_characters(8);
     test.expect_type1_rfd_state(
         "no window means no arm regardless of later writes",
-        false, false, true);
+        false, false);
     test.expect_c4("frame already restarted at the write edge", 0);
 }
 
@@ -4570,7 +4699,7 @@ void test_type1_rfd_r0_widen_off_last_line_never_arms(TestBench& test) {
     test.write_register(4, 2);
     test.run_characters(10);
     test.expect_type1_rfd_state(
-        "no window on a mid-frame widening", false, false, false);
+        "no window on a mid-frame widening", false, false);
     test.expect_c4("deferred boundary leaves the advanced C4", 1);
 }
 
@@ -4598,14 +4727,14 @@ void test_type1_rfd_r0_window_does_not_survive_type_round_trip(TestBench& test) 
     test.expect_type1_rfd_pending(
         "type-0 dwell clears the hidden window", false);
     test.expect_type1_rfd_state(
-        "type-0 dwell clears the RFD flags", false, false, false);
+        "type-0 dwell clears the RFD flags", false, false);
     test.set_crtc_type(1);
     // C0 continues 7 -> 8 -> 9 across the round trip; with the window
     // cleared the deferred line end must behave as a plain cancelled
     // non-event: no arm, C9 advancing past the old value.
     test.run_characters(2);
     test.expect_type1_rfd_state(
-        "window does not survive the round trip", false, false, false);
+        "window does not survive the round trip", false, false);
     test.expect_c4("counters continue across the round trip", 1);
     test.expect_ra("counters continue across the round trip", 2);
 }
@@ -4635,7 +4764,7 @@ void test_type1_rfd_r0_widen_line_gate_never_arms(TestBench& test) {
     test.write_register(9, 3);
     test.run_characters(10);
     test.expect_type1_rfd_state(
-        "no window means the rewrite cannot arm", false, false, false);
+        "no window means the rewrite cannot arm", false, false);
     test.expect_c4("no row boundary occurred anywhere", 1);
     test.expect_ra("extended line end advances C9", 2);
 }
@@ -6554,6 +6683,155 @@ void test_interlace_sync_leaves_ra_plain(TestBench& test) {
     }
 }
 
+// D1: French ACCC v1.11 section 19.7.2 p.219: incoming parity owns
+// the R7=0 comparison, for both types and R8=1/3. Observe raw pulse edges
+// across complete frames, rather than inferring phase from FIELD.
+void test_vsync_frames(TestBench& test, unsigned type, unsigned r9,
+                       unsigned r8 = 3, unsigned r7 = 0, unsigned r4 = 31,
+                       unsigned width = 4, bool bus_entry = false) {
+    test.prepare_for_reset(type);
+    test.load_snapshot_registers({63, 40, 46,
+        static_cast<std::uint8_t>(((width & 15) << 4) | 1),
+        static_cast<std::uint8_t>(r4), 0, static_cast<std::uint8_t>(r4 - 1),
+        static_cast<std::uint8_t>(r7),
+        static_cast<std::uint8_t>(bus_entry ? 0 : r8),
+        static_cast<std::uint8_t>(r9)});
+    if (bus_entry) {
+        test.run_to_c0(20);
+        test.write_register(8, 3);
+        test.run_characters(3);
+        test.write_register(8, 0);
+        test.run_characters(3);
+        test.write_register(8, r8);
+    }
+    bool previous = test.raw_vsync();
+    unsigned frames = 0, pulses = 0, rise_at = 0;
+    unsigned previous_row = test.row_counter();
+    bool watching = false;
+    for (unsigned c = 0; c < 200000 && frames < 8; ++c) {
+        test.run_characters(1);
+        const bool origin = previous_row != 0 && test.row_counter() == 0;
+        previous_row = test.row_counter();
+        if (origin) {
+            if (watching) test.expect_byte("D1 one pulse per complete frame", 1, pulses);
+            ++frames;
+            watching = frames >= 3;
+            pulses = 0;
+        }
+        const bool now = test.raw_vsync();
+        if (watching && now && !previous) {
+            ++pulses;
+            // C0=R0/2 is 31; an odd frame starts at the origin seam.
+            test.expect_byte("D1 incoming parity selects pulse phase",
+                             test.frame_parity() ? 0 : 31, test.c0());
+            rise_at = c;
+        }
+        if (watching && !now && previous && rise_at) {
+            const unsigned expected_width = (type ? 16 : width) * 64;
+            if (c - rise_at != expected_width) throw TestFailure("D1 active pulse width changed");
+        }
+        previous = now;
+    }
+    test.expect_byte("D1 observed eight origins", 8, frames);
+}
+
+// French 16.4 p.170 accepts R7 through the last character preceding
+// C4=R7. Exercise both bus phases at the origin, and a write moving R7
+// away from zero, with both incoming parities.
+void test_vsync_r7_origin_write(TestBench& test, unsigned type, bool on_edge,
+                                bool cancel) {
+    test.prepare_for_reset(type);
+    test.load_snapshot_registers({63, 40, 46, 0x41, 31, 0, 25, 127, 3, 7});
+    for (unsigned frame = 0; frame < 4; ++frame) {
+        test.write_register(7, cancel ? 0 : 127);
+        test.select_register(7);
+        unsigned wait = 0;
+        while (!test.frame_end_pending() && ++wait < 400000) test.run_clock_ticks(1);
+        if (wait == 400000) throw TestFailure("D1 R7 fixture missed frame end");
+        const unsigned value = cancel ? 127 : 0;
+        if (on_edge) test.write_selected_register_at_clken(value);
+        else {
+            test.write_selected_register_at_nclken(value);
+            test.run_characters(1);
+        }
+        test.expect_byte("D1 write reaches origin C0", 0, test.c0());
+        test.expect_byte("D1 R7 origin seam",
+                         !cancel && test.frame_parity(), test.raw_vsync());
+        test.run_characters(31);
+        test.expect_byte("D1 R7 origin after midpoint", !cancel, test.raw_vsync());
+        test.run_characters(20 * 64); // complete pulse before next trial
+    }
+}
+
+// D1 review: R3v=16 exceeds the short frame. Its last count occurs on
+// an odd frame's final-line midpoint while the next seam predicate is true.
+// That predicate must not start a pulse on the old pulse's midpoint tick.
+void test_vsync_overlap_phase(TestBench& test, unsigned type) {
+    test.set_crtc_type(type);
+    RegisterProgram registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x01},
+        {4, static_cast<std::uint8_t>(type ? 8 : 7)}, {5, 0},
+        {6, static_cast<std::uint8_t>(type ? 7 : 6)},
+        {7, static_cast<std::uint8_t>(type ? 1 : 0)}, {8, 0}, {9, 0},
+    }};
+    program_registers(test, registers);
+    test.reset();
+    test.load_snapshot_registers({63, 40, 46, 0x01,
+        static_cast<std::uint8_t>(type ? 8 : 7), 0,
+        static_cast<std::uint8_t>(type ? 7 : 6),
+        static_cast<std::uint8_t>(type ? 1 : 0),
+        static_cast<std::uint8_t>(type ? 1 : 3), 0});
+    unsigned wait = 0;
+    while (!test.raw_vsync() && ++wait < 1000) test.run_characters(1);
+    if (wait == 1000) throw TestFailure("D1 overlap fixture did not start");
+    test.expect_parity_frame("D1 overlap starts on an even frame", false);
+    test.expect_byte("D1 overlap starts at midpoint", 31, test.c0());
+    test.run_characters(64);
+    test.write_register(7, 0);
+    // French 16.2: R3v=0 means 16 lines (type 1 is always 16).
+    // Type 0: 9 even + 8 odd lines, starts on even line 0.
+    // Type 1: 9 + 9 lines, starts on even line 1.
+    // In both cases the sixteenth count lands on the final odd-line MID.
+    test.run_characters(15 * 64);
+    test.expect_parity_frame("D1 overlap end is in the odd frame", true);
+    test.expect_byte("D1 overlap final count is still a midpoint", 31, test.c0());
+    test.expect_byte("D1 seam predicate cannot extend pulse at midpoint", 0, test.raw_vsync());
+    test.run_characters(33);
+    test.expect_parity_frame("D1 following origin is even", false);
+    test.expect_byte("D1 incoming even frame waits at seam", 0, test.raw_vsync());
+    test.run_characters(31);
+    test.expect_byte("D1 next pulse starts at its own midpoint", 1, test.raw_vsync());
+}
+
+// D1 width ownership: a pulse outlives the frame/IVM parity transitions
+// which selected its phase. R3v=4 on type 0, fixed 16 lines on type 1
+// (French sections 16.1-16.2); neither an R8 write nor an origin restarts C3h.
+void test_vsync_active_r8_transitions(TestBench& test, unsigned type) {
+    test.prepare_for_reset(type);
+    test.load_snapshot_registers({63, 40, 46, 0x41, 31, 0, 25, 0, 3, 7});
+    bool previous = test.raw_vsync();
+    unsigned rises = 0;
+    std::uint64_t start = 0;
+    for (unsigned c = 0; c < 100000; ++c) {
+        test.run_characters(1);
+        const bool now = test.raw_vsync();
+        if (now && !previous && ++rises == 3) start = test.total_characters();
+        if (start) {
+            const auto age = test.total_characters() - start;
+            if (age == 8) test.write_register(8, 1);
+            if (age == 16) test.write_register(8, 0);
+            if (age == 24) test.write_register(8, 3);
+            if (!now && previous) {
+                if (age != (type ? 16u : 4u) * 64)
+                    throw TestFailure("D1 R8 transitions changed active pulse width");
+                return;
+            }
+        }
+        previous = now;
+    }
+    throw TestFailure("D1 R8 transition fixture did not finish a pulse");
+}
+
 // t24: type-1 IVM VSYNC positions (ACCC v1.10 section 19.5.3 p.208 table).
 //
 // R9=8 (even -> the row-pair line count R9+1 is odd), R7 on a chosen C4,
@@ -7679,9 +7957,9 @@ int main(int argc, char** argv) {
         {"t02o_type0_vsync_blocked_comparison_is_consumed",
          "ACCC v1.11 English section 16.4.1.2 pp.168-169; model inference/hardware discriminator",
          false, test_type0_vsync_blocked_comparison_is_consumed},
-        {"t02p_type1_interlace_sync_odd_field_vsync",
+        {"t02p_type1_interlace_sync_even_parity_vsync",
          "ACCC v1.10 sections 16.4.2 and 19.3.2.1; type-1 R8=1 half-line route",
-         false, test_type1_interlace_sync_odd_field_vsync},
+         false, test_type1_interlace_sync_even_parity_vsync},
         {"t02q_type0_interlace_vsync_rebuilds_after_snapshot",
          "ACCC v1.11 English section 16.4.1.2 with snapshot lifecycle",
          false, test_type0_interlace_vsync_rebuilds_after_snapshot},
@@ -8128,6 +8406,72 @@ int main(int argc, char** argv) {
         {"t23c_interlace_sync_leaves_ra_plain",
          "ACCC v1.10 section 19.3.2.1 p.199 (INTERLACE SYNC does not touch the raster address); F10/N-9",
          false, test_interlace_sync_leaves_ra_plain},
+        {"d1_type0_is_r9_7", "French 19.7.2 p.219 R8=1", false,
+         [](TestBench& t) { test_vsync_frames(t, 0, 7, 1); }},
+        {"d1_type0_cross_origin_r9_7", "French 19.7.2/16.2 pulse count", false,
+         [](TestBench& t) { test_vsync_frames(t, 0, 7, 3, 7, 7, 16); }},
+        {"d1_type0_is_r9_8", "French 19.7.2 p.219 R8=1", false,
+         [](TestBench& t) { test_vsync_frames(t, 0, 8, 1); }},
+        {"d1_type0_cross_origin_r9_8", "French 19.7.2/16.2 pulse count", false,
+         [](TestBench& t) { test_vsync_frames(t, 0, 8, 3, 7, 7, 16); }},
+        {"d1_type0_control_r7_24", "French 19.7.2 nonzero R7", false,
+         [](TestBench& t) { test_vsync_frames(t, 0, 7, 3, 24); }},
+        {"d1_type0_control_r7_1", "French 19.7.2 nonzero R7", false,
+         [](TestBench& t) { test_vsync_frames(t, 0, 8, 3, 1); }},
+        {"d1_type0_r8_bus_entry", "French 19.7.2 R8 transitions", false,
+         [](TestBench& t) { test_vsync_frames(t, 0, 7, 3, 0, 31, 4, true); }},
+        {"d1_type0_active_r8", "French 16.2/19.7.2 width lifecycle", false,
+         [](TestBench& t) { test_vsync_active_r8_transitions(t, 0); }},
+        {"d1_type1_is_r9_7", "French 19.7.2 p.219 R8=1", false,
+         [](TestBench& t) { test_vsync_frames(t, 1, 7, 1); }},
+        {"d1_type1_cross_origin_r9_7", "French 19.7.2/16.2 pulse count", false,
+         [](TestBench& t) { test_vsync_frames(t, 1, 7, 3, 7, 7, 16); }},
+        {"d1_type1_is_r9_8", "French 19.7.2 p.219 R8=1", false,
+         [](TestBench& t) { test_vsync_frames(t, 1, 8, 1); }},
+        {"d1_type1_cross_origin_r9_8", "French 19.7.2/16.2 pulse count", false,
+         [](TestBench& t) { test_vsync_frames(t, 1, 8, 3, 7, 7, 16); }},
+        {"d1_type1_control_r7_24", "French 19.7.2 nonzero R7", false,
+         [](TestBench& t) { test_vsync_frames(t, 1, 7, 3, 24); }},
+        {"d1_type1_control_r7_1", "French 19.7.2 nonzero R7", false,
+         [](TestBench& t) { test_vsync_frames(t, 1, 8, 3, 1); }},
+        {"d1_type1_r8_bus_entry", "French 19.7.2 R8 transitions", false,
+         [](TestBench& t) { test_vsync_frames(t, 1, 7, 3, 0, 31, 4, true); }},
+        {"d1_type1_active_r8", "French 16.2/19.7.2 width lifecycle", false,
+         [](TestBench& t) { test_vsync_active_r8_transitions(t, 1); }},
+        {"d1_type0_r7_nclken_arm", "French 16.4 p.170 / 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_r7_origin_write(t, 0, false, false); }},
+        {"d1_type0_r7_nclken_cancel", "French 16.4 p.170 / 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_r7_origin_write(t, 0, false, true); }},
+        {"d1_type0_r7_clken_arm", "French 16.4 p.170 / 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_r7_origin_write(t, 0, true, false); }},
+        {"d1_type0_r7_clken_cancel", "French 16.4 p.170 / 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_r7_origin_write(t, 0, true, true); }},
+        {"d1_type1_r7_nclken_arm", "French 16.4 p.170 / 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_r7_origin_write(t, 1, false, false); }},
+        {"d1_type1_r7_nclken_cancel", "French 16.4 p.170 / 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_r7_origin_write(t, 1, false, true); }},
+        {"d1_type1_r7_clken_arm", "French 16.4 p.170 / 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_r7_origin_write(t, 1, true, false); }},
+        {"d1_type1_r7_clken_cancel", "French 16.4 p.170 / 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_r7_origin_write(t, 1, true, true); }},
+        {"d6_even_rfd_ivm_on_off", "French 11.6.1 p.90 / 19.5.3 pp.209-210", false,
+         [](TestBench& t) { test_d6_rfd_ivm_on_off(t, false); }},
+        {"d6_odd_rfd_ivm_on_off", "French 11.6.1 p.90 / 19.5.3 pp.209-210", false,
+         [](TestBench& t) { test_d6_rfd_ivm_on_off(t, true); }},
+        {"d1_type0_blocked_addline_origin", "French 16.4.1.2 / 19.7.2", false,
+         test_type0_vsync_blocked_addline_origin},
+        {"d1_type0_overlap", "French 16.2 / 19.7.2; review overlap", false,
+         [](TestBench& t) { test_vsync_overlap_phase(t, 0); }},
+        {"d1_type1_overlap", "French 16.2 / 19.7.2; review overlap", false,
+         [](TestBench& t) { test_vsync_overlap_phase(t, 1); }},
+        {"d1_type0_r9_7", "French 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_frames(t, 0, 7); }},
+        {"d1_type0_r9_8", "French 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_frames(t, 0, 8); }},
+        {"d1_type1_r9_7", "French 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_frames(t, 1, 7); }},
+        {"d1_type1_r9_8", "French 19.7.2 p.219", false,
+         [](TestBench& t) { test_vsync_frames(t, 1, 8); }},
         {"t24a_type1_ivm_vsync_gap_r7_odd_c4",
          "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=1 odd) with section 19.8.2 p.225 alternation",
          false, test_type1_ivm_vsync_gap_r7_odd_c4},

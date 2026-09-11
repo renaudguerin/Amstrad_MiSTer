@@ -1,5 +1,14 @@
 # Current implementation status
 
+**Accuracy repair integrated, 2026-09-11:** D1 uses the selected engine’s incoming
+parity for origin VSYNC and retains active-pulse count phase; D6 uses shared
+ParityC9 for RFD saves. The full simulation gate passes with 225 classic vectors, as do lint and
+soak `0xb1cb70da95c2e44f`. Gemini high re-reviewed `988f5b9`, including the
+post-Opus fixes and D6, and returned CLEAR with no actionable findings.
+The rebased source tip is `2d04812`. The D1/D6 push skipped CI and synthesis at the user’s request to allow
+subsequent Plus integration. No new RBF is claimed. SHAKER B (9) on both types and C (4) on
+type 1 still await a hardware retest. See [repair evidence](accuracy/d1-d6-parity-repair-2026-09-11.md).
+
 ## 2026-09-11 D5 BASIC boot input repair
 
 CPC Plus now supplies low `/EXP` for BASIC boot; MMU decoder polarity is
@@ -24,11 +33,11 @@ unassessed entries do not become passes by association.
 **Code diagnosis, 2026-09-10:** the [retained investigation](hardware-diagnosis-2026-09-10.md)
 reproduces a type-1 frame-origin VSYNC parity bug matching SHAKER B (9)'s
 `#4E00` interval, ASCAL geometry changes under split DE, a Plus sprite first-row
-refill failure, and Plus PPI control-readback differences. Production RTL is
-unchanged. Local diagnostic sources, reference images and rerun logs are
+refill failure, and Plus PPI control-readback differences. Production RTL was
+unchanged by that diagnostic pass. Local diagnostic sources, reference images and rerun logs are
 preserved; the full existing simulation suite passes with its known FDC XFAIL.
-The recommended next Classic work is the bounded VSYNC repair plus a first
-repeatable B2 hardware capture. Plus System/BASIC boot remains a blocker for
+The D1/D6 source repair is integrated above; the next Classic hardware work
+is its SHAKER retest plus a first repeatable B2 capture. Plus System/BASIC boot remains a blocker for
 Plus disk-based testing; its separate ROM/input investigation is in the report.
 
 **Latest verified CI/RBF, 2026-09-08:** `ce1d2da67c2598c0dd06208b9fc14c52ada01712`
