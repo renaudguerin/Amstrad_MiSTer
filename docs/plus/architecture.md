@@ -166,18 +166,19 @@ fail-closed untrusted-input handling and these decisions keep it that way.
   reset the parser sees, so both sides clear atomically; nothing may rely on `load_abort`
   being pulsed during reset. Explicit unloading remains `detach`'s job (OSD "Reset &
   Detach Cartridge"), which invalidates the image without scrubbing SDRAM.
-- **`/EXP` implementation and open configuration defect.** `plus_mmu` samples
+- **`/EXP` implementation and D5 configuration repair.** `plus_mmu` samples
   `exp_n` live: ROM 0 selects page 1 when low and page 3 when high. `Amstrad.sv`
-  currently ties it high. The former explanation that a bare machine necessarily
-  supplies high is not established for a 6128 Plus; motherboard straps matter.
-  Preserve the decoder polarity while investigating the machine input below.
+  supplies low for CPC Plus BASIC boot. GX4000 overrides this input in the
+  decoder. The former bare-machine pull-up assumption selected disc auto-boot
+  at ROM0. See the [D5 regression](d5-basic-boot-input-2026-09-11.md).
 
 ### D5 ROM 0 source check (2026-09-11)
 
 **Recommended repair direction: correct the machine's `/EXP` input, not invert
 ROM 0 decoding.** Both scratch page-1 controls boot BASIC. The user accepted the combined hardware
 references as sufficient to implement this direction; factory 6128 Plus link
-population is a residual detail, not a prerequisite. Production RTL remains unchanged.
+population is a residual detail, not a prerequisite. The production input repair
+and validation are recorded in the [D5 regression report](d5-basic-boot-input-2026-09-11.md).
 
 Sources were checked in the requested order:
 
@@ -232,23 +233,18 @@ Sources were checked in the requested order:
   The other supplied DSK/SNA/video/sprite documents are adjacent references,
   not evidence for D5 polarity.
 
-**Fresh-session scope:** resume `codex/plus/d5-rom0-boot` in its existing task
-checkout or start a new Plus implementation task from integrated master; preserve
-other tasks. Add a failing production-configuration boot regression before
-changing the top-level input. No further physical measurement is required to
-start: on 2026-09-11 the user accepted the conversion evidence as sufficient.
-Use both unchanged CPRs and actual firmware `Ready` output, with explicit
-missing-message and timeout failure reasons. The old scratch control changed
-only high-EXP ROM0 decoding; rerun with the unchanged decoder and the proposed
-machine input, rather than relabeling that old result as an input-level test.
+**Implementation:** the production input is low for CPC Plus; the live MMU
+truth table is unchanged. Both unchanged CPRs are required to emit actual
+firmware `Ready` on 6128 Plus and 464 Plus, with missing-message and timeout
+failures. ROM7, all direct selections and GX4000 are separate executed controls.
+See [commands, results and acceptance limits](d5-basic-boot-input-2026-09-11.md).
+The old scratch page-1 results below remain historical decoder experiments;
+they are not relabelled as input-level validation.
 
-Pin ROM 7, direct 128–255 selection, GX4000 and 464 Plus behavior separately;
-do not extrapolate the 6128 configuration to every model. Run `make -C sim`
-and lint, and obtain fresh cross-provider review for the implementation. The
-user requested no further Opus tasks in this investigation; use another
-appropriate authorized provider. The Gemini emulator-source research was
-stopped cleanly after stalling without a report; it contributes no findings.
-Hardware BASIC boot with an empty drive remains a separate acceptance gate.
+No further physical measurement is an implementation prerequisite. Hardware
+BASIC boot with an empty drive remains a separate acceptance gate. The previous
+Gemini emulator-source research was stopped without a report and contributes no
+findings; implementation review is recorded separately in the regression report.
 
 The user also supplied an old motherboard photograph showing the ASIC and a
 link bank labelled LK01–LK05. Link connectivity cannot be established from

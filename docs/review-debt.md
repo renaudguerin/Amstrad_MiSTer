@@ -2,6 +2,15 @@
 
 ## Pending integration / review-complete rows (zero open review findings)
 
+- **D5 BASIC boot input — CLEAR, integrated from refreshed `8e2f280`.**
+  Gemini 3.8 Flash high reviewed the production `/EXP` configuration and
+  production-T80 firmware monitor in source `f0af3d6`, returning no material
+  findings. Refresh against D1/D6 preserved the Plus RTL and test bodies;
+  its conflict resolution changed only shared status prose. Both unchanged
+  BASIC CPRs emit `Ready` on 6128 Plus and 464 Plus; ROM0/ROM7/direct-page
+  controls cover all three Plus models. Hardware and rendered-output
+  acceptance remain separate. See [D5 evidence](plus/d5-basic-boot-input-2026-09-11.md).
+
 - **D1/D6 parity repair — CLEAR, integrated from rebased tip `2d04812`.**
   Gemini 3.8 Flash high reviewed source `988f5b9`; the rebase preserves
   its RTL and tests byte-for-byte. The review includes the fixes to

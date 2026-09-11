@@ -13,6 +13,13 @@ merged into the same behavioral PR.
 
 ## 1. Current baseline
 
+- D5's production `/EXP` input repair is integrated with unchanged MMU
+  decoder polarity. The opt-in production-T80 gate requires both unchanged
+  BASIC CPRs to emit `Ready` on 6128 Plus and 464 Plus, retaining ROM7,
+  direct-page and GX4000 controls. Physical BASIC boot and subsequent
+  Plus disk-based testing remain hardware acceptance steps. See
+  [D5 validation](plus/d5-basic-boot-input-2026-09-11.md).
+
 - B8-1 production-phase R5/R0 event retention and B8-6 Plus RGB/metadata
   alignment are integrated as separate changes. Their real-GA/scripted-write
   and production-colour/gamma fixtures run in the default gate. B8-2 selected

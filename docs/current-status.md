@@ -5,22 +5,19 @@ parity for origin VSYNC and retains active-pulse count phase; D6 uses shared
 ParityC9 for RFD saves. The full simulation gate passes with 225 classic vectors, as do lint and
 soak `0xb1cb70da95c2e44f`. Gemini high re-reviewed `988f5b9`, including the
 post-Opus fixes and D6, and returned CLEAR with no actionable findings.
-The rebased source tip is `2d04812`. CI and synthesis are intentionally
-skipped for this push at the user’s request so further branches can integrate
-immediately. No new RBF is claimed. SHAKER B (9) on both types and C (4) on
+The rebased source tip is `2d04812`. The D1/D6 push skipped CI and synthesis at the user’s request to allow
+subsequent Plus integration. That push produced no new RBF. SHAKER B (9) on both types and C (4) on
 type 1 still await a hardware retest. See [repair evidence](accuracy/d1-d6-parity-repair-2026-09-11.md).
 
-## 2026-09-11 D5 investigation handoff — separate Plus implementation
+## 2026-09-11 D5 BASIC boot input repair
 
-Both BASIC cartridges reproduce the reported disc-missing message in the
-production-T80 experiment; both page-1 controls reach Ready. New hardware
-references favor correcting the top-level EXP input while preserving decoder
-polarity. The user accepted this evidence as sufficient to implement; further
-physical measurement is not a prerequisite. No RTL,
-RBF or hardware acceptance change is claimed by that investigation. The
-separate `codex/plus/d5-basic-boot-input` implementation follows the [D5 continuation](plus/architecture.md#additional-evidence-and-implementation-handoff)
-and [backlog entry](backlog.md#active-plus-follow-up-d5-rom-0-boot-configuration).
-
+CPC Plus now supplies low `/EXP` for BASIC boot; MMU decoder polarity is
+unchanged. The production-T80 regression requires actual firmware `Ready` from
+both unchanged CPRs on 6128 Plus and 464 Plus and retains model/ROM controls.
+See [D5 validation](plus/d5-basic-boot-input-2026-09-11.md) for results, review
+and limits. Reviewed source `f0af3d6`, refreshed as `8e2f280`, is integrated
+into `master` ahead of D3/D4. MiSTer BASIC boot with an empty drive remains
+pending; firmware simulation does not establish rendered or hardware output.
 
 **Latest hardware retest, 2026-09-09:** `Amstrad_20260908_ce1d2da.rbf` was tested
 on 6128 Plus / Live blanking and classic 6128 / CRTC1 (DSC4 also CRTC0).

@@ -10,18 +10,16 @@ that is not obvious from the roadmap itself.
 
 ## Active Plus follow-up: D5 ROM 0 boot configuration
 
-**Open — likely incorrect top-level `/EXP` constant; no RTL fix yet.** Both
-Plus_EN and menu-free 6128_FR reproduce pre-BASIC `Drive A: disc missing` in
-the production-T80 fixture; scratch ROM0→page1 controls reach `Ready`.
-Arnold4 hardware findings, GX4000 conversion wiring and revised Arnold V now
-favor retaining the decoder and correcting the machine input. Factory 6128
-Plus PB5/LK105 grounding remains the narrow evidence gap.
+**Production input repaired; hardware acceptance pending.** D5 supplies low
+`/EXP` for CPC Plus BASIC boot while preserving the live MMU decoder polarity.
+The regression executes both unchanged BASIC CPRs on 6128 Plus and 464 Plus,
+requires firmware `Ready`, and rejects disc-missing output and timeouts.
+ROM7, direct-page and GX4000 controls are retained.
 
-Resume the existing `codex/plus/d5-rom0-boot` task or start from integrated master,
-and land a failing production-input boot regression before the repair. Keep
-ROM7/direct/GX4000/464 Plus controls, full simulation/lint, cross-provider review
-and real-hardware acceptance separate. Sources, fixture provenance and exact
-continuation scope: [D5 handoff](plus/architecture.md#additional-evidence-and-implementation-handoff).
+See the [D5 validation report](plus/d5-basic-boot-input-2026-09-11.md) for gates
+and review, and the [source handoff](plus/architecture.md#additional-evidence-and-implementation-handoff)
+for the accepted configuration rationale. Factory strap measurement is not an
+implementation prerequisite. Real-hardware acceptance remains separate.
 
 ## Why this file exists
 

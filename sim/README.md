@@ -188,6 +188,16 @@ For future behaviour changes the rule stays as elsewhere in this repo:
 deterministic vector first, derived from the cited ACCC rule, expectations on
 paper — the soak complements that; it never replaces it.
 
+## D5 production-input BASIC boot regression
+
+`make -C sim/plus d5-boot GHDL=/path/to/ghdl` checks the actual top-level `/EXP`
+configuration using translated production T80 and both unchanged private BASIC
+CPRs. It requires firmware `Ready` on 6128 Plus and 464 Plus, rejects disc-missing
+output/timeouts, and runs ROM7/direct-page/GX4000 controls. It is opt-in because
+the cartridges are user-owned and ignored. See the
+[D5 report](../docs/plus/d5-basic-boot-input-2026-09-11.md) for input hashes,
+fixture limits and results.
+
 ## Production T80 executed-instruction validation (B8-1)
 
 Complementing the scripted CPU bus phase harness (`crtc_cpu_phase_test.cpp`),
