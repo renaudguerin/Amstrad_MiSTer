@@ -1,16 +1,13 @@
 # Current implementation status
 
-## 2026-09-11 D5 investigation handoff — implementation pending
+## 2026-09-11 D5 BASIC boot input repair
 
-Both BASIC cartridges reproduce the reported disc-missing message in the
-production-T80 experiment; both page-1 controls reach Ready. New hardware
-references favor correcting the top-level EXP input while preserving decoder
-polarity. The user accepted this evidence as sufficient to implement; further
-physical measurement is not a prerequisite. No RTL,
-RBF or hardware acceptance change is claimed. Resume the existing
-`codex/plus/d5-rom0-boot` task using the [D5 continuation](plus/architecture.md#additional-evidence-and-implementation-handoff)
-and [backlog entry](backlog.md#active-plus-follow-up-d5-rom-0-boot-configuration).
-
+CPC Plus now supplies low `/EXP` for BASIC boot; MMU decoder polarity is
+unchanged. The production-T80 regression requires actual firmware `Ready` from
+both unchanged CPRs on 6128 Plus and 464 Plus and retains model/ROM controls.
+See [D5 validation](plus/d5-basic-boot-input-2026-09-11.md) for results, review
+and limits. This is a local implementation; no new RBF or hardware acceptance
+is claimed. MiSTer BASIC boot with an empty drive remains pending.
 
 **Latest hardware retest, 2026-09-09:** `Amstrad_20260908_ce1d2da.rbf` was tested
 on 6128 Plus / Live blanking and classic 6128 / CRTC1 (DSC4 also CRTC0).

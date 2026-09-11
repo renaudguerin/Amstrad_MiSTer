@@ -1205,12 +1205,11 @@ plus_menu_capability_mask menu_capability_mask
 
 wire plus_gx4000 = (plus_model == 2'b01);
 
-// P0 definition of the expansion-port /EXP input: high means no expansion
-// device is connected (the pulled-up bare machine), so the ROM-select-0
-// rule resolves to page 3 on 464+/6128+. Future expansion emulation drives
-// it low while claiming the port; docs/plus/architecture.md records the
-// decision and the live-sampling rule.
-wire plus_exp_n = 1'b1;
+// CPC Plus BASIC configuration: /EXP low selects BASIC at logical ROM 0;
+// ROM 7 remains disc firmware. High requests the ROM-0 disc auto-boot route.
+// GX4000 ignores /EXP in the MMU. Keep its live decoder polarity unchanged.
+// Source rationale and production-T80 boot evidence: docs/plus/architecture.md D5.
+wire plus_exp_n = 1'b0;
 
 plus_mmu plus_mmu
 (

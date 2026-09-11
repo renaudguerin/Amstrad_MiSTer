@@ -167,7 +167,7 @@ void test_reset_defaults_and_exp_sampling() {
     tb.respond(0x22);
     tb.end_read();
 
-    // exp_n high: bare machine, value 0 -> page 3
+    // exp_n high: disc auto-boot configuration, value 0 -> page 3
     expect_claim(tb, 0xc000, 3, "high window with /EXP high");
     tb.respond(0x33);
     tb.end_read();
