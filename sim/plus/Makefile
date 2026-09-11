@@ -227,6 +227,15 @@ SPRITES_OBJ_DIR  := obj_dir/asic_sprites
 SPRITES_TEST_SRC := $(abspath asic_sprites_test.cpp)
 SPRITES_TEST_BIN := $(SPRITES_OBJ_DIR)/asic_sprites_tests
 
+# D3 production-cadence first-visible-row contract. This is a separate binary
+# because the established leaf vectors use their abstract zero origin, while
+# production uses H_ORIGIN_DOTS=16 and four master clocks per dot.
+D3_TOP      := asic_sprites
+D3_RTL      := $(abspath ../../rtl/plus/asic_sprites.v)
+D3_OBJ_DIR  := obj_dir/d3_sprites
+D3_TEST_SRC := $(abspath d3_sprites_test.cpp)
+D3_TEST_BIN := $(D3_OBJ_DIR)/d3_sprites_tests
+
 # P4 production seam: ASIC-page register storage and sprite row-fetch
 # arbitration are connected directly to the sprite engine.
 SPRREGS_TOP      := p4_sprites_regs_test_top
@@ -347,7 +356,7 @@ P10DMAMOBO_TEST_BIN := $(P10DMAMOBO_OBJ_DIR)/p10_dma_mobo_tests
 TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(B6_MENU_TEST_BIN) $(DAN_BOUNDS_TEST_BIN) $(ROM_ROUTE_TEST_BIN) $(LEGACY_CART_TEST_BIN) $(MEMORY_TEST_BIN) \
 	$(MEMORY_MIN_TEST_BIN) $(SDRAM_TEST_BIN) $(PARSER_TEST_BIN) $(MMU_TEST_BIN) $(P0BOOT_TEST_BIN) \
 	$(GADIFF_TEST_BIN) $(P1VID_TEST_BIN) $(MOBO_TEST_BIN) \
-	$(AREGS_TEST_BIN) $(SPRRAM_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN) $(B7_TEST_BIN)
+	$(AREGS_TEST_BIN) $(SPRRAM_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(D3_TEST_BIN) $(SPRREGS_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN) $(B7_TEST_BIN)
 
 TEST_BINS += $(P10INPUT_TEST_BIN) $(P10DMA_TEST_BIN) $(P10DMAMOBO_TEST_BIN)
 TEST_BINS += $(B8FIELD_TEST_BIN) $(B8PAL_TEST_BIN)
@@ -358,7 +367,7 @@ CXXFLAGS ?= -std=c++17 -O2
 .PHONY: all build test lint motherboard-lint p4-sprites-regs plus-sprite-ram \
 	plus-sprite-ram-lint clean \
 	p10-dma-ppi-bench p10-dma-ppi-lint p10-dma-mobo-bench p10-dma-mobo-lint \
-	b7-dark-silicon b7-dark-silicon-audit b6-menu-mask rom-loader-route
+	b7-dark-silicon b7-dark-silicon-audit b6-menu-mask rom-loader-route d3-sprites
 
 all: test
 
@@ -379,6 +388,9 @@ p10-input-bench: $(P10INPUT_TEST_BIN)
 
 p10-dma-ppi-bench: $(P10DMA_TEST_BIN)
 	./$(P10DMA_TEST_BIN)
+
+d3-sprites: $(D3_TEST_BIN)
+	./$(D3_TEST_BIN)
 
 p10-dma-ppi-lint:
 	$(VERILATOR) --lint-only -UVERILATOR --public-flat-rw \
@@ -464,6 +476,7 @@ test: $(TEST_BINS)
 	./$(SPRRAM_TEST_BIN)
 	./$(PRI_TEST_BIN)
 	./$(SPRITES_TEST_BIN)
+	./$(D3_TEST_BIN)
 	./$(SPRREGS_TEST_BIN)
 	./$(DMA_TEST_BIN)
 	./$(P8_TEST_BIN)
@@ -565,6 +578,11 @@ $(SPRITES_TEST_BIN): $(SPRITES_RTL) $(SPRITES_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(SPRITES_TOP) \
 		--Mdir $(SPRITES_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(SPRITES_TEST_BIN)) $(SPRITES_RTL) $(SPRITES_TEST_SRC)
+
+$(D3_TEST_BIN): $(D3_RTL) $(D3_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) -Wno-fatal "-GH_ORIGIN_DOTS=10'd16" \
+		--top-module $(D3_TOP) --Mdir $(D3_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(D3_TEST_BIN)) $(D3_RTL) $(D3_TEST_SRC)
 
 $(SPRREGS_TEST_BIN): $(SPRREGS_TOP_SRC) $(SPRREGS_RTL) $(SPRREGS_TEST_SRC) Makefile | $(SPRREGS_OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(SPRREGS_TOP) \
