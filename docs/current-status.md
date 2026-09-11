@@ -1,5 +1,18 @@
 # Current implementation status
 
+**B6 video boundary ready locally, 2026-09-11:** Full and Raw pixels now share
+the complete Full acquisition tuple. Raw pixels uses native VRAM byte order
+and aligned raw vertical blank in RGB; Raw CRT sends raw geometry through the
+shared output with native cadence and core effects/crop disabled. The applied
+mode commits during Full VBLANK at a CPU-owned byte boundary, with reset as
+the escape path. The task branch is `codex/general/b6-video-boundary`, based
+on `20ed4d3`; these changes are not integrated or published. Full simulation,
+lint, canonical soak `0xb1cb70da95c2e44f`, fresh Sol/Gemini review and focused
+negative controls pass. No `sys/` changes or new RBF. The diagnostic matrix,
+final mixer RGB in Verilator and physical HDMI/CRT acceptance remain open;
+see the [design](b6-video-boundary.md) and
+[validation record](b6-video-boundary-review-2026-09-11.md).
+
 **Combined Plus integration timing, 2026-09-11:** D5 and D3/D4 are integrated
 and published at `f8e9372`. All destination simulation, lint, canonical soak
 and unchanged-CPR boot checks pass. The full Quartus fit failed setup at

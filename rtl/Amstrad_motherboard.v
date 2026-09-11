@@ -149,6 +149,15 @@ module Amstrad_motherboard
 	output        vsync,
 	output        field,
 
+	// B6 applied output policy (docs/b6-video-boundary.md).  raw_crt is the
+	// committed Raw CRT selection; the core uses it to force native cadence
+	// and drop its post-processing.  pixel_vblank is the dot-sampled raw
+	// vertical blank tag that travels with the pixel it belongs to and is
+	// consumed as an exact-zero mask after colour conversion.  Both are
+	// inactive in Full mode.
+	output        raw_crt,
+	output reg    pixel_vblank,
+
 	input  [15:0] vram_din,
 	output reg [14:0] vram_addr,
 
@@ -179,6 +188,17 @@ module Amstrad_motherboard
 
 wire crtc_shift;
 
+// B6 applied output policy.  One register owns the timing tuple, the byte
+// policy, the pixel mask and the top-level Raw CRT restrictions, so a mode
+// change cannot be seen at different times by different consumers
+// (docs/b6-video-boundary.md, "Mode and transition contract").  Reserved
+// value 3 normalises to Full.  The commit condition itself lives next to
+// crt_filter, where the Full vertical blank and the selected CPU phase are
+// in scope.
+wire [1:0] sync_filter_req = (sync_filter == 2'd3) ? 2'd0 : sync_filter;
+reg  [1:0] sync_filter_applied;
+wire       sync_filter_commit;
+assign raw_crt = (sync_filter_applied == 2'd2);
 
 wire io_rd = ~(RD_n | IORQ_n);
 wire io_wr = ~(WR_n | IORQ_n);
@@ -800,12 +820,21 @@ always @(posedge clk) begin
 			vram_addr <= crtc_vram_addr;
 		if (!ras_n & !cas_n_old & cas_n) vram_bs <= 1;
 		if (!ras_n & !cas_n)
-			if ((sync_filter != 2'd2) & crtc_shift) begin
+			// B6 byte policy: only Full compensates with the live filter
+			// SHIFT, sampled on each accepted fetch.  Both raw modes return
+			// the native low/high byte order, including when SHIFT changes
+			// between the two halves of one pair.
+			if ((sync_filter_applied == 2'd0) & crtc_shift) begin
 				if (vram_bs) vram_din_shift <= de_sel ? vram_din[15:8] : 8'd0;
 				vram_d <= vram_bs ? vram_din[7:0] : vram_din_shift;
 			end else
 				vram_d <= vram_bs ? vram_din[15:8] : vram_din[7:0];
 	end
+	// Retained shifted history must not reappear from an earlier mode visit
+	// or from before a reset.  The first shifted high half afterwards primes
+	// it through the normal rule above; a first shifted low half emits zero.
+	// Last assignment in this block deliberately wins over that rule.
+	if (reset | sync_filter_commit) vram_din_shift <= 8'd0;
 end
 
 wire cclk_en_n, cclk_en_p;
@@ -826,40 +855,73 @@ wire romen_n;
 wire ga_hsync_o, hsync_filtered;
 wire ga_vsync_o, vsync_filtered;
 
-wire hblank_filtered, hblank_live;
+wire hblank_filtered;
 wire ga_vblank_o, vblank_filtered;
 
 wire hsync_ga = plus_mode ? plus_hsync_o : ga_hsync_o;
 wire vsync_ga = plus_mode ? plus_vsync_o : ga_vsync_o;
 wire vblank_ga = plus_mode ? plus_vblank : ga_vblank_o;
 
+// A changed request is committed only while the Full vertical blank is
+// asserted and the selected GA is in its CPU-owned phase.  That phase
+// precedes the two video fetch halves, so one word can never be assembled
+// under two byte policies, and the pixel pipeline has drained.  It is a
+// level condition, not a coincidence of two edges.  If malformed source
+// timing never produces Full VBLANK the request simply waits; the existing
+// reset action applies it without that dependency, so a selection made to
+// diagnose broken sync is still reachable.
+assign sync_filter_commit = (sync_filter_applied != sync_filter_req) &
+                            vblank_filtered & ~cpu_n;
+
+always @(posedge clk) begin
+	if (reset) sync_filter_applied <= sync_filter_req;
+	else if (sync_filter_commit) sync_filter_applied <= sync_filter_req;
+end
+
+// Explicit raw vertical-blank pixel metadata.  Sampled on the native dot
+// enable beside the renderer's own pixel production; amstrad_video_color
+// gives it the converter's own pixel latency before masking, so the tag
+// cannot black out a neighbouring pixel.  Only the raw modes tag: Full
+// conversion is unchanged, and the horizontal force blank keeps the
+// renderer/DAC near-black rendering it already has.
+always @(posedge clk) begin
+	if (reset) pixel_vblank <= 1'b0;
+	else if (ce_16) pixel_vblank <= (sync_filter_applied != 2'd0) & vblank_ga;
+end
+
 // Sync filter modes.  crt_filter does two separable jobs: it regenerates a
 // stable HSYNC/VSYNC so the scaler can lock even when the CRTC emits
 // irregular lines, and it derives HBLANK/VBLANK from fixed constants counted
-// off that regenerated HSYNC.  Only the first is needed.  The second is what
-// pins the black zone around HSYNC to a constant position, which hides the
-// ACCC R2.JIT family: writing R2 at C0==R2 delays the start of that zone, and
-// a blanking window derived from constants cannot express the delay.
+// off that regenerated HSYNC.  The second pins the black zone around HSYNC to
+// a constant position, which hides the ACCC R2.JIT family: writing R2 at
+// C0==R2 delays the start of that zone, and a blanking window derived from
+// constants cannot express the delay.  B6 keeps the whole filtered tuple for
+// both safe modes anyway: there is a single core video stream, so punching
+// live holes in acquisition DE moves the scaler's geometry instead of only
+// the pixels.  The raw geometry experiment is Raw CRT, and it is explicit.
 //
-//   0 Full         Both jobs, as upstream.  Bit-for-bit previous behaviour.
-//   1 Live blank   Sync still regenerated so the scaler keeps its lock.  The
-//                  raw CRTC/ASIC HSYNC force-blank edge anchors a full-width
-//                  acquisition blank, so live phase moves with the CRTC
-//                  without mislabelling a short sync pulse as all of HBLANK.
-//   2 Off          Raw path: GA sync, CRTC HSYNC as blanking.  Faithful, but
-//                  hardware testing on 2026-09-01 showed software that varies
-//                  line geometry (SHAKER, DSC4) garbles, because nothing holds
-//                  a stable lock.  Kept for diagnosis, not for normal use.
+//   0 Full         Existing steady byte and timing behaviour; shifted history
+//                  now clears on reset and committed mode changes.
+//   1 Raw pixels   Same complete Full acquisition tuple, so DE windows are
+//                  identical to Full for the same trace.  Only the byte
+//                  policy changes (native order, no SHIFT compensation) plus
+//                  the raw vertical-blank pixel mask.  The raw sync effect
+//                  lives in pixel values, not in acquisition geometry.
+//   2 Raw CRT      Raw path: GA-shaped monitor sync, raw CRTC HSYNC as the
+//                  horizontal blank, GA vertical blank.  The user-approved
+//                  exception to Full acquisition timing: there is one core
+//                  video stream, so scaler geometry follows.  A deliberate
+//                  diagnostic/CRT output mode, not an automatic fallback.
+//   3 reserved     Normalised to Full by sync_filter_req.
 //
-// See docs/backlog.md B1 for the hardware evidence behind the split.
+// See docs/b6-video-boundary.md and docs/backlog.md B1 for the evidence.
 crt_filter_output_select crt_filter_output_select
 (
-	.MODE(sync_filter),
+	.MODE(sync_filter_applied),
 	.HSYNC_FILTERED(hsync_filtered),
 	.VSYNC_FILTERED(vsync_filtered),
 	.HBLANK_FILTERED(hblank_filtered),
 	.VBLANK_FILTERED(vblank_filtered),
-	.HBLANK_LIVE(hblank_live),
 	.HSYNC_RAW(hsync_ga),
 	.VSYNC_RAW(vsync_ga),
 	.HBLANK_RAW(hs_sel),
@@ -879,7 +941,9 @@ crt_filter crt_filter
 	.HSYNC_O(hsync_filtered),
 	.VSYNC_O(vsync_filtered),
 	.HBLANK(hblank_filtered),
-	.HBLANK_LIVE(hblank_live),
+	// The live-blanking extension is no longer an output policy (B6); the
+	// filter keeps it as an internal diagnostic with its own regression.
+	.HBLANK_LIVE(),
 	.VBLANK(vblank_filtered),
 	.SHIFT(crtc_shift)
 );

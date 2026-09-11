@@ -25,6 +25,14 @@ runs:
   options, native/frame-selected pixel enables and gamma bypass/enabled modes.
   It excludes the vendor scandoubler/HQ2x pipeline and freeze mode. See
   [the boundary evidence](../docs/plus/b8-6-colour-boundary-2026-09-08.md).
+- The B6 video boundary gate uses the executing P10/B7 TV80 fixture with real
+  motherboard, GA/ASIC and SDRAM: `make -C sim/plus b6-video-boundary`.
+  `make -C sim video-output-test` exercises the extracted production output
+  chain, including native Raw CRT cadence and a retained `video_freak` crop
+  after VSYNC stops. Both run in the default gate; the colour test also checks
+  the aligned raw vertical-blank mask. These establish converter RGB and mixer
+  DE/CE, not end-of-mixer RGB or hardware output. See the
+  [contract and evidence limits](../docs/b6-video-boundary.md).
 
 Requirements: Verilator 5 or later, GNU Make, and a C++20-capable compiler
 (for the timed SystemVerilog colour fixture; C++ harnesses still use C++17).

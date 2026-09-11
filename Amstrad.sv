@@ -75,7 +75,7 @@ localparam CONF_STR = {
 	"P1OU,Pixel Clock,16MHz,Adaptive;",
 	"P1-;",
 	"d3P1O2,CRTC,Type 1,Type 0;",
-	"P1O[36:35],Sync filter,Full,Live blanking,Off;",
+	"P1O[36:35],Sync filter,Full,Raw pixels,Raw CRT;",
 	"P1OBD,Display,Color(GA),Color(ASIC),Green,Amber,Cyan,White;",
 	"P1-;",
 	"P1O78,Stereo mix,none,25%,50%,100%;",
@@ -1398,12 +1398,16 @@ Amstrad_motherboard motherboard
 	.no_wait(status[6] & ~tape_motor),
 	.ppi_jumpers({1'b1, ~status[44:42]}),
 	.crtc_type(~status[2]),
-	// 0 Full, 1 Live blanking, 2 Off.  Mode 1 keeps the regenerated sync the
-	// scaler needs while letting blanking follow the live Gate Array, so the
-	// HSYNC black zone moves with the CRTC (ACCC R2.JIT family).  Mode 2 is
-	// the raw path and garbles software that varies line geometry.  See
-	// rtl/Amstrad_motherboard.v and docs/backlog.md B1.
+	// 0 Full, 1 Raw pixels, 2 Raw CRT (3 reserved, normalised to Full).
+	// Raw pixels keeps the whole Full acquisition tuple and changes only the
+	// pixels; Raw CRT is the user-approved exception that sends raw geometry
+	// to the single core video stream, so HDMI acquisition can become
+	// unusable there.  The motherboard commits a changed selection at a safe
+	// byte phase and reports it back as raw_crt.  See
+	// docs/b6-video-boundary.md and docs/backlog.md B1.
 	.sync_filter(status[36:35]),
+	.raw_crt(raw_crt),
+	.pixel_vblank(pixel_vblank),
 
 	.sna_load(sna_load),
 	.sna_cpu_dir(sna_cpu_dir),
@@ -1568,66 +1572,21 @@ assign CLK_VIDEO = clk_sys;
 
 wire [3:0] b4, g4, r4;
 wire hs, vs, hbl, vbl;
-wire ce_pix;
-wire [7:0] B, G, R;
-wire HSync, VSync, HBlank, VBlank;
-
-amstrad_video_color video_color (
+// One applied motherboard mode controls the complete production output chain.
+wire raw_crt, pixel_vblank, en270p;
+amstrad_video_output video_output (
     .CLK_VIDEO(CLK_VIDEO), .ce_16(ce_16),
-    .hq2x(hq2x), .pixel_rate_select(status[30]), .plus_mode(plus_mode),
-    .mode(mode), .mix(status[13:11]), .r4(r4), .g4(g4), .b4(b4),
-    .hs(hs), .vs(vs), .hbl(hbl), .vbl(vbl), .ce_pix(ce_pix),
-    .R_out(R), .G_out(G), .B_out(B),
-    .HSync(HSync), .VSync(VSync), .HBlank(HBlank), .VBlank(VBlank)
-);
-
-wire [1:0] scale = status[10:9];
-wire       hq2x = (scale == 1);
-
-assign VGA_SL = scale[1] ? scale : 2'b00;
-
-wire [2:0] interlace;
-wire       scandoubler_en;
-video_interlace interlace_hist
-(
-	.clk(CLK_VIDEO),
-	.vsync_in(vs),
-	.field_in(VGA_F1),
-	.scale(scale),
-	.forced_scandoubler(forced_scandoubler),
-	.interlace(interlace),
-	.scandoubler(scandoubler_en)
-);
-
-video_mixer #(.LINE_LENGTH(800), .GAMMA(1)) video_mixer
-(
-	.*,
-	.R(R | {8{progress_pix}}),
-	.G(G | {8{progress_pix}}),
-	.B(B | {8{progress_pix}}),
-	.VGA_DE(vga_de),
-	.freeze_sync(),
-	.scandoubler(scandoubler_en)
-);
-
-reg en270p;
-always @(posedge CLK_VIDEO) begin
-	en270p <= ((HDMI_WIDTH == 1920) && (HDMI_HEIGHT == 1080) && !forced_scandoubler && !scale);
-end
-
-wire [1:0] ar = status[26:25];
-wire vcrop_en = status[27];
-wire vga_de;
-video_freak video_freak
-(
-	.*,
-	.VGA_DE_IN(vga_de),
-
-	.ARX((!ar) ? 12'd4 : (ar - 1'd1)),
-	.ARY((!ar) ? 12'd3 : 12'd0),
-	.CROP_SIZE((en270p & vcrop_en) ? 10'd270 : 10'd0),
-	.CROP_OFF(0),
-	.SCALE(status[29:28])
+    .raw_crt(raw_crt), .pixel_vblank(pixel_vblank), .plus_mode(plus_mode),
+    .mode(mode), .scale(status[10:9]), .ar(status[26:25]),
+    .integer_scale(status[29:28]), .mix(status[13:11]),
+    .r4(r4), .g4(g4), .b4(b4), .hs(hs), .vs(vs), .hbl(hbl), .vbl(vbl),
+    .pixel_rate_select(status[30]), .forced_scandoubler(forced_scandoubler),
+    .field_in(VGA_F1), .vcrop_en(status[27]),
+    .HDMI_WIDTH(HDMI_WIDTH), .HDMI_HEIGHT(HDMI_HEIGHT),
+    .HDMI_FREEZE(HDMI_FREEZE), .progress_pix(progress_pix), .gamma_bus(gamma_bus),
+    .CE_PIXEL(CE_PIXEL), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B),
+    .VGA_HS(VGA_HS), .VGA_VS(VGA_VS), .VGA_DE(VGA_DE), .VGA_SL(VGA_SL),
+    .VIDEO_ARX(VIDEO_ARX), .VIDEO_ARY(VIDEO_ARY), .en270p(en270p)
 );
 
 //////////////////////////////////////////////////////////////////////

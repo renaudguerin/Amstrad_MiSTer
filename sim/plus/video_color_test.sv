@@ -8,10 +8,14 @@ reg ce16=0, hq=0, fs=0, plus=1;
 reg [1:0] mode=0;
 reg [2:0] mix=0;
 reg [3:0] r=0,g=0,b=0,meta=0;
+// B6 raw vertical-blank tag. It must ride the same ce_pix boundary as the
+// pixel beside it on every route, and must leave the metadata tuple alone.
+reg tag=0, mask_drive=0;
 wire ce;
 wire [23:0] rgb;
 wire [3:0] converted_meta;
 amstrad_video_color dut(.CLK_VIDEO(clk),.ce_16(ce16),.hq2x(hq),
+    .pixel_vblank(tag),
     .pixel_rate_select(fs),.plus_mode(plus),.mode(mode),.mix(mix),
     .r4(r),.g4(g),.b4(b),.hs(meta[3]),.vs(meta[2]),.hbl(meta[1]),.vbl(meta[0]),
     .ce_pix(ce),.R_out(rgb[23:16]),.G_out(rgb[15:8]),.B_out(rgb[7:0]),
@@ -68,6 +72,10 @@ integer checks=0, count=0, ce_count=0, last_ce=-1;
 integer expected_period=4;
 reg [23:0] p0=0,p1=0,p2=0;
 reg [3:0] m0=0,m1=0,m2=0;
+reg t0=0,t1=0,t2=0;
+// Masked black is defined at the gamma input, so an enabled transfer function
+// still applies to it: this table inverts, hence all-ones downstream.
+wire [23:0] masked_gamma = gamma_en ? 24'hffffff : 24'd0;
 reg pre_ce;
 task automatic require_equal(input bit condition,input string what);
     if(!condition) begin
@@ -90,17 +98,18 @@ always @(posedge clk) begin
             p2=gamma_en ? ~p1 : p1; m2=m1;
             p1=p0; m1=m0;
             p0=native_pixel(int'(r),int'(g),int'(b),int'(mix)); m0=meta;
+            t2=t1; t1=t0; t0=tag;
         end
         #1;
         if(ce_count>4) begin
             checks++;
             require_equal(converted_meta==m0 && out_meta==m2,"metadata latency/hold");
             if(plus) begin
-                require_equal(rgb==p0,"Plus conversion latency/hold");
-                require_equal(out_rgb==p2,"Plus gamma pixel identity");
+                require_equal(rgb==(t0?24'd0:p0),"Plus conversion latency/hold");
+                require_equal(out_rgb==(t2?masked_gamma:p2),"Plus gamma pixel identity");
             end else begin
-                require_equal(rgb==classic_rgb && converted_meta==classic_meta,"classic converter equivalence");
-                require_equal(out_rgb==classic_out_rgb && out_meta==classic_out_meta,"classic gamma equivalence");
+                require_equal(rgb==(t0?24'd0:classic_rgb) && converted_meta==classic_meta,"classic converter equivalence");
+                require_equal(out_rgb==(t2?masked_gamma:classic_out_rgb) && out_meta==classic_out_meta,"classic gamma equivalence");
             end
         end
     end
@@ -111,6 +120,9 @@ task automatic tick(input bit frame_sync);
     ce16=(tick_n%4==0);
     // Changes during disabled clocks catch accidental ungated sampling too.
     r=4'(tick_n*7+tick_n/4+1); g=4'(tick_n*3+tick_n/7+2); b=4'(tick_n*11+tick_n/13+5);
+    // Period 5 shares no factor with any enabled-pixel period (4/8/16), so a
+    // tag that lands one enabled edge early or late cannot stay hidden.
+    tag=mask_drive & 1'(tick_n/5);
     meta={1'(tick_n/17), (frame_sync | (checking && !hq && !fs && tick_n%131<17)),
         1'(tick_n/23),1'(tick_n/37)};
     tick_n++;
@@ -136,6 +148,10 @@ initial begin
                 plus=1'(machine);
                 for(integer option_n=0;option_n<8;option_n++) begin
                     mix=3'(option_n);
+                    // One colour option per machine/route/mode carries the
+                    // B6 mask; the other seven keep the unmasked contract as
+                    // the compatibility control.
+                    mask_drive=(option_n==0);
                     for(integer gamma_mode=0;gamma_mode<2;gamma_mode++) begin
                         gamma_en=1'(gamma_mode);
                         count=0;ce_count=0;last_ce=-1;checking=1;
