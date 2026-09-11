@@ -477,7 +477,7 @@ reg        register_write_d;
 wire hsync_on = hcc == R2_h_sync_pos && R3_h_sync_width != 0;
 wire hsync_off = CRTC_TYPE ? e1_hsync_off : e0_hsync_off;
 wire register_write = ENABLE & RS & ~nCS & ~R_nW;
-// ACCC v1.11 section 14.6.1 p.141: an OUT(C),r8 update which makes
+// ACCC v1.11 section 14.7.1 p.142 (FR §14.7.1 p.143): an OUT(C),r8 update which makes
 // R2 equal to the current C0 is the R2.JIT event.  The bus write is a level
 // for several master clocks in the integrated machine, so recognize only its
 // first edge and let the updated comparator fire on the following edge.
@@ -722,7 +722,7 @@ always @(posedge CLOCK) begin
 			vde <= 0; vde_r <= 0;
 		end
 		if(vsync_count_tick) begin
-			// English ACCC v1.11 section 16.4.1.2 p.168: a type-0
+			// English ACCC v1.11 section 16.4.1.2 p.169 (FR §16.4.1.2 p.170): a type-0
 			// C4=R7 comparison whose preceding line never reached C0=2 is
 			// consumed as blocked even though no VSYNC pulse was produced.
 			if(!CRTC_TYPE && vsync_allow && vsync_line_blocked)
@@ -779,13 +779,13 @@ always @(posedge CLOCK) begin
 	end
 end
 
-// DISPTMG delay line. ACCC v1.11 section 17.6.2 p.186 and section 19.2.4
-// p.195: when type 0 cannot reach C0=R1 because R1>R0, its substituted
+// DISPTMG delay line. ACCC v1.11 section 17.6.2 p.187 (FR p.188) and section 19.2.4
+// p.196 (FR p.196): when type 0 cannot reach C0=R1 because R1>R0, its substituted
 // border event occupies only the second half of C0=R0. nCLKEN marks that
 // half-character phase and CLKEN ends it at the next C0 transition.
 //
 // The exact pulse remains ahead of the character-granular SKEW-DISPTMG
-// stages. This is deliberate: p.195 shows delay 1/2 rounding the deferred
+// stages. This is deliberate: p.196 shows delay 1/2 rounding the deferred
 // event onto the full C0=0/C0=1 character respectively, while mode 2'b11
 // suppresses DISPTMG entirely. Type 1 has no substituted event.
 reg de_second_half;

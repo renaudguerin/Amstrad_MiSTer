@@ -552,7 +552,7 @@ void t01e_r0_shrink_overflow(TestBench& test) {
 }
 
 
-// ACCC §14.6.2 p.142 / §15.2.2 p.147: HSYNC starts at C0=R2 and lasts R3l
+// ACCC §14.7.2 p.143 (FR p.144) / §15.2.2 p.148 (FR p.149): HSYNC starts at C0=R2 and lasts R3l
 // characters (§14.1). Width 5 starting at R2=6 covers characters 6..10
 // across the line boundary.
 void t04a_hsync_position_and_width(TestBench& test) {
@@ -577,7 +577,7 @@ void t04a_hsync_position_and_width(TestBench& test) {
     }
 }
 
-// ACCC §14.5 p.141: on types 2/3/4 an R3l of 0 still produces a
+// ACCC §14.6 p.142 (FR p.143): on types 2/3/4 an R3l of 0 still produces a
 // 16-character HSYNC (full nibble), unlike types 0/1 which produce none.
 void t04b_r3_zero_means_sixteen(TestBench& test) {
     program_display_frame(test);
@@ -600,7 +600,7 @@ void t04b_r3_zero_means_sixteen(TestBench& test) {
 
 // Dynamic R3l rewrite below the already-counted value: the counter wraps
 // its whole nibble before the new equality can hit, so the interrupted
-// HSYNC is EXTENDED, not truncated (compendium-02 §4, ACCC §14.4 general
+// HSYNC is EXTENDED, not truncated (compendium-02 §4, ACCC §14.5 general
 // rule incl. types 3/4). Start width 12 from C0=R2=6; a rewrite to 2
 // landing during character 9 ends the pulse entering character 23.
 void t04c_r3l_rewrite_wraps_nibble(TestBench& test) {
@@ -663,7 +663,7 @@ void t04h_live_r2_end_start_collision(TestBench& test) {
     test.expect_hsync("continued pulse ends at second R3 equality", false);
 }
 
-// ACCC §14.5 p.141 establishes that type 3's R3l=0 encoding produces a
+// ACCC §14.6 p.142 (FR p.143) establishes that type 3's R3l=0 encoding produces a
 // 16-character HSYNC, but does not state whether the §15.3 end/start
 // collision extends that pulse when its natural end lands on C0=R2. The
 // current P1 model deliberately lets it end, then permits a fresh pulse at
@@ -698,7 +698,7 @@ void t04i_r3_zero_collision_stays_bounded(TestBench& test) {
     test.expect_hsync("zero-width collision remains bounded again", false);
 }
 
-// ACCC §16.4.4 p.170: VSYNC needs C4==R7 AND C9==0 AND C0==0 at a line
+// ACCC §16.4.4 p.171 (FR p.172): VSYNC needs C4==R7 AND C9==0 AND C0==0 at a line
 // start; rewriting R7 to the current C4 while C0>0 does NOT trigger
 // until a qualifying line start arrives.
 void t04e_vsync_gate_and_r7_write(TestBench& test) {
@@ -1161,7 +1161,7 @@ void t02g_r5_grow_extends_adjustment(TestBench& test) {
     test.expect_line("fresh frame", 0);
 }
 
-// ACCC v1.11 §19.8.4 pp.235-240 and §19.5.5 pp.213-215: in IVM (R8=3),
+// ACCC v1.11 §19.8.4 pp.236-241 and §19.5.5 pp.214-216 (FR pp.214-216): in IVM (R8=3),
 // an odd R9 alternates ParityC9 at each C4 transition, while a frame restart
 // reloads ParityC9 from the newly toggled ParityFrame.  This fixture uses
 // R9=7 (the documented 4/5-line alternation), R4=1, and R5=2.  R0=63 keeps
@@ -1186,13 +1186,13 @@ void program_ivm_adjustment_frame(TestBench& test) {
     test.write_register(8, 3);
 }
 
-// ACCC v1.11 §19.8.4 pp.235-240: the even-frame terminal C9 is 7 on the
+// ACCC v1.11 §19.8.4 pp.236-241: the even-frame terminal C9 is 7 on the
 // final (odd-parity) C4, then R5 adjustment starts with C4 held at R4 and
 // C9 reset to the adjustment index 0.  §11.2.6 p.84 says adjustment lines do
-// not update the video pointer.  §20.3.4 p.243 supplies the row-end capture
+// not update the video pointer.  §20.3.4 p.244 (FR p.243) supplies the row-end capture
 // and frame-origin reload used to derive MA: R1=2 and two character rows
 // place the adjustment at R12/R13 + 4, then the frame restart reloads the
-// programmed base.  §19.5.5 pp.213-215 requires the restart C9 to expose the
+// programmed base.  §19.5.5 pp.214-216 requires the restart C9 to expose the
 // newly toggled ParityFrame (odd, hence C9=1 here).
 void t02k_ivm_even_frame_adjustment(TestBench& test) {
     constexpr unsigned kLineCharacters = 64;
@@ -1217,7 +1217,7 @@ void t02k_ivm_even_frame_adjustment(TestBench& test) {
     test.expect_ma("t02k adjustment line 1 reuses captured VMA'", kAdjustmentMa);
     test.run_characters(kLineCharacters);
 
-    // ACCC v1.11 §19.6.4 p.217: after the R5 lines, an even frame gains
+    // ACCC v1.11 §19.6.4 p.218 (FR p.217): after the R5 lines, an even frame gains
     // one interlace line.  C4 is not incremented, C9 is unconditionally 0,
     // and the solidified pointer from the last C4 remains in use.
     test.expect_adj(false, "t02k added interlace line is not R5 adjustment");
@@ -1238,9 +1238,9 @@ void t02k_ivm_even_frame_adjustment(TestBench& test) {
     test.expect_ma("t02k frame restart reloads R12/R13", kBase);
 }
 
-// ACCC v1.11 §19.8.4 pp.235-240: after the even-frame adjustment restarts
+// ACCC v1.11 §19.8.4 pp.236-241: after the even-frame adjustment restarts
 // into an odd frame, the first C4 uses C9=1,3,5,7 and the next C4 uses
-// C9=0,2,4,6,8.  §19.5.5 pp.213-215 then aligns ParityC9 to the toggled
+// C9=0,2,4,6,8.  §19.5.5 pp.214-216 then aligns ParityC9 to the toggled
 // ParityFrame at the following restart.  This is the odd-frame companion to
 // t02k; it deliberately checks the body sequence only to establish which
 // parity reaches the adjustment seam, and makes no VSYNC/additional-line
@@ -1321,11 +1321,11 @@ void program_ivm_sync_frame(TestBench& test, unsigned r7,
     test.write_register(8, interlace_mode);
 }
 
-// ACCC v1.11 §19.5.5 pp.213-215 and §19.7.1/19.7.3 p.218.  With odd R9
+// ACCC v1.11 §19.5.5 pp.214-216 (FR pp.214-216) and §19.7.1/19.7.3 p.219 (FR p.218).  With odd R9
 // and R7=1, the even frame starts VSYNC in the middle of the first line of
 // C4=1 (C9=1, C0=R0/2).  On the following odd frame C4=1 begins at C9=0,
 // but the odd-C4 balancing rule delays VSYNC by one whole line to C9=2.
-// These expectations are the highlighted R7=1 rows in the p.214 diagram.
+// These expectations are the highlighted R7=1 rows in the p.215 (FR p.214) diagram.
 void t04j_ivm_mid_vsync_and_odd_frame_delay(TestBench& test) {
     constexpr unsigned kLineCharacters = 64;
     program_ivm_sync_frame(test, 1);
@@ -1338,7 +1338,7 @@ void t04j_ivm_mid_vsync_and_odd_frame_delay(TestBench& test) {
     test.run_characters(1);
     test.expect_hcc("t04j MID-VSYNC horizontal phase", 31);
     test.expect_vsync("t04j even frame fires at C0=R0/2", true);
-    // ACCC v1.11 §16.1 p.159 counts R3h lines at C0=0 even when the
+    // ACCC v1.11 §16.1 p.160 (FR p.159) counts R3h lines at C0=0 even when the
     // interlace rule moved only the start to mid-line.  R3h=1 therefore
     // ends at the immediately following seam, not at the next midpoint.
     test.run_characters(32);
@@ -1359,7 +1359,7 @@ void t04j_ivm_mid_vsync_and_odd_frame_delay(TestBench& test) {
     test.expect_vsync("t04j odd frame fires one line late", true);
 }
 
-// ACCC v1.11 §19.7.3 p.218 gives CRTC3/4 a special R7=0 priority rule:
+// ACCC v1.11 §19.7.3 p.219 (FR p.218) gives CRTC3/4 a special R7=0 priority rule:
 // the outgoing ParityFrame is sampled before it toggles.  Therefore an even
 // outgoing frame schedules MID-VSYNC in the new odd frame, while an odd
 // outgoing frame starts an ordinary seam VSYNC in the new even frame.
@@ -1384,7 +1384,7 @@ void t04k_ivm_r7_zero_uses_outgoing_parity(TestBench& test) {
     test.expect_vsync("t04k outgoing-odd frame starts seam VSYNC", true);
 }
 
-// ACCC v1.11 §16.4.4 p.170 evaluates the type-3 VSYNC condition whenever
+// ACCC v1.11 §16.4.4 p.171 (FR p.172) evaluates the type-3 VSYNC condition whenever
 // the new line exposes C4=R7,C9=C0=0.  The pre-interlace implementation's
 // charline_n/raster_n condition therefore also applies when C4 remains R4
 // while R5 management starts.  §19.7 moves an even-frame IVM occurrence to
@@ -1438,9 +1438,9 @@ void t04l_r7_r4_adjustment_and_interlace_line_seams(TestBench& test) {
     // vector pins the source-backed even-frame added-line seam only.
 }
 
-// ACCC v1.11 §16.1 p.159: C3h advances at C0=0.  With R3h=2, a pulse
+// ACCC v1.11 §16.1 p.160 (FR p.159): C3h advances at C0=0.  With R3h=2, a pulse
 // starting at C0=R0/2 remains high across the first seam and ends at the
-// second seam.  §19.3.4 pp.201-202 makes interlace management live, so an
+// second seam.  §19.3.4 pp.202-203 (FR pp.202-203) makes interlace management live, so an
 // R8 exit before the pending midpoint must cancel that scheduled start.
 void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     program_ivm_sync_frame(test, 1, 2);
@@ -1509,7 +1509,7 @@ void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     // these source-backed phase and reset vectors exercise IVM (R8=3).
 }
 
-// ACCC v1.11 §19.6.4 p.217 and §19.7.3 p.218: R8=1 adds one C9=0 line
+// ACCC v1.11 §19.6.4 p.218 and §19.7.3 p.219 (FR pp.217-218): R8=1 adds one C9=0 line
 // after the even frame without incrementing C4, and moves that frame's VSYNC
 // to C0=R0/2. The added line starts from the VMA captured at C4=R4,C9=R9;
 // ordinary R8=1 body lines retain their non-IVM C9/RA/address cadence. Use an
@@ -1696,7 +1696,7 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     r5_nonzero.expect_ma("t04n R5 path reloads next-frame pointer", 0x101);
 }
 
-// ACCC v1.11 section 19.8.4 pp.235-238: entering IVM (R8=3)
+// ACCC v1.11 section 19.8.4 pp.236-239 (FR pp.235-238): entering IVM (R8=3)
 // immediately seeds ParityC9 from the current C9 parity.  Thereafter C9
 // advances by two and ORs that parity.  With even R9 the parity is retained
 // across C4 changes, so entry on an even/odd C9 produces an even/odd raster
@@ -1739,7 +1739,7 @@ void t02h_ivm_even_r9_preserves_entry_parity(TestBench& test) {
     odd_entry.expect_row("t02h odd parity retained on next C4", 1);
 }
 
-// ACCC v1.11 section 19.8.4 pp.235-236: odd R9 toggles ParityC9
+// ACCC v1.11 section 19.8.4 pp.236-237 (FR pp.235-236): odd R9 toggles ParityC9
 // whenever C4 increments.  At the frame boundary ParityFrame toggles and
 // ParityC9 is assigned the new frame parity, taking priority over the
 // ordinary per-C4 toggle.
@@ -1778,7 +1778,7 @@ void t02i_ivm_odd_r9_balances_rows_and_frames(TestBench& test) {
     test.expect_ma("t02i odd-parity frame still reloads R12/R13", 0x1235);
 }
 
-// ACCC v1.11 section 19.8.4 exit tables pp.239-240: disabling IVM
+// ACCC v1.11 section 19.8.4 exit tables pp.240-241 (FR pp.239-240): disabling IVM
 // mid-row immediately returns to +1 C9 progression.  The next ordinary
 // C9>=R9 decision then restores the non-IVM C9=0 row origin; no hidden
 // post-IVM parity state may leak into subsequent R8=0 rows.
@@ -2351,9 +2351,9 @@ void expect_mask(const std::string& context, std::uint8_t actual,
     }
 }
 
-// ACCC §21.2.3 p.246: reads use addr[2:0] through the fixed
+// ACCC §21.2.3 p.247 (FR p.246): reads use addr[2:0] through the fixed
 // R16/R17/STATUS1/STATUS2/R12/R13/R14/R15 map. R12 is a full eight-bit
-// readback register (§20.5 p.244), while R14/R16 force bits 7:6 to zero.
+// readback register (§20.5 p.245, FR p.244), while R14/R16 force bits 7:6 to zero.
 // Writes keep the full index: writing R4 above must not change slot 4's R12.
 void t07a_mod8_read_map_and_storage(TestBench& test) {
     test.write_register(0, 7);
@@ -2391,7 +2391,7 @@ void t07a_mod8_read_map_and_storage(TestBench& test) {
                                  test.read_register(7));
 }
 
-// ACCC §21.3.4.1 p.248, paper-derived for R0=7/R1=4/R2=5/R3l=2:
+// ACCC §21.3.4.1 p.249 (FR p.248), paper-derived for R0=7/R1=4/R2=5/R3l=2:
 // at C0=3 the R0/2 and R1-1 active-low flags coincide (F8); C0=5 is
 // HSYNC start (F6); §21.3.4.1 puts bit 4 low at C0=R2+R3=7, where
 // C0=R0 also sets bit 0.
@@ -2431,7 +2431,7 @@ void t07b_status1_horizontal_events(TestBench& test) {
                                  test.sample_selected());
 }
 
-// ACCC §21.3.4.1 p.248: status-1 bit 7 is active-low when the next
+// ACCC §21.3.4.1 p.249 (FR p.248): status-1 bit 7 is active-low when the next
 // character wraps VMA.LSB, or at C0=R0 when the saved row base LSB is 00.
 void t07c_status1_pointer_preview(TestBench& test) {
     test.write_register(0, 7);
@@ -2466,7 +2466,7 @@ void t07c_status1_pointer_preview(TestBench& test) {
                 0x80, 0x00);
 }
 
-// ACCC §21.3.4.1 p.248 + [KT] CRTC Status 1: bit 5 is zero only on
+// ACCC §21.3.4.1 p.249 (FR p.248) + [KT] CRTC Status 1: bit 5 is zero only on
 // the final line of the effective VSYNC pulse. [KT] supplies the R3h=0
 // sixteenth-line result; ACCC documents only the preceding 15 lines.
 void t07d_status1_last_vsync_line(TestBench& test) {
@@ -2517,7 +2517,7 @@ void t07d_status1_last_vsync_line(TestBench& test) {
                 0x20, 0x20);
 }
 
-// ACCC §21.3.4.2 p.249. Constants: bit4=1 and bit6=0. Bit5 is zero
+// ACCC §21.3.4.2 p.250 (FR p.249). Constants: bit4=1 and bit6=0. Bit5 is zero
 // throughout C9=R9. Bit7 is one at C9=0 before C0=R0 and at the final
 // C9=R9/C0=R0 character. Bits 1/2/0 pulse low at the three named line ends.
 void t07e_status2_vertical_events(TestBench& test) {
@@ -2551,7 +2551,7 @@ void t07e_status2_vertical_events(TestBench& test) {
     expect_mask("t07e C4=R4 terminal", test.sample_selected(), 0x01, 0x00);
 }
 
-// ACCC §21.3.4.2 p.249: bit 3 is stable for a whole frame and toggles
+// ACCC §21.3.4.2 p.250 (FR p.249): bit 3 is stable for a whole frame and toggles
 // every 16 frame origins. With R9=7, R4=0, and R0=1, each frame has eight
 // scanlines and 16 characters. Two 16-frame intervals catch a frame-origin
 // pulse that fires on every C9 line end, independent of the reset phase.

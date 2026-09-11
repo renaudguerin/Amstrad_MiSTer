@@ -25,7 +25,7 @@
 //     below for R8=3.  R8=1 sync-only interlace keeps ordinary body-line
 //     raster/address generation, adds the CRTC3/4 even-frame line, and applies
 //     its alternate-field VSYNC midpoint (FR §19.6.4 p.218 / §19.7.3 p.219;
-//     EN pp.217-218).
+//     EN pp.218-219).
 //   - Light pen R16/R17: no light-pen strobe source is emulated. The
 //     registers are stored and readable since P5 (mod-8 map slots 0/1) and
 //     seedable from an SNA header (B8-5), but nothing at runtime ever writes
@@ -377,7 +377,7 @@ wire       sync_interlace_active = (R8_interlace == 2'b01);
 wire       c9_done       = in_adj ? 1'b0 : (raster >= R9_v_max_line);
 wire       last_charline = (charline == R4_v_total);
 // The additional line follows the completed R5 block and exits directly at
-// the real frame origin (§19.6.4 p.217).  Its forced C9=0 must not re-enter
+// the real frame origin (§19.6.4 p.218).  Its forced C9=0 must not re-enter
 // adjustment when R9 is also zero.
 wire       enter_adj     = ~interlace_line & c9_done & last_charline &
                            (R5_v_total_adj != 5'd0);
@@ -385,7 +385,7 @@ wire       adj_end_n     = ((raster + 5'd1) >= R5_v_total_adj);
 wire       body_frame_end = c9_done & last_charline &
                             (R5_v_total_adj == 5'd0);
 
-// ACCC v1.11 FR §19.6.4 p.218 (EN p.217): either R8=3 or R8=1 gives the even frame exactly
+// ACCC v1.11 FR §19.6.4 p.218 (EN p.218): either R8=3 or R8=1 gives the even frame exactly
 // one line after its R5 lines (or directly after the body when R5=0).
 // CRTC3/4 keep C4 on its last value and force C9=0 for that line. The current
 // ParityFrame is sampled before it toggles at the following real origin.
@@ -660,7 +660,7 @@ end
 // CRTC3 R2 rewrite from 11 to 21 creating the collision at the natural
 // end of an already-active pulse. The R0=0, R2=0, R3l=1 extreme makes
 // every end edge collide and therefore produces infinite HSYNC
-// (§15.3.2). ACCC §14.5 establishes that R3l=0 produces a 16-character
+// (§15.3.2). ACCC §14.6 establishes that R3l=0 produces a 16-character
 // pulse, but does not say whether the §15.3 collision applies when that
 // pulse's natural end meets a live start. This model assumes it does not,
 // leaving R3l=0 bounded; that is an unverified P1 model assumption, pinned
@@ -714,10 +714,10 @@ always @(posedge CLOCK) begin
 end
 
 //----------------------------------------------------------------------
-// VSYNC.  Outside IVM, ACCC §16.4.4 p.170 starts only at line starts where
+// VSYNC.  Outside IVM, ACCC §16.4.4 p.171 (FR §16.4.4 p.172) starts only at line starts where
 // C4==R7 AND C9==0 AND C0==0 hold simultaneously; rewriting R7 to the
 // current C4 while C0>0 does not trigger.  In IVM, FR §19.5.5 pp.214-216
-// (EN pp.213-215) and FR §19.7.3 p.219 (EN p.218) move the even-frame start to C0=R0/2 on the first line of
+// (EN pp.214-216) and FR §19.7.3 p.219 (EN p.219) move the even-frame start to C0=R0/2 on the first line of
 // C4=R7.  On an odd frame with odd R9 and odd R7, the start is delayed to
 // the following line.  The R7=0 priority exception naturally samples the
 // outgoing ParityFrame here because frame_restart and the parity NBA share
@@ -749,7 +749,7 @@ wire        vsync_zero_target = hcc_last &&
                                  (charline_n == R7_v_sync_pos) &&
                                  (raster_n == 5'd0);
 wire        vsync_target_seam = vsync_new_c4_target | vsync_zero_target;
-// ACCC v1.11 FR §19.7.3 p.219 (EN p.218): on CRTC3/4 either R8=3 or R8=1 moves VSYNC to
+// ACCC v1.11 FR §19.7.3 p.219 (EN p.219): on CRTC3/4 either R8=3 or R8=1 moves VSYNC to
 // C0=R0/2 when the target C4 belongs to the even ParityFrame. Reuse the
 // established outgoing-parity phase so the R7=0 priority rule stays intact.
 wire        vsync_mid_schedule = vsync_target_seam &&
@@ -854,7 +854,7 @@ assign LINE = charline;
 assign ROW  = raster;
 assign ADJ  = in_adj;
 // B8-2 selected-field ownership (ACCC v1.11 FR §19.5.5 pp.214-216,
-// EN pp.213-215; FR §19.6.4 p.218; FR §19.7.3 p.219): ParityFrame toggles
+// EN pp.214-216; FR §19.6.4 p.218; FR §19.7.3 p.219): ParityFrame toggles
 // every frame whatever R8, and either interlace mode (R8=1 or 3) schedules
 // the additional line and the MID-VSYNC on the ParityFrame-even frame,
 // except R7=0 which samples the OUTGOING parity (so MID then carries the
@@ -875,8 +875,8 @@ assign MA   = vma;
 assign RA   = ra_eff;
 
 //----------------------------------------------------------------------
-// P5: register readback, status groups (ACCC §21.2.3 p.246, §21.3.4
-// pp.248-249).
+// P5: register readback, status groups (ACCC §21.2.3 p.247, FR p.246, §21.3.4
+// pp.249-250, FR pp.248-249).
 //
 // Reads decode ONLY the three least significant bits of the selected
 // register number through the fixed map
@@ -930,7 +930,7 @@ wire s1_bit5 = ~(in_vsync &&
 wire s1_bit7 = ~(((hcc != R0_h_total) && (vma[7:0] == 8'hFF)) ||
                  ((hcc == R0_h_total) && (vma_latch[7:0] == 8'h00)));
 
-// STATUS 2 (§21.3.4.2 p.249): vertical-event group. ACCC specifies literal
+// STATUS 2 (§21.3.4.2 p.250, FR p.249): vertical-event group. ACCC specifies literal
 // counter comparisons, so these remain live during vertical adjustment too;
 // whether hardware suppresses an adjustment-time duplicate is not evidenced.
 wire s2_bit0 = ~((charline == R4_v_total) &&
@@ -945,7 +945,7 @@ wire s2_bit7 = ((raster == R9_v_max_line) && hcc_last) ||
                ((raster == 5'd0) && (hcc != R0_h_total));
 
 // Frame-origin strobe: the same edge the video pointers reload from
-// R12/R13 (C4=C9=C0, §20.3.4 p.243).
+// R12/R13 (C4=C9=C0, §20.3.4 p.244, FR p.243).
 reg  [3:0] frame16_cnt;
 reg        frame16_toggle;
 wire frame_origin = CLKEN && hcc_last && pointer_frame_origin;
@@ -1071,7 +1071,7 @@ end
 // the real GA's documented requirement for an HSYNC of at least 2 us
 // before the byte=>pixel decoder updates. A shorter type-3 pulse is
 // reachable here — R3l=1 statically, or an R3l rewrite during the pulse:
-// ACCC §14.5 p.141 bounds an R3l=0 HSYNC to 16 characters only "unless it
+// ACCC §14.6 p.141 (FR §14.6 p.142) bounds an R3l=0 HSYNC to 16 characters only "unless it
 // is interrupted by modifying R3 during HSYNC" — and on hardware such a
 // pulse would leave the screen mode unchanged. Deferred with the rest of
 // the GA pixel-phase contract to motherboard integration (architecture
