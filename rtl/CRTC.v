@@ -258,7 +258,7 @@ crtc_type0_engine crtc_type0_engine
 	R0_h_total, R1_h_displayed, R3_h_sync_width, R3_v_sync_width,
 	R4_v_total, R5_v_total_adj, R6_v_displayed, R7_v_sync_pos,
 	R8_skew, R8_interlace, R9_v_max_line,
-	hcc, hcc_next, hcc_last, line, row, in_adj, field,
+	hcc, hcc_next, hcc_last, line, row, in_adj, vsync_tick_mid,
 	line_last_r, row_last_r, frame_adj_r,
 	VSYNC_r, vsync_allow, hsc,
 	parity_frame, parity_c9, parity_r6,
@@ -623,47 +623,50 @@ reg vde, vde_r;
 reg type0_r6_zero_origin_border;
 reg VSYNC_r;
 reg vsync_allow;
-// Section 19.5.3 p.208: during type-1 IVM the VSYNC start line is pinned by
-// the row-structure rule on both frame parities (the table's boxes sit at
-// the first line of C4=R7 whatever the frame parity), and the prose
-// schedules the MID-VSYNC on the ParityFrame-even frame: that frame's pulse
-// starts at the half-line tick (the p.207 type-0 Note words the same rule
-// as "the VSYNC occurs in the middle of the line on C0 = R0/2"), the
-// odd-parity frame's at the line seam. e1_vsync_line_fire is
-// hcc-independent -- true across the whole last line of C4=R7-1 -- so the
-// even-parity fire decision is latched at the seam and consumed at the
-// half-line tick of the pulse's first line; consuming the level term
-// mid-line would start the pulse a line early. The gate reads the raw R8
-// mode rather than the engine's latched IVM state: around an R8 toggle
-// write the two disagree for one to two characters, an unpinned window
-// recorded in the F10 notes (review N-1, 2026-08-25).
-wire       vsync_type1_ivm = CRTC_TYPE && interlace[0];
-wire       vsync_ivm_mid   = vsync_type1_ivm && !parity_frame;
-reg        vsync_ivm_arm;
-wire vsync_count_tick = CLKEN && (
-	vsync_ivm_mid   ? e1_field_count_tick :
-	vsync_type1_ivm ? line_new :
-	field           ? (CRTC_TYPE ? e1_field_count_tick : e0_field_count_tick) :
-	line_new);
+// French ACCC v1.11 section 19.7.2 p.219: parity management precedes
+// the C4/R7 comparison, including R7=0. Use the selected engine's canonical
+// transition (type 0 snapshots ParityR6; type 1 also owns R8 transitions).
+wire vsync_parity = CRTC_TYPE ?
+    ((CLKEN && e1_pf_write) ? e1_pf_value : parity_frame) :
+    ((CLKEN && e0_pf_write) ? e0_pf_value : parity_frame);
+// Retain the established R8-exit field lifecycle outside interlace mode.
+wire vsync_mid = R8_interlace[0] ? !vsync_parity : field;
+// French section 16.4 p.170 accepts R7 through C0=R0 before C4=R7.
+// On the origin edge, the register write and parity transition both precede
+// the new C4/R7 comparison. Type 0's additional line can end the frame
+// without the ordinary line-last term, so use the canonical origin event.
+wire vsync_origin_match = (r7_write_hit ? DI[6:0] : R7_v_sync_pos) == 0;
+wire vsync_line_fire = frame_new ?
+    (vsync_origin_match && (CRTC_TYPE || e0_vsync_c0_2_qualified)) :
+    (CRTC_TYPE ? e1_vsync_line_fire : e0_vsync_line_fire);
+reg vsync_mid_arm;
+// A pulse crossing an origin retains its counting phase; incoming parity
+// selects a new pulse, not the width of the pulse already in flight.
+reg vsync_active_mid;
+wire vsync_tick_mid = VSYNC_r ? vsync_active_mid : vsync_mid;
+// Use the same origin comparison for consumption and pulse generation.
+// The added line has no ordinary line-last predicate to consume.
+wire vsync_line_blocked = (frame_new && !vsync_tick_mid) ?
+    (vsync_origin_match && !e0_vsync_c0_2_qualified) : e0_vsync_line_blocked;
+wire vsync_count_tick = CLKEN && (vsync_tick_mid ?
+    (CRTC_TYPE ? e1_field_count_tick : e0_field_count_tick) : line_new);
 wire vsync_holdoff = e0_vsync_holdoff;
-wire vsync_fire = vsync_allow & (
-	vsync_ivm_mid   ? vsync_ivm_arm :
-	vsync_type1_ivm ? e1_vsync_line_fire :
-	field           ? (((row == R7_v_sync_pos && !line &&
-						(CRTC_TYPE || e0_vsync_c0_2_qualified)) &&
-						!e0_vsync_delay_suppress) ||
-				   e0_vsync_delay_half) :
-	(CRTC_TYPE ? e1_vsync_line_fire : e0_vsync_line_fire));
+wire vsync_type0_mid_fire = ((row == R7_v_sync_pos && !line &&
+    e0_vsync_c0_2_qualified && !e0_vsync_delay_suppress) || e0_vsync_delay_half);
+// An old pulse may count at a different phase from the next comparison.
+// Do not consume a seam predicate on that pulse's midpoint tick (or vice versa).
+wire vsync_fire = vsync_allow && (vsync_mid == vsync_tick_mid) && (vsync_mid ?
+    (CRTC_TYPE ? (R8_interlace[0] ? vsync_mid_arm :
+        (row == R7_v_sync_pos && !line)) : vsync_type0_mid_fire) : vsync_line_fire);
 
-// Seam-latched MID-VSYNC fire decision: set when the line now starting is
-// the first line of C4=R7, consumed by the half-line fire on the
-// ParityFrame-even frame (see above).
+// The engine's row comparison describes the line about to start. Latch it
+// at the seam so a midpoint cannot consume it one line early.
 always @(posedge CLOCK) begin
-	if(~nRESET) vsync_ivm_arm <= 0;
-	else if(CLKEN) begin
-		if(line_new) vsync_ivm_arm <= vsync_type1_ivm && e1_vsync_line_fire;
-		else if(vsync_count_tick && vsync_ivm_arm) vsync_ivm_arm <= 0;
-	end
+    if(~nRESET | SNA_LOAD) vsync_mid_arm <= 0;
+    else if(CLKEN) begin
+        if(line_new) vsync_mid_arm <= vsync_mid && vsync_line_fire;
+        else if(vsync_count_tick && vsync_mid_arm) vsync_mid_arm <= 0;
+    end
 end
 wire [3:0] vsc_load = CRTC_TYPE ? e1_vsc_load : e0_vsc_load;
 wire r7_write_hit = ENABLE & RS & ~nCS & ~R_nW & addr == 5'd07;
@@ -693,6 +696,7 @@ always @(posedge CLOCK) begin
 		vde    <= 0;
 		vde_r  <= 0;
 		VSYNC_r<= 0;
+		vsync_active_mid <= 0;
 		vsync_allow <= 1;
 	end
 	else if (CLKEN) begin
@@ -721,7 +725,7 @@ always @(posedge CLOCK) begin
 			// English ACCC v1.11 section 16.4.1.2 p.168: a type-0
 			// C4=R7 comparison whose preceding line never reached C0=2 is
 			// consumed as blocked even though no VSYNC pulse was produced.
-			if(!CRTC_TYPE && vsync_allow && e0_vsync_line_blocked)
+			if(!CRTC_TYPE && vsync_allow && vsync_line_blocked)
 				vsync_allow <= 0;
 			// A type 0 VSYNC started by an R7=C4 write after C0=1
 			// does not count its partial first line.  Preserve C3h at the
@@ -731,6 +735,7 @@ always @(posedge CLOCK) begin
 			else if(vsc) vsc <= vsc - 1'd1;
 			else if (vsync_fire) begin
 				VSYNC_r <= 1;
+				vsync_active_mid <= vsync_mid;
 				// Don't allow a new VSYNC until C4=R7 has become false and true again.
 				vsync_allow <= 0;
 				vsc <= vsc_load;
@@ -758,6 +763,7 @@ always @(posedge CLOCK) begin
 			vsync_allow <= 0;
 			if(r7_write_fire) begin
 				VSYNC_r <= 1;
+				vsync_active_mid <= vsync_mid;
 				vsc <= vsc_load;
 			end
 		end
