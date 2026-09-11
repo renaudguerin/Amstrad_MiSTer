@@ -104,6 +104,27 @@ void test_p8_i8255_plus_quirks(Vplus_p8_test_top& dut) {
 	if (rd(2) != 0x88) fail("P8 i8255: Plus mode control rewrite cleared Port C latch");
 	if (dut.ppi_opc != 0x88) fail("P8 i8255: Plus mode physical Port C pins did not drive 0x88 under mode 0x80");
 
+	// D4: Plus control readback is the documented bit-4 pattern, not the
+	// stored control word. Check both documented 80-9F examples and the
+	// wider 80-FF decode so an implementation cannot special-case only the
+	// common reset/control words.
+	// Source: Extra CPC Plus Hardware Information, PPI / PPI Control port.
+	const uint8_t plus_control_words[] = {
+		0x80, 0x82, 0x8F, 0x90, 0x9B, 0x9F, 0xA2, 0xBF,
+	};
+	for (uint8_t control : plus_control_words) {
+		wr(3, control);
+		const uint8_t expected = (control & 0x10) ? 0xFF : 0x00;
+		if (rd(3) != expected) {
+			fail("P8 i8255: Plus control readback for 0x" + hex_str(control, 2) +
+			     " was 0x" + hex_str(rd(3), 2) + " (expected 0x" +
+			     hex_str(expected, 2) + ")");
+		}
+	}
+	// Leave the Plus fixture in the normal all-output mode before switching
+	// the capability input to the classic path below.
+	wr(3, 0x80);
+
 	// 3. Classic mode test (plus_mode = 0): control word rewrite CLEARS latches and mode controls physical pins
 	dut.ppi_plus_mode = 0;
 	wr(0, 0x44);
