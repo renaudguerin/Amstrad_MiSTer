@@ -251,6 +251,17 @@ issues FDC commands; a missing-disk screen alone is not that trace.
 **Status: strong boot hypothesis from verified ROM bytes and mapping; correct
 hardware `/EXP` rule still needs resolution before a production change.**
 
+**User clarification, 2026-09-11:** the “disc missing” message appears during
+BASIC CPR firmware boot, before the BASIC interpreter takes over and prints
+`Ready.`. AMSDOS initialization for disc support is a possible explanation,
+not an observed execution trace. Distinguish background ROM-7 initialization
+from foreground ROM-0 launch when testing this hypothesis.
+
+The user also identifies `06_System/6128_FR.cpr`, a classic 6128 ROM adapted
+for Plus that bypasses the menu, as producing the same symptom. The subsequent
+[source check and production-T80 experiment](plus/architecture.md#d5-rom-0-source-check-2026-09-11)
+record both cartridge controls separately from the unresolved silicon rule.
+
 The local `06_System/Plus_EN.cpr` is 131,148 bytes, SHA-256
 `3ce35dfccf79ee6bf8f990124aa4e0af1ce9753cbca03af8545abef21cf081ae`.
 The parent checked its chunk map and bytes: `cb01` contains BASIC; `cb03`
