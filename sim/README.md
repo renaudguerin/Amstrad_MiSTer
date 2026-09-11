@@ -63,7 +63,7 @@ Alongside the directed vectors, the suite ships a deterministic randomized
 "soak-diff" target. Rationale, for reviewers:
 
 - Directed + randomized stimulus against a golden reference is standard
-  verification practice; the 192 registered classic vectors are the directed
+  verification practice; the 225 registered classic vectors are the directed
   leg and only visit
   states an author imagined. The soak explores unimagined ones.
 - Its oracle is self-referential by design: hash every pin plus key internal
@@ -133,7 +133,11 @@ DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0x6e8258198d6e6137`** after B8-1 retained production-phase
+current hash is **`0xb1cb70da95c2e44f`** after D1 canonical origin VSYNC
+and active-pulse phase ownership, plus D6 shared RFD parity. The seed and
+stimulus are unchanged; `vsync_mid_arm` and `vsync_active_mid` join the
+sampled projection. See the [repair evidence](../docs/accuracy/d1-d6-parity-repair-2026-09-11.md).
+The previous hash was **`0x6e8258198d6e6137`** after B8-1 retained production-phase
 R5/R0 events across the register-write/character-decision boundary. The seed,
 stimulus, and sampled fields/order are unchanged: the hash moves because the
 old-value side effects now execute. Event bits are consumed before the existing

@@ -1,5 +1,15 @@
 # Independent review debt
 
+## Open local branch review
+
+- **D1/D6 parity repair — incomplete, not integrated.** Opus 5 high reviewed
+  the initial D1 change. The reproduced pulse-overlap and additional-line
+  blocked-comparison fixes, plus D6’s shared RFD parity change, need fresh
+  cross-provider review. No further Opus work was started after the user’s
+  quota limit. Check pulse start/count phase ownership, origin consumption,
+  R8-exit assumptions and the source-derived RFD polarity/cadence. See the
+  [evidence and remaining acceptance](accuracy/d1-d6-parity-repair-2026-09-11.md).
+
 ## Pending integration / review-complete rows (zero open review findings)
 
 - **B8-5 snapshot owner apply — CLEAR, integrated from `f2300be` through `ce1d2da`.**

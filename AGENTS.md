@@ -97,7 +97,12 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0x6e8258198d6e6137`, re-minted 2026-09-08 for B8-1 production-phase
+  (`0xb1cb70da95c2e44f`, re-minted 2026-09-11 for D1 canonical origin
+  VSYNC/active-pulse phase ownership and D6 shared RFD parity (French ACCC
+  v1.11 sections 19.7.2 p.219, 11.6.1 p.90 and 19.5.3 pp.209-210).
+  The two VSYNC arm/phase bits join the sampled projection; seed and
+  stimulus are unchanged. See `docs/accuracy/d1-d6-parity-repair-2026-09-11.md`.
+  Previously `0x6e8258198d6e6137`, re-minted 2026-09-08 for B8-1 production-phase
   R5/R0 write-event retention (French ACCC v1.11 sections 11.6 pp.89-92 and
   13.7 pp.126-128). The seed, stimulus and sampled projection are unchanged;
   old-value side effects now survive register writes between character enables.
