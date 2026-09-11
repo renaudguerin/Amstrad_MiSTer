@@ -776,3 +776,20 @@ lint: motherboard-lint
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)
+
+# D5: unchanged private CPRs, production T80 and actual Amstrad.sv /EXP input.
+# Opt-in: private firmware and GHDL are not dependencies of the ordinary suite.
+D5_SRC_DIR := $(abspath obj_dir/d5_sources)
+D5_OBJ_DIR := $(abspath obj_dir/d5_boot)
+D5_RTL = $(D5_SRC_DIR)/Amstrad_motherboard.v $(filter-out $(abspath ../../rtl/Amstrad_motherboard.v) $(P10BOOT_TV80),$(P10BOOT_RTL)) $(abspath ../obj_dir/t80/T80pa.v) $(abspath ../../rtl/YM2149.sv) $(abspath ../../rtl/hid.sv)
+D5_EN ?= ../../docs/plus/cartridges/06_System/Plus_EN.cpr
+D5_FR ?= ../../docs/plus/cartridges/06_System/6128_FR.cpr
+.PHONY: d5-boot-build d5-boot
+
+d5-boot-build:
+	$(MAKE) -C .. t80-netlist
+	python3 prepare_d5_boot.py
+	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --top-module p10_boot_test_top --Mdir $(D5_OBJ_DIR) -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" -o d5_boot $(D5_SRC_DIR)/p10_boot_test_top.v $(D5_RTL) $(abspath d5_boot_test.cpp)
+
+d5-boot: d5-boot-build
+	python3 run_d5_boot.py $(D5_OBJ_DIR)/d5_boot $(D5_EN) $(D5_FR)

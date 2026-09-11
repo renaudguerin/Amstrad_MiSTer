@@ -302,8 +302,24 @@ issues FDC commands; a missing-disk screen alone is not that trace.
 
 ### D5 — ROM 0 selects the cartridge's disc-boot path
 
-**Status: strong boot hypothesis from verified ROM bytes and mapping; correct
-hardware `/EXP` rule still needs resolution before a production change.**
+**Status (updated 2026-09-11): both cartridges reproduce in production-T80
+simulation and page-1 controls reach Ready. Additional hardware references
+favor correcting the top-level EXP input while preserving decoder polarity;
+factory link population remains unverified but is not an implementation blocker
+under the user-accepted evidence threshold. See the
+[D5 implementation handoff](plus/architecture.md#additional-evidence-and-implementation-handoff).
+Production RTL and hardware acceptance remain unchanged.**
+
+**User clarification, 2026-09-11:** the “disc missing” message appears during
+BASIC CPR firmware boot, before the BASIC interpreter takes over and prints
+`Ready.`. AMSDOS initialization for disc support is a possible explanation,
+not an observed execution trace. Distinguish background ROM-7 initialization
+from foreground ROM-0 launch when testing this hypothesis.
+
+The user also identifies `06_System/6128_FR.cpr`, a classic 6128 ROM adapted
+for Plus that bypasses the menu, as producing the same symptom. The subsequent
+[source check and production-T80 experiment](plus/architecture.md#d5-rom-0-source-check-2026-09-11)
+record both cartridge controls separately from the unresolved silicon rule.
 
 The local `06_System/Plus_EN.cpr` is 131,148 bytes, SHA-256
 `3ce35dfccf79ee6bf8f990124aa4e0af1ce9753cbca03af8545abef21cf081ae`.

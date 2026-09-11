@@ -8,6 +8,19 @@ feature work is visible, verifiable, and maintainable at all.
 Read this before picking up roadmap section 8. Several roadmap items are blocked on B1 in a way
 that is not obvious from the roadmap itself.
 
+## Active Plus follow-up: D5 ROM 0 boot configuration
+
+**Production input repaired; hardware acceptance pending.** D5 supplies low
+`/EXP` for CPC Plus BASIC boot while preserving the live MMU decoder polarity.
+The regression executes both unchanged BASIC CPRs on 6128 Plus and 464 Plus,
+requires firmware `Ready`, and rejects disc-missing output and timeouts.
+ROM7, direct-page and GX4000 controls are retained.
+
+See the [D5 validation report](plus/d5-basic-boot-input-2026-09-11.md) for gates
+and review, and the [source handoff](plus/architecture.md#additional-evidence-and-implementation-handoff)
+for the accepted configuration rationale. Factory strap measurement is not an
+implementation prerequisite. Real-hardware acceptance remains separate.
+
 ## Why this file exists
 
 By 2026-08-31 the project had accumulated roughly 400 commits, 183 classic vectors, about

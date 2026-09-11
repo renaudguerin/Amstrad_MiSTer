@@ -13,6 +13,13 @@ merged into the same behavioral PR.
 
 ## 1. Current baseline
 
+- D5's production `/EXP` input repair is integrated with unchanged MMU
+  decoder polarity. The opt-in production-T80 gate requires both unchanged
+  BASIC CPRs to emit `Ready` on 6128 Plus and 464 Plus, retaining ROM7,
+  direct-page and GX4000 controls. Physical BASIC boot and subsequent
+  Plus disk-based testing remain hardware acceptance steps. See
+  [D5 validation](plus/d5-basic-boot-input-2026-09-11.md).
+
 - B8-1 production-phase R5/R0 event retention and B8-6 Plus RGB/metadata
   alignment are integrated as separate changes. Their real-GA/scripted-write
   and production-colour/gamma fixtures run in the default gate. B8-2 selected
@@ -29,7 +36,7 @@ merged into the same behavioral PR.
   See [the task workflow](task-workflow.md); directory names do not encode stream ownership.
 - The current development state contains the accuracy/reference documents, the F1-F3 and main
   F5 corrections, deterministic-complete F12/F4/F8/F9, the Verilator CRTC/Plus gates plus the
-  randomized equivalence soak (`make -C sim soak`, golden hash `0x6e8258198d6e6137`), the
+  randomized equivalence soak (`make -C sim soak`, golden hash `0xb1cb70da95c2e44f`), the
   production-wired bounded CPR parser/service/MMU path, R12/R13 reload vectors
   (`t20a`-`t20i`), the per-type engine
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
@@ -42,9 +49,11 @@ merged into the same behavioral PR.
   required gate passed on pinned Verilator 5.050 in run `34180289243`.
   The synthesized inputs are unchanged by that correction; the original RBF
   is delivered with its source SHA and hash in [current status](current-status.md).
-- `sim/` currently reports **192** required classic CRTC passes with no expected failures
+- `sim/` currently reports **225** required classic CRTC passes with no expected failures
   plus 45 production-GA/scripted-write cases (B8-1, Verilator 5.052); the soak
-  reproduces golden hash `0x6e8258198d6e6137` after the R5/R0 event repair.
+  reproduces golden hash `0xb1cb70da95c2e44f` after the D1/D6 parity repairs.
+  The [D1/D6 branch evidence](accuracy/d1-d6-parity-repair-2026-09-11.md)
+  records Gemini high source-review clearance and pending hardware acceptance.
   Four optional executed production-T80 cases and the native/translated bus
   trace pass; full motherboard execution remains open. See the
   [bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md).

@@ -2,6 +2,25 @@
 
 ## Pending integration / review-complete rows (zero open review findings)
 
+- **D5 BASIC boot input — CLEAR, integrated from refreshed `8e2f280`.**
+  Gemini 3.8 Flash high reviewed the production `/EXP` configuration and
+  production-T80 firmware monitor in source `f0af3d6`, returning no material
+  findings. Refresh against D1/D6 preserved the Plus RTL and test bodies;
+  its conflict resolution changed only shared status prose. Both unchanged
+  BASIC CPRs emit `Ready` on 6128 Plus and 464 Plus; ROM0/ROM7/direct-page
+  controls cover all three Plus models. Hardware and rendered-output
+  acceptance remain separate. See [D5 evidence](plus/d5-basic-boot-input-2026-09-11.md).
+
+- **D1/D6 parity repair — CLEAR, integrated from rebased tip `2d04812`.**
+  Gemini 3.8 Flash high reviewed source `988f5b9`; the rebase preserves
+  its RTL and tests byte-for-byte. The review includes the fixes to
+  Opus's pulse-overlap and additional-line findings and D6's shared RFD
+  parity. It returned no actionable findings. The parent corrected one
+  report statement about shared midpoint-arm lifecycle against the RTL;
+  it is not a type-change-cleared latch. Review did not rerun the gates.
+  Full local simulation, lint and soak pass; hardware acceptance remains
+  pending. See [evidence and limitations](accuracy/d1-d6-parity-repair-2026-09-11.md).
+
 - **B8-5 snapshot owner apply — CLEAR, integrated from `f2300be` through `ce1d2da`.**
   Fresh Astra medium review covers the foreign-authored DMA/video/GA/MMU restore,
   production header/apply wiring, palette provenance and first interrupt ACK.

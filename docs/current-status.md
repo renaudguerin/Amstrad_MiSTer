@@ -1,5 +1,24 @@
 # Current implementation status
 
+**Accuracy repair integrated, 2026-09-11:** D1 uses the selected engine’s incoming
+parity for origin VSYNC and retains active-pulse count phase; D6 uses shared
+ParityC9 for RFD saves. The full simulation gate passes with 225 classic vectors, as do lint and
+soak `0xb1cb70da95c2e44f`. Gemini high re-reviewed `988f5b9`, including the
+post-Opus fixes and D6, and returned CLEAR with no actionable findings.
+The rebased source tip is `2d04812`. The D1/D6 push skipped CI and synthesis at the user’s request to allow
+subsequent Plus integration. That push produced no new RBF. SHAKER B (9) on both types and C (4) on
+type 1 still await a hardware retest. See [repair evidence](accuracy/d1-d6-parity-repair-2026-09-11.md).
+
+## 2026-09-11 D5 BASIC boot input repair
+
+CPC Plus now supplies low `/EXP` for BASIC boot; MMU decoder polarity is
+unchanged. The production-T80 regression requires actual firmware `Ready` from
+both unchanged CPRs on 6128 Plus and 464 Plus and retains model/ROM controls.
+See [D5 validation](plus/d5-basic-boot-input-2026-09-11.md) for results, review
+and limits. Reviewed source `f0af3d6`, refreshed as `8e2f280`, is integrated
+into `master` ahead of D3/D4. MiSTer BASIC boot with an empty drive remains
+pending; firmware simulation does not establish rendered or hardware output.
+
 **Latest hardware retest, 2026-09-09:** `Amstrad_20260908_ce1d2da.rbf` was tested
 on 6128 Plus / Live blanking and classic 6128 / CRTC1 (DSC4 also CRTC0).
 Most defects persist. Burnin' Rubber is reported OK; CRTC3's earlier right-edge
@@ -15,12 +34,13 @@ unassessed entries do not become passes by association.
 **Code diagnosis, 2026-09-10:** the [retained investigation](hardware-diagnosis-2026-09-10.md)
 reproduces a type-1 frame-origin VSYNC parity bug matching SHAKER B (9)'s
 `#4E00` interval, ASCAL geometry changes under split DE, a Plus sprite first-row
-refill failure, and Plus PPI control-readback differences. That investigation
-left production RTL unchanged. Local diagnostic sources, reference images and rerun logs are
+refill failure, and Plus PPI control-readback differences. Production RTL was
+unchanged by that diagnostic pass. Local diagnostic sources, reference images and rerun logs are
 preserved; the full existing simulation suite passes with its known FDC XFAIL.
-The recommended next Classic work is the bounded VSYNC repair plus a first
-repeatable B2 hardware capture. Plus System/BASIC boot remains a blocker for
-Plus disk-based testing; its separate ROM/input investigation is in the report.
+The D1/D6 source repair is integrated above; the next Classic hardware work
+is its SHAKER retest plus a first repeatable B2 capture. D5 resolves the
+System/BASIC boot input in firmware simulation; hardware boot and disk-based
+testing remain pending, as described above.
 
 **Plus D3/D4 repair, 2026-09-11:** the sprite predictor now stages row zero on
 the preceding compare line under the [bounded first-row service contract](hardware-diagnosis-2026-09-10.md#d3-repair-contract).
@@ -30,6 +50,10 @@ Plus PPI mode-word control reads follow Thacker's `00`/`FF` bit-4 pattern;
 DMA direction retention is checked through Port-A behavior before setup writes.
 See the [D4 scope and BSR residual](hardware-diagnosis-2026-09-10.md#d4-repair-boundary).
 Simulation and lint pass; fresh Opus 5 high review is CLEAR on correctness.
+The source task merged integration base `24b2520` (D1/D6 plus D5) without
+changing reviewed behavior. Combined simulation passes with 225 classic vectors,
+lint passes, and soak retains `0xb1cb70da95c2e44f`; the only conflict was status
+wording. The private D5 firmware gate remains owned by the integration task.
 These are simulation repairs; title/input/flicker symptoms and hardware acceptance
 remain open. No new RBF has been built or tested for this task.
 
