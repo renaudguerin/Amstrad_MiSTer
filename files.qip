@@ -12,6 +12,7 @@ set_global_assignment -name VERILOG_FILE rtl/playcity/playcity.v
 set_global_assignment -name VERILOG_FILE rtl/i8255.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/color_mix.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/amstrad_video_color.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/amstrad_video_output.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/hid.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/joydb.sv
 set_global_assignment -name VERILOG_FILE rtl/multiplay_mouse.v

@@ -5,8 +5,9 @@
 // tie-off stubs for ga40010/YM2149/hid, C++-driven T80pa from b8_cpu),
 // except:
 //  - sync_filter comes from the bench input and the B8-2 test drives the
-//    normal filtered path (1 = Live blank: regenerated sync for the scaler,
-//    live blanking), never the raw diagnostic path (2);
+//    normal filtered path (1 = Raw pixels since B6: the complete regenerated
+//    acquisition tuple, native pixel bytes), never Raw CRT (2).  Blanking is
+//    unconnected here, so this bench sees the same selected sync either way;
 //  - the extracted production consumer (rtl/video_interlace.v, the exact
 //    Amstrad.sv history+enable) observes the motherboard's SELECTED filtered
 //    VSYNC and FIELD pins, with the scandoubler path forced on

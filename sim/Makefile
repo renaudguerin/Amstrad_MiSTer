@@ -21,12 +21,19 @@ VIDEO_COLOR_SRC := plus/video_color_test.sv ../rtl/amstrad_video_color.sv \
     ../rtl/color_mix.sv ../sys/gamma_corr.sv
 VIDEO_COLOR_BIN := $(OBJ_DIR)/video_color/Vvideo_color_test
 
+# B6: actual core output chain, including the unmodified mixer and crop state.
+VIDEO_OUTPUT_SRC := ../rtl/amstrad_video_output.sv ../rtl/amstrad_video_color.sv \
+    ../rtl/color_mix.sv ../rtl/video_interlace.v ../sys/video_mixer.sv \
+    ../sys/gamma_corr.sv ../sys/video_freezer.sv ../sys/scandoubler.v \
+    ../sys/hq2x.sv ../sys/video_freak.sv ../sys/math.sv
+VIDEO_OUTPUT_BIN := $(OBJ_DIR)/video_output/Vamstrad_video_output
+
 
 .PHONY: all build test lint soak clean crt-filter-blank-build crt-filter-blank-test
 
 all: test
 
-build: $(TEST_BIN) crt-filter-blank-build $(VIDEO_COLOR_BIN)
+build: $(TEST_BIN) crt-filter-blank-build $(VIDEO_COLOR_BIN) $(VIDEO_OUTPUT_BIN)
 	$(MAKE) -C plus build
 	$(MAKE) -C ../rtl/GA40010 all
 	$(MAKE) -C ../rtl/u765 build
@@ -36,7 +43,7 @@ crt-filter-blank-build: $(CRTF_TEST_BIN)
 crt-filter-blank-test: $(CRTF_TEST_BIN)
 	./$(CRTF_TEST_BIN)
 
-test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test
+test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test video-output-test
 	./$(TEST_BIN)
 	$(MAKE) -C plus test
 	$(MAKE) -C ../rtl/GA40010 test
@@ -69,6 +76,8 @@ $(VIDEO_COLOR_BIN): $(VIDEO_COLOR_SRC) Makefile
 		--Mdir $(OBJ_DIR)/video_color -Wno-fatal $(VIDEO_COLOR_SRC)
 
 lint:
+	$(VERILATOR) --lint-only --top-module amstrad_video_output \
+		-Wall -Wno-fatal -Wno-PROCASSWIRE $(VIDEO_OUTPUT_SRC)
 	$(VERILATOR) --lint-only --top-module crtc_cpu_phase_top -UVERILATOR -Wall -Wno-fatal $(CPU_PHASE_RTL)
 	$(VERILATOR) --lint-only --timing --top-module video_color_test \
 		-Wall -Wno-fatal $(VIDEO_COLOR_SRC)
@@ -178,3 +187,13 @@ $(CRTC_T80_OLD_BIN): $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp Makefile
 	$(VERILATOR) --cc --exe --build --top-module crtc_t80_top -UVERILATOR \
 		--Mdir $(OBJ_DIR)/crtc_t80_old -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o crtc_t80_old_tests $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp
+
+.PHONY: video-output-test
+video-output-test: $(VIDEO_OUTPUT_BIN)
+	./$(VIDEO_OUTPUT_BIN)
+
+$(VIDEO_OUTPUT_BIN): $(VIDEO_OUTPUT_SRC) b6_video_output_test.cpp Makefile
+	mkdir -p $(@D)
+	$(VERILATOR) --cc --exe --build -j 4 --top-module amstrad_video_output \
+		--Mdir $(OBJ_DIR)/video_output -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
+		$(VIDEO_OUTPUT_SRC) $(abspath b6_video_output_test.cpp)

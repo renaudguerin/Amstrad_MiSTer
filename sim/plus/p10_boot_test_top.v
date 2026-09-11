@@ -167,6 +167,18 @@ module p10_boot_test_top #(
 	output            dbg_cpr_load_abort,
 	output            dbg_cpr_load_error,
 	output      [1:0] dbg_sync_filter
+`ifdef B6_VIDEO_BOUNDARY
+    , input [1:0] b6_mode,
+    output [1:0] b6_applied,
+    output [3:0] b6_full_tuple,
+    output [3:0] b6_raw_tuple,
+    output [7:0] b6_history,
+    output b6_raw_crt, b6_pixel_vblank,
+    output b6_raw_vblank, b6_shift, b6_cpu_n, b6_ras_n, b6_cas_n, b6_bs,
+    output b6_mixer_de, b6_mixer_ce,
+    output [23:0] b6_mixer_rgb, b6_color_rgb,
+    output [3:0] b6_color_tuple
+`endif
 `ifdef B7_DARK_SILICON_MUTATION
 	,
 	output reg  [4:0] b7_mutation_id,
@@ -498,7 +510,13 @@ module p10_boot_test_top #(
 			1'b0
 `endif
 		),
-		.sync_filter(SYNC_FILTER),
+		.sync_filter(
+`ifdef B6_VIDEO_BOUNDARY
+            b6_mode
+`else
+            SYNC_FILTER
+`endif
+        ),
 		.sna_load(1'b0),
 		.sna_cpu_dir(212'd0),
 		.sna_crtc_addr(5'd0),
@@ -564,6 +582,13 @@ module p10_boot_test_top #(
 		.green(mb_green),
 		.blue(mb_blue),
 		.field(),
+`ifdef B6_VIDEO_BOUNDARY
+		// Real production output policy: the B6 fixture consumes the applied
+		// Raw CRT flag and the dot-sampled vertical-blank tag, never a
+		// fixture-local copy of either.
+		.raw_crt(b6_raw_crt),
+		.pixel_vblank(b6_pixel_vblank),
+`endif
 		.vram_din(vram_dout),
 		.vram_addr(vram_addr),
 		.rom_map(256'd0),
@@ -806,7 +831,47 @@ module p10_boot_test_top #(
 	assign dbg_cart_service_busy = cart_service_busy;
 	assign dbg_cpr_load_abort    = cart_load_abort;
 	assign dbg_cpr_load_error    = cart_load_error;
+`ifdef B6_VIDEO_BOUNDARY
+    assign dbg_sync_filter = b6_mode;
+    // Production applied-mode register, not the request: the fixture scores
+    // the boundary at which a changed request takes effect.
+    assign b6_applied = mb.sync_filter_applied;
+    assign b6_full_tuple = {mb.hsync_filtered, mb.vsync_filtered,
+                           mb.hblank_filtered, mb.vblank_filtered};
+    assign b6_raw_tuple = {mb.hsync_ga, mb.vsync_ga, mb.hs_sel, mb.vblank_ga};
+    assign b6_history = mb.vram_din_shift;
+    assign b6_raw_vblank = mb.vblank_ga;
+    assign b6_shift = mb.crtc_shift;
+    assign b6_cpu_n = mb.cpu_n;
+    assign b6_ras_n = mb.ras_n;
+    assign b6_cas_n = mb.cas_n;
+    assign b6_bs = mb.vram_bs;
+    wire [7:0] b6_r, b6_g, b6_b;
+    wire b6_ce, b6_hs, b6_vs, b6_hb, b6_vb;
+    wire [21:0] b6_gamma;
+    amstrad_video_color b6_color (
+        .CLK_VIDEO(clk), .ce_16(ce_16), .hq2x(1'b0),
+        .pixel_vblank(b6_pixel_vblank),
+        .pixel_rate_select(1'b0), .plus_mode(plus_mode), .mode(mb_mode),
+        .mix(3'd0), .r4(mb_red), .g4(mb_green), .b4(mb_blue),
+        .hs(mb_hsync), .vs(mb_vsync), .hbl(mb_hblank), .vbl(mb_vblank),
+        .ce_pix(b6_ce), .R_out(b6_r), .G_out(b6_g), .B_out(b6_b),
+        .HSync(b6_hs), .VSync(b6_vs), .HBlank(b6_hb), .VBlank(b6_vb)
+    );
+    assign b6_color_rgb = {b6_r,b6_g,b6_b};
+    assign b6_color_tuple = {b6_hs,b6_vs,b6_hb,b6_vb};
+    video_mixer #(.LINE_LENGTH(1024), .GAMMA(0)) b6_mixer (
+        .CLK_VIDEO(clk), .CE_PIXEL(b6_mixer_ce), .ce_pix(b6_ce),
+        .scandoubler(1'b0), .hq2x(1'b0), .gamma_bus(b6_gamma),
+        .R(b6_r), .G(b6_g), .B(b6_b),
+        .HSync(b6_hs), .VSync(b6_vs), .HBlank(b6_hb), .VBlank(b6_vb),
+        .HDMI_FREEZE(1'b0), .freeze_sync(),
+        .VGA_R(b6_mixer_rgb[23:16]), .VGA_G(b6_mixer_rgb[15:8]),
+        .VGA_B(b6_mixer_rgb[7:0]), .VGA_VS(), .VGA_HS(), .VGA_DE(b6_mixer_de)
+    );
+`else
 	assign dbg_sync_filter       = SYNC_FILTER;
+`endif
 
 `ifdef B7_DARK_SILICON_MUTATION
 	// B7 is a Verilator-only path-ownership audit.  These are selected

@@ -793,3 +793,28 @@ d5-boot-build:
 
 d5-boot: d5-boot-build
 	python3 run_d5_boot.py $(D5_OBJ_DIR)/d5_boot $(D5_EN) $(D5_FR)
+
+# B6 production boundary gate. B7's executing TV80 and physical SDRAM
+# service are reused; this is not the separate production-T80 timing tier.
+B6_OBJ_DIR := obj_dir/b6_video_boundary
+B6_TEST_BIN := $(B6_OBJ_DIR)/b6_video_boundary_tests
+B6_VIDEO_RTL := $(abspath ../../rtl/amstrad_video_color.sv) $(abspath ../../rtl/color_mix.sv) $(abspath ../../sys/video_mixer.sv) $(abspath ../../sys/video_freezer.sv) $(abspath ../../sys/scandoubler.v) $(abspath ../../sys/hq2x.sv)
+test: b6-video-boundary
+build: $(B6_TEST_BIN)
+lint: b6-video-boundary-lint
+.PHONY: b6-video-boundary-lint
+b6-video-boundary-lint:
+	$(VERILATOR) --lint-only +1364-2001ext+.v +1800-2017ext+.sv \
+		-UVERILATOR -DB7_DARK_SILICON_MUTATION -DB6_VIDEO_BOUNDARY -DP10_DMA_MOBO_REAL_IO \
+		--public-flat-rw --top-module $(P10BOOT_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
+		$(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL)
+.PHONY: b6-video-boundary
+b6-video-boundary: $(B6_TEST_BIN)
+	./$(B6_TEST_BIN)
+
+$(B6_TEST_BIN): $(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL) b6_video_boundary_test.cpp $(B7_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv \
+		-UVERILATOR -DB7_DARK_SILICON_MUTATION -DB6_VIDEO_BOUNDARY -DP10_DMA_MOBO_REAL_IO \
+		--public-flat-rw --top-module $(P10BOOT_TOP) --Mdir $(B6_OBJ_DIR) \
+		-Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(B6_TEST_BIN)) $(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL) $(abspath b6_video_boundary_test.cpp)
