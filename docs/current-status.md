@@ -9,8 +9,10 @@ the escape path. Reviewed source `843cd5b` from
 `codex/general/b6-video-boundary`, based on `20ed4d3`, is integrated into
 `master`. Full simulation,
 lint, canonical soak `0xb1cb70da95c2e44f`, fresh Sol/Gemini review and focused
-negative controls pass. No `sys/` changes. Integration CI and the new RBF
-remain pending. The diagnostic matrix,
+negative controls pass. No `sys/` changes. Published merge `5c16b17` passes
+all required CI and full-fit timing (setup +0.320 ns, hold +0.247 ns, zero
+TNS). The delivered RBF is `output_files/Amstrad_20260911_5c16b17.rbf`.
+The diagnostic matrix,
 final mixer RGB in Verilator and physical HDMI/CRT acceptance remain open;
 see the [design](b6-video-boundary.md) and
 [validation record](b6-video-boundary-review-2026-09-11.md).

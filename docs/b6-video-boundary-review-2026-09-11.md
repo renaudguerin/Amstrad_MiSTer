@@ -167,5 +167,41 @@ sources are unchanged. Destination `make -C sim`, lint and soak all exit 0;
 the soak retains `0xb1cb70da95c2e44f`. The full suite includes all 18 B6
 cases, production output/cadence/crop and colour checks, 225 classic vectors
 and the existing FDC XFAIL. Logs are retained as `integration-*.log` in the
-ignored B6 evidence directory. Exact-SHA CI and full-fit RBF delivery follow
-publication; hardware and broader diagnostic acceptance remain open.
+ignored B6 evidence directory. Exact-SHA CI and full-fit RBF delivery are recorded below; hardware and
+broader diagnostic acceptance remain open.
+
+
+## Published integration and full-fit artifact
+
+Source `843cd5bb45eb7c3a70a5d2918d73a6f24a77757d` is published through merge
+`5c16b17a0bf6e71e8b6e01bd0285dc0b7104f801`. Automatic run
+[34570572190](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34570572190)
+passed simulation, synthesis policy, routing, local Quartus synthesis and the
+required gate for that exact merge SHA. The hosted synthesis leg was skipped
+because routing selected the local runner; no duplicate dispatch was made.
+
+Artifact `Amstrad-local-build-205-1-full`, ID `10188122397`, records
+`build_mode=clean_full` on Quartus 17.0.2. The downloaded timing summary passes
+the repository checker: **+0.320 ns minimum setup**, **+0.247 ns minimum hold**,
+zero TNS across seven clocks each. The fit uses 22,994 / 41,910 ALMs (55%),
+26,811 registers, 701,596 block-memory bits (12%) and 35 / 112 DSP blocks
+(31%). No illegal or unconstrained clocks are reported. The existing
+27 unconstrained input ports and 90 output ports match the preceding accepted
+integration report; setup/hold closure does not establish external-I/O or
+physical connector acceptance.
+
+The exact downloaded bitstream is copied to
+`output_files/Amstrad_20260911_5c16b17.rbf`. Its downloaded and copied SHA-256
+are identical:
+
+```text
+8b3b5bed518165040f8e578c83f061891fa64d58ce3b52fb07d5765765506468
+```
+
+GitHub's artifact archive digest is
+`1ab8b3958a57f0ca8d1790ea8c4f860fda4c05f398ac92539c8a6410a29f243a`.
+CI metadata and original reports are retained in the ignored evidence
+directory. This is the hardware-test artifact for B6; physical HDMI/CRT,
+final mixer RGB under Verilator, dynamic malformed-raster rendering and the
+combined scroll/opaque-sprite matrix remain open. Earlier hardware defects
+are not closed by these simulation and synthesis results.
