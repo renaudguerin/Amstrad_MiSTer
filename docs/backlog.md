@@ -17,8 +17,8 @@ Arnold4 hardware findings, GX4000 conversion wiring and revised Arnold V now
 favor retaining the decoder and correcting the machine input. Factory 6128
 Plus PB5/LK105 grounding remains the narrow evidence gap.
 
-Resume the existing `codex/plus/d5-rom0-boot` task, confirm that configuration,
-then land a failing production-input boot regression before the repair. Keep
+Resume the existing `codex/plus/d5-rom0-boot` task or start from integrated master,
+and land a failing production-input boot regression before the repair. Keep
 ROM7/direct/GX4000/464 Plus controls, full simulation/lint, cross-provider review
 and real-hardware acceptance separate. Sources, fixture provenance and exact
 continuation scope: [D5 handoff](plus/architecture.md#additional-evidence-and-implementation-handoff).

@@ -175,9 +175,9 @@ fail-closed untrusted-input handling and these decisions keep it that way.
 ### D5 ROM 0 source check (2026-09-11)
 
 **Recommended repair direction: correct the machine's `/EXP` input, not invert
-ROM 0 decoding.** Both scratch page-1 controls boot BASIC. Subsequent hardware
-references support low selecting BASIC, but factory 6128 Plus PB5/LK105 wiring
-still needs confirmation. Production RTL remains unchanged.
+ROM 0 decoding.** Both scratch page-1 controls boot BASIC. The user accepted the combined hardware
+references as sufficient to implement this direction; factory 6128 Plus link
+population is a residual detail, not a prerequisite. Production RTL remains unchanged.
 
 Sources were checked in the requested order:
 
@@ -233,9 +233,10 @@ Sources were checked in the requested order:
   not evidence for D5 polarity.
 
 **Fresh-session scope:** resume `codex/plus/d5-rom0-boot` in its existing task
-checkout; preserve other tasks. Confirm the factory PB5/LK105 connection from
-Plus board evidence or explicit primary documentation. Then add a failing
-production-configuration boot regression before changing the top-level input.
+checkout or start a new Plus implementation task from integrated master; preserve
+other tasks. Add a failing production-configuration boot regression before
+changing the top-level input. No further physical measurement is required to
+start: on 2026-09-11 the user accepted the conversion evidence as sufficient.
 Use both unchanged CPRs and actual firmware `Ready` output, with explicit
 missing-message and timeout failure reasons. The old scratch control changed
 only high-EXP ROM0 decoding; rerun with the unchanged decoder and the proposed
@@ -248,6 +249,11 @@ user requested no further Opus tasks in this investigation; use another
 appropriate authorized provider. The Gemini emulator-source research was
 stopped cleanly after stalling without a report; it contributes no findings.
 Hardware BASIC boot with an empty drive remains a separate acceptance gate.
+
+The user also supplied an old motherboard photograph showing the ASIC and a
+link bank labelled LK01–LK05. Link connectivity cannot be established from
+the photograph; do not equate these silkscreen labels with the manual without
+tracing. No additional disassembly or measurement is an implementation gate.
 
 #### Production-T80 controlled experiment
 
@@ -315,7 +321,7 @@ or production gate is claimed.
 
 **Acceptance boundary:** production RTL is unchanged. The conditional repair,
 required boot regression, ROM-7/direct/GX4000 gates and hardware BASIC `Ready.`
-check remain pending the factory-configuration check and implementation above.
+check remain pending the implementation and validation above.
 
 ### P0 wiring shape (as built)
 

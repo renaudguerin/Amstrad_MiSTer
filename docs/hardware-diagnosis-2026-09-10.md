@@ -251,7 +251,8 @@ issues FDC commands; a missing-disk screen alone is not that trace.
 **Status (updated 2026-09-11): both cartridges reproduce in production-T80
 simulation and page-1 controls reach Ready. Additional hardware references
 favor correcting the top-level EXP input while preserving decoder polarity;
-factory 6128 Plus PB5/LK105 configuration remains to be confirmed. See the
+factory link population remains unverified but is not an implementation blocker
+under the user-accepted evidence threshold. See the
 [D5 implementation handoff](plus/architecture.md#additional-evidence-and-implementation-handoff).
 Production RTL and hardware acceptance remain unchanged.**
 
