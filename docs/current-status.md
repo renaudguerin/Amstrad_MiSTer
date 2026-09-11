@@ -1,5 +1,13 @@
 # Current implementation status
 
+**Combined Plus integration timing, 2026-09-11:** D5 and D3/D4 are integrated
+and published at `f8e9372`. All destination simulation, lint, canonical soak
+and unchanged-CPR boot checks pass. The full Quartus fit failed setup at
+−0.217 ns on the sprite render path. A behavior-preserving selector rewrite
+passes exhaustive combinational equivalence, full simulation, lint and fresh
+Gemini review; a new full fit is required before delivering an accepted RBF.
+See [timing evidence](plus/d3-render-timing-2026-09-11.md).
+
 **Accuracy repair integrated, 2026-09-11:** D1 uses the selected engine’s incoming
 parity for origin VSYNC and retains active-pulse count phase; D6 uses shared
 ParityC9 for RFD saves. The full simulation gate passes with 225 classic vectors, as do lint and

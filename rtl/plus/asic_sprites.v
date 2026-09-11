@@ -212,10 +212,25 @@ reg [15:0] c_xeq;       // hp hits stored X this dot
 reg [15:0] c_xleft;     // negative X overlaps the visible left edge
 reg [15:0] c_chg;       // X rewritten since the shadow was sampled
 reg [15:0] c_wact;      // emission window open this dot
-reg [5:0]  c_t    [0:15];
-reg [3:0]  c_spix [0:15];// source pixel index = t >> xshift
+reg [3:0]  c_spix [0:15];// source pixel index after magnification
 reg [15:0] n_on;        // next-state window enables
 reg [111:0] n_cnt;
+
+// Select the source pixel before the late hp equality/window mux. Keeping
+// magnification on the data arms removes that mux from the shifter input
+// without changing the dot phase. Six-bit offsets retain the old c_t
+// truncation; code zero keeps the same x4 decode while c_ena disables it.
+function [3:0] source_pixel;
+	input [5:0] offset;
+	input [1:0] mag_code;
+	begin
+		case (mag_code)
+			2'd1: source_pixel = offset[3:0];
+			2'd2: source_pixel = offset[4:1];
+			default: source_pixel = offset[5:2];
+		endcase
+	end
+endfunction
 
 always @(*) begin
 	for (i = 0; i < 16; i = i + 1) begin
@@ -223,9 +238,9 @@ always @(*) begin
 		c_xleft[i] = (hp == 10'd0) && c_xneg[i] &&
 		               ({2'b00, c_xmag[i]} < {4'b0000, c_wid[i]});
 		c_chg[i] = (xs_q[i*10 +: 10] != c_xa[i]);
-		c_t[i]   = c_xleft[i] ? c_xmag[i][5:0] :
-		             c_xeq[i] ? 6'd0 : sx_cnt[i*7 +: 7];
-		c_spix[i]= c_t[i] >> c_xsh[i];
+		c_spix[i]= c_xleft[i] ? source_pixel(c_xmag[i][5:0], c_xc[i]) :
+		             c_xeq[i] ? 4'd0 :
+		             source_pixel(sx_cnt[i*7 +: 6], c_xc[i]);
 		n_on[i]  = c_xleft[i] || c_xeq[i] ||
 		           (sx_on[i] && !c_chg[i] &&
 		            ({1'b0, sx_cnt[i*7 +: 7]} != c_wid[i]));

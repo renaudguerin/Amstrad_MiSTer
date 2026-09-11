@@ -2,6 +2,12 @@
 
 ## Pending integration / review-complete rows (zero open review findings)
 
+- **D3 render timing selector — CLEAR.** Fresh Gemini 3.8 Flash high review
+  of the bounded combinational rewrite found no material issue. All 2,097,152
+  binary selector inputs match `f8e9372`; full simulation and lint pass.
+  Physical timing acceptance requires a new full fit. See
+  [timing follow-up](plus/d3-render-timing-2026-09-11.md).
+
 - **D3/D4 sprite prefetch and PPI readback — CLEAR, integrated from refreshed
   `cc9d704` (feature tip `5c58fe7`).** Opus 5 high reviewed the prediction
   wrap, row-tag promotion, stale-ACK rules, PPI readback and required tests.
