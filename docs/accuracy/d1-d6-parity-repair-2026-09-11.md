@@ -77,13 +77,28 @@ because its output was truncated. Its findings were handled as follows:
 - Fixture comments distinguish source parity rules from model reset choices;
   the half-count fixture asserts canonical parity rather than FIELD.
 
-**Review remains incomplete:** these follow-up changes and D6 have not received
-fresh cross-provider review. The user requested no further Opus work because of
-quota; no additional Opus call was started. The legacy R8=0 FIELD lifecycle and
-raw-R8 versus latched-IVM transition window remain retained integration
-assumptions, not newly established hardware rules. Review should concentrate
-on pulse start/count ownership, origin blocked-consumption and the D6 parity
-polarity/cadence. This branch is not review-cleared READY.
+**Fresh cross-provider review: CLEAR for source commit `988f5b9`.**
+Gemini 3.8 Flash high completed the D1 follow-up and D6 review in run
+`20260911T012004Z-97138-7451`, exiting normally with status 0. It found no
+actionable defects in the scoped diff, including pulse phase qualification,
+additional-line blocked consumption, D6 parity polarity, test expectations
+and the repeat-per-frame ON/OFF interpretation. No further Opus call was used.
+
+This is source review, not independent execution of the gates. The reviewer
+read the French position-inspector extracts and reported no truncated input;
+it relied on the parent's existing simulation/lint/soak results. Its broad
+claim of complete correctness is not hardware evidence. One report statement
+was corrected by the parent against RTL: `vsync_mid_arm` clears on reset or
+snapshot load, not directly on a live type change. It is shared wrapper
+state; type changes select the consuming engine, while seam/count events
+update the arm. The report is not evidence of a type-change clear.
+The raw report and brief are retained in the ignored evidence directory as
+`gemini-review.md` and `gemini-review-brief.txt`.
+
+The legacy R8=0 FIELD lifecycle and raw-R8 versus latched-IVM transition
+window remain retained integration assumptions, not newly established
+hardware rules. Source review and local gates are complete; integration and
+hardware acceptance remain pending.
 
 No new RBF or hardware result is claimed. Retest SHAKER B (9), both screens,
 on CRTC 1 and CRTC 0 in Full sync, preserving the nonzero-R7 controls and

@@ -3,8 +3,8 @@
 **Local accuracy repair, 2026-09-11:** D1 uses the selected engine’s incoming
 parity for origin VSYNC and retains active-pulse count phase; D6 uses shared
 ParityC9 for RFD saves. The full simulation gate passes with 225 classic vectors, as do lint and
-soak `0xb1cb70da95c2e44f`. Opus reviewed D1; its follow-up fixes and D6 still
-need fresh review, deferred under the user’s Opus quota constraint. This is
+soak `0xb1cb70da95c2e44f`. Gemini high re-reviewed `988f5b9`, including the
+post-Opus fixes and D6, and returned CLEAR with no actionable findings. This is
 local source work, with SHAKER B (9) on both types and C (4) on type 1 still
 awaiting a hardware retest. See [repair evidence](accuracy/d1-d6-parity-repair-2026-09-11.md).
 

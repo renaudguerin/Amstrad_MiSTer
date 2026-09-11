@@ -46,7 +46,7 @@ merged into the same behavioral PR.
   plus 45 production-GA/scripted-write cases (B8-1, Verilator 5.052); the soak
   reproduces golden hash `0xb1cb70da95c2e44f` after the D1/D6 parity repairs.
   The [D1/D6 branch evidence](accuracy/d1-d6-parity-repair-2026-09-11.md)
-  records incomplete follow-up review and pending hardware acceptance.
+  records Gemini high source-review clearance and pending hardware acceptance.
   Four optional executed production-T80 cases and the native/translated bus
   trace pass; full motherboard execution remains open. See the
   [bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md).

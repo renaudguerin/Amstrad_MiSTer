@@ -1,16 +1,15 @@
 # Independent review debt
 
-## Open local branch review
-
-- **D1/D6 parity repair — incomplete, not integrated.** Opus 5 high reviewed
-  the initial D1 change. The reproduced pulse-overlap and additional-line
-  blocked-comparison fixes, plus D6’s shared RFD parity change, need fresh
-  cross-provider review. No further Opus work was started after the user’s
-  quota limit. Check pulse start/count phase ownership, origin consumption,
-  R8-exit assumptions and the source-derived RFD polarity/cadence. See the
-  [evidence and remaining acceptance](accuracy/d1-d6-parity-repair-2026-09-11.md).
-
 ## Pending integration / review-complete rows (zero open review findings)
+
+- **D1/D6 parity repair — CLEAR for source `988f5b9`, not integrated.**
+  Gemini 3.8 Flash high re-reviewed the final diff, including the fixes to
+  Opus's pulse-overlap and additional-line findings and D6's shared RFD
+  parity. It returned no actionable findings. The parent corrected one
+  report statement about shared midpoint-arm lifecycle against the RTL;
+  it is not a type-change-cleared latch. Review did not rerun the gates.
+  Full local simulation, lint and soak pass; hardware acceptance remains
+  pending. See [evidence and limitations](accuracy/d1-d6-parity-repair-2026-09-11.md).
 
 - **B8-5 snapshot owner apply — CLEAR, integrated from `f2300be` through `ce1d2da`.**
   Fresh Astra medium review covers the foreign-authored DMA/video/GA/MMU restore,
