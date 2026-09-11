@@ -414,8 +414,15 @@ void check_post_state(Bench& bench, const LoadResult& result, const char* label,
 	if (bench.dut.key_matrix_o != 0xDF)
 		fail(std::string(label) + ": PS/2 A input was not preserved (expected row 8 = 0xDF)");
 	IoResult ppi_mode = bench.io_read(0xF700);
-	if (ppi_mode.data != 0x9B)
-		fail(std::string(label) + ": PPI mode/direction changed (expected 0x9B)");
+	if (ppi_mode.data != 0xFF)
+		fail(std::string(label) + ": Plus PPI control readback was not FF for 0x9B (got 0x" +
+		     std::to_string(ppi_mode.data) + ")");
+	// Control reads expose the Plus ASIC's decoded value, so direction
+	// retention is proved through the Port-A pin behaviour before any recovery
+	// setup can rewrite the control word.  Input mode drives FF toward the PSG.
+	if (bench.dut.ppi_port_a_o != 0xFF)
+		fail(std::string(label) + ": Port-A input direction was not retained (pin value is 0x" +
+		     std::to_string(bench.dut.ppi_port_a_o) + ")");
 	// Read AY R14 through the real PPI/YM/HID path.  C=0x48 means BDIR=0,
 	// BC1=1, row 8; the resulting byte must contain the pressed A key.
 	if (expected_selected_reg != 0x0E) {

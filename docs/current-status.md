@@ -15,12 +15,23 @@ unassessed entries do not become passes by association.
 **Code diagnosis, 2026-09-10:** the [retained investigation](hardware-diagnosis-2026-09-10.md)
 reproduces a type-1 frame-origin VSYNC parity bug matching SHAKER B (9)'s
 `#4E00` interval, ASCAL geometry changes under split DE, a Plus sprite first-row
-refill failure, and Plus PPI control-readback differences. Production RTL is
-unchanged. Local diagnostic sources, reference images and rerun logs are
+refill failure, and Plus PPI control-readback differences. That investigation
+left production RTL unchanged. Local diagnostic sources, reference images and rerun logs are
 preserved; the full existing simulation suite passes with its known FDC XFAIL.
 The recommended next Classic work is the bounded VSYNC repair plus a first
 repeatable B2 hardware capture. Plus System/BASIC boot remains a blocker for
 Plus disk-based testing; its separate ROM/input investigation is in the report.
+
+**Plus D3/D4 repair, 2026-09-11:** the sprite predictor now stages row zero on
+the preceding compare line under the [bounded first-row service contract](hardware-diagnosis-2026-09-10.md#d3-repair-contract).
+The required production-cadence regression checks all 16 sprites enabled with
+sprite 15 opaque at X=0/16/32/64/256, including distinct first/second-row colours.
+Plus PPI mode-word control reads follow Thacker's `00`/`FF` bit-4 pattern;
+DMA direction retention is checked through Port-A behavior before setup writes.
+See the [D4 scope and BSR residual](hardware-diagnosis-2026-09-10.md#d4-repair-boundary).
+Simulation and lint pass; fresh Opus 5 high review is CLEAR on correctness.
+These are simulation repairs; title/input/flicker symptoms and hardware acceptance
+remain open. No new RBF has been built or tested for this task.
 
 **Latest verified CI/RBF, 2026-09-08:** `ce1d2da67c2598c0dd06208b9fc14c52ada01712`
 passed simulation, policy, required gate and full local Quartus 17.0.2 in

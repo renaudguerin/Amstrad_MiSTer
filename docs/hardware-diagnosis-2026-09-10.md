@@ -146,8 +146,8 @@ by this diagnostic.
 
 ## D3 — sprite first-row refill can miss early pixels
 
-**Status: reproduced local staging failure; relationship to reported flicker
-unproved.**
+**Status: bounded first-row repair implemented on the D3/D4 Plus task;
+relationship to reported flicker unproved.**
 
 The parent reviewed and reran a diagnostic of unchanged
 `rtl/plus/asic_sprites.v` using the production 4-master-clock/dot ratio and
@@ -167,41 +167,95 @@ the 16×16 image, zero-colour transparency and fixed priority.
   at X=0,16,32,64; the second line is complete.
 - Moving that target case to X=256 restores the complete first line too.
 
-`c_predok` requires the current line to be inside the vertical window, so the
-first visible source row is not speculatively prepared while the sprite is
-still above Y. The walker scans whole eight-byte sprite blocks, leaving later
-sprite IDs dependent on urgent refill after the seam. This is a stronger lead
+In the investigated source, `c_predok` required the current line to be inside
+the vertical window, so the first visible source row was not speculatively
+prepared while the sprite was still above Y. The walker scans whole eight-byte
+sprite blocks, leaving later sprite IDs dependent on urgent refill after the seam. This is a stronger lead
 than the rejected claim that even a lone sprite at X=0 must fail.
 
-The source header's claim that static-Y sprites never show an unfetched pixel
-is too broad. A repair needs a first-visible-row/prefetch contract and the real
-service cadence. This diagnostic establishes first-row loss under its stated
-conditions, not the temporal leftmost-1/16-screen flicker in games, nor the
+The original source header's claim that static-Y sprites never show an unfetched
+pixel was too broad. The repair below defines a first-visible-row/prefetch
+contract and the real service cadence. This diagnostic establishes first-row
+loss under its stated conditions, not the temporal leftmost-1/16-screen flicker in games, nor the
 DMA pitch/crash defect. Keep those hardware observations separate.
+
+### D3 repair contract
+
+The predictor now also permits speculation on the compare line immediately
+before Y: the ten-bit vertical difference advances from 1023 to zero, and
+the existing four-bit row-tag increment stages source row zero. The existing
+bank promotion and stale-response checks remain in use.
+
+The guarantee requires attributes and image data to be stable by the preceding
+line seam, sequential compare-line advance into Y, and an uncontended normal
+64-character line at four master clocks per dot. The required `d3-sprites`
+target uses production `H_ORIGIN_DOTS=16`, all 16 sprites enabled and only
+sprite 15 opaque at X=0/16/32/64/256. It checks 16 visible pixels on both the
+first and second rows, with distinct row colours to reject wrong-row delivery.
+The original RTL fails the first-row assertion at X=0; the repair passes.
+
+Reset-at-Y, discontinuous CRTC taps, late attribute changes, CPU access
+effects and insufficient service time remain outside the guarantee.
+This is an implementation service contract, not a claim about the ASIC's
+undocumented internal sprite-fetch schedule or a hardware flicker fix.
 
 ## D4 — Plus PPI control readback contradicts the hardware reference
 
-**Status: reproduced rule mismatch; title causality unproved.**
+**Status: mode-word readback repair implemented on the D3/D4 Plus task;
+title causality unproved.**
 
 Kevin Thacker's [Extra CPC Plus Hardware Information](references/Extra%20CPC%20Plus%20Hardware%20Information.md),
 **PPI / PPI Control port**, reports `00` after control writes in 80–8F and
-`FF` after writes in 90–9F. Production `rtl/i8255.v` instead returns its stored
-`mode` value for every control-register read, including Plus mode.
+`FF` after writes in 90–9F. The investigated `rtl/i8255.v` instead returned its
+stored `mode` value for every control-register read, including Plus mode.
 
 The focused diagnostic obtains `82` after writing `82` (expected `00`) and
 `9B` after writing `9B` (expected `FF`). Independent port-A controls pass:
 output data is retained, input data is read, and input mode presents `FF` to
 the PSG. This narrows the defect rather than blaming the entire input path.
 
-`sim/plus/p10_dma_ppi_test.cpp` currently expects an external F700 read of
-`9B` to prove direction retention. That assertion encodes the implementation's
-readback, not the measured Plus rule. A future repair must verify retained
-direction through port behavior or an explicitly diagnostic internal tap,
-while pinning the actual external readback separately.
+The original `sim/plus/p10_dma_ppi_test.cpp` expected an external F700 read of
+`9B` to prove direction retention. That assertion encoded the implementation's
+readback, not the measured Plus rule. The repair verifies retained direction
+through port behavior while pinning actual external readback separately.
 
 There is no evidence yet that Pang, Plotting, Arnold 5 or the System cartridge
 executes the affected control-read sequence. Do not claim this explains stuck
 fire or failed boot merely because the symptoms involve input.
+
+### D4 repair boundary
+
+Plus control reads now decode the retained mode word's bit 4 to `00` or `FF`,
+matching Thacker's mode-word table (`80–FF`). Classic control reads still return
+the stored word. Mode storage and port-direction behavior are unchanged.
+The P8 PPI test pins the external readback, and the DMA/PPI regression checks
+input-direction retention through the Port-A pins before any setup rewrites
+the direction; its subsequent AY/keyboard read still checks the input path.
+
+BSR writes continue to update Port C without replacing the retained mode word.
+Thacker's separate `00–7F → FF` control-read result after BSR is not implemented
+by this change when the retained mode has bit 4 clear. That separate behavior
+does not weaken the required `80–9F` mode-word checks. No title-level or new
+hardware validation was performed.
+
+### D3/D4 validation — 2026-09-11
+
+`make -C sim` and `make -C sim lint` pass, including the required D3 target,
+P8 PPI checks, DMA/PPI concurrency, sprite/register service and CPR regressions.
+The classic suite has 192 passes; the existing `fdc-payload-poll` XFAIL remains.
+The new P8 assertion fails against original RTL at `80 → 80` instead of `00`;
+the new D3 assertion fails at X=0 with zero first-row target pixels. The original
+20-case diagnostic has exactly four failures at X=0/16/32/64, with X=256 passing.
+
+Fresh Opus 5 high cross-provider review is **CLEAR on correctness**: it checked
+the ten-bit prediction wrap, four-bit row-tag promotion, unchanged stale-ACK
+rules, PPI decoding and required-pass wiring. The parent checked its requested
+failure evidence against retained logs and corrected stale access-invalidation
+wording. Review was source-only; simulation and lint were run by the implementer
+and focused gates rerun by the parent. The Port-A behavior check intentionally
+does not assert every retained control-word bit through a private internal tap.
+Logs and the complete review are retained locally under ignored
+`docs/references/d3-d4-validation-2026-09-11/`.
 
 ## Classic / Plus ownership and reset
 
