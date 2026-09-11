@@ -19,15 +19,15 @@
 // the RTL from the live bus write.
 //
 // Rule basis (French ACCC v1.11 canonical; English pages differ by reflow):
-//   - FR §19.5.5 pp.214-216 (EN pp.213-215): ParityFrame toggles every frame
+//   - FR §19.5.5 pp.214-216 (EN pp.214-216): ParityFrame toggles every frame
 //     at C4=C9=C0=0 whatever R8; even schedules the additional line + MID.
 //     At frame start ParityC9=ParityFrame; R8->1/3 seeds ParityC9=C9.0, so a
 //     transition entry on odd C9 really mismatches C9 vs frame parity (p.214)
 //     and settles the following frame. Even R9 keeps C9 parity aligned to
 //     frame parity once settled (used here: R9=6, so origins are C9=0).
-//   - FR §19.6.4 p.218 (EN p.217): either R8=1 or R8=3 adds exactly one
+//   - FR §19.6.4 p.218 (EN p.218): either R8=1 or R8=3 adds exactly one
 //     C9=0 line after the R5 block on the even frame; C4 not incremented.
-//   - FR §19.7.3 p.219 (EN p.218): MID (C0=R0/2) on the even frame for
+//   - FR §19.7.3 p.219 (EN p.219): MID (C0=R0/2) on the even frame for
 //     either mode; seam (C0=0) on the odd frame. R7=0 is the outgoing-parity
 //     exception: VSYNC is computed BEFORE the toggle, so MID then carries
 //     the NEW-odd FIELD0 and seam carries NEW-even FIELD1 — the opposite of

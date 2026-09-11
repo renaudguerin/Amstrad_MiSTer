@@ -997,7 +997,7 @@ void test_type0_vsync_requires_preceding_c0_2(TestBench& test) {
     }
     test.reset();
 
-    // ACCC v1.11 English section 16.4.1.2 p.168 (author-confirmed as
+    // ACCC v1.11 English section 16.4.1.2 p.169 (FR §16.4.1.2 p.170, author-confirmed as
     // normative on 2026-08-31): type 0 considers the natural C4=R7 VSYNC
     // only when C0 reached 2 on the preceding line.  A steady R0=1 line
     // visits only C0=0,1, so the comparison is consumed as blocked even
@@ -5587,10 +5587,10 @@ void test_type0_skew_non_output_blanks(TestBench& test) {
 // ---------------------------------------------------------------------------
 // t31: F13 -- exact half-character type-0 border pulse when R1 > R0
 //
-// ACCC v1.11 section 17.6.2 p.186 splits C0=R0 into a displayed first byte
-// and a border second byte. Section 19.2.4 p.195 states the pin-level rule:
+// ACCC v1.11 section 17.6.2 p.187 (FR p.188) splits C0=R0 into a displayed first byte
+// and a border second byte. Section 19.2.4 p.196 (FR p.196) states the pin-level rule:
 // BORDER is sent 0.5 us after C0=R0 and disabled on the next character 0.5 us
-// later. The p.195 diagrams separately show that SKEW-DISPTMG rounds the
+// later. The p.196 diagrams separately show that SKEW-DISPTMG rounds the
 // deferred event onto a full delayed character; t10c/t10d already pin those
 // cases. This fixture pins the no-skew phase that differs from those rounded
 // delayed events.
@@ -5617,7 +5617,7 @@ void f13_expect_first_half_displayed(TestBench& test,
 void t31_type0_half_character_border_no_skew(TestBench& test) {
     f13_expect_first_half_displayed(
         test, 0, 15,
-        "F13 no-skew C0=R0 (ACCC v1.11 sections 17.6.2 p.186 and 19.2.4 p.195)");
+        "F13 no-skew C0=R0 (ACCC v1.11 sections 17.6.2 p.187 (FR p.188) and 19.2.4 p.196 (FR p.196))");
 }
 
 // t34: IA-3 / BL-036 -- a type-0 R6=0 first-line conflict is cancellable.
@@ -7946,16 +7946,16 @@ int main(int argc, char** argv) {
         {"t02k_type0_pending_skip_snapshot_load", "CRTC snapshot-load contract; F3/F11d",
          false, test_type0_pending_skip_clears_on_snapshot_load},
         {"t02l_type0_vsync_requires_preceding_c0_2",
-         "ACCC v1.11 English section 16.4.1.2 p.168; author-confirmed 2026-08-31",
+         "ACCC v1.11 English section 16.4.1.2 p.169 (FR §16.4.1.2 p.170); author-confirmed 2026-08-31",
          false, test_type0_vsync_requires_preceding_c0_2},
         {"t02m_type0_vsync_qualified_r0_zero_freezes_count",
-         "ACCC v1.11 English section 16.4.1.2 p.169; author-confirmed 2026-08-31",
+         "ACCC v1.11 English section 16.4.1.2 p.170 (FR §16.4.1.2 p.171); author-confirmed 2026-08-31",
          false, test_type0_vsync_qualified_r0_zero_freezes_count},
         {"t02n_type0_vsync_qualified_r0_one_counts_two_characters",
-         "ACCC v1.11 English section 16.4.1.2 p.169; author-confirmed 2026-08-31",
+         "ACCC v1.11 English section 16.4.1.2 p.170 (FR §16.4.1.2 p.171); author-confirmed 2026-08-31",
          false, test_type0_vsync_qualified_r0_one_counts_two_characters},
         {"t02o_type0_vsync_blocked_comparison_is_consumed",
-         "ACCC v1.11 English section 16.4.1.2 pp.168-169; model inference/hardware discriminator",
+         "ACCC v1.11 English section 16.4.1.2 pp.169-170 (FR §16.4.1.2 pp.170-171); model inference/hardware discriminator",
          false, test_type0_vsync_blocked_comparison_is_consumed},
         {"t02p_type1_interlace_sync_even_parity_vsync",
          "ACCC v1.10 sections 16.4.2 and 19.3.2.1; type-1 R8=1 half-line route",
@@ -8550,7 +8550,7 @@ int main(int argc, char** argv) {
          false, t30_type0_post_ivm_exit_recovery_recipe_even},
         // t31: F13 exact half-character border pulse.
         {"t31a_type0_half_character_border_no_skew",
-         "ACCC v1.11 sections 17.6.2 p.186 and 19.2.4 p.195; F13",
+         "ACCC v1.11 sections 17.6.2 p.187 (FR p.188) and 19.2.4 p.196 (FR p.196); F13",
          false, t31_type0_half_character_border_no_skew},
         {"t34a_type0_r6_zero_first_line_cancellation",
          "ACCC v1.11 French section 18.3.2 p.191; BL-036/IA-3",
