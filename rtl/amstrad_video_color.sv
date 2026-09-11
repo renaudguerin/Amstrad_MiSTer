@@ -5,6 +5,9 @@
 // Extracted from Amstrad.sv; classic DAC conversion remains in color_mix.
 module amstrad_video_color (
     input CLK_VIDEO, ce_16, hq2x, pixel_rate_select, plus_mode,
+    // B6 raw vertical-blank tag, sampled by the motherboard on the native
+    // dot enable beside the pixel it belongs to (docs/b6-video-boundary.md).
+    input pixel_vblank,
     input [1:0] mode,
     input [2:0] mix,
     input [3:0] r4, g4, b4,
@@ -104,7 +107,18 @@ always @(posedge CLK_VIDEO) begin
     if (ce_pix) plus_rgb <= {R_plus, G_plus, B_plus};
 end
 
-assign R_out = plus_mode ? plus_rgb[23:16] : R;
-assign G_out = plus_mode ? plus_rgb[15:8] : G;
-assign B_out = plus_mode ? plus_rgb[7:0] : B;
+// B6 raw vertical-blank mask.  The tag gets the same ce_pix register as the
+// converted colour beside it (color_mix for classic, plus_rgb for Plus), so
+// a blank that changes inside the active area cannot black out the previous
+// pixel.  Masking after conversion is what makes this exact zero: a classic
+// force-blank DAC pair is a calibrated near-black entry, not 24-bit zero, and
+// the horizontal force blank deliberately keeps that native rendering.
+reg vbl_mask;
+always @(posedge CLK_VIDEO) begin
+    if (ce_pix) vbl_mask <= pixel_vblank;
+end
+
+assign R_out = vbl_mask ? 8'd0 : (plus_mode ? plus_rgb[23:16] : R);
+assign G_out = vbl_mask ? 8'd0 : (plus_mode ? plus_rgb[15:8] : G);
+assign B_out = vbl_mask ? 8'd0 : (plus_mode ? plus_rgb[7:0] : B);
 endmodule

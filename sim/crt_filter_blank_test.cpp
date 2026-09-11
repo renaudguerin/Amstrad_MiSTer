@@ -391,21 +391,36 @@ void test_production_mode_selector() {
         full.vblank_selected != full.vblank)
         fail("Full mode did not select the complete filtered output tuple");
 
-    auto live = tb.selector(1, !full.hsync_o, !full.vsync_o,
-                            !full.hblank_live, !full.vblank);
-    if (live.hsync_selected != live.hsync_o ||
-        live.vsync_selected != live.vsync_o ||
-        live.hblank_selected != live.hblank_live ||
-        live.vblank_selected == live.vblank)
-        fail("Live mode did not select filtered sync, live HBLANK, and raw VBLANK");
+    // B6 replaced Live blanking with Raw pixels, which keeps the complete
+    // Full acquisition tuple and changes pixels only. Every raw input is
+    // driven to the opposite of the filtered value here, so selecting any of
+    // them would show. The independent B6 boundary regression scores what
+    // that mode does to the bytes and the pixel mask.
+    auto raw_pixels = tb.selector(1, !full.hsync_o, !full.vsync_o,
+                                  !full.hblank, !full.vblank);
+    if (raw_pixels.hsync_selected != raw_pixels.hsync_o ||
+        raw_pixels.vsync_selected != raw_pixels.vsync_o ||
+        raw_pixels.hblank_selected != raw_pixels.hblank ||
+        raw_pixels.vblank_selected != raw_pixels.vblank)
+        fail("Raw pixels mode did not select the complete filtered output tuple");
 
-    auto off = tb.selector(2, !live.hsync_o, !live.vsync_o,
-                           !live.hblank_live, !live.vblank);
-    if (off.hsync_selected != static_cast<uint8_t>(!live.hsync_o) ||
-        off.vsync_selected != static_cast<uint8_t>(!live.vsync_o) ||
-        off.hblank_selected != static_cast<uint8_t>(!live.hblank_live) ||
-        off.vblank_selected != static_cast<uint8_t>(!live.vblank))
-        fail("Off mode did not select the complete raw output tuple");
+    auto raw_crt = tb.selector(2, !raw_pixels.hsync_o, !raw_pixels.vsync_o,
+                               !raw_pixels.hblank, !raw_pixels.vblank);
+    if (raw_crt.hsync_selected != static_cast<uint8_t>(!raw_pixels.hsync_o) ||
+        raw_crt.vsync_selected != static_cast<uint8_t>(!raw_pixels.vsync_o) ||
+        raw_crt.hblank_selected != static_cast<uint8_t>(!raw_pixels.hblank) ||
+        raw_crt.vblank_selected != static_cast<uint8_t>(!raw_pixels.vblank))
+        fail("Raw CRT mode did not select the complete raw output tuple");
+
+    // Reserved value 3 is normalised to Full by the motherboard's applied-mode
+    // register; the seam itself must not fall through to a raw member either.
+    auto reserved = tb.selector(3, !raw_crt.hsync_o, !raw_crt.vsync_o,
+                                !raw_crt.hblank, !raw_crt.vblank);
+    if (reserved.hsync_selected != reserved.hsync_o ||
+        reserved.vsync_selected != reserved.vsync_o ||
+        reserved.hblank_selected != reserved.hblank ||
+        reserved.vblank_selected != reserved.vblank)
+        fail("reserved mode 3 did not fall back to the filtered output tuple");
 }
 
 struct TestCase {
@@ -422,7 +437,7 @@ constexpr std::array<TestCase, 9> kTests = {{
     {"missing raw sync falls back to the established Full HBLANK", test_missing_sync_uses_full_blank},
     {"stuck-high raw sync without VSYNC falls back to Full HBLANK", test_stuck_high_without_vsync_uses_full_blank},
     {"masked short retrigger preserves the learned watchdog cadence", test_masked_retrigger_preserves_watchdog_period},
-    {"production selector pins Full, Live, and Off output tuples", test_production_mode_selector},
+    {"production selector pins Full, Raw pixels, Raw CRT and reserved tuples", test_production_mode_selector},
 }};
 
 }  // namespace
