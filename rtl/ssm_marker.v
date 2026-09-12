@@ -177,6 +177,13 @@ end
 //----------------------------------------------------------------------------
 // Raster position and free-running tick
 //----------------------------------------------------------------------------
+//
+// `frame` counts VSYNC rising edges. It is an ordering and correlation key,
+// never an answer to "which image": the SHAKER author's 2026-09-12 reply
+// records that "frame" has two incompatible meanings in common use and that
+// either can occur several times within one displayed image. `line` and
+// `hpos` are the fields that actually locate the marker, and they are what
+// locates the current/previous seam in a capture taken at the instruction.
 
 reg [23:0] frame = 24'd0;
 reg  [9:0] line  = 10'd0;
