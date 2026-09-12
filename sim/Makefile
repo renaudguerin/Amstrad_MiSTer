@@ -21,7 +21,7 @@ VIDEO_COLOR_SRC := plus/video_color_test.sv ../rtl/amstrad_video_color.sv \
     ../rtl/color_mix.sv ../sys/gamma_corr.sv
 VIDEO_COLOR_BIN := $(OBJ_DIR)/video_color/Vvideo_color_test
 
-# B6: actual core output chain, including the unmodified mixer and crop state.
+# B6: actual core output chain, including the production mixer and crop state.
 VIDEO_OUTPUT_SRC := ../rtl/amstrad_video_output.sv ../rtl/amstrad_video_color.sv \
     ../rtl/color_mix.sv ../rtl/video_interlace.v ../sys/video_mixer.sv \
     ../sys/gamma_corr.sv ../sys/video_freezer.sv ../sys/scandoubler.v \
@@ -197,3 +197,15 @@ $(VIDEO_OUTPUT_BIN): $(VIDEO_OUTPUT_SRC) b6_video_output_test.cpp Makefile
 	$(VERILATOR) --cc --exe --build -j 4 --top-module amstrad_video_output \
 		--Mdir $(OBJ_DIR)/video_output -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
 		$(VIDEO_OUTPUT_SRC) $(abspath b6_video_output_test.cpp)
+
+# Failure-first RGB scoping regression across supported mixer parameter widths.
+MIXER_RGB_SRC := video_mixer_rgb_test.sv ../sys/video_mixer.sv ../sys/gamma_corr.sv \
+    ../sys/video_freezer.sv ../sys/scandoubler.v ../sys/hq2x.sv
+MIXER_RGB_BIN := $(OBJ_DIR)/video_mixer_rgb/Vvideo_mixer_rgb_test
+test: video-mixer-rgb-test
+.PHONY: video-mixer-rgb-test
+video-mixer-rgb-test: $(MIXER_RGB_BIN)
+	./$(MIXER_RGB_BIN)
+$(MIXER_RGB_BIN): $(MIXER_RGB_SRC) Makefile
+	$(VERILATOR) --binary --timing --top-module video_mixer_rgb_test \
+		--Mdir $(OBJ_DIR)/video_mixer_rgb -Wno-fatal -Wno-PROCASSWIRE $(MIXER_RGB_SRC)

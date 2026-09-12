@@ -177,7 +177,11 @@ module p10_boot_test_top #(
     output b6_raw_vblank, b6_shift, b6_cpu_n, b6_ras_n, b6_cas_n, b6_bs,
     output b6_mixer_de, b6_mixer_ce,
     output [23:0] b6_mixer_rgb, b6_color_rgb,
-    output [3:0] b6_color_tuple
+    output [3:0] b6_color_tuple,
+    output b6_plus_de, b6_plus_hsync, b6_plus_sprite_en,
+    output [9:0] b6_plus_hp, b6_plus_line,
+    output [7:0] b6_plus_scroll,
+    output [11:0] b6_plus_sprite_rgb
 `endif
 `ifdef B7_DARK_SILICON_MUTATION
 	,
@@ -835,6 +839,13 @@ module p10_boot_test_top #(
     assign dbg_sync_filter = b6_mode;
     // Production applied-mode register, not the request: the fixture scores
     // the boundary at which a changed request takes effect.
+    assign b6_plus_de = mb.asic_vid.de_hold;
+    assign b6_plus_hsync = mb.asic_vid.HSYNC;
+    assign b6_plus_scroll = mb.asic_vid.SSCR;
+    assign b6_plus_hp = mb.plus_sprites.hp;
+    assign b6_plus_line = {mb.plus_sprites.LINE,mb.plus_sprites.ROW[2:0]};
+    assign b6_plus_sprite_en = mb.plus_sprites.SPR_EN;
+    assign b6_plus_sprite_rgb = mb.plus_sprites.SPR_RGB;
     assign b6_applied = mb.sync_filter_applied;
     assign b6_full_tuple = {mb.hsync_filtered, mb.vsync_filtered,
                            mb.hblank_filtered, mb.vblank_filtered};
@@ -860,14 +871,20 @@ module p10_boot_test_top #(
     );
     assign b6_color_rgb = {b6_r,b6_g,b6_b};
     assign b6_color_tuple = {b6_hs,b6_vs,b6_hb,b6_vb};
-    video_mixer #(.LINE_LENGTH(1024), .GAMMA(0)) b6_mixer (
-        .CLK_VIDEO(clk), .CE_PIXEL(b6_mixer_ce), .ce_pix(b6_ce),
-        .scandoubler(1'b0), .hq2x(1'b0), .gamma_bus(b6_gamma),
-        .R(b6_r), .G(b6_g), .B(b6_b),
-        .HSync(b6_hs), .VSync(b6_vs), .HBlank(b6_hb), .VBlank(b6_vb),
-        .HDMI_FREEZE(1'b0), .freeze_sync(),
-        .VGA_R(b6_mixer_rgb[23:16]), .VGA_G(b6_mixer_rgb[15:8]),
-        .VGA_B(b6_mixer_rgb[7:0]), .VGA_VS(), .VGA_HS(), .VGA_DE(b6_mixer_de)
+    assign b6_gamma[20:0] = 21'd0; // production gamma pipeline, correction disabled
+    amstrad_video_output b6_output (
+        .CLK_VIDEO(clk), .ce_16(ce_16), .raw_crt(b6_raw_crt),
+        .pixel_vblank(b6_pixel_vblank), .plus_mode(plus_mode), .mode(mb_mode),
+        .scale(2'd0), .ar(2'd0), .integer_scale(2'd0), .mix(3'd0),
+        .r4(mb_red), .g4(mb_green), .b4(mb_blue),
+        .hs(mb_hsync), .vs(mb_vsync), .hbl(mb_hblank), .vbl(mb_vblank),
+        .pixel_rate_select(1'b0), .forced_scandoubler(1'b0), .field_in(1'b0),
+        .vcrop_en(1'b0), .HDMI_WIDTH(12'd1920), .HDMI_HEIGHT(12'd1080),
+        .HDMI_FREEZE(1'b0), .progress_pix(1'b0), .gamma_bus(b6_gamma),
+        .CE_PIXEL(b6_mixer_ce), .VGA_R(b6_mixer_rgb[23:16]),
+        .VGA_G(b6_mixer_rgb[15:8]), .VGA_B(b6_mixer_rgb[7:0]),
+        .VGA_HS(), .VGA_VS(), .VGA_DE(b6_mixer_de), .VGA_SL(),
+        .VIDEO_ARX(), .VIDEO_ARY(), .en270p()
     );
 `else
 	assign dbg_sync_filter       = SYNC_FILTER;
