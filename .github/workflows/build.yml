@@ -162,7 +162,9 @@ jobs:
 
   simulation:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The expanded motherboard suite reached B8 field tests before the former
+    # 30-minute limit (run 34684600995); allow the full suite and lint to finish.
+    timeout-minutes: 60
 
     steps:
       - name: Check out source
