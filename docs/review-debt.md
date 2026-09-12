@@ -10,6 +10,17 @@ row is added below. B2 device acceptance and B6 rendering/diagnostic residuals
 remain separate gates. New non-trivial B2/B6 follow-up changes require fresh
 cross-provider review before READY.
 
+- **B2 device capture follow-up — CLEAR, integrated from refreshed `cd08a1e`
+  (implementation `3b64673`).** Fresh
+  Gemini 3.8 Flash high run `20260912T081121Z-83276-1c3c` reviewed optional
+  RBF/media hash pinning, the verified French SHAKER case and existing transport
+  boundaries. It returned CLEAR, ran 26 focused tests and the offline dry-run,
+  and exited cleanly; the final code is covered. An Opus attempt failed
+  authentication before reviewing. The user directed no duplicate review after
+  authentication recovered, so this clearance remains Gemini’s. Real repeated-load
+  evidence is separate; active OSD mode
+  remains unobserved by native PNGs. See the [device record](b2-device-capture-2026-09-12.md).
+
 - **B2 host capture tooling — CLEAR, integrated from `7e39204`.** The
   September 8 status record retains Opus 5 high closure run
   `20260908T044131Z-35882-569d`, 24 focused tests and an offline dry-run.

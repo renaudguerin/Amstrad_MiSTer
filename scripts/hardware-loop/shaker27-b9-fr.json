@@ -1,0 +1,39 @@
+{
+  "case_id": "shaker27_b9_crtc1_full",
+  "description": "French CPC 6128 BASIC RUN SHAKE27B, wait for module B menu, select physical 9 for B(9) R8=3 on line 1.",
+  "rbf_path": "/media/fat/_Computer/Amstrad_20260911_5c16b17.rbf",
+  "media": {
+    "type": "dsk",
+    "slot": "S0",
+    "path": "/media/fat/games/Amstrad/dsk/shaker27.dsk"
+  },
+  "declared_settings": {
+    "model": "CPC 6128",
+    "crtc": 1,
+    "sync_filter": "Full",
+    "display": "Color(GA)",
+    "scandoubler_fx": "None",
+    "keyboard_rom": "French",
+    "observed_model": "Amstrad 128K BASIC1.1 boot; SHAKER module menu CRTC1",
+    "mode_evidence": "Saved Amstrad.CFG decoded; native PNG excludes OSD, mode not visually observed"
+  },
+  "boot_delay": 8,
+  "settle_delay": 15,
+  "capture_delay": 1.0,
+  "captures_count": 3,
+  "input": {
+    "raw_seq": ":13:16:31:04:1F:23:10:25:12{2A:03:08}2A:30:1C!s!s!s!s!s!s!s!s!s!s!s!s!s!s!s:0A"
+  },
+  "timeouts": {
+    "cmd_timeout": 40,
+    "capture_timeout": 15.0,
+    "poll_interval": 0.5,
+    "max_retries": 3
+  },
+  "ack_main_cmd": false,
+  "mbc_path": "/tmp/mbc-b2-20260912",
+  "expected_sha256": {
+    "rbf": "8b3b5bed518165040f8e578c83f061891fa64d58ce3b52fb07d5765765506468",
+    "media": "65eb43e1f99ea232a6cc1494e799880488130ba1876bfe9d67b347a924e7721b"
+  }
+}

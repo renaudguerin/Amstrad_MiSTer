@@ -1,8 +1,8 @@
 # September 12 hardware follow-up: prepared branches
 
 The requested documentation pass and coordinated B2/B6 work are complete at
-the local READY boundary. **Neither implementation branch is integrated or
-pushed. No new RBF was built.** The user's hardware observations remain tied
+the local READY boundary. **B2 is locally integrated from refreshed `cd08a1e`;
+B6 integration and the combined push remain pending. No new RBF was built.** The user's hardware observations remain tied
 to `5c16b17`; see the [hardware report](hardware-evidence-2026-09-12.md).
 
 ## Branches and owners
@@ -72,11 +72,14 @@ After authentication was refreshed, the user instructed the tasks not to
 duplicate completed reviews. No redundant Opus pass was required. The
 coordinator accepted both handoffs after inspecting their final changes.
 
-If integration is requested, integrate the coordinator documentation branch
-and the two accepted source branches sequentially, reconciling shared status,
-backlog and review prose. B2 and B6 have no source-interface dependency.
+Integration is now authorized. The coordinator documentation is merged at
+`6dac98b`; B2 has refreshed against that exact destination and is ready for
+source integration, with B6 integration pending. The coordinator alone
+integrates the accepted source branches sequentially, reconciling shared
+status, backlog and review prose. B2 and B6 have no source-interface dependency.
 Use `stream-finish` for destination gates, publication and exact-build RBF
 delivery; B6's production `sys/` change requires the normal synthesis policy.
-Preserve all private evidence before any worktree cleanup. The user subsequently invoked `stream-finish` for these tasks, authorizing
-sequential integration and push. See current status for the resulting integration
-and exact-build evidence; the table above preserves the accepted source tips.
+Preserve all private evidence before any worktree cleanup. The user invoked
+`stream-finish` for these tasks, authorizing sequential integration and push.
+See current status for subsequent integration and exact-build evidence; the
+table above preserves the accepted source tips.
