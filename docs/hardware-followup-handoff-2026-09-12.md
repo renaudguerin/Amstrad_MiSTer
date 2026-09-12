@@ -1,9 +1,8 @@
-# September 12 hardware follow-up: prepared branches
+# September 12 hardware follow-up: integration handoff
 
-The requested documentation pass and coordinated B2/B6 work are complete at
-the local READY boundary. **B2 is locally integrated from refreshed `cd08a1e`;
-B6 integration and the combined push remain pending. No new RBF was built.** The user's hardware observations remain tied
-to `5c16b17`; see the [hardware report](hardware-evidence-2026-09-12.md).
+The requested documentation pass and coordinated B2/B6 work are integrated
+locally from refreshed `cd08a1e` and `9849b9a`. All destination gates pass; publication is in progress. No new RBF was built. The user's hardware observations remain
+tied to `5c16b17`; see the [hardware report](hardware-evidence-2026-09-12.md).
 
 ## Branches and owners
 
@@ -51,7 +50,7 @@ scrolling/sprites through the actual final output. All 18 existing B6 cases,
 nine dynamic cases, five Plus layer/control cases and the complete simulation
 gate pass; lint and canonical soak `0xb1cb70da95c2e44f` also pass. The
 coordinator inspected the diff and logs and independently reran the mixer
-regression and CRLF-aware whitespace check. Full-suite reruns were not duplicated.
+regression and CRLF-aware whitespace check. The combined destination gate is recorded in current status.
 
 The type-0 short-sync trace has visible Full/Raw differences with identical
 acquisition; type 1 can legitimately remain identical. A sustained CPU-generated
@@ -72,14 +71,24 @@ After authentication was refreshed, the user instructed the tasks not to
 duplicate completed reviews. No redundant Opus pass was required. The
 coordinator accepted both handoffs after inspecting their final changes.
 
-Integration is now authorized. The coordinator documentation is merged at
-`6dac98b`; B2 has refreshed against that exact destination and is ready for
-source integration, with B6 integration pending. The coordinator alone
-integrates the accepted source branches sequentially, reconciling shared
-status, backlog and review prose. B2 and B6 have no source-interface dependency.
-Use `stream-finish` for destination gates, publication and exact-build RBF
-delivery; B6's production `sys/` change requires the normal synthesis policy.
-Preserve all private evidence before any worktree cleanup. The user invoked
-`stream-finish` for these tasks, authorizing sequential integration and push.
-See current status for subsequent integration and exact-build evidence; the
-table above preserves the accepted source tips.
+The coordinator documentation is merged at `6dac98b`; B2 is locally integrated
+at `e391e137b7cc43107dc61a0c9a279cccf3cdffae` from refreshed `cd08a1e`.
+B6 was refreshed against that destination to
+`9849b9a4f42d963fbc9e13fba8776ea5b18e80c4` and merged without implementation
+changes. Shared status, backlog and review prose were reconciled; B2 and B6
+have no source-interface dependency. The user invoked `stream-finish`,
+authorizing integration and push, and subsequently made a new RBF optional.
+No separate build is dispatched; the normal push workflow classifies the
+`sys/` change and selects its jobs.
+
+Both private evidence directories were copied into the integration checkout,
+`/Users/renaudg/code/Amstrad_MiSTer/docs/references/`, before integration.
+Destination gate logs are preserved there under
+`b2-b6-integration-2026-09-12/`. Source worktrees and device screenshots are
+retained. See current status for destination gates and publication evidence;
+the table above preserves the originally accepted source tips.
+
+Destination verification: all 26 hardware-loop unit tests pass; `make -C sim`
+and `make -C sim lint` exit 0; `make -C sim soak
+SOAK_EXPECT=0xb1cb70da95c2e44f` exits 0 with the canonical hash unchanged.
+No source or simulation conflict resolution altered either reviewed implementation.

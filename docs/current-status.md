@@ -1,16 +1,16 @@
 # Current implementation status
 
-**Coordinated follow-ups READY, 2026-09-12:** accepted B2 `5de8c5c`
+**Coordinated follow-ups integrated, 2026-09-12:** B2's accepted `5de8c5c`
 establishes real SHAKER B (9) navigation and nine identical captures across
-three independent loads; accepted B6 `c2fde66` closes the final-mixer RGB
-simulation gap and adds dynamic raster/Plus layer gates. Both are reviewed,
-gated local source branches. The coordinator has integrated the documentation
-at `6dac98b` and is the sole integrator for the authorized source integration
-and push. B2 is now locally integrated from refreshed `cd08a1e`; all 26
-focused tests pass in the destination. B6 integration and the combined push
-are pending; no new RBF exists. See the
-[branch/evidence handoff](hardware-followup-handoff-2026-09-12.md) for the
-accepted tips, device restoration, reviewer identities and remaining limits.
+three independent loads; B6's accepted `c2fde66` closes the final-mixer RGB
+simulation gap and adds dynamic raster/Plus layer gates. Sources were refreshed
+without implementation changes to `cd08a1e` and `9849b9a`, respectively, and
+merged sequentially into `master`. B2's 26 focused destination tests pass;
+the complete merged simulation and lint gates pass, and soak matches
+`0xb1cb70da95c2e44f`. Publication and exact-SHA CI verification follow. No new RBF exists. The user made a new build optional; no separate
+build will be dispatched. The normal push workflow selects its required jobs.
+See the [branch/evidence handoff](hardware-followup-handoff-2026-09-12.md)
+for reviewed tips, device restoration and remaining hardware limits.
 
 **B2 device capture, 2026-09-12:** French-ROM SHAKER 2.7 B (9) boots through
 MGL/MBC on the hash-verified `5c16b17` RBF. Three independent loads produce
@@ -29,6 +29,18 @@ See the [dated report](hardware-evidence-2026-09-12.md). The accepted B2/B6
 follow-ups above supply capture and simulation evidence without broadening
 these user-reported hardware verdicts.
 
+**B6 rendering follow-up, 2026-09-12 (integrated source):** the production mixer
+RGB scope defect has a failing-before/passing-after parameter regression.
+The motherboard fixture now reaches the complete production output chain;
+new CPU-written malformed-raster and combined Plus scroll/opaque-sprite
+checks score final RGB. Fresh Gemini review and its correction check are
+CLEAR; Opus did not review because authentication expired, and the user
+subsequently requested no duplicate review. Full simulation, lint and the
+unchanged canonical soak pass. No new bitstream exists. A sustained
+CPU-generated stuck-high raw-sync recipe, physical connector acceptance and
+title-specific defects remain open. See the
+[completion record](b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12).
+
 **B6 video boundary integrated, 2026-09-11:** Full and Raw pixels now share
 the complete Full acquisition tuple. Raw pixels uses native VRAM byte order
 and aligned raw vertical blank in RGB; Raw CRT sends raw geometry through the
@@ -41,9 +53,9 @@ lint, canonical soak `0xb1cb70da95c2e44f`, fresh Sol/Gemini review and focused
 negative controls pass. No `sys/` changes. Published merge `5c16b17` passes
 all required CI and full-fit timing (setup +0.320 ns, hold +0.247 ns, zero
 TNS). The delivered RBF is `output_files/Amstrad_20260911_5c16b17.rbf`.
-The diagnostic matrix,
-final mixer RGB in Verilator and physical HDMI/CRT acceptance remain open;
-see the [design](b6-video-boundary.md) and
+The original artifact retains the then-open rendering limitations; the local
+follow-up above adds that simulation evidence without changing this RBF.
+Physical HDMI/CRT acceptance remains open; see the [design](b6-video-boundary.md) and
 [validation record](b6-video-boundary-review-2026-09-11.md).
 
 **Combined Plus integration timing, 2026-09-11:** D5 and D3/D4 are integrated

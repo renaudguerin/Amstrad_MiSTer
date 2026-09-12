@@ -1,5 +1,20 @@
 # Independent review debt
 
+**B6 rendering follow-up, 2026-09-12 — source review CLEAR:** Gemini
+`gemini-3.8-flash-high`, run `20260912T081217Z-84178-b42e`, reviewed the new
+mixer scope correction, production-output fixture wiring, parameter tests,
+dynamic CPU trace and Plus layer scoreboard. Its one actionable finding was
+an invalid requirement that every machine show a visible difference during
+the same short-sync segment. The parent scoped the deliberate discriminator
+to Classic type 0; byte/timing/mask/final-RGB assertions remain mandatory on
+all machines. Follow-up `20260912T081801Z-92006-4b3a` independently checked the
+correction and returned CLEAR. This does not close physical output, synthesis
+of the new mixer source, or a CPU-generated stuck-high-sync recipe. Opus was
+attempted but exited on expired OAuth before reviewing; after authentication
+was refreshed, the user explicitly requested no duplicate review. No Opus
+clearance is claimed. Logs are retained under
+`docs/references/b6-completion-2026-09-12/` (ignored).
+
 ## Pending integration / review-complete rows (zero open review findings)
 
 **Coverage inventory, 2026-09-12:** the integrated D1/D6, D3/D4, D5 and B6
@@ -32,8 +47,9 @@ cross-provider review before READY.
 - **B6 video boundary — CLEAR, integrated from `843cd5b`.** Sol high
   reviewed Opus production changes; Gemini high reviewed OpenAI fixtures and
   output extraction against the final integration. Both returned CLEAR.
-  The broader malformed-raster and scroll/sprite matrix, final mixer RGB
-  under Verilator and physical HDMI/CRT acceptance remain open. See
+  The original artifact retains its then-open rendering limits; the September
+  12 follow-up above adds final-RGB, dynamic-raster and scroll/sprite evidence.
+  Physical HDMI/CRT and the unestablished stuck-high CPU recipe remain open. See
   [review and validation](b6-video-boundary-review-2026-09-11.md).
 
 - **D3 render timing selector — CLEAR.** Fresh Gemini 3.8 Flash high review

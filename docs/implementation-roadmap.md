@@ -478,13 +478,15 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 ## 8. Immediate execution queue
 
-**Active September 12 priorities:** (1) bring the B2 capture loop through real
-device acceptance at `root@mister`, with one device operator and real SHAKER
-navigation; (2) finish B6's malformed-raster, Plus scroll/sprite and final-mixer
-RGB simulation gaps; (3) close actual source-review gaps and obtain fresh
-cross-provider review of new non-trivial changes. These tasks prepare reviewed,
-tested READY branches; integration/push is a separate step. The
-[latest hardware report](hardware-evidence-2026-09-12.md) guides the work:
+**September 12 integration:** B2's real-device capture work is accepted and
+locally integrated at `e391e13`; B6's reviewed rendering follow-up was
+refreshed to `9849b9a` and merged against that exact destination. The
+complete destination simulation, lint and canonical soak pass; the
+coordinator is publishing the integration. Preserve the
+[B6 evidence limits](b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
+and [B2 device limits](b2-device-capture-2026-09-12.md), including unobserved
+active OSD mode and unestablished CPU-generated stuck-high sync. The
+[latest hardware report](hardware-evidence-2026-09-12.md) remains unchanged:
 6128 Plus BASIC boot is fixed, sprite improvement is tentative, input/Copter
 failures persist, and Full/Raw pixels has not demonstrated visible improvement.
 

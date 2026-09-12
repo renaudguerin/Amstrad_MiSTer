@@ -10,9 +10,9 @@ that is not obvious from the roadmap itself.
 
 ## Current priorities after the September 12 hardware retest
 
-**Prepared outcome:** B2 `5de8c5c` and B6 `c2fde66` are reviewed/gated READY
-branches. B2 is locally integrated from refreshed `cd08a1e`; B6 integration
-and publication remain pending. The real capture loop and final-RGB/diagnostic
+**Integrated outcome:** reviewed B2 `5de8c5c` and B6 `c2fde66` were refreshed
+without implementation changes to `cd08a1e` and `9849b9a` and merged
+sequentially into `master`. All destination gates pass; publication is the remaining finish step. The real capture loop and final-RGB/diagnostic
 progress are recorded in the [handoff](hardware-followup-handoff-2026-09-12.md).
 Remaining physical video, active-mode and CRTC/title acceptance stay open.
 
@@ -358,10 +358,15 @@ open. See the [validation record](b6-video-boundary-review-2026-09-11.md).
 
 **HARDWARE FOLLOW-UP 2026-09-12:** on `5c16b17`, the user sees no difference
 between Full and Raw pixels in Amazing Demo, DSC4 or SHAKER A (T). No Raw CRT
-result was reported. Complete CPU-driven malformed-raster and combined Plus
-scroll/opaque-sprite cases, resolve the final-mixer RGB simulation gap, and
-obtain repeatable captures with applied-mode/configuration evidence. This
-result does not establish mode equivalence or identify a new RTL defect.
+result was reported. The local rendering follow-up now covers CPU-written
+short/missing/multiple HS and changed blanking through final RGB, plus combined
+Plus scroll/opaque sprites. Its minimal mixer scope correction has a
+failure-first regression and fresh independent review. A sustained stuck-high
+raw-sync CPU recipe is not established. Obtain repeatable physical captures
+with applied-mode/configuration evidence; the user result does not establish
+mode equivalence or identify an RTL cause. See the
+[completion record](b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
+for gates and publication limits.
 
 **MENU SLICE DONE 2026-09-01:** the existing Plus-model capability decoder now drives menu-mask
 groups for Plus-only, classic-only, FDC-capable, and tape-capable controls. Off retains all

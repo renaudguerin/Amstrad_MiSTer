@@ -30,8 +30,13 @@ runs:
   `make -C sim video-output-test` exercises the extracted production output
   chain, including native Raw CRT cadence and a retained `video_freak` crop
   after VSYNC stops. Both run in the default gate; the colour test also checks
-  the aligned raw vertical-blank mask. These establish converter RGB and mixer
-  DE/CE, not end-of-mixer RGB or hardware output. See the
+  the aligned raw vertical-blank mask. The production output chain supplies
+  final RGB/DE/CE. `make -C sim/plus b6-dynamic` adds CPU-written malformed
+  raster regimes and a Full/Raw pixel discriminator; `b6-plus-layers` scores
+  nonzero SDRAM data, scroll, opaque sprites and blank/border priority through
+  final RGB. `make -C sim video-mixer-rgb-test` pins the mixer scope correction
+  across gamma/colour-depth variants. These are simulation gates, not physical
+  output or an exhaustive stuck-sync matrix. See the
   [contract and evidence limits](../docs/b6-video-boundary.md).
 
 Requirements: Verilator 5 or later, GNU Make, and a C++20-capable compiler

@@ -9,8 +9,11 @@ diagnostic matrix and hardware acceptance remain open; see the
 This completes the video-boundary part of the [B6 decision](b6-architecture-decision.md).
 The governing inputs are [D2](hardware-diagnosis-2026-09-10.md#d2--live-blanking-changes-ascals-acquisition-geometry)
 and the [second-pass brief](hardware-diagnosis-2026-09-10-second-pass.md#b6-boundary-brief-for-the-next-session).
-It changes output policy, not CRTC or ASIC timing rules. No `sys/` changes,
-monitor PLL model, duplicate pixel renderer, or engine gating belong to this work.
+It changes output policy, not CRTC or ASIC timing rules. The September 11 slice
+left `sys/` unchanged. The September 12 rendering follow-up permits only the
+minimal `video_mixer` RGB generate-scope correction, backed by a failing
+production-module test. No monitor PLL model, duplicate renderer or engine
+gating belongs to this work.
 
 ## Decision and physical limit
 
@@ -197,7 +200,7 @@ restores the user's existing settings after ordinary pipeline reacquisition.
 `rtl/amstrad_video_output.sv` now contains the existing production colour,
 interlace, mixer and crop chain extracted from `Amstrad.sv`. The top supplies
 the motherboard's applied mode and retained settings to that one instance.
-The output fixture instantiates the same chain, including unchanged
+The output fixture instantiates the same chain, including production
 `video_mixer` and `video_freak`; it does not copy their policy into a test-only
 model. The existing `en270p` result still feeds the top's menu capability
 decoder. This extraction adds no pixel register or independent mode state.
@@ -285,7 +288,7 @@ fake sync or RGB for the very renderer whose interaction is being claimed.
 
 Observe pre-edge byte inputs, fetch phase, `SHIFT`, applied mode, `vram_d`,
 Plus assembled word, selected RGB, raw sync/blank, Full tuple, converted tuple,
-and actual `video_mixer` DE/CE. Measure enabled samples per DE interval and
+and final production output RGB/DE/CE. Measure enabled samples per DE interval and
 intervals per frame; HSYNC edge counting is not an acquisition-width oracle.
 
 | Case | Required observation |
@@ -304,10 +307,13 @@ intervals per frame; HSYNC edge counting is not an acquisition-width oracle.
 
 The [validation record](b6-video-boundary-review-2026-09-11.md#acceptance-limits)
 states which observations are established by the complete motherboard,
-colour boundary or output-policy fixtures. The full diagnostic matrix is not
-closed: CPU-driven malformed-raster rendering and the combined Plus
-scroll/opaque-sprite case remain follow-ups. A fixed short sync width or a
-leaf filter test must not be described as that complete production evidence.
+colour boundary or output-policy fixtures. The September 12 follow-up adds
+CPU-written short/missing/multiple sync, changing blanking and restoration
+through final RGB, plus a combined scroll/opaque-sprite fixture. A sustained
+stuck-high raw-sync CPU recipe is not established; zero-width missing HS and
+stuck vertical blank are distinct observations. No exhaustive matrix or
+physical connector acceptance is claimed. A fixed short sync width or a leaf
+filter test alone must not be described as complete production evidence.
 
 Use a few deliberate negative controls: restore the old Live tuple connection,
 enable `SHIFT` in Raw pixels, and swap the Plus byte-half mapping. Each must

@@ -214,3 +214,102 @@ acceptance is untested in this report. These results do not revoke the scoped
 source reviews or establish mode equivalence; they keep visual acceptance
 open and motivate the remaining diagnostic/final-RGB work. See the
 [dated hardware evidence](hardware-evidence-2026-09-12.md).
+
+
+## Rendering completion follow-up, 2026-09-12
+
+The follow-up starts from coordinator prerequisite `cf1b307`, which includes
+published master `013c7e5`. It preserves the B6 mode contract and adds the
+previously missing production rendering checks. This is local source work;
+the published `5c16b17` bitstream does not contain this mixer correction.
+
+### Mixer elaboration finding
+
+`video_mixer.sv` declared `R_in/G_in/B_in` inside conditional generate blocks
+and referenced those names from outside their scope. Verilator 5.052 created
+implicit one-bit undriven nets at the consumer. The unchanged production
+module fails `sim/video_mixer_rgb_test.sv` with 178 RGB/hold mismatches. The
+same test passes after moving the shared wires to module scope and leaving
+the branch expressions intact. Their width is `DWIDTH_SD`: four bits only
+for no-gamma half-depth, eight bits for the other configurations. All four
+GAMMA/HALF_DEPTH combinations, distinct channel values, high bits, programmed
+gamma maps, freeze/release and pixel-enable staging are checked.
+
+This is an observed simulation elaboration defect and a minimal portable
+scope correction. It is not evidence of what Quartus previously synthesized,
+a netlist-equivalence proof, or a cause of the user's Full/Raw hardware result.
+No scaler algorithm or vendor update is included. Before/after logs are kept
+under ignored `docs/references/b6-completion-2026-09-12/`.
+
+### Production output and independent expectations
+
+The motherboard fixture now feeds `amstrad_video_output` itself, including
+the production GAMMA=1 mixer, gamma pipeline, interlace selection and final
+crop selection. Correction, scaling and cropping are disabled in these CPU
+traces; the existing controlled output fixture retains its crop/HQ2x/forced
+scandoubler bypass checks and now also checks literal final RGB.
+
+The dynamic fixture executes CRTC writes between ordinary, short, missing,
+multiple, wide-sync/changed-blanking and restored regimes. Full/Raw pixels
+run the same CPU program and SDRAM data. It compares acquisition by sample,
+checks returned bytes from pre-edge SDRAM words/history, checks exact-zero
+raw blanking at conversion, and independently transports converter samples
+through gamma and mixer registers to the final output. Nonzero final pixels
+are required; an all-black mixer cannot pass by preserving DE alone.
+
+The combined Plus fixture programs asymmetric nonzero screen words, mode 2,
+five-dot horizontal scrolling, two solid sprites and distinct palettes.
+Expected pens come from the fetched bitstream and a scroll queue; sprite
+palette/geometry come from the CPU program, not observed SPR_RGB or palette
+address. It checks sprite-over-screen, border suppression of an overlapping sprite,
+HS blank over sprite, raw vertical mask and each downstream colour register. Scroll-off
+and sprite-disabled controls must change final pixels.
+
+Both fixtures execute the existing TV80 substitute. Explicit absolute
+memory instructions establish the stimulus. Relative-loop setup did not
+establish the intended dwell/fill in this fixture, so it was replaced with
+the already exercised instruction sequences. No CPU defect or hardware rule
+is inferred from that setup failure. These tests do not establish production
+T80 edge timing.
+
+### Acceptance
+
+The deliberate Classic type-0 short-sync segment produces 20,992 different
+visible Full/Raw-pixels samples with identical acquisition. Its missing-sync
+segment produces zero visible differences. Classic type 1 remains identical
+in the short segment: `SHIFT` activity alone does not guarantee a displayed
+pixel difference. No title-specific improvement is inferred.
+
+All five Plus layer cases pass: three modes plus scroll-off and sprite-off
+controls. Each main case checks 374,999 asymmetric nonzero words, 1,024
+visible opaque sprite dots, 576 HS/opaque overlaps and 448 border/opaque
+overlaps. Raw modes mask 24,272 nonblack renderer dots. Scroll-off changes
+80,476 final samples; sprite-off changes 1,024. Raw pixels and Raw CRT have
+identical final RGB streams here, while geometry remains separately owned.
+A temporary motherboard mutation enabling `SHIFT` compensation in both Raw
+modes produces 36,840 byte mismatches in each, with Full still passing.
+The production source is not changed by this negative control.
+
+Gemini review `20260912T081217Z-84178-b42e` cleared the mixer/top/Plus tests
+and identified the dynamic test's invalid all-machines-must-differ premise.
+The correction retains a deliberate type-0 discriminator while preserving
+all machines' byte, tuple, mask and final-RGB checks; follow-up
+`20260912T081801Z-92006-4b3a` independently cleared it. Opus exited on expired
+OAuth before reviewing. Once authentication was refreshed, the user requested
+no duplicate review; no Opus verdict is claimed. The review's original prose
+about newly synthesizing gamma was too broad: GAMMA=1 already existed in
+production, and only the simulation wiring changed. Likewise the border
+case pins suppression of an overlapping sprite, not a sprite over border.
+
+`make -C sim` passes, including all 225 Classic vectors, 18 steady/transition
+B6 cases, nine dynamic cases (three machines by three modes), five Plus
+layer/control cases, the four mixer parameter combinations, and existing
+GA/FDC/Plus suites. `make -C sim lint` and canonical soak
+`0xb1cb70da95c2e44f` pass. `git -c core.whitespace=cr-at-eol diff --check`
+passes; the vendor mixer's existing CRLF endings are preserved.
+Physical HDMI/CRT acceptance, a sustained
+CPU-generated stuck-high raw-sync recipe and title-specific hardware defects
+remain open. The zero-width classic HS case suppresses HS; the changed
+vertical blank can hold high, but neither proves a stuck-high-sync recipe.
+The September 12 report remains authoritative for the old bitstream; this
+work cannot retroactively change its observations.
