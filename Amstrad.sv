@@ -26,7 +26,7 @@ assign ADC_BUS  = 'Z;
 assign USER_OUT = '1;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
-assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
+assign DDRAM_RD = 0;   // the SSM event ring writes only; see ssm_marker below
 
 assign LED_USER  = mf2_en | ioctl_download | tape_led | tape_adc_act;
 assign LED_DISK  = 0;
@@ -42,7 +42,7 @@ assign HDMI_BOB_DEINT = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXX X XXXXXXXXXXXXXXXXXXXXXXXXX  X         XXX
+// XXX X XXXXXXXXXXXXXXXXXXXXXXXXX  X    X    XXX
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -96,6 +96,7 @@ localparam CONF_STR = {
 	"d3P2O[5:4],Model,CPC 6128,CPC 664,CPC 464;",
 	"P2O[34:33],Plus model,Off,GX4000,6128+,464+;",
 	"P2OV,Tape progressbar,Off,On;",
+	"P2O[37],SSM markers,Off,On;",
 
 	"-;",
 	"R0,Reset & apply model;",
@@ -1147,6 +1148,8 @@ wire [15:0] cpu_addr;
 wire  [7:0] cpu_dout;
 wire        phi_n, phi_en_p, phi_en_n;
 wire        m1, key_nmi, key_reset;
+wire        ssm_m1_fetch;
+wire  [7:0] ssm_bus_data;
 wire        rd, wr, iorq;
 wire        mreq;
 wire        field;
@@ -1489,6 +1492,9 @@ Amstrad_motherboard motherboard
 	.mem_addr(ram_a),
 	.romen(romen),
 
+	.ssm_m1_fetch(ssm_m1_fetch),
+	.ssm_bus_data(ssm_bus_data),
+
 	.phi_n(phi_n),
 	.phi_en_n(phi_en_n),
 	.phi_en_p(phi_en_p),
@@ -1588,6 +1594,45 @@ amstrad_video_output video_output (
     .VGA_HS(VGA_HS), .VGA_VS(VGA_VS), .VGA_DE(VGA_DE), .VGA_SL(VGA_SL),
     .VIDEO_ARX(VIDEO_ARX), .VIDEO_ARY(VIDEO_ARY), .en270p(en270p)
 );
+
+//////////////////////////////////////////////////////////////////////
+// SSM marker detector (backlog B4, phase 1 of the CSL/SSM plan).
+//
+// Passive: it watches the opcode-fetch stream and the output-side sync, and
+// drives nothing the machine can see. Off by default, in which case it is
+// held in reset and issues no DDR3 traffic. The raster stamp uses the native
+// 16 MHz output timebase, the same one the capture comparison will use.
+
+wire ssm_enable = status[37];
+
+ssm_marker ssm
+(
+	.clk(clk_sys),
+	.reset(reset),
+	.enable(ssm_enable),
+
+	.m1_fetch(ssm_m1_fetch),
+	.bus_data(ssm_bus_data),
+
+	.ce_pix(ce_16),
+	.hsync(hs),
+	.vsync(vs),
+	.field(VGA_F1),
+
+	.last_code(),
+	.event_count(),
+	.dropped_count(),
+	.event_stb(),
+
+	.ddram_addr(DDRAM_ADDR),
+	.ddram_din(DDRAM_DIN),
+	.ddram_be(DDRAM_BE),
+	.ddram_burstcnt(DDRAM_BURSTCNT),
+	.ddram_we(DDRAM_WE),
+	.ddram_busy(DDRAM_BUSY)
+);
+
+assign DDRAM_CLK = clk_sys;
 
 //////////////////////////////////////////////////////////////////////
 
