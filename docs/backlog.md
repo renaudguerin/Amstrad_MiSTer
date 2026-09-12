@@ -316,6 +316,16 @@ Two plan open questions are now closed: MBC's per-key delay is configurable
 (`MBC_KEY_WAIT`, one knob for both CSL delays), and the SHAKER scripts carry no
 `screenshot` instruction at all, so labelled captures genuinely depend on phase 1.
 
+**PHASE 1 DONE 2026-09-12:** `rtl/ssm_marker.v` recognises `ED LL ED HH` on the opcode
+fetch stream and publishes each marker to a 64-entry DDR3 ring behind OSD status bit 37,
+off by default. `scripts/hardware-loop/ssm_ring.py` reads that ring with BusyBox
+`dd if=/dev/mem`, so `--ssm` gives the runner `wait_ssm0000` and `#FFFE`-driven captures
+named the way the SSM standard suggests. 19 simulation vectors (`make -C sim
+ssm-marker-test`, in the default gate) and 20 more host tests. **Not yet run on the
+device**: the DDR3 base is the MiSTer convention rather than a measurement, and the
+first `--ssm` run confirms or corrects it. Phase 2, exact frame capture, is still
+blocked on the SHAKER author's answer about what `#FFFE` should contain.
+
 ---
 
 ## B5. ASIC documentation-gap map

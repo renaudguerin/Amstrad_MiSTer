@@ -415,8 +415,8 @@ class TestOperatorControls(unittest.TestCase):
                 plan(script, out)
 
 
-class TestDeviceBackend(unittest.TestCase):
-    """Live path against a scripted transport: no network, no real device."""
+class DeviceHarnessMixin:
+    """Scripted-transport stand-in for the device: no network, no hardware."""
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -471,11 +471,17 @@ class TestDeviceBackend(unittest.TestCase):
 
         return now
 
+
+class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
+    """Live path against a scripted transport: no network, no real device."""
+
     def test_cfg_is_changed_by_bit_and_restored_afterwards(self):
         manifest = self._run(MINIMAL)
         self.assertEqual(manifest["status"], "success")
         load = manifest["actions"][0]
-        self.assertEqual(load["cfg_bits_changed"], {"2": 0})
+        # Bit 37 is written explicitly even with SSM off, so a detector left
+        # on by an earlier run cannot leak into this one.
+        self.assertEqual(load["cfg_bits_changed"], {"2": 0, "37": 0})
         self.assertIn("not visually confirmed", load["configuration_evidence"])
         # CRTC 1 means bit 2 clear, which this CFG already had: the written
         # bytes must equal the original, and the restore must put them back.

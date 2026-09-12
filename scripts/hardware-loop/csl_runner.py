@@ -46,6 +46,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import cpc_keys
+import ssm_ring
 from cpc_keys import KeyGroup, KeyTranslationError, sequence_tokens, translate_text
 from driver import (
     DriverError,
@@ -75,6 +76,8 @@ CFG_SIZE = 16
 CFG_BIT_CRTC = 2
 # "d3P2O[5:4],Model,CPC 6128,CPC 664,CPC 464;"
 CFG_BITS_MODEL = (4, 5)
+# "P2O[37],SSM markers,Off,On;" gates rtl/ssm_marker.v.
+CFG_BIT_SSM = 37
 
 # CSL cpc_model number -> (status[5:4] value, label).  Plus models have no
 # classic-status encoding; they are rejected until Plus CSL is in scope.
@@ -112,16 +115,20 @@ REJECTED_COMMANDS: Dict[str, str] = {
     "snapshot_name": "snapshot commands are out of scope for the SHAKER walk",
     "snapshot": "snapshot commands are out of scope for the SHAKER walk",
     "snapshot_version": "snapshot commands are out of scope for the SHAKER walk",
-    "wait_vsyncoffon": "needs core observability that phase 1 adds; no SHAKER script uses it",
-    "wait_driveonoff": "needs core observability that phase 1 adds; no SHAKER script uses it",
-    "wait_ssm0000": "needs the SSM detector from phase 1 of docs/csl-ssm-implementation-plan.md",
+    "wait_vsyncoffon": "no VSYNC observability reaches the host; no SHAKER script uses it",
+    "wait_driveonoff": "no drive-motor observability reaches the host; no SHAKER script uses it",
+}
+
+# Rejected only when the SSM detector is not in use.
+SSM_ONLY_COMMANDS: Dict[str, str] = {
+    "wait_ssm0000": "needs the SSM detector; pass --ssm to enable it (OSD status bit 37)",
 }
 
 ALL_COMMANDS = frozenset(
     {"csl_version", "reset", "crtc_select", "cpc_model", "disk_insert", "disk_dir",
      "key_delay", "key_output", "key_from_file", "wait", "screenshot",
      "screenshot_name", "screenshot_dir", "csl_load"}
-    | set(REJECTED_COMMANDS)
+    | set(REJECTED_COMMANDS) | set(SSM_ONLY_COMMANDS)
 )
 
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9_\-]+$")
@@ -325,6 +332,9 @@ class RunOptions:
         poll_interval: float = 0.5,
         max_wait_seconds: float = 300.0,
         follow_loads: bool = True,
+        ssm: bool = False,
+        ssm_base: int = ssm_ring.DEFAULT_BASE,
+        ssm_poll_interval: float = 0.5,
     ):
         validate_device_path(rbf_path, "rbf_path")
         validate_device_path(disk_dir, "disk_dir")
@@ -345,6 +355,9 @@ class RunOptions:
         self.poll_interval = poll_interval
         self.max_wait_seconds = max_wait_seconds
         self.follow_loads = follow_loads
+        self.ssm = ssm
+        self.ssm_base = ssm_base
+        self.ssm_poll_interval = ssm_poll_interval
 
 
 class Backend:
@@ -361,6 +374,10 @@ class Backend:
 
     def screenshot(self, name: str) -> Dict[str, Any]:
         raise NotImplementedError
+
+    def poll_ssm(self) -> List[Dict[str, Any]]:
+        """Return the SSM records written since the previous poll."""
+        return []
 
 
 class PlanBackend(Backend):
@@ -386,6 +403,12 @@ class PlanBackend(Backend):
     def screenshot(self, name: str) -> Dict[str, Any]:
         self.actions.append({"action": "screenshot", "name": name})
         return {"planned": True, "name": name}
+
+    def poll_ssm(self) -> List[Dict[str, Any]]:
+        # Offline there is no device to read, so a plan shows where the
+        # polls would happen and nothing more.
+        self.actions.append({"action": "poll_ssm"})
+        return []
 
 
 def _cfg_apply_bits(data: bytes, bits: Dict[int, int]) -> bytes:
@@ -422,12 +445,19 @@ class DeviceBackend(Backend):
         self.time_fn = time_fn
         self.actions: List[Dict[str, Any]] = []
         self.captures: List[Dict[str, Any]] = []
+        self.ssm_status: str = "not enabled"
+        self.ssm_header: Dict[str, Any] = {}
         self.cfg_original: Optional[bytes] = None
         self.cfg_original_sha: str = ""
         self.cfg_written = False
         self.keys_in_flight: Optional[set] = None
         self.remote_temp: List[str] = []
         self.run_id = f"{int(time.time())}_{uuid.uuid4().hex[:6]}"
+        self.ring = (
+            ssm_ring.SsmRingReader(transport, base=options.ssm_base,
+                                   timeout=options.cmd_timeout)
+            if options.ssm else None
+        )
 
     # --- helpers -------------------------------------------------------
 
@@ -502,6 +532,9 @@ class DeviceBackend(Backend):
             value = load["model_status"]
             bits[CFG_BITS_MODEL[0]] = value & 1
             bits[CFG_BITS_MODEL[1]] = (value >> 1) & 1
+        # The detector is off by default, so turning it on is part of the
+        # configuration this run applies and restores.
+        bits[CFG_BIT_SSM] = 1 if self.options.ssm else 0
         if bits:
             record["cfg_sha256"] = self.write_cfg(_cfg_apply_bits(self.cfg_original, bits))
             record["cfg_bits_changed"] = {str(k): v for k, v in sorted(bits.items())}
@@ -542,6 +575,11 @@ class DeviceBackend(Backend):
         record["load_confirmation"] = (
             "file selection requested only; Main does not acknowledge load completion"
         )
+        if self.ring is not None:
+            # The ring lives in DDR3 and a core load does not clear it, so the
+            # reader starts from whatever the previous run left and counts
+            # forward from there.
+            self.ring.reset()
         self.actions.append(record)
         return record
 
@@ -627,6 +665,24 @@ class DeviceBackend(Backend):
         self.actions.append(record)
         return record
 
+    def poll_ssm(self) -> List[Dict[str, Any]]:
+        if self.ring is None:
+            return []
+        try:
+            header, records = self.ring.poll()
+        except ssm_ring.SsmRingError as exc:
+            # Before the first marker the ring holds whatever was in DDR3, so
+            # an unrecognised header is expected early and is not an error.
+            self.ssm_status = str(exc)
+            return []
+        self.ssm_status = "ok"
+        self.ssm_header = header.as_dict()
+        out = [r.as_dict() for r in records]
+        if out:
+            self.actions.append({"action": "ssm_records", "records": out,
+                                 "header": self.ssm_header})
+        return out
+
     # --- teardown -------------------------------------------------------
 
     def cleanup(self) -> Dict[str, Any]:
@@ -673,6 +729,8 @@ class CslRunner:
         self.approximations: List[Dict[str, Any]] = []
         self.folded: Dict[int, int] = {}
         self._fold_order: Dict[int, List[int]] = {}
+        self.ssm_records: List[Dict[str, Any]] = []
+        self.ssm_sync_seen = 0
         self.capture_count = 0
         self.entry_script_stem = Path(entry_script).stem
         self._media_line = 0
@@ -740,6 +798,63 @@ class CslRunner:
             self._note(command, "key_delay",
                        f"MBC_KEY_WAIT has millisecond resolution; asked {chosen_us:.0f}us, used {ms}ms")
         return ms
+
+    def _sleep(self, seconds: float, reason: str, command: Optional[Command] = None) -> None:
+        """Sleep, polling the SSM ring in slices when the detector is on.
+
+        A marker is only useful if the capture follows it closely, so with
+        SSM enabled the runner never sleeps past one poll interval without
+        looking. With SSM off this is a single sleep and costs nothing.
+        """
+        if not self.options.ssm or seconds <= 0:
+            self.backend.sleep(seconds, reason)
+            return
+        slice_s = max(0.05, self.options.ssm_poll_interval)
+        remaining = seconds
+        while remaining > 0:
+            step = min(slice_s, remaining)
+            self.backend.sleep(step, reason)
+            remaining -= step
+            self._consume_ssm(command)
+
+    def _consume_ssm(self, command: Optional[Command]) -> List[Dict[str, Any]]:
+        """Act on markers the core has published since the last look."""
+        records = self.backend.poll_ssm()
+        for record in records:
+            self.ssm_records.append(record)
+            code = int(record["code"], 16)
+            if code == ssm_ring.CODE_SYNC:
+                self.ssm_sync_seen += 1
+            elif code == ssm_ring.CODE_SCREENSHOT:
+                self._ssm_capture(record, command)
+            elif code == ssm_ring.CODE_SNAPSHOT:
+                if command is not None:
+                    self._note(command, "ssm",
+                               "marker #FFFF asks for a snapshot; this runner makes none")
+        return records
+
+    def _ssm_capture(self, record: Dict[str, Any], command: Optional[Command]) -> None:
+        """Capture for an #FFFE marker.
+
+        The capture lands at least a frame after the marker, because Main
+        grabs the scaler output asynchronously. The manifest keeps the
+        marker's own frame and raster position so the distance is visible
+        rather than assumed away.
+        """
+        self.capture_count += 1
+        if self.screenshot_name:
+            name = f"{self.screenshot_name}.png"
+            self.screenshot_name = None
+        else:
+            crtc = "0" if self.crtc_status_bit else "1"
+            name = ssm_ring.suggested_name("MISTER", crtc, ssm_ring.CODE_SCREENSHOT)
+            # A bare #FFFE would name every capture the same file, so the
+            # marker's own sequence number disambiguates them.
+            name = name.replace(".png", f"_{record['seq']:04d}.png")
+        result = self.backend.screenshot(name)
+        result["ssm_record"] = record
+        if command is not None:
+            self._record(command, "ssm_capture", name=name, ssm=record)
 
     def _pending_load(self) -> Dict[str, Any]:
         return {
@@ -913,7 +1028,7 @@ class CslRunner:
                        f"MBC adds {2 * MBC_SEQUENCE_WAIT_MS}ms of uinput settling per invocation, "
                        "outside the script's timing model")
             if after_cr:
-                self.backend.sleep(self.key_after_cr_us / 1e6, "key_delay after CR")
+                self._sleep(self.key_after_cr_us / 1e6, "key_delay after CR", command)
 
         self._record(command, "keys_sent", raw_seq=sent, mbc_key_wait_ms=key_wait_ms)
 
@@ -933,8 +1048,35 @@ class CslRunner:
                 "raise --max-wait to accept it",
                 self.script_version,
             )
-        self.backend.sleep(seconds, f"csl wait {micros:.0f}us")
+        self._sleep(seconds, f"csl wait {micros:.0f}us", command)
         self._record(command, "waited", seconds=seconds)
+
+    def _do_wait_ssm0000(self, command: Command) -> None:
+        """Block until the core reports an SSM #0000 newer than the last one.
+
+        CSL uses this to let an emulated program pace the script instead of
+        the script guessing. The bound is --max-wait: without one, a SHAKER
+        build that never reaches the marker would hang the run.
+        """
+        self._ensure_machine(command)
+        target = self.ssm_sync_seen + 1
+        waited = 0.0
+        step = max(0.05, self.options.ssm_poll_interval)
+        while self.ssm_sync_seen < target:
+            if waited >= self.options.max_wait_seconds:
+                raise command.error(
+                    f"no SSM #0000 arrived within {self.options.max_wait_seconds:.0f}s",
+                    self.script_version,
+                )
+            self.backend.sleep(step, "wait_ssm0000 poll")
+            waited += step
+            if not self._consume_ssm(command) and isinstance(self.backend, PlanBackend):
+                # Offline there is no core to answer, so the plan records the
+                # wait rather than spinning to the bound.
+                self._note(command, "ssm",
+                           "wait_ssm0000 cannot be planned offline; the plan shows one poll")
+                break
+        self._record(command, "ssm_sync_released", polls_seconds=round(waited, 3))
 
     def _do_screenshot(self, command: Command) -> None:
         self._ensure_machine(command)
@@ -981,6 +1123,9 @@ class CslRunner:
 
             if name in REJECTED_COMMANDS:
                 raise command.error(REJECTED_COMMANDS[name], self.script_version)
+
+            if name in SSM_ONLY_COMMANDS and not self.options.ssm:
+                raise command.error(SSM_ONLY_COMMANDS[name], self.script_version)
 
             if index in self.folded:
                 # Already applied by the power-on load that owns it.
@@ -1031,6 +1176,9 @@ class CslRunner:
             elif name == "wait":
                 self._do_wait(command)
 
+            elif name == "wait_ssm0000":
+                self._do_wait_ssm0000(command)
+
             elif name == "screenshot_name":
                 if len(command.args) != 1 or not _SAFE_NAME.match(command.args[0]):
                     raise command.error(
@@ -1063,8 +1211,11 @@ class CslRunner:
         return {
             "trace": self.trace,
             "approximations": self.approximations,
+            "ssm_records": self.ssm_records,
             "effective_settings": {
                 "layout": self.options.layout,
+                "ssm_enabled": self.options.ssm,
+                "ssm_base": f"0x{self.options.ssm_base:08X}" if self.options.ssm else None,
                 "crtc_requested": self.crtc_requested,
                 "crtc_status_bit": self.crtc_status_bit,
                 "model_status": self.model_status,
@@ -1218,6 +1369,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                         help="Reject any single wait longer than this many seconds")
     parser.add_argument("--no-follow-loads", action="store_true",
                         help="Do not descend into csl_load targets")
+    parser.add_argument("--ssm", action="store_true",
+                        help="Turn on the core's SSM marker detector (OSD status bit 37), "
+                             "poll its DDR3 event ring, honour wait_ssm0000 and capture on "
+                             "marker #FFFE")
+    parser.add_argument("--ssm-base", type=lambda v: int(v, 0), default=ssm_ring.DEFAULT_BASE,
+                        help="Physical byte address of the event ring (default 0x30000000)")
+    parser.add_argument("--ssm-poll", type=float, default=0.5,
+                        help="Seconds between ring polls while SSM is enabled")
     return parser.parse_args(argv)
 
 
@@ -1246,6 +1405,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             expect_sha256=expect,
             max_wait_seconds=args.max_wait,
             follow_loads=not args.no_follow_loads,
+            ssm=args.ssm,
+            ssm_base=args.ssm_base,
+            ssm_poll_interval=args.ssm_poll,
         )
     except (ValueError, argparse.ArgumentTypeError) as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
@@ -1272,7 +1434,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1
 
     print(f"status={manifest['status']} commands={manifest.get('command_count')} "
-          f"captures={len(manifest.get('captures', []))}")
+          f"captures={len(manifest.get('captures', []))} "
+          f"ssm_records={len(manifest.get('ssm_records', []))}")
     return 0
 
 

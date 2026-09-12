@@ -264,10 +264,61 @@ cleanup result including CFG restoration) and `last-run.log`, the human-readable
 ordered trace the standard asks an emulator to keep. An existing manifest is
 never overwritten.
 
-### Captures in phase 0
+### Captures
 
 The bundled SHAKER scripts contain no `screenshot` instruction at all: their
-captures come from SSM `#FFFE`, which needs the phase 1 detector. Until then,
+captures come from SSM `#FFFE`, which the core now detects. Two paths exist.
+
 `--screenshot-at [SCRIPT:]LINE` requests a capture after a chosen script line
-without editing the author's files. Those captures are named
-`MISTER_<crtc>_<script>_<line>_<n>.png`; SSM-labelled names arrive with phase 1.
+without editing the author's files, named
+`MISTER_<crtc>_<script>_<line>_<n>.png`. It needs no RTL support and is the
+right tool for a one-off look at a particular screen.
+
+`--ssm` turns on the detector and captures on the markers SHAKER itself emits,
+which is the path that makes captures comparable with the SHAKERLAND
+photographs.
+
+## SSM markers
+
+`rtl/ssm_marker.v` watches the Z80 opcode-fetch stream for the two consecutive
+undefined-ED instructions SSM v1.1 defines, `#ED #LL #ED #HH`, and publishes
+each one to a ring in the core-reserved DDR3 window. Those instructions are
+two NOPs on real hardware, so a SHAKER disc runs identically on a CPC, on an
+emulator and here.
+
+The detector is off by default. `--ssm` sets OSD status bit 37 through the
+same CFG mechanism as the CRTC bit, and restores it with the rest of the
+configuration at the end of the run. The runner then polls the ring over the
+existing SSH transport with BusyBox `dd if=/dev/mem`; no Main patch and no
+device daemon is involved. `status_set` and `info_req` were both checked and
+neither reaches user space.
+
+| Marker | What the runner does |
+|---|---|
+| `#0000` | releases a pending `wait_ssm0000`, bounded by `--max-wait` |
+| `#FFFE` | captures, named `screenshot_name` if one is pending, otherwise `MISTER_<crtc>_FFFE_<seq>.png` |
+| `#FFFF` | recorded as an approximation: this runner makes no snapshots |
+| anything else | recorded in the manifest with its raster position |
+
+Each record carries the marker's code, the frame and raster position at the
+instruction, the field, a sequence number and a core clock tick. **The capture
+is not the marked frame.** Main grabs the scaler output asynchronously, so the
+PNG lands at least a frame later; keeping the marker's own position in the
+manifest is what makes that distance visible rather than assumed away. Exact
+frame capture is phase 2 of
+[the CSL/SSM plan](csl-ssm-implementation-plan.md), and it waits on a question
+for the SHAKER author about what `#FFFE` is supposed to contain.
+
+The ring header counts records written and records the core could not enqueue.
+A reader that falls more than a ring behind sees the written count jump by more
+than the entry count and reports the loss; nothing is silently dropped.
+
+### The DDR3 base is convention, not yet measurement
+
+`DDR_BASE` defaults to `0x30000000`, the MiSTer convention for the core-reserved
+window, and `DDRAM_ADDR` is a 64-bit word index (the framework derives its own
+HDMI palette address the same way, `LFB_BASE[31:3]`). Neither has been read back
+from this device. If the first `--ssm` run reports that the ring magic is
+missing, try `--ssm-base` with another address before assuming the detector is
+broken: one `localparam` in `rtl/ssm_marker.v` and one flag here are the whole
+fix.

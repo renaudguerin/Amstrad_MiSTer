@@ -33,7 +33,7 @@ VIDEO_OUTPUT_BIN := $(OBJ_DIR)/video_output/Vamstrad_video_output
 
 all: test
 
-build: $(TEST_BIN) crt-filter-blank-build $(VIDEO_COLOR_BIN) $(VIDEO_OUTPUT_BIN)
+build: $(TEST_BIN) crt-filter-blank-build $(VIDEO_COLOR_BIN) $(VIDEO_OUTPUT_BIN) $(SSM_BIN)
 	$(MAKE) -C plus build
 	$(MAKE) -C ../rtl/GA40010 all
 	$(MAKE) -C ../rtl/u765 build
@@ -43,7 +43,7 @@ crt-filter-blank-build: $(CRTF_TEST_BIN)
 crt-filter-blank-test: $(CRTF_TEST_BIN)
 	./$(CRTF_TEST_BIN)
 
-test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test video-output-test
+test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test video-output-test ssm-marker-test
 	./$(TEST_BIN)
 	$(MAKE) -C plus test
 	$(MAKE) -C ../rtl/GA40010 test
@@ -76,6 +76,7 @@ $(VIDEO_COLOR_BIN): $(VIDEO_COLOR_SRC) Makefile
 		--Mdir $(OBJ_DIR)/video_color -Wno-fatal $(VIDEO_COLOR_SRC)
 
 lint:
+	$(VERILATOR) --lint-only --top-module ssm_marker -Wall -Wno-fatal -Wno-PROCASSINIT $(SSM_RTL)
 	$(VERILATOR) --lint-only --top-module amstrad_video_output \
 		-Wall -Wno-fatal -Wno-PROCASSWIRE $(VIDEO_OUTPUT_SRC)
 	$(VERILATOR) --lint-only --top-module crtc_cpu_phase_top -UVERILATOR -Wall -Wno-fatal $(CPU_PHASE_RTL)
@@ -209,3 +210,22 @@ video-mixer-rgb-test: $(MIXER_RGB_BIN)
 $(MIXER_RGB_BIN): $(MIXER_RGB_SRC) Makefile
 	$(VERILATOR) --binary --timing --top-module video_mixer_rgb_test \
 		--Mdir $(OBJ_DIR)/video_mixer_rgb -Wno-fatal -Wno-PROCASSWIRE $(MIXER_RGB_SRC)
+
+# SSM marker detector and DDR3 event ring (B4 phase 1). The executing leg uses
+# the TV80-based T80pa wrapper, the same substitution the Plus boot fixtures
+# make, so the default gate does not need GHDL.
+SSM_RTL  := ../rtl/ssm_marker.v
+SSM_SRC  := ssm_marker_top.v $(SSM_RTL) \
+    $(addprefix plus/tv80/,t80pa.v tv80_core.v tv80_mcode.v tv80_alu.v tv80_reg.v) \
+    $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
+SSM_BIN  := $(OBJ_DIR)/ssm_marker/ssm_marker_tests
+
+.PHONY: ssm-marker-test
+ssm-marker-test: $(SSM_BIN)
+	./$(SSM_BIN)
+
+$(SSM_BIN): $(SSM_SRC) ssm_marker_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/ssm_marker
+	$(VERILATOR) --cc --exe --build --top-module ssm_marker_top -UVERILATOR \
+		--Mdir $(OBJ_DIR)/ssm_marker +1364-2001ext+.v +1800-2017ext+.sv -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o ssm_marker_tests $(SSM_SRC) $(abspath ssm_marker_test.cpp)

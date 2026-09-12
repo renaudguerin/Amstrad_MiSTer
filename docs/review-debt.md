@@ -1,5 +1,27 @@
 # Independent review debt
 
+**B4 phase 1, SSM detector and DDR3 ring, 2026-09-12 — UNREVIEWED:**
+`rtl/ssm_marker.v` (new), the raw fetch tap added to `rtl/Amstrad_motherboard.v`, the
+detector instance and DDRAM wiring in `Amstrad.sv`, `sim/ssm_marker_top.v`,
+`sim/ssm_marker_test.cpp` and `scripts/hardware-loop/ssm_ring.py`. Written and gated by
+the parent alone; no cross-provider review was available. `make -C sim` passes, 19 SSM
+vectors included. Look hardest at:
+
+* **The DDR3 base.** `0x30000000` is the MiSTer convention for the core window and
+  `DDRAM_ADDR` is a 64-bit word index, which `sys/sys_top.v` corroborates by deriving
+  `LFB_BASE[31:3]` the same way. Nothing in this repository proves either for this
+  framework build, and the core previously tied every DDRAM pin to zero. A wrong base
+  means the core writes 48 bytes per marker somewhere it should not. Bound the risk by
+  leaving the detector off until a device run confirms the ring magic appears.
+* **The passivity claim.** The detector must not be able to disturb CPU, CRTC or video
+  timing. It reads `~M1_n & ~MREQ_n & ~RD_n` and `cpu_data_bus` and drives nothing back,
+  but the claim is the whole safety argument for a marker tap in the production path.
+* **The fetch edge.** `ssm_marker` takes the falling edge of the motherboard's fetch
+  level so a wait-stated fetch counts once. Proven on T80pa-shaped TV80 fetches and on
+  synthetic 1-to-13-clock holds, but **not** on the production T80pa netlist: that
+  needs GHDL, which this repository's default gate and CI do not run.
+* **Timing closure.** New logic on `clk_sys` now drives previously constant DDRAM pins.
+  Synthesis has not run on this branch yet.
 **B4 phase 0, CSL runner, 2026-09-12 — UNREVIEWED:** `scripts/hardware-loop/csl_runner.py`,
 `scripts/hardware-loop/cpc_keys.py` and their 51 offline tests were written and
 gated by the parent alone; no cross-provider review was available. Host-only

@@ -1,5 +1,21 @@
 # Current implementation status
 
+**B4 CSL/SSM phases 0 and 1 implemented, 2026-09-12, branch `general/b4-csl-ssm`:**
+`scripts/hardware-loop/csl_runner.py` drives a Logon System CSL v1.4 script on the
+device, applying CRTC/model by CFG bit and restoring the file afterwards, and
+`rtl/ssm_marker.v` recognises SHAKER's `ED LL ED HH` markers on the opcode fetch
+stream and publishes them to a DDR3 ring behind OSD status bit 37, off by default.
+`--ssm` gives the runner `wait_ssm0000` and `#FFFE`-driven captures named the way the
+SSM standard suggests. `make -C sim` passes with 19 new SSM vectors; 97 host tests
+pass. **Nothing has run on the device.** Two limits matter before it does: the DDR3
+base `0x30000000` is the MiSTer convention rather than a measurement, so the first
+`--ssm` run confirms it or `--ssm-base` finds the right one; and no synthesis has run
+on this branch, which now drives previously constant DDRAM pins. Phase 2, exact frame
+capture, remains blocked on the SHAKER author's answer about `#FFFE` frame semantics.
+See [the plan](csl-ssm-implementation-plan.md), the
+[driver guide](mister-hardware-loop-driver.md#the-csl-runner) and the two unreviewed
+rows in [review debt](review-debt.md).
+
 **Coordinated follow-ups integrated, 2026-09-12:** B2's accepted `5de8c5c`
 establishes real SHAKER B (9) navigation and nine identical captures across
 three independent loads; B6's accepted `c2fde66` closes the final-mixer RGB
