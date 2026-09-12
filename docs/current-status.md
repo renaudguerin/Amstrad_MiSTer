@@ -1,5 +1,17 @@
 # Current implementation status
 
+**Coordinated follow-ups READY, 2026-09-12:** accepted B2 `5de8c5c`
+establishes real SHAKER B (9) navigation and nine identical captures across
+three independent loads; accepted B6 `c2fde66` closes the final-mixer RGB
+simulation gap and adds dynamic raster/Plus layer gates. Both are reviewed,
+gated local source branches. The coordinator has integrated the documentation
+at `6dac98b` and is the sole integrator for the authorized source integration
+and push. B2 is refreshed against that destination and ready to integrate;
+B6 integration is pending. Neither implementation is integrated or pushed yet,
+and no new RBF exists. See the
+[branch/evidence handoff](hardware-followup-handoff-2026-09-12.md) for the
+accepted tips, device restoration, reviewer identities and remaining limits.
+
 **B2 device capture, 2026-09-12:** French-ROM SHAKER 2.7 B (9) boots through
 MGL/MBC on the hash-verified `5c16b17` RBF. Three independent loads produce
 nine identical decoded numeric-screen PNGs with CRTC 1 visible. The reusable
@@ -13,9 +25,9 @@ perhaps fixed**, with definitive closure still open. **Pang/Plotting fire
 always pressed and the Copter 271 logo remain NOT fixed.** B6 Full versus Raw
 pixels shows **no visible difference so far** in Amazing Demo, DSC4 or SHAKER
 A (T). Output configuration and Classic model/CRTC details are unrecorded.
-See the [dated report](hardware-evidence-2026-09-12.md). The next work is a
-real B2 capture loop at user-reported-online `root@mister`, the remaining B6
-rendering/diagnostic gates, and closure of actual source-review gaps.
+See the [dated report](hardware-evidence-2026-09-12.md). The accepted B2/B6
+follow-ups above supply capture and simulation evidence without broadening
+these user-reported hardware verdicts.
 
 **B6 video boundary integrated, 2026-09-11:** Full and Raw pixels now share
 the complete Full acquisition tuple. Raw pixels uses native VRAM byte order
@@ -84,8 +96,9 @@ unchanged by that diagnostic pass. Local diagnostic sources, reference images an
 preserved; the full existing simulation suite passes with its known FDC XFAIL.
 The D1/D6 source repair is integrated above; the next Classic hardware work
 is its SHAKER retest plus a first repeatable B2 capture. D5 resolves the
-System/BASIC boot input in firmware simulation; hardware boot and disk-based
-testing remain pending, as described above.
+System/BASIC boot input in firmware simulation; the September 12 report also
+confirms boot fixed on 6128 Plus. Disk-based testing and other model/cartridge
+coverage remain separate, as described above.
 
 **Plus D3/D4 repair, 2026-09-11:** the sprite predictor now stages row zero on
 the preceding compare line under the [bounded first-row service contract](hardware-diagnosis-2026-09-10.md#d3-repair-contract).

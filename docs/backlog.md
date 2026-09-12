@@ -10,6 +10,11 @@ that is not obvious from the roadmap itself.
 
 ## Current priorities after the September 12 hardware retest
 
+**Prepared outcome:** B2 `5de8c5c` and B6 `c2fde66` are reviewed/gated READY
+branches, not yet integrated. The real capture loop and final-RGB/diagnostic
+progress are recorded in the [handoff](hardware-followup-handoff-2026-09-12.md).
+Remaining physical video, active-mode and CRTC/title acceptance stay open.
+
 The [latest report](hardware-evidence-2026-09-12.md) confirms BASIC boot fixed
 on **6128 Plus / `5c16b17`**. Left-edge sprite corruption is much improved,
 possibly fixed; **Pang/Plotting fire always pressed and Copter 271's logo
