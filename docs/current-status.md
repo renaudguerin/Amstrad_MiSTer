@@ -77,8 +77,9 @@ unchanged by that diagnostic pass. Local diagnostic sources, reference images an
 preserved; the full existing simulation suite passes with its known FDC XFAIL.
 The D1/D6 source repair is integrated above; the next Classic hardware work
 is its SHAKER retest plus a first repeatable B2 capture. D5 resolves the
-System/BASIC boot input in firmware simulation; hardware boot and disk-based
-testing remain pending, as described above.
+System/BASIC boot input in firmware simulation; the September 12 report also
+confirms boot fixed on 6128 Plus. Disk-based testing and other model/cartridge
+coverage remain separate, as described above.
 
 **Plus D3/D4 repair, 2026-09-11:** the sprite predictor now stages row zero on
 the preceding compare line under the [bounded first-row service contract](hardware-diagnosis-2026-09-10.md#d3-repair-contract).

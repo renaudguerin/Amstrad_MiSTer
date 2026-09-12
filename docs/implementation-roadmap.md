@@ -74,7 +74,8 @@ merged into the same behavioral PR.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through
-  the production-sized clear/load path; a real Plus/GX4000 hardware boot remains unverified.
+  the production-sized clear/load path. BASIC boot is hardware-confirmed on
+  6128 Plus / `5c16b17`; broader Plus/GX4000 cartridge acceptance remains open.
 - ACCC v1.11 French is the primary written Compendium baseline
   (`docs/references/ACCC1.11-FR.pdf`, user-owned and untracked); v1.11 English is a working
   translation. The bilingual ledger is `accuracy/accc-1.11-fr-en-differences.md`. Historical
