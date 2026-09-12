@@ -132,12 +132,13 @@ boundaries, and independently ran all 26 tests plus dry-run. The parent
 inspected the diff and retained the [review log](references/b2-device-20260912/review/output.log).
 The reviewer made no device or hardware-correctness claim.
 
-The user subsequently requested Opus for final review. Guarded Opus 5 high
-run `20260912T081701Z-89949-fa5d` exited 1 with HTTP 401, expired OAuth token,
-before reviewing. The [failed attempt](references/b2-device-20260912/opus-review-attempt/output.log)
-is retained. Gemini clearance is not labelled Opus clearance; the requested
-Opus pass remains pending authentication. No raw CLI or repeated failed call
-was used as a workaround.
+Gemini’s completed review covers the final implementation at `3b64673`;
+subsequent changes only finalize this evidence record. An attempted Opus 5 high
+call, `20260912T081701Z-89949-fa5d`, exited with expired OAuth before reviewing;
+its [log](references/b2-device-20260912/opus-review-attempt/output.log) is retained
+and is not a clearance. After authentication was refreshed, the user explicitly
+asked not to duplicate completed reviews. No uncovered code delta remained, so
+no duplicate Opus pass was started. The actual accepted reviewer is Gemini.
 
 ## Limits
 
