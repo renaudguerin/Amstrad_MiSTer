@@ -74,7 +74,8 @@ merged into the same behavioral PR.
   Do not start another timing-sensitive finding until its focused failing vector exists.
 - P-2 model plumbing, the P-1 cartridge memory/SDRAM contract, and P0 parser/MMU/top-level
   wiring are implemented. Simulation proves atomic publication and cartridge reads through
-  the production-sized clear/load path; a real Plus/GX4000 hardware boot remains unverified.
+  the production-sized clear/load path. BASIC boot is hardware-confirmed on
+  6128 Plus / `5c16b17`; broader Plus/GX4000 cartridge acceptance remains open.
 - ACCC v1.11 French is the primary written Compendium baseline
   (`docs/references/ACCC1.11-FR.pdf`, user-owned and untracked); v1.11 English is a working
   translation. The bilingual ledger is `accuracy/accc-1.11-fr-en-differences.md`. Historical
@@ -477,14 +478,14 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 ## 8. Immediate execution queue
 
-**Active September 12 priorities:** (1) bring the B2 capture loop through real
-device acceptance at `root@mister`, with one device operator and real SHAKER
-navigation; (2) accept the local B6 malformed-raster, Plus scroll/sprite and
-final-mixer RGB follow-up against its [explicit limits](b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12);
-(3) close actual source-review gaps and obtain fresh
-cross-provider review of new non-trivial changes. These tasks prepare reviewed,
-tested READY branches; integration/push is a separate step. The
-[latest hardware report](hardware-evidence-2026-09-12.md) guides the work:
+**September 12 integration:** B2's real-device capture work is accepted and
+locally integrated at `e391e13`; B6's reviewed local rendering follow-up is
+being refreshed against that exact destination. The coordinator owns the
+combined destination gates and authorized push. Preserve the
+[B6 evidence limits](b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
+and [B2 device limits](b2-device-capture-2026-09-12.md), including unobserved
+active OSD mode and unestablished CPU-generated stuck-high sync. The
+[latest hardware report](hardware-evidence-2026-09-12.md) remains unchanged:
 6128 Plus BASIC boot is fixed, sprite improvement is tentative, input/Copter
 failures persist, and Full/Raw pixels has not demonstrated visible improvement.
 
@@ -531,10 +532,10 @@ See [current status](current-status.md) for accepted source and artifact identit
    MBC cross-build are prepared at `7e39204`; see the
    [driver guide](mister-hardware-loop-driver.md). A bounded CSL subset is
    still separate work.
-   With `root@mister` reported online, verify SSH/device operation and require
-   three repeatable stable-screen captures
-   with build/media/model/CRTC/filter identity. Exact SSM event-to-image capture
-   remains a later gate.
+   September 12 demonstrates three independent SHAKER B (9) loads and nine
+   identical numeric captures; see [device evidence](b2-device-capture-2026-09-12.md).
+   Active-mode observation remains qualified because native PNGs omit OSD.
+   Exact SSM event-to-image capture remains a later gate.
 7. **Hardware retests:** use the delivered SHA-labelled RBF for DSC4/SHAKER,
    IA-5/Q17 and the named Plus title matrix. Retain the
    [September 9 results and capture index](hardware-evidence-2026-09-09.md) as regression

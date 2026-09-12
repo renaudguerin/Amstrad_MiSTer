@@ -10,6 +10,12 @@ that is not obvious from the roadmap itself.
 
 ## Current priorities after the September 12 hardware retest
 
+**Prepared outcome:** B2 `5de8c5c` and B6 `c2fde66` are reviewed/gated READY
+branches. B2 is locally integrated from refreshed `cd08a1e`; B6 integration
+and publication remain pending. The real capture loop and final-RGB/diagnostic
+progress are recorded in the [handoff](hardware-followup-handoff-2026-09-12.md).
+Remaining physical video, active-mode and CRTC/title acceptance stay open.
+
 The [latest report](hardware-evidence-2026-09-12.md) confirms BASIC boot fixed
 on **6128 Plus / `5c16b17`**. Left-edge sprite corruption is much improved,
 possibly fixed; **Pang/Plotting fire always pressed and Copter 271's logo
@@ -171,23 +177,19 @@ and operates after this stage. Removing or redesigning it does not affect those.
 
 **Priority: high. Cheapest route to a real oracle.**
 
-**HOST DRIVER IMPLEMENTED; first device acceptance pending.** The
-[driver and cross-build](mister-hardware-loop-driver.md) are available locally.
-On September 10 the user supplied `root@mister`, with cores under
-`/media/fat/_Computer/Amstrad` and media under `/media/fat/games/Amstrad`.
-The user reconfirmed `root@mister` online on September 12. Device acceptance
-remains to be demonstrated by the capture task; earlier host-only checks did
-not contact the device. The
-[hardware-loop plan](mister-hardware-loop-plan.md) starts with Main's existing
-`/dev/MiSTer_cmd` core-load/screenshot commands, verified MGL media slots and
-Linux input injection. Prefer an installed tool or the small MiSTer Batch Control
-utility; a new daemon and custom framebuffer reader are not prerequisites.
+**REAL DEVICE BOOT/CAPTURE REPEATABILITY DEMONSTRATED, 2026-09-12.**
+The [driver](mister-hardware-loop-driver.md) reaches French-ROM SHAKER 2.7
+B (9) on the exact `5c16b17` RBF. Three independent loads each produced three
+identical decoded PNGs with a visible CRTC 1 numeric screen. The reusable case
+pins RBF/media hashes before loading; fresh Gemini review and 26 focused tests
+pass. See the [device evidence](b2-device-capture-2026-09-12.md).
 
-First gate: reach one stable SHAKER screen, capture/copy it three times and verify
-build, media, model, CRTC and filter settings. Main captures the scaler buffer,
-not raw video pins or an exact instruction event. Capture coherence under
-buffering/interlace must be checked. Start with DSK/CPR: B8 found incomplete Plus
-snapshot restoration, so SNA is not an assumed shortcut.
+Configuration evidence remains qualified: model/CRTC/test are visible, but
+native screenshots omit OSD. Full is backed by saved CFG interpretation,
+not a visual observation of the live mode. Physical output and final active-mode
+verification remain separate from this transport gate. Main captures the scaler
+buffer, not raw pins or an exact instruction event. DSK boot/navigation now works;
+CSL/SSM and broader comparison remain follow-ups.
 
 **Comparison strategy.** Reference material at
 `https://shaker.logonsystem.eu/tests` exists as CRT photographs of real hardware *and* as

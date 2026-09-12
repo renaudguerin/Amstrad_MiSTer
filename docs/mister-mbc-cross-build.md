@@ -2,8 +2,8 @@
 
 Use an installed input tool when it already works. For a missing MBC binary, the
 recipe below builds the existing public-domain upstream source without Docker,
-global packages or changes to MiSTer. This is host preparation only: the resulting
-binary has not been executed on a MiSTer.
+global packages or changes to MiSTer. The resulting binary was executed successfully from a temporary `/tmp` path
+on the MiSTer on September 12; see the [device record](b2-device-capture-2026-09-12.md).
 
 Verified on Apple Silicon macOS, 2026-09-08. The pinned
 [MBC source](https://github.com/pocomane/MiSTer_Batch_Control/blob/3873450d413c30e6b0339e6b3dbf2373e0e5a74a/mbc.c)
@@ -61,4 +61,5 @@ On eventual device access, verify the selected target, executable permission,
 `/dev/uinput`, and MBC input behavior before using it in a capture case. MBC's
 `raw_seq` injects Linux key codes; it does not read the emulated keyboard matrix.
 Use the driver's explicit MGL disk/cartridge mapping instead of MBC's built-in
-Amstrad mapping. Deployment and the actual input/capture smoke remain pending.
+Amstrad mapping. The French-ROM DSK input/capture smoke is recorded in the device report;
+no permanent device installation is required.

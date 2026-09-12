@@ -1,14 +1,33 @@
 # Current implementation status
 
+**Coordinated follow-ups READY, 2026-09-12:** accepted B2 `5de8c5c`
+establishes real SHAKER B (9) navigation and nine identical captures across
+three independent loads; accepted B6 `c2fde66` closes the final-mixer RGB
+simulation gap and adds dynamic raster/Plus layer gates. Both are reviewed,
+gated local source branches. The coordinator has integrated the documentation
+at `6dac98b` and is the sole integrator for the authorized source integration
+and push. B2 is now locally integrated from refreshed `cd08a1e`; all 26
+focused tests pass in the destination. B6 integration and the combined push
+are pending; no new RBF exists. See the
+[branch/evidence handoff](hardware-followup-handoff-2026-09-12.md) for the
+accepted tips, device restoration, reviewer identities and remaining limits.
+
+**B2 device capture, 2026-09-12:** French-ROM SHAKER 2.7 B (9) boots through
+MGL/MBC on the hash-verified `5c16b17` RBF. Three independent loads produce
+nine identical decoded numeric-screen PNGs with CRTC 1 visible. The reusable
+case pins RBF/media identity; 26 focused tests and fresh Gemini review pass.
+Native screenshots omit OSD, so saved Full configuration is not visual proof
+of the active mode. See [device evidence and limits](b2-device-capture-2026-09-12.md).
+
 **Latest hardware report, 2026-09-12, `5c16b17`:** the user confirms **6128 Plus
 BASIC boot fixed**. Corrupt sprite lines at the left edge are **much improved,
 perhaps fixed**, with definitive closure still open. **Pang/Plotting fire
 always pressed and the Copter 271 logo remain NOT fixed.** B6 Full versus Raw
 pixels shows **no visible difference so far** in Amazing Demo, DSC4 or SHAKER
 A (T). Output configuration and Classic model/CRTC details are unrecorded.
-See the [dated report](hardware-evidence-2026-09-12.md). The next work is a
-real B2 capture loop at user-reported-online `root@mister`, the acceptance of the local B6
-rendering follow-up, and closure of actual source-review gaps.
+See the [dated report](hardware-evidence-2026-09-12.md). The accepted B2/B6
+follow-ups above supply capture and simulation evidence without broadening
+these user-reported hardware verdicts.
 
 **B6 rendering follow-up, 2026-09-12 (local source):** the production mixer
 RGB scope defect has a failing-before/passing-after parameter regression.
@@ -89,8 +108,9 @@ unchanged by that diagnostic pass. Local diagnostic sources, reference images an
 preserved; the full existing simulation suite passes with its known FDC XFAIL.
 The D1/D6 source repair is integrated above; the next Classic hardware work
 is its SHAKER retest plus a first repeatable B2 capture. D5 resolves the
-System/BASIC boot input in firmware simulation; hardware boot and disk-based
-testing remain pending, as described above.
+System/BASIC boot input in firmware simulation; the September 12 report also
+confirms boot fixed on 6128 Plus. Disk-based testing and other model/cartridge
+coverage remain separate, as described above.
 
 **Plus D3/D4 repair, 2026-09-11:** the sprite predictor now stages row zero on
 the preceding compare line under the [bounded first-row service contract](hardware-diagnosis-2026-09-10.md#d3-repair-contract).
@@ -169,15 +189,15 @@ FDC/test and host-tooling worktrees have been removed; their integrated branches
 review/build evidence and host tools remain available. Integrated branches and private recovery stashes are retained; snapshot cleanup
 is recorded above.
 
-**B2 host tooling prepared, 2026-09-08:** accepted source `7e39204` adds the
+**B2 original host tooling, 2026-09-08 (device result above):** accepted source `7e39204` adds the
 [SSH/MGL capture driver](mister-hardware-loop-driver.md) and
 [pinned ARM MBC cross-build](mister-mbc-cross-build.md). The integration checkout
 passed all 24 focused tests and an offline dry-run; Opus 5 high returned CLEAR
 in closure run `20260908T044131Z-35882-569d`. The ARM binary and cross compiler
 are preserved under ignored `docs/references/b2-host-tools/`; the binary hash
-is recorded in the build recipe. No MiSTer was accessed. Configure real SHAKER
-navigation and verify target/model/settings and repeated images on the device
-before treating the tooling as hardware evidence.
+is recorded in the build recipe. That original pass did not access MiSTer. The September 12 device record above
+supplies real French-ROM navigation and repeated captures, with active-mode
+observation limits preserved.
 
 **Preserved FDC/test consolidation integrated, 2026-09-08:** refreshed source
 `5fcf223` retains the separate histories of `c1a8ff9` and `c12c264`. The held-read

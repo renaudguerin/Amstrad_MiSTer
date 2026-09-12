@@ -182,6 +182,33 @@ class TestHardwareLoopContracts(unittest.TestCase):
 
         transport.register_handler(lambda _: True, handler)
 
+    def test_pinned_identity_mismatch_stops_before_upload(self):
+        """A replaced file at a valid path must not boot as the pinned case."""
+        for field in ("rbf", "media"):
+            with self.subTest(field=field):
+                transport = ScriptedTransport()
+                self._setup_working_device(transport)
+                case = dict(self.case_dict, expected_sha256={field: "a" * 64})
+                config = validate_case_config(case)
+                out = self.out_dir / field
+                with self.assertRaisesRegex(DriverError, "SHA-256 mismatch"):
+                    run_hardware_loop(transport, config, out, sleep_fn=lambda _: None)
+                manifest = json.loads((out / "manifest.json").read_text())
+                self.assertEqual(manifest["partial_identity"][field + "_sha256"], self.valid_sha)
+                self.assertFalse(manifest["cleanup"]["attempted"])
+                self.assertFalse(any("load_core" in r["command"] or "scp " in r["command"]
+                                     for r in transport.command_log))
+
+    def test_pinned_identity_match_allows_capture(self):
+        transport = ScriptedTransport()
+        self._setup_working_device(transport)
+        case = dict(self.case_dict, expected_sha256={"rbf": self.valid_sha.upper(),
+                                                   "media": self.valid_sha})
+        result = run_hardware_loop(transport, validate_case_config(case), self.out_dir,
+                                   sleep_fn=lambda _: None)
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(len(result["captures"]), 3)
+
     def test_failed_load_stops_before_input_or_capture(self):
         """Failure on load_core must stop execution before input injection or screenshot capture."""
         transport = ScriptedTransport()
