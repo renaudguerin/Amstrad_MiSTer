@@ -28,10 +28,15 @@ The author, asked directly:
 
 So `#FFFE` being absent is expected and harmless. What matters is the per-test codes.
 
-The reserved set is `#0000` plus every `#FFxx`. The standard puts it at 178 values,
-which is exactly 1 + the 177 legal values of `LL`, and 177 x 177 = 31,329 matches its
-stated combination count. That arithmetic independently corroborates the allowed byte
-set in [ssm_marker.v](../rtl/ssm_marker.v).
+The reserved set is `#0000` plus every `#FFxx`. **Design-review correction:** the
+standard's explicit byte ranges enumerate 175 values, not 177. Adding `FE`/`FF`, which
+its reserved examples require, gives 177 and explains the stated 31,329 combinations.
+The stated 178 reserved values are therefore not independent corroboration of the
+listed user-code ranges. [ssm_marker.v](../rtl/ssm_marker.v) accepts the wider set in
+both bytes, while the listed user-code ranges exclude `FE`/`FF`. Document that
+permissive detection separately from the narrower user contract. None of the 712
+workbook codes uses either byte, so this does not gate SHAKER work. See the
+[reviewed plan](csl-ssm-implementation-plan.md#the-two-standards-in-one-paragraph-each).
 
 ## Why a static scan sees none of them
 
@@ -78,7 +83,7 @@ python3 scripts/hardware-loop/shaker_ssm_inventory.py \
 | `shaker27.dsk` | 2 per module | 0 | 0 | 1 + 1 per module except A |
 
 All ten modules reassemble to exactly the length their own AMSDOS header declares, so
-the scan covered every byte that executes; the tool exits non-zero on a mismatch, and
+the scan covered their declared static file payloads; the tool exits non-zero on a mismatch, and
 an earlier revision of it *did* fail that check on a records-per-sector error. Literal
 `ED 00 ED 00` sequences appear, so the modules are not packed. The scan is therefore
 complete and correct about **static** markers — it simply cannot see a patched
@@ -91,14 +96,18 @@ per-test codes as literal bytes, the emitter changed and the guard test says so.
 
 `docs/references/Shaker_CSL/SHAKER_SCREENSHOT_CODE.xlsx` (user-owned, untracked),
 sheet `SNAPSHOT REF`, is the authority on what each code means. Its own header states
-`Ref Hexa = YYXX`, confirming `HH*256+LL` as implemented.
+`Ref Hexa = YYXX`, confirming `HH*256+LL` as implemented. The supplied sheet labels
+itself V1.0, 2023-07-26; it is a reference lookup, not proof of traversal by either
+of the supplied disc versions.
 
 - **712 per-test codes**, `0001` to `040C`, with `0000` marked RESERVED.
-- Per module: A 127, B 280, C 113, D 170, E 17.
+- Per explicit test-id prefix: A 127, B 280, C 113, D 170, E 17. The remaining five
+  rows (`039C`–`039F`, `03A4`, worksheet rows 626–630) have blank test ids and label
+  `R6 STORIES`; their module association must not be invented.
 - Columns for CRTC 0/1/2/3/4 mark applicability with `O`/`x`: 483 codes apply to
-  CRTC 0 and 478 to CRTC 1, so roughly 480 reference images are reachable per classic
-  CRTC type this core supports.
-- Each row also carries a test id, a subset, a label and, in 16 rows only, an explicit
+  CRTC 0 and 478 to CRTC 1. These are reference coverage targets per supported classic
+  CRTC type, not counts of events observed from either disc/script combination.
+- Rows also carry a subset, a label and, in 16 rows only, an explicit
   Compendium section reference. The ACCC cross-reference is sparse, not systematic.
 
 Sheet `ED NOT USED` is a 16x16 grid of the unused ED opcodes, but the marking is cell
@@ -114,26 +123,32 @@ records other reserved codes without acting, and guards against a repeated code
 overwriting an earlier capture.
 
 **Phase 2 has a consumer after all.** The first pass concluded the opposite and gated
-the phase on an author question. That gate is lifted: around 480 codes per supported
-CRTC type are emitted by the discs we have, so exact frame capture has real work to do.
+the phase on an author question. The runtime emitter establishes a real consumer;
+the roughly 480 applicable table rows are a target whose runtime coverage still needs
+measurement. The design review replaces the proposed buffer mechanism and retains
+separate implementation/device gates; see [the plan](csl-ssm-implementation-plan.md).
 
 **Per-screen captures are reachable, and SSM-labelled naming works.** The pessimistic
 conclusion that `--screenshot-at LINE` was the only per-screen path is withdrawn.
 
 **The paired-marker case is real and distinct codes make it visible.** Two captures for
 a flashing test take the next two table entries, so they arrive as two different codes
-rather than two `#FFFE`s — which is why the runner's `state_uncertain` flag keys off
-marker proximity in VSYNC periods rather than off the name.
+rather than two `#FFFE`s — which is why the runner's proximity heuristic uses VSYNC
+counts rather than names. At `8731452` it flags only the later capture and its warning
+still says `FFFE`; marking both and correcting that text are pending repairs. Proximity
+alone does not prove either image retained the intended state.
 
 ## Still open
 
-- How far apart the paired markers are in time. The record's 64 MHz `tick` measures it
-  on the first device run (one VSYNC period is 1.28 M ticks).
-- The runtime code sequence per module, which only execution reveals. The table is
-  walked with a self-advancing cursor, so the order is the table order.
-- Whether to read the xlsx at run time to annotate each capture with its test id and
-  CRTC applicability. Worth it as a cross-check — a code arriving that the table says
-  does not apply to the selected CRTC would mean the wrong module or CRTC was loaded.
+- How far apart the paired markers are and how long each state persists. Use the
+  record's 64 MHz `tick` within one verified session, allowing for its 67.108864 s
+  wrap. A 50 Hz period is 1.28 M ticks; altered or missing VSYNC need not follow that.
+- The observed runtime code sequence per module and script. The emitter advances an
+  in-memory cursor, but that alone does not establish the complete run's order,
+  repetitions or coverage against workbook row order.
+- Annotate captures from the workbook or an ignored derived lookup before claiming
+  coverage. An inapplicable code is a diagnostic to investigate, not proof by itself
+  that the wrong module or CRTC was loaded.
 
 ## Provenance
 
@@ -146,3 +161,4 @@ and summary statistics only.
 |---|---|
 | `shaker26.dsk` | `f7082f8eab521d632c343a288f54038af6df090c59b372e0d2866269c2cc4d08` |
 | `shaker27.dsk` | `65eb43e1f99ea232a6cc1494e799880488130ba1876bfe9d67b347a924e7721b` |
+| `SHAKER_SCREENSHOT_CODE.xlsx` | `59c7063396c0577d926236e17abb6915709d9ac35c30d7a42933ab87d46d3c19` |

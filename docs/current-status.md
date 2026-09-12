@@ -1,36 +1,36 @@
 # Current implementation status
 
-**B4 CSL/SSM phases 0 and 1 implemented, 2026-09-12, branch `general/b4-csl-ssm`:**
-`scripts/hardware-loop/csl_runner.py` drives a Logon System CSL v1.4 script on the
-device, applying CRTC/model by CFG bit and restoring the file afterwards, and
-`rtl/ssm_marker.v` recognises SHAKER's `ED LL ED HH` markers on the opcode fetch
-stream and publishes them to a DDR3 ring behind OSD status bit 37, off by default.
-`--ssm` gives the runner `wait_ssm0000` and `#FFFE`-driven captures named the way the
-SSM standard suggests. `make -C sim` passes with 19 new SSM vectors; 97 host tests
-pass. **Nothing has run on the device.** Two limits matter before it does: the DDR3
-base `0x30000000` is the MiSTer convention rather than a measurement, so the first
-`--ssm` run confirms it or `--ssm-base` finds the right one; and no synthesis has run
-on this branch, which now drives previously constant DDRAM pins.
+**B4 CSL/SSM, 2026-09-12, uncommitted on `general/b4-csl-ssm` over `8731452`:**
+Fable's second design pass reached rough convergence on an append-only native
+RGB24/timing stream in bounded rotating windows. Opus produced the initial
+implementation; Gemini continued the repairs, with independent Sol reviews and
+parent integration. Claude was not retried after its quota was depleted.
 
-The author settled the frame semantics (capture at the opcode, from a framebuffer that
-is never cleared, and every marker sits in a stable zone so all candidate semantics
-agree for this corpus, which keeps AMSpiriT images a usable pixel-diff partner) and
-then clarified the marker mechanism, which mattered more. **`#FFFE` is not the general
-screenshot trigger: every non-reserved SSM code is one**, and SHAKER assigns one
-ordinary code per test screen, built at run time by patching an `ED 00 ED 00` template
-— invisible to a static scan of the discs. The shipped runner captured only on `#FFFE`
-and would have ignored every real marker; fixed, with tests. The portal code table
-gives 712 codes, about 480 applicable per supported CRTC type, so SSM-labelled
-per-screen captures are reachable. See
-[the marker inventory](shaker-ssm-marker-inventory-2026-09-12.md).
+Phase 0/1 repairs cover controlled zero-header startup, read failures, marker
+naming, wait deadlines and stalled-write lifecycle. The Phase 2 prototype adds
+exclusive HH-fetch cuts, protected prehistory, sealed window generations,
+record commit identities and host reconstruction. A shared production recorder
+subsystem is exercised by the composition fixture. Configuration changes stop
+new ingestion while old accepted work drains, then begin a fresh epoch.
+The recorder remains **compile-time default off** (`SSM_SAMPLE_RECORDER` undefined).
 
-Phase 2 has a confirmed consumer but is not the next step: it needs the DDR3 base and
-the paired-marker tick interval, both of which come from the phase 1 device run. So
-the order is integrate, synthesise, run the phase 1 gate, then phase 2. The plan
-carries a "For an independent design review" section written for that review.
-See [the plan](csl-ssm-implementation-plan.md), the
-[driver guide](mister-hardware-loop-driver.md#the-csl-runner) and the two unreviewed
-rows in [review debt](review-debt.md).
+The opt-in `ssm_capture.py live` path preserves raw samples and JSON metadata,
+with a labelled cropped PPM when a surface exists. Completeness requires supported
+applied cadence, consistent identities, retained samples and profile geometry;
+native profiles remain declared assumptions rather than device calibration.
+Final source review is **CLEAR** from Sol and Gemini; full simulation, focused host
+and recorder/composition tests, lint and the unchanged soak hash pass. The
+[review record](csl-ssm-design-review-2026-09-12.md) records the accepted scope and evidence.
+
+Next: establish the DDR allocation and visibility/atomicity contract, obtain an
+authorized synthesis/timing result, then perform the bounded device run. Neither
+ring magic nor `--ssm-base` proves allocation safety or relocates the FPGA writer.
+Measure paired-state dwell, marker distribution, throughput and host service time.
+The workbook's 712 rows (483 CRTC 0, 478 CRTC 1) remain coverage targets, not
+observed device emissions. See the [plan](csl-ssm-implementation-plan.md),
+[marker evidence](shaker-ssm-marker-inventory-2026-09-12.md),
+[driver guide](mister-hardware-loop-driver.md#the-csl-runner),
+[capture ABI](ssm-capture-abi.md) and [remaining review debt](review-debt.md).
 
 **Coordinated follow-ups integrated, 2026-09-12:** B2's accepted `5de8c5c`
 establishes real SHAKER B (9) navigation and nine identical captures across

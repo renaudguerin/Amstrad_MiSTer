@@ -301,51 +301,26 @@ prerequisite for the first bounded implementation.
 Start with stable-screen B2 capture, then a supplied CSL fragment. Keep passive
 event detection and exact event-to-image retention as separate later gates.
 
-**IMPLEMENTATION PLAN 2026-09-12:** phased brief in
-[csl-ssm-implementation-plan.md](csl-ssm-implementation-plan.md): host CSL runner
-first, then the SSM detector with a DDR3 event ring behind an OSD toggle, then exact
-frame capture once the author clarifies `FFFE` frame semantics.
+**IMPLEMENTED IN SOURCE, NOT DEVICE-ACCEPTED, 2026-09-12:** phases 0/1 and a
+default-off Phase 2 prototype are uncommitted on `general/b4-csl-ssm` over `8731452`.
+Fable's second design review converged on ordered RGB24/timing samples in rotating
+windows, finite retention and host reconstruction. Opus and Gemini implemented it;
+Sol's independent reviews produced concrete startup, publication and timing repairs.
+Final source review is **CLEAR** from Sol and Gemini, with local acceptance gates passed
+in the [review record](csl-ssm-design-review-2026-09-12.md).
 
-**PHASE 0 DONE 2026-09-12:** `scripts/hardware-loop/csl_runner.py` runs a CSL v1.4
-script against the device, applying CRTC/model by CFG bit and restoring the file
-afterwards, translating `key_output` through per-ROM layouts into MBC keycodes, and
-recording every approximation and rejection. All 25 bundled SHAKER scripts plan
-cleanly in both layouts except the CRTC 2/3/4 variants, which stop at `crtc_select`
-with the documented reason. See [the driver guide](mister-hardware-loop-driver.md#the-csl-runner).
-Two plan open questions are now closed: MBC's per-key delay is configurable
-(`MBC_KEY_WAIT`, one knob for both CSL delays), and the SHAKER scripts carry no
-`screenshot` instruction at all, so labelled captures genuinely depend on phase 1.
+The prototype retains the exact exclusive HH-fetch cut, sealed window generations,
+coherent record identities and applied configuration. `ssm_capture.py live` retrieves
+and decodes captures with raw evidence and explicit incomplete/lost outcomes. Default
+Phase 1 screenshots remain approximate. The [plan](csl-ssm-implementation-plan.md) and
+[capture ABI](ssm-capture-abi.md) define the bounds; the
+[inventory](shaker-ssm-marker-inventory-2026-09-12.md) defines reference coverage targets.
 
-**PHASE 1 DONE 2026-09-12:** `rtl/ssm_marker.v` recognises `ED LL ED HH` on the opcode
-fetch stream and publishes each marker to a 64-entry DDR3 ring behind OSD status bit 37,
-off by default. `scripts/hardware-loop/ssm_ring.py` reads that ring with BusyBox
-`dd if=/dev/mem`, so `--ssm` gives the runner `wait_ssm0000` and `#FFFE`-driven captures
-named the way the SSM standard suggests. 19 simulation vectors (`make -C sim
-ssm-marker-test`, in the default gate) and 20 more host tests. **Not yet run on the
-device**: the DDR3 base is the MiSTer convention rather than a measurement, and the
-first `--ssm` run confirms or corrects it.
-
-**PHASE 2 UNBLOCKED 2026-09-12, not started.** The author answered the `#FFFE` frame
-question: capture at the opcode, from a framebuffer that is never cleared, so the
-image mixes the current pass above the beam with the previous pass below it. That
-withdraws the plan's earlier "next complete frame" default. He also confirmed every
-SSM marker sits in a stable zone, so capture-at-opcode, capture-at-next-VSYNC and
-next-complete-pass all produce the same image for this corpus: the choice is cost and
-reversibility, not fidelity, and AMSpiriT images stay a usable pixel-diff partner.
-**MARKER MECHANISM ESTABLISHED 2026-09-12.** See
-[the marker inventory](shaker-ssm-marker-inventory-2026-09-12.md). `#FFFE` is not the
-general screenshot trigger: **every non-reserved SSM code is one**, named from the
-code, and `#FFFE` only means "name it from `screenshot_name`". SHAKER assigns one
-ordinary code per test screen, built at run time by patching an `ED 00 ED 00`
-template, which is why no static scan of the discs finds them. The shipped runner
-captured only on `#FFFE` and would have ignored every real marker; fixed, with tests.
-The portal's code table lists 712 codes, 483 applicable to CRTC 0 and 478 to CRTC 1,
-so roughly 480 reference images are reachable per supported type.
-
-**PHASE 2 NEXT-BUT-ONE.** Its consumer is confirmed, but it needs two numbers only a
-device run supplies: the DDR3 base, and the tick interval between the paired markers
-on a flashing test, which sizes its buffers. So integrate, synthesise and run the
-phase 1 gate first.
+Next: proven DDR allocation/visibility, authorized synthesis and timing, then the
+bounded device gate. Measure state dwell, marker distribution and host transfer time
+before accepting the retention budget. `--ssm-base` changes only the reader; ring magic
+is not allocation evidence. Broader CSL configuration/keymap review debt remains in
+[review-debt.md](review-debt.md).
 
 ---
 

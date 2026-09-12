@@ -141,7 +141,7 @@ does not visually confirm the active filter mode. Record that distinction.
 script from the Logon System bundle (`docs/references/Shaker_CSL/`, untracked)
 against the same device contract as the JSON driver. It is phase 0 of
 [the CSL/SSM plan](csl-ssm-implementation-plan.md): the host half, with no RTL
-change and no SSM detector yet.
+change. The optional phase 1 detector is described under [SSM markers](#ssm-markers).
 
 ```sh
 # Offline: parse, validate, plan. Contacts nothing, imports no Pillow.
@@ -284,7 +284,7 @@ SHAKERLAND references.
 
 `rtl/ssm_marker.v` watches the Z80 opcode-fetch stream for the two consecutive
 undefined-ED instructions SSM v1.1 defines, `#ED #LL #ED #HH`, and publishes
-each one to a ring in the core-reserved DDR3 window. Those instructions are
+each one to a ring in the DDR3 window described below; allocation is still a device gate. Those instructions are
 two NOPs on real hardware, so a SHAKER disc runs identically on a CPC, on an
 emulator and here.
 
@@ -297,7 +297,8 @@ neither reaches user space.
 
 `#0000` and every `#FFxx` are reserved by the standard; **everything else is a
 screenshot request**, which is how SHAKER works — it assigns one code per test
-screen, 712 of them, and builds each at run time by patching a template. `#FFFE`
+screen and builds markers at run time by patching a template. The workbook contains
+712 reference code rows; it is not an observed emission count. `#FFFE`
 is only the variant that takes its name from CSL instead of from the code.
 
 | Marker | What the runner does |
@@ -308,38 +309,109 @@ is only the variant that takes its name from CSL instead of from the code.
 | `#FFFF` | recorded as an approximation: this runner makes no snapshots |
 | other `#FFxx` | recorded with its raster position, acted on by nothing |
 
-Each record carries the marker's code, its raster position at the instruction
-(line and horizontal position, plus the field), a VSYNC-edge count and a core
-clock tick. The VSYNC count orders events; it does not identify an image, and
-the author is explicit that "frame" has no single meaning. `line` and `hpos`
-are what locate the marker.
+Each record carries the marker's code, a VSYNC-edge count, line, horizontal
+position, field and core clock tick. Format 1 samples the pre-conversion timing
+at 16 MHz; `hpos` wraps every 256 dots (16 us), so it is not a unique pixel
+coordinate. The 32-bit tick wraps after 67.108864 s. Keep deltas within a verified
+session and account for wrap.
 
-**The capture is not the marked image.** Main grabs the scaler output
-asynchronously, so the PNG lands at least one VSYNC later; every `--ssm`
-capture says so in `capture_semantics`, and the marker's own raster position is
-the record of by how much. The author's answer is that `#FFFE` should capture at
-the opcode from a framebuffer that is never cleared. Delivering that is phase 2
-of [the CSL/SSM plan](csl-ssm-implementation-plan.md). For this corpus the
-difference is invisible, because every SSM marker sits where the display has
-been stable for several VSYNCs.
+**Captures remain approximate.** Main reads the scaler asynchronously, and neither
+the marker stamp nor a successfully decoded PNG establishes the image's age. Stable
+content before a marker does not guarantee unchanged content until the host request.
+The intended exact path is capture at the opcode; see the revised
+[phase 2 contract](csl-ssm-implementation-plan.md#phase-2-exact-frame-capture-separate-gate).
 
-**One case is not invisible: paired markers.** Where a test alternates between
-two graphics, SHAKER emits two `#FFFE` markers so both phases are recorded, and
-the host path cannot serve two grabs a few frames apart. The runner flags both
-captures `state_uncertain` when two markers land within four VSYNC periods
-rather than shipping two PNGs of the same phase. Serving them needs core-side
-capture.
+SHAKER uses distinct ordinary codes for paired states. The runner compares adjacent
+screenshot markers within four VSYNC periods and marks **both** captures of a close
+pair, because neither of the two is the trustworthy one. Absence of that heuristic
+warning does not prove phase fidelity: proximity measures neither phase dwell nor
+host latency, and every SSM capture is labelled `capture_alignment: approximate`.
+A pending `screenshot_name` is kept for a later `#FFFE` and never consumed by an
+ordinary code.
 
-The ring header counts records written and records the core could not enqueue.
-A reader that falls more than a ring behind sees the written count jump by more
-than the entry count and reports the loss; nothing is silently dropped.
+### Startup, read errors and service gaps
 
-### The DDR3 base is convention, not yet measurement
+The observer publishes its header with `written = 0` when enabled. After the controlled
+boot wait, the runner requires that state before program input; a first nonzero header
+or a read completing after the startup deadline is a failure. The manifest records
+the observed boundary. **It is
+a startup boundary for one controlled run, not a session identity**: an old empty
+header is indistinguishable from a fresh one, and a program that emitted a marker
+before the host looked would already have advanced the count. General attach,
+concurrent reload and persistence across FPGA loads are unsupported.
 
-`DDR_BASE` defaults to `0x30000000`, the MiSTer convention for the core-reserved
-window, and `DDRAM_ADDR` is a 64-bit word index (the framework derives its own
-HDMI palette address the same way, `LFB_BASE[31:3]`). Neither has been read back
-from this device. If the first `--ssm` run reports that the ring magic is
-missing, try `--ssm-base` with another address before assuming the detector is
-broken: one `localparam` in `rtl/ssm_marker.v` and one flag here are the whole
-fix.
+A read that fails is never reported as "no marker". `ssm_ring.py` distinguishes a
+transport failure (`dd` error, empty output, bad base64), a truncated read, an
+unsupported format and a not-yet-initialised header; only the last is tolerated, and
+only within a bounded startup budget. Each poll reads the header, the ring and the
+header again, and returns only records whose slots the second header proves were not
+reused during the read; the margin allows for the record the core writes before it
+commits the count. Anything outside it is counted as lost and reported.
+
+After startup is established, the runner drains the ring at every command boundary and once more at the end of the
+run, so a marker emitted while MBC or a PNG retrieval blocked the thread is still
+collected. CSL waits and `--max-wait` are monotonic wall deadlines, because the polls
+and SSH round trips inside them advance the machine too. `wait_ssm0000` consumes one
+unconsumed `#0000` from the current run in ring order, including one that arrived
+before the wait was entered; CSL v1.4 does not settle that case, and the alternative
+reading is recorded in the [plan](csl-ssm-implementation-plan.md) rather than
+presented as the standard's rule.
+
+Still open: the DDR interval itself, and the fact that host polling is not an exact
+core wait under either reading.
+
+### Verify the DDR3 allocation before enabling writes
+
+`DDR_BASE` defaults to byte address `0x30000000`; `DDRAM_ADDR` is a 64-bit word
+index. Verify the reserved interval against the framework/Main allocations and the
+target Linux memory map before enabling the observer. A matching magic value alone
+establishes neither ownership nor current-session freshness.
+
+`--ssm-base` changes only the host reader. Changing the FPGA writer requires updating
+its parameter and building a matching RBF. Missing magic means the detector is
+disabled, the core has not finished loading, or the base is wrong for this framework
+build; diagnose that before considering an address change. Do not try arbitrary writer
+bases. The full device acceptance remains open.
+
+## The experimental capture recorder
+
+`rtl/ssm_sample_recorder.v` is a prototype that appends native RGB24 samples and
+their aligned sync tuple into rotating DDR3 windows, so a host can rebuild the
+picture as it stood at the marker's opcode rather than whenever Main got around to
+grabbing the scaler. It is **compile-time off**: `Amstrad.sv` instantiates it only
+when `SSM_SAMPLE_RECORDER` is defined, which it is not, so the ordinary build is
+exactly the marker build. Turning it on needs a separately reviewed 17 MiB DDR3
+allocation that has not been obtained.
+
+Its region layout, publication order and loss reporting are written down in
+[the capture ABI](ssm-capture-abi.md); `scripts/hardware-loop/ssm_capture.py` reads
+and decodes it, including offline from a region dump:
+
+```bash
+python3 scripts/hardware-loop/ssm_capture.py decode --region dump.bin \
+    --capture 0 --profile cpc-native-progressive --out capture.ppm --meta capture.json
+```
+
+For live retrieval over SSH from a running device directly into an ordered `.raw`
+sample trace, decoded `.ppm` image, and `.json` metadata:
+
+```bash
+python3 scripts/hardware-loop/ssm_capture.py live --target root@mister \
+    --capture 0 --profile cpc-native-progressive --out-dir /tmp/captures --out-prefix mister_0
+```
+
+`decode_live_capture` retrieves the capture record, confirms validity, and brackets
+payload reads with pre- and post-read record commit identity checks (`record_commit_identity`
+on upper 32 bytes of the record), rejecting captures where slot reuse or mutation occurred
+during retrieval. The ordered samples are written to `<out-prefix>.raw`, image surface to
+`<out-prefix>.ppm`, and metadata/invalidation diagnostics to `<out-prefix>.json`.
+
+Offline decoding reports `lost` for reused windows and `pending` for unsealed ones.
+The live operation instead fails a read if its record or windows are unavailable,
+unsealed or change during retrieval; it cannot label those bytes a coherent capture.
+A successfully read trace with gaps, loss, missing sync, unsupported geometry or
+insufficient history stays incomplete, retaining its raw trace and metadata. PPMs are
+cropped previews, including partial surfaces; JSON preserves their sync-relative origin.
+Native profiles require Raw CRT, HQ2x and alternate pixel rate off, and remain declared
+assumptions rather than device measurements. The HPS atomicity/ordering contract still
+requires device validation before these read brackets can establish hardware coherence.

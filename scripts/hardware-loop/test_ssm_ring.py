@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import ssm_ring
-from csl_runner import CFG_BIT_SSM, CslError, RunOptions, run_csl
-from driver import CommandResult
+from csl_runner import CFG_BIT_SSM, CslError, DeviceBackend, RunOptions, run_csl
+from driver import CommandResult, DriverError
 from shaker_ssm_inventory import ssm_byte_allowed as inv_allowed
 from test_csl_runner import MINIMAL, DeviceHarnessMixin, options, write
 
@@ -119,8 +119,88 @@ class TestRingConsumption(unittest.TestCase):
         self.assertEqual(reader.lost, 0)
         fake.written = 3 + entries + 2   # two records overwritten before we looked
         _, new = reader.poll()
-        self.assertEqual(len(new), entries)
-        self.assertEqual(reader.lost, 2)
+        # The conservative margin gives up one more slot than the naive
+        # arithmetic: at the moment the second header says 13, the core may
+        # already have written the record for index 13 into slot 13 % 8 = 5
+        # without having committed the count. Indices 3, 4 and 5 are therefore
+        # all unsafe, and saying so is the point.
+        self.assertEqual([r.slot for r in new], [6, 7, 0, 1, 2, 3, 4])
+        self.assertEqual(reader.lost, 3)
+
+    def test_a_header_that_went_backwards_is_a_restart_not_a_loss(self):
+        # Enabling the observer republishes written = 0. A reader that treated
+        # that as an enormous loss would report nonsense for every later poll.
+        entries = 8
+        slots = [make_record(0x40 + i, i) for i in range(entries)]
+
+        class Fake:
+            def __init__(self):
+                self.written = 5
+
+            def run_cmd(self, cmd: str, timeout: float) -> CommandResult:
+                image = make_ring(slots, written=self.written, entries=entries)
+                if "count=1 " in cmd:
+                    image = image[:16]
+                return CommandResult(0, base64.b64encode(image).decode(), "")
+
+        fake = Fake()
+        reader = ssm_ring.SsmRingReader(fake, entries=entries)
+        reader.poll()
+        self.assertEqual(reader.consumed, 5)
+        fake.written = 0
+        _, new = reader.poll()
+        self.assertEqual(new, [])
+        self.assertEqual(reader.restarts, 1)
+        self.assertEqual(reader.lost, 0)
+        self.assertTrue(reader.startup_seen)
+        fake.written = 2
+        _, new = reader.poll()
+        self.assertEqual([r.code for r in new], [0x40, 0x41])
+
+
+class TestReadFailuresAreDistinguished(unittest.TestCase):
+    """A failed read must never come back as "no marker"."""
+
+    def _reader(self, exit_code: int = 0, stdout: str = "", stderr: str = ""):
+        class Fake:
+            def run_cmd(self, cmd: str, timeout: float) -> CommandResult:
+                return CommandResult(exit_code, stdout, stderr)
+
+        return ssm_ring.SsmRingReader(Fake())
+
+    def test_a_failing_dd_is_a_transport_error(self):
+        reader = self._reader(exit_code=1, stderr="Permission denied")
+        with self.assertRaises(ssm_ring.SsmTransportError) as ctx:
+            reader.poll()
+        self.assertIn("Permission denied", str(ctx.exception))
+
+    def test_an_empty_read_is_a_transport_error_not_an_empty_ring(self):
+        reader = self._reader(stdout="")
+        with self.assertRaises(ssm_ring.SsmTransportError):
+            reader.poll()
+
+    def test_garbage_that_is_not_base64_is_a_transport_error(self):
+        reader = self._reader(stdout="not base64 !!")
+        with self.assertRaises(ssm_ring.SsmTransportError):
+            reader.poll()
+
+    def test_a_short_read_is_truncation_not_an_unwritten_ring(self):
+        image = make_ring([make_record(0x1234, 0)], written=1)[:512]
+        reader = self._reader(stdout=base64.b64encode(image).decode())
+        with self.assertRaises(ssm_ring.SsmTruncatedError):
+            reader.poll()
+
+    def test_an_unknown_format_version_is_a_format_error(self):
+        image = make_ring([], written=0, version=42)
+        reader = self._reader(stdout=base64.b64encode(image).decode())
+        with self.assertRaises(ssm_ring.SsmFormatError) as ctx:
+            reader.poll()
+        self.assertNotIsInstance(ctx.exception, ssm_ring.SsmNotInitializedError)
+
+    def test_an_absent_header_is_its_own_startup_case(self):
+        reader = self._reader(stdout=base64.b64encode(b"\x00" * 1040).decode())
+        with self.assertRaises(ssm_ring.SsmNotInitializedError):
+            reader.poll()
 
 
 class TestReadCommand(unittest.TestCase):
@@ -259,18 +339,26 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
         self.assertEqual([c["name"] for c in manifest["captures"]],
                          ["MISTER_1_0007.png", "MISTER_1_0007_2.png"])
 
-    def test_paired_markers_are_flagged_rather_than_shipped_as_two_phases(self):
-        # SHAKER emits two #FFFE markers close together on tests that flash
-        # between two graphics. Main cannot serve two grabs a few frames
-        # apart, so both captures may show the same phase and must say so.
+    def test_paired_markers_flag_both_captures_not_only_the_later_one(self):
+        # SHAKER emits two markers close together on tests that flash between
+        # two graphics. Main cannot serve two grabs a few frames apart, so
+        # either capture may show the wrong phase; flagging only the second
+        # would present the first as trustworthy.
         self.publish_at[2] = 0x0101
         self.publish_at[3] = 0x0102
         manifest = self._run(MINIMAL, ssm=True)
         captures = manifest["captures"]
         self.assertEqual(len(captures), 2)
-        self.assertNotIn("state_uncertain", captures[0])
-        self.assertIn("state_uncertain", captures[1])
+        for capture in captures:
+            self.assertIn("state_uncertain", capture)
+            self.assertIn("absence of this warning is not a guarantee",
+                          capture["state_uncertain"])
         self.assertTrue(any(a["kind"] == "ssm" for a in manifest["approximations"]))
+
+    def test_every_ssm_capture_is_labelled_approximate(self):
+        self.publish_at[2] = 0x0101
+        manifest = self._run(MINIMAL, ssm=True)
+        self.assertEqual(manifest["captures"][0]["capture_alignment"], "approximate")
 
     def test_markers_many_frames_apart_are_not_flagged(self):
         # Two markers a second apart are each servable, so neither capture
@@ -293,31 +381,160 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
             self._run(MINIMAL + "wait_ssm0000\n")
         self.assertIn("--ssm", ctx.exception.reason)
 
-    def test_wait_ssm0000_releases_on_a_sync_marker_that_arrives_later(self):
-        script = MINIMAL + "wait_ssm0000\nwait 1\n"
-        # Publish well after the script's own waits, so the release can only
-        # come from the marker and not from a record that was already there.
-        self.publish_at[12] = ssm_ring.CODE_SYNC
-        manifest = self._run(script, ssm=True, max_wait_seconds=60.0)
+    # --- wait_ssm0000: one-shot consumption, ordered by the ring -------------
+    #
+    # This script has no `wait` before the sync wait, so the only ring polls
+    # that can happen before the wait is entered are the command-boundary
+    # drains. A publish scheduled well past those is unambiguously "after
+    # entry", and one scheduled on the first poll is unambiguously "before".
+
+    SYNC_SCRIPT = (
+        "csl_version 1.4\ncrtc_select 1\nreset\n"
+        "disk_insert 'shaker26.dsk'\nwait_ssm0000\n"
+    )
+
+    def test_wait_ssm0000_consumes_a_sync_that_arrived_before_it_was_entered(self):
+        # CSL does not settle this case. The runner selects one-shot
+        # consumption because the host is asynchronous and routinely arrives
+        # after the core has already executed the sequence.
+        self.publish_at[1] = ssm_ring.CODE_SYNC
+        manifest = self._run(self.SYNC_SCRIPT, ssm=True, max_wait_seconds=30.0)
         released = [e for e in manifest["trace"] if e["outcome"] == "ssm_sync_released"]
         self.assertEqual(len(released), 1)
+        self.assertIn("before entry", released[0]["released_by"])
+        self.assertEqual(released[0]["polls_seconds"], 0.0)
+
+    def test_wait_ssm0000_waits_for_a_sync_that_arrives_after_entry(self):
+        self.publish_at[10] = ssm_ring.CODE_SYNC
+        manifest = self._run(self.SYNC_SCRIPT, ssm=True, max_wait_seconds=30.0)
+        released = [e for e in manifest["trace"] if e["outcome"] == "ssm_sync_released"]
+        self.assertEqual(len(released), 1)
+        self.assertIn("after entry", released[0]["released_by"])
         self.assertGreater(released[0]["polls_seconds"], 0)
+
+    def test_each_sync_releases_exactly_one_wait(self):
+        # One marker cannot pace two waits: the second has nothing to consume
+        # and must time out rather than sail through on the same event.
+        self.publish_at[1] = ssm_ring.CODE_SYNC
+        with self.assertRaises(CslError) as ctx:
+            self._run(self.SYNC_SCRIPT + "wait_ssm0000\n", ssm=True,
+                      max_wait_seconds=2.0)
+        self.assertIn("no SSM #0000 arrived", ctx.exception.reason)
 
     def test_wait_ssm0000_gives_up_at_the_bound_instead_of_hanging(self):
         with self.assertRaises(CslError) as ctx:
-            self._run(MINIMAL + "wait_ssm0000\n", ssm=True, max_wait_seconds=2.0)
+            self._run(self.SYNC_SCRIPT, ssm=True, max_wait_seconds=2.0)
         self.assertIn("no SSM #0000 arrived", ctx.exception.reason)
 
-    def test_an_unwritten_ring_is_not_treated_as_a_failure(self):
-        # Before the first marker the DDR3 window holds whatever was there.
-        # That must not abort a run whose script never needs a marker.
+    def test_wait_ssm0000_fails_boundedly_if_marker_observed_after_monotonic_deadline(self):
+        # A poll that completes past the monotonic deadline must fail boundedly
+        # rather than reporting success.
+        clock = {"t": 0.0}
+
+        def advance_time():
+            clock["t"] += 0.01
+            return clock["t"]
+
+        def slow_serve(cmd: str) -> CommandResult:
+            res = self._serve_ring(cmd)
+            # Advance clock past deadline during the poll
+            clock["t"] += 10.0
+            return res
+
+        self.publish_at[2] = ssm_ring.CODE_SYNC
+        self.transport.handlers[0] = (
+            lambda c: "if=/dev/mem" in c,
+            slow_serve,
+        )
+        script = write(self.tmp, "m.csl", self.SYNC_SCRIPT)
+        with self.assertRaises(CslError) as ctx:
+            run_csl(script, options(self.tmp / "out", ssm=True, max_wait_seconds=2.0),
+                    transport=self.transport, dry_run=False, sleep_fn=lambda s: None,
+                    time_fn=advance_time)
+        self.assertIn("deadline", ctx.exception.reason)
+
+    # --- startup and read failures -------------------------------------------
+
+    def test_the_startup_header_is_observed_before_the_script_sends_input(self):
+        manifest = self._run(MINIMAL, ssm=True)
+        startup = manifest["ssm_startup"]
+        self.assertTrue(startup["attempted"])
+        self.assertEqual(startup["observed"], "zero header")
+        self.assertEqual(startup["written_at_start"], 0)
+        self.assertIn("not a session identity", startup["guarantee"])
+        # The observation happens before the first key, which is the last
+        # moment the state is unambiguous.
+        outcomes = [e["outcome"] for e in manifest["trace"]]
+        self.assertLess(outcomes.index("ssm_startup_observed"),
+                        outcomes.index("keys_sent"))
+
+    def test_zero_header_returned_after_startup_deadline_is_rejected(self):
+        clock = {"t": 0.0}
+
+        def slow_header(cmd):
+            reply = self._serve_ring(cmd)
+            clock["t"] += 2.0
+            return reply
+
+        self.transport.handlers[0] = (lambda c: "if=/dev/mem" in c, slow_header)
+        backend = DeviceBackend(
+            self.transport, options(self.tmp / "out", ssm=True, ssm_startup_seconds=1.0),
+            self.tmp / "out", time_fn=lambda: clock["t"], sleep_fn=lambda _: None)
+        with self.assertRaises(DriverError):
+            backend.ensure_ssm_started()
+        self.assertFalse(backend.ssm_ready)
+
+    def test_a_ring_that_is_already_counting_at_startup_is_flagged(self):
+        self.publish(0x0900)          # a record exists before the host looks
+        with self.assertRaises(DriverError) as ctx:
+            self._run(MINIMAL, ssm=True)
+        self.assertIn("non-zero", str(ctx.exception))
+
+    def test_an_unwritten_ring_is_reported_rather_than_read_as_no_marker(self):
+        # A window with no header used to look exactly like "no marker yet".
+        # It is now a bounded startup case that becomes a real error.
         self.transport.handlers.insert(0, (
             lambda c: "if=/dev/mem" in c,
             lambda c: CommandResult(0, base64.b64encode(b"\x00" * 1040).decode(), ""),
         ))
-        manifest = self._run(MINIMAL, ssm=True)
-        self.assertEqual(manifest["status"], "success")
-        self.assertEqual(manifest["ssm_records"], [])
+        with self.assertRaises(DriverError) as ctx:
+            self._run(MINIMAL, ssm=True, ssm_startup_seconds=0.5)
+        self.assertIn("header", str(ctx.exception))
+
+    def test_a_failing_device_read_stops_the_run(self):
+        self.transport.handlers.insert(0, (
+            lambda c: "if=/dev/mem" in c,
+            lambda c: CommandResult(1, "", "dd: /dev/mem: Permission denied"),
+        ))
+        with self.assertRaises(DriverError) as ctx:
+            self._run(MINIMAL, ssm=True, ssm_startup_seconds=0.5)
+        self.assertIn("Permission denied", str(ctx.exception))
+
+    # --- naming ---------------------------------------------------------------
+
+    def test_an_ordinary_code_does_not_consume_a_pending_csl_name(self):
+        # SSM v1.1 gives screenshot_name to #FFFE only. Letting an ordinary
+        # code eat it renames the wrong capture and leaves the #FFFE unnamed.
+        self.publish_at[2] = 0x0123
+        self.publish_at[3] = ssm_ring.CODE_SCREENSHOT
+        manifest = self._run("screenshot_name 'flash_state'\n" + MINIMAL, ssm=True)
+        self.assertEqual([c["name"] for c in manifest["captures"]],
+                         ["MISTER_1_0123.png", "flash_state.png"])
+
+    # --- draining --------------------------------------------------------------
+
+    def test_a_marker_published_at_the_very_end_is_still_collected(self):
+        # The last command's marker belongs to this run. Without a final drain
+        # the walk would silently end one screen early.
+        # With polling suppressed until startup is established at the first
+        # machine touch, poll 1 is startup/key_output, poll 2 is post-key_output,
+        # and poll 3 is the final drain.
+        self.publish_at[3] = 0x0777
+        manifest = self._run(
+            "csl_version 1.4\ncrtc_select 1\nreset\ndisk_insert 'shaker26.dsk'\n"
+            "key_delay 70000 70000\nkey_output 'A'\n",
+            ssm=True)
+        self.assertEqual([c["name"] for c in manifest["captures"]], ["MISTER_1_0777.png"])
 
 
 if __name__ == "__main__":

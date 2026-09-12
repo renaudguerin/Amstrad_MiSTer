@@ -1,33 +1,18 @@
 # Independent review debt
 
-**B4 phase 1, SSM detector and DDR3 ring, 2026-09-12 — UNREVIEWED:**
-`rtl/ssm_marker.v` (new), the raw fetch tap added to `rtl/Amstrad_motherboard.v`, the
-detector instance and DDRAM wiring in `Amstrad.sv`, `sim/ssm_marker_top.v`,
-`sim/ssm_marker_test.cpp` and `scripts/hardware-loop/ssm_ring.py`. Written and gated by
-the parent alone; no cross-provider review was available. `make -C sim` passes, 19 SSM
-vectors included. Look hardest at:
+**B4 phase 1 original fetch-provider review/evidence, 2026-09-12 — OPEN:**
+The revised detector, ring reader, recorder and top-level SSM connections are covered
+by the current source review below. That does not discharge the original
+`rtl/Amstrad_motherboard.v` raw-fetch-provider boundary or production T80pa evidence.
+The existing tests exercise T80pa-shaped TV80 fetches and synthetic held fetches;
+the production T80pa netlist still needs a suitable mixed-language gate.
 
-* **The DDR3 base.** `0x30000000` is the MiSTer convention for the core window and
-  `DDRAM_ADDR` is a 64-bit word index, which `sys/sys_top.v` corroborates by deriving
-  `LFB_BASE[31:3]` the same way. Nothing in this repository proves either for this
-  framework build, and the core previously tied every DDRAM pin to zero. A wrong base
-  means the core writes 48 bytes per marker somewhere it should not. Bound the risk by
-  leaving the detector off until a device run confirms the ring magic appears.
-* **The passivity claim.** The detector must not be able to disturb CPU, CRTC or video
-  timing. It reads `~M1_n & ~MREQ_n & ~RD_n` and `cpu_data_bus` and drives nothing back,
-  but the claim is the whole safety argument for a marker tap in the production path.
-* **The fetch edge.** `ssm_marker` takes the falling edge of the motherboard's fetch
-  level so a wait-stated fetch counts once. Proven on T80pa-shaped TV80 fetches and on
-  synthetic 1-to-13-clock holds, but **not** on the production T80pa netlist: that
-  needs GHDL, which this repository's default gate and CI do not run.
-* **Timing closure.** New logic on `clk_sys` now drives previously constant DDRAM pins.
-  Synthesis has not run on this branch yet.
-* **The screenshot-trigger rule was wrong once and is worth re-deriving.** The runner
-  originally captured only on `#FFFE`; in fact every non-reserved code is a screenshot
-  request and `#FFFE` merely renames one
-  (`docs/shaker-ssm-marker-inventory-2026-09-12.md`). Fixed, but check
-  `ssm_ring.is_reserved` against the standard rather than trusting it. No capture path
-  has run against real media yet, so judge it on the standard and the simulation.
+Device/build evidence also remains open: the event-ring interval at `0x30000000`
+must be proven against framework/Main/Linux allocations before writes are enabled;
+observing magic is not allocation proof. Address units are 64-bit words in the source
+interface. New logic on `clk_sys` and the DDR port still need synthesis/timing and
+real-media validation. Source passivity and green simulation do not close those gates.
+
 **B4 phase 0, CSL runner, 2026-09-12 — UNREVIEWED:** `scripts/hardware-loop/csl_runner.py`,
 `scripts/hardware-loop/cpc_keys.py` and their 51 offline tests were written and
 gated by the parent alone; no cross-provider review was available. Host-only
@@ -41,6 +26,17 @@ leave it byte-identical; and the derived `CPC_KEY_TO_LINUX` table, of which only
 from `rtl/hid.sv` through the standard PS/2 set-2 encoding. The corpus test
 covers exactly the characters the 25 bundled SHAKER scripts use, so an
 unconfirmed entry outside that set would not be caught.
+
+**B4 revised SSM path and Phase 2 prototype, 2026-09-12 — source review CLEAR:**
+Sol cleared the final uncommitted source after independently reproducing the remaining
+failure probes. Gemini run `20260912T173536Z-26982-c83d` separately cleared the parent
+corrections and final regressions. Full simulation, 183 host tests, 21 recorder tests,
+five composition tests, lint and the unchanged soak hash pass. Reviewed source hashes
+and gate evidence are recorded in [the design/implementation review](csl-ssm-design-review-2026-09-12.md).
+These passes cover the changed SSM paths; they do not silently discharge the older
+power-on folding, CFG restoration, keymap or production T80pa evidence debt above.
+DDR allocation, HPS visibility/atomicity, throughput, synthesis/timing and real-media
+acceptance remain separate device/build gates.
 
 **B6 rendering follow-up, 2026-09-12 — source review CLEAR:** Gemini
 `gemini-3.8-flash-high`, run `20260912T081217Z-84178-b42e`, reviewed the new

@@ -24,9 +24,11 @@ Two properties of the FPGA target shape the design:
   a script asking for two different values cannot be honoured exactly and says
   so in the manifest.
 
-Phase 0 has no SSM detector, so ``wait_ssm0000`` and marker-driven captures are
-rejected here and arrive with the RTL work in phase 1.  See
-``docs/csl-ssm-implementation-plan.md``.
+``--ssm`` turns on the core's marker detector and reads its DDR3 event ring, so
+``wait_ssm0000`` and marker-driven captures work; without it both are rejected
+rather than approximated.  Every SSM capture is Main's asynchronous grab and is
+labelled approximate: the standard asks for the image at the opcode instant,
+which needs the phase 2 recorder.  See ``docs/csl-ssm-implementation-plan.md``.
 """
 
 from __future__ import annotations
@@ -342,6 +344,8 @@ class RunOptions:
         ssm: bool = False,
         ssm_base: int = ssm_ring.DEFAULT_BASE,
         ssm_poll_interval: float = 0.5,
+        ssm_startup_seconds: float = 30.0,
+        ssm_startup_polls: int = 20,
     ):
         validate_device_path(rbf_path, "rbf_path")
         validate_device_path(disk_dir, "disk_dir")
@@ -365,6 +369,8 @@ class RunOptions:
         self.ssm = ssm
         self.ssm_base = ssm_base
         self.ssm_poll_interval = ssm_poll_interval
+        self.ssm_startup_seconds = ssm_startup_seconds
+        self.ssm_startup_polls = ssm_startup_polls
 
 
 class Backend:
@@ -386,18 +392,36 @@ class Backend:
         """Return the SSM records written since the previous poll."""
         return []
 
+    def now(self) -> float:
+        """Monotonic clock. CSL waits are wall deadlines, not sums of sleeps:
+        polling, key injection and PNG retrieval all advance the machine."""
+        return time.monotonic()
+
+    def ensure_ssm_started(self) -> Dict[str, Any]:
+        """Observe the observer's startup state before the script sends input."""
+        return {"attempted": False}
+
+    def reset_ssm(self) -> None:
+        """Reset SSM observer state for a new power-on / core load."""
+        pass
+
 
 class PlanBackend(Backend):
     """Offline backend: records the intended actions and touches nothing."""
 
     def __init__(self) -> None:
         self.actions: List[Dict[str, Any]] = []
+        self._clock = 0.0
+
+    def now(self) -> float:
+        return self._clock
 
     def load_core(self, load: Dict[str, Any]) -> Dict[str, Any]:
         self.actions.append({"action": "load_core", **load})
         return {"planned": True}
 
     def sleep(self, seconds: float, reason: str) -> None:
+        self._clock += max(0.0, seconds)
         self.actions.append({"action": "sleep", "seconds": round(seconds, 6), "reason": reason})
 
     def send_keys(self, raw_seq: str, key_wait_ms: int, description: str) -> Dict[str, Any]:
@@ -454,6 +478,9 @@ class DeviceBackend(Backend):
         self.captures: List[Dict[str, Any]] = []
         self.ssm_status: str = "not enabled"
         self.ssm_header: Dict[str, Any] = {}
+        self.ssm_startup: Dict[str, Any] = {"attempted": False}
+        self.ssm_ready = False
+        self.ssm_startup_polls = 0
         self.cfg_original: Optional[bytes] = None
         self.cfg_original_sha: str = ""
         self.cfg_written = False
@@ -582,13 +609,18 @@ class DeviceBackend(Backend):
         record["load_confirmation"] = (
             "file selection requested only; Main does not acknowledge load completion"
         )
-        if self.ring is not None:
-            # The ring lives in DDR3 and a core load does not clear it, so the
-            # reader starts from whatever the previous run left and counts
-            # forward from there.
-            self.ring.reset()
+        self.reset_ssm()
         self.actions.append(record)
         return record
+
+    def reset_ssm(self) -> None:
+        if self.ring is not None:
+            # A core load does not clear DDR3, but enabling the observer
+            # republishes the header with written = 0. Forget everything from
+            # before the load and wait for that state before sending input.
+            self.ring.reset()
+            self.ssm_ready = False
+            self.ssm_startup_polls = 0
 
     def sleep(self, seconds: float, reason: str) -> None:
         start = self.time_fn()
@@ -672,18 +704,124 @@ class DeviceBackend(Backend):
         self.actions.append(record)
         return record
 
-    def poll_ssm(self) -> List[Dict[str, Any]]:
+    def now(self) -> float:
+        return self.time_fn()
+
+    def ensure_ssm_started(self) -> Dict[str, Any]:
+        """Wait for the observer's startup header before the script sends input.
+
+        The core publishes magic and `written = 0` when the detector is
+        enabled. Seeing that state is what separates this run's records from
+        the ones the previous core load left in the same physical window.
+
+        What this does *not* establish: a general cross-reload identity. An old
+        empty header looks exactly like a fresh one, and a program that emits a
+        marker before the host looks would have advanced the count already.
+        This is only sound because the run controls the start: the core load is
+        requested, the boot wait is kept, and no program input has been sent
+        yet.
+        """
         if self.ring is None:
+            return {"attempted": False}
+        if self.ssm_ready:
+            return self.ssm_startup
+        deadline = self.time_fn() + self.options.ssm_startup_seconds
+        attempts = 0
+        last_error = ""
+        while self.time_fn() < deadline:
+            attempts += 1
+            try:
+                header = self.ring.header()
+            except ssm_ring.SsmNotInitializedError as exc:
+                last_error = str(exc)
+                if self.time_fn() >= deadline:
+                    break
+                sleep_time = min(self.options.ssm_poll_interval, max(0.0, deadline - self.time_fn()))
+                if sleep_time > 0:
+                    self.sleep_fn(sleep_time)
+                continue
+            except ssm_ring.SsmRingError as exc:
+                # A transport failure, a short read or an unsupported format is
+                # not a slow start; retrying would only hide it.
+                self.ssm_startup = {"attempted": True, "observed": "read failed",
+                                    "attempts": attempts, "error": str(exc)}
+                self.actions.append({"action": "ssm_startup", **self.ssm_startup})
+                raise DriverError(f"SSM ring read failed at startup: {exc}") from exc
+
+            if self.time_fn() >= deadline:
+                last_error = "zero-header read completed after the startup deadline"
+                break
+            if header.written != 0:
+                self.ssm_startup = {
+                    "attempted": True,
+                    "observed": "non-zero header",
+                    "written_at_start": header.written,
+                    "attempts": attempts,
+                    "error": (
+                        f"the first observed SSM header already had written={header.written} != 0; "
+                        "controlled run requires a fresh zero header before program input"
+                    ),
+                    "guarantee": (
+                        "startup boundary for this controlled run only; an old empty header "
+                        "is indistinguishable from a fresh one, so this is not a session "
+                        "identity across core loads"
+                    ),
+                }
+                self.actions.append({"action": "ssm_startup", **self.ssm_startup})
+                raise DriverError(
+                    f"SSM ring startup failed: first observed header was non-zero (written={header.written})"
+                )
+
+            self.ssm_ready = True
+            self.ssm_startup = {
+                "attempted": True,
+                "observed": "zero header",
+                "written_at_start": 0,
+                "attempts": attempts,
+                "guarantee": (
+                    "startup boundary for this controlled run only; an old empty header "
+                    "is indistinguishable from a fresh one, so this is not a session "
+                    "identity across core loads"
+                ),
+            }
+            self.actions.append({"action": "ssm_startup", **self.ssm_startup})
+            return self.ssm_startup
+        self.ssm_startup = {"attempted": True, "observed": "none", "attempts": attempts,
+                            "error": last_error}
+        self.actions.append({"action": "ssm_startup", **self.ssm_startup})
+        raise DriverError(
+            f"the SSM ring never published a header within "
+            f"{self.options.ssm_startup_seconds:.0f}s: {last_error}"
+        )
+
+    def poll_ssm(self) -> List[Dict[str, Any]]:
+        if self.ring is None or not self.ssm_ready:
             return []
         try:
             header, records = self.ring.poll()
-        except ssm_ring.SsmRingError as exc:
-            # Before the first marker the ring holds whatever was in DDR3, so
-            # an unrecognised header is expected early and is not an error.
+        except ssm_ring.SsmNotInitializedError as exc:
+            # Only tolerated before the startup header has ever been seen, and
+            # only for a bounded number of polls. Past that it is a real fault,
+            # not "no marker".
+            self.ssm_startup_polls += 1
             self.ssm_status = str(exc)
+            if self.ssm_ready or self.ssm_startup_polls > self.options.ssm_startup_polls:
+                raise DriverError(
+                    f"the SSM ring header is not valid after "
+                    f"{self.ssm_startup_polls} polls: {exc}"
+                ) from exc
             return []
+        except ssm_ring.SsmRingError as exc:
+            # Transport failure, a short read or an unsupported format. None of
+            # these mean "no marker"; reporting them as one hides a broken run.
+            self.ssm_status = str(exc)
+            raise DriverError(f"SSM ring read failed: {exc}") from exc
+        self.ssm_ready = True
         self.ssm_status = "ok"
         self.ssm_header = header.as_dict()
+        self.ssm_header["reader_lost"] = self.ring.lost
+        self.ssm_header["reader_restarts"] = self.ring.restarts
+        self.ssm_header["read_margin_slots"] = self.ring.last_margin
         out = [r.as_dict() for r in records]
         if out:
             self.actions.append({"action": "ssm_records", "records": out,
@@ -738,9 +876,13 @@ class CslRunner:
         self._fold_order: Dict[int, List[int]] = {}
         self.ssm_records: List[Dict[str, Any]] = []
         self.ssm_sync_seen = 0
+        self.ssm_sync_pending: List[Dict[str, Any]] = []
         self.last_screenshot_marker: Optional[Dict[str, Any]] = None
+        self.last_capture_record: Optional[Dict[str, Any]] = None
         self.capture_names: Dict[str, int] = {}
         self.capture_count = 0
+        self._ssm_start_checked = False
+        self.ssm_startup: Dict[str, Any] = {"attempted": False}
         self.entry_script_stem = Path(entry_script).stem
         self._media_line = 0
 
@@ -809,31 +951,56 @@ class CslRunner:
         return ms
 
     def _sleep(self, seconds: float, reason: str, command: Optional[Command] = None) -> None:
-        """Sleep, polling the SSM ring in slices when the detector is on.
+        """Sleep until a wall deadline, polling the SSM ring on the way.
 
-        A marker is only useful if the capture follows it closely, so with
-        SSM enabled the runner never sleeps past one poll interval without
-        looking. With SSM off this is a single sleep and costs nothing.
+        The deadline is monotonic rather than a sum of sleep slices: the ring
+        polls, SSH round trips and PNG retrievals inside this loop all advance
+        the machine, and a CSL wait describes elapsed machine time. Summing the
+        slices would make every wait longer than the script asked for by
+        however much transport the host happened to do.
+
+        With SSM off this is a single sleep and costs nothing.
         """
         if not self.options.ssm or seconds <= 0:
             self.backend.sleep(seconds, reason)
             return
         slice_s = max(0.05, self.options.ssm_poll_interval)
-        remaining = seconds
-        while remaining > 0:
-            step = min(slice_s, remaining)
-            self.backend.sleep(step, reason)
-            remaining -= step
+        deadline = self.backend.now() + seconds
+        while True:
+            remaining = deadline - self.backend.now()
+            if remaining <= 0:
+                break
+            self.backend.sleep(min(slice_s, remaining), reason)
+            self._consume_ssm(command)
+
+    def _drain_ssm(self, command: Optional[Command]) -> None:
+        """Look at the ring at a command boundary.
+
+        MBC key injection and Main's PNG retrieval both block this thread, so
+        markers that arrive during them are only seen afterwards. Draining at
+        every boundary bounds that gap to one command instead of one wait, and
+        keeps the measurement visible in the trace rather than hidden by an
+        ingestion thread.
+        """
+        if self.options.ssm and self.machine_running and self._ssm_start_checked:
             self._consume_ssm(command)
 
     def _consume_ssm(self, command: Optional[Command]) -> List[Dict[str, Any]]:
         """Act on markers the core has published since the last look."""
+        if not self._ssm_start_checked:
+            return []
         records = self.backend.poll_ssm()
         for record in records:
             self.ssm_records.append(record)
             code = int(record["code"], 16)
             if code == ssm_ring.CODE_SYNC:
                 self.ssm_sync_seen += 1
+                # One-shot consumption, ordered by the ring's own sequence: a
+                # #0000 that arrived before the wait was entered still releases
+                # it, and each #0000 releases exactly one wait. See the plan's
+                # note that CSL v1.4 does not settle this and that the
+                # alternative (fresh-after-entry) is an interpretation too.
+                self.ssm_sync_pending.append(record)
             elif code == ssm_ring.CODE_SNAPSHOT:
                 if command is not None:
                     self._note(command, "ssm",
@@ -853,16 +1020,17 @@ class CslRunner:
     def _ssm_capture(self, record: Dict[str, Any], command: Optional[Command]) -> None:
         """Capture for a screenshot-requesting marker.
 
-        The capture lands at least a frame after the marker, because Main
-        grabs the scaler output asynchronously. The manifest keeps the
-        marker's own frame and raster position so the distance is visible
-        rather than assumed away.
+        The capture lands at least a frame after the marker, because Main grabs
+        the scaler output asynchronously. The manifest keeps the marker's own
+        frame and raster position so the distance is visible rather than
+        assumed away.
         """
         # SHAKER emits two markers close together on tests that alternate
         # between two graphics, so that both phases get recorded. Main cannot
-        # serve two grabs a few frames apart, so say so on the capture instead
-        # of shipping two PNGs of the same phase.
+        # serve two grabs a few frames apart, so say so -- on *both* captures,
+        # since neither one is the trustworthy one.
         previous = self.last_screenshot_marker
+        previous_capture = self.last_capture_record
         self.last_screenshot_marker = record
         paired = (
             previous is not None
@@ -870,12 +1038,20 @@ class CslRunner:
         )
         self.capture_count += 1
         code = int(record["code"], 16)
-        if self.screenshot_name:
+        # SSM v1.1: an ordinary code names its own capture. Only #FFFE is the
+        # "name it from the CSL screenshot_name" variant, so an ordinary code
+        # must not consume a pending name that belongs to a later #FFFE.
+        if code == ssm_ring.CODE_SCREENSHOT and self.screenshot_name:
             name = f"{self.screenshot_name}.png"
             self.screenshot_name = None
         else:
             crtc = "0" if self.crtc_status_bit else "1"
             name = ssm_ring.suggested_name("MISTER", crtc, code)
+            if self.screenshot_name and command is not None:
+                self._note(command, "ssm",
+                           f"marker #{code:04X} is an ordinary code and is named from "
+                           f"the code; the pending screenshot_name "
+                           f"{self.screenshot_name!r} is kept for a later #FFFE")
         # SHAKER assigns a distinct code per test screen, so the standard's
         # name is normally unique. Guard the exception instead of silently
         # overwriting an earlier capture.
@@ -890,13 +1066,20 @@ class CslRunner:
             "Main's asynchronous scaler grab, at least one VSYNC after the marker; "
             "not the image the standard specifies at the opcode instant"
         )
+        result["capture_alignment"] = "approximate"
+        self.last_capture_record = result
         if paired:
-            result["state_uncertain"] = (
-                f"another #FFFE marker landed within {SSM_PAIRED_MARKER_FRAMES} VSYNC "
-                "periods, so this capture and its neighbour may show the same phase"
+            warning = (
+                f"another screenshot marker landed within {SSM_PAIRED_MARKER_FRAMES} "
+                "VSYNC periods, so this capture and its neighbour may show the same "
+                "phase; the absence of this warning is not a guarantee either, because "
+                "proximity does not measure phase dwell or host latency"
             )
+            result["state_uncertain"] = warning
+            if previous_capture is not None:
+                previous_capture["state_uncertain"] = warning
             if command is not None:
-                self._note(command, "ssm", result["state_uncertain"])
+                self._note(command, "ssm", warning)
         if command is not None:
             self._record(command, "ssm_capture", name=name, ssm=record, paired=paired)
 
@@ -910,11 +1093,18 @@ class CslRunner:
         }
 
     def _ensure_machine(self, command: Command) -> None:
-        if self.machine_running:
-            return
-        raise command.error(
-            "the machine has not been powered on; the script must reset before sending input"
-        )
+        if not self.machine_running:
+            raise command.error(
+                "the machine has not been powered on; the script must reset before sending input"
+            )
+        # The first thing that touches the running machine is also the last
+        # moment at which the observer's startup state is still unambiguous.
+        if self.options.ssm and not self._ssm_start_checked:
+            self._ssm_start_checked = True
+            self.ssm_startup = self.backend.ensure_ssm_started()
+            if self.ssm_startup.get("attempted"):
+                self._record(command, "ssm_startup_observed", **self.ssm_startup)
+            self._consume_ssm(command)
 
     # --- command implementations ----------------------------------------
 
@@ -942,6 +1132,11 @@ class CslRunner:
                        "MGL mounts media as part of the core load")
         self.backend.load_core(load)
         self.machine_running = True
+        # A new power-on needs the startup boundary observed again, and any
+        # marker from the previous machine is not this one's.
+        self._ssm_start_checked = False
+        self.backend.reset_ssm()
+        self.ssm_sync_pending.clear()
         self._record(command, "load_core", **load)
 
     def _apply_config(self, command: Command, folded_into: Optional[int] = None) -> None:
@@ -1096,31 +1291,65 @@ class CslRunner:
         self._record(command, "waited", seconds=seconds)
 
     def _do_wait_ssm0000(self, command: Command) -> None:
-        """Block until the core reports an SSM #0000 newer than the last one.
+        """Consume one unconsumed SSM #0000 from this run.
 
-        CSL uses this to let an emulated program pace the script instead of
-        the script guessing. The bound is --max-wait: without one, a SHAKER
+        CSL v1.4 says the wait lasts "until the Z80A sequence ED 00 ED 00 is
+        executed". It does not say whether an event that has already been
+        buffered may satisfy it. This runner selects **one-shot consumption**:
+        each #0000 the core published during this controlled run releases
+        exactly one wait, ordered by the ring's own sequence, including one
+        that arrived before the wait was entered. The host is asynchronous and
+        routinely arrives late, so the alternative reading -- only an event
+        observed after entry counts -- would deadlock on a marker the core
+        already emitted. Neither reading makes host polling an exact core wait;
+        the choice is recorded, not presented as the standard's rule.
+
+        The bound is --max-wait, as a monotonic deadline: without one, a SHAKER
         build that never reaches the marker would hang the run.
         """
         self._ensure_machine(command)
-        target = self.ssm_sync_seen + 1
-        waited = 0.0
+        start = self.backend.now()
+        if self.ssm_sync_pending:
+            released = self.ssm_sync_pending.pop(0)
+            self._record(command, "ssm_sync_released", polls_seconds=0.0,
+                         released_by="an unconsumed marker that arrived before entry",
+                         ssm=released)
+            return
         step = max(0.05, self.options.ssm_poll_interval)
-        while self.ssm_sync_seen < target:
-            if waited >= self.options.max_wait_seconds:
+        deadline = start + self.options.max_wait_seconds
+        while not self.ssm_sync_pending:
+            remaining = deadline - self.backend.now()
+            if remaining <= 0:
                 raise command.error(
                     f"no SSM #0000 arrived within {self.options.max_wait_seconds:.0f}s",
                     self.script_version,
                 )
-            self.backend.sleep(step, "wait_ssm0000 poll")
-            waited += step
-            if not self._consume_ssm(command) and isinstance(self.backend, PlanBackend):
+            self.backend.sleep(min(step, remaining), "wait_ssm0000 poll")
+            self._consume_ssm(command)
+            if self.backend.now() > deadline:
+                raise command.error(
+                    f"no SSM #0000 arrived within {self.options.max_wait_seconds:.0f}s "
+                    f"(poll completed after monotonic deadline)",
+                    self.script_version,
+                )
+            if isinstance(self.backend, PlanBackend):
                 # Offline there is no core to answer, so the plan records the
                 # wait rather than spinning to the bound.
                 self._note(command, "ssm",
                            "wait_ssm0000 cannot be planned offline; the plan shows one poll")
-                break
-        self._record(command, "ssm_sync_released", polls_seconds=round(waited, 3))
+                self._record(command, "ssm_sync_released", polls_seconds=0.0,
+                             released_by="not executed: offline plan")
+                return
+        if self.backend.now() > deadline:
+            raise command.error(
+                f"no SSM #0000 arrived within {self.options.max_wait_seconds:.0f}s "
+                f"(marker observed after monotonic deadline)",
+                self.script_version,
+            )
+        released = self.ssm_sync_pending.pop(0)
+        self._record(command, "ssm_sync_released",
+                     polls_seconds=round(self.backend.now() - start, 3),
+                     released_by="a marker observed after entry", ssm=released)
 
     def _do_screenshot(self, command: Command) -> None:
         self._ensure_machine(command)
@@ -1248,14 +1477,24 @@ class CslRunner:
                 self._ensure_machine(command)
                 self._host_capture(command)
 
+            # Command boundary: markers emitted while MBC or a PNG retrieval
+            # held this thread are only visible now.
+            self._drain_ssm(command)
+
             if stop_line and command.script == (stop_script or self.entry_script) and command.line >= stop_line:
                 self._record(command, "stopped_at_requested_line")
                 break
+
+        # Final drain: a marker emitted by the last command still belongs to
+        # this run, and dropping it would silently shorten the walk.
+        self._drain_ssm(None)
 
         return {
             "trace": self.trace,
             "approximations": self.approximations,
             "ssm_records": self.ssm_records,
+            "ssm_startup": self.ssm_startup,
+            "ssm_sync_unconsumed": len(self.ssm_sync_pending),
             "effective_settings": {
                 "layout": self.options.layout,
                 "ssm_enabled": self.options.ssm,
@@ -1265,6 +1504,14 @@ class CslRunner:
                 "model_status": self.model_status,
                 "media_path": self.media_path,
                 "media_slot": self.media_slot,
+                "applied_b6_config": {
+                    "raw_crt": False,
+                    "pixel_rate_select": 0,
+                    "scale": 0,
+                    "mix": 0,
+                    "plus_mode": False,
+                    "native_cadence": True,
+                },
                 "key_press_us": self.key_press_us,
                 "key_between_us": self.key_between_us,
                 "key_after_cr_us": self.key_after_cr_us,
@@ -1421,6 +1668,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                         help="Physical byte address of the event ring (default 0x30000000)")
     parser.add_argument("--ssm-poll", type=float, default=0.5,
                         help="Seconds between ring polls while SSM is enabled")
+    parser.add_argument("--ssm-startup-timeout", type=float, default=30.0,
+                        help="Seconds to wait for the observer's startup header before "
+                             "the script sends its first input")
     return parser.parse_args(argv)
 
 
@@ -1452,6 +1702,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             ssm=args.ssm,
             ssm_base=args.ssm_base,
             ssm_poll_interval=args.ssm_poll,
+            ssm_startup_seconds=args.ssm_startup_timeout,
         )
     except (ValueError, argparse.ArgumentTypeError) as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
