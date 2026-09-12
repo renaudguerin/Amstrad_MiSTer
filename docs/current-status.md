@@ -1,5 +1,13 @@
 # Current implementation status
 
+**Coordinated follow-ups READY, 2026-09-12:** B2 `5de8c5c` establishes real
+SHAKER B (9) navigation and nine identical captures across three independent
+loads; B6 `c2fde66` closes the final-mixer RGB simulation gap and adds dynamic
+raster/Plus layer gates. Both are reviewed, gated local branches accepted by
+the coordinator, **not integrated or pushed**. No new RBF exists. See the
+[branch/evidence handoff](hardware-followup-handoff-2026-09-12.md) for exact
+tips, device restoration, reviewer identities and remaining limits.
+
 **Latest hardware report, 2026-09-12, `5c16b17`:** the user confirms **6128 Plus
 BASIC boot fixed**. Corrupt sprite lines at the left edge are **much improved,
 perhaps fixed**, with definitive closure still open. **Pang/Plotting fire
