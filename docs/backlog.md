@@ -323,8 +323,16 @@ off by default. `scripts/hardware-loop/ssm_ring.py` reads that ring with BusyBox
 named the way the SSM standard suggests. 19 simulation vectors (`make -C sim
 ssm-marker-test`, in the default gate) and 20 more host tests. **Not yet run on the
 device**: the DDR3 base is the MiSTer convention rather than a measurement, and the
-first `--ssm` run confirms or corrects it. Phase 2, exact frame capture, is still
-blocked on the SHAKER author's answer about what `#FFFE` should contain.
+first `--ssm` run confirms or corrects it.
+
+**PHASE 2 UNBLOCKED 2026-09-12, not started.** The author answered the `#FFFE` frame
+question: capture at the opcode, from a framebuffer that is never cleared, so the
+image mixes the current pass above the beam with the previous pass below it. That
+withdraws the plan's earlier "next complete frame" default and makes AMSpiriT a
+diagnostic partner rather than a pixel oracle, since it captures on the following
+VSYNC instead. Before designing phase 2, run one `--ssm` device walk: the phase 1
+records show whether SHAKER places its markers after a VSYNC wait, which would put
+the seam off-screen for the whole corpus.
 
 ---
 

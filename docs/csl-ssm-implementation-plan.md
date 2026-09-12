@@ -7,7 +7,9 @@ recorded in [b2-device-capture-2026-09-12.md](b2-device-capture-2026-09-12.md). 
 implementation brief for a fresh session; each phase is separately mergeable and has its
 own gate.
 
-**Status 2026-09-12: phases 0 and 1 implemented; phase 2 still blocked on the author.**
+**Status 2026-09-12: phases 0 and 1 implemented; phase 2 unblocked but not started.**
+The author has answered the `FFFE` frame-semantics question, which withdraws this
+plan's earlier "next complete frame" default; see phase 2.
 Phase 0 is `scripts/hardware-loop/csl_runner.py` plus `cpc_keys.py`; phase 1 is
 `rtl/ssm_marker.v` plus `scripts/hardware-loop/ssm_ring.py`. Both are covered by
 offline tests and `make -C sim`. Neither has run on the device yet, so the
@@ -255,29 +257,69 @@ with the portal's code-to-image mapping for those tests. The first device run al
 settles whether `0x30000000` is the right DDR3 base; if the ring magic is missing,
 `--ssm-base` finds the right one and one `localparam` follows.
 
-## Phase 2: exact frame capture (separate gate, after the author answers)
+## Phase 2: exact frame capture (separate gate)
 
-On `FFFE` the core itself writes one native frame into a second DDR3 region: the
-production output chain's RGB/DE after `crt_filter`, at the native 16 MHz pixel rate,
-one line per raster line, both fields tagged. The host converts it to PNG and compares
-it with Main's scaler capture of the same event.
+**Frame semantics answered by the author, 2026-09-12.** The question below is closed
+and the earlier "next complete frame" default is withdrawn. Longshot's reply, verbatim:
 
-Frame semantics are not settled by the SSM text. It says the screenshot is taken
-"immediately after reading the HH byte", mid-frame, but what an immediate screenshot
-contains depends on the emulator's rendering model: per-scanline renderers hold the
-current frame's top and the previous frame's bottom, per-frame renderers hold the last
-completed frame. CSL's `screenshot vsync` option exists for this reason; SSM `FFFE` has
-no such option. For static SHAKER screens the choice is invisible; for the scrolling
-tests it is not. Ask the author before building this phase:
+> Amspirit crée le Snapshot sur la Vsync qui suit le code SSM. La notion de frame est à
+> géométrie variable. Parfois c'est le moment ou le CRTC commence à construire une image
+> (et donc il peut y avoir plusieurs frame au sein d'une image), et d'autres la situent
+> par rapport à la Vsync (qui pourrait elle aussi avoir lieu plusieurs fois). Et surtout
+> si tu as un écran de C4=0 à 38 (39x8=312), et que la Vsync se produit sur C4=30,
+> l'image produite et le résultat de C4=0..29 du frame courant, et du C4=30 à 38 du
+> frame précédent... Mais dans l'esprit, le screenshot DEVRAIT avoir lieu sur l'opcode.
+> Si je veux qu'un screenshot ait lieu sur la VSYNC, je le mets sur la VSYNC
 
-> For SSM #FFFE, which image is intended: the framebuffer as rendered at the
-> instruction (partial frame), the last completed frame, or the next completed frame?
-> Does SHAKER emit the marker at a known raster position (for example right after a
-> VSYNC wait) so the distinction is moot? How does AMSpiriT implement it?
+Three things follow, in decreasing order of how much they change the build.
 
-Until answered, the default is "the next complete frame starting at the first VSYNC
-rising edge after the marker", with the marker's own frame/line recorded so the other
-readings can be reconstructed from consecutive frames if needed.
+**Capture at the instruction, not at a VSYNC.** The marker's placement is the script
+author's timing control: a program that wants a frame-aligned image puts the marker
+after its own VSYNC wait. Waiting for VSYNC on the core's side would take that control
+away and is now explicitly against the intent.
+
+**The image is a persistent framebuffer sampled at an instant.** The C4 example is the
+specification: with VSYNC at C4=30, the image holds C4=0..29 from the current pass and
+C4=30..38 from the previous one. So phase 2 writes the production output chain's
+RGB/DE into a native-rate buffer that is written continuously and **never cleared per
+frame**, and freezes it on the HH fetch. That is also what a CRT phosphor does, which
+is why this reading agrees with the SHAKERLAND photographs, the rank 1 authority in
+[CLAUDE.md](../CLAUDE.md). Do not assemble a frame; snapshot a surface.
+
+**"Frame" is not a unit and must not be used as one.** The author gives two
+incompatible meanings in common use, each of which can occur several times per image.
+The `frame` field in the phase 1 event record is a VSYNC-edge count: it is an ordering
+and correlation key only, never an answer to "which image". The record's `line` and
+`hpos` are what locate the current/previous seam, and they are the fields that make a
+capture auditable.
+
+**AMSpiriT is now known not to match the intent, so it is not a pixel oracle.** It
+captures on the following VSYNC while the standard intends the opcode instant. The two
+agree on static screens and diverge by construction on the scrolling and
+raster-dynamic tests, which are exactly the interesting ones. Treat its images as a
+diagnostic partner and never as a pass criterion; see "Reference comparison" below.
+
+### What the answer does not settle
+
+These are implementation questions for this core, not gaps in the standard.
+
+- **Output-chain latency.** The HH fetch is a CPU cycle; the seam lands wherever the
+  GA, `crt_filter` and mixer delay puts it, and one CPU microsecond is sixteen pixels
+  at 16 MHz. Whether to compensate, and by how much, is undecided. Measure it in the
+  B6 fixture rather than estimating it.
+- **Interlace and field addressing.** The current/previous seam applies per field. A
+  buffer addressed by physical raster line handles it naturally; one buffer per field
+  does not. Pick one deliberately and record the choice.
+- **Initial contents.** What the buffer holds before its first complete pass
+  (power-on, reset, mode change). Black is the obvious pick; the point is to record it
+  rather than inherit whatever DDR3 held.
+
+### Cheap check that may make all three moot for SHAKER
+
+Phase 1 records already carry each marker's `line` and `hpos`. One device walk of
+`SHAKE26B-1.CSL` with `--ssm` shows whether SHAKER places its markers just after a
+VSYNC wait. If it does, the seam sits off-screen for the whole corpus and phase 2 can
+be built without latency compensation. Run that before designing anything here.
 
 This phase touches the B6 video boundary; read
 [b6-video-boundary.md](b6-video-boundary.md) first and extend its Verilator fixture
@@ -288,13 +330,20 @@ rather than adding a second output path.
 Naming follows the SSM suggestion with `MISTER` as the emulator name. The portal's test
 API and `results.js` routing (see the hardware-loop plan) give the code-to-image
 association; cache only the images for the tests being run under ignored
-`docs/references/`. Hardware photographs remain the authority; AMSpiriT images are a
-convenient pixel-diff partner, not an oracle.
+`docs/references/`. Hardware photographs remain the authority.
+
+AMSpiriT images are a diagnostic partner and never a pass criterion, and after the
+author's 2026-09-12 reply the reason is specific rather than general: AMSpiriT captures
+on the VSYNC following the marker while the standard intends the opcode instant, so a
+pixel difference against it on a raster-dynamic test is the expected outcome, not a
+finding. Static screens should still match.
 
 ## Open questions
 
-- Frame semantics for `FFFE` (above). Ask the author. **Still open, and it is what
-  blocks phase 2.**
+- **Closed 2026-09-12 by the author: `FFFE` captures at the opcode**, from a
+  persistent framebuffer, not at a following VSYNC. See phase 2 for the reply and what
+  it changes. Three implementation questions remain there (output-chain latency, field
+  addressing, initial buffer contents), none of them ambiguities in the standard.
 - Whether AMSpiriT scripts exist for SHAKER 2.7 or only 2.6. **Still open**; the
   bundle carries 2.6 scripts only.
 - **Closed 2026-09-12: MBC per-key delay is configurable.** `MBC_KEY_WAIT` is one

@@ -300,14 +300,21 @@ neither reaches user space.
 | `#FFFF` | recorded as an approximation: this runner makes no snapshots |
 | anything else | recorded in the manifest with its raster position |
 
-Each record carries the marker's code, the frame and raster position at the
-instruction, the field, a sequence number and a core clock tick. **The capture
-is not the marked frame.** Main grabs the scaler output asynchronously, so the
-PNG lands at least a frame later; keeping the marker's own position in the
-manifest is what makes that distance visible rather than assumed away. Exact
-frame capture is phase 2 of
-[the CSL/SSM plan](csl-ssm-implementation-plan.md), and it waits on a question
-for the SHAKER author about what `#FFFE` is supposed to contain.
+Each record carries the marker's code, its raster position at the instruction
+(line and horizontal position, plus the field), a VSYNC-edge count and a core
+clock tick. The VSYNC count orders events; it does not identify an image, and
+the author is explicit that "frame" has no single meaning. `line` and `hpos`
+are what locate the marker.
+
+**The capture is not the marked image.** Main grabs the scaler output
+asynchronously, so the PNG lands at least one VSYNC later; keeping the marker's
+own position in the manifest is what makes that distance visible rather than
+assumed away. The author's answer is that `#FFFE` should capture at the opcode,
+from a framebuffer that is never cleared, so the intended image mixes the
+current pass above the beam with the previous pass below it. Delivering that is
+phase 2 of [the CSL/SSM plan](csl-ssm-implementation-plan.md); until then every
+`--ssm` capture is labelled approximate and the marker's raster position is the
+record of by how much.
 
 The ring header counts records written and records the core could not enqueue.
 A reader that falls more than a ring behind sees the written count jump by more

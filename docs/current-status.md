@@ -10,8 +10,14 @@ SSM standard suggests. `make -C sim` passes with 19 new SSM vectors; 97 host tes
 pass. **Nothing has run on the device.** Two limits matter before it does: the DDR3
 base `0x30000000` is the MiSTer convention rather than a measurement, so the first
 `--ssm` run confirms it or `--ssm-base` finds the right one; and no synthesis has run
-on this branch, which now drives previously constant DDRAM pins. Phase 2, exact frame
-capture, remains blocked on the SHAKER author's answer about `#FFFE` frame semantics.
+on this branch, which now drives previously constant DDRAM pins.
+
+Phase 2 is now unblocked: the author answered that `#FFFE` should capture at the
+opcode from a framebuffer that is never cleared, not at a following VSYNC, which
+withdraws the plan's earlier default and demotes AMSpiriT from pixel oracle to
+diagnostic partner. Not started. The next step for it is the same device walk the
+phase 1 gate needs, because the marker raster positions it records may show the
+seam never reaches the visible area for this corpus.
 See [the plan](csl-ssm-implementation-plan.md), the
 [driver guide](mister-hardware-loop-driver.md#the-csl-runner) and the two unreviewed
 rows in [review debt](review-debt.md).
