@@ -530,10 +530,10 @@ See [current status](current-status.md) for accepted source and artifact identit
    MBC cross-build are prepared at `7e39204`; see the
    [driver guide](mister-hardware-loop-driver.md). A bounded CSL subset is
    still separate work.
-   With `root@mister` reported online, verify SSH/device operation and require
-   three repeatable stable-screen captures
-   with build/media/model/CRTC/filter identity. Exact SSM event-to-image capture
-   remains a later gate.
+   September 12 demonstrates three independent SHAKER B (9) loads and nine
+   identical numeric captures; see [device evidence](b2-device-capture-2026-09-12.md).
+   Active-mode observation remains qualified because native PNGs omit OSD.
+   Exact SSM event-to-image capture remains a later gate.
 7. **Hardware retests:** use the delivered SHA-labelled RBF for DSC4/SHAKER,
    IA-5/Q17 and the named Plus title matrix. Retain the
    [September 9 results and capture index](hardware-evidence-2026-09-09.md) as regression

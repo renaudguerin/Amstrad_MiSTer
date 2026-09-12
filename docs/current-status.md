@@ -1,5 +1,12 @@
 # Current implementation status
 
+**B2 device capture, 2026-09-12:** French-ROM SHAKER 2.7 B (9) boots through
+MGL/MBC on the hash-verified `5c16b17` RBF. Three independent loads produce
+nine identical decoded numeric-screen PNGs with CRTC 1 visible. The reusable
+case pins RBF/media identity; 26 focused tests and fresh Gemini review pass.
+Native screenshots omit OSD, so saved Full configuration is not visual proof
+of the active mode. See [device evidence and limits](b2-device-capture-2026-09-12.md).
+
 **Latest hardware report, 2026-09-12, `5c16b17`:** the user confirms **6128 Plus
 BASIC boot fixed**. Corrupt sprite lines at the left edge are **much improved,
 perhaps fixed**, with definitive closure still open. **Pang/Plotting fire
@@ -157,15 +164,15 @@ FDC/test and host-tooling worktrees have been removed; their integrated branches
 review/build evidence and host tools remain available. Integrated branches and private recovery stashes are retained; snapshot cleanup
 is recorded above.
 
-**B2 host tooling prepared, 2026-09-08:** accepted source `7e39204` adds the
+**B2 original host tooling, 2026-09-08 (device result above):** accepted source `7e39204` adds the
 [SSH/MGL capture driver](mister-hardware-loop-driver.md) and
 [pinned ARM MBC cross-build](mister-mbc-cross-build.md). The integration checkout
 passed all 24 focused tests and an offline dry-run; Opus 5 high returned CLEAR
 in closure run `20260908T044131Z-35882-569d`. The ARM binary and cross compiler
 are preserved under ignored `docs/references/b2-host-tools/`; the binary hash
-is recorded in the build recipe. No MiSTer was accessed. Configure real SHAKER
-navigation and verify target/model/settings and repeated images on the device
-before treating the tooling as hardware evidence.
+is recorded in the build recipe. That original pass did not access MiSTer. The September 12 device record above
+supplies real French-ROM navigation and repeated captures, with active-mode
+observation limits preserved.
 
 **Preserved FDC/test consolidation integrated, 2026-09-08:** refreshed source
 `5fcf223` retains the separate histories of `c1a8ff9` and `c12c264`. The held-read

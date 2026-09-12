@@ -155,7 +155,7 @@ def validate_case_config(data: Any) -> Dict[str, Any]:
     unknown = set(data.keys()) - {
         "case_id", "description", "rbf_path", "media", "declared_settings",
         "boot_delay", "settle_delay", "capture_delay", "captures_count",
-        "input", "timeouts", "ack_main_cmd", "mbc_path"
+        "input", "timeouts", "ack_main_cmd", "mbc_path", "expected_sha256"
     }
     if unknown:
         raise ValueError(f"Unknown top-level configuration keys: {sorted(unknown)}")
@@ -185,6 +185,14 @@ def validate_case_config(data: Any) -> Dict[str, Any]:
     declared = data.get("declared_settings", {})
     if not isinstance(declared, dict):
         raise ValueError("declared_settings must be an object.")
+
+    expected = data.get("expected_sha256", {})
+    if not isinstance(expected, dict) or set(expected) - {"rbf", "media"}:
+        raise ValueError("expected_sha256 must be an object with optional rbf/media hashes.")
+    if any(not isinstance(value, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", value)
+           for value in expected.values()):
+        raise ValueError("expected_sha256 values must be 64 hexadecimal characters.")
+    expected = {key: value.lower() for key, value in expected.items()}
 
     boot_delay = _check_num(data.get("boot_delay"), "boot_delay", 5.0, 0.0, 300.0)
     settle_delay = _check_num(data.get("settle_delay"), "settle_delay", 2.0, 0.0, 300.0)
@@ -227,6 +235,7 @@ def validate_case_config(data: Any) -> Dict[str, Any]:
         "rbf_path": rbf_path,
         "media": {"type": m_type, "slot": m_slot, "path": media["path"]},
         "declared_settings": declared,
+        "expected_sha256": expected,
         "boot_delay": boot_delay,
         "settle_delay": settle_delay,
         "capture_delay": capture_delay,
@@ -536,6 +545,10 @@ def run_hardware_loop(
 
         partial_identity["rbf_sha256"] = fetch_sha256(transport, config["rbf_path"], cmd_timeout)
         partial_identity["media_sha256"] = fetch_sha256(transport, config["media"]["path"], cmd_timeout)
+        for kind, expected in config.get("expected_sha256", {}).items():
+            actual = partial_identity[kind + "_sha256"]
+            if actual != expected:
+                raise DriverError(f"{kind} SHA-256 mismatch: expected {expected}, got {actual}")
         partial_identity["mister_binary_on_disk_sha256"] = fetch_sha256(transport, "/media/fat/MiSTer", cmd_timeout)
         partial_identity["mister_binary_note"] = "SHA256 of /media/fat/MiSTer on disk verifies stored file identity; does not prove running binary."
 

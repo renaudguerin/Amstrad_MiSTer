@@ -7,7 +7,9 @@ SSH, using existing Linux facilities. Exact SSM capture is a later, separate gat
 Host preparation is implemented at `7e39204`: see the
 [driver guide](mister-hardware-loop-driver.md) and
 [ARM cross-build recipe](mister-mbc-cross-build.md). Offline validation and
-review pass; target access, actual input and stable-screen capture remain pending.
+review pass. The [September 12 device run](b2-device-capture-2026-09-12.md)
+now demonstrates DSK boot, French input and repeated numeric SHAKER captures;
+active OSD mode and exact event capture remain distinct limits.
 
 ## Start with the tools already available
 
