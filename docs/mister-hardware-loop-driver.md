@@ -266,17 +266,21 @@ never overwritten.
 
 ### Captures
 
-The bundled SHAKER scripts contain no `screenshot` instruction at all: their
-captures come from SSM `#FFFE`, which the core now detects. Two paths exist.
+The bundled SHAKER scripts contain no `screenshot` instruction at all, and the
+published discs turn out to emit no SSM `#FFFE` either
+([inventory](shaker-ssm-marker-inventory-2026-09-12.md)). So the `--ssm` capture
+path below is correct per the standard but idle against SHAKER 2.6 and 2.7, and
+`--screenshot-at` is the working per-screen capture. Two paths exist.
 
 `--screenshot-at [SCRIPT:]LINE` requests a capture after a chosen script line
 without editing the author's files, named
 `MISTER_<crtc>_<script>_<line>_<n>.png`. It needs no RTL support and is the
 right tool for a one-off look at a particular screen.
 
-`--ssm` turns on the detector and captures on the markers SHAKER itself emits,
-which is the path that makes captures comparable with the SHAKERLAND
-photographs.
+`--ssm` turns on the detector and captures on `#FFFE`. The published discs never
+emit it, so today this path's value is the ring itself: it records the `#0000`
+sync markers, honours `wait_ssm0000`, and confirms the detector works on real
+media.
 
 ## SSM markers
 
@@ -292,6 +296,10 @@ configuration at the end of the run. The runner then polls the ring over the
 existing SSH transport with BusyBox `dd if=/dev/mem`; no Main patch and no
 device daemon is involved. `status_set` and `info_req` were both checked and
 neither reaches user space.
+
+What the discs actually emit is two `#0000` per module plus, in 2.7, one
+`#FFFD`/`#FFFC` pair. Everything else in this table is implemented and unexercised
+by the current corpus.
 
 | Marker | What the runner does |
 |---|---|

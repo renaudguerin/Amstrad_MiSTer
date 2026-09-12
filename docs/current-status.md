@@ -12,15 +12,17 @@ base `0x30000000` is the MiSTer convention rather than a measurement, so the fir
 `--ssm` run confirms it or `--ssm-base` finds the right one; and no synthesis has run
 on this branch, which now drives previously constant DDRAM pins.
 
-Phase 2 is now unblocked and not started: the author answered that `#FFFE` should
-capture at the opcode from a framebuffer that is never cleared, which withdraws the
-plan's earlier default, and separately confirmed that every SSM marker sits in a
-stable zone, so every candidate capture semantics yields the same image for this
-corpus. AMSpiriT images therefore remain a usable pixel-diff partner. What phase 2 is
-actually needed for is the tests where SHAKER emits two markers a few frames apart to
-record both phases of a flashing display: Main's asynchronous grab cannot serve those,
-and the runner now marks such captures `state_uncertain` instead of presenting two
-PNGs of the same phase. One `--ssm` device walk measures the real gap between a pair.
+Phase 2 is **not** the next step. The author settled the frame semantics (capture at
+the opcode, from a framebuffer that is never cleared, and every marker sits in a stable
+zone so all candidate semantics agree for this corpus, which keeps AMSpiriT images a
+usable pixel-diff partner). But a static inventory of the discs then found that
+[no published SHAKER disc emits `#FFFE` at all](shaker-ssm-marker-inventory-2026-09-12.md)
+— two `#0000` sync markers per module, plus a Sikoview pair in 2.7, and nothing else.
+Phase 1's screenshot path is correct per the standard and idle in practice, and phase 2
+has no consumer until the author says whether a build compiled with `#FFFE` markers
+exists. The preferred next steps are the phase 1 device gate, which settles the DDR3
+base, and purpose-written CSL scripts using `wait_ssm0000` plus `screenshot`. The plan
+carries a "For an independent design review" section written for that review.
 See [the plan](csl-ssm-implementation-plan.md), the
 [driver guide](mister-hardware-loop-driver.md#the-csl-runner) and the two unreviewed
 rows in [review debt](review-debt.md).

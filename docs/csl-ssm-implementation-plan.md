@@ -7,9 +7,16 @@ recorded in [b2-device-capture-2026-09-12.md](b2-device-capture-2026-09-12.md). 
 implementation brief for a fresh session; each phase is separately mergeable and has its
 own gate.
 
-**Status 2026-09-12: phases 0 and 1 implemented; phase 2 unblocked but not started.**
-The author has answered the `FFFE` frame-semantics question, which withdraws this
-plan's earlier "next complete frame" default; see phase 2.
+**Status 2026-09-12: phases 0 and 1 implemented. Phase 2 is now gated on evidence, not
+on the author's frame-semantics answer.**
+
+The frame-semantics question is answered and withdraws this plan's earlier "next
+complete frame" default; see phase 2. But a static inventory of the discs then found
+something that matters more:
+[the published SHAKER discs emit no `#FFFE` at all](shaker-ssm-marker-inventory-2026-09-12.md).
+Phase 1's screenshot path is correct per the standard and idle in practice; phase 2
+exists to serve `#FFFE` and therefore has no consumer until a build that emits it is
+known to exist. **Read that document before planning further work on this item.**
 Phase 0 is `scripts/hardware-loop/csl_runner.py` plus `cpc_keys.py`; phase 1 is
 `rtl/ssm_marker.v` plus `scripts/hardware-loop/ssm_ring.py`. Both are covered by
 offline tests and `make -C sim`. Neither has run on the device yet, so the
@@ -25,6 +32,14 @@ one-to-one onto the SHAKERLAND hardware photographs and AMSpiriT reference image
 B2 today covers one hand-built case (module B, test 9). The target is every SHAKER
 module and test that our core can run, driven by the author's scripts, without
 per-test authoring.
+
+**Revised 2026-09-12.** The second half of that goal — "label every capture with the
+SSM code that SHAKER itself emits" — is not reachable with the published discs, which
+emit only `#0000` twice per module and, in 2.7, a Sikoview pair. There is no `#FFFE`
+to label a capture with. The per-test capture that does work is
+`--screenshot-at [SCRIPT:]LINE`, and the one-to-one mapping onto SHAKERLAND images has
+to come from the portal's code-to-image table rather than from a marker the core
+observed. See [the inventory](shaker-ssm-marker-inventory-2026-09-12.md).
 
 Non-goals: a CSL interpreter inside the FPGA, CRTC types 2/3/4, tape and snapshot
 commands, and full CSL conformance claims. Unsupported commands are rejected with a
@@ -250,14 +265,45 @@ on paper from the SSM document and cited at its assertion.
 Gates: `make -C sim` green, synthesis through the normal integration CI (no manual
 dispatch), and a `docs/review-debt.md` row if no cross-provider review is available.
 
-Acceptance, **still open**: `SHAKE26B-1.CSL` through test 9 with markers on. The ring
-holds one record per SHAKER screen in script order, each `FFFE` produced a named
-capture, `wait_ssm0000` released where the script used it, and the code list agrees
-with the portal's code-to-image mapping for those tests. The first device run also
-settles whether `0x30000000` is the right DDR3 base; if the ring magic is missing,
-`--ssm-base` finds the right one and one `localparam` follows.
+Acceptance, **rewritten 2026-09-12 and still open.** The original text required that
+"the ring holds one record per SHAKER screen" and that "each `FFFE` produced a named
+capture". Neither is achievable: the discs emit no `#FFFE`, and `#0000` appears twice
+per module rather than once per screen
+([inventory](shaker-ssm-marker-inventory-2026-09-12.md)). What the gate can and should
+establish on a device run of `SHAKE26B-1.CSL` with `--ssm`:
+
+1. The ring magic appears, which confirms `0x30000000` is the right DDR3 base. If it
+   does not, `--ssm-base` finds the right one and one `localparam` follows. **This is
+   the single most valuable thing the run produces.**
+2. The two `#0000` records for module B arrive, in order, with plausible raster
+   positions, and their `tick` values give the real interval between them.
+3. `wait_ssm0000` releases when a purpose-written script uses it, which is the only
+   way to exercise that path since no bundled script does.
+4. Nothing regresses: the core boots, navigates and captures exactly as it did in the
+   B2 evidence with the detector off, and `dropped` stays zero.
+
+A synthesised RBF from this branch is a prerequisite, so this gate is downstream of
+integration.
 
 ## Phase 2: exact frame capture (separate gate)
+
+**Precondition, 2026-09-12: do not start this phase yet.** Phase 2 exists to serve
+`#FFFE`, and no published SHAKER disc emits `#FFFE`
+([inventory](shaker-ssm-marker-inventory-2026-09-12.md)). The SSM standard allows the
+mechanism to be "conditionnelle (ou compilée exprès lors des tests)", so a build with
+screenshot markers may exist and may be what produced the SHAKERLAND images. That
+question goes to the author and gates this whole phase:
+
+> The public `shaker26.dsk` and `shaker27.dsk` emit `#0000` twice per module, plus
+> `#FFFD`/`#FFFC` in 2.7, but no `#FFFE` at all. How were the SHAKERLAND reference
+> images produced — from a build compiled with `#FFFE` markers, or by CSL
+> `wait_ssm0000` plus `screenshot`? If such a build exists, is it obtainable?
+
+The design below is sound and worth keeping; it is simply not yet needed. If the
+answer is that no `#FFFE` build is available, the useful successor is not this phase
+but a *script-driven* capture: CSL `screenshot` at chosen points, which phase 0
+already implements, with the core-side persistent buffer added only if Main's
+asynchronous grab proves to be the accuracy limit in practice.
 
 **Frame semantics answered by the author, 2026-09-12.** The question below is closed
 and the earlier "next complete frame" default is withdrawn. Longshot's reply, verbatim:
@@ -499,3 +545,60 @@ Phase 1: `rtl/ssm_marker.v`, `rtl/Amstrad_motherboard.v` (raw fetch tap export),
 `scripts/hardware-loop/ssm_ring.py`, `scripts/hardware-loop/test_ssm_ring.py`,
 `docs/review-debt.md`.
 Phase 2 (not started): B6 output chain, `docs/b6-video-boundary.md`.
+
+## For an independent design review
+
+Written 2026-09-12 for a reviewer who has not followed the implementation. The two
+shipped phases are committed and gated; what needs judgement is whether the next phase
+is the right one.
+
+### What is built and green
+
+- Phase 0, host CSL runner: `scripts/hardware-loop/csl_runner.py`, `cpc_keys.py`.
+- Phase 1, SSM detector and ring: `rtl/ssm_marker.v`, the raw fetch tap in
+  `rtl/Amstrad_motherboard.v`, the instance and DDRAM wiring in `Amstrad.sv`,
+  `sim/ssm_marker_top.v`, `sim/ssm_marker_test.cpp`, `scripts/hardware-loop/ssm_ring.py`.
+- Gates: `make -C sim` and `make -C sim lint` pass, 19 SSM vectors among them;
+  108 host tests pass. No device run and no synthesis on this branch.
+
+### The decision the review should reach
+
+**Is phase 2 still the right next step?** The evidence says no, or at least not yet.
+It was scoped to make `#FFFE` captures frame-exact, and no published disc emits
+`#FFFE`. Three candidate successors, in the order this plan currently prefers them:
+
+1. **Integrate, synthesise, run the phase 1 device gate.** Confirms the DDR3 base,
+   which is the one number in the whole item that repository evidence cannot settle,
+   and is a prerequisite for everything else.
+2. **Purpose-written CSL scripts using `wait_ssm0000` and `screenshot`.** Uses only
+   what phase 0 and phase 1 already ship and what the discs actually emit. Gives
+   program-synchronised captures at module level instead of host-timed guesses.
+3. **Phase 2 as designed**, once the author confirms a `#FFFE` build exists.
+
+### Where to look hardest
+
+- **The DDR3 base.** `0x30000000` is the MiSTer convention; the word addressing is
+  corroborated by `sys/sys_top.v` deriving `LFB_BASE[31:3]`, the base is not
+  corroborated by anything. The core previously tied every DDRAM pin to zero, so this
+  is new outbound traffic on a previously idle port. It is the highest-consequence
+  unverified claim in the work.
+- **The passivity argument.** `ssm_marker` reads `~M1_n & ~MREQ_n & ~RD_n` and
+  `cpu_data_bus` and drives nothing back. That claim is the entire safety case for a
+  tap in the production path; check it rather than accept it.
+- **The fetch edge.** The detector takes the falling edge of the motherboard's fetch
+  level so a wait-stated fetch counts once. Proven on TV80-behind-T80pa and on
+  synthetic 1-to-13-clock holds, **not** on the production T80pa netlist, which needs
+  GHDL that neither the default gate nor CI runs.
+- **The ping-pong stitch** in phase 2's "Mechanism" section. It is the load-bearing
+  idea that removes the copy engine, and it has been reasoned on paper only.
+- **The keycode table** in `cpc_keys.py`: 15 of roughly 75 entries are confirmed
+  against the B2 device capture, the rest read back from `rtl/hid.sv` through PS/2
+  set-2. The corpus test only covers the characters the 25 bundled scripts use.
+- **Timing closure.** New logic on `clk_sys` drives `DDRAM_*`; synthesis has not run.
+
+### Claims deliberately not made
+
+Nothing here asserts a hardware pass, a pixel comparison against SHAKERLAND, or that
+the configuration a run applies was visually confirmed — native PNGs exclude the OSD,
+so the manifest says "applied by CFG" and never more. Both unreviewed phases have rows
+in [review-debt.md](review-debt.md).

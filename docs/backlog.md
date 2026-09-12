@@ -332,10 +332,15 @@ withdraws the plan's earlier "next complete frame" default. He also confirmed ev
 SSM marker sits in a stable zone, so capture-at-opcode, capture-at-next-VSYNC and
 next-complete-pass all produce the same image for this corpus: the choice is cost and
 reversibility, not fidelity, and AMSpiriT images stay a usable pixel-diff partner.
-The functional driver for phase 2 is instead that SHAKER emits **two** markers on
-tests that flash between two graphics, and the host capture path cannot serve two
-grabs a few frames apart; the runner now flags those captures `state_uncertain`.
-One `--ssm` device walk measures how far apart the pair really is.
+**PHASE 2 GATED ON EVIDENCE 2026-09-12, do not start.** A static inventory of the
+discs found that
+[neither shaker26.dsk nor shaker27.dsk emits `#FFFE` at all](shaker-ssm-marker-inventory-2026-09-12.md):
+they carry two `#0000` sync markers per module and, in 2.7, a Sikoview pair. Phase 1's
+screenshot path is correct and idle, and phase 2 has no consumer until the author
+confirms whether a build compiled with `#FFFE` markers exists. The preferred next
+steps are instead the phase 1 device gate (which settles the DDR3 base) and
+purpose-written CSL scripts using `wait_ssm0000` plus `screenshot`, both of which use
+only what already ships.
 
 ---
 
