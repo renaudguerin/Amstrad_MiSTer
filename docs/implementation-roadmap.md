@@ -479,8 +479,9 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 **Active September 12 priorities:** (1) bring the B2 capture loop through real
 device acceptance at `root@mister`, with one device operator and real SHAKER
-navigation; (2) finish B6's malformed-raster, Plus scroll/sprite and final-mixer
-RGB simulation gaps; (3) close actual source-review gaps and obtain fresh
+navigation; (2) accept the local B6 malformed-raster, Plus scroll/sprite and
+final-mixer RGB follow-up against its [explicit limits](b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12);
+(3) close actual source-review gaps and obtain fresh
 cross-provider review of new non-trivial changes. These tasks prepare reviewed,
 tested READY branches; integration/push is a separate step. The
 [latest hardware report](hardware-evidence-2026-09-12.md) guides the work:

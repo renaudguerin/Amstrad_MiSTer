@@ -7,8 +7,20 @@ always pressed and the Copter 271 logo remain NOT fixed.** B6 Full versus Raw
 pixels shows **no visible difference so far** in Amazing Demo, DSC4 or SHAKER
 A (T). Output configuration and Classic model/CRTC details are unrecorded.
 See the [dated report](hardware-evidence-2026-09-12.md). The next work is a
-real B2 capture loop at user-reported-online `root@mister`, the remaining B6
-rendering/diagnostic gates, and closure of actual source-review gaps.
+real B2 capture loop at user-reported-online `root@mister`, the acceptance of the local B6
+rendering follow-up, and closure of actual source-review gaps.
+
+**B6 rendering follow-up, 2026-09-12 (local source):** the production mixer
+RGB scope defect has a failing-before/passing-after parameter regression.
+The motherboard fixture now reaches the complete production output chain;
+new CPU-written malformed-raster and combined Plus scroll/opaque-sprite
+checks score final RGB. Fresh Gemini review and its correction check are
+CLEAR; Opus did not review because authentication expired, and the user
+subsequently requested no duplicate review. Full simulation, lint and the
+unchanged canonical soak pass. No new bitstream exists. A sustained
+CPU-generated stuck-high raw-sync recipe, physical connector acceptance and
+title-specific defects remain open. See the
+[completion record](b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12).
 
 **B6 video boundary integrated, 2026-09-11:** Full and Raw pixels now share
 the complete Full acquisition tuple. Raw pixels uses native VRAM byte order
@@ -22,9 +34,9 @@ lint, canonical soak `0xb1cb70da95c2e44f`, fresh Sol/Gemini review and focused
 negative controls pass. No `sys/` changes. Published merge `5c16b17` passes
 all required CI and full-fit timing (setup +0.320 ns, hold +0.247 ns, zero
 TNS). The delivered RBF is `output_files/Amstrad_20260911_5c16b17.rbf`.
-The diagnostic matrix,
-final mixer RGB in Verilator and physical HDMI/CRT acceptance remain open;
-see the [design](b6-video-boundary.md) and
+The original artifact retains the then-open rendering limitations; the local
+follow-up above adds that simulation evidence without changing this RBF.
+Physical HDMI/CRT acceptance remains open; see the [design](b6-video-boundary.md) and
 [validation record](b6-video-boundary-review-2026-09-11.md).
 
 **Combined Plus integration timing, 2026-09-11:** D5 and D3/D4 are integrated

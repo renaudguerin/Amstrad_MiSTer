@@ -798,7 +798,7 @@ d5-boot: d5-boot-build
 # service are reused; this is not the separate production-T80 timing tier.
 B6_OBJ_DIR := obj_dir/b6_video_boundary
 B6_TEST_BIN := $(B6_OBJ_DIR)/b6_video_boundary_tests
-B6_VIDEO_RTL := $(abspath ../../rtl/amstrad_video_color.sv) $(abspath ../../rtl/color_mix.sv) $(abspath ../../sys/video_mixer.sv) $(abspath ../../sys/video_freezer.sv) $(abspath ../../sys/scandoubler.v) $(abspath ../../sys/hq2x.sv)
+B6_VIDEO_RTL := $(abspath ../../rtl/amstrad_video_output.sv) $(abspath ../../rtl/video_interlace.v) $(abspath ../../sys/gamma_corr.sv) $(abspath ../../sys/video_freak.sv) $(abspath ../../sys/math.sv) $(abspath ../../rtl/amstrad_video_color.sv) $(abspath ../../rtl/color_mix.sv) $(abspath ../../sys/video_mixer.sv) $(abspath ../../sys/video_freezer.sv) $(abspath ../../sys/scandoubler.v) $(abspath ../../sys/hq2x.sv)
 test: b6-video-boundary
 build: $(B6_TEST_BIN)
 lint: b6-video-boundary-lint
@@ -818,3 +818,23 @@ $(B6_TEST_BIN): $(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL) b6_video_boundary_
 		--public-flat-rw --top-module $(P10BOOT_TOP) --Mdir $(B6_OBJ_DIR) \
 		-Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(B6_TEST_BIN)) $(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL) $(abspath b6_video_boundary_test.cpp)
+
+# B6 follow-up uses the same production top and independent CPU programs.
+B6_DYNAMIC_BIN := obj_dir/b6_dynamic/b6_dynamic_tests
+B6_LAYERS_BIN := obj_dir/b6_layers/b6_layers_tests
+test: b6-dynamic b6-plus-layers
+.PHONY: b6-dynamic b6-plus-layers
+b6-dynamic: $(B6_DYNAMIC_BIN)
+	./$(B6_DYNAMIC_BIN)
+b6-plus-layers: $(B6_LAYERS_BIN)
+	./$(B6_LAYERS_BIN)
+$(B6_DYNAMIC_BIN): B6_EXTRA_SRC = b6_dynamic_test.cpp
+$(B6_LAYERS_BIN): B6_EXTRA_SRC = b6_plus_layers_test.cpp
+$(B6_DYNAMIC_BIN) $(B6_LAYERS_BIN): $(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL) b6_video_boundary_test.cpp $(B7_TEST_SRC) Makefile
+	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv \
+		-UVERILATOR -DB7_DARK_SILICON_MUTATION -DB6_VIDEO_BOUNDARY -DP10_DMA_MOBO_REAL_IO \
+		--public-flat-rw --top-module $(P10BOOT_TOP) --Mdir $(@D) \
+		-Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
+		-o $(@F) $(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL) $(abspath $(B6_EXTRA_SRC))
+$(B6_DYNAMIC_BIN): b6_dynamic_test.cpp
+$(B6_LAYERS_BIN): b6_plus_layers_test.cpp

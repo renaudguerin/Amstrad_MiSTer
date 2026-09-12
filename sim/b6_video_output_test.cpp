@@ -32,6 +32,8 @@ struct Bench {
             d.CLK_VIDEO=0; d.eval(); d.CLK_VIDEO=1; d.eval(); ++clocks;
             if(check_native) {
                 ++native_checks;
+                require(d.VGA_R==0xdd&&d.VGA_G==0x77&&d.VGA_B==0x22,
+                        "Raw CRT lost final RGB through gamma/mixer");
                 require(d.CE_PIXEL==d.ce_16,"Raw CRT lost native dot cadence");
                 require(d.VGA_SL==0,"Raw CRT retained scanline effect");
             }

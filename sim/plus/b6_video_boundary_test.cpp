@@ -212,11 +212,9 @@ Result run_video(bool plus,unsigned type,unsigned mode,unsigned width) {
         if(h.dut.b6_mixer_ce) {
             const bool de=h.dut.b6_mixer_de;
             r.de.push_back(de);
-            // Unmodified sys/video_mixer.sv emits IMPLICIT warnings for
-            // R_in/G_in/B_in (generate scope, line134) under Verilator.
-            // Its DE/CE is real and usable; numeric RGB is checked at the
-            // real converter instead. Mixer RGB is not verified here.
-            r.colored+=de&&h.dut.b6_color_rgb!=0;
+            // The complete production output chain now supplies numeric RGB;
+            // the dynamic and Plus layer fixtures independently score it.
+            r.colored+=de&&h.dut.b6_mixer_rgb!=0;
             if(de&&!old_de) {window=0;complete=true;}
             if(de) ++window;
             if(!de&&old_de&&complete) {
@@ -296,6 +294,7 @@ Result run_video(bool plus,unsigned type,unsigned mode,unsigned width) {
     return r;
 }
 }
+#ifndef B6_BOUNDARY_LIBRARY
 int main(int argc,char**argv) {
     Verilated::commandArgs(argc,argv);
     bool bad=false;
@@ -351,3 +350,5 @@ int main(int argc,char**argv) {
     } catch(const std::exception&e) {std::cerr<<"B6 fixture: "<<e.what()<<'\n';return 2;}
     return bad?1:0;
 }
+
+#endif
