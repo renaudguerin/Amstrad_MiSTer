@@ -1,5 +1,19 @@
 # Independent review debt
 
+**B4 phase 0, CSL runner, 2026-09-12 — UNREVIEWED:** `scripts/hardware-loop/csl_runner.py`,
+`scripts/hardware-loop/cpc_keys.py` and their 51 offline tests were written and
+gated by the parent alone; no cross-provider review was available. Host-only
+Python, no RTL. Look hardest at: the power-on fold, where configuration and
+media commands on both sides of a `reset` are bound to one core load and a
+later `crtc_select` is judged as a live change instead (a mis-scoped window
+would silently run a SHAKER module under the wrong CRTC); the CFG read/modify/
+restore path, which writes to the user's real `config/Amstrad.CFG` and must
+leave it byte-identical; and the derived `CPC_KEY_TO_LINUX` table, of which only
+15 entries are confirmed against the B2 device capture, the rest being read back
+from `rtl/hid.sv` through the standard PS/2 set-2 encoding. The corpus test
+covers exactly the characters the 25 bundled SHAKER scripts use, so an
+unconfirmed entry outside that set would not be caught.
+
 **B6 rendering follow-up, 2026-09-12 — source review CLEAR:** Gemini
 `gemini-3.8-flash-high`, run `20260912T081217Z-84178-b42e`, reviewed the new
 mixer scope correction, production-output fixture wiring, parameter tests,

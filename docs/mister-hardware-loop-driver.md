@@ -1,4 +1,13 @@
-# B2 MiSTer capture driver
+# MiSTer capture drivers
+
+Two entry points share one transport, MGL generation, hash pinning and capture
+retrieval. [driver.py](../scripts/hardware-loop/driver.py) runs a single
+hand-written JSON case and is the right tool for an ad-hoc probe.
+[csl_runner.py](../scripts/hardware-loop/csl_runner.py) runs a Logon System CSL
+script and is the normal way to drive a SHAKER walk; see
+[the CSL runner](#the-csl-runner) below.
+
+## The JSON case driver
 
 [driver.py](../scripts/hardware-loop/driver.py) loads an existing device RBF and
 DSK/CPR through MGL, optionally sends a bounded MBC input sequence, then requests
@@ -124,3 +133,141 @@ Run three times sequentially into distinct output directories to check fresh
 loads. Inspect the CRTC footer and actual numeric test in the PNGs. Native
 Main screenshots exclude the OSD; a saved CFG or a case declaration alone
 does not visually confirm the active filter mode. Record that distinction.
+
+
+## The CSL runner
+
+[csl_runner.py](../scripts/hardware-loop/csl_runner.py) executes a CSL v1.4
+script from the Logon System bundle (`docs/references/Shaker_CSL/`, untracked)
+against the same device contract as the JSON driver. It is phase 0 of
+[the CSL/SSM plan](csl-ssm-implementation-plan.md): the host half, with no RTL
+change and no SSM detector yet.
+
+```sh
+# Offline: parse, validate, plan. Contacts nothing, imports no Pillow.
+python3 scripts/hardware-loop/csl_runner.py \
+  docs/references/Shaker_CSL/MODULE_B/SHAKE26B-1.CSL \
+  --rbf-path /media/fat/_Computer/Amstrad_20260911_5c16b17.rbf \
+  --disk-dir /media/fat/games/Amstrad/dsk --layout fr --dry-run \
+  --out-dir docs/references/csl-dry-run
+
+# On the device, stopping partway and capturing at chosen script lines.
+python3 scripts/hardware-loop/csl_runner.py \
+  docs/references/Shaker_CSL/MODULE_B/SHAKE26B-1.CSL \
+  --rbf-path /media/fat/_Computer/Amstrad_20260911_5c16b17.rbf \
+  --disk-dir /media/fat/games/Amstrad/dsk --layout fr \
+  --target root@mister --ack-main-cmd --mbc-path /tmp/mbc \
+  --stop-at 120 --screenshot-at 110 --screenshot-at 118 \
+  --out-dir docs/references/csl-b1-run1
+```
+
+`--no-follow-loads` keeps the run inside one file; by default `csl_load` chains
+are followed, depth-limited and cycle-checked.
+
+### What the target can and cannot honour
+
+| Command | On this target |
+|---|---|
+| `csl_version` | recorded; an unknown version is a manifest warning, not a stop. The bundled scripts declare 1.0 while using v1.4 forms |
+| `reset` / `reset hard` | fresh core load, equal to power-on |
+| `reset soft` | rejected: no distinct soft-reset path exists from the host |
+| `crtc_select 0` | status bit 2 set (`crtc_type = ~status[2]` in `Amstrad.sv`) |
+| `crtc_select 1`, `1A`, `1B` | status bit 2 clear. 1A and 1B are one model here; which one the script asked for is recorded |
+| `crtc_select 2/3/4` | rejected: not implemented in the core |
+| `crtc_select` mid-session | a no-op when the effective bit is unchanged, rejected otherwise: a live change needs the OSD |
+| `cpc_model 0/1/2` | status bits 5:4 before the load. Plus models are rejected until Plus CSL is in scope |
+| `disk_insert [A\|B] 'x.dsk'` | MGL `S0`/`S1` mount, resolved under `--disk-dir` |
+| `disk_dir` | rejected: it names a host directory. Use `--disk-dir` |
+| `key_delay` | drives `MBC_KEY_WAIT` (see below) |
+| `key_output` | translated to Linux keycodes for the ROM layout and sent through MBC `raw_seq` |
+| `key_from_file` | rejected: inline the text with `key_output` |
+| `keyboard_write` | rejected: the core has no matrix injection port |
+| `wait` | host sleep of the emulated microseconds, bounded by `--max-wait` |
+| `wait_vsyncoffon`, `wait_driveonoff`, `wait_ssm0000` | rejected in phase 0; they need core observability |
+| `screenshot_name` | names the next capture |
+| `screenshot_dir` | rejected: captures land under `--out-dir` |
+| `screenshot` | Main `screenshot <name>.png`, polled to a complete decode. The `vsync` option is rejected because Main captures the scaler output asynchronously |
+| `snapshot*`, `tape_*`, `rom_*`, `gate_array`, `memory_exp` | rejected |
+| `csl_load` | followed recursively, depth-limited, cycle-checked |
+
+A rejected command stops the script and is reported with the six fields CSL
+requires: script, line, instruction, reason, script version, supported version.
+The manifest and `last-run.log` are written even then, holding the partial
+trace up to the stop.
+
+### Power-on folding
+
+A core load applies the CFG and mounts the media in one step, so both sides of
+a `reset` feed it. The SHAKER scripts put `crtc_select` before the reset and
+`disk_insert` after it, separated by a boot `wait`; the runner binds both to
+that power-on and records the reordering as an approximation. The window ends
+at the first command needing a running machine, which is why a `crtc_select`
+arriving mid-session is still judged as a live change.
+
+### Configuration is applied, not observed
+
+The runner reads the 16-byte `config/Amstrad.CFG`, changes only the status bits
+the script names, confirms the write by SHA-256, and restores the original
+bytes at the end. It refuses to run if that file is absent: set the base
+configuration once through the OSD. Native PNGs exclude the OSD, so the
+manifest records "applied by CFG" and never "visually confirmed" — the same
+limit the [device record](b2-device-capture-2026-09-12.md) established.
+
+### Keyboard translation
+
+Character to keystroke goes through three layers, in
+[cpc_keys.py](../scripts/hardware-loop/cpc_keys.py): the ROM layout decides
+which CPC key position prints a character, `CPC_KEY_TO_LINUX` decides which
+Linux keycode reaches that position through Main and `rtl/hid.sv`, and the
+sequence builder holds SHIFT across a run of shifted keys rather than tapping
+it per key.
+
+Fifteen entries of that table are confirmed on hardware: the runner's French
+translation of `RUN"SHAKE27B` reproduces the device sequence in the
+[device record](b2-device-capture-2026-09-12.md) byte for byte, and a test pins
+it. Two layouts ship, `uk` and `fr`; pass the one matching the ROM actually
+installed, because the layout is what the machine's ROM does, not the host.
+
+CSL says an emulator may silently skip a character it cannot send. This runner
+refuses instead: a skipped key leaves SHAKER on a different screen and labels a
+capture with the wrong test.
+
+Under the French ROM every digit needs SHIFT, and SHAKER reads its menu keys
+straight off the CPC matrix, so SHIFT is visible to it while the key is down.
+That is recorded per run.
+
+### Timing
+
+`wait` is emulated microseconds. This core runs 1:1 from the PLL, so a wait is
+a host sleep whose only error is host latency. The scripts pad their waits well
+above the screen times in their own comments.
+
+MBC sleeps `MBC_KEY_WAIT` before every press and before every release
+([mbc.c](https://github.com/pocomane/MiSTer_Batch_Control/blob/3873450d413c30e6b0339e6b3dbf2373e0e5a74a/mbc.c#L410),
+`inter_key_wait`), so one knob is simultaneously the CSL key-press delay and
+the CSL inter-key delay. `key_delay 70000 70000` therefore maps exactly. A
+script asking for two different values gets `max(press, gap)` and an
+approximation row. The third `key_delay` parameter, the delay after a carriage
+return, splits the MBC invocation and becomes a host sleep. `\(KOF)` cannot be
+honoured at all, because MBC always sleeps before each event.
+
+Each MBC invocation also costs `2 x MBC_SEQUENCE_WAIT` (2 s) of uinput
+settling, outside the script's timing model. That is recorded, not compensated
+for: inventing a subtraction would be a silent approximation.
+
+### Outputs
+
+Each run directory gets `manifest.json` (effective settings, device hashes, the
+ordered trace with host timestamps, deduplicated approximations, the rejection
+with its six fields, capture names and SHA-256s, the SSH command log, and the
+cleanup result including CFG restoration) and `last-run.log`, the human-readable
+ordered trace the standard asks an emulator to keep. An existing manifest is
+never overwritten.
+
+### Captures in phase 0
+
+The bundled SHAKER scripts contain no `screenshot` instruction at all: their
+captures come from SSM `#FFFE`, which needs the phase 1 detector. Until then,
+`--screenshot-at [SCRIPT:]LINE` requests a capture after a chosen script line
+without editing the author's files. Those captures are named
+`MISTER_<crtc>_<script>_<line>_<n>.png`; SSM-labelled names arrive with phase 1.

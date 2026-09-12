@@ -306,6 +306,16 @@ event detection and exact event-to-image retention as separate later gates.
 first, then the SSM detector with a DDR3 event ring behind an OSD toggle, then exact
 frame capture once the author clarifies `FFFE` frame semantics.
 
+**PHASE 0 DONE 2026-09-12:** `scripts/hardware-loop/csl_runner.py` runs a CSL v1.4
+script against the device, applying CRTC/model by CFG bit and restoring the file
+afterwards, translating `key_output` through per-ROM layouts into MBC keycodes, and
+recording every approximation and rejection. All 25 bundled SHAKER scripts plan
+cleanly in both layouts except the CRTC 2/3/4 variants, which stop at `crtc_select`
+with the documented reason. See [the driver guide](mister-hardware-loop-driver.md#the-csl-runner).
+Two plan open questions are now closed: MBC's per-key delay is configurable
+(`MBC_KEY_WAIT`, one knob for both CSL delays), and the SHAKER scripts carry no
+`screenshot` instruction at all, so labelled captures genuinely depend on phase 1.
+
 ---
 
 ## B5. ASIC documentation-gap map
