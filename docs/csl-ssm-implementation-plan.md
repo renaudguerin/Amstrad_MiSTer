@@ -271,7 +271,25 @@ and the earlier "next complete frame" default is withdrawn. Longshot's reply, ve
 > frame précédent... Mais dans l'esprit, le screenshot DEVRAIT avoir lieu sur l'opcode.
 > Si je veux qu'un screenshot ait lieu sur la VSYNC, je le mets sur la VSYNC
 
-Three things follow, in decreasing order of how much they change the build.
+Asked whether the distinction is exercised anywhere in SHAKER, he answered that it is
+not, and said why:
+
+> Je ne pense pas que ça change quoi que ce soit, car j'ai placé les codes SSM sur des
+> zones stables (ce qui est affiché est stable depuis plusieurs vsync). Il y a plusieurs
+> types de tests dans SHAKER. Si on exclu les tests interactifs (prévus pour de la R&D
+> qui est reportée dans le Compendium), il y a des tests qui affichent des résultats
+> calculés et chiffrés (1) et des tests qui affichent des données sans qu'il soit
+> possible de pour le Z80A de connaitre le rendu (2). La plupart des tests de type 2
+> tournent en temps fixe et la vsync n'est donc plus testée par le code. Si le CRTC est
+> mal émulé et que le compteur C4 est par exemple incorrectement calculé, alors la Vsync
+> bouge et l'écran apparait désynchronisé, ce que le SSM capture. Sur certains tests ou
+> il existe un "clignotement" entre 2 éléments graphiques, Shaker est paramétré pour
+> faire 2 captures SSM permettant d'avoir les deux états.
+
+He also notes that one AMSpiriT variant captures on the following VSYNC and the other
+at the instruction.
+
+Four things follow, in decreasing order of how much they change the build.
 
 **Capture at the instruction, not at a VSYNC.** The marker's placement is the script
 author's timing control: a program that wants a frame-aligned image puts the marker
@@ -286,6 +304,15 @@ frame**, and freezes it on the HH fetch. That is also what a CRT phosphor does, 
 is why this reading agrees with the SHAKERLAND photographs, the rank 1 authority in
 [CLAUDE.md](../CLAUDE.md). Do not assemble a frame; snapshot a surface.
 
+**What the type 2 tests actually measure, and what that requires of the buffer.** The
+author splits the non-interactive tests into those printing computed numbers (1) and
+those displaying output the Z80A cannot itself inspect (2). Most type 2 tests run on
+fixed timing and stop testing VSYNC in software, so a miscounted C4 moves VSYNC and the
+screen reads as desynchronised — and that displacement is the finding the capture is
+meant to record. For it to be visible, the buffer's row 0 must follow our own VSYNC,
+which is what a monitor's flyback does. Address rows relative to VSYNC, not to an
+absolute line count, or a vertical-timing error cancels itself out of the capture.
+
 **"Frame" is not a unit and must not be used as one.** The author gives two
 incompatible meanings in common use, each of which can occur several times per image.
 The `frame` field in the phase 1 event record is a VSYNC-edge count: it is an ordering
@@ -293,11 +320,47 @@ and correlation key only, never an answer to "which image". The record's `line` 
 `hpos` are what locate the current/previous seam, and they are the fields that make a
 capture auditable.
 
-**AMSpiriT is now known not to match the intent, so it is not a pixel oracle.** It
-captures on the following VSYNC while the standard intends the opcode instant. The two
-agree on static screens and diverge by construction on the scrolling and
-raster-dynamic tests, which are exactly the interesting ones. Treat its images as a
-diagnostic partner and never as a pass criterion; see "Reference comparison" below.
+**Three distinct behaviours, and for SHAKER they converge.** It is worth separating
+them, because two of them are one line apart and the third is not:
+
+| Reading | What the image is | Where the seam falls |
+|---|---|---|
+| Opcode instant (the intent; AMSpiriT Lite) | buffer snapshot | the marker's raster line |
+| Next-VSYNC instant (AMSpiriT) | buffer snapshot | the VSYNC line |
+| Next *complete* pass (this plan's withdrawn default) | one whole pass, no seam | none, and one pass later |
+
+The first two differ only in where the seam falls. The third is a different mechanism
+entirely: it needs a notion of "pass complete", which is exactly what a misprogrammed
+SHAKER raster destroys, so it is both the hardest to build and the most fragile on the
+tests that matter. It stays withdrawn.
+
+And the author has since confirmed that every SSM marker in SHAKER sits in a stable
+zone — content unchanged for several VSYNCs. Where consecutive passes are identical
+there is nothing for a seam to separate, so **all three readings produce the same
+image for this corpus.** The choice is therefore a question of implementation cost and
+reversibility, not of fidelity, and the cheap answer is to make the trigger selectable:
+one persistent buffer, `event_stb` or "next VSYNC after `event_stb`" as the freeze
+trigger. That also lets us diff against both AMSpiriT variants, since one captures at
+the instruction and the other on the following VSYNC.
+
+### Terminology: the seam
+
+The seam is the horizontal boundary in a never-cleared buffer between rows the beam
+has already repainted in the current pass and rows still holding the previous pass.
+Freeze the buffer while the beam is at line L and the rows above L are current, the
+rows from L down are one pass old, and the line at L is itself split at `hpos`. It is
+the same artifact as a torn video frame; on a short-exposure CRT photograph phosphor
+decay makes it a gradient instead of a hard edge. It is only visible when the two
+passes differ, which is why a marker in a stable zone hides it completely.
+
+### What the author's answer settles for us
+
+**Interlace: address the buffer by physical raster line.** This was previously an open
+choice; the stable-zone answer decides it. With physical-line addressing, field A
+writes even lines and field B odd lines, so a mid-pass freeze mixes only the *odd*
+rows below the beam with the previous field-B pass — and with stable content those are
+identical. One buffer per field would instead make the field parity itself part of the
+seam. Module B test 1 is an interlace test, so this is not hypothetical.
 
 ### What the answer does not settle
 
@@ -306,20 +369,30 @@ These are implementation questions for this core, not gaps in the standard.
 - **Output-chain latency.** The HH fetch is a CPU cycle; the seam lands wherever the
   GA, `crt_filter` and mixer delay puts it, and one CPU microsecond is sixteen pixels
   at 16 MHz. Whether to compensate, and by how much, is undecided. Measure it in the
-  B6 fixture rather than estimating it.
-- **Interlace and field addressing.** The current/previous seam applies per field. A
-  buffer addressed by physical raster line handles it naturally; one buffer per field
-  does not. Pick one deliberately and record the choice.
+  B6 fixture rather than estimating it. Stable-zone markers make this invisible for
+  SHAKER, so it is not on the critical path.
 - **Initial contents.** What the buffer holds before its first complete pass
   (power-on, reset, mode change). Black is the obvious pick; the point is to record it
   rather than inherit whatever DDR3 held.
 
-### Cheap check that may make all three moot for SHAKER
+### Paired markers: the one case that does bite phase 1
 
-Phase 1 records already carry each marker's `line` and `hpos`. One device walk of
-`SHAKE26B-1.CSL` with `--ssm` shows whether SHAKER places its markers just after a
-VSYNC wait. If it does, the seam sits off-screen for the whole corpus and phase 2 can
-be built without latency compensation. Run that before designing anything here.
+The author notes that where a test alternates between two graphics, SHAKER is
+parameterised to emit **two** SSM captures so both phases are recorded. Phase 1's host
+capture path cannot serve that: Main grabs the scaler output asynchronously and the SSH
+round trip alone is far longer than a frame, so two markers a few frames apart yield
+two PNGs of whichever phase Main reached. The runner now detects the case — two `#FFFE`
+records within `SSM_PAIRED_MARKER_FRAMES` VSYNC periods — and marks both captures
+`state_uncertain` rather than presenting them as two phases.
+
+Serving them properly needs core-side capture, which is this phase. It is the strongest
+functional argument for building it, stronger than seam fidelity.
+
+**Still unknown: how far apart the paired markers actually are.** The event record
+carries a 64 MHz `tick`, so one `--ssm` device walk measures the gap exactly (one VSYNC
+period is 1.28 M ticks). If the pair turns out to be separated by a keypress rather
+than a frame, the host path can serve it after all and this argument weakens. Measure
+before designing.
 
 This phase touches the B6 video boundary; read
 [b6-video-boundary.md](b6-video-boundary.md) first and extend its Verilator fixture
@@ -332,11 +405,13 @@ API and `results.js` routing (see the hardware-loop plan) give the code-to-image
 association; cache only the images for the tests being run under ignored
 `docs/references/`. Hardware photographs remain the authority.
 
-AMSpiriT images are a diagnostic partner and never a pass criterion, and after the
-author's 2026-09-12 reply the reason is specific rather than general: AMSpiriT captures
-on the VSYNC following the marker while the standard intends the opcode instant, so a
-pixel difference against it on a raster-dynamic test is the expected outcome, not a
-finding. Static screens should still match.
+AMSpiriT images are a usable pixel-diff partner for this corpus. An earlier revision
+of this plan demoted them on the grounds that AMSpiriT captures on the following VSYNC
+while the standard intends the opcode instant; that divergence is real but it is not
+exercised, because the author placed every SSM marker in a stable zone. It would only
+bite a new test whose marker sat in an unstable zone, and one AMSpiriT variant captures
+at the instruction anyway. Hardware photographs remain the authority when the two
+disagree.
 
 ## Open questions
 

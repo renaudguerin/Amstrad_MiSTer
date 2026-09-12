@@ -307,14 +307,20 @@ the author is explicit that "frame" has no single meaning. `line` and `hpos`
 are what locate the marker.
 
 **The capture is not the marked image.** Main grabs the scaler output
-asynchronously, so the PNG lands at least one VSYNC later; keeping the marker's
-own position in the manifest is what makes that distance visible rather than
-assumed away. The author's answer is that `#FFFE` should capture at the opcode,
-from a framebuffer that is never cleared, so the intended image mixes the
-current pass above the beam with the previous pass below it. Delivering that is
-phase 2 of [the CSL/SSM plan](csl-ssm-implementation-plan.md); until then every
-`--ssm` capture is labelled approximate and the marker's raster position is the
-record of by how much.
+asynchronously, so the PNG lands at least one VSYNC later; every `--ssm`
+capture says so in `capture_semantics`, and the marker's own raster position is
+the record of by how much. The author's answer is that `#FFFE` should capture at
+the opcode from a framebuffer that is never cleared. Delivering that is phase 2
+of [the CSL/SSM plan](csl-ssm-implementation-plan.md). For this corpus the
+difference is invisible, because every SSM marker sits where the display has
+been stable for several VSYNCs.
+
+**One case is not invisible: paired markers.** Where a test alternates between
+two graphics, SHAKER emits two `#FFFE` markers so both phases are recorded, and
+the host path cannot serve two grabs a few frames apart. The runner flags both
+captures `state_uncertain` when two markers land within four VSYNC periods
+rather than shipping two PNGs of the same phase. Serving them needs core-side
+capture.
 
 The ring header counts records written and records the core could not enqueue.
 A reader that falls more than a ring behind sees the written count jump by more

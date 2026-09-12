@@ -328,11 +328,14 @@ first `--ssm` run confirms or corrects it.
 **PHASE 2 UNBLOCKED 2026-09-12, not started.** The author answered the `#FFFE` frame
 question: capture at the opcode, from a framebuffer that is never cleared, so the
 image mixes the current pass above the beam with the previous pass below it. That
-withdraws the plan's earlier "next complete frame" default and makes AMSpiriT a
-diagnostic partner rather than a pixel oracle, since it captures on the following
-VSYNC instead. Before designing phase 2, run one `--ssm` device walk: the phase 1
-records show whether SHAKER places its markers after a VSYNC wait, which would put
-the seam off-screen for the whole corpus.
+withdraws the plan's earlier "next complete frame" default. He also confirmed every
+SSM marker sits in a stable zone, so capture-at-opcode, capture-at-next-VSYNC and
+next-complete-pass all produce the same image for this corpus: the choice is cost and
+reversibility, not fidelity, and AMSpiriT images stay a usable pixel-diff partner.
+The functional driver for phase 2 is instead that SHAKER emits **two** markers on
+tests that flash between two graphics, and the host capture path cannot serve two
+grabs a few frames apart; the runner now flags those captures `state_uncertain`.
+One `--ssm` device walk measures how far apart the pair really is.
 
 ---
 

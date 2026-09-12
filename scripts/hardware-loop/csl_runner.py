@@ -83,6 +83,13 @@ CFG_BIT_SSM = 37
 # classic-status encoding; they are rejected until Plus CSL is in scope.
 CSL_MODEL_TO_STATUS = {0: (2, "CPC 464"), 1: (1, "CPC 664"), 2: (0, "CPC 6128")}
 
+# Two SSM markers closer together than this many VSYNC periods cannot each be
+# served by Main's asynchronous grab: the host round trip alone is far longer
+# than a frame, so both captures would show the later state. SHAKER does emit
+# paired markers deliberately, to record both phases of a flashing test, so
+# this case is real and has to be flagged rather than presented as evidence.
+SSM_PAIRED_MARKER_FRAMES = 4
+
 # MBC sleeps this many milliseconds once when it opens its uinput device and
 # once before closing it (mbc.c sequence_wait).  It is fixed overhead per
 # invocation, not a per-key delay.
@@ -731,6 +738,7 @@ class CslRunner:
         self._fold_order: Dict[int, List[int]] = {}
         self.ssm_records: List[Dict[str, Any]] = []
         self.ssm_sync_seen = 0
+        self.last_screenshot_marker: Optional[Dict[str, Any]] = None
         self.capture_count = 0
         self.entry_script_stem = Path(entry_script).stem
         self._media_line = 0
@@ -841,6 +849,16 @@ class CslRunner:
         marker's own frame and raster position so the distance is visible
         rather than assumed away.
         """
+        # SHAKER emits two markers close together on tests that alternate
+        # between two graphics, so that both phases get recorded. Main cannot
+        # serve two grabs a few frames apart, so say so on the capture instead
+        # of shipping two PNGs of the same phase.
+        previous = self.last_screenshot_marker
+        self.last_screenshot_marker = record
+        paired = (
+            previous is not None
+            and abs(record["frame"] - previous["frame"]) <= SSM_PAIRED_MARKER_FRAMES
+        )
         self.capture_count += 1
         if self.screenshot_name:
             name = f"{self.screenshot_name}.png"
@@ -853,8 +871,19 @@ class CslRunner:
             name = name.replace(".png", f"_{record['seq']:04d}.png")
         result = self.backend.screenshot(name)
         result["ssm_record"] = record
+        result["capture_semantics"] = (
+            "Main's asynchronous scaler grab, at least one VSYNC after the marker; "
+            "not the image the standard specifies at the opcode instant"
+        )
+        if paired:
+            result["state_uncertain"] = (
+                f"another #FFFE marker landed within {SSM_PAIRED_MARKER_FRAMES} VSYNC "
+                "periods, so this capture and its neighbour may show the same phase"
+            )
+            if command is not None:
+                self._note(command, "ssm", result["state_uncertain"])
         if command is not None:
-            self._record(command, "ssm_capture", name=name, ssm=record)
+            self._record(command, "ssm_capture", name=name, ssm=record, paired=paired)
 
     def _pending_load(self) -> Dict[str, Any]:
         return {

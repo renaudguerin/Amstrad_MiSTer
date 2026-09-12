@@ -161,16 +161,17 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
         header_only = "count=1 " in cmd
         if not header_only:
             self.polls += 1
-            code = self.publish_at.pop(self.polls, None)
-            if code is not None:
-                self.publish(code)
+            entry = self.publish_at.pop(self.polls, None)
+            if entry is not None:
+                code, frame = entry if isinstance(entry, tuple) else (entry, 0)
+                self.publish(code, frame)
         image = make_ring(self.ring_slots, written=self.ring_written)
         if header_only:
             image = image[:16]
         return CommandResult(0, base64.b64encode(image).decode(), "")
 
-    def publish(self, code: int) -> None:
-        self.ring_slots.append(make_record(code, self.ring_written))
+    def publish(self, code: int, frame: int = 0) -> None:
+        self.ring_slots.append(make_record(code, self.ring_written, frame=frame))
         self.ring_written += 1
 
     def test_enabling_ssm_sets_the_osd_bit_and_restores_it(self):
@@ -203,6 +204,35 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
         record = manifest["ssm_records"][0]
         for field in ("frame", "line", "hpos", "field", "seq", "tick"):
             self.assertIn(field, record)
+
+    def test_paired_markers_are_flagged_rather_than_shipped_as_two_phases(self):
+        # SHAKER emits two #FFFE markers close together on tests that flash
+        # between two graphics. Main cannot serve two grabs a few frames
+        # apart, so both captures may show the same phase and must say so.
+        self.publish_at[2] = ssm_ring.CODE_SCREENSHOT
+        self.publish_at[3] = ssm_ring.CODE_SCREENSHOT
+        manifest = self._run(MINIMAL, ssm=True)
+        captures = manifest["captures"]
+        self.assertEqual(len(captures), 2)
+        self.assertNotIn("state_uncertain", captures[0])
+        self.assertIn("state_uncertain", captures[1])
+        self.assertTrue(any(a["kind"] == "ssm" for a in manifest["approximations"]))
+
+    def test_markers_many_frames_apart_are_not_flagged(self):
+        # Two markers a second apart are each servable, so neither capture
+        # carries the paired-marker caveat.
+        self.publish_at[2] = (ssm_ring.CODE_SCREENSHOT, 10)
+        self.publish_at[3] = (ssm_ring.CODE_SCREENSHOT, 60)
+        manifest = self._run(MINIMAL, ssm=True)
+        self.assertEqual(len(manifest["captures"]), 2)
+        for capture in manifest["captures"]:
+            self.assertNotIn("state_uncertain", capture)
+
+    def test_every_ssm_capture_states_what_it_actually_is(self):
+        self.publish_at[2] = ssm_ring.CODE_SCREENSHOT
+        manifest = self._run(MINIMAL, ssm=True)
+        self.assertIn("not the image the standard specifies",
+                      manifest["captures"][0]["capture_semantics"])
 
     def test_wait_ssm0000_is_refused_unless_the_detector_is_on(self):
         with self.assertRaises(CslError) as ctx:
