@@ -143,6 +143,12 @@ module Amstrad_motherboard
 	output  [3:0] red,
 	output  [3:0] green,
 	output  [3:0] blue,
+	// Passive opcode-fetch tap for the SSM marker detector (rtl/ssm_marker.v).
+	// Raw signals only: the detector owns the edge and the byte latch, so
+	// that the logic under test lives in the module the vectors exercise.
+	output        ssm_m1_fetch,
+	output  [7:0] ssm_bus_data,
+
 	output        hblank,
 	output        vblank,
 	output        hsync,
@@ -233,10 +239,15 @@ wire [7:0] plus_io_data = io_rd ? io_bus_byte : D;
 // Write-only Plus ports see the byte left by the final opcode fetch of the
 // current instruction, not T80's undriven/stale DO value ([KT] Ports). This
 // is the ASIC's open-bus source for IN-performs-write traps.
+wire m1_fetch = ~M1_n & ~MREQ_n & ~RD_n;
 always @(posedge clk) begin
 	if (reset) io_bus_byte <= 8'hFF;
-	else if (~M1_n & ~MREQ_n & ~RD_n) io_bus_byte <= cpu_data_bus;
+	else if (m1_fetch) io_bus_byte <= cpu_data_bus;
 end
+
+// Passive tap for the SSM marker detector.
+assign ssm_m1_fetch = m1_fetch;
+assign ssm_bus_data = cpu_data_bus;
 
 	T80pa CPU
 (

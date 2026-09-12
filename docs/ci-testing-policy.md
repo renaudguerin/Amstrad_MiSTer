@@ -21,7 +21,9 @@ and repository tooling.  A failed Tier A run blocks every higher tier.
 The hosted job builds the repository-pinned Verilator 5.052 source commit and caches the
 installed prefix by operating system, architecture, and installer-script hash. Every restore
 is checked against both the exact-source marker and reported version before use. A cold run
-therefore needs a 30-minute budget; subsequent runs reuse the compiled tool. GitHub cache
+adds to the behavioral-suite runtime; subsequent runs reuse the compiled tool. The
+simulation job allows 60 minutes: run `34684600995` exhausted the former 30-minute limit
+during B8 field tests even with the Verilator cache restored. No test is skipped. GitHub cache
 scope means the integration branch should populate a new pin before stream branches depend
 on it. If an exact-key cache is ever corrupt, validation rebuilds safely but GitHub will not
 overwrite that existing key; delete it with `gh cache delete <cache-id>` so the next green run

@@ -301,10 +301,26 @@ prerequisite for the first bounded implementation.
 Start with stable-screen B2 capture, then a supplied CSL fragment. Keep passive
 event detection and exact event-to-image retention as separate later gates.
 
-**IMPLEMENTATION PLAN 2026-09-12:** phased brief in
-[csl-ssm-implementation-plan.md](csl-ssm-implementation-plan.md): host CSL runner
-first, then the SSM detector with a DDR3 event ring behind an OSD toggle, then exact
-frame capture once the author clarifies `FFFE` frame semantics.
+**IMPLEMENTED IN SOURCE, NOT DEVICE-ACCEPTED, 2026-09-12:** phases 0/1 and a
+default-off Phase 2 prototype are committed at `94725cc` on `general/b4-csl-ssm`.
+Fable's second design review converged on ordered RGB24/timing samples in rotating
+windows, finite retention and host reconstruction. Opus and Gemini implemented it;
+Sol's independent reviews produced concrete startup, publication and timing repairs.
+Final source review is **CLEAR** from Sol and Gemini, with local acceptance gates passed
+in the [review record](csl-ssm-design-review-2026-09-12.md).
+
+The prototype retains the exact exclusive HH-fetch cut, sealed window generations,
+coherent record identities and applied configuration. `ssm_capture.py live` retrieves
+and decodes captures with raw evidence and explicit incomplete/lost outcomes. Default
+Phase 1 screenshots remain approximate. The [plan](csl-ssm-implementation-plan.md) and
+[capture ABI](ssm-capture-abi.md) define the bounds; the
+[inventory](shaker-ssm-marker-inventory-2026-09-12.md) defines reference coverage targets.
+
+Next: proven DDR allocation/visibility, authorized synthesis and timing, then the
+bounded device gate. Measure state dwell, marker distribution and host transfer time
+before accepting the retention budget. `--ssm-base` changes only the reader; ring magic
+is not allocation evidence. Broader CSL configuration/keymap review debt remains in
+[review-debt.md](review-debt.md).
 
 ---
 

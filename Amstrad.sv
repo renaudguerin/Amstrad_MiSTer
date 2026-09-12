@@ -26,7 +26,7 @@ assign ADC_BUS  = 'Z;
 assign USER_OUT = '1;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
-assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
+assign DDRAM_RD = 0;   // the SSM event ring writes only; see ssm_marker below
 
 assign LED_USER  = mf2_en | ioctl_download | tape_led | tape_adc_act;
 assign LED_DISK  = 0;
@@ -42,7 +42,7 @@ assign HDMI_BOB_DEINT = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXX X XXXXXXXXXXXXXXXXXXXXXXXXX  X         XXX
+// XXX X XXXXXXXXXXXXXXXXXXXXXXXXX  X    X    XXX
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -96,6 +96,7 @@ localparam CONF_STR = {
 	"d3P2O[5:4],Model,CPC 6128,CPC 664,CPC 464;",
 	"P2O[34:33],Plus model,Off,GX4000,6128+,464+;",
 	"P2OV,Tape progressbar,Off,On;",
+	"P2O[37],SSM markers,Off,On;",
 
 	"-;",
 	"R0,Reset & apply model;",
@@ -1147,6 +1148,8 @@ wire [15:0] cpu_addr;
 wire  [7:0] cpu_dout;
 wire        phi_n, phi_en_p, phi_en_n;
 wire        m1, key_nmi, key_reset;
+wire        ssm_m1_fetch;
+wire  [7:0] ssm_bus_data;
 wire        rd, wr, iorq;
 wire        mreq;
 wire        field;
@@ -1489,6 +1492,9 @@ Amstrad_motherboard motherboard
 	.mem_addr(ram_a),
 	.romen(romen),
 
+	.ssm_m1_fetch(ssm_m1_fetch),
+	.ssm_bus_data(ssm_bus_data),
+
 	.phi_n(phi_n),
 	.phi_en_n(phi_en_n),
 	.phi_en_p(phi_en_p),
@@ -1574,6 +1580,12 @@ wire [3:0] b4, g4, r4;
 wire hs, vs, hbl, vbl;
 // One applied motherboard mode controls the complete production output chain.
 wire raw_crt, pixel_vblank, en270p;
+// B4 phase 2 observation tap. Outputs only; with no recorder compiled in they
+// are unconnected and synthesis removes them, so the default build is exactly
+// the phase 1 build.
+wire obs_ce_pix, obs_hs, obs_vs, obs_hbl, obs_vbl, obs_field, obs_native_cadence;
+wire [7:0] obs_r, obs_g, obs_b;
+wire [7:0] obs_applied_config;
 amstrad_video_output video_output (
     .CLK_VIDEO(CLK_VIDEO), .ce_16(ce_16),
     .raw_crt(raw_crt), .pixel_vblank(pixel_vblank), .plus_mode(plus_mode),
@@ -1586,8 +1598,129 @@ amstrad_video_output video_output (
     .HDMI_FREEZE(HDMI_FREEZE), .progress_pix(progress_pix), .gamma_bus(gamma_bus),
     .CE_PIXEL(CE_PIXEL), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B),
     .VGA_HS(VGA_HS), .VGA_VS(VGA_VS), .VGA_DE(VGA_DE), .VGA_SL(VGA_SL),
-    .VIDEO_ARX(VIDEO_ARX), .VIDEO_ARY(VIDEO_ARY), .en270p(en270p)
+    .VIDEO_ARX(VIDEO_ARX), .VIDEO_ARY(VIDEO_ARY), .en270p(en270p),
+    .obs_ce_pix(obs_ce_pix), .obs_r(obs_r), .obs_g(obs_g), .obs_b(obs_b),
+    .obs_hs(obs_hs), .obs_vs(obs_vs), .obs_hbl(obs_hbl), .obs_vbl(obs_vbl),
+    .obs_field(obs_field), .obs_native_cadence(obs_native_cadence),
+    .obs_applied_config(obs_applied_config)
 );
+
+//////////////////////////////////////////////////////////////////////
+// SSM marker detector (backlog B4, phase 1 of the CSL/SSM plan).
+//
+// Passive: it watches the opcode-fetch stream and the output-side sync, and
+// drives nothing the machine can see. Off by default, in which case it is
+// held in reset and issues no DDR3 traffic. The raster stamp uses the native
+// 16 MHz output timebase, the same one the capture comparison will use.
+
+wire ssm_enable = status[37];
+
+wire [28:0] ssm_ddr_addr;
+wire [63:0] ssm_ddr_din;
+wire  [7:0] ssm_ddr_be, ssm_ddr_burstcnt;
+wire        ssm_ddr_we, ssm_ddr_busy;
+
+wire        ssm_event_capture;
+wire [63:0] ssm_event_rec_a, ssm_event_rec_b, ssm_event_cut;
+wire [63:0] ssm_sample_count;
+
+ssm_marker ssm
+(
+	.clk(clk_sys),
+	.reset(reset),
+	.enable(ssm_enable),
+
+	.m1_fetch(ssm_m1_fetch),
+	.bus_data(ssm_bus_data),
+
+	.ce_pix(ce_16),
+	.hsync(hs),
+	.vsync(vs),
+	.field(VGA_F1),
+
+	.sample_count(ssm_sample_count),
+
+	.last_code(),
+	.event_count(),
+	.dropped_count(),
+	.event_stb(),
+	.event_capture(ssm_event_capture),
+	.event_code(),
+	.event_tick(),
+	.event_cut(ssm_event_cut),
+	.event_rec_a(ssm_event_rec_a),
+	.event_rec_b(ssm_event_rec_b),
+
+	.ddram_addr(ssm_ddr_addr),
+	.ddram_din(ssm_ddr_din),
+	.ddram_be(ssm_ddr_be),
+	.ddram_burstcnt(ssm_ddr_burstcnt),
+	.ddram_we(ssm_ddr_we),
+	.ddram_busy(ssm_ddr_busy)
+);
+
+//////////////////////////////////////////////////////////////////////
+// Experimental phase 2 sample recorder. COMPILE-TIME DEFAULT OFF.
+//
+// Define SSM_SAMPLE_RECORDER to build it. Doing so needs a separately reviewed
+// DDR3 allocation for the whole capture region (16 MiB of payload plus the
+// descriptor and record tables at SSM_CAP_BASE), which has not been obtained.
+// Without the define the event ring owns the port exactly as it did before,
+// and the video observation tap has no reader.
+
+`ifdef SSM_SAMPLE_RECORDER
+
+ssm_recorder_subsystem ssm_recorder_sub
+(
+	.clk(clk_sys),
+	.reset(reset),
+	.enable(ssm_enable & obs_native_cadence),
+
+	.smp_ce(obs_ce_pix),
+	.smp_r(obs_r), .smp_g(obs_g), .smp_b(obs_b),
+	.smp_hbl(obs_hbl), .smp_vbl(obs_vbl),
+	.smp_hs(obs_hs), .smp_vs(obs_vs), .smp_field(obs_field),
+	.applied_config(obs_applied_config),
+
+	.cap_stb(ssm_event_capture),
+	.cap_rec_a(ssm_event_rec_a),
+	.cap_rec_b(ssm_event_rec_b),
+	.cap_cut(ssm_event_cut),
+
+	.c0_addr(ssm_ddr_addr),
+	.c0_din(ssm_ddr_din),
+	.c0_be(ssm_ddr_be),
+	.c0_burstcnt(ssm_ddr_burstcnt),
+	.c0_we(ssm_ddr_we),
+	.c0_busy(ssm_ddr_busy),
+
+	.sample_count(ssm_sample_count),
+
+	.ready(), .image_loss_count(), .forced_expiry_count(),
+	.capture_alloc(), .capture_dropped(), .captures_published(), .epoch(),
+
+	.ddram_addr(DDRAM_ADDR),
+	.ddram_din(DDRAM_DIN),
+	.ddram_be(DDRAM_BE),
+	.ddram_burstcnt(DDRAM_BURSTCNT),
+	.ddram_we(DDRAM_WE),
+	.ddram_busy(DDRAM_BUSY)
+);
+
+`else
+
+assign ssm_sample_count = 64'd0;
+
+assign DDRAM_ADDR     = ssm_ddr_addr;
+assign DDRAM_DIN      = ssm_ddr_din;
+assign DDRAM_BE       = ssm_ddr_be;
+assign DDRAM_BURSTCNT = ssm_ddr_burstcnt;
+assign DDRAM_WE       = ssm_ddr_we;
+assign ssm_ddr_busy   = DDRAM_BUSY;
+
+`endif
+
+assign DDRAM_CLK = clk_sys;
 
 //////////////////////////////////////////////////////////////////////
 

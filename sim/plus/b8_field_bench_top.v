@@ -47,6 +47,10 @@ module b8_field_bench_top (
 
 	Amstrad_motherboard mb
 	(
+	// SSM opcode-fetch tap: unused here, wired explicitly so the -Wall
+	// lint stays quiet about it.
+	.ssm_m1_fetch(),
+	.ssm_bus_data(),
 		.reset(reset),
 		.clk(clk),
 		.ce_16(ce_16),

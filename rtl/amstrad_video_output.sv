@@ -20,7 +20,24 @@ module amstrad_video_output (
     output VGA_HS, VGA_VS, VGA_DE,
     output [1:0] VGA_SL,
     output [12:0] VIDEO_ARX, VIDEO_ARY,
-    output reg en270p
+    output reg en270p,
+
+    // B4 phase 2 observation tap: the converted RGB24 and its aligned
+    // sync/blanking tuple, before gamma, scandoubling, HQ2x and crop. These
+    // are outputs only; nothing downstream of this module reads them, so the
+    // displayed picture is identical whether or not a recorder is compiled in.
+    //
+    // obs_native_cadence reports whether the *selected* settings give one
+    // sample per native dot. Raw CRT happens to force the same cadence, but
+    // it also changes acquisition geometry, so it is not a way to satisfy the
+    // capture profile: an unsupported selection is flagged here rather than
+    // normalised away.
+    output obs_ce_pix,
+    output [7:0] obs_r, obs_g, obs_b,
+    output obs_hs, obs_vs, obs_hbl, obs_vbl,
+    output obs_field,
+    output obs_native_cadence,
+    output [7:0] obs_applied_config
 );
 wire ce_pix;
 wire [7:0] B, G, R;
@@ -28,6 +45,12 @@ wire HSync, VSync, HBlank, VBlank;
 
 // B6: the applied Raw CRT selection and the raw vertical-blank pixel tag,
 // both owned by the motherboard's single applied-mode register.
+
+// Raw CRT forces the core's own post-processing off: native ce_16 (no
+// adaptive pixel rate, no HQ2x), no scandoubler, no scanline effect and no
+// vertical crop.  The retained OSD settings themselves are untouched and
+// come back when a safe mode is selected again.
+wire       hq2x = (scale == 1) & ~raw_crt;
 
 amstrad_video_color video_color (
     .CLK_VIDEO(CLK_VIDEO), .ce_16(ce_16),
@@ -39,11 +62,27 @@ amstrad_video_color video_color (
     .HSync(HSync), .VSync(VSync), .HBlank(HBlank), .VBlank(VBlank)
 );
 
+assign obs_ce_pix = ce_pix;
+assign obs_r      = R;
+assign obs_g      = G;
+assign obs_b      = B;
+assign obs_hs     = HSync;
+assign obs_vs     = VSync;
+assign obs_hbl    = HBlank;
+assign obs_vbl    = VBlank;
+
+reg obs_field_r = 1'b0;
+always @(posedge CLK_VIDEO) begin
+    if (ce_pix) obs_field_r <= field_in;
+end
+assign obs_field  = obs_field_r;
+assign obs_native_cadence = ~(pixel_rate_select | (scale == 2'd1) | raw_crt);
+assign obs_applied_config = {plus_mode, mix, hq2x, pixel_rate_select, raw_crt, obs_native_cadence};
+
 // Raw CRT forces the core's own post-processing off: native ce_16 (no
 // adaptive pixel rate, no HQ2x), no scandoubler, no scanline effect and no
 // vertical crop.  The retained OSD settings themselves are untouched and
 // come back when a safe mode is selected again.
-wire       hq2x = (scale == 1) & ~raw_crt;
 
 assign VGA_SL = (scale[1] & ~raw_crt) ? scale : 2'b00;
 

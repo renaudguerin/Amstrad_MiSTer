@@ -1,5 +1,40 @@
 # Current implementation status
 
+**B4 CSL/SSM, 2026-09-12, source `94725cc` integrated into `master`:**
+Fable's second design pass reached rough convergence on an append-only native
+RGB24/timing stream in bounded rotating windows. Opus produced the initial
+implementation; Gemini continued the repairs, with independent Sol reviews and
+parent integration. Claude was not retried after its quota was depleted.
+
+Phase 0/1 repairs cover controlled zero-header startup, read failures, marker
+naming, wait deadlines and stalled-write lifecycle. The Phase 2 prototype adds
+exclusive HH-fetch cuts, protected prehistory, sealed window generations,
+record commit identities and host reconstruction. A shared production recorder
+subsystem is exercised by the composition fixture. Configuration changes stop
+new ingestion while old accepted work drains, then begin a fresh epoch.
+The recorder remains **compile-time default off** (`SSM_SAMPLE_RECORDER` undefined).
+
+The opt-in `ssm_capture.py live` path preserves raw samples and JSON metadata,
+with a labelled cropped PPM when a surface exists. Completeness requires supported
+applied cadence, consistent identities, retained samples and profile geometry;
+native profiles remain declared assumptions rather than device calibration.
+Final source review is **CLEAR** from Sol and Gemini; full simulation, focused host
+and recorder/composition tests, lint and the unchanged soak hash pass. The
+[review record](csl-ssm-design-review-2026-09-12.md) records the accepted scope and evidence.
+
+The merged local gates pass: full simulation, 183 host tests, lint and soak
+`0xb1cb70da95c2e44f`. Publication invokes the normal push-triggered full synthesis.
+That default build leaves the Phase 2 recorder disabled and does not establish its fit
+or timing. Next: establish the DDR allocation and visibility/atomicity contract, then
+obtain an enabled-recorder synthesis/timing result before the bounded device run. Neither
+ring magic nor `--ssm-base` proves allocation safety or relocates the FPGA writer.
+Measure paired-state dwell, marker distribution, throughput and host service time.
+The workbook's 712 rows (483 CRTC 0, 478 CRTC 1) remain coverage targets, not
+observed device emissions. See the [plan](csl-ssm-implementation-plan.md),
+[marker evidence](shaker-ssm-marker-inventory-2026-09-12.md),
+[driver guide](mister-hardware-loop-driver.md#the-csl-runner),
+[capture ABI](ssm-capture-abi.md) and [remaining review debt](review-debt.md).
+
 **Coordinated follow-ups integrated, 2026-09-12:** B2's accepted `5de8c5c`
 establishes real SHAKER B (9) navigation and nine identical captures across
 three independent loads; B6's accepted `c2fde66` closes the final-mixer RGB
@@ -9,9 +44,11 @@ merged sequentially into `master`. B2's 26 focused destination tests pass;
 the complete merged simulation and lint gates pass, and soak matches
 `0xb1cb70da95c2e44f`. Both tasks are published at `9ee710ce969aa3db7fb1540f7e96443bfd7c274c`.
 [Exact-SHA CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34684600995)
-is running: policy and routing passed; simulation and automatically selected
-hosted full synthesis are pending. The local synthesis leg is correctly skipped. No new RBF exists. The user made a new build optional; no separate
-build will be dispatched. The normal push workflow selects its required jobs.
+completed with hosted full synthesis and timing passed, but simulation exhausted its
+30-minute job limit during B8 field tests, so the required gate failed. There was no
+successor run as of B4 integration preparation. B4 raises that limit to 60 minutes;
+its exact-SHA run must pass the whole suite. The earlier RBF is not B4 build evidence.
+The normal push workflow selects the required jobs; no duplicate build is dispatched.
 See the [branch/evidence handoff](hardware-followup-handoff-2026-09-12.md)
 for reviewed tips, device restoration and remaining hardware limits.
 

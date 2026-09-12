@@ -531,12 +531,14 @@ See [current status](current-status.md) for accepted source and artifact identit
 6. **B2/B4 hardware automation:** follow the existing
    [hardware-loop plan](mister-hardware-loop-plan.md). The host driver and ARM
    MBC cross-build are prepared at `7e39204`; see the
-   [driver guide](mister-hardware-loop-driver.md). A bounded CSL subset is
-   still separate work.
+   [driver guide](mister-hardware-loop-driver.md). B4 source `94725cc` adds the bounded
+   CSL runner, passive SSM event ring and default-off sample-recorder prototype;
+   [source review and local gates](csl-ssm-design-review-2026-09-12.md) pass.
    September 12 demonstrates three independent SHAKER B (9) loads and nine
    identical numeric captures; see [device evidence](b2-device-capture-2026-09-12.md).
    Active-mode observation remains qualified because native PNGs omit OSD.
-   Exact SSM event-to-image capture remains a later gate.
+   Exact SSM event-to-image device acceptance remains open: prove DDR allocation and
+   host visibility, enabled-recorder fit/timing, retention and throughput first.
 7. **Hardware retests:** use the delivered SHA-labelled RBF for DSC4/SHAKER,
    IA-5/Q17 and the named Plus title matrix. Retain the
    [September 9 results and capture index](hardware-evidence-2026-09-09.md) as regression
