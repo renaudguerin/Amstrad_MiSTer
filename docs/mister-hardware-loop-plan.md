@@ -10,6 +10,8 @@ Host preparation is implemented at `7e39204`: see the
 review pass. The [September 12 device run](b2-device-capture-2026-09-12.md)
 now demonstrates DSK boot, French input and repeated numeric SHAKER captures;
 active OSD mode and exact event capture remain distinct limits.
+The CSL/SSM follow-on is planned in
+[csl-ssm-implementation-plan.md](csl-ssm-implementation-plan.md).
 
 ## Start with the tools already available
 

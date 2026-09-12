@@ -301,6 +301,11 @@ prerequisite for the first bounded implementation.
 Start with stable-screen B2 capture, then a supplied CSL fragment. Keep passive
 event detection and exact event-to-image retention as separate later gates.
 
+**IMPLEMENTATION PLAN 2026-09-12:** phased brief in
+[csl-ssm-implementation-plan.md](csl-ssm-implementation-plan.md): host CSL runner
+first, then the SSM detector with a DDR3 event ring behind an OSD toggle, then exact
+frame capture once the author clarifies `FFFE` frame semantics.
+
 ---
 
 ## B5. ASIC documentation-gap map
