@@ -24,6 +24,11 @@ set_global_assignment -name VERILOG_FILE rtl/crtc_type0_engine.v
 set_global_assignment -name VERILOG_FILE rtl/crtc_type1_engine.v
 set_global_assignment -name VERILOG_FILE rtl/crt_filter.v
 set_global_assignment -name VERILOG_FILE rtl/ssm_marker.v
+# Phase 2 prototype. Compiled in always, instantiated only when
+# SSM_SAMPLE_RECORDER is defined (see Amstrad.sv).
+set_global_assignment -name VERILOG_FILE rtl/ssm_ddr_arb.v
+set_global_assignment -name VERILOG_FILE rtl/ssm_sample_recorder.v
+set_global_assignment -name VERILOG_FILE rtl/ssm_recorder_subsystem.v
 set_global_assignment -name VERILOG_FILE rtl/video_interlace.v
 set_global_assignment -name VERILOG_FILE rtl/Amstrad_MMU.v
 set_global_assignment -name VERILOG_FILE rtl/rom_loader_route.v

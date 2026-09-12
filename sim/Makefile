@@ -41,10 +41,10 @@ build: $(TEST_BIN) crt-filter-blank-build $(VIDEO_COLOR_BIN) $(VIDEO_OUTPUT_BIN)
 crt-filter-blank-build: $(CRTF_TEST_BIN)
 
 crt-filter-blank-test: $(CRTF_TEST_BIN)
-	./$(CRTF_TEST_BIN)
+	$(CRTF_TEST_BIN)
 
 test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test video-output-test ssm-marker-test
-	./$(TEST_BIN)
+	$(TEST_BIN)
 	$(MAKE) -C plus test
 	$(MAKE) -C ../rtl/GA40010 test
 	$(MAKE) -C ../rtl/u765 test
@@ -54,7 +54,7 @@ test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test vid
 SOAK_EXPECT ?=
 
 soak: $(TEST_BIN)
-	./$(TEST_BIN) --soak $(SOAK_EXPECT)
+	$(TEST_BIN) --soak $(SOAK_EXPECT)
 
 $(TEST_BIN): $(RTL) $(TEST_SRC) Makefile
 	$(VERILATOR) $(VERILATOR_FLAGS) -CFLAGS "$(CXXFLAGS)" \
@@ -69,7 +69,7 @@ $(CRTF_TEST_BIN): $(CRTF_TOP_SRC) $(CRTF_RTL) $(CRTF_TEST_SRC) Makefile
 # B8-6: production colour/CE selector plus gamma, without the vendor scaler.
 .PHONY: video-color-test
 video-color-test: $(VIDEO_COLOR_BIN)
-	./$(VIDEO_COLOR_BIN)
+	$(VIDEO_COLOR_BIN)
 
 $(VIDEO_COLOR_BIN): $(VIDEO_COLOR_SRC) Makefile
 	$(VERILATOR) --binary --timing --top-module video_color_test \
@@ -77,6 +77,9 @@ $(VIDEO_COLOR_BIN): $(VIDEO_COLOR_SRC) Makefile
 
 lint:
 	$(VERILATOR) --lint-only --top-module ssm_marker -Wall -Wno-fatal -Wno-PROCASSINIT $(SSM_RTL)
+	$(VERILATOR) --lint-only --top-module ssm_sample_recorder -Wall -Wno-fatal -Wno-PROCASSINIT $(SSM_REC_RTL)
+	$(VERILATOR) --lint-only --top-module ssm_ddr_arb -Wall -Wno-fatal -Wno-PROCASSINIT $(SSM_ARB_RTL)
+	$(VERILATOR) --lint-only --top-module ssm_recorder_subsystem -Wall -Wno-fatal -Wno-PROCASSINIT ../rtl/ssm_recorder_subsystem.v $(SSM_REC_RTL) $(SSM_ARB_RTL)
 	$(VERILATOR) --lint-only --top-module amstrad_video_output \
 		-Wall -Wno-fatal -Wno-PROCASSWIRE $(VIDEO_OUTPUT_SRC)
 	$(VERILATOR) --lint-only --top-module crtc_cpu_phase_top -UVERILATOR -Wall -Wno-fatal $(CPU_PHASE_RTL)
@@ -98,7 +101,7 @@ clean:
 CPU_PHASE_RTL := crtc_cpu_phase_top.sv $(RTL) $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
 .PHONY: crtc-cpu-phase-test
 crtc-cpu-phase-test: $(OBJ_DIR)/cpu_phase/crtc_cpu_phase_tests
-	./$<
+	$<
 $(OBJ_DIR)/cpu_phase/crtc_cpu_phase_tests: $(CPU_PHASE_RTL) crtc_cpu_phase_test.cpp Makefile
 	mkdir -p $(OBJ_DIR)/cpu_phase
 	$(VERILATOR) --cc --exe --build --top-module crtc_cpu_phase_top -UVERILATOR \
@@ -191,7 +194,7 @@ $(CRTC_T80_OLD_BIN): $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp Makefile
 
 .PHONY: video-output-test
 video-output-test: $(VIDEO_OUTPUT_BIN)
-	./$(VIDEO_OUTPUT_BIN)
+	$<
 
 $(VIDEO_OUTPUT_BIN): $(VIDEO_OUTPUT_SRC) b6_video_output_test.cpp Makefile
 	mkdir -p $(@D)
@@ -206,7 +209,7 @@ MIXER_RGB_BIN := $(OBJ_DIR)/video_mixer_rgb/Vvideo_mixer_rgb_test
 test: video-mixer-rgb-test
 .PHONY: video-mixer-rgb-test
 video-mixer-rgb-test: $(MIXER_RGB_BIN)
-	./$(MIXER_RGB_BIN)
+	$<
 $(MIXER_RGB_BIN): $(MIXER_RGB_SRC) Makefile
 	$(VERILATOR) --binary --timing --top-module video_mixer_rgb_test \
 		--Mdir $(OBJ_DIR)/video_mixer_rgb -Wno-fatal -Wno-PROCASSWIRE $(MIXER_RGB_SRC)
@@ -222,10 +225,47 @@ SSM_BIN  := $(OBJ_DIR)/ssm_marker/ssm_marker_tests
 
 .PHONY: ssm-marker-test
 ssm-marker-test: $(SSM_BIN)
-	./$(SSM_BIN)
+	$<
 
 $(SSM_BIN): $(SSM_SRC) ssm_marker_test.cpp Makefile
 	mkdir -p $(OBJ_DIR)/ssm_marker
 	$(VERILATOR) --cc --exe --build --top-module ssm_marker_top -UVERILATOR \
 		--Mdir $(OBJ_DIR)/ssm_marker +1364-2001ext+.v +1800-2017ext+.sv -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o ssm_marker_tests $(SSM_SRC) $(abspath ssm_marker_test.cpp)
+
+# Experimental phase 2 sample recorder (B4). Default-off in the core; the
+# fixture instantiates it directly with small window/queue parameters.
+SSM_REC_RTL := ../rtl/ssm_sample_recorder.v
+SSM_REC_SRC := ssm_recorder_top.v $(SSM_REC_RTL)
+SSM_REC_BIN := $(OBJ_DIR)/ssm_recorder/ssm_recorder_tests
+
+test: ssm-recorder-test
+build: $(SSM_REC_BIN)
+
+.PHONY: ssm-recorder-test
+ssm-recorder-test: $(SSM_REC_BIN)
+	$<
+
+$(SSM_REC_BIN): $(SSM_REC_SRC) ssm_recorder_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/ssm_recorder
+	$(VERILATOR) --cc --exe --build --top-module ssm_recorder_top -UVERILATOR \
+		--Mdir $(OBJ_DIR)/ssm_recorder -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o ssm_recorder_tests $(SSM_REC_SRC) $(abspath ssm_recorder_test.cpp)
+
+# SSM composition: marker + recorder + arbiter (Finding 1 regression).
+SSM_ARB_RTL := ../rtl/ssm_ddr_arb.v
+SSM_COMP_SRC := ssm_composition_top.v ../rtl/ssm_recorder_subsystem.v ../rtl/ssm_marker.v ../rtl/ssm_sample_recorder.v $(SSM_ARB_RTL)
+SSM_COMP_BIN := $(OBJ_DIR)/ssm_composition/ssm_composition_tests
+
+test: ssm-composition-test
+build: $(SSM_COMP_BIN)
+
+.PHONY: ssm-composition-test
+ssm-composition-test: $(SSM_COMP_BIN)
+	$<
+
+$(SSM_COMP_BIN): $(SSM_COMP_SRC) ssm_composition_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/ssm_composition
+	$(VERILATOR) --cc --exe --build --top-module ssm_composition_top -UVERILATOR \
+		--Mdir $(OBJ_DIR)/ssm_composition -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o ssm_composition_tests $(SSM_COMP_SRC) $(abspath ssm_composition_test.cpp)

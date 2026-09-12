@@ -16,12 +16,23 @@ Layout, little-endian throughout, matching the RTL comment:
     word B  [15:0] sequence number  [47:16] core clock tick
 
 The core writes a record pair before it updates the header, so a header read
-never points at a half-written record.
+never points at a half-written record. It also publishes the header with
+`written = 0` when the observer is *enabled*, before any marker arrives, so a
+second core load cannot hand this reader the previous run's records. That is a
+bounded startup boundary and not a session identity: an old empty header still
+looks like a fresh one, which is why `startup_seen` below is only meaningful
+next to a controlled start.
 
 `written` counts records that reached the ring and `dropped` counts markers the
-writer could not enqueue. A reader that falls more than one ring behind sees
-`written` jump by more than the entry count, which is the only honest way to
-say that records were overwritten.
+writer could not enqueue. `dropped` saturates at 255, so that value means "at
+least 255".
+
+Read coherence: a poll reads the header, the whole ring and then the header
+again. A record is only handed to the caller if the second header proves its
+slot cannot have been reused during the read. One new event is enough to lose
+the oldest slot a reader still needs, and the core writes a record before it
+commits the header, so the margin allows for one uncounted record. Anything
+outside the margin is counted in `lost` and reported, never quietly returned.
 """
 
 from __future__ import annotations
@@ -55,7 +66,34 @@ CODE_SIKOVIEW_BREAK = 0xFFFC
 
 
 class SsmRingError(Exception):
-    """The bytes read back are not a ring this reader understands."""
+    """The ring could not be read, or the bytes are not one we understand."""
+
+
+class SsmTransportError(SsmRingError):
+    """The device read itself failed: `dd` error, empty output, bad base64.
+
+    This is never "no marker yet". It means the command did not produce the
+    bytes, so nothing at all can be said about the ring.
+    """
+
+
+class SsmTruncatedError(SsmRingError):
+    """Fewer bytes came back than the layout needs."""
+
+
+class SsmFormatError(SsmRingError):
+    """The bytes are the right length but do not describe a ring we support."""
+
+
+class SsmNotInitializedError(SsmFormatError):
+    """No SSM header is present at this address yet.
+
+    Expected for a bounded window after a core load, while the observer has not
+    been enabled or has not finished publishing its startup header. A caller
+    that keeps seeing this past its startup budget has a real problem: the OSD
+    bit is off, the base is wrong for this framework build, or the core is not
+    the one that was loaded.
+    """
 
 
 class SsmRecord:
@@ -92,7 +130,7 @@ class SsmHeader:
 
     def __init__(self, data: bytes):
         if len(data) < HEADER_BYTES:
-            raise SsmRingError(f"header is {len(data)} bytes, expected {HEADER_BYTES}")
+            raise SsmTruncatedError(f"header is {len(data)} bytes, expected {HEADER_BYTES}")
         word0, word1 = struct.unpack_from("<QQ", data, 0)
         self.magic = word0 & 0xFFFFFFFF
         self.format_version = (word0 >> 32) & 0xFFFF
@@ -102,19 +140,19 @@ class SsmHeader:
 
     def validate(self) -> None:
         if self.magic != MAGIC:
-            raise SsmRingError(
+            raise SsmNotInitializedError(
                 f"ring magic is 0x{self.magic:08X}, expected 0x{MAGIC:08X}. The core "
-                "writes the magic on its first marker, so this usually means the SSM "
-                "OSD option is off, no marker has been seen yet, or the DDR3 base is "
-                "wrong for this framework build."
+                "publishes the magic when the observer is enabled, so this means the "
+                "SSM OSD option is off, the core has not finished loading, or the "
+                "DDR3 base is wrong for this framework build."
             )
         if self.format_version != SUPPORTED_FORMAT:
-            raise SsmRingError(
+            raise SsmFormatError(
                 f"ring format version {self.format_version}, this reader implements "
                 f"{SUPPORTED_FORMAT}"
             )
         if not 1 <= self.entries <= 255:
-            raise SsmRingError(f"implausible ring entry count {self.entries}")
+            raise SsmFormatError(f"implausible ring entry count {self.entries}")
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -137,7 +175,9 @@ def parse_ring(data: bytes) -> Tuple[SsmHeader, List[SsmRecord]]:
     header = parse_header(data)
     needed = HEADER_BYTES + header.entries * RECORD_BYTES
     if len(data) < needed:
-        raise SsmRingError(f"ring image is {len(data)} bytes, expected at least {needed}")
+        raise SsmTruncatedError(
+            f"ring image is {len(data)} bytes, expected at least {needed}"
+        )
     records = []
     for slot in range(header.entries):
         offset = HEADER_BYTES + slot * RECORD_BYTES
@@ -146,16 +186,28 @@ def parse_ring(data: bytes) -> Tuple[SsmHeader, List[SsmRecord]]:
     return header, records
 
 
-def records_since(header: SsmHeader, records: List[SsmRecord], consumed: int) -> List[SsmRecord]:
+def records_since(header: SsmHeader, records: List[SsmRecord], consumed: int,
+                  written_after: Optional[int] = None) -> List[SsmRecord]:
     """Return the records written after `consumed`, oldest first.
 
-    `consumed` is a count of records the caller has already handled. Records
-    older than the ring can hold are gone; the caller compares the returned
-    count against `header.written - consumed` to see how many were lost.
+    `consumed` is a count of records the caller has already handled.
+    `written_after` is the `written` count read *after* the ring image; pass it
+    to exclude slots the writer may have reused while the image was being read.
+
+    The margin is deliberately conservative. The core writes a record pair
+    before it commits the header, so at the moment the second header says
+    `written_after`, slot `written_after` may already hold its successor. A
+    reader may therefore only trust indices at or above
+    `written_after - entries + 1`.
     """
     if header.written <= consumed:
         return []
-    first = max(consumed, header.written - header.entries)
+    oldest_kept = header.written - header.entries
+    if written_after is not None:
+        oldest_kept = max(oldest_kept, written_after - header.entries + 1)
+    first = max(consumed, oldest_kept, 0)
+    if first >= header.written:
+        return []
     return [records[index % header.entries] for index in range(first, header.written)]
 
 
@@ -181,10 +233,16 @@ def read_command(base: int = DEFAULT_BASE, entries: int = 64, header_only: bool 
 
 
 def decode_payload(stdout: str) -> bytes:
+    text = stdout.strip()
+    if not text:
+        raise SsmTransportError(
+            "the device returned no bytes for the ring read; dd produced nothing, "
+            "which is a transport or permission failure and not an empty ring"
+        )
     try:
-        return base64.b64decode(stdout.strip(), validate=True)
+        return base64.b64decode(text, validate=True)
     except (binascii.Error, ValueError) as exc:
-        raise SsmRingError(f"malformed base64 from the device: {exc}") from exc
+        raise SsmTransportError(f"malformed base64 from the device: {exc}") from exc
 
 
 class SsmRingReader:
@@ -198,30 +256,57 @@ class SsmRingReader:
         self.timeout = timeout
         self.consumed = 0
         self.lost = 0
+        self.restarts = 0
+        self.startup_seen = False
+        self.last_margin: Optional[int] = None
 
     def _read(self, header_only: bool) -> bytes:
         command = read_command(self.base, self.entries, header_only=header_only)
         result = self.transport.run_cmd(command, timeout=self.timeout)
         if result.exit_code != 0:
-            raise SsmRingError(
+            raise SsmTransportError(
                 f"reading /dev/mem failed ({result.exit_code}): {result.stderr.strip()}"
             )
         return decode_payload(result.stdout)
 
     def header(self) -> SsmHeader:
-        return parse_header(self._read(header_only=True))
+        header = parse_header(self._read(header_only=True))
+        if header.written == 0:
+            self.startup_seen = True
+        return header
 
     def poll(self) -> Tuple[SsmHeader, List[SsmRecord]]:
-        """Return the header and every record written since the last poll."""
+        """Return the header and every record this reader can trust.
+
+        Reads the image, then the header again, and only returns records whose
+        slots the second header proves were not reused during the read.
+        Anything else is counted in `lost`.
+        """
         header, records = parse_ring(self._read(header_only=False))
-        new = records_since(header, records, self.consumed)
+        after = parse_header(self._read(header_only=True))
+
+        if header.written == 0:
+            self.startup_seen = True
+
+        # Enabling the observer republishes the header with written = 0, so a
+        # count that went backwards is a restart, not a lost record.
+        if header.written < self.consumed:
+            self.restarts += 1
+            self.consumed = 0
+
+        new = records_since(header, records, self.consumed,
+                            written_after=after.written)
         self.lost += max(0, (header.written - self.consumed) - len(new))
+        self.last_margin = self.entries - (after.written - self.consumed)
         self.consumed = header.written
         return header, new
 
     def reset(self) -> None:
         self.consumed = 0
         self.lost = 0
+        self.restarts = 0
+        self.startup_seen = False
+        self.last_margin = None
 
 
 def is_reserved(code: int) -> bool:

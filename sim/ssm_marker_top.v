@@ -41,6 +41,12 @@ module ssm_marker_top
 	// DDR3 slave behaviour
 	input   [3:0] ddr_stall,
 
+	// Seed the DDR3 model with bytes an earlier core load would have left
+	// behind, so a startup vector can tell a fresh header from a stale one.
+	input         ddr_poke_we,
+	input   [8:0] ddr_poke_addr,
+	input  [63:0] ddr_poke_data,
+
 	output [15:0] last_code,
 	output [31:0] event_count,
 	output  [7:0] dropped_count,
@@ -49,6 +55,18 @@ module ssm_marker_top
 	output reg [31:0] ddr_write_count,
 	input      [8:0] peek_word,
 	output    [63:0] peek_data,
+
+	// Live Avalon signals, so a vector can watch a write that is being held
+	// across a disable rather than only its eventual effect in memory.
+	output        ddr_we_o,
+	output [28:0] ddr_addr_o,
+	output [63:0] ddr_din_o,
+
+	// Independent model of the marker's timestamp convention: a free-running
+	// counter with the module's own reset rule, latched by this harness at the
+	// clock where the opcode-fetch level is first seen low. The DUT must agree
+	// with this, not with a value two clocks later.
+	output reg [31:0] fetch_end_tick,
 
 	// CPU observation
 	output [15:0] cpu_addr,
@@ -200,6 +218,7 @@ assign peek_data = ddr_mem[peek_reg];
 
 always @(posedge clk) begin
 	peek_reg <= peek_word;
+	if (ddr_poke_we) ddr_mem[ddr_poke_addr] <= ddr_poke_data;
 	if (reset) ddr_write_count <= 32'd0;
 	else if (ddram_we & ~ddram_busy) begin
 		ddr_mem[ddram_addr - BASE_WORD] <= ddram_din;
@@ -207,13 +226,25 @@ always @(posedge clk) begin
 	end
 end
 
+assign ddr_we_o   = ddram_we;
+assign ddr_addr_o = ddram_addr;
+assign ddr_din_o  = ddram_din;
+
 //----------------------------------------------------------------------------
 
 reg m1_fetch_d = 0;
+reg [31:0] tick_ref = 0;
+wire active_ref = enable & ~reset;
+
 always @(posedge clk) begin
 	m1_fetch_d <= m1_fetch;
+	tick_ref   <= active_ref ? (tick_ref + 1'd1) : 32'd0;
 	if (reset) fetch_strobes <= 32'd0;
 	else if (m1_fetch_d & ~m1_fetch) fetch_strobes <= fetch_strobes + 1'd1;
+	// The fetch is complete on the first clock where the level is low; that
+	// clock's counter value is the marker's timestamp.
+	if (!active_ref) fetch_end_tick <= 32'd0;
+	else if (m1_fetch_d & ~m1_fetch) fetch_end_tick <= tick_ref;
 end
 
 ssm_marker dut (
@@ -229,10 +260,20 @@ ssm_marker dut (
 	.vsync(1'b0),
 	.field(1'b0),
 
+	// No sample recorder in this fixture: the cut is exercised through the
+	// tick, and the recorder has its own harness.
+	.sample_count(64'd0),
+
 	.last_code(last_code),
 	.event_count(event_count),
 	.dropped_count(dropped_count),
 	.event_stb(event_stb),
+	.event_capture(),
+	.event_code(),
+	.event_tick(),
+	.event_cut(),
+	.event_rec_a(),
+	.event_rec_b(),
 
 	.ddram_addr(ddram_addr),
 	.ddram_din(ddram_din),

@@ -57,10 +57,14 @@ constexpr unsigned kRingEntries = 64;
 
 class Harness {
 public:
-    Harness() : dut_(std::make_unique<Vssm_marker_top>()) {
+    // `enable_at_start` low keeps the observer disabled across the whole reset
+    // release, which is the only way to check that a disabled core writes
+    // nothing at all now that enabling itself publishes a header.
+    explicit Harness(bool enable_at_start = true)
+        : dut_(std::make_unique<Vssm_marker_top>()) {
         dut_->clk = 0;
         dut_->reset = 1;
-        dut_->enable = 1;
+        dut_->enable = enable_at_start;
         dut_->use_cpu = 0;
         dut_->m1_fetch_in = 0;
         dut_->bus_data_in = 0;
@@ -70,11 +74,27 @@ public:
         dut_->prog_addr = 0;
         dut_->prog_data = 0;
         dut_->ddr_stall = 0;
+        dut_->ddr_poke_we = 0;
+        dut_->ddr_poke_addr = 0;
+        dut_->ddr_poke_data = 0;
         dut_->peek_word = 0;
         dut_->eval();
         tick(8);
         dut_->reset = 0;
         tick(4);
+        // Let the enable-time header publication finish before a vector looks.
+        if (enable_at_start) tick(16);
+    }
+
+    // Write one 64-bit word straight into the DDR model, imitating bytes a
+    // previous core load left in the same physical window.
+    void poke(unsigned word, uint64_t value) {
+        dut_->ddr_poke_we = 1;
+        dut_->ddr_poke_addr = word;
+        dut_->ddr_poke_data = value;
+        tick();
+        dut_->ddr_poke_we = 0;
+        tick();
     }
 
     void tick(unsigned n = 1) {
@@ -311,9 +331,8 @@ void test_back_to_back_markers_are_counted_even_when_one_is_dropped() {
 }
 
 void test_disabled_detector_is_completely_silent() {
-    Harness h;
-    h->enable = 0;
-    h.tick(4);
+    Harness h(/*enable_at_start=*/false);
+    h.tick(64);
     h.fetch_all({0xED, 0xFE, 0xED, 0xFF});
     h.tick(64);
     expect_eq(h->event_count, 0, "disabled event count");
@@ -322,11 +341,152 @@ void test_disabled_detector_is_completely_silent() {
 
     // Re-enabling starts from a clean state rather than resuming mid-marker.
     h->enable = 1;
-    h.tick(4);
+    h.tick(16);
     h.fetch_all({0xFE, 0xED, 0xFF});
     expect_eq(h->event_count, 0, "a half marker spanning the toggle is not completed");
     h.fetch_all({0xED, 0xFE, 0xED, 0xFF});
     expect_eq(h->event_count, 1, "detection resumes after re-enabling");
+}
+
+// --- startup publication ----------------------------------------------------
+
+void test_enable_publishes_a_zero_header_before_any_marker() {
+    // Plan repair 1: the header has to exist with written = 0 as soon as the
+    // observer is enabled. Waiting for the first marker leaves the host
+    // reading whatever the physical window happened to hold.
+    Harness h;
+    expect_eq(uint32_t(h.peek(kWordMagic)), kMagic, "magic published on enable");
+    expect_eq((h.peek(kWordMagic) >> 32) & 0xFFFF, 1, "format version on enable");
+    expect_eq((h.peek(kWordMagic) >> 48) & 0xFF, kRingEntries, "entry count on enable");
+    expect_eq(uint32_t(h.peek(kWordHeader)), 0, "written count on enable");
+    expect_eq((h.peek(kWordHeader) >> 32) & 0xFF, 0, "dropped count on enable");
+    expect_eq(h->event_count, 0, "no event was invented to publish the header");
+}
+
+void test_stale_ddr_contents_are_overwritten_at_enable() {
+    // A second core load finds the previous run's ring still in DDR3. With a
+    // startup header the host reads zero and not the old count; without one it
+    // would replay records that belong to the previous machine.
+    Harness h(/*enable_at_start=*/false);
+    h.poke(kWordMagic, (uint64_t(kRingEntries) << 48) | (uint64_t(1) << 32) | kMagic);
+    h.poke(kWordHeader, (uint64_t(3) << 32) | 42u);   // 42 written, 3 dropped
+    h.poke(kWordRecord0, 0x0123u);
+    expect_eq(uint32_t(h.peek(kWordHeader)), 42, "stale count really is in the model");
+
+    h->enable = 1;
+    h.tick(32);
+    expect_eq(uint32_t(h.peek(kWordMagic)), kMagic, "magic after a stale image");
+    expect_eq(uint32_t(h.peek(kWordHeader)), 0, "stale written count cleared at enable");
+    expect_eq((h.peek(kWordHeader) >> 32) & 0xFF, 0, "stale dropped count cleared at enable");
+}
+
+void test_reenable_restarts_the_counts_and_republishes() {
+    Harness h;
+    h.fetch_all({0xED, 0x11, 0xED, 0x22});
+    h.tick(64);
+    expect_eq(uint32_t(h.peek(kWordHeader)), 1, "written before the toggle");
+    h->enable = 0;
+    h.tick(8);
+    h->enable = 1;
+    h.tick(32);
+    expect_eq(uint32_t(h.peek(kWordHeader)), 0, "written restarts at zero after a toggle");
+    expect_eq(h->event_count, 0, "event count restarts at zero after a toggle");
+}
+
+// --- Avalon behaviour across a disable ---------------------------------------
+
+void test_disable_holds_a_stalled_write_and_completes_it_once() {
+    // A disable must not drop `we` while the slave still asserts waitrequest:
+    // that is a protocol violation, and the absence of feedback into the CPU
+    // does not make it safe. The held write completes exactly once.
+    Harness h;
+    h->ddr_stall = 15;
+    const uint32_t before = h->ddr_write_count;
+    h.fetch_all({0xED, 0x12, 0xED, 0x34}, 1);
+    // Advance until the writer is actually holding a request.
+    unsigned guard = 0;
+    while (!h->ddr_we_o) {
+        h.tick();
+        if (++guard > 2000) fail("the writer never asserted a request");
+    }
+    const uint64_t held_addr = h->ddr_addr_o;
+    const uint64_t held_din = h->ddr_din_o;
+    h->enable = 0;
+    // While the slave still stalls, address, data and the request itself must
+    // not move.
+    for (unsigned i = 0; i < 4; ++i) {
+        h.tick();
+        if (!h->ddr_we_o) break;
+        expect_eq(h->ddr_addr_o, held_addr, "held address moved during the stall");
+        expect_eq(h->ddr_din_o, held_din, "held data moved during the stall");
+    }
+    h.tick(400);
+    expect_eq(h->ddr_we_o, 0, "the request is released once it is accepted");
+    expect_eq(h->ddr_write_count - before, 1, "the held write completed exactly once");
+}
+
+void test_one_clock_disable_during_stalled_write_restarts_lifecycle() {
+    Harness h;
+    h->ddr_stall = 15;
+    h.fetch_all({0xED, 0x12, 0xED, 0x34}, 1);
+    unsigned guard = 0;
+    while (!h->ddr_we_o) {
+        h.tick();
+        if (++guard > 4000) fail("the marker never asserted a request");
+    }
+    // Short 1-clock disable pulse during stalled beat
+    h->enable = 0;
+    h.tick();
+    h->enable = 1;
+    // Let the stalled write drain and reinitialization complete
+    h.tick(100);
+    expect_eq(h->event_count, 0, "events must be 0 after short disable across stalled write");
+    expect_eq(uint32_t(h.peek(kWordHeader)), 0, "written count must be 0 after short disable across stalled write");
+}
+
+// --- timestamp convention -----------------------------------------------------
+
+void test_event_tick_is_the_hh_fetch_completion_tick() {
+    // Pinned contract: the marker's timestamp is latched at the HH fetch
+    // boundary and carried through recognition. The registered hit is two
+    // clocks later and is not the cut.
+    for (unsigned hold : {1u, 2u, 5u, 13u}) {
+        Harness h;
+        h.fetch_all({0xED, 0x21, 0xED, 0x34}, hold);
+        const uint32_t cut = h->fetch_end_tick;   // harness's own model
+        h.tick(64);
+        const uint64_t rec_b = h.peek(kWordRecord0 + 1);
+        const uint32_t tick = uint32_t((rec_b >> 16) & 0xFFFFFFFFull);
+        std::ostringstream os;
+        os << "hold=" << hold << " event tick equals the HH fetch-completion tick";
+        expect_eq(tick, cut, os.str());
+    }
+}
+
+// --- loss bookkeeping ---------------------------------------------------------
+
+void test_published_counts_account_for_every_event() {
+    // Sweep the phase between the marker stream and the DDR service pattern.
+    // The published header must never be behind the registers once the writer
+    // is idle: written + dropped has to equal every event the detector saw.
+    for (unsigned stall = 1; stall <= 15; ++stall) {
+        for (unsigned skew = 0; skew < 6; ++skew) {
+            Harness h;
+            h->ddr_stall = stall;
+            h.tick(skew);
+            for (unsigned i = 0; i < 6; ++i) {
+                h.fetch_all({0xED, uint8_t(0x30 + i), 0xED, 0x11}, 1);
+            }
+            h.tick(4000);
+            const uint64_t header = h.peek(kWordHeader);
+            const unsigned written = uint32_t(header);
+            const unsigned dropped = (header >> 32) & 0xFF;
+            std::ostringstream os;
+            os << "stall=" << stall << " skew=" << skew;
+            expect_eq(h->dropped_count, dropped, os.str() + " published dropped matches the register");
+            expect_eq(written + dropped, h->event_count, os.str() + " written + dropped covers every event");
+        }
+    }
 }
 
 // --- executing CPU ----------------------------------------------------------
@@ -433,6 +593,16 @@ const Test kTests[] = {
     {"DDR stall delays but never drops", test_ddr_stall_delays_but_never_drops},
     {"back-to-back markers are accounted for", test_back_to_back_markers_are_counted_even_when_one_is_dropped},
     {"disabled detector is completely silent", test_disabled_detector_is_completely_silent},
+    {"enable publishes a zero header before any marker",
+     test_enable_publishes_a_zero_header_before_any_marker},
+    {"stale DDR contents are overwritten at enable", test_stale_ddr_contents_are_overwritten_at_enable},
+    {"re-enable restarts the counts and republishes", test_reenable_restarts_the_counts_and_republishes},
+    {"disable holds a stalled write and completes it once",
+     test_disable_holds_a_stalled_write_and_completes_it_once},
+    {"one-clock disable during stalled write restarts lifecycle",
+     test_one_clock_disable_during_stalled_write_restarts_lifecycle},
+    {"event tick is the HH fetch-completion tick", test_event_tick_is_the_hh_fetch_completion_tick},
+    {"published counts account for every event", test_published_counts_account_for_every_event},
     {"CPU: undefined ED pair emits the marker", test_cpu_undefined_ed_pair_emits_the_marker},
     {"CPU: spec reset example", test_cpu_spec_reset_example},
     {"CPU: real ED instruction emits nothing", test_cpu_real_ed_instruction_emits_nothing},
