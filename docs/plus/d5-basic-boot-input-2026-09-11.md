@@ -1,6 +1,9 @@
 # D5 BASIC boot production input repair
 
-**Source repair integrated; hardware acceptance pending.**
+**Source repair integrated; BASIC boot confirmed fixed on 6128 Plus hardware
+with `5c16b17`, reported 2026-09-12.** See the
+[hardware report](../hardware-evidence-2026-09-12.md). Other model/cartridge
+combinations and disk I/O remain separate acceptance items.
 
 Scope: CPC Plus production `/EXP` configuration. The accepted source rationale
 is in [architecture](architecture.md#additional-evidence-and-implementation-handoff).
@@ -96,6 +99,8 @@ Logs are retained in `docs/references/d3-d5-integration-2026-09-11/`.
 This uses the production T80 VHDL translated with GHDL, CPR loader/service,
 SDRAM controller/model, motherboard and real Plus I/O. The classic GA is still
 stubbed. Full top-level elaboration, vendor video, rendered text, physical SDRAM
-and real hardware are outside this fixture. Hardware BASIC `Ready` with an
-empty drive requires a full-fit RBF and MiSTer retest. See
+and real hardware are outside this fixture. Separately, the September 12
+user report confirms BASIC boot fixed on 6128 Plus / `5c16b17`; empty-drive
+and exact cartridge details were not supplied. The complete model/cartridge
+matrix and disk I/O remain open. See
 [current status](../current-status.md) for integration and build provenance.

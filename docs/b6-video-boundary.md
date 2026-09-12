@@ -332,6 +332,13 @@ is a separate follow-up before a complete rendered-pipeline simulation claim.
 
 ## Acceptance still requiring hardware
 
+**September 12 retest:** the user confirms build `5c16b17` and reports no
+visible difference so far between Full and Raw pixels in Amazing Demo, DSC4
+and SHAKER A (T). No Raw CRT result or exact output configuration was supplied.
+See the [hardware report](hardware-evidence-2026-09-12.md). B6 has not shown a
+visible improvement in those cases; this observation does not establish that
+the applied modes or internal pixel signals are identical.
+
 After reviewed source and a separately authorized RBF build, compare Full and
 Raw pixels on the same SHAKER/DSC4/Amazing Demo sequence and fixed output
 settings. Then test Raw CRT at 15 kHz, recording configuration and photographs

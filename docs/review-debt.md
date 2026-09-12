@@ -2,6 +2,22 @@
 
 ## Pending integration / review-complete rows (zero open review findings)
 
+**Coverage inventory, 2026-09-12:** the integrated D1/D6, D3/D4, D5 and B6
+rows below have no unresolved source-review findings. Historical NOT CLEAR
+entries later marked CLEAR are not reopened by this inventory. The B2
+host-tooling clearance was recorded in current status but omitted here; its
+row is added below. B2 device acceptance and B6 rendering/diagnostic residuals
+remain separate gates. New non-trivial B2/B6 follow-up changes require fresh
+cross-provider review before READY.
+
+- **B2 host capture tooling — CLEAR, integrated from `7e39204`.** The
+  September 8 status record retains Opus 5 high closure run
+  `20260908T044131Z-35882-569d`, 24 focused tests and an offline dry-run.
+  This entry indexes that existing review; it is not a new review verdict.
+  Device execution was not established by those checks. See the
+  [driver contract](mister-hardware-loop-driver.md) and
+  [recorded acceptance](current-status.md).
+
 - **B6 video boundary — CLEAR, integrated from `843cd5b`.** Sol high
   reviewed Opus production changes; Gemini high reviewed OpenAI fixtures and
   output extraction against the final integration. Both returned CLEAR.
@@ -30,7 +46,8 @@
   findings. Refresh against D1/D6 preserved the Plus RTL and test bodies;
   its conflict resolution changed only shared status prose. Both unchanged
   BASIC CPRs emit `Ready` on 6128 Plus and 464 Plus; ROM0/ROM7/direct-page
-  controls cover all three Plus models. Hardware and rendered-output
+  controls cover all three Plus models. The user confirms BASIC boot fixed
+  on 6128 Plus / `5c16b17` on September 12; broader model/cartridge and disk
   acceptance remain separate. See [D5 evidence](plus/d5-basic-boot-input-2026-09-11.md).
 
 - **D1/D6 parity repair — CLEAR, integrated from rebased tip `2d04812`.**

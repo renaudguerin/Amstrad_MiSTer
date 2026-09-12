@@ -13,12 +13,20 @@ cartridges `Drive A: read fail`; approximately half of sampled cartridges loaded
 
 ## Latest recorded results
 
-The [September 9 report](../hardware-evidence-2026-09-09.md) records the
+The [September 12 report](../hardware-evidence-2026-09-12.md) confirms BASIC
+boot fixed on **6128 Plus / `5c16b17`**. Left-edge sprite corruption is much
+improved, possibly fixed; **Pang/Plotting fire always pressed and Copter 271's
+logo remain NOT fixed**. This closes the named BASIC boot symptom, not the
+multi-model System Cartridge checklist or disk I/O. The exact output/media
+configuration and on-device RBF hash are unrecorded.
+
+The earlier [September 9 report](../hardware-evidence-2026-09-09.md) records the
 `ce1d2da` retest and maps the SHAKER captures. Burnin' Rubber was reported OK,
 Enforcer/Tintin seem good, and CRTC3's right-edge leak appears fixed. These
 limited observations do not check the multi-feature title/subsystem boxes below.
-System/BASIC boot, input, sprite flicker, DMA pitch and classic diagnostic
-failures remain open; disk access was blocked by boot failure.
+Input, definitive sprite closure, DMA pitch and classic diagnostic acceptance
+remain open. Disk access was blocked by boot failure at that earlier retest;
+the September 12 boot confirmation permits subsequent disk testing.
 
 ## Prerequisite gate
 
@@ -37,6 +45,8 @@ the corresponding run ID.
 |---|---|---|---|---|---|---|---|---|
 | 2026-09-09 Plus | `ce1d2da67c2598c0dd06208b9fc14c52ada01712` | `fef2c8553e85456a86bc6d28753cdbb43c386106b5cd719bbf808cea84dc6144` (local; device unverified) | full; +0.098/+0.238 ns; zero TNS | Unrecorded | 6128 Plus; Live blanking | Named titles in report; hashes/mounted media unrecorded | Partial; see report; no Dandanator | User observations / supplied captures |
 | 2026-09-09 Classic | Same build | Same local hash | Same build | Unrecorded | 6128, Plus off; CRTC1, DSC4 also CRTC0; Full/Live/Off as recorded | SHAKER 2.7, DSC4, Amazing Demo; hashes unrecorded | DSC4 before SHAKER; reset reported; full sequence unrecorded | User observations / supplied captures; reference comparison pending |
+| 2026-09-12 Plus | `5c16b17` (user-confirmed) | `8b3b5bed518165040f8e578c83f061891fa64d58ce3b52fb07d5765765506468` (delivered local artifact; device unverified) | full; +0.320/+0.247 ns; zero TNS | Unrecorded | 6128 Plus | BASIC, Pang, Plotting, Copter 271; exact media unrecorded | Unrecorded | User observations; see September 12 report |
+| 2026-09-12 B6 comparison | `5c16b17` (user-confirmed) | Same delivered local hash | Same build | Unrecorded | Classic model/CRTC and output connection unrecorded; Full / Raw pixels | Amazing Demo, DSC4, SHAKER A (T); exact versions unrecorded | Unrecorded | User reports no visible difference so far |
 
 ---
 
@@ -73,6 +83,9 @@ the corresponding run ID.
 ## 3. Real Hardware Titles Test Matrix
 
 ### A. Firmware / System Cartridge
+The 6128 Plus BASIC boot symptom is confirmed fixed on September 12. The
+box below retains the wider banner, model and cartridge checks.
+
 - [ ] **Amstrad System Cartridge (v4)**:
   - Boot on `6128+`: verify Firmware 4.0 banner, Locomotive BASIC 1.1, and AMSDOS banner.
   - Boot on `464+`: verify Firmware 4.0 banner and Locomotive BASIC 1.1 (no AMSDOS).

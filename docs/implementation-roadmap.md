@@ -13,6 +13,13 @@ merged into the same behavioral PR.
 
 ## 1. Current baseline
 
+- **September 12 hardware, `5c16b17`:** BASIC boot is confirmed fixed on
+  6128 Plus; left-edge sprite corruption is much improved, perhaps fixed.
+  Pang/Plotting fire always pressed and Copter 271's logo remain failing.
+  Full versus Raw pixels has shown no visible difference in Amazing Demo,
+  DSC4 or SHAKER A (T). See the [report](hardware-evidence-2026-09-12.md);
+  B1/B6 visual and P10 subsystem acceptance remain open.
+
 - D3's bounded first-visible-row sprite prefetch and D4's Plus PPI mode-word
   readback are integrated. Their required regressions retain sprite row-colour
   checks and DMA/PPI direction behavior. Post-BSR control reads and real-title
@@ -22,8 +29,9 @@ merged into the same behavioral PR.
 - D5's production `/EXP` input repair is integrated with unchanged MMU
   decoder polarity. The opt-in production-T80 gate requires both unchanged
   BASIC CPRs to emit `Ready` on 6128 Plus and 464 Plus, retaining ROM7,
-  direct-page and GX4000 controls. Physical BASIC boot and subsequent
-  Plus disk-based testing remain hardware acceptance steps. See
+  direct-page and GX4000 controls. The user confirms physical BASIC boot on
+  6128 Plus with `5c16b17`; other model/cartridge combinations and subsequent
+  Plus disk-based testing remain separate acceptance steps. See
   [D5 validation](plus/d5-basic-boot-input-2026-09-11.md).
 
 - B8-1 production-phase R5/R0 event retention and B8-6 Plus RGB/metadata
@@ -49,12 +57,11 @@ merged into the same behavioral PR.
   from `rtl/UM6845R.v`), F7's type-1 R5-route RFD with A1/A2, and GitHub Actions synthesis.
   Platform-level references covering the ASIC, Gate Array, MMU, PPI, PSG, FDC, and file formats
   are inventoried in [`docs/references/README.md`](references/README.md).
-- B8 integration source `dba49d5` has a successful full-effort Quartus 17.0.2
-  job, timing checks and uploaded RBF in run `34179032281`. Its original lint
-  failure was corrected by build-only `9cfe743`, whose simulation/lint and
-  required gate passed on pinned Verilator 5.050 in run `34180289243`.
-  The synthesized inputs are unchanged by that correction; the original RBF
-  is delivered with its source SHA and hash in [current status](current-status.md).
+- Latest synthesized integration source `5c16b17` passed full-effort Quartus
+  17.0.2, simulation and the required gate in run `34570572190`; setup
+  +0.320 ns, hold +0.247 ns, zero TNS. The delivered RBF and hash are recorded
+  in [current status](current-status.md). `013c7e5` adds documentation only.
+  Earlier B8 artifacts retain their own source identity as comparison baselines.
 - `sim/` currently reports **225** required classic CRTC passes with no expected failures
   plus 45 production-GA/scripted-write cases (B8-1, Verilator 5.052); the soak
   reproduces golden hash `0xb1cb70da95c2e44f` after the D1/D6 parity repairs.
@@ -470,6 +477,18 @@ and hardware retest remain. No separate upstream utilization build was required.
 
 ## 8. Immediate execution queue
 
+**Active September 12 priorities:** (1) bring the B2 capture loop through real
+device acceptance at `root@mister`, with one device operator and real SHAKER
+navigation; (2) finish B6's malformed-raster, Plus scroll/sprite and final-mixer
+RGB simulation gaps; (3) close actual source-review gaps and obtain fresh
+cross-provider review of new non-trivial changes. These tasks prepare reviewed,
+tested READY branches; integration/push is a separate step. The
+[latest hardware report](hardware-evidence-2026-09-12.md) guides the work:
+6128 Plus BASIC boot is fixed, sprite improvement is tentative, input/Copter
+failures persist, and Full/Raw pixels has not demonstrated visible improvement.
+
+The items below are retained validation work outside that bounded task pair.
+
 The September 8 [B8 architecture review](b8-architecture-methodology-review-2026-09-08.md)
 sets the current repair order. B8-1 R5/R0 write-event retention and B8-6 Plus
 RGB/metadata alignment, plus B8-2 selected FIELD ownership, are integrated;
@@ -511,7 +530,8 @@ See [current status](current-status.md) for accepted source and artifact identit
    MBC cross-build are prepared at `7e39204`; see the
    [driver guide](mister-hardware-loop-driver.md). A bounded CSL subset is
    still separate work.
-   Once SSH access is available, require three repeatable stable-screen captures
+   With `root@mister` reported online, verify SSH/device operation and require
+   three repeatable stable-screen captures
    with build/media/model/CRTC/filter identity. Exact SSM event-to-image capture
    remains a later gate.
 7. **Hardware retests:** use the delivered SHA-labelled RBF for DSC4/SHAKER,

@@ -8,9 +8,24 @@ feature work is visible, verifiable, and maintainable at all.
 Read this before picking up roadmap section 8. Several roadmap items are blocked on B1 in a way
 that is not obvious from the roadmap itself.
 
-## Active Plus follow-up: D5 ROM 0 boot configuration
+## Current priorities after the September 12 hardware retest
 
-**Production input repaired; hardware acceptance pending.** D5 supplies low
+The [latest report](hardware-evidence-2026-09-12.md) confirms BASIC boot fixed
+on **6128 Plus / `5c16b17`**. Left-edge sprite corruption is much improved,
+possibly fixed; **Pang/Plotting fire always pressed and Copter 271's logo
+remain failing**. Full versus Raw pixels shows no visible difference so far
+in Amazing Demo, DSC4 or SHAKER A (T). B1/B6 visual acceptance and P10 remain
+open; do not promote the tentative sprite improvement to a confirmed fix.
+
+The active work is **B2 device capture** (`root@mister`, user reports online),
+**B6 diagnostic/final-RGB gaps**, and **actual source-review gap closure**.
+Keep one device operator, preserve Classic/Plus result separation, and require
+fresh cross-provider review for new non-trivial changes. Existing D1/D6 and
+D3-D5 repairs are integrated and must not be restarted from older notes.
+
+## D5 ROM 0 boot configuration: reported boot symptom closed
+
+**Production input repaired; 6128 Plus hardware boot confirmed 2026-09-12.** D5 supplies low
 `/EXP` for CPC Plus BASIC boot while preserving the live MMU decoder polarity.
 The regression executes both unchanged BASIC CPRs on 6128 Plus and 464 Plus,
 requires firmware `Ready`, and rejects disc-missing output and timeouts.
@@ -19,7 +34,8 @@ ROM7, direct-page and GX4000 controls are retained.
 See the [D5 validation report](plus/d5-basic-boot-input-2026-09-11.md) for gates
 and review, and the [source handoff](plus/architecture.md#additional-evidence-and-implementation-handoff)
 for the accepted configuration rationale. Factory strap measurement is not an
-implementation prerequisite. Real-hardware acceptance remains separate.
+implementation prerequisite. Other model/cartridge combinations and disk I/O
+acceptance remain separate from the user's confirmed boot result.
 
 ## Why this file exists
 
@@ -122,8 +138,11 @@ and operates after this stage. Removing or redesigning it does not affect those.
     [latest results and capture index](hardware-evidence-2026-09-09.md) and
     [September 10 diagnostics](hardware-diagnosis-2026-09-10.md). The latter
     reproduces type-1 origin VSYNC loss and actual ASCAL geometry changes from
-    split DE. Prioritize the bounded VSYNC repair and a stable-acquisition
-    experiment; neither is yet a DSC4 hardware fix.
+    split DE. D1/D6 and the B6 stable-acquisition boundary are now integrated.
+    On September 12, Full versus Raw pixels showed no visible difference in
+    DSC4, Amazing Demo or SHAKER A (T); see the
+    [new report](hardware-evidence-2026-09-12.md). Prioritize repeatable capture
+    and the remaining B6 diagnostics; no DSC4 hardware fix is established.
     Source/test review of the hybrid candidate is CLEAR (Muse read-only
     2026-09-03 at `a98590a`; record
     `docs/accuracy/classic-review-2026-09-03.md` §2) with the
@@ -156,7 +175,9 @@ and operates after this stage. Removing or redesigning it does not affect those.
 [driver and cross-build](mister-hardware-loop-driver.md) are available locally.
 On September 10 the user supplied `root@mister`, with cores under
 `/media/fat/_Computer/Amstrad` and media under `/media/fat/games/Amstrad`.
-The current investigation did not contact the device. The
+The user reconfirmed `root@mister` online on September 12. Device acceptance
+remains to be demonstrated by the capture task; earlier host-only checks did
+not contact the device. The
 [hardware-loop plan](mister-hardware-loop-plan.md) starts with Main's existing
 `/dev/MiSTer_cmd` core-load/screenshot commands, verified MGL media slots and
 Linux input injection. Prefer an installed tool or the small MiSTer Batch Control
@@ -332,6 +353,13 @@ is resolved by the production P10/B7 motherboard/SDRAM fixture. Full simulation,
 lint, unchanged canonical soak and fresh Sol/Gemini code review pass. The
 source `843cd5b` is integrated; the wider diagnostic matrix and hardware acceptance remain
 open. See the [validation record](b6-video-boundary-review-2026-09-11.md).
+
+**HARDWARE FOLLOW-UP 2026-09-12:** on `5c16b17`, the user sees no difference
+between Full and Raw pixels in Amazing Demo, DSC4 or SHAKER A (T). No Raw CRT
+result was reported. Complete CPU-driven malformed-raster and combined Plus
+scroll/opaque-sprite cases, resolve the final-mixer RGB simulation gap, and
+obtain repeatable captures with applied-mode/configuration evidence. This
+result does not establish mode equivalence or identify a new RTL defect.
 
 **MENU SLICE DONE 2026-09-01:** the existing Plus-model capability decoder now drives menu-mask
 groups for Plus-only, classic-only, FDC-capable, and tape-capable controls. Off retains all

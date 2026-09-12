@@ -11,7 +11,12 @@ changes landed in `ee50c33`, with the later banking/SNA corrections in `421aec6`
 `7c46b8d`. The new observations show that passing leaf benches and review is not equivalent
 to a timing-clean, production-top-level, real-title acceptance result.
 
-**Latest retest:** [September 9 results](../hardware-evidence-2026-09-09.md)
+**Latest retest:** [September 12 results](../hardware-evidence-2026-09-12.md)
+on `5c16b17` confirm BASIC boot fixed on 6128 Plus. Left-edge sprite corruption
+is much improved, perhaps fixed; Pang/Plotting fire always pressed and Copter
+271's logo remain failing. Full P10 compatibility is still open.
+
+**Earlier retest:** [September 9 results](../hardware-evidence-2026-09-09.md)
 on `ce1d2da` supersede current-result assumptions from this initial checkpoint.
 Most defects remain; CRTC3's earlier right-edge fix has not regressed, and Navy Seals
 black screen was not reproduced. No Dandanator was tested. Keep the historical
@@ -19,9 +24,10 @@ observations below tied to their original build and evidence limits.
 
 The [September 10 diagnosis](../hardware-diagnosis-2026-09-10.md) retains
 separate first-row sprite-refill and PPI-readback failures, with no claimed
-title-level repair. System/BASIC boot blocks disk-based testing in Plus mode;
-the report records that investigation without attributing it to the earlier
-reduced-TV80 FDC payload XFAIL.
+title-level repair. Its subsequent D3/D4/D5 source repairs are integrated.
+The September 12 BASIC boot confirmation removes that blocker for the tested
+6128 Plus setup; disk I/O still needs acceptance and is not explained by the
+earlier reduced-TV80 FDC payload XFAIL.
 
 ## 1. Hardware observations
 
