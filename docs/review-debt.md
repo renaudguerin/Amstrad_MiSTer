@@ -22,10 +22,12 @@ vectors included. Look hardest at:
   needs GHDL, which this repository's default gate and CI do not run.
 * **Timing closure.** New logic on `clk_sys` now drives previously constant DDRAM pins.
   Synthesis has not run on this branch yet.
-* **The `#FFFE` path is untested against real media and cannot be.** No published
-  SHAKER disc emits `#FFFE` (`docs/shaker-ssm-marker-inventory-2026-09-12.md`), so
-  that branch of the detector and of the runner is exercised only by simulation and
-  by scripted-transport tests. Judge it on the standard, not on corpus evidence.
+* **The screenshot-trigger rule was wrong once and is worth re-deriving.** The runner
+  originally captured only on `#FFFE`; in fact every non-reserved code is a screenshot
+  request and `#FFFE` merely renames one
+  (`docs/shaker-ssm-marker-inventory-2026-09-12.md`). Fixed, but check
+  `ssm_ring.is_reserved` against the standard rather than trusting it. No capture path
+  has run against real media yet, so judge it on the standard and the simulation.
 **B4 phase 0, CSL runner, 2026-09-12 — UNREVIEWED:** `scripts/hardware-loop/csl_runner.py`,
 `scripts/hardware-loop/cpc_keys.py` and their 51 offline tests were written and
 gated by the parent alone; no cross-provider review was available. Host-only

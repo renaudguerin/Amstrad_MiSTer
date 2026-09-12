@@ -266,21 +266,19 @@ never overwritten.
 
 ### Captures
 
-The bundled SHAKER scripts contain no `screenshot` instruction at all, and the
-published discs turn out to emit no SSM `#FFFE` either
-([inventory](shaker-ssm-marker-inventory-2026-09-12.md)). So the `--ssm` capture
-path below is correct per the standard but idle against SHAKER 2.6 and 2.7, and
-`--screenshot-at` is the working per-screen capture. Two paths exist.
+The bundled SHAKER scripts contain no `screenshot` instruction: their captures are
+meant to come from the SSM code SHAKER emits for each test screen, which the core
+now detects. Two paths exist.
 
 `--screenshot-at [SCRIPT:]LINE` requests a capture after a chosen script line
 without editing the author's files, named
 `MISTER_<crtc>_<script>_<line>_<n>.png`. It needs no RTL support and is the
 right tool for a one-off look at a particular screen.
 
-`--ssm` turns on the detector and captures on `#FFFE`. The published discs never
-emit it, so today this path's value is the ring itself: it records the `#0000`
-sync markers, honours `wait_ssm0000`, and confirms the detector works on real
-media.
+`--ssm` turns on the detector and captures on the markers SHAKER itself emits,
+naming each from its code so captures line up with the portal's
+code-to-image table. This is the path that makes captures comparable with the
+SHAKERLAND references.
 
 ## SSM markers
 
@@ -297,16 +295,18 @@ existing SSH transport with BusyBox `dd if=/dev/mem`; no Main patch and no
 device daemon is involved. `status_set` and `info_req` were both checked and
 neither reaches user space.
 
-What the discs actually emit is two `#0000` per module plus, in 2.7, one
-`#FFFD`/`#FFFC` pair. Everything else in this table is implemented and unexercised
-by the current corpus.
+`#0000` and every `#FFxx` are reserved by the standard; **everything else is a
+screenshot request**, which is how SHAKER works — it assigns one code per test
+screen, 712 of them, and builds each at run time by patching a template. `#FFFE`
+is only the variant that takes its name from CSL instead of from the code.
 
 | Marker | What the runner does |
 |---|---|
+| any non-reserved code | captures, named `MISTER_<crtc>_<HHLL>.png` |
 | `#0000` | releases a pending `wait_ssm0000`, bounded by `--max-wait` |
-| `#FFFE` | captures, named `screenshot_name` if one is pending, otherwise `MISTER_<crtc>_FFFE_<seq>.png` |
+| `#FFFE` | captures, named `screenshot_name` if one is pending, else `MISTER_<crtc>_FFFE.png` |
 | `#FFFF` | recorded as an approximation: this runner makes no snapshots |
-| anything else | recorded in the manifest with its raster position |
+| other `#FFxx` | recorded with its raster position, acted on by nothing |
 
 Each record carries the marker's code, its raster position at the instruction
 (line and horizontal position, plus the field), a VSYNC-edge count and a core

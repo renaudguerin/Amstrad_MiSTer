@@ -37,7 +37,16 @@ HEADER_BYTES = 16
 RECORD_BYTES = 16
 DEFAULT_BASE = 0x3000_0000
 
-# SSM v1.1 reserved codes.
+# SSM v1.1 reserved codes. The standard reserves "#0000 and all #FFxx codes
+# (this represents 178 values)", which is 1 + the 177 legal values of LL with
+# HH = #FF -- the arithmetic confirms the byte set in `ssm_byte_allowed`.
+#
+# Everything else is an ordinary code, and an ordinary code IS a screenshot
+# request: "it can use the read SSM code to generate a screenshot immediately
+# after reading the #HH byte". SHAKER assigns one such code per test screen and
+# the portal's SHAKER_SCREENSHOT_CODE.xlsx maps them to reference images.
+# #FFFE is not the general screenshot trigger; it is the variant that says
+# "name this one from the CSL screenshot_name instead of from the code".
 CODE_SYNC = 0x0000
 CODE_SCREENSHOT = 0xFFFE
 CODE_SNAPSHOT = 0xFFFF
@@ -213,6 +222,21 @@ class SsmRingReader:
     def reset(self) -> None:
         self.consumed = 0
         self.lost = 0
+
+
+def is_reserved(code: int) -> bool:
+    """True for #0000 and every #FFxx, the codes the standard holds back."""
+    return code == CODE_SYNC or (code >> 8) == 0xFF
+
+
+def is_screenshot_request(code: int) -> bool:
+    """True if this code asks for a screenshot.
+
+    Any non-reserved code does, named from the code itself. #FFFE also does,
+    named from the CSL `screenshot_name` instead. The remaining reserved codes
+    do not.
+    """
+    return code == CODE_SCREENSHOT or not is_reserved(code)
 
 
 def suggested_name(emulator: str, crtc: str, code: int, extension: str = "png") -> str:

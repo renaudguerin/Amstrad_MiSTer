@@ -1,10 +1,12 @@
 """Guard on the SHAKER SSM marker inventory, a load-bearing planning premise.
 
-`docs/shaker-ssm-marker-inventory-2026-09-12.md` concludes that the published
-discs emit no `#FFFE` at all, which is why phase 2 of the CSL/SSM plan has no
-consumer yet. If a future disc, or a build compiled with screenshot markers,
-ever lands in `docs/references/Shaker_CSL/`, this suite fails and says so
-rather than letting the plan quietly go stale.
+SHAKER builds its per-test SSM codes at run time by patching an `ED 00 ED 00`
+template, so the only markers visible statically are the two unpatched templates
+per module. That is recorded in
+`docs/shaker-ssm-marker-inventory-2026-09-12.md`, and these tests pin it: a disc
+whose codes appear as literal bytes would mean the emitter changed, and a disc
+carrying `#FFFE` would mean the scripts started using CSL-side naming. Either
+would make that document stale, and both fail here loudly instead.
 
 Skips when the user-owned, untracked disc images are absent.
 """
@@ -57,27 +59,29 @@ class TestBundledDiscInventory(unittest.TestCase):
         for name, report in self.reports.items():
             self.assertEqual(len(report["modules"]), 5, name)
 
-    def test_no_screenshot_or_snapshot_markers_exist(self):
-        # This is the premise phase 2 rests on. If it ever fails, read
-        # docs/shaker-ssm-marker-inventory-2026-09-12.md and revise the plan:
-        # a disc that emits #FFFE turns phase 2 from speculative into needed.
+    def test_no_static_screenshot_or_snapshot_markers_exist(self):
+        # #FFFE only means "name this capture from the CSL screenshot_name",
+        # and the bundled scripts never use it, so its absence is expected.
+        # Its appearance would mean the scripts changed approach.
         for name, report in self.reports.items():
             totals = report["totals"]
             self.assertEqual(totals.get(CODE_SCREENSHOT, 0), 0,
-                             f"{name} now emits #FFFE; phase 2 has a consumer")
+                             f"{name} now emits #FFFE; the scripts changed approach")
             self.assertEqual(totals.get(CODE_SNAPSHOT, 0), 0, name)
 
-    def test_two_sync_markers_per_module(self):
+    def test_two_unpatched_template_sites_per_module(self):
         for name, report in self.reports.items():
             for module in report["modules"]:
+                # Two `ED 00 ED 00` sites: the patched per-test emitter's
+                # template and the gated sync emitter.
                 self.assertEqual(module["codes"].get(CODE_SYNC, 0), 2,
                                  f"{name}/{module['name']}")
 
-    def test_sync_markers_are_module_level_not_per_screen(self):
-        # Both sites in a module sit within a few dozen bytes of each other,
-        # which is what makes #0000 a coarse handshake rather than a
-        # per-screen signal. A disc where they spread out would mean the
-        # opposite, and would make wait_ssm0000 a real capture mechanism.
+    def test_the_two_template_sites_sit_together(self):
+        # In SHAKE26B they are &A109, the per-test emitter's template, and
+        # &A128, a gated #0000 sync emitter, 31 bytes apart. Sites that spread
+        # out across a module would mean markers are inlined per test after
+        # all, which would change how the codes must be read.
         for name, report in self.reports.items():
             for module in report["modules"]:
                 sites = [int(a, 16) for a in module["addresses"]["0000"]]

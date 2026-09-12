@@ -7,16 +7,25 @@ recorded in [b2-device-capture-2026-09-12.md](b2-device-capture-2026-09-12.md). 
 implementation brief for a fresh session; each phase is separately mergeable and has its
 own gate.
 
-**Status 2026-09-12: phases 0 and 1 implemented. Phase 2 is now gated on evidence, not
-on the author's frame-semantics answer.**
+**Status 2026-09-12: phases 0 and 1 implemented; phase 2 designed, not started, and
+it does have a consumer.**
 
 The frame-semantics question is answered and withdraws this plan's earlier "next
-complete frame" default; see phase 2. But a static inventory of the discs then found
-something that matters more:
-[the published SHAKER discs emit no `#FFFE` at all](shaker-ssm-marker-inventory-2026-09-12.md).
-Phase 1's screenshot path is correct per the standard and idle in practice; phase 2
-exists to serve `#FFFE` and therefore has no consumer until a build that emits it is
-known to exist. **Read that document before planning further work on this item.**
+complete frame" default; see phase 2. Two corrections were then made the same day,
+both recorded in
+[the marker inventory](shaker-ssm-marker-inventory-2026-09-12.md), which is the
+document to read before planning further work here:
+
+- **`#FFFE` is not the general screenshot trigger.** Every *non-reserved* SSM code is
+  a screenshot request named from the code; `#FFFE` only means "name it from
+  `screenshot_name` instead". SHAKER assigns one ordinary code per test screen, built
+  at run time by patching an `ED 00 ED 00` template, which is why a static scan of the
+  discs finds none of them. The shipped runner captured only on `#FFFE` and would have
+  ignored every real marker; fixed.
+- **About 480 reference images are reachable per supported CRTC type.** The portal's
+  code table lists 712 per-test codes, 483 applicable to CRTC 0 and 478 to CRTC 1. So
+  the one-to-one mapping onto SHAKERLAND images is reachable, and phase 2 has real
+  work to do.
 Phase 0 is `scripts/hardware-loop/csl_runner.py` plus `cpc_keys.py`; phase 1 is
 `rtl/ssm_marker.v` plus `scripts/hardware-loop/ssm_ring.py`. Both are covered by
 offline tests and `make -C sim`. Neither has run on the device yet, so the
@@ -33,13 +42,13 @@ B2 today covers one hand-built case (module B, test 9). The target is every SHAK
 module and test that our core can run, driven by the author's scripts, without
 per-test authoring.
 
-**Revised 2026-09-12.** The second half of that goal — "label every capture with the
-SSM code that SHAKER itself emits" — is not reachable with the published discs, which
-emit only `#0000` twice per module and, in 2.7, a Sikoview pair. There is no `#FFFE`
-to label a capture with. The per-test capture that does work is
-`--screenshot-at [SCRIPT:]LINE`, and the one-to-one mapping onto SHAKERLAND images has
-to come from the portal's code-to-image table rather than from a marker the core
-observed. See [the inventory](shaker-ssm-marker-inventory-2026-09-12.md).
+**Confirmed 2026-09-12.** The goal holds as written. SHAKER assigns a distinct SSM
+code to each test screen — 712 of them, `0001` to `040C` — and the portal's
+`SHAKER_SCREENSHOT_CODE.xlsx` maps each to its reference image, test id, subset and
+CRTC applicability. Captures are named `MISTER_<crtc>_<HHLL>.png` per the standard's
+suggested rule. The codes are emitted from a run-time-patched template rather than
+inlined, so they are invisible to a static scan of the discs; see
+[the inventory](shaker-ssm-marker-inventory-2026-09-12.md).
 
 Non-goals: a CSL interpreter inside the FPGA, CRTC types 2/3/4, tape and snapshot
 commands, and full CSL conformance claims. Unsupported commands are rejected with a
@@ -265,45 +274,39 @@ on paper from the SSM document and cited at its assertion.
 Gates: `make -C sim` green, synthesis through the normal integration CI (no manual
 dispatch), and a `docs/review-debt.md` row if no cross-provider review is available.
 
-Acceptance, **rewritten 2026-09-12 and still open.** The original text required that
-"the ring holds one record per SHAKER screen" and that "each `FFFE` produced a named
-capture". Neither is achievable: the discs emit no `#FFFE`, and `#0000` appears twice
-per module rather than once per screen
-([inventory](shaker-ssm-marker-inventory-2026-09-12.md)). What the gate can and should
-establish on a device run of `SHAKE26B-1.CSL` with `--ssm`:
+Acceptance, **restated 2026-09-12 and still open.** The original wording spoke of
+`#FFFE` captures, which is not how SHAKER emits markers. On a device run of
+`SHAKE26B-1.CSL` with `--ssm`, the gate should establish:
 
 1. The ring magic appears, which confirms `0x30000000` is the right DDR3 base. If it
    does not, `--ssm-base` finds the right one and one `localparam` follows. **This is
-   the single most valuable thing the run produces.**
-2. The two `#0000` records for module B arrive, in order, with plausible raster
-   positions, and their `tick` values give the real interval between them.
-3. `wait_ssm0000` releases when a purpose-written script uses it, which is the only
+   the single most valuable thing the run produces**, because no repository evidence
+   can settle it.
+2. Module B's per-test codes arrive, in the table order the emitter's self-advancing
+   cursor implies, each with a plausible raster position, and each produces a capture
+   named `MISTER_1_<HHLL>.png`.
+3. Those codes agree with the module B rows of `SHAKER_SCREENSHOT_CODE.xlsx` for the
+   tests the script walks, and none arrives that the table marks inapplicable to
+   CRTC 1.
+4. The two paired markers on a flashing test are visible as two codes, and their
+   `tick` delta gives the real interval — the number that decides whether phase 2
+   needs two buffer slots or three.
+5. `wait_ssm0000` releases where a purpose-written script uses it, which is the only
    way to exercise that path since no bundled script does.
-4. Nothing regresses: the core boots, navigates and captures exactly as it did in the
-   B2 evidence with the detector off, and `dropped` stays zero.
+6. Nothing regresses: the core boots, navigates and captures as it did in the B2
+   evidence with the detector off, and `dropped` stays zero.
 
 A synthesised RBF from this branch is a prerequisite, so this gate is downstream of
 integration.
 
 ## Phase 2: exact frame capture (separate gate)
 
-**Precondition, 2026-09-12: do not start this phase yet.** Phase 2 exists to serve
-`#FFFE`, and no published SHAKER disc emits `#FFFE`
-([inventory](shaker-ssm-marker-inventory-2026-09-12.md)). The SSM standard allows the
-mechanism to be "conditionnelle (ou compilée exprès lors des tests)", so a build with
-screenshot markers may exist and may be what produced the SHAKERLAND images. That
-question goes to the author and gates this whole phase:
-
-> The public `shaker26.dsk` and `shaker27.dsk` emit `#0000` twice per module, plus
-> `#FFFD`/`#FFFC` in 2.7, but no `#FFFE` at all. How were the SHAKERLAND reference
-> images produced — from a build compiled with `#FFFE` markers, or by CSL
-> `wait_ssm0000` plus `screenshot`? If such a build exists, is it obtainable?
-
-The design below is sound and worth keeping; it is simply not yet needed. If the
-answer is that no `#FFFE` build is available, the useful successor is not this phase
-but a *script-driven* capture: CSL `screenshot` at chosen points, which phase 0
-already implements, with the core-side persistent buffer added only if Main's
-asynchronous grab proves to be the accuracy limit in practice.
+**Consumer confirmed 2026-09-12.** An earlier revision of this section gated the phase
+on whether any disc emits a screenshot marker. It does: every non-reserved SSM code is
+one, and SHAKER emits about 480 per supported CRTC type. The gate is lifted. What
+remains before building it is the phase 1 device run, which supplies the two numbers
+this design still lacks — the DDR3 base, and the tick interval between paired markers
+that decides the slot count.
 
 **Frame semantics answered by the author, 2026-09-12.** The question below is closed
 and the earlier "next complete frame" default is withdrawn. Longshot's reply, verbatim:
@@ -563,17 +566,18 @@ is the right one.
 
 ### The decision the review should reach
 
-**Is phase 2 still the right next step?** The evidence says no, or at least not yet.
-It was scoped to make `#FFFE` captures frame-exact, and no published disc emits
-`#FFFE`. Three candidate successors, in the order this plan currently prefers them:
+**Is phase 2 the right next step, and is its design sound?** It has a confirmed
+consumer now, but it should not be first. The preferred order:
 
-1. **Integrate, synthesise, run the phase 1 device gate.** Confirms the DDR3 base,
-   which is the one number in the whole item that repository evidence cannot settle,
-   and is a prerequisite for everything else.
-2. **Purpose-written CSL scripts using `wait_ssm0000` and `screenshot`.** Uses only
-   what phase 0 and phase 1 already ship and what the discs actually emit. Gives
-   program-synchronised captures at module level instead of host-timed guesses.
-3. **Phase 2 as designed**, once the author confirms a `#FFFE` build exists.
+1. **Integrate, synthesise, run the phase 1 device gate.** It settles the DDR3 base —
+   the one number in the whole item no repository evidence can reach — and measures
+   the paired-marker interval that sizes phase 2's buffers. Everything else is
+   downstream of it.
+2. **Phase 2 as designed**, using those two numbers.
+3. **Optional, cheap: annotate captures from the portal code table**, so a manifest
+   says which test a code is and warns when a code arrives that the table marks
+   inapplicable to the selected CRTC. That is a real cross-check on whether the right
+   module and CRTC were loaded.
 
 ### Where to look hardest
 
@@ -591,6 +595,10 @@ It was scoped to make `#FFFE` captures frame-exact, and no published disc emits
   GHDL that neither the default gate nor CI runs.
 - **The ping-pong stitch** in phase 2's "Mechanism" section. It is the load-bearing
   idea that removes the copy engine, and it has been reasoned on paper only.
+- **The reserved-code rule.** `is_reserved` in `ssm_ring.py` is `code == 0x0000 or
+  (code >> 8) == 0xFF`, and everything else captures. Getting this backwards is the
+  mistake this work already made once: it is worth re-deriving from the standard
+  rather than trusting the code.
 - **The keycode table** in `cpc_keys.py`: 15 of roughly 75 entries are confirmed
   against the B2 device capture, the rest read back from `rtl/hid.sv` through PS/2
   set-2. The corpus test only covers the characters the 25 bundled scripts use.

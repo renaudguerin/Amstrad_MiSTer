@@ -17,6 +17,7 @@ from typing import Any, Dict, List
 import ssm_ring
 from csl_runner import CFG_BIT_SSM, CslError, RunOptions, run_csl
 from driver import CommandResult
+from shaker_ssm_inventory import ssm_byte_allowed as inv_allowed
 from test_csl_runner import MINIMAL, DeviceHarnessMixin, options, write
 
 
@@ -139,8 +140,33 @@ class TestReadCommand(unittest.TestCase):
             ssm_ring.read_command(0x3000_0001, 64)
 
     def test_suggested_name_follows_the_standard(self):
-        # SSM v1.1: <Emulator name>_<CRTC number>_<HHLL code>.<extension>
-        self.assertEqual(ssm_ring.suggested_name("MISTER", "1", 0xFFFE), "MISTER_1_FFFE.png")
+        # SSM v1.1: <Emulator name>_<CRTC number>_<HHLL code>.<extension>.
+        # Its own example is CRTC 2, ED E3 ED 02 -> AMSPIRIT_2_02E3.bmp.
+        self.assertEqual(ssm_ring.suggested_name("AMSPIRIT", "2", 0x02E3, "bmp"),
+                         "AMSPIRIT_2_02E3.bmp")
+        self.assertEqual(ssm_ring.suggested_name("SUGARBOX", "0", 0x01DA, "jpg"),
+                         "SUGARBOX_0_01DA.jpg")
+
+    def test_reserved_set_is_0000_plus_every_ffxx(self):
+        # The standard says the reserved set is 178 values: #0000 plus the 177
+        # legal LL values with HH = #FF. That arithmetic is the independent
+        # check on the allowed byte set.
+        self.assertTrue(ssm_ring.is_reserved(0x0000))
+        self.assertTrue(ssm_ring.is_reserved(0xFF00))
+        self.assertTrue(ssm_ring.is_reserved(0xFFFF))
+        self.assertFalse(ssm_ring.is_reserved(0x0001))
+        self.assertFalse(ssm_ring.is_reserved(0x040C))
+        self.assertFalse(ssm_ring.is_reserved(0xFE00))
+        legal = [b for b in range(256) if inv_allowed(b)]
+        self.assertEqual(len(legal), 177)
+        self.assertEqual(1 + len(legal), 178)
+
+    def test_screenshot_requests_are_every_non_reserved_code_plus_fffe(self):
+        self.assertTrue(ssm_ring.is_screenshot_request(0x0001))
+        self.assertTrue(ssm_ring.is_screenshot_request(0xFFFE))
+        self.assertFalse(ssm_ring.is_screenshot_request(0x0000))
+        self.assertFalse(ssm_ring.is_screenshot_request(0xFFFF))
+        self.assertFalse(ssm_ring.is_screenshot_request(0xFFFD))
 
 
 class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
@@ -184,10 +210,8 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
         manifest = self._run(MINIMAL, ssm=True)
         captures = manifest["captures"]
         self.assertTrue(captures, "the #FFFE marker produced no capture")
-        # SSM v1.1 suggests <Emulator>_<CRTC>_<HHLL>; the sequence number is
-        # appended because one script emits #FFFE many times.
-        self.assertTrue(captures[0]["name"].startswith("MISTER_1_FFFE_"),
-                        captures[0]["name"])
+        # SSM v1.1 suggests <Emulator>_<CRTC>_<HHLL>.
+        self.assertEqual(captures[0]["name"], "MISTER_1_FFFE.png")
         self.assertEqual(manifest["ssm_records"][0]["code"], "FFFE")
 
     def test_screenshot_name_overrides_the_standard_name(self):
@@ -205,12 +229,42 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
         for field in ("frame", "line", "hpos", "field", "seq", "tick"):
             self.assertIn(field, record)
 
+    def test_an_ordinary_code_is_a_screenshot_request(self):
+        # This is how SHAKER actually works: it assigns a code per test screen
+        # and the standard says any non-reserved code triggers a capture named
+        # from the code. #FFFE is only the "name it from screenshot_name"
+        # variant, which the bundled scripts never use.
+        self.publish_at[2] = 0x0001
+        manifest = self._run(MINIMAL, ssm=True)
+        self.assertEqual([c["name"] for c in manifest["captures"]], ["MISTER_1_0001.png"])
+
+    def test_the_crtc_in_the_name_follows_the_applied_type(self):
+        self.publish_at[2] = 0x040C
+        manifest = self._run(MINIMAL.replace("crtc_select 1", "crtc_select 0"), ssm=True)
+        self.assertEqual(manifest["captures"][0]["name"], "MISTER_0_040C.png")
+
+    def test_reserved_codes_other_than_fffe_do_not_capture(self):
+        for code in (ssm_ring.CODE_SIKOVIEW_START, ssm_ring.CODE_SIKOVIEW_BREAK, 0xFF42):
+            with self.subTest(code=code):
+                self.setUp()
+                self.publish_at[2] = code
+                manifest = self._run(MINIMAL, ssm=True)
+                self.assertEqual(manifest["captures"], [])
+                self.assertEqual(manifest["ssm_records"][0]["code"], f"{code:04X}")
+
+    def test_a_repeated_code_does_not_overwrite_the_earlier_capture(self):
+        self.publish_at[2] = (0x0007, 10)
+        self.publish_at[3] = (0x0007, 60)
+        manifest = self._run(MINIMAL, ssm=True)
+        self.assertEqual([c["name"] for c in manifest["captures"]],
+                         ["MISTER_1_0007.png", "MISTER_1_0007_2.png"])
+
     def test_paired_markers_are_flagged_rather_than_shipped_as_two_phases(self):
         # SHAKER emits two #FFFE markers close together on tests that flash
         # between two graphics. Main cannot serve two grabs a few frames
         # apart, so both captures may show the same phase and must say so.
-        self.publish_at[2] = ssm_ring.CODE_SCREENSHOT
-        self.publish_at[3] = ssm_ring.CODE_SCREENSHOT
+        self.publish_at[2] = 0x0101
+        self.publish_at[3] = 0x0102
         manifest = self._run(MINIMAL, ssm=True)
         captures = manifest["captures"]
         self.assertEqual(len(captures), 2)
@@ -221,8 +275,8 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
     def test_markers_many_frames_apart_are_not_flagged(self):
         # Two markers a second apart are each servable, so neither capture
         # carries the paired-marker caveat.
-        self.publish_at[2] = (ssm_ring.CODE_SCREENSHOT, 10)
-        self.publish_at[3] = (ssm_ring.CODE_SCREENSHOT, 60)
+        self.publish_at[2] = (0x0201, 10)
+        self.publish_at[3] = (0x0202, 60)
         manifest = self._run(MINIMAL, ssm=True)
         self.assertEqual(len(manifest["captures"]), 2)
         for capture in manifest["captures"]:

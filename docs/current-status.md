@@ -12,16 +12,21 @@ base `0x30000000` is the MiSTer convention rather than a measurement, so the fir
 `--ssm` run confirms it or `--ssm-base` finds the right one; and no synthesis has run
 on this branch, which now drives previously constant DDRAM pins.
 
-Phase 2 is **not** the next step. The author settled the frame semantics (capture at
-the opcode, from a framebuffer that is never cleared, and every marker sits in a stable
-zone so all candidate semantics agree for this corpus, which keeps AMSpiriT images a
-usable pixel-diff partner). But a static inventory of the discs then found that
-[no published SHAKER disc emits `#FFFE` at all](shaker-ssm-marker-inventory-2026-09-12.md)
-— two `#0000` sync markers per module, plus a Sikoview pair in 2.7, and nothing else.
-Phase 1's screenshot path is correct per the standard and idle in practice, and phase 2
-has no consumer until the author says whether a build compiled with `#FFFE` markers
-exists. The preferred next steps are the phase 1 device gate, which settles the DDR3
-base, and purpose-written CSL scripts using `wait_ssm0000` plus `screenshot`. The plan
+The author settled the frame semantics (capture at the opcode, from a framebuffer that
+is never cleared, and every marker sits in a stable zone so all candidate semantics
+agree for this corpus, which keeps AMSpiriT images a usable pixel-diff partner) and
+then clarified the marker mechanism, which mattered more. **`#FFFE` is not the general
+screenshot trigger: every non-reserved SSM code is one**, and SHAKER assigns one
+ordinary code per test screen, built at run time by patching an `ED 00 ED 00` template
+— invisible to a static scan of the discs. The shipped runner captured only on `#FFFE`
+and would have ignored every real marker; fixed, with tests. The portal code table
+gives 712 codes, about 480 applicable per supported CRTC type, so SSM-labelled
+per-screen captures are reachable. See
+[the marker inventory](shaker-ssm-marker-inventory-2026-09-12.md).
+
+Phase 2 has a confirmed consumer but is not the next step: it needs the DDR3 base and
+the paired-marker tick interval, both of which come from the phase 1 device run. So
+the order is integrate, synthesise, run the phase 1 gate, then phase 2. The plan
 carries a "For an independent design review" section written for that review.
 See [the plan](csl-ssm-implementation-plan.md), the
 [driver guide](mister-hardware-loop-driver.md#the-csl-runner) and the two unreviewed

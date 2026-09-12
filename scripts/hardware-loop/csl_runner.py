@@ -739,6 +739,7 @@ class CslRunner:
         self.ssm_records: List[Dict[str, Any]] = []
         self.ssm_sync_seen = 0
         self.last_screenshot_marker: Optional[Dict[str, Any]] = None
+        self.capture_names: Dict[str, int] = {}
         self.capture_count = 0
         self.entry_script_stem = Path(entry_script).stem
         self._media_line = 0
@@ -833,16 +834,24 @@ class CslRunner:
             code = int(record["code"], 16)
             if code == ssm_ring.CODE_SYNC:
                 self.ssm_sync_seen += 1
-            elif code == ssm_ring.CODE_SCREENSHOT:
-                self._ssm_capture(record, command)
             elif code == ssm_ring.CODE_SNAPSHOT:
                 if command is not None:
                     self._note(command, "ssm",
                                "marker #FFFF asks for a snapshot; this runner makes none")
+            elif ssm_ring.is_screenshot_request(code):
+                # Every non-reserved code is a screenshot request named from
+                # the code itself; #FFFE is the variant named from the CSL
+                # screenshot_name instead. SHAKER uses the former, assigning
+                # one code per test screen.
+                self._ssm_capture(record, command)
+            elif command is not None:
+                self._note(command, "ssm",
+                           f"marker #{code:04X} is reserved by SSM v1.1 for a use this "
+                           "runner does not implement; recorded only")
         return records
 
     def _ssm_capture(self, record: Dict[str, Any], command: Optional[Command]) -> None:
-        """Capture for an #FFFE marker.
+        """Capture for a screenshot-requesting marker.
 
         The capture lands at least a frame after the marker, because Main
         grabs the scaler output asynchronously. The manifest keeps the
@@ -860,15 +869,21 @@ class CslRunner:
             and abs(record["frame"] - previous["frame"]) <= SSM_PAIRED_MARKER_FRAMES
         )
         self.capture_count += 1
+        code = int(record["code"], 16)
         if self.screenshot_name:
             name = f"{self.screenshot_name}.png"
             self.screenshot_name = None
         else:
             crtc = "0" if self.crtc_status_bit else "1"
-            name = ssm_ring.suggested_name("MISTER", crtc, ssm_ring.CODE_SCREENSHOT)
-            # A bare #FFFE would name every capture the same file, so the
-            # marker's own sequence number disambiguates them.
-            name = name.replace(".png", f"_{record['seq']:04d}.png")
+            name = ssm_ring.suggested_name("MISTER", crtc, code)
+        # SHAKER assigns a distinct code per test screen, so the standard's
+        # name is normally unique. Guard the exception instead of silently
+        # overwriting an earlier capture.
+        if name in self.capture_names:
+            self.capture_names[name] += 1
+            name = name.replace(".png", f"_{self.capture_names[name]}.png")
+        else:
+            self.capture_names[name] = 1
         result = self.backend.screenshot(name)
         result["ssm_record"] = record
         result["capture_semantics"] = (

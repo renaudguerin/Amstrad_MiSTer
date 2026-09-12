@@ -332,15 +332,20 @@ withdraws the plan's earlier "next complete frame" default. He also confirmed ev
 SSM marker sits in a stable zone, so capture-at-opcode, capture-at-next-VSYNC and
 next-complete-pass all produce the same image for this corpus: the choice is cost and
 reversibility, not fidelity, and AMSpiriT images stay a usable pixel-diff partner.
-**PHASE 2 GATED ON EVIDENCE 2026-09-12, do not start.** A static inventory of the
-discs found that
-[neither shaker26.dsk nor shaker27.dsk emits `#FFFE` at all](shaker-ssm-marker-inventory-2026-09-12.md):
-they carry two `#0000` sync markers per module and, in 2.7, a Sikoview pair. Phase 1's
-screenshot path is correct and idle, and phase 2 has no consumer until the author
-confirms whether a build compiled with `#FFFE` markers exists. The preferred next
-steps are instead the phase 1 device gate (which settles the DDR3 base) and
-purpose-written CSL scripts using `wait_ssm0000` plus `screenshot`, both of which use
-only what already ships.
+**MARKER MECHANISM ESTABLISHED 2026-09-12.** See
+[the marker inventory](shaker-ssm-marker-inventory-2026-09-12.md). `#FFFE` is not the
+general screenshot trigger: **every non-reserved SSM code is one**, named from the
+code, and `#FFFE` only means "name it from `screenshot_name`". SHAKER assigns one
+ordinary code per test screen, built at run time by patching an `ED 00 ED 00`
+template, which is why no static scan of the discs finds them. The shipped runner
+captured only on `#FFFE` and would have ignored every real marker; fixed, with tests.
+The portal's code table lists 712 codes, 483 applicable to CRTC 0 and 478 to CRTC 1,
+so roughly 480 reference images are reachable per supported type.
+
+**PHASE 2 NEXT-BUT-ONE.** Its consumer is confirmed, but it needs two numbers only a
+device run supplies: the DDR3 base, and the tick interval between the paired markers
+on a flashing test, which sizes its buffers. So integrate, synthesise and run the
+phase 1 gate first.
 
 ---
 
