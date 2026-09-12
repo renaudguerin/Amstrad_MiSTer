@@ -343,6 +343,60 @@ one persistent buffer, `event_stb` or "next VSYNC after `event_stb`" as the free
 trigger. That also lets us diff against both AMSpiriT variants, since one captures at
 the instruction and the other on the following VSYNC.
 
+### Mechanism: ping-pong pass buffers, no copy engine
+
+An atomic capture is only achievable in the core, and it is cheaper than "write one
+native frame into a second DDR3 region" implies. Keep **two** pass buffers and
+alternate them per pass. During pass N the core writes A while B still holds pass N-1
+complete. For a marker at raster position P, the persistent-buffer content at that
+instant is exactly
+
+    A[0 .. P)  ++  B[P .. end)
+
+because every position from P onwards has not yet been repainted this pass and
+therefore still holds pass N-1. Both halves are already in DDR3 and P is the `line`
+and `hpos` the phase 1 event record already carries. **No copy, and no freeze-and-DMA
+engine.**
+
+The consequence worth the most: the capture semantics becomes a host-side stitch point
+rather than an RTL behaviour. Stitch at P for the opcode instant, at the VSYNC line for
+AMSpiriT's main variant, or ignore B and use A once complete for next-complete-pass.
+One dataset answers every reading, and switching between them is a flag.
+
+**Sizing.** 16 MHz over 50 Hz is about 320 k pixel slots per pass. Twelve-bit RGB plus
+DE, HS and VS packs into two bytes, so 640 KB per buffer and 1.25 MB for the pair,
+against a core DDR3 window measured in hundreds of megabytes. Write load is 32 MB/s, or
+four million writes per second with four pixels to a 64-bit word on the 64 MHz port; it
+does not contend with the ring's 48 bytes per marker. Readback of 1.25 MB over the
+existing SSH transport is sub-second. Store the **full** raster including blanking:
+sync geometry is what the type 2 tests measure.
+
+**The writer must stop on trigger**, or the core laps the host mid-read. Freezing the
+buffers is invisible to the display, since they are write-only observation. Two markers
+within one pass share a single buffer pair and two stitch points, so one freeze serves
+both — which is precisely the paired-marker case Main cannot serve. Markers spanning
+passes want a second slot; two or three slots is a few megabytes.
+
+### Dead ends, checked so they are not re-proposed
+
+**`HDMI_FREEZE` is not a frame hold.** `sys/video_mixer.sv` drives `R_in`/`G_in`/`B_in`
+to zero while frozen, and `sys/video_freezer.sv` only sync-locks hs/vs/hbl/vbl so the
+HDMI signal survives. It exists to blank cleanly during a core load. Asserting it on a
+marker captures black.
+
+**Reading the scaler buffer directly buys latency, not atomicity.** Main copies from
+`0x20000000`, the same region `ascal` is parameterised to in `sys/sys_top.v`, so
+`dd if=/dev/mem` could skip Main's encode and the file poll using the transport the SSM
+ring already uses. But ascal triple-buffers with interlaced half-frame updates and
+exposes no ownership handshake (recorded in
+[mister-hardware-loop-plan.md](mister-hardware-loop-plan.md), "What screenshots can
+establish"), so a host read races its writer and can land mid-update. Worth knowing if
+loop latency ever becomes the complaint; it is not a route to an event-matched image.
+
+**No userspace path can be instant-atomic at all.** Scheduler jitter is milliseconds, a
+frame is 20 ms, a CRTC character is 1 us. That is three orders of magnitude, so it is
+not a tuning problem and no amount of Main patching fixes it.
+
 ### Terminology: the seam
 
 The seam is the horizontal boundary in a never-cleared buffer between rows the beam
