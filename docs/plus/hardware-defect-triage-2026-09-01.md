@@ -4,6 +4,13 @@ This record separates the new hardware symptoms from mechanisms proven in the
 current RTL.  Simulation evidence identifies a retest candidate; it is not a
 hardware closure claim.
 
+**Latest follow-up, September 12:** on user-confirmed `5c16b17` / 6128 Plus,
+BASIC boot is **confirmed fixed**. Corrupt sprite lines at the left edge are
+**much improved, perhaps fixed**; this is tentative and does not identify D3
+as the cause. **Pang/Plotting fire always pressed and the Copter 271 logo are
+NOT fixed.** These scoped verdicts supersede earlier symptom status below;
+see the [hardware report](../hardware-evidence-2026-09-12.md).
+
 **Partial hardware follow-up reported 2026-09-02:** the user reports
 `burnin_rubber_sprite_on_the_right_should_be_hidden` fixed on
 `Amstrad_20260901_84e6969.rbf` with Live blanking selected. This is a hardware

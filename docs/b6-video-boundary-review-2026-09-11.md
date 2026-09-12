@@ -205,3 +205,12 @@ directory. This is the hardware-test artifact for B6; physical HDMI/CRT,
 final mixer RGB under Verilator, dynamic malformed-raster rendering and the
 combined scroll/opaque-sprite matrix remain open. Earlier hardware defects
 are not closed by these simulation and synthesis results.
+
+## Hardware follow-up reported 2026-09-12
+
+On user-confirmed `5c16b17`, Full versus Raw pixels has shown no visible
+difference so far in Amazing Demo, DSC4 or SHAKER A (T). Physical Raw CRT
+acceptance is untested in this report. These results do not revoke the scoped
+source reviews or establish mode equivalence; they keep visual acceptance
+open and motivate the remaining diagnostic/final-RGB work. See the
+[dated hardware evidence](hardware-evidence-2026-09-12.md).

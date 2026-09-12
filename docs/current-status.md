@@ -1,5 +1,23 @@
 # Current implementation status
 
+**Coordinated follow-ups READY, 2026-09-12:** B2 `5de8c5c` establishes real
+SHAKER B (9) navigation and nine identical captures across three independent
+loads; B6 `c2fde66` closes the final-mixer RGB simulation gap and adds dynamic
+raster/Plus layer gates. Both are reviewed, gated local branches accepted by
+the coordinator, **not integrated or pushed**. No new RBF exists. See the
+[branch/evidence handoff](hardware-followup-handoff-2026-09-12.md) for exact
+tips, device restoration, reviewer identities and remaining limits.
+
+**Latest hardware report, 2026-09-12, `5c16b17`:** the user confirms **6128 Plus
+BASIC boot fixed**. Corrupt sprite lines at the left edge are **much improved,
+perhaps fixed**, with definitive closure still open. **Pang/Plotting fire
+always pressed and the Copter 271 logo remain NOT fixed.** B6 Full versus Raw
+pixels shows **no visible difference so far** in Amazing Demo, DSC4 or SHAKER
+A (T). Output configuration and Classic model/CRTC details are unrecorded.
+See the [dated report](hardware-evidence-2026-09-12.md). The next work is a
+real B2 capture loop at user-reported-online `root@mister`, the remaining B6
+rendering/diagnostic gates, and closure of actual source-review gaps.
+
 **B6 video boundary integrated, 2026-09-11:** Full and Raw pixels now share
 the complete Full acquisition tuple. Raw pixels uses native VRAM byte order
 and aligned raw vertical blank in RGB; Raw CRT sends raw geometry through the
@@ -43,10 +61,11 @@ unchanged. The production-T80 regression requires actual firmware `Ready` from
 both unchanged CPRs on 6128 Plus and 464 Plus and retains model/ROM controls.
 See [D5 validation](plus/d5-basic-boot-input-2026-09-11.md) for results, review
 and limits. Reviewed source `f0af3d6`, refreshed as `8e2f280`, is integrated
-into `master` ahead of D3/D4. MiSTer BASIC boot with an empty drive remains
-pending; firmware simulation does not establish rendered or hardware output.
+into `master` ahead of D3/D4. The September 12 user report confirms BASIC boot
+fixed on 6128 Plus with `5c16b17`. Cartridge/empty-drive details and 464 Plus
+hardware coverage remain unrecorded; disk I/O acceptance is separate.
 
-**Latest hardware retest, 2026-09-09:** `Amstrad_20260908_ce1d2da.rbf` was tested
+**Earlier hardware retest, 2026-09-09:** `Amstrad_20260908_ce1d2da.rbf` was tested
 on 6128 Plus / Live blanking and classic 6128 / CRTC1 (DSC4 also CRTC0).
 Most defects persist. Burnin' Rubber is reported OK; CRTC3's earlier right-edge
 sprite fix has not regressed, but warning/audio/crash defects remain. Navy Seals black
@@ -66,8 +85,9 @@ unchanged by that diagnostic pass. Local diagnostic sources, reference images an
 preserved; the full existing simulation suite passes with its known FDC XFAIL.
 The D1/D6 source repair is integrated above; the next Classic hardware work
 is its SHAKER retest plus a first repeatable B2 capture. D5 resolves the
-System/BASIC boot input in firmware simulation; hardware boot and disk-based
-testing remain pending, as described above.
+System/BASIC boot input in firmware simulation; the September 12 report also
+confirms boot fixed on 6128 Plus. Disk-based testing and other model/cartridge
+coverage remain separate, as described above.
 
 **Plus D3/D4 repair, 2026-09-11:** the sprite predictor now stages row zero on
 the preceding compare line under the [bounded first-row service contract](hardware-diagnosis-2026-09-10.md#d3-repair-contract).

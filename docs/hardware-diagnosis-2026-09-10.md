@@ -1,5 +1,13 @@
 # Hardware follow-up diagnosis — 2026-09-10
 
+**Current follow-up, 2026-09-12:** D1/D6, D3/D4/D5 and B6 source changes are
+integrated. On `5c16b17`, the user confirms BASIC boot fixed on 6128 Plus;
+left-edge sprite corruption is much improved, perhaps fixed. Pang/Plotting
+fire and the Copter 271 logo still fail. Full/Raw pixels shows no visible
+difference in Amazing Demo, DSC4 or SHAKER A (T). See the
+[latest report](hardware-evidence-2026-09-12.md); the original diagnosis below
+retains its historical source context and is not a queue to reimplement fixes.
+
 The September 9 retest has produced a new code-level lead: type-1 interlace
 loses alternate VSYNC pulses when VSYNC begins at the frame origin. A focused
 simulation reproduces the anomalous `#4E00` interval visible in SHAKER B (9).
@@ -40,7 +48,9 @@ D8 (scaler-framebuffer reading of the "leftover" band).
 
 ## D1 — type-1 VSYNC uses outgoing parity at the frame origin
 
-**Status: confirmed production RTL defect; repair pending.**
+**Status: confirmed production RTL defect; D1/D6 repair integrated.** See
+[repair evidence](accuracy/d1-d6-parity-repair-2026-09-11.md). The mechanism
+below describes the unfixed diagnostic baseline; numeric SHAKER retests remain open.
 
 ### Hardware clue and rule
 
@@ -303,8 +313,8 @@ issues FDC commands; a missing-disk screen alone is not that trace.
 
 ### D5 — ROM 0 selects the cartridge's disc-boot path
 
-**Status (updated 2026-09-11): production input repair integrated; hardware
-acceptance pending.** Both unchanged BASIC cartridges emit `Ready` in the
+**Status (updated 2026-09-12): production input repair integrated; BASIC boot
+confirmed fixed on 6128 Plus / `5c16b17`.** Both unchanged BASIC cartridges emit `Ready` in the
 production-T80 gate on 6128 Plus and 464 Plus with `/EXP` low. The MMU decoder
 polarity is unchanged. See the [D5 repair evidence](plus/d5-basic-boot-input-2026-09-11.md).
 The investigation below records the original high-input baseline; its research
@@ -375,10 +385,11 @@ remains under `references/hardware-diagnosis-2026-09-10/plus-boot/`.
 3. Use D2 to guide a bounded video-acquisition experiment, with stable acquisition
    and raw pixel effects observed separately. Keep DSC4 and Amazing Demo as
    named holdouts; use repeated captures or video for flicker.
-4. Retest Plus System/BASIC boot with an empty drive using the integrated D5
-   input repair, then test disk software and trace the no-input state. D3/D4
-   have scoped source repairs; title/input/flicker acceptance remains open.
-   Preserve existing CPR regression cases.
+4. BASIC boot is confirmed fixed on 6128 Plus in the September 12 report.
+   Proceed to disk software and trace the persistent Pang/Plotting input
+   failure; retain 464 Plus/empty-drive controls as separate coverage. D3/D4
+   have scoped source repairs; definitive sprite/title acceptance remains
+   open. Preserve existing CPR regression cases.
 
 Amspirit is useful for clean comparisons but is not an infallible oracle. For
 A (4), the real photograph reports `01` at the `C0vs=#3c` OUTI case and `5E5F`
