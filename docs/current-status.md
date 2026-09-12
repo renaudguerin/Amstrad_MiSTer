@@ -7,7 +7,10 @@ simulation gap and adds dynamic raster/Plus layer gates. Sources were refreshed
 without implementation changes to `cd08a1e` and `9849b9a`, respectively, and
 merged sequentially into `master`. B2's 26 focused destination tests pass;
 the complete merged simulation and lint gates pass, and soak matches
-`0xb1cb70da95c2e44f`. Publication and exact-SHA CI verification follow. No new RBF exists. The user made a new build optional; no separate
+`0xb1cb70da95c2e44f`. Both tasks are published at `9ee710ce969aa3db7fb1540f7e96443bfd7c274c`.
+[Exact-SHA CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34684600995)
+is running: policy and routing passed; simulation and automatically selected
+hosted full synthesis are pending. The local synthesis leg is correctly skipped. No new RBF exists. The user made a new build optional; no separate
 build will be dispatched. The normal push workflow selects its required jobs.
 See the [branch/evidence handoff](hardware-followup-handoff-2026-09-12.md)
 for reviewed tips, device restoration and remaining hardware limits.

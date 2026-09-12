@@ -12,7 +12,8 @@ that is not obvious from the roadmap itself.
 
 **Integrated outcome:** reviewed B2 `5de8c5c` and B6 `c2fde66` were refreshed
 without implementation changes to `cd08a1e` and `9849b9a` and merged
-sequentially into `master`. All destination gates pass; publication is the remaining finish step. The real capture loop and final-RGB/diagnostic
+sequentially into `master`. All destination gates pass; both tasks are published at `9ee710c`.
+Exact-SHA CI is recorded in current status. The real capture loop and final-RGB/diagnostic
 progress are recorded in the [handoff](hardware-followup-handoff-2026-09-12.md).
 Remaining physical video, active-mode and CRTC/title acceptance stay open.
 

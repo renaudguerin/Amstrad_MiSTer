@@ -482,7 +482,7 @@ and hardware retest remain. No separate upstream utilization build was required.
 locally integrated at `e391e13`; B6's reviewed rendering follow-up was
 refreshed to `9849b9a` and merged against that exact destination. The
 complete destination simulation, lint and canonical soak pass; the
-coordinator is publishing the integration. Preserve the
+integration is published at `9ee710c`. Exact-SHA CI is recorded in current status. Preserve the
 [B6 evidence limits](b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
 and [B2 device limits](b2-device-capture-2026-09-12.md), including unobserved
 active OSD mode and unestablished CPU-generated stuck-high sync. The

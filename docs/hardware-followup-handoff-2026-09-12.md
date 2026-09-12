@@ -1,7 +1,7 @@
 # September 12 hardware follow-up: integration handoff
 
 The requested documentation pass and coordinated B2/B6 work are integrated
-locally from refreshed `cd08a1e` and `9849b9a`. All destination gates pass; publication is in progress. No new RBF was built. The user's hardware observations remain
+locally from refreshed `cd08a1e` and `9849b9a`. All destination gates pass; both tasks are published at `9ee710c`. No new RBF was built. The user's hardware observations remain
 tied to `5c16b17`; see the [hardware report](hardware-evidence-2026-09-12.md).
 
 ## Branches and owners
@@ -85,10 +85,20 @@ Both private evidence directories were copied into the integration checkout,
 `/Users/renaudg/code/Amstrad_MiSTer/docs/references/`, before integration.
 Destination gate logs are preserved there under
 `b2-b6-integration-2026-09-12/`. Source worktrees and device screenshots are
-retained. See current status for destination gates and publication evidence;
+retained. See current status for destination gates and exact-SHA CI evidence;
 the table above preserves the originally accepted source tips.
 
 Destination verification: all 26 hardware-loop unit tests pass; `make -C sim`
 and `make -C sim lint` exit 0; `make -C sim soak
 SOAK_EXPECT=0xb1cb70da95c2e44f` exits 0 with the canonical hash unchanged.
 No source or simulation conflict resolution altered either reviewed implementation.
+
+
+## Published integration
+
+B6 merge and combined pushed source:
+`9ee710ce969aa3db7fb1540f7e96443bfd7c274c` on `origin/master`.
+[Build core run 34684600995](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34684600995)
+checks that exact source. Policy and routing passed; simulation and hosted
+full synthesis are running. The local synthesis leg was skipped as intended.
+This record does not claim a new RBF or hardware validation of the mixer change.
