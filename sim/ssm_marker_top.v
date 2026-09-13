@@ -260,20 +260,10 @@ ssm_marker dut (
 	.vsync(1'b0),
 	.field(1'b0),
 
-	// No sample recorder in this fixture: the cut is exercised through the
-	// tick, and the recorder has its own harness.
-	.sample_count(64'd0),
-
 	.last_code(last_code),
 	.event_count(event_count),
 	.dropped_count(dropped_count),
 	.event_stb(event_stb),
-	.event_capture(),
-	.event_code(),
-	.event_tick(),
-	.event_cut(),
-	.event_rec_a(),
-	.event_rec_b(),
 
 	.ddram_addr(ddram_addr),
 	.ddram_din(ddram_din),

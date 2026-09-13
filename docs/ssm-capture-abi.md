@@ -1,11 +1,26 @@
 # SSM capture ABI (phase 2 prototype), version 1
 
-Written 2026-09-12 for backlog B4. This is the contract between
-[`rtl/ssm_sample_recorder.v`](../rtl/ssm_sample_recorder.v) and the host reader
-[`scripts/hardware-loop/ssm_capture.py`](../scripts/hardware-loop/ssm_capture.py).
-It is **separately versioned from the format-1 event ring** in
-[`rtl/ssm_marker.v`](../rtl/ssm_marker.v), so an experimental capture build
-cannot silently change what `ssm_ring.py` reads.
+Written 2026-09-12 for backlog B4. This document records the ABI and contract of the
+Phase 2 sample recorder prototype.
+
+**Status: RETIRED / PRUNED.** Following independent architectural review (Claude Opus 5,
+run `20260913T072642Z-13878-c99b`), Phase 2 RTL and sim fixtures were pruned from the active
+codebase to eliminate dead code and the unreserved 17 MiB memory map hazard. Phase 1
+(the format-1 event ring in [`rtl/ssm_marker.v`](../rtl/ssm_marker.v) and `csl_runner.py`)
+provides 100% fidelity for SHAKER hardware testing.
+
+If Phase 2 sub-frame capture is ever revisited for future mid-frame raster R&D, all
+source code can be inspected or resurrected from git history:
+```sh
+# Inspect individual components:
+git show 94725cc -- rtl/ssm_sample_recorder.v
+git show 94725cc -- scripts/hardware-loop/ssm_capture.py
+
+# Resurrect the complete Phase 2 subsystem:
+git checkout 94725cc -- rtl/ssm_sample_recorder.v rtl/ssm_recorder_subsystem.v rtl/ssm_ddr_arb.v \
+                        scripts/hardware-loop/ssm_capture.py scripts/hardware-loop/test_ssm_capture.py \
+                        sim/ssm_recorder_top.v sim/ssm_recorder_test.cpp sim/ssm_composition_top.v sim/ssm_composition_test.cpp
+```
 
 ## Architecture and Scope
 

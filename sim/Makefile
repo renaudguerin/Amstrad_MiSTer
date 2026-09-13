@@ -77,9 +77,6 @@ $(VIDEO_COLOR_BIN): $(VIDEO_COLOR_SRC) Makefile
 
 lint:
 	$(VERILATOR) --lint-only --top-module ssm_marker -Wall -Wno-fatal -Wno-PROCASSINIT $(SSM_RTL)
-	$(VERILATOR) --lint-only --top-module ssm_sample_recorder -Wall -Wno-fatal -Wno-PROCASSINIT $(SSM_REC_RTL)
-	$(VERILATOR) --lint-only --top-module ssm_ddr_arb -Wall -Wno-fatal -Wno-PROCASSINIT $(SSM_ARB_RTL)
-	$(VERILATOR) --lint-only --top-module ssm_recorder_subsystem -Wall -Wno-fatal -Wno-PROCASSINIT ../rtl/ssm_recorder_subsystem.v $(SSM_REC_RTL) $(SSM_ARB_RTL)
 	$(VERILATOR) --lint-only --top-module amstrad_video_output \
 		-Wall -Wno-fatal -Wno-PROCASSWIRE $(VIDEO_OUTPUT_SRC)
 	$(VERILATOR) --lint-only --top-module crtc_cpu_phase_top -UVERILATOR -Wall -Wno-fatal $(CPU_PHASE_RTL)
@@ -233,39 +230,4 @@ $(SSM_BIN): $(SSM_SRC) ssm_marker_test.cpp Makefile
 		--Mdir $(OBJ_DIR)/ssm_marker +1364-2001ext+.v +1800-2017ext+.sv -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o ssm_marker_tests $(SSM_SRC) $(abspath ssm_marker_test.cpp)
 
-# Experimental phase 2 sample recorder (B4). Default-off in the core; the
-# fixture instantiates it directly with small window/queue parameters.
-SSM_REC_RTL := ../rtl/ssm_sample_recorder.v
-SSM_REC_SRC := ssm_recorder_top.v $(SSM_REC_RTL)
-SSM_REC_BIN := $(OBJ_DIR)/ssm_recorder/ssm_recorder_tests
 
-test: ssm-recorder-test
-build: $(SSM_REC_BIN)
-
-.PHONY: ssm-recorder-test
-ssm-recorder-test: $(SSM_REC_BIN)
-	$<
-
-$(SSM_REC_BIN): $(SSM_REC_SRC) ssm_recorder_test.cpp Makefile
-	mkdir -p $(OBJ_DIR)/ssm_recorder
-	$(VERILATOR) --cc --exe --build --top-module ssm_recorder_top -UVERILATOR \
-		--Mdir $(OBJ_DIR)/ssm_recorder -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
-		-o ssm_recorder_tests $(SSM_REC_SRC) $(abspath ssm_recorder_test.cpp)
-
-# SSM composition: marker + recorder + arbiter (Finding 1 regression).
-SSM_ARB_RTL := ../rtl/ssm_ddr_arb.v
-SSM_COMP_SRC := ssm_composition_top.v ../rtl/ssm_recorder_subsystem.v ../rtl/ssm_marker.v ../rtl/ssm_sample_recorder.v $(SSM_ARB_RTL)
-SSM_COMP_BIN := $(OBJ_DIR)/ssm_composition/ssm_composition_tests
-
-test: ssm-composition-test
-build: $(SSM_COMP_BIN)
-
-.PHONY: ssm-composition-test
-ssm-composition-test: $(SSM_COMP_BIN)
-	$<
-
-$(SSM_COMP_BIN): $(SSM_COMP_SRC) ssm_composition_test.cpp Makefile
-	mkdir -p $(OBJ_DIR)/ssm_composition
-	$(VERILATOR) --cc --exe --build --top-module ssm_composition_top -UVERILATOR \
-		--Mdir $(OBJ_DIR)/ssm_composition -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
-		-o ssm_composition_tests $(SSM_COMP_SRC) $(abspath ssm_composition_test.cpp)

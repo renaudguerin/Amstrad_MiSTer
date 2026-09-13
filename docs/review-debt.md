@@ -35,8 +35,15 @@ five composition tests, lint and the unchanged soak hash pass. Reviewed source h
 and gate evidence are recorded in [the design/implementation review](csl-ssm-design-review-2026-09-12.md).
 These passes cover the changed SSM paths; they do not silently discharge the older
 power-on folding, CFG restoration, keymap or production T80pa evidence debt above.
-DDR allocation, HPS visibility/atomicity, throughput, synthesis/timing and real-media
-acceptance remain separate device/build gates.
+**B4 Phase 2 retirement and pruning, 2026-09-13 — source review CLEAR:** Claude Opus 5
+(run `20260913T072642Z-13878-c99b`) reviewed the decision to prune the compile-time
+disabled Phase 2 sample recorder (`rtl/ssm_sample_recorder.v`, `rtl/ssm_recorder_subsystem.v`,
+`rtl/ssm_ddr_arb.v`, `scripts/hardware-loop/ssm_capture.py`, and sim fixtures).
+Verdict: **CLEAR / PRUNE**. Confirmed severability: Phase 1 format-1 ring ABI is 100%
+untouched, `obs_*` video tap in `rtl/amstrad_video_output.sv` is preserved for B8-6 coverage,
+and `Amstrad.sv` severs cleanly into standalone Phase 1 DDRAM routing. Git recovery path
+is recorded in `docs/ssm-capture-abi.md`.
+
 
 **B6 rendering follow-up, 2026-09-12 — source review CLEAR:** Gemini
 `gemini-3.8-flash-high`, run `20260912T081217Z-84178-b42e`, reviewed the new

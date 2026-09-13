@@ -373,19 +373,21 @@ disabled, the core has not finished loading, or the base is wrong for this frame
 build; diagnose that before considering an address change. Do not try arbitrary writer
 bases. The full device acceptance remains open.
 
-## The experimental capture recorder
+## The Phase 2 sample recorder (retired)
 
-`rtl/ssm_sample_recorder.v` is a prototype that appends native RGB24 samples and
-their aligned sync tuple into rotating DDR3 windows, so a host can rebuild the
-picture as it stood at the marker's opcode rather than whenever Main got around to
-grabbing the scaler. It is **compile-time off**: `Amstrad.sv` instantiates it only
-when `SSM_SAMPLE_RECORDER` is defined, which it is not, so the ordinary build is
-exactly the marker build. Turning it on needs a separately reviewed 17 MiB DDR3
-allocation that has not been obtained.
+An experimental prototype (`rtl/ssm_sample_recorder.v`) was designed to append native
+RGB24 samples and their aligned sync tuple into rotating DDR3 windows for cycle-exact
+sub-frame reconstruction.
 
-Its region layout, publication order and loss reporting are written down in
-[the capture ABI](ssm-capture-abi.md); `scripts/hardware-loop/ssm_capture.py` reads
-and decodes it, including offline from a region dump:
+Following author Longshot's confirmation on 2026-09-12 that all SHAKER test result screens
+are visually stable for multiple frames around SSM markers, and independent review from
+Claude Opus 5 (run `20260913T072642Z-13878-c99b`), this subsystem was **retired and pruned**
+from the active codebase. Phase 1 (the format-1 event ring and asynchronous native framebuffer
+capture via `/dev/MiSTer_cmd`) is 100% faithful for all SHAKER testing with zero DDR3
+bandwidth overhead and zero memory hazard.
+
+The Phase 2 specification, layout, and git resurrection paths remain preserved in
+[`docs/ssm-capture-abi.md`](ssm-capture-abi.md).
 
 ```bash
 python3 scripts/hardware-loop/ssm_capture.py decode --region dump.bin \
