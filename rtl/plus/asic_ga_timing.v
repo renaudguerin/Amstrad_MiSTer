@@ -617,11 +617,24 @@ module asic_ga_timing
 	// (Copter 271 title flash). Sampling at acknowledge start matters:
 	// sampling later would see INT_N risen by the irqack path and
 	// misread a raster acknowledge as empty.
+	// CPU interrupt acknowledge or explicit reset active:
+	// - int_reset: irq_reset (MRER bit 4 write) or irqack_rst (classic raster ack).
+	// - intack: active CPU interrupt acknowledge cycle (/IORQ + /M1).
+	// When a DMA interrupt acknowledge is in flight, intack is high while INT_N
+	// (driven here) is initially 1'b1. If a raster_fire pulse coincides with
+	// that window, holding INT_N high throughout prevents irqack_s from
+	// falsely asserting and dropping the event. The fire is latched in
+	// raster_fire_pending and pulled low on the cycle following deassertion.
+	// (Modelling choice: MRER D4 clear during coincident fire similarly holds
+	// pending; classic overflow during DMA ack when pri==0 is not latched).
 	wire int_reset = irq_reset | irqack_rst;
+	wire int_ack_active = int_reset | intack;
 
 	// Classic overflow event, kept in the original single-block form so
 	// the assert edge stays exactly where the lockstep bench pinned it.
 	reg  cnt5; // counter top bit, delayed one clk (block below drives it)
+
+	reg  raster_fire_pending;
 
 	reg  intack_d;
 	reg  last_raster;
@@ -650,12 +663,29 @@ module asic_ga_timing
 			// resolves that (see Amstrad_motherboard) and passes the part this
 			// owner must hold.
 			INT_N <= ~SNA_INT;
+			raster_fire_pending <= 1'b0;
 		end
 		else begin
 			cnt5 <= intcnt_comb[5];
-			if (int_reset) INT_N <= 1'b1;
-			else if (raster_fire) INT_N <= 1'b0;
-			else if ((pri == 8'd0) && ~intcnt_comb[5] & cnt5) INT_N <= 1'b0;
+			if (reset) begin
+				raster_fire_pending <= 1'b0;
+			end
+			else if (int_ack_active) begin
+				if (raster_fire) raster_fire_pending <= 1'b1;
+			end
+			else begin
+				raster_fire_pending <= 1'b0;
+			end
+
+			if (int_ack_active) begin
+				INT_N <= 1'b1;
+			end
+			else if (raster_fire_pending | raster_fire) begin
+				INT_N <= 1'b0;
+			end
+			else if ((pri == 8'd0) && ~intcnt_comb[5] & cnt5) begin
+				INT_N <= 1'b0;
+			end
 		end
 	end
 
