@@ -1,5 +1,17 @@
 # Independent review debt
 
+**B18 slice 4, freeze controller and save stream, 2026-09-13 — REVIEWED, FIXES UNREVIEWED:**
+Astra high reviewed `rtl/sna_save_capture.v`, `rtl/sna_save_stream.v`, `rtl/sna_ddr_mux.v` and
+their tests (Gemini-authored, parent-fixed) and returned CHANGES REQUIRED. The parent fixed all
+three findings without a second review:
+- mux ownership kept through reset while a write is outstanding;
+- generation consumed when the final write is issued;
+- 64K page decode in the test.
+
+Each fix has a case that its revert fails. Look hardest at the interaction between the stream's
+`S_QUIESCE` path and the mux release condition when the stream and mux resets differ in 4c
+wiring. Also check that Case 6E really lands the reset on the acceptance clock.
+
 **B18 slice 3, observation ports, 2026-09-13 — PARTLY REVIEWED:** the port and shadow RTL was
 written by Gemini and reviewed by the Opus parent, so it is cross-provider. The parent's own
 fixes were not independently reviewed: the `u765` one-clock `pcn` copy, the `sna_hw_header.v`

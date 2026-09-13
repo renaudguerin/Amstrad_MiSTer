@@ -58,6 +58,15 @@ SDRAM_OBJ_DIR  := obj_dir/sdram_cartridge
 SDRAM_TEST_SRC := $(abspath sdram_cartridge_test.cpp)
 SDRAM_TEST_BIN := $(SDRAM_OBJ_DIR)/sdram_cartridge_tests
 
+SNA_STREAM_TOP      := sna_save_stream_test_top
+SNA_STREAM_RTL      := $(abspath ../../rtl/sdram.v) \
+                       $(abspath ../../rtl/sna_save_stream.v) \
+                       $(abspath ../../rtl/sna_ddr_mux.v)
+SNA_STREAM_TEST_TOP := $(abspath sna_save_stream_test_top.v)
+SNA_STREAM_OBJ_DIR  := obj_dir/sna_save_stream
+SNA_STREAM_TEST_SRC := $(abspath sna_save_stream_test.cpp)
+SNA_STREAM_TEST_BIN := $(SNA_STREAM_OBJ_DIR)/sna_save_stream_tests
+
 PARSER_TOP      := plus_cpr_parser
 PARSER_RTL      := $(abspath ../../rtl/plus/plus_cpr_parser.v)
 PARSER_OBJ_DIR  := obj_dir/plus_cpr_parser
@@ -360,6 +369,7 @@ TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(B6_MENU_TEST_BIN) $(DAN_BOUN
 
 TEST_BINS += $(P10INPUT_TEST_BIN) $(P10DMA_TEST_BIN) $(P10DMAMOBO_TEST_BIN)
 TEST_BINS += $(B8FIELD_TEST_BIN) $(B8PAL_TEST_BIN)
+TEST_BINS += $(SNA_STREAM_TEST_BIN)
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -367,7 +377,8 @@ CXXFLAGS ?= -std=c++17 -O2
 .PHONY: all build test lint motherboard-lint p4-sprites-regs plus-sprite-ram \
 	plus-sprite-ram-lint clean \
 	p10-dma-ppi-bench p10-dma-ppi-lint p10-dma-mobo-bench p10-dma-mobo-lint \
-	b7-dark-silicon b7-dark-silicon-audit b6-menu-mask rom-loader-route d3-sprites
+	b7-dark-silicon b7-dark-silicon-audit b6-menu-mask rom-loader-route d3-sprites \
+	sna-save-stream
 
 all: test
 
@@ -378,6 +389,9 @@ b6-menu-mask: $(B6_MENU_TEST_BIN)
 
 rom-loader-route: $(ROM_ROUTE_TEST_BIN)
 	./$(ROM_ROUTE_TEST_BIN)
+
+sna-save-stream: $(SNA_STREAM_TEST_BIN)
+	./$(SNA_STREAM_TEST_BIN)
 
 # Convenience alias; the bench itself runs in the default gate.
 p1-video-bench: $(P1VID_TEST_BIN)
@@ -487,6 +501,13 @@ test: $(TEST_BINS)
 	./$(P10DMAMOBO_TEST_BIN)
 	./$(B8FIELD_TEST_BIN)
 	./$(B8PAL_TEST_BIN)
+	./$(SNA_STREAM_TEST_BIN)
+
+$(SNA_STREAM_TEST_BIN): $(SNA_STREAM_TEST_TOP) $(SNA_STREAM_RTL) $(SNA_STREAM_TEST_SRC) Makefile | $(OBJ_DIR)
+	@mkdir -p $(SNA_STREAM_OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(SNA_STREAM_TOP) \
+		--Mdir $(SNA_STREAM_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(SNA_STREAM_TEST_BIN)) $(SNA_STREAM_TEST_TOP) $(SNA_STREAM_RTL) $(SNA_STREAM_TEST_SRC)
 
 $(P8_TEST_BIN): $(P8_RTL) $(P8_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module plus_p8_test_top -Wno-CASEX \
@@ -727,6 +748,8 @@ lint: motherboard-lint
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(SDRAM_TOP) -Wall -Wno-fatal $(SDRAM_TEST_TOP) $(SDRAM_RTL) \
 		$(MEMORY_RTL)
+	$(VERILATOR) --lint-only --language 1364-2001 \
+		--top-module $(SNA_STREAM_TOP) -Wall -Wno-fatal $(SNA_STREAM_TEST_TOP) $(SNA_STREAM_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \
 		--top-module $(PARSER_TOP) -Wall $(PARSER_RTL)
 	$(VERILATOR) --lint-only --language 1364-2001 \

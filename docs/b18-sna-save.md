@@ -234,6 +234,52 @@ remaining fields need direct checks of the capture.
    - refusal at request and at the boundary.
 
    Four mutants fail: level-triggered freeze, no HALT adjustment, hold one clock late, and no
-   boundary mapping check. Still open for 4b: loss of admission while HELD (a download starting
+   boundary mapping check. Still open for 4c: loss of admission while HELD (a download starting
    during the stream) is not handled inside the controller.
+
+   **4b done (memory stream and DDR3 publication).** `rtl/sna_save_stream.v` starts on
+   `captured`. It reads RAM pages 8-15, or 8-11 for 64K, from the running model's bank on the
+   SDRAM `cart_*` port. After each acknowledge it keeps `cart_req` low through the next `ce_ref`
+   rising edge and the following clock, so it never holds the arbitration edge. The stream writes
+   the slot in publication order: word 0 all ones; header plus RAM bytes little-endian from
+   word 2; word 1 = file bytes / 4; word 0 = generation. Then it pulses `done`, which drives
+   `release_req`. It reads the header straight from `sna_save_capture`, which holds it until
+   release. The generation starts at 1, wraps before all ones, and deliberately survives core
+   reset, because the host detects a new save by a changed generation. A reset during a stalled
+   DDR write waits for acceptance before releasing the bus. `rtl/sna_ddr_mux.v` gives the stream
+   the DDR3 port only when the SSM marker holds no write. While the stream owns the bus the
+   marker sees busy, so its pending write stays queued.
+
+   `sim/plus` target `sna-save-stream` runs the production `sdram.v` against a physical SDRAM
+   model, plus a DDR3 slave with scripted busy and an SSM stand-in. Its cases:
+   - 128K and 64K publication content and order;
+   - random DDR stalls with a per-clock stability check;
+   - fairness: tape and VRAM keep being served and refresh continues, with at most 2 cartridge
+     grants between a tape request and its grant;
+   - mux ordering against the second master;
+   - start while active, reset quiesce, and generation continuity after reset.
+
+   Five mutants fail it: publication order, no idle-slot wait, dropping `we` while busy,
+   granting over an outstanding SSM write, and resetting the generation.
+
+   The Astra high review of slice 4 returned CHANGES REQUIRED; all three findings are fixed.
+   - The mux no longer drops ownership on reset while the stream holds a write.
+   - The generation is consumed when its final write is issued, so a reset that drains or accepts
+     that write cannot publish the same value twice.
+   - The 64K test now decodes pages correctly and checks the payload.
+
+   Cases 6D and 6E cover the reset paths, and the fairness case checks that tape is served in
+   every quarter of the stream.
+
+   Slice 4c remaining: wiring in `Amstrad.sv`, the OSD action and status, and the host pull script.
+   The wiring covers `sna_hw_header`, capture, stream and mux, plus the `cart_*` mux with
+   `plus_cartridge_memory`, the admission terms, and admission loss while HELD. Two constraints
+   from that review apply to the wiring:
+   - **SDRAM ownership drains on abort.** The stream drops `cart_req` at once on reset, but a
+     read the controller already accepted still acknowledges later (`sdram.v:295`). The `cart_*`
+     mux must keep routing that acknowledge to the stream until it arrives, or
+     `plus_cartridge_memory` could take it as completion of its own request.
+   - **Admission also refuses active overlays.** `RAMpage == 3` does not exclude Dandanator or
+     Multiface II mappings (`Amstrad.sv:753-754, 990-991`), whose memory and mapping state the
+     snapshot cannot carry. Refuse the save while either is enabled, as well as in Plus mode.
 5. Integration: OSD action, host pull script, device test.
