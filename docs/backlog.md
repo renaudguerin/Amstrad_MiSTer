@@ -27,7 +27,8 @@ open; do not promote the tentative sprite improvement to a confirmed fix.
 
 ## Plus DCSR bit 7 reports raster on a DMA acknowledge (Copter 271 title flash)
 
-**Open, diagnosed 2026-09-13, not started.** On `c595031`, Copter 271's title
+**Fixed in simulation and integrated into `master` 2026-09-13; device
+acceptance open.** On `c595031`, Copter 271's title
 flashes for one frame every 5-10 s: the sky under the logo is drawn with the
 logo palette (white/orange/red bands), then the next frame is correct. AmSpirit
 does not show it. Frame captures: `docs/defects/copter271-2026-09-13/screenshot1-5.png`
@@ -64,6 +65,15 @@ vector first: acknowledge a DMA-only interrupt, fire the raster before a DCSR
 read, require bit 7=0 on that read and 1 after the following acknowledge, with
 exactly one raster dispatch. Plus stream; device acceptance is the Copter 271
 title watched for about a minute with no flash.
+
+**Done as prescribed 2026-09-13** (`9faa140`, review follow-ups `f277f64`,
+integrated into `master`): new `pr06` failed first on the old set-on-fire term,
+`pr01` now pins latch-on-ack for the classic counter path, `pr05`/`a08`/B8-5
+rechecked green, full `sim`/`lint` pass, Codex astra-high CLEAR twice (runs
+`20260913T153903Z-35497-191d`, `20260913T154348Z-36487-2b7b`). The declined
+ack-edge sweep stands endorsed by the re-review: B8-5 pins both provenances and
+the latch shares the vector sampler's edge; in-window fire values need hardware
+measurement. The one-minute title watch remains open.
 
 **Separate residual, not the cause.** A raster fire landing inside another
 interrupt's acknowledge window (IORQ with M1 low, under 1 µs) is cleared by that

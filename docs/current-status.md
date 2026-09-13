@@ -1,5 +1,16 @@
 # Current implementation status
 
+**Plus DCSR bit-7 acknowledge fix, 2026-09-13, integrated into `master`:**
+`last_raster` (`rtl/plus/asic_ga_timing.v`) now latches at each INT-acknowledge
+start from the pending raster request instead of setting on raster fire, so a
+DMA acknowledge followed by a later raster fire reads DCSR bit 7=0 (Copter 271
+title flash; reference §9). New `pr06` failed first on the old RTL, `pr01`
+reworked for the classic path, `pr05`/`a08`/B8-5 rechecked green. Full
+simulation and lint pass; Codex astra-high CLEAR twice (runs
+`20260913T153903Z-35497-191d`, `20260913T154348Z-36487-2b7b`). Sources `9faa140`
+(fix) and `f277f64` (review follow-ups). Device recapture of the Copter 271
+title (about a minute with no flash) remains open.
+
 **Plus PRI line compare, 2026-09-13, source `b5c3014` integrated into `master`:**
 A B2 device capture of Copter 271 (6128 Plus, `d35412a`) showed its title logo in the
 sky palette. AmSpirit's reference and snapshot (ignored, under
