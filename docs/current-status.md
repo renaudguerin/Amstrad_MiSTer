@@ -1,5 +1,23 @@
 # Current implementation status
 
+**Plus B19 residual: suspected cause modelled in simulation; device acceptance pending (2026-09-14):**
+In `rtl/plus/asic_ga_timing.v`, when a CPU interrupt acknowledge cycle (`int_reset | intack`)
+is active, a coincident single-cycle `raster_fire` pulse was previously swallowed because `int_reset`
+unconditionally drove `INT_N <= 1'b1`. In Copter 271, dropping a raster interrupt skips a step in
+the `&FF → &37 → &A7` palette chain, producing a title palette flash ~1-2 times in 20 s over the logo
+or bottom (never both). In Sonic GX, dropping a raster interrupt is expected to halt its line-by-line
+raster re-arming loop. The timing block now holds coincident raster fires in `raster_fire_pending`
+across the active acknowledge window (`int_ack_active = int_reset | intack`) and asserts `INT_N <= 1'b0`
+immediately on the clock cycle following acknowledge deassertion, where subsequent interrupt acknowledge
+correctly latches `last_raster = 1`. Classic Gate Array (`pri == 0`) edge-triggered syncgen behavior
+remains bit-for-bit identical to `ga40010` (when `intack = 0`). Reviewed by Claude Opus 5 (CLEAR to
+merge as a simulation fix). Known limits / modelling choices recorded: (1) in Plus mode with `pri == 0`,
+a classic 52-line overflow during an in-flight DMA acknowledge remains unlatched (same mechanism as B19;
+real ASIC behavior unmeasured); (2) an MRER D4 clear during coincident fire holds pending and reasserts
+after the write. Deterministic vector `pr07_raster_fire_during_intack` in `sim/plus/asic_pri_test.cpp`
+covers dynamic fire calibration, DMA ack (`intack`), prior raster ack (`irqack_rst`), and a negative
+control. All gates (`make -C sim`, `make -C sim lint`, and soak golden hash `0xb1cb70da95c2e44f`) pass.
+
 **PSG R7 reset fix & keyboard/joystick hardware verification (build `a0778b6`), 2026-09-13, integrated into `master`:**
 Hardware testing on build `a0778b6` (fix "general: reset PSG R7 to 0x00 so bare-metal
 keyboard scans work") confirms it **fixes all known keyboard and joystick issues with

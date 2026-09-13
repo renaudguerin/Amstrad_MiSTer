@@ -1,5 +1,14 @@
 # Independent review debt
 
+**Plus B19 residual (coincident raster_fire latch), 2026-09-14 — source review CLEAR:**
+Claude Opus 5 (run `20260913T232047Z-80037-68c9`) reviewed the RTL changes in `rtl/plus/asic_ga_timing.v`,
+test vector `pr07` in `sim/plus/asic_pri_test.cpp`, and differential bench tie-offs in `sim/plus/asic_ga_diff_top.v`.
+Verdict: **CLEAR to merge as a simulation fix**. All reviewer recommendations were incorporated before merge:
+(1) dynamic calibration of fire offset in `pr07` to eliminate hardcoded line timing dependencies; (2) added test
+coverage for coincident fire during existing raster acknowledge (`irqack_rst`); (3) refined reset priority in
+`asic_ga_timing.v` to eliminate priority conflicts; (4) recorded hardware failure signatures and known boundary limits
+in `docs/current-status.md` and `docs/backlog.md`. Device acceptance on hardware remains pending.
+
 **Plus PRI 9-bit line compare, 2026-09-13 — UNREVIEWED:** `rtl/plus/asic_ga_timing.v`
 `pri_line_match` now requires bit 8 of `{VC5..VC0, RC2..RC0}` to be 0, following the
 Arnold-revision §2.4 formula `0 PRI7..PRI0 == VC5..VC0 RC2..RC0`. The previous
