@@ -18,6 +18,21 @@ make -C sim clean test lint
 This is the per-commit gate for production RTL, simulation vectors, co-simulation manifests,
 and repository tooling.  A failed Tier A run blocks every higher tier.
 
+A second Tier A job, `production-t80`, runs in parallel and is enforced by the same required
+gate:
+
+```sh
+make -C sim production-t80-test GHDL=<pinned ghdl>
+```
+
+It holds every test that simulates the production VHDL T80 (translated with GHDL) instead of
+the TV80 stand-in. The TV80 stand-in commits registers at different T-states, so
+CPU-phase-sensitive claims need this job. GHDL is pinned to the official 6.0.0
+`ghdl-llvm` Ubuntu 24.04 release tarball (SHA-256 checked, cached), the same version used
+locally on macOS. It stays a hosted job: GHDL publishes no arm64 Linux build for the Quartus
+VM, and that single runner is reserved for synthesis. To run it on a Mac, unpack the matching
+macOS release tarball and pass `GHDL=`; Homebrew's `ghdl` cask is disabled.
+
 The hosted job builds the repository-pinned Verilator 5.052 source commit and caches the
 installed prefix by operating system, architecture, and installer-script hash. Every restore
 is checked against both the exact-source marker and reported version before use. A cold run
