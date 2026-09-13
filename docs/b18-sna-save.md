@@ -177,7 +177,20 @@ remaining fields need direct checks of the capture.
 
 ## Slices
 
-1. Freeze predicate: T80/T80pa output, then the failing production-T80 test, then TV80 mirror.
+1. Freeze predicate: T80/T80pa output and production-T80 test. **Done.** `T80.vhd` drives
+   `InsnStart` (`MCycle=1`, `TState=2`, `Prefix="00"`, `SetEI='0'`, no interrupt or NMI
+   acknowledge) and `T80pa` exports it as `INSN_START`. `sim/t80_freeze_top.sv` plus
+   `t80_freeze_test.cpp` (`make -C sim t80-freeze-test`, part of `production-t80-test`) put the
+   GHDL-translated T80 on the real GA enables and WAIT equation. They cover nine cases: deferred
+   ALU, EI, prefix families including DDCB, LD A,I P/V, LDIR/DJNZ, IM 1, NMI/RETN, EI;HALT with
+   an interrupt, and hold versus an equal-length hardware WAIT. That last case shows identical
+   architectural boundaries to a free run and an identical post-release bus trace.
+   Discrimination: five predicate mutants each fail. Dropping `SetEI` fails 4 cases, dropping
+   `Prefix` fails 6, dropping both acknowledge terms fails 2, dropping only `NMICycle` fails the
+   NMI acknowledge check, and sampling at T1 fails all 9.
+   The TV80 mirror is deferred until a TV80-based fixture needs the port, because the capture
+   fixture uses production T80. Harness note: T80pa never resets `IntCycleD_n`, so `IORQ_n` is
+   low on the first fetch after reset; the acknowledge checks start after the first refresh.
 2. Header decode extraction from `Amstrad.sv`.
 3. Observation ports and shadows on the owners above, with the conversions.
 4. Writer: freeze controller, header latch, SDRAM stream, DDR3 slot publication, SSM hold-off.
