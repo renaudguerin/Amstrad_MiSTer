@@ -231,7 +231,9 @@ module plus_p8_test_top (
 		.sna_opa(8'd0),
 		.sna_opb(8'd0),
 		.sna_opc(8'd0),
-		.sna_control(8'd0)
+		.sna_control(8'd0),
+		.snap_opc_r(),
+		.snap_mode()
 	);
 
 	plus_sna_apply sna_ctl

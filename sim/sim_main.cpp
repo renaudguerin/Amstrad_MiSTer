@@ -359,6 +359,7 @@ public:
     bool frame_end_pending() const { return dut_->rootp->CRTC__DOT__frame_new; }
     unsigned row_counter() const { return dut_->rootp->CRTC__DOT__row; }
     unsigned line_counter() const { return dut_->rootp->CRTC__DOT__line; }
+    unsigned vsync_width_elapsed() const { return dut_->SNAP_VSW_ELAPSED; }
 
     void expect_vsync_low(const std::string& expectation) const {
         expect_low(expectation, dut_->VSYNC);
@@ -919,6 +920,80 @@ void test_type0_r7_c0_2_at_line_boundary(TestBench& test) {
     test.expect_vsync_high("type 0 R7=C4 write at C0=2 is not blocked");
     test.run_characters(3);
     test.expect_vsync_low("C0=2/R0 count boundary consumes no partial-line skip");
+}
+
+// B18 SNA save, header offset AF: the observer that exports the VSYNC width
+// counter must read as C3h, the up-counter the Compendium defines. French ACCC
+// v1.11 section 6.1.2 p.34: VSYNC starts with C3h=0, C3h increments per line,
+// VSYNC ends when C3h reaches R3h (or 16). Section 14.2 p.133: R3h=0 means 16
+// lines; type 1 always uses 16. The RTL counts vsc down from a type-specific
+// load instead, so these vectors pin the conversion at mid-line sample points
+// (no CLKEN-edge ambiguity) across the four ways a count can start or pause.
+void expect_vsw_elapsed(TestBench& test, const std::string& expectation,
+                        unsigned expected) {
+    if (!test.raw_vsync()) {
+        test.expect_high(expectation + ": raw VSYNC", 0);
+    }
+    test.expect_byte(expectation, static_cast<std::uint8_t>(expected),
+                     static_cast<std::uint8_t>(test.vsync_width_elapsed()));
+}
+
+void test_b18_vsw_elapsed_counter(TestBench& test) {
+    constexpr unsigned half_line = kF3LineCharacters / 2;
+    const unsigned to_boundary = (kF3LineCharacters - 1) - kF3MidlineHcc;
+
+    // Type 0, R3h=2, VSYNC started by an R7 write at C0=3. Section 16.4.1
+    // p.170 excludes the partial line, so C3h is 0 during it and during the
+    // first full line, 1 during the second, and VSYNC ends after that line.
+    configure_f3_midline_fixture(test, 0, 2);
+    write_r7_zero_at_hcc(test, kF3MidlineHcc);
+    expect_vsw_elapsed(test, "type 0 AF on the partial first line", 0);
+    test.run_characters(to_boundary + half_line);
+    expect_vsw_elapsed(test, "type 0 AF on the first full line", 0);
+    test.run_characters(kF3LineCharacters);
+    expect_vsw_elapsed(test, "type 0 AF on the second full line", 1);
+    test.run_characters(kF3LineCharacters);
+    test.expect_low("type 0 raw VSYNC after two full lines", test.raw_vsync());
+
+    // Type 1 counts the partial line: line k of the pulse reads C3h=k for
+    // k = 0..15, then VSYNC ends.
+    configure_f3_midline_fixture(test, 1);
+    write_r7_zero_at_hcc(test, kF3MidlineHcc);
+    expect_vsw_elapsed(test, "type 1 AF on the partial first line", 0);
+    test.run_characters(to_boundary + half_line);
+    for (unsigned line = 1; line < kVsyncLines; ++line) {
+        std::ostringstream expectation;
+        expectation << "type 1 AF on pulse line " << line;
+        expect_vsw_elapsed(test, expectation.str(), line);
+        test.run_characters(kF3LineCharacters);
+    }
+    test.expect_low("type 1 raw VSYNC after sixteen lines", test.raw_vsync());
+
+    // A new R7-triggered pulse restarts C3h at 0 even though the previous
+    // pulse left the counter at 15. C4 is still 0 (R9=31); rewriting R7
+    // away and back re-arms the comparison, as in t03a.
+    test.write_selected_register_at_clken(1);
+    test.run_characters(1);
+    test.write_selected_register_at_clken(0);
+    test.run_clock_ticks(1);
+    expect_vsw_elapsed(test, "type 1 AF restarts on a second R7-triggered pulse", 0);
+
+    // Adjacent pulses with no falling edge: R7=0/R4=1/R9=7 re-arms VSYNC
+    // exactly as C3h expires (t03b), so each 16-line pulse restarts C3h at 0
+    // while raw VSYNC stays high throughout.
+    constexpr unsigned line_characters = 4;
+    constexpr unsigned frame_lines = 16;
+    for (unsigned type = 0; type <= 1; ++type) {
+        configure_vsync_reentrancy_fixture(test, type, 1, 7);
+        test.run_characters(frame_lines * line_characters + line_characters / 2);
+        for (unsigned line = 0; line < 3 * kVsyncLines; ++line) {
+            std::ostringstream expectation;
+            expectation << "type " << type << " continuous VSYNC AF on line "
+                        << line;
+            expect_vsw_elapsed(test, expectation.str(), line % kVsyncLines);
+            test.run_characters(line_characters);
+        }
+    }
 }
 
 void configure_f3_interlace_fixture(TestBench& test) {
@@ -7939,6 +8014,9 @@ int main(int argc, char** argv) {
          false, test_type0_dynamic_vsync_width_extremes},
         {"t02h_type0_r7_c0_2_at_line_boundary", "ACCC v1.10 section 16.4.1; F3",
          false, test_type0_r7_c0_2_at_line_boundary},
+        {"t36a_b18_vsw_elapsed_counter",
+         "ACCC v1.11 FR sections 6.1.2 p.34, 14.2 p.133, 16.4.1 p.170; B18 AF",
+         false, test_b18_vsw_elapsed_counter},
         {"t02i_type0_interlace_count_boundaries", "ACCC v1.10 sections 16.4-16.5; F3",
          false, test_type0_interlace_count_boundaries},
         {"t02j_type0_pending_skip_type_roundtrip", "CRTC live CRTC_TYPE contract; F3/F11d",
