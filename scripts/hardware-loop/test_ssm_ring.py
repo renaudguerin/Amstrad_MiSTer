@@ -204,16 +204,17 @@ class TestReadFailuresAreDistinguished(unittest.TestCase):
 
 
 class TestReadCommand(unittest.TestCase):
-    def test_block_size_divides_the_base_so_busybox_dd_can_seek(self):
-        # BusyBox has no iflag=skip_bytes, so the skip has to be in blocks.
+    def test_read_command_formats_mmap_invocation(self):
         cmd = ssm_ring.read_command(0x3000_0000, 64)
-        self.assertIn("bs=16", cmd)
-        self.assertIn(f"skip={0x3000_0000 // 16}", cmd)
-        self.assertIn("count=65", cmd)
-        self.assertIn("if=/dev/mem", cmd)
+        self.assertIn("python3 -c", cmd)
+        self.assertIn("/dev/mem", cmd)
+        self.assertIn("mmap", cmd)
+        self.assertIn(str(0x3000_0000), cmd)
+        self.assertIn(str(ssm_ring.ring_size_bytes(64)), cmd)
 
-    def test_header_only_read_is_one_block(self):
-        self.assertIn("count=1", ssm_ring.read_command(0x3000_0000, 64, header_only=True))
+    def test_header_only_read_length(self):
+        cmd = ssm_ring.read_command(0x3000_0000, 64, header_only=True)
+        self.assertIn(f"s={ssm_ring.HEADER_BYTES};", cmd)
 
     def test_a_misaligned_base_is_refused_rather_than_rounded(self):
         with self.assertRaises(ssm_ring.SsmRingError):
@@ -259,12 +260,12 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
         self.polls = 0
         self.publish_at: Dict[int, int] = {}
         self.transport.handlers.insert(0, (
-            lambda c: "if=/dev/mem" in c,
+            lambda c: "/dev/mem" in c,
             self._serve_ring,
         ))
 
     def _serve_ring(self, cmd: str) -> CommandResult:
-        header_only = "count=1 " in cmd
+        header_only = f"s={ssm_ring.HEADER_BYTES};" in cmd
         if not header_only:
             self.polls += 1
             entry = self.publish_at.pop(self.polls, None)
@@ -443,7 +444,7 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
 
         self.publish_at[2] = ssm_ring.CODE_SYNC
         self.transport.handlers[0] = (
-            lambda c: "if=/dev/mem" in c,
+            lambda c: "/dev/mem" in c,
             slow_serve,
         )
         script = write(self.tmp, "m.csl", self.SYNC_SCRIPT)
@@ -476,7 +477,7 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
             clock["t"] += 2.0
             return reply
 
-        self.transport.handlers[0] = (lambda c: "if=/dev/mem" in c, slow_header)
+        self.transport.handlers[0] = (lambda c: "/dev/mem" in c, slow_header)
         backend = DeviceBackend(
             self.transport, options(self.tmp / "out", ssm=True, ssm_startup_seconds=1.0),
             self.tmp / "out", time_fn=lambda: clock["t"], sleep_fn=lambda _: None)
@@ -494,7 +495,7 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
         # A window with no header used to look exactly like "no marker yet".
         # It is now a bounded startup case that becomes a real error.
         self.transport.handlers.insert(0, (
-            lambda c: "if=/dev/mem" in c,
+            lambda c: "/dev/mem" in c,
             lambda c: CommandResult(0, base64.b64encode(b"\x00" * 1040).decode(), ""),
         ))
         with self.assertRaises(DriverError) as ctx:
@@ -503,7 +504,7 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
 
     def test_a_failing_device_read_stops_the_run(self):
         self.transport.handlers.insert(0, (
-            lambda c: "if=/dev/mem" in c,
+            lambda c: "/dev/mem" in c,
             lambda c: CommandResult(1, "", "dd: /dev/mem: Permission denied"),
         ))
         with self.assertRaises(DriverError) as ctx:

@@ -28,6 +28,8 @@ import cpc_keys
 from cpc_keys import KeyTranslationError, sequence_tokens, translate_text
 from csl_runner import (
     CFG_BIT_CRTC,
+    CFG_BITS_SYNC_FILTER,
+    SYNC_FILTER_MODES,
     CslError,
     PlanBackend,
     RunOptions,
@@ -106,6 +108,26 @@ class TestHardwareCrossChecks(unittest.TestCase):
             _cfg_apply_bits(b"\x00" * 8, {0: 1})
         with self.assertRaises(DriverError):
             _cfg_apply_bits(b"\x00" * 16, {128: 1})
+
+    def test_sync_filter_cfg_bit_arithmetic(self):
+        original = bytes.fromhex("00004000000000000000000000000000")
+        # Full: 0 (bits 35=0, 36=0)
+        full = _cfg_apply_bits(original, {CFG_BITS_SYNC_FILTER[0]: 0, CFG_BITS_SYNC_FILTER[1]: 0})
+        self.assertEqual(full, original)
+        # Raw pixels: 1 (bits 35=1, 36=0) -> byte 4 bit 3 is 0x08
+        raw_pix = _cfg_apply_bits(original, {CFG_BITS_SYNC_FILTER[0]: 1, CFG_BITS_SYNC_FILTER[1]: 0})
+        self.assertEqual(raw_pix[4], 0x08)
+        # Raw CRT: 2 (bits 35=0, 36=1) -> byte 4 bit 4 is 0x10
+        raw_crt = _cfg_apply_bits(original, {CFG_BITS_SYNC_FILTER[0]: 0, CFG_BITS_SYNC_FILTER[1]: 1})
+        self.assertEqual(raw_crt[4], 0x10)
+
+    def test_sync_filter_options_validation(self):
+        opts = options(Path("/tmp"), sync_filter="raw-pixels")
+        self.assertEqual(opts.sync_filter, "raw-pixels")
+        opts_off = options(Path("/tmp"), sync_filter="OFF")
+        self.assertEqual(opts_off.sync_filter, "off")
+        with self.assertRaises(ValueError):
+            options(Path("/tmp"), sync_filter="invalid-mode")
 
 
 class TestKeyTranslation(unittest.TestCase):
@@ -494,6 +516,24 @@ class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
         self.assertEqual(self.written[0][0], 0x04)
         self.assertEqual(self.written[0][2], 0x40)
 
+    def test_sync_filter_raw_pixels_sets_cfg_bits_and_records_in_manifest(self):
+        manifest = self._run(MINIMAL, sync_filter="raw-pixels")
+        self.assertEqual(manifest["status"], "success")
+        load = manifest["actions"][0]
+        self.assertEqual(load["cfg_bits_changed"], {"2": 0, "35": 1, "36": 0, "37": 0})
+        self.assertEqual(self.written[0][4], 0x08)
+        self.assertEqual(manifest["effective_settings"]["applied_b6_config"]["sync_filter"], "raw-pixels")
+        self.assertFalse(manifest["effective_settings"]["applied_b6_config"]["raw_crt"])
+
+    def test_sync_filter_raw_crt_sets_cfg_bits_and_records_in_manifest(self):
+        manifest_crt = self._run(MINIMAL, sync_filter="raw-crt")
+        self.assertEqual(manifest_crt["status"], "success")
+        load_crt = manifest_crt["actions"][0]
+        self.assertEqual(load_crt["cfg_bits_changed"], {"2": 0, "35": 0, "36": 1, "37": 0})
+        self.assertEqual(self.written[0][4], 0x10)
+        self.assertEqual(manifest_crt["effective_settings"]["applied_b6_config"]["sync_filter"], "raw-crt")
+        self.assertTrue(manifest_crt["effective_settings"]["applied_b6_config"]["raw_crt"])
+
     def test_absent_cfg_stops_before_anything_is_changed(self):
         self.transport.register_handler(
             lambda c: c == "test -f /media/fat/config/Amstrad.CFG",
@@ -525,6 +565,11 @@ class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
         self.assertEqual(capture["dimensions"], [384, 272])
         self.assertEqual(len(capture["sha256"]), 64)
         self.assertTrue(Path(capture["local_path"]).is_file())
+
+    def test_screenshot_scaled_dispatches_screenshot_scaled_command(self):
+        self._run(MINIMAL, screenshot_at=[("m.csl", 8)], screenshot_scaled=True)
+        cmds = [e["command"] for e in self.transport.command_log if "screenshot scaled" in e["command"]]
+        self.assertTrue(cmds)
 
     def test_cleanup_removes_every_temporary_device_file(self):
         manifest = self._run(MINIMAL)

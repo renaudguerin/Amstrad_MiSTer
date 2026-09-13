@@ -78,6 +78,16 @@ CFG_SIZE = 16
 CFG_BIT_CRTC = 2
 # "d3P2O[5:4],Model,CPC 6128,CPC 664,CPC 464;"
 CFG_BITS_MODEL = (4, 5)
+# "P1O[36:35],Sync filter,Full,Raw pixels,Raw CRT;"
+CFG_BITS_SYNC_FILTER = (35, 36)
+SYNC_FILTER_MODES = {
+    "full": 0,
+    "raw-pixels": 1,
+    "raw_pixels": 1,
+    "raw-crt": 2,
+    "raw_crt": 2,
+    "off": 2,
+}
 # "P2O[37],SSM markers,Off,On;" gates rtl/ssm_marker.v.
 CFG_BIT_SSM = 37
 
@@ -346,12 +356,16 @@ class RunOptions:
         ssm_poll_interval: float = 0.5,
         ssm_startup_seconds: float = 30.0,
         ssm_startup_polls: int = 20,
+        sync_filter: Optional[str] = None,
+        screenshot_scaled: bool = False,
     ):
         validate_device_path(rbf_path, "rbf_path")
         validate_device_path(disk_dir, "disk_dir")
         validate_device_path(cfg_path, "cfg_path")
         if layout not in cpc_keys.SUPPORTED_LAYOUTS:
             raise ValueError(f"layout must be one of {cpc_keys.SUPPORTED_LAYOUTS}, got {layout!r}")
+        if sync_filter is not None and sync_filter.lower() not in SYNC_FILTER_MODES:
+            raise ValueError(f"sync_filter must be one of {sorted(SYNC_FILTER_MODES)}, got {sync_filter!r}")
         self.rbf_path = rbf_path
         self.disk_dir = disk_dir.rstrip("/")
         self.layout = layout
@@ -371,6 +385,8 @@ class RunOptions:
         self.ssm_poll_interval = ssm_poll_interval
         self.ssm_startup_seconds = ssm_startup_seconds
         self.ssm_startup_polls = ssm_startup_polls
+        self.sync_filter = sync_filter.lower() if sync_filter is not None else None
+        self.screenshot_scaled = screenshot_scaled
 
 
 class Backend:
@@ -569,6 +585,10 @@ class DeviceBackend(Backend):
         # The detector is off by default, so turning it on is part of the
         # configuration this run applies and restores.
         bits[CFG_BIT_SSM] = 1 if self.options.ssm else 0
+        if self.options.sync_filter is not None:
+            sync_val = SYNC_FILTER_MODES[self.options.sync_filter]
+            bits[CFG_BITS_SYNC_FILTER[0]] = sync_val & 1
+            bits[CFG_BITS_SYNC_FILTER[1]] = (sync_val >> 1) & 1
         if bits:
             record["cfg_sha256"] = self.write_cfg(_cfg_apply_bits(self.cfg_original, bits))
             record["cfg_bits_changed"] = {str(k): v for k, v in sorted(bits.items())}
@@ -656,7 +676,8 @@ class DeviceBackend(Backend):
         local = self.out_dir / name
         if self._run(f"test ! -e {shlex.quote(remote)}").exit_code != 0:
             raise DriverError(f"Screenshot path already exists or cannot be checked: {remote}")
-        if self._run(f"printf '%s\\n' {shlex.quote(f'screenshot {name}')} > /dev/MiSTer_cmd").exit_code != 0:
+        cmd = f"screenshot scaled {name}" if self.options.screenshot_scaled else f"screenshot {name}"
+        if self._run(f"printf '%s\\n' {shlex.quote(cmd)} > /dev/MiSTer_cmd").exit_code != 0:
             raise DriverError(f"screenshot command failed for {name}")
 
         deadline = self.time_fn() + self.options.capture_timeout
@@ -684,6 +705,7 @@ class DeviceBackend(Backend):
                     last_error = "Capture completed after its deadline"
                     break
                 dims = candidate
+                self._run(f"rm -f {shlex.quote(remote)}")
                 break
             except Exception as exc:  # retry a partially written file
                 last_error = str(exc)
@@ -1505,7 +1527,8 @@ class CslRunner:
                 "media_path": self.media_path,
                 "media_slot": self.media_slot,
                 "applied_b6_config": {
-                    "raw_crt": False,
+                    "raw_crt": (self.options.sync_filter in ("raw-crt", "raw_crt", "off")),
+                    "sync_filter": self.options.sync_filter,
                     "pixel_rate_select": 0,
                     "scale": 0,
                     "mix": 0,
@@ -1671,6 +1694,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument("--ssm-startup-timeout", type=float, default=30.0,
                         help="Seconds to wait for the observer's startup header before "
                              "the script sends its first input")
+    parser.add_argument("--sync-filter", choices=["full", "raw-pixels", "raw-crt", "off"],
+                        default=None,
+                        help="Select sync filter mode: full, raw-pixels, or raw-crt/off (default: keep existing Amstrad.CFG setting)")
+    parser.add_argument("--screenshot-scaled", action="store_true",
+                        help="Capture aspect-scaled HDMI framebuffer screenshots instead of native unscaled resolution")
     return parser.parse_args(argv)
 
 
@@ -1703,6 +1731,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             ssm_base=args.ssm_base,
             ssm_poll_interval=args.ssm_poll,
             ssm_startup_seconds=args.ssm_startup_timeout,
+            sync_filter=args.sync_filter,
+            screenshot_scaled=args.screenshot_scaled,
         )
     except (ValueError, argparse.ArgumentTypeError) as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
