@@ -181,13 +181,17 @@ remaining fields need direct checks of the capture.
    `InsnStart` (`MCycle=1`, `TState=2`, `Prefix="00"`, `SetEI='0'`, no interrupt or NMI
    acknowledge) and `T80pa` exports it as `INSN_START`. `sim/t80_freeze_top.sv` plus
    `t80_freeze_test.cpp` (`make -C sim t80-freeze-test`, part of `production-t80-test`) put the
-   GHDL-translated T80 on the real GA enables and WAIT equation. They cover nine cases: deferred
-   ALU, EI, prefix families including DDCB, LD A,I P/V, LDIR/DJNZ, IM 1, NMI/RETN, EI;HALT with
-   an interrupt, and hold versus an equal-length hardware WAIT. That last case shows identical
-   architectural boundaries to a free run and an identical post-release bus trace.
-   Discrimination: five predicate mutants each fail. Dropping `SetEI` fails 4 cases, dropping
-   `Prefix` fails 6, dropping both acknowledge terms fails 2, dropping only `NMICycle` fails the
-   NMI acknowledge check, and sampling at T1 fails all 9.
+   GHDL-translated T80 on the real GA enables and WAIT equation. They cover 13 cases: deferred
+   ALU, EI, prefix families including DDCB, final opcodes equal to prefix bytes (`CB CB`,
+   `CB DD`, `ED ED`), LD A,I and LD A,R P/V, LDIR/DJNZ, OTIR with port writes, IM 1, NMI/RETN,
+   EI;HALT with INT already pending, HALT woken by INT, and hold versus an equal-length hardware
+   WAIT. The hold case stalls inside LDIR and inside OTIR. It requires every REG bit (alternate
+   banks loaded with distinct values) to match a free run at every boundary, the same memory and
+   port writes, and a post-release bus trace (address, data, controls) identical to the WAIT run.
+   Discrimination: six predicate mutants each fail. Dropping `SetEI`, `Prefix`, both acknowledge
+   terms or only `NMICycle` fails; so does sampling at T1, and so does replacing semantic `Prefix`
+   with a raw-opcode test (the prefix-valued opcodes case). The Astra high code review of the
+   first commit was CLEAR WITH CHANGES; this suite closes its three test gaps.
    The TV80 mirror is deferred until a TV80-based fixture needs the port, because the capture
    fixture uses production T80. Harness note: T80pa never resets `IntCycleD_n`, so `IORQ_n` is
    low on the first fetch after reset; the acknowledge checks start after the first refresh.
