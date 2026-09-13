@@ -1,5 +1,12 @@
 # Current implementation status
 
+**AmSpirit troubleshooting oracle (Track G), 2026-09-13:** standalone helper
+`scripts/amspirit/amspirit.py` loads media, paces input on emulated frames, and captures
+a paused checkpoint (screenshot, state endpoints, SNA with chunk list) with a manifest.
+The [Copter 271 title pilot](amspirit-oracle-pilot-2026-09-13.md) ran it end to end on
+AmSpirit lite 1.15.1; the checkpoint SNA resumes and takes input in AmSpirit. Open: load
+that SNA on the MiSTer (F6, 6128 Plus) and confirm it resumes. No RTL change.
+
 **Plus DCSR bit-7 acknowledge fix (B19), 2026-09-13, integrated into `master`:**
 `last_raster` (`rtl/plus/asic_ga_timing.v`) now latches at each INT-acknowledge
 start from the pending raster request instead of setting on raster fire, so a

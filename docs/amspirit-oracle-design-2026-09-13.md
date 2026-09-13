@@ -1,7 +1,10 @@
 # AmSpirit as troubleshooting oracle — design
 
 Written 2026-09-13. Stream: **general** (shared host tooling; no RTL).
-Status: **draft for review** (Astra-high review pending, §8).
+Status: **reviewed; Track G pilot and helper implemented.** Helper:
+[`scripts/amspirit/`](../scripts/amspirit/README.md). Pilot:
+[Copter 271 title](amspirit-oracle-pilot-2026-09-13.md), AmSpirit side accepted; the
+MiSTer-side resume of the checkpoint SNA is still open.
 
 Goal: use the AmSpirit emulator — LUA scripting plus HTTP API — as a
 reference oracle when debugging core issues, alongside (but decoupled from)
@@ -104,6 +107,21 @@ already running). Network scripts are sandboxed (no `io`/`package`/`debug`/
 `dofile`, pruned `os`, `fs.*` jailed under the config dir) — verified live;
 fine for our uses, keep `--lua-full-stdlib` off.
 
+### 2.4a Behaviour found by the pilot
+
+- SNA saving has no HTTP endpoint: Lua `snapshot_dir(fs.root())`,
+  `snapshot_name(name)`, `snapshot()`. It writes nothing, without error, until
+  the directory exists (any `fs.write` creates it). It works while paused.
+- `POST /api/media` with a CPR does not reset the machine; a load into a running
+  program crashed it. Follow a CPR load with `do_hard_reset`; never reset after
+  loading an SNA.
+- A machine without VSYNC keeps returning the same `live=0` frame, so identical
+  screenshots of an animated screen are a crash signal.
+- `/api/keytype` drives the keyboard only. Joystick input goes through
+  `keyboard_write` on matrix row 9 (active low, fire `0x10`).
+- `/api/state` carries no Plus ASIC state; PRI, DCSR, sprites and the ASIC
+  palette are only reachable through the SNA `CPC+` chunk.
+
 ### 2.5 SSM scope (Track S only)
 
 SSM exists in the script engine (`wait_ssm0000()`, `#0000/#FFFF/#FFFE/
@@ -189,12 +207,12 @@ it only if that stalls), so the pilot defect is still to be chosen.
 
 1. AmSpirit ordinary-code capture behaviour (§2.5) — Track S only, nonblocking for Track G.
 2. AmSpirit SSM matcher byte set vs our 177-value permissive set — Track S only, nonblocking for Track G.
-3. SNA save-to-load round-trip details (snapshot naming/dir retrieval via
-   `fs.root()` vs local CLI paths), plus per-case snapshot compatibility and
-   configuration-matching evidence (§§3–4).
+3. Per-case snapshot compatibility and configuration-matching evidence on the
+   MiSTer (§§3–4). The AmSpirit save/load round trip is settled (§2.4a): the
+   helper saves under `fs.root()` and copies the file from the local host.
 4. Main pre-scaler capture prerequisite (command/build) if wanted (§2.1).
-5. Pilot defect selection (needs a Plus-cartridge issue with a reachable
-   screen) and durable evidence locations (§5).
+5. Settled for the pilot: Copter 271 title, evidence under
+   `docs/references/amspirit-pilot-copter271-2026-09-13/` in the main checkout.
 
 ## 7. Review debt note
 
@@ -220,4 +238,5 @@ and are incorporated above:
 - Pre-scaler mode made prerequisite-gated; crop-vs-pipeline distinguished (§§2.1, 4, 6).
 - Bounded polling (frames + host deadline) specified; shell-first, helper-after (§§2.3, 5).
 
-No RTL, no helper, no pilot run in this pass — implementation belongs to a new thread.
+The design pass itself contained no RTL, helper or pilot run; those followed in
+the implementation task recorded in the pilot document.

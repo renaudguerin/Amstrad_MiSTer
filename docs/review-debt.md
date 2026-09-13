@@ -1,5 +1,11 @@
 # Independent review debt
 
+**AmSpirit oracle helper, 2026-09-13 — UNREVIEWED:** `scripts/amspirit/amspirit.py`
+(host tooling, no RTL) was checked only by a live run of the Copter 271 case against
+AmSpirit lite 1.15.1. Look hardest at: `wait_frames` and `eval_lua` deadline and pause
+handling when AmSpirit stalls mid-step; `run_case` restoring the pause state after a
+failure; and the SNA copy, which assumes AmSpirit's `fs.root()` is on the same host.
+
 **Plus PRI 9-bit line compare, 2026-09-13 — UNREVIEWED:** `rtl/plus/asic_ga_timing.v`
 `pri_line_match` now requires bit 8 of `{VC5..VC0, RC2..RC0}` to be 0, following the
 Arnold-revision §2.4 formula `0 PRI7..PRI0 == VC5..VC0 RC2..RC0`. The previous
