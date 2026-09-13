@@ -1,6 +1,6 @@
 # Current implementation status
 
-**Plus DCSR bit-7 acknowledge fix, 2026-09-13, integrated into `master`:**
+**Plus DCSR bit-7 acknowledge fix (B19), 2026-09-13, integrated into `master`:**
 `last_raster` (`rtl/plus/asic_ga_timing.v`) now latches at each INT-acknowledge
 start from the pending raster request instead of setting on raster fire, so a
 DMA acknowledge followed by a later raster fire reads DCSR bit 7=0 (Copter 271

@@ -25,7 +25,7 @@ longer fires on line 256+n). Full versus Raw pixels shows no visible difference 
 in Amazing Demo, DSC4 or SHAKER A (T). B1/B6 visual acceptance and P10 remain
 open; do not promote the tentative sprite improvement to a confirmed fix.
 
-## Plus DCSR bit 7 reports raster on a DMA acknowledge (Copter 271 title flash)
+## B19. Plus DCSR bit 7 reports raster on a DMA acknowledge (Copter 271 title flash)
 
 **Fixed in simulation and integrated into `master` 2026-09-13; device
 acceptance open.** On `c595031`, Copter 271's title
@@ -75,14 +75,20 @@ ack-edge sweep stands endorsed by the re-review: B8-5 pins both provenances and
 the latch shares the vector sampler's edge; in-window fire values need hardware
 measurement. The one-minute title watch remains open.
 
-**Separate residual, not the cause — now the prime suspect for the
-remainder.** A raster fire landing inside another interrupt's acknowledge
-window (IORQ with M1 low, under 1 µs) is cleared by that acknowledge and lost
-(`INT_N` block, `int_reset` beats `raster_fire`). Real-chip behaviour is
-unknown. On `05cb9fd` the title flash persists at ~1-2 times per 20 s over
-the logo or the screen bottom: a lost palette step fits that rate and either
-region, but this is unproved. Discriminate with a caught glitch frame or
-controlled PRI/ack-overlap measurement before touching the acknowledge path.
+**Hypothesis for the remainder (B19, 2026-09-13 hardware verdict on
+`05cb9fd`): a raster fire landing inside another interrupt's acknowledge
+window is cleared by that acknowledge and lost.** Previously a "separate
+residual, not the cause" (`INT_N` block, `int_reset` beats `raster_fire`;
+real-chip behaviour unknown); it is now the prime suspect because the fixed
+title flash persists at ~1-2 times per 20 s over the logo or the screen
+bottom (never both). The rate fits a sub-microsecond coincidence window
+rather than every DMA/raster overlap, and a lost fire skips one step of the
+`&FF → &37 → &A7` palette chain, leaving the wrong palette loaded for one
+band — logo or bottom depending on which step was skipped. Unproved: do not
+touch the acknowledge path on the strength of it. Discriminate with a caught
+glitch frame (B2 title capture) or controlled PRI/ack-overlap measurement on
+hardware (expected values there need real Plus/GX4000 measurements; §9's
+last-ack rule alone does not decide them).
 
 The active work is **B2 device capture** (`root@mister`, user reports online),
 **B6 diagnostic/final-RGB gaps**, and **actual source-review gap closure**.
