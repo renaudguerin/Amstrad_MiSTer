@@ -56,6 +56,7 @@ public:
 		case 2: return dut.read2_o;
 		case 3: return dut.read3_o;
 		case 4: return dut.read4_o;
+		case 5: return dut.read5_o;
 		default: return 0;
 		}
 	}
@@ -80,24 +81,26 @@ int run() {
 
 	// Change sources only after the preceding read has been captured.  The
 	// script leaves >15 clocks between reads, so HID's synchronous PS/2 edge
-	// detector settles before the next AY R14 sample.
+	// detector settles before the next AY R14 sample.  Slot 0 is the
+	// reset-default read (no R7 programming yet), so PS/2 injection must
+	// wait until slots 0 and 1 are both captured.
 	bool injected = false;
 	bool snac_fire = false;
 	bool usb_fire = false;
 	for (uint64_t guard = 0; guard < 200000 && !b.done(); ++guard) {
 		b.tick();
 		const uint8_t n = b.read_count();
-		if (!injected && n >= 1) {
+		if (!injected && n >= 2) {
 			// PS/2 make code A: bit 10 toggles, bit 9 is press, code 0x1C.
 			b.dut.ps2_key = 0x61C;
 			injected = true;
 		}
-		if (!snac_fire && n >= 3) {
+		if (!snac_fire && n >= 4) {
 			// DB9 pin 7 / Fire 1 is active low at USER_IN[2].
 			b.dut.user_in = 0x7B;
 			snac_fire = true;
 		}
-		if (!usb_fire && n >= 4) {
+		if (!usb_fire && n >= 5) {
 			// Disable SNAC and assert USB joystick 1 Fire 1 (bit 4).
 			b.dut.snac_player = 0;
 			b.dut.joy1_usb = 0x10;
@@ -105,23 +108,24 @@ int run() {
 		}
 	}
 	if (!b.done()) fail("script did not finish");
-	if (b.read_count() != 5) fail("expected five AY R14 samples");
-	if (b.dut.operation_count_o != 20)
-		fail("expected all 20 scripted I/O operations to complete");
-	if (b.dut.sampled_operation_count_o != 20)
+	if (b.read_count() != 6) fail("expected six AY R14 samples");
+	if (b.dut.operation_count_o != 28)
+		fail("expected all 28 scripted I/O operations to complete");
+	if (b.dut.sampled_operation_count_o != 28)
 		fail("an I/O operation completed without a CCLK_EN_P sample");
-	if (b.dut.cclk_sample_count_o < 20)
+	if (b.dut.cclk_sample_count_o < 28)
 		fail("expected at least one CCLK_EN_P sample per I/O operation");
 	if (b.dut.wait_stall_count_o == 0)
 		fail("fixture never exercised an active I/O wait on READY");
 	if (b.dut.timing_error_o)
 		fail("fake CPU violated the production phase/READY contract");
 
-	check_eq(b.read_value(0), 0xFF, "row 8 idle");
-	check_eq(b.read_value(1), 0xDF, "row 8 PS2 A");
-	check_eq(b.read_value(2), 0xFF, "row 9 SNAC P1 idle");
-	check_eq(b.read_value(3), 0xEF, "row 9 SNAC P1 fire 1");
-	check_eq(b.read_value(4), 0xEF, "row 9 USB fire 1");
+	check_eq(b.read_value(0), 0xFF, "row 8 reset-default R7 idle");
+	check_eq(b.read_value(1), 0xFF, "row 8 idle");
+	check_eq(b.read_value(2), 0xDF, "row 8 PS2 A");
+	check_eq(b.read_value(3), 0xFF, "row 9 SNAC P1 idle");
+	check_eq(b.read_value(4), 0xEF, "row 9 SNAC P1 fire 1");
+	check_eq(b.read_value(5), 0xEF, "row 9 USB fire 1");
 
 	if (b.dut.port_c_o != 0x49)
 		fail("Plus PPI Port C did not retain row-9 read selection");

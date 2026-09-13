@@ -79,8 +79,16 @@ reg [7:0] ymreg[16];
 reg env_reset;
 always @(posedge CLK) begin
 	if(RESET) begin
+		// GI AY-3-8910/8912/8913 datasheet, /RESET pin: "will reset all
+		// registers to 0". In particular R7 resets to 0x00 (both PSG ports
+		// input, all tone/noise channels enabled), not 0xFF. Bare-metal
+		// code such as the arn5diag cartridge scans the keyboard via R14
+		// before the initial menu without programming R7 first, and depends
+		// on this power-on state: with R7=0xFF the R14 read returns
+		// ymreg[14](0x00) ANDed with the matrix, wedging every row at 0x00.
+		// Output stays silent either way because the volume registers also
+		// reset to 0.
 		ymreg     <= '{default:0};
-		ymreg[7]  <= '1;
 		addr      <= '0;
 		env_reset <= 0;
 	end else if(SNA_LOAD) begin
