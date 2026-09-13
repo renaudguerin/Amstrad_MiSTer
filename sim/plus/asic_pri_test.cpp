@@ -113,8 +113,9 @@ public:
 	}
 
 	// MRER bit 4 write through the fast GA-port path clears any interrupt.
-	// Z80-style acknowledge with nothing pending: raises a stuck INT and,
-	// per the DCSR bit-7 rule, clears the last-ack-was-raster level.
+	// Z80-style acknowledge: raises a stuck INT and latches the
+	// last-ack-was-raster level from the raster request pending at
+	// acknowledge start (clears it when nothing is pending).
 	void empty_ack() {
 		fast = true;
 		iorq_n = false;
@@ -153,15 +154,11 @@ uint64_t wait_fire(PriBench& b, const char* who, uint64_t budget) {
 //----------------------------------------------------------------------
 void pr01_baseline(PriBench& b) {
 	b.power_on();
-	// Clear the simulator zero-init INT level so both measured fires are
-	// genuine events (same discipline as r02). The first acknowledge
-	// observes the stuck INT_N-low level and latches it as pending: the
-	// level follows the last acknowledge (reference §9) and the module
-	// cannot distinguish stuck-zero from a pending raster. The second
-	// acknowledge sees the genuinely idle line and clears it.
+	// INT_N has no reset term and starts stuck low in simulation; the
+	// first acknowledge raises it and the second establishes the
+	// asserted idle baseline, so both measured fires are genuine
+	// events (same discipline as r02).
 	b.empty_ack(); // clears the simulator zero-init INT level
-	if (b.dut.int_last_raster != 1)
-		fail("pr01: first ack must latch the stuck INT_N-low level");
 	b.empty_ack(); // genuinely idle acknowledge
 	if (b.dut.int_last_raster != 0)
 		fail("pr01: last-raster level should be zero before any fire");
@@ -324,11 +321,11 @@ void pr04_mrer_clears_pri(PriBench& b) {
 }
 
 //----------------------------------------------------------------------
-// pr05: DCSR bit-7 level semantics (reference section 9). The level sets
-// on a fire and HOLDS through that interrupt acknowledge — clearing on
-// the acknowledge itself inverted the documented read-DCSR-at-handler-
-// -head dispatch (review finding 3). It clears only when an acknowledge
-// completes with nothing pending.
+// pr05: DCSR bit-7 level semantics (reference section 9). The level
+// latches at the START of each acknowledge from the raster request
+// pending then — clearing it on int_reset instead inverted the rule
+// and broke the documented read-DCSR-at-handler-head dispatch
+// (review finding 3). A fire alone never sets it (see pr01/pr06).
 //----------------------------------------------------------------------
 void tick_pub(PriBench& b) { b.tick(); }
 
