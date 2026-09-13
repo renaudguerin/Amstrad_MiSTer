@@ -607,70 +607,43 @@ module asic_ga_timing
 	wire raster_fire = (pri != 8'd0) && !crtc_adj &&
 	                   mon_hsync_fall && pri_line_match;
 
-	// Persistent last-ack-was-raster level for DCSR bit 7: a raster-sourced
-	// assert (classic or PRI) sets it; the next non-raster-sourced event
-	// clears it. With DMA absent (P7) every assert is raster-sourced, so
-	// the level simply follows pending-raster state.
+	// Persistent last-ack-was-raster level for DCSR bit 7 (reference
+	// section 9: set if the LAST INT acknowledge was raster). The level
+	// latches at the START of each acknowledge cycle from the raster
+	// request pending at that instant (!INT_N: this module asserts INT_N
+	// only for raster, classic or PRI) and holds until the next
+	// acknowledge. In particular a raster fire AFTER a DMA acknowledge
+	// must not set it: the handler's DCSR read then takes the DMA path
+	// (Copter 271 title flash). Sampling at acknowledge start matters:
+	// sampling later would see INT_N risen by the irqack path and
+	// misread a raster acknowledge as empty.
 	wire int_reset = irq_reset | irqack_rst;
 
 	// Classic overflow event, kept in the original single-block form so
-	// the assert edge stays exactly where the lockstep bench pinned it;
-	// last_raster below observes it one cycle later, which is immaterial
-	// for the DCSR bit-7 level.
+	// the assert edge stays exactly where the lockstep bench pinned it.
 	reg  cnt5; // counter top bit, delayed one clk (block below drives it)
-	wire classic_fire = (pri == 8'd0) & ~intcnt_comb[5] & cnt5;
 
-	// DCSR bit 7 semantics (reference section 9): set if the LAST INT
-	// acknowledge was raster-sourced. The level therefore SETS on any
-	// fire and HOLDS through that interrupt's acknowledge — clearing it
-	// on int_reset inverted the rule and broke the documented
-	// read-DCSR-at-handler-head dispatch (review finding 3). It clears
-	// only when an acknowledge cycle completes with nothing pending.
-	// DCSR bit 7 semantics (reference section 9): set if the LAST INT
-	// acknowledge was raster-sourced. The level therefore SETS on any
-	// fire and HOLDS through that interrupt's acknowledge - clearing it
-	// on int_reset inverted the rule and broke the documented
-	// read-DCSR-at-handler-head dispatch (review finding 3). The clear
-	// samples the START of an acknowledge cycle whose INT_N is already
-	// high (nothing pending); sampling later would see INT_N risen by the
-	// irqack path and misread a raster acknowledge as empty.
 	reg  intack_d;
-	reg  ack_empty; // nothing pending at acknowledge start
-	reg  sna_raster_pending;
 	reg  last_raster;
 	always @(posedge clk) begin
 		intack_d <= intack;
-		if (reset)                                    ack_empty <= 1'b0;
-		else if (SNA_LOAD)                            ack_empty <= 1'b0;
-		else if (intack && !intack_d)                 ack_empty <= INT_N;
-
-		if (reset)                                    sna_raster_pending <= 1'b0;
-		else if (SNA_LOAD)                            sna_raster_pending <= SNA_INT;
-		else if (int_reset || classic_fire || raster_fire || (intack && !intack_d))
-		                                              sna_raster_pending <= 1'b0;
 
 		// DCSR bit 7's restored provenance lives in asic_regs (CPC+ chunk byte
-		// 8DF bit 7) during idle before ACK. The level itself starts clear on
-		// SNA_LOAD (the apply asserts INT_N directly rather than through a fire
-		// term). When the first acknowledge cycle arrives for a restored pending
-		// raster interrupt (intack with !INT_N scoped to sna_raster_pending),
-		// last_raster is set to 1 exactly as a normal fire would have set it,
-		// and asic_regs retires its loaded dcsr_stat. If an acknowledge completes
-		// with nothing pending (ack_empty), last_raster clears to 0.
+		// 8DF bit 7, dcsr_stat) during idle before ACK; the first acknowledge
+		// retires it there while this level takes over from the live pending
+		// state, so no SNA-scoped term is needed here: a restored pending
+		// raster holds INT_N low exactly like a live one.
 		if (reset)                                    last_raster <= 1'b0;
 		else if (SNA_LOAD)                            last_raster <= 1'b0;
-		else if (classic_fire || raster_fire ||
-		         (intack && !intack_d && sna_raster_pending && !INT_N))
-		                                              last_raster <= 1'b1;
-		else if (!intack && intack_d && ack_empty)    last_raster <= 1'b0;
+		else if (intack && !intack_d)                 last_raster <= !INT_N;
 	end
 	assign int_last_raster = last_raster;
 
 	always @(posedge clk) begin
 		if (SNA_LOAD) begin
-			// cnt5 is the delayed top counter bit and classic_fire is its
-			// FALLING edge: seeding it from the restored counter is what stops
-			// the apply from manufacturing an interrupt on the next clock.
+		// cnt5 is the delayed top counter bit and the classic overflow is
+		// its FALLING edge: seeding it from the restored counter is what
+		// stops the apply from manufacturing an interrupt on the next clock.
 			cnt5  <= SNA_INTCNT[5];
 			// Header B4. It is an aggregate "an interrupt is pending" flag and
 			// cannot say whether the GA or the ASIC DMA raised it; the caller
