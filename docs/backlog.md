@@ -85,20 +85,17 @@ ack-edge sweep stands endorsed by the re-review: B8-5 pins both provenances and
 the latch shares the vector sampler's edge; in-window fire values need hardware
 measurement. The one-minute title watch remains open.
 
-**Hypothesis for the remainder (B19, 2026-09-13 hardware verdict on
-`05cb9fd`): a raster fire landing inside another interrupt's acknowledge
-window is cleared by that acknowledge and lost.** Previously a "separate
-residual, not the cause" (`INT_N` block, `int_reset` beats `raster_fire`;
-real-chip behaviour unknown); it is now the prime suspect because the fixed
-title flash persists at ~1-2 times per 20 s over the logo or the screen
-bottom (never both). The rate fits a sub-microsecond coincidence window
-rather than every DMA/raster overlap, and a lost fire skips one step of the
-`&FF → &37 → &A7` palette chain, leaving the wrong palette loaded for one
-band — logo or bottom depending on which step was skipped. Unproved: do not
-touch the acknowledge path on the strength of it. Discriminate with a caught
-glitch frame (B2 title capture) or controlled PRI/ack-overlap measurement on
-hardware (expected values there need real Plus/GX4000 measurements; §9's
-last-ack rule alone does not decide them).
+**Residual: suspected cause modelled in simulation 2026-09-14; device acceptance pending.**
+The B19 fix on `05cb9fd` reduced Copter 271's title flash rate to ~1-2 times in 20 s over
+the logo or bottom (never both). The suspect cause—a coincident `raster_fire` pulse occurring
+during another interrupt's acknowledge window (`int_reset | intack`) being dropped by unconditional
+`INT_N <= 1'b1`—is now resolved in simulation: `raster_fire_pending` in `rtl/plus/asic_ga_timing.v`
+latches coincident fires across `int_ack_active` and asserts `INT_N <= 1'b0` on the cycle following
+deassertion. Reviewed by Claude Opus 5 (CLEAR). Deterministic vector `pr07` in `sim/plus/asic_pri_test.cpp`
+covers dynamic calibration, DMA ack, prior raster ack, and negative control. Classic `pri == 0` lockstep
+with `ga40010` is preserved (when `intack = 0`). Known follow-up limits: classic 52-line overflow during
+DMA ack in Plus mode with `pri == 0` remains unlatched (real ASIC behavior unmeasured). Device
+acceptance (Copter 271 / Sonic GX) on new build open.
 
 The active work is **B2 device capture** (`root@mister`, user reports online),
 **B6 diagnostic/final-RGB gaps**, and **actual source-review gap closure**.

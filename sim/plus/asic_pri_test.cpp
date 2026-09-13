@@ -19,6 +19,10 @@
 //   pr06  a DMA-sourced acknowledge leaves the level clear even when the
 //         raster fires afterwards (reference §9: set iff the LAST ack was
 //         raster) — the Copter 271 DMA-timer/raster slip.
+//   pr07  raster_fire during an active acknowledge cycle (DMA ack or
+//         prior raster ack) must not be lost (B19 residual): the coincident
+//         fire is held pending across the acknowledge and asserts INT_N low
+//         on the cycle following acknowledge deassertion.
 //
 // Expectations are derived from reference §7 / [ARNOLD-REV §2.4] and cited
 // inline — never read back out of the simulator.
@@ -387,6 +391,150 @@ void pr06_dma_ack_then_raster(PriBench& b) {
 	std::printf("PASS pr06: DMA ack leaves bit7 clear across a later raster fire\n");
 }
 
+//----------------------------------------------------------------------
+// pr07: raster_fire during an active acknowledge cycle must NOT be lost
+// (B19 residual). When an interrupt acknowledge (DMA ack or prior raster
+// ack) is in flight, a coincident raster_fire must be held pending and
+// pull INT_N low on the cycle following acknowledge deassertion, where
+// a subsequent acknowledge correctly latches the last-ack-was-raster level.
+//
+// Expectation: coincident raster fire during acknowledge is held pending
+// and asserted on acknowledge release (simulation modelling choice for B19
+// residual; real ASIC exact sub-cycle response unmeasured, device acceptance
+// pending).
+//----------------------------------------------------------------------
+void pr07_raster_fire_during_intack(PriBench& b) {
+	b.ga_mrer_clear();
+	b.empty_ack();
+	if (b.dut.INT_N != 1) fail("pr07: expected idle INT_N after clear");
+	if (b.dut.int_last_raster != 0) fail("pr07: expected clear last-raster");
+
+	// Dynamically calibrate the intra-line offset of monitor HSYNC fall
+	// for the PRI match to ensure the test window precisely spans the fire tick.
+	uint16_t cal_line = uint16_t((b.crtc_line + 4) & 0x7F);
+	if (cal_line == 0) cal_line = 1;
+	b.pri = uint8_t(cal_line);
+
+	uint64_t guard = 0;
+	while ((b.crtc_line & 0x1FF) != cal_line || b.dut.INT_N != 0) {
+		b.tick();
+		if (++guard > 800u * kLineClks) fail("pr07: timeout measuring fire offset");
+	}
+	const unsigned fire_hcount = b.hcount;
+	b.empty_ack(); // clear calibration interrupt
+
+	// ------------------------------------------------------------------
+	// Case A: Raster fire during in-flight DMA acknowledge (intack=1)
+	// ------------------------------------------------------------------
+	uint16_t match_line_a = uint16_t((b.crtc_line + 4) & 0x7F);
+	if (match_line_a == 0) match_line_a = 1;
+	b.pri = uint8_t(match_line_a);
+
+	// Advance to the start of match_line_a.
+	guard = 0;
+	while ((b.crtc_line & 0x1FF) != match_line_a || b.hcount != 0) {
+		b.tick();
+		if (++guard > 800u * kLineClks) fail("pr07: timeout reaching match line A");
+	}
+
+	// Advance to just before the measured fire point.
+	while (b.hcount < fire_hcount - 15) {
+		b.tick();
+	}
+
+	// Begin an interrupt acknowledge cycle while INT_N is idle (DMA ack).
+	b.fast = true;
+	b.iorq_n = false;
+	b.m1_n = false;
+
+	// Step across the measured monitor HSYNC fall.
+	while (b.hcount < fire_hcount + 15) {
+		b.tick();
+		if (b.dut.INT_N != 1)
+			fail("pr07: INT_N must remain high during in-flight acknowledge cycle");
+	}
+
+	// Deassert the acknowledge cycle.
+	b.iorq_n = true;
+	b.m1_n = true;
+	b.fast = false;
+
+	// INT_N must assert low on the cycle following acknowledge deassertion.
+	b.tick();
+	if (b.dut.INT_N != 0)
+		fail("pr07: raster_fire during intack did not pull INT_N low after intack deasserted");
+
+	// Acknowledging the survived raster interrupt raises INT_N and sets bit 7.
+	b.empty_ack();
+	if (b.dut.INT_N != 1) fail("pr07: acknowledge did not raise INT_N");
+	if (b.dut.int_last_raster != 1)
+		fail("pr07: acknowledging survived raster interrupt must set last-raster level");
+
+	// ------------------------------------------------------------------
+	// Case B: Raster fire during prior raster interrupt acknowledge (irqack_rst)
+	// ------------------------------------------------------------------
+	uint16_t match_line_b1 = uint16_t((b.crtc_line + 4) & 0x7F);
+	if (match_line_b1 == 0) match_line_b1 = 1;
+	uint16_t match_line_b2 = uint16_t((match_line_b1 + 1) & 0x7F);
+	if (match_line_b2 == 0) match_line_b2 = 1;
+
+	// Fire on line b1
+	b.pri = uint8_t(match_line_b1);
+	guard = 0;
+	while ((b.crtc_line & 0x1FF) != match_line_b1 || b.dut.INT_N != 0) {
+		b.tick();
+		if (++guard > 800u * kLineClks) fail("pr07: timeout reaching match line B1");
+	}
+	if (b.dut.INT_N != 0) fail("pr07: expected INT_N low from line B1 fire");
+
+	// Set PRI for line b2
+	b.pri = uint8_t(match_line_b2);
+
+	// Advance to match_line_b2, just before the fire point
+	guard = 0;
+	while ((b.crtc_line & 0x1FF) != match_line_b2 || b.hcount < fire_hcount - 15) {
+		b.tick();
+		if (++guard > 800u * kLineClks) fail("pr07: timeout reaching match line B2");
+	}
+
+	// Begin acknowledge of line B1's raster interrupt (irqack_rst active)
+	b.fast = true;
+	b.iorq_n = false;
+	b.m1_n = false;
+
+	// Step across line B2's fire point
+	while (b.hcount < fire_hcount + 15) {
+		b.tick();
+		if (b.dut.INT_N != 1)
+			fail("pr07: INT_N must remain high during in-flight irqack_rst cycle");
+	}
+
+	// Deassert acknowledge
+	b.iorq_n = true;
+	b.m1_n = true;
+	b.fast = false;
+
+	// Line B2's coincident fire must assert INT_N on the next clock
+	b.tick();
+	if (b.dut.INT_N != 0)
+		fail("pr07: raster_fire during irqack_rst did not pull INT_N low after ack deasserted");
+
+	b.empty_ack();
+	if (b.dut.INT_N != 1) fail("pr07: acknowledge did not raise INT_N");
+	if (b.dut.int_last_raster != 1)
+		fail("pr07: acknowledging line B2 raster interrupt must set last-raster level");
+
+	// ------------------------------------------------------------------
+	// Negative control: acknowledge without coincident fire leaves INT_N high
+	// ------------------------------------------------------------------
+	b.pri = 0xFF; // No match
+	b.empty_ack();
+	if (b.dut.INT_N != 1)
+		fail("pr07: negative control - INT_N must remain high after ack without coincident fire");
+
+	std::printf("PASS pr07: raster_fire during intack & irqack_rst survives and asserts on deassertion\n");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -399,6 +547,7 @@ int main(int argc, char** argv) {
 		pr04_mrer_clears_pri(b);
 		pr05_dcsr_level(b);
 		pr06_dma_ack_then_raster(b);
+		pr07_raster_fire_during_intack(b);
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;
