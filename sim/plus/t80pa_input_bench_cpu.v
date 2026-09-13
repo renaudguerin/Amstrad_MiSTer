@@ -27,6 +27,7 @@ module T80pa_input_bench_cpu (
 	output reg [7:0] read2_o,
 	output reg [7:0] read3_o,
 	output reg [7:0] read4_o,
+	output reg [7:0] read5_o,
 	output reg [5:0] operation_count_o,
 	output reg [5:0] sampled_operation_count_o,
 	output reg [7:0] cclk_sample_count_o,
@@ -34,7 +35,7 @@ module T80pa_input_bench_cpu (
 	output reg timing_error_o
 );
 	localparam [2:0] S_GAP = 3'd0, S_CYC = 3'd1, S_DONE = 3'd2;
-	localparam [5:0] NSTEPS = 6'd20;
+	localparam [5:0] NSTEPS = 6'd28;
 
 	reg [2:0] st;
 	reg [5:0] step;
@@ -48,40 +49,59 @@ module T80pa_input_bench_cpu (
 	// PPI addresses use A14=1 in the production map; A[9:8] still selects
 	// the normal PPI A/C/control registers while the CRTC is deselected.
 	function [23:0] step_bus(input [5:0] k);
-		begin
-			case (k)
-			6'd0:  step_bus = {16'h4300, 8'h82}; // A output for PSG writes
-			6'd1:  step_bus = {16'h4000, 8'h07}; // PPI A = AY R7
-			6'd2:  step_bus = {16'h4200, 8'hC8}; // select R7, row 8
-			6'd3:  step_bus = {16'h4200, 8'h00}; // neutral PPI/YM bus
-			6'd4:  step_bus = {16'h4000, 8'h80}; // R7 bit 6: IOA input
-			6'd5:  step_bus = {16'h4200, 8'h88}; // write R7, row 8
-			6'd6:  step_bus = {16'h4200, 8'h00}; // commit write, neutral
-			6'd7:  step_bus = {16'h4000, 8'h0E}; // PPI A = AY R14
-			6'd8:  step_bus = {16'h4200, 8'hC8}; // select R14, row 8
-			6'd9:  step_bus = {16'h4200, 8'h00}; // neutral after address select
-			6'd10: step_bus = {16'h4300, 8'h9B}; // read mode; Plus C still drives
-			6'd11: step_bus = {16'h4200, 8'h08}; // row 8, PSG inactive
-			6'd12: step_bus = {16'h4200, 8'h48}; // R14 read, row 8
-			6'd13: step_bus = {16'h4000, 8'hFF}; // read row 8, idle
-			6'd14: step_bus = {16'h4000, 8'hFF}; // read row 8, PS2 A injected
-			6'd15: step_bus = {16'h4200, 8'h09}; // row 9, PSG inactive
-			6'd16: step_bus = {16'h4200, 8'h49}; // R14 read, row 9
-			6'd17: step_bus = {16'h4000, 8'hFF}; // read row 9, SNAC idle
-			6'd18: step_bus = {16'h4000, 8'hFF}; // read row 9, SNAC fire 1
-			6'd19: step_bus = {16'h4000, 8'hFF}; // read row 9, USB fire 1
-			default: step_bus = {16'hFFFF, 8'hFF};
-			endcase
-		end
+	begin
+		case (k)
+		// Steps 0-7 reproduce the essential reset-dependent read on the
+		// arn5diag boot-to-menu keyboard path: the cartridge selects AY R14
+		// and samples the matrix before the initial menu without programming
+		// R7 first (its R7 writes live in post-menu sound tests), so the read
+		// must already follow the matrix on the GI reset default (R7=0x00,
+		// Port A input). A reset value of R7=0xFF instead wedges every row
+		// at 0x00 (ymreg[14]=0x00 ANDed with the matrix) and the menu
+		// ignores all cursor keys. This fixture deliberately keeps its own
+		// 0x9B control word and a single row-8 sample rather than the ROM's
+		// exact 0x92 rows-9-to-0 sweep; the reset dependence under test is
+		// identical.
+		6'd0:  step_bus = {16'h4300, 8'h82}; // A output for PSG writes
+		6'd1:  step_bus = {16'h4000, 8'h0E}; // PPI A = AY R14
+		6'd2:  step_bus = {16'h4200, 8'hC8}; // select R14, row 8
+		6'd3:  step_bus = {16'h4200, 8'h00}; // neutral after address select
+		6'd4:  step_bus = {16'h4300, 8'h9B}; // read mode; Plus C still drives
+		6'd5:  step_bus = {16'h4200, 8'h08}; // row 8, PSG inactive
+		6'd6:  step_bus = {16'h4200, 8'h48}; // R14 read, row 8
+		6'd7:  step_bus = {16'h4000, 8'hFF}; // read row 8, reset-default idle
+		6'd8:  step_bus = {16'h4300, 8'h82}; // A output for PSG writes
+		6'd9:  step_bus = {16'h4000, 8'h07}; // PPI A = AY R7
+		6'd10: step_bus = {16'h4200, 8'hC8}; // select R7, row 8
+		6'd11: step_bus = {16'h4200, 8'h00}; // neutral PPI/YM bus
+		6'd12: step_bus = {16'h4000, 8'h80}; // R7 bit 6: IOA input
+		6'd13: step_bus = {16'h4200, 8'h88}; // write R7, row 8
+		6'd14: step_bus = {16'h4200, 8'h00}; // commit write, neutral
+		6'd15: step_bus = {16'h4000, 8'h0E}; // PPI A = AY R14
+		6'd16: step_bus = {16'h4200, 8'hC8}; // select R14, row 8
+		6'd17: step_bus = {16'h4200, 8'h00}; // neutral after address select
+		6'd18: step_bus = {16'h4300, 8'h9B}; // read mode; Plus C still drives
+		6'd19: step_bus = {16'h4200, 8'h08}; // row 8, PSG inactive
+		6'd20: step_bus = {16'h4200, 8'h48}; // R14 read, row 8
+		6'd21: step_bus = {16'h4000, 8'hFF}; // read row 8, idle
+		6'd22: step_bus = {16'h4000, 8'hFF}; // read row 8, PS2 A injected
+		6'd23: step_bus = {16'h4200, 8'h09}; // row 9, PSG inactive
+		6'd24: step_bus = {16'h4200, 8'h49}; // R14 read, row 9
+		6'd25: step_bus = {16'h4000, 8'hFF}; // read row 9, SNAC idle
+		6'd26: step_bus = {16'h4000, 8'hFF}; // read row 9, SNAC fire 1
+		6'd27: step_bus = {16'h4000, 8'hFF}; // read row 9, USB fire 1
+		default: step_bus = {16'hFFFF, 8'hFF};
+		endcase
+	end
 	endfunction
 
 	function step_is_read(input [5:0] k);
-		begin
-			case (k)
-			6'd13, 6'd14, 6'd17, 6'd18, 6'd19: step_is_read = 1'b1;
-			default: step_is_read = 1'b0;
-			endcase
-		end
+	begin
+		case (k)
+		6'd7, 6'd21, 6'd22, 6'd25, 6'd26, 6'd27: step_is_read = 1'b1;
+		default: step_is_read = 1'b0;
+		endcase
+	end
 	endfunction
 
 	task bus_idle;
@@ -105,12 +125,13 @@ module T80pa_input_bench_cpu (
 			sbus_addr <= 16'hFFFF;
 			sbus_read <= 1'b0;
 			done_o <= 1'b0;
-			read_count_o <= 3'd0;
-			read0_o <= 8'hFF;
-			read1_o <= 8'hFF;
-			read2_o <= 8'hFF;
-			read3_o <= 8'hFF;
-			read4_o <= 8'hFF;
+		read_count_o <= 3'd0;
+		read0_o <= 8'hFF;
+		read1_o <= 8'hFF;
+		read2_o <= 8'hFF;
+		read3_o <= 8'hFF;
+		read4_o <= 8'hFF;
+		read5_o <= 8'hFF;
 			operation_count_o <= 6'd0;
 			sampled_operation_count_o <= 6'd0;
 			cclk_sample_count_o <= 8'd0;
@@ -149,17 +170,18 @@ module T80pa_input_bench_cpu (
 				// T80pa releases an accepted cycle on its negative phase.  READY
 				// is represented by wait_n; low stretches the transaction.
 				if (cen_n && wait_n && (op_sample_count != 8'd0)) begin
-					if (step_is_read(step)) begin
-						case (read_count_o)
-						3'd0: read0_o <= di;
-						3'd1: read1_o <= di;
-						3'd2: read2_o <= di;
-						3'd3: read3_o <= di;
-						3'd4: read4_o <= di;
-						default: ;
-						endcase
-						read_count_o <= read_count_o + 3'd1;
-					end
+				if (step_is_read(step)) begin
+					case (read_count_o)
+					3'd0: read0_o <= di;
+					3'd1: read1_o <= di;
+					3'd2: read2_o <= di;
+					3'd3: read3_o <= di;
+					3'd4: read4_o <= di;
+					3'd5: read5_o <= di;
+					default: ;
+					endcase
+					read_count_o <= read_count_o + 3'd1;
+				end
 					operation_count_o <= operation_count_o + 6'd1;
 					sampled_operation_count_o <= sampled_operation_count_o + 6'd1;
 					bus_idle;
