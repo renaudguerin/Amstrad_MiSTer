@@ -86,6 +86,7 @@ lint:
 	$(VERILATOR) --lint-only --top-module $(CRTF_TOP) -Wall -Wno-fatal $(CRTF_TOP_SRC) $(CRTF_RTL)
 	$(VERILATOR) --lint-only --top-module sna_cpu_header -Wall -Wno-fatal ../rtl/sna_cpu_header.v
 	$(VERILATOR) --lint-only --top-module sna_hw_header -Wall -Wno-fatal ../rtl/sna_hw_header.v
+	$(VERILATOR) --lint-only --top-module sna_save_capture -Wall -Wno-fatal ../rtl/sna_save_capture.v
 	$(MAKE) -C plus lint
 	$(MAKE) -C ../rtl/GA40010 lint
 	$(MAKE) -C ../rtl/u765 lint
@@ -158,7 +159,7 @@ $(CRTC_T80_BIN): $(CRTC_T80_RTL) crtc_t80_test.cpp Makefile
 
 # B18 slice 1: snapshot freeze point (T80pa INSN_START) on production T80,
 # real GA enables/READY, with hold-versus-hardware-WAIT continuation checks.
-T80_FREEZE_RTL := t80_freeze_top.sv $(T80_NETLIST) $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
+T80_FREEZE_RTL := t80_freeze_top.sv ../rtl/sna_save_capture.v $(T80_NETLIST) $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
 T80_FREEZE_BIN := $(OBJ_DIR)/t80_freeze/t80_freeze_tests
 
 .PHONY: t80-freeze-test

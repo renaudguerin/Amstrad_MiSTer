@@ -1421,6 +1421,7 @@ Amstrad_motherboard motherboard
 	.sna_psg_regs(sna_psg_regs),
 
 	.sna_hold(sna_hold),
+	.save_hold(1'b0),
 	.sna_hsync(sna_hsync),
 	.sna_dma_loop_cnt0(plus_sna_loop_cnt0),
 	.sna_dma_loop_cnt1(plus_sna_loop_cnt1),
@@ -1541,7 +1542,11 @@ Amstrad_motherboard motherboard
 	.snap_psg_addr(),
 	.snap_psg_regs(),
 
-	.snap_printer_data()
+	.snap_printer_data(),
+
+	.cpu_reg(),
+	.cpu_insn_start(),
+	.cpu_halt_n()
 );
 
 /////////////////////////////////Dandanator/////////////////////

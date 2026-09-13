@@ -93,6 +93,11 @@ struct Bench {
     d.ext_wait = 0;
     d.prog_we = 0;
     d.peek_addr = 0;
+    d.save_req = 0;
+    d.release_req = 0;
+    d.admit = 1;
+    d.rampage_ok = 1;
+    d.use_controller = 0;
     raw_run(128);
     d.reset = 0;
     raw_run(256);
@@ -633,6 +638,10 @@ uint64_t bus_word(Bench &b) {
          (b.d.t80_halt_n << 1);
 }
 
+uint8_t get_header_byte(const Vt80_freeze_top &d, unsigned offset) {
+  return uint8_t((d.header[offset / 4] >> ((offset % 4) * 8)) & 0xFF);
+}
+
 struct StallRun {
   std::vector<Snap> bounds;
   std::vector<BusEvent> after;
@@ -640,8 +649,9 @@ struct StallRun {
   uint8_t dest[3];
 };
 
-StallRun run_stall(int mode /* 0 free, 1 hold, 2 WAIT */, size_t at_boundary,
-                   unsigned hold_ticks) {
+StallRun run_stall(int mode /* 0 free, 1 hold, 2 WAIT, 3 controller */, size_t at_boundary,
+                   unsigned hold_ticks, std::vector<uint8_t> *captured_hdr = nullptr,
+                   size_t *actual_freeze = nullptr) {
   Bench b;
   load_continuation(b);
   StallRun out;
@@ -651,13 +661,40 @@ StallRun run_stall(int mode /* 0 free, 1 hold, 2 WAIT */, size_t at_boundary,
   std::array<uint32_t, 7> frozen_reg{};
   uint64_t last_bus = 0;
   bool have_last = false;
+  bool req_pulsed = false;
+
+  if (mode == 3) {
+    b.d.use_controller = 1;
+    b.d.admit = 1;
+    b.d.rampage_ok = 1;
+  }
 
   b.stimulus = [&](Bench &bb) {
     switch (phase) {
       case WAITING:
-        if (bb.bounds.size() == at_boundary + 1 && bb.d.insn_start) {
-          check(!bb.d.phi_n, "negative enable coincides with INSN_START rise");
-          phase = ARMED;  // registered controller: gate from the next clock
+        if (mode == 3) {
+          if (!req_pulsed && bb.bounds.size() == at_boundary && !bb.d.insn_start) {
+            bb.d.save_req = 1;
+            req_pulsed = true;
+          } else if (bb.d.save_req) {
+            bb.d.save_req = 0;
+          }
+          if (bb.d.captured) {
+            if (actual_freeze) *actual_freeze = bb.bounds.size() - 1;
+            if (captured_hdr) {
+              captured_hdr->resize(256);
+              for (unsigned o = 0; o < 256; ++o) (*captured_hdr)[o] = get_header_byte(bb.d, o);
+            }
+            stall_start = bb.ticks;
+            frozen_bus = bus_word(bb);
+            frozen_reg = bb.raw_reg();
+            phase = STALLED;
+          }
+        } else {
+          if (bb.bounds.size() == at_boundary + 1 && bb.d.insn_start) {
+            check(!bb.d.phi_n, "negative enable coincides with INSN_START rise");
+            phase = ARMED;  // registered controller: gate from the next clock
+          }
         }
         break;
       case ARMED:
@@ -669,16 +706,29 @@ StallRun run_stall(int mode /* 0 free, 1 hold, 2 WAIT */, size_t at_boundary,
         phase = STALLED;
         break;
       case STALLED:
-        if (mode == 1) {
+        if (mode == 3 && bb.ticks - stall_start >= hold_ticks) {
+          bb.d.release_req = 0;
+          release = bb.ticks;
+          phase = RELEASED;
+          break;
+        }
+        if (mode == 1 || mode == 3) {
           check(bb.d.insn_start, "INSN_START dropped during hold");
           check(bus_word(bb) == frozen_bus, "bus moved during hold");
           check(bb.raw_reg() == frozen_reg, "REG moved during hold");
         }
-        if (bb.ticks - stall_start >= hold_ticks) {
-          bb.d.cpu_hold = 0;
-          bb.d.ext_wait = 0;
-          release = bb.ticks;
-          phase = RELEASED;
+        if (mode == 3) {
+          check(bb.d.ctrl_hold, "ctrl_hold not high during controller stall");
+          if (bb.ticks - stall_start == hold_ticks - 1) {
+            bb.d.release_req = 1;
+          }
+        } else {
+          if (bb.ticks - stall_start >= hold_ticks) {
+            bb.d.cpu_hold = 0;
+            bb.d.ext_wait = 0;
+            release = bb.ticks;
+            phase = RELEASED;
+          }
         }
         break;
       case RELEASED: {
@@ -751,6 +801,445 @@ void test_hold_vs_wait() {
   }
 }
 
+// 14. Controller hold equals hardware WAIT (B18 slice 4a).
+// Paper derivation:
+// Continuation program has BC=1111h DE=2222h HL=3333h AF=44FFh in the alternate
+// bank, LDIR copying 3 bytes from 0030h to 0040h, and OTIR writing 3 bytes to
+// ports 0242h/0142h/0042h.
+// Boundary 10 is inside LDIR (second iteration, PC=0016h).
+// Boundary 16 is inside OTIR (second iteration, PC=001Eh).
+// Pulsing save_req prior to the target boundary arms the controller.
+// On the rising edge of INSN_START at the target boundary:
+//   - captured pulses, ctrl_hold is registered high, and header is latched.
+//   - actual_freeze == at_boundary (proves the controller froze at the boundary expected,
+//     not one later).
+// After hold_ticks = kStall (1280 ticks = 20 GA sequencer cycles), release_req
+// releases hold.
+// Assertions:
+//   - Architectural state across all boundaries matches free_run.
+//   - Post-release bus events and event timing match hardware WAIT at that boundary.
+//   - Port writes and memory writes match free_run.
+// Discrimination check for mutant (a):
+// Assert save_req when INSN_START is ALREADY high (mid-window, tested at boundary 6).
+// Rising-edge detection ignores the already-high level and waits for boundary 7
+// (the next rising edge). Level detection would freeze at boundary 6.
+void test_controller_hold_vs_wait() {
+  const unsigned kStall = 64 * 20;  // 20 GA sequencer cycles
+  StallRun free_run = run_stall(0, 0, 0);
+  const std::vector<IoWrite> want_io = {{0x0242, 0xA1}, {0x0142, 0xB2}, {0x0042, 0xC3}};
+
+  for (size_t at : {size_t(10), size_t(16)}) {
+    size_t actual_freeze = 999;
+    std::vector<uint8_t> hdr;
+    StallRun ctrl_run = run_stall(3, at, kStall, &hdr, &actual_freeze);
+    StallRun waited = run_stall(2, at, kStall);
+    const std::string where = " (controller stall at boundary " + std::to_string(at) + ")";
+
+    check(actual_freeze == at,
+          "controller froze at boundary " + std::to_string(actual_freeze) + " instead of " +
+              std::to_string(at));
+
+    for (size_t k = 0; k < kContinuationBounds; ++k) {
+      check(ctrl_run.bounds[k].same_state(free_run.bounds[k]),
+            "controller hold changed boundary " + std::to_string(k) + where + ": " +
+                describe(ctrl_run.bounds[k]) + " vs free " + describe(free_run.bounds[k]));
+    }
+    check(ctrl_run.io_writes == want_io, "controller port writes changed by stall" + where);
+    for (int k = 0; k < 3; ++k)
+      check(ctrl_run.dest[k] == free_run.dest[k],
+            "controller LDIR destination changed by stall" + where);
+    check(!ctrl_run.after.empty() && ctrl_run.after.size() == waited.after.size(),
+          "post-release bus traces differ in length" + where + ": ctrl " +
+              std::to_string(ctrl_run.after.size()) + " wait " + std::to_string(waited.after.size()));
+    for (size_t k = 0; k < ctrl_run.after.size(); ++k)
+      check(ctrl_run.after[k] == waited.after[k],
+            "post-release bus event " + std::to_string(k) + " differs" + where + ": ctrl rel=" +
+                std::to_string(ctrl_run.after[k].rel) + " word=" + hex(ctrl_run.after[k].word, 10) +
+                " wait rel=" + std::to_string(waited.after[k].rel) +
+                " word=" + hex(waited.after[k].word, 10));
+    for (size_t k = at + 1; k < kContinuationBounds; ++k)
+      check(ctrl_run.bounds[k].tick == waited.bounds[k].tick,
+            "boundary " + std::to_string(k) + " timing differs between controller hold and WAIT" + where);
+  }
+
+  // Mid-window request discrimination check (mutant a):
+  // Assert save_req when INSN_START is ALREADY high at boundary 6 (fetch of LD HL, 0030h at 0Dh).
+  // Rising-edge detection must ignore the already-high level and freeze at boundary 7 (fetch of LD DE at 10h).
+  // Level detection would freeze at boundary 6.
+  {
+    Bench b;
+    load_continuation(b);
+    b.d.use_controller = 1;
+    b.d.admit = 1;
+    b.d.rampage_ok = 1;
+    size_t freeze_boundary = 999;
+    bool pulsed = false;
+
+    b.stimulus = [&](Bench &bb) {
+      if (!pulsed && bb.bounds.size() == 7 && bb.d.insn_start) {
+        bb.d.save_req = 1;
+        pulsed = true;
+      } else if (bb.d.save_req) {
+        bb.d.save_req = 0;
+      }
+      if (bb.d.captured) {
+        freeze_boundary = bb.bounds.size() - 1;
+        bb.d.release_req = 1;
+      } else if (bb.d.release_req) {
+        bb.d.release_req = 0;
+      }
+    };
+    b.start();
+    b.run_bounds(kContinuationBounds);
+    check(freeze_boundary == 7,
+          "mid-window request froze at boundary " + std::to_string(freeze_boundary) +
+              " instead of boundary 7 (must wait for rising edge)");
+  }
+}
+
+// 15. Header CPU bytes (B18 slice 4a).
+// Paper derivation:
+// Captured at boundary 10 of kContinuationProgram (second iteration of LDIR).
+// Program state at boundary 10:
+// - Magic: "MV - SNA" at offsets 0x00..0x07 (4Dh, 56h, 20h, 2Dh, 20h, 53h, 4Eh, 41h)
+// - Version 3 at offset 0x10 (03h)
+// - Unused zero padding: 0x08..0x0F and 0xB5..0xFF
+// - Registers:
+//   F (0x11): C5h. LDI/LDIR (Sean Young, "The Undocumented Z80 Documented",
+//             block instructions): S, Z and C are unchanged (FFh reset F, swapped
+//             back in by EX AF,AF'), H=0, N=0, P/V=1 because BC is nonzero, YF =
+//             bit 1 and XF = bit 3 of A + (HL) = FFh + A1h = 1A0h, both 0.
+//             S Z Y H X P N C = 1 1 0 0 0 1 0 1 = C5h.
+//   A (0x12): FFh (reset value untouched)
+//   C (0x13): 02h (BC decremented from 0003h to 0002h)
+//   B (0x14): 00h
+//   E (0x15): 41h (DE incremented from 0040h to 0041h)
+//   D (0x16): 00h
+//   L (0x17): 31h (HL incremented from 0030h to 0031h)
+//   H (0x18): 00h
+//   R (0x19): 0Bh (9 instruction fetches + 2 M1s in LDIR iteration 1 = 11)
+//   I (0x1A): 00h (reset value)
+//   IFF1 (0x1B): 00h, IFF2 (0x1C): 00h
+//   IX (0x1D-0x1E): 0000h, IY (0x1F-0x20): 0000h
+//   SP (0x21-0x22): FFFFh (reset value)
+//   PC (0x23-0x24): 0016h (LDIR opcode fetch address)
+//   IM (0x25): 00h
+//   F' (0x26): FFh (reset F moved to F' via EX AF,AF' at 0Ch)
+//   A' (0x27): 44h (LD A,44h at 09h moved to A' via EX AF,AF' at 0Ch)
+//   C' (0x28): 11h, B' (0x29): 11h (BC=1111h moved to BC' via EXX at 0Bh)
+//   E' (0x2A): 22h, D' (0x2B): 22h (DE=2222h moved to DE' via EXX at 0Bh)
+//   L' (0x2C): 33h, H' (0x2D): 33h (HL=3333h moved to HL' via EXX at 0Bh)
+// - Classic hardware header: offsets 0x2E..0xB4 match hw_hdr (byte i = i).
+void test_header_cpu_bytes() {
+  const unsigned kStall = 64 * 4;
+  std::vector<uint8_t> hdr;
+  size_t freeze_at = 0;
+  run_stall(3, 10, kStall, &hdr, &freeze_at);
+  check(hdr.size() == 256, "header size not 256 bytes");
+
+  // Identification string "MV - SNA"
+  const std::string sig(hdr.begin(), hdr.begin() + 8);
+  check(sig == "MV - SNA", "SNA magic signature mismatch: got '" + sig + "'");
+
+  // Unused 0x08-0x0F
+  for (unsigned o = 0x08; o <= 0x0F; ++o) {
+    check(hdr[o] == 0x00, "unused byte at 0x" + hex(o, 2) + " nonzero");
+  }
+
+  // Version 3
+  check(hdr[0x10] == 0x03, "version byte at 0x10 != 3: got " + hex(hdr[0x10], 2));
+
+  // Z80 registers (derived on paper)
+  check(hdr[0x11] == 0xC5, "F at 0x11 mismatch: expected C5h, got " + hex(hdr[0x11], 2));
+  check(hdr[0x12] == 0xFF, "A at 0x12 mismatch: expected FFh, got " + hex(hdr[0x12], 2));
+  check(hdr[0x13] == 0x02, "C at 0x13 mismatch: expected 02h, got " + hex(hdr[0x13], 2));
+  check(hdr[0x14] == 0x00, "B at 0x14 mismatch: expected 00h, got " + hex(hdr[0x14], 2));
+  check(hdr[0x15] == 0x41, "E at 0x15 mismatch: expected 41h, got " + hex(hdr[0x15], 2));
+  check(hdr[0x16] == 0x00, "D at 0x16 mismatch: expected 00h, got " + hex(hdr[0x16], 2));
+  check(hdr[0x17] == 0x31, "L at 0x17 mismatch: expected 31h, got " + hex(hdr[0x17], 2));
+  check(hdr[0x18] == 0x00, "H at 0x18 mismatch: expected 00h, got " + hex(hdr[0x18], 2));
+  check(hdr[0x19] == 0x0B, "R at 0x19 mismatch: expected 0Bh, got " + hex(hdr[0x19], 2));
+  check(hdr[0x1A] == 0x00, "I at 0x1A mismatch: expected 00h, got " + hex(hdr[0x1A], 2));
+  check(hdr[0x1B] == 0x00, "IFF1 at 0x1B mismatch: expected 00h, got " + hex(hdr[0x1B], 2));
+  check(hdr[0x1C] == 0x00, "IFF2 at 0x1C mismatch: expected 00h, got " + hex(hdr[0x1C], 2));
+  check(hdr[0x1D] == 0x00, "IX low at 0x1D mismatch: expected 00h, got " + hex(hdr[0x1D], 2));
+  check(hdr[0x1E] == 0x00, "IX high at 0x1E mismatch: expected 00h, got " + hex(hdr[0x1E], 2));
+  check(hdr[0x1F] == 0x00, "IY low at 0x1F mismatch: expected 00h, got " + hex(hdr[0x1F], 2));
+  check(hdr[0x20] == 0x00, "IY high at 0x20 mismatch: expected 00h, got " + hex(hdr[0x20], 2));
+  check(hdr[0x21] == 0xFF, "SP low at 0x21 mismatch: expected FFh, got " + hex(hdr[0x21], 2));
+  check(hdr[0x22] == 0xFF, "SP high at 0x22 mismatch: expected FFh, got " + hex(hdr[0x22], 2));
+  check(hdr[0x23] == 0x16, "PC low at 0x23 mismatch: expected 16h, got " + hex(hdr[0x23], 2));
+  check(hdr[0x24] == 0x00, "PC high at 0x24 mismatch: expected 00h, got " + hex(hdr[0x24], 2));
+  check(hdr[0x25] == 0x00, "IM at 0x25 mismatch: expected 00h, got " + hex(hdr[0x25], 2));
+  check(hdr[0x26] == 0xFF, "F' at 0x26 mismatch: expected FFh, got " + hex(hdr[0x26], 2));
+  check(hdr[0x27] == 0x44, "A' at 0x27 mismatch: expected 44h, got " + hex(hdr[0x27], 2));
+  check(hdr[0x28] == 0x11, "C' at 0x28 mismatch: expected 11h, got " + hex(hdr[0x28], 2));
+  check(hdr[0x29] == 0x11, "B' at 0x29 mismatch: expected 11h, got " + hex(hdr[0x29], 2));
+  check(hdr[0x2A] == 0x22, "E' at 0x2A mismatch: expected 22h, got " + hex(hdr[0x2A], 2));
+  check(hdr[0x2B] == 0x22, "D' at 0x2B mismatch: expected 22h, got " + hex(hdr[0x2B], 2));
+  check(hdr[0x2C] == 0x33, "L' at 0x2C mismatch: expected 33h, got " + hex(hdr[0x2C], 2));
+  check(hdr[0x2D] == 0x33, "H' at 0x2D mismatch: expected 33h, got " + hex(hdr[0x2D], 2));
+
+  // Hardware header 0x2E..0xB4 matches pattern byte i = i
+  for (unsigned o = 0x2E; o <= 0xB4; ++o) {
+    uint8_t want = uint8_t(o - 0x2E);
+    check(hdr[o] == want, "hw_hdr at 0x" + hex(o, 2) + " mismatch: expected " +
+                              hex(want, 2) + ", got " + hex(hdr[o], 2));
+  }
+
+  // Trailing unused 0xB5..0xFF
+  for (unsigned o = 0xB5; o <= 0xFF; ++o) {
+    check(hdr[o] == 0x00, "trailing unused byte at 0x" + hex(o, 2) + " nonzero: " + hex(hdr[o], 2));
+  }
+}
+
+// 16. HALT adjustment (B18 slice 4a).
+// Paper derivation:
+// Program:
+//   00: 3E 85       LD A, 85h       ; A = 85h (bit 7 = 1, low 7 bits = 5)
+//   02: ED 4F       LD R, A         ; sets R = 85h
+//   04: 76          HALT            ; HALT instruction at address 0004h
+// During fetch of HALT at 04h, R low 7 bits increment from 5 to 6 (R becomes 86h).
+// T80 enters HALT with halt_n low. Internal PC points to 0005h (address after HALT).
+// On dummy M1 fetch during HALT, INSN_START pulses.
+// SNA save rule for HALT (docs/b18-sna-save.md):
+//   - Saved PC = PC - 1 = 0005h - 1 = 0004h (address of HALT opcode).
+//   - Saved R = {R[7], R[6:0] - 1} = {1'b1, 7'd6 - 7'd1} = 85h.
+// Bit 7 of R is preserved as 1.
+void test_halt_freeze() {
+  Bench b;
+  b.load(0x00, {
+      0x3E, 0x85,  // 00: LD A, 85h
+      0xED, 0x4F,  // 02: LD R, A
+      0x76,        // 04: HALT
+  });
+  b.d.use_controller = 1;
+  b.d.admit = 1;
+  b.d.rampage_ok = 1;
+
+  bool req_sent = false;
+  bool captured_seen = false;
+  uint16_t saved_pc = 0;
+  uint8_t saved_r = 0;
+
+  b.stimulus = [&](Bench &bb) {
+    if (!bb.d.t80_halt_n && !req_sent && !bb.d.insn_start) {
+      bb.d.save_req = 1;
+      req_sent = true;
+    } else if (bb.d.save_req) {
+      bb.d.save_req = 0;
+    }
+    if (bb.d.captured) {
+      captured_seen = true;
+      saved_pc = uint16_t(get_header_byte(bb.d, 0x23)) |
+                 (uint16_t(get_header_byte(bb.d, 0x24)) << 8);
+      saved_r = get_header_byte(bb.d, 0x19);
+      bb.d.release_req = 1;
+    } else if (bb.d.release_req) {
+      bb.d.release_req = 0;
+    }
+  };
+
+  b.start();
+  b.run_bounds(10);
+
+  check(captured_seen, "controller never captured during HALT");
+  check(saved_pc == 0x0004,
+        "HALT saved PC mismatch: expected 0004h (HALT opcode address), got " + hex(saved_pc, 4));
+  check(saved_r == 0x85,
+        "HALT saved R mismatch: expected 85h, got " + hex(saved_r, 2));
+  check((saved_r & 0x80) != 0, "HALT saved R bit 7 not preserved");
+}
+
+// 17. Postponement and cancel (B18 slice 4a).
+// Paper derivation:
+// Postponement:
+//   Program: 4x EI, 3x DD prefixes, LD IX, 1234h, LD A, 55h, HALT.
+//   Address 00-03: EI (FBh). SetEI suppresses INSN_START.
+//   Address 04-06: DD prefixes. Prefix /= "00" suppresses INSN_START.
+//   Address 07-09: 21 34 12 (LD IX, 1234h).
+//   Address 0A: 3E 55 (LD A, 55h). First qualifying boundary!
+//   When save_req is pulsed during EI execution, INSN_START does not rise
+//   until address 0Ah. The freeze must land at PC = 000Ah, not earlier.
+// Cancel:
+//   During EI execution, pulse save_req to arm the controller.
+//   Before any qualifying boundary, pulse save_req a second time.
+//   Controller must pulse cancelled and return to IDLE without asserting hold.
+void test_postponement_and_cancel() {
+  // Part A: Postponement
+  {
+    Bench b;
+    b.load(0x00, {
+        0xFB,             // 00: EI
+        0xFB,             // 01: EI
+        0xFB,             // 02: EI
+        0xFB,             // 03: EI
+        0xDD, 0xDD, 0xDD, // 04, 05, 06: DD prefixes
+        0x21, 0x34, 0x12, // 07: LD IX, 1234h
+        0x3E, 0x55,       // 0A: LD A, 55h
+        0x76,             // 0C: HALT
+    });
+    b.d.use_controller = 1;
+    b.d.admit = 1;
+    b.d.rampage_ok = 1;
+
+    bool req_sent = false;
+    bool captured_seen = false;
+    uint16_t capture_pc = 0;
+
+    b.stimulus = [&](Bench &bb) {
+      if (!req_sent && bb.bounds.size() == 1 && !bb.d.insn_start) {
+        bb.d.save_req = 1;
+        req_sent = true;
+      } else if (bb.d.save_req) {
+        bb.d.save_req = 0;
+      }
+      if (bb.d.captured) {
+        captured_seen = true;
+        capture_pc = uint16_t(get_header_byte(bb.d, 0x23)) |
+                     (uint16_t(get_header_byte(bb.d, 0x24)) << 8);
+        bb.d.release_req = 1;
+      } else if (bb.d.release_req) {
+        bb.d.release_req = 0;
+      }
+    };
+
+    b.start();
+    b.run_bounds(10);
+
+    check(captured_seen, "controller never captured after postponement");
+    check(capture_pc == 0x000A,
+          "postponed capture PC mismatch: expected 000Ah (LD A, 55h), got " + hex(capture_pc, 4));
+  }
+
+  // Part B: Cancel on second press
+  {
+    Bench b;
+    b.load(0x00, {
+        0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB,  // 00-07: 8x EI
+        0x3E, 0x77,                                      // 08: LD A, 77h
+        0x76,                                            // 0A: HALT
+    });
+    b.d.use_controller = 1;
+    b.d.admit = 1;
+    b.d.rampage_ok = 1;
+
+    bool req1_sent = false;
+    bool req2_sent = false;
+    bool cancelled_seen = false;
+    bool captured_seen = false;
+    bool hold_seen = false;
+    unsigned cycle_count = 0;
+
+    b.stimulus = [&](Bench &bb) {
+      if (bb.bounds.size() == 1 && !bb.d.insn_start) {
+        ++cycle_count;
+        if (cycle_count == 2) {
+          bb.d.save_req = 1;
+          req1_sent = true;
+        } else if (cycle_count == 3) {
+          bb.d.save_req = 0;
+        } else if (cycle_count == 10) {
+          bb.d.save_req = 1;
+          req2_sent = true;
+        } else if (cycle_count == 11) {
+          bb.d.save_req = 0;
+        }
+      }
+
+      if (bb.d.cancelled) cancelled_seen = true;
+      if (bb.d.captured) captured_seen = true;
+      if (bb.d.ctrl_hold) hold_seen = true;
+    };
+
+    b.start();
+    b.run_bounds(10);
+
+    check(req1_sent && req2_sent, "cancel requests were not both sent");
+    check(cancelled_seen, "cancelled pulse not seen after second save_req");
+    check(!captured_seen, "captured was asserted despite cancel");
+    check(!hold_seen, "hold was asserted despite cancel");
+  }
+}
+
+// 18. Refusal when !admit or !rampage_ok (B18 slice 4a).
+// Paper derivation:
+// If save_req arrives while admit=0 (core in reset, download or apply)
+// or rampage_ok=0 (MMU expansion memory mapped, RAMpage != 3),
+// the controller must pulse refused for 1 clock and remain in IDLE (hold=0, busy=0).
+void test_refusal() {
+  // Case 5a: rampage_ok = 0
+  {
+    Bench b;
+    b.d.use_controller = 1;
+    b.d.admit = 1;
+    b.d.rampage_ok = 0;
+
+    b.d.save_req = 1;
+    b.tick();
+    b.d.save_req = 0;
+
+    check(b.d.refused, "refused not pulsed when rampage_ok == 0");
+    check(!b.d.ctrl_hold, "ctrl_hold asserted when refused");
+
+    b.tick();
+    check(!b.d.refused, "refused pulse persisted past 1 clock");
+  }
+
+  // Case 5b: admit = 0
+  {
+    Bench b;
+    b.d.use_controller = 1;
+    b.d.admit = 0;
+    b.d.rampage_ok = 1;
+
+    b.d.save_req = 1;
+    b.tick();
+    b.d.save_req = 0;
+
+    check(b.d.refused, "refused not pulsed when admit == 0");
+    check(!b.d.ctrl_hold, "ctrl_hold asserted when refused");
+
+    b.tick();
+    check(!b.d.refused, "refused pulse persisted past 1 clock");
+  }
+
+  // Case 5c: admitted request, then RAMpage leaves 3 before the boundary.
+  // docs/b18-sna-save.md "Mapping admission": the dump covers the base 128K
+  // only, so a mapping change between request and freeze must refuse at the
+  // boundary rather than capture a header naming memory the file lacks.
+  {
+    Bench b;
+    b.load(0x00, {0x00, 0x00, 0x00, 0x00, 0x76});  // NOP x4, HALT
+    b.d.use_controller = 1;
+    b.d.admit = 1;
+    b.d.rampage_ok = 1;
+    bool req_sent = false, refused_seen = false, captured_seen = false, hold_seen = false;
+    b.stimulus = [&](Bench &bb) {
+      if (!req_sent && bb.bounds.size() == 1 && !bb.d.insn_start) {
+        bb.d.save_req = 1;
+        req_sent = true;
+      } else if (bb.d.save_req) {
+        bb.d.save_req = 0;
+        bb.d.rampage_ok = 0;  // armed; mapping changes before the next boundary
+      }
+      if (bb.d.refused) refused_seen = true;
+      if (bb.d.ctrl_hold) hold_seen = true;
+      if (bb.d.captured) {
+        captured_seen = true;
+        bb.d.release_req = 1;  // let a wrong freeze fail on the check below, not a timeout
+      } else if (bb.d.release_req) {
+        bb.d.release_req = 0;
+      }
+    };
+    b.start();
+    b.run_bounds(4);
+    check(req_sent, "mapping-change request was not sent");
+    check(refused_seen, "mapping change while armed was not refused at the boundary");
+    check(!captured_seen && !hold_seen, "controller froze after the mapping changed");
+  }
+}
+
 }  // namespace
 
 int main(int argc, char **argv) {
@@ -781,6 +1270,11 @@ int main(int argc, char **argv) {
   run_case("EI;HALT with pending INT", test_ei_halt_pending_int);
   run_case("HALT wake by interrupt", test_halt_wake);
   run_case("hold versus hardware WAIT", test_hold_vs_wait);
+  run_case("controller hold versus hardware WAIT", test_controller_hold_vs_wait);
+  run_case("header CPU bytes and pattern", test_header_cpu_bytes);
+  run_case("HALT PC and R adjustment", test_halt_freeze);
+  run_case("postponement and cancel", test_postponement_and_cancel);
+  run_case("save refusal on admit/rampage", test_refusal);
   std::cout << "Summary: " << passes << " passed, " << failures << " failed\n";
   return failures == 0 ? 0 : 1;
 }
