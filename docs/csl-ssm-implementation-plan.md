@@ -708,7 +708,8 @@ publication and a feasible retention/service budget. Reference annotation suppor
 device gate rather than being deferred until all RTL is built.
 
 Still open: 2.6-script compatibility with 2.7; the UM6845R 1A/1B characterization;
-French-ROM shifted-digit menu behavior; safe DDR allocation and startup identity;
+French-ROM shifted-digit menu behavior; startup identity (the phase 1 DDR interval was
+checked against the device memory map on 2026-09-13, see the driver guide);
 actual paired-state dwell and host latency; and phase 2 interlace/history limits,
 window-retention capacity and sustainable bandwidth. Exact capture can proceed in a
 documented subset without pretending those questions are all closed.

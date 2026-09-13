@@ -797,3 +797,75 @@ Work completed:
 - Updated `docs/accuracy/accc-author-feedback.md` (fingerprints updated, items in print marked).
 - Migrated affected citations in code comments (`sim/plus/asic_video_test.cpp`, `sim/plus/b8_field_test.cpp`, `rtl/CRTC.v`, `rtl/plus/asic_video.v`).
 - The `(b)` copies are now the working oracle; old files remain for provenance.
+
+---
+
+## B16. CPR load selects a Plus model
+
+**Filed 2026-09-13. Small quality-of-life change, open.** Loading a CPR leaves the machine
+model unchanged. With Plus model Off (`status[34:33] = 0`) the cartridge does not run until the
+user sets 6128+ in the OSD and reloads. Device captures hit the same trap: `driver.py` loads the
+CPR through MGL but applies no settings.
+
+Intended behaviour: a CPR download while Plus model is Off selects 6128+, then boots the
+cartridge. A CPR loaded while GX4000, 6128+ or 464+ is already selected keeps that choice.
+
+The mechanism already exists: `hps_io` accepts `status_in`/`status_set`, and `Amstrad.sv`
+already uses it for the `Fn[1]` toggle, so the core can publish the new model bits back to Main
+and the OSD shows the real selection. Check the ordering against the CPR apply/reset sequence
+(`cpr_finish_pending`, `cpr_apply_cnt`) so the model switch happens before the cartridge boots.
+Main persists the change only when the user saves settings.
+
+---
+
+## B17. Record user input on the MiSTer and replay it as a capture script
+
+**Filed 2026-09-13. Proposal, feasibility checked on the device, not started.** Device
+captures that need keys or joystick input currently require a hand-written MBC `raw_seq`, and
+reaching a screen deep inside a game means writing a full script. Recording the user's own
+session and replaying it would turn "play to the bug" into a capture case.
+
+Device facts observed 2026-09-13: the physical keyboard (Logitech K400) and controller (Heber
+Multisystem Controller, two joystick interfaces) are ordinary evdev nodes
+`/dev/input/event0`-`event3`, readable by root, and `python3` is installed. A reader that does
+not take `EVIOCGRAB` observes events while Main keeps receiving them, so recording does not
+disturb play. Events can be timestamped relative to the MGL core load.
+
+Replay goes back in through uinput, as MBC already does for keys. Open questions:
+
+- **Timing is wall-clock, not frame-locked.** Good enough for menus and navigation; gameplay
+  that depends on exact frames will drift between runs.
+- **Joystick replay** needs a virtual device that Main maps like the physical controller;
+  Main's joystick mapping is per device, so matching identity or an explicit mapping is required.
+- **Format:** MBC `raw_seq` covers keys with coarse waits only. A small recorder/replayer pair
+  with its own event file is likely simpler than extending MBC.
+
+---
+
+## B18. Save SNA snapshots from the running core
+
+**Filed 2026-09-13. Feature, open; larger than B16.** The OSD can load an SNA but not save one.
+A save would let the user freeze a game at the moment a defect shows on real hardware, then
+hand that exact state to simulation. That skips both the input script (B17) and the long boot
+that device captures and the B3 whole-core harness otherwise need, since B3 can already start
+from an SNA within the [B8-5 restore limits](plus/b8-5-snapshot-apply-2026-09-08.md).
+
+Building blocks already present:
+
+- **CPU:** `T80pa` exposes `REG` (all Z80 registers, IFF1/IFF2, IM), the readback twin of the
+  `DIR`/`DIRSet` load path the SNA loader uses.
+- **Transport:** `sys/hps_io.sv` has `ioctl_upload_req`/`ioctl_upload_index`/`ioctl_rd`, the
+  framework's core-to-SD save path. Main must support upload for this core's file index.
+- **Format knowledge:** the SNA header parser and the Plus snapshot parser/apply modules
+  (`rtl/plus/plus_sna_header.v`, `plus_sna_parser.v`, `plus_sna_apply.v`) define every field a
+  writer must produce.
+
+Work to scope:
+
+- **Readback of every restored owner:** Gate Array (pen, palette, mode, ROM/RAM mapping), CRTC
+  registers and counters, PPI/PSG, FDC, and on Plus the ASIC pages, sprites, DMA, split/scroll
+  and interrupt state. Some of this is write-only in the RTL today and needs shadow copies.
+- **Quiescent capture point:** state must be sampled between CPU instructions with RAM stable,
+  so the CPU is held (as B8-5 already does for apply) while memory streams out of SDRAM.
+- **Format version:** classic SNA v3 first; the Plus chunks after that. A round-trip test
+  (save, reload, compare state) is the acceptance vector.

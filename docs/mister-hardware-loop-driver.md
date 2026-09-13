@@ -357,15 +357,16 @@ before the wait was entered; CSL v1.4 does not settle that case, and the alterna
 reading is recorded in the [plan](csl-ssm-implementation-plan.md) rather than
 presented as the standard's rule.
 
-Still open: the DDR interval itself, and the fact that host polling is not an exact
-core wait under either reading.
+Still open: host polling is not an exact core wait under either reading.
 
-### Verify the DDR3 allocation before enabling writes
+### The DDR3 allocation
 
 `DDR_BASE` defaults to byte address `0x30000000`; `DDRAM_ADDR` is a 64-bit word
-index. Verify the reserved interval against the framework/Main allocations and the
-target Linux memory map before enabling the observer. A matching magic value alone
-establishes neither ownership nor current-session freshness.
+index. On 2026-09-13 the device kernel reported `mem=511M memmap=513M$511M` and System
+RAM only at `00000000-1fefffff`, and the framework scaler buffer occupies
+`0x20000000`-`0x207FFFFF`, so the ring is outside both. Recheck `/proc/cmdline` and
+`/proc/iomem` after a MiSTer Linux update. A matching magic value alone establishes
+neither ownership nor current-session freshness.
 
 `--ssm-base` changes only the host reader. Changing the FPGA writer requires updating
 its parameter and building a matching RBF. Missing magic means the detector is

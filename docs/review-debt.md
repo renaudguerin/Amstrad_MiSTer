@@ -7,10 +7,13 @@ by the current source review below. That does not discharge the original
 The existing tests exercise T80pa-shaped TV80 fetches and synthetic held fetches;
 the production T80pa netlist still needs a suitable mixed-language gate.
 
-Device/build evidence also remains open: the event-ring interval at `0x30000000`
-must be proven against framework/Main/Linux allocations before writes are enabled;
-observing magic is not allocation proof. Address units are 64-bit words in the source
-interface. New logic on `clk_sys` and the DDR port still need synthesis/timing and
+DDR allocation, verified 2026-09-13 on the device: the kernel boots with
+`mem=511M memmap=513M$511M`, and `/proc/iomem` lists System RAM only at
+`00000000-1fefffff`, so Linux never owns the ring's 1,040 bytes at `0x30000000`. The
+framework scaler buffer is `RAMBASE 0x20000000`, `RAMSIZE 0x00800000`
+(`sys/sys_top.v`), ending well below the ring. Main's own `/dev/mem` mappings were not
+enumerated; the ring sits in the window MiSTer reserves for core DDR use. Address units
+are 64-bit words in the source interface. New logic on `clk_sys` and the DDR port still need synthesis/timing and
 real-media validation. Source passivity and green simulation do not close those gates.
 
 **B4 phase 0, CSL runner, 2026-09-12 — UNREVIEWED:** `scripts/hardware-loop/csl_runner.py`,
