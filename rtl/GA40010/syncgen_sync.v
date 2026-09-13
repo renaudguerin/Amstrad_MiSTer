@@ -39,7 +39,9 @@ module syncgen_sync (
 	output SYNC_N,
 	output reg INT_N,
 	output HCNTLT28,
-	output reg mode_sync_en
+	output reg mode_sync_en,
+	output  [5:0] SNAP_INTCNT,
+	output  [4:0] SNAP_HCNT
 );
 
 ///// SYNC AND IRQ GEN /////
@@ -188,5 +190,8 @@ always @(posedge clk)  begin
 	// instead of async tricks, register INT_N in the main clk domain
 	if (int_reset) INT_N <= 1; else if (~intcnt[5] & cnt5) INT_N <= 0; // u836
 end
+
+assign SNAP_INTCNT = intcnt_reg;
+assign SNAP_HCNT = hcnt_reg;
 
 endmodule

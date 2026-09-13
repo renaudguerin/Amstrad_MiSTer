@@ -196,6 +196,23 @@ remaining fields need direct checks of the capture.
    fixture uses production T80. Harness note: T80pa never resets `IntCycleD_n`, so `IORQ_n` is
    low on the first fetch after reset; the acknowledge checks start after the first refresh.
 2. Header decode extraction from `Amstrad.sv`.
-3. Observation ports and shadows on the owners above, with the conversions.
+3. Observation ports and shadows on the owners above, with the conversions. **Done.** Each owner
+   exports its registered state on `SNAP_*`/`snap_*` outputs, gathered as `snap_*` outputs of
+   `Amstrad_motherboard` (left unconnected in `Amstrad.sv` until the writer). New state is limited
+   to three observers: `vsw_elapsed` in `CRTC.v`, assigned beside every `vsc` load and decrement;
+   an unfiltered ROM-select shadow in `Amstrad_MMU.v`; and a printer-port (`&EFxx`, A12 low)
+   shadow in the motherboard. The GA counters come from `syncgen_sync`, the production generator
+   (`syncgen` is Verilator-only). `u765` copies `pcn` one clock late, because `pcn` is local to
+   its named `fdc` block and Quartus does not accept a hierarchical read; a seek step landing on
+   the capture clock may therefore save the previous cylinder. `rtl/sna_hw_header.v` is the pure
+   combinational formatter for offsets 2E-B4, lint-clean at `-Wall` and not yet instantiated.
+   It takes the CRTC type as fed to `CRTC_TYPE` (`~status[2]`), and derives 41 and 6B-6C from
+   `model == 0` (the 6128 map, equivalent to `ram64k == 0` in classic mode). Soak hash unchanged
+   (`0xb1cb70da95c2e44f`). Vector `t36a_b18_vsw_elapsed_counter` checks AF as C3h at mid-line
+   sample points: a type 0 R7-triggered pulse with the partial line excluded, a type 1 pulse
+   counting 0-15, a restart on a second R7-triggered pulse, and continuous adjacent pulses on
+   both types. Three counter mutants fail it: no reset on the R7-write load, counting through
+   the type 0 holdoff, and resetting on a VSYNC rising edge instead of on loads. The remaining
+   byte conversions are checked by the capture fixture (acceptance 2), not by a mirror test.
 4. Writer: freeze controller, header latch, SDRAM stream, DDR3 slot publication, SSM hold-off.
 5. Integration: OSD action, host pull script, device test.

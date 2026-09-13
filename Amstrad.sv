@@ -972,7 +972,9 @@ u765 u765
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
 	.sd_buff_din(sd_buff_din),
-	.sd_buff_wr(sd_buff_wr)
+	.sd_buff_wr(sd_buff_wr),
+	.snap_pcn_a(),
+	.snap_pcn_b()
 );
 
 /////////////////////////////////////////////////////////////////////////
@@ -1503,7 +1505,43 @@ Amstrad_motherboard motherboard
 	.cursor(cursor),
 
 	.key_nmi(key_nmi),
-	.key_reset(key_reset)
+	.key_reset(key_reset),
+
+	.snap_ga_inksel(),
+	.snap_ga_border(),
+	.snap_ga_inkr(),
+	.snap_ga_hromen(),
+	.snap_ga_lromen(),
+	.snap_ga_mode(),
+	.snap_ga_intcnt(),
+	.snap_ga_hcnt(),
+	.snap_ga_int_n(),
+
+	.snap_crtc_addr(),
+	.snap_crtc_regs(),
+	.snap_crtc_hcc(),
+	.snap_crtc_row(),
+	.snap_crtc_line(),
+	.snap_crtc_c5(),
+	.snap_crtc_in_adj(),
+	.snap_crtc_hsc(),
+	.snap_crtc_hsync(),
+	.snap_crtc_vsync_r(),
+	.snap_crtc_vsw_elapsed(),
+
+	.snap_mmu_rammap(),
+	.snap_mmu_rampage(),
+	.snap_mmu_rom_select_shadow(),
+
+	.snap_ppi_porta_in(),
+	.snap_ppi_portb_in(),
+	.snap_ppi_opc_r(),
+	.snap_ppi_mode(),
+
+	.snap_psg_addr(),
+	.snap_psg_regs(),
+
+	.snap_printer_data()
 );
 
 /////////////////////////////////Dandanator/////////////////////

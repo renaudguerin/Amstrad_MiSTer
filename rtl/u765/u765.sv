@@ -54,7 +54,10 @@ module u765 #(parameter CYCLES = 20'd4000, SPECCY_SPEEDLOCK_HACK = 0)
 	input      [8:0] sd_buff_addr,
 	input      [7:0] sd_buff_dout,
 	output     [7:0] sd_buff_din,
-	input            sd_buff_wr
+	input            sd_buff_wr,
+
+	output     [7:0] snap_pcn_a,
+	output     [7:0] snap_pcn_b
 );
 
 /* verilator lint_off WIDTH */
@@ -329,6 +332,13 @@ reg  [7:0] m_data;    //data register
 
 assign dout = a0 ? m_data : m_status;
 
+// B18 SNA save: observation copy of the present cylinder numbers. pcn is
+// local to the fdc block, so it is copied one clock late instead of being
+// read through a hierarchical name that Quartus synthesis does not accept.
+reg  [7:0] snap_pcn_r[2];
+assign snap_pcn_a = snap_pcn_r[0];
+assign snap_pcn_b = snap_pcn_r[1];
+
 function [15:0] SECTOR_SIZE;
 	input [3:0] n;
 	input [15:0] stored_size;
@@ -425,6 +435,7 @@ always @(posedge clk_sys) begin : fdc
 
 	buff_wait <= 0;
 	tinfo_wait <= 0;
+	snap_pcn_r <= pcn;
 
 	//new image mounted
 	for(int i=0;i<2;i++) begin 

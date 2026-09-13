@@ -844,9 +844,9 @@ Replay goes back in through uinput, as MBC already does for keys. Open questions
 
 ## B18. Save SNA snapshots from the running core
 
-**DESIGN RECORDED 2026-09-13; slices 1 (T80 freeze predicate) and 2 (header decode extraction)
-done** on `general/b18-sna-save`. The freeze predicate runs in the GHDL `production-t80` CI job.
-Next are readback ports, the writer and integration. See the
+**DESIGN RECORDED 2026-09-13; slices 1 (T80 freeze predicate), 2 (header decode extraction)
+and 3 (observation ports and header formatter) done** on `general/b18-sna-save`. The freeze
+predicate runs in the GHDL `production-t80` CI job. Next are the writer and integration. See the
 [design](b18-sna-save.md). The core saves into MiSTer save-state slots in DDR3, and
 `driver.py` pulls the file over SSH. Main's `ioctl_upload` path serves C64/C128 only. Main's
 automatic copy to SD would need `FS` loads, and `FS` would take over drive A's SD slot, so that

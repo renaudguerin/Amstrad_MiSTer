@@ -65,7 +65,10 @@ module YM2149
 
 	input        SNA_LOAD,
 	input  [3:0] SNA_ADDR,
-	input [127:0] SNA_REGS
+	input [127:0] SNA_REGS,
+
+	output  [7:0] SNAP_ADDR,
+	output [127:0] SNAP_REGS
 );
 
 assign ACTIVE  = ~ymreg[7][5:0];
@@ -74,6 +77,14 @@ assign IOB_out = ymreg[15];
 
 reg [7:0] addr;
 reg [7:0] ymreg[16];
+
+assign SNAP_ADDR = addr;
+genvar ymi;
+generate
+	for (ymi = 0; ymi < 16; ymi = ymi + 1) begin: gen_snap_ymreg
+		assign SNAP_REGS[ymi*8 +: 8] = ymreg[ymi];
+	end
+endgenerate
 
 // Write to PSG
 reg env_reset;

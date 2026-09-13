@@ -85,6 +85,7 @@ lint:
 	$(VERILATOR) --lint-only --top-module $(TOP) -Wall -Wno-fatal $(RTL)
 	$(VERILATOR) --lint-only --top-module $(CRTF_TOP) -Wall -Wno-fatal $(CRTF_TOP_SRC) $(CRTF_RTL)
 	$(VERILATOR) --lint-only --top-module sna_cpu_header -Wall -Wno-fatal ../rtl/sna_cpu_header.v
+	$(VERILATOR) --lint-only --top-module sna_hw_header -Wall -Wno-fatal ../rtl/sna_hw_header.v
 	$(MAKE) -C plus lint
 	$(MAKE) -C ../rtl/GA40010 lint
 	$(MAKE) -C ../rtl/u765 lint

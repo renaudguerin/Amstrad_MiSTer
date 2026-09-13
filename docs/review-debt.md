@@ -1,5 +1,13 @@
 # Independent review debt
 
+**B18 slice 3, observation ports, 2026-09-13 — PARTLY REVIEWED:** the port and shadow RTL was
+written by Gemini and reviewed by the Opus parent, so it is cross-provider. The parent's own
+fixes were not independently reviewed: the `u765` one-clock `pcn` copy, the `sna_hw_header.v`
+integer scope, and the `t36a_b18_vsw_elapsed_counter` vector. Look hardest at whether
+`vsw_elapsed` in `rtl/CRTC.v` truly shadows every `vsc` assignment, including the R7-write load
+outside the `CLKEN` branch; and at whether t36a's mid-line samples can miss a one-line offset.
+The formatter's byte mapping is unverified until the slice 4 capture fixture exists.
+
 **B4 phase 1 original fetch-provider review/evidence, 2026-09-12 — OPEN:**
 The revised detector, ring reader, recorder and top-level SSM connections are covered
 by the current source review below. That does not discharge the original

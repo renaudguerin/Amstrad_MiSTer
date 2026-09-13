@@ -42,7 +42,10 @@ module i8255
 	input     [7:0] sna_opa,
 	input     [7:0] sna_opb,
 	input     [7:0] sna_opc,
-	input     [7:0] sna_control
+	input     [7:0] sna_control,
+
+	output    [7:0] snap_opc_r,
+	output    [7:0] snap_mode
 );
 
 reg [7:0] mode;
@@ -113,5 +116,8 @@ always @(posedge clk_sys) begin
 		end
 	end
 end
+
+assign snap_opc_r = opc_r;
+assign snap_mode  = mode;
 
 endmodule
