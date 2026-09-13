@@ -844,6 +844,12 @@ Replay goes back in through uinput, as MBC already does for keys. Open questions
 
 ## B18. Save SNA snapshots from the running core
 
+**DESIGN RECORDED 2026-09-13, implementation not started** on `general/b18-sna-save`. See the
+[design](b18-sna-save.md). The transport is MiSTer save-state slots in DDR3, because Main's
+`ioctl_upload` path serves C64/C128 only. The freeze point is M1 T2 of a new instruction, which
+needs one new T80 output and a GHDL test. Classic v3 comes first. The bullets below remain the
+original problem statement; the design corrects the transport bullet.
+
 **Filed 2026-09-13. Feature, open; larger than B16.** The OSD can load an SNA but not save one.
 A save would let the user freeze a game at the moment a defect shows on real hardware, then
 hand that exact state to simulation. That skips both the input script (B17) and the long boot
