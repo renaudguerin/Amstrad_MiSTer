@@ -935,7 +935,7 @@ void test_header_cpu_bytes() {
   std::vector<uint8_t> hdr;
   size_t freeze_at = 0;
   run_stall(3, 10, kStall, &hdr, &freeze_at);
-  check(hdr.size() == 256, "header size not 256 bytes");
+  check(freeze_at == 10, "header capture froze at boundary " + std::to_string(freeze_at));
 
   // Identification string "MV - SNA"
   const std::string sig(hdr.begin(), hdr.begin() + 8);
