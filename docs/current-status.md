@@ -8,8 +8,20 @@ title flash; reference §9). New `pr06` failed first on the old RTL, `pr01`
 reworked for the classic path, `pr05`/`a08`/B8-5 rechecked green. Full
 simulation and lint pass; Codex astra-high CLEAR twice (runs
 `20260913T153903Z-35497-191d`, `20260913T154348Z-36487-2b7b`). Sources `9faa140`
-(fix) and `f277f64` (review follow-ups). Device recapture of the Copter 271
-title (about a minute with no flash) remains open.
+(fix) and `f277f64` (review follow-ups), merged as `05cb9fd`, RBF
+`output_files/Amstrad_20260913_05cb9fd.rbf`.
+
+**Hardware verdict 2026-09-13 on that RBF: much improved, not fixed.** The
+title flash still occurs but far less often (about 1-2 times in 20 s instead
+of every few seconds), and now shows both over the logo and over the bottom
+part of the screen (never both at once). Prime suspect for the remainder is
+the already-noted residual: a raster fire landing inside another interrupt's
+acknowledge window is cleared by that acknowledge and lost (`int_reset` beats
+`raster_fire`; real-chip behaviour unknown). A lost palette step fits the
+lower rate (sub-microsecond coincidence window) and either screen region,
+depending on which PRI step is skipped — but that is a hypothesis, not a
+finding. Next discrimination needs a caught glitch frame (B2 title capture)
+or controlled PRI/ack-overlap measurement on hardware.
 
 **Plus PRI line compare, 2026-09-13, source `b5c3014` integrated into `master`:**
 A B2 device capture of Copter 271 (6128 Plus, `d35412a`) showed its title logo in the

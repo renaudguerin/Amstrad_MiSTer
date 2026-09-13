@@ -75,10 +75,14 @@ ack-edge sweep stands endorsed by the re-review: B8-5 pins both provenances and
 the latch shares the vector sampler's edge; in-window fire values need hardware
 measurement. The one-minute title watch remains open.
 
-**Separate residual, not the cause.** A raster fire landing inside another
-interrupt's acknowledge window (IORQ with M1 low, under 1 µs) is cleared by that
-acknowledge and lost (`INT_N` block, `int_reset` beats `raster_fire`). Real-chip
-behaviour is unknown; note it only unless evidence appears.
+**Separate residual, not the cause — now the prime suspect for the
+remainder.** A raster fire landing inside another interrupt's acknowledge
+window (IORQ with M1 low, under 1 µs) is cleared by that acknowledge and lost
+(`INT_N` block, `int_reset` beats `raster_fire`). Real-chip behaviour is
+unknown. On `05cb9fd` the title flash persists at ~1-2 times per 20 s over
+the logo or the screen bottom: a lost palette step fits that rate and either
+region, but this is unproved. Discriminate with a caught glitch frame or
+controlled PRI/ack-overlap measurement before touching the acknowledge path.
 
 The active work is **B2 device capture** (`root@mister`, user reports online),
 **B6 diagnostic/final-RGB gaps**, and **actual source-review gap closure**.
