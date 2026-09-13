@@ -218,17 +218,21 @@ def ring_size_bytes(entries: int = 64) -> int:
 def read_command(base: int = DEFAULT_BASE, entries: int = 64, header_only: bool = False) -> str:
     """Shell command that prints the ring as one base64 line.
 
-    `dd` is given a block size that divides the base address, because BusyBox
-    has no `iflag=skip_bytes`. /dev/mem is read-only here.
+    Linux on ARM refuses read() on /dev/mem for physical addresses outside
+    System RAM (!pfn_is_ram), causing BusyBox dd to fail with EFAULT. Physical
+    memory mapped to FPGA DDR3 must be accessed via mmap(). We use python3
+    with mmap on /dev/mem.
     """
+    if base % 16:
+        raise SsmRingError(f"ring base 0x{base:08X} is not 16-byte aligned")
     total = HEADER_BYTES if header_only else ring_size_bytes(entries)
-    block = 16
-    if base % block:
-        raise SsmRingError(f"ring base 0x{base:08X} is not {block}-byte aligned")
-    count = (total + block - 1) // block
     return (
-        f"dd if=/dev/mem bs={block} skip={base // block} count={count} 2>/dev/null "
-        "| base64 | tr -d '\\n'"
+        f"python3 -c 'import mmap,os,sys,base64; "
+        f"b={base}; s={total}; p=os.sysconf(\"SC_PAGE_SIZE\"); "
+        f"pb=b&~(p-1); o=b-pb; f=os.open(\"/dev/mem\",os.O_RDONLY|os.O_SYNC); "
+        f"m=mmap.mmap(f,o+s,mmap.MAP_SHARED,mmap.PROT_READ,offset=pb); "
+        f"sys.stdout.buffer.write(base64.b64encode(m[o:o+s])); "
+        f"m.close(); os.close(f)'"
     )
 
 
