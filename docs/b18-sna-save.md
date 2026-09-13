@@ -21,12 +21,21 @@ the slot to the SD card. Main needs no change. Facts checked in Main_MiSTer `mas
   `FileGenerateSavestatePath`). SNA sizes are multiples of 4, so dropping the first 8 bytes
   gives an exact `.sna`.
 - Main enables slot polling only after a file is loaded through an `FS...` menu entry
-  (the `opensave` flag in `user_io_file_tx`). Loads for SNA, CPR and tape should therefore use
-  `FS`. **Mounting a DSK does not enable it**, so a disk-only session saves into DDR3 but
-  Main never copies the slot to SD.
+  (the `opensave` flag in `user_io_file_tx`). **That same flag also mounts a writable
+  `saves/Amstrad/<name>.sav` on SD slot 0** (`user_io_file_mount(buf, 0, 1)`), and slot 0 is
+  this core's drive A. Simply marking the SNA, CPR or tape loads `FS` would detach drive A
+  on every load. Mounting a DSK never enables polling.
 - Over SSH, a host script can read the slot through `/dev/mem` whether or not Main has enabled
-  polling, as the SSM ring at 0x30000000 already does. This is the capture-loop path
-  (`driver.py`), and it also covers DSK sessions.
+  polling, as the SSM ring at 0x30000000 already does. It works for DSK sessions too, as long as
+  the core stays loaded.
+
+**First delivery: OSD save into the DDR3 slot, host pull over SSH** (`driver.py`). This covers
+B18's stated purpose of handing a hardware state to simulation, with no Main change and no
+drive A conflict. Automatic copy to SD is deferred. The two known routes are:
+
+- Move drives A/B to SD slots 1/2 and leave slot 0 as a sink for the `FS` `.sav` mount. This
+  changes the core's disk-slot layout and leaves an empty `.sav` beside each loaded file.
+- A Main patch, which also lifts the DSK limit.
 
 **Rejected alternative: `ioctl_upload_req`.** Main polls UIO 0x3C only for C64/C128, and
 that handler (`c64_save_cart`) is a bespoke EasyFlash writer. Main already knows the file
@@ -105,8 +114,9 @@ counter fields through reload. Check those against the live counters at the free
 3. **Readback ports** on the owners above, observation only.
 4. **Writer.** Freeze controller, header latch, SDRAM stream through `cart_*`, DDR3 slot
    framing with the change counter, and the mux with `ssm_marker`.
-5. **Integration.** CONF_STR `SS` declaration, OSD save action, `FS` on SNA/CPR/tape loads,
-   a `driver.py` slot pull, then a hardware check.
+5. **Integration.** CONF_STR `SS` declaration (it sizes the slots for the host pull and a later
+   SD copy), OSD save action, a `driver.py` slot pull, then a hardware check. No `FS` entries,
+   for the drive A reason above.
 
 Acceptance vector: run a program in the whole-motherboard fixture, save at a boundary, feed the
 bytes back through the production decoder and loader, and compare CPU, owner and RAM state.
