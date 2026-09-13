@@ -579,9 +579,10 @@ module asic_ga_timing
 	//
 	// PRI != 0: the counter KEEPS RUNNING but its interrupt assertion is
 	// suppressed; an interrupt is raised instead when the line value
-	// {VC5..VC0, RC2..RC0} equals {1'b0, PRI} — evaluated every line, so
-	// values aliasing within a 512-line vline period fire at every match
-	// (n and n+256 both fire on a 312-line frame when both are < 312).
+	// {VC5..VC0, RC2..RC0} equals {1'b0, PRI}, evaluated every line. The
+	// leading 0 is a compared bit, not a don't-care: lines 256 and above
+	// never match, so PRI=&37 fires on line 55 only and not on line 311 of
+	// a 312-line frame (Copter 271's title palette chain depends on this).
 	// Never fires during vertical adjustment. Cleared by CPU acknowledge
 	// or MRER bit 4, shared with the classic path.
 	//
@@ -602,8 +603,7 @@ module asic_ga_timing
 	always @(posedge clk) hsync_o_q <= SNA_LOAD ? 1'b0 : HSYNC_O;
 	wire mon_hsync_fall = hsync_o_q & ~HSYNC_O;
 
-	wire pri_line_match = (pri != 8'd0) &&
-	                      ({crtc_line[8], pri} == crtc_line);
+	wire pri_line_match = (pri != 8'd0) && ({1'b0, pri} == crtc_line);
 	wire raster_fire = (pri != 8'd0) && !crtc_adj &&
 	                   mon_hsync_fall && pri_line_match;
 
