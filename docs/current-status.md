@@ -1,5 +1,18 @@
 # Current implementation status
 
+**PSG R7 reset fix & keyboard/joystick hardware verification (build `a0778b6`), 2026-09-13, integrated into `master`:**
+Hardware testing on build `a0778b6` (fix "general: reset PSG R7 to 0x00 so bare-metal
+keyboard scans work") confirms it **fixes all known keyboard and joystick issues with
+`arn5diag`, `Pang`, and `Plotting`**. AY-3-8912 /RESET clears all registers to 0x00
+(GI datasheet); R7=0x00 selects Port A as input. The old 0xFF reset wedged R14 reads
+at 0x00 until software explicitly programmed R7, making all active-low keyboard matrix
+and joystick inputs read as permanently held down (0 = pressed). This broke cold-boot
+keyboard navigation in `arn5diag` and caused the persistent "Fire always pressed" symptom
+in `Pang` and `Plotting` (firmware and SNA restore program R7, masking the bug in BASIC/OS
+paths). In `sim/plus/p10_input_test.cpp`, the bench adds a reset-default R14 read vector.
+Reviewed by Astra-high (accept-with-nits applied); full simulation, both lints, and soak
+hash `0xb1cb70da95c2e44f` pass unchanged. See [September 13 hardware report](hardware-evidence-2026-09-13.md).
+
 **AmSpirit troubleshooting oracle (Track G), 2026-09-13:** standalone helper
 `scripts/amspirit/amspirit.py` loads media, paces input on emulated frames, and captures
 a paused checkpoint (screenshot, state endpoints, SNA with chunk list) with a manifest.
@@ -94,15 +107,18 @@ case pins RBF/media identity; 26 focused tests and fresh Gemini review pass.
 Native screenshots omit OSD, so saved Full configuration is not visual proof
 of the active mode. See [device evidence and limits](b2-device-capture-2026-09-12.md).
 
-**Latest hardware report, 2026-09-12, `5c16b17`:** the user confirms **6128 Plus
-BASIC boot fixed**. Corrupt sprite lines at the left edge are **much improved,
-perhaps fixed**, with definitive closure still open. **Pang/Plotting fire
-always pressed and the Copter 271 logo remain NOT fixed.** B6 Full versus Raw
-pixels shows **no visible difference so far** in Amazing Demo, DSC4 or SHAKER
-A (T). Output configuration and Classic model/CRTC details are unrecorded.
-See the [dated report](hardware-evidence-2026-09-12.md). The accepted B2/B6
-follow-ups above supply capture and simulation evidence without broadening
-these user-reported hardware verdicts.
+**Hardware reports, September 12–13:**
+- **2026-09-12, `5c16b17`:** the user confirmed **6128 Plus BASIC boot fixed**.
+  Corrupt sprite lines at the left edge were **much improved, perhaps fixed**,
+  with definitive closure still open. B6 Full versus Raw pixels showed **no visible
+  difference so far** in Amazing Demo, DSC4 or SHAKER A (T). See the
+  [dated report](hardware-evidence-2026-09-12.md).
+- **2026-09-13, `a0778b6`:** hardware testing confirms build `a0778b6` (PSG R7
+  reset to 0x00) **fixes all known keyboard and joystick issues with `arn5diag`,
+  `Pang`, and `Plotting`**. Fire is no longer held down in Pang/Plotting, and
+  arn5diag keyboard navigation operates normally from cold boot. Copter 271 logo is
+  fixed on device (`c595031`/`b5c3014`) and title flash much improved (`05cb9fd`).
+  See the [September 13 report](hardware-evidence-2026-09-13.md).
 
 **B6 rendering follow-up, 2026-09-12 (integrated source):** the production mixer
 RGB scope defect has a failing-before/passing-after parameter regression.
@@ -685,7 +701,9 @@ simulation-verified repairs:
   maximum observed wait is five CCLKs.
 
 These fixes make Pang/CRTC3, Arnold 5 keyboard, Plotting held Fire, and DMA sample pitch
-direct hardware retests; they do not close those titles. Sprite top-row/colour/positioning,
+direct hardware retests; they do not close those titles *(Update 2026-09-13: hardware testing
+on build `a0778b6` with PSG R7 reset to 0x00 confirms all known keyboard and joystick issues
+fixed for `arn5diag`, `Pang`, and `Plotting`)*. Sprite top-row/colour/positioning,
 Switchblade and other cartridge crashes, CPC+ SNA/reset/reload recovery, and undocumented
 odd-R5 CRTC3 behavior remain evidence-gated. The motherboard WAIT/PPI timing change requires
 an exact full-effort synthesis before hardware testing. Full evidence, gates, and residuals
@@ -1795,7 +1813,8 @@ aliased fires at identical intra-line offsets; adjustment gate; MRER
 clearing a pending PRI interrupt), `a08` (DCSR bit 7 mirrors the merger
 level), mobo bench `m6` (ack-cycle vector byte 0xDE after a scripted
 IVR write). P3's remaining exit item is title-level stability (Pang,
-RoboCop 2) at the next hardware checkpoint.
+RoboCop 2) at the next hardware checkpoint (Pang's stuck-fire input is confirmed
+fixed on hardware in `a0778b6`).
 
 Open scope note: the monitor-trailing-edge trigger uses this model's
 fixed four-character shaping microsequence, so [ARNOLD-REV]'s "clamp at

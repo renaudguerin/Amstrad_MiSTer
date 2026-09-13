@@ -11,10 +11,13 @@ changes landed in `ee50c33`, with the later banking/SNA corrections in `421aec6`
 `7c46b8d`. The new observations show that passing leaf benches and review is not equivalent
 to a timing-clean, production-top-level, real-title acceptance result.
 
-**Latest retest:** [September 12 results](../hardware-evidence-2026-09-12.md)
-on `5c16b17` confirm BASIC boot fixed on 6128 Plus. Left-edge sprite corruption
-is much improved, perhaps fixed; Pang/Plotting fire always pressed and Copter
-271's logo remain failing. Full P10 compatibility is still open.
+**Latest retest:** [September 13 results](../hardware-evidence-2026-09-13.md)
+on `a0778b6` confirm that resetting PSG R7 to 0x00 fixes all known keyboard and
+joystick issues with `arn5diag`, `Pang`, and `Plotting`. In addition, Copter 271's
+logo is fixed on device (`b5c3014`) and title flash much improved (`05cb9fd`).
+The earlier [September 12 results](../hardware-evidence-2026-09-12.md) on `5c16b17`
+confirmed BASIC boot fixed on 6128 Plus; left-edge sprite corruption was much
+improved, perhaps fixed. Full P10 compatibility is still open.
 
 **Earlier retest:** [September 9 results](../hardware-evidence-2026-09-09.md)
 on `ce1d2da` supersede current-result assumptions from this initial checkpoint.
@@ -39,7 +42,7 @@ specific commit:
 |---|---|---|
 | Panza Kick Boxing | Grey active area with blue border | The video output and at least part of the boot path are alive, but no first-divergence trace exists. Timing, cartridge-fetch pacing, interrupts, or an ASIC-video assumption may stop normal setup. |
 | RoboCop 2 | Starts normally; sprites are garbled | Cartridge parsing and basic execution work. The dynamic sprite-RAM path is a stronger suspect than palette, priority, or CPR format. |
-| Arnold 5 diagnostic | Loads; keyboard is inoperable | CF-1 is a confirmed PPI defect and a plausible match only if Arnold leaves Port C configured as input or rewrites `0x9B`/`0x92` while relying on Plus always-output behavior. Standard firmware can later write an output-direction word and mask the defect. Confirm the diagnostic's control writes under 6128+ or 464+; a GX4000 has no full keyboard. |
+| Arnold 5 diagnostic | Loads; keyboard is inoperable | *(Resolved on hardware 2026-09-13, build `a0778b6`)*: AY-3-8912 PSG R7 reset to 0x00 enables bare-metal R14 matrix reads from cold boot; keyboard navigation works. Historical note: CF-1 was suspected, but root cause was PSG R7 resetting to 0xFF (Port A output), wedging uninitialized R14 reads to 0x00. |
 | BASIC/System cartridges | Copyright banner, delay, then `Drive A: read fail` | HF-1's address decode exists, but the production FDC path is untested, model capabilities are inert, FDC state survives CPR reset, and the media/model configuration was not recorded. |
 | Other cartridges | Approximately half load; the rest remain black or grey/blue | This title-dependent split is compatible with a timing-invalid RBF, per-fetch cartridge WAITs, or uncovered production integration. It does not by itself select one ASIC rule. |
 

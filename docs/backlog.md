@@ -17,13 +17,23 @@ Exact-SHA CI is recorded in current status. The real capture loop and final-RGB/
 progress are recorded in the [handoff](hardware-followup-handoff-2026-09-12.md).
 Remaining physical video, active-mode and CRTC/title acceptance stay open.
 
-The [latest report](hardware-evidence-2026-09-12.md) confirms BASIC boot fixed
+The [September 12 report](hardware-evidence-2026-09-12.md) confirmed BASIC boot fixed
 on **6128 Plus / `5c16b17`**. Left-edge sprite corruption is much improved,
-possibly fixed; **Pang/Plotting fire always pressed and Copter 271's logo
-remain failing**. Copter 271's logo is fixed on device with `c595031` (PRI no
-longer fires on line 256+n). Full versus Raw pixels shows no visible difference so far
-in Amazing Demo, DSC4 or SHAKER A (T). B1/B6 visual acceptance and P10 remain
-open; do not promote the tentative sprite improvement to a confirmed fix.
+possibly fixed. Copter 271's logo is fixed on device with `c595031` / `b5c3014`
+(PRI no longer fires on line 256+n), and its title flash is much improved with `05cb9fd`
+(B19 DCSR bit 7 acknowledge latch).
+
+Hardware testing on build **`a0778b6`** (fix "general: reset PSG R7 to 0x00 so
+bare-metal keyboard scans work") confirms it **fixes all known keyboard and joystick
+issues with `arn5diag`, `Pang`, and `Plotting`** (see [September 13 report](hardware-evidence-2026-09-13.md)).
+AY-3-8912 /RESET clears all registers to 0x00 (GI datasheet); the previous 0xFF reset configured
+Port A as output and wedged uninitialized R14 reads to 0x00 (active-low, meaning all keys and
+fire buttons read as permanently pressed). This closes the held-fire defect in Pang/Plotting
+and the inoperable keyboard in `arn5diag`.
+
+Full versus Raw pixels shows no visible difference so far in Amazing Demo, DSC4 or
+SHAKER A (T). B1/B6 visual acceptance, sprite edge closure, and remaining P10 title
+stability remain open.
 
 ## B19. Plus DCSR bit 7 reports raster on a DMA acknowledge (Copter 271 title flash)
 

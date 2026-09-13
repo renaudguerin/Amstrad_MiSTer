@@ -13,12 +13,17 @@ merged into the same behavioral PR.
 
 ## 1. Current baseline
 
-- **September 12 hardware, `5c16b17`:** BASIC boot is confirmed fixed on
-  6128 Plus; left-edge sprite corruption is much improved, perhaps fixed.
-  Pang/Plotting fire always pressed and Copter 271's logo remain failing.
-  Full versus Raw pixels has shown no visible difference in Amazing Demo,
-  DSC4 or SHAKER A (T). See the [report](hardware-evidence-2026-09-12.md);
-  B1/B6 visual and P10 subsystem acceptance remain open.
+- **September 12–13 hardware, `5c16b17` and `a0778b6`:** BASIC boot is confirmed
+  fixed on 6128 Plus; left-edge sprite corruption is much improved, perhaps fixed.
+  Copter 271's logo is fixed on device (`b5c3014`), and its title flash is much
+  improved (`05cb9fd`). Hardware testing on build **`a0778b6`** (fix "general:
+  reset PSG R7 to 0x00 so bare-metal keyboard scans work") confirms it **fixes all
+  known keyboard and joystick issues with `arn5diag`, `Pang`, and `Plotting`**,
+  closing the held-fire defect in Pang/Plotting and the dead keyboard in `arn5diag`.
+  Full versus Raw pixels has shown no visible difference in Amazing Demo, DSC4 or
+  SHAKER A (T). See the [September 12](hardware-evidence-2026-09-12.md) and
+  [September 13](hardware-evidence-2026-09-13.md) reports; B1/B6 visual and
+  remaining P10 subsystem acceptance remain open.
 
 - D3's bounded first-visible-row sprite prefetch and D4's Plus PPI mode-word
   readback are integrated. Their required regressions retain sprite row-colour
@@ -344,7 +349,7 @@ measured local cost.
 | **P10b: Plus PPI Port C physical output** | Make Port C pins always output in Plus mode while keeping classic direction behavior | Physical-pin vectors for `0x9B`/`0x92`; PPI -> PSG register 14 -> HID row test; Arnold 5 control-write trace establishes whether CF-1 is its cause before the 6128+/464+ retest |
 | **P10c: model capabilities + FDC reset** | Enforce FDC/tape presence; reset u765 and motor on the defined CPR/system event; test AMSDOS aliases | Accuracy tip `683fcaf` closes the demonstrated production-timed EDSK READ DATA late-ACK/reset-reload alias in simulation. Hardware exit remains an exact build/media/config capture plus reset during active READ DATA. Retain no-ACK epoch/tag, two-drive overlap, sector-search reset, WRITE DATA `buff_wr`, automatic-EOT C/R, and BASIC with a recorded known-good DSK as named validation residuals |
 | **P10d: cartridge execution timing** | Replace per-byte serial SDRAM WAIT only when a real-CPU/title trace proves incompatible pacing | The production harness pins a sustained 4,096-tick cartridge window and 11-tick maximum stall; a valid ordinary-RAM/title comparison, no load/clear or classic regression, and an exact full fit remain required before redesign |
-| **P10e: DMA/PPI/PSG arbitration** | Implement the missing CPU WAIT and state preservation/restoration contract | The production motherboard fixture now pins physical PSG classification, bounded 8/9/10-CCLK LOADs, late upgrade, one accepted CPU strobe, and a preserved pre-owner AY R14 read. Exact full-fit timing plus Arnold 5, Plotting, and sample-pitch hardware retests remain required |
+| **P10e: DMA/PPI/PSG arbitration** | Implement the missing CPU WAIT and state preservation/restoration contract | The production motherboard fixture now pins physical PSG classification, bounded 8/9/10-CCLK LOADs, late upgrade, one accepted CPU strobe, and a preserved pre-owner AY R14 read. Exact full-fit timing and sample-pitch hardware retests remain required; keyboard and joystick fire issues for Arnold 5 (`arn5diag`), Plotting, and Pang are confirmed fixed on hardware in build `a0778b6` (PSG R7 reset to 0x00) |
 | **P10f: dynamic sprite writes** | Close RoboCop's first traced divergence; replace undocumented staging behavior only where evidence requires | Game-derived burst-write/delayed-ACK vector, all-16 dynamic overlap coverage, documented per-access blanking, exact full-fit build |
 | **P10g: Panza first divergence** | Close one traced MMU/CRTC3/PRI/video behavior at a time | Each fix has a primary-source or hardware-derived vector; no self-derived expectation from current RTL |
 | **P10h: production CPC+ SNA** | Correct parser reset sequencing and consecutive-byte/nibble handling | `Amstrad.sv` snapshot integration test covers model, PPI/PSG, ASIC registers, palette, and sprite data |
