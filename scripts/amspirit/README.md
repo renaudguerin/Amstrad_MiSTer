@@ -35,8 +35,11 @@ values, loads the media (hard reset unless `media.hard_reset` is false), execute
 (`wait_frames`, `joystick`, `keys`, `screenshot`), then pauses and captures a checkpoint:
 screenshot, state files and SNA, all describing one instant. `manifest.json` records
 AmSpirit version, settings, media and case hashes, the frame origin, every event with its
-frame offset, and the SNA chunk list. It refuses an existing manifest and resumes the
-emulator afterwards unless the case sets `leave_paused`. Case `media.path` is resolved
+start and end frame offsets (`at`, `done_at`), and the SNA chunk list. It refuses an
+existing manifest. On success it restores the pause state it found (or stays on the
+checkpoint with `leave_paused`); on failure it leaves the emulator paused for post-mortem.
+An eval that times out keeps running inside AmSpirit, so later evals are refused until it
+ends. Case `media.path` is resolved
 against the main checkout, where the ignored cartridges live (`--media-root` overrides).
 
 Keep decisive runs under `docs/references/<topic>-<date>/` in the main checkout

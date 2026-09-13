@@ -88,11 +88,16 @@ class AmSpirit:
                 raise OracleError(f"host deadline: frame {e['frames']} of {target} (started {start})")
             time.sleep(0.05)
 
-    def eval_lua(self, chunk: str) -> str:
+    def eval_lua(self, chunk: str, timeout: Optional[float] = None) -> str:
+        """Run one Lua chunk. A chunk that waits on frames cannot finish while
+        paused; paused evals without waits (snapshot saves) finish at once, so the
+        pause check only starts after a grace second. A timed-out chunk keeps
+        running in AmSpirit and the engine refuses new evals until it ends."""
         with self._req("POST", "/api/eval", chunk.encode(), "text/plain") as r:
             seq = json.load(r)["seq"]
-        end = time.monotonic() + self.deadline
-        while time.monotonic() < end:
+        start = time.monotonic()
+        limit = timeout or self.deadline
+        while time.monotonic() - start < limit:
             res = self.get_json(f"/api/eval?seq={seq}")
             if res.get("refused"):
                 raise OracleError("eval refused: script engine busy")
@@ -100,8 +105,10 @@ class AmSpirit:
                 if res.get("error"):
                     raise OracleError(f"lua error: {res['error']}")
                 return res.get("value", "")
+            if time.monotonic() - start > 1.0 and self.emu()["paused"]:
+                raise OracleError(f"eval seq {seq} blocked: emulator paused")
             time.sleep(0.05)
-        raise OracleError(f"eval seq {seq} not done within {self.deadline}s")
+        raise OracleError(f"eval seq {seq} not done within {limit}s")
 
     def set_paused(self, paused: bool) -> None:
         self.post_json("/api/config", {"paused": paused})
@@ -147,6 +154,7 @@ class AmSpirit:
         target directory is missing, so create fs.root() first (fs.write makes it)."""
         root = self.eval_lua(
             'if not fs.exists(".oracle") then fs.write(".oracle", "") end '
+            f'if fs.exists("{name}.sna") then fs.remove("{name}.sna") end '
             f'snapshot_dir(fs.root()) snapshot_name("{name}") snapshot() '
             f'if not fs.exists("{name}.sna") then error("snapshot not written") end '
             'return fs.root()')
@@ -165,10 +173,13 @@ class AmSpirit:
                 raise OracleError(f"unknown joystick button {b!r}; known: {sorted(JOY_BITS)}")
             mask |= JOY_BITS[b]
         row9 = 0xFF & ~mask
+        # pcall so the release runs even if the hold loop errors inside AmSpirit.
         self.eval_lua(
-            "local m={} for i=1,16 do m[i]=255 end "
-            f"m[10]={row9} for i=1,{frames} do keyboard_write(table.unpack(m)) wait_frames(1) end "
-            "for i=1,16 do m[i]=255 end keyboard_write(table.unpack(m)) return 'ok'")
+            "local m={} for i=1,16 do m[i]=255 end m[10]=" f"{row9} "
+            f"local ok,err=pcall(function() for i=1,{frames} do keyboard_write(table.unpack(m)) wait_frames(1) end end) "
+            "for i=1,16 do m[i]=255 end keyboard_write(table.unpack(m)) "
+            "if not ok then error(err) end return 'ok'",
+            timeout=max(self.deadline, frames / 25.0 + 5.0))
 
     def type_keys(self, text: str) -> None:
         self.post_json("/api/keytype", {"text": text})
@@ -198,7 +209,7 @@ def parse_sna(path: Path) -> Dict[str, Any]:
     """Header fields and chunk list of an SNA v3. Our core applies MEM0/MEM1 and
     CPC+ but not SPRT, so the chunk list is what a MiSTer handoff must record."""
     d = path.read_bytes()
-    if d[:8] != b"MV - SNA":
+    if len(d) < 0x100 or d[:8] != b"MV - SNA":
         raise OracleError(f"{path.name}: not an SNA")
     dump_kb = int.from_bytes(d[0x6B:0x6D], "little")
     info: Dict[str, Any] = {"version": d[0x10], "model": d[0x6D], "crtc_type": d[0xA4],
@@ -234,7 +245,8 @@ def apply_settings(ams: AmSpirit, case: Dict[str, Any]) -> Dict[str, Any]:
         ams.post_json("/api/render", req_render)
     time.sleep(0.2)
     cfg, render = ams.get_json("/api/config"), ams.get_json("/api/render")
-    applied = {**cfg, **{k: render.get(k) for k in req_render}}
+    crt = render.get("crt", {})  # shader parameters are nested under "crt"
+    applied = {**cfg, **{k: render.get(k, crt.get(k)) for k in req_render}}
     mismatches = {k: {"requested": v, "applied": applied.get(k)}
                   for k, v in {**req_cfg, **req_render}.items() if applied.get(k) != v}
     return {"requested": {"config": req_cfg, "render": req_render},
@@ -264,24 +276,31 @@ def run_case(ams: AmSpirit, case_path: Path, out_dir: Path, media_root: Path) ->
         "events": [],
     }
     status = "failed"
+    was_paused = False
     try:
-        if ams.emu()["paused"]:
+        was_paused = ams.emu()["paused"]
+        if was_paused:
             ams.set_paused(False)
         manifest["settings"] = apply_settings(ams, case)
-        origin = ams.load_media(media, case["media"].get("hard_reset", True))
-        manifest["frame_origin"] = {"frames": origin,
-                                    "definition": "emu.frames read right after media load and hard reset"}
+        hard_reset = case["media"].get("hard_reset", True)
+        origin = ams.load_media(media, hard_reset)
+        action = "media load and hard reset" if hard_reset else "media load (no reset)"
+        manifest["frame_origin"] = {"frames": origin, "definition": f"emu.frames read right after {action}"}
         shot_no = 0
+        # "at" is the offset when a step starts; "done_at" when it returned.
         for step in case.get("steps", []):
+            at = ams.frames() - origin
             if "wait_frames" in step:
                 f = ams.wait_frames(int(step["wait_frames"]))
-                manifest["events"].append({"wait_frames": step["wait_frames"], "at": f - origin})
+                manifest["events"].append({"wait_frames": step["wait_frames"], "at": at, "done_at": f - origin})
             elif "joystick" in step:
-                ams.hold_joystick(step["joystick"], int(step.get("frames", 10)))
-                manifest["events"].append({"joystick": step["joystick"], "at": ams.frames() - origin})
+                frames = int(step.get("frames", 10))
+                ams.hold_joystick(step["joystick"], frames)
+                manifest["events"].append({"joystick": step["joystick"], "frames": frames, "at": at,
+                                           "done_at": ams.frames() - origin})
             elif "keys" in step:
                 ams.type_keys(step["keys"])
-                manifest["events"].append({"keys": step["keys"], "at": ams.frames() - origin})
+                manifest["events"].append({"keys": step["keys"], "at": at, "done_at": ams.frames() - origin})
             elif "screenshot" in step:
                 shot_no += 1
                 s = ams.screenshot(out_dir / f"step{shot_no:02d}_{step['screenshot']}.png")
@@ -298,17 +317,24 @@ def run_case(ams: AmSpirit, case_path: Path, out_dir: Path, media_root: Path) ->
         cp["snapshot"] = ams.save_snapshot(case["case_id"], out_dir)
         manifest["checkpoint"] = cp
         status = "ok"
-    except OracleError as exc:
-        manifest["error"] = str(exc)
+    except Exception as exc:  # the manifest must say why, whatever failed
+        manifest["error"] = f"{type(exc).__name__}: {exc}"
     finally:
         manifest["status"] = status
         manifest["finished_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        manifest_path.write_text(json.dumps(manifest, indent=1) + "\n")
-        if not case.get("leave_paused", False):
+        # A failure stays paused for post-mortem; success restores the pause state
+        # found at start unless the case asks to stay on the checkpoint.
+        if status == "ok" and not case.get("leave_paused", False) and not was_paused:
             try:
                 ams.set_paused(False)
+            except OracleError as exc:
+                manifest["resume_error"] = str(exc)
+        elif status != "ok":
+            try:
+                ams.post_json("/api/config", {"paused": True})
             except OracleError:
                 pass
+        manifest_path.write_text(json.dumps(manifest, indent=1) + "\n")
     return manifest
 
 

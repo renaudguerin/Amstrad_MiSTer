@@ -35,7 +35,9 @@ of latency). They are AmSpirit metadata and do not identify MiSTer state.
   under `docs/defects/copter271-2026-09-13/`; attract loop of meteors, helicopters and
   credits after that.
 - Joystick fire (10 frames on matrix row 9) on the title opens the options menu within
-  200 frames. Helper run: fire at +1023, options at +1225, checkpoint at +1225.
+  200 frames. Helper run `helper-run-001`: fire released at +1023 (held 10 frames from
+  about +1013), options at +1225, checkpoint at +1225. The helper now records each step's
+  start (`at`) and end (`done_at`) separately.
 
 ## Acceptance against design §5
 
