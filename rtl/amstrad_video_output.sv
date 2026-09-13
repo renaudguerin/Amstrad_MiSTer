@@ -62,6 +62,10 @@ amstrad_video_color video_color (
     .HSync(HSync), .VSync(VSync), .HBlank(HBlank), .VBlank(VBlank)
 );
 
+// Observation tap: retained for verification and regression testing.
+// Independently asserted by sim/b6_video_output_test.cpp for B8-6 coverage.
+// In particular, obs_native_cadence formalizes the unscaled native (768x273)
+// pixel cadence predicate that unscaled screenshot capture validity relies upon.
 assign obs_ce_pix = ce_pix;
 assign obs_r      = R;
 assign obs_g      = G;
