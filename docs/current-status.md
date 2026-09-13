@@ -1,5 +1,16 @@
 # Current implementation status
 
+**Plus PRI line compare, 2026-09-13, source `b5c3014` integrated into `master`:**
+A B2 device capture of Copter 271 (6128 Plus, `d35412a`) showed its title logo in the
+sky palette. AmSpirit's reference and snapshot (ignored, under
+`docs/references/copter271-2026-09-13/`) show the same content rows but the palette
+switch 55 lines later. The title's raster handler at cartridge `0x1852` chains PRI
+`&FF` (logo palette) and `&37` (sky palette). The RTL treated bit 8 of the
+Arnold-revision §2.4 compare `0 PRI7..PRI0 == VC5..VC0 RC2..RC0` as a don't-care, so
+`&37` also fired on line 311. `pri_line_match` now requires bit 8 clear. The rewritten
+pr02 failed first on line 311. Full simulation, lint and soak `0xb1cb70da95c2e44f` pass.
+Review debt is recorded. Device recapture of Copter 271 on the new RBF remains open.
+
 **B4 CSL/SSM, 2026-09-12, source `94725cc` integrated into `master`:**
 Fable's second design pass reached rough convergence on an append-only native
 RGB24/timing stream in bounded rotating windows. Opus produced the initial

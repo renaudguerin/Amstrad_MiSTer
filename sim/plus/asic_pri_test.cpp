@@ -9,7 +9,7 @@
 //   pr02  PRI=k: counter fires are suppressed; INT_N falls exactly at the
 //         shaped-monitor trailing edge following the matching line, at the
 //         same intra-line offset every time (self-calibrated on the first
-//         fire), including an aliased second match n+256 within a frame.
+//         fire), and never on line 256+k: bit 8 of the compare is a fixed 0.
 //   pr03  vertical adjust gates firing: no interrupt for a match inside
 //         adjustment, fire resumes when adj releases.
 //   pr04  MRER bit 4 (GA write D[4]) clears a pending raster interrupt.
@@ -176,31 +176,41 @@ void pr01_baseline(PriBench& b) {
 // pr02: PRI=k suppresses counter fires and fires at the shaped-monitor
 // trailing edge of the matching line. The intra-line fire offset is
 // self-calibrated on the first event (the shaping microsequence is
-// deterministic), then required to repeat exactly on the aliased match
-// n+256 — reference section 7 aliasing rule.
+// deterministic), then required to repeat exactly on the next match.
+//
+// [ARNOLD-REV §2.4] gives the compare as
+//   0 PRI7..PRI0 == VC5..VC0 RC2..RC0
+// so the ninth bit must be 0 and line 256+k never matches. k=&37 is the
+// value Copter 271's title chain programs; 256+&37 = 311 is the last line
+// of a 312-line frame, where a don't-care bit 8 fired the sky palette 55
+// lines early (MiSTer capture vs AmSpirit, 2026-09-13). On the bench's
+// 512-line counter the two consecutive fires must therefore be exactly
+// 512 lines apart, with nothing at line 311 between them.
 //----------------------------------------------------------------------
 void pr02_pri_line(PriBench& b) {
 	b.ga_mrer_clear();
-	const uint16_t k = uint16_t((b.crtc_line + 20) & 0xFF);
+	const uint16_t k = 0x37;
 	b.pri = uint8_t(k);
 	b.run(2); // input settle
 
 	int64_t first_offset = -1;
 	unsigned fires = 0;
 	uint16_t fire_lines[2];
+	uint64_t fire_cyc[2];
 	bool prev_int = true;
 	uint64_t guard = 0;
 	while (fires < 2) {
-		const uint16_t line_at_tick = b.crtc_line;
+		const uint16_t line_at_tick = b.crtc_line & 0x1FF;
 		b.tick();
 		if (++guard > 800u * kLineClks)
 			fail("pr02: no PRI interrupt within budget");
 		if (prev_int && b.dut.INT_N == 0) {
 			fire_lines[fires] = line_at_tick;
+			fire_cyc[fires] = b.cyc;
 			const int64_t off = int64_t(b.cyc % kLineClks);
 			if (fires == 0) first_offset = off;
 			else if (off != first_offset)
-				fail("pr02: aliased fire at a different intra-line offset");
+				fail("pr02: second fire at a different intra-line offset");
 			++fires;
 			b.ga_mrer_clear(); // acknowledge so the next event is visible
 			guard = 0;
@@ -208,14 +218,16 @@ void pr02_pri_line(PriBench& b) {
 		prev_int = b.dut.INT_N == 0;
 	}
 	for (unsigned i = 0; i < 2; ++i) {
-		const uint16_t want = uint16_t((k + 256u * i) & 0x1FF);
-		if (fire_lines[i] != want && fire_lines[i] != ((want + 1) & 0x1FF))
+		if (fire_lines[i] != k && fire_lines[i] != k + 1)
 			fail("pr02: fire " + std::to_string(i) + " on line " +
 			     std::to_string(fire_lines[i]) + ", expected near " +
-			     std::to_string(want));
+			     std::to_string(k) + " (256+k must not match)");
 	}
-	std::printf("PASS pr02: PRI fires on lines %u and %u with identical intra-line offset\n",
-	            (unsigned)fire_lines[0], (unsigned)fire_lines[1]);
+	if (fire_cyc[1] - fire_cyc[0] != 512u * kLineClks)
+		fail("pr02: consecutive fires " + std::to_string(fire_cyc[1] - fire_cyc[0]) +
+		     " ticks apart, expected one 512-line counter period");
+	std::printf("PASS pr02: PRI=&37 fires on line %u only, never on line 311\n",
+	            (unsigned)fire_lines[0]);
 }
 
 //----------------------------------------------------------------------
@@ -225,8 +237,10 @@ void pr02_pri_line(PriBench& b) {
 //----------------------------------------------------------------------
 void pr03_adjustment_gate(PriBench& b) {
 	b.ga_mrer_clear();
-	const uint16_t k9 = uint16_t((b.crtc_line + 8) & 0x1FF);
-	b.pri = uint8_t(k9 & 0xFF);
+	// Only lines with bit 8 clear can match ([ARNOLD-REV §2.4]).
+	uint16_t k9 = uint16_t((b.crtc_line + 8) & 0x1FF);
+	if (k9 & 0x100) k9 = uint16_t(k9 & 0xFF);
+	b.pri = uint8_t(k9);
 	b.run(2);
 
 	// Forward distance to the match line (mod 512).
@@ -251,19 +265,18 @@ void pr03_adjustment_gate(PriBench& b) {
 	}
 	b.adj = false;
 
-	// After release the very next matching line must fire. Matches recur
-	// every 256 lines (the bit-8 don't-care that yields the documented
-	// n / n+256 aliasing).
+	// After release the very next matching line must fire. With bit 8 a
+	// fixed 0 the bench's 512-line counter matches once per period.
 	guard = 0;
 	uint16_t lastl = b.crtc_line;
 	bool seen_match = false;
 	while (b.dut.INT_N != 0) {
 		b.tick();
-		if (++guard > 300u * kLineClks)
+		if (++guard > 600u * kLineClks)
 			fail("pr03: no fire after adjustment released");
 		if (b.crtc_line != lastl) {
 			lastl = b.crtc_line;
-			if ((lastl & 0xFF) == (k9 & 0xFF)) seen_match = true;
+			if ((lastl & 0x1FF) == k9) seen_match = true;
 		}
 	}
 	if (!seen_match)

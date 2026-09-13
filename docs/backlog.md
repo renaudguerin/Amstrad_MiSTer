@@ -20,7 +20,8 @@ Remaining physical video, active-mode and CRTC/title acceptance stay open.
 The [latest report](hardware-evidence-2026-09-12.md) confirms BASIC boot fixed
 on **6128 Plus / `5c16b17`**. Left-edge sprite corruption is much improved,
 possibly fixed; **Pang/Plotting fire always pressed and Copter 271's logo
-remain failing**. Full versus Raw pixels shows no visible difference so far
+remain failing**. Copter 271 now has a source fix (PRI no longer fires on line
+256+n, `b5c3014`, 2026-09-13) awaiting a device recapture. Full versus Raw pixels shows no visible difference so far
 in Amazing Demo, DSC4 or SHAKER A (T). B1/B6 visual acceptance and P10 remain
 open; do not promote the tentative sprite improvement to a confirmed fix.
 
