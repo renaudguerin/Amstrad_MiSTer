@@ -88,6 +88,7 @@ module Amstrad_motherboard
 	// the CPU cannot execute until the owners settle yet the register
 	// load still lands. Non-SNA fixtures tie all of these to zero.
 	input         sna_hold,
+	input         save_hold,
 	input         sna_hsync,
 	input  [11:0] sna_dma_loop_cnt0,
 	input  [11:0] sna_dma_loop_cnt1,
@@ -226,7 +227,12 @@ module Amstrad_motherboard
 	output  [7:0] snap_psg_addr,
 	output [127:0] snap_psg_regs,
 
-	output  [7:0] snap_printer_data
+	output  [7:0] snap_printer_data,
+
+	// B18 slice 4a CPU observation ports
+	output [211:0] cpu_reg,
+	output        cpu_insn_start,
+	output        cpu_halt_n
 );
 
 wire crtc_shift;
@@ -308,8 +314,8 @@ assign snap_printer_data = printer_data;
 	.reset_n(~reset),
 
 	.clk(clk),
-	.cen_p(phi_en_p & ~sna_hold),
-	.cen_n(phi_en_n & ~sna_hold),
+	.cen_p(phi_en_p & ~sna_hold & ~save_hold),
+	.cen_n(phi_en_n & ~sna_hold & ~save_hold),
 
 	.a(A),
 	.do(D),
@@ -321,6 +327,7 @@ assign snap_printer_data = printer_data;
 	.mreq_n(MREQ_n),
 	.m1_n(M1_n),
 	.rfsh_n(RFSH_n),
+	.halt_n(cpu_halt_n),
 
 	.busrq_n(1),
 	.int_n(INT_n & ~irq),
@@ -329,6 +336,8 @@ assign snap_printer_data = printer_data;
 	// no_wait fast-timing option: correctness outranks the speed hack.
 	// dma_ppi_wait stalls the CPU when accessing PPI/PSG during DMA LOAD.
 	.wait_n((ready | (IORQ_n & MREQ_n) | no_wait) & ~plus_mem_wait & ~dma_ppi_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
+	.REG(cpu_reg),
+	.INSN_START(cpu_insn_start),
 	.DIRSet(sna_load),
 	.DIR(sna_cpu_dir)
 );

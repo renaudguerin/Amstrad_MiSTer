@@ -41,7 +41,19 @@ module t80_freeze_top(
   output t80_wr_n,
   output t80_m1_n,
   output t80_rfsh_n,
-  output t80_halt_n
+  output t80_halt_n,
+
+  // B18 slice 4a snapshot capture controller interface
+  input save_req,
+  input release_req,
+  input admit,
+  input rampage_ok,
+  input use_controller,
+  output ctrl_hold,
+  output captured,
+  output refused,
+  output cancelled,
+  output [2047:0] header
 );
 
   // Production clock divider from Amstrad.sv
@@ -83,11 +95,54 @@ module t80_freeze_top(
   // Motherboard wait equation (Amstrad_motherboard.v), plus the reference WAIT.
   wire cpu_wait_n = (ready_o | (IORQ_n & MREQ_n)) & ~ext_wait;
 
+  // Constant recognisable hw_hdr pattern: byte i = i.
+  wire [8*135-1:0] hw_hdr;
+  genvar gi;
+  generate
+    for (gi = 0; gi < 135; gi = gi + 1) begin : gen_hw_hdr
+      assign hw_hdr[gi*8 +: 8] = gi[7:0];
+    end
+  endgenerate
+
+  wire ctrl_hold_o;
+  wire captured_o;
+  wire refused_o;
+  wire cancelled_o;
+  wire busy_o;
+  wire [2047:0] header_o;
+
+  sna_save_capture capture(
+    .clk(clk),
+    .reset(reset),
+    .save_req(save_req),
+    .admit(admit),
+    .rampage_ok(rampage_ok),
+    .release_req(release_req),
+    .insn_start(insn_start),
+    .halt_n(HALT_n),
+    .cpu_reg(reg_state),
+    .hw_hdr(hw_hdr),
+    .hold(ctrl_hold_o),
+    .captured(captured_o),
+    .refused(refused_o),
+    .cancelled(cancelled_o),
+    .busy(busy_o),
+    .header(header_o)
+  );
+
+  assign ctrl_hold = ctrl_hold_o;
+  assign captured = captured_o;
+  assign refused = refused_o;
+  assign cancelled = cancelled_o;
+  assign header = header_o;
+
+  wire effective_hold = cpu_hold | (use_controller & ctrl_hold_o);
+
   T80pa cpu(
     .RESET_n(~(reset | cpu_reset)),
     .CLK(clk),
-    .CEN_p(phi_en_p & ~cpu_hold),
-    .CEN_n(phi_en_n & ~cpu_hold),
+    .CEN_p(phi_en_p & ~effective_hold),
+    .CEN_n(phi_en_n & ~effective_hold),
     .WAIT_n(cpu_wait_n),
     .INT_n(int_n),
     .NMI_n(nmi_n),
@@ -156,7 +211,15 @@ module t80_freeze_top(
     .SNA_LOAD(1'b0),
     .SNA_INKSEL(5'd0),
     .SNA_PALETTE(136'd0),
-    .SNA_CONFIG(8'd0)
+    .SNA_CONFIG(8'd0),
+    .SNAP_INKSEL(),
+    .SNAP_BORDER(),
+    .SNAP_INKR(),
+    .SNAP_HROMEN(),
+    .SNAP_LROMEN(),
+    .SNAP_MODE(),
+    .SNAP_INTCNT(),
+    .SNAP_HCNT()
   );
 
   assign phi_p = phi_en_p;
@@ -174,6 +237,6 @@ module t80_freeze_top(
   assign t80_halt_n = HALT_n;
 
   // Unused here; kept named so lint shows intent rather than a dangling net.
-  wire unused_ok = int_ack | BUSAK_n;
+  wire unused_ok = int_ack | BUSAK_n | busy_o;
 
 endmodule

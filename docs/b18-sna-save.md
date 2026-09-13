@@ -215,4 +215,25 @@ remaining fields need direct checks of the capture.
    the type 0 holdoff, and resetting on a VSYNC rising edge instead of on loads. The remaining
    byte conversions are checked by the capture fixture (acceptance 2), not by a mirror test.
 4. Writer: freeze controller, header latch, SDRAM stream, DDR3 slot publication, SSM hold-off.
+   **4a done (freeze controller and header latch).** `rtl/sna_save_capture.v` is an
+   IDLE/ARMED/HELD controller. A request is refused unless admitted with `RAMpage == 3`. While
+   armed, a second request or loss of admission cancels it. The freeze happens on the rising edge
+   of `INSN_START`: `hold` is registered from that clock, which is the entry slice 1 proved
+   equivalent to a hardware WAIT. The mapping is checked again at that boundary. The same clock
+   latches the 256-byte header: signature, version 3, REG bytes 11-2D with the HALT PC/R
+   adjustment, and `sna_hw_header` bytes 2E-B4. `hold` stays high until `release_req`. The
+   motherboard now takes `save_hold` beside `sna_hold` and exports `cpu_reg`, `cpu_insn_start` and
+   `cpu_halt_n`. `Amstrad.sv` ties `save_hold` low until 4b. Every Verilog T80pa stand-in ties the
+   new outputs off; TV80 cannot provide the predicate. `t80-freeze-test` adds five cases on
+   production T80:
+   - controller hold versus hardware WAIT inside LDIR and OTIR, including a request made while
+     `INSN_START` is already high;
+   - header CPU bytes derived from the continuation program;
+   - HALT with R bit 7 set;
+   - postponement across EI and DD runs, and cancel;
+   - refusal at request and at the boundary.
+
+   Four mutants fail: level-triggered freeze, no HALT adjustment, hold one clock late, and no
+   boundary mapping check. Still open for 4b: loss of admission while HELD (a download starting
+   during the stream) is not handled inside the controller.
 5. Integration: OSD action, host pull script, device test.
