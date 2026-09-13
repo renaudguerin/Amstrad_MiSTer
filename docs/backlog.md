@@ -20,10 +20,55 @@ Remaining physical video, active-mode and CRTC/title acceptance stay open.
 The [latest report](hardware-evidence-2026-09-12.md) confirms BASIC boot fixed
 on **6128 Plus / `5c16b17`**. Left-edge sprite corruption is much improved,
 possibly fixed; **Pang/Plotting fire always pressed and Copter 271's logo
-remain failing**. Copter 271 now has a source fix (PRI no longer fires on line
-256+n, `b5c3014`, 2026-09-13) awaiting a device recapture. Full versus Raw pixels shows no visible difference so far
+remain failing**. Copter 271's logo is fixed on device with `c595031` (PRI no
+longer fires on line 256+n). Full versus Raw pixels shows no visible difference so far
 in Amazing Demo, DSC4 or SHAKER A (T). B1/B6 visual acceptance and P10 remain
 open; do not promote the tentative sprite improvement to a confirmed fix.
+
+## Plus DCSR bit 7 reports raster on a DMA acknowledge (Copter 271 title flash)
+
+**Open, diagnosed 2026-09-13, not started.** On `c595031`, Copter 271's title
+flashes for one frame every 5-10 s: the sky under the logo is drawn with the
+logo palette (white/orange/red bands), then the next frame is correct. AmSpirit
+does not show it. Frame captures: `docs/defects/copter271-2026-09-13/screenshot1-5.png`
+(untracked, about 24 MB; frame 3 is the glitch, 2 and 4 are 60 fps/50 Hz blends).
+
+**Cause.** `docs/plus/references/asic-reference.md` §9 defines DCSR bit 7 as
+"last INT acknowledge was raster": the acknowledge decides it (cpcec
+`z80_irq_ack()` does the same). `rtl/plus/asic_ga_timing.v` (`last_raster`) instead
+sets the bit when the raster interrupt *fires*, even if the acknowledge in
+progress was a DMA interrupt's, and clears it only at the end of an empty
+acknowledge.
+
+**How Copter 271 hits it.** The game uses DMA channel A as a timer: its list
+pauses 154 lines then raises INT, drifting against the 312-line frame. The IM1
+handler at cart `0x0038` reads `&6C0F` about 14 µs after the acknowledge and
+dispatches on bit 7 (raster to `0x00D6`, else the DMA timer path). The title's
+raster chain (`0x1852`, state in `&80A1`) switches palettes at PRI lines &FF
+(logo palette from `&80B3`, PRI=&37), &37 (sky palette from `&80D3`, PRI=&A7 or
+&FF) and &A7 (pen 15). When a DMA INT lands on a PRI line, the CPU acknowledges
+the DMA, the raster fires a few µs later, and the handler already reads bit 7=1.
+It runs the raster step; the raster request is still pending and bit 7 still
+set, so the next acknowledge runs the following step immediately. That second
+step reloads the logo palette and sets PRI back to &37, so the rest of the frame
+keeps the logo palette. On hardware the DMA path runs first and the raster step
+follows a few lines late at most. Before the PRI fix the same slip showed over
+the logo instead.
+
+**Fix.** Latch `last_raster` at the start of each acknowledge from the raster
+request pending at that instant (pending: 1, otherwise 0) and hold it until the
+next acknowledge; drop the set-on-fire term. `pr05` (`sim/plus/asic_pri_test.cpp`)
+and `a08` (`sim/plus/asic_regs_test.cpp`) already agree with that rule; recheck
+the B8-5 snapshot DCSR bit-7 checks in `sim/plus/plus_p8_test.cpp`. Failing
+vector first: acknowledge a DMA-only interrupt, fire the raster before a DCSR
+read, require bit 7=0 on that read and 1 after the following acknowledge, with
+exactly one raster dispatch. Plus stream; device acceptance is the Copter 271
+title watched for about a minute with no flash.
+
+**Separate residual, not the cause.** A raster fire landing inside another
+interrupt's acknowledge window (IORQ with M1 low, under 1 µs) is cleared by that
+acknowledge and lost (`INT_N` block, `int_reset` beats `raster_fire`). Real-chip
+behaviour is unknown; note it only unless evidence appears.
 
 The active work is **B2 device capture** (`root@mister`, user reports online),
 **B6 diagnostic/final-RGB gaps**, and **actual source-review gap closure**.
