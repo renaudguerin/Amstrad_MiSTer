@@ -274,6 +274,12 @@ with the site's Amspirit references. The plan records the test/image mapping and
 keeps original references locally with attribution. Hardware remains the final
 authority; differing pixels alone do not establish which result is correct.
 
+**AmSpirit side-oracle.** [`scripts/amspirit/`](../scripts/amspirit/README.md) captures
+AmSpirit screenshots, machine state and SNA checkpoints independently of the MiSTer loop,
+per the [design](amspirit-oracle-design-2026-09-13.md). The
+[Copter 271 pilot](amspirit-oracle-pilot-2026-09-13.md) was accepted: its checkpoint SNA
+resumes on the device when the CPR is loaded first.
+
 ---
 
 ## B3. Whole-core Verilator frame harness
@@ -866,10 +872,10 @@ Work completed:
 
 ---
 
-## B16. CPR load selects a Plus model
+## B16. CPR and SNA loads select a Plus model
 
-**Filed 2026-09-13. Small quality-of-life change, open.** Loading a CPR leaves the machine
-model unchanged. With Plus model Off (`status[34:33] = 0`) the cartridge does not run until the
+**Filed 2026-09-13. Small quality-of-life change, open.** Loading a CPR or an SNA leaves the
+machine model unchanged. With Plus model Off (`status[34:33] = 0`) the cartridge does not run until the
 user sets 6128+ in the OSD and reloads. Device captures hit the same trap: `driver.py` loads the
 CPR through MGL but applies no settings.
 
@@ -881,6 +887,18 @@ already uses it for the `Fn[1]` toggle, so the core can publish the new model bi
 and the OSD shows the real selection. Check the ordering against the CPR apply/reset sequence
 (`cpr_finish_pending`, `cpr_apply_cnt`) so the model switch happens before the cartridge boots.
 Main persists the change only when the user saves settings.
+
+**SNA part.** An SNA v3 header records the machine at offset `0x6D` (0 464, 1 664, 2 6128,
+3 unknown, 4 6128 Plus, 5 464 Plus, 6 GX4000; `docs/references/Snapshot (.SNA) file format.md`).
+`Amstrad.sv` reads that byte only to pick the RAM map (`sna_model`), and the `CPC+` chunk
+does not switch Plus mode on either. So a Plus snapshot loaded with Plus model Off restores
+into a classic machine. Intended behaviour: when the SNA is applied, set `status[34:33]` from
+the header in the same restore (4 to 6128+ = 2, 5 to 464+ = 3, 6 to GX4000 = 1), through the
+same `status_set` path as the CPR case, before the CPU resumes. Decide separately whether a
+classic header (0-2) should switch Plus model Off; the classic Model field `[5:4]` is a related
+but different question. A cartridge title's snapshot still needs its CPR loaded first, since
+the SNA does not carry the cartridge ROM (see the
+[AmSpirit pilot](amspirit-oracle-pilot-2026-09-13.md)).
 
 ---
 
