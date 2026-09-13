@@ -7,30 +7,22 @@ implementation; Gemini continued the repairs, with independent Sol reviews and
 parent integration. Claude was not retried after its quota was depleted.
 
 Phase 0/1 repairs cover controlled zero-header startup, read failures, marker
-naming, wait deadlines and stalled-write lifecycle. The Phase 2 prototype adds
-exclusive HH-fetch cuts, protected prehistory, sealed window generations,
-record commit identities and host reconstruction. A shared production recorder
-subsystem is exercised by the composition fixture. Configuration changes stop
-new ingestion while old accepted work drains, then begin a fresh epoch.
-The recorder remains **compile-time default off** (`SSM_SAMPLE_RECORDER` undefined).
+naming, wait deadlines and stalled-write lifecycle. Phase 1 (format-1 event ring
+in `rtl/ssm_marker.v` and `csl_runner.py`) was fully verified on real hardware:
+Module A executed cleanly across CRTC 0 (122 captures) and CRTC 1 (124 captures)
+with zero ring drops and byte-identical CFG restoration.
 
-The opt-in `ssm_capture.py live` path preserves raw samples and JSON metadata,
-with a labelled cropped PPM when a surface exists. Completeness requires supported
-applied cadence, consistent identities, retained samples and profile geometry;
-native profiles remain declared assumptions rather than device calibration.
-Final source review is **CLEAR** from Sol and Gemini; full simulation, focused host
-and recorder/composition tests, lint and the unchanged soak hash pass. The
-[review record](csl-ssm-design-review-2026-09-12.md) records the accepted scope and evidence.
+The experimental Phase 2 sample recorder was **retired and pruned** following
+author Longshot's confirmation that all SHAKER test result screens are visually
+stable around SSM markers (making Phase 1 asynchronous native captures 100% faithful)
+and independent review from Claude Opus 5 (`20260913T072642Z-13878-c99b`, CLEAR).
+Pruning eliminates dead code, an unreserved 17 MiB memory collision hazard, and
+unverified Cyclone V timing debt; the ABI and resurrection path remain documented in
+[`docs/ssm-capture-abi.md`](ssm-capture-abi.md).
 
-The merged local gates pass: full simulation, 183 host tests, lint and soak
-`0xb1cb70da95c2e44f`. Publication invokes the normal push-triggered full synthesis.
-That default build leaves the Phase 2 recorder disabled and does not establish its fit
-or timing. Next: establish the DDR allocation and visibility/atomicity contract, then
-obtain an enabled-recorder synthesis/timing result before the bounded device run. Neither
-ring magic nor `--ssm-base` proves allocation safety or relocates the FPGA writer.
-Measure paired-state dwell, marker distribution, throughput and host service time.
-The workbook's 712 rows (483 CRTC 0, 478 CRTC 1) remain coverage targets, not
-observed device emissions. See the [plan](csl-ssm-implementation-plan.md),
+The active gates pass: full simulation, host tests, lint and soak
+`0xb1cb70da95c2e44f`. The workbook's 712 rows (483 CRTC 0, 478 CRTC 1) remain
+coverage targets, with Module A and Gate 1 (Module B) completed. See the [plan](csl-ssm-implementation-plan.md),
 [marker evidence](shaker-ssm-marker-inventory-2026-09-12.md),
 [driver guide](mister-hardware-loop-driver.md#the-csl-runner),
 [capture ABI](ssm-capture-abi.md) and [remaining review debt](review-debt.md).

@@ -79,25 +79,12 @@ module ssm_marker #(
 	input             vsync,
 	input             field,
 
-	// Logical sample count of the phase 2 sample recorder, if one is
-	// compiled in. Tie to zero otherwise: the ring does not use it, and the
-	// recorder needs the cut latched here, at the fetch boundary, rather
-	// than reconstructed from the later `hit`.
-	input      [63:0] sample_count,
-
-	// Observation for simulation, for the runner's sanity checks and for the
-	// phase 2 recorder. `event_stb` is one clock wide; every `event_*` output
-	// beside it is valid on that clock.
+	// Observation for simulation and harness sanity checks. `event_stb` is one
+	// clock wide when a marker is detected.
 	output reg [15:0] last_code,
 	output reg [31:0] event_count,
 	output reg  [7:0] dropped_count,
 	output            event_stb,
-	output            event_capture,
-	output     [15:0] event_code,
-	output     [31:0] event_tick,
-	output     [63:0] event_cut,
-	output     [63:0] event_rec_a,
-	output     [63:0] event_rec_b,
 
 	// DDR3 master, Avalon-style with waitrequest.
 	output reg [28:0] ddram_addr,
@@ -166,15 +153,11 @@ reg [7:0] fetch_data = 8'd0;
 reg       fetch_stb  = 1'b0;
 
 // The fetch is complete on the first clock where the level is seen low. This
-// clock's `tick`, raster position and sample count are the marker's cut. A
-// sample consumed on this same clock edge is *excluded*: `sample_count`
-// increments at the edge that ends this cycle, so the value read here is the
-// count before that sample.
+// clock's `tick` and raster position are the marker's timestamp.
 wire fetch_end = m1_fetch_d & ~m1_fetch;
 
 reg [31:0] tick_at_fetch = 32'd0;
 reg [42:0] pos_at_fetch  = 43'd0;   // {field, hpos, line, frame}
-reg [63:0] cut_at_fetch  = 64'd0;
 
 always @(posedge clk) begin
 	m1_fetch_d <= m1_fetch;
@@ -190,12 +173,10 @@ always @(posedge clk) begin
 	if (!active) begin
 		tick_at_fetch <= 32'd0;
 		pos_at_fetch  <= 43'd0;
-		cut_at_fetch  <= 64'd0;
 	end
 	else if (fetch_end) begin
 		tick_at_fetch <= tick;
 		pos_at_fetch  <= {field, hpos, line, frame};
-		cut_at_fetch  <= sample_count;
 	end
 end
 
@@ -229,19 +210,8 @@ reg        hit = 1'b0;
 reg [15:0] hit_code = 16'd0;
 reg [31:0] hit_tick = 32'd0;
 reg [42:0] hit_pos  = 43'd0;
-reg [63:0] hit_cut  = 64'd0;
 
-// SSM v1.1 reserves #0000 and every #FFxx. #FFFE is the screenshot-with-a-CSL-
-// name variant; every non-reserved code is itself a screenshot request. The
-// other reserved codes are telemetry only and must not pin sample windows.
-wire hit_is_capture = (hit_code == 16'hFFFE)
-                   || !((hit_code == 16'h0000) || (hit_code[15:8] == 8'hFF));
-
-assign event_stb     = hit;
-assign event_capture = hit & hit_is_capture;
-assign event_code    = hit_code;
-assign event_tick    = hit_tick;
-assign event_cut     = hit_cut;
+assign event_stb = hit;
 
 always @(posedge clk) begin
 	hit <= 1'b0;
@@ -282,7 +252,6 @@ always @(posedge clk) begin
 					// completed, two clocks ago.
 					hit_tick <= tick_at_fetch;
 					hit_pos  <= pos_at_fetch;
-					hit_cut  <= cut_at_fetch;
 				end
 				state <= S_ED1;
 			end
@@ -335,9 +304,6 @@ wire          [28:0] slot_off = {{(28-SLOT_BITS){1'b0}}, slot, 1'b0};
 // not the instant the DDR3 port got around to accepting the write.
 wire [63:0] capture_a = {5'd0, hit_pos, hit_code};
 wire [63:0] capture_b = {16'd0, hit_tick, event_count[15:0]};
-
-assign event_rec_a = capture_a;
-assign event_rec_b = capture_b;
 
 always @(posedge clk) begin
 	if (!active) begin

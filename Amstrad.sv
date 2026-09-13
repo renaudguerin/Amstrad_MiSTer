@@ -1620,10 +1620,6 @@ wire [63:0] ssm_ddr_din;
 wire  [7:0] ssm_ddr_be, ssm_ddr_burstcnt;
 wire        ssm_ddr_we, ssm_ddr_busy;
 
-wire        ssm_event_capture;
-wire [63:0] ssm_event_rec_a, ssm_event_rec_b, ssm_event_cut;
-wire [63:0] ssm_sample_count;
-
 ssm_marker ssm
 (
 	.clk(clk_sys),
@@ -1638,18 +1634,10 @@ ssm_marker ssm
 	.vsync(vs),
 	.field(VGA_F1),
 
-	.sample_count(ssm_sample_count),
-
 	.last_code(),
 	.event_count(),
 	.dropped_count(),
 	.event_stb(),
-	.event_capture(ssm_event_capture),
-	.event_code(),
-	.event_tick(),
-	.event_cut(ssm_event_cut),
-	.event_rec_a(ssm_event_rec_a),
-	.event_rec_b(ssm_event_rec_b),
 
 	.ddram_addr(ssm_ddr_addr),
 	.ddram_din(ssm_ddr_din),
@@ -1659,66 +1647,12 @@ ssm_marker ssm
 	.ddram_busy(ssm_ddr_busy)
 );
 
-//////////////////////////////////////////////////////////////////////
-// Experimental phase 2 sample recorder. COMPILE-TIME DEFAULT OFF.
-//
-// Define SSM_SAMPLE_RECORDER to build it. Doing so needs a separately reviewed
-// DDR3 allocation for the whole capture region (16 MiB of payload plus the
-// descriptor and record tables at SSM_CAP_BASE), which has not been obtained.
-// Without the define the event ring owns the port exactly as it did before,
-// and the video observation tap has no reader.
-
-`ifdef SSM_SAMPLE_RECORDER
-
-ssm_recorder_subsystem ssm_recorder_sub
-(
-	.clk(clk_sys),
-	.reset(reset),
-	.enable(ssm_enable & obs_native_cadence),
-
-	.smp_ce(obs_ce_pix),
-	.smp_r(obs_r), .smp_g(obs_g), .smp_b(obs_b),
-	.smp_hbl(obs_hbl), .smp_vbl(obs_vbl),
-	.smp_hs(obs_hs), .smp_vs(obs_vs), .smp_field(obs_field),
-	.applied_config(obs_applied_config),
-
-	.cap_stb(ssm_event_capture),
-	.cap_rec_a(ssm_event_rec_a),
-	.cap_rec_b(ssm_event_rec_b),
-	.cap_cut(ssm_event_cut),
-
-	.c0_addr(ssm_ddr_addr),
-	.c0_din(ssm_ddr_din),
-	.c0_be(ssm_ddr_be),
-	.c0_burstcnt(ssm_ddr_burstcnt),
-	.c0_we(ssm_ddr_we),
-	.c0_busy(ssm_ddr_busy),
-
-	.sample_count(ssm_sample_count),
-
-	.ready(), .image_loss_count(), .forced_expiry_count(),
-	.capture_alloc(), .capture_dropped(), .captures_published(), .epoch(),
-
-	.ddram_addr(DDRAM_ADDR),
-	.ddram_din(DDRAM_DIN),
-	.ddram_be(DDRAM_BE),
-	.ddram_burstcnt(DDRAM_BURSTCNT),
-	.ddram_we(DDRAM_WE),
-	.ddram_busy(DDRAM_BUSY)
-);
-
-`else
-
-assign ssm_sample_count = 64'd0;
-
 assign DDRAM_ADDR     = ssm_ddr_addr;
 assign DDRAM_DIN      = ssm_ddr_din;
 assign DDRAM_BE       = ssm_ddr_be;
 assign DDRAM_BURSTCNT = ssm_ddr_burstcnt;
 assign DDRAM_WE       = ssm_ddr_we;
 assign ssm_ddr_busy   = DDRAM_BUSY;
-
-`endif
 
 assign DDRAM_CLK = clk_sys;
 
