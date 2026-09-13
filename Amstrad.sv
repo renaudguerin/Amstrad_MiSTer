@@ -247,7 +247,7 @@ wire [24:0] sna_mem_addr = ioctl_addr - 25'h100;
 wire [15:0] sna_std_mem_size = (sna_mem_size > 16'd128) ? 16'd128 : sna_mem_size;
 wire [24:0] sna_chunk_start = 25'h100 + {sna_std_mem_size[14:0], 10'd0};
 
-reg [211:0] sna_cpu_dir = 212'd0;
+wire [211:0] sna_cpu_dir;
 // The selected video/GA header fields (10, 2E, 2F-3F, 40, 42, 43-54, 55,
 // A9-B4) are decoded by rtl/plus/plus_sna_header.v instead of inline here, so
 // the P8 fixture drives the same decoder from a real byte stream (B8-5).
@@ -256,16 +256,28 @@ wire [143:0] sna_crtc_regs;
 wire  [4:0] sna_ga_inksel;
 wire [135:0] sna_ga_palette;
 wire  [7:0] sna_ga_config;
-reg   [7:0] sna_ram_config = 8'd0;
+// The Z80/PPI/PSG/RAM-config/memory-size header fields (11-2D, 41, 56-59,
+// 5A-6A, 6B-6D) are decoded by rtl/sna_cpu_header.v instead of inline here,
+// so the B18 round-trip fixture drives the same decoder from a real byte
+// stream (B18 slice 2).
+wire  [7:0] sna_ram_config;
 wire  [7:0] sna_rom_select;
-reg   [7:0] sna_ppi_a = 8'd0;
-reg   [7:0] sna_ppi_b = 8'd0;
-reg   [7:0] sna_ppi_c = 8'd0;
-reg   [7:0] sna_ppi_control = 8'h9b;
-reg   [3:0] sna_psg_addr = 4'd0;
-reg [127:0] sna_psg_regs = 128'd0;
-reg  [15:0] sna_mem_size = 16'd64;
-reg   [1:0] sna_model = 2'd0;
+wire  [7:0] sna_ppi_a;
+wire  [7:0] sna_ppi_b;
+wire  [7:0] sna_ppi_c;
+wire  [7:0] sna_ppi_control;
+wire  [3:0] sna_psg_addr;
+wire [127:0] sna_psg_regs;
+wire  [15:0] sna_mem_size;
+// sna_model single-driver design (B18 slice 2): the header-decoded model
+// lives in sna_cpu_header (its only procedural driver is that module's
+// always block), while the MEM1/CPC+ chunk parser below owns the registered
+// sna_chunk_force_128k flag. sna_model is their combination, so every
+// consumer (boot_bank, mem_bank, model) sees one value with no multi-driver.
+wire  [1:0] sna_hdr_model;
+reg           sna_chunk_force_128k = 1'b0;
+wire  [1:0] sna_model;
+assign sna_model = sna_chunk_force_128k ? 2'd0 : sna_hdr_model;
 wire  [2:0] sna_apply_cnt;
 wire        sna_finish_pending;
 wire        sna_load;
@@ -325,6 +337,54 @@ plus_sna_header sna_header
 	.int_pending(sna_int_pending)
 );
 
+// Declared before sna_cpu_header below: a port connection to a
+// not-yet-declared name becomes a 1-bit implicit net in Quartus (Warning
+// 10236, which CI rejects) instead of a forward reference.
+function automatic [1:0] valid_model(input [1:0] requested);
+	begin
+		valid_model = (requested == 2'd3) ? 2'd0 : requested;
+	end
+endfunction
+
+wire [1:0] menu_model = valid_model(status[5:4]);
+
+// Z80/PPI/PSG/RAM-config/memory-size header decode, shared with the B18
+// save/reload fixture. `wr`/`addr`/`data` are exactly the old inline
+// condition: a header byte of the snapshot currently downloading.
+//
+// Timing argument for sna_model: the header bytes (offsets < 0x100) always
+// arrive before any chunk header (which starts at sna_chunk_start >= 0x100),
+// and the chunk parser only sets sna_chunk_force_128k, never clears it, while
+// sna_hdr_model never changes after the header phase (a chunk-phase write has
+// addr >= 0x100, so the module's `wr` is low). The combination therefore
+// settles exactly as the old single register did: header-decoded value until
+// the first MEM1/CPC+ chunk header completes, 2'd0 from the next cycle on.
+// The download-start clear of the flag and the module's reset to menu_model
+// fire on the same edge cycle (see the module header comment), so the first
+// post-start value is menu_model, as before. Clocked consumers (boot_bank,
+// model) sample the combination one cycle after each source update, matching
+// the old nonblocking-update visibility.
+sna_cpu_header sna_cpu_header
+(
+	.clk(clk_sys),
+	.sna_download(sna_download),
+	.wr(sna_download && ioctl_wr && (ioctl_addr < 25'h100)),
+	.addr(ioctl_addr[7:0]),
+	.data(ioctl_dout),
+	.menu_model(menu_model),
+
+	.cpu_dir(sna_cpu_dir),
+	.ram_config(sna_ram_config),
+	.ppi_a(sna_ppi_a),
+	.ppi_b(sna_ppi_b),
+	.ppi_c(sna_ppi_c),
+	.ppi_control(sna_ppi_control),
+	.psg_addr(sna_psg_addr),
+	.psg_regs(sna_psg_regs),
+	.mem_size(sna_mem_size),
+	.model(sna_hdr_model)
+);
+
 wire [11:0] plus_sna_loop_cnt0;
 wire [11:0] plus_sna_loop_cnt1;
 wire [11:0] plus_sna_loop_cnt2;
@@ -369,14 +429,6 @@ wire        plus_sna_ioctl_wait;
 wire        plus_sna_busy;
 
 assign ioctl_wait = romdl_wait | (sna_download && ((|sna_rle_count && (sna_rle_state == 2'd0)) || plus_sna_ioctl_wait)) | cpr_ioctl_wait | tape_queue_wait;
-
-function automatic [1:0] valid_model(input [1:0] requested);
-	begin
-		valid_model = (requested == 2'd3) ? 2'd0 : requested;
-	end
-endfunction
-
-wire [1:0] menu_model = valid_model(status[5:4]);
 
 // A 8MB bank is split to 2 halves
 // Fist 4 MB is OS ROM + RAM pages + MF2 ROM
@@ -493,70 +545,8 @@ always @(posedge clk_sys) begin
 			if(ioctl_file_ext[15:0] == "Z0") begin page <= 0; combo <= 1; end
 		end
 	end
-	if(sna_download && ioctl_wr && (ioctl_addr < 25'h100)) begin
-		case(ioctl_addr[7:0])
-			8'h11: sna_cpu_dir[15:8]    <= ioctl_dout;          // F
-			8'h12: sna_cpu_dir[7:0]     <= ioctl_dout;          // A
-			8'h13: sna_cpu_dir[87:80]   <= ioctl_dout;          // C
-			8'h14: sna_cpu_dir[95:88]   <= ioctl_dout;          // B
-			8'h15: sna_cpu_dir[103:96]  <= ioctl_dout;          // E
-			8'h16: sna_cpu_dir[111:104] <= ioctl_dout;          // D
-			8'h17: sna_cpu_dir[119:112] <= ioctl_dout;          // L
-			8'h18: sna_cpu_dir[127:120] <= ioctl_dout;          // H
-			8'h19: sna_cpu_dir[47:40]   <= ioctl_dout;          // R
-			8'h1a: sna_cpu_dir[39:32]   <= ioctl_dout;          // I
-			8'h1b: sna_cpu_dir[210]     <= ioctl_dout[0];       // IFF1
-			8'h1c: sna_cpu_dir[211]     <= ioctl_dout[0];       // IFF2
-			8'h1d: sna_cpu_dir[135:128] <= ioctl_dout;          // IX low
-			8'h1e: sna_cpu_dir[143:136] <= ioctl_dout;          // IX high
-			8'h1f: sna_cpu_dir[199:192] <= ioctl_dout;          // IY low
-			8'h20: sna_cpu_dir[207:200] <= ioctl_dout;          // IY high
-			8'h21: sna_cpu_dir[55:48]   <= ioctl_dout;          // SP low
-			8'h22: sna_cpu_dir[63:56]   <= ioctl_dout;          // SP high
-			8'h23: sna_cpu_dir[71:64]   <= ioctl_dout;          // PC low
-			8'h24: sna_cpu_dir[79:72]   <= ioctl_dout;          // PC high
-			8'h25: sna_cpu_dir[209:208] <= ioctl_dout[1:0];     // IM
-			8'h26: sna_cpu_dir[31:24]   <= ioctl_dout;          // F'
-			8'h27: sna_cpu_dir[23:16]   <= ioctl_dout;          // A'
-			8'h28: sna_cpu_dir[151:144] <= ioctl_dout;          // C'
-			8'h29: sna_cpu_dir[159:152] <= ioctl_dout;          // B'
-			8'h2a: sna_cpu_dir[167:160] <= ioctl_dout;          // E'
-			8'h2b: sna_cpu_dir[175:168] <= ioctl_dout;          // D'
-			8'h2c: sna_cpu_dir[183:176] <= ioctl_dout;          // L'
-			8'h2d: sna_cpu_dir[191:184] <= ioctl_dout;          // H'
-			8'h41: sna_ram_config       <= ioctl_dout;
-			8'h56: sna_ppi_a            <= ioctl_dout;
-			8'h57: sna_ppi_b            <= ioctl_dout;
-			8'h58: sna_ppi_c            <= ioctl_dout;
-			8'h59: sna_ppi_control      <= ioctl_dout;
-			8'h5a: sna_psg_addr         <= ioctl_dout[3:0];
-			8'h6b: sna_mem_size[7:0]    <= ioctl_dout;
-			8'h6c: begin
-				sna_mem_size[15:8] <= ioctl_dout;
-				if({ioctl_dout, sna_mem_size[7:0]} > 16'd64) sna_model <= 2'd0;
-				else if(sna_cpu_dir[79:64] == 16'h0038) sna_model <= 2'd2;
-			end
-			8'h6d: begin
-				if(sna_mem_size > 16'd64) sna_model <= 2'd0;
-				else begin
-					case(ioctl_dout)
-						8'd0: sna_model <= 2'd2; // CPC464
-						8'd1: sna_model <= 2'd1; // CPC664
-						8'd2, 8'd4, 8'd5, 8'd6: sna_model <= 2'd0; // 6128/464+/6128+/GX snapshots need the 128K map.
-					endcase
-				end
-			end
-		endcase
-
-		if(ioctl_addr[7:0] >= 8'h5b && ioctl_addr[7:0] <= 8'h6a)
-			sna_psg_regs[((ioctl_addr[7:0] - 8'h5b) * 8) +: 8] <= ioctl_dout;
-	end
 	if(~old_download & ioctl_download & sna_download) begin
-		sna_cpu_dir <= 212'd0;
-		sna_psg_regs <= 128'd0;
-		sna_mem_size <= 16'd64;
-		sna_model <= menu_model;
-		sna_ppi_control <= 8'h9b;
+		sna_chunk_force_128k <= 1'b0;
 		sna_chunk_name <= 32'd0;
 		sna_chunk_len <= 32'd0;
 		sna_chunk_rem <= 32'd0;
@@ -602,11 +592,11 @@ always @(posedge clk_sys) begin
 					sna_chunk_finish <= 1'b0;
 					sna_chunk_bank <= next_name[3:0];
 					if((next_name[31:24] == "M") && (next_name[23:16] == "E") &&
-					   (next_name[15:8] == "M") && (next_name[7:0] == "1")) sna_model <= 2'd0;
+					   (next_name[15:8] == "M") && (next_name[7:0] == "1")) sna_chunk_force_128k <= 1'b1;
 					if((next_name[31:24] == "C") && (next_name[23:16] == "P") &&
 					   (next_name[15:8] == "C") && (next_name[7:0] == "+")) begin
 						sna_cpc_plus_start <= 1'b1;
-						sna_model <= 2'd0;
+						sna_chunk_force_128k <= 1'b1;
 					end
 					sna_chunk_out <= 16'd0;
 					sna_rle_state <= 2'd0;

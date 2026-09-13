@@ -43,7 +43,7 @@ crt-filter-blank-build: $(CRTF_TEST_BIN)
 crt-filter-blank-test: $(CRTF_TEST_BIN)
 	$(CRTF_TEST_BIN)
 
-test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test video-output-test ssm-marker-test
+test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test video-output-test ssm-marker-test sna-cpu-header-test
 	$(TEST_BIN)
 	$(MAKE) -C plus test
 	$(MAKE) -C ../rtl/GA40010 test
@@ -84,6 +84,7 @@ lint:
 		-Wall -Wno-fatal $(VIDEO_COLOR_SRC)
 	$(VERILATOR) --lint-only --top-module $(TOP) -Wall -Wno-fatal $(RTL)
 	$(VERILATOR) --lint-only --top-module $(CRTF_TOP) -Wall -Wno-fatal $(CRTF_TOP_SRC) $(CRTF_RTL)
+	$(VERILATOR) --lint-only --top-module sna_cpu_header -Wall -Wno-fatal ../rtl/sna_cpu_header.v
 	$(MAKE) -C plus lint
 	$(MAKE) -C ../rtl/GA40010 lint
 	$(MAKE) -C ../rtl/u765 lint
@@ -235,5 +236,20 @@ $(SSM_BIN): $(SSM_SRC) ssm_marker_test.cpp Makefile
 	$(VERILATOR) --cc --exe --build --top-module ssm_marker_top -UVERILATOR \
 		--Mdir $(OBJ_DIR)/ssm_marker +1364-2001ext+.v +1800-2017ext+.sv -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o ssm_marker_tests $(SSM_SRC) $(abspath ssm_marker_test.cpp)
+
+# B18 slice 2: SNA Z80/PPI/PSG/RAM-config/memory-size header decode. The DUT
+# is directly drivable (plain byte-stream ports), so no wrapper top is needed.
+SNA_CPU_HDR_RTL := ../rtl/sna_cpu_header.v
+SNA_CPU_HDR_BIN := $(OBJ_DIR)/sna_cpu_header/sna_cpu_header_tests
+
+.PHONY: sna-cpu-header-test
+sna-cpu-header-test: $(SNA_CPU_HDR_BIN)
+	$<
+
+$(SNA_CPU_HDR_BIN): $(SNA_CPU_HDR_RTL) sna_cpu_header_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/sna_cpu_header
+	$(VERILATOR) --cc --exe --build --top-module sna_cpu_header \
+		--Mdir $(OBJ_DIR)/sna_cpu_header -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o sna_cpu_header_tests $(SNA_CPU_HDR_RTL) $(abspath sna_cpu_header_test.cpp)
 
 
