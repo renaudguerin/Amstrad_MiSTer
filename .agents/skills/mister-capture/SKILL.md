@@ -84,7 +84,7 @@ Procedure, with `$S` a scratchpad directory:
 ```sh
 ssh root@mister 'base64 < /media/fat/config/Amstrad.CFG' | base64 -d > $S/Amstrad.CFG.orig
 shasum -a 256 $S/Amstrad.CFG.orig        # record this: restore must match it
-python3 -c "d=bytearray(open('$S/Amstrad.CFG.orig','rb').read()); d[4]|=0x02; open('$S/Amstrad.CFG.new','wb').write(d)"   # example: 6128+
+python3 -c "d=bytearray(open('$S/Amstrad.CFG.orig','rb').read()); d[4]=(d[4]&~0x06)|0x04; open('$S/Amstrad.CFG.new','wb').write(d)"   # example: 6128+ (bits 34:33 = 2)
 scp -O -q $S/Amstrad.CFG.new root@mister:/media/fat/config/Amstrad.CFG
 ssh root@mister 'sha256sum /media/fat/config/Amstrad.CFG'   # must equal the new file's hash
 ```

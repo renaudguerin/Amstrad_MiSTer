@@ -46,9 +46,22 @@ of latency). They are AmSpirit metadata and do not identify MiSTer state.
 - **Snapshot resumes and responds to input, AmSpirit side:** yes. The checkpoint SNA
   reloaded into AmSpirit continued the credit sequence from the saved point, and fire then
   opened the options menu.
-- **Snapshot resumes on the MiSTer:** open. It needs a device load of the checkpoint SNA
-  (F6) on a 6128 Plus configuration. The SNA is v3, model 4, CRTC 3, 128 KiB, chunks
-  `CPC+` 2,296 bytes and `SPRT` 1,626,514 bytes; `SPRT` is not applied by our core.
+- **Snapshot resumes on the MiSTer:** yes, with the cartridge loaded first. Device RBF
+  `Amstrad_20260913_05cb9fd.rbf` (SHA-256 `a81d89cc…9659af`; the only later RTL commit,
+  `a0778b6`, resets PSG R7 and does not touch the SNA path), `Amstrad.CFG` Plus model
+  6128+ (byte 4 `0x04`), restored to the original hash afterwards. The credits-screen SNA
+  is v3, model 4, CRTC 3, 128 KiB, chunks `CPC+` 2,296 bytes and `SPRT` 1,626,514 bytes;
+  our core ignores `SPRT`.
+  - SNA alone (MGL F6): the machine hangs on vertical bars. The snapshot holds RAM and
+    registers, not the cartridge ROM the game runs from.
+  - MGL loading the CPR (F8, delay 1 s) then the SNA (F6, delay 5 s): the Loriciel boot
+    screen at 4 s, then the "Coding" credits page the snapshot was saved on at 11 s, followed
+    by the same credits sequence as AmSpirit. A cartridge boot without the snapshot shows the
+    title's meteor and helicopter phases for about 45 s before any credits, so this is the
+    snapshot resuming, not the attract loop restarting.
+  - Input after the load on the MiSTer is untested: Copter 271 reacts to joystick fire,
+    and MBC injects keyboard codes only, which never reach matrix row 9.
+  Evidence: `mister/` in the evidence directory (MGL, captures, CFG before and after).
 - **Configuration mismatches recorded:** none on the AmSpirit side. A joint run must still
   record the MiSTer's Plus model and sync filter, since the classic CRTC numbering does not
   map onto AmSpirit type 3.

@@ -4,8 +4,9 @@
 `scripts/amspirit/amspirit.py` loads media, paces input on emulated frames, and captures
 a paused checkpoint (screenshot, state endpoints, SNA with chunk list) with a manifest.
 The [Copter 271 title pilot](amspirit-oracle-pilot-2026-09-13.md) ran it end to end on
-AmSpirit lite 1.15.1; the checkpoint SNA resumes and takes input in AmSpirit. Open: load
-that SNA on the MiSTer (F6, 6128 Plus) and confirm it resumes. No RTL change.
+AmSpirit lite 1.15.1; the checkpoint SNA resumes and takes input in AmSpirit, and resumes
+on the MiSTer (`05cb9fd`, 6128+) when an MGL loads the CPR before the SNA. Joystick input
+after a device load is untested (MBC reaches the keyboard only). No RTL change.
 
 **Plus DCSR bit-7 acknowledge fix (B19), 2026-09-13, integrated into `master`:**
 `last_raster` (`rtl/plus/asic_ga_timing.v`) now latches at each INT-acknowledge

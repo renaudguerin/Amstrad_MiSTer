@@ -3,8 +3,8 @@
 Written 2026-09-13. Stream: **general** (shared host tooling; no RTL).
 Status: **reviewed; Track G pilot and helper implemented.** Helper:
 [`scripts/amspirit/`](../scripts/amspirit/README.md). Pilot:
-[Copter 271 title](amspirit-oracle-pilot-2026-09-13.md), AmSpirit side accepted; the
-MiSTer-side resume of the checkpoint SNA is still open.
+[Copter 271 title](amspirit-oracle-pilot-2026-09-13.md), accepted: the checkpoint SNA
+resumes in AmSpirit and, after loading the cartridge first, on the MiSTer.
 
 Goal: use the AmSpirit emulator — LUA scripting plus HTTP API — as a
 reference oracle when debugging core issues, alongside (but decoupled from)
@@ -148,6 +148,11 @@ RBF/configuration, observed continuation after load, SNA version and chunks
 present, ignored state, and cartridge/ROM prerequisites all recorded. A
 snapshot that resumes and plays on is evidence; a snapshot that merely loads
 is not.
+
+A cartridge title's SNA does not carry the cartridge ROM. On the MiSTer, load
+the CPR first and the SNA a few seconds later (one MGL with two `file`
+entries); the SNA alone hangs the machine. Plus model must be set in the CFG
+beforehand, since neither a CPR nor an SNA `CPC+` chunk selects it.
 
 MiSTer-side snapshot *saving* is under development on a parallel branch (not
 ready; this design neither depends on it nor touches it). If that lands, the

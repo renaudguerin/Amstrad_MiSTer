@@ -277,8 +277,8 @@ authority; differing pixels alone do not establish which result is correct.
 **AmSpirit side-oracle.** [`scripts/amspirit/`](../scripts/amspirit/README.md) captures
 AmSpirit screenshots, machine state and SNA checkpoints independently of the MiSTer loop,
 per the [design](amspirit-oracle-design-2026-09-13.md). The
-[Copter 271 pilot](amspirit-oracle-pilot-2026-09-13.md) accepted the AmSpirit side; loading
-its checkpoint SNA on the device and seeing it resume remains open.
+[Copter 271 pilot](amspirit-oracle-pilot-2026-09-13.md) was accepted: its checkpoint SNA
+resumes on the device when the CPR is loaded first.
 
 ---
 
