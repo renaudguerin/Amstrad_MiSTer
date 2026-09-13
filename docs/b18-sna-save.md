@@ -2,8 +2,8 @@
 
 Design position for backlog B18. Scope for this branch is a classic SNA v3 writer (header
 plus 64K/128K memory dump). The CPC+ chunk is a later Plus-scope slice that reuses the same
-freeze and transport. The Astra high design review of 2026-09-13 returned REWORK. Its
-findings, checked against source, are folded in below.
+freeze and transport. Two Astra high design reviews on 2026-09-13 returned REWORK, the second
+with no blocker. Their findings, checked against source, are folded in below.
 
 ## Transport: core writes a DDR3 slot, host pulls it
 
@@ -19,10 +19,14 @@ stays loaded.
   classic 128K v3 file is 0x20100 bytes; a CPC+ chunk adds 0x900. The live HPS kernel
   reservation of this range is unverified; check `/proc/iomem` on the device before the
   hardware test.
-- **Publication.** The writer invalidates the header first, writes the payload, and only then
-  publishes length and counter. The host pull reads the counter before and after copying
-  and retries if it changed. Only one save runs at a time. `ssm_marker` shares the DDR3 master
-  and is held off while a save owns it; it already counts dropped events.
+- **Publication.** Word 0 carries an explicit invalid generation (all ones) while a save is in
+  progress. The writer writes it first, then the payload, then the length, and last the new
+  generation. The host pull rejects the invalid generation and any length that is not a legal SNA
+  size. It copies only when it reads the same valid generation before and after the copy. Only one
+  save runs at a time.
+- **SSM coexistence.** `ssm_marker` shares the DDR3 master. While a save owns it, the marker
+  sees `ddram_busy=1`. Its write handshake already holds a stalled transaction rather than
+  dropping it (`ssm_marker.v:310-315, 359-360`), so no event is lost to the mux.
 - **No `SS` CONF_STR declaration yet.** Without an `FS` load, Main only records the
   parameters (`process_ss` never enables), so declaring `SS` buys nothing today.
 
@@ -55,8 +59,8 @@ incremented, and the fetch is outstanding on the bus.
 some opcodes act on the T2 tick of the next fetch:
 
 - `EI` (`SetEI`) sets IFF1/IFF2 there (`T80.vhd:1253`), and suppresses interrupt acceptance
-  for one instruction.
-- `RETN` (`I_RETN`) copies IFF2 into IFF1 there.
+  for one instruction. `RETN` needs no exclusion: `I_RETN` is decoded in its own third M-cycle
+  (`T80_MCode.vhd:2094`), so IFF1 is restored before the next fetch.
 - A prefix (`Prefix /= "00"`) means the next M1 continues the same instruction. Indexed-CB
   reads its final opcode outside M1, so remembering the last M1 byte is not a substitute
   for T80's semantic `Prefix`.
@@ -64,8 +68,10 @@ some opcodes act on the T2 tick of the next fetch:
 
 The predicate is one new T80/T80pa output, true for `MCycle=1, TState=2` when the previous
 instruction set none of those conditions. It is computed inside the core, not by
-re-decoding opcodes outside the vendored source. The save waits for the next qualifying
-fetch, which arrives within a few instructions. TV80 mirrors the output for Verilator
+re-decoding opcodes outside the vendored source. A save request stays pending until a
+qualifying fetch. Ordinary code reaches one within an instruction or two, but an unbroken
+stream of `EI` or prefix bytes can postpone it indefinitely. A second OSD press or reset
+therefore cancels a pending request. TV80 mirrors the output for Verilator
 fixtures, but TV80 commits at different T-states, so it cannot validate the production
 predicate.
 
@@ -91,9 +97,13 @@ the same `R`. This is re-execution, not a stored halt flag, which SNA does not h
   `{8 + page, offset}` layout on the model bank (`Amstrad.sv:449`). Cartridge reads land in
   `cart_dout` and leave `ram_dout` untouched (`sdram.v:295-305`), so the CPU's outstanding
   fetch byte survives. The main port is edge-triggered and is not reused.
-- **Fairness.** Continuous cartridge requests outrank tape and VRAM (`sdram.v:164-199`). The
-  stream drops its request for one idle slot between grants, so video and tape keep being
-  served. Refresh is protected either way.
+- **Mapping admission.** The dump covers physical pages 8-15, the base 128K. A save is admitted
+  only when `RAMpage == 3`, meaning no expansion page is paged in (`Amstrad_MMU.v:61, 68`).
+  Otherwise the save is refused, because the header would name memory the file does not contain.
+- **Fairness.** Continuous cartridge requests outrank tape and VRAM (`sdram.v:164-199`). After
+  each grant, the stream keeps its request low until the controller has passed through a real
+  `q == STATE_IDLE` arbitration with other clients eligible, not merely for one clock. Video
+  and tape keep being served, and refresh is protected either way.
 - **Timing slip.** Interrupts and video keep counting during the stream, so the resumed
   machine may slip by the stream's duration. The file itself is not affected.
 
@@ -107,22 +117,23 @@ registered internal flag with a delayed public output is not coherent.
 | 11-2D | Z80 | `T80pa.REG` (already normalizes alternate banks), with the HALT adjustment above |
 | 2E-3F | GA pen, palette | `ga40010.sv` `inksel`, `inkr`, `border` (new ports) |
 | 40 | GA multi-config | `0x80 \| {hromen, lromen, mode}`. Bit 4 (interrupt-counter reset) is a write strobe with no storage and is saved as 0 |
-| 41 | RAM config | `{2'b00, page bits, RAMmap}` from `Amstrad_MMU.v`. Configurations whose `RAMpage` selects beyond the 128K dump are refused rather than saved with dangling state; 464/664 save 0 |
+| 41 | RAM config | `{5'b00000, RAMmap}` from `Amstrad_MMU.v`: admission guarantees zero page bits. 464/664 save 0 |
 | 42-54 | CRTC select, R0-R17 | `CRTC.v` register fields reassembled into bytes; R16/R17 saved as 0 |
 | 55 | ROM select | New shadow of the last byte written, because `ROMbank` is filtered by `rom_map` |
-| 56 | PPI A | Value on port A's pins: output latch in output mode, PSG readback in input mode (spec note 6) |
+| 56 | PPI A | `ipa`, the input value regardless of direction (spec note 6; `Amstrad_motherboard.v:1073`). Not the direction-selected CPU read value |
 | 57 | PPI B | Port B input value (`ipb`: tape, jumpers, VSYNC) (note 7) |
 | 58 | PPI C | Port C outputs (note 8) |
 | 59 | PPI control | Mode word with bit 7 forced to 1 (note 9) |
-| 5A-6A | PSG | `YM2149.sv` `addr`, `ymreg` |
+| 5A-6A | PSG | `YM2149.sv` `ymreg`; select is `addr[3:0]`. `addr` holds 8 bits, and a nonzero high nibble disables register access (`YM2149.sv:95`), which the 0-15 field cannot express. That state is normalized to its low nibble, and the loss is documented: after reload, access is enabled until the next select write. Exact round-trip claims exclude this case |
 | 6B-6C | Memory size | 128 for the 6128 map, 64 otherwise |
 | 6D | CPC type | `model` 0/1/2 (6128/664/464) maps to 2/1/0 |
-| 9C-A0 | FDD motor, track | `motor` latch; `u765` `pcn[0]` (new port), 0 when no drive is mounted |
-| A1 | Printer | New shadow of the last printer-port write, 0 after reset |
+| 9C | FDD motor | `motor` latch |
+| 9D-A0 | FDD tracks A-D | `u765` `pcn[0]`, `pcn[1]` (new port) for drives A and B, whatever the media state, since the controller's cylinder is independent of a mounted image; 0 for the absent drives C and D |
+| A1 | Printer | No printer port or latch exists today; needs a new passive decode of printer-port writes, 0 after reset |
 | A4 | CRTC type | Menu bit `status[2]` is inverted: 0 means type 1, so save 1; 1 means type 0, so save 0 |
 | A9-AD | CRTC counters | HCC, row, raster line direct. VTA count (AD): type 1 uses its adjust counter; type 0 has no separate one (`c5_next` is 0) and counts adjustment in `line`, so AD comes from `line` while in adjust |
 | AE | HSYNC width | `hsc` counts up; direct |
-| AF | VSYNC width | SNA counts up, but `vsc` counts down from a type-specific load (type 0 R3−1, type 1 15). An observation-only elapsed-lines counter, started on the internal VSYNC edge, avoids depending on an R3 that may change mid-pulse |
+| AF | VSYNC width | SNA counts up, but `vsc` counts down from a type-specific load (type 0 R3−1, type 1 15). Use an observation-only elapsed counter that resets on every accepted `vsc` load, not on a VSYNC edge. Adjacent pulses can reload `vsc` with no rising edge. It advances on exactly `vsc`'s qualified count ticks (`vsync_count_tick`), including holdoff suppression and the half-line phase (`CRTC.v:651-653, 724-743`), and is captured alongside `VSYNC_r` |
 | B0 | CRTC flags | Internal `VSYNC_r`, internal HSYNC, in-adjust flag. Not the delayed public `VSYNC` (`CRTC.v:690`) |
 | B2 | GA VSYNC delay | Decode `syncgen_sync.v` `hcnt` from its encoded sequence (00, 01, 06, ...) to 2/1/0, the inverse of the B8-5 mapping |
 | B3 | GA interrupt count | `intcnt` direct |
@@ -138,22 +149,31 @@ restore classic CRTC counters, GA interrupt phase, FDC state, or anything B8-5 l
 unrepresented. A round trip therefore proves only the fields the loaders consume. The
 remaining fields need direct checks of the capture.
 
-1. **Freeze predicate on production T80.** Use the real-GA harness (`sim/crtc_t80_top.sv`,
-   Verilator on the GHDL-translated T80 netlist; needs GHDL). The expected value at each
-   boundary is derived from the instruction sequence on paper. The Makefile's `t80-trace-test`
-   compares only VHDL against its translated netlist, so it cannot reject a wrong predicate.
-   Cases: deferred ALU writes, each prefix family including `DD CB d op`, `DI; EI; NOP`,
-   `EI; HALT` with a pending INT, `RETN`, `LD A,I`/`LD A,R` P/V, `LDIR`/`OTIR` repeats, `DJNZ`,
-   interrupt and NMI acceptance, HALT. Add a continuation check: the same program held at a
-   boundary for many clocks and run uninterrupted must reach the same architectural trace.
-2. **Header bytes.** In the whole-motherboard fixture, check each saved byte against a value
-   derived independently from the program's writes, per the SNA specification. Never read the
-   expectation out of the simulator.
+1. **Freeze predicate on production T80.** Extend the real-GA harness (`sim/crtc_t80_top.sv`,
+   Verilator on the GHDL-translated T80 netlist, run by CI's `production-t80` job). It
+   currently ties off hold, REG and interrupts (`crtc_t80_top.sv:115-136`); add all three,
+   with controllable INT/NMI. The expected value at each boundary is derived from the
+   instruction sequence on paper. `t80-trace-test` compares only VHDL against its translated
+   netlist, so it cannot reject a wrong predicate. Cases: deferred ALU writes, each prefix
+   family including `DD CB d op`, `DI; EI; NOP`, `EI; HALT` with a pending INT, `RETN`,
+   `LD A,I`/`LD A,R` P/V, `LDIR`/`OTIR` repeats, `DJNZ`, interrupt and NMI acceptance, HALT.
+   **Continuation:** a hold at a boundary is compared with an equivalent-duration hardware
+   WAIT under identical external stimuli, not with an uninterrupted run. Interrupts and live
+   inputs (PPI B carries VSYNC and tape) legitimately differ from an uninterrupted run. An
+   uninterrupted comparison is valid only for programs with interrupts disabled and
+   time-independent inputs.
+2. **Header bytes.** The existing whole-motherboard fixtures are not sufficient. P10 links
+   TV80, a GA stub and a PSG stub that holds no register state (`sim/plus/Makefile:267-269`,
+   `motherboard_lint_stubs.v`), and fixes the RAM bank at 0 (`p10_boot_test_top.v:414`). The
+   capture fixture needs a B7-style composition with the real GA, PSG and HID, the production
+   clock divider, classic model and bank selection, and the production-T80 netlist. Check each
+   saved byte against a value derived from the program's writes per the SNA specification;
+   never read the expectation out of the simulator. Also exercise DDR3 stalls during a save
+   and a host read that overlaps publication.
 3. **Round trip.** Extract `Amstrad.sv`'s inline Z80/PPI/PSG/memory decode into a linted
-   module beside `plus_sna_header`. Wire the production decoder and apply path into the
-   fixture (P10 currently ties `sna_load`/`sna_hold` low). Save, reload, and compare the
-   loader-consumed state and RAM. PPI A/B compare as the spec's pin values, not as output
-   latches.
+   module beside `plus_sna_header`. Wire the production decoder and apply path into that
+   fixture (P10 ties `sna_load`/`sna_hold` low). Save, reload, and compare loader-consumed state
+   and RAM. PPI A compares as the input value (spec note 6), not as an output latch.
 
 ## Slices
 
