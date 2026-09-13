@@ -61,8 +61,9 @@ of latency). They are AmSpirit metadata and do not identify MiSTer state.
     by the same credits sequence as AmSpirit. A cartridge boot without the snapshot shows the
     title's meteor and helicopter phases for about 45 s before any credits, so this is the
     snapshot resuming, not the attract loop restarting.
-  - Input after the load on the MiSTer is untested: Copter 271 reacts to joystick fire,
-    and MBC injects keyboard codes only, which never reach matrix row 9.
+  - Input after the load works: the user pressed joystick fire on the device and the game
+    responded normally. MBC could not test this, because it injects keyboard codes only and
+    those never reach matrix row 9.
   Evidence: `mister/` in the evidence directory (MGL, captures, CFG before and after).
 - **Configuration mismatches recorded:** none on the AmSpirit side. A joint run must still
   record the MiSTer's Plus model and sync filter, since the classic CRTC numbering does not

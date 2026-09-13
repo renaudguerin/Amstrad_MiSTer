@@ -152,7 +152,8 @@ is not.
 A cartridge title's SNA does not carry the cartridge ROM. On the MiSTer, load
 the CPR first and the SNA a few seconds later (one MGL with two `file`
 entries); the SNA alone hangs the machine. Plus model must be set in the CFG
-beforehand, since neither a CPR nor an SNA `CPC+` chunk selects it.
+beforehand: the core ignores the SNA header's model byte (`0x6D`) and the
+`CPC+` chunk for that purpose, and a CPR does not select it either (backlog B16).
 
 MiSTer-side snapshot *saving* is under development on a parallel branch (not
 ready; this design neither depends on it nor touches it). If that lands, the
