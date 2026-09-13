@@ -3,9 +3,10 @@
 // generator: HSYNC_I pulses once per line, crtc_line counts {VC,RC}
 // lines, and PRI is driven directly (its &6800 storage is asic_regs').
 //
-//   pr01  PRI=0 baseline: interrupt period stays exactly 52 lines and the
-//         last-ack-was-raster level sets on each fire (lockstep already
-//         pins the full output set; this pins the new export).
+//   pr01  PRI=0 baseline: interrupt period stays exactly 52 lines; the
+//         last-ack-was-raster level latches on each raster acknowledge,
+//         never on the fire itself (lockstep already pins the full
+//         output set; this pins the new export).
 //   pr02  PRI=k: counter fires are suppressed; INT_N falls exactly at the
 //         shaped-monitor trailing edge following the matching line, at the
 //         same intra-line offset every time (self-calibrated on the first
@@ -13,6 +14,11 @@
 //   pr03  vertical adjust gates firing: no interrupt for a match inside
 //         adjustment, fire resumes when adj releases.
 //   pr04  MRER bit 4 (GA write D[4]) clears a pending raster interrupt.
+//   pr05  DCSR bit-7 level persists across its own acknowledge; an empty
+//         acknowledge clears it.
+//   pr06  a DMA-sourced acknowledge leaves the level clear even when the
+//         raster fires afterwards (reference §9: set iff the LAST ack was
+//         raster) — the Copter 271 DMA-timer/raster slip.
 //
 // Expectations are derived from reference §7 / [ARNOLD-REV §2.4] and cited
 // inline — never read back out of the simulator.
@@ -107,8 +113,9 @@ public:
 	}
 
 	// MRER bit 4 write through the fast GA-port path clears any interrupt.
-	// Z80-style acknowledge with nothing pending: raises a stuck INT and,
-	// per the DCSR bit-7 rule, clears the last-ack-was-raster level.
+	// Z80-style acknowledge: raises a stuck INT and latches the
+	// last-ack-was-raster level from the raster request pending at
+	// acknowledge start (clears it when nothing is pending).
 	void empty_ack() {
 		fast = true;
 		iorq_n = false;
@@ -147,28 +154,37 @@ uint64_t wait_fire(PriBench& b, const char* who, uint64_t budget) {
 //----------------------------------------------------------------------
 void pr01_baseline(PriBench& b) {
 	b.power_on();
-	// Clear the simulator zero-init INT level so both measured fires are
-	// genuine events (same discipline as r02).
+	// INT_N has no reset term and starts stuck low in simulation; the
+	// first acknowledge raises it and the second establishes the
+	// asserted idle baseline, so both measured fires are genuine
+	// events (same discipline as r02).
 	b.empty_ack(); // clears the simulator zero-init INT level
+	b.empty_ack(); // genuinely idle acknowledge
 	if (b.dut.int_last_raster != 0)
 		fail("pr01: last-raster level should be zero before any fire");
 	// Two consecutive fires must be exactly 52 lines apart (reference §7:
 	// PRI=0 keeps the normal Gate Array 52-line counter).
 	uint64_t t1 = wait_fire(b, "pr01 first", 120u * kLineClks);
-	if (b.dut.int_last_raster == 0)
-		fail("pr01: last-raster level not set by a classic fire");
+	// No acknowledge since the idle baseline: the fire alone must not
+	// set the level (reference §9 — the Copter 271 DMA/raster slip).
+	if (b.dut.int_last_raster != 0)
+		fail("pr01: fire without acknowledge must not set the level");
 	// INT_N holds low until acknowledged: an empty acknowledge raises it.
 	// The acknowledge consumes the pending raster interrupt, so the
-	// last-ack-was-raster level correctly persists (pinned by pr05).
+	// last-ack-was-raster level latches set (pinned by pr05/pr06).
 	b.empty_ack();
 	if (b.dut.INT_N != 1) fail("pr01: acknowledge did not raise INT_N");
+	if (b.dut.int_last_raster != 1)
+		fail("pr01: raster acknowledge must set the level");
 	uint64_t t2 = wait_fire(b, "pr01 second", 240u * kLineClks);
 	uint64_t dt = t2 - t1;
 	if (dt != 52u * kLineClks)
 		fail("pr01: expected exactly 52-line period (" +
 		     std::to_string(52u * kLineClks) + "), got " + std::to_string(dt));
-	if (b.dut.int_last_raster == 0)
-		fail("pr01: last-raster level not set by a classic fire");
+	// The second fire is still pending unacknowledged: the level holds
+	// its latched set state until the next acknowledge.
+	if (b.dut.int_last_raster != 1)
+		fail("pr01: level must hold across a pending fire");
 	std::printf("PASS pr01: PRI=0 keeps the exact 52-line cadence; raster level tracks\n");
 }
 
@@ -305,11 +321,11 @@ void pr04_mrer_clears_pri(PriBench& b) {
 }
 
 //----------------------------------------------------------------------
-// pr05: DCSR bit-7 level semantics (reference section 9). The level sets
-// on a fire and HOLDS through that interrupt acknowledge — clearing on
-// the acknowledge itself inverted the documented read-DCSR-at-handler-
-// -head dispatch (review finding 3). It clears only when an acknowledge
-// completes with nothing pending.
+// pr05: DCSR bit-7 level semantics (reference section 9). The level
+// latches at the START of each acknowledge from the raster request
+// pending then — clearing it on int_reset instead inverted the rule
+// and broke the documented read-DCSR-at-handler-head dispatch
+// (review finding 3). A fire alone never sets it (see pr01/pr06).
 //----------------------------------------------------------------------
 void tick_pub(PriBench& b) { b.tick(); }
 
@@ -339,6 +355,38 @@ void pr05_dcsr_level(PriBench& b) {
 	std::printf("PASS pr05: last-raster level persists across its ack; empty ack clears\n");
 }
 
+//----------------------------------------------------------------------
+// pr06: a DMA-sourced acknowledge must NOT set the last-ack-was-raster
+// level (reference §9 DCSR table: bit 7 is "set if last INT ack was
+// raster"). This bench has no DMA engine, but at this module's pins a
+// DMA acknowledge appears exactly as an acknowledge cycle with no
+// raster pending (INT_N high) — which is what Copter 271's title does:
+// its DMA-timer INT is acknowledged, the PRI raster fires a few µs
+// later, and the IM1 handler's DCSR read must still see bit 7 = 0 so
+// it runs the DMA path. The old set-on-fire term reported 1 here, so
+// the handler ran the raster step early; with the request still
+// pending the next acknowledge ran the following step immediately,
+// reloading the logo palette for the rest of the frame (title flash).
+//----------------------------------------------------------------------
+void pr06_dma_ack_then_raster(PriBench& b) {
+	b.ga_mrer_clear();
+	if (b.dut.INT_N != 1) fail("pr06: expected idle INT_N after clear");
+	// DMA-only acknowledge: ack cycle, nothing raster-pending.
+	b.empty_ack();
+	if (b.dut.int_last_raster != 0)
+		fail("pr06: DMA acknowledge must leave the level clear");
+	// The raster fires AFTER the DMA acknowledge (Copter 271 slip).
+	wait_fire(b, "pr06", 800u * kLineClks);
+	if (b.dut.int_last_raster != 0)
+		fail("pr06: raster fire after a DMA ack must not set the level");
+	// Acknowledging the now-pending raster sets it.
+	b.empty_ack();
+	if (b.dut.INT_N != 1) fail("pr06: ack did not raise INT_N");
+	if (b.dut.int_last_raster != 1)
+		fail("pr06: raster acknowledge must set the level");
+	std::printf("PASS pr06: DMA ack leaves bit7 clear across a later raster fire\n");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -350,6 +398,7 @@ int main(int argc, char** argv) {
 		pr03_adjustment_gate(b);
 		pr04_mrer_clears_pri(b);
 		pr05_dcsr_level(b);
+		pr06_dma_ack_then_raster(b);
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;
