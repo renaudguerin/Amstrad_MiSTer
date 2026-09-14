@@ -15,7 +15,7 @@ Start from:
   blocked by them in ways the roadmap does not show
 - `docs/implementation-roadmap.md` — dependency order and acceptance gates
 - `docs/current-status.md` — handoff state, hardware-test milestones
-- `docs/accuracy/audit-findings.md` — numbered findings F1–F12
+- `docs/classic/audit-findings.md` — numbered findings F1–F12 (symlinked from `docs/accuracy/`)
 
 ## Proportionate engineering
 
@@ -63,15 +63,15 @@ work just because a conversation opened.
 2. The latest French CRTC Compendium (ACCC), currently v1.11 — working documentary oracle,
    not final authority. The matching English edition is a working translation; French wins
    when the editions differ unless hardware or an author clarification supersedes it.
-3. Digests under `docs/accuracy/`.
+3. Digests under `docs/classic/` (symlinked from `docs/accuracy/`).
 
 When simulation and hardware disagree, hardware wins and the test vector is wrong.
 
-`docs/references/ACCC1.11-FR.pdf` and `docs/references/ACCC1.11-EN.pdf` are user-owned and
+`docs/specs/ACCC1.11-FR.pdf` and `docs/specs/ACCC1.11-EN.pdf` are user-owned and
 untracked. **Never commit them.** They are present in the working tree — untracked, not
 missing. Prefer the French source over the digests whenever a rule claim matters; use the
 English edition for navigation and review. Read both through the `pdf-inspector` skill under
-the verification protocol in `docs/accuracy/extract/README.md` (position-aware Markdown is
+the verification protocol in `docs/classic/extract/README.md` (position-aware Markdown is
 the primary text layer, with pdftotext only an optional second opinion; figures are judged
 from rendered pages, never from a text layer).
 

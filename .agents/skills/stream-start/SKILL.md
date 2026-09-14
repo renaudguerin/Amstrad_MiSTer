@@ -52,7 +52,10 @@ selects suitable unclaimed work across the roadmap and backlog when no brief is 
    Check branch/worktree ownership first. Never use `checkout -B` or reset an existing
    branch. Preserve host-carried commits. The environment's default base may differ from
    the intended integration base; verify it before starting implementation.
-7. **Provision references here** by copying missing PDFs as described in the common workflow.
+7. **Provision references and local workspace here**: Ensure the ignored `local` symlink
+   points to the main clone's `local/` directory (`ln -sf "$(git rev-parse --git-common-dir)/../local" local`
+   and `ln -sf local/test_media test_media`), and copy missing ACCC PDFs into `docs/specs/`
+   as described in the common workflow.
    Subsequent bridge workers use this same prepared checkout, with no extra provisioning
    stage, worktree, or clone. Missing inputs block evidence-dependent work; unrelated work
    can continue with the gap reported. Do not run baseline simulation at start.

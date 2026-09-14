@@ -187,7 +187,7 @@ Sources were checked in the requested order:
    logical ROMs below 128, disc page 3 for the disc code (0 or 7), and direct
    low-five-bit selection for 128–255. They do **not** assign either electrical
    `/EXP` level to disc code 0. Section 3 identifies page 1 as BASIC and page 3
-   as disc firmware. The [local original text](../references/_Arnold%20V_%20Specification%20-%20Issue%201.5%20-%2010th%20April%201990.md)
+   as disc firmware. The [local original text](../specs/plus/_Arnold%20V_%20Specification%20-%20Issue%201.5%20-%2010th%20April%201990.md)
    preserves these sections.
 2. The [6128 Plus service manual, printed p.18](https://retronik.silicium.org/DOCUMENTS/Info/Amstrad_CPC/Amstrad-464plus-6128plus-GX4000-MM12-MM14-Service-Manual.pdf)
    shows ASIC IC101 PB5 at pin 119 and R119 (2.2 kΩ) connected to the +5 V
@@ -306,7 +306,7 @@ The original P10 fixture used a reduced TV80 CPU; this experiment replaces
 it with production T80 and adapts only the Verilog port casing/defaults and
 diagnostic taps. The classic GA remains a stub; full `Amstrad.sv`, vendor
 video and physical memory timing are not covered. The local
-[experiment bundle](../references/hardware-diagnosis-2026-09-10/plus-boot/d5-experiment/README.md)
+[experiment bundle](archive/README.md)
 contains regenerable scratch sources, commands and traces. User-owned ROMs
 and the bundle remain ignored. Cross-provider review confirmed the CPU
 adaptation and accumulator/text capture but retained

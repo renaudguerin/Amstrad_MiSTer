@@ -21,15 +21,15 @@ merged into the same behavioral PR.
   known keyboard and joystick issues with `arn5diag`, `Pang`, and `Plotting`**,
   closing the held-fire defect in Pang/Plotting and the dead keyboard in `arn5diag`.
   Full versus Raw pixels has shown no visible difference in Amazing Demo, DSC4 or
-  SHAKER A (T). See the [September 12](hardware-evidence-2026-09-12.md) and
-  [September 13](hardware-evidence-2026-09-13.md) reports; B1/B6 visual and
+  SHAKER A (T). See the [September 12](investigations/hardware-runs/hardware-evidence-2026-09-12.md) and
+  [September 13](investigations/hardware-runs/hardware-evidence-2026-09-13.md) reports; B1/B6 visual and
   remaining P10 subsystem acceptance remain open.
 
 - D3's bounded first-visible-row sprite prefetch and D4's Plus PPI mode-word
   readback are integrated. Their required regressions retain sprite row-colour
   checks and DMA/PPI direction behavior. Post-BSR control reads and real-title
   flicker/input acceptance remain open; see the
-  [repair contracts](hardware-diagnosis-2026-09-10.md#d3-repair-contract).
+  [repair contracts](investigations/hardware-runs/hardware-diagnosis-2026-09-10.md#d3-repair-contract).
 
 - D5's production `/EXP` input repair is integrated with unchanged MMU
   decoder polarity. The opt-in production-T80 gate requires both unchanged
@@ -61,7 +61,7 @@ merged into the same behavioral PR.
   split (wrapper `rtl/CRTC.v` + `rtl/crtc_type0_engine.v`/`rtl/crtc_type1_engine.v`, renamed
   from `rtl/UM6845R.v`), F7's type-1 R5-route RFD with A1/A2, and GitHub Actions synthesis.
   Platform-level references covering the ASIC, Gate Array, MMU, PPI, PSG, FDC, and file formats
-  are inventoried in [`docs/references/README.md`](references/README.md).
+  are inventoried in [`docs/references/README.md`](plus/archive/README.md).
 - Latest synthesized integration source `5c16b17` passed full-effort Quartus
   17.0.2, simulation and the required gate in run `34570572190`; setup
   +0.320 ns, hold +0.247 ns, zero TNS. The delivered RBF and hash are recorded
@@ -323,7 +323,7 @@ and simulation-verified, but the two broad hardware samples still expose title, 
 sprite, DMA, CRTC3, cartridge-timing, and recovery failures. The exact
 `ce1d2da` retest on September 9 confirms many persist; CRTC3's right-edge leak
 appears fixed and Navy Seals black screen was not reproduced. See
-[latest results](hardware-evidence-2026-09-09.md). Further targeted validation
+[latest results](investigations/hardware-runs/hardware-evidence-2026-09-09.md). Further targeted validation
 remains open; no Dandanator was involved in the reported Navy Seals incident. Source/test review of the triage seam is CLEAR (Muse read-only 2026-09-03
 at `a98590a`; record `docs/plus/plus-review-2026-09-03.md` §6) with separate Dandanator ownership validation,
 CRTC3-leak, System-CPR/real-T80/full-top, exact-tip Quartus, and TV80/model limits retained
@@ -488,16 +488,16 @@ locally integrated at `e391e13`; B6's reviewed rendering follow-up was
 refreshed to `9849b9a` and merged against that exact destination. The
 complete destination simulation, lint and canonical soak pass; the
 integration is published at `9ee710c`. Exact-SHA CI is recorded in current status. Preserve the
-[B6 evidence limits](b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
-and [B2 device limits](b2-device-capture-2026-09-12.md), including unobserved
+[B6 evidence limits](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
+and [B2 device limits](investigations/hardware-runs/b2-device-capture-2026-09-12.md), including unobserved
 active OSD mode and unestablished CPU-generated stuck-high sync. The
-[latest hardware report](hardware-evidence-2026-09-12.md) remains unchanged:
+[latest hardware report](investigations/hardware-runs/hardware-evidence-2026-09-12.md) remains unchanged:
 6128 Plus BASIC boot is fixed, sprite improvement is tentative, input/Copter
 failures persist, and Full/Raw pixels has not demonstrated visible improvement.
 
 The items below are retained validation work outside that bounded task pair.
 
-The September 8 [B8 architecture review](b8-architecture-methodology-review-2026-09-08.md)
+The September 8 [B8 architecture review](investigations/write-timing/b8-architecture-methodology-review-2026-09-08.md)
 sets the current repair order. B8-1 R5/R0 write-event retention and B8-6 Plus
 RGB/metadata alignment, plus B8-2 selected FIELD ownership, are integrated;
 B8-4 retained video-word coherence is also integrated. Do not restart those
@@ -528,25 +528,25 @@ See [current status](current-status.md) for accepted source and artifact identit
    FDC held-read test
    `c1a8ff9` and test consolidation `c12c264` are integrated through refreshed
    `5fcf223`, including the P1 timing-ownership correction; see
-   [integration evidence](preserved-work-integration-2026-09-08.md).
-   The [September 3 handoff](session-continuation-2026-09-03.md)
+   [integration evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
+   The [September 3 handoff](investigations/session-logs/session-continuation-2026-09-03.md)
    records provenance, not proof that its temporary worktree paths still exist.
    Preserve stashes/private recovery files; do not auto-apply them. Full-sector
    result-phase and classic AMSDOS acceptance remain open.
 6. **B2/B4 hardware automation:** follow the existing
-   [hardware-loop plan](mister-hardware-loop-plan.md). The host driver and ARM
+   [hardware-loop plan](investigations/hardware-runs/mister-hardware-loop-plan.md). The host driver and ARM
    MBC cross-build are prepared at `7e39204`; see the
-   [driver guide](mister-hardware-loop-driver.md). B4 source `94725cc` adds the bounded
+   [driver guide](investigations/hardware-runs/mister-hardware-loop-driver.md). B4 source `94725cc` adds the bounded
    CSL runner, passive SSM event ring and default-off sample-recorder prototype;
-   [source review and local gates](csl-ssm-design-review-2026-09-12.md) pass.
+   [source review and local gates](investigations/ssm-csl/csl-ssm-design-review-2026-09-12.md) pass.
    September 12 demonstrates three independent SHAKER B (9) loads and nine
-   identical numeric captures; see [device evidence](b2-device-capture-2026-09-12.md).
+   identical numeric captures; see [device evidence](investigations/hardware-runs/b2-device-capture-2026-09-12.md).
    Active-mode observation remains qualified because native PNGs omit OSD.
    Exact SSM event-to-image device acceptance remains open: prove DDR allocation and
    host visibility, enabled-recorder fit/timing, retention and throughput first.
 7. **Hardware retests:** use the delivered SHA-labelled RBF for DSC4/SHAKER,
    IA-5/Q17 and the named Plus title matrix. Retain the
-   [September 9 results and capture index](hardware-evidence-2026-09-09.md) as regression
+   [September 9 results and capture index](investigations/hardware-runs/hardware-evidence-2026-09-09.md) as regression
    evidence, not blanket closure. New title-driven RTL work starts from an
    actionable capture or another independently reproduced production defect.
 

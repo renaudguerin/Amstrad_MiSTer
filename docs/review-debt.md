@@ -56,7 +56,7 @@ Sol cleared the source committed at `94725cc` after independently reproducing th
 failure probes. Gemini run `20260912T173536Z-26982-c83d` separately cleared the parent
 corrections and final regressions. Full simulation, 183 host tests, 21 recorder tests,
 five composition tests, lint and the unchanged soak hash pass. Reviewed source hashes
-and gate evidence are recorded in [the design/implementation review](csl-ssm-design-review-2026-09-12.md).
+and gate evidence are recorded in [the design/implementation review](investigations/ssm-csl/csl-ssm-design-review-2026-09-12.md).
 These passes cover the changed SSM paths; they do not silently discharge the older
 power-on folding, CFG restoration, keymap or production T80pa evidence debt above.
 **B4 Phase 2 retirement and pruning, 2026-09-13 — source review CLEAR:** Claude Opus 5
@@ -103,14 +103,14 @@ cross-provider review before READY.
   authentication before reviewing. The user directed no duplicate review after
   authentication recovered, so this clearance remains Gemini’s. Real repeated-load
   evidence is separate; active OSD mode
-  remains unobserved by native PNGs. See the [device record](b2-device-capture-2026-09-12.md).
+  remains unobserved by native PNGs. See the [device record](investigations/hardware-runs/b2-device-capture-2026-09-12.md).
 
 - **B2 host capture tooling — CLEAR, integrated from `7e39204`.** The
   September 8 status record retains Opus 5 high closure run
   `20260908T044131Z-35882-569d`, 24 focused tests and an offline dry-run.
   This entry indexes that existing review; it is not a new review verdict.
   Device execution was not established by those checks. See the
-  [driver contract](mister-hardware-loop-driver.md) and
+  [driver contract](investigations/hardware-runs/mister-hardware-loop-driver.md) and
   [recorded acceptance](current-status.md).
 
 - **B6 video boundary — CLEAR, integrated from `843cd5b`.** Sol high
@@ -119,7 +119,7 @@ cross-provider review before READY.
   The original artifact retains its then-open rendering limits; the September
   12 follow-up above adds final-RGB, dynamic-raster and scroll/sprite evidence.
   Physical HDMI/CRT and the unestablished stuck-high CPU recipe remain open. See
-  [review and validation](b6-video-boundary-review-2026-09-11.md).
+  [review and validation](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md).
 
 - **D3 render timing selector — CLEAR.** Fresh Gemini 3.8 Flash high review
   of the bounded combinational rewrite found no material issue. All 2,097,152
@@ -134,7 +134,7 @@ cross-provider review before READY.
   Refresh against D1/D6 plus D5 preserved both sides' reviewed behavior;
   only status prose conflicted, and the Makefile merged both test targets.
   Post-BSR control readback and hardware/title/flicker acceptance remain
-  separate. See [review and validation](hardware-diagnosis-2026-09-10.md#d3d4-validation--2026-09-11).
+  separate. See [review and validation](investigations/hardware-runs/hardware-diagnosis-2026-09-10.md#d3d4-validation--2026-09-11).
 
 - **D5 BASIC boot input — CLEAR, integrated from refreshed `8e2f280`.**
   Gemini 3.8 Flash high reviewed the production `/EXP` configuration and
@@ -171,7 +171,7 @@ cross-provider review before READY.
   write ACK/data capture, top-level ownership and physical-DQ tests. The
   production manifest and Fn2/reset findings were fixed and cleared in a
   narrow follow-up, with failing-before vectors for both state defects.
-  Full simulation, lint and soak pass. See [contract and evidence limits](b8-7-tape-write-lifetime-2026-09-08.md).
+  Full simulation, lint and soak pass. See [contract and evidence limits](investigations/write-timing/b8-7-tape-write-lifetime-2026-09-08.md).
 
 - **B8-4 retained-video coherence — CLEAR, integrated from `7a58f88`.**
   Astra medium independently reviewed the foreign-authored SDRAM key,
@@ -181,7 +181,7 @@ cross-provider review before READY.
   afterward; preserve next-slot admission without an extra polling tick.
   Full simulation, lint and soak `0x6e8258198d6e6137` pass. Opus returned no
   report because of its session limit; the coordinator authorized the
-  cross-provider native fallback. See [scope, evidence and hardware limits](b8-4-video-coherence-2026-09-08.md).
+  cross-provider native fallback. See [scope, evidence and hardware limits](investigations/write-timing/b8-4-video-coherence-2026-09-08.md).
 
 - **Plus P10j primitive/model contract notes — CLEAR, integrated from `3db81d0`.**
   The comment-only collision/reset-ownership notes and their source proof are
@@ -197,7 +197,7 @@ cross-provider review before READY.
   `20260908T053839Z-2528-42c3` clears compatibility with `22202b8`, including
   both merge resolutions, retained B8-4/FDC test bodies, exclusive output and
   reduced-TV80/fixture-clock limits. It did not rerun the full gates. See
-  [integration evidence](preserved-work-integration-2026-09-08.md).
+  [integration evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
 
 **Status: zero unresolved independent-review findings on these reviewed
 candidates.** The validation residuals below are not hardware evidence and do

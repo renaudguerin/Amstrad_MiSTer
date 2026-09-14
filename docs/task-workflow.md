@@ -48,13 +48,12 @@ Default branch names are `accuracy/<topic>`, `plus/<topic>`, and `general/<topic
 host's required prefix where applicable (`codex/<scope>/<topic>`). Preserve an explicitly
 requested name. Never reset an existing branch to implement this naming convention.
 
-## Reference provisioning belongs to stream-start
+## Reference and workspace provisioning belongs to stream-start
 
-Tracked references arrive through Git. During start, copy any missing ACCC PDFs from an
-existing checkout into the assigned worktree's `docs/references/` directory using ordinary
-`mkdir -p` and `cp`. The two filenames are `ACCC1.11-FR.pdf` and `ACCC1.11-EN.pdf`.
-Leave existing copies alone. Use real copies so sandboxed workers can read them without
-access to another checkout. The originals remain ignored and must not be committed.
+Tracked references arrive through Git under `docs/specs/`. During start:
+1. Ensure the ignored `local` symlink points to the main clone's `local/` directory (`ln -sf "$(git rev-parse --git-common-dir)/../local" local` and `ln -sf local/test_media test_media`). This gives every worktree instant access to private notes, blog drafts, and copyrighted test media without file copying.
+2. Copy any missing ACCC PDFs from an existing checkout into the assigned worktree's `docs/specs/` directory using ordinary `mkdir -p` and `cp`. The two filenames are `ACCC1.11-FR.pdf` and `ACCC1.11-EN.pdf`.
+Leave existing copies alone. Use real copies so sandboxed workers can read them without access to another checkout. The originals remain ignored and must not be committed.
 
 This is routine local setup: no copy-time hash checks, manifest, custom helper or dedicated
 test suite. If a copy fails, report the error and retry or recopy when the source is available.
@@ -62,8 +61,7 @@ Missing references block only work needing those documents. Existing extraction 
 and hardware-evidence requirements remain separate from preparing a worktree.
 
 Bridge delegation is performed by the task's main chat using that same prepared checkout as
-`-C`. Workers do not create another clone/worktree or repeat setup. Copy other private
-reference files only when the task needs them.
+`-C`. Workers do not create another clone/worktree or repeat setup.
 
 ## Optional environment setup
 
@@ -94,5 +92,5 @@ prune branches/stashes simply because no task appears active. Report cleanup lef
 Skill schema/link checks and scenario walkthroughs do not prove host operations. Actual task
 creation, adoption and cleanup remain untested in this rewrite; verify capabilities against
 loaded tools when using a host. The historical
-[revisit note](stream-orchestration-revisit-2026-09-07.md) records the rejected fixed-topology
+[revisit note](investigations/session-logs/stream-orchestration-revisit-2026-09-07.md) records the rejected fixed-topology
 port; it is not the current operating procedure.

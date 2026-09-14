@@ -1,0 +1,32 @@
+{
+  "case_id": "copter271_6128plus_title",
+  "description": "Copter 271 CPR on 6128 Plus, no input. The Loriciel intro plays first; with these delays the title logo is reached from capture 4 onwards. Top logo rows showed wrong colours on 5c16b17 and d35412a.",
+  "rbf_path": "/media/fat/_Computer/Amstrad_20260912_d35412a.rbf",
+  "media": {
+    "type": "cpr",
+    "slot": "F8",
+    "path": "/media/fat/games/Amstrad/cpr/01_PlusGames/Copter 271.cpr"
+  },
+  "declared_settings": {
+    "model": "6128+ (Amstrad.CFG status[34:33]=2, written by operator before load)",
+    "crtc": "n/a (Plus ASIC)",
+    "sync_filter": "Full (status[36:35]=0)",
+    "display": "Color(GA) (status bits 13:11 = 0)",
+    "mode_evidence": "Amstrad.CFG hash-verified after write; native PNG excludes OSD"
+  },
+  "boot_delay": 8,
+  "settle_delay": 45,
+  "capture_delay": 2.0,
+  "captures_count": 5,
+  "timeouts": {
+    "cmd_timeout": 60,
+    "capture_timeout": 15.0,
+    "poll_interval": 0.5,
+    "max_retries": 3
+  },
+  "ack_main_cmd": false,
+  "expected_sha256": {
+    "rbf": "30284fe85ed398cf57ccd9354d95236fe9c5f2f472f581c15dc3508059534764",
+    "media": "4b75c62cbd660206ef30ff8cbf9c4b1281282a423b5eccc1ff8444589f2a9c1d"
+  }
+}
