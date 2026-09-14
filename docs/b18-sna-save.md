@@ -5,6 +5,36 @@ plus 64K/128K memory dump). The CPC+ chunk is a later Plus-scope slice that reus
 freeze and transport. Two Astra high design reviews on 2026-09-13 returned REWORK, the second
 with no blocker. Their findings, checked against source, are folded in below.
 
+## Status and limitation: a development tool, not a user feature
+
+**Works on hardware (2026-09-14, RBF `0608653`):** a classic 6128 snapshot saved from the OSD
+and pulled with `sna_pull.py` reloads correctly both in this core and in AmSpirit.
+
+**Not shippable as a public feature in this form.** The core cannot put the file on the SD
+card. After pressing Save snapshot, someone must run `scripts/hardware-loop/sna_pull.py` on
+another computer, over SSH as root, to copy it out of DDR3. That suits handing a hardware state
+to simulation during development. It is not a workflow to offer ordinary MiSTer users.
+
+Making it a normal "save to SD" feature needs one of these, each still to be decided:
+
+- **A Main_MiSTer change (upstream discussion).** Main already writes core files to SD for
+  C64/C128 and arcade NVRAM through `ioctl_upload`, with per-core handlers. An Amstrad or
+  generic handler would save a plain `.sna` wherever Main chooses. It also works in DSK-only
+  sessions, and it is the cleanest result for users.
+- **Main's existing save-state copy, no Main change.** Main copies DDR3 slots to
+  `savestates/<core>/` when the core declares `SS` and a file was loaded through an `FS` menu
+  entry. Three costs:
+  - `FS` claims SD slot 0, which is drive A here, so the disk drives must move to slots 1/2.
+  - The file is an `.ss`, not a `.sna`: an 8-byte header precedes the snapshot, and it is
+    named after the `FS`-loaded file.
+  - Our slot format is not Main's. Main reads 32-bit words: counter at byte 0, length at byte
+    4, payload from byte 8 (`process_ss` in `user_io.cpp`, checked 2026-09-14). This design
+    uses 64-bit words with the payload at byte 16. Main also writes as soon as the counter
+    changes, so the all-ones "publication in progress" value would trigger a copy of an
+    incomplete slot. The stream would have to write the payload first, then length and counter.
+
+Until one of these lands, keep the OSD entry described as a development aid.
+
 ## Transport: core writes a DDR3 slot, host pulls it
 
 The OSD "Save snapshot" action writes the finished file into a DDR3 region. A host script
@@ -13,12 +43,12 @@ the SSM event ring at 0x30000000 already is. This covers B18's purpose, handing 
 state to simulation, with no Main change. It works during DSK sessions as long as the core
 stays loaded.
 
-- **Region.** Use MiSTer's save-state slot layout at 0x3E000000, 256 KiB per slot. That
-  sits clear of the SSM ring and the scaler buffer; the GBA core uses the same base. Word 0
-  is a change counter, word 1 the payload length in 32-bit words, then the payload. A
-  classic 128K v3 file is 0x20100 bytes; a CPC+ chunk adds 0x900. The live HPS kernel
-  reservation of this range is unverified; check `/proc/iomem` on the device before the
-  hardware test.
+- **Region.** 0x3E000000, the base MiSTer uses for save-state slots (the GBA core uses it
+  too), clear of the SSM ring and the scaler buffer. The kernel's `memmap=513M$511M` keeps
+  Linux out of it, and the 2026-09-14 device test read it successfully. Word 0 (64-bit) is a
+  change counter, word 1 the payload length in 32-bit units, then the payload from byte 16.
+  That is **not** Main's own save-state slot format, which uses 32-bit words; see "Status and
+  limitation" above. A classic 128K v3 file is 0x20100 bytes; a CPC+ chunk adds 0x900.
 - **Publication.** Word 0 carries an explicit invalid generation (all ones) while a save is in
   progress. The writer writes it first, then the payload, then the length, and last the new
   generation. The host pull rejects the invalid generation and any length that is not a legal SNA
@@ -307,4 +337,8 @@ remaining fields need direct checks of the capture.
    has already happened, omit `--wait`.
 
    `Amstrad.sv` has no simulation; Quartus synthesis is its only compile check.
-5. Device test: save on hardware, pull, reload the file in the core and in an emulator.
+5. Device test. **Done 2026-09-14** on RBF `0608653` (branch only, without master's
+   `88262b9` changes): a classic 6128 snapshot saved from the OSD, pulled with `sna_pull.py`,
+   reloads correctly in this core and in AmSpirit. Still open: acceptance 2 (capture fixture)
+   and 3 (round trip), a 464/664 64K save, and the user-facing SD route under "Status and
+   limitation".
