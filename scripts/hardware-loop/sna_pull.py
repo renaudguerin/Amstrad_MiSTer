@@ -4,6 +4,9 @@
 Pulls a classic SNA snapshot published by the running core into a DDR3 slot at
 0x3E000000 via SSH and /dev/mem mmap.
 
+This is a development aid, not the user-facing save path: the core cannot write the
+file to SD by itself yet. See "Status and limitation" in docs/b18-sna-save.md.
+
 Publication layout in DDR3 (64-bit little-endian words):
     +0x00 (word 0): generation {32'd0, gen} with gen in 1..0xFFFFFFFE.
                     0xFFFFFFFFFFFFFFFF indicates publication in progress / invalid.
