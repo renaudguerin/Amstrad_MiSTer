@@ -179,6 +179,13 @@ restore classic CRTC counters, GA interrupt phase, FDC state, or anything B8-5 l
 unrepresented. A round trip therefore proves only the fields the loaders consume. The
 remaining fields need direct checks of the capture.
 
+**Status, 2026-09-14.** The device test (slice 5) settles the practical claim: a snapshot saved
+on hardware resumes correctly in this core and in AmSpirit. It does not replace items 2 and 3.
+It was checked by eye, so it misses state a program does not visibly use: alternate registers,
+IFF2, R, the PSG register for a silent channel. It also cannot catch a later regression. Items 2
+and 3 are therefore lower priority, and both are to be built on one fixture, since both need the
+same composition.
+
 1. **Freeze predicate on production T80.** Extend the real-GA harness (`sim/crtc_t80_top.sv`,
    Verilator on the GHDL-translated T80 netlist, run by CI's `production-t80` job). It
    currently ties off hold, REG and interrupts (`crtc_t80_top.sv:115-136`); add all three,
@@ -203,7 +210,9 @@ remaining fields need direct checks of the capture.
 3. **Round trip.** Extract `Amstrad.sv`'s inline Z80/PPI/PSG/memory decode into a linted
    module beside `plus_sna_header`. Wire the production decoder and apply path into that
    fixture (P10 ties `sna_load`/`sna_hold` low). Save, reload, and compare loader-consumed state
-   and RAM. PPI A compares as the input value (spec note 6), not as an output latch.
+   and RAM. PPI A compares as the input value (spec note 6), not as an output latch. This is the
+   exact, automated form of the device test: every loader-consumed field and every RAM byte, run
+   in CI. Build it on the item 2 fixture rather than separately.
 
 ## Slices
 
@@ -339,6 +348,7 @@ remaining fields need direct checks of the capture.
    `Amstrad.sv` has no simulation; Quartus synthesis is its only compile check.
 5. Device test. **Done 2026-09-14** on RBF `0608653` (branch only, without master's
    `88262b9` changes): a classic 6128 snapshot saved from the OSD, pulled with `sna_pull.py`,
-   reloads correctly in this core and in AmSpirit. Still open: acceptance 2 (capture fixture)
-   and 3 (round trip), a 464/664 64K save, and the user-facing SD route under "Status and
+   reloads correctly in this core and in AmSpirit. This covers the practical "does it resume"
+   claim. Still open: acceptance 2 and 3, now lower priority and to be built as one fixture
+   (see "Acceptance"); a 464/664 64K save; and the user-facing SD route under "Status and
    limitation".

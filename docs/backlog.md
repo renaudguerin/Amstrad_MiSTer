@@ -849,8 +849,10 @@ Replay goes back in through uinput, as MBC already does for keys. Open questions
 (SDRAM stream and DDR3 publication) and 4c (top-level wiring, OSD action, host pull script)
 done** on `general/b18-sna-save`. The freeze predicate and controller run in the GHDL
 `production-t80` CI job. **Device-tested 2026-09-14:** a 6128 snapshot saved from the OSD
-reloads in this core and in AmSpirit. Next are the capture fixture (acceptance 2) and the round
-trip (acceptance 3). See the [design](b18-sna-save.md).
+reloads in this core and in AmSpirit, which settles the practical "does it resume" claim. The
+capture fixture and the automated round trip (acceptance 2 and 3) are now lower priority and are
+to be built as one fixture. They add exact checks of state not visible on screen, plus
+regression cover. See the [design](b18-sna-save.md).
 
 **Limitation: development tool only, not shippable to users.** The core writes the snapshot
 into DDR3 at 0x3E000000, and `scripts/hardware-loop/sna_pull.py` must copy it out from another
