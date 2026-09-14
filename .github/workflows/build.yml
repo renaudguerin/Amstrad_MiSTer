@@ -172,50 +172,73 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Restore pinned Verilator
-        id: verilator-cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ runner.tool_cache }}/amstrad-verilator
-          key: amstrad-verilator-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/ci/install-verilator.sh') }}
-
-      - name: Check cached Verilator
-        id: verilator-check
-        shell: bash
-        env:
-          VERILATOR_INSTALL_PREFIX: ${{ runner.tool_cache }}/amstrad-verilator
-        run: |
-          if scripts/ci/install-verilator.sh --check; then
-            printf 'ready=true\n' >> "$GITHUB_OUTPUT"
-          else
-            printf 'ready=false\n' >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Build pinned Verilator
-        if: steps.verilator-check.outputs.ready != 'true'
-        shell: bash
-        env:
-          VERILATOR_INSTALL_PREFIX: ${{ runner.tool_cache }}/amstrad-verilator
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes autoconf bison flex help2man libfl-dev zlib1g-dev
-          scripts/ci/install-verilator.sh
-
-      - name: Select pinned Verilator
-        shell: bash
-        env:
-          VERILATOR_INSTALL_PREFIX: ${{ runner.tool_cache }}/amstrad-verilator
-        run: |
-          printf '%s/bin\n' "$VERILATOR_INSTALL_PREFIX" >> "$GITHUB_PATH"
-          if ! scripts/ci/install-verilator.sh --check; then
-            printf '::error::cached Verilator does not match the repository pin\n' >&2
-            exit 1
-          fi
-          reported="$($VERILATOR_INSTALL_PREFIX/bin/verilator --version)"
-          printf '%s\n' "$reported"
+      - name: Set up pinned Verilator
+        uses: ./.github/actions/setup-verilator
 
       - name: Run behavioral tests and lint
         run: make -C sim clean test lint
+
+  production-t80:
+    # Tests that simulate the production VHDL T80 through a GHDL translation
+    # instead of the TV80 stand-in. Independent of the simulation job, so the
+    # two run in parallel; the required gate enforces both. Hosted only: GHDL
+    # publishes no arm64 Linux build for the Quartus VM, and that runner is
+    # reserved for synthesis.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GHDL_VERSION: 6.0.0
+      GHDL_ASSET: ghdl-llvm-6.0.0-ubuntu24.04-x86_64.tar.gz
+      GHDL_SHA256: e0064cd3d1569e7fca27b186b0d71e80c087de90db4e466ed77dc669a574d8bc
+
+    steps:
+      - name: Check out source and history
+        uses: actions/checkout@v7
+        with:
+          # crtc-t80-old-test extracts pre-B8 engines with git show.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up pinned Verilator
+        uses: ./.github/actions/setup-verilator
+
+      - name: Restore pinned GHDL
+        id: ghdl-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.tool_cache }}/amstrad-ghdl
+          key: amstrad-ghdl-${{ runner.os }}-${{ runner.arch }}-${{ env.GHDL_SHA256 }}
+
+      - name: Download pinned GHDL
+        if: steps.ghdl-cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          GHDL_PREFIX: ${{ runner.tool_cache }}/amstrad-ghdl
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/$GHDL_ASSET" \
+            "https://github.com/ghdl/ghdl/releases/download/v$GHDL_VERSION/$GHDL_ASSET"
+          printf '%s  %s\n' "$GHDL_SHA256" "$RUNNER_TEMP/$GHDL_ASSET" | sha256sum --check
+          mkdir -p "$GHDL_PREFIX"
+          tar -xzf "$RUNNER_TEMP/$GHDL_ASSET" -C "$GHDL_PREFIX" --strip-components=1
+
+      - name: Select pinned GHDL
+        shell: bash
+        env:
+          GHDL_PREFIX: ${{ runner.tool_cache }}/amstrad-ghdl
+        run: |
+          set -euo pipefail
+          # The release ships its apt runtime list beside the binaries.
+          if [[ -f "$GHDL_PREFIX/ubuntu.requirements" ]]; then
+            sudo apt-get update
+            sudo xargs --no-run-if-empty -a "$GHDL_PREFIX/ubuntu.requirements" -- \
+              apt-get install --yes --no-install-recommends
+          fi
+          "$GHDL_PREFIX/bin/ghdl" --version
+          printf 'GHDL=%s/bin/ghdl\n' "$GHDL_PREFIX" >> "$GITHUB_ENV"
+
+      - name: Run production-T80 tests
+        run: make -C sim production-t80-test GHDL="$GHDL"
 
   route:
     # Chooses which runner performs the expensive Quartus compile. The local
@@ -443,6 +466,7 @@ jobs:
     needs:
       - synthesis-policy
       - simulation
+      - production-t80
       - route
       - synthesis
       - synthesis-local
@@ -455,6 +479,7 @@ jobs:
         env:
           POLICY_RESULT: ${{ needs.synthesis-policy.result }}
           SIMULATION_RESULT: ${{ needs.simulation.result }}
+          PRODUCTION_T80_RESULT: ${{ needs.production-t80.result }}
           SYNTHESIS_REQUIRED: ${{ needs.synthesis-policy.outputs.required }}
           SYNTHESIS_REASON: ${{ needs.synthesis-policy.outputs.reason }}
           SYNTHESIS_MODE: ${{ needs.synthesis-policy.outputs.mode }}
@@ -471,6 +496,10 @@ jobs:
           fi
           if [[ "$SIMULATION_RESULT" != "success" ]]; then
             printf 'Simulation job did not pass: %s\n' "$SIMULATION_RESULT" >&2
+            exit 1
+          fi
+          if [[ "$PRODUCTION_T80_RESULT" != "success" ]]; then
+            printf 'Production-T80 job did not pass: %s\n' "$PRODUCTION_T80_RESULT" >&2
             exit 1
           fi
 

@@ -41,6 +41,11 @@ Classic CRTC emulation has been redesigned to align with the authoritative *Amst
 * Automated full-effort Quartus 17.0.2 synthesis with strict timing closure verification (setup/hold slack and zero Total Negative Slack) ensures testable RBF artifacts.
 * For implementation details and roadmaps, see [docs/current-status.md](docs/current-status.md) and [docs/implementation-roadmap.md](docs/implementation-roadmap.md).
 
+### 4. SNA Snapshot Save (development aid only)
+* **Save snapshot** in the OSD writes a classic CPC SNA v3 file (64K or 128K) of the running machine, frozen at an instruction boundary. Verified on hardware: a saved 6128 snapshot reloads in this core and in AmSpirit.
+* **Limitation: not a user feature yet.** The file goes to DDR3 memory, not the SD card, so it must be copied off the MiSTer from another computer over SSH with `scripts/hardware-loop/sna_pull.py`. Saving straight to SD needs a MiSTer Main change or a rework around Main's save-state mechanism; see [docs/b18-sna-save.md](docs/b18-sna-save.md).
+* Classic models only: refused in Plus mode and while a Dandanator or Multiface II is active.
+
 ---
 
 ## Upstream Core Features

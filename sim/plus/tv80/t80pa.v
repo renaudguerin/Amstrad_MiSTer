@@ -30,6 +30,8 @@ module T80pa #(
   output [7:0]   do,
   input          R800_mode,
   output [211:0] REG,
+  // TV80 commits register writes at different T-states from production T80, so it cannot provide the B18 freeze predicate; B18 capture tests use the GHDL-translated production netlist.
+  output         INSN_START,
   input          DIRSet,
   input  [211:0] DIR
 );
@@ -45,6 +47,7 @@ module T80pa #(
   reg        cen_pol;
   wire       cen;
 
+  assign INSN_START = 1'b0;
   assign cen = cen_p & ~cen_pol;
   assign busak_n = busak;
 

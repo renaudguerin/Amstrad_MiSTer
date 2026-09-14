@@ -26,7 +26,7 @@ assign ADC_BUS  = 'Z;
 assign USER_OUT = '1;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
-assign DDRAM_RD = 0;   // the SSM event ring writes only; see ssm_marker below
+assign DDRAM_RD = 0;   // the SSM event ring and the SNA save write only; see below
 
 assign LED_USER  = mf2_en | ioctl_download | tape_led | tape_adc_act;
 assign LED_DISK  = 0;
@@ -42,7 +42,7 @@ assign HDMI_BOB_DEINT = 0;
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXX X XXXXXXXXXXXXXXXXXXXXXXXXX  X    X    XXX
+// XXX X XXXXXXXXXXXXXXXXXXXXXXXXX  XXXXXXX   XXX
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -58,6 +58,7 @@ localparam CONF_STR = {
 	"-;",
 	"F5,ROM,Load Dandanator ROM;",
 	"F6,SNA,Load snapshot;",
+	"T[38],Save snapshot;",
 	"F7,E??,Load CPC464 ROM;",
 	"-;",
 	"O[62:61],SNAC,Off,Player 1,Player 2;",
@@ -102,6 +103,7 @@ localparam CONF_STR = {
 	"R0,Reset & apply model;",
 	"R[32],Reset & Detach Dandanator;",
 	"J,Fire 1,Fire 2,Fire 3;",
+	"I,Snapshot saved,Snapshot refused,Snapshot cancelled;",
 	"V,v",`BUILD_ID
 };
 
@@ -154,6 +156,11 @@ wire        ioctl_download;
 wire  [7:0] ioctl_index;
 wire [31:0] ioctl_file_ext;
 wire        ioctl_wait;
+
+// OSD info popup for the SNA save (index into the CONF_STR "I," entry),
+// driven beside the save logic below the SSM marker.
+reg         save_info_req = 1'b0;
+reg   [7:0] save_info = 8'd0;
 
 wire [10:0] ps2_key;
 wire [24:0] ps2_mouse;
@@ -225,7 +232,10 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
 	.ioctl_file_ext(ioctl_file_ext),
-	.ioctl_wait(ioctl_wait)
+	.ioctl_wait(ioctl_wait),
+
+	.info_req(save_info_req),
+	.info(save_info)
 );
 
 wire        rom_download = ioctl_download && rom_route_active;
@@ -247,7 +257,7 @@ wire [24:0] sna_mem_addr = ioctl_addr - 25'h100;
 wire [15:0] sna_std_mem_size = (sna_mem_size > 16'd128) ? 16'd128 : sna_mem_size;
 wire [24:0] sna_chunk_start = 25'h100 + {sna_std_mem_size[14:0], 10'd0};
 
-reg [211:0] sna_cpu_dir = 212'd0;
+wire [211:0] sna_cpu_dir;
 // The selected video/GA header fields (10, 2E, 2F-3F, 40, 42, 43-54, 55,
 // A9-B4) are decoded by rtl/plus/plus_sna_header.v instead of inline here, so
 // the P8 fixture drives the same decoder from a real byte stream (B8-5).
@@ -256,16 +266,28 @@ wire [143:0] sna_crtc_regs;
 wire  [4:0] sna_ga_inksel;
 wire [135:0] sna_ga_palette;
 wire  [7:0] sna_ga_config;
-reg   [7:0] sna_ram_config = 8'd0;
+// The Z80/PPI/PSG/RAM-config/memory-size header fields (11-2D, 41, 56-59,
+// 5A-6A, 6B-6D) are decoded by rtl/sna_cpu_header.v instead of inline here,
+// so the B18 round-trip fixture drives the same decoder from a real byte
+// stream (B18 slice 2).
+wire  [7:0] sna_ram_config;
 wire  [7:0] sna_rom_select;
-reg   [7:0] sna_ppi_a = 8'd0;
-reg   [7:0] sna_ppi_b = 8'd0;
-reg   [7:0] sna_ppi_c = 8'd0;
-reg   [7:0] sna_ppi_control = 8'h9b;
-reg   [3:0] sna_psg_addr = 4'd0;
-reg [127:0] sna_psg_regs = 128'd0;
-reg  [15:0] sna_mem_size = 16'd64;
-reg   [1:0] sna_model = 2'd0;
+wire  [7:0] sna_ppi_a;
+wire  [7:0] sna_ppi_b;
+wire  [7:0] sna_ppi_c;
+wire  [7:0] sna_ppi_control;
+wire  [3:0] sna_psg_addr;
+wire [127:0] sna_psg_regs;
+wire  [15:0] sna_mem_size;
+// sna_model single-driver design (B18 slice 2): the header-decoded model
+// lives in sna_cpu_header (its only procedural driver is that module's
+// always block), while the MEM1/CPC+ chunk parser below owns the registered
+// sna_chunk_force_128k flag. sna_model is their combination, so every
+// consumer (boot_bank, mem_bank, model) sees one value with no multi-driver.
+wire  [1:0] sna_hdr_model;
+reg           sna_chunk_force_128k = 1'b0;
+wire  [1:0] sna_model;
+assign sna_model = sna_chunk_force_128k ? 2'd0 : sna_hdr_model;
 wire  [2:0] sna_apply_cnt;
 wire        sna_finish_pending;
 wire        sna_load;
@@ -325,6 +347,54 @@ plus_sna_header sna_header
 	.int_pending(sna_int_pending)
 );
 
+// Declared before sna_cpu_header below: a port connection to a
+// not-yet-declared name becomes a 1-bit implicit net in Quartus (Warning
+// 10236, which CI rejects) instead of a forward reference.
+function automatic [1:0] valid_model(input [1:0] requested);
+	begin
+		valid_model = (requested == 2'd3) ? 2'd0 : requested;
+	end
+endfunction
+
+wire [1:0] menu_model = valid_model(status[5:4]);
+
+// Z80/PPI/PSG/RAM-config/memory-size header decode, shared with the B18
+// save/reload fixture. `wr`/`addr`/`data` are exactly the old inline
+// condition: a header byte of the snapshot currently downloading.
+//
+// Timing argument for sna_model: the header bytes (offsets < 0x100) always
+// arrive before any chunk header (which starts at sna_chunk_start >= 0x100),
+// and the chunk parser only sets sna_chunk_force_128k, never clears it, while
+// sna_hdr_model never changes after the header phase (a chunk-phase write has
+// addr >= 0x100, so the module's `wr` is low). The combination therefore
+// settles exactly as the old single register did: header-decoded value until
+// the first MEM1/CPC+ chunk header completes, 2'd0 from the next cycle on.
+// The download-start clear of the flag and the module's reset to menu_model
+// fire on the same edge cycle (see the module header comment), so the first
+// post-start value is menu_model, as before. Clocked consumers (boot_bank,
+// model) sample the combination one cycle after each source update, matching
+// the old nonblocking-update visibility.
+sna_cpu_header sna_cpu_header
+(
+	.clk(clk_sys),
+	.sna_download(sna_download),
+	.wr(sna_download && ioctl_wr && (ioctl_addr < 25'h100)),
+	.addr(ioctl_addr[7:0]),
+	.data(ioctl_dout),
+	.menu_model(menu_model),
+
+	.cpu_dir(sna_cpu_dir),
+	.ram_config(sna_ram_config),
+	.ppi_a(sna_ppi_a),
+	.ppi_b(sna_ppi_b),
+	.ppi_c(sna_ppi_c),
+	.ppi_control(sna_ppi_control),
+	.psg_addr(sna_psg_addr),
+	.psg_regs(sna_psg_regs),
+	.mem_size(sna_mem_size),
+	.model(sna_hdr_model)
+);
+
 wire [11:0] plus_sna_loop_cnt0;
 wire [11:0] plus_sna_loop_cnt1;
 wire [11:0] plus_sna_loop_cnt2;
@@ -369,14 +439,6 @@ wire        plus_sna_ioctl_wait;
 wire        plus_sna_busy;
 
 assign ioctl_wait = romdl_wait | (sna_download && ((|sna_rle_count && (sna_rle_state == 2'd0)) || plus_sna_ioctl_wait)) | cpr_ioctl_wait | tape_queue_wait;
-
-function automatic [1:0] valid_model(input [1:0] requested);
-	begin
-		valid_model = (requested == 2'd3) ? 2'd0 : requested;
-	end
-endfunction
-
-wire [1:0] menu_model = valid_model(status[5:4]);
 
 // A 8MB bank is split to 2 halves
 // Fist 4 MB is OS ROM + RAM pages + MF2 ROM
@@ -493,70 +555,8 @@ always @(posedge clk_sys) begin
 			if(ioctl_file_ext[15:0] == "Z0") begin page <= 0; combo <= 1; end
 		end
 	end
-	if(sna_download && ioctl_wr && (ioctl_addr < 25'h100)) begin
-		case(ioctl_addr[7:0])
-			8'h11: sna_cpu_dir[15:8]    <= ioctl_dout;          // F
-			8'h12: sna_cpu_dir[7:0]     <= ioctl_dout;          // A
-			8'h13: sna_cpu_dir[87:80]   <= ioctl_dout;          // C
-			8'h14: sna_cpu_dir[95:88]   <= ioctl_dout;          // B
-			8'h15: sna_cpu_dir[103:96]  <= ioctl_dout;          // E
-			8'h16: sna_cpu_dir[111:104] <= ioctl_dout;          // D
-			8'h17: sna_cpu_dir[119:112] <= ioctl_dout;          // L
-			8'h18: sna_cpu_dir[127:120] <= ioctl_dout;          // H
-			8'h19: sna_cpu_dir[47:40]   <= ioctl_dout;          // R
-			8'h1a: sna_cpu_dir[39:32]   <= ioctl_dout;          // I
-			8'h1b: sna_cpu_dir[210]     <= ioctl_dout[0];       // IFF1
-			8'h1c: sna_cpu_dir[211]     <= ioctl_dout[0];       // IFF2
-			8'h1d: sna_cpu_dir[135:128] <= ioctl_dout;          // IX low
-			8'h1e: sna_cpu_dir[143:136] <= ioctl_dout;          // IX high
-			8'h1f: sna_cpu_dir[199:192] <= ioctl_dout;          // IY low
-			8'h20: sna_cpu_dir[207:200] <= ioctl_dout;          // IY high
-			8'h21: sna_cpu_dir[55:48]   <= ioctl_dout;          // SP low
-			8'h22: sna_cpu_dir[63:56]   <= ioctl_dout;          // SP high
-			8'h23: sna_cpu_dir[71:64]   <= ioctl_dout;          // PC low
-			8'h24: sna_cpu_dir[79:72]   <= ioctl_dout;          // PC high
-			8'h25: sna_cpu_dir[209:208] <= ioctl_dout[1:0];     // IM
-			8'h26: sna_cpu_dir[31:24]   <= ioctl_dout;          // F'
-			8'h27: sna_cpu_dir[23:16]   <= ioctl_dout;          // A'
-			8'h28: sna_cpu_dir[151:144] <= ioctl_dout;          // C'
-			8'h29: sna_cpu_dir[159:152] <= ioctl_dout;          // B'
-			8'h2a: sna_cpu_dir[167:160] <= ioctl_dout;          // E'
-			8'h2b: sna_cpu_dir[175:168] <= ioctl_dout;          // D'
-			8'h2c: sna_cpu_dir[183:176] <= ioctl_dout;          // L'
-			8'h2d: sna_cpu_dir[191:184] <= ioctl_dout;          // H'
-			8'h41: sna_ram_config       <= ioctl_dout;
-			8'h56: sna_ppi_a            <= ioctl_dout;
-			8'h57: sna_ppi_b            <= ioctl_dout;
-			8'h58: sna_ppi_c            <= ioctl_dout;
-			8'h59: sna_ppi_control      <= ioctl_dout;
-			8'h5a: sna_psg_addr         <= ioctl_dout[3:0];
-			8'h6b: sna_mem_size[7:0]    <= ioctl_dout;
-			8'h6c: begin
-				sna_mem_size[15:8] <= ioctl_dout;
-				if({ioctl_dout, sna_mem_size[7:0]} > 16'd64) sna_model <= 2'd0;
-				else if(sna_cpu_dir[79:64] == 16'h0038) sna_model <= 2'd2;
-			end
-			8'h6d: begin
-				if(sna_mem_size > 16'd64) sna_model <= 2'd0;
-				else begin
-					case(ioctl_dout)
-						8'd0: sna_model <= 2'd2; // CPC464
-						8'd1: sna_model <= 2'd1; // CPC664
-						8'd2, 8'd4, 8'd5, 8'd6: sna_model <= 2'd0; // 6128/464+/6128+/GX snapshots need the 128K map.
-					endcase
-				end
-			end
-		endcase
-
-		if(ioctl_addr[7:0] >= 8'h5b && ioctl_addr[7:0] <= 8'h6a)
-			sna_psg_regs[((ioctl_addr[7:0] - 8'h5b) * 8) +: 8] <= ioctl_dout;
-	end
 	if(~old_download & ioctl_download & sna_download) begin
-		sna_cpu_dir <= 212'd0;
-		sna_psg_regs <= 128'd0;
-		sna_mem_size <= 16'd64;
-		sna_model <= menu_model;
-		sna_ppi_control <= 8'h9b;
+		sna_chunk_force_128k <= 1'b0;
 		sna_chunk_name <= 32'd0;
 		sna_chunk_len <= 32'd0;
 		sna_chunk_rem <= 32'd0;
@@ -602,11 +602,11 @@ always @(posedge clk_sys) begin
 					sna_chunk_finish <= 1'b0;
 					sna_chunk_bank <= next_name[3:0];
 					if((next_name[31:24] == "M") && (next_name[23:16] == "E") &&
-					   (next_name[15:8] == "M") && (next_name[7:0] == "1")) sna_model <= 2'd0;
+					   (next_name[15:8] == "M") && (next_name[7:0] == "1")) sna_chunk_force_128k <= 1'b1;
 					if((next_name[31:24] == "C") && (next_name[23:16] == "P") &&
 					   (next_name[15:8] == "C") && (next_name[7:0] == "+")) begin
 						sna_cpc_plus_start <= 1'b1;
-						sna_model <= 2'd0;
+						sna_chunk_force_128k <= 1'b1;
 					end
 					sna_chunk_out <= 16'd0;
 					sna_rle_state <= 2'd0;
@@ -732,6 +732,47 @@ wire  [7:0] cart_mem_wdata, cart_mem_rdata;
 wire        cart_image_valid;
 wire        cart_service_busy;
 
+// B18 SNA save. The save stream shares the SDRAM cartridge port with the
+// cartridge memory service through sna_cart_mux (sdram_cart_*), and reads
+// machine state from the motherboard and u765 observation ports. Declared
+// here, ahead of the sdram, u765 and motherboard instances; the save logic
+// itself sits below the SSM marker.
+wire        save_cart_req, save_cart_ack;
+wire  [1:0] save_cart_bank;
+wire [22:0] save_cart_addr;
+wire        sdram_cart_req, sdram_cart_wr, sdram_cart_ack;
+wire  [1:0] sdram_cart_bank;
+wire [22:0] sdram_cart_addr;
+wire  [7:0] sdram_cart_din;
+
+wire  [4:0] snap_ga_inksel, snap_ga_border;
+wire [79:0] snap_ga_inkr;
+wire        snap_ga_hromen, snap_ga_lromen;
+wire  [1:0] snap_ga_mode;
+wire  [5:0] snap_ga_intcnt;
+wire  [4:0] snap_ga_hcnt;
+wire        snap_ga_int_n;
+wire  [4:0] snap_crtc_addr;
+wire [127:0] snap_crtc_regs;
+wire  [7:0] snap_crtc_hcc;
+wire  [6:0] snap_crtc_row;
+wire  [4:0] snap_crtc_line, snap_crtc_c5;
+wire        snap_crtc_in_adj;
+wire  [3:0] snap_crtc_hsc;
+wire        snap_crtc_hsync, snap_crtc_vsync_r;
+wire  [3:0] snap_crtc_vsw_elapsed;
+wire  [2:0] snap_mmu_rammap;
+wire  [4:0] snap_mmu_rampage;
+wire  [7:0] snap_mmu_rom_select_shadow;
+wire  [7:0] snap_ppi_porta_in, snap_ppi_portb_in, snap_ppi_opc_r, snap_ppi_mode;
+wire  [7:0] snap_psg_addr;
+wire [127:0] snap_psg_regs;
+wire  [7:0] snap_printer_data;
+wire  [7:0] snap_pcn_a, snap_pcn_b;
+wire [211:0] cpu_reg;
+wire        cpu_insn_start, cpu_halt_n;
+wire        save_hold;
+
 wire [15:0] vram_dout;
 wire [14:0] vram_addr;
 
@@ -766,14 +807,15 @@ sdram sdram
 	.dout(ram_dout),
 	// Cartridge memory service (P-1 contract, production-connected at P0).
 	// The service owns all cartridge region policy; the controller sees a
-	// generic held request on bank 3.
-	.cart_req(cart_mem_req),
-	.cart_wr(cart_mem_write),
-	.cart_bank(cart_mem_bank),
-	.cart_addr(cart_mem_addr),
-	.cart_din(cart_mem_wdata),
+	// generic held request on bank 3. The SNA save borrows the same port
+	// through sna_cart_mux; cart_dout is shared, the acknowledge is not.
+	.cart_req(sdram_cart_req),
+	.cart_wr(sdram_cart_wr),
+	.cart_bank(sdram_cart_bank),
+	.cart_addr(sdram_cart_addr),
+	.cart_din(sdram_cart_din),
 	.cart_dout(cart_mem_rdata),
-	.cart_ack(cart_mem_ack),
+	.cart_ack(sdram_cart_ack),
 	.vram_bank(mem_bank),
 	.vram_addr({2'b10,vram_addr,1'b0}),
 	.vram_dout(vram_dout),
@@ -982,7 +1024,9 @@ u765 u765
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
 	.sd_buff_din(sd_buff_din),
-	.sd_buff_wr(sd_buff_wr)
+	.sd_buff_wr(sd_buff_wr),
+	.snap_pcn_a(snap_pcn_a),
+	.snap_pcn_b(snap_pcn_b)
 );
 
 /////////////////////////////////////////////////////////////////////////
@@ -1429,6 +1473,7 @@ Amstrad_motherboard motherboard
 	.sna_psg_regs(sna_psg_regs),
 
 	.sna_hold(sna_hold),
+	.save_hold(save_hold),
 	.sna_hsync(sna_hsync),
 	.sna_dma_loop_cnt0(plus_sna_loop_cnt0),
 	.sna_dma_loop_cnt1(plus_sna_loop_cnt1),
@@ -1513,7 +1558,47 @@ Amstrad_motherboard motherboard
 	.cursor(cursor),
 
 	.key_nmi(key_nmi),
-	.key_reset(key_reset)
+	.key_reset(key_reset),
+
+	.snap_ga_inksel(snap_ga_inksel),
+	.snap_ga_border(snap_ga_border),
+	.snap_ga_inkr(snap_ga_inkr),
+	.snap_ga_hromen(snap_ga_hromen),
+	.snap_ga_lromen(snap_ga_lromen),
+	.snap_ga_mode(snap_ga_mode),
+	.snap_ga_intcnt(snap_ga_intcnt),
+	.snap_ga_hcnt(snap_ga_hcnt),
+	.snap_ga_int_n(snap_ga_int_n),
+
+	.snap_crtc_addr(snap_crtc_addr),
+	.snap_crtc_regs(snap_crtc_regs),
+	.snap_crtc_hcc(snap_crtc_hcc),
+	.snap_crtc_row(snap_crtc_row),
+	.snap_crtc_line(snap_crtc_line),
+	.snap_crtc_c5(snap_crtc_c5),
+	.snap_crtc_in_adj(snap_crtc_in_adj),
+	.snap_crtc_hsc(snap_crtc_hsc),
+	.snap_crtc_hsync(snap_crtc_hsync),
+	.snap_crtc_vsync_r(snap_crtc_vsync_r),
+	.snap_crtc_vsw_elapsed(snap_crtc_vsw_elapsed),
+
+	.snap_mmu_rammap(snap_mmu_rammap),
+	.snap_mmu_rampage(snap_mmu_rampage),
+	.snap_mmu_rom_select_shadow(snap_mmu_rom_select_shadow),
+
+	.snap_ppi_porta_in(snap_ppi_porta_in),
+	.snap_ppi_portb_in(snap_ppi_portb_in),
+	.snap_ppi_opc_r(snap_ppi_opc_r),
+	.snap_ppi_mode(snap_ppi_mode),
+
+	.snap_psg_addr(snap_psg_addr),
+	.snap_psg_regs(snap_psg_regs),
+
+	.snap_printer_data(snap_printer_data),
+
+	.cpu_reg(cpu_reg),
+	.cpu_insn_start(cpu_insn_start),
+	.cpu_halt_n(cpu_halt_n)
 );
 
 /////////////////////////////////Dandanator/////////////////////
@@ -1647,14 +1732,212 @@ ssm_marker ssm
 	.ddram_busy(ssm_ddr_busy)
 );
 
-assign DDRAM_ADDR     = ssm_ddr_addr;
-assign DDRAM_DIN      = ssm_ddr_din;
-assign DDRAM_BE       = ssm_ddr_be;
-assign DDRAM_BURSTCNT = ssm_ddr_burstcnt;
-assign DDRAM_WE       = ssm_ddr_we;
-assign ssm_ddr_busy   = DDRAM_BUSY;
-
 assign DDRAM_CLK = clk_sys;
+
+//////////////////////////////////////////////////////////////////////
+// SNA save (backlog B18, docs/b18-sna-save.md).
+//
+// OSD "Save snapshot" arms a request. The Z80 freezes at the next
+// instruction boundary, the same point a hardware WAIT would hold it, while
+// the Gate Array, CRTC and video keep running. The header is latched on that
+// clock, RAM is read through the SDRAM cartridge port into the DDR3 slot at
+// 0x3E000000, and the CPU is released. scripts/hardware-loop/sna_pull.py
+// copies the file out over SSH; there is no route to SD from here.
+
+reg old_save_osd = 1'b0;
+always @(posedge clk_sys) old_save_osd <= status[38];
+wire save_req = status[38] & ~old_save_osd;
+
+// Classic machine only, outside reset, downloads and snapshot apply. Plus
+// mode, the Dandanator and the Multiface II hold memory or mapping state the
+// file cannot carry, and an outstanding cartridge request would leave the
+// SDRAM port busy. Losing admission while armed cancels the request.
+wire save_admit = !reset && !ioctl_download && !sna_hold && !sna_load && !plus_mode &&
+                  !dan_ena && !mf2_en && !cart_mem_req;
+
+// Once the CPU is held, only a reset or a snapshot load stops the save: a
+// load rewrites the RAM being dumped. Every other download either resets the
+// core or leaves RAM alone.
+wire save_abort = reset | sna_download;
+
+wire [8*135-1:0] save_hw_hdr;
+wire [2047:0]    save_header;
+wire             save_captured, save_refused, save_cancelled, save_done;
+
+sna_hw_header save_hw_header
+(
+	.ga_inksel(snap_ga_inksel),
+	.ga_border(snap_ga_border),
+	.ga_inkr(snap_ga_inkr),
+	.ga_hromen(snap_ga_hromen),
+	.ga_lromen(snap_ga_lromen),
+	.ga_mode(snap_ga_mode),
+	.ga_intcnt(snap_ga_intcnt),
+	.ga_hcnt(snap_ga_hcnt),
+	.ga_int_n(snap_ga_int_n),
+
+	.mmu_rammap(snap_mmu_rammap),
+	.mmu_rom_select_shadow(snap_mmu_rom_select_shadow),
+
+	.crtc_addr(snap_crtc_addr),
+	.crtc_regs(snap_crtc_regs),
+	.crtc_hcc(snap_crtc_hcc),
+	.crtc_row(snap_crtc_row),
+	.crtc_line(snap_crtc_line),
+	.crtc_c5(snap_crtc_c5),
+	.crtc_in_adj(snap_crtc_in_adj),
+	.crtc_hsc(snap_crtc_hsc),
+	.crtc_hsync(snap_crtc_hsync),
+	.crtc_vsync_r(snap_crtc_vsync_r),
+	.crtc_vsw_elapsed(snap_crtc_vsw_elapsed),
+
+	.ppi_porta_in(snap_ppi_porta_in),
+	.ppi_portb_in(snap_ppi_portb_in),
+	.ppi_opc_r(snap_ppi_opc_r),
+	.ppi_mode(snap_ppi_mode),
+
+	.psg_addr(snap_psg_addr),
+	.psg_regs(snap_psg_regs),
+
+	.printer_data(snap_printer_data),
+	.model(model),
+	.crtc_type(~status[2]),        // the value fed to the motherboard's CRTC_TYPE
+	.fdc_motor(motor),
+	.fdc_pcn_a(snap_pcn_a),
+	.fdc_pcn_b(snap_pcn_b),
+
+	.hdr(save_hw_hdr)
+);
+
+sna_save_capture save_capture
+(
+	.clk(clk_sys),
+	.reset(save_abort),
+	.save_req(save_req),
+	.admit(save_admit),
+	.rampage_ok(snap_mmu_rampage == 5'd3),
+	.release_req(save_done),
+	.insn_start(cpu_insn_start),
+	.halt_n(cpu_halt_n),
+	.cpu_reg(cpu_reg),
+	.hw_hdr(save_hw_hdr),
+	.hold(save_hold),
+	.captured(save_captured),
+	.refused(save_refused),
+	.cancelled(save_cancelled),
+	.busy(),
+	.header(save_header)
+);
+
+wire        save_ddr_request, save_ddr_grant, save_ddr_we, save_ddr_busy;
+wire [28:0] save_ddr_addr;
+wire [63:0] save_ddr_din;
+wire  [7:0] save_ddr_be, save_ddr_burstcnt;
+
+// Admission excludes Plus mode and snapshot apply, so mem_bank is the
+// running classic model's bank; the stream latches it on start.
+sna_save_stream save_stream
+(
+	.clk(clk_sys),
+	.reset(save_abort),
+	.start(save_captured),
+	.ram128(model == 2'd0),
+	.bank(mem_bank),
+	.header(save_header),
+	.clkref(ce_ref),
+
+	.cart_req(save_cart_req),
+	.cart_bank(save_cart_bank),
+	.cart_addr(save_cart_addr),
+	.cart_dout(cart_mem_rdata),
+	.cart_ack(save_cart_ack),
+
+	.ddr_grant(save_ddr_grant),
+	.ddr_request(save_ddr_request),
+	.ddram_addr(save_ddr_addr),
+	.ddram_din(save_ddr_din),
+	.ddram_be(save_ddr_be),
+	.ddram_burstcnt(save_ddr_burstcnt),
+	.ddram_we(save_ddr_we),
+	.ddram_busy(save_ddr_busy),
+
+	.done(save_done),
+	.active()
+);
+
+sna_cart_mux save_cart_mux
+(
+	.clk(clk_sys),
+	.clkref(ce_ref),
+
+	.a_req(cart_mem_req),
+	.a_wr(cart_mem_write),
+	.a_bank(cart_mem_bank),
+	.a_addr(cart_mem_addr),
+	.a_din(cart_mem_wdata),
+	.a_ack(cart_mem_ack),
+
+	.b_req(save_cart_req),
+	.b_bank(save_cart_bank),
+	.b_addr(save_cart_addr),
+	.b_ack(save_cart_ack),
+
+	.cart_req(sdram_cart_req),
+	.cart_wr(sdram_cart_wr),
+	.cart_bank(sdram_cart_bank),
+	.cart_addr(sdram_cart_addr),
+	.cart_din(sdram_cart_din),
+	.cart_ack(sdram_cart_ack)
+);
+
+// The SSM marker keeps the DDR3 port by default; the save takes it only
+// between SSM writes, and the marker sees busy while the save owns it.
+sna_ddr_mux save_ddr_mux
+(
+	.clk(clk_sys),
+	.reset(save_abort),
+
+	.a_addr(ssm_ddr_addr),
+	.a_din(ssm_ddr_din),
+	.a_be(ssm_ddr_be),
+	.a_burstcnt(ssm_ddr_burstcnt),
+	.a_we(ssm_ddr_we),
+	.a_busy(ssm_ddr_busy),
+
+	.b_request(save_ddr_request),
+	.b_grant(save_ddr_grant),
+	.b_addr(save_ddr_addr),
+	.b_din(save_ddr_din),
+	.b_be(save_ddr_be),
+	.b_burstcnt(save_ddr_burstcnt),
+	.b_we(save_ddr_we),
+	.b_busy(save_ddr_busy),
+
+	.ddram_addr(DDRAM_ADDR),
+	.ddram_din(DDRAM_DIN),
+	.ddram_be(DDRAM_BE),
+	.ddram_burstcnt(DDRAM_BURSTCNT),
+	.ddram_we(DDRAM_WE),
+	.ddram_busy(DDRAM_BUSY)
+);
+
+// OSD feedback, 1-based into the CONF_STR "I," entry: saved, refused,
+// cancelled. hps_io latches `info` on the rising edge of `info_req`.
+always @(posedge clk_sys) begin
+	save_info_req <= 1'b0;
+	if (save_done) begin
+		save_info     <= 8'd1;
+		save_info_req <= 1'b1;
+	end
+	else if (save_refused) begin
+		save_info     <= 8'd2;
+		save_info_req <= 1'b1;
+	end
+	else if (save_cancelled) begin
+		save_info     <= 8'd3;
+		save_info_req <= 1'b1;
+	end
+end
 
 //////////////////////////////////////////////////////////////////////
 

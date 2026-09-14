@@ -23,6 +23,9 @@ module T80pa (
 	output reg         mreq_n,
 	output reg         m1_n,
 	output wire        rfsh_n,
+	output wire        halt_n,     // B18 halt state (tied inactive)
+	output wire [211:0] REG,        // B18 CPU register vector (tied zero)
+	output wire         INSN_START, // B18 instruction-boundary freeze predicate (tied inactive)
 	input  wire        busrq_n,
 	input  wire        int_n,
 	input  wire        nmi_n,
@@ -60,6 +63,9 @@ module T80pa (
 	reg [31:0] dbg_operations  /* verilator public_flat_rd */;
 
 	assign rfsh_n = 1'b1;
+	assign halt_n = 1'b1;
+	assign REG = 212'd0;
+	assign INSN_START = 1'b0;
 
 	// {memory_cycle, read_cycle, address, data}.  CRTC3 setup follows the
 	// ordinary register write decode in Amstrad_motherboard.v.  R8=0 keeps

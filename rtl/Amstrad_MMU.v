@@ -38,28 +38,35 @@ module Amstrad_MMU
 	input        sna_load,
 	input  [7:0] sna_ram_config,
 	input  [7:0] sna_rom_select,
-	output reg [22:0] ram_A
+	output reg [22:0] ram_A,
+
+	output  [2:0] snap_rammap,
+	output  [4:0] snap_rampage,
+	output  [7:0] snap_rom_select_shadow
 );
 
 reg [2:0] RAMmap;
 reg [4:0] RAMpage;
 reg [7:0] ROMbank;
+reg [7:0] rom_select_shadow;
 
 always @(posedge CLK) begin
 	reg old_wr;
 
 	if (reset) begin
-		ROMbank    <=0;
-		RAMmap     <=0;
-		RAMpage    <=3;
-		old_wr     <= 1'b0; // replaces the old block-local initializer:
-		                    // newer Verilator rejects mixed blocked/
-		                    // nonblocked assignment to the same variable.
+		ROMbank           <= 0;
+		rom_select_shadow <= 8'd0;
+		RAMmap            <= 0;
+		RAMpage           <= 3;
+		old_wr            <= 1'b0; // replaces the old block-local initializer:
+		                           // newer Verilator rejects mixed blocked/
+		                           // nonblocked assignment to the same variable.
 	end
 	else if (sna_load) begin
-		RAMmap  <= sna_ram_config[2:0];
-		RAMpage <= {1'b0, 1'b0, sna_ram_config[5:3]} + 5'd3;
-		ROMbank <= rom_map[sna_rom_select] ? sna_rom_select : 8'h00;
+		RAMmap            <= sna_ram_config[2:0];
+		RAMpage           <= {1'b0, 1'b0, sna_ram_config[5:3]} + 5'd3;
+		ROMbank           <= rom_map[sna_rom_select] ? sna_rom_select : 8'h00;
+		rom_select_shadow <= sna_rom_select;
 	end
 	else begin
 		old_wr <= io_WR;
@@ -71,10 +78,17 @@ always @(posedge CLK) begin
 
 			// As the ROM selection is built into the expansion cartridges,
 			// activate it only, when the appropriate ROM is present.
-			if (~A[13]) ROMbank <= rom_map[D] ? D : 8'h00;
+			if (~A[13]) begin
+				ROMbank           <= rom_map[D] ? D : 8'h00;
+				rom_select_shadow <= D;
+			end
 		end
 	end
 end
+
+assign snap_rammap = RAMmap;
+assign snap_rampage = RAMpage;
+assign snap_rom_select_shadow = rom_select_shadow;
 
 always @(*) begin
 	casex({romen_n, RAMmap, A[15:14]})
