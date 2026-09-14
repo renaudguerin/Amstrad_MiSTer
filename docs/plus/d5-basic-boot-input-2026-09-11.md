@@ -2,7 +2,7 @@
 
 **Source repair integrated; BASIC boot confirmed fixed on 6128 Plus hardware
 with `5c16b17`, reported 2026-09-12.** See the
-[hardware report](../hardware-evidence-2026-09-12.md). Other model/cartridge
+[hardware report](../investigations/hardware-runs/hardware-evidence-2026-09-12.md). Other model/cartridge
 combinations and disk I/O remain separate acceptance items.
 
 Scope: CPC Plus production `/EXP` configuration. The accepted source rationale

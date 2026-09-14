@@ -7,7 +7,7 @@ be merged into one commit or one PR: classic CRTC accuracy for types 0 (HD6845S)
 Start from `docs/backlog.md` for the cross-cutting architecture and methodology items
 (observability, harnesses, structural debt) that sit underneath feature work,
 `docs/implementation-roadmap.md` for dependency order and acceptance gates,
-`docs/current-status.md` for the handoff state, and `docs/accuracy/audit-findings.md` for the
+`docs/current-status.md` for the handoff state, and `docs/classic/audit-findings.md` (symlinked from `docs/accuracy/`) for the
 numbered findings F1-F12.
 
 ## Proportionate engineering
@@ -57,15 +57,15 @@ Sources rank in this order, and a lower rank never overturns a higher one:
    record it. SHAKER results are judged by visual comparison against those photographs. The
    stock upstream core is a regression baseline only: shared inaccuracy is invisible against it.
 2. The latest French edition of the Amstrad CPC CRTC Compendium (ACCC), currently v1.11 at
-   `docs/references/ACCC1.11-FR.pdf`. The matching English edition is a working translation
+   `docs/specs/ACCC1.11-FR.pdf`. The matching English edition is a working translation
    and accessibility aid, not the tie-breaker when the editions differ.
-3. The checked-in digests under `docs/accuracy/`.
+3. The checked-in digests under `docs/classic/` (symlinked from `docs/accuracy/`).
 
 The ACCC is our working oracle but it is not the final authority. A vector that encodes a
 misreading of the Compendium passes cheerfully and hides the very bug it was meant to catch.
 When simulation and hardware disagree, hardware wins and the vector is wrong.
 
-`docs/references/ACCC1.11-FR.pdf` and `docs/references/ACCC1.11-EN.pdf` are user-owned and
+`docs/specs/ACCC1.11-FR.pdf` and `docs/specs/ACCC1.11-EN.pdf` are user-owned and
 deliberately untracked. Never commit them. **Untracked does not mean absent**: both files are
 in the working tree, gitignored, and readable. Read the French source directly whenever a
 rule matters; use the English edition to aid navigation and review. If they differ, record
@@ -78,7 +78,7 @@ historical reports, quotations, or unaffected code comments: migrate an English-
 when a bilingual finding affects it or when the surrounding claim is substantively revised.
 
 Read the PDFs through the `pdf-inspector` skill, and follow the verification protocol already
-written down in `docs/accuracy/extract/README.md`: pdf-inspector's position-aware Markdown is
+written down in `docs/classic/extract/README.md`: pdf-inspector's position-aware Markdown is
 the primary text layer (2026-08-24 decision; pdftotext is a weaker extractor kept only as an
 optional second opinion), and table or chronogram rules are judged from rendered pages, never
 from a text layer alone. Reaching for raw text where a figure is involved is how figure

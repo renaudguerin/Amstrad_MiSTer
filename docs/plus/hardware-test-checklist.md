@@ -13,7 +13,7 @@ cartridges `Drive A: read fail`; approximately half of sampled cartridges loaded
 
 ## Latest recorded results
 
-The [September 13 report](../hardware-evidence-2026-09-13.md) confirms that
+The [September 13 report](../investigations/hardware-runs/hardware-evidence-2026-09-13.md) confirms that
 build **`a0778b6`** (fix "general: reset PSG R7 to 0x00 so bare-metal keyboard
 scans work") **fixes all known keyboard / joystick issues with `arn5diag`, `Pang`,
 and `Plotting`**. AY-3-8912 /RESET clears all registers to 0x00 (GI datasheet),
@@ -23,13 +23,13 @@ held-fire symptom in Pang and Plotting, and cold-boot keyboard navigation in Arn
 (`arn5diag`). In addition, Copter 271's logo is fixed on device (`b5c3014`), and its
 title flash is much improved (`05cb9fd`).
 
-The earlier [September 12 report](../hardware-evidence-2026-09-12.md) confirmed BASIC
+The earlier [September 12 report](../investigations/hardware-runs/hardware-evidence-2026-09-12.md) confirmed BASIC
 boot fixed on **6128 Plus / `5c16b17`**. Left-edge sprite corruption is much
 improved, possibly fixed. B6 Full versus Raw pixels showed no visible difference so far.
 This closes the named BASIC boot symptom, not the multi-model System Cartridge checklist
 or disk I/O. The exact output/media configuration and on-device RBF hash are unrecorded.
 
-The earlier [September 9 report](../hardware-evidence-2026-09-09.md) records the
+The earlier [September 9 report](../investigations/hardware-runs/hardware-evidence-2026-09-09.md) records the
 `ce1d2da` retest and maps the SHAKER captures. Burnin' Rubber was reported OK,
 Enforcer/Tintin seem good, and CRTC3's right-edge leak appears fixed. These
 limited observations do not check the multi-feature title/subsystem boxes below.

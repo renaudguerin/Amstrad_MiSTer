@@ -36,12 +36,12 @@ keyboard navigation in `arn5diag` and caused the persistent "Fire always pressed
 in `Pang` and `Plotting` (firmware and SNA restore program R7, masking the bug in BASIC/OS
 paths). In `sim/plus/p10_input_test.cpp`, the bench adds a reset-default R14 read vector.
 Reviewed by Astra-high (accept-with-nits applied); full simulation, both lints, and soak
-hash `0xb1cb70da95c2e44f` pass unchanged. See [September 13 hardware report](hardware-evidence-2026-09-13.md).
+hash `0xb1cb70da95c2e44f` pass unchanged. See [September 13 hardware report](investigations/hardware-runs/hardware-evidence-2026-09-13.md).
 
 **AmSpirit troubleshooting oracle (Track G), 2026-09-13:** standalone helper
 `scripts/amspirit/amspirit.py` loads media, paces input on emulated frames, and captures
 a paused checkpoint (screenshot, state endpoints, SNA with chunk list) with a manifest.
-The [Copter 271 title pilot](amspirit-oracle-pilot-2026-09-13.md) ran it end to end on
+The [Copter 271 title pilot](investigations/hardware-runs/amspirit-oracle-pilot-2026-09-13.md) ran it end to end on
 AmSpirit lite 1.15.1; the checkpoint SNA resumes and takes input in AmSpirit, and resumes
 on the MiSTer (`05cb9fd`, 6128+) when an MGL loads the CPR before the SNA, and joystick
 input works after that load (user-checked). Neither load selects the Plus model; B16 now
@@ -99,14 +99,14 @@ stable around SSM markers (making Phase 1 asynchronous native captures 100% fait
 and independent review from Claude Opus 5 (`20260913T072642Z-13878-c99b`, CLEAR).
 Pruning eliminates dead code, an unreserved 17 MiB memory collision hazard, and
 unverified Cyclone V timing debt; the ABI and resurrection path remain documented in
-[`docs/ssm-capture-abi.md`](ssm-capture-abi.md).
+[`docs/ssm-capture-abi.md`](investigations/ssm-csl/ssm-capture-abi.md).
 
 The active gates pass: full simulation, host tests, lint and soak
 `0xb1cb70da95c2e44f`. The workbook's 712 rows (483 CRTC 0, 478 CRTC 1) remain
-coverage targets, with Module A and Gate 1 (Module B) completed. See the [plan](csl-ssm-implementation-plan.md),
-[marker evidence](shaker-ssm-marker-inventory-2026-09-12.md),
-[driver guide](mister-hardware-loop-driver.md#the-csl-runner),
-[capture ABI](ssm-capture-abi.md) and [remaining review debt](review-debt.md).
+coverage targets, with Module A and Gate 1 (Module B) completed. See the [plan](investigations/ssm-csl/csl-ssm-implementation-plan.md),
+[marker evidence](investigations/ssm-csl/shaker-ssm-marker-inventory-2026-09-12.md),
+[driver guide](investigations/hardware-runs/mister-hardware-loop-driver.md#the-csl-runner),
+[capture ABI](investigations/ssm-csl/ssm-capture-abi.md) and [remaining review debt](review-debt.md).
 
 **Coordinated follow-ups integrated, 2026-09-12:** B2's accepted `5de8c5c`
 establishes real SHAKER B (9) navigation and nine identical captures across
@@ -122,7 +122,7 @@ completed with hosted full synthesis and timing passed, but simulation exhausted
 successor run as of B4 integration preparation. B4 raises that limit to 60 minutes;
 its exact-SHA run must pass the whole suite. The earlier RBF is not B4 build evidence.
 The normal push workflow selects the required jobs; no duplicate build is dispatched.
-See the [branch/evidence handoff](hardware-followup-handoff-2026-09-12.md)
+See the [branch/evidence handoff](investigations/hardware-runs/hardware-followup-handoff-2026-09-12.md)
 for reviewed tips, device restoration and remaining hardware limits.
 
 **B2 device capture, 2026-09-12:** French-ROM SHAKER 2.7 B (9) boots through
@@ -130,20 +130,20 @@ MGL/MBC on the hash-verified `5c16b17` RBF. Three independent loads produce
 nine identical decoded numeric-screen PNGs with CRTC 1 visible. The reusable
 case pins RBF/media identity; 26 focused tests and fresh Gemini review pass.
 Native screenshots omit OSD, so saved Full configuration is not visual proof
-of the active mode. See [device evidence and limits](b2-device-capture-2026-09-12.md).
+of the active mode. See [device evidence and limits](investigations/hardware-runs/b2-device-capture-2026-09-12.md).
 
 **Hardware reports, September 12–13:**
 - **2026-09-12, `5c16b17`:** the user confirmed **6128 Plus BASIC boot fixed**.
   Corrupt sprite lines at the left edge were **much improved, perhaps fixed**,
   with definitive closure still open. B6 Full versus Raw pixels showed **no visible
   difference so far** in Amazing Demo, DSC4 or SHAKER A (T). See the
-  [dated report](hardware-evidence-2026-09-12.md).
+  [dated report](investigations/hardware-runs/hardware-evidence-2026-09-12.md).
 - **2026-09-13, `a0778b6`:** hardware testing confirms build `a0778b6` (PSG R7
   reset to 0x00) **fixes all known keyboard and joystick issues with `arn5diag`,
   `Pang`, and `Plotting`**. Fire is no longer held down in Pang/Plotting, and
   arn5diag keyboard navigation operates normally from cold boot. Copter 271 logo is
   fixed on device (`c595031`/`b5c3014`) and title flash much improved (`05cb9fd`).
-  See the [September 13 report](hardware-evidence-2026-09-13.md).
+  See the [September 13 report](investigations/hardware-runs/hardware-evidence-2026-09-13.md).
 
 **B6 rendering follow-up, 2026-09-12 (integrated source):** the production mixer
 RGB scope defect has a failing-before/passing-after parameter regression.
@@ -155,7 +155,7 @@ subsequently requested no duplicate review. Full simulation, lint and the
 unchanged canonical soak pass. No new bitstream exists. A sustained
 CPU-generated stuck-high raw-sync recipe, physical connector acceptance and
 title-specific defects remain open. See the
-[completion record](b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12).
+[completion record](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12).
 
 **B6 video boundary integrated, 2026-09-11:** Full and Raw pixels now share
 the complete Full acquisition tuple. Raw pixels uses native VRAM byte order
@@ -171,8 +171,8 @@ all required CI and full-fit timing (setup +0.320 ns, hold +0.247 ns, zero
 TNS). The delivered RBF is `output_files/Amstrad_20260911_5c16b17.rbf`.
 The original artifact retains the then-open rendering limitations; the local
 follow-up above adds that simulation evidence without changing this RBF.
-Physical HDMI/CRT acceptance remains open; see the [design](b6-video-boundary.md) and
-[validation record](b6-video-boundary-review-2026-09-11.md).
+Physical HDMI/CRT acceptance remains open; see the [design](investigations/video-boundary/b6-video-boundary.md) and
+[validation record](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md).
 
 **Combined Plus integration timing, 2026-09-11:** D5 and D3/D4 are integrated
 and published at `f8e9372`. All destination simulation, lint, canonical soak
@@ -212,11 +212,11 @@ screen was not reproduced; left-edge sprite flicker remains, and the user
 confirms no Dandanator was ever tested. System/BASIC fails before disk access.
 DSC4 and SHAKER still fail; Amazing Demo has improved HSYNC behaviour with
 Live blanking but remaining lower-screen corruption. See the
-[full results and SHAKER capture index](hardware-evidence-2026-09-09.md).
+[full results and SHAKER capture index](investigations/hardware-runs/hardware-evidence-2026-09-09.md).
 B1/P10 remain open. The subsequent diagnostic assessment is recorded below;
 unassessed entries do not become passes by association.
 
-**Code diagnosis, 2026-09-10:** the [retained investigation](hardware-diagnosis-2026-09-10.md)
+**Code diagnosis, 2026-09-10:** the [retained investigation](investigations/hardware-runs/hardware-diagnosis-2026-09-10.md)
 reproduces a type-1 frame-origin VSYNC parity bug matching SHAKER B (9)'s
 `#4E00` interval, ASCAL geometry changes under split DE, a Plus sprite first-row
 refill failure, and Plus PPI control-readback differences. Production RTL was
@@ -229,12 +229,12 @@ confirms boot fixed on 6128 Plus. Disk-based testing and other model/cartridge
 coverage remain separate, as described above.
 
 **Plus D3/D4 repair, 2026-09-11:** the sprite predictor now stages row zero on
-the preceding compare line under the [bounded first-row service contract](hardware-diagnosis-2026-09-10.md#d3-repair-contract).
+the preceding compare line under the [bounded first-row service contract](investigations/hardware-runs/hardware-diagnosis-2026-09-10.md#d3-repair-contract).
 The required production-cadence regression checks all 16 sprites enabled with
 sprite 15 opaque at X=0/16/32/64/256, including distinct first/second-row colours.
 Plus PPI mode-word control reads follow Thacker's `00`/`FF` bit-4 pattern;
 DMA direction retention is checked through Port-A behavior before setup writes.
-See the [D4 scope and BSR residual](hardware-diagnosis-2026-09-10.md#d4-repair-boundary).
+See the [D4 scope and BSR residual](investigations/hardware-runs/hardware-diagnosis-2026-09-10.md#d4-repair-boundary).
 Reviewed feature tip `5c58fe7`, refreshed as `cc9d704`, is integrated after
 D5 merge `24b2520`. Both refreshes preserved reviewed behavior and resolved
 only status wording; the Makefile retained both test targets. Destination
@@ -306,8 +306,8 @@ review/build evidence and host tools remain available. Integrated branches and p
 is recorded above.
 
 **B2 original host tooling, 2026-09-08 (device result above):** accepted source `7e39204` adds the
-[SSH/MGL capture driver](mister-hardware-loop-driver.md) and
-[pinned ARM MBC cross-build](mister-mbc-cross-build.md). The integration checkout
+[SSH/MGL capture driver](investigations/hardware-runs/mister-hardware-loop-driver.md) and
+[pinned ARM MBC cross-build](investigations/hardware-runs/mister-mbc-cross-build.md). The integration checkout
 passed all 24 focused tests and an offline dry-run; Opus 5 high returned CLEAR
 in closure run `20260908T044131Z-35882-569d`. The ARM binary and cross compiler
 are preserved under ignored `docs/references/b2-host-tools/`; the binary hash
@@ -321,7 +321,7 @@ test checks payload bytes 0/1 and one-byte consumption across a three-CE strobe;
 the B6 fixture now retains RAM-capability coverage while the duplicate model
 test is removed. P1 remains a functional model, and the real-motherboard P1
 fixture's constant-zero VRAM return does not establish physical return timing.
-See [integration evidence](preserved-work-integration-2026-09-08.md).
+See [integration evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
 Full-sector result/ST1, classic AMSDOS and hardware acceptance remain open.
 
 **CI toolchain aligned, 2026-09-08:** CI and local testing now use Verilator
@@ -392,7 +392,7 @@ prevent lost or duplicate writes; Fn[2] clears metadata without redirecting a
 queued write, and machine reset dominates a simultaneous strobe. Physical-DQ
 regressions fail before repair and pass afterward; Astra independently cleared
 the repair and its two review corrections. See
-[tape evidence](b8-7-tape-write-lifetime-2026-09-08.md). Actual HPS cadence,
+[tape evidence](investigations/write-timing/b8-7-tape-write-lifetime-2026-09-08.md). Actual HPS cadence,
 player reset and real-CDT playback remain hardware/source boundaries.
 The merged checkout passes full simulation, lint and unchanged soak
 `0x6e8258198d6e6137`.
@@ -413,7 +413,7 @@ P10 frame-capture CLI and P10j contract notes are restored after the SDRAM
 repair. Original Gemini implementation review plus fresh merge-compatibility
 review are clear. Capture proves repeatability of synthetic frames with the
 reduced TV80 and fixture clocking; it is not a hardware/title oracle. See
-[preserved-work evidence](preserved-work-integration-2026-09-08.md).
+[preserved-work evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
 
 **Shared B8-4 integrated, 2026-09-08, from `7a58f88`:** retained SDRAM
 video words are keyed by physical word address and bank, invalidated by accepted
@@ -421,7 +421,7 @@ writes and initialization, and refetched without requiring a raster-address
 change. The physical-DQ fixture and a production motherboard byte-to-pixel
 witness fail on original RTL and pass after repair. Astra medium cleared the
 foreign-authored repair and the corrected pre/post-edge assertions. See
-[coherence evidence](b8-4-video-coherence-2026-09-08.md). The merged checkout passes full simulation, lint and soak
+[coherence evidence](investigations/write-timing/b8-4-video-coherence-2026-09-08.md). The merged checkout passes full simulation, lint and soak
 `0x6e8258198d6e6137`. Hardware/title acceptance and dedicated cartridge/tape
 invalidation vectors remain separate.
 
@@ -452,13 +452,13 @@ acceptance; no hardware verdict is claimed.
 
 **Architecture/methodology review, 2026-09-08:** the user-authorized B8 first pass
 is complete against source `65364ee`; see
-[findings and repair order](b8-architecture-methodology-review-2026-09-08.md).
+[findings and repair order](investigations/write-timing/b8-architecture-methodology-review-2026-09-08.md).
 The strongest accuracy finding is that CRTC old-value side effects, including
 type-1 RFD, miss production CPU write phases while direct-edge tests pass.
 Additional Plus video/palette/restore and shared-memory defects have local
 reproductions. These justify focused failure-first repair work; they do not
 establish the cause of a named hardware symptom. The clean baseline suite passes.
-The [SSH hardware-loop plan](mister-hardware-loop-plan.md) is ready for a first
+The [SSH hardware-loop plan](investigations/hardware-runs/mister-hardware-loop-plan.md) is ready for a first
 stable-screen capture once device access is supplied. No production RTL, pending
 branch, RBF or hardware verdict changed during this review.
 
@@ -478,7 +478,7 @@ payload bytes now match; seven result bytes still need phase-verified acceptance
 Claude hit its session limit and the single authorized retry failed, so implementation
 stopped as instructed. B10 has no code changes. Exact branches, recovery files, evidence,
 review debt, reference preservation, and repair backlog are in
-[the continuation handoff](session-continuation-2026-09-03.md).
+[the continuation handoff](investigations/session-logs/session-continuation-2026-09-03.md).
 
 **CPU-candidate recovery check, 2026-09-08:** the old temporary worktree contained
 only empty directories, with no staged source or additional commit in its retained
@@ -502,7 +502,7 @@ with Live blanking selected, the user reports that
 Plus defects remain **TBD**. DSC4 and SHAKER are still failing, possibly with
 changed failure shapes; captures were unavailable then (September 9 captures are now indexed above). These are symptom-specific hardware observations, not
 B1/P10 closure or proof of the individual cause. The
-[dated report](hardware-evidence-2026-09-02.md) records artifact identity,
+[dated report](investigations/hardware-runs/hardware-evidence-2026-09-02.md) records artifact identity,
 evidence limits and the authorized FDC/Plus/review scope. Accuracy RTL work is
 deferred pending discriminating captures. No new screenshots, RBF, CI, or
 hardware closure in that session. B8 was subsequently authorized and reviewed

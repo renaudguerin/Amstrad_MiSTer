@@ -3,7 +3,7 @@
 Date: 2026-09-01
 
 **Scope correction, 2026-09-08:** the
-[B8 production-boundary review](../b8-architecture-methodology-review-2026-09-08.md)
+[B8 production-boundary review](../investigations/write-timing/b8-architecture-methodology-review-2026-09-08.md)
 reproduces classic FIELD leaking into Plus; FIELD was absent from this audit's
 signature. The recorded RGB/bus isolation result remains valid within that
 observation scope. The P10 CPU below is the reduced TV80 surrogate behind a
