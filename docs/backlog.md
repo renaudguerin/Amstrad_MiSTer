@@ -85,17 +85,16 @@ ack-edge sweep stands endorsed by the re-review: B8-5 pins both provenances and
 the latch shares the vector sampler's edge; in-window fire values need hardware
 measurement. The one-minute title watch remains open.
 
-**Residual: suspected cause modelled in simulation 2026-09-14; device acceptance pending.**
-The B19 fix on `05cb9fd` reduced Copter 271's title flash rate to ~1-2 times in 20 s over
-the logo or bottom (never both). The suspect cause—a coincident `raster_fire` pulse occurring
-during another interrupt's acknowledge window (`int_reset | intack`) being dropped by unconditional
-`INT_N <= 1'b1`—is now resolved in simulation: `raster_fire_pending` in `rtl/plus/asic_ga_timing.v`
-latches coincident fires across `int_ack_active` and asserts `INT_N <= 1'b0` on the cycle following
-deassertion. Reviewed by Claude Opus 5 (CLEAR). Deterministic vector `pr07` in `sim/plus/asic_pri_test.cpp`
-covers dynamic calibration, DMA ack, prior raster ack, and negative control. Classic `pri == 0` lockstep
-with `ga40010` is preserved (when `intack = 0`). Known follow-up limits: classic 52-line overflow during
-DMA ack in Plus mode with `pri == 0` remains unlatched (real ASIC behavior unmeasured). Device
-acceptance (Copter 271 / Sonic GX) on new build open.
+**Residual fixed and hardware confirmed 2026-09-14 (build `88262b9`):**
+Hardware testing on real MiSTer **confirms Copter 271 title screen palette flash is fixed**.
+Latch-on-deassertion in `rtl/plus/asic_ga_timing.v` (`raster_fire_pending`) eliminates the dropped
+raster interrupts during concurrent DMA interrupt acknowledge cycles. User notes: additional issues
+with vertical scrolling during Copter 271 gameplay remain (may have been present before, pending
+investigation). Sonic GX test was inconclusive: visual behavior may have improved, but the display
+remains too severely corrupted by remaining video/split timing defects (Hazard 2) to assess in isolation.
+Reviewed by Claude Opus 5 (CLEAR). Deterministic vector `pr07` in `sim/plus/asic_pri_test.cpp` covers
+dynamic calibration, DMA ack, prior raster ack, and negative control. Classic `pri == 0` lockstep
+with `ga40010` is preserved (when `intack = 0`).
 
 The active work is **B2 device capture** (`root@mister`, user reports online),
 **B6 diagnostic/final-RGB gaps**, and **actual source-review gap closure**.
