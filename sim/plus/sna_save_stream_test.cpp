@@ -89,6 +89,10 @@ class Harness {
         dut.vram_addr = 0;
         dut.vram_bank = 0;
 
+        dut.cs_req = 0;
+        dut.cs_bank = 0;
+        dut.cs_addr = 0;
+
         dut.memory_dq = 0;
         dut.memory_dq_oe = 0;
         dut.eval();
@@ -901,6 +905,127 @@ void test_case_6_start_active_and_reset_quiesce(Harness &h, TestState &test) {
                "Case 6E: next save publishes 11, not a repeated 10");
 }
 
+// ============================================================================
+// Case 7: SDRAM cartridge-port handover (rtl/sna_cart_mux.v, slice 4c).
+// In the core, the cartridge memory service shares sdram.v's cart_* port with
+// the stream. Here a scripted client (cs_*) plays that service: it holds its
+// request until it sees its acknowledge, then drops it. Rules used (sdram.v):
+// a request is admitted at the q == STATE_IDLE arbitration and acknowledged at
+// STATE_READ of the same slot, whether or not the requester still asserts it;
+// the acknowledge carries the byte at the admitted address.
+// A: the stream is aborted on the clock its RAM read reaches the SDRAM (ACTIVE
+//    on the stream's bank and row), and the service requests on that same
+//    clock. The in-flight acknowledge belongs to the stream. The service's
+//    acknowledge must come after a READ at its own address and carry its own
+//    byte.
+// B: the service requests on the clock after a stream acknowledge, while the
+//    stream keeps reading. The stream re-requests one clock after each
+//    arbitration, so the service must still be served within a bounded time
+//    (64 clocks = 8 SDRAM slots here), with its own byte; and the stream's
+//    following acknowledges must carry the bytes at its addresses.
+// Model memory is the reference for every byte: bank 3 0x012344 = 0xA7,
+// bank 3 0x023456 = 0x5E, stream page 8 offset 0 on bank 1 (0x020000) = 0x3C.
+// ============================================================================
+void test_case_7_cart_port_handover(Harness &h, TestState &test) {
+    std::cout << "[Case 7] SDRAM cartridge-port handover\n";
+
+    h.sdram_store(3, 0x012344, 0xA7);
+    h.sdram_store(3, 0x023456, 0x5E);
+    h.sdram_store(1, 0x020000, 0x3C);
+
+    auto start_stream = [&]() {
+        h.dut.ram128 = 1;
+        h.dut.bank   = 1;
+        h.dut.start  = 1;
+        h.tick();
+        h.dut.start  = 0;
+    };
+    auto read_seen = [&](size_t from, uint8_t bank, uint32_t address) {
+        for (size_t i = from; i < h.sdram_commands.size(); ++i) {
+            const Command &c = h.sdram_commands[i];
+            if (c.kind == CMD_READ && c.bank == bank && (c.address & ~1U) == (address & ~1U)) return true;
+        }
+        return false;
+    };
+
+    // Part A: abort with a read in flight.
+    start_stream();
+    size_t mark = h.sdram_commands.size();
+    int timeout = 20000;
+    bool in_flight = false;
+    while (!in_flight && --timeout > 0) {
+        h.tick();
+        for (size_t i = mark; i < h.sdram_commands.size(); ++i) {
+            const Command &c = h.sdram_commands[i];
+            if (c.kind == CMD_ACTIVE && c.bank == 1 && c.address == 0x020000) in_flight = true;
+        }
+        mark = h.sdram_commands.size();
+    }
+    test.check(in_flight, "Case 7A: stream RAM read reached the SDRAM");
+
+    h.dut.stream_reset = 1;
+    h.dut.cs_req  = 1;
+    h.dut.cs_bank = 3;
+    h.dut.cs_addr = 0x012344;
+    const size_t cs_mark = h.sdram_commands.size();
+    h.tick();
+    h.dut.stream_reset = 0;
+
+    bool stale_to_stream = false;
+    bool cs_done = false;
+    for (int i = 0; i < 400 && !cs_done; ++i) {
+        h.tick();
+        if (h.dut.stream_cart_ack) stale_to_stream = true;
+        if (h.dut.cs_ack) {
+            cs_done = true;
+            test.check(read_seen(cs_mark, 3, 0x012344),
+                       "Case 7A: service acknowledge follows a READ at its own address");
+            test.check(h.dut.stream_cart_dout == 0xA7,
+                       "Case 7A: service acknowledge carries its own byte, not the aborted stream's");
+            h.dut.cs_req = 0;
+        }
+    }
+    test.check(stale_to_stream, "Case 7A: the in-flight acknowledge was routed to the aborted stream");
+    test.check(cs_done, "Case 7A: service request completed");
+    for (int i = 0; i < 32; ++i) h.tick();
+
+    // Part B: bounded service wait during an active stream, data integrity both ways.
+    start_stream();
+    timeout = 20000;
+    while (!h.dut.stream_cart_ack && --timeout > 0) h.tick();
+    test.check(timeout > 0, "Case 7B: stream reached its first acknowledge");
+
+    h.dut.cs_req  = 1;
+    h.dut.cs_bank = 3;
+    h.dut.cs_addr = 0x023456;
+    int waited = 0;
+    cs_done = false;
+    int stream_acks_checked = 0;
+    for (int i = 0; i < 2000 && (stream_acks_checked < 8 || !cs_done); ++i) {
+        h.tick();
+        if (!cs_done) ++waited;
+        if (h.dut.cs_ack) {
+            test.check(!cs_done, "Case 7B: one acknowledge per service request");
+            test.check(h.dut.stream_cart_dout == 0x5E, "Case 7B: service acknowledge carries its own byte");
+            cs_done = true;
+            h.dut.cs_req = 0;
+        }
+        if (h.dut.stream_cart_ack && cs_done) {
+            const uint8_t expected = h.sdram_load(1, h.dut.stream_cart_addr);
+            test.check(h.dut.stream_cart_dout == expected,
+                       "Case 7B: stream acknowledge after handover carries the byte at its address");
+            ++stream_acks_checked;
+        }
+    }
+    test.check(cs_done && waited <= 64, "Case 7B: service served within 64 clocks while the stream is active");
+    test.check(stream_acks_checked >= 8, "Case 7B: stream resumed after the service request");
+
+    h.dut.stream_reset = 1;
+    h.tick();
+    h.dut.stream_reset = 0;
+    for (int i = 0; i < 32; ++i) h.tick();
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -911,12 +1036,21 @@ int main(int argc, char **argv) {
     std::cout << "Starting B18 slice 4b sna_save_stream testbench...\n";
     h.initialize(test);
 
+    // "handover" runs only case 7, which sets up its own memory and needs no
+    // earlier case; used for quick mutant checks of sna_cart_mux.
+    if (argc > 1 && std::string(argv[1]) == "handover") {
+        test_case_7_cart_port_handover(h, test);
+        std::cout << (test.failures == 0 ? "Case 7 PASSED\n" : "Case 7 FAILED\n");
+        return test.failures == 0 ? 0 : 1;
+    }
+
     test_case_1_128k(h, test);
     test_case_2_64k(h, test);
     test_case_3_ddr_stalls(h, test);
     test_case_4_fairness_refresh(h, test);
     test_case_5_mux_second_master(h, test);
     test_case_6_start_active_and_reset_quiesce(h, test);
+    test_case_7_cart_port_handover(h, test);
 
     if (test.failures == 0) {
         std::cout << "All B18 slice 4b tests PASSED (0 failures).\n";

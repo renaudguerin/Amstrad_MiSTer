@@ -50,6 +50,7 @@ set_global_assignment -name VERILOG_FILE rtl/sna_hw_header.v
 set_global_assignment -name VERILOG_FILE rtl/sna_save_capture.v
 set_global_assignment -name VERILOG_FILE rtl/sna_save_stream.v
 set_global_assignment -name VERILOG_FILE rtl/sna_ddr_mux.v
+set_global_assignment -name VERILOG_FILE rtl/sna_cart_mux.v
 set_global_assignment -name VERILOG_FILE rtl/Amstrad_motherboard.v
 set_global_assignment -name VERILOG_FILE rtl/progressbar.v
 set_global_assignment -name SDC_FILE Amstrad.sdc

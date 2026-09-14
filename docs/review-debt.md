@@ -1,5 +1,15 @@
 # Independent review debt
 
+**B18 slice 4c, top-level save wiring, 2026-09-14 — REVIEWED BY GEMINI ONLY, NO SIMULATION OF
+THE TOP LEVEL:** the parent (Opus) wrote the `Amstrad.sv` wiring, `rtl/sna_cart_mux.v` and
+stream case 7; Gemini wrote `scripts/hardware-loop/sna_pull.py`. Gemini (gemini-3.8-flash-high)
+reviewed the whole diff and found nothing blocking; its one low finding, the `--wait` usage
+order, is fixed in the design doc. Gemini reviewed its own pull script, so that part is not
+cross-provider, and Astra had no quota for this slice. `Amstrad.sv` is checked only by Quartus
+synthesis. Look hardest at the admission and abort terms (`save_admit`, `save_abort`) against
+every download and overlay path, and at `sna_cart_mux`'s two-edge drain against `sdram.v`
+arbitration if its `clkref`/`q` alignment ever changes.
+
 **B18 slice 4, freeze controller and save stream, 2026-09-13 — REVIEWED, FIXES UNREVIEWED:**
 Astra high reviewed `rtl/sna_save_capture.v`, `rtl/sna_save_stream.v`, `rtl/sna_ddr_mux.v` and
 their tests (Gemini-authored, parent-fixed) and returned CHANGES REQUIRED. The parent fixed all

@@ -271,15 +271,40 @@ remaining fields need direct checks of the capture.
    Cases 6D and 6E cover the reset paths, and the fairness case checks that tape is served in
    every quarter of the stream.
 
-   Slice 4c remaining: wiring in `Amstrad.sv`, the OSD action and status, and the host pull script.
-   The wiring covers `sna_hw_header`, capture, stream and mux, plus the `cart_*` mux with
-   `plus_cartridge_memory`, the admission terms, and admission loss while HELD. Two constraints
-   from that review apply to the wiring:
-   - **SDRAM ownership drains on abort.** The stream drops `cart_req` at once on reset, but a
-     read the controller already accepted still acknowledges later (`sdram.v:295`). The `cart_*`
-     mux must keep routing that acknowledge to the stream until it arrives, or
-     `plus_cartridge_memory` could take it as completion of its own request.
-   - **Admission also refuses active overlays.** `RAMpage == 3` does not exclude Dandanator or
-     Multiface II mappings (`Amstrad.sv:753-754, 990-991`), whose memory and mapping state the
-     snapshot cannot carry. Refuse the save while either is enabled, as well as in Plus mode.
-5. Integration: OSD action, host pull script, device test.
+   **4c done (top-level integration and host pull).** `Amstrad.sv` instantiates the formatter,
+   capture, stream and DDR3 mux, and connects the motherboard and `u765` observation ports.
+   - **OSD.** `T[38],Save snapshot` in the main menu. An `I,` popup reports saved, refused or
+     cancelled.
+   - **Admission.** Classic mode only, outside reset, downloads and snapshot apply, with no
+     Dandanator, no Multiface II and no cartridge request outstanding, plus `RAMpage == 3`.
+     Plus mode and both overlays are refused because the file cannot carry their memory or
+     mapping state. Losing admission while armed cancels the request.
+   - **Abort while held.** Only reset or a snapshot load (`sna_download`) aborts, since a load
+     rewrites the RAM being dumped. Every other download either resets the core or leaves RAM
+     alone.
+   - **SDRAM port.** `rtl/sna_cart_mux.v` shares `sdram.v`'s `cart_*` port with
+     `plus_cartridge_memory`, which owns it by default. When the owner's request is low while
+     the other client waits, the mux stops forwarding the owner's requests. It hands over after
+     two `clkref` rising edges, so an acknowledge still owed to an aborted read reaches its
+     requester, not the new owner. Masking also bounds the wait: the stream re-requests one
+     clock after each arbitration and would otherwise hold the port for the whole save.
+   - **Test.** `sna-save-stream` case 7 runs the mux against production `sdram.v` with a
+     scripted held-request client. It covers an abort on the clock the stream's read reaches
+     the SDRAM, and a service request made mid-stream that must be served within 64 clocks with
+     its own byte. Three mutants fail it: no drain, no forwarding mask, and an acknowledge that
+     is not gated by owner.
+   - **Host.** `scripts/hardware-loop/sna_pull.py` reads the slot through the same `/dev/mem`
+     mmap pattern as `ssm_ring.py`. It accepts a file only when the slot header, a re-read of
+     it, and the image's own first word agree, with a legal length, generation, signature,
+     version and memory size. Torn reads are retried. `test_sna_pull.py` builds slot images from
+     the layout comment in `sna_save_stream.v`.
+
+   Usage: start
+   `python3 scripts/hardware-loop/sna_pull.py --target root@mister --out game.sna --wait 30`,
+   then press Save snapshot in the OSD within 30 seconds. `--wait` ignores the generation
+   already present when it starts and pulls the next one; a save finishes in well under a
+   second, so pressing first would make it wait for yet another save. To collect a save that
+   has already happened, omit `--wait`.
+
+   `Amstrad.sv` has no simulation; Quartus synthesis is its only compile check.
+5. Device test: save on hardware, pull, reload the file in the core and in an emulator.

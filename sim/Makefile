@@ -89,6 +89,7 @@ lint:
 	$(VERILATOR) --lint-only --top-module sna_save_capture -Wall -Wno-fatal ../rtl/sna_save_capture.v
 	$(VERILATOR) --lint-only --top-module sna_save_stream -Wall -Wno-fatal ../rtl/sna_save_stream.v
 	$(VERILATOR) --lint-only --top-module sna_ddr_mux -Wall -Wno-fatal ../rtl/sna_ddr_mux.v
+	$(VERILATOR) --lint-only --top-module sna_cart_mux -Wall -Wno-fatal ../rtl/sna_cart_mux.v
 	$(MAKE) -C plus lint
 	$(MAKE) -C ../rtl/GA40010 lint
 	$(MAKE) -C ../rtl/u765 lint

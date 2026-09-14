@@ -1,7 +1,9 @@
 `timescale 1ns/1ps
 
-// Test-only top module for B18 slice 4b: SNA save stream and DDR3 mux.
-// Instantiates the production rtl/sdram.v, rtl/sna_save_stream.v, and rtl/sna_ddr_mux.v.
+// Test-only top module for B18 slices 4b/4c: SNA save stream, DDR3 mux and
+// SDRAM cartridge-port mux. Instantiates the production rtl/sdram.v,
+// rtl/sna_save_stream.v, rtl/sna_ddr_mux.v and rtl/sna_cart_mux.v, with the
+// cartridge memory service replaced by a scripted held-request client (cs_*).
 module sna_save_stream_test_top
 (
 	input                 clk,
@@ -25,6 +27,13 @@ module sna_save_stream_test_top
 	output        [22:0]  stream_cart_addr,
 	output         [7:0]  stream_cart_dout,
 	output                stream_cart_ack,
+
+	// Scripted cartridge-service client on sna_cart_mux client A (read-only)
+	input                 cs_req,
+	input          [1:0]  cs_bank,
+	input         [22:0]  cs_addr,
+	output                cs_ack,
+	output                debug_cart_owner_b,
 
 	output                stream_ddr_request,
 	output                stream_ddr_grant,
@@ -84,18 +93,49 @@ module sna_save_stream_test_top
 	assign sdram_dq    = memory_dq_oe ? memory_dq : 16'hzzzz;
 	assign observed_dq = sdram_dq;
 
-	// Interconnect: stream <-> sdram cartridge port
+	// Interconnect: stream <-> cart mux client B, cart mux <-> sdram cart port
 	wire        cart_req;
 	wire  [1:0] cart_bank;
 	wire [22:0] cart_addr;
 	wire  [7:0] cart_dout;
 	wire        cart_ack;
 
+	wire        sdram_cart_req;
+	wire        sdram_cart_wr;
+	wire  [1:0] sdram_cart_bank;
+	wire [22:0] sdram_cart_addr;
+	wire  [7:0] sdram_cart_din;
+	wire        sdram_cart_ack;
+
 	assign stream_cart_req  = cart_req;
 	assign stream_cart_bank = cart_bank;
 	assign stream_cart_addr = cart_addr;
 	assign stream_cart_dout = cart_dout;
 	assign stream_cart_ack  = cart_ack;
+
+	sna_cart_mux dut_cart_mux
+	(
+		.clk(clk),
+		.clkref(clkref),
+		.a_req(cs_req),
+		.a_wr(1'b0),
+		.a_bank(cs_bank),
+		.a_addr(cs_addr),
+		.a_din(8'd0),
+		.a_ack(cs_ack),
+		.b_req(cart_req),
+		.b_bank(cart_bank),
+		.b_addr(cart_addr),
+		.b_ack(cart_ack),
+		.cart_req(sdram_cart_req),
+		.cart_wr(sdram_cart_wr),
+		.cart_bank(sdram_cart_bank),
+		.cart_addr(sdram_cart_addr),
+		.cart_din(sdram_cart_din),
+		.cart_ack(sdram_cart_ack)
+	);
+
+	assign debug_cart_owner_b = dut_cart_mux.owner_b;
 
 	// Interconnect: stream <-> ddr mux master B
 	wire        b_request;
@@ -132,13 +172,13 @@ module sna_save_stream_test_top
 		.addr(23'd0),
 		.oe(1'b0),
 		.we(1'b0),
-		.cart_req(cart_req),
-		.cart_wr(1'b0),
-		.cart_bank(cart_bank),
-		.cart_addr(cart_addr),
-		.cart_din(8'd0),
+		.cart_req(sdram_cart_req),
+		.cart_wr(sdram_cart_wr),
+		.cart_bank(sdram_cart_bank),
+		.cart_addr(sdram_cart_addr),
+		.cart_din(sdram_cart_din),
 		.cart_dout(cart_dout),
-		.cart_ack(cart_ack),
+		.cart_ack(sdram_cart_ack),
 		.vram_dout(vram_dout),
 		.vram_addr(vram_addr),
 		.vram_bank(vram_bank),
