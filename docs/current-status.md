@@ -1,5 +1,17 @@
 # Current implementation status
 
+**B18 SNA save from the running core, integrated 2026-09-14; development aid only:** OSD
+"Save snapshot" freezes the Z80 at an instruction boundary (T80pa `INSN_START`), latches a
+classic SNA v3 header, and streams 64K/128K RAM from SDRAM into DDR3 at 0x3E000000;
+`scripts/hardware-loop/sna_pull.py` copies the file out over SSH. Classic models only: refused
+in Plus mode and while a Dandanator or Multiface II is active. Device test on branch RBF
+`0608653` passed: a 6128 snapshot reloads in this core and in AmSpirit. **Not a user feature:**
+the core cannot write to SD, so shipping it needs a Main_MiSTer change or a rework around
+Main's save-state copy, whose slot header differs from ours. Observation ports on CRTC/GA
+left the soak hash `0xb1cb70da95c2e44f` unchanged. Open: the capture and round-trip fixture
+(acceptance 2 and 3, lower priority), a 464/664 save, and the review debt for slices 3-4c. See
+[docs/b18-sna-save.md](b18-sna-save.md).
+
 **Plus B19 residual fix & hardware verification (build `88262b9`), 2026-09-14, integrated into `master`:**
 Hardware testing on real MiSTer (build `88262b9`) **confirms Copter 271 title screen palette flash is fixed**.
 The intermittent palette flash (~1-2 times in 20 s over logo or bottom) is completely resolved by latching coincident

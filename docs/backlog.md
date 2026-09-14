@@ -934,6 +934,27 @@ Replay goes back in through uinput, as MBC already does for keys. Open questions
 
 ## B18. Save SNA snapshots from the running core
 
+**DESIGN RECORDED 2026-09-13; slices 1 (T80 freeze predicate), 2 (header decode extraction)
+3 (observation ports and header formatter), 4a (freeze controller and header latch), 4b
+(SDRAM stream and DDR3 publication) and 4c (top-level wiring, OSD action, host pull script)
+done**, integrated into `master` 2026-09-14 from `general/b18-sna-save`. The freeze predicate and controller run in the GHDL
+`production-t80` CI job. **Device-tested 2026-09-14:** a 6128 snapshot saved from the OSD
+reloads in this core and in AmSpirit, which settles the practical "does it resume" claim. The
+capture fixture and the automated round trip (acceptance 2 and 3) are now lower priority and are
+to be built as one fixture. They add exact checks of state not visible on screen, plus
+regression cover. See the [design](b18-sna-save.md).
+
+**Limitation: development tool only, not shippable to users.** The core writes the snapshot
+into DDR3 at 0x3E000000, and `scripts/hardware-loop/sna_pull.py` must copy it out from another
+computer over SSH. Saving straight to SD needs either a Main_MiSTer change, to be discussed
+upstream, or Main's existing save-state copy. The latter would move the disk drives off SD slot
+0, produce `.ss` files instead of `.sna`, and require changing the slot header to Main's 32-bit
+format. The design's "Status and limitation" section has the details. Main's `ioctl_upload` path serves C64/C128 only. Main's
+automatic copy to SD would need `FS` loads, and `FS` would take over drive A's SD slot, so that
+copy is deferred. The freeze point is M1 T2 of a new instruction, which
+needs one new T80 output and a GHDL test. Classic v3 comes first. The bullets below remain the
+original problem statement; the design corrects the transport bullet.
+
 **Filed 2026-09-13. Feature, open; larger than B16.** The OSD can load an SNA but not save one.
 A save would let the user freeze a game at the moment a defect shows on real hardware, then
 hand that exact state to simulation. That skips both the input script (B17) and the long boot

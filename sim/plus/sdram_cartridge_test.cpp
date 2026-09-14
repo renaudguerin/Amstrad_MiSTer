@@ -1288,15 +1288,39 @@ void test_top_level_wiring(TestState &test) {
     const std::string source = text.str();
     test.check(input.good() || input.eof(), "top-level source must be readable for wiring check");
 
-    test.check(source.find(".cart_req(cart_mem_req)") != std::string::npos &&
-                   source.find(".cart_wr(cart_mem_write)") != std::string::npos &&
-                   source.find(".cart_bank(cart_mem_bank)") != std::string::npos &&
-                   source.find(".cart_addr(cart_mem_addr)") != std::string::npos &&
-                   source.find(".cart_din(cart_mem_wdata)") != std::string::npos,
-               "Amstrad top must drive the cartridge SDRAM port from the memory service");
-    test.check(source.find(".cart_dout(cart_mem_rdata)") != std::string::npos &&
-                   source.find(".cart_ack(cart_mem_ack)") != std::string::npos,
-               "Amstrad top must consume the cartridge SDRAM responses");
+    // B18 slice 4c: the service reaches the SDRAM port through sna_cart_mux
+    // (client A, the default owner), which the SNA save borrows. Pin both
+    // hops: service -> mux client A, mux -> sdram cart_*.
+    const auto instance_text = [&](const std::string &header) {
+        const auto start = source.find(header);
+        const auto end = start == std::string::npos ? start : source.find(");", start);
+        return start != std::string::npos && end != std::string::npos
+                   ? source.substr(start, end - start)
+                   : std::string();
+    };
+    const std::string cart_mux = instance_text("sna_cart_mux save_cart_mux");
+    const std::string sdram_instance = instance_text("sdram sdram\n");
+    test.check(!cart_mux.empty() &&
+                   cart_mux.find(".a_req(cart_mem_req)") != std::string::npos &&
+                   cart_mux.find(".a_wr(cart_mem_write)") != std::string::npos &&
+                   cart_mux.find(".a_bank(cart_mem_bank)") != std::string::npos &&
+                   cart_mux.find(".a_addr(cart_mem_addr)") != std::string::npos &&
+                   cart_mux.find(".a_din(cart_mem_wdata)") != std::string::npos &&
+                   cart_mux.find(".a_ack(cart_mem_ack)") != std::string::npos,
+               "Amstrad top must connect the memory service to the cartridge-port mux");
+    test.check(!cart_mux.empty() && !sdram_instance.empty() &&
+                   cart_mux.find(".cart_req(sdram_cart_req)") != std::string::npos &&
+                   cart_mux.find(".cart_ack(sdram_cart_ack)") != std::string::npos &&
+                   sdram_instance.find(".cart_req(sdram_cart_req)") != std::string::npos &&
+                   sdram_instance.find(".cart_wr(sdram_cart_wr)") != std::string::npos &&
+                   sdram_instance.find(".cart_bank(sdram_cart_bank)") != std::string::npos &&
+                   sdram_instance.find(".cart_addr(sdram_cart_addr)") != std::string::npos &&
+                   sdram_instance.find(".cart_din(sdram_cart_din)") != std::string::npos &&
+                   sdram_instance.find(".cart_ack(sdram_cart_ack)") != std::string::npos,
+               "Amstrad top must drive the cartridge SDRAM port from the cartridge-port mux");
+    test.check(!sdram_instance.empty() &&
+                   sdram_instance.find(".cart_dout(cart_mem_rdata)") != std::string::npos,
+               "Amstrad top must return cartridge SDRAM read data to the memory service");
     test.check(source.find("plus_cartridge_memory cartridge_memory") != std::string::npos,
                "Amstrad top must instantiate the cartridge memory service");
     const auto cartridge_start =

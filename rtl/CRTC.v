@@ -74,7 +74,19 @@ module CRTC
 	output           CURSOR,
 
 	output    [13:0] MA,
-	output     [4:0] RA
+	output     [4:0] RA,
+
+	output     [4:0] SNAP_ADDR,
+	output   [127:0] SNAP_REGS,
+	output     [7:0] SNAP_HCC,
+	output     [6:0] SNAP_ROW,
+	output     [4:0] SNAP_LINE,
+	output     [4:0] SNAP_C5,
+	output           SNAP_IN_ADJ,
+	output     [3:0] SNAP_HSC,
+	output           SNAP_HSYNC,
+	output           SNAP_VSYNC_R,
+	output     [3:0] SNAP_VSW_ELAPSED
 );
 
 /* verilator lint_off WIDTH */
@@ -643,6 +655,7 @@ reg vsync_mid_arm;
 // A pulse crossing an origin retains its counting phase; incoming parity
 // selects a new pulse, not the width of the pulse already in flight.
 reg vsync_active_mid;
+reg [3:0] vsw_elapsed;
 wire vsync_tick_mid = VSYNC_r ? vsync_active_mid : vsync_mid;
 // Use the same origin comparison for consumption and pulse generation.
 // The added line has no ordinary line-last predicate to consume.
@@ -693,6 +706,7 @@ always @(posedge CLOCK) begin
 
 	if(~nRESET) begin
 		vsc    <= 0;
+		vsw_elapsed <= 4'd0;
 		vde    <= 0;
 		vde_r  <= 0;
 		VSYNC_r<= 0;
@@ -732,13 +746,17 @@ always @(posedge CLOCK) begin
 			// first following type-specific count tick; the engine owns the
 			// holdoff latch and clears it on this tick itself.
 			if(vsync_holdoff) ;
-			else if(vsc) vsc <= vsc - 1'd1;
+			else if(vsc) begin
+				vsc <= vsc - 1'd1;
+				vsw_elapsed <= vsw_elapsed + 4'd1;
+			end
 			else if (vsync_fire) begin
 				VSYNC_r <= 1;
 				vsync_active_mid <= vsync_mid;
 				// Don't allow a new VSYNC until C4=R7 has become false and true again.
 				vsync_allow <= 0;
 				vsc <= vsc_load;
+				vsw_elapsed <= 4'd0;
 			end
 			else VSYNC_r <= 0;
 		end
@@ -765,6 +783,7 @@ always @(posedge CLOCK) begin
 				VSYNC_r <= 1;
 				vsync_active_mid <= vsync_mid;
 				vsc <= vsc_load;
+				vsw_elapsed <= 4'd0;
 			end
 		end
 	end
@@ -817,5 +836,34 @@ always @(posedge CLOCK) begin
 			cursor_line <= 0;
 		end
 	end
+
+assign SNAP_ADDR = addr;
+assign SNAP_REGS = {
+	R15_cursor_l,
+	2'b00, R14_cursor_h,
+	R13_start_addr_l,
+	2'b00, R12_start_addr_h,
+	3'b000, R11_cursor_end,
+	1'b0, R10_cursor_mode, R10_cursor_start,
+	3'b000, R9_v_max_line,
+	2'b00, R8_skew, 2'b00, R8_interlace,
+	1'b0, R7_v_sync_pos,
+	1'b0, R6_v_displayed,
+	3'b000, R5_v_total_adj,
+	1'b0, R4_v_total,
+	R3_v_sync_width, R3_h_sync_width,
+	R2_h_sync_pos,
+	R1_h_displayed,
+	R0_h_total
+};
+assign SNAP_HCC = hcc;
+assign SNAP_ROW = row;
+assign SNAP_LINE = line;
+assign SNAP_C5 = c5;
+assign SNAP_IN_ADJ = in_adj;
+assign SNAP_HSC = hsc;
+assign SNAP_HSYNC = HSYNC;
+assign SNAP_VSYNC_R = VSYNC_r;
+assign SNAP_VSW_ELAPSED = vsw_elapsed;
 
 endmodule

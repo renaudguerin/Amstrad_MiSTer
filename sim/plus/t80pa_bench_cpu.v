@@ -28,6 +28,9 @@ module T80pa (
 	output reg          mreq_n,
 	output reg          m1_n,
 	output wire         rfsh_n,
+	output wire         halt_n,     // B18 halt state (tied inactive)
+	output wire [211:0] REG,        // B18 CPU register vector (tied zero)
+	output wire         INSN_START, // B18 instruction-boundary freeze predicate (tied inactive)
 	input  wire         busrq_n,
 	input  wire         int_n,
 	input  wire         nmi_n,
@@ -67,6 +70,9 @@ module T80pa (
 	reg [24:0] sbus;    // step_bus scratch (blocking-assigned, read same pass)
 
 	assign rfsh_n = 1'b1;
+	assign halt_n = 1'b1;
+	assign REG = 212'd0;
+	assign INSN_START = 1'b0;
 
 	// {mem_type, addr[15:0], data[7:0]}: mem_type 0 = I/O write (GA/CRTC
 	// decode), 1 = memory write (ASIC page). The distinction matters at

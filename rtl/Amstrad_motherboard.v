@@ -88,6 +88,7 @@ module Amstrad_motherboard
 	// the CPU cannot execute until the owners settle yet the register
 	// load still lands. Non-SNA fixtures tie all of these to zero.
 	input         sna_hold,
+	input         save_hold,
 	input         sna_hsync,
 	input  [11:0] sna_dma_loop_cnt0,
 	input  [11:0] sna_dma_loop_cnt1,
@@ -189,7 +190,49 @@ module Amstrad_motherboard
 	output        ga_ready,
 	input         irq,
 	input         nmi,
-	output        cursor
+	output        cursor,
+
+	// B18 SNA save observation ports (classic)
+	output  [4:0] snap_ga_inksel,
+	output  [4:0] snap_ga_border,
+	output [79:0] snap_ga_inkr,
+	output        snap_ga_hromen,
+	output        snap_ga_lromen,
+	output  [1:0] snap_ga_mode,
+	output  [5:0] snap_ga_intcnt,
+	output  [4:0] snap_ga_hcnt,
+	output        snap_ga_int_n,
+
+	output  [4:0] snap_crtc_addr,
+	output [127:0] snap_crtc_regs,
+	output  [7:0] snap_crtc_hcc,
+	output  [6:0] snap_crtc_row,
+	output  [4:0] snap_crtc_line,
+	output  [4:0] snap_crtc_c5,
+	output        snap_crtc_in_adj,
+	output  [3:0] snap_crtc_hsc,
+	output        snap_crtc_hsync,
+	output        snap_crtc_vsync_r,
+	output  [3:0] snap_crtc_vsw_elapsed,
+
+	output  [2:0] snap_mmu_rammap,
+	output  [4:0] snap_mmu_rampage,
+	output  [7:0] snap_mmu_rom_select_shadow,
+
+	output  [7:0] snap_ppi_porta_in,
+	output  [7:0] snap_ppi_portb_in,
+	output  [7:0] snap_ppi_opc_r,
+	output  [7:0] snap_ppi_mode,
+
+	output  [7:0] snap_psg_addr,
+	output [127:0] snap_psg_regs,
+
+	output  [7:0] snap_printer_data,
+
+	// B18 slice 4a CPU observation ports
+	output [211:0] cpu_reg,
+	output        cpu_insn_start,
+	output        cpu_halt_n
 );
 
 wire crtc_shift;
@@ -249,13 +292,30 @@ end
 assign ssm_m1_fetch = m1_fetch;
 assign ssm_bus_data = cpu_data_bus;
 
+// Passive tap for printer data (I/O write with ~A[12], port EFxx).
+wire printer_wr = io_wr & ~A[12];
+reg [7:0] printer_data;
+reg old_printer_wr;
+always @(posedge clk) begin
+	if (reset) begin
+		printer_data   <= 8'd0;
+		old_printer_wr <= 1'b0;
+	end else begin
+		old_printer_wr <= printer_wr;
+		if (~old_printer_wr & printer_wr) begin
+			printer_data <= D;
+		end
+	end
+end
+assign snap_printer_data = printer_data;
+
 	T80pa CPU
 (
 	.reset_n(~reset),
 
 	.clk(clk),
-	.cen_p(phi_en_p & ~sna_hold),
-	.cen_n(phi_en_n & ~sna_hold),
+	.cen_p(phi_en_p & ~sna_hold & ~save_hold),
+	.cen_n(phi_en_n & ~sna_hold & ~save_hold),
 
 	.a(A),
 	.do(D),
@@ -267,6 +327,7 @@ assign ssm_bus_data = cpu_data_bus;
 	.mreq_n(MREQ_n),
 	.m1_n(M1_n),
 	.rfsh_n(RFSH_n),
+	.halt_n(cpu_halt_n),
 
 	.busrq_n(1),
 	.int_n(INT_n & ~irq),
@@ -275,6 +336,8 @@ assign ssm_bus_data = cpu_data_bus;
 	// no_wait fast-timing option: correctness outranks the speed hack.
 	// dma_ppi_wait stalls the CPU when accessing PPI/PSG during DMA LOAD.
 	.wait_n((ready | (IORQ_n & MREQ_n) | no_wait) & ~plus_mem_wait & ~dma_ppi_wait), // workaround a bug in T80pa: should wait only in memory or io cycles
+	.REG(cpu_reg),
+	.INSN_START(cpu_insn_start),
 	.DIRSet(sna_load),
 	.DIR(sna_cpu_dir)
 );
@@ -314,7 +377,19 @@ CRTC crtc
 	.CURSOR(cursor),
 
 	.MA(MA),
-	.RA(RA)
+	.RA(RA),
+
+	.SNAP_ADDR(snap_crtc_addr),
+	.SNAP_REGS(snap_crtc_regs),
+	.SNAP_HCC(snap_crtc_hcc),
+	.SNAP_ROW(snap_crtc_row),
+	.SNAP_LINE(snap_crtc_line),
+	.SNAP_C5(snap_crtc_c5),
+	.SNAP_IN_ADJ(snap_crtc_in_adj),
+	.SNAP_HSC(snap_crtc_hsc),
+	.SNAP_HSYNC(snap_crtc_hsync),
+	.SNAP_VSYNC_R(snap_crtc_vsync_r),
+	.SNAP_VSW_ELAPSED(snap_crtc_vsw_elapsed)
 );
 
 // -----------------------------------------------------------------------
@@ -1023,7 +1098,16 @@ ga40010 GateArray (
 	.SNA_LOAD(sna_load),
 	.SNA_INKSEL(sna_ga_inksel),
 	.SNA_PALETTE(sna_ga_palette),
-	.SNA_CONFIG(sna_ga_config)
+	.SNA_CONFIG(sna_ga_config),
+
+	.SNAP_INKSEL(snap_ga_inksel),
+	.SNAP_BORDER(snap_ga_border),
+	.SNAP_INKR(snap_ga_inkr),
+	.SNAP_HROMEN(snap_ga_hromen),
+	.SNAP_LROMEN(snap_ga_lromen),
+	.SNAP_MODE(snap_ga_mode),
+	.SNAP_INTCNT(snap_ga_intcnt),
+	.SNAP_HCNT(snap_ga_hcnt)
 );
 
 Amstrad_MMU MMU
@@ -1042,7 +1126,11 @@ Amstrad_MMU MMU
 	.sna_load(sna_load),
 	.sna_ram_config(sna_ram_config),
 	.sna_rom_select(sna_rom_select),
-	.ram_A(mem_addr)
+	.ram_A(mem_addr),
+
+	.snap_rammap(snap_mmu_rammap),
+	.snap_rampage(snap_mmu_rampage),
+	.snap_rom_select_shadow(snap_mmu_rom_select_shadow)
 );
 
 wire [7:0] portC;
@@ -1058,6 +1146,8 @@ always @(posedge clk) begin
 	else if (~psg_dma_active && portC[7] && portC[6]) cpu_psg_addr <= portAout;
 end
 
+wire [7:0] ppi_ipb = {(!plus_mode || plus_has_tape) ? tape_in : 1'b1, 2'b11, ppi_jumpers, vs_sel};
+
 i8255 PPI
 (
 	.reset(reset),
@@ -1072,7 +1162,7 @@ i8255 PPI
 
 	.ipa(portAin), 
 	.opa(portAout),
-	.ipb({(!plus_mode || plus_has_tape) ? tape_in : 1'b1, 2'b11, ppi_jumpers, vs_sel}),
+	.ipb(ppi_ipb),
 	.opb(),
 	.ipc(8'hFF), 
 	.opc(portC),
@@ -1083,7 +1173,10 @@ i8255 PPI
 	.sna_opa(sna_ppi_a),
 	.sna_opb(sna_ppi_b),
 	.sna_opc(sna_ppi_c),
-	.sna_control(sna_ppi_control)
+	.sna_control(sna_ppi_control),
+
+	.snap_opc_r(snap_ppi_opc_r),
+	.snap_mode(snap_ppi_mode)
 );
 
 assign tape_motor = (!plus_mode || plus_has_tape) ? portC[4] : 1'b0;
@@ -1120,8 +1213,15 @@ YM2149 PSG
 
 	.SNA_LOAD(sna_load),
 	.SNA_ADDR(sna_psg_addr),
-	.SNA_REGS(sna_psg_regs)
+	.SNA_REGS(sna_psg_regs),
+
+	.SNAP_ADDR(snap_psg_addr),
+	.SNAP_REGS(snap_psg_regs)
 );
+
+assign snap_ppi_porta_in = portAin;
+assign snap_ppi_portb_in = ppi_ipb;
+assign snap_ga_int_n     = ga_int_n;
 
 wire [7:0] kbd_out;
 hid HID

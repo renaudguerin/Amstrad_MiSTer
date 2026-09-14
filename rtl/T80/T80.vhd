@@ -119,6 +119,7 @@ entity T80 is
 		IntCycle_n : out std_logic;
 		IntE       : out std_logic;
 		Stop       : out std_logic;
+		InsnStart  : out std_logic; -- B18: REG is a complete, representable state (see below)
 		R800_mode  : in  std_logic := '0';
 		out0       : in  std_logic := '0';  -- 0 => OUT(C),0, 1 => OUT(C),255
 		REG        : out std_logic_vector(211 downto 0); -- IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A
@@ -1205,6 +1206,20 @@ begin
 	IntE <= IntE_FF1;
 	IORQ <= IORQ_i;
 	Stop <= I_DJNZ;
+
+	-- B18 snapshot freeze point (docs/b18-sna-save.md, "Freeze point").
+	-- High during T2 of an opcode fetch that starts a new instruction. The T1
+	-- enable has committed the previous instruction's deferred ALU write
+	-- (Save_ALU_r), while the T2 enable has not yet incremented PC and R or
+	-- loaded IR, so REG holds the architectural state with PC = fetch
+	-- address. IR still holds the previous opcode here, which is why the
+	-- decode outputs below describe the instruction that just finished:
+	--   Prefix /= "00"  the fetch continues a CB/ED/DD/FD instruction
+	--   SetEI = '1'     EI sets IFF1/IFF2 on this T2 enable, too late for REG
+	--   IntCycle/NMICycle  interrupt acknowledge, not an instruction start
+	-- RETN needs no exclusion: I_RETN is decoded in its own M3.
+	InsnStart <= '1' when MCycle = "001" and TState = 2 and Prefix = "00" and
+	                      SetEI = '0' and IntCycle = '0' and NMICycle = '0' else '0';
 -------------------------------------------------------------------------
 --
 -- Main state machine

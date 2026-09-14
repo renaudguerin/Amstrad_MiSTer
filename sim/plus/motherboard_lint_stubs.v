@@ -67,7 +67,15 @@ module ga40010 (
 	input  wire        SNA_LOAD,
 	input  wire [4:0]  SNA_INKSEL,
 	input  wire [135:0] SNA_PALETTE,
-	input  wire [7:0]  SNA_CONFIG
+	input  wire [7:0]  SNA_CONFIG,
+	output wire [4:0]  SNAP_INKSEL,
+	output wire [4:0]  SNAP_BORDER,
+	output wire [79:0] SNAP_INKR,
+	output wire        SNAP_HROMEN,
+	output wire        SNAP_LROMEN,
+	output wire [1:0]  SNAP_MODE,
+	output wire [5:0]  SNAP_INTCNT,
+	output wire [4:0]  SNAP_HCNT
 );
 	initial begin
 		PHI_N = 1'b1; PHI_EN_N = 1'b0; PHI_EN_P = 1'b0;
@@ -95,6 +103,14 @@ module ga40010 (
 	assign GREEN     = 1'b0;
 	assign RED_OE_N  = 1'b1;
 	assign RED       = 1'b0;
+	assign SNAP_INKSEL = 5'd0;
+	assign SNAP_BORDER = 5'd0;
+	assign SNAP_INKR   = 80'd0;
+	assign SNAP_HROMEN = 1'b0;
+	assign SNAP_LROMEN = 1'b0;
+	assign SNAP_MODE   = 2'd0;
+	assign SNAP_INTCNT = 6'd0;
+	assign SNAP_HCNT   = 5'd0;
 	wire unused = &{1'b0, clk, cen_16, fast, RESET_N, A, D, MREQ_N, M1_N,
 			RD_N, IORQ_N, HSYNC_I, VSYNC_I, DISPEN, SNA_LOAD,
 			SNA_INKSEL, SNA_PALETTE, SNA_CONFIG, 1'b0};
@@ -125,7 +141,9 @@ module YM2149 (
 	output wire [7:0]  IOB_out,
 	input  wire        SNA_LOAD,
 	input  wire [3:0]  SNA_ADDR,
-	input  wire [127:0] SNA_REGS
+	input  wire [127:0] SNA_REGS,
+	output wire [7:0]   SNAP_ADDR,
+	output wire [127:0] SNAP_REGS
 );
 	assign DO        = 8'hFF; // wired-AND neutral on the CPU data bus
 	assign CHANNEL_A = 8'h00;
@@ -134,6 +152,8 @@ module YM2149 (
 	assign ACTIVE    = 6'h00;
 	assign IOA_out   = 8'hFF;
 	assign IOB_out   = 8'hFF;
+	assign SNAP_ADDR = 8'd0;
+	assign SNAP_REGS = 128'd0;
 	wire unused = &{1'b0, CLK, CE, RESET, BDIR, BC, DI, SEL, MODE,
 			IOA_in, IOB_in, SNA_LOAD, SNA_ADDR, SNA_REGS, 1'b0};
 endmodule

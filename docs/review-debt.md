@@ -21,6 +21,36 @@ pr03 now picks a line with bit 8 clear. Look hardest at: whether any other consu
 is unchanged); the rejected CPCWiki "PRI=10 also fires at 266" claim, which only
 hardware can finally settle; and the device recapture, which remains pending an RBF.
 
+**B18 slice 4c, top-level save wiring, 2026-09-14 — REVIEWED BY GEMINI ONLY, NO SIMULATION OF
+THE TOP LEVEL:** the parent (Opus) wrote the `Amstrad.sv` wiring, `rtl/sna_cart_mux.v` and
+stream case 7; Gemini wrote `scripts/hardware-loop/sna_pull.py`. Gemini (gemini-3.8-flash-high)
+reviewed the whole diff and found nothing blocking; its one low finding, the `--wait` usage
+order, is fixed in the design doc. Gemini reviewed its own pull script, so that part is not
+cross-provider, and Astra had no quota for this slice. `Amstrad.sv` is checked only by Quartus
+synthesis. Look hardest at the admission and abort terms (`save_admit`, `save_abort`) against
+every download and overlay path, and at `sna_cart_mux`'s two-edge drain against `sdram.v`
+arbitration if its `clkref`/`q` alignment ever changes.
+
+**B18 slice 4, freeze controller and save stream, 2026-09-13 — REVIEWED, FIXES UNREVIEWED:**
+Astra high reviewed `rtl/sna_save_capture.v`, `rtl/sna_save_stream.v`, `rtl/sna_ddr_mux.v` and
+their tests (Gemini-authored, parent-fixed) and returned CHANGES REQUIRED. The parent fixed all
+three findings without a second review:
+- mux ownership kept through reset while a write is outstanding;
+- generation consumed when the final write is issued;
+- 64K page decode in the test.
+
+Each fix has a case that its revert fails. Look hardest at the interaction between the stream's
+`S_QUIESCE` path and the mux release condition when the stream and mux resets differ in 4c
+wiring. Also check that Case 6E really lands the reset on the acceptance clock.
+
+**B18 slice 3, observation ports, 2026-09-13 — PARTLY REVIEWED:** the port and shadow RTL was
+written by Gemini and reviewed by the Opus parent, so it is cross-provider. The parent's own
+fixes were not independently reviewed: the `u765` one-clock `pcn` copy, the `sna_hw_header.v`
+integer scope, and the `t36a_b18_vsw_elapsed_counter` vector. Look hardest at whether
+`vsw_elapsed` in `rtl/CRTC.v` truly shadows every `vsc` assignment, including the R7-write load
+outside the `CLKEN` branch; and at whether t36a's mid-line samples can miss a one-line offset.
+The formatter's byte mapping is unverified until the slice 4 capture fixture exists.
+
 **B4 phase 1 original fetch-provider review/evidence, 2026-09-12 — OPEN:**
 The revised detector, ring reader, recorder and top-level SSM connections are covered
 by the current source review below. That does not discharge the original

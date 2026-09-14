@@ -43,7 +43,7 @@ crt-filter-blank-build: $(CRTF_TEST_BIN)
 crt-filter-blank-test: $(CRTF_TEST_BIN)
 	$(CRTF_TEST_BIN)
 
-test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test video-output-test ssm-marker-test
+test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test video-output-test ssm-marker-test sna-cpu-header-test
 	$(TEST_BIN)
 	$(MAKE) -C plus test
 	$(MAKE) -C ../rtl/GA40010 test
@@ -84,6 +84,12 @@ lint:
 		-Wall -Wno-fatal $(VIDEO_COLOR_SRC)
 	$(VERILATOR) --lint-only --top-module $(TOP) -Wall -Wno-fatal $(RTL)
 	$(VERILATOR) --lint-only --top-module $(CRTF_TOP) -Wall -Wno-fatal $(CRTF_TOP_SRC) $(CRTF_RTL)
+	$(VERILATOR) --lint-only --top-module sna_cpu_header -Wall -Wno-fatal ../rtl/sna_cpu_header.v
+	$(VERILATOR) --lint-only --top-module sna_hw_header -Wall -Wno-fatal ../rtl/sna_hw_header.v
+	$(VERILATOR) --lint-only --top-module sna_save_capture -Wall -Wno-fatal ../rtl/sna_save_capture.v
+	$(VERILATOR) --lint-only --top-module sna_save_stream -Wall -Wno-fatal ../rtl/sna_save_stream.v
+	$(VERILATOR) --lint-only --top-module sna_ddr_mux -Wall -Wno-fatal ../rtl/sna_ddr_mux.v
+	$(VERILATOR) --lint-only --top-module sna_cart_mux -Wall -Wno-fatal ../rtl/sna_cart_mux.v
 	$(MAKE) -C plus lint
 	$(MAKE) -C ../rtl/GA40010 lint
 	$(MAKE) -C ../rtl/u765 lint
@@ -154,6 +160,21 @@ $(CRTC_T80_BIN): $(CRTC_T80_RTL) crtc_t80_test.cpp Makefile
 		--Mdir $(OBJ_DIR)/crtc_t80 -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o crtc_t80_tests $(CRTC_T80_RTL) crtc_t80_test.cpp
 
+# B18 slice 1: snapshot freeze point (T80pa INSN_START) on production T80,
+# real GA enables/READY, with hold-versus-hardware-WAIT continuation checks.
+T80_FREEZE_RTL := t80_freeze_top.sv ../rtl/sna_save_capture.v $(T80_NETLIST) $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
+T80_FREEZE_BIN := $(OBJ_DIR)/t80_freeze/t80_freeze_tests
+
+.PHONY: t80-freeze-test
+t80-freeze-test: $(T80_FREEZE_BIN)
+	$<
+
+$(T80_FREEZE_BIN): $(T80_FREEZE_RTL) t80_freeze_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/t80_freeze
+	$(VERILATOR) --cc --exe --build --top-module t80_freeze_top -UVERILATOR \
+		--Mdir $(OBJ_DIR)/t80_freeze -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o t80_freeze_tests $(T80_FREEZE_RTL) t80_freeze_test.cpp
+
 # Negative discriminator on old pre-B8 engines (commit d46609d066aafb6b182fd6fa504a91719500cd91)
 CRTC_OLD_ENGINES_DIR := $(OBJ_DIR)/old_engines
 CRTC_T80_OLD_RTL := crtc_t80_top.sv $(T80_NETLIST) ../rtl/CRTC.v $(CRTC_OLD_ENGINES_DIR)/crtc_type0_engine.v $(CRTC_OLD_ENGINES_DIR)/crtc_type1_engine.v $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
@@ -182,6 +203,12 @@ crtc-t80-old-test: $(CRTC_T80_OLD_BIN)
 	echo "$$out" | grep -q "Type 0 OUT (C), C.*row" || { echo "FAIL: Missing Case 3 B8 failure (row)"; exit 1; }; \
 	echo "$$out" | grep -q "Type 1 OUT (C), C.*pending" || { echo "FAIL: Missing Case 4 B8 failure (pending)"; exit 1; }; \
 	echo "PASS: Old pre-B8 engine correctly failed all 4 B8 side-effect checks"
+
+# Everything that needs GHDL, as one entry point for CI's production-t80 job
+# and for local runs with GHDL=/path/to/ghdl. Kept out of `test` so the
+# default gate still builds without GHDL.
+.PHONY: production-t80-test
+production-t80-test: t80-trace-test crtc-t80-test crtc-t80-old-test t80-freeze-test
 
 $(CRTC_T80_OLD_BIN): $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp Makefile
 	mkdir -p $(OBJ_DIR)/crtc_t80_old
@@ -229,5 +256,20 @@ $(SSM_BIN): $(SSM_SRC) ssm_marker_test.cpp Makefile
 	$(VERILATOR) --cc --exe --build --top-module ssm_marker_top -UVERILATOR \
 		--Mdir $(OBJ_DIR)/ssm_marker +1364-2001ext+.v +1800-2017ext+.sv -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
 		-o ssm_marker_tests $(SSM_SRC) $(abspath ssm_marker_test.cpp)
+
+# B18 slice 2: SNA Z80/PPI/PSG/RAM-config/memory-size header decode. The DUT
+# is directly drivable (plain byte-stream ports), so no wrapper top is needed.
+SNA_CPU_HDR_RTL := ../rtl/sna_cpu_header.v
+SNA_CPU_HDR_BIN := $(OBJ_DIR)/sna_cpu_header/sna_cpu_header_tests
+
+.PHONY: sna-cpu-header-test
+sna-cpu-header-test: $(SNA_CPU_HDR_BIN)
+	$<
+
+$(SNA_CPU_HDR_BIN): $(SNA_CPU_HDR_RTL) sna_cpu_header_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/sna_cpu_header
+	$(VERILATOR) --cc --exe --build --top-module sna_cpu_header \
+		--Mdir $(OBJ_DIR)/sna_cpu_header -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o sna_cpu_header_tests $(SNA_CPU_HDR_RTL) $(abspath sna_cpu_header_test.cpp)
 
 

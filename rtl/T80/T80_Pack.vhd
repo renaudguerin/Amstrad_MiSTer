@@ -105,6 +105,7 @@ package T80_Pack is
 		IntCycle_n      : out std_logic;
 		IntE            : out std_logic;
 		Stop            : out std_logic;
+		InsnStart       : out std_logic; -- B18 snapshot freeze point, see T80.vhd
 		R800_mode       : in  std_logic := '0';
 		out0            : in  std_logic := '0';  -- 0 => OUT(C),0, 1 => OUT(C),255
 		REG             : out std_logic_vector(211 downto 0); -- IFF2, IFF1, IM, IY, HL', DE', BC', IX, HL, DE, BC, PC, SP, R, I, F', A', F, A

@@ -75,7 +75,16 @@ module ga40010 (
 	input        SNA_LOAD,
 	input  [4:0] SNA_INKSEL,
 	input [135:0] SNA_PALETTE,
-	input  [7:0] SNA_CONFIG
+	input  [7:0] SNA_CONFIG,
+
+	output  [4:0] SNAP_INKSEL,
+	output  [4:0] SNAP_BORDER,
+	output [79:0] SNAP_INKR,
+	output        SNAP_HROMEN,
+	output        SNAP_LROMEN,
+	output  [1:0] SNAP_MODE,
+	output  [5:0] SNAP_INTCNT,
+	output  [4:0] SNAP_HCNT
 );
 
 wire reset = ~RESET_N;
@@ -207,6 +216,18 @@ always @(posedge clk) begin
 end
 
 assign MODE = {mode1, mode0};
+
+assign SNAP_INKSEL = inksel;
+assign SNAP_BORDER = border;
+genvar gi;
+generate
+	for (gi = 0; gi < 16; gi = gi + 1) begin: gen_snap_inkr
+		assign SNAP_INKR[gi*5 +: 5] = inkr[gi];
+	end
+endgenerate
+assign SNAP_HROMEN = hromen;
+assign SNAP_LROMEN = lromen;
+assign SNAP_MODE = {mode1, mode0};
 
 /////// ROM/RAM MAPPING /////////
 
