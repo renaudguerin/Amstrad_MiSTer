@@ -61,7 +61,8 @@ SDRAM_TEST_BIN := $(SDRAM_OBJ_DIR)/sdram_cartridge_tests
 SNA_STREAM_TOP      := sna_save_stream_test_top
 SNA_STREAM_RTL      := $(abspath ../../rtl/sdram.v) \
                        $(abspath ../../rtl/sna_save_stream.v) \
-                       $(abspath ../../rtl/sna_ddr_mux.v)
+                       $(abspath ../../rtl/sna_ddr_mux.v) \
+                       $(abspath ../../rtl/sna_cart_mux.v)
 SNA_STREAM_TEST_TOP := $(abspath sna_save_stream_test_top.v)
 SNA_STREAM_OBJ_DIR  := obj_dir/sna_save_stream
 SNA_STREAM_TEST_SRC := $(abspath sna_save_stream_test.cpp)
