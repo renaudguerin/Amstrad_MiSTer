@@ -1,0 +1,18 @@
+{
+  "case_id": "copter271_title",
+  "description": "Copter 271 CPR on 6128 Plus, no input to the title (reached about 500 frames after reset), then joystick fire opens the options menu. Pilot checkpoint for the AmSpirit oracle.",
+  "media": {
+    "path": "docs/plus/cartridges/01_PlusGames/Copter 271.cpr",
+    "sha256": "4b75c62cbd660206ef30ff8cbf9c4b1281282a423b5eccc1ff8444589f2a9c1d",
+    "hard_reset": true
+  },
+  "config": {"cpc_model": 4, "crtc_type": 3, "ram_kb": 128},
+  "render": {"monitor": 0, "screen_type": 0},
+  "steps": [
+    {"wait_frames": 1000},
+    {"screenshot": "title"},
+    {"joystick": ["fire"], "frames": 10},
+    {"wait_frames": 200},
+    {"screenshot": "options"}
+  ]
+}

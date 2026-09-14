@@ -13,12 +13,21 @@ cartridges `Drive A: read fail`; approximately half of sampled cartridges loaded
 
 ## Latest recorded results
 
-The [September 12 report](../hardware-evidence-2026-09-12.md) confirms BASIC
+The [September 13 report](../hardware-evidence-2026-09-13.md) confirms that
+build **`a0778b6`** (fix "general: reset PSG R7 to 0x00 so bare-metal keyboard
+scans work") **fixes all known keyboard / joystick issues with `arn5diag`, `Pang`,
+and `Plotting`**. AY-3-8912 /RESET clears all registers to 0x00 (GI datasheet),
+setting Port A to input; previous 0xFF reset wedged uninitialized R14 reads to 0x00,
+causing active-low keys/fire buttons to read as permanently pressed. This closes the
+held-fire symptom in Pang and Plotting, and cold-boot keyboard navigation in Arnold 5
+(`arn5diag`). In addition, Copter 271's logo is fixed on device (`b5c3014`), and its
+title flash is much improved (`05cb9fd`).
+
+The earlier [September 12 report](../hardware-evidence-2026-09-12.md) confirmed BASIC
 boot fixed on **6128 Plus / `5c16b17`**. Left-edge sprite corruption is much
-improved, possibly fixed; **Pang/Plotting fire always pressed and Copter 271's
-logo remain NOT fixed**. This closes the named BASIC boot symptom, not the
-multi-model System Cartridge checklist or disk I/O. The exact output/media
-configuration and on-device RBF hash are unrecorded.
+improved, possibly fixed. B6 Full versus Raw pixels showed no visible difference so far.
+This closes the named BASIC boot symptom, not the multi-model System Cartridge checklist
+or disk I/O. The exact output/media configuration and on-device RBF hash are unrecorded.
 
 The earlier [September 9 report](../hardware-evidence-2026-09-09.md) records the
 `ce1d2da` retest and maps the SHAKER captures. Burnin' Rubber was reported OK,
@@ -47,6 +56,7 @@ the corresponding run ID.
 | 2026-09-09 Classic | Same build | Same local hash | Same build | Unrecorded | 6128, Plus off; CRTC1, DSC4 also CRTC0; Full/Live/Off as recorded | SHAKER 2.7, DSC4, Amazing Demo; hashes unrecorded | DSC4 before SHAKER; reset reported; full sequence unrecorded | User observations / supplied captures; reference comparison pending |
 | 2026-09-12 Plus | `5c16b17` (user-confirmed) | `8b3b5bed518165040f8e578c83f061891fa64d58ce3b52fb07d5765765506468` (delivered local artifact; device unverified) | full; +0.320/+0.247 ns; zero TNS | Unrecorded | 6128 Plus | BASIC, Pang, Plotting, Copter 271; exact media unrecorded | Unrecorded | User observations; see September 12 report |
 | 2026-09-12 B6 comparison | `5c16b17` (user-confirmed) | Same delivered local hash | Same build | Unrecorded | Classic model/CRTC and output connection unrecorded; Full / Raw pixels | Amazing Demo, DSC4, SHAKER A (T); exact versions unrecorded | Unrecorded | User reports no visible difference so far |
+| 2026-09-13 Plus input | `a0778b6` (user-confirmed) | Build artifact | full | Unrecorded | 6128 Plus | `arn5diag`, `Pang`, `Plotting` | Unrecorded | User hardware testing confirms all known keyboard/joystick issues fixed across all three titles |
 
 ---
 
@@ -104,6 +114,7 @@ box below retains the wider banner, model and cartridge checks.
   - 3-Channel DMA sound playback during gameplay.
   - Hardware sprites for player character and enemies.
 - [ ] **Pang**:
+  - [x] Keyboard/joystick input: confirmed fixed on hardware (build `a0778b6`; PSG R7 reset to 0x00 fixes permanently held fire).
   - PRI scanline interrupt synchronization.
   - 16 hardware sprites with dual-palette bank switching.
   - High-color background and sprite layers.
@@ -115,9 +126,13 @@ box below retains the wider banner, model and cartridge checks.
   - Isometric tile rendering and sprite falling animations.
   - Palette animation and timing stability.
 - [ ] **Switchblade / Dick Tracy / Plotting / Tin Tin on the Moon**:
+  - [x] Plotting keyboard/joystick input: confirmed fixed on hardware (build `a0778b6`; PSG R7 reset to 0x00 fixes permanently held fire).
   - Cartridge loading, page banking, and gameplay stability.
 
 ### C. Demos & Diagnostics
+- [ ] **`arn5diag.cpr` (Arnold 5 diagnostic)**:
+  - [x] Cold-boot keyboard scan / menu navigation: confirmed fixed on hardware (build `a0778b6`; PSG R7 reset to 0x00 allows R14 matrix reads from cold boot).
+  - Plus hardware diagnostic tests.
 - [ ] **`crtc3_v2fix.cpr`**:
   - Diagnostic test for CRTC 3 timing, syncs, and status registers.
 - [ ] **PhX Demo**:

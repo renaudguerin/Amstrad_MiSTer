@@ -1,5 +1,91 @@
 # Current implementation status
 
+**B18 SNA save from the running core, integrated 2026-09-14; development aid only:** OSD
+"Save snapshot" freezes the Z80 at an instruction boundary (T80pa `INSN_START`), latches a
+classic SNA v3 header, and streams 64K/128K RAM from SDRAM into DDR3 at 0x3E000000;
+`scripts/hardware-loop/sna_pull.py` copies the file out over SSH. Classic models only: refused
+in Plus mode and while a Dandanator or Multiface II is active. Device test on branch RBF
+`0608653` passed: a 6128 snapshot reloads in this core and in AmSpirit. **Not a user feature:**
+the core cannot write to SD, so shipping it needs a Main_MiSTer change or a rework around
+Main's save-state copy, whose slot header differs from ours. Observation ports on CRTC/GA
+left the soak hash `0xb1cb70da95c2e44f` unchanged. Open: the capture and round-trip fixture
+(acceptance 2 and 3, lower priority), a 464/664 save, and the review debt for slices 3-4c. See
+[docs/b18-sna-save.md](b18-sna-save.md).
+
+**Plus B19 residual: suspected cause modelled in simulation; device acceptance pending (2026-09-14):**
+In `rtl/plus/asic_ga_timing.v`, when a CPU interrupt acknowledge cycle (`int_reset | intack`)
+is active, a coincident single-cycle `raster_fire` pulse was previously swallowed because `int_reset`
+unconditionally drove `INT_N <= 1'b1`. In Copter 271, dropping a raster interrupt skips a step in
+the `&FF → &37 → &A7` palette chain, producing a title palette flash ~1-2 times in 20 s over the logo
+or bottom (never both). In Sonic GX, dropping a raster interrupt is expected to halt its line-by-line
+raster re-arming loop. The timing block now holds coincident raster fires in `raster_fire_pending`
+across the active acknowledge window (`int_ack_active = int_reset | intack`) and asserts `INT_N <= 1'b0`
+immediately on the clock cycle following acknowledge deassertion, where subsequent interrupt acknowledge
+correctly latches `last_raster = 1`. Classic Gate Array (`pri == 0`) edge-triggered syncgen behavior
+remains bit-for-bit identical to `ga40010` (when `intack = 0`). Reviewed by Claude Opus 5 (CLEAR to
+merge as a simulation fix). Known limits / modelling choices recorded: (1) in Plus mode with `pri == 0`,
+a classic 52-line overflow during an in-flight DMA acknowledge remains unlatched (same mechanism as B19;
+real ASIC behavior unmeasured); (2) an MRER D4 clear during coincident fire holds pending and reasserts
+after the write. Deterministic vector `pr07_raster_fire_during_intack` in `sim/plus/asic_pri_test.cpp`
+covers dynamic fire calibration, DMA ack (`intack`), prior raster ack (`irqack_rst`), and a negative
+control. All gates (`make -C sim`, `make -C sim lint`, and soak golden hash `0xb1cb70da95c2e44f`) pass.
+
+**PSG R7 reset fix & keyboard/joystick hardware verification (build `a0778b6`), 2026-09-13, integrated into `master`:**
+Hardware testing on build `a0778b6` (fix "general: reset PSG R7 to 0x00 so bare-metal
+keyboard scans work") confirms it **fixes all known keyboard and joystick issues with
+`arn5diag`, `Pang`, and `Plotting`**. AY-3-8912 /RESET clears all registers to 0x00
+(GI datasheet); R7=0x00 selects Port A as input. The old 0xFF reset wedged R14 reads
+at 0x00 until software explicitly programmed R7, making all active-low keyboard matrix
+and joystick inputs read as permanently held down (0 = pressed). This broke cold-boot
+keyboard navigation in `arn5diag` and caused the persistent "Fire always pressed" symptom
+in `Pang` and `Plotting` (firmware and SNA restore program R7, masking the bug in BASIC/OS
+paths). In `sim/plus/p10_input_test.cpp`, the bench adds a reset-default R14 read vector.
+Reviewed by Astra-high (accept-with-nits applied); full simulation, both lints, and soak
+hash `0xb1cb70da95c2e44f` pass unchanged. See [September 13 hardware report](hardware-evidence-2026-09-13.md).
+
+**AmSpirit troubleshooting oracle (Track G), 2026-09-13:** standalone helper
+`scripts/amspirit/amspirit.py` loads media, paces input on emulated frames, and captures
+a paused checkpoint (screenshot, state endpoints, SNA with chunk list) with a manifest.
+The [Copter 271 title pilot](amspirit-oracle-pilot-2026-09-13.md) ran it end to end on
+AmSpirit lite 1.15.1; the checkpoint SNA resumes and takes input in AmSpirit, and resumes
+on the MiSTer (`05cb9fd`, 6128+) when an MGL loads the CPR before the SNA, and joystick
+input works after that load (user-checked). Neither load selects the Plus model; B16 now
+covers setting it from the SNA header too. No RTL change.
+
+**Plus DCSR bit-7 acknowledge fix (B19), 2026-09-13, integrated into `master`:**
+`last_raster` (`rtl/plus/asic_ga_timing.v`) now latches at each INT-acknowledge
+start from the pending raster request instead of setting on raster fire, so a
+DMA acknowledge followed by a later raster fire reads DCSR bit 7=0 (Copter 271
+title flash; reference §9). New `pr06` failed first on the old RTL, `pr01`
+reworked for the classic path, `pr05`/`a08`/B8-5 rechecked green. Full
+simulation and lint pass; Codex astra-high CLEAR twice (runs
+`20260913T153903Z-35497-191d`, `20260913T154348Z-36487-2b7b`). Sources `9faa140`
+(fix) and `f277f64` (review follow-ups), merged as `05cb9fd`, RBF
+`output_files/Amstrad_20260913_05cb9fd.rbf`.
+
+**Hardware verdict 2026-09-13 on that RBF: much improved, not fixed.** The
+title flash still occurs but far less often (about 1-2 times in 20 s instead
+of every few seconds), and now shows both over the logo and over the bottom
+part of the screen (never both at once). Prime suspect for the remainder is
+the already-noted residual: a raster fire landing inside another interrupt's
+acknowledge window is cleared by that acknowledge and lost (`int_reset` beats
+`raster_fire`; real-chip behaviour unknown). A lost palette step fits the
+lower rate (sub-microsecond coincidence window) and either screen region,
+depending on which PRI step is skipped — but that is a hypothesis, not a
+finding. Next discrimination needs a caught glitch frame (B2 title capture)
+or controlled PRI/ack-overlap measurement on hardware.
+
+**Plus PRI line compare, 2026-09-13, source `b5c3014` integrated into `master`:**
+A B2 device capture of Copter 271 (6128 Plus, `d35412a`) showed its title logo in the
+sky palette. AmSpirit's reference and snapshot (ignored, under
+`docs/references/copter271-2026-09-13/`) show the same content rows but the palette
+switch 55 lines later. The title's raster handler at cartridge `0x1852` chains PRI
+`&FF` (logo palette) and `&37` (sky palette). The RTL treated bit 8 of the
+Arnold-revision §2.4 compare `0 PRI7..PRI0 == VC5..VC0 RC2..RC0` as a don't-care, so
+`&37` also fired on line 311. `pri_line_match` now requires bit 8 clear. The rewritten
+pr02 failed first on line 311. Full simulation, lint and soak `0xb1cb70da95c2e44f` pass.
+Review debt is recorded. Device recapture of Copter 271 on the new RBF remains open.
+
 **B4 CSL/SSM, 2026-09-12, source `94725cc` integrated into `master`:**
 Fable's second design pass reached rough convergence on an append-only native
 RGB24/timing stream in bounded rotating windows. Opus produced the initial
@@ -51,15 +137,18 @@ case pins RBF/media identity; 26 focused tests and fresh Gemini review pass.
 Native screenshots omit OSD, so saved Full configuration is not visual proof
 of the active mode. See [device evidence and limits](b2-device-capture-2026-09-12.md).
 
-**Latest hardware report, 2026-09-12, `5c16b17`:** the user confirms **6128 Plus
-BASIC boot fixed**. Corrupt sprite lines at the left edge are **much improved,
-perhaps fixed**, with definitive closure still open. **Pang/Plotting fire
-always pressed and the Copter 271 logo remain NOT fixed.** B6 Full versus Raw
-pixels shows **no visible difference so far** in Amazing Demo, DSC4 or SHAKER
-A (T). Output configuration and Classic model/CRTC details are unrecorded.
-See the [dated report](hardware-evidence-2026-09-12.md). The accepted B2/B6
-follow-ups above supply capture and simulation evidence without broadening
-these user-reported hardware verdicts.
+**Hardware reports, September 12–13:**
+- **2026-09-12, `5c16b17`:** the user confirmed **6128 Plus BASIC boot fixed**.
+  Corrupt sprite lines at the left edge were **much improved, perhaps fixed**,
+  with definitive closure still open. B6 Full versus Raw pixels showed **no visible
+  difference so far** in Amazing Demo, DSC4 or SHAKER A (T). See the
+  [dated report](hardware-evidence-2026-09-12.md).
+- **2026-09-13, `a0778b6`:** hardware testing confirms build `a0778b6` (PSG R7
+  reset to 0x00) **fixes all known keyboard and joystick issues with `arn5diag`,
+  `Pang`, and `Plotting`**. Fire is no longer held down in Pang/Plotting, and
+  arn5diag keyboard navigation operates normally from cold boot. Copter 271 logo is
+  fixed on device (`c595031`/`b5c3014`) and title flash much improved (`05cb9fd`).
+  See the [September 13 report](hardware-evidence-2026-09-13.md).
 
 **B6 rendering follow-up, 2026-09-12 (integrated source):** the production mixer
 RGB scope defect has a failing-before/passing-after parameter regression.
@@ -642,7 +731,9 @@ simulation-verified repairs:
   maximum observed wait is five CCLKs.
 
 These fixes make Pang/CRTC3, Arnold 5 keyboard, Plotting held Fire, and DMA sample pitch
-direct hardware retests; they do not close those titles. Sprite top-row/colour/positioning,
+direct hardware retests; they do not close those titles *(Update 2026-09-13: hardware testing
+on build `a0778b6` with PSG R7 reset to 0x00 confirms all known keyboard and joystick issues
+fixed for `arn5diag`, `Pang`, and `Plotting`)*. Sprite top-row/colour/positioning,
 Switchblade and other cartridge crashes, CPC+ SNA/reset/reload recovery, and undocumented
 odd-R5 CRTC3 behavior remain evidence-gated. The motherboard WAIT/PPI timing change requires
 an exact full-effort synthesis before hardware testing. Full evidence, gates, and residuals
@@ -1752,7 +1843,8 @@ aliased fires at identical intra-line offsets; adjustment gate; MRER
 clearing a pending PRI interrupt), `a08` (DCSR bit 7 mirrors the merger
 level), mobo bench `m6` (ack-cycle vector byte 0xDE after a scripted
 IVR write). P3's remaining exit item is title-level stability (Pang,
-RoboCop 2) at the next hardware checkpoint.
+RoboCop 2) at the next hardware checkpoint (Pang's stuck-fire input is confirmed
+fixed on hardware in `a0778b6`).
 
 Open scope note: the monitor-trailing-edge trigger uses this model's
 fixed four-character shaping microsequence, so [ARNOLD-REV]'s "clamp at

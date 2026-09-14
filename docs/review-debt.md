@@ -1,5 +1,26 @@
 # Independent review debt
 
+**Plus B19 residual (coincident raster_fire latch), 2026-09-14 — source review CLEAR:**
+Claude Opus 5 (run `20260913T232047Z-80037-68c9`) reviewed the RTL changes in `rtl/plus/asic_ga_timing.v`,
+test vector `pr07` in `sim/plus/asic_pri_test.cpp`, and differential bench tie-offs in `sim/plus/asic_ga_diff_top.v`.
+Verdict: **CLEAR to merge as a simulation fix**. All reviewer recommendations were incorporated before merge:
+(1) dynamic calibration of fire offset in `pr07` to eliminate hardcoded line timing dependencies; (2) added test
+coverage for coincident fire during existing raster acknowledge (`irqack_rst`); (3) refined reset priority in
+`asic_ga_timing.v` to eliminate priority conflicts; (4) recorded hardware failure signatures and known boundary limits
+in `docs/current-status.md` and `docs/backlog.md`. Device acceptance on hardware remains pending.
+
+**Plus PRI 9-bit line compare, 2026-09-13 — UNREVIEWED:** `rtl/plus/asic_ga_timing.v`
+`pri_line_match` now requires bit 8 of `{VC5..VC0, RC2..RC0}` to be 0, following the
+Arnold-revision §2.4 formula `0 PRI7..PRI0 == VC5..VC0 RC2..RC0`. The previous
+don't-care fired PRI=&37 again on line 311, which loaded Copter 271's title sky palette
+55 lines early (MiSTer captures versus AmSpirit, both under ignored
+`docs/references/copter271-2026-09-13/`). `sim/plus/asic_pri_test.cpp` pr02 was
+rewritten from the old n/n+256 expectation and failed on the old RTL before the fix;
+pr03 now picks a line with bit 8 clear. Look hardest at: whether any other consumer of
+`crtc_line` relied on the alias (SPLT is a separate 8-bit compare in `asic_video.v` and
+is unchanged); the rejected CPCWiki "PRI=10 also fires at 266" claim, which only
+hardware can finally settle; and the device recapture, which remains pending an RBF.
+
 **B18 slice 4c, top-level save wiring, 2026-09-14 — REVIEWED BY GEMINI ONLY, NO SIMULATION OF
 THE TOP LEVEL:** the parent (Opus) wrote the `Amstrad.sv` wiring, `rtl/sna_cart_mux.v` and
 stream case 7; Gemini wrote `scripts/hardware-loop/sna_pull.py`. Gemini (gemini-3.8-flash-high)

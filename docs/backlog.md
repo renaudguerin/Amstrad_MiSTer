@@ -17,12 +17,85 @@ Exact-SHA CI is recorded in current status. The real capture loop and final-RGB/
 progress are recorded in the [handoff](hardware-followup-handoff-2026-09-12.md).
 Remaining physical video, active-mode and CRTC/title acceptance stay open.
 
-The [latest report](hardware-evidence-2026-09-12.md) confirms BASIC boot fixed
+The [September 12 report](hardware-evidence-2026-09-12.md) confirmed BASIC boot fixed
 on **6128 Plus / `5c16b17`**. Left-edge sprite corruption is much improved,
-possibly fixed; **Pang/Plotting fire always pressed and Copter 271's logo
-remain failing**. Full versus Raw pixels shows no visible difference so far
-in Amazing Demo, DSC4 or SHAKER A (T). B1/B6 visual acceptance and P10 remain
-open; do not promote the tentative sprite improvement to a confirmed fix.
+possibly fixed. Copter 271's logo is fixed on device with `c595031` / `b5c3014`
+(PRI no longer fires on line 256+n), and its title flash is much improved with `05cb9fd`
+(B19 DCSR bit 7 acknowledge latch).
+
+Hardware testing on build **`a0778b6`** (fix "general: reset PSG R7 to 0x00 so
+bare-metal keyboard scans work") confirms it **fixes all known keyboard and joystick
+issues with `arn5diag`, `Pang`, and `Plotting`** (see [September 13 report](hardware-evidence-2026-09-13.md)).
+AY-3-8912 /RESET clears all registers to 0x00 (GI datasheet); the previous 0xFF reset configured
+Port A as output and wedged uninitialized R14 reads to 0x00 (active-low, meaning all keys and
+fire buttons read as permanently pressed). This closes the held-fire defect in Pang/Plotting
+and the inoperable keyboard in `arn5diag`.
+
+Full versus Raw pixels shows no visible difference so far in Amazing Demo, DSC4 or
+SHAKER A (T). B1/B6 visual acceptance, sprite edge closure, and remaining P10 title
+stability remain open.
+
+## B19. Plus DCSR bit 7 reports raster on a DMA acknowledge (Copter 271 title flash)
+
+**Fixed in simulation and integrated into `master` 2026-09-13; device
+acceptance open.** On `c595031`, Copter 271's title
+flashes for one frame every 5-10 s: the sky under the logo is drawn with the
+logo palette (white/orange/red bands), then the next frame is correct. AmSpirit
+does not show it. Frame captures: `docs/defects/copter271-2026-09-13/screenshot1-5.png`
+(untracked, about 24 MB; frame 3 is the glitch, 2 and 4 are 60 fps/50 Hz blends).
+
+**Cause.** `docs/plus/references/asic-reference.md` §9 defines DCSR bit 7 as
+"last INT acknowledge was raster": the acknowledge decides it (cpcec
+`z80_irq_ack()` does the same). `rtl/plus/asic_ga_timing.v` (`last_raster`) instead
+sets the bit when the raster interrupt *fires*, even if the acknowledge in
+progress was a DMA interrupt's, and clears it only at the end of an empty
+acknowledge.
+
+**How Copter 271 hits it.** The game uses DMA channel A as a timer: its list
+pauses 154 lines then raises INT, drifting against the 312-line frame. The IM1
+handler at cart `0x0038` reads `&6C0F` about 14 µs after the acknowledge and
+dispatches on bit 7 (raster to `0x00D6`, else the DMA timer path). The title's
+raster chain (`0x1852`, state in `&80A1`) switches palettes at PRI lines &FF
+(logo palette from `&80B3`, PRI=&37), &37 (sky palette from `&80D3`, PRI=&A7 or
+&FF) and &A7 (pen 15). When a DMA INT lands on a PRI line, the CPU acknowledges
+the DMA, the raster fires a few µs later, and the handler already reads bit 7=1.
+It runs the raster step; the raster request is still pending and bit 7 still
+set, so the next acknowledge runs the following step immediately. That second
+step reloads the logo palette and sets PRI back to &37, so the rest of the frame
+keeps the logo palette. On hardware the DMA path runs first and the raster step
+follows a few lines late at most. Before the PRI fix the same slip showed over
+the logo instead.
+
+**Fix.** Latch `last_raster` at the start of each acknowledge from the raster
+request pending at that instant (pending: 1, otherwise 0) and hold it until the
+next acknowledge; drop the set-on-fire term. `pr05` (`sim/plus/asic_pri_test.cpp`)
+and `a08` (`sim/plus/asic_regs_test.cpp`) already agree with that rule; recheck
+the B8-5 snapshot DCSR bit-7 checks in `sim/plus/plus_p8_test.cpp`. Failing
+vector first: acknowledge a DMA-only interrupt, fire the raster before a DCSR
+read, require bit 7=0 on that read and 1 after the following acknowledge, with
+exactly one raster dispatch. Plus stream; device acceptance is the Copter 271
+title watched for about a minute with no flash.
+
+**Done as prescribed 2026-09-13** (`9faa140`, review follow-ups `f277f64`,
+integrated into `master`): new `pr06` failed first on the old set-on-fire term,
+`pr01` now pins latch-on-ack for the classic counter path, `pr05`/`a08`/B8-5
+rechecked green, full `sim`/`lint` pass, Codex astra-high CLEAR twice (runs
+`20260913T153903Z-35497-191d`, `20260913T154348Z-36487-2b7b`). The declined
+ack-edge sweep stands endorsed by the re-review: B8-5 pins both provenances and
+the latch shares the vector sampler's edge; in-window fire values need hardware
+measurement. The one-minute title watch remains open.
+
+**Residual: suspected cause modelled in simulation 2026-09-14; device acceptance pending.**
+The B19 fix on `05cb9fd` reduced Copter 271's title flash rate to ~1-2 times in 20 s over
+the logo or bottom (never both). The suspect cause—a coincident `raster_fire` pulse occurring
+during another interrupt's acknowledge window (`int_reset | intack`) being dropped by unconditional
+`INT_N <= 1'b1`—is now resolved in simulation: `raster_fire_pending` in `rtl/plus/asic_ga_timing.v`
+latches coincident fires across `int_ack_active` and asserts `INT_N <= 1'b0` on the cycle following
+deassertion. Reviewed by Claude Opus 5 (CLEAR). Deterministic vector `pr07` in `sim/plus/asic_pri_test.cpp`
+covers dynamic calibration, DMA ack, prior raster ack, and negative control. Classic `pri == 0` lockstep
+with `ga40010` is preserved (when `intack = 0`). Known follow-up limits: classic 52-line overflow during
+DMA ack in Plus mode with `pri == 0` remains unlatched (real ASIC behavior unmeasured). Device
+acceptance (Copter 271 / Sonic GX) on new build open.
 
 The active work is **B2 device capture** (`root@mister`, user reports online),
 **B6 diagnostic/final-RGB gaps**, and **actual source-review gap closure**.
@@ -207,6 +280,12 @@ Use our repeated captures to establish repeatability, then compare selected case
 with the site's Amspirit references. The plan records the test/image mapping and
 keeps original references locally with attribution. Hardware remains the final
 authority; differing pixels alone do not establish which result is correct.
+
+**AmSpirit side-oracle.** [`scripts/amspirit/`](../scripts/amspirit/README.md) captures
+AmSpirit screenshots, machine state and SNA checkpoints independently of the MiSTer loop,
+per the [design](amspirit-oracle-design-2026-09-13.md). The
+[Copter 271 pilot](amspirit-oracle-pilot-2026-09-13.md) was accepted: its checkpoint SNA
+resumes on the device when the CPR is loaded first.
 
 ---
 
@@ -800,10 +879,10 @@ Work completed:
 
 ---
 
-## B16. CPR load selects a Plus model
+## B16. CPR and SNA loads select a Plus model
 
-**Filed 2026-09-13. Small quality-of-life change, open.** Loading a CPR leaves the machine
-model unchanged. With Plus model Off (`status[34:33] = 0`) the cartridge does not run until the
+**Filed 2026-09-13. Small quality-of-life change, open.** Loading a CPR or an SNA leaves the
+machine model unchanged. With Plus model Off (`status[34:33] = 0`) the cartridge does not run until the
 user sets 6128+ in the OSD and reloads. Device captures hit the same trap: `driver.py` loads the
 CPR through MGL but applies no settings.
 
@@ -815,6 +894,18 @@ already uses it for the `Fn[1]` toggle, so the core can publish the new model bi
 and the OSD shows the real selection. Check the ordering against the CPR apply/reset sequence
 (`cpr_finish_pending`, `cpr_apply_cnt`) so the model switch happens before the cartridge boots.
 Main persists the change only when the user saves settings.
+
+**SNA part.** An SNA v3 header records the machine at offset `0x6D` (0 464, 1 664, 2 6128,
+3 unknown, 4 6128 Plus, 5 464 Plus, 6 GX4000; `docs/references/Snapshot (.SNA) file format.md`).
+`Amstrad.sv` reads that byte only to pick the RAM map (`sna_model`), and the `CPC+` chunk
+does not switch Plus mode on either. So a Plus snapshot loaded with Plus model Off restores
+into a classic machine. Intended behaviour: when the SNA is applied, set `status[34:33]` from
+the header in the same restore (4 to 6128+ = 2, 5 to 464+ = 3, 6 to GX4000 = 1), through the
+same `status_set` path as the CPR case, before the CPU resumes. Decide separately whether a
+classic header (0-2) should switch Plus model Off; the classic Model field `[5:4]` is a related
+but different question. A cartridge title's snapshot still needs its CPR loaded first, since
+the SNA does not carry the cartridge ROM (see the
+[AmSpirit pilot](amspirit-oracle-pilot-2026-09-13.md)).
 
 ---
 
@@ -847,7 +938,7 @@ Replay goes back in through uinput, as MBC already does for keys. Open questions
 **DESIGN RECORDED 2026-09-13; slices 1 (T80 freeze predicate), 2 (header decode extraction)
 3 (observation ports and header formatter), 4a (freeze controller and header latch), 4b
 (SDRAM stream and DDR3 publication) and 4c (top-level wiring, OSD action, host pull script)
-done** on `general/b18-sna-save`. The freeze predicate and controller run in the GHDL
+done**, integrated into `master` 2026-09-14 from `general/b18-sna-save`. The freeze predicate and controller run in the GHDL
 `production-t80` CI job. **Device-tested 2026-09-14:** a 6128 snapshot saved from the OSD
 reloads in this core and in AmSpirit, which settles the practical "does it resume" claim. The
 capture fixture and the automated round trip (acceptance 2 and 3) are now lower priority and are
