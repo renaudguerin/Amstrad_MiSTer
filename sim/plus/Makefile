@@ -471,38 +471,29 @@ plus-sprite-ram-lint:
 		-Wall -Wno-UNUSEDPARAM -Wno-PINCONNECTEMPTY \
 		-Wno-DECLFILENAME -Wno-DEFPARAM $(SPRRAM_RTL) $(SPRRAM_VENDOR_STUB)
 
-test: $(TEST_BINS)
-	./$(ASIC_TEST_BIN)
-	./$(ASICVID_TEST_BIN)
-	./$(B6_MENU_TEST_BIN)
-	./$(DAN_BOUNDS_TEST_BIN)
-	./$(ROM_ROUTE_TEST_BIN)
-	./$(LEGACY_CART_TEST_BIN)
-	./$(MEMORY_TEST_BIN)
-	./$(MEMORY_MIN_TEST_BIN)
-	./$(SDRAM_TEST_BIN)
-	./$(PARSER_TEST_BIN)
-	./$(MMU_TEST_BIN)
-	./$(P0BOOT_TEST_BIN)
-	./$(GADIFF_TEST_BIN)
-	./$(P1VID_TEST_BIN)
-	./$(MOBO_TEST_BIN)
-	./$(AREGS_TEST_BIN)
-	./$(SPRRAM_TEST_BIN)
-	./$(PRI_TEST_BIN)
-	./$(SPRITES_TEST_BIN)
-	./$(D3_TEST_BIN)
-	./$(SPRREGS_TEST_BIN)
-	./$(DMA_TEST_BIN)
-	./$(P8_TEST_BIN)
-	./$(P10BOOT_TEST_BIN)
-	$(MAKE) --no-print-directory b7-dark-silicon-audit
-	./$(P10INPUT_TEST_BIN)
-	./$(P10DMA_TEST_BIN)
-	./$(P10DMAMOBO_TEST_BIN)
+# `test` is the default tier: every bench except the motherboard-scale
+# fixtures in SLOW_TESTS, which were about 1000 of 1500 CI seconds in
+# September 2026. `slow` runs only those; `full` runs both. The public targets
+# re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
+# inside a makefile; JOBS=1 gives serial, readable output.
+SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit
+FAST_TESTS := $(addprefix run/,$(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS)))
+JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
+
+.PHONY: test slow full test-run slow-run full-run b8-field $(FAST_TESTS)
+test slow full:
+	@$(MAKE) --no-print-directory $(PARALLEL) $@-run
+
+test-run: $(FAST_TESTS)
+slow-run: $(SLOW_TESTS)
+full-run: test-run slow-run
+
+$(FAST_TESTS): run/%: %
+	./$*
+
+b8-field: $(B8FIELD_TEST_BIN)
 	./$(B8FIELD_TEST_BIN)
-	./$(B8PAL_TEST_BIN)
-	./$(SNA_STREAM_TEST_BIN)
 
 $(SNA_STREAM_TEST_BIN): $(SNA_STREAM_TEST_TOP) $(SNA_STREAM_RTL) $(SNA_STREAM_TEST_SRC) Makefile | $(OBJ_DIR)
 	@mkdir -p $(SNA_STREAM_OBJ_DIR)
@@ -823,7 +814,6 @@ d5-boot: d5-boot-build
 B6_OBJ_DIR := obj_dir/b6_video_boundary
 B6_TEST_BIN := $(B6_OBJ_DIR)/b6_video_boundary_tests
 B6_VIDEO_RTL := $(abspath ../../rtl/amstrad_video_output.sv) $(abspath ../../rtl/video_interlace.v) $(abspath ../../sys/gamma_corr.sv) $(abspath ../../sys/video_freak.sv) $(abspath ../../sys/math.sv) $(abspath ../../rtl/amstrad_video_color.sv) $(abspath ../../rtl/color_mix.sv) $(abspath ../../sys/video_mixer.sv) $(abspath ../../sys/video_freezer.sv) $(abspath ../../sys/scandoubler.v) $(abspath ../../sys/hq2x.sv)
-test: b6-video-boundary
 build: $(B6_TEST_BIN)
 lint: b6-video-boundary-lint
 .PHONY: b6-video-boundary-lint
@@ -846,7 +836,6 @@ $(B6_TEST_BIN): $(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL) b6_video_boundary_
 # B6 follow-up uses the same production top and independent CPU programs.
 B6_DYNAMIC_BIN := obj_dir/b6_dynamic/b6_dynamic_tests
 B6_LAYERS_BIN := obj_dir/b6_layers/b6_layers_tests
-test: b6-dynamic b6-plus-layers
 .PHONY: b6-dynamic b6-plus-layers
 b6-dynamic: $(B6_DYNAMIC_BIN)
 	./$(B6_DYNAMIC_BIN)

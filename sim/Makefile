@@ -43,10 +43,37 @@ crt-filter-blank-build: $(CRTF_TEST_BIN)
 crt-filter-blank-test: $(CRTF_TEST_BIN)
 	$(CRTF_TEST_BIN)
 
-test: $(TEST_BIN) crt-filter-blank-test crtc-cpu-phase-test video-color-test video-output-test ssm-marker-test sna-cpu-header-test
+# `make -C sim` (test) is the default tier; `full` adds the motherboard-scale
+# Plus fixtures (SLOW_TESTS in plus/Makefile). The public targets re-invoke
+# make in parallel because GNU Make 3.81 (macOS) ignores -j set inside a
+# makefile; JOBS=1 gives serial, readable output.
+JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
+PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
+SIM_TESTS := crtc-test crt-filter-blank-test crtc-cpu-phase-test video-color-test \
+	video-output-test ssm-marker-test sna-cpu-header-test video-mixer-rgb-test \
+	ga40010-test u765-test
+
+.PHONY: full test-run full-run crtc-test plus-test plus-full ga40010-test u765-test
+test full:
+	@$(MAKE) --no-print-directory $(PARALLEL) $@-run
+
+# One sub-make per directory: plus-test and plus-full never run together.
+test-run: $(SIM_TESTS) plus-test
+full-run: $(SIM_TESTS) plus-full
+
+crtc-test: $(TEST_BIN)
 	$(TEST_BIN)
-	$(MAKE) -C plus test
+
+plus-test:
+	$(MAKE) -C plus test-run
+
+plus-full:
+	$(MAKE) -C plus full-run
+
+ga40010-test:
 	$(MAKE) -C ../rtl/GA40010 test
+
+u765-test:
 	$(MAKE) -C ../rtl/u765 test
 
 # Randomized equivalence soak (sim/README.md). Override the golden hash to
@@ -230,7 +257,6 @@ $(VIDEO_OUTPUT_BIN): $(VIDEO_OUTPUT_SRC) b6_video_output_test.cpp Makefile
 MIXER_RGB_SRC := video_mixer_rgb_test.sv ../sys/video_mixer.sv ../sys/gamma_corr.sv \
     ../sys/video_freezer.sv ../sys/scandoubler.v ../sys/hq2x.sv
 MIXER_RGB_BIN := $(OBJ_DIR)/video_mixer_rgb/Vvideo_mixer_rgb_test
-test: video-mixer-rgb-test
 .PHONY: video-mixer-rgb-test
 video-mixer-rgb-test: $(MIXER_RGB_BIN)
 	$<
