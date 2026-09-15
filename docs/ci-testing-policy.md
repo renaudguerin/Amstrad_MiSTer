@@ -12,11 +12,13 @@ Generating an RBF which nobody intends to test is not evidence by itself.
 Every non-documentation push and every pull request runs:
 
 ```sh
-make -C sim clean test lint
+make -C sim clean full lint
 ```
 
-This is the per-commit gate for production RTL, simulation vectors, co-simulation manifests,
-and repository tooling.  A failed Tier A run blocks every higher tier.
+This is the per-push gate for production RTL, simulation vectors, co-simulation manifests,
+and repository tooling.  A failed Tier A run blocks every higher tier.  A green run on the exact
+SHA counts as that change set's full gate; local runs follow the one-run rule in `CLAUDE.md`
+("Gates").
 
 A second Tier A job, `production-t80`, runs in parallel and is enforced by the same required
 gate:

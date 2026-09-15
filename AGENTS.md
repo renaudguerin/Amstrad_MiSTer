@@ -83,13 +83,25 @@ bilingual finding affects the claim or the surrounding text is substantively rev
 ## Commands
 
 ```sh
-make -C sim          # Verilator suite: CRTC pin tests + sim/plus ASIC tests (gate for code/RTL/sim commits)
+make -C sim          # default tier, parallel: everything except sim/plus SLOW_TESTS
+make -C sim full     # full gate: default tier plus the motherboard-scale Plus fixtures
+make -C sim crtc-test  # CRTC pin tests only (sim_main.cpp)
 make -C sim lint     # verilator --lint-only, both suites
 make -C sim soak     # randomized equivalence soak vs the golden hash (see sim/README.md)
 make -C sim clean
 ```
 
-- `make -C sim` is required for any change touching RTL, testbenches, simulation models, or build manifests. Pure documentation, markdown, and reference changes do not require running simulation.
+- `make -C sim full` must pass once before a branch touching RTL, testbenches, simulation models,
+  or build manifests is marked READY or integrated. Intermediate commits run `make -C sim` or
+  only the focused target for the change, such as `make -C sim crtc-test` or one
+  `make -C sim/plus <target>`. Pure documentation, markdown, and reference changes do not
+  require running simulation. `JOBS=1` gives serial, readable output.
+- One full gate run per change set. Whoever makes the last code edit runs it and reports the command and
+  final result lines; everyone else trusts that report. No baseline runs before work or
+  delegation. Parents confirm a delegate's result in its run log instead of rerunning.
+  Reviewers never rerun the full suite; they may run a focused bite-test the brief names. A
+  green CI simulation job on the exact SHA counts. Rerun only after later edits, a failure, or
+  a missing or mismatched report.
 
 - Requires Verilator 5+, GNU Make, C++17 compiler (`brew install verilator` on macOS).
 - Failures exit nonzero; failing CRTC tests leave a VCD at `sim/obj_dir/<test>.vcd`.

@@ -176,7 +176,7 @@ jobs:
         uses: ./.github/actions/setup-verilator
 
       - name: Run behavioral tests and lint
-        run: make -C sim clean test lint
+        run: make -C sim clean full lint
 
   production-t80:
     # Tests that simulate the production VHDL T80 through a GHDL translation

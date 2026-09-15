@@ -120,8 +120,29 @@ failing is a finding, not something to edit.
 
 ## Gates
 
-`make -C sim` must pass before every code/RTL/simulation commit (pure documentation or markdown changes do not require running simulation). GitHub Actions runs that fast gate on every
-non-documentation push. Pinned Quartus 17.0.2 synthesis is automatic wherever work integrates:
+`make -C sim full` (the full gate) must pass before a branch with code, RTL, simulation or build
+changes is marked READY or integrated; pure documentation changes skip simulation. Intermediate
+commits need only `make -C sim` (the default tier, run in parallel) or the focused target that
+exercises the change, for example `make -C sim crtc-test` (about 20 seconds) or one
+`make -C sim/plus <target>`. GitHub Actions runs the full gate on every non-documentation push.
+
+### One full gate run per change set
+
+The default tier leaves out the motherboard-scale Plus fixtures (`SLOW_TESTS` in
+`sim/plus/Makefile`: B6 video boundary, B6 dynamic, B6 layers, B8 field and the B7 audit),
+which were about 1000 of the 1500 serial seconds on hosted CI in September 2026. Run
+`make -C sim/plus slow` alone when a change targets the Plus motherboard or video output chain.
+Whoever makes the last code edit runs it once and reports the exact command and final result
+lines. Everyone else trusts that report:
+
+- No baseline run before starting work or before delegating: `master` is already green in CI.
+- The parent accepts a delegate's green result when the diff matches the report and nothing
+  was edited since. Confirm it in the bridge run's `output.log`; do not run it again.
+- Reviewers do not run the full suite. The brief states the gate result. A reviewer may run a
+  focused bite-test the brief names; any other check it wants goes back to the parent.
+- A green CI simulation job on the exact SHA counts as the gate run.
+- Rerun only after a later code edit, a failure, or a report that is missing or does not match
+  the diff. Pinned Quartus 17.0.2 synthesis is automatic wherever work integrates:
 every push to an integration branch (the default branch `master`) that touches
 anything Quartus compiles, plus pull requests, tags, and manual dispatches. All integration builds
 compile at full effort by default to produce hardware-testable RBFs. Stream branches
@@ -144,8 +165,7 @@ The project requires a fresh cross-provider review of every non-trivial diff, so
 the sole reviewer of its own work. That capacity is currently unavailable. Work merged without
 it gets a row in `docs/review-debt.md` in the same commit that introduces it, naming what a
 reviewer should look at hardest. Delegated implementation stays provisional until the parent
-has read the diff; if the delegated agent already executed and confirmed `make -C sim` green,
-the parent does not need to re-run the gate redundantly.
+has read the diff; the gate itself follows the one-run rule under "Gates".
 
 ## ACCC attribution
 

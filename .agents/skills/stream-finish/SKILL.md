@@ -57,13 +57,17 @@ Resolve textual conflicts and perform a semantic audit even after a clean merge:
 - `AGENTS.md` and `sim/README.md`: golden hashes and their explanations agree.
 
 Inspect the full staged change, not just extension names. Pure documentation changes skip
-simulation. RTL, simulation, testbench and build-manifest changes require `make -C sim` in
+simulation. RTL, simulation, testbench and build-manifest changes require `make -C sim full` in
 the merged checkout; use lint/soak as required by repository policy. For behavior-preserving
 CRTC changes, compare soak against the recorded expected hash. Files under `docs/` are not
-automatically documentation if they execute or affect builds. Run the merged gate once;
-repeat only after changes or failures justify it. Never weaken assertions to pass.
+automatically documentation if they execute or affect builds. Run the merged gate at most
+once, and let CI be the merged gate when that duplicates nothing: if the source tip already
+passed the full gate and the merge needed no hand-resolved conflict or post-merge edit in RTL,
+simulation or build files, skip the local run, push, and judge the exact-SHA CI simulation job
+(fix a red result forward on the destination). Run it locally for `--no-push` or after resolving
+code conflicts. Repeat only after changes or failures justify it. Never weaken assertions to pass.
 
-Commit the merge after gates pass. Do not combine unrelated accuracy and Plus behavior into
+Commit the merge after local gates pass, or directly when CI is the merged gate. Do not combine unrelated accuracy and Plus behavior into
 one feature commit; their branches integrate separately. For --no-push, report the local SHA
 and remaining publication/build work without inventing CI evidence.
 

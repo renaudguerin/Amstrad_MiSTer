@@ -1,5 +1,15 @@
 # Independent review debt
 
+**Simulation tiers and one-run gate policy, 2026-09-15 — UNREVIEWED:** Opus wrote the
+parallel wrappers in `sim/Makefile` and `sim/plus/Makefile` (default tier `make -C sim`,
+`full` adds `SLOW_TESTS`, `make -C sim/plus slow`), switched CI to `make -C sim clean full lint`,
+and rewrote the gate rules in `CLAUDE.md`, `AGENTS.md`, `docs/ci-testing-policy.md` and
+`stream-finish`. Local evidence: `make -C sim test` exit 0 in 43 s, `make -C sim/plus slow`
+exit 0 in 241 s; `full` itself was checked only by dry run. Look hardest at: sub-makes never
+sharing a directory under `-j` (top `full-run` calls plus `full-run`, not test and slow
+separately), `-Otarget` being skipped on GNU Make 3.81, `clean` staying serial in CI, and
+whether any bench left `TEST_BINS` without joining either tier.
+
 **Plus B19 residual (coincident raster_fire latch), 2026-09-14 — source review CLEAR:**
 Claude Opus 5 (run `20260913T232047Z-80037-68c9`) reviewed the RTL changes in `rtl/plus/asic_ga_timing.v`,
 test vector `pr07` in `sim/plus/asic_pri_test.cpp`, and differential bench tie-offs in `sim/plus/asic_ga_diff_top.v`.
