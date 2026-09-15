@@ -20,6 +20,14 @@ on:
           # both = full and smoke legs on the same SHA; use it to benchmark
           # the smoke tier against full effort in one run.
           - both
+      simulation:
+        description: Simulation scope (selected = benches the branch changes need)
+        type: choice
+        default: selected
+        options:
+          - selected
+          - fast
+          - full
 
 permissions:
   contents: read
@@ -162,21 +170,62 @@ jobs:
 
   simulation:
     runs-on: ubuntu-latest
-    # The expanded motherboard suite reached B8 field tests before the former
-    # 30-minute limit (run 34684600995); allow the full suite and lint to finish.
+    # A full-scope run reached B8 field tests before the former 30-minute limit
+    # (run 34684600995); keep the headroom for manual full dispatches.
     timeout-minutes: 60
 
     steps:
-      - name: Check out source
+      - name: Check out source and history
         uses: actions/checkout@v7
         with:
+          # sim/select_tests.py compares the pushed commits with their base.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up pinned Verilator
         uses: ./.github/actions/setup-verilator
 
-      - name: Run behavioral tests and lint
-        run: make -C sim clean test lint
+      - name: Run selected behavioral tests and lint
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          SCOPE: ${{ inputs.simulation || 'selected' }}
+        run: |
+          set -euo pipefail
+          python3 sim/select_tests.py --check
+
+          # Benches are picked from the files this push or pull request changed
+          # (sim/TESTS.md). Slow motherboard fixtures run only in the full scope.
+          head_sha="$GITHUB_SHA"
+          base_sha=""
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            head_sha="$PR_HEAD_SHA"
+            base_sha="$(git merge-base "$PR_BASE_SHA" "$head_sha" || true)"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            SCOPE=fast
+          elif [[ -n "$BEFORE_SHA" && ! "$BEFORE_SHA" =~ ^0+$ ]] && \
+               git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            base_sha="$BEFORE_SHA"
+          else
+            base_sha="$(git merge-base "$head_sha" "origin/$DEFAULT_BRANCH" || true)"
+          fi
+
+          case "$SCOPE" in
+            full) make -C sim full ;;
+            fast) make -C sim test ;;
+            *)
+              if [[ -z "$base_sha" ]]; then
+                echo "No comparison base; running every fast bench."
+                make -C sim test
+              else
+                python3 sim/select_tests.py --base "$base_sha" --head "$head_sha" --run
+              fi
+              ;;
+          esac
+          make -C sim lint
 
   production-t80:
     # Tests that simulate the production VHDL T80 through a GHDL translation

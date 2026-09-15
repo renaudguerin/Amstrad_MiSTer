@@ -29,7 +29,9 @@ runs:
   motherboard, GA/ASIC and SDRAM: `make -C sim/plus b6-video-boundary`.
   `make -C sim video-output-test` exercises the extracted production output
   chain, including native Raw CRT cadence and a retained `video_freak` crop
-  after VSYNC stops. Both run in the default gate; the colour test also checks
+  after VSYNC stops. The motherboard B6 fixtures are slow benches, run on
+  demand; `b6-video-boundary` boots 6 cases and `b6-video-boundary-strict` all
+  18. The colour test also checks
   the aligned raw vertical-blank mask. The production output chain supplies
   final RGB/DE/CE. `make -C sim/plus b6-dynamic` adds CPU-written malformed
   raster regimes and a Full/Raw pixel discriminator; `b6-plus-layers` scores
@@ -51,7 +53,13 @@ brew install verilator
 make -C sim
 ```
 
-`make -C sim` builds and runs both suites noninteractively. Unexpected failures
+Normal runs choose benches per change: `python3 sim/select_tests.py` prints the
+benches the change set needs and why, and `--run` runs them. The rules and the
+index of every bench live in [TESTS.md](TESTS.md); CI uses the same selection.
+`make -C sim` builds and runs every fast bench in parallel; `make -C sim full`
+adds the slow motherboard-scale Plus fixtures (`SLOW_TESTS` in
+`sim/plus/Makefile`) and `make -C sim/plus slow` runs only them. Output from
+parallel jobs interleaves on GNU Make 3.81; pass `JOBS=1` for serial output. Unexpected failures
 exit nonzero. CRTC failures report the test and character/tick timestamp and
 retain a VCD at `sim/obj_dir/<test-name>.vcd`; passing CRTC traces are removed.
 The Plus suite reports its failing test group directly and does not generate
