@@ -57,12 +57,13 @@ Resolve textual conflicts and perform a semantic audit even after a clean merge:
 - `AGENTS.md` and `sim/README.md`: golden hashes and their explanations agree.
 
 Inspect the full staged change, not just extension names. Pure documentation changes skip
-simulation. RTL, simulation, testbench and build-manifest changes require `make -C sim full` in
-the merged checkout; use lint/soak as required by repository policy. For behavior-preserving
+simulation. RTL, simulation, testbench and build-manifest changes require
+`python3 sim/select_tests.py --run` in the merged checkout (it compares the working tree, staged merge
+included, with its merge base with `origin/master`); use lint/soak as required by repository policy. For behavior-preserving
 CRTC changes, compare soak against the recorded expected hash. Files under `docs/` are not
 automatically documentation if they execute or affect builds. Run the merged gate at most
 once, and let CI be the merged gate when that duplicates nothing: if the source tip already
-passed the full gate and the merge needed no hand-resolved conflict or post-merge edit in RTL,
+passed its selected benches and the merge needed no hand-resolved conflict or post-merge edit in RTL,
 simulation or build files, skip the local run, push, and judge the exact-SHA CI simulation job
 (fix a red result forward on the destination). Run it locally for `--no-push` or after resolving
 code conflicts. Repeat only after changes or failures justify it. Never weaken assertions to pass.

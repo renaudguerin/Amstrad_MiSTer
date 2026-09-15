@@ -471,17 +471,18 @@ plus-sprite-ram-lint:
 		-Wall -Wno-UNUSEDPARAM -Wno-PINCONNECTEMPTY \
 		-Wno-DECLFILENAME -Wno-DEFPARAM $(SPRRAM_RTL) $(SPRRAM_VENDOR_STUB)
 
-# `test` is the default tier: every bench except the motherboard-scale
-# fixtures in SLOW_TESTS, which were about 1000 of 1500 CI seconds in
-# September 2026. `slow` runs only those; `full` runs both. The public targets
+# Normal runs pick benches per change with sim/select_tests.py (index:
+# sim/TESTS.md). `test` runs every bench except the motherboard-scale fixtures
+# in SLOW_TESTS; `slow` runs only those; `full` runs both. The public targets
 # re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
 # inside a makefile; JOBS=1 gives serial, readable output.
 SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit
-FAST_TESTS := $(addprefix run/,$(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS)))
+FAST_BINS := $(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS))
+FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS)))
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
 
-.PHONY: test slow full test-run slow-run full-run b8-field $(FAST_TESTS)
+.PHONY: test slow full test-run slow-run full-run list-tests b8-field $(FAST_TESTS)
 test slow full:
 	@$(MAKE) --no-print-directory $(PARALLEL) $@-run
 
@@ -489,8 +490,11 @@ test-run: $(FAST_TESTS)
 slow-run: $(SLOW_TESTS)
 full-run: test-run slow-run
 
-$(FAST_TESTS): run/%: %
-	./$*
+# run/<binary name>, e.g. run/asic_unlock_tests.
+$(foreach b,$(FAST_BINS),$(eval run/$(notdir $(b)): $(b) ; ./$(b)))
+
+list-tests:
+	@echo $(FAST_TESTS) $(SLOW_TESTS) b6-video-boundary-strict
 
 b8-field: $(B8FIELD_TEST_BIN)
 	./$(B8FIELD_TEST_BIN)
@@ -822,9 +826,13 @@ b6-video-boundary-lint:
 		-UVERILATOR -DB7_DARK_SILICON_MUTATION -DB6_VIDEO_BOUNDARY -DP10_DMA_MOBO_REAL_IO \
 		--public-flat-rw --top-module $(P10BOOT_TOP) -Wall -Wno-fatal -Wno-PROCASSWIRE \
 		$(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL)
-.PHONY: b6-video-boundary
+# The default run boots 6 cases (classic type 0 and Plus, HSYNC width 5, all
+# three filter modes); -strict boots all 18 (adds classic type 1 and width 14).
+.PHONY: b6-video-boundary b6-video-boundary-strict
 b6-video-boundary: $(B6_TEST_BIN)
 	./$(B6_TEST_BIN)
+b6-video-boundary-strict: $(B6_TEST_BIN)
+	./$(B6_TEST_BIN) --strict
 
 $(B6_TEST_BIN): $(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL) b6_video_boundary_test.cpp $(B7_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv \

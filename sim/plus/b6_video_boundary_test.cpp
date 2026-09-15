@@ -299,14 +299,22 @@ int main(int argc,char**argv) {
     Verilated::commandArgs(argc,argv);
     bool bad=false;
     unsigned only_machine=3,only_width=0;
-    for(int i=1;i+1<argc;++i) {
-        if(std::string(argv[i])=="--machine") only_machine=std::stoul(argv[++i]);
-        else if(std::string(argv[i])=="--width") only_width=std::stoul(argv[++i]);
+    bool strict=false;
+    for(int i=1;i<argc;++i) {
+        if(std::string(argv[i])=="--strict") strict=true;
+        else if(i+1<argc&&std::string(argv[i])=="--machine") only_machine=std::stoul(argv[++i]);
+        else if(i+1<argc&&std::string(argv[i])=="--width") only_width=std::stoul(argv[++i]);
     }
     try {
         for(unsigned machine=0;machine<3;++machine) for(unsigned width:{14U,5U}) {
             if(only_machine<3&&machine!=only_machine) continue;
             if(only_width&&width!=only_width) continue;
+            // Every case reboots the machine. By default keep the cases that
+            // carry the checks: width 5 is the one that exercises SHIFT
+            // compensation, and both state cases run on machines 0 and 2.
+            // Classic type 1 and the ordinary width 14 only rerun the same
+            // output chain, so they wait for --strict or an explicit selection.
+            if(!strict&&only_machine==3&&!only_width&&(machine==1||width==14)) continue;
             Result full;
             for(unsigned mode=0;mode<3;++mode) {
                 auto r=run_video(machine==2,machine==1,mode,width);

@@ -120,29 +120,34 @@ failing is a finding, not something to edit.
 
 ## Gates
 
-`make -C sim full` (the full gate) must pass before a branch with code, RTL, simulation or build
-changes is marked READY or integrated; pure documentation changes skip simulation. Intermediate
-commits need only `make -C sim` (the default tier, run in parallel) or the focused target that
-exercises the change, for example `make -C sim crtc-test` (about 20 seconds) or one
-`make -C sim/plus <target>`. GitHub Actions runs the full gate on every non-documentation push.
+`python3 sim/select_tests.py --run` must pass before a branch with code, RTL, simulation or build
+changes is marked READY or integrated; pure documentation changes skip simulation. It runs only
+the benches the change can break, chosen from the index in `sim/TESTS.md`, and prints what it
+chose and why. Intermediate commits need only the focused target for the change, for example
+`make -C sim crtc-test` (about 20 seconds). GitHub Actions runs the same selection on every
+non-documentation push.
 
-### One full gate run per change set
+### Selected benches, one run per change set
 
-The default tier leaves out the motherboard-scale Plus fixtures (`SLOW_TESTS` in
-`sim/plus/Makefile`: B6 video boundary, B6 dynamic, B6 layers, B8 field and the B7 audit),
-which were about 1000 of the 1500 serial seconds on hosted CI in September 2026. Run
-`make -C sim/plus slow` alone when a change targets the Plus motherboard or video output chain.
-Whoever makes the last code edit runs it once and reports the exact command and final result
-lines. Everyone else trusts that report:
+Slow motherboard-scale benches (tier `slow` in `sim/TESTS.md`) belong to closed backlog tasks and
+are listed but not run. Add `--slow` only when the change targets what one of them protects and
+no fast bench shows it. Everything else waits for an occasional on-demand full check
+(`make -C sim full`, or a manual CI dispatch with simulation scope `full`). A new bench needs a
+row in `sim/TESTS.md`; `--check` fails otherwise.
+
+Whoever makes the last code edit runs the selection once and reports the exact command and the
+final `select_tests:` line. Everyone else trusts that report:
 
 - No baseline run before starting work or before delegating: `master` is already green in CI.
 - The parent accepts a delegate's green result when the diff matches the report and nothing
   was edited since. Confirm it in the bridge run's `output.log`; do not run it again.
-- Reviewers do not run the full suite. The brief states the gate result. A reviewer may run a
+- Reviewers do not rerun the gate. The brief states the gate result. A reviewer may run a
   focused bite-test the brief names; any other check it wants goes back to the parent.
 - A green CI simulation job on the exact SHA counts as the gate run.
 - Rerun only after a later code edit, a failure, or a report that is missing or does not match
-  the diff. Pinned Quartus 17.0.2 synthesis is automatic wherever work integrates:
+  the diff.
+
+Pinned Quartus 17.0.2 synthesis is automatic wherever work integrates:
 every push to an integration branch (the default branch `master`) that touches
 anything Quartus compiles, plus pull requests, tags, and manual dispatches. All integration builds
 compile at full effort by default to produce hardware-testable RBFs. Stream branches

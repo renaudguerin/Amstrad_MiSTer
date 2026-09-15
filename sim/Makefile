@@ -43,19 +43,23 @@ crt-filter-blank-build: $(CRTF_TEST_BIN)
 crt-filter-blank-test: $(CRTF_TEST_BIN)
 	$(CRTF_TEST_BIN)
 
-# `make -C sim` (test) is the default tier; `full` adds the motherboard-scale
-# Plus fixtures (SLOW_TESTS in plus/Makefile). The public targets re-invoke
-# make in parallel because GNU Make 3.81 (macOS) ignores -j set inside a
-# makefile; JOBS=1 gives serial, readable output.
+# Normal runs pick benches per change with select_tests.py (index: TESTS.md).
+# `make -C sim` (test) runs every bench except the motherboard-scale Plus
+# fixtures (SLOW_TESTS in plus/Makefile); `full` adds them. The public targets
+# re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
+# inside a makefile; JOBS=1 gives serial, readable output.
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
 SIM_TESTS := crtc-test crt-filter-blank-test crtc-cpu-phase-test video-color-test \
 	video-output-test ssm-marker-test sna-cpu-header-test video-mixer-rgb-test \
 	ga40010-test u765-test
 
-.PHONY: full test-run full-run crtc-test plus-test plus-full ga40010-test u765-test
+.PHONY: full test-run full-run list-tests crtc-test plus-test plus-full ga40010-test u765-test
 test full:
 	@$(MAKE) --no-print-directory $(PARALLEL) $@-run
+
+list-tests:
+	@echo $(SIM_TESTS)
 
 # One sub-make per directory: plus-test and plus-full never run together.
 test-run: $(SIM_TESTS) plus-test

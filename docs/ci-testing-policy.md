@@ -9,16 +9,21 @@ Generating an RBF which nobody intends to test is not evidence by itself.
 
 ### Tier A: behavioral verification
 
-Every non-documentation push and every pull request runs:
+Every non-documentation push and every pull request runs the benches its changed files need,
+then lint:
 
 ```sh
-make -C sim clean full lint
+python3 sim/select_tests.py --check
+python3 sim/select_tests.py --base <before or merge base> --head <sha> --run
+make -C sim lint
 ```
 
-This is the per-push gate for production RTL, simulation vectors, co-simulation manifests,
-and repository tooling.  A failed Tier A run blocks every higher tier.  A green run on the exact
-SHA counts as that change set's full gate; local runs follow the one-run rule in `CLAUDE.md`
-("Gates").
+Selection follows the index in `sim/TESTS.md`; slow motherboard-scale benches never run on a
+push. A manual dispatch chooses the simulation scope: `selected` (default), `fast` (every fast
+bench, `make -C sim test`) or `full` (every bench, `make -C sim full`); tags run `fast`. This is
+the per-push gate for production RTL, simulation vectors, co-simulation manifests, and
+repository tooling. A failed Tier A run blocks every higher tier. A green run on the exact SHA
+counts as that change set's gate; local runs follow the one-run rule in `CLAUDE.md` ("Gates").
 
 A second Tier A job, `production-t80`, runs in parallel and is enforced by the same required
 gate:

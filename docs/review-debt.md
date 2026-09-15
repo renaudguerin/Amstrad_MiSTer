@@ -1,14 +1,23 @@
 # Independent review debt
 
-**Simulation tiers and one-run gate policy, 2026-09-15 — UNREVIEWED:** Opus wrote the
-parallel wrappers in `sim/Makefile` and `sim/plus/Makefile` (default tier `make -C sim`,
-`full` adds `SLOW_TESTS`, `make -C sim/plus slow`), switched CI to `make -C sim clean full lint`,
-and rewrote the gate rules in `CLAUDE.md`, `AGENTS.md`, `docs/ci-testing-policy.md` and
-`stream-finish`. Local evidence: `make -C sim test` exit 0 in 43 s, `make -C sim/plus slow`
-exit 0 in 241 s; `full` itself was checked only by dry run. Look hardest at: sub-makes never
-sharing a directory under `-j` (top `full-run` calls plus `full-run`, not test and slow
-separately), `-Otarget` being skipped on GNU Make 3.81, `clean` staying serial in CI, and
-whether any bench left `TEST_BINS` without joining either tier.
+**Per-change simulation selection and one-run gate policy, 2026-09-15 — REVIEWED BY SPARK
+(Muse Spark 1.3 xhigh, run `20260915T120117Z-43757-1bbc`), declined findings open:** Opus
+wrote the parallel wrappers in `sim/Makefile` and `sim/plus/Makefile`, the bench index
+`sim/TESTS.md`, the selector `sim/select_tests.py`, the CI simulation step that runs it, the
+6-boot default for `b6_video_boundary_test.cpp` (`--strict` keeps all 18), and the gate rules
+in `CLAUDE.md`, `AGENTS.md`, `docs/ci-testing-policy.md` and `stream-finish`. Look hardest at:
+benches a change can break but the selector skips (Covers globs are hand-written; the safety
+net only catches RTL no row covers); the CI base choice for pushes, pull requests, new
+branches and force pushes; `make -n` dependency parsing across recursive makes; sub-makes never
+sharing a directory under `-j`; and whether dropping classic type 1 and HSYNC width 14 from the
+default B6 run hides a real output-chain difference. Spark found no Makefile, parser or CI-base
+bugs and confirmed no B6 assertion lives only in the dropped cases. Accepted: same-area Covers
+for the output chain, GA lockstep diff, SDRAM boot, PPI/PSG/DMA and motherboard rows; strict-B6
+guidance. Declined by design, because selection follows what a bench asserts rather than what it
+compiles: classic CRTC/GA changes do not select Plus integration benches (p1, p10, B6-B8); an
+index or selector edit selects no benches, and a `sim/TESTS.md`-only push skips CI (`**/*.md`
+ignore) until the next code push runs `--check`; pull requests select from the PR head while
+testing the auto-merge tree (integration goes through local merges and pushes, not PRs).
 
 **Plus B19 residual (coincident raster_fire latch), 2026-09-14 — source review CLEAR:**
 Claude Opus 5 (run `20260913T232047Z-80037-68c9`) reviewed the RTL changes in `rtl/plus/asic_ga_timing.v`,
