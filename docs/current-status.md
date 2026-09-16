@@ -73,7 +73,7 @@ or controlled PRI/ack-overlap measurement on hardware.
 **Plus PRI line compare, 2026-09-13, source `b5c3014` integrated into `master`:**
 A B2 device capture of Copter 271 (6128 Plus, `d35412a`) showed its title logo in the
 sky palette. AmSpirit's reference and snapshot (ignored, under
-`docs/references/copter271-2026-09-13/`) show the same content rows but the palette
+`local/test_media/defects/copter271/`) show the same content rows but the palette
 switch 55 lines later. The title's raster handler at cartridge `0x1852` chains PRI
 `&FF` (logo palette) and `&37` (sky palette). The RTL treated bit 8 of the
 Arnold-revision §2.4 compare `0 PRI7..PRI0 == VC5..VC0 RC2..RC0` as a don't-care, so

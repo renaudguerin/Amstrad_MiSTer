@@ -39,7 +39,7 @@ On cold boot, the engine programs CRTC registers 0 through 9:
 
 ### Hazard 1: Coincident Interrupt Priority vs Acknowledge Clearing (B19 Residual)
 * **Hardware Requirement**: When PRI and DMA coincide, priority must be `PRI > DMA2 > DMA1 > DMA0`. Pending interrupts of lower priority must remain asserted for subsequent service.
-* **Relevant Core Files**: [`rtl/plus/asic_ga_timing.v`](../../rtl/plus/asic_ga_timing.v), [`rtl/plus/asic_regs.v`](../../rtl/plus/asic_regs.v)
+* **Relevant Core Files**: [`rtl/plus/asic_ga_timing.v`](../../../rtl/plus/asic_ga_timing.v), [`rtl/plus/asic_regs.v`](../../../rtl/plus/asic_regs.v)
 * **Code Verification**:
   * In `asic_regs.v` (lines 627–636), `ack_src` priority arbitration correctly prioritizes `PRI` over `DMA2..0`.
   * In `asic_ga_timing.v` (lines 656–658):
@@ -57,7 +57,7 @@ On cold boot, the engine programs CRTC registers 0 through 9:
 
 ### Hazard 2: Mid-Frame `SPLT` & `SSA` Latch Timing Deadline (`hcc == R1`)
 * **Hardware Requirement**: Sonic splits the screen into 3 windows across dual 16 KB VRAM buffers (`&0000` and `&C000`). The third segment is reprogrammed mid-frame inside a DMA2 ISR by rewriting `SPLT` (e.g. line 255) and `SSA` on the fly.
-* **Relevant Core File**: [`rtl/plus/asic_video.v`](../../rtl/plus/asic_video.v)
+* **Relevant Core File**: [`rtl/plus/asic_video.v`](../../../rtl/plus/asic_video.v)
 * **Code Verification**:
   ```verilog
   wire split_match = (SPLT != 8'd0) && ({charline[4:0], raster[2:0]} == SPLT);
@@ -72,7 +72,7 @@ On cold boot, the engine programs CRTC registers 0 through 9:
 
 ### Hazard 3: DMA Auto-Clear Mode (`IVR[0] = 0`) Desynchronization
 * **Hardware Requirement**: With `IVR[0] = 0`, the ASIC must automatically clear the acknowledged DMA channel's flag in `DCSR`.
-* **Relevant Core File**: [`rtl/plus/asic_regs.v`](../../rtl/plus/asic_regs.v)
+* **Relevant Core File**: [`rtl/plus/asic_regs.v`](../../../rtl/plus/asic_regs.v)
 * **Code Verification**:
   ```verilog
   wire auto_clr_dma = intack && !intack_d && !ivr_r[0] && !int_pending;
@@ -88,7 +88,7 @@ On cold boot, the engine programs CRTC registers 0 through 9:
 
 ### Hazard 4: `SSCR` Soft-Scroll Vertical Offset vs `SPLT` Comparator Seam
 * **Hardware Requirement**: Soft scroll fine delay (`SSCR[6:4]`) shifts the displayed raster within character cells.
-* **Relevant Core File**: [`rtl/plus/asic_video.v`](../../rtl/plus/asic_video.v)
+* **Relevant Core File**: [`rtl/plus/asic_video.v`](../../../rtl/plus/asic_video.v)
 * **Code Verification**:
   * Display raster counter: `ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7}`.
   * Split comparator: `split_match = (SPLT != 8'd0) && ({charline[4:0], raster[2:0]} == SPLT)`.

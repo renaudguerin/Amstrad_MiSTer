@@ -41,7 +41,7 @@ stability remain open.
 acceptance open.** On `c595031`, Copter 271's title
 flashes for one frame every 5-10 s: the sky under the logo is drawn with the
 logo palette (white/orange/red bands), then the next frame is correct. AmSpirit
-does not show it. Frame captures: `docs/defects/copter271-2026-09-13/screenshot1-5.png`
+does not show it. Frame captures: `local/test_media/defects/copter271/screenshot1-5.png` (ignored, main checkout)
 (untracked, about 24 MB; frame 3 is the glitch, 2 and 4 are 60 fps/50 Hz blends).
 
 **Cause.** `docs/plus/references/asic-reference.md` §9 defines DCSR bit 7 as

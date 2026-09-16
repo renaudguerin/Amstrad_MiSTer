@@ -39,7 +39,7 @@ runs:
   final RGB. `make -C sim video-mixer-rgb-test` pins the mixer scope correction
   across gamma/colour-depth variants. These are simulation gates, not physical
   output or an exhaustive stuck-sync matrix. See the
-  [contract and evidence limits](../docs/b6-video-boundary.md).
+  [contract and evidence limits](../docs/investigations/video-boundary/b6-video-boundary.md).
 
 Requirements: Verilator 5 or later, GNU Make, and a C++20-capable compiler
 (for the timed SystemVerilog colour fixture; C++ harnesses still use C++17).

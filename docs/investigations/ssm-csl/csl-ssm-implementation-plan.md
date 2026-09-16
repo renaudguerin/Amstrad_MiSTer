@@ -196,7 +196,7 @@ simulatable from one Verilator fixture. The motherboard exports the raw tap only
 SHAKER portal (not CRTC behaviour, so no ACCC attribution is required, but keep the
 Logon System credit). Input is the M1 opcode-fetch byte stream. The motherboard already
 observes that byte for Plus open-bus behaviour in
-[Amstrad_motherboard.v](../rtl/Amstrad_motherboard.v)
+[Amstrad_motherboard.v](../../../rtl/Amstrad_motherboard.v)
 (`~M1_n & ~MREQ_n & ~RD_n`, byte from `cpu_data_bus`). Reuse the condition and prove
 the SSM sample edge against CPU bus validity and wait states. One sample per
 fetch: derive a fetch strobe from the falling edge of that condition, not a level.
@@ -477,7 +477,7 @@ not automatically serve every policy.
 
 Start with a **native, converted-colour capture**, before gamma, scandoubling, HQ2x
 and crop, at the existing `amstrad_video_color` output inside
-[`amstrad_video_output.sv`](../rtl/amstrad_video_output.sv). Retain 8 bits each of R/G/B
+[`amstrad_video_output.sv`](../../../rtl/amstrad_video_output.sv). Retain 8 bits each of R/G/B
 and the aligned HSync/VSync/HBlank/VBlank tuple from that same boundary. This preserves
 the classic DAC lookup and Plus expansion. Four input bits per channel at the motherboard
 are not four output intensity bits: classic low bits encode the GA level/OE pair.

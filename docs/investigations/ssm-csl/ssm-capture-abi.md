@@ -6,7 +6,7 @@ Phase 2 sample recorder prototype.
 **Status: RETIRED / PRUNED.** Following independent architectural review (Claude Opus 5,
 run `20260913T072642Z-13878-c99b`), Phase 2 RTL and sim fixtures were pruned from the active
 codebase to eliminate dead code and the unreserved 17 MiB memory map hazard. Phase 1
-(the format-1 event ring in [`rtl/ssm_marker.v`](../rtl/ssm_marker.v) and `csl_runner.py`)
+(the format-1 event ring in [`rtl/ssm_marker.v`](../../../rtl/ssm_marker.v) and `csl_runner.py`)
 provides 100% fidelity for SHAKER hardware testing.
 
 If Phase 2 sub-frame capture is ever revisited for future mid-frame raster R&D, all
@@ -27,12 +27,12 @@ git checkout 94725cc -- rtl/ssm_sample_recorder.v rtl/ssm_recorder_subsystem.v r
 ### Phase 1 vs Phase 2: Purpose and Tradeoffs
 
 - **Phase 1 (Format-1 Event Ring, Production Default):**
-  - **Mechanism:** Detects the 32-bit SSM sequence (`0xED 0xFF 0xHH 0xLL`) on the CPU bus in [`rtl/ssm_marker.v`](../rtl/ssm_marker.v) and appends a 16-byte event entry to a 64-entry circular ring buffer in DDR3 (`0x30000000`, 1,040 bytes total).
+  - **Mechanism:** Detects the 32-bit SSM sequence (`0xED 0xFF 0xHH 0xLL`) on the CPU bus in [`rtl/ssm_marker.v`](../../../rtl/ssm_marker.v) and appends a 16-byte event entry to a 64-entry circular ring buffer in DDR3 (`0x30000000`, 1,040 bytes total).
   - **Capture:** The host runner (`scripts/hardware-loop/csl_runner.py`) monitors the ring over SSH via `/dev/mem` mmap and, upon detecting a new marker, issues an asynchronous framebuffer screenshot command to `/dev/MiSTer_cmd`.
   - **Suitability:** Author Longshot confirmed (2026-09-12) that **all SHAKER test result screens are visually stable for multiple VSYNCs around the SSM marker**. Because results remain static until user keypress or timeout, Phase 1 captures provide 100% fidelity for the entire existing SHAKER suite with zero DDR3 bandwidth overhead, zero bus contention, and negligible memory footprint.
 
 - **Phase 2 (Sample Recorder Prototype, Experimental):**
-  - **Mechanism:** Continuously samples the raw 16 MHz pixel pipeline (RGB24, HSync, VSync, HBlank, VBlank, Field) in [`rtl/ssm_sample_recorder.v`](../rtl/ssm_sample_recorder.v) into rotating 2 MiB windows in DDR3 (`0x31000000`–`0x32100000`, 17 MiB total).
+  - **Mechanism:** Continuously samples the raw 16 MHz pixel pipeline (RGB24, HSync, VSync, HBlank, VBlank, Field) in `rtl/ssm_sample_recorder.v` (preserved at `94725cc`, not in the tree) into rotating 2 MiB windows in DDR3 (`0x31000000`–`0x32100000`, 17 MiB total).
   - **Purpose:** Cycle-exact opcode slicing. It latches the exact dot-clock sample index and timestamp at the opcode fetch edge (`0xHH`), allowing reconstruction of sub-frame CRT beam state, mid-frame register modifications (e.g. split-screen rasters, dynamic palette swaps, scrolling tricks), and non-static demoscene effects without dependency on or latency from the MiSTer video scaler framebuffer.
 
 ### Why Phase 2 is Compile-Time Default OFF (`SSM_SAMPLE_RECORDER` undefined)
@@ -55,7 +55,7 @@ To enable and test Phase 2 on physical hardware:
 1. **Audit HPS Memory Map:**
    Inspect `/proc/iomem` and U-Boot boot arguments (`cat /proc/cmdline`) on the DE10-Nano. Ensure Linux physical memory is capped below `0x31000000` (e.g., via `mem=768M` in U-Boot or an explicit device-tree memory reservation) so kernel buffers cannot collide with the recorder payload.
 2. **Enable RTL Define:**
-   Uncomment or define `` `define SSM_SAMPLE_RECORDER 1 `` in [`Amstrad.sv`](../Amstrad.sv).
+   Uncomment or define `` `define SSM_SAMPLE_RECORDER 1 `` in [`Amstrad.sv`](../../../Amstrad.sv).
 3. **Quartus Synthesis & Timing Verification:**
    Synthesize the core using Quartus 17.0.2 (via `build.yml` or local runner). Verify that setup/hold timing closes with zero negative slack on all clock domains (`clk_sys`, DDR3) and logic fits comfortably within Cyclone V LE limits.
 4. **Hardware Deployment & Host Extraction:**

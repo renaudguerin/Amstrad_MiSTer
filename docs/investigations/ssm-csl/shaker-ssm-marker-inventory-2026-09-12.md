@@ -32,7 +32,7 @@ The reserved set is `#0000` plus every `#FFxx`. **Design-review correction:** th
 standard's explicit byte ranges enumerate 175 values, not 177. Adding `FE`/`FF`, which
 its reserved examples require, gives 177 and explains the stated 31,329 combinations.
 The stated 178 reserved values are therefore not independent corroboration of the
-listed user-code ranges. [ssm_marker.v](../rtl/ssm_marker.v) accepts the wider set in
+listed user-code ranges. [ssm_marker.v](../../../rtl/ssm_marker.v) accepts the wider set in
 both bytes, while the listed user-code ranges exclude `FE`/`FF`. Document that
 permissive detection separately from the narrower user contract. None of the 712
 workbook codes uses either byte, so this does not gate SHAKER work. See the

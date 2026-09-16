@@ -6,7 +6,7 @@ description: MiSTer capture of a title, demo or SHAKER screen on the real device
 # mister-capture
 
 Loads an RBF plus DSK/CPR on the user's MiSTer, captures native PNGs, and turns them into
-evidence. [The driver guide](../../../docs/mister-hardware-loop-driver.md) owns the case JSON
+evidence. [The driver guide](../../../docs/investigations/hardware-runs/mister-hardware-loop-driver.md) owns the case JSON
 format, driver flags and limits; for a SHAKER walk use its CSL runner section instead. This
 skill caches the device facts and gotchas the guide does not.
 

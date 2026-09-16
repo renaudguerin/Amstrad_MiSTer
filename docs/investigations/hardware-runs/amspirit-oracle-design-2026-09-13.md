@@ -2,7 +2,7 @@
 
 Written 2026-09-13. Stream: **general** (shared host tooling; no RTL).
 Status: **reviewed; Track G pilot and helper implemented.** Helper:
-[`scripts/amspirit/`](../../plus/archive/README.md). Pilot:
+[`scripts/amspirit/`](../../../scripts/amspirit/README.md). Pilot:
 [Copter 271 title](amspirit-oracle-pilot-2026-09-13.md), accepted: the checkpoint SNA
 resumes in AmSpirit and, after loading the cartridge first, on the MiSTer.
 
