@@ -28,11 +28,11 @@ nothing here depends on conversation memory.
   only happen at significant milestones. Docs must not imply otherwise. Every milestone gets a
   suggested Shaker target list drawn from `accuracy/shaker/shaker-accc-crossref.md` (whose
   citations themselves need PDF confirmation before turning into RTL/vectors).
-- **ACCC v1.9 is disregarded**: historical. `accc-1.10-differences.md` is subagent output kept
+- **ACCC v1.9 is disregarded**: historical. `classic/archive/accc-1.10-differences.md` is subagent output kept
   as context; only its v1.10-side page anchors get verified. No v1.9 comparison work.
 - **Source of truth**: local `docs/ACCC1.10-EN.pdf`, SHA-256
   `1bd6f0e3a06022d03fd40b51d4d622afef2675954a483780f0922cdf1e33a560` (verified against the hash
-  recorded in `accc-1.10-differences.md`). 295 PDF pages.
+  recorded in `classic/archive/accc-1.10-differences.md`). 295 PDF pages.
 - **Extraction persistence**: raw extractions stay untracked under `docs/accuracy/extract/`
   (gitignored; committing bulk text would effectively republish a CC BY-NC-ND book). A
   committed manifest documents exact regeneration. Curated per-page transcriptions of flagged

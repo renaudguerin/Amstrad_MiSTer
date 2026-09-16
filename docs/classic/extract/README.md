@@ -18,6 +18,11 @@ this directory remain ignored unless they are deliberately added to the snapshot
 - SHA-256 `69d6a6a77de472937d41778ad48fc4fb427a937a24d3054f6d42c0b6ccfcc3e9`
 - `docs/references/ACCC1.11-FR(b).pdf` (re-issued v1.11b), 295 PDF pages
 - SHA-256 `28f25c73c1797578522f34ce9ff558210386972c9257b5b8081927483ee02c3b`
+- The re-issued v1.11b editions are the working oracle. French pagination is unchanged from
+  v1.11. English v1.11b restores the missing §14.9 "HSYNC schematics" (new pp.144-145) and
+  numbers §14.4, so English §14.5-14.8 renumber and every English page from p.146 onward is
+  one higher than the same content in original English v1.11. Rebase old English anchors
+  above p.145 by +1.
 - (Legacy v1.10: `docs/references/ACCC1.10-EN.pdf`, SHA-256 `1bd6f0e3a06022d03fd40b51d4d622afef2675954a483780f0922cdf1e33a560`)
 
 Verify before regenerating:

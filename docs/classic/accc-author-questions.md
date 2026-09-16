@@ -3,7 +3,7 @@
 > **STATUS NOTICE (2026-08-28):**
 > This file is the original internal working ledger of 20 questions compiled during the accuracy audit against *The Amstrad CPC CRTC Compendium* v1.10.
 >
-> - Questions submitted in **Round 1** were incorporated into **ACCC v1.11** (released August 27, 2026); see archived [accc-author-feedback-round1-2026-08-27.md](accc-author-feedback-round1-2026-08-27.md).
+> - Questions submitted in **Round 1** were incorporated into **ACCC v1.11** (released August 27, 2026); see archived [accc-author-feedback-round1-2026-08-27.md](archive/accc-author-feedback-round1-2026-08-27.md).
 > - Active feedback is consolidated in **[accc-author-feedback.md](accc-author-feedback.md)**.
 >   Q12 is resolved by the French v1.11 wording. Q20 was explicitly answered in the dated
 >   [Round 2 author response](accc-author-response-round2-2026-08-31.md): the C4/R4 reset

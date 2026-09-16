@@ -871,7 +871,7 @@ Work completed:
 - Extracted both new editions with `pdf-inspector` into `docs/accuracy/extract/inspector-v1.11b-{en,fr}/`.
 - Performed full page-by-page text and vector diff against original v1.11 extractions.
 - Rendered changed pages carrying tables or chronograms at 200 DPI into `docs/accuracy/extract/pages-v1.11b/`.
-- Recorded complete difference report in `docs/accuracy/accc-1.11-differences.md §4`.
+- Recorded complete difference report in `docs/classic/archive/accc-1.11-differences.md §4`.
 - Updated `docs/accuracy/accc-author-feedback.md` (fingerprints updated, items in print marked).
 - Migrated affected citations in code comments (`sim/plus/asic_video_test.cpp`, `sim/plus/b8_field_test.cpp`, `rtl/CRTC.v`, `rtl/plus/asic_video.v`).
 - The `(b)` copies are now the working oracle; old files remain for provenance.

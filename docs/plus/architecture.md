@@ -60,7 +60,7 @@ Consequences to embrace explicitly:
   ASIC's CRTC-3 is a *new* implementation informed by ACCC v1.10's type-3 notes, reusing
   the Verilator testbench harness (same pin contract) with a type-3 rule set. The v1.10
   changes clarify CRTC0/2 behavior and do not change this type-3 architecture; see the
-  [edition comparison](../accuracy/accc-1.10-differences.md).
+  [edition comparison](../classic/archive/accc-1.10-differences.md).
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).

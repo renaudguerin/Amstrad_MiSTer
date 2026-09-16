@@ -659,7 +659,7 @@ split, F6 Stage 1 full-character approximation, sampled-field soak expansion, pr
 P0 cartridge wiring, the simulation-only P1 CRTC3 foundation, the implemented F7/A1/A2
 classic work, F14/F15 classic closures, and the F16/F17/F18 closures (2026-08-26). On 2026-08-28,
 Longshot released **ACCC v1.11** incorporating feedback from our Round 1 audit
-(`docs/accuracy/accc-author-feedback-round1-2026-08-27.md`). Active Round 2 feedback is tracked in
+(`docs/classic/archive/accc-author-feedback-round1-2026-08-27.md`). Active Round 2 feedback is tracked in
 `docs/accuracy/accc-author-feedback.md`. The author's 2026-08-31 response describes intended
 future corrections; the published v1.11 PDFs remain unchanged and no corrected full edition
 exists yet.
@@ -671,7 +671,7 @@ confirmation and the separate ParityC9 residual remain open. Neither is new hard
 A complete mechanical and multimodal comparison across all 295 pages (278 word-identical, 17 updated)
 resolved the author questions/errata, confirmed that our F15–F18 implementations match the corrected
 rules, and evaluated Finding **F19** (clarified as CRTC-2 specific §12.4.1 p.95, while CRTC 0 is confirmed to evaluate same-edge writes per §12.2 pp.92-94).
-Full diff and impact reports are in `docs/accuracy/accc-1.11-differences.md` and
+Full diff and impact reports are in `docs/classic/archive/accc-1.11-differences.md` and
 `docs/accuracy/f19-type0-c0-timing-todos.md`, with the repeatable process in
 `docs/accuracy/accc-update-procedure.md`.
 

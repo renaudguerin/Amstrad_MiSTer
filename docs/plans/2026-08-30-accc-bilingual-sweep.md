@@ -71,7 +71,7 @@ Each finding receives a stable `BL-nnn` identifier and records:
 - disposition: docs only, test expectation, RTL candidate, author courtesy note, hardware
   discriminator, or no action.
 
-Coverage is section-complete in `../accuracy/accc-1.11-fr-en-coverage.md`: every technical
+Coverage is section-complete in `../classic/archive/accc-1.11-fr-en-coverage.md`: every technical
 section is marked reviewed, deferred with a reason, or represented by a finding. The main thread owns adjudication and integration.
 Reader agents return candidate records only and do not edit or delegate.
 
