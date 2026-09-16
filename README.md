@@ -19,9 +19,9 @@ While this work was initially envisioned as a series of bite-sized pull requests
 The core includes a dedicated parallel behavioral video and system path implementing the custom AMS40489 ASIC features alongside classic Gate Array operation:
 * **Cartridge (.CPR) Support**: Direct loading of commercial and homebrew CPR cartridge files (RIFF container format) up to 512 KiB via the MiSTer OSD, backed by an atomic SDRAM cartridge memory service and MMU banking.
 * **Compatibility Status**:
-  * **Most commercial GX4000 CPR cartridges boot**.
-  * **Several commercial games are playable without major issues** (e.g., *Burnin' Rubber*, *Navy Seals*, *RoboCop 2*, *Enforcer*, *Tintin on the Moon*).
-  * Active troubleshooting continues for remaining hardware quirks, including input mapping/responsiveness on specific titles (e.g. Arnold 5 keyboard input, stuck fire button states on Plotting/Pang), subtle sprite-edge artifacts, audio DMA pitch/timing discrepancies on advanced demos (such as the CRTC3 demo), and system/BASIC cartridge disk ROM initialization.
+  * **Most commercial games are now playable without major issues** (e.g., *Burnin' Rubber*, *Navy Seals*, *RoboCop 2*, *Enforcer*, *Tintin on the Moon*, *Pang*, *Plotting*).
+  * *Switchblade*, *Sonic*, and many demos remain broken.
+  * Active troubleshooting continues for remaining hardware quirks, including subtle sprite-edge artifacts and audio DMA pitch/timing discrepancies on advanced demos (such as the CRTC3 demo).
 * **16 Hardware Sprites**: 16×16 pixels with 15 colors plus transparency, 1×/2×/4× horizontal and vertical magnification, and priority layering over background graphics.
 * **Enhanced 12-Bit Palette**: 4,096 colors across 32 hardware palette registers (16 for Gate Array / border ink and 16 for sprites).
 * **3-Channel Audio DMA**: Autonomous sample list streaming directly to the PSG (YM2149 / AY-3-8912) without CPU overhead.
