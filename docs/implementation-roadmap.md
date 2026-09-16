@@ -46,7 +46,7 @@ merged into the same behavioral PR.
   optional executed-T80 cases pass. Full vendor video processing, full
   motherboard CPU execution and named hardware retests remain separate.
   See the dated [accuracy](accuracy/b8-1-cpu-write-timing-2026-09-08.md) and
-  [Plus](plus/b8-6-colour-boundary-2026-09-08.md) evidence.
+  [Plus](plus/archive/b8-6-colour-boundary-2026-09-08.md) evidence.
 
 - `master` is the primary integration branch (merged from `accc-review-and-fixes`).
 - Review/correction work lands on `master`; stream branches (`accuracy/*`, `plus/*`) cut from it
@@ -325,10 +325,10 @@ sprite, DMA, CRTC3, cartridge-timing, and recovery failures. The exact
 appears fixed and Navy Seals black screen was not reproduced. See
 [latest results](investigations/hardware-runs/hardware-evidence-2026-09-09.md). Further targeted validation
 remains open; no Dandanator was involved in the reported Navy Seals incident. Source/test review of the triage seam is CLEAR (Muse read-only 2026-09-03
-at `a98590a`; record `docs/plus/plus-review-2026-09-03.md` §6) with separate Dandanator ownership validation,
+at `a98590a`; record `docs/plus/archive/plus-review-2026-09-03.md` §6) with separate Dandanator ownership validation,
 CRTC3-leak, System-CPR/real-T80/full-top, exact-tip Quartus, and TV80/model limits retained
 as validation; B3 foundation (§8 queue) is likewise review-CLEAR
-(`docs/plus/b3-frame-harness-review-2026-09-03.md`); P10j stays OPEN LOW on doc comments
+(`docs/plus/archive/b3-frame-harness-review-2026-09-03.md`); P10j stays OPEN LOW on doc comments
 only. The detailed evidence and checkboxes live in
 `plus/hardware-checkpoint-findings.md`; the newest repair-to-retest mapping is
 `plus/hardware-test-round3-2026-08-30.md`.

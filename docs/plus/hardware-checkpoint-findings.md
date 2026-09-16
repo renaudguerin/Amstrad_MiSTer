@@ -5,6 +5,13 @@
 hardware compatibility are not closed
 **Next stream topic:** `plus/p10-compatibility-closure`
 
+> **Reading this file today:** the checkboxes are a 2026-08-29 snapshot. The
+> [P10 review](archive/p10-independent-review.md) found six CF-2 to CF-5 ticks unproven at the
+> time, and later remediation is recorded in the P10 row of `docs/review-debt.md`. Live exit
+> criteria are the P10b-P10i rows of `docs/implementation-roadmap.md`; the newest
+> repair-to-retest map is [round 3](hardware-test-round3-2026-08-30.md). Use this file for the
+> CF/CG finding definitions and the section 7 report fields.
+
 This document is the durable handoff from the first broad post-P9 cartridge test. It
 supersedes the implementation todos formerly recorded here for HF-1 through HF-3: those
 changes landed in `ee50c33`, with the later banking/SNA corrections in `421aec6` and

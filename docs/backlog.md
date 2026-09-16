@@ -309,7 +309,7 @@ before both observation points. Its established Off default is retained because
 changing the shared P10/B7 default to Full hid the ASIC GA timing mutation; a
 capture build may override the parameter to Full explicitly. The foundation
 passed full simulation/lint and the B7 mutation matrix; read-only review at
-`a98590a` was CLEAR (`docs/plus/b3-frame-harness-review-2026-09-03.md`).
+`a98590a` was CLEAR (`docs/plus/archive/b3-frame-harness-review-2026-09-03.md`).
 The integrated `bb77075` extension adds runtime CPR ingestion, a self-describing
 frame stream and repeatability checks. Image comparison against an independent
 or hardware oracle remains open; Off/raw default and TV80 limits remain.
@@ -465,7 +465,7 @@ classic media controls; GX4000 hides disk/tape; 6128+ exposes disk; 464+ exposes
 focused model-to-mask fixture and the full simulation/lint gates pass. This changes visibility
 only: it does not rewrite retained settings or make machine selection atomic.
 Opus source review 2026-09-02 at `a98590a` returned CLEAR (record
-`docs/b6-b10-review-2026-09-02.md`; reconciliation `docs/plus/plus-review-2026-09-03.md`
+`docs/b6-b10-review-2026-09-02.md`; reconciliation `docs/plus/archive/plus-review-2026-09-03.md`
 §2); B6-1/B6-2 doc follow-ups and OSD-rendering validation retained.
 
 Both machines are always instantiated and always clocked; only their outputs are muxed.
@@ -560,7 +560,7 @@ whether it inferred as block RAM or as registers. Also read the removed/stuck-re
 anything optimized away as unreachable is either dead code or a wiring bug.
 
 **Audit 2 — dark silicon test. DONE 2026-09-01 on `plus/b7-dark-silicon-audit`, see
-`docs/plus/b7-dark-silicon-audit.md`.** Result, reproduced independently by the parent rather
+`docs/plus/archive/b7-dark-silicon-audit.md`.** Result, reproduced independently by the parent rather
 than accepted from the delegated report: **the observed Plus RGB/bus signature is
 isolated from the tested classic mutations.** Mutating `CRTC`, `crtc_type0_engine`,
 `crtc_type1_engine` or `ga40010` in Plus mode leaves the Plus signature bit-identical,
@@ -571,7 +571,7 @@ it, so the null result is meaningful rather than vacuous. All nine Plus modules 
  classic engines are not independently proven, and the fixture does not reach CRTC-type-divergent
  behaviour. Read-only review 2026-09-03 at `a98590a` records CLEAR on the primary
  Plus-live/classic-isolated result with those limits plus the TV80-surrogate CPU bound
- retained (`docs/plus/plus-review-2026-09-03.md` §5). **B8 correction, 2026-09-08:**
+ retained (`docs/plus/archive/plus-review-2026-09-03.md` §5). **B8 correction, 2026-09-08:**
  FIELD was not observed; its production output still belongs to classic CRTC in
  Plus mode. The earlier signature result remains valid, but does not establish
  complete output isolation. Original scope follows. For each Plus module, deliberately corrupt it in simulation
@@ -594,13 +594,13 @@ See [the bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md). See [t
 selected ASIC frame parity and reaches the production interlace-history
 consumer. Corrected transition and selected-edge controls pass; Opus functional
 review plus Gemini closure is scoped clear. Full ASCAL and hardware validation
-remain open. See [FIELD evidence](plus/b8-2-field-ownership-2026-09-08.md).
+remain open. See [FIELD evidence](plus/archive/b8-2-field-ownership-2026-09-08.md).
 
 **B8-3 integrated from `807f081`, 2026-09-08:** accepted legacy palette
 writes reach their owner even when the stored GA value is unchanged. Repeated
 pen/border writes and retained-GA ASIC-only reset are covered through the
 motherboard; the reset import remains distinct from runtime events. Gemini
-review is clear. See [palette evidence](plus/b8-3-palette-events-2026-09-08.md).
+review is clear. See [palette evidence](plus/archive/b8-3-palette-events-2026-09-08.md).
 
 **B8-4 integrated from `7a58f88`, 2026-09-08:** the retained SDRAM video
 word now uses a full address/bank key and invalidates on accepted matching
@@ -619,7 +619,7 @@ review-clear. Real-CDT playback remains open. See
 same enabled conversion boundary as sync/blanking. Source review and the updated
 5.052 sim/lint/soak gates pass. CI 5.050 compatibility passed with the reviewed
 waiver-version guard at `9cfe743`; hardware acceptance remains separate.
-See [the bounded repair evidence](plus/b8-6-colour-boundary-2026-09-08.md).
+See [the bounded repair evidence](plus/archive/b8-6-colour-boundary-2026-09-08.md).
 
 **FIRST ARCHITECTURE/METHODOLOGY PASS COMPLETE 2026-09-08.** The user-authorized
 Astra audit examined production boundaries and fixture/process fidelity; see
@@ -681,7 +681,7 @@ separate, uncommitted failure-first u765 pre-edge staging discriminator. That
   Review bookkeeping closed 2026-09-03 at `a98590a` (native Sol CLEAR twice,
   Muse classic/plus read-only passes, mechanical link/keep-move reconciliation;
   records `docs/classic/archive/classic-review-2026-09-03.md` §1,
-  `docs/plus/plus-review-2026-09-03.md` §1).
+  `docs/plus/archive/plus-review-2026-09-03.md` §1).
 
 **Standing rule, now recorded in `CLAUDE.md`:** a test earns its place only if it could have
 failed for a reason the author did not already know. A vector derived from an ACCC rule that

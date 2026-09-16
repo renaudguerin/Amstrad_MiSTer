@@ -182,7 +182,7 @@ passes exhaustive combinational equivalence, full simulation, lint and fresh
 Gemini review. Follow-up `6a06ec9` passes all required CI and full-fit timing
 (setup +0.368 ns, hold +0.228 ns, zero TNS). The exact artifact is delivered as
 `output_files/Amstrad_20260911_6a06ec9.rbf`; hardware retests remain pending.
-See [timing evidence](plus/d3-render-timing-2026-09-11.md).
+See [timing evidence](plus/archive/d3-render-timing-2026-09-11.md).
 
 **Accuracy repair integrated, 2026-09-11:** D1 uses the selected engine’s incoming
 parity for origin VSYNC and retains active-pulse count phase; D6 uses shared
@@ -403,7 +403,7 @@ pen and border writes after direct ASIC-page edits. One-time reset import
 preserves retained GA colours without replaying idle shadows over later page
 writes. The failure-first motherboard regression includes ASIC-only reset;
 Gemini independently cleared the frozen Muse-authored change. See
-[palette evidence](plus/b8-3-palette-events-2026-09-08.md). Scripted-bus evidence
+[palette evidence](plus/archive/b8-3-palette-events-2026-09-08.md). Scripted-bus evidence
 does not establish Copter causality, executed-title or hardware acceptance.
 The merged checkout passes full simulation, aggregate lint and unchanged soak
 `0x6e8258198d6e6137`.
@@ -431,7 +431,7 @@ interlace-history consumer is shared with a motherboard fixture. Eleven cases
 pass, including R8=1/3, R7=0 association, entry/exit and witnessed filtered-VSYNC
 negative controls; the historical replay exposes the original leakage. Opus
 cleared the functional repair and Gemini cleared its corrected test/evidence
-scope. See [FIELD evidence](plus/b8-2-field-ownership-2026-09-08.md).
+scope. See [FIELD evidence](plus/archive/b8-2-field-ownership-2026-09-08.md).
 The merged checkout passes full simulation, lint and soak
 `0x6e8258198d6e6137`. Full ASCAL, Quartus and hardware acceptance remain
 separate gates.
@@ -445,7 +445,7 @@ combined integration simulation, lint and soak pass with Accuracy's expected
 hash `0x6e8258198d6e6137`. Opus/high source review is CLEAR; the separately
 reusable build-only lint compatibility commit `f12f998`, already present as
 `d52152a`, has supplementary Gemini/high source/log review with lower-confidence scope recorded.
-[Evidence and residuals](plus/b8-6-colour-boundary-2026-09-08.md) distinguish
+[Evidence and residuals](plus/archive/b8-6-colour-boundary-2026-09-08.md) distinguish
 the CI-pin compatibility correction, full vendor HQ2x/freeze/top/T80 coverage,
 and hardware/title retests. CI and artifact evidence are separate from local
 acceptance; no hardware verdict is claimed.
@@ -540,8 +540,8 @@ cleared retain their scoped evidence; the B8
 architecture audit was outside that September 3 review. A CLEAR verdict is not
 hardware closure, and comments not yet integrated are distinct from the many
 retained validation residuals. Records: `classic/archive/classic-review-2026-09-03.md`,
-`plus/plus-review-2026-09-03.md`,
-`plus/b3-frame-harness-review-2026-09-03.md`,
+`plus/archive/plus-review-2026-09-03.md`,
+`plus/archive/b3-frame-harness-review-2026-09-03.md`,
 `b6-b10-review-2026-09-02.md`; ledger: `review-debt.md`. No simulation was
 run for this docs-only pass. Published ACCC v1.11 remains unchanged; the
 author message is dated clarification only.
@@ -751,7 +751,7 @@ initially hidden sprite; and the CRTC3 demo still detects an emulator, has sampl
 picture corruption, then crashes. Some reload failures require reloading the whole core.
 The tested RBF and media/model metadata were not recorded, so these remain hardware symptoms,
 not commit-specific causality. The full symptom mapping and retest order are in
-`docs/plus/hardware-test-round2-2026-08-30.md`.
+`docs/plus/archive/hardware-test-round2-2026-08-30.md`.
 
 The rebased `plus/p10-hardware-test-round2` follow-up provides these simulation-verified
 changes and discriminators:
@@ -802,7 +802,7 @@ The exact findings, confidence boundaries, required discriminators, and checked 
 in `docs/plus/hardware-checkpoint-findings.md`. P10 implemented the first PPI, model/FDC,
 DMA-arbitration, SNA-parser, and sprite-write remediations, but the 2026-08-29 independent
 review found that several claimed production tests were leaf tests or copies of production
-equations. The review is preserved verbatim in `docs/plus/p10-independent-review.md`; its
+equations. The review is preserved verbatim in `docs/plus/archive/p10-independent-review.md`; its
 debt remains open. The hardware observations themselves, future model/media/ROM UX work, and
 simulation-versus-hardware automation options are preserved separately in
 `docs/plans/2026-08-29-real-hardware-session.md`,
@@ -840,7 +840,7 @@ sprite restore, shadow apply, and ordinary reset. It is still not a full `Amstra
 elaboration, so the top-level reset/strobe equations remain a
 Quartus and hardware boundary. This expanded post-review delta is not independently cleared,
 synthesized, or hardware-confirmed. The report and remediation status are in
-`docs/plus/p10-hardware-remediation-independent-review.md`. RoboCop and Navy Seals causality
+`docs/plus/archive/p10-hardware-remediation-independent-review.md`. RoboCop and Navy Seals causality
 therefore remain retest hypotheses. A bounded real-u765 bench now covers CPC
 write aliases, EDSK mount/status, and reset during an active host transfer with
 delayed ACK/buffer traffic; BASIC/System CPR remains open because no bench runs
@@ -989,7 +989,7 @@ build.**
 - RBF `Amstrad_20260831_c047a7d.rbf`, SHA-256
   `b0ccf327bcc5054466ef19828af50b21fbce9b3079a6d92655ba582968030945`.
   Exact reports, rejected intermediates, and the reviewer limitation are in
-  `plus/p10-review-debt-status-2026-08-31.md`.
+  `plus/archive/p10-review-debt-status-2026-08-31.md`.
 
 ## Hardware-test milestone
 

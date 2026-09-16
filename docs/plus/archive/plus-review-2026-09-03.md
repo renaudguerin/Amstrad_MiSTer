@@ -112,7 +112,7 @@ clear. Row stays OPEN LOW.
 
 ## 5. B7 dark-silicon audit — CLEAR (primary claim) with retained limits
 
-Scope: `d942435` + `1bcf65a`; method `docs/plus/b7-dark-silicon-audit.md`;
+Scope: `d942435` + `1bcf65a`; method `docs/plus/archive/b7-dark-silicon-audit.md`;
 fixture `sim/plus/p10_boot_test_top.v`; runner
 `sim/plus/b7_dark_silicon_audit.cpp`.
 
