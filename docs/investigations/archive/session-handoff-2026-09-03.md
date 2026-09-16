@@ -23,8 +23,8 @@ were run for it.
 ## What is reviewed, and what it is not
 
 - **FDC:** accepted observe-only first-divergence diagnostics `d3aabbc`
-  ([report](../fdc-timing/fdc-recovery-2026-09-03.md), independent review CLEAR in
-  [diagnostics review](../fdc-timing/fdc-diagnostics-review-2026-09-03.md)). XFAIL
+  ([report](../archive/fdc-recovery-2026-09-03.md), independent review CLEAR in
+  [diagnostics review](../archive/fdc-diagnostics-review-2026-09-03.md)). XFAIL
   byte-identical in strength; original `fdc-payload-poll` XFAIL stays.
   Required and unmet: classic AMSDOS full command/data regression. The
   reduced-TV80 surrogate never executes `JR`/`JP cc` conditionally, so the

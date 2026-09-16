@@ -99,7 +99,7 @@ stable around SSM markers (making Phase 1 asynchronous native captures 100% fait
 and independent review from Claude Opus 5 (`20260913T072642Z-13878-c99b`, CLEAR).
 Pruning eliminates dead code, an unreserved 17 MiB memory collision hazard, and
 unverified Cyclone V timing debt; the ABI and resurrection path remain documented in
-[`docs/ssm-capture-abi.md`](investigations/ssm-csl/ssm-capture-abi.md).
+[`docs/investigations/ssm-csl/ssm-capture-abi.md`](investigations/ssm-csl/ssm-capture-abi.md).
 
 The active gates pass: full simulation, host tests, lint and soak
 `0xb1cb70da95c2e44f`. The workbook's 712 rows (483 CRTC 0, 478 CRTC 1) remain
@@ -122,7 +122,7 @@ completed with hosted full synthesis and timing passed, but simulation exhausted
 successor run as of B4 integration preparation. B4 raises that limit to 60 minutes;
 its exact-SHA run must pass the whole suite. The earlier RBF is not B4 build evidence.
 The normal push workflow selects the required jobs; no duplicate build is dispatched.
-See the [branch/evidence handoff](investigations/hardware-runs/hardware-followup-handoff-2026-09-12.md)
+See the [branch/evidence handoff](investigations/archive/hardware-followup-handoff-2026-09-12.md)
 for reviewed tips, device restoration and remaining hardware limits.
 
 **B2 device capture, 2026-09-12:** French-ROM SHAKER 2.7 B (9) boots through
@@ -155,7 +155,7 @@ subsequently requested no duplicate review. Full simulation, lint and the
 unchanged canonical soak pass. No new bitstream exists. A sustained
 CPU-generated stuck-high raw-sync recipe, physical connector acceptance and
 title-specific defects remain open. See the
-[completion record](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12).
+[completion record](investigations/archive/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12).
 
 **B6 video boundary integrated, 2026-09-11:** Full and Raw pixels now share
 the complete Full acquisition tuple. Raw pixels uses native VRAM byte order
@@ -172,7 +172,7 @@ TNS). The delivered RBF is `output_files/Amstrad_20260911_5c16b17.rbf`.
 The original artifact retains the then-open rendering limitations; the local
 follow-up above adds that simulation evidence without changing this RBF.
 Physical HDMI/CRT acceptance remains open; see the [design](investigations/video-boundary/b6-video-boundary.md) and
-[validation record](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md).
+[validation record](investigations/archive/b6-video-boundary-review-2026-09-11.md).
 
 **Combined Plus integration timing, 2026-09-11:** D5 and D3/D4 are integrated
 and published at `f8e9372`. All destination simulation, lint, canonical soak
@@ -321,7 +321,7 @@ test checks payload bytes 0/1 and one-byte consumption across a three-CE strobe;
 the B6 fixture now retains RAM-capability coverage while the duplicate model
 test is removed. P1 remains a functional model, and the real-motherboard P1
 fixture's constant-zero VRAM return does not establish physical return timing.
-See [integration evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
+See [integration evidence](investigations/archive/preserved-work-integration-2026-09-08.md).
 Full-sector result/ST1, classic AMSDOS and hardware acceptance remain open.
 
 **CI toolchain aligned, 2026-09-08:** CI and local testing now use Verilator
@@ -413,7 +413,7 @@ P10 frame-capture CLI and P10j contract notes are restored after the SDRAM
 repair. Original Gemini implementation review plus fresh merge-compatibility
 review are clear. Capture proves repeatability of synthetic frames with the
 reduced TV80 and fixture clocking; it is not a hardware/title oracle. See
-[preserved-work evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
+[preserved-work evidence](investigations/archive/preserved-work-integration-2026-09-08.md).
 
 **Shared B8-4 integrated, 2026-09-08, from `7a58f88`:** retained SDRAM
 video words are keyed by physical word address and bank, invalidated by accepted
@@ -478,7 +478,7 @@ payload bytes now match; seven result bytes still need phase-verified acceptance
 Claude hit its session limit and the single authorized retry failed, so implementation
 stopped as instructed. B10 has no code changes. Exact branches, recovery files, evidence,
 review debt, reference preservation, and repair backlog are in
-[the continuation handoff](investigations/session-logs/session-continuation-2026-09-03.md).
+[the continuation handoff](investigations/archive/session-continuation-2026-09-03.md).
 
 **CPU-candidate recovery check, 2026-09-08:** the old temporary worktree contained
 only empty directories, with no staged source or additional commit in its retained
@@ -509,8 +509,8 @@ hardware closure in that session. B8 was subsequently authorized and reviewed
 on September 8; see the current review above.
 
 Shared FDC state is the accepted observe-only diagnostics at `d3aabbc`
-(`docs/fdc-recovery-2026-09-03.md`, independently reviewed CLEAR in
-`docs/fdc-diagnostics-review-2026-09-03.md`): passive taps plus a print-only
+(`docs/investigations/archive/fdc-recovery-2026-09-03.md`, independently reviewed CLEAR in
+`docs/investigations/archive/fdc-diagnostics-review-2026-09-03.md`): passive taps plus a print-only
 DIAG block, XFAIL byte-identical in strength. Boundaries retained: the
 **classic AMSDOS full command/data regression is required and unmet** (the P10
 harness runs a synthetic unrolled sequence, not an AMSDOS ROM boot); the
@@ -542,7 +542,7 @@ hardware closure, and comments not yet integrated are distinct from the many
 retained validation residuals. Records: `classic/archive/classic-review-2026-09-03.md`,
 `plus/archive/plus-review-2026-09-03.md`,
 `plus/archive/b3-frame-harness-review-2026-09-03.md`,
-`b6-b10-review-2026-09-02.md`; ledger: `review-debt.md`. No simulation was
+`investigations/archive/b6-b10-review-2026-09-02.md`; ledger: `review-debt.md`. No simulation was
 run for this docs-only pass. Published ACCC v1.11 remains unchanged; the
 author message is dated clarification only.
 
@@ -580,7 +580,7 @@ supersedes the Amazing Demo verdict for the named build; Pulpo awaits retest.
 DSC4/SHAKER still fail, but the changed failure shapes are not yet characterized.
 B1 therefore remains open as an ownership/observability problem.
 
-B6's architecture pass is complete in `docs/b6-architecture-decision.md`. Runtime clock/write
+B6's architecture pass is complete in `docs/investigations/video-boundary/b6-architecture-decision.md`. Runtime clock/write
 gating is rejected for now because it cannot reduce fitted resources and is unsafe against the
 current non-atomic model/reset transition. The first bounded slice conditionally hides Plus-only,
 classic-only, FDC, and tape menu entries from the selected model's capabilities while preserving

@@ -28,7 +28,7 @@ in this pass.
   (test-suite sweep; first slice done 2026-09-01), recent reviews
   `docs/classic/archive/classic-review-2026-09-03.md`,
   `docs/plus/archive/plus-review-2026-09-03.md`, `docs/review-debt.md`,
-  `docs/session-handoff-2026-09-03.md`.
+  `docs/investigations/archive/session-handoff-2026-09-03.md`.
 - Prepared Plus B3 candidate `bb77075` inspected read-only via
   `git show bb77075:...` (§7). Not in this checkout; untouched.
 

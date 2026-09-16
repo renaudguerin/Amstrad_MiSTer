@@ -12,7 +12,7 @@ The delivered local artifact's SHA-256 is
 `8b3b5bed518165040f8e578c83f061891fa64d58ce3b52fb07d5765765506468`;
 the device copy was not independently hashed in this report. Its full-fit
 Quartus build passed with setup +0.320 ns, hold +0.247 ns and zero TNS; see
-the [artifact record](../video-boundary/b6-video-boundary-review-2026-09-11.md#published-integration-and-full-fit-artifact).
+the [artifact record](../archive/b6-video-boundary-review-2026-09-11.md#published-integration-and-full-fit-artifact).
 The output connection, Classic model/CRTC selection, media versions/hashes,
 reset sequence and other video settings are unrecorded. The B6 comparison
 explicitly used **Full** and **Raw pixels**. No Raw CRT result, new screenshot

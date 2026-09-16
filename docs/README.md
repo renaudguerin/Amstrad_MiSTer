@@ -50,18 +50,21 @@ docs/
 │   └── datasheets/               # Industry datasheets (OKI 82C55, Zilog 8536)
 │
 ├── classic/                      # Classic CRTC accuracy stream (symlinked from docs/accuracy/)
-│   ├── audit-findings.md         # Numbered findings F1–F12
+│   ├── audit-findings.md         # Numbered findings F1–F20
 │   ├── compendium-01-counters.md # ACCC counters analysis
 │   ├── compendium-02-sync.md     # ACCC sync analysis
 │   ├── compendium-03-display-regs.md # ACCC display register analysis
 │   ├── shaker/                   # Shaker test descriptions & cross-references
-│   └── extract/                  # ACCC v1.11 extraction manifest, scripts & page renders
+│   ├── accc-update-procedure.md  # Runbook for adopting a new ACCC edition
+│   ├── extract/                  # ACCC v1.11 extraction manifest, scripts & page renders
+│   └── archive/                  # Settled reviews and completed ACCC diff/audit ledgers
 │
 ├── plus/                         # Amstrad Plus / ASIC stream
 │   ├── architecture.md           # FPGA core RTL implementation architecture & phasing
 │   ├── asic-documentation-gap-map.md # Documentation gap analysis vs real hardware
-│   ├── hardware-checkpoints/     # Milestone verification checklists & test findings
-│   └── archive/                  # Historical phase reviews (P2–P10)
+│   ├── references/asic-reference.md # Condensed ASIC register and timing reference
+│   ├── hardware-test-checklist.md # Title retest matrix and report fields
+│   └── archive/                  # Settled reviews and completed implementation reports
 │
 ├── defects/                      # Self-contained defect reproduction directories
 │   ├── copter271/                # Copter 271 raster/split defect (ticket, captures, script)
@@ -74,7 +77,10 @@ docs/
 │   ├── fdc-timing/               # FDC pre-edge triage & diagnostics
 │   ├── ssm-csl/                  # Shaker CSL & SSM protocol design and capture ABI
 │   ├── hardware-runs/            # Real-hardware capture logs & diagnostic runs
-│   └── session-logs/             # Multi-agent session continuation & orchestration handoffs
+│   ├── session-logs/             # Stream-orchestration revisit note (cited by task-workflow.md)
+│   └── archive/                  # Settled investigation reviews, handoffs & evidence logs
+│
+├── plans/                        # Dated execution plans; several hold locked decisions still cited
 │
 └── issues/                       # Structured markdown issue tickets (linked to backlog)
 ```

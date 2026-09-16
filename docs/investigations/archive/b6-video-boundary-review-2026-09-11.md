@@ -1,7 +1,7 @@
 # B6 boundary design review — 2026-09-11
 
 Base: `20ed4d3c1ac2afcea5bd5ff536c13bdf7d01b8da`.
-The parent owns [the architecture](b6-video-boundary.md). An independently
+The parent owns [the architecture](../video-boundary/b6-video-boundary.md). An independently
 requested Opus 5 high proposal completed with exit 0 and clean process cleanup
 (`20260911T045504Z-58891-3627`). Its original proposal and output are
 retained under the ignored `docs/references/b6-boundary-2026-09-11/` directory.

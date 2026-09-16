@@ -372,7 +372,7 @@ mouse support makes it reachable without any adapter.
 nothing latches them. On the classic side that is a recorded decision (F11f, and the §21.2
 digest footnote: "This core lacks LPSTB capture and returns 0 for R16/R17"). On the Plus side
 it is an unowned gap discovered by synthesis as a stuck-at-GND register; see
-`docs/b7-synthesis-inference-audit.md`. The minimum action, independent of this feature, is to
+`docs/investigations/archive/b7-synthesis-inference-audit.md`. The minimum action, independent of this feature, is to
 record the Plus-side decision in `rtl/plus/asic_video.v` and in the findings table.
 
 **Three CPC light-pen designs, and they do not share an input.**
@@ -488,7 +488,7 @@ locally integrated at `e391e13`; B6's reviewed rendering follow-up was
 refreshed to `9849b9a` and merged against that exact destination. The
 complete destination simulation, lint and canonical soak pass; the
 integration is published at `9ee710c`. Exact-SHA CI is recorded in current status. Preserve the
-[B6 evidence limits](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
+[B6 evidence limits](investigations/archive/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
 and [B2 device limits](investigations/hardware-runs/b2-device-capture-2026-09-12.md), including unobserved
 active OSD mode and unestablished CPU-generated stuck-high sync. The
 [latest hardware report](investigations/hardware-runs/hardware-evidence-2026-09-12.md) remains unchanged:
@@ -528,8 +528,8 @@ See [current status](current-status.md) for accepted source and artifact identit
    FDC held-read test
    `c1a8ff9` and test consolidation `c12c264` are integrated through refreshed
    `5fcf223`, including the P1 timing-ownership correction; see
-   [integration evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
-   The [September 3 handoff](investigations/session-logs/session-continuation-2026-09-03.md)
+   [integration evidence](investigations/archive/preserved-work-integration-2026-09-08.md).
+   The [September 3 handoff](investigations/archive/session-continuation-2026-09-03.md)
    records provenance, not proof that its temporary worktree paths still exist.
    Preserve stashes/private recovery files; do not auto-apply them. Full-sector
    result-phase and classic AMSDOS acceptance remain open.
@@ -538,7 +538,7 @@ See [current status](current-status.md) for accepted source and artifact identit
    MBC cross-build are prepared at `7e39204`; see the
    [driver guide](investigations/hardware-runs/mister-hardware-loop-driver.md). B4 source `94725cc` adds the bounded
    CSL runner, passive SSM event ring and default-off sample-recorder prototype;
-   [source review and local gates](investigations/ssm-csl/csl-ssm-design-review-2026-09-12.md) pass.
+   [source review and local gates](investigations/archive/csl-ssm-design-review-2026-09-12.md) pass.
    September 12 demonstrates three independent SHAKER B (9) loads and nine
    identical numeric captures; see [device evidence](investigations/hardware-runs/b2-device-capture-2026-09-12.md).
    Active-mode observation remains qualified because native PNGs omit OSD.

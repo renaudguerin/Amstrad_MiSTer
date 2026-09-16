@@ -105,7 +105,7 @@ Sol cleared the source committed at `94725cc` after independently reproducing th
 failure probes. Gemini run `20260912T173536Z-26982-c83d` separately cleared the parent
 corrections and final regressions. Full simulation, 183 host tests, 21 recorder tests,
 five composition tests, lint and the unchanged soak hash pass. Reviewed source hashes
-and gate evidence are recorded in [the design/implementation review](investigations/ssm-csl/csl-ssm-design-review-2026-09-12.md).
+and gate evidence are recorded in [the design/implementation review](investigations/archive/csl-ssm-design-review-2026-09-12.md).
 These passes cover the changed SSM paths; they do not silently discharge the older
 power-on folding, CFG restoration, keymap or production T80pa evidence debt above.
 **B4 Phase 2 retirement and pruning, 2026-09-13 — source review CLEAR:** Claude Opus 5
@@ -115,7 +115,7 @@ disabled Phase 2 sample recorder (`rtl/ssm_sample_recorder.v`, `rtl/ssm_recorder
 Verdict: **CLEAR / PRUNE**. Confirmed severability: Phase 1 format-1 ring ABI is 100%
 untouched, `obs_*` video tap in `rtl/amstrad_video_output.sv` is preserved for B8-6 coverage,
 and `Amstrad.sv` severs cleanly into standalone Phase 1 DDRAM routing. Git recovery path
-is recorded in `docs/ssm-capture-abi.md`.
+is recorded in `docs/investigations/ssm-csl/ssm-capture-abi.md`.
 
 
 **B6 rendering follow-up, 2026-09-12 — source review CLEAR:** Gemini
@@ -168,7 +168,7 @@ cross-provider review before READY.
   The original artifact retains its then-open rendering limits; the September
   12 follow-up above adds final-RGB, dynamic-raster and scroll/sprite evidence.
   Physical HDMI/CRT and the unestablished stuck-high CPU recipe remain open. See
-  [review and validation](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md).
+  [review and validation](investigations/archive/b6-video-boundary-review-2026-09-11.md).
 
 - **D3 render timing selector — CLEAR.** Fresh Gemini 3.8 Flash high review
   of the bounded combinational rewrite found no material issue. All 2,097,152
@@ -246,7 +246,7 @@ cross-provider review before READY.
   `20260908T053839Z-2528-42c3` clears compatibility with `22202b8`, including
   both merge resolutions, retained B8-4/FDC test bodies, exclusive output and
   reduced-TV80/fixture-clock limits. It did not rerun the full gates. See
-  [integration evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
+  [integration evidence](investigations/archive/preserved-work-integration-2026-09-08.md).
 
 **Status: zero unresolved independent-review findings on these reviewed
 candidates.** The validation residuals below are not hardware evidence and do
@@ -334,10 +334,10 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   `ioctl_index`/VDNUM renumbering), and detach ownership with CPR-image
   survival. Non-blocking doc follow-ups retained: **B6-1** `R[32]` mislabeled,
   no capability prefix; **B6-2** raw-`status[34:33]` mask timing undocumented
-  in `docs/b6-architecture-decision.md`. Actual OSD rendering (hide-vs-grey,
+  in `docs/investigations/video-boundary/b6-architecture-decision.md`. Actual OSD rendering (hide-vs-grey,
   `S`/`F` vs `O` rows, HPS path read-verified only) is UI/hardware
   validation, not review closure. Focused mask, full simulation, and lint
-  pass. Records: `docs/b6-b10-review-2026-09-02.md`,
+  pass. Records: `docs/investigations/archive/b6-b10-review-2026-09-02.md`,
   `docs/plus/archive/plus-review-2026-09-03.md` §2.
 
 - **Accuracy Round 2 consequence and B1 hybrid blanking — CLEARED, Muse
@@ -420,7 +420,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   invalid-chunk retention unpinned — fixture proves only `addr_valid=0`;
   **B10-2** (low) instance shadows module name; **B10-3** (low)
   `page`/`combo` ownership comment. Records:
-  `docs/b6-b10-review-2026-09-02.md`,
+  `docs/investigations/archive/b6-b10-review-2026-09-02.md`,
   `docs/plus/archive/plus-review-2026-09-03.md` §2.
 
 - **Accuracy IA-6 type-0 R0=1 widening persistence — CLEARED, Gemini 3.7
@@ -657,7 +657,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   guarded Claude bridge with verdict CLEAR-with-findings. Four mutations proved cancelled
   request retention, ACK-history drain, stale-buffer quarantine, and global metadata-reload
   ownership load-bearing. The fixture's automatic-EOT C/R oracle was removed, and the
-  two-drive and no-ACK liveness limits are explicit residuals in `docs/fdc-review-2026-08-30.md`.
+  two-drive and no-ACK liveness limits are explicit residuals in `docs/investigations/fdc-timing/fdc-review-2026-08-30.md`.
   A final native re-review found no RTL or test blocker. This follow-up adds no review debt.
 
 - `plus/hardware-checkpoint` — **CLEARED 2026-08-28 — OpenAI Codex**. Scope: `Amstrad.sv`,

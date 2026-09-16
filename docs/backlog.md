@@ -14,7 +14,7 @@ that is not obvious from the roadmap itself.
 without implementation changes to `cd08a1e` and `9849b9a` and merged
 sequentially into `master`. All destination gates pass; both tasks are published at `9ee710c`.
 Exact-SHA CI is recorded in current status. The real capture loop and final-RGB/diagnostic
-progress are recorded in the [handoff](investigations/hardware-runs/hardware-followup-handoff-2026-09-12.md).
+progress are recorded in the [handoff](investigations/archive/hardware-followup-handoff-2026-09-12.md).
 Remaining physical video, active-mode and CRTC/title acceptance stay open.
 
 The [September 12 report](investigations/hardware-runs/hardware-evidence-2026-09-12.md) confirmed BASIC boot fixed
@@ -389,7 +389,7 @@ following author Longshot's confirmation on 2026-09-12 that all SHAKER test resu
 visually stable for multiple frames around SSM markers (making Phase 1 asynchronous native captures
 100% faithful) and independent review from Claude Opus 5 (`20260913T072642Z-13878-c99b`, CLEAR).
 The ABI specification and git resurrection path remain documented in
-[`docs/ssm-capture-abi.md`](investigations/ssm-csl/ssm-capture-abi.md).
+[`docs/investigations/ssm-csl/ssm-capture-abi.md`](investigations/ssm-csl/ssm-capture-abi.md).
 
 ---
 
@@ -425,7 +425,7 @@ document, the CPCWiki ASIC pages, and Longshot himself are the real references.
 
 **Priority: high. This is the architect-pass item.**
 
-**ARCHITECTURE COMPLETE 2026-09-01:** `docs/b6-architecture-decision.md` records the
+**ARCHITECTURE COMPLETE 2026-09-01:** `docs/investigations/video-boundary/b6-architecture-decision.md` records the
 production-path audit and staged decision. Keep one dynamically selectable core; do not gate
 register writes or clocks from raw `plus_mode`, because this cannot reduce fitted resources and
 would create stale-state hazards before `Reset & apply model`. Implement conditional menu
@@ -445,7 +445,7 @@ bypasses core resampling and cannot promise stable HDMI. Fable's conditional des
 is resolved by the production P10/B7 motherboard/SDRAM fixture. Full simulation,
 lint, unchanged canonical soak and fresh Sol/Gemini code review pass. The
 source `843cd5b` is integrated; the wider diagnostic matrix and hardware acceptance remain
-open. See the [validation record](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md).
+open. See the [validation record](investigations/archive/b6-video-boundary-review-2026-09-11.md).
 
 **HARDWARE FOLLOW-UP 2026-09-12:** on `5c16b17`, the user sees no difference
 between Full and Raw pixels in Amazing Demo, DSC4 or SHAKER A (T). No Raw CRT
@@ -456,7 +456,7 @@ failure-first regression and fresh independent review. A sustained stuck-high
 raw-sync CPU recipe is not established. Obtain repeatable physical captures
 with applied-mode/configuration evidence; the user result does not establish
 mode equivalence or identify an RTL cause. See the
-[completion record](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
+[completion record](investigations/archive/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
 for gates and publication limits.
 
 **MENU SLICE DONE 2026-09-01:** the existing Plus-model capability decoder now drives menu-mask
@@ -465,7 +465,7 @@ classic media controls; GX4000 hides disk/tape; 6128+ exposes disk; 464+ exposes
 focused model-to-mask fixture and the full simulation/lint gates pass. This changes visibility
 only: it does not rewrite retained settings or make machine selection atomic.
 Opus source review 2026-09-02 at `a98590a` returned CLEAR (record
-`docs/b6-b10-review-2026-09-02.md`; reconciliation `docs/plus/archive/plus-review-2026-09-03.md`
+`docs/investigations/archive/b6-b10-review-2026-09-02.md`; reconciliation `docs/plus/archive/plus-review-2026-09-03.md`
 §2); B6-1/B6-2 doc follow-ups and OSD-rendering validation retained.
 
 Both machines are always instantiated and always clocked; only their outputs are muxed.
@@ -551,7 +551,7 @@ flip-flops instead of M10K block RAM and was only caught because ALM utilization
 finding *mistakes* rather than reconsidering the *approach* will not catch its siblings.
 
 **Audit 1 — synthesis inference sweep. DONE 2026-08-31, see
-`docs/b7-synthesis-inference-audit.md`.** Result: no second sprite-RAM-class defect. All 28
+`docs/investigations/archive/b7-synthesis-inference-audit.md`.** Result: no second sprite-RAM-class defect. All 28
 "uninferred RAM" instances are correctly too small for block RAM; every real memory inferred.
 One follow-up: `asic_video` R16/R17 (CRTC3 light pen) are stuck at GND because nothing writes
 them, and this is an unowned gap — F18 covers the classic CRTC readback only and is closed. Original scope follows. Read the Quartus fitter and Analysis & Synthesis
@@ -644,7 +644,7 @@ an optional, separately authorized second opinion on a concrete disputed choice.
 removing redundant source-string checks, reusing real peripheral composition,
 and preserving coverage while consolidating redundant tests. The `c12c264`
 consolidation is integrated through refreshed `5fcf223`, with its fixture
-ownership claim corrected; see [integration evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
+ownership claim corrected; see [integration evidence](investigations/archive/preserved-work-integration-2026-09-08.md).
 See [the test/process review](investigations/write-timing/b8-architecture-methodology-review-2026-09-08.md#test-and-process-review).
 Measured full-suite wall time on a clean exact-source archive was 198 seconds;
 the warm run was 57 seconds. No default gate was removed. Reducing test count

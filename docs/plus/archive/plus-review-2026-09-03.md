@@ -12,7 +12,7 @@ reviewer); current FDC recovery (stash
 (Accuracy Round 2 consequence + B1 hybrid blanking owned by the separate
 classic reviewer — Live-blanking geometry belongs there); B8 full architecture
 audit (`docs/backlog.md` B8, deferred by decision). Closed historical rows are
-not work. `docs/b6-b10-review-2026-09-02.md` already holds the prior Opus
+not work. `docs/investigations/archive/b6-b10-review-2026-09-02.md` already holds the prior Opus
 CLEAR for B6/B10; those verdicts are accepted without re-review — only
 recording/follow-up reconciliation below.
 
