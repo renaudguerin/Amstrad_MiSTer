@@ -14,7 +14,7 @@ Bit-identity proven by the soak golden hash (`0x5b5004ff70148443`, minted pre-sp
 re-minted to `0x326ea81358e7d88f` by the intended F6 Stage 1 behaviour change — this
 historical statement refers to the split proof only), all 87
 vectors, lint, and a lockstep differential run against the pre-split core (~45.5M CLKEN
-samples, no divergence). See `docs/accuracy/type-split-review-guide.md`. The sections below
+samples, no divergence). See `docs/classic/archive/type-split-review-guide.md`. The sections below
 are kept as the pre-split record.
 
 ## Status before the split: one shared model for types 0 and 1

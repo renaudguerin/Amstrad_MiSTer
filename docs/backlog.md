@@ -224,7 +224,7 @@ and operates after this stage. Removing or redesigning it does not affect those.
     and the remaining B6 diagnostics; no DSC4 hardware fix is established.
     Source/test review of the hybrid candidate is CLEAR (Muse read-only
     2026-09-03 at `a98590a`; record
-    `docs/accuracy/classic-review-2026-09-03.md` §2) with the
+    `docs/classic/archive/classic-review-2026-09-03.md` §2) with the
     regenerated-sync-vs-physical-edge limit and all A/B results retained as
     validation — a CLEAR verdict is not hardware closure.
 
@@ -680,7 +680,7 @@ separate, uncommitted failure-first u765 pre-edge staging discriminator. That
   pending recovery and investigation; it is not a failure in the checked-in suite.
   Review bookkeeping closed 2026-09-03 at `a98590a` (native Sol CLEAR twice,
   Muse classic/plus read-only passes, mechanical link/keep-move reconciliation;
-  records `docs/accuracy/classic-review-2026-09-03.md` §1,
+  records `docs/classic/archive/classic-review-2026-09-03.md` §1,
   `docs/plus/plus-review-2026-09-03.md` §1).
 
 **Standing rule, now recorded in `CLAUDE.md`:** a test earns its place only if it could have

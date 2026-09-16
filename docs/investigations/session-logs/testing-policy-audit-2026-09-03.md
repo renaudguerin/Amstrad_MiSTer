@@ -26,7 +26,7 @@ in this pass.
 - Local policy read: `AGENTS.md` (test-vector discipline §"Test vector
   discipline" already carries the same rule), `docs/backlog.md` B9
   (test-suite sweep; first slice done 2026-09-01), recent reviews
-  `docs/accuracy/classic-review-2026-09-03.md`,
+  `docs/classic/archive/classic-review-2026-09-03.md`,
   `docs/plus/plus-review-2026-09-03.md`, `docs/review-debt.md`,
   `docs/session-handoff-2026-09-03.md`.
 - Prepared Plus B3 candidate `bb77075` inspected read-only via

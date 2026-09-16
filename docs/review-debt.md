@@ -301,7 +301,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   author response and consequence audit, IA-5 discriminator, and FDC records
   stay in place; published ACCC v1.11 unchanged. The stashed u765 pre-edge
   discriminator (`0fe18a4513a47e4f21e0f504f002673a853388c3`) is FDC recovery,
-  not suite failure. Records: `docs/accuracy/classic-review-2026-09-03.md`
+  not suite failure. Records: `docs/classic/archive/classic-review-2026-09-03.md`
   §1, `docs/plus/plus-review-2026-09-03.md` §1. No hardware residual for this
   row.
 
@@ -354,7 +354,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   192 classic + 9 blanking vectors, soak `0x2263c9fc44af4ee7` reported (gates
   confirmed by the integration owner on the next touching commit).
   SHAKER/DSC4/Amazing-Demo A/B remain validation evidence, not review
-  closure. Record: `docs/accuracy/classic-review-2026-09-03.md` §2.
+  closure. Record: `docs/classic/archive/classic-review-2026-09-03.md` §2.
 
 - **Accuracy OSD sync-filter toggle — CLEARED, Muse read-only reviews
   2026-09-03 at `a98590a` (`74882c7`, merge `0e3a248`).** Two-bit
@@ -363,7 +363,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   map; benches retargeted to explicit raw; production tuple pinned by
   `test_production_mode_selector`. Live-blanking geometry is owned by the B1
   row; actual OSD rendering is UI/hardware validation. Records:
-  `docs/accuracy/classic-review-2026-09-03.md` §3,
+  `docs/classic/archive/classic-review-2026-09-03.md` §3,
   `docs/plus/plus-review-2026-09-03.md` §3.
 
 - **Plus B7 dark-silicon signal-path mutation audit — CLEARED (primary claim),
@@ -652,7 +652,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   `0x32d468e81eac63c9`, tracked and supplied EDSK image tests, and whitespace
   gates pass. Hardware SHAKER/DE validation and a title-level The Demo trace
   remain evidence gaps, not review debt. Full record:
-  `docs/accuracy/f13-f20-fdc-independent-review.md`.
+  `docs/classic/archive/f13-f20-fdc-independent-review.md`.
   The later real-u765 follow-up at feature tip `457a3b4` was independently reviewed by the
   guarded Claude bridge with verdict CLEAR-with-findings. Four mutations proved cancelled
   request retention, ACK-history drain, stale-buffer quarantine, and global metadata-reload
@@ -911,7 +911,7 @@ as settled or upstreamed. The original 2026-08-22 locked decision applied this r
 ox-alpha-authored branches; later rows reuse the same branch-level mechanism and state their
 own authorship/review requirements. The original reviewer's guide with per-commit rationale,
 evidence commands, and a prioritized reading list is
-`docs/accuracy/type-split-review-guide.md`.
+`docs/classic/archive/type-split-review-guide.md`.
 
 | Branch | Scope of the whole-branch review | Status |
 |---|---|---|

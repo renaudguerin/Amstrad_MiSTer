@@ -539,7 +539,7 @@ review findings. IA rows already
 cleared retain their scoped evidence; the B8
 architecture audit was outside that September 3 review. A CLEAR verdict is not
 hardware closure, and comments not yet integrated are distinct from the many
-retained validation residuals. Records: `accuracy/classic-review-2026-09-03.md`,
+retained validation residuals. Records: `classic/archive/classic-review-2026-09-03.md`,
 `plus/plus-review-2026-09-03.md`,
 `plus/b3-frame-harness-review-2026-09-03.md`,
 `b6-b10-review-2026-09-02.md`; ledger: `review-debt.md`. No simulation was
@@ -672,7 +672,7 @@ A complete mechanical and multimodal comparison across all 295 pages (278 word-i
 resolved the author questions/errata, confirmed that our F15–F18 implementations match the corrected
 rules, and evaluated Finding **F19** (clarified as CRTC-2 specific §12.4.1 p.95, while CRTC 0 is confirmed to evaluate same-edge writes per §12.2 pp.92-94).
 Full diff and impact reports are in `docs/classic/archive/accc-1.11-differences.md` and
-`docs/accuracy/f19-type0-c0-timing-todos.md`, with the repeatable process in
+`docs/classic/archive/f19-type0-c0-timing-todos.md`, with the repeatable process in
 `docs/accuracy/accc-update-procedure.md`.
 
 Settled pass-by-pass review records are indexed in the

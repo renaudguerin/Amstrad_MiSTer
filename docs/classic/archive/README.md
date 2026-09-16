@@ -27,6 +27,11 @@ status](../../current-status.md) for the present handoff and
 - [IA-4 R4-history review](ia4-r4-history-independent-review.md)
 - [IA-6 R0-widening review](ia6-r0-widen-independent-review.md)
 - [Historical ox-alpha review](ox-alpha-items-opus-review.md)
+- [Type-split whole-branch reviewer guide](type-split-review-guide.md)
+- [F13/F20 and shared FDC review](f13-f20-fdc-independent-review.md)
+- [Q20 type-1 R5=0 correction review](q20-r5-zero-independent-review.md)
+- [Classic-accuracy review, 2026-09-03](classic-review-2026-09-03.md)
+- [F19 CRTC 2 last-line timing analysis (out of scope, settled in audit-findings.md)](f19-type0-c0-timing-todos.md)
 
 ### ACCC edition and audit ledgers
 

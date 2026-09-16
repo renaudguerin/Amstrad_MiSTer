@@ -186,7 +186,7 @@ Resolution: point-of-use comments and vector descriptions should explicitly say 
 
 - sim/README.md:48 says 87 vectors; current result is 93.
 - docs/accuracy/testbench-spec.md:145 retains the earlier 85-pass definition-of-done state.
-- docs/accuracy/type-split-review-guide.md:116 still lists A3 and post-split streams as open/out of scope.
+- docs/classic/archive/type-split-review-guide.md:116 still lists A3 and post-split streams as open/out of scope.
 - docs/review-debt.md:155 duplicates its table header.
 
 These are non-behavioral but weaken the durable handoff.

@@ -131,9 +131,9 @@ is explicitly labelled historical.
 
 ### 6. Non-blocking - smaller review-guide/document inaccuracies
 
-- `docs/accuracy/type-split-review-guide.md:21` calls `aea80b5` an "F9 RTL fix". The commit is
+- `docs/classic/archive/type-split-review-guide.md:21` calls `aea80b5` an "F9 RTL fix". The commit is
   test/docs-only and explicitly records that no RTL changed.
-- `docs/accuracy/type-split-review-guide.md:94-96` says `e0_hcc2_adj_keep` carries its own type
+- `docs/classic/archive/type-split-review-guide.md:94-96` says `e0_hcc2_adj_keep` carries its own type
   gate. It does not: `rtl/crtc_type0_engine.v:246` is the raw effective-R5 reduction. The
   wrapper behaviour remains correct because it consumes this term under both types.
 - `docs/accuracy/findings-review.md:93-97` refers to Q15/Q16, but
