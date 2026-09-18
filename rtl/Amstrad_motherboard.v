@@ -156,8 +156,9 @@ module Amstrad_motherboard
 	output        vsync,
 	output        field,
 
-	// B6 applied output policy (docs/b6-video-boundary.md).  raw_crt is the
-	// committed Raw CRT selection; the core uses it to force native cadence
+	// B6 applied output policy
+	// (docs/investigations/video-boundary/b6-video-boundary.md).  raw_crt is
+	// the committed Raw CRT selection; the core uses it to force native cadence
 	// and drop its post-processing.  pixel_vblank is the dot-sampled raw
 	// vertical blank tag that travels with the pixel it belongs to and is
 	// consumed as an exact-zero mask after colour conversion.  Both are
@@ -240,10 +241,10 @@ wire crtc_shift;
 // B6 applied output policy.  One register owns the timing tuple, the byte
 // policy, the pixel mask and the top-level Raw CRT restrictions, so a mode
 // change cannot be seen at different times by different consumers
-// (docs/b6-video-boundary.md, "Mode and transition contract").  Reserved
-// value 3 normalises to Full.  The commit condition itself lives next to
-// crt_filter, where the Full vertical blank and the selected CPU phase are
-// in scope.
+// (docs/investigations/video-boundary/b6-video-boundary.md, "Mode and
+// transition contract").  Reserved value 3 normalises to Full.  The commit
+// condition itself lives next to crt_filter, where the Full vertical blank
+// and the selected CPU phase are in scope.
 wire [1:0] sync_filter_req = (sync_filter == 2'd3) ? 2'd0 : sync_filter;
 reg  [1:0] sync_filter_applied;
 wire       sync_filter_commit;
@@ -1000,7 +1001,8 @@ end
 //                  diagnostic/CRT output mode, not an automatic fallback.
 //   3 reserved     Normalised to Full by sync_filter_req.
 //
-// See docs/b6-video-boundary.md and docs/backlog.md B1 for the evidence.
+// See docs/investigations/video-boundary/b6-video-boundary.md and
+// docs/backlog.md B1 for the evidence.
 crt_filter_output_select crt_filter_output_select
 (
 	.MODE(sync_filter_applied),

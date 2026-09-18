@@ -4,7 +4,8 @@
 // Core-owned output chain, extracted from Amstrad.sv for B6 boundary tests.
 // This is the production colour/interlace/mixer/crop path. The motherboard
 // owns raw_crt and pixel_vblank; retained menu settings enter independently.
-// No framework module is copied or changed (docs/b6-video-boundary.md).
+// No framework module is copied or changed
+// (docs/investigations/video-boundary/b6-video-boundary.md).
 module amstrad_video_output (
     input CLK_VIDEO, ce_16, raw_crt, pixel_vblank, plus_mode,
     input [1:0] mode, scale, ar, integer_scale,

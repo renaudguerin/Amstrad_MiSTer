@@ -3,9 +3,10 @@
 SHAKER builds its per-test SSM codes at run time by patching an `ED 00 ED 00`
 template, so the only markers visible statically are the two unpatched templates
 per module. That is recorded in
-`docs/shaker-ssm-marker-inventory-2026-09-12.md`, and these tests pin it: a disc
-whose codes appear as literal bytes would mean the emitter changed, and a disc
-carrying `#FFFE` would mean the scripts started using CSL-side naming. Either
+`docs/investigations/ssm-csl/shaker-ssm-marker-inventory-2026-09-12.md`, and
+these tests pin it: a disc whose codes appear as literal bytes would mean the
+emitter changed, and a disc carrying `#FFFE` would mean the scripts started
+using CSL-side naming. Either
 would make that document stale, and both fail here loudly instead.
 
 Skips when the user-owned, untracked disc images are absent.
