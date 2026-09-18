@@ -302,11 +302,12 @@ module crt_filter_output_select
 	output       VBLANK_OUT
 );
 
-// B6 output policy (docs/b6-video-boundary.md, "Mode and transition
-// contract").  Full (0) and Raw pixels (1) share the complete filtered
-// acquisition tuple: raw sync effects live in pixel values, never as holes in
-// acquisition DE.  Only Raw CRT (2) substitutes the GA-shaped monitor sync,
-// the raw CRTC horizontal blank and the GA vertical blank.  The caller's
+// B6 output policy (docs/investigations/video-boundary/b6-video-boundary.md,
+// "Mode and transition contract").  Full (0) and Raw pixels (1) share the
+// complete filtered acquisition tuple: raw sync effects live in pixel values,
+// never as holes in acquisition DE.  Only Raw CRT (2) substitutes the
+// GA-shaped monitor sync, the raw CRTC horizontal blank and the GA vertical
+// blank.  The caller's
 // applied-mode register normalises reserved value 3 to Full; comparing
 // against 2 alone keeps this seam safe even if it does not.
 assign HSYNC_OUT  = (MODE != 2'd2) ? HSYNC_FILTERED  : HSYNC_RAW;

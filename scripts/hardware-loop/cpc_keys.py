@@ -17,7 +17,8 @@ injects through ``/dev/uinput``:
 
 Fifteen of these keycodes are confirmed against real hardware: the
 ``RUN"SHAKE27B`` + Enter and menu-key sequences captured in
-``docs/b2-device-capture-2026-09-12.md`` decode to exactly the entries here.
+``docs/investigations/hardware-runs/b2-device-capture-2026-09-12.md`` decode
+to exactly the entries here.
 
 Keypad positions are deliberately absent.  ``hid.sv`` routes the non-extended
 keypad scancodes to the CPC function keys unless the OSD ``Keypad`` option is
@@ -153,7 +154,8 @@ _UK_SHIFTED = {
 
 # Characters the French CPC prints unshifted on the digit row.  The digits
 # themselves need SHIFT, which is how the B2 capture typed "27" as
-# {SHIFT 2 7}.  See docs/b2-device-capture-2026-09-12.md.
+# {SHIFT 2 7}.  See
+# docs/investigations/hardware-runs/b2-device-capture-2026-09-12.md.
 _FR_DIGIT_ROW_UNSHIFTED = {
     "&": "1", "é": "2", '"': "3", "'": "4", "(": "5", "§": "6",
     "è": "7", "!": "8", "ç": "9", "à": "0",
@@ -220,7 +222,8 @@ class KeyGroup:
 
         Prefer ``sequence_tokens`` for a whole key_output string: it holds
         SHIFT across a run of shifted keys the way a typist does, which is the
-        form confirmed on hardware in docs/b2-device-capture-2026-09-12.md.
+        form confirmed on hardware in
+        docs/investigations/hardware-runs/b2-device-capture-2026-09-12.md.
         """
         return sequence_tokens([self])
 

@@ -9,7 +9,8 @@ do not already know:
 
 * the keycode table is derived from ``rtl/hid.sv``, and the French
   ``RUN"SHAKE27B`` translation is compared against the sequence actually typed
-  on the device in ``docs/b2-device-capture-2026-09-12.md``;
+  on the device in
+  ``docs/investigations/hardware-runs/b2-device-capture-2026-09-12.md``;
 * the CFG bit arithmetic is compared against the 16 bytes read off that same
   device, where bit 22 is known to be the Right Shift option;
 * every keystroke the runner would send for the whole 25-script corpus is fed
@@ -80,7 +81,8 @@ class TestHardwareCrossChecks(unittest.TestCase):
     """Pin the derived tables against evidence from the real device."""
 
     def test_french_run_sequence_matches_b2_device_capture(self):
-        # docs/b2-device-capture-2026-09-12.md, "French SHAKER 2.7 launch":
+        # docs/investigations/hardware-runs/b2-device-capture-2026-09-12.md,
+        # "French SHAKER 2.7 launch":
         # this exact sequence typed RUN"SHAKE27B on the device's French ROM.
         expected = ":13:16:31:04:1F:23:10:25:12{2A:03:08}2A:30"
         self.assertEqual(sequence_tokens(translate_text('RUN"SHAKE27B', "fr")), expected)

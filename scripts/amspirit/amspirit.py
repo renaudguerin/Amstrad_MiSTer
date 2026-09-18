@@ -4,8 +4,9 @@
 Thin client for a running AmSpirit lite instance's HTTP API: load media, pace
 input on emu.frames, capture a settled screenshot, dump machine state and save
 an SNA. Standalone by design: it never talks to the MiSTer. See
-docs/amspirit-oracle-design-2026-09-13.md for what AmSpirit evidence can and
-cannot establish, and scripts/amspirit/README.md for usage and API gotchas.
+docs/investigations/hardware-runs/amspirit-oracle-design-2026-09-13.md for
+what AmSpirit evidence can and cannot establish, and
+scripts/amspirit/README.md for usage and API gotchas.
 """
 
 from __future__ import annotations

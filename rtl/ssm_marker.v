@@ -31,7 +31,8 @@
 //    run's records in the same physical window and the host replays them.
 //    This is a bounded startup boundary, not a session identity: an old empty
 //    header still looks like a fresh one, so the host has to combine it with a
-//    controlled start (docs/csl-ssm-implementation-plan.md).
+//    controlled start
+//    (docs/investigations/ssm-csl/csl-ssm-implementation-plan.md).
 //
 //  * A marker's timestamp is latched at the HH opcode-fetch completion edge
 //    and carried through recognition. The registered `hit` is two clocks
@@ -45,9 +46,9 @@ module ssm_marker #(
 	// DDRAM_ADDR is a 64-bit word index (sys/sys_top.v derives the HDMI
 	// palette address the same way, `LFB_BASE[31:3]`), so the word index is
 	// this value >> 3. 0x30000000 is the MiSTer convention for the core
-	// window; see docs/csl-ssm-implementation-plan.md for the standing
-	// caveat that this base is convention-derived, not yet read back from a
-	// device.
+	// window; see docs/investigations/ssm-csl/csl-ssm-implementation-plan.md
+	// for the standing caveat that this base is convention-derived, not yet
+	// read back from a device.
 	parameter [31:0] DDR_BASE   = 32'h3000_0000,
 	parameter        SLOT_BITS  = 6,               // ring holds 1<<SLOT_BITS records
 	parameter [31:0] MAGIC      = 32'h5353_4D31   // "SSM1"
