@@ -19,3 +19,5 @@ to `docs/`, as they were in the original files.
 - [Cleared review debt](review-debt-cleared.md): every row with a recorded independent-review
   verdict, the original 2026-08-19 per-commit debt and its 2026-08-22 review record (action
   items A1-A5), the branch-level review register and the pass-3 triage.
+- [Completed backlog items](backlog-done.md): B5, B7, B12, B15, the D5 boot-configuration
+  note and the superseded "Current priorities after the September 12 hardware retest" summary.

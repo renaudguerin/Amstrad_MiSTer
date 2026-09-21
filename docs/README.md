@@ -82,7 +82,7 @@ docs/
 │
 ├── plans/                        # Dated execution plans; several hold locked decisions still cited
 │
-├── archive/                      # Superseded top-level ledgers: status history, cleared review debt
+├── archive/                      # Superseded top-level ledgers: status history, cleared review debt, done backlog
 │
 └── issues/                       # Structured markdown issue tickets (linked to backlog)
 ```
