@@ -30,7 +30,7 @@
 //     registers are stored and readable since P5 (mod-8 map slots 0/1) and
 //     seedable from an SNA header (B8-5), but nothing at runtime ever writes
 //     them (named assumption at the readback section).
-//   - The R4=0-at-C0=0-with-Rom-select I/O race (ACCC §12.5 p.101) is a Z80
+//   - The R4=0-at-C0=0-with-Rom-select I/O race (ACCC §12.5 p.102) is a Z80
 //     bus-level ASIC race owned by the register-interface layer, not the
 //     counter engine.
 //
@@ -190,7 +190,7 @@ module asic_video
 // mod-8 on types 3/4 while writes reach the selected storage register;
 // software stores into R14/R15 and reads them back through slots 6/7).
 // Select indices 10/11 (ASIC status, read-only), 16/17 (light pen) have
-// no storage here (§21.2.3 table, p.246).
+// no storage here (§21.2.3 table, p.247).
 //----------------------------------------------------------------------
 
 reg  [4:0] addr;
@@ -216,7 +216,7 @@ reg [1:0] R8_interlace;
 reg [6:0] R4_v_total;
 reg [4:0] R5_v_total_adj;
 reg [4:0] R9_v_max_line;
-// Full 8-bit storage (P5): bits 7:6 are the §20.5 (p.244) extended
+// Full 8-bit storage (P5): bits 7:6 are the §20.5 (p.245) extended
 // start-address bits ("These 2 bits represent bits 14 and 15 of the video
 // pointer"). The 14-bit VMA reload below consumes R12[5:0] only; the
 // >16K carry mechanism those bits take part in is not modelled, but the
@@ -316,9 +316,9 @@ end
 // Horizontal character counter C0 ("HCC")
 //
 // C0 counts 0..R0 inclusive and wraps via equality against the live R0
-// value (ACCC §13.1, p.102). Type 3 accepts any R0 without disturbing
+// value (ACCC §13.1, p.103). Type 3 accepts any R0 without disturbing
 // other counters — there is no type-0-style freeze machinery (§13.5,
-// p.121). The exact post-write behavior when R0 is lowered below the
+// p.122). The exact post-write behavior when R0 is lowered below the
 // current C0 is not given as a direct CRTC3 chronogram in the source; the
 // equality-based eight-bit overflow below is therefore an explicitly
 // unverified P1 model assumption, protected by t01e pending direct CRTC3
@@ -349,20 +349,20 @@ end
 //
 // C9/R9 completion uses ">=" not equality: on types 3/4 an R9 lowered
 // below the current C9 forces next-C9=0 with normal row accounting,
-// "it is impossible to overflow C9" (ACCC §10.3.4 p.77). Equality alone
+// "it is impossible to overflow C9" (ACCC §10.3.4 p.78). Equality alone
 // is the natural case; the greater-than term is the forced reset.
 //
 // Entering adjustment from the last character row does NOT increment C4:
-// it stays equal to R4 for every adjustment line (ACCC §11.2.6 p.84),
+// it stays equal to R4 for every adjustment line (ACCC §11.2.6 p.85),
 // and R6==R4 consequently covers those lines too (§18.2.4 note).
 // Adjustment ends when the next adjustment-line index C9+1 has reached
 // R5 — or would pass it after a mid-adjustment R5 shrink; both end the
 // management on the same line ("Whether with R5 or R9, it is impossible
-// to overflow C9", ACCC §11.3.3 p.86).
+// to overflow C9", ACCC §11.3.3 p.87).
 //
 // An R4 lowered below the current C4 makes the frame-end equality
 // unreachable: C4 free-runs through its seven-bit range (ACCC §12.5
-// p.101, "overflow of the C4 counter"), in contrast to C9 above.
+// p.102, "overflow of the C4 counter"), in contrast to C9 above.
 //----------------------------------------------------------------------
 
 reg  [6:0] charline;
@@ -400,7 +400,7 @@ wire       interlace_frame_wrap = interlace_line;
 wire       frame_restart = frame_wrap | adj_frame_wrap |
                            interlace_frame_wrap;
 
-// §19.8.4 pp.235-240: IVM advances C9 by two while retaining ParityC9.
+// §19.8.4 pp.236-241: IVM advances C9 by two while retaining ParityC9.
 // Odd R9 toggles the parity at each ordinary C4 increment; a frame restart
 // instead aligns it to the newly toggled ParityFrame.  These terms are
 // deliberately IVM-gated so never-entered R8=0 counting is bit-identical
@@ -455,7 +455,7 @@ always @(posedge CLOCK) begin
 		// Headers AB/AC/AD/B0 bit 7. During vertical total adjust the
 		// serialized adjustment counter (AD) is the live index and AC is
 		// meaningless (format note 4); on types 3/4 that index lives in C9
-		// itself (ACCC §11.2.6 p.84), so it lands in `raster` either way.
+		// itself (ACCC §11.2.6 p.85), so it lands in `raster` either way.
 		charline       <= SNA_LINE;
 		raster         <= SNA_ADJ ? SNA_VTA : SNA_RASTER;
 		in_adj         <= SNA_ADJ;
@@ -485,7 +485,7 @@ always @(posedge CLOCK) begin
 			end
 		end
 
-		// §19.8.4 p.236: changing R8 to either interlace mode seeds
+		// §19.8.4 p.237: changing R8 to either interlace mode seeds
 		// ParityC9 immediately from the current C9.  Decode the live bus
 		// write so this does not wait for the stored R8 NBA update.
 		if (ENABLE & ~nCS & ~R_nW & RS & (addr == 5'd8) &
@@ -500,17 +500,17 @@ end
 // Video pointer: VMA (current) and VMA' (row-start latch).
 //
 // Two-stage {R12,R13} -> VMA' -> VMA behaviour, as on type 0. The ACCC
-// v1.11 §20.3.4 p.243 opening-sentence/current-pointer-model reading (the
+// v1.11 §20.3.4 p.244 opening-sentence/current-pointer-model reading (the
 // later prose drops C9; hardware confirmation remains open) is used here:
 // at the frame origin C4=C9=C0=0 BOTH pointers reload from R12/R13. At any
 // other line start VMA loads from VMA'. The row-end capture VMA' <- VMA fires
 // on the live comparison
 // C0==R1 && C9==R9 and is suppressed during vertical adjustment, which
 // instead re-solidifies the captured row base each adjustment line
-// ("without updating the video pointer", ACCC §11.2.6 p.84).
+// ("without updating the video pointer", ACCC §11.2.6 p.85).
 //
 // With R1>R0 the capture can never fire, so every row re-displays the
-// frozen VMA' base — character-line repetition (ACCC §17.2 p.179) with
+// frozen VMA' base — character-line repetition (ACCC §17.2 p.180) with
 // no spurious border substitution on types 3/4 (§17.6.2/§19.2.4).
 //----------------------------------------------------------------------
 
@@ -563,7 +563,7 @@ always @(posedge CLOCK) begin
 			// §20.3.4 frame-start reload has highest priority. Otherwise
 			// a simultaneous C0=R1=R0 row-end capture supplies the next
 			// row base, so do not overwrite VMA with the stale latch value
-			// on that same edge (ACCC §17.1 p.176 / §17.6.1 p.185).
+			// on that same edge (ACCC §17.1 p.177 / §17.6.1 p.186).
 			if (pointer_frame_origin) begin
 				vma       <= {R12_start_addr_h[5:0], R13_start_addr_l};
 				vma_latch <= {R12_start_addr_h[5:0], R13_start_addr_l};
@@ -577,7 +577,7 @@ always @(posedge CLOCK) begin
 		end
 		else if (!hcc_last) begin
 			// VMA increments on every character cell processed,
-			// displayed or border (ACCC §17.1 p.176).
+			// displayed or border (ACCC §17.1 p.177).
 			vma <= vma + 14'd1;
 		end
 	end
@@ -586,7 +586,7 @@ end
 //----------------------------------------------------------------------
 // Display enable.
 //
-// Horizontal: DISPTMG on at C0=0, off from C0=R1 (ACCC §17.1 p.175).
+// Horizontal: DISPTMG on at C0=0, off from C0=R1 (ACCC §17.1 p.176).
 // The registered clear makes an R1==R0 line show exactly one border
 // character at C0=R0 (the interline blip, §17.6.1), while R1>R0 keeps
 // the whole line displayed because the equality never fires (types 3/4
@@ -596,14 +596,14 @@ end
 // Vertical: the R6 test runs ONLY at the beginning of a line on types
 // 3/4 — mid-line R6 updates are not considered until the next line
 // start ("The update of R6 during the line is therefore not considered",
-// ACCC §18.2.4 p.189). There is no R6==0 special case (§18.3.4). Because
+// ACCC §18.2.4 p.190). There is no R6==0 special case (§18.3.4). Because
 // C4 stays ==R4 through adjustment, R6==R4 borders those lines too
 // (§18.2.4 note).
 //
 // SKEW-DISPTMG (R8 bits 5:4; types 0/3/4, §19.2): 00 immediate, 01/10
 // delay both border edges by one/two characters, 11 BORDER ON (output
 // suppressed). Only the visible edges shift; pointer bookkeeping is
-// unaffected (§19.2.3 p.194).
+// unaffected (§19.2.3 p.195).
 //----------------------------------------------------------------------
 
 reg       hde;
@@ -642,21 +642,21 @@ end
 //
 // HSYNC starts when C0 reaches R2 and lasts R3l characters. Types 3/4
 // generate a 16-character HSYNC when R3l=0 ("it is impossible not to
-// generate HSYNC", §14.5 p.141). The width counter is a free-running
+// generate HSYNC", §14.6 p.142). The width counter is a free-running
 // nibble compared against the LIVE R3l: a mid-HSYNC rewrite below the
 // already-counted value wraps the full nibble before the new equality
-// can hit, so an interrupted HSYNC never ends early (§14.4 general rule;
-// compendium-02 §4). There is no R3.JIT on types 3/4 (§14.4).
+// can hit, so an interrupted HSYNC never ends early (§14.5 general rule;
+// compendium-02 §4). There is no R3.JIT on types 3/4 (§14.5).
 //
 // The start comparison keys on the ENTERING edge (hcc_next == R2) so the
 // registered HSYNC is visible during character R2 itself, matching the
 // §15.2.2 chronograms where C3l=0 sits under C0=R2 — the same
 // registered-output convention the DISPTMG logic uses for C0=R1.
 //
-// Type-1..4 re-entrancy bug (§15.3.1 p.148): when C0 reaches R2 on the
+// Type-1..4 re-entrancy bug (§15.3.1 p.149): when C0 reaches R2 on the
 // same edge that C3 reaches R3l, the active pulse does not end. C3 keeps
 // counting through its wrapped nibble until the next equality. This is a
-// live collision, not a static register relation: §15.3.5 p.151 shows a
+// live collision, not a static register relation: §15.3.5 p.152 shows a
 // CRTC3 R2 rewrite from 11 to 21 creating the collision at the natural
 // end of an already-active pulse. The R0=0, R2=0, R3l=1 extreme makes
 // every end edge collide and therefore produces infinite HSYNC
@@ -726,7 +726,7 @@ end
 //
 // There is no re-entrancy protection — a condition that persists across a
 // finished pulse restarts it immediately. Width is R3h lines with 0 meaning
-// 16 (§14.2).  §16.1 p.159 advances that line count at C0=0: MID-VSYNC
+// 16 (§14.2).  §16.1 p.160 advances that line count at C0=0: MID-VSYNC
 // changes the pulse's start only, not the C3h count phase.  Dynamic R3h
 // rewrites follow the CRTCs-0/3/4 rule (compendium-02 §2).  The ASIC needs
 // >=3 active lines to emit monitor C-VSYNC, which belongs to the integrated
@@ -892,7 +892,7 @@ assign RA   = ra_eff;
 // [KT] (cpctech cpcplus.html, CRTC section) first published this map
 // with slots 6/7 returning 0; ACCC v1.10 §21.2.3 supersedes that with
 // stored, writable R14/R15. R12 reads return all eight stored bits:
-// bits 7:6 are the §20.5 (p.244) extended start-address bits, kept for
+// bits 7:6 are the §20.5 (p.245) extended start-address bits, kept for
 // readback while the VMA reload consumes R12[5:0] only.
 //
 // STATUS 1 (slot 2) and STATUS 2 (slot 3) are live combinational levels
@@ -914,7 +914,7 @@ assign RA   = ra_eff;
 //    only; aliased-select write behaviour is not evidenced).
 //----------------------------------------------------------------------
 
-// STATUS 1 (§21.3.4.1 p.248): horizontal-event group.
+// STATUS 1 (§21.3.4.1 p.249): horizontal-event group.
 wire s1_bit0 = hcc_last;                                    // 1 at C0=R0
 wire s1_bit1 = ~(hcc == {1'b0, R0_h_total[7:1]});           // 0 at C0=R0/2
 wire s1_bit2 = ~((R0_h_total >= R1_h_displayed) &&
@@ -1071,7 +1071,7 @@ end
 // the real GA's documented requirement for an HSYNC of at least 2 us
 // before the byte=>pixel decoder updates. A shorter type-3 pulse is
 // reachable here — R3l=1 statically, or an R3l rewrite during the pulse:
-// ACCC §14.6 p.141 (FR §14.6 p.142) bounds an R3l=0 HSYNC to 16 characters only "unless it
+// ACCC §14.6 p.142 (FR §14.6 p.143) bounds an R3l=0 HSYNC to 16 characters only "unless it
 // is interrupted by modifying R3 during HSYNC" — and on hardware such a
 // pulse would leave the screen mode unchanged. Deferred with the rest of
 // the GA pixel-phase contract to motherboard integration (architecture

@@ -43,26 +43,26 @@ Names and test counts are verbatim from the menu. ACCC sections are from the cro
 
 | Entry | Tests | ACCC | Our coverage |
 |---|---|---|---|
-| **(5)** R13 UPDATE IN 4 USEC SCREENS (R0=3) | 5 | §13.8.1 p.127, §20.3 p.242 | **Mechanism vectors exist**: `t20c`/`t20d` (both types, R0=3, MA asserted per line, commit `90aed07`). Unproven: the 5-phase Z80 write alignment the entry probes. |
-| **(6)** R13 UPDATE IN 2 USEC SCREENS (R0=1) | 5 | §13.8.2 p.128, §13.2.5 p.107 | **Mechanism vectors exist**: `t20e`/`t20f`. Same residual gap. |
-| **(7)** R13 UPDATE IN 1 USEC SCREENS (R0=0) | 5 | §13.8.3 p.129, §13.2.6 p.108 | **Mechanism vectors exist**: `t20g`/`t20h` (type 0 ignores reload after the hiccup; type 1 reloads every line). Same residual gap. |
-| **(U)** R4 & R9 CHECKING | 54 | §10.3 pp.74–79, §12 pp.92–101 | **Implemented.** This is the F4/F12 work just hardware-tested. |
-| **(I)** VSYNC CONDITIONS | 413 | §16.4 pp.168–170, §15.4 pp.152–154 | **Implemented**, via F3 and F11b. Largest entry in the module by a wide margin. |
-| **(P)** R6 STORIES | 13 | §18 pp.188–191 | Partial, via F4 equality-only rollover and F12. |
-| **(O)** R1 STORIES | 8 | §17 pp.175–187, §17.6 pp.185–186 | **Presence/type/skew/ACCC-model width implemented; hardware validation pending.** `t10a`-`t10e` retain the type/skew controls and `t31a` pins the no-skew DE high/low/high half-phases. SKEW 1/2 retains the p.195 rounded full-character displacement; type 1 emits none. SHAKER checkpoint: compare the type-0 seam against Logon System photos (expected 8 mode-2 px) and capture DE if possible (expected low only for C0=R0's second byte). A disagreement reopens F13. |
-| **(T)** R2 UPD DURING & AFTER HSYNC | 6 | §15.3 pp.148–151 | Believed correct via F11a, but only width semantics were reasoned about. No during-pulse vectors. |
-| **(Y)** R3 UPD DURING HSYNC | 8 | §14.4 pp.134–140, §14.4.4 pp.138–140 | Same as (T). R3.JIT sub-microsecond behaviour untested. |
-| **(4)** UPDATE CRTC R0 TIMING | 17 | §13.6 pp.122–123, §4.4.3 p.26 | Partial, via F5/F12. Probes `OUT (C),r` versus `OUTI` phase, which our vectors do not distinguish. |
-| **(2)** SKEW DISP ON R0 RUPTURE | 4 | §19.2 pp.193–197 | Partial. Skew path is F11g and believed correct; the R0-rupture interaction is untested. |
-| **(TAB)** HSYNC START POSITION | 4 interactive | §14.6 pp.141–142 | **Integrated model pinned; hardware pending.** The production CRTC+GA controls pin type-0/type-1 R2.JIT starts at +4/+3 Mode-2 pixels, raw widths shorter by 4/3, fixed type-specific display-reactivation edges, and a same-value-write control. Run this SHAKER entry on both real CRTC types; a disagreement reopens F20. |
-| **(1)** UPDATE VRAM VS CRTC | 79 | §8 pp.43–44 | **Production memory/GA boundary unverified.** CPU writes, SDRAM service/cache and GA byte sampling determine visibility; this is not an established CRTC granularity ceiling. B8-4 reproduces stale video data after a write to an unchanged fetch address, without yet assigning it to a particular SHAKER case. |
-| **(8)** GATE ARRAY PIXELISATION | — | §9.1 pp.46–47 | **Out of CRTC scope** (F11i). Lives in the netlist-derived `GA40010`. |
-| **(9)** GATE ARRAY INKERISATION | 3 | §9.2 pp.48–50 | Out of CRTC scope. |
-| **(E)** GATE ARRAY MODERISATION | — | §9.3 pp.51–52 | Out of CRTC scope. |
-| **(R)** MODE UPD >HSYNC DELAY< (2.1.0) | 3 | §9.3.1 p.51, §14.3 p.132 | Out of CRTC scope apart from correct HSYNC edges. |
-| **(CAPS)** INTERACTIVE TEST MODE X TO Y | 16 interactive | §9.3.4 pp.53–72 | Out of CRTC scope. Gate Array pixel residue across mode splits. |
-| **(3)** CRTC 2 RVMB | 22 | §17.4.3 pp.183–184 | **Out of project scope.** CRTC 2 only. |
-| **(COPY)** CRTC 2 OFFSET | — | §17.4.3 p.183, §20.3.3 p.243 | Out of project scope. |
+| **(5)** R13 UPDATE IN 4 USEC SCREENS (R0=3) | 5 | §13.8.1 p.128, §20.3 p.243 | **Mechanism vectors exist**: `t20c`/`t20d` (both types, R0=3, MA asserted per line, commit `90aed07`). Unproven: the 5-phase Z80 write alignment the entry probes. |
+| **(6)** R13 UPDATE IN 2 USEC SCREENS (R0=1) | 5 | §13.8.2 p.129, §13.2.5 p.108 | **Mechanism vectors exist**: `t20e`/`t20f`. Same residual gap. |
+| **(7)** R13 UPDATE IN 1 USEC SCREENS (R0=0) | 5 | §13.8.3 p.130, §13.2.6 p.109 | **Mechanism vectors exist**: `t20g`/`t20h` (type 0 ignores reload after the hiccup; type 1 reloads every line). Same residual gap. |
+| **(U)** R4 & R9 CHECKING | 54 | §10.3 pp.75–80, §12 pp.93–102 | **Implemented.** This is the F4/F12 work just hardware-tested. |
+| **(I)** VSYNC CONDITIONS | 413 | §16.4 pp.169–171, §15.4 pp.153–155 | **Implemented**, via F3 and F11b. Largest entry in the module by a wide margin. |
+| **(P)** R6 STORIES | 13 | §18 pp.189–192 | Partial, via F4 equality-only rollover and F12. |
+| **(O)** R1 STORIES | 8 | §17 pp.176–188, §17.6 pp.186–187 | **Presence/type/skew/ACCC-model width implemented; hardware validation pending.** `t10a`-`t10e` retain the type/skew controls and `t31a` pins the no-skew DE high/low/high half-phases. SKEW 1/2 retains the p.196 rounded full-character displacement; type 1 emits none. SHAKER checkpoint: compare the type-0 seam against Logon System photos (expected 8 mode-2 px) and capture DE if possible (expected low only for C0=R0's second byte). A disagreement reopens F13. |
+| **(T)** R2 UPD DURING & AFTER HSYNC | 6 | §15.3 pp.149–152 | Believed correct via F11a, but only width semantics were reasoned about. No during-pulse vectors. |
+| **(Y)** R3 UPD DURING HSYNC | 8 | §14.5 pp.135–141, §14.5.4 pp.139–141 | Same as (T). R3.JIT sub-microsecond behaviour untested. |
+| **(4)** UPDATE CRTC R0 TIMING | 17 | §13.6 pp.123–124, §4.4.3 p.26 | Partial, via F5/F12. Probes `OUT (C),r` versus `OUTI` phase, which our vectors do not distinguish. |
+| **(2)** SKEW DISP ON R0 RUPTURE | 4 | §19.2 pp.194–198 | Partial. Skew path is F11g and believed correct; the R0-rupture interaction is untested. |
+| **(TAB)** HSYNC START POSITION | 4 interactive | §14.7 pp.142–143 | **Integrated model pinned; hardware pending.** The production CRTC+GA controls pin type-0/type-1 R2.JIT starts at +4/+3 Mode-2 pixels, raw widths shorter by 4/3, fixed type-specific display-reactivation edges, and a same-value-write control. Run this SHAKER entry on both real CRTC types; a disagreement reopens F20. |
+| **(1)** UPDATE VRAM VS CRTC | 79 | §8 pp.44–45 | **Production memory/GA boundary unverified.** CPU writes, SDRAM service/cache and GA byte sampling determine visibility; this is not an established CRTC granularity ceiling. B8-4 reproduces stale video data after a write to an unchanged fetch address, without yet assigning it to a particular SHAKER case. |
+| **(8)** GATE ARRAY PIXELISATION | — | §9.1 pp.47–48 | **Out of CRTC scope** (F11i). Lives in the netlist-derived `GA40010`. |
+| **(9)** GATE ARRAY INKERISATION | 3 | §9.2 pp.49–51 | Out of CRTC scope. |
+| **(E)** GATE ARRAY MODERISATION | — | §9.3 pp.52–53 | Out of CRTC scope. |
+| **(R)** MODE UPD >HSYNC DELAY< (2.1.0) | 3 | §9.3.1 p.52, §14.3 p.133 | Out of CRTC scope apart from correct HSYNC edges. |
+| **(CAPS)** INTERACTIVE TEST MODE X TO Y | 16 interactive | §9.3.4 pp.54–73 | Out of CRTC scope. Gate Array pixel residue across mode splits. |
+| **(3)** CRTC 2 RVMB | 22 | §17.4.3 pp.184–185 | **Out of project scope.** CRTC 2 only. |
+| **(COPY)** CRTC 2 OFFSET | — | §17.4.3 p.184, §20.3.3 p.244 | Out of project scope. |
 
 Module A totals over 600 individual tests. Roughly two thirds sit in `(I) VSYNC CONDITIONS`
 alone, and a further 79 in `(1)` require the complete write-to-pixel boundary.
@@ -89,14 +89,14 @@ a new R12/R13 on each C0=0.
 
 **R0=1, 2 µs frames.** The types diverge. C0 never reaches 2, so CRTC 0's disarm check never
 runs and an *uncancelled* one-line vertical adjustment fires every frame, leaving C4=1 for the
-second 2 µs period. ACCC §13.2.5 p.107: R12/R13 can therefore be considered only every 4 µs on
+second 2 µs period. ACCC §13.2.5 p.108: R12/R13 can therefore be considered only every 4 µs on
 CRTC 0, against every 2 µs on types 1, 2, 3 and 4.
 
 **R0=0, 1 µs frames.** The types diverge further. On CRTC 0, C0 never reaches 1, so C9 freezes
-at whatever value it held, C4 takes one last increment ("C4's last hiccup", §13.2.6 p.108) and
+at whatever value it held, C4 takes one last increment ("C4's last hiccup", §13.2.6 p.109) and
 then every counter but C0 stops. With C4 stuck at 1 the C4=0 condition never recurs and
 R12/R13 writes are ignored entirely. On CRTC 1, C9 and R4 keep being managed, C4 stays 0, and
-VMA reloads on every 1 µs line (§13.3 p.113, §20.3.2 p.242).
+VMA reloads on every 1 µs line (§13.3 p.114, §20.3.2 p.243).
 
 ### Where our RTL actually stands
 
@@ -132,5 +132,5 @@ all five phases. So this is now **partial coverage**: mechanism proven, phase al
    SHAKER sessions stay manual and milestone-targeted; they are not part of the automated
    Verilator + CI loop.
 4. Cheap direct check of shipped work: Module E `(3) CRTC 0 C4/C9 COUNTER LOGIC BUG`
-   (§10.3.1.2 pp.75–76, §11.2.2 pp.81–82) targets exactly the F4/F12 counter logic. Module E
+   (§10.3.1.2 pp.76–77, §11.2.2 pp.82–83) targets exactly the F4/F12 counter logic. Module E
    `(2)` targets CRTC 1 VMA treatment on adjustment lines, adjacent to the R12/R13 work above.

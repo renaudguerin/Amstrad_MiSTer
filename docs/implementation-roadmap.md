@@ -87,7 +87,7 @@ merged into the same behavioral PR.
   v1.10/v1.9 reports remain provenance, not the current oracle.
 - The v1.10 documentation rebaseline and the deterministic F12/F4/F8 milestones are complete;
   F9 closure is merged into this branch (`t12a`/`t12b`: exact-C0==R0 write → C4=39/C9=8 and
-  its windowed companion → C4=38/C9=8, ACCC p.82). F13's ACCC-model half-character DE
+  its windowed companion → C4=38/C9=8, ACCC p.83). F13's ACCC-model half-character DE
   phase is implemented; SHAKER/DE-pin hardware validation remains open. F20's CRTC-1
   R2.JIT start phase and fixed display-reactivation edge are implemented through the integrated
   CRTC+GA path; DSC4 and SHAKER `(TAB)` remain hardware gates. F7 RFD and the
@@ -212,8 +212,8 @@ Module/key names are SHAKER 2.6 menu entries.
   CRTC 1-A OR 1-B?` is the chip-variant discriminator — informative only; the variant is
   deliberately not modeled.)
 - C9 F10 → interlace suite: B `(1) INTERLACE C4/C9 COUNTERS`, B `(9) INTERLACE VM`,
-  C `(1)`–`(5)` parity entries, plus the SHAKER 22C/3 parity truth tables (ACCC pp.210-211;
-  p.212 is §19.5.4 CRTC 2) as fixture sources.
+  C `(1)`–`(5)` parity entries, plus the SHAKER 22C/3 parity truth tables (ACCC pp.211-212;
+  p.213 is §19.5.4 CRTC 2) as fixture sources.
 - Plus P1/P5 (CRTC3 foundation, bus quirks) → run the classic entries above on the CRTC3
   setting where applicable, plus D `(U) CRTC 3/4 : STATUS` once status paths exist.
 - Any session touching R12/R13 reload → A `(5)`/`(6)`/`(7)` R13 UPDATE IN n USEC SCREENS
@@ -224,15 +224,15 @@ Module/key names are SHAKER 2.6 menu entries.
 The full options analysis, evidence, staged plan, and revert conditions live in
 `accuracy/f6-decision-gate.md`. Stage 1 landed a full-character type-0 DE gap plus
 SKEW-DISPTMG handling (`accuracy/a3-f6-stage1`, t10a-t10e). Stage 2 rendered a 16-mode-2-px
-(1 µs) seam. Stage 2b's visual reading of ACCC pp.186/195 establishes that the documented
+(1 µs) seam. Stage 2b's visual reading of ACCC pp.187/196 establishes that the documented
 0.5 µs belongs to a sub-character CRTC DE pulse; test/production CRTC clock phase matches
 and both GA buffer paths agree. F13 is implemented in the CRTC wrapper with `t31a` pinning
 the no-skew half-phases; SHAKER Module A `(O)` plus a DE-pin capture remain required hardware
-validation. SKEW-DISPTMG 1/2 retains the p.195 rounded full-character displacement.
+validation. SKEW-DISPTMG 1/2 retains the p.196 rounded full-character displacement.
 
 ### F20 R2.JIT hardware gate
 
-ACCC v1.11 §14.6.1 p.141 is pinned through the production CRTC+GA timing path:
+ACCC v1.11 §14.7.1 p.142 is pinned through the production CRTC+GA timing path:
 type-0/type-1 dynamic `OUT (C),r8` equality starts blanking four/three Mode-2
 pixels after the normal start while the type-specific display-reactivation edge
 stays fixed, shortening the raw pulse by four/three pixels. The deterministic fixture

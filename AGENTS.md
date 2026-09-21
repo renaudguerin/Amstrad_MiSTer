@@ -164,18 +164,18 @@ make -C sim clean
   2026-08-26 for the F16, F17, and F18 closures:
   F16: type-0 post-IVM exit frozen C9.VMA line-end comparison retains the last
   computed IVM C9.VMA in exit_frozen_vma after leaving IVM (R8->0), comparing
-  it against plain R9 until match or IVM re-entry (ACCC section 19.8.1 p.220;
+  it against plain R9 until match or IVM re-entry (ACCC section 19.8.1 p.221;
   vectors t22l-t22s extended and t30a/t30b recovery recipe added); F17: type-1
   RFD triggered on C9=R9 disables the VMA-source state while arming the parity
-  flag (ACCC section 11.6.1 p.88 Case 2; t13d updated and t13n added); F18: type-1
+  flag (ACCC section 11.6.1 p.89 Case 2; t13d updated and t13n added); F18: type-1
   readable register matrix validated and pinned per ACCC section 21.2.2 (t01);
   previously `0x85b3f8e847430495`, re-minted 2026-08-26 for the F15 closure: type-0
   odd-R9 IVM counting is implemented — the limit target becomes
   R9+(ParityC9 xor R9.0) so rows end at the first C9.VMA at or past R9
-  (the p.206 5/4 alternation), the p.219 row-end ParityC9 update
+  (the p.207 5/4 alternation), the p.220 row-end ParityC9 update
   ParityC9=C4.0(new) xor ParityFrame is live for odd R9 with the origin
   re-anchoring it to the frame parity, the switch-line target is the
-  p.219 addition form R9+ParityFrame, and the section 19.5.2 VSYNC
+  p.220 addition form R9+ParityFrame, and the section 19.5.2 VSYNC
   delay-by-1-line correction fires on ParityFrame-odd frames when R7 is
   odd; even-R9 behavior is bit-identical to the previous mint;
   previously `0x627bdc9923a60677`, re-minted 2026-08-26 for the F14 closure: the
@@ -187,18 +187,18 @@ make -C sim clean
   (the extra line holds C9=0 at C4 one past the last adjustment row);
   previously `0x63d9de100ac9f6f2`, re-minted 2026-08-25 for the B-1 remediation:
   during type-1 IVM the VSYNC now starts at the half-line tick on the
-  ParityFrame-even frame (the p.208 MID-VSYNC prose) via a seam-latched
+  ParityFrame-even frame (the p.209 MID-VSYNC prose) via a seam-latched
   fire decision, while the odd-parity frame keeps the seam start;
   previously `0xd620fce8b1c05b25`, re-minted 2026-08-25 for the t24
   closure: during
   type-1 IVM the VSYNC now fires from the IVM-aware row-structure test on
   both frame parities and the legacy field=1 MID-VSYNC arm no longer
-  hijacks it (ACCC p.208 table; the engine arm also switched from plain
+  hijacks it (ACCC p.209 table; the engine arm also switched from plain
   C9==R9 to the IVM-aware row-end test); previously
   `0x801a59096c192d26`, re-minted 2026-08-25 for the F11h closure: the
   type-1 §20.3.2 row-0 VMA reload now samples the post-edge register file,
   so an R12/R13 write landing exactly on a row-0 line-boundary edge is
-  caught by that reload (ACCC p.242 chronogram 2); previously
+  caught by that reload (ACCC p.243 chronogram 2); previously
   `0xa9e5026de83d287c`, re-minted 2026-08-25 for the F10 review
   remediation: the type-1 leaving stage A now writes C9.0 (B-1), the
   §19.8.2 match-branch ParityC9 toggle also fires at frame boundaries

@@ -26,18 +26,18 @@ behavior, review remediation).
 
 ## Evidence base (all render-verified under `accuracy/extract/README.md`)
 
-- **pp.210-211** — the 16 SHAKER 22C/3 type-1 toggle panels. Every one of the 64 parity
-  callouts matches the p.209 pseudocode exactly, and every panel's C9 row matches the
+- **pp.211-212** — the 16 SHAKER 22C/3 type-1 toggle panels. Every one of the 64 parity
+  callouts matches the p.210 pseudocode exactly, and every panel's C9 row matches the
   two-stage model derived from it. These panels are the sole render-verified oracle for
   the type-1 R8-toggle semantics.
-- **pp.219-220** — the §19.8.1 pseudocode, the "next C0=0" latch rule, the exit rule
-  (C9.VMA vs plain R9), the p.220 Note extending the test to the VMA' save, and the
-  p.220 worked example (exit at C9.VMA=R9+1 → C9 increments to 4).
-- **pp.221-224** — the type-0 entry tables (switch at C9=0..6, even and odd frames) and
+- **pp.220-221** — the §19.8.1 pseudocode, the "next C0=0" latch rule, the exit rule
+  (C9.VMA vs plain R9), the p.221 Note extending the test to the VMA' save, and the
+  p.221 worked example (exit at C9.VMA=R9+1 → C9 increments to 4).
+- **pp.222-225** — the type-0 entry tables (switch at C9=0..6, even and odd frames) and
   exit tables. The C9-VMA columns and the pre-switch/overflow segments of the C9 columns
   are the oracle; the digest's flagged quirks (doubled values printed in the settled-C9
   column; post-exit C9-to-7 padding) are avoided, not asserted.
-- **p.205, p.208, p.209** — the §19.5.2/§19.5.3 parity-state prose.
+- **p.206, p.209, p.210** — the §19.5.2/§19.5.3 parity-state prose.
 
 ## The implemented models
 
@@ -47,7 +47,7 @@ behavior, review remediation).
   toggles at each genuine C4 increment when R9 is even.
 - An R8 write toggling IVM (0↔3, also 1↔3) runs the documented two-stage update:
   **stage A (3rd µs)** at the next character edge: `ParityC9 := C9.0 xor (C4.0 and not
-  R9.0)`, written into C9.0 **in both directions** — p.209 states the 3rd-µs rule once
+  R9.0)`, written into C9.0 **in both directions** — p.210 states the 3rd-µs rule once
   ("when R8 changes from 3 to 0 or vice versa"), and the four X=1 panels draw the C9.0
   change in the leaving write's 3rd-µs column (review B-1; an earlier direction-asymmetric
   reading here was an artifact of misaligning the panels' strip columns — each OUT is a
@@ -78,10 +78,10 @@ behavior, review remediation).
   forms from one comparison:
   - *value doubled* — on lines that started with IVM on. Latched at each C0=0 seam from
     the live R8 register, implementing "performed on the next C0=0, after the C9/R9 test
-    of the line" (p.219): the switch line tests raw C9, the doubled test starts the
+    of the line" (p.220): the switch line tests raw C9, the doubled test starts the
     following line.
-  - *target parity* — `R9 or ParityFrame` on the switch line (p.219), `R9 or ParityC9`
-    on steady IVM lines (p.220), plain R9 from the exit line on (p.220). The exit line's
+  - *target parity* — `R9 or ParityFrame` on the switch line (p.220), `R9 or ParityC9`
+    on steady IVM lines (p.221), plain R9 from the exit line on (p.221). The exit line's
     doubled-value-vs-plain-R9 form is the same two bits composed differently.
   - The seam capture uses the same composition with the new line's mode, and a
     line-scoped toggle status (set by the bus write, consumed at the next seam) carries
@@ -89,11 +89,11 @@ behavior, review remediation).
     only from the next line — the documented "after the test" race.
 - ParityC9 is seeded from ParityFrame when IVM turns on at a seam (the tables' doubled
   display carries the frame parity from the first doubled line). With even R9 it never
-  changes afterwards — the p.219 row-end update is absent (gate = R9 odd, Q19 resolved;
+  changes afterwards — the p.220 row-end update is absent (gate = R9 odd, Q19 resolved;
   see below and F15).
 - §19.5.2 parity rules: ParityFrame snapshots ParityR6 at the frame origin; ParityR6
   captures ParityFrame xor 1 when C4 reaches R6 (independent of R8; frozen when R6>R4).
-  The p.219 alternative frame-end toggle (`ParityFrame ^= ParityR6` at C4==R4) is
+  The p.220 alternative frame-end toggle (`ParityFrame ^= ParityR6` at C4==R4) is
   equivalent to the snapshot at the origin and is not duplicated.
 - The old approximation (C9 stepping by 2 with bit 0 masked, halved limit, field-OR into
   RA bit 0) is removed. Non-IVM behavior is bit-identical (t01-t20 green unchanged);
@@ -127,12 +127,12 @@ write/value port pairs.
 ## Deliberately unmodeled / open (with reasons)
 
 - **Odd-R9 alternation — IMPLEMENTED 2026-08-26 (finding F15, commits `5bec99a`/`1c1d084`)**
-  (the p.219 `If R9.0=0` gate token vs its own gloss): the token was
+  (the p.220 `If R9.0=0` gate token vs its own gloss): the token was
   adjudicated 2026-08-25 as a typo for `R9.0=1`. The implemented model: a steady IVM row ends
   at the first C9.VMA at or past R9 (target `R9 + (ParityC9 xor R9.0)`), ParityC9 :=
   C4.0(new) xor ParityFrame at every IVM row end with the origin re-anchoring it to the frame
-  parity, and the switch line tests raw C9 against R9 + ParityFrame (the p.219 overflow
-  sentence pins the addition form). Vectors `t29a`/`t29b` reproduce the rendered p.206 R9=7
+  parity, and the switch line tests raw C9 against R9 + ParityFrame (the p.220 overflow
+  sentence pins the addition form). Vectors `t29a`/`t29b` reproduce the rendered p.207 R9=7
   worked example line for line on both frame parities. Even-R9 behavior is bit-identical to
   the pre-F15 model (the addend reduces to the old R9-or-parity form).
 - **Post-exit row-end behavior** (seven non-match windows run C9 to 7 with R9=6; six keep C4
@@ -141,16 +141,16 @@ write/value port pairs.
   plain R9 after a non-matching R8=0 write: even frozen 6 resets, while even 0/2/4 and odd
   1/3/5/7 run through C9=7. This core instead resumes a live plain C9==R9 test on post-write
   lines (unpinned; the `t22` exit walks stop at the write line's seam). A persistent mismatch
-  can leave the row unable to complete until software changes the comparison state; p.220's
+  can leave the row unable to complete until software changes the comparison state; p.221's
   recovery rewrites R9 to frozen C9.VMA. The divergence is finding **F16** and needs fixtures
-  before RTL. The anomalous p.223 C4 cell is excluded, but its C9 run-on remains usable evidence.
+  before RTL. The anomalous p.224 C4 cell is excluded, but its C9 run-on remains usable evidence.
 - **Additional interlace line — IMPLEMENTED 2026-08-26 (finding F14, commit `5bec99a`)**
   (§19.6, both types): type 0 appends one line after the R5 adjustment lines when R8∈{1,3}
   and ParityR6 is odd (the line holds C4=R4+1/C9=R5, the frame origin moves to its end, and
   the R6>R4 freeze persists the gate — vectors `t27a`-`t27d`); type 1 defers the adjustment
   end by one line when R8∈{1,3}, ParityFrame is even and R9+1 is a multiple of R5 (the extra
   line holds C9=0 at C4 one past the last adjustment row — vectors `t28a`/`t28b`). Recorded
-  source-attribution residual: the section 11.2.3 p.84 worked example's R5=7 sub-case (8 not
+  source-attribution residual: the section 11.2.3 p.85 worked example's R5=7 sub-case (8 not
   a multiple of 7, yet the example shows the line) has no type-1 line under the section
   19.6.2 condition and is read as the CRTC 2 accounting (section 11.2.5); the example's
   R5=8 sub-case does match the implemented type-1 behavior.
@@ -160,18 +160,18 @@ write/value port pairs.
   episode the two diverge and no sourced table pins the hardware behavior (adjacent to
   Q12). The pre-F10 MID-VSYNC vectors (t02i, t09g) are unchanged and green. Narrowed
   2026-08-25 (t24 closure + review B-1 remediation): during type-1 IVM the VSYNC no longer
-  keys on `field` at all — p.208 pins the start line on both parities (t24a/t24b) and
+  keys on `field` at all — p.209 pins the start line on both parities (t24a/t24b) and
   schedules the MID-VSYNC on the ParityFrame-even frame, which the wrapper now implements
   from ParityFrame directly with a seam-latched fire decision consumed at the half-line
   tick (t24c); the residual covers type-0 IVM and the non-IVM post-episode divergence only.
 - **VSYNC delay-by-1-line correction for odd C4s — IMPLEMENTED 2026-08-26 (in F15,
-  commit `1c1d084`)** (§19.5.2, p.206-207): with R9 odd and R7 on an odd C4, the
+  commit `1c1d084`)** (§19.5.2, p.207-208): with R9 odd and R7 on an odd C4, the
   ParityFrame-odd frame fires one line later (second line of C4=R7, C9.VMA=2), keyed
   through two line-granular staged flops so the seam and half-line count paths move
   together; vector `t29c`. Type 1's documented *lack*
-  of the correction (p.208) is modeled and pinned by `t24a`/`t24b` (2026-08-25, t24
+  of the correction (p.209) is modeled and pinned by `t24a`/`t24b` (2026-08-25, t24
   closure: the pulse starts at the first line of C4=R7 on both frame parities, giving the
-  documented permanent 1-line gap for odd R7), together with the p.208 MID-VSYNC on the
+  documented permanent 1-line gap for odd R7), together with the p.209 MID-VSYNC on the
   ParityFrame-even frame (`t24c`, half-line start/end via a seam-latched fire decision).
   The within-line VSYNC phase on type-0 IVM frames still follows the legacy field-keyed
   mechanics (see the MID-VSYNC residual below) — F15 moves the start line only.
@@ -197,7 +197,7 @@ write/value port pairs.
 
 Reviewed 2026-08-25 by Claude Opus 5 (fresh session via the claude CLI): verdict NOT
 CLEAR on two blockings — B-1 (the leaving stage A must write C9.0; accepted against the
-panels and the p.209 prose) and B-2 (the §19.8.2 frame-boundary toggle split; accepted) —
+panels and the p.210 prose) and B-2 (the §19.8.2 frame-boundary toggle split; accepted) —
 plus 13 non-blockings. All blockings and accepted non-blockings are remediated (see the
 remediation section of `accuracy/archive/f10-independent-review.md`); N-4 and N-12 are recorded
 as scope note/erratum. The same-edge seam race was reviewed and judged defensible. Five

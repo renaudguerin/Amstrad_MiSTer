@@ -550,7 +550,7 @@ always @(posedge CLOCK) begin
 		// pins this production ratio. A JIT comparator hit starts immediately at
 		// the write phase. A JIT pulse keeps only the ordinary type-specific
 		// trailing-edge phase, not the later write phase: ACCC sections
-		// 9.3.4.1/9.3.4.3 pp.53-57 state that R2.JIT removes the left part of
+		// 9.3.4.1/9.3.4.3 pp.54-58 state that R2.JIT removes the left part of
 		// blanking without delaying display reactivation, shortening the physical
 		// pulse by 4/3 pixel-M2 on type 0/1 respectively.
 		if (hsync_off_pending) begin

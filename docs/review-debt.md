@@ -29,6 +29,16 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
+**ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — UNREVIEWED:** Opus shifted
+about 1,000 English page anchors (+1 from first-print p.29) and renumbered first-print English
+§14.4-14.8 to §14.5-14.9 across live docs, RTL and sim comments; only digits and chapter-14
+section numbers changed, and the selected benches pass. Look hardest at: unlabelled anchors that
+were really French (French pagination did not change, so a shifted French anchor is now wrong;
+ten were caught and reverted, IA-series citations are the riskiest); anchors inside multi-page
+sections, where the rule relied on the anchor predating the re-issue rather than on the section
+map; and the deliberately untouched anchors that fit neither print (compendium-02 §27.3-27.6,
+compendium-03 §20.4 p.243, `sim_main.cpp` "p.83 table"), which may be v1.10 leftovers.
+
 **Per-change simulation selection and one-run gate policy, 2026-09-15 — REVIEWED BY SPARK
 (Muse Spark 1.3 xhigh, run `20260915T120117Z-43757-1bbc`), declined findings open:** Opus
 wrote the parallel wrappers in `sim/Makefile` and `sim/plus/Makefile`, the bench index

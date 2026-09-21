@@ -1,5 +1,11 @@
 # ACCC v1.11 French/English consequential differences
 
+> **Edition note (2026-09-21).** This ledger compares the first v1.11 print. Its English page
+> anchors and chapter-14 English section numbers are first-print values; see
+> `extract/README.md` for the mapping to the 2026-09-11 re-issue, which is now the only edition
+> in use and corrects several of the English divergences recorded here
+> ([print-to-print diff](archive/accc-1.11-differences.md)).
+
 This is the curated finding ledger for the current French and English editions of *The
 Amstrad CPC CRTC Compendium*. It records only language differences that can change a rule
 reading, repository documentation, a test premise, RTL, hardware interpretation, or useful

@@ -22,7 +22,7 @@ Technical information sourced from *The Amstrad CPC CRTC Compendium* by Longshot
 
 ## 1. §19.5.2 — English Edition Omits the Repeated IVM Activation Qualifier (CRTC 0)
 
-**Location:** English p.206, Note and worked-example introduction (diagram p.207);
+**Location:** English p.207, Note and worked-example introduction (diagram p.208);
 French pp.207–208, with the qualifier on p.208.
 
 **Resolved by comparing editions:** The French v1.11 example specifies that R8 goes to 3
@@ -38,7 +38,7 @@ R8-to-3 activation on C4=1, C9=0, matching the French edition.
 remain stable, frame origins continue to occur, and C4 continues to reach R6, the documented
 counter/parity rules imply a return to the normal row-count pattern at the next frame origin:
 `ParityFrame` is loaded from `ParityR6`, and for odd R9 the row parity is recalculated from
-`C4.0 xor ParityFrame` (§19.5.2 English pp.205–206; §19.8.1 French p.220, English p.219).
+`C4.0 xor ParityFrame` (§19.5.2 English pp.206–207; §19.8.1 French p.220, English p.220).
 This deduction does not
 undo the elapsed timing offset caused by the transition. `ParityR6` persists across frames
 and can freeze when R6 is unreachable; frame totals also depend on register programming.
@@ -51,7 +51,7 @@ there is no outstanding author question about a hidden recovery latch based on t
 
 ## 2. §11.3.2 — Confirm the C4 Reset Route During Stuck R5=0 Adjustment (CRTC 1)
 
-**Location:** English §11.2.4 p.84 and §11.3.2 pp.85–86; French §11.2.4 p.85 and
+**Location:** English §11.2.4 p.85 and §11.3.2 pp.86–87; French §11.2.4 p.85 and
 §11.3.2 p.87.
 
 **Source tension:** §11.2.4 says that C4 increments without considering R4 during adjustment.
@@ -98,33 +98,33 @@ as hardware confirmations.
   *(Fixed in English v1.11 re-issue p.18: "same line ... BUT before it")*
 - **§4.4.2 p.24:** French correctly says `INI` increments HL; English says it decrements HL.
   *(Fixed in English v1.11 re-issue p.24: "HL increment, B decrement")*
-- **§10.3.1.2 FR p.77 / EN p.76:** French uses `C9<>R9`; English's `C9<=R9` loses the
+- **§10.3.1.2 FR p.77 / EN p.77:** French uses `C9<>R9`; English's `C9<=R9` loses the
   C9>R9 overflow route.
   *(Fixed in English v1.11 re-issue p.67: "C9 <> R9")*
-- **§12.2.1 FR p.96 / EN p.94:** French gives complementary RLAL write windows—line N at
+- **§12.2.1 FR p.96 / EN p.95:** French gives complementary RLAL write windows—line N at
   `C0>1`, or N+1 at `C0<2`. English omits the line-N condition.
   *(Fixed in English v1.11 re-issue p.85: "on this line N when C0>1 or on the line N+1 when C0<2")*
-- **§13.7.2 FR pp.126–128 / EN pp.124–126:** English changes `C0=0` to `C0=R0`,
+- **§13.7.2 FR pp.126–128 / EN pp.125–127:** English changes `C0=0` to `C0=R0`,
   `C4=R4` to `C4=C4`, reverses the no-adjustment condition, omits the additional `C4=R4`
   conjunct from the **initial programmed-increment sentence** in the R0=1 case, and says R5
   where French and the 8–31 example require `R5-1`. Both editions separately describe the
   later partially completed overflow after C4 has diverged.
   *(Fixed in English v1.11 re-issue pp.115–116, aligned with French text)*
-- **§16.2.1 FR p.162 / EN p.160:** the English R7.NJIT heading incorrectly imports the JIT
+- **§16.2.1 FR p.162 / EN p.161:** the English R7.NJIT heading incorrectly imports the JIT
   definition and makes its condition inconsistent.
   French defines NJIT as programming R7 before C4 reaches it and JIT as programming R7 with
   the current C4 value.
   *(Fixed in English v1.11 re-issue p.161: "If R7 is programmed before C4=R7:"; French p.162 also clarified with "lorsque C4<>R7")*
-- **§16.3 and §16.4.4 FR pp.169,172 / EN pp.167,170:** English §16.3 omits the complete
+- **§16.3 and §16.4.4 FR pp.169,172 / EN pp.168,171:** English §16.3 omits the complete
   `C4=R7,C9=0,C0=0` parenthetical. English §16.4.4 retains that headline condition but omits
   C9>0 from the later sentence describing when an R7 write fails to trigger VSYNC.
   *(Fixed in English v1.11 re-issue pp.168, 171: parenthetical added to §16.3, "and/or C9>0" added to §16.4.4)*
-- **§17.2.2 FR p.180 / EN p.178:** French derives row-select bits from C9; English adds C5.
+- **§17.2.2 FR p.180 / EN p.179:** French derives row-select bits from C9; English adds C5.
   *(Fixed in English v1.11 re-issue p.179: "(C9)" without C5)*
-- **§18.3.2 FR p.191 / EN p.190:** French tests whether R6 is zero when C0 reaches R1;
+- **§18.3.2 FR p.191 / EN p.191:** French tests whether R6 is zero when C0 reaches R1;
   English changes this into the historical condition that R6 was zero at least once.
   *(Fixed in English v1.11 re-issue p.191: "if R6 is 0 when C0=R1, the BORDER becomes definitive")*
-- **§19.5.5 FR p.214 / EN p.213:** French and the later English explanation say CRTC3/4
+- **§19.5.5 FR p.214 / EN p.214:** French and the later English explanation say CRTC3/4
   ParityC9 changes for odd R9; the opening English bullet says even.
   *(Fixed in English v1.11 re-issue p.214: "if R9 is odd")*
 - **§20.3.2 p.242:** French says type 1 reloads VMA at every C0=0 while C4=0,
@@ -155,7 +155,7 @@ as hardware confirmations.
    *(In print in French v1.11 re-issue p.202: "lorsqu’un nouveau frame débute (lorsque C4=C9=0)")*
 7. **§19.5.3 FR p.209:** yes, `ParityC9=ParityFrame` is explicit at every type-1 frame start.
    *(In print in English v1.11 re-issue p.209: "At the beginning of the Frame, ParityC9=ParityFrame.")*
-8. **§22 EN p.250:** the warning is intentionally low-importance guidance and is intended to
+8. **§22 EN p.251:** the warning is intentionally low-importance guidance and is intended to
    be restored to French.
    *(In print in French v1.11 re-issue p.250)*
 
@@ -167,7 +167,7 @@ English unnumbered continuation, French 14.8 / English 14.7, 15.4.1, 16.4.1–3,
 §§23.2, 23.3, and 28.1.9.
 
 **Status in the v1.11 re-issue**:
-- English §14.4 heading numbered and restored on p. 123.
+- English §14.4 heading numbered and restored on p. 133.
 - English §14.9 ("HSYNC SCHEMATICS", pp. 144–145) added to match French §14.9 with complete chronograms.
 - Dangling §20.3.3 CRTC 3/4 sentence removed from both editions (FR p. 243, EN p. 244).
 - Z80 instruction timing table typo `LD R,A / LD A,R` fixed in both editions (FR p. 282, EN p. 283).

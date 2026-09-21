@@ -95,9 +95,12 @@ PY
   French pages are 40-41, 182-183, and 280. Render these before comparing their contents.
 - French and English pagination diverges because translated prose reflows. Align by section
   number and then record both page anchors; never assume equal PDF page numbers.
-- Page anchors written before the 2026-09-11 re-issue: French anchors are unchanged. English
-  anchors from p.29 onward are one lower than the current English edition (the re-issue adds
-  a page before p.29 and restores §14.9 on pp.144-145). The section number is the durable key.
+- Live docs and code comments cite the re-issue; their first-print English anchors were migrated
+  on 2026-09-21. Archived and dated records, and the bilingual ledger
+  `accc-1.11-fr-en-differences.md`, keep first-print anchors. To read those: French pages are
+  unchanged; English pages from p.29 onward are one lower than the re-issue, and English
+  §14.4-§14.8 of the first print are §14.5-§14.9 today (the first print left today's §14.4,
+  the C-HSYNC table continuation, unnumbered). The section number is the durable key.
 
 ## Produced files
 
