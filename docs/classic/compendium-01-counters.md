@@ -198,7 +198,7 @@ was retired by the 2026-08-22 review:
   only holds if R4 was NOT rewritten to >0 exactly at C0==R0 entering adjustment; if it was,
   VMA is NOT updated from R12/R13 at C4==1. Conversely (§11.2.4 note, p.84): an **R9** write
   landing exactly at `C0==R0` entering adjustment does **not** cancel this behaviour — only the
-  R4(>0) rewrite does. (F8 corner rule; the untested corner is recorded in docs/review-debt.md.)
+  R4(>0) rewrite does. (F8 corner rule; the corner is recorded as review action items A1/A2, now done, in docs/archive/review-debt-cleared.md.)
 - Adjustment becomes **irreversible** only once `C4==R4 && C9==R9` is true exactly at
   `C0==R0`. Before that instant, rewriting R4/R9 so the equality fails aborts/postpones
   adjustment. But if the equality still holds AND R4/R9 are rewritten *simultaneously* at that

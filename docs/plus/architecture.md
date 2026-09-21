@@ -141,7 +141,7 @@ so the classic client behavior and SDRAM map are unchanged.
 
 ### CPR parser policy (P0 decisions)
 
-Recorded against review `cd47d7d` observations (review-debt action item A5); the parser is
+Recorded against review `cd47d7d` observations (review-debt action item A5, `docs/archive/review-debt-cleared.md`); the parser is
 fail-closed untrusted-input handling and these decisions keep it that way.
 
 - **Oversized `cbNN` chunks abort the load.** A block chunk declaring more than one
