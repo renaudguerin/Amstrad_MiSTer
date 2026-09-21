@@ -58,4 +58,4 @@ This diff implements the hardware test remediations identified during physical M
 ---
 
 ## 3. Review Debt Statement
-Per repository policy ([`AGENTS.md:189-190`](file:///Users/renaudg/code/Amstrad_MiSTer-plus/AGENTS.md#L189-L190)), because third-party provider quota was exhausted prior to finalizing the external review thread, this implementation is self-reviewed and an open debt row is recorded in [`docs/review-debt.md`](../review-debt.md).
+Per repository policy ([`AGENTS.md:189-190`](file:///Users/renaudg/code/Amstrad_MiSTer-plus/AGENTS.md#L189-L190)), because third-party provider quota was exhausted prior to finalizing the external review thread, this implementation is self-reviewed and an open debt row is recorded in [`docs/review-debt.md`](../../review-debt.md).

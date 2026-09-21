@@ -15,7 +15,7 @@ publication contracts below. Fable's second verdict was “CHANGES REQUIRED,
 converged. No architecture blocker.” The contracts below incorporate the accepted
 findings and parent corrections; they authorize a local, default-off experimental
 implementation, not bandwidth or device acceptance. See the
-[review and parent disposition](csl-ssm-design-review-2026-09-12.md).
+[review and parent disposition](../archive/csl-ssm-design-review-2026-09-12.md).
 
 The [marker inventory](shaker-ssm-marker-inventory-2026-09-12.md) establishes that
 SHAKER patches ordinary per-test codes into an `ED 00 ED 00` template at run time.
@@ -196,7 +196,7 @@ simulatable from one Verilator fixture. The motherboard exports the raw tap only
 SHAKER portal (not CRTC behaviour, so no ACCC attribution is required, but keep the
 Logon System credit). Input is the M1 opcode-fetch byte stream. The motherboard already
 observes that byte for Plus open-bus behaviour in
-[Amstrad_motherboard.v](../rtl/Amstrad_motherboard.v)
+[Amstrad_motherboard.v](../../../rtl/Amstrad_motherboard.v)
 (`~M1_n & ~MREQ_n & ~RD_n`, byte from `cpu_data_bus`). Reuse the condition and prove
 the SSM sample edge against CPU bus validity and wait states. One sample per
 fetch: derive a fetch strobe from the falling edge of that condition, not a level.
@@ -301,7 +301,7 @@ follow-ups, not a reason to postpone a script that does not exercise them.
 
 **Status 2026-09-12:** items 1 to 5 are implemented in the uncommitted source,
 including focused host and stalled-write regressions. Final gate/review results belong
-in [the review record](csl-ssm-design-review-2026-09-12.md); the DDR interval and device
+in [the review record](../archive/csl-ssm-design-review-2026-09-12.md); the DDR interval and device
 startup behavior remain separate prerequisites.
 
 1. **Publish startup before events: first-run prerequisite.** Write a magic/version
@@ -399,7 +399,7 @@ cross-provider implementation review before integration; this review does not re
 native write stream into bounded time windows, with host decoding and finite retention.
 It removes mirrored writes, per-address cloning and a mandatory host-release mailbox.
 Fable's suggestion motivates this direction; its pass stamps and sizing are not accepted
-without the counterexamples in [the review disposition](csl-ssm-design-review-2026-09-12.md).
+without the counterexamples in [the review disposition](../archive/csl-ssm-design-review-2026-09-12.md).
 The device run supplies marker timing and host service measurements, not an automatic
 proof of framebuffer reconstruction.
 
@@ -477,7 +477,7 @@ not automatically serve every policy.
 
 Start with a **native, converted-colour capture**, before gamma, scandoubling, HQ2x
 and crop, at the existing `amstrad_video_color` output inside
-[`amstrad_video_output.sv`](../rtl/amstrad_video_output.sv). Retain 8 bits each of R/G/B
+[`amstrad_video_output.sv`](../../../rtl/amstrad_video_output.sv). Retain 8 bits each of R/G/B
 and the aligned HSync/VSync/HBlank/VBlank tuple from that same boundary. This preserves
 the classic DAC lookup and Plus expansion. Four input bits per channel at the motherboard
 are not four output intensity bits: classic low bits encode the GA level/OE pair.
@@ -592,7 +592,7 @@ do not silently change the existing reader.
 **Status 2026-09-12: a prototype implementing these contracts is in source and
 uncommitted; final source verification is recorded in the review document.** `rtl/ssm_sample_recorder.v` is the recorder,
 `rtl/ssm_ddr_arb.v` gives the DDR3 write port one owner, `rtl/amstrad_video_output.sv`
-carries the observation tap, `docs/ssm-capture-abi.md` is the concrete ABI and
+carries the observation tap, `docs/investigations/ssm-csl/ssm-capture-abi.md` is the concrete ABI and
 `scripts/hardware-loop/ssm_capture.py` the independent host decoder. The switch is
 `SSM_SAMPLE_RECORDER`, undefined in `Amstrad.sv`, so the default build is the phase 1
 build. Simulation parameter overrides live in `sim/ssm_recorder_top.v`.
@@ -735,6 +735,6 @@ machine selection remain recorded metadata. Capture ABI v1 represents at most tw
 predecessors. Commit and descriptor identities bracket payload retrieval; source-level
 ordering is not proof of atomic HPS visibility.
 
-The [review record](csl-ssm-design-review-2026-09-12.md) owns final source acceptance and
+The [review record](../archive/csl-ssm-design-review-2026-09-12.md) owns final source acceptance and
 gate results. Hardware allocation, ordering, throughput, measured raster profiles and
 SHAKER photographic acceptance remain open.

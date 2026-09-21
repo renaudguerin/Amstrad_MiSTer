@@ -3,7 +3,7 @@
 **Status:** implemented and validated locally, 2026-09-11; source review is
 CLEAR. Fable's required fixture correction is incorporated. The broader
 diagnostic matrix and hardware acceptance remain open; see the
-[review and validation record](b6-video-boundary-review-2026-09-11.md).
+[review and validation record](../archive/b6-video-boundary-review-2026-09-11.md).
 **Source base:** `20ed4d3c1ac2afcea5bd5ff536c13bdf7d01b8da`.
 
 This completes the video-boundary part of the [B6 decision](b6-architecture-decision.md).
@@ -305,7 +305,7 @@ intervals per frame; HSYNC edge counting is not an acquisition-width oracle.
 | Plus nonzero word, scroll and an opaque sprite | byte assembly preserved; blank wins through the selected final colour path |
 | Raw CRT with retained HQ2x/crop/forced-scandoubler | actual core output policy remains native and unresampled |
 
-The [validation record](b6-video-boundary-review-2026-09-11.md#acceptance-limits)
+The [validation record](../archive/b6-video-boundary-review-2026-09-11.md#acceptance-limits)
 states which observations are established by the complete motherboard,
 colour boundary or output-policy fixtures. The September 12 follow-up adds
 CPU-written short/missing/multiple sync, changing blanking and restoration

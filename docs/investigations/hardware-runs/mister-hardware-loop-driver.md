@@ -388,7 +388,7 @@ capture via `/dev/MiSTer_cmd`) is 100% faithful for all SHAKER testing with zero
 bandwidth overhead and zero memory hazard.
 
 The Phase 2 specification, layout, and git resurrection paths remain preserved in
-[`docs/ssm-capture-abi.md`](../ssm-csl/ssm-capture-abi.md).
+[`docs/investigations/ssm-csl/ssm-capture-abi.md`](../ssm-csl/ssm-capture-abi.md).
 
 ```bash
 python3 scripts/hardware-loop/ssm_capture.py decode --region dump.bin \

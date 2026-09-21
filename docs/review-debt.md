@@ -33,7 +33,7 @@ in `docs/current-status.md` and `docs/backlog.md`. Device acceptance on hardware
 Arnold-revision §2.4 formula `0 PRI7..PRI0 == VC5..VC0 RC2..RC0`. The previous
 don't-care fired PRI=&37 again on line 311, which loaded Copter 271's title sky palette
 55 lines early (MiSTer captures versus AmSpirit, both under ignored
-`docs/references/copter271-2026-09-13/`). `sim/plus/asic_pri_test.cpp` pr02 was
+`local/test_media/defects/copter271/`). `sim/plus/asic_pri_test.cpp` pr02 was
 rewritten from the old n/n+256 expectation and failed on the old RTL before the fix;
 pr03 now picks a line with bit 8 clear. Look hardest at: whether any other consumer of
 `crtc_line` relied on the alias (SPLT is a separate 8-bit compare in `asic_video.v` and
@@ -105,7 +105,7 @@ Sol cleared the source committed at `94725cc` after independently reproducing th
 failure probes. Gemini run `20260912T173536Z-26982-c83d` separately cleared the parent
 corrections and final regressions. Full simulation, 183 host tests, 21 recorder tests,
 five composition tests, lint and the unchanged soak hash pass. Reviewed source hashes
-and gate evidence are recorded in [the design/implementation review](investigations/ssm-csl/csl-ssm-design-review-2026-09-12.md).
+and gate evidence are recorded in [the design/implementation review](investigations/archive/csl-ssm-design-review-2026-09-12.md).
 These passes cover the changed SSM paths; they do not silently discharge the older
 power-on folding, CFG restoration, keymap or production T80pa evidence debt above.
 **B4 Phase 2 retirement and pruning, 2026-09-13 — source review CLEAR:** Claude Opus 5
@@ -115,7 +115,7 @@ disabled Phase 2 sample recorder (`rtl/ssm_sample_recorder.v`, `rtl/ssm_recorder
 Verdict: **CLEAR / PRUNE**. Confirmed severability: Phase 1 format-1 ring ABI is 100%
 untouched, `obs_*` video tap in `rtl/amstrad_video_output.sv` is preserved for B8-6 coverage,
 and `Amstrad.sv` severs cleanly into standalone Phase 1 DDRAM routing. Git recovery path
-is recorded in `docs/ssm-capture-abi.md`.
+is recorded in `docs/investigations/ssm-csl/ssm-capture-abi.md`.
 
 
 **B6 rendering follow-up, 2026-09-12 — source review CLEAR:** Gemini
@@ -168,13 +168,13 @@ cross-provider review before READY.
   The original artifact retains its then-open rendering limits; the September
   12 follow-up above adds final-RGB, dynamic-raster and scroll/sprite evidence.
   Physical HDMI/CRT and the unestablished stuck-high CPU recipe remain open. See
-  [review and validation](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md).
+  [review and validation](investigations/archive/b6-video-boundary-review-2026-09-11.md).
 
 - **D3 render timing selector — CLEAR.** Fresh Gemini 3.8 Flash high review
   of the bounded combinational rewrite found no material issue. All 2,097,152
   binary selector inputs match `f8e9372`; full simulation and lint pass.
   Full-fit CI for `6a06ec9` passes setup/hold timing with zero TNS. See
-  [timing follow-up](plus/d3-render-timing-2026-09-11.md).
+  [timing follow-up](plus/archive/d3-render-timing-2026-09-11.md).
 
 - **D3/D4 sprite prefetch and PPI readback — CLEAR, integrated from refreshed
   `cc9d704` (feature tip `5c58fe7`).** Opus 5 high reviewed the prediction
@@ -238,7 +238,7 @@ cross-provider review before READY.
   distinction; the fresh B3 integration review confirmed the notes remain
   comment-only and compatible with the current drain/reset path. Snapshot
   apply changes must keep these current comments accurate. See the
-  [contract record](plus/p10j-contract-review-2026-09-03.md).
+  [contract record](plus/archive/p10j-contract-review-2026-09-03.md).
 
 - **Plus B3 bounded frame capture — CLEAR, integrated from `bb77075`.**
   The original Gemini review cleared the capture/CLI implementation with one
@@ -246,7 +246,7 @@ cross-provider review before READY.
   `20260908T053839Z-2528-42c3` clears compatibility with `22202b8`, including
   both merge resolutions, retained B8-4/FDC test bodies, exclusive output and
   reduced-TV80/fixture-clock limits. It did not rerun the full gates. See
-  [integration evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
+  [integration evidence](investigations/archive/preserved-work-integration-2026-09-08.md).
 
 **Status: zero unresolved independent-review findings on these reviewed
 candidates.** The validation residuals below are not hardware evidence and do
@@ -262,7 +262,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   Corrected CI `34180289243` independently executed the full simulation/lint
   gate successfully on pinned 5.050 at `9cfe743`. The weaker-than-Opus model
   review itself does not claim local 5.050 execution. See
-  the [B8-6 evidence](plus/b8-6-colour-boundary-2026-09-08.md).
+  the [B8-6 evidence](plus/archive/b8-6-colour-boundary-2026-09-08.md).
 
 - **B8-6 Plus RGB/sync/blanking alignment — CLEAR, integrated from refreshed
   `2bb75b5` (original accepted `023d020`), 2026-09-08.** Opus/high reviewed
@@ -270,7 +270,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   Gemini/high review. Refresh changed only shared manifest/document reconciliation;
   production RTL and the test body are identical to the reviewed source.
   Full mixer/HQ2x/freeze, production-T80 and hardware acceptance remain outside
-  this review. See the [B8-6 evidence](plus/b8-6-colour-boundary-2026-09-08.md).
+  this review. See the [B8-6 evidence](plus/archive/b8-6-colour-boundary-2026-09-08.md).
 
 - **B8-1 production-phase R5/R0 event retention — SCOPED CLEAR, integrated
   from `c1d2add`, 2026-09-08.** Accuracy source `8c29248` has Gemini/high and
@@ -301,8 +301,8 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   author response and consequence audit, IA-5 discriminator, and FDC records
   stay in place; published ACCC v1.11 unchanged. The stashed u765 pre-edge
   discriminator (`0fe18a4513a47e4f21e0f504f002673a853388c3`) is FDC recovery,
-  not suite failure. Records: `docs/accuracy/classic-review-2026-09-03.md`
-  §1, `docs/plus/plus-review-2026-09-03.md` §1. No hardware residual for this
+  not suite failure. Records: `docs/classic/archive/classic-review-2026-09-03.md`
+  §1, `docs/plus/archive/plus-review-2026-09-03.md` §1. No hardware residual for this
   row.
 
 - **B3 P10 VRAM/frame-tap foundation — CLEARED, read-only review 2026-09-03
@@ -322,7 +322,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   Retained limits: Off/raw default, 32-read/≥4-address coverage, no runtime
   CPR writer yet, TV80-surrogate CPU boundary, unfinished capture work in
   stash `0fe18a4513a47e4f21e0f504f002673a853388c3`. Record:
-  `docs/plus/b3-frame-harness-review-2026-09-03.md`.
+  `docs/plus/archive/b3-frame-harness-review-2026-09-03.md`.
 
 - **B6 conditional menu visibility — CLEARED, Claude Opus 5 high 2026-09-02
   at `a98590a`, reconciliation 2026-09-03.** The production
@@ -334,11 +334,11 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   `ioctl_index`/VDNUM renumbering), and detach ownership with CPR-image
   survival. Non-blocking doc follow-ups retained: **B6-1** `R[32]` mislabeled,
   no capability prefix; **B6-2** raw-`status[34:33]` mask timing undocumented
-  in `docs/b6-architecture-decision.md`. Actual OSD rendering (hide-vs-grey,
+  in `docs/investigations/video-boundary/b6-architecture-decision.md`. Actual OSD rendering (hide-vs-grey,
   `S`/`F` vs `O` rows, HPS path read-verified only) is UI/hardware
   validation, not review closure. Focused mask, full simulation, and lint
-  pass. Records: `docs/b6-b10-review-2026-09-02.md`,
-  `docs/plus/plus-review-2026-09-03.md` §2.
+  pass. Records: `docs/investigations/archive/b6-b10-review-2026-09-02.md`,
+  `docs/plus/archive/plus-review-2026-09-03.md` §2.
 
 - **Accuracy Round 2 consequence and B1 hybrid blanking — CLEARED, Muse
   read-only review 2026-09-03 at `a98590a` (feature tip `eb45555`).**
@@ -354,7 +354,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   192 classic + 9 blanking vectors, soak `0x2263c9fc44af4ee7` reported (gates
   confirmed by the integration owner on the next touching commit).
   SHAKER/DSC4/Amazing-Demo A/B remain validation evidence, not review
-  closure. Record: `docs/accuracy/classic-review-2026-09-03.md` §2.
+  closure. Record: `docs/classic/archive/classic-review-2026-09-03.md` §2.
 
 - **Accuracy OSD sync-filter toggle — CLEARED, Muse read-only reviews
   2026-09-03 at `a98590a` (`74882c7`, merge `0e3a248`).** Two-bit
@@ -363,8 +363,8 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   map; benches retargeted to explicit raw; production tuple pinned by
   `test_production_mode_selector`. Live-blanking geometry is owned by the B1
   row; actual OSD rendering is UI/hardware validation. Records:
-  `docs/accuracy/classic-review-2026-09-03.md` §3,
-  `docs/plus/plus-review-2026-09-03.md` §3.
+  `docs/classic/archive/classic-review-2026-09-03.md` §3,
+  `docs/plus/archive/plus-review-2026-09-03.md` §3.
 
 - **Plus B7 dark-silicon signal-path mutation audit — CLEARED (primary claim),
   Muse read-only review 2026-09-03 at `a98590a` (`d942435` + `1bcf65a`).**
@@ -379,7 +379,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   baselines identical across CRTC types (no type-divergent coverage), and the
   CPU bus/cycle/IRQ signature uses the TV80/T80pa-wrapper surrogate —
   interrupt-ack/exact bus timing remain synthesis/hardware boundaries.
-  Record: `docs/plus/plus-review-2026-09-03.md` §5.
+  Record: `docs/plus/archive/plus-review-2026-09-03.md` §5.
 
 - **Plus hardware-defect triage and production seam — CLEARED (source/test),
   Muse read-only review 2026-09-03 at `a98590a` (scope `ea0e0bd`).**
@@ -394,7 +394,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   CRTC3-leak trace, System-CPR + real-T80/full-top closure, exact-tip
   Quartus/hardware, TV80-vs-VHDL-T80 and mag/model limits. Burnin' Rubber
   right-edge stays a regression target without proven causality. Record:
-  `docs/plus/plus-review-2026-09-03.md` §6. FDC remains shared classic/Plus
+  `docs/plus/archive/plus-review-2026-09-03.md` §6. FDC remains shared classic/Plus
   work owned by the active recovery session (stash
   `0fe18a4513a47e4f21e0f504f002673a853388c3` preserved).
 
@@ -420,8 +420,8 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   invalid-chunk retention unpinned — fixture proves only `addr_valid=0`;
   **B10-2** (low) instance shadows module name; **B10-3** (low)
   `page`/`combo` ownership comment. Records:
-  `docs/b6-b10-review-2026-09-02.md`,
-  `docs/plus/plus-review-2026-09-03.md` §2.
+  `docs/investigations/archive/b6-b10-review-2026-09-02.md`,
+  `docs/plus/archive/plus-review-2026-09-03.md` §2.
 
 - **Accuracy IA-6 type-0 R0=1 widening persistence — CLEARED, Gemini 3.7
   Flash high fallback, 2026-08-31.** Gemini authored the focused `t35a`
@@ -490,7 +490,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   `sim/plus/p10_boot_test_top.v`, `sim/plus/p10_boot_test.cpp`, `sim/plus/plus_p8_test_top.v`,
   `sim/plus/plus_p8_test.cpp`, `sim/plus/asic_dma_test.cpp`, `sim/plus/asic_sprites_test.cpp`,
   `sim/plus/asic_video_test.cpp`, the P10 input and P4 real-register sprite fixtures, and
-  `docs/plus/hardware-test-round2-2026-08-30.md`. Review:
+  `docs/plus/archive/hardware-test-round2-2026-08-30.md`. Review:
   1. P10a real T80 boot harness execution and sub-cycle clock enable / WAIT integration.
   2. CF-1 physical Port C output driving from `opc_r` in Plus mode under `mode 0x9B` and `0x92` in `rtl/i8255.v`.
   3. CF-2/CF-3 FDC/motor gating with `plus_has_fdc`, tape gating with `plus_has_tape`, `u765.reset` and `motor` synchronous reset in `Amstrad.sv` and `rtl/Amstrad_motherboard.v`.
@@ -505,14 +505,14 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   boundaries, exact full-effort timing/RBF evidence, and title-level hardware retests remain
   validation residuals, not independent-review debt. Classification record prepared by the
   Plus stream at commit `688fb7ad` in
-  `docs/plus/p10-review-debt-status-2026-08-31.md`; the file joins this history when that
+  `docs/plus/archive/p10-review-debt-status-2026-08-31.md`; the file joins this history when that
   stream integrates.
   **REVIEWED, NOT CLEARED — Claude Opus 5 xhigh, 2026-08-29.** The independent
   review confirmed a CPC+ SNA RMR2/unlock restore defect, tautological FDC
   decoder tests, absent production DMA/PPI WAIT and tape coverage, an unmet
   exact-tip timing gate, and sprite test/in-flight-state gaps. The debt remains
   open pending focused remediation, parent gates, and fresh re-review. Full
-  verbatim record: `docs/plus/p10-independent-review.md`.
+  verbatim record: `docs/plus/archive/p10-independent-review.md`.
   **REMEDIATION INTEGRATED FOR HARDWARE CHECKPOINT — feature tip `1d1795b4`.**
   The integrated checkpoint shares the classic/Plus FDC decoder between production and its
   truth-table test, retains SNA RMR2/unlock through delayed apply, separates
@@ -528,7 +528,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   pre-existing status-2 frame timer whose origin condition disagreed with the
   pointer reload it claimed to mirror, plus sprite-test fidelity and several
   low-severity architecture/source-residual notes. Full verbatim record:
-  `docs/plus/p10-hardware-remediation-independent-review.md`.
+  `docs/plus/archive/p10-hardware-remediation-independent-review.md`.
   **SECOND-REVIEW REMEDIATION INTEGRATED:** the three blockers
   have focused fixes; the frame-timer condition has been unified with the
   selected ACCC v1.11 section 20.3.4 reading, whose same-page C9 wording conflict
@@ -570,7 +570,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   enough accepted bytes beyond the wait watermark can lap the pointers and make
   `busy` deassert with writes outstanding. The production lifecycle expressions
   were traced as sound but remain outside local top-level elaboration. Full
-  verbatim record: `docs/plus/p10-hardware-remediation-independent-review.md`.
+  verbatim record: `docs/plus/archive/p10-hardware-remediation-independent-review.md`.
   **TAIL/FIFO REMEDIATION IN THIS FOLLOW-UP:** the P8 fixture now evaluates the falling
   `sna_download` edge before reading `sna_busy` and requires the exact six writes produced by
   its two already-admitted tail bytes. The FIFO wait watermark is three entries rather than
@@ -652,12 +652,12 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   `0x32d468e81eac63c9`, tracked and supplied EDSK image tests, and whitespace
   gates pass. Hardware SHAKER/DE validation and a title-level The Demo trace
   remain evidence gaps, not review debt. Full record:
-  `docs/accuracy/f13-f20-fdc-independent-review.md`.
+  `docs/classic/archive/f13-f20-fdc-independent-review.md`.
   The later real-u765 follow-up at feature tip `457a3b4` was independently reviewed by the
   guarded Claude bridge with verdict CLEAR-with-findings. Four mutations proved cancelled
   request retention, ACK-history drain, stale-buffer quarantine, and global metadata-reload
   ownership load-bearing. The fixture's automatic-EOT C/R oracle was removed, and the
-  two-drive and no-ACK liveness limits are explicit residuals in `docs/fdc-review-2026-08-30.md`.
+  two-drive and no-ACK liveness limits are explicit residuals in `docs/investigations/fdc-timing/fdc-review-2026-08-30.md`.
   A final native re-review found no RTL or test blocker. This follow-up adds no review debt.
 
 - `plus/hardware-checkpoint` — **CLEARED 2026-08-28 — OpenAI Codex**. Scope: `Amstrad.sv`,
@@ -668,7 +668,7 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
   and HF-3 Plus MMU/SDRAM bank select (`mem_bank` following Bank 0 for Plus models, `ram64k` governing
   128KB banking, 464+ snapshot type 5 mapping, and classic `sna_load` bridge). Full simulation gates
   (`make -C sim`, `make -C sim lint`) and unit tests (`t05i`, `t05j`, `m12`) pass clean with 0 errors.
-  Verdict CLEAR. Full record: `docs/plus/hardware-fixes-independent-review.md`.
+  Verdict CLEAR. Full record: `docs/plus/archive/hardware-fixes-independent-review.md`.
 
 
 - `accuracy/f19-type0-c0-timing` — **CLEARED 2026-08-28 — OpenAI Codex.** Behavioral B1
@@ -911,7 +911,7 @@ as settled or upstreamed. The original 2026-08-22 locked decision applied this r
 ox-alpha-authored branches; later rows reuse the same branch-level mechanism and state their
 own authorship/review requirements. The original reviewer's guide with per-commit rationale,
 evidence commands, and a prioritized reading list is
-`docs/accuracy/type-split-review-guide.md`.
+`docs/classic/archive/type-split-review-guide.md`.
 
 | Branch | Scope of the whole-branch review | Status |
 |---|---|---|

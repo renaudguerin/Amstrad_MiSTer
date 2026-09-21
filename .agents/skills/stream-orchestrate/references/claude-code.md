@@ -26,6 +26,6 @@ session with access to that checkout, or hand off the exact READY branch/tip. No
 
 Sources: [worktrees](https://code.claude.com/docs/en/worktrees),
 [hooks](https://code.claude.com/docs/en/hooks), and the dated repository
-[Desktop investigation](../../../../docs/stream-orchestration-revisit-2026-09-07.md).
+[Desktop investigation](../../../../docs/investigations/session-logs/stream-orchestration-revisit-2026-09-07.md).
 The generated-worktree prohibition is removed; Desktop dispatch, copying and messaging still
 need a live smoke test. Documented CLI capabilities are not proof of Desktop behavior.

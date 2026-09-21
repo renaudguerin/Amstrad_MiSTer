@@ -3,7 +3,7 @@
 Supplementary evidence for the per-type CRTC split. The committed contract for
 behaviour-preservation is the soak golden hash (`make -C sim soak`, see
 `sim/README.md`); this harness is the deeper check behind the "~45.5M-sample
-lockstep run, no divergence" claim in `docs/accuracy/type-split-review-guide.md`.
+lockstep run, no divergence" claim in `docs/classic/archive/type-split-review-guide.md`.
 
 ## What it does
 

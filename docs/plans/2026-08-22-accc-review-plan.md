@@ -28,11 +28,11 @@ nothing here depends on conversation memory.
   only happen at significant milestones. Docs must not imply otherwise. Every milestone gets a
   suggested Shaker target list drawn from `accuracy/shaker/shaker-accc-crossref.md` (whose
   citations themselves need PDF confirmation before turning into RTL/vectors).
-- **ACCC v1.9 is disregarded**: historical. `accc-1.10-differences.md` is subagent output kept
+- **ACCC v1.9 is disregarded**: historical. `classic/archive/accc-1.10-differences.md` is subagent output kept
   as context; only its v1.10-side page anchors get verified. No v1.9 comparison work.
 - **Source of truth**: local `docs/ACCC1.10-EN.pdf`, SHA-256
   `1bd6f0e3a06022d03fd40b51d4d622afef2675954a483780f0922cdf1e33a560` (verified against the hash
-  recorded in `accc-1.10-differences.md`). 295 PDF pages.
+  recorded in `classic/archive/accc-1.10-differences.md`). 295 PDF pages.
 - **Extraction persistence**: raw extractions stay untracked under `docs/accuracy/extract/`
   (gitignored; committing bulk text would effectively republish a CC BY-NC-ND book). A
   committed manifest documents exact regeneration. Curated per-page transcriptions of flagged
@@ -190,7 +190,7 @@ the type-split refactor milestone (it forces a full read anyway).
       module `CRTC` (63f4c01) — UM6845R is the type-1 part number and misdescribed a
       two-variant component. Mechanical; gates re-run green, golden hash unchanged.
       Reviewer logistics: whole-branch review pending per locked decision; guide written at
-      `docs/accuracy/type-split-review-guide.md`; `docs/review-debt.md` now lists both
+      `docs/classic/archive/type-split-review-guide.md`; `docs/review-debt.md` now lists both
       branches as outstanding whole-diff reviews instead of per-commit rows.
       FOLLOW-UP 2026-08-23 (branch `accuracy/a3-f6-stage1`): A3 companion vector `t20i`
       (live-entry R0=0 VMA reload; behaviour-preserving, soak reproduced
@@ -278,7 +278,7 @@ the type-split refactor milestone (it forces a full read anyway).
       (same seed/sampling/event schedule — delta is exactly the added fields), verified
       identical across two runs and via `SOAK_EXPECT`; rationale: review issue 4
       remediation. Recorded in this plan, sim/README.md,
-      accuracy/type-split-review-guide.md, and AGENTS.md.
+      classic/archive/type-split-review-guide.md, and AGENTS.md.
 - [x] F7 RFD primary R5 trigger — DONE 2026-08-23 on `accuracy/f7-rfd`:
       type-1-only same-edge `R5 0->nonzero` arming at `CLKEN && hcc==R0`, RFD VMA-source
       reload, parity-gated VMA' save, odd-R9 frame-parity alternation, successful-save

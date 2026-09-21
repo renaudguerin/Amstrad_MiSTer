@@ -8,7 +8,7 @@ Finding IDs refer to `accc-1.11-fr-en-differences.md`.
 
 The author's dated 2026-08-31 answers adjudicate several dispositions but do not change this
 published-v1.11 coverage map: promised corrections belong to a future/unpublished edition.
-See [the response note](accc-author-response-round2-2026-08-31.md).
+See [the response note](../accc-author-response-round2-2026-08-31.md).
 
 Technical information is sourced from *The Amstrad CPC CRTC Compendium* by Longshot
 (CC BY-NC-ND 4.0).

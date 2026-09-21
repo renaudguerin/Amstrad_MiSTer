@@ -9,7 +9,7 @@ and the parent integrated the remaining fixes. Design convergence is distinct fr
 implementation and hardware acceptance; current source verification is recorded below.
 
 The first Fable 5.1 high review returned **CHANGES REQUIRED** on Codex's uncommitted amendments
-to [the implementation plan](csl-ssm-implementation-plan.md), based on source
+to [the implementation plan](../ssm-csl/csl-ssm-implementation-plan.md), based on source
 `8731452`. The parent accepts the criticism that three continuously mirrored
 surfaces plus a cloning engine and host-release mailbox prescribe too much
 machinery before the device measurements exist. That architecture is withdrawn

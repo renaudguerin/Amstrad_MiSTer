@@ -2,7 +2,7 @@
 
 The requested documentation pass and coordinated B2/B6 work are integrated
 locally from refreshed `cd08a1e` and `9849b9a`. All destination gates pass; both tasks are published at `9ee710c`. No new RBF was built. The user's hardware observations remain
-tied to `5c16b17`; see the [hardware report](hardware-evidence-2026-09-12.md).
+tied to `5c16b17`; see the [hardware report](../hardware-runs/hardware-evidence-2026-09-12.md).
 
 ## Branches and owners
 
@@ -58,7 +58,7 @@ stuck-high raw-sync recipe remains unestablished. Physical HDMI/CRT acceptance,
 production-T80 timing and named title correctness are not closed.
 
 Read the complete branch record with
-`git show c2fde66:docs/b6-video-boundary-review-2026-09-11.md`.
+`git show c2fde66:docs/investigations/archive/b6-video-boundary-review-2026-09-11.md`.
 Private logs are in the B6 checkout's ignored
 `docs/references/b6-completion-2026-09-12/` directory.
 

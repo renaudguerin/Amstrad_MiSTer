@@ -19,7 +19,7 @@ unchanged; return the review as your response for the coordinator to preserve se
 3. `docs/plans/2026-08-22-accc-review-plan.md`
 4. `docs/review-debt.md`
 5. `docs/accuracy/archive/accc-review-and-fixes-independent-review.md`
-6. `docs/accuracy/type-split-review-guide.md`
+6. `docs/classic/archive/type-split-review-guide.md`
 7. `docs/accuracy/audit-findings.md`
 8. `docs/accuracy/f6-decision-gate.md`
 9. `docs/current-status.md`
@@ -85,7 +85,7 @@ and unavailable real-hardware/SHAKER evidence. The user-owned untracked
    seed, stimulus schedule, event budget, sample phase, or production RTL change. Confirm the
    added fields close pass-1 issue 4 and that the re-mint rationale/current hash is recorded
    consistently in `docs/plans/2026-08-22-accc-review-plan.md`, `sim/README.md`,
-   `docs/accuracy/type-split-review-guide.md`, and `AGENTS.md`.
+   `docs/classic/archive/type-split-review-guide.md`, and `AGENTS.md`.
 5. Verify F6 Stage 2 and Stage 2b are measurement-and-documentation only, with no production
    RTL behavior change. Audit the measurement harness/log and the boundary inference against
    the real GA path. Confirm promoted finding F13 is evidentiary and explicitly

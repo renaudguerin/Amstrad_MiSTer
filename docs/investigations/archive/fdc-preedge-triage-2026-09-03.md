@@ -9,14 +9,14 @@ and after; never applied, never dropped. The six tests were recovered from
 into the working tree only.
 
 Owned writes: `rtl/u765/u765_tb.cpp` (production-shaped test added post-triage;
-see `docs/fdc-preedge-review-2026-09-03.md`) and this report.
+see `docs/investigations/archive/fdc-preedge-review-2026-09-03.md`) and this report.
 Scratch: `.coord-inputs/` (untracked). No production controller / wrapper /
 CPU / Plus / build edits. P10/Amstrad sources were read for bus-contract
 comparison only, never executed or edited.
 
 Read: `CLAUDE.md`, `AGENTS.md`, `docs/ci-testing-policy.md`,
 `.coord-inputs/global-testing-policy.md`,
-`docs/fdc-recovery-2026-09-03.md`,
+`docs/investigations/archive/fdc-recovery-2026-09-03.md`,
 `.coord-inputs/stashed-u765-tests.patch`.
 
 ## Baseline reproduced (HEAD, clean)
@@ -175,7 +175,7 @@ Status resolved via verified primary evidence:
 - Rejected / Withdrawn: The 6 stashed pre-edge tests and the provisional triage
   claim of a controller "preload defect" are formally withdrawn.
 - Durable docs: This triage report (updated) and the comprehensive review report
-  `docs/fdc-preedge-review-2026-09-03.md`.
+  `docs/investigations/archive/fdc-preedge-review-2026-09-03.md`.
 
 ## Concrete next discriminator (resolved & forward roadmap)
 

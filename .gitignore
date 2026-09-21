@@ -70,3 +70,7 @@ docs/**/*.local.md
 /.fdc-scratch/
 # Per-worktree task context (not a lock or committed status document)
 /.stream-task.md
+
+# Python bytecode
+__pycache__/
+*.pyc

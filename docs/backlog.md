@@ -14,7 +14,7 @@ that is not obvious from the roadmap itself.
 without implementation changes to `cd08a1e` and `9849b9a` and merged
 sequentially into `master`. All destination gates pass; both tasks are published at `9ee710c`.
 Exact-SHA CI is recorded in current status. The real capture loop and final-RGB/diagnostic
-progress are recorded in the [handoff](investigations/hardware-runs/hardware-followup-handoff-2026-09-12.md).
+progress are recorded in the [handoff](investigations/archive/hardware-followup-handoff-2026-09-12.md).
 Remaining physical video, active-mode and CRTC/title acceptance stay open.
 
 The [September 12 report](investigations/hardware-runs/hardware-evidence-2026-09-12.md) confirmed BASIC boot fixed
@@ -41,7 +41,7 @@ stability remain open.
 acceptance open.** On `c595031`, Copter 271's title
 flashes for one frame every 5-10 s: the sky under the logo is drawn with the
 logo palette (white/orange/red bands), then the next frame is correct. AmSpirit
-does not show it. Frame captures: `docs/defects/copter271-2026-09-13/screenshot1-5.png`
+does not show it. Frame captures: `local/test_media/defects/copter271/screenshot1-5.png` (ignored, main checkout)
 (untracked, about 24 MB; frame 3 is the glitch, 2 and 4 are 60 fps/50 Hz blends).
 
 **Cause.** `docs/plus/references/asic-reference.md` §9 defines DCSR bit 7 as
@@ -224,7 +224,7 @@ and operates after this stage. Removing or redesigning it does not affect those.
     and the remaining B6 diagnostics; no DSC4 hardware fix is established.
     Source/test review of the hybrid candidate is CLEAR (Muse read-only
     2026-09-03 at `a98590a`; record
-    `docs/accuracy/classic-review-2026-09-03.md` §2) with the
+    `docs/classic/archive/classic-review-2026-09-03.md` §2) with the
     regenerated-sync-vs-physical-edge limit and all A/B results retained as
     validation — a CLEAR verdict is not hardware closure.
 
@@ -309,7 +309,7 @@ before both observation points. Its established Off default is retained because
 changing the shared P10/B7 default to Full hid the ASIC GA timing mutation; a
 capture build may override the parameter to Full explicitly. The foundation
 passed full simulation/lint and the B7 mutation matrix; read-only review at
-`a98590a` was CLEAR (`docs/plus/b3-frame-harness-review-2026-09-03.md`).
+`a98590a` was CLEAR (`docs/plus/archive/b3-frame-harness-review-2026-09-03.md`).
 The integrated `bb77075` extension adds runtime CPR ingestion, a self-describing
 frame stream and repeatability checks. Image comparison against an independent
 or hardware oracle remains open; Off/raw default and TV80 limits remain.
@@ -389,7 +389,7 @@ following author Longshot's confirmation on 2026-09-12 that all SHAKER test resu
 visually stable for multiple frames around SSM markers (making Phase 1 asynchronous native captures
 100% faithful) and independent review from Claude Opus 5 (`20260913T072642Z-13878-c99b`, CLEAR).
 The ABI specification and git resurrection path remain documented in
-[`docs/ssm-capture-abi.md`](investigations/ssm-csl/ssm-capture-abi.md).
+[`docs/investigations/ssm-csl/ssm-capture-abi.md`](investigations/ssm-csl/ssm-capture-abi.md).
 
 ---
 
@@ -425,7 +425,7 @@ document, the CPCWiki ASIC pages, and Longshot himself are the real references.
 
 **Priority: high. This is the architect-pass item.**
 
-**ARCHITECTURE COMPLETE 2026-09-01:** `docs/b6-architecture-decision.md` records the
+**ARCHITECTURE COMPLETE 2026-09-01:** `docs/investigations/video-boundary/b6-architecture-decision.md` records the
 production-path audit and staged decision. Keep one dynamically selectable core; do not gate
 register writes or clocks from raw `plus_mode`, because this cannot reduce fitted resources and
 would create stale-state hazards before `Reset & apply model`. Implement conditional menu
@@ -445,7 +445,7 @@ bypasses core resampling and cannot promise stable HDMI. Fable's conditional des
 is resolved by the production P10/B7 motherboard/SDRAM fixture. Full simulation,
 lint, unchanged canonical soak and fresh Sol/Gemini code review pass. The
 source `843cd5b` is integrated; the wider diagnostic matrix and hardware acceptance remain
-open. See the [validation record](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md).
+open. See the [validation record](investigations/archive/b6-video-boundary-review-2026-09-11.md).
 
 **HARDWARE FOLLOW-UP 2026-09-12:** on `5c16b17`, the user sees no difference
 between Full and Raw pixels in Amazing Demo, DSC4 or SHAKER A (T). No Raw CRT
@@ -456,7 +456,7 @@ failure-first regression and fresh independent review. A sustained stuck-high
 raw-sync CPU recipe is not established. Obtain repeatable physical captures
 with applied-mode/configuration evidence; the user result does not establish
 mode equivalence or identify an RTL cause. See the
-[completion record](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
+[completion record](investigations/archive/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
 for gates and publication limits.
 
 **MENU SLICE DONE 2026-09-01:** the existing Plus-model capability decoder now drives menu-mask
@@ -465,7 +465,7 @@ classic media controls; GX4000 hides disk/tape; 6128+ exposes disk; 464+ exposes
 focused model-to-mask fixture and the full simulation/lint gates pass. This changes visibility
 only: it does not rewrite retained settings or make machine selection atomic.
 Opus source review 2026-09-02 at `a98590a` returned CLEAR (record
-`docs/b6-b10-review-2026-09-02.md`; reconciliation `docs/plus/plus-review-2026-09-03.md`
+`docs/investigations/archive/b6-b10-review-2026-09-02.md`; reconciliation `docs/plus/archive/plus-review-2026-09-03.md`
 §2); B6-1/B6-2 doc follow-ups and OSD-rendering validation retained.
 
 Both machines are always instantiated and always clocked; only their outputs are muxed.
@@ -551,7 +551,7 @@ flip-flops instead of M10K block RAM and was only caught because ALM utilization
 finding *mistakes* rather than reconsidering the *approach* will not catch its siblings.
 
 **Audit 1 — synthesis inference sweep. DONE 2026-08-31, see
-`docs/b7-synthesis-inference-audit.md`.** Result: no second sprite-RAM-class defect. All 28
+`docs/investigations/archive/b7-synthesis-inference-audit.md`.** Result: no second sprite-RAM-class defect. All 28
 "uninferred RAM" instances are correctly too small for block RAM; every real memory inferred.
 One follow-up: `asic_video` R16/R17 (CRTC3 light pen) are stuck at GND because nothing writes
 them, and this is an unowned gap — F18 covers the classic CRTC readback only and is closed. Original scope follows. Read the Quartus fitter and Analysis & Synthesis
@@ -560,7 +560,7 @@ whether it inferred as block RAM or as registers. Also read the removed/stuck-re
 anything optimized away as unreachable is either dead code or a wiring bug.
 
 **Audit 2 — dark silicon test. DONE 2026-09-01 on `plus/b7-dark-silicon-audit`, see
-`docs/plus/b7-dark-silicon-audit.md`.** Result, reproduced independently by the parent rather
+`docs/plus/archive/b7-dark-silicon-audit.md`.** Result, reproduced independently by the parent rather
 than accepted from the delegated report: **the observed Plus RGB/bus signature is
 isolated from the tested classic mutations.** Mutating `CRTC`, `crtc_type0_engine`,
 `crtc_type1_engine` or `ga40010` in Plus mode leaves the Plus signature bit-identical,
@@ -571,7 +571,7 @@ it, so the null result is meaningful rather than vacuous. All nine Plus modules 
  classic engines are not independently proven, and the fixture does not reach CRTC-type-divergent
  behaviour. Read-only review 2026-09-03 at `a98590a` records CLEAR on the primary
  Plus-live/classic-isolated result with those limits plus the TV80-surrogate CPU bound
- retained (`docs/plus/plus-review-2026-09-03.md` §5). **B8 correction, 2026-09-08:**
+ retained (`docs/plus/archive/plus-review-2026-09-03.md` §5). **B8 correction, 2026-09-08:**
  FIELD was not observed; its production output still belongs to classic CRTC in
  Plus mode. The earlier signature result remains valid, but does not establish
  complete output isolation. Original scope follows. For each Plus module, deliberately corrupt it in simulation
@@ -594,13 +594,13 @@ See [the bounded CPU evidence](accuracy/b8-production-t80-2026-09-08.md). See [t
 selected ASIC frame parity and reaches the production interlace-history
 consumer. Corrected transition and selected-edge controls pass; Opus functional
 review plus Gemini closure is scoped clear. Full ASCAL and hardware validation
-remain open. See [FIELD evidence](plus/b8-2-field-ownership-2026-09-08.md).
+remain open. See [FIELD evidence](plus/archive/b8-2-field-ownership-2026-09-08.md).
 
 **B8-3 integrated from `807f081`, 2026-09-08:** accepted legacy palette
 writes reach their owner even when the stored GA value is unchanged. Repeated
 pen/border writes and retained-GA ASIC-only reset are covered through the
 motherboard; the reset import remains distinct from runtime events. Gemini
-review is clear. See [palette evidence](plus/b8-3-palette-events-2026-09-08.md).
+review is clear. See [palette evidence](plus/archive/b8-3-palette-events-2026-09-08.md).
 
 **B8-4 integrated from `7a58f88`, 2026-09-08:** the retained SDRAM video
 word now uses a full address/bank key and invalidates on accepted matching
@@ -619,7 +619,7 @@ review-clear. Real-CDT playback remains open. See
 same enabled conversion boundary as sync/blanking. Source review and the updated
 5.052 sim/lint/soak gates pass. CI 5.050 compatibility passed with the reviewed
 waiver-version guard at `9cfe743`; hardware acceptance remains separate.
-See [the bounded repair evidence](plus/b8-6-colour-boundary-2026-09-08.md).
+See [the bounded repair evidence](plus/archive/b8-6-colour-boundary-2026-09-08.md).
 
 **FIRST ARCHITECTURE/METHODOLOGY PASS COMPLETE 2026-09-08.** The user-authorized
 Astra audit examined production boundaries and fixture/process fidelity; see
@@ -644,7 +644,7 @@ an optional, separately authorized second opinion on a concrete disputed choice.
 removing redundant source-string checks, reusing real peripheral composition,
 and preserving coverage while consolidating redundant tests. The `c12c264`
 consolidation is integrated through refreshed `5fcf223`, with its fixture
-ownership claim corrected; see [integration evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
+ownership claim corrected; see [integration evidence](investigations/archive/preserved-work-integration-2026-09-08.md).
 See [the test/process review](investigations/write-timing/b8-architecture-methodology-review-2026-09-08.md#test-and-process-review).
 Measured full-suite wall time on a clean exact-source archive was 198 seconds;
 the warm run was 57 seconds. No default gate was removed. Reducing test count
@@ -680,8 +680,8 @@ separate, uncommitted failure-first u765 pre-edge staging discriminator. That
   pending recovery and investigation; it is not a failure in the checked-in suite.
   Review bookkeeping closed 2026-09-03 at `a98590a` (native Sol CLEAR twice,
   Muse classic/plus read-only passes, mechanical link/keep-move reconciliation;
-  records `docs/accuracy/classic-review-2026-09-03.md` §1,
-  `docs/plus/plus-review-2026-09-03.md` §1).
+  records `docs/classic/archive/classic-review-2026-09-03.md` §1,
+  `docs/plus/archive/plus-review-2026-09-03.md` §1).
 
 **Standing rule, now recorded in `CLAUDE.md`:** a test earns its place only if it could have
 failed for a reason the author did not already know. A vector derived from an ACCC rule that
@@ -871,7 +871,7 @@ Work completed:
 - Extracted both new editions with `pdf-inspector` into `docs/accuracy/extract/inspector-v1.11b-{en,fr}/`.
 - Performed full page-by-page text and vector diff against original v1.11 extractions.
 - Rendered changed pages carrying tables or chronograms at 200 DPI into `docs/accuracy/extract/pages-v1.11b/`.
-- Recorded complete difference report in `docs/accuracy/accc-1.11-differences.md §4`.
+- Recorded complete difference report in `docs/classic/archive/accc-1.11-differences.md §4`.
 - Updated `docs/accuracy/accc-author-feedback.md` (fingerprints updated, items in print marked).
 - Migrated affected citations in code comments (`sim/plus/asic_video_test.cpp`, `sim/plus/b8_field_test.cpp`, `rtl/CRTC.v`, `rtl/plus/asic_video.v`).
 - The `(b)` copies are now the working oracle; old files remain for provenance.

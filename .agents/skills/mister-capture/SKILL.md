@@ -6,7 +6,7 @@ description: MiSTer capture of a title, demo or SHAKER screen on the real device
 # mister-capture
 
 Loads an RBF plus DSK/CPR on the user's MiSTer, captures native PNGs, and turns them into
-evidence. [The driver guide](../../../docs/mister-hardware-loop-driver.md) owns the case JSON
+evidence. [The driver guide](../../../docs/investigations/hardware-runs/mister-hardware-loop-driver.md) owns the case JSON
 format, driver flags and limits; for a SHAKER walk use its CSL runner section instead. This
 skill caches the device facts and gotchas the guide does not.
 
@@ -100,7 +100,7 @@ real configuration.
 Start from an existing case in `scripts/hardware-loop/` and pin `expected_sha256` for RBF and media.
 
 - **Input:** CPR boots without any. DSK needs an MBC `raw_seq`; MBC lives in `/tmp` on the
-  device and disappears on reboot, so rebuild it per `docs/mister-mbc-cross-build.md` if absent.
+  device and disappears on reboot, so rebuild it per `docs/investigations/hardware-runs/mister-mbc-cross-build.md` if absent.
 - **Timing:** captures are serial and each round-trip takes seconds, so capture N lands well
   after `settle_delay + N * capture_delay`. Set `settle_delay` a little before the user's
   ballpark and take several captures to bracket it.

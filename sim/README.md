@@ -24,7 +24,7 @@ runs:
   It checks Plus pixel/metadata alignment and classic equivalence across monitor
   options, native/frame-selected pixel enables and gamma bypass/enabled modes.
   It excludes the vendor scandoubler/HQ2x pipeline and freeze mode. See
-  [the boundary evidence](../docs/plus/b8-6-colour-boundary-2026-09-08.md).
+  [the boundary evidence](../docs/plus/archive/b8-6-colour-boundary-2026-09-08.md).
 - The B6 video boundary gate uses the executing P10/B7 TV80 fixture with real
   motherboard, GA/ASIC and SDRAM: `make -C sim/plus b6-video-boundary`.
   `make -C sim video-output-test` exercises the extracted production output
@@ -39,7 +39,7 @@ runs:
   final RGB. `make -C sim video-mixer-rgb-test` pins the mixer scope correction
   across gamma/colour-depth variants. These are simulation gates, not physical
   output or an exhaustive stuck-sync matrix. See the
-  [contract and evidence limits](../docs/b6-video-boundary.md).
+  [contract and evidence limits](../docs/investigations/video-boundary/b6-video-boundary.md).
 
 Requirements: Verilator 5 or later, GNU Make, and a C++20-capable compiler
 (for the timed SystemVerilog colour fixture; C++ harnesses still use C++17).

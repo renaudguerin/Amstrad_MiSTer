@@ -130,7 +130,7 @@ the current model is wrong. Page pairs are French/English.
 ## Section coverage and negative result
 
 The sweep aligned every numbered section in chapters 3–29; the explicit per-section clean/
-finding register is `accc-1.11-fr-en-coverage.md`. Consequential candidates were
+finding register is `archive/accc-1.11-fr-en-coverage.md`. Consequential candidates were
 found in chapters 4, 7, 10–20, 22, 27, and 28. Chapters 3, 5, 6, 8, 9, 21, 23–26, and 29
 had no implementation-consequential language difference after original-page checks. Minor
 cross-reference or programming-only differences remain useful courtesy notes: French §7.2

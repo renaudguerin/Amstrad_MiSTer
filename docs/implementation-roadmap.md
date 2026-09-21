@@ -46,7 +46,7 @@ merged into the same behavioral PR.
   optional executed-T80 cases pass. Full vendor video processing, full
   motherboard CPU execution and named hardware retests remain separate.
   See the dated [accuracy](accuracy/b8-1-cpu-write-timing-2026-09-08.md) and
-  [Plus](plus/b8-6-colour-boundary-2026-09-08.md) evidence.
+  [Plus](plus/archive/b8-6-colour-boundary-2026-09-08.md) evidence.
 
 - `master` is the primary integration branch (merged from `accc-review-and-fixes`).
 - Review/correction work lands on `master`; stream branches (`accuracy/*`, `plus/*`) cut from it
@@ -325,10 +325,10 @@ sprite, DMA, CRTC3, cartridge-timing, and recovery failures. The exact
 appears fixed and Navy Seals black screen was not reproduced. See
 [latest results](investigations/hardware-runs/hardware-evidence-2026-09-09.md). Further targeted validation
 remains open; no Dandanator was involved in the reported Navy Seals incident. Source/test review of the triage seam is CLEAR (Muse read-only 2026-09-03
-at `a98590a`; record `docs/plus/plus-review-2026-09-03.md` §6) with separate Dandanator ownership validation,
+at `a98590a`; record `docs/plus/archive/plus-review-2026-09-03.md` §6) with separate Dandanator ownership validation,
 CRTC3-leak, System-CPR/real-T80/full-top, exact-tip Quartus, and TV80/model limits retained
 as validation; B3 foundation (§8 queue) is likewise review-CLEAR
-(`docs/plus/b3-frame-harness-review-2026-09-03.md`); P10j stays OPEN LOW on doc comments
+(`docs/plus/archive/b3-frame-harness-review-2026-09-03.md`); P10j stays OPEN LOW on doc comments
 only. The detailed evidence and checkboxes live in
 `plus/hardware-checkpoint-findings.md`; the newest repair-to-retest mapping is
 `plus/hardware-test-round3-2026-08-30.md`.
@@ -372,7 +372,7 @@ mouse support makes it reachable without any adapter.
 nothing latches them. On the classic side that is a recorded decision (F11f, and the §21.2
 digest footnote: "This core lacks LPSTB capture and returns 0 for R16/R17"). On the Plus side
 it is an unowned gap discovered by synthesis as a stuck-at-GND register; see
-`docs/b7-synthesis-inference-audit.md`. The minimum action, independent of this feature, is to
+`docs/investigations/archive/b7-synthesis-inference-audit.md`. The minimum action, independent of this feature, is to
 record the Plus-side decision in `rtl/plus/asic_video.v` and in the findings table.
 
 **Three CPC light-pen designs, and they do not share an input.**
@@ -488,7 +488,7 @@ locally integrated at `e391e13`; B6's reviewed rendering follow-up was
 refreshed to `9849b9a` and merged against that exact destination. The
 complete destination simulation, lint and canonical soak pass; the
 integration is published at `9ee710c`. Exact-SHA CI is recorded in current status. Preserve the
-[B6 evidence limits](investigations/video-boundary/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
+[B6 evidence limits](investigations/archive/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
 and [B2 device limits](investigations/hardware-runs/b2-device-capture-2026-09-12.md), including unobserved
 active OSD mode and unestablished CPU-generated stuck-high sync. The
 [latest hardware report](investigations/hardware-runs/hardware-evidence-2026-09-12.md) remains unchanged:
@@ -528,8 +528,8 @@ See [current status](current-status.md) for accepted source and artifact identit
    FDC held-read test
    `c1a8ff9` and test consolidation `c12c264` are integrated through refreshed
    `5fcf223`, including the P1 timing-ownership correction; see
-   [integration evidence](investigations/write-timing/preserved-work-integration-2026-09-08.md).
-   The [September 3 handoff](investigations/session-logs/session-continuation-2026-09-03.md)
+   [integration evidence](investigations/archive/preserved-work-integration-2026-09-08.md).
+   The [September 3 handoff](investigations/archive/session-continuation-2026-09-03.md)
    records provenance, not proof that its temporary worktree paths still exist.
    Preserve stashes/private recovery files; do not auto-apply them. Full-sector
    result-phase and classic AMSDOS acceptance remain open.
@@ -538,7 +538,7 @@ See [current status](current-status.md) for accepted source and artifact identit
    MBC cross-build are prepared at `7e39204`; see the
    [driver guide](investigations/hardware-runs/mister-hardware-loop-driver.md). B4 source `94725cc` adds the bounded
    CSL runner, passive SSM event ring and default-off sample-recorder prototype;
-   [source review and local gates](investigations/ssm-csl/csl-ssm-design-review-2026-09-12.md) pass.
+   [source review and local gates](investigations/archive/csl-ssm-design-review-2026-09-12.md) pass.
    September 12 demonstrates three independent SHAKER B (9) loads and nine
    identical numeric captures; see [device evidence](investigations/hardware-runs/b2-device-capture-2026-09-12.md).
    Active-mode observation remains qualified because native PNGs omit OSD.

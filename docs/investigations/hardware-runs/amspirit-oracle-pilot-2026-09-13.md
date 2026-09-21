@@ -32,7 +32,7 @@ of latency). They are AmSpirit metadata and do not identify MiSTer state.
 
 - About +250: Loriciel logo.
 - From +500: Copter 271 title with logo and sky palettes as in the earlier AmSpirit reference
-  under `docs/defects/copter271-2026-09-13/`; attract loop of meteors, helicopters and
+  under `local/test_media/defects/copter271/`; attract loop of meteors, helicopters and
   credits after that.
 - Joystick fire (10 frames on matrix row 9) on the title opens the options menu within
   200 frames. Helper run `helper-run-001`: fire released at +1023 (held 10 frames from
@@ -71,7 +71,7 @@ of latency). They are AmSpirit metadata and do not identify MiSTer state.
 
 ## Findings that changed the tooling
 
-These are recorded in the design (§2) and the [helper README](../../plus/archive/README.md):
+These are recorded in the design (§2) and the [helper README](../../../scripts/amspirit/README.md):
 loading a CPR does not reset the machine; a crashed machine freezes the settled screenshot;
 `snapshot()` silently writes nothing until its directory exists; `keytype` does not reach
 the joystick; Plus ASIC state is only available through the SNA `CPC+` chunk.

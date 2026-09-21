@@ -7,7 +7,7 @@ snapshots. It never touches the MiSTer; joint runs share only a case identifier 
 hash with [the hardware-loop driver](../hardware-loop/).
 
 What AmSpirit evidence means, and what it cannot establish, is set in
-[the design](../../docs/amspirit-oracle-design-2026-09-13.md). In short: it shows what this
+[the design](../../docs/investigations/hardware-runs/amspirit-oracle-design-2026-09-13.md). In short: it shows what this
 AmSpirit build does, never whether the core is correct.
 
 Python 3 standard library only. AmSpirit must run on the same host for `snapshot` and `run`,

@@ -14,7 +14,7 @@ hardware observations are distinguished below. The complete section-audited regi
 [the bilingual difference ledger](accc-1.11-fr-en-differences.md); this note keeps the
 author-facing report compact.
 
-*Note: Historical Round 1 feedback (which resulted in the publication of ACCC v1.11) is archived in [accc-author-feedback-round1-2026-08-27.md](accc-author-feedback-round1-2026-08-27.md).*
+*Note: Historical Round 1 feedback (which resulted in the publication of ACCC v1.11) is archived in [accc-author-feedback-round1-2026-08-27.md](archive/accc-author-feedback-round1-2026-08-27.md).*
 
 Technical information sourced from *The Amstrad CPC CRTC Compendium* by Longshot (CC BY-NC-ND 4.0).
 
@@ -192,7 +192,7 @@ before and after), so no question there.
 
 Longshot re-issued both v1.11 PDFs with the feedback applied and the version number
 unchanged; the diff task is backlog B15 (completed in
-[accc-1.11-differences.md §4](accc-1.11-differences.md#4-accc-v111-to-v111b-re-issue-differences--accuracy-impact-report-2026-09-11)).
+[accc-1.11-differences.md §4](archive/accc-1.11-differences.md#4-accc-v111-to-v111b-re-issue-differences--accuracy-impact-report-2026-09-11)).
 He also qualified the CRTC separation note: the ASIC 40489 uses the exact CRTC 40226 (type 4)
 model with extra variables that are 0 until the ASIC page is unlocked, and classic CPCs carry
 four CRTC designs (types 0, 1, 2 and 4), not two. Recorded in

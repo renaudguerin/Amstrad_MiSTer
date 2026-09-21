@@ -26,9 +26,9 @@ in this pass.
 - Local policy read: `AGENTS.md` (test-vector discipline §"Test vector
   discipline" already carries the same rule), `docs/backlog.md` B9
   (test-suite sweep; first slice done 2026-09-01), recent reviews
-  `docs/accuracy/classic-review-2026-09-03.md`,
-  `docs/plus/plus-review-2026-09-03.md`, `docs/review-debt.md`,
-  `docs/session-handoff-2026-09-03.md`.
+  `docs/classic/archive/classic-review-2026-09-03.md`,
+  `docs/plus/archive/plus-review-2026-09-03.md`, `docs/review-debt.md`,
+  `docs/investigations/archive/session-handoff-2026-09-03.md`.
 - Prepared Plus B3 candidate `bb77075` inspected read-only via
   `git show bb77075:...` (§7). Not in this checkout; untouched.
 
@@ -299,7 +299,7 @@ differential fixtures with honest caveats (§5) are not mirrors.
 
 `git show bb77075 --stat`: `sim/plus/p10_boot_test.cpp` +1068 net (1027→
 2095 lines), `p10_boot_test_top.v` +2 (`dbg_cpr_load_abort` tap),
-`docs/plus/b3-capture-2026-09-03.md` + `b3-capture-review-2026-09-03.md`
+`docs/plus/archive/b3-capture-2026-09-03.md` + `b3-capture-review-2026-09-03.md`
 (CLEAR by Gemini 3.8 Flash high, one non-blocking symlink-assertion note).
 Sampled the C++ (constants, CPR builder, abort latching, CLI bounds):
 fail-closed `--capture-cpr` (16-frame/16M-tick/32MiB-CPR/2GiB-output

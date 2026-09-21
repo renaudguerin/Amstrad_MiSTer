@@ -28,7 +28,8 @@ Two properties of the FPGA target shape the design:
 ``wait_ssm0000`` and marker-driven captures work; without it both are rejected
 rather than approximated.  Every SSM capture is Main's asynchronous grab and is
 labelled approximate: the standard asks for the image at the opcode instant,
-which needs the phase 2 recorder.  See ``docs/csl-ssm-implementation-plan.md``.
+which needs the phase 2 recorder.  See
+``docs/investigations/ssm-csl/csl-ssm-implementation-plan.md``.
 """
 
 from __future__ import annotations

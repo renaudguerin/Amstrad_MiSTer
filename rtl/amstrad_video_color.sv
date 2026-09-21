@@ -6,7 +6,8 @@
 module amstrad_video_color (
     input CLK_VIDEO, ce_16, hq2x, pixel_rate_select, plus_mode,
     // B6 raw vertical-blank tag, sampled by the motherboard on the native
-    // dot enable beside the pixel it belongs to (docs/b6-video-boundary.md).
+    // dot enable beside the pixel it belongs to
+    // (docs/investigations/video-boundary/b6-video-boundary.md).
     input pixel_vblank,
     input [1:0] mode,
     input [2:0] mix,

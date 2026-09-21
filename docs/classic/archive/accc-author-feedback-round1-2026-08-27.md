@@ -5,7 +5,7 @@
 >
 > Following submission of this feedback, the author released **ACCC v1.11** on **August 27, 2026**, incorporating and acknowledging these clarifications.
 >
-> Outstanding questions for subsequent rounds are tracked in the active [accc-author-feedback.md](accc-author-feedback.md).
+> Outstanding questions for subsequent rounds are tracked in the active [accc-author-feedback.md](../accc-author-feedback.md).
 
 Technical information sourced from *The Amstrad CPC CRTC Compendium* by Longshot (CC BY-NC-ND 4.0).
 
@@ -30,7 +30,7 @@ Technical information sourced from *The Amstrad CPC CRTC Compendium* by Longshot
   English p.206 omits the qualifier.
 * **Status in ACCC v1.11:** **RESOLVED BY EDITION COMPARISON, 2026-08-28**. The example
   concerns repeated activation, not unexplained persistence after one activation. Round 2
-  [section 1](accc-author-feedback.md)
+  [section 1](../accc-author-feedback.md)
   requests the missing English qualifier and distinguishes the conditional single-activation
   deduction from hardware evidence. Neither hardware recovery nor our post-toggle pin timing
   has been established by this source comparison.

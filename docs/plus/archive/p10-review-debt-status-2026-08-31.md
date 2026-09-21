@@ -173,7 +173,7 @@ The Accuracy/shared-doc owner can replace the historical open row with:
 > corrections and retained three low contract/coverage notes. Physical sprite bandwidth/access blanking,
 > the full HPS-to-SNA and exact T80/top-level boundaries, and title-level hardware
 > retests remain validation residuals. See
-> `docs/plus/p10-review-debt-status-2026-08-31.md` and the round-two/round-three
+> `docs/plus/archive/p10-review-debt-status-2026-08-31.md` and the round-two/round-three
 > hardware records.
 
 ## Cross-check boundary

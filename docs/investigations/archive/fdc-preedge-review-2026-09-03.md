@@ -60,7 +60,7 @@ Tracing `rtl/u765/u765.sv:550-551, 1224-1240`:
 - When the CPU samples at mid-T3 ($t = 625\text{ ns}$), the data has been stable on `dout` for **$\approx 500\text{ ns}$**.
 
 ### 2.4 Refutation of "Instantaneous Read" Assumption
-Muse's earlier triage report (`docs/fdc-preedge-triage-2026-09-03.md:110-113`) claimed that `cpu_di_latch_edge` samples before the controller sees the `rd` edge. As shown by the exact timing intervals above:
+Muse's earlier triage report (`docs/investigations/archive/fdc-preedge-triage-2026-09-03.md:110-113`) claimed that `cpu_di_latch_edge` samples before the controller sees the `rd` edge. As shown by the exact timing intervals above:
 - CPU sample occurs 625 ns post-assertion.
 - Controller edge detection occurs $\le 125\text{ ns}$ post-assertion.
 - There is a massive 500 ns margin of safety.
@@ -180,7 +180,7 @@ This test is capable of catching:
    - `make -C sim`: **Exit 0** (`full-sim.log`).
 3. **AMSDOS / Full ROM Gate**:
    - Status: **OPEN / UNMET**.
-   - As documented in `docs/fdc-recovery-2026-09-03.md:98-119`, full system regression under real AMSDOS ROM routines requires a CPU capable of executing polling loops (surrogate TV80 lacks looping support). The passing leaf test does not close this system-level gate.
+   - As documented in `docs/investigations/archive/fdc-recovery-2026-09-03.md:98-119`, full system regression under real AMSDOS ROM routines requires a CPU capable of executing polling loops (surrogate TV80 lacks looping support). The passing leaf test does not close this system-level gate.
 
 ---
 
@@ -188,4 +188,4 @@ This test is capable of catching:
 
 1. **Accept Test Change**: The uncommitted change in `rtl/u765/u765_tb.cpp` is technically sound, regression-protective, and ready for commit by the parent/integration manager.
 2. **No Controller Changes**: Reject any proposal to add combinational `m_data` preloading upon `RQM` assertion in `rtl/u765/u765.sv`.
-3. **Triage Reconciled**: `docs/fdc-preedge-triage-2026-09-03.md` has been updated to withdraw provisional preload defect claims and record the verified manufacturer timing.
+3. **Triage Reconciled**: `docs/investigations/archive/fdc-preedge-triage-2026-09-03.md` has been updated to withdraw provisional preload defect claims and record the verified manufacturer timing.

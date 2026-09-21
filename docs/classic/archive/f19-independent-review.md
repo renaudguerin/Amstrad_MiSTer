@@ -34,7 +34,7 @@ The durable documentation now preserves the source's type boundary consistently:
   Type-0 same-edge behavior to §12.2 pp.92–94.
 - `docs/accuracy/compendium-01-counters.md:71-77` documents CRTC 0 under §12.2 and confines
   the previous-`R9` ordering to the explicit CRTC 2 note.
-- `docs/accuracy/accc-1.11-differences.md:29-30,49-53` inventories p.95/p.96 under §12.4.1
+- `docs/classic/archive/accc-1.11-differences.md:29-30,49-53` inventories p.95/p.96 under §12.4.1
   CRTC 2 and records Type-0 same-edge behavior under §12.2.
 - `docs/accuracy/accc-author-feedback.md:32-38` identifies the v1.11 addition as CRTC 2 and
   states the contrasting CRTC-0 rule.
