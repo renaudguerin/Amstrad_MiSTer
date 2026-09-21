@@ -510,7 +510,7 @@ end
 // ("without updating the video pointer", ACCC §11.2.6 p.85).
 //
 // With R1>R0 the capture can never fire, so every row re-displays the
-// frozen VMA' base — character-line repetition (ACCC §17.2 p.180) with
+// frozen VMA' base — character-line repetition (ACCC §17.2.2 p.179) with
 // no spurious border substitution on types 3/4 (§17.6.2/§19.2.4).
 //----------------------------------------------------------------------
 

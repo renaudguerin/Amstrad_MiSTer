@@ -881,7 +881,7 @@ void t03c_r1_eq_r0_blip(TestBench& test) {
 
 // ACCC §17.6.2/§19.2.4 (types 3/4 grouped with type 1): with R1>R0 no
 // spurious border byte is substituted at C0=R0 — the whole line stays
-// displayed — and §17.2 p.180 makes every row re-display the frozen VMA'
+// displayed — and §17.2.2 p.179 makes every row re-display the frozen VMA'
 // base (capture can never fire).
 void t03d_r1_gt_r0_no_substitution(TestBench& test) {
     program_display_frame(test);

@@ -5570,7 +5570,7 @@ void test_type0_r1_gt_r0_spurious_border_byte(TestBench& test) {
     f6_settle_one_frame(test, 0);
 
     // ACCC v1.11 section 17.4.1 (page 183): frame start reloaded VMA/VMA'
-    // from R12/R13; section 17.2 (page 180): with C0=R1 unreachable, every
+    // from R12/R13; section 17.2.2 (page 179): with C0=R1 unreachable, every
     // line of the frame restarts from that same frozen base.
     test.expect_ma("type 0 R1>R0 line start holds the R12/R13 base", 0x1234);
     test.expect_de_high("type 0 R1>R0 displays at C0=0 despite R1>R0");
@@ -5585,7 +5585,7 @@ void test_type0_r1_gt_r0_spurious_border_byte(TestBench& test) {
         "(ACCC v1.11 section 17.6.2 p.187)");
 
     // ACCC v1.11 section 17.6.2 (page 187): BORDER OFF on the character
-    // following C0=R0. Section 17.2 (page 180): C0=R1 never fired, so VMA'
+    // following C0=R0. Section 17.2.2 (page 179): C0=R1 never fired, so VMA'
     // was never updated and this line restarts from the same base address
     // (character-line repetition).
     test.run_characters(1);
@@ -8171,7 +8171,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12 zero-entry positive R5",
          false, test_type0_zero_adj_entry_r5_positive_extends_adjustment},
         {"t16z_type0_r4_unequal_history_retains_switch",
-         "ACCC v1.11 section 13.2.1 p.106 and section 11.2.2; IA-4/BL-017 R4 history",
+         "ACCC v1.11 French section 13.2.1 p.106 and section 11.2.2; IA-4/BL-017 R4 history",
          false, test_type0_r4_unequal_history_retains_switch},
         {"t07a_type1_c9_counts_through_31_and_wraps",
          "ACCC v1.10 sections 10.3 and 10.3.2; F4", false,
