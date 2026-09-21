@@ -254,7 +254,7 @@ end
 
 // ACCC v1.10 section 11.3.2: Type 1 adjustment ends when C5+1 reaches R5
 // evaluated by equality at the line boundary. R5=0 never satisfies this comparison.
-// F14 (ACCC v1.10 section 19.6.2 p.216; Q10 resolution in
+// F14 (ACCC v1.11 section 19.6.2 p.217; Q10 resolution in
 // accc-author-questions.md item 10): on a ParityFrame-even frame with an
 // interlace mode active (R8=1 or 3) and R9+1 a multiple of R5, C4 is
 // "incremented once again": the adjustment end instead runs one more line
@@ -492,11 +492,11 @@ assign reload = crtc1_row0_reload | crtc1_adj_row1_reload | crtc1_rfd_reload;
 assign row0_reload = crtc1_row0_reload;
 
 // The VMA' save shares the line-limit test, parity included while IVM is
-// active (ACCC v1.10 section 19.8.1 p.220 Note: the C9=R9 / C9.VMA='R9 or
+// active (ACCC v1.11 section 19.8.1 p.221 Note: the C9=R9 / C9.VMA='R9 or
 // ParityC9' test also governs the VMA' assignment).
 wire row_addr_save_base = hcc == R1_h_displayed && line_row_structure_last;
 // French ACCC v1.11 section 11.6.1 p.90: odd ParityC9 suppresses
-// the RFD save. Section 19.5.3 pp.210-211 shares this parity with IVM
+// the RFD save. Section 19.5.3 pp.209-210 shares this parity with IVM
 // ON/OFF; a private frame toggle cannot observe that normalization.
 assign row_addr_save = row_addr_save_base &
                        (~rfd_parity_active | ~parity_c9);

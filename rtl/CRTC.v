@@ -205,7 +205,7 @@ reg        in_adj;
 
 reg  [7:0] hcc;
 wire       hcc_last  = hcc == R0_h_total;
-// ACCC v1.10 section 13.7.1.2 p.124: a type-1 R0-widening write landing on
+// ACCC v1.11 section 13.7.1.2 p.125: a type-1 R0-widening write landing on
 // the C0==R0 comparator edge of the frame's last line defers that line end
 // (the type-1 engine raises rfd_r0_extend for that one edge), so the line
 // runs on into the widened remainder and ends at the new total instead.
@@ -360,7 +360,7 @@ always @(posedge CLOCK) begin
 	else if(CLKEN) begin
 		hcc <= hcc_next;
 		if(line_new) line <= line_next;
-		// F10 type-1 (ACCC v1.10 section 19.5.3 pp.208-209): the R8-toggle
+		// F10 type-1 (ACCC v1.11 section 19.5.3 pp.209-210): the R8-toggle
 		// stage edges write C9's bit 0 mid-line -- stage A plants the new
 		// parity, stage B plants the settled value.  A same-edge row end
 		// keeps the documented restart value (line_new wins; that
@@ -438,7 +438,7 @@ end
 // address
 reg  [13:0] row_addr;   // saved pointer
 reg  [13:0] row_addr_r; // current pointer
-// ACCC v1.10 section 20.3.2 p.242: the type-1 row-0 reload samples the
+// ACCC v1.11 section 20.3.2 p.243: the type-1 row-0 reload samples the
 // register file as of AFTER the current edge -- the second CRTC-1
 // chronogram draws an R12 write landing on the reload boundary edge itself
 // caught (OFFSET=#30xx from C0=0) where the paired CRTC-0 chronogram
@@ -617,7 +617,7 @@ always @(posedge CLOCK) begin
 			// hcc_next carries the post-mux continuation value at a
 			// section 13.7.1.2 suppressed-wrap edge, so this comparison
 			// sees the extended line's genuine roll-into-R1 display end
-			// (ACCC v1.10 section 6.1.3 p.33) with no special case.
+			// (ACCC v1.11 section 6.1.3 p.34) with no special case.
 			if(hcc_next == R1_h_displayed) hde <= 0;
 
 			if(HSYNC) hsc <= hsc + 1'd1;
