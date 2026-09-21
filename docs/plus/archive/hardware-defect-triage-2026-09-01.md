@@ -9,16 +9,16 @@ BASIC boot is **confirmed fixed**. Corrupt sprite lines at the left edge are
 **much improved, perhaps fixed**; this is tentative and does not identify D3
 as the cause. **Pang/Plotting fire always pressed and the Copter 271 logo are
 NOT fixed.** These scoped verdicts supersede earlier symptom status below;
-see the [hardware report](../investigations/hardware-runs/hardware-evidence-2026-09-12.md).
+see the [hardware report](../../investigations/hardware-runs/hardware-evidence-2026-09-12.md).
 
 **Partial hardware follow-up reported 2026-09-02:** the user reports
 `burnin_rubber_sprite_on_the_right_should_be_hidden` fixed on
 `Amstrad_20260901_84e6969.rbf` with Live blanking selected. This is a hardware
 pass for that visible symptom only; it does not prove the signed-X repair was
 the cause. The CRTC3 demo's separate sprite leak and all other defects below
-remain TBD. See [the dated hardware record](../investigations/hardware-runs/hardware-evidence-2026-09-02.md).
+remain TBD. See [the dated hardware record](../../investigations/hardware-runs/hardware-evidence-2026-09-02.md).
 
-**September 9 follow-up:** [current results](../investigations/hardware-runs/hardware-evidence-2026-09-09.md)
+**September 9 follow-up:** [current results](../../investigations/hardware-runs/hardware-evidence-2026-09-09.md)
 supersede the TBD retest status above. CRTC3's right-edge leak appears fixed;
 its other defects persist. Navy Seals black screen was not reproduced, and
 the user confirms no Dandanator was ever tested. The ownership repair below

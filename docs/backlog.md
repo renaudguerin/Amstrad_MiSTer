@@ -338,8 +338,8 @@ production motherboard with a reduced TV80 surrogate under the T80pa-shaped wrap
 (Verilator cannot compile the production VHDL T80) and the SDRAM model. What it lacks is real software and
 a framebuffer dump; it currently executes hand-written stub programs of a few dozen bytes.
 Pending FDC findings expose the surrogate's polling-instruction limits, so CPU-bound
-disk-path conclusions still require the production T80 boundary stated in
-[the triage record](plus/hardware-defect-triage-2026-09-01.md).
+disk-path conclusions still require the production T80 boundary stated under "Open Plus
+evidence boundaries" in the [roadmap](implementation-roadmap.md).
 
 **Design notes.**
 
@@ -734,8 +734,8 @@ mode. The source has one manifest owner and a lifecycle regression.
 cannot explain their Navy Seals incident. The black screen was not reproduced
 on `ce1d2da`, but left-edge sprite flicker remains. A Dandanator-to-Plus test
 would validate the separate ownership repair, not reproduce the reported
-sequence. See [the latest hardware record](investigations/hardware-runs/hardware-evidence-2026-09-09.md). Full reset-tier reasoning and evidence are in
-`docs/plus/hardware-defect-triage-2026-09-01.md`.
+sequence. See [the latest hardware record](investigations/hardware-runs/hardware-evidence-2026-09-09.md). The reset-tier decision is in `docs/plus/architecture.md` §3; the full reasoning and
+evidence are in `docs/plus/archive/hardware-defect-triage-2026-09-01.md`.
 
 ---
 

@@ -362,6 +362,34 @@ The unresolved sprite `+3` mirror, sprite coordinate formula, PRI offset, lowere
 zero collision, and pixel-phase questions remain named assumptions until a focused source or
 hardware discriminator settles each one.
 
+**P10f/P10g title-defect discriminators.** Four hardware screenshot families are classified by
+visible failure shape only; none is an oracle for an undocumented rule, and no RTL change is
+made for them. Each needs its own capture so one screenshot cannot silently become a blanket
+timing fix. Later hardware reports may have changed a family's visible status (see
+`backlog.md` B3/B13 and the dated hardware records); the fields stay the required evidence for
+any RTL change.
+
+| Screenshot family | Capture at the first bad pixel or line |
+|---|---|
+| Sonic: large horizontal discontinuities, repeated or relocated scene bands | First bad scan line with CRTC MA/RA, R0/R1/R4/R5/R6/R9, SPLT/SSA/SSCR, video fetch address/data, and whether the ASIC is locked |
+| Copter 271: top logo rows in the wrong colour | Winning plane and sprite index for the first wrong pixel, then its source row, palette entry/value, CPU sprite/palette access, and dot phase |
+| CRTC3 demo: narrow displaced or streaked fragments | First corrupt line and first divergent fetch with MA/RA, CRTC counters/registers, SSCR/SPLT/SSA, SDRAM address/data, and displayed pixel phase |
+| Dick Tracy: top rows horizontally displaced | At the first displaced row: HSYNC/DE, CRTC C0/C4/C9 and registers, SSCR/SPLT/SSA, MA reload, and the first two video fetch addresses |
+
+**Open Plus evidence boundaries** (full traces in the
+[2026-09-01 triage record](plus/archive/hardware-defect-triage-2026-09-01.md)):
+
+- *System CPR disk read.* The production-shaped `p10_boot_test_top` with the real u765 and
+  `rtl/u765/test.dsk` reaches the first payload byte, where the TV80 surrogate stores `&00`
+  instead of `&21`; every bus stage agrees on that edge. It stays `XFAIL fdc-payload-poll`
+  (a full 512-byte match is an XPASS). It is not evidence for changing u765 media, sector or
+  status RTL. Closure needs the failing System CPR with a known-good AMSDOS disk plus a
+  real-T80-capable trace or a hardware capture at the first MSR/data-read transition.
+- *OUT(C),r versus OUTD.* The ASIC sees no opcode class, so no opcode-specific ASIC patch is
+  justified. The TV80 surrogate has no block-I/O decode, so the synthetic R2.JIT
+  discriminator cannot show OUTD bus cadence. Closure needs a real-T80 bus trace or a
+  hardware capture of both instructions under the same CRTC phase.
+
 ### Optional feature: light pen and light gun (LOW priority, opened 2026-09-01)
 
 Not required for accuracy or for any current finding. Recorded because the hardware picture

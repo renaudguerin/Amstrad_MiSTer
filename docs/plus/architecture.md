@@ -119,6 +119,39 @@ consume it today, and delete no classic code).
 - **ACID**: not emulated, per universal emulator practice (reference §11) — CPR pages load
   and run unconditionally.
 
+### Reset tiers and classic expansion-cartridge ownership (B13)
+
+Classic expansion state survives runtime resets on purpose; Plus mode isolates it instead of
+clearing it.
+
+- `rom_map` is initialized only at FPGA configuration and gains bits on classic ROM downloads,
+  so it persists across every runtime reset. It cannot reach Plus mode:
+  `rtl/Amstrad_motherboard.v` forces the classic `Amstrad_MMU` ROM-enable input inactive, and
+  `plus_mmu` owns the CPR windows. Clearing it on a CPR or ordinary reset would be a
+  speculative fix and would eject classic expansion ROMs that should survive a soft reset.
+- `dan_eeprom_loaded` likewise survives ordinary reset and CPR apply. `plus_legacy_cart_gate`
+  withholds Dandanator SDRAM ownership whenever `plus_mode` is selected, without clearing the
+  image, so switching back to classic makes the loaded cartridge available again, as a soft
+  reset would on hardware. Withholding Dandanator in every Plus model is an implementation
+  capability policy: Arnold's general expansion-ROM/ROMDIS priority rule does not establish
+  Dandanator compatibility, so real-hardware support is a separate question.
+
+| Boundary | `rom_map` | Dandanator image | Plus bus ownership |
+|---|---|---|---|
+| FPGA configuration | Cleared, then boot ROM pages are registered | Cleared | None until selected |
+| Classic soft/menu/key reset | Preserved | Preserved | Classic device may resume |
+| Classic ROM download | Adds the downloaded page | Preserved | Classic device may resume |
+| SNA apply | Preserved; used only by the classic MMU | Preserved | Follows the currently selected machine; the SNA does not select it |
+| CPR download/apply reset | Preserved but unreachable from Plus cartridge reads | Preserved | Classic Dandanator ownership suppressed |
+| Plus/classic model switch | Preserved | Preserved | Combinatorially follows the selected machine |
+| Explicit Dandanator detach (`status[32]`) | Preserved | Cleared | Released |
+
+Plus/classic selection comes from the OSD model setting, not from the CPR artifact. The
+ownership gate has a focused lifecycle regression. It does not explain the Navy Seals
+black-screen report (no Dandanator was loaded; the cause remains unassigned). The derivation
+and failing-first evidence are in the
+[2026-09-01 triage record](archive/hardware-defect-triage-2026-09-01.md).
+
 ### Cartridge SDRAM contract (P-1)
 
 Cartridge bytes occupy SDRAM bank 3, byte addresses `0x080000..0x0fffff`. The cartridge

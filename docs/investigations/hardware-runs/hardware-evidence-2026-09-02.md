@@ -74,7 +74,7 @@ controls this session. Hardware tests remain user-run.
    repeatable hashes. Keep raw/selected timing distinct from the shared,
    filter-dependent pixel payload; this harness is not an independent hardware
    image oracle. Use the symptom-specific discriminators in
-   [the triage record](../../plus/hardware-defect-triage-2026-09-01.md) for the CRTC3
+   [the triage record](../../plus/archive/hardware-defect-triage-2026-09-01.md) for the CRTC3
    sprite leak, Sonic, Copter 271, Dick Tracy and CRTC3 corruption. Retain the
    Burnin' Rubber right-edge result as a regression target. B13's
    Dandanator-to-Plus/Navy Seals load sequence still needs a hardware retest.
