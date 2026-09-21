@@ -289,7 +289,7 @@ int main(int argc, char** argv) {
         if (blank_delta != 3 || jit_width + 3 != normal_width) {
             throw TestFailure("expected +3-pixel start and -3-pixel pulse "
                               "(ACCC v1.11 sections 9.3.4.1/9.3.4.3 "
-                              "pp.53-57 and 14.6.1 p.141)");
+                              "pp.54-58 and 14.7.1 p.142)");
         }
         std::cout << "PASS  r2jit_type1_out_c\n";
 
@@ -303,7 +303,7 @@ int main(int argc, char** argv) {
                                          type0_jit.raw_rise_pixel;
         if (type0_delta != 4 || type0_jit_width + 4 != type0_normal_width) {
             throw TestFailure("expected type-0 +4-pixel start and -4-pixel pulse "
-                              "(ACCC v1.11 section 9.3.4.3 p.57)");
+                              "(ACCC v1.11 section 9.3.4.3 p.58)");
         }
         std::cout << "PASS  r2jit_type0_out_c\n";
 

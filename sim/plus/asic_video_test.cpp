@@ -88,7 +88,7 @@ public:
     }
 
     // P5 readback is combinational and several status bits last one
-    // character only (ACCC §21.3.4 p.248). Sample without advancing the
+    // character only (ACCC §21.3.4 p.249). Sample without advancing the
     // clock so the assertion names the counter state actually observed.
     std::uint8_t sample_selected(bool rs = true, bool selected = true,
                                  bool read_cycle = true) {
@@ -463,7 +463,7 @@ void program_display_frame(TestBench& test) {
 }
 
 // Power-on R0=0 makes every character a complete line: C0 pins to 0. This
-// is the §13.5 (p.121) "R0 accepts all values" acceptance at the reset
+// is the §13.5 (p.122) "R0 accepts all values" acceptance at the reset
 // value, and doubles as the reset contract for the counter.
 void t01a_reset_and_r0_zero(TestBench& test) {
     test.expect_hcc("reset clears C0", 0);
@@ -471,7 +471,7 @@ void t01a_reset_and_r0_zero(TestBench& test) {
     test.expect_hcc("R0=0 keeps C0 pinned at 0 (ACCC §13.5)", 0);
 }
 
-// Program R0=63 mid-character; the live equality (ACCC §13.1, p.102) makes
+// Program R0=63 mid-character; the live equality (ACCC §13.1, p.103) makes
 // the line exactly 64 characters: C0 walks 1..63 then wraps to 0 twice.
 void t01b_r63_period(TestBench& test) {
     test.write_register(0x00, 63);
@@ -522,7 +522,7 @@ void t01d_r0_widen_midline(TestBench& test) {
     test.expect_hcc("wrap only at the new R0", 0);
 }
 
-// ACCC §13.5 (p.121) says CRTC3/4 accept all R0 values without the type-0
+// ACCC §13.5 (p.122) says CRTC3/4 accept all R0 values without the type-0
 // freeze/stall. It does not provide a direct CRTC3 chronogram for shrinking
 // R0 below the current C0. The exact 20..255..0..10 sequence asserted here is
 // therefore an explicitly unverified P1 model assumption, retained as a
@@ -620,7 +620,7 @@ void t04c_r3l_rewrite_wraps_nibble(TestBench& test) {
     }
 }
 
-// ACCC §15.3.1/§15.3.2 p.148: with R0=0, R2=0, R3l=1 the width expires
+// ACCC §15.3.1/§15.3.2 p.149: with R0=0, R2=0, R3l=1 the width expires
 // exactly on a C0=R2 character every time; types 1..4 keep the HSYNC
 // asserted with the counter rolling through its wrapped nibble — the
 // infinite-HSYNC configuration.
@@ -634,7 +634,7 @@ void t04d_infinite_hsync(TestBench& test) {
     }
 }
 
-// ACCC §15.3.5 p.151 CRTC3 chronogram: R2 starts at 11 with R3l=10,
+// ACCC §15.3.5 p.152 CRTC3 chronogram: R2 starts at 11 with R3l=10,
 // then a live R2=21 lands exactly where the active pulse would naturally
 // end. C3 does not reset; it continues 10,11..15,0..10 and HSYNC therefore
 // stays asserted through C0=36 before ending on entry to C0=37.
@@ -755,7 +755,7 @@ void t04e_vsync_gate_and_r7_write(TestBench& test) {
     }
 }
 
-// ACCC §14.2 p.131: R3h programs the VSYNC length in lines, 0 meaning
+// ACCC §14.2 p.132: R3h programs the VSYNC length in lines, 0 meaning
 // 16 (types 0/3/4).
 void t04f_vsync_width(TestBench& test) {
     program_display_frame(test);
@@ -817,7 +817,7 @@ struct TestCase {
 
 constexpr unsigned kBase = 0x1234;
 
-// ACCC §20.3.4 p.243 + §17.1 p.176: both pointers reload from R12/R13 at
+// ACCC §20.3.4 p.244 + §17.1 p.177: both pointers reload from R12/R13 at
 // the frame start (C4=0 & C0=0); VMA counts every character cell; the
 // row-end capture (C0=R1 & C9=R9) advances the row start by R1.
 void t03a_ma_reload_and_row_advance(TestBench& test) {
@@ -840,7 +840,7 @@ void t03a_ma_reload_and_row_advance(TestBench& test) {
                    kBase);
 }
 
-// ACCC §17.1 p.175/§17.6.1: DISPTMG on at C0=0, off at C0=R1; with
+// ACCC §17.1 p.176/§17.6.1: DISPTMG on at C0=0, off at C0=R1; with
 // R1<R0 the rest of the line is border while VMA keeps counting.
 void t03b_r1_border_edges(TestBench& test) {
     program_display_frame(test);
@@ -857,7 +857,7 @@ void t03b_r1_border_edges(TestBench& test) {
     }
 }
 
-// ACCC §17.6.1 p.185 (all types): with R1==R0 exactly one border
+// ACCC §17.6.1 p.186 (all types): with R1==R0 exactly one border
 // character appears at C0=R0 before the next line reloads DISPTMG.
 void t03c_r1_eq_r0_blip(TestBench& test) {
     program_display_frame(test);
@@ -869,7 +869,7 @@ void t03c_r1_eq_r0_blip(TestBench& test) {
         }
         test.expect_de("only the C0=R0 character borders", k < 7);
     }
-    // ACCC §17.1 p.176 and §17.6.1 p.185: the simultaneous C0=R1=R0
+    // ACCC §17.1 p.177 and §17.6.1 p.186: the simultaneous C0=R1=R0
     // row-end capture still advances VMA' normally. After the remaining
     // scanlines of row 0, row 1 must therefore start at base+R1 rather
     // than repeating the old row base.
@@ -881,7 +881,7 @@ void t03c_r1_eq_r0_blip(TestBench& test) {
 
 // ACCC §17.6.2/§19.2.4 (types 3/4 grouped with type 1): with R1>R0 no
 // spurious border byte is substituted at C0=R0 — the whole line stays
-// displayed — and §17.2 p.179 makes every row re-display the frozen VMA'
+// displayed — and §17.2 p.180 makes every row re-display the frozen VMA'
 // base (capture can never fire).
 void t03d_r1_gt_r0_no_substitution(TestBench& test) {
     program_display_frame(test);
@@ -901,10 +901,10 @@ void t03d_r1_gt_r0_no_substitution(TestBench& test) {
     test.expect_ma("row 2 repeats the same base", kBase);
 }
 
-// ACCC §18.2.4 p.189: the R6 test runs only at the beginning of a line;
+// ACCC §18.2.4 p.190: the R6 test runs only at the beginning of a line;
 // a mid-line update is not considered until the next line start, and
 // there is no per-C0 evaluation (contrast types 0/1).
-// ACCC §18.2.4 p.189: the R6 test runs only at the beginning of a line;
+// ACCC §18.2.4 p.190: the R6 test runs only at the beginning of a line;
 // a mid-line update is not considered until the next line start, and
 // there is no per-C0 evaluation (contrast types 0/1). §18.3.4: R6=0 has
 // no special case. R1>R0 keeps the horizontal term out of the way so DE
@@ -934,7 +934,7 @@ void t03e_r6_line_start_semantics(TestBench& test) {
     test.expect_de("display resumes once C4!=R6 at a line start", true);
 }
 
-// ACCC §11.2.6 p.84 + §20.3.4: adjustment lines do not update the video
+// ACCC §11.2.6 p.85 + §20.3.4: adjustment lines do not update the video
 // pointer; each one restores the captured row base, and RA carries the
 // adjustment index instead of a fresh scanline count.
 void t03f_adjustment_rows_solidified(TestBench& test) {
@@ -996,7 +996,7 @@ void t03h_vde_rows_past_r6_stay_bordered(TestBench& test) {
     test.expect_de("display resumes at frame restart", true);
 }
 
-// ACCC §19.2.3 p.193-194 (SKEW-DISPTMG exists on types 0/3/4): delay +1
+// ACCC §19.2.3 p.194-195 (SKEW-DISPTMG exists on types 0/3/4): delay +1
 // shifts both visible border edges by one character; mode 3 forces
 // BORDER ON regardless of R1/R6 state.
 void t03g_skew_delay_and_border_on(TestBench& test) {
@@ -1044,7 +1044,7 @@ void t02a_normal_frame_cycle(TestBench& test) {
     test.expect_adj(false, "no adjustment with R5=0");
 }
 
-// ACCC §10.3.4 p.77: "If current-C9 > R9 then next-C9=0" — lowering R9
+// ACCC §10.3.4 p.78: "If current-C9 > R9 then next-C9=0" — lowering R9
 // below the running C9 forces the reset on the next line with normal row
 // accounting (impossible to overflow C9). Previous R9 family table,
 // C4<>R4 case: next line C9=0, C4=C4+1.
@@ -1069,7 +1069,7 @@ void t02b_r9_lowered_forces_reset(TestBench& test) {
     test.expect_line("and C4 advanced again", 2);
 }
 
-// ACCC §12.5 p.101: an R4 updated below the current C4 makes the frame-end
+// ACCC §12.5 p.102: an R4 updated below the current C4 makes the frame-end
 // equality unreachable — "there is overflow of the C4 counter" (contrast
 // with C9 above): C4 free-runs and the frame does not restart.
 void t02c_r4_lowered_overflows(TestBench& test) {
@@ -1086,7 +1086,7 @@ void t02c_r4_lowered_overflows(TestBench& test) {
     test.expect_adj(false, "no adjustment entered");
 }
 
-// ACCC §11.2.6 p.84: on types 3/4 entering vertical adjustment does NOT
+// ACCC §11.2.6 p.85: on types 3/4 entering vertical adjustment does NOT
 // increment C4 — it stays equal to R4 — while C9 resets to 0.
 void t02d_adjustment_entry_keeps_c4(TestBench& test) {
     test.write_register(0x00, 7);
@@ -1099,7 +1099,7 @@ void t02d_adjustment_entry_keeps_c4(TestBench& test) {
     test.expect_row("adjustment lines index from C9=0", 0);
 }
 
-// ACCC §11.3.3 p.86 + §11.2.6: adjustment runs exactly R5 lines, then the
+// ACCC §11.3.3 p.87 + §11.2.6: adjustment runs exactly R5 lines, then the
 // next line is a fresh frame (C4=C9=0). With R0=7/R9=3 each line is 8
 // characters; frame body = 3 rows x 4 lines, plus R5=2 adjustment lines.
 void t02e_adjustment_length_and_restart(TestBench& test) {
@@ -1188,7 +1188,7 @@ void program_ivm_adjustment_frame(TestBench& test) {
 
 // ACCC v1.11 §19.8.4 pp.236-241: the even-frame terminal C9 is 7 on the
 // final (odd-parity) C4, then R5 adjustment starts with C4 held at R4 and
-// C9 reset to the adjustment index 0.  §11.2.6 p.84 says adjustment lines do
+// C9 reset to the adjustment index 0.  §11.2.6 p.85 says adjustment lines do
 // not update the video pointer.  §20.3.4 p.244 (FR p.243) supplies the row-end capture
 // and frame-origin reload used to derive MA: R1=2 and two character rows
 // place the adjustment at R12/R13 + 4, then the frame restart reloads the
@@ -1301,7 +1301,7 @@ void t02l_ivm_odd_frame_adjustment(TestBench& test) {
 }
 
 // Program a stable interlace frame whose first active field is even.  R0=63
-// makes the ACCC p.214/p.218 half-line position C0=31 directly observable.
+// makes the ACCC p.215/p.219 half-line position C0=31 directly observable.
 // The initial R0=0 reset rollover makes ParityFrame odd;
 // run_to_frame_start() consumes the programmed setup frame and therefore
 // enters an even frame.  The mode defaults to IVM (R8=3); the sync-only
@@ -1474,7 +1474,7 @@ void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     live_r0.expect_hcc("t04m rewritten live R0/2 position", 15);
     live_r0.expect_vsync("t04m pending MID-VSYNC follows live R0", true);
 
-    // §14.2 p.131 permits live R3h changes during VSYNC.  After one C0=0
+    // §14.2 p.132 permits live R3h changes during VSYNC.  After one C0=0
     // count of an R3h=3 MID pulse, lowering R3h to 2 makes the second seam
     // the live equality and ends the pulse there.
     TestBench live_r3;
@@ -1526,7 +1526,7 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     for (unsigned field = 0; field < 2; ++field) {
         // R8=1 must leave the ordinary C4/C9, VMA, RA, and DE state intact:
         // row 2 starts with C9=0, VMA base+2*R1=4, RA=0, and the first two
-        // character cells are in the display window (ACCC §17.1 p.175).
+        // character cells are in the display window (ACCC §17.1 p.176).
         test.expect_line("t04n C4 at VSYNC target seam", 2);
         test.expect_row("t04n C9 at VSYNC target seam", 0);
         test.expect_hcc("t04n seam horizontal phase", 0);
@@ -1621,7 +1621,7 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     exit.run_to_state(2, 0, 31, "t04n former midpoint after mode-1 exit");
     exit.expect_vsync("t04n R8=1 exit cancels pending midpoint", false);
 
-    // §19.6.4 p.217 says the added line starts from the VMA' captured at
+    // §19.6.4 p.218 says the added line starts from the VMA' captured at
     // C9=R9,C0=R1.  R4=0 is the aliasing discriminator: the added line has
     // C4=C9=0, but it is not a real frame origin and must not reload R12/R13.
     TestBench r4_zero;
@@ -1645,7 +1645,7 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
 
     // With R9=0 the forced C9=0 of the added line also satisfies c9_done.
     // Its exit is nevertheless the real frame origin and must reload both
-    // pointers from R12/R13 (§20.3.4 p.243 selected origin reading).
+    // pointers from R12/R13 (§20.3.4 p.244 selected origin reading).
     TestBench r9_zero;
     r9_zero.write_register(0, 7);
     r9_zero.write_register(1, 2);
@@ -2804,7 +2804,7 @@ void t08g_sscr_border_mask_and_sprites(TestBench& test) {
     test.set_sprite(0, 0, 0, 0);
 }
 
-// t08h: 14-bit VMA overscan carry across 10-bit and 12-bit boundaries (§20.5 p.244).
+// t08h: 14-bit VMA overscan carry across 10-bit and 12-bit boundaries (§20.5 p.245).
 void t08h_overscan_carry_14bit(TestBench& test) {
     program_display_frame(test);
     test.write_register(12, 0x03);
