@@ -100,16 +100,16 @@ as hardware confirmations.
   *(Fixed in English v1.11 re-issue p.24: "HL increment, B decrement")*
 - **§10.3.1.2 FR p.77 / EN p.77:** French uses `C9<>R9`; English's `C9<=R9` loses the
   C9>R9 overflow route.
-  *(Fixed in English v1.11 re-issue p.67: "C9 <> R9")*
+  *(Fixed in English v1.11 re-issue p.77: "C9 <> R9")*
 - **§12.2.1 FR p.96 / EN p.95:** French gives complementary RLAL write windows—line N at
   `C0>1`, or N+1 at `C0<2`. English omits the line-N condition.
-  *(Fixed in English v1.11 re-issue p.85: "on this line N when C0>1 or on the line N+1 when C0<2")*
+  *(Fixed in English v1.11 re-issue p.95: "on this line N when C0>1 or on the line N+1 when C0<2")*
 - **§13.7.2 FR pp.126–128 / EN pp.125–127:** English changes `C0=0` to `C0=R0`,
   `C4=R4` to `C4=C4`, reverses the no-adjustment condition, omits the additional `C4=R4`
   conjunct from the **initial programmed-increment sentence** in the R0=1 case, and says R5
   where French and the 8–31 example require `R5-1`. Both editions separately describe the
   later partially completed overflow after C4 has diverged.
-  *(Fixed in English v1.11 re-issue pp.115–116, aligned with French text)*
+  *(Fixed in English v1.11 re-issue pp.125–127, aligned with French text)*
 - **§16.2.1 FR p.162 / EN p.161:** the English R7.NJIT heading incorrectly imports the JIT
   definition and makes its condition inconsistent.
   French defines NJIT as programming R7 before C4 reaches it and JIT as programming R7 with
@@ -139,16 +139,16 @@ as hardware confirmations.
 *(All items below are **IN PRINT** in the v1.11 re-issue, fingerprinted below)*
 
 1. **§7.2:** align on `19968-21`; the author chose it because it finds VSYNC faster.
-   *(In print in English v1.11 re-issue p.30)*
+   *(In print in English v1.11 re-issue p.40)*
 2. **§4.4.3–4:** `OUTD` is intentional, and the ASIC uses the same `/WAIT`
    request/repetition mechanism as the Gate Array.
    *(In print in French v1.11 re-issue pp.26–27 and English v1.11 re-issue pp.26–27)*
 3. **§11.6:** C0=R1 does not clear the VMA-source state; C9=R9 does, and parity can make that
    equality fail so the state remains active.
-   *(Text reflowed in English v1.11 re-issue pp.78–79; French unchanged)*
+   *(Text reflowed in English v1.11 re-issue pp.88–89; French unchanged)*
 4. **§14.1 FR p.132:** “begins” is a French typo; reaching C3l=R3l ends HSYNC.
    *(In print in French v1.11 re-issue p.132: "se termine")*
-5. **§16.4.1.2 EN p.169:** the English-only R0/VSYNC paragraphs are normative; the author
+5. **§16.4.1.2 EN p.170:** the English-only R0/VSYNC paragraphs are normative; the author
    intends to add them to French.
    *(In print in French v1.11 re-issue p.171)*
 6. **§19.3.4:** the French advice is wrong; R8 should be changed at frame start.

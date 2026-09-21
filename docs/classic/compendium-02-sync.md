@@ -597,7 +597,7 @@ findings-review.md): p.131 (R3 layout), p.134 (duration table — reinterpreted,
 p.167 (restart trace, mostly legible).
 
 Retired by the 2026-08-24 D1 visual re-verification (render-checked against
-`docs/ACCC1.10-EN.pdf`; inline notes in the sections above): pp.135–137 (R3-during-HSYNC
+`docs/ACCC1.10-EN.pdf`; inline notes in the sections above): pp.136–138 (R3-during-HSYNC
 dynamic-update diagrams), pp.140–141 (R3.JIT pixel-M2 positioning), pp.150–151 (R2-during-HSYNC
 per-value diagrams), p.153 (VSYNC-during-HSYNC encroachment), p.158 (R2 46↔50 OUT-sequence),
 p.161 (R7.JIT pixel-M2 positioning).

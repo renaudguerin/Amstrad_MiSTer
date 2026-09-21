@@ -523,7 +523,7 @@ Each subsection below is a runnable acceptance-test recipe: **I/O sequence → e
        - Type 0 expected: 0.
        - Type 1 expected: non-zero (127 or 255 per hardware sample).
 
-### 28.1.10 Via R10/R11 status registers (§28.1.10, p.293)
+### 28.1.10 Via R10/R11 status registers (§28.1.10, p.294)
 - Type 3/4 only — not applicable to type 0/1 discrimination. Noted only to avoid confusing it with the &BE00/&BF00 tests above, which ARE the correct type-0/1 discriminators.
 
 ---

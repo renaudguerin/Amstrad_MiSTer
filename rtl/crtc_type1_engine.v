@@ -130,7 +130,7 @@ module crtc_type1_engine
 /* verilator lint_off WIDTH */
 
 // ------------------------------------------------------------------
-// F10: IVM mode flag and the two-stage R8-toggle update (ACCC v1.10
+// F10: IVM mode flag and the two-stage R8-toggle update (ACCC v1.11
 // sections 19.5.3 p.209-210 and 19.8.2 p.226; the 16 SHAKER 22C/3 panels
 // pp.211-212).
 //
@@ -438,7 +438,7 @@ assign line_poke = stage_a_edge || stage_b_edge;
 assign line_poke_bit = stage_a_edge ? stage_a_pc9 :
                        tog_enter    ? stage_b_pc9_value : parity_c9;
 
-// ACCC v1.10 sections 11.6-11.6.3, pages 87-90: "Rupture For
+// ACCC v1.11 sections 11.6-11.6.3, pages 88-91: "Rupture For
 // Dummies" is armed only by a type-1 R5 write from zero to nonzero that
 // is visible on the C0=R0 rollover edge.  The register file and this engine
 // sample the same CLOCK edge, so use the old stored R5 value together with

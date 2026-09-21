@@ -31,7 +31,8 @@ clearance never closes a hardware gate, which is tracked in `backlog.md` and
 
 **ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — REVIEWED (Gemini 3.8 Flash
 high, run `20260921T175020Z-80016-18b2`; Astra low, run `20260921T175020Z-79905-dd1b`), both
-CHANGES REQUIRED, all findings fixed, re-review of the fixes pending:** Opus shifted
+CHANGES REQUIRED; round-2 re-review (runs `20260921T180739Z-90193-140e`, `20260921T180739Z-90182-2e61`)
+confirmed the round-1 fixes and found more stale citations, all fixed; round-3 review pending:** Opus shifted
 about 1,000 English page anchors (+1 from first-print p.29) and renumbered first-print English
 §14.4-14.8 to §14.5-14.9 across live docs, RTL and sim comments; only digits and chapter-14
 section numbers changed, and the selected benches pass. Look hardest at: unlabelled anchors that
