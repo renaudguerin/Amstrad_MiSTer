@@ -45,7 +45,7 @@ discrepancy or a rule the RTL is predicted to violate, not from blanket coverage
   raw CRTC HSYNC/VSYNC and GA `INT_N`.
 - Q17 is not closed: the adjustment arithmetic and the simulation predict R7=39 silence, while
   ACCC §28.1.1 predicts a pulse. Hardware must discriminate.
-- The absolute adjustment-entry pointer in the D1 p.81 addressing pins is not
+- The absolute adjustment-entry pointer in the D1 p.82 addressing pins is not
   source-adjudicated.
 - Production T80: four executed OUT(C)/OUTI cases pass, but native dynamic-wait equivalence
   and full motherboard execution remain open. Do not infer production instruction behaviour

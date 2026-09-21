@@ -33,8 +33,8 @@ clearance never closes a hardware gate, which is tracked in `backlog.md` and
 high, run `20260921T175020Z-80016-18b2`; Astra low, run `20260921T175020Z-79905-dd1b`), both
 CHANGES REQUIRED; round-2 re-review (runs `20260921T180739Z-90193-140e`, `20260921T180739Z-90182-2e61`)
 confirmed the round-1 fixes and found more stale citations, all fixed; round-3 Astra review
-(run `20260921T182232Z-98421`) found nine more small items, fixed; Gemini's round-3 run ended
-without a report; final confirmation pending:** Opus shifted
+(run `20260921T182232Z-98421`) found nine more small items, fixed; round 4 (both reviewers)
+confirmed every round-3 fix and found seven residual occurrences, fixed without a further round:** Opus shifted
 about 1,000 English page anchors (+1 from first-print p.29) and renumbered first-print English
 §14.4-14.8 to §14.5-14.9 across live docs, RTL and sim comments; only digits and chapter-14
 section numbers changed, and the selected benches pass. Look hardest at: unlabelled anchors that
