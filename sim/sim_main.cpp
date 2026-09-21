@@ -4821,7 +4821,7 @@ void test_type1_rfd_r0_widen_line_gate_never_arms(TestBench& test) {
     test.reset();
 
     // Companion to t13j exercising the other half of the section
-    // 13.7.1.2 p.124 last-line precondition.  Paper: run_characters(23)
+    // 13.7.1.2 p.125 last-line precondition.  Paper: run_characters(23)
     // lands on C0=7==R0 of line 2, where the row half holds (C4=1==R4)
     // but the line half fails (C9=0!=R9).  Widening there opens no
     // window; the write edge wraps ordinarily (C9=0 does not match R9, so
@@ -5492,7 +5492,7 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
 // resulting second-half byte as 0.5 us; the character walker below samples
 // that late phase, while t31 pins both halves exactly. Type 1 emits nothing at
 // all in this configuration (pages
-// 186-187) -- the documented type discriminator of section 28.1.6. Section
+// 187-188) -- the documented type discriminator of section 28.1.6. Section
 // 19.2.4 (page 196) counts a programmed SKEW-DISPTMG delay from the
 // substituted trigger as if C0=R1 had fired there, so delay=1/2 rounds and
 // displaces the event onto the full C0=0/C0=1 character of the following line
@@ -6008,7 +6008,7 @@ void t21_run_panel(TestBench& test, const T21Panel& panel) {
     test.expect_line_parity(tag + " off stage B C9.0", off_a);
 }
 
-// The 16 panel configurations in pp.210-211 layout order: EVEN page first
+// The 16 panel configurations in pp.211-212 layout order: EVEN page first
 // (initial parity even), ODD page second; within a page C4.0=0 quadrant
 // above C4.0=1, R9.0=0 column left of R9.0=1, C9.0=0 panel above C9.0=1.
 constexpr T21Panel kT21Panels[] = {
@@ -6241,7 +6241,7 @@ void t22_entry_odd_6(TestBench& test) {
     t22_walk(test, "t22 entry odd 6", steps);
 }
 
-// Exit fixtures, table-shaped (pp.223-224): IVM is entered on line 0 of
+// Exit fixtures, table-shaped (pp.224-225): IVM is entered on line 0 of
 // row 0, that character row completes (C4=1 after its doubled limit), and
 // the OUT R8,0 lands early in character 4 of a second-row line.  The walk
 // starts at the exit line itself.
@@ -6466,7 +6466,7 @@ void test_type1_ivm_frame_boundary_parity_continuity(TestBench& test) {
         std::uint8_t ra;
         bool pc9;
     };
-    // Hand-derived from the p.225 match branch (see block comment).
+    // Hand-derived from the p.226 match branch (see block comment).
     const std::array<Step, 6> steps = {{
         {0, 0, 0, 0},
         {0, 2, 2, 0},

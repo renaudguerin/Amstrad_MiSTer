@@ -7,6 +7,8 @@
 
 Reviewed 2026-08-22 against `docs/ACCC1.10-EN.pdf`
 (SHA-256 `1bd6f0e3a06022d03fd40b51d4d622afef2675954a483780f0922cdf1e33a560`, 295 pp).
+Page anchors in this file were migrated on 2026-09-21 to the English pages of the 2026-09-11
+v1.11 re-issue (`docs/specs/ACCC1.11-EN.pdf`); section numbers follow the re-issue.
 Method and tooling: `docs/plans/2026-08-22-accc-review-plan.md`; extraction manifest:
 `extract/README.md`. Verdict scale: **confirmed / partly-confirmed / inaccurate /
 unverifiable-from-text**. "Inaccurate" always means the *documentation*, not the RTL.

@@ -191,7 +191,7 @@ was retired by the 2026-08-22 review:
   is live against current C9 counting during adjustment too.
 - Interlace line (if added on top of R5 lines) is just one more appended line, same C4 as the
   last R5 line.
-- **⚠ VMA source switches during first adjustment line** (IMPORTANT, §11.2.4, p.84-85): if C4
+- **⚠ VMA source switches during first adjustment line** (IMPORTANT, §11.2.4, p.85): if C4
   was 0 immediately before adjustment began, **VMA loads from R12/R13 (not VMA') for as long as
   C4==1** in adjustment (the new post-increment C4). This suspends the normal "R1 gates VMA'"
   logic for that row — offset changeable on every C9 line of that C4==1 row, like RFD. Caveat:

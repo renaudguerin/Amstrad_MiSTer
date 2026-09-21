@@ -505,7 +505,7 @@ Each subsection below is a runnable acceptance-test recipe: **I/O sequence → e
   - **Expected on both type 0 and type 1:** VSYNC now occurs **twice as fast** as before entering IVM, because `C4` reaches `R7` twice as fast (rows are now 4 lines instead of 8 from C4's perspective). This confirms "is this CRTC 0 or 1" as a *pair* (both behave the same way) versus type 2, which does **not** speed up C4 counting under IVM — so this test discriminates {0,1} vs {2}, not 0 vs 1 specifically. Included here because the source groups it under "CRTC identification" generally; **not** a 0-vs-1 discriminator by itself.
 
 ### 28.1.8 Via status register at &BE00 (§28.1.8, p.294) — PRIMARY 0-vs-1 TEST
-- **Test:** read `&BE00` repeatedly at a precisely-timed instant and test **bit 5**. Q14 was resolved 2026-08-26: §28.1.8's printed "bit 6" is a typo. The p.246 render and UM6845R datasheet both map bit 6 to the light-pen-full flag and bit 5 to vertical blanking/BORDER-R6; §21.3.3's `00100000` diagrams directly show the frame-timed bit-5 transition. The CRTC 3/4 STATUS-1 bit 6 on p.248 is a separate always-1 field.
+- **Test:** read `&BE00` repeatedly at a precisely-timed instant and test **bit 5**. Q14 was resolved 2026-08-26: §28.1.8's printed "bit 6" is a typo. The p.247 render and UM6845R datasheet both map bit 6 to the light-pen-full flag and bit 5 to vertical blanking/BORDER-R6; §21.3.3's `00100000` diagrams directly show the frame-timed bit-5 transition. The CRTC 3/4 STATUS-1 bit 6 on p.249 is a separate always-1 field.
   - **Type 1:** `&BE00` is a genuine, live status register — the targeted bit transitions in a well-defined, reproducible way tied to CRTC internal state (per §21.3.3's bit-5 BORDER-R6 rule, sampled at C0=R0).
   - **Type 0:** `&BE00` has **no status register** — reads are described elsewhere (§21.3.2) as returning "randomly 255 or 127" — i.e. floating bus / undefined value, NOT a value that transitions in sync with any CRTC condition.
   - **Concrete acceptance test:** poll `&BE00` across many frames at a fixed timing relative to a known raster position. **Type 1** must show bit 5 flipping deterministically at `C0=R0` in sync with the programmed R6/C4 state (§21.3.3). **Type 0** must show a value that does **not** correlate with any internal CRTC state (model this as returning the floating-bus/last-driven-value byte, e.g. from a prior OUT to the address/data bus, rather than a fixed constant — do not hardcode 0xFF).
@@ -589,4 +589,4 @@ Resolved source conflicts / remaining table anomaly:
 - p.224 bottom-left — the C4=2,C9=7 exit cell remains anomalous under the otherwise decisive
   frozen-C9.VMA rule (Q19(b), resolved 2026-08-26); F16 excludes that cell pending hardware.
 - p.294 — the identification "bit 6" reference is a source typo for bit 5 (Q14, resolved
-  2026-08-26 against the p.246/p.247 renders and UM6845R datasheet).
+  2026-08-26 against the p.247/p.248 renders and UM6845R datasheet).

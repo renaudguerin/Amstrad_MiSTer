@@ -10,6 +10,8 @@ file if the mapping is redone.
 transcriptions in `menu-transcriptions.md` (captured from a running SHAKER 2.6 on an emulator
 set to CRTC type 1) and `docs/ACCC1.10-EN.pdf`. The section numbers, page numbers, and quoted
 rules below have **not** been independently re-checked against the PDF by a second reader.
+Page anchors in this file were migrated on 2026-09-21 to the English pages of the 2026-09-11
+v1.11 re-issue (`docs/specs/ACCC1.11-EN.pdf`); section numbers follow the re-issue.
 
 **How to use it.** Treat the mapping tables as a reliable index into the Compendium and the
 quoted operative rules as accurate but unverified. Before any rule here is turned into RTL or

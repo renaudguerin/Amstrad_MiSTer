@@ -15,6 +15,8 @@ Collected 2026-08-22 during the faithfulness review of the repository's distilla
 the source itself is ambiguous, self-contradictory, or silent where we need precision — not
 extraction failures. Page numbers are PDF pages. Companion analysis:
 [findings-review.md](findings-review.md).
+Page anchors in this file were migrated on 2026-09-21 to the English pages of the 2026-09-11
+v1.11 re-issue (`docs/specs/ACCC1.11-EN.pdf`); section numbers follow the re-issue.
 
 Re-checked 2026-08-26 against fresh pdf-inspector extraction, rendered pages where a table,
 diagram, or exact layout is evidence below, and the CRTC chip/reference documents under
