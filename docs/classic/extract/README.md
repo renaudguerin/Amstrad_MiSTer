@@ -99,8 +99,8 @@ PY
   on 2026-09-21. Archived and dated records, and the bilingual ledger
   `accc-1.11-fr-en-differences.md`, keep first-print anchors. To read those: French pages are
   unchanged; English pages from p.29 onward are one lower than the re-issue, and English
-  §14.4-§14.8 of the first print are §14.5-§14.9 today (the first print left today's §14.4,
-  the C-HSYNC table continuation, unnumbered). The section number is the durable key.
+  §14.4-§14.8 of the first print are §14.5-§14.9 today (the first print left today's §14.4
+  "HSYNC and frame position", which holds the C-HSYNC duration table, unnumbered). The section number is the durable key.
 
 ## Produced files
 
