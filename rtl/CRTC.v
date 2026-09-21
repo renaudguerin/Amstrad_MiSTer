@@ -387,7 +387,7 @@ always @(posedge CLOCK) begin
 			row <= row + 1'd1;
 			if(row == R4_v_total) in_adj <= 1;
 		end
-		// French ACCC v1.11 section 13.7.2.2 pp.126-127: a type-0
+		// French ACCC v1.11 sections 13.7.2 p.127 and 13.7.2.2 p.128: a type-0
 		// R0=1 widening accepted on C0=1 of a true last frame line first
 		// consumes the old equality, then reaches C0=2 with C4=R4+1 while
 		// C9 is retained.  The engine's one-character pending state separates

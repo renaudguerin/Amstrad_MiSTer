@@ -451,7 +451,7 @@ reg rfd_vma_flag;
 reg rfd_parity_flag;
 reg rfd_r0_pending;
 
-// Finding F17 (ACCC v1.10 §11.6.1 p.88): an RFD triggered on C9=R9 via the
+// Finding F17 (ACCC v1.11 §11.6.1 p.89): an RFD triggered on C9=R9 via the
 // general R5-write route disables the state allowing VMA to be updated with
 // R12/R13 (vma_flag), while parity management (parity_flag) remains armed.
 // In contrast, the section 13.7.1.2 p.125 R0-widening R4-variant route
@@ -472,7 +472,7 @@ wire rfd_vma_active = (rfd_vma_flag & ~rfd_vma_disarm_hit) | rfd_vma_arm;
 wire rfd_r1_gt_r0_disarm = rfd_vma_flag &
                            (R1_h_displayed > R0_h_total) & line_last_w;
 
-// Technical information sourced from ACCC v1.10 §11.2.4 p.84:
+// Technical information sourced from ACCC v1.11 §11.2.4 p.85:
 // If C4 was 0 immediately before adjustment began, VMA loads from R12/R13
 // while C4==1 in adjustment.  A positive R4 rewrite on the exact C0=R0
 // entry edge suppresses that reload; an R9 rewrite on the same edge does not.
@@ -510,7 +510,7 @@ always @(posedge CLOCK) begin
 	else if(CRTC_TYPE) begin
 		// Clear only when the parity-gated save really fires, through
 		// the R1>R0 bare-C9 route, or when an RFD is triggered on C9=R9
-		// (ACCC v1.10 §11.6.1 p.88; F17). A same-edge trigger on C9!=R9
+		// (ACCC v1.11 §11.6.1 p.89; F17). A same-edge trigger on C9!=R9
 		// arms the source flag.
 		if((CLKEN && row_addr_save) | rfd_r1_gt_r0_disarm |
 		   (rfd_arm & (line == crtc1_line_max)))
