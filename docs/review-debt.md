@@ -29,7 +29,9 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
-**ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — UNREVIEWED:** Opus shifted
+**ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — REVIEWED (Gemini 3.8 Flash
+high, run `20260921T175020Z-80016-18b2`; Astra low, run `20260921T175020Z-79905-dd1b`), both
+CHANGES REQUIRED, all findings fixed, re-review of the fixes pending:** Opus shifted
 about 1,000 English page anchors (+1 from first-print p.29) and renumbered first-print English
 §14.4-14.8 to §14.5-14.9 across live docs, RTL and sim comments; only digits and chapter-14
 section numbers changed, and the selected benches pass. Look hardest at: unlabelled anchors that

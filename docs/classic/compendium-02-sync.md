@@ -21,8 +21,8 @@ for C-SYNC generation (not CRTC registers).
   entirely — always 16-line VSYNC.
 - C3l starts at 0 the instant C0vs reaches R2; HSYNC is asserted until C3l reaches R3l.
   The author's 2026-08-31 response confirms that French §14.1 p.132 saying HSYNC “begins”
-  at that terminal count is a typo for **ends**; the promised French correction is not in
-  the published v1.11 PDF.
+  at that terminal count is a typo for **ends**; the 2026-09-11 re-issue carries the correction
+  (French p.132: "La HSYNC se termine dès que le compteur C3l atteint la valeur de R3l").
 - The p.131 bit-layout comparison table reads cleanly in the text layer (extraction-noise
   flag retired by the 2026-08-22 review); the rule above is prose-confirmed either way.
 
@@ -362,10 +362,9 @@ Two independent mechanisms against infinite VSYNC:
     C0vs=&36 shows VSYNC active; read 6µs after a rewrite at C0vs=&00 shows VSYNC **inactive**
     (hits the C0vs<2 blocked case).
 - **R0 interaction**: C0 must be able to reach value **2** on the line preceding the C4=R7 line for
-  VSYNC to be considered at all. The following two cases appear only in English v1.11
-  §16.4.1.2 p.170 and are absent from French p.170. The author confirmed on 2026-08-31 that
-  they are normative and were intended for French; use English p.170 as the current published
-  anchor. The 2026-09-01 consequence audit found that steady R0=1 lacked the preceding-line
+  VSYNC to be considered at all (English §16.4.1.2 p.169, French p.170). The following two
+  dynamic-R0 cases are on English p.170 and French p.171 of the re-issue; the first print had
+  them in English only. The author confirmed on 2026-08-31 that they are normative. The 2026-09-01 consequence audit found that steady R0=1 lacked the preceding-line
   qualification; failure-first `t02l` now pins the corrected behavior. Native-review follow-ups
   `t02m` and `t02n` pin the exact dynamic writes. `t02o` pins blocked-comparison consumption as
   a model inference and hardware discriminator; that latch-level consequence was not explicitly

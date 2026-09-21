@@ -1072,7 +1072,7 @@ void test_type0_vsync_requires_preceding_c0_2(TestBench& test) {
     }
     test.reset();
 
-    // ACCC v1.11 English section 16.4.1.2 p.170 (FR §16.4.1.2 p.170, author-confirmed as
+    // ACCC v1.11 English section 16.4.1.2 p.169 (FR §16.4.1.2 p.170, author-confirmed as
     // normative on 2026-08-31): type 0 considers the natural C4=R7 VSYNC
     // only when C0 reached 2 on the preceding line.  A steady R0=1 line
     // visits only C0=0,1, so the comparison is consumed as blocked even
@@ -2077,7 +2077,7 @@ void test_type0_worked_example_exact_r0_yields_39_8(TestBench& test) {
     test.run_characters(63);  // Enter character C0=R0 of the critical scanline.
     test.write_selected_register_at_clken(8);
 
-    // ACCC v1.10 section 11.2.2, p.82: "we end up with C4==39 and C9==8."
+    // ACCC v1.11 section 11.2.2, p.83: "we end up with C4==39 and C9==8."
     test.expect_adjustment_active("t12 exact-R0 write enters adjustment");
     test.expect_c4("t12 exact-R0 straddle leaves C4=39", 39);
     test.expect_ra("t12 exact-R0 straddle leaves C9=8", 8);
@@ -2100,7 +2100,7 @@ void test_type0_worked_example_window_write_yields_38_8(TestBench& test) {
     test.write_selected_register_at_clken(8);
     test.run_characters(64 - 11);  // Consume characters 11..63 to the rollover.
 
-    // ACCC v1.10 section 11.2.2, p.82 example 3: the windowed write leaves
+    // ACCC v1.11 section 11.2.2, p.83 example 3: the windowed write leaves
     // C4 un-incremented; only C9 advances under the new-R9 comparison.
     test.expect_adjustment_active("t12 windowed write enters adjustment");
     test.expect_c4("t12 windowed write keeps C4=38", 38);
@@ -2200,7 +2200,7 @@ void test_type0_c0_r4_write_immediate_clears_last_line(TestBench& test) {
 
 // ---------------------------------------------------------------------------
 // t25: type-0 vertical-adjustment VRAM addressing -- the D1 p.82 correction
-// pinned at pin level (ACCC v1.10 section 11.2.1 p.81 table, render-verified
+// pinned at pin level (ACCC v1.11 section 11.2.1 p.82 table, render-verified
 // 2026-08-24; section 11.2.2 pp.82-84; section 20.2 p.242).
 //
 // Paper derivation against the p.82 worked example (R4=10, R5=16, R9=3,
@@ -2234,7 +2234,7 @@ void test_type0_c0_r4_write_immediate_clears_last_line(TestBench& test) {
 //     source-supported deltas are asserted below.
 // ---------------------------------------------------------------------------
 
-// Final VRAM word address per the ACCC v1.10 section 20.2 p.241
+// Final VRAM word address per the ACCC v1.11 section 20.2 p.242
 // construction, as wired on the CPC board and modelled by
 // Amstrad_motherboard.v: {MA[13:12], RA[2:0], MA[9:0]}.
 std::uint16_t composed_vram_word(std::uint16_t ma, std::uint8_t ra) {
@@ -2273,7 +2273,7 @@ void test_type0_adjustment_segment_cycles_period_8(TestBench& test) {
         }
         test.expect_ra("t25a adjustment line C9 counts 0..15 against R5",
                        c9);
-        // ACCC v1.10 section 11.2.1 p.81 LINE column via the section 20.2
+        // ACCC v1.11 section 11.2.1 p.82 LINE column via the section 20.2
         // p.242 bit assignment: segment = C9 mod 8, period 8, wrap at C9=8.
         const std::uint16_t composed =
             composed_vram_word(test.ma(), test.ra());
@@ -4443,7 +4443,7 @@ void test_type1_rfd_final_line_write_enters_adjustment(TestBench& test) {
     test.select_register(5);
     test.reset();
 
-    // ACCC v1.10 sections 11.4 (p.86) and 11.6 (p.87): R5 is evaluated
+    // ACCC v1.11 sections 11.4 (p.87) and 11.6 (p.88): R5 is evaluated
     // live at C0=R0.  On paper C4=R4=0 and C9=R9=0 make this the final
     // normal line, so the same R5 0->1 write must both arm RFD and select
     // one adjustment line; using the old stored R5 would incorrectly start
@@ -4545,7 +4545,7 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
 
 // ---------------------------------------------------------------------------
 // t13e-t13k: F7 residual -- CRTC-1 R0-widening RFD trigger route
-// (ACCC v1.10 section 13.7.1.2 p.124; digest-01 section 8.6)
+// (ACCC v1.11 section 13.7.1.2 p.125; digest-01 section 8.6)
 //
 // Fixture geometry, derived on paper: R0=7 gives 8 characters per line
 // (C0=0..7), R4=1 gives rows C4={0,1}, R9=1 gives lines C9={0,1}, so the
@@ -4564,7 +4564,7 @@ void test_type1_rfd_r0_widen_without_cancel_ends_normally(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 section 13.7.1.2 p.124: widening R0 exactly at C0==R0 on
+    // ACCC v1.11 section 13.7.1.2 p.125: widening R0 exactly at C0==R0 on
     // the last line opens a trigger window, but arming additionally needs
     // the last-line condition to be cancelled during the widened remainder.
     // With no R9/R4 rewrite the window must expire harmlessly at the
@@ -4607,7 +4607,7 @@ void test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end(TestBench& test) {
     test.run_characters(32);
     test.expect_parity_c9("RFD case-1 fixture is odd", true);
 
-    // ACCC v1.10 section 13.7.1.2 p.124, R9 variant ("C9 != R9 by line
+    // ACCC v1.11 section 13.7.1.2 p.125, R9 variant ("C9 != R9 by line
     // end"): widen R0 7->9 on the last line, then raise R9 to 3 inside the
     // widened remainder.  At the extended end C9=1 no longer equals R9=3,
     // so RFD arms exactly there -- not earlier -- and behaves per section
@@ -4652,7 +4652,7 @@ void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
     test.run_characters(32);
     test.expect_parity_c9("RFD case-1 fixture is odd", true);
 
-    // ACCC v1.10 section 13.7.1.2 p.124, R4 variant ("C4 != R4 by line
+    // ACCC v1.11 section 13.7.1.2 p.125, R4 variant ("C4 != R4 by line
     // end, C9==R9 still held"): widen R0 7->9 on the last line, then raise
     // R4 to 2 inside the widened remainder.  At the extended end C9==R9
     // still holds so the row boundary fires, but C4=1 no longer matches
@@ -4693,7 +4693,7 @@ void test_type1_rfd_r0_widen_restored_condition_does_not_arm(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 section 13.7.1.2 p.124 defines both variants by the state
+    // ACCC v1.11 section 13.7.1.2 p.125 defines both variants by the state
     // at the line's actual end ("C9 != R9 by line end", "C4 != R4 by line
     // end"), so a condition cancelled and then restored inside the widened
     // remainder must not arm: paper has the frame restart normally at the
@@ -4725,7 +4725,7 @@ void test_type1_rfd_equal_r0_write_opens_no_window(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 section 13.7.1.2 p.124 arms only when R0 is *widened*.
+    // ACCC v1.11 section 13.7.1.2 p.125 arms only when R0 is *widened*.
     // An equal-value write on the same edge changes nothing about the
     // comparator, which used the old R0: the last line still ends at that
     // exact edge and the frame restarts through the ordinary path, whose
@@ -4753,7 +4753,7 @@ void test_type1_rfd_r0_widen_off_last_line_never_arms(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124: any-R0 acceptance
+    // ACCC v1.11 sections 13.3 p.114 and 13.7.1.2 p.125: any-R0 acceptance
     // is generic type-1 behaviour, but the RFD window requires the exact
     // last-line precondition (C4==R4, C9==R9, R5==0).  run_characters(15)
     // lands on C0=7==R0 of line 1, where the line half of the precondition
@@ -4852,7 +4852,7 @@ void test_type1_rfd_r0_extend_blanks_from_c0_r1(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 section 6.1.3 p.33: DISPEN enables at C0==0 and disables
+    // ACCC v1.11 section 6.1.3 p.34: DISPEN enables at C0==0 and disables
     // at C0==R1.  With R1=8==R0_old+1, the section 13.7.1.2 continuation
     // makes the extended line genuinely reach C0==R1 in its first widened
     // character, so the display must blank exactly there (review finding
@@ -5582,7 +5582,7 @@ void test_type0_r1_gt_r0_spurious_border_byte(TestBench& test) {
                    0x1234 + 15);
     test.expect_de_low(
         "type 0 R1>R0 second half of C0=R0 is the border byte "
-        "(ACCC v1.10 section 17.6.2 p.186)");
+        "(ACCC v1.11 section 17.6.2 p.187)");
 
     // ACCC v1.10 section 17.6.2 (page 186): BORDER OFF on the character
     // following C0=R0. Section 17.2 (page 179): C0=R1 never fired, so VMA'
@@ -5593,7 +5593,7 @@ void test_type0_r1_gt_r0_spurious_border_byte(TestBench& test) {
                    0x1234);
     test.expect_de_high(
         "type 0 R1>R0 BORDER OFF on the character following C0=R0 "
-        "(ACCC v1.10 section 17.6.2 p.186)");
+        "(ACCC v1.11 section 17.6.2 p.187)");
 
     // The byte recurs between every pair of character rows.
     f6_expect_line_de(test, kF6SpuriousByteAtR0,
@@ -5778,7 +5778,7 @@ void t34_type0_r6_zero_first_line_cancellation(TestBench& test) {
 }
 
 // t35: IA-6 / BL-018–BL-020 -- type-0 R0=1 widening at C0=1 persists adjustment.
-// French ACCC v1.11 section 13.7.2 pp.126-127 and compendium-01-counters.md
+// French ACCC v1.11 section 13.7.2 pp.126-128 and compendium-01-counters.md
 // section 8.4: on CRTC 0, when C0=0 of a true last frame line (C4==R4 &&
 // C9==R9) occurs with R0=1, the next-line C4 increment / adjustment is
 // programmed.
@@ -5827,7 +5827,7 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     test.expect_ra(
         "control: C0=0 widening resets C9 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.128)", 0);
 
-    // --- Main test arm: widening at C0=1 (French ACCC v1.11 §13.7.2 pp.126-127) ---
+    // --- Main test arm: widening at C0=1 (French ACCC v1.11 §13.7.2 pp.127-128) ---
     // With C4=R4 and C9=R9, C0=R0 (with R0=1) evaluates before R0 is updated at C0=1.
     // C0 advances past 1 to 2; at C0=2, C4 increments to R4+1 (3), diverging from R4.
     // Additional management remains active; with R5=0, C9 counts through 31,
@@ -5851,7 +5851,7 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     test.expect_c4(
         "main: C0=1 widening increments C4 to R4+1 (3) at C0=2 (French ACCC v1.11 §13.7.2.2 p.128)", 3);
     test.expect_ra(
-        "main: C0=1 widening holds C9 at R9 (3) on widening line (French ACCC v1.11 §13.7.2 pp.126-127)", 3);
+        "main: C0=1 widening holds C9 at R9 (3) on widening line (French ACCC v1.11 §13.7.2 p.127)", 3);
     test.expect_adjustment_active(
         "main: C0=1 widening leaves additional management active at C0=2 (French ACCC v1.11 §13.7.2.2 p.128)");
 
@@ -5883,8 +5883,8 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t21: F10 type-1 IVM toggle parity table (ACCC v1.10 sections 19.5.3 p.208,
-// 19.8.2 setup p.210, and the 16 SHAKER 22C/3 truth-table panels on
+// t21: F10 type-1 IVM toggle parity table (ACCC v1.11 section 19.5.3 p.209
+// and its R8-toggle setup p.210, and the 16 SHAKER 22C/3 truth-table panels on
 // pp.211-212; render-verified 2026-08-24 under the extract protocol).
 //
 // Each panel is one configuration of {initial ParityFrame, C4.0, R9.0, C9.0}
@@ -6142,7 +6142,7 @@ void t22_walk(TestBench& test, const char* tag,
 }
 
 std::vector<T22Step> t22_tail_after_row_end(std::uint8_t c4, bool odd) {
-    // After any row end: C9 restarts at 0 and steps by 1 (pseudocode p.219);
+    // After any row end: C9 restarts at 0 and steps by 1 (pseudocode p.220);
     // two settled lines are asserted, well before the next limit.  The
     // display stays doubled (ParityC9 is static for even R9 on type 0).
     return {{c4, 0, t22_vma(0, odd)},
@@ -6165,7 +6165,7 @@ void t22_run_entry(TestBench& test, bool odd_frame, std::uint8_t offset,
 
     const std::uint8_t c4 = 0;
     std::vector<T22Step> steps;
-    // Switch line: display and the limit value stay raw (p.219).
+    // Switch line: display and the limit value stay raw (p.220).
     steps.push_back({c4, offset, offset});
     if (overflow) {
         // C9 ran past the target on the switch line: the doubled value
@@ -6907,7 +6907,7 @@ void test_vsync_active_r8_transitions(TestBench& test, unsigned type) {
     throw TestFailure("D1 R8 transition fixture did not finish a pulse");
 }
 
-// t24: type-1 IVM VSYNC positions (ACCC v1.10 section 19.5.3 p.208 table).
+// t24: type-1 IVM VSYNC positions (ACCC v1.11 section 19.5.3 p.209 table).
 //
 // R9=8 (even -> the row-pair line count R9+1 is odd), R7 on a chosen C4,
 // R8=3 held from a snapshot load (frame-boundary entry, no toggle stages,
@@ -7436,7 +7436,7 @@ void t28_type1_addline_basic(TestBench& test) {
     // Frame 1 (odd): same rows and adjustment, but no additional line --
     // the last adjustment line is followed directly by the origin.
     // IA-2's origin realignment sets ParityC9=1 for this odd frame.  The
-    // p.210 worked table starts the odd IVM frame at C9=1, and R9 odd
+    // p.209 worked table starts the odd IVM frame at C9=1, and R9 odd
     // retains that value at every subsequent row restart.
     const std::array<std::array<std::uint8_t, 4>, 3> frame1_lines = {{
         {{1, 3, 5, 7}}, {{1, 3, 5, 7}}, {{1, 3, 5, 7}}
@@ -7522,7 +7522,7 @@ void t28_type1_addline_condition_false(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t29: F15 type-0 odd-R9 IVM counting (ACCC v1.10 section 19.5.2 pp.205-206
+// t29: F15 type-0 odd-R9 IVM counting (ACCC v1.11 section 19.5.2 pp.206-207
 // including the worked R9=7 example table (render-verified 2026-08-26);
 // section 19.8.1 pp.220-221; the p.220 row-end gate adjudicated as
 // `If R9.0=1` in author question Q19; Q19(b) post-exit behavior stays out
@@ -8024,7 +8024,7 @@ int main(int argc, char** argv) {
         {"t02k_type0_pending_skip_snapshot_load", "CRTC snapshot-load contract; F3/F11d",
          false, test_type0_pending_skip_clears_on_snapshot_load},
         {"t02l_type0_vsync_requires_preceding_c0_2",
-         "ACCC v1.11 English section 16.4.1.2 p.170 (FR §16.4.1.2 p.170); author-confirmed 2026-08-31",
+         "ACCC v1.11 English section 16.4.1.2 p.169 (FR §16.4.1.2 p.170); author-confirmed 2026-08-31",
          false, test_type0_vsync_requires_preceding_c0_2},
         {"t02m_type0_vsync_qualified_r0_zero_freezes_count",
          "ACCC v1.11 English section 16.4.1.2 p.170 (FR §16.4.1.2 p.171); author-confirmed 2026-08-31",
@@ -8084,10 +8084,10 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 10.3.1 and 11.2.2; F12 guard", false,
          test_type0_adjustment_r4_write_switches_c9_to_r5},
         {"t12a_type0_worked_example_exact_r0_yields_39_8",
-         "ACCC v1.10 section 11.2.2 p.82 example 3 and section 10.3.1 p.76; F9/B4",
+         "ACCC v1.11 section 11.2.2 p.83 example 3 and section 10.3.1 p.77; F9/B4",
          false, test_type0_worked_example_exact_r0_yields_39_8},
         {"t12b_type0_worked_example_window_write_yields_38_8",
-         "ACCC v1.10 section 11.2.2 p.82 example 3; F9/B4 companion case",
+         "ACCC v1.11 section 11.2.2 p.83 example 3; F9/B4 companion case",
          false, test_type0_worked_example_window_write_yields_38_8},
         {"t12c_type0_c0_r9_write_immediate_clears_last_line",
          "ACCC v1.11 section 12.2 pp.93-95; C0=0 immediate R9 clears Last Line",
@@ -8252,10 +8252,10 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 16.1 and 16.4.2; F8/A1", false,
          test_type1_adjustment_end_does_not_fire_unreached_r7},
         {"t08n_type1_r4_write_at_adjustment_entry_suppresses_r12_reload",
-         "ACCC v1.10 section 11.2.4 p.84; F8/A2", false,
+         "ACCC v1.11 section 11.2.4 p.85; F8/A2", false,
          test_type1_r4_write_at_adjustment_entry_suppresses_r12_reload},
         {"t08o_type1_r9_write_at_adjustment_entry_keeps_r12_reload",
-         "ACCC v1.10 section 11.2.4 p.84; F8/A2/B5", false,
+         "ACCC v1.11 section 11.2.4 p.85; F8/A2/B5", false,
          test_type1_r9_write_at_adjustment_entry_keeps_r12_reload},
         {"t08p_type1_r5_zero_r4_reset_fires_vsync_at_r7_zero",
          "ACCC v1.11 section 11.3.2 p.86 and 2026-08-31 author response Q20; actual row-next VSYNC", false,
@@ -8264,46 +8264,46 @@ int main(int argc, char** argv) {
          "ACCC v1.11 section 11.3.2 p.86 and 2026-08-31 author response Q20; no hypothetical row+1 VSYNC", false,
          test_type1_r5_zero_r4_reset_does_not_fire_r4_plus_one_vsync},
         {"t13a_type1_rfd_write_away_from_r0_stays_unarmed",
-         "ACCC v1.10 section 11.6 p.87; F7 never-triggered control", false,
+         "ACCC v1.11 section 11.6 p.88; F7 never-triggered control", false,
          test_type1_rfd_write_away_from_r0_stays_unarmed},
         {"t13b_type1_rfd_alternates_save_by_frame_parity",
-         "ACCC v1.10 sections 11.6.1-11.6.3 pp.87-90; F7", false,
+         "ACCC v1.11 sections 11.6.1-11.6.3 pp.88-91; F7", false,
          test_type1_rfd_alternates_save_by_frame_parity},
         {"t13c_type1_rfd_r1_gt_r0_bare_c9_disarms",
-         "ACCC v1.10 section 11.6 p.87; F7/B6", false,
+         "ACCC v1.11 section 11.6 p.88; F7/B6", false,
          test_type1_rfd_r1_gt_r0_bare_c9_disarms},
         {"t13d_type1_rfd_final_line_write_enters_adjustment",
-         "ACCC v1.10 sections 11.4 p.86 and 11.6 p.87; F7 rollover race", false,
+         "ACCC v1.11 sections 11.4 p.87 and 11.6 p.88; F7 rollover race", false,
          test_type1_rfd_final_line_write_enters_adjustment},
         {"t13e_type1_rfd_r0_widen_without_cancel_ends_normally",
-         "ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124; F7 residual",
+         "ACCC v1.11 sections 13.3 p.114 and 13.7.1.2 p.125; F7 residual",
          false, test_type1_rfd_r0_widen_without_cancel_ends_normally},
         {"t13f_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end",
-         "ACCC v1.10 section 13.7.1.2 p.124 (digest-01 section 8.6); F7 residual",
+         "ACCC v1.11 section 13.7.1.2 p.125 (digest-01 section 8.6); F7 residual",
          false, test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end},
         {"t13g_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4",
-         "ACCC v1.10 section 13.7.1.2 p.124 (digest-01 section 8.6); F7 residual",
+         "ACCC v1.11 section 13.7.1.2 p.125 (digest-01 section 8.6); F7 residual",
          false, test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4},
         {"t13h_type1_rfd_r0_widen_restored_condition_does_not_arm",
-         "ACCC v1.10 section 13.7.1.2 p.124 variant definitions; F7 residual",
+         "ACCC v1.11 section 13.7.1.2 p.125 variant definitions; F7 residual",
          false, test_type1_rfd_r0_widen_restored_condition_does_not_arm},
         {"t13i_type1_rfd_equal_r0_write_opens_no_window",
-         "ACCC v1.10 section 13.7.1.2 p.124 widened-only gate; F7 residual",
+         "ACCC v1.11 section 13.7.1.2 p.125 widened-only gate; F7 residual",
          false, test_type1_rfd_equal_r0_write_opens_no_window},
         {"t13j_type1_rfd_r0_widen_off_last_line_never_arms",
-         "ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124; F7 residual",
+         "ACCC v1.11 sections 13.3 p.114 and 13.7.1.2 p.125; F7 residual",
          false, test_type1_rfd_r0_widen_off_last_line_never_arms},
         {"t13k_type1_rfd_r0_window_does_not_survive_type_round_trip",
-         "ACCC v1.10 section 13.7.1.2 p.124; F7 live-type contract", false,
+         "ACCC v1.11 section 13.7.1.2 p.125; F7 live-type contract", false,
          test_type1_rfd_r0_window_does_not_survive_type_round_trip},
         {"t13l_type1_rfd_r0_widen_line_gate_never_arms",
-         "ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124; F7/F-2", false,
+         "ACCC v1.11 sections 13.3 p.114 and 13.7.1.2 p.125; F7/F-2", false,
          test_type1_rfd_r0_widen_line_gate_never_arms},
         {"t13m_type1_rfd_r0_extend_blanks_from_c0_r1",
-         "ACCC v1.10 sections 6.1.3 p.33 and 13.7.1.2 p.124; F-1", false,
+         "ACCC v1.11 sections 6.1.3 p.34 and 13.7.1.2 p.125; F-1", false,
          test_type1_rfd_r0_extend_blanks_from_c0_r1},
         {"t13n_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source",
-         "ACCC v1.10 section 11.6.1 p.88 (RFD triggered on C9=R9 disables VMA-source); F17", false,
+         "ACCC v1.11 section 11.6.1 p.89 (RFD triggered on C9=R9 disables VMA-source); F17", false,
          test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source},
         {"t20a_type0_normal_frame_reloads_at_frame_start_only",
          "ACCC v1.10 sections 17.4.1 and 20.3.1; F11h", false,
@@ -8333,10 +8333,10 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 13.2.6, 13.8.3, and 20.3.1; F5/F12/F11h (A3)",
          false, test_type0_r0_zero_live_entry_reloads_vma_then_freezes},
         {"t20j_type1_r12_write_on_row0_boundary_edge_reloads",
-         "ACCC v1.10 section 20.3.2 p.242 chronogram 2; F11h", false,
+         "ACCC v1.11 section 20.3.2 p.243 chronogram 2; F11h", false,
          test_type1_r12_write_on_row0_boundary_edge_reloads},
         {"t20k_type0_r12_write_on_frame_origin_edge_is_missed",
-         "ACCC v1.10 section 20.3.1 p.242 chronogram 2; F11h", false,
+         "ACCC v1.11 section 20.3.1 p.243 chronogram 2; F11h", false,
          test_type0_r12_write_on_frame_origin_edge_is_missed},
         {"t10a_type0_r1_gt_r0_spurious_border_byte",
          "ACCC v1.10 sections 17.6.2, 17.6.1, and 17.2; F6", false,
@@ -8356,118 +8356,118 @@ int main(int argc, char** argv) {
         // t21: F10 type-1 IVM toggle parity table (ACCC pp.211-212 panels).
         // All sixteen parity configurations are required passes.
         {"t21a_type1_ivm_toggle_19S_23W",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 19/23 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 19/23 (p.211); F10",
          false, t21_body_00},
         {"t21b_type1_ivm_toggle_17Q_21U_25Y1",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 17/21/25 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 17/21/25 (p.211); F10",
          false, t21_body_01},
         {"t21c_type1_ivm_toggle_4D_8H",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 4/8 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 4/8 (p.211); F10",
          false, t21_body_02},
         {"t21d_type1_ivm_toggle_2B_6F",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 2/6 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 2/6 (p.211); F10",
          false, t21_body_03},
         {"t21e_type1_ivm_toggle_20T_24X",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 20/24 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 20/24 (p.211); F10",
          false, t21_body_04},
         {"t21f_type1_ivm_toggle_18R_22V_26Z1",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 18/22/26 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 18/22/26 (p.211); F10",
          false, t21_body_05},
         {"t21g_type1_ivm_toggle_5E_9I",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 5/9 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 5/9 (p.211); F10",
          false, t21_body_06},
         {"t21h_type1_ivm_toggle_3C_7G",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 3/7 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 3/7 (p.211); F10",
          false, t21_body_07},
         {"t21i_type1_ivm_toggle_27ZA_29ZC",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 27/29 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 27/29 (p.212); F10",
          false, t21_body_08},
         {"t21j_type1_ivm_toggle_16P_25Y2",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 16/25 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 16/25 (p.212); F10",
          false, t21_body_09},
         {"t21k_type1_ivm_toggle_12L_14N",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 12/14 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 12/14 (p.212); F10",
          false, t21_body_10},
         {"t21l_type1_ivm_toggle_1A_10J2",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 1/10 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 1/10 (p.212); F10",
          false, t21_body_11},
         {"t21m_type1_ivm_toggle_28ZB_30ZD",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 28/30 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 28/30 (p.212); F10",
          false, t21_body_12},
         {"t21n_type1_ivm_toggle_26Z",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 test 26 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 test 26 (p.212); F10",
          false, t21_body_13},
         {"t21o_type1_ivm_toggle_M_15O",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests (M)/15 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests (M)/15 (p.212); F10",
          false, t21_body_14},
         {"t21p_type1_ivm_toggle_11K2",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 test 11 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 test 11 (p.212); F10",
          false, t21_body_15},
         // t22: F10 type-0 IVM entry/exit counting for even R9 (ACCC
         // pp.220-225).  These entry and exit walks are required passes for
         // the documented C9/C9.VMA stepping and row-end behavior.
         {"t22a_type0_ivm_entry_even_c9_0",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=0, even frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=0, even frame); F10",
          false, t22_entry_even_0},
         {"t22b_type0_ivm_entry_even_c9_1",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=1, even frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=1, even frame); F10",
          false, t22_entry_even_1},
         {"t22c_type0_ivm_entry_even_c9_2",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=2, even frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=2, even frame); F10",
          false, t22_entry_even_2},
         {"t22d_type0_ivm_entry_even_c9_3",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=3, even frame overflow); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=3, even frame overflow); F10",
          false, t22_entry_even_3},
         {"t22e_type0_ivm_entry_even_c9_4",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.222 (switch at C9=4, even frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.223 (switch at C9=4, even frame); F10",
          false, t22_entry_even_4},
         {"t22f_type0_ivm_entry_even_c9_5",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.222 (switch at C9=5, even frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.223 (switch at C9=5, even frame); F10",
          false, t22_entry_even_5},
         {"t22g_type0_ivm_entry_even_c9_6",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.223 top (switch at C9=6, even frame reset); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.224 top (switch at C9=6, even frame reset); F10",
          false, t22_entry_even_6},
         {"t22h_type0_ivm_entry_odd_c9_0",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=0, odd frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=0, odd frame); F10",
          false, t22_entry_odd_0},
         {"t22i_type0_ivm_entry_odd_c9_1",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=1, odd frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=1, odd frame); F10",
          false, t22_entry_odd_1},
         {"t22j_type0_ivm_entry_odd_c9_3",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=3, odd frame overflow); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=3, odd frame overflow); F10",
          false, t22_entry_odd_3},
         {"t22k_type0_ivm_entry_odd_c9_6",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.223 top (switch at C9=6, odd frame overflow); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.224 top (switch at C9=6, odd frame overflow); F10",
          false, t22_entry_odd_6},
         {"t22l_type0_ivm_exit_even_at_limit",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.223 bottom (exit at C9.VMA=R9); F10",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.224 bottom (exit at C9.VMA=R9); F10",
          false, t22_exit_even_at_limit},
         {"t22m_type0_ivm_exit_odd_at_r9_plus_1",
-         "ACCC v1.10 section 19.8.1 p.220 worked example and table p.224 (exit at C9.VMA=R9+1); F10",
+         "ACCC v1.11 section 19.8.1 p.221 worked example and table p.225 (exit at C9.VMA=R9+1); F10",
          false, t22_exit_odd_at_r9_plus_1},
         {"t22n_type0_ivm_exit_odd_below_limit",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.224 (exit at C9.VMA<R9, odd frame); F10",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.225 (exit at C9.VMA<R9, odd frame); F10",
          false, t22_exit_odd_below_limit},
         {"t22o_type0_ivm_exit_even_below_limit",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.223 bottom (exit at C9.VMA<R9, even frame); F10",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.224 bottom (exit at C9.VMA<R9, even frame); F10",
          false, t22_exit_even_below_limit},
         {"t22p_type0_ivm_exit_even_c9_0",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.223 top (exit at C9.VMA=0, even frame); F10/N-8",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.224 top (exit at C9.VMA=0, even frame); F10/N-8",
          false, t22_exit_even_c9_0},
         {"t22q_type0_ivm_exit_even_c9_1",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.223 (exit at C9.VMA=2, even frame); F10/N-8",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.224 (exit at C9.VMA=2, even frame); F10/N-8",
          false, t22_exit_even_c9_1},
         {"t22r_type0_ivm_exit_odd_c9_0",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.224 top (exit at C9.VMA=1, odd frame); F10/N-8",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.225 top (exit at C9.VMA=1, odd frame); F10/N-8",
          false, t22_exit_odd_c9_0},
         {"t22s_type0_ivm_exit_odd_c9_1",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.224 (exit at C9.VMA=3, odd frame); F10/N-8",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.225 (exit at C9.VMA=3, odd frame); F10/N-8",
          false, t22_exit_odd_c9_1},
         {"t23a_type1_ivm_frame_boundary_parity_continuity",
-         "ACCC v1.10 section 19.8.2 p.225 match branch at a frame boundary; F10/B-2",
+         "ACCC v1.11 section 19.8.2 p.226 match branch at a frame boundary; F10/B-2",
          false, test_type1_ivm_frame_boundary_parity_continuity},
         {"t23b_type1_ivm_engages_from_snapshot_r8_3",
-         "ACCC v1.10 section 19.8.2 p.225 with R8=3 snapshot-loaded; F10 ivm seeding",
+         "ACCC v1.11 section 19.8.2 p.226 with R8=3 snapshot-loaded; F10 ivm seeding",
          false, test_type1_ivm_engages_from_snapshot_r8_3},
         {"t32a_type1_frame_origin_realigns_parity_c9",
          "ACCC v1.11 French section 19.5.3 p.209; BL-038/IA-2",
@@ -8482,7 +8482,7 @@ int main(int argc, char** argv) {
          "IA-1 pending-state reset/snapshot/live-type/R3l=0 contract",
          false, t33_type0_r3_terminal_restart_lifecycle},
         {"t23c_interlace_sync_leaves_ra_plain",
-         "ACCC v1.10 section 19.3.2.1 p.199 (INTERLACE SYNC does not touch the raster address); F10/N-9",
+         "ACCC v1.11 section 19.3.2.1 p.200 (INTERLACE SYNC does not touch the raster address); F10/N-9",
          false, test_interlace_sync_leaves_ra_plain},
         {"d1_type0_is_r9_7", "French 19.7.2 p.219 R8=1", false,
          [](TestBench& t) { test_vsync_frames(t, 0, 7, 1); }},
@@ -8551,80 +8551,80 @@ int main(int argc, char** argv) {
         {"d1_type1_r9_8", "French 19.7.2 p.219", false,
          [](TestBench& t) { test_vsync_frames(t, 1, 8); }},
         {"t24a_type1_ivm_vsync_gap_r7_odd_c4",
-         "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=1 odd) with section 19.8.2 p.225 alternation",
+         "ACCC v1.11 section 19.5.3 p.209 table (R9=8 even, R7=1 odd) with section 19.8.2 p.226 alternation",
          false, test_type1_ivm_vsync_gap_r7_odd_c4},
         {"t24b_type1_ivm_vsync_no_gap_r7_even_c4",
-         "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=2 even) with section 19.8.2 p.225 alternation",
+         "ACCC v1.11 section 19.5.3 p.209 table (R9=8 even, R7=2 even) with section 19.8.2 p.226 alternation",
          false, test_type1_ivm_vsync_no_gap_r7_even_c4},
         {"t24c_type1_ivm_mid_vsync_half_line_phase",
-         "ACCC v1.10 section 19.5.3 p.208 prose (MID-VSYNC on the ParityFrame-even frame); p.207 Note",
+         "ACCC v1.11 section 19.5.3 p.209 prose (MID-VSYNC on the ParityFrame-even frame); p.208 Note",
          false, test_type1_ivm_mid_vsync_half_line_phase},
         {"t25a_type0_adjustment_segment_cycles_period_8",
-         "ACCC v1.10 sections 11.2.1 p.81 and 20.2 p.241; D1 correction",
+         "ACCC v1.11 sections 11.2.1 p.82 and 20.2 p.242; D1 correction",
          false, test_type0_adjustment_segment_cycles_period_8},
         {"t25b_type0_adjustment_pointer_steps_and_scans",
-         "ACCC v1.10 sections 11.2.1 p.81 and 11.2.2 pp.82-83; D1 correction",
+         "ACCC v1.11 sections 11.2.1 p.82 and 11.2.2 pp.83-84; D1 correction",
          false, test_type0_adjustment_pointer_steps_and_scans},
         {"t25c_type0_adjustment_exit_reloads_frame_origin",
-         "ACCC v1.10 sections 11.2.2 p.81 and 20.3.1 p.242; D1 correction",
+         "ACCC v1.11 sections 11.2.2 p.82 and 20.3.1 p.243; D1 correction",
          false, test_type0_adjustment_exit_reloads_frame_origin},
         {"t26a_type0_r1_zero_write_deadline",
-         "ACCC v1.10 section 17.5.1 p.185 chronograms; D1 correction",
+         "ACCC v1.11 section 17.5.1 p.186 chronograms; D1 correction",
          false, test_t26_r1_zero_deadline_type0},
         {"t26b_type1_r1_zero_write_deadline",
-         "ACCC v1.10 section 17.5.1 p.185 chronograms; D1 correction",
+         "ACCC v1.11 section 17.5.1 p.186 chronograms; D1 correction",
          false, test_t26_r1_zero_deadline_type1},
         // t27: F14 additional interlace line, type 0 (ACCC v1.10 section
         // 19.6.1 p.217).  Required passes cover placement and both freeze
         // parity outcomes.
         {"t27a_type0_addline_basic",
-         "ACCC v1.10 sections 19.6.1 p.216, 19.5.2 p.205 and 19.3 p.199; F14",
+         "ACCC v1.11 sections 19.6.1 p.217, 19.5.2 p.206 and 19.3 p.200; F14",
          false, t27_type0_addline_basic},
         {"t27b_type0_addline_after_r5_lines",
-         "ACCC v1.10 section 19.6.1 p.216 (after the R5 lines, one increment) and 11.2 p.84; F14",
+         "ACCC v1.11 section 19.6.1 p.217 (after the R5 lines, one increment) and 11.2 p.85; F14",
          false, t27_type0_addline_after_r5_lines},
         {"t27c_type0_addline_r6_gt_r4_freeze_odd",
-         "ACCC v1.10 sections 19.6.1 p.216 and 19.5.2 p.205 (frozen-odd persistence); F14",
+         "ACCC v1.11 sections 19.6.1 p.217 and 19.5.2 p.206 (frozen-odd persistence); F14",
          false, t27_type0_addline_freeze_odd},
         {"t27d_type0_addline_r6_gt_r4_freeze_even",
-         "ACCC v1.10 sections 19.6.1 p.216 and 19.5.2 p.205 (frozen-even persistence); F14",
+         "ACCC v1.11 sections 19.6.1 p.217 and 19.5.2 p.206 (frozen-even persistence); F14",
          false, t27_type0_addline_freeze_even},
         // t28: F14 additional interlace line, type 1 (ACCC v1.10 section
         // 19.6.2 p.217).  The required cases cover the active gate and its
         // false-condition control.
         {"t28a_type1_addline_basic",
-         "ACCC v1.10 sections 19.6.2 p.216 and 11.2.4 p.84; F14",
+         "ACCC v1.11 sections 19.6.2 p.217 and 11.2.4 p.85; F14",
          false, t28_type1_addline_basic},
         {"t28b_type1_addline_condition_false",
-         "ACCC v1.10 section 19.6.2 p.216 (R9+1 multiple of R5 gate); F14",
+         "ACCC v1.11 section 19.6.2 p.217 (R9+1 multiple of R5 gate); F14",
          false, t28_type1_addline_condition_false},
         {"t28c_type1_addline_interlace_sync",
-         "ACCC v1.10 section 19.6.2 p.216 (gate R8 in 1,3); F14/review",
+         "ACCC v1.11 section 19.6.2 p.217 (gate R8 in 1,3); F14/review",
          false, t28_type1_addline_interlace_sync},
         // t29: F15 type-0 odd-R9 IVM counting (ACCC v1.10 section 19.5.2
         // pp.206-207 and section 19.8.1 with the Q19-adjudicated gate).
         // Required passes cover both frame parities, VSYNC delay, and exit.
         {"t29a_type0_odd_r9_even_frame",
-         "ACCC v1.10 section 19.5.2 p.206 worked example (even frame column); F15",
+         "ACCC v1.11 section 19.5.2 p.207 worked example (even frame column); F15",
          false, t29_type0_odd_r9_even_frame},
         {"t29b_type0_odd_r9_odd_frame",
-         "ACCC v1.10 section 19.5.2 p.206 worked example (odd frame column); F15/F14",
+         "ACCC v1.11 section 19.5.2 p.207 worked example (odd frame column); F15/F14",
          false, t29_type0_odd_r9_odd_frame},
         {"t29c_type0_odd_r9_vsync_delay",
-         "ACCC v1.10 sections 19.5.2 pp.205-206 (odd-C4 R7 VSYNC delay); F15",
+         "ACCC v1.11 sections 19.5.2 pp.206-207 (odd-C4 R7 VSYNC delay); F15",
          false, t29_type0_odd_r9_vsync_delay},
         {"t29d_type0_odd_r9_switch_line_overflow",
-         "ACCC v1.10 section 19.8.1 p.219 (switch line R9+ParityFrame, overflow); F15/review",
+         "ACCC v1.11 section 19.8.1 p.220 (switch line R9+ParityFrame, overflow); F15/review",
          false, t29_type0_odd_r9_switch_line_overflow},
         {"t29e_type0_delay_arm_clears_on_type_switch",
          "Live CRTC_TYPE contract with the F15 delay state; review blocking 1",
          false, t29_type0_delay_arm_clears_on_type_switch},
         // t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.11 §19.8.1 p.221)
         {"t30a_type0_post_ivm_exit_recovery_recipe_odd",
-         "ACCC v1.10 section 19.8.1 p.220 prose (recovery recipe by programming R9=C9.VMA, odd frame); F16",
+         "ACCC v1.11 section 19.8.1 p.221 prose (recovery recipe by programming R9=C9.VMA, odd frame); F16",
          false, t30_type0_post_ivm_exit_recovery_recipe_odd},
         {"t30b_type0_post_ivm_exit_recovery_recipe_even",
-         "ACCC v1.10 section 19.8.1 p.220 prose (recovery recipe by programming R9=C9.VMA, even frame); F16",
+         "ACCC v1.11 section 19.8.1 p.221 prose (recovery recipe by programming R9=C9.VMA, even frame); F16",
          false, t30_type0_post_ivm_exit_recovery_recipe_even},
         // t31: F13 exact half-character border pulse.
         {"t31a_type0_half_character_border_no_skew",
@@ -8635,7 +8635,7 @@ int main(int argc, char** argv) {
          false, t34_type0_r6_zero_first_line_cancellation},
         // t35: IA-6 / BL-018–BL-020 -- type-0 R0=1 widening at C0=1 persists adjustment.
         {"t35a_type0_r0_one_c0_1_widening_persists_adjustment",
-         "ACCC v1.11 French section 13.7.2 pp.126-127; IA-6",
+         "ACCC v1.11 French section 13.7.2 pp.126-128; IA-6",
          false, t35_type0_r0_one_c0_1_widening_persists_adjustment},
     };
 

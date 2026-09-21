@@ -365,7 +365,7 @@ the p.208 right table prints C4=3 where its sequence requires 5 (source typo), a
 
 **Type 1 (§20.3.2, p.243-244):**
 - `VMA` (only — **not** VMA') is initialized from `{R12,R13}` **every time `C0=0` while
-  `C4=0`, independently of C9** (v1.11 FR §20.3.2 p.242). English p.243 truncates this
+  `C4=0`, independently of C9** (v1.11 FR §20.3.2 p.242). The re-issue's English p.243 states the same
   recurrence qualifier. VMA' remains untouched by this path, consistent with the two-stage
   versus single-stage distinction established in §17.4.
 - R12/R13 writes considered immediately.

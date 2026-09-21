@@ -119,7 +119,7 @@ No finding reverses direction. Concrete follow-ups once docs are corrected:
 
 Pixel-granular material remains genuinely diagram-only in both extractions and needs the
 rendered PNGs before being quoted as fact: pixel-M2 positioning diagrams (pp.136-138, 140-141,
-144 rows, 149-151, 160), R2 46↔50 sequences (p.158), SHAKER 22C/3 parity truth tables
+145 rows, 150-152, 161), R2 46↔50 sequences (p.158), SHAKER 22C/3 parity truth tables
 (pp.211-213), type-0 IVM worked tables (pp.222-225), p.184 worked table, p.186 deadline grid,
 p.247 status-register table layout. None of these blocks the F1-F12 verdicts above; they gate
 only future pin-exact vectors, where the existing protocol (derive from rule, cite page) still
