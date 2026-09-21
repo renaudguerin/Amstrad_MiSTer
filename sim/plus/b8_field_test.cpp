@@ -22,7 +22,7 @@
 //   - FR §19.5.5 pp.214-216 (EN pp.214-216): ParityFrame toggles every frame
 //     at C4=C9=C0=0 whatever R8; even schedules the additional line + MID.
 //     At frame start ParityC9=ParityFrame; R8->1/3 seeds ParityC9=C9.0, so a
-//     transition entry on odd C9 really mismatches C9 vs frame parity (p.214)
+//     transition entry on odd C9 really mismatches C9 vs frame parity (p.215)
 //     and settles the following frame. Even R9 keeps C9 parity aligned to
 //     frame parity once settled (used here: R9=6, so origins are C9=0).
 //   - FR §19.6.4 p.218 (EN p.218): either R8=1 or R8=3 adds exactly one

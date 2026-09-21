@@ -130,9 +130,9 @@ module crtc_type1_engine
 /* verilator lint_off WIDTH */
 
 // ------------------------------------------------------------------
-// F10: IVM mode flag and the two-stage R8-toggle update (ACCC v1.10
-// sections 19.5.3 p.208-209 and 19.8.2 p.225; the 16 SHAKER 22C/3 panels
-// pp.210-211).
+// F10: IVM mode flag and the two-stage R8-toggle update (ACCC v1.11
+// sections 19.5.3 p.209-210 and 19.8.2 p.226; the 16 SHAKER 22C/3 panels
+// pp.211-212).
 //
 // The former interlace approximation -- C9 stepping by 2 with bit 0 masked
 // and the line limit halved via `R9 & ~interlace` -- is replaced by the ivm
@@ -157,9 +157,9 @@ wire r8_toggle_write = r8_write_hit & ((DI[1:0] == 2'b11) != ivm);
 wire stage_a_edge = CLKEN && tog_stage == 2'd1;
 wire stage_b_edge = CLKEN && tog_stage == 2'd2;
 
-// Stage A (3rd us, p.209): the parity of the new C9 is the current C9.0
+// Stage A (3rd us, p.210): the parity of the new C9 is the current C9.0
 // xor, when R9 is even, C4.0 -- and C9.0 takes that value immediately, in
-// BOTH directions.  p.209 states the 3rd-us rule once ("when R8 changes
+// BOTH directions.  p.210 states the 3rd-us rule once ("when R8 changes
 // from 3 to 0 or vice versa") and the leaving 4th-us rule is only
 // ParityFrame = ParityC9; the four X=1 panels (4(D), 2(B), 12(L), 1(A))
 // draw C9.0 changing in the leaving write's 3rd-us column, one character
@@ -167,7 +167,7 @@ wire stage_b_edge = CLKEN && tog_stage == 2'd2;
 wire stage_a_x = row[0] & ~R9_v_max_line[0];
 wire stage_a_pc9 = line[0] ^ stage_a_x;
 
-// Stage B (4th us, p.209).  Entering IVM: an even ParityFrame re-points
+// Stage B (4th us, p.210).  Entering IVM: an even ParityFrame re-points
 // ParityC9 at C4.0-and-not-R9.0, then ParityFrame := ParityFrame and
 // (ParityC9 xor X); for an odd ParityFrame the formula reduces to the old
 // C9.0 -- the documented "changes to even, except when ParityFrame and
@@ -217,7 +217,7 @@ end
 // Parity update decisions for the wrapper's shared flops are defined below,
 // after frame_new_w / row_new exist.
 
-// Section 19.8.2 counting while IVM is active (p.225): pre-increment C9
+// Section 19.8.2 counting while IVM is active (p.226): pre-increment C9
 // when R9 is even, compare with bit 0 masked, and on a match restart C9
 // from the toggled ParityC9; otherwise advance by two regardless of R9
 // parity.  Type 1 has no separate C9.VMA -- C9 itself carries the parity.
@@ -254,12 +254,12 @@ end
 
 // ACCC v1.10 section 11.3.2: Type 1 adjustment ends when C5+1 reaches R5
 // evaluated by equality at the line boundary. R5=0 never satisfies this comparison.
-// F14 (ACCC v1.10 section 19.6.2 p.216; Q10 resolution in
+// F14 (ACCC v1.11 section 19.6.2 p.217; Q10 resolution in
 // accc-author-questions.md item 10): on a ParityFrame-even frame with an
 // interlace mode active (R8=1 or 3) and R9+1 a multiple of R5, C4 is
 // "incremented once again": the adjustment end instead runs one more line
 // -- "C9 counts up to R9 and when it goes back to 0, C4 is incremented
-// without taking R4 into account" (section 11.2.4 p.84) -- so the
+// without taking R4 into account" (section 11.2.4 p.85) -- so the
 // additional line carries C9=0 at C4 one past the last adjustment row,
 // and the frame origin follows it.  The R5 end test itself is unchanged;
 // the intercept defers the origin by exactly one line.  With R5=0 the
@@ -373,7 +373,7 @@ wire       row_last_w = (row == R4_v_total);
 assign     row_last = row_last_w;
 wire       frame_adj_CRTC1 = row_last_w && ~in_adj && |crtc1_rollover_r5;
 assign     frame_adj = frame_adj_CRTC1;
-// ACCC v1.11 section 11.3.2 p.85 plus the author's 2026-08-31 response to
+// ACCC v1.11 section 11.3.2 p.86 plus the author's 2026-08-31 response to
 // round-2 question 20: R5=0 prevents the C5 equality from ending vertical
 // adjustment, but does not disable the ordinary C4==R4 reset.  Keep that
 // reset separate from row_frame_last so C5 and adjustment remain active.
@@ -438,23 +438,23 @@ assign line_poke = stage_a_edge || stage_b_edge;
 assign line_poke_bit = stage_a_edge ? stage_a_pc9 :
                        tog_enter    ? stage_b_pc9_value : parity_c9;
 
-// ACCC v1.10 sections 11.6-11.6.3, pages 87-90: "Rupture For
+// ACCC v1.11 sections 11.6-11.6.3, pages 88-91: "Rupture For
 // Dummies" is armed only by a type-1 R5 write from zero to nonzero that
 // is visible on the C0=R0 rollover edge.  The register file and this engine
 // sample the same CLOCK edge, so use the old stored R5 value together with
 // the live write data.  Feeding rfd_arm into the combinational reload/save
 // terms below makes the newly armed state participate in that same rollover
 // rather than one line late.  crtc1_rollover_r5 above also makes the new
-// value visible to adjustment entry/end on this edge (section 11.4 p.86).
+// value visible to adjustment entry/end on this edge (section 11.4 p.87).
 
 reg rfd_vma_flag;
 reg rfd_parity_flag;
 reg rfd_r0_pending;
 
-// Finding F17 (ACCC v1.10 §11.6.1 p.88): an RFD triggered on C9=R9 via the
+// Finding F17 (ACCC v1.11 §11.6.1 p.89): an RFD triggered on C9=R9 via the
 // general R5-write route disables the state allowing VMA to be updated with
 // R12/R13 (vma_flag), while parity management (parity_flag) remains armed.
-// In contrast, the section 13.7.1.2 p.124 R0-widening R4-variant route
+// In contrast, the section 13.7.1.2 p.125 R0-widening R4-variant route
 // (rfd_r0_arm) explicitly specifies that when R4 is modified during the
 // extension while C9==R9 still holds, "R12/R13 is considered" (arms the
 // VMA-source state).
@@ -463,7 +463,7 @@ wire rfd_vma_arm = (rfd_arm & (line != crtc1_line_max)) | rfd_r0_arm;
 wire rfd_parity_active = rfd_parity_flag | rfd_arm | rfd_r0_arm;
 wire rfd_vma_active = (rfd_vma_flag & ~rfd_vma_disarm_hit) | rfd_vma_arm;
 
-// Section 11.6 p.87: when R1>R0, C0=R1 is unreachable, so the bare
+// Section 11.6 p.88: when R1>R0, C0=R1 is unreachable, so the bare
 // C9=R9 match deactivates the VMA-source state without a VMA' save.
 // This term is level-triggered, so the flag clears at the first CLOCK
 // edge inside the last line rather than at the match edge itself;
@@ -472,7 +472,7 @@ wire rfd_vma_active = (rfd_vma_flag & ~rfd_vma_disarm_hit) | rfd_vma_arm;
 wire rfd_r1_gt_r0_disarm = rfd_vma_flag &
                            (R1_h_displayed > R0_h_total) & line_last_w;
 
-// Technical information sourced from ACCC v1.10 §11.2.4 p.84:
+// Technical information sourced from ACCC v1.11 §11.2.4 p.85:
 // If C4 was 0 immediately before adjustment began, VMA loads from R12/R13
 // while C4==1 in adjustment.  A positive R4 rewrite on the exact C0=R0
 // entry edge suppresses that reload; an R9 rewrite on the same edge does not.
@@ -492,7 +492,7 @@ assign reload = crtc1_row0_reload | crtc1_adj_row1_reload | crtc1_rfd_reload;
 assign row0_reload = crtc1_row0_reload;
 
 // The VMA' save shares the line-limit test, parity included while IVM is
-// active (ACCC v1.10 section 19.8.1 p.220 Note: the C9=R9 / C9.VMA='R9 or
+// active (ACCC v1.11 section 19.8.1 p.221 Note: the C9=R9 / C9.VMA='R9 or
 // ParityC9' test also governs the VMA' assignment).
 wire row_addr_save_base = hcc == R1_h_displayed && line_row_structure_last;
 // French ACCC v1.11 section 11.6.1 p.90: odd ParityC9 suppresses
@@ -510,7 +510,7 @@ always @(posedge CLOCK) begin
 	else if(CRTC_TYPE) begin
 		// Clear only when the parity-gated save really fires, through
 		// the R1>R0 bare-C9 route, or when an RFD is triggered on C9=R9
-		// (ACCC v1.10 §11.6.1 p.88; F17). A same-edge trigger on C9!=R9
+		// (ACCC v1.11 §11.6.1 p.89; F17). A same-edge trigger on C9!=R9
 		// arms the source flag.
 		if((CLKEN && row_addr_save) | rfd_r1_gt_r0_disarm |
 		   (rfd_arm & (line == crtc1_line_max)))
@@ -533,7 +533,7 @@ always @(posedge CLOCK) begin
 				rfd_r0_pending <= 0;
 		end
 		// RFD#10, the optional "1-B" chip variant from section 11.6.2
-		// p.89, is deliberately not modeled: this baseline implements the
+		// p.90, is deliberately not modeled: this baseline implements the
 		// ordinary CRTC-1 behavior for every nonzero R5 value.
 	end
 	else begin
@@ -557,7 +557,7 @@ assign field_count_tick = (hcc_next == {1'b0, R0_h_total[7:1]});
 // would invent a C4 value the chip never reaches (review action A1).
 // The VSYNC fires crossing into C4=R7.  line_row_structure_last (not the
 // plain C9==R9 test) is the row-end test here: during IVM the wrap line's
-// C9 differs from R9 on parity-short rows, and the section 19.5.3 p.208
+// C9 differs from R9 on parity-short rows, and the section 19.5.3 p.209
 // table starts the pulse at the first line of C4=R7 on every frame.
 assign vsync_line_fire = (((CRTC_TYPE && in_adj && !crtc1_adj_end &&
 									 !crtc1_stuck_r5_row_reset) ?

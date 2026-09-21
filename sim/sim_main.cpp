@@ -1789,7 +1789,7 @@ void test_type0_interlace_r0_zero_freezes_vsync_count(TestBench& test) {
         "type 0 interlaced R0=0 freeze does not consume C3h character-wise");
     // RA is the split C9.VMA now (F10, section 19.8.1): C9 frozen at 0 and
     // ParityC9 seeded from ParityFrame, which this register set freezes at
-    // 0 because R6=1 > R4=0 (section 19.5.2 p.205: ParityR6 stops updating
+    // 0 because R6=1 > R4=0 (section 19.5.2 p.206: ParityR6 stops updating
     // when C4 never reaches R6, so every frame stays even).  The pre-F10
     // approximation OR'd the field toggle into bit 0 and expected 1; the
     // documented value for this configuration is 0.  The assertion's intent
@@ -2045,8 +2045,8 @@ void test_type0_adjustment_captures_mid_character_r9_write_at_r0(TestBench& test
 }
 
 // ---------------------------------------------------------------------------
-// t12: the documented R4=38/R9=7 worked example pair (ACCC v1.10 section
-// 11.2.2, p.82 example 3; section 10.3.1, p.76). Two writes land on the same
+// t12: the documented R4=38/R9=7 worked example pair (ACCC v1.11 section
+// 11.2.2, p.83 example 3; section 10.3.1, p.77). Two writes land on the same
 // last line of the frame and must leave different counter states:
 //   - an R9 write exactly at C0==R0 straddles the comparator switch: the old
 //     C9/R9 match increments C4 first, then the changed C4/R4 result switches
@@ -2077,7 +2077,7 @@ void test_type0_worked_example_exact_r0_yields_39_8(TestBench& test) {
     test.run_characters(63);  // Enter character C0=R0 of the critical scanline.
     test.write_selected_register_at_clken(8);
 
-    // ACCC v1.10 section 11.2.2, p.82: "we end up with C4==39 and C9==8."
+    // ACCC v1.11 section 11.2.2, p.83: "we end up with C4==39 and C9==8."
     test.expect_adjustment_active("t12 exact-R0 write enters adjustment");
     test.expect_c4("t12 exact-R0 straddle leaves C4=39", 39);
     test.expect_ra("t12 exact-R0 straddle leaves C9=8", 8);
@@ -2100,7 +2100,7 @@ void test_type0_worked_example_window_write_yields_38_8(TestBench& test) {
     test.write_selected_register_at_clken(8);
     test.run_characters(64 - 11);  // Consume characters 11..63 to the rollover.
 
-    // ACCC v1.10 section 11.2.2, p.82 example 3: the windowed write leaves
+    // ACCC v1.11 section 11.2.2, p.83 example 3: the windowed write leaves
     // C4 un-incremented; only C9 advances under the new-R9 comparison.
     test.expect_adjustment_active("t12 windowed write enters adjustment");
     test.expect_c4("t12 windowed write keeps C4=38", 38);
@@ -2109,7 +2109,7 @@ void test_type0_worked_example_window_write_yields_38_8(TestBench& test) {
 
 // ---------------------------------------------------------------------------
 // t12c-t12e: CRTC Type-0 C0=0 Last Line same-edge evaluation
-// (ACCC v1.11 section 12.2, pp.92-94).
+// (ACCC v1.11 section 12.2, pp.93-95).
 // At C0<2, the Last Line comparison on CRTC 0 evaluates whether C9==R9 and
 // C4==R4 using the updated register values if R4 or R9 is modified at C0<2:
 //   - t12c: C4=R4=38, C9=7, R9=7 at C0=0. OUT R9,10 on C0=0 evaluates against
@@ -2139,7 +2139,7 @@ void test_type0_c0_r9_write_immediate_clears_last_line(TestBench& test) {
     test.write_selected_register_at_clken(10);        // OUT R9, 10 on C0=0.
     test.run_characters(64);                          // Consume the scanline to rollover.
 
-    // ACCC v1.11 §12.2 p.92: Updated R9=10 was used at C0=0 (C9=7 != 10), so Last Line was FALSE.
+    // ACCC v1.11 §12.2 p.93: Updated R9=10 was used at C0=0 (C9=7 != 10), so Last Line was FALSE.
     // At line end, C9 increments to 8 and adjustment is not entered.
     test.expect_adjustment_inactive("t12c C0=0 R9 write evaluates updated R9 so Last Line is false and does not enter adjustment");
     test.expect_c4("t12c C0=0 R9 write keeps C4=38", 38);
@@ -2165,7 +2165,7 @@ void test_type0_c0_r9_write_immediate_validates_last_line(TestBench& test) {
     test.write_selected_register_at_clken(7);  // OUT R9, 7 on C0=0.
     test.run_characters(64);                   // Consume the scanline to rollover.
 
-    // ACCC v1.11 §12.2 p.92: Updated R9=7 is evaluated on C0=0 (C9=7==7, C4=38==38),
+    // ACCC v1.11 §12.2 p.93: Updated R9=7 is evaluated on C0=0 (C9=7==7, C4=38==38),
     // validating Last Line at C0=0 -> arms vertical adjustment.
     // At line end, C9 wraps to 0 and row enters vertical adjustment (in_adj=1).
     test.expect_adjustment_active("t12d C0=0 R9 write evaluates updated R9 validating Last Line and entering adjustment");
@@ -2189,7 +2189,7 @@ void test_type0_c0_r4_write_immediate_clears_last_line(TestBench& test) {
     test.write_selected_register_at_clken(10);        // OUT R4, 10 on C0=0.
     test.run_characters(64);                          // Consume the scanline to rollover.
 
-    // ACCC v1.11 §12.2 p.92: Updated R4=10 is used immediately at C0=0 (C4=38 != 10),
+    // ACCC v1.11 §12.2 p.93: Updated R4=10 is used immediately at C0=0 (C4=38 != 10),
     // so Last Line is FALSE at C0=0 (frame_adj_r not armed).
     // At line end, C9=7==R9=7 wraps C9 to 0 and increments C4 to 39, without
     // entering adjustment.
@@ -2199,31 +2199,31 @@ void test_type0_c0_r4_write_immediate_clears_last_line(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t25: type-0 vertical-adjustment VRAM addressing -- the D1 p.81 correction
-// pinned at pin level (ACCC v1.10 section 11.2.1 p.81 table, render-verified
-// 2026-08-24; section 11.2.2 pp.81-83; section 20.2 p.241).
+// t25: type-0 vertical-adjustment VRAM addressing -- the D1 p.82 correction
+// pinned at pin level (ACCC v1.11 section 11.2.1 p.82 table, render-verified
+// 2026-08-24; section 11.2.2 pp.82-84; section 20.2 p.242).
 //
-// Paper derivation against the p.81 worked example (R4=10, R5=16, R9=3,
+// Paper derivation against the p.82 worked example (R4=10, R5=16, R9=3,
 // R1=40, R0=63):
 //   - During type-0 adjustment C9's limit is R5, not R9 (section 11.2.2
-//     p.81: "The new limit of C9 is no longer R9 at the end of the line,
+//     p.82: "The new limit of C9 is no longer R9 at the end of the line,
 //     but R5"), so C9 runs 0..15 across the sixteen adjustment lines and
 //     never wraps at R9=3.
 //   - The final VRAM address takes bits 13:11 from C9[2:0] (section 20.2
-//     p.241: "Bits 11 to 13 From bits 0 to 2 of C9"; the motherboard
-//     composes {MA[13:12], RA[2:0], MA[9:0]}), so the p.81 LINE column --
+//     p.242: "Bits 11 to 13 From bits 0 to 2 of C9"; the motherboard
+//     composes {MA[13:12], RA[2:0], MA[9:0]}), so the p.82 LINE column --
 //     &0000,&0800,&1000,&1800,&2000,&2800,&3000,&3800, then &0000 again at
 //     C9=8 -- is a period-8 cycle through eight distinct segments, one per
 //     adjustment line.
 //   - The PTR-VRAM column tracks the video pointer separately: constant
 //     across runs of adjustment lines, advancing by exactly R1=40 words
 //     across the single C0=R1 && C9==R9 crossing at line C9=3 (section
-//     11.2.2 pp.82-83: "C9 continues to be compared with R9 to consider
-//     the video pointer (VMA'=VMA) when C0=R1 and C9=R9"; p.83: "When C9
+//     11.2.2 pp.83-84: "C9 continues to be compared with R9 to consider
+//     the video pointer (VMA'=VMA) when C0=R1 and C9=R9"; p.84: "When C9
 //     reaches R9 (=3), then the video pointer is updated with the one that
 //     has been memorized when C0=R1 and C9=R9. (R1=40)"). A memorized value
 //     of R1 words requires the pointer to scan per character inside the
-//     adjustment line itself: DRAWN for the capture line by that p.83
+//     adjustment line itself: DRAWN for the capture line by that p.84
 //     sentence, extended to the other adjustment lines as the same uniform
 //     mechanism (INFERRED; the type-1/2 tables' +40-per-character-row
 //     progression corroborates it).
@@ -2234,7 +2234,7 @@ void test_type0_c0_r4_write_immediate_clears_last_line(TestBench& test) {
 //     source-supported deltas are asserted below.
 // ---------------------------------------------------------------------------
 
-// Final VRAM word address per the ACCC v1.10 section 20.2 p.241
+// Final VRAM word address per the ACCC v1.11 section 20.2 p.242
 // construction, as wired on the CPC board and modelled by
 // Amstrad_motherboard.v: {MA[13:12], RA[2:0], MA[9:0]}.
 std::uint16_t composed_vram_word(std::uint16_t ma, std::uint8_t ra) {
@@ -2273,11 +2273,11 @@ void test_type0_adjustment_segment_cycles_period_8(TestBench& test) {
         }
         test.expect_ra("t25a adjustment line C9 counts 0..15 against R5",
                        c9);
-        // ACCC v1.10 section 11.2.1 p.81 LINE column via the section 20.2
-        // p.241 bit assignment: segment = C9 mod 8, period 8, wrap at C9=8.
+        // ACCC v1.11 section 11.2.1 p.82 LINE column via the section 20.2
+        // p.242 bit assignment: segment = C9 mod 8, period 8, wrap at C9=8.
         const std::uint16_t composed =
             composed_vram_word(test.ma(), test.ra());
-        test.expect_byte("t25a adjustment segment follows C9[2:0] (p.81 LINE)",
+        test.expect_byte("t25a adjustment segment follows C9[2:0] (p.82 LINE)",
                          static_cast<std::uint8_t>(c9 & 0x07),
                          static_cast<std::uint8_t>(composed >> 11));
         if (c9 == 0) {
@@ -2312,43 +2312,43 @@ void test_type0_adjustment_pointer_steps_and_scans(TestBench& test) {
         line_start[c9] = test.ma();
     }
 
-    // ACCC v1.10 p.81 PTR-VRAM rows 1-4: no capture crossing before the
+    // ACCC v1.11 p.82 PTR-VRAM rows 1-4: no capture crossing before the
     // C9==R9 line, so lines C9=0..3 restart from the same pointer.
     for (unsigned c9 = 1; c9 < 4; ++c9) {
         test.expect_byte(
             "t25b adjustment lines before the crossing share one pointer "
-            "(p.81 PTR-VRAM 0)",
+            "(p.82 PTR-VRAM 0)",
             static_cast<std::uint8_t>(line_start[0] & 0xff),
             static_cast<std::uint8_t>(line_start[c9] & 0xff));
         test.expect_byte(
             "t25b adjustment lines before the crossing share one pointer, "
-            "high byte (p.81 PTR-VRAM 0)",
+            "high byte (p.82 PTR-VRAM 0)",
             static_cast<std::uint8_t>((line_start[0] >> 8) & 0x3f),
             static_cast<std::uint8_t>((line_start[c9] >> 8) & 0x3f));
     }
-    // p.81 PTR-VRAM rows 4->5 and p.83 prose: the single C0=R1 && C9==R9
+    // p.82 PTR-VRAM rows 4->5 and p.84 prose: the single C0=R1 && C9==R9
     // crossing at line C9=3 advances the pointer by exactly R1=40 words.
     const std::uint16_t stepped =
         static_cast<std::uint16_t>((line_start[3] + 40) & 0x3fff);
     test.expect_byte("t25b capture crossing advances the pointer by R1 "
-                     "(p.83)",
+                     "(p.84)",
                      static_cast<std::uint8_t>(stepped & 0xff),
                      static_cast<std::uint8_t>(line_start[4] & 0xff));
     test.expect_byte("t25b capture crossing advances the pointer by R1, "
-                     "high byte (p.83)",
+                     "high byte (p.84)",
                      static_cast<std::uint8_t>((stepped >> 8) & 0x3f),
                      static_cast<std::uint8_t>((line_start[4] >> 8) & 0x3f));
-    // p.81 PTR-VRAM rows 5-16 stay at 40: C9 passes R9 once per adjustment,
+    // p.82 PTR-VRAM rows 5-16 stay at 40: C9 passes R9 once per adjustment,
     // so no further capture fires.
     for (unsigned c9 = 5; c9 < 16; ++c9) {
         test.expect_byte(
             "t25b adjustment lines after the crossing share one pointer "
-            "(p.81 PTR-VRAM 40)",
+            "(p.82 PTR-VRAM 40)",
             static_cast<std::uint8_t>(line_start[4] & 0xff),
             static_cast<std::uint8_t>(line_start[c9] & 0xff));
         test.expect_byte(
             "t25b adjustment lines after the crossing share one pointer, "
-            "high byte (p.81 PTR-VRAM 40)",
+            "high byte (p.82 PTR-VRAM 40)",
             static_cast<std::uint8_t>((line_start[4] >> 8) & 0x3f),
             static_cast<std::uint8_t>((line_start[c9] >> 8) & 0x3f));
     }
@@ -2359,8 +2359,8 @@ void test_type0_adjustment_exit_reloads_frame_origin(TestBench& test) {
     test.run_characters(15u * 64u);  // C0=1 of the last adjustment line.
     test.expect_ra("t25c last adjustment line holds C9=15", 15);
 
-    // Section 11.2.2 p.81: reaching R5 re-establishes Last Line "so that C4
-    // and C9 go to 0 on the next line", and section 20.3.1 p.242 reloads
+    // Section 11.2.2 p.82: reaching R5 re-establishes Last Line "so that C4
+    // and C9 go to 0 on the next line", and section 20.3.1 p.243 reloads
     // both pointers from R12/R13 when C4=C9=C0=0. Note the page tensions
     // itself: its bold conclusion says only "C4=0 and C0=0" (no C9 term,
     // i.e. every line of C4=0). This core implements the narrow frame-
@@ -2380,8 +2380,8 @@ void test_type0_adjustment_exit_reloads_frame_origin(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t26: the section 17.5 R1=0 acknowledgment deadline (ACCC v1.10 section
-// 17.5.1 p.185, four chronograms, render-verified 2026-08-24; D1
+// t26: the section 17.5 R1=0 acknowledgment deadline (ACCC v1.11 section
+// 17.5.1 p.186, four chronograms, render-verified 2026-08-24; D1
 // correction). The chronograms put the effective write cycle (the OUT's
 // register-latch character, the orange end cell) at C0=3e, 3f, 0, 1 in
 // turn on a line crossing an R0 wrap (the chronogram shows no frame
@@ -2432,7 +2432,7 @@ void test_t26_r1_zero_deadline_type0(TestBench& test) {
     // probe below then runs with DISPTMG gated by R1 alone (DE == hde).
     test.run_characters(3u * 64u);  // C0=0 of frame 1, row 0.
 
-    // The p.185 chronograms draw an R0 wrap, not a frame boundary; the seam
+    // The p.186 chronograms draw an R0 wrap, not a frame boundary; the seam
     // mechanism is line-generic. Probe a plain mid-frame line seam first:
     // the write lands during row 1's C0=63 and row 2 (same frame) starts in
     // border.
@@ -3884,7 +3884,7 @@ void test_type1_identification_r7_40_is_silent(TestBench& test) {
 void test_type1_adjustment_c4_c9_c5_worked_example(TestBench& test) {
     test.set_crtc_type(1);
 
-    // Compendium section 4.1 (ACCC v1.10 section 11.2.1, page 81):
+    // Compendium section 4.1 (ACCC v1.11 section 11.2.1, page 82):
     // Worked example: R4=10, R5=16, R9=3, R1=40, R0=63.
     // Total normal lines = (10 + 1) * (3 + 1) = 44 lines = 2816 characters.
     constexpr RegisterProgram kWorkedExampleRegisters = {{
@@ -3897,7 +3897,7 @@ void test_type1_adjustment_c4_c9_c5_worked_example(TestBench& test) {
     // Advance through the normal frame to reach vertical adjustment entry.
     test.run_characters(44 * 64);
 
-    // Compendium section 4.1 and ACCC v1.10 section 11.2.1 (page 81):
+    // Compendium section 4.1 and ACCC v1.11 section 11.2.1 (page 82):
     // On CRTC 1, vertical adjustment counts 16 lines (c5 = 0..15).
     // C9 cycles 0..R9 (0,1,2,3, 0,1,2,3, 0,1,2,3, 0,1,2,3).
     // C4 increments each time C9 reaches R9=3:
@@ -3937,7 +3937,7 @@ void test_type1_adjustment_c4_c9_c5_worked_example(TestBench& test) {
 void test_type1_r5_zero_mid_adjustment_keeps_counting(TestBench& test) {
     test.set_crtc_type(1);
 
-    // ACCC v1.11 section 11.3.2 p.85 plus the author's 2026-08-31
+    // ACCC v1.11 section 11.3.2 p.86 plus the author's 2026-08-31
     // response to round-2 question 20: R5=0 keeps vertical adjustment
     // active and C5 looping, while the ordinary C4==R4 reset remains live.
     // Only setting R5 to a reachable positive value ends adjustment.
@@ -4062,7 +4062,7 @@ void test_type1_r5_zero_r4_reset_does_not_fire_r4_plus_one_vsync(TestBench& test
 void test_type0_adjustment_c4_frozen_c9_counts_to_r5(TestBench& test) {
     test.set_crtc_type(0);
 
-    // Compendium section 4.1 and section 4.2 (ACCC v1.10 section 11.1-11.2, pages 80-83):
+    // Compendium section 4.1 and section 4.2 (ACCC v1.11 section 11.1-11.2, pages 81-84):
     // Type 0 worked example: R4=10, R5=16, R9=3, R1=40, R0=63.
     // Total normal lines = (10 + 1) * (3 + 1) = 44 lines = 2816 characters.
     // On CRTC 0, vertical adjustment has NO separate C5 counter:
@@ -4111,7 +4111,7 @@ void write_r13_character(TestBench& test, std::uint8_t r13) {
 void test_type1_r4_zero_adjustment_vma_reloads_on_c4_one(TestBench& test) {
     test.set_crtc_type(1);
 
-    // Compendium section 4.3 (ACCC v1.10 section 11.2.4, pages 83-84):
+    // Compendium section 4.3 (ACCC v1.11 section 11.2.4, page 85):
     // If C4 was 0 immediately before adjustment began (R4=0), VMA loads
     // from R12/R13 (not VMA') for as long as C4==1 in adjustment.
     // R4=0, R9=3 (4 lines/row), R5=8 (8 lines adjust), R0=63, R1=40.
@@ -4235,7 +4235,7 @@ void prepare_type1_a2_exact_r0_write(TestBench& test,
 
 void test_type1_r4_write_at_adjustment_entry_suppresses_r12_reload(
     TestBench& test) {
-    // ACCC v1.10 section 11.2.4 note, page 84: rewriting R4 to a nonzero
+    // ACCC v1.11 section 11.2.4 note, page 85: rewriting R4 to a nonzero
     // value exactly at C0=R0 while entering adjustment suppresses the
     // special VMA-from-R12/R13 behavior for C4=1.  The saved VMA'=0x1238
     // must win over the newly programmed R12/R13=0x2050.
@@ -4247,7 +4247,7 @@ void test_type1_r4_write_at_adjustment_entry_suppresses_r12_reload(
 
 void test_type1_r9_write_at_adjustment_entry_keeps_r12_reload(
     TestBench& test) {
-    // ACCC v1.10 section 11.2.4 note, page 84 (findings-review B5): an R9
+    // ACCC v1.11 section 11.2.4 note, page 85 (findings-review B5): an R9
     // write on the same exact C0=R0 edge does NOT cancel the C4=1 special
     // case.  Therefore the new R12/R13=0x2050, not VMA'=0x1238, must load.
     prepare_type1_a2_exact_r0_write(test, 9, 2);
@@ -4340,7 +4340,7 @@ void test_type1_rfd_write_away_from_r0_stays_unarmed(TestBench& test) {
     test.select_register(5);
     test.reset();
 
-    // ACCC v1.10 section 11.6, page 87: RFD requires the R5 0->nonzero
+    // ACCC v1.11 section 11.6, page 88: RFD requires the R5 0->nonzero
     // write to land exactly at C0==R0.  On paper, this write lands at C0=3
     // while R0=7, so neither RFD flag nor its parity state may move.  This
     // is the directed never-triggered regression that protects the
@@ -4381,7 +4381,7 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
 
     // Change the base during C9=R9.  With the parity-gated VMA' save blocked,
     // the RFD VMA-source flag reloads R12/R13 on the next row even though
-    // C4 becomes 1 (section 11.6.1, pages 88-89, case 1).
+    // C4 becomes 1 (section 11.6.1, pages 89-90, case 1).
     test.write_register(12, 0x20);
     test.write_register(13, 0x50);
     test.run_characters(8);
@@ -4392,7 +4392,7 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
         "RFD case 1 leaves the VMA-source flag armed", true, true);
 
     // The tiny fixture has four lines per frame.  Two more line endings
-    // reach C4=C9=C0=0; odd R9 toggles parity (section 11.6.1, pp.88-89).
+    // reach C4=C9=C0=0; odd R9 toggles parity (section 11.6.1, pp.89-90).
     test.run_characters(16);
     test.expect_parity_c9("French 11.6.1: even parity selects case 2", false);
     test.expect_c4("RFD parity boundary resets C4", 0);
@@ -4402,7 +4402,7 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
 
     // In case 2, the next C9=R9/C0=R1 comparison succeeds.  The actual
     // VMA' save clears only the VMA-source flag; parity management remains
-    // armed for subsequent frames (section 11.6.1, pp.88-89).
+    // armed for subsequent frames (section 11.6.1, pp.89-90).
     test.run_characters(13);
     test.expect_type1_rfd_state(
         "RFD case 2 successful VMA' save disarms only the source flag",
@@ -4418,7 +4418,7 @@ void test_type1_rfd_r1_gt_r0_bare_c9_disarms(TestBench& test) {
     test.select_register(5);
     test.reset();
 
-    // ACCC v1.10 section 11.6, page 87 (findings-review B6): with R1>R0,
+    // ACCC v1.11 section 11.6, page 88 (findings-review B6): with R1>R0,
     // C0 can never reach R1, so the bare C9==R9 match must disarm the
     // VMA-source state.  Trigger on C9=0, then enter C9=R9=1; no VMA' save
     // is possible in this geometry.
@@ -4443,7 +4443,7 @@ void test_type1_rfd_final_line_write_enters_adjustment(TestBench& test) {
     test.select_register(5);
     test.reset();
 
-    // ACCC v1.10 sections 11.4 (p.86) and 11.6 (p.87): R5 is evaluated
+    // ACCC v1.11 sections 11.4 (p.87) and 11.6 (p.88): R5 is evaluated
     // live at C0=R0.  On paper C4=R4=0 and C9=R9=0 make this the final
     // normal line, so the same R5 0->1 write must both arm RFD and select
     // one adjustment line; using the old stored R5 would incorrectly start
@@ -4517,7 +4517,7 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
     test.select_register(5);
     test.write_selected_register_at_clken(1);
 
-    // Finding F17 (ACCC v1.10 §11.6.1 p.88 Case 2): a repeated RFD triggered on
+    // Finding F17 (ACCC v1.11 §11.6.1 p.89 Case 2): a repeated RFD triggered on
     // C9=R9 disables the VMA-source state immediately (vma_flag=false) while arming
     // the parity flag (parity_flag=true).
     test.expect_type1_rfd_state(
@@ -4545,7 +4545,7 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
 
 // ---------------------------------------------------------------------------
 // t13e-t13k: F7 residual -- CRTC-1 R0-widening RFD trigger route
-// (ACCC v1.10 section 13.7.1.2 p.124; digest-01 section 8.6)
+// (ACCC v1.11 section 13.7.1.2 p.125; digest-01 section 8.6)
 //
 // Fixture geometry, derived on paper: R0=7 gives 8 characters per line
 // (C0=0..7), R4=1 gives rows C4={0,1}, R9=1 gives lines C9={0,1}, so the
@@ -4564,7 +4564,7 @@ void test_type1_rfd_r0_widen_without_cancel_ends_normally(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 section 13.7.1.2 p.124: widening R0 exactly at C0==R0 on
+    // ACCC v1.11 section 13.7.1.2 p.125: widening R0 exactly at C0==R0 on
     // the last line opens a trigger window, but arming additionally needs
     // the last-line condition to be cancelled during the widened remainder.
     // With no R9/R4 rewrite the window must expire harmlessly at the
@@ -4607,7 +4607,7 @@ void test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end(TestBench& test) {
     test.run_characters(32);
     test.expect_parity_c9("RFD case-1 fixture is odd", true);
 
-    // ACCC v1.10 section 13.7.1.2 p.124, R9 variant ("C9 != R9 by line
+    // ACCC v1.11 section 13.7.1.2 p.125, R9 variant ("C9 != R9 by line
     // end"): widen R0 7->9 on the last line, then raise R9 to 3 inside the
     // widened remainder.  At the extended end C9=1 no longer equals R9=3,
     // so RFD arms exactly there -- not earlier -- and behaves per section
@@ -4652,15 +4652,15 @@ void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
     test.run_characters(32);
     test.expect_parity_c9("RFD case-1 fixture is odd", true);
 
-    // ACCC v1.10 section 13.7.1.2 p.124, R4 variant ("C4 != R4 by line
+    // ACCC v1.11 section 13.7.1.2 p.125, R4 variant ("C4 != R4 by line
     // end, C9==R9 still held"): widen R0 7->9 on the last line, then raise
     // R4 to 2 inside the widened remainder.  At the extended end C9==R9
     // still holds so the row boundary fires, but C4=1 no longer matches
     // R4=2, so instead of a frame restart C4 advances past the old total
     // (paper: C4=2, C9 wraps to 0) and RFD arms with its same-edge
-    // R12/R13 reload onto that new row start (ACCC §13.7.1.2 p.124 explicitly
+    // R12/R13 reload onto that new row start (ACCC §13.7.1.2 p.125 explicitly
     // specifies "R12/R13 considered" for this R4 variant, distinguishing it
-    // from the general §11.6.1 p.88 R5-route C9=R9 disable; review N1).
+    // from the general §11.6.1 p.89 R5-route C9=R9 disable; review N1).
     // The frame then continues until C4 genuinely reaches the raised R4.
     test.run_characters(24);
     test.run_characters(7);
@@ -4693,7 +4693,7 @@ void test_type1_rfd_r0_widen_restored_condition_does_not_arm(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 section 13.7.1.2 p.124 defines both variants by the state
+    // ACCC v1.11 section 13.7.1.2 p.125 defines both variants by the state
     // at the line's actual end ("C9 != R9 by line end", "C4 != R4 by line
     // end"), so a condition cancelled and then restored inside the widened
     // remainder must not arm: paper has the frame restart normally at the
@@ -4725,7 +4725,7 @@ void test_type1_rfd_equal_r0_write_opens_no_window(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 section 13.7.1.2 p.124 arms only when R0 is *widened*.
+    // ACCC v1.11 section 13.7.1.2 p.125 arms only when R0 is *widened*.
     // An equal-value write on the same edge changes nothing about the
     // comparator, which used the old R0: the last line still ends at that
     // exact edge and the frame restarts through the ordinary path, whose
@@ -4753,7 +4753,7 @@ void test_type1_rfd_r0_widen_off_last_line_never_arms(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124: any-R0 acceptance
+    // ACCC v1.11 sections 13.3 p.114 and 13.7.1.2 p.125: any-R0 acceptance
     // is generic type-1 behaviour, but the RFD window requires the exact
     // last-line precondition (C4==R4, C9==R9, R5==0).  run_characters(15)
     // lands on C0=7==R0 of line 1, where the line half of the precondition
@@ -4821,7 +4821,7 @@ void test_type1_rfd_r0_widen_line_gate_never_arms(TestBench& test) {
     test.reset();
 
     // Companion to t13j exercising the other half of the section
-    // 13.7.1.2 p.124 last-line precondition.  Paper: run_characters(23)
+    // 13.7.1.2 p.125 last-line precondition.  Paper: run_characters(23)
     // lands on C0=7==R0 of line 2, where the row half holds (C4=1==R4)
     // but the line half fails (C9=0!=R9).  Widening there opens no
     // window; the write edge wraps ordinarily (C9=0 does not match R9, so
@@ -4852,7 +4852,7 @@ void test_type1_rfd_r0_extend_blanks_from_c0_r1(TestBench& test) {
     test.select_register(0);
     test.reset();
 
-    // ACCC v1.10 section 6.1.3 p.33: DISPEN enables at C0==0 and disables
+    // ACCC v1.11 section 6.1.3 p.34: DISPEN enables at C0==0 and disables
     // at C0==R1.  With R1=8==R0_old+1, the section 13.7.1.2 continuation
     // makes the extended line genuinely reach C0==R1 in its first widened
     // character, so the display must blank exactly there (review finding
@@ -4896,7 +4896,7 @@ void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
     // first genuine frame start (C4=0, C9=0, C0=0) where frame_new asserts.
     test.run_characters(312 * 64);
 
-    // ACCC v1.10 section 20.3.1 (page 242) and section 17.4.1 (page 182):
+    // ACCC v1.11 section 20.3.1 (page 243) and section 17.4.1 (page 183):
     // On CRTC 0, frame start (C4=0, C9=0, C0=0) initializes VMA and VMA' with R12/R13.
     test.expect_ma("type 0 normal frame: initial frame start MA loaded from R12/R13", 0x1234);
 
@@ -4907,7 +4907,7 @@ void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
     // Complete line 0 (64 characters total, 64 - 11 = 53 remaining) to reach line 1 start (C4=0, C9=1, C0=0).
     test.run_characters(53);
 
-    // ACCC v1.10 section 17.4.1 (page 182) and section 20.3.1 (page 242):
+    // ACCC v1.11 section 17.4.1 (page 183) and section 20.3.1 (page 243):
     // On CRTC 0, lines within the first row (C4=0, C9>0) reload VMA from VMA' (0x1234),
     // NOT from R12/R13 (0x2050).
     test.expect_ma("type 0 normal frame: line 1 (C9=1) reloads VMA' (0x1234) ignoring R12/R13 (0x2050)", 0x1234);
@@ -4915,7 +4915,7 @@ void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
     // Advance across the remainder of the frame (311 lines of 64 chars) to the next frame start (C4=0, C9=0, C0=0).
     test.run_characters(311 * 64);
 
-    // ACCC v1.10 section 20.3.1 (page 242):
+    // ACCC v1.11 section 20.3.1 (page 243):
     // At the start of the new frame (C4=0, C9=0, C0=0), VMA and VMA' are loaded with R12/R13 (0x2050).
     test.expect_ma("type 0 normal frame: frame 1 start (C4=0, C9=0, C0=0) reloads new R12/R13", 0x2050);
 }
@@ -4938,7 +4938,7 @@ void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
     // first genuine frame start (C4=0, C9=0, C0=0).
     test.run_characters(312 * 64);
 
-    // ACCC v1.10 section 20.3.2 (page 242) and section 17.4.2 (page 182):
+    // ACCC v1.11 section 20.3.2 (page 243) and section 17.4.2 (page 183):
     // On CRTC 1, line 0 of row 0 (C4=0, C9=0, C0=0) loads VMA with R12/R13 (0x1234).
     test.expect_ma("type 1 normal frame: line 0 (C4=0, C9=0) MA loaded from R12/R13", 0x1234);
 
@@ -4947,7 +4947,7 @@ void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
     write_r12_r13_character(test, 0x20, 0x50);
     test.run_characters(53);
 
-    // ACCC v1.10 section 17.4.2 (page 182) and section 20.3.2 (page 242):
+    // ACCC v1.11 section 17.4.2 (page 183) and section 20.3.2 (page 243):
     // On CRTC 1, VMA is reloaded from R12/R13 on EVERY line while C4=0.
     test.expect_ma("type 1 normal frame: line 1 (C4=0, C9=1) reloads new R12/R13 (0x2050)", 0x2050);
 
@@ -4956,7 +4956,7 @@ void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
     write_r12_r13_character(test, 0x30, 0x78);
     test.run_characters(53);
 
-    // ACCC v1.10 section 20.3.2 (page 242):
+    // ACCC v1.11 section 20.3.2 (page 243):
     // Line 2 (C4=0, C9=2) reloads new R12/R13 (0x3078).
     test.expect_ma("type 1 normal frame: line 2 (C4=0, C9=2) reloads new R12/R13 (0x3078)", 0x3078);
 
@@ -4974,7 +4974,7 @@ void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
     // Complete line 7 (64 - 51 = 13 chars remaining) to reach line 8 start (row 1, C4=1, C9=0, C0=0).
     test.run_characters(13);
 
-    // ACCC v1.10 section 17.4.2 (page 182) and section 20.3.2 (page 242):
+    // ACCC v1.11 section 17.4.2 (page 183) and section 20.3.2 (page 243):
     // Once C4 > 0, CRTC 1 no longer reloads from R12/R13 (0x0111); VMA reloads from VMA' (0x30A0).
     test.expect_ma("type 1 normal frame: row 1 (C4=1, C9=0) reloads VMA' (0x30A0) refusing R12/R13 (0x0111)", 0x30A0);
 }
@@ -4982,7 +4982,7 @@ void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
 void test_type0_r0_three_reloads_every_line(TestBench& test) {
     test.set_crtc_type(0);
 
-    // ACCC v1.10 section 13.8.1 (page 127) and section 20.3.1 (page 242):
+    // ACCC v1.11 section 13.8.1 (page 128) and section 20.3.1 (page 243):
     // R0=3, R4=0, R9=0, R5=0 (4 us lines).
     // C0 reaches 2, so the C0=2 disarm check cancels vertical adjustment.
     // C4 stays 0 on every line; each line is a new frame start (C4=0, C9=0, C0=0).
@@ -4999,7 +4999,7 @@ void test_type0_r0_three_reloads_every_line(TestBench& test) {
     // Complete initial line (4 characters) to reach the first frame boundary.
     test.run_characters(4);
 
-    // ACCC v1.10 section 20.3.1 page 242:
+    // ACCC v1.11 section 20.3.1 page 243:
     // Line 1 start (C0=0): MA loaded from R12/R13 (0x1020).
     test.expect_ma("type 0 R0=3 line 1 MA loaded from R12/R13", 0x1020);
 
@@ -5008,7 +5008,7 @@ void test_type0_r0_three_reloads_every_line(TestBench& test) {
     write_r13_character(test, 0x45);
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 2 start (C0=0): reloads updated R12/R13 (0x1045).
     test.expect_ma("type 0 R0=3 line 2 MA reloaded with updated R13 (0x1045)", 0x1045);
 
@@ -5017,14 +5017,14 @@ void test_type0_r0_three_reloads_every_line(TestBench& test) {
     write_r12_r13_character(test, 0x23, 0x67);
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 3 start (C0=0): reloads updated R12/R13 (0x2367).
     test.expect_ma("type 0 R0=3 line 3 MA reloaded with updated R12/R13 (0x2367)", 0x2367);
 
     // Advance 4 characters to line 4 start without writing new registers.
     test.run_characters(4);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 4 start (C0=0): reloads 0x2367 rather than advancing sequentially.
     test.expect_ma("type 0 R0=3 line 4 MA reloads 0x2367 at line start", 0x2367);
 }
@@ -5032,7 +5032,7 @@ void test_type0_r0_three_reloads_every_line(TestBench& test) {
 void test_type1_r0_three_reloads_every_line(TestBench& test) {
     test.set_crtc_type(1);
 
-    // ACCC v1.10 section 13.8.1 (page 127) and section 20.3.2 (page 242):
+    // ACCC v1.11 section 13.8.1 (page 128) and section 20.3.2 (page 243):
     // R0=3, R4=0, R9=0, R5=0 (4 us lines).
     // CRTC 1 keeps C4=0 throughout; VMA reloads from R12/R13 on every 4 us line at C0=0.
     constexpr RegisterProgram kR0ThreeRegisters = {{
@@ -5047,7 +5047,7 @@ void test_type1_r0_three_reloads_every_line(TestBench& test) {
     // Complete initial line (4 characters) to reach the first line boundary.
     test.run_characters(4);
 
-    // ACCC v1.10 section 20.3.2 page 242:
+    // ACCC v1.11 section 20.3.2 page 243:
     // Line 1 start (C0=0): MA loaded from R12/R13 (0x1020).
     test.expect_ma("type 1 R0=3 line 1 MA loaded from R12/R13", 0x1020);
 
@@ -5056,7 +5056,7 @@ void test_type1_r0_three_reloads_every_line(TestBench& test) {
     write_r13_character(test, 0x45);
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 2 start (C0=0): reloads updated R12/R13 (0x1045).
     test.expect_ma("type 1 R0=3 line 2 MA reloaded with updated R13 (0x1045)", 0x1045);
 
@@ -5065,14 +5065,14 @@ void test_type1_r0_three_reloads_every_line(TestBench& test) {
     write_r12_r13_character(test, 0x23, 0x67);
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 3 start (C0=0): reloads updated R12/R13 (0x2367).
     test.expect_ma("type 1 R0=3 line 3 MA reloaded with updated R12/R13 (0x2367)", 0x2367);
 
     // Advance 4 characters to line 4 start without writing new registers.
     test.run_characters(4);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 4 start (C0=0): reloads 0x2367 rather than advancing sequentially.
     test.expect_ma("type 1 R0=3 line 4 MA reloads 0x2367 at line start", 0x2367);
 }
@@ -5080,7 +5080,7 @@ void test_type1_r0_three_reloads_every_line(TestBench& test) {
 void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     test.set_crtc_type(0);
 
-    // ACCC v1.10 sections 13.8.2 (page 128), 13.2.5 (page 107), and 20.3.1 (page 242):
+    // ACCC v1.11 sections 13.8.2 (page 129), 13.2.5 (page 108), and 20.3.1 (page 243):
     // R0=1, R4=0, R9=0, R5=0 (2 us lines).
     // C0 never reaches 2, so the disarm check never runs and an uncancelled 1-line
     // vertical adjustment fires every frame.
@@ -5109,7 +5109,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     // frame 1 line 0 (C4=0, C0=0) where frame_new asserts.
     test.run_characters(4);
 
-    // ACCC v1.10 section 20.3.1 page 242:
+    // ACCC v1.11 section 20.3.1 page 243:
     // Line 2 start (C4=0, C0=0): MA loaded from initial R12/R13 (0x1100).
     test.expect_c4("type 0 R0=1 reaches frame 1 start (C4=0)", 0);
     test.expect_ma("type 0 R0=1 line 2 (C4=0) MA loaded from R12/R13", 0x1100);
@@ -5119,7 +5119,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     write_r12_r13_character(test, 0x22, 0x33);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.2.5 page 107 and section 13.8.2 page 128:
+    // ACCC v1.11 section 13.2.5 page 108 and section 13.8.2 page 129:
     // Line 3 is in vertical adjustment (C4=1), so R12/R13 update is REFUSED.
     // VMA reloads from VMA' (0x1101), NOT from R12/R13 (0x2233).
     test.expect_c4("type 0 R0=1 line 3 enters uncancelled vertical adjustment (C4=1)", 1);
@@ -5128,7 +5128,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     // Advance 2 characters to line 4 start (C4=0, C0=0, frame 2 line 0).
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.2.5 page 107 and section 20.3.1 page 242:
+    // ACCC v1.11 section 13.2.5 page 108 and section 20.3.1 page 243:
     // Line 4 (C4=0, C0=0): new frame line accepts R12/R13 (0x2233).
     test.expect_c4("type 0 R0=1 line 4 returns to C4=0", 0);
     test.expect_ma("type 0 R0=1 line 4 (C4=0) accepts R12/R13 reload (0x2233)", 0x2233);
@@ -5138,7 +5138,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     write_r12_r13_character(test, 0x33, 0x44);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.2.5 page 107:
+    // ACCC v1.11 section 13.2.5 page 108:
     // Line 5 (C4=1): adjustment line refuses R12/R13 (0x3344); VMA reloads from VMA' (0x2234).
     test.expect_c4("type 0 R0=1 line 5 enters adjustment (C4=1)", 1);
     test.expect_ma("type 0 R0=1 line 5 (C4=1) refuses R12/R13 update (reloads VMA' 0x2234)", 0x2234);
@@ -5146,7 +5146,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     // Advance 2 characters to line 6 start (C4=0, C0=0, frame 3 line 0).
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.2.5 page 107 and section 20.3.1 page 242:
+    // ACCC v1.11 section 13.2.5 page 108 and section 20.3.1 page 243:
     // Line 6 (C4=0, C0=0): new frame line accepts R12/R13 (0x3344).
     test.expect_c4("type 0 R0=1 line 6 returns to C4=0", 0);
     test.expect_ma("type 0 R0=1 line 6 (C4=0) accepts R12/R13 reload (0x3344)", 0x3344);
@@ -5155,7 +5155,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
 void test_type1_r0_one_reloads_every_line(TestBench& test) {
     test.set_crtc_type(1);
 
-    // ACCC v1.10 section 13.8.2 (page 128) and section 20.3.2 (page 242):
+    // ACCC v1.11 section 13.8.2 (page 129) and section 20.3.2 (page 243):
     // R0=1, R4=0, R9=0, R5=0 (2 us lines).
     // CRTC 1 keeps C4=0 throughout; VMA reloads from R12/R13 on EVERY 2 us line at C0=0.
     constexpr RegisterProgram kR0OneRegisters = {{
@@ -5170,7 +5170,7 @@ void test_type1_r0_one_reloads_every_line(TestBench& test) {
     // Complete initial line (2 characters) so CRTC 1 line_new fires.
     test.run_characters(2);
 
-    // ACCC v1.10 section 20.3.2 page 242:
+    // ACCC v1.11 section 20.3.2 page 243:
     // Line 1 start (C0=0): MA loaded from initial R12/R13 (0x1100).
     test.expect_c4("type 1 R0=1 line 1 C4 is 0", 0);
     test.expect_ma("type 1 R0=1 line 1 MA loaded from R12/R13", 0x1100);
@@ -5179,7 +5179,7 @@ void test_type1_r0_one_reloads_every_line(TestBench& test) {
     write_r12_r13_character(test, 0x22, 0x33);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.8.2 page 128 & section 20.3.2 page 242:
+    // ACCC v1.11 section 13.8.2 page 129 & section 20.3.2 page 243:
     // CRTC 1 keeps C4=0 and reloads VMA on every 2 us line.
     test.expect_c4("type 1 R0=1 keeps C4 at 0 on line 2", 0);
     test.expect_ma("type 1 R0=1 line 2 reloads R12/R13 (0x2233) immediately", 0x2233);
@@ -5188,7 +5188,7 @@ void test_type1_r0_one_reloads_every_line(TestBench& test) {
     write_r12_r13_character(test, 0x33, 0x44);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.8.2 page 128:
+    // ACCC v1.11 section 13.8.2 page 129:
     test.expect_c4("type 1 R0=1 keeps C4 at 0 on line 3", 0);
     test.expect_ma("type 1 R0=1 line 3 reloads R12/R13 (0x3344) immediately", 0x3344);
 
@@ -5196,7 +5196,7 @@ void test_type1_r0_one_reloads_every_line(TestBench& test) {
     write_r12_r13_character(test, 0x05, 0x67);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.8.2 page 128:
+    // ACCC v1.11 section 13.8.2 page 129:
     test.expect_c4("type 1 R0=1 keeps C4 at 0 on line 4", 0);
     test.expect_ma("type 1 R0=1 line 4 reloads R12/R13 (0x0567) immediately", 0x0567);
 }
@@ -5204,14 +5204,14 @@ void test_type1_r0_one_reloads_every_line(TestBench& test) {
 void test_type0_r0_zero_ignores_reload_after_hiccup(TestBench& test) {
     test.set_crtc_type(0);
 
-    // ACCC v1.10 sections 13.8.3 (page 129), 13.2.6 (page 108), and 20.3.1 (page 242):
+    // ACCC v1.11 sections 13.8.3 (page 130), 13.2.6 (page 109), and 20.3.1 (page 243):
     // R0=0, R4=0, R9=0, R5=0 (1 us lines).
     // On CRTC 0:
     // Character 0 (C0=0): frame start, C4=0, C9=0.
     // Character 1 (C0=0): "C4's last hiccup" increments C4 to 1, entering additional management.
     // C9 freezes at 0. All counters except C0 stop.
     // Because C4 remains stuck at 1, C4=0 never recurs while R0=0.
-    // Section 13.8.3 p. 129: "R12 / R13 cannot be considered until C4 and C9 both go back to 0."
+    // Section 13.8.3 p. 130: "R12 / R13 cannot be considered until C4 and C9 both go back to 0."
     // All subsequent R12/R13 writes are IGNORED; MA remains stuck at 0.
     constexpr RegisterProgram kR0ZeroRegisters = {{
         {0, 0}, {1, 0}, {2, 0}, {3, 0x11}, {4, 0},
@@ -5222,7 +5222,7 @@ void test_type0_r0_zero_ignores_reload_after_hiccup(TestBench& test) {
     test.write_register(13, 0x34);
     test.reset();
 
-    // ACCC v1.10 section 13.2.6 page 108:
+    // ACCC v1.11 section 13.2.6 page 109:
     // Character 0: initial reset state.
     test.expect_ma("type 0 R0=0 character 0 initial MA", 0);
 
@@ -5242,7 +5242,7 @@ void test_type0_r0_zero_ignores_reload_after_hiccup(TestBench& test) {
     // Advance 20 1-us lines.
     test.run_characters(20);
 
-    // ACCC v1.10 section 13.8.3 page 129:
+    // ACCC v1.11 section 13.8.3 page 130:
     // R12/R13 write is ignored because C4 is stuck at 1.
     test.expect_c4("type 0 R0=0 C4 remains 1 across 20 lines", 1);
     test.expect_ma("type 0 R0=0 ignores R12/R13 (0x2055) write while frozen (MA remains 0)", 0);
@@ -5285,9 +5285,9 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
     // wrap edge of an 8-character line: the line end is evaluated with
     // the OLD R0 (the register file updates on the same edge), so this line
     // still ends normally. The seam condition C4=C9=C0=0 therefore recurs
-    // one last time and ACCC v1.10 section 20.3.1 (page 242) loads both
+    // one last time and ACCC v1.11 section 20.3.1 (page 243) loads both
     // VMA' and VMA from R12/R13 -- this is the worked example's "1st
-    // C0==0 -> VMA reload" of section 13.2.6 (page 108), realized at the
+    // C0==0 -> VMA reload" of section 13.2.6 (page 109), realized at the
     // live wrap edge. Immediately afterwards R0=0 pins C0 and freezes.
     // (Expectations deliberately start at this reload: the pre-wrap pointer
     // value depends on how many CLKEN edges elapsed around reset, which no
@@ -5297,7 +5297,7 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
     test.expect_ma("type 0 live R0=0 entry: wrap-edge reload loads R12/R13 (0x1234)",
                    0x1234);
 
-    // ACCC v1.10 section 13.2.6 (page 108), live-entry form: on the first
+    // ACCC v1.11 section 13.2.6 (page 109), live-entry form: on the first
     // repeated C0==0 the armed C9==R9 decision consumes its C4 increment
     // exactly once ("this IS end of frame -> C4->1, adjustment entered")
     // while C9 does not truly reset -- it freezes at 0.
@@ -5308,12 +5308,12 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
     test.expect_ma("type 0 live R0=0: MA holds the reloaded 0x1234", 0x1234);
 
     // Further C0==0 cycles: everything stays frozen at C4=1, C9=0
-    // (ACCC v1.10 section 13.2.6, page 108).
+    // (ACCC v1.11 section 13.2.6, page 109).
     test.run_characters(1);
     test.expect_c4("type 0 live R0=0: C4 remains frozen at 1", 1);
     test.expect_ma("type 0 live R0=0: MA remains 0x1234", 0x1234);
 
-    // ACCC v1.10 section 13.8.3 (page 129): R12/R13 cannot be considered
+    // ACCC v1.11 section 13.8.3 (page 130): R12/R13 cannot be considered
     // until C4 and C9 both go back to 0 -- they never do while R0=0. Same
     // negative pair as t20g, now guarding a non-zero latched pointer.
     write_r12_r13_character(test, 0x20, 0x55);
@@ -5328,7 +5328,7 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
                    0x1234);
 }
 
-// F11h closure, render-verified against ACCC v1.10 section 20.3.2 page 242:
+// F11h closure, render-verified against ACCC v1.11 section 20.3.2 page 243:
 // the second CRTC-1 chronogram draws the OUT R12,#30 bus activity spanning
 // C0=62..1 across a row-0 line seam, so the register write lands on the
 // 63->0 boundary edge itself, and OFFSET=#30xx is drawn from C0=0. The
@@ -5428,7 +5428,7 @@ void test_type0_r12_write_on_frame_origin_edge_is_missed(TestBench& test) {
 void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     test.set_crtc_type(1);
 
-    // ACCC v1.10 sections 13.3 (page 113), 13.8.3 (page 129), and 20.3.2 (page 242):
+    // ACCC v1.11 sections 13.3 (page 114), 13.8.3 (page 130), and 20.3.2 (page 243):
     // R0=0, R4=0, R9=0, R5=0 (1 us lines).
     // On CRTC 1, R0=0 does not freeze counters; C9 and R4 continue to be managed normally.
     // C4 stays 0 throughout.
@@ -5445,7 +5445,7 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     // Complete initial line (1 character) so line_new asserts.
     test.run_characters(1);
 
-    // ACCC v1.10 section 20.3.2 page 242:
+    // ACCC v1.11 section 20.3.2 page 243:
     // Line 1 start (C0=0): MA loaded from initial R12/R13 (0x1234).
     test.expect_ma("type 1 R0=0 line 1 MA loaded from R12/R13", 0x1234);
 
@@ -5453,7 +5453,7 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     write_r13_character(test, 0x35);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.8.3 page 129 & section 20.3.2 page 242:
+    // ACCC v1.11 section 13.8.3 page 130 & section 20.3.2 page 243:
     // Line 2 start (C0=0): reloads updated R13 (0x1235).
     test.expect_c4("type 1 R0=0 keeps C4 at 0 on line 2", 0);
     test.expect_ma("type 1 R0=0 line 2 reloads updated R13 (0x1235)", 0x1235);
@@ -5477,7 +5477,7 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     // Advance 5 characters (5 us) to line 9 start without writing new registers.
     test.run_characters(5);
 
-    // ACCC v1.10 section 13.8.3 page 129:
+    // ACCC v1.11 section 13.8.3 page 130:
     // Line 9 start (C0=0): continues reloading 0x2580 on every 1 us line.
     test.expect_c4("type 1 R0=0 keeps C4 at 0 on line 9", 0);
     test.expect_ma("type 1 R0=0 line 9 continues reloading 0x2580", 0x2580);
@@ -5486,17 +5486,17 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
 // ---------------------------------------------------------------------------
 // t10: F6 -- spurious type-0 interline border byte when R1 > R0
 //
-// ACCC v1.10 section 17.6.2 (page 186): when R1 > R0 the C0=R1 DISPTMG-off
+// ACCC v1.11 section 17.6.2 (page 187): when R1 > R0 the C0=R1 DISPTMG-off
 // comparison can never fire (C0 wraps at R0 first), so a type-0 CRTC
 // substitutes C0=R0 as the border-start trigger. The source describes the
 // resulting second-half byte as 0.5 us; the character walker below samples
 // that late phase, while t31 pins both halves exactly. Type 1 emits nothing at
 // all in this configuration (pages
-// 186-187) -- the documented type discriminator of section 28.1.6. Section
-// 19.2.4 (page 195) counts a programmed SKEW-DISPTMG delay from the
+// 187-188) -- the documented type discriminator of section 28.1.6. Section
+// 19.2.4 (page 196) counts a programmed SKEW-DISPTMG delay from the
 // substituted trigger as if C0=R1 had fired there, so delay=1/2 rounds and
 // displaces the event onto the full C0=0/C0=1 character of the following line
-// (delay arithmetic per section 19.2.3, pages 193-194), and SKEW mode 2'b11
+// (delay arithmetic per section 19.2.3, pages 194-195), and SKEW mode 2'b11
 // suppresses all DISPTMG output entirely.
 // ---------------------------------------------------------------------------
 
@@ -5553,8 +5553,8 @@ constexpr std::array<bool, kF6LineCharacters> kF6SpuriousByteDelayed2 = {
 
 void f6_settle_one_frame(TestBench& test, unsigned skew) {
     // Run one complete frame (39 rows x 8 lines of 16 characters) plus two
-    // more lines, so the frame-start reload of ACCC v1.10 section 17.4.1
-    // (page 182) has established the R12/R13 base pointer AND both
+    // more lines, so the frame-start reload of ACCC v1.11 section 17.4.1
+    // (page 183) has established the R12/R13 base pointer AND both
     // SKEW-DISPTMG delay stages carry current-frame state rather than the
     // previous frame's tail-of-frame border rows (R6 < R4 here). Leaves the
     // bench mid character C0=0 of the third displayed line.
@@ -5569,23 +5569,23 @@ void test_type0_r1_gt_r0_spurious_border_byte(TestBench& test) {
     test.set_crtc_type(0);
     f6_settle_one_frame(test, 0);
 
-    // ACCC v1.10 section 17.4.1 (page 182): frame start reloaded VMA/VMA'
-    // from R12/R13; section 17.2 (page 179): with C0=R1 unreachable, every
+    // ACCC v1.11 section 17.4.1 (page 183): frame start reloaded VMA/VMA'
+    // from R12/R13; section 17.2.2 (page 179): with C0=R1 unreachable, every
     // line of the frame restarts from that same frozen base.
     test.expect_ma("type 0 R1>R0 line start holds the R12/R13 base", 0x1234);
     test.expect_de_high("type 0 R1>R0 displays at C0=0 despite R1>R0");
 
-    // ACCC v1.10 section 17.6.1 (page 185-186): the VRAM pointer offset
+    // ACCC v1.11 section 17.6.1 (page 186-187): the VRAM pointer offset
     // continues normally into the border byte.
     test.run_characters(15);
     test.expect_ma("type 0 R1>R0 pointer keeps counting through the border byte",
                    0x1234 + 15);
     test.expect_de_low(
         "type 0 R1>R0 second half of C0=R0 is the border byte "
-        "(ACCC v1.10 section 17.6.2 p.186)");
+        "(ACCC v1.11 section 17.6.2 p.187)");
 
-    // ACCC v1.10 section 17.6.2 (page 186): BORDER OFF on the character
-    // following C0=R0. Section 17.2 (page 179): C0=R1 never fired, so VMA'
+    // ACCC v1.11 section 17.6.2 (page 187): BORDER OFF on the character
+    // following C0=R0. Section 17.2.2 (page 179): C0=R1 never fired, so VMA'
     // was never updated and this line restarts from the same base address
     // (character-line repetition).
     test.run_characters(1);
@@ -5593,7 +5593,7 @@ void test_type0_r1_gt_r0_spurious_border_byte(TestBench& test) {
                    0x1234);
     test.expect_de_high(
         "type 0 R1>R0 BORDER OFF on the character following C0=R0 "
-        "(ACCC v1.10 section 17.6.2 p.186)");
+        "(ACCC v1.11 section 17.6.2 p.187)");
 
     // The byte recurs between every pair of character rows.
     f6_expect_line_de(test, kF6SpuriousByteAtR0,
@@ -5607,7 +5607,7 @@ void test_type1_r1_gt_r0_no_border_byte(TestBench& test) {
     test.set_crtc_type(1);
     f6_settle_one_frame(test, 0);
 
-    // ACCC v1.10 section 17.6.2 (pages 186-187): type 1 emits no border
+    // ACCC v1.11 section 17.6.2 (pages 187-188): type 1 emits no border
     // byte between rows when R1 > R0 -- rows stay seamlessly contiguous
     // (section 28.1.6 type discriminator).
     f6_expect_line_de(test, kF6AllDisplay,
@@ -5621,7 +5621,7 @@ void test_type0_spurious_byte_delayed_one_character(TestBench& test) {
     test.set_crtc_type(0);
     f6_settle_one_frame(test, 1);
 
-    // ACCC v1.10 sections 19.2.4 (page 195) and 19.2.3 (pages 193-194):
+    // ACCC v1.11 sections 19.2.4 (page 196) and 19.2.3 (pages 194-195):
     // the SKEW-DISPTMG delay is counted from the substituted trigger, so
     // delay=1 displaces the spurious byte onto C0=0 of the following line
     // and display resumes one character later than without skew.
@@ -5636,8 +5636,8 @@ void test_type0_spurious_byte_delayed_two_characters(TestBench& test) {
     test.set_crtc_type(0);
     f6_settle_one_frame(test, 2);
 
-    // Delay=2 displaces the spurious byte onto C0=1 (ACCC v1.10 sections
-    // 19.2.4 page 195 and 19.2.3 pages 193-194).
+    // Delay=2 displaces the spurious byte onto C0=1 (ACCC v1.11 sections
+    // 19.2.4 page 196 and 19.2.3 pages 194-195).
     f6_expect_line_de(test, kF6SpuriousByteDelayed2,
                       "type 0 R1>R0 skew 2 displaces the border byte to C0=1");
     test.run_characters(1);
@@ -5650,8 +5650,8 @@ void test_type0_skew_non_output_blanks(TestBench& test) {
     f6_settle_one_frame(test, 3);
 
     // SKEW-DISPTMG mode 2'b11 is the non-output code: no DISPTMG at all is
-    // generated, which also suppresses the spurious byte (ACCC v1.10
-    // sections 19.1 page 192 and 19.2 page 193).
+    // generated, which also suppresses the spurious byte (ACCC v1.11
+    // sections 19.1 page 193 and 19.2 page 194).
     const std::array<bool, kF6LineCharacters> blanked = {};
     f6_expect_line_de(test, blanked, "type 0 R1>R0 skew non-output blanks DE");
     test.run_characters(1);
@@ -5778,7 +5778,7 @@ void t34_type0_r6_zero_first_line_cancellation(TestBench& test) {
 }
 
 // t35: IA-6 / BL-018–BL-020 -- type-0 R0=1 widening at C0=1 persists adjustment.
-// French ACCC v1.11 section 13.7.2 pp.126-127 and compendium-01-counters.md
+// French ACCC v1.11 section 13.7.2 pp.126-128 and compendium-01-counters.md
 // section 8.4: on CRTC 0, when C0=0 of a true last frame line (C4==R4 &&
 // C9==R9) occurs with R0=1, the next-line C4 increment / adjustment is
 // programmed.
@@ -5786,9 +5786,9 @@ void t34_type0_r6_zero_first_line_cancellation(TestBench& test) {
 // at C0=2, C4 increments to R4+1 (diverging from R4) and the chip remains in
 // the "additional management" state. If R5 remains 0, C9 counts through 31
 // and completes adjustment at effective target R5-1 = 31 before resetting C4
-// and C9 to 0 at the true frame origin (French §13.7.2.2 p.127).
+// and C9 to 0 at the true frame origin (French §13.7.2.2 p.128).
 // Conversely, widening R0 during the safe C0=0 phase performs a normal frame
-// reset without entering abnormal additional management (French §13.7.2.2 p.127).
+// reset without entering abnormal additional management (French §13.7.2.2 p.128).
 void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     constexpr RegisterProgram registers = {{
         {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 2},
@@ -5805,7 +5805,7 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     constexpr unsigned kWidenedLineChars = 8;
     constexpr std::uint8_t kWidenedR0 = 7;
 
-    // --- Control arm: safe-phase widening at C0=0 (French §13.7.2.2 p.127) ---
+    // --- Control arm: safe-phase widening at C0=0 (French §13.7.2.2 p.128) ---
     // Widening R0 from 1 at C0=0 cancels the abnormal adjustment route,
     // allowing normal frame reset at the end of the widened line.
     program_registers(test, registers);
@@ -5821,13 +5821,13 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     test.run_characters(kWidenedLineChars);
 
     test.expect_adjustment_inactive(
-        "control: C0=0 widening avoids abnormal adjustment (French ACCC v1.11 §13.7.2.2 p.127)");
+        "control: C0=0 widening avoids abnormal adjustment (French ACCC v1.11 §13.7.2.2 p.128)");
     test.expect_c4(
-        "control: C0=0 widening resets C4 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+        "control: C0=0 widening resets C4 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.128)", 0);
     test.expect_ra(
-        "control: C0=0 widening resets C9 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+        "control: C0=0 widening resets C9 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.128)", 0);
 
-    // --- Main test arm: widening at C0=1 (French ACCC v1.11 §13.7.2 pp.126-127) ---
+    // --- Main test arm: widening at C0=1 (French ACCC v1.11 §13.7.2 pp.127-128) ---
     // With C4=R4 and C9=R9, C0=R0 (with R0=1) evaluates before R0 is updated at C0=1.
     // C0 advances past 1 to 2; at C0=2, C4 increments to R4+1 (3), diverging from R4.
     // Additional management remains active; with R5=0, C9 counts through 31,
@@ -5849,11 +5849,11 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     test.run_characters(1);
     test.expect_byte("main: reached C0=2 on widened line", 2, test.c0());
     test.expect_c4(
-        "main: C0=1 widening increments C4 to R4+1 (3) at C0=2 (French ACCC v1.11 §13.7.2.2 p.127)", 3);
+        "main: C0=1 widening increments C4 to R4+1 (3) at C0=2 (French ACCC v1.11 §13.7.2.2 p.128)", 3);
     test.expect_ra(
-        "main: C0=1 widening holds C9 at R9 (3) on widening line (French ACCC v1.11 §13.7.2 pp.126-127)", 3);
+        "main: C0=1 widening holds C9 at R9 (3) on widening line (French ACCC v1.11 §13.7.2 p.127)", 3);
     test.expect_adjustment_active(
-        "main: C0=1 widening leaves additional management active at C0=2 (French ACCC v1.11 §13.7.2.2 p.127)");
+        "main: C0=1 widening leaves additional management active at C0=2 (French ACCC v1.11 §13.7.2.2 p.128)");
 
     // Complete the rest of this line (C0=3..7, 6 characters).
     test.run_characters(kWidenedLineChars - 2);
@@ -5863,29 +5863,29 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     for (unsigned adj_c9 = 4; adj_c9 <= 31; ++adj_c9) {
         test.expect_adjustment_active(
             "main: C0=1 widening persists adjustment at C9=" + std::to_string(adj_c9) +
-            " (French ACCC v1.11 §13.7.2.2 p.127)");
+            " (French ACCC v1.11 §13.7.2.2 p.128)");
         test.expect_c4(
             "main: C0=1 widening keeps C4 diverged at R4+1 (3) at C9=" + std::to_string(adj_c9) +
-            " (French ACCC v1.11 §13.7.2.2 p.127)", 3);
+            " (French ACCC v1.11 §13.7.2.2 p.128)", 3);
         test.expect_ra(
             "main: C0=1 widening advances C9 in additional management to " + std::to_string(adj_c9) +
-            " (French ACCC v1.11 §13.7.2.2 p.127)", adj_c9);
+            " (French ACCC v1.11 §13.7.2.2 p.128)", adj_c9);
         test.run_characters(kWidenedLineChars);
     }
 
     // After C9=31 completes: adjustment finishes, resetting C4 and C9 to 0.
     test.expect_adjustment_inactive(
-        "main: C0=1 widening completes adjustment after C9=31 (French ACCC v1.11 §13.7.2.2 p.127)");
+        "main: C0=1 widening completes adjustment after C9=31 (French ACCC v1.11 §13.7.2.2 p.128)");
     test.expect_c4(
-        "main: C0=1 widening resets C4 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+        "main: C0=1 widening resets C4 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.128)", 0);
     test.expect_ra(
-        "main: C0=1 widening resets C9 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+        "main: C0=1 widening resets C9 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.128)", 0);
 }
 
 // ---------------------------------------------------------------------------
-// t21: F10 type-1 IVM toggle parity table (ACCC v1.10 sections 19.5.3 p.208,
-// 19.8.2 setup p.209, and the 16 SHAKER 22C/3 truth-table panels on
-// pp.210-211; render-verified 2026-08-24 under the extract protocol).
+// t21: F10 type-1 IVM toggle parity table (ACCC v1.11 section 19.5.3 p.209
+// and its R8-toggle setup p.210, and the 16 SHAKER 22C/3 truth-table panels on
+// pp.211-212; render-verified 2026-08-24 under the extract protocol).
 //
 // Each panel is one configuration of {initial ParityFrame, C4.0, R9.0, C9.0}
 // with an OUT R8,3 ("on") followed by an OUT R8,0 ("off") mid-line.  The
@@ -5907,7 +5907,7 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
 // starts C0=W+1 (the panel's "on"/"off" column), stage B at the edge that
 // starts C0=W+2.  The panels' drawn Parity rows are internally inconsistent
 // by one character on the ODD page (source drawing quirk, same tier as the
-// flagged C9-column quirks of the pp.221-224 tables); the callouts and the
+// flagged C9-column quirks of the pp.222-225 tables); the callouts and the
 // C9 rows are the oracle, and this fixture asserts exactly those.
 //
 // Setup reaches each panel's precondition without IVM ever being active:
@@ -5950,7 +5950,7 @@ void t21_run_panel(TestBench& test, const T21Panel& panel) {
 
     if (pf1) {
         // One R4=0 frame (2 lines) crosses the frame origin; ParityFrame
-        // toggles to odd at C4=C9=C0=0 (section 19.5.3 p.208).  Then pin the
+        // toggles to odd at C4=C9=C0=0 (section 19.5.3 p.209).  Then pin the
         // frame length out of the way so no later row end ends the frame.
         test.run_characters(2 * 64);
         test.write_register(4, 63);
@@ -6008,7 +6008,7 @@ void t21_run_panel(TestBench& test, const T21Panel& panel) {
     test.expect_line_parity(tag + " off stage B C9.0", off_a);
 }
 
-// The 16 panel configurations in pp.210-211 layout order: EVEN page first
+// The 16 panel configurations in pp.211-212 layout order: EVEN page first
 // (initial parity even), ODD page second; within a page C4.0=0 quadrant
 // above C4.0=1, R9.0=0 column left of R9.0=1, C9.0=0 panel above C9.0=1.
 constexpr T21Panel kT21Panels[] = {
@@ -6057,26 +6057,26 @@ T21_TEST(t21_body_15, 15)
 #undef T21_TEST
 
 // ---------------------------------------------------------------------------
-// t22: F10 type-0 IVM entry/exit counting fixtures for even R9 (ACCC v1.10
-// sections 19.8.1 pp.219-220 pseudocode and prose; the worked tables
-// pp.221-224, render-verified 2026-08-24; all tables use R9=6).
+// t22: F10 type-0 IVM entry/exit counting fixtures for even R9 (ACCC v1.11
+// sections 19.8.1 pp.220-221 pseudocode and prose; the worked tables
+// pp.222-225, render-verified 2026-08-24; all tables use R9=6).
 //
-// Documented model spliced from p.219-220 (all cited values from the tables'
+// Documented model spliced from p.220-221 (all cited values from the tables'
 // C9-VMA columns and the reliable segments of their C9 columns):
 //
 //   - C9.VMA = (C9 x 2 + ParityC9) mod 32 is the address-visible line value
-//     while IVM is active ("the more significant bit is lost", p.219).
+//     while IVM is active ("the more significant bit is lost", p.220).
 //   - Switch line (R8 written to 3 during it): the end-of-line test uses the
 //     raw C9 against "R9 or ParityFrame"; the doubled value and doubled test
-//     start at the next C0=0 (p.219 prose, every entry table).
+//     start at the next C0=0 (p.220 prose, every entry table).
 //   - Steady IVM: row ends when C9.VMA == "R9 or ParityC9" (== R9 or
-//     ParityFrame for the even R9 these tables use; the p.220 "R9 or
+//     ParityFrame for the even R9 these tables use; the p.221 "R9 or
 //     ParityC9" variant is indistinguishable here, odd-R9 is finding F15).
 //   - Exit line (R8 written to 0 during it): the end test uses C9.VMA
-//     against plain R9 (p.220 prose; p.223 bottom-right table shows the
-//     matching case resetting C9 and incrementing C4; p.224 bottom-right
+//     against plain R9 (p.221 prose; p.224 bottom-right table shows the
+//     matching case resetting C9 and incrementing C4; p.225 bottom-right
 //     shows the C9.VMA = R9+1 case incrementing C9 without a row end -- the
-//     documented p.220 worked example).
+//     documented p.221 worked example).
 //   - After the exit line, plain C9-vs-R9 counting resumes immediately.
 //
 // Fixture scope notes: the post-exit row-end behavior (seven of eight exit
@@ -6095,7 +6095,7 @@ struct T22Step {
 };
 
 // C9.VMA for a doubled-display line: ((C9 x 2) + ParityC9) mod 32
-// (section 19.8.1 p.219).  parity is the frame's ParityC9 (0 even, 1 odd
+// (section 19.8.1 p.220).  parity is the frame's ParityC9 (0 even, 1 odd
 // for the even-R9 tables these fixtures use).
 constexpr std::uint8_t t22_vma(std::uint8_t c9, bool odd) {
     return static_cast<std::uint8_t>(((c9 << 1) | (odd ? 1u : 0u)) & 0x1Fu);
@@ -6119,7 +6119,7 @@ void t22_configure(TestBench& test, bool odd_frame) {
     if (odd_frame) {
         // Run one full frame (64 rows x 7 lines) and stop at its origin:
         // ParityFrame snapshots the ParityR6 that C4=R6 flipped during the
-        // frame, so frame 2 is the odd frame (section 19.5.2 p.205).
+        // frame, so frame 2 is the odd frame (section 19.5.2 p.206).
         test.run_to_frame_start(600);
         test.expect_c4("t22 odd-frame setup reaches frame origin", 0);
     }
@@ -6142,7 +6142,7 @@ void t22_walk(TestBench& test, const char* tag,
 }
 
 std::vector<T22Step> t22_tail_after_row_end(std::uint8_t c4, bool odd) {
-    // After any row end: C9 restarts at 0 and steps by 1 (pseudocode p.219);
+    // After any row end: C9 restarts at 0 and steps by 1 (pseudocode p.220);
     // two settled lines are asserted, well before the next limit.  The
     // display stays doubled (ParityC9 is static for even R9 on type 0).
     return {{c4, 0, t22_vma(0, odd)},
@@ -6165,7 +6165,7 @@ void t22_run_entry(TestBench& test, bool odd_frame, std::uint8_t offset,
 
     const std::uint8_t c4 = 0;
     std::vector<T22Step> steps;
-    // Switch line: display and the limit value stay raw (p.219).
+    // Switch line: display and the limit value stay raw (p.220).
     steps.push_back({c4, offset, offset});
     if (overflow) {
         // C9 ran past the target on the switch line: the doubled value
@@ -6241,7 +6241,7 @@ void t22_entry_odd_6(TestBench& test) {
     t22_walk(test, "t22 entry odd 6", steps);
 }
 
-// Exit fixtures, table-shaped (pp.223-224): IVM is entered on line 0 of
+// Exit fixtures, table-shaped (pp.224-225): IVM is entered on line 0 of
 // row 0, that character row completes (C4=1 after its doubled limit), and
 // the OUT R8,0 lands early in character 4 of a second-row line.  The walk
 // starts at the exit line itself.
@@ -6342,8 +6342,8 @@ void t22_exit_odd_c9_1(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.10 §19.8.1
-// p.220 prose: "program R9 with C9.VMA before the end of the line... so that
+// t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.11 §19.8.1
+// p.221 prose: "program R9 with C9.VMA before the end of the line... so that
 // the comparison between C9.VMA and R9 without parity allows C9 to return
 // back to 0").
 // ---------------------------------------------------------------------------
@@ -6436,7 +6436,7 @@ void t30_type0_post_ivm_exit_recovery_recipe_even(TestBench& test) {
 // self-found IVM-activation gap), plus the R8=1 RA pin (N-9).
 //
 // t23a derives its sequence by hand from the section 19.8.2 match branch
-// (p.225) with R9=2 (even), R4=1, R5=0: a character row is the two lines
+// (p.226) with R9=2 (even), R4=1, R5=0: a character row is the two lines
 // C9=0,2 (doubled display 0,2 with ParityC9=0); the row end at C9=2 toggles
 // ParityC9 and restarts C9 from it as one step, so row 1 runs C9=1,3 --
 // wait, C9=1 pre-increments to 2 and (2 and ~1) == 2 matches immediately,
@@ -6466,7 +6466,7 @@ void test_type1_ivm_frame_boundary_parity_continuity(TestBench& test) {
         std::uint8_t ra;
         bool pc9;
     };
-    // Hand-derived from the p.225 match branch (see block comment).
+    // Hand-derived from the p.226 match branch (see block comment).
     const std::array<Step, 6> steps = {{
         {0, 0, 0, 0},
         {0, 2, 2, 0},
@@ -6907,20 +6907,20 @@ void test_vsync_active_r8_transitions(TestBench& test, unsigned type) {
     throw TestFailure("D1 R8 transition fixture did not finish a pulse");
 }
 
-// t24: type-1 IVM VSYNC positions (ACCC v1.10 section 19.5.3 p.208 table).
+// t24: type-1 IVM VSYNC positions (ACCC v1.11 section 19.5.3 p.209 table).
 //
 // R9=8 (even -> the row-pair line count R9+1 is odd), R7 on a chosen C4,
 // R8=3 held from a snapshot load (frame-boundary entry, no toggle stages,
 // so the MID-VSYNC field-vs-ParityFrame residual stays out of scope), and
 // R4=6: seven C4s per frame.  An odd C4 count is what makes consecutive
-// frames alternate their line sequences (section 19.8.2 p.225: ParityC9
+// frames alternate their line sequences (section 19.8.2 p.226: ParityC9
 // toggles at every C9/R9 match including the frame-boundary wrap, so an
 // odd number of matches per frame flips the frame-start C9) -- the table's
 // even frame opens C4=0 at C9=0 (5-line C4 rows) and its odd frame opens
 // at C9=1 (4-line C4 rows), 32 and 31 lines per frame respectively.  The
 // table's VSYNC boxes pin the start line for every R7 on each frame
 // parity; type 1 applies no delay correction (unlike CRTC 0/3/4,
-// section 19.5.2 pp.206-207), so with R7 on an odd C4 the pulse sits one
+// section 19.5.2 pp.207-208), so with R7 on an odd C4 the pulse sits one
 // frame-line earlier on the odd frame -- the documented permanent 1-line
 // VSYNC gap.
 
@@ -7048,10 +7048,10 @@ void test_type1_ivm_vsync_no_gap_r7_even_c4(TestBench& test) {
     }
 }
 
-// t24c: type-1 IVM MID-VSYNC half-line phase (ACCC v1.10 section 19.5.3
-// p.208 prose: "If ParityFrame is even, then an additional line and a
+// t24c: type-1 IVM MID-VSYNC half-line phase (ACCC v1.11 section 19.5.3
+// p.209 prose: "If ParityFrame is even, then an additional line and a
 // MID-VSYNC are scheduled. If ParityFrame is odd, then no additional line
-// and no MID-VSYNC."; the type-0 Note on p.207 states the same half-line
+// and no MID-VSYNC."; the type-0 Note on p.208 states the same half-line
 // rule as "the VSYNC occurs in the middle of the line on C0 = R0/2").
 // t24b's register set (R7=2): the pulse's first line is frame-line 9 on
 // both parities. The ParityFrame-even frame must start the pulse at the
@@ -7124,34 +7124,34 @@ void test_type1_ivm_mid_vsync_half_line_phase(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t27: F14 additional interlace line, type 0 (ACCC v1.10 section 19.6.1
-// p.216; section 19.5.2 p.205; section 11.2 pp.83-84; section 19.3 p.199;
+// t27: F14 additional interlace line, type 0 (ACCC v1.11 section 19.6.1
+// p.217; section 19.5.2 p.206; section 11.2 pp.84-85; section 19.3 p.200;
 // Q10 resolution in accc-author-questions.md item 10).
 //
 // Paper derivation, every assertion traceable to a cited section:
 //
 //   - Gate: the line is appended "at the end of the frame (after the R5
 //     lines if necessary)" iff an interlace mode is active (R8=1 or 3) and
-//     ParityR6 is odd (section 19.6.1 p.216).  ParityR6 := ParityFrame xor 1
-//     when C4 reaches R6, independent of R8 (section 19.5.2 p.205); with
+//     ParityR6 is odd (section 19.6.1 p.217).  ParityR6 := ParityFrame xor 1
+//     when C4 reaches R6, independent of R8 (section 19.5.2 p.206); with
 //     R6>R4 the capture never fires and ParityR6 freezes, so the gate
 //     persists: a line every frame if frozen odd, never if frozen even
-//     (section 19.6.1 p.216, both branches stated explicitly).
+//     (section 19.6.1 p.217, both branches stated explicitly).
 //
 //   - Position: after the R5 adjustment lines and before the frame origin;
 //     the origin's C4/C9 reset, ParityFrame snapshot and VMA reload move to
 //     the end of the additional line.  The even frame is 312 lines and the
 //     following odd frame "inherits" the line for its 313-line 20032 us
-//     duration (section 19.3 p.199).
+//     duration (section 19.3 p.200).
 //
 //   - C4 accounting: "C4 is incremented only once for all additional lines
-//     (R5 and interlace) and is equal to C4=R4+1" (section 19.6.1 p.216).
+//     (R5 and interlace) and is equal to C4=R4+1" (section 19.6.1 p.217).
 //     The type-0 adjustment already increments C4 to R4+1 at its entry
-//     (section 11.2.2 p.81; the p.83 adjustment table), so the additional
+//     (section 11.2.2 p.82; the p.84 adjustment table), so the additional
 //     line shares that single increment and the adjustment count continues
 //     through it: "the counting is done as if this line had been added to
-//     R5" (section 11.2 p.84), i.e. the additional line holds C9=R5.
-//     (The p.84 R5=7/R5=8 worked example is the section 11.2.3 CRTC 1/2
+//     R5" (section 11.2 p.85), i.e. the additional line holds C9=R5.
+//     (The p.85 R5=7/R5=8 worked example is the section 11.2.3 CRTC 1/2
 //     accounting where C4 keeps incrementing at mid-period C9 wraps; the
 //     type-0 single-increment rule of section 19.6.1 is what is implemented
 //     here.)
@@ -7160,7 +7160,7 @@ void test_type1_ivm_mid_vsync_half_line_phase(TestBench& test) {
 // (three lines per row), R6=1 (ParityR6 captured at each C4=0->1 crossing),
 // R7=63 (VSYNC quiet), R8=1.  INTERLACE SYNC arms the gate while keeping
 // IVM counting out of the walk (the parity management is independent of R8,
-// section 19.5.2 p.205), which isolates F14 from the F15 odd-R9 counting.
+// section 19.5.2 p.206), which isolates F14 from the F15 odd-R9 counting.
 //
 // Walk convention: every helper asserts at the CURRENT line's C0=4 character
 // and then advances one 64-character line.
@@ -7194,13 +7194,13 @@ void t27_type0_addline_basic(TestBench& test) {
         t27_step_plain(test, "t27a frame 0 line", static_cast<std::uint8_t>(i / 3),
                        static_cast<std::uint8_t>(i % 3));
     }
-    // Section 19.6.1 p.216: the additional line at C4=R4+1 with the
+    // Section 19.6.1 p.217: the additional line at C4=R4+1 with the
     // adjustment count continued to C9=R5=0, adjustment still active.
     test.expect_c4("t27a frame 0 additional line C4=R4+1", 3);
     test.expect_line("t27a frame 0 additional line C9=R5", 0);
     test.expect_adjustment_active("t27a frame 0 additional line is an adjustment line");
     // The origin moves past the additional line: frame 1 opens with
-    // ParityFrame := ParityR6 = 1 (section 19.5.2 p.205 snapshot).
+    // ParityFrame := ParityR6 = 1 (section 19.5.2 p.206 snapshot).
     test.run_characters(64);
     test.expect_c4("t27a frame 1 opens after the additional line", 0);
     test.expect_line("t27a frame 1 opens at C9=0", 0);
@@ -7225,10 +7225,10 @@ void t27_type0_addline_basic(TestBench& test) {
 }
 
 // t27b: R5=2 -- the additional line sits after the two R5 adjustment lines
-// ("after the R5 lines if necessary", section 19.6.1 p.216) and shares
+// ("after the R5 lines if necessary", section 19.6.1 p.217) and shares
 // C4=R4+1 with them ("incremented only once", same section); its C9
 // continues the adjustment count to C9=R5 ("as if this line had been added
-// to R5", section 11.2 p.84).
+// to R5", section 11.2 p.85).
 void t27_type0_addline_after_r5_lines(TestBench& test) {
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
@@ -7268,7 +7268,7 @@ void t27_type0_addline_after_r5_lines(TestBench& test) {
 
 // t27c: R6>R4 freeze with ParityR6 frozen ODD -- the gate persists and the
 // additional line is generated every frame "as long as R6>R4 (and R8=3 or
-// 1), whatever the parity of the C9's" (section 19.6.1 p.216); every origin
+// 1), whatever the parity of the C9's" (section 19.6.1 p.217); every origin
 // snapshots ParityFrame := 1, so every frame is odd-parity.
 void t27_type0_addline_freeze_odd(TestBench& test) {
     t27_configure(test);
@@ -7302,7 +7302,7 @@ void t27_type0_addline_freeze_odd(TestBench& test) {
 }
 
 // t27d: R6>R4 freeze with ParityR6 frozen EVEN -- "all the frames will
-// remain even and without additional line" (section 19.6.1 p.216).  The
+// remain even and without additional line" (section 19.6.1 p.217).  The
 // freeze write lands after frame 1's capture so ParityR6=0 is the frozen
 // value.
 void t27_type0_addline_freeze_even(TestBench& test) {
@@ -7343,15 +7343,15 @@ void t27_type0_addline_freeze_even(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t28: F14 additional interlace line, type 1 (ACCC v1.10 section 19.6.2
-// p.216; section 11.2.4 p.84; Q10 resolution in accc-author-questions.md
+// t28: F14 additional interlace line, type 1 (ACCC v1.11 section 19.6.2
+// p.217; section 11.2.4 p.85; Q10 resolution in accc-author-questions.md
 // item 10).
 //
 // Paper derivation:
 //
 //   - Gate: the line is added at the end of the frame (after the R5 lines)
 //     iff an interlace mode is active (R8=1 or 3) and ParityFrame is even
-//     (section 19.6.2 p.216).  The C4 increment for it happens "once again
+//     (section 19.6.2 p.217).  The C4 increment for it happens "once again
 //     on all even frames" when R9+1 is a multiple of R5 (same section) --
 //     the adjudicated Q10 reading, which the fixture register set satisfies
 //     (R9=7, R5=4: 8 = 2x4).  With R5=0 the multiple condition is vacuous,
@@ -7359,11 +7359,11 @@ void t27_type0_addline_freeze_even(TestBench& test) {
 //     what keeps the t21-t24 IVM walks, all R5=0, undisturbed).
 //
 //   - Mechanics: type-1 adjustment rows already increment C4 past R4
-//     (section 11.1; the p.83 table: adjustment rows at R4+1, R4+2, ...),
+//     (section 11.1; the section 11.2 p.84 table: adjustment rows at R4+1, R4+2, ...),
 //     and the adjustment ends when C5+1 equals R5 by equality (section
 //     11.3.2).  On a gated even frame the pending end instead runs one more
 //     line: "C9 counts up to R9 and when it goes back to 0, C4 is
-//     incremented without taking R4 into account" (section 11.2.4 p.84) --
+//     incremented without taking R4 into account" (section 11.2.4 p.85) --
 //     the additional line holds C9=0 and C4 one past the last adjustment
 //     row, then the frame origin follows.  This reproduces the section
 //     11.2.3 worked example's R5=8 sub-case exactly (R4=37, R9=7: the R5
@@ -7373,10 +7373,10 @@ void t27_type0_addline_freeze_even(TestBench& test) {
 //     a source-attribution residual in the F10 notes.
 //
 // Fixture frame: R0=63, R4=2 (three rows), R9=7 (type-1 IVM rows are the
-// four lines C9=0,2,4,6 with ParityC9 held -- section 19.8.2 p.225), R5=4,
+// four lines C9=0,2,4,6 with ParityC9 held -- section 19.8.2 p.226), R5=4,
 // R8=3 from a snapshot load (frame-boundary IVM entry, no toggle stages),
 // R6/R7=63 (no capture, no VSYNC).  ParityFrame toggles at every type-1
-// frame origin regardless of R8 (section 19.5.3 p.208), so frame 0 is even
+// frame origin regardless of R8 (section 19.5.3 p.209), so frame 0 is even
 // and frame 1 odd by construction.
 //
 // Walk (t28a): frame 0 = 12 row lines + 4 adjustment lines (C4=3, C9=0..3,
@@ -7422,12 +7422,12 @@ void t28_type1_addline_basic(TestBench& test) {
         t28_step_adjustment(test, "t28a frame 0 adjustment",
                             static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
     }
-    // Section 19.6.2 p.216 + section 11.2.4 p.84: the additional line,
+    // Section 19.6.2 p.217 + section 11.2.4 p.85: the additional line,
     // C4 incremented once more, C9 back at 0.
     test.expect_c4("t28a additional line C4 incremented once more", 4);
     test.expect_line("t28a additional line C9=0", 0);
     test.expect_c5("t28a additional line C5 restarts", 0);
-    // Origin: ParityFrame toggles (section 19.5.3 p.208), adjustment ends.
+    // Origin: ParityFrame toggles (section 19.5.3 p.209), adjustment ends.
     test.run_characters(64);
     test.expect_c4("t28a frame 1 opens after the additional line", 0);
     test.expect_line("t28a odd frame 1 opens at C9=1", 1);
@@ -7503,7 +7503,7 @@ void t28_type1_addline_interlace_sync(TestBench& test) {
 
 // t28b: condition control -- R5=3 does not divide R9+1=8, so even the
 // ParityFrame-even frame 0 must end directly after its adjustment lines
-// (section 19.6.2 p.216: the once-more increment requires the multiple).
+// (section 19.6.2 p.217: the once-more increment requires the multiple).
 // Required pass from the start: it pins the gate, not the mechanism.
 void t28_type1_addline_condition_false(TestBench& test) {
     t28_configure(test, 3);
@@ -7522,34 +7522,34 @@ void t28_type1_addline_condition_false(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t29: F15 type-0 odd-R9 IVM counting (ACCC v1.10 section 19.5.2 pp.205-206
+// t29: F15 type-0 odd-R9 IVM counting (ACCC v1.11 section 19.5.2 pp.206-207
 // including the worked R9=7 example table (render-verified 2026-08-26);
-// section 19.8.1 pp.219-220; the p.219 row-end gate adjudicated as
+// section 19.8.1 pp.220-221; the p.220 row-end gate adjudicated as
 // `If R9.0=1` in author question Q19; Q19(b) post-exit behavior stays out
 // of scope).
 //
-// Paper derivation from the p.206 table (both columns reproduced line for
+// Paper derivation from the p.207 table (both columns reproduced line for
 // line by the model below):
 //
 //   - Row shape: a steady IVM row ends at the first C9.VMA at or past R9.
 //     With R9=7: odd-parity rows (ParityC9=1) run 1,3,5,7 and end at R9
 //     (four lines); even-parity rows run 0,2,4,6,8 and end at R9+1 (five
-//     lines).  The p.220 prose form ("C9x2+ParityFrame equals R9 or
+//     lines).  The p.221 prose form ("C9x2+ParityFrame equals R9 or
 //     ParityC9") cannot terminate even-parity rows for odd R9 and is
-//     superseded by the rendered table, exactly as the printed p.219
+//     superseded by the rendered table, exactly as the printed p.220
 //     pseudocode line was superseded at Q19(a).
 //   - Row end: C9 restarts at 0 and (R9 odd only) ParityC9 := C4.0(new)
 //     xor ParityFrame -- the pseudocode's post-increment C4.0 -- which
 //     alternates the row parity within a frame and re-anchors it to the
 //     frame parity at each origin (the table's frame-start rows: even
 //     frame C4=0 opens at C9.VMA 0, odd frame at C9.VMA 1).
-//   - Switch line: raw C9 against R9 + ParityFrame (p.219 prose; the
+//   - Switch line: raw C9 against R9 + ParityFrame (p.220 prose; the
 //     overflow sentence "If C9=R9 and the parity is odd, then the test
 //     C9=R9+1 is false" pins the addition form).  Even-R9 behavior is
 //     bit-identical to the implemented "R9 or ParityFrame".
 //   - VSYNC delay: with R7 odd the pulse starts one line later on the
 //     ParityFrame-odd frame -- at the second line of C4=R7, where
-//     C9.VMA=2 (p.205-206 prose and the table's VSYNC boxes; the physical
+//     C9.VMA=2 (p.206-207 prose and the table's VSYNC boxes; the physical
 //     line offset of C4=R7 then matches between the frames).  Even R7
 //     needs no correction (the frames already agree).  The within-line
 //     phase follows the existing field mechanics; only the start line
@@ -7571,7 +7571,7 @@ static void t29_step(TestBench& test, const char* tag,
 // t29a: even frame, steady state (R4=63 keeps the origin out of the walk).
 // C4=0: C9.VMA 0,2,4,6,8 (row ends at R9+1=8); ParityC9 := 1^0 = 1.
 // C4=1: C9.VMA 1,3,5,7 (ends at R9=7); ParityC9 := 0^0 = 0.  C4=2 repeats
-// the even-parity row.  This is the p.206 table's PARITYFRAME=EVEN column.
+// the even-parity row.  This is the p.207 table's PARITYFRAME=EVEN column.
 void t29_type0_odd_r9_even_frame(TestBench& test) {
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
@@ -7583,7 +7583,7 @@ void t29_type0_odd_r9_even_frame(TestBench& test) {
     }
     test.reset();
     test.run_to_c0(TestBench::kF10TargetC0);
-    // C4=0: five lines, even C9.VMA (section 19.5.2 p.206, even frame).
+    // C4=0: five lines, even C9.VMA (section 19.5.2 p.207, even frame).
     t29_step(test, "t29a c4=0", 0, 0, 0);
     t29_step(test, "t29a c4=0", 0, 1, 2);
     t29_step(test, "t29a c4=0", 0, 2, 4);
@@ -7608,7 +7608,7 @@ void t29_type0_odd_r9_even_frame(TestBench& test) {
 // alternates the snapshot each origin).  Frame 0 (even) ends with the F14
 // additional line (C4=3, C9=0) and opens frame 1 odd.  Frame 1: C4=0 runs
 // C9.VMA 1,3,5,7 (ParityC9 = frame parity = 1), C4=1 runs 0,2,4,6,8 --
-// the p.206 table's PARITYFRAME=ODD column, steady rows.
+// the p.207 table's PARITYFRAME=ODD column, steady rows.
 void t29_type0_odd_r9_odd_frame(TestBench& test) {
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
@@ -7716,7 +7716,7 @@ void t29_type0_odd_r9_vsync_delay(TestBench& test) {
     test.expect_vsync_low("t29c odd frame quiet at C9.VMA=8");
 }
 
-// t29d: the odd-R9 switch line (section 19.8.1 p.219).  The switch line
+// t29d: the odd-R9 switch line (section 19.8.1 p.220).  The switch line
 // tests raw C9 against R9 + ParityFrame -- the addition form, pinned by
 // the overflow sentence: on an odd frame with R9=7 the target is 8, so a
 // switch landing on the raw C9=7 line does NOT end the row and C9
@@ -7734,7 +7734,7 @@ void t29_type0_odd_r9_switch_line_overflow(TestBench& test) {
     }
     test.reset();
     // Frame 0 (even, R8=0): 24 plain lines, no additional line, origin
-    // opens frame 1 odd (section 19.5.2 p.205 snapshot).
+    // opens frame 1 odd (section 19.5.2 p.206 snapshot).
     test.run_characters(24 * 64);
     test.run_to_c0(TestBench::kF10TargetC0);
     test.expect_c4("t29d frame 1 opens", 0);
@@ -8084,19 +8084,19 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 10.3.1 and 11.2.2; F12 guard", false,
          test_type0_adjustment_r4_write_switches_c9_to_r5},
         {"t12a_type0_worked_example_exact_r0_yields_39_8",
-         "ACCC v1.10 section 11.2.2 p.82 example 3 and section 10.3.1 p.76; F9/B4",
+         "ACCC v1.11 section 11.2.2 p.83 example 3 and section 10.3.1 p.77; F9/B4",
          false, test_type0_worked_example_exact_r0_yields_39_8},
         {"t12b_type0_worked_example_window_write_yields_38_8",
-         "ACCC v1.10 section 11.2.2 p.82 example 3; F9/B4 companion case",
+         "ACCC v1.11 section 11.2.2 p.83 example 3; F9/B4 companion case",
          false, test_type0_worked_example_window_write_yields_38_8},
         {"t12c_type0_c0_r9_write_immediate_clears_last_line",
-         "ACCC v1.11 section 12.2 pp.92-94; C0=0 immediate R9 clears Last Line",
+         "ACCC v1.11 section 12.2 pp.93-95; C0=0 immediate R9 clears Last Line",
          false, test_type0_c0_r9_write_immediate_clears_last_line},
         {"t12d_type0_c0_r9_write_immediate_validates_last_line",
-         "ACCC v1.11 section 12.2 pp.92-94; C0=0 immediate R9 validates Last Line",
+         "ACCC v1.11 section 12.2 pp.93-95; C0=0 immediate R9 validates Last Line",
          false, test_type0_c0_r9_write_immediate_validates_last_line},
         {"t12e_type0_c0_r4_write_immediate_clears_last_line",
-         "ACCC v1.11 section 12.2 pp.92-94; C0=0 immediate R4 clears Last Line",
+         "ACCC v1.11 section 12.2 pp.93-95; C0=0 immediate R4 clears Last Line",
          false, test_type0_c0_r4_write_immediate_clears_last_line},
         {"t16b_type0_r9_write_uses_new_r9",
          "ACCC v1.10 section 11.2.2; F12", false,
@@ -8171,7 +8171,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12 zero-entry positive R5",
          false, test_type0_zero_adj_entry_r5_positive_extends_adjustment},
         {"t16z_type0_r4_unequal_history_retains_switch",
-         "ACCC v1.11 section 13.2.1 p.106 and section 11.2.2; IA-4/BL-017 R4 history",
+         "ACCC v1.11 French section 13.2.1 p.106 and section 11.2.2; IA-4/BL-017 R4 history",
          false, test_type0_r4_unequal_history_retains_switch},
         {"t07a_type1_c9_counts_through_31_and_wraps",
          "ACCC v1.10 sections 10.3 and 10.3.2; F4", false,
@@ -8240,7 +8240,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 section 11.2.1; F8 worked example sequence", false,
          test_type1_adjustment_c4_c9_c5_worked_example},
         {"t08j_type1_r5_zero_mid_adjustment_keeps_counting",
-         "ACCC v1.11 section 11.3.2 p.85 and 2026-08-31 author response Q20; zero-R5 C4 reset and recovery", false,
+         "ACCC v1.11 section 11.3.2 p.86 and 2026-08-31 author response Q20; zero-R5 C4 reset and recovery", false,
          test_type1_r5_zero_mid_adjustment_keeps_counting},
         {"t08k_type0_adjustment_c4_frozen_c9_counts_to_r5",
          "ACCC v1.10 section 11.2.1; F8 type-0 control", false,
@@ -8252,58 +8252,58 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 16.1 and 16.4.2; F8/A1", false,
          test_type1_adjustment_end_does_not_fire_unreached_r7},
         {"t08n_type1_r4_write_at_adjustment_entry_suppresses_r12_reload",
-         "ACCC v1.10 section 11.2.4 p.84; F8/A2", false,
+         "ACCC v1.11 section 11.2.4 p.85; F8/A2", false,
          test_type1_r4_write_at_adjustment_entry_suppresses_r12_reload},
         {"t08o_type1_r9_write_at_adjustment_entry_keeps_r12_reload",
-         "ACCC v1.10 section 11.2.4 p.84; F8/A2/B5", false,
+         "ACCC v1.11 section 11.2.4 p.85; F8/A2/B5", false,
          test_type1_r9_write_at_adjustment_entry_keeps_r12_reload},
         {"t08p_type1_r5_zero_r4_reset_fires_vsync_at_r7_zero",
-         "ACCC v1.11 section 11.3.2 p.85 and 2026-08-31 author response Q20; actual row-next VSYNC", false,
+         "ACCC v1.11 section 11.3.2 p.86 and 2026-08-31 author response Q20; actual row-next VSYNC", false,
          test_type1_r5_zero_r4_reset_fires_vsync_at_r7_zero},
         {"t08q_type1_r5_zero_r4_reset_does_not_fire_r4_plus_one_vsync",
-         "ACCC v1.11 section 11.3.2 p.85 and 2026-08-31 author response Q20; no hypothetical row+1 VSYNC", false,
+         "ACCC v1.11 section 11.3.2 p.86 and 2026-08-31 author response Q20; no hypothetical row+1 VSYNC", false,
          test_type1_r5_zero_r4_reset_does_not_fire_r4_plus_one_vsync},
         {"t13a_type1_rfd_write_away_from_r0_stays_unarmed",
-         "ACCC v1.10 section 11.6 p.87; F7 never-triggered control", false,
+         "ACCC v1.11 section 11.6 p.88; F7 never-triggered control", false,
          test_type1_rfd_write_away_from_r0_stays_unarmed},
         {"t13b_type1_rfd_alternates_save_by_frame_parity",
-         "ACCC v1.10 sections 11.6.1-11.6.3 pp.87-90; F7", false,
+         "ACCC v1.11 sections 11.6.1-11.6.3 pp.88-91; F7", false,
          test_type1_rfd_alternates_save_by_frame_parity},
         {"t13c_type1_rfd_r1_gt_r0_bare_c9_disarms",
-         "ACCC v1.10 section 11.6 p.87; F7/B6", false,
+         "ACCC v1.11 section 11.6 p.88; F7/B6", false,
          test_type1_rfd_r1_gt_r0_bare_c9_disarms},
         {"t13d_type1_rfd_final_line_write_enters_adjustment",
-         "ACCC v1.10 sections 11.4 p.86 and 11.6 p.87; F7 rollover race", false,
+         "ACCC v1.11 sections 11.4 p.87 and 11.6 p.88; F7 rollover race", false,
          test_type1_rfd_final_line_write_enters_adjustment},
         {"t13e_type1_rfd_r0_widen_without_cancel_ends_normally",
-         "ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124; F7 residual",
+         "ACCC v1.11 sections 13.3 p.114 and 13.7.1.2 p.125; F7 residual",
          false, test_type1_rfd_r0_widen_without_cancel_ends_normally},
         {"t13f_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end",
-         "ACCC v1.10 section 13.7.1.2 p.124 (digest-01 section 8.6); F7 residual",
+         "ACCC v1.11 section 13.7.1.2 p.125 (digest-01 section 8.6); F7 residual",
          false, test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end},
         {"t13g_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4",
-         "ACCC v1.10 section 13.7.1.2 p.124 (digest-01 section 8.6); F7 residual",
+         "ACCC v1.11 section 13.7.1.2 p.125 (digest-01 section 8.6); F7 residual",
          false, test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4},
         {"t13h_type1_rfd_r0_widen_restored_condition_does_not_arm",
-         "ACCC v1.10 section 13.7.1.2 p.124 variant definitions; F7 residual",
+         "ACCC v1.11 section 13.7.1.2 p.125 variant definitions; F7 residual",
          false, test_type1_rfd_r0_widen_restored_condition_does_not_arm},
         {"t13i_type1_rfd_equal_r0_write_opens_no_window",
-         "ACCC v1.10 section 13.7.1.2 p.124 widened-only gate; F7 residual",
+         "ACCC v1.11 section 13.7.1.2 p.125 widened-only gate; F7 residual",
          false, test_type1_rfd_equal_r0_write_opens_no_window},
         {"t13j_type1_rfd_r0_widen_off_last_line_never_arms",
-         "ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124; F7 residual",
+         "ACCC v1.11 sections 13.3 p.114 and 13.7.1.2 p.125; F7 residual",
          false, test_type1_rfd_r0_widen_off_last_line_never_arms},
         {"t13k_type1_rfd_r0_window_does_not_survive_type_round_trip",
-         "ACCC v1.10 section 13.7.1.2 p.124; F7 live-type contract", false,
+         "ACCC v1.11 section 13.7.1.2 p.125; F7 live-type contract", false,
          test_type1_rfd_r0_window_does_not_survive_type_round_trip},
         {"t13l_type1_rfd_r0_widen_line_gate_never_arms",
-         "ACCC v1.10 sections 13.3 p.113 and 13.7.1.2 p.124; F7/F-2", false,
+         "ACCC v1.11 sections 13.3 p.114 and 13.7.1.2 p.125; F7/F-2", false,
          test_type1_rfd_r0_widen_line_gate_never_arms},
         {"t13m_type1_rfd_r0_extend_blanks_from_c0_r1",
-         "ACCC v1.10 sections 6.1.3 p.33 and 13.7.1.2 p.124; F-1", false,
+         "ACCC v1.11 sections 6.1.3 p.34 and 13.7.1.2 p.125; F-1", false,
          test_type1_rfd_r0_extend_blanks_from_c0_r1},
         {"t13n_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source",
-         "ACCC v1.10 section 11.6.1 p.88 (RFD triggered on C9=R9 disables VMA-source); F17", false,
+         "ACCC v1.11 section 11.6.1 p.89 (RFD triggered on C9=R9 disables VMA-source); F17", false,
          test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source},
         {"t20a_type0_normal_frame_reloads_at_frame_start_only",
          "ACCC v1.10 sections 17.4.1 and 20.3.1; F11h", false,
@@ -8333,10 +8333,10 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 13.2.6, 13.8.3, and 20.3.1; F5/F12/F11h (A3)",
          false, test_type0_r0_zero_live_entry_reloads_vma_then_freezes},
         {"t20j_type1_r12_write_on_row0_boundary_edge_reloads",
-         "ACCC v1.10 section 20.3.2 p.242 chronogram 2; F11h", false,
+         "ACCC v1.11 section 20.3.2 p.243 chronogram 2; F11h", false,
          test_type1_r12_write_on_row0_boundary_edge_reloads},
         {"t20k_type0_r12_write_on_frame_origin_edge_is_missed",
-         "ACCC v1.10 section 20.3.1 p.242 chronogram 2; F11h", false,
+         "ACCC v1.11 section 20.3.1 p.243 chronogram 2; F11h", false,
          test_type0_r12_write_on_frame_origin_edge_is_missed},
         {"t10a_type0_r1_gt_r0_spurious_border_byte",
          "ACCC v1.10 sections 17.6.2, 17.6.1, and 17.2; F6", false,
@@ -8353,121 +8353,121 @@ int main(int argc, char** argv) {
         {"t10e_type0_skew_non_output_blanks",
          "ACCC v1.10 sections 19.2 and 19.1; F6 suppression path", false,
          test_type0_skew_non_output_blanks},
-        // t21: F10 type-1 IVM toggle parity table (ACCC pp.210-211 panels).
+        // t21: F10 type-1 IVM toggle parity table (ACCC pp.211-212 panels).
         // All sixteen parity configurations are required passes.
         {"t21a_type1_ivm_toggle_19S_23W",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 19/23 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 19/23 (p.211); F10",
          false, t21_body_00},
         {"t21b_type1_ivm_toggle_17Q_21U_25Y1",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 17/21/25 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 17/21/25 (p.211); F10",
          false, t21_body_01},
         {"t21c_type1_ivm_toggle_4D_8H",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 4/8 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 4/8 (p.211); F10",
          false, t21_body_02},
         {"t21d_type1_ivm_toggle_2B_6F",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 2/6 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 2/6 (p.211); F10",
          false, t21_body_03},
         {"t21e_type1_ivm_toggle_20T_24X",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 20/24 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 20/24 (p.211); F10",
          false, t21_body_04},
         {"t21f_type1_ivm_toggle_18R_22V_26Z1",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 18/22/26 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 18/22/26 (p.211); F10",
          false, t21_body_05},
         {"t21g_type1_ivm_toggle_5E_9I",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 5/9 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 5/9 (p.211); F10",
          false, t21_body_06},
         {"t21h_type1_ivm_toggle_3C_7G",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 3/7 (p.210); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 3/7 (p.211); F10",
          false, t21_body_07},
         {"t21i_type1_ivm_toggle_27ZA_29ZC",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 27/29 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 27/29 (p.212); F10",
          false, t21_body_08},
         {"t21j_type1_ivm_toggle_16P_25Y2",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 16/25 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 16/25 (p.212); F10",
          false, t21_body_09},
         {"t21k_type1_ivm_toggle_12L_14N",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 12/14 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 12/14 (p.212); F10",
          false, t21_body_10},
         {"t21l_type1_ivm_toggle_1A_10J2",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 1/10 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 1/10 (p.212); F10",
          false, t21_body_11},
         {"t21m_type1_ivm_toggle_28ZB_30ZD",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests 28/30 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests 28/30 (p.212); F10",
          false, t21_body_12},
         {"t21n_type1_ivm_toggle_26Z",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 test 26 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 test 26 (p.212); F10",
          false, t21_body_13},
         {"t21o_type1_ivm_toggle_M_15O",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 tests (M)/15 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 tests (M)/15 (p.212); F10",
          false, t21_body_14},
         {"t21p_type1_ivm_toggle_11K2",
-         "ACCC v1.10 sections 19.5.3 pp.208-209 and SHAKER 22C/3 test 11 (p.211); F10",
+         "ACCC v1.11 sections 19.5.3 pp.209-210 and SHAKER 22C/3 test 11 (p.212); F10",
          false, t21_body_15},
         // t22: F10 type-0 IVM entry/exit counting for even R9 (ACCC
-        // pp.219-224).  These entry and exit walks are required passes for
+        // pp.220-225).  These entry and exit walks are required passes for
         // the documented C9/C9.VMA stepping and row-end behavior.
         {"t22a_type0_ivm_entry_even_c9_0",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=0, even frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=0, even frame); F10",
          false, t22_entry_even_0},
         {"t22b_type0_ivm_entry_even_c9_1",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=1, even frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=1, even frame); F10",
          false, t22_entry_even_1},
         {"t22c_type0_ivm_entry_even_c9_2",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=2, even frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=2, even frame); F10",
          false, t22_entry_even_2},
         {"t22d_type0_ivm_entry_even_c9_3",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=3, even frame overflow); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=3, even frame overflow); F10",
          false, t22_entry_even_3},
         {"t22e_type0_ivm_entry_even_c9_4",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.222 (switch at C9=4, even frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.223 (switch at C9=4, even frame); F10",
          false, t22_entry_even_4},
         {"t22f_type0_ivm_entry_even_c9_5",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.222 (switch at C9=5, even frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.223 (switch at C9=5, even frame); F10",
          false, t22_entry_even_5},
         {"t22g_type0_ivm_entry_even_c9_6",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.223 top (switch at C9=6, even frame reset); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.224 top (switch at C9=6, even frame reset); F10",
          false, t22_entry_even_6},
         {"t22h_type0_ivm_entry_odd_c9_0",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=0, odd frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=0, odd frame); F10",
          false, t22_entry_odd_0},
         {"t22i_type0_ivm_entry_odd_c9_1",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=1, odd frame); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=1, odd frame); F10",
          false, t22_entry_odd_1},
         {"t22j_type0_ivm_entry_odd_c9_3",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.221 (switch at C9=3, odd frame overflow); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.222 (switch at C9=3, odd frame overflow); F10",
          false, t22_entry_odd_3},
         {"t22k_type0_ivm_entry_odd_c9_6",
-         "ACCC v1.10 section 19.8.1 pp.219-220 and table p.223 top (switch at C9=6, odd frame overflow); F10",
+         "ACCC v1.11 section 19.8.1 pp.220-221 and table p.224 top (switch at C9=6, odd frame overflow); F10",
          false, t22_entry_odd_6},
         {"t22l_type0_ivm_exit_even_at_limit",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.223 bottom (exit at C9.VMA=R9); F10",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.224 bottom (exit at C9.VMA=R9); F10",
          false, t22_exit_even_at_limit},
         {"t22m_type0_ivm_exit_odd_at_r9_plus_1",
-         "ACCC v1.10 section 19.8.1 p.220 worked example and table p.224 (exit at C9.VMA=R9+1); F10",
+         "ACCC v1.11 section 19.8.1 p.221 worked example and table p.225 (exit at C9.VMA=R9+1); F10",
          false, t22_exit_odd_at_r9_plus_1},
         {"t22n_type0_ivm_exit_odd_below_limit",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.224 (exit at C9.VMA<R9, odd frame); F10",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.225 (exit at C9.VMA<R9, odd frame); F10",
          false, t22_exit_odd_below_limit},
         {"t22o_type0_ivm_exit_even_below_limit",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.223 bottom (exit at C9.VMA<R9, even frame); F10",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.224 bottom (exit at C9.VMA<R9, even frame); F10",
          false, t22_exit_even_below_limit},
         {"t22p_type0_ivm_exit_even_c9_0",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.223 top (exit at C9.VMA=0, even frame); F10/N-8",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.224 top (exit at C9.VMA=0, even frame); F10/N-8",
          false, t22_exit_even_c9_0},
         {"t22q_type0_ivm_exit_even_c9_1",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.223 (exit at C9.VMA=2, even frame); F10/N-8",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.224 (exit at C9.VMA=2, even frame); F10/N-8",
          false, t22_exit_even_c9_1},
         {"t22r_type0_ivm_exit_odd_c9_0",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.224 top (exit at C9.VMA=1, odd frame); F10/N-8",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.225 top (exit at C9.VMA=1, odd frame); F10/N-8",
          false, t22_exit_odd_c9_0},
         {"t22s_type0_ivm_exit_odd_c9_1",
-         "ACCC v1.10 section 19.8.1 p.220 and table p.224 (exit at C9.VMA=3, odd frame); F10/N-8",
+         "ACCC v1.11 section 19.8.1 p.221 and table p.225 (exit at C9.VMA=3, odd frame); F10/N-8",
          false, t22_exit_odd_c9_1},
         {"t23a_type1_ivm_frame_boundary_parity_continuity",
-         "ACCC v1.10 section 19.8.2 p.225 match branch at a frame boundary; F10/B-2",
+         "ACCC v1.11 section 19.8.2 p.226 match branch at a frame boundary; F10/B-2",
          false, test_type1_ivm_frame_boundary_parity_continuity},
         {"t23b_type1_ivm_engages_from_snapshot_r8_3",
-         "ACCC v1.10 section 19.8.2 p.225 with R8=3 snapshot-loaded; F10 ivm seeding",
+         "ACCC v1.11 section 19.8.2 p.226 with R8=3 snapshot-loaded; F10 ivm seeding",
          false, test_type1_ivm_engages_from_snapshot_r8_3},
         {"t32a_type1_frame_origin_realigns_parity_c9",
          "ACCC v1.11 French section 19.5.3 p.209; BL-038/IA-2",
@@ -8482,7 +8482,7 @@ int main(int argc, char** argv) {
          "IA-1 pending-state reset/snapshot/live-type/R3l=0 contract",
          false, t33_type0_r3_terminal_restart_lifecycle},
         {"t23c_interlace_sync_leaves_ra_plain",
-         "ACCC v1.10 section 19.3.2.1 p.199 (INTERLACE SYNC does not touch the raster address); F10/N-9",
+         "ACCC v1.11 section 19.3.2.1 p.200 (INTERLACE SYNC does not touch the raster address); F10/N-9",
          false, test_interlace_sync_leaves_ra_plain},
         {"d1_type0_is_r9_7", "French 19.7.2 p.219 R8=1", false,
          [](TestBench& t) { test_vsync_frames(t, 0, 7, 1); }},
@@ -8551,80 +8551,80 @@ int main(int argc, char** argv) {
         {"d1_type1_r9_8", "French 19.7.2 p.219", false,
          [](TestBench& t) { test_vsync_frames(t, 1, 8); }},
         {"t24a_type1_ivm_vsync_gap_r7_odd_c4",
-         "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=1 odd) with section 19.8.2 p.225 alternation",
+         "ACCC v1.11 section 19.5.3 p.209 table (R9=8 even, R7=1 odd) with section 19.8.2 p.226 alternation",
          false, test_type1_ivm_vsync_gap_r7_odd_c4},
         {"t24b_type1_ivm_vsync_no_gap_r7_even_c4",
-         "ACCC v1.10 section 19.5.3 p.208 table (R9=8 even, R7=2 even) with section 19.8.2 p.225 alternation",
+         "ACCC v1.11 section 19.5.3 p.209 table (R9=8 even, R7=2 even) with section 19.8.2 p.226 alternation",
          false, test_type1_ivm_vsync_no_gap_r7_even_c4},
         {"t24c_type1_ivm_mid_vsync_half_line_phase",
-         "ACCC v1.10 section 19.5.3 p.208 prose (MID-VSYNC on the ParityFrame-even frame); p.207 Note",
+         "ACCC v1.11 section 19.5.3 p.209 prose (MID-VSYNC on the ParityFrame-even frame); p.208 Note",
          false, test_type1_ivm_mid_vsync_half_line_phase},
         {"t25a_type0_adjustment_segment_cycles_period_8",
-         "ACCC v1.10 sections 11.2.1 p.81 and 20.2 p.241; D1 correction",
+         "ACCC v1.11 sections 11.2.1 p.82 and 20.2 p.242; D1 correction",
          false, test_type0_adjustment_segment_cycles_period_8},
         {"t25b_type0_adjustment_pointer_steps_and_scans",
-         "ACCC v1.10 sections 11.2.1 p.81 and 11.2.2 pp.82-83; D1 correction",
+         "ACCC v1.11 sections 11.2.1 p.82 and 11.2.2 pp.83-84; D1 correction",
          false, test_type0_adjustment_pointer_steps_and_scans},
         {"t25c_type0_adjustment_exit_reloads_frame_origin",
-         "ACCC v1.10 sections 11.2.2 p.81 and 20.3.1 p.242; D1 correction",
+         "ACCC v1.11 sections 11.2.2 p.82 and 20.3.1 p.243; D1 correction",
          false, test_type0_adjustment_exit_reloads_frame_origin},
         {"t26a_type0_r1_zero_write_deadline",
-         "ACCC v1.10 section 17.5.1 p.185 chronograms; D1 correction",
+         "ACCC v1.11 section 17.5.1 p.186 chronograms; D1 correction",
          false, test_t26_r1_zero_deadline_type0},
         {"t26b_type1_r1_zero_write_deadline",
-         "ACCC v1.10 section 17.5.1 p.185 chronograms; D1 correction",
+         "ACCC v1.11 section 17.5.1 p.186 chronograms; D1 correction",
          false, test_t26_r1_zero_deadline_type1},
-        // t27: F14 additional interlace line, type 0 (ACCC v1.10 section
-        // 19.6.1 p.216).  Required passes cover placement and both freeze
+        // t27: F14 additional interlace line, type 0 (ACCC v1.11 section
+        // 19.6.1 p.217).  Required passes cover placement and both freeze
         // parity outcomes.
         {"t27a_type0_addline_basic",
-         "ACCC v1.10 sections 19.6.1 p.216, 19.5.2 p.205 and 19.3 p.199; F14",
+         "ACCC v1.11 sections 19.6.1 p.217, 19.5.2 p.206 and 19.3 p.200; F14",
          false, t27_type0_addline_basic},
         {"t27b_type0_addline_after_r5_lines",
-         "ACCC v1.10 section 19.6.1 p.216 (after the R5 lines, one increment) and 11.2 p.84; F14",
+         "ACCC v1.11 section 19.6.1 p.217 (after the R5 lines, one increment) and 11.2 p.85; F14",
          false, t27_type0_addline_after_r5_lines},
         {"t27c_type0_addline_r6_gt_r4_freeze_odd",
-         "ACCC v1.10 sections 19.6.1 p.216 and 19.5.2 p.205 (frozen-odd persistence); F14",
+         "ACCC v1.11 sections 19.6.1 p.217 and 19.5.2 p.206 (frozen-odd persistence); F14",
          false, t27_type0_addline_freeze_odd},
         {"t27d_type0_addline_r6_gt_r4_freeze_even",
-         "ACCC v1.10 sections 19.6.1 p.216 and 19.5.2 p.205 (frozen-even persistence); F14",
+         "ACCC v1.11 sections 19.6.1 p.217 and 19.5.2 p.206 (frozen-even persistence); F14",
          false, t27_type0_addline_freeze_even},
-        // t28: F14 additional interlace line, type 1 (ACCC v1.10 section
-        // 19.6.2 p.216).  The required cases cover the active gate and its
+        // t28: F14 additional interlace line, type 1 (ACCC v1.11 section
+        // 19.6.2 p.217).  The required cases cover the active gate and its
         // false-condition control.
         {"t28a_type1_addline_basic",
-         "ACCC v1.10 sections 19.6.2 p.216 and 11.2.4 p.84; F14",
+         "ACCC v1.11 sections 19.6.2 p.217 and 11.2.4 p.85; F14",
          false, t28_type1_addline_basic},
         {"t28b_type1_addline_condition_false",
-         "ACCC v1.10 section 19.6.2 p.216 (R9+1 multiple of R5 gate); F14",
+         "ACCC v1.11 section 19.6.2 p.217 (R9+1 multiple of R5 gate); F14",
          false, t28_type1_addline_condition_false},
         {"t28c_type1_addline_interlace_sync",
-         "ACCC v1.10 section 19.6.2 p.216 (gate R8 in 1,3); F14/review",
+         "ACCC v1.11 section 19.6.2 p.217 (gate R8 in 1,3); F14/review",
          false, t28_type1_addline_interlace_sync},
-        // t29: F15 type-0 odd-R9 IVM counting (ACCC v1.10 section 19.5.2
-        // pp.205-206 and section 19.8.1 with the Q19-adjudicated gate).
+        // t29: F15 type-0 odd-R9 IVM counting (ACCC v1.11 section 19.5.2
+        // pp.206-207 and section 19.8.1 with the Q19-adjudicated gate).
         // Required passes cover both frame parities, VSYNC delay, and exit.
         {"t29a_type0_odd_r9_even_frame",
-         "ACCC v1.10 section 19.5.2 p.206 worked example (even frame column); F15",
+         "ACCC v1.11 section 19.5.2 p.207 worked example (even frame column); F15",
          false, t29_type0_odd_r9_even_frame},
         {"t29b_type0_odd_r9_odd_frame",
-         "ACCC v1.10 section 19.5.2 p.206 worked example (odd frame column); F15/F14",
+         "ACCC v1.11 section 19.5.2 p.207 worked example (odd frame column); F15/F14",
          false, t29_type0_odd_r9_odd_frame},
         {"t29c_type0_odd_r9_vsync_delay",
-         "ACCC v1.10 sections 19.5.2 pp.205-206 (odd-C4 R7 VSYNC delay); F15",
+         "ACCC v1.11 sections 19.5.2 pp.206-207 (odd-C4 R7 VSYNC delay); F15",
          false, t29_type0_odd_r9_vsync_delay},
         {"t29d_type0_odd_r9_switch_line_overflow",
-         "ACCC v1.10 section 19.8.1 p.219 (switch line R9+ParityFrame, overflow); F15/review",
+         "ACCC v1.11 section 19.8.1 p.220 (switch line R9+ParityFrame, overflow); F15/review",
          false, t29_type0_odd_r9_switch_line_overflow},
         {"t29e_type0_delay_arm_clears_on_type_switch",
          "Live CRTC_TYPE contract with the F15 delay state; review blocking 1",
          false, t29_type0_delay_arm_clears_on_type_switch},
-        // t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.10 §19.8.1 p.220)
+        // t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.11 §19.8.1 p.221)
         {"t30a_type0_post_ivm_exit_recovery_recipe_odd",
-         "ACCC v1.10 section 19.8.1 p.220 prose (recovery recipe by programming R9=C9.VMA, odd frame); F16",
+         "ACCC v1.11 section 19.8.1 p.221 prose (recovery recipe by programming R9=C9.VMA, odd frame); F16",
          false, t30_type0_post_ivm_exit_recovery_recipe_odd},
         {"t30b_type0_post_ivm_exit_recovery_recipe_even",
-         "ACCC v1.10 section 19.8.1 p.220 prose (recovery recipe by programming R9=C9.VMA, even frame); F16",
+         "ACCC v1.11 section 19.8.1 p.221 prose (recovery recipe by programming R9=C9.VMA, even frame); F16",
          false, t30_type0_post_ivm_exit_recovery_recipe_even},
         // t31: F13 exact half-character border pulse.
         {"t31a_type0_half_character_border_no_skew",
@@ -8635,7 +8635,7 @@ int main(int argc, char** argv) {
          false, t34_type0_r6_zero_first_line_cancellation},
         // t35: IA-6 / BL-018–BL-020 -- type-0 R0=1 widening at C0=1 persists adjustment.
         {"t35a_type0_r0_one_c0_1_widening_persists_adjustment",
-         "ACCC v1.11 French section 13.7.2 pp.126-127; IA-6",
+         "ACCC v1.11 French section 13.7.2 pp.126-128; IA-6",
          false, t35_type0_r0_one_c0_1_widening_persists_adjustment},
     };
 
