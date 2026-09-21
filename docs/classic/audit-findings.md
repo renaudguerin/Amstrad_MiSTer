@@ -364,7 +364,7 @@ General implementation rules for all fix prompts:
 
 ## F16. Type-0 post-IVM exit keeps the frozen C9.VMA comparison
 
-- **Rule** (ACCC v1.10 §19.8.1 pp.219-220 and tables pp.223-224; author feedback §2.8): On Type 0
+- **Rule** (ACCC v1.11 §19.8.1 pp.220-221 and tables pp.224-225; author feedback §2.8): On Type 0
   (HD6845S/UM6845), when leaving IVM ($R_8 \to 0$), the line-end comparison does not revert to
   evaluating live $C_9 == R_9$. Instead, the comparator continues testing the **frozen $C_9.\text{VMA}$
   register content** (the last computed IVM raster address from the exit line) against plain $R_9$ until
@@ -376,11 +376,11 @@ General implementation rules for all fix prompts:
   against plain $R_9$ while frozen, clearing on comparator match or IVM re-entry. Verified by extended
   `t22l`-`t22s` walking through $C_9=7$ without premature reset at $C_9=6$ on non-matching exits, and `t30a`/`t30b`
   verifying the p.221 mid-line recovery recipe on odd and even frames.
-- **Confidence: high.** Derived directly from ACCC v1.10 pp.219-224 exit tables and author confirmation.
+- **Confidence: high.** Derived directly from ACCC v1.11 pp.220-225 exit tables and author confirmation.
 
 ## F17. Type-1 RFD triggered on C9=R9 disables VMA-source state
 
-- **Rule** (ACCC v1.10/v1.11 §11.6.1 p.88 Case 2; author question Q4): On Type 1 (UM6845R), triggering an RFD
+- **Rule** (ACCC v1.11 §11.6.1 p.89 Case 2; author question Q4): On Type 1 (UM6845R), triggering an RFD
   (via the general $R_5$ written 0 $\to$ nonzero route) on the last character line of a row where $C_9==R_9$ disables
   the state allowing VMA to be updated with $R_{12}/R_{13}$ (`rfd_vma_flag = false`), while the parity flag
   arms normally (`rfd_parity_flag = true`). Subsequent character lines continue sequential VMA counting
@@ -390,11 +390,11 @@ General implementation rules for all fix prompts:
   `rfd_vma_active` when `rfd_arm` occurs with `line == crtc1_line_max`, while keeping `rfd_parity_flag` armed.
   Effective `crtc1_rollover_r5` is also wired into `crtc1_adj_entry_from_row0`. Verified by `t13d` (source flag
   disabled on final line) and `t13n` (VMA sequential progression without $R_{12}/R_{13}$ reload).
-- **Confidence: high.** Derived directly from ACCC v1.10/v1.11 §11.6.1 p.88.
+- **Confidence: high.** Derived directly from ACCC v1.11 §11.6.1 p.89.
 
 ## F18. Type-1 readable register set validation and pinning
 
-- **Rule** (ACCC v1.10 §21.2.2 p.245 vs §28.1.9 p.293): On Type 1 (UM6845R), registers $R_{14}/R_{15}$
+- **Rule** (ACCC v1.11 §21.2.2 p.246 vs §28.1.9 p.294): On Type 1 (UM6845R), registers $R_{14}/R_{15}$
   (cursor address) and $R_{16}/R_{17}$ (light pen) are readable; undefined dummy register 31 reads 0xFF.
   $R_{12}/R_{13}$ (start address) and all other registers return 0x00. On Type 0, $R_{12}–R_{17}$ are readable
   and register 31 reads 0x00.

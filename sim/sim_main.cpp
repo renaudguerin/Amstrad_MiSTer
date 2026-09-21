@@ -2312,7 +2312,7 @@ void test_type0_adjustment_pointer_steps_and_scans(TestBench& test) {
         line_start[c9] = test.ma();
     }
 
-    // ACCC v1.10 p.81 PTR-VRAM rows 1-4: no capture crossing before the
+    // ACCC v1.11 p.82 PTR-VRAM rows 1-4: no capture crossing before the
     // C9==R9 line, so lines C9=0..3 restart from the same pointer.
     for (unsigned c9 = 1; c9 < 4; ++c9) {
         test.expect_byte(
@@ -4517,7 +4517,7 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
     test.select_register(5);
     test.write_selected_register_at_clken(1);
 
-    // Finding F17 (ACCC v1.10 §11.6.1 p.88 Case 2): a repeated RFD triggered on
+    // Finding F17 (ACCC v1.11 §11.6.1 p.89 Case 2): a repeated RFD triggered on
     // C9=R9 disables the VMA-source state immediately (vma_flag=false) while arming
     // the parity flag (parity_flag=true).
     test.expect_type1_rfd_state(
@@ -5786,9 +5786,9 @@ void t34_type0_r6_zero_first_line_cancellation(TestBench& test) {
 // at C0=2, C4 increments to R4+1 (diverging from R4) and the chip remains in
 // the "additional management" state. If R5 remains 0, C9 counts through 31
 // and completes adjustment at effective target R5-1 = 31 before resetting C4
-// and C9 to 0 at the true frame origin (French §13.7.2.2 p.127).
+// and C9 to 0 at the true frame origin (French §13.7.2.2 p.128).
 // Conversely, widening R0 during the safe C0=0 phase performs a normal frame
-// reset without entering abnormal additional management (French §13.7.2.2 p.127).
+// reset without entering abnormal additional management (French §13.7.2.2 p.128).
 void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     constexpr RegisterProgram registers = {{
         {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 2},
@@ -5805,7 +5805,7 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     constexpr unsigned kWidenedLineChars = 8;
     constexpr std::uint8_t kWidenedR0 = 7;
 
-    // --- Control arm: safe-phase widening at C0=0 (French §13.7.2.2 p.127) ---
+    // --- Control arm: safe-phase widening at C0=0 (French §13.7.2.2 p.128) ---
     // Widening R0 from 1 at C0=0 cancels the abnormal adjustment route,
     // allowing normal frame reset at the end of the widened line.
     program_registers(test, registers);
@@ -5821,11 +5821,11 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     test.run_characters(kWidenedLineChars);
 
     test.expect_adjustment_inactive(
-        "control: C0=0 widening avoids abnormal adjustment (French ACCC v1.11 §13.7.2.2 p.127)");
+        "control: C0=0 widening avoids abnormal adjustment (French ACCC v1.11 §13.7.2.2 p.128)");
     test.expect_c4(
-        "control: C0=0 widening resets C4 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+        "control: C0=0 widening resets C4 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.128)", 0);
     test.expect_ra(
-        "control: C0=0 widening resets C9 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+        "control: C0=0 widening resets C9 to 0 at frame origin (French ACCC v1.11 §13.7.2.2 p.128)", 0);
 
     // --- Main test arm: widening at C0=1 (French ACCC v1.11 §13.7.2 pp.126-127) ---
     // With C4=R4 and C9=R9, C0=R0 (with R0=1) evaluates before R0 is updated at C0=1.
@@ -5849,11 +5849,11 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     test.run_characters(1);
     test.expect_byte("main: reached C0=2 on widened line", 2, test.c0());
     test.expect_c4(
-        "main: C0=1 widening increments C4 to R4+1 (3) at C0=2 (French ACCC v1.11 §13.7.2.2 p.127)", 3);
+        "main: C0=1 widening increments C4 to R4+1 (3) at C0=2 (French ACCC v1.11 §13.7.2.2 p.128)", 3);
     test.expect_ra(
         "main: C0=1 widening holds C9 at R9 (3) on widening line (French ACCC v1.11 §13.7.2 pp.126-127)", 3);
     test.expect_adjustment_active(
-        "main: C0=1 widening leaves additional management active at C0=2 (French ACCC v1.11 §13.7.2.2 p.127)");
+        "main: C0=1 widening leaves additional management active at C0=2 (French ACCC v1.11 §13.7.2.2 p.128)");
 
     // Complete the rest of this line (C0=3..7, 6 characters).
     test.run_characters(kWidenedLineChars - 2);
@@ -5863,23 +5863,23 @@ void t35_type0_r0_one_c0_1_widening_persists_adjustment(TestBench& test) {
     for (unsigned adj_c9 = 4; adj_c9 <= 31; ++adj_c9) {
         test.expect_adjustment_active(
             "main: C0=1 widening persists adjustment at C9=" + std::to_string(adj_c9) +
-            " (French ACCC v1.11 §13.7.2.2 p.127)");
+            " (French ACCC v1.11 §13.7.2.2 p.128)");
         test.expect_c4(
             "main: C0=1 widening keeps C4 diverged at R4+1 (3) at C9=" + std::to_string(adj_c9) +
-            " (French ACCC v1.11 §13.7.2.2 p.127)", 3);
+            " (French ACCC v1.11 §13.7.2.2 p.128)", 3);
         test.expect_ra(
             "main: C0=1 widening advances C9 in additional management to " + std::to_string(adj_c9) +
-            " (French ACCC v1.11 §13.7.2.2 p.127)", adj_c9);
+            " (French ACCC v1.11 §13.7.2.2 p.128)", adj_c9);
         test.run_characters(kWidenedLineChars);
     }
 
     // After C9=31 completes: adjustment finishes, resetting C4 and C9 to 0.
     test.expect_adjustment_inactive(
-        "main: C0=1 widening completes adjustment after C9=31 (French ACCC v1.11 §13.7.2.2 p.127)");
+        "main: C0=1 widening completes adjustment after C9=31 (French ACCC v1.11 §13.7.2.2 p.128)");
     test.expect_c4(
-        "main: C0=1 widening resets C4 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+        "main: C0=1 widening resets C4 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.128)", 0);
     test.expect_ra(
-        "main: C0=1 widening resets C9 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.127)", 0);
+        "main: C0=1 widening resets C9 to 0 after adjustment (French ACCC v1.11 §13.7.2.2 p.128)", 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -7359,7 +7359,7 @@ void t27_type0_addline_freeze_even(TestBench& test) {
 //     what keeps the t21-t24 IVM walks, all R5=0, undisturbed).
 //
 //   - Mechanics: type-1 adjustment rows already increment C4 past R4
-//     (section 11.1; the p.83 table: adjustment rows at R4+1, R4+2, ...),
+//     (section 11.1; the section 11.2 p.84 table: adjustment rows at R4+1, R4+2, ...),
 //     and the adjustment ends when C5+1 equals R5 by equality (section
 //     11.3.2).  On a gated even frame the pending end instead runs one more
 //     line: "C9 counts up to R9 and when it goes back to 0, C4 is
@@ -8619,7 +8619,7 @@ int main(int argc, char** argv) {
         {"t29e_type0_delay_arm_clears_on_type_switch",
          "Live CRTC_TYPE contract with the F15 delay state; review blocking 1",
          false, t29_type0_delay_arm_clears_on_type_switch},
-        // t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.10 §19.8.1 p.220)
+        // t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.11 §19.8.1 p.221)
         {"t30a_type0_post_ivm_exit_recovery_recipe_odd",
          "ACCC v1.10 section 19.8.1 p.220 prose (recovery recipe by programming R9=C9.VMA, odd frame); F16",
          false, t30_type0_post_ivm_exit_recovery_recipe_odd},

@@ -373,7 +373,7 @@ the p.208 right table prints C4=3 where its sequence requires 5 (source typo), a
 
 *(Type 2/3&4 update-condition contrasts also documented at §20.3.3-4, p.244, out of scope — type 2 has the priority-bug already flagged in §17.4; type 3/4 match type 0's two-stage {R12,R13}→VMA'→VMA behavior.)*
 
-### 20.4 Deadlines (§20.4, p.243)
+### 20.4 Deadlines (§20.4, p.245)
 - Text defers detailed cycle-accurate deadline tables to the R0-register chapter (not in this agent's page range — flag for cross-reference against whichever digest covers R0/R9, likely compendium-02 or similar). Diagrams on p.243 show OUT R12 timing relative to C0 approaching R0/R1 for type 0/1 — consistent with the C4=C9=C0=0 (type0) vs C4=0-any-C9/C0=0 (type1) rules above; no new rule beyond §20.3.
 
 ### 20.5 Overscan Bits (§20.5, p.245) — applies identically to type 0/1

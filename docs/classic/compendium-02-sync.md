@@ -466,7 +466,7 @@ Two independent mechanisms against infinite VSYNC:
   **Cycle-exact ordering rule** — a behavioral model must apply RMR-reset and HSYNC-end-increment in
   the correct relative C0 order, not "whichever happens last in program order this frame."
 
-## 24. Interrupt trigger conditions (§27.3, p.283–284)
+## 24. Interrupt trigger conditions (§27.3, p.285–286)
 
 ### 27.3.1 — R52 wraps 51→0
 
@@ -499,7 +499,7 @@ Two independent mechanisms against infinite VSYNC:
   **hangs indefinitely**. (Trailblazer's split-raster HALT usage cited as the practical exception —
   values HALT's cycle-exact interrupt landing.)
 
-## 25. Interrupt modes 1/2 — Z80 background (§27.4–27.5, p.284–286)
+## 25. Interrupt modes 1/2 — Z80 background (§27.4–27.5, p.286–287)
 
 - **IM1** (dominant CPC convention): interrupt ≈ implicit `RST #38`. RST #38 from code = 4µs; same
   vector taken via a real interrupt = **5µs** (1µs ack overhead).
@@ -519,7 +519,7 @@ Two independent mechanisms against infinite VSYNC:
   - `[T3/4 diff]` CRTC3/4: HSYNC begins exactly *at* start of GA's display of char C0=R2 (no lead)
     → **with identical R2/R3, interrupt lands exactly 1µs later on CRTC3/4 than on CRTC0/1/2** —
     direct, testable, single-µs divergence.
-- Worked C0vs-relative interrupt timings for CRTC0/1/2, cleanly extracted (p.287):
+- Worked C0vs-relative interrupt timings for CRTC0/1/2, cleanly extracted (p.288):
   - R3=14 → interrupt at **15µs** after C0vs=R2. R3=8 → **9µs**. R3=1 → **2µs**. R3=0 → **no
     interrupt** (CRTC0/1 no-HSYNC case, §5).
   - `[T2/3/4 diff]` R3=0 variant showing interrupt at 17µs (CRTC0/1/2 numbering) or 18µs (CRTC3/4):

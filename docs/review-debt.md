@@ -36,8 +36,9 @@ section numbers changed, and the selected benches pass. Look hardest at: unlabel
 were really French (French pagination did not change, so a shifted French anchor is now wrong;
 ten were caught and reverted, IA-series citations are the riskiest); anchors inside multi-page
 sections, where the rule relied on the anchor predating the re-issue rather than on the section
-map; and the deliberately untouched anchors that fit neither print (compendium-02 §27.3-27.6,
-compendium-03 §20.4 p.243, `sim_main.cpp` "p.83 table"), which may be v1.10 leftovers.
+map; and the follow-up that converted the remaining v1.10-labelled page citations to v1.11
+re-issue pages and corrected the French §13.7.2.2 citations in `sim_main.cpp` from p.127 to
+p.128, each checked against the PDF text.
 
 **Per-change simulation selection and one-run gate policy, 2026-09-15 — REVIEWED BY SPARK
 (Muse Spark 1.3 xhigh, run `20260915T120117Z-43757-1bbc`), declined findings open:** Opus
