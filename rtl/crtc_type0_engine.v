@@ -136,7 +136,7 @@ module crtc_type0_engine
 	output           r6_vder_write,
 	output           r6_vder_value,
 
-	// F10 interlace parity updates and C9.VMA view (ACCC v1.10 section
+	// F10 interlace parity updates and C9.VMA view (ACCC v1.11 section
 	// 19.8.1 pp.220-221).  pf/pc9/parity_r6 write strobes drive the
 	// wrapper's shared flops; ivm_disp/line_vma feed the wrapper's RA mux.
 	output           pf_write,
@@ -259,7 +259,7 @@ wire type0_ivm_turn_on = type0_seam && !ivm_disp_r && (R8_interlace == 2'b11);
 // F15: with R9 odd the p.220 row-end update re-derives the parity at every
 // IVM row end, ParityC9 := C4.0(new) xor ParityFrame (the pseudocode's
 // post-increment C4.0), and at a true frame origin the new frame's parity
-// (ParityR6 snapshot) -- the p.206 table's frame-start rows.  Even R9
+// (ParityR6 snapshot) -- the p.207 table's frame-start rows.  Even R9
 // leaves ParityC9 at its seeded value, exactly as before.
 wire type0_pc9_odd_update = R9_v_max_line[0] && ivm_disp_r &&
                             (pf_write || (row_new && !in_adj));

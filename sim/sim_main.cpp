@@ -2045,7 +2045,7 @@ void test_type0_adjustment_captures_mid_character_r9_write_at_r0(TestBench& test
 }
 
 // ---------------------------------------------------------------------------
-// t12: the documented R4=38/R9=7 worked example pair (ACCC v1.10 section
+// t12: the documented R4=38/R9=7 worked example pair (ACCC v1.11 section
 // 11.2.2, p.83 example 3; section 10.3.1, p.77). Two writes land on the same
 // last line of the frame and must leave different counter states:
 //   - an R9 write exactly at C0==R0 straddles the comparator switch: the old
@@ -2380,7 +2380,7 @@ void test_type0_adjustment_exit_reloads_frame_origin(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t26: the section 17.5 R1=0 acknowledgment deadline (ACCC v1.10 section
+// t26: the section 17.5 R1=0 acknowledgment deadline (ACCC v1.11 section
 // 17.5.1 p.186, four chronograms, render-verified 2026-08-24; D1
 // correction). The chronograms put the effective write cycle (the OUT's
 // register-latch character, the orange end cell) at C0=3e, 3f, 0, 1 in
@@ -3884,7 +3884,7 @@ void test_type1_identification_r7_40_is_silent(TestBench& test) {
 void test_type1_adjustment_c4_c9_c5_worked_example(TestBench& test) {
     test.set_crtc_type(1);
 
-    // Compendium section 4.1 (ACCC v1.10 section 11.2.1, page 81):
+    // Compendium section 4.1 (ACCC v1.11 section 11.2.1, page 82):
     // Worked example: R4=10, R5=16, R9=3, R1=40, R0=63.
     // Total normal lines = (10 + 1) * (3 + 1) = 44 lines = 2816 characters.
     constexpr RegisterProgram kWorkedExampleRegisters = {{
@@ -3897,7 +3897,7 @@ void test_type1_adjustment_c4_c9_c5_worked_example(TestBench& test) {
     // Advance through the normal frame to reach vertical adjustment entry.
     test.run_characters(44 * 64);
 
-    // Compendium section 4.1 and ACCC v1.10 section 11.2.1 (page 81):
+    // Compendium section 4.1 and ACCC v1.11 section 11.2.1 (page 82):
     // On CRTC 1, vertical adjustment counts 16 lines (c5 = 0..15).
     // C9 cycles 0..R9 (0,1,2,3, 0,1,2,3, 0,1,2,3, 0,1,2,3).
     // C4 increments each time C9 reaches R9=3:
@@ -4062,7 +4062,7 @@ void test_type1_r5_zero_r4_reset_does_not_fire_r4_plus_one_vsync(TestBench& test
 void test_type0_adjustment_c4_frozen_c9_counts_to_r5(TestBench& test) {
     test.set_crtc_type(0);
 
-    // Compendium section 4.1 and section 4.2 (ACCC v1.10 section 11.1-11.2, pages 80-83):
+    // Compendium section 4.1 and section 4.2 (ACCC v1.11 section 11.1-11.2, pages 81-84):
     // Type 0 worked example: R4=10, R5=16, R9=3, R1=40, R0=63.
     // Total normal lines = (10 + 1) * (3 + 1) = 44 lines = 2816 characters.
     // On CRTC 0, vertical adjustment has NO separate C5 counter:
@@ -4111,7 +4111,7 @@ void write_r13_character(TestBench& test, std::uint8_t r13) {
 void test_type1_r4_zero_adjustment_vma_reloads_on_c4_one(TestBench& test) {
     test.set_crtc_type(1);
 
-    // Compendium section 4.3 (ACCC v1.10 section 11.2.4, pages 83-84):
+    // Compendium section 4.3 (ACCC v1.11 section 11.2.4, page 85):
     // If C4 was 0 immediately before adjustment began (R4=0), VMA loads
     // from R12/R13 (not VMA') for as long as C4==1 in adjustment.
     // R4=0, R9=3 (4 lines/row), R5=8 (8 lines adjust), R0=63, R1=40.
@@ -4235,7 +4235,7 @@ void prepare_type1_a2_exact_r0_write(TestBench& test,
 
 void test_type1_r4_write_at_adjustment_entry_suppresses_r12_reload(
     TestBench& test) {
-    // ACCC v1.10 section 11.2.4 note, page 84: rewriting R4 to a nonzero
+    // ACCC v1.11 section 11.2.4 note, page 85: rewriting R4 to a nonzero
     // value exactly at C0=R0 while entering adjustment suppresses the
     // special VMA-from-R12/R13 behavior for C4=1.  The saved VMA'=0x1238
     // must win over the newly programmed R12/R13=0x2050.
@@ -4247,7 +4247,7 @@ void test_type1_r4_write_at_adjustment_entry_suppresses_r12_reload(
 
 void test_type1_r9_write_at_adjustment_entry_keeps_r12_reload(
     TestBench& test) {
-    // ACCC v1.10 section 11.2.4 note, page 84 (findings-review B5): an R9
+    // ACCC v1.11 section 11.2.4 note, page 85 (findings-review B5): an R9
     // write on the same exact C0=R0 edge does NOT cancel the C4=1 special
     // case.  Therefore the new R12/R13=0x2050, not VMA'=0x1238, must load.
     prepare_type1_a2_exact_r0_write(test, 9, 2);
@@ -4340,7 +4340,7 @@ void test_type1_rfd_write_away_from_r0_stays_unarmed(TestBench& test) {
     test.select_register(5);
     test.reset();
 
-    // ACCC v1.10 section 11.6, page 87: RFD requires the R5 0->nonzero
+    // ACCC v1.11 section 11.6, page 88: RFD requires the R5 0->nonzero
     // write to land exactly at C0==R0.  On paper, this write lands at C0=3
     // while R0=7, so neither RFD flag nor its parity state may move.  This
     // is the directed never-triggered regression that protects the
@@ -4381,7 +4381,7 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
 
     // Change the base during C9=R9.  With the parity-gated VMA' save blocked,
     // the RFD VMA-source flag reloads R12/R13 on the next row even though
-    // C4 becomes 1 (section 11.6.1, pages 88-89, case 1).
+    // C4 becomes 1 (section 11.6.1, pages 89-90, case 1).
     test.write_register(12, 0x20);
     test.write_register(13, 0x50);
     test.run_characters(8);
@@ -4418,7 +4418,7 @@ void test_type1_rfd_r1_gt_r0_bare_c9_disarms(TestBench& test) {
     test.select_register(5);
     test.reset();
 
-    // ACCC v1.10 section 11.6, page 87 (findings-review B6): with R1>R0,
+    // ACCC v1.11 section 11.6, page 88 (findings-review B6): with R1>R0,
     // C0 can never reach R1, so the bare C9==R9 match must disarm the
     // VMA-source state.  Trigger on C9=0, then enter C9=R9=1; no VMA' save
     // is possible in this geometry.
@@ -4896,7 +4896,7 @@ void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
     // first genuine frame start (C4=0, C9=0, C0=0) where frame_new asserts.
     test.run_characters(312 * 64);
 
-    // ACCC v1.10 section 20.3.1 (page 242) and section 17.4.1 (page 182):
+    // ACCC v1.11 section 20.3.1 (page 243) and section 17.4.1 (page 183):
     // On CRTC 0, frame start (C4=0, C9=0, C0=0) initializes VMA and VMA' with R12/R13.
     test.expect_ma("type 0 normal frame: initial frame start MA loaded from R12/R13", 0x1234);
 
@@ -4907,7 +4907,7 @@ void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
     // Complete line 0 (64 characters total, 64 - 11 = 53 remaining) to reach line 1 start (C4=0, C9=1, C0=0).
     test.run_characters(53);
 
-    // ACCC v1.10 section 17.4.1 (page 182) and section 20.3.1 (page 242):
+    // ACCC v1.11 section 17.4.1 (page 183) and section 20.3.1 (page 243):
     // On CRTC 0, lines within the first row (C4=0, C9>0) reload VMA from VMA' (0x1234),
     // NOT from R12/R13 (0x2050).
     test.expect_ma("type 0 normal frame: line 1 (C9=1) reloads VMA' (0x1234) ignoring R12/R13 (0x2050)", 0x1234);
@@ -4915,7 +4915,7 @@ void test_type0_normal_frame_reloads_at_frame_start_only(TestBench& test) {
     // Advance across the remainder of the frame (311 lines of 64 chars) to the next frame start (C4=0, C9=0, C0=0).
     test.run_characters(311 * 64);
 
-    // ACCC v1.10 section 20.3.1 (page 242):
+    // ACCC v1.11 section 20.3.1 (page 243):
     // At the start of the new frame (C4=0, C9=0, C0=0), VMA and VMA' are loaded with R12/R13 (0x2050).
     test.expect_ma("type 0 normal frame: frame 1 start (C4=0, C9=0, C0=0) reloads new R12/R13", 0x2050);
 }
@@ -4938,7 +4938,7 @@ void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
     // first genuine frame start (C4=0, C9=0, C0=0).
     test.run_characters(312 * 64);
 
-    // ACCC v1.10 section 20.3.2 (page 242) and section 17.4.2 (page 182):
+    // ACCC v1.11 section 20.3.2 (page 243) and section 17.4.2 (page 183):
     // On CRTC 1, line 0 of row 0 (C4=0, C9=0, C0=0) loads VMA with R12/R13 (0x1234).
     test.expect_ma("type 1 normal frame: line 0 (C4=0, C9=0) MA loaded from R12/R13", 0x1234);
 
@@ -4947,7 +4947,7 @@ void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
     write_r12_r13_character(test, 0x20, 0x50);
     test.run_characters(53);
 
-    // ACCC v1.10 section 17.4.2 (page 182) and section 20.3.2 (page 242):
+    // ACCC v1.11 section 17.4.2 (page 183) and section 20.3.2 (page 243):
     // On CRTC 1, VMA is reloaded from R12/R13 on EVERY line while C4=0.
     test.expect_ma("type 1 normal frame: line 1 (C4=0, C9=1) reloads new R12/R13 (0x2050)", 0x2050);
 
@@ -4956,7 +4956,7 @@ void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
     write_r12_r13_character(test, 0x30, 0x78);
     test.run_characters(53);
 
-    // ACCC v1.10 section 20.3.2 (page 242):
+    // ACCC v1.11 section 20.3.2 (page 243):
     // Line 2 (C4=0, C9=2) reloads new R12/R13 (0x3078).
     test.expect_ma("type 1 normal frame: line 2 (C4=0, C9=2) reloads new R12/R13 (0x3078)", 0x3078);
 
@@ -4974,7 +4974,7 @@ void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
     // Complete line 7 (64 - 51 = 13 chars remaining) to reach line 8 start (row 1, C4=1, C9=0, C0=0).
     test.run_characters(13);
 
-    // ACCC v1.10 section 17.4.2 (page 182) and section 20.3.2 (page 242):
+    // ACCC v1.11 section 17.4.2 (page 183) and section 20.3.2 (page 243):
     // Once C4 > 0, CRTC 1 no longer reloads from R12/R13 (0x0111); VMA reloads from VMA' (0x30A0).
     test.expect_ma("type 1 normal frame: row 1 (C4=1, C9=0) reloads VMA' (0x30A0) refusing R12/R13 (0x0111)", 0x30A0);
 }
@@ -4982,7 +4982,7 @@ void test_type1_normal_frame_reloads_every_line_of_row0(TestBench& test) {
 void test_type0_r0_three_reloads_every_line(TestBench& test) {
     test.set_crtc_type(0);
 
-    // ACCC v1.10 section 13.8.1 (page 127) and section 20.3.1 (page 242):
+    // ACCC v1.11 section 13.8.1 (page 128) and section 20.3.1 (page 243):
     // R0=3, R4=0, R9=0, R5=0 (4 us lines).
     // C0 reaches 2, so the C0=2 disarm check cancels vertical adjustment.
     // C4 stays 0 on every line; each line is a new frame start (C4=0, C9=0, C0=0).
@@ -4999,7 +4999,7 @@ void test_type0_r0_three_reloads_every_line(TestBench& test) {
     // Complete initial line (4 characters) to reach the first frame boundary.
     test.run_characters(4);
 
-    // ACCC v1.10 section 20.3.1 page 242:
+    // ACCC v1.11 section 20.3.1 page 243:
     // Line 1 start (C0=0): MA loaded from R12/R13 (0x1020).
     test.expect_ma("type 0 R0=3 line 1 MA loaded from R12/R13", 0x1020);
 
@@ -5008,7 +5008,7 @@ void test_type0_r0_three_reloads_every_line(TestBench& test) {
     write_r13_character(test, 0x45);
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 2 start (C0=0): reloads updated R12/R13 (0x1045).
     test.expect_ma("type 0 R0=3 line 2 MA reloaded with updated R13 (0x1045)", 0x1045);
 
@@ -5017,14 +5017,14 @@ void test_type0_r0_three_reloads_every_line(TestBench& test) {
     write_r12_r13_character(test, 0x23, 0x67);
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 3 start (C0=0): reloads updated R12/R13 (0x2367).
     test.expect_ma("type 0 R0=3 line 3 MA reloaded with updated R12/R13 (0x2367)", 0x2367);
 
     // Advance 4 characters to line 4 start without writing new registers.
     test.run_characters(4);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 4 start (C0=0): reloads 0x2367 rather than advancing sequentially.
     test.expect_ma("type 0 R0=3 line 4 MA reloads 0x2367 at line start", 0x2367);
 }
@@ -5032,7 +5032,7 @@ void test_type0_r0_three_reloads_every_line(TestBench& test) {
 void test_type1_r0_three_reloads_every_line(TestBench& test) {
     test.set_crtc_type(1);
 
-    // ACCC v1.10 section 13.8.1 (page 127) and section 20.3.2 (page 242):
+    // ACCC v1.11 section 13.8.1 (page 128) and section 20.3.2 (page 243):
     // R0=3, R4=0, R9=0, R5=0 (4 us lines).
     // CRTC 1 keeps C4=0 throughout; VMA reloads from R12/R13 on every 4 us line at C0=0.
     constexpr RegisterProgram kR0ThreeRegisters = {{
@@ -5047,7 +5047,7 @@ void test_type1_r0_three_reloads_every_line(TestBench& test) {
     // Complete initial line (4 characters) to reach the first line boundary.
     test.run_characters(4);
 
-    // ACCC v1.10 section 20.3.2 page 242:
+    // ACCC v1.11 section 20.3.2 page 243:
     // Line 1 start (C0=0): MA loaded from R12/R13 (0x1020).
     test.expect_ma("type 1 R0=3 line 1 MA loaded from R12/R13", 0x1020);
 
@@ -5056,7 +5056,7 @@ void test_type1_r0_three_reloads_every_line(TestBench& test) {
     write_r13_character(test, 0x45);
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 2 start (C0=0): reloads updated R12/R13 (0x1045).
     test.expect_ma("type 1 R0=3 line 2 MA reloaded with updated R13 (0x1045)", 0x1045);
 
@@ -5065,14 +5065,14 @@ void test_type1_r0_three_reloads_every_line(TestBench& test) {
     write_r12_r13_character(test, 0x23, 0x67);
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 3 start (C0=0): reloads updated R12/R13 (0x2367).
     test.expect_ma("type 1 R0=3 line 3 MA reloaded with updated R12/R13 (0x2367)", 0x2367);
 
     // Advance 4 characters to line 4 start without writing new registers.
     test.run_characters(4);
 
-    // ACCC v1.10 section 13.8.1 page 127:
+    // ACCC v1.11 section 13.8.1 page 128:
     // Line 4 start (C0=0): reloads 0x2367 rather than advancing sequentially.
     test.expect_ma("type 1 R0=3 line 4 MA reloads 0x2367 at line start", 0x2367);
 }
@@ -5080,7 +5080,7 @@ void test_type1_r0_three_reloads_every_line(TestBench& test) {
 void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     test.set_crtc_type(0);
 
-    // ACCC v1.10 sections 13.8.2 (page 128), 13.2.5 (page 107), and 20.3.1 (page 242):
+    // ACCC v1.11 sections 13.8.2 (page 129), 13.2.5 (page 108), and 20.3.1 (page 243):
     // R0=1, R4=0, R9=0, R5=0 (2 us lines).
     // C0 never reaches 2, so the disarm check never runs and an uncancelled 1-line
     // vertical adjustment fires every frame.
@@ -5109,7 +5109,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     // frame 1 line 0 (C4=0, C0=0) where frame_new asserts.
     test.run_characters(4);
 
-    // ACCC v1.10 section 20.3.1 page 242:
+    // ACCC v1.11 section 20.3.1 page 243:
     // Line 2 start (C4=0, C0=0): MA loaded from initial R12/R13 (0x1100).
     test.expect_c4("type 0 R0=1 reaches frame 1 start (C4=0)", 0);
     test.expect_ma("type 0 R0=1 line 2 (C4=0) MA loaded from R12/R13", 0x1100);
@@ -5119,7 +5119,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     write_r12_r13_character(test, 0x22, 0x33);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.2.5 page 107 and section 13.8.2 page 128:
+    // ACCC v1.11 section 13.2.5 page 108 and section 13.8.2 page 129:
     // Line 3 is in vertical adjustment (C4=1), so R12/R13 update is REFUSED.
     // VMA reloads from VMA' (0x1101), NOT from R12/R13 (0x2233).
     test.expect_c4("type 0 R0=1 line 3 enters uncancelled vertical adjustment (C4=1)", 1);
@@ -5128,7 +5128,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     // Advance 2 characters to line 4 start (C4=0, C0=0, frame 2 line 0).
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.2.5 page 107 and section 20.3.1 page 242:
+    // ACCC v1.11 section 13.2.5 page 108 and section 20.3.1 page 243:
     // Line 4 (C4=0, C0=0): new frame line accepts R12/R13 (0x2233).
     test.expect_c4("type 0 R0=1 line 4 returns to C4=0", 0);
     test.expect_ma("type 0 R0=1 line 4 (C4=0) accepts R12/R13 reload (0x2233)", 0x2233);
@@ -5138,7 +5138,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     write_r12_r13_character(test, 0x33, 0x44);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.2.5 page 107:
+    // ACCC v1.11 section 13.2.5 page 108:
     // Line 5 (C4=1): adjustment line refuses R12/R13 (0x3344); VMA reloads from VMA' (0x2234).
     test.expect_c4("type 0 R0=1 line 5 enters adjustment (C4=1)", 1);
     test.expect_ma("type 0 R0=1 line 5 (C4=1) refuses R12/R13 update (reloads VMA' 0x2234)", 0x2234);
@@ -5146,7 +5146,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
     // Advance 2 characters to line 6 start (C4=0, C0=0, frame 3 line 0).
     test.run_characters(2);
 
-    // ACCC v1.10 section 13.2.5 page 107 and section 20.3.1 page 242:
+    // ACCC v1.11 section 13.2.5 page 108 and section 20.3.1 page 243:
     // Line 6 (C4=0, C0=0): new frame line accepts R12/R13 (0x3344).
     test.expect_c4("type 0 R0=1 line 6 returns to C4=0", 0);
     test.expect_ma("type 0 R0=1 line 6 (C4=0) accepts R12/R13 reload (0x3344)", 0x3344);
@@ -5155,7 +5155,7 @@ void test_type0_r0_one_reloads_every_second_line(TestBench& test) {
 void test_type1_r0_one_reloads_every_line(TestBench& test) {
     test.set_crtc_type(1);
 
-    // ACCC v1.10 section 13.8.2 (page 128) and section 20.3.2 (page 242):
+    // ACCC v1.11 section 13.8.2 (page 129) and section 20.3.2 (page 243):
     // R0=1, R4=0, R9=0, R5=0 (2 us lines).
     // CRTC 1 keeps C4=0 throughout; VMA reloads from R12/R13 on EVERY 2 us line at C0=0.
     constexpr RegisterProgram kR0OneRegisters = {{
@@ -5170,7 +5170,7 @@ void test_type1_r0_one_reloads_every_line(TestBench& test) {
     // Complete initial line (2 characters) so CRTC 1 line_new fires.
     test.run_characters(2);
 
-    // ACCC v1.10 section 20.3.2 page 242:
+    // ACCC v1.11 section 20.3.2 page 243:
     // Line 1 start (C0=0): MA loaded from initial R12/R13 (0x1100).
     test.expect_c4("type 1 R0=1 line 1 C4 is 0", 0);
     test.expect_ma("type 1 R0=1 line 1 MA loaded from R12/R13", 0x1100);
@@ -5179,7 +5179,7 @@ void test_type1_r0_one_reloads_every_line(TestBench& test) {
     write_r12_r13_character(test, 0x22, 0x33);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.8.2 page 128 & section 20.3.2 page 242:
+    // ACCC v1.11 section 13.8.2 page 129 & section 20.3.2 page 243:
     // CRTC 1 keeps C4=0 and reloads VMA on every 2 us line.
     test.expect_c4("type 1 R0=1 keeps C4 at 0 on line 2", 0);
     test.expect_ma("type 1 R0=1 line 2 reloads R12/R13 (0x2233) immediately", 0x2233);
@@ -5188,7 +5188,7 @@ void test_type1_r0_one_reloads_every_line(TestBench& test) {
     write_r12_r13_character(test, 0x33, 0x44);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.8.2 page 128:
+    // ACCC v1.11 section 13.8.2 page 129:
     test.expect_c4("type 1 R0=1 keeps C4 at 0 on line 3", 0);
     test.expect_ma("type 1 R0=1 line 3 reloads R12/R13 (0x3344) immediately", 0x3344);
 
@@ -5196,7 +5196,7 @@ void test_type1_r0_one_reloads_every_line(TestBench& test) {
     write_r12_r13_character(test, 0x05, 0x67);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.8.2 page 128:
+    // ACCC v1.11 section 13.8.2 page 129:
     test.expect_c4("type 1 R0=1 keeps C4 at 0 on line 4", 0);
     test.expect_ma("type 1 R0=1 line 4 reloads R12/R13 (0x0567) immediately", 0x0567);
 }
@@ -5204,7 +5204,7 @@ void test_type1_r0_one_reloads_every_line(TestBench& test) {
 void test_type0_r0_zero_ignores_reload_after_hiccup(TestBench& test) {
     test.set_crtc_type(0);
 
-    // ACCC v1.10 sections 13.8.3 (page 129), 13.2.6 (page 108), and 20.3.1 (page 242):
+    // ACCC v1.11 sections 13.8.3 (page 130), 13.2.6 (page 109), and 20.3.1 (page 243):
     // R0=0, R4=0, R9=0, R5=0 (1 us lines).
     // On CRTC 0:
     // Character 0 (C0=0): frame start, C4=0, C9=0.
@@ -5222,7 +5222,7 @@ void test_type0_r0_zero_ignores_reload_after_hiccup(TestBench& test) {
     test.write_register(13, 0x34);
     test.reset();
 
-    // ACCC v1.10 section 13.2.6 page 108:
+    // ACCC v1.11 section 13.2.6 page 109:
     // Character 0: initial reset state.
     test.expect_ma("type 0 R0=0 character 0 initial MA", 0);
 
@@ -5242,7 +5242,7 @@ void test_type0_r0_zero_ignores_reload_after_hiccup(TestBench& test) {
     // Advance 20 1-us lines.
     test.run_characters(20);
 
-    // ACCC v1.10 section 13.8.3 page 129:
+    // ACCC v1.11 section 13.8.3 page 130:
     // R12/R13 write is ignored because C4 is stuck at 1.
     test.expect_c4("type 0 R0=0 C4 remains 1 across 20 lines", 1);
     test.expect_ma("type 0 R0=0 ignores R12/R13 (0x2055) write while frozen (MA remains 0)", 0);
@@ -5285,9 +5285,9 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
     // wrap edge of an 8-character line: the line end is evaluated with
     // the OLD R0 (the register file updates on the same edge), so this line
     // still ends normally. The seam condition C4=C9=C0=0 therefore recurs
-    // one last time and ACCC v1.10 section 20.3.1 (page 242) loads both
+    // one last time and ACCC v1.11 section 20.3.1 (page 243) loads both
     // VMA' and VMA from R12/R13 -- this is the worked example's "1st
-    // C0==0 -> VMA reload" of section 13.2.6 (page 108), realized at the
+    // C0==0 -> VMA reload" of section 13.2.6 (page 109), realized at the
     // live wrap edge. Immediately afterwards R0=0 pins C0 and freezes.
     // (Expectations deliberately start at this reload: the pre-wrap pointer
     // value depends on how many CLKEN edges elapsed around reset, which no
@@ -5297,7 +5297,7 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
     test.expect_ma("type 0 live R0=0 entry: wrap-edge reload loads R12/R13 (0x1234)",
                    0x1234);
 
-    // ACCC v1.10 section 13.2.6 (page 108), live-entry form: on the first
+    // ACCC v1.11 section 13.2.6 (page 109), live-entry form: on the first
     // repeated C0==0 the armed C9==R9 decision consumes its C4 increment
     // exactly once ("this IS end of frame -> C4->1, adjustment entered")
     // while C9 does not truly reset -- it freezes at 0.
@@ -5308,12 +5308,12 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
     test.expect_ma("type 0 live R0=0: MA holds the reloaded 0x1234", 0x1234);
 
     // Further C0==0 cycles: everything stays frozen at C4=1, C9=0
-    // (ACCC v1.10 section 13.2.6, page 108).
+    // (ACCC v1.11 section 13.2.6, page 109).
     test.run_characters(1);
     test.expect_c4("type 0 live R0=0: C4 remains frozen at 1", 1);
     test.expect_ma("type 0 live R0=0: MA remains 0x1234", 0x1234);
 
-    // ACCC v1.10 section 13.8.3 (page 129): R12/R13 cannot be considered
+    // ACCC v1.11 section 13.8.3 (page 130): R12/R13 cannot be considered
     // until C4 and C9 both go back to 0 -- they never do while R0=0. Same
     // negative pair as t20g, now guarding a non-zero latched pointer.
     write_r12_r13_character(test, 0x20, 0x55);
@@ -5328,7 +5328,7 @@ void test_type0_r0_zero_live_entry_reloads_vma_then_freezes(TestBench& test) {
                    0x1234);
 }
 
-// F11h closure, render-verified against ACCC v1.10 section 20.3.2 page 242:
+// F11h closure, render-verified against ACCC v1.11 section 20.3.2 page 243:
 // the second CRTC-1 chronogram draws the OUT R12,#30 bus activity spanning
 // C0=62..1 across a row-0 line seam, so the register write lands on the
 // 63->0 boundary edge itself, and OFFSET=#30xx is drawn from C0=0. The
@@ -5428,7 +5428,7 @@ void test_type0_r12_write_on_frame_origin_edge_is_missed(TestBench& test) {
 void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     test.set_crtc_type(1);
 
-    // ACCC v1.10 sections 13.3 (page 113), 13.8.3 (page 129), and 20.3.2 (page 242):
+    // ACCC v1.11 sections 13.3 (page 114), 13.8.3 (page 130), and 20.3.2 (page 243):
     // R0=0, R4=0, R9=0, R5=0 (1 us lines).
     // On CRTC 1, R0=0 does not freeze counters; C9 and R4 continue to be managed normally.
     // C4 stays 0 throughout.
@@ -5445,7 +5445,7 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     // Complete initial line (1 character) so line_new asserts.
     test.run_characters(1);
 
-    // ACCC v1.10 section 20.3.2 page 242:
+    // ACCC v1.11 section 20.3.2 page 243:
     // Line 1 start (C0=0): MA loaded from initial R12/R13 (0x1234).
     test.expect_ma("type 1 R0=0 line 1 MA loaded from R12/R13", 0x1234);
 
@@ -5453,7 +5453,7 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     write_r13_character(test, 0x35);
     test.run_characters(1);
 
-    // ACCC v1.10 section 13.8.3 page 129 & section 20.3.2 page 242:
+    // ACCC v1.11 section 13.8.3 page 130 & section 20.3.2 page 243:
     // Line 2 start (C0=0): reloads updated R13 (0x1235).
     test.expect_c4("type 1 R0=0 keeps C4 at 0 on line 2", 0);
     test.expect_ma("type 1 R0=0 line 2 reloads updated R13 (0x1235)", 0x1235);
@@ -5477,7 +5477,7 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
     // Advance 5 characters (5 us) to line 9 start without writing new registers.
     test.run_characters(5);
 
-    // ACCC v1.10 section 13.8.3 page 129:
+    // ACCC v1.11 section 13.8.3 page 130:
     // Line 9 start (C0=0): continues reloading 0x2580 on every 1 us line.
     test.expect_c4("type 1 R0=0 keeps C4 at 0 on line 9", 0);
     test.expect_ma("type 1 R0=0 line 9 continues reloading 0x2580", 0x2580);
@@ -5486,17 +5486,17 @@ void test_type1_r0_zero_reloads_every_line(TestBench& test) {
 // ---------------------------------------------------------------------------
 // t10: F6 -- spurious type-0 interline border byte when R1 > R0
 //
-// ACCC v1.10 section 17.6.2 (page 186): when R1 > R0 the C0=R1 DISPTMG-off
+// ACCC v1.11 section 17.6.2 (page 187): when R1 > R0 the C0=R1 DISPTMG-off
 // comparison can never fire (C0 wraps at R0 first), so a type-0 CRTC
 // substitutes C0=R0 as the border-start trigger. The source describes the
 // resulting second-half byte as 0.5 us; the character walker below samples
 // that late phase, while t31 pins both halves exactly. Type 1 emits nothing at
 // all in this configuration (pages
 // 186-187) -- the documented type discriminator of section 28.1.6. Section
-// 19.2.4 (page 195) counts a programmed SKEW-DISPTMG delay from the
+// 19.2.4 (page 196) counts a programmed SKEW-DISPTMG delay from the
 // substituted trigger as if C0=R1 had fired there, so delay=1/2 rounds and
 // displaces the event onto the full C0=0/C0=1 character of the following line
-// (delay arithmetic per section 19.2.3, pages 193-194), and SKEW mode 2'b11
+// (delay arithmetic per section 19.2.3, pages 194-195), and SKEW mode 2'b11
 // suppresses all DISPTMG output entirely.
 // ---------------------------------------------------------------------------
 
@@ -5553,8 +5553,8 @@ constexpr std::array<bool, kF6LineCharacters> kF6SpuriousByteDelayed2 = {
 
 void f6_settle_one_frame(TestBench& test, unsigned skew) {
     // Run one complete frame (39 rows x 8 lines of 16 characters) plus two
-    // more lines, so the frame-start reload of ACCC v1.10 section 17.4.1
-    // (page 182) has established the R12/R13 base pointer AND both
+    // more lines, so the frame-start reload of ACCC v1.11 section 17.4.1
+    // (page 183) has established the R12/R13 base pointer AND both
     // SKEW-DISPTMG delay stages carry current-frame state rather than the
     // previous frame's tail-of-frame border rows (R6 < R4 here). Leaves the
     // bench mid character C0=0 of the third displayed line.
@@ -5569,13 +5569,13 @@ void test_type0_r1_gt_r0_spurious_border_byte(TestBench& test) {
     test.set_crtc_type(0);
     f6_settle_one_frame(test, 0);
 
-    // ACCC v1.10 section 17.4.1 (page 182): frame start reloaded VMA/VMA'
-    // from R12/R13; section 17.2 (page 179): with C0=R1 unreachable, every
+    // ACCC v1.11 section 17.4.1 (page 183): frame start reloaded VMA/VMA'
+    // from R12/R13; section 17.2 (page 180): with C0=R1 unreachable, every
     // line of the frame restarts from that same frozen base.
     test.expect_ma("type 0 R1>R0 line start holds the R12/R13 base", 0x1234);
     test.expect_de_high("type 0 R1>R0 displays at C0=0 despite R1>R0");
 
-    // ACCC v1.10 section 17.6.1 (page 185-186): the VRAM pointer offset
+    // ACCC v1.11 section 17.6.1 (page 186-187): the VRAM pointer offset
     // continues normally into the border byte.
     test.run_characters(15);
     test.expect_ma("type 0 R1>R0 pointer keeps counting through the border byte",
@@ -5584,8 +5584,8 @@ void test_type0_r1_gt_r0_spurious_border_byte(TestBench& test) {
         "type 0 R1>R0 second half of C0=R0 is the border byte "
         "(ACCC v1.11 section 17.6.2 p.187)");
 
-    // ACCC v1.10 section 17.6.2 (page 186): BORDER OFF on the character
-    // following C0=R0. Section 17.2 (page 179): C0=R1 never fired, so VMA'
+    // ACCC v1.11 section 17.6.2 (page 187): BORDER OFF on the character
+    // following C0=R0. Section 17.2 (page 180): C0=R1 never fired, so VMA'
     // was never updated and this line restarts from the same base address
     // (character-line repetition).
     test.run_characters(1);
@@ -5607,7 +5607,7 @@ void test_type1_r1_gt_r0_no_border_byte(TestBench& test) {
     test.set_crtc_type(1);
     f6_settle_one_frame(test, 0);
 
-    // ACCC v1.10 section 17.6.2 (pages 186-187): type 1 emits no border
+    // ACCC v1.11 section 17.6.2 (pages 187-188): type 1 emits no border
     // byte between rows when R1 > R0 -- rows stay seamlessly contiguous
     // (section 28.1.6 type discriminator).
     f6_expect_line_de(test, kF6AllDisplay,
@@ -5621,7 +5621,7 @@ void test_type0_spurious_byte_delayed_one_character(TestBench& test) {
     test.set_crtc_type(0);
     f6_settle_one_frame(test, 1);
 
-    // ACCC v1.10 sections 19.2.4 (page 195) and 19.2.3 (pages 193-194):
+    // ACCC v1.11 sections 19.2.4 (page 196) and 19.2.3 (pages 194-195):
     // the SKEW-DISPTMG delay is counted from the substituted trigger, so
     // delay=1 displaces the spurious byte onto C0=0 of the following line
     // and display resumes one character later than without skew.
@@ -5636,8 +5636,8 @@ void test_type0_spurious_byte_delayed_two_characters(TestBench& test) {
     test.set_crtc_type(0);
     f6_settle_one_frame(test, 2);
 
-    // Delay=2 displaces the spurious byte onto C0=1 (ACCC v1.10 sections
-    // 19.2.4 page 195 and 19.2.3 pages 193-194).
+    // Delay=2 displaces the spurious byte onto C0=1 (ACCC v1.11 sections
+    // 19.2.4 page 196 and 19.2.3 pages 194-195).
     f6_expect_line_de(test, kF6SpuriousByteDelayed2,
                       "type 0 R1>R0 skew 2 displaces the border byte to C0=1");
     test.run_characters(1);
@@ -5650,8 +5650,8 @@ void test_type0_skew_non_output_blanks(TestBench& test) {
     f6_settle_one_frame(test, 3);
 
     // SKEW-DISPTMG mode 2'b11 is the non-output code: no DISPTMG at all is
-    // generated, which also suppresses the spurious byte (ACCC v1.10
-    // sections 19.1 page 192 and 19.2 page 193).
+    // generated, which also suppresses the spurious byte (ACCC v1.11
+    // sections 19.1 page 193 and 19.2 page 194).
     const std::array<bool, kF6LineCharacters> blanked = {};
     f6_expect_line_de(test, blanked, "type 0 R1>R0 skew non-output blanks DE");
     test.run_characters(1);
@@ -6057,7 +6057,7 @@ T21_TEST(t21_body_15, 15)
 #undef T21_TEST
 
 // ---------------------------------------------------------------------------
-// t22: F10 type-0 IVM entry/exit counting fixtures for even R9 (ACCC v1.10
+// t22: F10 type-0 IVM entry/exit counting fixtures for even R9 (ACCC v1.11
 // sections 19.8.1 pp.220-221 pseudocode and prose; the worked tables
 // pp.222-225, render-verified 2026-08-24; all tables use R9=6).
 //
@@ -6342,7 +6342,7 @@ void t22_exit_odd_c9_1(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.10 §19.8.1
+// t30: F16 type-0 post-IVM exit recovery recipe fixtures (ACCC v1.11 §19.8.1
 // p.221 prose: "program R9 with C9.VMA before the end of the line... so that
 // the comparison between C9.VMA and R9 without parity allows C9 to return
 // back to 0").
@@ -7048,7 +7048,7 @@ void test_type1_ivm_vsync_no_gap_r7_even_c4(TestBench& test) {
     }
 }
 
-// t24c: type-1 IVM MID-VSYNC half-line phase (ACCC v1.10 section 19.5.3
+// t24c: type-1 IVM MID-VSYNC half-line phase (ACCC v1.11 section 19.5.3
 // p.209 prose: "If ParityFrame is even, then an additional line and a
 // MID-VSYNC are scheduled. If ParityFrame is odd, then no additional line
 // and no MID-VSYNC."; the type-0 Note on p.208 states the same half-line
@@ -7124,7 +7124,7 @@ void test_type1_ivm_mid_vsync_half_line_phase(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t27: F14 additional interlace line, type 0 (ACCC v1.10 section 19.6.1
+// t27: F14 additional interlace line, type 0 (ACCC v1.11 section 19.6.1
 // p.217; section 19.5.2 p.206; section 11.2 pp.84-85; section 19.3 p.200;
 // Q10 resolution in accc-author-questions.md item 10).
 //
@@ -7343,7 +7343,7 @@ void t27_type0_addline_freeze_even(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t28: F14 additional interlace line, type 1 (ACCC v1.10 section 19.6.2
+// t28: F14 additional interlace line, type 1 (ACCC v1.11 section 19.6.2
 // p.217; section 11.2.4 p.85; Q10 resolution in accc-author-questions.md
 // item 10).
 //
@@ -7608,7 +7608,7 @@ void t29_type0_odd_r9_even_frame(TestBench& test) {
 // alternates the snapshot each origin).  Frame 0 (even) ends with the F14
 // additional line (C4=3, C9=0) and opens frame 1 odd.  Frame 1: C4=0 runs
 // C9.VMA 1,3,5,7 (ParityC9 = frame parity = 1), C4=1 runs 0,2,4,6,8 --
-// the p.206 table's PARITYFRAME=ODD column, steady rows.
+// the p.207 table's PARITYFRAME=ODD column, steady rows.
 void t29_type0_odd_r9_odd_frame(TestBench& test) {
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
@@ -8574,7 +8574,7 @@ int main(int argc, char** argv) {
         {"t26b_type1_r1_zero_write_deadline",
          "ACCC v1.11 section 17.5.1 p.186 chronograms; D1 correction",
          false, test_t26_r1_zero_deadline_type1},
-        // t27: F14 additional interlace line, type 0 (ACCC v1.10 section
+        // t27: F14 additional interlace line, type 0 (ACCC v1.11 section
         // 19.6.1 p.217).  Required passes cover placement and both freeze
         // parity outcomes.
         {"t27a_type0_addline_basic",
@@ -8589,7 +8589,7 @@ int main(int argc, char** argv) {
         {"t27d_type0_addline_r6_gt_r4_freeze_even",
          "ACCC v1.11 sections 19.6.1 p.217 and 19.5.2 p.206 (frozen-even persistence); F14",
          false, t27_type0_addline_freeze_even},
-        // t28: F14 additional interlace line, type 1 (ACCC v1.10 section
+        // t28: F14 additional interlace line, type 1 (ACCC v1.11 section
         // 19.6.2 p.217).  The required cases cover the active gate and its
         // false-condition control.
         {"t28a_type1_addline_basic",
@@ -8601,7 +8601,7 @@ int main(int argc, char** argv) {
         {"t28c_type1_addline_interlace_sync",
          "ACCC v1.11 section 19.6.2 p.217 (gate R8 in 1,3); F14/review",
          false, t28_type1_addline_interlace_sync},
-        // t29: F15 type-0 odd-R9 IVM counting (ACCC v1.10 section 19.5.2
+        // t29: F15 type-0 odd-R9 IVM counting (ACCC v1.11 section 19.5.2
         // pp.206-207 and section 19.8.1 with the Q19-adjudicated gate).
         // Required passes cover both frame parities, VSYNC delay, and exit.
         {"t29a_type0_odd_r9_even_frame",

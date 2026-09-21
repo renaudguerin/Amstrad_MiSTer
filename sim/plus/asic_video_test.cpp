@@ -1217,7 +1217,7 @@ void t02k_ivm_even_frame_adjustment(TestBench& test) {
     test.expect_ma("t02k adjustment line 1 reuses captured VMA'", kAdjustmentMa);
     test.run_characters(kLineCharacters);
 
-    // ACCC v1.11 §19.6.4 p.218 (FR p.217): after the R5 lines, an even frame gains
+    // ACCC v1.11 §19.6.4 p.218 (FR p.218): after the R5 lines, an even frame gains
     // one interlace line.  C4 is not incremented, C9 is unconditionally 0,
     // and the solidified pointer from the last C4 remains in use.
     test.expect_adj(false, "t02k added interlace line is not R5 adjustment");
@@ -1321,11 +1321,11 @@ void program_ivm_sync_frame(TestBench& test, unsigned r7,
     test.write_register(8, interlace_mode);
 }
 
-// ACCC v1.11 §19.5.5 pp.214-216 (FR pp.214-216) and §19.7.1/19.7.3 p.219 (FR p.218).  With odd R9
+// ACCC v1.11 §19.5.5 pp.214-216 (FR pp.214-216) and §19.7.1/19.7.3 p.219 (FR p.219).  With odd R9
 // and R7=1, the even frame starts VSYNC in the middle of the first line of
 // C4=1 (C9=1, C0=R0/2).  On the following odd frame C4=1 begins at C9=0,
 // but the odd-C4 balancing rule delays VSYNC by one whole line to C9=2.
-// These expectations are the highlighted R7=1 rows in the p.215 (FR p.214) diagram.
+// These expectations are the highlighted R7=1 rows in the p.215 (FR p.215) diagram.
 void t04j_ivm_mid_vsync_and_odd_frame_delay(TestBench& test) {
     constexpr unsigned kLineCharacters = 64;
     program_ivm_sync_frame(test, 1);
@@ -1338,7 +1338,7 @@ void t04j_ivm_mid_vsync_and_odd_frame_delay(TestBench& test) {
     test.run_characters(1);
     test.expect_hcc("t04j MID-VSYNC horizontal phase", 31);
     test.expect_vsync("t04j even frame fires at C0=R0/2", true);
-    // ACCC v1.11 §16.1 p.160 (FR p.159) counts R3h lines at C0=0 even when the
+    // ACCC v1.11 §16.1 p.160 (FR p.160) counts R3h lines at C0=0 even when the
     // interlace rule moved only the start to mid-line.  R3h=1 therefore
     // ends at the immediately following seam, not at the next midpoint.
     test.run_characters(32);
@@ -1359,7 +1359,7 @@ void t04j_ivm_mid_vsync_and_odd_frame_delay(TestBench& test) {
     test.expect_vsync("t04j odd frame fires one line late", true);
 }
 
-// ACCC v1.11 §19.7.3 p.219 (FR p.218) gives CRTC3/4 a special R7=0 priority rule:
+// ACCC v1.11 §19.7.3 p.219 (FR p.219) gives CRTC3/4 a special R7=0 priority rule:
 // the outgoing ParityFrame is sampled before it toggles.  Therefore an even
 // outgoing frame schedules MID-VSYNC in the new odd frame, while an odd
 // outgoing frame starts an ordinary seam VSYNC in the new even frame.
@@ -1438,7 +1438,7 @@ void t04l_r7_r4_adjustment_and_interlace_line_seams(TestBench& test) {
     // vector pins the source-backed even-frame added-line seam only.
 }
 
-// ACCC v1.11 §16.1 p.160 (FR p.159): C3h advances at C0=0.  With R3h=2, a pulse
+// ACCC v1.11 §16.1 p.160 (FR p.160): C3h advances at C0=0.  With R3h=2, a pulse
 // starting at C0=R0/2 remains high across the first seam and ends at the
 // second seam.  §19.3.4 pp.202-203 (FR pp.202-203) makes interlace management live, so an
 // R8 exit before the pending midpoint must cancel that scheduled start.
@@ -1509,7 +1509,7 @@ void t04m_ivm_mid_vsync_width_and_exit(TestBench& test) {
     // these source-backed phase and reset vectors exercise IVM (R8=3).
 }
 
-// ACCC v1.11 §19.6.4 p.218 and §19.7.3 p.219 (FR pp.217-218): R8=1 adds one C9=0 line
+// ACCC v1.11 §19.6.4 p.218 and §19.7.3 p.219 (FR pp.218-219): R8=1 adds one C9=0 line
 // after the even frame without incrementing C4, and moves that frame's VSYNC
 // to C0=R0/2. The added line starts from the VMA captured at C4=R4,C9=R9;
 // ordinary R8=1 body lines retain their non-IVM C9/RA/address cadence. Use an

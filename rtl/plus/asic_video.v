@@ -908,7 +908,7 @@ assign RA   = ra_eff;
 //  - R16/R17 change only at reset or SNA restore: no light-pen strobe
 //    source is emulated.
 //  - Status 2 bit 3 resets to 0 and toggles at every 16th frame origin
-//    (§21.3.4.2 "Timer 16 CRTC frames"; §28.1.10 p.293 notes this bit
+//    (§21.3.4.2 "Timer 16 CRTC frames"; §28.1.10 p.294 notes this bit
 //    differs between CRTC 3 and CRTC 4 — type 3 only here).
 //  - Writes to selects 16+ are ignored (ACCC documents read truncation
 //    only; aliased-select write behaviour is not evidenced).
