@@ -31,7 +31,7 @@ old reports, quotations, or unaffected code comments solely to replace English p
 ## 1. Source and workspace verification
 
 Place both current PDFs under `docs/references/` and verify that `.gitignore` excludes
-`docs/**/ACCC*.pdf` and `docs/accuracy/extract/`. Never commit source PDFs or bulk extracts.
+`docs/**/ACCC*.pdf` and `docs/classic/extract/`. Never commit source PDFs or bulk extracts.
 
 Record page counts, edition dates, and hashes:
 
@@ -40,10 +40,10 @@ shasum -a 256 docs/references/ACCC*.pdf
 pdfinfo docs/references/ACCC1.11-FR.pdf
 pdfinfo docs/references/ACCC1.11-EN.pdf
 git check-ignore -v docs/references/ACCC1.11-FR.pdf
-git check-ignore -v docs/accuracy/extract/example.txt
+git check-ignore -v docs/classic/extract/example.txt
 ```
 
-The tracked extraction manifest is `docs/accuracy/extract/README.md`; generated siblings in
+The tracked extraction manifest is `docs/classic/extract/README.md`; generated siblings in
 that directory remain ignored.
 
 ## 2. First-pass extraction
@@ -56,11 +56,11 @@ edition:
 env UV_CACHE_DIR=/tmp/accc-uv-cache uv run \
   /Users/renaudg/.claude/skills/pdf-inspector/scripts/inspect_pdf.py \
   docs/references/ACCC1.11-FR.pdf \
-  --output-dir docs/accuracy/extract/inspector-v1.11-fr
+  --output-dir docs/classic/extract/inspector-v1.11-fr
 env UV_CACHE_DIR=/tmp/accc-uv-cache uv run \
   /Users/renaudg/.claude/skills/pdf-inspector/scripts/inspect_pdf.py \
   docs/references/ACCC1.11-EN.pdf \
-  --output-dir docs/accuracy/extract/inspector-v1.11-en
+  --output-dir docs/classic/extract/inspector-v1.11-en
 ```
 
 Read each inspection report before its Markdown. Preserve usable native extraction, but

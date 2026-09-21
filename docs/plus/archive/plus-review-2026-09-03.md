@@ -139,7 +139,7 @@ boundaries.
 ## 6. Plus hardware-defect triage + production seam — CLEAR (source/test) with retained validation
 
 Scope at `ea0e0bd` (`120e0cb,da6fe25,0b88998,360a3d4,0ced09d,00173fb`);
-record `docs/plus/hardware-defect-triage-2026-09-01.md`.
+record `docs/plus/archive/hardware-defect-triage-2026-09-01.md`.
 
 - B13/legacy gate: `rtl/plus/plus_legacy_cart_gate.v:1-38` gates
   `dandanator_active = ~plus_mode & ~nce & loaded`, preserves `loaded` for

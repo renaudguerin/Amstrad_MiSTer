@@ -7,7 +7,7 @@ hardware compatibility are not closed
 
 > **Reading this file today:** the checkboxes are a 2026-08-29 snapshot. The
 > [P10 review](archive/p10-independent-review.md) found six CF-2 to CF-5 ticks unproven at the
-> time, and later remediation is recorded in the P10 row of `docs/review-debt.md`. Live exit
+> time, and later remediation is recorded in the P10 row of `docs/archive/review-debt-cleared.md`. Live exit
 > criteria are the P10b-P10i rows of `docs/implementation-roadmap.md`; the newest
 > repair-to-retest map is [round 3](hardware-test-round3-2026-08-30.md). Use this file for the
 > CF/CG finding definitions and the section 7 report fields.
@@ -278,7 +278,7 @@ The video-pointer reload path uses `C4=0`, `C9=0`, and `C0=0`, while the status-
 R9=7 that advances the timer eight times per frame, despite the comment claiming the two
 signals identify the same edge.
 
-ACCC v1.11 section 20.3.4 p.243 contains both readings on the same rendered page: its
+ACCC v1.11 section 20.3.4 p.244 contains both readings on the same rendered page: its
 opening rule explicitly says the pointers initialize when C4, C9, and C0 change to zero,
 but its closing summary says they load when C4=0 and C0=0, omitting C9. The remediation
 aligns `frame_origin` with the opening sentence and with the existing pointer-reload model;
@@ -288,7 +288,7 @@ that is a documented model choice, not yet hardware confirmation.
 
 - [x] Make pointer reload and `frame_origin` use one named frame-origin condition and pin
   that status bit 3 advances once, not eight times, for an ordinary R9=7 frame.
-- [ ] Resolve the p.243 internal conflict with the ACCC author or a real CRTC3/4 status-2
+- [ ] Resolve the p.244 internal conflict with the ACCC author or a real CRTC3/4 status-2
   capture before claiming the C9 condition as silicon-established behavior.
 
 ## 4. Production coverage gaps and likely compatibility causes

@@ -136,5 +136,5 @@ the relevant dated evidence document: RBF name and hash, media hash, CFG bits ap
 hashes, and what the captures do and do not establish. Confirm the CFG restore hash last.
 
 The next step for a display defect is a simulation trace that finds the first wrong pixel's
-plane and register state (see `docs/plus/hardware-defect-triage-2026-09-01.md` for the
+plane and register state (see "P10f/P10g title-defect discriminators" in `docs/implementation-roadmap.md` for the
 discriminator each symptom family needs). Captures choose where to look; they do not choose the fix.

@@ -6,11 +6,11 @@ border-start term in `crtc_type0_engine.v`, injected ahead of the wrapper's
 SKEW-DISPTMG delay line in `rtl/CRTC.v`; golden soak hash re-minted to
 `0x326ea81358e7d88f`, delta protected by t10a-t10e). **Stage 2 measured
 2026-08-23**: the visible seam through the GA40010 co-sim route is 1 µs.
-**Stage 2b disambiguated 2026-08-23**: ACCC pp.186/195 require a 0.5 µs
+**Stage 2b disambiguated 2026-08-23**: ACCC pp.187/196 require a 0.5 µs
 CRTC-side DE pulse; test and motherboard clock phase match, and the original
 and synchronous GA paths agree. **F13 implemented 2026-08-30** after explicit
 authorization to proceed from the ACCC model: `nCLKEN` narrows the no-skew
-type-0 pulse to C0=R0's second half, while SKEW 1/2 keeps the p.195 rounded
+type-0 pulse to C0=R0's second half, while SKEW 1/2 keeps the p.196 rounded
 full-character displacement. Hardware validation remains open. Renaud's stated priority 2026-08-22:
 exact hardware preservation, materialised by passing all SHAKER tests — strongly leaning
 toward the full-fidelity path (option C), conditional on the validation gates below. This
@@ -21,7 +21,7 @@ Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 
 ## The rule
 
-ACCC §17.6.2 p.186 (digest-03 §17.6): when `R1 > R0`, `C0=R1` never fires. Type 0
+ACCC §17.6.2 p.187 (digest-03 §17.6): when `R1 > R0`, `C0=R1` never fires. Type 0
 substitutes `C0=R0` as border-start trigger: one spurious border blip between every
 scanline, **anticipated by 0.5 µs (one byte)**, "BORDER OFF" again on the following
 character. Holds for any R0 incl. R0=0 (alternating display/border bytes). Suppressible via
@@ -34,8 +34,8 @@ The presence/absence difference is a documented type discriminator (§28.1.6).
 The audit's fix prompt assumed "DE is consumed by the GA at 1µs granularity here". That
 premise is wrong, but Stage 2b also refuted this gate's first replacement premise:
 
-- **F6 is an exceptional sub-character DISPTMG transition.** ACCC p.186 draws DISP ON for
-  the first byte of C0=R0 and BORDER for its second byte. Section 19.2.4 p.195 is explicit:
+- **F6 is an exceptional sub-character DISPTMG transition.** ACCC p.187 draws DISP ON for
+  the first byte of C0=R0 and BORDER for its second byte. Section 19.2.4 p.196 is explicit:
   BORDER is sent 0.5 µs after C0=R0 and disabled on the next character 0.5 µs later. The
   Stage-1 full-character DE dip is therefore an approximation, not exact pin behaviour.
 - **The GA40010 recreation resolves DISPEN at byte phase, but does not own this delta.**
@@ -67,7 +67,7 @@ premise is wrong, but Stage 2b also refuted this gate's first replacement premis
    `R1_h_displayed > R0_h_total` and `hcc == R0_h_total`, force DE low for that character;
    inject before the existing skew delay-line mux so SKEW-DISPTMG delays/suppresses it like
    a natural border edge (§19.2.4 substitution; note the author-question caveat about the
-   p.195 placement ambiguity). Comment cites ACCC §17.6.2. Stage 2b established that this
+   p.196 placement ambiguity). Comment cites ACCC §17.6.2. Stage 2b established that this
    gets presence/type/skew right but duration/phase wrong: the book requires a half-character
    pulse. Deterministic vector t10 (both types + skew placement) currently pins the
    approximation and must not be treated as the final hardware fixture.
@@ -76,7 +76,7 @@ premise is wrong, but Stage 2b also refuted this gate's first replacement premis
    `crtc_type0_engine.v`, matching §17.3's live comparator semantics; vectors are t10a-t10e
    (byte at C0=R0, type-1 control, skew 1/2 displacement, non-output blanking). Recorded
    residual: with R0=0 the frozen C0 holds DISPTMG off continuously; the book's
-   alternating-byte description of that extreme (p.186) needs a toggle mechanism and is
+   alternating-byte description of that extreme (p.187) needs a toggle mechanism and is
    deferred to a later F6 stage.
 2. **Stage 2 — measure what falls out.** Verilator asserts the DE pin; the visible seam
    width comes from the GA+glue path. Two measurement routes, cheapest first:
@@ -94,7 +94,7 @@ premise is wrong, but Stage 2b also refuted this gate's first replacement premis
    it on real type-0 hardware. The GA and motherboard glue remain unchanged; a hardware
    disagreement reopens the model.
 4. **Stage 4 (optional, much later): §19.2.5 disintegration** double-R8-write cases — only
-   after Stage 2/3 evidence, and gated on the ⚠ p.196-197 visual-tier diagrams.
+   after Stage 2/3 evidence, and gated on the ⚠ p.197-198 visual-tier diagrams.
 
 ## Upstream justifiability (the condition attached to choosing C)
 
@@ -159,22 +159,22 @@ superseded by Stage 2b below. Consequences retained from the measurement:
 
 ### Visual ACCC reading
 
-- **p.185 §17.6.1 control:** with R1=R0 the entire C0=R0 cell is BORDER: one
+- **p.186 §17.6.1 control:** with R1=R0 the entire C0=R0 cell is BORDER: one
   character, 1 µs.
-- **p.186 §17.6.2 R1>R0:** the chronogram splits C0=R0 into two byte columns:
+- **p.187 §17.6.2 R1>R0:** the chronogram splits C0=R0 into two byte columns:
   first byte DISP ON (green), second byte BORDER (orange), then full DISP ON at
   C0=0. Prose says exactly one 0.5 µs border byte immediately before C0 goes to
   zero. For R0=0 it states exactly: one DISP ON byte alternating with one DISP
-  OFF byte. Type 1/3/4 remain continuously DISP ON on p.187.
-- **p.195 §19.2.4 resolves pin ownership:** when C0=R1 is unreachable, the
+  OFF byte. Type 1/3/4 remain continuously DISP ON on p.188.
+- **p.196 §19.2.4 resolves pin ownership:** when C0=R1 is unreachable, the
   BORDER signal is sent 0.5 µs after C0=R0, then disabled on the next character
   0.5 µs later. Thus the CRTC DE dip itself is sub-character; the GA is not
   expected to halve a full-character pulse.
-- **Q15 default reading (p.190):** despite the contradictory "condition R1 is
+- **Q15 default reading (p.191):** despite the contradictory "condition R1 is
   fulfilled (BORDER R1 is false)" sentence, the operative state is BORDER-R1
   false. The immediately preceding mechanism says DISPLAY ENABLE goes ON at
   each character start and OFF 0.5 µs later, producing byte alternation.
-- **Q16 default reading (p.188):** "(1st line-character R6)" does not restrict
+- **Q16 default reading (p.189):** "(1st line-character R6)" does not restrict
   the check to the first scanline. The same page explicitly says C4=R6 is
   considered immediately regardless of C0 (except the separately described
   type-3/4 behaviour). These defaults follow the plan's visual-tier fallback;
@@ -210,8 +210,8 @@ The 16-state Johnson sequence is
 
 **Owner: CRTC-side sub-character DE phase required.** The test harness uses the
 production phase, both GA implementations agree, and the book directly specifies
-the half-character CRTC signal. ACCC-reading nuance is ruled out by the p.186
-chronogram plus p.195 prose. F13 now carries the production wrapper correction;
+the half-character CRTC signal. ACCC-reading nuance is ruled out by the p.187
+chronogram plus p.196 prose. F13 now carries the production wrapper correction;
 hardware validation remains open: a SHAKER Module A (O) capture should measure eight mode-2 pixels,
 and a logic-analyser capture of type-0 DE should show low only from the midpoint
 of C0=R0 to the next C0=0 boundary. A disagreement reopens the wrapper model;

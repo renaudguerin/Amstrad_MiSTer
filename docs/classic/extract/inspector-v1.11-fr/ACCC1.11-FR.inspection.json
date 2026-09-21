@@ -2,13 +2,13 @@
   "schema_version": 1,
   "engine": "firecrawl/pdf-inspector",
   "engine_version": "1.17.0",
-  "source_pdf": "docs/references/ACCC1.11-FR.pdf",
-  "source_size_bytes": 3836689,
+  "source_pdf": "docs/specs/ACCC1.11-FR.pdf",
+  "source_size_bytes": 3837796,
   "verdict": "native_partial",
   "pdf_type": "text_based",
   "confidence": 1.0,
   "page_count": 295,
-  "processing_time_ms": 8551,
+  "processing_time_ms": 4448,
   "title": null,
   "is_complex_layout": true,
   "pages_with_tables": [
@@ -245,6 +245,7 @@
     198,
     200,
     201,
+    202,
     207,
     208,
     211,
@@ -344,6 +345,6 @@
     183,
     280
   ],
-  "markdown_file": "docs/accuracy/extract/inspector-v1.11-fr/ACCC1.11-FR.md",
-  "markdown_characters": 636149
+  "markdown_file": "docs/classic/extract/inspector-v1.11-fr/ACCC1.11-FR.md",
+  "markdown_characters": 637129
 }

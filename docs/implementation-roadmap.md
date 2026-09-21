@@ -65,7 +65,7 @@ merged into the same behavioral PR.
 - Latest synthesized integration source `5c16b17` passed full-effort Quartus
   17.0.2, simulation and the required gate in run `34570572190`; setup
   +0.320 ns, hold +0.247 ns, zero TNS. The delivered RBF and hash are recorded
-  in [current status](current-status.md). `013c7e5` adds documentation only.
+  in the [status history](archive/current-status-history-2026-09-21.md). `013c7e5` adds documentation only.
   Earlier B8 artifacts retain their own source identity as comparison baselines.
 - `sim/` currently reports **225** required classic CRTC passes with no expected failures
   plus 45 production-GA/scripted-write cases (B8-1, Verilator 5.052); the soak
@@ -87,7 +87,7 @@ merged into the same behavioral PR.
   v1.10/v1.9 reports remain provenance, not the current oracle.
 - The v1.10 documentation rebaseline and the deterministic F12/F4/F8 milestones are complete;
   F9 closure is merged into this branch (`t12a`/`t12b`: exact-C0==R0 write → C4=39/C9=8 and
-  its windowed companion → C4=38/C9=8, ACCC p.82). F13's ACCC-model half-character DE
+  its windowed companion → C4=38/C9=8, ACCC p.83). F13's ACCC-model half-character DE
   phase is implemented; SHAKER/DE-pin hardware validation remains open. F20's CRTC-1
   R2.JIT start phase and fixed display-reactivation edge are implemented through the integrated
   CRTC+GA path; DSC4 and SHAKER `(TAB)` remain hardware gates. F7 RFD and the
@@ -97,7 +97,8 @@ merged into the same behavioral PR.
 
 The current branch is a useful staging branch, not a requirement to publish one large PR.
 The commits may be rearranged into the small sequences below before publication.
-See `current-status.md` for the exact handoff and real-hardware checklist.
+See `current-status.md` for the current handoff and open hardware residuals, and
+`plus/hardware-test-checklist.md` for the Plus retest matrix.
 
 ## 2. Integration rules
 
@@ -211,8 +212,8 @@ Module/key names are SHAKER 2.6 menu entries.
   CRTC 1-A OR 1-B?` is the chip-variant discriminator — informative only; the variant is
   deliberately not modeled.)
 - C9 F10 → interlace suite: B `(1) INTERLACE C4/C9 COUNTERS`, B `(9) INTERLACE VM`,
-  C `(1)`–`(5)` parity entries, plus the SHAKER 22C/3 parity truth tables (ACCC pp.210-211;
-  p.212 is §19.5.4 CRTC 2) as fixture sources.
+  C `(1)`–`(5)` parity entries, plus the SHAKER 22C/3 parity truth tables (ACCC pp.211-212;
+  p.213 is §19.5.4 CRTC 2) as fixture sources.
 - Plus P1/P5 (CRTC3 foundation, bus quirks) → run the classic entries above on the CRTC3
   setting where applicable, plus D `(U) CRTC 3/4 : STATUS` once status paths exist.
 - Any session touching R12/R13 reload → A `(5)`/`(6)`/`(7)` R13 UPDATE IN n USEC SCREENS
@@ -223,15 +224,15 @@ Module/key names are SHAKER 2.6 menu entries.
 The full options analysis, evidence, staged plan, and revert conditions live in
 `accuracy/f6-decision-gate.md`. Stage 1 landed a full-character type-0 DE gap plus
 SKEW-DISPTMG handling (`accuracy/a3-f6-stage1`, t10a-t10e). Stage 2 rendered a 16-mode-2-px
-(1 µs) seam. Stage 2b's visual reading of ACCC pp.186/195 establishes that the documented
+(1 µs) seam. Stage 2b's visual reading of ACCC pp.187/196 establishes that the documented
 0.5 µs belongs to a sub-character CRTC DE pulse; test/production CRTC clock phase matches
 and both GA buffer paths agree. F13 is implemented in the CRTC wrapper with `t31a` pinning
 the no-skew half-phases; SHAKER Module A `(O)` plus a DE-pin capture remain required hardware
-validation. SKEW-DISPTMG 1/2 retains the p.195 rounded full-character displacement.
+validation. SKEW-DISPTMG 1/2 retains the p.196 rounded full-character displacement.
 
 ### F20 R2.JIT hardware gate
 
-ACCC v1.11 §14.6.1 p.141 is pinned through the production CRTC+GA timing path:
+ACCC v1.11 §14.7.1 p.142 is pinned through the production CRTC+GA timing path:
 type-0/type-1 dynamic `OUT (C),r8` equality starts blanking four/three Mode-2
 pixels after the normal start while the type-specific display-reactivation edge
 stays fixed, shortening the raw pulse by four/three pixels. The deterministic fixture
@@ -362,6 +363,34 @@ The unresolved sprite `+3` mirror, sprite coordinate formula, PRI offset, lowere
 zero collision, and pixel-phase questions remain named assumptions until a focused source or
 hardware discriminator settles each one.
 
+**P10f/P10g title-defect discriminators.** Four hardware screenshot families are classified by
+visible failure shape only; none is an oracle for an undocumented rule, and no RTL change is
+made for them. Each needs its own capture so one screenshot cannot silently become a blanket
+timing fix. Later hardware reports may have changed a family's visible status (see
+`backlog.md` B3/B13 and the dated hardware records); the fields stay the required evidence for
+any RTL change.
+
+| Screenshot family | Capture at the first bad pixel or line |
+|---|---|
+| Sonic: large horizontal discontinuities, repeated or relocated scene bands | First bad scan line with CRTC MA/RA, R0/R1/R4/R5/R6/R9, SPLT/SSA/SSCR, video fetch address/data, and whether the ASIC is locked |
+| Copter 271: top logo rows in the wrong colour | Winning plane and sprite index for the first wrong pixel, then its source row, palette entry/value, CPU sprite/palette access, and dot phase |
+| CRTC3 demo: narrow displaced or streaked fragments | First corrupt line and first divergent fetch with MA/RA, CRTC counters/registers, SSCR/SPLT/SSA, SDRAM address/data, and displayed pixel phase |
+| Dick Tracy: top rows horizontally displaced | At the first displaced row: HSYNC/DE, CRTC C0/C4/C9 and registers, SSCR/SPLT/SSA, MA reload, and the first two video fetch addresses |
+
+**Open Plus evidence boundaries** (full traces in the
+[2026-09-01 triage record](plus/archive/hardware-defect-triage-2026-09-01.md)):
+
+- *System CPR disk read.* The production-shaped `p10_boot_test_top` with the real u765 and
+  `rtl/u765/test.dsk` reaches the first payload byte, where the TV80 surrogate stores `&00`
+  instead of `&21`; every bus stage agrees on that edge. It stays `XFAIL fdc-payload-poll`
+  (a full 512-byte match is an XPASS). It is not evidence for changing u765 media, sector or
+  status RTL. Closure needs the failing System CPR with a known-good AMSDOS disk plus a
+  real-T80-capable trace or a hardware capture at the first MSR/data-read transition.
+- *OUT(C),r versus OUTD.* The ASIC sees no opcode class, so no opcode-specific ASIC patch is
+  justified. The TV80 surrogate has no block-I/O decode, so the synthetic R2.JIT
+  discriminator cannot show OUTD bus cadence. Closure needs a real-T80 bus trace or a
+  hardware capture of both instructions under the same CRTC phase.
+
 ### Optional feature: light pen and light gun (LOW priority, opened 2026-09-01)
 
 Not required for accuracy or for any current finding. Recorded because the hardware picture
@@ -487,7 +516,7 @@ and hardware retest remain. No separate upstream utilization build was required.
 locally integrated at `e391e13`; B6's reviewed rendering follow-up was
 refreshed to `9849b9a` and merged against that exact destination. The
 complete destination simulation, lint and canonical soak pass; the
-integration is published at `9ee710c`. Exact-SHA CI is recorded in current status. Preserve the
+integration is published at `9ee710c`. Exact-SHA CI is recorded in the [status history](archive/current-status-history-2026-09-21.md). Preserve the
 [B6 evidence limits](investigations/archive/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
 and [B2 device limits](investigations/hardware-runs/b2-device-capture-2026-09-12.md), including unobserved
 active OSD mode and unestablished CPU-generated stuck-high sync. The
@@ -503,7 +532,7 @@ RGB/metadata alignment, plus B8-2 selected FIELD ownership, are integrated;
 B8-4 retained video-word coherence is also integrated. Do not restart those
 implementations.
 Their successful simulation and Quartus artifact do not close hardware symptoms.
-See [current status](current-status.md) for accepted source and artifact identities.
+See the [status history](archive/current-status-history-2026-09-21.md) for accepted source and artifact identities.
 
 1. **Plus validation:** B8-2 FIELD ownership and B8-3 accepted palette-write
    events are integrated separately from `55151a0` and `807f081`. Full ASCAL,

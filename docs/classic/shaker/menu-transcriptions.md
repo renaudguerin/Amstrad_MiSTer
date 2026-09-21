@@ -143,6 +143,6 @@ entries are visible; whether more exist below the crop is unknown.
   tests" therefore covered a small fraction of the module.
 - Record which menu entries were run, and set the OSD CRTC selection deliberately. Confirm the
   footer reports the type you selected: a mismatch would mean our CRTC identification behaviour
-  diverges from hardware, which ACCC chapter 28 (CRTC IDENTIFICATION, p.292) covers in ten
+  diverges from hardware, which ACCC chapter 28 (CRTC IDENTIFICATION, p.293) covers in ten
   separate detection methods.
 - Several entries are interactive rather than pass/fail, marked `INTERACTIVE TST`.

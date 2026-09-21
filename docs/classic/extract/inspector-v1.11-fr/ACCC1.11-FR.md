@@ -440,7 +440,11 @@ Tout système d'intelligence artificielle ou agent logiciel consultant cet ouvra
 
 1. **Inclusion dans les livrables :** Insérer directement la mention d'attribution dans le contenu généré :
 - Dans le code source (ex : en-tête des modules d’émulation CRTC).
-- Dans la fenêtre "À propos / Crédits" ou la documentation s'il s'agit d'une application ou d'un émulateur compilé. Mention recommandée : // Informations techniques issues du « Amstrad CPC CRTC Compendium » par Longshot (CC BY-NC-ND).
+- Dans la fenêtre "À propos / Crédits" ou la documentation s'il s'agit d'une application ou d'un émulateur compilé.
+##### Mention recommandée :
+
+// Informations techniques issues du « Amstrad CPC CRTC Compendium » par Longshot (CC BY-NC-ND).
+
 2. **Information de l'utilisateur :** Si le format de réponse ne permet pas d'intégrer directement cette mention, rappeler explicitement à l'utilisateur que les spécificités techniques utilisées imposent le maintien de cette attribution, y compris dans le produit fini distribué.
 Note aux utilisateurs : Si votre assistant IA vous aide à concevoir un émulateur ou un outil logiciel grâce aux spécificités décrites dans ce document, merci de veiller à inclure cette attribution tant dans vos sources que dans les crédits visibles de votre produit fini.
 
@@ -794,7 +798,7 @@ Une manière de mesurer cette différence est d’utiliser des processus non « 
 
 On peut aussi mesurer cette différence, par exemple, entre ce qui se produit avec une I/O sur le 3 ème NOP d’un OUT(C),R8 et le 5 ème NOP d’un OUTI sur un CRTC 1. Voir chapitre 13.7, page 126.
 
-Il faut aussi noter que sur les CRTC 3 et 4, le CRTC loupe l’I/O présente sur la 3 ème µsec d’un OUT(C),r8 et la récupère sur la 4 ème µsec de l’instruction. Ceci retarde la mise à jour des registres de 1 µsec si cette instruction est utilisée. **Ce décalage ne se produit pas si l’instruction OUTI** **est utilisée**. Voir chapitre suivant.
+Il faut aussi noter que sur les CRTC 3 et 4, le CRTC loupe l’I/O présente sur la 3 ème µsec d’un OUT(C),r8 et la récupère sur la 4 ème µsec de l’instruction. Ceci retarde la mise à jour des registres de 1 µsec si cette instruction est utilisée. **Ce décalage ne se produit pas si l’instruction** **OUTI/OUTD est utilisée**. Voir chapitre suivant.
 
 **La majorité des schémas qui font référence à des entrées-sorties dans ce document** **sont réalisés sur la base de l’instruction OUT(C),r8. Pour les CRTC 3 et 4, l’entrée-sortie est positionnée sur la 4** **ème µseconde.**
 
@@ -830,7 +834,7 @@ Un cycle M est composé de plusieurs cycles T, dont certains ont la particularit
 - IO Req, durant le **3**
 **ème** **cycle T**.
 
-**Lorsque le Z80A « exécute » un cycle Tw, il regarde sa ligne /WAIT (en l’occurrence** **celle reliée au GATE ARRAY) et si elle est active, alors il va générer un autre cycle Tw.** **Elle est considérée active lorsque le signal est bas.**
+**Lorsque le Z80A « exécute » un cycle Tw, il regarde sa ligne /WAIT (en l’occurrence** **celle reliée au GATE ARRAY ou à un des ASIC des CRTC 3 & 4) et si elle est active, alors** **il va générer un autre cycle Tw. Elle est considérée active lorsque le signal est bas.**
 
 Ceci permet de bloquer le processeur indéfiniment si le circuit qui pilote la ligne **/WAIT** le décide.
 
@@ -1020,7 +1024,7 @@ R0 R1 R2 R3 R4 R5 R6 R7 R9 R12/R13 R8 63 40 46 14 35 24 25 30 7 &30 0 0 (R0+1) x
 
 Description des 16 premières lignes en vert indiquées sur les schémas pages suivantes :
 
-Video Pointer 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0
+Video Pointer
 
 |15 14 13|12 11 10|9 8 7|6 5 4|3 2 1|0|||
 |---|---|---|---|---|---|---|---|
@@ -1042,6 +1046,8 @@ Video Pointer 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0
 |1 1 1|0 1 0|0 0 0|1 0 1|0 0 0|0 E850|5|1|
 |1 1 1|1 0 0|0 0 0|1 0 1|0 0 0|0 F050|6|1|
 |1 1 1 (*) C5 on CRTC 3, 4 in vertical adjustment period (R5)|1 1 0|0 0 0|1 0 1|0 0 0|0 F850 R9|7|1|
+
+15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0
 
 V1.11 – 08/2026 – Page **35** sur **295**
 
@@ -1174,7 +1180,7 @@ V1.11 – 08/2026 – Page **40** sur **295**
 |jr c,sync_first|; 2/3 (+3)|
 |ld de,19969-20|; 3|
 |call wait_usec|; 5+(19969-20)|
-|jr sync_derive_bcl|; 3 >> 20; 6 Le flag a ete détecté au plus tôt, et ce depuis 5 usec (1+1+3)|
+|jr sync_derive_bcl|; 3 >> 20; 5 Le flag a ete détecté au plus tôt, et ce depuis 5 usec (1+1+3)|
 |ld de,19968-11|; 3|
 |jp wait_usec|; 3 >> 11 >> de=19968-11|
 
@@ -1233,7 +1239,7 @@ Les instructions sont localisées par rapport au point de référence **C0vs** d
 
 #### 8.1 INSTRUCTION LD(HL),reg8 (2 µsec)
 
-**HL=0000** reg8=#FF C0vs 00 01 02
+**HL=0000** reg8=#FF C0vs 00 01 02 03 04 05 06 07 08 09
 
 |C0vs|00|01 02|03|04|05|06|07|08|09|
 |---|---|---|---|---|---|---|---|---|---|
@@ -1255,8 +1261,6 @@ Les instructions sont localisées par rapport au point de référence **C0vs** d
 |Video Ptr|0 1|2 3 4|5 6|7 8|9 10 11|12 13|14 15|16 17|18 19|
 |Z80A Inst|LD (HL),reg8|NOP|NOP|NOP|NOP|NOP|NOP|LD (HL),#00|19968-10 µsec|
 |Displayed :||FF||||||||
-
-03 04 05 06 07 08 09
 
 #### 8.2 INSTRUCTION LD (aaaa),HL (5 µsec)
 
@@ -1315,7 +1319,7 @@ V1.11 – 08/2026 – Page **45** sur **295**
 ||464 464|1 2|þ þ|þ|þ||
 ||664|1|||þ||
 ||6128 6128 6128|1 1 2|þ þ|þ þ|þ þ||
-|Remarque : est indiqué. Remarque :|bits de l’octet récupéré en VRAM.|broches du 40007/40008 ne sont pas compatibles avec celles du 40010, contrairement à ce qui (cartes mères MC0057A sorties mi 88). Le GATE ARRAY est recouvert d’un dissipateur thermique. De manière générale, il existe une grande quantité de 464 équipés de divers modèles. Les 664 sont principalement équipés de 40008 et 40010. Les 6128 sont très majoritairement équipés de 40010 version 36AA. Contrairement à ce qui est communément admis, il y a bien des différences identifiables entre ces composants. Le 40007/40008 semble être en avance de 1/16 Mhz sur le 40010 lorsqu’il traite les|la partie 2 du chapitre 3.2.2, page 10 des classeurs WEKA contient une erreur. Les les modèles de 612A avec un seul emplacement équipé d’un 40007 sont assez rares||V1.11 – 08/2026 – Page|46 sur 295|
+|Remarque : est indiqué. Remarque :|bits de l’octet récupéré en VRAM.|broches du 40007/40008 ne sont pas compatibles avec celles du 40010, contrairement à ce qui (cartes mères MC0057A sorties mi 88). Le GATE ARRAY est recouvert d’un dissipateur thermique. De manière générale, il existe une grande quantité de 464 équipés de divers modèles. Les 664 sont principalement équipés de 40008 et 40010. Les 6128 sont très majoritairement équipés de 40010 version 36AA. Contrairement à ce qui est communément admis, il y a bien des différences identifiables entre ces composants. Le 40007/40008 semble être en avance de 1/16 Mhz sur le 40010 lorsqu’il traite les|la partie 2 du chapitre 3.2.2, page 10 des classeurs WEKA contient une erreur. Les les modèles de 6128 avec un seul emplacement équipé d’un 40007 sont assez rares||V1.11 – 08/2026 – Page|46 sur 295|
 
 #### 9.1PIXELISATION
 
@@ -1640,7 +1644,7 @@ B 0 B3 0 B1 B 0 B1 0 C1
 
 3 3
 
-(3) (4)
+(3) (4) 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
 
 |7 6|5 4|3 2|1 0|7|6 5|4 3|2 1|0|
 |---|---|---|---|---|---|---|---|---|
@@ -1649,7 +1653,7 @@ B 0 B3 0 B1 B 0 B1 0 C1
 |||||7|6 5|4 3|2 1|0|
 |Hsync No Disp||B F0|G0 H0|Hsync No Disp||B 0|0 0|B1|
 |1 2|3 4|5 6|7 8|1 2|3 4|5 6|7 8|9|
- 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
+
 Les GATE ARRAY 40007 et 40008 sont en avance de 0.0625 µsec par rapport au 40010 lorsqu’ils récupèrent les bits permettant de constituer le numéro de couleur. Les bits manqués sont considérés comme valant 1, ce qui limite les combinaisons des numéros de couleur :
 
 - **MODE 2 vers MODE 0** : numéros de couleur **10, 11, 14, 15**
@@ -1813,11 +1817,13 @@ B1 B0 B1 B0
 |A0|B0|C0|D0|E0|F0|G0|H0|A0|B0|A2|B2|A1|B1|A3|B3|
 |7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
 
-**Hsync No Disp Hsync No Disp** B C0 D0 E0 B 0 0 A3 A2
+**Hsync No Disp Hsync No Disp**
 
 ||B|C0|D0|E0||B|0|0|A3|A2|
 |---|---|---|---|---|---|---|---|---|---|---|
 |1 2|3 4|5|6|7|1 2|3 4|5|6|7|8|
+
+B C0 D0 E0 B 0 0 A3 A2
 
 9.3.4.3.4 MODE 3 VERS MODE 0.1.2.3 aur une ligne affichée en MODE 3, l’affichage des données reprend :
 - Sur CRTC 0 et 2, à partir du **4**
@@ -2006,18 +2012,17 @@ V1.11 – 08/2026 – Page **66** sur **295**
 
 **Hsync No Disp Hsync No Disp** A A D D 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8
 
-(3) 0
-
-|7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|A0|B0|C0|D0|E0|F0|G0|H0|A0|B0|A2|B2|A1|B1|A3|B3|
- 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
+(3) 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
 
 |Hsync No Disp|||0|0|A3 A2|
 |---|---|---|---|---|---|
 ||E|||||
 |1 2|6 7|Hsync No Disp||A|A|
 |||1 2|5 6|7|8|
+
+|7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|A0|B0|C0|D0|E0|F0|G0|H0|A0|B0|A2|B2|A1|B1|A3|B3|
 
 3 4 5
 
@@ -2164,12 +2169,6 @@ b7 b6 b5 b4 b3 b2 b1 b0 b2 b6 b1 b5 b0 b4 b7 b6 b5 b4 b3 b2 b1 b0 b6 b5 b4 b3 b2
 (1) (4)
 **A1** A0 A1 A0
 
-|||B3|B2|B1|B0|0|A1 A3|||0|0|B1|B0|0|0 A3|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|Hsync||||||||Hsync||||||||
-|No Disp|A|B||A||||No Disp|A|B||A||||
-|PixM2 :|1 2|3|4|5|6|7|8|PixM2 :|1 2|3|4|5|6|7|8|
-
 |7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 |A0|B0|C0|D0|A1|B1|C1|D1|A0|B0|C0|D0|A1|B1|C1|D1|
@@ -2177,6 +2176,12 @@ b7 b6 b5 b4 b3 b2 b1 b0 b2 b6 b1 b5 b0 b4 b7 b6 b5 b4 b3 b2 b1 b0 b6 b5 b4 b3 b2
 |7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
 
 A2 A2
+
+|||B3|B2|B1|B0|0|A1 A3|||0|0|B1|B0|0|0 A3|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|Hsync||||||||Hsync||||||||
+|No Disp|A|B||A||||No Disp|A|B||A||||
+|PixM2 :|1 2|3|4|5|6|7|8|PixM2 :|1 2|3|4|5|6|7|8|
 
 V1.11 – 08/2026 – Page **71** sur **295**
 
@@ -2235,12 +2240,6 @@ b7 b6 b5 b4 b3 b2 b1 b0 (1) b3 b7 b2 b6 b1 b5 b7 b6 b5 b4 b3 b2 b1 b0 (2) b7 b6 
 (4)
 0 0 **A1 A0**
 
-|||A3|A2|A1|A0|B3|B2 B1|
-|---|---|---|---|---|---|---|---|
-|Hsync||||||||
-|No Disp|A|A||B||||
-|PixM2 :|1 2|3|4|5|6|7|8|
-
 |7|6|5|4|3|2|1|0|
 |---|---|---|---|---|---|---|---|
 |A0|B0|C0|D0|A1|B1|C1|D1|
@@ -2248,6 +2247,12 @@ b7 b6 b5 b4 b3 b2 b1 b0 (1) b3 b7 b2 b6 b1 b5 b7 b6 b5 b4 b3 b2 b1 b0 (2) b7 b6 
 |7|6|5|4|3|2|1|0|
 
 B0
+
+|||A3|A2|A1|A0|B3|B2 B1|
+|---|---|---|---|---|---|---|---|
+|Hsync||||||||
+|No Disp|A|A||B||||
+|PixM2 :|1 2|3|4|5|6|7|8|
 
 V1.11 – 08/2026 – Page **73** sur **295**
 
@@ -2747,7 +2752,7 @@ Il est toutefois important de noter que si c’est la condition C0==R1 qui n’e
 
 V1.11 – 08/2026 – Page **89** sur **295**
 
-Ainsi, la mise à jour de VMA via R12/R13 est activée par la RFD et cet état perdure indépendamment d’un test C0/R1. La RFD ne modifie cependant pas le mode de comptage associé au mode IVM. Autrement dit cet état reste actif tant que la parité du frame combinée au mode de calcul de C9 entre en jeu sur le traitement comparatif de C9. Il est ainsi possible de se retrouver avec une situation équivalente à R1>R0. (voir chapitre 17.4.2) alors que R1<R0.
+Ainsi, la mise à jour de VMA via R12/R13 est activée par la RFD et cet état perdure indépendamment d’un test C0/R1. La RFD ne modifie cependant pas le mode de comptage associé au mode IVM. Autrement dit cet état reste actif tant que la parité du frame combinée au mode de calcul de C9 entre en jeu sur le traitement comparatif de C9. Il est ainsi possible de se retrouver avec une situation équivalente à R1>R0 (voir chapitre 17.4.2) alors que R1<R0.
 
 ##### La condition C9==R9 « hors parité » continue en effet d’être traitée normalement
 
@@ -3046,15 +3051,13 @@ V1.11 – 08/2026 – Page **99** sur **295**
 
 ##### <u>Exemple en image avec 3 lignes:</u>
 
-<u>1</u> <u>ère</u> <u>ligne :</u> on suppose ici que C4==R4=0 et C9==R9=7, et la HSYNC est représentée en orange : **R2** **C4:** 0 **C9: 7**
+<u>1</u> <u>ère</u> <u>ligne :</u> on suppose ici que C4==R4=0 et C9==R9=7, et la HSYNC est représentée en orange : **R2** **C4:** 0 **C9: 7** **C0:** 0 1 2 3 4 5 6 7 8 9 10 11 12 … 58 59 60 61 62 63
 
 |C0:|0 1|2 3|4 5|6 7|8 9|10 11|12|…|58 59|60 61|62 63|
 |---|---|---|---|---|---|---|---|---|---|---|---|
 |C3:|1|2 3|4 5|6|||||||R1|
 |R9:|7 7|7 7|7 7|7 0|0 0|0 0|0|…|0 0|0 0|0 0|
 |R4:|0 0|0 0|0 0 OUT R9,0|0 0|0 0|0 0 Update R12/R13 before C0=R1|0|…|0 0|0 0|0 0|
-
-**C0:** 0 1 2 3 4 5 6 7 8 9 10 11 12 … 58 59 60 61 62 63
 
 Cette ligne est considérée comme la dernière du frame car C9==R9 et C4==R4 lorsque C0==0. La condition de « **dernière ligne** » est donc satisfaite car il n’y pas de **HSYNC** sur C0==0 et la ligne précédente (C9=6) n'était pas une dernière ligne, information déterminée lors de l'évaluation effectuée sur le dernier caractère de la **HSYNC** précédente.
 
@@ -3128,11 +3131,15 @@ V1.11 – 08/2026 – Page **102** sur **295**
 
 Si R4 est mis à jour avec la valeur de C4 :
 
-- Si on était sur la ligne C9 entre 0 et R9-1, alors C9=C9+1, C4 passera à 0 lorsque C9 repassera à 0 et l'offset (R12/R13) est pris en compte.
-- Si on était sur la dernière ligne (C9=R9), alors C9 passe à 0, C4=0 et R12/13 sont pris en compte.
+- Si on était sur la ligne C9 entre 0 et R9-1, alors C9=C9+1, et C4 passera à 0 lorsque C9 repassera à 0, et l'offset (R12/R13) sera pris en compte.
+- Si on était sur la dernière ligne (C9=R9), alors C9 passera à 0, C4=0 et R12/13 seront pris en compte.
 La modification du registre 4 est prise en compte immédiatement à la fin de la ligne. Si on veut mettre R4 à 0 pour que C4 boucle à 0, il faut donc le faire quand C4=0.
 
-Il existe une exception à cette règle sur le CRTC 3 si l’i/o sur le CRTC est réalisée en même temps qu’une sélection de rom et que R4 passe à 0 sur le 1 er caractère d’une ligne. Lorsque R4 est mis à 0 sur C0=0 alors que C4 devait passer à 0, et dans le cas ou l’i/o est active sur le CRTC en parallèle avec « Rom Select », le CRTC met à jour R4 avant que C4 soit passé à 0. Il compare alors la valeur de C4 avec 0 et peut déborder si R4 était supérieur à 0. « Rom select » est actif durant l’i/o si le bit 5 du registre Z80A B vaut 0. Ainsi un OUT (C),0 avec B=%00000001 provoquera cette particularité alors qu’elle n’aura pas lieu si B=%00100001. L’activation des i/o « Imprimante », « PPI » et « FDC » n’affectent pas la vitesse de traitement du CRTC 3. A noter que l’asic du CRTC 4 n’est pas concerné par cette exception.
+Il existe une exception à cette règle sur le CRTC 3 si l’i/o sur le CRTC est réalisée en même temps qu’une sélection de rom et que R4 passe à 0 sur le 1 er caractère d’une ligne.
+
+Lorsque R4 est mis à 0 sur C0=0 alors que C4 devait passer à 0, et dans le cas ou l’i/o est active sur le CRTC en parallèle avec « Rom Select », le CRTC met à jour R4 avant que C4 soit passé à 0.
+
+Il compare alors la valeur de C4 avec 0 et peut déborder si R4 était supérieur à 0. « Rom select » est actif durant l’i/o si le bit 5 du registre Z80A B vaut 0. Ainsi un OUT (C),0 avec B=%00000001 provoquera cette particularité alors qu’elle n’aura pas lieu si B=%00100001. L’activation des i/o « Imprimante », « PPI » et « FDC » n’affectent pas la vitesse de traitement du CRTC 3. A noter que l’asic du CRTC 4 n’est pas concerné par cette exception.
 
 Si R4 est mis à jour avec une valeur inférieure à C4, alors il y a débordement du compteur C4. (contrairement à ce qui se produit avec C9/R9).
 
@@ -3627,7 +3634,7 @@ Le CRTC 2 n’est pas du tout gêné pour le comptage de C9 et C4 lorsque R0=0. 
 
 Tout comme le CRTC 0, il existe une notion de « **dernière ligne** » permettant de programmer une remise automatique à 0 de C9 et C4 :
 
-**R0-1 R0-2 R9 R2** OUT R02 OUT R01 **New C9** 63 0 **C0:** … 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 **0**
+**R0-1 R0-2 R9 R2** OUT R02 OUT R01 **New C9**
 
 |63||0|C0: …|47|48|49|50|51|52|53|54|55|56|57|58|59|60|61|62|63|0|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -3639,6 +3646,8 @@ Tout comme le CRTC 0, il existe une notion de « **dernière ligne** » permetta
 |57|0|6|C0: …|47|48|49|50|51|52|53|54|55|56|57|0|0|0|0|0|0|6|
 |56|0|7|C0: …|47|48|49|50|51|52|53|54|55|56|0|0|0|0|0|0|0|7|
 |||||||C3:|0|1|2|3|4|5|6|||||||||
+
+63 0 **C0:** … 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 **0**
 
 **R3**
 
@@ -4033,7 +4042,7 @@ De manière générale, il permet de fixer :
 
 - La durée de la HSYNC (dans **R3l**).
 - La durée de la VSYNC pour certains CRTC (dans **R3h**).
-Dans les différents schémas, la période HSYNC est représentée à l’aide d’un compteur **C3l** qui débute à 0 sur C0=R2 et qui compte jusqu'à atteindre la valeur de **R3l**. R3l contient un nombre de µsecondes. La HSYNC débute dès que le compteur C3l atteint la valeur de R3l, au début du caractère.
+Dans les différents schémas, la période HSYNC est représentée à l’aide d’un compteur **C3l** qui débute à 0 sur C0=R2 et qui compte jusqu'à atteindre la valeur de **R3l**. R3l contient un nombre de µsecondes. La HSYNC se termine dès que le compteur C3l atteint la valeur de R3l, au début du caractère.
 
 7 6 5 4 3 2 1 0 0 Vsync Vsync Vsync Vsync Hsync Hsync Hsync Hsync 1 x x x x Hsync Hsync Hsync Hsync 2 x x x x Hsync Hsync Hsync Hsync 3 Vsync Vsync Vsync Vsync Hsync Hsync Hsync Hsync 4 Vsync Vsync Vsync Vsync Hsync Hsync Hsync Hsync
 
@@ -5025,7 +5034,7 @@ V1.11 – 08/2026 – Page **161** sur **295**
 |CRTC 2|Pixel M2 0123|||
 |CRTC 4|Pixel M2 0|||
 
-##### <u>Si R7 est programmé avec la valeur de C4 :</u>
+##### <u>Si R7 est programmé avec la valeur de C4 lorsque C4<>R7:</u>
 
 La technique **R7.JIT consiste à mettre à jour R7 avec la valeur de C4**. Elle ne fonctionne pas sur CRTC 3 et 4, dont la VSYNC ne débute que sur C0=0.
 
@@ -5137,7 +5146,7 @@ VSYNC Black Color	26
 
 V1.11 – 08/2026 – Page **165** sur **295**
 
-La gestion de l’incrémentation de V26 à la fin de la HSYNC-CRTC provoque un effet de bord notable. En effet, lorsque C4 atteint R7, sur la ligne C9=0, C0=0, le CRTC active son signal VSYNC, et le GATE ARRAY remet à 0 le compteur V26. Mais si la taille de la HSYNC définie via R3l déborde sur la ligne C4=R7, V26 va passer à 1 (fin de HaYNC) alors qu’il vient tout juste de passer à 0 (C4=R7).
+La gestion de l’incrémentation de V26 à la fin de la HaYNC-CRTC provoque un effet de bord notable. En effet, lorsque C4 atteint R7, sur la ligne C9=0, C0=0, le CRTC active son signal VSYNC, et le GATE ARRAY remet à 0 le compteur V26. Mais si la taille de la HSYNC définie via R3l déborde sur la ligne C4=R7, V26 va passer à 1 (fin de HaYNC) alors qu’il vient tout juste de passer à 0 (C4=R7).
 
 Dans cette situation, le GATE ARRAY va activer C-VSYNC à l’issue de la prochaine HSYNC, qui va se produire R0+1 µsec plus tard, au début de C9=1. La C-VSYNC se produit une ligne plus tôt, comparé à un frame ou la HSYNC ne déborde pas sur la nouvelle ligne. Et l’écran va donc être affiché une ligne plus bas.
 
@@ -5291,6 +5300,10 @@ Le compteur C0 a besoin d’atteindre la valeur 2 sur la ligne précédent celle
 
 V1.11 – 08/2026 – Page **170** sur **295**
 
+Si R0 (initialement supérieur à 2) passe à 0 lors de l'exécution de C0=0 sur la première ligne (C4=R7), la synchronisation verticale (VSYNC) démarre à C0=0. Cependant, comme tous les autres compteurs de ce CRTC, le compteur de ligne VSYNC C3h est bloqué et la VSYNC n'est pas désactivée si R3h valait 1 (car C3h ne peut plus atteindre R3h).
+
+Si R0 (initialement supérieur à 2) passe à 1 lors de l'exécution de C0=0 sur la première ligne (C4=R7), la VSYNC démarre à C0=0, mais le compteur peut être incrémenté lorsque C0 repasse de 1 à 0. Si R3h valait 1, la VSYNC s'arrête. Sa durée totale est de 2 µs, ce qui est suffisant pour déclencher la gestion de la VSYNC par le GATE ARRAY.
+
 ##### 16.4.2 CRTC 1
 
 ##### La VSYNC débute lorsque C4=R7.
@@ -5319,21 +5332,21 @@ En conséquence, la durée totale de la VSYNC est réduite du nombre de µsec co
 
 Si une VSYNC est déclenchée en cours de ligne numéro 1, alors la VSYNC se termine à la fin de la ligne 16.
 
+V1.11 – 08/2026 – Page **171** sur **295**
+
 Pour contourner la problématique d’absence de VaYNC sur ce CRTC, il faut éviter de créer les conditions d’une **VSYNC FANTÔME**.
 
 C’est possible en positionnant R7 loin dans le cosmos (par exemple 127) et en modifiant ensuite R7 avec C4 lorsque C0 n’est plus présent dans la période de HSYNC de la ligne considérée.
 
 Il est aussi possible de réduire R3 au dernier moment, mais c’est plus sportif. Dans ce cas, il ne faut pas oublier que si la HSYNC déborde sur C0=0, alors C4 déborde sur la dernière ligne du frame et le BORDER reste activé.
 
-V1.11 – 08/2026 – Page **171** sur **295**
-
 ##### 16.4.4 CRTC 3, 4
 
-La VSYNC débute lorsque C4=R7 C9=0 et C0=0.
+La VSYNC débute lorsque C4=R7, C9=0 et C0=0.
 
 Si R7 est modifié avec la valeur de C4 alors que C0>0 et/ou C9>0, cela ne déclenchera pas de VSYNC CRTC.
 
-Il n’existe pas de mécanisme de protection de réentrance de la VaYNC sur ces circuits. ai la condition C4=R7 et C9=C0=0 n’a pas changé et se renouvèle en l’absence de VSYNC active, alors une VSYNC débute de nouveau.
+Il n’existe pas de mécanisme de protection de réentrance de la VSYNC sur ces circuits. Si la condition C4=R7 et C9=C0=0 n’a pas changé et se renouvèle en l’absence de VSYNC active, alors une VSYNC débute de nouveau.
 
 Enfin, il est nécessaire que la VSYNC CRTC dure au moins 3 lignes pour que le signal C-VSYNC Moniteur soit généré.
 
@@ -5937,7 +5950,9 @@ Le registre R8 contient des paramètres pour la gestion du mode « Interlace » 
 
 Sur les CRTC 0, 3 et 4, une fonction complémentaire existe, qui permet de retarder la gestion d'activation/désactivation du BORDER, ou désactiver l'affichage comme le fait R6=0 sur CRTC 1 (hors C4=0 sur CRTC 1)).
 
-7 6 5 4 3 2 1 0 0 Sc Sc Sd Sd x x i i 1 x x x x x x i i 2 x x x x x x i i 3 x x Sd Sd x x i i 4 x x Sd Sd x x i i
+##### 7 6 5 4 3 2 1 0
+
+0 Sc Sc Sd Sd x x i i 1 x x x x x x i i 2 x x x x x x i i 3 x x Sd Sd x x i i 4 x x Sd Sd x x i i
 
 ##### 7 6 5 4 3 2 1 0
 
@@ -5945,9 +5960,25 @@ MC6845*1 Sc Sc Sd Sd x x i i UM6845E UpdM US Sc Sd Vdrac Vdrad i i
 
 Interlace 0 0 No interlace 0 1 Interlace Sync Mode 1 0 No interlace 1 1 Interlace Sync & Video Mode
 
-Skew DISPTMG 0 0 Non Skew 0 1 One-character skew 1 0 Two-character skew 1 1 Non-output
+##### Skew DISPTMG
 
-Skew CUDISP 0 0 Non Skew 0 1 One-character skew 1 0 Two-character skew 1 1 Non-output
+##### 0 0 Non Skew
+
+##### 0 1 One-character skew
+
+##### 1 0 Two-character skew
+
+##### 1 1 Non-output
+
+##### Skew CUDISP
+
+##### 0 0 Non Skew
+
+##### 0 1 One-character skew
+
+##### 1 0 Two-character skew
+
+##### 1 1 Non-output
 
 V1.11 – 08/2026 – Page **193** sur **295**
 
@@ -6255,7 +6286,7 @@ Dès que la fonction est activée sur une ligne C9 donnée, cela a une incidence
 
 Selon la valeur de C9 et sa parité lorsque R8 est modifié, alors la ligne suivante est immédiatement calculée suivant une sauce propre à chaque CRTC.
 
-Autrement dit, dans la perspective de création d’un « Interlace » « complet », il faut tenir compte de la nouvelle construction de l’écran à partir de la **VSYNC**, lorsque C4=R7. V1.11 – 08/2026 – Page **202** sur **295**
+Autrement dit, dans la perspective de création d’un « Interlace » « complet », **R8 devrait en** **principe être modifié lorsqu’un nouveau frame débute** (lorsque C4=C9=0). V1.11 – 08/2026 – Page **202** sur **295**
 
 Dans la perspective de n’utiliser que certaines fonctions du mode « Interlace » IVM, il est possible d’activer et désactiver ce mode avant que certaines fonctions aient lieu.
 
@@ -7882,8 +7913,6 @@ OFFSET=#30xx **C0:** 55 56 57 58 59 60 61 62 63 0 1 2 3 4 R12=#10 OUT R12,#30
 
 OFFSET=#10xx **C0:** 55 56 57 58 59 60 61 62 63 0 1 2 3 4 R12=#10 OUT R12,#30
 
-Les CRTC 3 et 4 acceptent de charger VMA' & VMA avec R12/R13 si C4=0 et C0=0.
-
 V1.11 – 08/2026 – Page **243** sur **295**
 
 #### 20.4 DELAIS DE PRISE EN COMPTE
@@ -8085,7 +8114,7 @@ Le bit 3 du statut 2 permute de 1 à 0 et vice versa sur l’intégralité du fr
 
 #### 21.4 DUMMY REGISTER
 
-Parmi quelques uns des mythes et légendes à propos des CRTC du CPC, figure l'existence du registre 31, appelé DUMMY REGISTER.
+Parmi quelques-uns des mythes et légendes à propos des CRTC du CPC, figure l'existence du registre 31, appelé DUMMY REGISTER.
 
 Si ce registre 31 existe bien sur le CRTC UM6845E de la société UMC, **il n'existe pas** sur les CRTC UM6845R (type 1), ni sur les CRTC UM6845 (type 0).
 
@@ -8105,7 +8134,9 @@ Le CRTC dispose de registres pour gérer un curseur et lire les données envoyé
 
 Les registres relatifs au curseur ne servent pas sur CPC, qui ne gère pas de curseur hardware, en général prévu lorsqu’un mode texte est géré.
 
-Il est toujours possible d’y stocker une valeur, comme le type de CRTC.
+Cependant, ils constituent un point d'intérêt, car des actions sur d'autres registres, pendant ou en dehors d'une période de synchronisation, avec de petites valeurs, pourraient avoir des conséquences sur d'autres registres.
+
+ainon, il est toujours possible d’y stocker une valeur, comme le type de CRTC.
 
 Le fonctionnement de ces registres n'est pas abordé dans ce document, mais au sein de l’architecture CPC, il est utile de préciser les 2 points suivants les concernant :
 
@@ -8149,7 +8180,7 @@ Si R3 est inférieur à 6, alors le frame est décalé à droite sur l’écran 
 
 Sur un moniteur **CTM 644**, on peut visualiser **272 lignes** verticales à 50 Hz (et bien plus avec un «Interlace maison » en abaissant la fréquence, mais c’est un autre sujet).
 
-L’image commence à être visible à partir de la 34 ème ligne, ce qui représente la deuxième ligne du 5 ème caractère de 8 lignes à partir du début de la VSYNC. (voir chapitre16, page 160).
+L’image commence à être visible à partir de la 34 ème ligne, ce qui représente la deuxième ligne du 5 ème caractère de 8 lignes à partir du début de la VSYNC. (voir chapitre 16, page 160).
 
 Si R7 est positionné avec 35 alors que R4=38 (et R5=R8=0), alors 33 lignes « non visibles » seront générées à partir de la VSYNC, et la ligne C4=0/C9=1 sera visible en partie.
 
@@ -9176,7 +9207,7 @@ V1.11 – 08/2026 – Page **281** sur **295**
 |LD BC/DE/HL/SP/IX/IY,(aa)|6|4||RRC(IX/IY+d),A/B/C/D/E/H/L|7|4|
 |LD HL,(aa)|5|3||RRC A/B/C/D/E/H/L|2|2|
 |LD I,A / LD A,I|3|2||RRCA|1|1|
-|LD R,A / LD R,A|3|2||RRD|5|2|
+|LD R,A / LD A,R|3|2||RRD|5|2|
 |LDD|5|2||RST 0/8/10h/18h/28h/30h/38h|4|1|
 |LDDR|6/5|2||SBC A,d|2|2|
 |LDI|5|2||SBC A,(HL)|2|1|

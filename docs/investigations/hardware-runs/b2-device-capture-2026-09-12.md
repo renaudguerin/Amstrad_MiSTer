@@ -54,7 +54,10 @@ and waits for the numeric table. See the [driver guide](mister-hardware-loop-dri
 for the exact Linux key sequence and temporary MBC override.
 
 All original images, effective cases, command logs and manifests are retained
-under ignored `docs/references/b2-device-20260912/` in the B2 worktree. Each
+under ignored `docs/references/b2-device-20260912/` in the B2 worktree. That worktree was
+later removed and, as of 2026-09-21, no copy exists in the main checkout or its `local/`
+store, so the paths below name the lost files and the hashes in this record are the
+surviving identity. Each
 accepted load has three separate screenshot requests, complete decode before the
 next request, and a fresh MGL/core load. The first exploratory load is additional
 evidence; two interrupted attempts are excluded. Both identified host processes
@@ -66,9 +69,9 @@ three independent loads. Shared PNG SHA-256:
 
 | Load | Manifest | Representative PNG |
 |---|---|---|
-| 1 | [manifest](references/b2-device-20260912/accepted-b9-crtc1-full-1/manifest.json) | [B9 CRTC1](references/b2-device-20260912/accepted-b9-crtc1-full-1/capture_shaker27_b9_crtc1_full_1789200672_2e98b6_c1.png) |
-| 2 | [manifest](references/b2-device-20260912/accepted-b9-crtc1-full-2/manifest.json) | [B9 CRTC1](references/b2-device-20260912/accepted-b9-crtc1-full-2/capture_shaker27_b9_crtc1_full_1789200719_4e61f2_c1.png) |
-| 3 | [manifest](references/b2-device-20260912/accepted-b9-crtc1-full-3/manifest.json) | [B9 CRTC1](references/b2-device-20260912/accepted-b9-crtc1-full-3/capture_shaker27_b9_crtc1_full_1789200767_cffb37_c1.png) |
+| 1 | manifest (`b2-device-20260912/accepted-b9-crtc1-full-1/manifest.json`) | B9 CRTC1 (`b2-device-20260912/accepted-b9-crtc1-full-1/capture_shaker27_b9_crtc1_full_1789200672_2e98b6_c1.png`) |
+| 2 | manifest (`b2-device-20260912/accepted-b9-crtc1-full-2/manifest.json`) | B9 CRTC1 (`b2-device-20260912/accepted-b9-crtc1-full-2/capture_shaker27_b9_crtc1_full_1789200719_4e61f2_c1.png`) |
+| 3 | manifest (`b2-device-20260912/accepted-b9-crtc1-full-3/manifest.json`) | B9 CRTC1 (`b2-device-20260912/accepted-b9-crtc1-full-3/capture_shaker27_b9_crtc1_full_1789200767_cffb37_c1.png`) |
 
 The representative numeric screen reports `#2700/#2700/#2740/#2780/#2780`,
 then `#43C0` for the first block, and `#1820/#1840/#1860/#1880/#1880`, then
@@ -80,14 +83,14 @@ not source-derived expected values or a D1/D6 pass declaration.
 Raw pixels was selected by changing only status bit 35 in the backed-up
 16-byte CFG, before a fresh load. The resulting file was hashed back from the
 device; the exact bytes were `00004000080000000000000000000000`. All three
-[Raw pixels captures](references/b2-device-20260912/b9-crtc1-raw-pixels/manifest.json)
+Raw pixels captures (`b2-device-20260912/b9-crtc1-raw-pixels/manifest.json`)
 match the nine Full PNGs byte-for-byte. This is not evidence of a broken mode
 latch: this numeric scene need not exercise B6’s shifted-pixel difference.
 The applied mode remains unobserved; the pair is identified by saved selection.
 
 The original CFG was restored and verified before loading module C and selecting
-physical 4. A subsequent [module C menu capture](references/b2-device-20260912/c-menu-validation/capture_c-menu-validation_1789201019_8f10b1_c1.png)
-visibly confirms option 4 is `CRTC 1 : IVM ON/OFF`. The [C4 captures](references/b2-device-20260912/c4-crtc1-full/manifest.json)
+physical 4. A subsequent module C menu capture (`b2-device-20260912/c-menu-validation/capture_c-menu-validation_1789201019_8f10b1_c1.png`)
+visibly confirms option 4 is `CRTC 1 : IVM ON/OFF`. The C4 captures (`b2-device-20260912/c4-crtc1-full/manifest.json`)
 are three identical 768 x 546 images, SHA-256
 `c31616fb22b9f9e6efd6ed0229222465d126f959c7c1c6043c9bd98cdd608056`.
 They show a disrupted raster with small text interleaved with coloured stripes,
@@ -105,8 +108,8 @@ Final device state: the known B (9) CRTC 1 numeric screen after a final fresh
 load, again matching the baseline PNG hash. The temporary MBC executable was
 removed after confirming no MBC process remained. A second complete config
 comparison after that final load still found all original bytes unchanged.
-See [final manifest](references/b2-device-20260912/final-b9-restored/manifest.json)
-and [restoration check](references/b2-device-20260912/restoration-check.json).
+See final manifest (`b2-device-20260912/final-b9-restored/manifest.json`)
+and restoration check (`b2-device-20260912/restoration-check.json`).
 Physical display output was not independently recorded; no answer to the
 optional output question was received during this run.
 
@@ -129,13 +132,13 @@ Fresh Gemini 3.8 Flash high review returned **CLEAR**, exit 0 and complete
 handoff in `20260912T081121Z-83276-1c3c`. It inspected the pinning delta,
 French case, quoting, timeouts, capture freshness/partial files and key-release
 boundaries, and independently ran all 26 tests plus dry-run. The parent
-inspected the diff and retained the [review log](references/b2-device-20260912/review/output.log).
+inspected the diff and retained the review log (`b2-device-20260912/review/output.log`).
 The reviewer made no device or hardware-correctness claim.
 
 Gemini’s completed review covers the final implementation at `3b64673`;
 subsequent changes only finalize this evidence record. An attempted Opus 5 high
 call, `20260912T081701Z-89949-fa5d`, exited with expired OAuth before reviewing;
-its [log](references/b2-device-20260912/opus-review-attempt/output.log) is retained
+its log (`b2-device-20260912/opus-review-attempt/output.log`) is retained
 and is not a clearance. After authentication was refreshed, the user explicitly
 asked not to duplicate completed reviews. No uncovered code delta remained, so
 no duplicate Opus pass was started. The actual accepted reviewer is Gemini.

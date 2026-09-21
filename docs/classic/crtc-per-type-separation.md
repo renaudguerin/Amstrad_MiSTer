@@ -57,7 +57,7 @@ rule and is silent on CRTC 3.
 
 ## Why it matters (evidence it is already costing us)
 
-- Review action item **A1** (`docs/review-debt.md`): a type-1 adjustment behaviour was
+- Review action item **A1** (`docs/archive/review-debt-cleared.md`): a type-1 adjustment behaviour was
   patched into the shared VSYNC comparator via a `row+1` substitution term, creating a
   corner that fires only on the adjustment-ending line. That is Longshot's predicted
   failure mode at branch-point scale.

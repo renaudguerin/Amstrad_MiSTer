@@ -3,8 +3,8 @@
 ## Build and evidence
 
 Renaud tested `Amstrad_20260908_ce1d2da.rbf`. The original
-[report](screenshots/testing_0909/README.txt) and 26 PNG captures are preserved
-unchanged in [testing_0909](screenshots/testing_0909/).
+[report](../../../local/captures/testing_0909/README.txt) and 26 PNG captures are preserved
+unchanged in [testing_0909](../../../local/captures/testing_0909/) (ignored `local/captures/`, main checkout).
 
 - Source: `ce1d2da67c2598c0dd06208b9fc14c52ada01712`.
 - Retained local RBF SHA-256, rechecked on September 9:
@@ -12,7 +12,7 @@ unchanged in [testing_0909](screenshots/testing_0909/).
   The device copy was not independently hashed.
 - Build record: full local Quartus 17.0.2, run `34228275825`, constrained
   setup +0.098 ns / hold +0.238 ns, zero TNS; 27 input and 90 output ports
-  remain unconstrained. See [artifact provenance](../../current-status.md).
+  remain unconstrained. See [artifact provenance](../../archive/current-status-history-2026-09-21.md).
 - Plus: **6128 Plus, Live blanking**, unless stated otherwise.
 - Classic: **6128, Plus off, CRTC1**; DSC4 also sampled on CRTC0.
   Sync comparisons are recorded below. SHAKER version: **2.7**.

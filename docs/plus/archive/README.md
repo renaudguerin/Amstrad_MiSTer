@@ -33,3 +33,4 @@ obligations.
 - [B8-3 palette events](b8-3-palette-events-2026-09-08.md)
 - [B8-6 colour boundary](b8-6-colour-boundary-2026-09-08.md)
 - [D3 render timing closure](d3-render-timing-2026-09-11.md)
+- [Plus hardware-defect triage, 2026-09-01](hardware-defect-triage-2026-09-01.md): B13 lifecycle derivation, System CPR disk trace, sprite-X correction, screenshot classification and the OUT(C)/OUTD gap. Current positions live in `plus/architecture.md` §3 and the roadmap's P10f/P10g notes.

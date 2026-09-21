@@ -136,8 +136,8 @@ module crtc_type0_engine
 	output           r6_vder_write,
 	output           r6_vder_value,
 
-	// F10 interlace parity updates and C9.VMA view (ACCC v1.10 section
-	// 19.8.1 pp.219-220).  pf/pc9/parity_r6 write strobes drive the
+	// F10 interlace parity updates and C9.VMA view (ACCC v1.11 section
+	// 19.8.1 pp.220-221).  pf/pc9/parity_r6 write strobes drive the
 	// wrapper's shared flops; ivm_disp/line_vma feed the wrapper's RA mux.
 	output           pf_write,
 	output           pf_value,
@@ -154,35 +154,35 @@ module crtc_type0_engine
 wire register_write = ENABLE & ~nCS & ~R_nW & RS;
 
 // ------------------------------------------------------------------
-// F10: type-0 IVM counting (ACCC v1.10 section 19.8.1 pp.219-220; the
-// worked tables pp.221-224, render-verified 2026-08-24, all R9=6).
+// F10: type-0 IVM counting (ACCC v1.11 section 19.8.1 pp.220-221; the
+// worked tables pp.222-225, render-verified 2026-08-24, all R9=6).
 //
 // C9 keeps counting by 1; the address-visible line value is the split
 // C9.VMA = ((C9 x 2) + ParityC9) mod 32 ("the more significant bit is
-// lost", p.219).  The line-limit test has two independent IVM bits:
+// lost", p.220).  The line-limit test has two independent IVM bits:
 //
 //   value doubled  -- lines that started with IVM on (ivm_disp, latched
 //     at each C0=0 seam from the live R8 register: the doubled value and
 //     doubled test start "on the next C0=0, after the C9/R9 test of the
-//     line", p.219 -- so the switch line itself tests raw C9).
-//   target parity  -- "R9 or ParityFrame" on the switch line (p.219
-//     pseudocode), "R9 or ParityC9" on steady IVM lines (p.220), plain R9
-//     from the exit line on (parity dropped, p.220).
+//     line", p.220 -- so the switch line itself tests raw C9).
+//   target parity  -- "R9 or ParityFrame" on the switch line (p.220
+//     pseudocode), "R9 or ParityC9" on steady IVM lines (p.221), plain R9
+//     from the exit line on (parity dropped, p.221).
 //
-// The exit line keeps the doubled value against plain R9 (p.220 prose;
-// pp.223-224 tables), which is exactly value-doubled=1 with target
+// The exit line keeps the doubled value against plain R9 (p.221 prose;
+// pp.224-225 tables), which is exactly value-doubled=1 with target
 // parity=0 -- the same form the tables show.
 //
 // ParityC9 is seeded from ParityFrame when IVM turns on at a seam (the
 // tables' doubled display carries the frame parity from the first doubled
-// line on).  With even R9 it never changes afterwards: the p.219 row-end
+// line on).  With even R9 it never changes afterwards: the p.220 row-end
 // ParityC9 update is gated on R9 odd -- the printed token `If R9.0=0` was
 // adjudicated 2026-08-25 as a typo for `R9.0=1` (author question Q19 main
 // token, resolved by default reading; see accc-author-questions.md item 19
 // and finding F15).  With odd R9 the update is live (F15, implemented
 // 2026-08-26): ParityC9 := C4.0(new) xor ParityFrame at every IVM row end
 // and the frame parity at each origin, and the limit target becomes
-// R9 + (ParityC9 xor R9.0) -- the p.206 worked example's 5/4 line
+// R9 + (ParityC9 xor R9.0) -- the p.207 worked example's 5/4 line
 // alternation.  The section 19.5.2 VSYNC delay-by-1-line correction for
 // odd-C4 R7 on ParityFrame-odd frames is implemented with it (see the
 // vsync delay block below).  Q19(b) post-exit behavior remains out of
@@ -256,10 +256,10 @@ end
 // (the tables' doubled display parity from the first doubled line on).
 wire type0_ivm_turn_on = type0_seam && !ivm_disp_r && (R8_interlace == 2'b11);
 
-// F15: with R9 odd the p.219 row-end update re-derives the parity at every
+// F15: with R9 odd the p.220 row-end update re-derives the parity at every
 // IVM row end, ParityC9 := C4.0(new) xor ParityFrame (the pseudocode's
 // post-increment C4.0), and at a true frame origin the new frame's parity
-// (ParityR6 snapshot) -- the p.206 table's frame-start rows.  Even R9
+// (ParityR6 snapshot) -- the p.207 table's frame-start rows.  Even R9
 // leaves ParityC9 at its seeded value, exactly as before.
 wire type0_pc9_odd_update = R9_v_max_line[0] && ivm_disp_r &&
                             (pf_write || (row_new && !in_adj));
@@ -338,10 +338,10 @@ wire [4:0] crtc0_line_max = (in_adj ? (R5_v_total_adj - 1'd1) : R9_v_max_line);
 // The live IVM-aware line-limit comparison (evaluated at hcc_last by the
 // rollover's live path, and by the VSYNC row-end consumer).
 //
-// F15 (ACCC v1.10 section 19.5.2 pp.205-206, the rendered R9=7 worked
-// example; the p.219 row-end gate adjudicated as `If R9.0=1` in author
+// F15 (ACCC v1.11 section 19.5.2 pp.206-207, the rendered R9=7 worked
+// example; the p.220 row-end gate adjudicated as `If R9.0=1` in author
 // question Q19): the target is a 6-bit sum.  Switch line: raw C9 against
-// R9 + ParityFrame -- the p.219 prose and its overflow sentence ("If C9=R9
+// R9 + ParityFrame -- the p.220 prose and its overflow sentence ("If C9=R9
 // and the parity is odd, then the test C9=R9+1 is false") pin the addition
 // form.  Steady IVM lines: the row ends at the first C9.VMA at or past R9,
 // i.e. target R9 + (ParityC9 xor R9.0) -- odd-parity rows end exactly at
@@ -403,7 +403,7 @@ wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 
 assign line_new = hcc_last && !r0_frozen_w && !type0_r0_widen_accept;
 // F14: on the intercept edge the "line" that starts is the additional one;
-// its C9 continues the adjustment count to R5 (section 11.2 p.84).
+// its C9 continues the adjustment count to R5 (section 11.2 p.85).
 assign line_next = type0_add_intercept ? R5_v_total_adj :
                    type0_rollover_line_last ? 5'd0 : line + 5'd1;
 assign c5_next = 5'd0;
@@ -413,21 +413,21 @@ assign c5_next = 5'd0;
 // arbitration above, not from a magnitude special case.
 wire       row_last_w = (row == R4_v_total);
 wire       crtc0_row_frame_last = (row_last_r | in_adj) & ~type0_adjustment_selected;
-// F14 (ACCC v1.10 section 19.6.1 p.216; Q10 resolution in
+// F14 (ACCC v1.11 section 19.6.1 p.217; Q10 resolution in
 // accc-author-questions.md item 10): with an interlace mode active (R8=1 or
 // 3) and ParityR6 odd, one additional line is appended after the R5
 // adjustment lines -- directly after the last character row when R5=0 --
 // before the frame origin.  ParityR6 is captured when C4 reaches R6 and
-// freezes when R6>R4 (section 19.5.2 p.205), so the gate persists: a line
-// every frame if frozen odd, never if frozen even (section 19.6.1 p.216).
+// freezes when R6>R4 (section 19.5.2 p.206), so the gate persists: a line
+// every frame if frozen odd, never if frozen even (section 19.6.1 p.217).
 // C4 is incremented only once for the whole additional-lines period and
-// equals R4+1 there (section 19.6.1 p.216): the adjustment-entry increment
-// to R4+1 (section 11.2.2 p.81) already covers the R5 lines, so the
+// equals R4+1 there (section 19.6.1 p.217): the adjustment-entry increment
+// to R4+1 (section 11.2.2 p.82) already covers the R5 lines, so the
 // additional line holds C4=R4+1 and continues the adjustment count at
 // C9=R5 -- "the counting is done as if this line had been added to R5"
-// (section 11.2 p.84).  The frame origin (C4=C9=C0=0, ParityFrame snapshot,
+// (section 11.2 p.85).  The frame origin (C4=C9=C0=0, ParityFrame snapshot,
 // VMA reload) moves to the end of that line; its duration counts in the
-// following odd frame (section 19.3 p.199).
+// following odd frame (section 19.3 p.200).
 wire       type0_add_armed = R8_interlace[0] && parity_r6;
 reg        type0_add_line_active;
 wire       type0_frame_end_raw = row_new & crtc0_row_frame_last;
@@ -440,12 +440,12 @@ assign     row_next = type0_add_intercept ? (in_adj ? row : row + 7'd1) :
 assign     row_new = line_new & type0_rollover_row_last;
 wire       frame_new_w = row_new & row_frame_last;
 
-// Type-0 parity rules (section 19.5.2 p.205): ParityFrame snapshots
+// Type-0 parity rules (section 19.5.2 p.206): ParityFrame snapshots
 // ParityR6 at the frame origin (C4=C9=C0=0); ParityR6 captures
 // ParityFrame xor 1 when C4 reaches R6 -- independent of R8, frozen when
 // R6>R4 (the event then never fires).  The frame origin itself is excluded
 // from the R6 capture (same convention as the R6-border-condition
-// exclusion at C4=C9=C0=0).  The p.219 pseudocode's alternative frame-end
+// exclusion at C4=C9=C0=0).  The p.220 pseudocode's alternative frame-end
 // toggle (ParityFrame ^= ParityR6 when C4==R4) is equivalent to this
 // snapshot at the origin and is not duplicated here.
 assign pf_write  = frame_new_w;
@@ -458,15 +458,15 @@ wire       type0_r4_at_c0_write = register_write && addr == 5'd04 && hcc == 0;
 wire       type0_r9_at_c0_write = register_write && addr == 5'd09 && hcc == 0;
 wire       type0_r5_at_c0_write = type0_r5_write && hcc == 0;
 wire [6:0] type0_c0_r4 = type0_r4_at_c0_write ? DI[6:0] : R4_v_total;
-// ACCC v1.11 §12.2 (pp. 92–94): on CRTC 0, evaluating whether C9==R9 and
+// ACCC v1.11 §12.2 (pp. 93–95): on CRTC 0, evaluating whether C9==R9 and
 // C4==R4 at C0<2 uses the updated value if R4 or R9 is modified at C0<2
-// (unlike CRTC 2 §12.4.1 p.95 where R9 arrives too late for C0=0).
+// (unlike CRTC 2 §12.4.1 p.96 where R9 arrives too late for C0=0).
 wire [4:0] type0_c0_r9 = type0_r9_at_c0_write ? DI[4:0] : R9_v_max_line;
 wire [4:0] type0_c0_r5 = type0_r5_at_c0_write ? DI[4:0] : R5_v_total_adj;
 wire [4:0] type0_c0_adjust_line_max = (type0_c0_r5 - 1'd1);
 wire       type0_c0_zero_adj_entry = type0_zero_adj_entry & ~(type0_r5_at_c0_write & (|DI[4:0]));
 // The C0=0 seam evaluates `Last Line` against the effective (possibly
-// same-edge written) R4/R9 per section 12.2 p.92. Both are plain equalities:
+// same-edge written) R4/R9 per section 12.2 p.93. Both are plain equalities:
 // ordinary value that only matches a counter already at zero.  F10: the
 // seam forms the new line's IVM comparison from the live R8 register (the
 // mode that line will run) and the still-pending toggle status; with IVM
@@ -678,7 +678,7 @@ end
 // character at frame origin instead of latching a stable state.
 assign vde_toggle = !CRTC_TYPE && row == 0 && line == 0 && R6_v_displayed == 0;
 
-// F15 (ACCC v1.10 section 19.5.2 pp.205-206): with R9 odd (the balancing
+// F15 (ACCC v1.11 section 19.5.2 pp.206-207): with R9 odd (the balancing
 // scheme active) and R7 on an odd C4, the ParityFrame-odd frame delays the
 // VSYNC by one line -- it fires at the second line of C4=R7, where
 // C9.VMA=2, so the pulse lands at the same physical line offset on both

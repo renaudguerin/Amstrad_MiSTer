@@ -2,7 +2,7 @@
 
 **Integrated from accepted task tip `c1d2add` on 2026-09-08.**
 The source-local evidence below predates integration; CI/artifact status is
-reported separately in `docs/current-status.md`.
+reported separately in `docs/archive/current-status-history-2026-09-21.md`.
 Accuracy source commit `8c292487ba7aff881fc136884fde990907357991`, based on
 `d46609d066aafb6b182fd6fa504a91719500cd91`; shared build-only gate delta `d52152a`.
 The type engines now retain qualified R5/R0 write events across the interval

@@ -10,7 +10,7 @@ French ACCC v1.11 section 4.2 p.18 says that the U.S. ROM's R5=6 makes a
 the same scanline as the CRTC VSYNC start, but before it. The English p.18 says
 not the same line and is the edition error tracked as BL-005.
 
-French section 27.6.1 pp.285-286 is a separate timing anchor: the Gate Array
+French section 27.6.1 p.286 is a separate timing anchor: the Gate Array
 counts the CRTC's end of HSYNC, and an interrupt request generally starts about
 1 us after that end. These passages do not provide a complete U.S.-ROM boot
 chronogram or an exact register-and-reset fixture for reconstructing the

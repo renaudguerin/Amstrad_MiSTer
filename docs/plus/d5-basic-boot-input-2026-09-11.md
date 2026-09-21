@@ -103,4 +103,4 @@ and real hardware are outside this fixture. Separately, the September 12
 user report confirms BASIC boot fixed on 6128 Plus / `5c16b17`; empty-drive
 and exact cartridge details were not supplied. The complete model/cartridge
 matrix and disk I/O remain open. See
-[current status](../current-status.md) for integration and build provenance.
+[status history](../archive/current-status-history-2026-09-21.md) for integration and build provenance.

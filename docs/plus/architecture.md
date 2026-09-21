@@ -119,6 +119,39 @@ consume it today, and delete no classic code).
 - **ACID**: not emulated, per universal emulator practice (reference §11) — CPR pages load
   and run unconditionally.
 
+### Reset tiers and classic expansion-cartridge ownership (B13)
+
+Classic expansion state survives runtime resets on purpose; Plus mode isolates it instead of
+clearing it.
+
+- `rom_map` is initialized only at FPGA configuration and gains bits on classic ROM downloads,
+  so it persists across every runtime reset. It cannot reach Plus mode:
+  `rtl/Amstrad_motherboard.v` forces the classic `Amstrad_MMU` ROM-enable input inactive, and
+  `plus_mmu` owns the CPR windows. Clearing it on a CPR or ordinary reset would be a
+  speculative fix and would eject classic expansion ROMs that should survive a soft reset.
+- `dan_eeprom_loaded` likewise survives ordinary reset and CPR apply. `plus_legacy_cart_gate`
+  withholds Dandanator SDRAM ownership whenever `plus_mode` is selected, without clearing the
+  image, so switching back to classic makes the loaded cartridge available again, as a soft
+  reset would on hardware. Withholding Dandanator in every Plus model is an implementation
+  capability policy: Arnold's general expansion-ROM/ROMDIS priority rule does not establish
+  Dandanator compatibility, so real-hardware support is a separate question.
+
+| Boundary | `rom_map` | Dandanator image | Plus bus ownership |
+|---|---|---|---|
+| FPGA configuration | Cleared, then boot ROM pages are registered | Cleared | None until selected |
+| Classic soft/menu/key reset | Preserved | Preserved | Classic device may resume |
+| Classic ROM download | Adds the downloaded page | Preserved | Classic device may resume |
+| SNA apply | Preserved; used only by the classic MMU | Preserved | Follows the currently selected machine; the SNA does not select it |
+| CPR download/apply reset | Preserved but unreachable from Plus cartridge reads | Preserved | Classic Dandanator ownership suppressed |
+| Plus/classic model switch | Preserved | Preserved | Combinatorially follows the selected machine |
+| Explicit Dandanator detach (`status[32]`) | Preserved | Cleared | Released |
+
+Plus/classic selection comes from the OSD model setting, not from the CPR artifact. The
+ownership gate has a focused lifecycle regression. It does not explain the Navy Seals
+black-screen report (no Dandanator was loaded; the cause remains unassigned). The derivation
+and failing-first evidence are in the
+[2026-09-01 triage record](archive/hardware-defect-triage-2026-09-01.md).
+
 ### Cartridge SDRAM contract (P-1)
 
 Cartridge bytes occupy SDRAM bank 3, byte addresses `0x080000..0x0fffff`. The cartridge
@@ -141,7 +174,7 @@ so the classic client behavior and SDRAM map are unchanged.
 
 ### CPR parser policy (P0 decisions)
 
-Recorded against review `cd47d7d` observations (review-debt action item A5); the parser is
+Recorded against review `cd47d7d` observations (review-debt action item A5, `docs/archive/review-debt-cleared.md`); the parser is
 fail-closed untrusted-input handling and these decisions keep it that way.
 
 - **Oversized `cbNN` chunks abort the load.** A block chunk declaring more than one
@@ -445,28 +478,28 @@ The pre-P0 and P0 packages are:
   execution, I/O, FDC, and video integration.
 - P1.1 **complete** — `rtl/plus/asic_video.v` skeleton: type-3 register storage with
   full-index write decode (§28.1.9) and the C0/HCC counter with live R0 equality;
-  any-R0 acceptance (§13.5 p.121). The exact lowered-R0 eight-bit sequence in t01e is
+  any-R0 acceptance (§13.5 p.122). The exact lowered-R0 eight-bit sequence in t01e is
   retained as an explicitly unverified P1 model assumption, not a direct ACCC chronogram.
   Vectors t01a-t01e
 - P1.2 **complete** — vertical chain: C9 completion via >=R9 so a lowered R9 forces
-  next-C9=0 (§10.3.4 p.77), C4 overflow on a lowered R4 (§12.5 p.101), adjustment entry
+  next-C9=0 (§10.3.4 p.78), C4 overflow on a lowered R4 (§12.5 p.102), adjustment entry
   freezing C4 at R4 (§11.2.6), R5-length management with live shrink/grow (§11.3.3).
   Counter taps LINE(C4)/ROW(C9)/ADJ exposed for the later PRI/sprite consumers.
   Vectors t02a-t02g
 - P1.3 **complete** — video pointer and display enable: two-stage {R12,R13}→VMA'→VMA
-  with the type-3 reload condition C4=0 ∧ C0=0 and no C9 term (§20.3.4 p.243),
+  with the type-3 reload condition C4=0 ∧ C0=0 and no C9 term (§20.3.4 p.244),
   row-end capture at C0=R1 ∧ C9=R9 suppressed during adjustment (§11.2.6), frozen-row
   repetition without spurious border for R1>R0 (§17.2, §17.6.2/§19.2.4), the R1==R0
   one-character blip plus simultaneous VMA' save/reload at the row boundary (§17.1,
   §17.6.1), line-start-only R6 testing (§18.2.4), SKEW-DISPTMG delay/BORDER ON (§19.2).
   Vectors t03a-t03g
 - P1.4 **complete** — sync generation: HSYNC visible during character R2 with live-nibble
-  width semantics and bounded R3l=0 → 16 (§14.5, §15.2.2), the §15.3.1 live end/start
-  collision (including the CRTC3 R2 rewrite chronogram in §15.3.5 p.151), and the
+  width semantics and bounded R3l=0 → 16 (§14.6, §15.2.2), the §15.3.1 live end/start
+  collision (including the CRTC3 R2 rewrite chronogram in §15.3.5 p.152), and the
   R0=0/R2=0/R3l=1 §15.3.2 infinite HSYNC; VSYNC gate
   C4=R7 ∧ C9=C0=0 at line starts only, R3h line widths 0 → 16 (§14.2), same-edge renewal
   with no re-entrancy protection (§16.4.4). The choice to suppress an end/start collision
-  when R3l=0 is an explicitly unverified model assumption: §14.5 establishes the bounded
+  when R3l=0 is an explicitly unverified model assumption: §14.6 establishes the bounded
   16-character width, not that collision boundary. Vector t04i pins the current choice
   pending a direct rule, Logon observation, or hardware capture. Vectors t04a-t04i
 - P5.1 **complete** — `asic_video` implements the ACCC v1.10 §21.2.3
