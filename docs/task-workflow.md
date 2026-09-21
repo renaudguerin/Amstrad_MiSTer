@@ -52,7 +52,7 @@ requested name. Never reset an existing branch to implement this naming conventi
 
 Tracked references arrive through Git under `docs/specs/`. During start:
 1. Ensure the ignored `local` symlink points to the main clone's `local/` directory (`ln -sf "$(git rev-parse --git-common-dir)/../local" local` and `ln -sf local/test_media test_media`). This gives every worktree instant access to private notes, blog drafts, and copyrighted test media without file copying.
-2. Copy any missing ACCC PDFs from an existing checkout into the assigned worktree's `docs/specs/` directory using ordinary `mkdir -p` and `cp`. The two filenames are `ACCC1.11-FR.pdf` and `ACCC1.11-EN.pdf`.
+2. Copy any missing ACCC PDFs from the main checkout's ignored `local/accc/` into the assigned worktree's `docs/specs/` directory using ordinary `mkdir -p` and `cp`. The two filenames are `ACCC1.11-FR.pdf` and `ACCC1.11-EN.pdf` (the 2026-09-11 re-issue; hashes in `docs/classic/extract/README.md`).
 Leave existing copies alone. Use real copies so sandboxed workers can read them without access to another checkout. The originals remain ignored and must not be committed.
 
 This is routine local setup: no copy-time hash checks, manifest, custom helper or dedicated
