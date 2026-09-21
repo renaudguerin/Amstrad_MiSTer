@@ -3,8 +3,8 @@
 ## Build and evidence
 
 Renaud tested `Amstrad_20260908_ce1d2da.rbf`. The original
-[report](screenshots/testing_0909/README.txt) and 26 PNG captures are preserved
-unchanged in [testing_0909](screenshots/testing_0909/).
+[report](../../../local/captures/testing_0909/README.txt) and 26 PNG captures are preserved
+unchanged in [testing_0909](../../../local/captures/testing_0909/) (ignored `local/captures/`, main checkout).
 
 - Source: `ce1d2da67c2598c0dd06208b9fc14c52ada01712`.
 - Retained local RBF SHA-256, rechecked on September 9:

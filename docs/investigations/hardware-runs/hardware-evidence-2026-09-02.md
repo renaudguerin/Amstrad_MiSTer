@@ -27,7 +27,7 @@ captures. A Full/Off comparison was not reported.
 
 - Named build commit: `84e69694fa42a24201630daa5b3ca01c1f6673c0`.
 - Retained local artifact:
-  [`Amstrad_20260901_84e6969.rbf`](../../../output_files/Amstrad-local-build-12-1-full/Amstrad_20260901_84e6969.rbf).
+  `output_files/Amstrad-local-build-12-1-full/Amstrad_20260901_84e6969.rbf` (ignored; no longer present in the main checkout as of 2026-09-21).
 - Local SHA-256, independently read on 2026-09-02:
   `5787f6b8ed05ee8b9ad56506aa38b63be7c0e5b33de0c7a6c1860758d52f5cbf`.
   This identifies the retained file; the device copy was not independently hashed.

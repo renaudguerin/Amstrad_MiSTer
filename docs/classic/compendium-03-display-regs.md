@@ -1,7 +1,7 @@
 # ACCC v1.11 Digest 03 — Display Registers (R1, R6, R8), Video Pointer (R12/R13), Read Registers, CRTC/CPC ID
 
-Primary source: ["The Amstrad CPC CRTC Compendium" v1.11 French edition](../references/ACCC1.11-FR.pdf#page=177),
-chapters 17–22 and 28–29. The [English edition](../references/ACCC1.11-EN.pdf#page=175) is a
+Primary source: ["The Amstrad CPC CRTC Compendium" v1.11 French edition](../specs/ACCC1.11-FR.pdf#page=177),
+chapters 17–22 and 28–29. The [English edition](../specs/ACCC1.11-EN.pdf#page=175) is a
 working translation; see the [bilingual ledger](accc-1.11-fr-en-differences.md).
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot (CC BY-NC-ND).
 Scope: **CRTC type 0 (HD6845S/UM6845) and type 1 (UM6845R) only.** CRTC 2/3/4 behavior is

@@ -1,7 +1,7 @@
 # ACCC v1.11 Digest 02 — CRTC Sync Rules (R3, R2, R7, Interrupts; Chapters 14–16, 27)
 
-Primary source: ["The Amstrad CPC CRTC Compendium" v1.11 French edition](../references/ACCC1.11-FR.pdf#page=132),
-chapters 14–16 and 27. The [English edition](../references/ACCC1.11-EN.pdf#page=130) is a
+Primary source: ["The Amstrad CPC CRTC Compendium" v1.11 French edition](../specs/ACCC1.11-FR.pdf#page=132),
+chapters 14–16 and 27. The [English edition](../specs/ACCC1.11-EN.pdf#page=130) is a
 working translation; see the [bilingual ledger](accc-1.11-fr-en-differences.md).
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot (CC BY-NC-ND).
 Scope: **CRTC type 0 (HD6845S/UM6845) and type 1 (UM6845R) only.** Type 2/3/4 contrasts are marked
