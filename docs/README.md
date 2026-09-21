@@ -26,10 +26,10 @@ Development is split into two strictly separated behavioral streams:
 ## 3. Project Management & Workflow
 
 - **Status & Roadmap**:
-  - [`current-status.md`](current-status.md): Current hardware-test milestones and handoff state.
+  - [`current-status.md`](current-status.md): Current handoff state per stream, open hardware residuals, latest artifact.
   - [`implementation-roadmap.md`](implementation-roadmap.md): Strategic dependency order and acceptance gates.
   - [`backlog.md`](backlog.md): Prioritized architectural, observability, and structural debt items (B1–B20).
-  - [`review-debt.md`](review-debt.md): Cross-provider review debt and required verifications.
+  - [`review-debt.md`](review-debt.md): Open cross-provider review debt; cleared rows are in [`archive/`](archive/).
 - **Build & Infrastructure**:
   - [`building.md`](building.md): Verilator simulation, local compilation, and Quartus setup.
   - [`ci-testing-policy.md`](ci-testing-policy.md): GitHub Actions simulation matrix, runner tiers, and synthesis policy.
@@ -81,6 +81,8 @@ docs/
 │   └── archive/                  # Settled investigation reviews, handoffs & evidence logs
 │
 ├── plans/                        # Dated execution plans; several hold locked decisions still cited
+│
+├── archive/                      # Superseded top-level ledgers: status history, cleared review debt
 │
 └── issues/                       # Structured markdown issue tickets (linked to backlog)
 ```

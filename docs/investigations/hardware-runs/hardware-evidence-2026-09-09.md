@@ -12,7 +12,7 @@ unchanged in [testing_0909](screenshots/testing_0909/).
   The device copy was not independently hashed.
 - Build record: full local Quartus 17.0.2, run `34228275825`, constrained
   setup +0.098 ns / hold +0.238 ns, zero TNS; 27 input and 90 output ports
-  remain unconstrained. See [artifact provenance](../../current-status.md).
+  remain unconstrained. See [artifact provenance](../../archive/current-status-history-2026-09-21.md).
 - Plus: **6128 Plus, Live blanking**, unless stated otherwise.
 - Classic: **6128, Plus off, CRTC1**; DSC4 also sampled on CRTC0.
   Sync comparisons are recorded below. SHAKER version: **2.7**.

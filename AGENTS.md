@@ -14,7 +14,7 @@ Start from:
   harnesses, structural debt) that sit underneath feature work; several roadmap items are
   blocked by them in ways the roadmap does not show
 - `docs/implementation-roadmap.md` — dependency order and acceptance gates
-- `docs/current-status.md` — handoff state, hardware-test milestones
+- `docs/current-status.md` — handoff state per stream, open hardware residuals, latest artifact
 - `docs/classic/audit-findings.md` — numbered findings F1–F12 (symlinked from `docs/accuracy/`)
 
 ## Proportionate engineering

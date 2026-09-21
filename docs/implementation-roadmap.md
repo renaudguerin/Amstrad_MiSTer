@@ -65,7 +65,7 @@ merged into the same behavioral PR.
 - Latest synthesized integration source `5c16b17` passed full-effort Quartus
   17.0.2, simulation and the required gate in run `34570572190`; setup
   +0.320 ns, hold +0.247 ns, zero TNS. The delivered RBF and hash are recorded
-  in [current status](current-status.md). `013c7e5` adds documentation only.
+  in the [status history](archive/current-status-history-2026-09-21.md). `013c7e5` adds documentation only.
   Earlier B8 artifacts retain their own source identity as comparison baselines.
 - `sim/` currently reports **225** required classic CRTC passes with no expected failures
   plus 45 production-GA/scripted-write cases (B8-1, Verilator 5.052); the soak
@@ -97,7 +97,8 @@ merged into the same behavioral PR.
 
 The current branch is a useful staging branch, not a requirement to publish one large PR.
 The commits may be rearranged into the small sequences below before publication.
-See `current-status.md` for the exact handoff and real-hardware checklist.
+See `current-status.md` for the current handoff and open hardware residuals, and
+`plus/hardware-test-checklist.md` for the Plus retest matrix.
 
 ## 2. Integration rules
 
@@ -515,7 +516,7 @@ and hardware retest remain. No separate upstream utilization build was required.
 locally integrated at `e391e13`; B6's reviewed rendering follow-up was
 refreshed to `9849b9a` and merged against that exact destination. The
 complete destination simulation, lint and canonical soak pass; the
-integration is published at `9ee710c`. Exact-SHA CI is recorded in current status. Preserve the
+integration is published at `9ee710c`. Exact-SHA CI is recorded in the [status history](archive/current-status-history-2026-09-21.md). Preserve the
 [B6 evidence limits](investigations/archive/b6-video-boundary-review-2026-09-11.md#rendering-completion-follow-up-2026-09-12)
 and [B2 device limits](investigations/hardware-runs/b2-device-capture-2026-09-12.md), including unobserved
 active OSD mode and unestablished CPU-generated stuck-high sync. The
@@ -531,7 +532,7 @@ RGB/metadata alignment, plus B8-2 selected FIELD ownership, are integrated;
 B8-4 retained video-word coherence is also integrated. Do not restart those
 implementations.
 Their successful simulation and Quartus artifact do not close hardware symptoms.
-See [current status](current-status.md) for accepted source and artifact identities.
+See the [status history](archive/current-status-history-2026-09-21.md) for accepted source and artifact identities.
 
 1. **Plus validation:** B8-2 FIELD ownership and B8-3 accepted palette-write
    events are integrated separately from `55151a0` and `807f081`. Full ASCAL,
