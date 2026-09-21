@@ -1451,7 +1451,8 @@ Amstrad_motherboard motherboard
 	// to the single core video stream, so HDMI acquisition can become
 	// unusable there.  The motherboard commits a changed selection at a safe
 	// byte phase and reports it back as raw_crt.  See
-	// docs/b6-video-boundary.md and docs/backlog.md B1.
+	// docs/investigations/video-boundary/b6-video-boundary.md and
+	// docs/backlog.md B1.
 	.sync_filter(status[36:35]),
 	.raw_crt(raw_crt),
 	.pixel_vblank(pixel_vblank),
