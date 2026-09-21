@@ -1338,7 +1338,7 @@ void t04j_ivm_mid_vsync_and_odd_frame_delay(TestBench& test) {
     test.run_characters(1);
     test.expect_hcc("t04j MID-VSYNC horizontal phase", 31);
     test.expect_vsync("t04j even frame fires at C0=R0/2", true);
-    // ACCC v1.11 §16.1 p.160 (FR p.160) counts R3h lines at C0=0 even when the
+    // ACCC v1.11 §16.1 p.160 (FR p.161) counts R3h lines at C0=0 even when the
     // interlace rule moved only the start to mid-line.  R3h=1 therefore
     // ends at the immediately following seam, not at the next midpoint.
     test.run_characters(32);
@@ -1438,7 +1438,7 @@ void t04l_r7_r4_adjustment_and_interlace_line_seams(TestBench& test) {
     // vector pins the source-backed even-frame added-line seam only.
 }
 
-// ACCC v1.11 §16.1 p.160 (FR p.160): C3h advances at C0=0.  With R3h=2, a pulse
+// ACCC v1.11 §16.1 p.160 (FR p.161): C3h advances at C0=0.  With R3h=2, a pulse
 // starting at C0=R0/2 remains high across the first seam and ends at the
 // second seam.  §19.3.4 pp.202-203 (FR pp.202-203) makes interlace management live, so an
 // R8 exit before the pending midpoint must cancel that scheduled start.

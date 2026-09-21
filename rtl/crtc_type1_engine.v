@@ -157,9 +157,9 @@ wire r8_toggle_write = r8_write_hit & ((DI[1:0] == 2'b11) != ivm);
 wire stage_a_edge = CLKEN && tog_stage == 2'd1;
 wire stage_b_edge = CLKEN && tog_stage == 2'd2;
 
-// Stage A (3rd us, p.209): the parity of the new C9 is the current C9.0
+// Stage A (3rd us, p.210): the parity of the new C9 is the current C9.0
 // xor, when R9 is even, C4.0 -- and C9.0 takes that value immediately, in
-// BOTH directions.  p.209 states the 3rd-us rule once ("when R8 changes
+// BOTH directions.  p.210 states the 3rd-us rule once ("when R8 changes
 // from 3 to 0 or vice versa") and the leaving 4th-us rule is only
 // ParityFrame = ParityC9; the four X=1 panels (4(D), 2(B), 12(L), 1(A))
 // draw C9.0 changing in the leaving write's 3rd-us column, one character
@@ -167,7 +167,7 @@ wire stage_b_edge = CLKEN && tog_stage == 2'd2;
 wire stage_a_x = row[0] & ~R9_v_max_line[0];
 wire stage_a_pc9 = line[0] ^ stage_a_x;
 
-// Stage B (4th us, p.209).  Entering IVM: an even ParityFrame re-points
+// Stage B (4th us, p.210).  Entering IVM: an even ParityFrame re-points
 // ParityC9 at C4.0-and-not-R9.0, then ParityFrame := ParityFrame and
 // (ParityC9 xor X); for an odd ParityFrame the formula reduces to the old
 // C9.0 -- the documented "changes to even, except when ParityFrame and
