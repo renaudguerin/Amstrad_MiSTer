@@ -20,8 +20,8 @@ them.
 
 ## B19. Plus DCSR bit 7 reports raster on a DMA acknowledge (Copter 271 title flash)
 
-**Fixed in simulation and integrated into `master` 2026-09-13; device
-acceptance open.** On `c595031`, Copter 271's title
+**Fixed and hardware-confirmed on build `88262b9`, 2026-09-14.** The original
+repair and subsequent residual are recorded below. On `c595031`, Copter 271's title
 flashes for one frame every 5-10 s: the sky under the logo is drawn with the
 logo palette (white/orange/red bands), then the next frame is correct. AmSpirit
 does not show it. Frame captures: `local/test_media/defects/copter271/screenshot1-5.png` (ignored, main checkout)
@@ -79,11 +79,11 @@ Reviewed by Claude Opus 5 (CLEAR). Deterministic vector `pr07` in `sim/plus/asic
 dynamic calibration, DMA ack, prior raster ack, and negative control. Classic `pri == 0` lockstep
 with `ga40010` is preserved (when `intack = 0`).
 
-The active work is **B2 device capture** (`root@mister`, user reports online),
-**B6 diagnostic/final-RGB gaps**, and **actual source-review gap closure**.
-Keep one device operator, preserve Classic/Plus result separation, and require
-fresh cross-provider review for new non-trivial changes. Existing D1/D6 and
-D3-D5 repairs are integrated and must not be restarted from older notes.
+The active queue is [roadmap section 8](implementation-roadmap.md#8-immediate-execution-queue).
+B2 capture and B6 rendering are integrated; retain their hardware/evidence residuals.
+Establish device reachability before B17 or Sonic GX work and use AmSpirit where possible.
+Keep one device operator and preserve Classic/Plus result separation. Existing D1/D6,
+D3-D5 and B19 repairs must not be restarted from older notes.
 
 
 ## Why this file exists

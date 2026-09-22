@@ -155,9 +155,11 @@ entries); the SNA alone hangs the machine. Plus model must be set in the CFG
 beforehand: the core ignores the SNA header's model byte (`0x6D`) and the
 `CPC+` chunk for that purpose, and a CPR does not select it either (backlog B16).
 
-MiSTer-side snapshot *saving* is under development on a parallel branch (not
-ready; this design neither depends on it nor touches it). If that lands, the
-reverse direction needs its own acceptance — it is not covered by this one.
+MiSTer-side classic snapshot saving (B18) is now integrated as a development tool
+requiring an SSH pull. A 6128 save resumed in this core and AmSpirit on September 14;
+see [the B18 design](../../b18-sna-save.md). That result does not establish Plus
+save support or complete state equivalence. Automated capture/round-trip acceptance
+remains open and is separate from this AmSpirit-to-MiSTer pilot.
 
 ## 4. Corrections and contracts adopted while writing
 

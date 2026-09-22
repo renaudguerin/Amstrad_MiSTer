@@ -12,7 +12,8 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **`master` is at `9bced4a`** (2026-09-21, documentation archive merge). CI run
+- **Latest recorded integration:** `82dd2a8` (2026-09-21, current-state docs and ACCC
+  re-issue migration). **Latest recorded synthesized artifact:** `9bced4a`. CI run
   [35600935342](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35600935342)
   passed all required jobs, including full-effort hosted synthesis. Its RBF is
   `output_files/Amstrad_20260921_9bced4a.rbf` in the main checkout (ignored), SHA-256

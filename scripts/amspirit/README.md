@@ -13,6 +13,25 @@ AmSpirit build does, never whether the core is correct.
 Python 3 standard library only. AmSpirit must run on the same host for `snapshot` and `run`,
 because the SNA is copied from AmSpirit's local script directory.
 
+## Starting a debugging session
+
+Start AmSpirit lite with its HTTP server enabled (`--web-server`; the pilot used lite
+1.15.1), then run `python3 scripts/amspirit/amspirit.py identity`. Use `--url` before the
+subcommand for a different address. The helper connects to an existing instance; it does
+not start the emulator. For joint device work, separately check SSH access to `root@mister`.
+B17 and Sonic GX device work require that device connection; use AmSpirit where available.
+
+The [Copter pilot](../../docs/investigations/hardware-runs/amspirit-oracle-pilot-2026-09-13.md)
+proved an automated AmSpirit checkpoint and its continuation on MiSTer after loading the
+CPR first. It did not establish an unattended end-to-end comparison loop. To build one for
+a new defect, reuse the two drivers with a common case/media identity, define the checkpoint
+and expected visual difference, validate snapshot continuation (or input replay), then repeat
+capture after a candidate fix. MiSTer joystick injection remains a B17 prerequisite for
+cases needing it. Frame counters on the two systems do not identify the same instant, and
+scaler-versus-emulator images need deliberate geometry/colour interpretation rather than a
+blind pixel-equality verdict. Confirm consequential timing conclusions against hardware or
+the documented rule; emulator agreement alone is not correctness.
+
 ## Commands
 
 ```sh
