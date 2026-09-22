@@ -16,7 +16,7 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   behavior/test files exactly to `0e92c9c`, retaining the P8 test-selection
   dependency. The restore passes four selected benches and fresh Opus review;
   its integration build `0601050` passes all required CI jobs. DMA PAUSE candidate `190f4d3`, integrated at
-  `a137d48`, is **rejected after a matched hardware regression**: it passed
+  `a137d48`, **failed hardware acceptance as integrated**: it passed
   simulation, review and synthesis, but no longer reached Sonic gameplay in
   the matched input sequence. PRI and interrupt vector logic are unchanged.
 - **Latest timing-clean artifact:** restored baseline `0601050` (2026-09-22).
@@ -25,9 +25,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   SHA-256 `66b8d72fa1b67a6535ba07a4d9118c9998f833a4bbe89a1339d02eb4d25fa7fd`.
   Full fit: 23,792 ALMs (57%); setup/hold minima +0.580/+0.191 ns, zero TNS.
   This restored artifact has not itself been retested on hardware. Candidate
-  `a137d48` is rejected despite its timing closure; see the
+  `a137d48` remains experimental despite its timing closure; see the
   [matched device evidence](investigations/sonic/hardware-loop-2026-09-22.md).
-- **Latest hardware-tested builds:** `a137d48` (Sonic regression, rejected),
+- **Latest hardware-tested builds:** `a137d48` (Sonic progression regression; experimental),
   `c59e03a` (Sonic baseline still corrupt but reaches gameplay),
   `88262b9` (Copter 271 title flash fixed) and `a0778b6` (PSG R7 reset;
   keyboard and joystick fixed). B18 SNA save was tested on branch RBF `0608653`.
@@ -69,7 +69,8 @@ capture each screenshot family needs before any RTL change, and the named model 
 (sprite `+3` mirror, coordinate formula, PRI offset, lowered R0, R3-low collision, pixel phase)
 stay assumptions until a source or hardware discriminator settles them. B19's residual
 fix is hardware-confirmed at `88262b9`; the subsequent Sonic DMA PAUSE candidate
-was rejected and its behavior restored in `b0e5bed` as described above.
+failed hardware acceptance and its behavior was restored in `b0e5bed`. Its
+measured partial cadence improvement remains worth isolating, as described below.
 
 **Hardware-confirmed:** 6128 Plus BASIC boot (`5c16b17`); Copter 271 logo palette (PRI line
 compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` input
@@ -87,8 +88,14 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   candidate passes four selected benches, review and timing, and its production-T80
   trace gives eight-line intervals. **Hardware acceptance failed:** matched early
   and later fire reaches gameplay on `c59e03a`, while `a137d48` stays on a severely
-  corrupt title. `b0e5bed` restores the baseline behavior. The short trace does not
-  establish full-frame phase or split deadlines. PRI and IRQ vector logic are unchanged.
+  corrupt title. `b0e5bed` restores the baseline behavior. The later
+  [full-frame discriminator](investigations/sonic/phase-discriminator-2026-09-22.md)
+  measures a partial timing gain: list recurrence improves from 336 to 313 lines,
+  versus 312 in fresh AmSpirit normal boot. Both simulated builds reach the final
+  handler wait loop and rearm; the candidate still misses split captures in the
+  bounded window. Retain it as an experiment, not the default. Next isolate the
+  final-INT/CPU-rearm/HSYNC boundary; paired device input controls remain open.
+  PRI and IRQ vector logic are unchanged.
 - Left-edge sprite corruption is much improved, perhaps fixed; closure is open. Navy Seals
   left-edge sprite flicker remains; its black-screen report was not reproduced and has no
   assigned cause.

@@ -423,14 +423,16 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 reachable AmSpirit instance where possible. This is a task-start check, not an assumption
 that a previously online device remains available. Keep one device operator.
 
-- **Sonic GX (Plus):** DMA PAUSE candidate `a137d48` is rejected; `b0e5bed`
-  restores baseline behavior. The candidate matches AmSpirit's eight-line
-  relative cadence and passes simulation/timing, but matched hardware inputs
-  reach gameplay only on baseline `c59e03a`. Sonic remains unresolved. The next
-  discriminator is a matched full title-frame trace through DMA enable, final
-  handler and next-frame split writes; the present ten-acknowledgement trace
-  does not establish those phase/deadline relationships. No new RTL fix is justified yet.
-  See the [evidence and acceptance boundary](investigations/sonic/hardware-loop-2026-09-22.md).
+- **Sonic GX (Plus):** DMA PAUSE candidate `a137d48` failed hardware acceptance
+  as integrated; `b0e5bed` remains the conservative restored default. The
+  [full-frame discriminator](investigations/sonic/phase-discriminator-2026-09-22.md)
+  establishes partial timing improvement: list recurrence 336 → 313 scanlines,
+  versus 312 in fresh AmSpirit normal boot. Both simulated builds reach the
+  final wait loop and rearm, but candidate split captures still miss in the
+  bounded window. Next isolate final INT, CPU rearm and the next HSYNC/fetch
+  boundary before assigning a new ASIC defect. Paired scene-verified no-input
+  and sustained-fire device controls remain open. Retain the experiment for
+  further isolation; its progression regression does not negate the component gain.
   Use B2 capture and the [AmSpirit helper](../scripts/amspirit/README.md).
   Copter 271 gameplay scrolling remains separate; its title flash is hardware-confirmed fixed.
 - **B17 (general):** bounded timed keyboard replay and Sonic fire through Main keyboard
