@@ -8,7 +8,9 @@ out = root / 'sim/plus/obj_dir/d5_sources'
 out.mkdir(parents=True, exist_ok=True)
 s = (root / 'sim/plus/p10_boot_test_top.v').read_text()
 s = s.replace('input             clk,', 'input [10:0] d5_key,\n\toutput [7:0] d5_romsel,\n\toutput [7:0] d5_a,\n\tinput             clk,', 1)
-s = s.replace(".ps2_key(11'd0)", '.ps2_key(d5_key)').replace(".no_wait(1'b1)", ".no_wait(1'b0)")
+s = s.replace(".ps2_key(11'd0)", '.ps2_key(d5_key)').replace(".no_wait(~production_wait)", ".no_wait(1'b0)")
+if s.count(".no_wait(1'b0)") != 1:
+    raise SystemExit('P10 no_wait fixture wiring changed; update adapter')
 s = s.replace('mb.CPU.cen_n', 'mb.CPU.CEN_n').replace('mb.CPU.cen_p;', 'mb.CPU.CEN_p;').replace('mb.CPU.wait_n', 'mb.CPU.WAIT_n')
 s = s.replace('mb.CPU.u0.tstate', 'mb.CPU.tstate').replace('mb.CPU.u0.mc_max', 'mb.CPU.u0.mcycles')
 s = s.replace('endmodule', 'assign d5_romsel = mmu.romsel;\nassign d5_a = mb.CPU.REG[7:0];\nendmodule', 1)

@@ -49,10 +49,14 @@
 // 64 MHz) and other read data one CEN_n later still, i.e. at least eleven
 // clocks after the grant, after the byte is on cart_dout. A read the SDRAM
 // has not yet admitted (refresh or another client holding the slot) keeps
-// the stall, so contention stays safe. cart_dout is captured one edge after cart_ready because the service
+// the stall, so contention stays safe.
+//
+// cart_dout is captured one edge after cart_ready because the service
 // registers data and completion on the same edge. A watchdog releases the
-// stall with open-bus FF if no answer ever arrives once the cartridge service
-// is quiescent, so a wedged backend cannot hang the machine. A legitimate
+// stall with open-bus FF if the read is never admitted once the cartridge
+// service is quiescent, so a wedged backend cannot hang the machine. After a
+// grant the stall is already down: the watchdog then only ends the logical
+// cycle, and correctness relies on sdram.v completing every admitted slot. A legitimate
 // atomic load resets that watchdog and may hold the CPU until publication.
 // Dropping cart_valid explicitly cancels the logical
 // request; the service drains any physical SDRAM request without returning its
