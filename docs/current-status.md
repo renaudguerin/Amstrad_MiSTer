@@ -41,7 +41,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   `output_files/reports-cdcb3c3/`. This artifact has not been hardware-tested.
   Candidate `a137d48` remains experimental; its progression failure and partial
   timing gain are preserved in the [rearm record](investigations/sonic/rearm-boundary-2026-09-22.md).
-- **Latest hardware-tested builds:** `95e6f56` (Classic SHAKER partial acceptance),
+- **Latest hardware-tested builds:** `64702ac` (B20-7 DMA terminal-PAUSE resurrection;
+  Sonic title screen 100% coherent without displaced bands; attract and player gameplay
+  progression confirmed; six regression titles clean),
+  `ef8da61` (master baseline with cartridge stall fix `03f4724`; tested in parallel with `64702ac`),
+  `95e6f56` (Classic SHAKER partial acceptance),
   `0601050` (Classic B9/type1 first page only),
   `a137d48` (Sonic progression regression; experimental),
   `c59e03a` (Sonic baseline still corrupt but reaches gameplay),
@@ -123,34 +127,17 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   does not reproduce the second acknowledge. Physical bus timing remains unproven.
 
 - Copter 271: vertical-scrolling issues during gameplay (possibly pre-existing).
-- Sonic GX: title and gameplay corruption reproduce on timing-clean `88262b9` and
-  `c59e03a`; both Act 1 captures are byte-identical across builds. The
-  [hardware/trace investigation](investigations/sonic/hardware-loop-2026-09-22.md)
-  identifies an extra DMA PAUSE expiry line: production T80 gives nine lines
-  between `PAUSE 7; INT` events, versus eight in AmSpirit; adding one to the
-  AmSpirit title's PAUSE counts reproduces displaced bands. The minimal DMA
-  candidate passes four selected benches, review and timing, and its production-T80
-  trace gives eight-line intervals. **Hardware acceptance failed:** matched early
-  and later fire reaches gameplay on `c59e03a`, while `a137d48` stays on a severely
-  corrupt title. `b0e5bed` restores the baseline behavior. The later
-  [full-frame discriminator](investigations/sonic/phase-discriminator-2026-09-22.md)
-  measures a partial timing gain: list recurrence improves from 336 to 313 lines,
-  versus 312 in fresh AmSpirit normal boot. Both simulated builds reach the final
-  handler wait loop and rearm; the candidate still misses split captures in the
-  bounded window. Retain it as an experiment, not the default. The [rearm-boundary trace](investigations/sonic/rearm-boundary-2026-09-22.md)
-  now shows SAR low arriving 85 master ticks after STOP address selection;
-  CPU/cartridge-memory latency is the next discriminator, not yet a proven defect.
-  **Integrated from `plus/sonic-cpu-cart-latency`** (device acceptance open; watch item
-  [B21](backlog.md#b21-plus-cartridge-code-now-runs-at-the-ready-only-rate-regression-triage)) settles it: the
-  cartridge stall cost a whole microsecond per phase-2 read (cartridge NOP 2 µs),
-  contrary to the READY-only rule; the [cart-wait record](investigations/sonic/cart-wait-2026-09-22.md)
-  adds a fail-first production-T80 vector and a grant-based stall release. In scratch
-  Sonic traces the fix removes the STOP restart line (336 → 335) and, combined with
-  the `a137d48` terminal-PAUSE rule, gives a frame-locked 312-line list matching
-  AmSpirit. Device acceptance of both is open.
-  New no-input controls reproduce baseline progression versus the candidate title
-  stall; sustained-fire controls agree but are not precisely phase-matched.
-  PRI and IRQ vector logic are unchanged.
+- Sonic GX: title screen corruption is **hardware-accepted fixed on `64702ac`**
+  ([device acceptance record](investigations/sonic/b20-7-dma-pause-acceptance-2026-09-22.md)).
+  With the cartridge stall fixed (`03f4724`), the resurrected DMA terminal-PAUSE
+  rule (`64702ac`, B20-7) eliminates the extra scanline wait on expiry, restoring
+  frame-locked 312-line list recurrence and 8-line handler cadence matching AmSpirit.
+  On real MiSTer hardware, the Sonic title renders with complete coherence (no displaced
+  bands or torn copper rasters); no-input control reaches Green Hill Zone attract playfield;
+  sustained fire input transitions cleanly through the Act 1 title card into live player
+  gameplay. Zero regressions observed across Copter 271, Burnin' Rubber, Pang, Plotting,
+  Navy Seals, and the CRTC3 demo.
+  General PAUSE 0/1, PPR and REPEAT boundaries remain open for independent investigation.
 - Left-edge sprite corruption is much improved, perhaps fixed; closure is open. Navy Seals
   left-edge sprite flicker remains; its black-screen report was not reproduced and has no
   assigned cause.

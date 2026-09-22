@@ -1328,7 +1328,8 @@ void test_b8_dma_pause_prescaler(Vplus_p8_test_top& dut) {
 
 	// Case PPR-reload: pause=2, prescaler phase 0, PPR=1. HSYNC1 reloads the
 	// phase and counts 2->1; HSYNC2 ticks the phase; HSYNC3 reloads and
-	// counts 1->0 (still gated on the old count); HSYNC4 fetches.
+	// counts 1->0 and fetches on that same expiry edge. See Sonic DMA
+	// cadence evidence in docs/investigations/sonic/hardware-loop-2026-09-22.md.
 	B8ChunkParams p;
 	p.sar_lo[0] = 0x00; p.sar_hi[0] = 0x40; p.ppr[0] = 0x01;
 	p.pause_cnt[0] = 2; p.pause_presc[0] = 0;
@@ -1337,18 +1338,17 @@ void test_b8_dma_pause_prescaler(Vplus_p8_test_top& dut) {
 	if (dut.sna_pause_cnt0 != 2 || dut.sna_pause_presc0 != 0)
 		fail("B8-5 DMA: pause shadow is " + std::to_string(dut.sna_pause_cnt0) +
 		     "/" + std::to_string(dut.sna_pause_presc0) + ", expected 2/0");
-	for (int h = 1; h <= 3; ++h) {
+	for (int h = 1; h <= 2; ++h) {
 		auto addrs = b8_hsync_window(dut, tick, 0x4020);
 		if (!addrs.empty())
 			fail("B8-5 DMA: pause leaked a fetch on HSYNC" + std::to_string(h));
 	}
 	auto addrs = b8_hsync_window(dut, tick, 0x4020, 500);
 	if (addrs.size() != 1 || addrs[0] != 0x4000)
-		fail("B8-5 DMA: pause did not expire exactly on HSYNC4");
+		fail("B8-5 DMA: pause did not expire exactly on HSYNC3");
 
 	// Case phase-decrement: pause=1, prescaler=3, PPR=5. Three HSYNCs tick
-	// the phase, the fourth reloads and retires the pause (gated), the
-	// fifth fetches.
+	// the phase; the fourth reloads, retires the pause and fetches.
 	b8_global_reset(dut, tick);
 	B8ChunkParams q;
 	q.sar_lo[0] = 0x00; q.sar_hi[0] = 0x40; q.ppr[0] = 0x05;
@@ -1358,14 +1358,14 @@ void test_b8_dma_pause_prescaler(Vplus_p8_test_top& dut) {
 	if (dut.sna_pause_cnt0 != 1 || dut.sna_pause_presc0 != 3)
 		fail("B8-5 DMA: pause shadow is " + std::to_string(dut.sna_pause_cnt0) +
 		     "/" + std::to_string(dut.sna_pause_presc0) + ", expected 1/3");
-	for (int h = 1; h <= 4; ++h) {
+	for (int h = 1; h <= 3; ++h) {
 		auto w = b8_hsync_window(dut, tick, 0x4020);
 		if (!w.empty())
 			fail("B8-5 DMA: pause leaked a fetch on HSYNC" + std::to_string(h) + " (phase case)");
 	}
 	auto w = b8_hsync_window(dut, tick, 0x4020, 500);
 	if (w.size() != 1 || w[0] != 0x4000)
-		fail("B8-5 DMA: pause did not expire exactly on HSYNC5 (phase case)");
+		fail("B8-5 DMA: pause did not expire exactly on HSYNC4 (phase case)");
 
 	std::printf("PASS b8_5_a2: DMA pause/prescaler first transitions (reload + phase)\n");
 }
@@ -2422,63 +2422,61 @@ int b20_measure_normal(Vplus_p8_test_top& dut,
 
 void test_b20_baseline_no_write(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
-	// PAUSE3 PPR7, no write: L1 + 3*8 + 1 dispatch = line 26.
+	// PAUSE3 PPR7, no write: L1 + 3*8 = line 25 (terminal PAUSE rule:
+	// expiry line executes next instruction per Arnold V §2.6).
 	int got = b20_measure_normal(dut, tick, 0, 7, 7, -1, false);
-	if (got != 26)
-		fail("B20-1 baseline: INT at line " + std::to_string(got) + ", expected 26 (PAUSE3 PPR7 no-write)");
-	std::printf("PASS b20_01: baseline no-write PAUSE3 PPR7 INT26\n");
+	if (got != 25)
+		fail("B20-1 baseline: INT at line " + std::to_string(got) + ", expected 25 (PAUSE3 PPR7 no-write)");
+	std::printf("PASS b20_01: baseline no-write PAUSE3 PPR7 INT25\n");
 }
 
 void test_b20_v1_new0_after4(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
 	// S02 p.4 + S22 p.10 diagram, reading-independent (new PPR0):
 	// after line4 presc=4/cnt=3; W+1=5 ticks (cnt2, reload0); two 1-line
-	// intervals; dispatch: 4+2+2*1 = line 8. Current RTL (deferred reload)
-	// ticks first at line9 and gives 12.
+	// intervals; terminal PAUSE executes on line 7: 4+1+2*1 = line 7.
 	int got = b20_measure_normal(dut, tick, 0, 7, 0, 4, true);
-	if (got != 8)
-		fail("B20-1 V1 (7->0 after4): INT at line " + std::to_string(got) + ", expected 8 (old RTL gives 12)");
-	std::printf("PASS b20_02: live PPR 7->0 after4 INT8 (fail-first V1)\n");
+	if (got != 7)
+		fail("B20-1 V1 (7->0 after4): INT at line " + std::to_string(got) + ", expected 7");
+	std::printf("PASS b20_02: live PPR 7->0 after4 INT7 (fail-first V1)\n");
 }
 
 void test_b20_v2_new1_after4(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
-	// 4+2+2*(1+1) = 10; deferred-reload old gives 14.
+	// 4+1+2*(1+1) = 9.
 	int got = b20_measure_normal(dut, tick, 0, 7, 1, 4, true);
-	if (got != 10)
-		fail("B20-1 V2 (7->1 after4): INT at line " + std::to_string(got) + ", expected 10 (old 14)");
-	std::printf("PASS b20_03: live PPR 7->1 after4 INT10\n");
+	if (got != 9)
+		fail("B20-1 V2 (7->1 after4): INT at line " + std::to_string(got) + ", expected 9");
+	std::printf("PASS b20_03: live PPR 7->1 after4 INT9\n");
 }
 
 void test_b20_same_value_after4(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
-	// S22 p.10 explicit: same-value still advances. 4+2+2*8 = 22; old 26.
+	// S22 p.10 explicit: same-value still advances. 4+1+2*8 = 21.
 	int got = b20_measure_normal(dut, tick, 0, 7, 7, 4, true);
-	if (got != 22)
-		fail("B20-1 same-value (7->7 after4): INT at line " + std::to_string(got) + ", expected 22 (old 26)");
-	std::printf("PASS b20_04: same-value PPR 7->7 after4 INT22\n");
+	if (got != 21)
+		fail("B20-1 same-value (7->7 after4): INT at line " + std::to_string(got) + ", expected 21");
+	std::printf("PASS b20_04: same-value PPR 7->7 after4 INT21\n");
 }
 
 void test_b20_old3_new6_after3(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
-	// W=3, N=3, new=6: 3+2+2*7 = 19. Deferred-reload old ticks first at
-	// line5 and gives 20: presc=1 after line3, so the write advances
-	// that first expiry by one line.
+	// W=3, N=3, new=6: 3+1+2*7 = 18.
 	int got = b20_measure_normal(dut, tick, 0, 3, 6, 3, true);
-	if (got != 19)
-		fail("B20-1 (3->6 after3): INT at line " + std::to_string(got) + ", expected 19 (old 20)");
-	std::printf("PASS b20_05: live PPR 3->6 after3 INT19\n");
+	if (got != 18)
+		fail("B20-1 (3->6 after3): INT at line " + std::to_string(got) + ", expected 18");
+	std::printf("PASS b20_05: live PPR 3->6 after3 INT18\n");
 }
 
 void test_b20_last_line_unchanged(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
 	// After line8 presc=0 (last line of the first 8-line iteration), so a
-	// truncating write and a natural reload coincide: 8+2+2*2 = 14 either
+	// truncating write and a natural reload coincide: 8+1+2*2 = 13 either
 	// way (S22 "last-line seamless" note).
 	int got = b20_measure_normal(dut, tick, 0, 7, 1, 8, true);
-	if (got != 14)
-		fail("B20-1 last-line (7->1 after8): INT at line " + std::to_string(got) + ", expected 14 unchanged");
-	std::printf("PASS b20_06: last-line write 7->1 after8 INT14 unchanged\n");
+	if (got != 13)
+		fail("B20-1 last-line (7->1 after8): INT at line " + std::to_string(got) + ", expected 13 unchanged");
+	std::printf("PASS b20_06: last-line write 7->1 after8 INT13 unchanged\n");
 }
 
 void test_b20_channel_routing(Vplus_p8_test_top& dut) {
@@ -2487,16 +2485,16 @@ void test_b20_channel_routing(Vplus_p8_test_top& dut) {
 	// channel), and a write to another channel's PPR leaves this one alone.
 	for (int ch = 0; ch < 3; ++ch) {
 		int got = b20_measure_normal(dut, tick, ch, 7, 0, 4, true);
-		if (got != 8)
+		if (got != 7)
 			fail("B20-1 routing ch" + std::to_string(ch) + " (7->0 after4): INT at line " +
-			     std::to_string(got) + ", expected 8");
+			     std::to_string(got) + ", expected 7");
 	}
 	for (int ch = 0; ch < 3; ++ch) {
 		int other = (ch + 1) % 3;
 		int got = b20_measure_normal(dut, tick, ch, 7, 0, 4, true, other);
-		if (got != 26)
+		if (got != 25)
 			fail("B20-1 isolation ch" + std::to_string(ch) + " + PPR" + std::to_string(other) +
-			     " write: INT at line " + std::to_string(got) + ", expected 26 (no effect)");
+			     " write: INT at line " + std::to_string(got) + ", expected 25 (no effect)");
 	}
 	std::printf("PASS b20_07: per-channel PPR routing + cross-channel isolation\n");
 }
@@ -2505,14 +2503,14 @@ void test_b20_early_late_phase(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
 	// HSYNC-granularity contract: any write strictly between the same two
 	// edges has one effect. Early (at once) and late (200 idle clocks
-	// later, still before the next edge) both give INT10.
+	// later, still before the next edge) both give INT9.
 	int early = b20_measure_normal(dut, tick, 0, 7, 1, 4, true, -1, 0);
-	if (early != 10)
-		fail("B20-1 early-phase (7->1 after4): INT at line " + std::to_string(early) + ", expected 10");
+	if (early != 9)
+		fail("B20-1 early-phase (7->1 after4): INT at line " + std::to_string(early) + ", expected 9");
 	int late = b20_measure_normal(dut, tick, 0, 7, 1, 4, true, -1, 200);
-	if (late != 10)
-		fail("B20-1 late-phase (7->1 after4): INT at line " + std::to_string(late) + ", expected 10");
-	std::printf("PASS b20_08: early/late mid-line phases agree INT10\n");
+	if (late != 9)
+		fail("B20-1 late-phase (7->1 after4): INT at line " + std::to_string(late) + ", expected 9");
+	std::printf("PASS b20_08: early/late mid-line phases agree INT9\n");
 }
 
 void test_b20_stretched_write(Vplus_p8_test_top& dut) {
@@ -2552,9 +2550,9 @@ void test_b20_stretched_write(Vplus_p8_test_top& dut) {
 		b20_hsync_line(dut, tick, 0x4030);
 		if (dut.aregs_dcsr & 0x40) break;
 	}
-	if (line != 10)
-		fail("B20-1 stretched (7->1 across HSYNC5): INT at line " + std::to_string(line) + ", expected 10 (single effect)");
-	std::printf("PASS b20_09: stretched write across HSYNC single-effect INT10\n");
+	if (line != 9)
+		fail("B20-1 stretched (7->1 across HSYNC5): INT at line " + std::to_string(line) + ", expected 9 (single effect)");
+	std::printf("PASS b20_09: stretched write across HSYNC single-effect INT9\n");
 }
 
 void test_b20_coincident_hsync(Vplus_p8_test_top& dut) {
@@ -2562,7 +2560,7 @@ void test_b20_coincident_hsync(Vplus_p8_test_top& dut) {
 	// Deterministic model priority (NOT a silicon claim): a write pulse
 	// coinciding with the HSYNC consumer edge shares one tick with the new
 	// PPR reload. Decode in cycle N, HSYNC edge in cycle N+1 while the
-	// one-shot pulse is live: single truncation, INT10 like V2.
+	// one-shot pulse is live: single truncation, INT9 like V2.
 	b20_reset(dut, tick);
 	b20_setup_pause_ch(dut, tick, 0, 7);
 	for (int line = 1; line <= 4; ++line) {
@@ -2591,9 +2589,9 @@ void test_b20_coincident_hsync(Vplus_p8_test_top& dut) {
 		b20_hsync_line(dut, tick, 0x4030);
 		if (dut.aregs_dcsr & 0x40) break;
 	}
-	if (line != 10)
-		fail("B20-1 coincident pulse/HSYNC (7->1): INT at line " + std::to_string(line) + ", expected 10 (model priority)");
-	std::printf("PASS b20_10: coincident pulse/HSYNC model-priority INT10\n");
+	if (line != 9)
+		fail("B20-1 coincident pulse/HSYNC (7->1): INT at line " + std::to_string(line) + ", expected 9 (model priority)");
+	std::printf("PASS b20_10: coincident pulse/HSYNC model-priority INT9\n");
 }
 
 } // namespace

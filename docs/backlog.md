@@ -112,7 +112,7 @@ is comparative evidence, not independent proof of original CPC Plus behavior.
 | **B20-4: PRI phase relative to HSYNC** (I4) | Sources disagree between HSYNC-start +10 microseconds and revised Arnold's shaped trailing-edge account; RTL uses internal shaped HSYNC falling. | Re-read revised Arnold, then vary R3 width while tracing raw HSYNC, shaped HSYNC and IRQ on one clock. Establish the phase rule before modifying it. Preserve the hardware-backed nine-bit PRI **no-wrap** policy; range and phase are separate. |
 | **B20-5: DCSR read semantics** (I6) | Sources disagree about request polarity and whether bits freeze in automatic mode; RTL reports active-high live DMA flags and last-raster-ack provenance. | Read DCSR before/after request, acknowledge and explicit clear in both IVR modes. Keep CPU DI/EI separate from peripheral flags. Resolve the conflicting claims before changing readback; preserve B19's already implemented raster-retention/provenance behavior. |
 | **B20-6: DMA set/clear and STOP/write collisions** | Same-channel set/clear is clear-dominant in RTL despite a set-dominant comment. The level-wide DCSR write-clear window and enable/STOP ordering are additional code-level leads, not established hardware defects. | First correct misleading commentary to describe existing behavior without claiming hardware authority. Then isolate a new DMA request during W1C/automatic acknowledge, plus STOP coincident with an enable write. Establish priority and whether CPU writes represent one event or a whole clearing window before a behavioral repair. |
-| **B20-7: DMA PAUSE/REPEAT boundaries** | Sources conflict on PPR=0 and REPEAT=0. The terminal-PAUSE candidate (`190f4d3`, built as `a137d48`) makes the expiry line execute the next instruction; it matched AmSpirit's relative cadence but failed the matched Sonic progression test and was reverted in `b0e5bed`. **That failure is confounded:** it was measured while the cartridge stall still cost a whole microsecond per phase-2 read ([cart-wait record](investigations/sonic/cart-wait-2026-09-22.md)). In scratch Sonic traces the cartridge fix plus this rule give a frame-locked 312-line list and 8-line handler spacing, matching AmSpirit; either change alone does not. | **Next: resurrect the rule on a new Plus branch** (procedure below) from `190f4d3`, rebased over B20-1 live PPR and the cartridge fix, with its `asic_dma_test` fail-first vector restored. Device acceptance compares master against master plus the rule on Sonic (no-input and sustained-fire controls) and a regression set of DMA-using titles. A pass does not settle the general PAUSE 0/1, PPR and REPEAT boundaries; keep the short-list discriminators for those. |
+| **B20-7: DMA PAUSE/REPEAT boundaries** | Sources conflict on PPR=0 and REPEAT=0. Terminal-PAUSE candidate (`190f4d3`) previously failed on hardware due to the unmitigated cartridge stall. With the stall fixed (`03f4724`), the resurrected rule (`64702ac`) restores frame-locked 312-line list recurrence, fully fixes Sonic title corruption on real MiSTer hardware, and passes all progression and regression controls. | **Accepted on hardware 2026-09-22** ([device acceptance record](investigations/sonic/b20-7-dma-pause-acceptance-2026-09-22.md)). Sonic title is 100% coherent without displaced bands; no-input and sustained-fire controls progress to Green Hill Zone playfield; Copter 271, Burnin' Rubber, Pang, Plotting, Navy Seals, CRTC3 demo all pass cleanly. General PAUSE 0/1, PPR and REPEAT boundaries remain open for independent investigation. |
 
 ### B20-7 resurrection: implementation and device acceptance
 
@@ -122,6 +122,14 @@ Its hardware failure predates the cartridge-stall fix. In scratch Sonic traces t
 is 336 lines with neither change, 335 with the cartridge fix only, and 312 (frame-locked,
 8-line handler spacing, split captures on the same lines every frame, as on AmSpirit) with
 both. See the [cart-wait record](investigations/sonic/cart-wait-2026-09-22.md).
+
+**Hardware accepted on Build B (`64702ac`), 2026-09-22.**
+Full procedure executed against Build A (`ef8da61`, SHA `a982f5bd...`) and Build B (`64702ac`, SHA `d8cd6736...`)
+on real MiSTer hardware (`root@mister`). Build B produces a 100% coherent Sonic title screen (no displaced bands or
+raster tears, resolving the longstanding title corruption), progresses to Green Hill Zone attract playfield and
+live user gameplay upon fire, and exhibits zero regressions across all six regression CPRs. See
+[b20-7-dma-pause-acceptance-2026-09-22.md](investigations/sonic/b20-7-dma-pause-acceptance-2026-09-22.md).
+Branch marked READY for integration.
 
 Implementation (simulation first, stop if any step fails):
 
