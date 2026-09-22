@@ -53,7 +53,12 @@ MODEL = os.environ.get("ACCC_LOOKUP_MODEL", "jev-1.13.0")
 CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "accc-lookup/jev.json"
 
 HEADING = re.compile(r"^#{1,6}\s+(\d+(?:\.\d+)*)\.?\s*(.*)$")
-FOOTER = re.compile(r"Page \*\*(\d+)\*\*")
+# Page footers, in both orders the extraction produces, sometimes glued to the
+# end of a body line: "V1.11 – 08.2026 – Page **N** / **296**" (FR "sur **295**")
+# and "**N** / **296** V1.11 – 08.2026 – Page".
+FOOTER = re.compile(
+    r"V1\.11 – 08[./]2026 – Page \*\*(\d+)\*\* (?:/|sur) \*\*\d+\*\*"
+    r"|\*\*(\d+)\*\* (?:/|sur) \*\*\d+\*\* V1\.11 – 08[./]2026 – Page")
 MAX_STATE_CHARS = 60000  # well under Jev's 32k-token state budget
 
 
@@ -62,7 +67,8 @@ MAX_STATE_CHARS = 60000  # well under Jev's 32k-token state budget
 def parse_edition(ed):
     """Map section number -> {title, path, text, pages} for one edition.
 
-    Footers close a page, so text after footer N is on page N+1. The table of
+    Footers close a page, so text after footer N is on page N+1; body text
+    glued to a footer line is kept. The table of
     contents (before section 1) is skipped. A numbered heading must move
     forward in document order (num_ok) and have a letter in its title;
     anything else, such as a table row promoted to a heading, stays body
@@ -72,8 +78,12 @@ def parse_edition(ed):
     sections, cur, page, last = {}, None, 1, None
     for line in lines:
         m = FOOTER.search(line)
-        if m and "V1.11" in line:
-            page = int(m.group(1)) + 1
+        if m:
+            # Text before a glued footer belongs to the page the footer closes.
+            rest = (line[:m.start()] + line[m.end():]).strip()
+            if cur is not None and rest:
+                cur["text"].append(rest)
+            page = int(m.group(1) or m.group(2)) + 1
             continue
         h = HEADING.match(line)
         if h:

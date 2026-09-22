@@ -193,9 +193,9 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   hardware acceptance.
 - **Tooling:** the task-workflow host smoke tests (B14) are open. `scripts/accc/lookup.py`
   finds candidate Compendium sections (BM25 plus a TypeSafe Jev skim and rerank; BM25 only,
-  with a notice, when Jev is unreachable) as a navigation aid, not verification. Two 30-query
-  rounds put an accepted section in the top 3 for 23/30 and 25/30; round 2 was written after
-  reading the section list, so treat it as an upper bound. `--check-claim` (EN, FR or both)
+  with a notice, when Jev is unreachable) as a navigation aid, not verification. On the two labelled
+  query sets in `scripts/accc/eval/` an accepted section lands in the top 3 for 23/30 and
+  27/29, and for 40/49 of the queries that share no word with the gold section's title. `--check-claim` (EN, FR or both)
   is experimental: it misreads same-topic "silent" sections as contradictions. B17 has a device-tested
   [timed keyboard replay slice](../scripts/hardware-loop/INPUT-REPLAY.md), including Sonic fire
   through Main keyboard joystick mode. Recording remains deferred because Main grabs evdev

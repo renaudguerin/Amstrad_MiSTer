@@ -4,14 +4,15 @@
       "id": "L31",
       "query": "In mode 2, how many pixels does the static horizontal blank start later on CRTC 1 compared to CRTC 0?",
       "gold": [
-        "9.3.4.1"
-      ],
-      "also_ok": [
-        "9.3.4.3",
         "14.7.1"
       ],
+      "also_ok": [
+        "9.3.4.1",
+        "9.3.4.3"
+      ],
       "evidence": "docs/classic/audit-findings.md:416",
-      "note": "In mode 2, the static blank starts 1 pixel later on CRTC 1 compared to CRTC 0."
+      "note": "In mode 2, the static blank starts 1 pixel later on CRTC 1 compared to CRTC 0.",
+      "audit": "gold corrected by MiMo audit 2026-09-22"
     },
     {
       "id": "L32",
@@ -56,8 +57,7 @@
         "12.4.1"
       ],
       "also_ok": [
-        "12.4",
-        "12.2"
+        "12.4"
       ],
       "evidence": "docs/classic/audit-findings.md:401",
       "note": "At C0=0, Last Line evaluation on CRTC 2 uses the updated value of R4, but the previous value of R9."
@@ -70,7 +70,7 @@
       ],
       "also_ok": [
         "13.7",
-        "26.2"
+        "26"
       ],
       "evidence": "sim/crtc_t80_test.cpp:125",
       "note": "OUT (C), reg8 executes I/O on the 3rd microsecond, while OUTI executes I/O on the 5th microsecond."
@@ -204,14 +204,14 @@
       "id": "L47",
       "query": "What happens to horizontal synchronization if R2 is set to a value strictly greater than R0?",
       "gold": [
-        "14.4"
+        "12.4.1"
       ],
       "also_ok": [
-        "14.1",
-        "14.3"
+        "15.1"
       ],
       "evidence": "docs/classic/compendium-02-sync.md:40",
-      "note": "HSYNC never occurs under normal counting because C0 wraps at R0 before reaching R2."
+      "note": "HSYNC never occurs under normal counting because C0 wraps at R0 before reaching R2.",
+      "audit": "gold corrected by MiMo audit 2026-09-22"
     },
     {
       "id": "L48",
@@ -269,14 +269,14 @@
       "id": "L52",
       "query": "How does the Amstrad CPC Gate Array count HSYNC pulses in its internal counter to trigger interrupts every 52 lines?",
       "gold": [
-        "27.2"
+        "27.1"
       ],
       "also_ok": [
-        "27.1",
-        "27.3.1"
+        "27.2"
       ],
       "evidence": "docs/classic/compendium-02-sync.md:520",
-      "note": "The Gate Array increments a 6-bit counter (R52) on the falling edge of HSYNC, generating an interrupt at count 52."
+      "note": "The Gate Array increments a 6-bit counter (R52) on the falling edge of HSYNC, generating an interrupt at count 52.",
+      "audit": "gold corrected by MiMo audit 2026-09-22"
     },
     {
       "id": "L53",
@@ -289,33 +289,34 @@
         "27.2"
       ],
       "evidence": "docs/classic/compendium-02-sync.md:535",
-      "note": "Gate Array synchronizes interrupts on VSYNC: if R52 counter is >= 32, it resets counter to 0."
+      "note": "R52 is set to 0 unconditionally at the 2nd HSYNC after VSYNC start (27.3.2); the R52>=32 rule belongs to 27.3.1."
     },
     {
       "id": "L54",
       "query": "What is the minimum duration an HSYNC pulse must have for the Gate Array to recognize it and filter out glitches?",
       "gold": [
-        "14.3"
+        "9.3.1"
       ],
       "also_ok": [
-        "27.1",
-        "16.2.5"
+        "15.1"
       ],
       "evidence": "docs/classic/compendium-02-sync.md:560",
-      "note": "The Gate Array filters out HSYNC pulses shorter than its internal threshold."
+      "note": "The Gate Array filters out HSYNC pulses shorter than its internal threshold.",
+      "audit": "gold corrected by MiMo audit 2026-09-22"
     },
     {
       "id": "L55",
       "query": "What are the four operating modes selected by bits 0 and 1 of register R8, and which setting enables interlaced sync and video?",
       "gold": [
-        "19.3.2.2"
+        "19.1"
       ],
       "also_ok": [
-        "19.3.1",
-        "19.3.2.1"
+        "19.3.2.2",
+        "19.3.1"
       ],
       "evidence": "docs/classic/compendium-03-display-regs.md:190",
-      "note": "00=normal, 01=interlace sync, 10=normal, 11=interlace sync and video mode (IVM)."
+      "note": "00=normal, 01=interlace sync, 10=normal, 11=interlace sync and video mode (IVM).",
+      "audit": "gold corrected by MiMo audit 2026-09-22"
     },
     {
       "id": "L56",
@@ -334,27 +335,14 @@
       "id": "L57",
       "query": "How does the CRTC increment the Video Memory Address (VMA) during active display, and what is loaded into VMA at the start of each line?",
       "gold": [
-        "20.1"
+        "17.1"
       ],
       "also_ok": [
-        "20.2",
         "17.4"
       ],
       "evidence": "docs/classic/compendium-03-display-regs.md:310",
-      "note": "VMA increments on each character clock; at the beginning of each line, VMA is reloaded from row start pointer VMA'."
-    },
-    {
-      "id": "L58",
-      "query": "Which bits of registers R10 and R11 define the cursor start and end raster scanlines, and what registers control cursor display on the 6845?",
-      "gold": [
-        "22"
-      ],
-      "also_ok": [
-        "21.2.1",
-        "21.2.2"
-      ],
-      "evidence": "docs/classic/audit-findings.md:59",
-      "note": "Bits 0-4 of R10 specify cursor start raster, bits 0-4 of R11 specify cursor end raster; chapter 22 covers cursor registers."
+      "note": "VMA increments on each character clock; at the beginning of each line, VMA is reloaded from row start pointer VMA'.",
+      "audit": "gold corrected by MiMo audit 2026-09-22"
     },
     {
       "id": "L59",
@@ -436,9 +424,10 @@
       "id": "C23",
       "claim": "On CRTC 1, bit 5 of status register &BE00 reflects the R6-border condition sampled at C0=R0, while CRTC 0 and 2 return &FF.",
       "section": "28.1.8",
-      "label": "supports",
+      "label": "silent",
       "evidence": "docs/classic/audit-findings.md:74",
-      "note": "ACCC §28.1.8 p.294 confirms status bit 5 on type 1 and &FF on 0 and 2."
+      "note": "ACCC §28.1.8 p.294 confirms status bit 5 on type 1 and &FF on 0 and 2.",
+      "audit": "28.1.8 is two sentences; the bit-5 rule is in 21.3.3"
     },
     {
       "id": "C24",
@@ -532,9 +521,10 @@
       "id": "C35",
       "claim": "On CRTC 1, the R0-widening rupture arms RFD only if the condition C9=R9 and C4=R4 is broken by the end of the extended line.",
       "section": "13.6.2",
-      "label": "silent",
+      "label": "supports",
       "evidence": "docs/classic/audit-findings.md:467",
-      "note": "True per §13.7.1.2; §13.6.2 is the chronogram for R0 updates and does not define RFD arming conditions."
+      "note": "True per §13.7.1.2; §13.6.2 is the chronogram for R0 updates and does not define RFD arming conditions.",
+      "audit": "13.6.2 chronogram footnote states the RFD arming condition"
     },
     {
       "id": "C36",
@@ -568,5 +558,6 @@
       "evidence": "docs/classic/audit-findings.md:419",
       "note": "True per §14.7.1; §14.5.4 is about R3.JIT (HSYNC width) and is silent on R2.JIT sub-character delay."
     }
-  ]
+  ],
+  "audit": "Labels audited against section text by MiMo v2.6 Flash on 2026-09-22 and spot-checked by Opus: 11 fixes applied, L58 removed (the Compendium does not document R10/R11 bit fields), L42 kept (its answer is in a flattened chronogram, with the same rule in prose in also_ok 13.7.1.2). The queries were written after reading the section list, so scores on this set are an upper bound."
 }

@@ -35,7 +35,9 @@ check; Opus reviewed Gemini's part and fixed the findings (Jev-unavailable fallb
 both` crash, overstated status wording). Opus's own code has no cross-provider review. Look
 hardest at: the heading parser (`parse_edition`/`num_ok`, which accepts forward-moving section
 numbers and drops a few real headings: EN 3, 3.1, 24.2, 24.10.4; FR 11.2.2, 27.6.2-27.6.5) and
-whether a misparsed boundary silently truncates a section; page attribution from footers; and
+whether a misparsed boundary silently truncates a section (a MiMo label audit found body text
+glued to page footers was dropped, e.g. the §21.2.2 register-31 rule; fixed, but 4 EN and 5 FR
+footers in other formats are still unmatched); page attribution from footers; and
 that no failure path prints a partial section without saying so. Tooling only; no RTL or sim
 impact.
 

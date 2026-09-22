@@ -91,8 +91,15 @@ def main():
             stats["jev_gold@3"] += top(jv, gold, a.top)
             toks["jev"].append(cost(sections, jv, a.top))
             line += f" jev={r_j} top={jv[:3]}"
+        # A query that reuses a word from its gold section's title is easier
+        # than a real one; report those separately (see accc-eval-r2.json "audit").
+        title = " ".join(sections[g]["title_en"] for g in gold).lower()
+        leaky = any(len(w) > 4 and w in it["query"].lower() for w in title.split())
+        stats["leaky"] += leaky
+        if not a.no_jev and not leaky:
+            stats["clean_jev@3"] += r_j is not None and r_j < a.top
         if a.v:
-            print(f"{line} gold={sorted(gold)} :: {it['query'][:70]}")
+            print(f"{line} gold={sorted(gold)}{' leaky' if leaky else ''} :: {it['query'][:70]}")
 
     n = stats["n"]
     print(f"\nlookups: {n} items, recall {a.recall}, shortlist {a.shortlist}, top {a.top}")
@@ -100,6 +107,9 @@ def main():
     print(f"  BM25 : hit@1 {stats['bm25@1']}/{n}  hit@{a.top} {stats['bm25@3']}/{n}  (strict gold@{a.top} {stats['bm25_gold@3']})")
     if not a.no_jev:
         print(f"  Jev  : hit@1 {stats['jev@1']}/{n}  hit@{a.top} {stats['jev@3']}/{n}  (strict gold@{a.top} {stats['jev_gold@3']})")
+    if not a.no_jev:
+        clean = n - stats["leaky"]
+        print(f"  Jev hit@{a.top} on {clean} queries sharing no title word with gold: {stats['clean_jev@3']}/{clean}")
     for k, v in toks.items():
         if v:
             print(f"  tokens read, {k:8}: median {sorted(v)[len(v)//2]}, max {max(v)}")
