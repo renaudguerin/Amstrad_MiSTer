@@ -40,6 +40,7 @@ module tv80_core #(
 );
 
   reg [2:0]  tstate;
+  reg        io_tw;   // automatic I/O wait state already taken in this T2
   reg [2:0]  mcycle;
   reg [7:0]  ir;
   reg [15:0] pc;
@@ -281,6 +282,7 @@ module tv80_core #(
   always @(posedge clk or negedge reset_n) begin
     if (!reset_n) begin
       tstate       <= 3'b000;
+      io_tw        <= 1'b0;
       mcycle       <= 3'b001;
       ir           <= 8'h00;
       pc           <= 16'h0000;
@@ -305,7 +307,13 @@ module tv80_core #(
     end else if (cen) begin
       case (tstate)
         3'b001: tstate <= 3'b010;
-        3'b010: begin
+        // I/O cycles hold T2 for one automatic wait state (TW), as a real Z80
+        // and production T80 do (T80.vhd Auto_Wait/IOWait): IORQ then spans
+        // 2.5 T-states instead of 1.5.
+        3'b010: if (IOWait && iorq && !io_tw) begin
+          io_tw <= 1'b1;
+        end else begin
+          io_tw  <= 1'b0;
           tstate <= 3'b011;
           if (mcycle == 3'b001) begin
             if (!intcycle_n_r) begin
