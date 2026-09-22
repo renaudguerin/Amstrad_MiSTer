@@ -268,8 +268,13 @@ the old name survives only in history and historical documents.
   changes.
 - Derive every expected value from the documented rule on paper and cite the ACCC section
   and page next to the assertion. Never read expectations back out of the simulator.
-- Every behaviour change lands with a focused deterministic vector. A timing-sensitive
-  finding does not start until its failing vector exists.
+- Every behaviour change is proven by a focused deterministic vector that fails before the
+  fix. A timing-sensitive finding does not start until its failing vector exists.
+- Proving a fix and keeping a vector are separate decisions. Keep it only when the bug has a
+  realistic path back (shared state other changes touch, such as the CRTC wrapper and
+  engines; a cross-module interaction; an area under active change). Otherwise run it once,
+  record the command and before/after result in the commit or investigation note, and do not
+  commit it. Prefer a root-cause fix an existing test covers over a symptom vector.
 - Never weaken an assertion to go green. An unrelated test that starts failing is a finding.
 - The classic CRTC core keeps singular shared state (see "Core layout" above) — findings
   still interact through the wrapper's counters; the suite is what catches collateral damage.

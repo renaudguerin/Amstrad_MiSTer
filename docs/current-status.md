@@ -196,6 +196,13 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   shipping it needs a Main_MiSTer change. The reviewed production-T80 capture/round-trip fixture now covers six classic
   model/CRTC combinations and host publication races (acceptance 2 and 3). Open:
   a 464/664 device save, SD transport, and the existing slice 3-4c review debt. See [b18-sna-save.md](b18-sna-save.md).
+- **TV80 bench CPU** now takes the Z80's automatic I/O wait, so its I/O windows match the
+  production T80pa. The reported no_wait Gate Array write drop was this fixture artifact, not an
+  RTL defect ([record](investigations/no-wait-ga-write-latch-2026-09-22.md)). Consequence: the
+  slow `b6-dynamic` bench fails for the type-1 machine until
+  [B22](backlog.md#b22-b6-dynamic-type-1-short-hsync-stage-loses-its-shifted-fetches-after-the-tv80-io-fix)
+  is resolved. [B23](backlog.md#b23-tv80-bench-cpu-bus-timing-parity-with-production-t80pa)
+  proposes a TV80-vs-T80pa parity bench.
 - **Peripherals:** FDC full-sector result/ST1, classic AMSDOS and hardware acceptance are open.
   B8-7 tape real-CDT playback and HPS cadence are open. B8-4 video-word coherence has no
   hardware acceptance.

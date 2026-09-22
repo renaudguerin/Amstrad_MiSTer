@@ -109,16 +109,24 @@ run independent review on documentation-only changes.
 This does not license skipping tests for behaviour changes. The classic CRTC core keeps
 singular shared state across three files (wrapper `rtl/CRTC.v` plus the two per-type rule
 engines), findings routinely touch each other's state, and the Verilator suite is the only
-thing that catches collateral damage. Every behaviour change still lands with a focused
-deterministic vector, and a timing-sensitive finding does not start until its failing vector
-exists.
+thing that catches collateral damage. Every behaviour change is proven by a focused
+deterministic vector that fails before the fix, and a timing-sensitive finding does not start
+until its failing vector exists.
+
+**Proving a fix and keeping a vector are separate decisions.** Keep a vector in the suite only
+when the bug has a realistic path back: shared state other changes routinely touch (the CRTC
+wrapper and engines qualify by default), a cross-module interaction, or an area under active
+change. A vector whose only failure mode is someone reverting the exact fix is a one-shot check:
+run it, record the command and before/after result in the commit message or investigation note,
+and do not commit it. Prefer a root-cause fix that an existing test already covers over a new
+vector for the symptom.
 
 Derive every expected value from the documented rule on paper and cite the ACCC section and
 page beside it in the test. Never read an expectation back out of the simulator: that produces
 a suite which agrees with a wrong core.
 
 When a finding is implemented, its named expected-failure cases become required passes in the
-same commit. Never weaken an assertion to make the suite green. An unrelated test that starts
+same commit, or are deleted in that commit if they fail the keep test above. Never weaken an assertion to make the suite green. An unrelated test that starts
 failing is a finding, not something to edit.
 
 ## Gates

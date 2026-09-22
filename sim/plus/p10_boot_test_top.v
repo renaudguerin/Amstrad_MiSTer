@@ -45,12 +45,6 @@ module p10_boot_test_top #(
 	// Select the production shared CPU/u765 divider for timing diagnostics.
 	// The legacy P10a fixture remains selectable to preserve its pinned trace.
 	input             production_clocking,
-	// 0 keeps the fixture's historical no_wait=1 (the OSD speed hack): the
-	// only CPU wait is the cartridge stall. 1 selects the production default,
-	// where READY also gates the CPU and aligns I/O cycles to the GA latch
-	// windows. Under no_wait an I/O cycle can miss both latch windows, so GA
-	// writes depend on the CPU phase.
-	input             production_wait,
 
 	// Real u765 / MiSTer SD-block interface. The host drives only the media
 	// transport; CPU port decode and command execution stay in production RTL.
@@ -519,7 +513,7 @@ module p10_boot_test_top #(
 		.key_nmi(),
 		.key_reset(),
 		.Fn(),
-		.no_wait(~production_wait),
+		.no_wait(1'b1),
 		.ppi_jumpers(4'd0),
 		.crtc_type(
 `ifdef B7_DARK_SILICON_MUTATION
