@@ -484,6 +484,34 @@ class TestHardwareLoopContracts(unittest.TestCase):
             self.assertEqual(args[-2], str(local.resolve()))
             self.assertEqual(shlex.split(args[-1].split(":", 1)[1]), ["/media/fat/a 'quote'.mgl"])
 
+    def test_ssh_disables_connection_multiplexing(self):
+        """Inherited ControlMaster=auto fails preflight with 255 on unwritable
+        socket paths; every transport call must opt out explicitly while
+        preserving auth, host-key, port and legacy scp behaviour."""
+        transport = SSHTransport("owner@fake-target", port=2222)
+        local = self.temp_dir / "mux-probe.bin"
+        local.write_bytes(b"x")
+        with patch("driver.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "", "")) as run:
+            transport.run_cmd("true", 2)
+            ssh_argv = list(run.call_args.args[0])
+            transport.upload_file(local, "/media/fat/a.mgl", 3)
+            up_argv = list(run.call_args.args[0])
+            transport.download_file("/media/fat/a.mgl", local, 3)
+            down_argv = list(run.call_args.args[0])
+        for label, argv in (("ssh", ssh_argv), ("upload", up_argv), ("download", down_argv)):
+            with self.subTest(direction=label):
+                opts = [(argv[i], argv[i + 1]) for i, v in enumerate(argv[:-1]) if v == "-o"]
+                self.assertIn(("-o", "ControlMaster=no"), opts)
+                self.assertIn(("-o", "ControlPath=none"), opts)
+        # Preserved behaviour: batch auth, explicit port, target, legacy scp mode.
+        self.assertIn(("-o", "BatchMode=yes"), [(ssh_argv[i], ssh_argv[i + 1]) for i, v in enumerate(ssh_argv[:-1]) if v == "-o"])
+        self.assertEqual(ssh_argv[ssh_argv.index("-p") + 1], "2222")
+        self.assertIn("owner@fake-target", ssh_argv)
+        for argv in (up_argv, down_argv):
+            self.assertIn("-O", argv)
+            self.assertEqual(argv[argv.index("-P") + 1], "2222")
+            self.assertTrue(any("owner@fake-target:" in a for a in argv))
+
     def test_real_fifo_preflight(self):
         # Main input.cpp:5140-5143 creates a FIFO. Exercise the OS type test,
         # not a fake that grants every /dev/MiSTer_cmd check unconditionally.
