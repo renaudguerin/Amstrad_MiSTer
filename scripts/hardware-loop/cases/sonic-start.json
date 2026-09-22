@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "duration": 2,
+  "events": [
+    [
+      0,
+      188,
+      1
+    ],
+    [
+      0.1,
+      188,
+      0
+    ],
+    [
+      0.5,
+      29,
+      1
+    ],
+    [
+      0.7,
+      29,
+      0
+    ],
+    [
+      1.5,
+      190,
+      1
+    ],
+    [
+      1.6,
+      190,
+      0
+    ]
+  ],
+  "description": "From Sonic title after 18s boot (verify title capture): F18 selects Main joystick 1 keyboard mode, left Ctrl is fire 1 under the documented B17 private mapping, F20 restores normal mode. Wall-clock navigation only."
+}

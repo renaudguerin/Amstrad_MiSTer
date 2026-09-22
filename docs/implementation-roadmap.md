@@ -428,9 +428,10 @@ that a previously online device remains available. Keep one device operator.
   cause. Use the [title investigation](investigations/sonic/fpga-emulation-guide.md), B2 capture
   and the [AmSpirit helper](../scripts/amspirit/README.md). Copter 271 gameplay scrolling is
   a separate residual; its title flash is already hardware-confirmed fixed.
-- **B17 (general):** implement bounded device input recording/replay, starting with keyboard
-  navigation. Joystick device identity/mapping and wall-clock replay drift need device
-  validation. See [B17](backlog.md#b17-record-user-input-on-the-mister-and-replay-it-as-a-capture-script).
+- **B17 (general):** bounded timed keyboard replay and Sonic fire through Main keyboard
+  joystick mode are device-tested. Physical recording remains deferred because Main grabs
+  evdev inputs; physical-controller replay and frame-deterministic checkpoints remain open.
+  See [B17](backlog.md#b17-record-user-input-on-the-mister-and-replay-it-as-a-capture-script).
 - **Classic retests:** D1/D6 on SHAKER B (9) for both types and C (4) for type 1; DSC4 and
   F13/F20 targets; IA-5 simultaneous raw HSYNC/VSYNC and GA interrupt capture; Q17's R7=38/39
   discriminator. IA-2/3/6, Amazing Demo corruption and production instruction timing retain
