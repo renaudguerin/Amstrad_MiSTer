@@ -637,11 +637,11 @@ wire asic_page_active = plus_mode & plus_aspage_on;
 
 // P7 3-channel DMA sound engine signals
 wire [7:0] dma_sar0_lo, dma_sar0_hi, dma_ppr0;
-wire       dma_sar0_wr;
+wire       dma_sar0_wr, dma_ppr0_wr;
 wire [7:0] dma_sar1_lo, dma_sar1_hi, dma_ppr1;
-wire       dma_sar1_wr;
+wire       dma_sar1_wr, dma_ppr1_wr;
 wire [7:0] dma_sar2_lo, dma_sar2_hi, dma_ppr2;
-wire       dma_sar2_wr;
+wire       dma_sar2_wr, dma_ppr2_wr;
 wire [2:0] dma_dcsr_ena;
 wire [2:0] dma_dcsr_ena_clr;
 wire [2:0] dma_int_set;
@@ -703,6 +703,7 @@ asic_regs asic_page
 	.sar0_lo(dma_sar0_lo), .sar0_hi(dma_sar0_hi), .ppr0(dma_ppr0), .sar0_wr(dma_sar0_wr),
 	.sar1_lo(dma_sar1_lo), .sar1_hi(dma_sar1_hi), .ppr1(dma_ppr1), .sar1_wr(dma_sar1_wr),
 	.sar2_lo(dma_sar2_lo), .sar2_hi(dma_sar2_hi), .ppr2(dma_ppr2), .sar2_wr(dma_sar2_wr),
+	.ppr0_wr(dma_ppr0_wr), .ppr1_wr(dma_ppr1_wr), .ppr2_wr(dma_ppr2_wr),
 	.dcsr_ena_out(dma_dcsr_ena),
 	.dcsr_ena_clr(dma_dcsr_ena_clr),
 	.dma_int_req(plus_dma_int_req),
@@ -799,16 +800,19 @@ asic_dma dma_sound
 	.sar0_hi(dma_sar0_hi),
 	.ppr0(dma_ppr0),
 	.sar0_wr(dma_sar0_wr),
+	.ppr0_wr(dma_ppr0_wr),
 
 	.sar1_lo(dma_sar1_lo),
 	.sar1_hi(dma_sar1_hi),
 	.ppr1(dma_ppr1),
 	.sar1_wr(dma_sar1_wr),
+	.ppr1_wr(dma_ppr1_wr),
 
 	.sar2_lo(dma_sar2_lo),
 	.sar2_hi(dma_sar2_hi),
 	.ppr2(dma_ppr2),
 	.sar2_wr(dma_sar2_wr),
+	.ppr2_wr(dma_ppr2_wr),
 
 	.dcsr_ena(dma_dcsr_ena),
 	.dcsr_ena_clr(dma_dcsr_ena_clr),

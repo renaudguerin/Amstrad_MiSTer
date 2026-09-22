@@ -79,6 +79,13 @@ to violate, not from blanket coverage.
 
 ## Plus / GX4000 ASIC
 
+**B20-1 task branch:** live PPR writes now advance the active PAUSE iteration,
+including same-value writes, through registered CPU write events. The fail-first
+regs-to-DMA matrix and nine selected benches pass; see the
+[source and validation record](plus/live-ppr-2026-09-22.md). This is a source-model
+repair awaiting integration and hardware acceptance. Exact write/HSYNC phase remains
+a model convention; no Sonic outcome is claimed.
+
 **Position.** The P-2 to P9 functional milestones and the P10 compatibility repairs are
 integrated. Remaining work is title-driven and evidence-gated: roadmap rows P10f/P10g list the
 capture each screenshot family needs before any RTL change, and the named model assumptions
