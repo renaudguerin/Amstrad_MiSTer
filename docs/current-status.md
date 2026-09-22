@@ -76,8 +76,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 **Open:**
 
 - Copter 271: vertical-scrolling issues during gameplay (possibly pre-existing).
-- Sonic GX: display severely broken by video/split timing defects (Hazard 2); the B19 check was
-  inconclusive. See `investigations/sonic/`.
+- Sonic GX: display remains severely broken; split timing (Hazard 2) is a hypothesis, and
+  the B19 check was inconclusive. The [IRQ audit](investigations/sonic/irq-audit-2026-09-22.md)
+  has not established an RTL repair; it corrects the production-T80 harness adapter
+  and defines the next cartridge-matched checkpoint/trace.
 - Left-edge sprite corruption is much improved, perhaps fixed; closure is open. Navy Seals
   left-edge sprite flicker remains; its black-screen report was not reproduced and has no
   assigned cause.

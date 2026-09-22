@@ -118,10 +118,14 @@ vector priority/clear, then the split write deadline. Preserve the existing
 hardware-confirmed Copter behavior while testing Sonic; screenshots alone do not
 establish any of these causal mechanisms.
 
-### Step 2: Capture Oracle Golden Trace with AmSpirit
-Run `scripts/amspirit/amspirit.py` against `docs/plus/cartridges/Sonic the Hedgehog (UK) (64K) (2025) [Original].cpr`:
-* Record exact DMA channel fire scanlines and ISR execution durations.
-* Extract register trace during level select menu to confirm exact cycle timing of `SPLT`, `SSA`, and `SSCR` writes.
+### Step 2: Establish a matched AmSpirit checkpoint
+Use `scripts/amspirit/amspirit.py` with the actual private cartridge under
+`local/test_media/cartridges/`, recording the media hash, model, screen and SNA
+chunk inventory. Its documented HTTP state contract has no ASIC registers; those are in
+the SNA `CPC+` chunk. The helper does not already provide cycle-resolved DMA,
+ISR or ASIC register-write traces. Select supported debugger instrumentation
+for the observed defect before promising that evidence. See the
+[bounded IRQ audit and next checkpoint](irq-audit-2026-09-22.md).
 
 ### Step 3: Device Retest & Defect Narrowing
 * Retest build on MiSTer hardware using `mister-capture`.

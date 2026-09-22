@@ -26,6 +26,8 @@ Key architectural achievements:
 The [2026-09-22 interrupt source comparison](../../plus/references/scrapes-interrupt-findings-2026-09-22.md)
 corrects stale B19 guidance, A13 safe-zone applicability and SPLT wrap arithmetic.
 Use its evidence boundaries before treating the hypotheses below as RTL defects.
+The [cartridge and IRQ audit](irq-audit-2026-09-22.md) records the bounded
+production-T80 evidence, harness correction and next checkpoint requirements.
 
 ## Document Index
 
@@ -59,6 +61,7 @@ When verifying an FPGA core or cycle-accurate emulator against Sonic GX, keep th
 
 ### 4. Plus Vectored Interrupt Bug Safe Execution Zones
 * **Real Hardware Behavior**: Silicon defect during Z80 interrupt acknowledge cycle (`/IORQ` + `/M1`) when the ASIC supplies the interrupt vector byte.
-* **Workaround Rule**: Software executes interrupt service routines only from specific 8 KB windows:
+* **Workaround Rule**: The instruction being interrupted must execute within specific 8 KB windows:
   $$\&2000-\&3FFF, \quad \&6000-\&7FFF, \quad \&A000-\&BFFF, \quad \&E000-\&FFFF$$
-  Sonic GX places its ISR dispatch code at `&A000-&BFFF`.
+  Handler or vector-table placement does not establish immunity. Capture the interrupted
+  instruction and acknowledge bus activity before applying this explanation to Sonic.
