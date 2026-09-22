@@ -48,7 +48,7 @@ HEADER_BYTES = 16
 RECORD_BYTES = 16
 DEFAULT_BASE = 0x3000_0000
 
-# SSM v1.1 reserved codes. The standard reserves "#0000 and all #FFxx codes
+# SSM v1.2 reserved codes. The standard reserves "#0000 and all #FFxx codes
 # (this represents 178 values)", which is 1 + the 177 legal values of LL with
 # HH = #FF -- the arithmetic confirms the byte set in `ssm_byte_allowed`.
 #
@@ -329,5 +329,5 @@ def is_screenshot_request(code: int) -> bool:
 
 
 def suggested_name(emulator: str, crtc: str, code: int, extension: str = "png") -> str:
-    """SSM v1.1 suggested image name: <Emulator>_<CRTC>_<HHLL code>.<ext>."""
+    """SSM v1.2 suggested image name: <Emulator>_<CRTC>_<HHLL code>.<ext>."""
     return f"{emulator}_{crtc}_{code:04X}.{extension}"

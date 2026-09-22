@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-# SSM v1.1 byte ranges, plus FE/FF which the standard reserves for its own
+# SSM v1.2 byte ranges, plus FE/FF which the standard reserves for its own
 # codes and therefore uses itself. Same set as rtl/ssm_marker.v.
 def ssm_byte_allowed(b: int) -> bool:
     return (

@@ -2,8 +2,8 @@
 //
 //  ScreenShot Management (SSM) marker detector and DDR3 event ring.
 //
-//  Implements SSM v1.1 (Longshot / Logon System, July 2026,
-//  docs/references/SSM-STANDARD-EN.pdf; standards and SHAKER files at
+//  Implements SSM v1.2 (Longshot / Logon System, September 2026;
+//  the user-owned standard is kept with the ignored SHAKER media; files at
 //  https://shaker.logonsystem.eu). Credit: Longshot / Logon System.
 //
 //  This module observes CRTC behaviour nowhere, so it carries no ACCC
@@ -185,7 +185,7 @@ end
 // Marker recognition
 //----------------------------------------------------------------------------
 
-// SSM v1.1 lists the byte values a marker may carry: #00-#3F, #7F-#9F,
+// SSM v1.2 lists the byte values a marker may carry: #00-#3F, #7F-#9F,
 // #A4-#A7, #AC-#AF, #B4-#B7, #BC-#BF and #C0-#FD. Those are the ED opcodes
 // the Z80A leaves undefined, minus #FE and #FF, which the standard holds back
 // for its own reserved codes. #ED #FE #ED #FF (screenshot) and
@@ -240,9 +240,10 @@ always @(posedge clk) begin
 				end
 			end
 
-			// The spec's worked example, #ED #3F #00 #ED #3E #ED #3D, lands
-			// here on the #00: any byte other than #ED resets the wait for
-			// the second pair, and the run then yields exactly #3D3E.
+			// SSM v1.2 requires all four opcode bytes to be consecutive. The
+			// worked example #ED #3F #00 #ED #3E #ED #3D lands here on #00:
+			// any intervening opcode resets the first pair, so only #3D3E is
+			// emitted. Data/operand reads never enter this fetch-only stream.
 			S_ED2: state <= (fetch_data == 8'hED) ? S_HH : S_ED1;
 
 			S_HH: begin
