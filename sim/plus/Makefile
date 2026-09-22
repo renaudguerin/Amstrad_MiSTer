@@ -476,7 +476,7 @@ plus-sprite-ram-lint:
 # in SLOW_TESTS; `slow` runs only those; `full` runs both. The public targets
 # re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
 # inside a makefile; JOBS=1 gives serial, readable output.
-SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit
+SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix
 FAST_BINS := $(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS))
 FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS)))
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
@@ -509,6 +509,37 @@ $(P8_TEST_BIN): $(P8_RTL) $(P8_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module plus_p8_test_top -Wno-CASEX \
 		--Mdir $(P8_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
 		-o $(notdir $(P8_TEST_BIN)) $(P8_RTL) $(P8_TEST_SRC)
+
+# B20-2/B20-3 acknowledge-vector diagnostics (test-only additions; slow tier
+# so the default gate stays green while the A1 source mismatch stays open).
+# b20-ack-diag reuses the P8 top/RTL; b20-ack-matrix drives the
+# GHDL-synthesized production T80pa netlist directly (NOT the TV80
+# substitute), like sim/t80_trace_test.cpp does.
+B20DIAG_OBJ_DIR  := obj_dir/b20_ack_diag
+B20DIAG_TEST_SRC := $(abspath b20_ack_diag_test.cpp)
+B20DIAG_TEST_BIN := $(B20DIAG_OBJ_DIR)/b20_ack_diag_tests
+$(B20DIAG_TEST_BIN): $(P8_RTL) $(B20DIAG_TEST_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module plus_p8_test_top -Wno-CASEX \
+		--Mdir $(B20DIAG_OBJ_DIR) -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(B20DIAG_TEST_BIN)) $(P8_RTL) $(B20DIAG_TEST_SRC)
+.PHONY: b20-ack-diag
+b20-ack-diag: $(B20DIAG_TEST_BIN)
+	./$(B20DIAG_TEST_BIN)
+
+B20MAT_OBJ_DIR  := obj_dir/b20_ack_matrix
+B20MAT_TEST_SRC := $(abspath b20_ack_matrix_test.cpp)
+B20MAT_TEST_BIN := $(B20MAT_OBJ_DIR)/b20_ack_matrix_tests
+B20MAT_NETLIST  := $(abspath ../obj_dir/t80/T80pa.v)
+B20MAT_VHDL_SRC := $(addprefix $(abspath ../../rtl/T80)/,T80_Pack.vhd T80_ALU.vhd T80_MCode.vhd T80_Reg.vhd T80.vhd T80pa.vhd)
+$(B20MAT_NETLIST): $(B20MAT_VHDL_SRC)
+	$(MAKE) -C .. t80-netlist
+$(B20MAT_TEST_BIN): $(B20MAT_TEST_SRC) $(B20MAT_NETLIST) Makefile | $(OBJ_DIR)
+	$(VERILATOR) --cc --exe --build --top-module T80pa \
+		--Mdir $(B20MAT_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(B20MAT_TEST_BIN)) $(B20MAT_NETLIST) $(B20MAT_TEST_SRC)
+.PHONY: b20-ack-matrix
+b20-ack-matrix: $(B20MAT_TEST_BIN)
+	./$(B20MAT_TEST_BIN)
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
