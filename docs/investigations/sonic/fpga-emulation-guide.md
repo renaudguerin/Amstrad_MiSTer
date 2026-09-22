@@ -40,18 +40,15 @@ On cold boot, the engine programs CRTC registers 0 through 9:
 ### Hazard 1: Coincident Interrupt Priority vs Acknowledge Clearing (B19 Residual)
 * **Hardware Requirement**: When PRI and DMA coincide, priority must be `PRI > DMA2 > DMA1 > DMA0`. Pending interrupts of lower priority must remain asserted for subsequent service.
 * **Relevant Core Files**: [`rtl/plus/asic_ga_timing.v`](../../../rtl/plus/asic_ga_timing.v), [`rtl/plus/asic_regs.v`](../../../rtl/plus/asic_regs.v)
-* **Code Verification**:
-  * In `asic_regs.v` (lines 627–636), `ack_src` priority arbitration correctly prioritizes `PRI` over `DMA2..0`.
-  * In `asic_ga_timing.v` (lines 656–658):
-    ```verilog
-    if (int_reset) INT_N <= 1'b1;
-    else if (raster_fire) INT_N <= 1'b0;
-    ```
-  * During any interrupt acknowledge cycle (`intack`), `irqack_rst` asserts `int_reset = 1` for ~1 µs (4 Z80 T-states).
-* **Failure Mechanism `[HYPOTHESIS - PENDING VERIFICATION]`**:
-  * If a `raster_fire` occurs while a DMA interrupt acknowledge cycle is in progress, `int_reset` dominates and clears `INT_N`.
-  * Because Sonic re-arms PRI for line $N+1$ from inside the line $N$ handler, **dropping a single raster interrupt stalls the entire sky gradient for the rest of the frame**.
-  * Coincident DMA/PRI events occur sporadically, causing the sky gradient to freeze at different lines frame-to-frame, producing extreme 50 Hz flickering.
+* **Current code verification (base `a33d93e`, 2026-09-22)**: `asic_regs.v`
+  samples priority once at `intack && !intack_d`. `asic_ga_timing.v` already
+  retains `raster_fire` in `raster_fire_pending` throughout
+  `int_ack_active = int_reset | intack`, then reasserts the raster request after
+  that window. The earlier two-line `int_reset`/`raster_fire` snippet omitted
+  this integrated B19 repair.
+* **Residual**: Sonic hardware acceptance is still inconclusive. A new dropped-IRQ
+  claim needs a trace of fire, pending latch, acknowledge provenance and request
+  release; do not reimplement the existing retention latch from this guide.
 
 ---
 
@@ -66,7 +63,7 @@ On cold boot, the engine programs CRTC registers 0 through 9:
 * **Failure Mechanism `[HYPOTHESIS - PENDING VERIFICATION]`**:
   * `split_latch_event` captures `SSA` strictly at `hcc == R1_h_displayed` (character 48).
   * **Timing Race**: If DMA2 interrupt latency (delayed by long instructions or alternate ISRs) causes the Z80 to write `SPLT` or `SSA` after character 48 of the split line, the split latch event is missed for that line.
-  * **8-bit Wrap Anomaly**: In a 312-line frame ($R4=38, R9=7$), scanlines 256–311 wrap modulo 256 to 0–55. Writing `SPLT = 255` (`(32 * 8) - 1`) sits right on the wrap boundary. If not cleared during vertical retrace, it re-triggers at line 55 (near line 311).
+  * **Comparator arithmetic**: With unmodified $R4=38, R9=7$, scanlines 256–311 map to 0–55. `SPLT=55` can therefore match line 311; `SPLT=255` cannot. Its next modulo-256 match would be line 511, outside this frame. CRTC reprogramming needs a separate counter trace. This refutes the former wrap explanation, not the separate late-write hypothesis.
 
 ---
 
@@ -80,9 +77,12 @@ On cold boot, the engine programs CRTC registers 0 through 9:
                              (dcsr_flags[1]) ? 3'b010 :
                              (dcsr_flags[0]) ? 3'b001 : 3'b000;
   ```
-* **Failure Mechanism `[HYPOTHESIS - PENDING VERIFICATION]`**:
-  * If `int_pending` is high when `intack` begins, `auto_clr_dma` is inhibited (correctly reserving the ack for raster).
-  * However, if DMA interrupts trigger back-to-back while raster status is resolving, jitter in `int_pending` or missed ack pulses can leave DMA channel flags stuck high, resulting in repeated spurious ISR entries or audio desync.
+* **Current interpretation**: The vector sampler and DMA auto-clear use the same
+  first-acknowledge edge and priority state. Raster pending intentionally suppresses
+  DMA clear. The flag update combines new DMA sets with software/automatic clears;
+  same-channel set/clear collision semantics need a source-derived discriminator
+  before changing them. No trace here establishes stuck flags, missed acknowledges
+  or a Sonic failure caused by this block.
 
 ---
 
@@ -100,7 +100,7 @@ On cold boot, the engine programs CRTC registers 0 through 9:
 
 | Capture | Observed Defect | Diagnosed Mechanism `[STATUS]` |
 |---|---|---|
-| `docs/screenshots/testing_0909/20260909_020052-...png` | Sky gradient has solid horizontal color bands; extreme 50 Hz frame flickering. | **Hazard 1 (B19 Residual)**: `raster_fire` now latched during acknowledge in `asic_ga_timing.v` (build `88262b9`). Hardware test **inconclusive**: screen visual behavior may have improved, but display remains too severely broken by video/split timing defects (Hazard 2) to definitively assess. `[INCONCLUSIVE - PENDING SPLIT FIX]` |
+| `docs/screenshots/testing_0909/20260909_020052-...png` | Sky gradient has solid horizontal color bands; extreme 50 Hz frame flickering. | **Hazard 1 (B19 Residual)**: `raster_fire` now latched during acknowledge in `asic_ga_timing.v` (build `88262b9`). Hardware test **inconclusive**: screen visual behavior may have improved, but display remains severely broken, preventing assessment; Hazard 2 is a candidate explanation, not an established cause. `[INCONCLUSIVE - PENDING SPLIT FIX]` |
 | `docs/reference/sonic/20260913_140450-...png` | Level select menu text is doubled/garbled ("GREEN HILL ZONE" overlapping "BRIDGE ZONE"). | **Hazard 2 / Buffer Alternation**: Sonic alternates display between VRAM Buffer 0 (`&0000`) and Buffer 1 (`&C000`) using mid-frame splits. A missed or jittered `SPLT` latch alternates buffer rendering at 50 Hz, appearing superimposed in progressive captures. `[HYPOTHESIS - PENDING VERIFICATION]` |
 | `docs/reference/sonic/20260913_140452-...png` | Upper menu lines doubled; lower lines ("ACT 1", "START") resolve cleanly in white. | **Hazard 2 / Split Seam Transition**: Upper segment failed to reload SSA properly; lower segment latched SSA after split line recovered. `[HYPOTHESIS - PENDING VERIFICATION]` |
 | In-game (GHZ rings) | Ring matrix flickering or disappearing under enemy/Sonic load. | **DMA1 Prescaler Timing**: DMA1 interrupt repositioning of sprites 10–15 misses the vertical scanline band budget. `[UNVERIFIED - AWAITING TEST]` |
@@ -110,10 +110,13 @@ On cold boot, the engine programs CRTC registers 0 through 9:
 
 ## 4. Verification Methodology & Recommended Next Steps
 
-### Step 1: Fix Foundational Low-Hanging Fruit (Hazard 1: Interrupt Race)
-Before touching complex video split logic, resolve the known B19 interrupt race in `rtl/plus/asic_ga_timing.v`:
-* Ensure a `raster_fire` occurring during `irqack_rst` is latched rather than discarded by `int_reset`.
-* Verify that clearing raster interrupts on acknowledge only applies to the raster request that initiated that acknowledge.
+### Step 1: Discriminate the remaining interrupt hypotheses
+The B19 retention repair is already integrated. Use the
+[2026-09-22 source findings](../../plus/references/scrapes-interrupt-findings-2026-09-22.md)
+to choose a trace: interrupted PC/A13 and bus acknowledge, raw PRI line comparison,
+vector priority/clear, then the split write deadline. Preserve the existing
+hardware-confirmed Copter behavior while testing Sonic; screenshots alone do not
+establish any of these causal mechanisms.
 
 ### Step 2: Capture Oracle Golden Trace with AmSpirit
 Run `scripts/amspirit/amspirit.py` against `docs/plus/cartridges/Sonic the Hedgehog (UK) (64K) (2025) [Original].cpr`:
@@ -122,4 +125,4 @@ Run `scripts/amspirit/amspirit.py` against `docs/plus/cartridges/Sonic the Hedge
 
 ### Step 3: Device Retest & Defect Narrowing
 * Retest build on MiSTer hardware using `mister-capture`.
-* Determine whether fixing Hazard 1 stabilizes the sky and eliminates the 50 Hz menu flicker before attempting changes to `asic_video.v` split logic.
+* Determine whether the integrated B19 behavior retains each observed raster request and whether split writes meet the character-48 deadline before changing `asic_video.v`.

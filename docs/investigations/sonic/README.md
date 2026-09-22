@@ -21,6 +21,12 @@ Key architectural achievements:
 
 ---
 
+## Current source checks
+
+The [2026-09-22 interrupt source comparison](../../plus/references/scrapes-interrupt-findings-2026-09-22.md)
+corrects stale B19 guidance, A13 safe-zone applicability and SPLT wrap arithmetic.
+Use its evidence boundaries before treating the hypotheses below as RTL defects.
+
 ## Document Index
 
 | Document | Focus Area | Key FPGA/Emulation Topics |

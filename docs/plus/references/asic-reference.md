@@ -265,10 +265,14 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
 - Comparison (evaluated every line):
   `{0,PRI7..PRI0} == {VC5..VC0, RC2..RC0}` — i.e. the ASIC compares
   `(char_line << 3) | raster_count` with the 8-bit PRI value; VC5 must be 0 for a
-  match. [ARNOLD-REV] The register is consulted every HSYNC, so re-writing PRI
-  after each interrupt yields multiple interrupts per frame. With a 312-line
-  frame, line numbers ≥ 256 alias: PRI = n fires at line n **and** n+256.
-  Line 256 itself is unprogrammable (PRI=0 disables). [QUASAR]
+  match. [ARNOLD-REV, as previously digested; revised source not captured locally]
+  The current RTL implements this nine-bit comparison and excludes lines ≥256.
+  **Conflicting source claim:** [QUASAR] and the captured CPCWiki *ASIC* p.4
+  say PRI = n can also fire at n+256; that is incompatible with requiring VC5=0.
+  Do not present both as one rule or change the Copter-tested implementation
+  from this conflict alone. See the [2026-09-22 source comparison](scrapes-interrupt-findings-2026-09-22.md).
+  The register can be rewritten for multiple interrupts; PRI=0 selects the
+  compatible 52-line mechanism rather than programming line 0/256.
 - **Trigger point**: on the **trailing edge of the HSYNC seen by the monitor**,
   with HSYNC width clamped at 6: for programmed widths ≥ 6 the interrupt
   position stops moving (fires at HSYNC_start + 6µs per [ARNOLD-REV]; [KT]
@@ -318,7 +322,10 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   DMA vectors are affected too). Root cause: board logic (LK106/IC116) shortens
   or lengthens /IORQ based on A13. Workarounds: run code from A13=1 regions, or
   use IVR bit0=1 and re-dispatch by reading DCSR (which is always correct) at the
-  head of the raster/DMA0 handlers. DMA1/DMA2 vectors are reliable. An FPGA
+  head of the raster/DMA0 handlers. Do not generalize older claims that DMA1/DMA2
+  are reliable to auto-clear mode: the captured bug article p.3 explicitly says
+  DMA interrupts can also be affected when IVR bit0=0. The interrupted instruction
+  address matters, not the table or handler address. An FPGA
   implementation must decide whether to reproduce this (needed for some software
   that *relies* on DCSR re-dispatch? — harmless either way — but demos testing
   hardware may detect its absence).
@@ -399,7 +406,7 @@ DMA rate follows the CRTC line rate (vertical rupture at half-lines doubles it t
 |---|---|---|
 | `&0RDD` | LOAD R,DD | Write DD to PSG register R (R = 0-15) |
 | `&1NNN` | PAUSE N | Wait N prescaled ticks (N=0-4095; PAUSE 0 = NOP) |
-| `&2NNN` | REPEAT N | Load loop counter with N, mark next instruction as loop start (REPEAT 0 ≈ REPEAT 1; body executes N+1 times) |
+| `&2NNN` | REPEAT N | Load loop counter with N, mark next instruction as loop start (nonzero N: body executes N+1 times; zero semantics conflict, see below) |
 | `&3xxx` | reserved | "Do not use". Observed on hardware to act as PAUSE NNN **then** REPEAT NNN [QUASAR/Zik — undocumented] |
 | `&4000` | NOP | 64µs idle |
 | `&4001` | LOOP | If loop counter ≠ 0: decrement, jump to instruction after REPEAT. If 0: no effect |
@@ -415,10 +422,15 @@ DMA rate follows the CRTC line rate (vertical rupture at half-lines doubles it t
 - Loops cannot be nested (one loop context per channel; a second REPEAT
   overwrites the loop start/counter). The ASIC never writes RAM (loop counters
   are internal). The REPEAT is not re-fetched on iterations (loop body is).
+- **REPEAT 0 conflict:** the captured French DMA tutorial p.2 and Quasar p.9
+  equate it to REPEAT 1; captured CPCWiki *ASIC* p.5 and current RTL treat it as
+  NOP. Do not promote the former approximation to an accepted rule.
 - **PAUSE**: total delay = `N × (PPR+1)` scan lines (64µs ticks); PPR (8-bit)
-  counts N+1 lines per tick, giving 64µs..~67s. PPR changes take effect
-  immediately, even mid-pause (a mid-pause PPR write advances the pause one
-  iteration). A pause is not interruptible by SAR rewrites: pause keeps counting
+  gives PPR+1 lines per tick, giving 64µs..~67s. The previously digested
+  [ARNOLD-REV] claim and captured French DMA tutorial p.4 say PPR changes take
+  effect immediately, even mid-pause. **Current code differs:** it samples the
+  new PPR only when the existing prescaler reaches zero; see finding I5 in the
+  [source comparison](scrapes-interrupt-findings-2026-09-22.md). A pause is not interruptible by SAR rewrites: pause keeps counting
   if SAR is rewritten; disabling the channel *suspends* pause countdown (state
   retained, resumes on re-enable). [ARNOLD-REV]
 - SAR can be rewritten while the channel runs (list jump). Re-writing an already
@@ -441,7 +453,11 @@ Enable bits are set/cleared by CPU, cleared by STOP or reset; reading an enable
 bit tells whether a list is still running. Interrupt bits: set on INT
 instruction; cleared by CPU writing 1, or auto-cleared by INT-ack when IVR
 bit0=0 (bugged — see §7). Raster interrupt has implicit priority: service DCSR
-bit 7 first (it clears on ack; DMA bits persist).
+bit 7 first. In the current RTL bit 7 records whether the last acknowledge was
+  raster; it is not the live raster-pending signal. DMA flags persist until their
+  applicable clear. The descriptions above are not proof of hardware DCSR
+  readback polarity; the new scrape sources conflict on that point (see the
+  2026-09-22 comparison).
 
 ### Timing & bus interaction
 
