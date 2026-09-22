@@ -43,9 +43,10 @@ def cost(sections, order, top):
     chars += sum(len(lookup.headline(sections[n])) for n in order[top:])
     return chars // 4
 
-
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--set", type=Path, default=Path(__file__).with_name("accc-eval.json"),
+                    help="path or filename of eval JSON set")
     ap.add_argument("--no-jev", action="store_true")
     ap.add_argument("--shortlist", type=int, default=30)
     ap.add_argument("--top", type=int, default=3)
@@ -53,7 +54,14 @@ def main():
     ap.add_argument("--no-claims", action="store_true")
     ap.add_argument("-v", action="store_true", help="per-item lines")
     a = ap.parse_args()
-    data = json.loads(SET.read_text())
+    set_path = a.set
+    if not set_path.is_file():
+        alt = Path(__file__).with_name(str(set_path))
+        if alt.is_file():
+            set_path = alt
+        else:
+            sys.exit(f"Dataset not found: {a.set}")
+    data = json.loads(set_path.read_text())
     sections = lookup.load()
 
     stats = Counter()
