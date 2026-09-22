@@ -460,7 +460,11 @@ that a previously online device remains available. Keep one device operator.
   numeric rows. Page B retains C0=3F and MID FRAME SIZE discrepancies. The ACCC does not
   order the C0=3F stage-A/line-end collision; the candidate ordering and the hardware and
   author discriminators needed before an RTL change are in the
-  [page-B discriminator brief](investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md). Type 0
+  [page-B discriminator brief](investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md).
+  MID FRAME SIZE has no ACCC rule, and its reference glyph (`4E40` or `4F40`) is still
+  ambiguous. Next step: a production-T80 replay of the `&9266..&932B` routine that observes
+  the R8=3 write phase and the two VSYNC-count loops. It would show whether the same
+  collision applies. Type 0
   is inconclusive after capture timeout. C (4)/type 1 states A–E retain structural
   capture/reference differences. CFG/MENU restoration and cleanup are verified.
   See the [repaired-build evidence](investigations/hardware-runs/shaker-repaired-95e6f56-2026-09-22.md).
