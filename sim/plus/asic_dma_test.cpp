@@ -222,8 +222,11 @@ void test_d03_pause_and_prescaler(TestBench& tb) {
 	tb.set_ppr(0, 2); // 3 lines per pause tick
 	tb.set_dcsr_ena(1);
 
-	// RAM 0x1000: PAUSE 2 (&1002) -> 2 ticks * 3 lines = 6 scanlines pause
+	// RAM 0x1000: PAUSE 2 (&1002) -> 2 ticks * 3 lines = 6 line delay
 	// RAM 0x1002: LOAD R0, 0x55 (&0055)
+	// The next instruction runs N*(PPR+1) = 6 lines after the PAUSE line,
+	// on the line whose HSYNC expires the last tick (cadence from the Sonic
+	// title chain, see d15), not one line later.
 	tb.write_instruction(0x1000, 0x1002);
 	tb.write_instruction(0x1002, 0x0055);
 
@@ -233,17 +236,17 @@ void test_d03_pause_and_prescaler(TestBench& tb) {
 	if (!writes.empty()) fail("d03: Unexpected write on line 1");
 	if (tb.dut->sar0_addr != 0x1002) fail("d03: SAR0 not pointing to next instruction");
 
-	// Lines 2..7 (6 lines of countdown): Should be idle
-	for (int l = 2; l <= 7; ++l) {
+	// Lines 2..6: Should be idle
+	for (int l = 2; l <= 6; ++l) {
 		tb.run_scanline(&writes);
 		if (!writes.empty()) fail("d03: Unexpected write while pausing on line " + std::to_string(l));
 		if (tb.dut->sar0_addr != 0x1002) fail("d03: SAR0 changed while pausing");
 	}
 
-	// Line 8: Pause finished, executes LOAD R0, 0x55
+	// Line 7: last tick expires, executes LOAD R0, 0x55
 	tb.run_scanline(&writes);
-	if (writes.size() != 1) fail("d03: Expected LOAD on line 8");
-	if (writes[0].first != 0 || writes[0].second != 0x55) fail("d03: Incorrect write on line 8");
+	if (writes.size() != 1) fail("d03: Expected LOAD on line 7");
+	if (writes[0].first != 0 || writes[0].second != 0x55) fail("d03: Incorrect write on line 7");
 	if (tb.dut->sar0_addr != 0x1004) fail("d03: SAR0 did not advance after LOAD");
 
 	std::printf("PASS d03: PAUSE N and PPR prescaler countdown\n");
@@ -396,15 +399,14 @@ void test_d09_undocumented_pause_repeat(TestBench& tb) {
 	std::vector<std::pair<uint8_t, uint8_t>> writes;
 	// Line 1: executes &3001
 	tb.run_scanline(&writes);
-	// Line 2: paused (1 scanline pause countdown)
-	tb.run_scanline(&writes);
-	if (!writes.empty()) fail("d09: Unexpected write during pause");
+	if (!writes.empty()) fail("d09: Unexpected write on the &3001 line");
 
-	// Line 3: resumes, executes LOAD R0, 0x99
+	// Line 2: the single PPR 0 tick expires on this edge, so the one-line
+	// delay lands here (same N*(PPR+1) cadence as d03/d15) and LOAD runs.
 	tb.run_scanline(&writes);
 	if (writes.size() != 1 || writes[0].second != 0x99) fail("d09: LOAD after pause failed");
 
-	// Line 4: executes LOOP, loops back to 0x9002
+	// Line 3: executes LOOP, loops back to 0x9002
 	tb.run_scanline(&writes);
 	if (tb.dut->sar0_addr != 0x9002) fail("d09: LOOP after &3xxx failed");
 
@@ -690,6 +692,89 @@ void test_d14_all_channel_collision_extensions(TestBench& tb) {
 	std::printf("PASS d14: all channels honor +1/+2 and late-upgrade duration with bounded ownership\n");
 }
 
+// d15: repeated PAUSE/INT cadence across concurrently active channels.
+//
+// Arnold V §2.6 gives a PAUSE delay of N*(PPR+1) scanlines but does not say
+// whether the PAUSE line itself counts.  The observed Sonic title chain
+// settles it: with PPR2=0 its repeated PAUSE 7 / INT pairs raise DMA INT
+// every 8 lines on AmSpirit (beam Y 70,78,86,94,102,110), while the
+// pre-fix core gave 9 (CRTC lines 230,239,248,...).  So the instruction
+// after PAUSE N executes N*(PPR+1) lines after the PAUSE line: the line on
+// which the last prescaled tick expires is already an execute line.
+void test_d15_repeated_pause_int_cadence(TestBench& tb) {
+	tb.pulse_reset();
+	tb.set_sar(0, 0x6000);
+	tb.set_sar(1, 0x7000);
+	tb.set_sar(2, 0x8000);
+	tb.set_ppr(0, 0);
+	tb.set_ppr(1, 1); // prescaled: 2 lines per tick
+	tb.set_ppr(2, 0); // Sonic title chain value
+	tb.set_dcsr_ena(7);
+
+	const int lines = 60;
+	// ch0 never pauses: one LOAD per line, proving the other channels'
+	// pause state does not steal its execute line.
+	for (int i = 0; i < lines; ++i)
+		tb.write_instruction(static_cast<uint16_t>(0x6000 + 2 * i), 0x0011);
+	for (int i = 0; i < 16; ++i) {
+		// ch1: PAUSE 3 at PPR 1 -> INT 3*2 = 6 lines later, period 7.
+		tb.write_instruction(static_cast<uint16_t>(0x7000 + 4 * i), 0x1003);
+		tb.write_instruction(static_cast<uint16_t>(0x7002 + 4 * i), 0x4010);
+		// ch2: PAUSE 7 at PPR 0 -> INT 7 lines later, period 8.
+		tb.write_instruction(static_cast<uint16_t>(0x8000 + 4 * i), 0x1007);
+		tb.write_instruction(static_cast<uint16_t>(0x8002 + 4 * i), 0x4010);
+	}
+
+	std::vector<int> int1, int2;
+	std::vector<std::pair<uint8_t, uint8_t>> writes;
+	for (int line = 1; line <= lines; ++line) {
+		writes.clear();
+		tb.run_scanline(&writes);
+		if (writes.size() != 1 || writes[0].first != 0 || writes[0].second != 0x11)
+			fail("d15: ch0 LOAD missing on line " + std::to_string(line));
+		if (tb.last_int_set & 0x1)
+			fail("d15: ch0 raised INT on line " + std::to_string(line));
+		if (tb.last_int_set & 0x2) int1.push_back(line);
+		if (tb.last_int_set & 0x4) int2.push_back(line);
+	}
+
+	auto check = [](const char* name, const std::vector<int>& got, int first, int period, int lines) {
+		std::vector<int> expected;
+		for (int l = first; l <= lines; l += period)
+			expected.push_back(l);
+		if (got != expected) {
+			std::string g, e;
+			for (int l : got) g += " " + std::to_string(l);
+			for (int l : expected) e += " " + std::to_string(l);
+			fail(std::string("d15: ") + name + " INT lines" + g + ", expected" + e);
+		}
+	};
+	check("ch2 (PPR2=0, PAUSE 7)", int2, 8, 8, lines);
+	check("ch1 (PPR1=1, PAUSE 3)", int1, 7, 7, lines);
+
+	// PAUSE boundaries at PPR 0: PAUSE 1 delays exactly one line, which is
+	// the next line, so it costs no stall; PAUSE 0 is not a pause at all.
+	tb.pulse_reset();
+	tb.set_sar(0, 0xA000);
+	tb.set_dcsr_ena(1);
+	tb.write_instruction(0xA000, 0x1001); // line 1: PAUSE 1
+	tb.write_instruction(0xA002, 0x4010); // line 2: INT
+	tb.write_instruction(0xA004, 0x1000); // line 3: PAUSE 0
+	tb.write_instruction(0xA006, 0x4010); // line 4: INT
+	std::vector<int> int0;
+	for (int line = 1; line <= 5; ++line) {
+		tb.run_scanline();
+		if (tb.last_int_set & 0x1) int0.push_back(line);
+	}
+	if (int0 != std::vector<int>{2, 4}) {
+		std::string g;
+		for (int l : int0) g += " " + std::to_string(l);
+		fail("d15: PAUSE 1 / PAUSE 0 boundary INT lines" + g + ", expected 2 4");
+	}
+
+	std::printf("PASS d15: repeated PAUSE/INT cadence (PPR 0 and prescaled) and PAUSE 0/1 boundaries\n");
+}
+
 } // namespace
 
 int main() {
@@ -709,7 +794,8 @@ int main() {
 		test_d12_active_channel_fetch_timing(tb);
 		test_d13_active_channel_execute_timing(tb);
 		test_d14_all_channel_collision_extensions(tb);
-		std::printf("All 14 asic_dma unit tests PASSED.\n");
+		test_d15_repeated_pause_int_cadence(tb);
+		std::printf("All 15 asic_dma unit tests PASSED.\n");
 		return 0;
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());
