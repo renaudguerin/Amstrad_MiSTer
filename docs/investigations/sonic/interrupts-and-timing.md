@@ -35,7 +35,7 @@ The Amstrad Plus ASIC provides two distinct interrupt mechanisms:
 | Feature | Programmable Raster Interrupt (`PRI`, `&6800`) | DMA Sound Engine Interrupts (`DMA0`, `DMA1`, `DMA2`) |
 |---|---|---|
 | **Trigger Source** | ASIC internal scanline counter comparator | Execution of an `INT` command in a DMA channel microprogram |
-| **Placement Boundary** | Current core compares the raw nine-bit CRTC line value with `{0,PRI}` and excludes vertical adjustment; this is not a display-enable test. Hardware range/wrap remains a source conflict | **Unrestricted**: Can trigger anywhere, including top/bottom borders, overscan, and blanking intervals |
+| **Placement Boundary** | Current core compares the raw nine-bit CRTC line value with `{0,PRI}` and excludes vertical adjustment; this is not a display-enable test. No-wrap is the accepted policy, supported by the Copter 271 device result; contrary scrape claims do not reopen it | **Unrestricted**: Can trigger anywhere, including top/bottom borders, overscan, and blanking intervals |
 | **Typical Use in Sonic** | Visible-area background color rasters | Mid-screen split reloads, sprite multiplexing, and blanking frame-start triggers |
 
 ### Coincident Interrupt Hardware Priority Arbitration

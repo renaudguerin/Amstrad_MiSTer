@@ -72,10 +72,12 @@ Status vocabulary:
 4. **G4 — sprite `+3` write mirror and external expansion double-write are evidence-gated.**
    Both depend on conflicting or absent hardware evidence; keep the present conservative
    behavior until a discriminator exists.
-5. **G5 — PRI phase/range, SPLT wrap and SSCR R9>7 are source conflicts.** The
+5. **G5 — PRI phase, SPLT wrap and SSCR R9>7 are source conflicts.** The
    [scrape comparison](references/scrapes-interrupt-findings-2026-09-22.md) separates
    the nine-bit PRI implementation from the eight-bit SPLT comparator and corrects
-   the Sonic guide's invalid `255 -> 311` wrap claim. These remain focused hardware
+   the Sonic guide's invalid `255 -> 311` wrap claim. PRI no-wrap is already supported
+   by the Copter device result; contrary scrape prose does not reopen it. The remaining
+   phase/SPLT/SSCR questions need focused hardware
    discriminators. Do not turn either written source into a synthetic oracle.
 6. **G6 — DMA RAM-fetch CPU stalls are undocumented.** The implemented PPI/PSG WAIT path is
    sourced and tested; no extra Z80 wait should be added without bus evidence.

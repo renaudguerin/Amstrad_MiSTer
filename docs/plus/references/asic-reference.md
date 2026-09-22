@@ -267,10 +267,11 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   `(char_line << 3) | raster_count` with the 8-bit PRI value; VC5 must be 0 for a
   match. [ARNOLD-REV, as previously digested; revised source not captured locally]
   The current RTL implements this nine-bit comparison and excludes lines ≥256.
-  **Conflicting source claim:** [QUASAR] and the captured CPCWiki *ASIC* p.4
+  **Contradicted source claim:** [QUASAR] and the captured CPCWiki *ASIC* p.4
   say PRI = n can also fire at n+256; that is incompatible with requiring VC5=0.
-  Do not present both as one rule or change the Copter-tested implementation
-  from this conflict alone. See the [2026-09-22 source comparison](scrapes-interrupt-findings-2026-09-22.md).
+  No-wrap is the accepted policy: the [Copter investigation](../../defects/copter271/README.md)
+  records the erroneous line311 palette load and confirms the logo fixed on device
+  by `b5c3014` / `c595031`. The scrape does not reopen that decision. See the [2026-09-22 source comparison](scrapes-interrupt-findings-2026-09-22.md).
   The register can be rewritten for multiple interrupts; PRI=0 selects the
   compatible 52-line mechanism rather than programming line 0/256.
 - **Trigger point**: on the **trailing edge of the HSYNC seen by the monitor**,
