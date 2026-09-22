@@ -144,16 +144,15 @@ write/value port pairs.
   can leave the row unable to complete until software changes the comparison state; p.221's
   recovery rewrites R9 to frozen C9.VMA. The divergence is finding **F16** and needs fixtures
   before RTL. The anomalous p.224 C4 cell is excluded, but its C9 run-on remains usable evidence.
-- **Additional interlace line — IMPLEMENTED 2026-08-26 (finding F14, commit `5bec99a`)**
-  (§19.6, both types): type 0 appends one line after the R5 adjustment lines when R8∈{1,3}
-  and ParityR6 is odd (the line holds C4=R4+1/C9=R5, the frame origin moves to its end, and
-  the R6>R4 freeze persists the gate — vectors `t27a`-`t27d`); type 1 defers the adjustment
-  end by one line when R8∈{1,3}, ParityFrame is even and R9+1 is a multiple of R5 (the extra
-  line holds C9=0 at C4 one past the last adjustment row — vectors `t28a`/`t28b`). Recorded
-  source-attribution residual: the section 11.2.3 p.85 worked example's R5=7 sub-case (8 not
-  a multiple of 7, yet the example shows the line) has no type-1 line under the section
-  19.6.2 condition and is read as the CRTC 2 accounting (section 11.2.5); the example's
-  R5=8 sub-case does match the implemented type-1 behavior.
+- **Additional interlace line — F14, type-1 gate corrected 2026-09-22**:
+  French §19.6.2 p.217 adds a physical line whenever R8∈{1,3} and
+  ParityFrame is even, including R5=0 and nondivisible R5. The earlier
+  R9+1-multiple gate incorrectly governed line existence rather than C4
+  accounting. French §11.2.3 pp.84–85 applies to both CRTC 1 and 2;
+  its R5=7 example is not type-2-only. Type 0's existing ParityR6 rule is
+  unchanged. See [F14](audit-findings.md#f14-additional-interlace-line--type-1-gate-correction-2026-09-22)
+  and the [dated repair evidence](../investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md)
+  for scope and remaining counter/hardware questions.
 - **MID-VSYNC parity coupling**: the wrapper's MID-VSYNC tick and fire still key on the
   legacy `field` flop for the NON-IVM interlace paths; `field` freezes while R8 is outside
   1/3, whereas ParityFrame keeps toggling every frame, so after a mid-frame R8 toggle

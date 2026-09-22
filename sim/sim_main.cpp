@@ -1206,9 +1206,9 @@ void test_type1_interlace_sync_even_parity_vsync(TestBench& test) {
     test.reset();
 
     // French 19.7.2 p.219: the even frame owns MID-VSYNC in R8=1.
-    // Keep R7 unreachable for two 17-line frames, then program R7=1
+    // French §19.6.2 p.217: 18-line even + 17-line odd frame. Program R7=1
     // while row 0 of the even frame is active.
-    test.run_characters(2 * 17 * 16);
+    test.run_characters((18 + 17) * 16);
     test.expect_parity_frame("French 19.7.2: R8=1 midpoint frame is even", false);
     test.expect_c4("type 1 even-parity fixture begins at C4=0", 0);
     test.expect_vsync_low("type 1 even-parity fixture has no earlier VSYNC");
@@ -1225,16 +1225,18 @@ void test_type1_interlace_sync_even_parity_vsync(TestBench& test) {
 }
 
 void test_type0_interlace_vsync_rebuilds_after_snapshot(TestBench& test) {
+    // R7=127 remains unreachable even when the added line visits R4+1.
     test.set_crtc_type(1);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> initial = {{
         {0, 15}, {1, 8}, {2, 10}, {3, 0x11}, {4, 0},
-        {5, 0},  {6, 1}, {7, 1},  {8, 1},    {9, 0},
+        {5, 0},  {6, 1}, {7, 127}, {8, 1},    {9, 0},
     }};
     for (const auto& [address, value] : initial) {
         test.write_register(address, value);
     }
     test.reset();
-    test.run_characters(2 * 16);
+    // French §19.6.2 p.217: two-line even + one-line odd frame.
+    test.run_characters(3 * 16);
     test.expect_parity_frame("snapshot fixture reaches even midpoint parity", false);
 
     // Enter type 0 at C4=0/C9=0, let the target line pass C0=2, then
@@ -1257,10 +1259,11 @@ void test_type0_interlace_vsync_rebuilds_after_snapshot(TestBench& test) {
 }
 
 void test_type0_interlace_vsync_rebuilds_after_live_type_switch(TestBench& test) {
+    // R7=127 remains unreachable even when the added line visits R4+1.
     test.set_crtc_type(1);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
         {0, 15}, {1, 8}, {2, 10}, {3, 0x11}, {4, 2},
-        {5, 0},  {6, 3}, {7, 3},  {8, 1},    {9, 0},
+        {5, 0},  {6, 3}, {7, 127}, {8, 1},    {9, 0},
     }};
     for (const auto& [address, value] : registers) {
         test.write_register(address, value);
@@ -1268,10 +1271,10 @@ void test_type0_interlace_vsync_rebuilds_after_live_type_switch(TestBench& test)
     test.select_register(7);
     test.reset();
 
-    // Complete two three-line frames with R7 unreachable, then program
+    // French §19.6.2 p.217: four-line even + three-line odd frame. Program
     // R7=1 while C4=0 on even parity (French 19.7.2 p.219). Type 1 crosses the seam
     // into C4=1 but has not reached that line's half-line fire point yet.
-    test.run_characters(2 * 3 * 16);
+    test.run_characters((4 + 3) * 16);
     test.expect_parity_frame("live-switch fixture reaches even midpoint parity", false);
     test.expect_c4("live-switch fixture begins field at C4=0", 0);
     test.write_selected_register_at_nclken(1);
@@ -6440,9 +6443,10 @@ void t30_type0_post_ivm_exit_recovery_recipe_even(TestBench& test) {
 // C9=0,2 (doubled display 0,2 with ParityC9=0); the row end at C9=2 toggles
 // ParityC9 and restarts C9 from it as one step, so row 1 runs C9=1,3 --
 // wait, C9=1 pre-increments to 2 and (2 and ~1) == 2 matches immediately,
-// so row 1 is the single line C9=1 and it is also the frame boundary
-// (C4==R4=1).  At that boundary the French v1.11 section 19.5.3 p.209
-// frame-origin assignment takes priority over the match-branch toggle:
+// so row 1 is the single line C9=1. French §19.6.2 p.217 then adds
+// a physical line at C4=2/C9=0 before the frame boundary. At that boundary
+// the French v1.11 section 19.5.3 p.209 frame-origin assignment takes priority
+// over the match-branch toggle:
 // ParityFrame changes 0 -> 1 and ParityC9 is realigned to that new value.
 // The French p.209 worked table starts that odd frame at C9=1 as well as
 // ParityC9=1.  Its first even-R9 match then advances C4 and toggles both
@@ -6467,10 +6471,11 @@ void test_type1_ivm_frame_boundary_parity_continuity(TestBench& test) {
         bool pc9;
     };
     // Hand-derived from the p.226 match branch (see block comment).
-    const std::array<Step, 6> steps = {{
+    const std::array<Step, 7> steps = {{
         {0, 0, 0, 0},
         {0, 2, 2, 0},
         {1, 1, 1, 1},   // row 1: C9 restarted from the toggled ParityC9
+        {2, 0, 0, 0},   // even-frame additional line (§19.6.2 p.217)
         {0, 1, 1, 1},   // frame boundary: new ParityFrame seeds C9/ParityC9
         {1, 0, 0, 0},
         {1, 2, 2, 0},
@@ -6513,8 +6518,8 @@ void test_type1_ivm_engages_from_snapshot_r8_3(TestBench& test) {
     test.load_snapshot_registers(snapshot);
 
     // Same hand-derived sequence as t23a, from the load point.
-    const std::array<std::pair<std::uint8_t, std::uint8_t>, 4> steps = {
-        {{0, 0}, {0, 2}, {1, 1}, {0, 1}},
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 5> steps = {
+        {{0, 0}, {0, 2}, {1, 1}, {2, 0}, {0, 1}},
     };
     for (size_t i = 0; i < steps.size(); ++i) {
         if (i != 0) {
@@ -6533,10 +6538,11 @@ void test_type1_ivm_engages_from_snapshot_r8_3(TestBench& test) {
 // IA-2 / BL-038: the French v1.11 section 19.5.3 p.209 frame-origin rule
 // explicitly assigns ParityC9 from the frame parity.  An aligned fixture
 // cannot distinguish that assignment from the older even-R9 row-end toggle,
-// so first create the documented unequal state (ParityFrame=0,
-// ParityC9=1) with an R8=3 entry.  The route starts with odd R9 to reach
-// C4=1/C9=0, changes R9 to even, then enters IVM; the next frame origin is
-// therefore an even-R9 discriminator for the stale toggle-both logic.
+// so create the unequal state (ParityFrame=0, ParityC9=1) on the
+// additional line. Enter IVM on even C4=2 with even R9: stage A/B keep
+// ParityC9=0, then the last ordinary row toggles it to 1 while the even
+// frame survives for its added line (French §19.6.2 p.217). The origin
+// must retain 1 rather than blindly toggling ParityC9 back to zero.
 //
 // Both state updates happen on the same CLKEN edge.  The source operation is
 // the newly toggled ParityFrame followed by ParityC9 := ParityFrame, so the
@@ -6546,7 +6552,7 @@ void test_type1_ivm_engages_from_snapshot_r8_3(TestBench& test) {
 void test_type1_frame_origin_realigns_parity_c9(TestBench& test) {
     test.set_crtc_type(1);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
-        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, 1},
+        {0, 63}, {1, 40}, {2, 50}, {3, 0x00}, {4, 2},
         {5, 0},  {6, 63}, {7, 63}, {8, 0},    {9, 3},
     }};
     for (const auto& [address, value] : registers) {
@@ -6554,32 +6560,33 @@ void test_type1_frame_origin_realigns_parity_c9(TestBench& test) {
     }
     test.reset();
 
-    // R9=3 gives four plain lines in C4=0.  The fourth line ends that row,
-    // leaving C4=1/C9=0 at the start of its first line.
-    test.run_characters(4 * 64);
-    test.expect_c4("t32a precondition reaches C4=1", 1);
+    // R9=3 gives four plain lines per row: eight reach C4=2/C9=0.
+    test.run_characters(8 * 64);
+    test.expect_c4("t32a precondition reaches C4=2", 2);
     test.expect_line("t32a precondition reaches C9=0", 0);
     test.expect_parity_frame("t32a precondition ParityFrame is even", false);
     test.expect_parity_c9("t32a precondition ParityC9 is even", false);
 
-    // Make R9 even while retaining C4=1/C9=0, then enter IVM.  Stage A/B
-    // make ParityC9 odd while ParityFrame remains even.
+    // Even C4 and C9 seed even ParityC9 at both entry stages (§19.5.3).
     test.write_register(9, 2);
     test.run_to_c0(20);
     test.select_register(8);
     test.write_selected_register_now(3);
     test.run_characters(1);
     test.expect_parity_frame("t32a stage A keeps ParityFrame even", false);
-    test.expect_parity_c9("t32a stage A makes ParityC9 odd", true);
-    test.expect_line("t32a stage A pokes C9.0 odd", 1);
+    test.expect_parity_c9("t32a stage A keeps ParityC9 even", false);
+    test.expect_line("t32a stage A keeps C9.0 even", 0);
     test.run_characters(1);
     test.expect_parity_frame("t32a stage B keeps ParityFrame even", false);
-    test.expect_parity_c9("t32a stage B keeps ParityC9 odd", true);
-    test.expect_line("t32a stage B keeps C9.0 odd", 1);
+    test.expect_parity_c9("t32a stage B keeps ParityC9 even", false);
+    test.expect_line("t32a stage B keeps C9.0 even", 0);
 
-    // Stage A's documented C9.0 poke leaves line 1 as the terminal IVM line,
-    // so one line completes C4=1/R4=1 and crosses the frame origin.  French
-    // §19.5.3 requires the new odd ParityFrame to be copied into ParityC9.
+    // Two IVM lines (C9=0,2) complete row 2, toggle ParityC9, and enter
+    // the added line. Assert the unequal pre-origin state explicitly.
+    test.run_characters(2 * 64);
+    test.expect_c4("t32a added line reaches C4=3", 3);
+    test.expect_parity_frame("t32a added line retains even frame", false);
+    test.expect_parity_c9("t32a added line has unequal odd ParityC9", true);
     test.run_characters(64);
     test.expect_c4("t32a frame origin resets C4", 0);
     test.expect_line("t32a odd frame origin seeds C9=1", 1);
@@ -6847,14 +6854,14 @@ void test_vsync_overlap_phase(TestBench& test, unsigned type) {
         {0, 63}, {1, 40}, {2, 46}, {3, 0x01},
         {4, static_cast<std::uint8_t>(type ? 8 : 7)}, {5, 0},
         {6, static_cast<std::uint8_t>(type ? 7 : 6)},
-        {7, static_cast<std::uint8_t>(type ? 1 : 0)}, {8, 0}, {9, 0},
+        {7, static_cast<std::uint8_t>(type ? 2 : 0)}, {8, 0}, {9, 0},
     }};
     program_registers(test, registers);
     test.reset();
     test.load_snapshot_registers({63, 40, 46, 0x01,
         static_cast<std::uint8_t>(type ? 8 : 7), 0,
         static_cast<std::uint8_t>(type ? 7 : 6),
-        static_cast<std::uint8_t>(type ? 1 : 0),
+        static_cast<std::uint8_t>(type ? 2 : 0),
         static_cast<std::uint8_t>(type ? 1 : 3), 0});
     unsigned wait = 0;
     while (!test.raw_vsync() && ++wait < 1000) test.run_characters(1);
@@ -6865,7 +6872,7 @@ void test_vsync_overlap_phase(TestBench& test, unsigned type) {
     test.write_register(7, 0);
     // French 16.2: R3v=0 means 16 lines (type 1 is always 16).
     // Type 0: 9 even + 8 odd lines, starts on even line 0.
-    // Type 1: 9 + 9 lines, starts on even line 1.
+    // Type 1: 10 even + 9 odd lines (§19.6.2 p.217), starts on even line 2.
     // In both cases the sixteenth count lands on the final odd-line MID.
     test.run_characters(15 * 64);
     test.expect_parity_frame("D1 overlap end is in the odd frame", true);
@@ -6950,7 +6957,8 @@ void test_type1_ivm_vsync_gap_r7_odd_c4(TestBench& test) {
     test.run_characters(30);
     test.expect_vsync_low("t24a even frame line 0: VSYNC quiet before the gap start");
     test.run_characters(34);
-    for (unsigned line = 1; line <= 31; ++line) {
+    // French §19.6.2 p.217: 32 ordinary even-frame lines plus one added line.
+    for (unsigned line = 1; line <= 32; ++line) {
         test.run_characters(32);
         const bool expect_high = line >= 5 && line <= 20;
         if (expect_high) {
@@ -7014,7 +7022,8 @@ void test_type1_ivm_vsync_no_gap_r7_even_c4(TestBench& test) {
     test.run_characters(30);
     test.expect_vsync_low("t24b even frame line 0: VSYNC quiet");
     test.run_characters(34);
-    for (unsigned line = 1; line <= 31; ++line) {
+    // French §19.6.2 p.217: 32 ordinary even-frame lines plus one added line.
+    for (unsigned line = 1; line <= 32; ++line) {
         test.run_characters(32);
         const bool expect_high = line >= 9 && line <= 24;
         if (line == 9) {
@@ -7081,7 +7090,8 @@ void test_type1_ivm_mid_vsync_half_line_phase(TestBench& test) {
     test.run_characters(18);
     test.expect_vsync_low("t24c even frame line 0: VSYNC quiet");
     test.run_characters(44);
-    for (unsigned line = 1; line <= 31; ++line) {
+    // French §19.6.2 p.217: 32 ordinary even-frame lines plus one added line.
+    for (unsigned line = 1; line <= 32; ++line) {
         test.run_characters(20);
         if (line == 9) {
             test.expect_vsync_low(
@@ -7343,34 +7353,14 @@ void t27_type0_addline_freeze_even(TestBench& test) {
 }
 
 // ---------------------------------------------------------------------------
-// t28: F14 additional interlace line, type 1 (ACCC v1.11 section 19.6.2
-// p.217; section 11.2.4 p.85; Q10 resolution in accc-author-questions.md
-// item 10).
-//
-// Paper derivation:
-//
-//   - Gate: the line is added at the end of the frame (after the R5 lines)
-//     iff an interlace mode is active (R8=1 or 3) and ParityFrame is even
-//     (section 19.6.2 p.217).  The C4 increment for it happens "once again
-//     on all even frames" when R9+1 is a multiple of R5 (same section) --
-//     the adjudicated Q10 reading, which the fixture register set satisfies
-//     (R9=7, R5=4: 8 = 2x4).  With R5=0 the multiple condition is vacuous,
-//     so a type-1 frame without adjustment lines never gains one (this is
-//     what keeps the t21-t24 IVM walks, all R5=0, undisturbed).
-//
-//   - Mechanics: type-1 adjustment rows already increment C4 past R4
-//     (section 11.1; the section 11.2 p.84 table: adjustment rows at R4+1, R4+2, ...),
-//     and the adjustment ends when C5+1 equals R5 by equality (section
-//     11.3.2).  On a gated even frame the pending end instead runs one more
-//     line: "C9 counts up to R9 and when it goes back to 0, C4 is
-//     incremented without taking R4 into account" (section 11.2.4 p.85) --
-//     the additional line holds C9=0 and C4 one past the last adjustment
-//     row, then the frame origin follows.  This reproduces the section
-//     11.2.3 worked example's R5=8 sub-case exactly (R4=37, R9=7: the R5
-//     lines at C4=38, the additional line at C4=39); the example's R5=7
-//     sub-case (8 % 7 != 0) has no type-1 line under the section 19.6.2
-//     condition and is the CRTC 2 accounting (section 11.2.5), recorded as
-//     a source-attribution residual in the F10 notes.
+// t28: type-1 additional interlace line. French ACCC v1.11 §19.6.2
+// p.217 adds a line on every even interlace frame, independently of R5.
+// Its following paragraph conditions C4 accounting on R9+1 being a multiple
+// of R5; that must not gate line existence. The established divisible-R5
+// counter vectors below remain, while t28b and t28d-g pin the missing paths.
+// The §11.2.3 p.85 R5=7/8 examples cover both CRTC1 and CRTC2. Their normal
+// C9-wrap accounting does not straightforwardly match the p.217 wording:
+// resolving the general counter rule is separate from physical duration.
 //
 // Fixture frame: R0=63, R4=2 (three rows), R9=7 (type-1 IVM rows are the
 // four lines C9=0,2,4,6 with ParityC9 held -- section 19.8.2 p.226), R5=4,
@@ -7501,11 +7491,10 @@ void t28_type1_addline_interlace_sync(TestBench& test) {
     test.expect_parity_frame("t28c frame 2 is even", 0);
 }
 
-// t28b: condition control -- R5=3 does not divide R9+1=8, so even the
-// ParityFrame-even frame 0 must end directly after its adjustment lines
-// (section 19.6.2 p.217: the once-more increment requires the multiple).
-// Required pass from the start: it pins the gate, not the mechanism.
-void t28_type1_addline_condition_false(TestBench& test) {
+// t28b: R5=3 does not divide R9+1=8, but the even frame still gains a
+// physical line (French §19.6.2 p.217). Adjustment continues C9=0,1,2,3
+// in C4=3: no C9 wrap requires a new row (§11.2.3 pp.84-85).
+void t28_type1_addline_nondivisible(TestBench& test) {
     t28_configure(test, 3);
     for (unsigned i = 0; i < 12; ++i) {
         t27_step_plain(test, "t28b frame 0 line", static_cast<std::uint8_t>(i / 4),
@@ -7515,10 +7504,133 @@ void t28_type1_addline_condition_false(TestBench& test) {
         t28_step_adjustment(test, "t28b frame 0 adjustment",
                             static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
     }
-    test.expect_c4("t28b no additional line when R9+1 is not a multiple of R5", 0);
+    test.expect_c4("t28b extra line retains adjustment row", 3);
+    test.expect_line("t28b extra line continues C9 without a wrap", 3);
+    test.expect_parity_frame("t28b extra line retains even frame", false);
+    test.run_characters(64);
+    test.expect_c4("t28b origin follows the extra physical line", 0);
     test.expect_line("t28b odd frame 1 opens at C9=1", 1);
     test.expect_parity_frame("t28b frame 1 is odd", 1);
     test.expect_adjustment_inactive("t28b adjustment ended at the origin");
+}
+
+// French ACCC v1.11 §19.6.2 p.217: line existence depends only on
+// interlace mode and even ParityFrame, including R5=0 and 8 % R5 != 0.
+// Pin physical duration across the engine/wrapper boundary, then raw VSYNC
+// spacing across the origin/parity boundary (§19.7.2 p.219). R4=7 gives
+// 32 IVM or 64 plain lines, safely longer than type 1's 16-line pulse.
+void t28_type1_addline_frame_duration(TestBench& test, unsigned r8, unsigned r5) {
+    test.prepare_for_reset(1);
+    test.load_snapshot_registers({63, 40, 46, 0x11, 7,
+        static_cast<std::uint8_t>(r5), 6, 0,
+        static_cast<std::uint8_t>(r8), 7});
+    const unsigned base_lines = (r8 == 3 ? 32 : 64) + r5;
+    bool previous_vsync = test.raw_vsync();
+    bool previous_parity = test.frame_parity();
+    unsigned origins = 0, last_origin = 0, last_rise = 0;
+    bool have_rise = false, last_rise_parity = false;
+    for (unsigned c = 1; c < 40000 && origins < 6; ++c) {
+        test.run_characters(1);
+        const bool parity = test.frame_parity();
+        if (parity != previous_parity) {
+            // R9=7: four IVM/eight plain scanlines per row on either
+            // parity (§19.5.3 p.209); R5 plain lines plus one even-frame
+            // line (§19.6.2 p.217). Every physical line is R0+1=64 us.
+            if (origins && c - last_origin != (base_lines + !previous_parity) * 64)
+                throw TestFailure("t28 physical frame duration: expected " +
+                    std::to_string((base_lines + !previous_parity) * 64) +
+                    " characters, got " + std::to_string(c - last_origin));
+            last_origin = c;
+            ++origins;
+        }
+        const bool vsync = test.raw_vsync();
+        if (origins && vsync && !previous_vsync) {
+            const unsigned phase = parity ? 0 : 31;
+            test.expect_byte("t28 origin VSYNC phase", phase, test.c0());
+            if (have_rise) {
+                const unsigned old_phase = last_rise_parity ? 0 : 31;
+                const unsigned expected = (base_lines + !last_rise_parity) * 64
+                                        + phase - old_phase;
+                if (c - last_rise != expected)
+                    throw TestFailure("t28 VSYNC spacing: expected " +
+                        std::to_string(expected) + " characters, got " +
+                        std::to_string(c - last_rise));
+            }
+            last_rise = c;
+            last_rise_parity = parity;
+            have_rise = true;
+        }
+        previous_parity = parity;
+        previous_vsync = vsync;
+    }
+    test.expect_byte("t28 observed six physical frame origins", 6, origins);
+    test.expect_high("t28 observed origin VSYNC", have_rise);
+}
+
+// Implementation consistency for the chosen unconditional added-line origin:
+// live R4/R5 writes must not make the wrapper enter adjustment on the same
+// edge where the engine resets counters/parity and clears its added-line latch.
+// This pins that state contract, not a newly verified live-write hardware rule.
+void t28_type1_addline_origin_excludes_adjustment(TestBench& test) {
+    test.prepare_for_reset(1);
+    test.load_snapshot_registers({63, 40, 46, 0x11, 2, 0, 63, 127, 1, 7});
+    test.reset();
+    test.run_to_c0(8);
+    test.run_characters(24 * 64);
+    test.expect_c4("t28h extra line follows three eight-line rows", 3);
+    test.expect_parity_frame("t28h extra line belongs to even frame", false);
+    test.expect_adjustment_inactive("t28h R5=0 extra line has no adjustment");
+    // Early writes avoid the separate same-rollover R5/RFD trigger route.
+    test.write_register(4, 3);
+    test.write_register(5, 1);
+    test.run_to_c0(0);
+    test.expect_c4("t28h canonical origin resets C4", 0);
+    test.expect_line("t28h canonical origin resets C9", 0);
+    test.expect_parity_frame("t28h canonical origin enters odd frame", true);
+    test.expect_adjustment_inactive("t28h origin cannot also enter adjustment");
+    test.run_characters(64);
+    test.expect_c4("t28h next line remains in first row", 0);
+    test.expect_line("t28h next line advances normally", 1);
+    test.expect_parity_frame("t28h no spurious one-line frame", true);
+    test.expect_adjustment_inactive("t28h next line is not adjustment");
+}
+
+// French ACCC v1.11 §19.6.2 p.217 makes C4=R4+1 reachable on the added
+// line; ordinary C4/R7 comparison (§16.1 p.160) therefore starts VSYNC there.
+// §19.7.2 p.219 selects the even-frame midpoint. R8=1, R9=7, R4=3 give
+// 33-line even / 32-line odd frames, longer than the fixed 16-line pulse.
+// Odd frames never visit C4=4; the previous pulse may finish there, but no
+// new pulse may start. Observe raw edges, including width across the origin.
+void t28_type1_addline_vsync_at_extra_row(TestBench& test) {
+    test.prepare_for_reset(1);
+    test.load_snapshot_registers({63, 40, 46, 0x11, 3, 0, 3, 4, 1, 7});
+    test.reset();
+    bool previous_parity = test.frame_parity();
+    bool previous_vsync = test.raw_vsync();
+    unsigned origins = 0, rises = 0, falls = 0, rise_at = 0;
+    for (unsigned c = 1; c < 40000 && origins < 6; ++c) {
+        test.run_characters(1);
+        const bool parity = test.frame_parity();
+        if (parity != previous_parity) ++origins;
+        const bool vsync = test.raw_vsync();
+        if (vsync && !previous_vsync) {
+            ++rises;
+            rise_at = c;
+            test.expect_parity_frame("t28i extra-row VSYNC only starts on even frames", false);
+            test.expect_c4("t28i VSYNC starts on added C4=R4+1 row", 4);
+            test.expect_byte("t28i added-line VSYNC starts at midpoint", 31, test.c0());
+        }
+        if (!vsync && previous_vsync) {
+            ++falls;
+            if (c - rise_at != 16 * 64)
+                throw TestFailure("t28i added-line pulse must retain its 16-line width across origin");
+        }
+        previous_parity = parity;
+        previous_vsync = vsync;
+    }
+    test.expect_byte("t28i observed six complete frames", 6, origins);
+    test.expect_byte("t28i one new pulse per even frame, none per odd frame", 3, rises);
+    test.expect_byte("t28i all three pulses finish across their origins", 3, falls);
 }
 
 // ---------------------------------------------------------------------------
@@ -8590,14 +8702,26 @@ int main(int argc, char** argv) {
          "ACCC v1.11 sections 19.6.1 p.217 and 19.5.2 p.206 (frozen-even persistence); F14",
          false, t27_type0_addline_freeze_even},
         // t28: F14 additional interlace line, type 1 (ACCC v1.11 section
-        // 19.6.2 p.217).  The required cases cover the active gate and its
-        // false-condition control.
+        // 19.6.2 p.217). The required cases cover physical duration and
+        // counter placement for divisible and nondivisible R5.
+        {"t28h_type1_addline_origin_excludes_adjustment", "Added-line origin state consistency", false,
+         t28_type1_addline_origin_excludes_adjustment},
+        {"t28i_type1_addline_vsync_at_extra_row", "French 16.1 / 19.6.2 / 19.7.2", false,
+         t28_type1_addline_vsync_at_extra_row},
+        {"t28d_type1_duration_r8_1_r5_0", "French 19.6.2 / 19.7.2", false,
+         [](TestBench& t) { t28_type1_addline_frame_duration(t, 1, 0); }},
+        {"t28e_type1_duration_r8_3_r5_0", "French 19.6.2 / 19.7.2", false,
+         [](TestBench& t) { t28_type1_addline_frame_duration(t, 3, 0); }},
+        {"t28f_type1_duration_r8_1_r5_3", "French 19.6.2 / 19.7.2", false,
+         [](TestBench& t) { t28_type1_addline_frame_duration(t, 1, 3); }},
+        {"t28g_type1_duration_r8_3_r5_3", "French 19.6.2 / 19.7.2", false,
+         [](TestBench& t) { t28_type1_addline_frame_duration(t, 3, 3); }},
         {"t28a_type1_addline_basic",
          "ACCC v1.11 sections 19.6.2 p.217 and 11.2.4 p.85; F14",
          false, t28_type1_addline_basic},
-        {"t28b_type1_addline_condition_false",
-         "ACCC v1.11 section 19.6.2 p.217 (R9+1 multiple of R5 gate); F14",
-         false, t28_type1_addline_condition_false},
+        {"t28b_type1_addline_nondivisible",
+         "French ACCC v1.11 section 19.6.2 p.217 (R5-independent line)",
+         false, t28_type1_addline_nondivisible},
         {"t28c_type1_addline_interlace_sync",
          "ACCC v1.11 section 19.6.2 p.217 (gate R8 in 1,3); F14/review",
          false, t28_type1_addline_interlace_sync},

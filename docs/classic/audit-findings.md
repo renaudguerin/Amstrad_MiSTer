@@ -293,40 +293,34 @@ General implementation rules for all fix prompts:
   is an 8-mode-2-px seam with DE low only for the second byte of C0=R0. Any disagreement
   reopens F13; it does not get explained away by the model.
 
-## F14. Additional interlace line — IMPLEMENTED on both types (2026-08-26)
+## F14. Additional interlace line — type-1 gate correction (2026-09-22)
 
-- **Rule** (ACCC §19.5.1 p.206, §19.6.1/§19.6.2 p.217, §19.3 p.200, §11.2.4 p.85; renders
-  2026-08-25, see accc-author-questions.md item 10): with R8∈{1,3}, one extra line is
-  appended after the frame's R5 lines when the **even** (ParityFrame-even) frame completes.
-  Type 1 gates on **ParityFrame even**; type 0 gates on **ParityR6 odd** (ParityR6 becomes
-  odd when C4 reaches R6 on an even frame; the R6>R4 freeze persists the gate state — line
-  every frame if frozen odd, never if frozen even). Counter accounting: type 0 increments C4
-  once for all additional lines (R5 and interlace), C4=R4+1; type 1 increments C4 once more
-  on even frames when R9+1 is a multiple of R5. Duration-wise the line lands in the following
-  odd frame's count (even frame 19968µs/312 lines, odd frame 20032µs/313 lines, §19.3 p.200).
-- **Current** (branch `accuracy/f14-f15-interlace`, commit `5bec99a`, 2026-08-26):
-  implemented on both types behind the gates above, with the frame origin (C4/C9 reset,
-  ParityFrame snapshot, VMA reload) moved to the additional line's end. Type 0: the line
-  holds C4=R4+1 and continues the adjustment count at C9=R5 ("as if added to R5",
-  section 11.2 p.85); the R6>R4 freeze persists the gate (frozen odd → line every frame,
-  frozen even → never). Type 1: the adjustment end is deferred one line (the extra line
-  holds C9=0 at C4 one past the last adjustment row, section 11.2.4 p.85); with R5=0 the
-  R9+1-multiple condition is vacuous, so adjustment-less frames never gain the line —
-  which is what keeps the t21-t24 IVM walks (all R5=0) undisturbed. Vectors: `t27a`-`t27d`
-  (type 0: basic, after-R5 position, both freeze persistences), `t28a` (type 1 basic,
-  R9=7/R5=4), `t28b` (condition control, required pass). Bite-tested (gate disable, parity
-  term drop, condition drop).
-- **Impact**: IVM/interlace-sync frames are one line short on even frames; total frame
-  cadence and any interlace-aware demo effect that depends on the 625-line structure
-  diverges. Affects both classic types.
-- **Confidence: high** on the documented gates (three independent sections agree); the
-  within-frame counter mechanics (where exactly the extra line sits relative to the R5 count
-  and the frame-origin reset) are sourced but unfixed against hardware.
-- **Residual** (recorded in `f10-implementation-notes.md`): the section 11.2.3 p.85 worked
-  example's R5=7 sub-case shows the additional line where the section 19.6.2 type-1
-  condition (R9+1 multiple of R5) produces none; it is read as the CRTC 2 accounting
-  (section 11.2.5 — the p.218 bug example is likewise section 19.6.3). The example's R5=8
-  sub-case matches the implemented type-1 behavior exactly.
+- **Rule**: French ACCC v1.11 §19.6.1/§19.6.2 p.217 adds one physical line
+  after the R5 lines, if any, with R8∈{1,3}. Type 0 gates on ParityR6 odd;
+  type 1 gates on ParityFrame even. The following type-1 paragraph concerns
+  C4 accounting; it does **not** require positive R5 or divisibility for the
+  physical line to exist. French §19.5.3 p.209 independently pairs the
+  even-frame additional line with MID-VSYNC. Parent render verification:
+  pp.209, 217–218 on 2026-09-22.
+- **Type 0**: existing behavior is unchanged: C4=R4+1, the line follows R5,
+  and the R6>R4 freeze persists the ParityR6 gate. `t27a`–`t27d` retain
+  their separate scope and hardware residuals.
+- **Type 1 finding**: the earlier implementation conflated the C4 condition
+  with line existence. It omitted the line for R5=0 and nondivisible R5;
+  `t28b` incorrectly asserted that absence. Keeping the R5=0 IVM walks
+  unchanged was not a valid rule justification. The D1 vectors checked
+  pulse count/phase but did not assert complete frame duration.
+- **Evidence**: the restored timing-clean RBF's SHAKER B9/type1 first page
+  is short by exactly 64 µs on even-entry cases and matches the odd-entry
+  and nonzero-R7 controls. See the [source adjudication and repair record](../investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md)
+  for exact numeric rows, failing vectors, implementation scope and gates.
+  This supports a concrete source discrepancy; a repaired RBF still needs
+  the hardware retest.
+- **Counter accounting boundary**: §11.2.3 pp.84–85 applies to **both**
+  types 1 and 2; its R5=7 example must not be dismissed as type-2-only.
+  Its plain C9 carry examples and §19.6.2's multiple wording must be kept
+  separate from physical line existence. The repair record states which
+  internal counter cases are pinned and which remain uncertain.
 
 ## F15. Type-0 odd-R9 IVM counting — IMPLEMENTED (2026-08-26)
 
