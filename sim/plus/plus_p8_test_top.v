@@ -420,6 +420,7 @@ module plus_p8_test_top (
 		.sar0_lo(aregs_sar0_lo), .sar0_hi(aregs_sar0_hi), .ppr0(aregs_ppr0), .sar0_wr(dma_sar0_wr),
 		.sar1_lo(aregs_sar1_lo), .sar1_hi(aregs_sar1_hi), .ppr1(aregs_ppr1), .sar1_wr(dma_sar1_wr),
 		.sar2_lo(aregs_sar2_lo), .sar2_hi(aregs_sar2_hi), .ppr2(aregs_ppr2), .sar2_wr(dma_sar2_wr),
+		.ppr0_wr(dma_ppr0_wr), .ppr1_wr(dma_ppr1_wr), .ppr2_wr(dma_ppr2_wr),
 		.dcsr_ena_out(dma_dcsr_ena),
 		.dcsr_ena_clr(dma_dcsr_ena_clr),
 		.dma_int_req(aregs_dma_int_req),
@@ -438,6 +439,9 @@ module plus_p8_test_top (
 	wire        dma_sar0_wr;
 	wire        dma_sar1_wr;
 	wire        dma_sar2_wr;
+	wire        dma_ppr0_wr;
+	wire        dma_ppr1_wr;
+	wire        dma_ppr2_wr;
 	wire [2:0]  dma_dcsr_ena;
 	wire [2:0]  dma_dcsr_ena_clr;
 	wire [2:0]  dma_int_set;
@@ -481,16 +485,19 @@ module plus_p8_test_top (
 		.sar0_hi(aregs_sar0_hi),
 		.ppr0(aregs_ppr0),
 		.sar0_wr(dma_sar0_wr),
+		.ppr0_wr(dma_ppr0_wr),
 
 		.sar1_lo(aregs_sar1_lo),
 		.sar1_hi(aregs_sar1_hi),
 		.ppr1(aregs_ppr1),
 		.sar1_wr(dma_sar1_wr),
+		.ppr1_wr(dma_ppr1_wr),
 
 		.sar2_lo(aregs_sar2_lo),
 		.sar2_hi(aregs_sar2_hi),
 		.ppr2(aregs_ppr2),
 		.sar2_wr(dma_sar2_wr),
+		.ppr2_wr(dma_ppr2_wr),
 
 		.dcsr_ena(dma_dcsr_ena),
 		.dcsr_ena_clr(dma_dcsr_ena_clr),
