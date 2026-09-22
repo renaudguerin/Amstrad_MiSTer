@@ -12,7 +12,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **Latest implementation:** Classic F14 type-1 additional-line correction, source
+- **Latest implementation:** B20-1 live PPR write handling (`5d12f56`), integrated
+  with reviewed capture transport/metadata fixes and B20 acknowledge diagnostics.
+  Combined CI/synthesis verification is pending; the prior artifact below remains
+  the latest verified build until that completes.
+- **Latest Classic implementation:** Classic F14 type-1 additional-line correction, source
   `5f72d66` (2026-09-22). The physical line no longer depends on R5; the added-line
   origin excludes simultaneous adjustment entry. Selected simulation gates and fresh
   review pass; integrated `95e6f56` also passes synthesis. Hardware confirms B9/type1
@@ -63,6 +67,9 @@ to violate, not from blanket coverage.
   states A–E, has capture/reference structural differences with cause unassigned.
   See the [repaired hardware record](investigations/hardware-runs/shaker-repaired-95e6f56-2026-09-22.md).
   Original CFG, MENU and owned-temporary cleanup are verified; no full D1/D6 closure.
+  [Capture investigation](investigations/hardware-runs/capture-reliability-2026-09-22.md)
+  identifies field-history evidence in C4 images, not a proven CRTC fault. Full
+  was requested; the active Sync latch was not independently observed.
   A scratch production-T80 replay reproduces the B9 C0=3F stage-A/line-end
   collision and extra 64 µs raw VSYNC interval; correct hardware ordering
   remains unresolved. Setup, measurement and Sync-path limits are in the
@@ -83,11 +90,11 @@ to violate, not from blanket coverage.
 
 ## Plus / GX4000 ASIC
 
-**B20-1 task branch:** live PPR writes now advance the active PAUSE iteration,
+**B20-1 integrated:** live PPR writes now advance the active PAUSE iteration,
 including same-value writes, through registered CPU write events. The fail-first
 regs-to-DMA matrix and nine selected benches pass; see the
 [source and validation record](plus/live-ppr-2026-09-22.md). This is a source-model
-repair awaiting integration and hardware acceptance. Exact write/HSYNC phase remains
+repair with hardware acceptance still open. Exact write/HSYNC phase remains
 a model convention; no Sonic outcome is claimed.
 
 **Position.** The P-2 to P9 functional milestones and the P10 compatibility repairs are
@@ -105,6 +112,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 
 **Open:**
 
+- B20-2/3: [integrated acknowledge diagnostics](plus/references/b20-ack-discriminator-2026-09-22.md)
+  reproduce the synthetic empty-vector mismatch, but the production CPU matrix
+  does not reproduce the second acknowledge. Physical bus timing remains unproven.
+
 - Copter 271: vertical-scrolling issues during gameplay (possibly pre-existing).
 - Sonic GX: title and gameplay corruption reproduce on timing-clean `88262b9` and
   `c59e03a`; both Act 1 captures are byte-identical across builds. The
@@ -120,8 +131,11 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   measures a partial timing gain: list recurrence improves from 336 to 313 lines,
   versus 312 in fresh AmSpirit normal boot. Both simulated builds reach the final
   handler wait loop and rearm; the candidate still misses split captures in the
-  bounded window. Retain it as an experiment, not the default. Next isolate the
-  final-INT/CPU-rearm/HSYNC boundary; paired device input controls remain open.
+  bounded window. Retain it as an experiment, not the default. The [rearm-boundary trace](investigations/sonic/rearm-boundary-2026-09-22.md)
+  now shows SAR low arriving 85 master ticks after STOP address selection;
+  CPU/cartridge-memory latency is the next discriminator, not yet a proven defect.
+  New no-input controls reproduce baseline progression versus the candidate title
+  stall; sustained-fire controls agree but are not precisely phase-matched.
   PRI and IRQ vector logic are unchanged.
 - Left-edge sprite corruption is much improved, perhaps fixed; closure is open. Navy Seals
   left-edge sprite flicker remains; its black-screen report was not reproduced and has no

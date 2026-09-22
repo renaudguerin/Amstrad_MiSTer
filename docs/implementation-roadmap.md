@@ -420,11 +420,17 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 ### Independent Plus accuracy work
 
 [B20: interrupt and DMA findings](backlog.md#b20-independent-plus-asic-interrupt-and-dma-accuracy-findings)
-is a separate queue from title debugging. Start with live PPR-write semantics or the
-source-specific empty-vector/double-ack scenario; both admit small standalone
-experiments. A Sonic reproduction is not an entry gate. Conflicting PRI-phase and
+is a separate queue from title debugging. Continue from the live PPR repair and
+the source-specific empty-vector/double-ack discriminators below. A Sonic reproduction is not an entry gate. Conflicting PRI-phase and
 DCSR claims require source/hardware discrimination before RTL changes. Coordinate
 shared interrupt/DMA interfaces and device use with the active Sonic task.
+
+B20-1 live PPR writes are implemented and reviewed; original-hardware phase
+validation remains open. B20-2/3 now have synthetic and production-T80
+[acknowledge discriminators](plus/references/b20-ack-discriminator-2026-09-22.md),
+with physical double-ack reachability unresolved. Sonic has a reviewed
+[85-tick rearm deadline trace](investigations/sonic/rearm-boundary-2026-09-22.md);
+CPU/cartridge-memory latency is the next discriminator before another DMA change.
 
 ### Device-dependent work
 
@@ -438,9 +444,10 @@ that a previously online device remains available. Keep one device operator.
   establishes partial timing improvement: list recurrence 336 → 313 scanlines,
   versus 312 in fresh AmSpirit normal boot. Both simulated builds reach the
   final wait loop and rearm, but candidate split captures still miss in the
-  bounded window. Next isolate final INT, CPU rearm and the next HSYNC/fetch
-  boundary before assigning a new ASIC defect. Paired scene-verified no-input
-  and sustained-fire device controls remain open. Retain the experiment for
+  bounded window. The rearm trace now isolates an 85-tick STOP-selection miss;
+  CPU/cartridge-memory latency needs a reference before assigning an ASIC defect.
+  No-input controls reproduce the progression difference. Sustained-fire controls
+  agree but have recorded inspection delays and are not precisely phase-matched. Retain the experiment for
   further isolation; its progression regression does not negate the component gain.
   Use B2 capture and the [AmSpirit helper](../scripts/amspirit/README.md).
   Copter 271 gameplay scrolling remains separate; its title flash is hardware-confirmed fixed.
