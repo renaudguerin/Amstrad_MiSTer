@@ -331,7 +331,14 @@ class SSHTransport:
             "command -v timeout >/dev/null || { echo 'Missing device timeout utility' >&2; exit 127; }; "
             f"exec timeout -s KILL {max(1, math.ceil(timeout))} sh -c {shlex.quote(cmd)}"
         )
-        ssh_cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-p", str(self.port), self.target, remote]
+        # Disable inherited connection multiplexing: an ambient ControlMaster=auto
+        # (e.g. from ~/.ssh/config) binds a unix_listener socket that can fail
+        # with 255 ("Operation not permitted") on unwritable paths. Each call
+        # stays an independent bounded connection; auth, host-key and port
+        # behaviour are unchanged.
+        ssh_cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
+                   "-o", "ControlMaster=no", "-o", "ControlPath=none",
+                   "-p", str(self.port), self.target, remote]
         start = time.monotonic()
         ts = datetime.now(timezone.utc).isoformat()
         try:
@@ -363,12 +370,16 @@ class SSHTransport:
 
     def upload_file(self, local_path: Path, remote_path: str, timeout: float) -> None:
         validate_device_path(remote_path, "upload remote_path")
-        cmd = ["scp", "-O", "-P", str(self.port), "-o", "BatchMode=yes", str(local_path.resolve()), f"{self.target}:{shlex.quote(remote_path)}"]
+        cmd = ["scp", "-O", "-P", str(self.port), "-o", "BatchMode=yes",
+               "-o", "ControlMaster=no", "-o", "ControlPath=none",
+               str(local_path.resolve()), f"{self.target}:{shlex.quote(remote_path)}"]
         self._run_scp(cmd, f"scp {local_path} -> {self.target}:{remote_path}", timeout, is_upload=True)
 
     def download_file(self, remote_path: str, local_path: Path, timeout: float) -> None:
         validate_device_path(remote_path, "download remote_path")
-        cmd = ["scp", "-O", "-P", str(self.port), "-o", "BatchMode=yes", f"{self.target}:{shlex.quote(remote_path)}", str(local_path.resolve())]
+        cmd = ["scp", "-O", "-P", str(self.port), "-o", "BatchMode=yes",
+               "-o", "ControlMaster=no", "-o", "ControlPath=none",
+               f"{self.target}:{shlex.quote(remote_path)}", str(local_path.resolve())]
         self._run_scp(cmd, f"scp {self.target}:{remote_path} -> {local_path}", timeout, is_upload=False)
 
 
