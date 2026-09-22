@@ -17,6 +17,23 @@ French-ROM SHAKER 2.7 boot and B (9) navigation on `5c16b17`; see the
 [device record](b2-device-capture-2026-09-12.md) for repeated-load evidence and
 configuration-observation limits.
 
+## Recovering macOS hostname resolution
+
+A Wi-Fi reboot can change MiSTer's DHCP address while macOS retains a stale
+negative DNS answer for `mister` or `mister.local`. If the device is known to be
+back online but its hostname still fails to resolve, flush the local caches:
+
+```sh
+sudo dscacheutil -flushcache
+sudo killall -HUP mDNSResponder
+```
+
+These commands require macOS administrator privileges. Retry one bounded SSH
+connection afterward; a DNS failure alone does not establish a core crash.
+If a capture was interrupted, first verify the saved CFG, input release and
+MENU/restoration state before resuming experiments. This recovery resolved the
+September 22 Wi-Fi/IP-change incident reported by the user.
+
 ## Local use
 
 Requires Python 3.10+, SSH and SCP. Live capture and tests also need Pillow.

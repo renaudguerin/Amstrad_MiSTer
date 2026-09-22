@@ -15,7 +15,8 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 - **Latest implementation:** Classic F14 type-1 additional-line correction, source
   `5f72d66` (2026-09-22). The physical line no longer depends on R5; the added-line
   origin excludes simultaneous adjustment entry. Selected simulation gates and fresh
-  review pass; synthesis and repaired-build hardware acceptance are pending.
+  review pass; integrated `95e6f56` also passes synthesis. Hardware confirms B9/type1
+  page A; page B and C4 retain residuals, and type 0 remains inconclusive.
 - **Plus baseline:** `b0e5bed` (2026-09-22) restores the three DMA
   behavior/test files exactly to `0e92c9c`, retaining the P8 test-selection
   dependency. The restore passes four selected benches and fresh Opus review;
@@ -23,17 +24,17 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   `a137d48`, **failed hardware acceptance as integrated**: it passed
   simulation, review and synthesis, but no longer reached Sonic gameplay in
   the matched input sequence. PRI and interrupt vector logic are unchanged.
-- **Latest timing-clean artifact:** restored baseline `0601050` (2026-09-22).
-  Exact-SHA CI [35686740255](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35686740255)
-  passed all required jobs. RBF: `output_files/Amstrad_20260922_0601050.rbf`,
-  SHA-256 `66b8d72fa1b67a6535ba07a4d9118c9998f833a4bbe89a1339d02eb4d25fa7fd`.
-  Full fit: 23,792 ALMs (57%); setup/hold minima +0.580/+0.191 ns, zero TNS.
-  The bounded Classic SHAKER B9/type1 retest reproduces a missing-line residual
-  on this artifact; [evidence and repair](investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md).
-  A new artifact is required to test the source repair. Candidate
-  `a137d48` remains experimental despite its timing closure; see the
+- **Latest timing-clean artifact:** `95e6f56` (2026-09-22), including the Classic
+  F14 repair on the restored Plus baseline. Exact-SHA CI
+  [35691075125](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35691075125)
+  passed all required jobs. RBF: `output_files/Amstrad_20260922_95e6f56.rbf`,
+  SHA-256 `a4f6a4f30758c2456a177a40a098167ab570214b311dc03149b72b72c499e0a7`.
+  Full local Quartus 17.0.2 fit: 23,841 ALMs (57%); setup/hold minima
+  +0.402/+0.241 ns, zero TNS. Classic hardware acceptance is partial; see below.
+  Candidate `a137d48` remains experimental despite its timing closure; see the
   [matched device evidence](investigations/sonic/hardware-loop-2026-09-22.md).
-- **Latest hardware-tested builds:** `0601050` (Classic B9/type1 first page only),
+- **Latest hardware-tested builds:** `95e6f56` (Classic SHAKER partial acceptance),
+  `0601050` (Classic B9/type1 first page only),
   `a137d48` (Sonic progression regression; experimental),
   `c59e03a` (Sonic baseline still corrupt but reaches gameplay),
   `88262b9` (Copter 271 title flash fixed) and `a0778b6` (PSG R7 reset;
@@ -55,12 +56,13 @@ to violate, not from blanket coverage.
 
 **Open hardware and validation questions:**
 
-- SHAKER B (9), type 1 first page, was retested on the restored timing-clean RBF:
-  even-entry cases remain 64 µs short; odd-entry and nonzero-R7 controls match.
-  This exposed F14's type-1 additional-line gate error. See the
-  [September 22 record](investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md).
-  Type 0, type 1 page 2 and C (4) remain pending after device connectivity failed;
-  MENU/config restoration is unverified. No D1/D6 hardware closure is claimed.
+- Repaired build `95e6f56`: SHAKER B (9), type 1 page A matches all numeric
+  reference rows, closing the observed F14 even-entry one-line deficit. Page B
+  retains C0=3F (`2780` vs `2740`) and MID FRAME SIZE (`4E40` vs `4F40`)
+  discrepancies. Type 0 produced no PNG and remains inconclusive. C (4), type 1
+  states A–E, has capture/reference structural differences with cause unassigned.
+  See the [repaired hardware record](investigations/hardware-runs/shaker-repaired-95e6f56-2026-09-22.md).
+  Original CFG, MENU and owned-temporary cleanup are verified; no full D1/D6 closure.
 - DSC4 and SHAKER still fail on hardware (2026-09-09 retest); the changed failure shapes are
   not yet characterized. Amazing Demo keeps lower-screen corruption.
 - F13 (type-0 half-character DE) and F20 (CRTC-1 R2.JIT HSYNC start) are implemented but need

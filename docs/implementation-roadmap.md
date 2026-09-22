@@ -448,12 +448,12 @@ that a previously online device remains available. Keep one device operator.
   joystick mode are device-tested. Physical recording remains deferred because Main grabs
   evdev inputs; physical-controller replay and frame-deterministic checkpoints remain open.
   See [B17](backlog.md#b17-record-user-input-on-the-mister-and-replay-it-as-a-capture-script).
-- **Classic retests:** the restored RBF's SHAKER B (9), type 1 first page,
-  retains a one-line deficit on even-entry cases, exposing F14's additional-line gate.
-  See the [September 22 repair/evidence record](investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md).
-  Repaired-build B (9) on both types and C (4) on type 1 remain hardware gates;
-  device restoration/MENU was unverified after connectivity failed. DSC4 and
-  F13/F20 targets; IA-5 simultaneous raw HSYNC/VSYNC and GA interrupt capture; Q17's R7=38/39
+- **Classic retests:** repaired `95e6f56` matches all B (9)/type 1 page-A
+  numeric rows. Page B retains C0=3F and MID FRAME SIZE discrepancies; type 0
+  is inconclusive after capture timeout. C (4)/type 1 states A–E retain structural
+  capture/reference differences. CFG/MENU restoration and cleanup are verified.
+  See the [repaired-build evidence](investigations/hardware-runs/shaker-repaired-95e6f56-2026-09-22.md).
+  Other open targets remain DSC4 and F13/F20; IA-5 simultaneous raw HSYNC/VSYNC and GA interrupt capture; Q17's R7=38/39
   discriminator. IA-2/3/6, Amazing Demo corruption and production instruction timing retain
   their separate residuals. Do not infer a new classic RTL repair from an unclassified image.
 - **Plus acceptance:** the remaining title/model/disk/reset matrix in
