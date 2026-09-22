@@ -423,9 +423,13 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 reachable AmSpirit instance where possible. This is a task-start check, not an assumption
 that a previously online device remains available. Keep one device operator.
 
-- **Sonic GX (Plus):** synthesize and hardware-test the reviewed DMA PAUSE expiry
-  correction. The production CPU trace shows nine-line intervals where AmSpirit
-  gives eight; an AmSpirit PAUSE-count counterfactual reproduces displaced bands.
+- **Sonic GX (Plus):** DMA PAUSE candidate `a137d48` is rejected; `b0e5bed`
+  restores baseline behavior. The candidate matches AmSpirit's eight-line
+  relative cadence and passes simulation/timing, but matched hardware inputs
+  reach gameplay only on baseline `c59e03a`. Sonic remains unresolved. The next
+  discriminator is a matched full title-frame trace through DMA enable, final
+  handler and next-frame split writes; the present ten-acknowledgement trace
+  does not establish those phase/deadline relationships. No new RTL fix is justified yet.
   See the [evidence and acceptance boundary](investigations/sonic/hardware-loop-2026-09-22.md).
   Use B2 capture and the [AmSpirit helper](../scripts/amspirit/README.md).
   Copter 271 gameplay scrolling remains separate; its title flash is hardware-confirmed fixed.
