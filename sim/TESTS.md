@@ -75,3 +75,5 @@ Mac, including the Verilator build.
 | `sim/plus b6-plus-layers` | slow | `rtl/plus/asic_video.v` `rtl/plus/asic_sprites.v` `rtl/amstrad_video_output.sv` | Plus scroll and sprites through the colour converter and output chain |
 | `sim/plus b8-field` | slow | `rtl/video_interlace.v` | Plus FIELD ownership through the scaler consumer |
 | `sim/plus b7-dark-silicon-audit` | slow | `rtl/Amstrad_motherboard.v` | Mutation audit: Plus modules inert in classic mode and classic modules inert in Plus mode |
+| `sim/plus b20-ack-diag` | slow | `rtl/plus/asic_regs.v` `rtl/plus/asic_ga_timing.v` | B20 GA/register two-ack discriminator on synthetic bus stimulus: first raster vector and within-ack stability, post-raster second-empty S29 DMA0/offset4 vs current 0x00 expected mismatch, DMA0 double-pulse auto-clear; idle probe informational |
+| `sim/plus b20-ack-matrix` | slow | `rtl/T80/*` `rtl/Amstrad_motherboard.v` | B20 production-T80 matrix on the GHDL netlist (not TV80): NOP/HALT/LDIR at A13=0/1, OUT(C) WAIT stretch, IRQ-withdrawal race; single intack rise per ack asserted, A-during-ack recorded without assertion |
