@@ -198,6 +198,21 @@ model with extra variables that are 0 until the ASIC page is unlocked, and class
 four CRTC designs (types 0, 1, 2 and 4), not two. Recorded in
 [crtc-per-type-separation.md](crtc-per-type-separation.md).
 
+## 6. §19.5.3 / §19.8.2 — type-1 R8 toggle whose 3rd µs meets C0→0 (open, not yet sent)
+
+Filed 2026-09-22 from SHAKER B (9), CRTC 1, page B
+([discriminator brief](../investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md)).
+The real-machine photograph reads `R8=3 ON C9=0, C0=#3F : FRAME SIZE=#2740` (R9=7).
+The MiSTer core reads `#2780`; the other four update-delay rows match.
+French §19.5.3 p.210 places the updates on the 3rd and 4th µs of `OUT(C),C`. §19.8.2
+p.226 counts at "C0 passe à 0". The pp.211–212 chronograms all place the OUT mid-line.
+
+Question for Longshot: on type 1, when the 3rd µs of `OUT R8,3` falls on the C0=R0→0
+transition, is that line boundary counted in IVM mode, as §19.8.1 p.221 states for
+type 0 only? If so, does `ParitéC9=C9.0` sample the old line's C9 or the new one? The
+photograph fits the IVM-mode count (C9 0→2). The core currently counts in the old mode
+(C9 0→1), then stage B resets C9.0, adding one line.
+
 ---
 
 ## Source verification
