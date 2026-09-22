@@ -581,6 +581,70 @@ class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
         self.assertTrue(uploaded <= removed)
 
 
+class TestAppliedB6Evidence(unittest.TestCase):
+    """Manifest video evidence must stay requested-only, never observed.
+
+    The runner neither sets nor observes pixel_rate_select/scale/mix/plus_mode
+    cadence, and it never reads the sync-filter runtime latch.  An omitted
+    --sync-filter leaves CFG bits untouched, so raw_crt=False would falsely
+    imply an observed Full.  Requested state must read separately from
+    applied/observed state, with provenance in the manifest.
+    """
+
+    def _applied(self, **kwargs: Any) -> Dict[str, Any]:
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script = write(tmp, "m.csl", MINIMAL)
+            manifest = plan(script, tmp / "out", **kwargs)
+        return manifest["effective_settings"]["applied_b6_config"]
+
+    def test_omitted_filter_records_unknown_not_full(self):
+        applied = self._applied()
+        # Requested side: nothing was asked for.
+        self.assertIsNone(applied["sync_filter"])
+        self.assertIsNone(applied["sync_filter_requested"])
+        self.assertIsNone(applied["raw_crt"])
+        self.assertIsNone(applied["raw_crt_requested"])
+        # Applied side: the runtime latch is never observed.
+        self.assertIsNone(applied["sync_filter_applied"])
+        self.assertIsNone(applied["raw_crt_applied"])
+        # Untouched video options are unknown, not hardcoded defaults.
+        self.assertIsNone(applied["pixel_rate_select"])
+        self.assertIsNone(applied["scale"])
+        self.assertIsNone(applied["mix"])
+        self.assertIsNone(applied["plus_mode"])
+        self.assertIsNone(applied["native_cadence"])
+        self.assertIn("requested-only", applied["evidence"])
+        self.assertIn("unobserved", applied["evidence"])
+
+    def test_explicit_full_distinguishes_requested_from_applied(self):
+        applied = self._applied(sync_filter="full")
+        self.assertEqual(applied["sync_filter"], "full")
+        self.assertEqual(applied["sync_filter_requested"], "full")
+        self.assertIsNone(applied["sync_filter_applied"])
+        self.assertFalse(applied["raw_crt"])
+        self.assertFalse(applied["raw_crt_requested"])
+        self.assertIsNone(applied["raw_crt_applied"])
+        self.assertIsNone(applied["pixel_rate_select"])
+        self.assertIsNone(applied["scale"])
+        self.assertIsNone(applied["mix"])
+        self.assertIsNone(applied["plus_mode"])
+        self.assertIsNone(applied["native_cadence"])
+        self.assertIn("requested-only", applied["evidence"])
+
+    def test_explicit_raw_crt_distinguishes_requested_from_applied(self):
+        applied = self._applied(sync_filter="raw-crt")
+        self.assertEqual(applied["sync_filter"], "raw-crt")
+        self.assertEqual(applied["sync_filter_requested"], "raw-crt")
+        self.assertIsNone(applied["sync_filter_applied"])
+        self.assertTrue(applied["raw_crt"])
+        self.assertTrue(applied["raw_crt_requested"])
+        self.assertIsNone(applied["raw_crt_applied"])
+        self.assertIsNone(applied["pixel_rate_select"])
+        self.assertIsNone(applied["native_cadence"])
+        self.assertIn("requested-only", applied["evidence"])
+
+
 @unittest.skipUnless(SHAKER_DIR.is_dir(), "Shaker_CSL bundle is user-owned and untracked")
 class TestBundledCorpus(unittest.TestCase):
     """The whole author-supplied corpus, in both supported ROM layouts."""
