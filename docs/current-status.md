@@ -138,6 +138,14 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   bounded window. Retain it as an experiment, not the default. The [rearm-boundary trace](investigations/sonic/rearm-boundary-2026-09-22.md)
   now shows SAR low arriving 85 master ticks after STOP address selection;
   CPU/cartridge-memory latency is the next discriminator, not yet a proven defect.
+  **Integrated from `plus/sonic-cpu-cart-latency`** (device acceptance open; watch item
+  [B21](backlog.md#b21-plus-cartridge-code-now-runs-at-the-ready-only-rate-regression-triage)) settles it: the
+  cartridge stall cost a whole microsecond per phase-2 read (cartridge NOP 2 µs),
+  contrary to the READY-only rule; the [cart-wait record](investigations/sonic/cart-wait-2026-09-22.md)
+  adds a fail-first production-T80 vector and a grant-based stall release. In scratch
+  Sonic traces the fix removes the STOP restart line (336 → 335) and, combined with
+  the `a137d48` terminal-PAUSE rule, gives a frame-locked 312-line list matching
+  AmSpirit. Device acceptance of both is open.
   New no-input controls reproduce baseline progression versus the candidate title
   stall; sustained-fire controls agree but are not precisely phase-matched.
   PRI and IRQ vector logic are unchanged.

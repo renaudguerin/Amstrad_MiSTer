@@ -53,7 +53,7 @@ wire  [5:0] load_page;
 wire [14:0] load_offset;
 wire  [7:0] load_data;
 
-wire        mem_req, mem_write, mem_ack;
+wire        mem_req, mem_write, mem_ack, mem_grant;
 wire  [1:0] mem_bank;
 wire [22:0] mem_addr;
 wire  [7:0] mem_wdata, mem_rdata;
@@ -65,7 +65,7 @@ wire [15:0] unused_vram_dout;
 wire  [7:0] unused_tape_dout;
 wire        unused_tape_wr_ack, unused_tape_rd_ack;
 
-wire        mmu_cart_valid, mmu_cart_ready;
+wire        mmu_cart_valid, mmu_cart_ready, mmu_cart_granted;
 wire  [4:0] mmu_cart_page;
 wire [13:0] mmu_cart_offset;
 wire  [7:0] mmu_cart_data;
@@ -93,6 +93,7 @@ plus_mmu mmu
 	.cart_page(mmu_cart_page),
 	.cart_offset(mmu_cart_offset),
 	.cart_ready(mmu_cart_ready),
+	.cart_granted(mmu_cart_granted),
 	.cart_data(mmu_cart_data),
 	.cart_busy(service_busy),
 		.cart_own(mmu_cart_own),
@@ -150,6 +151,7 @@ plus_cartridge_memory service
 	.cpu_page(service_cpu_page),
 	.cpu_offset(service_cpu_offset),
 	.cpu_ready(mmu_cart_ready),
+	.cpu_granted(mmu_cart_granted),
 	.cpu_data(mmu_cart_data),
 
 	.image_valid(image_valid),
@@ -161,6 +163,7 @@ plus_cartridge_memory service
 	.mem_addr(mem_addr),
 	.mem_wdata(mem_wdata),
 	.mem_ack(mem_ack),
+	.mem_grant(mem_grant),
 	.mem_rdata(mem_rdata)
 );
 
@@ -196,6 +199,7 @@ sdram dut
 	.cart_din(mem_wdata),
 	.cart_dout(mem_rdata),
 	.cart_ack(mem_ack),
+	.cart_grant(mem_grant),
 	.vram_dout(unused_vram_dout),
 	.vram_addr(23'd0),
 	.vram_bank(2'b00),

@@ -106,6 +106,7 @@ module sna_save_stream_test_top
 	wire [22:0] sdram_cart_addr;
 	wire  [7:0] sdram_cart_din;
 	wire        sdram_cart_ack;
+	wire        sdram_cart_grant;
 
 	assign stream_cart_req  = cart_req;
 	assign stream_cart_bank = cart_bank;
@@ -123,6 +124,7 @@ module sna_save_stream_test_top
 		.a_addr(cs_addr),
 		.a_din(8'd0),
 		.a_ack(cs_ack),
+		.a_grant(),
 		.b_req(cart_req),
 		.b_bank(cart_bank),
 		.b_addr(cart_addr),
@@ -132,7 +134,8 @@ module sna_save_stream_test_top
 		.cart_bank(sdram_cart_bank),
 		.cart_addr(sdram_cart_addr),
 		.cart_din(sdram_cart_din),
-		.cart_ack(sdram_cart_ack)
+		.cart_ack(sdram_cart_ack),
+		.cart_grant(sdram_cart_grant)
 	);
 
 	assign debug_cart_owner_b = dut_cart_mux.owner_b;
@@ -179,6 +182,7 @@ module sna_save_stream_test_top
 		.cart_din(sdram_cart_din),
 		.cart_dout(cart_dout),
 		.cart_ack(sdram_cart_ack),
+		.cart_grant(sdram_cart_grant),
 		.vram_dout(vram_dout),
 		.vram_addr(vram_addr),
 		.vram_bank(vram_bank),

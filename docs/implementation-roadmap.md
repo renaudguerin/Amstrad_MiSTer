@@ -446,6 +446,12 @@ that a previously online device remains available. Keep one device operator.
   final wait loop and rearm, but candidate split captures still miss in the
   bounded window. The rearm trace now isolates an 85-tick STOP-selection miss;
   CPU/cartridge-memory latency needs a reference before assigning an ASIC defect.
+  Integrated from `plus/sonic-cpu-cart-latency`: the modelled cartridge stall
+  disagreed with the READY-only rule and is fixed with a fail-first vector;
+  see the [cart-wait record](investigations/sonic/cart-wait-2026-09-22.md). Device-test
+  it in the next Plus acceptance pass, then the terminal-PAUSE rule (scratch-matched to 312 lines).
+  Post-integration triage guidance: [B21](backlog.md#b21-plus-cartridge-code-now-runs-at-the-ready-only-rate-regression-triage);
+  PAUSE resurrection: [B20-7](backlog.md#b20-independent-plus-asic-interrupt-and-dma-accuracy-findings).
   No-input controls reproduce the progression difference. Sustained-fire controls
   agree but have recorded inspection delays and are not precisely phase-matched. Retain the experiment for
   further isolation; its progression regression does not negate the component gain.

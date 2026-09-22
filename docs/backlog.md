@@ -18,6 +18,33 @@ the D5 boot-configuration note) are archived verbatim in
 them.
 
 
+## B21. Plus cartridge code now runs at the READY-only rate: regression triage
+
+**Open watch item, 2026-09-22. Plus stream.** Branch `plus/sonic-cpu-cart-latency`
+stopped the cartridge SDRAM stall from costing a whole microsecond on reads whose MREQ
+lands two master clocks into a microsecond. Cartridge code, including every NOP chain,
+now runs at the hardware rate instead of up to half speed. This is source-settled (see
+the [cart-wait record](investigations/sonic/cart-wait-2026-09-22.md)) but it changes the
+timing of **every cartridge title**, so it is the first suspect for any Plus timing
+regression found after it integrates.
+
+Guidance for whoever triages a Plus title that behaves differently after integration:
+
+- **Check this change first**, before other branches integrated in the same window.
+  Rebuild with `cart_granted` tied to `1'b0` at the `plus_mmu` instance in `Amstrad.sv`,
+  which restores the old stall exactly, and compare.
+- A title that got *worse* was probably tuned to, or hiding behind, the old slow
+  cartridge timing somewhere else in the model (DMA, raster interrupts, split timing).
+  Find that second defect; do not restore the stall. The rule has no hardware exception.
+- The `no_wait` speed hack is a separate known defect: GA writes can be dropped by
+  CPU phase. Reproduce with the OSD option off before blaming this change.
+
+Close this item after the post-integration Plus acceptance pass (Sonic, Copter 271,
+Burnin' Rubber, Pang, Plotting, Navy Seals, the CRTC3 demo) shows no regression
+attributable to it.
+
+---
+
 ## B20. Independent Plus ASIC interrupt and DMA accuracy findings
 
 **Open, 2026-09-22. Plus stream; independent of Sonic.** The new source ingestion
@@ -43,7 +70,7 @@ is comparative evidence, not independent proof of original CPC Plus behavior.
 | **B20-4: PRI phase relative to HSYNC** (I4) | Sources disagree between HSYNC-start +10 microseconds and revised Arnold's shaped trailing-edge account; RTL uses internal shaped HSYNC falling. | Re-read revised Arnold, then vary R3 width while tracing raw HSYNC, shaped HSYNC and IRQ on one clock. Establish the phase rule before modifying it. Preserve the hardware-backed nine-bit PRI **no-wrap** policy; range and phase are separate. |
 | **B20-5: DCSR read semantics** (I6) | Sources disagree about request polarity and whether bits freeze in automatic mode; RTL reports active-high live DMA flags and last-raster-ack provenance. | Read DCSR before/after request, acknowledge and explicit clear in both IVR modes. Keep CPU DI/EI separate from peripheral flags. Resolve the conflicting claims before changing readback; preserve B19's already implemented raster-retention/provenance behavior. |
 | **B20-6: DMA set/clear and STOP/write collisions** | Same-channel set/clear is clear-dominant in RTL despite a set-dominant comment. The level-wide DCSR write-clear window and enable/STOP ordering are additional code-level leads, not established hardware defects. | First correct misleading commentary to describe existing behavior without claiming hardware authority. Then isolate a new DMA request during W1C/automatic acknowledge, plus STOP coincident with an enable write. Establish priority and whether CPU writes represent one event or a whole clearing window before a behavioral repair. |
-| **B20-7: DMA PAUSE/REPEAT boundaries** | Sources conflict on PPR=0 and REPEAT=0. The PAUSE expiry candidate matched AmSpirit's relative cadence but failed the matched Sonic progression test and was reverted; neither result settles the general hardware rule. | Use independent short lists with INT markers to distinguish PAUSE 0/1, nonzero PPR, REPEAT 0/1 and frame rearm. Reuse the [recorded experiment](investigations/sonic/hardware-loop-2026-09-22.md); assess partial improvements separately from title progression. Coordinate with the active Sonic phase investigation rather than duplicate its traces. |
+| **B20-7: DMA PAUSE/REPEAT boundaries** | Sources conflict on PPR=0 and REPEAT=0. The terminal-PAUSE candidate (`190f4d3`, built as `a137d48`) makes the expiry line execute the next instruction; it matched AmSpirit's relative cadence but failed the matched Sonic progression test and was reverted in `b0e5bed`. **That failure is confounded:** it was measured while the cartridge stall still cost a whole microsecond per phase-2 read ([cart-wait record](investigations/sonic/cart-wait-2026-09-22.md)). In scratch Sonic traces the cartridge fix plus this rule give a frame-locked 312-line list and 8-line handler spacing, matching AmSpirit; either change alone does not. | **Next: resurrect the rule on a new Plus branch** from `190f4d3`, rebased over B20-1 live PPR and the cartridge fix, with its `asic_dma_test` fail-first vector restored. Device acceptance compares master against master plus the rule on Sonic (no-input and sustained-fire controls) and a regression set of DMA-using titles. A pass does not settle the general PAUSE 0/1, PPR and REPEAT boundaries; keep the short-list discriminators for those. |
 
 **Scheduling and ownership.** These are eligible Plus accuracy tasks even if Sonic never
 exercises their conditions. B20-1 can be scoped independently; B20-2/3 share the

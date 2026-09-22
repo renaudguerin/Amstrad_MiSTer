@@ -50,10 +50,117 @@ void model_controls() {
     }
 }
 
+// Cartridge ROM execution speed on the production T80, ASIC sequencer and
+// SDRAM cartridge service with production clocking.
+//
+// Rule: the Gate Array/ASIC READY output is the only CPU wait source, and the
+// arbitration "also applies to ROM access ... the Z80 always runs at the same
+// speed, regardless of the type of memory being accessed" (CPCWiki "Gate
+// Array", bus arbitration; local/scrapes/Gate Array - CPCWiki.pdf). Every
+// instruction is stretched to a whole number of microseconds: 4 T-states at
+// 4 MHz, 64 master ticks at 64 MHz. The CPC+ ASIC drives the cartridge /ROM
+// and CA14-CA18 itself and has no other CPU wait output (CPCWiki "Gate Array
+// and ASIC Pin-Outs", 160-pin ASIC). So cartridge code must run at exactly
+// the RAM rate:
+//   NOP        4T  -> 1 us =  64 ticks between opcode fetches
+//   LD HL,nn  10T  -> 3 us = 192 ticks between opcode fetches
+// The Sonic rearm trace (docs/investigations/sonic/cart-wait-2026-09-22.md)
+// shows the model instead taking 128 ticks per cartridge NOP: the cartridge
+// stall covers the only WAIT sample inside the READY window.
+void cart_timing() {
+    auto hx = [](unsigned v, int w) {
+        char b[16]; std::snprintf(b, sizeof(b), "%0*X", w, v); return std::string(b);
+    };
+    // 0000 DI; 64 x NOP; 16 x LD HL,nn; LD (4000),HL; HALT.
+    // Distinct operands make a late or open-bus (FF) data latch visible in
+    // the executed addresses or in the final RAM write.
+    std::vector<uint8_t> program{0xf3};
+    const unsigned nops = 64, loads = 16;
+    const unsigned nop_base = 0x0001, load_base = nop_base + nops;
+    program.insert(program.end(), nops, 0x00);
+    for (unsigned j = 0; j < loads; ++j) {
+        program.push_back(0x21);
+        program.push_back(uint8_t(0x10 + j));
+        program.push_back(uint8_t(0x80 + j));
+    }
+    const unsigned store_pc = load_base + 3 * loads;
+    for (uint8_t b : {uint8_t(0x22), uint8_t(0x00), uint8_t(0x40), uint8_t(0x76)})
+        program.push_back(b);
+    const unsigned halt_pc = store_pc + 3;
+    program.resize(16384, 0x76);
+    const uint8_t hl_lo = uint8_t(0x10 + loads - 1), hl_hi = uint8_t(0x80 + loads - 1);
+
+    Harness h;
+    h.dut.d5_key = 0;
+    h.dut.production_clocking = 1;
+    h.dut.plus_model_i = 2;
+    h.initialize(); h.download(build_cpr_image({{"cb00", program}})); wait_for_cpr_apply(h);
+
+    std::vector<std::pair<unsigned, uint64_t>> fetches;
+    bool fetching = false, writing = false;
+    std::vector<std::pair<unsigned, unsigned>> writes;
+    for (uint64_t n = 0; n < 2000000; ++n) {
+        h.tick();
+        // Fetch start: the first tick with M1, MREQ and RD active.
+        const bool f = !h.dut.dbg_m1_n && !h.dut.dbg_mreq_n && !h.dut.dbg_rd_n;
+        if (f && !fetching) fetches.push_back({h.dut.dbg_addr, n});
+        fetching = f;
+        const bool w = !h.dut.dbg_mreq_n && !h.dut.dbg_wr_n;
+        if (w && !writing) writes.push_back({h.dut.dbg_addr, h.dut.dbg_dout});
+        writing = w;
+        if (!fetches.empty() && fetches.back().first == halt_pc) break;
+    }
+
+    // The executed opcode stream must be exactly the program.
+    std::vector<unsigned> expected{0x0000};
+    for (unsigned i = 0; i < nops; ++i) expected.push_back(nop_base + i);
+    for (unsigned j = 0; j < loads; ++j) expected.push_back(load_base + 3 * j);
+    expected.push_back(store_pc);
+    expected.push_back(halt_pc);
+    require(fetches.size() >= expected.size(), "cart timing: program did not reach HALT");
+    for (size_t i = 0; i < expected.size(); ++i)
+        require(fetches[i].first == expected[i],
+                "cart timing: fetch " + std::to_string(i) + " at " + hx(fetches[i].first, 4) +
+                ", expected " + hx(expected[i], 4));
+    require(writes.size() == 2 && writes[0] == std::make_pair(0x4000U, unsigned(hl_lo)) &&
+            writes[1] == std::make_pair(0x4001U, unsigned(hl_hi)),
+            "cart timing: LD (4000),HL did not store the last cartridge operand");
+
+    // Fetch starts (MREQ edges) are not microsecond boundaries: an M1 whose
+    // MREQ lands after the READY window takes a Tw in T2. Gaps equal the
+    // instruction length only once consecutive fetches share a phase.
+    // Worked on paper from the READY window (sequencer phases 6..26 of each
+    // 64-tick microsecond) and T80pa sampling WAIT on CEN_n in T2:
+    // - NOP chain: MREQ at phase 2, WAIT seen at 18, no Tw: 64 each. The
+    //   first NOP follows DI's entry phase, so start at the second.
+    // - LD HL,nn after that chain: M1 no Tw (64), M2 read no Tw (48), M3
+    //   read MREQ at phase 50 takes one Tw (64), so the next M1 also starts
+    //   at phase 50 with one Tw: the first gap is 176, not a rate. From the
+    //   second LD on, M1 80 + M2 48 + M3 64 = 192 (3 us).
+    std::string nop_gaps, load_gaps;
+    bool ok = true;
+    for (unsigned i = 2; i <= nops; ++i) {
+        const uint64_t gap = fetches[i].second - fetches[i - 1].second;
+        nop_gaps += " " + std::to_string(gap);
+        ok = ok && gap == 64;
+    }
+    for (unsigned j = 2; j < loads; ++j) {
+        const size_t i = 1 + nops + j;
+        const uint64_t gap = fetches[i].second - fetches[i - 1].second;
+        load_gaps += " " + std::to_string(gap);
+        ok = ok && gap == 192;
+    }
+    std::cout << "NOP fetch gaps (expect 64):" << nop_gaps << std::endl;
+    std::cout << "LD HL,nn fetch gaps (expect 192):" << load_gaps << std::endl;
+    require(ok, "FAIL cart timing: cartridge code does not run at the READY-only rate");
+    std::cout << "PASS cartridge NOP 1 us, LD HL,nn 3 us, operands latched" << std::endl;
+}
+
 int main(int argc,char **argv) {
  try {
   Verilated::commandArgs(argc,argv);
   if(argc == 2 && std::string(argv[1]) == "--controls") { model_controls(); return 0; }
+  if(argc == 2 && std::string(argv[1]) == "--cart-timing") { cart_timing(); return 0; }
   require(argc >= 2, "usage: d5_boot image.cpr [--classic-rom] [--464]");
   bool no_menu = false, model464 = false;
   for (int i = 2; i < argc; ++i) {

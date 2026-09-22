@@ -676,6 +676,7 @@ module plus_p8_test_top (
 		.cart_page(mmu_cart_page),
 		.cart_offset(mmu_cart_offset),
 		.cart_ready(1'b0),
+		.cart_granted(1'b0),
 		.cart_data(8'd0),
 		.cart_busy(1'b0),
 		.cart_own(mmu_cart_own),

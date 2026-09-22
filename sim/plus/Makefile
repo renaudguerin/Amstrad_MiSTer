@@ -476,7 +476,7 @@ plus-sprite-ram-lint:
 # in SLOW_TESTS; `slow` runs only those; `full` runs both. The public targets
 # re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
 # inside a makefile; JOBS=1 gives serial, readable output.
-SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix
+SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing
 FAST_BINS := $(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS))
 FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS)))
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
@@ -843,6 +843,12 @@ d5-boot-build:
 
 d5-boot: d5-boot-build
 	python3 run_d5_boot.py $(D5_OBJ_DIR)/d5_boot $(D5_EN) $(D5_FR)
+
+# Cartridge execution rate on the production T80 (synthetic CPR, no private
+# media); runs in CI's production-t80 job through sim/Makefile.
+.PHONY: d5-cart-timing
+d5-cart-timing: d5-boot-build
+	$(D5_OBJ_DIR)/d5_boot --cart-timing
 
 # B6 production boundary gate. B7's executing TV80 and physical SDRAM
 # service are reused; this is not the separate production-T80 timing tier.
