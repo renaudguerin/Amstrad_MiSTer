@@ -195,7 +195,7 @@ repairing a demonstrated compatibility defect; section 8 selects the next work.
 ### P-2: model selection before Plus behavior
 
 **Status:** integrated. Plus hardware results are recorded in section 1 and current status;
-B16 load-time model selection is the remaining usability addition.
+B16 load-time model selection is implemented; Main/OSD echo and load-time device acceptance remain.
 
 The separate OSD `Plus model` field is implemented with `Off`, `GX4000`, `6128+`, and `464+`
 values. Keep the classic CPC `Model` field separate and preserve the common decode into
@@ -396,11 +396,12 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 
 ### Next implementation work
 
-1. **B16 — Plus model selection on load (Plus).** A CPR loaded with Plus Off selects 6128+;
+1. **B16 — implemented; device acceptance pending (Plus).** A CPR loaded with Plus Off selects 6128+;
    an already selected Plus model is preserved. SNA header values 4/5/6 select the recorded
    Plus model before CPU resume, with the OSD status updated. Preserve existing classic-header
    behavior in this slice; whether a classic SNA should switch Plus Off is a separate policy
-   decision. Pin publication against CPR reset/apply and SNA hold/release ordering. See
+   decision. Publication/reset ordering is pinned by the reviewed selected-gate implementation;
+   Main/OSD echo and actual boot/restore remain device checks. See
    [B16](backlog.md#b16-cpr-and-sna-loads-select-a-plus-model).
 2. **B18 — one classic capture/round-trip fixture (general).** Implement acceptance 2 and 3
    from [the design](b18-sna-save.md#acceptance) together: real production-T80/GA/PSG/HID and
@@ -409,14 +410,17 @@ finding or coherent fixture per branch, based on current `master` (or an explici
    `sna_cpu_header` and existing save/apply paths. Saving itself is integrated; Plus save and
    direct-to-SD transport are outside this slice. B16 owns load-time model policy; coordinate
    any shared decoder/apply interface change. These tasks can proceed in separate worktrees.
-3. **FDC — establish complete disk-read behavior (general/shared).** With production T80 or
-   a device trace, read a known sector and verify every byte, then the result/status phase
-   (including ST1). Confirm classic AMSDOS and Plus BASIC with known-good media. The existing
-   TV80 `XFAIL fdc-payload-poll` is not a proved controller defect: its polling limitations
-   confound the test. The rejected zero-clock pre-edge tests must not become an RTL fix.
-   Preserve the existing FDC stash; use the
-   [triage](investigations/archive/fdc-preedge-triage-2026-09-03.md) and
-   [integration evidence](investigations/archive/preserved-work-integration-2026-09-08.md).
+**FDC validation, not a confirmed outstanding RTL defect.** This grew out of the
+Plus/System-cartridge failure investigation. The September 9 hardware report says boot failed
+before disk access could be tested; 6128 Plus boot was subsequently fixed. The retained TV80
+`XFAIL fdc-payload-poll` is confounded by that surrogate CPU's polling limitations, and the
+zero-clock pre-edge "preload defect" was withdrawn. Start with a known-good disk smoke test
+in classic AMSDOS and Plus BASIC. Only a reproduced failure justifies a controller repair;
+a production-T80 complete-sector/result-phase fixture is follow-up validation, not higher
+priority feature work. Preserve the FDC stash. Evidence:
+[hardware report](investigations/hardware-runs/hardware-evidence-2026-09-09.md),
+[triage](investigations/archive/fdc-preedge-triage-2026-09-03.md),
+[recovery](investigations/archive/fdc-recovery-2026-09-03.md).
 
 ### Device-dependent work
 

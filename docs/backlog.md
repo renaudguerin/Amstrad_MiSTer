@@ -747,7 +747,14 @@ rationale; it is historical evidence rather than the active fixed-topology polic
 
 ## B16. CPR and SNA loads select a Plus model
 
-**Filed 2026-09-13. Small quality-of-life change, open.** Loading a CPR or an SNA leaves the
+**Implemented and independently reviewed, 2026-09-22; device acceptance pending.**
+Valid CPR loads now select 6128+ from Off, retaining an existing Plus choice;
+SNA v3 model headers 4/5/6 select the corresponding Plus model before CPU resume.
+The local selection does not wait for Main's asynchronous OSD echo. See
+[the implementation and gates](plus/b16-load-model-2026-09-22.md). Classic-header-to-Off
+policy remains separate. The original problem and intended behavior follow.
+
+**Filed 2026-09-13.** Previously, loading a CPR or an SNA left the
 machine model unchanged. With Plus model Off (`status[34:33] = 0`) the cartridge does not run until the
 user sets 6128+ in the OSD and reloads. Device captures hit the same trap: `driver.py` loads the
 CPR through MGL but applies no settings.

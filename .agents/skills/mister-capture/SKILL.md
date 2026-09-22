@@ -49,7 +49,7 @@ Device layout:
 | User's OSD screenshots | `/media/fat/screenshots/Amstrad/` (earlier reports often have one) |
 
 Locate media with `find /media/fat/games -iname '*<title>*'`. The repository keeps the same
-cartridges under `docs/plus/cartridges/`; compare SHA-256 to confirm the device copy matches.
+cartridges under `local/test_media/cartridges/`; compare SHA-256 to confirm the device copy matches.
 
 **Done when** the device is idle, and the RBF and media paths and hashes are known.
 
@@ -77,7 +77,9 @@ Decode bits from `CONF_STR` in `Amstrad.sv`: `On` is one bit where `n` is `0-9` 
 Common fields: CRTC bit 2 (0 = type 1), Model `[5:4]`, **Plus model `[34:33]`
 (0 Off, 1 GX4000, 2 6128+, 3 464+)**, Sync filter `[36:35]`.
 
-**Loading a CPR leaves the machine model unchanged.** Set Plus model before a cartridge run.
+**B16 builds select 6128+ when a valid CPR is loaded with Plus Off**, preserving an
+already selected Plus model. Older builds leave the model unchanged. Set and record the
+intended model explicitly for controlled comparisons; verify the OSD echo on B16 builds.
 
 Procedure, with `$S` a scratchpad directory:
 

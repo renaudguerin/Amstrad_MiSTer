@@ -82,7 +82,11 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 - B8-2, B8-3, B8-5 and B8-6 are integrated without hardware acceptance. B8-5 snapshot apply
   approximates first-frame pixels where the SNA omits address/phase history.
 - Status-2 16-frame timer: the source conflict and hardware confirmation remain open.
-- B16: CPR and SNA loads do not yet select a Plus model.
+- **B16 implemented:** valid CPR loads select 6128+ when Plus is Off; SNA v3
+  model headers 4/5/6 select the matching Plus model before restore. Existing Plus
+  selection is preserved for CPR. Independent review and selected simulation pass;
+  Main/OSD echo, boot and restore still need device acceptance. See
+  [the load contract](plus/b16-load-model-2026-09-22.md).
 - The PRI line-compare change is unreviewed (review debt).
 
 ## General: video path, peripherals, harnesses and tooling

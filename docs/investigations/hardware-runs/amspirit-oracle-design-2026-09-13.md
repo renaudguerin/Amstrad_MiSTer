@@ -151,9 +151,10 @@ is not.
 
 A cartridge title's SNA does not carry the cartridge ROM. On the MiSTer, load
 the CPR first and the SNA a few seconds later (one MGL with two `file`
-entries); the SNA alone hangs the machine. Plus model must be set in the CFG
-beforehand: the core ignores the SNA header's model byte (`0x6D`) and the
-`CPC+` chunk for that purpose, and a CPR does not select it either (backlog B16).
+entries); the SNA alone hangs the machine. For the pilot build, Plus model had to be set in the CFG beforehand. B16 now
+selects 6128+ for a valid CPR loaded from Off and the matching Plus model for
+SNA v3 headers 4/5/6; its Main/OSD and device acceptance remain open. Continue
+to record the explicit effective model for controlled comparisons.
 
 MiSTer-side classic snapshot saving (B18) is now integrated as a development tool
 requiring an SSH pull. A 6128 save resumed in this core and AmSpirit on September 14;
