@@ -18,6 +18,47 @@ the D5 boot-configuration note) are archived verbatim in
 them.
 
 
+## B23. TV80 bench CPU: bus-timing parity with production T80pa
+
+**Open, 2026-09-22. General (sim infrastructure).** The P10/B6/B7 fixtures run TV80
+(`sim/plus/tv80/`) as a stand-in for the production T80pa. It skipped the Z80's automatic
+I/O wait state, so its IORQ window was 6 GA states instead of 10. That made OUTs under
+no_wait miss the GA's latch states, which was taken for an RTL defect until measured
+([investigation](investigations/no-wait-ga-write-latch-2026-09-22.md)). The I/O wait is now
+fixed. Other known differences remain, for example the interrupt-acknowledge M1 (4 T-states
+plus the wrapper patch, against T80's 5 plus the automatic wait; see `sim/plus/tv80/t80pa.v`).
+
+Why this matters: any fixture result that depends on CPU bus phase is only as good as TV80's
+parity with T80pa, and a new difference shows up as a false RTL finding.
+
+**Action:** one differential bench that runs the same short instruction mix (memory, I/O,
+interrupt acknowledge, and a WAIT-stretched cycle) through TV80 and the GHDL T80pa netlist and
+compares MREQ/IORQ/RD/WR/M1 edges clock by clock. It earns its place because TV80 is still
+being patched, and it catches any difference, not just the one already fixed. Alternatively,
+retire TV80 where the T80pa netlist is fast enough (d5 already uses it).
+
+## B22. b6-dynamic type-1 short-HSYNC stage loses its shifted fetches after the TV80 I/O fix
+
+**Open finding, 2026-09-22. Classic video output (crt_filter).** After the TV80 automatic I/O
+wait fix (`plus/ga-fast-write-latch`), `make -C sim/plus b6-dynamic` fails for machine 1 only
+(type-1 CRTC), in all three modes. The "short" stage (R3 written to a 5-character HSYNC) now
+records `shift_fetches=0`, against 1808 on master `03f4724`. Every other stage and machine
+still passes, and so do `b6-video-boundary`, `b6-plus-layers` and `b7-dark-silicon-audit`. The
+only change is that each OUT takes one more T-state, so the R3 write lands at a different point
+in the line.
+
+Unverified hypothesis: `rtl/crt_filter.v` keeps a sticky `hs4`. It is set by any exactly
+4-character HSYNC and cleared only by one longer than 7 characters, and `SHIFT = shift ^ hs4`.
+If the type-1 R3 write lands inside an active HSYNC and produces one 4-character transition
+line, `hs4` sticks at 1 and cancels the 5-character shift for the whole stage. If that is
+right, crt_filter's output depends on one transitional line's history. That is a real
+behaviour question, not a fixture tuning issue. Check it against the monitor model and
+hardware before deciding.
+
+**Action:** confirm with a probe on `hs4` around the stage-1 R3 write. Then decide whether
+crt_filter's sticky state is intended, and fix either the RTL or the test's assumption.
+Do not re-tune the program's write timing to hide it.
+
 ## B21. Plus cartridge code now runs at the READY-only rate: regression triage
 
 **Open watch item, 2026-09-22. Plus stream.** Branch `plus/sonic-cpu-cart-latency`
@@ -36,8 +77,9 @@ Guidance for whoever triages a Plus title that behaves differently after integra
 - A title that got *worse* was probably tuned to, or hiding behind, the old slow
   cartridge timing somewhere else in the model (DMA, raster interrupts, split timing).
   Find that second defect; do not restore the stall. The rule has no hardware exception.
-- The `no_wait` speed hack is a separate known defect: GA writes can be dropped by
-  CPU phase. Reproduce with the OSD option off before blaming this change.
+- The earlier "no_wait drops GA writes" defect was a TV80 bench-CPU artifact, now fixed
+  (`docs/investigations/no-wait-ga-write-latch-2026-09-22.md`); the production T80pa never
+  dropped them. Still reproduce with the OSD no_wait option off before blaming this change.
 
 Close this item after the post-integration Plus acceptance pass (Sonic, Copter 271,
 Burnin' Rubber, Pang, Plotting, Navy Seals, the CRTC3 demo) shows no regression
@@ -709,6 +751,9 @@ separate, uncommitted failure-first u765 pre-edge staging discriminator. That
 **Standing rule, now recorded in `CLAUDE.md`:** a test earns its place only if it could have
 failed for a reason the author did not already know. A vector derived from an ACCC rule that
 was just implemented, asserting that same rule, is documentation with a `make` target.
+Since 2026-09-22 `CLAUDE.md` also separates proving a fix from keeping its vector: a vector
+whose only failure mode is reverting the exact fix is run once and not committed. Apply the
+same keep test in the sweep below.
 
 **Actions.**
 

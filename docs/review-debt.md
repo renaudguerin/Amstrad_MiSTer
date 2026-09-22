@@ -29,6 +29,15 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
+**TV80 automatic I/O wait (`plus/ga-fast-write-latch`), 2026-09-22 — UNREVIEWED:** Opus made
+`sim/plus/tv80/tv80_core.v` hold T2 for one wait state on I/O cycles (the existing, previously
+dead `IOWait` parameter) and removed the P10 fixture's `production_wait` switch. Sim-only; no
+RTL change. Measured IORQ windows now match the production T80pa exactly
+([investigation](investigations/no-wait-ga-write-latch-2026-09-22.md)). Look hardest at:
+whether the wait also applies where it should not (interrupt-acknowledge M1 is excluded
+through `iorq`; block I/O instructions and the WAIT-stretch path through the wrapper's
+`cen_pol`), and the resulting `b6-dynamic` type-1 failure (backlog B22).
+
 **Plus cartridge stall released at SDRAM admission (`plus/sonic-cpu-cart-latency`), 2026-09-22 —
 REVIEWED BY WORKHORSE TIER ONLY:** Opus wrote the RTL and the `d5-cart-timing` vector. Astra high
 was requested twice but Codex hit its usage limit (runs `20260922T095830Z-36234-3fa4`,
@@ -36,7 +45,7 @@ was requested twice but Codex hit its usage limit (runs `20260922T095830Z-36234-
 high (run `20260922T095958Z-39149-44d4`) reviewed `56771ff..d06972d` and found no blocking issue;
 Muse's two comment-accuracy points (sdram `q` resync after configuration, watchdog after a grant)
 were fixed in comments only. Not reviewed by either: the later P10 fixture edits (`production_wait`
-input for the video-coherence test, the stall-run pin re-derived as 4 ticks). A Sol or Astra pass
+input for the video-coherence test, since removed by `plus/ga-fast-write-latch`; the stall-run pin re-derived as 4 ticks). A Sol or Astra pass
 should still look hardest at: any path that drops `cart_stall` while `cart_dout` is stale at the
 T80pa latch (grant of a discarded/cancelled read, `sna_cart_mux` handover, `sdram.v` resync);
 the budget (grant I, data at I+9, earliest latch I+11; `p0_boot_tests` measures data 7 clocks
