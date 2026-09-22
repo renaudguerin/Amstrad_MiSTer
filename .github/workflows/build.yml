@@ -96,15 +96,12 @@ jobs:
             fallback_ref="origin/$PR_BASE_REF"
             compare_paths=true
             reason="pull request change"
-          elif [[ "$GITHUB_REF" == "refs/heads/$DEFAULT_BRANCH" ]]; then
-            required=true
-            reason="default-branch integration tip"
-          elif [[ " $INTEGRATION_BRANCHES " == *" $REF_NAME "* ]]; then
+          elif [[ " $INTEGRATION_BRANCHES " == *" $REF_NAME "* || "$GITHUB_REF" == "refs/heads/$DEFAULT_BRANCH" ]]; then
             # An integration branch is where a milestone actually lands, so this
-            # is the point that must synthesize without anyone remembering to
-            # dispatch it.  Stream branches below stay on Tier A: the same code
-            # would otherwise be synthesized twice, once on the branch and again
-            # at the merge, at ~12 minutes a time.
+            # is the point that must synthesize on any build-affecting change
+            # without anyone remembering to dispatch it. Stream branches below
+            # stay on Tier A: the same code would otherwise be synthesized
+            # twice, once on the branch and again at the merge.
             head_sha="$GITHUB_SHA"
             base_sha="$BEFORE_SHA"
             compare_paths=true
@@ -135,6 +132,8 @@ jobs:
               required="$(scripts/ci/classify-synthesis-paths.sh < "$changed_paths")"
               if [[ "$required" == "true" ]]; then
                 reason="known synthesis integration path changed"
+              else
+                reason="integration-branch push (no synthesis paths changed)"
               fi
             fi
           fi
