@@ -350,7 +350,7 @@ and 3 add exact automated checks for those otherwise invisible fields in one com
    `88262b9` changes): a classic 6128 snapshot saved from the OSD, pulled with `sna_pull.py`,
    reloads correctly in this core and in AmSpirit. This covers the practical "does it resume"
    claim. Acceptance 2 and 3 now have one automated classic fixture
-   (see below). Still open on hardware: a 464/664 64K save; and the user-facing SD route under "Status and
+   (see below). A 464 and a 664 64K save round-trip on device since 2026-09-22 (`cdcb3c3`, [record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md)). Still open on hardware: the user-facing SD route under "Status and
    limitation".
 
 ## Classic capture and round-trip fixture (2026-09-22)

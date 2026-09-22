@@ -1,4 +1,4 @@
-# Device acceptance of `cdcb3c3` (B20-1, B16)
+# Device acceptance of `cdcb3c3` (B20-1, B16, B18)
 
 Unattended device session, 2026-09-22. RBF `Amstrad_20260922_cdcb3c3.rbf`, SHA-256
 `f8bc3158826214d81ffeab09a311e78103f451add356247a70587592da6d63a1`, copied to
@@ -60,8 +60,42 @@ acceptance of the fix needs an RBF built from that commit.
 The B16 SNA path (header 4/5/6 selecting Plus) was not discriminated: without a
 cartridge a Plus snapshot shows garbage whichever model runs.
 
+## B18: 664 and 464 saves round-trip on device
+
+Procedure per model: write the Model field into the CFG, load the RBF through an rbf-only
+MGL, type `big` with the B17 replay helper (B, I and G share positions on UK and FR
+layouts), open the OSD and select `Save snapshot` (F12, nine Down presses, Enter:
+Main keeps disabled items navigable, so the count includes the CPR entry), pull with
+`sna_pull.py`, then reload the SNA through MGL index 6 **under the original 6128 CFG** and
+compare native screenshots. Schedules `osd-save.json` and `type-big.json` are in the
+evidence folder (`b18/`).
+
+| Model | CFG `[5:4]` | Saved SNA | Header | `big` in RAM | Before/after screen |
+| --- | --- | --- | --- | --- | --- |
+| 664 | 1 (`d7d2de0e…`) | 65,792 B, `7ea8f04a…` | v3, type 1, 64 KB, RAM config 0 | `0xAC8A` | `c9d7eef6…` both |
+| 464 | 2 (`81b55bec…`) | 65,792 B, `b878d0e6…` | v3, type 0, 64 KB, RAM config 0 | `0xACA4` | `983ec3fa…` both |
+
+Both reloads are byte-identical to the pre-save screen while the CFG requested a 6128,
+so the header selected the RAM map and the restored RAM carried the typed text.
+
+Limits and media facts:
+
+- The device `boot.rom` is 128 KB: 6128 and 664 slots only. With Model 464 and no
+  464 ROM the core shows a blank grey screen. The 464 run loads
+  `/media/fat/games/Amstrad/464FR.ez0` through F7 (`Load CPC464 ROM`) first, and the reload
+  MGL loads it again before the SNA. The 664 slots of this `boot.rom` hold 6128 FR
+  firmware (the banner reads `128K`, BASIC 1.1), so the 664 run tests the 64 KB map and
+  header, not 664 firmware.
+- No AmSpirit cross-load: the running AmSpirit is configured as a 6128 Plus and a
+  classic SNA does not switch its model. The 2026-09-14 test already covers AmSpirit
+  interchange for a 6128 save.
+- `sna_pull.py --wait` waits for a generation different from the one it first reads.
+  The core's generation restarts at 1 on every core load, so a first save after a
+  reload is invisible to `--wait` when the slot already holds generation 1. A plain
+  pull after the save works.
+
 ## Restoration
 
-Original CFG restored and hash-checked (`2e585b4c…d8e4`). The temporary SNA
-`/media/fat/games/Amstrad/zz_b16_tmp_sonic.sna`, the `/tmp` MGLs and the `zz_b16_*`
-screenshots are removed at session end; the `cdcb3c3` RBF stays on the device.
+Original CFG restored and hash-checked (`2e585b4c…d8e4`); the device is back at MENU.
+Temporary SNAs, MGLs, replay files and `zz_*` screenshots are removed from the device
+(screenshots archived in the evidence folder). The `cdcb3c3` RBF stays on the device.
