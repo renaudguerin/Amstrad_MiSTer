@@ -110,7 +110,7 @@ CPC_KEY_TO_LINUX: Dict[str, int] = {
     "DEL": 14,          # key[9][7]  reached via Linux BACKSPACE
 }
 
-# CSL \(XXX) escape -> CPC key position (CSL v1.4 annex "Specific key coding").
+# CSL \(XXX) escape -> CPC key position (CSL v1.5 annex "Specific key coding").
 # \(KOF) is handled separately: it is a timing marker, not a key.
 CSL_SPECIAL_KEYS: Dict[str, str] = {
     "ESC": "ESC",

@@ -221,7 +221,7 @@ class TestReadCommand(unittest.TestCase):
             ssm_ring.read_command(0x3000_0001, 64)
 
     def test_suggested_name_follows_the_standard(self):
-        # SSM v1.1: <Emulator name>_<CRTC number>_<HHLL code>.<extension>.
+        # SSM v1.2: <Emulator name>_<CRTC number>_<HHLL code>.<extension>.
         # Its own example is CRTC 2, ED E3 ED 02 -> AMSPIRIT_2_02E3.bmp.
         self.assertEqual(ssm_ring.suggested_name("AMSPIRIT", "2", 0x02E3, "bmp"),
                          "AMSPIRIT_2_02E3.bmp")
@@ -291,7 +291,7 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
         manifest = self._run(MINIMAL, ssm=True)
         captures = manifest["captures"]
         self.assertTrue(captures, "the #FFFE marker produced no capture")
-        # SSM v1.1 suggests <Emulator>_<CRTC>_<HHLL>.
+        # SSM v1.2 suggests <Emulator>_<CRTC>_<HHLL>.
         self.assertEqual(captures[0]["name"], "MISTER_1_FFFE.png")
         self.assertEqual(manifest["ssm_records"][0]["code"], "FFFE")
 
@@ -381,6 +381,69 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
         with self.assertRaises(CslError) as ctx:
             self._run(MINIMAL + "wait_ssm0000\n")
         self.assertIn("--ssm", ctx.exception.reason)
+
+    def test_wait_ssm_is_refused_unless_the_detector_is_on(self):
+        with self.assertRaises(CslError) as ctx:
+            self._run(MINIMAL.replace("1.4", "1.5") + "wait_ssm 0x1234\n")
+        self.assertIn("--ssm", ctx.exception.reason)
+
+    def test_wait_ssm_requires_one_prefixed_16_bit_hex_code(self):
+        for instruction in ("wait_ssm", "wait_ssm 1234", "wait_ssm 0x10000",
+                            "wait_ssm 0x12xz", "wait_ssm 0x1234 0x5678"):
+            with self.subTest(instruction=instruction):
+                self.setUp()
+                with self.assertRaises(CslError) as ctx:
+                    self._run(MINIMAL.replace("1.4", "1.5") + instruction + "\n",
+                              ssm=True)
+                self.assertIn("0x0000", ctx.exception.reason)
+
+    def test_wait_ssm_ignores_other_codes_and_releases_on_the_requested_code(self):
+        # CSL v1.5 adds an event-driven wait for one arbitrary SSM code. A
+        # different marker can arrive first (and still request its screenshot)
+        # without releasing this wait or being discarded as a future target.
+        self.publish_at[2] = 0x1111
+        self.publish_at[10] = 0x1234
+        script = (
+            "csl_version 1.5\ncrtc_select 1\nreset\n"
+            "disk_insert 'shaker27.dsk'\nwait_ssm 0x1234\nwait_ssm 0x1111\n"
+        )
+        manifest = self._run(script, ssm=True, max_wait_seconds=30.0)
+        released = [e for e in manifest["trace"] if e["outcome"] == "ssm_wait_released"]
+        self.assertEqual([e["code"] for e in released], ["1234", "1111"])
+        self.assertEqual(released[0]["ssm"]["code"], "1234")
+        self.assertGreater(released[0]["polls_seconds"], 0)
+        self.assertIn("before entry", released[1]["released_by"])
+        self.assertEqual([c["name"] for c in manifest["captures"]],
+                         ["MISTER_1_1111.png", "MISTER_1_1234.png"])
+        self.assertIsNone(manifest["version_warning"])
+
+    def test_hard_reset_discards_pending_wait_events_from_the_previous_machine(self):
+        # A ring record belongs to one core lifetime. Emulate the production
+        # detector republishing an empty ring on each load, then prove the
+        # runner also discards its host-side copy rather than releasing a wait
+        # in the next machine with a stale event.
+        loads = {"count": 0}
+
+        def reload_core(_cmd: str) -> CommandResult:
+            loads["count"] += 1
+            self.ring_written = 0
+            self.ring_slots.clear()
+            return CommandResult(0, "", "")
+
+        self.transport.handlers.insert(0, (lambda c: "load_core" in c, reload_core))
+        self.publish_at[2] = 0x1234
+        script = (
+            "csl_version 1.5\ncrtc_select 1\nreset\n"
+            "disk_insert 'shaker27.dsk'\nkey_output 'A'\nreset\n"
+            "wait_ssm 0x1234\n"
+        )
+        with self.assertRaises(CslError) as ctx:
+            self._run(script, ssm=True, max_wait_seconds=1.0)
+        self.assertEqual(loads["count"], 2)
+        self.assertIn("no SSM #1234 arrived", ctx.exception.reason)
+        self.assertTrue(any("screenshot MISTER_1_1234.png" in entry["command"]
+                            for entry in self.transport.command_log),
+                        "the pre-reset marker was never observed")
 
     # --- wait_ssm0000: one-shot consumption, ordered by the ring -------------
     #
@@ -514,7 +577,7 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
     # --- naming ---------------------------------------------------------------
 
     def test_an_ordinary_code_does_not_consume_a_pending_csl_name(self):
-        # SSM v1.1 gives screenshot_name to #FFFE only. Letting an ordinary
+        # SSM v1.2 gives screenshot_name to #FFFE only. Letting an ordinary
         # code eat it renames the wrong capture and leaves the #FFFE unnamed.
         self.publish_at[2] = 0x0123
         self.publish_at[3] = ssm_ring.CODE_SCREENSHOT

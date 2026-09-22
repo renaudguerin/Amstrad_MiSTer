@@ -333,15 +333,24 @@ evidence boundaries" in the [roadmap](implementation-roadmap.md).
 
 **Priority: medium, but the payoff is an oracle, so raise it if B2 stalls on comparison.**
 
-**RESEARCH COMPLETE 2026-09-08:** current CSL v1.4/SSM v1.1, supplied scripts and
+**RESEARCH COMPLETE 2026-09-08:** CSL v1.4/SSM v1.1, supplied scripts and
 reference-image routing are available; see the source-backed
 [hardware-loop plan](investigations/hardware-runs/mister-hardware-loop-plan.md). No author conversation is a
 prerequisite for the first bounded implementation.
 
+**STANDARDS REFRESH 2026-09-22:** CSL v1.5 adds `wait_ssm 0xHHLL`; SSM v1.2 makes
+the existing four-consecutive-opcode-byte requirement explicit. The host runner supports the
+new arbitrary-code wait while retaining `wait_ssm0000` and unchanged SHAKER 2.6 scripts. The
+production detector already enforced the v1.2 rule: it sees completed opcode fetches only,
+resets on any intervening opcode, ignores operand/data reads, and lets the first fetched ISR
+opcode cancel a pair split by an interrupt. The authoritative PDFs remain user-owned and
+ignored under `local/test_media/shaker/`, not duplicated into the tracked spec tree.
+
 - **CSL:** reuse the published command format for reset, model/media selection,
   input and capture. Declare the supported subset; host delays approximate
-  emulated microseconds, and exact VSYNC/motor/SSM waits need another layer.
-- **SSM:** recognize executed `ED LL ED HH` markers in the real CPU path, once
+  emulated microseconds, and exact VSYNC/motor waits need another layer. SSM waits
+  are event-driven and bounded but still inherit host polling latency.
+- **SSM:** recognize four consecutive executed opcode bytes `ED LL ED HH` in the real CPU path, once
   and in order. Marker observation alone does not preserve its requested image.
   Exact capture needs an explicit event-to-framebuffer ownership contract,
   including buffering/interlace; HPS polling or CPU pause alone is insufficient.

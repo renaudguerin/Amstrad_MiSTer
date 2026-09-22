@@ -18,6 +18,15 @@ When implementing and testing core behavior:
 3. **Hardware Specifications & Reverse-Engineering Documents** (this directory):
    Primary references for platform subsystems (ASIC registers, memory paging, DMA audio, Gate Array, PPI quirks, PSG masking, and container formats). Note: Core RTL architecture and implementation phasing are documented under [`docs/plus/architecture.md`](../plus/architecture.md) and [`docs/classic/`](../classic/).
 
+CSL and SSM are test-workflow standards rather than platform specifications. Their current
+user-owned PDFs stay unmodified and ignored beside the SHAKER media under
+`local/test_media/shaker/`: `CSL-STANDARD - EN - V1.5.pdf` (SHA-256
+`00736ca04d96d5000b4bef62207a04e9ede3fcc25b3467bbf9eecf6a0dc22f94`) and
+`SSM-STANDARD - EN - V1.2.pdf` (SHA-256
+`043de5d5ed26dd848cd908dd6367ad85c8563eda2e2f4ab56ced9687381fdc93`). Do not
+duplicate or commit them here. The active implementation contract is indexed from the
+[hardware-loop driver guide](../investigations/hardware-runs/mister-hardware-loop-driver.md).
+
 ---
 
 ## Document Inventory

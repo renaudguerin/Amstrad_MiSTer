@@ -455,7 +455,9 @@ that a previously online device remains available. Keep one device operator.
   Native MiSTer screenshots omit the OSD and cannot prove the active mode.
 - B4 Phase 1 CSL/SSM is device-verified for Module A on both types and Gate 1 (Module B).
   The experimental Phase 2 recorder is retired; do not revive its fit/DDR/throughput queue.
-  Production-T80 fetch-provider review/evidence remains an explicit review-debt item.
+  CSL v1.5/SSM v1.2 source support adds arbitrary-code `wait_ssm` while preserving the 2.6
+  scripts; its post-integration RBF/device check remains separate. Production-T80
+  fetch-provider review/evidence remains an explicit review-debt item.
 - B8-1 through B8-7 are integrated. Remaining work includes native dynamic-WAIT equivalence,
   complete frame-level RFD/full motherboard CPU execution, full video-consumer validation,
   real-CDT playback/HPS cadence, snapshot first-frame limits and named hardware retests.

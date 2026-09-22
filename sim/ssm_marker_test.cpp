@@ -1,7 +1,8 @@
 // SSM marker detector vectors (backlog B4, phase 1).
 //
-// Every expected code below is derived on paper from SSM v1.1
-// (docs/references/SSM-STANDARD-EN.pdf) and cited at the assertion. None is
+// Every expected code below is derived on paper from SSM v1.2
+// (the ignored user-owned standard under local/test_media/shaker/) and cited
+// at the assertion. None is
 // read back out of the simulator.
 //
 // Two drivers, one production ssm_marker:
@@ -168,7 +169,7 @@ private:
 
 void test_reserved_screenshot_code() {
     Harness h;
-    // SSM v1.1, "SSM CODES": #FFFE is #ED #FE #ED #FF, and the code is
+    // SSM v1.2, "SSM CODES": #FFFE is #ED #FE #ED #FF, and the code is
     // HH*256+LL, so LL=#FE and HH=#FF give #FFFE.
     h.fetch_all({0xED, 0xFE, 0xED, 0xFF});
     expect_eq(h->event_count, 1, "FFFE event count");
@@ -177,7 +178,7 @@ void test_reserved_screenshot_code() {
 
 void test_reserved_sync_code() {
     Harness h;
-    // SSM v1.1: #0000 is #ED #00 #ED #00 and releases a CSL wait_ssm0000.
+    // SSM v1.2: #0000 is #ED #00 #ED #00 and releases a CSL wait_ssm0000.
     h.fetch_all({0xED, 0x00, 0xED, 0x00});
     expect_eq(h->event_count, 1, "0000 event count");
     expect_eq(h->last_code, 0x0000, "0000 code");
@@ -185,7 +186,7 @@ void test_reserved_sync_code() {
 
 void test_reserved_snapshot_code() {
     Harness h;
-    // SSM v1.1: #FFFF is #ED #FF #ED #FF. Both bytes sit outside the ranges
+    // SSM v1.2: #FFFF is #ED #FF #ED #FF. Both bytes sit outside the ranges
     // the standard offers to user code, which is a reservation for these
     // codes and not a property of the Z80A, so the matcher must accept them.
     h.fetch_all({0xED, 0xFF, 0xED, 0xFF});
@@ -195,9 +196,9 @@ void test_reserved_snapshot_code() {
 
 void test_spec_reset_example() {
     Harness h;
-    // SSM v1.1, "DEFINITION": with the byte sequence ED 3F 00 ED 3E ED 3D the
-    // LL code is 3E and the HH code is 3D, because the 00 resets the wait for
-    // the 16-bit code. Exactly one event, #3D3E.
+    // SSM v1.2, "DEFINITION": the four bytes must be consecutive. In
+    // ED 3F 00 ED 3E ED 3D, the intervening NOP resets the first pair, so
+    // exactly one event remains: #3D3E.
     h.fetch_all({0xED, 0x3F, 0x00, 0xED, 0x3E, 0xED, 0x3D});
     expect_eq(h->event_count, 1, "spec example event count");
     expect_eq(h->last_code, 0x3D3E, "spec example code");
@@ -213,7 +214,7 @@ void test_real_ed_instruction_is_not_a_marker() {
 }
 
 void test_allowed_range_boundaries() {
-    // Endpoints of every range SSM v1.1 lists, plus the first value above
+    // Endpoints of every range SSM v1.2 lists, plus the first value above
     // each range that the standard excludes.
     struct Case { uint8_t byte; bool allowed; };
     const Case cases[] = {
@@ -545,7 +546,8 @@ void test_cpu_interrupt_between_the_pairs_drops_the_marker() {
     // The acknowledge cycle asserts IORQ with MREQ high, so it is not an
     // opcode fetch and injects no byte. What does reach the matcher is the
     // handler's own fetch at the vector, and that non-ED byte drops the
-    // marker. SSM v1.1 gives no exemption for this.
+    // marker. SSM v1.2 gives no exemption for this: the ISR's first opcode is
+    // an intervening fetch even though the interrupt acknowledge itself is not.
     h.load(0x00, {0x31, 0x00, 0x01, 0xED, 0x56, 0xFB, 0xED, 0xFE, 0xED, 0xFF, 0x76});
     h.load(0x38, {0x76});
     h->int_n = 0;

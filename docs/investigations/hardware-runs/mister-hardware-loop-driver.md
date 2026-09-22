@@ -137,8 +137,9 @@ does not visually confirm the active filter mode. Record that distinction.
 
 ## The CSL runner
 
-[csl_runner.py](../../../scripts/hardware-loop/csl_runner.py) executes a CSL v1.4
-script from the Logon System bundle (`docs/references/Shaker_CSL/`, untracked)
+[csl_runner.py](../../../scripts/hardware-loop/csl_runner.py) executes CSL through v1.5.
+SHAKER 2.6 scripts remain unchanged under `docs/references/Shaker_CSL/` (untracked),
+and future author-supplied 2.7 scripts can use the new event-driven `wait_ssm` command
 against the same device contract as the JSON driver. It is phase 0 of
 [the CSL/SSM plan](../ssm-csl/csl-ssm-implementation-plan.md): the host half, with no RTL
 change. The optional phase 1 detector is described under [SSM markers](#ssm-markers).
@@ -168,7 +169,7 @@ are followed, depth-limited and cycle-checked.
 
 | Command | On this target |
 |---|---|
-| `csl_version` | recorded; an unknown version is a manifest warning, not a stop. The bundled scripts declare 1.0 while using v1.4 forms |
+| `csl_version` | recorded; versions 1.0 through 1.5 are known, while a later version is a manifest warning rather than a stop. The bundled 2.6 scripts declare 1.0 while using v1.4 forms |
 | `reset` / `reset hard` | fresh core load, equal to power-on |
 | `reset soft` | rejected: no distinct soft-reset path exists from the host |
 | `crtc_select 0` | status bit 2 set (`crtc_type = ~status[2]` in `Amstrad.sv`) |
@@ -183,7 +184,9 @@ are followed, depth-limited and cycle-checked.
 | `key_from_file` | rejected: inline the text with `key_output` |
 | `keyboard_write` | rejected: the core has no matrix injection port |
 | `wait` | host sleep of the emulated microseconds, bounded by `--max-wait` |
-| `wait_vsyncoffon`, `wait_driveonoff`, `wait_ssm0000` | rejected in phase 0; they need core observability |
+| `wait_ssm0000` | with `--ssm`, consumes one unconsumed `#0000`; retained for CSL <=1.4 and SHAKER 2.6 compatibility |
+| `wait_ssm 0xHHLL` | CSL v1.5; with `--ssm`, consumes one unconsumed matching code and leaves unrelated codes queued |
+| `wait_vsyncoffon`, `wait_driveonoff` | rejected: they need observations the marker ring does not provide |
 | `screenshot_name` | names the next capture |
 | `screenshot_dir` | rejected: captures land under `--out-dir` |
 | `screenshot` | Main `screenshot <name>.png`, polled to a complete decode. The `vsync` option is rejected because Main captures the scaler output asynchronously |
@@ -282,11 +285,17 @@ SHAKERLAND references.
 
 ## SSM markers
 
-`rtl/ssm_marker.v` watches the Z80 opcode-fetch stream for the two consecutive
-undefined-ED instructions SSM v1.1 defines, `#ED #LL #ED #HH`, and publishes
+`rtl/ssm_marker.v` watches the Z80 opcode-fetch stream for the four consecutive
+opcode bytes SSM v1.2 defines, `#ED #LL #ED #HH`, and publishes
 each one to a ring in the DDR3 window described below; allocation is still a device gate. Those instructions are
 two NOPs on real hardware, so a SHAKER disc runs identically on a CPC, on an
 emulator and here.
+
+"Consecutive" is a CPU-fetch rule here, not a scan of adjacent RAM. The motherboard
+tap reports completed M1+MREQ+RD opcode fetches once each, including wait-stated fetches.
+Operand/data reads and interrupt acknowledge do not produce bytes for the detector. Any
+other fetched opcode resets a partial marker; therefore an interrupt between the ED pairs
+is cancelled when the ISR's first opcode is fetched.
 
 The detector is off by default. `--ssm` sets OSD status bit 37 through the
 same CFG mechanism as the CRTC bit, and restores it with the rest of the
@@ -304,7 +313,8 @@ is only the variant that takes its name from CSL instead of from the code.
 | Marker | What the runner does |
 |---|---|
 | any non-reserved code | captures, named `MISTER_<crtc>_<HHLL>.png` |
-| `#0000` | releases a pending `wait_ssm0000`, bounded by `--max-wait` |
+| any requested code | releases one matching `wait_ssm 0xHHLL`, bounded by `--max-wait`; its screenshot/reserved action still applies |
+| `#0000` | also releases legacy `wait_ssm0000` |
 | `#FFFE` | captures, named `screenshot_name` if one is pending, else `MISTER_<crtc>_FFFE.png` |
 | `#FFFF` | recorded as an approximation: this runner makes no snapshots |
 | other `#FFxx` | recorded with its raster position, acted on by nothing |
@@ -351,11 +361,11 @@ commits the count. Anything outside it is counted as lost and reported.
 After startup is established, the runner drains the ring at every command boundary and once more at the end of the
 run, so a marker emitted while MBC or a PNG retrieval blocked the thread is still
 collected. CSL waits and `--max-wait` are monotonic wall deadlines, because the polls
-and SSH round trips inside them advance the machine too. `wait_ssm0000` consumes one
-unconsumed `#0000` from the current run in ring order, including one that arrived
-before the wait was entered; CSL v1.4 does not settle that case, and the alternative
-reading is recorded in the [plan](../ssm-csl/csl-ssm-implementation-plan.md) rather than
-presented as the standard's rule.
+and SSH round trips inside them advance the machine too. `wait_ssm0000` and v1.5
+`wait_ssm` each consume one unconsumed matching event from the current run, including
+one observed before wait entry; unrelated codes stay queued. Neither CSL edition settles
+the buffered-before-entry case, so this asynchronous-host choice is recorded in the
+[plan](../ssm-csl/csl-ssm-implementation-plan.md) rather than presented as a standard rule.
 
 Still open: host polling is not an exact core wait under either reading.
 
