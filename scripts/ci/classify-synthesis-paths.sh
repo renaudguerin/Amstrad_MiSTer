@@ -46,6 +46,7 @@ while IFS= read -r path; do
 		.github/workflows/local-build.yml | \
 		scripts/ci/classify-synthesis-paths.sh | \
 		scripts/ci/check-quartus-timing.sh | \
+		scripts/ci/sta-worst-paths.tcl | \
 		scripts/ci/list-synthesized-sources.sh | \
 		scripts/ci/test-check-quartus-timing.sh | \
 		scripts/ci/test-classify-synthesis-paths.sh | \

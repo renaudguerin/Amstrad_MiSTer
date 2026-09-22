@@ -320,3 +320,14 @@ build that did not happen.
 
 `workflow_dispatch` on `local-build.yml` still works and still forces the VM. It is no longer
 needed for ordinary integration pushes.
+
+## Timing failure diagnostics
+
+The TimeQuest report hook `scripts/ci/sta-worst-paths.tcl` retains the worst
+20 setup and 10 hold paths, with endpoints and full clock/data-path detail, in
+`output_files/Amstrad.sta.paths.rpt`. Both synthesis routes collect this report
+even when the timing gate fails. Default analysis and timing thresholds are unchanged.
+This closes the diagnostic gap exposed by the HDMI setup failure at `60a63e4`,
+whose archived summary identified a clock but no failing path. Inspect the path
+before changing RTL or constraints; an older timing-clean RBF is baseline evidence,
+not timing acceptance for a new source SHA.
