@@ -29,8 +29,27 @@
 //
 // Read bridging: a bus read hitting a cartridge window claims the held
 // request/acknowledge CPU port of the memory service, holds the Z80 in WAIT
-// until the data returns, and owns the CPU data mux until the bus cycle
-// ends. cart_dout is captured one edge after cart_ready because the service
+// until the SDRAM admits the read, and owns the CPU data mux until the bus
+// cycle ends.
+//
+// The Gate Array/ASIC READY output is the only CPU wait source on the real
+// machine, and it treats ROM like RAM: "the Z80 always runs at the same
+// speed, regardless of the type of memory being accessed" (CPCWiki "Gate
+// Array", bus arbitration; local/scrapes). The FPGA SDRAM latency must
+// therefore stay hidden. Holding WAIT until the data itself returned made it
+// visible: a read whose MREQ starts two master clocks into a microsecond
+// still had the stall up at the only WAIT sample inside READY and lost a
+// whole microsecond (a cartridge NOP took 2 us; see
+// docs/investigations/sonic/cart-wait-2026-09-22.md).
+// Admission is early enough: from the grant edge sdram.v returns the byte in
+// six clocks, and it reaches cart_dout three clocks later. cart_granted is
+// seen here one clock after the grant and cart_stall falls the clock after
+// that, so the first WAIT sample that can see it high is three clocks after
+// the grant. T80pa latches an opcode on the next CEN_p (eight clocks later at
+// 64 MHz) and other read data one CEN_n later still, i.e. at least eleven
+// clocks after the grant, after the byte is on cart_dout. A read the SDRAM
+// has not yet admitted (refresh or another client holding the slot) keeps
+// the stall, so contention stays safe. cart_dout is captured one edge after cart_ready because the service
 // registers data and completion on the same edge. A watchdog releases the
 // stall with open-bus FF if no answer ever arrives once the cartridge service
 // is quiescent, so a wedged backend cannot hang the machine. A legitimate
@@ -71,6 +90,7 @@ module plus_mmu
 	output reg  [4:0] cart_page,
 	output reg [13:0] cart_offset,
 	input             cart_ready,
+	input             cart_granted,
 	input      [7:0]  cart_data,
 	input             cart_busy,
 
@@ -259,6 +279,9 @@ always @(posedge clk) begin
 			end
 
 			CART_WAIT: begin
+				// Later assignments in this state still win.
+				if (cart_granted)
+					cart_stall <= 1'b0;
 				if (cart_ready) begin
 					cart_valid <= 1'b0;
 					cart_state <= CART_CAPTURE;

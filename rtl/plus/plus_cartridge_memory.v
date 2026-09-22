@@ -44,6 +44,9 @@ module plus_cartridge_memory #(
 	input      [13:0] cpu_offset,
 	output reg        cpu_ready,
 	output reg [7:0]  cpu_data,
+	// The SDRAM has admitted the current CPU read, so cpu_ready follows after
+	// a fixed delay (see plus_mmu). Held until completion or cancellation.
+	output reg        cpu_granted,
 
 	output reg        image_valid,
 	output            busy,
@@ -54,6 +57,7 @@ module plus_cartridge_memory #(
 	output reg [22:0] mem_addr,
 	output reg [7:0]  mem_wdata,
 	input             mem_ack,
+	input             mem_grant,
 	input      [7:0]  mem_rdata
 );
 
@@ -94,6 +98,7 @@ initial begin
 	load_ready      = 1'b0;
 	load_error      = 1'b0;
 	cpu_ready       = 1'b0;
+	cpu_granted     = 1'b0;
 	cpu_data        = 8'hFF;
 	image_valid     = 1'b0;
 	mem_req         = 1'b0;
@@ -310,6 +315,18 @@ always @(posedge clk) begin
 			end
 		end
 	end
+end
+
+// A grant only describes the physical request it arrived with. Any control
+// operation, completion, cancellation or discard of an older request clears
+// it, so a stale admission can never release a newer CPU cycle.
+always @(posedge clk) begin
+	if (detach_event || abort_event || cold_reset || begin_event ||
+	    !mem_req || mem_ack || (request_kind != REQUEST_CPU) ||
+	    discard_request || !cpu_valid)
+		cpu_granted <= 1'b0;
+	else if (mem_grant)
+		cpu_granted <= 1'b1;
 end
 
 endmodule

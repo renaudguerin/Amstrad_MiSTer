@@ -306,12 +306,12 @@ module p10_boot_test_top #(
 		.load_error(cart_load_error)
 	);
 
-	wire        cart_mem_req, cart_mem_write, cart_mem_ack;
+	wire        cart_mem_req, cart_mem_write, cart_mem_ack, cart_mem_grant;
 	wire  [1:0] cart_mem_bank;
 	wire [22:0] cart_mem_addr;
 	wire  [7:0] cart_mem_wdata, cart_mem_rdata;
 
-	wire        plus_cart_valid, plus_cart_ready;
+	wire        plus_cart_valid, plus_cart_ready, plus_cart_granted;
 	wire  [4:0] plus_cart_page;
 	wire [13:0] plus_cart_offset;
 	wire  [7:0] plus_cart_data;
@@ -339,6 +339,7 @@ module p10_boot_test_top #(
 		.cpu_page(plus_cart_page),
 		.cpu_offset(plus_cart_offset),
 		.cpu_ready(plus_cart_ready),
+		.cpu_granted(plus_cart_granted),
 		.cpu_data(plus_cart_data),
 		.image_valid(cart_image_valid),
 		.busy(cart_service_busy),
@@ -348,6 +349,7 @@ module p10_boot_test_top #(
 		.mem_addr(cart_mem_addr),
 		.mem_wdata(cart_mem_wdata),
 		.mem_ack(cart_mem_ack),
+		.mem_grant(cart_mem_grant),
 		.mem_rdata(cart_mem_rdata)
 	);
 
@@ -388,6 +390,7 @@ module p10_boot_test_top #(
 		.cart_page(plus_cart_page),
 		.cart_offset(plus_cart_offset),
 		.cart_ready(plus_cart_ready),
+		.cart_granted(plus_cart_granted),
 		.cart_data(plus_cart_data),
 		.cart_busy(cart_service_busy),
 		.cart_own(plus_cart_own),
@@ -447,6 +450,7 @@ module p10_boot_test_top #(
 		.cart_din(cart_mem_wdata),
 		.cart_dout(cart_mem_rdata),
 		.cart_ack(cart_mem_ack),
+		.cart_grant(cart_mem_grant),
 		.vram_dout(vram_dout),
 		// Match Amstrad.sv: motherboard vram_addr is a 15-bit word address,
 		// mapped into the physical SDRAM video region as {2'b10,addr,1'b0}.
