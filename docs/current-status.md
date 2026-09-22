@@ -73,10 +73,15 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 **Open:**
 
 - Copter 271: vertical-scrolling issues during gameplay (possibly pre-existing).
-- Sonic GX: display remains severely broken; split timing (Hazard 2) is a hypothesis, and
-  the B19 check was inconclusive. The [IRQ audit](investigations/sonic/irq-audit-2026-09-22.md)
-  has not established an RTL repair; it corrects the production-T80 harness adapter
-  and defines the next cartridge-matched checkpoint/trace.
+- Sonic GX: title and gameplay corruption reproduce on timing-clean `88262b9` and
+  `c59e03a`; both Act 1 captures are byte-identical across builds. The
+  [hardware/trace investigation](investigations/sonic/hardware-loop-2026-09-22.md)
+  identifies an extra DMA PAUSE expiry line: production T80 gives nine lines
+  between `PAUSE 7; INT` events, versus eight in AmSpirit; adding one to the
+  AmSpirit title's PAUSE counts reproduces displaced bands. The minimal DMA
+  correction has passed four selected benches and independent review; a
+  timing-clean artifact and post-fix hardware acceptance remain pending. PRI and IRQ vector logic
+  are unchanged by this candidate.
 - Left-edge sprite corruption is much improved, perhaps fixed; closure is open. Navy Seals
   left-edge sprite flicker remains; its black-screen report was not reproduced and has no
   assigned cause.

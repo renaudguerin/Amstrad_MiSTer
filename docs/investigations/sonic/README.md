@@ -28,6 +28,10 @@ corrects stale B19 guidance, A13 safe-zone applicability and SPLT wrap arithmeti
 Use its evidence boundaries before treating the hypotheses below as RTL defects.
 The [cartridge and IRQ audit](irq-audit-2026-09-22.md) records the bounded
 production-T80 evidence, harness correction and next checkpoint requirements.
+The [hardware and DMA cadence investigation](hardware-loop-2026-09-22.md) records
+matching defects on two timing-clean builds, the production-T80 PAUSE terminal-line
+discrepancy, and an AmSpirit counterfactual. Hardware acceptance of the correction
+remains separate from its simulation and review gates.
 
 ## Document Index
 
