@@ -347,7 +347,6 @@ public:
         dut.memory_dq_oe = 0;
         dut.force_irq = 0;
 		dut.production_clocking = 0;
-		dut.production_wait = 0;
 		dut.fdc_img_mounted = 0;
 		dut.fdc_img_wp = 1;
 		dut.fdc_img_size = 0;
@@ -1736,10 +1735,6 @@ void test_p10b_video_coherence_pixel() {
         h.preload(0, 0x20000U + (w << 1) + 1, 0x00);
     }
     h.dut.production_clocking = 1;
-    // Its GA writes must land deterministically. Under the fixture's default
-    // no_wait speed hack an OUT can miss both GA latch windows, so run this
-    // video test with the production READY wait.
-    h.dut.production_wait = 1;
     h.initialize();
 
     std::vector<uint8_t> program(16384, 0x00);
