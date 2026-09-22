@@ -21,7 +21,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import lookup  # noqa: E402
 
-SET = Path(__file__).with_name("accc-eval.json")
 
 
 def top(order, ok, k):

@@ -29,6 +29,16 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
+**ACCC section lookup tool (`scripts/accc/`), 2026-09-22 — PARTLY REVIEWED:** Opus wrote
+`lookup.py` and `run_eval.py`; Gemini added round-2 eval data, `--set` and the bilingual claim
+check; Opus reviewed Gemini's part and fixed the findings (Jev-unavailable fallback, `--lang
+both` crash, overstated status wording). Opus's own code has no cross-provider review. Look
+hardest at: the heading parser (`parse_edition`/`num_ok`, which accepts forward-moving section
+numbers and drops a few real headings: EN 3, 3.1, 24.2, 24.10.4; FR 11.2.2, 27.6.2-27.6.5) and
+whether a misparsed boundary silently truncates a section; page attribution from footers; and
+that no failure path prints a partial section without saying so. Tooling only; no RTL or sim
+impact.
+
 **ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — REVIEWED (Gemini 3.8 Flash
 high, run `20260921T175020Z-80016-18b2`; Astra low, run `20260921T175020Z-79905-dd1b`), both
 CHANGES REQUIRED; round-2 re-review (runs `20260921T180739Z-90193-140e`, `20260921T180739Z-90182-2e61`)

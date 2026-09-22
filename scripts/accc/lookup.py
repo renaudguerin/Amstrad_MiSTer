@@ -20,6 +20,11 @@ Status: proof of concept, advisory only. Never cite its output as verification.
   scripts/accc/lookup.py --check-claim "..." --section 14.5.2
 
 TypeSafe key: $TYPESAFE_API_KEY, else macOS Keychain item "typesafe-api".
+Without a key or network (sandboxed workers, other hosts) a lookup falls back
+to BM25 ranking and says so; --check-claim needs Jev and exits instead.
+
+Technical information sourced from the "Amstrad CPC CRTC Compendium" by
+Longshot (CC BY-NC-ND); section text printed by this tool is quoted from it.
 """
 
 import argparse
@@ -180,6 +185,10 @@ def shortlist(sections, query, k):
 
 # ---------------------------------------------------------------- TypeSafe
 
+class JevUnavailable(Exception):
+    """No key, no network, or an API error: callers fall back or exit."""
+
+
 def api_key():
     key = os.environ.get("TYPESAFE_API_KEY")
     if key:
@@ -189,8 +198,9 @@ def api_key():
             ["security", "find-generic-password", "-s", "typesafe-api", "-w"],
             capture_output=True, text=True, check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
-        sys.exit("No TypeSafe key: set TYPESAFE_API_KEY or add Keychain item "
-                 "'typesafe-api' (security add-generic-password -a \"$USER\" -s typesafe-api -w)")
+        raise JevUnavailable(
+            "no TypeSafe key: set TYPESAFE_API_KEY or add Keychain item 'typesafe-api' "
+            "(security add-generic-password -a \"$USER\" -s typesafe-api -w)")
 
 
 def _cache():
@@ -216,9 +226,11 @@ def ask(state, questions, cache):
             break
         except urllib.error.HTTPError as e:
             if e.code != 429 or attempt == 3:
-                raise SystemExit(f"TypeSafe HTTP {e.code}: {e.read()[:500]!r}")
+                raise JevUnavailable(f"TypeSafe HTTP {e.code}: {e.read()[:300]!r}")
             import time
             time.sleep(2 ** attempt)
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            raise JevUnavailable(f"TypeSafe unreachable: {e}")
     cache[key] = resp
     return resp
 
@@ -395,16 +407,20 @@ def main():
             sys.exit(f"unknown section {a.section}")
         s = sections[a.section]
         if a.lang == "both":
-            v_en = check_claim(sections, a.check_claim, a.section, "en")
-            v_fr = check_claim(sections, a.check_claim, a.section, "fr")
+            try:
+                v_en = check_claim(sections, a.check_claim, a.section, "en")
+                v_fr = check_claim(sections, a.check_claim, a.section, "fr")
+            except JevUnavailable as e:
+                sys.exit(f"claim check needs Jev: {e}")
             disagree = v_en["choice"] != v_fr["choice"]
             trap = (f"DISAGREEMENT: EN evaluates '{v_en['choice']}' ({v_en['confidence']:.2f}) "
                     f"while FR evaluates '{v_fr['choice']}' ({v_fr['confidence']:.2f}). "
-                    "French takes precedence unless hardware supersedes it.") if disagree else None
+                    "Often Jev noise, not a translation difference: compare the two editions' text "
+                    "yourself; French takes precedence unless hardware supersedes it.") if disagree else None
             print(json.dumps({
                 "section": a.section,
                 "disagreement": disagree,
-                "translation_trap": trap,
+                "possible_translation_trap": trap,
                 "en": {"verdict": v_en["choice"], "confidence": round(v_en["confidence"], 3),
                        "probabilities": v_en["probabilities"]},
                 "fr": {"verdict": v_fr["choice"], "confidence": round(v_fr["confidence"], 3),
@@ -413,7 +429,10 @@ def main():
                 "advisory": "text-layer signal only; never cite as verification"
             }, indent=2, ensure_ascii=False))
             return
-        v = check_claim(sections, a.check_claim, a.section, a.lang)
+        try:
+            v = check_claim(sections, a.check_claim, a.section, a.lang)
+        except JevUnavailable as e:
+            sys.exit(f"claim check needs Jev: {e}")
         print(json.dumps({"section": a.section, "verdict": v["choice"],
                           "confidence": round(v["confidence"], 3),
                           "probabilities": v["probabilities"],
@@ -429,11 +448,17 @@ def main():
     if not a.query:
         ap.error("query, --section or --check-claim required")
 
-    cands = candidates(sections, a.query, a.shortlist, a.recall)
-    if a.no_rerank:
-        ranked = [(n, None) for n, _ in cands]
-    else:
-        ranked = [(n, p) for n, p, _ in rerank(sections, a.query, cands, a.lang)]
+    lang = "en" if a.lang == "both" else a.lang  # "both" only means something for claims
+    try:
+        cands = candidates(sections, a.query, a.shortlist, a.recall)
+        if a.no_rerank:
+            ranked = [(n, None) for n, _ in cands]
+        else:
+            ranked = [(n, p) for n, p, _ in rerank(sections, a.query, cands, lang)]
+    except JevUnavailable as e:
+        print(f"NOTE: Jev unavailable ({e}); showing BM25 ranking only, which is much "
+              "weaker: check the headings below before trusting the top sections.\n")
+        ranked = [(n, None) for n, _ in shortlist(sections, a.query, a.shortlist)]
     if a.json:
         print(json.dumps([{"section": n, "score": p} for n, p in ranked]))
         return
