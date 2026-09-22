@@ -98,7 +98,9 @@ to violate, not from blanket coverage.
 including same-value writes, through registered CPU write events. The fail-first
 regs-to-DMA matrix and nine selected benches pass; see the
 [source and validation record](plus/live-ppr-2026-09-22.md). This is a source-model
-repair with hardware acceptance still open. Exact write/HSYNC phase remains
+repair with hardware acceptance still open. On device, `cdcb3c3` keeps the `c59e03a`
+Sonic no-input progression (corrupt title, then playfield); see the
+[device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md). Exact write/HSYNC phase remains
 a model convention; no Sonic outcome is claimed.
 
 **Position.** The P-2 to P9 functional milestones and the P10 compatibility repairs are
@@ -154,7 +156,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   assigned cause.
 - CRTC3 demo: warning, audio and crash defects remain. Switchblade and other cartridge
   crashes, CPC+ SNA/reset/reload recovery and odd-R5 CRTC3 behaviour remain evidence-gated.
-- Disk path: 464 Plus boot, cartridge/empty-drive details and disk I/O are unrecorded. The
+- Disk path: on `4027f5e` the System Cartridge boots 6128+ (AMSDOS) and 464+ (tape), and
+  6128+ reads a disk directory and loads Space Gun to its title
+  ([device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md));
+  GX4000 shows `Ready / 14592` (explained: see [gx4000-system-cartridge-2026-09-22.md](plus/gx4000-system-cartridge-2026-09-22.md)). Empty-drive details are unrecorded. The
   System CPR disk read is held at `XFAIL fdc-payload-poll`; see "Open Plus evidence
   boundaries" in the roadmap.
 - D3/D4: post-BSR control readback and title/flicker hardware acceptance.
@@ -171,7 +176,12 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   model headers 4/5/6 select the matching Plus model before restore. Existing Plus
   selection is preserved for CPR. Independent review and selected simulation pass;
   Main/OSD echo, boot and restore still need device acceptance. See
-  [the load contract](plus/b16-load-model-2026-09-22.md).
+  [the load contract](plus/b16-load-model-2026-09-22.md). **Device run on `cdcb3c3`:
+  the CPR path is unreachable** because the OSD disabled `Load Plus cartridge` with Plus
+  Off and Main drops an MGL at that item. Branch `general/device-acceptance-cdcb3c3`
+  ungates the entry; its RBF `4027f5e` boots Sonic from Plus Off on device. The SNA path works: a header-4
+  snapshot with Plus Off matches the explicit-6128+ result (types 5/6 and OSD echo unobserved). See the
+  [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md).
 - The PRI line-compare change is unreviewed (review debt).
 
 ## General: video path, peripherals, harnesses and tooling
@@ -194,8 +204,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   [driver guide](investigations/hardware-runs/mister-hardware-loop-driver.md).
 - **B18 SNA save** is integrated as a development aid only: the core cannot write to SD, so
   shipping it needs a Main_MiSTer change. The reviewed production-T80 capture/round-trip fixture now covers six classic
-  model/CRTC combinations and host publication races (acceptance 2 and 3). Open:
-  a 464/664 device save, SD transport, and the existing slice 3-4c review debt. See [b18-sna-save.md](b18-sna-save.md).
+  model/CRTC combinations and host publication races (acceptance 2 and 3). 464 and 664 saves round-trip on
+  device (`cdcb3c3`, 2026-09-22; see the
+  [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md)). Open:
+  SD transport and the existing slice 3-4c review debt. See [b18-sna-save.md](b18-sna-save.md).
 - **TV80 bench CPU** now takes the Z80's automatic I/O wait, so its I/O windows match the
   production T80pa. The reported no_wait Gate Array write drop was this fixture artifact, not an
   RTL defect ([record](investigations/no-wait-ga-write-latch-2026-09-22.md)). Consequence: the
@@ -204,7 +216,13 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   is resolved. [B23](backlog.md#b23-tv80-bench-cpu-bus-timing-parity-with-production-t80pa)
   proposes a TV80-vs-T80pa parity bench.
 - **Peripherals:** FDC full-sector result/ST1, classic AMSDOS and hardware acceptance are open.
-  B8-7 tape real-CDT playback and HPS cadence are open. B8-4 video-word coherence has no
+  B8-7 tape real-CDT playback and HPS cadence are open. **A CDT mounted on a CPC 464 model
+  overwrites the 464 OS ROM** (tape SDRAM bank 2 is also the 464 model bank; inherited from
+  upstream), so 464 tape use is broken; see the
+  [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md). On 464+
+  with the System Cartridge a standard-speed CDT deterministically loses block 2 and never
+  completes; the same CDT loads fully on a classic 6128 (`|TAPE`) on both this fork and
+  upstream, so the defect is Plus-specific (same record). B8-4 video-word coherence has no
   hardware acceptance.
 - **Tooling:** the task-workflow host smoke tests (B14) are open. `scripts/accc/lookup.py`
   finds candidate Compendium sections (BM25 plus a TypeSafe Jev skim and rerank; BM25 only,

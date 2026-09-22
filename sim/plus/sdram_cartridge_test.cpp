@@ -1375,8 +1375,11 @@ void test_top_level_wiring(TestState &test) {
     test.check(source.find("cpr_download = ioctl_download && (ioctl_index == 8)") !=
                    std::string::npos,
                "the CPR stream must own its own ioctl index (8)");
-    test.check(source.find("\"d2F8,CPR,Load Plus cartridge;\"") != std::string::npos,
-               "the OSD must offer CPR only for a selected Plus model");
+    // B16 selects 6128+ when a CPR is loaded with Plus Off. Main disables a
+    // d<n>-gated item and stalls an MGL on it, so a Plus-only gate makes that
+    // path unreachable on hardware (device run 2026-09-22, cdcb3c3).
+    test.check(source.find("\"F8,CPR,Load Plus cartridge;\"") != std::string::npos,
+               "the OSD must offer CPR in every model so B16 can select Plus from Off");
     test.check(source.find("| cpr_ioctl_wait") != std::string::npos,
                "parser backpressure must join the ioctl download throttle");
     test.check(source.find("wire cart_load_begin = 1'b0") == std::string::npos,

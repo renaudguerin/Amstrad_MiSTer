@@ -178,6 +178,13 @@ not reopen local RTL/test review. Source/test CLEAR is never hardware closure.
 
 ## Cleared rows
 
+**CPR OSD entry ungated for B16, 2026-09-22 — REVIEWED (Gemini 3.8 Flash high, run `20260922T101051Z-54103-daa4`), APPROVE, no findings:** Opus changed `CONF_STR`
+`d2F8,CPR,...` to `F8,CPR,...` and updated the `sdram_cartridge_tests` source pin, after a
+device run showed B16's CPR-from-Off path unreachable. This reverses the B6 Plus-only
+visibility for CPR. Look hardest at: whether loading a CPR into a classic model can reach any
+state B6 meant to exclude (B16 selects 6128+ only on a valid image; an invalid CPR with Plus Off
+must leave a clean classic machine).
+
 - **B8 lint compatibility version guard — CLEAR, Muse Spark/xhigh,
   2026-09-08.** Run `20260908T022122Z-19796-5140` reviewed the Makefile-only
   correction after CI `34179032281` rejected unknown control-file rule names

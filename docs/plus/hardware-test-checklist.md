@@ -74,14 +74,17 @@ the corresponding run ID.
     - `GX4000`: 64KB RAM, no FDC, no tape, fixed upper ROM page 1.
     - `6128+`: 128KB RAM, FDC present, unexpanded bare machine (`/EXP=1`) resolves ROM-select 0 to AMSDOS page 3.
     - `464+`: 64KB RAM, tape present, unexpanded bare machine (`/EXP=1`) resolves ROM-select 0 to AMSDOS page 3.
-- [ ] **Cartridge Detach**:
+- [ ] **Cartridge Detach** (obsolete as written: since 2026-09-01 `R[32]` detaches the
+  Dandanator only, and a CPR load replaces the Plus image atomically; see B6):
   - Verify `Reset & Detach Cartridge` unloads the current cartridge image and returns to basic unexpanded state.
 
 ---
 
 ## 2. Cartridge Boot & Auto-Reset (P0, P9)
 
-- [ ] **Auto-Reset on CPR Load**:
+- [x] **Auto-Reset on CPR Load** (MGL route, RBFs `cdcb3c3`/`4027f5e`, 2026-09-22; OSD
+  selection itself not observed; see the
+  [device record](../investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md)):
   - Select and load a `.cpr` file from OSD.
   - Verify that the core automatically asserts system reset during download, atomic commit occurs, and the CPU resets directly into cartridge page 0 (`&0000`) without manual OSD reset.
 - [ ] **Case Tolerances (P9)**:
@@ -97,8 +100,11 @@ The 6128 Plus BASIC boot symptom is confirmed fixed on September 12. The
 box below retains the wider banner, model and cartridge checks.
 
 - [ ] **Amstrad System Cartridge (v4)**:
-  - Boot on `6128+` and `464+`: verify the v4 banner, then the menu (f1 Amstrad BASIC,
-    f2 Burnin' Rubber); with no key pressed Burnin' Rubber starts after about 30 s.
+  - [x] Boot on `6128+`: verify Firmware 4.0 banner, Locomotive BASIC 1.1, and AMSDOS
+    (2026-09-22, `cdcb3c3`: v4 menu, BASIC 1.1, `CAT` answers `Drive A: disc missing`;
+    no AMSDOS banner is printed, so `CAT` is the check).
+  - [x] Boot on `464+`: verify Firmware 4.0 banner and Locomotive BASIC 1.1 (no AMSDOS)
+    (same run: `CAT` answers `Press PLAY then any key:`).
   - Boot on `GX4000`: v4 banner, then BASIC `Ready` and a cursor, no menu. Logical ROM 7
     maps to page 1 on GX4000, so the far call to the page-3 menu lands in BASIC. Lines after
     `Ready` are state-dependent. See [gx4000-system-cartridge-2026-09-22.md](gx4000-system-cartridge-2026-09-22.md).
