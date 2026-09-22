@@ -161,14 +161,6 @@ module asic_dma (
 	                               active_ch[2] ? ST_EXEC2_A : ST_DONE;
 	wire [4:0] exec_after1_state = active_ch[2] ? ST_EXEC2_A : ST_DONE;
 
-	// Pause is over, or its final tick expires on the current HSYNC edge.
-	wire pause_done0 = (pause_cnt[0] == 12'd0) ||
-	                   ((pause_cnt[0] == 12'd1) && (prescaler_cnt[0] == 8'd0));
-	wire pause_done1 = (pause_cnt[1] == 12'd0) ||
-	                   ((pause_cnt[1] == 12'd1) && (prescaler_cnt[1] == 8'd0));
-	wire pause_done2 = (pause_cnt[2] == 12'd0) ||
-	                   ((pause_cnt[2] == 12'd1) && (prescaler_cnt[2] == 8'd0));
-
 	integer c;
 
 	always @(posedge clk) begin
@@ -270,15 +262,10 @@ module asic_dma (
 					end
 				end
 
-				// Snapshot active channels: enabled and either not pausing or
-				// expiring the last prescaled tick on this edge.  Arnold V
-				// §2.6 gives a N*(PPR+1) line delay without saying whether the
-				// PAUSE line counts; the Sonic title chain (PPR 0, repeated
-				// PAUSE 7 / INT) interrupts every 8 lines on AmSpirit, so the
-				// expiry line itself executes the next instruction.
-				active_ch[0] <= dcsr_ena[0] && pause_done0;
-				active_ch[1] <= dcsr_ena[1] && pause_done1;
-				active_ch[2] <= dcsr_ena[2] && pause_done2;
+				// Snapshot active channels (enabled and not pausing)
+				active_ch[0] <= dcsr_ena[0] && (pause_cnt[0] == 12'd0);
+				active_ch[1] <= dcsr_ena[1] && (pause_cnt[1] == 12'd0);
+				active_ch[2] <= dcsr_ena[2] && (pause_cnt[2] == 12'd0);
 
 				state <= ST_DEAD;
 			end

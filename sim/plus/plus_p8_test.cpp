@@ -1328,8 +1328,7 @@ void test_b8_dma_pause_prescaler(Vplus_p8_test_top& dut) {
 
 	// Case PPR-reload: pause=2, prescaler phase 0, PPR=1. HSYNC1 reloads the
 	// phase and counts 2->1; HSYNC2 ticks the phase; HSYNC3 reloads and
-	// counts 1->0 and fetches on that same expiry edge. See Sonic DMA
-	// cadence evidence in docs/investigations/sonic/hardware-loop-2026-09-22.md.
+	// counts 1->0 (still gated on the old count); HSYNC4 fetches.
 	B8ChunkParams p;
 	p.sar_lo[0] = 0x00; p.sar_hi[0] = 0x40; p.ppr[0] = 0x01;
 	p.pause_cnt[0] = 2; p.pause_presc[0] = 0;
@@ -1338,17 +1337,18 @@ void test_b8_dma_pause_prescaler(Vplus_p8_test_top& dut) {
 	if (dut.sna_pause_cnt0 != 2 || dut.sna_pause_presc0 != 0)
 		fail("B8-5 DMA: pause shadow is " + std::to_string(dut.sna_pause_cnt0) +
 		     "/" + std::to_string(dut.sna_pause_presc0) + ", expected 2/0");
-	for (int h = 1; h <= 2; ++h) {
+	for (int h = 1; h <= 3; ++h) {
 		auto addrs = b8_hsync_window(dut, tick, 0x4020);
 		if (!addrs.empty())
 			fail("B8-5 DMA: pause leaked a fetch on HSYNC" + std::to_string(h));
 	}
 	auto addrs = b8_hsync_window(dut, tick, 0x4020, 500);
 	if (addrs.size() != 1 || addrs[0] != 0x4000)
-		fail("B8-5 DMA: pause did not expire exactly on HSYNC3");
+		fail("B8-5 DMA: pause did not expire exactly on HSYNC4");
 
 	// Case phase-decrement: pause=1, prescaler=3, PPR=5. Three HSYNCs tick
-	// the phase; the fourth reloads, retires the pause and fetches.
+	// the phase, the fourth reloads and retires the pause (gated), the
+	// fifth fetches.
 	b8_global_reset(dut, tick);
 	B8ChunkParams q;
 	q.sar_lo[0] = 0x00; q.sar_hi[0] = 0x40; q.ppr[0] = 0x05;
@@ -1358,14 +1358,14 @@ void test_b8_dma_pause_prescaler(Vplus_p8_test_top& dut) {
 	if (dut.sna_pause_cnt0 != 1 || dut.sna_pause_presc0 != 3)
 		fail("B8-5 DMA: pause shadow is " + std::to_string(dut.sna_pause_cnt0) +
 		     "/" + std::to_string(dut.sna_pause_presc0) + ", expected 1/3");
-	for (int h = 1; h <= 3; ++h) {
+	for (int h = 1; h <= 4; ++h) {
 		auto w = b8_hsync_window(dut, tick, 0x4020);
 		if (!w.empty())
 			fail("B8-5 DMA: pause leaked a fetch on HSYNC" + std::to_string(h) + " (phase case)");
 	}
 	auto w = b8_hsync_window(dut, tick, 0x4020, 500);
 	if (w.size() != 1 || w[0] != 0x4000)
-		fail("B8-5 DMA: pause did not expire exactly on HSYNC4 (phase case)");
+		fail("B8-5 DMA: pause did not expire exactly on HSYNC5 (phase case)");
 
 	std::printf("PASS b8_5_a2: DMA pause/prescaler first transitions (reload + phase)\n");
 }
