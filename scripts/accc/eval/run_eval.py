@@ -14,6 +14,7 @@ Jev calls are cached (see lookup.CACHE), so reruns are free.
 
 import argparse
 import json
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -55,12 +56,14 @@ def main():
     a = ap.parse_args()
     set_path = a.set
     if not set_path.is_file():
-        alt = Path(__file__).with_name(str(set_path))
-        if alt.is_file():
+        alt = Path(__file__).parent / set_path.name
+        if alt.is_file() and set_path.name == str(set_path):
             set_path = alt
         else:
             sys.exit(f"Dataset not found: {a.set}")
     data = json.loads(set_path.read_text())
+    if a.no_jev:
+        a.recall = "bm25"  # the scan pass calls Jev too
     sections = lookup.load()
 
     stats = Counter()
@@ -93,8 +96,8 @@ def main():
             line += f" jev={r_j} top={jv[:3]}"
         # A query that reuses a word from its gold section's title is easier
         # than a real one; report those separately (see accc-eval-r2.json "audit").
-        title = " ".join(sections[g]["title_en"] for g in gold).lower()
-        leaky = any(len(w) > 4 and w in it["query"].lower() for w in title.split())
+        words = lambda t: {w for w in re.findall(r"[a-z]+", t.lower()) if len(w) > 4}
+        leaky = bool(words(" ".join(sections[g]["title_en"] for g in gold)) & words(it["query"]))
         stats["leaky"] += leaky
         if not a.no_jev and not leaky:
             stats["clean_jev@3"] += r_j is not None and r_j < a.top
@@ -104,7 +107,7 @@ def main():
     n = stats["n"]
     print(f"\nlookups: {n} items, recall {a.recall}, shortlist {a.shortlist}, top {a.top}")
     print(f"  gold or accepted in shortlist: {stats['in_shortlist']}/{n}")
-    print(f"  BM25 : hit@1 {stats['bm25@1']}/{n}  hit@{a.top} {stats['bm25@3']}/{n}  (strict gold@{a.top} {stats['bm25_gold@3']})")
+    print(f"  {a.recall:5}: hit@1 {stats['bm25@1']}/{n}  hit@{a.top} {stats['bm25@3']}/{n}  (strict gold@{a.top} {stats['bm25_gold@3']})")
     if not a.no_jev:
         print(f"  Jev  : hit@1 {stats['jev@1']}/{n}  hit@{a.top} {stats['jev@3']}/{n}  (strict gold@{a.top} {stats['jev_gold@3']})")
     if not a.no_jev:
@@ -133,4 +136,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except lookup.JevUnavailable as e:
+        sys.exit(f"Jev unavailable ({e}); rerun with --no-jev for the BM25-only scores")

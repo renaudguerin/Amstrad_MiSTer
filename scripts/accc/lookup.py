@@ -53,12 +53,17 @@ MODEL = os.environ.get("ACCC_LOOKUP_MODEL", "jev-1.13.0")
 CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "accc-lookup/jev.json"
 
 HEADING = re.compile(r"^#{1,6}\s+(\d+(?:\.\d+)*)\.?\s*(.*)$")
-# Page footers, in both orders the extraction produces, sometimes glued to the
-# end of a body line: "V1.11 – 08.2026 – Page **N** / **296**" (FR "sur **295**")
-# and "**N** / **296** V1.11 – 08.2026 – Page".
+# A few headings come out as a one-row table: "|15.3.4|CRTC 1, 2|".
+TABLE_HEADING = re.compile(r"^\|(\d+(?:\.\d+)+)\|([^|]*)\|\s*$")
+# Page footers, in every shape the extraction produces, often glued to a body
+# line: "V1.11 – 08.2026 – Page **N** / **296**" (FR "sur **295**", sometimes
+# unbolded or split by table pipes), "**N** / **296** V1.11 – 08.2026 – Page",
+# and a bare "##### N / 296" heading. EN p21 and FR p280 are too mangled to
+# match; the next footer resynchronises the page count.
 FOOTER = re.compile(
-    r"V1\.11 – 08[./]2026 – Page \*\*(\d+)\*\* (?:/|sur) \*\*\d+\*\*"
-    r"|\*\*(\d+)\*\* (?:/|sur) \*\*\d+\*\* V1\.11 – 08[./]2026 – Page")
+    r"V1\.11 – 08[./]2026 – Page\|?\s*\**(\d+)\**\s*(?:/|sur)\s*\**29[56]\**\|?"
+    r"|\*\*(\d+)\*\* (?:/|sur) \*\*29[56]\*\* V1\.11 – 08[./]2026 – Page"
+    r"|^#{1,6}\s+(\d+) / 29[56]\s*$")
 MAX_STATE_CHARS = 60000  # well under Jev's 32k-token state budget
 
 
@@ -70,9 +75,12 @@ def parse_edition(ed):
     Footers close a page, so text after footer N is on page N+1; body text
     glued to a footer line is kept. The table of
     contents (before section 1) is skipped. A numbered heading must move
-    forward in document order (num_ok) and have a letter in its title;
+    forward in document order (num_ok) and have a letter in its title, or be
+    the exact next number (follows) when the extraction lost its title;
     anything else, such as a table row promoted to a heading, stays body
-    text. Unnumbered headings stay inside the enclosing section.
+    text. Unnumbered headings stay inside the enclosing section. Known
+    residual loss: EN "9 GATE ARRAY" is buried in a table cell, so its text
+    sits at the end of 8.3.
     """
     lines = Path(str(EDITIONS[ed]) + ".md").read_text().splitlines()
     sections, cur, page, last = {}, None, 1, None
@@ -83,15 +91,15 @@ def parse_edition(ed):
             rest = (line[:m.start()] + line[m.end():]).strip()
             if cur is not None and rest:
                 cur["text"].append(rest)
-            page = int(m.group(1) or m.group(2)) + 1
+            page = int(next(g for g in m.groups() if g)) + 1
             continue
-        h = HEADING.match(line)
+        h = HEADING.match(line) or TABLE_HEADING.match(line)
         if h:
             t = tuple(int(x) for x in h.group(1).split("."))
             title = h.group(2).strip()
             if (last is None and t == (1,)) or (
-                    last and num_ok(last, t) and re.search(r"[A-Za-z]", title)
-                    and h.group(1) not in sections):
+                    last and h.group(1) not in sections and num_ok(last, t)
+                    and (re.search(r"[A-Za-z]", title) or follows(last, t))):
                 last = t
                 num = h.group(1)
                 parents = [".".join(map(str, t[:i])) for i in range(1, len(t))]
@@ -117,6 +125,14 @@ def num_ok(prev, t):
     return t > prev and t[0] - prev[0] <= 2
 
 
+def follows(prev, t):
+    """True if t is the first child of prev or the next sibling of prev or of
+    one of its ancestors (1.2 -> 1.2.1, 1.3, 2)."""
+    if t == prev + (1,):
+        return True
+    return any(t == prev[:d - 1] + (prev[d - 1] + 1,) for d in range(len(prev), 0, -1))
+
+
 def flagged_pages(ed):
     data = json.loads(Path(str(EDITIONS[ed]) + ".inspection.json").read_text())
     flags = {p: "table/figure" for p in data.get("pages_with_tables", [])}
@@ -126,19 +142,21 @@ def flagged_pages(ed):
 
 
 def load():
+    """Merge the editions on section number. A section parsed in only one
+    edition keeps empty fields for the other; section_state refuses those."""
     en, fr = parse_edition("en"), parse_edition("fr")
     en_flags, fr_flags = flagged_pages("en"), flagged_pages("fr")
+    blank = {"title": "", "path": "", "text": "", "pages": []}
     merged = {}
-    for num, s in en.items():
-        f = fr.get(num, {"title": "", "text": "", "pages": []})
-        visual = sorted({p for p in s["pages"] if p in en_flags})
+    for num in sorted(set(en) | set(fr), key=lambda n: tuple(map(int, n.split(".")))):
+        e, f = en.get(num, blank), fr.get(num, blank)
         merged[num] = {
             "num": num,
-            "title_en": s["title"], "title_fr": f["title"],
-            "path_en": s["path"], "path_fr": f.get("path", ""),
-            "text_en": s["text"], "text_fr": f["text"],
-            "pages_en": s["pages"], "pages_fr": f["pages"],
-            "visual_en": visual,
+            "title_en": e["title"] or f["title"], "title_fr": f["title"],
+            "path_en": e["path"] or f["path"], "path_fr": f["path"],
+            "text_en": e["text"], "text_fr": f["text"],
+            "pages_en": e["pages"], "pages_fr": f["pages"],
+            "visual_en": sorted({p for p in e["pages"] if p in en_flags}),
             "visual_fr": sorted({p for p in f["pages"] if p in fr_flags}),
         }
     return merged
@@ -215,9 +233,10 @@ def api_key():
 
 def _cache():
     try:
-        return json.loads(CACHE.read_text())
+        cache = json.loads(CACHE.read_text())
     except (OSError, ValueError):
         return {}
+    return cache if isinstance(cache, dict) else {}
 
 
 def ask(state, questions, cache):
@@ -269,7 +288,15 @@ RELEVANCE = {
 }
 
 
-def section_state(s, lang="en"):
+def section_state(s, lang="en", strict=False):
+    """Jev state for one section. If this edition lost the section, a rerank
+    uses the other edition; a claim check (strict) refuses instead of judging
+    an empty excerpt."""
+    if not s[f"text_{lang}"]:
+        if strict:
+            sys.exit(f"§{s['num']} has no {lang.upper()} text in the extraction; "
+                     "check the claim against the PDF")
+        lang = "fr" if lang == "en" else "en"
     return {"number": s["num"], "title": s[f"title_{lang}"],
             "within": s[f"path_{lang}"],
             "text": s[f"text_{lang}"][:MAX_STATE_CHARS]}
@@ -330,10 +357,11 @@ def candidates(sections, query, k, mode):
     if mode == "scan":
         return sc
     seen, out = set(), []
-    for n, v in [x for pair in zip(bm, sc) for x in pair]:
-        if n not in seen:
-            seen.add(n)
-            out.append((n, v))
+    for i in range(max(len(bm), len(sc))):  # interleave; keep every member
+        for lst in (bm, sc):
+            if i < len(lst) and lst[i][0] not in seen:
+                seen.add(lst[i][0])
+                out.append(lst[i])
     return out
 
 
@@ -356,7 +384,7 @@ CLAIM = {
 
 def check_claim(sections, claim, num, lang="en"):
     cache = _cache()
-    r = ask({"claim": claim, "section": section_state(sections[num], lang)},
+    r = ask({"claim": claim, "section": section_state(sections[num], lang, strict=True)},
             {"verdict": CLAIM}, cache)
     save_cache(cache)
     return r["answers"]["verdict"]
@@ -381,7 +409,8 @@ def headline(s, score=None):
     vis = " (visual)" if s["visual_en"] or s["visual_fr"] else ""
     path = f"{s['path_en']} > " if s["path_en"] else ""
     return (f"{sc}§{s['num']} {path}{s['title_en']} / {s['title_fr']} "
-            f"— EN p{s['pages_en'][0]}, FR p{s['pages_fr'][0] if s['pages_fr'] else '?'}{vis}")
+            f"— EN p{s['pages_en'][0] if s['pages_en'] else '?'}, "
+            f"FR p{s['pages_fr'][0] if s['pages_fr'] else '?'}{vis}")
 
 
 def print_full(s, score=None):
@@ -389,7 +418,11 @@ def print_full(s, score=None):
     note = visual_note(s)
     if note:
         print(note)
-    print(s["text_en"])
+    if s["text_en"]:
+        print(s["text_en"])
+    else:
+        print("(no English text in the extraction for this section; French follows)")
+        print(s["text_fr"])
     print()
 
 
@@ -459,19 +492,24 @@ def main():
         ap.error("query, --section or --check-claim required")
 
     lang = "en" if a.lang == "both" else a.lang  # "both" only means something for claims
+    recall = "bm25" if a.no_rerank else a.recall  # --no-rerank means no API call at all
     try:
-        cands = candidates(sections, a.query, a.shortlist, a.recall)
+        cands = candidates(sections, a.query, a.shortlist, recall)
         if a.no_rerank:
             ranked = [(n, None) for n, _ in cands]
         else:
             ranked = [(n, p) for n, p, _ in rerank(sections, a.query, cands, lang)]
     except JevUnavailable as e:
         print(f"NOTE: Jev unavailable ({e}); showing BM25 ranking only, which is much "
-              "weaker: check the headings below before trusting the top sections.\n")
+              "weaker: check the headings below before trusting the top sections.\n",
+              file=sys.stderr if a.json else sys.stdout)
         ranked = [(n, None) for n, _ in shortlist(sections, a.query, a.shortlist)]
     if a.json:
         print(json.dumps([{"section": n, "score": p} for n, p in ranked]))
         return
+    if not ranked:
+        sys.exit("no candidate sections: no query word occurs in the Compendium text; "
+                 "rephrase with register, counter or signal names")
     for n, p in ranked[:a.top]:
         print_full(sections[n], p)
     if len(ranked) > a.top:

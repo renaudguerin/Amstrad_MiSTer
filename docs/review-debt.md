@@ -29,17 +29,15 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
-**ACCC section lookup tool (`scripts/accc/`), 2026-09-22 — PARTLY REVIEWED:** Opus wrote
-`lookup.py` and `run_eval.py`; Gemini added round-2 eval data, `--set` and the bilingual claim
-check; Opus reviewed Gemini's part and fixed the findings (Jev-unavailable fallback, `--lang
-both` crash, overstated status wording). Opus's own code has no cross-provider review. Look
-hardest at: the heading parser (`parse_edition`/`num_ok`, which accepts forward-moving section
-numbers and drops a few real headings: EN 3, 3.1, 24.2, 24.10.4; FR 11.2.2, 27.6.2-27.6.5) and
-whether a misparsed boundary silently truncates a section (a MiMo label audit found body text
-glued to page footers was dropped, e.g. the §21.2.2 register-31 rule; fixed, but 4 EN and 5 FR
-footers in other formats are still unmatched); page attribution from footers; and
-that no failure path prints a partial section without saying so. Tooling only; no RTL or sim
-impact.
+**ACCC section lookup tool (`scripts/accc/`), 2026-09-22 — REVIEWED (MiMo v2.6 Flash, run
+`20260922T092939Z-5423-8625`), CHANGES REQUIRED, all 13 findings fixed by Opus; the fixes
+are not re-reviewed:** Opus wrote `lookup.py` and `run_eval.py`; Gemini added round-2 eval data,
+`--set` and the bilingual claim check. The review found silent text loss and page drift in the
+parser, FR-only sections dropped by the merge, and several failure paths that crashed or called
+the API unasked. Look hardest at: the widened `FOOTER` and `TABLE_HEADING` patterns (could one
+swallow a body line?), `follows` accepting untitled headings, and the known residue (EN "9
+GATE ARRAY" text sits at the end of 8.3; FR 3 and 3.1 and EN 11.2.2 are absent from their
+edition; EN p21 and FR p280 footers are unmatched). Tooling only; no RTL or sim impact.
 
 **ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — REVIEWED (Gemini 3.8 Flash
 high, run `20260921T175020Z-80016-18b2`; Astra low, run `20260921T175020Z-79905-dd1b`), both
