@@ -97,9 +97,11 @@ The 6128 Plus BASIC boot symptom is confirmed fixed on September 12. The
 box below retains the wider banner, model and cartridge checks.
 
 - [ ] **Amstrad System Cartridge (v4)**:
-  - Boot on `6128+`: verify Firmware 4.0 banner, Locomotive BASIC 1.1, and AMSDOS banner.
-  - Boot on `464+`: verify Firmware 4.0 banner and Locomotive BASIC 1.1 (no AMSDOS).
-  - Boot on `GX4000`: verify French/English insert-cartridge splash screen.
+  - Boot on `6128+` and `464+`: verify the v4 banner, then the menu (f1 Amstrad BASIC,
+    f2 Burnin' Rubber); with no key pressed Burnin' Rubber starts after about 30 s.
+  - Boot on `GX4000`: v4 banner, then BASIC `Ready` and a cursor, no menu. Logical ROM 7
+    maps to page 1 on GX4000, so the far call to the page-3 menu lands in BASIC. Lines after
+    `Ready` are state-dependent. See [gx4000-system-cartridge-2026-09-22.md](gx4000-system-cartridge-2026-09-22.md).
 
 ### B. Commercial Cartridges (GX4000 / Plus)
 - [ ] **Burnin' Rubber**:
