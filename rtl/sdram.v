@@ -120,6 +120,24 @@ reg  [7:0] tape_write_data;
 reg  [5:0] cart_grants_since_refresh=0;
 reg        refresh_due=0;
 
+// Tape image placement. SDRAM is four 8 MB banks: banks 0-2 are the classic
+// model banks (6128/664/464; Plus models use bank 0), each holding its OS
+// ROM at 0x000000-0x003FFF, base RAM at 0x020000-0x02FFFF and upper ROMs
+// from 0x400000 (rtl/Amstrad_MMU.v, rtl/rom_loader_route.v). Bank 3 holds
+// the Dandanator at 0x000000-0x07FFFF and the Plus cartridge at
+// 0x080000-0x0FFFFF (plus_cartridge_memory CARTRIDGE_BASE). Bank 3 from
+// 0x100000 up is the only region no model ROM/RAM, Dandanator or cartridge
+// uses, so the tape image lives there. Maximum tape length is 7 MB
+// (23'h700000 bytes): tape_addr + TAPE_BASE must stay within the 23-bit
+// bank address. The queue and the player keep logical 0-based addresses;
+// only this controller relocates them.
+localparam  [1:0] TAPE_BANK = 2'b11;
+localparam [22:0] TAPE_BASE = 23'h100000;
+
+// Physical destination of a tape access: logical queue address relocated
+// into the reserved tape region (TAPE_BANK + TAPE_BASE).
+wire [22:0] tape_phys_addr = tape_addr + TAPE_BASE;
+
 localparam MODE_NORMAL = 2'b00;
 localparam MODE_RESET  = 2'b01;
 localparam MODE_LDM    = 2'b10;
@@ -191,15 +209,15 @@ always @(posedge clk) begin
 		        (tape_rd | tape_wr)) begin
 			tape_req <= 1;
 			wr <= tape_wr;
-			a <= tape_addr;
+			a <= tape_phys_addr;
 			// B8-7: latch the accepted payload with the address. The write
 			// data stage runs three clocks after admission; sampling live
 			// tape_din there lets a next payload corrupt a duplicate or a
 			// still-queued byte.
 			tape_write_data <= tape_din;
-			active_bank <= 2'b10;
-			if(tape_wr && vram_cached_valid && (2'b10 == vram_cached_bank) &&
-			   (tape_addr[22:1] == vram_cached_addr)) begin
+			active_bank <= TAPE_BANK;
+			if(tape_wr && vram_cached_valid && (TAPE_BANK == vram_cached_bank) &&
+			   (tape_phys_addr[22:1] == vram_cached_addr)) begin
 				vram_cached_valid <= 0;
 			end
 		end
