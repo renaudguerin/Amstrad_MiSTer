@@ -50,7 +50,7 @@ localparam CONF_STR = {
 	"d4S0,DSK,Mount A:;",
 	"d4S1,DSK,Mount B:;",
 	"d5F4,CDT,Load tape;",
-	"d2F8,CPR,Load Plus cartridge;",
+	"F8,CPR,Load Plus cartridge;",
 	"d5OK,Tape sound,Disabled,Enabled;",
 	"-;",
 	"FC0,ROM,Load Main ROM;",
