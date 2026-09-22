@@ -148,7 +148,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   assigned cause.
 - CRTC3 demo: warning, audio and crash defects remain. Switchblade and other cartridge
   crashes, CPC+ SNA/reset/reload recovery and odd-R5 CRTC3 behaviour remain evidence-gated.
-- Disk path: 464 Plus boot, cartridge/empty-drive details and disk I/O are unrecorded. The
+- Disk path: on `4027f5e` the System Cartridge boots 6128+ (AMSDOS) and 464+ (tape), and
+  6128+ reads a disk directory and loads Space Gun to its title
+  ([device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md));
+  GX4000 shows an unexplained `Ready / 14592`. Empty-drive details are unrecorded. The
   System CPR disk read is held at `XFAIL fdc-payload-poll`; see "Open Plus evidence
   boundaries" in the roadmap.
 - D3/D4: post-BSR control readback and title/flicker hardware acceptance.

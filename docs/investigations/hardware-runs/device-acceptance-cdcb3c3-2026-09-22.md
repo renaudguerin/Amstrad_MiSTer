@@ -213,6 +213,19 @@ device has no Plus support, so it is not a comparison point. A simulation trace 
 `tzxplayer` motor/pause handling around the first data block's 2500 ms pause is the
 next discriminator.
 
+## Plus disk I/O on 6128+
+
+RBF `4027f5e`, 6128+ (CFG `13ef32c7…5747`), MGL `zz_disk.mgl`: `Plus_EN.cpr` then
+`Space_Gun_(UK)_(1992)_-CPC+-.dsk` (SHA-256 `7d0f799f…e675`) in drive A. After f1:
+
+- `CAT` (UK layout) lists `0100.BIN 2K`, `DISC.BAS 1K`, `CATALOG.JEU 1K`, `174K free`.
+- `RUN"DISC` loads the game. Captures 15 s apart: blank, black, then the Space Gun title
+  (`be746e7a`, `2bf423a9`) with its logo palette fading in and "Please press fire to
+  Continue".
+
+AMSDOS directory read and a multi-file Plus disk load work on 6128+. Gameplay was not
+exercised. Evidence: `disk/` in the evidence folder.
+
 ## Restoration
 
 Original CFG restored and hash-checked (`2e585b4c…d8e4`); the device is back at MENU.
