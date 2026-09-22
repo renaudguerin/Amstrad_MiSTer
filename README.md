@@ -68,11 +68,11 @@ Classic CRTC emulation has been redesigned to align with the authoritative *Amst
 
 ## Installation
 
-> [!NOTE]
-> This fork is still early in development, so pre-built `.rbf` release binaries are not yet provided on this repository.
+Pre-compiled core bitstream releases (`.rbf`) are published on [GitHub Releases](https://github.com/renaudguerin/Amstrad_MiSTer/releases/latest).
 
-To test a build (compiled locally or obtained from GitHub Actions CI build artifacts):
-Place the `.rbf` file into the root of the SD card and **boot.rom** into the **Games/Amstrad** folder.
+To install on your MiSTer SD card:
+1. Place the `Amstrad_YYYYMMDD.rbf` file into `/media/fat/_Computer/` on your SD card.
+2. Place `boot.rom` (from [GitHub Releases](https://github.com/renaudguerin/Amstrad_MiSTer/releases/latest) or [`roms/boot.rom`](roms/boot.rom)) into `/media/fat/Games/Amstrad/boot.rom` (the core will not boot without it).
 
 ## Cartridge Support (.CPR)
 For Amstrad Plus and GX4000 games:

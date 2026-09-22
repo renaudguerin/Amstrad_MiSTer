@@ -248,9 +248,7 @@ For the current development branch's exact supported features, limitations, and 
 F2/F3/F5 hardware checks, read `current-status.md` before deploying. In particular, Plus
 models do not boot yet even though the menu and tested foundation modules are present.
 
-Amstrad is a "computer" class core. Convention (confirmed against this
-repo's own `releases/` folder, which already contains files like
-`Amstrad_20260603.rbf`):
+Amstrad is a "computer" class core. Standard MiSTer naming convention (per [Main_MiSTer wiki](https://github.com/MiSTer-devel/Main_MiSTer-wiki/wiki/Folders-and-File-naming)):
 
 ```bash
 scp output_files/Amstrad.rbf \
@@ -261,7 +259,7 @@ scp output_files/Amstrad.rbf \
   your actual unit if you haven't).
 - `_Computer/` is the standard MiSTer folder for computer-class cores; the
   update scripts and menu both recognize `CoreName_YYYYMMDD.rbf` there.
-- Also copy `boot.rom` from this repo's root into `/media/fat/Games/Amstrad/`
+- Also copy `boot.rom` from `roms/boot.rom` into `/media/fat/Games/Amstrad/`
   on the SD card if it isn't already there (required per this repo's
   README — the core won't boot without it).
 - On the MiSTer: from the main menu, the core should now show up under its
@@ -307,4 +305,4 @@ scp output_files/Amstrad.rbf \
 - ["Any way to develop on Mac? What tool options are there" — MiSTer FPGA Forum](https://misterfpga.org/viewtopic.php?t=9415)
 - [Folders and File naming — Main_MiSTer wiki](https://github.com/MiSTer-devel/Main_MiSTer-wiki/wiki/Folders-and-File-naming) — `_Computer/CoreName_YYYYMMDD.rbf` convention, `Amstrad_20190923.rbf` cited as the literal example
 - [Hetzner Cloud pricing](https://www.hetzner.com/cloud/cost-optimized) — CX42 8vCPU/16GB reference cost
-- Repo files read directly: `Amstrad.qpf`, `Amstrad.qsf`, `Amstrad_Q13.qsf`, `Amstrad.sdc`, `.gitignore`, `README.md`, `releases/`
+- Repo files read directly: `Amstrad.qpf`, `Amstrad.qsf`, `Amstrad_Q13.qsf`, `Amstrad.sdc`, `.gitignore`, `README.md`, `roms/`

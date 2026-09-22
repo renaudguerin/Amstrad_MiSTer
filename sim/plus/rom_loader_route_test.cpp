@@ -131,7 +131,7 @@ bool check_exhaustive_equivalence(Vrom_loader_route& dut) {
     return true;
 }
 
-// 1. Production 10-chunk main boot bundle mapping (index 0, releases/boot.rom)
+// 1. Production 10-chunk main boot bundle mapping (index 0, roms/boot.rom)
 const RouteExpectation kMainBundleCases[] = {
     {0, 0x00000, 0x000, true, true, 0, 0x000, false, "Main bundle chunk 0: CPC6128 OS -> bank 0, a_hi 0x000"},
     {0, 0x04000, 0x000, true, true, 0, 0x100, false, "Main bundle chunk 1: CPC6128 BASIC -> bank 0, a_hi 0x100"},
