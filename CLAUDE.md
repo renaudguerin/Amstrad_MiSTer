@@ -113,20 +113,15 @@ thing that catches collateral damage. Every behaviour change is proven by a focu
 deterministic vector that fails before the fix, and a timing-sensitive finding does not start
 until its failing vector exists.
 
-**Proving a fix and keeping a vector are separate decisions.** Keep a vector in the suite only
-when the bug has a realistic path back: shared state other changes routinely touch (the CRTC
-wrapper and engines qualify by default), a cross-module interaction, or an area under active
-change. A vector whose only failure mode is someone reverting the exact fix is a one-shot check:
-run it, record the command and before/after result in the commit message or investigation note,
-and do not commit it. Prefer a root-cause fix that an existing test already covers over a new
-vector for the symptom.
+The global test policy's keep rule decides which vectors stay in the suite; here the CRTC
+wrapper and both engines always count as shared state that other changes touch.
 
 Derive every expected value from the documented rule on paper and cite the ACCC section and
 page beside it in the test. Never read an expectation back out of the simulator: that produces
 a suite which agrees with a wrong core.
 
 When a finding is implemented, its named expected-failure cases become required passes in the
-same commit, or are deleted in that commit if they fail the keep test above. Never weaken an assertion to make the suite green. An unrelated test that starts
+same commit, or are deleted in that commit if they fail the keep rule. Never weaken an assertion to make the suite green. An unrelated test that starts
 failing is a finding, not something to edit.
 
 ## Gates
