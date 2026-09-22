@@ -61,7 +61,7 @@ Mac, including the Verilator build.
 | `sim/plus run/d3_sprites_tests` | fast | `rtl/plus/asic_sprites.v` | First visible sprite row at production cadence |
 | `sim/plus run/p4_sprites_regs_tests` | fast | `rtl/plus/asic_regs.v` `rtl/plus/asic_sprites.v` `rtl/plus/plus_sprite_ram.v` | Sprite page storage and row-fetch arbitration between asic_regs and asic_sprites |
 | `sim/plus run/asic_dma_tests` | fast | `rtl/plus/asic_dma.v` | DMA sound channel commands and timing |
-| `sim/plus run/plus_p8_tests` | fast | `rtl/plus/asic_dma.v` `rtl/i8255.v` `rtl/plus/plus_sna_*.v` `rtl/plus/plus_fdc_decode.v` | Plus PPI quirks, SNA v3 Plus chunk parsing, FDC model gating |
+| `sim/plus run/plus_p8_tests` | fast | `rtl/plus/asic_dma.v` `rtl/plus/asic_regs.v` `rtl/i8255.v` `rtl/plus/plus_sna_*.v` `rtl/plus/plus_fdc_decode.v` | Plus PPI quirks, SNA v3 Plus chunk parsing, FDC model gating, live PPR write events |
 | `sim/plus run/b16_load_model_tests` | fast | `rtl/plus/plus_load_model.v` `rtl/plus/plus_sna_apply.v` | CPR/SNA selection before reset release, delayed Main status echo, F1 collision and aborted restore |
 | `sim/plus run/p10_boot_tests` | fast | `rtl/Amstrad_motherboard.v` `rtl/Amstrad_MMU.v` `rtl/plus/plus_model_select.v` `rtl/plus/plus_fdc_decode.v` `sim/plus/tv80/*` | Plus cartridge boot on the full motherboard with frame capture (about 50 s) |
 | `sim/plus run/p10_input_tests` | fast | `rtl/YM2149.sv` `rtl/hid.sv` `rtl/joydb.sv` `rtl/i8255.v` | PPI to AY to keyboard and joystick input path |

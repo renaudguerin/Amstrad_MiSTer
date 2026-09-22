@@ -148,6 +148,14 @@ module asic_regs
 	output [7:0] sar0_lo, output [7:0] sar0_hi, output [7:0] ppr0, output sar0_wr,
 	output [7:0] sar1_lo, output [7:0] sar1_hi, output [7:0] ppr1, output sar1_wr,
 	output [7:0] sar2_lo, output [7:0] sar2_hi, output [7:0] ppr2, output sar2_wr,
+	// B20-1 live PPR write events (S02 p.4 immediate, S22 p.10 iteration
+	// advance; see docs/plus/live-ppr-2026-09-22.md): registered
+	// one-shot per-channel CPU-write pulses, aligned so the updated PPR
+	// byte is already visible when the pulse is live. CPU decode only
+	// (asic_cs && mem_wr, PPR address, never sna_wr); a stretched bus
+	// level yields one pulse (rising edge). The DMA consumes the pulse
+	// while pause_cnt>0 (see asic_dma); idle writes only update the byte.
+	output       ppr0_wr, output ppr1_wr, output ppr2_wr,
 	output [2:0] dcsr_ena_out,
 	input  [2:0] dcsr_ena_clr,
 	output       dma_int_req,
@@ -252,6 +260,24 @@ module asic_regs
 	assign sar0_wr = !reset && eff_cs && (eff_wsel == 2'b10) && (eff_addr[11:4] == 8'hC0) && (eff_addr[3:0] == 4'h0 || eff_addr[3:0] == 4'h1);
 	assign sar1_wr = !reset && eff_cs && (eff_wsel == 2'b10) && (eff_addr[11:4] == 8'hC0) && (eff_addr[3:0] == 4'h4 || eff_addr[3:0] == 4'h5);
 	assign sar2_wr = !reset && eff_cs && (eff_wsel == 2'b10) && (eff_addr[11:4] == 8'hC0) && (eff_addr[3:0] == 4'h8 || eff_addr[3:0] == 4'h9);
+
+	// B20-1 CPU-only PPR decode (A-side, never the SNA drain): the SNA
+	// path restores prescalers through sna_load shadows, so a drain-time
+	// level here must not fabricate a live-truncation event. CPU-only
+	// exclusion follows from the decode below; b8 tests cover the restored
+	// countdown, not absence of transient drain-time pulses.
+	wire ppr0_dec = !reset && asic_cs && mem_wr && !sna_wr &&
+	                (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h2);
+	wire ppr1_dec = !reset && asic_cs && mem_wr && !sna_wr &&
+	                (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'h6);
+	wire ppr2_dec = !reset && asic_cs && mem_wr && !sna_wr &&
+	                (wsel == 2'b10) && (A[11:4] == 8'hC0) && (A[3:0] == 4'hA);
+
+	reg ppr0_dec_q, ppr1_dec_q, ppr2_dec_q;
+	reg ppr0_wr_r, ppr1_wr_r, ppr2_wr_r;
+	assign ppr0_wr = ppr0_wr_r;
+	assign ppr1_wr = ppr1_wr_r;
+	assign ppr2_wr = ppr2_wr_r;
 
 	wire [7:0] next_sar0_lo = (sar0_wr && eff_addr[3:0] == 4'h0) ? eff_data : sar_lo[0];
 	wire [7:0] next_sar0_hi = (sar0_wr && eff_addr[3:0] == 4'h1) ? eff_data : sar_hi[0];
@@ -390,6 +416,8 @@ module asic_regs
 			sar_lo[0]<= 8'd0; sar_hi[0] <= 8'd0; ppr[0] <= 8'd0;
 			sar_lo[1]<= 8'd0; sar_hi[1] <= 8'd0; ppr[1] <= 8'd0;
 			sar_lo[2]<= 8'd0; sar_hi[2] <= 8'd0; ppr[2] <= 8'd0;
+			ppr0_dec_q <= 1'b0; ppr1_dec_q <= 1'b0; ppr2_dec_q <= 1'b0;
+			ppr0_wr_r  <= 1'b0; ppr1_wr_r  <= 1'b0; ppr2_wr_r  <= 1'b0;
 			for (k = 0; k < 16; k = k + 1) begin
 				spr_x_lo[k] <= 8'd0;
 				spr_x_hi[k] <= 2'd0;
@@ -435,6 +463,19 @@ module asic_regs
 				else
 					dcsr_ena <= (dcsr_ena & ~dcsr_ena_clr);
 			end
+		end
+
+		// B20-1 one-shot: rising CPU decode only, so a stretched bus level
+		// cannot re-arm mid-line. Registered, therefore the ppr[] byte
+		// written on the decode edge is already settled when the pulse is
+		// live for the DMA. Reset-gated like every other write.
+		if (!reset) begin
+			ppr0_dec_q <= ppr0_dec;
+			ppr1_dec_q <= ppr1_dec;
+			ppr2_dec_q <= ppr2_dec;
+			ppr0_wr_r  <= ppr0_dec && !ppr0_dec_q;
+			ppr1_wr_r  <= ppr1_dec && !ppr1_dec_q;
+			ppr2_wr_r  <= ppr2_dec && !ppr2_dec_q;
 		end
 
 		if (!reset && eff_cs) begin
@@ -720,6 +761,8 @@ module asic_regs
 		leg_border_q = 5'b11111;
 		import_pending = 1'b1;
 		pal_r = 12'd0;
+		ppr0_dec_q = 1'b0; ppr1_dec_q = 1'b0; ppr2_dec_q = 1'b0;
+		ppr0_wr_r = 1'b0; ppr1_wr_r = 1'b0; ppr2_wr_r = 1'b0;
 	end
 
 endmodule

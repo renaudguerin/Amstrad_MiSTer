@@ -50,16 +50,19 @@ module asic_dma (
 	input  wire [7:0]  sar0_hi,
 	input  wire [7:0]  ppr0,
 	input  wire        sar0_wr,        // CPU wrote to SAR0 (reloads current address)
+	input  wire        ppr0_wr,        // B20-1 CPU wrote to PPR0 (live truncation event)
 
 	input  wire [7:0]  sar1_lo,
 	input  wire [7:0]  sar1_hi,
 	input  wire [7:0]  ppr1,
 	input  wire        sar1_wr,        // CPU wrote to SAR1
+	input  wire        ppr1_wr,        // B20-1 CPU wrote to PPR1
 
 	input  wire [7:0]  sar2_lo,
 	input  wire [7:0]  sar2_hi,
 	input  wire [7:0]  ppr2,
 	input  wire        sar2_wr,        // CPU wrote to SAR2
+	input  wire        ppr2_wr,        // B20-1 CPU wrote to PPR2
 
 	input  wire [2:0]  dcsr_ena,       // Channel enable bits from DCSR[2:0]
 
@@ -248,11 +251,22 @@ module asic_dma (
 			if (sar2_wr) sar_cur[2] <= {sar2_hi, sar2_lo};
 
 			// HSYNC leading edge starts DMA line cycle
+			// B20-1 live PPR (S02 p.4 immediate, S22 p.10 iteration
+			// advance; see docs/plus/live-ppr-2026-09-22.md): a PPR write forces
+			// the current prescaler interval to end. On the HSYNC edge
+			// that means one tick with the new PPR reload, whether the
+			// edge is natural (prescaler==0) or forced (ppr_wr). A pulse
+			// coinciding with this edge shares that single tick (one
+			// natural/forced event total, reload wins over reset): the
+			// exact same-64MHz-cycle priority is a deterministic model
+			// convention, not measured silicon. active_ch still uses the
+			// old pause count, preserving the existing dispatch cadence.
 			if (hsync_rising) begin
 				// Advance Pause counters for all enabled channels
 				for (c = 0; c < 3; c = c + 1) begin
 					if (dcsr_ena[c] && (pause_cnt[c] > 12'd0)) begin
-						if (prescaler_cnt[c] == 8'd0) begin
+						if ((prescaler_cnt[c] == 8'd0) ||
+						    ((c == 0) ? ppr0_wr : (c == 1) ? ppr1_wr : ppr2_wr)) begin
 							prescaler_cnt[c] <= (c == 0) ? ppr0 : (c == 1) ? ppr1 : ppr2;
 							pause_cnt[c]     <= pause_cnt[c] - 12'd1;
 						end
@@ -269,7 +283,22 @@ module asic_dma (
 
 				state <= ST_DEAD;
 			end
-			else if (cclk_en_p) begin
+			else begin
+				// Outside HSYNC a live write forces the prescaler to 0
+				// while its channel is actively pausing (enabled and
+				// pause_cnt>0), so the next HSYNC expires one existing
+				// iteration and reloads the new PPR. No effect while not
+				// pausing. A disabled channel with a suspended pause
+				// keeps its prescaler (preserved suspend): documented
+				// model choice, no broad redesign. Reset/sna_load
+				// branches above dominate unconditionally.
+				if (ppr0_wr && dcsr_ena[0] && (pause_cnt[0] > 12'd0))
+					prescaler_cnt[0] <= 8'd0;
+				if (ppr1_wr && dcsr_ena[1] && (pause_cnt[1] > 12'd0))
+					prescaler_cnt[1] <= 8'd0;
+				if (ppr2_wr && dcsr_ena[2] && (pause_cnt[2] > 12'd0))
+					prescaler_cnt[2] <= 8'd0;
+				if (cclk_en_p) begin
 				case (state)
 				ST_IDLE: begin
 					dma_load_owner <= 1'b0;
@@ -800,6 +829,7 @@ module asic_dma (
 
 				default: state <= ST_IDLE;
 				endcase
+				end
 			end
 		end
 	end

@@ -38,12 +38,18 @@ struct TestBench {
 		dut->hsync = 0;
 
 		dut->sar0_lo = 0; dut->sar0_hi = 0; dut->ppr0 = 0; dut->sar0_wr = 0;
+		dut->ppr0_wr = 0;
 		dut->sar1_lo = 0; dut->sar1_hi = 0; dut->ppr1 = 0; dut->sar1_wr = 0;
+		dut->ppr1_wr = 0;
 		dut->sar2_lo = 0; dut->sar2_hi = 0; dut->ppr2 = 0; dut->sar2_wr = 0;
+		dut->ppr2_wr = 0;
 		dut->dcsr_ena = 0;
 		dut->ram_data = 0;
 		dut->cpu_ppi_access = 0;
 		dut->cpu_psg_write = 0;
+		// B20-1 leaf bench drives no live PPR events: set_ppr() below only
+		// changes the value while idle, so the tied-off pulses preserve the
+		// d03/d09 countdowns exactly.
 	}
 
 	void step_clock() {
@@ -64,8 +70,11 @@ struct TestBench {
 	void pulse_reset() {
 		dut->reset = 1;
 		dut->sar0_lo = 0; dut->sar0_hi = 0; dut->ppr0 = 0; dut->sar0_wr = 0;
+		dut->ppr0_wr = 0;
 		dut->sar1_lo = 0; dut->sar1_hi = 0; dut->ppr1 = 0; dut->sar1_wr = 0;
+		dut->ppr1_wr = 0;
 		dut->sar2_lo = 0; dut->sar2_hi = 0; dut->ppr2 = 0; dut->sar2_wr = 0;
+		dut->ppr2_wr = 0;
 		dut->dcsr_ena = 0;
 		for (int i = 0; i < 8; ++i) step_clock();
 		dut->reset = 0;
