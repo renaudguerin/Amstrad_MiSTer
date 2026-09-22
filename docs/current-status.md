@@ -14,8 +14,8 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 - **Latest implementation:** B20-1 live PPR write handling (`5d12f56`), integrated
   with reviewed capture transport/metadata fixes and B20 acknowledge diagnostics.
-  Combined CI/synthesis verification is pending; the prior artifact below remains
-  the latest verified build until that completes.
+  Combined exact-SHA CI and full Quartus synthesis pass at `cdcb3c3`.
+  Original-hardware acceptance of the PPR change remains open.
 - **Latest Classic implementation:** Classic F14 type-1 additional-line correction, source
   `5f72d66` (2026-09-22). The physical line no longer depends on R5; the added-line
   origin excludes simultaneous adjustment entry. Selected simulation gates and fresh
@@ -28,15 +28,19 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   `a137d48`, **failed hardware acceptance as integrated**: it passed
   simulation, review and synthesis, but no longer reached Sonic gameplay in
   the matched input sequence. PRI and interrupt vector logic are unchanged.
-- **Latest timing-clean artifact:** `95e6f56` (2026-09-22), including the Classic
-  F14 repair on the restored Plus baseline. Exact-SHA CI
-  [35691075125](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35691075125)
-  passed all required jobs. RBF: `output_files/Amstrad_20260922_95e6f56.rbf`,
-  SHA-256 `a4f6a4f30758c2456a177a40a098167ab570214b311dc03149b72b72c499e0a7`.
-  Full local Quartus 17.0.2 fit: 23,841 ALMs (57%); setup/hold minima
-  +0.402/+0.241 ns, zero TNS. Classic hardware acceptance is partial; see below.
-  Candidate `a137d48` remains experimental despite its timing closure; see the
-  [matched device evidence](investigations/sonic/hardware-loop-2026-09-22.md).
+- **Latest timing-clean artifact:** `cdcb3c3` (2026-09-22), including B20-1
+  on the Classic F14/restored Plus baseline. Exact-SHA CI
+  [35699931488](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35699931488)
+  passes simulation, production-T80, synthesis-policy, route, local Quartus and
+  required-gate; hosted synthesis is intentionally skipped. Full-effort Quartus
+  17.0.2 artifact `Amstrad-local-build-239-1-full` is delivered as
+  `output_files/Amstrad_20260922_cdcb3c3.rbf`, SHA-256
+  `f8bc3158826214d81ffeab09a311e78103f451add356247a70587592da6d63a1`.
+  Setup/hold minima +0.622/+0.193 ns; zero TNS; 23,812 ALMs (57%),
+  28,349 registers, 102 RAM blocks and 35 DSP blocks. Reports are in
+  `output_files/reports-cdcb3c3/`. This artifact has not been hardware-tested.
+  Candidate `a137d48` remains experimental; its progression failure and partial
+  timing gain are preserved in the [rearm record](investigations/sonic/rearm-boundary-2026-09-22.md).
 - **Latest hardware-tested builds:** `95e6f56` (Classic SHAKER partial acceptance),
   `0601050` (Classic B9/type1 first page only),
   `a137d48` (Sonic progression regression; experimental),
