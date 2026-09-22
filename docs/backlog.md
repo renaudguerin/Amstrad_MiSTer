@@ -18,6 +18,42 @@ the D5 boot-configuration note) are archived verbatim in
 them.
 
 
+## B20. Independent Plus ASIC interrupt and DMA accuracy findings
+
+**Open, 2026-09-22. Plus stream; independent of Sonic.** The new source ingestion
+identified concrete implementation discrepancies and conflicting hardware claims.
+A title reproducer is useful acceptance evidence, not a prerequisite for this work.
+The [source comparison](plus/references/scrapes-interrupt-findings-2026-09-22.md)
+contains source IDs, PDF pages, code checks and authority limits; keep that evidence
+there rather than duplicating it in each implementation report.
+
+Take one bounded item per behavior change. Start with B20-1 or B20-2: both have
+specific source scenarios and small discriminating experiments. Source adjudication,
+standalone diagnostic programs and observation fixtures can proceed without Sonic.
+For a settled rule, establish a failing deterministic vector before changing RTL.
+For disputed rules, first collect a discriminating observation rather than encode an
+arbitrary expectation. MiSTer tests validate this implementation; AmSpirit agreement
+is comparative evidence, not independent proof of original CPC Plus behavior.
+
+| Item | Present evidence | Independent next step and acceptance |
+| --- | --- | --- |
+| **B20-1: live PPR writes** (I5) | The captured DMA article describes immediate application of a changed prescaler; `asic_dma.v` samples PPR only when the existing prescaler reaches zero. Confirmed source/code discrepancy; exact write-edge semantics need adjudication. | Recheck the cited primary wording and run a minimal DMA list with a mid-pause PPR write followed by INT. Vary old/new PPR and write phase to distinguish immediate restart from deferred reload. Implement the established rule with a fail-first cross-module write-to-DMA vector; no game dependency. |
+| **B20-2: empty vector after a second acknowledge** (I1) | The detailed vectored-interrupt bug account returns DMA0/offset 4 in its double-ack scenario; `asic_regs.v` falls back to DMA2/offset 0 with no request pending. | Reproduce two distinct acknowledge cycles with raster cleared between them. Check production-T80/bus reachability and the source's instruction conditions. Correct the demonstrated scenario only; do not assume every idle acknowledge must return offset 4. Acceptance includes vector stability within each acknowledge. |
+| **B20-3: A13-dependent interrupt bug** (I2) | Sources condition the bug on the interrupted instruction address/class, not the ISR or vector-table address. No such mechanism exists at the current vector boundary. | Build a small instruction/address matrix spanning A13 with controlled interrupt arrival; observe M1, IORQ, WAIT, request, vector and clear events. Locate the responsible CPU/ASIC boundary before implementing compatibility behavior. Coordinate with B20-2 if they share that boundary. |
+| **B20-4: PRI phase relative to HSYNC** (I4) | Sources disagree between HSYNC-start +10 microseconds and revised Arnold's shaped trailing-edge account; RTL uses internal shaped HSYNC falling. | Re-read revised Arnold, then vary R3 width while tracing raw HSYNC, shaped HSYNC and IRQ on one clock. Establish the phase rule before modifying it. Preserve the hardware-backed nine-bit PRI **no-wrap** policy; range and phase are separate. |
+| **B20-5: DCSR read semantics** (I6) | Sources disagree about request polarity and whether bits freeze in automatic mode; RTL reports active-high live DMA flags and last-raster-ack provenance. | Read DCSR before/after request, acknowledge and explicit clear in both IVR modes. Keep CPU DI/EI separate from peripheral flags. Resolve the conflicting claims before changing readback; preserve B19's already implemented raster-retention/provenance behavior. |
+| **B20-6: DMA set/clear and STOP/write collisions** | Same-channel set/clear is clear-dominant in RTL despite a set-dominant comment. The level-wide DCSR write-clear window and enable/STOP ordering are additional code-level leads, not established hardware defects. | First correct misleading commentary to describe existing behavior without claiming hardware authority. Then isolate a new DMA request during W1C/automatic acknowledge, plus STOP coincident with an enable write. Establish priority and whether CPU writes represent one event or a whole clearing window before a behavioral repair. |
+| **B20-7: DMA PAUSE/REPEAT boundaries** | Sources conflict on PPR=0 and REPEAT=0. The PAUSE expiry candidate matched AmSpirit's relative cadence but failed the matched Sonic progression test and was reverted; neither result settles the general hardware rule. | Use independent short lists with INT markers to distinguish PAUSE 0/1, nonzero PPR, REPEAT 0/1 and frame rearm. Reuse the [recorded experiment](investigations/sonic/hardware-loop-2026-09-22.md); assess partial improvements separately from title progression. Coordinate with the active Sonic phase investigation rather than duplicate its traces. |
+
+**Scheduling and ownership.** These are eligible Plus accuracy tasks even if Sonic never
+exercises their conditions. B20-1 can be scoped independently; B20-2/3 share the
+acknowledge path; B20-5/6 share DCSR state and need coordinated ownership. The active
+Sonic task owns its current phase/cadence experiments, not this entire backlog.
+Do not run competing device experiments. Each implemented slice needs its relevant
+selected gate, cross-provider review, and separate synthesis/device acceptance claims.
+
+---
+
 ## B19. Plus DCSR bit 7 reports raster on a DMA acknowledge (Copter 271 title flash)
 
 **Fixed and hardware-confirmed on build `88262b9`, 2026-09-14.** The original

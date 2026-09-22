@@ -417,6 +417,15 @@ finding or coherent fixture per branch, based on current `master` (or an explici
    those shared interfaces. The fixture models external byte memory, fixes FDC/video data
    to zero and covers uncompressed classic restores; see the design for exact limits.
 
+### Independent Plus accuracy work
+
+[B20: interrupt and DMA findings](backlog.md#b20-independent-plus-asic-interrupt-and-dma-accuracy-findings)
+is a separate queue from title debugging. Start with live PPR-write semantics or the
+source-specific empty-vector/double-ack scenario; both admit small standalone
+experiments. A Sonic reproduction is not an entry gate. Conflicting PRI-phase and
+DCSR claims require source/hardware discrimination before RTL changes. Coordinate
+shared interrupt/DMA interfaces and device use with the active Sonic task.
+
 ### Device-dependent work
 
 **Prerequisite:** establish MiSTer reachability before B17 or Sonic GX device work; use a
