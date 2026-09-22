@@ -12,21 +12,20 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **Latest implementation integration:** `b991487` (2026-09-22), the cartridge-grounded
-  Sonic IRQ audit and reviewed production-T80 adapter repair. No interrupt RTL change
-  was justified. B17 timed replay and the new reference findings are integrated.
-- **Latest timing-clean artifact:** `c59e03a` (2026-09-22), including B16/B18,
-  CSL/SSM host support, B17 replay and detailed TimeQuest reporting. Exact-SHA CI
-  [35681139829](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35681139829)
-  passed all required jobs. Delivered RBF: `output_files/Amstrad_20260922_c59e03a.rbf`,
-  SHA-256 `da28d0cd01c910ce68d7bfc7482730dbdb1ae235dc814894776f3f06308e3335`.
-  Full fit: 23,804 ALMs (57%); setup/hold minima +0.561/+0.242 ns, zero TNS.
-  Detailed setup/hold path reports are now retained; no timing constraints or RTL
-  were changed to obtain this fit. It does not retroactively pass the failed
-  `60a63e4` build. See [the preparation record](investigations/session-logs/sonic-preparation-2026-09-22.md).
-- **Latest hardware-tested builds:** `88262b9` (2026-09-14, B19 residual; Copter 271 title
-  flash fixed) and `a0778b6` (2026-09-13, PSG R7 reset; keyboard and joystick fixed). B18 SNA
-  save was device-tested on branch RBF `0608653`.
+- **Latest implementation:** reviewed source `190f4d3` (2026-09-22), correcting the
+  extra DMA PAUSE expiry scanline identified in Sonic's production-CPU trace.
+  Four selected benches pass; candidate synthesis and hardware acceptance are pending.
+  PRI and interrupt vector logic are unchanged. B17 replay and reference findings are integrated.
+- **Latest timing-clean artifact:** `0e92c9c` (2026-09-22), the pre-repair baseline.
+  Exact-SHA CI [35682692438](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35682692438)
+  passed all required jobs. Delivered RBF: `output_files/Amstrad_20260922_0e92c9c.rbf`,
+  SHA-256 `191e678ec01f475252594bf9a23b7ef6c0e9833c58117cb3ef651802af1a6af1`.
+  Full fit: 23,726 ALMs (57%); setup/hold minima +0.624/+0.245 ns, zero TNS.
+  Detailed setup/hold path reports are retained. This does not retroactively pass
+  the failed `60a63e4` build or validate the DMA candidate.
+- **Latest hardware-tested builds:** `c59e03a` (2026-09-22, Sonic baseline still
+  corrupt), `88262b9` (Copter 271 title flash fixed) and `a0778b6` (PSG R7 reset;
+  keyboard and joystick fixed). B18 SNA save was tested on branch RBF `0608653`.
 - **Simulation baseline:** 225 required classic CRTC vectors with no expected failures, and
   canonical soak hash `0xb1cb70da95c2e44f`, unchanged since the D1/D6 repair. Since
   2026-09-15 the gate runs only the benches a change can break (`sim/select_tests.py`, index
@@ -73,10 +72,15 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 **Open:**
 
 - Copter 271: vertical-scrolling issues during gameplay (possibly pre-existing).
-- Sonic GX: display remains severely broken; split timing (Hazard 2) is a hypothesis, and
-  the B19 check was inconclusive. The [IRQ audit](investigations/sonic/irq-audit-2026-09-22.md)
-  has not established an RTL repair; it corrects the production-T80 harness adapter
-  and defines the next cartridge-matched checkpoint/trace.
+- Sonic GX: title and gameplay corruption reproduce on timing-clean `88262b9` and
+  `c59e03a`; both Act 1 captures are byte-identical across builds. The
+  [hardware/trace investigation](investigations/sonic/hardware-loop-2026-09-22.md)
+  identifies an extra DMA PAUSE expiry line: production T80 gives nine lines
+  between `PAUSE 7; INT` events, versus eight in AmSpirit; adding one to the
+  AmSpirit title's PAUSE counts reproduces displaced bands. The minimal DMA
+  correction has passed four selected benches and independent review; a
+  timing-clean artifact and post-fix hardware acceptance remain pending. PRI and IRQ vector logic
+  are unchanged by this candidate.
 - Left-edge sprite corruption is much improved, perhaps fixed; closure is open. Navy Seals
   left-edge sprite flicker remains; its black-screen report was not reproduced and has no
   assigned cause.

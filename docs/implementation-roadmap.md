@@ -423,11 +423,12 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 reachable AmSpirit instance where possible. This is a task-start check, not an assumption
 that a previously online device remains available. Keep one device operator.
 
-- **Sonic GX (Plus):** reproduce one bad split/scroll checkpoint and capture its first
-  divergent line/fetch before changing RTL. SPLT/SSA timing is a hypothesis, not a concluded
-  cause. Use the [title investigation](investigations/sonic/fpga-emulation-guide.md), B2 capture
-  and the [AmSpirit helper](../scripts/amspirit/README.md). Copter 271 gameplay scrolling is
-  a separate residual; its title flash is already hardware-confirmed fixed.
+- **Sonic GX (Plus):** synthesize and hardware-test the reviewed DMA PAUSE expiry
+  correction. The production CPU trace shows nine-line intervals where AmSpirit
+  gives eight; an AmSpirit PAUSE-count counterfactual reproduces displaced bands.
+  See the [evidence and acceptance boundary](investigations/sonic/hardware-loop-2026-09-22.md).
+  Use B2 capture and the [AmSpirit helper](../scripts/amspirit/README.md).
+  Copter 271 gameplay scrolling remains separate; its title flash is hardware-confirmed fixed.
 - **B17 (general):** bounded timed keyboard replay and Sonic fire through Main keyboard
   joystick mode are device-tested. Physical recording remains deferred because Main grabs
   evdev inputs; physical-controller replay and frame-deterministic checkpoints remain open.
