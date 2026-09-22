@@ -370,7 +370,7 @@ TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(B6_MENU_TEST_BIN) $(DAN_BOUN
 
 TEST_BINS += $(P10INPUT_TEST_BIN) $(P10DMA_TEST_BIN) $(P10DMAMOBO_TEST_BIN)
 TEST_BINS += $(B8FIELD_TEST_BIN) $(B8PAL_TEST_BIN)
-TEST_BINS += $(SNA_STREAM_TEST_BIN)
+TEST_BINS += $(SNA_STREAM_TEST_BIN) obj_dir/b16_load_model/b16_load_model_tests
 
 VERILATOR_FLAGS := --cc --exe --build --language 1364-2001
 CXXFLAGS ?= -std=c++17 -O2
@@ -859,3 +859,13 @@ $(B6_DYNAMIC_BIN) $(B6_LAYERS_BIN): $(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL
 		-o $(@F) $(P10BOOT_TEST_TOP) $(B7_RTL) $(B6_VIDEO_RTL) $(abspath $(B6_EXTRA_SRC))
 $(B6_DYNAMIC_BIN): b6_dynamic_test.cpp
 $(B6_LAYERS_BIN): b6_plus_layers_test.cpp
+
+B16_RTL := $(abspath b16_load_model_test_top.v) $(abspath ../../rtl/plus/plus_load_model.v) $(abspath ../../rtl/plus/plus_sna_apply.v)
+B16_BIN := obj_dir/b16_load_model/b16_load_model_tests
+$(B16_BIN): $(B16_RTL) b16_load_model_test.cpp Makefile
+	mkdir -p obj_dir/b16_load_model
+	$(VERILATOR) $(VERILATOR_FLAGS) -Wno-fatal --top-module b16_load_model_test_top \
+		--Mdir obj_dir/b16_load_model -CFLAGS "$(CXXFLAGS)" -o b16_load_model_tests \
+		$(B16_RTL) $(abspath b16_load_model_test.cpp)
+b16-load-model: $(B16_BIN)
+	./$(B16_BIN)
