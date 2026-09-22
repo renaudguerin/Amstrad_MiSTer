@@ -793,25 +793,28 @@ the SNA does not carry the cartridge ROM (see the
 
 ## B17. Record user input on the MiSTer and replay it as a capture script
 
-**Filed 2026-09-13. Proposal, feasibility checked on the device, not started.** Device
-captures that need keys or joystick input currently require a hand-written MBC `raw_seq`, and
-reaching a screen deep inside a game means writing a full script. Recording the user's own
-session and replaying it would turn "play to the bug" into a capture case.
+**Replay slice implemented and device-tested 2026-09-22; recording remains open.**
+[The bounded uinput helper](../scripts/hardware-loop/INPUT-REPLAY.md) replays JSON
+keyboard schedules using one virtual device and releases its keys on normal completion
+and catchable interruption. A dedicated temporary Main mapping plus F18 keyboard joystick
+mode supplies Sonic fire without a physical joystick; F20 restores normal keyboard mode.
+The device run reached Green Hill Zone / Act 1 from the title and also exercised aborting
+attract gameplay to the title. See [exact setup, evidence and timing limitations](investigations/hardware-runs/b17-input-replay-2026-09-22.md).
 
-Device facts observed 2026-09-13: the physical keyboard (Logitech K400) and controller (Heber
-Multisystem Controller, two joystick interfaces) are ordinary evdev nodes
-`/dev/input/event0`-`event3`, readable by root, and `python3` is installed. A reader that does
-not take `EVIOCGRAB` observes events while Main keeps receiving them, so recording does not
-disturb play. Events can be timestamped relative to the MGL core load.
+The original passive-recording feasibility claim was wrong for the current Main: Main
+itself holds `EVIOCGRAB`. A second reader of the replay keyboard's evdev node received
+zero events during injected press/release transitions. No recorder is shipped; silently
+empty sessions would be misleading. A future recording slice must first establish an
+input observation surface that remains available while Main receives play input.
 
-Replay goes back in through uinput, as MBC already does for keys. Open questions:
+Remaining scope:
 
-- **Timing is wall-clock, not frame-locked.** Good enough for menus and navigation; gameplay
-  that depends on exact frames will drift between runs.
-- **Joystick replay** needs a virtual device that Main maps like the physical controller;
-  Main's joystick mapping is per device, so matching identity or an explicit mapping is required.
-- **Format:** MBC `raw_seq` covers keys with coarse waits only. A small recorder/replayer pair
-  with its own event file is likely simpler than extending MBC.
+- **Recording physical play:** deferred pending that observation surface; never blanket-capture
+  host keyboard activity. The fresh device has a K400 Plus but no physical joystick.
+- **Timing:** schedules use wall-clock absolute deadlines, not frames. Boot/attract timing and
+  game state still need checkpoint verification; this is not deterministic gameplay replay.
+- **Physical joystick replay:** device identity, axes and mapping are still open. The current
+  slice uses a private keyboard identity and Main's keyboard-to-joystick mapping only.
 
 ---
 
