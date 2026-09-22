@@ -168,7 +168,8 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   [the load contract](plus/b16-load-model-2026-09-22.md). **Device run on `cdcb3c3`:
   the CPR path is unreachable** because the OSD disabled `Load Plus cartridge` with Plus
   Off and Main drops an MGL at that item. Branch `general/device-acceptance-cdcb3c3`
-  ungates the entry; it needs an RBF and a retest. See the
+  ungates the entry; it needs an RBF and a retest. The SNA path works: a header-4
+  snapshot with Plus Off matches the explicit-6128+ result (types 5/6 and OSD echo unobserved). See the
   [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md).
 - The PRI line-compare change is unreviewed (review debt).
 

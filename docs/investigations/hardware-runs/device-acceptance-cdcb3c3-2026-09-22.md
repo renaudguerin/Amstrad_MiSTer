@@ -57,8 +57,20 @@ loadable from Off. B16 is the later, explicit requirement. Fix on branch
 and the `sdram_cartridge_tests` source pin now requires the ungated entry. Hardware
 acceptance of the fix needs an RBF built from that commit.
 
-The B16 SNA path (header 4/5/6 selecting Plus) was not discriminated: without a
-cartridge a Plus snapshot shows garbage whichever model runs.
+### B16 SNA path: header type 4 selects 6128+
+
+The same Sonic SNA (header type 4) was loaded alone, without its cartridge, in three
+configurations:
+
+| RBF | CFG Plus model | Screen SHA-256 prefix |
+| --- | --- | --- |
+| `cdcb3c3` | Off | `35c496f5` (vertical bars) |
+| `cdcb3c3` | 6128+ (explicit) | `35c496f5` |
+| `88262b9` (predates B16 `1b4d45e`; RBF `bad7d369…`) | Off | `253ce13d` (classic BASIC Ready) |
+
+With Plus Off, `cdcb3c3` produces the explicit-6128+ result and the pre-B16 build does
+not, so the header selected the Plus model before restore. Types 5 and 6 and the OSD
+echo were not observed (native screenshots omit the OSD).
 
 ## B18: 664 and 464 saves round-trip on device
 
