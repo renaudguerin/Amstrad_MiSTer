@@ -2,12 +2,19 @@
 
 This follows the [source/fixture audit](irq-audit-2026-09-22.md). **DMA PAUSE
 candidate `190f4d3`, integrated and built at `a137d48`, failed hardware acceptance
-and is rejected.** A matched repeat reaches gameplay on baseline `c59e03a`, but
+as integrated.** A matched repeat reaches gameplay on baseline `c59e03a`, but
 the candidate remains on a severely corrupted title after early and later fire.
 The coordinator restored baseline behavior in `b0e5bed`. The candidate passes simulation, review and
 timing, and matches AmSpirit's measured relative interrupt cadence. Those results
 do not override the device regression. AmSpirit is a comparison implementation,
 not a replacement for real CPC Plus hardware authority.
+
+The [full-frame reassessment](phase-discriminator-2026-09-22.md) establishes a
+partial timing gain: the candidate reduces observed list recurrence from 336
+to 313 scanlines, versus 312 in a fresh AmSpirit normal-boot control. It still
+misses split deadlines in the captured window. Retain the candidate for further
+isolation; the conservative revert and failed progression acceptance do not
+establish that the PAUSE rule is wrong or that the candidate has no useful gain.
 
 ## Controlled hardware reproduction
 
@@ -233,7 +240,7 @@ not reach the final title handler or establish steady-state split deadlines.
 `production-trace-corrected/` preserves source, build log, raw trace, comparison
 script/output, RAM and hash provenance.
 
-### Hardware rejection and matched repeat
+### Failed hardware acceptance and matched repeat
 
 Exact-SHA CI [35684468864](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35684468864)
 passed all required jobs for `a137d480ddaba53864b1bd0f616f12398fb76ea9`.
