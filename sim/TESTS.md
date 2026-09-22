@@ -28,6 +28,7 @@ Mac, including the Verilator build.
 
 | Target | Tier | Covers | Checks |
 |---|---|---|---|
+| `sim b18-snapshot-test` | slow | `rtl/sna_hw_header.v` `rtl/sna_save_capture.v` `rtl/sna_save_stream.v` `rtl/sna_cpu_header.v` `rtl/plus/plus_sna_header.v` `rtl/plus/plus_sna_apply.v` `sim/b18_snapshot*` `Amstrad.sv` `rtl/Amstrad_motherboard.v` `rtl/T80/*` `rtl/i8255.v` `rtl/YM2149.sv` `rtl/hid.sv` `rtl/Amstrad_MMU.v` `rtl/GA40010/*` `rtl/CRTC.v` `rtl/crtc_type*_engine.v` `scripts/hardware-loop/sna_pull.py` | Production T80 and real motherboard classic save/header/RAM restore, DDR stalls, and production host-reader publication races; also runs in production-t80 CI |
 | `sim crtc-test` | fast | `rtl/CRTC.v` `rtl/crtc_type0_engine.v` `rtl/crtc_type1_engine.v` | CRTC types 0 and 1 at pin level against ACCC-derived vectors; the main classic accuracy suite (about 20 s) |
 | `sim crt-filter-blank-test` | fast | `rtl/crt_filter.v` | crt_filter live blanking, SHIFT compensation and the type-1 R2.JIT displacement at production clocking |
 | `sim crtc-cpu-phase-test` | fast | `rtl/CRTC.v` `rtl/crtc_type0_engine.v` `rtl/crtc_type1_engine.v` `rtl/GA40010/*.v` `rtl/GA40010/*.sv` | CRTC register writes landing at every legal CPU bus phase, with the real GA40010 |

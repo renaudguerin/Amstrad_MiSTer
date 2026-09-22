@@ -33,7 +33,7 @@ open acceptance criteria; they are not instructions to rebuild the completed sta
   classic CRTC types and Gate 1 (Module B); the experimental Phase 2 recorder was retired.
 - **Snapshots and reference capture:** B18 classic SNA saving is integrated and device-tested
   on 6128, as a development tool requiring an SSH pull. Capture/round-trip fixture acceptance
-  remains open. The [AmSpirit helper](../scripts/amspirit/README.md) and
+  is covered by the reviewed production-T80 fixture within its documented limits. The [AmSpirit helper](../scripts/amspirit/README.md) and
   [Copter pilot](investigations/hardware-runs/amspirit-oracle-pilot-2026-09-13.md) already exist.
 - **Build/review policy:** use the selected gate (`sim/select_tests.py`), the synthesis routing
   in [ci-testing-policy.md](ci-testing-policy.md), and the actual open rows in
@@ -394,7 +394,7 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 
 ## 8. Immediate execution queue
 
-### Next implementation work
+### Integrated implementations and follow-up validation
 
 1. **B16 — implemented; device acceptance pending (Plus).** A CPR loaded with Plus Off selects 6128+;
    an already selected Plus model is preserved. SNA header values 4/5/6 select the recorded
@@ -403,13 +403,15 @@ finding or coherent fixture per branch, based on current `master` (or an explici
    decision. Publication/reset ordering is pinned by the reviewed selected-gate implementation;
    Main/OSD echo and actual boot/restore remain device checks. See
    [B16](backlog.md#b16-cpr-and-sna-loads-select-a-plus-model).
-2. **B18 — one classic capture/round-trip fixture (general).** Implement acceptance 2 and 3
-   from [the design](b18-sna-save.md#acceptance) together: real production-T80/GA/PSG/HID and
+2. **B18 — classic capture/round-trip fixture implemented (general).** Acceptance 2 and 3
+   from [the design](b18-sna-save.md#acceptance) share one reviewed fixture: real production-T80/GA/PSG/HID and
    clock/bank composition, independently derived saved-header expectations, loader-consumed
    state and RAM comparison, DDR stalls and publication overlap. Reuse the already extracted
    `sna_cpu_header` and existing save/apply paths. Saving itself is integrated; Plus save and
    direct-to-SD transport are outside this slice. B16 owns load-time model policy; coordinate
-   any shared decoder/apply interface change. These tasks can proceed in separate worktrees.
+   any future shared decoder/apply interface change. Both branches integrated without changing
+   those shared interfaces. The fixture models external byte memory, fixes FDC/video data
+   to zero and covers uncompressed classic restores; see the design for exact limits.
 **FDC validation, not a confirmed outstanding RTL defect.** This grew out of the
 Plus/System-cartridge failure investigation. The September 9 hardware report says boot failed
 before disk access could be tested; 6128 Plus boot was subsequently fixed. The retained TV80

@@ -159,8 +159,9 @@ to record the explicit effective model for controlled comparisons.
 MiSTer-side classic snapshot saving (B18) is now integrated as a development tool
 requiring an SSH pull. A 6128 save resumed in this core and AmSpirit on September 14;
 see [the B18 design](../../b18-sna-save.md). That result does not establish Plus
-save support or complete state equivalence. Automated capture/round-trip acceptance
-remains open and is separate from this AmSpirit-to-MiSTer pilot.
+save support or complete state equivalence. The reviewed production-T80 capture/round-trip fixture now covers the documented
+classic loader-consumed state and host publication boundary; it is separate from
+this AmSpirit-to-MiSTer pilot and does not add new device evidence.
 
 ## 4. Corrections and contracts adopted while writing
 

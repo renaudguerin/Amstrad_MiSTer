@@ -12,8 +12,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **Latest recorded integration:** `82dd2a8` (2026-09-21, current-state docs and ACCC
-  re-issue migration). **Latest recorded synthesized artifact:** `9bced4a`. CI run
+- **Current integration:** B16 load-time model selection and B18 classic snapshot
+  capture/round-trip fixture are merged after `82dd2a8`; combined CI/synthesis is pending.
+  **Previously recorded synthesized artifact:** `9bced4a`. CI run
   [35600935342](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35600935342)
   passed all required jobs, including full-effort hosted synthesis. Its RBF is
   `output_files/Amstrad_20260921_9bced4a.rbf` in the main checkout (ignored), SHA-256
@@ -103,8 +104,9 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   [mister-capture skill](../.agents/skills/mister-capture/SKILL.md) and
   [driver guide](investigations/hardware-runs/mister-hardware-loop-driver.md).
 - **B18 SNA save** is integrated as a development aid only: the core cannot write to SD, so
-  shipping it needs a Main_MiSTer change. Open: the capture and round-trip fixtures (acceptance
-  2 and 3), a 464/664 save, and review debt for slices 3-4c. See [b18-sna-save.md](b18-sna-save.md).
+  shipping it needs a Main_MiSTer change. The reviewed production-T80 capture/round-trip fixture now covers six classic
+  model/CRTC combinations and host publication races (acceptance 2 and 3). Open:
+  a 464/664 device save, SD transport, and the existing slice 3-4c review debt. See [b18-sna-save.md](b18-sna-save.md).
 - **Peripherals:** FDC full-sector result/ST1, classic AMSDOS and hardware acceptance are open.
   B8-7 tape real-CDT playback and HPS cadence are open. B8-4 video-word coherence has no
   hardware acceptance.
