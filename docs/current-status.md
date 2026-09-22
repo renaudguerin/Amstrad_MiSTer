@@ -15,16 +15,17 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 - **Latest implementation:** `b0e5bed` (2026-09-22) restores the three DMA
   behavior/test files exactly to `0e92c9c`, retaining the P8 test-selection
   dependency. The restore passes four selected benches and fresh Opus review;
-  its integration build is pending. DMA PAUSE candidate `190f4d3`, integrated at
+  its integration build `0601050` passes all required CI jobs. DMA PAUSE candidate `190f4d3`, integrated at
   `a137d48`, is **rejected after a matched hardware regression**: it passed
   simulation, review and synthesis, but no longer reached Sonic gameplay in
   the matched input sequence. PRI and interrupt vector logic are unchanged.
-- **Latest timing-clean artifact:** rejected candidate `a137d48` (2026-09-22).
-  Exact-SHA CI [35684468864](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35684468864)
-  passed all required jobs. RBF: `output_files/Amstrad_20260922_a137d48.rbf`,
-  SHA-256 `c0293860c0c9a3d3a5c6a033cce6b7910e49a8abef0e40b3fe2cc5e514fe4984`.
-  Full fit: 23,735 ALMs (57%); setup/hold minima +0.514/+0.245 ns, zero TNS.
-  Timing closure does not pass title acceptance; see the
+- **Latest timing-clean artifact:** restored baseline `0601050` (2026-09-22).
+  Exact-SHA CI [35686740255](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35686740255)
+  passed all required jobs. RBF: `output_files/Amstrad_20260922_0601050.rbf`,
+  SHA-256 `66b8d72fa1b67a6535ba07a4d9118c9998f833a4bbe89a1339d02eb4d25fa7fd`.
+  Full fit: 23,792 ALMs (57%); setup/hold minima +0.580/+0.191 ns, zero TNS.
+  This restored artifact has not itself been retested on hardware. Candidate
+  `a137d48` is rejected despite its timing closure; see the
   [matched device evidence](investigations/sonic/hardware-loop-2026-09-22.md).
 - **Latest hardware-tested builds:** `a137d48` (Sonic regression, rejected),
   `c59e03a` (Sonic baseline still corrupt but reaches gameplay),

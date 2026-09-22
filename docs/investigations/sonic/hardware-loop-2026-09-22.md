@@ -278,7 +278,7 @@ pattern changes slightly; still images do not establish a completely frozen core
 `asic_dma.v`, `asic_dma_test.cpp` and `plus_p8_test.cpp` exactly to `0e92c9c`,
 retaining the useful P8 dependency in `sim/TESTS.md`. The coordinator reports
 the four selected benches pass after the restore and fresh Opus review has no
-findings. Integration synthesis of the restore is pending. No speculative follow-on
+findings. Integration synthesis of the restore passed as recorded below. No speculative follow-on
 RTL change was made. Sonic remains unresolved on the baseline. The smallest
 next discriminator is a matched full title-frame trace through DMA enable,
 the final handler and the next frame's split writes, to locate the first phase
@@ -304,3 +304,24 @@ restored. The restored screenshot was inspected and shows BASIC Ready; execution
 is running as originally found, with firmware ROM mapping restored. Our Z80
 breakpoints were cleared. Evidence is under `restored/`. AmSpirit was untouched
 during candidate hardware acceptance and the matched repeat.
+
+## Restored integration artifact
+
+The exact restore `b0e5bed` and final evidence were integrated at `0601050`.
+Fresh Opus review confirmed the three behavior/test files match `0e92c9c`
+byte-for-byte; the independent P8 test-selection dependency remains. The selected
+four-bench gate passed before publication, with logs under `revert/` in the
+ignored evidence root.
+
+[CI 35686740255](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35686740255)
+passed simulation, production-T80, synthesis policy, routing, full synthesis and
+the required gate on exact SHA `06010503221468190d7c2b17f5ddec47e7024932`.
+Artifact `Amstrad-build-237-1-full` uses Quartus 17.0.2 and contains the restored
+baseline, not the rejected candidate. Setup/hold minima are +0.580/+0.191 ns,
+TNS is zero, and utilization is 23,792 ALMs (57%), 28,351 registers, 102 RAM
+blocks and 35 DSP blocks. Downloaded and delivered copies of
+`output_files/Amstrad_20260922_0601050.rbf` both hash to
+`66b8d72fa1b67a6535ba07a4d9118c9998f833a4bbe89a1339d02eb4d25fa7fd`.
+Reports are in `output_files/reports-0601050/`. This exact restored artifact was
+not loaded for another hardware run; the matched baseline/candidate evidence
+above remains the device acceptance record. Sonic remains unresolved.
