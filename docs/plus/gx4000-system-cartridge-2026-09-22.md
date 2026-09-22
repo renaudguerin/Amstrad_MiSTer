@@ -58,6 +58,21 @@ so what it prints next depends on entry registers (`B`, `L` choose the `JR NZ` a
 on the contents of the BASIC workspace around `&AC00`, which the firmware reset does not
 clear (it zeroes only `&B100-&B8F9`). Treat that line as state-dependent, not as a defect.
 
+Even `Ready` itself is state-dependent. BASIC's character output (`&C3C1`) routes by the
+current-stream byte at `&AC06`: 0-7 go to a screen window, 8 to the printer, higher values
+elsewhere. Uninitialised BASIC leaves that byte at whatever RAM held at power-on. A core
+whose RAM starts at zero gets stream 0 and shows `Ready`; a real machine with random power-on
+RAM may send it to the printer or nowhere, and keyboard input uses the same kind of state.
+
+A MiSTer forum recollection of real GX4000s matches this: a Locomotive banner, usually no
+cursor or `Ready`, no f1/f2 menu, sometimes a few random numbers, and firmware calls that
+"get a bit random". The same thread attributes the difference to configuration resistors
+(recalled as R125-R127) that the GX4000 board lacks. That fits the revised spec's "the
+appropriate hardware is not activated" for ROM 7, and the original spec's statement that RAM
+size and disc presence are separately configurable. A suggestion in that thread that the menu
+code probes the FDC and hides itself is not supported: nothing on the path above touches
+the FDC, and on GX4000 the menu page is never mapped at all.
+
 ## Residuals
 
 - AmSpirit with `cpc_model 5` showed only the banner. That model number is not confirmed as
