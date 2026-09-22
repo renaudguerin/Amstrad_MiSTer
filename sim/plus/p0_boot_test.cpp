@@ -473,6 +473,14 @@ void test_mmu_read_waits_out_production_sized_load() {
                 "held MMU read did not resolve after publication");
     }
     require(h.dut.image_valid, "load-time MMU read prevented publication");
+    // The stall now falls when the SDRAM admits the read, before the byte
+    // arrives. The contract is data on cart_dout by the earliest T80pa latch:
+    // a WAIT sample one clock after the release, then an opcode latch on the
+    // next CEN_p, eight 64 MHz clocks later (plus_mmu.v, read bridging).
+    for (unsigned i = 0; i < 8; ++i) {
+        h.tick();
+        require(h.dut.mmu_cart_own, "MMU dropped ownership before the latch point");
+    }
     require(h.dut.mmu_cart_dout == image[20],
             "load-time MMU read returned open bus or stale data");
 

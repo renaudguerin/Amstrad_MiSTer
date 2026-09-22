@@ -45,6 +45,12 @@ module p10_boot_test_top #(
 	// Select the production shared CPU/u765 divider for timing diagnostics.
 	// The legacy P10a fixture remains selectable to preserve its pinned trace.
 	input             production_clocking,
+	// 0 keeps the fixture's historical no_wait=1 (the OSD speed hack): the
+	// only CPU wait is the cartridge stall. 1 selects the production default,
+	// where READY also gates the CPU and aligns I/O cycles to the GA latch
+	// windows. Under no_wait an I/O cycle can miss both latch windows, so GA
+	// writes depend on the CPU phase.
+	input             production_wait,
 
 	// Real u765 / MiSTer SD-block interface. The host drives only the media
 	// transport; CPU port decode and command execution stay in production RTL.
@@ -306,12 +312,12 @@ module p10_boot_test_top #(
 		.load_error(cart_load_error)
 	);
 
-	wire        cart_mem_req, cart_mem_write, cart_mem_ack;
+	wire        cart_mem_req, cart_mem_write, cart_mem_ack, cart_mem_grant;
 	wire  [1:0] cart_mem_bank;
 	wire [22:0] cart_mem_addr;
 	wire  [7:0] cart_mem_wdata, cart_mem_rdata;
 
-	wire        plus_cart_valid, plus_cart_ready;
+	wire        plus_cart_valid, plus_cart_ready, plus_cart_granted;
 	wire  [4:0] plus_cart_page;
 	wire [13:0] plus_cart_offset;
 	wire  [7:0] plus_cart_data;
@@ -339,6 +345,7 @@ module p10_boot_test_top #(
 		.cpu_page(plus_cart_page),
 		.cpu_offset(plus_cart_offset),
 		.cpu_ready(plus_cart_ready),
+		.cpu_granted(plus_cart_granted),
 		.cpu_data(plus_cart_data),
 		.image_valid(cart_image_valid),
 		.busy(cart_service_busy),
@@ -348,6 +355,7 @@ module p10_boot_test_top #(
 		.mem_addr(cart_mem_addr),
 		.mem_wdata(cart_mem_wdata),
 		.mem_ack(cart_mem_ack),
+		.mem_grant(cart_mem_grant),
 		.mem_rdata(cart_mem_rdata)
 	);
 
@@ -388,6 +396,7 @@ module p10_boot_test_top #(
 		.cart_page(plus_cart_page),
 		.cart_offset(plus_cart_offset),
 		.cart_ready(plus_cart_ready),
+		.cart_granted(plus_cart_granted),
 		.cart_data(plus_cart_data),
 		.cart_busy(cart_service_busy),
 		.cart_own(plus_cart_own),
@@ -447,6 +456,7 @@ module p10_boot_test_top #(
 		.cart_din(cart_mem_wdata),
 		.cart_dout(cart_mem_rdata),
 		.cart_ack(cart_mem_ack),
+		.cart_grant(cart_mem_grant),
 		.vram_dout(vram_dout),
 		// Match Amstrad.sv: motherboard vram_addr is a 15-bit word address,
 		// mapped into the physical SDRAM video region as {2'b10,addr,1'b0}.
@@ -509,7 +519,7 @@ module p10_boot_test_top #(
 		.key_nmi(),
 		.key_reset(),
 		.Fn(),
-		.no_wait(1'b1),
+		.no_wait(~production_wait),
 		.ppi_jumpers(4'd0),
 		.crtc_type(
 `ifdef B7_DARK_SILICON_MUTATION

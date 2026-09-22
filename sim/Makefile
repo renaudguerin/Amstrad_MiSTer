@@ -240,7 +240,12 @@ crtc-t80-old-test: $(CRTC_T80_OLD_BIN)
 # and for local runs with GHDL=/path/to/ghdl. Kept out of `test` so the
 # default gate still builds without GHDL.
 .PHONY: production-t80-test
-production-t80-test: t80-trace-test crtc-t80-test crtc-t80-old-test t80-freeze-test b18-snapshot-test
+production-t80-test: t80-trace-test crtc-t80-test crtc-t80-old-test t80-freeze-test b18-snapshot-test plus-d5-cart-timing
+
+# Plus cartridge execution rate on the production T80 (sim/plus d5-cart-timing).
+.PHONY: plus-d5-cart-timing
+plus-d5-cart-timing:
+	$(MAKE) -C plus d5-cart-timing
 
 $(CRTC_T80_OLD_BIN): $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp Makefile
 	mkdir -p $(OBJ_DIR)/crtc_t80_old

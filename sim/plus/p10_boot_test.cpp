@@ -347,6 +347,7 @@ public:
         dut.memory_dq_oe = 0;
         dut.force_irq = 0;
 		dut.production_clocking = 0;
+		dut.production_wait = 0;
 		dut.fdc_img_mounted = 0;
 		dut.fdc_img_wp = 1;
 		dut.fdc_img_size = 0;
@@ -1208,8 +1209,12 @@ void test_p10a_deterministic_boot() {
     require(cartridge.max_cpu_wait_low_run > 0 &&
                 cartridge.max_cpu_wait_low_run < cartridge.elapsed_ticks,
             "CPU WAIT-low distribution must be bounded and nonzero");
-    require(cartridge.max_cart_stall_run == 11,
-            "deterministic harness cartridge stall run must remain 11 ticks");
+    // The stall now ends when the SDRAM admits the read, not when the byte
+    // returns: the admission-to-data path (six clocks to STATE_READ, one in
+    // the service, one CAPTURE state, less the one-clock grant hop) no longer
+    // counts. The earlier data-return run was 11 ticks, so 11 - 7 = 4.
+    require(cartridge.max_cart_stall_run == 4,
+            "deterministic harness cartridge stall run must remain 4 ticks");
     require(cartridge.cpu_wait_low_cycles == cartridge.cart_stall_cycles &&
                 cartridge.max_cpu_wait_low_run == cartridge.max_cart_stall_run,
             "CPU WAIT must exactly follow cartridge ownership stalls");
@@ -1731,6 +1736,10 @@ void test_p10b_video_coherence_pixel() {
         h.preload(0, 0x20000U + (w << 1) + 1, 0x00);
     }
     h.dut.production_clocking = 1;
+    // Its GA writes must land deterministically. Under the fixture's default
+    // no_wait speed hack an OUT can miss both GA latch windows, so run this
+    // video test with the production READY wait.
+    h.dut.production_wait = 1;
     h.initialize();
 
     std::vector<uint8_t> program(16384, 0x00);
