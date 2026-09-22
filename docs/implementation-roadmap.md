@@ -441,24 +441,16 @@ CPU/cartridge-memory latency is the next discriminator before another DMA change
 reachable AmSpirit instance where possible. This is a task-start check, not an assumption
 that a previously online device remains available. Keep one device operator.
 
-- **Sonic GX (Plus):** DMA PAUSE candidate `a137d48` failed hardware acceptance
-  as integrated; `b0e5bed` remains the conservative restored default. The
-  [full-frame discriminator](investigations/sonic/phase-discriminator-2026-09-22.md)
-  establishes partial timing improvement: list recurrence 336 → 313 scanlines,
-  versus 312 in fresh AmSpirit normal boot. Both simulated builds reach the
-  final wait loop and rearm, but candidate split captures still miss in the
-  bounded window. The rearm trace now isolates an 85-tick STOP-selection miss;
-  CPU/cartridge-memory latency needs a reference before assigning an ASIC defect.
-  Integrated from `plus/sonic-cpu-cart-latency`: the modelled cartridge stall
-  disagreed with the READY-only rule and is fixed with a fail-first vector;
-  see the [cart-wait record](investigations/sonic/cart-wait-2026-09-22.md). Device-test
-  it in the next Plus acceptance pass, then the terminal-PAUSE rule (scratch-matched to 312 lines).
-  Post-integration triage guidance: [B21](backlog.md#b21-plus-cartridge-code-now-runs-at-the-ready-only-rate-regression-triage);
-  PAUSE resurrection: [B20-7](backlog.md#b20-independent-plus-asic-interrupt-and-dma-accuracy-findings).
-  No-input controls reproduce the progression difference. Sustained-fire controls
-  agree but have recorded inspection delays and are not precisely phase-matched. Retain the experiment for
-  further isolation; its progression regression does not negate the component gain.
-  Use B2 capture and the [AmSpirit helper](../scripts/amspirit/README.md).
+- **Sonic GX (Plus):** DMA terminal-PAUSE rule (**B20-7**) is **hardware-accepted on `64702ac`**
+  ([device acceptance record](investigations/sonic/b20-7-dma-pause-acceptance-2026-09-22.md)).
+  With cartridge memory wait latency running at the true hardware READY rate (`03f4724`,
+  [cart-wait record](investigations/sonic/cart-wait-2026-09-22.md)), the terminal-PAUSE rule
+  restores frame-locked 312-line list recurrence and 8-line handler cadence matching AmSpirit.
+  On physical MiSTer hardware, the Sonic title screen renders with 100% coherence (no displaced
+  bands or copper raster tears); no-input control reaches Green Hill Zone attract playfield;
+  sustained fire input transitions cleanly through the Act 1 title card into live player
+  gameplay. Zero regressions observed across Copter 271, Burnin' Rubber, Pang, Plotting,
+  Navy Seals, and the CRTC3 demo.
   Copter 271 gameplay scrolling remains separate; its title flash is hardware-confirmed fixed.
 - **B17 (general):** bounded timed keyboard replay and Sonic fire through Main keyboard
   joystick mode are device-tested. Physical recording remains deferred because Main grabs
