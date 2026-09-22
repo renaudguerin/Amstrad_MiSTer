@@ -11,7 +11,10 @@ On classic Amstrad CPC systems, **Interrupt Mode 1 (IM 1)** is standard. However
 In Sonic GX, physical address `&0038` falls directly within **VRAM Buffer 0** (`&0000 - &3FFF`). Storing an interrupt dispatch handler or vector table at `&0038` would cause the video gate array to render that handler's opcodes as visible on-screen pixels in the top-left corner of the screen.
 
 Therefore, the engine strictly uses **Interrupt Mode 2 (IM 2)**:
-* The Z80 `I` register points to an aligned 256-byte vector table located safely in system RAM (`&A000 - &BFFF`).
+* Boot sets the Z80 `I` register to `&B8` for the table at `&B800`; other
+  linked cartridge paths set it to `&9F` and replace the `&B800` table.
+  See the [cartridge audit](irq-audit-2026-09-22.md) for exact offsets and
+  static-versus-runtime limits. Table placement does not establish A13 safety.
 * When the ASIC asserts `/INT` and the CPU acknowledges with `/IORQ` + `/M1`, the ASIC places an interrupt vector byte on the data bus.
 * The CPU combines `I` with the vector byte to form the 16-bit address of the specific ISR jump vector.
 

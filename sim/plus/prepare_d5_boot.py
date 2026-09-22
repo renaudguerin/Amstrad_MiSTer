@@ -23,7 +23,7 @@ s = s.replace("wire plus_exp_n  = 1'b1;", 'wire plus_exp_n = ' + config[1].repla
 s = (root / 'rtl/Amstrad_motherboard.v').read_text()
 a = s.index('T80pa CPU'); b = s.index('\n);', a); part = s[a:b]
 ports = re.findall(r'\binput\s+(?:\[[^]]+\]\s*)?(\w+)', (root/'sim/obj_dir/t80/T80pa.v').read_text().split('module T80pa')[1].split(');')[0])
-ports += ['A','DO','RD_n','WR_n','IORQ_n','MREQ_n','M1_n','RFSH_n']
+ports += ['A','DO','RD_n','WR_n','IORQ_n','MREQ_n','M1_n','RFSH_n','HALT_n']
 for p in ports:
     part = re.sub(r'\.'+re.escape(p.lower())+r'\(', '.'+p+'(', part)
 part += ",\n.OUT0(1'b0), .R800_mode(1'b0)"
