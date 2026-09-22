@@ -57,6 +57,20 @@ loadable from Off. B16 is the later, explicit requirement. Fix on branch
 and the `sdram_cartridge_tests` source pin now requires the ungated entry. Hardware
 acceptance of the fix needs an RBF built from that commit.
 
+### Retest of the fix on `4027f5e`
+
+Dispatched full-effort build: run
+[35712168389](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35712168389),
+all required jobs green; artifact `Amstrad-build-243-1-full`, RBF
+`Amstrad_20260922_4027f5e.rbf`, SHA-256
+`582ef0fa24de60ab8a5da76426e24bb8c3626e2a5f2e77cc1228040ff9b527f9`; worst slack
++0.241 ns, zero TNS. With the unmodified Plus-Off CFG, the same driver case
+(`sonic-b16-plusoff-4027f5e.json`) now boots the cartridge: c1 `fbb866bf` corrupt title,
+c2 `d2affffb` playfield with ring HUD `00`, c3 `142f6341` playfield with HUD `12`. The CFG
+hash is unchanged afterwards (`2e585b4c…d8e4`), so the status echo did not persist a
+setting. **B16 CPR-from-Off is accepted on hardware** for MGL loading; the OSD echo and a
+manual OSD load were not observed (native screenshots omit the OSD).
+
 ### B16 SNA path: header type 4 selects 6128+
 
 The same Sonic SNA (header type 4) was loaded alone, without its cartridge, in three
