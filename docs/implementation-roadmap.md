@@ -457,7 +457,10 @@ that a previously online device remains available. Keep one device operator.
   evdev inputs; physical-controller replay and frame-deterministic checkpoints remain open.
   See [B17](backlog.md#b17-record-user-input-on-the-mister-and-replay-it-as-a-capture-script).
 - **Classic retests:** repaired `95e6f56` matches all B (9)/type 1 page-A
-  numeric rows. Page B retains C0=3F and MID FRAME SIZE discrepancies; type 0
+  numeric rows. Page B retains C0=3F and MID FRAME SIZE discrepancies. The ACCC does not
+  order the C0=3F stage-A/line-end collision; the candidate ordering and the hardware and
+  author discriminators needed before an RTL change are in the
+  [page-B discriminator brief](investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md). Type 0
   is inconclusive after capture timeout. C (4)/type 1 states A–E retain structural
   capture/reference differences. CFG/MENU restoration and cleanup are verified.
   See the [repaired-build evidence](investigations/hardware-runs/shaker-repaired-95e6f56-2026-09-22.md).
