@@ -157,6 +157,34 @@ another input (PPI port B links, keyboard scan, or a computed address). The next
 disassembly of the page-0 start-up path up to the menu decision, compared with a
 simulated GX4000 boot of the same cartridge.
 
+## CDT on a CPC 464 overwrites the 464 OS ROM
+
+B8-7 real-CDT playback was attempted on RBF `4027f5e` with `cdt/AmstradDiag.cdt`
+(16,401 B, SHA-256 `203775c2…2ee7`), Model 464 (CFG `81b55bec…`) and
+`464FR.ez0` loaded through F7. MGLs are in `tape/` in the evidence folder.
+
+| MGL order | Model | Screen before any input |
+| --- | --- | --- |
+| F7 464 ROM only | 464 | `c90425c2`: BASIC 1.0 Ready |
+| F7 464 ROM, then F4 CDT | 464 | `b1e2000c`: vertical bars (crashed) |
+| F4 CDT, then F7 464 ROM | 464 | `c90425c2`: BASIC 1.0 Ready |
+| F4 CDT only | 6128 (original CFG) | `253ce13d`: BASIC 1.1 Ready |
+
+Cause, from the RTL: every tape SDRAM access uses bank `2'b10` (`rtl/sdram.v`, the
+`tape_req` branch sets `active_bank <= 2'b10`), and the tape queue writes the image from
+address 0 (`tape_write_queue`, `tape_play_addr` resets to 0). Bank 2 is also the CPC 464
+model's memory bank (`rom_loader_route`: index 7 and boot-image chunks 8-9 go to bank 2;
+464 OS at `a_hi = 0`). A CDT mounted on a 464 therefore overwrites the 464 OS ROM from
+its first byte. The 6128 (bank 0) is unaffected. Upstream MiSTer-devel `rtl/sdram.v`
+uses the same fixed tape bank, so the defect is inherited, not introduced by this fork.
+
+Consequences: the CPC 464, the natural tape machine, cannot run with a CDT mounted.
+Loading the ROM after the CDT boots but overwrites the start of the tape image, so
+playback in that order is not a valid test. The `RUN"` attempt (Ctrl + keypad Enter)
+only moved the cursor and did not start a load, so B8-7 playback stays open. A fix must
+move the tape buffer out of every model's ROM/RAM range; check the 664 and Plus 464+
+maps too.
+
 ## Restoration
 
 Original CFG restored and hash-checked (`2e585b4c…d8e4`); the device is back at MENU.

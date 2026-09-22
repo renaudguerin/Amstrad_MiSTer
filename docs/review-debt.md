@@ -29,13 +29,6 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
-**CPR OSD entry ungated for B16, 2026-09-22 — UNREVIEWED:** Opus changed `CONF_STR`
-`d2F8,CPR,...` to `F8,CPR,...` and updated the `sdram_cartridge_tests` source pin, after a
-device run showed B16's CPR-from-Off path unreachable. This reverses the B6 Plus-only
-visibility for CPR. Look hardest at: whether loading a CPR into a classic model can reach any
-state B6 meant to exclude (B16 selects 6128+ only on a valid image; an invalid CPR with Plus Off
-must leave a clean classic machine).
-
 **ACCC section lookup tool (`scripts/accc/`), 2026-09-22 — PARTLY REVIEWED:** Opus wrote
 `lookup.py` and `run_eval.py`; Gemini added round-2 eval data, `--set` and the bilingual claim
 check; Opus reviewed Gemini's part and fixed the findings (Jev-unavailable fallback, `--lang

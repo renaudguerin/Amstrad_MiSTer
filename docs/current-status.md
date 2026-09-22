@@ -198,7 +198,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   device (`cdcb3c3`, 2026-09-22; see the
   [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md)). See [b18-sna-save.md](b18-sna-save.md).
 - **Peripherals:** FDC full-sector result/ST1, classic AMSDOS and hardware acceptance are open.
-  B8-7 tape real-CDT playback and HPS cadence are open. B8-4 video-word coherence has no
+  B8-7 tape real-CDT playback and HPS cadence are open. **A CDT mounted on a CPC 464 model
+  overwrites the 464 OS ROM** (tape SDRAM bank 2 is also the 464 model bank; inherited from
+  upstream), so 464 tape use is broken; see the
+  [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md). B8-4 video-word coherence has no
   hardware acceptance.
 - **Tooling:** the task-workflow host smoke tests (B14) are open. `scripts/accc/lookup.py`
   finds candidate Compendium sections (BM25 plus a TypeSafe Jev skim and rerank; BM25 only,
