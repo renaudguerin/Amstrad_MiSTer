@@ -1,5 +1,11 @@
 # SHAKER D1/D6 retest — 2026-09-22
 
+**Superseded acceptance status:** the repaired `95e6f56` hardware run now matches
+B9/type1 page 1; page 2 retains separate residuals. Device restoration and MENU
+were verified after connectivity returned and again after the repaired batch.
+See the [repaired-build record](shaker-repaired-95e6f56-2026-09-22.md).
+The evidence below describes the earlier `0601050` run and source repair.
+
 The restored timing-clean build still disagrees with the real-CPC reference on
 **SHAKER 2.7 B (9), CRTC 1, first numeric page**. Two captures reproduce the
 September 12 image exactly. This is a confirmed remaining acceptance mismatch,
@@ -88,10 +94,13 @@ left by that command. At 04:55:10 UTC the next screenshot preflight timed out
 connecting to SSH. CFG restoration and temporary-file cleanup then failed.
 Subsequent bounded checks could not resolve `mister` or `mister.local`.
 
-**MENU and restoration were not verified.** The applied CFG happened to equal
+**At the interruption, MENU and restoration were not verified.** The applied CFG happened to equal
 the backup, but this does not turn a failed cleanup into a successful one.
 The coordinator and Sonic task were notified; no competing device writes were
-authorized. Once connectivity returns, the device owner must restore the retained
+authorized. That obligation was completed after connectivity returned: original CFG hash and
+MENU matched without a rewrite, and the owned temporaries were removed. The list
+below records what was recovered, not an outstanding action. The original
+recovery requirement was to restore the retained
 CFG, check its hash, return to MENU, and remove only these task temporaries:
 
 - `/media/fat/csl_cfg_1790052829_1713b1.bin` (may already be absent)
@@ -99,8 +108,8 @@ CFG, check its hash, return to MENU, and remove only these task temporaries:
 - `/tmp/mbc-shaker-20260922`
 
 The copied RBF is a retained named build, not a temporary to remove. Hardware
-work still pending: B9 type 1 page 2; B9 type 0; C4 type 1 with explicit state
-identification. No D1/D6 hardware closure is claimed.
+work pending at that interruption was B9 type 1 page 2, B9 type 0 and C4 type 1.
+Their repaired-build outcomes are recorded in the linked follow-up. No D1/D6 hardware closure is claimed.
 
 ## Source diagnosis
 
