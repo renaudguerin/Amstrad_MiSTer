@@ -122,6 +122,81 @@ source clarification. Do not globally remove stage-B pokes: p.211 rules that
 out. No fail-first repair vector is justified yet. Hardware remains under
 coordinator ownership; this task released its unused grant without access.
 
+## ACCC adjudication: the collision is not source-settled
+
+Second pass, 2026-09-22 (branch `accuracy/shaker-b9-page-b`, base `56771ff`). Question:
+does the RTL violate a documented French ACCC v1.11 rule at the C0=3F collision?
+**No. The ACCC is silent on this ordering, so no fail-first vector and no RTL change.**
+
+**What the source pins:**
+
+- §19.5.3 FR p.210: the parity updates happen "sur la 3ème et la 4ème µseconde de
+  l'instruction OUT(C),C". The 3rd-µs rule is `ParitéC9=C9.0`, then
+  `ParitéC9=ParitéC9 xor (C4.0 and not(R9.0))`. The text does not say which line's C9
+  applies when that µs starts a new line.
+- §19.5.3 FR pp.211–212: all 16 chronograms put the OUT mid-line (the 3rd-µs column at C0=5,
+  "on" at C0=6). They pin the offsets between the write and its two stages, not the
+  absolute C0. Bench t21 relies on the same limit.
+- §19.8.2 FR p.226: type-1 IVM counting runs "Lorsque C0 passe à 0". Normal counting
+  resumes "Dès que R8 repasse à 0". Neither sentence says which mode applies when the
+  toggle and C0→0 share an edge.
+- §19.8.1 FR p.221 does contain an explicit rule, "À partir de la ligne C9 qui suit celle
+  où R8 passe à 3", but only for type 0. Type 1 has no equivalent sentence, and the
+  type-0 rule cannot be carried over.
+
+**The candidate ordering that matches the hardware.** The derivation uses R9=7 and the
+pre-write state from the replay (C9=0, ParityFrame odd). Stage labels follow the RTL:
+stage A is one character after the bus write, stage B two after.
+
+| Ordering at the shared stage-A / C0→0 edge | C9 on next line | After stage B | Lines, C4=0 (C9 ≤ 6) | 3F prediction |
+|---|---|---|---|---|
+| Current RTL (`rtl/CRTC.v` counter block: `line_new` wins, `line_next` uses the registered `ivm`): count in the old mode (C9+1), and the stage-A value comes from the pre-edge C9.0 | 1 | 0 (poke := ParityC9=0) | 0,1→0,2,4,6 = 5 | 2780 (observed MiSTer) |
+| (1) New IVM mode governs the coincident count (C9+1+R9.0 = 2) | 2 | 2 | 0,2,4,6 = 4 | 2740 (reference) |
+| (2) Old-mode count, with the stage-A value from the post-edge C9 | 1 | 1 | 0,1,3,5,7 = 5 | 2780 |
+
+Ordering (1) leaves the other four rows unchanged. In the 3D/3E/00/01 cases, stage A lands
+mid-line, or only stage B meets the boundary (3E). Under (1), 3F finishes in the same
+state as 3E. With R9 odd the IVM step keeps C9's parity, so ordering (1) does not depend
+on whether stage A samples C9 before or after the edge. That holds for either
+ParityFrame value.
+
+(1) is therefore the **candidate** reading. It fits rank-1 evidence and all five
+update-delay rows. It is still **not adopted**, for two reasons. First, the link between
+the "C0=#3F" label and a stage-A edge at C0=0 comes from the replay's fixture alignment:
+menu bypassed, and SNA and PPI assumptions. Second, the result rests on one test family.
+Changing it would move `line_next` and the `ivm`-gated row-end tests at every type-1 stage-A
+edge that falls on C0=R0. That covers entering and leaving writes, and R9 even as well as odd.
+The photograph covers only entering writes with R9 odd.
+
+**The discriminator a hardware run needs.** Neither AmSpirit nor the device was used. The
+device belongs to the coordinator.
+
+1. Tie the label to the edge: run the production-T80 replay's result-buffer observation
+   at `9211` (next step above) so that SHAKER's own computed value for 3F is `2780`.
+   Without that, the 157/158 raw interval is only a proxy.
+2. Test the rule independently of SHAKER on type 1. Use R0=63, R9=7, R8=0 and an R4/R7
+   pair that gives a stable frame. Place one `OUT R8,3` with its bus write on C0=R0 of a
+   C9=0 line. Measure the next raw VSYNC interval, using SHAKER's calibrated delay and
+   the phase of the 3E/3F sleds. Ordering (1) predicts no extra line; the current RTL
+   predicts +64 µs. A second case checks whether the rule generalizes beyond an odd R9:
+   R9=6 (even), with the bus write on C0=R0 of the C9=5 line. Under ordering (1),
+   `C9+not(R9.0)`=6 matches R9 excluding parity, so the edge becomes a C4 row end with
+   the `ParitéC9 xor (not R9.0)` toggle. Under old-mode counting it steps to C9=6 with no
+   row end, a one-line difference.
+3. Alternatively, ask the author. The question is filed as item 6 of the
+   [author feedback note](../../classic/accc-author-feedback.md).
+
+A repair can follow when (1) or (2) confirms ordering (1). Its fail-first vector is the
+3F row as derived above: bus write at C0=R0 on C9=0 with R9=7, next line C9=2, and C4=0
+completes after four lines. It would cite §19.5.3 FR p.210 and §19.8.2 FR p.226, plus the
+confirming evidence.
+
+**MID FRAME SIZE:** no ACCC rule reaches it either. The glyph in the reference photograph
+is still ambiguous (`4E40` or `4F40`; checked again, not resolved). The routine
+`&9266..&932B` writes R8=3 "ON LINE 0" at a C0 that is not yet observed. This session
+ran no replay to test whether the same collision applies there. Its discriminator is the
+same result-buffer observation, applied to the two VSYNC-count loops at `&92CD`/`&92FE`.
+
 ## Sync path: raw PPI vs filtered display
 
 - SHAKER's numeric rows poll PPI Port B bit 0 = raw selected CRTC VSYNC

@@ -79,8 +79,12 @@ to violate, not from blanket coverage.
   identifies field-history evidence in C4 images, not a proven CRTC fault. Full
   was requested; the active Sync latch was not independently observed.
   A scratch production-T80 replay reproduces the B9 C0=3F stage-A/line-end
-  collision and extra 64 µs raw VSYNC interval; correct hardware ordering
-  remains unresolved. Setup, measurement and Sync-path limits are in the
+  collision and extra 64 µs raw VSYNC interval. French ACCC v1.11 §19.5.3
+  pp.210–212 and §19.8.2 p.226 do not order that collision, so the RTL is not
+  predicted to violate a documented rule and remains unchanged. Counting the
+  coincident line end in the new IVM mode is the only candidate ordering that fits all
+  five photographed rows. Its hardware/author discriminators, and the setup,
+  measurement and Sync-path limits, are in the
   [page-B discriminator brief](investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md).
 - DSC4 and SHAKER still fail on hardware (2026-09-09 retest); the changed failure shapes are
   not yet characterized. Amazing Demo keeps lower-screen corruption.
