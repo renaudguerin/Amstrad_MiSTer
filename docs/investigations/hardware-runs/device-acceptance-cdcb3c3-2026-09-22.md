@@ -190,6 +190,37 @@ only moved the cursor and did not start a load, so B8-7 playback stays open. A f
 move the tape buffer out of every model's ROM/RAM range; check the 664 and Plus 464+
 maps too.
 
+### Fix candidate: tape image relocated to bank 3 at 0x100000
+
+Branch `general/tape-sdram-bank` (2026-09-22, READY, not yet integrated or
+device-tested). The tape image now lives in SDRAM bank 3 from `0x100000` upward, the
+one region no map uses:
+
+| Region | Owner |
+| --- | --- |
+| banks 0-2 (model banks) | classic 6128/664/464; every Plus model uses bank 0. Each holds OS ROM `0x000000-0x003FFF`, base RAM `0x020000-0x02FFFF`, upper ROMs `0x400000+` (`rtl/Amstrad_MMU.v`, `rtl/rom_loader_route.v`) |
+| bank 3 `0x000000-0x07FFFF` | Dandanator (`dan_ena` override, `Amstrad.sv`) |
+| bank 3 `0x080000-0x0FFFFF` | Plus cartridge (`plus_cartridge_memory` `CARTRIDGE_BASE`) |
+| bank 3 `0x100000-0x7FFFFF` | **tape image, 7 MB maximum** (`0x700000` bytes) |
+
+Maps audited for the fix: 664 (bank 1) and 6128 (bank 0, extended RAM to `0x1FFFFF`,
+upper ROMs `0x400000-0x7FFFFF`) use the same in-bank layout; 464+/6128+/GX4000 run
+from bank 0 with the Dandanator/cartridge on bank 3 as above; `vram_bank` follows
+`mem_bank` and never reaches bank 3 (`valid_model` maps 3 to 0). Boot writes to bank 3
+are the Dandanator download only.
+
+`rtl/sdram.v` relocates the queue's logical address (`tape_addr + 0x100000`, bank
+`2'b11`) for both tape reads and writes, and the B8-7 vram-cache invalidation is keyed
+to the new bank and the offset address. The queue, `tape_play_addr` and the progress
+bar stay 0-based; maximum tape length is 7 MB.
+
+Proven fail-first by `test_tape_image_placement_outside_model_maps` in
+`sim/plus/sdram_cartridge_test.cpp`: on the old fixed bank-2 mapping, image byte 0,
+the first base-RAM byte and the top-of-window byte all landed in the 464 model bank
+(9 assertions failed, including playback reads) and pass after the fix. Expected
+addresses are derived from the map in the test's comment. Hardware acceptance of the
+fix is open: no device run has exercised a CDT on a 464 with it.
+
 ## B8-7: real CDT playback on 464+ loses block 2
 
 Setup avoiding the 464 bank collision: RBF `4027f5e`, 464+ (CFG `[34:33]=3`, hash

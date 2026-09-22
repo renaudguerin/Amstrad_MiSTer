@@ -219,7 +219,11 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   B8-7 tape real-CDT playback and HPS cadence are open. **A CDT mounted on a CPC 464 model
   overwrites the 464 OS ROM** (tape SDRAM bank 2 is also the 464 model bank; inherited from
   upstream), so 464 tape use is broken; see the
-  [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md). On 464+
+  [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md).
+  Candidate fix on `general/tape-sdram-bank` (READY, awaiting integration): the tape image
+  moves to bank 3 at `0x100000` upward — the region no model ROM/RAM, Dandanator or Plus
+  cartridge uses — with a 7 MB maximum tape length, proven fail-first against the map and
+  the B8-7 fixture; hardware acceptance is open. On 464+
   with the System Cartridge a standard-speed CDT deterministically loses block 2 and never
   completes; the same CDT loads fully on a classic 6128 (`|TAPE`) on both this fork and
   upstream, so the defect is Plus-specific (same record). B8-4 video-word coherence has no

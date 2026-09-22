@@ -17,6 +17,14 @@ constexpr uint8_t CMD_READ = 0b101;
 constexpr uint8_t CMD_WRITE = 0b100;
 constexpr uint8_t CMD_REFRESH = 0b001;
 
+// Tape image placement, derived from the SDRAM address map (see
+// test_tape_image_placement_outside_model_maps): bank 3 above 0x100000 is
+// the only region no model, the Dandanator or the Plus cartridge uses, so a
+// tape image is 7 MB long at most (0x700000 bytes).
+constexpr uint8_t TAPE_BANK = 3;
+constexpr uint32_t TAPE_BASE = 0x100000;
+constexpr uint32_t TAPE_MAX_LEN = 0x700000;
+
 struct Command {
     uint8_t kind;
     uint8_t bank;
@@ -417,14 +425,15 @@ void test_legacy_write_paths(TestState &test) {
     for (size_t i = tape_marker; i < h.commands.size(); ++i) {
         const auto &cmd = h.commands[i];
         if (cmd.kind == CMD_WRITE)
-            tape_write_ok = cmd.bank == 2 && cmd.address == 0x003300 &&
+            tape_write_ok = cmd.bank == TAPE_BANK &&
+                            cmd.address == TAPE_BASE + 0x003300 &&
                             cmd.data == 0x6e6e && cmd.dqml && !cmd.dqmh;
     }
     test.check(tape_acked && tape_ack_cycles == 1,
                "legacy tape write must produce one completion pulse");
     test.check(tape_write_ok,
                "legacy tape write must preserve bank/address/data and odd-byte mask");
-    test.check(h.load(2, 0x003301) == 0x6e,
+    test.check(h.load(TAPE_BANK, TAPE_BASE + 0x003301) == 0x6e,
                "legacy tape write must reach the externally modelled DQ byte");
 }
 
@@ -472,7 +481,7 @@ void test_cart_tape_video_priority(TestState &test) {
     Harness h;
     h.initialize(test);
     h.store(3, 0x080040, 0x44);
-    h.store(2, 0x000080, 0x88);
+    h.store(TAPE_BANK, TAPE_BASE + 0x000080, 0x88);
 
     h.align_before_idle();
     const size_t marker = h.commands.size();
@@ -504,7 +513,7 @@ void test_cart_tape_video_priority(TestState &test) {
     if (active.size() >= 2) {
         test.check(active[0].bank == 3 && active[0].address == 0x080000,
                    "cartridge must outrank simultaneous tape and video requests");
-        test.check(active[1].bank == 2 && active[1].address == 0x000000,
+        test.check(active[1].bank == TAPE_BANK && active[1].address == TAPE_BASE,
                    "tape must outrank a pending video address change");
     }
     test.check(saw_video_after_tape, "video request must run after tape is released");
@@ -899,7 +908,8 @@ namespace b87 {
 // and sdram.v execute here on the same clock with the physical-DQ model.
 // The C++ side drives only the download/ioctl seam (never tape_wr directly),
 // so the synchronous producer/ACK race cannot be hidden by immediate C++
-// ack lowering. Tape bytes live in bank 2; playback is parked at 0.
+// ack lowering. Tape bytes live in bank 3 above 0x100000 (the reserved tape
+// region); playback is parked at logical 0.
 
 void seam_idle(Harness &h) {
     h.dut.tape_seam_enable = 1;
@@ -937,7 +947,7 @@ void seam_strobe(Harness &h, uint32_t addr, uint8_t data) {
 std::vector<Command> tape_writes_since(const Harness &h, size_t start) {
     std::vector<Command> out;
     for (size_t i = start; i < h.commands.size(); ++i)
-        if (h.commands[i].kind == CMD_WRITE && h.commands[i].bank == 2)
+        if (h.commands[i].kind == CMD_WRITE && h.commands[i].bank == TAPE_BANK)
             out.push_back(h.commands[i]);
     return out;
 }
@@ -945,7 +955,7 @@ std::vector<Command> tape_writes_since(const Harness &h, size_t start) {
 int tape_reads_since(const Harness &h, size_t start) {
     int n = 0;
     for (size_t i = start; i < h.commands.size(); ++i)
-        if (h.commands[i].kind == CMD_READ && h.commands[i].bank == 2) ++n;
+        if (h.commands[i].kind == CMD_READ && h.commands[i].bank == TAPE_BANK) ++n;
     return n;
 }
 
@@ -995,11 +1005,11 @@ void test_tape_single_write_no_duplicate(TestState &test) {
                "B8-7: one held tape byte must issue exactly one physical WRITE (saw " +
                    std::to_string(writes.size()) + ")");
     if (writes.size() >= 1) {
-        test.check(writes[0].address == 0x120 && writes[0].data == 0x3535 &&
-                       !writes[0].dqml && writes[0].dqmh,
-                   "B8-7: single WRITE must carry bank-2 word 0x120 data 0x3535 low-byte");
+        test.check(writes[0].address == TAPE_BASE + 0x120 &&
+                       writes[0].data == 0x3535 && !writes[0].dqml && writes[0].dqmh,
+                   "B8-7: single WRITE must carry tape word 0x100120 data 0x3535 low-byte");
     }
-    test.check(h.load(2, 0x120) == 0x35,
+    test.check(h.load(TAPE_BANK, TAPE_BASE + 0x120) == 0x35,
                "B8-7: RAM must hold the single downloaded byte 0x35");
 }
 
@@ -1047,11 +1057,12 @@ void test_tape_consecutive_no_corruption(TestState &test) {
     test.check(writes.size() == 2,
                "B8-7: two consecutive bytes must issue exactly two physical WRITEs (saw " +
                    std::to_string(writes.size()) + ")");
-    test.check(h.load(2, 0x120) == 0x35 && h.load(2, 0x121) == 0xa6,
+    test.check(h.load(TAPE_BANK, TAPE_BASE + 0x120) == 0x35 && h.load(TAPE_BANK, TAPE_BASE + 0x121) == 0xa6,
                "B8-7: consecutive payload must not corrupt the previous address");
     if (writes.size() == 2) {
-        test.check(writes[0].address == 0x120 && writes[1].address == 0x120,
-                   "B8-7: even/odd pair shares word 0x120 with complementary masks");
+        test.check(writes[0].address == TAPE_BASE + 0x120 &&
+                       writes[1].address == TAPE_BASE + 0x120,
+                   "B8-7: even/odd pair shares word 0x100120 with complementary masks");
     }
 }
 
@@ -1066,7 +1077,7 @@ void test_tape_download_end_holds_address(TestState &test) {
     h.dut.vram_bank = 0;
     h.dut.vram_addr = 0;
     for (int i = 0; i < 16; ++i) h.tick();
-    h.store(2, 0x000, 0xff);
+    h.store(TAPE_BANK, TAPE_BASE + 0x000, 0xff);
     h.store(3, 0x080000, 0x11);
 
     // Contention: hold a cartridge read so the tape grant is delayed.
@@ -1097,9 +1108,9 @@ void test_tape_download_end_holds_address(TestState &test) {
     test.check(writes.size() == 1,
                "B8-7: download end before grant must still issue exactly one WRITE (saw " +
                    std::to_string(writes.size()) + ")");
-    test.check(h.load(2, 0x120) == 0x35,
+    test.check(h.load(TAPE_BANK, TAPE_BASE + 0x120) == 0x35,
                "B8-7: pre-grant byte must land at its queued address");
-    test.check(h.load(2, 0x000) == 0xff,
+    test.check(h.load(TAPE_BANK, TAPE_BASE + 0x000) == 0xff,
                "B8-7: parked header must survive download end before grant");
 
     // At-ACK variant: end download exactly at ACK and drain extra slots.
@@ -1120,13 +1131,13 @@ void test_tape_download_end_holds_address(TestState &test) {
     test.check(writes2.size() == 1,
                "B8-7: download end at ACK must not admit a duplicate (saw " +
                    std::to_string(writes2.size()) + ")");
-    test.check(h.load(2, 0x122) == 0x77 && h.load(2, 0x000) == 0xff,
+    test.check(h.load(TAPE_BANK, TAPE_BASE + 0x122) == 0x77 && h.load(TAPE_BANK, TAPE_BASE + 0x000) == 0xff,
                "B8-7: at-ACK byte must land queued while the header survives");
 }
 
 // B8-7 drain contract: simultaneous ACK + next payload follows the
 // ioctl_wait/producer handshake. The fixture ties tape_rd = 0 (parked input),
-// so the zero bank-2 READ check below pins parked input control only — it is
+// so the zero tape-region READ check below pins parked input control only — it is
 // not proof that the tzx player reset holds in production.
 void test_tape_simultaneous_ack_and_quiet_playback(TestState &test) {
     Harness h;
@@ -1164,10 +1175,10 @@ void test_tape_simultaneous_ack_and_quiet_playback(TestState &test) {
     test.check(writes.size() == 2,
                "B8-7: simultaneous ACK+payload must issue exactly two WRITEs (saw " +
                    std::to_string(writes.size()) + ")");
-    test.check(h.load(2, 0x130) == 0x5a && h.load(2, 0x131) == 0xb7,
+    test.check(h.load(TAPE_BANK, TAPE_BASE + 0x130) == 0x5a && h.load(TAPE_BANK, TAPE_BASE + 0x131) == 0xb7,
                "B8-7: simultaneous payload must not overwrite the queued byte");
     test.check(b87::tape_reads_since(h, marker) == 0,
-               "B8-7: parked tape_rd=0 input must produce no bank-2 READ (input control, not player-reset proof)");
+               "B8-7: parked tape_rd=0 input must produce no tape READ (input control, not player-reset proof)");
     test.check(!h.dut.tape_seam_pending,
                "B8-7: pending must drain once both simultaneous bytes complete");
 }
@@ -1186,8 +1197,8 @@ void test_tape_fn2_clear_preserves_pending_drain(TestState &test) {
     h.dut.vram_bank = 0;
     h.dut.vram_addr = 0;
     for (int i = 0; i < 16; ++i) h.tick();
-    h.store(2, 0x000, 0xff);
-    h.store(2, 0x120, 0x00);
+    h.store(TAPE_BANK, TAPE_BASE + 0x000, 0xff);
+    h.store(TAPE_BANK, TAPE_BASE + 0x120, 0x00);
     h.store(3, 0x080000, 0x11);
 
     // Contention: hold a cartridge read so the tape grant is delayed.
@@ -1224,12 +1235,12 @@ void test_tape_fn2_clear_preserves_pending_drain(TestState &test) {
                "B8-7: Fn[2] clear under contention must still issue exactly one WRITE (saw " +
                    std::to_string(writes.size()) + ")");
     if (writes.size() >= 1) {
-        test.check(writes[0].address == 0x120,
-                   "B8-7: cleared pending byte must drain to its original address 0x120");
+        test.check(writes[0].address == TAPE_BASE + 0x120,
+                   "B8-7: cleared pending byte must drain to its original address 0x100120");
     }
-    test.check(h.load(2, 0x120) == 0x35,
+    test.check(h.load(TAPE_BANK, TAPE_BASE + 0x120) == 0x35,
                "B8-7: cleared pending byte must land at 0x120");
-    test.check(h.load(2, 0x000) == 0xff,
+    test.check(h.load(TAPE_BANK, TAPE_BASE + 0x000) == 0xff,
                "B8-7: Fn[2] clear must not redirect the pending byte into header 0");
     test.check(h.dut.tape_seam_queued == 0,
                "B8-7: logical last address must stay 0 after the cleared drain");
@@ -1246,7 +1257,7 @@ void test_tape_reset_dominates_strobe(TestState &test) {
     h.dut.vram_bank = 0;
     h.dut.vram_addr = 0;
     for (int i = 0; i < 16; ++i) h.tick();
-    h.store(2, 0x000, 0xff);
+    h.store(TAPE_BANK, TAPE_BASE + 0x000, 0xff);
     h.align_before_idle();
 
     const size_t marker = h.commands.size();
@@ -1271,8 +1282,121 @@ void test_tape_reset_dominates_strobe(TestState &test) {
     test.check(writes.empty(),
                "B8-7: reset+strobe must not create any WRITE (saw " +
                    std::to_string(writes.size()) + ")");
-    test.check(h.load(2, 0x000) == 0xff,
+    test.check(h.load(TAPE_BANK, TAPE_BASE + 0x000) == 0xff,
                "B8-7: reset+strobe must not write header 0");
+}
+
+// Tape image placement against the SDRAM address map. Expected addresses are
+// derived from the map on paper, never from the simulator:
+//  - A classic model occupies bank = model (Amstrad.sv mem_bank): 6128 bank
+//    0, 664 bank 1, 464 bank 2; every Plus model (464+/6128+/GX4000) uses
+//    bank 0. vram_bank follows the same rule, so video never reaches bank 3.
+//  - Inside a model bank rtl/Amstrad_MMU.v puts the lower (OS) ROM at page 0
+//    = 0x000000-0x003FFF, the base 64 KB RAM at pages 8-B = 0x020000-0x02FFFF
+//    and upper ROMs at page 0x100 and up = 0x400000+ (rtl/rom_loader_route.v
+//    routes the 464 OS to page 0 and its BASIC to page 0x100). A tape image
+//    written from logical 0 into the 464 bank therefore overwrites its OS
+//    ROM, then its base RAM - the hardware-confirmed crash on RBF 4027f5e and
+//    upstream Amstrad_20260603.rbf (device-acceptance-cdcb3c3-2026-09-22.md,
+//    "CDT on a CPC 464 overwrites the 464 OS ROM").
+//  - Bank 3 belongs to the Dandanator (0x000000-0x07FFFF, Amstrad.sv
+//    dan_ena override) and the Plus cartridge (0x080000-0x0FFFFF,
+//    plus_cartridge_memory CARTRIDGE_BASE); boot writes to bank 3 are the
+//    Dandanator download only.
+// Bank 3 from 0x100000 upward is therefore the one region no model ROM/RAM,
+// Dandanator or Plus cartridge uses: 8 MB - 1 MB = 7 MB (TAPE_MAX_LEN), so
+// the last usable tape byte is logical 0x6FFFFF.
+void test_tape_image_placement_outside_model_maps(TestState &test) {
+    Harness h;
+    h.initialize(test);
+    b87::seam_idle(h);
+    b87::seam_reset_queue(h);
+    h.dut.vram_bank = 0;
+    h.dut.vram_addr = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+
+    // Discriminating download bytes: image byte 0 (464 OS ROM under the old
+    // fixed bank-2 mapping), the first base-RAM byte (0x020000), and the
+    // last byte of the 7 MB window.
+    const uint32_t logical[] = {0x000000u, 0x020000u, TAPE_MAX_LEN - 1};
+    const uint8_t payload[] = {0x41u, 0x42u, 0x43u};
+    h.align_before_idle();
+    const size_t marker = h.commands.size();
+    h.dut.tape_seam_download = 1;
+    for (int i = 0; i < 3; ++i) {
+        b87::seam_strobe(h, logical[i], payload[i]);
+        int pulses = 0;
+        test.check(b87::wait_for_tape_ack(h, 64, pulses),
+                   "tape placement byte must be acknowledged");
+    }
+    for (int i = 0; i < 40; ++i) h.tick();
+    h.dut.tape_seam_download = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
+
+    std::ostringstream where;
+    for (int i = 0; i < 3; ++i) {
+        const uint32_t physical = TAPE_BASE + logical[i];
+        const uint32_t word = physical & ~1u;
+        bool landed = false;
+        for (size_t j = marker; j < h.commands.size(); ++j) {
+            const auto &cmd = h.commands[j];
+            if (cmd.kind == CMD_WRITE && cmd.bank == TAPE_BANK &&
+                cmd.address == word)
+                landed = true;
+        }
+        where.str("");
+        where << std::hex << logical[i];
+        test.check(landed,
+                   "tape image byte at logical 0x" + where.str() +
+                       " must reach bank 3 address 0x100000 + logical");
+        test.check(h.load(TAPE_BANK, physical) == payload[i],
+                   "tape image byte must be stored at its bank-3 address");
+    }
+
+    // Every tape WRITE after the download is a tape WRITE: no other client
+    // is active here. None may land in the 464 model bank (bank 2) or in
+    // bank 3 below the reserved base (Dandanator / Plus cartridge space).
+    int misplaced = 0;
+    int writes = 0;
+    for (size_t j = marker; j < h.commands.size(); ++j) {
+        const auto &cmd = h.commands[j];
+        if (cmd.kind != CMD_WRITE) continue;
+        ++writes;
+        if (cmd.bank != TAPE_BANK || cmd.address < TAPE_BASE ||
+            cmd.address + 1 > TAPE_BASE + TAPE_MAX_LEN)
+            ++misplaced;
+    }
+    test.check(writes == 3,
+               "three tape bytes must issue exactly three WRITEs (saw " +
+                   std::to_string(writes) + ")");
+    test.check(misplaced == 0,
+               "no tape WRITE may land in a model bank or below the reserved "
+               "tape base (saw " +
+                   std::to_string(misplaced) + ")");
+
+    // Playback reads the relocated image: the parked playback address is
+    // still logical, and the controller must fetch from bank 3 at the base.
+    h.store(TAPE_BANK, TAPE_BASE + 0x80, 0x88);
+    const size_t read_marker = h.commands.size();
+    h.dut.tape_seam_play_addr = 0x80;
+    const bool ack_before = h.dut.tape_rd_ack;
+    h.dut.tape_rd = 1;
+    for (int i = 0; i < 80 && h.dut.tape_rd_ack == ack_before; ++i) h.tick();
+    test.check(h.dut.tape_rd_ack != ack_before,
+               "playback read of the relocated image must acknowledge");
+    test.check(h.dut.tape_dout == 0x88,
+               "playback must return the byte stored at bank 3 0x100080");
+    bool read_from_tape_region = false;
+    for (size_t j = read_marker; j < h.commands.size(); ++j) {
+        const auto &cmd = h.commands[j];
+        if (cmd.kind == CMD_READ && cmd.bank == TAPE_BANK &&
+            cmd.address == TAPE_BASE + 0x80)
+            read_from_tape_region = true;
+    }
+    test.check(read_from_tape_region,
+               "playback READ must target bank 3 address 0x100080");
+    h.dut.tape_rd = 0;
+    for (int i = 0; i < 16; ++i) h.tick();
 }
 
 void test_top_level_wiring(TestState &test) {
@@ -1409,6 +1533,7 @@ int main(int argc, char **argv) {
     test_tape_simultaneous_ack_and_quiet_playback(test);
     test_tape_fn2_clear_preserves_pending_drain(test);
     test_tape_reset_dominates_strobe(test);
+    test_tape_image_placement_outside_model_maps(test);
     test_top_level_wiring(test);
 
     if (test.failures != 0) {
