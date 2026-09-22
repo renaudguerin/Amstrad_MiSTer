@@ -191,7 +191,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 - **Peripherals:** FDC full-sector result/ST1, classic AMSDOS and hardware acceptance are open.
   B8-7 tape real-CDT playback and HPS cadence are open. B8-4 video-word coherence has no
   hardware acceptance.
-- **Tooling:** the task-workflow host smoke tests (B14) are open. B17 has a device-tested
+- **Tooling:** the task-workflow host smoke tests (B14) are open. `scripts/accc/lookup.py`
+  provides candidate Compendium section lookup with Jev reranking and bilingual claim
+  checks (translation-trap detector) as an advisory navigation aid, validated across two
+  30-item evaluation rounds (round 2 hybrid hit@3 83.3%). B17 has a device-tested
   [timed keyboard replay slice](../scripts/hardware-loop/INPUT-REPLAY.md), including Sonic fire
   through Main keyboard joystick mode. Recording remains deferred because Main grabs evdev
   inputs; gameplay timing is not frame-deterministic. CI and synthesis routing are in

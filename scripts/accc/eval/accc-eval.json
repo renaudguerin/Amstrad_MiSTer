@@ -1,0 +1,524 @@
+{
+  "lookups": [
+    {
+      "id": "L01",
+      "query": "On a classic CPC, which cursor and light-pen registers can I read back on type 0 versus type 1, and what does reading dummy register 31 return on each?",
+      "gold": [
+        "21.2.2"
+      ],
+      "also_ok": [
+        "21.2.1",
+        "28.1.9"
+      ],
+      "evidence": "docs/classic/audit-findings.md:391",
+      "note": "Type 0 reads R12-R17, type 1 reads R14-R17 only; R10/R11 unreadable on both; dummy 31 is 0x00/0xFF."
+    },
+    {
+      "id": "L02",
+      "query": "I poll the type 1 status port while sweeping R6 — exactly when does bit 5 change, and does forcing border with R6=0 show up there?",
+      "gold": [
+        "21.3.3"
+      ],
+      "also_ok": [
+        "21.3.1",
+        "28.1.8"
+      ],
+      "evidence": "docs/classic/audit-findings.md:68",
+      "note": "Bit 5 sampled at C0=R0 from BORDER-R6 condition; R6=0-forced-while-C4>0 not reflected."
+    },
+    {
+      "id": "L03",
+      "query": "If I rewrite R7 to the current row address in the middle of a scanline on a type 0, when is the vertical sync blocked versus started late, and how does that stretch its length?",
+      "gold": [
+        "16.4.1"
+      ],
+      "also_ok": [
+        "16.3",
+        "16.4.2"
+      ],
+      "evidence": "docs/classic/audit-findings.md:95",
+      "note": "C0vs 0/1 blocked; C0vs>1 immediate start, C3h from next line, duration +(R0-C0vs)."
+    },
+    {
+      "id": "L04",
+      "query": "How does the same mid-row R7 rewrite behave on a type 1 — does the partial line count toward the pulse, and which way does the duration move?",
+      "gold": [
+        "16.4.2"
+      ],
+      "also_ok": [
+        "16.4.1",
+        "16.5.2"
+      ],
+      "evidence": "docs/classic/audit-findings.md:100",
+      "note": "Fires at any C0, partial line counts as line 1, duration reduced by C0+1."
+    },
+    {
+      "id": "L05",
+      "query": "On a type 0, during which character times are R4 and R9 edits allowed to decide whether the current row is the frame's last line?",
+      "gold": [
+        "12.2"
+      ],
+      "also_ok": [
+        "10.3.1",
+        "12.2.1"
+      ],
+      "evidence": "docs/classic/audit-findings.md:131",
+      "note": "C0<2 evaluation window; R4/R9 writes there validate or clear Last Line."
+    },
+    {
+      "id": "L06",
+      "query": "I lower R9 below the live C9 outside adjustment, or R4 below C4 — does C9 wrap to zero or run to 31 first, and does C4 run to 127?",
+      "gold": [
+        "10.3"
+      ],
+      "also_ok": [
+        "12.1",
+        "10.3.1"
+      ],
+      "evidence": "docs/classic/findings-review.md:37",
+      "note": "Equality only: C9 to 31, C4 to 127 then wrap; zero is not a wildcard."
+    },
+    {
+      "id": "L07",
+      "query": "What locks up when I program R0 to zero on a type 0, which counters stop, and which registers can I still change while frozen?",
+      "gold": [
+        "13.2"
+      ],
+      "also_ok": [
+        "13.2.6",
+        "13.2.1"
+      ],
+      "evidence": "docs/classic/audit-findings.md:203",
+      "note": "C0 pinned at 0, C9 frozen, R4/R5/R9 ignored, R8 live, HSYNC only if R2==0."
+    },
+    {
+      "id": "L08",
+      "query": "I set the horizontal displayed count higher than the line total — what thin seam shows up between rows on a type 0, and what does a type 1 show instead?",
+      "gold": [
+        "17.6.2"
+      ],
+      "also_ok": [
+        "19.2.4",
+        "28.1.6"
+      ],
+      "evidence": "docs/classic/f6-decision-gate.md:24",
+      "note": "Type 0 one 0.5us border byte at C0=R0; type 1/3/4 nothing, rows merge."
+    },
+    {
+      "id": "L09",
+      "query": "When the horizontal match never arrives, how long after the line-total match is the border edge sent, and when does it turn off again on types 0 and 2?",
+      "gold": [
+        "19.2.4"
+      ],
+      "also_ok": [
+        "17.6.2",
+        "19.2.3"
+      ],
+      "evidence": "docs/classic/f6-decision-gate.md:38",
+      "note": "BORDER 0.5us after C0=R0, disabled next character 0.5us later."
+    },
+    {
+      "id": "L10",
+      "query": "How do I shift the type 0 border transitions later by one or two character times, and does that shift the video-pointer latch too?",
+      "gold": [
+        "19.2.3"
+      ],
+      "also_ok": [
+        "19.2.4",
+        "19.1"
+      ],
+      "evidence": "docs/classic/compendium-03-display-regs.md:172",
+      "note": "SKEW DISP +1/+2 delays visible edge only; VMA latch unaffected, immediate mid-line."
+    },
+    {
+      "id": "L11",
+      "query": "In interlaced video on a type 0, what parity condition appends the extra scanline after any adjustment lines?",
+      "gold": [
+        "19.6.1"
+      ],
+      "also_ok": [
+        "19.6.2",
+        "19.5.2"
+      ],
+      "evidence": "docs/classic/compendium-03-display-regs.md:253",
+      "note": "R8 in {1,3} and ParityR6 odd; line holds C4=R4+1."
+    },
+    {
+      "id": "L12",
+      "query": "What is the simpler gate for that appended scanline on a type 1, and what does the following paragraph about C4 accounting not control?",
+      "gold": [
+        "19.6.2"
+      ],
+      "also_ok": [
+        "19.6.1",
+        "19.5.3"
+      ],
+      "evidence": "docs/classic/audit-findings.md:298",
+      "note": "R8 in {1,3} and ParityFrame even; C4/multiple wording does not gate existence."
+    },
+    {
+      "id": "L13",
+      "query": "How do the two frame-parity flags on a type 1 toggle at frame start and per row, and what happens to the line counter when I flip R8 mid-frame?",
+      "gold": [
+        "19.5.3"
+      ],
+      "also_ok": [
+        "19.5.2",
+        "19.8.2"
+      ],
+      "evidence": "docs/classic/compendium-03-display-regs.md:226",
+      "note": "ParityFrame each frame at C4=C9=C0=0; ParityC9 per C4 if R9 even; R8 toggle rules p.209-210."
+    },
+    {
+      "id": "L14",
+      "query": "On a type 0, which internal parity flags exist, when does the row-end parity update fire for odd R9, and how is VSYNC nudged for odd rows?",
+      "gold": [
+        "19.5.2"
+      ],
+      "also_ok": [
+        "19.5.3",
+        "19.8.1"
+      ],
+      "evidence": "docs/classic/audit-findings.md:327",
+      "note": "ParityFrame/ParityR6/ParityC9; p.220 update ParityC9=C4.0 xor ParityFrame; odd-R7 VSYNC delay-by-1."
+    },
+    {
+      "id": "L15",
+      "query": "During interlace, on which horizontal half-line does the mid-frame vertical sync fire on even frames?",
+      "gold": [
+        "19.7.2"
+      ],
+      "also_ok": [
+        "19.5.1",
+        "19.7.1"
+      ],
+      "evidence": "docs/classic/compendium-03-display-regs.md:261",
+      "note": "MID-VSYNC on even frame at C4=R7 and C0=R0/2."
+    },
+    {
+      "id": "L16",
+      "query": "Once interlace is on for a type 0, how is the line counter doubled with parity for the address, and how do entry, steady and exit rows test their limits?",
+      "gold": [
+        "19.8.1"
+      ],
+      "also_ok": [
+        "19.5.2",
+        "19.6.1"
+      ],
+      "evidence": "docs/classic/audit-findings.md:327",
+      "note": "Split C9/C9.VMA (C9x2|parity); switch R9|ParityFrame, steady R9|ParityC9, exit plain R9."
+    },
+    {
+      "id": "L17",
+      "query": "What is the two-stage line-count recipe on a type 1 in interlace, and how does the parity flag move when R9 is even?",
+      "gold": [
+        "19.8.2"
+      ],
+      "also_ok": [
+        "19.5.3",
+        "19.8.1"
+      ],
+      "evidence": "docs/classic/audit-findings.md:350",
+      "note": "C9=C9+not(R9.0); masked C9/R9 test manages C4; ParityC9 toggles if R9 even."
+    },
+    {
+      "id": "L18",
+      "query": "If I poke new display-start values during the first character row on a type 1, on which character edges do they actually reach the video pointer?",
+      "gold": [
+        "20.3.2"
+      ],
+      "also_ok": [
+        "20.3.1",
+        "17.4"
+      ],
+      "evidence": "docs/classic/audit-findings.md:635",
+      "note": "VMA reloaded every C0=0 while C4=0 regardless of C9; catches same-edge write."
+    },
+    {
+      "id": "L19",
+      "query": "What exact write to the adjustment-total register arms the easy type 1 rupture, and which two behaviours does it switch on?",
+      "gold": [
+        "11.6"
+      ],
+      "also_ok": [
+        "11.6.1",
+        "13.7.1"
+      ],
+      "evidence": "docs/classic/findings-review.md:40",
+      "note": "R5 0->nonzero at C0=R0; VMA-source every row + frame-parity-dependent C9 test."
+    },
+    {
+      "id": "L20",
+      "query": "Once that rupture is armed, why does one frame repeat characters while the next does not, and what flips that every frame when R9 is odd?",
+      "gold": [
+        "11.6.1"
+      ],
+      "also_ok": [
+        "11.6",
+        "11.6.2"
+      ],
+      "evidence": "docs/classic/audit-findings.md:377",
+      "note": "Case1 C9=R9 faulty at C0=R1 so VMA' not updated; case2 clean; parity flips at C4=C9=C0=0 with R9 odd."
+    },
+    {
+      "id": "L21",
+      "query": "During vertical adjustment on a type 1, which counter tallies the extra lines while the row and line counters keep cycling for the video address?",
+      "gold": [
+        "11.1"
+      ],
+      "also_ok": [
+        "11.2.3",
+        "11.3.2"
+      ],
+      "evidence": "docs/classic/findings-review.md:41",
+      "note": "Separate C5 counts adjustment; C9 cycles 0..R9 (RA from C9), C4 increments at wraps; type 0 has no C5."
+    },
+    {
+      "id": "L22",
+      "query": "I clear the adjustment total mid-adjustment on a type 1 — does the adjustment end, and what keeps looping?",
+      "gold": [
+        "11.3.2"
+      ],
+      "also_ok": [
+        "11.1",
+        "11.2.4"
+      ],
+      "evidence": "docs/classic/compendium-01-counters.md:217",
+      "note": "State not deactivated, C4 not reset, C5 loops until reachable positive R5."
+    },
+    {
+      "id": "L23",
+      "query": "If I shrink R3l below the live C3l mid-HSYNC, when does C3l wrap versus cut the pulse immediately, and why does type 1 with zero behave differently?",
+      "gold": [
+        "14.5"
+      ],
+      "also_ok": [
+        "14.5.2",
+        "14.5.4"
+      ],
+      "evidence": "docs/classic/findings-review.md:44",
+      "note": "Lower R3l below C3l wraps except type 1 zero cancels immediately."
+    },
+    {
+      "id": "L24",
+      "query": "How can a small R0/R2/R3 combo lock horizontal sync on forever, and how does a type 0 escape it where other types do not?",
+      "gold": [
+        "15.3.2"
+      ],
+      "also_ok": [
+        "15.3.1",
+        "15.3.3"
+      ],
+      "evidence": "docs/classic/accc-1.11-fr-en-differences.md:115",
+      "note": "R0=0 R2=0 R3=1 re-triggers every char on types 1/2/3/4; type 0 skips 2nd char."
+    },
+    {
+      "id": "L25",
+      "query": "On a type 0 stuck in that endless sync, what does rewriting R3 exactly at the terminal count do to the low sync counter?",
+      "gold": [
+        "15.3.3"
+      ],
+      "also_ok": [
+        "15.3.2",
+        "14.5.4"
+      ],
+      "evidence": "docs/classic/accc-1.11-fr-en-differences.md:116",
+      "note": "Exact-end R3 change at C0=R2+R3 makes C3l overflow; earliest ~3.5px restart."
+    },
+    {
+      "id": "L26",
+      "query": "What stops a second vertical sync from firing right after one, and how does the type 2 ghost differ from the type 0 blocked state?",
+      "gold": [
+        "16.3"
+      ],
+      "also_ok": [
+        "16.4.1",
+        "16.4.3"
+      ],
+      "evidence": "docs/classic/compendium-02-sync.md:321",
+      "note": "VSYNC protection mechanism 2; blocked consumes C4=R7 without pin; ghost counts without pin during HSYNC."
+    },
+    {
+      "id": "L27",
+      "query": "How many lines does VSYNC last via R3h on type 0 versus type 1, and what does R3h=0 mean on each?",
+      "gold": [
+        "14.2"
+      ],
+      "also_ok": [
+        "16.2",
+        "14.5"
+      ],
+      "evidence": "docs/classic/compendium-02-sync.md:29",
+      "note": "R3h lines; type 0 0->16 via wrap, type 1 fixed 16."
+    },
+    {
+      "id": "L28",
+      "query": "When R1 fits inside R0, which C0=R1 and C0=0 matches turn border off and on, and what latches VMA prime to VMA at the C9=R9 row end?",
+      "gold": [
+        "17.2"
+      ],
+      "also_ok": [
+        "17.2.1",
+        "17.4"
+      ],
+      "evidence": "docs/classic/compendium-03-display-regs.md:38",
+      "note": "BORDER off at C0=0, on at C0=R1; VMA'/VMA row-end latch at C9=R9/C0=R1."
+    },
+    {
+      "id": "L29",
+      "query": "If I zero the vertical displayed total exactly on the first row, when does the border become definitive, and does a brief earlier zero count?",
+      "gold": [
+        "18.3.2"
+      ],
+      "also_ok": [
+        "18.2.2",
+        "18.2.3"
+      ],
+      "evidence": "docs/classic/accc-1.11-fr-en-differences.md:126",
+      "note": "Definitive at C0=R1 only if R6 still zero then; earlier zero since cleared does not stick (FR)."
+    },
+    {
+      "id": "L30",
+      "query": "How can I tell the CRTC type by sweeping the vertical sync row past the row-total overflow, and where does the type 1 pulse quit?",
+      "gold": [
+        "28.1.1"
+      ],
+      "also_ok": [
+        "28.1.9",
+        "28.1.6"
+      ],
+      "evidence": "docs/classic/audit-findings.md:177",
+      "note": "R4=36 R9=7 R5=16 sweep R7=38/39; type1 VSYNC stops past 39, overrun repeats per §28.1.1."
+    }
+  ],
+  "claims": [
+    {
+      "id": "C01",
+      "claim": "R10 and R11 return zero when read on CRTC types 0 and 1; only types 3 and 4 expose them as readable status registers.",
+      "section": "21.2.2",
+      "label": "supports",
+      "evidence": "docs/classic/findings-review.md:33",
+      "note": "Direct table: type 1 reads R14-R17 only; R10/R11 not readable on 0/1."
+    },
+    {
+      "id": "C02",
+      "claim": "On type 1, status bit 5 follows the R6-border condition sampled at C0=R0, and forcing border with R6=0 while C4 is nonzero does not set it.",
+      "section": "21.3.3",
+      "label": "supports",
+      "evidence": "docs/classic/findings-review.md:34",
+      "note": "All three F2 nuances verbatim at §21.3.3 p.248."
+    },
+    {
+      "id": "C03",
+      "claim": "On type 0, writing R7 equal to C4 at C0 0 or 1 blocks VSYNC with no pulse, while a later mid-line write starts it immediately and stretches total length.",
+      "section": "16.4.1",
+      "label": "supports",
+      "evidence": "docs/classic/findings-review.md:35",
+      "note": "Blocked at C0vs<2, duration +(R0-C0vs), counter from next C0=0."
+    },
+    {
+      "id": "C04",
+      "claim": "During type 1 vertical adjustment a dedicated C5 tallies extra lines while C9 keeps cycling 0..R9 and C4 advances at each wrap, so the video address keeps cycling.",
+      "section": "11.1",
+      "label": "supports",
+      "evidence": "docs/classic/findings-review.md:41",
+      "note": "C5/C9 dissociated on 1/2; type 0 has no C5."
+    },
+    {
+      "id": "C05",
+      "claim": "With R1 greater than R0, type 0 inserts a single half-microsecond border byte at C0=R0 before the next line, while type 1 inserts nothing.",
+      "section": "17.6.2",
+      "label": "supports",
+      "evidence": "docs/classic/findings-review.md:39",
+      "note": "0.5us byte, BORDER OFF next char, any R0 incl 0 alternation."
+    },
+    {
+      "id": "C06",
+      "claim": "On type 1 every frame start copies the frame parity into the line parity flag, so an odd interlaced frame restarts its line counter at one.",
+      "section": "19.5.3",
+      "label": "supports",
+      "evidence": "docs/classic/accc-1.11-fr-en-differences.md:128",
+      "note": "Author-confirmed ParityC9=ParityFrame at frame start; IA-2 t32a."
+    },
+    {
+      "id": "C07",
+      "claim": "Freezing R0 at zero for N character times costs about N divided by R9-plus-one character rows.",
+      "section": "13.2",
+      "label": "contradicts",
+      "evidence": "docs/classic/findings-review.md:55",
+      "note": "Digest B2 (findings-review.md:55) misstates wall-clock cost; source §13.2 p.105 says N/64 raster lines (64x8us forgets 8 lines)."
+    },
+    {
+      "id": "C08",
+      "claim": "With R0 set to one and R5 left at zero, each two-microsecond frame chains into another adjustment frame until the adjustment counter reaches R5.",
+      "section": "13.2.5",
+      "label": "contradicts",
+      "evidence": "docs/classic/findings-review.md:60",
+      "note": "Digest B3 (findings-review.md:60) wrong; source §13.2.5 stops after 1 line when C9==R5 then strictly alternates normal/additional."
+    },
+    {
+      "id": "C09",
+      "claim": "The R8 skew-select field lives at bits 4:3 for the delay and bits 6:5 for the mode, with the border-on mask at bits 3:2.",
+      "section": "19.1",
+      "label": "contradicts",
+      "evidence": "docs/classic/findings-review.md:79",
+      "note": "Digest B8 (findings-review.md:79) bullets inverted; source §19.1 table Sc 7:6 Sd 5:4, BORDER ON 001100xx sets 5,4."
+    },
+    {
+      "id": "C10",
+      "claim": "An even R9 setting yields an odd total line count per character in interlace, so R9=6 gives an odd number of lines.",
+      "section": "19.5.2",
+      "label": "contradicts",
+      "evidence": "docs/classic/findings-review.md:87",
+      "note": "Digest B10 (findings-review.md:87) inverted; source §19.5.2 even R9 gives even total (R9=6 -> 2x4=8)."
+    },
+    {
+      "id": "C11",
+      "claim": "Definitive border at C0=R1 only needs R6 to have been zero at least once earlier in the frame, even if it was changed to nonzero before the match.",
+      "section": "18.3.2",
+      "label": "contradicts",
+      "evidence": "docs/classic/accc-1.11-fr-en-differences.md:126",
+      "note": "BL-036 (differences:126): French requires R6 still zero at C0=R1; English at-least-once is the mistranslation."
+    },
+    {
+      "id": "C12",
+      "claim": "Type 1 reloads its video pointer from R12/R13 on every return of C0 to zero while C4 is zero, regardless of C9.",
+      "section": "14.5",
+      "label": "silent",
+      "evidence": "docs/classic/compendium-03-display-regs.md:366",
+      "note": "True per §20.3.2 p.243; §14.5 covers R3/HSYNC width only and never mentions VMA/R12/R13."
+    },
+    {
+      "id": "C13",
+      "claim": "Lowering R3 below the live HSYNC counter wraps it, except that zero on type 1 cancels the pulse immediately.",
+      "section": "11.6",
+      "label": "silent",
+      "evidence": "docs/classic/compendium-02-sync.md:75",
+      "note": "True per §14.5; §11.6 covers RFD/VMA/parity only and never mentions R3/C3l/HSYNC width."
+    },
+    {
+      "id": "C14",
+      "claim": "A type 0 R7 write at C0 0 or 1 is blocked with no pulse until C4 or R7 changes value.",
+      "section": "17.6.2",
+      "label": "silent",
+      "evidence": "docs/classic/compendium-02-sync.md:350",
+      "note": "True per §16.4.1; §17.6.2 covers R1>R0 border byte only and never mentions VSYNC/R7/blocked."
+    },
+    {
+      "id": "C15",
+      "claim": "Registers R10 and R11 read as zero on types 0 and 1.",
+      "section": "19.5.3",
+      "label": "silent",
+      "evidence": "docs/classic/compendium-03-display-regs.md:418",
+      "note": "True per §21.2.2; §19.5.3 covers type-1 parity only and never mentions readback/R10/R11."
+    },
+    {
+      "id": "C16",
+      "claim": "Status bit 5 on type 1 is sampled from the border condition only at C0=R0.",
+      "section": "10.3",
+      "label": "silent",
+      "evidence": "docs/classic/compendium-03-display-regs.md:438",
+      "note": "True per §21.3.3; §10.3 covers C9 counting rules only and never mentions status/bit 5."
+    }
+  ]
+}

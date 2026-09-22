@@ -73,7 +73,9 @@ missing. Prefer the French source over the digests whenever a rule claim matters
 English edition for navigation and review. Read both through the `pdf-inspector` skill under
 the verification protocol in `docs/classic/extract/README.md` (position-aware Markdown is
 the primary text layer, with pdftotext only an optional second opinion; figures are judged
-from rendered pages, never from a text layer).
+from rendered pages, never from a text layer). Run `scripts/accc/lookup.py "<question>"` to
+locate relevant Compendium sections before grepping the extractions; its output is
+navigation and routing aid, not verification.
 
 Use ACCC section numbers as durable anchors. New or materially revised rule claims cite the
 French page and may also give the English page. Do not bulk-rewrite historical reports or

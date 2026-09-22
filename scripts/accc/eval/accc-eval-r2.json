@@ -1,0 +1,572 @@
+{
+  "lookups": [
+    {
+      "id": "L31",
+      "query": "In mode 2, how many pixels does the static horizontal blank start later on CRTC 1 compared to CRTC 0?",
+      "gold": [
+        "9.3.4.1"
+      ],
+      "also_ok": [
+        "9.3.4.3",
+        "14.7.1"
+      ],
+      "evidence": "docs/classic/audit-findings.md:416",
+      "note": "In mode 2, the static blank starts 1 pixel later on CRTC 1 compared to CRTC 0."
+    },
+    {
+      "id": "L32",
+      "query": "When an I/O write updates R2 to match live C0 just in time, how many pixels is the start of HSYNC shifted on type 0 versus type 1, and what happens to the trailing edge?",
+      "gold": [
+        "14.7.1"
+      ],
+      "also_ok": [
+        "9.3.4.3"
+      ],
+      "evidence": "docs/classic/audit-findings.md:419",
+      "note": "HSYNC start is delayed by 4 pixels on type 0 and 3 on type 1; trailing edge position is unchanged, shortening the pulse."
+    },
+    {
+      "id": "L33",
+      "query": "On CRTC 0, when leaving interlace video mode by setting R8 to 0, what does the row-end comparator compare against R9 until a match occurs?",
+      "gold": [
+        "19.8.1"
+      ],
+      "also_ok": [
+        "19.5.2"
+      ],
+      "evidence": "docs/classic/audit-findings.md:363",
+      "note": "The comparator continues testing the frozen C9.VMA value against plain R9; if unequal, C9 counts past R9 and wraps at 31 until R9 matches or IVM is re-entered."
+    },
+    {
+      "id": "L34",
+      "query": "On a type 1 CRTC, if an R5 0-to-nonzero write occurs on the last line of a character row where C9 equals R9, which of the two RFD flags is disarmed?",
+      "gold": [
+        "11.6.1"
+      ],
+      "also_ok": [
+        "11.6"
+      ],
+      "evidence": "docs/classic/audit-findings.md:378",
+      "note": "The VMA-source state flag (rfd_vma_flag) is disabled, while the parity flag (rfd_parity_flag) arms normally."
+    },
+    {
+      "id": "L35",
+      "query": "On CRTC 2 (MC6845), when evaluating the Last Line condition at C0=0, does the comparison use the newly updated value of R4 or R9?",
+      "gold": [
+        "12.4.1"
+      ],
+      "also_ok": [
+        "12.4",
+        "12.2"
+      ],
+      "evidence": "docs/classic/audit-findings.md:401",
+      "note": "At C0=0, Last Line evaluation on CRTC 2 uses the updated value of R4, but the previous value of R9."
+    },
+    {
+      "id": "L36",
+      "query": "During which microsecond of an OUT (C), reg8 versus an OUTI instruction does the Z80 execute the actual I/O write to CRTC registers on the CPC?",
+      "gold": [
+        "13.7.1"
+      ],
+      "also_ok": [
+        "13.7",
+        "26.2"
+      ],
+      "evidence": "sim/crtc_t80_test.cpp:125",
+      "note": "OUT (C), reg8 executes I/O on the 3rd microsecond, while OUTI executes I/O on the 5th microsecond."
+    },
+    {
+      "id": "L37",
+      "query": "On CRTC 0, if an OUT widens R0 from 1 to a larger value at C0=1 on a frame's last line, what counter values and adjustment state are entered at C0=2?",
+      "gold": [
+        "13.7.2.2"
+      ],
+      "also_ok": [
+        "13.7.2"
+      ],
+      "evidence": "sim/sim_main.cpp:5855",
+      "note": "C4 increments to R4+1, C9 remains at R9, additional management is entered at C0=2 and counts R5=0 through effective target 31."
+    },
+    {
+      "id": "L38",
+      "query": "On type 0, why is widening R0 on the last line at C0=0 safe while doing it at C0=1 triggers abnormal adjustment?",
+      "gold": [
+        "13.7.2.2"
+      ],
+      "also_ok": [
+        "13.7.2"
+      ],
+      "evidence": "sim/sim_main.cpp:5811",
+      "note": "Widening at C0=0 avoids abnormal adjustment and resets C4 and C9 to 0 at the true frame origin."
+    },
+    {
+      "id": "L39",
+      "query": "On type 0, once an R4 write during the line has been unequal to C4, does rewriting R4 back to match C4 later in the same line cancel the C9/R5 comparator switch?",
+      "gold": [
+        "13.2.1"
+      ],
+      "also_ok": [
+        "13.2"
+      ],
+      "evidence": "sim/sim_main.cpp:3334",
+      "note": "Once an accepted R4 write is unequal to C4, restoring equality later in the line cannot erase the C9/R5 comparator switch."
+    },
+    {
+      "id": "L40",
+      "query": "When an OUT to R12/R13 lands on the boundary edge between C0=63 and C0=0 during row 0, which CRTC type captures the new address for that frame?",
+      "gold": [
+        "20.3.2"
+      ],
+      "also_ok": [
+        "20.3.1",
+        "20.3"
+      ],
+      "evidence": "docs/classic/audit-findings.md:639",
+      "note": "Type 1 catches the write on its row 0 reload edge by sampling the post-edge register file; type 0 misses it."
+    },
+    {
+      "id": "L41",
+      "query": "When type 0 is stuck in continuous HSYNC, what happens when R3l is rewritten to a value matching the live sync counter at the terminal count?",
+      "gold": [
+        "15.3.3"
+      ],
+      "also_ok": [
+        "15.3.2"
+      ],
+      "evidence": "docs/classic/audit-findings.md:615",
+      "note": "C3l overflows and restarts HSYNC earliest ~3.5 pixels (14 master ticks) later at the controlled bus phase."
+    },
+    {
+      "id": "L42",
+      "query": "On type 1, if an OUT widens R0 on the last line of a frame exactly at the C0=R0 match, does the line terminate or extend into the widened count?",
+      "gold": [
+        "13.6.2"
+      ],
+      "also_ok": [
+        "13.7.1.2"
+      ],
+      "evidence": "docs/classic/audit-findings.md:464",
+      "note": "The just-in-time write is considered this rollover, deferring the line end into the widened remainder."
+    },
+    {
+      "id": "L43",
+      "query": "In the type 1 R0-widening rupture technique, what condition on C4 and C9 must no longer hold at the end of the widened line for RFD to arm?",
+      "gold": [
+        "13.7.1.2"
+      ],
+      "also_ok": [
+        "13.7.1",
+        "11.6"
+      ],
+      "evidence": "docs/classic/audit-findings.md:467",
+      "note": "The register state held at the line end must no longer satisfy C9==R9 and C4==R4."
+    },
+    {
+      "id": "L44",
+      "query": "On CRTC 1, what happens to the display if R6 is set to 0 when C4 is already greater than 0, and does restoring R6 recover the display?",
+      "gold": [
+        "18.2.3"
+      ],
+      "also_ok": [
+        "18.2.2",
+        "18.2"
+      ],
+      "evidence": "sim/crtc_cpu_phase_test.cpp:251",
+      "note": "Setting R6=0 while C4>0 forces border temporarily; reprogramming R6 restores the display, unlike C4=R6 equality which is definitive."
+    },
+    {
+      "id": "L45",
+      "query": "What happens if register R1 is modified while horizontal display is currently enabled, between C0=0 and C0=R1?",
+      "gold": [
+        "17.3"
+      ],
+      "also_ok": [
+        "17.2",
+        "17.1"
+      ],
+      "evidence": "docs/classic/compendium-03-display-regs.md:65",
+      "note": "If new R1 <= current C0, display is disabled immediately; if new R1 > current C0, display continues until the new count is reached."
+    },
+    {
+      "id": "L46",
+      "query": "If horizontal displayed register R1 is programmed to 0, does any active display area appear on the scanline?",
+      "gold": [
+        "17.1"
+      ],
+      "also_ok": [
+        "17.2",
+        "17.5.1"
+      ],
+      "evidence": "docs/classic/compendium-03-display-regs.md:25",
+      "note": "When R1 is 0, no active display is generated and the border signal remains asserted."
+    },
+    {
+      "id": "L47",
+      "query": "What happens to horizontal synchronization if R2 is set to a value strictly greater than R0?",
+      "gold": [
+        "14.4"
+      ],
+      "also_ok": [
+        "14.1",
+        "14.3"
+      ],
+      "evidence": "docs/classic/compendium-02-sync.md:40",
+      "note": "HSYNC never occurs under normal counting because C0 wraps at R0 before reaching R2."
+    },
+    {
+      "id": "L48",
+      "query": "When HSYNC is currently active, what is the effect of writing 0 to R3 on type 1 versus type 0?",
+      "gold": [
+        "14.5.2"
+      ],
+      "also_ok": [
+        "14.5.4",
+        "14.5"
+      ],
+      "evidence": "docs/classic/audit-findings.md:613",
+      "note": "On type 1, R3=0 cancels the active HSYNC pulse immediately; on type 0, HSYNC continues and the counter wraps through 16."
+    },
+    {
+      "id": "L49",
+      "query": "On type 0, what value must C0 reach on the line preceding the C4=R7 row for a natural VSYNC to fire, and what happens if that preceding line had R0=0 or 1?",
+      "gold": [
+        "16.4.1.2"
+      ],
+      "also_ok": [
+        "16.4.1",
+        "16.3"
+      ],
+      "evidence": "sim/sim_main.cpp:1075",
+      "note": "C0 must reach 2 on the preceding line; if R0 is 0 or 1, VSYNC is blocked without a pulse for that C4=R7 frame."
+    },
+    {
+      "id": "L50",
+      "query": "How can software identify a CRTC type 1 by reading I/O port &BE00, and which bits have defined meanings?",
+      "gold": [
+        "28.1.8"
+      ],
+      "also_ok": [
+        "21.3.3",
+        "21.3.1"
+      ],
+      "evidence": "docs/classic/audit-findings.md:74",
+      "note": "Port &BE00 returns a status byte where bit 5 is the R6-border condition sampled at C0=R0 on type 1; types 0 and 2 return &FF."
+    },
+    {
+      "id": "L51",
+      "query": "How does measuring the latency from an R7 write to the start of VSYNC on the PPI port distinguish CRTC type 0 from type 1?",
+      "gold": [
+        "28.1.3"
+      ],
+      "also_ok": [
+        "28.1.4",
+        "16.4.1"
+      ],
+      "evidence": "docs/classic/audit-findings.md:101",
+      "note": "Type 0 exhibits 6 µs latency while type 1 exhibits 5 µs latency due to internal bus sampling differences."
+    },
+    {
+      "id": "L52",
+      "query": "How does the Amstrad CPC Gate Array count HSYNC pulses in its internal counter to trigger interrupts every 52 lines?",
+      "gold": [
+        "27.2"
+      ],
+      "also_ok": [
+        "27.1",
+        "27.3.1"
+      ],
+      "evidence": "docs/classic/compendium-02-sync.md:520",
+      "note": "The Gate Array increments a 6-bit counter (R52) on the falling edge of HSYNC, generating an interrupt at count 52."
+    },
+    {
+      "id": "L53",
+      "query": "When VSYNC occurs, how does the Gate Array synchronize or reset its 52-line interrupt counter?",
+      "gold": [
+        "27.3.2"
+      ],
+      "also_ok": [
+        "27.3",
+        "27.2"
+      ],
+      "evidence": "docs/classic/compendium-02-sync.md:535",
+      "note": "Gate Array synchronizes interrupts on VSYNC: if R52 counter is >= 32, it resets counter to 0."
+    },
+    {
+      "id": "L54",
+      "query": "What is the minimum duration an HSYNC pulse must have for the Gate Array to recognize it and filter out glitches?",
+      "gold": [
+        "14.3"
+      ],
+      "also_ok": [
+        "27.1",
+        "16.2.5"
+      ],
+      "evidence": "docs/classic/compendium-02-sync.md:560",
+      "note": "The Gate Array filters out HSYNC pulses shorter than its internal threshold."
+    },
+    {
+      "id": "L55",
+      "query": "What are the four operating modes selected by bits 0 and 1 of register R8, and which setting enables interlaced sync and video?",
+      "gold": [
+        "19.3.2.2"
+      ],
+      "also_ok": [
+        "19.3.1",
+        "19.3.2.1"
+      ],
+      "evidence": "docs/classic/compendium-03-display-regs.md:190",
+      "note": "00=normal, 01=interlace sync, 10=normal, 11=interlace sync and video mode (IVM)."
+    },
+    {
+      "id": "L56",
+      "query": "On CRTC 1 and 2, when vertical total adjust R5 is set to 7 and maximum raster address R9 is 3, how do C9 and C4 advance during adjustment?",
+      "gold": [
+        "11.2.3"
+      ],
+      "also_ok": [
+        "11.2.1",
+        "11.2.4"
+      ],
+      "evidence": "docs/classic/audit-findings.md:320",
+      "note": "C9 cycles 0..3 carrying into C4 at each wrap, while C5 tallies the adjustment scanlines against R5."
+    },
+    {
+      "id": "L57",
+      "query": "How does the CRTC increment the Video Memory Address (VMA) during active display, and what is loaded into VMA at the start of each line?",
+      "gold": [
+        "20.1"
+      ],
+      "also_ok": [
+        "20.2",
+        "17.4"
+      ],
+      "evidence": "docs/classic/compendium-03-display-regs.md:310",
+      "note": "VMA increments on each character clock; at the beginning of each line, VMA is reloaded from row start pointer VMA'."
+    },
+    {
+      "id": "L58",
+      "query": "Which bits of registers R10 and R11 define the cursor start and end raster scanlines, and what registers control cursor display on the 6845?",
+      "gold": [
+        "22"
+      ],
+      "also_ok": [
+        "21.2.1",
+        "21.2.2"
+      ],
+      "evidence": "docs/classic/audit-findings.md:59",
+      "note": "Bits 0-4 of R10 specify cursor start raster, bits 0-4 of R11 specify cursor end raster; chapter 22 covers cursor registers."
+    },
+    {
+      "id": "L59",
+      "query": "On CRTC 3 and 4 (Amstrad Plus ASIC), why is it impossible to overflow raster counter C9 by lowering R9 below the live scanline?",
+      "gold": [
+        "10.3.4.1"
+      ],
+      "also_ok": [
+        "10.3.1",
+        "10.3"
+      ],
+      "evidence": "docs/classic/compendium-01-counters.md:35",
+      "note": "The ASIC compares C9 >= R9 rather than simple equality, so C9 resets to 0 on the next line when R9 <= C9."
+    },
+    {
+      "id": "L60",
+      "query": "On CRTC 0, if an R9 or R4 write at C0=1 breaks the last line equality that held at C0=0, what happens to vertical adjustment even if R5 is 0?",
+      "gold": [
+        "10.3.1.2"
+      ],
+      "also_ok": [
+        "10.3.1",
+        "11.2.1"
+      ],
+      "evidence": "docs/classic/audit-findings.md:131",
+      "note": "Breaking equality at C0=1 activates vertical adjustment even when R5=0, turning the line into the first adjustment line."
+    }
+  ],
+  "claims": [
+    {
+      "id": "C17",
+      "claim": "On CRTC 1, an OUT(C),r8 instruction executes its I/O bus write on the 3rd microsecond, whereas OUTI executes it on the 5th microsecond.",
+      "section": "13.7.1",
+      "label": "supports",
+      "evidence": "docs/classic/b8-production-t80-2026-09-08.md:12",
+      "note": "ACCC §13.7.1 p.125 confirms OUT(C),r8 write on 3rd µs, OUTI on 5th µs."
+    },
+    {
+      "id": "C18",
+      "claim": "On CRTC 0, leaving IVM by setting R8 to 0 causes the line-end comparator to test the frozen C9.VMA value against R9 instead of live C9.",
+      "section": "19.8.1",
+      "label": "supports",
+      "evidence": "docs/classic/audit-findings.md:363",
+      "note": "ACCC §19.8.1 pp.220-221 confirms comparator tests frozen C9.VMA against R9 until match."
+    },
+    {
+      "id": "C19",
+      "claim": "On CRTC 2, the Last Line evaluation at C0=0 uses the updated value of R4 but the previous value of R9.",
+      "section": "12.4.1",
+      "label": "supports",
+      "evidence": "docs/classic/audit-findings.md:401",
+      "note": "ACCC §12.4.1 p.96 confirms updated R4, previous R9."
+    },
+    {
+      "id": "C20",
+      "claim": "On CRTC 3 and 4, lowering R9 below the current C9 does not wrap C9 to 31 because the ASIC performs a greater-than-or-equal comparison.",
+      "section": "10.3.4.1",
+      "label": "supports",
+      "evidence": "docs/classic/compendium-01-counters.md:35",
+      "note": "ACCC §10.3.4.1 p.79 confirms >= comparison prevents 31 overflow."
+    },
+    {
+      "id": "C21",
+      "claim": "On CRTC 0, VSYNC is blocked without a pulse if C0 did not reach at least 2 on the line preceding C4=R7.",
+      "section": "16.4.1.2",
+      "label": "supports",
+      "evidence": "sim/sim_main.cpp:1075",
+      "note": "ACCC §16.4.1.2 p.169 confirms C0 must reach 2 on preceding line."
+    },
+    {
+      "id": "C22",
+      "claim": "On CRTC 1, setting R6 to 0 while C4 is greater than 0 activates border temporarily without making it irreversible.",
+      "section": "18.2.3",
+      "label": "supports",
+      "evidence": "sim/crtc_cpu_phase_test.cpp:251",
+      "note": "ACCC §18.2.3 p.190 confirms temporary border when C4>0."
+    },
+    {
+      "id": "C23",
+      "claim": "On CRTC 1, bit 5 of status register &BE00 reflects the R6-border condition sampled at C0=R0, while CRTC 0 and 2 return &FF.",
+      "section": "28.1.8",
+      "label": "supports",
+      "evidence": "docs/classic/audit-findings.md:74",
+      "note": "ACCC §28.1.8 p.294 confirms status bit 5 on type 1 and &FF on 0 and 2."
+    },
+    {
+      "id": "C24",
+      "claim": "On CRTC 0, an R2 write matching live C0 delays the start of HSYNC by 3 mode 2 pixels.",
+      "section": "14.7.1",
+      "label": "contradicts",
+      "evidence": "docs/classic/audit-findings.md:419",
+      "note": "§14.7.1 states 4 pixels on CRTC 0 (3 pixels on CRTC 1)."
+    },
+    {
+      "id": "C25",
+      "claim": "The Gate Array internal R52 counter triggers an interrupt when it reaches a count of 64 lines.",
+      "section": "27.2",
+      "label": "contradicts",
+      "evidence": "docs/classic/compendium-02-sync.md:520",
+      "note": "§27.2 states interrupt triggers at 52 lines, not 64."
+    },
+    {
+      "id": "C26",
+      "claim": "On CRTC 1, reading dummy register 31 returns 0x00.",
+      "section": "21.2.2",
+      "label": "contradicts",
+      "evidence": "docs/classic/audit-findings.md:392",
+      "note": "§21.2.2 and §21.4 state dummy register 31 reads 0xFF on type 1 (0x00 on type 0)."
+    },
+    {
+      "id": "C27",
+      "claim": "On CRTC 0, modifying R7 to equal C4 mid-line triggers VSYNC immediately if the write occurs when C0 is 1.",
+      "section": "16.4.1.1",
+      "label": "contradicts",
+      "evidence": "docs/classic/audit-findings.md:95",
+      "note": "§16.4.1.1 states write at C0 < 2 produces blocked VSYNC with no pulse."
+    },
+    {
+      "id": "C28",
+      "claim": "On CRTC 1, modifying R3 to 0 during an active HSYNC pulse allows HSYNC to continue until the 4-bit counter wraps around.",
+      "section": "14.5.2",
+      "label": "contradicts",
+      "evidence": "docs/classic/audit-findings.md:613",
+      "note": "§14.5.2 states type 1 cancels HSYNC immediately on R3=0; only types 0 and 2 wrap."
+    },
+    {
+      "id": "C29",
+      "claim": "With R2.NJIT, horizontal blanking stops display for 3.0 microseconds on CRTC 0.",
+      "section": "9.3.4.3",
+      "label": "contradicts",
+      "evidence": "docs/classic/audit-findings.md:416",
+      "note": "§9.3.4.3 states blanking lasts 2.0 µs (32 Pixel-M2) on CRTC 0 and 1."
+    },
+    {
+      "id": "C30",
+      "claim": "On CRTC 0, the first 4 microseconds of each line are reserved for evaluating last line management.",
+      "section": "13.2.1",
+      "label": "contradicts",
+      "evidence": "docs/classic/audit-findings.md:131",
+      "note": "§13.2.1 is titled and specifies 'THE FIRST 3 MICROSECONDS' (C0 values 0, 1, 2)."
+    },
+    {
+      "id": "C31",
+      "claim": "When an RFD is triggered on C9=R9 on CRTC 1, the parity flag is disabled while the VMA reload flag remains active.",
+      "section": "11.6.1",
+      "label": "contradicts",
+      "evidence": "docs/classic/audit-findings.md:378",
+      "note": "§11.6.1 states the opposite: VMA reload flag is disabled while parity flag is armed."
+    },
+    {
+      "id": "C32",
+      "claim": "On CRTC 1, rewriting R7 mid-line triggers VSYNC immediately at any C0 and reduces total duration by C0+1.",
+      "section": "16.4.1.1",
+      "label": "silent",
+      "evidence": "docs/classic/audit-findings.md:100",
+      "note": "True per §16.4.2; §16.4.1.1 covers CRTC 0 only and does not state the CRTC 1 duration reduction rule."
+    },
+    {
+      "id": "C33",
+      "claim": "On CRTC 3 and 4, if R9 is updated with a value less than C9, C9 resets to 0 on the next line.",
+      "section": "10.3.1.1",
+      "label": "silent",
+      "evidence": "docs/classic/compendium-01-counters.md:35",
+      "note": "True per §10.3.4.1; §10.3.1.1 covers CRTC 0 general counting only and is silent on CRTC 3/4."
+    },
+    {
+      "id": "C34",
+      "claim": "On CRTC 0, widening R0 at C0=0 on a true last line resets C4 and C9 to 0 at the true frame origin.",
+      "section": "13.7.2.1",
+      "label": "silent",
+      "evidence": "sim/sim_main.cpp:5811",
+      "note": "True per §13.7.2.2; §13.7.2.1 covers the case where C4 != R4 (not on last line) and does not state the C0=0 true last line rule."
+    },
+    {
+      "id": "C35",
+      "claim": "On CRTC 1, the R0-widening rupture arms RFD only if the condition C9=R9 and C4=R4 is broken by the end of the extended line.",
+      "section": "13.6.2",
+      "label": "silent",
+      "evidence": "docs/classic/audit-findings.md:467",
+      "note": "True per §13.7.1.2; §13.6.2 is the chronogram for R0 updates and does not define RFD arming conditions."
+    },
+    {
+      "id": "C36",
+      "claim": "On CRTC 0, leaving IVM keeps the frozen C9.VMA comparison against R9 until match or IVM re-entry.",
+      "section": "19.8.2",
+      "label": "silent",
+      "evidence": "docs/classic/audit-findings.md:363",
+      "note": "True per §19.8.1; §19.8.2 covers CRTC 1 counting only and is silent on CRTC 0 frozen C9.VMA."
+    },
+    {
+      "id": "C37",
+      "claim": "On CRTC 1, status bit 5 is latched from the R6-border comparison at C0=R0.",
+      "section": "21.3.2",
+      "label": "silent",
+      "evidence": "docs/classic/audit-findings.md:68",
+      "note": "True per §21.3.3; §21.3.2 covers CRTC 0 and 2 status only (&FF) and does not state the CRTC 1 bit 5 rule."
+    },
+    {
+      "id": "C38",
+      "claim": "On CRTC 1, an R5=0 setting during vertical adjustment causes C5 to run continuously because equality is never met.",
+      "section": "11.2.1",
+      "label": "silent",
+      "evidence": "docs/classic/audit-findings.md:504",
+      "note": "True per §11.3.2; §11.2.1 contains general counting tables and is silent on the §11.3.2 R5=0 loop bug."
+    },
+    {
+      "id": "C39",
+      "claim": "On CRTC 0, an accepted R2 write matching live C0 delays HSYNC start by 4 mode 2 pixels and shortens the pulse.",
+      "section": "14.5.4",
+      "label": "silent",
+      "evidence": "docs/classic/audit-findings.md:419",
+      "note": "True per §14.7.1; §14.5.4 is about R3.JIT (HSYNC width) and is silent on R2.JIT sub-character delay."
+    }
+  ]
+}
