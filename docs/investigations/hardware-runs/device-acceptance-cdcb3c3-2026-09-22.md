@@ -185,6 +185,34 @@ only moved the cursor and did not start a load, so B8-7 playback stays open. A f
 move the tape buffer out of every model's ROM/RAM range; check the 664 and Plus 464+
 maps too.
 
+## B8-7: real CDT playback on 464+ loses block 2
+
+Setup avoiding the 464 bank collision: RBF `4027f5e`, 464+ (CFG `[34:33]=3`, hash
+`600024f7…4e47`), MGL `zz_ptape.mgl` loading `Plus_EN.cpr` then `AmstradDiag.cdt`.
+Replay: keypad 1 (f1, BASIC), then `RUN"` + Return typed on the UK layout
+(`tape-uk.json`, built with `mk_typing.py` from `cpc_keys.translate_text`), then Space.
+
+The CDT is well formed (`cdt_blocks.py`): a 3 s pause, then seven header/data pairs
+of standard-speed 0x11 blocks (pilot 1162 T x4096, zero 581, one 1162), each header
+followed by 10 ms and each data block by 2500 ms. Headers carry `DIAG.BIN` blocks
+1-7; block 7 is the last.
+
+Screen sequence, identical in two runs:
+
+1. `Press PLAY then any key:` then `Loading DIAG.BIN block 1`: tape playback,
+   header decoding and motor start work.
+2. `Found DIAG.BIN block 3`, `Rewind tape`, then `Found … block 4`…`block 7`, each
+   followed by `Rewind tape`. The firmware never receives block 2 (header or data), so
+   it rejects every later block as out of order. The load never completes.
+
+Block 2 is present in the file and blocks 3-7 decode, so the loss is not a format or
+bit-timing problem. A fault in the stop/restart after the first data block is the
+leading hypothesis: the firmware switches the motor off between blocks, and
+`tzxplayer` gates on `cass_motor`. This is not established. The upstream RBF on the
+device has no Plus support, so it is not a comparison point. A simulation trace of
+`tzxplayer` motor/pause handling around the first data block's 2500 ms pause is the
+next discriminator.
+
 ## Restoration
 
 Original CFG restored and hash-checked (`2e585b4c…d8e4`); the device is back at MENU.
