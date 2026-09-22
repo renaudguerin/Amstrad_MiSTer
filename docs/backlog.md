@@ -811,7 +811,7 @@ evidence are in `docs/plus/archive/hardware-defect-triage-2026-09-01.md`.
 
 **Priority: medium.**
 
-**CURRENT EVIDENCE, 2026-09-01.** The tracked `releases/boot.rom` is ten 16 KiB
+**CURRENT EVIDENCE, 2026-09-01.** The tracked `roms/boot.rom` is ten 16 KiB
 chunks: OS/BASIC/AMSDOS/MF2 for the 6128, the same four slots for the 664, then
 OS/BASIC for the 464. `Amstrad.sv` maps those chunks into model banks 0, 1 and
 2 respectively. The separate index-7 CPC464 route is therefore an adapter for
