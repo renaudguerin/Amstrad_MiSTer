@@ -106,6 +106,31 @@ Limits and media facts:
   reload is invisible to `--wait` when the slot already holds generation 1. A plain
   pull after the save works.
 
+## Plus System Cartridge on three models
+
+Checklist item 3A in [the Plus checklist](../../plus/hardware-test-checklist.md). Cartridge
+`06_System/Plus_EN.cpr`, SHA-256 `3ce35dfc…81ae` (device and `local/test_media` copies
+match). Each model is written into the CFG `[34:33]`, the driver loads the CPR, and 6 s
+later two captures are taken 4 s apart. Then keypad 1 (CPC f1) and `cat` + Enter are
+replayed. `CAT` separates AMSDOS (drive message) from tape firmware (`Press PLAY`).
+
+| Model | Boot capture | After f1 | After `cat` |
+| --- | --- | --- | --- |
+| 6128+ | `103db419`: v4 banner, menu `f1 Amstrad BASIC / f2 Burnin' Rubber` | `7b7e2316`: BASIC 1.1 Ready | `6a26c986`: `Drive A: disc missing` (AMSDOS present) |
+| 464+ | `103db419` (same menu) | `7b7e2316` | `b523682e`: `Press PLAY then any key:` (no AMSDOS) |
+| GX4000 | `7a4e9eeb`: v4 banner, then `Ready`, `14592` and a cursor; no menu | not run | not run |
+
+6128+ and 464+ match the checklist expectation for firmware, BASIC and disk/tape
+presence. The checklist's "AMSDOS banner" wording is not what either machine prints;
+the `CAT` response is the stronger check.
+
+**GX4000 is a lead, not a verdict.** The checklist expects an insert-cartridge splash,
+a claim with no cited source. An AmSpirit 1.15.1 run with `cpc_model` 5 (requested
+as GX4000; the API reports only the number, so the model identity is not confirmed)
+shows the v4 banner alone at 300 and 800 frames, without `Ready` or `14592`. `14592` is
+`&3900`. A source for real GX4000 behaviour with the system cartridge is needed before
+treating either screen as correct. Evidence: `syscart/` in the evidence folder.
+
 ## Restoration
 
 Original CFG restored and hash-checked (`2e585b4c…d8e4`); the device is back at MENU.
