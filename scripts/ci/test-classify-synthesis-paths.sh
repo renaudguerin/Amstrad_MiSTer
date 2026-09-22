@@ -22,6 +22,7 @@ expect() {
 expect true .github/workflows/build.yml
 expect true .github/workflows/local-build.yml
 expect true scripts/ci/classify-synthesis-paths.sh
+expect true scripts/ci/sta-worst-paths.tcl
 expect true scripts/ci/check-quartus-timing.sh
 expect true scripts/ci/test-classify-synthesis-paths.sh
 expect true scripts/ci/test-check-quartus-timing.sh
