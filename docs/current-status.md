@@ -90,6 +90,12 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 - B8-2, B8-3, B8-5 and B8-6 are integrated without hardware acceptance. B8-5 snapshot apply
   approximates first-frame pixels where the SNA omits address/phase history.
 - Status-2 16-frame timer: the source conflict and hardware confirmation remain open.
+- **Sonic reference preparation:** the new ASIC/interrupt scrapes are compared with current
+  RTL in [the source findings](plus/references/scrapes-interrupt-findings-2026-09-22.md).
+  PRI no-wrap remains the accepted Copter-backed policy; stale B19 and SPLT assumptions
+  are corrected. Empty-vector and live-prescaler differences are investigation leads,
+  not confirmed Sonic causes. See [the corpus inventory](reference-ingestion/scrapes-2026-09-22.md)
+  for reviewed and deferred sources, including the synchronization/filter comparison.
 - **B16 implemented:** valid CPR loads select 6128+ when Plus is Off; SNA v3
   model headers 4/5/6 select the matching Plus model before restore. Existing Plus
   selection is preserved for CPR. Independent review and selected simulation pass;

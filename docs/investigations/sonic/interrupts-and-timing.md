@@ -35,7 +35,7 @@ The Amstrad Plus ASIC provides two distinct interrupt mechanisms:
 | Feature | Programmable Raster Interrupt (`PRI`, `&6800`) | DMA Sound Engine Interrupts (`DMA0`, `DMA1`, `DMA2`) |
 |---|---|---|
 | **Trigger Source** | ASIC internal scanline counter comparator | Execution of an `INT` command in a DMA channel microprogram |
-| **Placement Boundary** | **Strictly limited to the visible screen area** (scanlines where display enable can occur) | **Unrestricted**: Can trigger anywhere, including top/bottom borders, overscan, and blanking intervals |
+| **Placement Boundary** | Current core compares the raw nine-bit CRTC line value with `{0,PRI}` and excludes vertical adjustment; this is not a display-enable test. No-wrap is the accepted policy, supported by the Copter 271 device result; contrary scrape claims do not reopen it | **Unrestricted**: Can trigger anywhere, including top/bottom borders, overscan, and blanking intervals |
 | **Typical Use in Sonic** | Visible-area background color rasters | Mid-screen split reloads, sprite multiplexing, and blanking frame-start triggers |
 
 ### Coincident Interrupt Hardware Priority Arbitration
@@ -50,7 +50,7 @@ $$\mathbf{PRI} \quad > \quad \mathbf{DMA2} \quad > \quad \mathbf{DMA1} \quad > \
 * Finally `DMA0` is serviced.
 
 #### Hardware Core Verification
-In the MiSTer core (`rtl/plus/asic_regs.v`, lines 627–638), this exact priority order is implemented on the falling edge of the Z80 interrupt acknowledge cycle:
+In the MiSTer core (`rtl/plus/asic_regs.v`, `ack_src` block), this priority is sampled on the first clock edge observing active interrupt acknowledge (`intack && !intack_d`), and held for that acknowledge:
 ```verilog
 if (int_pending)
     ack_src <= 3'b110;  // PRI (raster interrupt) -> Highest priority
@@ -96,20 +96,26 @@ To generate the smooth, multi-step blue sky gradient behind Green Hill Zone with
 
 ## The "Plus Vectored Interrupt Bug" Safe Zones
 
-The Amstrad Plus ASIC silicon has a documented flaw affecting IM 2 interrupt vector acknowledgment. During the `/IORQ` + `/M1` cycle, timing skew and bus float can corrupt the vector byte if the CPU is executing from certain memory configurations.
+The captured CPCWiki *Plus Vectored Interrupt Bug*, PDF pp.3–4, describes a
+board-level `/IORQ` timing issue involving A13 and two acknowledges seen by the
+ASIC. Its workaround constrains the **instruction being interrupted** to A13=1
+(`&2000–&3FFF`, `&6000–&7FFF`, `&A000–&BFFF`, `&E000–&FFFF`). The I register,
+vector table and handler addresses are explicitly not the deciding addresses.
+The French *Modes et fonctionnements…*, p.5, corroborates that distinction.
 
-As documented in the CPCWiki reference (*Plus Vectored Interrupt Bug*), the hardware bug is completely bypassed if code execution and interrupt tables are constrained to the following 8 KB memory zones:
-$$\&2000 - \&3FFF, \quad \&6000 - \&7FFF, \quad \&A000 - \&BFFF, \quad \&E000 - \&FFFF$$
-
-Sonic GX strictly follows this rule:
-* All interrupt handlers and vector tables reside in **`&A000 - \&BFFF`**.
-* The compiled tile rendering routines reside in **`&2000 - \&3FFF`** and **`&E000 - \&FFFF`**.
+The reported placement of Sonic's handlers/table in `&A000–&BFFF` therefore does
+not prove immunity. Establish the interrupted PC and instruction/bus activity
+at each problematic acknowledge. Current RTL does not reproduce the described
+A13-conditioned doubled acknowledge; its no-pending source fallback is DMA2
+(code 0), whereas the article reports DMA0 (code 4) after the spurious second
+acknowledge. This is a source/model difference, not an established Sonic failure.
+See the [source comparison and discriminators](../../plus/references/scrapes-interrupt-findings-2026-09-22.md).
 
 ---
 
 ## Frame Lifecycle: "Forget the VBL"
 
-Classic CPC software synchronizes by waiting for the Vertical Blanking interrupt or polling CRTC status. 
+Classic CPC software can poll raw CRTC VSYNC through PPI port B bit 0, then use Gate Array interrupts to refine synchronization. The regular Gate Array interrupt is not a dedicated vertical-blank interrupt.
 
 In Sonic GX, waiting for VBL is abandoned:
 * **The frame lifecycle starts on the last visible line** via an interrupt.
