@@ -30,8 +30,12 @@ The [cartridge and IRQ audit](irq-audit-2026-09-22.md) records the bounded
 production-T80 evidence, harness correction and next checkpoint requirements.
 The [hardware and DMA cadence investigation](hardware-loop-2026-09-22.md) records
 matching defects on two timing-clean builds, the production-T80 PAUSE terminal-line
-discrepancy, and an AmSpirit counterfactual. Hardware acceptance of the correction
-remains separate from its simulation and review gates.
+discrepancy, and an AmSpirit counterfactual. Candidate `a137d48` matches the measured
+relative cadence and passes simulation/review/timing, but **failed matched hardware
+acceptance**: the baseline reaches gameplay while the candidate stays on the corrupt
+title after early and later fire. The candidate is rejected; `b0e5bed` restores
+baseline behavior. The investigation preserves this contradiction and the next
+full-frame phase discriminator rather than treating cadence agreement as a repair.
 
 ## Document Index
 

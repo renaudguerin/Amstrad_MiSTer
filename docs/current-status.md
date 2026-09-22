@@ -12,19 +12,23 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **Latest implementation:** reviewed source `190f4d3` (2026-09-22), correcting the
-  extra DMA PAUSE expiry scanline identified in Sonic's production-CPU trace.
-  Four selected benches pass; candidate synthesis and hardware acceptance are pending.
-  PRI and interrupt vector logic are unchanged. B17 replay and reference findings are integrated.
-- **Latest timing-clean artifact:** `0e92c9c` (2026-09-22), the pre-repair baseline.
-  Exact-SHA CI [35682692438](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35682692438)
-  passed all required jobs. Delivered RBF: `output_files/Amstrad_20260922_0e92c9c.rbf`,
-  SHA-256 `191e678ec01f475252594bf9a23b7ef6c0e9833c58117cb3ef651802af1a6af1`.
-  Full fit: 23,726 ALMs (57%); setup/hold minima +0.624/+0.245 ns, zero TNS.
-  Detailed setup/hold path reports are retained. This does not retroactively pass
-  the failed `60a63e4` build or validate the DMA candidate.
-- **Latest hardware-tested builds:** `c59e03a` (2026-09-22, Sonic baseline still
-  corrupt), `88262b9` (Copter 271 title flash fixed) and `a0778b6` (PSG R7 reset;
+- **Latest implementation:** `b0e5bed` (2026-09-22) restores the three DMA
+  behavior/test files exactly to `0e92c9c`, retaining the P8 test-selection
+  dependency. The restore passes four selected benches and fresh Opus review;
+  its integration build is pending. DMA PAUSE candidate `190f4d3`, integrated at
+  `a137d48`, is **rejected after a matched hardware regression**: it passed
+  simulation, review and synthesis, but no longer reached Sonic gameplay in
+  the matched input sequence. PRI and interrupt vector logic are unchanged.
+- **Latest timing-clean artifact:** rejected candidate `a137d48` (2026-09-22).
+  Exact-SHA CI [35684468864](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35684468864)
+  passed all required jobs. RBF: `output_files/Amstrad_20260922_a137d48.rbf`,
+  SHA-256 `c0293860c0c9a3d3a5c6a033cce6b7910e49a8abef0e40b3fe2cc5e514fe4984`.
+  Full fit: 23,735 ALMs (57%); setup/hold minima +0.514/+0.245 ns, zero TNS.
+  Timing closure does not pass title acceptance; see the
+  [matched device evidence](investigations/sonic/hardware-loop-2026-09-22.md).
+- **Latest hardware-tested builds:** `a137d48` (Sonic regression, rejected),
+  `c59e03a` (Sonic baseline still corrupt but reaches gameplay),
+  `88262b9` (Copter 271 title flash fixed) and `a0778b6` (PSG R7 reset;
   keyboard and joystick fixed). B18 SNA save was tested on branch RBF `0608653`.
 - **Simulation baseline:** 225 required classic CRTC vectors with no expected failures, and
   canonical soak hash `0xb1cb70da95c2e44f`, unchanged since the D1/D6 repair. Since
@@ -62,8 +66,9 @@ discrepancy or a rule the RTL is predicted to violate, not from blanket coverage
 integrated. Remaining work is title-driven and evidence-gated: roadmap rows P10f/P10g list the
 capture each screenshot family needs before any RTL change, and the named model assumptions
 (sprite `+3` mirror, coordinate formula, PRI offset, lowered R0, R3-low collision, pixel phase)
-stay assumptions until a source or hardware discriminator settles them. The latest RTL change
-is the B19 residual fix, integrated at `88262b9` (2026-09-14).
+stay assumptions until a source or hardware discriminator settles them. B19's residual
+fix is hardware-confirmed at `88262b9`; the subsequent Sonic DMA PAUSE candidate
+was rejected and its behavior restored in `b0e5bed` as described above.
 
 **Hardware-confirmed:** 6128 Plus BASIC boot (`5c16b17`); Copter 271 logo palette (PRI line
 compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` input
@@ -78,9 +83,11 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   identifies an extra DMA PAUSE expiry line: production T80 gives nine lines
   between `PAUSE 7; INT` events, versus eight in AmSpirit; adding one to the
   AmSpirit title's PAUSE counts reproduces displaced bands. The minimal DMA
-  correction has passed four selected benches and independent review; a
-  timing-clean artifact and post-fix hardware acceptance remain pending. PRI and IRQ vector logic
-  are unchanged by this candidate.
+  candidate passes four selected benches, review and timing, and its production-T80
+  trace gives eight-line intervals. **Hardware acceptance failed:** matched early
+  and later fire reaches gameplay on `c59e03a`, while `a137d48` stays on a severely
+  corrupt title. `b0e5bed` restores the baseline behavior. The short trace does not
+  establish full-frame phase or split deadlines. PRI and IRQ vector logic are unchanged.
 - Left-edge sprite corruption is much improved, perhaps fixed; closure is open. Navy Seals
   left-edge sprite flicker remains; its black-screen report was not reproduced and has no
   assigned cause.

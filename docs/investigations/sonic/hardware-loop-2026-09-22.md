@@ -1,10 +1,12 @@
 # Sonic Plus hardware and interrupt investigation — 22 September 2026
 
-This follows the [source/fixture audit](irq-audit-2026-09-22.md). Sonic remains
-visibly broken on timing-clean c59e03a. A production-T80 trace and an independent
-AmSpirit counterfactual identify an extra scanline at DMA PAUSE expiry as a
-concrete repair candidate. Hardware acceptance of that repair is pending. Preparation, simulation, and native
-screenshots are distinct evidence tiers; AmSpirit is a comparison implementation,
+This follows the [source/fixture audit](irq-audit-2026-09-22.md). **DMA PAUSE
+candidate `190f4d3`, integrated and built at `a137d48`, failed hardware acceptance
+and is rejected.** A matched repeat reaches gameplay on baseline `c59e03a`, but
+the candidate remains on a severely corrupted title after early and later fire.
+The coordinator restored baseline behavior in `b0e5bed`. The candidate passes simulation, review and
+timing, and matches AmSpirit's measured relative interrupt cadence. Those results
+do not override the device regression. AmSpirit is a comparison implementation,
 not a replacement for real CPC Plus hardware authority.
 
 ## Controlled hardware reproduction
@@ -210,7 +212,78 @@ file in the same change. Its additional B18 dependency observation does not
 require another DMA test: that slow bench runs six Classic capture/restore
 cases, despite compiling the shared motherboard's Plus modules. Logs are
 `sol-review.md` and `opus-remediation-review.log` in the same directory.
-The candidate has not yet been synthesized or tested on MiSTer.
+
+### Candidate production-T80 trace
+
+The same normal-boot observation program and unmodified CPR were rerun against
+clean `190f4d3` (RTL identical to `a137d48`), with the same ten-acknowledgement
+stop and 20-second simulated cap. The run completed at 652,842,906 master ticks
+in 405.47 wall seconds. The first 617 complete initialization log lines match
+the original byte-for-byte.
+
+| Observation | Original RTL | Candidate RTL |
+| --- | --- | --- |
+| DMA2 acknowledgement lines | 230,239,248,257,266,275,292 | 228,236,244,252,260,268,284 |
+| Successive intervals | 9,9,9,9,9,17 | 8,8,8,8,8,16 |
+| SPLT writes at A02C/A053/A07A/A0A1/A0C8/A0EF | 231,240,249,258,267,276 | 229,237,245,253,261,269 |
+
+DMA2 vectors remain zero. The candidate's relative cadence matches AmSpirit's
+measured intervals; absolute phase is still unmatched. This bounded trace does
+not reach the final title handler or establish steady-state split deadlines.
+`production-trace-corrected/` preserves source, build log, raw trace, comparison
+script/output, RAM and hash provenance.
+
+### Hardware rejection and matched repeat
+
+Exact-SHA CI [35684468864](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35684468864)
+passed all required jobs for `a137d480ddaba53864b1bd0f616f12398fb76ea9`.
+Artifact `Amstrad-build-236-1-full` contains
+`Amstrad_20260922_a137d48.rbf`, SHA-256
+`c0293860c0c9a3d3a5c6a033cce6b7910e49a8abef0e40b3fe2cc5e514fe4984`.
+The coordinator reported a full Quartus 17.0.2 fit with setup/hold minima
++0.514/+0.245 ns, zero TNS and 23,735 ALMs (57%). The device copy's hash was
+verified before use.
+
+The initial candidate run used the same CPR, Plus configuration, 18-second boot
+bracket and B17 fire schedule as the baseline. All three inspected captures
+showed the displaced yellow/purple title, including both post-fire checkpoints.
+Evidence is under `device-candidate-a137d48/`.
+
+A bounded sequential repeat tested `c59e03a` and `a137d48` with the same schedule:
+capture title after the 18-second boot; fire; wait two seconds and capture; wait
+four seconds and capture; wait six seconds and fire again; repeat the two/four
+second captures. Capture and transfer overhead adds wall time, recorded by the
+manifests. Both runs used the same temporary keyboard-joystick map and test CFG
+SHA-256 `13ef32c7f1acfd5b5c9a1df3aa8b270b6378b00e0f5692fb05e10a350bc35747`.
+Every title and post-fire image was visually inspected.
+
+| Checkpoint | Baseline `c59e03a` | Candidate `a137d48` |
+| --- | --- | --- |
+| Initial capture | Corrupt title | Severely displaced yellow/purple title |
+| Early fire, first capture | Act 1 intro | Corrupt title |
+| Early fire, later capture | Gameplay with known displaced band | Corrupt title |
+| Later fire, first capture | Gameplay with known displaced band | Corrupt title |
+| Later fire, later capture | Mostly coherent gameplay, Sonic and enemy visible | Corrupt title |
+
+The baseline's final gameplay PNG hash is
+`56592b06f84d1db775d79d4b538189415ee7c63d748a001bee91e6e93ef92ebb`;
+the candidate's corresponding title PNG hash is
+`b6184b4c143695a7a3ce42a01409c0b9a72c17b53baa7ef07e7869288292fc91`.
+All capture hashes, input logs, cases and cleanup assertions are in
+`device-latefire-c59e03a/` and `device-latefire-a137d48/`. Their preserved
+`run.py` records the shared acquisition procedure. The candidate's late border
+pattern changes slightly; still images do not establish a completely frozen core.
+
+**Decision:** reject and revert the candidate behavior. Commit `b0e5bed` restores
+`asic_dma.v`, `asic_dma_test.cpp` and `plus_p8_test.cpp` exactly to `0e92c9c`,
+retaining the useful P8 dependency in `sim/TESTS.md`. The coordinator reports
+the four selected benches pass after the restore and fresh Opus review has no
+findings. Integration synthesis of the restore is pending. No speculative follow-on
+RTL change was made. Sonic remains unresolved on the baseline. The smallest
+next discriminator is a matched full title-frame trace through DMA enable,
+the final handler and the next frame's split writes, to locate the first phase
+divergence beyond the present ten-acknowledgement window. This is a proposed
+measurement, not a new cause claim or hardware acceptance.
 
 ## Device restoration
 
@@ -220,7 +293,14 @@ B17 temporary input map was removed, and the original CFG hash was verified:
 The input replayer released its owned keys after each schedule. The new
 c59e03a RBF remains installed under its distinct filename.
 
+Each candidate and matched-repeat run independently verified the same restored
+CFG hash, removal of its temporary input map and return to MENU in its
+`acceptance-manifest.json`. Both early and later replays released all owned keys
+and exited keyboard-joystick mode. The rejected a137d48 RBF remains installed
+under its distinct filename for provenance; it is not the running core.
+
 AmSpirit's original full SNA, configuration and rendering settings were
 restored. The restored screenshot was inspected and shows BASIC Ready; execution
 is running as originally found, with firmware ROM mapping restored. Our Z80
-breakpoints were cleared. Evidence is under `restored/`.
+breakpoints were cleared. Evidence is under `restored/`. AmSpirit was untouched
+during candidate hardware acceptance and the matched repeat.
