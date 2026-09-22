@@ -194,6 +194,10 @@ wire [6:0] joy2_db9 = OSD_STATUS ? 7'd0 : {joydb_2[10], joydb_2[6], joydb_2[4], 
 wire [6:0] joy1     = joydb_1ena ? joy1_db9 : joy1_usb;
 wire [6:0] joy2     = joydb_2ena ? joy2_db9 : joydb_1ena ? joy1_usb : joy2_usb;
 
+wire [63:0] load_status_in;
+wire load_status_set;
+wire [1:0] plus_model;
+
 hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 (
 	.clk_sys(clk_sys),
@@ -219,8 +223,8 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 
 	.buttons(buttons),
 	.status(status),
-	.status_in({64'd0,status[63:33],1'b0,status[31:21],~status[20],status[19:0]}),
-	.status_set(Fn[1]),
+	.status_in({64'd0,load_status_in}),
+	.status_set(load_status_set),
 	.status_menumask(status_menumask),
 
 	.forced_scandoubler(forced_scandoubler),
@@ -716,6 +720,26 @@ plus_sna_apply sna_apply
 );
 
 
+// Model selection precedes owner reset release and sna_load. Do not wait for
+// Main's asynchronous status echo: the local model feeds every Plus consumer.
+plus_load_model load_model
+(
+ .clk(clk_sys),
+ .status(status),
+ .fn_toggle(Fn[1]),
+ .cpr_apply(cpr_finish_pending && !cart_service_busy),
+ .cpr_image_valid(cart_image_valid),
+ .sna_download(sna_download),
+ .sna_header_wr(sna_download && ioctl_wr && (ioctl_addr < 25'h100)),
+ .sna_addr(ioctl_addr[7:0]),
+ .sna_data(ioctl_dout),
+ .sna_prepare(sna_apply_cnt == 3'd5),
+ .plus_model(plus_model),
+ .status_in(load_status_in),
+ .status_set(load_status_set)
+);
+
+
 //////////////////////////////////////////////////////////////////////////
 
 wire        mem_wr;
@@ -776,9 +800,9 @@ wire        save_hold;
 wire [15:0] vram_dout;
 wire [14:0] vram_addr;
 
-// Plus model decode. Declared here rather than beside plus_model_select
-// below because the SDRAM bank select needs it (HF-3).
-wire [1:0] plus_model = status[34:33];
+// Plus model decode outputs are declared before the SDRAM bank select (HF-3).
+// plus_model comes from load_model, including a pending selection until Main
+// echoes the OSD status request.
 wire       plus_mode;
 wire       plus_ram_128k;
 wire       plus_has_fdc;
