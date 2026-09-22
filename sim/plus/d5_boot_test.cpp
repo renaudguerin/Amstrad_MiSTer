@@ -126,8 +126,17 @@ void cart_timing() {
             writes[1] == std::make_pair(0x4001U, unsigned(hl_hi)),
             "cart timing: LD (4000),HL did not store the last cartridge operand");
 
-    // Intervals. The first NOP follows DI's entry phase, so start from the
-    // second NOP; likewise the first LD HL follows the last NOP.
+    // Fetch starts (MREQ edges) are not microsecond boundaries: an M1 whose
+    // MREQ lands after the READY window takes a Tw in T2. Gaps equal the
+    // instruction length only once consecutive fetches share a phase.
+    // Worked on paper from the READY window (sequencer phases 6..26 of each
+    // 64-tick microsecond) and T80pa sampling WAIT on CEN_n in T2:
+    // - NOP chain: MREQ at phase 2, WAIT seen at 18, no Tw: 64 each. The
+    //   first NOP follows DI's entry phase, so start at the second.
+    // - LD HL,nn after that chain: M1 no Tw (64), M2 read no Tw (48), M3
+    //   read MREQ at phase 50 takes one Tw (64), so the next M1 also starts
+    //   at phase 50 with one Tw: the first gap is 176, not a rate. From the
+    //   second LD on, M1 80 + M2 48 + M3 64 = 192 (3 us).
     std::string nop_gaps, load_gaps;
     bool ok = true;
     for (unsigned i = 2; i <= nops; ++i) {
@@ -135,7 +144,7 @@ void cart_timing() {
         nop_gaps += " " + std::to_string(gap);
         ok = ok && gap == 64;
     }
-    for (unsigned j = 1; j < loads; ++j) {
+    for (unsigned j = 2; j < loads; ++j) {
         const size_t i = 1 + nops + j;
         const uint64_t gap = fetches[i].second - fetches[i - 1].second;
         load_gaps += " " + std::to_string(gap);

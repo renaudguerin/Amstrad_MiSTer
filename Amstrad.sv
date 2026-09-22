@@ -749,7 +749,7 @@ wire  [7:0] ram_dout;
 
 // Plus cartridge memory service -> SDRAM held-request port. Declared ahead
 // of both the sdram instance and the service instance below.
-wire        cart_mem_req, cart_mem_write, cart_mem_ack;
+wire        cart_mem_req, cart_mem_write, cart_mem_ack, cart_mem_grant;
 wire  [1:0] cart_mem_bank;
 wire [22:0] cart_mem_addr;
 wire  [7:0] cart_mem_wdata, cart_mem_rdata;
@@ -764,7 +764,7 @@ wire        cart_service_busy;
 wire        save_cart_req, save_cart_ack;
 wire  [1:0] save_cart_bank;
 wire [22:0] save_cart_addr;
-wire        sdram_cart_req, sdram_cart_wr, sdram_cart_ack;
+wire        sdram_cart_req, sdram_cart_wr, sdram_cart_ack, sdram_cart_grant;
 wire  [1:0] sdram_cart_bank;
 wire [22:0] sdram_cart_addr;
 wire  [7:0] sdram_cart_din;
@@ -840,6 +840,7 @@ sdram sdram
 	.cart_din(sdram_cart_din),
 	.cart_dout(cart_mem_rdata),
 	.cart_ack(sdram_cart_ack),
+	.cart_grant(sdram_cart_grant),
 	.vram_bank(mem_bank),
 	.vram_addr({2'b10,vram_addr,1'b0}),
 	.vram_dout(vram_dout),
@@ -1227,7 +1228,7 @@ wire        tape_rec;
 wire  [1:0] mode;
 wire        joy1_sel;
 
-wire        plus_cart_valid, plus_cart_ready;
+wire        plus_cart_valid, plus_cart_ready, plus_cart_granted;
 wire  [4:0] plus_cart_page;
 wire [13:0] plus_cart_offset;
 wire  [7:0] plus_cart_data;
@@ -1300,6 +1301,7 @@ plus_mmu plus_mmu
 	.cart_page(plus_cart_page),
 	.cart_offset(plus_cart_offset),
 	.cart_ready(plus_cart_ready),
+	.cart_granted(plus_cart_granted),
 	.cart_data(plus_cart_data),
 	.cart_busy(cart_service_busy),
 
@@ -1423,6 +1425,7 @@ plus_cartridge_memory cartridge_memory
 	.cpu_page({1'b0, plus_cart_page}),
 	.cpu_offset(plus_cart_offset),
 	.cpu_ready(plus_cart_ready),
+	.cpu_granted(plus_cart_granted),
 	.cpu_data(plus_cart_data),
 
 	.image_valid(cart_image_valid),
@@ -1434,6 +1437,7 @@ plus_cartridge_memory cartridge_memory
 	.mem_addr(cart_mem_addr),
 	.mem_wdata(cart_mem_wdata),
 	.mem_ack(cart_mem_ack),
+	.mem_grant(cart_mem_grant),
 	.mem_rdata(cart_mem_rdata)
 );
 
@@ -1901,6 +1905,7 @@ sna_cart_mux save_cart_mux
 	.a_addr(cart_mem_addr),
 	.a_din(cart_mem_wdata),
 	.a_ack(cart_mem_ack),
+	.a_grant(cart_mem_grant),
 
 	.b_req(save_cart_req),
 	.b_bank(save_cart_bank),
@@ -1912,7 +1917,8 @@ sna_cart_mux save_cart_mux
 	.cart_bank(sdram_cart_bank),
 	.cart_addr(sdram_cart_addr),
 	.cart_din(sdram_cart_din),
-	.cart_ack(sdram_cart_ack)
+	.cart_ack(sdram_cart_ack),
+	.cart_grant(sdram_cart_grant)
 );
 
 // The SSM marker keeps the DDR3 port by default; the save takes it only

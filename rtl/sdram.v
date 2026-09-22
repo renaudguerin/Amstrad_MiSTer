@@ -58,6 +58,10 @@ module sdram
 	input       [7:0] cart_din,
 	output reg  [7:0] cart_dout,
 	output reg        cart_ack,
+	// One-clock pulse on the arbitration edge that admits the held cartridge
+	// request. From that edge the slot runs to completion without preemption:
+	// cart_dout and cart_ack follow STATE_READ - STATE_IDLE clocks later.
+	output reg        cart_grant,
 
 	output reg [15:0] vram_dout,
 	input      [22:0] vram_addr,
@@ -103,6 +107,7 @@ reg        ram_req=0;
 reg        vram_req=0;
 reg        tape_req=0;
 reg        cart_active=0;
+initial cart_grant = 0;
 reg  [1:0] active_bank;
 reg [22:1] vram_cached_addr;
 reg  [1:0] vram_cached_bank;
@@ -128,6 +133,7 @@ always @(posedge clk) begin
 	old_rd<=oe;
 	old_we<=we;
 	old_ref<=clkref;
+	cart_grant <= 0;
 
 	if(reset != 0 || init || init_old) begin
 		vram_cached_valid <= 0;
@@ -163,6 +169,7 @@ always @(posedge clk) begin
 		end
 		else if((mode == MODE_NORMAL) && (reset == 0) && !init && !init_old && cart_req) begin
 			cart_active <= 1;
+			cart_grant <= 1;
 			wr <= cart_wr;
 			a <= cart_addr;
 			active_bank <= cart_bank;

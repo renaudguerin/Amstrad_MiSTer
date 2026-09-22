@@ -35,6 +35,7 @@ module sna_cart_mux
 	input      [22:0] a_addr,
 	input       [7:0] a_din,
 	output            a_ack,
+	output            a_grant,
 
 	// Client B: sna_save_stream (read-only)
 	input             b_req,
@@ -48,7 +49,8 @@ module sna_cart_mux
 	output      [1:0] cart_bank,
 	output     [22:0] cart_addr,
 	output      [7:0] cart_din,
-	input             cart_ack
+	input             cart_ack,
+	input             cart_grant
 );
 
 	reg       owner_b;
@@ -88,6 +90,7 @@ module sna_cart_mux
 	assign cart_din  = owner_b ? 8'd0   : a_din;
 
 	assign a_ack = !owner_b && cart_ack;
+	assign a_grant = !owner_b && cart_grant;
 	assign b_ack =  owner_b && cart_ack;
 
 endmodule

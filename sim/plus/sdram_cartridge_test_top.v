@@ -183,6 +183,7 @@ sdram dut
 	.cart_din(cart_din),
 	.cart_dout(cart_dout),
 	.cart_ack(cart_ack),
+	.cart_grant(unused_cart_grant),
 	.vram_dout(vram_dout),
 	.vram_addr(vram_addr),
 	.vram_bank(vram_bank),
@@ -203,6 +204,9 @@ assign debug_cart_grants = dut.cart_grants_since_refresh;
 wire [15:0] integration_sdram_dq;
 wire  [7:0] service_mem_rdata;
 wire        service_mem_ack;
+wire        service_mem_grant;
+wire        unused_cart_grant;
+wire        unused_service_cpu_granted;
 wire        integration_unused_sdram_clk;
 wire        integration_unused_sdram_cke;
 wire        integration_unused_sdram_ncs;
@@ -234,6 +238,7 @@ plus_cartridge_memory #(.CLEAR_BYTES(20'd4)) service
 	.cpu_page(service_cpu_page),
 	.cpu_offset(service_cpu_offset),
 	.cpu_ready(service_cpu_ready),
+	.cpu_granted(unused_service_cpu_granted),
 	.cpu_data(service_cpu_data),
 	.image_valid(service_image_valid),
 	.busy(service_busy),
@@ -243,6 +248,7 @@ plus_cartridge_memory #(.CLEAR_BYTES(20'd4)) service
 	.mem_addr(service_mem_addr),
 	.mem_wdata(service_mem_wdata),
 	.mem_ack(service_mem_ack),
+	.mem_grant(service_mem_grant),
 	.mem_rdata(service_mem_rdata)
 );
 
@@ -275,6 +281,7 @@ sdram integration_dut
 	.cart_din(service_mem_wdata),
 	.cart_dout(service_mem_rdata),
 	.cart_ack(service_mem_ack),
+	.cart_grant(service_mem_grant),
 	.vram_dout(integration_unused_vram_dout),
 	.vram_addr(23'd0),
 	.vram_bank(2'b00),
