@@ -405,7 +405,9 @@ finding or coherent fixture per branch, based on current `master` (or an explici
    Plus model before CPU resume, with the OSD status updated. Preserve existing classic-header
    behavior in this slice; whether a classic SNA should switch Plus Off is a separate policy
    decision. Publication/reset ordering is pinned by the reviewed selected-gate implementation;
-   Main/OSD echo and actual boot/restore remain device checks. See
+   Main/OSD echo and actual boot/restore remain device checks. The 2026-09-22 device run
+   found the CPR entry disabled with Plus Off (`d2F8`), which blocks the path; the ungated
+   entry needs an RBF and retest. See
    [B16](backlog.md#b16-cpr-and-sna-loads-select-a-plus-model).
 2. **B18 — classic capture/round-trip fixture implemented (general).** Acceptance 2 and 3
    from [the design](b18-sna-save.md#acceptance) share one reviewed fixture: real production-T80/GA/PSG/HID and

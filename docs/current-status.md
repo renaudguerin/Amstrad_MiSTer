@@ -98,7 +98,9 @@ to violate, not from blanket coverage.
 including same-value writes, through registered CPU write events. The fail-first
 regs-to-DMA matrix and nine selected benches pass; see the
 [source and validation record](plus/live-ppr-2026-09-22.md). This is a source-model
-repair with hardware acceptance still open. Exact write/HSYNC phase remains
+repair with hardware acceptance still open. On device, `cdcb3c3` keeps the `c59e03a`
+Sonic no-input progression (corrupt title, then playfield); see the
+[device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md). Exact write/HSYNC phase remains
 a model convention; no Sonic outcome is claimed.
 
 **Position.** The P-2 to P9 functional milestones and the P10 compatibility repairs are
@@ -163,7 +165,11 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   model headers 4/5/6 select the matching Plus model before restore. Existing Plus
   selection is preserved for CPR. Independent review and selected simulation pass;
   Main/OSD echo, boot and restore still need device acceptance. See
-  [the load contract](plus/b16-load-model-2026-09-22.md).
+  [the load contract](plus/b16-load-model-2026-09-22.md). **Device run on `cdcb3c3`:
+  the CPR path is unreachable** because the OSD disabled `Load Plus cartridge` with Plus
+  Off and Main drops an MGL at that item. Branch `general/device-acceptance-cdcb3c3`
+  ungates the entry; it needs an RBF and a retest. See the
+  [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md).
 - The PRI line-compare change is unreviewed (review debt).
 
 ## General: video path, peripherals, harnesses and tooling
