@@ -57,6 +57,15 @@ Dry-run writes an MGL and JSON manifest containing the effective case, target
 (if supplied), ordered plan, and explicit `hardware_contacted: false`. Use a new
 output directory for every run; an existing manifest is never overwritten.
 
+### SSH connection multiplexing
+
+Every `ssh`/`scp` call passes `-o ControlMaster=no -o ControlPath=none`, so an
+inherited `ControlMaster auto` (e.g. from `~/.ssh/config`) cannot fail
+preflight with exit 255 (`unix_listener ... Operation not permitted` on an
+unwritable socket path). Auth, host-key and port behaviour are unchanged. A
+manual reproduction needs the same flags:
+`ssh -o ControlMaster=no -o ControlPath=none root@mister true`.
+
 ## Case and device prerequisites
 
 Copy the [example case](../../../scripts/hardware-loop/example_case.json) and replace
@@ -125,11 +134,19 @@ to test repeatability across loads. No pixel equality or hardware pass is inferr
 CSL, SSM and exact event capture remain separate gates in the
 [hardware-loop plan](mister-hardware-loop-plan.md).
 
+Native and scaled screenshots read the same scaler DDR source at `0x20000000`.
+The scaled mode only adds an Imlib2 software resize inside Main; it is not an
+independent HDMI capture. Neither mode establishes raw CRTC sync or the
+physical output, and Main checks no buffer freshness, so neither proves the
+image's age.
+
 Pinned contracts: Main
 [input dispatch and FIFO creation](https://github.com/MiSTer-devel/Main_MiSTer/blob/f8dc68e3dcf4694f5593e6552aea56cd852982af/input.cpp),
 [MGL prefix resolution](https://github.com/MiSTer-devel/Main_MiSTer/blob/f8dc68e3dcf4694f5593e6552aea56cd852982af/support/arcade/mra_loader.cpp#L1224),
 [named screenshot paths](https://github.com/MiSTer-devel/Main_MiSTer/blob/f8dc68e3dcf4694f5593e6552aea56cd852982af/file_io.cpp#L928),
 [asynchronous scaler capture](https://github.com/MiSTer-devel/Main_MiSTer/blob/f8dc68e3dcf4694f5593e6552aea56cd852982af/scaler.cpp#L539),
+[native/scaled save dispatch](https://github.com/MiSTer-devel/Main_MiSTer/blob/f8dc68e3dcf4694f5593e6552aea56cd852982af/scaler.cpp#L509),
+[Imlib2 software resize](https://github.com/MiSTer-devel/Main_MiSTer/blob/f8dc68e3dcf4694f5593e6552aea56cd852982af/scaler.cpp#L465),
 and [MBC parser/device lifecycle](https://github.com/pocomane/MiSTer_Batch_Control/blob/3873450d413c30e6b0339e6b3dbf2373e0e5a74a/mbc.c#L553).
 
 ## French SHAKER 2.7 launch
@@ -232,6 +249,13 @@ bytes at the end. It refuses to run if that file is absent: set the base
 configuration once through the OSD. Native PNGs exclude the OSD, so the
 manifest records "applied by CFG" and never "visually confirmed" — the same
 limit the [device record](b2-device-capture-2026-09-12.md) established.
+
+`effective_settings.applied_b6_config` is requested-only evidence: `sync_filter`
+/ `raw_crt` report the `--sync-filter` flag (`None` keeps CFG bits untouched),
+while `sync_filter_applied` / `raw_crt_applied` stay `null` because the runner
+never reads the runtime latch; `pixel_rate_select`, `scale`, `mix`, `plus_mode`
+and `native_cadence` are likewise `null` (neither set nor observed, never
+derived from on-disk CFG).
 
 ### Keyboard translation
 
@@ -410,9 +434,12 @@ sub-frame reconstruction.
 Following author Longshot's confirmation on 2026-09-12 that all SHAKER test result screens
 are visually stable for multiple frames around SSM markers, and independent review from
 Claude Opus 5 (run `20260913T072642Z-13878-c99b`), this subsystem was **retired and pruned**
-from the active codebase. Phase 1 (the format-1 event ring and asynchronous native framebuffer
-capture via `/dev/MiSTer_cmd`) is 100% faithful for all SHAKER testing with zero DDR3
-bandwidth overhead and zero memory hazard.
+from the active codebase. Stable result screens motivated using the existing Phase 1
+marker ring and asynchronous capture instead of adding a sub-frame recorder. That
+stability does not establish the age or completeness of the scaler buffer.
+Phase 1 is not cycle-exact: its native PNGs come from the scaler DDR buffer at
+`0x20000000`, establish neither raw CRTC sync nor the physical output, and prove no
+capture freshness.
 
 The Phase 2 specification, layout, and git resurrection paths remain preserved in
 [`docs/investigations/ssm-csl/ssm-capture-abi.md`](../ssm-csl/ssm-capture-abi.md).

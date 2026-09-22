@@ -133,3 +133,7 @@ repaired-c4-type1:
 - `C4_type1_stateC.png`: `c147c910a5071c88431cb04abaffe722ad0317f57063855110ad87bd9ca8e7ab`.
 - `C4_type1_stateD.png`: `b376ab9d345c8616ac729a096a4f14bad14fce6793fa06a10920084f960a5f01`.
 - `C4_type1_stateE.png`: `d5cbb7e78bb76e66a1d2d15a0a7a8a12046cecfdbe70c96397a2bca575b71ec3`.
+
+A same-day follow-up covering the SSH transport fix, updated B9/C4 probes and
+the source verification is recorded in
+[capture-reliability-2026-09-22.md](capture-reliability-2026-09-22.md).
