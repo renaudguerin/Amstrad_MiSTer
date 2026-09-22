@@ -33,7 +33,8 @@ open acceptance criteria; they are not instructions to rebuild the completed sta
   classic CRTC types and Gate 1 (Module B); the experimental Phase 2 recorder was retired.
 - **Snapshots and reference capture:** B18 classic SNA saving is integrated and device-tested
   on 6128, as a development tool requiring an SSH pull. Capture/round-trip fixture acceptance
-  is covered by the reviewed production-T80 fixture within its documented limits. The [AmSpirit helper](../scripts/amspirit/README.md) and
+  is covered by the reviewed production-T80 fixture within its documented limits. The
+  [AmSpirit helper](../scripts/amspirit/README.md) and
   [Copter pilot](investigations/hardware-runs/amspirit-oracle-pilot-2026-09-13.md) already exist.
 - **Build/review policy:** use the selected gate (`sim/select_tests.py`), the synthesis routing
   in [ci-testing-policy.md](ci-testing-policy.md), and the actual open rows in
@@ -412,6 +413,7 @@ finding or coherent fixture per branch, based on current `master` (or an explici
    any future shared decoder/apply interface change. Both branches integrated without changing
    those shared interfaces. The fixture models external byte memory, fixes FDC/video data
    to zero and covers uncompressed classic restores; see the design for exact limits.
+
 **FDC validation, not a confirmed outstanding RTL defect.** This grew out of the
 Plus/System-cartridge failure investigation. The September 9 hardware report says boot failed
 before disk access could be tested; 6128 Plus boot was subsequently fixed. The retained TV80

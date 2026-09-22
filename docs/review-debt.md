@@ -105,7 +105,10 @@ fixes were not independently reviewed: the `u765` one-clock `pcn` copy, the `sna
 integer scope, and the `t36a_b18_vsw_elapsed_counter` vector. Look hardest at whether
 `vsw_elapsed` in `rtl/CRTC.v` truly shadows every `vsc` assignment, including the R7-write load
 outside the `CLKEN` branch; and at whether t36a's mid-line samples can miss a one-line offset.
-The formatter's byte mapping is unverified until the slice 4 capture fixture exists.
+The formatter's classic byte mapping now has independently reviewed production-T80
+capture/round-trip coverage (B18 fixture, integrated 2026-09-22; see
+[b18-sna-save.md](b18-sna-save.md#classic-capture-and-round-trip-fixture-2026-09-22)).
+That fixture evidence does not clear the unreviewed parent fixes named above.
 
 **B4 phase 1 original fetch-provider review/evidence, 2026-09-12 — OPEN:**
 The revised detector, ring reader, recorder and top-level SSM connections are covered

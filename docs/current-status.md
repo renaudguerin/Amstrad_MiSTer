@@ -12,14 +12,15 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **Current integration:** B16 load-time model selection and B18 classic snapshot
-  capture/round-trip fixture are merged after `82dd2a8`; combined CI/synthesis is pending.
-  **Previously recorded synthesized artifact:** `9bced4a`. CI run
-  [35600935342](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35600935342)
-  passed all required jobs, including full-effort hosted synthesis. Its RBF is
-  `output_files/Amstrad_20260921_9bced4a.rbf` in the main checkout (ignored), SHA-256
-  `33e3921359281a76fba81b13225a50e14e046fd9b735eb6400c06dc11f289ce2`. It has not been
-  hardware-tested.
+- **Latest implementation integration:** `37ccfc3` (2026-09-22), merging B16 load-time
+  Plus selection and B18 classic snapshot capture/round-trip acceptance. Exact-SHA CI
+  [35673603710](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35673603710)
+  passed simulation/lint, production-T80, full hosted synthesis and the required gate.
+  Delivered RBF: `output_files/Amstrad_20260922_37ccfc3.rbf` (ignored), SHA-256
+  `a3c9fb8eba80a64df2928bc55d2cca7d68a9a302121b6678dad07ded04a3780c`.
+  Full fit uses 23,675 ALMs (56%); worst setup/hold +0.553/+0.241 ns, zero TNS.
+  This RBF has not been device-tested. Source/review/artifact details are in
+  [the integration record](investigations/session-logs/b16-b18-integration-2026-09-22.md).
 - **Latest hardware-tested builds:** `88262b9` (2026-09-14, B19 residual; Copter 271 title
   flash fixed) and `a0778b6` (2026-09-13, PSG R7 reset; keyboard and joystick fixed). B18 SNA
   save was device-tested on branch RBF `0608653`.
