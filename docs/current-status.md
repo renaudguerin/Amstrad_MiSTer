@@ -63,6 +63,10 @@ to violate, not from blanket coverage.
   states A–E, has capture/reference structural differences with cause unassigned.
   See the [repaired hardware record](investigations/hardware-runs/shaker-repaired-95e6f56-2026-09-22.md).
   Original CFG, MENU and owned-temporary cleanup are verified; no full D1/D6 closure.
+  A scratch production-T80 replay reproduces the B9 C0=3F stage-A/line-end
+  collision and extra 64 µs raw VSYNC interval; correct hardware ordering
+  remains unresolved. Setup, measurement and Sync-path limits are in the
+  [page-B discriminator brief](investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md).
 - DSC4 and SHAKER still fail on hardware (2026-09-09 retest); the changed failure shapes are
   not yet characterized. Amazing Demo keeps lower-screen corruption.
 - F13 (type-0 half-character DE) and F20 (CRTC-1 R2.JIT HSYNC start) are implemented but need
