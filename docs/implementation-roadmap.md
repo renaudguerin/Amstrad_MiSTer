@@ -446,6 +446,10 @@ that a previously online device remains available. Keep one device operator.
   final wait loop and rearm, but candidate split captures still miss in the
   bounded window. The rearm trace now isolates an 85-tick STOP-selection miss;
   CPU/cartridge-memory latency needs a reference before assigning an ASIC defect.
+  Branch `plus/sonic-cpu-cart-latency` supplies it: the modelled cartridge stall
+  disagreed with the READY-only rule and is fixed there with a fail-first vector;
+  see the [cart-wait record](investigations/sonic/cart-wait-2026-09-22.md). Device-test
+  that branch first, then with the terminal-PAUSE rule (scratch-matched to 312 lines).
   No-input controls reproduce the progression difference. Sustained-fire controls
   agree but have recorded inspection delays and are not precisely phase-matched. Retain the experiment for
   further isolation; its progression regression does not negate the component gain.
