@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """CSL script runner for the MiSTer hardware loop (backlog B4, phase 0).
 
-Drives a Logon System CSL v1.4 script against a real MiSTer, reusing the
+Drives a Logon System CSL v1.5 script against a real MiSTer, reusing the
 transport, MGL generation, hash pinning and screenshot retrieval already proven
 by ``driver.py``.  The JSON case format stays for ad-hoc cases; CSL is the
 normal way to drive a SHAKER walk.
@@ -9,7 +9,7 @@ normal way to drive a SHAKER walk.
 What this target cannot honour is listed once, in ``REJECTED_COMMANDS``
 below, and every deviation lands in the run manifest.  Nothing is silently
 approximated: a command this target cannot perform stops the script with the
-six fields CSL v1.4 requires (script, line, instruction, reason, script
+six fields CSL requires (script, line, instruction, reason, script
 version, supported version).
 
 Two properties of the FPGA target shape the design:
@@ -25,8 +25,9 @@ Two properties of the FPGA target shape the design:
   so in the manifest.
 
 ``--ssm`` turns on the core's marker detector and reads its DDR3 event ring, so
-``wait_ssm0000`` and marker-driven captures work; without it both are rejected
-rather than approximated.  Every SSM capture is Main's asynchronous grab and is
+``wait_ssm0000``, CSL v1.5 ``wait_ssm``, and marker-driven captures work;
+without it they are rejected rather than approximated. Every SSM capture is
+Main's asynchronous grab and is
 labelled approximate: the standard asks for the image at the opcode instant,
 which needs the phase 2 recorder.  See
 ``docs/investigations/ssm-csl/csl-ssm-implementation-plan.md``.
@@ -65,8 +66,8 @@ from driver import (
     verify_png,
 )
 
-SUPPORTED_CSL_VERSION = "1.4"
-KNOWN_CSL_VERSIONS = ("1.0", "1.1", "1.2", "1.3", "1.4")
+SUPPORTED_CSL_VERSION = "1.5"
+KNOWN_CSL_VERSIONS = ("1.0", "1.1", "1.2", "1.3", "1.4", "1.5")
 
 MAX_CSL_LOAD_DEPTH = 8
 MAX_TOTAL_COMMANDS = 20000
@@ -113,7 +114,7 @@ MBC_SEQUENCE_WAIT_MS = 1000
 # between the reset and that point are folded into the load.
 MACHINE_COMMANDS = frozenset(
     {"key_output", "key_from_file", "keyboard_write", "screenshot", "snapshot",
-     "wait_ssm0000", "wait_vsyncoffon", "wait_driveonoff"}
+     "wait_ssm0000", "wait_ssm", "wait_vsyncoffon", "wait_driveonoff"}
 )
 
 # Commands folded into the power-on load rather than executed in place.
@@ -142,6 +143,7 @@ REJECTED_COMMANDS: Dict[str, str] = {
 # Rejected only when the SSM detector is not in use.
 SSM_ONLY_COMMANDS: Dict[str, str] = {
     "wait_ssm0000": "needs the SSM detector; pass --ssm to enable it (OSD status bit 37)",
+    "wait_ssm": "needs the SSM detector; pass --ssm to enable it (OSD status bit 37)",
 }
 
 ALL_COMMANDS = frozenset(
@@ -155,7 +157,7 @@ _SAFE_NAME = re.compile(r"^[A-Za-z0-9_\-]+$")
 
 
 class CslError(Exception):
-    """Script-stopping error, carrying the six fields CSL v1.4 section
+    """Script-stopping error, carrying the six fields CSL section
     "Some rules and implementation tips" requires an emulator to report."""
 
     def __init__(
@@ -899,7 +901,12 @@ class CslRunner:
         self._fold_order: Dict[int, List[int]] = {}
         self.ssm_records: List[Dict[str, Any]] = []
         self.ssm_sync_seen = 0
-        self.ssm_sync_pending: List[Dict[str, Any]] = []
+        # Every observed record remains available to release one matching CSL
+        # wait. Host polling is asynchronous, so an unconsumed record that
+        # arrived before entry is eligible; unrelated codes stay queued for a
+        # later wait. Screenshot/snapshot handling is independent of this
+        # one-shot synchronization consumption.
+        self.ssm_wait_pending: List[Dict[str, Any]] = []
         self.last_screenshot_marker: Optional[Dict[str, Any]] = None
         self.last_capture_record: Optional[Dict[str, Any]] = None
         self.capture_names: Dict[str, int] = {}
@@ -1016,14 +1023,9 @@ class CslRunner:
         for record in records:
             self.ssm_records.append(record)
             code = int(record["code"], 16)
+            self.ssm_wait_pending.append(record)
             if code == ssm_ring.CODE_SYNC:
                 self.ssm_sync_seen += 1
-                # One-shot consumption, ordered by the ring's own sequence: a
-                # #0000 that arrived before the wait was entered still releases
-                # it, and each #0000 releases exactly one wait. See the plan's
-                # note that CSL v1.4 does not settle this and that the
-                # alternative (fresh-after-entry) is an interpretation too.
-                self.ssm_sync_pending.append(record)
             elif code == ssm_ring.CODE_SNAPSHOT:
                 if command is not None:
                     self._note(command, "ssm",
@@ -1036,7 +1038,7 @@ class CslRunner:
                 self._ssm_capture(record, command)
             elif command is not None:
                 self._note(command, "ssm",
-                           f"marker #{code:04X} is reserved by SSM v1.1 for a use this "
+                           f"marker #{code:04X} is reserved by SSM v1.2 for a use this "
                            "runner does not implement; recorded only")
         return records
 
@@ -1061,7 +1063,7 @@ class CslRunner:
         )
         self.capture_count += 1
         code = int(record["code"], 16)
-        # SSM v1.1: an ordinary code names its own capture. Only #FFFE is the
+        # SSM v1.2: an ordinary code names its own capture. Only #FFFE is the
         # "name it from the CSL screenshot_name" variant, so an ordinary code
         # must not consume a pending name that belongs to a later #FFFE.
         if code == ssm_ring.CODE_SCREENSHOT and self.screenshot_name:
@@ -1159,7 +1161,7 @@ class CslRunner:
         # marker from the previous machine is not this one's.
         self._ssm_start_checked = False
         self.backend.reset_ssm()
-        self.ssm_sync_pending.clear()
+        self.ssm_wait_pending.clear()
         self._record(command, "load_core", **load)
 
     def _apply_config(self, command: Command, folded_into: Optional[int] = None) -> None:
@@ -1313,45 +1315,49 @@ class CslRunner:
         self._sleep(seconds, f"csl wait {micros:.0f}us", command)
         self._record(command, "waited", seconds=seconds)
 
-    def _do_wait_ssm0000(self, command: Command) -> None:
-        """Consume one unconsumed SSM #0000 from this run.
+    def _pop_pending_ssm(self, code: int) -> Optional[Dict[str, Any]]:
+        """Remove and return the oldest queued record matching ``code``."""
+        for index, record in enumerate(self.ssm_wait_pending):
+            if int(record["code"], 16) == code:
+                return self.ssm_wait_pending.pop(index)
+        return None
 
-        CSL v1.4 says the wait lasts "until the Z80A sequence ED 00 ED 00 is
-        executed". It does not say whether an event that has already been
-        buffered may satisfy it. This runner selects **one-shot consumption**:
-        each #0000 the core published during this controlled run releases
-        exactly one wait, ordered by the ring's own sequence, including one
-        that arrived before the wait was entered. The host is asynchronous and
-        routinely arrives late, so the alternative reading -- only an event
-        observed after entry counts -- would deadlock on a marker the core
-        already emitted. Neither reading makes host polling an exact core wait;
-        the choice is recorded, not presented as the standard's rule.
+    def _do_wait_ssm(self, command: Command, code: int, legacy: bool = False) -> None:
+        """Consume one unconsumed matching SSM record from this run.
+
+        CSL does not say whether an event already buffered by an asynchronous
+        host may satisfy a wait. This runner selects one-shot consumption: a
+        record published during this controlled run releases exactly one wait
+        for its code, even if it arrived before entry. Other codes remain
+        queued. Requiring a fresh observation would deadlock when the core
+        emitted the marker before the host returned from its previous command.
 
         The bound is --max-wait, as a monotonic deadline: without one, a SHAKER
         build that never reaches the marker would hang the run.
         """
         self._ensure_machine(command)
         start = self.backend.now()
-        if self.ssm_sync_pending:
-            released = self.ssm_sync_pending.pop(0)
-            self._record(command, "ssm_sync_released", polls_seconds=0.0,
+        outcome = "ssm_sync_released" if legacy else "ssm_wait_released"
+        released = self._pop_pending_ssm(code)
+        if released is not None:
+            self._record(command, outcome, code=f"{code:04X}", polls_seconds=0.0,
                          released_by="an unconsumed marker that arrived before entry",
                          ssm=released)
             return
         step = max(0.05, self.options.ssm_poll_interval)
         deadline = start + self.options.max_wait_seconds
-        while not self.ssm_sync_pending:
+        while released is None:
             remaining = deadline - self.backend.now()
             if remaining <= 0:
                 raise command.error(
-                    f"no SSM #0000 arrived within {self.options.max_wait_seconds:.0f}s",
+                    f"no SSM #{code:04X} arrived within {self.options.max_wait_seconds:.0f}s",
                     self.script_version,
                 )
-            self.backend.sleep(min(step, remaining), "wait_ssm0000 poll")
+            self.backend.sleep(min(step, remaining), f"wait_ssm #{code:04X} poll")
             self._consume_ssm(command)
             if self.backend.now() > deadline:
                 raise command.error(
-                    f"no SSM #0000 arrived within {self.options.max_wait_seconds:.0f}s "
+                    f"no SSM #{code:04X} arrived within {self.options.max_wait_seconds:.0f}s "
                     f"(poll completed after monotonic deadline)",
                     self.script_version,
                 )
@@ -1359,20 +1365,31 @@ class CslRunner:
                 # Offline there is no core to answer, so the plan records the
                 # wait rather than spinning to the bound.
                 self._note(command, "ssm",
-                           "wait_ssm0000 cannot be planned offline; the plan shows one poll")
-                self._record(command, "ssm_sync_released", polls_seconds=0.0,
+                           f"wait_ssm #{code:04X} cannot be planned offline; the plan shows one poll")
+                self._record(command, outcome, code=f"{code:04X}", polls_seconds=0.0,
                              released_by="not executed: offline plan")
                 return
+            released = self._pop_pending_ssm(code)
         if self.backend.now() > deadline:
             raise command.error(
-                f"no SSM #0000 arrived within {self.options.max_wait_seconds:.0f}s "
+                f"no SSM #{code:04X} arrived within {self.options.max_wait_seconds:.0f}s "
                 f"(marker observed after monotonic deadline)",
                 self.script_version,
             )
-        released = self.ssm_sync_pending.pop(0)
-        self._record(command, "ssm_sync_released",
+        self._record(command, outcome, code=f"{code:04X}",
                      polls_seconds=round(self.backend.now() - start, 3),
                      released_by="a marker observed after entry", ssm=released)
+
+    def _do_wait_ssm0000(self, command: Command) -> None:
+        self._do_wait_ssm(command, ssm_ring.CODE_SYNC, legacy=True)
+
+    def _do_wait_ssm_code(self, command: Command) -> None:
+        if len(command.args) != 1 or not re.fullmatch(r"0[xX][0-9A-Fa-f]{1,4}", command.args[0]):
+            raise command.error(
+                "wait_ssm takes one 16-bit hexadecimal SSM code from 0x0000 to 0xFFFF",
+                self.script_version,
+            )
+        self._do_wait_ssm(command, int(command.args[0], 16))
 
     def _do_screenshot(self, command: Command) -> None:
         self._ensure_machine(command)
@@ -1475,6 +1492,9 @@ class CslRunner:
             elif name == "wait_ssm0000":
                 self._do_wait_ssm0000(command)
 
+            elif name == "wait_ssm":
+                self._do_wait_ssm_code(command)
+
             elif name == "screenshot_name":
                 if len(command.args) != 1 or not _SAFE_NAME.match(command.args[0]):
                     raise command.error(
@@ -1517,7 +1537,11 @@ class CslRunner:
             "approximations": self.approximations,
             "ssm_records": self.ssm_records,
             "ssm_startup": self.ssm_startup,
-            "ssm_sync_unconsumed": len(self.ssm_sync_pending),
+            "ssm_sync_unconsumed": sum(
+                int(record["code"], 16) == ssm_ring.CODE_SYNC
+                for record in self.ssm_wait_pending
+            ),
+            "ssm_wait_unconsumed": len(self.ssm_wait_pending),
             "effective_settings": {
                 "layout": self.options.layout,
                 "ssm_enabled": self.options.ssm,
@@ -1686,8 +1710,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                         help="Do not descend into csl_load targets")
     parser.add_argument("--ssm", action="store_true",
                         help="Turn on the core's SSM marker detector (OSD status bit 37), "
-                             "poll its DDR3 event ring, honour wait_ssm0000 and capture on "
-                             "marker #FFFE")
+                             "poll its DDR3 event ring, honour wait_ssm0000/wait_ssm and "
+                             "capture on screenshot markers")
     parser.add_argument("--ssm-base", type=lambda v: int(v, 0), default=ssm_ring.DEFAULT_BASE,
                         help="Physical byte address of the event ring (default 0x30000000)")
     parser.add_argument("--ssm-poll", type=float, default=0.5,

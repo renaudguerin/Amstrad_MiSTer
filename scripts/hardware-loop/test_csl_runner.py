@@ -254,7 +254,7 @@ class TestRejectionReporting(unittest.TestCase):
             self.assertEqual(fields["instruction"], "crtc_select 2")
             self.assertIn("not implemented", fields["reason"])
             self.assertEqual(fields["script_version"], "1.4")
-            self.assertEqual(fields["supported_version"], "1.4")
+            self.assertEqual(fields["supported_version"], "1.5")
 
     def test_undeclared_version_is_reported_as_such(self):
         with tempfile.TemporaryDirectory() as td:

@@ -3,7 +3,10 @@
 This is the execution plan for improving the existing CPC core and, separately, adding
 Amstrad Plus/GX4000 support. The detailed evidence remains in `accuracy/` and
 `plus/references/`; this document records dependency order, integration boundaries, and
-acceptance gates for a fresh implementation session.
+acceptance gates for a fresh implementation session. It is not an exhaustive validation
+register: include validation here when it gates a named milestone or selected task. Keep
+other residuals in [current status](current-status.md), linked evidence reports and
+[review debt](review-debt.md), without automatically promoting them into the execution queue.
 
 Do not combine the two work streams merely because both concern video. Classic accuracy
 changes refine `rtl/CRTC.v` and its per-type engines while retaining the netlist Gate Array. Plus support adds a
@@ -414,18 +417,6 @@ finding or coherent fixture per branch, based on current `master` (or an explici
    those shared interfaces. The fixture models external byte memory, fixes FDC/video data
    to zero and covers uncompressed classic restores; see the design for exact limits.
 
-**FDC validation, not a confirmed outstanding RTL defect.** This grew out of the
-Plus/System-cartridge failure investigation. The September 9 hardware report says boot failed
-before disk access could be tested; 6128 Plus boot was subsequently fixed. The retained TV80
-`XFAIL fdc-payload-poll` is confounded by that surrogate CPU's polling limitations, and the
-zero-clock pre-edge "preload defect" was withdrawn. Start with a known-good disk smoke test
-in classic AMSDOS and Plus BASIC. Only a reproduced failure justifies a controller repair;
-a production-T80 complete-sector/result-phase fixture is follow-up validation, not higher
-priority feature work. Preserve the FDC stash. Evidence:
-[hardware report](investigations/hardware-runs/hardware-evidence-2026-09-09.md),
-[triage](investigations/archive/fdc-preedge-triage-2026-09-03.md),
-[recovery](investigations/archive/fdc-recovery-2026-09-03.md).
-
 ### Device-dependent work
 
 **Prerequisite:** establish MiSTer reachability before B17 or Sonic GX device work; use a
@@ -455,7 +446,10 @@ that a previously online device remains available. Keep one device operator.
   Native MiSTer screenshots omit the OSD and cannot prove the active mode.
 - B4 Phase 1 CSL/SSM is device-verified for Module A on both types and Gate 1 (Module B).
   The experimental Phase 2 recorder is retired; do not revive its fit/DDR/throughput queue.
-  Production-T80 fetch-provider review/evidence remains an explicit review-debt item.
+  CSL v1.5/SSM v1.2 source support adds arbitrary-code `wait_ssm` while preserving the 2.6
+  scripts. Its bounded device check can reuse an existing Phase 1 SSM-capable RBF because
+  the standards refresh changes no hardware logic. Production-T80
+  fetch-provider review/evidence remains an explicit review-debt item.
 - B8-1 through B8-7 are integrated. Remaining work includes native dynamic-WAIT equivalence,
   complete frame-level RFD/full motherboard CPU execution, full video-consumer validation,
   real-CDT playback/HPS cadence, snapshot first-frame limits and named hardware retests.

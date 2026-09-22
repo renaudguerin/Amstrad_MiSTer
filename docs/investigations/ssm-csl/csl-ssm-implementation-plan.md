@@ -41,6 +41,22 @@ repairs and Sol independently reviewed the code. Final source verification is re
 in the review document. Hardware acceptance and integration/build publication remain
 separate gates.
 
+**Current standards addendum, 2026-09-22.** The sections below retain the v1.4/v1.1
+premises and gate results that governed the 2026-09-12 implementation; do not rewrite
+that dated evidence as if the newer documents existed then. The current authoritative
+user-owned PDFs are CSL v1.5 and SSM v1.2 under `local/test_media/shaker/` (ignored).
+CSL v1.5 adds `wait_ssm 0xHHLL`. The runner implements it as the same bounded,
+monotonic, one-shot event consumption selected for `wait_ssm0000`: an unconsumed match
+from the controlled run may release the wait even if the host observed it before entry,
+while unrelated codes stay queued and retain their independent screenshot action.
+SSM v1.2 explicitly requires all four opcode bytes `ED LL ED HH` to be consecutive.
+The existing detector already conforms: its input is completed opcode fetches, not
+arbitrary memory bytes; any intervening opcode fetch resets the partial sequence;
+operand/data reads and interrupt acknowledge do not enter the stream, while the first
+ISR opcode does and therefore cancels a marker split by an interrupt. SHAKER 2.6 scripts
+remain unchanged and compatible. Future SHAKER 2.7 scripts may use `wait_ssm`; they are
+inputs to validate, not files this repository invents or rewrites.
+
 ## Goal
 
 Run the Logon System SHAKER test walks from the published CSL scripts on the real MiSTer,

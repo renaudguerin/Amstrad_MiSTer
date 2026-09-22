@@ -100,7 +100,12 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 - **Capture and oracles:** the B2 device driver captures repeatably (native screenshots omit the
   OSD, so they cannot prove the active mode). B4 CSL/SSM Phase 1 is verified on hardware for
   Module A on both CRTC types and Gate 1 (Module B); the workbook's 712 rows remain coverage
-  targets. The B3 frame-capture CLI works within its CPU and clock limits. The AmSpirit oracle
+  targets. Source support is updated to CSL v1.5 and SSM v1.2: `wait_ssm 0xHHLL` is available,
+  legacy `wait_ssm0000` and SHAKER 2.6 remain compatible, and the existing detector already
+  enforces four consecutive opcode fetches. A bounded live `wait_ssm` check remains before
+  claiming device acceptance, but it can use an existing Phase 1 SSM-capable RBF because the
+  refresh changes no hardware logic. The B3 frame-capture CLI works within
+  its CPU and clock limits. The AmSpirit oracle
   (`scripts/amspirit/amspirit.py`) captures reference checkpoints. See the
   [mister-capture skill](../.agents/skills/mister-capture/SKILL.md) and
   [driver guide](investigations/hardware-runs/mister-hardware-loop-driver.md).
