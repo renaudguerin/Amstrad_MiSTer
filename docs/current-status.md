@@ -12,7 +12,13 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **Latest implementation integration:** `37ccfc3` (2026-09-22), merging B16 load-time
+- **Latest implementation integration:** `60a63e4` (2026-09-22), CSL 1.5 / SSM 1.2
+  support. Simulation/lint and production-T80 passed, but the full build failed HDMI
+  setup timing by 0.006 ns; no new RBF was packaged. Full integration acceptance remains
+  blocked on timing closure. See [the integration record](investigations/session-logs/csl-ssm-integration-2026-09-22.md)
+  for exact-SHA CI, retained reports and source review evidence. A live `wait_ssm`
+  check remains separate and can use an existing Phase 1 SSM-capable RBF.
+- **Latest timing-clean artifact:** `37ccfc3` (2026-09-22), merging B16 load-time
   Plus selection and B18 classic snapshot capture/round-trip acceptance. Exact-SHA CI
   [35673603710](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35673603710)
   passed simulation/lint, production-T80, full hosted synthesis and the required gate.
