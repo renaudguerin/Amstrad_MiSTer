@@ -376,21 +376,44 @@ def main():
     ap.add_argument("query", nargs="?")
     ap.add_argument("--section")
     ap.add_argument("--check-claim", metavar="CLAIM")
-    ap.add_argument("--lang", choices=["en", "fr"], default="en",
-                    help="edition sent to Jev (EN is Jev's strongest language)")
+    ap.add_argument("--lang", choices=["en", "fr", "both"], default="en",
+                    help="edition sent to Jev (EN is Jev's strongest; 'both' checks EN and FR for translation traps)")
+    ap.add_argument("--bilingual", action="store_true",
+                    help="shortcut for --lang both when checking claims")
     ap.add_argument("--no-rerank", action="store_true")
     ap.add_argument("--shortlist", type=int, default=30)
     ap.add_argument("--recall", choices=["bm25", "scan", "hybrid"], default="hybrid")
     ap.add_argument("--top", type=int, default=3)
     ap.add_argument("--json", action="store_true", help="machine output, no section text")
     a = ap.parse_args()
+    if a.bilingual:
+        a.lang = "both"
     sections = load()
 
     if a.check_claim:
         if a.section not in sections:
             sys.exit(f"unknown section {a.section}")
-        v = check_claim(sections, a.check_claim, a.section, a.lang)
         s = sections[a.section]
+        if a.lang == "both":
+            v_en = check_claim(sections, a.check_claim, a.section, "en")
+            v_fr = check_claim(sections, a.check_claim, a.section, "fr")
+            disagree = v_en["choice"] != v_fr["choice"]
+            trap = (f"DISAGREEMENT: EN evaluates '{v_en['choice']}' ({v_en['confidence']:.2f}) "
+                    f"while FR evaluates '{v_fr['choice']}' ({v_fr['confidence']:.2f}). "
+                    "French takes precedence unless hardware supersedes it.") if disagree else None
+            print(json.dumps({
+                "section": a.section,
+                "disagreement": disagree,
+                "translation_trap": trap,
+                "en": {"verdict": v_en["choice"], "confidence": round(v_en["confidence"], 3),
+                       "probabilities": v_en["probabilities"]},
+                "fr": {"verdict": v_fr["choice"], "confidence": round(v_fr["confidence"], 3),
+                       "probabilities": v_fr["probabilities"]},
+                "visual_check": visual_note(s) or None,
+                "advisory": "text-layer signal only; never cite as verification"
+            }, indent=2, ensure_ascii=False))
+            return
+        v = check_claim(sections, a.check_claim, a.section, a.lang)
         print(json.dumps({"section": a.section, "verdict": v["choice"],
                           "confidence": round(v["confidence"], 3),
                           "probabilities": v["probabilities"],
