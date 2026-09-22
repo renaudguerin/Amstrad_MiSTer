@@ -254,28 +254,26 @@ end
 
 // ACCC v1.10 section 11.3.2: Type 1 adjustment ends when C5+1 reaches R5
 // evaluated by equality at the line boundary. R5=0 never satisfies this comparison.
-// F14 (ACCC v1.11 section 19.6.2 p.217; Q10 resolution in
-// accc-author-questions.md item 10): on a ParityFrame-even frame with an
-// interlace mode active (R8=1 or 3) and R9+1 a multiple of R5, C4 is
-// "incremented once again": the adjustment end instead runs one more line
-// -- "C9 counts up to R9 and when it goes back to 0, C4 is incremented
-// without taking R4 into account" (section 11.2.4 p.85) -- so the
-// additional line carries C9=0 at C4 one past the last adjustment row,
-// and the frame origin follows it.  The R5 end test itself is unchanged;
-// the intercept defers the origin by exactly one line.  With R5=0 the
-// multiple condition is vacuous: a type-1 frame without adjustment lines
-// never gains the line (which is what keeps the t21-t24 IVM walks, all
-// R5=0, undisturbed).
+// French ACCC v1.11 section 19.6.2 p.217: every even interlace frame
+// gains a physical line after its R5 lines, if any. The following paragraph's
+// R9+1/R5 condition concerns C4 accounting, not existence of that line.
+// Retain the established divisible-R5 counter path; otherwise adjustment
+// continues its ordinary C9/C4 count into the extra line. The relationship
+// between the p.217 multiple wording and the p.85 examples remains a source
+// ambiguity; it must not suppress the independently specified physical line.
 wire [5:0] type1_r9p1 = {1'b0, R9_v_max_line} + 6'd1;
 wire       type1_add_cond = (|R5_v_total_adj) &&
 							((type1_r9p1 % {1'b0, R5_v_total_adj}) == 6'd0);
-wire       type1_add_armed = R8_interlace[0] && !parity_frame && type1_add_cond;
+wire       type1_add_armed = R8_interlace[0] && !parity_frame;
 wire       crtc1_adj_end = CRTC_TYPE & in_adj & ({1'b0, c5} + 6'd1 == {1'b0, crtc1_rollover_r5}) & (|crtc1_rollover_r5);
-// The intercept: at the gated adjustment end the origin is deferred one
-// line.  The additional line itself ends the frame unconditionally.
+// Intercept the adjustment end, or the ordinary frame end when R5=0.
+// The additional line itself ends the frame unconditionally.
 reg        type1_add_line_active;
-wire       type1_add_intercept = line_new && in_adj && crtc1_adj_end &&
-								 type1_add_armed && !type1_add_line_active;
+wire       type1_add_intercept = line_new && type1_add_armed &&
+                                 !type1_add_line_active &&
+                                 (in_adj ? crtc1_adj_end :
+                                  ((row == R4_v_total) && !(|crtc1_rollover_r5) &&
+                                   (ivm ? ivm_row_end : (line == crtc1_line_max))));
 wire       crtc1_adj_end_eff = crtc1_adj_end ||
 							   (type1_add_line_active && line_new);
 
@@ -301,9 +299,12 @@ wire       line_last_w = (line == crtc1_line_max);
 //   line_row_structure_last -- the "final line of the row" test for the
 //   VMA reload/save/vsync consumers: the plain C9==R9 wrap while
 //   adjustment cycles C9, the IVM-aware test otherwise.
-wire       line_limit_match = in_adj ? crtc1_adj_end_eff :
+wire       line_limit_match = type1_add_line_active ? 1'b1 : in_adj ? crtc1_adj_end_eff :
                                 ivm  ? ivm_row_end : line_last_w;
-wire       line_row_event = in_adj ? (line_last_w | crtc1_adj_end_eff) :
+wire       type1_adj_counter_end = crtc1_adj_end_eff &&
+                                  (!type1_add_intercept || type1_add_cond);
+wire       line_row_event = type1_add_line_active ? 1'b1 :
+                           in_adj ? (line_last_w | type1_adj_counter_end) :
                               ivm  ? ivm_row_end : line_last_w;
 wire       line_row_structure_last = in_adj ? line_last_w : line_limit_match;
 assign     line_last = line_limit_match;
@@ -371,7 +372,11 @@ end
 // too.
 wire       row_last_w = (row == R4_v_total);
 assign     row_last = row_last_w;
-wire       frame_adj_CRTC1 = row_last_w && ~in_adj && |crtc1_rollover_r5;
+// The added line already owns an unconditional canonical origin. Keep
+// adjustment entry mutually exclusive even if live R4/R5 writes now match;
+// otherwise the wrapper's adjustment priority contradicts frame_new_w.
+wire       frame_adj_CRTC1 = row_last_w && ~in_adj &&
+                            !type1_add_line_active && |crtc1_rollover_r5;
 assign     frame_adj = frame_adj_CRTC1;
 // ACCC v1.11 section 11.3.2 p.86 plus the author's 2026-08-31 response to
 // round-2 question 20: R5=0 prevents the C5 equality from ending vertical
@@ -383,8 +388,10 @@ wire       crtc1_stuck_r5_row_reset = in_adj && !(|crtc1_rollover_r5) &&
 									 row_last_w && line_last_w;
 wire       crtc1_stuck_r5_row_reset_event = crtc1_stuck_r5_row_reset &&
 										 line_new;
-wire       crtc1_row_frame_last = in_adj ? (crtc1_adj_end_eff & ~type1_add_intercept) :
-										 (row_last_w & ~frame_adj_CRTC1);
+wire       crtc1_row_frame_last = type1_add_line_active ||
+                                 (!type1_add_intercept &&
+                                  (in_adj ? crtc1_adj_end_eff :
+                                   (row_last_w & ~frame_adj_CRTC1)));
 assign     row_frame_last = crtc1_row_frame_last;
 assign     row_next = (row_frame_last | crtc1_stuck_r5_row_reset) ? 7'd0 :
 					 row + 1'd1;
@@ -397,14 +404,14 @@ wire       frame_new_w = row_new & row_frame_last;
 // so the C9 restart must carry that same newly toggled parity rather than
 // the ordinary row-end value derived from the old ParityC9.
 assign line_next = frame_new_w ? (ivm ? {4'b0000, ~parity_frame} : 5'd0)
-                 : in_adj     ? ((line_last_w | crtc1_adj_end_eff) ? 5'd0 :
+                 : in_adj     ? ((line_last_w | type1_adj_counter_end) ? 5'd0 :
                                   line + 5'd1)
                  : ivm        ? (ivm_row_end ? pc9_toggled : c9_ivm_step)
                  :              (line_last_w ? 5'd0 : line + 5'd1);
 
-// F14 additional-line state: set on the intercept edge (the gated
-// adjustment end), cleared by the true origin that ends the additional
-// line.  Intercept priority matters on the shared edge; CLKEN-gated for
+// Additional-line state: set on the intercepted adjustment/frame end,
+// cleared by the true origin that ends the added line. Intercept priority
+// matters on the shared edge; CLKEN-gated for
 // the same level-true-across-the-character reason as the type-0 flop.
 always @(posedge CLOCK) begin
 	if(~nRESET | SNA_LOAD | !CRTC_TYPE) type1_add_line_active <= 0;
