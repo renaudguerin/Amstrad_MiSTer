@@ -12,21 +12,18 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **Latest implementation integration:** `60a63e4` (2026-09-22), CSL 1.5 / SSM 1.2
-  support. Simulation/lint and production-T80 passed, but the full build failed HDMI
-  setup timing by 0.006 ns; no new RBF was packaged. Full integration acceptance remains
-  blocked on timing closure. See [the integration record](investigations/session-logs/csl-ssm-integration-2026-09-22.md)
-  for exact-SHA CI, retained reports and source review evidence. A live `wait_ssm`
-  check remains separate and can use an existing Phase 1 SSM-capable RBF.
-- **Latest timing-clean artifact:** `37ccfc3` (2026-09-22), merging B16 load-time
-  Plus selection and B18 classic snapshot capture/round-trip acceptance. Exact-SHA CI
-  [35673603710](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35673603710)
-  passed simulation/lint, production-T80, full hosted synthesis and the required gate.
-  Delivered RBF: `output_files/Amstrad_20260922_37ccfc3.rbf` (ignored), SHA-256
-  `a3c9fb8eba80a64df2928bc55d2cca7d68a9a302121b6678dad07ded04a3780c`.
-  Full fit uses 23,675 ALMs (56%); worst setup/hold +0.553/+0.241 ns, zero TNS.
-  This RBF has not been device-tested. Source/review/artifact details are in
-  [the integration record](investigations/session-logs/b16-b18-integration-2026-09-22.md).
+- **Latest implementation integration:** `b991487` (2026-09-22), the cartridge-grounded
+  Sonic IRQ audit and reviewed production-T80 adapter repair. No interrupt RTL change
+  was justified. B17 timed replay and the new reference findings are integrated.
+- **Latest timing-clean artifact:** `c59e03a` (2026-09-22), including B16/B18,
+  CSL/SSM host support, B17 replay and detailed TimeQuest reporting. Exact-SHA CI
+  [35681139829](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35681139829)
+  passed all required jobs. Delivered RBF: `output_files/Amstrad_20260922_c59e03a.rbf`,
+  SHA-256 `da28d0cd01c910ce68d7bfc7482730dbdb1ae235dc814894776f3f06308e3335`.
+  Full fit: 23,804 ALMs (57%); setup/hold minima +0.561/+0.242 ns, zero TNS.
+  Detailed setup/hold path reports are now retained; no timing constraints or RTL
+  were changed to obtain this fit. It does not retroactively pass the failed
+  `60a63e4` build. See [the preparation record](investigations/session-logs/sonic-preparation-2026-09-22.md).
 - **Latest hardware-tested builds:** `88262b9` (2026-09-14, B19 residual; Copter 271 title
   flash fixed) and `a0778b6` (2026-09-13, PSG R7 reset; keyboard and joystick fixed). B18 SNA
   save was device-tested on branch RBF `0608653`.
