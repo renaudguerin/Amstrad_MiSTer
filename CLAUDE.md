@@ -84,6 +84,9 @@ optional second opinion), and table or chronogram rules are judged from rendered
 from a text layer alone. Reaching for raw text where a figure is involved is how figure
 content silently flattens — which is what most of the digests' ⚠ VERIFY flags record.
 
+Run `scripts/accc/lookup.py "<question>"` to locate relevant Compendium sections before
+grepping the extractions; its output is navigation and routing aid, not verification.
+
 ## Writing test vectors
 
 Write vectors where reading the RTL against the documented rule predicts a mismatch. Do not
