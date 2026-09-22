@@ -145,6 +145,18 @@ shows the v4 banner alone at 300 and 800 frames, without `Ready` or `14592`. `14
 `&3900`. A source for real GX4000 behaviour with the system cartridge is needed before
 treating either screen as correct. Evidence: `syscart/` in the evidence folder.
 
+Candidate cause to check first: `rtl/plus/asic_regs.v` returns the 464+ analogue defaults
+`3F 3F 3F 3F 3F 00 3F 00` for every Plus model. The [ASIC reference](../../plus/references/asic-reference.md)
+section 10 records that firmware senses machine configuration from ADC5/ADC7 and that the
+wiring differs on GX4000, citing ARNOLD-REV, but gives no GX4000 values. The local Arnold
+V 1.5 copy and the KT hardware notes do not either; cpcwiki refused the fetch from this
+session. A byte scan of `Plus_EN.cpr` weakens this hypothesis: firmware page 0 (and BASIC
+page 1, AMSDOS page 3) contain no absolute `&6808-&680F` operand; the only matches are
+in pages 6 and 7 inside what looks like graphics data. The model test therefore uses
+another input (PPI port B links, keyboard scan, or a computed address). The next step is a
+disassembly of the page-0 start-up path up to the menu decision, compared with a
+simulated GX4000 boot of the same cartridge.
+
 ## Restoration
 
 Original CFG restored and hash-checked (`2e585b4c…d8e4`); the device is back at MENU.
