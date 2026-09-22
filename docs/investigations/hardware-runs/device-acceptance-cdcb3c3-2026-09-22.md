@@ -179,6 +179,20 @@ its first byte. The 6128 (bank 0) is unaffected. Upstream MiSTer-devel `rtl/sdra
 uses the same fixed tape bank, so the defect is inherited, not introduced by this fork.
 It dates from upstream PR #41 (2026-05-09), which added the 464 model on bank 2.
 
+Upstream reproduction on the device: `Amstrad_20260603.rbf`, same 464 CFG. `464FR.ez0`
+alone gives `c90425c2` (BASIC 1.0 Ready); `464FR.ez0` then the CDT gives `b1e2000c`,
+byte-identical to the fork's crash frame (MGLs `zz_u1.mgl`, `zz_u2.mgl`). PR #41's
+description gives the purpose of the 464 mode as SNA compatibility ("many snapshots
+were made on a 464 and ROMs need to match"); its file list does not include
+`rtl/sdram.v` or any tape source. Before it, only the 6128 (bank 0) and 664 (bank 1)
+models existed and bank 2 held tape data alone.
+
+Address map behind the collision (`rtl/Amstrad_MMU.v`, 464 model, SDRAM bank 2):
+lower ROM (OS) at page `0x000` = `0x000000-0x003FFF`, base 64 KB RAM at pages
+`0x008-0x00B` = `0x020000-0x02FFFF`, upper ROMs at `{1, ROMbank}` (BASIC at
+`0x400000`). The tape image is written from `0x000000`: any CDT overwrites the OS, and a
+CDT over 128 KB also reaches base RAM.
+
 Consequences: the CPC 464, the natural tape machine, cannot run with a CDT mounted.
 Loading the ROM after the CDT boots but overwrites the start of the tape image, so
 playback in that order is not a valid test. The `RUN"` attempt (Ctrl + keypad Enter)
