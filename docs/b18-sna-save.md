@@ -101,9 +101,8 @@ instruction set none of those conditions. It is computed inside the core, not by
 re-decoding opcodes outside the vendored source. A save request stays pending until a
 qualifying fetch. Ordinary code reaches one within an instruction or two, but an unbroken
 stream of `EI` or prefix bytes can postpone it indefinitely. A second OSD press or reset
-therefore cancels a pending request. TV80 mirrors the output for Verilator
-fixtures, but TV80 commits at different T-states, so it cannot validate the production
-predicate.
+therefore cancels a pending request. The capture and freeze fixtures use production T80 through GHDL. TV80 commits at
+different T-states and cannot validate the production predicate.
 
 **Entry and release against WAIT.** T80pa samples `WAIT_n` into `CEN_pol` on the
 negative enable during T2 (`T80pa.vhd:170`). The hold must be asserted after the positive
@@ -179,12 +178,13 @@ restore classic CRTC counters, GA interrupt phase, FDC state, or anything B8-5 l
 unrepresented. A round trip therefore proves only the fields the loaders consume. The
 remaining fields need direct checks of the capture.
 
-**Status, 2026-09-14.** The device test (slice 5) settles the practical claim: a snapshot saved
+**Status, 2026-09-22.** Acceptance 2 and 3 now share `sim/b18_snapshot_top.sv` and
+`b18_snapshot_test.cpp`, run by `make -C sim b18-snapshot-test` and the production-T80
+CI job. See the fixture evidence below. The device test (slice 5) settles the practical claim: a snapshot saved
 on hardware resumes correctly in this core and in AmSpirit. It does not replace items 2 and 3.
 It was checked by eye, so it misses state a program does not visibly use: alternate registers,
 IFF2, R, the PSG register for a silent channel. It also cannot catch a later regression. Items 2
-and 3 are therefore lower priority, and both are to be built on one fixture, since both need the
-same composition.
+and 3 add exact automated checks for those otherwise invisible fields in one composition.
 
 1. **Freeze predicate on production T80.** Extend the real-GA harness (`sim/crtc_t80_top.sv`,
    Verilator on the GHDL-translated T80 netlist, run by CI's `production-t80` job). It
@@ -207,8 +207,8 @@ same composition.
    saved byte against a value derived from the program's writes per the SNA specification;
    never read the expectation out of the simulator. Also exercise DDR3 stalls during a save
    and a host read that overlaps publication.
-3. **Round trip.** Extract `Amstrad.sv`'s inline Z80/PPI/PSG/memory decode into a linted
-   module beside `plus_sna_header`. Wire the production decoder and apply path into that
+3. **Round trip.** Reuse `sna_cpu_header`, the existing extracted Z80/PPI/PSG/memory
+   decoder beside `plus_sna_header`. Wire the production decoder and apply path into that
    fixture (P10 ties `sna_load`/`sna_hold` low). Save, reload, and compare loader-consumed state
    and RAM. PPI A compares as the input value (spec note 6), not as an output latch. This is the
    exact, automated form of the device test: every loader-consumed field and every RAM byte, run
@@ -234,7 +234,7 @@ same composition.
    The TV80 mirror is deferred until a TV80-based fixture needs the port, because the capture
    fixture uses production T80. Harness note: T80pa never resets `IntCycleD_n`, so `IORQ_n` is
    low on the first fetch after reset; the acknowledge checks start after the first refresh.
-2. Header decode extraction from `Amstrad.sv`.
+2. Header decode extraction from `Amstrad.sv`. **Done:** `rtl/sna_cpu_header.v`.
 3. Observation ports and shadows on the owners above, with the conversions. **Done.** Each owner
    exports its registered state on `SNAP_*`/`snap_*` outputs, gathered as `snap_*` outputs of
    `Amstrad_motherboard` (left unconnected in `Amstrad.sv` until the writer). New state is limited
@@ -349,6 +349,72 @@ same composition.
 5. Device test. **Done 2026-09-14** on RBF `0608653` (branch only, without master's
    `88262b9` changes): a classic 6128 snapshot saved from the OSD, pulled with `sna_pull.py`,
    reloads correctly in this core and in AmSpirit. This covers the practical "does it resume"
-   claim. Still open: acceptance 2 and 3, now lower priority and to be built as one fixture
-   (see "Acceptance"); a 464/664 64K save; and the user-facing SD route under "Status and
+   claim. Acceptance 2 and 3 now have one automated classic fixture
+   (see below). Still open on hardware: a 464/664 64K save; and the user-facing SD route under "Status and
    limitation".
+
+## Classic capture and round-trip fixture (2026-09-22)
+
+`make -C sim b18-snapshot-test` runs six cases: classic 6128/664/464, each with
+CRTC type 0 and type 1. It compiles the production motherboard with real GA40010,
+YM2149 and HID, the production clock divider, and GHDL's translation of the VHDL
+T80. A generated motherboard copy adapts only the CPU's VHDL port casing for
+Verilog and supplies the default OUT0/R800 inputs; it does not replace CPU behavior.
+The production-T80 CI target includes this fixture. The selection index lists it
+as slow because the ordinary simulation runner does not install GHDL; use
+`python3 sim/select_tests.py --run --slow` for its selected local gate.
+
+A bare-metal program writes distinct palette, CRTC, PSG, ROM-selection, printer,
+PPI and RAM values (within the implemented AY register widths), then sets every CPU
+register bank, I/R, interrupt mode and IFFs.
+The save request arrives while INSN_START is already high and captures the next
+instruction boundary. All 256 header bytes and every 64K/128K RAM byte are compared
+with independently constructed program expectations. The bank/page/offset RAM
+pattern and an executed remapped write discriminate the 6128 map from 464/664.
+No expected values are copied from observation ports or the produced image.
+
+The DDR sink stalls accepted transactions repeatedly and checks address/data/write
+stability. Publication samples feed the actual `sna_pull.pull_snapshot` implementation:
+an old header plus a partially overwritten image is rejected, an in-progress
+header is rejected, and retry accepts only the final coherent image.
+
+Reload destroys RAM first and starts with a different menu model. It streams the
+published bytes through `sna_cpu_header` and `plus_sna_header`, then uses the real
+`plus_sna_apply` reset/hold/load sequence. The assertions check all 212 CPU state
+bits, every loader-consumed classic owner field, the selected memory bank and all
+RAM bytes. PPI A's restored latch is checked against the saved **input** value F7
+(joystick bit 0 asserted through HID row 9), which deliberately differs from the program's old output latch 0E. A resumed
+instruction sequence must read the saved A9 byte through the restored RAM map,
+write it to a different RAM location, and halt.
+
+The CRTC stimulus chooses an independently predictable stable phase. Type 0 with
+R0=R4=R9=0 consumes one row increment, enters adjustment and freezes at C4=1/C9=0
+(French ACCC v1.11 sections 13.2.1 pp.105-106 and 13.2.6 p.110); type 1 keeps
+one-character frames at zero. Type 1's initial fixed-width VSYNC expires before
+capture, retaining elapsed count 15. This tests snapshot formatting, not another
+CRTC timing implementation. Nonzero active-sync capture phase remains covered by
+the dedicated elapsed-counter vectors rather than this stable-state fixture.
+
+**Boundaries:** the external memory model retires byte writes synchronously;
+physical SDRAM arbitration/cart mux/SSM coexistence remain the responsibility of
+`sna-save-stream`. The standard uncompressed classic RAM loader address expression
+is reproduced from `Amstrad.sv`; RLE/chunks and Main/OSD status publication are
+outside this fixture. The CRTC type remains the external selection across restore;
+the loader does not apply A4. The empty ROM-presence map checks the saved selection
+shadow, not expansion-ROM mapping or contents. FDC motor/tracks and
+video fetch data are fixed zero, so this
+fixture does not add dynamic FDC or pixel evidence. Classic CRTC counters, GA IRQ
+phase, printer and FDC state are checked only in capture where applicable, not
+claimed restored. PSG hidden phase and invalid high-nibble selection, other
+SNA-unrepresented state, Plus save, SD transport and new hardware acceptance remain
+outside the claim. No production RTL changes were needed.
+
+Validation: `make -C sim b18-snapshot-test` passed all six classic cases and six
+production host-reader cases. `python3 sim/select_tests.py --check` passed (46 rows),
+and `python3 sim/select_tests.py --run --slow` passed all 40 selected benches after
+the final code edits. Fresh Opus review found no blocking defects; its PSG
+unused-bit expectation finding was corrected, along with selection coverage and
+the reference path. A fresh follow-up review returned CLEAR. Its optional note
+that the chosen PSG R1 value is zero remains a discrimination limit: this case
+checks that value but cannot reject an R1-only reset/no-op restore. Compilation of
+inactive Plus owners is not a claim of Plus behavioral coverage.
