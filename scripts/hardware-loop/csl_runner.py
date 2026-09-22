@@ -1532,6 +1532,18 @@ class CslRunner:
         # this run, and dropping it would silently shorten the walk.
         self._drain_ssm(None)
 
+        # Requested-only video evidence. The runner writes sync-filter CFG bits
+        # only when --sync-filter is given and never reads the runtime latch
+        # (rtl/Amstrad_motherboard.v sync_filter_applied, gated by
+        # sync_filter_commit), so applied state stays unknown and is never
+        # derived from on-disk CFG bytes. Pixel/scale/mix/plus/cadence are
+        # neither set nor observed here.
+        sync_requested = self.options.sync_filter
+        raw_requested = (
+            None if sync_requested is None
+            else (sync_requested in ("raw-crt", "raw_crt", "off"))
+        )
+
         return {
             "trace": self.trace,
             "approximations": self.approximations,
@@ -1552,13 +1564,24 @@ class CslRunner:
                 "media_path": self.media_path,
                 "media_slot": self.media_slot,
                 "applied_b6_config": {
-                    "raw_crt": (self.options.sync_filter in ("raw-crt", "raw_crt", "off")),
-                    "sync_filter": self.options.sync_filter,
-                    "pixel_rate_select": 0,
-                    "scale": 0,
-                    "mix": 0,
-                    "plus_mode": False,
-                    "native_cadence": True,
+                    "sync_filter": sync_requested,
+                    "sync_filter_requested": sync_requested,
+                    "sync_filter_applied": None,
+                    "raw_crt": raw_requested,
+                    "raw_crt_requested": raw_requested,
+                    "raw_crt_applied": None,
+                    "pixel_rate_select": None,
+                    "scale": None,
+                    "mix": None,
+                    "plus_mode": None,
+                    "native_cadence": None,
+                    "evidence": (
+                        "requested-only; sync_filter/raw_crt report the "
+                        "--sync-filter flag (None keeps CFG bits untouched); "
+                        "the applied latch, pixel_rate_select, scale, mix, "
+                        "plus_mode and native_cadence are unobserved (no "
+                        "runtime readback; CFG bytes are write evidence only)"
+                    ),
                 },
                 "key_press_us": self.key_press_us,
                 "key_between_us": self.key_between_us,
@@ -1723,7 +1746,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                         default=None,
                         help="Select sync filter mode: full, raw-pixels, or raw-crt/off (default: keep existing Amstrad.CFG setting)")
     parser.add_argument("--screenshot-scaled", action="store_true",
-                        help="Capture aspect-scaled HDMI framebuffer screenshots instead of native unscaled resolution")
+                        help="Save the screenshot with Main's Imlib2 software resize of the "
+                             "native scaler capture (same DDR source at 0x20000000, not an "
+                             "independent HDMI capture) instead of native unscaled resolution")
     return parser.parse_args(argv)
 
 
