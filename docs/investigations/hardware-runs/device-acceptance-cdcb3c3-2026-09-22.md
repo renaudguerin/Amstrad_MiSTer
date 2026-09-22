@@ -177,6 +177,7 @@ model's memory bank (`rom_loader_route`: index 7 and boot-image chunks 8-9 go to
 464 OS at `a_hi = 0`). A CDT mounted on a 464 therefore overwrites the 464 OS ROM from
 its first byte. The 6128 (bank 0) is unaffected. Upstream MiSTer-devel `rtl/sdram.v`
 uses the same fixed tape bank, so the defect is inherited, not introduced by this fork.
+It dates from upstream PR #41 (2026-05-09), which added the 464 model on bank 2.
 
 Consequences: the CPC 464, the natural tape machine, cannot run with a CDT mounted.
 Loading the ROM after the CDT boots but overwrites the start of the tape image, so
@@ -206,12 +207,38 @@ Screen sequence, identical in two runs:
    it rejects every later block as out of order. The load never completes.
 
 Block 2 is present in the file and blocks 3-7 decode, so the loss is not a format or
-bit-timing problem. A fault in the stop/restart after the first data block is the
-leading hypothesis: the firmware switches the motor off between blocks, and
-`tzxplayer` gates on `cass_motor`. This is not established. The upstream RBF on the
-device has no Plus support, so it is not a comparison point. A simulation trace of
-`tzxplayer` motor/pause handling around the first data block's 2500 ms pause is the
-next discriminator.
+bit-timing problem.
+
+### Classic 6128 control: the defect is Plus-specific
+
+Same CDT on a classic 6128 (original CFG), with cpcec's UK `cpc6128.rom` (SHA-256
+`31c3668c…9562`) loaded through the Main ROM slot so the UK layout can type `|TAPE`
+(the device `boot.rom` carries French v3 firmware; AMSDOS still comes from it). Replay
+`tape6128-uk.json`: `|TAPE`, Return, `RUN"`, Return, then Space.
+
+| RBF | Result |
+| --- | --- |
+| Upstream `Amstrad_20260603.rbf` (`04080cb7…9db3`) | Full load; Amstrad Diagnostics v1.3a runs (`CPC 6128`, `FDC DETECTED`) |
+| `4027f5e` | Full load; same Diagnostics screen |
+
+Both builds load all seven blocks on a classic 6128. `rtl/tzxplayer.vhd` and its
+instantiation are byte-identical to upstream. The block-2 loss is therefore specific to
+the 464+ / v4 System Cartridge path: Plus tape input, motor output or firmware timing,
+not `tzxplayer` itself. Timing note, not a finding: at the 90 s capture upstream had
+already started Diagnostics while `4027f5e` showed `Loading DIAG.BIN block 6`; the two
+runs were not phase-matched.
+
+### Upstream context (Gemini 3.8 Flash research, run `20260922T150727Z-99263-8ed6`, spot-checked)
+
+- Upstream README advertises `.CDT` support "in very basic form" and documents
+  `|TAPE` then `RUN"` on the default 6128 (verified in the README).
+- The CPC 464 model and F7 ROM slot arrived in upstream PR #41 (merged 2026-05-09) and
+  the 160 KB `boot.rom` with 464 ROMs in PR #43 (2026-05-13), both verified with the
+  GitHub API. The 464 bank collision therefore dates from May 2026 upstream. Gemini found
+  no upstream issue or forum report of either defect. Upstream issue #26 (tape loading
+  needs `|TAPE` when AMSDOS is present) and #22 (CDT speed) are unrelated.
+- Gemini's proposed block-2 mechanism (firmware re-arming too slowly for the 2.5 s
+  pause) is inference and is contradicted by the classic control above.
 
 ## Plus disk I/O on 6128+
 

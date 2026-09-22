@@ -205,8 +205,9 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   overwrites the 464 OS ROM** (tape SDRAM bank 2 is also the 464 model bank; inherited from
   upstream), so 464 tape use is broken; see the
   [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md). On 464+
-  a standard-speed CDT starts loading but deterministically loses block 2, so the load never
-  completes (same record). B8-4 video-word coherence has no
+  with the System Cartridge a standard-speed CDT deterministically loses block 2 and never
+  completes; the same CDT loads fully on a classic 6128 (`|TAPE`) on both this fork and
+  upstream, so the defect is Plus-specific (same record). B8-4 video-word coherence has no
   hardware acceptance.
 - **Tooling:** the task-workflow host smoke tests (B14) are open. `scripts/accc/lookup.py`
   finds candidate Compendium sections (BM25 plus a TypeSafe Jev skim and rerank; BM25 only,
