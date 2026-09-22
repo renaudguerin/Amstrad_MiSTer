@@ -203,3 +203,10 @@ The fresh 44-handler control also supersedes its concern that A10B was not
 reached in the failed snapshot probe. Documentation-only changes require no
 simulation suite or synthesis; the two diagnostic executions are reported
 separately from those gates.
+
+Follow-up: the [rearm-boundary investigation](rearm-boundary-2026-09-22.md)
+adds paired no-input and sustained-fire hardware controls, retaining the timing
+gain and the progression failure as separate findings. Baseline reaches a
+playfield presentation without input; candidate remains on the corrupt title in
+both tested input conditions. The follow-up records acquisition timing and active
+Sync verification limits explicitly.
