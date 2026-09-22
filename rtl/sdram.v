@@ -59,8 +59,11 @@ module sdram
 	output reg  [7:0] cart_dout,
 	output reg        cart_ack,
 	// One-clock pulse on the arbitration edge that admits the held cartridge
-	// request. From that edge the slot runs to completion without preemption:
-	// cart_dout and cart_ack follow STATE_READ - STATE_IDLE clocks later.
+	// request. Once q is locked to clkref (both have an 8-clock period, so the
+	// resync only lands on q == 7) the slot runs to completion without
+	// preemption: cart_dout and cart_ack follow STATE_READ - STATE_IDLE clocks
+	// later. q has no reset; the first resync after configuration can cut one
+	// slot short, long before any CPU cartridge cycle.
 	output reg        cart_grant,
 
 	output reg [15:0] vram_dout,
