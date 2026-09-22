@@ -73,10 +73,12 @@ three independent loads. Shared PNG SHA-256:
 | 2 | manifest (`b2-device-20260912/accepted-b9-crtc1-full-2/manifest.json`) | B9 CRTC1 (`b2-device-20260912/accepted-b9-crtc1-full-2/capture_shaker27_b9_crtc1_full_1789200719_4e61f2_c1.png`) |
 | 3 | manifest (`b2-device-20260912/accepted-b9-crtc1-full-3/manifest.json`) | B9 CRTC1 (`b2-device-20260912/accepted-b9-crtc1-full-3/capture_shaker27_b9_crtc1_full_1789200767_cffb37_c1.png`) |
 
-The representative numeric screen reports `#2700/#2700/#2740/#2780/#2780`,
-then `#43C0` for the first block, and `#1820/#1840/#1860/#1880/#1880`, then
-`#25C0` for the `R7=#18 BEFORE R6` block. These are transcribed screen results,
-not source-derived expected values or a D1/D6 pass declaration.
+The representative numeric screen reports `#2700/#2760/#2740/#27A0/#2780`,
+then `#43C0` for the first block, and `#1820/#1840/#1860/#1880/#18A0`, then
+`#25C0` for the `R7=#18 BEFORE R6` block. Corrected by nearest-neighbour
+inspection of the identical-hash [September 22 retest](shaker-d1-d6-retest-2026-09-22.md):
+the earlier unzoomed transcription misread three small glyphs. These are
+transcribed screen results, not source-derived expected values or a D1/D6 pass declaration.
 
 ## Bounded follow-ons and restored state
 

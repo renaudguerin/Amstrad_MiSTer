@@ -154,7 +154,12 @@ DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
 the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
 expected-hash gate matched. All hash values and reasons are recorded in the
 session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0xb1cb70da95c2e44f`** after D1 canonical origin VSYNC
+current hash is **`0xe99ab434a5e1cdb3`** after F14 type-1 additional-line
+existence was made independent of R5, with adjustment entry prevented during
+the additional line. Seed, stimulus and sampled projection are unchanged;
+the physical frame durations change. See the
+[repair evidence](../docs/investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md).
+The previous hash was **`0xb1cb70da95c2e44f`** after D1 canonical origin VSYNC
 and active-pulse phase ownership, plus D6 shared RFD parity. The seed and
 stimulus are unchanged; `vsync_mid_arm` and `vsync_active_mid` join the
 sampled projection. See the [repair evidence](../docs/accuracy/d1-d6-parity-repair-2026-09-11.md).

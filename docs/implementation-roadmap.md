@@ -22,8 +22,8 @@ Section 8 below is the active queue. Sections 4–5 retain implemented checkpoin
 open acceptance criteria; they are not instructions to rebuild the completed stacks.
 
 - **Classic:** F1–F20 are implemented within their recorded deterministic-model scope.
-  The D1/D6 parity repair is integrated; 225 required classic vectors have no expected
-  failures, and the canonical soak is `0xb1cb70da95c2e44f`. Named hardware questions remain.
+  The D1/D6 parity repair and F14 type-1 additional-line correction have 232 required classic vectors with no expected
+  failures, and the canonical soak is `0xe99ab434a5e1cdb3`. Named hardware questions remain.
 - **Plus:** P-2 through P9 and the P10 compatibility repairs are integrated. Hardware confirms
   6128 Plus BASIC boot, Pang/Plotting/arn5diag input, Copter 271 logo colours and title-flash
   repair, and the Burnin' Rubber/CRTC3-demo right-edge sprite repairs. Sonic GX, Copter gameplay
@@ -448,7 +448,11 @@ that a previously online device remains available. Keep one device operator.
   joystick mode are device-tested. Physical recording remains deferred because Main grabs
   evdev inputs; physical-controller replay and frame-deterministic checkpoints remain open.
   See [B17](backlog.md#b17-record-user-input-on-the-mister-and-replay-it-as-a-capture-script).
-- **Classic retests:** D1/D6 on SHAKER B (9) for both types and C (4) for type 1; DSC4 and
+- **Classic retests:** the restored RBF's SHAKER B (9), type 1 first page,
+  retains a one-line deficit on even-entry cases, exposing F14's additional-line gate.
+  See the [September 22 repair/evidence record](investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md).
+  Repaired-build B (9) on both types and C (4) on type 1 remain hardware gates;
+  device restoration/MENU was unverified after connectivity failed. DSC4 and
   F13/F20 targets; IA-5 simultaneous raw HSYNC/VSYNC and GA interrupt capture; Q17's R7=38/39
   discriminator. IA-2/3/6, Amazing Demo corruption and production instruction timing retain
   their separate residuals. Do not infer a new classic RTL repair from an unclassified image.

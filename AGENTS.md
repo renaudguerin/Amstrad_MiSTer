@@ -113,7 +113,11 @@ make -C sim clean
   After fixing RTL, remove that test's XFAIL flag in the same change so the fix becomes a
   regression test.
 - The soak prints a hash that must equal the recorded golden value
-  (`0xb1cb70da95c2e44f`, re-minted 2026-09-11 for D1 canonical origin
+  (`0xe99ab434a5e1cdb3`, re-minted 2026-09-22 for F14 type-1 additional-line
+  existence independent of R5 (French ACCC v1.11 section 19.6.2 p.217), including
+  the additional-line adjustment-entry guard. Seed, stimulus and sampled projection
+  are unchanged. See `docs/investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md`.
+  Previously `0xb1cb70da95c2e44f`, re-minted 2026-09-11 for D1 canonical origin
   VSYNC/active-pulse phase ownership and D6 shared RFD parity (French ACCC
   v1.11 sections 19.7.2 p.219, 11.6.1 p.90 and 19.5.3 pp.209-210).
   The two VSYNC arm/phase bits join the sampled projection; seed and

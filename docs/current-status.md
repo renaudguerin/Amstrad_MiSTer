@@ -24,15 +24,18 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   passed all required jobs. RBF: `output_files/Amstrad_20260922_0601050.rbf`,
   SHA-256 `66b8d72fa1b67a6535ba07a4d9118c9998f833a4bbe89a1339d02eb4d25fa7fd`.
   Full fit: 23,792 ALMs (57%); setup/hold minima +0.580/+0.191 ns, zero TNS.
-  This restored artifact has not itself been retested on hardware. Candidate
+  The bounded Classic SHAKER B9/type1 retest reproduces a missing-line residual
+  on this artifact; [evidence and repair](investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md).
+  A new artifact is required to test the source repair. Candidate
   `a137d48` remains experimental despite its timing closure; see the
   [matched device evidence](investigations/sonic/hardware-loop-2026-09-22.md).
-- **Latest hardware-tested builds:** `a137d48` (Sonic progression regression; experimental),
+- **Latest hardware-tested builds:** `0601050` (Classic B9/type1 first page only),
+  `a137d48` (Sonic progression regression; experimental),
   `c59e03a` (Sonic baseline still corrupt but reaches gameplay),
   `88262b9` (Copter 271 title flash fixed) and `a0778b6` (PSG R7 reset;
   keyboard and joystick fixed). B18 SNA save was tested on branch RBF `0608653`.
-- **Simulation baseline:** 225 required classic CRTC vectors with no expected failures, and
-  canonical soak hash `0xb1cb70da95c2e44f`, unchanged since the D1/D6 repair. Since
+- **Simulation baseline:** 232 required classic CRTC vectors with no expected failures, and
+  canonical soak hash `0xe99ab434a5e1cdb3`, re-minted for the F14 type-1 additional-line correction. Since
   2026-09-15 the gate runs only the benches a change can break (`sim/select_tests.py`, index
   in `sim/TESTS.md`).
 
@@ -40,13 +43,20 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 **Position.** Findings F1-F20 are implemented within their recorded scope at the
 deterministic-model level; see [audit-findings.md](classic/audit-findings.md). The latest RTL
-change is the D1/D6 parity repair (source `2d04812`, 2026-09-11). The bottleneck is hardware
-observability, not implementation: further classic RTL work should start from a hardware
-discrepancy or a rule the RTL is predicted to violate, not from blanket coverage.
+change before the September 22 retest was the D1/D6 parity repair (source `2d04812`,
+2026-09-11). That retest exposed F14's missing type-1 additional line for R5=0 and
+nondivisible R5; its correction is described in the linked evidence record. Further
+classic RTL work should start from a hardware discrepancy or a rule the RTL is predicted
+to violate, not from blanket coverage.
 
 **Open hardware and validation questions:**
 
-- SHAKER B (9) on both types and C (4) on type 1 await a hardware retest of the D1/D6 repair.
+- SHAKER B (9), type 1 first page, was retested on the restored timing-clean RBF:
+  even-entry cases remain 64 µs short; odd-entry and nonzero-R7 controls match.
+  This exposed F14's type-1 additional-line gate error. See the
+  [September 22 record](investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md).
+  Type 0, type 1 page 2 and C (4) remain pending after device connectivity failed;
+  MENU/config restoration is unverified. No D1/D6 hardware closure is claimed.
 - DSC4 and SHAKER still fail on hardware (2026-09-09 retest); the changed failure shapes are
   not yet characterized. Amazing Demo keeps lower-screen corruption.
 - F13 (type-0 half-character DE) and F20 (CRTC-1 R2.JIT HSYNC start) are implemented but need
