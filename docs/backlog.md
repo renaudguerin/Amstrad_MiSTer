@@ -65,7 +65,7 @@ not adjudicate either. Do not retime the fixture to hide the discrepancy.
 
 ## B21. Plus cartridge code now runs at the READY-only rate: regression triage
 
-**Open watch item, 2026-09-22. Plus stream.** Branch `plus/sonic-cpu-cart-latency`
+**Bounded post-integration acceptance passed, 2026-09-23. Plus stream.** Branch `plus/sonic-cpu-cart-latency`
 stopped the cartridge SDRAM stall from costing a whole microsecond on reads whose MREQ
 lands two master clocks into a microsecond. Cartridge code, including every NOP chain,
 now runs at the hardware rate instead of up to half speed. This is source-settled (see
@@ -85,9 +85,14 @@ Guidance for whoever triages a Plus title that behaves differently after integra
   (`docs/investigations/no-wait-ga-write-latch-2026-09-22.md`); the production T80pa never
   dropped them. Still reproduce with the OSD no_wait option off before blaming this change.
 
-Close this item after the post-integration Plus acceptance pass (Sonic, Copter 271,
-Burnin' Rubber, Pang, Plotting, Navy Seals, the CRTC3 demo) shows no regression
-attributable to it.
+The [post-integration acceptance](investigations/hardware-runs/b21-cart-timing-acceptance-2026-09-23.md)
+closes this watch item for the bounded no-input title/attract pass: Sonic,
+Copter 271, Burnin' Rubber, Pang, Plotting, Navy Seals and CRTC3 show no new
+sampled regression on the exact `cb60ff8` full RBF, whose compiled source is
+identical to integrated `57a90bc`. Copter reuses the same-RBF Eerie capture set.
+Continuous flicker, gameplay timing and general Plus accuracy remain outside
+this closure; Pang's compressed intro text is present in the earlier baseline
+too. Retain the discriminator above for future regressions.
 
 ---
 
