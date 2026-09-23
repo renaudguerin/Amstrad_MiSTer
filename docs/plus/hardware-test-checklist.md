@@ -13,6 +13,15 @@ cartridges `Drive A: read fail`; approximately half of sampled cartridges loaded
 
 ## Latest recorded results
 
+The [2026-09-23 retest](../investigations/hardware-runs/plus-titles-8b18ac0-2026-09-23.md)
+on integrated build **`8b18ac0`** (contains B20-7 terminal-PAUSE, cartridge
+READY-rate fix and tape-bank relocation; device copy hash unchecked) reports:
+**Sonic GX confirmed fixed** (title symptom only, progression depth unstated),
+**Navy Seals / World of Sports sprite-line flicker appears fixed** (no assigned
+RTL cause; closure pending a repeatable capture), and **Switchblade / Eerie
+Forest still not loading** (failure shape unstated). Checklist boxes below stay
+unchanged; the retest is recorded in the run table, not promoted to passes.
+
 The [September 13 report](../investigations/hardware-runs/hardware-evidence-2026-09-13.md) confirms that
 build **`a0778b6`** (fix "general: reset PSG R7 to 0x00 so bare-metal keyboard
 scans work") **fixes all known keyboard / joystick issues with `arn5diag`, `Pang`,
@@ -57,6 +66,7 @@ the corresponding run ID.
 | 2026-09-12 Plus | `5c16b17` (user-confirmed) | `8b3b5bed518165040f8e578c83f061891fa64d58ce3b52fb07d5765765506468` (delivered local artifact; device unverified) | full; +0.320/+0.247 ns; zero TNS | Unrecorded | 6128 Plus | BASIC, Pang, Plotting, Copter 271; exact media unrecorded | Unrecorded | User observations; see September 12 report |
 | 2026-09-12 B6 comparison | `5c16b17` (user-confirmed) | Same delivered local hash | Same build | Unrecorded | Classic model/CRTC and output connection unrecorded; Full / Raw pixels | Amazing Demo, DSC4, SHAKER A (T); exact versions unrecorded | Unrecorded | User reports no visible difference so far |
 | 2026-09-13 Plus input | `a0778b6` (user-confirmed) | Build artifact | full | Unrecorded | 6128 Plus | `arn5diag`, `Pang`, `Plotting` | Unrecorded | User hardware testing confirms all known keyboard/joystick issues fixed across all three titles |
+| 2026-09-23 Plus titles | `8b18ac0` (user-reported) | `26185f485ac72a6be7e3ee17f9fc2e57a2e09c595ba8061d53a9aca90c960da2` (local; device unverified) | full; setup +0.215 ns minima per device record; hold/TNS unrecorded here | Unrecorded | Unrecorded | Sonic GX, Navy Seals, World of Sports, Switchblade, Eerie Forest; media hashes unrecorded | Unrecorded | User observations; Sonic fixed, Navy/World of Sports flicker appears fixed, Switchblade/Eerie Forest still not loading; see retest record |
 
 ---
 

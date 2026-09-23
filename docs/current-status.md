@@ -41,7 +41,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   `output_files/reports-cdcb3c3/`. This artifact has not been hardware-tested.
   Candidate `a137d48` remains experimental; its progression failure and partial
   timing gain are preserved in the [rearm record](investigations/sonic/rearm-boundary-2026-09-22.md).
-- **Latest hardware-tested builds:** `64702ac` (B20-7 DMA terminal-PAUSE resurrection;
+- **Latest hardware-tested builds:** `8b18ac0` (2026-09-23 user retest:
+  Sonic GX confirmed fixed, Navy Seals / World of Sports sprite-line flicker
+  appears fixed, Switchblade / Eerie Forest still not loading; see the
+  [retest record](investigations/hardware-runs/plus-titles-8b18ac0-2026-09-23.md)),
+  `64702ac` (B20-7 DMA terminal-PAUSE resurrection;
   Sonic title screen 100% coherent without displaced bands; attract and player gameplay
   progression confirmed; six regression titles clean),
   `ef8da61` (master baseline with cartridge stall fix `03f4724`; tested in parallel with `64702ac`),
@@ -141,11 +145,17 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   sustained fire input transitions cleanly through the Act 1 title card into live player
   gameplay. Zero regressions observed across Copter 271, Burnin' Rubber, Pang, Plotting,
   Navy Seals, and the CRTC3 demo.
+  Title corruption is confirmed on the integrated build `8b18ac0` (2026-09-23
+  user retest, title symptom only; see the
+  [retest record](investigations/hardware-runs/plus-titles-8b18ac0-2026-09-23.md)).
   General PAUSE 0/1, PPR and REPEAT boundaries remain open for independent investigation.
 - Left-edge sprite corruption is much improved, perhaps fixed; closure is open. Navy Seals
-  left-edge sprite flicker remains; its black-screen report was not reproduced and has no
+  / World of Sports left-edge sprite-line flicker is reported fixed on `8b18ac0`
+  (2026-09-23 user retest; no assigned RTL cause, closure pending a repeatable
+  capture); its black-screen report was not reproduced and has no
   assigned cause.
-- CRTC3 demo: warning, audio and crash defects remain. Switchblade and other cartridge
+- CRTC3 demo: warning, audio and crash defects remain. Switchblade and Eerie Forest
+  non-loading is reproduced on `8b18ac0` (2026-09-23); other cartridge
   crashes, CPC+ SNA/reset/reload recovery and odd-R5 CRTC3 behaviour remain evidence-gated.
 - Disk path: on `4027f5e` the System Cartridge boots 6128+ (AMSDOS) and 464+ (tape), and
   6128+ reads a disk directory and loads Space Gun to its title
