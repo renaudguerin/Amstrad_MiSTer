@@ -4,7 +4,8 @@ A scratch replay of the actual SHAKER binary on the production T80/GA/CRTC
 logic reproduces the C0=3F boundary interaction and its extra 64 µs VSYNC
 interval. This isolates a concrete mechanism, but does not establish the
 correct hardware ordering at the collision. No RTL change or hardware
-experiment was made.
+experiment was made. The [September 23 result-buffer follow-up](#result-buffer-follow-up-2026-09-23)
+now connects the replay to all five displayed values in the first update-delay block.
 The MID FRAME reference glyph remains disputed; its recorded residual is
 retained pending clearer evidence. With no pre-fix page-B capture, neither
 observation establishes a regression.
@@ -196,6 +197,74 @@ is still ambiguous (`4E40` or `4F40`; checked again, not resolved). The routine
 `&9266..&932B` writes R8=3 "ON LINE 0" at a C0 that is not yet observed. This session
 ran no replay to test whether the same collision applies there. Its discriminator is the
 same result-buffer observation, applied to the two VSYNC-count loops at `&92CD`/`&92FE`.
+
+## Result-buffer follow-up, 2026-09-23
+
+**Closed evidence gap:** on unchanged production RTL at `b9edac2`, the authentic
+SHAKER driver computes the same five result strings as the retained `95e6f56`
+MiSTer capture. The `3F` extra line is now tied to SHAKER's own `2780` result,
+not only to a raw VSYNC proxy. This is a replay result, not new device acceptance
+or proof of the correct collision ordering.
+
+The scratch top adds only a combinational RAM observation port and exposes the
+existing T80 register-state output. The driver reads the completed buffer on the
+first opcode fetch at `9211` (the routine's RET); observation advances no clocks
+and writes no simulated memory. Production T80, GA and CRTC sources are unchanged.
+The payload hash and entry/setup contract are the same as the replay above.
+
+Static instruction inspection locates the measurement loop at `91F7–91FE`.
+The routine multiplies its loop count by 16 at `9200–9203`, adds `0470` at
+`9204–9207`, and formats the word into `9235–9238` through the call at `920B`.
+It then loads the message address `9212` into HL before returning at `9211`.
+The observed message contains the C9 character at `921D`, the two C0 label
+characters at `9224–9225`, and the four result characters at `9235–9238`.
+Thus the label and value below come from executed SHAKER memory, not a
+host-side label assignment or conversion of the raw interval.
+
+| Buffer C9 / C0 label | Result characters | Last raw VSYNC interval, master ticks | Raw interval, µs | Raw rise to RET fetch, ticks |
+|---|---|---:|---:|---:|
+| 0 / 3D | `2740` | 643072 | 10048 | 7471 |
+| 0 / 3E | `2740` | 643072 | 10048 | 7471 |
+| 0 / 3F | `2780` | 647168 | 10112 | 7471 |
+| 1 / 00 | `2780` | 647168 | 10112 | 7471 |
+| 1 / 01 | `2760` | 645056 | 10079 | 7535 |
+
+The first four rows' calibrated result words equal the raw interval in µs.
+For `01`, the calibrated value is 10080 µs (`2760`), one µs longer than the
+last raw interval. Its return fetch also follows the last rise one µs later.
+This is an observed measurement distinction, not a new hardware defect or
+an adjudication of the sampling cause. Do not equate every displayed value
+with an exact raw edge interval. The diagnostic now consistently uses
+64 master ticks/µs and 4096 ticks per 64-µs line.
+
+All five points completed at tick 101963130; the driver exits nonzero if
+fewer than five complete. Commands, from the task checkout root:
+
+```sh
+bash .roster-scratch/b9-result/b9_build.sh
+.roster-scratch/b9-result/b9_obj/b9_t80_tests .roster-scratch/b9-result/SHAKE27B.BIN 5
+```
+
+Private payload, disassembly, observation sources and `b9_run.log` remain in
+`.roster-scratch/b9-result/` in task checkout
+`/Users/renaudg/.codex/worktrees/66d3/Amstrad_MiSTer`; preserve them before
+checkout cleanup. They are untracked and are not part of this documentation
+commit. Log SHA-256:
+`5e71cb0eed7eea8679ef8b9ff375f6e2e0600ae6fd948ee285538000c2c71fa3`.
+Gemini scratch implementation run: `20260923T053841Z-14890-58b7`.
+The coordinating agent inspected the observation diff, formatter instructions
+and completed log; no simulation gate is claimed for this diagnostic run.
+
+**Remaining discriminator.** Step 1 of the hardware plan above is complete for
+the first five-point block. Menu-level setup equivalence, the later two delay
+blocks and MID FRAME SIZE remain unobserved in this replay. French and English
+§19.5.3 pp.210–212 and §19.8.2 p.226 were re-read through pdf-inspector;
+the parity chronograms on pp.211–212 were also inspected as renders. The
+collision remains source-unpinned. Before RTL changes, resolve the independent
+odd/even-R9 hardware discriminator in step 2 or the author question in step 3;
+AmSpirit agreement alone would remain comparative evidence. No MiSTer or
+AmSpirit access, failing repair vector, RTL edit, synthesis or title closure
+is claimed by this follow-up.
 
 ## Sync path: raw PPI vs filtered display
 
