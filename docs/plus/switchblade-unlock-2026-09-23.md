@@ -65,7 +65,9 @@ and AmSpirit's behavior; Arnold V does not explicitly specify it.
   one source-attribution wording issue, corrected in the RTL comment without
   changing behavior. That comment-only edit followed the simulation runs.
 
-An exact full-effort synthesis and MiSTer capture of the original CPR remain
-necessary to confirm visible title progression and check for later defects.
+The [exact full-effort `41a1f27` MiSTer retest](../investigations/hardware-runs/plus-cartridge-originals-41a1f27-2026-09-23.md)
+boots the original CPR through the intro, title graphics and recurring
+high-score screen. Gameplay and audio remain untested.
+
 Local capture, AmSpirit manifests and selected screenshots are retained under
 ignored `docs/references/plus-load-2026-09-23/` in this task checkout.

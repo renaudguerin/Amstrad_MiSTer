@@ -1,11 +1,12 @@
 # Eerie Forest: malformed outer RIFF length
 
-The local Eerie Forest CPR is rejected before CPU execution because its outer
-RIFF length extends 128 bytes beyond EOF. All 32 cartridge pages are present.
+The old parser rejected the local Eerie Forest CPR before CPU execution
+because its outer RIFF length extends 128 bytes beyond EOF. All 32 cartridge pages are present.
 A header-only correction boots on the existing hardware build, establishing the
 container mismatch as the immediate failure cause. The requested compatibility
-change accepts the original image at a complete-chunk EOF; a new-build hardware
-retest of the original remains separate from the corrected-media result.
+change accepts the original image at a complete-chunk EOF. The
+[exact-build hardware retest](../investigations/hardware-runs/plus-cartridge-originals-41a1f27-2026-09-23.md)
+boots the unchanged original; a later striped forest frame remains static.
 
 ## Exact input and correction
 
@@ -157,5 +158,6 @@ Validation after the compatibility change:
   `!load_valid` guard is correct by inspection, while the existing pending-byte
   regression covers mid-payload EOF. No review debt remains for this diff.
 
-The original CPR must be retested on an exact synthesized build before its
-unchanged-media hardware acceptance is claimed.
+The [exact synthesized-build retest](../investigations/hardware-runs/plus-cartridge-originals-41a1f27-2026-09-23.md)
+boots the unchanged original CPR through the Logon System scene. A later
+striped forest frame repeats after 45 seconds; full demo progression is open.

@@ -29,9 +29,10 @@ scene; original media remains rejected on the old RBF. See the [container
 finding](eerie-forest-container-2026-09-23.md). Switchblade's original CPR
 produces an all-black native capture on the same RBF; the [ASIC unlock
 finding](switchblade-unlock-2026-09-23.md) records the source repair and
-production-T80 progress. Both fixes are integrated, but each needs an exact
-new-build retest with its unchanged original CPR. Full title/demo completion
-remains untested.
+production-T80 progress. The [exact `41a1f27` device retest](../investigations/hardware-runs/plus-cartridge-originals-41a1f27-2026-09-23.md)
+now boots both unchanged CPRs. Switchblade reaches its title/high-score cycle;
+Eerie Forest reaches the Logon System scene but then holds a striped forest
+frame. Full gameplay/demo completion remains untested.
 
 The [September 13 report](../investigations/hardware-runs/hardware-evidence-2026-09-13.md) confirms that
 build **`a0778b6`** (fix "general: reset PSG R7 to 0x00 so bare-metal keyboard
@@ -78,6 +79,7 @@ the corresponding run ID.
 | 2026-09-12 B6 comparison | `5c16b17` (user-confirmed) | Same delivered local hash | Same build | Unrecorded | Classic model/CRTC and output connection unrecorded; Full / Raw pixels | Amazing Demo, DSC4, SHAKER A (T); exact versions unrecorded | Unrecorded | User reports no visible difference so far |
 | 2026-09-13 Plus input | `a0778b6` (user-confirmed) | Build artifact | full | Unrecorded | 6128 Plus | `arn5diag`, `Pang`, `Plotting` | Unrecorded | User hardware testing confirms all known keyboard/joystick issues fixed across all three titles |
 | 2026-09-23 Plus titles | `8b18ac0` (user-reported) | `26185f485ac72a6be7e3ee17f9fc2e57a2e09c595ba8061d53a9aca90c960da2` (local; device unverified) | full; setup +0.215 ns minima per device record; hold/TNS unrecorded here | Unrecorded | Unrecorded | Sonic GX, Navy Seals, World of Sports, Switchblade, Eerie Forest; media hashes unrecorded | Unrecorded | User observations; Sonic fixed, Navy/World of Sports flicker appears fixed, Switchblade/Eerie Forest still not loading; see retest record |
+| 2026-09-23 original Plus CPRs | `41a1f27` | `6c36309368659edbbfe1044e09a804639f6b7ec9c02b68526ff7d488e122b331` (artifact and device matched) | clean full; minimum setup +0.770 ns, hold +0.217 ns, constrained TNS zero | On-disk Main hash recorded in capture manifest; running version unverified | Explicit 6128+ / Full CFG; live OSD unverified | Original Switchblade `d958e2b1…` and Eerie Forest `72485083…`; full hashes in device record | Fresh RBF/CPR load per title; Eerie repeated after 45-second delay | Native serial captures and AmSpirit comparison; both boot, Eerie later striped frame stalls ([record](../investigations/hardware-runs/plus-cartridge-originals-41a1f27-2026-09-23.md)) |
 
 ---
 
@@ -156,6 +158,7 @@ box below retains the wider banner, model and cartridge checks.
   - Palette animation and timing stability.
 - [ ] **Switchblade / Dick Tracy / Plotting / Tin Tin on the Moon**:
   - [x] Plotting keyboard/joystick input: confirmed fixed on hardware (build `a0778b6`; PSG R7 reset to 0x00 fixes permanently held fire).
+  - [x] Unchanged Switchblade CPR boots through intro, title graphics and high-score cycle on `41a1f27`; gameplay untested.
   - Cartridge loading, page banking, and gameplay stability.
 
 ### C. Demos & Diagnostics

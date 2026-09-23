@@ -161,16 +161,17 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   (2026-09-23 user retest; no assigned RTL cause, closure pending a repeatable
   capture); its black-screen report was not reproduced and has no
   assigned cause.
-- CRTC3 demo: warning, audio and crash defects remain. Switchblade's original
-  CPR produces an all-black capture on `8b18ac0`; its redundant-zero ASIC unlock
-  repair is integrated, and the production-T80 trace now reaches the expected
-  early execution point ([finding](plus/switchblade-unlock-2026-09-23.md)). Eerie
-  Forest's original CPR overstates its outer RIFF length; a header-only corrected
-  copy boots on the old build ([finding](plus/eerie-forest-container-2026-09-23.md)),
-  and the integrated parser now accepts complete-chunk EOF. Both **unchanged**
-  cartridges need an exact new-build hardware retest; full title/demo progression
-  remains untested. Other cartridge crashes, CPC+ SNA/reset/reload recovery and
-  odd-R5 CRTC3 behaviour remain evidence-gated.
+- CRTC3 demo: warning, audio and crash defects remain. The **unchanged**
+  Switchblade and Eerie Forest CPRs now boot on the exact full-effort `41a1f27`
+  RBF ([device record](investigations/hardware-runs/plus-cartridge-originals-41a1f27-2026-09-23.md)).
+  Switchblade advances through intro/title and high scores; gameplay is untested.
+  Eerie Forest advances through its demon intro and Logon System scene, then
+  repeats a striped forest frame after 45 seconds while AmSpirit progresses.
+  The immediate failures are fixed; the later Eerie defect is open. The causes
+  are recorded in the [Switchblade unlock](plus/switchblade-unlock-2026-09-23.md)
+  and [Eerie container](plus/eerie-forest-container-2026-09-23.md) findings.
+  Other cartridge crashes, CPC+ SNA/reset/reload recovery and odd-R5 CRTC3
+  behaviour remain evidence-gated.
 - Disk path: on `4027f5e` the System Cartridge boots 6128+ (AMSDOS) and 464+ (tape), and
   6128+ reads a disk directory and loads Space Gun to its title
   ([device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md));
