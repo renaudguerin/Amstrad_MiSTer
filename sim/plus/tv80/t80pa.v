@@ -1,6 +1,7 @@
 //
 // TV80pa - Pseudo-asynchronous Z80 top level wrapper for TV80 core
-// Matches the exact interface and timing of Sorgelig's T80pa.vhd
+// Fixture interface for Sorgelig's T80pa.vhd. Interrupt timing is reduced;
+// see the B23 differential bench and docs/investigations/b23-tv80-parity-2026-09-23.md.
 //
 
 `timescale 1ns / 1ps
