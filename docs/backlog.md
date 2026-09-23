@@ -39,25 +39,24 @@ retire TV80 where the T80pa netlist is fast enough (d5 already uses it).
 
 ## B22. b6-dynamic type-1 short-HSYNC stage loses its shifted fetches after the TV80 I/O fix
 
-**Open finding, 2026-09-22. Classic video output (crt_filter).** After the TV80 automatic I/O
-wait fix (`plus/ga-fast-write-latch`), `make -C sim/plus b6-dynamic` fails for machine 1 only
-(type-1 CRTC), in all three modes. The "short" stage (R3 written to a 5-character HSYNC) now
-records `shift_fetches=0`, against 1808 on master `03f4724`. Every other stage and machine
-still passes, and so do `b6-video-boundary`, `b6-plus-layers` and `b7-dark-silicon-audit`. The
-only change is that each OUT takes one more T-state, so the R3 write lands at a different point
-in the line.
+**Fixture assumption corrected, 2026-09-23; monitor acquisition remains open.**
+The TV80 I/O-wait fix exposed an unacquired type-1 filter, not sticky `hs4`.
+The probe on integration base `b5bf596` shows `hs4=0` throughout: startup learns
+`hSyncSize=474` CE4 ticks against an actual 256-tick line, and `hSyncReg` stays
+unarmed through the short stage. The R3l 14-to-5 write occurs outside HSYNC;
+all 46 measured complete short pulses are five microseconds. The filter
+relearns 256 only in the restore stage.
 
-Unverified hypothesis: `rtl/crt_filter.v` keeps a sticky `hs4`. It is set by any exactly
-4-character HSYNC and cleared only by one longer than 7 characters, and `SHIFT = shift ^ hs4`.
-If the type-1 R3 write lands inside an active HSYNC and produces one 4-character transition
-line, `hs4` sticks at 1 and cancels the 5-character shift for the whole stage. If that is
-right, crt_filter's output depends on one transitional line's history. That is a real
-behaviour question, not a fixture tuning issue. Check it against the monitor model and
-hardware before deciding.
+`b6-dynamic` now validates those pulse widths and retains every transport
+oracle. Shifted fetches remain required for type 0 and Plus, which exercise
+that path; the type-1 trace no longer asserts acquisition it never established.
+The CPU program and production RTL are unchanged. See the
+[probe, source evidence and validation record](investigations/video-boundary/b22-short-hsync-2026-09-23.md).
 
-**Action:** confirm with a probe on `hs4` around the stage-1 R3 write. Then decide whether
-crt_filter's sticky state is intended, and fix either the RTL or the test's assumption.
-Do not re-tune the program's write timing to hide it.
+**Remaining action:** compare the same startup/R3 sequence against an original
+CPC/CTM or justified monitor oracle, then the MiSTer Full/Raw outputs, before
+changing filter acquisition or sticky-history behavior. Existing captures do
+not adjudicate either. Do not retime the fixture to hide the discrepancy.
 
 ## B21. Plus cartridge code now runs at the READY-only rate: regression triage
 
