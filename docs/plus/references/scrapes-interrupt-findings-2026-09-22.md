@@ -97,9 +97,13 @@ that deadline remains a hypothesis until register/bus traces establish it.
 **Already implemented:** `asic_ga_timing.v:637–687` retains raster fire across
 `int_ack_active`; a new investigation must inspect this B19 latch, not reapply
 its repair. The vector and auto-clear use the same first-ack priority. The
-same-channel DMA set/clear collision is clear-dominant in the current assignment
-(`asic_regs.v:430`), despite its nearby set-dominant comment. This is a confirmed
-comment/code mismatch; its hardware semantics need a discriminator before calling it a bug.
+same-channel DMA set/clear collision is clear-dominant in the
+[current assignment](https://github.com/renaudguerin/Amstrad_MiSTer/blob/f803e98e5c77b43e231876169bba21863cc994a8/rtl/plus/asic_regs.v#L442-L470).
+As checked on 2026-09-23, the adjacent comment already describes this implementation
+priority accurately; the former comment/code mismatch is resolved. The
+[connected collision observation](b20-dma-collisions-2026-09-23.md) distinguishes
+level-wide W1C from first-edge automatic clear and records STOP/held-write behavior.
+Hardware collision semantics remain unresolved; this is not a confirmed RTL defect.
 
 Recommended order for the next Sonic task: verify the reported IM2/IVR setup
 against the actual cartridge/trace; capture raw counters and PRI/SPLT/SSA writes
