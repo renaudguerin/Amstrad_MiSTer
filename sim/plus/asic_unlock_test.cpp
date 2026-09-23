@@ -179,8 +179,28 @@ void test_wrong_bytes_fail_closed() {
     zero_after_sync.write(0x00);
     zero_after_sync.write_fixed_sequence();
     zero_after_sync.write(0xCD);
-    zero_after_sync.expect_locked(
-        "zero immediately after the sync zero aborts matching");
+    zero_after_sync.expect_unlocked(
+        "zero immediately after the sync zero is accepted");
+
+    TestBench switchblade_prefix;
+    // Switchblade commercial CPR prefix: FF 00 00 FF 77 B3 ... 8A CD EE
+    switchblade_prefix.write(0xFF);
+    switchblade_prefix.write(0x00);
+    switchblade_prefix.write(0x00);
+    switchblade_prefix.write_fixed_sequence();
+    switchblade_prefix.write(0xCD);
+    switchblade_prefix.write(0xEE);
+    switchblade_prefix.expect_unlocked(
+        "Switchblade commercial CPR prefix with redundant zero unlocks");
+
+    TestBench mismatch_after_redundant_zero;
+    mismatch_after_redundant_zero.sync(0x48);
+    mismatch_after_redundant_zero.write(0x00);
+    mismatch_after_redundant_zero.write(0x5A);
+    mismatch_after_redundant_zero.write_fixed_sequence();
+    mismatch_after_redundant_zero.write(0xCD);
+    mismatch_after_redundant_zero.expect_locked(
+        "nonzero mismatch after redundant zero aborts matching");
 }
 
 void test_resynchronization() {
