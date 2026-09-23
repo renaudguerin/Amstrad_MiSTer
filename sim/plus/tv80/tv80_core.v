@@ -258,7 +258,12 @@ module tv80_core #(
   assign write      = (mcycle != 3'b001) && mc_write;
   assign noread     = (mcycle != 3'b001) && mc_noread;
   assign intcycle_n = intcycle_n_r;
-  assign m1_n       = (mcycle != 3'b001);
+  // Production T80 releases ordinary-fetch M1 at the end of T2, before
+  // refresh, and starts it again at the next M1/T1 (T80.vhd state machine).
+  // Keep the fixture's existing acknowledge pulse until its separate
+  // sequencing/stack limitations are resolved; B23 reports that divergence.
+  assign m1_n       = (mcycle != 3'b001) ||
+                      (intcycle_n_r && (tstate == 3'b000 || tstate >= 3'b011));
   assign halt_n     = ~halted;
 
   // The instruction ends on this CEN edge: the last M-cycle has reached its
