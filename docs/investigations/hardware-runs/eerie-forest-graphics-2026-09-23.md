@@ -101,7 +101,7 @@ The small left fragments on those rows also disappear: earlier retargeting
 supplies their data before the following seam without changing walker
 priority. Diagnostic sources, commands, metadata format and paired frames
 are retained in `diagnostic/README.md`, `run/` and `run-after/`. This is
-simulation reproduction; candidate MiSTer acceptance remains pending.
+simulation reproduction; candidate MiSTer acceptance is recorded below.
 
 ## Separate left-edge screen residual
 
@@ -134,3 +134,74 @@ The initial build attempt failed because system C++ could not find `cstddef`;
 no behavioral test failed in that attempt. The retry log is
 `diagnostic/selected-gate-retry.log`. No RTL or test changes followed the
 passing gate or review. `git diff --check` passes.
+
+## Left-edge timing discriminator: unresolved
+
+The additional production-T80 probe records 1,017 post-startup programmed
+interrupt events. Every event has raw-HSYNC-to-raster-fire = 384 master
+clocks (6 microseconds) and INT assertion one master clock later. With
+R2=49 and R3l=11 this agrees with revised Arnold's shaped trailing-edge
+clamp. DMA is not pending. A representative PRI7 chain, relative to raw
+HSYNC, is ACK +480, opcode0038 consumed +791, opcode0039 consumed +855,
+first SSCR write onset +912 and register change +913. The reveal loop's
+later SSCR writes occur at C0=2 and recur every 4,096 master clocks.
+
+AmSpirit normal-boot instruction breakpoints and a live STATUS1 calibration
+were collected. They do not expose the actual CRTC counter/subphase at bus
+sampling. Their instruction-completion boundaries cannot be subtracted
+from the production opcode-consumption/write-onset events as though they
+were identical. In particular, AmSpirit's exported standard SNA CRTC
+counter bytes are zero, and a synthetic snapshot with the private SPRT
+chunk removed did not preserve usable timing; those observations are
+excluded. No CPU or PRI fault is established by this comparison.
+
+The left-edge screen spill therefore remains open. Preserve the
+source-consistent PRI timing and the documented 16-dot mask. The next
+useful evidence is an original-Plus trace of INT, interrupt acknowledge and
+SSCR `/WR` against raw CRTC HSYNC for this CPR, or an AmSpirit bus-event
+trace exposing actual C0/subphase and input/write sampling. Private records:
+`diagnostic/PHASE.md`, `phase.log`, `amspirit-left/README.md` and its scripts
+and datasets. AmSpirit's original full state/configuration was restored and
+breakpoints cleared after asynchronous snapshot application completed.
+
+## Exact candidate build
+
+[CI run 35900649453](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35900649453)
+passes simulation, production-T80, full synthesis and required-gate for
+source `566e0c7d220d226f06eda6cc0d4817ac04f95703`. Artifact
+`Amstrad-build-264-1-full` records `build_mode=clean_full` and Quartus17.0.2.
+Timing: setup minimum +0.580 ns, hold +0.243 ns across seven clocks, zero TNS.
+Resources: 23,795 ALMs (57%), 28,380 registers, 102 RAM blocks and 35 DSP
+blocks. The compile takes 18m36s, including 13m42s fitting; the review's
+fit/timing concern did not materialize on this build.
+
+Candidate RBF `output_files/Amstrad_20260923_566e0c7.rbf`, SHA-256
+`d9784cc40a737b5359e248f73cca0e3436aeddb862ad219239e95106400fd919`,
+was copied to the same filename in MiSTer's `_Computer` directory and its
+hash checked there. Reports are under `output_files/candidate-566e0c7/`.
+
+## Candidate device acceptance
+
+The exact `566e0c7` RBF was tested with explicit 6128+, Full sync, Original
+CPU timing and unchanged media. Nine Eerie native captures (768×273) show
+clean black/revealing backgrounds without the three horizontal image
+strips, followed by advancing landscape and runner animation. All nine
+were inspected. The dotted logo and green left-edge screen sliver remain
+visible; this is partial graphical-defect closure, not a pixel-perfect or
+full-demo verdict.
+
+Per user instruction, Sonic GX was the only sprite regression title.
+Three native captures show the coherent title, then two advancing Green
+Hill attract-gameplay scenes. No sprite regression is visible in those
+samples. Media SHA-256:
+`4cb31c7f1769989a029fe1bd7ffb04670d5d24570dc56b0417fac662fed887ae`.
+No player-input gameplay or continuous flicker measurement is claimed.
+
+Private case files, applied/saved CFG and manifests with every PNG hash
+are under `hardware-566e0c7/` in the evidence directory. Final CFG restore
+was read back byte-for-byte and matches
+`2e585b4c85e2387cfb9c25028a061c6ba2aa3749f82453ffd895b5aaa393d8e4`.
+
+Eerie manifest SHA-256: `97f46c3bf664d85edc9a17fe664355cd192b2e25570de51f544a4302df3b49d3`.
+
+Sonic manifest SHA-256: `637177475de3fcac0f7719105df46a6ea5b59314659d10654bdbe631eaadf431`.

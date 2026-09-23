@@ -475,6 +475,13 @@ that a previously online device remains available. Keep one device operator.
   Other open targets remain DSC4 and F13/F20; IA-5 simultaneous raw HSYNC/VSYNC and GA interrupt capture; Q17's R7=38/39
   discriminator. IA-2/3/6, Amazing Demo corruption and production instruction timing retain
   their separate residuals. Do not infer a new classic RTL repair from an unclassified image.
+- **Eerie Forest (Plus):** same-line sprite-row retargeting (`566e0c7`) is
+  reviewed, gated and candidate-hardware-verified: the three horizontal reveal
+  leaks disappear, with Sonic GX title/attract regression samples passing.
+  The separate left-edge screen sliver remains unresolved. Preserve documented
+  PRI timing; the next useful discriminator needs actual bus-event timing,
+  not emulator instruction-completion coordinates. See the
+  [graphics investigation](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md).
 - **Plus acceptance:** the remaining title/model/disk/reset matrix in
   [current status](current-status.md) and [the checklist](plus/hardware-test-checklist.md).
   Preserve tentative sprite improvement and inconclusive Sonic results as such.
