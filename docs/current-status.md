@@ -28,7 +28,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   `a137d48`, **failed hardware acceptance as integrated**: it passed
   simulation, review and synthesis, but no longer reached Sonic gameplay in
   the matched input sequence. PRI and interrupt vector logic are unchanged.
-- **Latest timing-clean artifact:** `cdcb3c3` (2026-09-22), including B20-1
+- **Latest timing-clean candidate:** `cb60ff8` (2026-09-23), pending-CPC-request
+  masking for Eerie Forest. Full hosted CI [35864605669](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35864605669)
+  passes all required jobs; setup/hold minima +0.545/+0.243 ns, zero TNS.
+  Exact RBF and hardware acceptance are pinned in the [device record](investigations/hardware-runs/eerie-forest-pending-classic-2026-09-23.md).
+- **Previous timing-clean integration artifact:** `cdcb3c3` (2026-09-22), including B20-1
   on the Classic F14/restored Plus baseline. Exact-SHA CI
   [35699931488](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35699931488)
   passes simulation, production-T80, synthesis-policy, route, local Quartus and
@@ -41,7 +45,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   `output_files/reports-cdcb3c3/`. This artifact has not been hardware-tested.
   Candidate `a137d48` remains experimental; its progression failure and partial
   timing gain are preserved in the [rearm record](investigations/sonic/rearm-boundary-2026-09-22.md).
-- **Latest hardware-tested builds:** `8b18ac0` (2026-09-23 user retest:
+- **Latest hardware-tested builds:** `cb60ff8` (2026-09-23: Eerie progresses beyond
+  the striped-frame freeze; Copter 271 and Switchblade title/attract samples pass;
+  Eerie also boots from saved Plus Off, with live OSD/model readback still open);
+  `8b18ac0` (2026-09-23 user retest:
   Sonic GX confirmed fixed, Navy Seals / World of Sports sprite-line flicker
   appears fixed, Switchblade / original Eerie Forest CPR still not loading; see the
   [retest record](investigations/hardware-runs/plus-titles-8b18ac0-2026-09-23.md)).
@@ -165,9 +172,12 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   Switchblade and Eerie Forest CPRs now boot on the exact full-effort `41a1f27`
   RBF ([device record](investigations/hardware-runs/plus-cartridge-originals-41a1f27-2026-09-23.md)).
   Switchblade advances through intro/title and high scores; gameplay is untested.
-  Eerie Forest advances through its demon intro and Logon System scene, then
-  repeats a striped forest frame after 45 seconds while AmSpirit progresses.
-  The immediate failures are fixed; the later Eerie defect is open. The causes
+  Eerie Forest's later striped-frame freeze passes bounded hardware acceptance on
+  exact full-effort `cb60ff8`: pending CPC interrupts are masked when PRI is active;
+  three captures show the coloured landscape, runner and scrolling text advancing.
+  Copter 271 and Switchblade title/attract regression samples pass on the same RBF
+  ([repair and device evidence](investigations/hardware-runs/eerie-forest-pending-classic-2026-09-23.md)).
+  Full-demo completion and gameplay are untested. The original boot-failure causes
   are recorded in the [Switchblade unlock](plus/switchblade-unlock-2026-09-23.md)
   and [Eerie container](plus/eerie-forest-container-2026-09-23.md) findings.
   Other cartridge crashes, CPC+ SNA/reset/reload recovery and odd-R5 CRTC3

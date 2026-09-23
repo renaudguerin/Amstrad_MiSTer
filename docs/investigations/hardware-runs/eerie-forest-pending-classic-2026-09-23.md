@@ -1,9 +1,11 @@
 # Eerie Forest: pending CPC interrupt crosses into PRI mode
 
-Candidate Plus interrupt repair on `codex/plus/eerie-late-freeze`, starting from
+Plus interrupt repair `cb60ff8cb5913700d130404b9e8b2d604df11227` on
+`codex/plus/eerie-late-freeze`, starting from
 integrated master `4453b760027f575d6c1c147492c53c1a24cd2de7`. This extends the
 [context follow-up](eerie-forest-context-followup-2026-09-23.md). The original
-CPR and production T80 remain unchanged. Hardware acceptance is outstanding.
+CPR and production T80 remain unchanged. The exact full-effort RBF passes bounded device acceptance beyond the reported
+freeze; full-demo completion and gameplay are not claimed.
 
 ## Earliest context divergence
 
@@ -32,8 +34,8 @@ This is not an interrupt splitting the DD prefix from E9, nor an incorrect
 stack read. T80 accepts the already-pending interrupt after the instruction
 following EI. The handler replaces IX with the interrupted PC, losing the
 intended `C22C` continuation. The later trace shows how the resulting context
-ultimately resumes rendering into low code RAM; the candidate still needs
-end-to-end title validation.
+ultimately resumes rendering into low code RAM. The exact-build device
+acceptance below confirms progression beyond the reported freeze.
 
 A fresh original-CPR AmSpirit run stops at the **first** `0503` exit, at relative
 frame 301. It has the same IX=`C22C`, IY=`0C31`, SP=`0066` and IFF1=0. Stepping
@@ -81,7 +83,7 @@ FAIL: pr08: nonzero PRI must mask an already-pending CPC interrupt
 
 The candidate separates CPC-compatible and programmable pending state, masking
 only the CPC request while PRI is nonzero. Existing acknowledge/MRER clear and
-programmed-request retention behavior remain in scope for review and the
+programmed-request retention behavior were checked in review and the
 selected gate. The focused run after the candidate passes pr01–pr08. This
 shared interrupt state and live mode transition have a realistic regression
 path, so the vector belongs in the suite rather than being a one-shot check.
@@ -133,5 +135,55 @@ select_tests: PASS 7 benches: run/asic_ga_timing_diff_tests, run/p1_video_tests,
 `git diff --check` also passes. The relevant slow diagnostics are listed by the
 selector but not repeated: the new focused vector covers the changed live
 selection boundary, and the production-T80 origin trace already identifies
-its title trigger. The candidate is ready for the coordinator's exact full-effort
-pre-merge build. Title acceptance and Quartus timing are still pending.
+its title trigger. The coordinator built the exact reviewed source for the device acceptance below.
+
+## Exact-build device acceptance
+
+[CI run 35864605669](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35864605669)
+passes simulation, production-T80, synthesis(full) and required-gate for exact
+`cb60ff8`. Artifact `Amstrad-build-260-1-full` records `build_mode=clean_full`.
+Quartus timing closure passes: minimum setup +0.545 ns, hold +0.243 ns,
+zero TNS across seven clocks. The downloaded provenance and timing summary
+were inspected; no new source edits followed the gate or build.
+
+Device RBF `/media/fat/_Computer/Amstrad_20260923_cb60ff8.rbf`, SHA-256:
+`29f69fc4ab58c7072f922661da1b1bec9c1df80bc1e245d0ab73d5b22d2d7310`.
+The driver verifies it and the unchanged media hashes before each run.
+
+Eerie Forest: explicit 6128+ (CFG bits 34:33=2), Raw CRT (36:35=2), no input,
+28-second boot delay and three serial captures six seconds apart. All three
+848×287 PNGs were visually inspected. They show the coloured landscape,
+different background positions and runner poses, and advancing top text
+(`FROM A G`, `BY REFLECTIONS`, `FINALLY ON GX4000 & AMS`). This matches the
+successful AmSpirit scene and passes the former frozen striped-screen point.
+The old exact `41a1f27` run used the same case/settings and produced three
+identical frozen frames (`a89fc976...`).
+
+| Eerie capture | SHA-256 |
+|---|---|
+| 1 | `bcdcbec503a083fe5491f71a73b987b9b62b7d59ebb1e8af4165c6344787592b` |
+| 2 | `d2e691669ab850eaaf8cc55812bf9dd67a2625c8c8585eb9d79e5e0e5f976710` |
+| 3 | `3e88a729524aab840d5f7685012b59a9c6a0b4a44e1d387deb7913f8f0521dd2` |
+
+Regression sampling on the same RBF, 6128+ and Full sync filter, no input:
+
+- **Copter 271** (45-second boot delay, three captures four seconds apart):
+  title logo is intact; helicopter animation and title text advance. No earlier
+  top-row palette corruption is visible in the sampled frames. This is not a
+  continuous flicker measurement or gameplay-scroll acceptance.
+- **Switchblade** (28-second boot delay, three captures four seconds apart):
+  title animation, high scores and returning title are visible. No boot or
+  title/attract regression is observed; gameplay remains untested.
+
+| Regression | Original CPR SHA-256 |
+|---|---|
+| Copter 271 | `4b75c62cbd660206ef30ff8cbf9c4b1281282a423b5eccc1ff8444589f2a9c1d` |
+| Switchblade | `d958e2b1eeebaa227aa33c4f0f5627fc238a2791fd177f7ebffefdf81a07ff78` |
+
+The manifests, nine native PNGs, cases, applied/saved CFGs and run logs are
+private under `docs/screenshots/eerie-pending-fix-2026-09-23/`. Each run's
+`finally` restore was read back byte-for-byte; restored CFG SHA-256:
+`2e585b4c85e2387cfb9c25028a061c6ba2aa3749f82453ffd895b5aaa393d8e4`.
+Native captures do not expose live OSD or original-hardware interrupt internals.
+They establish progression past this reported freeze on the exact candidate,
+not completion of the whole demo or all Plus timing rules.
