@@ -20,7 +20,13 @@ them.
 
 ## B23. TV80 bench CPU: bus-timing parity with production T80pa
 
-**Open, 2026-09-22. General (sim infrastructure).** The P10/B6/B7 fixtures run TV80
+**Partially addressed, 2026-09-23. General (sim infrastructure).** The B23
+differential bench now requires memory/I/O/WAIT transfer pin parity against production
+T80pa and retains a strict diagnostic for startup and interrupt divergence. It exposed
+and repaired ordinary-fetch M1 staying low through refresh. Interrupt acknowledge
+and omitted stack writes remain open; see the [evidence and commands](investigations/b23-tv80-parity-2026-09-23.md).
+
+The P10/B6/B7 fixtures run TV80
 (`sim/plus/tv80/`) as a stand-in for the production T80pa. It skipped the Z80's automatic
 I/O wait state, so its IORQ window was 6 GA states instead of 10. That made OUTs under
 no_wait miss the GA's latch states, which was taken for an RTL defect until measured
@@ -31,11 +37,10 @@ plus the wrapper patch, against T80's 5 plus the automatic wait; see `sim/plus/t
 Why this matters: any fixture result that depends on CPU bus phase is only as good as TV80's
 parity with T80pa, and a new difference shows up as a false RTL finding.
 
-**Action:** one differential bench that runs the same short instruction mix (memory, I/O,
-interrupt acknowledge, and a WAIT-stretched cycle) through TV80 and the GHDL T80pa netlist and
-compares MREQ/IORQ/RD/WR/M1 edges clock by clock. It earns its place because TV80 is still
-being patched, and it catches any difference, not just the one already fixed. Alternatively,
-retire TV80 where the T80pa netlist is fast enough (d5 already uses it).
+**Remaining action:** adjudicate the reduced interrupt sequencer as a whole before using
+TV80 for acknowledge-phase claims, or retire TV80 where the T80pa netlist is fast enough
+(d5 already uses it). Keep the differential bench: it compares independent implementations
+while TV80 remains under active change, rather than mirroring a newly added timing rule.
 
 ## B22. b6-dynamic type-1 short-HSYNC stage loses its shifted fetches after the TV80 I/O fix
 
