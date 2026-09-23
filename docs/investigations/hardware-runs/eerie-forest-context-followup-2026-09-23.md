@@ -204,25 +204,28 @@ read-only boundary retrieval.
 
 ## Private evidence and reproduction
 
-Evidence is ignored under `docs/screenshots/eerie-late-followup-2026-09-23/`
-in the task checkout. It includes `device-raw/manifest.json`, all three device
+Evidence is archived under `local/task-archives/plus-compatibility-2026-09-23/b967/docs/screenshots/eerie-late-followup-2026-09-23/`
+in the main checkout. It includes `device-raw/manifest.json`, all three device
 PNGs, `device-run.log`, original/restored CFG, `amspirit-landscape.png`,
 `amspirit-state/`, `amspirit-slot30-steps.json`, `amspirit-slot30-ram.bin`,
 `amspirit-06b7-steps.json`, `amspirit-routines.asm`, the handler-entry samples,
-and the consultation output. Original old evidence remains in the
-`eerie-forest-progress` checkout; the copied prior write log still hashes to
+and the consultation output. Original old evidence is archived under
+`local/task-archives/plus-compatibility-2026-09-23/eerie-forest-progress/docs/screenshots/`.
+The copied prior write log still hashes to
 `8f61c7d372680fddc1e9a1f34439c2cce1dde996a854e7a76d03a52a6b892dae`.
 
 The local diagnostic uses generated production T80, production clock/READY,
-ASIC/MMU and behavioural SDRAM through the D5/P10 adapter. Its generated probes
-and executable remain in ignored `sim/plus/obj_dir/eerie_mode/`. This follow-up
+ASIC/MMU and behavioural SDRAM through the D5/P10 adapter. Its probe source
+and build recipe are archived under
+`local/task-archives/plus-compatibility-2026-09-23/b967/docs/screenshots/eerie-late-followup-2026-09-23/diagnostic-sources/eerie_mode/`;
+the generated executable was removed with the worktree. This follow-up
 uses the fixture default `SYNC_FILTER=2` (Raw CRT), not an assumed Full setting.
 
-The corrected probe and executable remain under ignored
-`sim/plus/obj_dir/eerie_context/`. Probe sources, build descriptions and the
-AmSpirit sampling helper are also copied to private evidence
-`diagnostic-sources/`, so a simulation clean does not erase the next-session
-starting point. `context-bus.log`, `context-ram.bin`,
+The corrected probe source, build recipe and AmSpirit sampling helper are
+preserved in the same archive under `diagnostic-sources/eerie_context/` and
+`diagnostic-sources/`. The generated executable was removed with the worktree;
+the archived sources preserve the next-session starting point.
+`context-bus.log`, `context-ram.bin`,
 `context-save-excerpt.log` and `amspirit-restore-targets.json` hold the latest
 results. Both simulations and both consultations completed; no background
 run remains part of this checkpoint. These are local diagnostics, not a

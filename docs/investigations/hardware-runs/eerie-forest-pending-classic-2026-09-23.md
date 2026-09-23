@@ -90,8 +90,8 @@ path, so the vector belongs in the suite rather than being a one-shot check.
 
 ## Evidence and review
 
-Private evidence remains under
-`docs/screenshots/eerie-late-followup-2026-09-23/`:
+Private evidence is archived under
+`local/task-archives/plus-compatibility-2026-09-23/b967/docs/screenshots/eerie-late-followup-2026-09-23/`:
 
 - `origin-bus.log`, SHA-256
   `75d6025be2641be0eb13648c2d2bc77176332133e69e65b87cfc25dc475463be`;
@@ -181,7 +181,7 @@ Regression sampling on the same RBF, 6128+ and Full sync filter, no input:
 | Switchblade | `d958e2b1eeebaa227aa33c4f0f5627fc238a2791fd177f7ebffefdf81a07ff78` |
 
 The manifests, nine native PNGs, cases, applied/saved CFGs and run logs are
-private under `docs/screenshots/eerie-pending-fix-2026-09-23/`. Each run's
+private under `local/task-archives/plus-compatibility-2026-09-23/b967/docs/screenshots/eerie-pending-fix-2026-09-23/`. Each run's
 `finally` restore was read back byte-for-byte; restored CFG SHA-256:
 `2e585b4c85e2387cfb9c25028a061c6ba2aa3749f82453ffd895b5aaa393d8e4`.
 Native captures do not expose live OSD or original-hardware interrupt internals.
@@ -219,7 +219,7 @@ The unchanged CPR hashes are `72485083d485e89e16c8367e6aceabe98c65a5511c3ccc0218
 | Switchblade 3 | `86cb834609147bc3a25b93520697765782c54ee327caaa8c574d28d7078fe7ba` |
 
 Private cases, manifests, PNGs, capture log and saved CFG remain under
-`/Users/renaudg/.codex/worktrees/b967/Amstrad_MiSTer/docs/screenshots/eerie-master-57a90bc-2026-09-23/`.
+`local/task-archives/plus-compatibility-2026-09-23/b967/docs/screenshots/eerie-master-57a90bc-2026-09-23/` in the main checkout.
 Manifest SHA-256 values are `c335f97e1faebb36a93810e41add6d5ec8c02c59a3bc71ede67cd162fc61d6be`
 (Eerie) and `4dd14839be7feb15afbd912fe91e0c4ece5c1973a72ef4201bc66116245d3b27`
 (Switchblade). The original CFG was restored and read back byte for byte,

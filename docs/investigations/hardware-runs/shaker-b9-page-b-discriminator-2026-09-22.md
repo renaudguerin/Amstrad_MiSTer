@@ -245,11 +245,12 @@ bash .roster-scratch/b9-result/b9_build.sh
 .roster-scratch/b9-result/b9_obj/b9_t80_tests .roster-scratch/b9-result/SHAKE27B.BIN 5
 ```
 
-Private payload, disassembly, observation sources and `b9_run.log` remain in
-`.roster-scratch/b9-result/` in task checkout
-`/Users/renaudg/.codex/worktrees/66d3/Amstrad_MiSTer`; preserve them before
-checkout cleanup. They are untracked and are not part of this documentation
-commit. Log SHA-256:
+Private payload, disassembly, observation sources and `b9_run.log` are archived
+under `local/task-archives/plus-compatibility-2026-09-23/66d3/.roster-scratch/b9-result/`
+in the main checkout.
+The commands above used the original task layout; copy the archived directory
+into a prepared worktree to replay. These files remain untracked and are not part
+of this documentation commit. Log SHA-256:
 `5e71cb0eed7eea8679ef8b9ff375f6e2e0600ae6fd948ee285538000c2c71fa3`.
 Gemini scratch implementation run: `20260923T053841Z-14890-58b7`.
 The coordinating agent inspected the observation diff, formatter instructions

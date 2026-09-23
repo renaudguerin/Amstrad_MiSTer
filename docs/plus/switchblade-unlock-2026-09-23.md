@@ -69,5 +69,5 @@ The [exact full-effort `41a1f27` MiSTer retest](../investigations/hardware-runs/
 boots the original CPR through the intro, title graphics and recurring
 high-score screen. Gameplay and audio remain untested.
 
-Local capture, AmSpirit manifests and selected screenshots are retained under
-ignored `docs/references/plus-load-2026-09-23/` in this task checkout.
+Local capture, AmSpirit manifests and selected screenshots are archived under
+`local/task-archives/plus-compatibility-2026-09-23/4bd0/docs/specs/plus-load-2026-09-23/` in the main checkout.

@@ -75,9 +75,9 @@ byte. A final device read after returning to MENU again reported SHA-256
 All task-created device SNA/MGL/script files were removed; named screenshots
 remain. The device reported `MENU` and was released to the coordinator.
 
-Private evidence is retained in this task checkout under the gitignored
-`docs/screenshots/b16-model-2026-09-23/`: probe script, replay schedule, SNA
+Private evidence is archived under the gitignored main-checkout path
+`local/task-archives/plus-compatibility-2026-09-23/34be/docs/screenshots/b16-model-2026-09-23/`: probe script, replay schedule, SNA
 copies, original/applied/saved/restored CFGs, MGLs, captures, manifest and command
 log. The directory was moved there after the run; command logs retain its
-original `docs/specs/b16-model-2026-09-23/` location. Preserve this evidence before
-worktree cleanup. Only this report and the B16 status updates are committed.
+original `docs/specs/b16-model-2026-09-23/` location. The archive was verified
+before worktree cleanup. Only this report and the B16 status updates are committed.

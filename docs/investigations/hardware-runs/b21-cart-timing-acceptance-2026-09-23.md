@@ -65,8 +65,8 @@ Pang's text remains unadjudicated.
 
 ## Evidence retention and restoration
 
-Private evidence is retained in this task checkout under
-`docs/screenshots/b21-cart-timing-2026-09-23/` (gitignored): six run directories,
+Private evidence is archived under the gitignored main-checkout path
+`local/task-archives/plus-compatibility-2026-09-23/7734/docs/screenshots/b21-cart-timing-2026-09-23/`: six run directories,
 `copter-reused/`, copied `baseline-64702ac/` evidence, case JSON, MGLs, manifests,
 `capture.py`, `capture.log`, original/applied/read-back CFG and `restoration.json`.
 The run manifests retain their original creation paths under

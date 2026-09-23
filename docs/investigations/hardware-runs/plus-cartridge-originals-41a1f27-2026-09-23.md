@@ -56,8 +56,8 @@ Full demo completion, sound and exact physical output remain open.
 
 The case JSON, manifests, and native PNGs for the two original-media runs,
 Eerie Forest's delayed repeat, and the later AmSpirit comparison are under
-ignored `docs/references/plus-load-2026-09-23/new-build-41a1f27/` in the
-task checkout. The full-effort RBF is retained under ignored
+ignored `local/task-archives/plus-compatibility-2026-09-23/4bd0/docs/specs/plus-load-2026-09-23/new-build-41a1f27/`
+in the main checkout. The full-effort RBF is retained under ignored
 `output_files/Amstrad_20260923_41a1f27.rbf` in the main checkout. The
 corrected-header Eerie CPR was comparison media on the old build, not used
 in these acceptance runs.
