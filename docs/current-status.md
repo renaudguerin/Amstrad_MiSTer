@@ -159,13 +159,16 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   (2026-09-23 user retest; no assigned RTL cause, closure pending a repeatable
   capture); its black-screen report was not reproduced and has no
   assigned cause.
-- CRTC3 demo: warning, audio and crash defects remain. Switchblade non-loading
-  is reproduced on `8b18ac0` (2026-09-23). Eerie Forest was isolated to its malformed
-  outer RIFF length: a header-only corrected copy boots and progresses on the same
-  build ([finding and recipe](plus/eerie-forest-container-2026-09-23.md)). The parser
-  compatibility follow-up accepts complete-chunk EOF under an overstated RIFF size;
-  original-media acceptance on a new build and full demo completion remain untested. Other cartridge
-  crashes, CPC+ SNA/reset/reload recovery and odd-R5 CRTC3 behaviour remain evidence-gated.
+- CRTC3 demo: warning, audio and crash defects remain. Switchblade's original
+  CPR produces an all-black capture on `8b18ac0`; its redundant-zero ASIC unlock
+  repair is integrated, and the production-T80 trace now reaches the expected
+  early execution point ([finding](plus/switchblade-unlock-2026-09-23.md)). Eerie
+  Forest's original CPR overstates its outer RIFF length; a header-only corrected
+  copy boots on the old build ([finding](plus/eerie-forest-container-2026-09-23.md)),
+  and the integrated parser now accepts complete-chunk EOF. Both **unchanged**
+  cartridges need an exact new-build hardware retest; full title/demo progression
+  remains untested. Other cartridge crashes, CPC+ SNA/reset/reload recovery and
+  odd-R5 CRTC3 behaviour remain evidence-gated.
 - Disk path: on `4027f5e` the System Cartridge boots 6128+ (AMSDOS) and 464+ (tape), and
   6128+ reads a disk directory and loads Space Gun to its title
   ([device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md));
