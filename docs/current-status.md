@@ -33,10 +33,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   passes simulation, production-T80, full hosted synthesis and required-gate.
   Its clean-full RBF is `output_files/Amstrad_20260923_57a90bc.rbf`, SHA-256
   `11959f68712177fa2f73958ca98ac7e98b1b5a854f8cb47d1e0b4db6c9638d8b`;
-  setup/hold minima +0.501/+0.177 ns, zero TNS. The exact master RBF has not
-  been device-tested. Hardware acceptance used the reviewed source `cb60ff8`
-  RBF (SHA-256 `29f69fc4ab58c7072f922661da1b1bec9c1df80bc1e245d0ab73d5b22d2d7310`)
-  and is pinned in the [device record](investigations/hardware-runs/eerie-forest-pending-classic-2026-09-23.md).
+  setup/hold minima +0.501/+0.177 ns, zero TNS. This exact master RBF
+  passes bounded Eerie progression and Switchblade title/attract device checks;
+  the reviewed source `cb60ff8` RBF separately passes those checks plus Copter 271.
+  Capture hashes and limits are in the [device record](investigations/hardware-runs/eerie-forest-pending-classic-2026-09-23.md).
   B23 changes only the simulation fixture and later evidence commits change only docs;
   [B23 exact-SHA CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35871363119)
   passes its required jobs and correctly skips synthesis.
@@ -53,7 +53,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   `output_files/reports-cdcb3c3/`. This artifact has not been hardware-tested.
   Candidate `a137d48` remains experimental; its progression failure and partial
   timing gain are preserved in the [rearm record](investigations/sonic/rearm-boundary-2026-09-22.md).
-- **Latest hardware-tested builds:** `cb60ff8` (2026-09-23: Eerie progresses beyond
+- **Latest hardware-tested builds:** `57a90bc` (2026-09-23: exact integration RBF,
+  Eerie progresses beyond the old freeze and Switchblade title/attract passes;
+  see the [integration-artifact check](investigations/hardware-runs/eerie-forest-pending-classic-2026-09-23.md#integration-artifact-confirmation-2026-09-23));
+  `cb60ff8` (2026-09-23: Eerie progresses beyond
   the striped-frame freeze; Copter 271 and Switchblade title/attract samples pass;
   Eerie also boots from saved Plus Off; B16 later observed SNA model readback);
   `8b18ac0` (2026-09-23 user retest:

@@ -187,3 +187,45 @@ private under `docs/screenshots/eerie-pending-fix-2026-09-23/`. Each run's
 Native captures do not expose live OSD or original-hardware interrupt internals.
 They establish progression past this reported freeze on the exact candidate,
 not completion of the whole demo or all Plus timing rules.
+
+## Integration-artifact confirmation, 2026-09-23
+
+The exact master merge `57a90bc` was independently synthesized in
+[CI run 35868033667](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35868033667).
+Its clean-full RBF is delivered as `output_files/Amstrad_20260923_57a90bc.rbf`,
+SHA-256 `11959f68712177fa2f73958ca98ac7e98b1b5a854f8cb47d1e0b4db6c9638d8b`.
+Timing closure passes with setup/hold minima +0.501/+0.177 ns and zero TNS.
+The RBF installed on MiSTer at `/media/fat/_Computer/Amstrad_20260923_57a90bc.rbf`
+was verified against that hash on both hosts.
+
+The same unchanged media and established no-input cases were rerun on this
+**exact integration artifact**, with three native captures per title visually
+inspected. Eerie Forest (6128+, Raw CRT, 28-second boot delay, six seconds
+between frames) again advances beyond the old striped freeze: landscape,
+runner poses and top text all change. Switchblade (6128+, Full, 28-second boot
+delay, four seconds between frames) shows title animation, high scores and
+return to title. Its first two PNG hashes match the prior `cb60ff8` captures.
+The unchanged CPR hashes are `72485083d485e89e16c8367e6aceabe98c65a5511c3ccc0218ced02b24053215`
+(Eerie) and `d958e2b1eeebaa227aa33c4f0f5627fc238a2791fd177f7ebffefdf81a07ff78`
+(Switchblade).
+
+| Master RBF capture | SHA-256 |
+|---|---|
+| Eerie 1 | `cdc9930c4f4443d7b07abd2f0af6e90a66b6be99fe53782f4cc3abb5cd8c80f6` |
+| Eerie 2 | `a60d8b51d2d3b108e38100311d38b51ff0c897d0ecec1d415b7280d657329287` |
+| Eerie 3 | `9ba0a46eb9b807e09044747e6ec4b7b829c8f494b4a442cf88c15ba3b6c8e0a2` |
+| Switchblade 1 | `56af42be683b237192a0c4dc6c4fae7139795e3024387a25abc660e3eae82bb3` |
+| Switchblade 2 | `b8dfdc946c52a66fdef36827a413bda7ed5ce334b55168c29e91c1dbf2803ac8` |
+| Switchblade 3 | `86cb834609147bc3a25b93520697765782c54ee327caaa8c574d28d7078fe7ba` |
+
+Private cases, manifests, PNGs, capture log and saved CFG remain under
+`/Users/renaudg/.codex/worktrees/b967/Amstrad_MiSTer/docs/screenshots/eerie-master-57a90bc-2026-09-23/`.
+Manifest SHA-256 values are `c335f97e1faebb36a93810e41add6d5ec8c02c59a3bc71ede67cd162fc61d6be`
+(Eerie) and `4dd14839be7feb15afbd912fe91e0c4ece5c1973a72ef4201bc66116245d3b27`
+(Switchblade). The original CFG was restored and read back byte for byte,
+SHA-256 `2e585b4c85e2387cfb9c25028a061c6ba2aa3749f82453ffd895b5aaa393d8e4`.
+
+This is bounded progression and title/attract acceptance, not full-demo,
+gameplay, continuous flicker or pixel-perfect validation. The first Eerie
+capture has a small white dotted sliver at the left edge of the bottom logo;
+its cause was not investigated. The device was released after the tests.
