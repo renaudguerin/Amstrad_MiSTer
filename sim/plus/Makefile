@@ -476,7 +476,7 @@ plus-sprite-ram-lint:
 # in SLOW_TESTS; `slow` runs only those; `full` runs both. The public targets
 # re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
 # inside a makefile; JOBS=1 gives serial, readable output.
-SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing b20-bus-diag
+SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing b20-bus-diag b23-cpu-diff
 FAST_BINS := $(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS))
 FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS)))
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
@@ -540,6 +540,27 @@ $(B20MAT_TEST_BIN): $(B20MAT_TEST_SRC) $(B20MAT_NETLIST) Makefile | $(OBJ_DIR)
 .PHONY: b20-ack-matrix
 b20-ack-matrix: $(B20MAT_TEST_BIN)
 	./$(B20MAT_TEST_BIN)
+
+# B23 requires GHDL. Transfer parity is required; IRQ/startup differences
+# are reported by the diagnostic, and --strict rejects every difference.
+B23DIFF_OBJ_DIR  := obj_dir/b23_cpu_diff
+B23DIFF_TEST_SRC := $(abspath b23_cpu_diff_test.cpp)
+B23DIFF_TEST_TOP := $(abspath b23_diff_top.v)
+B23DIFF_TEST_BIN := $(B23DIFF_OBJ_DIR)/b23_cpu_diff_tests
+B23DIFF_NETLIST  := $(B20MAT_NETLIST)
+B23DIFF_TV80_SRC := $(addprefix $(abspath tv80)/,tv80_core.v tv80_mcode.v tv80_alu.v tv80_reg.v)
+B23DIFF_TV80_RENAMED := $(B23DIFF_OBJ_DIR)/b23_tv80pa.v
+$(B23DIFF_TV80_RENAMED): $(abspath tv80/t80pa.v) Makefile | $(OBJ_DIR)
+	mkdir -p $(B23DIFF_OBJ_DIR)
+	sed -e 's/module T80pa #(/module TV80pa #(parameter IOWait = 1,/' -e 's/\.IOWait(1)/.IOWait(IOWait)/' $< > $@
+$(B23DIFF_TEST_BIN): $(B23DIFF_TEST_SRC) $(B23DIFF_TEST_TOP) $(B23DIFF_NETLIST) $(B23DIFF_TV80_RENAMED) $(B23DIFF_TV80_SRC) Makefile | $(OBJ_DIR)
+	$(VERILATOR) --cc --exe --build --language 1364-2001 --top-module b23_diff_top \
+		--Mdir $(B23DIFF_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o $(notdir $(B23DIFF_TEST_BIN)) \
+		$(B23DIFF_TEST_TOP) $(B23DIFF_NETLIST) $(B23DIFF_TV80_RENAMED) $(B23DIFF_TV80_SRC) $(B23DIFF_TEST_SRC)
+.PHONY: b23-cpu-diff
+b23-cpu-diff: $(B23DIFF_TEST_BIN)
+	./$(B23DIFF_TEST_BIN) --require-memory-parity
 
 $(ASIC_TEST_BIN): $(ASIC_RTL) $(ASIC_TEST_SRC) Makefile | $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) --top-module $(ASIC_TOP) \
