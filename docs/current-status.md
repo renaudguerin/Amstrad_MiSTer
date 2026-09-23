@@ -133,8 +133,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 **Open:**
 
 - B20-2/3: [integrated acknowledge diagnostics](plus/references/b20-ack-discriminator-2026-09-22.md)
-  reproduce the synthetic empty-vector mismatch, but the production CPU matrix
-  does not reproduce the second acknowledge. Physical bus timing remains unproven.
+  reproduce the synthetic empty-vector mismatch. The [connected production-bus
+  investigation](plus/references/b20-production-ack-2026-09-23.md) locates the first
+  structural divergence at missing board-level acknowledge shaping. No RTL change;
+  physical bus timing and the compatible behavioral correction remain unproven.
 
 - Copter 271: vertical-scrolling issues during gameplay (possibly pre-existing).
 - Sonic GX: title screen corruption is **hardware-accepted fixed on `64702ac`**

@@ -476,7 +476,7 @@ plus-sprite-ram-lint:
 # in SLOW_TESTS; `slow` runs only those; `full` runs both. The public targets
 # re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
 # inside a makefile; JOBS=1 gives serial, readable output.
-SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing
+SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing b20-bus-diag
 FAST_BINS := $(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS))
 FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS)))
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
@@ -849,6 +849,19 @@ d5-boot: d5-boot-build
 .PHONY: d5-cart-timing
 d5-cart-timing: d5-boot-build
 	$(D5_OBJ_DIR)/d5_boot --cart-timing
+
+# B20 production-bus discriminator: production T80 + motherboard/ASIC
+# acknowledge/vector/request path on the D5 prepared fixture.
+B20_BUS_OBJ_DIR := $(abspath obj_dir/b20_bus_diag)
+.PHONY: b20-bus-diag-build b20-bus-diag
+
+b20-bus-diag-build:
+	$(MAKE) -C .. t80-netlist
+	python3 prepare_d5_boot.py
+	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --top-module p10_boot_test_top --Mdir $(B20_BUS_OBJ_DIR) -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" -o b20_bus_diag $(D5_SRC_DIR)/p10_boot_test_top.v $(D5_RTL) $(abspath b20_bus_diag_test.cpp)
+
+b20-bus-diag: b20-bus-diag-build
+	$(B20_BUS_OBJ_DIR)/b20_bus_diag
 
 # B6 production boundary gate. B7's executing TV80 and physical SDRAM
 # service are reused; this is not the separate production-T80 timing tier.
