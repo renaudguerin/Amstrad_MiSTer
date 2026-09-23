@@ -85,7 +85,10 @@ to violate, not from blanket coverage.
   identifies field-history evidence in C4 images, not a proven CRTC fault. Full
   was requested; the active Sync latch was not independently observed.
   A scratch production-T80 replay reproduces the B9 C0=3F stage-A/line-end
-  collision and extra 64 µs raw VSYNC interval. French ACCC v1.11 §19.5.3
+  collision and extra 64 µs raw VSYNC interval. The September 23 result-buffer
+  follow-up now reproduces all five first-block SHAKER values (`2740, 2740,
+  2780, 2780, 2760`), closing the displayed-value correlation gap.
+  French ACCC v1.11 §19.5.3
   pp.210–212 and §19.8.2 p.226 do not order that collision, so the RTL is not
   predicted to violate a documented rule and remains unchanged. Counting the
   coincident line end in the new IVM mode is the only candidate ordering that fits all
