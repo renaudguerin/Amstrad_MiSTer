@@ -12,6 +12,15 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **Latest Plus sprite repair:** source `566e0c7` (2026-09-23) retargets
+  sprite rows after live Y changes before their X windows. Focused before/after
+  tests, selected gates, fresh Opus review and exact full-effort synthesis pass.
+  MiSTer confirms Eerie Forest's three reveal-line leaks are gone; Sonic GX
+  title/attract regression samples pass. The dotted logo/green left-edge screen
+  sliver remains open: production PRI matches the documented six-microsecond
+  clamp, and no CPU/IRQ repair is established. See the
+  [evidence and remaining discriminator](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md).
+  The candidate RBF is hardware-verified; final integration artifact is pending.
 - **Latest implementation:** B20-1 live PPR write handling (`5d12f56`), integrated
   with reviewed capture transport/metadata fixes and B20 acknowledge diagnostics.
   Combined exact-SHA CI and full Quartus synthesis pass at `cdcb3c3`.
