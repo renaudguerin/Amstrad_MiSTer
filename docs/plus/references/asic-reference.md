@@ -316,9 +316,12 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
 
 - Priority: raster highest, then DMA2, DMA1, DMA0 lowest.
 - **IVR bit 0** = DMA-interrupt auto-clear select: `0` ⇒ DMA interrupt flags in
-  DCSR are cleared automatically by the INT acknowledge (and DCSR bits 4-6 are
-  useless/frozen); `1` (reset default) ⇒ DMA interrupts must be acknowledged by
+  DCSR are cleared automatically by the INT acknowledge; `1` (reset default) ⇒
+  DMA interrupts must be acknowledged by
   writing 1 to the corresponding DCSR bit, and the request is held until acked.
+  Quasar additionally claims bits 4–7 freeze in automatic mode; this is unresolved,
+  not an implemented rule. The [B20-5 observation](b20-dcsr-readback-2026-09-23.md)
+  distinguishes live pre-ack flags from cleared post-ack readback.
 - **Vectored interrupt bug** (hardware, all Plus/GX4000) [WIKI-VIntBug]: when the
   Z80 acknowledges an interrupt while executing an instruction located at an
   address with **A13 = 0** (i.e. in `&0000-&1FFF`, `&4000-&5FFF`, `&8000-&9FFF`,
