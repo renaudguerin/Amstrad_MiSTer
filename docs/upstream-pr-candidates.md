@@ -16,6 +16,8 @@ latch, Sonic cartridge admission).
   `TAPE_BASE = 23'h100000`, and `tape_phys_addr = tape_addr + TAPE_BASE` used for the
   tape request address. The fork's vram-cache invalidation line only exists because
   of the B8-7 work below; drop it if upstream lacks that cache check.
+- **Fix verified on hardware** (fork RBF `8b18ac0`, 2026-09-23): 464 ROM then CDT boots
+  and loads AmstradDiag fully (same device record, "Device acceptance of the bank fix").
 - **Case strength:** strong. It is a crash, reproducible on upstream's own release,
   and the change is a few lines in one file.
 - **Known limit:** the tape window is 7 MB and not enforced; a larger image would wrap

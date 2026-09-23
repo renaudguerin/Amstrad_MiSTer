@@ -192,8 +192,8 @@ maps too.
 
 ### Fix candidate: tape image relocated to bank 3 at 0x100000
 
-Integrated from `859fd24` on 2026-09-22; **not device-tested** — hardware acceptance is
-still open. The tape image now lives in SDRAM bank 3 from `0x100000` upward, the
+Integrated from `859fd24` on 2026-09-22; **device-accepted 2026-09-23** (see
+"Device acceptance of the bank fix" below). The tape image now lives in SDRAM bank 3 from `0x100000` upward, the
 one region no map uses:
 
 | Region | Owner |
@@ -218,8 +218,25 @@ Proven fail-first by `test_tape_image_placement_outside_model_maps` in
 `sim/plus/sdram_cartridge_test.cpp`: on the old fixed bank-2 mapping, image byte 0,
 the first base-RAM byte and the top-of-window byte all landed in the 464 model bank
 (9 assertions failed, including playback reads) and pass after the fix. Expected
-addresses are derived from the map in the test's comment. Hardware acceptance of the
-fix is open: no device run has exercised a CDT on a 464 with it.
+addresses are derived from the map in the test's comment.
+
+#### Device acceptance of the bank fix (2026-09-23)
+
+RBF `Amstrad_20260922_8b18ac0.rbf` (CI run 35797819805, full synthesis, SHA-256
+`26185f48…0da2`, minimum setup slack 0.215 ns); `8b18ac0` has the same RTL as master
+`06e358d`. Model 464 (CFG `81b55bec…`), `464UK.ez0` (`f846b94d…3a82`) through F7,
+`AmstradDiag.cdt` through F4, replay `tape-uk.json` (`RUN"`, Return) then `space.json`:
+
+| MGL order | Result |
+| --- | --- |
+| F7 464 ROM, then F4 CDT (crashed on `4027f5e`) | BASIC 1.0 Ready; `RUN"` loads all seven blocks; Amstrad Diagnostics v1.3a reports `CPC 464`, 64 KB, CRTC 01 |
+| F4 CDT, then F7 464 ROM | BASIC 1.0 Ready; `Press PLAY then any key:` stays up for 130 s |
+
+The collision is fixed on hardware. The second order does not play because loading the
+ROM resets the machine and reset unmounts the tape (`tape_write_queue` `clear(reset |
+Fn[2])`, the same rule as upstream's `tape_last_addr <= 0` on reset); mount the CDT after
+the ROM. Evidence: `docs/screenshots/b8-7-464-bank-fix-2026-09-23/` in the main checkout
+(gitignored). CFG restored to `2e585b4c…d8e4`.
 
 Upstream PR notes for this fix: [upstream-pr-candidates.md](../../upstream-pr-candidates.md).
 
@@ -245,6 +262,28 @@ Screen sequence, identical in two runs:
 
 Block 2 is present in the file and blocks 3-7 decode, so the loss is not a format or
 bit-timing problem.
+
+### Resolved by the cartridge execution-rate fix (device bisection, 2026-09-23)
+
+Same 464+ CFG (`600024f7…4e47`), `Plus_EN.cpr` (`3ce35dfc…81ae`), `AmstradDiag.cdt`
+(`203775c2…2ee7`) and replay (keypad 1, `tape-uk.json`, `space.json`), one run per RBF:
+
+| RBF | Cartridge fix `63fcf23` | Result |
+| --- | --- | --- |
+| `4027f5e` | no | Block 2 lost again: `Found DIAG.BIN block 3`...`block 7`, each with `Rewind tape` |
+| `ef8da61` | yes (no B20-7 DMA fix) | `Loading DIAG.BIN block 2` at 25 s; Amstrad Diagnostics v1.3a runs by 100 s |
+| `64702ac` | yes (with B20-7 DMA fix) | Same as `ef8da61`; 25 s and 100 s frames byte-identical |
+
+The only RTL difference from `4027f5e` to `ef8da61` is the cartridge stall release
+(`63fcf23`, `94b18f0`) minus `4027f5e`'s two-line CPR OSD ungate, which `64702ac` carries
+and still loads. Before that fix every cartridge-ROM fetch lost a microsecond; the 464+
+firmware runs from cartridge page 0, the classic 6128 control from SDRAM ROM. B8-7 on
+464+ is therefore fixed on master (`64702ac` differs from master only by the tape-bank
+move, which does not touch Plus models). The exact firmware mechanism for losing block 2
+was not traced. Evidence: `docs/screenshots/b8-7-464plus-cdt-2026-09-23/` in the main
+checkout (gitignored); details in
+[the investigation](../b8-7-464plus-cdt-block2-2026-09-23.md). The CFG was restored to
+`2e585b4c…d8e4` after each run.
 
 ### Classic 6128 control: the defect is Plus-specific
 

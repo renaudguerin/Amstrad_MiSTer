@@ -207,16 +207,20 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   is resolved. [B23](backlog.md#b23-tv80-bench-cpu-bus-timing-parity-with-production-t80pa)
   proposes a TV80-vs-T80pa parity bench.
 - **Peripherals:** FDC full-sector result/ST1, classic AMSDOS and hardware acceptance are open.
-  B8-7 tape real-CDT playback and HPS cadence are open. **CDT on a CPC 464 overwriting the
-  464 OS ROM is fixed in simulation, device test pending** (inherited from upstream: tape SDRAM
+  B8-7 HPS cadence is open; real-CDT playback is device-accepted on 464 and 464+.
+  **CDT on a CPC 464 overwriting the 464 OS ROM is fixed and device-accepted on
+  `8b18ac0`** (ROM then CDT loads AmstradDiag fully; inherited from upstream: tape SDRAM
   bank 2 was also the 464 model bank; see the
   [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md)).
   The fix (`859fd24`, integrated 2026-09-22) moves the tape image to bank 3 at `0x100000`
   upward — the region no model ROM/RAM, Dandanator or Plus cartridge uses — with a 7 MB
-  maximum tape length, proven fail-first against the map and the B8-7 fixture. On 464+
-  with the System Cartridge a standard-speed CDT deterministically loses block 2 and never
-  completes; the same CDT loads fully on a classic 6128 (`|TAPE`) on both this fork and
-  upstream, so the defect is Plus-specific (same record). B8-4 video-word coherence has no
+  maximum tape length, proven fail-first against the map and the B8-7 fixture. **464+ CDT
+  playback losing block 2 is resolved on hardware** by the cartridge execution-rate fix
+  `63fcf23`/`94b18f0`: on 2026-09-23 the same System Cartridge + `AmstradDiag.cdt` sequence
+  loaded fully on RBFs `ef8da61` and `64702ac` and still lost block 2 on `4027f5e`
+  ([investigation](investigations/b8-7-464plus-cdt-block2-2026-09-23.md)). The in-sim
+  `cdt-boot` fixture reaches the PLAY prompt but its tape motor never starts (fixture
+  divergence, recorded there, not committed as a bench). B8-4 video-word coherence has no
   hardware acceptance.
 - **Tooling:** the task-workflow host smoke tests (B14) are open. `scripts/accc/lookup.py`
   finds candidate Compendium sections (BM25 plus a TypeSafe Jev skim and rerank; BM25 only,
