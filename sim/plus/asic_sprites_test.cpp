@@ -903,52 +903,42 @@ void s12_x_rewrite_cut_and_continue(Spr& b) {
     }
 }
 
-// Named model choice: Y rewrites blank the remainder of the current line
-// (live row-tag gate) and the sprite resumes under the new Y from the
-// next seam once its rows restage. X2/Y2 (mag 0xa) gives a two-character
-// window so both the cut and the resumed image can span a character
-// boundary; resumed colours are derived on paper: after run_line the
-// compare line is 11, new Y 9 -> diff 2 -> source row (11-9)>>1 = 1,
-// and display dot d of window char k shows source pixel (d>>1)+8*(k-1).
-void s13_y_rewrite_scanline_granularity(Spr& b) {
-    fill_pattern(b, 0);
-    b.set_x(0, 16);
-    b.set_y(0, 8);
-    b.set_mag(0, 0xa);
+// Eerie Forest reuses its opaque curtain sprites within a scanline: sprite
+// 9's Y write lands at hp=16 on compare line 65, well before X=432. Arnold
+// V Revised section 2.1 (revision115989, archived 2025-01-02) says attribute
+// writes do not disable a sprite; it resumes at the new location. The Y
+// compare formula (KT, "Sprite Y coordinates") then selects the new
+// source row. The original CPR's successful AmSpirit reference displays the
+// curtain here; production T80 currently exposes the screen until next seam.
+//
+// This pins the before-window case with ample uncontended service, not a
+// zero-cycle fetch promise or behavior during an already-emitting window.
+// At line65, Y16 selects (65-16)>>2=12; Y60 selects (65-60)>>2=1.
+void s13_y_rewrite_before_window(Spr& b) {
+    fill_pattern(b, 9);
+    b.set_x(9, 432);
+    b.set_y(9, 16);
+    b.set_mag(9, 0xf);
     program_palette(b);
-
-    b.run_to_vline(10);
-    b.run_char(false);   // char0 dead
-    for (unsigned d = 0; d < 16; ++d) {
-        const Spr::Smp s = b.sample();
-        if (d < 4 && !s.en) fail("s13: sprite vanished before rewrite");
-        // Rewrite lands after dot 4 is sampled; the live row-tag gate
-        // (new Y -> source row 0 vs staged row 1) blanks from dot 5.
-        if (d == 4) b.set_y(0, 9);
-        if (d >= 5 && s.en)
-            fail("s13: Y rewrite must blank the rest of the line");
-        if (d == 15) b.char_end(false); else b.dot();
+    b.run_to_vline(65);
+    b.run_char(false); // hp=16; the window has not opened.
+    b.set_y(9, 60);
+    // 416 dots * four master clocks = 1664 clocks available for 8 row
+    // bytes, with no pixel-data CPU access. Match production PIXEN cadence.
+    for (unsigned hp = 16; hp < 432; ++hp) {
+        b.idle(3);
+        if ((hp & 15) == 15) b.char_end(false); else b.dot();
     }
-    // char2 is still inside the old X window but must stay blank: the
-    // rewrite holds until the seam, not just one character.
-    for (unsigned d = 0; d < 16; ++d) {
-        const Spr::Smp s = b.sample();
-        if (s.en) fail("s13: blank did not hold across the window");
-        if (d == 15) b.char_end(false); else b.dot();
-    }
-    for (unsigned c = 3; c < 8; ++c) b.run_char(false);
-    b.run_line();          // cross into the new Y's window (vline 11)
-    b.run_char(false);     // char0 of the new line: still dead
-    for (unsigned k = 1; k <= 2; ++k) {
-        for (unsigned d = 0; d < 16; ++d) {
-            const Spr::Smp s = b.sample();
-            if (!s.en) fail("s13: sprite did not resume at new Y");
-            unsigned g, r, bl;
-            pal_entry(pat_nib((d >> 1) + 8 * (k - 1), 1), g, r, bl);
-            if (s.r != r || s.g != g || s.b != bl)
-                fail("s13: resumed pixels do not follow the new Y");
-            if (d == 15) b.char_end(false); else b.dot();
-        }
+    for (unsigned d = 0; d < 64; ++d) {
+        const Spr::Smp sample = b.sample();
+        if (!sample.en || sample.idx != 9)
+            fail("s13: Y rewrite before X must render in the same line");
+        unsigned g, r, bl;
+        pal_entry(pat_nib(d >> 2, 1), g, r, bl);
+        if (sample.r != r || sample.g != g || sample.b != bl)
+            fail("s13: Y rewrite emitted an old or incorrect source row");
+        b.idle(3);
+        if ((d & 15) == 15) b.char_end(false); else b.dot();
     }
 }
 
@@ -1354,8 +1344,8 @@ constexpr std::array<std::pair<const char*, void (*)(Spr&)>, 17> kTests = {{
      s11_access_blanking_scope_and_integrity},
     {"s12 X rewrite cuts and continues ([ARNOLD-REV S2.1])",
      s12_x_rewrite_cut_and_continue},
-    {"s13 Y rewrite applies at the scanline seam (model choice)",
-     s13_y_rewrite_scanline_granularity},
+    {"s13 Y rewrite before X uses the new row in the same line",
+     s13_y_rewrite_before_window},
     {"s14 ten overlapped sprites, no staging miss (bandwidth model)",
      s14_overlap_bandwidth_within_capacity},
     {"s15 dynamic burst write without tearing/garbling (CG-3 RoboCop 2)",
