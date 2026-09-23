@@ -173,8 +173,8 @@ that transition with AmSpirit. Start with the existing
 `context-save-excerpt.log` and full trace; do not repeat the full simulation
 merely to rediscover downstream corruption. If additional capture is needed,
 target that transition and record IX/IY explicitly. No narrow RTL fix or
-source-derived failing regression has been established. The task is paused
-at an evidence-only READY checkpoint at the user's request to restart Codex.
+source-derived failing regression has been established. The subsequent [pending-CPC investigation](eerie-forest-pending-classic-2026-09-23.md)
+resolves this discriminator at the first startup exit, before the late trace window.
 
 Wider trace SHA-256:
 `6451cd8132b30d75eecde3a4503d32993c50fb09e7bfd17a763e82156604d749`.

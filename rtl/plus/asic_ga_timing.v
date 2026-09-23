@@ -106,7 +106,7 @@ module asic_ga_timing
 	output       HSYNC_O,
 	output       VSYNC_O,
 	output       SYNC_N,
-	output reg   INT_N,
+	output       INT_N,
 	output       VBLANK,    // ga40010 HCNTLT28 analogue
 	output       MODE_SYNC_EN, // screen-mode resync strobe (asic_video
 	                          // currently re-latches GAMODE on raw HSYNC;
@@ -634,6 +634,20 @@ module asic_ga_timing
 	// the assert edge stays exactly where the lockstep bench pinned it.
 	reg  cnt5; // counter top bit, delayed one clk (block below drives it)
 
+	// PRI replaces delivery of CPC-compatible requests (Arnold V section 2.4;
+	// Extra CPC Plus Hardware Information, "When the ASIC raster interrupt
+	// is active, there are no interrupts caused by the standard CPC raster int").
+	// Keep the old CPC request while masked: a PRI=0 round trip without ACK
+	// exposes it again in the AmSpirit pending-request discriminator. A shared
+	// latch leaked that old request into Eerie Forest's first EI/JP(IX) exit.
+	// A programmed request still holds until the existing ACK/MRER clear;
+	// changing PRI must not clear it merely because its compare value changed.
+	// ACK still clears both latches, preserving the aggregate model; clearing
+	// a hidden CPC request on a DMA ACK remains an unverified modelling choice.
+	reg  classic_int_n;
+	reg  programmed_int_n;
+	assign INT_N = programmed_int_n & (classic_int_n | (pri != 8'd0));
+
 	reg  raster_fire_pending;
 
 	reg  intack_d;
@@ -662,7 +676,11 @@ module asic_ga_timing
 			// cannot say whether the GA or the ASIC DMA raised it; the caller
 			// resolves that (see Amstrad_motherboard) and passes the part this
 			// owner must hold.
-			INT_N <= ~SNA_INT;
+			// The snapshot exposes only the delivered raster request, not a
+			// masked CPC latch. PRI has settled during the CPC+ drain before
+			// this apply pulse; attribute the request to that restored mechanism.
+			classic_int_n    <= ~(SNA_INT && (pri == 8'd0));
+			programmed_int_n <= ~(SNA_INT && (pri != 8'd0));
 			raster_fire_pending <= 1'b0;
 		end
 		else begin
@@ -678,13 +696,14 @@ module asic_ga_timing
 			end
 
 			if (int_ack_active) begin
-				INT_N <= 1'b1;
+				classic_int_n    <= 1'b1;
+				programmed_int_n <= 1'b1;
 			end
 			else if (raster_fire_pending | raster_fire) begin
-				INT_N <= 1'b0;
+				programmed_int_n <= 1'b0;
 			end
 			else if ((pri == 8'd0) && ~intcnt_comb[5] & cnt5) begin
-				INT_N <= 1'b0;
+				classic_int_n <= 1'b0;
 			end
 		end
 	end
