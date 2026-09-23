@@ -221,6 +221,8 @@ the first base-RAM byte and the top-of-window byte all landed in the 464 model b
 addresses are derived from the map in the test's comment. Hardware acceptance of the
 fix is open: no device run has exercised a CDT on a 464 with it.
 
+Upstream PR notes for this fix: [upstream-pr-candidates.md](../../upstream-pr-candidates.md).
+
 ## B8-7: real CDT playback on 464+ loses block 2
 
 Setup avoiding the 464 bank collision: RBF `4027f5e`, 464+ (CFG `[34:33]=3`, hash
