@@ -174,9 +174,21 @@ so the classic client behavior and SDRAM map are unchanged.
 
 ### CPR parser policy (P0 decisions)
 
-Recorded against review `cd47d7d` observations (review-debt action item A5, `docs/archive/review-debt-cleared.md`); the parser is
-fail-closed untrusted-input handling and these decisions keep it that way.
+Recorded against review `cd47d7d` observations (review-debt action item A5, `docs/archive/review-debt-cleared.md`); the parser validates
+chunk structure and backend completion, with the explicit outer-length compatibility
+exception below.
 
+- **Overstated outer RIFF length may end at a complete-chunk boundary.** On
+  physical EOF, the parser may commit while waiting for a fresh chunk ID, with
+  at least one cartridge byte loaded and no pending backend write/error. This
+  supports the original Eerie Forest image, whose complete 32 pages are followed
+  by EOF 128 bytes before its declared RIFF end. Partial chunk headers, payloads
+  or required padding still abort, as do invalid streaming extents. A residual
+  declared span of 1–7 bytes remains invalid (too short for a chunk header); this
+  exception does not normalize every incorrect RIFF length. The tradeoff
+  is explicit: a completely absent later chunk is indistinguishable from an
+  overstated outer size. See the [Eerie finding](eerie-forest-container-2026-09-23.md)
+  for the media discriminator and hardware acceptance boundary.
 - **Oversized `cbNN` chunks abort the load.** A block chunk declaring more than one
   16 KiB page is malformed: the CPR format reference records that common loaders merely
   ignore data beyond 16 KiB (`asic-reference.md` §11), but that is tool tolerance, not a

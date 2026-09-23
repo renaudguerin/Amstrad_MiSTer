@@ -22,6 +22,15 @@ RTL cause; closure pending a repeatable capture), and **Switchblade / Eerie
 Forest still not loading** (failure shape unstated). Checklist boxes below stay
 unchanged; the retest is recorded in the run table, not promoted to passes.
 
+A subsequent paired check on the same `8b18ac0` RBF isolates Eerie Forest's
+immediate failure to its malformed outer RIFF length. A copy correcting only
+that header boots and progresses from the demon intro to the Logon System
+scene; original media remains rejected. See the [container finding and exact
+recipe](eerie-forest-container-2026-09-23.md). Full demo completion remains
+untested. The requested parser compatibility follow-up needs an exact new-build
+retest with the unchanged original CPR; corrected-media acceptance on the old
+build does not close that gate.
+
 The [September 13 report](../investigations/hardware-runs/hardware-evidence-2026-09-13.md) confirms that
 build **`a0778b6`** (fix "general: reset PSG R7 to 0x00 so bare-metal keyboard
 scans work") **fixes all known keyboard / joystick issues with `arn5diag`, `Pang`,
