@@ -113,6 +113,13 @@ always @(posedge clk or negedge RESET_N) begin
 			if (write_data == sequence_byte(sequence_index)) begin
 				sequence_index <= sequence_index + 4'd1;
 			end
+			else if (sequence_index == 4'd0 && write_data == 8'h00) begin
+				// Arnold V §2.11 defines nonzero/zero synchronization. The
+				// original Switchblade stream inserts another zero before FF;
+				// keep waiting for the fixed prefix (as AmSpirit does).
+				matching_sequence <= 1'b1;
+				sequence_index    <= 4'd0;
+			end
 			else begin
 				// A mismatch cannot unlock the ASIC. It may itself finish a
 				// fresh nonzero, zero sync pair.
