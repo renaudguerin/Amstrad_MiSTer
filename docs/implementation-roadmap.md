@@ -476,7 +476,7 @@ that a previously online device remains available. Keep one device operator.
   discriminator. IA-2/3/6, Amazing Demo corruption and production instruction timing retain
   their separate residuals. Do not infer a new classic RTL repair from an unclassified image.
 - **Eerie Forest (Plus):** same-line sprite-row retargeting (`566e0c7`) is
-  reviewed, gated and candidate-hardware-verified: the three horizontal reveal
+  reviewed, gated and exact-integration-hardware-verified (`edaa15b`): the three horizontal reveal
   leaks disappear, with Sonic GX title/attract regression samples passing.
   The separate left-edge screen sliver remains unresolved. Preserve documented
   PRI timing; the next useful discriminator needs actual bus-event timing,

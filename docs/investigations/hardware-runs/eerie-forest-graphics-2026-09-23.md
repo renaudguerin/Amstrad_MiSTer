@@ -28,8 +28,8 @@ logo entry, landscape reveal, and runner scene without these strips or
 left-edge spill. Frame counters and wall times are not exact cross-system
 alignment. The comparison identifies visible divergence, not a hardware rule.
 
-Private evidence is in `docs/references/eerie-graphics-2026-09-23/`
-(`docs/references` resolves to `docs/specs` in this checkout):
+Private evidence is archived in the main checkout under
+`local/task-archives/eerie-graphics-2026-09-23/evidence/`:
 
 - User originals: `local/captures/broken/*Eerie_Forest*`.
 - `full-baseline-02/manifest.json`: case, identities, all nine capture hashes.
@@ -205,3 +205,34 @@ was read back byte-for-byte and matches
 Eerie manifest SHA-256: `97f46c3bf664d85edc9a17fe664355cd192b2e25570de51f544a4302df3b49d3`.
 
 Sonic manifest SHA-256: `637177475de3fcac0f7719105df46a6ea5b59314659d10654bdbe631eaadf431`.
+
+
+## Final integration artifact and device acceptance
+
+Merged and pushed as `edaa15b24b0eb96cf2c403a0097d015013dcbca0`.
+[Exact-SHA CI run 35903633316](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35903633316)
+passes simulation, production-T80, full hosted synthesis and required-gate.
+Artifact `Amstrad-build-265-1-full` records `build_mode=clean_full`, Quartus
+17.0.2, setup/hold minima +0.555/+0.243 ns across seven clocks and zero TNS.
+Resources: 23,810 ALMs (57%), 28,421 registers, 102 RAM blocks and 35 DSP
+blocks. Compile time is 18m04s, including 13m18s fitting.
+
+The delivered main-checkout RBF is `output_files/Amstrad_20260923_edaa15b.rbf`,
+SHA-256 `d974447958841e5360151539ccc8a13cef6c0996fc74fffaf645adacca5beebf`.
+Reports are in `output_files/master-edaa15b/`. The same RBF was copied to
+MiSTer's `_Computer` directory and its hash verified before testing.
+
+All nine final Eerie captures were visually inspected: the three horizontal
+reveal strips remain absent, the reveal and runner animation advance, and
+the separate dotted/green left-edge sliver remains visible. Sonic GX was the
+only sprite regression title: its three inspected captures show a coherent
+title and advancing Green Hill gameplay without visible sprite corruption.
+These bounded samples do not establish continuous flicker or full-demo
+acceptance. Settings and media match candidate acceptance above.
+
+Cases, CFG files and PNG hashes are archived under `hardware-edaa15b/`.
+The final CFG was restored and read back byte-for-byte with the same hash
+recorded above. Final manifest SHA-256 values:
+
+- Eerie: `ada1b789326ef7a61870ab923f4e32287f96f42d100b808bed23a4ea83de4b7e`.
+- Sonic: `171393b6e4d5e139ce0cea2f4933049bd5e630d96618a2a1529ae004495ed8f5`.

@@ -20,7 +20,7 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   sliver remains open: production PRI matches the documented six-microsecond
   clamp, and no CPU/IRQ repair is established. See the
   [evidence and remaining discriminator](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md).
-  The candidate RBF is hardware-verified; final integration artifact is pending.
+  Integrated as `edaa15b`; the exact final RBF is hardware-verified.
 - **Latest implementation:** B20-1 live PPR write handling (`5d12f56`), integrated
   with reviewed capture transport/metadata fixes and B20 acknowledge diagnostics.
   Combined exact-SHA CI and full Quartus synthesis pass at `cdcb3c3`.
@@ -37,7 +37,15 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   `a137d48`, **failed hardware acceptance as integrated**: it passed
   simulation, review and synthesis, but no longer reached Sonic gameplay in
   the matched input sequence. PRI and interrupt vector logic are unchanged.
-- **Latest timing-clean integration artifact:** `57a90bc` (2026-09-23), merging the
+- **Latest timing-clean integration artifact:** `edaa15b` (2026-09-23), the
+  reviewed Eerie sprite-row repair. [Exact-SHA CI run 35903633316](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35903633316)
+  passes all required jobs and full hosted synthesis. Artifact
+  `Amstrad-build-265-1-full` is delivered as `output_files/Amstrad_20260923_edaa15b.rbf`,
+  SHA-256 `d974447958841e5360151539ccc8a13cef6c0996fc74fffaf645adacca5beebf`.
+  Setup/hold minima +0.555/+0.243 ns, zero TNS. Exact-RBF Eerie and Sonic GX
+  captures confirm the bounded acceptance and left-edge residual above.
+  Reports: `output_files/master-edaa15b/`; [device evidence](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md#final-integration-artifact-and-device-acceptance).
+- **Previous timing-clean integration artifact:** `57a90bc` (2026-09-23), merging the
   Eerie Forest pending-CPC-request repair. Exact-SHA [CI run 35868033667](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35868033667)
   passes simulation, production-T80, full hosted synthesis and required-gate.
   Its clean-full RBF is `output_files/Amstrad_20260923_57a90bc.rbf`, SHA-256
@@ -62,7 +70,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   `output_files/reports-cdcb3c3/`. This artifact has not been hardware-tested.
   Candidate `a137d48` remains experimental; its progression failure and partial
   timing gain are preserved in the [rearm record](investigations/sonic/rearm-boundary-2026-09-22.md).
-- **Latest hardware-tested builds:** `57a90bc` (2026-09-23: exact integration RBF,
+- **Latest hardware-tested builds:** `edaa15b` (2026-09-23: horizontal Eerie
+  reveal leaks fixed, left-edge residual open; Sonic GX title/attract passes);
+  `57a90bc` (2026-09-23: exact integration RBF,
   Eerie progresses beyond the old freeze and Switchblade title/attract passes;
   see the [integration-artifact check](investigations/hardware-runs/eerie-forest-pending-classic-2026-09-23.md#integration-artifact-confirmation-2026-09-23));
   `cb60ff8` (2026-09-23: Eerie progresses beyond
