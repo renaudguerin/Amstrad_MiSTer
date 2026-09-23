@@ -198,16 +198,14 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   are corrected. Empty-vector and live-prescaler differences are investigation leads,
   not confirmed Sonic causes. See [the corpus inventory](reference-ingestion/scrapes-2026-09-22.md)
   for reviewed and deferred sources, including the synchronization/filter comparison.
-- **B16 implemented:** valid CPR loads select 6128+ when Plus is Off; SNA v3
-  model headers 4/5/6 select the matching Plus model before restore. Existing Plus
-  selection is preserved for CPR. Independent review and selected simulation pass;
-  Main/OSD echo, boot and restore still need device acceptance. See
-  [the load contract](plus/b16-load-model-2026-09-22.md). **Device run on `cdcb3c3`:
-  the CPR path is unreachable** because the OSD disabled `Load Plus cartridge` with Plus
-  Off and Main drops an MGL at that item. Branch `general/device-acceptance-cdcb3c3`
-  ungates the entry; its RBF `4027f5e` boots Sonic from Plus Off on device. The SNA path works: a header-4
-  snapshot with Plus Off matches the explicit-6128+ result (types 5/6 and OSD echo unobserved). See the
-  [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md).
+- **B16 implemented; partial device acceptance:** CPR-from-Off boots on `4027f5e`
+  and `cb60ff8` after ungating the CPR entry. SNA v3 headers 4/5/6 from Off select
+  6128+/464+/GX4000 on `cb60ff8`, observed through Main's explicit Save settings
+  readback. This confirms the normal SNA status echo; visual OSD labels,
+  functional cartridge-backed restores for headers 5/6, and preservation of
+  explicit Plus choices on CPR loads remain open. See the
+  [load contract](plus/b16-load-model-2026-09-22.md) and
+  [device readback record](investigations/hardware-runs/b16-sna-model-readback-2026-09-23.md).
 - The PRI line-compare change is unreviewed (review debt).
 
 ## General: video path, peripherals, harnesses and tooling

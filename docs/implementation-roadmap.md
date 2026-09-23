@@ -199,7 +199,8 @@ repairing a demonstrated compatibility defect; section 8 selects the next work.
 ### P-2: model selection before Plus behavior
 
 **Status:** integrated. Plus hardware results are recorded in section 1 and current status;
-B16 load-time model selection is implemented; Main/OSD echo and load-time device acceptance remain.
+B16 load-time model selection is implemented; normal SNA Main echo is device-observed.
+Visual OSD and functional restore acceptance remain.
 
 The separate OSD `Plus model` field is implemented with `Off`, `GX4000`, `6128+`, and `464+`
 values. Keep the classic CPC `Model` field separate and preserve the common decode into
@@ -400,15 +401,18 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 
 ### Integrated implementations and follow-up validation
 
-1. **B16 — implemented; device acceptance pending (Plus).** A CPR loaded with Plus Off selects 6128+;
+1. **B16 — implemented; partial device acceptance (Plus).** A CPR loaded with Plus Off selects 6128+;
    an already selected Plus model is preserved. SNA header values 4/5/6 select the recorded
    Plus model before CPU resume, with the OSD status updated. Preserve existing classic-header
    behavior in this slice; whether a classic SNA should switch Plus Off is a separate policy
    decision. Publication/reset ordering is pinned by the reviewed selected-gate implementation;
-   Main/OSD echo and actual boot/restore remain device checks. The 2026-09-22 device run
+   Device acceptance is recorded separately below. The 2026-09-22 device run
    found the CPR entry disabled with Plus Off (`d2F8`), which blocked the path; with the
    entry ungated, RBF `4027f5e` boots a CPR from Plus Off and a header-4 SNA selects 6128+.
-   OSD echo and SNA types 5/6 remain unobserved. See
+   [Readback on `cb60ff8`](investigations/hardware-runs/b16-sna-model-readback-2026-09-23.md)
+   confirms SNA types 4/5/6 from Off and normal Main echo. Visual OSD labels,
+   functional cartridge-backed restores for types 5/6, and explicit Plus model
+   preservation during CPR loading remain open. See
    [B16](backlog.md#b16-cpr-and-sna-loads-select-a-plus-model).
 2. **B18 — classic capture/round-trip fixture implemented (general).** Acceptance 2 and 3
    from [the design](b18-sna-save.md#acceptance) share one reviewed fixture: real production-T80/GA/PSG/HID and

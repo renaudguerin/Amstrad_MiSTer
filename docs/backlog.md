@@ -925,12 +925,15 @@ rationale; it is historical evidence rather than the active fixed-topology polic
 
 ## B16. CPR and SNA loads select a Plus model
 
-**Implemented and independently reviewed, 2026-09-22; device acceptance pending.**
+**Implemented and independently reviewed, 2026-09-22; partial device acceptance.**
 Valid CPR loads now select 6128+ from Off, retaining an existing Plus choice;
 SNA v3 model headers 4/5/6 select the corresponding Plus model before CPU resume.
 The local selection does not wait for Main's asynchronous OSD echo. See
 [the implementation and gates](plus/b16-load-model-2026-09-22.md). Classic-header-to-Off
-policy remains separate. The original problem and intended behavior follow.
+policy remains separate. [Device readback on `cb60ff8`](investigations/hardware-runs/b16-sna-model-readback-2026-09-23.md)
+confirms headers 4/5/6 from Off and the normal Main status echo. Visual OSD labels,
+functional cartridge-backed restores for headers 5/6, and CPR preservation of
+explicit Plus choices remain open. The original problem and intended behavior follow.
 
 **Filed 2026-09-13.** Previously, loading a CPR or an SNA left the
 machine model unchanged. With Plus model Off (`status[34:33] = 0`) the cartridge does not run until the
