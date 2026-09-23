@@ -56,7 +56,7 @@ Mac, including the Verilator build.
 | `sim/plus run/p1_mobo_bench_tests` | fast | `rtl/Amstrad_motherboard.v` `rtl/Amstrad_MMU.v` `rtl/plus/asic_video.v` `rtl/plus/asic_ga_timing.v` | Plus-mode motherboard: register writes reach asic_video, interrupt reaches the CPU and clears |
 | `sim/plus run/asic_regs_tests` | fast | `rtl/plus/asic_regs.v` | ASIC page decode, read, write, mirrors and masks |
 | `sim/plus run/plus_sprite_ram_tests` | fast | `rtl/plus/plus_sprite_ram.v` | Sprite RAM storage contract used for M10K inference |
-| `sim/plus run/asic_pri_tests` | fast | `rtl/plus/asic_ga_timing.v` | Programmable raster interrupt line compare and acknowledge |
+| `sim/plus run/asic_pri_tests` | fast | `rtl/plus/asic_ga_timing.v` | Programmable raster interrupt line compare, acknowledge and pending CPC request masking across PRI changes |
 | `sim/plus run/asic_sprites_tests` | fast | `rtl/plus/asic_sprites.v` | Sprite engine: attributes, priority, row fetch |
 | `sim/plus run/d3_sprites_tests` | fast | `rtl/plus/asic_sprites.v` | First visible sprite row at production cadence |
 | `sim/plus run/p4_sprites_regs_tests` | fast | `rtl/plus/asic_regs.v` `rtl/plus/asic_sprites.v` `rtl/plus/plus_sprite_ram.v` | Sprite page storage and row-fetch arbitration between asic_regs and asic_sprites |
