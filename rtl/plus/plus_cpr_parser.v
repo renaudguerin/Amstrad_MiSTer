@@ -183,7 +183,11 @@ always @(posedge clk) begin
 		end
 		else if (cpr_download_d && !cpr_download) begin
 			load_valid <= 1'b0;
-			if (state == STATE_DONE && has_block && !load_valid && !load_error) begin
+			// Bounded outer-size tolerance: permit commit when stream ends cleanly
+			// at the exact RIFF boundary (STATE_DONE) or between complete chunks
+			// (STATE_CHUNK_ID with sub_idx == 0) with at least one block delivered
+			// and no pending writes or errors.
+			if ((state == STATE_DONE || (state == STATE_CHUNK_ID && sub_idx == 2'd0)) && has_block && !load_valid && !load_error) begin
 				load_commit <= 1'b1;
 			end
 			else if (state != STATE_ERROR) begin

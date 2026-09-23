@@ -159,8 +159,9 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 - CRTC3 demo: warning, audio and crash defects remain. Switchblade non-loading
   is reproduced on `8b18ac0` (2026-09-23). Eerie Forest was isolated to its malformed
   outer RIFF length: a header-only corrected copy boots and progresses on the same
-  build, with no RTL change ([finding and recipe](plus/eerie-forest-container-2026-09-23.md));
-  full demo completion remains untested. Other cartridge
+  build ([finding and recipe](plus/eerie-forest-container-2026-09-23.md)). The parser
+  compatibility follow-up accepts complete-chunk EOF under an overstated RIFF size;
+  original-media acceptance on a new build and full demo completion remain untested. Other cartridge
   crashes, CPC+ SNA/reset/reload recovery and odd-R5 CRTC3 behaviour remain evidence-gated.
 - Disk path: on `4027f5e` the System Cartridge boots 6128+ (AMSDOS) and 464+ (tape), and
   6128+ reads a disk directory and loads Space Gun to its title

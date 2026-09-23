@@ -806,6 +806,168 @@ void test_form_types_and_chunk_case() {
     }
 }
 
+void test_bounded_outer_size_tolerance() {
+    // 1. Synthetic Eerie Forest 32-page equivalent:
+    // Actual file is 524556 bytes with complete cb00..cb31 (each 16384 bytes).
+    // Outer RIFF length is incorrectly 524676 (+128 bytes larger than actual file:
+    // 524556 - 8 = 524548 nominal RIFF length; 524548 + 128 = 524676).
+    {
+        TestBench tb;
+        tb.hard_reset();
+
+        std::vector<Chunk> chunks;
+        chunks.reserve(32);
+        for (unsigned p = 0; p < 32; ++p) {
+            char name[8];
+            std::snprintf(name, sizeof(name), "cb%02u", p);
+            std::vector<std::uint8_t> data(16384, static_cast<std::uint8_t>(p ^ 0xA5));
+            chunks.push_back({name, std::move(data)});
+        }
+
+        auto cpr = build_cpr_image(chunks, true, 524676, "AMS!");
+        require(cpr.size() == 524556, "synthetic Eerie image size mismatch (expected 524556 bytes)");
+
+        tb.start_download();
+        tb.feed_bytes(cpr, 0);
+        tb.end_download();
+
+        require(tb.commit_pulses() == 1, "synthetic Eerie Forest CPR with overstated RIFF length failed to commit");
+        require(tb.abort_pulses() == 0, "synthetic Eerie Forest CPR aborted");
+        require(tb.writes().size() == 32 * 16384, "synthetic Eerie Forest write count mismatch");
+    }
+
+    // 2. Completed odd-padded metadata chunk and zero-length chunk seam:
+    // Container has a valid block chunk, followed by an odd metadata chunk (padded to even),
+    // and a zero-length chunk, with outer RIFF length overstated (+128).
+    // When stream ends cleanly at the zero-length chunk boundary, parser is in
+    // STATE_CHUNK_ID with sub_idx == 0, and must commit.
+    {
+        TestBench tb;
+        tb.hard_reset();
+
+        std::vector<Chunk> chunks;
+        chunks.push_back({"cb00", std::vector<std::uint8_t>(16384, 0x11)});
+        chunks.push_back({"INFO", std::vector<std::uint8_t>(7, 0x22)});  // 7 bytes data + 1 pad byte
+        chunks.push_back({"ZERO", std::vector<std::uint8_t>()});         // 0 bytes data
+        // Nominal RIFF length: 4 + (8+16384) + (8+7+1) + (8+0) = 16420. Overstated = 16548.
+        auto cpr = build_cpr_image(chunks, true, 16548, "AMS!");
+
+        tb.start_download();
+        tb.feed_bytes(cpr, 0);
+        tb.end_download();
+
+        require(tb.commit_pulses() == 1, "completed zero-length seam with overstated RIFF failed to commit");
+        require(tb.abort_pulses() == 0, "completed zero-length seam aborted");
+        require(tb.writes().size() == 16384, "write count mismatch on zero-length seam");
+    }
+
+    // 3. Completed odd-padded metadata chunk seam as final chunk:
+    // Block chunk followed by odd metadata chunk with pad byte, with outer RIFF length overstated (+64).
+    // Stream ends cleanly after the pad byte; parser is in STATE_CHUNK_ID with sub_idx == 0.
+    {
+        TestBench tb;
+        tb.hard_reset();
+
+        std::vector<Chunk> chunks;
+        chunks.push_back({"cb00", std::vector<std::uint8_t>(16384, 0x33)});
+        chunks.push_back({"INFO", std::vector<std::uint8_t>(11, 0x44)}); // 11 bytes + 1 pad byte
+        // Nominal RIFF len: 4 + (8+16384) + (8+11+1) = 16416. Overstated = 16480.
+        auto cpr = build_cpr_image(chunks, true, 16480, "AMS!");
+
+        tb.start_download();
+        tb.feed_bytes(cpr, 0);
+        tb.end_download();
+
+        require(tb.commit_pulses() == 1, "completed odd-padded metadata seam failed to commit");
+        require(tb.abort_pulses() == 0, "completed odd-padded metadata seam aborted");
+        require(tb.writes().size() == 16384, "write count mismatch on odd-padded metadata seam");
+    }
+
+    // 4. Rejection cut points inside subsequent header/data/pad:
+    // Build a CPR with cb00 followed by an odd chunk cb01 (5 bytes) followed by cb02.
+    // Overstated RIFF length so remaining limit does not trip early.
+    // Test cut points:
+    // a) cut point inside subsequent chunk ID (sub_idx 1, 2, 3)
+    // b) cut point inside subsequent chunk length (bytes 4..7 of header)
+    // c) cut point inside subsequent chunk data
+    // d) cut point inside subsequent chunk pad (odd-length chunk, after data but before pad)
+    {
+        std::vector<Chunk> chunks;
+        chunks.push_back({"cb00", std::vector<std::uint8_t>(16384, 0x01)});
+        chunks.push_back({"cb01", std::vector<std::uint8_t>(5, 0x02)}); // 5 bytes data + 1 pad byte
+        chunks.push_back({"cb02", std::vector<std::uint8_t>(16384, 0x03)});
+        auto cpr = build_cpr_image(chunks, true, 100000, "AMS!");
+
+        // Total bytes before cb01 starts: 8 (RIFF header) + 4 ("AMS!") + 8 (cb00 header) + 16384 (cb00 data) = 16404.
+        const size_t cb01_start = 16404;
+
+        // a) Cut point inside subsequent chunk ID:
+        for (size_t id_cut = 1; id_cut <= 3; ++id_cut) {
+            TestBench tb;
+            tb.hard_reset();
+            tb.start_download();
+            std::vector<std::uint8_t> partial(cpr.begin(), cpr.begin() + cb01_start + id_cut);
+            tb.feed_bytes(partial, 0);
+            tb.end_download();
+            require(tb.abort_pulses() == 1, "cut point inside chunk ID did not abort");
+            require(tb.commit_pulses() == 0, "cut point inside chunk ID committed");
+        }
+
+        // b) Cut point inside subsequent chunk length:
+        for (size_t len_cut = 4; len_cut <= 7; ++len_cut) {
+            TestBench tb;
+            tb.hard_reset();
+            tb.start_download();
+            std::vector<std::uint8_t> partial(cpr.begin(), cpr.begin() + cb01_start + len_cut);
+            tb.feed_bytes(partial, 0);
+            tb.end_download();
+            require(tb.abort_pulses() == 1, "cut point inside chunk length did not abort");
+            require(tb.commit_pulses() == 0, "cut point inside chunk length committed");
+        }
+
+        // c) Cut point inside subsequent chunk data:
+        for (size_t data_cut = 8; data_cut < 8 + 5; ++data_cut) {
+            TestBench tb;
+            tb.hard_reset();
+            tb.start_download();
+            std::vector<std::uint8_t> partial(cpr.begin(), cpr.begin() + cb01_start + data_cut);
+            tb.feed_bytes(partial, 0);
+            tb.end_download();
+            require(tb.abort_pulses() == 1, "cut point inside chunk data did not abort");
+            require(tb.commit_pulses() == 0, "cut point inside chunk data committed");
+        }
+
+        // d) Cut point inside subsequent chunk pad:
+        {
+            TestBench tb;
+            tb.hard_reset();
+            tb.start_download();
+            std::vector<std::uint8_t> partial(cpr.begin(), cpr.begin() + cb01_start + 13);
+            tb.feed_bytes(partial, 0);
+            tb.end_download();
+            require(tb.abort_pulses() == 1, "cut point inside chunk pad did not abort");
+            require(tb.commit_pulses() == 0, "cut point inside chunk pad committed");
+        }
+    }
+
+    // 5. Empty container with overstated RIFF length must reject:
+    {
+        TestBench tb;
+        tb.hard_reset();
+
+        std::vector<Chunk> chunks;
+        chunks.push_back({"INFO", std::vector<std::uint8_t>(8, 0x77)});
+        auto cpr = build_cpr_image(chunks, true, 1000, "AMS!");
+
+        tb.start_download();
+        tb.feed_bytes(cpr, 0);
+        tb.end_download();
+
+        require(tb.commit_pulses() == 0, "empty container (no blocks) with overstated RIFF committed");
+        require(tb.abort_pulses() == 1, "empty container (no blocks) with overstated RIFF did not abort");
+    }
+}
+
 void run_test(const char* name, void (*test)()) {
     test();
     std::cout << "PASS: " << name << '\n';
@@ -830,6 +992,7 @@ int main(int argc, char** argv) {
         run_test("backend load_error sticky abort handling", test_backend_load_error);
         run_test("backpressure stability and single-cycle pulse widths", test_backpressure_stability_and_pulse_widths);
         run_test("simultaneous download and byte-zero write asserts wait and retries cleanly", test_simultaneous_download_and_byte_zero_write);
+        run_test("bounded CPR outer-size tolerance and clean-seam commit", test_bounded_outer_size_tolerance);
     } catch (const std::exception& error) {
         std::cerr << "FAIL: " << error.what() << '\n';
         return 1;

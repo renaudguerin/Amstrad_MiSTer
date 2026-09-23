@@ -27,7 +27,9 @@ immediate failure to its malformed outer RIFF length. A copy correcting only
 that header boots and progresses from the demon intro to the Logon System
 scene; original media remains rejected. See the [container finding and exact
 recipe](eerie-forest-container-2026-09-23.md). Full demo completion remains
-untested; no RTL change was needed.
+untested. The requested parser compatibility follow-up needs an exact new-build
+retest with the unchanged original CPR; corrected-media acceptance on the old
+build does not close that gate.
 
 The [September 13 report](../investigations/hardware-runs/hardware-evidence-2026-09-13.md) confirms that
 build **`a0778b6`** (fix "general: reset PSG R7 to 0x00 so bare-metal keyboard
