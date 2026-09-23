@@ -265,7 +265,8 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
 - Comparison (evaluated every line):
   `{0,PRI7..PRI0} == {VC5..VC0, RC2..RC0}` — i.e. the ASIC compares
   `(char_line << 3) | raster_count` with the 8-bit PRI value; VC5 must be 0 for a
-  match. [ARNOLD-REV, as previously digested; revised source not captured locally]
+  match. [ARNOLD-REV §2.4, freshly re-read in archived revision 115989; see the
+  [B20-4 observation](b20-pri-phase-2026-09-23.md)]
   The current RTL implements this nine-bit comparison and excludes lines ≥256.
   **Contradicted source claim:** [QUASAR] and the captured CPCWiki *ASIC* p.4
   say PRI = n can also fire at n+256; that is incompatible with requiring VC5=0.
@@ -277,8 +278,11 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
 - **Trigger point**: on the **trailing edge of the HSYNC seen by the monitor**,
   with HSYNC width clamped at 6: for programmed widths ≥ 6 the interrupt
   position stops moving (fires at HSYNC_start + 6µs per [ARNOLD-REV]; [KT]
-  measured "~10µs after HSYNC start" — ⚠ CONFLICT, treat [ARNOLD-REV]'s
-  "trailing edge of monitor HSYNC, max 6" as primary). If the CRTC HSYNC is
+  claims width-independent HSYNC_start + 10µs — ⚠ CONFLICT). The
+  [B20-4 connected-module sweep](b20-pri-phase-2026-09-23.md) confirms that
+  current RTL follows the revised account for ordinary widths, with one master
+  clock of edge-detection latency. This supports retaining the implementation;
+  it does not adjudicate the original-hardware source conflict. If the CRTC HSYNC is
   still active at the start of the next line, the interrupt can fire twice for
   one programmed line. [ARNOLD-REV §2.4]
 - By contrast, the CPC-compatible 52-line interrupt (PRI=0) triggers on the
