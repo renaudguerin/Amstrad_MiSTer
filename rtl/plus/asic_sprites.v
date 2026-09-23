@@ -48,8 +48,8 @@
 //  jump, first frame) fall back to refill; the walker scans active banks
 //  before speculative banks, and late bytes remain transparent until
 //  delivered. Emission is gated on bank validity, delivery bits AND live
-//  row-tag equality, so a mid-line Y rewrite blanks the sprite rather than
-//  showing stale rows.
+//  row-tag equality. A live Y/mag rewrite retargets staging immediately;
+//  mismatched bytes stay transparent only until the new row is delivered.
 //
 //  Bandwidth model (named assumption ⚠ ASIC-REF §5): real hardware reads
 //  sprite RAM with an undocumented internal mechanism. This model stages
@@ -72,8 +72,11 @@
 //   - An X rewrite mid-window cuts the sprite immediately and it reappears
 //     under the new X ([ARNOLD-REV §2.1]: "changing X/Y mid-display cuts
 //     the sprite and continues it at the new position").
-//   - Y/magnification rewrites take effect at scanline granularity (new
-//     rows stage behind the seam); finer-grained behaviour undocumented.
+//   - Y/magnification rewrites retarget the row banks within the line.
+//     Revised Arnold section 2.1 says attribute writes do not disable it;
+//     Eerie Forest's before-X multiplex requires same-line continuation.
+//     Fetch latency remains the bounded service model above, not a claimed
+//     measurement of the ASIC's undocumented internal fetch mechanism.
 //   - CPU access blanking ([ARNOLD-REV §2.1]): while asic_regs reports a
 //     pixel-data access to sprite n, sprite n alone is suppressed plus a
 //     short registered tail; hole shape beyond that is unmeasured
@@ -321,6 +324,22 @@ reg  [15:0]  abit;             // active (emitting) bank per sprite
 reg         d1w;               // one clock after the seam (taps = new line)
 reg         d2w;               // two clocks after (post-swap state visible)
 
+// Live Y/magnification changes can select a different row before the next
+// seam. Retarget with the same promote/refill rules used at a line boundary
+// rather than hiding the sprite until that boundary. This also primes a
+// previously disabled sprite. Suppress the live path at the seam itself:
+// d1w handles the settled new LINE/ROW taps on the following clock.
+// Revised Arnold V section 2.1 (revision 115989, archived 2025-01-02):
+// coordinate writes cut and resume at the new location without disabling
+// the sprite. s13 pins Eerie's before-X case with ample service time.
+reg [15:0] c_retarget;
+always @(*) begin
+	for (i = 0; i < 16; i = i + 1)
+		c_retarget[i] = !d1w && !(CLKEN && HWRAP) && c_ena[i] &&
+		                  (!sval[{i[3:0], abit[i]}] ||
+		                   (srowtag[{i[3:0], abit[i]}*4 +: 4] != c_srow[i]));
+end
+
 // Speculation health: a predicted next row exists iff the next sequential
 // compare line is in the vertical window. The 10-bit compare difference
 // wraps from 1023 to 0 on the line immediately before Y, which deliberately
@@ -386,7 +405,8 @@ wire        fq_stale = fq_acc ||
 wire        fq_acc_hit = ACC_EN && (ACC_IDX == fq_tag[7:4]);
 
 wire [7:0]  pb_word  = wk_word;
-wire        pb_fresh = wk_go && !sreq[pb_word] && !sdone[pb_word];
+wire        pb_fresh = wk_go && !d1w && !c_retarget[wk_s] &&
+                       !sreq[pb_word] && !sdone[pb_word];
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
@@ -410,13 +430,13 @@ always @(posedge CLOCK) begin
 		d2w <= d1w;
 
 		//------------------------------------------------------------
-		// Seam maintenance (one clock after the seam: LINE/ROW now show
-		// the new line). Promote the inactive bank on row-tag match,
+		// Row maintenance at a seam or live attribute retarget. At d1w,
+		// LINE/ROW show the new line. Promote the inactive bank on match,
 		// otherwise promote-and-retag it for refill. The outgoing active
 		// bank becomes the speculation target for the predicted row.
 		//------------------------------------------------------------
-		if (d1w) begin
-			for (i = 0; i < 16; i = i + 1) begin
+		for (i = 0; i < 16; i = i + 1) begin
+			if (d1w || c_retarget[i]) begin
 				if (!c_ena[i]) begin
 					// Disabled sprite: no banks staged, nothing
 					// promoted or speculated (sval stays clear so
@@ -503,13 +523,13 @@ always @(posedge CLOCK) begin
 		// would wedge REQ high). A payload write yields only when ITS
 		// OWN word went stale since issue: a same-edge seam swap, an
 		// access flush of the sprite the word belongs to (fq_tag[7:4]),
-		// or a seam retag of the target bank detected by row-tag
+		// or a live/seam retag of the target bank detected by row-tag
 		// mismatch (fq_stale). Stale completions release sreq so the
 		// walker re-demands the byte against the new tag.
 		//------------------------------------------------------------
 		if (do_pop) begin
 			FQ_REQ <= 1'b0;
-			if (!d1w && !fq_stale && !fq_acc_hit) begin
+			if (!d1w && !c_retarget[fq_tag[7:4]] && !fq_stale && !fq_acc_hit) begin
 				rb_dat[fq_tag] <= FQ_DATA;
 				sdone[fq_tag]  <= 1'b1;
 			end
