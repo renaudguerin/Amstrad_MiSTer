@@ -226,10 +226,12 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   SD transport and the existing slice 3-4c review debt. See [b18-sna-save.md](b18-sna-save.md).
 - **TV80 bench CPU** now takes the Z80's automatic I/O wait, so its I/O windows match the
   production T80pa. The reported no_wait Gate Array write drop was this fixture artifact, not an
-  RTL defect ([record](investigations/no-wait-ga-write-latch-2026-09-22.md)). Consequence: the
-  slow `b6-dynamic` bench fails for the type-1 machine until
+  RTL defect ([record](investigations/no-wait-ga-write-latch-2026-09-22.md)). The resulting
   [B22](backlog.md#b22-b6-dynamic-type-1-short-hsync-stage-loses-its-shifted-fetches-after-the-tv80-io-fix)
-  is resolved. [B23](backlog.md#b23-tv80-bench-cpu-bus-timing-parity-with-production-t80pa)
+  failure was an unsupported type-1 filter-acquisition assumption, not sticky `hs4`.
+  `b6-dynamic` now passes all nine machine/mode cases with source-derived pulse-width
+  checks; production RTL and CPU timing are unchanged. Physical monitor acquisition
+  remains open ([evidence](investigations/video-boundary/b22-short-hsync-2026-09-23.md)). [B23](backlog.md#b23-tv80-bench-cpu-bus-timing-parity-with-production-t80pa)
   proposes a TV80-vs-T80pa parity bench.
 - **Peripherals:** FDC full-sector result/ST1, classic AMSDOS and hardware acceptance are open.
   B8-7 HPS cadence is open; real-CDT playback is device-accepted on 464 and 464+.
