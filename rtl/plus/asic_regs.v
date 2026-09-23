@@ -439,9 +439,11 @@ module asic_regs
 		// legacy-translate hoist split the chain (review part-B blocker 1) -
 		// a write cycle coinciding with reset could otherwise override
 		// reset-defined fields such as IVR bit 0.
-		// DCSR flag bits: DMA INT requests set them on any clock edge;
-		// a &6C0F write clears by ones. A simultaneous set-and-clear
-		// resolves set-dominant (no arbitration rule in the sources).
+		// DCSR flags: dma_int_set is ORed in on each clock edge; an &6C0F
+		// write clears by ones. W1C and automatic acknowledge masks follow
+		// the OR, so a same-channel clear wins in this RTL. This documents
+		// implementation priority only; B20-6 has not established the
+		// hardware rule.
 		// Gated by !reset so reset dominates (review part-B blocker 1).
 		if (!reset) begin
 			if (dcsr_sna_hit) begin
