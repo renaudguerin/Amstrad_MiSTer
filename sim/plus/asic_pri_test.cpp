@@ -535,6 +535,37 @@ void pr07_raster_fire_during_intack(PriBench& b) {
 	std::printf("PASS pr07: raster_fire during intack & irqack_rst survives and asserts on deassertion\n");
 }
 
+// A PRI mode change must suppress delivery of an already-pending CPC request,
+// not just prevent new 52-line events. Arnold V section 2.4 selects the PRI
+// mechanism instead of CPC interrupts; Kevin Thacker, Extra CPC Plus Hardware
+// Information (interrupts), says CPC requests are inactive while ASIC raster
+// interrupts are active. The retain/unmask control is observed in AmSpirit
+// 1.15.1/core2491682; original-hardware adjudication remains outstanding.
+// See docs/investigations/hardware-runs/
+// eerie-forest-pending-classic-2026-09-23.md.
+void pr08_pending_classic_mode_switch() {
+	PriBench b;
+	b.power_on();
+	b.empty_ack();
+	b.empty_ack();
+	wait_fire(b, "pr08 classic pending", 120u * kLineClks);
+	// No acknowledge or MRER clear between the mode changes. Choose a
+	// nonmatching line and stay within this line, so neither transition can
+	// be explained by a newly generated interrupt.
+	b.pri = uint8_t(((b.crtc_line + 64) & 0x7f) + 1);
+	b.run(2);
+	if (b.dut.INT_N != 1)
+		fail("pr08: nonzero PRI must mask an already-pending CPC interrupt");
+	b.pri = 0;
+	b.run(2);
+	if (b.dut.INT_N != 0)
+		fail("pr08: returning to PRI=0 must expose the retained CPC request");
+	b.empty_ack();
+	if (b.dut.INT_N != 1 || b.dut.int_last_raster != 1)
+		fail("pr08: retained CPC request must acknowledge as raster");
+	std::printf("PASS pr08: PRI masks and unmasks a pending CPC request\n");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -548,6 +579,7 @@ int main(int argc, char** argv) {
 		pr05_dcsr_level(b);
 		pr06_dma_ack_then_raster(b);
 		pr07_raster_fire_during_intack(b);
+		pr08_pending_classic_mode_switch();
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;
