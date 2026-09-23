@@ -43,8 +43,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   timing gain are preserved in the [rearm record](investigations/sonic/rearm-boundary-2026-09-22.md).
 - **Latest hardware-tested builds:** `8b18ac0` (2026-09-23 user retest:
   Sonic GX confirmed fixed, Navy Seals / World of Sports sprite-line flicker
-  appears fixed, Switchblade / Eerie Forest still not loading; see the
-  [retest record](investigations/hardware-runs/plus-titles-8b18ac0-2026-09-23.md)),
+  appears fixed, Switchblade / original Eerie Forest CPR still not loading; see the
+  [retest record](investigations/hardware-runs/plus-titles-8b18ac0-2026-09-23.md)).
+  A subsequent same-build check confirms Eerie Forest boots after correcting only
+  its malformed RIFF length ([finding](plus/eerie-forest-container-2026-09-23.md));
   `64702ac` (B20-7 DMA terminal-PAUSE resurrection;
   Sonic title screen 100% coherent without displaced bands; attract and player gameplay
   progression confirmed; six regression titles clean),
@@ -154,8 +156,11 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   (2026-09-23 user retest; no assigned RTL cause, closure pending a repeatable
   capture); its black-screen report was not reproduced and has no
   assigned cause.
-- CRTC3 demo: warning, audio and crash defects remain. Switchblade and Eerie Forest
-  non-loading is reproduced on `8b18ac0` (2026-09-23); other cartridge
+- CRTC3 demo: warning, audio and crash defects remain. Switchblade non-loading
+  is reproduced on `8b18ac0` (2026-09-23). Eerie Forest was isolated to its malformed
+  outer RIFF length: a header-only corrected copy boots and progresses on the same
+  build, with no RTL change ([finding and recipe](plus/eerie-forest-container-2026-09-23.md));
+  full demo completion remains untested. Other cartridge
   crashes, CPC+ SNA/reset/reload recovery and odd-R5 CRTC3 behaviour remain evidence-gated.
 - Disk path: on `4027f5e` the System Cartridge boots 6128+ (AMSDOS) and 464+ (tape), and
   6128+ reads a disk directory and loads Space Gun to its title
