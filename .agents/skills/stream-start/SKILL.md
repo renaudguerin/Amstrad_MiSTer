@@ -26,7 +26,7 @@ selects suitable unclaimed work across the roadmap and backlog when no brief is 
 
 ## Procedure
 
-1. Read `AGENTS.md`, `CLAUDE.md`, backlog, current status and relevant roadmap sections.
+1. Read `AGENTS.md`, backlog, current status and relevant roadmap sections.
    Auto-select an actionable item with available prerequisites and acceptance evidence;
    state the choice and rationale. Preserve the user's explicit brief.
 2. Inspect the current checkout, `git worktree list --porcelain`, visible tasks, relevant

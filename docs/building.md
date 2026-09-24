@@ -118,7 +118,7 @@ Rosetta 2 translates x86_64 instructions directly rather than emulating a
 whole different CPU, and Quartus's actual CPU-bound synthesis work benefits
 from that more than from virtualization overhead.
 
-The checked-in [`ansible/`](plus/archive/README.md) playbooks provision and
+The ignored `local/infra/ansible/` playbooks (main checkout) provision and
 validate the project's Debian 13 UTM guest. Use that recipe for the current VM;
 the outline below remains useful when creating a replacement VM from scratch.
 
@@ -150,7 +150,7 @@ Mint a Linux arm64 registration token under GitHub Settings -> Actions ->
 Runners, then provision the runner from the Mac:
 
 ```bash
-ansible-playbook -i ansible/inventory.yml ansible/local-runner.yml -e runner_token=<token>
+(cd local/infra/ansible && ansible-playbook -i inventory.yml local-runner.yml -e runner_token=<token>)
 gh workflow run local-build.yml --ref <branch-or-tag> -f effort=full|smoke
 ```
 
@@ -166,7 +166,7 @@ The dedicated VM is therefore the security boundary: keep it disposable and
 free of host credentials or shared folders, and do not approve untrusted
 workflow changes while it is online. The local route emits the same RBF,
 fitter, timing, and provenance evidence as hosted Tier B. Full registration
-and removal instructions are in `ansible/README.md`.
+and removal instructions are in `local/infra/ansible/README.md`.
 
 #### Measured Benchmark (2026-08-26, exact SHA `27cb993`)
 

@@ -54,7 +54,7 @@ Resolve textual conflicts and perform a semantic audit even after a clean merge:
 - `docs/current-status.md`: both tasks' progress, residuals and current focus remain accurate.
 - `docs/review-debt.md`: preserve active debt, tie evidence to the reviewed changes.
 - `docs/implementation-roadmap.md`: completion/dependencies reflect the combined state.
-- `AGENTS.md` and `sim/README.md`: golden hashes and their explanations agree.
+- `sim/soak-golden-history.md`: every re-mint from either branch has a row, and the top row is the merged tip's hash.
 
 Inspect the full staged change, not just extension names. Pure documentation changes skip
 simulation. RTL, simulation, testbench and build-manifest changes require

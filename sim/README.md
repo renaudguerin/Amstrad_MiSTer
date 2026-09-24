@@ -138,72 +138,10 @@ RA, DE, HSYNC, VSYNC, CURSOR, FIELD, DO) plus `hcc`, `line`, `row`, `c5`,
 the type-0 partial-VSYNC holdoff and C0=2 line-history latches, and the two
 type-1 private status flops (`r6_border_condition`, `status_bit5_r`).
 
-The golden hash for the type-0/type-1 engine split was minted from the
-unsplit core; the minting commit and hash value are recorded in the session
-plan (`docs/plans/2026-08-22-accc-review-plan.md`). It has been re-minted
-five times on 2026-08-23: for the intended F6 Stage 1 behaviour change; for
-the sampled-field expansion (holdoff latch + type-1 status flops added,
-review issue 4 remediation — no RTL change); for the intended type-1 F7
-RFD behaviour; for A1's removal of the type-1 adjustment-ending spurious
-VSYNC; and for A2's exact-edge R4 suppression of the adjustment C4=1 reload.
-The F7/A1/A2 mints kept the seed, event schedule, and sampled-field
-set/order unchanged; random R5 writes now sometimes arm RFD, so the observed
-DUT behaviour legitimately changed from `0xf5f8ae01ffdf928d` to
-`0xae27f2c3c758ed87`, A1 moved it to `0x6439f9805b20acaa`, and A2 moved it to
-`0x512eaae74a628dca` because the fixed random schedule reaches
-the newly distinguished R4 edge. Two independent A2 minting runs reproduced it and the
-expected-hash gate matched. All hash values and reasons are recorded in the
-session plan. Subsequent behavior mints are recorded in `AGENTS.md`; the
-current hash is **`0xe99ab434a5e1cdb3`** after F14 type-1 additional-line
-existence was made independent of R5, with adjustment entry prevented during
-the additional line. Seed, stimulus and sampled projection are unchanged;
-the physical frame durations change. See the
-[repair evidence](../docs/investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md).
-The previous hash was **`0xb1cb70da95c2e44f`** after D1 canonical origin VSYNC
-and active-pulse phase ownership, plus D6 shared RFD parity. The seed and
-stimulus are unchanged; `vsync_mid_arm` and `vsync_active_mid` join the
-sampled projection. See the [repair evidence](../docs/accuracy/d1-d6-parity-repair-2026-09-11.md).
-The previous hash was **`0x6e8258198d6e6137`** after B8-1 retained production-phase
-R5/R0 events across the register-write/character-decision boundary. The seed,
-stimulus, and sampled fields/order are unchanged: the hash moves because the
-old-value side effects now execute. Event bits are consumed before the existing
-post-CLKEN sampler; their lifecycle is covered by the focused phase fixture,
-without adding constant-zero fields to the sampled projection. See the
-[B8-1 evidence](../docs/accuracy/b8-1-cpu-write-timing-2026-09-08.md).
-The previous hash was **`0x2263c9fc44af4ee7`** after the reviewed interlace VSYNC
-lifecycle correction: type 1 no longer depends on type-0 C0 history, while
-type 0 reconstructs C0=2 qualification from the live counter even when a
-snapshot load or type switch clears its private history after C0=2. The
-preceding `0xf96f243f594acecf` candidate covered only lifecycle clears before
-C0=2 and was superseded during review. The earlier `0x8a2c2290bcef06a7` hash
-recorded the author-confirmed type-0 section 16.4.1.2
-preceding-line qualification: the fixed random schedule and
-sampled projection now include whether C0 reached 2 on the current and
-preceding lines, and natural C4=R7 VSYNC is blocked when that prerequisite was
-not met. The preceding `0x9d8cd95357d1d752` hash recorded Q20's author-confirmed
-type-1 R5=0 adjustment correction: the fixed random schedule reaches C4=R4 while
-adjustment remains active, so C4 now resets to zero without ending adjustment
-or resetting C5; the resulting C4=0 row reloads R12/R13 and VSYNC compares
-the actual reset value. The earlier `0xd6bc1649ff2058a1` hash recorded IA-6's
-type-0 R0=1 widening route and its one-character pending action joining the
-sampled projection. The earlier `0x21bbf9c29ab08413` hash recorded IA-3's live-R6 first-line
-conflict and lifecycle latch; before that, `0x87a9d80a91381c9b` recorded
-IA-1's controlled type-0 R3-terminal HSYNC restart. French ACCC v1.11
-sections 15.3.2-15.3.3 pp.150-151 preserve the C3l overflow while the
-earliest approximately 3.5-Mode-2-pixel restart maps to 14 master ticks only
-for `t33b`'s pinned bus phase. The new pending/count state joined the sampled
-projection. The earlier `0x654a244c2cce6e0b` hash was IA-2's frame-origin
-correction: French section
-19.5.3 p.209 assigns ParityC9 from the newly toggled ParityFrame, and its
-worked table starts an odd IVM frame at C9=1. Directed vector `t32a` first
-fails the stale toggle-both model from an even-R9 unequal-parity state. The
-earlier `0x32d468e81eac63c9` hash was the
-reviewed F20 correction: type-0/type-1 R2.JIT starts move by 4/3 Mode-2 pixels
-while display reactivation stays at each type's normal position, shortening
-the raw pulse by 4/3 pixels; same-value rewrites remain on the normal path.
-The earlier `0x005deed28be80fa1` mint encoded the rejected width-preserving model plus the
-addition of all new phase/deferred-edge latches to the sampled projection
-(previously `0xc769ea4605afbe04` after F13). The hash depends on the seed, the
+The current golden hash and the reason for every re-mint since the original
+2026-08-22 mint from the unsplit core are in
+[soak-golden-history.md](soak-golden-history.md). For a behaviour-changing
+commit, re-mint and add a row there. The hash depends on the seed, the
 sampled field set/order, the event schedule, and the DUT's observable
 behaviour — any of the first three changing requires re-minting, recorded as
 such. The soak accesses internals by their Verilator names, so a refactor

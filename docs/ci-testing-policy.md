@@ -23,7 +23,7 @@ push. A manual dispatch chooses the simulation scope: `selected` (default), `fas
 bench, `make -C sim test`) or `full` (every bench, `make -C sim full`); tags run `fast`. This is
 the per-push gate for production RTL, simulation vectors, co-simulation manifests, and
 repository tooling. A failed Tier A run blocks every higher tier. A green run on the exact SHA
-counts as that change set's gate; local runs follow the one-run rule in `CLAUDE.md` ("Gates").
+counts as that change set's gate; local runs follow the one-run rule in `AGENTS.md` ("Gates").
 
 A second Tier A job, `production-t80`, runs in parallel and is enforced by the same required
 gate:
@@ -227,7 +227,7 @@ Manual milestone dispatch keeps its `workflow_dispatch` route; the former
 
 The existing Quartus VM is a second route to Tier B, not a weaker standard. Since
 2026-08-26 it is reachable as a self-hosted GitHub runner: register the runner once with
-`ansible/local-runner.yml` (e.g. `ansible-playbook -i ansible/inventory.yml ansible/local-runner.yml`),
+`local/infra/ansible/local-runner.yml` (ignored, main checkout; run `ansible-playbook -i inventory.yml local-runner.yml` from that directory),
 then dispatch `.github/workflows/local-build.yml`:
 
 ```sh
@@ -241,7 +241,7 @@ The VM executes repository-controlled Tcl and RTL directly, without the containe
 from Docker, which is why the checked-in workflow is dispatch-only and also guards its event and repository.
 Those controls do not secure the runner label against a malicious edit to another workflow; the disposable VM is
 the isolation boundary for this public repository. Provisioning, registration, and removal are documented in
-`ansible/README.md`; iteration-speed background remains in `docs/building.md`.
+`local/infra/ansible/README.md`; iteration-speed background remains in `docs/building.md`.
 
 ### Performance benchmark (exact SHA `27cb993`, 2026-08-26)
 
