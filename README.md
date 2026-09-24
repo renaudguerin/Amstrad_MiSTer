@@ -1,5 +1,7 @@
 # Amstrad CPC & Plus / GX4000 for MiSTer
 
+![Amstrad CPC & Plus / GX4000 for MiSTer](docs/images/banner.jpg)
+
 This repository is an experimental fork of the official [MiSTer Amstrad core](https://github.com/MiSTer-devel/Amstrad_MiSTer) (which itself originated as a port of [CoreAmstrad by Renaud Hélias](https://github.com/renaudhelias/CoreAmstrad) before extensive module rewrites).
 
 While this work was initially envisioned as a series of bite-sized pull requests upstream, the implementation has diverged significantly (hundreds of commits ahead of upstream) through major architectural additions. This fork focuses on two main goals:
