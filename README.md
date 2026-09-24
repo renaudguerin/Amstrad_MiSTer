@@ -2,7 +2,7 @@
 
 This repository is an experimental fork of the official [MiSTer Amstrad core](https://github.com/MiSTer-devel/Amstrad_MiSTer) (which itself originated as a port of [CoreAmstrad by Renaud Hélias](https://github.com/renaudhelias/CoreAmstrad) before extensive module rewrites).
 
-While this work was initially envisioned as a series of bite-sized pull requests upstream, the implementation has diverged significantly (over 500 commits ahead of upstream) through major architectural additions. This fork focuses on two main goals:
+While this work was initially envisioned as a series of bite-sized pull requests upstream, the implementation has diverged significantly (hundreds of commits ahead of upstream) through major architectural additions. This fork focuses on two main goals:
 
 1. **Cycle-Accurate Classic Video Emulation (CRTC Types 0 & 1)**: Rigorous hardware accuracy grounded in [*The Amstrad CPC CRTC Compendium* (ACCC)](https://shaker.logonsystem.eu/) by Longshot (Logon System).
 2. **Amstrad Plus and GX4000 Range Support**: Comprehensive support for the Amstrad Plus series (464+, 6128+) and GX4000 console, including AMS40489 ASIC features, CPR cartridge loading, and expanded video/audio capabilities.
@@ -13,15 +13,14 @@ While this work was initially envisioned as a series of bite-sized pull requests
 
 > [!NOTE]
 > **Status: Active Work in Progress (WIP)**  
-> The core is under active development. While many titles run well, work is ongoing to resolve remaining discrepancies.
+> The core is under active development. While many titles run well, work is ongoing to resolve remaining issues.
 
 ### 1. Amstrad Plus & GX4000 Support
 The core includes a dedicated parallel behavioral video and system path implementing the custom AMS40489 ASIC features alongside classic Gate Array operation:
 * **Cartridge (.CPR) Support**: Direct loading of commercial and homebrew CPR cartridge files (RIFF container format) up to 512 KiB via the MiSTer OSD, backed by an atomic SDRAM cartridge memory service and MMU banking.
 * **Compatibility Status**:
-  * **Most commercial games are now playable without major issues** (e.g., *Burnin' Rubber*, *Navy Seals*, *RoboCop 2*, *Enforcer*, *Tintin on the Moon*, *Pang*, *Plotting*).
-  * *Switchblade*, *Sonic*, and many demos remain broken.
-  * Active troubleshooting continues for remaining hardware quirks, including subtle sprite-edge artifacts and audio DMA pitch/timing discrepancies on advanced demos (such as the CRTC3 demo).
+  * **Most if not all commercial games are now playable without major issues** (e.g., *Burnin' Rubber*, *Navy Seals*, *RoboCop 2*, *Dick Tracy*, *Tintin on the Moon*, *Pang*, *Plotting*), as well as many homebrew games (e.g. *Sonic GX*, *Puzzle Bobble*)
+  * Some advanced Plus demos (like CRTC3) are still largely broken.
 * **16 Hardware Sprites**: 16×16 pixels with 15 colors plus transparency, 1×/2×/4× horizontal and vertical magnification, and priority layering over background graphics.
 * **Enhanced 12-Bit Palette**: 4,096 colors across 32 hardware palette registers (16 for Gate Array / border ink and 16 for sprites).
 * **3-Channel Audio DMA**: Autonomous sample list streaming directly to the PSG (YM2149 / AY-3-8912) without CPU overhead.
@@ -29,23 +28,31 @@ The core includes a dedicated parallel behavioral video and system path implemen
 * **Snapshot (.SNA) Support**: CPC+ snapshot loading and state restoration (palette, MMU, DMA, ASIC registers).
 
 ### 2. Classic CRTC Accuracy
-Classic CRTC emulation has been redesigned to align with the authoritative *Amstrad CPC CRTC Compendium* (ACCC v1.11):
+Classic CRTC emulation has been reworked, with a goal to align with the very comprehensive (nearly 300 pages!) [Amstrad CPC CRTC Compendium and its associated Shaker test suite](https://shaker.logonsystem.eu/) (ACCC v1.11)
 * **Per-Type Engine Architecture**: Replaced the legacy monolithic CRTC module with dedicated, independent rule engines for **CRTC Type 0** (Hitachi HD6845S / UM6845) and **CRTC Type 1** (UM6845R), coordinated by an outer wrapper (`rtl/CRTC.v`).
 * **Precise Counter & Sync Timing**: Cycle-accurate horizontal (C0–C3) and vertical (C4, C9) counting, interlace video modes (IVM), raster flash detection (RFD), skew compensation, VMA generation, and exact HSYNC/VSYNC trigger rules.
 * **CPU/Bus Write Synchronization**: Accurate modeling of sub-cycle write races, R5/R0 write-event retention across character boundaries, C0 edge-boundary writes, and R2.JIT timing interactions with the Gate Array (GA40010) contention model.
 * **Selectable Sync Filter**: Configurable in the OSD (Full / Live blanking / Off) to allow software relying on extreme CRTC sync manipulation and irregular line lengths to display properly while maintaining video scaler lock.
 * **Continuous Verification**: Verified against hundreds of automated Verilator assertions, randomized equivalence soak testing against recorded golden hashes, and photographic reference captures from the Logon System [SHAKER](https://shaker.logonsystem.eu/) suite.
+* **Status: many demos and Shaker suite tests are still broken, more work is ongoing**  
 
 ### 3. CI and Synthesis Pipeline
 * Automated GitHub Actions workflows validate the Verilator simulation suites, linting rules, and soak tests on every non-documentation change.
 * Automated full-effort Quartus 17.0.2 synthesis with strict timing closure verification (setup/hold slack and zero Total Negative Slack) ensures testable RBF artifacts.
 * For implementation details and roadmaps, see [docs/current-status.md](docs/current-status.md) and [docs/implementation-roadmap.md](docs/implementation-roadmap.md).
 
-### 4. SNA Snapshot Save (development aid only)
+### 4. Automated development loop
+* Agents can automatically connect to the MiSTer device to upload candidate cores and take screenshots.
+* Agents can use the [AMSpiriT emulator's extensive web API](https://blog.logonsystem.eu/amspirit-lite-6-mois-deja-en/) as a reference during development. AMSpirit is currently the most accurate Amstrad CPC software emulator.
+
+### 5. SNA Snapshot Save (development aid only)
 * **Save snapshot** in the OSD writes a classic CPC SNA v3 file (64K or 128K) of the running machine, frozen at an instruction boundary. Verified on hardware: a saved 6128 snapshot reloads in this core and in AmSpirit.
 * **Limitation: not a user feature yet.** The file goes to DDR3 memory, not the SD card, so it must be copied off the MiSTer from another computer over SSH with `scripts/hardware-loop/sna_pull.py`. Saving straight to SD needs a MiSTer Main change or a rework around Main's save-state mechanism; see [docs/b18-sna-save.md](docs/b18-sna-save.md).
 * Classic models only: refused in Plus mode and while a Dandanator or Multiface II is active.
 
+### 6. Upcoming features
+* **Rearrange MiSTer OSD menus** with different options for classic / Plus / GX4000, alternate keyboard layouts and ROMs loading.
+* **Work towards full Shaker CRTC test suite compliance**
 ---
 
 ## Upstream Core Features
