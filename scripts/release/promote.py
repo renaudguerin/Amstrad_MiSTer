@@ -257,8 +257,12 @@ def verify_build_quality(rbf_path, reports_dir, repo_root, skip_timing=False):
     return results
 
 
-def package_release_assets(rbf_path, reports_dir, repo_root, output_dir, build_date, short_sha):
-    """Package release files: Amstrad_YYYYMMDD.rbf, boot.rom, reports.zip, and checksums."""
+def package_release_assets(rbf_path, output_dir, build_date, short_sha,
+                           include_reports=False, reports_dir=None,
+                           include_boot_rom=False, repo_root=None,
+                           include_sha_rbf=False,
+                           include_checksums=False):
+    """Package release files. By default, packages solely Amstrad_YYYYMMDD.rbf."""
     output_dir.mkdir(parents=True, exist_ok=True)
     assets = []
 
@@ -267,26 +271,28 @@ def package_release_assets(rbf_path, reports_dir, repo_root, output_dir, build_d
     shutil.copy2(rbf_path, primary_rbf)
     assets.append(primary_rbf)
 
-    # 2. Also keep SHA-bearing RBF alias so users/archives can uniquely identify it
-    sha_rbf = output_dir / f"Amstrad_{build_date}_{short_sha}.rbf"
-    if sha_rbf != primary_rbf:
-        shutil.copy2(rbf_path, sha_rbf)
-        assets.append(sha_rbf)
+    # Optional: SHA-bearing RBF alias
+    if include_sha_rbf:
+        sha_rbf = output_dir / f"Amstrad_{build_date}_{short_sha}.rbf"
+        if sha_rbf != primary_rbf:
+            shutil.copy2(rbf_path, sha_rbf)
+            assets.append(sha_rbf)
 
-    # 3. System boot ROM (required for Amstrad core to run)
-    rom_src = repo_root / "roms" / "boot.rom"
-    if not rom_src.is_file():
-        # Fallback to releases/boot.rom if old checkout
-        rom_src = repo_root / "releases" / "boot.rom"
-    if rom_src.is_file():
-        target_rom = output_dir / "boot.rom"
-        shutil.copy2(rom_src, target_rom)
-        assets.append(target_rom)
-    else:
-        print("Warning: boot.rom not found in roms/ or releases/; skipping companion boot ROM attachment.")
+    # Optional: System boot ROM
+    if include_boot_rom and repo_root:
+        rom_src = repo_root / "roms" / "boot.rom"
+        if not rom_src.is_file():
+            # Fallback to releases/boot.rom if old checkout
+            rom_src = repo_root / "releases" / "boot.rom"
+        if rom_src.is_file():
+            target_rom = output_dir / "boot.rom"
+            shutil.copy2(rom_src, target_rom)
+            assets.append(target_rom)
+        else:
+            print("Warning: boot.rom not found in roms/ or releases/; skipping companion boot ROM attachment.")
 
-    # 4. Reports zip
-    if reports_dir and reports_dir.is_dir():
+    # Optional: Reports zip
+    if include_reports and reports_dir and reports_dir.is_dir():
         zip_path = output_dir / f"Amstrad_{build_date}_{short_sha}_reports.zip"
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for root, _, files in os.walk(reports_dir):
@@ -296,13 +302,14 @@ def package_release_assets(rbf_path, reports_dir, repo_root, output_dir, build_d
                     zf.write(file_p, arcname)
         assets.append(zip_path)
 
-    # 5. SHA256SUMS.txt
-    sums_file = output_dir / "SHA256SUMS.txt"
-    with open(sums_file, "w") as sf:
-        for a in assets:
-            h = sha256_file(a)
-            sf.write(f"{h}  {a.name}\n")
-    assets.append(sums_file)
+    # Optional: SHA256SUMS.txt
+    if include_checksums:
+        sums_file = output_dir / "SHA256SUMS.txt"
+        with open(sums_file, "w") as sf:
+            for a in assets:
+                h = sha256_file(a)
+                sf.write(f"{h}  {a.name}\n")
+        assets.append(sums_file)
 
     return assets
 
@@ -337,6 +344,9 @@ def generate_notes(repo, target_sha, short_sha, build_date, run_id, verification
     if verification_info.get("timing_summary"):
         lines.append(f"**Timing Closure:** `{verification_info['timing_summary']}`  ")
 
+    has_boot_rom = any(a.name == "boot.rom" for a in assets)
+    boot_rom_src = "attached below" if has_boot_rom else "available in repository `roms/boot.rom`"
+
     lines.extend([
         "",
         "## Core Capabilities & Features",
@@ -356,7 +366,7 @@ def generate_notes(repo, target_sha, short_sha, build_date, run_id, verification
         "   ```",
         "   /media/fat/_Computer/Amstrad_" + build_date + ".rbf",
         "   ```",
-        "2. Ensure `boot.rom` (attached below) is placed at:",
+        f"2. Ensure `boot.rom` ({boot_rom_src}) is placed at:",
         "   ```",
         "   /media/fat/Games/Amstrad/boot.rom",
         "   ```",
@@ -398,6 +408,10 @@ def main():
     parser.add_argument("--draft", action="store_true", default=True, help="Create release as draft (default: True)")
     parser.add_argument("--dry-run", action="store_true", help="Inspect actions and notes without creating release on GitHub")
     parser.add_argument("--skip-timing-check", action="store_true", help="Allow release even if TimeQuest timing check fails")
+    parser.add_argument("--include-reports", action="store_true", help="Also attach synthesis reports zip (default: False)")
+    parser.add_argument("--include-boot-rom", action="store_true", help="Also attach companion boot.rom (default: False)")
+    parser.add_argument("--include-sha-rbf", action="store_true", help="Also attach commit-SHA-tagged RBF alias (default: False)")
+    parser.add_argument("--include-checksums", action="store_true", help="Also attach SHA256SUMS.txt manifest (default: False)")
 
     args = parser.parse_args()
     if args.publish:
@@ -443,8 +457,19 @@ def main():
 
     # 5. Package Assets
     assets_dir = staging_dir / "release_assets"
-    assets = package_release_assets(rbf_path, reports_dir, repo_root, assets_dir, build_date, short_sha)
-    print(f"Packaged {len(assets)} release assets in {assets_dir}:")
+    assets = package_release_assets(
+        rbf_path=rbf_path,
+        output_dir=assets_dir,
+        build_date=build_date,
+        short_sha=short_sha,
+        include_reports=args.include_reports,
+        reports_dir=reports_dir,
+        include_boot_rom=args.include_boot_rom,
+        repo_root=repo_root,
+        include_sha_rbf=args.include_sha_rbf,
+        include_checksums=args.include_checksums,
+    )
+    print(f"Packaged {len(assets)} release asset(s) in {assets_dir}:")
     for a in assets:
         print(f"  - {a.name} ({a.stat().st_size} bytes)")
 
