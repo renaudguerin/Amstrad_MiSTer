@@ -231,7 +231,9 @@ void run_cell(const CellConfig& cfg) {
     require(cfg.memory_write ? (ack_address > cfg.origin && ack_address <= cfg.origin+64)
                              : ack_address==cfg.origin+1,
             cfg.name+": acknowledge did not follow the intended opcode class");
-    require(dcsr_seen && dcsr==(susceptible ? 0:0x80),cfg.name+": handler DCSR provenance incorrect");
+    // Handler-read regression: split vector delivery must preserve the first
+    // raster ACK provenance (see docs/plus/ack-provenance-regression-2026-09-26.md).
+    require(dcsr_seen && dcsr==0x80,cfg.name+": handler DCSR provenance incorrect");
     require(seen, cfg.name+": no target execution");
     require(!cfg.memory_write || write_seen,cfg.name+": no LD(DE),A memory write");
     require(samples==1 && sampled==(susceptible ? 4:6),cfg.name+": wrong byte at production T80 IM2 sample edge");
