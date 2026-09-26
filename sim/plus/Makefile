@@ -879,7 +879,7 @@ B20_BUS_OBJ_DIR := $(abspath obj_dir/b20_bus_diag)
 b20-bus-diag-build:
 	$(MAKE) -C .. t80-netlist
 	python3 prepare_d5_boot.py
-	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --top-module p10_boot_test_top --Mdir $(B20_BUS_OBJ_DIR) -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" -o b20_bus_diag $(D5_SRC_DIR)/p10_boot_test_top.v $(D5_RTL) $(abspath b20_bus_diag_test.cpp)
+	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --top-module p10_boot_test_top -GSYNC_FILTER=0 --Mdir $(B20_BUS_OBJ_DIR) -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" -o b20_bus_diag $(D5_SRC_DIR)/p10_boot_test_top.v $(D5_RTL) $(abspath b20_bus_diag_test.cpp)
 
 b20-bus-diag: b20-bus-diag-build
 	$(B20_BUS_OBJ_DIR)/b20_bus_diag

@@ -100,10 +100,10 @@ module asic_regs
 
 	// Interrupt-vector supply (reference §7): on every INT acknowledge the
 	// ASIC drives (IVR & &F8) | source onto the data bus, raster highest
-	// priority. DMA sources land with P7; until then the source field is
-	// raster (%110) whenever a raster interrupt is pending — the no-
-	// pending behaviour is unspecified on hardware (named assumption).
-	input        intack,        // M1 & IORQ cycle in progress
+	// priority. An empty repeated pulse within M1 returns offset4 (see
+	// physical capture below); other empty requests remain unspecified.
+	input        intack,        // M1 & ASIC-side IORQ pulse
+	input        intack_m1,     // M1 window, includes gap between shaped pulses
 	input        int_pending,   // raster interrupt asserted (INT_N low)
 	output [7:0] vec_byte,
 	output       vec_valid,     // high while the vector occupies the bus
@@ -652,21 +652,29 @@ module asic_regs
 	assign pal_rdata = pal_r;
 
 	// Vector byte: (IVR & &F8) | source; source = %110 (raster) while a
-	// raster interrupt pends (reference §7 table; DMA codes arrive P7).
+	// raster interrupt pends (reference §7 table), then DMA2/1/0 priority.
 	// The source field is sampled on the FIRST clock edge of the
 	// acknowledge cycle and held for its duration: INT_N rises one edge
 	// into the cycle (irqack is combinational), so an unsampled
 	// int_pending would drop the raster bits before the CPU latches the
 	// byte at cycle end (review finding 2).
+	// Gerald's 29 July 2017 physical trace: raster06 then empty04 inside
+	// one M1 window. Scope the empty fallback to a repeated ASIC pulse;
+	// arbitrary idle acknowledges retain the existing unspecified default.
+	// https://oldwiki.cpcwiki.eu/imgs/7/7e/IM2_Plus_Ack_Bug.png
+	reg ack_seen;
 	reg [2:0] ack_src;
 	always @(posedge clk) begin
 		if (reset) begin
 			intack_d <= 1'b0;
 			ack_src  <= 3'd0;
+			ack_seen <= 1'b0;
 		end
 		else begin
 			intack_d <= intack;
+			if (!intack_m1) ack_seen <= 1'b0;
 			if (intack && !intack_d) begin
+				ack_seen <= 1'b1;
 				if (int_pending)
 					ack_src <= 3'b110;
 				else if (dcsr_flags[2])
@@ -676,7 +684,7 @@ module asic_regs
 				else if (dcsr_flags[0])
 					ack_src <= 3'b100;
 				else
-					ack_src <= 3'b000;
+					ack_src <= ack_seen && intack_m1 ? 3'b100 : 3'b000;
 			end
 		end
 	end
