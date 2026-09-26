@@ -425,11 +425,64 @@ void p4_live_prediction(unsigned target_y, int lead_lines) {
         fail("newly eligible prediction did not fetch exactly one complete row");
 }
 
+// Arnold §2.1 signed coordinates and nonzero-pixel opacity, through the
+// production registers, shared RAM port and sprite engine. Seven x4 sprites
+// compete for fetch service. A complete inactive interval precedes frame0;
+// this does not assert a cache guarantee for frames shorter than sprite height.
+// All pixel rows are nonzero and row-coded to distinguish negative-Y entry.
+void p4_frame_entry(int sy, bool rewrite) {
+ Bench b;
+ const unsigned xs[]={0,0,998,38,102,410,474,538,602};
+ for(unsigned c=1;c<16;++c){b.page_write(0x2420+c*2,c<<4);b.page_write(0x2421+c*2,0);}
+ for(unsigned i=2;i<=8;++i){
+  for(unsigned k=0;k<256;++k)b.page_write(i*256+k,1+(k/16)%15);
+  b.page_write(0x2000+i*8,xs[i]&255);b.page_write(0x2001+i*8,xs[i]>>8);
+  unsigned yraw=unsigned(sy)&511;
+  b.page_write(0x2002+i*8,yraw&255);b.page_write(0x2003+i*8,yraw>>8);b.page_write(0x2004+i*8,15);
+ }
+ unsigned target=sy>0 ? unsigned(sy):0;
+ unsigned row0=sy<0 ? unsigned(-sy)/4:0;
+ unsigned missing=0,wrong=0,hidden=0,entry_pops=0,pops_at_write=0,pops_after_write=0;
+ for(unsigned physical=0;physical<312+target+2;++physical){
+  unsigned y=physical%312;b.dut.line=y>>3;b.dut.row=y&7;
+  for(unsigned x=0;x<1024;++x){
+   if(rewrite&&physical==300&&x>=100&&x<116){
+    if(x==100)pops_at_write=entry_pops;
+    b.dut.asic_cs=1;b.dut.mem_wr=1;b.dut.mem_rd=0;b.dut.A=0x200+row0*16+x-100;b.dut.D_in=14;
+   }
+   for(unsigned phase=0;phase<4;++phase){
+    if(phase==3&&physical>=312+target&&x>=16&&x<54){
+     if(sy<=-64){if(b.dut.spr_en)++hidden;}
+     else if(!b.dut.spr_en||b.dut.spr_idx!=2)++missing;
+     else {
+      unsigned source_row=(int(y)-sy)/4;
+      unsigned nibble=rewrite&&source_row==row0 ? 14 : 1+source_row%15;
+      if(b.dut.spr_rgb!=(nibble<<8))++wrong;
+     }
+    }
+    auto e=b.tick(phase==3,phase==3&&(x&15)==15,phase==3&&x==1023);
+    if(e.req&&e.ack&&e.addr>=0x100+row0*8&&e.addr<0x108+row0*8){
+     if(int(physical)>=std::max(0,sy+64)&&physical<300)++entry_pops;
+     if(physical>=300)++pops_after_write;
+    }
+    if(phase==0)b.bus_idle();
+   }
+  }
+ }
+ printf("ENTRY Y=%d rewrite=%d missing=%u wrong=%u hidden=%u inactive_prefetch=%u refetch_after_write=%u\n",sy,rewrite,missing,wrong,hidden,pops_at_write,pops_after_write);
+ if (missing || wrong || hidden) fail("frame entry lost opaque pixels or selected the wrong signed-Y row");
+ if (rewrite && (pops_at_write!=8 || pops_after_write!=0))
+  fail("entry-row CPU write coherence was not proven without a refetch");
+}
+
 void p4_multiplex_prediction() {
     p4_live_prediction(64,-1); // static geometry control
     p4_live_prediction(64,2);  // same write with an extra line of lead time
     for (unsigned y : {64u,128u,192u}) p4_live_prediction(y,1);
-    std::printf("PASS p4 multiplex: live prediction prepares opaque first rows\n");
+    for (int y : {10,0,-26,-64}) p4_frame_entry(y,false);
+    p4_frame_entry(0,true);
+    p4_frame_entry(-26,true);
+    std::printf("PASS p4 multiplex: live prediction, signed frame entry, and cached pixel writes\n");
 }
 
 } // namespace
