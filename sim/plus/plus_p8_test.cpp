@@ -2594,6 +2594,71 @@ void test_b20_coincident_hsync(Vplus_p8_test_top& dut) {
 	std::printf("PASS b20_10: coincident pulse/HSYNC model-priority INT9\n");
 }
 
+// Kevin Thacker, Extra CPC Plus Hardware Information, DMA opcode bit table:
+// bits14:12 independently select control/REPEAT/PAUSE; bit15 is unused.
+// Quasar L'ASIC, "1 + 1 = ?": STOP suppresses LOOP, not PAUSE/REPEAT.
+// Use the observed F0C0 -> 5020 tail with an IRQ sentinel at3120 through
+// production DMA + register enable/interrupt feedback (manual IVR mode).
+void test_dma_combined_tail(Vplus_p8_test_top& dut) {
+    auto tick = [&]() { dut.clk=0; dut.eval(); dut.clk=1; dut.eval(); };
+    b20_reset(dut,tick);
+    for (uint8_t byte : {0xFF,0x00,0xFF,0x77,0xB3,0x51,0xA8,0xD4,
+                         0x62,0x39,0x9C,0x46,0x2B,0x15,0x8A,0xCD,0xEE})
+        b8_unlock_write(dut,tick,byte);
+    if (!dut.mmu_asic_unlocked) fail("DMA fixture failed ASIC unlock");
+    b20_cpu_write(dut,tick,0x2C00,0x04);
+    b20_cpu_write(dut,tick,0x2C01,0x31);
+    b20_cpu_write(dut,tick,0x2C02,0);
+    b20_cpu_write(dut,tick,0x2800,0xFF); // keep legacy GA interrupts out of this DMA case
+    b20_cpu_write(dut,tick,0x2805,0x21); // manual DMA flag retirement
+    // Retire any legacy GA request accumulated during reset/unlock setup.
+    dut.ga_m1_n=0; dut.ga_iorq_n=0;
+    for (int i=0;i<8;++i) tick();
+    dut.ga_m1_n=1; dut.ga_iorq_n=1;
+    for (int i=0;i<8;++i) tick();
+    b20_cpu_write(dut,tick,0x2C0F,1);
+    bool fetched_irq=false;
+    for (unsigned line=0; line<240; ++line) {
+        dut.dma_test_hsync=1; tick(); dut.dma_test_hsync=0;
+        for (unsigned cycle=0; cycle<300; ++cycle) {
+            unsigned addr=dut.dma_ram_addr;
+            dut.dma_ram_data=addr==0x3104 ? 0xF0C0 : addr==0x3106 ? 0x5020 :
+                             addr==0x3120 ? 0x4010 : 0x4000;
+            dut.eval();
+            if (dut.dma_ram_req && dut.dma_cclk_en_p && addr==0x3120) fetched_irq=true;
+            tick();
+        }
+    }
+    std::printf("DMA tail: SAR=%04X DCSR=%02X fetched_IRQ=%u INT_n=%u\n",
+                dut.dma_sar0_addr,dut.aregs_dcsr,fetched_irq,dut.int_n_merged);
+    if (fetched_irq || dut.dma_sar0_addr!=0x3108 || (dut.aregs_dcsr&0x41) || !dut.int_n_merged)
+        fail("combined DMA tail must stop at3106 without fetching the later IRQ");
+
+    // Control proves this fixture really propagates a DMA IRQ, including
+    // manual-ack persistence. PAUSE32 surviving STOP/re-enable pins the
+    // existing preserved-suspend model choice, not a hardware-proven rule.
+    b20_cpu_write(dut,tick,0x2C00,0x20);
+    b20_cpu_write(dut,tick,0x2C01,0x31);
+    b20_cpu_write(dut,tick,0x2C0F,1);
+    for (unsigned line=1; line<=32; ++line) {
+        b20_hsync_line(dut,tick,0x4010);
+        if (((dut.aregs_dcsr&0x40)!=0) != (line==32))
+            fail("PAUSE+STOP did not retain its delay across re-enable");
+    }
+    if (dut.int_n_merged) fail("DMA IRQ did not reach merged INT");
+    dut.ga_m1_n=0; dut.ga_iorq_n=0;
+    for (int i=0;i<8;++i) tick();
+    if (!dut.ack_vec_valid || dut.ack_vec_byte!=0x24)
+        fail("manual DMA0 ACK vector mismatch");
+    dut.ga_m1_n=1; dut.ga_iorq_n=1;
+    for (int i=0;i<8;++i) tick();
+    if (!(dut.aregs_dcsr&0x40) || dut.int_n_merged)
+        fail("manual ACK unexpectedly cleared DMA flag");
+    b20_cpu_write(dut,tick,0x2C0F,0x40);
+    if (!dut.int_n_merged) fail("CPU DMA flag clear failed");
+    std::printf("PASS DMA combined tail, suspended pause, and manual IRQ feedback\n");
+}
+
 } // namespace
 
 // Every B20-1 focused case. Each runs on its own DUT instance so one live
@@ -2674,16 +2739,23 @@ int main(int argc, char** argv) {
 	Verilated::commandArgs(argc, argv);
 	bool b8_only = false;
 	bool b20_only = false;
+	bool decode_only = false;
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
+		if (arg == "--dma-decode") decode_only = true;
 		if (arg == "--b8-dma-mmu" || arg == "--b8") b8_only = true;
 		if (arg == "--b20" || arg == "--b20-live-ppr") b20_only = true;
 	}
 
-	if (b8_only) return run_b8_focused();
+	if (decode_only) {
+        try { Vplus_p8_test_top dut; test_dma_combined_tail(dut); return 0; }
+        catch (const std::exception& e) { std::fprintf(stderr,"FAIL DMA decode: %s\n",e.what()); return 1; }
+    }
+    if (b8_only) return run_b8_focused();
 	if (b20_only) return run_b20_focused();
 
 	try {
+		{ Vplus_p8_test_top decode_dut; test_dma_combined_tail(decode_dut); }
 		Vplus_p8_test_top dut;
 		test_p8_i8255_plus_quirks(dut);
 		test_p8_sna_parser(dut);

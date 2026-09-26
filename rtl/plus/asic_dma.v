@@ -407,8 +407,9 @@ module asic_dma (
 						state <= exec_after0_state;
 					end
 					else begin
-						case (instr[0][15:12])
-						4'h0: begin // LOAD R, DD (8-cycle execution)
+						// KT Extra CPC Plus Hardware Information, DMA opcode table:
+						// bit15 unused; bits14:12 select independent operations.
+						if (instr[0][14:12] == 3'b000) begin // LOAD (8 cycles)
 							// Substep 0: Acquire ownership, set target PSG register address
 							dma_load_owner <= 1'b1;
 							dma_load_busy  <= 1'b1;
@@ -421,46 +422,36 @@ module asic_dma (
 							psg_dout       <= {4'h0, instr[0][11:8]};
 							state          <= ST_EXEC0_B;
 						end
-						4'h1: begin // PAUSE N
-							if (instr[0][11:0] != 12'd0) begin
-								pause_cnt[0]     <= instr[0][11:0];
+						else if (instr[0][14] && instr[0][13] && instr[0][0] && !instr[0][5]) begin
+							// Reserved no-op: Quasar's REPEAT|LOOP example conflicts
+							// with the retained ordinary N+1 LOOP count convention.
+							// Defer this combination, including its other operation bits.
+							state <= exec_after0_state;
+						end
+						else begin
+							if (instr[0][12] && ((instr[0][11:0] != 12'd0) || instr[0][13])) begin
+								pause_cnt[0] <= instr[0][11:0];
 								prescaler_cnt[0] <= ppr0;
 							end
-							state <= exec_after0_state;
-						end
-						4'h2: begin // REPEAT N
-							if (instr[0][11:0] != 12'd0) begin
-								loop_cnt[0]  <= instr[0][11:0];
+							// Preserve ordinary REPEAT0's existing NOP convention;
+							// PAUSE|REPEAT retains its existing zero assignments.
+							if (instr[0][13] && ((instr[0][11:0] != 12'd0) || instr[0][12])) begin
+								loop_cnt[0] <= instr[0][11:0];
 								loop_addr[0] <= sar_cur[0];
 							end
-							state <= exec_after0_state;
-						end
-						4'h3: begin // PAUSE then REPEAT (undocumented)
-							pause_cnt[0]     <= instr[0][11:0];
-							prescaler_cnt[0] <= ppr0;
-							loop_cnt[0]      <= instr[0][11:0];
-							loop_addr[0]     <= sar_cur[0];
-							state <= exec_after0_state;
-						end
-						4'h4: begin // Control group: NOP / LOOP / INT / STOP
-							if (instr[0][5]) begin // STOP
-								dcsr_ena_clr[0] <= 1'b1;
-							end
-							if (instr[0][4]) begin // INT
-								dma_int_set[0]  <= 1'b1;
-							end
-							if (instr[0][0] && !instr[0][5]) begin // LOOP (ignored if STOP)
-								if (loop_cnt[0] > 12'd0) begin
+							if (instr[0][14]) begin
+								if (instr[0][5]) dcsr_ena_clr[0] <= 1'b1;
+								if (instr[0][4]) dma_int_set[0] <= 1'b1;
+								// Quasar L'ASIC, "1 + 1 = ?": STOP suppresses LOOP.
+								// Control-only LOOP retains the ordinary count convention.
+								if (instr[0][0] && !instr[0][5] &&
+								    (loop_cnt[0] != 12'd0)) begin
+									sar_cur[0] <= loop_addr[0];
 									loop_cnt[0] <= loop_cnt[0] - 12'd1;
-									sar_cur[0]  <= loop_addr[0];
 								end
 							end
 							state <= exec_after0_state;
 						end
-						default: begin
-							state <= exec_after0_state;
-						end
-						endcase
 					end
 				end
 
@@ -561,8 +552,9 @@ module asic_dma (
 						state <= exec_after1_state;
 					end
 					else begin
-						case (instr[1][15:12])
-						4'h0: begin // LOAD R, DD
+						// KT Extra CPC Plus Hardware Information, DMA opcode table:
+						// bit15 unused; bits14:12 select independent operations.
+						if (instr[1][14:12] == 3'b000) begin // LOAD (8 cycles)
 							dma_load_owner <= 1'b1;
 							dma_load_busy  <= 1'b1;
 							load_extra     <= cpu_psg_write ? 2'd2 :
@@ -574,46 +566,36 @@ module asic_dma (
 							psg_dout       <= {4'h0, instr[1][11:8]};
 							state          <= ST_EXEC1_B;
 						end
-						4'h1: begin // PAUSE N
-							if (instr[1][11:0] != 12'd0) begin
-								pause_cnt[1]     <= instr[1][11:0];
+						else if (instr[1][14] && instr[1][13] && instr[1][0] && !instr[1][5]) begin
+							// Reserved no-op: Quasar's REPEAT|LOOP example conflicts
+							// with the retained ordinary N+1 LOOP count convention.
+							// Defer this combination, including its other operation bits.
+							state <= exec_after1_state;
+						end
+						else begin
+							if (instr[1][12] && ((instr[1][11:0] != 12'd0) || instr[1][13])) begin
+								pause_cnt[1] <= instr[1][11:0];
 								prescaler_cnt[1] <= ppr1;
 							end
-							state <= exec_after1_state;
-						end
-						4'h2: begin // REPEAT N
-							if (instr[1][11:0] != 12'd0) begin
-								loop_cnt[1]  <= instr[1][11:0];
+							// Preserve ordinary REPEAT0's existing NOP convention;
+							// PAUSE|REPEAT retains its existing zero assignments.
+							if (instr[1][13] && ((instr[1][11:0] != 12'd0) || instr[1][12])) begin
+								loop_cnt[1] <= instr[1][11:0];
 								loop_addr[1] <= sar_cur[1];
 							end
-							state <= exec_after1_state;
-						end
-						4'h3: begin // PAUSE then REPEAT
-							pause_cnt[1]     <= instr[1][11:0];
-							prescaler_cnt[1] <= ppr1;
-							loop_cnt[1]      <= instr[1][11:0];
-							loop_addr[1]     <= sar_cur[1];
-							state <= exec_after1_state;
-						end
-						4'h4: begin // Control group
-							if (instr[1][5]) begin // STOP
-								dcsr_ena_clr[1] <= 1'b1;
-							end
-							if (instr[1][4]) begin // INT
-								dma_int_set[1]  <= 1'b1;
-							end
-							if (instr[1][0] && !instr[1][5]) begin // LOOP
-								if (loop_cnt[1] > 12'd0) begin
+							if (instr[1][14]) begin
+								if (instr[1][5]) dcsr_ena_clr[1] <= 1'b1;
+								if (instr[1][4]) dma_int_set[1] <= 1'b1;
+								// Quasar L'ASIC, "1 + 1 = ?": STOP suppresses LOOP.
+								// Control-only LOOP retains the ordinary count convention.
+								if (instr[1][0] && !instr[1][5] &&
+								    (loop_cnt[1] != 12'd0)) begin
+									sar_cur[1] <= loop_addr[1];
 									loop_cnt[1] <= loop_cnt[1] - 12'd1;
-									sar_cur[1]  <= loop_addr[1];
 								end
 							end
 							state <= exec_after1_state;
 						end
-						default: begin
-							state <= exec_after1_state;
-						end
-						endcase
 					end
 				end
 
@@ -700,8 +682,9 @@ module asic_dma (
 						state <= ST_DONE;
 					end
 					else begin
-						case (instr[2][15:12])
-						4'h0: begin // LOAD R, DD
+						// KT Extra CPC Plus Hardware Information, DMA opcode table:
+						// bit15 unused; bits14:12 select independent operations.
+						if (instr[2][14:12] == 3'b000) begin // LOAD (8 cycles)
 							dma_load_owner <= 1'b1;
 							dma_load_busy  <= 1'b1;
 							load_extra     <= cpu_psg_write ? 2'd2 :
@@ -713,46 +696,36 @@ module asic_dma (
 							psg_dout       <= {4'h0, instr[2][11:8]};
 							state          <= ST_EXEC2_B;
 						end
-						4'h1: begin // PAUSE N
-							if (instr[2][11:0] != 12'd0) begin
-								pause_cnt[2]     <= instr[2][11:0];
+						else if (instr[2][14] && instr[2][13] && instr[2][0] && !instr[2][5]) begin
+							// Reserved no-op: Quasar's REPEAT|LOOP example conflicts
+							// with the retained ordinary N+1 LOOP count convention.
+							// Defer this combination, including its other operation bits.
+							state <= ST_DONE;
+						end
+						else begin
+							if (instr[2][12] && ((instr[2][11:0] != 12'd0) || instr[2][13])) begin
+								pause_cnt[2] <= instr[2][11:0];
 								prescaler_cnt[2] <= ppr2;
 							end
-							state <= ST_DONE;
-						end
-						4'h2: begin // REPEAT N
-							if (instr[2][11:0] != 12'd0) begin
-								loop_cnt[2]  <= instr[2][11:0];
+							// Preserve ordinary REPEAT0's existing NOP convention;
+							// PAUSE|REPEAT retains its existing zero assignments.
+							if (instr[2][13] && ((instr[2][11:0] != 12'd0) || instr[2][12])) begin
+								loop_cnt[2] <= instr[2][11:0];
 								loop_addr[2] <= sar_cur[2];
 							end
-							state <= ST_DONE;
-						end
-						4'h3: begin // PAUSE then REPEAT
-							pause_cnt[2]     <= instr[2][11:0];
-							prescaler_cnt[2] <= ppr2;
-							loop_cnt[2]      <= instr[2][11:0];
-							loop_addr[2]     <= sar_cur[2];
-							state <= ST_DONE;
-						end
-						4'h4: begin // Control group
-							if (instr[2][5]) begin // STOP
-								dcsr_ena_clr[2] <= 1'b1;
-							end
-							if (instr[2][4]) begin // INT
-								dma_int_set[2]  <= 1'b1;
-							end
-							if (instr[2][0] && !instr[2][5]) begin // LOOP
-								if (loop_cnt[2] > 12'd0) begin
+							if (instr[2][14]) begin
+								if (instr[2][5]) dcsr_ena_clr[2] <= 1'b1;
+								if (instr[2][4]) dma_int_set[2] <= 1'b1;
+								// Quasar L'ASIC, "1 + 1 = ?": STOP suppresses LOOP.
+								// Control-only LOOP retains the ordinary count convention.
+								if (instr[2][0] && !instr[2][5] &&
+								    (loop_cnt[2] != 12'd0)) begin
+									sar_cur[2] <= loop_addr[2];
 									loop_cnt[2] <= loop_cnt[2] - 12'd1;
-									sar_cur[2]  <= loop_addr[2];
 								end
 							end
 							state <= ST_DONE;
 						end
-						default: begin
-							state <= ST_DONE;
-						end
-						endcase
 					end
 				end
 
