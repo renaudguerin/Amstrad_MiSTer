@@ -626,7 +626,7 @@ module asic_ga_timing
 
 	// Persistent last-ack-was-raster level for DCSR bit 7 (reference
 	// section 9: set if the LAST INT acknowledge was raster). The level
-	// latches at the START of each acknowledge cycle from the raster
+	// latches at the START of each CPU acknowledge cycle from the raster
 	// request pending at that instant (!INT_N: this module asserts INT_N
 	// only for raster, classic or PRI) and holds until the next
 	// acknowledge. In particular a raster fire AFTER a DMA acknowledge
@@ -668,9 +668,16 @@ module asic_ga_timing
 	reg  raster_fire_pending;
 
 	reg  intack_d;
+	reg  raster_ack_seen;
 	reg  last_raster;
 	always @(posedge clk) begin
 		intack_d <= intack;
+
+		// Board shaping can produce two ASIC pulses within one CPU M1.
+		// Preserve the first pulse's provenance for the software handler;
+		// vector selection and DMA auto-clear still see both pulses.
+		if (reset || SNA_LOAD || M1_N) raster_ack_seen <= 1'b0;
+		else if (intack && !intack_d)  raster_ack_seen <= 1'b1;
 
 		// DCSR bit 7's restored provenance lives in asic_regs (CPC+ chunk byte
 		// 8DF bit 7, dcsr_stat) during idle before ACK; the first acknowledge
@@ -679,7 +686,7 @@ module asic_ga_timing
 		// raster holds INT_N low exactly like a live one.
 		if (reset)                                    last_raster <= 1'b0;
 		else if (SNA_LOAD)                            last_raster <= 1'b0;
-		else if (intack && !intack_d)                 last_raster <= !INT_N;
+		else if (intack && !intack_d && !raster_ack_seen) last_raster <= !INT_N;
 	end
 	assign int_last_raster = last_raster;
 

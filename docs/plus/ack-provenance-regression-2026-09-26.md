@@ -1,5 +1,45 @@
 # CRTC3 repair regressions: acknowledge provenance
 
+## Implementation checkpoint (2026-09-27)
+
+The narrow production repair now qualifies `last_raster` capture once per CPU
+M1 acknowledge window. Reset, SNA load and M1 high re-arm capture. Both shaped
+ASIC pulses still reach vector selection and DMA auto-clear; no PRI timing or
+DMA retirement rule changes. The existing distinct-M1 diagnostic confirms a
+later CPU acknowledge replaces the previous raster provenance.
+
+The two B20 diagnostics now assert preserved raster status separately from
+vector06→04. Their existing stimuli already distinguish two pulses in one M1
+from two CPU acknowledgements, so no driver changes or new benches were needed.
+Focused B20 ACK and production-T80 bus diagnostics pass. The selected gate
+passes all seven benches; the additional existing P8 fixture passes snapshot
+provenance cases. Hardware confirmation in Copter/BMX and CRTC3 remains pending.
+Opus5.5-medium review `20260926T231805Z-23858-6dee` found no blockers and
+confirmed raw M1 scope, first-pulse sampling, reset/SNA ordering and test
+stimulus. It identified an unmeasured corner: DMA first, raster arriving in the
+split-ACK gap, then raster retired on the second pulse. The candidate preserves
+DMA provenance there. OR-ing later raster provenance could change that outcome,
+but would introduce another unmeasured contract. Defer it rather than broadening
+this first hardware candidate; revisit if residual mixed-source failures remain.
+DMA automatic retirement on a second pulse is also intentionally unchanged.
+
+Verification commands (no code edits followed these passes):
+
+```sh
+MAKEFLAGS='CXX=/opt/homebrew/opt/llvm/bin/clang++' GHDL=/tmp/eerie-ghdl/ghdl-llvm-6.0.0-macos15-aarch64/bin/ghdl make -C sim/plus b20-ack-diag b20-bus-diag
+MAKEFLAGS='CXX=/opt/homebrew/opt/llvm/bin/clang++' CXX=/opt/homebrew/opt/llvm/bin/clang++ GHDL=/tmp/eerie-ghdl/ghdl-llvm-6.0.0-macos15-aarch64/bin/ghdl python3 sim/select_tests.py --run
+MAKEFLAGS='CXX=/opt/homebrew/opt/llvm/bin/clang++' make -C sim/plus run/plus_p8_tests
+```
+
+The initial focused compile used the system compiler because environment-only
+CXX did not override nested make; `MAKEFLAGS` fixed compiler selection. No
+behavioral failure occurred. Logs and review are preserved in ignored
+`docs/references/crtc3-2026-09-25/regression-fix/`. Exact selected result:
+
+```
+select_tests: PASS 7 benches: run/asic_ga_timing_diff_tests, run/p1_video_tests, run/p1_mobo_bench_tests, run/asic_pri_tests, run/p10_dma_ppi_tests, run/p10_dma_mobo_tests, run/b8_palette_tests
+```
+
 ## User evidence and narrowed range
 
 The user confirms all listed CRTC3 defects fixed on full-effort `e4445a1`.
@@ -203,21 +243,18 @@ comparison. The recommended first repair remains the isolated DCSR change.
 
 ## Recommended repair and acceptance
 
-Start with once-per-CPU-acknowledge raster provenance, retaining both shaped
+The implemented candidate uses once-per-CPU-acknowledge raster provenance, retaining both shaped
 pulses and their vector06→04 behavior. This is the smallest candidate supported
 by the prior Copter handler analysis and the first-ack software workaround.
 Do not bundle PRI, reset, DMA auto-clear or ordinary I/O changes. If hardware
 shows this provenance candidate is wrong, revisit the contract instead of
 forcing the title to agree with a self-derived assertion.
 
-The next implementation should promote the cross-module handler-read test,
-correct the two tests that currently encode the overwrite, and check their
-stimulus models M1 across both pulses. Preserve the existing B19 simultaneous
-raster/DMA and snapshot-provenance cases; test that a *later CPU acknowledge*
-can still replace the previous provenance. Review reset/SNA ordering and
-first-pulse sampling against the original GA state. Use a fresh cross-provider
-review and one selected gate after the last production edit. A full-effort RBF
-then goes to the user for visual acceptance.
+The existing cross-module handler-read and split-ACK tests now check the
+preserved provenance; their physical vector assertions remain unchanged.
+Existing distinct-M1, B19 simultaneous raster/DMA and snapshot-provenance cases
+pass. Independent review and a full-effort, timing-checked RBF complete the
+software/build acceptance; visual acceptance belongs to the user.
 
 User acceptance should begin with Copter's moving logo, title palette boundary
 and gameplay; then BMX music/timer for long enough to expose progressive drift,
@@ -250,7 +287,8 @@ Continue from `codex/plus/crtc3-demo`. Read this note, the B19 entry in
 `docs/references/crtc3-2026-09-25/regression-opus/`. User confirms CRTC3 fixed on
 `e4445a1` but rejects that build for Copter/BMX regressions; `edaa15b` is the
 known-good baseline. The first suspect change is `bd65578`, not the fifth DMA
-repair. The isolated failing/passing proof above is available; no production
-repair has been applied. Keep visual testing with the user and avoid another
-broad capture or emulator session. Implement only the narrow provenance repair
-first, then deliver a reviewed, timing-checked RBF with the acceptance list.
+repair. The isolated failing/passing proof above is available and the narrow production
+repair is implemented. Keep visual testing with the user and avoid another
+broad capture or emulator session. Deliver the reviewed, timing-checked RBF
+with the acceptance list; do not call the game regressions closed before the
+user checks them.

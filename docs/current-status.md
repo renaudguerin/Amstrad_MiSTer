@@ -19,8 +19,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   attribution open. `edaa15b` remains the user-confirmed good regression baseline.
   A production-T80 diagnostic isolates split-acknowledge DCSR provenance loss
   introduced by `bd65578`; a scratch first-pulse-only candidate preserves the
-  required vector06→04 and restores the handler status read. No production
-  repair or hardware acceptance yet. Prior bounded Copter captures are
+  required vector06→04 and restores the handler status read. The narrow production
+  repair is implemented (2026-09-27); focused ACK, production-T80 and snapshot
+  checks pass, selected gate PASS7; fresh Opus5.5-medium review found no blockers.
+  Build delivery and hardware acceptance remain pending. Prior bounded Copter captures are
   insufficient acceptance. See the [diagnosis and continuation brief](plus/ack-provenance-regression-2026-09-26.md).
 
 - **Latest Plus sprite repair:** source `566e0c7` (2026-09-23) retargets

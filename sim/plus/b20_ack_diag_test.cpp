@@ -335,8 +335,7 @@ void test_b20_two_distinct_acks(Vplus_p8_test_top& dut) {
 	b20_release(dut, tick, 4);
 	uint8_t dcsr_after = dut.aregs_dcsr;
 	if (dcsr_after & 0x80)
-		fail("B20 A1: trailing acknowledge left DCSR bit 7 set (current model clears "
-		     "last_raster on an empty second edge; behaviour moved)");
+		fail("B20 A1: later CPU acknowledge did not replace raster provenance");
 	if (dcsr_after & 0x70)
 		fail("B20 A1: trailing acknowledge raised DMA flags 0x" + hex_str(dcsr_after, 2));
 
@@ -346,7 +345,9 @@ void test_b20_two_distinct_acks(Vplus_p8_test_top& dut) {
 }
 
 // Primary trace: two pulses within M1, first clears source; second empty is04.
-// DMA manual-clear control must keep DMA2/00 on both pulses.
+// DCSR retains first-pulse provenance for the handler (regression candidate,
+// docs/plus/ack-provenance-regression-2026-09-26.md); the physical trace only
+// establishes the vectors. DMA manual-clear must keep DMA2/00 on both pulses.
 void test_b20_double_pulse_dma(Vplus_p8_test_top& dut) {
     auto tick = [&]() { dut.clk=0; dut.eval(); dut.clk=1; dut.eval(); };
     for (int source=0; source<3; ++source) {
@@ -369,7 +370,7 @@ void test_b20_double_pulse_dma(Vplus_p8_test_top& dut) {
         dut.ga_iorq_n=0;
         auto second=b20_ack_pulse(dut,tick,4,"split second");
         if(second[0] != (source==2 ? 0:4)) fail("second pulse must be empty04 or pending manual DMA2/00");
-        if(dut.aregs_dcsr & 0x80) fail("second DCSR provenance still raster");
+        if(bool(dut.aregs_dcsr & 0x80) != (source==0)) fail("second pulse overwrote first-ACK DCSR provenance");
         if((dut.aregs_dcsr & 0x10) != (source==2 ? 0x10:0)) fail("second pulse DMA clear incorrect");
         b20_release(dut,tick,4);
         std::printf("PASS split source=%d first=%02X second=%02X DCSR=%02X\n",source,first[0],second[0],dut.aregs_dcsr);
