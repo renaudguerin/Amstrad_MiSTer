@@ -33,6 +33,16 @@
 
 module p1_video_test_top (
 	input wire        clk,
+    input wire [7:0] pri_value,
+    input wire pri_ack,
+    input wire pri_sna_load,
+    input wire [143:0] pri_sna_regs,
+    input wire [8:0] pri_sna_line,
+    input wire pri_sna_hs,
+    output wire [8:0] pri_line,
+    output wire pri_monhs,
+    output wire pri_fire,
+    output wire pri_irq_n,
 	input wire        cen_16,     // PIXEN cadence (one dot)
 	input wire        fast,
 	input wire        RESET_N,
@@ -105,9 +115,10 @@ module p1_video_test_top (
 		.IORQ_N(ga_iorq_n),
 		.HSYNC_I(crtc_hs),
 		.VSYNC_I(crtc_vs),
-		.pri(8'd0),
-		.crtc_line(9'd0),
-		.crtc_adj(1'b0),
+		.pri(pri_value),
+		.crtc_line(pri_line),
+		.crtc_adj(vid.in_adj),
+		.intack(pri_ack),
 		.int_last_raster(),
 		.CCLK(),
 		.CCLK_EN_P(cclk_en_p),
@@ -125,16 +136,19 @@ module p1_video_test_top (
 		.ROMEN_N(),
 		.RAMRD_N(),
 		.ROM(),
-		.HSYNC_O(),
+		.HSYNC_O(pri_monhs),
 		.VSYNC_O(),
 		.SYNC_N(),
-		.INT_N(),
+		.INT_N(pri_irq_n),
 		.VBLANK(),
 		.MODE_SYNC_EN(),
 		.MODE(),
 		.BORDER_O(border),
 		.INKR_O(inkr),
-		.GAMODE_O(gamode)
+		.GAMODE_O(gamode),
+        .SNA_LOAD(pri_sna_load), .SNA_HS(pri_sna_hs), .SNA_VS(1'b0),
+        .SNA_INKSEL(5'd0), .SNA_PALETTE(136'd0), .SNA_CONFIG(8'd0),
+        .SNA_INTCNT(6'd0), .SNA_INT(1'b0), .SNA_VSDELAY(2'd0)
 	);
 
 	// ---- asic_video ----
@@ -179,7 +193,12 @@ module p1_video_test_top (
 		// No asic_regs in this bench: keep the internal legacy-colour ROM.
 		.PAL_EN(1'b0),
 		.PAL_ADDR(),
-		.PAL_RGB(12'd0)
+		.PAL_RGB(12'd0),
+        .SNA_LOAD(pri_sna_load), .SNA_REGS(pri_sna_regs), .SNA_ADDR(5'd0),
+        .SNA_HCC(8'd1), .SNA_LINE({1'b0, pri_sna_line[8:3]}),
+        .SNA_RASTER({2'b0, pri_sna_line[2:0]}), .SNA_VTA(5'd0),
+        .SNA_HSW(4'd3), .SNA_VSW(4'd0), .SNA_HS(pri_sna_hs),
+        .SNA_VS(1'b0), .SNA_ADJ(1'b0), .SNA_MODE(2'd0)
 	);
 	assign dbg_vidword = vidword;
 	assign dbg_vbs = vram_bs;
@@ -328,6 +347,8 @@ module p1_video_test_top (
 	assign dbg_hsync = crtc_hs;
 	assign dbg_vsync = crtc_vs;
 
+assign pri_line = {vid.charline[5:0], vid.raster[2:0]};
+assign pri_fire = ga.raster_fire;
 endmodule
 
 `default_nettype wire
