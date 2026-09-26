@@ -151,6 +151,56 @@ no new hardware observation, no production RTL edit. The result proves the
 present status overwrite and demonstrates an isolated remedy. It does not
 establish the real ASIC's second-pulse DCSR semantics or close either title.
 
+## CPCEC source comparison (2026-09-27)
+
+Read-only reference: `/Users/renaudg/code/cpcec`, commit
+`c025aab961a796b918cc99bc3e16216ea65bb5d1` (2026-03-10). The inspected
+`cpcec.c` and `cpcec-z8.h` have no local modifications. The user's successful
+CRTC3, Eerie Forest and Copter runs are compatibility evidence; this inspection
+does not add a new emulator run or a hardware measurement.
+
+CPCEC supports separating vector delivery from acknowledge bookkeeping:
+
+- `cpcec-z8.h:211–223` chooses the IM2 vector (or fixed IM1 entry) and then
+  calls `Z80_IRQ_ACK` exactly once for that CPU interrupt.
+- `cpcec.c:1264–1289`, `z80_irq_ack()`, sets DCSR bit7 when raster is pending,
+  clears that pending raster and retains pending DMA requests. Otherwise it
+  clears bit7 and services the highest-priority DMA source. It does not call
+  this routine twice to reproduce the vector bug. Consequently an IM1 raster
+  handler still reads raster provenance, matching the narrow repair's intent.
+- Its vector bug model is explicitly approximate: `plus_8k_bug` starts at0
+  (`cpcec.c:245`), a raster ACK changes it to6 (`1267`), and `Z80_IRQ_BUS`
+  (`1261`) uses it when raster is pending and PC A13 is low. Thus the first
+  such vector after reset can use offset0 instead of6; it does not model our
+  measured two-pulse06→04 sequence, READY phase or interrupted instruction.
+  After a raster ACK, that shim returns6 even at low A13. Passing FlowLIB in
+  this emulator therefore cannot validate the core's electrical implementation.
+
+This strengthens the case for preserving first-ACK raster provenance without
+changing our physical vector sequence. It does **not** settle silicon DCSR
+semantics after the second shaped pulse. CPCEC also retires at most one DMA
+source per CPU interrupt, but its simplified model is insufficient grounds to
+bundle a change to the core's DMA auto-clear behavior.
+
+The source exposes separate PRI differences relevant to Eerie Forest:
+`cpcec.c:874–877` requests PRI on raw HSYNC assertion or line entry while HSYNC
+is already active. Ordinary PRI therefore uses a different event from our
+retained monitor-HSYNC trailing edge. At `2106–2114`, a changed PRI write sets
+the raster request if the new value matches the current line during HSYNC;
+otherwise a nonzero new value clears it, explicitly annotated for Eerie Forest.
+That is not a ready-made fix for the remaining edge: our earlier
+[pending-CPC discriminator](../investigations/hardware-runs/eerie-forest-pending-classic-2026-09-23.md#pending-request-discriminator-and-source-boundary)
+found that AmSpirit masks and retains an old classic request across PRI=0→1→0
+without ACK. CPCEC's shared raster bit and nonmatching-write clear do not
+preserve that distinction. The core already separates classic and programmed
+pending state. Neither CPCEC behavior should be copied on emulator authority
+alone. See the
+[ordinary-PRI source comparison](references/amspirit-pri-phase-2026-09-26.md)
+for the unresolved phase disagreement and the distinction from ACCC.
+
+No production RTL, tests, synthesis or hardware state changed during this
+comparison. The recommended first repair remains the isolated DCSR change.
+
 ## Recommended repair and acceptance
 
 Start with once-per-CPU-acknowledge raster provenance, retaining both shaped

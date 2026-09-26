@@ -86,6 +86,25 @@ hardware: compare marker positions for widths 3/6/11, ideally also observing raw
 HSYNC and interrupt assertion at named signal taps. Widths 1–2 and exact
 sub-character ordering remain separate unresolved questions.
 
+## CPCEC comparison (2026-09-27)
+
+The local CPCEC source at commit `c025aab961a796b918cc99bc3e16216ea65bb5d1`
+provides an additional, inspectable emulator model. In `cpcec.c:874–877`, PRI
+is requested on raw CRTC HSYNC assertion, or on line entry while HSYNC is
+already active. The ordinary event is independent of HSYNC width, unlike our
+retained monitor-HSYNC trailing-edge trigger. This is compatible with the
+width-independent shape seen in AmSpirit; it does not prove AmSpirit uses the
+same event or establish either emulator's absolute phase against hardware.
+
+CPCEC also sets/clears pending raster on certain changed PRI writes
+(`cpcec.c:2106–2114`), with an explicit Eerie Forest comment. This is a separate
+state-transition question from ordinary IRQ phase. Its successful demo
+rendering is useful compatibility evidence, not a resolution of the conflicting
+hardware descriptions above. No emulator run or timing experiment was added.
+The [regression diagnosis](../ack-provenance-regression-2026-09-26.md#cpcec-source-comparison-2026-09-27)
+records its independent support for separating DCSR provenance from vector
+delivery, and the limits of its CRTC3 detection workaround.
+
 ## Reproduction and evidence
 
 Private, ignored evidence is at
