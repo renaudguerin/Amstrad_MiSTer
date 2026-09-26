@@ -279,6 +279,8 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   with HSYNC width clamped at 6: for programmed widths ≥ 6 the interrupt
   position stops moving (fires at HSYNC_start + 6µs per [ARNOLD-REV]; [KT]
   claims width-independent HSYNC_start + 10µs — ⚠ CONFLICT). The
+  [AmSpirit width discriminator and source rationale](amspirit-pri-phase-2026-09-26.md)
+  keeps that conflict open; its emulator marker alone is not an IRQ-pin measurement. The
   [B20-4 connected-module sweep](b20-pri-phase-2026-09-23.md) confirms that
   current RTL follows the revised account for ordinary widths, with one master
   clock of edge-detection latency. This supports retaining the implementation;

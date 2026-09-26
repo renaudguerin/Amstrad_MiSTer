@@ -176,7 +176,7 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   implements schematic-derived ASIC-side IORQ shaping and the measured repeated
   empty-acknowledge vector04. Production-T80 controls and the unchanged FlowLIB
   cartridge check pass simulation. The selected gate passes40 benches; synthesized hardware
-  acceptance and cross-provider review remain pending. Low-A13 FDC aliases remain a schematic inference.
+  acceptance remains pending; Muse cross-provider review found no blockers. Low-A13 FDC aliases remain a schematic inference.
 
 - Copter 271: vertical-scrolling issues during gameplay (possibly pre-existing).
 - Sonic GX: title screen corruption is **hardware-accepted fixed on `64702ac`**
@@ -198,10 +198,13 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   (2026-09-23 user retest; no assigned RTL cause, closure pending a repeatable
   capture); its black-screen report was not reproduced and has no
   assigned cause.
-- CRTC3 demo: the FlowLIB warning has a passing simulation repair. A missing
-  cross-line PRI event explains Buddha/sphere corruption in settled snapshot
-  A/B replays. Hardware acceptance, the remaining edge streaks and late freeze
-  are open; see the [investigation](investigations/hardware-runs/crtc3-demo-2026-09-25.md).
+- CRTC3 demo: two-fix `1eec469` MiSTer captures confirm FlowLIB without the
+  warning, coherent Buddha/post-flash spheres and clean Wolverine. Tunnel
+  left-edge streaks and the identical late frozen frame remain. Two separately
+  reviewed sprite-cache repairs bring the candidate to `bbd7348`; the selected
+  gate passes41 benches and full synthesis is running. Combined hardware
+  acceptance and late-freeze diagnosis remain open; see the
+  [investigation](investigations/hardware-runs/crtc3-demo-2026-09-25.md).
   Eerie's residual does not meet the cross-line condition, and six early-line
   pixel probes match AmSpirit. The **unchanged**
   Switchblade and Eerie Forest CPRs now boot on the exact full-effort `41a1f27`
