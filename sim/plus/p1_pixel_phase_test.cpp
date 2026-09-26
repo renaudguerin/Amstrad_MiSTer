@@ -84,7 +84,11 @@ public:
 	bool ga_iorq_n = true, ga_m1_n = true;
 	bool fast = false;
 
-	explicit Bench() : dut("p1_video_test_top") {}
+	explicit Bench() : dut("p1_video_test_top") {
+        dut.pri_value = 0; dut.pri_ack = 0; dut.pri_sna_load = 0;
+        dut.pri_sna_line = 0; dut.pri_sna_hs = 0;
+        for (unsigned i=0; i<5; ++i) dut.pri_sna_regs[i] = 0;
+    }
 
 	// Byte tag; must mirror pat() in p1_video_test_top.v:
 	//   {1'b0,a[6:0]} ^ {a[9:8],6'b010110} ^ {2'b01,a[14:10],1'b1}
@@ -406,6 +410,92 @@ bool p1_pixel_stream(Bench& b) {
 	return true;
 }
 
+// Snapshot import changes the connected video line and HSYNC on one edge.
+// It is state restoration, not traversal into a matching line. Changing PRI
+// alone likewise must not create the new line-entry event.
+void pri_history_guards() {
+    Bench b;
+    b.dut.pri_value = 3;
+    b.power_on_reset();
+    const unsigned regs[] = {63,48,51,0x8e,38,0,32,34,0,7,0,0,0x10,0};
+    for (unsigned i=0; i<14; ++i) {
+        b.vid_write(i, regs[i]);
+        b.dut.pri_sna_regs[i/4] |= regs[i] << (8*(i%4));
+    }
+    b.run(1024);
+    b.dut.pri_value = 2;
+    b.dut.pri_sna_line = 2;
+    b.dut.pri_sna_hs = 1;
+    b.dut.pri_sna_load = 1;
+    b.tick();
+    if (b.dut.pri_fire) fail("PRI snapshot apply manufactured a line-entry event");
+    b.dut.pri_sna_load = 0;
+    for (unsigned i=0; i<4; ++i) {
+        b.tick();
+        if (b.dut.pri_fire || !b.dut.pri_irq_n)
+            fail("PRI restored matching line manufactured a deferred interrupt");
+    }
+    b.dut.pri_value = 3; b.tick();
+    b.dut.pri_value = 2;
+    for (unsigned i=0; i<4; ++i) {
+        b.tick();
+        if (b.dut.pri_fire || !b.dut.pri_irq_n)
+            fail("PRI-only write manufactured a line-entry event");
+    }
+    b.reset_n = false;
+    for (unsigned i=0; i<16; ++i) {
+        b.tick();
+        if (b.dut.pri_fire) fail("PRI event during reset");
+    }
+    b.reset_n = true;
+    for (unsigned i=0; i<4; ++i) {
+        b.tick();
+        if (b.dut.pri_fire) fail("PRI event synthesized by reset release");
+    }
+    std::printf("PASS PRI connected restore/reset and live-write event guards\n");
+}
+
+// Revised Arnold §2.4: HSYNC still active on entry to matching line can
+// trigger once at entry and again at normal monitor-HSYNC trailing edge.
+// R0=63,width14: R2=49 finishes before entry; R2=51 overlaps by a character.
+// R2=50 ends simultaneously: log the prior-HSYNC seam, not a silicon assertion.
+void pri_cross_line() {
+    for (unsigned r2 : {49u, 50u, 51u}) {
+        Bench b;
+        b.dut.pri_value = 2;
+        b.power_on_reset();
+        const unsigned regs[] = {63,48,r2,0x8e,38,0,32,34,0,7,0,0,0x10,0};
+        for (unsigned i=0; i<14; ++i) b.vid_write(i, regs[i]);
+        b.run(312*4096);
+        unsigned early=0, ordinary=0, delivered=0;
+        bool oldfire=false, oldirq=b.dut.pri_irq_n;
+        for (unsigned n=0; n<312*4096; ++n) {
+            // Acknowledge each actual delivered request, permitting the second.
+            b.dut.pri_ack = !b.dut.pri_irq_n;
+            const bool mon_before = b.dut.pri_monhs;
+            b.tick();
+            if (oldirq && !b.dut.pri_irq_n) ++delivered;
+            oldirq = b.dut.pri_irq_n;
+            if (b.dut.pri_fire && !oldfire) {
+                if (b.dut.pri_line != 2) fail("PRI fired on nonmatching 9-bit line");
+                if (b.dut.dbg_hcc == 0) ++early;
+                else {
+                    ++ordinary;
+                    if (!mon_before || b.dut.pri_monhs)
+                        fail("PRI ordinary trigger moved away from monitor trailing edge");
+                }
+            }
+            oldfire=b.dut.pri_fire;
+        }
+        std::printf("PRI connected R2=%u early=%u ordinary=%u delivered=%u%s\n",
+                    r2,early,ordinary,delivered,r2==50 ? " (seam provisional)":"");
+        if (ordinary != 1 || delivered != early+ordinary)
+            fail("PRI connected: ordinary delivery or acknowledge/redelivery broken");
+        if ((r2==49 && early!=0) || (r2==51 && early!=1))
+            fail("PRI connected: missing/wrong line-entry interrupt");
+    }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -413,6 +503,8 @@ int main(int argc, char** argv) {
 	try {
 		Bench b;
 		if (!p1_pixel_stream(b)) return 1;
+        pri_history_guards();
+        pri_cross_line();
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;

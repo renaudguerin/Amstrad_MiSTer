@@ -52,7 +52,7 @@ Mac, including the Verilator build.
 | `sim/plus run/plus_mmu_tests` | fast | `rtl/plus/plus_mmu.v` | Plus MMU request/acknowledge port and I/O read-write aliasing |
 | `sim/plus run/p0_boot_tests` | fast | `rtl/sdram.v` `rtl/plus/plus_cpr_parser.v` `rtl/plus/plus_cartridge_memory.v` `rtl/plus/plus_mmu.v` | CPR download through parser and memory service to CPU cartridge reads |
 | `sim/plus run/asic_ga_timing_diff_tests` | fast | `rtl/plus/asic_ga_timing.v` `rtl/GA40010/*.v` `rtl/GA40010/*.sv` | Plus Gate Array timing in lockstep against the classic GA40010 |
-| `sim/plus run/p1_video_tests` | fast | `rtl/plus/asic_ga_timing.v` `rtl/plus/asic_video.v` | Plus pixel phase and byte order at the production fetch cadence |
+| `sim/plus run/p1_video_tests` | fast | `rtl/plus/asic_ga_timing.v` `rtl/plus/asic_video.v` | Plus pixel phase and byte order at the production fetch cadence; connected PRI cross-line HSYNC delivery and restore/reset history guards |
 | `sim/plus run/p1_mobo_bench_tests` | fast | `rtl/Amstrad_motherboard.v` `rtl/Amstrad_MMU.v` `rtl/plus/asic_video.v` `rtl/plus/asic_ga_timing.v` | Plus-mode motherboard: register writes reach asic_video, interrupt reaches the CPU and clears |
 | `sim/plus run/asic_regs_tests` | fast | `rtl/plus/asic_regs.v` | ASIC page decode, read, write, mirrors and masks |
 | `sim/plus run/plus_sprite_ram_tests` | fast | `rtl/plus/plus_sprite_ram.v` | Sprite RAM storage contract used for M10K inference |
@@ -60,6 +60,7 @@ Mac, including the Verilator build.
 | `sim/plus run/asic_sprites_tests` | fast | `rtl/plus/asic_sprites.v` | Sprite engine: attributes, priority, row fetch |
 | `sim/plus run/d3_sprites_tests` | fast | `rtl/plus/asic_sprites.v` | First visible sprite row at production cadence |
 | `sim/plus run/p4_sprites_regs_tests` | fast | `rtl/plus/asic_regs.v` `rtl/plus/asic_sprites.v` `rtl/plus/plus_sprite_ram.v` | Sprite page storage and row-fetch arbitration between asic_regs and asic_sprites |
+| `sim/plus run/p4_multiplex_tests` | fast | `rtl/plus/asic_regs.v` `rtl/plus/asic_sprites.v` `rtl/plus/plus_sprite_ram.v` | Live Y prediction with unchanged current row tag; signed-Y frame-entry rows, shared fetch pressure, negative-X opacity and CPU writes to prefetched rows without refetch, at production cadence |
 | `sim/plus run/asic_dma_tests` | fast | `rtl/plus/asic_dma.v` | DMA sound channel commands and timing |
 | `sim/plus run/plus_p8_tests` | fast | `rtl/plus/asic_dma.v` `rtl/plus/asic_regs.v` `rtl/i8255.v` `rtl/plus/plus_sna_*.v` `rtl/plus/plus_fdc_decode.v` | Plus PPI quirks, SNA v3 Plus chunk parsing, FDC model gating, live PPR write events |
 | `sim/plus run/b16_load_model_tests` | fast | `rtl/plus/plus_load_model.v` `rtl/plus/plus_sna_apply.v` | CPR/SNA selection before reset release, delayed Main status echo, F1 collision and aborted restore |
@@ -75,8 +76,8 @@ Mac, including the Verilator build.
 | `sim/plus b6-plus-layers` | slow | `rtl/plus/asic_video.v` `rtl/plus/asic_sprites.v` `rtl/amstrad_video_output.sv` | Plus scroll and sprites through the colour converter and output chain |
 | `sim/plus b8-field` | slow | `rtl/video_interlace.v` | Plus FIELD ownership through the scaler consumer |
 | `sim/plus b7-dark-silicon-audit` | slow | `rtl/Amstrad_motherboard.v` | Mutation audit: Plus modules inert in classic mode and classic modules inert in Plus mode |
-| `sim/plus b20-ack-diag` | slow | `rtl/plus/asic_regs.v` `rtl/plus/asic_ga_timing.v` | B20 GA/register two-ack discriminator on synthetic bus stimulus: first raster vector and within-ack stability, post-raster second-empty S29 DMA0/offset4 vs current 0x00 expected mismatch, DMA0 double-pulse auto-clear; idle probe informational |
+| `sim/plus b20-ack-diag` | slow | `rtl/plus/asic_regs.v` `rtl/plus/asic_ga_timing.v` | B20 GA/register split-ack controls: raster06 then empty04 within M1, DMA2 auto/manual clear and DCSR provenance; distinct-M1 and idle controls |
 | `sim/plus b20-ack-matrix` | slow | `rtl/T80/*` `rtl/Amstrad_motherboard.v` | B20 production-T80 matrix on the GHDL netlist (not TV80): NOP/HALT/LDIR at A13=0/1, OUT(C) WAIT stretch, IRQ-withdrawal race; single intack rise per ack asserted, A-during-ack recorded without assertion |
 | `sim/plus d5-cart-timing` | slow | `rtl/plus/plus_mmu.v` `rtl/plus/plus_cartridge_memory.v` `rtl/sdram.v` `rtl/sna_cart_mux.v` `rtl/plus/asic_ga_timing.v` `rtl/T80/*` | Production-T80 D5 fixture, synthetic CPR: cartridge NOP 1 us and LD HL,nn 3 us (READY-only rate, operands latched); also runs in production-t80 CI |
-| `sim/plus b20-bus-diag` | slow | `rtl/T80/*` `rtl/Amstrad_motherboard.v` `rtl/plus/asic_regs.v` `rtl/plus/asic_ga_timing.v` | B20 production-bus discriminator: production T80 + motherboard/ASIC raster acknowledge, vector stability, DCSR bit 7 and handler fetch across A13=0/1 LDIR and HALT |
+| `sim/plus b20-bus-diag` | slow | `rtl/T80/*` `rtl/Amstrad_motherboard.v` `rtl/plus/asic_regs.v` `rtl/plus/asic_ga_timing.v` | B20 production T80 + motherboard/ASIC: synthetic LD(DE),A at A13=0/1 and HALT, natural READY-shaped split, explicit06/04 vectors, DCSR provenance and consumed handler |
 | `sim/plus b23-cpu-diff` | slow | `sim/plus/tv80/*` `rtl/T80/*` `sim/plus/b23*` | GHDL production T80 vs TV80, every master clock: required memory/IO/WAIT transfer pin parity, IOWait(0) control, and diagnostic IRQ/startup mismatch trace; needs GHDL |

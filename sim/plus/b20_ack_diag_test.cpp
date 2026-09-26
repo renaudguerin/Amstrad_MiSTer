@@ -1,43 +1,9 @@
-// B20-2/B20-3 acknowledge-vector diagnostic (test-only, no RTL change).
-//
-// Scope: GA + asic_regs response to synthetic acknowledge stimulus driven
-// through plus_p8_test_top's ga_m1_n/ga_iorq_n. The stimulus is a testbench
-// bus wiggle, NOT production CPU timing and NOT the S29 board-level
-// double-pulse mechanism (LK106/IC116/A13 glue, S29 p.3). It pins what the
-// register file does when presented with acknowledge shapes; whether hardware
-// ever presents the second shape is a separate board question (I2).
-//
-// Authority split (read the recommendation critically):
-// - Physical claims (double acknowledge exists; second defaults to DMA0 /
-//   offset 4; bug needs A13=0 and a memory-using instruction) are cited to
-//   S29 (Plus Vectored Interrupt Bug, CPCWiki) only: S29 pp.3-4 for the two
-//   acknowledges and the DMA0 default, S29 p.3 for A13 and instruction class.
-// - CPU-model assertions (single IORQ fall per accepted interrupt, WZ latch
-//   timing, WAIT stretch) are code-based (rtl/T80/T80pa.vhd, rtl/T80/T80.vhd)
-//   and belong to the sibling B20 matrix bench, not to this file.
-//
-// Cases:
-// - A1: two genuinely distinct acknowledges (full M1+IORQ release between).
-//   First must be raster 0x06 with within-ack stability; second (nothing
-//   pending, IVR[0]=0) is the S29 source scenario: S29 pp.3-4 expects DMA0
-//   0x04, the current model yields DMA2 0x00. That mismatch is the named
-//   EXPECTED-MISMATCH; the binary exits 0 while it persists and fails loudly
-//   if it disappears or a first-ack invariant breaks.
-// - A2: double pulse inside one M1 window (M1 held, IORQ low-high-low) with
-//   DMA0 pending from SNA restore and IVR[0]=0. Records vector before/after,
-//   DMA0 auto-clear and DCSR bit 7. All required-pass; the raster+DMA0
-//   combination is NOT constructed here because the B4 attribution rule
-//   (header pending explained by restored DCSR belongs to DMA) would credit a
-//   joint restore to DMA alone -- documented, not worked around.
-// - Idle probe: informational only. An isolated acknowledge with nothing ever
-//   pending reports the current idle vector without any S29 comparison, so
-//   arbitrary idle semantics stay unconstrained (no global fallback change).
-//
-// No HSYNC stimulus is applied between apply and acknowledges, so the DMA
-// engine cannot raise dma_int_set concurrently with the acknowledge-edge
-// clear (asic_regs.v:430 clear-dominant collaboration, comment at :416 notes
-// set-dominant prose). DMA flag changes below come only from SNA restore and
-// the acknowledge auto-clear path.
+// GA/register pulse controls complement production b20-bus-diag.
+// Gerald's physical capture, 29 July 2017: raster06 then empty04 within M1.
+// https://oldwiki.cpcwiki.eu/imgs/7/7e/IM2_Plus_Ack_Bug.png
+// Separate M1 cycles and never-pending idle acknowledges retain the existing
+// unspecified00 default. DMA2 auto/manual-clear controls pin pending priority.
+// Snapshot setup supplies pending flags; no HSYNC occurs during these probes.
 
 #include <cstdint>
 #include <cstdio>
@@ -310,7 +276,7 @@ void b20_release(Vplus_p8_test_top& dut,
 	}
 }
 
-// --- Case A1: two genuinely distinct acknowledges; second-empty S29 scenario.
+// Distinct M1 cycles are outside the measured split-ack scenario.
 void test_b20_two_distinct_acks(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
 	b8_global_reset(dut, tick);
@@ -359,9 +325,7 @@ void test_b20_two_distinct_acks(Vplus_p8_test_top& dut) {
 			fail("B20 A1 idle: raster interrupt re-asserted without stimulus");
 	}
 
-	// Second, distinct acknowledge with nothing pending. Current model pins
-	// 0x00 (DMA2/offset 0, asic_regs.v:636 idle fallback); S29 pp.3-4
-	// documents DMA0/offset 4 (0x04) for exactly this post-raster scenario.
+	// A new M1 window with no pending request retains the idle default.
 	dut.ga_m1_n = 0;
 	dut.ga_iorq_n = 0;
 	auto second = b20_ack_pulse(dut, tick, 8, "A1 second");
@@ -378,68 +342,40 @@ void test_b20_two_distinct_acks(Vplus_p8_test_top& dut) {
 
 	std::printf("B20 A1: first=0x06 stable 8/8, DCSR bit7 0->1; idle 20 clocks quiet; "
 	            "second=0x00 stable 8/8, DCSR bit7 1->0, DMA flags 0\n");
-	std::printf("B20 A1 EXPECTED-MISMATCH: S29 pp.3-4 documents DMA0/offset4 (0x04) for the "
-	            "post-raster second acknowledge; current model yields DMA2/offset0 (0x00)\n");
+
 }
 
-// --- Case A2: double pulse inside one M1 window with DMA0 pending.
+// Primary trace: two pulses within M1, first clears source; second empty is04.
+// DMA manual-clear control must keep DMA2/00 on both pulses.
 void test_b20_double_pulse_dma(Vplus_p8_test_top& dut) {
-	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
-	b8_global_reset(dut, tick);
-
-	B8Header h; // B4=0: GA line stays clear; DMA path owns the pending level
-	B8ChunkParams p;
-	p.dcsr = 0x41; // ch0 flag + ch0 enable, stat 0; chunk IVR lands at 0x00
-	b8_stream_chunk_apply(dut, tick, p, h);
-
-	if (dut.aregs_ivr != 0x00)
-		fail("B20 A2 setup: IVR is 0x" + hex_str(dut.aregs_ivr, 2) + ", expected 0x00");
-	if (dut.ga_int_n_out != 1)
-		fail("B20 A2 setup: GA line unexpectedly pending (B4 attribution broken)");
-	if (dut.int_n_merged != 0)
-		fail("B20 A2 setup: aggregate INT_n level lost for DMA-sourced pending flag");
-	if (!(dut.aregs_dcsr & 0x40))
-		fail("B20 A2 setup: DMA0 flag not restored (DCSR 0x" + hex_str(dut.aregs_dcsr, 2) + ")");
-	if (dut.aregs_dcsr & 0x80)
-		fail("B20 A2 setup: DCSR bit 7 set with no raster ever pending");
-
-	// First pulse: DMA0 vector 0x04 while M1 held low throughout.
-	dut.ga_m1_n = 0;
-	dut.ga_iorq_n = 0;
-	auto first = b20_ack_pulse(dut, tick, 4, "A2 first");
-	if (first[0] != 0x04)
-		fail("B20 A2: first pulse gave 0x" + hex_str(first[0], 2) + ", expected DMA0 0x04");
-
-	// Gap: IORQ released, M1 held. No vector may show; the first edge with
-	// IVR[0]=0 auto-clears DMA0 (S29's "DMA affected" shape, code path
-	// asic_regs.v:370-373).
-	dut.ga_iorq_n = 1;
-	for (int i = 0; i < 3; ++i) {
-		tick();
-		if (dut.ack_vec_valid)
-			fail("B20 A2 gap: vec_valid asserted between pulses of one M1 window");
-	}
-
-	// Second pulse, same M1 window: empty default after the auto-clear.
-	dut.ga_iorq_n = 0;
-	auto second = b20_ack_pulse(dut, tick, 4, "A2 second");
-	if (second[0] != 0x00)
-		fail("B20 A2: second pulse gave 0x" + hex_str(second[0], 2) +
-		     ", expected current-model empty 0x00 after DMA0 auto-clear");
-	b20_release(dut, tick, 4);
-
-	if (dut.aregs_dcsr & 0x40)
-		fail("B20 A2: DMA0 flag survived its acknowledge with IVR[0]=0 (auto-clear broken)");
-	if (dut.aregs_dcsr & 0x80)
-		fail("B20 A2: DCSR bit 7 set with no raster ever pending");
-	if (dut.int_n_merged != 1)
-		fail("B20 A2: aggregate INT_n not retired after DMA acknowledge");
-
-	std::printf("B20 A2: first=0x04 stable 4/4, gap quiet 3/3, second=0x00 stable 4/4; "
-	            "DMA0 auto-cleared (IVR[0]=0), DCSR bit7 stayed 0\n");
+    auto tick = [&]() { dut.clk=0; dut.eval(); dut.clk=1; dut.eval(); };
+    for (int source=0; source<3; ++source) {
+        b8_global_reset(dut,tick);
+        B8Header h; B8ChunkParams p;
+        h.intreq = source==0;
+        p.dcsr = source==0 ? 0 : 0x14; // DMA2 flag+enable, no raster
+        b8_stream_chunk_apply(dut,tick,p,h);
+        if (source==2) {
+            dut.aregs_cs=1; dut.aregs_mem_wr=1; dut.aregs_addr=0x2805; dut.aregs_din=1;
+            tick(); dut.aregs_cs=0; dut.aregs_mem_wr=0; tick();
+        }
+        dut.ga_m1_n=0; dut.ga_iorq_n=0;
+        auto first=b20_ack_pulse(dut,tick,4,"split first");
+        if (first[0] != (source==0 ? 6:0)) fail("split first source wrong");
+        if ((dut.aregs_dcsr & 0x10) != (source==2 ? 0x10:0)) fail("first pulse DMA clear incorrect");
+        if (bool(dut.aregs_dcsr & 0x80) != (source==0)) fail("first DCSR provenance wrong");
+        dut.ga_iorq_n=1;
+        for (int i=0;i<3;++i) { tick(); if(dut.ack_vec_valid) fail("vector in gap"); }
+        dut.ga_iorq_n=0;
+        auto second=b20_ack_pulse(dut,tick,4,"split second");
+        if(second[0] != (source==2 ? 0:4)) fail("second pulse must be empty04 or pending manual DMA2/00");
+        if(dut.aregs_dcsr & 0x80) fail("second DCSR provenance still raster");
+        if((dut.aregs_dcsr & 0x10) != (source==2 ? 0x10:0)) fail("second pulse DMA clear incorrect");
+        b20_release(dut,tick,4);
+        std::printf("PASS split source=%d first=%02X second=%02X DCSR=%02X\n",source,first[0],second[0],dut.aregs_dcsr);
+    }
 }
 
-// --- Idle probe: informational only, no S29 comparison.
 void test_b20_idle_probe(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
 	b8_global_reset(dut, tick);
@@ -499,7 +435,6 @@ int main(int argc, char** argv) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());
 		return 1;
 	}
-	std::printf("All B20 GA/register acknowledge-vector diagnostics PASSED "
-	            "(A1 mismatch vs S29 pp.3-4 remains open by design).\n");
+	std::printf("All B20 GA/register acknowledge-vector diagnostics PASSED.\n");
 	return 0;
 }

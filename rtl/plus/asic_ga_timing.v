@@ -603,9 +603,26 @@ module asic_ga_timing
 	always @(posedge clk) hsync_o_q <= SNA_LOAD ? 1'b0 : HSYNC_O;
 	wire mon_hsync_fall = hsync_o_q & ~HSYNC_O;
 
+	// Revised Arnold §2.4: raw HSYNC overlapping entry to the matching
+	// scanline can trigger there, then again at its normal monitor edge.
+	// https://www.cpcwiki.eu/index.php/Arnold_V_Specs_Revised#Programmable_raster_interrupt
+	// Track line transitions, not PRI-match transitions: a PRI-only write
+	// must not manufacture a line-entry event. Invalidate history across
+	// reset/import until the restored video counters have settled.
+	reg [8:0] pri_line_q;
+	reg pri_history_valid;
+	always @(posedge clk) begin
+		pri_line_q <= crtc_line;
+		pri_history_valid <= !(reset || SNA_LOAD);
+	end
+	// Previous raw HSYNC includes the simultaneous HSYNC-fall/line-entry
+	// seam. That exact-edge ordering remains provisional pending hardware;
+	// a full-character overlap is specified by revised Arnold §2.4.
+	wire pri_line_entry = pri_history_valid &&
+	                      (crtc_line != pri_line_q) && ~hsync_n_d;
 	wire pri_line_match = (pri != 8'd0) && ({1'b0, pri} == crtc_line);
-	wire raster_fire = (pri != 8'd0) && !crtc_adj &&
-	                   mon_hsync_fall && pri_line_match;
+	wire raster_fire = !reset && !SNA_LOAD && !crtc_adj &&
+	                   (mon_hsync_fall || pri_line_entry) && pri_line_match;
 
 	// Persistent last-ack-was-raster level for DCSR bit 7 (reference
 	// section 9: set if the LAST INT acknowledge was raster). The level
