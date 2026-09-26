@@ -369,12 +369,79 @@ void p4_sprites_regs_fixture() {
 	std::printf("PASS p4-sprites-regs: page writes, row arbitration, stale-row gate, and blanking\n");
 }
 
+// Revised Arnold §2.1: a coordinate write cuts the old location and renders
+// at the new one when reached; nonzero sprite pixels are opaque. Seven
+// sprites share the real page/RAM/fetch port. Later sprites intentionally
+// spill into the target line, retaining the multiplexed port pressure.
+// The measured sprite 2 target's write is after its
+// old window, over 18us before the next visible line, at production cadence.
+// Its current source row remains15 while next-row eligibility changes: a
+// row-tag-only retarget misses this transition. Static and earlier writes
+// distinguish that omission from a bandwidth-limited urgent refill.
+void p4_live_prediction(unsigned target_y, int lead_lines) {
+    Bench b;
+    constexpr unsigned first_sprite = 2, last_sprite = 8;
+    constexpr unsigned origin = 16, visible_width = 64-26;
+    const unsigned xs[] = {0,0,998,38,102,410,474,538,602};
+    for (unsigned i=first_sprite; i<=last_sprite; ++i) {
+        for (unsigned pixel=0; pixel<256; ++pixel) b.page_write(i*256+pixel,1);
+        b.page_write(0x2000+i*8, xs[i]&255);
+        b.page_write(0x2001+i*8, xs[i]>>8);
+        b.page_write(0x2002+i*8, lead_lines<0 ? target_y : target_y-64);
+        b.page_write(0x2003+i*8,0);
+        b.page_write(0x2004+i*8,15); // x4/y4, 64x64
+    }
+    unsigned missing=0, predicted_bytes=0;
+    const unsigned write_x = target_y==64 ? 720 : 688;
+    for (unsigned y=0; y<=target_y; ++y) {
+        b.dut.line=y>>3; b.dut.row=y&7;
+        for (unsigned x=0; x<1024; ++x) {
+            for (unsigned i=first_sprite; i<=last_sprite; ++i) {
+                if (lead_lines>=0 && y*1024+x==
+                    (target_y-unsigned(lead_lines))*1024+write_x+(i-first_sprite)*64) {
+                    b.dut.asic_cs=1; b.dut.mem_wr=1; b.dut.mem_rd=0;
+                    b.dut.A=0x2002+i*8; b.dut.D_in=target_y;
+                }
+            }
+            for (unsigned phase=0; phase<4; ++phase) {
+                // Observe the actual dot before its PIXEN edge. X=-26 at
+                // x4 leaves 38 opaque dots, starting at display origin16.
+                if (phase==3 && y==target_y && x>=origin && x<origin+visible_width &&
+                    (!b.dut.spr_en || b.dut.spr_idx!=first_sprite)) ++missing;
+                const Edge edge=b.tick(phase==3, phase==3 && (x&15)==15,
+                                       phase==3 && x==1023);
+                if (y==target_y-1 && edge.req && edge.ack &&
+                    edge.addr>=0x100 && edge.addr<0x108) ++predicted_bytes;
+                if (phase==0) b.bus_idle();
+            }
+        }
+    }
+    std::printf("P4 prediction Y=%u lead=%d missing=%u preceding-row0-bytes=%u\n",
+                target_y,lead_lines,missing,predicted_bytes);
+    if (missing) fail("live Y prediction left transparent dots at the new location");
+    // Eight bytes once: prediction must be armed, not repeatedly invalidated
+    // while the same source-row tag remains current.
+    if (lead_lines==1 && predicted_bytes!=8)
+        fail("newly eligible prediction did not fetch exactly one complete row");
+}
+
+void p4_multiplex_prediction() {
+    p4_live_prediction(64,-1); // static geometry control
+    p4_live_prediction(64,2);  // same write with an extra line of lead time
+    for (unsigned y : {64u,128u,192u}) p4_live_prediction(y,1);
+    std::printf("PASS p4 multiplex: live prediction prepares opaque first rows\n");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
 	Verilated::commandArgs(argc, argv);
 	try {
+#ifdef P4_MULTIPLEX
+        p4_multiplex_prediction();
+#else
 		p4_sprites_regs_fixture();
+#endif
 		return 0;
 	}
 	catch (const std::exception& error) {

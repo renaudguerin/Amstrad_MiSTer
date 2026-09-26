@@ -353,6 +353,18 @@ always @(*) begin
 		c_predok[i] = c_ena[i] && ((c_diff[i] + 10'd1) < c_hgt[i]);
 end
 
+// Live Y/magnification writes can change prediction eligibility without
+// changing the current row tag (e.g. diff63 and diff1023 both select row15
+// at y4). Revised Arnold §2.1 requires the sprite at its new location when
+// reached. Maintain the missing prediction independently: preserve current
+// bytes and an already-valid prediction rather than repeatedly flushing it.
+reg [15:0] c_repredict;
+always @(*) begin
+	for (i = 0; i < 16; i = i + 1)
+		c_repredict[i] = !d1w && !(CLKEN && HWRAP) && !c_retarget[i] &&
+		                 c_predok[i] && !sval[{i[3:0], ~abit[i]}];
+end
+
 // Walk FSM: walk[7] divides two 128-slot halves — ACTIVE banks
 // (emission-critical misses) first, then INACTIVE banks (speculative
 // next-row prefill). Each half holds sixteen 8-byte blocks, one per
@@ -403,9 +415,14 @@ wire        do_pop  = FQ_REQ && FQ_ACK;
 wire        fq_stale = fq_acc ||
                        (srowtag[fq_tag[7:3]*4 +: 4] != fq_row);
 wire        fq_acc_hit = ACC_EN && (ACC_IDX == fq_tag[7:4]);
+// Only the inactive bank is retagged by prediction maintenance; a current
+// row completion in the same clock remains usable.
+wire        fq_repredict = c_repredict[fq_tag[7:4]] &&
+                           (fq_tag[3] != abit[fq_tag[7:4]]);
 
 wire [7:0]  pb_word  = wk_word;
 wire        pb_fresh = wk_go && !d1w && !c_retarget[wk_s] &&
+                       !(wk_spec && c_repredict[wk_s]) &&
                        !sreq[pb_word] && !sdone[pb_word];
 
 always @(posedge CLOCK) begin
@@ -500,6 +517,14 @@ always @(posedge CLOCK) begin
 					end
 				end
 			end
+			else if (c_repredict[i]) begin
+				// Newly eligible prediction, current bank still valid. Do not
+				// promote or invalidate it while preparing the other bank.
+				sdone[{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
+				sreq [{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
+				srowtag[{i[3:0], ~abit[i]}*4 +: 4] <= c_srow[i] + 4'd1;
+				sval [{i[3:0], ~abit[i]}] <= 1'b1;
+			end
 		end
 
 		//------------------------------------------------------------
@@ -529,7 +554,7 @@ always @(posedge CLOCK) begin
 		//------------------------------------------------------------
 		if (do_pop) begin
 			FQ_REQ <= 1'b0;
-			if (!d1w && !c_retarget[fq_tag[7:4]] && !fq_stale && !fq_acc_hit) begin
+			if (!d1w && !c_retarget[fq_tag[7:4]] && !fq_stale && !fq_acc_hit && !fq_repredict) begin
 				rb_dat[fq_tag] <= FQ_DATA;
 				sdone[fq_tag]  <= 1'b1;
 			end

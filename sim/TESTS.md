@@ -60,6 +60,7 @@ Mac, including the Verilator build.
 | `sim/plus run/asic_sprites_tests` | fast | `rtl/plus/asic_sprites.v` | Sprite engine: attributes, priority, row fetch |
 | `sim/plus run/d3_sprites_tests` | fast | `rtl/plus/asic_sprites.v` | First visible sprite row at production cadence |
 | `sim/plus run/p4_sprites_regs_tests` | fast | `rtl/plus/asic_regs.v` `rtl/plus/asic_sprites.v` `rtl/plus/plus_sprite_ram.v` | Sprite page storage and row-fetch arbitration between asic_regs and asic_sprites |
+| `sim/plus run/p4_multiplex_tests` | fast | `rtl/plus/asic_regs.v` `rtl/plus/asic_sprites.v` `rtl/plus/plus_sprite_ram.v` | Live Y prediction eligibility with unchanged current row tag, shared fetch-port pressure and negative-X first-row opacity at production origin/cadence |
 | `sim/plus run/asic_dma_tests` | fast | `rtl/plus/asic_dma.v` | DMA sound channel commands and timing |
 | `sim/plus run/plus_p8_tests` | fast | `rtl/plus/asic_dma.v` `rtl/plus/asic_regs.v` `rtl/i8255.v` `rtl/plus/plus_sna_*.v` `rtl/plus/plus_fdc_decode.v` | Plus PPI quirks, SNA v3 Plus chunk parsing, FDC model gating, live PPR write events |
 | `sim/plus run/b16_load_model_tests` | fast | `rtl/plus/plus_load_model.v` `rtl/plus/plus_sna_apply.v` | CPR/SNA selection before reset release, delayed Main status echo, F1 collision and aborted restore |
