@@ -29,6 +29,18 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
+**CRTC3 Plus acknowledge shaping and cross-line PRI (`codex/plus/crtc3-demo`),
+2026-09-26 — CROSS-PROVIDER REVIEW UNAVAILABLE:** Gemini retries require OAuth
+and time out; Opus5.5-medium run `20260925T235748Z-2596-a76a` exits with provider
+signal9 after687.9 seconds without review output. User-authorized native
+Astra-medium fallback does not discharge cross-provider debt. Look hardest at
+raw versus ASIC-side IORQ routing (including FDC aliases), repeated empty-vector
+scope within M1, reset/snapshot qualification of the added PRI line-entry event,
+and the simultaneous raw-HSYNC-fall/line-entry seam. Preserve ordinary monitor
+trailing-edge timing, nine-bit PRI no-wrap and pending/acknowledge behavior.
+Evidence and acceptance limits are in the
+[CRTC3 record](investigations/hardware-runs/crtc3-demo-2026-09-25.md).
+
 **TV80 automatic I/O wait (`plus/ga-fast-write-latch`), 2026-09-22 — UNREVIEWED:** Opus made
 `sim/plus/tv80/tv80_core.v` hold T2 for one wait state on I/O cycles (the existing, previously
 dead `IOWait` parameter) and removed the P10 fixture's `production_wait` switch. Sim-only; no

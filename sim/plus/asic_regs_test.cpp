@@ -53,6 +53,10 @@ public:
 		dut.leg_inkr[2] = 0;
 		dut.pal_raddr = 0;
 		dut.dma_int_set = 0;
+		dut.intack = 0;
+		dut.intack_m1 = 0;
+		dut.int_pending = 0;
+		dut.intack_raster = 0;
 		dut.dcsr_ena_clr = 0;
 		dut.sna_wr = 0;
 		dut.sna_addr = 0;

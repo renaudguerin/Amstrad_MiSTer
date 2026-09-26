@@ -125,6 +125,7 @@ module p4_sprites_regs_test_top (
 		.dcsr(dcsr),
 		.intack_raster(intack_raster),
 		.intack(intack),
+		.intack_m1(intack),
 		.int_pending(int_pending),
 		.vec_byte(vec_byte),
 		.vec_valid(vec_valid),

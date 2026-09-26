@@ -374,16 +374,19 @@ module p10_boot_test_top #(
 	wire io_wr = cpu_wr & cpu_iorq;
 
 	// MMU instance
+	wire asic_iorq;
+	wire fdc_io_rd = cpu_rd & asic_iorq;
+	wire fdc_io_wr = cpu_wr & asic_iorq;
 	plus_mmu mmu (
 		.clk(clk),
 		.reset(sys_reset),
 		.plus_mode(plus_mode),
 		.gx4000(plus_gx4000),
-		.io_rd(io_rd),
-		.io_wr(io_wr),
+		.io_rd(cpu_rd & asic_iorq),
+		.io_wr(cpu_wr & asic_iorq),
 		.mem_rd(mem_rd),
 		.A(cpu_addr),
-		.D(io_rd ? plus_io_bus_byte : cpu_dout),
+		.D((cpu_rd & asic_iorq) ? plus_io_bus_byte : cpu_dout),
 		.rom_en(romen),
 		.exp_n(plus_exp_n),
 		.cart_valid(plus_cart_valid),
@@ -467,7 +470,7 @@ module p10_boot_test_top #(
 
 	// CPU DIN MUX
 	wire [7:0] u765_dout;
-	wire [7:0] fdc_dout = (dbg_fdc_data_sel & io_rd) ? u765_dout : 8'hFF;
+	wire [7:0] fdc_dout = (dbg_fdc_data_sel & fdc_io_rd) ? u765_dout : 8'hFF;
 	wire [7:0] cpu_din_bus = ram_dout & fdc_dout;
 	assign cpu_din = plus_vec_valid ? plus_vec_byte :
 	                 plus_asic_rd   ? plus_asic_dout :
@@ -616,6 +619,7 @@ module p10_boot_test_top #(
 		.cpu_dout(cpu_dout),
 		.cpu_din(cpu_din),
 		.iorq(cpu_iorq),
+		.asic_iorq(asic_iorq),
 		.mreq(cpu_mreq),
 		.rd(cpu_rd),
 		.wr(cpu_wr),
@@ -658,9 +662,9 @@ module p10_boot_test_top #(
 		.motor({dbg_motor, dbg_motor}),
 		.available(2'b11),
 		.fast(1'b0),
-		.a0(cpu_addr[0] | (dbg_fdc_data_sel & io_wr)),
-		.nRD(~(dbg_fdc_data_sel & io_rd)),
-		.nWR(~(dbg_fdc_data_sel & io_wr)),
+		.a0(cpu_addr[0] | (dbg_fdc_data_sel & fdc_io_wr)),
+		.nRD(~(dbg_fdc_data_sel & fdc_io_rd)),
+		.nWR(~(dbg_fdc_data_sel & fdc_io_wr)),
 		.din(cpu_dout),
 		.dout(u765_dout),
 		.img_mounted(fdc_img_mounted),
@@ -735,10 +739,10 @@ module p10_boot_test_top #(
 
 	always @(posedge clk) begin
 		reg old_wr;
-		old_wr <= io_wr;
+		old_wr <= fdc_io_wr;
 		if (sys_reset) begin
 			dbg_motor <= 1'b0;
-		end else if (~old_wr && io_wr && dbg_fdc_motor_sel) begin
+		end else if (~old_wr && fdc_io_wr && dbg_fdc_motor_sel) begin
 			dbg_motor <= cpu_dout[0];
 		end
 	end

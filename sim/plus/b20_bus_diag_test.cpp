@@ -1,50 +1,8 @@
-// B20-2/B20-3 production-bus discriminator (test-only).
-//
-// Closes the gap between b20_ack_matrix (production T80, but synthetic vector,
-// no ASIC/motherboard) and b20_ack_diag (ASIC registers, but synthetic bus,
-// no CPU/motherboard). Reuses the D5 prepared motherboard fixture
-// (production T80pa, real Amstrad_motherboard, asic_regs, asic_ga_timing,
-// asic_video, etc.) driven by a synthetic cartridge program (no private media).
-//
-// Authority split (cited per project guidelines):
-// - Physical claims from S29 (Plus Vectored Interrupt Bug, CPCWiki pp.3-4):
-//   1. Motherboard LK106/IC116 IORQ pulse-shaping logic makes the ASIC observe
-//      two acknowledge pulses when an interrupt occurs during a multi-byte
-//      memory read/write instruction with A13=0 in the interrupted context.
-//   2. The first acknowledge clears the raster interrupt.
-//   3. The second acknowledge finds no interrupt pending and vectors to
-//      DMA0 / offset 4 (0x04).
-//   4. Single-byte instructions (including HALT) and A13=1 contexts are
-//      immune and exhibit normal single-acknowledge behaviour.
-// - Production core properties (rtl/Amstrad_motherboard.v, rtl/T80/T80pa.vhd):
-//   1. intack = plus_mode & ~M1_n & iorq: motherboard has no LK106/IC116
-//      pulse multiplier or A13-dependent pulse-shaping mechanism.
-//      Both CPU and ASIC observe a single shared acknowledge net; dbg_int_ack
-//      monitors this net rather than independently probed physical endpoint pins.
-//   2. In the three evaluated cells, a single acknowledge cycle occurs per
-//      accepted interrupt on this shared net.
-//   3. The ASIC provides raster vector 0x06 with within-ack stability.
-//   4. Raster interrupt clears on acknowledge, setting DCSR bit 7 (last_raster).
-//   5. IM2 vector table at 0x0306 branches to raster_handler (0x0600).
-//   6. S29's secondary empty acknowledge and DMA0 vector (0x04) are NOT
-//      reachable in the evaluated cells on the current production bus.
-//
-// Cells exercised:
-//   Cell 1: LDIR @ 0x0100 (A13=0, S29 susceptible class)
-//   Cell 2: LDIR @ 0x2100 (A13=1, S29 control class)
-//   Cell 3: HALT @ 0x0100 (A13=0, S29 single-byte control class)
-//
-// In all three cells, the bench asserts:
-//   - ASIC unlock and RMR2 page enable succeed.
-//   - Real raster interrupt fires from ASIC (PRI=24).
-//   - Exactly 1 acknowledge pulse on the shared CPU/ASIC acknowledge net.
-//   - Vector byte 0x06 captured unconditionally at clock 2, stable across remaining clocks.
-//   - GA pending request asserted before ack, deasserts at clock 2, remains clear.
-//   - Interrupted instruction pinned at origin+9 (LDIR) or origin+1 (HALT).
-//   - CPU enters raster_handler (0x0600), never DMA0 (0x0400) or DMA2 (0x0500).
-//   - Handler reads DCSR &6C0F: bit 7 == 1 (last_raster), DMA flags/enables == 0.
-//   - Handler writes completion marker 0xAA to RAM at 0x1001.
-
+// Production T80 + real motherboard/ASIC, original synthetic CPR.
+// CPC Plus CPU schematic IC116 G1/G2/G3, D201/D202/R210; Gerald's
+// 29 July 2017 trace shows raster 06 then empty 04 on one CPU acknowledge.
+// https://oldwiki.cpcwiki.eu/imgs/7/7e/IM2_Plus_Ack_Bug.png
+// LD(DE),A has a memory-write cycle despite its one-byte opcode; HALT does not.
 #define main p10_unused_main
 #include "p10_boot_test.cpp"
 #undef main
@@ -68,7 +26,7 @@ static std::string hex_str(uint32_t val, int width) {
 struct CellConfig {
     std::string name;
     uint16_t origin;
-    bool is_ldir;
+    bool memory_write;
 };
 
 std::vector<uint8_t> build_cell_program(const CellConfig& cfg) {
@@ -136,6 +94,12 @@ std::vector<uint8_t> build_cell_program(const CellConfig& cfg) {
     emit(0x32); emit(0x00); emit(0x10); // LD (0x1000), A (DCSR readback)
     emit(0x32); emit(0x01); emit(0x10); // LD (0x1001), A (completion marker)
 
+    // Copy an original loop into RAM, so origin/A13 changes only execution location.
+    emit(0x21); emit(0x00); emit(0x08); // LD HL,0800
+    emit(0x11); emit(cfg.origin & 255); emit(cfg.origin >> 8);
+    emit(0x01); emit(0x80); emit(0x00); // LD BC,128
+    emit(0xED); emit(0xB0);             // LDIR
+    emit(0x11); emit(0x04); emit(0xBF); // LD DE,BF04
     // Enable interrupts and jump to target origin
     emit(0xFB);                         // EI
     emit(0xC3); emit(cfg.origin & 0xFF); emit(cfg.origin >> 8); // JP origin
@@ -156,20 +120,10 @@ std::vector<uint8_t> build_cell_program(const CellConfig& cfg) {
     code[0x0300] = 0x00;
     code[0x0301] = 0x05;
 
-    // Target body placement
-    idx = cfg.origin;
-    if (cfg.is_ldir) {
-        uint8_t r_hi = (cfg.origin == 0x0100) ? 0x18 : 0x28;
-        uint8_t w_hi = (cfg.origin == 0x0100) ? 0x19 : 0x29;
-        emit(0x21); emit(0x00); emit(r_hi); // LD HL, r_hi:00
-        emit(0x11); emit(0x00); emit(w_hi); // LD DE, w_hi:00
-        emit(0x01); emit(0x00); emit(0x01); // LD BC, 0x0100
-        emit(0xED); emit(0xB0);             // LDIR
-        emit(0x18); emit(0xF9);             // JR -7 (to LD BC)
-    } else {
-        emit(0x76);                         // HALT
-        emit(0x18); emit(0xFE);             // JR -2 (to HALT)
-    }
+    // 64 consecutive memory writes, matching the instruction class of FlowLIB.
+    idx = 0x0800;
+    for (int i=0; i<64; ++i) emit(cfg.memory_write ? 0x12 : 0x76);
+    emit(0xC3); emit(cfg.origin & 255); emit(cfg.origin >> 8);
 
     // Handlers
     // 0x0600: raster_handler
@@ -209,302 +163,89 @@ std::vector<uint8_t> build_cell_program(const CellConfig& cfg) {
     return code;
 }
 
-struct CellObservation {
-    bool unlock_seen = false;
-    bool asic_page_seen = false;
-    bool origin_seen = false;
 
-    // Blocker (2): Prior execution / transfer evidence and pinned instruction
-    uint32_t ldir_reads_before_ack = 0;
-    uint32_t ldir_writes_before_ack = 0;
-    bool ldir_ed_fetch_seen = false;
-    bool ldir_b0_fetch_seen = false;
-    bool halt_opcode_fetch_seen = false;
-    uint32_t halt_cycles_before_ack = 0;
-
-    // Blocker (1) & (4): Single acknowledge on shared net, registered latency separation, clock 2 capture
-    int ack_rises = 0;
-    int ack_clocks = 0;
-    uint64_t first_ack_tick = 0;
-    uint16_t first_ack_a = 0;
-    uint8_t ack_vec_clock1 = 0;
-    uint8_t ack_vec_clock2 = 0;
-    bool ack_vec_clock2_seen = false;
-    bool vec_unstable = false;
-
-    // Blocker (3): GA pending request lifecycle (asserted before ack, deasserted at clock 2, clear through handler)
-    bool ga_pending_before_ack = false;
-    bool ga_pending_ack_clock1 = false;
-    bool ga_pending_ack_clock2 = false;
-    bool ga_reasserted_in_ack = false;
-    bool ga_reasserted_in_handler = false;
-    bool dma_int_asserted = false;
-
-    // Handler entry, DCSR readback, completion marker
-    bool entered_raster_handler = false;
-    bool entered_dma0_handler = false;
-    bool entered_dma2_handler = false;
-    bool entered_unexpected_handler = false;
-    bool dcsr_read_seen = false;
-    uint8_t dcsr_val = 0;
-    bool marker_written = false;
-    uint8_t marker_val = 0;
-};
-
-CellObservation run_cell(const CellConfig& cfg) {
-    std::cout << "--- Running: " << cfg.name << " ---" << std::endl;
-    auto program = build_cell_program(cfg);
-
+void run_cell(const CellConfig& cfg) {
     Harness h;
-    h.dut.d5_key = 0;
-    h.dut.production_clocking = 1;
-    h.dut.plus_model_i = 2; // 6128+
-    h.dut.force_irq = 0;
-    h.initialize();
-    h.download(build_cpr_image({{"cb00", program}}));
+    h.dut.d5_key=0; h.dut.production_clocking=1;
+    h.dut.plus_model_i=2; h.dut.force_irq=0;
+    h.initialize(); h.download(build_cpr_image({{"cb00", build_cell_program(cfg)}}));
     wait_for_cpr_apply(h);
-
-    CellObservation obs;
-    bool prev_int_ack = false;
-    uint64_t completion_tick = 0;
-    const uint64_t kMaxTicks = 500000;
-
-    for (uint64_t tick = 0; tick < kMaxTicks; ++tick) {
+    bool seen=false, write_seen=false, prev_raw=false, prev_ack=false;
+    bool unlocked=false, page=false, opcode=false, pending_before=false, dcsr_seen=false;
+    uint8_t dcsr=0;
+    int samples=0; uint8_t sampled=0;
+    uint16_t ack_address=0;
+    int raw_rises=0, rises=0, pulse_age=0;
+    uint8_t pulse_vec=0, marker=0;
+    std::vector<unsigned> vectors;
+    const bool susceptible=cfg.memory_write && !(cfg.origin & 0x2000);
+    for (int tick=0; tick<500000; ++tick) {
+        // Timestamp is the production IM2 sample edge. dbg_din observes
+        // the upstream byte before the motherboard wired-AND bus; the
+        // handler marker below independently proves the consumed vector.
+        if (h.dut.d5_ack_sample) {
+            ++samples; sampled=h.dut.dbg_din;
+            if (std::getenv("B20_TRACE")) std::printf("SAMPLE %s tick=%d byte=%02X\n",cfg.name.c_str(),tick,sampled);
+        }
         h.tick();
-
-        if (h.dut.dbg_unlock_done) obs.unlock_seen = true;
-        if (h.dut.dbg_asic_page_on) obs.asic_page_seen = true;
-        if (h.dut.dbg_pc == cfg.origin) obs.origin_seen = true;
-
-        // GA interrupt request (active-low: 0 = asserted/pending, 1 = deasserted/clear).
-        // In Plus mode without DMA (dma_int_set == 0), Amstrad_motherboard routes:
-        //   plus_int_n = plus_ga_int_n & ~plus_dma_int_req;
-        //   INT_n = plus_int_n;
-        // so plus_ga_int_n directly represents the merged CPU interrupt request line.
-        bool ga_pending = (h.dut.rootp->p10_boot_test_top__DOT__mb__DOT__plus_ga_int_n == 0);
-        if (h.dut.rootp->p10_boot_test_top__DOT__mb__DOT__dma_int_set != 0) {
-            obs.dma_int_asserted = true;
+        seen |= h.dut.dbg_pc==cfg.origin;
+        unlocked |= h.dut.dbg_unlock_done; page |= h.dut.dbg_asic_page_on;
+        if (seen && !h.dut.dbg_mreq_n && !h.dut.dbg_m1_n && !h.dut.dbg_rd_n &&
+            h.dut.dbg_addr>=cfg.origin && h.dut.dbg_addr<cfg.origin+64)
+            opcode |= h.dut.dbg_din==(cfg.memory_write ? 0x12:0x76);
+        write_seen |= seen && !h.dut.dbg_mreq_n && !h.dut.dbg_wr_n && h.dut.dbg_addr==0xBF04;
+        bool raw=!h.dut.dbg_iorq_n && !h.dut.dbg_m1_n;
+        bool ack=h.dut.dbg_vec_valid;
+        if (raw && !prev_raw) {
+            ++raw_rises; ack_address=h.dut.dbg_addr;
+            pending_before=!h.dut.rootp->p10_boot_test_top__DOT__mb__DOT__plus_ga_int_n;
         }
-
-        // Before acknowledge: freeze/require read+write and collect opcode execution evidence
-        if (obs.origin_seen && obs.ack_rises == 0) {
-            if (ga_pending) {
-                obs.ga_pending_before_ack = true;
-            }
-
-            if (cfg.is_ldir) {
-                uint16_t read_hi = (cfg.origin == 0x0100) ? 0x1800 : 0x2800;
-                uint16_t write_hi = (cfg.origin == 0x0100) ? 0x1900 : 0x2900;
-                if (!h.dut.dbg_mreq_n && !h.dut.dbg_rd_n && h.dut.dbg_m1_n &&
-                    (h.dut.dbg_addr & 0xFF00) == read_hi) {
-                    obs.ldir_reads_before_ack++;
-                }
-                if (!h.dut.dbg_mreq_n && !h.dut.dbg_wr_n &&
-                    (h.dut.dbg_addr & 0xFF00) == write_hi) {
-                    obs.ldir_writes_before_ack++;
-                }
-
-                // Opcode fetch evidence for ED B0 at origin+9 and origin+10
-                if (!h.dut.dbg_m1_n && !h.dut.dbg_mreq_n && !h.dut.dbg_rd_n && h.dut.dbg_wait_n) {
-                    if (h.dut.dbg_addr == cfg.origin + 9)  obs.ldir_ed_fetch_seen = true;
-                    if (h.dut.dbg_addr == cfg.origin + 10) obs.ldir_b0_fetch_seen = true;
-                }
-            } else {
-                // HALT control execution evidence: opcode fetch of 0x76 at origin,
-                // followed by CPU execution in HALT state holding PC at origin+1
-                if (!h.dut.dbg_m1_n && !h.dut.dbg_mreq_n && !h.dut.dbg_rd_n && h.dut.dbg_wait_n) {
-                    if (h.dut.dbg_addr == cfg.origin) obs.halt_opcode_fetch_seen = true;
-                }
-                if (obs.halt_opcode_fetch_seen && h.dut.dbg_pc == cfg.origin + 1) {
-                    obs.halt_cycles_before_ack++;
-                }
-            }
+        if (ack && !prev_ack) { ++rises; pulse_age=0; }
+        if (ack) {
+            ++pulse_age;
+            if (pulse_age==2) {
+                require(h.dut.rootp->p10_boot_test_top__DOT__mb__DOT__plus_ga_int_n,cfg.name+": raster not cleared on first latch edge");
+                pulse_vec=h.dut.dbg_vec_byte; vectors.push_back(pulse_vec); }
+            if (pulse_age>2) require(h.dut.dbg_vec_byte==pulse_vec, cfg.name+": vector changed within ASIC pulse");
         }
-
-        // Acknowledge tracking on the single shared motherboard net (plus_mode & ~M1_n & iorq).
-        bool int_ack = h.dut.dbg_int_ack;
-        if (int_ack && !prev_int_ack) {
-            obs.ack_rises++;
-            if (obs.ack_rises == 1) {
-                obs.first_ack_tick = tick;
-                obs.first_ack_a = h.dut.dbg_addr;
-            }
+        if (std::getenv("B20_TRACE") && (raw || (prev_raw && !raw)))
+            std::printf("TRACE %s tick=%d A=%04X raw=%d asic=%d ready=%d wait=%d m1=%d ts=%d cen=%d vec=%02X pending=%d\n",
+                cfg.name.c_str(),tick,h.dut.dbg_addr,raw,ack,
+                h.dut.rootp->p10_boot_test_top__DOT__mb__DOT__plus_ready,
+                h.dut.dbg_cpu_waitn,h.dut.dbg_m1_n,h.dut.dbg_tstate,h.dut.dbg_cen_p,
+                h.dut.dbg_vec_byte,!h.dut.rootp->p10_boot_test_top__DOT__mb__DOT__plus_ga_int_n);
+        if (raw_rises && !h.dut.dbg_mreq_n && !h.dut.dbg_rd_n && h.dut.dbg_addr==0x6C0F) {
+            dcsr_seen=true; dcsr=h.dut.dbg_din;
         }
-        if (int_ack) {
-            obs.ack_clocks++;
-            if (obs.ack_clocks == 1) {
-                // Initial one-clock registered latency:
-                // ack_src is latched on posedge clk while intack && !intack_d.
-                obs.ga_pending_ack_clock1 = ga_pending;
-                obs.ack_vec_clock1 = h.dut.dbg_vec_byte;
-            } else if (obs.ack_clocks == 2) {
-                // Captured unconditionally exactly at second master-clock observation of ack:
-                // ack_src is now latched and driving the vector byte.
-                obs.ga_pending_ack_clock2 = ga_pending;
-                obs.ack_vec_clock2 = h.dut.dbg_vec_byte;
-                obs.ack_vec_clock2_seen = true;
-            } else {
-                // Compare every remaining clock against the vector captured at clock 2
-                if (h.dut.dbg_vec_byte != obs.ack_vec_clock2) {
-                    obs.vec_unstable = true;
-                }
-                if (ga_pending) {
-                    obs.ga_reasserted_in_ack = true;
-                }
-            }
-        }
-        prev_int_ack = int_ack;
-
-        // Post-acknowledge / handler tracking: ensure request remains clear through handler
-        if (obs.ack_rises > 0 && !int_ack) {
-            if (ga_pending) {
-                obs.ga_reasserted_in_handler = true;
-            }
-        }
-
-        // Handler opcode fetch
-        if (!h.dut.dbg_m1_n && !h.dut.dbg_mreq_n && !h.dut.dbg_rd_n && h.dut.dbg_wait_n) {
-            if (h.dut.dbg_addr == 0x0600) obs.entered_raster_handler = true;
-            if (h.dut.dbg_addr == 0x0400) obs.entered_dma0_handler = true;
-            if (h.dut.dbg_addr == 0x0500) obs.entered_dma2_handler = true;
-            if (h.dut.dbg_addr == 0x0700) obs.entered_unexpected_handler = true;
-        }
-
-        // DCSR read in handler
-        if (h.dut.dbg_addr == 0x6C0F && !h.dut.dbg_mreq_n && !h.dut.dbg_rd_n && h.dut.dbg_wait_n) {
-            obs.dcsr_read_seen = true;
-            obs.dcsr_val = h.dut.dbg_din;
-        }
-
-        // Marker write in handler (only after entering a handler)
-        if ((obs.entered_raster_handler || obs.entered_dma0_handler ||
-             obs.entered_dma2_handler || obs.entered_unexpected_handler) &&
-            h.dut.dbg_addr == 0x1001 && !h.dut.dbg_mreq_n && !h.dut.dbg_wr_n) {
-            obs.marker_written = true;
-            obs.marker_val = h.dut.dbg_dout;
-            completion_tick = tick;
-        }
-
-        if (obs.marker_written && tick > completion_tick + 100) {
-            break;
+        prev_raw=raw; prev_ack=ack;
+        if (raw_rises && !h.dut.dbg_wr_n && !h.dut.dbg_mreq_n && h.dut.dbg_addr==0x1001) {
+            marker=h.dut.dbg_dout; break;
         }
     }
-
-    // Rigorous assertions
-    require(obs.unlock_seen, cfg.name + ": ASIC unlock sequence failed");
-    require(obs.asic_page_seen, cfg.name + ": ASIC register page not enabled");
-    require(obs.origin_seen, cfg.name + ": CPU never reached target execution origin 0x" + hex_str(cfg.origin, 4));
-
-    // Blocker (2): Prior execution / transfer evidence and pinned instruction
-    if (cfg.is_ldir) {
-        require(obs.ldir_reads_before_ack > 0 && obs.ldir_writes_before_ack > 0,
-                cfg.name + ": LDIR data transfers not observed prior to acknowledge (reads=" +
-                std::to_string(obs.ldir_reads_before_ack) + " writes=" + std::to_string(obs.ldir_writes_before_ack) + ")");
-        require(obs.ldir_ed_fetch_seen && obs.ldir_b0_fetch_seen,
-                cfg.name + ": LDIR ED B0 opcode fetches not observed at origin+9/origin+10 prior to acknowledge");
-        require(obs.first_ack_a == cfg.origin + 9,
-                cfg.name + ": Expected first acknowledge address to pin interrupted LDIR at 0x" +
-                hex_str(cfg.origin + 9, 4) + ", got 0x" + hex_str(obs.first_ack_a, 4));
-    } else {
-        require(obs.halt_opcode_fetch_seen,
-                cfg.name + ": HALT opcode fetch not observed at origin 0x" + hex_str(cfg.origin, 4));
-        require(obs.halt_cycles_before_ack > 0,
-                cfg.name + ": CPU did not enter/remain in HALT state (PC at origin+1) prior to acknowledge");
-        require(obs.first_ack_a == cfg.origin + 1,
-                cfg.name + ": Expected first acknowledge address to pin HALT control at 0x" +
-                hex_str(cfg.origin + 1, 4) + ", got 0x" + hex_str(obs.first_ack_a, 4));
-    }
-
-    // Blocker (3): GA pending request lifecycle (asserted before ack, deasserted at clock 2, clear through handler)
-    require(obs.ga_pending_before_ack, cfg.name + ": GA interrupt request was not asserted prior to acknowledge");
-    require(obs.ga_pending_ack_clock1, cfg.name + ": GA interrupt request was not asserted during first clock of acknowledge");
-    require(!obs.ga_pending_ack_clock2, cfg.name + ": GA interrupt request not deasserted after first latch edge (clock 2) of acknowledge");
-    require(!obs.ga_reasserted_in_ack, cfg.name + ": GA interrupt request unexpectedly reasserted during acknowledge");
-    require(!obs.ga_reasserted_in_handler, cfg.name + ": GA interrupt request unexpectedly reasserted during handler execution");
-    require(!obs.dma_int_asserted, cfg.name + ": DMA interrupt request unexpectedly asserted");
-
-    // Blocker (1) & (4): Single acknowledge on shared net, registered latency separation, clock 2 unconditional capture
-    require(obs.ack_rises > 0, cfg.name + ": No interrupt acknowledge observed on shared net (timeout waiting for PRI=24 raster fire)");
-    require(obs.ack_rises == 1, cfg.name + ": Expected single acknowledge on shared net in this cell, got " + std::to_string(obs.ack_rises));
-    require(obs.ack_vec_clock2_seen, cfg.name + ": Acknowledge did not persist to second master clock");
-    require(obs.ack_vec_clock2 == 0x06, cfg.name + ": Expected vector 0x06 (raster) at second master clock of ack, got 0x" + hex_str(obs.ack_vec_clock2, 2));
-    require(!obs.vec_unstable, cfg.name + ": Vector fluctuated during remaining clocks of acknowledge");
-
-    // Handlers & DCSR
-    require(!obs.entered_dma0_handler, cfg.name + ": S29 bug vector entered (DMA0 handler at 0x0400 entered)!");
-    require(!obs.entered_dma2_handler, cfg.name + ": Empty/DMA2 vector entered (handler at 0x0500 entered)!");
-    require(!obs.entered_unexpected_handler, cfg.name + ": Unexpected handler entered (0x0700)!");
-    require(obs.entered_raster_handler, cfg.name + ": CPU failed to enter raster handler at 0x0600 (vector 0x06 not consumed)");
-    require(obs.dcsr_read_seen, cfg.name + ": Handler did not read DCSR from &6C0F");
-    require((obs.dcsr_val & 0x80) != 0, cfg.name + ": DCSR bit 7 (last_raster) not set (got 0x" + hex_str(obs.dcsr_val, 2) + ")");
-    require((obs.dcsr_val & 0x70) == 0, cfg.name + ": Uncontrolled DMA flags in DCSR (got 0x" + hex_str(obs.dcsr_val, 2) + ")");
-    require((obs.dcsr_val & 0x07) == 0, cfg.name + ": Uncontrolled DMA enables in DCSR (got 0x" + hex_str(obs.dcsr_val, 2) + ")");
-    require(obs.marker_written && obs.marker_val == 0xAA,
-            cfg.name + ": Completion marker not written or incorrect (got 0x" + hex_str(obs.marker_val, 2) + ")");
-
-    std::cout << "  Setup: unlock=OK asic_page=OK origin=0x" << hex_str(cfg.origin, 4) << std::endl;
-    if (cfg.is_ldir) {
-        std::cout << "  LDIR transfer before ack: reads=" << obs.ldir_reads_before_ack
-                  << " writes=" << obs.ldir_writes_before_ack
-                  << " fetches: ED@0x" << hex_str(cfg.origin + 9, 4) << "=OK B0@0x" << hex_str(cfg.origin + 10, 4) << "=OK" << std::endl;
-    } else {
-        std::cout << "  HALT execution before ack: opcode@0x" << hex_str(cfg.origin, 4)
-                  << "=OK halted_pc_clocks=" << obs.halt_cycles_before_ack << std::endl;
-    }
-    std::cout << "  GA request lifecycle: pending_before_ack=YES clock1_asserted="
-              << (obs.ga_pending_ack_clock1 ? "YES" : "NO")
-              << " clock2_deasserted=" << (!obs.ga_pending_ack_clock2 ? "YES" : "NO")
-              << " handler_clear=" << (!obs.ga_reasserted_in_handler ? "YES" : "NO")
-              << " dma_req=NONE" << std::endl;
-    std::cout << "  Acknowledge (shared net): rises=" << obs.ack_rises << " duration=" << obs.ack_clocks
-              << " clocks, first_A=0x" << hex_str(obs.first_ack_a, 4)
-              << " (pins " << (cfg.is_ldir ? "LDIR at origin+9" : "HALT at origin+1")
-              << ", A13=" << ((obs.first_ack_a & 0x2000) ? 1 : 0) << ")" << std::endl;
-    std::cout << "  Vector sampling: clock1(registered_latency)=0x" << hex_str(obs.ack_vec_clock1, 2)
-              << " clock2(unconditional)=0x" << hex_str(obs.ack_vec_clock2, 2)
-              << " clocks3.." << obs.ack_clocks << "=0x" << hex_str(obs.ack_vec_clock2, 2)
-              << " (STABLE)" << std::endl;
-    std::cout << "  Handler entered: 0x0600 (raster, vector consumed), marker=0x" << hex_str(obs.marker_val, 2) << std::endl;
-    std::cout << "  DCSR read: 0x" << hex_str(obs.dcsr_val, 2)
-              << " (bit 7 last_raster=1, DMA_INT=0, DMA_ENA=0)" << std::endl;
-    std::cout << "  PASS: single ack on shared net, exact request deassertion, pinned interrupted opcode, stable raster vector" << std::endl;
-
-    return obs;
+    std::printf("RESULT %s raw=%d pulses=%d marker=%02X vectors=",cfg.name.c_str(),raw_rises,rises,marker);
+    for (auto v:vectors) std::printf("%02X ",v);
+    std::puts("");
+    require(unlocked && page,cfg.name+": ASIC setup incomplete");
+    require(opcode,cfg.name+": expected target opcode not fetched");
+    require(pending_before,cfg.name+": no pending raster before acknowledge");
+    require(cfg.memory_write ? (ack_address > cfg.origin && ack_address <= cfg.origin+64)
+                             : ack_address==cfg.origin+1,
+            cfg.name+": acknowledge did not follow the intended opcode class");
+    require(dcsr_seen && dcsr==(susceptible ? 0:0x80),cfg.name+": handler DCSR provenance incorrect");
+    require(seen, cfg.name+": no target execution");
+    require(!cfg.memory_write || write_seen,cfg.name+": no LD(DE),A memory write");
+    require(samples==1 && sampled==(susceptible ? 4:6),cfg.name+": wrong byte at production T80 IM2 sample edge");
+    require(raw_rises==1,cfg.name+": expected one CPU acknowledge");
+    require(rises==(susceptible ? 2:1),cfg.name+": wrong ASIC pulse count");
+    require(vectors== (susceptible ? std::vector<unsigned>{6,4}:std::vector<unsigned>{6}),cfg.name+": wrong per-pulse vector (must distinguish 04 from 00/02)");
+    require(marker==(susceptible ? 0xD0:0xAA),cfg.name+": CPU consumed wrong vector");
 }
-
 } // namespace
-
-int main(int argc, char** argv) {
-    try {
-        Verilated::commandArgs(argc, argv);
-        std::cout << "=== B20 Production-Bus Discriminator ===" << std::endl;
-        std::cout << "Target: production T80 + motherboard/ASIC acknowledge/vector/request path" << std::endl;
-
-        const std::vector<CellConfig> cells = {
-            {"LDIR @ 0x0100 (A13=0, susceptible class)", 0x0100, true},
-            {"LDIR @ 0x2100 (A13=1, control class)",     0x2100, true},
-            {"HALT @ 0x0100 (A13=0, single-byte control)", 0x0100, false},
-        };
-
-        for (const auto& cell : cells) {
-            run_cell(cell);
-        }
-
-        std::cout << "\n=== Summary & Discriminator Report ===" << std::endl;
-        std::cout << "All 3 cells PASSED on production bus:" << std::endl;
-        std::cout << "  - LDIR @ 0x0100 (A13=0): exactly 1 ack, vector 0x06 stable, raster handler fetched, DCSR=0x80" << std::endl;
-        std::cout << "  - LDIR @ 0x2100 (A13=1): exactly 1 ack, vector 0x06 stable, raster handler fetched, DCSR=0x80" << std::endl;
-        std::cout << "  - HALT @ 0x0100 (A13=0): exactly 1 ack, vector 0x06 stable, raster handler fetched, DCSR=0x80" << std::endl;
-        std::cout << "First-divergence evidence in evaluated cells:" << std::endl;
-        std::cout << "  S29 claim (LK106/IC116 double acknowledge -> DMA0 0x04) is absent from the production core." << std::endl;
-        std::cout << "  Production Amstrad_motherboard routes a single shared acknowledge net (plus_mode & ~M1_n & iorq)" << std::endl;
-        std::cout << "  directly from CPU to ASIC intack without pulse-multiplier logic." << std::endl;
-        std::cout << "  In all 3 evaluated cells, exactly one acknowledge pulse occurs on this net." << std::endl;
-        std::cout << "  No secondary acknowledge occurs; S29 empty-vector fallback to DMA0 (0x04) is unreachable in these cells." << std::endl;
-        std::cout << "EXPECTED-MISMATCH to S29 hardware claim: production exhibits single acknowledge across evaluated cells." << std::endl;
-        return 0;
-    } catch (const std::exception& e) {
-        std::cerr << "FAIL: " << e.what() << std::endl;
-        return 1;
+int main(int argc,char** argv) {
+    Verilated::commandArgs(argc,argv);
+    int failures=0;
+    for (const auto& cell:std::vector<CellConfig>{{"write-low",0x9000,true},{"write-high",0xB000,true},{"halt-low",0x9000,false}}) {
+        try { run_cell(cell); } catch (const std::exception& e) { std::fprintf(stderr,"FAIL %s\n",e.what()); ++failures; }
     }
+    return failures ? 1:0;
 }

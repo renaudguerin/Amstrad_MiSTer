@@ -394,6 +394,7 @@ module plus_p8_test_top (
 		.dcsr(aregs_dcsr),
 
 		.intack_raster(ga_last_raster),
+		.intack_m1(~ga_m1_n),
 		.intack(cpu_ack),
 		.int_pending(~ga_int_n_out),
 		.vec_byte(ack_vec_byte),
