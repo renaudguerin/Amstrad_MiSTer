@@ -12,6 +12,17 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **CRTC3 acceptance and blocking regressions (2026-09-26):** user confirms all
+  listed CRTC3 defects fixed on `e4445a1`; Eerie's left strip remains. The same
+  build, and earlier `1eec469`/`bbd7348`, regress Copter 271 animation/palette/
+  gameplay and World of Sports BMX timing. Prehistorik II is broken with baseline
+  attribution open. `edaa15b` remains the user-confirmed good regression baseline.
+  A production-T80 diagnostic isolates split-acknowledge DCSR provenance loss
+  introduced by `bd65578`; a scratch first-pulse-only candidate preserves the
+  required vector06→04 and restores the handler status read. No production
+  repair or hardware acceptance yet. Prior bounded Copter captures are
+  insufficient acceptance. See the [diagnosis and continuation brief](plus/ack-provenance-regression-2026-09-26.md).
+
 - **Latest Plus sprite repair:** source `566e0c7` (2026-09-23) retargets
   sprite rows after live Y changes before their X windows. Focused before/after
   tests, selected gates, fresh Opus review and exact full-effort synthesis pass.
@@ -179,7 +190,9 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   is absent. Muse cross-provider review found no blockers. Low-A13 FDC aliases
   remain a schematic inference.
 
-- Copter 271: vertical-scrolling issues during gameplay (possibly pre-existing).
+- Copter 271: major animation, palette and gameplay regressions in the CRTC3
+  repair builds; prioritize the acknowledge-provenance finding above. The older
+  vertical-scrolling residual remains separately unclosed.
 - Sonic GX: title screen corruption is **hardware-accepted fixed on `64702ac`**
   ([device acceptance record](investigations/sonic/b20-7-dma-pause-acceptance-2026-09-22.md)).
   With the cartridge stall fixed (`03f4724`), the resurrected DMA terminal-PAUSE
