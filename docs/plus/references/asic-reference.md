@@ -284,7 +284,11 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   clock of edge-detection latency. This supports retaining the implementation;
   it does not adjudicate the original-hardware source conflict. If the CRTC HSYNC is
   still active at the start of the next line, the interrupt can fire twice for
-  one programmed line. [ARNOLD-REV §2.4]
+  one programmed line. [ARNOLD-REV §2.4] The
+  [CRTC3 connected probe](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md#cross-line-raster-interrupt-second-finding)
+  establishes that the previous RTL omitted this line-entry event. R2=51,
+  width14 over a64-character line is a definite overlap; R2=50 is an
+  exact-edge case whose sample ordering still needs hardware adjudication.
 - By contrast, the CPC-compatible 52-line interrupt (PRI=0) triggers on the
   trailing edge of the **CRTC** HSYNC (full programmed width matters).
   [ARNOLD-REV §2.4]
@@ -333,10 +337,15 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   head of the raster/DMA0 handlers. Do not generalize older claims that DMA1/DMA2
   are reliable to auto-clear mode: the captured bug article p.3 explicitly says
   DMA interrupts can also be affected when IVR bit0=0. The interrupted instruction
-  address matters, not the table or handler address. An FPGA
-  implementation must decide whether to reproduce this (needed for some software
-  that *relies* on DCSR re-dispatch? — harmless either way — but demos testing
-  hardware may detect its absence).
+  address matters, not the table or handler address. Instruction/bus phase also
+  matters: a low-A13 HALT is a non-splitting control in the production-T80 probe.
+  The [CRTC3 investigation](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md#flowlib-warning-established-trigger)
+  derives the board equation from the CPU schematic:
+  `ASIC_IORQ_n = CPU_IORQ_n | (~physical_READY & ~A13) | reset`.
+  The repaired core preserves raw IORQ for expansion devices and uses shaped
+  IORQ for ASIC-side decoding. The measured06→04 trace supports offset4 for
+  an empty repeated pulse within the same M1; it does not establish the vector
+  for arbitrary isolated empty acknowledges. FlowLIB detects its absence.
 - The ASIC does not decode RETI; expansion-bus daisy-chain (IEI/IEO) is not
   supported — expansion interrupts require IM 1. [ARNOLD-REV]
 
