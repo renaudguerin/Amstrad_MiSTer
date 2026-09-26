@@ -207,8 +207,9 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   captures remove the left streaks; Eerie/Sonic/Copter progress in bounded
   regression samples. The late freeze reproduces as a DMA command-decode
   interrupt storm; fifth repair `7596a7c` passes focused tests,41 selected
-  benches and fresh Opus review. Final build and user-owned visual acceptance
-  are pending; see the
+  benches and fresh Opus review.
+  Full-effort integration build `e4445a1` passes CI/timing; user-owned visual
+  acceptance remains pending; see the
   [investigation](investigations/hardware-runs/crtc3-demo-2026-09-25.md).
   Eerie's residual does not meet the cross-line condition, and six early-line
   pixel probes match AmSpirit. The **unchanged**
