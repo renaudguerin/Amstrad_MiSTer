@@ -432,12 +432,20 @@ DMA rate follows the CRTC line rate (vertical rupture at half-lines doubles it t
 | `&4010` | INT | Raise this channel's interrupt (DCSR bit) |
 | `&4020` | STOP | Stop channel: clears its DCSR enable bit; SAR left pointing at the **next** instruction |
 
-- Control instructions decode: for opcode top nibble `4`, bits used are
-  `?100 ???? ??ab ???c` (a=STOP,b=INT,c=LOOP; other bits ignored). Bit 15 is
-  ignored for all instructions. Only **INT|STOP = `&4030`** is a valid/useful
-  combination (`&4021` does not loop — LOOP bit ignored when STOP set). Non-`4xxx`
-  combinations (`&6xxx` REPEAT+LOOP/STOP hybrids) have exotic undocumented
-  behavior — don't rely on them. [QUASAR/Zik]
+- The operation field is independent bits14:12: control, REPEAT and PAUSE;
+  bit15 is ignored. LOAD applies only when all three operation bits are zero
+  ([KT], DMA opcode table). Combined commands select these operations; the unresolved REPEAT|LOOP
+  count boundary below remains outside the implemented subset.
+- Control uses bit5 STOP, bit4 INT and bit0 LOOP; other operand bits are ignored.
+  STOP suppresses LOOP. Quasar's suggestion that INT also suppresses LOOP is
+  explicitly untested, so it is not an accepted priority rule.
+- REPEAT|STOP installs the count and next-instruction loop address, then stops
+  [QUASAR, “1 + 1 = ?”]. REPEAT|LOOP is unresolved: Quasar describes replacing
+  the context while jumping to the old address, but its example's two high/three
+  low beeps conflicts with combining an undecremented new count with the retained
+  Arnold N+1 ordinary-loop convention. The CRTC3 repair leaves this previously
+  unsupported combination unimplemented; no hardware-NOP claim is made.
+  See the [decoder finding](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md).
 - Loops cannot be nested (one loop context per channel; a second REPEAT
   overwrites the loop start/counter). The ASIC never writes RAM (loop counters
   are internal). The REPEAT is not re-fetched on iterations (loop body is).
