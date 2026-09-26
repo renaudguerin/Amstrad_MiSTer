@@ -22,7 +22,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   required vector06→04 and restores the handler status read. The narrow production
   repair is implemented (2026-09-27); focused ACK, production-T80 and snapshot
   checks pass, selected gate PASS7; fresh Opus5.5-medium review found no blockers.
-  Build delivery and hardware acceptance remain pending. Prior bounded Copter captures are
+  Integrated `cf62d5f`: exact-SHA CI/full synthesis passed; delivered
+  `output_files/Amstrad_20260926_cf62d5f.rbf` (SHA256 `ae4d5b78…3f27a7`).
+  Setup/hold +0.331/+0.178ns, zero TNS; existing incomplete-constraint notices
+  remain. User hardware acceptance is pending. Prior bounded Copter captures are
   insufficient acceptance. See the [diagnosis and continuation brief](plus/ack-provenance-regression-2026-09-26.md).
 
 - **Latest Plus sprite repair:** source `566e0c7` (2026-09-23) retargets

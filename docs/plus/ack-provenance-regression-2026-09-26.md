@@ -40,6 +40,39 @@ behavioral failure occurred. Logs and review are preserved in ignored
 select_tests: PASS 7 benches: run/asic_ga_timing_diff_tests, run/p1_video_tests, run/p1_mobo_bench_tests, run/asic_pri_tests, run/p10_dma_ppi_tests, run/p10_dma_mobo_tests, run/b8_palette_tests
 ```
 
+## Integrated hardware candidate
+
+Implementation `0c2cebb` is integrated and pushed as
+`cf62d5f63de0f103b6e3715df9345b9b2cc79034`. Exact-SHA
+[CI run36279150334](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/36279150334)
+passed simulation, production-T80, full hosted synthesis and required gate.
+The downloaded artifact is `Amstrad-build-275-1-full` (ID10917987698), with
+`build_mode=clean_full`, Quartus17.0.2 and target5CSEBA6U23I7.
+
+Delivered RBF:
+`/Users/renaudg/code/Amstrad_MiSTer/output_files/Amstrad_20260926_cf62d5f.rbf`.
+SHA-256, verified after copying:
+`ae4d5b7881f3a6740d40a02fcea78762cef3ae49c943329fc800c9714d3f27a7`.
+The filename uses the build's UTC date. Reports and another RBF copy remain
+under the task checkout's ignored `output_files/provenance-cf62d5f/`.
+
+Setup minimum +0.331ns, hold minimum +0.178ns, zero setup/hold TNS on all seven
+reported clocks. Resources:24,427/41,910 ALMs (58%),28,244 registers. TimeQuest
+still reports the existing incomplete setup/hold constraints; passing timing
+applies to the constrained paths. Full compile elapsed20m36s.
+
+No device loading, capture or emulator replay was performed. This is the
+reviewed hardware candidate, not confirmed closure of Copter/BMX. Check:
+
+1. Copter271: Loriciel moving logo, title sprite motion and palette boundary,
+   then gameplay/HUD split.
+2. World of Sports BMX: sustained music/timer cadence, then warm reset or
+   cartridge reload and title-to-menu behavior. Watch for progressive drift.
+3. CRTC3: FlowLIB without the real-machine warning, repaired scenes still clean,
+   and playback past the former2:58 freeze.
+4. PrehistorikII gameplay after those checks; use `edaa15b` if a baseline
+   comparison is still needed. Eerie Forest's left strip remains open.
+
 ## User evidence and narrowed range
 
 The user confirms all listed CRTC3 defects fixed on full-effort `e4445a1`.
@@ -253,7 +286,7 @@ forcing the title to agree with a self-derived assertion.
 The existing cross-module handler-read and split-ACK tests now check the
 preserved provenance; their physical vector assertions remain unchanged.
 Existing distinct-M1, B19 simultaneous raster/DMA and snapshot-provenance cases
-pass. Independent review and a full-effort, timing-checked RBF complete the
+pass. Independent review and the full-effort, timing-checked RBF above complete
 software/build acceptance; visual acceptance belongs to the user.
 
 User acceptance should begin with Copter's moving logo, title palette boundary
@@ -289,6 +322,6 @@ Continue from `codex/plus/crtc3-demo`. Read this note, the B19 entry in
 known-good baseline. The first suspect change is `bd65578`, not the fifth DMA
 repair. The isolated failing/passing proof above is available and the narrow production
 repair is implemented. Keep visual testing with the user and avoid another
-broad capture or emulator session. Deliver the reviewed, timing-checked RBF
-with the acceptance list; do not call the game regressions closed before the
-user checks them.
+broad capture or emulator session. The reviewed, timing-checked RBF
+and acceptance list are delivered above; do not call the game regressions
+closed before the user checks them.
