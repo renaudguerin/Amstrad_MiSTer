@@ -2,7 +2,7 @@
 // connected to the real asic_sprites row-fetch port.  The C++ bench drives the
 // CPU ASIC-page bus and CRTC taps so the registered shared-port handshake and
 // stale-row emission gate are exercised together.
-module p4_sprites_regs_test_top (
+module p4_sprites_regs_test_top #(parameter [9:0] H_ORIGIN_DOTS = 10'd0) (
 	input         clk,
 	input         reset,
 
@@ -125,6 +125,7 @@ module p4_sprites_regs_test_top (
 		.dcsr(dcsr),
 		.intack_raster(intack_raster),
 		.intack(intack),
+		.intack_m1(intack),
 		.int_pending(int_pending),
 		.vec_byte(vec_byte),
 		.vec_valid(vec_valid),
@@ -165,7 +166,7 @@ module p4_sprites_regs_test_top (
 		.sna_data(sna_data)
 	);
 
-	asic_sprites sprites (
+	asic_sprites #(.H_ORIGIN_DOTS(H_ORIGIN_DOTS)) sprites (
 		.CLOCK(clk),
 		.PIXEN(pixen),
 		.CLKEN(clken),

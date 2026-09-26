@@ -182,7 +182,8 @@ module Amstrad_motherboard
 	output [15:0] cpu_addr,
 	output  [7:0] cpu_dout,
 	input   [7:0] cpu_din,
-	output        iorq,
+	output        iorq,        // raw CPU / expansion bus
+	output        asic_iorq,   // Plus IC116-shaped ASIC bus (classic: raw)
 	output        mreq,
 	output        rd,
 	output        wr,
@@ -250,8 +251,13 @@ reg  [1:0] sync_filter_applied;
 wire       sync_filter_commit;
 assign raw_crt = (sync_filter_applied == 2'd2);
 
-wire io_rd = ~(RD_n | IORQ_n);
-wire io_wr = ~(WR_n | IORQ_n);
+// CPC Plus CPU schematic: IC116 G3/G2/G1 and D201/D202/R210.
+// https://oldwiki.cpcwiki.eu/imgs/8/84/CPC_Plus_CPU_Schematic.jpg
+// G3 senses the physical READY net, not the synthesized CPU WAIT workaround.
+// Keep raw IORQ at the CPU; Plus board-side decoders see the shaped signal.
+wire board_iorq_n = IORQ_n | (plus_mode & ((~plus_ready & ~A[13]) | reset));
+wire io_rd = ~(RD_n | board_iorq_n);
+wire io_wr = ~(WR_n | board_iorq_n);
 
 assign mem_rd = ~(RD_n | MREQ_n);
 assign mem_wr = ~(WR_n | MREQ_n);
@@ -260,6 +266,7 @@ assign cpu_dout = D;
 assign cpu_addr = A;
 assign m1 = ~M1_n;
 assign iorq = ~IORQ_n;
+assign asic_iorq = ~board_iorq_n;
 assign mreq = ~MREQ_n;
 assign rd = ~RD_n;
 assign wr = ~WR_n;
@@ -466,7 +473,7 @@ asic_ga_timing asic_ga
 	.MREQ_N(MREQ_n),
 	.M1_N(M1_n),
 	.RD_N(RD_n),
-	.IORQ_N(IORQ_n),
+	.IORQ_N(board_iorq_n),
 
 	.HSYNC_I(plus_crtc_hs),
 	.VSYNC_I(plus_crtc_vs),
@@ -476,7 +483,7 @@ asic_ga_timing asic_ga
 	.pri(asic_pri),
 	.crtc_line({plus_vc[5:0], plus_rc[2:0]}),
 	.crtc_adj(plus_adj),
-	.intack(plus_mode & ~M1_n & iorq),
+	.intack(plus_mode & ~M1_n & asic_iorq),
 	.int_last_raster(asic_int_last_raster),
 
 	.CCLK(),
@@ -677,10 +684,11 @@ asic_regs asic_page
 	.pri(asic_pri), .splt(asic_splt), .sscr(asic_sscr), .ivr(),
 	.ssa_hi(asic_ssa_hi), .ssa_lo(asic_ssa_lo), .dcsr(),
 	.intack_raster(asic_int_last_raster),
+	.intack_m1(plus_mode & ~M1_n),
 	// Acknowledge cycle (M1 low with IORQ asserted), gated to Plus mode:
 	// classic machines deliver the stale wired-AND bus byte on ack, and
 	// the review found the ungated form hijacking classic cpu_din.
-	.intack(plus_mode & ~M1_n & iorq),
+	.intack(plus_mode & ~M1_n & asic_iorq),
 	.int_pending(~plus_ga_int_n),
 	.dma_int_set(dma_int_set),
 	.vec_byte(plus_vec_byte),

@@ -45,7 +45,11 @@ public:
 [[noreturn]] void fail(const std::string& what) { throw TestFailure(what); }
 
 constexpr unsigned kLineClks = 512;   // ticks per synthetic line
-constexpr unsigned kHsWidth  = 32;    // CRTC HSYNC_I low pulse width
+// Seven character clocks high within the eight-character synthetic line.
+// This lets the monitor shaper finish its six-character sequence before
+// raw HSYNC falls, and leaves a low interval at the next line boundary.
+// The production-connected p1 fixture separately uses 4096-clock lines.
+constexpr unsigned kHsWidth  = 448;
 
 class PriBench {
 public:
@@ -74,7 +78,9 @@ public:
 	}
 
 	void tick() {
-		const bool hs_i = !(in_hs);
+		// Production asic_video.HSYNC is active high. Inverting this made
+		// the ordinary-only fixture overlap every line entry for 480 clocks.
+		const bool hs_i = in_hs;
 		dut.clk = 0;
 		dut.cen_16 = (cen_phase == 0);
 		dut.fast = fast;

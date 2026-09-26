@@ -784,6 +784,47 @@ void test_d15_repeated_pause_int_cadence(TestBench& tb) {
 	std::printf("PASS d15: repeated PAUSE/INT cadence (PPR 0 and prescaled) and PAUSE 0/1 boundaries\n");
 }
 
+// KT Extra CPC Plus Hardware Information, DMA opcode bit table; Quasar
+// L'ASIC "1 + 1 = ?" (Zik): independent operations, ignored bit15,
+// REPEAT|STOP retains its new context. REPEAT|LOOP remains deferred due
+// to the source count conflict with ordinary N+1 LOOP semantics.
+void test_d16_combined_context(TestBench& tb) {
+    for (unsigned ch=0; ch<3; ++ch) {
+        auto sar = [&]() { return ch==0 ? tb.dut->sar0_addr : ch==1 ? tb.dut->sar1_addr : tb.dut->sar2_addr; };
+        for (uint16_t cmd : {0xC020,0x5020,0x6021,0xE020,0x7030}) {
+            tb.pulse_reset(); tb.set_sar(ch,0x9000); tb.set_dcsr_ena(1<<ch);
+            tb.write_instruction(0x9000,cmd); tb.run_scanline();
+            if (tb.last_ena_clr!=(1<<ch) || tb.last_int_set!=((cmd&0x10)?(1<<ch):0) || sar()!=0x9002)
+                fail("d16: combined STOP/INT or STOP-over-LOOP precedence");
+        }
+        // High-bit REPEAT alias retains ordinary N+1 LOOP behavior.
+        tb.pulse_reset(); tb.set_sar(ch,0x9000); tb.set_dcsr_ena(1<<ch);
+        tb.write_instruction(0x9000,0xA001); tb.write_instruction(0x9002,0x4001);
+        tb.run_scanline(); tb.run_scanline(); tb.run_scanline();
+        if (sar()!=0x9004) fail("d16: bit15 REPEAT alias/old loop exhaustion");
+        // STOP retains the new REPEAT context for a later re-enable.
+        tb.pulse_reset(); tb.set_sar(ch,0x9000); tb.set_dcsr_ena(1<<ch);
+        tb.write_instruction(0x9000,0x6021); tb.run_scanline();
+        tb.set_sar(ch,0x9100); tb.write_instruction(0x9100,0x4001);
+        tb.set_dcsr_ena(1<<ch); tb.run_scanline();
+        if (sar()!=0x9002) fail("d16: REPEAT|STOP lost its new loop context");
+
+        // Bit15 aliases retain LOAD and PAUSE timing, not merely decoding.
+        tb.pulse_reset(); tb.set_sar(ch,0x9000); tb.set_dcsr_ena(1<<ch);
+        tb.write_instruction(0x9000,0x8742);
+        std::vector<std::pair<uint8_t,uint8_t>> writes;
+        tb.run_scanline(&writes);
+        if (writes.size()!=1 || writes[0]!=std::make_pair(uint8_t(7),uint8_t(0x42)))
+            fail("d16: bit15 LOAD alias");
+        tb.write_instruction(0x9002,0x9002); tb.write_instruction(0x9004,0x4010);
+        tb.run_scanline(); tb.run_scanline();
+        if (tb.last_int_set) fail("d16: bit15 PAUSE expired early");
+        tb.run_scanline();
+        if (tb.last_int_set!=(1<<ch)) fail("d16: bit15 PAUSE did not expire");
+    }
+    std::printf("PASS d16: all-channel combined operations, loop contexts and bit15 aliases\n");
+}
+
 } // namespace
 
 int main() {
@@ -804,7 +845,8 @@ int main() {
 		test_d13_active_channel_execute_timing(tb);
 		test_d14_all_channel_collision_extensions(tb);
 		test_d15_repeated_pause_int_cadence(tb);
-		std::printf("All 15 asic_dma unit tests PASSED.\n");
+		test_d16_combined_context(tb);
+		std::printf("All 16 asic_dma unit tests PASSED.\n");
 		return 0;
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());

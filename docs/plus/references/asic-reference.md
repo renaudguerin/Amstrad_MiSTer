@@ -279,12 +279,18 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   with HSYNC width clamped at 6: for programmed widths ≥ 6 the interrupt
   position stops moving (fires at HSYNC_start + 6µs per [ARNOLD-REV]; [KT]
   claims width-independent HSYNC_start + 10µs — ⚠ CONFLICT). The
+  [AmSpirit width discriminator and source rationale](amspirit-pri-phase-2026-09-26.md)
+  keeps that conflict open; its emulator marker alone is not an IRQ-pin measurement. The
   [B20-4 connected-module sweep](b20-pri-phase-2026-09-23.md) confirms that
   current RTL follows the revised account for ordinary widths, with one master
   clock of edge-detection latency. This supports retaining the implementation;
   it does not adjudicate the original-hardware source conflict. If the CRTC HSYNC is
   still active at the start of the next line, the interrupt can fire twice for
-  one programmed line. [ARNOLD-REV §2.4]
+  one programmed line. [ARNOLD-REV §2.4] The
+  [CRTC3 connected probe](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md#cross-line-raster-interrupt-second-finding)
+  establishes that the previous RTL omitted this line-entry event. R2=51,
+  width14 over a64-character line is a definite overlap; R2=50 is an
+  exact-edge case whose sample ordering still needs hardware adjudication.
 - By contrast, the CPC-compatible 52-line interrupt (PRI=0) triggers on the
   trailing edge of the **CRTC** HSYNC (full programmed width matters).
   [ARNOLD-REV §2.4]
@@ -333,10 +339,15 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   head of the raster/DMA0 handlers. Do not generalize older claims that DMA1/DMA2
   are reliable to auto-clear mode: the captured bug article p.3 explicitly says
   DMA interrupts can also be affected when IVR bit0=0. The interrupted instruction
-  address matters, not the table or handler address. An FPGA
-  implementation must decide whether to reproduce this (needed for some software
-  that *relies* on DCSR re-dispatch? — harmless either way — but demos testing
-  hardware may detect its absence).
+  address matters, not the table or handler address. Instruction/bus phase also
+  matters: a low-A13 HALT is a non-splitting control in the production-T80 probe.
+  The [CRTC3 investigation](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md#flowlib-warning-established-trigger)
+  derives the board equation from the CPU schematic:
+  `ASIC_IORQ_n = CPU_IORQ_n | (~physical_READY & ~A13) | reset`.
+  The repaired core preserves raw IORQ for expansion devices and uses shaped
+  IORQ for ASIC-side decoding. The measured06→04 trace supports offset4 for
+  an empty repeated pulse within the same M1; it does not establish the vector
+  for arbitrary isolated empty acknowledges. FlowLIB detects its absence.
 - The ASIC does not decode RETI; expansion-bus daisy-chain (IEI/IEO) is not
   supported — expansion interrupts require IM 1. [ARNOLD-REV]
 
@@ -421,12 +432,20 @@ DMA rate follows the CRTC line rate (vertical rupture at half-lines doubles it t
 | `&4010` | INT | Raise this channel's interrupt (DCSR bit) |
 | `&4020` | STOP | Stop channel: clears its DCSR enable bit; SAR left pointing at the **next** instruction |
 
-- Control instructions decode: for opcode top nibble `4`, bits used are
-  `?100 ???? ??ab ???c` (a=STOP,b=INT,c=LOOP; other bits ignored). Bit 15 is
-  ignored for all instructions. Only **INT|STOP = `&4030`** is a valid/useful
-  combination (`&4021` does not loop — LOOP bit ignored when STOP set). Non-`4xxx`
-  combinations (`&6xxx` REPEAT+LOOP/STOP hybrids) have exotic undocumented
-  behavior — don't rely on them. [QUASAR/Zik]
+- The operation field is independent bits14:12: control, REPEAT and PAUSE;
+  bit15 is ignored. LOAD applies only when all three operation bits are zero
+  ([KT], DMA opcode table). Combined commands select these operations; the unresolved REPEAT|LOOP
+  count boundary below remains outside the implemented subset.
+- Control uses bit5 STOP, bit4 INT and bit0 LOOP; other operand bits are ignored.
+  STOP suppresses LOOP. Quasar's suggestion that INT also suppresses LOOP is
+  explicitly untested, so it is not an accepted priority rule.
+- REPEAT|STOP installs the count and next-instruction loop address, then stops
+  [QUASAR, “1 + 1 = ?”]. REPEAT|LOOP is unresolved: Quasar describes replacing
+  the context while jumping to the old address, but its example's two high/three
+  low beeps conflicts with combining an undecremented new count with the retained
+  Arnold N+1 ordinary-loop convention. The CRTC3 repair leaves this previously
+  unsupported combination unimplemented; no hardware-NOP claim is made.
+  See the [decoder finding](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md).
 - Loops cannot be nested (one loop context per channel; a second REPEAT
   overwrites the loop start/counter). The ASIC never writes RAM (loop counters
   are internal). The REPEAT is not re-fetched on iterations (loop body is).

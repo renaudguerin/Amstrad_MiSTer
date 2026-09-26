@@ -875,3 +875,19 @@ documentation-only.
 Pass 3 raised no blocking issues. A1 and A2 were subsequently implemented on the later
 `accuracy/f7-rfd` branch; both were outside pass 3's scope and were reviewed in pass 4
 (`accuracy/archive/f7-plus-followups-independent-review.md`), which cleared the row.
+
+## CRTC3 Plus review clearance, 2026-09-26
+
+Muse Spark1.3 xhigh run `20260926T180118Z-37458-bc74` reviewed the full source changes now committed as `bd65578` and `1eec469`: no blockers. Native Astra-medium independently found no blockers. Hardware gates remain open. Original debt row preserved below.
+
+**CRTC3 Plus acknowledge shaping and cross-line PRI (`codex/plus/crtc3-demo`),
+2026-09-26 — CROSS-PROVIDER REVIEW UNAVAILABLE:** Gemini retries require OAuth
+and time out; Opus5.5-medium run `20260925T235748Z-2596-a76a` exits with provider
+signal9 after687.9 seconds without review output. User-authorized native
+Astra-medium fallback does not discharge cross-provider debt. Look hardest at
+raw versus ASIC-side IORQ routing (including FDC aliases), repeated empty-vector
+scope within M1, reset/snapshot qualification of the added PRI line-entry event,
+and the simultaneous raw-HSYNC-fall/line-entry seam. Preserve ordinary monitor
+trailing-edge timing, nine-bit PRI no-wrap and pending/acknowledge behavior.
+Evidence and acceptance limits are in the
+[CRTC3 record](../investigations/hardware-runs/crtc3-demo-2026-09-25.md).

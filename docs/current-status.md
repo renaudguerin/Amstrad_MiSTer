@@ -172,11 +172,12 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 
 **Open:**
 
-- B20-2/3: [integrated acknowledge diagnostics](plus/references/b20-ack-discriminator-2026-09-22.md)
-  reproduce the synthetic empty-vector mismatch. The [connected production-bus
-  investigation](plus/references/b20-production-ack-2026-09-23.md) locates the first
-  structural divergence at missing board-level acknowledge shaping. No RTL change;
-  physical bus timing and the compatible behavioral correction remain unproven.
+- B20-2/3: the [CRTC3 repair](investigations/hardware-runs/crtc3-demo-2026-09-25.md)
+  implements schematic-derived ASIC-side IORQ shaping and the measured repeated
+  empty-acknowledge vector04. Production-T80 controls and the unchanged FlowLIB
+  cartridge check pass simulation; exact `1eec469` MiSTer boot confirms the warning
+  is absent. Muse cross-provider review found no blockers. Low-A13 FDC aliases
+  remain a schematic inference.
 
 - Copter 271: vertical-scrolling issues during gameplay (possibly pre-existing).
 - Sonic GX: title screen corruption is **hardware-accepted fixed on `64702ac`**
@@ -198,7 +199,19 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   (2026-09-23 user retest; no assigned RTL cause, closure pending a repeatable
   capture); its black-screen report was not reproduced and has no
   assigned cause.
-- CRTC3 demo: warning, audio and crash defects remain. The **unchanged**
+- CRTC3 demo: two-fix `1eec469` MiSTer captures confirm FlowLIB without the
+  warning, coherent Buddha/post-flash spheres and clean Wolverine. Tunnel
+  left-edge streaks and the identical late frozen frame remain. Two separately
+  reviewed sprite-cache repairs bring the candidate to `bbd7348`; the selected
+  gate passes41 benches and full synthesis/timing pass. Combined MiSTer tunnel
+  captures remove the left streaks; Eerie/Sonic/Copter progress in bounded
+  regression samples. The late freeze reproduces as a DMA command-decode
+  interrupt storm; fifth repair `7596a7c` passes focused tests,41 selected
+  benches and fresh Opus review. Final build and user-owned visual acceptance
+  are pending; see the
+  [investigation](investigations/hardware-runs/crtc3-demo-2026-09-25.md).
+  Eerie's residual does not meet the cross-line condition, and six early-line
+  pixel probes match AmSpirit. The **unchanged**
   Switchblade and Eerie Forest CPRs now boot on the exact full-effort `41a1f27`
   RBF ([device record](investigations/hardware-runs/plus-cartridge-originals-41a1f27-2026-09-23.md)).
   Switchblade advances through intro/title and high scores; gameplay is untested.

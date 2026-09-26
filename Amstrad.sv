@@ -987,17 +987,22 @@ always @(posedge clk_sys) if((tape_ready & tape_motor) || ~act_cnt[24] || act_cn
 
 // Classic and Plus FDC port selections are intentionally kept in one shared
 // decoder so the production path and its focused test use the same equations.
+// NFDC/NMOTOR are ASIC-generated on Plus: their I/O qualification sees
+// IC116-shaped IORQ. Expansion peripherals retain raw io_rd/io_wr below.
+// This follows board wiring; A13=0 FDC alias timing is not independently measured.
+wire fdc_io_rd = rd & asic_iorq;
+wire fdc_io_wr = wr & asic_iorq;
 wire fdc_motor_sel;
-wire [7:0] fdc_dout = (u765_sel & io_rd) ? u765_dout : 8'hFF;
+wire [7:0] fdc_dout = (u765_sel & fdc_io_rd) ? u765_dout : 8'hFF;
 
 reg motor = 0;
 always @(posedge clk_sys) begin
 	reg old_wr;
 	
-	old_wr <= io_wr;
+	old_wr <= fdc_io_wr;
 	if (reset) begin
 		motor <= 1'b0;
-	end else if(~old_wr && io_wr && fdc_motor_sel) begin
+	end else if(~old_wr && fdc_io_wr && fdc_motor_sel) begin
 		motor <= cpu_dout[0];
 	end
 end
@@ -1030,12 +1035,12 @@ u765 u765
 
 	// CPC I/O map: A0 selects status/data on reads, but both A0 write
 	// aliases address the uPD765 data register.
-	.a0(cpu_addr[0] | (u765_sel & io_wr)),
+	.a0(cpu_addr[0] | (u765_sel & fdc_io_wr)),
 	.ready(u765_ready),
 	.motor({motor,motor}),
 	.available(2'b11),
-	.nRD(~(u765_sel & io_rd)),
-	.nWR(~(u765_sel & io_wr)),
+	.nRD(~(u765_sel & fdc_io_rd)),
+	.nWR(~(u765_sel & fdc_io_wr)),
 	.din(cpu_dout),
 	.dout(u765_dout),
 
@@ -1219,7 +1224,7 @@ wire        phi_n, phi_en_p, phi_en_n;
 wire        m1, key_nmi, key_reset;
 wire        ssm_m1_fetch;
 wire  [7:0] ssm_bus_data;
-wire        rd, wr, iorq;
+wire        rd, wr, iorq, asic_iorq;
 wire        mreq;
 wire        field;
 wire        cursor;
@@ -1289,11 +1294,11 @@ plus_mmu plus_mmu
 	.reset(reset),
 	.plus_mode(plus_mode),
 	.gx4000(plus_gx4000),
-	.io_rd(io_rd),
-	.io_wr(io_wr),
+	.io_rd(rd & asic_iorq),
+	.io_wr(wr & asic_iorq),
 	.mem_rd(mem_rd),
 	.A(cpu_addr),
-	.D(io_rd ? plus_io_bus_byte : cpu_dout),
+	.D((rd & asic_iorq) ? plus_io_bus_byte : cpu_dout),
 	.rom_en(romen),
 	.exp_n(plus_exp_n),
 
@@ -1576,6 +1581,7 @@ Amstrad_motherboard motherboard
 	.cpu_dout(cpu_dout),
 	.cpu_din(cpu_din),
 	.iorq(iorq),
+	.asic_iorq(asic_iorq),
 	.mreq(mreq),
 	.rd(rd),
 	.wr(wr),

@@ -41,11 +41,12 @@
 //  bank when its row tag matches the new source row (zero-latency swap),
 //  else promotes-and-retags it for refill. While a line runs, a background
 //  walker speculatively fills the inactive bank with the predicted next
-//  source row (current row + 1 while the vertical window continues). When
-//  static attributes are established by the preceding line seam and the
-//  normal line has uncontended service, the same prediction also stages the
-//  first visible row before the Y seam. Mismatches (Y/mag rewrite, R9-wrap
-//  jump, first frame) fall back to refill; the walker scans active banks
+//  source row (current row + 1 while the vertical window continues). While
+//  vertically inactive it instead preserves an entry row: row0 for Y>=0,
+//  or the partial source row visible at compare-line0 for negative Y. With
+//  enough inactive service time this covers both ordinary Y entry and a
+//  frame restart, without knowing frame height. Mismatches (Y/mag rewrite,
+//  other counter jumps, first frame) fall back to refill; the walker scans active banks
 //  before speculative banks, and late bytes remain transparent until
 //  delivered. Emission is gated on bank validity, delivery bits AND live
 //  row-tag equality. A live Y/mag rewrite retargets staging immediately;
@@ -335,22 +336,46 @@ reg         d2w;               // two clocks after (post-swap state visible)
 reg [15:0] c_retarget;
 always @(*) begin
 	for (i = 0; i < 16; i = i + 1)
-		c_retarget[i] = !d1w && !(CLKEN && HWRAP) && c_ena[i] &&
+		c_retarget[i] = !d1w && !(CLKEN && HWRAP) && c_lact[i] &&
 		                  (!sval[{i[3:0], abit[i]}] ||
 		                   (srowtag[{i[3:0], abit[i]}*4 +: 4] != c_srow[i]));
 end
 
-// Speculation health: a predicted next row exists iff the next sequential
-// compare line is in the vertical window. The 10-bit compare difference
-// wraps from 1023 to 0 on the line immediately before Y, which deliberately
-// arms the bounded first-visible-row prefetch contract above. Attribute
-// stability before that seam and normal uncontended service are assumptions
-// of the contract; discontinuities, invalidation, and short-line overload
-// retain the existing urgent-refill behavior.
+// While visible, predict the following source row. While inactive, stage
+// entry row0 for nonnegative Y, or the partial row visible at compare-line0
+// for negative Y ([ARNOLD §2.1] signed coordinates). This cache policy avoids
+// needing advance notice of the CRTC frame restart. It assumes enough
+// inactive service time; a frame shorter than the sprite's visible window
+// or an arbitrary counter jump still uses urgent refill. No frame height
+// or extra pixel visibility is inferred from the cache admission rule.
 reg [15:0] c_predok;
+reg [3:0] c_predrow [0:15];
+reg [9:0] c_entrydiff [0:15];
+always @(*) begin
+	for (i = 0; i < 16; i = i + 1) begin
+		c_entrydiff[i] = 10'd0 - {{2{SPR_Y[i*9+8]}}, SPR_Y[i*9 +: 8]};
+		if (c_lact[i]) begin
+			c_predok[i] = ((c_diff[i] + 10'd1) < c_hgt[i]);
+			c_predrow[i] = c_srow[i] + 4'd1;
+		end
+		else begin
+			c_predok[i] = c_ena[i] && (!SPR_Y[i*9+8] || (c_entrydiff[i] < c_hgt[i]));
+			c_predrow[i] = SPR_Y[i*9+8] ? (c_entrydiff[i][5:0] >> c_ysh[i]) : 4'd0;
+		end
+	end
+end
+
+// Live Y/magnification writes can change prediction eligibility without
+// changing the current row tag (e.g. diff63 and diff1023 both select row15
+// at y4). Revised Arnold §2.1 requires the sprite at its new location when
+// reached. Maintain a missing or mistagged prediction independently: preserve current
+// bytes and a matching prediction rather than repeatedly flushing it.
+reg [15:0] c_repredict;
 always @(*) begin
 	for (i = 0; i < 16; i = i + 1)
-		c_predok[i] = c_ena[i] && ((c_diff[i] + 10'd1) < c_hgt[i]);
+		c_repredict[i] = !d1w && !(CLKEN && HWRAP) && !c_retarget[i] &&
+		                 c_predok[i] && (!sval[{i[3:0], ~abit[i]}] ||
+		                 (srowtag[{i[3:0], ~abit[i]}*4 +: 4] != c_predrow[i]));
 end
 
 // Walk FSM: walk[7] divides two 128-slot halves — ACTIVE banks
@@ -364,7 +389,7 @@ wire       wk_spec = walk[7];   // 0: ACTIVE banks, 1: INACTIVE (spec)
 wire [2:0] wk_byte = walk[2:0];
 wire       wk_go   = walk_act &&
                      c_ena[wk_s] &&
-                     (walk[7] ? sval[{wk_s[3:0], ~abit[wk_s]}] : 1'b1);
+                     (walk[7] ? (c_predok[wk_s] && sval[{wk_s[3:0], ~abit[wk_s]}]) : c_lact[wk_s]);
 // Block advance deliberately splits the old 5-bit increment (see the
 // synthesis-cost audit, docs/plans/2026-08-26): the sprite field wraps
 // with a standalone 4-bit adder and the bank-half flips by pure decode,
@@ -403,9 +428,14 @@ wire        do_pop  = FQ_REQ && FQ_ACK;
 wire        fq_stale = fq_acc ||
                        (srowtag[fq_tag[7:3]*4 +: 4] != fq_row);
 wire        fq_acc_hit = ACC_EN && (ACC_IDX == fq_tag[7:4]);
+// Only the inactive bank is retagged by prediction maintenance; a current
+// row completion in the same clock remains usable.
+wire        fq_repredict = c_repredict[fq_tag[7:4]] &&
+                           (fq_tag[3] != abit[fq_tag[7:4]]);
 
 wire [7:0]  pb_word  = wk_word;
 wire        pb_fresh = wk_go && !d1w && !c_retarget[wk_s] &&
+                       !(wk_spec && c_repredict[wk_s]) &&
                        !sreq[pb_word] && !sdone[pb_word];
 
 always @(posedge CLOCK) begin
@@ -444,6 +474,18 @@ always @(posedge CLOCK) begin
 					sval [{i[3:0], abit[i]}]   <= 1'b0;
 					sval [{i[3:0], ~abit[i]}]  <= 1'b0;
 				end
+				else if (!c_lact[i]) begin
+					// Out-of-window row numbers cannot evict an entry row.
+					// Preserve both banks unless the desired entry tag changes.
+					if (c_predok[i] && (!sval[{i[3:0], ~abit[i]}] ||
+					    (srowtag[{i[3:0], ~abit[i]}*4 +: 4] != c_predrow[i]))) begin
+						sdone[{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
+						sreq [{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
+						srowtag[{i[3:0], ~abit[i]}*4 +: 4] <= c_predrow[i];
+						sval [{i[3:0], ~abit[i]}] <= 1'b1;
+					end
+					else if (!c_predok[i]) sval[{i[3:0], ~abit[i]}] <= 1'b0;
+				end
 				else if (sval[{i[3:0], ~abit[i]}] &&
 				         (srowtag[{i[3:0], ~abit[i]}*4 +: 4]
 				          == c_srow[i])) begin
@@ -454,7 +496,7 @@ always @(posedge CLOCK) begin
 						sdone[{i[3:0], abit[i]}*8 +: 8] <= 8'd0;
 						sreq [{i[3:0], abit[i]}*8 +: 8] <= 8'd0;
 						srowtag[{i[3:0], abit[i]}*4 +: 4]
-							<= c_srow[i] + 4'd1;
+							<= c_predrow[i];
 						sval [{i[3:0], abit[i]}] <= 1'b1;
 					end
 					else begin
@@ -471,7 +513,7 @@ always @(posedge CLOCK) begin
 						sdone[{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
 						sreq [{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
 						srowtag[{i[3:0], ~abit[i]}*4 +: 4]
-							<= c_srow[i] + 4'd1;
+							<= c_predrow[i];
 						sval [{i[3:0], ~abit[i]}] <= 1'b1;
 					end
 					else begin
@@ -492,13 +534,21 @@ always @(posedge CLOCK) begin
 						sdone[{i[3:0], abit[i]}*8 +: 8] <= 8'd0;
 						sreq [{i[3:0], abit[i]}*8 +: 8] <= 8'd0;
 						srowtag[{i[3:0], abit[i]}*4 +: 4]
-							<= c_srow[i] + 4'd1;
+							<= c_predrow[i];
 						sval [{i[3:0], abit[i]}] <= 1'b1;
 					end
 					else begin
 						sval [{i[3:0], abit[i]}] <= 1'b0;
 					end
 				end
+			end
+			else if (c_repredict[i]) begin
+				// Newly eligible prediction, current bank still valid. Do not
+				// promote or invalidate it while preparing the other bank.
+				sdone[{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
+				sreq [{i[3:0], ~abit[i]}*8 +: 8] <= 8'd0;
+				srowtag[{i[3:0], ~abit[i]}*4 +: 4] <= c_predrow[i];
+				sval [{i[3:0], ~abit[i]}] <= 1'b1;
 			end
 		end
 
@@ -529,7 +579,7 @@ always @(posedge CLOCK) begin
 		//------------------------------------------------------------
 		if (do_pop) begin
 			FQ_REQ <= 1'b0;
-			if (!d1w && !c_retarget[fq_tag[7:4]] && !fq_stale && !fq_acc_hit) begin
+			if (!d1w && !c_retarget[fq_tag[7:4]] && !fq_stale && !fq_acc_hit && !fq_repredict) begin
 				rb_dat[fq_tag] <= FQ_DATA;
 				sdone[fq_tag]  <= 1'b1;
 			end
