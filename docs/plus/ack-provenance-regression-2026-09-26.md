@@ -1,5 +1,18 @@
 # CRTC3 repair regressions: acknowledge provenance
 
+## Hardware acceptance (2026-09-27)
+
+The user confirms checklist items 1–3 fixed on delivered `cf62d5f`: Copter 271,
+World of Sports BMX and CRTC3. Prehistorik II is almost fixed, with one corrupt
+line immediately above its bottom HUD; the user confirms that line is absent
+on `edaa15b`. Eerie Forest's left edge remains. Fire & Forget 2 sky-gradient
+flicker and music slowdown are newly reported but also occur on `edaa15b`, so
+are not attributable to this repair series without older evidence. See the
+[remaining-title investigation](remaining-title-regressions-2026-09-27.md).
+
+The following implementation and initial acceptance checklist record the
+candidate's evidence; the hardware result above supersedes pending language.
+
 ## Implementation checkpoint (2026-09-27)
 
 The narrow production repair now qualifies `last_raster` capture once per CPU
@@ -308,20 +321,16 @@ remains a separate open issue.
   versus warm reset/reload comparison is useful only if the narrow repair
   leaves the symptom. No such additional human check is needed before the
   first candidate build.
-- Prehistorik II still needs a known-good-build gameplay check before attributing
-  its corruption to this change set.
+- Prehistorik II now has a confirmed `edaa15b` comparison: only the residual
+  line above its bottom HUD remains regressed after the provenance repair.
 - A real Plus trace/readback of DCSR after the split acknowledge, especially
   with simultaneous DMA pending and both IVR auto-clear settings, would settle
   the remaining silicon semantics. Do not silently broaden the repair to DMA
   flag retirement without that evidence or an independently grounded failure.
 
-Continue from `codex/plus/crtc3-demo`. Read this note, the B19 entry in
-`docs/backlog.md`, and the archived Opus assessment under
-`docs/references/crtc3-2026-09-25/regression-opus/`. User confirms CRTC3 fixed on
-`e4445a1` but rejects that build for Copter/BMX regressions; `edaa15b` is the
-known-good baseline. The first suspect change is `bd65578`, not the fifth DMA
-repair. The isolated failing/passing proof above is available and the narrow production
-repair is implemented. Keep visual testing with the user and avoid another
-broad capture or emulator session. The reviewed, timing-checked RBF
-and acceptance list are delivered above; do not call the game regressions
-closed before the user checks them.
+Continue from `codex/plus/crtc3-demo`. The provenance repair is hardware accepted
+for Copter/BMX and preserves CRTC3 acceptance. Investigate the bounded
+Prehistorik II residual separately from the older Fire & Forget 2 issue and
+Eerie Forest's left strip. Keep visual testing with the user. The unmeasured
+mixed-source acknowledge corners remain hypotheses, not grounds to broaden an
+accepted repair.
