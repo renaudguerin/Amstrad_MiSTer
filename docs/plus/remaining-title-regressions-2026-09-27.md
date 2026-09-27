@@ -123,3 +123,32 @@ It is a possible closer endpoint, not a confirmed good FF2 build. Its recorded
 RBF SHA256 is `6c36309368659edbbfe1044e09a804639f6b7ec9c02b68526ff7d488e122b331`.
 Download only as needed after the first result. Skip local `566e0c7` as a bisect
 point: its RTL is identical to `edaa15b`.
+
+
+## Second bisect result and next candidate
+
+The user confirms `88262b9` has both sky flicker and slow music. The remaining
+interval is `84e6969` good → `88262b9` bad. The exact 16/17-commit midpoint
+`91b7d41` and nearby September 8–12 runs no longer expose downloadable
+artifacts at lookup; no rebuild was started.
+
+Next candidate is retained full build `bee92a6a371bda7201a36281d37ce555affb7bf1`,
+immediately before the September 13 interrupt changes. Only four RTL commits
+separate it from the bad `88262b9`:
+
+- `b5c3014`: PRI line compare requires bit 8 clear.
+- `9faa140`: DCSR bit 7 sampled at acknowledge rather than raster fire.
+- `a0778b6`: PSG R7 reset value.
+- `f455f79`: preserve raster fire coincident with an in-flight acknowledge.
+
+A good result isolates those four; a bad result moves the endpoint back to
+`bee92a6`, requiring an earlier retained local artifact or a historical rebuild.
+Use the same gameplay sky/music criterion and ignore unrelated title defects.
+
+[CI run 34746071976](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34746071976)
+passed simulation, full synthesis and required gate. Artifact
+`Amstrad-build-209-1-full`, ID `10314411698`, downloaded to
+`output_files/ff2-bisect-bee92a6/`; reports identify a clean full build.
+Delivered file:
+`/Users/renaudg/code/Amstrad_MiSTer/output_files/Amstrad_20260913_bee92a6.rbf`.
+SHA256 `8f8ca8020535d5fb62fabec5e0dfc516ed4da9d2f12e0688f0448a6d2edd21fc`.
