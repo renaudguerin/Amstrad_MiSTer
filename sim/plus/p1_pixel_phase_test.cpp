@@ -412,7 +412,8 @@ bool p1_pixel_stream(Bench& b) {
 
 // Snapshot import changes the connected video line and HSYNC on one edge.
 // It is state restoration, not traversal into a matching line. Changing PRI
-// alone likewise must not create the new line-entry event.
+// alone likewise must not create a line-entry event, but a later live change
+// to a matching PRI during raw HSYNC has its own write-trigger event (FF2).
 void pri_history_guards() {
     Bench b;
     b.dut.pri_value = 3;
@@ -437,11 +438,14 @@ void pri_history_guards() {
     }
     b.dut.pri_value = 3; b.tick();
     b.dut.pri_value = 2;
+    bool write_delivered = false;
     for (unsigned i=0; i<4; ++i) {
         b.tick();
-        if (b.dut.pri_fire || !b.dut.pri_irq_n)
+        if (b.dut.pri_line_entry)
             fail("PRI-only write manufactured a line-entry event");
+        write_delivered |= !b.dut.pri_irq_n;
     }
+    if (!write_delivered) fail("PRI live matching write after restore lost its interrupt");
     b.reset_n = false;
     for (unsigned i=0; i<16; ++i) {
         b.tick();
