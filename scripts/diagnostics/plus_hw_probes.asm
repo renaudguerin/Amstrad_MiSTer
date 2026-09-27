@@ -378,7 +378,7 @@ init_split: ld (tmp),a
 ; ---- H: when the line-311 split capture samples SSA. SPLT=55 matches line 311;
 ; the green bank shows SSA rows labelled SSA ROW nn. SSA is row 4 except for a
 ; rewrite to row 5 on line 311 at C0 ~52 (H1, after C0=R1=40) or ~30 (H2,
-; before it), undone on line ~1. Lines 1-55 show whichever SSA was captured.
+; before it), undone on line 2 (C0 ~40 or ~18). Lines 1-55 show whichever SSA was captured.
 ; A cyan border dash on line 311, starting ~3 us after the write, shows where
 ; the write landed (top border, just above the display).
 SSA_A       equ 0xA0            ; MA of bank-0 row 4 (low byte; high byte 0)
@@ -428,14 +428,14 @@ fill_bank0: ld hl,0x0100 : ld de,0x0101 : ld bc,0x3EFF
 ; ---- E3/E4: SSCR vertical offset with R9=3. Rows 0-5 are 8-line text rows;
 ; raster interrupts set R9=3 for rows 6-11 (PRI line 48 = row 6 raster 0) and
 ; R9=7 again from row 12 (PRI line 96, {VC,RC} numbering). Source row k (6-24)
-; holds a green bar 3k+3 bytes long on every raster, so each displayed line
+; holds a green bar 3(k-3) bytes long on every raster, so each displayed line
 ; shows which source row it came from. Row 25 would cross the 2048-byte plane.
 init_bars_off0: xor a : jr init_bars
 init_bars_off2: ld a,0x20
 init_bars:  ld (ASIC_SSCR),a
             xor a : ld (test_var),a
             ld hl,crtc_bars : call crtc_table
-            ld hl,0xC000+6*80 : ld c,9          ; row 6, bar length 3*6+3
+            ld hl,0xC000+6*80 : ld c,9          ; row 6, bar length 3*(6-3)
             ld b,19
 .row:       push bc : push hl
             ld b,8
