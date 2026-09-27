@@ -485,13 +485,13 @@ that a previously online device remains available. Keep one device operator.
 - **Eerie Forest (Plus):** same-line sprite-row retargeting (`566e0c7`) is
   reviewed, gated and exact-integration-hardware-verified (`edaa15b`): the three horizontal reveal
   leaks disappear, with Sonic GX title/attract regression samples passing.
-  The separate left-edge screen sliver remains unresolved. Preserve documented
-  PRI timing; the next useful discriminator needs actual bus-event timing,
-  not emulator instruction-completion coordinates. The next bounded task is
-  a scratch-only earlier-PRI replay, preserving the integrated write-trigger
-  and ACK rules, to test sufficiency before hardware measurement; see the
-  [fetch trace and Opus-high assessment](plus/references/eerie-fetch-phase-2026-09-27.md).
-  No alternate trigger is established as correct. See the
+  The left-edge residual has [two causes](plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md).
+  The green first-column bar (sprites under the SSCR[7] border) has a source-derived
+  fix, integrated 2026-09-27 and awaiting MiSTer acceptance.
+  The dotted logo strip vanishes in scratch replays only if ordinary PRI fires
+  by HSYNC+4 µs, earlier than both documented accounts. Preserve documented PRI
+  timing until original-Plus width-3/6/11 marker positions or an Eerie bus trace
+  decide it; a cheap intermediate check is the IM1 acknowledge-to-0038 latency. See the
   [graphics investigation](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md).
 - **Plus acceptance:** the remaining title/model/disk/reset matrix in
   [current status](current-status.md) and [the checklist](plus/hardware-test-checklist.md).

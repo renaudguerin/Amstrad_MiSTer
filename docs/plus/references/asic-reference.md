@@ -219,7 +219,8 @@ From [ARNOLD App.1] / [ARNOLD-REV App.1]. POR = defined state at power-on reset
   the new position. [ARNOLD-REV §2.1]
 - No per-line sprite count limit is documented in any source (all 16 can be on
   one line).
-- Sprites are unaffected by SSCR soft-scroll [ARNOLD §2.5].
+- SSCR's scroll offsets do not move sprites [ARNOLD §2.5]; its D7 border
+  extension still hides them, like the border (§8).
 
 ---
 
@@ -409,8 +410,10 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
 | D6-D4 | Added to the low 3 bits of the scan-line (raster) address → shifts display **up** by 0-7 raster lines. |
 | D7 | 1 = extend border over the **first 2 bytes (16 mode-2 pixels)** of each line to mask horizontal-scroll garbage. Keep set while H-scrolling. |
 
-- Affects the whole main screen (both halves of a split); does **not** affect
-  sprites.
+- Affects the whole main screen (both halves of a split); the scroll offsets
+  do **not** move sprites. D7's extension is border, and border beats sprites
+  (§5), so sprites are hidden in the masked first character too. [ARNOLD §2.1,
+  §2.5] See [Eerie Forest green bar](eerie-pri-trigger-counterfactual-2026-09-27.md#green-bar-sprites-under-the-sscr7-border).
 - Effect is immediate (can toggle multiple times per line). The RA output =
   raster count + scroll value (≈ ANDed with &1F); the CRTC's internal counters
   are unaffected — hence odd behavior when R9 < 7, correct for R9 ≥ 7. For a

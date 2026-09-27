@@ -47,8 +47,10 @@ state were restored; identity was checked afterward.
 
 The first diagnostic attributes each affected pixel to screen, border or
 sprite and records SSCR, split and palette transactions with production
-T80 timing. Widening SSCR's screen mask to clip sprites is not justified:
-current sprite-over-mask behavior is deliberate and tested. The captures alone did not establish a behavioral repair; the production trace
+T80 timing. The 2026-09-23 view that SSCR's mask should not clip sprites was
+later reversed on source grounds. Arnold V §2.5/§2.1 make the extension border,
+and border beats sprites; see the
+[sprite-mask finding](../../plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md#green-bar-sprites-under-the-sscr7-border). The captures alone did not establish a behavioral repair; the production trace
 below isolates the sprite-state defect.
 
 ## Sprite reveal-mask repair
