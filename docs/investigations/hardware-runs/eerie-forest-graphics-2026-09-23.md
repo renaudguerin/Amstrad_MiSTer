@@ -118,6 +118,14 @@ checks the preserved phase trace: none of 1064 steady PRI writes matches the
 current full CRTC line. The FF2 changed-PRI trigger therefore has no demonstrated
 path to this residual. No new Eerie RTL change or hardware acceptance is claimed.
 
+The [current-master fetch follow-up](../../plus/references/eerie-fetch-phase-2026-09-27.md)
+replays `2f409e9` through frame 401. All 560 sampled left-edge records match
+this archive, and 416 delayed-pen comparisons have no mismatch. New logging
+accounts for the SSCR→VRAM address→returned data→serializer chain. The same
+archived 1,064 PRI writes also have no pending interrupt to clear, excluding
+a direct effect from CPCEC's separate pending-clear policy at those writes.
+No hardware-equivalent write/fetch phase or justified RTL repair is established.
+
 ## Review and selected gate
 
 Fresh Opus 5.5 medium review `20260923T180629Z-62347-d90a` found no blockers

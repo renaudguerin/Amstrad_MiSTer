@@ -487,7 +487,11 @@ that a previously online device remains available. Keep one device operator.
   leaks disappear, with Sonic GX title/attract regression samples passing.
   The separate left-edge screen sliver remains unresolved. Preserve documented
   PRI timing; the next useful discriminator needs actual bus-event timing,
-  not emulator instruction-completion coordinates. See the
+  not emulator instruction-completion coordinates. The next bounded task is
+  a scratch-only earlier-PRI replay, preserving the integrated write-trigger
+  and ACK rules, to test sufficiency before hardware measurement; see the
+  [fetch trace and Opus-high assessment](plus/references/eerie-fetch-phase-2026-09-27.md).
+  No alternate trigger is established as correct. See the
   [graphics investigation](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md).
 - **Plus acceptance:** the remaining title/model/disk/reset matrix in
   [current status](current-status.md) and [the checklist](plus/hardware-test-checklist.md).

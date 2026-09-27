@@ -9,11 +9,27 @@ changes `AC→8C` at C0=2, dot 0, as the 16-dot first-character mask ends; old
 RA6 fetch data then emerges through the 12-dot horizontal delay after RA
 becomes 4. Existing evidence does not establish a repair.
 
-FF2 source `d56ce1f` is integrated as `2f409e9`. The user confirms this RBF fixes FF2 and
-Prehistorik II, with no other regressions observed. Preserve the accepted nine-bit PRI comparison, ACK provenance,
+FF2 source `d56ce1f` is integrated as `2f409e9`. The user confirms this RBF
+fixes FF2 and Prehistorik II, with no other regressions observed. Preserve
+the accepted nine-bit PRI comparison, ACK provenance,
 CRTC3 repairs, and sprite-row retargeting repair. The FF2 changed-PRI trigger has
 no demonstrated path to Eerie: the recorded steady trace has 1064 PRI writes
 and none matches the full current CRTC line.
+
+The [fetch-phase investigation and Opus-high assessment](references/eerie-fetch-phase-2026-09-27.md)
+are the current starting point. An eight-second replay of `2f409e9` reaches
+frame 401: 560 sampled left-edge records match the archive, 416 delayed-pen
+comparisons have no mismatch, and the repaired reveal rows remain black.
+At the sampled SSCR write, the new address arrives at x37, the zero word at
+x40, and the even/odd serializer bytes at x48/56. Full-sync byte shifting is
+inactive in all 2,688 fetch samples. All 1,064 archived steady PRI writes
+have no pending request to clear under the existing IRQ timeline.
+
+These exclusions leave an upstream write-timing explanation as the leading
+hypothesis, not a proven hardware defect. Opus-high recommends a cheap
+causal intervention before requesting new hardware measurements. Its exact
+28-dot correction/191-dot marker threshold and conclusive upstream
+localization were not accepted as established results.
 
 ## Resume path and question
 
@@ -28,6 +44,21 @@ address/data, or emitted pixel/mask. If IRQ timing appears causal, demonstrate
 the link with raw HSYNC, INT/acknowledge, and the actual write-bus onset. Keep
 CPU instruction-stop times separate from raw bus events. Do not infer a flush,
 mask change, pending-clear rule, or retiming from the visible artifact alone.
+
+Next, reuse the production-T80 fixture with scratch-only GA variants for
+ordinary PRI at raw-HSYNC rise and shaped-monitor-HSYNC rise. Keep the FF2
+live-write event and ACK logic intact. Compare against the retained baseline,
+logging raw HSYNC, IRQ, ACK, actual SSCR write onset, fetch/pixel outcomes,
+and pending requests at PRI writes. Establish whether changing the trigger
+alone removes the sliver and whether the pending-clear exclusion still holds.
+Keep candidate sources and generated outputs ignored; this is an experiment,
+not an authorized replacement hardware rule. Expand to the accepted title
+matrix only if the bounded Eerie comparison is informative.
+
+Original-hardware cleanliness of this exact sliver remains unverified.
+For a later Plus/GX4000 check, run Eerie itself and the existing width 3/6/11
+flat-plane CPRs. Compare absolute marker position as well as width dependence.
+Matching AmSpirit pixels is insufficient to ship a timing change.
 
 ## Existing emulator clues
 
@@ -44,6 +75,17 @@ None of these results establishes the original ASIC behavior or an Eerie
 repair. The survey has source anchors and the remaining debugger limitations.
 
 ## Evidence and tools
+
+- Current replay sources, fetch CSV, frame records, analysis and full Opus
+  review are preserved at
+  `/Users/renaudg/code/Amstrad_MiSTer/local/task-archives/eerie-left-edge-2026-09-27/evidence/`.
+  The report explains the adapter's required staging path and reproduction
+  commands. Stage needed old evidence inside a worker's checkout when its
+  sandbox cannot read the main archive; do not mistake derived summaries
+  for an independent read of the original logs.
+- Existing hardware probes are in
+  `/Users/renaudg/code/Amstrad_MiSTer/local/task-archives/crtc3-2026-09-27/evidence/edge/pri/`:
+  `pri-width-3.cpr`, `pri-width-6.cpr`, `pri-planes-4-12.cpr` (width 11).
 
 - Eerie production-T80 replay, bus phase log, and device captures are archived
   in the main checkout at

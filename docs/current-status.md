@@ -55,6 +55,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   sliver remains open: production PRI matches the documented six-microsecond
   clamp, and no CPU/IRQ repair is established. See the
   [evidence and remaining discriminator](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md).
+  A [current-master fetch trace](plus/references/eerie-fetch-phase-2026-09-27.md)
+  reproduces the same left-edge pixels on `2f409e9`, with internally consistent
+  fetch/delay history and no pending request at the archived steady PRI writes.
+  Equivalent hardware write/fetch timing remains the missing discriminator.
   Integrated as `edaa15b`; the exact final RBF is hardware-verified.
 - **Latest implementation:** B20-1 live PPR write handling (`5d12f56`), integrated
   with reviewed capture transport/metadata fixes and B20 acknowledge diagnostics.
