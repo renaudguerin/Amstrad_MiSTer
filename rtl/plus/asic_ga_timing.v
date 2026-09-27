@@ -614,7 +614,9 @@ module asic_ga_timing
 	//    sphere and Wolverine scenes at R2=50, R3=14 need that request);
 	//  - no request from same-value writes or from a held level after ACK:
 	//    there is no edge.
-	// Never fires during vertical adjustment.
+	// A line matches only outside vertical adjustment; a request due from
+	// the last normal line (line_d) can still land in the first adjustment
+	// character.
 	//
 	// asic_video's CRTC advances on CLKEN = CCLK_EN_N, and HSYNC/LINE/ROW/
 	// ADJ change on that edge. Sampling them on the same strobe therefore
