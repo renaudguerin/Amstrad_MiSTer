@@ -586,22 +586,31 @@ module asic_ga_timing
 	// Never fires during vertical adjustment. Cleared by CPU acknowledge
 	// or MRER bit 4, shared with the classic path.
 	//
-	// Trigger point: the trailing edge of the MONITOR-shaped HSYNC
-	// (HSYNC_O falling). [ARNOLD-REV] clamps the fire point at
-	// HSYNC_start+6us; in this model the shaped monitor pulse is a fixed
-	// four-character microsequence (states 6,7,4,5), so the trailing edge
-	// always precedes start+6 and the clamp is covered by construction.
-	// ⚠ ASIC-REF §7: [KT] measured "~10us after HSYNC start"; treated as
-	// secondary per the reference's primary-source note.
+	// Trigger point: 1 us (64 clocks) after raw CRTC HSYNC assertion, for
+	// every programmed width, while HSYNC is still active. This departs from
+	// both written accounts: [ARNOLD-REV] names the monitor HSYNC trailing
+	// edge (start+6us clamp) and [KT] ~10us. It follows AmSpirit's
+	// width-independent flat-plane markers (139 dots at R3=3/6/11), which
+	// production's monitor-edge rule placed 128/320 clocks later while its
+	// IM1 path matches ACCC section 27.4's 5us. Eerie Forest's reveal loop
+	// needs a request no later than start+4us to avoid old-RA pixels.
+	// Original-Plus confirmation is outstanding; see
+	// docs/plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md.
 	//
 	// An ASIC raster fire also clears bit 5 of the 6-bit counter (as a
 	// normal acknowledge does), so a later re-enabled CPC-compatible
 	// interrupt cannot occur within 32 lines ([KT]).
 	//------------------------------------------------------------------
 
-	reg  hsync_o_q;
-	always @(posedge clk) hsync_o_q <= SNA_LOAD ? 1'b0 : HSYNC_O;
-	wire mon_hsync_fall = hsync_o_q & ~HSYNC_O;
+	// Clocks since raw HSYNC assertion, saturating; a restore or reset
+	// parks it so an imported HSYNC cannot manufacture an ordinary event.
+	reg [6:0] pri_hs_cnt;
+	always @(posedge clk) begin
+		if (reset || SNA_LOAD)             pri_hs_cnt <= 7'h7F;
+		else if (hsync_n_d & ~hsync_n)     pri_hs_cnt <= 7'd1;
+		else if (pri_hs_cnt != 7'h7F)      pri_hs_cnt <= pri_hs_cnt + 7'd1;
+	end
+	wire pri_ordinary_edge = (pri_hs_cnt == 7'd64) && HSYNC_I;
 
 	// Revised Arnold §2.4: raw HSYNC overlapping entry to the matching
 	// scanline can trigger there, then again at its normal monitor edge.
@@ -634,7 +643,7 @@ module asic_ga_timing
 	// of this emulator-supported write rule remains outstanding.
 	wire pri_value_change = pri_history_valid && (pri != pri_value_q) && HSYNC_I;
 	wire raster_fire = !reset && !SNA_LOAD && !crtc_adj &&
-	                   (mon_hsync_fall || pri_line_entry || pri_value_change) && pri_line_match;
+	                   (pri_ordinary_edge || pri_line_entry || pri_value_change) && pri_line_match;
 
 	// Persistent last-ack-was-raster level for DCSR bit 7 (reference
 	// section 9: set if the LAST INT acknowledge was raster). The level
