@@ -7,8 +7,8 @@ green left-edge sliver" as one residual. It is two unrelated artifacts:
 
 | Artifact | Where (dot grid `x=C0*16+dot`) | Mechanism | Status |
 |---|---|---|---|
-| Dotted logo strip | rows 224–254, x32–59, frames 303 onward | Old-RA screen bytes fetched before the reveal loop's SSCR write at C0=2 | Earlier ordinary PRI trigger is **sufficient** in simulation. Hardware timing is unestablished; **no RTL change** |
-| Green bar | rows 16–215, x16–31, from about frame 1125 | Hardware-sprite pixels drawn inside SSCR[7]'s extended-border character | **Fixed** on this branch from the Arnold V source rule, pending hardware acceptance |
+| Dotted logo strip | rows 224–254, x32–59, frames 303 onward | Old-RA screen bytes fetched before the reveal loop's SSCR write at C0=2 | **Fixed** by requesting ordinary PRI 1 µs after raw HSYNC start ([adopted trigger](#adopted-trigger-1-µs-after-raw-hsync-start)); hardware-unverified |
+| Green bar | rows 16–215, x16–31, from about frame 1125 | Hardware-sprite pixels drawn inside SSCR[7]'s extended-border character | **Fixed** from the Arnold V source rule; confirmed on MiSTer `8306e6f` |
 
 ## Method
 
@@ -150,3 +150,109 @@ Hardware acceptance is outstanding. On a MiSTer build with this change, the
 green first-column bar during Eerie's landscape phase should disappear and the
 dotted logo strip should remain. Titles that scroll horizontally with D7 set
 and place sprites at the left edge are the regression class to watch.
+
+## Adopted trigger: 1 µs after raw HSYNC start
+
+The user accepted an aggressive change for the strip. The decision rests on
+three measurements, and it overrides both written trigger accounts.
+
+**CPU response matches the ACCC.** ACCC §27.4 (FR p285, EN p286) says an
+interrupt's call to #38 lasts 5 µs on the CPC. M1-edge logging in the
+production Eerie replay measures 320 master clocks (5 µs) from the start of
+the acknowledge M1 cycle to the M1 fetch at 0038, and 304 clocks in a minority
+of alignments. Production's INT-to-write latency is therefore not the
+missing time.
+
+**The strip is set by the loop phase, not only by per-line interrupts.** The
+reveal writes at C0=2 come from a cycle-counted loop at PC 4A8. It is entered
+from the line-223 interrupt, so its phase inherits that entry's jitter (1 µs
+steps): 80 frames write at C0=2 and 18 at C0=1. Both are beyond the x4
+threshold. The handler's own SSCR write at PC 3A lands between x4 (clean) and
+x20 (residue).
+
+**AmSpirit's width-independent markers fix the phase.** In the
+[width discriminator](amspirit-pri-phase-2026-09-26.md), AmSpirit's final
+marker sits at 139 dots for R3=3/6/11, and production's at 171/219/219. With
+equal CPU response, a request at raw HSYNC + 64 clocks moves production by
+−32 dots at width 3 (fire 192→64 clocks) and by −80 dots at widths 6/11
+(384→64). That lands exactly on 139 at all three widths. The no-NOP variant
+(155 against 75, an 80-dot gap) agrees. The +1 µs point lies inside the
+≤ +4 µs region that cleans Eerie.
+
+**Implementation.** The monitor-HSYNC trailing-edge term in
+`rtl/plus/asic_ga_timing.v` is replaced by a saturating counter from raw HSYNC
+assertion. The event fires at 64 clocks if HSYNC is still active. The
+line-entry event, FF2 live-write event, nine-bit comparison, pending latch and
+ACK provenance are unchanged. Consequences, from the independent review:
+
+- Width 1 never requests, because HSYNC ends as the counter reaches 64.
+  Width 2 does request.
+- If the 1 µs point coincides with entry to the next line, both terms compare
+  the new line and deliver one request.
+- An ordinary event still due inside a snapshot-restored HSYNC is dropped.
+
+**Tests.** `asic_pri_test` pr10 is new. It requires INT 64 clocks after the
+first edge sampling raw HSYNC at widths 3/6/7, and failed before the change
+with `width 3 INT 192 clocks after raw HSYNC, expected 64`. The connected
+`p1_pixel_phase_test` cross-line vector now requires the request 64 ticks
+after raw HSYNC first reads high, while HSYNC is still active, at R2=49/50/51.
+Its line-entry counts are unchanged. Gate after the last code edit:
+`select_tests: PASS 7 benches` (asic_ga_timing_diff, p1_video, p1_mobo_bench,
+asic_pri, p10_dma_ppi, p10_dma_mobo, b8_palette). The slow benches
+b20-ack-diag, d5-cart-timing and b20-bus-diag pass.
+
+**Replays.** Over a 24-second production-RTL Eerie replay, every ordinary fire
+lands at +64. Logo-phase strip pixels drop from 13,172 to 0. The only other
+change is the 36-pixel rows 3–5 palette tone, and all 40,500 PRI writes still
+see no pending request. A 10-second title matrix (baseline, +4 µs and +0 µs
+triggers) shows:
+
+- CRTC3 demo (397 PRI writes): identical in all sampled frames.
+- Copter 271: a near-black `0x001`/`0x002` palette split on rows 57–60 moves
+  earlier within the line.
+- Burnin' Rubber, Switchblade and World of Sports never use PRI in the window.
+- FF2 did not reach PRI-driven play without input. Its archived snapshot
+  replay could not be staged in the checkout, because the session's permission
+  policy blocked copying it, so FF2 relies on the MiSTer check.
+
+Independent Astra-high review (Codex run `20260927T065024Z-5208-c27f`):
+ship for the authorized MiSTer trial, with no blocking RTL defect. Its
+stale-comment and reference notes are addressed. Its boundary consequences are
+documented above rather than pinned by further vectors.
+
+**Status.** This is an emulator-derived, source-contradicting rule. Original
+Plus/GX4000 results for `pri-width-3.cpr`, `pri-width-6.cpr` and
+`pri-planes-4-12.cpr` (width 11) decide it. The new rule predicts the same
+final marker at every width, as AmSpirit shows; the revised-Arnold rule
+predicts a 48-dot step from width 3 to 6. If hardware shows that step, revert
+this trigger and look for the Eerie strip on the fetch side.
+
+## MiSTer A/B (2026-09-27)
+
+Native captures on the user's MiSTer with the 6128+/Full-sync CFG
+(`13ef32c7…35747`), unchanged media, no input, and identical case timing. The
+original CFG (`2e585b4c…d8e4`) was restored and hash-checked afterwards.
+
+| RBF | SHA-256 | Timing (setup / hold, TNS) |
+|---|---|---|
+| `Amstrad_20260927_8306e6f.rbf` (sprite mask) | `b075dd40…6adb84` | +0.520 / +0.177 ns, 0 |
+| `Amstrad_20260927_815ce68.rbf` (+ 1 µs PRI) | `7aca59cd…c0d6ef` | +0.465 / +0.242 ns, 0 |
+
+- **Eerie Forest (9 captures, 10–40 s):** on 8306e6f the green first-column
+  bar is gone, but the dotted strip shows in c1, c2 and c4. On 815ce68 neither
+  artifact appears in any capture; logo, reveal, landscape and scrollers
+  progress as before.
+- **FF2 attract (10 captures, through gameplay demo):** title, HUD and sky
+  gradient look the same on both RBFs. Music was not checked.
+- **Copter 271 title (6 captures):** logo, palette gradient and scroller look
+  the same.
+- **CRTC3 demo (10 captures):** Buddha, plasma bands, CRTC³ band and tunnel
+  are coherent on both. One 815ce68 capture catches a band scroller's first
+  scanline where the baseline capture shows a different moment. Plasma phase
+  also differs, and simulation gives identical frames under +0 µs and +4 µs
+  triggers, so this is animation phase, not a regression.
+
+Captures, cases, contact sheets and zooms are in the main checkout's
+`local/task-archives/eerie-hsync-trigger-2026-09-27/evidence/mister/`. These
+are MiSTer reproductions, not original-hardware verdicts. FF2 gameplay with
+music and Prehistorik II still need the user's interactive check.

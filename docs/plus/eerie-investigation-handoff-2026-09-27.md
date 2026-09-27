@@ -3,21 +3,20 @@
 ## Current position
 
 The three reveal-line leaks were repaired and accepted in the integrated
-`edaa15b` build. The remaining left-edge residual has two independent causes;
-see the [trigger counterfactual and sprite-mask finding](references/eerie-pri-trigger-counterfactual-2026-09-27.md):
+`edaa15b` build. The remaining left-edge residual had two independent causes;
+see the [trigger counterfactual, adopted trigger and sprite-mask finding](references/eerie-pri-trigger-counterfactual-2026-09-27.md):
 
-- **Green first-column bar** (rows 16–215, x16–31, landscape phase): these
-  are sprite pixels inside SSCR[7]'s extended-border character. Branch
-  `plus/eerie-hsync-trigger` gates sprites with the masked display enable,
-  following Arnold V §2.1/§2.5. All four local emulators agree, and AmSpirit
-  does not show the bar. The change is gated and independently reviewed, but
-  integrated on 2026-09-27; MiSTer check pending.
+- **Green first-column bar** (rows 16–215, x16–31, landscape phase): sprite
+  pixels inside SSCR[7]'s extended-border character. Sprites are now gated by
+  the masked display enable, following Arnold V §2.1/§2.5. The fix was
+  integrated as `8306e6f`, and a MiSTer capture on that RBF shows the bar
+  gone.
 - **Dotted logo strip** (rows 224–254, x32–59): the reveal loop's SSCR write
-  at C0=2 follows the first-character fetch, which uses the old RA. Scratch
-  replays that change only the ordinary PRI trigger remove it when the fire
-  point is at most raw HSYNC + 4 µs (write by x4). Raw-HSYNC rise and
-  shaped-HSYNC rise both qualify; +5 µs and the current +6 µs do not. No
-  pending request exists at any PRI write under any tested timeline.
+  follows the first-character fetch, which uses the old RA. Ordinary PRI now
+  requests 1 µs after raw HSYNC start at every width. This reproduces
+  AmSpirit's width-independent probe markers and removes the strip in
+  simulation. It overrides revised Arnold's +6 µs clamp and KT's ~10 µs, and
+  has no original-hardware confirmation.
 
 FF2 and Prehistorik II are hardware-accepted on `2f409e9`. Preserve the
 nine-bit PRI comparison, FF2 live-write event, ACK provenance, CRTC3 repairs
@@ -25,26 +24,19 @@ and sprite-row retargeting.
 
 ## Resume path and question
 
-Check the integrated sprite-mask build of Eerie on MiSTer:
-the green bar should disappear and the dotted strip should remain. Also check a
-horizontally scrolling title that keeps D7 set with left-edge sprites.
+1. The integrated PRI-retimed build passed a non-interactive MiSTer A/B:
+   Eerie is clean, and FF2 attract, Copter 271's title and the CRTC3 demo are
+   unchanged. The user still needs to check FF2 gameplay with music and
+   Prehistorik II's HUD interactively.
+2. On an original Plus/GX4000, run `pri-width-3.cpr`, `pri-width-6.cpr` and
+   `pri-planes-4-12.cpr` (width 11). The new rule predicts the same final
+   marker at every width; revised Arnold predicts a 48-dot step from width 3
+   to 6. A step means revert the trigger and look for the Eerie strip on the
+   fetch side.
+3. Short-width PRI (R3=1/2) and the line-boundary coincidence remain
+   unmeasured.
 
-For the dotted strip, earlier-trigger sufficiency is established in the model,
-not on hardware. Both documented sources place the trigger on the residue side
-(revised Arnold 6 µs clamp, KT ~10 µs). Do not move the trigger without a
-hardware measurement. Discriminators, cheapest first:
-
-1. Derive the Z80 IM1 acknowledge-to-0038 fetch time on the CPC wait grid from
-   the T80/Z80 sources. Compare it with production's measured INT→ACK 95 and
-   ACK→0038 311 master clocks. An excess would move the fix from request
-   generation to CPU response.
-2. Original Plus/GX4000 results for the width 3/6/11 flat-plane CPRs, using
-   absolute marker position as well as width dependence. AmSpirit's width-11
-   marker is 5 µs earlier than production, inside the sufficient region.
-3. A raw HSYNC/INT/ACK/SSCR-write trace for Eerie.
-
-Keep CPU instruction-stop times separate from raw bus events. Original-hardware
-cleanliness of the strip remains unverified.
+Keep CPU instruction-stop times separate from raw bus events.
 
 ## Existing emulator clues
 

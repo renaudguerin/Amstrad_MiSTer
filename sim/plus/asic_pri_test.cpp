@@ -7,8 +7,8 @@
 //         last-ack-was-raster level latches on each raster acknowledge,
 //         never on the fire itself (lockstep already pins the full
 //         output set; this pins the new export).
-//   pr02  PRI=k: counter fires are suppressed; INT_N falls exactly at the
-//         shaped-monitor trailing edge following the matching line, at the
+//   pr02  PRI=k: counter fires are suppressed; INT_N falls at the ordinary
+//         event of the matching line (phase pinned by pr10), at the
 //         same intra-line offset every time (self-calibrated on the first
 //         fire), and never on line 256+k: bit 8 of the compare is a fixed 0.
 //   pr03  vertical adjust gates firing: no interrupt for a match inside
@@ -23,6 +23,8 @@
 //         prior raster ack) must not be lost (B19 residual): the coincident
 //         fire is held pending across the acknowledge and asserts INT_N low
 //         on the cycle following acknowledge deassertion.
+//   pr10  ordinary PRI requests 1 us after raw HSYNC assertion at every
+//         programmed width (AmSpirit width discriminator; see below).
 //
 // Expectations are derived from reference §7 / [ARNOLD-REV §2.4] and cited
 // inline — never read back out of the simulator.
@@ -69,6 +71,7 @@ public:
 	// synthetic CRTC
 	unsigned hcount = 0;
 	bool in_hs = true;
+	unsigned hs_width = kHsWidth; // raw HSYNC clocks per line
 
 	explicit PriBench() : dut("asic_ga_timing") {
 		dut.clk = 0;
@@ -108,7 +111,7 @@ public:
 
 		// Line bookkeeping: HSYNC_I asserted for kHsWidth at line start.
 		if (hcount == 0) in_hs = true;
-		if (in_hs && hcount >= kHsWidth) in_hs = false;
+		if (in_hs && hcount >= hs_width) in_hs = false;
 		hcount = (hcount + 1) % kLineClks;
 		if (hcount == 0) ++crtc_line; // line value advances at line start
 	}
@@ -199,10 +202,10 @@ void pr01_baseline(PriBench& b) {
 }
 
 //----------------------------------------------------------------------
-// pr02: PRI=k suppresses counter fires and fires at the shaped-monitor
-// trailing edge of the matching line. The intra-line fire offset is
-// self-calibrated on the first event (the shaping microsequence is
-// deterministic), then required to repeat exactly on the next match.
+// pr02: PRI=k suppresses counter fires and fires at the ordinary event of
+// the matching line. The intra-line fire offset is self-calibrated on the
+// first event (pr10 pins its phase), then required to repeat exactly on
+// the next match.
 //
 // [ARNOLD-REV §2.4] gives the compare as
 //   0 PRI7..PRI0 == VC5..VC0 RC2..RC0
@@ -415,7 +418,7 @@ void pr07_raster_fire_during_intack(PriBench& b) {
 	if (b.dut.INT_N != 1) fail("pr07: expected idle INT_N after clear");
 	if (b.dut.int_last_raster != 0) fail("pr07: expected clear last-raster");
 
-	// Dynamically calibrate the intra-line offset of monitor HSYNC fall
+	// Dynamically calibrate the intra-line offset of the ordinary event
 	// for the PRI match to ensure the test window precisely spans the fire tick.
 	uint16_t cal_line = uint16_t((b.crtc_line + 4) & 0x7F);
 	if (cal_line == 0) cal_line = 1;
@@ -453,7 +456,7 @@ void pr07_raster_fire_during_intack(PriBench& b) {
 	b.iorq_n = false;
 	b.m1_n = false;
 
-	// Step across the measured monitor HSYNC fall.
+	// Step across the measured ordinary event.
 	while (b.hcount < fire_hcount + 15) {
 		b.tick();
 		if (b.dut.INT_N != 1)
@@ -637,6 +640,45 @@ void pr09_live_pri_write() {
 	std::printf("PASS pr09: late PRI writes, raw-HSYNC/9-bit/adjust guards, ACK deferral and held-value control\n");
 }
 
+//----------------------------------------------------------------------
+// pr10: ordinary PRI phase. AmSpirit's flat-plane probe CPRs place the final
+// marker at the same position for R3 widths 3, 6 and 11 (139 dots), where
+// the revised-Arnold monitor-trailing-edge rule gave 171/219/219: 32 and 80
+// dots (128 and 320 master clocks) later. Production's IM1 path measures the
+// ACCC section 27.4 five microseconds (ack M1 to 0038 fetch), so the
+// difference is in request generation: a width-independent request 64 clocks
+// (1 us) after raw HSYNC assertion reproduces all three markers. Measured
+// from the first edge sampling raw HSYNC high, the old rule gives 192 clocks
+// at width 3 and 384 at widths 6/7; the new request gives INT_N at 64.
+// Evidence: docs/plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md.
+// Widths are in 64-clock characters; 7 is the bench default and the 6 us
+// clamp case, which cannot reach 11 on an 8-character synthetic line.
+//----------------------------------------------------------------------
+void pr10_ordinary_phase() {
+	for (unsigned width : {3u, 6u, 7u}) {
+		PriBench b;
+		b.hs_width = width * 64;
+		b.power_on();
+		b.empty_ack();
+		b.pri = 40;
+		while (b.crtc_line != 39) b.tick();
+		b.empty_ack();
+		while (!(b.crtc_line == 40 && b.hcount == 0)) b.tick();
+		while (!b.dut.HSYNC_I) b.tick();
+		const uint64_t hs_rise = b.cyc; // first edge sampling raw HSYNC high
+		uint64_t guard = 0;
+		while (b.dut.INT_N) {
+			b.tick();
+			if (++guard > kLineClks) fail("pr10: width " + std::to_string(width) + " never fired");
+		}
+		const uint64_t delay = b.cyc - hs_rise;
+		if (delay != 64)
+			fail("pr10: width " + std::to_string(width) + " INT " + std::to_string(delay) +
+			     " clocks after raw HSYNC, expected 64");
+	}
+	std::printf("PASS pr10: ordinary PRI requests 1 us after raw HSYNC at widths 3/6/7\n");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -652,6 +694,7 @@ int main(int argc, char** argv) {
 		pr07_raster_fire_during_intack(b);
 		pr08_pending_classic_mode_switch();
 		pr09_live_pri_write();
+		pr10_ordinary_phase();
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;

@@ -486,12 +486,11 @@ that a previously online device remains available. Keep one device operator.
   reviewed, gated and exact-integration-hardware-verified (`edaa15b`): the three horizontal reveal
   leaks disappear, with Sonic GX title/attract regression samples passing.
   The left-edge residual has [two causes](plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md).
-  The green first-column bar (sprites under the SSCR[7] border) has a source-derived
-  fix, integrated 2026-09-27 and awaiting MiSTer acceptance.
-  The dotted logo strip vanishes in scratch replays only if ordinary PRI fires
-  by HSYNC+4 µs, earlier than both documented accounts. Preserve documented PRI
-  timing until original-Plus width-3/6/11 marker positions or an Eerie bus trace
-  decide it; a cheap intermediate check is the IM1 acknowledge-to-0038 latency. See the
+  The green first-column bar (sprites under the SSCR[7] border) is fixed in
+  `8306e6f` and confirmed on MiSTer. The dotted logo strip is fixed by an
+  AmSpirit-derived ordinary PRI request 1 µs after raw HSYNC start, which
+  overrides both written accounts. Original-Plus width 3/6/11 marker positions
+  decide whether it stays. See the
   [graphics investigation](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md).
 - **Plus acceptance:** the remaining title/model/disk/reset matrix in
   [current status](current-status.md) and [the checklist](plus/hardware-test-checklist.md).
