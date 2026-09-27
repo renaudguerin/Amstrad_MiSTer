@@ -23,6 +23,7 @@ band_ptr    equ 0xBF04
 tmp         equ 0xBF06
 irq_count   equ 0xBF07
 window_r3   equ 0xBF0D          ; A: R3 during the window (0 = unchanged)
+test_var    equ 0xBF0E          ; H: sled length; E3/E4: R9 phase
 sync_addr   equ 0xBF08          ; handler the 0038 JP overlay targets
 target_head equ 0xBF0A          ; first 3 bytes of the installed test handler
 SYNC_LINE   equ 2               ; A/C: arming interrupt, well before line 7
@@ -364,13 +365,103 @@ init_cross_w: ld a,2 : call crtc_set
 init_split54: ld a,54 : jr init_split
 init_split55: ld a,55 : jr init_split
 init_split56: ld a,56 : jr init_split
-init_split57: ld a,57
+init_split57: ld a,57 : jr init_split
+init_split55s7: ld a,0x70 : ld (ASIC_SSCR),a    ; D5: SPLT=55 with offset 7
+            ld a,55
 init_split: ld (tmp),a
             ld hl,0x0000 : ld de,0x0001 : ld bc,0x3FFF
             ld (hl),0xFF : ldir
             ld hl,split_bank0_text : call print_block
             ld a,(tmp) : ld (ASIC_SPLT),a
             jp main_static
+
+; ---- H: when the line-311 split capture samples SSA. SPLT=55 matches line 311;
+; the green bank shows SSA rows labelled SSA ROW nn. SSA is row 4 except for a
+; rewrite to row 5 on line 311 at C0 ~52 (H1, after C0=R1=40) or ~30 (H2,
+; before it), undone on line 2 (C0 ~40 or ~18). Lines 1-55 show whichever SSA was captured.
+; A cyan border dash on line 311, starting ~3 us after the write, shows where
+; the write landed (top border, just above the display).
+SSA_A       equ 0xA0            ; MA of bank-0 row 4 (low byte; high byte 0)
+SSA_B       equ 0xC8            ; row 5
+SSA_SLED_MAX equ 64
+init_ssa_late: ld a,SSA_SLED_LATE : jr init_ssa
+init_ssa_early: ld a,SSA_SLED_EARLY
+init_ssa:   ld (test_var),a
+            call fill_bank0
+            ld a,SSA_A : ld (ASIC_SSA+1),a
+            ld a,55 : ld (ASIC_SPLT),a
+            ld hl,isr_ssa : ld a,255
+            jp arm_irq
+
+; Entered through the 0038 JP on line 255, ~1 us after HSYNC start.
+isr_ssa:    push af : push bc : push de : push hl
+            ld bc,SSA_COARSE
+.wait:      dec bc : ld a,b : or c : jr nz,.wait
+            ld a,(test_var) : ld c,a
+            ld a,SSA_SLED_MAX : sub c
+            ld c,a : ld b,0
+            ld hl,ssa_sled : add hl,bc
+            jp (hl)
+ssa_sled:   ds SSA_SLED_MAX,0
+            ld a,SSA_B : ld (ASIC_SSA+1),a      ; the timed line-311 write
+            ld hl,0x6421 : ld (hl),0x0F         ; border cyan: phase marker
+            ds 4,0
+            ld (hl),0
+            ld b,40
+.hold:      djnz .hold                          ; past the line-311 end
+            ld a,SSA_A : ld (ASIC_SSA+1),a
+            ld a,1 : ld (frame_done),a
+            pop hl : pop de : pop bc : pop af
+            ei
+            ret
+
+; Bank 0 green from 0100 (0038-00FF hold the interrupt entry), then this
+; screen's text again: the inverted bank-0 entries were drawn before the fill.
+fill_bank0: ld hl,0x0100 : ld de,0x0101 : ld bc,0x3EFF
+            ld (hl),0xFF : ldir
+            ld a,(test_index)
+            ld l,a : ld h,0 : add hl,hl : add hl,hl
+            ld de,test_table+2 : add hl,de
+            ld a,(hl) : inc hl : ld h,(hl) : ld l,a
+            jp print_block
+
+; ---- E3/E4: SSCR vertical offset with R9=3. Rows 0-5 are 8-line text rows;
+; raster interrupts set R9=3 for rows 6-11 (PRI line 48 = row 6 raster 0) and
+; R9=7 again from row 12 (PRI line 96, {VC,RC} numbering). Source row k (6-24)
+; holds a green bar 3(k-3) bytes long on every raster, so each displayed line
+; shows which source row it came from. Row 25 would cross the 2048-byte plane.
+init_bars_off0: xor a : jr init_bars
+init_bars_off2: ld a,0x20
+init_bars:  ld (ASIC_SSCR),a
+            xor a : ld (test_var),a
+            ld hl,crtc_bars : call crtc_table
+            ld hl,0xC000+6*80 : ld c,9          ; row 6, bar length 3*(6-3)
+            ld b,19
+.row:       push bc : push hl
+            ld b,8
+.plane:     push bc : push hl
+            ld b,c
+.dot:       ld (hl),0xFF : inc hl : djnz .dot
+            pop hl : ld de,0x800 : add hl,de
+            pop bc : djnz .plane
+            pop hl : ld de,80 : add hl,de
+            pop bc : ld a,c : add a,3 : ld c,a
+            djnz .row
+            ld hl,isr_bars : ld a,48
+            jp arm_irq
+
+isr_bars:   push af : push bc : push de
+            ld a,(test_var) : xor 1 : ld (test_var),a
+            jr z,.back
+            ld e,3 : ld a,9 : call crtc_set
+            ld a,96 : ld (ASIC_PRI),a
+            jr .done
+.back:      ld e,7 : ld a,9 : call crtc_set
+            ld a,48 : ld (ASIC_PRI),a
+            ld a,1 : ld (frame_done),a
+.done:      pop de : pop bc : pop af
+            ei
+            ret
 
 ; ---- E: SSCR vertical offset with R9=11 (12-line rows).
 init_r9_off0: xor a : jr init_r9
@@ -420,6 +511,8 @@ unlock_seq: db 0xFF,0x00,0xFF,0x77,0xB3,0x51,0xA8,0xD4,0x62,0x39,0x9C,0x46,0x2B,
 palette:    db 0xF0,0x00, 0x00,0x0F, 0x0F,0x00, 0xFF,0x0F
 crtc_std:   db 0,63, 1,40, 2,49, 3,0x8B, 4,38, 5,0, 6,25, 7,30, 8,0, 9,7, 12,0x30, 13,0, 0xFF
 crtc_r9:    db 9,11, 4,25, 6,16, 7,20, 0xFF
+; 6 + 6 + 30 rows of 8/4/8 lines = 312; VSYNC at row 33 = line 240.
+crtc_bars:  db 4,41, 6,16, 7,33, 0xFF
 
 mirror_sprites:
             db 0 : dw 64,40 : db 0x05

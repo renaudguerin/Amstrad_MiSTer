@@ -393,7 +393,9 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
 - Capture/apply timing [ARNOLD-REV §2.3 & "6845's MA"]: the CRTC (ASIC) keeps an
   internal "stored MA" reloaded into the MA counter at the start of each line.
   On the programmed line, the SSA value is captured when HCC == R1 (Horizontal
-  Displayed) — or when HCC == R0 if VCC==R4 and RCC==R9 (last line of frame) —
+  Displayed) — or when HCC == R0 if VCC==R4 and RCC==R9 (last line of frame;
+  original Plus probe V3 screen 21 is consistent: the line-311 capture follows a
+  C0≈52 write) —
   and is used from the next scan line onward, i.e. it *replaces* the line-start
   MA until the next split or frame restart (the split affects the rest of the
   screen).
@@ -709,4 +711,4 @@ hardware because no light-pen strobe source is emulated.
 - ⚠ MISSING — whether DMA RAM fetches insert Z80 wait states (believed no; only 8255/PSG arbitration documented, §9).
 - RESOLVED 2026-09-27 — PRI fire offset after HSYNC start: [ARNOLD-REV] (6µs clamp) and [KT] (~10µs) are both overridden by original-Plus photographs; the request is 1µs after raw HSYNC start at every width (§7).
 - ⚠ CONFLICT — sprite attribute write mirror at offset +3 (magnification per [ARNOLD-REV] vs Y-high per [KT] read table); read mirrors agree.
-- ⚠ CONFLICT — split-wrap pathological SPLT value: 55 ([ARNOLD-REV]) vs 56 ([KT]) for a 312-line frame. The RTL shows neither (its frame-origin reload overrides a line-311 capture); AmSpirit shows 55. Probe screens 10–13.
+- ⚠ CONFLICT — split-wrap pathological SPLT value: 55 ([ARNOLD-REV]) vs 56 ([KT]) for a 312-line frame. Original Plus probe screens 10–13 show 55, as AmSpirit does; the RTL keeps a line-311 capture past the frame origin (resolved).
