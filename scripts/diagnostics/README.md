@@ -27,8 +27,8 @@ RA2 plane shown on RA0 by an SSCR write (A), or pen 0 turned yellow for about 9 
 
 "RTL" is the production simulation at the commit that built the CPR (see below);
 "AmSpirit" is Lite 1.15.1, 6128Plus/CRTC3, on the same CPR. "Original Plus" is the
-2026-09-27 photograph set (cartridge V1, screens 01–18) recorded in [the ledger](../../docs/plus/source-divergences.md#probe-photographs).
-Screens 19–20 were added in V2; the V1 numbering is unchanged.
+2026-09-27 photograph set (cartridge V1 screens 01–18, V2 screens 19–20) recorded in [the ledger](../../docs/plus/source-divergences.md#probe-photographs).
+Screens 19–20 were added in V2 (photographed the same day); the V1 numbering is unchanged.
 
 | # | Test | Question | RTL | AmSpirit | Original Plus |
 |---|---|---|---|---|---|
@@ -45,8 +45,8 @@ Screens 19–20 were added in V2; the V1 numbering is unchanged.
 | 16 | F sprite mirrors | Which offsets write magnification (+3, +5, +6, +7)? | +5/+6/+7 big, +3 small | same | as RTL |
 | 17 | G1 sprite left edge | X=-64/-63 at x4, X=-16/-15 at x1 | 1-dot column for -63 and -15 only | same | as RTL |
 | 18 | G2 SSCR[7] over sprites | Does the extended border hide sprites? | X=0 hidden, X=8 right half, X=16 whole | same | as RTL |
-| 19 | C6 R2=56, R3=8 | Raw HSYNC ending exactly at the PRI line start: line-entry request? | `02` | `02` | not yet photographed (MiSTer `1c85bee`: `02`) |
-| 20 | C7 R2=50, R3=14 | Same, at the CRTC3 demo's plasma/sphere/Wolverine timing | `02` | `02` | not yet photographed (MiSTer `1c85bee`: `02`) |
+| 19 | C6 R2=56, R3=8 | Raw HSYNC ending exactly at the PRI line start: line-entry request? | `02` | `02` | `02` |
+| 20 | C7 R2=50, R3=14 | Same, at the CRTC3 demo's plasma/sphere/Wolverine timing | `02` | `02` | `02` |
 
 Why each matters and what each outcome would change: [source-divergences.md](../../docs/plus/source-divergences.md).
 

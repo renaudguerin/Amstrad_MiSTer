@@ -18,10 +18,12 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   the PRI request is one delayed-comparator edge matching the delayed or live line (width 1,
   PRI-write window, R2=63 crossing and HSYNC ending at line start), the SSCR row capture is
   `ra_eff >= R9`, and a SPLT capture on line 311 survives the frame origin. MiSTer
-  `output_files/Amstrad_20260927_1c85bee.rbf` matches every photographed probe screen; the user
-  confirms CRTC3 demo, FF2 and Prehistorik II gameplay good. Open: original-Plus photographs of
-  new probe screens 19–20 (HSYNC ending at the PRI line start; cartridge
-  `output_files/plus-hw-probes-v2.cpr`) and the unprobed consequences listed in the ledger.
+  `1c85bee` matches every photographed probe screen; the user confirms CRTC3 demo, FF2 and
+  Prehistorik II gameplay good on it. Integrated as `a24688a`: exact-SHA CI run 36345129750
+  passes every required job; `output_files/Amstrad_20260927_a24688a.rbf` (SHA-256
+  `fd49d192…40da45`), setup/hold +0.509/+0.241 ns, zero TNS, 24,368 ALMs (58%). New probe screens 19–20 (HSYNC ending at
+  the PRI line start) also match the original Plus. Open: the unprobed consequences listed in
+  the ledger.
 
 - **FF2 PRI-write repair hardware-accepted (2026-09-27):** the resumed
   production-T80 replay confirms a changed PRI46→48 write on line48 after the
