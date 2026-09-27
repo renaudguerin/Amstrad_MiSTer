@@ -1,5 +1,19 @@
 # Fresh-session brief: FF2 PRI investigation, then Eerie Forest
 
+## Integration and evidence preservation
+
+The successor is active in `/Users/renaudg/.codex/worktrees/603a/Amstrad_MiSTer`
+on `codex/plus/ff2-pri-investigation`, starting from `7d80ddf`. The original
+handoff documents were copied there before integration. The source session is
+integrating its completed documentation and diagnostic into master; it is not
+changing the successor's branch or running emulator tests.
+
+Private evidence and generated outputs have been preserved in the main checkout
+under `local/task-archives/crtc3-2026-09-27/`: `evidence/` contains the original
+`docs/specs/crtc3-2026-09-25/` tree, and `output_files/` contains the generated
+outputs. Use this durable location when the original 04d3 worktree is archived.
+The original paths below describe the investigation checkpoint.
+
 Resume this authorized investigation using `stream-start`. The previous chat
 has stopped work and yields ownership; do not launch further coordinating
 chats. Bounded subagent work follows AGENTS.md. Investigate, implement only
