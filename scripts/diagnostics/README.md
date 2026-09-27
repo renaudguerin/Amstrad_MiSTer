@@ -25,29 +25,29 @@ RA2 plane shown on RA0 by an SSCR write (A), or pen 0 turned yellow for about 9 
 
 ### Screens
 
-"RTL" is the production simulation at the commit that built the CPR (see below);
+"RTL" is the production simulation of the current cartridge on current master (see below);
 "AmSpirit" is Lite 1.15.1, 6128Plus/CRTC3, on the same CPR. "Original Plus" is the
 2026-09-27 photograph set (cartridge V1 screens 01–18, V2 screens 19–20) recorded in [the ledger](../../docs/plus/source-divergences.md#probe-photographs).
 Screens 19–20 were added in V2 (photographed the same day) and 21–25 in V3; earlier numbering is unchanged.
 
 | # | Test | Question | RTL | AmSpirit | Original Plus |
 |---|---|---|---|---|---|
-| 01 | A1 PRI width 1 | Does a 1-character HSYNC still request? | no marker, `00` | marker, `01` | `01` (as AmSpirit) |
+| 01 | A1 PRI width 1 | Does a 1-character HSYNC still request? | marker, `01` | marker, `01` | `01` (as AmSpirit) |
 | 02 | A2 PRI width 2 | Width 2 at the adopted phase | marker ends 139 dots in, `01` | same | `01` |
 | 03 | A3 PRI width 3 | Framework cross-check with `pri-width-3.cpr` (hardware ~136) | 139, `01` | same | ~140, `01` |
-| 04 | B PRI write phase | Does writing PRI := current line fire, by write C0 (45–63, HSYNC 49–59)? | marks for C0 45–59, the mark moving right from 49; none for 60–63; `15` | also fires for C0 60; `16` | 45–60, `16` (as AmSpirit) |
+| 04 | B PRI write phase | Does writing PRI := current line fire, by write C0 (45–63, HSYNC 49–59)? | marks for C0 45–60, the mark moving right from 49; none for 61–63; `16` | also fires for C0 60; `16` | 45–60, `16` (as AmSpirit) |
 | 05 | C1 R2=49, R3=8 | Reference, no crossing | `01` | same | `01` |
 | 06–08 | C2–C4 R2=57/58/62 | HSYNC entering the PRI line: line-entry request plus ordinary | `02` | same | `02` |
-| 09 | C5 R2=63 | Ordinary +1 µs lands on the next line's entry | `01` | `02` | `02` (as AmSpirit) |
-| 10–13 | D1–D4 SPLT=54–57 | Split near the 312-line wrap (SPLT=55 also matches line 311) | green from line SPLT+1 in all four | SPLT=55: whole screen green | SPLT=55 as AmSpirit (line 0 red); others as RTL |
+| 09 | C5 R2=63 | Ordinary +1 µs lands on the next line's entry | `02` | `02` | `02` (as AmSpirit) |
+| 10–13 | D1–D4 SPLT=54–57 | Split near the 312-line wrap (SPLT=55 also matches line 311) | green from line SPLT+1; SPLT=55 also line 0 red, green from line 1 | SPLT=55: whole screen green | SPLT=55 as AmSpirit (line 0 red); others as RTL |
 | 14 | E1 R9=11, vscroll 0 | Reference | rows 00–15 in order | same | as RTL |
-| 15 | E2 R9=11, vscroll 5 | Low-three-bit vs wider RA addition | every row shows ROW 00 | rows 00, 03, 06… (a third pattern) | as AmSpirit |
+| 15 | E2 R9=11, vscroll 5 | Low-three-bit vs wider RA addition | rows 00, 03, 06… | rows 00, 03, 06… (a third pattern) | as AmSpirit |
 | 16 | F sprite mirrors | Which offsets write magnification (+3, +5, +6, +7)? | +5/+6/+7 big, +3 small | same | as RTL |
 | 17 | G1 sprite left edge | X=-64/-63 at x4, X=-16/-15 at x1 | 1-dot column for -63 and -15 only | same | as RTL |
 | 18 | G2 SSCR[7] over sprites | Does the extended border hide sprites? | X=0 hidden, X=8 right half, X=16 whole | same | as RTL |
 | 19 | C6 R2=56, R3=8 | Raw HSYNC ending exactly at the PRI line start: line-entry request? | `02` | `02` | `02` |
 | 20 | C7 R2=50, R3=14 | Same, at the CRTC3 demo's plasma/sphere/Wolverine timing | `02` | `02` | `02` |
-| 21 | H1 SPLT=55, SSA rewritten on line 311 at C0≈52 | Does the line-311 split capture sample SSA at C0=R1 (40), or later? | first green text row `SSA ROW 04` (sampled at C0=R1) | `SSA ROW 05` (samples later) | not yet photographed |
+| 21 | H1 SPLT=55, SSA rewritten on line 311 at C0≈52 | Is SSA sampled for the line-311 split before the C0≈52 write (RTL: C0=R1=40) or after it (line end or frame origin)? | first green text row `SSA ROW 04` | `SSA ROW 05` | not yet photographed |
 | 22 | H2 as H1, rewrite at C0≈30 | Control: the rewrite precedes C0=R1 | `SSA ROW 05` | same | not yet photographed |
 | 23 | D5 SPLT=55, vscroll 7 | Does the line-0 row capture (offset 7 makes raster 0 the row's last) replace the held line-311 split? | red to line 55, green from 56 | same | not yet photographed |
 | 24 | E3 R9=3 rows 6–11, vscroll 0 | Reference for E4 | bars step once per 4-line row | same | not yet photographed |
@@ -76,13 +76,14 @@ Why each matters and what each outcome would change: [source-divergences.md](../
   split survives it.
 - **H** puts SSA on bank-0 row 4 (labels `SSA ROW nn`, green bank) with SPLT=55, and a
   raster interrupt on line 255 enters a long calibrated delay (`SSA_COARSE`, `SSA_SLED`)
-  that writes the row-5 SSA on line 311, restored on line ~2. The first green text row
-  shows which SSA the line-311 split captured. A cyan border dash starting ~3 µs after
+  that writes the row-5 SSA on line 311, restored on line 2. The first green text row
+  shows which SSA the line-311 split captured. H1 and H2 bracket the sampling point between
+  C0≈30 and C0≈52; they do not pin it to C0=R1 exactly. A cyan border dash starting ~3 µs after
   the write proves its position: H2 shows it on line 311 above the display's right half,
   H1 in the left border beside frame line 0 (its C0 60–63 follow HSYNC).
 - **E3/E4** keep rows 0–5 as 8-line text rows; raster interrupts at PRI 48 and 96 (PRI
   numbers `{VC, RC2..0}`) set R9=3 for rows 6–11 and 7 again from row 12, keeping 312
-  lines. Source row k (6–24) holds a green bar 3k+3 bytes long on every raster, so bar
+  lines. Source row k (6–24) holds a green bar 3(k−3) bytes long on every raster, so bar
   length names each displayed line's source row. Equality capture would step once per
   row on E4 too.
 - The NOP windows accept interrupts on the same 1 µs M1 boundary as `HALT`.
