@@ -26,24 +26,24 @@ RA2 plane shown on RA0 by an SSCR write (A), or pen 0 turned yellow for about 9 
 ### Screens
 
 "RTL" is the production simulation at the commit that built the CPR (see below);
-"AmSpirit" is Lite 1.15.1, 6128Plus/CRTC3, on the same CPR. Both are models, not
-hardware claims.
+"AmSpirit" is Lite 1.15.1, 6128Plus/CRTC3, on the same CPR. "Original Plus" is the
+2026-09-27 photograph set recorded in [the ledger](../../docs/plus/source-divergences.md#probe-photographs).
 
-| # | Test | Question | RTL | AmSpirit |
-|---|---|---|---|---|
-| 01 | A1 PRI width 1 | Does a 1-character HSYNC still request? | no marker, `00` | marker, `01` |
-| 02 | A2 PRI width 2 | Width 2 at the adopted phase | marker ends 139 dots in, `01` | same |
-| 03 | A3 PRI width 3 | Framework cross-check with `pri-width-3.cpr` (hardware ~136) | 139, `01` | same |
-| 04 | B PRI write phase | Does writing PRI := current line fire, by write C0 (45–63, HSYNC 49–59)? | marks for C0 45–59, the mark moving right from 49; none for 60–63; `15` | also fires for C0 60; `16` |
-| 05 | C1 R2=49, R3=8 | Reference, no crossing | `01` | same |
-| 06–08 | C2–C4 R2=57/58/62 | HSYNC entering the PRI line: line-entry request plus ordinary | `02` | same |
-| 09 | C5 R2=63 | Ordinary +1 µs lands on the next line's entry | `01` | `02` |
-| 10–13 | D1–D4 SPLT=54–57 | Split near the 312-line wrap (SPLT=55 also matches line 311) | green from line SPLT+1 in all four | SPLT=55: whole screen green |
-| 14 | E1 R9=11, vscroll 0 | Reference | rows 00–15 in order | same |
-| 15 | E2 R9=11, vscroll 5 | Low-three-bit vs wider RA addition | every row shows ROW 00 | rows 00, 03, 06… (a third pattern) |
-| 16 | F sprite mirrors | Which offsets write magnification (+3, +5, +6, +7)? | +5/+6/+7 big, +3 small | same |
-| 17 | G1 sprite left edge | X=-64/-63 at x4, X=-16/-15 at x1 | 1-dot column for -63 and -15 only | same |
-| 18 | G2 SSCR[7] over sprites | Does the extended border hide sprites? | X=0 hidden, X=8 right half, X=16 whole | same |
+| # | Test | Question | RTL | AmSpirit | Original Plus |
+|---|---|---|---|---|---|
+| 01 | A1 PRI width 1 | Does a 1-character HSYNC still request? | no marker, `00` | marker, `01` | `01` (as AmSpirit) |
+| 02 | A2 PRI width 2 | Width 2 at the adopted phase | marker ends 139 dots in, `01` | same | `01` |
+| 03 | A3 PRI width 3 | Framework cross-check with `pri-width-3.cpr` (hardware ~136) | 139, `01` | same | ~140, `01` |
+| 04 | B PRI write phase | Does writing PRI := current line fire, by write C0 (45–63, HSYNC 49–59)? | marks for C0 45–59, the mark moving right from 49; none for 60–63; `15` | also fires for C0 60; `16` | 45–60, `16` (as AmSpirit) |
+| 05 | C1 R2=49, R3=8 | Reference, no crossing | `01` | same | `01` |
+| 06–08 | C2–C4 R2=57/58/62 | HSYNC entering the PRI line: line-entry request plus ordinary | `02` | same | `02` |
+| 09 | C5 R2=63 | Ordinary +1 µs lands on the next line's entry | `01` | `02` | `02` (as AmSpirit) |
+| 10–13 | D1–D4 SPLT=54–57 | Split near the 312-line wrap (SPLT=55 also matches line 311) | green from line SPLT+1 in all four | SPLT=55: whole screen green | SPLT=55 as AmSpirit (line 0 red); others as RTL |
+| 14 | E1 R9=11, vscroll 0 | Reference | rows 00–15 in order | same | as RTL |
+| 15 | E2 R9=11, vscroll 5 | Low-three-bit vs wider RA addition | every row shows ROW 00 | rows 00, 03, 06… (a third pattern) | as AmSpirit |
+| 16 | F sprite mirrors | Which offsets write magnification (+3, +5, +6, +7)? | +5/+6/+7 big, +3 small | same | as RTL |
+| 17 | G1 sprite left edge | X=-64/-63 at x4, X=-16/-15 at x1 | 1-dot column for -63 and -15 only | same | as RTL |
+| 18 | G2 SSCR[7] over sprites | Does the extended border hide sprites? | X=0 hidden, X=8 right half, X=16 whole | same | as RTL |
 
 Why each matters and what each outcome would change: [source-divergences.md](../../docs/plus/source-divergences.md).
 
