@@ -21,8 +21,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   line immediately above the bottom HUD, absent on `edaa15b`. Eerie Forest's
   left strip remains. Fire & Forget 2 has newly reported sky-gradient flicker
   and music slowdown: gameplay is confirmed good on `84e6969` and bad on
-  `88262b9` (also `edaa15b`); `bee92a6` also passes. Four September 13
-  RTL changes remain. Full-build midpoint `05cb9fd` is the next human candidate. Keep its historical bisect separate from the recent Prehistorik
+  `05cb9fd` (also `88262b9`/`edaa15b`); `bee92a6` also passes. Two RTL
+  changes remain: PRI line compare and DCSR ACK sampling. Full build
+  `c595031` separates them and is delivered for the next human check. Keep its historical bisect separate from the recent Prehistorik
   residual. See the [repair record](plus/ack-provenance-regression-2026-09-26.md)
   and [remaining-title investigation](plus/remaining-title-regressions-2026-09-27.md).
 

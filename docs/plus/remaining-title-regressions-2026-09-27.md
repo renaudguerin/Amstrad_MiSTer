@@ -172,3 +172,26 @@ Task copy and reports: `output_files/ff2-bisect-05cb9fd/`.
 Delivered RBF:
 `/Users/renaudg/code/Amstrad_MiSTer/output_files/Amstrad_20260913_05cb9fd.rbf`.
 SHA256 `a81d89cc4382ed65da91a96498b822b49ade2331e4f2fd2365e1e0f9009659af`.
+
+
+## Fourth bisect result: two-change interval
+
+The user reports `05cb9fd` bad. Current interval is `bee92a6` good →
+`05cb9fd` bad. Only `b5c3014` (PRI line compare requires bit 8 clear) and
+`9faa140` (DCSR bit 7 sampled at acknowledge rather than raster fire) change
+RTL in that interval. The later PSG reset and coincident-raster latch changes
+are not needed to trigger the symptom.
+
+Next check: `c595031b06b58cb7b59693fe1567904dde505635`, which contains only the
+PRI comparison change relative to the good endpoint. If bad, the introducing
+RTL change is `b5c3014`; if good, it is `9faa140`. This identifies a triggering
+change, not automatically the correct repair: an accuracy correction may expose
+another missing behavior, so do not revert it without examining the interaction.
+
+[CI run 34757536661](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34757536661)
+passed simulation, full synthesis and required gate. Downloaded artifact
+`Amstrad-build-210-1-full`, ID `10317899695`, reports `build_mode=clean_full`.
+Task copy and reports: `output_files/ff2-bisect-c595031/`.
+Delivered RBF:
+`/Users/renaudg/code/Amstrad_MiSTer/output_files/Amstrad_20260913_c595031.rbf`.
+SHA256 `b6b5aa253dd8a696a4473d6554b086a0c8b89c143d1bd7d1cbde0a399f23e5c7`.
