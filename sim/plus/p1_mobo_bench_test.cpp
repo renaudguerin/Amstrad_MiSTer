@@ -33,8 +33,8 @@
 //     the legacy 27-colour ROM cannot produce.
 // m13 integrates the real sprite leaf and video compositor at both display
 //     edges: X=0/-8 align with the locked-ASIC's delayed display origin;
-//     SSCR[7] selects border for the first screen character without hiding
-//     an opaque X=0 sprite;
+//     SSCR[7] selects border for the first screen character, hiding an
+//     opaque X=0 sprite there as the border does;
 //     X=640/+767 still arm in the leaf, standard R1=40 masks them with border,
 //     and widened R1=50 exposes the same sprite pixels.
 
@@ -666,7 +666,8 @@ int run() {
 		check_sscr_screen_mask(0x00, false, "SSCR=0 control");
 		check_sscr_screen_mask(0x80, true,  "SSCR[7] screen mask");
 		*b.asic_sscr() = 0x80;
-		check_case(0,    40, 16, 16, 0, 1,  0,  "SSCR[7] X=0");
+		// Arnold V §2.5/§2.1: D7 extends the border, and border beats sprites.
+		check_case(0,    40,  0, 16, 0, 1,  0,  "SSCR[7] X=0");
 		*b.asic_sscr() = 0;
 		check_case(1016, 40,  8,  8, 8, 1,  0,  "standard X=-8");
 		check_case(639,  40,  1, 16, 0, 40, 15, "standard X=639");
@@ -675,7 +676,7 @@ int run() {
 		check_case(640,  50, 16, 16, 0, 41, 0,  "widened X=640");
 		check_case(767,  50, 16, 16, 0, 48, 15, "widened X=767");
 		std::printf("PASS m13: X=0/-8 align to the delayed display origin; "
-		            "SSCR[7] leaves X=0 visible; X=640/+767 are masked at "
+		            "SSCR[7] border hides X=0; X=640/+767 are masked at "
 		            "R1=40 and visible at R1=50\n");
 	}
 	return 0;

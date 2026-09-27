@@ -2770,7 +2770,11 @@ void t08f_sscr_horizontal_pixel_delay(TestBench& test) {
     test.expect_rgb("t08f delay 4 dot 6 is black", 0, 0, 0);
 }
 
-// t08g: SSCR[7] border mask over first 16 dots of active display, with sprites unaffected.
+// t08g: SSCR[7] border mask over first 16 dots of active display. Arnold V
+// Issue 1.5 §2.5: D7 "causes the border to extend over the first two bytes";
+// §2.1: "the border has the highest priority, followed by sprites". The mask
+// therefore hides sprites too; "does not affect sprites" in §2.5 concerns the
+// scroll offsets. Eerie Forest's green first-column bar depends on this.
 void t08g_sscr_border_mask_and_sprites(TestBench& test) {
     program_pixel_frame(test);
     TestPalette pal;
@@ -2799,8 +2803,21 @@ void t08g_sscr_border_mask_and_sprites(TestBench& test) {
     test.align_to_character_start();
     test.run_dots(1); // CLKEN edge
 
+    for (unsigned d = 1; d <= 16; ++d) {
+        test.run_dots(1);
+        test.expect_rgb("t08g masked border hides sprite", 0, 0, 0);
+    }
     test.run_dots(1);
-    test.expect_rgb("t08g sprite displays over masked border", 0, 15, 0);
+    test.expect_rgb("t08g sprite displays after mask", 0, 15, 0);
+
+    // Without D7 the first character is display, so the sprite shows there.
+    test.set_sscr(0x00);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    test.align_to_character_start();
+    test.run_dots(1); // CLKEN edge
+    test.run_dots(1);
+    test.expect_rgb("t08g sprite displays in unmasked first character", 0, 15, 0);
     test.set_sprite(0, 0, 0, 0);
 }
 

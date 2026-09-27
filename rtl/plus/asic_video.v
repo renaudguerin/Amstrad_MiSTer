@@ -1214,9 +1214,11 @@ wire        blank   = HSYNC;
 assign HWRAP = CLKEN & hcc_last;
 
 // Final precedence (asic-reference §5): HSYNC force-blank beats
-// everything; the border (outside DE) beats sprites; a sprite pixel beats
-// the decoded screen ink inside DE. SPR_RGB carries {R,G,B} nibbles.
-wire show_spr = de_hold & SPR_EN;
+// everything; the border beats sprites, including SSCR[7]'s extension over
+// the first character (Arnold V §2.5 "causes the border to extend", §2.1
+// border > sprites); a sprite pixel beats the decoded screen ink inside DE.
+// SPR_RGB carries {R,G,B} nibbles.
+wire show_spr = eff_de & SPR_EN;
 
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
