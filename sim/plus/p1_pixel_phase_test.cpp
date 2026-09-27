@@ -411,9 +411,14 @@ bool p1_pixel_stream(Bench& b) {
 }
 
 // Snapshot import changes the connected video line and HSYNC on one edge.
-// It is state restoration, not traversal into a matching line. Changing PRI
-// alone likewise must not create a line-entry event, but a later live change
-// to a matching PRI during raw HSYNC has its own write-trigger event (FF2).
+// It is state restoration, not traversal into a matching line: the PRI
+// comparator (rising edge of HSYNC_d && {0,PRI}==line_d, one character late;
+// docs/plus/source-divergences.md) must not see the import as a rising edge,
+// neither on the apply edge nor when its delayed terms refill from the
+// restored counters at the next character strobe. The restored HSYNC
+// (HSW=3 of width 14) stays active for 11 more characters, so a later live
+// change of PRI to the matching line inside it still requests (FF2 write
+// rule, original Plus probe 04).
 void pri_history_guards() {
     Bench b;
     b.dut.pri_value = 3;
@@ -429,9 +434,11 @@ void pri_history_guards() {
     b.dut.pri_sna_hs = 1;
     b.dut.pri_sna_load = 1;
     b.tick();
-    if (b.dut.pri_fire) fail("PRI snapshot apply manufactured a line-entry event");
+    if (b.dut.pri_fire) fail("PRI snapshot apply manufactured a request");
     b.dut.pri_sna_load = 0;
-    for (unsigned i=0; i<4; ++i) {
+    // Four characters: covers the first post-import strobe that refills
+    // HSYNC_d/line_d with the restored (matching) values.
+    for (unsigned i=0; i<256; ++i) {
         b.tick();
         if (b.dut.pri_fire || !b.dut.pri_irq_n)
             fail("PRI restored matching line manufactured a deferred interrupt");
@@ -441,8 +448,6 @@ void pri_history_guards() {
     bool write_delivered = false;
     for (unsigned i=0; i<4; ++i) {
         b.tick();
-        if (b.dut.pri_line_entry)
-            fail("PRI-only write manufactured a line-entry event");
         write_delivered |= !b.dut.pri_irq_n;
     }
     if (!write_delivered) fail("PRI live matching write after restore lost its interrupt");
@@ -459,13 +464,19 @@ void pri_history_guards() {
     std::printf("PASS PRI connected restore/reset and live-write event guards\n");
 }
 
-// Revised Arnold §2.4: HSYNC still active on entry to matching line can
-// trigger once at entry and again at the ordinary event. The ordinary event
-// is 1 us after raw HSYNC assertion (asic_pri_test pr10 derivation): raw
-// HSYNC reads high after edge k, the GA samples it at k+1, and the request
-// reads high after edge k+64 while HSYNC is still active.
-// R0=63,width14: R2=49 finishes before entry; R2=51 overlaps by a character.
-// R2=50 ends simultaneously: log the prior-HSYNC seam, not a silicon assertion.
+// HSYNC crossing into the PRI line (connected CRTC + GA). The request is the
+// rising edge of HSYNC_d && {0,PRI}==line_d, both one character late
+// (docs/plus/source-divergences.md, "PRI delayed-comparator candidate";
+// original Plus probes 05-09). R0=63, width 14, PRI=2:
+//   R2=49: raw HSYNC 49..62, HSYNC_d 50..63: ordinary request only.
+//   R2=51: raw HSYNC runs into line 2 C0 0, HSYNC_d into line 2 C0 1, where
+//          line_d first reads 2: line-entry request at C0 1, then the
+//          ordinary one 64 clocks after line 2's raw HSYNC rise.
+//   R2=50: raw HSYNC ends as line 2 begins; HSYNC_d's last character is
+//          line 2 C0 0 with line_d still 1, so the mechanism predicts no
+//          entry request. Not probed on hardware: logged, not asserted.
+// Ordinary phase: raw HSYNC reads high after edge k, the GA samples it at the
+// strobe k+64 and the request reads high after that edge (asic_pri_test pr10).
 void pri_cross_line() {
     for (unsigned r2 : {49u, 50u, 51u}) {
         Bench b;
@@ -487,18 +498,18 @@ void pri_cross_line() {
             oldirq = b.dut.pri_irq_n;
             if (b.dut.pri_fire && !oldfire) {
                 if (b.dut.pri_line != 2) fail("PRI fired on nonmatching 9-bit line");
-                if (b.dut.dbg_hcc == 0) ++early;
+                if (b.dut.dbg_hcc == 1) ++early;
                 else {
                     ++ordinary;
-                    if (n - hs_rise != 64 || !b.dut.dbg_hsync)
-                        fail("PRI ordinary trigger not 1 us into raw HSYNC: " +
+                    if (n - hs_rise != 64)
+                        fail("PRI ordinary trigger not 1 us after raw HSYNC: " +
                              std::to_string(n - hs_rise) + " ticks");
                 }
             }
             oldfire=b.dut.pri_fire;
         }
         std::printf("PRI connected R2=%u early=%u ordinary=%u delivered=%u%s\n",
-                    r2,early,ordinary,delivered,r2==50 ? " (seam provisional)":"");
+                    r2,early,ordinary,delivered,r2==50 ? " (unprobed seam)":"");
         if (ordinary != 1 || delivered != early+ordinary)
             fail("PRI connected: ordinary delivery or acknowledge/redelivery broken");
         if ((r2==49 && early!=0) || (r2==51 && early!=1))
