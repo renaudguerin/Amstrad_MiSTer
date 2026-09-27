@@ -5,7 +5,8 @@
 Investigation resumed from `7d80ddf` on `codex/plus/ff2-pri-investigation`.
 Status: **integrated source candidate**, reviewed and gated (`d56ce1f`, identical
 RTL/tests to reviewed `ff7e0a0`); exact-integration `2f409e9` CI and full synthesis
-pass. Human hardware acceptance remains pending. The accepted nine-bit PRI comparison, ACK
+pass. User MiSTer acceptance confirms FF2 and Prehistorik II fixed, with no
+other regressions observed. The accepted nine-bit PRI comparison, ACK
 provenance and CRTC3 repairs remain unchanged. The earlier emulator source survey is not repeated.
 
 AmSpirit Lite 1.15.1/core 2491682, model 4/CRTC 3, runs the unchanged FF2 cartridge
@@ -269,3 +270,19 @@ Downloaded reports remain under `output_files/ff2-2f409e9-ci/Amstrad-build-277-1
 This proves build/timing acceptance, not the pending human FF2 visual/audio and
 regression checklist above. The [Eerie handoff](../eerie-investigation-handoff-2026-09-27.md)
 preserves the separate next investigation.
+
+
+## Hardware acceptance and release staging
+
+On 2026-09-27 the user tested the delivered `2f409e9` RBF and reported:
+“this build fixes FF2 and Prehistorik. No other regressions seen.” This closes
+the reported FF2 visual/audio defect and Prehistorik II HUD-line residual on
+MiSTer. The Prehistorik mechanism was not independently traced; do not infer
+an additional IRQ rule from its acceptance. Original-Plus edge-ordering
+questions above remain distinct from this MiSTer acceptance.
+
+Release `v2026.09.27` is staged as a [GitHub draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-b2f55b3195ac1206222a),
+targeting exact build commit `2f409e94e470876044ebe0ce8cad52aeb5bb4549`.
+The sole asset is `Amstrad_20260927.rbf`, byte-identical to the accepted RBF
+(SHA256 above). Promotion dry-run verified clean full effort and timing;
+GitHub's uploaded asset digest matches. Publication remains a separate action.

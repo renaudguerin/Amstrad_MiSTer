@@ -9,8 +9,8 @@ changes `AC→8C` at C0=2, dot 0, as the 16-dot first-character mask ends; old
 RA6 fetch data then emerges through the 12-dot horizontal delay after RA
 becomes 4. Existing evidence does not establish a repair.
 
-FF2 source `d56ce1f` is integrated as `2f409e9`. Its hardware acceptance is
-still pending. Preserve the accepted nine-bit PRI comparison, ACK provenance,
+FF2 source `d56ce1f` is integrated as `2f409e9`. The user confirms this RBF fixes FF2 and
+Prehistorik II, with no other regressions observed. Preserve the accepted nine-bit PRI comparison, ACK provenance,
 CRTC3 repairs, and sprite-row retargeting repair. The FF2 changed-PRI trigger has
 no demonstrated path to Eerie: the recorded steady trace has 1064 PRI writes
 and none matches the full current CRTC line.

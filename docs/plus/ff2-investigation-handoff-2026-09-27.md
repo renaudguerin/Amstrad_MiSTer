@@ -3,8 +3,8 @@
 ## Integration and evidence preservation
 
 The FF2 successor completed the runtime investigation and integrated the narrow
-PRI-write repair as `2f409e9` (source `d56ce1f`). Human hardware acceptance
-remains pending. Use the [runtime evidence](references/ff2-runtime-pri-2026-09-27.md)
+PRI-write repair as `2f409e9` (source `d56ce1f`). The user confirms this build fixes FF2 and Prehistorik II,
+with no other regressions observed. Use the [runtime evidence](references/ff2-runtime-pri-2026-09-27.md)
 for its result and the [Eerie handoff](eerie-investigation-handoff-2026-09-27.md)
 for the next investigation; the brief below is the earlier FF2 checkpoint.
 

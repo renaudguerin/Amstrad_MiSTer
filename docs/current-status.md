@@ -12,7 +12,7 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **FF2 PRI-write repair integrated (2026-09-27):** the resumed
+- **FF2 PRI-write repair hardware-accepted (2026-09-27):** the resumed
   production-T80 replay confirms a changed PRI46→48 write on line48 after the
   ordinary interrupt comparison but during raw HSYNC. Adding that write event
   restores the palette/music chain from every other frame to every frame in
@@ -21,18 +21,20 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   accepted ACK provenance remain unchanged. Independent Opus5.5-medium review finds no blockers;
   exact-integration `2f409e9` simulation, production-T80, lint and full synthesis pass.
   Delivered `output_files/Amstrad_20260927_2f409e9.rbf`: setup/hold +0.471/+0.247ns,
-  zero TNS. Human visual/audio acceptance remains pending. Source `d56ce1f`
+  zero TNS. User confirms FF2 and Prehistorik II fixed, with no other regressions
+  observed on this exact RBF. Source `d56ce1f`
   preserves the reviewed `ff7e0a0` RTL unchanged after rebasing onto master. See the
   [runtime evidence and checklist](plus/references/ff2-runtime-pri-2026-09-27.md).
-  Eerie's left-edge screen residual and Prehistorik II's HUD line remain open.
+  Eerie's left-edge screen residual remains open. Release `v2026.09.27` is staged
+  as a draft with this exact bitstream.
 
 - **CRTC3 / interrupt-status repair accepted (2026-09-27):** user confirms
   Copter 271, World of Sports BMX and all listed CRTC3 checks fixed on delivered
   `cf62d5f` (`output_files/Amstrad_20260926_cf62d5f.rbf`, SHA256
   `ae4d5b78…3f27a7`). Focused tests, selected gate, independent review and
   exact-SHA full synthesis pass; setup/hold +0.331/+0.178ns, zero TNS on
-  constrained paths. Prehistorik II is almost fixed but retains one corrupt
-  line immediately above the bottom HUD, absent on `edaa15b`. Eerie Forest's
+  constrained paths. The Prehistorik II HUD-line residual on that build is now
+  confirmed fixed on `2f409e9`. Eerie Forest's
   left strip remains. Fire & Forget 2 has newly reported sky-gradient flicker
   and music slowdown: gameplay is confirmed good on `84e6969` and bad on
   `c595031` (also later builds); `bee92a6` passes. The hardware bisect

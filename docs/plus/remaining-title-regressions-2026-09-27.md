@@ -1,6 +1,13 @@
 # Remaining Plus title defects
 
-## Hardware position
+## Latest acceptance
+
+User retest of `2f409e9` on 2026-09-27 confirms FF2 and Prehistorik II fixed,
+with no other regressions observed. Eerie remains the separate open residual.
+The following sections retain the earlier bisect evidence; see the
+[runtime and acceptance record](references/ff2-runtime-pri-2026-09-27.md).
+
+## Hardware position at the earlier checkpoint
 
 User report on 2026-09-27, following delivery of `cf62d5f`:
 
