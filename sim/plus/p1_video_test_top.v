@@ -42,7 +42,6 @@ module p1_video_test_top (
     output wire [8:0] pri_line,
     output wire pri_monhs,
     output wire pri_fire,
-    output wire pri_line_entry,
     output wire pri_irq_n,
 	input wire        cen_16,     // PIXEN cadence (one dot)
 	input wire        fast,
@@ -350,7 +349,6 @@ module p1_video_test_top (
 
 assign pri_line = {vid.charline[5:0], vid.raster[2:0]};
 assign pri_fire = ga.raster_fire;
-assign pri_line_entry = ga.pri_line_entry;
 endmodule
 
 `default_nettype wire

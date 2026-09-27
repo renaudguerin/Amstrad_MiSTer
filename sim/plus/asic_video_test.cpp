@@ -2706,6 +2706,44 @@ void t08d_split_screen_row_boundary(TestBench& test) {
     test.expect_ma("t08d next row starts from SSA", 0x2800);
 }
 
+// t08k: SPLT matching the terminal line of the frame (original Plus probe
+// 11: SPLT=55 matches line 311 = {VC4..0=6, RC=7} through the eight-bit
+// compare; AmSpirit identical). Hardware shows frame line 0 from R12/R13,
+// line 1 onwards from SSA (row 0 RA1 onward), advancing normally. So at the
+// frame origin VMA reloads from R12/R13 but VMA' keeps the split capture
+// made on the terminal line; an ordinary row capture there is still
+// discarded (t08a row 0 line 1). program_display_frame ends each frame on
+// {charline 2, raster 3}: SPLT = (2 << 3) | 3 = 19. SSA = 0x2400, R1 = 4:
+//   frame line 0            0x1234 (R12/R13)
+//   frame lines 1..3        0x2400 (SSA; line 3 = raster 3 captures +R1)
+//   row 1 line 0            0x2404
+//   next frame line 0/1     0x1234 / 0x2400 (the terminal split recurs)
+void t08k_split_on_terminal_line(TestBench& test) {
+    program_display_frame(test);
+    test.set_splt(19);
+    test.set_ssa(0x2400);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    // One whole frame, so the terminal line has captured with SPLT set.
+    test.run_characters(8);
+    test.run_to_frame_start();
+
+    test.expect_ma("t08k frame line 0 from R12/R13", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08k frame line 1 from the terminal-line SSA", 0x2400);
+    test.run_characters(8);
+    test.expect_ma("t08k frame line 2 continues from SSA", 0x2400);
+    test.run_characters(8);
+    test.expect_ma("t08k frame line 3 continues from SSA", 0x2400);
+    test.run_characters(8);
+    test.expect_ma("t08k row 1 advances from the SSA base", 0x2404);
+
+    test.run_to_frame_start();
+    test.expect_ma("t08k next frame line 0 from R12/R13", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08k next frame line 1 from SSA", 0x2400);
+}
+
 // t08e: SSCR[6:4] vertical scanline offset added to RA[2:0].
 void t08e_sscr_vertical_scanline_offset(TestBench& test) {
     program_display_frame(test);
@@ -2882,7 +2920,53 @@ void t08i_sscr_vertical_wrap_advances_ma(TestBench& test) {
     test.expect_ra("t08i next row starts at offset RA 1", 1);
 }
 
-constexpr std::array<TestCase, 67> kTests = {{
+// t08j: SSCR vertical offset with R9 > 7 (original Plus probe 15, SSCR=&50,
+// R9=11; AmSpirit capture identical). The offset adds to RA's low three bits
+// only (Arnold V §2.5, asic-reference §8), so with offset 5 raw raster
+// 0..11 displays
+//   ra_eff = 5,6,7,0,1,2,3,4,13,14,15,8.
+// Outside IVM the row capture is the level condition ra_eff >= R9 at C0=R1:
+// it fires on raw raster 8, 9 and 10 (13/14/15 >= 11), never on 11 (8).
+// Each capture loads VMA' with VMA at C0=R1 (base + R1), which the next line
+// start copies into VMA. So the source base advances by R1 at raw raster 9,
+// 10 and 11 and the next row starts from base + 3*R1: the visible row labels
+// run 00,03,06,... in steps of three, as photographed. An equality test
+// (ra_eff == R9) never matches here and repeats row 0 forever.
+// For R9 = 7 the wrapped ra_eff stays in 0..7, so >= and == coincide
+// (t08i unchanged); R9 < 7 with an offset differs and is unprobed.
+void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
+    test.write_register(9, 11);
+    test.write_register(4, 2);
+    test.write_register(5, 0);
+    test.write_register(1, 4);
+    test.write_register(6, 100);
+    test.write_register(7, 100);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.write_register(0, 7);
+    test.set_sscr(0x50); // vertical offset = 5
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+
+    const unsigned ra_eff[12] = {5, 6, 7, 0, 1, 2, 3, 4, 13, 14, 15, 8};
+    for (unsigned raw_raster = 0; raw_raster < 12; ++raw_raster) {
+        // Base 0x1234 through raw raster 8; +R1 after each of the captures
+        // on raw raster 8, 9 and 10.
+        const unsigned captures = raw_raster <= 8 ? 0 : raw_raster - 8;
+        const std::string at = " at raw raster " + std::to_string(raw_raster);
+        test.expect_line("t08j source row 0" + at, 0);
+        test.expect_row("t08j raw raster" + at, raw_raster);
+        test.expect_ma("t08j source base" + at, 0x1234 + 4 * captures);
+        test.expect_ra("t08j offset raster" + at, ra_eff[raw_raster]);
+        test.run_characters(8);
+    }
+    test.expect_line("t08j next source row", 1);
+    test.expect_row("t08j next row starts at raw raster 0", 0);
+    test.expect_ma("t08j next row starts three captures on", 0x1234 + 12);
+    test.expect_ra("t08j next row starts at offset RA 5", 5);
+}
+
+constexpr std::array<TestCase, 69> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -2962,6 +3046,8 @@ constexpr std::array<TestCase, 67> kTests = {{
     {"t08g SSCR border mask and sprites", t08g_sscr_border_mask_and_sprites},
     {"t08h 14-bit VMA overscan carry", t08h_overscan_carry_14bit},
     {"t08i SSCR vertical wrap advances MA", t08i_sscr_vertical_wrap_advances_ma},
+    {"t08j SSCR vertical offset with R9>7", t08j_sscr_vertical_offset_r9_above_7},
+    {"t08k SPLT on the terminal frame line", t08k_split_on_terminal_line},
 }};
 
 }  // namespace

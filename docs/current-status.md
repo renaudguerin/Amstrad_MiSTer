@@ -12,6 +12,17 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **Probe-driven Plus ASIC fixes integrated (2026-09-27):** an 18-screen original-Plus probe
+  cartridge settled most Plus source conflicts; the results, confidence levels and open probes
+  are in the [source-divergence ledger](plus/source-divergences.md). Three RTL rules changed:
+  the PRI request is one delayed-comparator edge matching the delayed or live line (width 1,
+  PRI-write window, R2=63 crossing and HSYNC ending at line start), the SSCR row capture is
+  `ra_eff >= R9`, and a SPLT capture on line 311 survives the frame origin. MiSTer
+  `output_files/Amstrad_20260927_1c85bee.rbf` matches every photographed probe screen; the user
+  confirms CRTC3 demo, FF2 and Prehistorik II gameplay good. Open: original-Plus photographs of
+  new probe screens 19–20 (HSYNC ending at the PRI line start; cartridge
+  `output_files/plus-hw-probes-v2.cpr`) and the unprobed consequences listed in the ledger.
+
 - **FF2 PRI-write repair hardware-accepted (2026-09-27):** the resumed
   production-T80 replay confirms a changed PRI46→48 write on line48 after the
   ordinary interrupt comparison but during raw HSYNC. Adding that write event
@@ -60,8 +71,13 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   PRI 1 µs after raw HSYNC start at every width. That matches AmSpirit's
   width-independent probe markers and overrides revised Arnold's +6 µs. It was
   integrated 2026-09-27 after a MiSTer A/B (Eerie clean; FF2 attract, Copter
-  title, CRTC3 demo unchanged). FF2 gameplay/music, Prehistorik II and
-  original-Plus width 3/6/11 probes remain.
+  title, CRTC3 demo unchanged). FF2 gameplay, Prehistorik II and no-regression
+  checks later passed on MiSTer, and original-Plus width 3/6/11 photographs
+  confirm the rule ([hardware](plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md#original-hardware-2026-09-27)).
+  Remaining source divergences and their probe screens are listed in the
+  [ledger](plus/source-divergences.md); the
+  [probe cartridge](../scripts/diagnostics/README.md#multi-test-probe-cartridge-plus_hw_probespy)
+  awaits an original-Plus run.
 - **Latest implementation:** B20-1 live PPR write handling (`5d12f56`), integrated
   with reviewed capture transport/metadata fixes and B20 acknowledge diagnostics.
   Combined exact-SHA CI and full Quartus synthesis pass at `cdcb3c3`.

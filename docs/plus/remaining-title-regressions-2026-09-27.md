@@ -333,6 +333,11 @@ Review hashing was permission-blocked; the parent independently hashed the
 final CPR and will verify the delivered copy. Review output is preserved under
 `docs/specs/crtc3-2026-09-25/ff2/alias-probe-review/`.
 
+**Original-Plus result (2026-09-27):** the same CPR reads `0020` in all four
+cases on hardware, confirming the no-alias comparison
+(`local/task-archives/crtc3-2026-09-27/output_files/pri-alias-probe/real-pri-alias-probe.jpeg`,
+main checkout).
+
 Delivered diagnostic:
 `/Users/renaudg/code/Amstrad_MiSTer/output_files/pri-alias-probe.cpr`.
 AmSpirit results screenshot:

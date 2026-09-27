@@ -271,7 +271,9 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   The current RTL implements this nine-bit comparison and excludes lines ≥256.
   **Contradicted source claim:** [QUASAR] and the captured CPCWiki *ASIC* p.4
   say PRI = n can also fire at n+256; that is incompatible with requiring VC5=0.
-  No-wrap is the accepted policy: the [Copter investigation](../../defects/copter271/README.md)
+  No-wrap is confirmed on an original Plus: the 2026-09-27
+  [alias probe](../../../scripts/diagnostics/README.md#pri-alias-experiment-pri_alias_probepy)
+  counts one interrupt per frame for PRI=10 at R6=25 and 34. The [Copter investigation](../../defects/copter271/README.md)
   records the erroneous line311 palette load and confirms the logo fixed on device
   by `b5c3014` / `c595031`. However, the 2026-09-27 human FF2 bisect identifies
   that same change as introducing sky flicker and music slowdown. CPCEC uses
@@ -284,35 +286,35 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
 - **Trigger point (sources)**: [ARNOLD-REV] says the **trailing edge of the
   HSYNC seen by the monitor**, with the position clamped from width 6
   (HSYNC_start + 6µs); [KT] claims width-independent HSYNC_start + 10µs.
-- **Trigger point (current RTL, 2026-09-27)**: **1µs after raw CRTC HSYNC
-  assertion, for every width**, while HSYNC is still active. This departs
-  from both written accounts. AmSpirit's flat-plane markers are
-  width-independent at 139 dots for R3=3/6/11, where the revised rule gave
-  171/219/219. Production's IM1 path measures ACCC §27.4's 5µs, so the gap
-  is attributed to request generation; a request at +1µs reproduces all
-  three markers and removes Eerie Forest's dotted logo strip (the demo needs
-  it by +4µs). Original-Plus confirmation is outstanding: run the width
-  3/6/11 probe CPRs. See the
-  [trigger counterfactual](eerie-pri-trigger-counterfactual-2026-09-27.md),
-  [AmSpirit width discriminator](amspirit-pri-phase-2026-09-26.md) and
-  [B20-4 sweep](b20-pri-phase-2026-09-23.md) (which pinned the earlier
-  rule). Width 1 never requests (HSYNC ends as the 1µs point arrives).
-  If the CRTC HSYNC is still active at the start of the next line, the
-  interrupt can fire twice for
-  one programmed line. [ARNOLD-REV §2.4] The
-  [CRTC3 connected probe](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md#cross-line-raster-interrupt-second-finding)
-  establishes that the previous RTL omitted this line-entry event. R2=51,
-  width14 over a64-character line is a definite overlap; R2=50 is an
-  exact-edge case whose sample ordering still needs hardware adjudication.
-- **Changed PRI during raw HSYNC:** the FF2 candidate adds a request when the
-  stored value changes to the current nonzero nine-bit line while raw HSYNC is
-  high, including after the ordinary event. Same-value writes do not
-  retrigger, and other writes do not clear pending requests. This follows
-  CPCEC `c025aab` (`cpcec.c:2106–2114`, explicit FF2 comment) and repairs the
-  [production-T80 FF2 chain](ff2-runtime-pri-2026-09-27.md). It is an
-  emulator-supported model awaiting hardware acceptance, not a new Arnold or
-  ACCC claim. Zero, ninth-bit and vertical-adjust exclusions are retained;
-  simultaneous write/raw-HSYNC-fall ordering remains unmeasured.
+- **Trigger point (current RTL; hardware-confirmed 2026-09-27 except where noted)**: one
+  delayed comparator. The request is the rising edge of
+  `HSYNC_d && PRI != 0 && ((PRI matches line_d && !adj_d) || (PRI matches line && !adj))`,
+  where `HSYNC_d`, `line_d` (`{VC5..VC0, RC2..RC0}`) and `adj_d` are the CRTC
+  outputs delayed by exactly one character (1µs); `line`, `adj` and PRI are
+  live, and every match is the nine-bit `{0,PRI}`. This departs from both
+  written accounts. Consequences, matched by an original Plus and by AmSpirit
+  unless noted ([source divergences](../source-divergences.md#pri-delayed-comparator-candidate)):
+  - the ordinary request lands 1µs after raw HSYNC assertion at every width,
+    width 1 included (probe 01; flat-plane markers ~136/~135/~139 dots at
+    R3=3/6/11, [original hardware](eerie-pri-trigger-counterfactual-2026-09-27.md#original-hardware-2026-09-27));
+    Eerie Forest needs it by +4µs;
+  - changing PRI to the current line requests while `HSYNC_d` is high, one
+    character past raw HSYNC end (probe 04). FF2's palette chain depends on
+    it ([production-T80 FF2 chain](ff2-runtime-pri-2026-09-27.md); CPCEC
+    `c025aab` `cpcec.c:2106–2114` agrees for writes during raw HSYNC).
+    Same-value writes and a held level after ACK never re-request; other
+    writes do not clear pending requests;
+  - `HSYNC_d` still high at the start of the PRI line gives a line-entry
+    request at that line's C0 0, plus the line's own request (probes 05–09;
+    [ARNOLD-REV §2.4] names the double trigger). This includes raw HSYNC
+    ending exactly at the line start (R2+width=64), supported by AmSpirit and
+    a title only, not yet photographed: probe screens 19–20 give two in
+    AmSpirit, and the CRTC3 demo's plasma, sphere and Wolverine
+    scenes (R2=50, width 14) need that request. With R2=R0, `line_d` still
+    reads the PRI line when `HSYNC_d` rises at the next line's C0 0, which
+    also gives two
+    ([CRTC3 connected probe](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md#cross-line-raster-interrupt-second-finding)
+    first showed the missing line-entry event).
 - By contrast, the CPC-compatible 52-line interrupt (PRI=0) triggers on the
   trailing edge of the **CRTC** HSYNC (full programmed width matters).
   [ARNOLD-REV §2.4]
@@ -397,7 +399,11 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   MA until the next split or frame restart (the split affects the rest of the
   screen).
 - The value is never applied at VCC=0/RCC=0 (can't retarget the first line of a
-  frame; it takes effect at the next opportunity, e.g. VCC=0/RCC=1).
+  frame; it takes effect at the next opportunity, e.g. VCC=0/RCC=1). Original
+  Plus probe 11 (SPLT=55, matching line 311) confirms it: frame line 0 shows
+  R12/R13, line 1 onwards SSA. The RTL reloads VMA from R12/R13 at the frame
+  origin but lets the stored MA (VMA') keep a split captured on the terminal
+  line.
 - Multiple splits per frame are allowed (reprogram SPLT/SSA after each one).
 - A split can occur during the **first** char-line of vertical adjust, but not
   later ones. [ARNOLD-REV]
@@ -426,6 +432,13 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   are unaffected — hence odd behavior when R9 < 7, correct for R9 ≥ 7. For a
   clean full-screen vertical scroll the value must equal R9 when HCC==R1 (then
   the current MA is stored for the next line). [ARNOLD-REV]
+- With R9 > 7 only the low three bits wrap, so the displayed RA can exceed R9
+  on several lines of one character row. The row capture is the level test
+  RA >= R9 at HCC==R1 (current RTL, `asic_video.v` `row_latch_done`): R9=11
+  with offset 5 displays 5,6,7,0,1,2,3,4,13,14,15,8 and captures on raw
+  rasters 8-10, advancing three source rows per character row. Original
+  Plus probes 14-15 show exactly that, identical to AmSpirit
+  ([source divergences](../source-divergences.md)).
 - Vertical part pairs with R12/R13 coarse scroll for pixel-perfect scrolling;
   when V-scroll == 7 it takes precedence over the split-wrap bug case ([KT]).
 
@@ -695,6 +708,6 @@ hardware because no light-pen strobe source is emulated.
 - ⚠ MISSING — Quasar's original bit-layout figures (palette word, DCSR, IVR, RMR2 schema) are images not preserved in the wiki text; values above reconstructed from [ARNOLD-REV]/[KT] text and code listings — confidence high but a scan of Quasar CPC #5/#10 would confirm.
 - ⚠ MISSING — exact ASIC-side ACID failure behavior ("scatter access to RAM") and its check window: unknown to all sources; emulators ignore ACID entirely.
 - ⚠ MISSING — whether DMA RAM fetches insert Z80 wait states (believed no; only 8255/PSG arbitration documented, §9).
-- ⚠ CONFLICT — PRI fire offset after HSYNC start: 6µs (clamped HSYNC width, [ARNOLD-REV]) vs ~10µs measured ([KT], marked "to be checked" by its own author).
+- RESOLVED 2026-09-27 — PRI fire offset after HSYNC start: [ARNOLD-REV] (6µs clamp) and [KT] (~10µs) are both overridden by original-Plus photographs; the request is 1µs after raw HSYNC start at every width (§7).
 - ⚠ CONFLICT — sprite attribute write mirror at offset +3 (magnification per [ARNOLD-REV] vs Y-high per [KT] read table); read mirrors agree.
-- ⚠ CONFLICT — split-wrap pathological SPLT value: 55 ([ARNOLD-REV]) vs 56 ([KT]) for a 312-line frame.
+- ⚠ CONFLICT — split-wrap pathological SPLT value: 55 ([ARNOLD-REV]) vs 56 ([KT]) for a 312-line frame. The RTL shows neither (its frame-origin reload overrides a line-311 capture); AmSpirit shows 55. Probe screens 10–13.

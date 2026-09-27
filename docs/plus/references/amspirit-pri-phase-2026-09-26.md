@@ -1,5 +1,10 @@
 # Ordinary Plus PRI: AmSpirit, revised Arnold and the retained timing rule
 
+**Outcome (2026-09-27):** original-Plus photographs of this probe match AmSpirit's
+width-independent markers (~136/~135/~139 dots at widths 3/6/11), and the RTL
+now requests 1 µs after raw HSYNC start. The retention argument below is
+superseded; see the [hardware result](eerie-pri-trigger-counterfactual-2026-09-27.md#original-hardware-2026-09-27).
+
 ## Which source disagrees?
 
 This is **not an AmSpirit-versus-ACCC finding**. The rule used here is
