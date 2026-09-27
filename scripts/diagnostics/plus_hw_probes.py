@@ -14,7 +14,7 @@ import subprocess
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-VERSION = 'V2'
+VERSION = 'V3'
 
 # RTL predictions are simulation readings of the production model at the commit
 # named in README.md, not hardware claims.
@@ -68,6 +68,17 @@ TESTS = [
     ('init_cross50w14', 'C7 PRI=7 R2=50 R3=14 (ENDS AT LINE START)', [
         'CRTC3 DEMO PLASMA/SPHERE/WOLVERINE TIMING',
         'IRQ/FRAME COUNTS THEM'], 'RTL: IRQ/FRAME=02 (LINE ENTRY + ORDINARY)'),
+    ('init_ssa_late', 'H1 SPLT=55, SSA REWRITTEN L311 C0~52', [
+        'SSA=ROW 04, ROW 05 WRITTEN ON LINE 311 AFTER C0=R1',
+        'TOP GREEN TEXT = SSA THE LINE-311 SPLIT CAPTURED'], 'RTL: TOP SHOWS SSA ROW 04 (SAMPLED AT C0=R1)'),
+    ('init_ssa_early', 'H2 SPLT=55, SSA REWRITTEN L311 C0~30', [
+        'CONTROL: ROW 05 WRITTEN BEFORE C0=R1',
+        'TOP GREEN TEXT = SSA THE LINE-311 SPLIT CAPTURED'], 'RTL: TOP SHOWS SSA ROW 05'),
+    ('init_split55s7', 'D5 SPLT=55 WITH VSCROLL 7', [], 'RTL: RED TO LINE 55 (LINE-0 ROW CAPTURE REPLACES HELD SPLIT)'),
+    ('init_bars_off0', 'E3 R9=3 ROWS 6-11, VSCROLL 0', [
+        'BAR LENGTH = SOURCE ROW (3 BYTES PER ROW)'], 'RTL: BARS STEP ONCE PER 4-LINE ROW'),
+    ('init_bars_off2', 'E4 R9=3 ROWS 6-11, VSCROLL 2', [
+        'BAR LENGTH = SOURCE ROW (3 BYTES PER ROW)'], 'RTL: BARS STEP ON 3 LINES OF EVERY 4-LINE ROW'),
 ]
 
 # B bands: PRI:=T written at C0 = 45 + i on line T = 8*i+7, sync on T-2; the
@@ -75,6 +86,9 @@ TESTS = [
 BAND_C0 = list(range(45, 64))
 SLED_MAX = 96
 SLED_BASE = 24  # calibrated in simulation: sled NOPs for C0=45 (see README)
+# H: line-255 interrupt to the line-311 SSA write, calibrated in simulation.
+SSA_COARSE = 500
+SSA_SLED = {'late': 36, 'early': 14}  # C0 ~52 and ~30
 
 EXTRA_GLYPHS = {
     '+': '00000 00100 00100 11111 00100 00100 00000',
@@ -119,14 +133,22 @@ def screen_text(index, init, title, notes, prediction):
     if init == 'init_title':
         lines = [(1, 2, f'PLUS/GX4000 HARDWARE PROBES {VERSION}'),
                  (2, 2, 'PHOTOGRAPH EACH SCREEN. ANY KEY OR JOYSTICK FIRE = NEXT SCREEN.')]
+        half = (len(TESTS)) // 2
         for k, (_, t, _, _) in enumerate(TESTS[1:], 1):
-            lines.append((3 + k, 4, f'{k:02d} {t}'))
+            col, row = (2, 3 + k) if k <= half else (42, 3 + k - half)
+            lines.append((row, col, f'{k:02d} {t}'[:38]))
         lines.append((24, 2, footer))
         return text(lines)
     label = [(0, 2, f'{index:02d} {title}'), (1, 2, prediction)] + [(2 + k, 2, s) for k, s in enumerate(notes)]
     if init.startswith('init_split'):
         # Red C000 bank shows rows 0-3; the green SSA bank repeats a label.
         return text(label + [(3, 2, 'RED = R12/R13 BANK C000. GREEN = SSA BANK 0000'), (4, 2, footer)])
+    if init.startswith('init_ssa'):
+        bank0 = [(r, 2, f'SSA ROW {r:02d}') for r in range(4, 22)]
+        bank0 += [(6 + r, 16, t) for r, (_, _, t) in enumerate(label[:4])] + [(10, 16, footer)]
+        return text(label + [(4, 2, footer)]) + text(bank0, base=0, invert=True)
+    if init.startswith('init_bars'):
+        return text(label[:4] + [(4, 2, footer)])
     if init.startswith('init_r9'):
         rows = [(r, 2, f'ROW {r:02d}') for r in range(1, 16)]
         return text([(0, 2, f'ROW 00 {index:02d} {title}'), (0, 40, prediction)] + rows
@@ -146,7 +168,9 @@ def screen_text(index, init, title, notes, prediction):
 
 
 def generate(start):
-    inc = [f'START_TEST equ {start}', f'NTESTS equ {len(TESTS)}', f'SLED_MAX equ {SLED_MAX}']
+    inc = [f'START_TEST equ {start}', f'NTESTS equ {len(TESTS)}', f'SLED_MAX equ {SLED_MAX}',
+           f'SSA_COARSE equ {SSA_COARSE}', f"SSA_SLED_LATE equ {SSA_SLED['late']}",
+           f"SSA_SLED_EARLY equ {SSA_SLED['early']}"]
     s = [8 * i + 5 for i in range(len(BAND_C0))]
     t = [8 * i + 7 for i in range(len(BAND_C0))]
     inc.append(f'BAND_S0 equ {s[0]}')
