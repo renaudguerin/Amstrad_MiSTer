@@ -572,6 +572,71 @@ void pr08_pending_classic_mode_switch() {
 	std::printf("PASS pr08: PRI masks and unmasks a pending CPC request\n");
 }
 
+// CPCEC c025aab, cpcec.c:2106-2114: a changed PRI matching the current
+// nine-bit line during raw HSYNC requests an interrupt. FF2's production-T80
+// replay writes 46->48 on line 48 at C0=52, after the ordinary C0=49 event
+// and before raw HSYNC ends at C0=57. Its palette/music chain otherwise
+// waits a whole frame. See references/ff2-runtime-pri-2026-09-27.md.
+// This emulator-supported write rule still needs original-Plus acceptance.
+void pr09_live_pri_write() {
+	struct Case { const char* name; unsigned line, phase, value; bool adj, ack, fire; };
+	const Case cases[] = {
+		{"late matching write", 48, 416, 48, false, false, true},
+		{"write during DMA acknowledge", 48, 416, 48, false, true, true},
+		{"write outside raw HSYNC", 48, 480, 48, false, false, false},
+		{"nonmatching write", 48, 416, 49, false, false, false},
+		{"ninth-bit mismatch", 304, 416, 48, false, false, false},
+		{"PRI zero", 48, 416, 0, false, false, false},
+		{"vertical adjustment", 48, 416, 48, true, false, false},
+	};
+	for (const auto& c : cases) {
+		PriBench b;
+		b.power_on();
+		b.empty_ack();
+		b.empty_ack();
+		// PRI=255 has no match before line48; clear its earlier event when
+		// exercising line304, before advancing to the late-write window.
+		b.pri = 255;
+		while (b.crtc_line < c.line - 1) b.tick();
+		b.empty_ack();
+		while (b.crtc_line != c.line || b.hcount != c.phase) b.tick();
+		if (!b.dut.INT_N) fail(std::string("pr09 setup: ") + c.name);
+		b.adj = c.adj;
+		if (c.ack) { b.iorq_n = false; b.m1_n = false; b.run(2); }
+		b.pri = uint8_t(c.value);
+		b.run(2);
+		if (c.ack) {
+			if (!b.dut.INT_N) fail("pr09: write event asserted during DMA acknowledge");
+			if (b.dut.int_last_raster) fail("pr09: write event changed DMA acknowledge provenance");
+			b.iorq_n = true; b.m1_n = true;
+			b.run(2);
+		}
+		if (bool(!b.dut.INT_N) != c.fire)
+			fail(std::string("pr09: ") + c.name + (c.fire ? " lost its request" : " created a request"));
+		if (c.fire) {
+			// A different, nonmatching PRI must not clear a request already
+			// pending. CPCEC's separate clear-on-write policy is not adopted.
+			b.pri = 200; b.run(2);
+			if (b.dut.INT_N) fail("pr09: nonmatching write cleared pending raster");
+		}
+	}
+	// Hold an already-matching value across an acknowledge while raw HSYNC
+	// remains high. A level comparator would continually reassert here.
+	PriBench b;
+	b.power_on(); b.empty_ack(); b.empty_ack();
+	b.pri = 48;
+	while (b.crtc_line != 48 || b.hcount != 400) b.tick();
+	if (b.dut.INT_N) fail("pr09: ordinary event missing in held-value control");
+	b.iorq_n = false; b.m1_n = false; b.run(4);
+	b.iorq_n = true; b.m1_n = true;
+	b.pri = 48;
+	for (unsigned i=0; i<80; ++i) {
+		b.tick();
+		if (!b.dut.INT_N) fail("pr09: unchanged PRI retriggered after acknowledge");
+	}
+	std::printf("PASS pr09: late PRI writes, raw-HSYNC/9-bit/adjust guards, ACK deferral and held-value control\n");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -586,6 +651,7 @@ int main(int argc, char** argv) {
 		pr06_dma_ack_then_raster(b);
 		pr07_raster_fire_during_intack(b);
 		pr08_pending_classic_mode_switch();
+		pr09_live_pri_write();
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;

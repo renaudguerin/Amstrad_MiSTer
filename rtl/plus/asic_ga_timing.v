@@ -610,9 +610,11 @@ module asic_ga_timing
 	// must not manufacture a line-entry event. Invalidate history across
 	// reset/import until the restored video counters have settled.
 	reg [8:0] pri_line_q;
+	reg [7:0] pri_value_q;
 	reg pri_history_valid;
 	always @(posedge clk) begin
 		pri_line_q <= crtc_line;
+		pri_value_q <= pri;
 		pri_history_valid <= !(reset || SNA_LOAD);
 	end
 	// Previous raw HSYNC includes the simultaneous HSYNC-fall/line-entry
@@ -621,8 +623,18 @@ module asic_ga_timing
 	wire pri_line_entry = pri_history_valid &&
 	                      (crtc_line != pri_line_q) && ~hsync_n_d;
 	wire pri_line_match = (pri != 8'd0) && ({1'b0, pri} == crtc_line);
+	// CPCEC c025aab cpcec.c:2106-2114 (FF2): changing PRI to the
+	// current line during raw HSYNC requests an interrupt, even after
+	// the ordinary monitor edge. FF2's palette copy writes 46->48 at
+	// C0=52 on line48; its ordinary comparison was at C0=49 and raw
+	// HSYNC ends at C0=57. See docs/plus/references/ff2-runtime-pri-2026-09-27.md.
+	// Detect stored-value changes, so held/same-value writes cannot
+	// continually reassert after ACK. Do not import CPCEC's separate
+	// pending-request clear on other PRI writes. Original-Plus acceptance
+	// of this emulator-supported write rule remains outstanding.
+	wire pri_value_change = pri_history_valid && (pri != pri_value_q) && HSYNC_I;
 	wire raster_fire = !reset && !SNA_LOAD && !crtc_adj &&
-	                   (mon_hsync_fall || pri_line_entry) && pri_line_match;
+	                   (mon_hsync_fall || pri_line_entry || pri_value_change) && pri_line_match;
 
 	// Persistent last-ack-was-raster level for DCSR bit 7 (reference
 	// section 9: set if the LAST INT acknowledge was raster). The level
