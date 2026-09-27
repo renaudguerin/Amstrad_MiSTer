@@ -423,6 +423,13 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   are unaffected — hence odd behavior when R9 < 7, correct for R9 ≥ 7. For a
   clean full-screen vertical scroll the value must equal R9 when HCC==R1 (then
   the current MA is stored for the next line). [ARNOLD-REV]
+- With R9 > 7 only the low three bits wrap, so the displayed RA can exceed R9
+  on several lines of one character row. The row capture is the level test
+  RA >= R9 at HCC==R1 (current RTL, `asic_video.v` `row_latch_done`): R9=11
+  with offset 5 displays 5,6,7,0,1,2,3,4,13,14,15,8 and captures on raw
+  rasters 8-10, advancing three source rows per character row. Original
+  Plus probes 14-15 show exactly that, identical to AmSpirit
+  ([source divergences](../source-divergences.md)).
 - Vertical part pairs with R12/R13 coarse scroll for pixel-perfect scrolling;
   when V-scroll == 7 it takes precedence over the split-wrap bug case ([KT]).
 
