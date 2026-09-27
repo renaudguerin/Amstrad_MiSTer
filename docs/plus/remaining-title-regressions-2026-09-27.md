@@ -12,8 +12,9 @@ User report on 2026-09-27, following delivery of `cf62d5f`:
   `edaa15b`. Symptoms occur in no-input attract mode. The user subsequently confirms gameplay on `84e6969` has a stable sky and
   normal music; its title-screen issues are outside this bisect.
 
-Hardware and visual testing remain with the user. This investigation adds no
-hardware capture, emulator replay or RTL change. Similar slowdown symptoms do
+Hardware and visual testing remain with the user. The hardware-bisect stage added no
+hardware capture, emulator replay or RTL change; the resumed runtime work and
+reviewed candidate are linked below. Similar slowdown symptoms do
 not establish the same cause as the repaired BMX status-classification bug.
 
 ## Separate regression ranges
@@ -34,6 +35,13 @@ constant. Record sky stability and music cadence separately at the same scene.
 
 ## Source lead and limits
 
+The resumed [runtime investigation](references/ff2-runtime-pri-2026-09-27.md)
+confirms a PRI46→48 write on line48 after the ordinary comparison but during
+raw HSYNC. A narrow changed-value trigger restores the palette/music chain
+from every other frame to every frame in production-T80 replay, retaining the
+nine-bit comparison and ACK provenance. The failing-before/passing-after test
+and seven selected benches pass; hardware acceptance remains pending.
+
 The additional [three-emulator source survey](references/emulator-pri-scroll-survey-2026-09-27.md)
 finds no n+256 alias in Caprice32, CPCSyntaxError or konCePCja, but substantial
 differences in line counters and IRQ phase. None independently supplies CPCEC's
@@ -42,7 +50,7 @@ records konCePCja's useful write watchpoints and timing/debugger limitations.
 
 CPCEC at `/Users/renaudg/code/cpcec`, source commit
 `c025aab961a796b918cc99bc3e16216ea65bb5d1`, explicitly names Fire & Forget 2 in
-its changed-PRI-write handling (`cpcec.c:2110`). Our production GA latches
+its changed-PRI-write handling (`cpcec.c:2110`). The accepted `cf62d5f` GA latches
 programmed interrupts from its raster event or deferred event; it has no
 explicit PRI-write event. This is a concrete implementation difference, not
 proof that adding CPCEC's entire rule is correct on hardware.
@@ -53,8 +61,9 @@ The latter two already have conflicting references or accepted behavior to
 protect. See [the PRI source comparison](references/amspirit-pri-phase-2026-09-26.md)
 and [the accepted ACK repair](ack-provenance-regression-2026-09-26.md).
 
-Before implementation, establish the game's relevant write/IRQ sequence and
-an independently grounded failing deterministic case. In particular, compare
+The implementation prerequisite was the game's relevant write/IRQ sequence and
+an independently grounded failing deterministic case; the linked runtime work
+now supplies both. In particular, compare
 writes during raw HSYNC before and after our monitor-HSYNC event, same-value
 writes, PRI zero, pending classic requests, and ACK overlap. Do not retime all
 ordinary PRI events or import CPCEC's shared pending-request clear merely to

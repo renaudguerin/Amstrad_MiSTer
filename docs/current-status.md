@@ -12,6 +12,17 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **FF2 PRI-write candidate READY (2026-09-27, not integrated):** the resumed
+  production-T80 replay confirms a changed PRI46→48 write on line48 after the
+  ordinary interrupt comparison but during raw HSYNC. Adding that write event
+  restores the palette/music chain from every other frame to every frame in
+  the six-frame replay. The focused test fails before and passes after; all
+  seven selected benches pass. The nine-bit comparison, ordinary PRI phase and
+  accepted ACK provenance remain unchanged. Independent Opus5.5-medium review finds no blockers;
+  synthesis and human visual/audio acceptance remain pending. See the
+  [runtime evidence and checklist](plus/references/ff2-runtime-pri-2026-09-27.md).
+  Eerie's left-edge screen residual and Prehistorik II's HUD line remain open.
+
 - **CRTC3 / interrupt-status repair accepted (2026-09-27):** user confirms
   Copter 271, World of Sports BMX and all listed CRTC3 checks fixed on delivered
   `cf62d5f` (`output_files/Amstrad_20260926_cf62d5f.rbf`, SHA256
@@ -23,8 +34,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   and music slowdown: gameplay is confirmed good on `84e6969` and bad on
   `c595031` (also later builds); `bee92a6` passes. The hardware bisect
   identifies `b5c3014`, requiring bit 8 clear in the PRI comparison, as the
-  trigger. Investigate its interaction with PRI writes before reverting: it
-  repaired Copter on hardware. CPCEC uses a full nine-bit compare, and the new
+  trigger. The resumed candidate above reproduces how alias events masked a
+  missing current-line PRI-write event, retaining the comparison that repaired
+  Copter on hardware. CPCEC uses a full nine-bit compare, and the new
   standalone CPR gives one IRQ/frame in AmSpirit for PRI10 at both R6=25/34
   and for off-display PRI255. Original-Plus testing remains available. Keep its historical bisect separate from the recent Prehistorik
   residual. See the [repair record](plus/ack-provenance-regression-2026-09-26.md)
