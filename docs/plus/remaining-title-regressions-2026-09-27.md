@@ -152,3 +152,23 @@ passed simulation, full synthesis and required gate. Artifact
 Delivered file:
 `/Users/renaudg/code/Amstrad_MiSTer/output_files/Amstrad_20260913_bee92a6.rbf`.
 SHA256 `8f8ca8020535d5fb62fabec5e0dfc516ed4da9d2f12e0688f0448a6d2edd21fc`.
+
+
+## Third bisect result: four-change interval confirmed
+
+The user reports `bee92a6` working against the same sky/music criterion.
+Current interval: `bee92a6` good → `88262b9` bad. Next test is
+`05cb9fded0651b49298326a5cf4e136ab2b1a718`, which includes `b5c3014` (PRI line
+compare) and `9faa140` (DCSR acknowledgement sampling), but excludes `a0778b6`
+(PSG R7 reset) and `f455f79` (coincident raster/ACK latch).
+
+If bad, test between the first pair; if good, test between the latter pair.
+No RTL or simulation changes are needed for this historical hardware bisect.
+
+[CI run 34767160549](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34767160549)
+passed simulation, full synthesis and required gate. Downloaded artifact
+`Amstrad-build-215-1-full`, ID `10320944161`, reports `build_mode=clean_full`.
+Task copy and reports: `output_files/ff2-bisect-05cb9fd/`.
+Delivered RBF:
+`/Users/renaudg/code/Amstrad_MiSTer/output_files/Amstrad_20260913_05cb9fd.rbf`.
+SHA256 `a81d89cc4382ed65da91a96498b822b49ade2331e4f2fd2365e1e0f9009659af`.
