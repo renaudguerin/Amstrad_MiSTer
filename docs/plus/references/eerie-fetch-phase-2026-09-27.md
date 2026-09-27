@@ -158,3 +158,47 @@ its root calculation depends on that depth. `analyse.py` also reads the
 earlier Eerie archive for comparisons. No timing/state fix was attempted,
 so no new behavioral regression vector or selected-suite run is claimed.
 Documentation-only handoff: READY for integration, residual unresolved.
+
+## Independent Opus-high assessment
+
+Requested by the user, Opus 5.5 at high effort reviewed this investigation
+in run `20260927T033059Z-21358-c101` (exit 0). It verified the reported
+counts and fetch transitions from this checkout's derived artifacts and
+found no factual error in those measurements. Its access to the older
+main-checkout archives, CPCEC source and web page was denied; it did not
+independently reparse the old IRQ trace or run simulations. The full
+assessment and invocation metadata are retained under private `review/`.
+
+Its useful challenge is that cheap **causal interventions** remain before
+original-hardware testing. A scratch-only GA variant using an earlier
+ordinary-PRI trigger can determine whether moving that event alone removes
+the residual. Compare raw-HSYNC rise and shaped-HSYNC rise against the
+unchanged replay, recording the actual IRQ/ACK/SSCR bus chain, pixels and
+pending requests at PRI writes. Preserve the FF2 event and ACK logic.
+This tests sufficiency, not silicon correctness; a clean image cannot
+authorize adopting the alternate trigger. The next bounded investigation
+should perform this intervention before expanding the title matrix.
+
+The reviewer also correctly highlights two limits of the hardware handoff:
+
+- Establish whether this exact sliver is absent on original Plus/GX4000
+  hardware. No such matched observation is recorded here.
+- Measure the width-11 marker's absolute position as well as the width
+  dependence. Width sensitivity alone cannot distinguish a constant CPU
+  response offset from a trigger-phase offset or explain Eerie's cleanup.
+
+The earlier [six synthetic raster probes](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md#eerie-forest-left-edge-bounded-exclusions)
+already agree with AmSpirit at early-line SSCR writes. Together with the
+IRQ-driven marker difference, they make an upstream write-timeline
+explanation the leading hypothesis. They do not prove identical video
+behavior for every Eerie state. Accordingly, the review's stronger claim
+that the first Eerie divergence is conclusively localized upstream is not
+adopted. Nor is its proposed exact 28-dot correction/191-dot hardware
+threshold established by a phase sweep yet. CPCEC's clean Eerie playback
+has not been demonstrated in this investigation.
+
+One further exclusion was checked directly after review: all 2,688 new
+fetch-log samples have `shift=0`. Full-sync shifted-byte compensation is
+therefore inactive in this sampled window. Finally, the no-pending-request
+finding is conditional on the current IRQ timeline; an earlier-trigger
+experiment must recheck it rather than assuming that exclusion transfers.
