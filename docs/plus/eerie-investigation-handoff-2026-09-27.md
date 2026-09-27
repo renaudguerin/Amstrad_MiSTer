@@ -3,62 +3,48 @@
 ## Current position
 
 The three reveal-line leaks were repaired and accepted in the integrated
-`edaa15b` build. The separate dotted-logo and green landscape sliver at the
-left edge remains. The Eerie report records its current discriminator: SSCR
-changes `AC→8C` at C0=2, dot 0, as the 16-dot first-character mask ends; old
-RA6 fetch data then emerges through the 12-dot horizontal delay after RA
-becomes 4. Existing evidence does not establish a repair.
+`edaa15b` build. The remaining left-edge residual has two independent causes;
+see the [trigger counterfactual and sprite-mask finding](references/eerie-pri-trigger-counterfactual-2026-09-27.md):
 
-FF2 source `d56ce1f` is integrated as `2f409e9`. The user confirms this RBF
-fixes FF2 and Prehistorik II, with no other regressions observed. Preserve
-the accepted nine-bit PRI comparison, ACK provenance,
-CRTC3 repairs, and sprite-row retargeting repair. The FF2 changed-PRI trigger has
-no demonstrated path to Eerie: the recorded steady trace has 1064 PRI writes
-and none matches the full current CRTC line.
+- **Green first-column bar** (rows 16–215, x16–31, landscape phase): these
+  are sprite pixels inside SSCR[7]'s extended-border character. Branch
+  `plus/eerie-hsync-trigger` gates sprites with the masked display enable,
+  following Arnold V §2.1/§2.5. All four local emulators agree, and AmSpirit
+  does not show the bar. The change is gated and independently reviewed, but
+  not yet integrated or MiSTer-checked.
+- **Dotted logo strip** (rows 224–254, x32–59): the reveal loop's SSCR write
+  at C0=2 follows the first-character fetch, which uses the old RA. Scratch
+  replays that change only the ordinary PRI trigger remove it when the fire
+  point is at most raw HSYNC + 4 µs (write by x4). Raw-HSYNC rise and
+  shaped-HSYNC rise both qualify; +5 µs and the current +6 µs do not. No
+  pending request exists at any PRI write under any tested timeline.
 
-The [fetch-phase investigation and Opus-high assessment](references/eerie-fetch-phase-2026-09-27.md)
-are the current starting point. An eight-second replay of `2f409e9` reaches
-frame 401: 560 sampled left-edge records match the archive, 416 delayed-pen
-comparisons have no mismatch, and the repaired reveal rows remain black.
-At the sampled SSCR write, the new address arrives at x37, the zero word at
-x40, and the even/odd serializer bytes at x48/56. Full-sync byte shifting is
-inactive in all 2,688 fetch samples. All 1,064 archived steady PRI writes
-have no pending request to clear under the existing IRQ timeline.
-
-These exclusions leave an upstream write-timing explanation as the leading
-hypothesis, not a proven hardware defect. Opus-high recommends a cheap
-causal intervention before requesting new hardware measurements. Its exact
-28-dot correction/191-dot marker threshold and conclusive upstream
-localization were not accepted as established results.
+FF2 and Prehistorik II are hardware-accepted on `2f409e9`. Preserve the
+nine-bit PRI comparison, FF2 live-write event, ACK provenance, CRTC3 repairs
+and sprite-row retargeting.
 
 ## Resume path and question
 
-Start a new Plus task from the latest `master` with `stream-start plus`; do not
-resume an older investigation branch as the source of truth. The broad source
-survey is complete; use its comparison below instead of repeating it. Use cheaper
-subagents for bounded searches and mechanical work; keep causal analysis in the
-main investigation.
+Integrate the sprite-mask branch with `stream-finish` and check Eerie on MiSTer:
+the green bar should disappear and the dotted strip should remain. Also check a
+horizontally scrolling title that keeps D7 set with left-edge sprites.
 
-Find the first divergence in the Eerie chain: software SSCR write, ASIC fetch
-address/data, or emitted pixel/mask. If IRQ timing appears causal, demonstrate
-the link with raw HSYNC, INT/acknowledge, and the actual write-bus onset. Keep
-CPU instruction-stop times separate from raw bus events. Do not infer a flush,
-mask change, pending-clear rule, or retiming from the visible artifact alone.
+For the dotted strip, earlier-trigger sufficiency is established in the model,
+not on hardware. Both documented sources place the trigger on the residue side
+(revised Arnold 6 µs clamp, KT ~10 µs). Do not move the trigger without a
+hardware measurement. Discriminators, cheapest first:
 
-Next, reuse the production-T80 fixture with scratch-only GA variants for
-ordinary PRI at raw-HSYNC rise and shaped-monitor-HSYNC rise. Keep the FF2
-live-write event and ACK logic intact. Compare against the retained baseline,
-logging raw HSYNC, IRQ, ACK, actual SSCR write onset, fetch/pixel outcomes,
-and pending requests at PRI writes. Establish whether changing the trigger
-alone removes the sliver and whether the pending-clear exclusion still holds.
-Keep candidate sources and generated outputs ignored; this is an experiment,
-not an authorized replacement hardware rule. Expand to the accepted title
-matrix only if the bounded Eerie comparison is informative.
+1. Derive the Z80 IM1 acknowledge-to-0038 fetch time on the CPC wait grid from
+   the T80/Z80 sources. Compare it with production's measured INT→ACK 95 and
+   ACK→0038 311 master clocks. An excess would move the fix from request
+   generation to CPU response.
+2. Original Plus/GX4000 results for the width 3/6/11 flat-plane CPRs, using
+   absolute marker position as well as width dependence. AmSpirit's width-11
+   marker is 5 µs earlier than production, inside the sufficient region.
+3. A raw HSYNC/INT/ACK/SSCR-write trace for Eerie.
 
-Original-hardware cleanliness of this exact sliver remains unverified.
-For a later Plus/GX4000 check, run Eerie itself and the existing width 3/6/11
-flat-plane CPRs. Compare absolute marker position as well as width dependence.
-Matching AmSpirit pixels is insufficient to ship a timing change.
+Keep CPU instruction-stop times separate from raw bus events. Original-hardware
+cleanliness of the strip remains unverified.
 
 ## Existing emulator clues
 
@@ -76,6 +62,12 @@ repair. The survey has source anchors and the remaining debugger limitations.
 
 ## Evidence and tools
 
+- Trigger-variant and sprite-mask replays (combined frame/fetch/bus-event
+  harness, scratch GA/video variants, per-run logs, frames and analysis) are
+  at `/Users/renaudg/code/Amstrad_MiSTer/local/task-archives/eerie-hsync-trigger-2026-09-27/evidence/`.
+  Its `sources/trig.mk` builds from `sim/plus` with
+  `-f obj_dir/eerie-trigger/trig.mk eerie-trigger-build VARIANT=<name>`, after
+  staging `sources/` at `sim/plus/obj_dir/eerie-trigger/`.
 - Current replay sources, fetch CSV, frame records, analysis and full Opus
   review are preserved at
   `/Users/renaudg/code/Amstrad_MiSTer/local/task-archives/eerie-left-edge-2026-09-27/evidence/`.
@@ -119,5 +111,4 @@ current RTL and its expected result is derived from source or a hardware
 measurement. After the last code edit, run `python3 sim/select_tests.py --run`
 once and obtain a fresh cross-provider review for a non-trivial RTL diff.
 Report the finding, evidence, and remaining uncertainty; stop at READY unless
-`stream-finish` is explicitly requested. No simulation was run for this
-handoff.
+`stream-finish` is explicitly requested.

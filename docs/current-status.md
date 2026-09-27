@@ -25,7 +25,7 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   observed on this exact RBF. Source `d56ce1f`
   preserves the reviewed `ff7e0a0` RTL unchanged after rebasing onto master. See the
   [runtime evidence and checklist](plus/references/ff2-runtime-pri-2026-09-27.md).
-  Eerie's left-edge screen residual remains open. Release `v2026.09.27` is staged
+  Eerie's left-edge residual is split into a sprite-mask fix and an open PRI-timing strip (below). Release `v2026.09.27` is staged
   as a draft with this exact bitstream.
 
 - **CRTC3 / interrupt-status repair accepted (2026-09-27):** user confirms
@@ -51,15 +51,15 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   sprite rows after live Y changes before their X windows. Focused before/after
   tests, selected gates, fresh Opus review and exact full-effort synthesis pass.
   MiSTer confirms Eerie Forest's three reveal-line leaks are gone; Sonic GX
-  title/attract regression samples pass. The dotted logo/green left-edge screen
-  sliver remains open: production PRI matches the documented six-microsecond
-  clamp, and no CPU/IRQ repair is established. See the
-  [evidence and remaining discriminator](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md).
-  A [current-master fetch trace](plus/references/eerie-fetch-phase-2026-09-27.md)
-  reproduces the same left-edge pixels on `2f409e9`, with internally consistent
-  fetch/delay history and no pending request at the archived steady PRI writes.
-  Equivalent hardware write/fetch timing remains the missing discriminator.
-  Integrated as `edaa15b`; the exact final RBF is hardware-verified.
+  title/attract regression samples pass. Integrated as `edaa15b`; the exact
+  final RBF is hardware-verified. The remaining left-edge residual has
+  [two separate causes](plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md).
+  The green first-column bar is sprites drawn inside SSCR[7]'s extended
+  border; branch `plus/eerie-hsync-trigger` hides them per Arnold V §2.1/§2.5
+  (gated and reviewed, not yet integrated or hardware-checked). The dotted logo strip
+  disappears in scratch replays when the ordinary PRI fires by HSYNC+4 µs.
+  Both documented triggers (6 µs, ~10 µs) leave it, so its timing stays
+  unchanged pending hardware evidence.
 - **Latest implementation:** B20-1 live PPR write handling (`5d12f56`), integrated
   with reviewed capture transport/metadata fixes and B20 acknowledge diagnostics.
   Combined exact-SHA CI and full Quartus synthesis pass at `cdcb3c3`.
