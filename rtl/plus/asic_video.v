@@ -547,11 +547,12 @@ wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
 
 // P6: Screen split comparison ({SPLT7..0} == {VC4..0, RC2..0}, asic-reference §8).
 // When matched and SPLT != 0, capture SSA into vma_latch at HCC == R1, or at
-// HCC == R0 on the last line of the frame (VCC == R4, RCC == R9) [ARNOLD-REV
-// §2.3]. Original Plus probe V3 screen 21 confirms the terminal case: SSA
-// rewritten on line 311 after C0=R1 is the SSA frame line 1 displays.
+// HCC == R0 when VCC == R4 and RCC == R9 [ARNOLD-REV §2.3]: equality, so an
+// overshoot line (RCC > R9) keeps R1 (t08l). Original Plus probe V3 screen 21
+// is consistent with the terminal case: SSA rewritten on line 311 after
+// C0=R1 is the SSA frame line 1 displays.
 wire split_match = (SPLT != 8'd0) && ({charline[4:0], raster[2:0]} == SPLT);
-wire split_at_r0 = c9_done && last_charline;
+wire split_at_r0 = last_charline && (raster == R9_v_max_line);
 wire split_latch_event = CLKEN && !in_adj && split_match &&
                          (hcc == (split_at_r0 ? R0_h_total : R1_h_displayed));
 
