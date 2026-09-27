@@ -2744,6 +2744,54 @@ void t08k_split_on_terminal_line(TestBench& test) {
     test.expect_ma("t08k next frame line 1 from SSA", 0x2400);
 }
 
+// t08l: SSA sampling point. [ARNOLD-REV §2.3] (asic-reference §8): the split
+// captures SSA at HCC == R1, except when VCC == R4 and RCC == R9 (last line of
+// the frame), where it captures at HCC == R0. Original Plus probe V3 screen 21
+// is consistent with the terminal case: SSA rewritten on line 311 at C0~52,
+// after R1=40, is the SSA frame line 1 displays (control 22 rewrites at C0~30).
+// program_display_frame: R0=7, R1=4, R9=3, R4=2, frame ending {2, 3} = 19.
+// A rewrite made while HCC reads n is seen by the edge that processes HCC n.
+//   terminal split (SPLT 19), rewrite at HCC 7 = R0: frame line 1 = 0x2800
+//   ordinary split (SPLT 9), rewrites at HCC 4 = R1 and 5: line 6 = 0x3000
+//   R9 lowered to 1 on raster 2 of the last row (SPLT 18): the frame ends
+//     there (RCC >= R9) but RCC != R9, so the capture stays at R1 and a
+//     rewrite at HCC 6 is not seen: frame line 1 = 0x2400
+void t08l_split_ssa_sampling_point(TestBench& test) {
+    program_display_frame(test);
+    test.set_splt(19);
+    test.set_ssa(0x2400);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    test.run_to_state(2, 3, 7, "t08l terminal line, HCC R0");
+    test.set_ssa(0x2800);
+    test.run_to_frame_start();
+    test.expect_ma("t08l frame line 0 from R12/R13", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08l terminal split takes SSA at HCC == R0", 0x2800);
+
+    test.set_splt(9);
+    test.set_ssa(0x2400);
+    test.run_to_frame_start();
+    test.run_to_state(1, 1, 4, "t08l ordinary split line, HCC R1");
+    test.set_ssa(0x3000);
+    test.run_to_state(1, 1, 5, "t08l ordinary split line, HCC R1+1");
+    test.set_ssa(0x3400);
+    test.run_to_state(1, 2, 0, "t08l line after the ordinary split");
+    test.expect_ma("t08l ordinary split takes SSA at HCC == R1", 0x3000);
+
+    test.set_splt(18);
+    test.set_ssa(0x2400);
+    test.run_to_frame_start();
+    test.run_to_state(2, 2, 1, "t08l last row, raster 2");
+    test.write_register(9, 1);
+    test.run_to_state(2, 2, 6, "t08l last row, raster 2, HCC 6");
+    test.set_ssa(0x2800);
+    test.run_to_frame_start();
+    test.write_register(9, 3);
+    test.run_to_state(0, 1, 0, "t08l frame line 1 after the overshoot");
+    test.expect_ma("t08l RCC > R9 on the last row keeps the R1 capture", 0x2400);
+}
+
 // t08e: SSCR[6:4] vertical scanline offset added to RA[2:0].
 void t08e_sscr_vertical_scanline_offset(TestBench& test) {
     program_display_frame(test);
@@ -2966,7 +3014,7 @@ void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.expect_ra("t08j next row starts at offset RA 5", 5);
 }
 
-constexpr std::array<TestCase, 69> kTests = {{
+constexpr std::array<TestCase, 70> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3048,6 +3096,7 @@ constexpr std::array<TestCase, 69> kTests = {{
     {"t08i SSCR vertical wrap advances MA", t08i_sscr_vertical_wrap_advances_ma},
     {"t08j SSCR vertical offset with R9>7", t08j_sscr_vertical_offset_r9_above_7},
     {"t08k SPLT on the terminal frame line", t08k_split_on_terminal_line},
+    {"t08l SSA sampling point (R1; R0 on the terminal line)", t08l_split_ssa_sampling_point},
 }};
 
 }  // namespace
