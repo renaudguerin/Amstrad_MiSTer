@@ -26,7 +26,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   the same day: offset 7 with the held split and R9<7 with an offset match the RTL; screen 21
   showed the line-311 split capture follows a C0≈52 SSA write, consistent with
   [ARNOLD-REV §2.3]'s R0 capture on the last frame line (already in asic-reference §8 but
-  unimplemented), fixed on `plus/hw-probes-v3`.
+  unimplemented). Fixed and integrated as `80c81a1`: exact-SHA CI run 36352533643 passes
+  every required job; `output_files/Amstrad_20260927_80c81a1.rbf` (SHA-256 `48220efd…0ceb6b`),
+  worst setup/hold +0.241 ns, zero TNS, 24,816 ALMs (59%). Not yet tried on MiSTer.
 
 - **FF2 PRI-write repair hardware-accepted (2026-09-27):** the resumed
   production-T80 replay confirms a changed PRI46→48 write on line48 after the
