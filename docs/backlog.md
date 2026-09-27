@@ -18,6 +18,25 @@ the D5 boot-configuration note) are archived verbatim in
 them.
 
 
+## B24. Plus ASIC reference clause traceability
+
+**Audited 2026-09-27; findings open. Plus.** [plus/asic-reference-audit.md](plus/asic-reference-audit.md)
+traces every normative clause of the Plus implementation reference, with each rule split
+from its exceptions, to its RTL line and to the test that drives that exact condition.
+It was prompted by the terminal-line SSA capture (`t08l`): the reference had quoted the
+"or when HCC == R0" exception correctly, but the RTL implemented only the main clause and
+the observation-derived vectors never reached it.
+
+Why this matters: vectors derived from observed effects cover what has been seen, not what
+the reference says. The table makes the unexercised exception rows visible before a title
+or probe finds them.
+
+**Remaining action:** apply the documentation-only corrections RC1-RC8. Add the vectors
+PA5-PA6, which are expected to pass and pin hardware-confirmed or cross-module rules. Put
+PA1 (`IN` value on a 6128+), PA2/PA3 (split × vertical adjust) and PA4/PA7 on the next probe
+cartridge before any RTL change. Re-run the audit, or at least its affected section, when
+`asic-reference.md` gains or revises a normative clause.
+
 ## B23. TV80 bench CPU: bus-timing parity with production T80pa
 
 **Partially addressed, 2026-09-23. General (sim infrastructure).** The B23
