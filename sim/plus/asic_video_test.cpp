@@ -2932,8 +2932,8 @@ void t08i_sscr_vertical_wrap_advances_ma(TestBench& test) {
 // 10 and 11 and the next row starts from base + 3*R1: the visible row labels
 // run 00,03,06,... in steps of three, as photographed. An equality test
 // (ra_eff == R9) never matches here and repeats row 0 forever.
-// For R9 <= 7 the wrapped ra_eff stays in 0..7, so >= and == coincide
-// (t08i unchanged).
+// For R9 = 7 the wrapped ra_eff stays in 0..7, so >= and == coincide
+// (t08i unchanged); R9 < 7 with an offset differs and is unprobed.
 void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.write_register(9, 11);
     test.write_register(4, 2);

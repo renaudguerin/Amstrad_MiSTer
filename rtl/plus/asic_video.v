@@ -530,8 +530,10 @@ wire [4:0] ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
 
 // Row-end VMA latch update: outside IVM, a level test ra_eff >= R9 at
 // C0=R1 advances the source row, so it moves before SSCR wraps RA to 0
-// (Arnold V §2.5, asic-reference §8).  For R9 <= 7 the wrapped ra_eff stays
-// in 0..7 and this is the equality test.  With R9 > 7 only RA's low three
+// (Arnold V §2.5, asic-reference §8).  For R9 = 7 the wrapped ra_eff stays
+// in 0..7 and this is the equality test; for R9 < 7 with a nonzero offset it
+// captures on several lines of a row (unprobed, see docs/plus/
+// source-divergences.md).  With R9 > 7 only RA's low three
 // bits wrap, and ra_eff can pass R9 on several lines of one row: R9=11,
 // offset 5 displays 5,6,7,0,1,2,3,4,13,14,15,8 and captures on raw raster
 // 8, 9 and 10, advancing three source rows per character row. Original Plus
