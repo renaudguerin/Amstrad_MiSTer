@@ -475,6 +475,12 @@ that a previously online device remains available. Keep one device operator.
   Other open targets remain DSC4 and F13/F20; IA-5 simultaneous raw HSYNC/VSYNC and GA interrupt capture; Q17's R7=38/39
   discriminator. IA-2/3/6, Amazing Demo corruption and production instruction timing retain
   their separate residuals. Do not infer a new classic RTL repair from an unclassified image.
+- **Fire & Forget 2 (Plus):** the changed current-line PRI-write event during
+  raw HSYNC is integrated as `2f409e9`, preserving the full nine-bit comparison
+  and ordinary IRQ phase. Production-T80 replay restores the palette/music
+  chain each frame; focused fail-before/pass-after and selected tests pass.
+  Original-hardware acceptance remains open. See the
+  [runtime evidence](plus/references/ff2-runtime-pri-2026-09-27.md).
 - **Eerie Forest (Plus):** same-line sprite-row retargeting (`566e0c7`) is
   reviewed, gated and exact-integration-hardware-verified (`edaa15b`): the three horizontal reveal
   leaks disappear, with Sonic GX title/attract regression samples passing.

@@ -2,11 +2,11 @@
 
 ## Integration and evidence preservation
 
-The successor is active in `/Users/renaudg/.codex/worktrees/603a/Amstrad_MiSTer`
-on `codex/plus/ff2-pri-investigation`, starting from `7d80ddf`. The original
-handoff documents were copied there before integration. The source session is
-integrating its completed documentation and diagnostic into master; it is not
-changing the successor's branch or running emulator tests.
+The FF2 successor completed the runtime investigation and integrated the narrow
+PRI-write repair as `2f409e9` (source `d56ce1f`). Human hardware acceptance
+remains pending. Use the [runtime evidence](references/ff2-runtime-pri-2026-09-27.md)
+for its result and the [Eerie handoff](eerie-investigation-handoff-2026-09-27.md)
+for the next investigation; the brief below is the earlier FF2 checkpoint.
 
 Private evidence and generated outputs have been preserved in the main checkout
 under `local/task-archives/crtc3-2026-09-27/`: `evidence/` contains the original

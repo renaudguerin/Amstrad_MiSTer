@@ -4,8 +4,8 @@
 
 Investigation resumed from `7d80ddf` on `codex/plus/ff2-pri-investigation`.
 Status: **integrated source candidate**, reviewed and gated (`d56ce1f`, identical
-RTL/tests to reviewed `ff7e0a0`); exact-integration CI/synthesis and human
-hardware acceptance are pending. The accepted nine-bit PRI comparison, ACK
+RTL/tests to reviewed `ff7e0a0`); exact-integration `2f409e9` CI and full synthesis
+pass. Human hardware acceptance remains pending. The accepted nine-bit PRI comparison, ACK
 provenance and CRTC3 repairs remain unchanged. The earlier emulator source survey is not repeated.
 
 AmSpirit Lite 1.15.1/core 2491682, model 4/CRTC 3, runs the unchanged FF2 cartridge
@@ -244,3 +244,28 @@ state. They provide no qualifying current-line write for this FF2 fix to act
 on and therefore no demonstrated mechanism for it to repair Eerie's known
 left-edge sliver. Preserve the existing SSCR/pixel-delay investigation and the
 ordinary-PRI phase discriminator; do not add a speculative clear, flush or mask.
+
+
+## Integration and artifact delivery
+
+Source `d56ce1f3809eead370c7c0cf27795a80d6feba72` was integrated and pushed as
+`2f409e94e470876044ebe0ce8cad52aeb5bb4549`. Rebasing preserved the reviewed
+`ff7e0a0` RTL and simulation files byte-for-byte; the sole conflict was a duplicated
+documentation insertion. Existing review debt and the classic soak hash remain unchanged.
+
+[Actions run 36290470259](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/36290470259)
+passes simulation/lint, production-T80, synthesis policy, runner routing, hosted
+full-effort synthesis and the required gate on that exact SHA. The unused local
+synthesis leg is skipped. Artifact `Amstrad-build-277-1-full` (ID 10922217943)
+records `build_mode=clean_full`, Quartus 17.0.2 Build 602. Fitter utilization:
+24,571/41,910 ALMs (59%), 28,182 registers, 701,596 memory bits, 102 RAM blocks,
+35 DSP blocks. Worst setup +0.471ns and hold +0.247ns across seven clocks;
+constrained-path TNS is zero. The repository timing checker passes.
+
+Delivered and hash-verified in the integration checkout:
+`/Users/renaudg/code/Amstrad_MiSTer/output_files/Amstrad_20260927_2f409e9.rbf`.
+SHA256: `3150e6096fa44330166928b214520a0515f6022d58be88569961b2c287eb7d8c`.
+Downloaded reports remain under `output_files/ff2-2f409e9-ci/Amstrad-build-277-1-full/`.
+This proves build/timing acceptance, not the pending human FF2 visual/audio and
+regression checklist above. The [Eerie handoff](../eerie-investigation-handoff-2026-09-27.md)
+preserves the separate next investigation.

@@ -19,7 +19,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   the six-frame replay. The focused test fails before and passes after; all
   seven selected benches pass. The nine-bit comparison, ordinary PRI phase and
   accepted ACK provenance remain unchanged. Independent Opus5.5-medium review finds no blockers;
-  exact-integration CI/synthesis and human visual/audio acceptance remain pending. Source `d56ce1f`
+  exact-integration `2f409e9` simulation, production-T80, lint and full synthesis pass.
+  Delivered `output_files/Amstrad_20260927_2f409e9.rbf`: setup/hold +0.471/+0.247ns,
+  zero TNS. Human visual/audio acceptance remains pending. Source `d56ce1f`
   preserves the reviewed `ff7e0a0` RTL unchanged after rebasing onto master. See the
   [runtime evidence and checklist](plus/references/ff2-runtime-pri-2026-09-27.md).
   Eerie's left-edge screen residual and Prehistorik II's HUD line remain open.
