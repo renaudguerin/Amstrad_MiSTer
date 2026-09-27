@@ -12,21 +12,23 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **CRTC3 acceptance and blocking regressions (2026-09-26):** user confirms all
-  listed CRTC3 defects fixed on `e4445a1`; Eerie's left strip remains. The same
-  build, and earlier `1eec469`/`bbd7348`, regress Copter 271 animation/palette/
-  gameplay and World of Sports BMX timing. Prehistorik II is broken with baseline
-  attribution open. `edaa15b` remains the user-confirmed good regression baseline.
-  A production-T80 diagnostic isolates split-acknowledge DCSR provenance loss
-  introduced by `bd65578`; a scratch first-pulse-only candidate preserves the
-  required vector06→04 and restores the handler status read. The narrow production
-  repair is implemented (2026-09-27); focused ACK, production-T80 and snapshot
-  checks pass, selected gate PASS7; fresh Opus5.5-medium review found no blockers.
-  Integrated `cf62d5f`: exact-SHA CI/full synthesis passed; delivered
-  `output_files/Amstrad_20260926_cf62d5f.rbf` (SHA256 `ae4d5b78…3f27a7`).
-  Setup/hold +0.331/+0.178ns, zero TNS; existing incomplete-constraint notices
-  remain. User hardware acceptance is pending. Prior bounded Copter captures are
-  insufficient acceptance. See the [diagnosis and continuation brief](plus/ack-provenance-regression-2026-09-26.md).
+- **CRTC3 / interrupt-status repair accepted (2026-09-27):** user confirms
+  Copter 271, World of Sports BMX and all listed CRTC3 checks fixed on delivered
+  `cf62d5f` (`output_files/Amstrad_20260926_cf62d5f.rbf`, SHA256
+  `ae4d5b78…3f27a7`). Focused tests, selected gate, independent review and
+  exact-SHA full synthesis pass; setup/hold +0.331/+0.178ns, zero TNS on
+  constrained paths. Prehistorik II is almost fixed but retains one corrupt
+  line immediately above the bottom HUD, absent on `edaa15b`. Eerie Forest's
+  left strip remains. Fire & Forget 2 has newly reported sky-gradient flicker
+  and music slowdown: gameplay is confirmed good on `84e6969` and bad on
+  `c595031` (also later builds); `bee92a6` passes. The hardware bisect
+  identifies `b5c3014`, requiring bit 8 clear in the PRI comparison, as the
+  trigger. Investigate its interaction with PRI writes before reverting: it
+  repaired Copter on hardware. CPCEC uses a full nine-bit compare, and the new
+  standalone CPR gives one IRQ/frame in AmSpirit for PRI10 at both R6=25/34
+  and for off-display PRI255. Original-Plus testing remains available. Keep its historical bisect separate from the recent Prehistorik
+  residual. See the [repair record](plus/ack-provenance-regression-2026-09-26.md)
+  and [remaining-title investigation](plus/remaining-title-regressions-2026-09-27.md).
 
 - **Latest Plus sprite repair:** source `566e0c7` (2026-09-23) retargets
   sprite rows after live Y changes before their X windows. Focused before/after
