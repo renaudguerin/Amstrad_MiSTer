@@ -195,3 +195,123 @@ Task copy and reports: `output_files/ff2-bisect-c595031/`.
 Delivered RBF:
 `/Users/renaudg/code/Amstrad_MiSTer/output_files/Amstrad_20260913_c595031.rbf`.
 SHA256 `b6b5aa253dd8a696a4473d6554b086a0c8b89c143d1bd7d1cbde0a399f23e5c7`.
+
+
+## Completed hardware bisect
+
+The user reports `c595031` bad. Adjacent relevant endpoints are `bee92a6` good
+and `c595031` bad; their only production RTL difference is `b5c3014`:
+
+```verilog
+// Before: ignores the ninth counter bit
+({crtc_line[8], pri} == crtc_line)
+// After: excludes counter values 256 and above
+({1'b0, pri} == crtc_line)
+```
+
+This identifies the regression trigger. It does not prove the old comparison
+is the physical ASIC rule: the same change repaired Copter 271's logo palette
+on device, and the documented primary-source conflict remains unresolved.
+The user owns visual checks; no further historical build is needed to locate
+the introducing RTL change.
+
+A read-only Astra-high source comparison finds CPCEC constructs the same
+nine-bit line value and uses full equality, while also implementing the
+FF2-specific changed-PRI-write event. That is a concrete compatibility model
+where FF2 does not require n+256 aliasing. The old alias event may have masked
+a missing current-line write event, but this needs an actual game write/IRQ
+sequence or independently grounded probe before an RTL repair. An independent
+Opus5.5-high assessment `20260927T004637Z-50401-f7ec` completed successfully.
+It independently confirms the one-line production delta and favors a missing
+PRI-write event masked by aliasing, conditional on a game trace. Its CPCEC read
+was denied outside its allowed directories, so that part relied on repository
+notes; the native Astra pass did inspect CPCEC directly. No tests or edits were
+performed by either reviewer. Private Opus output is preserved in
+`docs/specs/crtc3-2026-09-25/ff2/opus-opinion/`.
+
+
+## Resolving the source conflict on original hardware
+
+The user has a real Plus and GX4000 and offers to run a CPR. This allows a
+direct test of the disputed rule instead of inferring hardware behavior from
+game compatibility. A purpose-built diagnostic is being prepared; no RTL
+change is justified solely by the completed bisect.
+
+The original [Quasar ASIC article](https://quasar.cpcscene.net/doku.php?id=assem%3Aasic)
+explicitly qualifies the PRI=10 / line266 example by sufficient displayed
+height, mentioning R6. The shorter CPCWiki statement omits that condition.
+This is a hypothesis to test, not enough evidence for a new R6 gate. Copter's
+saved snapshot has R4=38,R5=0,R6=25,R9=7 (312 total,200 displayed), but its
+handler deliberately uses PRI255 outside the displayed region, so a general
+vertical-display gate would conflict with that program too.
+
+CPCEC computes `crtc_line=(C9&7)+8*(C4&63)` at `cpcec.c:271`, updates it at
+1056, and uses full equality at 874 and 2106. Our motherboard's line input
+`{plus_vc[5:0],plus_rc[2:0]}` is equivalent. No hidden eight-bit truncation or
+R6 gate was found in CPCEC. Its changed-write trigger is still a distinct
+possible missing behavior, independent of whether ordinary IRQs alias.
+
+AmSpirit lite1.15.1 is reachable. Its live API documentation confirms CPU-PC
+breakpoints and CRTC registers/rasterline/VSYNC, but no direct ASIC PRI state,
+raw HSYNC or C4/C9. A snapshot's CPC+ chunk plus breakpoints at identified PRI
+writers can recover program intent; an exact sub-line event trace requires
+additional instrumentation or a controlled program. Another emulator source
+is not needed before the original-hardware alias probe.
+
+Initial diagnostic design: count interrupts over 32 complete VSYNC periods,
+with constant nonzero PRI and DMA disabled. Compare PRI10 with R6=25 versus
+R6=34; include PRI100 as a normal control and PRI255/R6=25 as an off-display
+lower-half control. Keep R0=63,R4=38,R5=0,R7=30,R9=7 throughout. Restore R6=25
+for the final readable results screen. This distinguishes no alias, unconditional
+alias and possible display-height-dependent alias without depending on FF2 or
+on a PRI write during the counted interval. Changed-PRI timing is a separate
+follow-up once this basic comparator question has a real-hardware answer.
+
+
+## AmSpirit alias probe result
+
+Generated diagnostic source: `scripts/diagnostics/pri_alias_probe.py`; protocol
+and RAM map: `scripts/diagnostics/README.md`. CPR SHA256
+`c41a332ba467c0830f894a689f7f525a0794b275b7f83e116218bdb6b368a0b9`.
+Generation/structure checks pass and an independent rebuild is byte-identical.
+`python3 sim/select_tests.py --run` reports `select_tests: no simulation needed`.
+No production RTL changed.
+
+At the user's request, ran the CPR in AmSpirit lite1.15.1/core2491682 with
+6128Plus model4, CRTC3. It reached status80 at B002, and all four result words
+at B010/B012/B014/B016 contain32 (`0020` hex):
+
+| PRI | R6 | IRQ count over32 frames |
+| --- | --- | --- |
+|100|25|32|
+|10|25|32|
+|10|34|32|
+|255|25|32|
+
+The API RAM read and photographed emulator screen agree. The preceding
+AmSpirit machine snapshot, configuration, rendering and pause state were
+restored. Private evidence (results JSON, screenshot, original snapshot and
+restore metadata): `docs/specs/crtc3-2026-09-25/ff2/alias-probe-amspirit/`.
+
+This directly establishes AmSpirit's no-alias behavior at both tested display
+heights, plus a lower-half interrupt outside display. Along with CPCEC's source,
+it supports retaining the current comparison while investigating PRI-write or
+phase behavior. It is still emulator evidence; the same CPR is ready for
+original-Plus/GX4000 confirmation if needed. The user prefers the emulator
+check first and trusts its implementation. No original-hardware run is claimed.
+
+
+Opus5.5-medium review `20260927T005455Z-54824-c22a` found no blockers in the
+probe. Its two recommended hardware-initialization improvements were applied:
+write sprite magnifications directly instead of copying through register
+readback, and acknowledge any pending PRI before zeroing the measurement count.
+The parent inspected those exact changes; the final generator gate and
+AmSpirit run were repeated afterward, with the same four32-count result.
+Review hashing was permission-blocked; the parent independently hashed the
+final CPR and will verify the delivered copy. Review output is preserved under
+`docs/specs/crtc3-2026-09-25/ff2/alias-probe-review/`.
+
+Delivered diagnostic:
+`/Users/renaudg/code/Amstrad_MiSTer/output_files/pri-alias-probe.cpr`.
+AmSpirit results screenshot:
+`/Users/renaudg/code/Amstrad_MiSTer/output_files/pri-alias-probe-amspirit.png`.

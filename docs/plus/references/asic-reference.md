@@ -272,7 +272,12 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   say PRI = n can also fire at n+256; that is incompatible with requiring VC5=0.
   No-wrap is the accepted policy: the [Copter investigation](../../defects/copter271/README.md)
   records the erroneous line311 palette load and confirms the logo fixed on device
-  by `b5c3014` / `c595031`. The scrape does not reopen that decision. See the [2026-09-22 source comparison](scrapes-interrupt-findings-2026-09-22.md).
+  by `b5c3014` / `c595031`. However, the 2026-09-27 human FF2 bisect identifies
+  that same change as introducing sky flicker and music slowdown. CPCEC uses
+  nine-bit matching too, with additional FF2-specific PRI-write handling. Keep
+  the current comparison while investigating that interaction; the Copter result
+  does not settle all PRI behavior. See the [completed FF2 bisect](../remaining-title-regressions-2026-09-27.md#completed-hardware-bisect)
+  and [2026-09-22 source comparison](scrapes-interrupt-findings-2026-09-22.md).
   The register can be rewritten for multiple interrupts; PRI=0 selects the
   compatible 52-line mechanism rather than programming line 0/256.
 - **Trigger point**: on the **trailing edge of the HSYNC seen by the monitor**,
