@@ -1,7 +1,7 @@
 // Production-model run of the Plus hardware-probe cartridge: the prepared D5 fixture
 // (production T80, motherboard, ASIC, SDRAM cartridge path, production clocking).
 // Dumps the last complete frame as a PPM in C0 geometry (x = C0*16 + dot,
-// y = scanline since frame start) and logs PRI/SPLT/SSCR/pen-0 writes, raster
+// y = scanline since frame start) and logs PRI/SPLT/SSA/SSCR/pen-0 writes, raster
 // requests and interrupt acknowledges of that frame. Optional key taps (space)
 // exercise screen navigation. Diagnostic only; built by plus_hw_probes_sim.py.
 #define main p10_unused_main
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
 			const bool wr = d.dbg_asic_wr;
 			if (wr && !old_wr) {
 				const unsigned a = 0x4000 | d.dbg_asic_addr;
-				if (a == 0x6800 || a == 0x6801 || a == 0x6804 || a == 0x6401)
+				if (a == 0x6800 || a == 0x6801 || a == 0x6802 || a == 0x6803 || a == 0x6804 || a == 0x6401)
 					ev_cur << "WR " << std::hex << a << "=" << unsigned(d.dbg_asic_val) << std::dec << " " << where(d) << '\n';
 			}
 			old_wr = wr;
