@@ -69,7 +69,18 @@ ordinary, line-entry and value-change terms:
 | Same-value writes never re-request after ACK (FF2) | The level is unchanged, so there is no edge |
 
 Line-entry requests land at C0 1, one character later than the earlier three-term model.
-Still to check in simulation: Eerie Forest, FF2, Copter 271, Prehistorik II and the CRTC3 demo.
+
+## MiSTer validation (2026-09-27)
+
+`Amstrad_20260927_d6618f4.rbf` (hosted full build, setup slack +0.315 ns, TNS 0), 6128+/Full-sync
+CFG, each probe screen booted from its own start CPR. Probes 01, 04, 09, 11 and 15 now match
+the original-Plus photographs. 06–08 still read `02`, and their marks move with the later
+line entry. The other screens are byte-identical to master `fc1faaa`, which reproduced the old
+RTL predictions on every screen. Eerie Forest (no dotted strip or green bar), FF2 attract,
+Copter 271 and the CRTC3 demo look the same as the `815ce68` captures, apart from animation
+phase. FF2 gameplay with music and Prehistorik II still need an interactive check. Captures:
+main checkout `local/task-archives/plus-hw-probes-2026-09-27/mister/` (`run.py`,
+`base-fc1faaa/`, `fix-d6618f4/`).
 
 ## Recording a probe result
 
