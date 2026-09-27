@@ -34,6 +34,12 @@ constant. Record sky stability and music cadence separately at the same scene.
 
 ## Source lead and limits
 
+The additional [three-emulator source survey](references/emulator-pri-scroll-survey-2026-09-27.md)
+finds no n+256 alias in Caprice32, CPCSyntaxError or konCePCja, but substantial
+differences in line counters and IRQ phase. None independently supplies CPCEC's
+explicit FF2 write-trigger behavior or resolves Eerie's live SSCR edge. It also
+records konCePCja's useful write watchpoints and timing/debugger limitations.
+
 CPCEC at `/Users/renaudg/code/cpcec`, source commit
 `c025aab961a796b918cc99bc3e16216ea65bb5d1`, explicitly names Fire & Forget 2 in
 its changed-PRI-write handling (`cpcec.c:2110`). Our production GA latches
