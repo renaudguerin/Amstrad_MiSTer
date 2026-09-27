@@ -9,8 +9,8 @@ User report on 2026-09-27, following delivery of `cf62d5f`:
   bottom HUD. That line is absent on `edaa15b`.
 - Eerie Forest's left-edge defect remains.
 - Fire & Forget 2 has sky-gradient flicker and music slowdown, also present on
-  `edaa15b`. Symptoms occur in no-input attract mode. The user recalls a clean older
-  build but cannot identify it; no title-specific good endpoint is established yet.
+  `edaa15b`. Symptoms occur in no-input attract mode. The user subsequently confirms gameplay on `84e6969` has a stable sky and
+  normal music; its title-screen issues are outside this bisect.
 
 Hardware and visual testing remain with the user. This investigation adds no
 hardware capture, emulator replay or RTL change. Similar slowdown symptoms do
@@ -29,8 +29,7 @@ regressions; a targeted diagnostic or isolated candidate is preferable once
 its register sequence is established.
 
 For Fire & Forget 2, `edaa15b` is a confirmed bad endpoint, not a good baseline.
-Find a good endpoint with existing earlier RBFs before committing to a binary
-search or calling this a regression. Keep cartridge, model and sync settings
+The confirmed gameplay interval is now `84e6969` good to `edaa15b` bad. Keep cartridge, model and sync settings
 constant. Record sky stability and music cadence separately at the same scene.
 
 ## Source lead and limits
@@ -72,23 +71,44 @@ write, including a same-value write, must retrigger. Its ordinary raw-HSYNC
 assertion event (`cpcec.c:874–877`) and clear-on-other-nonzero-PRI-write branch
 (`2112–2113`) are separate differences requiring separate evidence.
 
-## First human bisect check
+## Confirmed good endpoint and next human check
 
-An existing full-build RBF is available locally, so no GitHub retrieval is
-needed for the first older endpoint:
+The user confirms FF2 gameplay on full RBF `84e6969` has stable sky gradients
+and normal music. Title screens have separate issues; they are not the pass/fail
+criterion for this bisect. Earlier reports locate the bad symptom in no-input
+attract mode; compare the same visible gameplay scene across builds.
 
+Good RBF:
 `/Users/renaudg/code/Amstrad_MiSTer/output_files/Amstrad-local-build-12-1-full/Amstrad_20260901_84e6969.rbf`
+SHA256 `5787f6b8ed05ee8b9ad56506aa38b63be7c0e5b33de0c7a6c1860758d52f5cbf`.
 
-SHA256: `5787f6b8ed05ee8b9ad56506aa38b63be7c0e5b33de0c7a6c1860758d52f5cbf`.
-`84e6969` is dated 2026-09-01, with prior hardware use recorded in
-`docs/investigations/hardware-runs/hardware-evidence-2026-09-02.md`. This is an endpoint
-probe, not a known-good FF2 build. Run the same cartridge in 6128Plus / Full
-sync and let attract mode reach the affected sky. Report sky flicker and music
-cadence separately, or report inability to boot/reach that scene as inconclusive.
+Next candidate: `88262b9fcffdd40df2a5d28d1cb4278f863b4caa`, an ancestor of
+`edaa15b` and descendant of `84e6969`. It divides the interval into 33 earlier
+and 30 later RTL-changing commits (`git rev-list --count <range> -- rtl`).
+[CI run 34789878189](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/34789878189)
+passed simulation, local full synthesis and required gate. Downloaded artifact
+`Amstrad-local-build-221-1-full`, ID `10328352517`, reports `build_mode=clean_full`.
+Setup minimum +0.387ns, hold minimum +0.241ns, zero TNS in the timing summary.
 
-If clean, use `84e6969..edaa15b` as the interval and obtain a full-build artifact
-near its behavioral midpoint. If affected, search older artifacts instead.
-Avoid a list of mandatory sequential builds before the first endpoint result.
+Delivered RBF:
+`/Users/renaudg/code/Amstrad_MiSTer/output_files/Amstrad_20260914_88262b9.rbf`
+SHA256 `bad7d36995c5f480c9328aae1b7f0174881214998786b5610b18bcd11e7b1076`.
+Task copy and reports: `output_files/ff2-bisect-88262b9/`.
+
+Keep 6128Plus / Full sync and the cartridge unchanged. Judge stable sky and
+normal music in the affected gameplay scene, not unrelated title defects.
+If good, narrow to `88262b9..edaa15b`; if bad, narrow to
+`84e6969..88262b9`. Inability to reach the scene is inconclusive.
+
+### Implication for the CPCEC lead
+
+Reading the good `84e6969` GA shows it also lacks a PRI-write trigger and fires
+on monitor-HSYNC fall. Therefore missing CPCEC set-on-write behavior alone
+cannot explain this regression. A later state/timing change might expose that
+limitation, but it is no longer sufficient grounds for the first repair.
+The midpoint includes the September 13 PRI line-alias, DCSR acknowledge and
+coincident-raster/ACK changes; its result separates these and earlier changes
+from later snapshot, DMA, pending-classic and sprite repairs.
 
 
 Cartridge found: `local/test_media/cartridges/01_PlusGames/Fire And Forget II.cpr`,

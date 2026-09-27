@@ -20,8 +20,8 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   constrained paths. Prehistorik II is almost fixed but retains one corrupt
   line immediately above the bottom HUD, absent on `edaa15b`. Eerie Forest's
   left strip remains. Fire & Forget 2 has newly reported sky-gradient flicker
-  and music slowdown, also present on `edaa15b`; its regression origin is not
-  established. Keep its historical bisect separate from the recent Prehistorik
+  and music slowdown: gameplay is confirmed good on `84e6969` and bad on
+  `edaa15b`. Full-build midpoint `88262b9` is delivered for human testing. Keep its historical bisect separate from the recent Prehistorik
   residual. See the [repair record](plus/ack-provenance-regression-2026-09-26.md)
   and [remaining-title investigation](plus/remaining-title-regressions-2026-09-27.md).
 
