@@ -526,11 +526,17 @@ wire pointer_frame_origin = (ivm_active | sync_interlace_active) ?
 // P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
 wire [4:0] ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
 
-// Row-end VMA latch update: outside IVM, the displayed scanline ra_eff
-// reaching R9 advances the source row before SSCR wraps RA to 0 (Arnold V
-// §2.5, asic-reference §8).  In IVM the §19.8.4 C9>=R9 decision is the
-// terminal-line test, including the even-parity overshoot line.
-wire row_latch_done = ivm_active ? c9_done : (ra_eff == R9_v_max_line);
+// Row-end VMA latch update: outside IVM, a level test ra_eff >= R9 at
+// C0=R1 advances the source row, so it moves before SSCR wraps RA to 0
+// (Arnold V §2.5, asic-reference §8).  For R9 <= 7 the wrapped ra_eff stays
+// in 0..7 and this is the equality test.  With R9 > 7 only RA's low three
+// bits wrap, and ra_eff can pass R9 on several lines of one row: R9=11,
+// offset 5 displays 5,6,7,0,1,2,3,4,13,14,15,8 and captures on raw raster
+// 8, 9 and 10, advancing three source rows per character row. Original Plus
+// probe 15 shows exactly that (rows 00,03,06,...; AmSpirit identical;
+// docs/plus/source-divergences.md). In IVM the §19.8.4 C9>=R9 decision is
+// the terminal-line test, including the even-parity overshoot line.
+wire row_latch_done = ivm_active ? c9_done : (ra_eff >= R9_v_max_line);
 wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
                        (hcc == R1_h_displayed) &&
                        row_latch_done;
