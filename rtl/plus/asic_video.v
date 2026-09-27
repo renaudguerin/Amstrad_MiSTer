@@ -502,12 +502,14 @@ end
 // Two-stage {R12,R13} -> VMA' -> VMA behaviour, as on type 0. The ACCC
 // v1.11 §20.3.4 p.244 opening-sentence/current-pointer-model reading (the
 // later prose drops C9; hardware confirmation remains open) is used here:
-// at the frame origin C4=C9=C0=0 BOTH pointers reload from R12/R13. At any
-// other line start VMA loads from VMA'. The row-end capture VMA' <- VMA fires
-// on the live comparison
-// C0==R1 && C9==R9 and is suppressed during vertical adjustment, which
-// instead re-solidifies the captured row base each adjustment line
-// ("without updating the video pointer", ACCC §11.2.6 p.85).
+// at the frame origin C4=C9=C0=0 BOTH pointers reload from R12/R13, except
+// that VMA' keeps a screen-split capture made on the terminal line (see
+// split_held). At any other line start VMA loads from VMA'. The row-end
+// capture VMA' <- VMA fires at C0==R1 on the live row-end test
+// (row_latch_done: displayed RA >= R9 outside IVM) and is suppressed during
+// vertical adjustment, which instead re-solidifies the captured row base
+// each adjustment line ("without updating the video pointer", ACCC §11.2.6
+// p.85).
 //
 // With R1>R0 the capture can never fire, so every row re-displays the
 // frozen VMA' base — character-line repetition (ACCC §17.2.2 p.179) with
@@ -526,11 +528,19 @@ wire pointer_frame_origin = (ivm_active | sync_interlace_active) ?
 // P6: Soft scroll vertical scanline offset (SSCR[6:4], asic-reference §8)
 wire [4:0] ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
 
-// Row-end VMA latch update: outside IVM, the displayed scanline ra_eff
-// reaching R9 advances the source row before SSCR wraps RA to 0 (Arnold V
-// §2.5, asic-reference §8).  In IVM the §19.8.4 C9>=R9 decision is the
-// terminal-line test, including the even-parity overshoot line.
-wire row_latch_done = ivm_active ? c9_done : (ra_eff == R9_v_max_line);
+// Row-end VMA latch update: outside IVM, a level test ra_eff >= R9 at
+// C0=R1 advances the source row, so it moves before SSCR wraps RA to 0
+// (Arnold V §2.5, asic-reference §8).  For R9 = 7 the wrapped ra_eff stays
+// in 0..7 and this is the equality test; for R9 < 7 with a nonzero offset it
+// captures on several lines of a row (unprobed, see docs/plus/
+// source-divergences.md).  With R9 > 7 only RA's low three
+// bits wrap, and ra_eff can pass R9 on several lines of one row: R9=11,
+// offset 5 displays 5,6,7,0,1,2,3,4,13,14,15,8 and captures on raw raster
+// 8, 9 and 10, advancing three source rows per character row. Original Plus
+// probe 15 shows exactly that (rows 00,03,06,...; AmSpirit identical;
+// docs/plus/source-divergences.md). In IVM the §19.8.4 C9>=R9 decision is
+// the terminal-line test, including the even-parity overshoot line.
+wire row_latch_done = ivm_active ? c9_done : (ra_eff >= R9_v_max_line);
 wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
                        (hcc == R1_h_displayed) &&
                        row_latch_done;
@@ -540,10 +550,20 @@ wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
 wire split_match = (SPLT != 8'd0) && ({charline[4:0], raster[2:0]} == SPLT);
 wire split_latch_event = CLKEN && !in_adj && split_match && (hcc == R1_h_displayed);
 
+// A split captured on the terminal line of a frame survives the frame
+// origin in VMA' while VMA still reloads from R12/R13 (original Plus probe
+// 11, SPLT=55 matching line 311 through the eight-bit compare; AmSpirit
+// identical): frame line 0 shows R12/R13, line 1 onwards SSA. VMA' priority
+// is split capture > frame-origin init > row capture. split_held remembers
+// a capture made earlier on the current line; a C0=R1=R0 capture coincides
+// with the line end and is seen directly.
+reg split_held;
+
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		vma       <= 14'd0;
 		vma_latch <= 14'd0;
+		split_held <= 1'b0;
 	end
 	else if (SNA_LOAD) begin
 		// The format serializes no video-pointer state, and split history plus
@@ -552,6 +572,7 @@ always @(posedge CLOCK) begin
 		// R12/R13 — the same value the next real frame origin would reload.
 		vma       <= {SNA_REGS[96 +: 6], SNA_REGS[104 +: 8]};
 		vma_latch <= {SNA_REGS[96 +: 6], SNA_REGS[104 +: 8]};
+		split_held <= 1'b0;
 	end
 	else if (CLKEN) begin
 		if (split_latch_event)
@@ -559,14 +580,19 @@ always @(posedge CLOCK) begin
 		else if (row_latch_event)
 			vma_latch <= vma;
 
+		if (hcc_last)               split_held <= 1'b0;
+		else if (split_latch_event) split_held <= 1'b1;
+
 		if (hcc_last) begin
-			// §20.3.4 frame-start reload has highest priority. Otherwise
-			// a simultaneous C0=R1=R0 row-end capture supplies the next
-			// row base, so do not overwrite VMA with the stale latch value
-			// on that same edge (ACCC §17.1 p.177 / §17.6.1 p.186).
+			// §20.3.4 frame-start reload has highest priority for VMA.
+			// Otherwise a simultaneous C0=R1=R0 row-end capture supplies
+			// the next row base, so do not overwrite VMA with the stale
+			// latch value on that same edge (ACCC §17.1 p.177 / §17.6.1
+			// p.186).
 			if (pointer_frame_origin) begin
-				vma       <= {R12_start_addr_h[5:0], R13_start_addr_l};
-				vma_latch <= {R12_start_addr_h[5:0], R13_start_addr_l};
+				vma <= {R12_start_addr_h[5:0], R13_start_addr_l};
+				if (!split_held && !split_latch_event)
+					vma_latch <= {R12_start_addr_h[5:0], R13_start_addr_l};
 			end
 			else if (split_latch_event) begin
 				vma <= SSA;
