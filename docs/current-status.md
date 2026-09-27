@@ -22,9 +22,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   Prehistorik II gameplay good on it. Integrated as `a24688a`: exact-SHA CI run 36345129750
   passes every required job; `output_files/Amstrad_20260927_a24688a.rbf` (SHA-256
   `fd49d192…40da45`), setup/hold +0.509/+0.241 ns, zero TNS, 24,368 ALMs (58%). New probe screens 19–20 (HSYNC ending at
-  the PRI line start) also match the original Plus. Open: probe cartridge V3 (screens 21–25:
-  SSA sampling on line 311, offset 7 with the held split, R9<7 with an offset) awaits
-  original-Plus photographs. Screen 21 is the one where AmSpirit and the RTL disagree.
+  the PRI line start) also match the original Plus. Probe cartridge V3 (screens 21–25), photographed
+  the same day: offset 7 with the held split and R9<7 with an offset match the RTL; screen 21
+  showed the terminal-line split captures SSA at C0=R0 ([ARNOLD-REV §2.3], already in
+  asic-reference §8 but unimplemented), fixed on `plus/hw-probes-v3`.
 
 - **FF2 PRI-write repair hardware-accepted (2026-09-27):** the resumed
   production-T80 replay confirms a changed PRI46→48 write on line48 after the

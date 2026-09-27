@@ -27,7 +27,7 @@ RA2 plane shown on RA0 by an SSCR write (A), or pen 0 turned yellow for about 9 
 
 "RTL" is the production simulation of the current cartridge on current master (see below);
 "AmSpirit" is Lite 1.15.1, 6128Plus/CRTC3, on the same CPR. "Original Plus" is the
-2026-09-27 photograph set (cartridge V1 screens 01–18, V2 screens 19–20) recorded in [the ledger](../../docs/plus/source-divergences.md#probe-photographs).
+2026-09-27 photograph set (cartridge V1 screens 01–18, V2 screens 19–20, V3 screens 21–25) recorded in [the ledger](../../docs/plus/source-divergences.md#probe-photographs).
 Screens 19–20 were added in V2 (photographed the same day) and 21–25 in V3; earlier numbering is unchanged.
 
 | # | Test | Question | RTL | AmSpirit | Original Plus |
@@ -47,11 +47,11 @@ Screens 19–20 were added in V2 (photographed the same day) and 21–25 in V3; 
 | 18 | G2 SSCR[7] over sprites | Does the extended border hide sprites? | X=0 hidden, X=8 right half, X=16 whole | same | as RTL |
 | 19 | C6 R2=56, R3=8 | Raw HSYNC ending exactly at the PRI line start: line-entry request? | `02` | `02` | `02` |
 | 20 | C7 R2=50, R3=14 | Same, at the CRTC3 demo's plasma/sphere/Wolverine timing | `02` | `02` | `02` |
-| 21 | H1 SPLT=55, SSA rewritten on line 311 at C0≈52 | Is SSA sampled for the line-311 split before the C0≈52 write (RTL: C0=R1=40) or after it (line end or frame origin)? | first green text row `SSA ROW 04` | `SSA ROW 05` | not yet photographed |
-| 22 | H2 as H1, rewrite at C0≈30 | Control: the rewrite precedes C0=R1 | `SSA ROW 05` | same | not yet photographed |
-| 23 | D5 SPLT=55, vscroll 7 | Does the line-0 row capture (offset 7 makes raster 0 the row's last) replace the held line-311 split? | red to line 55, green from 56 | same | not yet photographed |
-| 24 | E3 R9=3 rows 6–11, vscroll 0 | Reference for E4 | bars step once per 4-line row | same | not yet photographed |
-| 25 | E4 R9=3 rows 6–11, vscroll 2 | R9<7 with an offset: does `ra_eff >= R9` capture on several lines of a row? | bars step on 3 lines of every 4-line row | same | not yet photographed |
+| 21 | H1 SPLT=55, SSA rewritten on line 311 at C0≈52 | Is SSA sampled for the line-311 split before the C0≈52 write (RTL: C0=R1=40) or after it (line end or frame origin)? | `SSA ROW 05` (terminal line samples at C0=R0; `ROW 04` before the fix) | `SSA ROW 05` | `SSA ROW 05`, dash beside line 0 (as AmSpirit) |
+| 22 | H2 as H1, rewrite at C0≈30 | Control: the rewrite precedes C0=R1 | `SSA ROW 05` | same | `SSA ROW 05`, dash above the display |
+| 23 | D5 SPLT=55, vscroll 7 | Does the line-0 row capture (offset 7 makes raster 0 the row's last) replace the held line-311 split? | red to line 55, green from 56 | same | as RTL |
+| 24 | E3 R9=3 rows 6–11, vscroll 0 | Reference for E4 | bars step once per 4-line row | same | as RTL |
+| 25 | E4 R9=3 rows 6–11, vscroll 2 | R9<7 with an offset: does `ra_eff >= R9` capture on several lines of a row? | bars step on 3 lines of every 4-line row | same | as RTL |
 
 Why each matters and what each outcome would change: [source-divergences.md](../../docs/plus/source-divergences.md).
 
