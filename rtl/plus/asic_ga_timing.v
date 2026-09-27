@@ -597,8 +597,9 @@ module asic_ga_timing
 	// Original-Plus photographs confirm the width independence and the 1 us
 	// CPU slot (markers ~136/135/139 dots at R3=3/6/11); see
 	// docs/plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md.
-	// Width 1 and the write/crossing terms below are still unverified on
-	// hardware: docs/plus/source-divergences.md.
+	// Original-Plus probes 01/04/09 contradict the terms below at width 1,
+	// at a PRI write one character after HSYNC ends, and at R2=63; the
+	// candidate fix is in docs/plus/source-divergences.md.
 	//
 	// An ASIC raster fire also clears bit 5 of the 6-bit counter (as a
 	// normal acknowledge does), so a later re-enabled CPC-compatible
