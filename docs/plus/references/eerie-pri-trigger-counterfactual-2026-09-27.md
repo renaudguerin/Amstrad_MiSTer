@@ -226,3 +226,33 @@ Plus/GX4000 results for `pri-width-3.cpr`, `pri-width-6.cpr` and
 final marker at every width, as AmSpirit shows; the revised-Arnold rule
 predicts a 48-dot step from width 3 to 6. If hardware shows that step, revert
 this trigger and look for the Eerie strip on the fetch side.
+
+## MiSTer A/B (2026-09-27)
+
+Native captures on the user's MiSTer with the 6128+/Full-sync CFG
+(`13ef32c7…35747`), unchanged media, no input, and identical case timing. The
+original CFG (`2e585b4c…d8e4`) was restored and hash-checked afterwards.
+
+| RBF | SHA-256 | Timing (setup / hold, TNS) |
+|---|---|---|
+| `Amstrad_20260927_8306e6f.rbf` (sprite mask) | `b075dd40…6adb84` | +0.520 / +0.177 ns, 0 |
+| `Amstrad_20260927_815ce68.rbf` (+ 1 µs PRI) | `7aca59cd…c0d6ef` | +0.465 / +0.242 ns, 0 |
+
+- **Eerie Forest (9 captures, 10–40 s):** on 8306e6f the green first-column
+  bar is gone, but the dotted strip shows in c1, c2 and c4. On 815ce68 neither
+  artifact appears in any capture; logo, reveal, landscape and scrollers
+  progress as before.
+- **FF2 attract (10 captures, through gameplay demo):** title, HUD and sky
+  gradient look the same on both RBFs. Music was not checked.
+- **Copter 271 title (6 captures):** logo, palette gradient and scroller look
+  the same.
+- **CRTC3 demo (10 captures):** Buddha, plasma bands, CRTC³ band and tunnel
+  are coherent on both. One 815ce68 capture catches a band scroller's first
+  scanline where the baseline capture shows a different moment. Plasma phase
+  also differs, and simulation gives identical frames under +0 µs and +4 µs
+  triggers, so this is animation phase, not a regression.
+
+Captures, cases, contact sheets and zooms are in the main checkout's
+`local/task-archives/eerie-hsync-trigger-2026-09-27/evidence/mister/`. These
+are MiSTer reproductions, not original-hardware verdicts. FF2 gameplay with
+music and Prehistorik II still need the user's interactive check.
