@@ -23,11 +23,11 @@ The probe screen numbers refer to [the multi-test probe cartridge](../../scripts
 
 | Rule (owner) | Written sources say | RTL does | Evidence | Confidence | Discriminator |
 |---|---|---|---|---|---|
-| Ordinary PRI request phase (`asic_ga_timing.v`) | Revised Arnold §2.4: monitor-HSYNC trailing edge, clamped at start+6 µs. Kevin Thacker (KT): ~10 µs, width-independent | 1 µs after raw HSYNC start, every width, while HSYNC is active | Original Plus 2026-09-27: flat-plane markers at widths 3/6/11 end ~136/~135/~139 dots in, ~78 without padding. The width rule is absent; RTL predicts 139/139/139 and 75. AmSpirit agrees; Eerie Forest needs ≤ start+4 µs ([evidence](references/eerie-pri-trigger-counterfactual-2026-09-27.md#original-hardware-2026-09-27)) | **hardware** for width independence and the 1 µs CPU slot (probe 03 repeats it: ~140 dots). Sub-µs position is invisible to software | Settled. A raw INT trace would add sub-µs detail |
-| PRI at HSYNC width 1 (same) | Not addressed | No request: HSYNC ends as the 1 µs point arrives | Original Plus 2026-09-27, probe 01: `IRQ/FRAME=01`, so width 1 **does** request (AmSpirit agrees). The RTL is wrong | **hardware** (contradicts RTL) | Fix pending: [delayed-comparator mechanism](#pri-delayed-comparator-candidate) |
-| PRI written to the current line during HSYNC (same, `pri_value_change`) | Not addressed | Changing PRI to the current line while raw HSYNC is active requests at once. Same-value writes and writes after HSYNC ends do not | FF2 palette chain; CPCEC `cpcec.c:2106–2114`. Original Plus 2026-09-27, probe 04: marks for write C0 45–60, none 61–63, `IRQ/FRAME=16` (AmSpirit agrees). Writes during HSYNC do request, but the window runs one character past raw HSYNC end; the RTL misses C0 60 | **hardware** for the rule; RTL window 1 µs short | Fix pending: [delayed-comparator mechanism](#pri-delayed-comparator-candidate) |
+| Ordinary PRI request phase (`asic_ga_timing.v`) | Revised Arnold §2.4: monitor-HSYNC trailing edge, clamped at start+6 µs. Kevin Thacker (KT): ~10 µs, width-independent | 1 µs after raw HSYNC start, every width: the rising edge of the one-character-delayed comparator ([mechanism](#pri-delayed-comparator-candidate)) | Original Plus 2026-09-27: flat-plane markers at widths 3/6/11 end ~136/~135/~139 dots in, ~78 without padding. The width rule is absent; RTL predicts 139/139/139 and 75. AmSpirit agrees; Eerie Forest needs ≤ start+4 µs ([evidence](references/eerie-pri-trigger-counterfactual-2026-09-27.md#original-hardware-2026-09-27)) | **hardware** for width independence and the 1 µs CPU slot (probe 03 repeats it: ~140 dots). Sub-µs position is invisible to software | Settled. A raw INT trace would add sub-µs detail |
+| PRI at HSYNC width 1 (same) | Not addressed | One request, 1 µs after HSYNC start (`HSYNC_d` is high for one character) | Original Plus 2026-09-27, probe 01: `IRQ/FRAME=01`, so width 1 **does** request (AmSpirit agrees). The RTL was wrong before the delayed comparator | **hardware** | Settled (`asic_pri_test` pr10) |
+| PRI written to the current line during HSYNC (same) | Not addressed | Changing PRI to the current line while `HSYNC_d` (raw HSYNC one character late) is active requests at once. Same-value writes and writes after `HSYNC_d` ends do not | FF2 palette chain; CPCEC `cpcec.c:2106–2114`. Original Plus 2026-09-27, probe 04: marks for write C0 45–60, none 61–63, `IRQ/FRAME=16` (AmSpirit agrees). Writes during HSYNC do request, but the window runs one character past raw HSYNC end; the earlier raw-HSYNC window missed C0 60 | **hardware** | Settled (`asic_pri_test` pr11) |
 | PRI line compare width (`asic_ga_timing.v`) | Revised Arnold: nine-bit `{0,PRI}` against `{VC5..0,RC2..0}`. CPCWiki ASIC page and Quasar: PRI=n also fires at n+256 | Nine-bit, no alias | Original Plus alias probe 2026-09-27: 32 IRQs in all four cases. Copter 271; AmSpirit; CPCEC | **hardware** | Settled |
-| HSYNC crossing into the PRI line (same, `pri_line_entry`) | Revised Arnold §2.4: overlap can trigger at line entry | Line-entry request, plus the ordinary one at +1 µs on the same line. When +1 µs lands exactly on the next line's entry, both compare the new line | CRTC3 demo Buddha/spheres (MiSTer). Original Plus 2026-09-27, probes 05–09: R2=49/57/58/62 give `01/02/02/02` as the RTL does; R2=63 gives `02` where the RTL gives `01` (AmSpirit agrees with hardware) | **hardware** for line entry; RTL wrong at R2=63 | Fix pending: [delayed-comparator mechanism](#pri-delayed-comparator-candidate) |
+| HSYNC crossing into the PRI line (same) | Revised Arnold §2.4: overlap can trigger at line entry | Line-entry request at the PRI line's C0 1 (`line_d` catches up one character late), plus the line's own request. With R2=63 the second request is at the next line's C0 0, where `line_d` still reads the PRI line | CRTC3 demo Buddha/spheres (MiSTer). Original Plus 2026-09-27, probes 05–09: R2=49/57/58/62 give `01/02/02/02` as the RTL does; R2=63 gives `02`, which the earlier three-term RTL missed (AmSpirit agrees with hardware) | **hardware** | Settled (`asic_pri_test` pr12). An HSYNC ending exactly at the PRI line start is unprobed |
 | SPLT near the 312-line wrap (`asic_video.v`) | Eight-bit compare, so SPLT=55 also matches line 311 and is pathological (revised Arnold); KT says 56 | Eight-bit compare, but a line-311 capture has no visible effect: the frame-origin reload wins | Original Plus 2026-09-27, probes 10–13: SPLT=54/56/57 split from line SPLT+1 as predicted. SPLT=55: frame line 0 still shows R12/R13, every later line comes from SSA, and the line-56 split restarts SSA again (AmSpirit identical). The line-311 capture is real; the frame origin wins for line 0 only | **hardware** (contradicts RTL; revised Arnold right, KT wrong) | Mechanism derivation and fix pending |
 | SSCR vertical offset with R9>7 (`asic_video.v`) | §2.5 adds to the low three RA bits; the revised summary reads as a wider addition | Low-three-bit addition. With R9=11 and offset 5 the row-end compare never matches, so every row repeats | Original Plus 2026-09-27, probes 14–15: offset 0 shows rows in order; offset 5 shows rows 00, 03, 06, 09, 12, 15 with a second block 02, 05… lower right, identical to AmSpirit. The RTL's repeated ROW 00 is wrong | **hardware** (contradicts RTL; R9=7 unaffected) | Mechanism derivation from the AmSpirit capture, then fix |
 | Sprite attribute write mirrors (`asic_regs.v`) | Revised Arnold: +3, +4, +5, +7 write magnification. KT: +4..+7 | +4..+7 write magnification; +3 is Y high only | Original Plus 2026-09-27, probe 16: +5/+6/+7 magnified, +3 not (AmSpirit agrees) | **hardware** (KT right) | Settled |
@@ -48,14 +48,16 @@ the SPLT and SSCR screens the AmSpirit captures in `amspirit/` are pixel-exact s
 
 ## PRI delayed-comparator candidate
 
+Implemented in `asic_ga_timing.v` (2026-09-27); the heading keeps its anchor.
+
 A single mechanism explains all three PRI mismatches (probes 01, 04, 09) and every settled
 PRI observation. Request on the rising edge of
 
-    HSYNC_d && ({0,PRI} == line_d) && PRI != 0
+    HSYNC_d && ({0,PRI} == line_d) && PRI != 0 && !adj_d
 
-where `HSYNC_d` and `line_d` are the CRTC HSYNC and `{VC,RC}` line delayed by one character
-(1 µs), and PRI is live. This one edge detector replaces the separate ordinary, line-entry
-and value-change terms:
+where `HSYNC_d`, `line_d` and `adj_d` are the CRTC HSYNC, `{VC,RC}` line and vertical-adjust
+flag delayed by one character (1 µs), and PRI is live. This one edge detector replaced separate
+ordinary, line-entry and value-change terms:
 
 | Observation | Why it follows |
 |---|---|
@@ -66,8 +68,8 @@ and value-change terms:
 | R2=63 gives two (probe 09) | Line 7's HSYNC starts at its C0 63; `line_d` still reads 7 when `HSYNC_d` rises at line 8 C0 0 |
 | Same-value writes never re-request after ACK (FF2) | The level is unchanged, so there is no edge |
 
-Still to check: Eerie Forest, FF2, Copter 271, Prehistorik II and the CRTC3 demo in
-simulation. Line-entry requests move 1 µs later than today.
+Line-entry requests land at C0 1, one character later than the earlier three-term model.
+Still to check in simulation: Eerie Forest, FF2, Copter 271, Prehistorik II and the CRTC3 demo.
 
 ## Recording a probe result
 

@@ -1,14 +1,15 @@
 // Directed exact-cycle vectors for the P3 programmable raster interrupt
-// (reference §7). Drives asic_ga_timing alone with a synthetic line
-// generator: HSYNC_I pulses once per line, crtc_line counts {VC,RC}
-// lines, and PRI is driven directly (its &6800 storage is asic_regs').
+// (reference §7). Drives asic_ga_timing alone with a synthetic CRTC that
+// advances on the module's own CCLK_EN_N, as asic_video does in production:
+// HSYNC_I pulses once per line, crtc_line counts {VC,RC} lines, and PRI is
+// driven directly (its &6800 storage is asic_regs').
 //
 //   pr01  PRI=0 baseline: interrupt period stays exactly 52 lines; the
 //         last-ack-was-raster level latches on each raster acknowledge,
 //         never on the fire itself (lockstep already pins the full
 //         output set; this pins the new export).
 //   pr02  PRI=k: counter fires are suppressed; INT_N falls at the ordinary
-//         event of the matching line (phase pinned by pr10), at the
+//         request of the matching line (phase pinned by pr10), at the
 //         same intra-line offset every time (self-calibrated on the first
 //         fire), and never on line 256+k: bit 8 of the compare is a fixed 0.
 //   pr03  vertical adjust gates firing: no interrupt for a match inside
@@ -23,8 +24,12 @@
 //         prior raster ack) must not be lost (B19 residual): the coincident
 //         fire is held pending across the acknowledge and asserts INT_N low
 //         on the cycle following acknowledge deassertion.
-//   pr10  ordinary PRI requests 1 us after raw HSYNC assertion at every
-//         programmed width (AmSpirit width discriminator; see below).
+//   pr08  a pending CPC request is masked, not lost, across PRI 0<->k.
+//   pr09  PRI writes to the current line, guards and held-value control.
+//   pr10  one request 1 us after raw HSYNC assertion at widths 1..11.
+//   pr11  PRI write window, one character past raw HSYNC (probe 04).
+//   pr12  HSYNC crossing into the PRI line at R2=49..63 (probes 05-09).
+//   pr10-pr12 use the plus_hw_probes geometry (R0=63).
 //
 // Expectations are derived from reference §7 / [ARNOLD-REV §2.4] and cited
 // inline — never read back out of the simulator.
@@ -33,6 +38,8 @@
 #include <cstdio>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "Vasic_ga_timing.h"
 #include "verilated.h"
@@ -46,7 +53,8 @@ public:
 
 [[noreturn]] void fail(const std::string& what) { throw TestFailure(what); }
 
-constexpr unsigned kLineClks = 512;   // ticks per synthetic line
+constexpr unsigned kCharClks = 64;    // master clocks per CRTC character (1 us)
+constexpr unsigned kLineClks = 512;   // ticks per default synthetic line
 // Seven character clocks high within the eight-character synthetic line.
 // This lets the monitor shaper finish its six-character sequence before
 // raw HSYNC falls, and leaves a low interval at the next line boundary.
@@ -68,10 +76,17 @@ public:
 	uint16_t bus_a = 0;
 	uint8_t bus_d = 0xFF;
 	bool fast = false;
-	// synthetic CRTC
+	// Synthetic CRTC. Like asic_video (CLKEN = this module's CCLK_EN_N), it
+	// advances one character on each CCLK_EN_N edge, so raw HSYNC and the
+	// {VC,RC} line change on the character boundaries production uses.
+	// hcount counts master clocks since the current line started.
 	unsigned hcount = 0;
-	bool in_hs = true;
-	unsigned hs_width = kHsWidth; // raw HSYNC clocks per line
+	unsigned chr = 0;             // C0 of the current character
+	unsigned line_chars = kLineClks / kCharClks; // R0 + 1
+	unsigned hs_start = 0;        // R2: C0 where raw HSYNC starts
+	unsigned hs_width = kHsWidth; // raw HSYNC width in clocks (R3 * 64)
+	unsigned hsc = 0;
+	bool in_hs = false;
 
 	explicit PriBench() : dut("asic_ga_timing") {
 		dut.clk = 0;
@@ -104,17 +119,30 @@ public:
 		dut.crtc_line = crtc_line & 0x1FF;
 		dut.crtc_adj = adj ? 1 : 0;
 		dut.eval();
+		const bool char_edge = dut.CCLK_EN_N;
 		dut.clk = 1;
 		dut.eval();
 		++cyc;
 		cen_phase = (cen_phase + 1) % 4;
 
-		// Line bookkeeping: HSYNC_I asserted for kHsWidth at line start.
-		if (hcount == 0) in_hs = true;
-		if (in_hs && hcount >= hs_width) in_hs = false;
-		hcount = (hcount + 1) % kLineClks;
-		if (hcount == 0) ++crtc_line; // line value advances at line start
+		// Character bookkeeping on the same edge asic_video uses: C0 and the
+		// line advance together, and HSYNC starts when the new C0 equals R2
+		// and lasts hs_width / 64 characters (asic_video hsync_start/hsc),
+		// crossing the line boundary when R2 + width exceeds R0.
+		++hcount;
+		if (char_edge) {
+			chr = (chr + 1) % line_chars;
+			if (chr == 0) { ++crtc_line; hcount = 0; }
+			if (in_hs) {
+				if (++hsc == hs_width / kCharClks) in_hs = false;
+			} else if (chr == hs_start) {
+				in_hs = true;
+				hsc = 0;
+			}
+		}
 	}
+
+	unsigned line_clks() const { return line_chars * kCharClks; }
 
 	void run(unsigned n) { for (unsigned i = 0; i < n; ++i) tick(); }
 
@@ -575,19 +603,27 @@ void pr08_pending_classic_mode_switch() {
 	std::printf("PASS pr08: PRI masks and unmasks a pending CPC request\n");
 }
 
-// CPCEC c025aab, cpcec.c:2106-2114: a changed PRI matching the current
-// nine-bit line during raw HSYNC requests an interrupt. FF2's production-T80
-// replay writes 46->48 on line 48 at C0=52, after the ordinary C0=49 event
-// and before raw HSYNC ends at C0=57. Its palette/music chain otherwise
-// waits a whole frame. See references/ff2-runtime-pri-2026-09-27.md.
-// This emulator-supported write rule still needs original-Plus acceptance
-// (probe screen 04, docs/plus/source-divergences.md).
+// A changed PRI matching the delayed nine-bit line while delayed HSYNC is
+// high requests an interrupt: the comparator term rises on the write
+// (docs/plus/source-divergences.md, "PRI delayed-comparator candidate").
+// FF2's production-T80 replay writes 46->48 on line 48 at C0=52, after the
+// ordinary request and before raw HSYNC ends at C0=57; its palette/music
+// chain otherwise waits a whole frame (references/ff2-runtime-pri-
+// 2026-09-27.md; CPCEC c025aab cpcec.c:2106-2114 has the same rule).
+// On this bench raw HSYNC covers C0 0..6 of each 8-character line, so
+// HSYNC_d covers C0 1..7 and is low at C0 0 with line_d still the previous
+// line. Phase 480 is C0 7, one character after raw HSYNC ends: original
+// Plus probe 04 requests there (write at C0 60 with raw HSYNC 49..59; pr11
+// pins the whole window). Line 49 phase 32 is C0 0, where line_d=48 but
+// HSYNC_d is low. asic_video changes ADJ only at line starts, so the
+// adjustment case holds adj for the whole line (adj_d follows at C0 1).
 void pr09_live_pri_write() {
 	struct Case { const char* name; unsigned line, phase, value; bool adj, ack, fire; };
 	const Case cases[] = {
 		{"late matching write", 48, 416, 48, false, false, true},
 		{"write during DMA acknowledge", 48, 416, 48, false, true, true},
-		{"write outside raw HSYNC", 48, 480, 48, false, false, false},
+		{"write one character after raw HSYNC", 48, 480, 48, false, false, true},
+		{"write outside delayed HSYNC", 49, 32, 48, false, false, false},
 		{"nonmatching write", 48, 416, 49, false, false, false},
 		{"ninth-bit mismatch", 304, 416, 48, false, false, false},
 		{"PRI zero", 48, 416, 0, false, false, false},
@@ -603,9 +639,11 @@ void pr09_live_pri_write() {
 		b.pri = 255;
 		while (b.crtc_line < c.line - 1) b.tick();
 		b.empty_ack();
-		while (b.crtc_line != c.line || b.hcount != c.phase) b.tick();
+		while (b.crtc_line != c.line || b.hcount != c.phase) {
+			b.tick();
+			if (b.crtc_line == c.line) b.adj = c.adj;
+		}
 		if (!b.dut.INT_N) fail(std::string("pr09 setup: ") + c.name);
-		b.adj = c.adj;
 		if (c.ack) { b.iorq_n = false; b.m1_n = false; b.run(2); }
 		b.pri = uint8_t(c.value);
 		b.run(2);
@@ -638,46 +676,166 @@ void pr09_live_pri_write() {
 		b.tick();
 		if (!b.dut.INT_N) fail("pr09: unchanged PRI retriggered after acknowledge");
 	}
-	std::printf("PASS pr09: late PRI writes, raw-HSYNC/9-bit/adjust guards, ACK deferral and held-value control\n");
+	std::printf("PASS pr09: late PRI writes, delayed-HSYNC/9-bit/adjust guards, ACK deferral and held-value control\n");
 }
 
 //----------------------------------------------------------------------
-// pr10: ordinary PRI phase. AmSpirit's flat-plane probe CPRs place the final
-// marker at the same position for R3 widths 3, 6 and 11 (139 dots), where
-// the revised-Arnold monitor-trailing-edge rule gave 171/219/219: 32 and 80
-// dots (128 and 320 master clocks) later. Production's IM1 path measures the
-// ACCC section 27.4 five microseconds (ack M1 to 0038 fetch), so the
-// difference is in request generation: a width-independent request 64 clocks
-// (1 us) after raw HSYNC assertion reproduces all three markers. Measured
-// from the first edge sampling raw HSYNC high, the old rule gives 192 clocks
-// at width 3 and 384 at widths 6/7; the new request gives INT_N at 64.
-// Evidence: docs/plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md.
-// Widths are in 64-clock characters; 7 is the bench default and the 6 us
-// clamp case, which cannot reach 11 on an 8-character synthetic line.
+// Production-like geometry for pr10-pr12: R0=63 (64 characters per line),
+// raw HSYNC from C0=R2 for R3 characters, as in the plus_hw_probes screens
+// (scripts/diagnostics/plus_hw_probes.asm). Line 10 is the PRI line unless a
+// vector says otherwise.
+//----------------------------------------------------------------------
+struct Req { uint16_t line; unsigned chr; uint64_t cyc; };
+
+void probe_geometry(PriBench& b, unsigned r2, unsigned r3) {
+	b.line_chars = 64;
+	b.hs_start = r2;
+	b.hs_width = r3 * kCharClks;
+}
+
+// Tick until the synthetic CRTC reaches (line, C0, clock offset in C0).
+void run_to(PriBench& b, uint16_t line, unsigned chr, unsigned off = 0) {
+	while (!(b.crtc_line == line && b.hcount == chr * kCharClks + off)) b.tick();
+}
+
+// Run until the synthetic CRTC reaches line `until`, acknowledging each
+// request as INT_N falls. A request raised during that acknowledge is held
+// pending and delivered afterwards (pr07), so none is lost from the count.
+std::vector<Req> collect(PriBench& b, uint16_t until) {
+	std::vector<Req> reqs;
+	while (b.crtc_line != until) {
+		b.tick();
+		if (!b.dut.INT_N) {
+			reqs.push_back({uint16_t(b.crtc_line), b.chr, b.cyc});
+			b.empty_ack();
+		}
+	}
+	return reqs;
+}
+
+std::string describe(const std::vector<Req>& reqs) {
+	std::string s;
+	for (const auto& r : reqs)
+		s += " (" + std::to_string(r.line) + "," + std::to_string(r.chr) + ")";
+	return s.empty() ? " none" : s;
+}
+
+//----------------------------------------------------------------------
+// pr10: ordinary PRI phase and HSYNC width. The request is the rising edge
+// of HSYNC_d && {0,PRI}==line_d && PRI!=0 && !adj_d, where the _d terms are
+// the CRTC outputs one character (64 clocks) late and PRI is live
+// (docs/plus/source-divergences.md, "PRI delayed-comparator candidate").
+// HSYNC_d rises exactly one character after raw HSYNC, whatever the width,
+// and a one-character HSYNC still gives a one-character HSYNC_d pulse.
+//   - Width independence and the 1 us CPU slot: original Plus flat-plane
+//     markers at R3=3/6/11 (~136/135/139 dots), AmSpirit 139/139/139;
+//     docs/plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md.
+//   - Width 1 requests: original Plus probe 01, IRQ/FRAME=01.
+// Measured from the first edge sampling raw HSYNC high, INT_N falls 64
+// clocks later, exactly one request per matching line.
 //----------------------------------------------------------------------
 void pr10_ordinary_phase() {
-	for (unsigned width : {3u, 6u, 7u}) {
+	for (unsigned width : {1u, 2u, 3u, 6u, 11u}) {
+		const std::string w = "pr10: width " + std::to_string(width);
 		PriBench b;
-		b.hs_width = width * 64;
+		probe_geometry(b, 49, width);
 		b.power_on();
 		b.empty_ack();
-		b.pri = 40;
-		while (b.crtc_line != 39) b.tick();
 		b.empty_ack();
-		while (!(b.crtc_line == 40 && b.hcount == 0)) b.tick();
+		b.pri = 10;
+		run_to(b, 10, 0);
 		while (!b.dut.HSYNC_I) b.tick();
 		const uint64_t hs_rise = b.cyc; // first edge sampling raw HSYNC high
-		uint64_t guard = 0;
-		while (b.dut.INT_N) {
-			b.tick();
-			if (++guard > kLineClks) fail("pr10: width " + std::to_string(width) + " never fired");
-		}
-		const uint64_t delay = b.cyc - hs_rise;
+		const auto reqs = collect(b, 12);
+		if (reqs.size() != 1)
+			fail(w + ": expected one request on line 10, got" + describe(reqs));
+		const uint64_t delay = reqs[0].cyc - hs_rise;
 		if (delay != 64)
-			fail("pr10: width " + std::to_string(width) + " INT " + std::to_string(delay) +
-			     " clocks after raw HSYNC, expected 64");
+			fail(w + " INT " + std::to_string(delay) + " clocks after raw HSYNC, expected 64");
 	}
-	std::printf("PASS pr10: ordinary PRI requests 1 us after raw HSYNC at widths 3/6/7\n");
+	std::printf("PASS pr10: one PRI request 1 us after raw HSYNC at widths 1/2/3/6/11\n");
+}
+
+//----------------------------------------------------------------------
+// pr11: PRI written to the current line (original Plus probe 04). R2=49,
+// R3=11: raw HSYNC covers C0 49..59, so HSYNC_d covers C0 50..60. PRI
+// changes from a nonmatching 200 to the current line 10 at C0 x (+32
+// clocks). The comparator term is already true or becomes true then:
+//   x <= 49: C rises when HSYNC_d does, at C0 50 (ordinary request);
+//   50 <= x <= 60: C rises at the write, inside C0 x;
+//   x >= 61: HSYNC_d is low for the rest of line 10, and on line 11
+//            line_d moves away from 10 as HSYNC_d returns: no request.
+// Probe 04 photographs: marks for writes at C0 45..60, none at 61..63,
+// IRQ/FRAME=16 (docs/plus/source-divergences.md). The old raw-HSYNC write
+// window missed C0 60.
+//----------------------------------------------------------------------
+void pr11_pri_write_window() {
+	for (unsigned x = 45; x <= 63; ++x) {
+		const std::string w = "pr11: write at C0 " + std::to_string(x);
+		PriBench b;
+		probe_geometry(b, 49, 11);
+		b.power_on();
+		b.empty_ack();
+		b.empty_ack();
+		b.pri = 200;
+		run_to(b, 10, x, 32);
+		b.pri = 10;
+		const auto reqs = collect(b, 12);
+		if (x <= 60) {
+			const unsigned want = x < 50 ? 50 : x;
+			if (reqs.size() != 1 || reqs[0].line != 10 || reqs[0].chr != want)
+				fail(w + ": expected one request at (10," + std::to_string(want) +
+				     "), got" + describe(reqs));
+		} else if (!reqs.empty()) {
+			fail(w + ": expected no request, got" + describe(reqs));
+		}
+	}
+	std::printf("PASS pr11: PRI writes request through C0 60 with raw HSYNC 49..59\n");
+}
+
+//----------------------------------------------------------------------
+// pr12: HSYNC crossing into the PRI line (original Plus probes 05-09,
+// R3=8, PRI=7). Raw HSYNC runs C0 R2..R2+7, wrapping into line 7 when
+// R2 > 56; HSYNC_d is the same window one character later, and line_d
+// still reads 6 at line 7 C0 0.
+//   R2=49: HSYNC_d 50..57 of line 7                    -> (7,50)
+//   R2=57: HSYNC_d line 6 58..63, line 7 0..1          -> (7,1), (7,58)
+//   R2=58: HSYNC_d line 6 59..63, line 7 0..2          -> (7,1), (7,59)
+//   R2=62: HSYNC_d line 6 63, line 7 0..6              -> (7,1), (7,63)
+//   R2=63: HSYNC_d line 7 0..7; line 7's own HSYNC starts at C0 63, so
+//          HSYNC_d rises at line 8 C0 0 with line_d still 7 -> (7,1), (8,0)
+// Hardware IRQ/FRAME: 01, 02, 02, 02, 02 (docs/plus/source-divergences.md).
+// The old three-term model gave one request at R2=63.
+//----------------------------------------------------------------------
+void pr12_line_entry() {
+	struct Case { unsigned r2; std::vector<std::pair<unsigned, unsigned>> want; };
+	const Case cases[] = {
+		{49, {{7, 50}}},
+		{57, {{7, 1}, {7, 58}}},
+		{58, {{7, 1}, {7, 59}}},
+		{62, {{7, 1}, {7, 63}}},
+		{63, {{7, 1}, {8, 0}}},
+	};
+	for (const auto& c : cases) {
+		PriBench b;
+		probe_geometry(b, c.r2, 8);
+		b.power_on();
+		b.empty_ack();
+		b.empty_ack();
+		b.pri = 7;
+		run_to(b, 5, 0);
+		const auto reqs = collect(b, 10);
+		bool ok = reqs.size() == c.want.size();
+		for (size_t i = 0; ok && i < reqs.size(); ++i)
+			ok = reqs[i].line == c.want[i].first && reqs[i].chr == c.want[i].second;
+		if (!ok) {
+			std::vector<Req> want;
+			for (const auto& p : c.want) want.push_back({uint16_t(p.first), p.second, 0});
+			fail("pr12: R2=" + std::to_string(c.r2) + " expected" + describe(want) +
+			     ", got" + describe(reqs));
+		}
+	}
+	std::printf("PASS pr12: HSYNC crossing into the PRI line at R2=49/57/58/62/63\n");
 }
 
 } // namespace
@@ -696,6 +854,8 @@ int main(int argc, char** argv) {
 		pr08_pending_classic_mode_switch();
 		pr09_live_pri_write();
 		pr10_ordinary_phase();
+		pr11_pri_write_window();
+		pr12_line_entry();
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;
