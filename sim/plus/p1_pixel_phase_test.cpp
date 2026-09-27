@@ -460,7 +460,10 @@ void pri_history_guards() {
 }
 
 // Revised Arnold §2.4: HSYNC still active on entry to matching line can
-// trigger once at entry and again at normal monitor-HSYNC trailing edge.
+// trigger once at entry and again at the ordinary event. The ordinary event
+// is 1 us after raw HSYNC assertion (asic_pri_test pr10 derivation): raw
+// HSYNC reads high after edge k, the GA samples it at k+1, and the request
+// reads high after edge k+64 while HSYNC is still active.
 // R0=63,width14: R2=49 finishes before entry; R2=51 overlaps by a character.
 // R2=50 ends simultaneously: log the prior-HSYNC seam, not a silicon assertion.
 void pri_cross_line() {
@@ -472,12 +475,14 @@ void pri_cross_line() {
         for (unsigned i=0; i<14; ++i) b.vid_write(i, regs[i]);
         b.run(312*4096);
         unsigned early=0, ordinary=0, delivered=0;
-        bool oldfire=false, oldirq=b.dut.pri_irq_n;
+        bool oldfire=false, oldirq=b.dut.pri_irq_n, oldhs=b.dut.dbg_hsync;
+        unsigned hs_rise=0;
         for (unsigned n=0; n<312*4096; ++n) {
             // Acknowledge each actual delivered request, permitting the second.
             b.dut.pri_ack = !b.dut.pri_irq_n;
-            const bool mon_before = b.dut.pri_monhs;
             b.tick();
+            if (b.dut.dbg_hsync && !oldhs) hs_rise = n;
+            oldhs = b.dut.dbg_hsync;
             if (oldirq && !b.dut.pri_irq_n) ++delivered;
             oldirq = b.dut.pri_irq_n;
             if (b.dut.pri_fire && !oldfire) {
@@ -485,8 +490,9 @@ void pri_cross_line() {
                 if (b.dut.dbg_hcc == 0) ++early;
                 else {
                     ++ordinary;
-                    if (!mon_before || b.dut.pri_monhs)
-                        fail("PRI ordinary trigger moved away from monitor trailing edge");
+                    if (n - hs_rise != 64 || !b.dut.dbg_hsync)
+                        fail("PRI ordinary trigger not 1 us into raw HSYNC: " +
+                             std::to_string(n - hs_rise) + " ticks");
                 }
             }
             oldfire=b.dut.pri_fire;
