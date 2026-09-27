@@ -78,15 +78,20 @@ three-term model.
 
 ## MiSTer validation (2026-09-27)
 
-`Amstrad_20260927_d6618f4.rbf` (hosted full build, setup slack +0.315 ns, TNS 0), 6128+/Full-sync
-CFG, each probe screen booted from its own start CPR. Probes 01, 04, 09, 11 and 15 now match
-the original-Plus photographs. 06–08 still read `02`, and their marks move with the later
-line entry. The other screens are byte-identical to master `fc1faaa`, which reproduced the old
-RTL predictions on every screen. Eerie Forest (no dotted strip or green bar), FF2 attract,
-Copter 271 and the CRTC3 demo look the same as the `815ce68` captures, apart from animation
-phase. FF2 gameplay with music and Prehistorik II still need an interactive check. Captures:
-main checkout `local/task-archives/plus-hw-probes-2026-09-27/mister/` (`run.py`,
-`base-fc1faaa/`, `fix-d6618f4/`).
+6128+/Full-sync CFG, each probe screen booted from its own start CPR. Captures: main checkout
+`local/task-archives/plus-hw-probes-2026-09-27/mister/` (`run.py`, `measure.py`, one folder per
+build).
+
+- **`Amstrad_20260927_1c85bee.rbf`** (live-line term; hosted full build, setup slack +0.594 ns,
+  TNS 0) is current. Probes 01, 04, 09, 11 and 15 match the original-Plus photographs, 06–08
+  are byte-identical to master `fc1faaa` (line entry back at C0 0), and 19–20 read `02` as
+  AmSpirit does. The CRTC3 demo plasma starts on a full row with no partial green line, the
+  spheres are coherent and the Wolverine image is clean. Eerie Forest, FF2 attract and gameplay
+  start, Copter 271 and the CRTC3 opening scenes look normal.
+- **`Amstrad_20260927_d6618f4.rbf`** (`line_d`-only comparator) matched every photographed
+  probe screen but broke the CRTC3 demo's plasma (partial green row above the effect, 155 px
+  from x=613), sphere (rectangular fragments) and Wolverine (horizontal corruption) scenes,
+  all R2=50, R3=14. Its short title captures missed those scenes; the user found them by hand.
 
 ## Recording a probe result
 
