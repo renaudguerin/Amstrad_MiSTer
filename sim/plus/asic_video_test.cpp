@@ -2706,6 +2706,44 @@ void t08d_split_screen_row_boundary(TestBench& test) {
     test.expect_ma("t08d next row starts from SSA", 0x2800);
 }
 
+// t08k: SPLT matching the terminal line of the frame (original Plus probe
+// 11: SPLT=55 matches line 311 = {VC4..0=6, RC=7} through the eight-bit
+// compare; AmSpirit identical). Hardware shows frame line 0 from R12/R13,
+// line 1 onwards from SSA (row 0 RA1 onward), advancing normally. So at the
+// frame origin VMA reloads from R12/R13 but VMA' keeps the split capture
+// made on the terminal line; an ordinary row capture there is still
+// discarded (t08a row 0 line 1). program_display_frame ends each frame on
+// {charline 2, raster 3}: SPLT = (2 << 3) | 3 = 19. SSA = 0x2400, R1 = 4:
+//   frame line 0            0x1234 (R12/R13)
+//   frame lines 1..3        0x2400 (SSA; line 3 = raster 3 captures +R1)
+//   row 1 line 0            0x2404
+//   next frame line 0/1     0x1234 / 0x2400 (the terminal split recurs)
+void t08k_split_on_terminal_line(TestBench& test) {
+    program_display_frame(test);
+    test.set_splt(19);
+    test.set_ssa(0x2400);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    // One whole frame, so the terminal line has captured with SPLT set.
+    test.run_characters(8);
+    test.run_to_frame_start();
+
+    test.expect_ma("t08k frame line 0 from R12/R13", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08k frame line 1 from the terminal-line SSA", 0x2400);
+    test.run_characters(8);
+    test.expect_ma("t08k frame line 2 continues from SSA", 0x2400);
+    test.run_characters(8);
+    test.expect_ma("t08k frame line 3 continues from SSA", 0x2400);
+    test.run_characters(8);
+    test.expect_ma("t08k row 1 advances from the SSA base", 0x2404);
+
+    test.run_to_frame_start();
+    test.expect_ma("t08k next frame line 0 from R12/R13", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08k next frame line 1 from SSA", 0x2400);
+}
+
 // t08e: SSCR[6:4] vertical scanline offset added to RA[2:0].
 void t08e_sscr_vertical_scanline_offset(TestBench& test) {
     program_display_frame(test);
@@ -2928,7 +2966,7 @@ void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.expect_ra("t08j next row starts at offset RA 5", 5);
 }
 
-constexpr std::array<TestCase, 68> kTests = {{
+constexpr std::array<TestCase, 69> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3009,6 +3047,7 @@ constexpr std::array<TestCase, 68> kTests = {{
     {"t08h 14-bit VMA overscan carry", t08h_overscan_carry_14bit},
     {"t08i SSCR vertical wrap advances MA", t08i_sscr_vertical_wrap_advances_ma},
     {"t08j SSCR vertical offset with R9>7", t08j_sscr_vertical_offset_r9_above_7},
+    {"t08k SPLT on the terminal frame line", t08k_split_on_terminal_line},
 }};
 
 }  // namespace

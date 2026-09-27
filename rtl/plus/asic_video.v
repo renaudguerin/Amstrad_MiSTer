@@ -502,12 +502,14 @@ end
 // Two-stage {R12,R13} -> VMA' -> VMA behaviour, as on type 0. The ACCC
 // v1.11 §20.3.4 p.244 opening-sentence/current-pointer-model reading (the
 // later prose drops C9; hardware confirmation remains open) is used here:
-// at the frame origin C4=C9=C0=0 BOTH pointers reload from R12/R13. At any
-// other line start VMA loads from VMA'. The row-end capture VMA' <- VMA fires
-// on the live comparison
-// C0==R1 && C9==R9 and is suppressed during vertical adjustment, which
-// instead re-solidifies the captured row base each adjustment line
-// ("without updating the video pointer", ACCC §11.2.6 p.85).
+// at the frame origin C4=C9=C0=0 BOTH pointers reload from R12/R13, except
+// that VMA' keeps a screen-split capture made on the terminal line (see
+// split_held). At any other line start VMA loads from VMA'. The row-end
+// capture VMA' <- VMA fires at C0==R1 on the live row-end test
+// (row_latch_done: displayed RA >= R9 outside IVM) and is suppressed during
+// vertical adjustment, which instead re-solidifies the captured row base
+// each adjustment line ("without updating the video pointer", ACCC §11.2.6
+// p.85).
 //
 // With R1>R0 the capture can never fire, so every row re-displays the
 // frozen VMA' base — character-line repetition (ACCC §17.2.2 p.179) with
@@ -546,10 +548,20 @@ wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
 wire split_match = (SPLT != 8'd0) && ({charline[4:0], raster[2:0]} == SPLT);
 wire split_latch_event = CLKEN && !in_adj && split_match && (hcc == R1_h_displayed);
 
+// A split captured on the terminal line of a frame survives the frame
+// origin in VMA' while VMA still reloads from R12/R13 (original Plus probe
+// 11, SPLT=55 matching line 311 through the eight-bit compare; AmSpirit
+// identical): frame line 0 shows R12/R13, line 1 onwards SSA. VMA' priority
+// is split capture > frame-origin init > row capture. split_held remembers
+// a capture made earlier on the current line; a C0=R1=R0 capture coincides
+// with the line end and is seen directly.
+reg split_held;
+
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		vma       <= 14'd0;
 		vma_latch <= 14'd0;
+		split_held <= 1'b0;
 	end
 	else if (SNA_LOAD) begin
 		// The format serializes no video-pointer state, and split history plus
@@ -558,6 +570,7 @@ always @(posedge CLOCK) begin
 		// R12/R13 — the same value the next real frame origin would reload.
 		vma       <= {SNA_REGS[96 +: 6], SNA_REGS[104 +: 8]};
 		vma_latch <= {SNA_REGS[96 +: 6], SNA_REGS[104 +: 8]};
+		split_held <= 1'b0;
 	end
 	else if (CLKEN) begin
 		if (split_latch_event)
@@ -565,14 +578,19 @@ always @(posedge CLOCK) begin
 		else if (row_latch_event)
 			vma_latch <= vma;
 
+		if (hcc_last)               split_held <= 1'b0;
+		else if (split_latch_event) split_held <= 1'b1;
+
 		if (hcc_last) begin
-			// §20.3.4 frame-start reload has highest priority. Otherwise
-			// a simultaneous C0=R1=R0 row-end capture supplies the next
-			// row base, so do not overwrite VMA with the stale latch value
-			// on that same edge (ACCC §17.1 p.177 / §17.6.1 p.186).
+			// §20.3.4 frame-start reload has highest priority for VMA.
+			// Otherwise a simultaneous C0=R1=R0 row-end capture supplies
+			// the next row base, so do not overwrite VMA with the stale
+			// latch value on that same edge (ACCC §17.1 p.177 / §17.6.1
+			// p.186).
 			if (pointer_frame_origin) begin
-				vma       <= {R12_start_addr_h[5:0], R13_start_addr_l};
-				vma_latch <= {R12_start_addr_h[5:0], R13_start_addr_l};
+				vma <= {R12_start_addr_h[5:0], R13_start_addr_l};
+				if (!split_held && !split_latch_event)
+					vma_latch <= {R12_start_addr_h[5:0], R13_start_addr_l};
 			end
 			else if (split_latch_event) begin
 				vma <= SSA;

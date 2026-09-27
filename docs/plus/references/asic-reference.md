@@ -394,7 +394,11 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   MA until the next split or frame restart (the split affects the rest of the
   screen).
 - The value is never applied at VCC=0/RCC=0 (can't retarget the first line of a
-  frame; it takes effect at the next opportunity, e.g. VCC=0/RCC=1).
+  frame; it takes effect at the next opportunity, e.g. VCC=0/RCC=1). Original
+  Plus probe 11 (SPLT=55, matching line 311) confirms it: frame line 0 shows
+  R12/R13, line 1 onwards SSA. The RTL reloads VMA from R12/R13 at the frame
+  origin but lets the stored MA (VMA') keep a split captured on the terminal
+  line.
 - Multiple splits per frame are allowed (reprogram SPLT/SSA after each one).
 - A split can occur during the **first** char-line of vertical adjust, but not
   later ones. [ARNOLD-REV]
