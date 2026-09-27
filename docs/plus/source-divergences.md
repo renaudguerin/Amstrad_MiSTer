@@ -27,7 +27,7 @@ The probe screen numbers refer to [the multi-test probe cartridge](../../scripts
 | PRI at HSYNC width 1 (same) | Not addressed | One request, 1 µs after HSYNC start (`HSYNC_d` is high for one character) | Original Plus 2026-09-27, probe 01: `IRQ/FRAME=01`, so width 1 **does** request (AmSpirit agrees). The RTL was wrong before the delayed comparator | **hardware** | Settled (`asic_pri_test` pr10) |
 | PRI written to the current line during HSYNC (same) | Not addressed | Changing PRI to the current line while `HSYNC_d` (raw HSYNC one character late) is active requests at once. Same-value writes and writes after `HSYNC_d` ends do not | FF2 palette chain; CPCEC `cpcec.c:2106–2114`. Original Plus 2026-09-27, probe 04: marks for write C0 45–60, none 61–63, `IRQ/FRAME=16` (AmSpirit agrees). Writes during HSYNC do request, but the window runs one character past raw HSYNC end; the earlier raw-HSYNC window missed C0 60 | **hardware** | Settled (`asic_pri_test` pr11) |
 | PRI line compare width (`asic_ga_timing.v`) | Revised Arnold: nine-bit `{0,PRI}` against `{VC5..0,RC2..0}`. CPCWiki ASIC page and Quasar: PRI=n also fires at n+256 | Nine-bit, no alias | Original Plus alias probe 2026-09-27: 32 IRQs in all four cases. Copter 271; AmSpirit; CPCEC | **hardware** | Settled |
-| HSYNC crossing into the PRI line (same) | Revised Arnold §2.4: overlap can trigger at line entry | Line-entry request at the PRI line's C0 1 (`line_d` catches up one character late), plus the line's own request. With R2=63 the second request is at the next line's C0 0, where `line_d` still reads the PRI line | CRTC3 demo Buddha/spheres (MiSTer). Original Plus 2026-09-27, probes 05–09: R2=49/57/58/62 give `01/02/02/02` as the RTL does; R2=63 gives `02`, which the earlier three-term RTL missed (AmSpirit agrees with hardware) | **hardware** | Settled (`asic_pri_test` pr12). An HSYNC ending exactly at the PRI line start is unprobed |
+| HSYNC crossing into the PRI line (same) | Revised Arnold §2.4: overlap can trigger at line entry | Line-entry request at the PRI line's C0 0 whenever `HSYNC_d` is still high there, including raw HSYNC ending exactly at the line start (the live-line term), plus the line's own request. With R2=63 the second request is at the next line's C0 0, where `line_d` still reads the PRI line | Original Plus 2026-09-27, probes 05–09: R2=49/57/58/62/63 with width 8 give `01/02/02/02/02` (AmSpirit agrees). Exact-end screens 19–20 (R2=56 width 8, R2=50 width 14): AmSpirit `02/02`. The CRTC3 demo's plasma (~38 s), sphere (~103 s) and Wolverine (~108 s) scenes use R2=50, width 14 and broke on MiSTer `d6618f4`, whose `line_d`-only comparator omitted that request | **hardware** for 05–09; exact end **title+emulator** | Photograph screens 19–20 on an original Plus (`asic_pri_test` pr12) |
 | SPLT near the 312-line wrap (`asic_video.v`) | Eight-bit compare, so SPLT=55 also matches line 311 and is pathological (revised Arnold); KT says 56 | Eight-bit compare. A split captured on the terminal line survives the frame origin in VMA' while VMA reloads from R12/R13: frame line 0 shows R12/R13, line 1 onwards SSA | Original Plus 2026-09-27, probes 10–13: SPLT=54/56/57 split from line SPLT+1 as predicted. SPLT=55: frame line 0 still shows R12/R13, every later line comes from SSA, and the line-56 split restarts SSA again (AmSpirit identical). The line-311 capture is real; the frame origin wins for line 0 only | **hardware** (revised Arnold right, KT wrong) | Settled for the visible effect (`asic_video_test` t08k; probe sim matches AmSpirit 10–13). Unprobed: whether SSA is sampled at C0=R1 or at the line end (rewrite SSA between them on line 311), and whether SSCR offset 7 on line 0 overwrites the held capture |
 | SSCR vertical offset with R9>7 (`asic_video.v`) | §2.5 adds to the low three RA bits; the revised summary reads as a wider addition | Low-three-bit addition; the row capture is the level test `ra_eff >= R9` at C0=R1. With R9=11 and offset 5, raw rasters 0..11 display 5,6,7,0,1,2,3,4,13,14,15,8, so rasters 8, 9 and 10 capture and each character row advances three source rows | Original Plus 2026-09-27, probes 14–15: offset 0 shows rows in order; offset 5 shows rows 00, 03, 06, 09, 12, 15 with a second block 02, 05… lower right, identical to AmSpirit. The earlier equality capture repeated ROW 00; the lower-right block comes from the 2048-byte plane wrap of `{MA13..12, RA2..0, MA9..0}` | **hardware** (R9=7 unaffected: `>=` equals `==` there) | Settled for R9≥7 (`asic_video_test` t08j; probe sim matches AmSpirit 14/15). Unprobed consequence: with R9<7 and a nonzero offset, `>=` captures on several lines per row (R9=3, offset 2 captures on raw rasters 1–3), where the old equality captured once. Every mechanism that fits probe 15 predicts this; a probe screen with R9=3, offset 2 would confirm it |
 | Sprite attribute write mirrors (`asic_regs.v`) | Revised Arnold: +3, +4, +5, +7 write magnification. KT: +4..+7 | +4..+7 write magnification; +3 is Y high only | Original Plus 2026-09-27, probe 16: +5/+6/+7 magnified, +3 not (AmSpirit agrees) | **hardware** (KT right) | Settled |
@@ -53,10 +53,12 @@ Implemented in `asic_ga_timing.v` (2026-09-27); the heading keeps its anchor.
 A single mechanism explains all three PRI mismatches (probes 01, 04, 09) and every settled
 PRI observation. Request on the rising edge of
 
-    HSYNC_d && ({0,PRI} == line_d) && PRI != 0 && !adj_d
+    HSYNC_d && PRI != 0 && (({0,PRI} == line_d && !adj_d) || ({0,PRI} == line && !adj))
 
 where `HSYNC_d`, `line_d` and `adj_d` are the CRTC HSYNC, `{VC,RC}` line and vertical-adjust
-flag delayed by one character (1 µs), and PRI is live. This one edge detector replaced separate
+flag delayed by one character (1 µs); `line`, `adj` and PRI are live. The line compare spans the
+character in which the line changes: an `HSYNC_d` rise is judged against the old line, and a line
+change while `HSYNC_d` is high is seen at once. This one edge detector replaced separate
 ordinary, line-entry and value-change terms:
 
 | Observation | Why it follows |
@@ -65,10 +67,14 @@ ordinary, line-entry and value-change terms:
 | Width 1 requests (probe 01) | `HSYNC_d` is active for one character |
 | PRI writes request through C0 60 with HSYNC 49–59 (probe 04) | The `HSYNC_d` window is C0 50–60 |
 | R2=57/58/62 give two requests (probes 06–08) | Line entry seen while `HSYNC_d` is active, then that line's own `HSYNC_d` rise |
+| Raw HSYNC ending exactly at the line start requests at entry (screens 19–20, AmSpirit; CRTC3 demo) | `HSYNC_d` is high for one more character, and the live line already matches |
 | R2=63 gives two (probe 09) | Line 7's HSYNC starts at its C0 63; `line_d` still reads 7 when `HSYNC_d` rises at line 8 C0 0 |
 | Same-value writes never re-request after ACK (FF2) | The level is unchanged, so there is no edge |
 
-Line-entry requests land at C0 1, one character later than the earlier three-term model.
+The first version (`abf0b2d`) compared `line_d` only. It matched every photographed screen but
+omitted the exact-end request, which broke three CRTC3 demo scenes; the live-line term restores
+it without changing any photographed count. Line-entry requests land at C0 0, as in the earlier
+three-term model.
 
 ## MiSTer validation (2026-09-27)
 

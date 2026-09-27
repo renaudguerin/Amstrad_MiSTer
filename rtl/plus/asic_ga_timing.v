@@ -580,10 +580,14 @@ module asic_ga_timing
 	// PRI != 0: the counter KEEPS RUNNING but its interrupt assertion is
 	// suppressed; the programmed request is the RISING EDGE of
 	//
-	//     C = HSYNC_d && ({1'b0, PRI} == line_d) && PRI != 0 && !adj_d
+	//     C = HSYNC_d && PRI != 0 &&
+	//         (({1'b0, PRI} == line_d && !adj_d) || ({1'b0, PRI} == line && !adj))
 	//
 	// where HSYNC_d, line_d ({VC5..VC0, RC2..RC0}) and adj_d are the CRTC
-	// outputs delayed by exactly one character (1 us) and PRI is live.
+	// outputs delayed by exactly one character (1 us), line and adj are
+	// live, and PRI is live. The line compare therefore spans the character
+	// in which the line changes: HSYNC_d rising is judged against the old
+	// line, and a line change while HSYNC_d is high is seen at once.
 	// The leading 0 is a compared bit, not a don't-care: lines 256 and above
 	// never match, so PRI=&37 fires on line 55 only and not on line 311 of
 	// a 312-line frame (Copter 271's title palette chain; original-Plus
@@ -602,12 +606,15 @@ module asic_ga_timing
 	//    one character past raw HSYNC end (probe 04: writes C0 45..60 with
 	//    HSYNC 49..59). FF2's palette chain relies on this (46->48 at C0=52
 	//    of line 48, docs/plus/references/ff2-runtime-pri-2026-09-27.md);
-	//  - HSYNC crossing into the PRI line: line entry is seen one character
-	//    late, and with R2=R0 line_d still holds the PRI line when HSYNC_d
-	//    rises at the next line's C0 0 (probes 05-09: 1/2/2/2/2 requests);
+	//  - HSYNC crossing into the PRI line requests at its C0 0, including
+	//    a raw HSYNC ending exactly at the line start (HSYNC_d is still high
+	//    there); with R2=R0 line_d still holds the PRI line when HSYNC_d
+	//    rises at the next line's C0 0 (probes 05-09: 1/2/2/2/2 requests;
+	//    exact-end probes 19-20: AmSpirit 2/2, and the CRTC3 demo's plasma,
+	//    sphere and Wolverine scenes at R2=50, R3=14 need that request);
 	//  - no request from same-value writes or from a held level after ACK:
 	//    there is no edge.
-	// Never fires during vertical adjustment (adj_d).
+	// Never fires during vertical adjustment.
 	//
 	// asic_video's CRTC advances on CLKEN = CCLK_EN_N, and HSYNC/LINE/ROW/
 	// ADJ change on that edge. Sampling them on the same strobe therefore
@@ -637,8 +644,9 @@ module asic_ga_timing
 		if (reset || SNA_LOAD) pri_valid <= 1'b0;
 		else if (CCLK_EN_N)    pri_valid <= 1'b1;
 	end
-	wire pri_c = pri_hs_d && (pri != 8'd0) && ({1'b0, pri} == pri_line_d) &&
-	             !pri_adj_d;
+	wire pri_c = pri_hs_d && (pri != 8'd0) &&
+	             ((({1'b0, pri} == pri_line_d) && !pri_adj_d) ||
+	              (({1'b0, pri} == crtc_line) && !crtc_adj));
 	always @(posedge clk) pri_c_q <= pri_valid ? pri_c : 1'b1;
 	wire raster_fire = !reset && !SNA_LOAD && pri_valid && pri_c && !pri_c_q;
 

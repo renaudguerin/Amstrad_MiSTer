@@ -28,7 +28,7 @@
 //   pr09  PRI writes to the current line, guards and held-value control.
 //   pr10  one request 1 us after raw HSYNC assertion at widths 1..11.
 //   pr11  PRI write window, one character past raw HSYNC (probe 04).
-//   pr12  HSYNC crossing into the PRI line at R2=49..63 (probes 05-09).
+//   pr12  HSYNC crossing into the PRI line at R2=49..63 (probes 05-09, 19-20).
 //   pr10-pr12 use the plus_hw_probes geometry (R0=63).
 //
 // Expectations are derived from reference §7 / [ARNOLD-REV §2.4] and cited
@@ -796,29 +796,39 @@ void pr11_pri_write_window() {
 //----------------------------------------------------------------------
 // pr12: HSYNC crossing into the PRI line (original Plus probes 05-09,
 // R3=8, PRI=7). Raw HSYNC runs C0 R2..R2+7, wrapping into line 7 when
-// R2 > 56; HSYNC_d is the same window one character later, and line_d
-// still reads 6 at line 7 C0 0.
+// R2 > 56; HSYNC_d is the same window one character later. The comparator
+// matches PRI against both the live line and line_d, so a line change seen
+// while HSYNC_d is high requests at once, at line 7 C0 0.
 //   R2=49: HSYNC_d 50..57 of line 7                    -> (7,50)
-//   R2=57: HSYNC_d line 6 58..63, line 7 0..1          -> (7,1), (7,58)
-//   R2=58: HSYNC_d line 6 59..63, line 7 0..2          -> (7,1), (7,59)
-//   R2=62: HSYNC_d line 6 63, line 7 0..6              -> (7,1), (7,63)
+//   R2=56: HSYNC_d line 6 57..63, line 7 0 (raw HSYNC ends exactly at
+//          line 7's start)                             -> (7,0), (7,57)
+//   R2=57: HSYNC_d line 6 58..63, line 7 0..1          -> (7,0), (7,58)
+//   R2=58: HSYNC_d line 6 59..63, line 7 0..2          -> (7,0), (7,59)
+//   R2=62: HSYNC_d line 6 63, line 7 0..6              -> (7,0), (7,63)
 //   R2=63: HSYNC_d line 7 0..7; line 7's own HSYNC starts at C0 63, so
-//          HSYNC_d rises at line 8 C0 0 with line_d still 7 -> (7,1), (8,0)
-// Hardware IRQ/FRAME: 01, 02, 02, 02, 02 (docs/plus/source-divergences.md).
-// The old three-term model gave one request at R2=63.
+//          HSYNC_d rises at line 8 C0 0 with line_d still 7 -> (7,0), (8,0)
+//   R2=50, R3=14: raw HSYNC 50..63 ends exactly at line 7's start
+//                                                      -> (7,0), (7,51)
+// Hardware IRQ/FRAME: 01, 02, 02, 02, 02 for R2=49/57/58/62/63
+// (docs/plus/source-divergences.md). The two exact-end cases are probe
+// screens 19-20: AmSpirit gives 02 for both (it matches every photographed
+// screen), and the CRTC3 demo's plasma, sphere and Wolverine scenes (R2=50,
+// R3=14) need the line-start request. The line_d-only comparator gave one.
 //----------------------------------------------------------------------
 void pr12_line_entry() {
-	struct Case { unsigned r2; std::vector<std::pair<unsigned, unsigned>> want; };
+	struct Case { unsigned r2, r3; std::vector<std::pair<unsigned, unsigned>> want; };
 	const Case cases[] = {
-		{49, {{7, 50}}},
-		{57, {{7, 1}, {7, 58}}},
-		{58, {{7, 1}, {7, 59}}},
-		{62, {{7, 1}, {7, 63}}},
-		{63, {{7, 1}, {8, 0}}},
+		{49, 8, {{7, 50}}},
+		{56, 8, {{7, 0}, {7, 57}}},
+		{57, 8, {{7, 0}, {7, 58}}},
+		{58, 8, {{7, 0}, {7, 59}}},
+		{62, 8, {{7, 0}, {7, 63}}},
+		{63, 8, {{7, 0}, {8, 0}}},
+		{50, 14, {{7, 0}, {7, 51}}},
 	};
 	for (const auto& c : cases) {
 		PriBench b;
-		probe_geometry(b, c.r2, 8);
+		probe_geometry(b, c.r2, c.r3);
 		b.power_on();
 		b.empty_ack();
 		b.empty_ack();
@@ -831,11 +841,11 @@ void pr12_line_entry() {
 		if (!ok) {
 			std::vector<Req> want;
 			for (const auto& p : c.want) want.push_back({uint16_t(p.first), p.second, 0});
-			fail("pr12: R2=" + std::to_string(c.r2) + " expected" + describe(want) +
+			fail("pr12: R2=" + std::to_string(c.r2) + " R3=" + std::to_string(c.r3) + " expected" + describe(want) +
 			     ", got" + describe(reqs));
 		}
 	}
-	std::printf("PASS pr12: HSYNC crossing into the PRI line at R2=49/57/58/62/63\n");
+	std::printf("PASS pr12: HSYNC crossing into the PRI line at R2=49/56/57/58/62/63, 50 (R3=14)\n");
 }
 
 } // namespace

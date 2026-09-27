@@ -412,7 +412,7 @@ bool p1_pixel_stream(Bench& b) {
 
 // Snapshot import changes the connected video line and HSYNC on one edge.
 // It is state restoration, not traversal into a matching line: the PRI
-// comparator (rising edge of HSYNC_d && {0,PRI}==line_d, one character late;
+// comparator (rising edge of HSYNC_d && {0,PRI} matching line_d or the live line;
 // docs/plus/source-divergences.md) must not see the import as a rising edge,
 // neither on the apply edge nor when its delayed terms refill from the
 // restored counters at the next character strobe. The restored HSYNC
@@ -465,16 +465,18 @@ void pri_history_guards() {
 }
 
 // HSYNC crossing into the PRI line (connected CRTC + GA). The request is the
-// rising edge of HSYNC_d && {0,PRI}==line_d, both one character late
-// (docs/plus/source-divergences.md, "PRI delayed-comparator candidate";
-// original Plus probes 05-09). R0=63, width 14, PRI=2:
+// rising edge of HSYNC_d && PRI matching line_d or the live line, where the
+// _d terms are one character late (docs/plus/source-divergences.md, "PRI
+// delayed-comparator candidate"; original Plus probes 05-09). R0=63,
+// width 14, PRI=2:
 //   R2=49: raw HSYNC 49..62, HSYNC_d 50..63: ordinary request only.
-//   R2=51: raw HSYNC runs into line 2 C0 0, HSYNC_d into line 2 C0 1, where
-//          line_d first reads 2: line-entry request at C0 1, then the
+//   R2=51: raw HSYNC runs into line 2 C0 0, so HSYNC_d is high when the
+//          live line becomes 2: line-entry request at C0 0, then the
 //          ordinary one 64 clocks after line 2's raw HSYNC rise.
 //   R2=50: raw HSYNC ends as line 2 begins; HSYNC_d's last character is
-//          line 2 C0 0 with line_d still 1, so the mechanism predicts no
-//          entry request. Not probed on hardware: logged, not asserted.
+//          line 2 C0 0, where the live line reads 2: line-entry request at
+//          C0 0 as for R2=51 (probe screen 20; AmSpirit IRQ/FRAME=02; the
+//          CRTC3 demo's plasma, sphere and Wolverine scenes need it).
 // Ordinary phase: raw HSYNC reads high after edge k, the GA samples it at the
 // strobe k+64 and the request reads high after that edge (asic_pri_test pr10).
 void pri_cross_line() {
@@ -498,7 +500,7 @@ void pri_cross_line() {
             oldirq = b.dut.pri_irq_n;
             if (b.dut.pri_fire && !oldfire) {
                 if (b.dut.pri_line != 2) fail("PRI fired on nonmatching 9-bit line");
-                if (b.dut.dbg_hcc == 1) ++early;
+                if (b.dut.dbg_hcc == 0) ++early;
                 else {
                     ++ordinary;
                     if (n - hs_rise != 64)
@@ -508,11 +510,11 @@ void pri_cross_line() {
             }
             oldfire=b.dut.pri_fire;
         }
-        std::printf("PRI connected R2=%u early=%u ordinary=%u delivered=%u%s\n",
-                    r2,early,ordinary,delivered,r2==50 ? " (unprobed seam)":"");
+        std::printf("PRI connected R2=%u early=%u ordinary=%u delivered=%u\n",
+                    r2,early,ordinary,delivered);
         if (ordinary != 1 || delivered != early+ordinary)
             fail("PRI connected: ordinary delivery or acknowledge/redelivery broken");
-        if ((r2==49 && early!=0) || (r2==51 && early!=1))
+        if (early != (r2==49 ? 0u : 1u))
             fail("PRI connected: missing/wrong line-entry interrupt");
     }
 }

@@ -288,9 +288,10 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   (HSYNC_start + 6µs); [KT] claims width-independent HSYNC_start + 10µs.
 - **Trigger point (current RTL, hardware-confirmed 2026-09-27)**: one
   delayed comparator. The request is the rising edge of
-  `HSYNC_d && {0,PRI} == line_d && PRI != 0 && !adj_d`, where `HSYNC_d`,
-  `line_d` (`{VC5..VC0, RC2..RC0}`) and `adj_d` are the CRTC outputs delayed
-  by exactly one character (1µs) and PRI is live. This departs from both
+  `HSYNC_d && PRI != 0 && ((PRI matches line_d && !adj_d) || (PRI matches line && !adj))`,
+  where `HSYNC_d`, `line_d` (`{VC5..VC0, RC2..RC0}`) and `adj_d` are the CRTC
+  outputs delayed by exactly one character (1µs); `line`, `adj` and PRI are
+  live, and every match is the nine-bit `{0,PRI}`. This departs from both
   written accounts. Consequences, each matched by an original Plus and by
   AmSpirit ([source divergences](../source-divergences.md#pri-delayed-comparator-candidate)):
   - the ordinary request lands 1µs after raw HSYNC assertion at every width,
@@ -303,9 +304,12 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
     `c025aab` `cpcec.c:2106–2114` agrees for writes during raw HSYNC).
     Same-value writes and a held level after ACK never re-request; other
     writes do not clear pending requests;
-  - raw HSYNC still active at the start of the PRI line gives a line-entry
-    request at that line's C0 1, plus the line's own request (probes 05–09;
-    [ARNOLD-REV §2.4] names the double trigger). With R2=R0, `line_d` still
+  - `HSYNC_d` still high at the start of the PRI line gives a line-entry
+    request at that line's C0 0, plus the line's own request (probes 05–09;
+    [ARNOLD-REV §2.4] names the double trigger). This includes raw HSYNC
+    ending exactly at the line start (R2+width=64): probe screens 19–20 give
+    two in AmSpirit, and the CRTC3 demo's plasma, sphere and Wolverine
+    scenes (R2=50, width 14) need that request. With R2=R0, `line_d` still
     reads the PRI line when `HSYNC_d` rises at the next line's C0 0, which
     also gives two
     ([CRTC3 connected probe](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md#cross-line-raster-interrupt-second-finding)
