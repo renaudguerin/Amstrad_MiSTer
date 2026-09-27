@@ -275,8 +275,8 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   by `b5c3014` / `c595031`. However, the 2026-09-27 human FF2 bisect identifies
   that same change as introducing sky flicker and music slowdown. CPCEC uses
   nine-bit matching too, with additional FF2-specific PRI-write handling. Keep
-  the current comparison while investigating that interaction; the Copter result
-  does not settle all PRI behavior. See the [completed FF2 bisect](../remaining-title-regressions-2026-09-27.md#completed-hardware-bisect)
+  the current comparison: the FF2 candidate now reproduces the alias-masked
+  write-event defect. The Copter result does not settle all PRI behavior. See the [completed FF2 bisect](../remaining-title-regressions-2026-09-27.md#completed-hardware-bisect)
   and [2026-09-22 source comparison](scrapes-interrupt-findings-2026-09-22.md).
   The register can be rewritten for multiple interrupts; PRI=0 selects the
   compatible 52-line mechanism rather than programming line 0/256.
@@ -296,6 +296,15 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   establishes that the previous RTL omitted this line-entry event. R2=51,
   width14 over a64-character line is a definite overlap; R2=50 is an
   exact-edge case whose sample ordering still needs hardware adjudication.
+- **Changed PRI during raw HSYNC:** the FF2 candidate adds a request when the
+  stored value changes to the current nonzero nine-bit line while raw HSYNC is
+  high, including after the ordinary monitor edge. Same-value writes do not
+  retrigger, and other writes do not clear pending requests. This follows
+  CPCEC `c025aab` (`cpcec.c:2106–2114`, explicit FF2 comment) and repairs the
+  [production-T80 FF2 chain](ff2-runtime-pri-2026-09-27.md). It is an
+  emulator-supported model awaiting hardware acceptance, not a new Arnold or
+  ACCC claim. Zero, ninth-bit and vertical-adjust exclusions are retained;
+  simultaneous write/raw-HSYNC-fall ordering remains unmeasured.
 - By contrast, the CPC-compatible 52-line interrupt (PRI=0) triggers on the
   trailing edge of the **CRTC** HSYNC (full programmed width matters).
   [ARNOLD-REV §2.4]

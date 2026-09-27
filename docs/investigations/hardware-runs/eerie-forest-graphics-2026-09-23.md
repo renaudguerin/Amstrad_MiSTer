@@ -113,6 +113,11 @@ matches its input history. Flushing that history or widening the mask has
 no established source basis. The next discriminator compares the software
 write phase and production address-to-pixel timing against AmSpirit.
 
+A [2026-09-27 FF2 follow-up](../../plus/references/ff2-runtime-pri-2026-09-27.md#eerie-follow-up-this-trigger-does-not-match-the-recorded-writes)
+checks the preserved phase trace: none of 1064 steady PRI writes matches the
+current full CRTC line. The FF2 changed-PRI trigger therefore has no demonstrated
+path to this residual. No new Eerie RTL change or hardware acceptance is claimed.
+
 ## Review and selected gate
 
 Fresh Opus 5.5 medium review `20260923T180629Z-62347-d90a` found no blockers
