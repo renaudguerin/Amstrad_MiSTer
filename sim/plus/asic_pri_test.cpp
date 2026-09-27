@@ -580,7 +580,8 @@ void pr08_pending_classic_mode_switch() {
 // replay writes 46->48 on line 48 at C0=52, after the ordinary C0=49 event
 // and before raw HSYNC ends at C0=57. Its palette/music chain otherwise
 // waits a whole frame. See references/ff2-runtime-pri-2026-09-27.md.
-// This emulator-supported write rule still needs original-Plus acceptance.
+// This emulator-supported write rule still needs original-Plus acceptance
+// (probe screen 04, docs/plus/source-divergences.md).
 void pr09_live_pri_write() {
 	struct Case { const char* name; unsigned line, phase, value; bool adj, ack, fire; };
 	const Case cases[] = {

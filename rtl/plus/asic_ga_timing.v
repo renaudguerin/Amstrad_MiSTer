@@ -594,8 +594,11 @@ module asic_ga_timing
 	// production's monitor-edge rule placed 128/320 clocks later while its
 	// IM1 path matches ACCC section 27.4's 5us. Eerie Forest's reveal loop
 	// needs a request no later than start+4us to avoid old-RA pixels.
-	// Original-Plus confirmation is outstanding; see
+	// Original-Plus photographs confirm the width independence and the 1 us
+	// CPU slot (markers ~136/135/139 dots at R3=3/6/11); see
 	// docs/plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md.
+	// Width 1 and the write/crossing terms below are still unverified on
+	// hardware: docs/plus/source-divergences.md.
 	//
 	// An ASIC raster fire also clears bit 5 of the 6-bit counter (as a
 	// normal acknowledge does), so a later re-enabled CPC-compatible
@@ -644,7 +647,8 @@ module asic_ga_timing
 	// Detect stored-value changes, so held/same-value writes cannot
 	// continually reassert after ACK. Do not import CPCEC's separate
 	// pending-request clear on other PRI writes. Original-Plus acceptance
-	// of this emulator-supported write rule remains outstanding.
+	// of this emulator-supported write rule is pending (probe screen 04,
+	// docs/plus/source-divergences.md).
 	wire pri_value_change = pri_history_valid && (pri != pri_value_q) && HSYNC_I;
 	wire raster_fire = !reset && !SNA_LOAD && !crtc_adj &&
 	                   (pri_ordinary_edge || pri_line_entry || pri_value_change) && pri_line_match;

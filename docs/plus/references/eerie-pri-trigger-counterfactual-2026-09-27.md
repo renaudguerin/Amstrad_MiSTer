@@ -7,7 +7,7 @@ green left-edge sliver" as one residual. It is two unrelated artifacts:
 
 | Artifact | Where (dot grid `x=C0*16+dot`) | Mechanism | Status |
 |---|---|---|---|
-| Dotted logo strip | rows 224–254, x32–59, frames 303 onward | Old-RA screen bytes fetched before the reveal loop's SSCR write at C0=2 | **Fixed** by requesting ordinary PRI 1 µs after raw HSYNC start ([adopted trigger](#adopted-trigger-1-µs-after-raw-hsync-start)); hardware-unverified |
+| Dotted logo strip | rows 224–254, x32–59, frames 303 onward | Old-RA screen bytes fetched before the reveal loop's SSCR write at C0=2 | **Fixed** by requesting ordinary PRI 1 µs after raw HSYNC start ([adopted trigger](#adopted-trigger-1-µs-after-raw-hsync-start)); confirmed on original Plus ([below](#original-hardware-2026-09-27)) |
 | Green bar | rows 16–215, x16–31, from about frame 1125 | Hardware-sprite pixels drawn inside SSCR[7]'s extended-border character | **Fixed** from the Arnold V source rule; confirmed on MiSTer `8306e6f` |
 
 ## Method
@@ -146,9 +146,9 @@ same `PIXEN && CLKEN` edge, so no dot shift is introduced. No other logic
 consumes `show_spr`, and both vectors assert the full rule. Its documentation
 note on the ASIC reference's sprite/SSCR wording is addressed.
 
-Hardware acceptance is outstanding. On a MiSTer build with this change, the
-green first-column bar during Eerie's landscape phase should disappear and the
-dotted logo strip should remain. Titles that scroll horizontally with D7 set
+MiSTer `8306e6f` confirms that the bar is gone (see the A/B below). Probe
+screen 18 (G2) of the [probe cartridge](../../../scripts/diagnostics/README.md#multi-test-probe-cartridge-plus_hw_probespy)
+asks original hardware directly. Titles that scroll horizontally with D7 set
 and place sprites at the left edge are the regression class to watch.
 
 ## Adopted trigger: 1 µs after raw HSYNC start
@@ -220,12 +220,9 @@ ship for the authorized MiSTer trial, with no blocking RTL defect. Its
 stale-comment and reference notes are addressed. Its boundary consequences are
 documented above rather than pinned by further vectors.
 
-**Status.** This is an emulator-derived, source-contradicting rule. Original
-Plus/GX4000 results for `pri-width-3.cpr`, `pri-width-6.cpr` and
-`pri-planes-4-12.cpr` (width 11) decide it. The new rule predicts the same
-final marker at every width, as AmSpirit shows; the revised-Arnold rule
-predicts a 48-dot step from width 3 to 6. If hardware shows that step, revert
-this trigger and look for the Eerie strip on the fetch side.
+**Status.** This rule contradicts both written accounts. Original-Plus
+photographs of the width probes confirm it; see
+[original hardware](#original-hardware-2026-09-27).
 
 ## MiSTer A/B (2026-09-27)
 
@@ -256,3 +253,39 @@ Captures, cases, contact sheets and zooms are in the main checkout's
 `local/task-archives/eerie-hsync-trigger-2026-09-27/evidence/mister/`. These
 are MiSTer reproductions, not original-hardware verdicts. FF2 gameplay with
 music and Prehistorik II still need the user's interactive check.
+
+## Original hardware (2026-09-27)
+
+The user photographed the four flat-plane CPRs on an original Plus:
+`pri-width-3.cpr`, `pri-width-6.cpr`, `pri-planes-4-12.cpr` (width 11) and
+`pri-planes-0-12.cpr` (width 11, no handler padding). The photographs are in the
+main checkout at `local/task-archives/crtc3-2026-09-27/evidence/edge/pri/real-pri-*.jpeg`
+(ignored).
+
+Method: in each photograph, the short marker's length was divided by the length
+of a full-width green line on nearby rows of the same photograph, then scaled by
+the 623-dot distance from the first to the last dot of that line. Last-dot
+positions are relative to the display left. Perspective and JPEG blur give
+about ±3 dots.
+
+| Probe | Revised-Arnold rule | Adopted +1 µs rule (simulation) | AmSpirit | Original Plus |
+|---|---:|---:|---:|---:|
+| width 3, 4 NOPs | 171 | 139 | 139 | ~136 |
+| width 6, 4 NOPs | 219 | 139 | 139 | ~135 |
+| width 11, 4 NOPs | 219 | 139 | 139 | ~139 |
+| width 11, 0 NOPs | 155 | 75 | 75 | ~78 |
+
+- **The request is width-independent.** Widths 3, 6 and 11 agree within the
+  measurement error. The revised-Arnold 48-dot step from width 3 to 6 is
+  absent. This holds without any model of the CPU or video pipeline.
+- **Its phase lies in the adopted CPU slot.** The markers match the
+  +1 µs rule and are 2–5 µs earlier than the revised-Arnold rule. The CPU
+  samples INT once per 1 µs. A request at raw HSYNC start (+0, CPCEC's event)
+  would land one slot earlier, about 16 dots, which is outside the error.
+  This inference relies on production's ACCC-matched 5 µs IM1 response.
+  Positions inside one slot cannot be seen by software.
+
+Settled: the ordinary-request rule and the Eerie strip repair. Still open:
+width 1 and 2, PRI writes during HSYNC, and HSYNC crossing into the PRI line.
+The multi-test [probe cartridge](../../../scripts/diagnostics/README.md#multi-test-probe-cartridge-plus_hw_probespy)
+covers all three; results go to the [divergence ledger](../source-divergences.md).

@@ -489,8 +489,8 @@ that a previously online device remains available. Keep one device operator.
   The green first-column bar (sprites under the SSCR[7] border) is fixed in
   `8306e6f` and confirmed on MiSTer. The dotted logo strip is fixed by an
   AmSpirit-derived ordinary PRI request 1 µs after raw HSYNC start, which
-  overrides both written accounts. Original-Plus width 3/6/11 marker positions
-  decide whether it stays. See the
+  overrides both written accounts; original-Plus width 3/6/11 photographs
+  confirm it. Remaining divergences: [ledger](plus/source-divergences.md). See the
   [graphics investigation](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md).
 - **Plus acceptance:** the remaining title/model/disk/reset matrix in
   [current status](current-status.md) and [the checklist](plus/hardware-test-checklist.md).
