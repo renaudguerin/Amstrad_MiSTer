@@ -613,7 +613,11 @@ module asic_ga_timing
 	wire pri_ordinary_edge = (pri_hs_cnt == 7'd64) && HSYNC_I;
 
 	// Revised Arnold §2.4: raw HSYNC overlapping entry to the matching
-	// scanline can trigger there, then again at its normal monitor edge.
+	// scanline can trigger there, then again at the ordinary event. If the
+	// ordinary event itself lands on the entry edge, both compare the new
+	// line and deliver one request. Width 1 never reaches the ordinary
+	// event (HSYNC ends as the counter reaches 64); an ordinary event still
+	// due inside a restored HSYNC is dropped by the import parking.
 	// https://www.cpcwiki.eu/index.php/Arnold_V_Specs_Revised#Programmable_raster_interrupt
 	// Track line transitions, not PRI-match transitions: a PRI-only write
 	// must not manufacture a line-entry event. Invalidate history across
@@ -634,9 +638,9 @@ module asic_ga_timing
 	wire pri_line_match = (pri != 8'd0) && ({1'b0, pri} == crtc_line);
 	// CPCEC c025aab cpcec.c:2106-2114 (FF2): changing PRI to the
 	// current line during raw HSYNC requests an interrupt, even after
-	// the ordinary monitor edge. FF2's palette copy writes 46->48 at
-	// C0=52 on line48; its ordinary comparison was at C0=49 and raw
-	// HSYNC ends at C0=57. See docs/plus/references/ff2-runtime-pri-2026-09-27.md.
+	// the ordinary event. FF2's palette copy writes 46->48 at C0=52 on
+	// line48, after that line's ordinary comparison and before raw HSYNC
+	// ends at C0=57. See docs/plus/references/ff2-runtime-pri-2026-09-27.md.
 	// Detect stored-value changes, so held/same-value writes cannot
 	// continually reassert after ACK. Do not import CPCEC's separate
 	// pending-request clear on other PRI writes. Original-Plus acceptance

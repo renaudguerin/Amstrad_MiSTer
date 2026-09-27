@@ -281,17 +281,24 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   and [2026-09-22 source comparison](scrapes-interrupt-findings-2026-09-22.md).
   The register can be rewritten for multiple interrupts; PRI=0 selects the
   compatible 52-line mechanism rather than programming line 0/256.
-- **Trigger point**: on the **trailing edge of the HSYNC seen by the monitor**,
-  with HSYNC width clamped at 6: for programmed widths ≥ 6 the interrupt
-  position stops moving (fires at HSYNC_start + 6µs per [ARNOLD-REV]; [KT]
-  claims width-independent HSYNC_start + 10µs — ⚠ CONFLICT). The
-  [AmSpirit width discriminator and source rationale](amspirit-pri-phase-2026-09-26.md)
-  keeps that conflict open; its emulator marker alone is not an IRQ-pin measurement. The
-  [B20-4 connected-module sweep](b20-pri-phase-2026-09-23.md) confirms that
-  current RTL follows the revised account for ordinary widths, with one master
-  clock of edge-detection latency. This supports retaining the implementation;
-  it does not adjudicate the original-hardware source conflict. If the CRTC HSYNC is
-  still active at the start of the next line, the interrupt can fire twice for
+- **Trigger point (sources)**: [ARNOLD-REV] says the **trailing edge of the
+  HSYNC seen by the monitor**, with the position clamped from width 6
+  (HSYNC_start + 6µs); [KT] claims width-independent HSYNC_start + 10µs.
+- **Trigger point (current RTL, 2026-09-27)**: **1µs after raw CRTC HSYNC
+  assertion, for every width**, while HSYNC is still active. This departs
+  from both written accounts. AmSpirit's flat-plane markers are
+  width-independent at 139 dots for R3=3/6/11, where the revised rule gave
+  171/219/219. Production's IM1 path measures ACCC §27.4's 5µs, so the gap
+  is attributed to request generation; a request at +1µs reproduces all
+  three markers and removes Eerie Forest's dotted logo strip (the demo needs
+  it by +4µs). Original-Plus confirmation is outstanding: run the width
+  3/6/11 probe CPRs. See the
+  [trigger counterfactual](eerie-pri-trigger-counterfactual-2026-09-27.md),
+  [AmSpirit width discriminator](amspirit-pri-phase-2026-09-26.md) and
+  [B20-4 sweep](b20-pri-phase-2026-09-23.md) (which pinned the earlier
+  rule). Width 1 never requests (HSYNC ends as the 1µs point arrives).
+  If the CRTC HSYNC is still active at the start of the next line, the
+  interrupt can fire twice for
   one programmed line. [ARNOLD-REV §2.4] The
   [CRTC3 connected probe](../../investigations/hardware-runs/crtc3-demo-2026-09-25.md#cross-line-raster-interrupt-second-finding)
   establishes that the previous RTL omitted this line-entry event. R2=51,
@@ -299,7 +306,7 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   exact-edge case whose sample ordering still needs hardware adjudication.
 - **Changed PRI during raw HSYNC:** the FF2 candidate adds a request when the
   stored value changes to the current nonzero nine-bit line while raw HSYNC is
-  high, including after the ordinary monitor edge. Same-value writes do not
+  high, including after the ordinary event. Same-value writes do not
   retrigger, and other writes do not clear pending requests. This follows
   CPCEC `c025aab` (`cpcec.c:2106–2114`, explicit FF2 comment) and repairs the
   [production-T80 FF2 chain](ff2-runtime-pri-2026-09-27.md). It is an

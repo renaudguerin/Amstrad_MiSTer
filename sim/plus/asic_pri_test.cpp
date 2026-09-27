@@ -7,8 +7,8 @@
 //         last-ack-was-raster level latches on each raster acknowledge,
 //         never on the fire itself (lockstep already pins the full
 //         output set; this pins the new export).
-//   pr02  PRI=k: counter fires are suppressed; INT_N falls exactly at the
-//         shaped-monitor trailing edge following the matching line, at the
+//   pr02  PRI=k: counter fires are suppressed; INT_N falls at the ordinary
+//         event of the matching line (phase pinned by pr10), at the
 //         same intra-line offset every time (self-calibrated on the first
 //         fire), and never on line 256+k: bit 8 of the compare is a fixed 0.
 //   pr03  vertical adjust gates firing: no interrupt for a match inside
@@ -202,10 +202,10 @@ void pr01_baseline(PriBench& b) {
 }
 
 //----------------------------------------------------------------------
-// pr02: PRI=k suppresses counter fires and fires at the shaped-monitor
-// trailing edge of the matching line. The intra-line fire offset is
-// self-calibrated on the first event (the shaping microsequence is
-// deterministic), then required to repeat exactly on the next match.
+// pr02: PRI=k suppresses counter fires and fires at the ordinary event of
+// the matching line. The intra-line fire offset is self-calibrated on the
+// first event (pr10 pins its phase), then required to repeat exactly on
+// the next match.
 //
 // [ARNOLD-REV §2.4] gives the compare as
 //   0 PRI7..PRI0 == VC5..VC0 RC2..RC0
@@ -418,7 +418,7 @@ void pr07_raster_fire_during_intack(PriBench& b) {
 	if (b.dut.INT_N != 1) fail("pr07: expected idle INT_N after clear");
 	if (b.dut.int_last_raster != 0) fail("pr07: expected clear last-raster");
 
-	// Dynamically calibrate the intra-line offset of monitor HSYNC fall
+	// Dynamically calibrate the intra-line offset of the ordinary event
 	// for the PRI match to ensure the test window precisely spans the fire tick.
 	uint16_t cal_line = uint16_t((b.crtc_line + 4) & 0x7F);
 	if (cal_line == 0) cal_line = 1;
@@ -456,7 +456,7 @@ void pr07_raster_fire_during_intack(PriBench& b) {
 	b.iorq_n = false;
 	b.m1_n = false;
 
-	// Step across the measured monitor HSYNC fall.
+	// Step across the measured ordinary event.
 	while (b.hcount < fire_hcount + 15) {
 		b.tick();
 		if (b.dut.INT_N != 1)

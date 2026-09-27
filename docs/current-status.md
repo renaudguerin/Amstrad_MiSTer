@@ -55,11 +55,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   final RBF is hardware-verified. The remaining left-edge residual has
   [two separate causes](plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md).
   The green first-column bar is sprites drawn inside SSCR[7]'s extended
-  border; branch `plus/eerie-hsync-trigger` hides them per Arnold V §2.1/§2.5
-  (gated, reviewed and integrated 2026-09-27; MiSTer check pending). The dotted logo strip
-  disappears in scratch replays when the ordinary PRI fires by HSYNC+4 µs.
-  Both documented triggers (6 µs, ~10 µs) leave it, so its timing stays
-  unchanged pending hardware evidence.
+  border, now hidden per Arnold V §2.1/§2.5 (`8306e6f`; MiSTer capture
+  confirms the bar gone). The dotted logo strip is removed by requesting ordinary
+  PRI 1 µs after raw HSYNC start at every width. That matches AmSpirit's
+  width-independent probe markers and overrides revised Arnold's +6 µs; it
+  awaits a MiSTer title check and original-Plus width 3/6/11 probes.
 - **Latest implementation:** B20-1 live PPR write handling (`5d12f56`), integrated
   with reviewed capture transport/metadata fixes and B20 acknowledge diagnostics.
   Combined exact-SHA CI and full Quartus synthesis pass at `cdcb3c3`.
