@@ -532,8 +532,8 @@ wire [4:0] ra_eff = {raster[4:3], (raster[2:0] + SSCR[6:4]) & 3'd7};
 // C0=R1 advances the source row, so it moves before SSCR wraps RA to 0
 // (Arnold V §2.5, asic-reference §8).  For R9 = 7 the wrapped ra_eff stays
 // in 0..7 and this is the equality test; for R9 < 7 with a nonzero offset it
-// captures on several lines of a row (unprobed, see docs/plus/
-// source-divergences.md).  With R9 > 7 only RA's low three
+// captures on several lines of a row (original Plus probe V3 screen 25:
+// R9=3, offset 2 captures on raw rasters 1-3).  With R9 > 7 only RA's low three
 // bits wrap, and ra_eff can pass R9 on several lines of one row: R9=11,
 // offset 5 displays 5,6,7,0,1,2,3,4,13,14,15,8 and captures on raw raster
 // 8, 9 and 10, advancing three source rows per character row. Original Plus
@@ -546,9 +546,14 @@ wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
                        row_latch_done;
 
 // P6: Screen split comparison ({SPLT7..0} == {VC4..0, RC2..0}, asic-reference §8).
-// When matched and SPLT != 0, capture SSA into vma_latch at HCC == R1.
+// When matched and SPLT != 0, capture SSA into vma_latch at HCC == R1, or at
+// HCC == R0 on the last line of the frame (VCC == R4, RCC == R9) [ARNOLD-REV
+// §2.3]. Original Plus probe V3 screen 21 confirms the terminal case: SSA
+// rewritten on line 311 after C0=R1 is the SSA frame line 1 displays.
 wire split_match = (SPLT != 8'd0) && ({charline[4:0], raster[2:0]} == SPLT);
-wire split_latch_event = CLKEN && !in_adj && split_match && (hcc == R1_h_displayed);
+wire split_at_r0 = c9_done && last_charline;
+wire split_latch_event = CLKEN && !in_adj && split_match &&
+                         (hcc == (split_at_r0 ? R0_h_total : R1_h_displayed));
 
 // A split captured on the terminal line of a frame survives the frame
 // origin in VMA' while VMA still reloads from R12/R13 (original Plus probe

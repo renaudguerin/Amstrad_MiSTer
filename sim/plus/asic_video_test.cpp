@@ -2744,6 +2744,37 @@ void t08k_split_on_terminal_line(TestBench& test) {
     test.expect_ma("t08k next frame line 1 from SSA", 0x2400);
 }
 
+// t08l: SSA sampling point. [ARNOLD-REV §2.3] (asic-reference §8): the split
+// captures SSA at HCC == R1, except on the last line of the frame (VCC == R4,
+// RCC == R9), where it captures at HCC == R0. Original Plus probe V3 screen 21
+// confirms the terminal case: SSA rewritten on line 311 at C0~52, after R1=40,
+// is the SSA that frame line 1 displays (screen 22 control, rewrite at C0~30).
+// program_display_frame: R0=7, R1=4, frame of 12 lines ending {2, 3} = 19.
+// Each case rewrites SSA at HCC 6, between R1 and R0 of the split line:
+//   terminal split (SPLT 19): next frame line 1 from the new SSA 0x2800
+//   ordinary split (SPLT 9):  scanline 6 still from the old SSA 0x2400
+void t08l_split_ssa_sampling_point(TestBench& test) {
+    program_display_frame(test);
+    test.set_splt(19);
+    test.set_ssa(0x2400);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    test.run_characters(8 * 11 + 6);   // terminal line 11, HCC 6
+    test.set_ssa(0x2800);
+    test.run_to_frame_start();
+    test.expect_ma("t08l frame line 0 from R12/R13", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08l terminal split takes SSA at HCC == R0", 0x2800);
+
+    test.set_splt(9);
+    test.set_ssa(0x2400);
+    test.run_to_frame_start();
+    test.run_characters(8 * 5 + 6);    // split line 5 ({1, 1} = 9), HCC 6
+    test.set_ssa(0x3000);
+    test.run_characters(2);            // to the next line start
+    test.expect_ma("t08l ordinary split took SSA at HCC == R1", 0x2400);
+}
+
 // t08e: SSCR[6:4] vertical scanline offset added to RA[2:0].
 void t08e_sscr_vertical_scanline_offset(TestBench& test) {
     program_display_frame(test);
@@ -2966,7 +2997,7 @@ void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.expect_ra("t08j next row starts at offset RA 5", 5);
 }
 
-constexpr std::array<TestCase, 69> kTests = {{
+constexpr std::array<TestCase, 70> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3048,6 +3079,7 @@ constexpr std::array<TestCase, 69> kTests = {{
     {"t08i SSCR vertical wrap advances MA", t08i_sscr_vertical_wrap_advances_ma},
     {"t08j SSCR vertical offset with R9>7", t08j_sscr_vertical_offset_r9_above_7},
     {"t08k SPLT on the terminal frame line", t08k_split_on_terminal_line},
+    {"t08l SSA sampling point (R1; R0 on the terminal line)", t08l_split_ssa_sampling_point},
 }};
 
 }  // namespace
