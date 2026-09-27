@@ -340,14 +340,19 @@ phase_sled: ds SLED_MAX,0
             ei
             ret
 
-; ---- C: HSYNC crossing into the PRI line (R3 width 8, PRI=7).
+; ---- C: HSYNC crossing into the PRI line (PRI=7). E = R2, D = R3 (width 8
+; unless stated). C6/C7 end HSYNC exactly at the PRI line start (R2+width=64);
+; C7 is the CRTC3 demo's plasma/sphere/Wolverine timing.
 init_cross49: ld e,49 : jr init_cross
 init_cross57: ld e,57 : jr init_cross
 init_cross58: ld e,58 : jr init_cross
 init_cross62: ld e,62 : jr init_cross
+init_cross56: ld e,56 : jr init_cross
+init_cross50w14: ld e,50 : ld d,0x8E : jr init_cross_w
 init_cross63: ld e,63
-init_cross: ld a,2 : call crtc_set
-            ld a,3 : ld e,0x88 : call crtc_set
+init_cross: ld d,0x88
+init_cross_w: ld a,2 : call crtc_set
+            ld a,3 : ld e,d : call crtc_set
             call fill_grid
             ld hl,isr_pal : ld de,isr_pal_end : call install_isr
             call pal_regs

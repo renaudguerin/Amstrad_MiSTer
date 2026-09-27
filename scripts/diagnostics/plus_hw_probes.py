@@ -14,7 +14,7 @@ import subprocess
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-VERSION = 'V1'
+VERSION = 'V2'
 
 # RTL predictions are simulation readings of the production model at the commit
 # named in README.md, not hardware claims.
@@ -46,7 +46,7 @@ TESTS = [
         'IRQ/FRAME COUNTS THEM'], 'RTL: IRQ/FRAME=02 (LINE ENTRY + ORDINARY)'),
     ('init_cross63', 'C5 PRI=7 R2=63 R3=8 (CROSSES LINE)', [
         'YELLOW MARKS ABOVE 2ND GRID LINE = IRQS',
-        'IRQ/FRAME COUNTS THEM'], 'RTL: IRQ/FRAME=01 (LINE ENTRY ONLY)'),
+        'IRQ/FRAME COUNTS THEM'], 'RTL: IRQ/FRAME=02 (LINE ENTRY + ORDINARY)'),
     ('init_split54', 'D1 SPLT=54', [], 'RTL: GREEN FROM LINE 55'),
     ('init_split55', 'D2 SPLT=55 (ALSO MATCHES LINE 311)', [], 'RTL: GREEN FROM LINE 56, NO WRAP EFFECT'),
     ('init_split56', 'D3 SPLT=56', [], 'RTL: GREEN FROM LINE 57'),
@@ -62,6 +62,12 @@ TESTS = [
     ('init_mask', 'G2 SSCR BIT 7 MASK OVER SPRITES', [
         'SSCR=&80: BORDER COVERS FIRST 16 DOTS',
         'SPRITES AT X=0, 8, 16 (16 DOTS WIDE)'], 'RTL: X=0 HIDDEN, X=8 RIGHT HALF, X=16 WHOLE'),
+    ('init_cross56', 'C6 PRI=7 R2=56 R3=8 (ENDS AT LINE START)', [
+        'YELLOW MARKS ABOVE 2ND GRID LINE = IRQS',
+        'IRQ/FRAME COUNTS THEM'], 'RTL: IRQ/FRAME=02 (LINE ENTRY + ORDINARY)'),
+    ('init_cross50w14', 'C7 PRI=7 R2=50 R3=14 (ENDS AT LINE START)', [
+        'CRTC3 DEMO PLASMA/SPHERE/WOLVERINE TIMING',
+        'IRQ/FRAME COUNTS THEM'], 'RTL: IRQ/FRAME=02 (LINE ENTRY + ORDINARY)'),
 ]
 
 # B bands: PRI:=T written at C0 = 45 + i on line T = 8*i+7, sync on T-2; the
