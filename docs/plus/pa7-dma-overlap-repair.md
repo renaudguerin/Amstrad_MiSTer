@@ -1,7 +1,8 @@
 # PA7 DMA / compatible interrupt overlap repair
 
-Status: **READY locally** — reviewed and validated, pending synthesis and MiSTer comparison.
-Not merged or pushed.
+Status: **READY code** — reviewed and validated; hosted synthesis and MiSTer
+comparison in progress. Branch publication is authorized for synthesis;
+integration and release remain separate.
 Dependency base: `9888a90418551d5d1315b3f3a91e2b9c3538fcbf`.
 Branch: `codex/plus/pa7-dma-overlap-repair`. Integration and publication are separate.
 
@@ -123,19 +124,17 @@ all lint targets exit0. Logs are preserved in `output_files/pa7-dma-repair/valid
 No production behavior changed after the reviewed regression runs; the final
 source edit before the selection gate was comment wrapping.
 
-### Pending synthesis and MiSTer comparison
+### Hosted synthesis and MiSTer comparison
 
-The existing direct VM wrapper can build an unpushed local commit, but the
-configured inventory address `quartus-vm.local` does not resolve from this Mac
-(2026-09-28). The `quartus-vm` SSH alias also does not resolve. No Quartus run,
-new RBF or timing result exists for this repair. The user was asked to start
-the VM or supply its current SSH address; no push-based workaround is authorized.
+The local Quartus VM address does not resolve from this Mac. The user has
+authorized pushing the repair branch to GitHub for full-effort hosted synthesis.
+The reviewed implementation commit is `5eb2d35354ce6883e80d9c83e01ab104b5d13771`;
+later documentation-only descendants preserve its code. The hosted workflow
+dispatch SHA and artifact/timing results will be recorded after completion.
 
 MiSTer is reachable and reports `Amstrad`. Only a read-only preflight was made;
 its configuration and running session were not changed. Loading/capturing the
-new RBF remains pending synthesis. The next operator should build the exact
-local repair commit at full effort in a fresh VM directory, apply the documented
-single-processor Rosetta setting, retain timing reports and RBF hashes, then
+new RBF remains pending synthesis. Retain timing reports and RBF hashes, then
 use the hardware-loop driver to compare all four overlap pages and V5 screens30–35.
 Existing probe cases and images are available in the referenced read-only
 checkouts. Preserve and verify the device CFG across that run.
