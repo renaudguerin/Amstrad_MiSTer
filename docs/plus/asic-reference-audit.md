@@ -543,6 +543,17 @@ tested (`t08l`). No other "or when / unless / only" clause was found implemented
 half only. The remaining exception-shaped gaps are PA2 (§8.10, "first adjustment line
 only", known open) and PA1 (§4.11, a model-specific value).
 
+## Execution status (2026-09-28)
+
+RC1-RC8 and the §1.05 reference refinement are committed. Phase 2 stopped at the first
+failed new assertion: PA6e simultaneous priority. The snapshot setup masks raster pending
+when DMA is pending, so this is an invalid test precondition, not a demonstrated RTL
+priority discrepancy. PA5a/b, PA6a/c and the PA6e counter vector passed their focused runs;
+PA6b/d have not run. The test diff is provisional and has not received independent review
+or the final gate. Clause statuses/counts above remain the accepted documentation state;
+no provisional test is counted as closure. Phase 3 has not started. See the
+[stop record](asic-audit-phase2-stop-2026-09-28.md).
+
 ## Suggested execution order
 
 | Order | Item | Size | Prerequisite |
