@@ -11,6 +11,8 @@ reference oracle when debugging core issues, alongside (but decoupled from)
 the MiSTer capture path owned by the
 [mister-capture skill](../../../.agents/skills/mister-capture/SKILL.md) and the
 [hardware-loop driver](mister-hardware-loop-driver.md).
+The AmSpirit workflow is captured in the
+[amspirit-test skill](../../../.agents/skills/amspirit-test/SKILL.md).
 
 Non-goal: turning AmSpirit into a correctness verdict. The authority ranking
 stands — real hardware and Logon System photographs outrank any emulator, and

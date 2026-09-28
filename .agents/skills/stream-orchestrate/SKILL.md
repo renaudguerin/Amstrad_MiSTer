@@ -5,8 +5,10 @@ description: Explicitly create or extend coordinated steerable repository tasks 
 
 # stream-orchestrate
 
-Use when asked to launch or coordinate separate conversations. Invocation can authorize the
-requested task creation; discussing this skill cannot. Read
+Use when asked to launch or coordinate separate conversations. A request in the current
+message or active goal to run this workflow authorizes the requested task creation; do not wait
+for a later interactive invocation during unattended work. Merely discussing this skill does
+not authorize task creation. Read
 [the common workflow](../../../docs/task-workflow.md). There is no fixed count, permanent
 worktree mapping, one-task-per-stream rule, or custom integration lease service.
 
@@ -18,8 +20,11 @@ worktree mapping, one-task-per-stream rule, or custom integration lease service.
 - **Existing tasks / add**: adopt the current started task or named IDs, then launch additions.
   Example: `$stream-orchestrate add one compatible task to this accuracy task`.
   Another example: `$stream-orchestrate accuracy plus general: improve CI diagnostics`.
-- **Finish**: prepare-only by default. Explicit finish/integrate/merge/push authorizes
-  coordinator-run `stream-finish`, which pushes by default; honor an explicit no-push.
+- **Finish**: prepare-only when the request is only to launch or coordinate tasks. If the
+  current request or active goal explicitly asks to finish, integrate, merge, push, or run
+  `$stream-finish`, that authorizes coordinator-run `stream-finish`, which pushes by default;
+  honor an explicit no-push. Do not wait for the user to repeat this authorization in a later
+  turn, including during unattended work.
 
 Adoption preserves checkout, branch, commits, working changes, base and owner. Do not restart
 branch preparation or spawn a replacement. The current task can coordinate while retaining

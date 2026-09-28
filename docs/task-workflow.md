@@ -15,11 +15,16 @@ reset them merely because the topology is deprecated.
   Example: `add two compatible tasks alongside this one`. Existing branches and owners stay
   intact. Repeated start in one conversation resumes one task; it does not create parallelism.
 - `$stream-finish [source] [--no-push]`: merge locally, reconcile shared docs, validate, and
-  push by default. An explicit invocation authorizes that push without another confirmation.
-  Ordinary discussion/editing of these skills does not invoke them.
+  push by default. A user request in the current message or active goal to run this workflow
+  authorizes that push without another confirmation, including during unattended work; do not
+  wait for a later interactive invocation. Merely discussing or editing these skills does not
+  invoke them.
 
-Use the host's skill invocation syntax. Canonical skills live in `.agents/skills/`;
-`.claude/skills` is a relative symlink to that source, not a second copy.
+Use the host's skill invocation syntax when helpful. It is not a separate authorization step: a
+direct user request in the current message or active goal to run a workflow carries the same
+authority. Do not wait for a later interactive invocation. Merely discussing or editing a skill
+does not invoke it. Canonical skills live in `.agents/skills/`; `.claude/skills` is a relative
+symlink to that source, not a second copy.
 
 ## Workspace and scope ownership
 

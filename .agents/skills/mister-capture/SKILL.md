@@ -29,14 +29,15 @@ or real play. Real play needs a full input script; agree its scope with the user
 
 ## 2. Preflight the device
 
-One device operator at a time. Confirm reachability and what is running:
+Keep one capture operator at a time. Confirm reachability and record what is running:
 
 ```sh
 ssh -o BatchMode=yes -o ConnectTimeout=5 root@mister 'cat /tmp/CORENAME; echo'
 ```
 
-`MENU` means idle. Any other core name may mean the user is playing: ask before loading.
-If SSH fails, hand off to the user (device off or asleep).
+`MENU` means idle. Any other core name is context, not a confirmation gate: when the user
+requested a capture, load the requested RBF even if another core is running. Do not ask solely
+because `CORENAME` is not `MENU`. If SSH fails, hand off to the user (device off or asleep).
 
 Device layout:
 
@@ -51,7 +52,8 @@ Device layout:
 Locate media with `find /media/fat/games -iname '*<title>*'`. The repository keeps the same
 cartridges under `local/test_media/cartridges/`; compare SHA-256 to confirm the device copy matches.
 
-**Done when** the device is idle, and the RBF and media paths and hashes are known.
+**Done when** the device is reachable, the current core is recorded, and the RBF and media
+paths and hashes are known.
 
 ## 3. Establish RBF identity
 
@@ -70,7 +72,9 @@ under a distinct filename, since the driver rejects ambiguous RBF prefixes.
 ## 4. Apply settings through the CFG
 
 `driver.py` records `declared_settings` but applies none. The core reads `Amstrad.CFG` when it
-loads, so settings are changed by editing status bits there, then restored.
+loads, so set the requested status bits before loading. Read the current CFG as a base only to
+preserve unrelated bits; leave the test configuration in place afterward. Do not stop to ask
+about restoring the previous configuration, and do not restore it after success or failure.
 
 Decode bits from `CONF_STR` in `Amstrad.sv`: `On` is one bit where `n` is `0-9` then `A=10 ... V=31`
 (`oN` adds 32), and `O[hi:lo]` is a field. Bit `b` lives at byte `b // 8`, mask `1 << (b % 8)`.
@@ -84,18 +88,17 @@ intended model explicitly for controlled comparisons; verify the OSD echo on B16
 Procedure, with `$S` a scratchpad directory:
 
 ```sh
-ssh root@mister 'base64 < /media/fat/config/Amstrad.CFG' | base64 -d > $S/Amstrad.CFG.orig
-shasum -a 256 $S/Amstrad.CFG.orig        # record this: restore must match it
-python3 -c "d=bytearray(open('$S/Amstrad.CFG.orig','rb').read()); d[4]=(d[4]&~0x06)|0x04; open('$S/Amstrad.CFG.new','wb').write(d)"   # example: 6128+ (bits 34:33 = 2)
+ssh root@mister 'base64 < /media/fat/config/Amstrad.CFG' | base64 -d > $S/Amstrad.CFG.base
+python3 -c "d=bytearray(open('$S/Amstrad.CFG.base','rb').read()); d[4]=(d[4]&~0x06)|0x04; open('$S/Amstrad.CFG.new','wb').write(d)"   # example: 6128+ (bits 34:33 = 2)
 scp -O -q $S/Amstrad.CFG.new root@mister:/media/fat/config/Amstrad.CFG
+shasum -a 256 $S/Amstrad.CFG.new
 ssh root@mister 'sha256sum /media/fat/config/Amstrad.CFG'   # must equal the new file's hash
 ```
 
-Clear the other bits of a field when setting it. Restore with the same `scp -O` of `.orig` and a
-hash check as soon as capturing is finished, including after a failed run. This is the user's
-real configuration.
+Clear the other bits of a field when setting it. Record the applied settings and resulting
+hash in the evidence report; the test configuration remains active after the capture.
 
-**Done when** the device CFG hash equals the intended file.
+**Done when** the device CFG hash equals the intended file and the intended settings are active.
 
 ## 5. Write the case and capture
 
@@ -134,8 +137,8 @@ between loads: a defect confined to varying rows points at a timing seam, not st
 
 Scratchpad files vanish with the session. Copy decisive captures, manifests, the case JSON and
 zoom crops to `docs/references/<topic>-<YYYY-MM-DD>/` (gitignored, never committed). Record in
-the relevant dated evidence document: RBF name and hash, media hash, CFG bits applied, capture
-hashes, and what the captures do and do not establish. Confirm the CFG restore hash last.
+the relevant dated evidence document: RBF name and hash, media hash, CFG bits and hash left
+active, capture hashes, and what the captures do and do not establish.
 
 The next step for a display defect is a simulation trace that finds the first wrong pixel's
 plane and register state (see "P10f/P10g title-defect discriminators" in `docs/implementation-roadmap.md` for the

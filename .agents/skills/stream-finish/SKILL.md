@@ -5,9 +5,11 @@ description: Finish a task branch, merge into master, reconcile shared docs, run
 
 # stream-finish
 
-Explicit invocation means local integration **and push by default**. `--no-push` requests a
-local finish; do not add another permission question when this invocation already authorizes
-publication. Discussing or editing the skill is not invocation. Read
+An explicit user request to run `$stream-finish` means local integration **and push by
+default**. The request may be in the current message or active goal; it remains authorization
+during unattended work, so do not wait for a later interactive invocation or ask the user to
+repeat it. A request that merely discusses the skill or offers it as a possibility is not an
+invocation. `--no-push` requests a local finish. Read
 [the common workflow](../../../docs/task-workflow.md) for checkout routing and cleanup.
 
 ## Inputs

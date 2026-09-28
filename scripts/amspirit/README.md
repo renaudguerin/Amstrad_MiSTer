@@ -1,5 +1,7 @@
 # AmSpirit oracle helper
 
+Agent workflow: [amspirit-test skill](../../.agents/skills/amspirit-test/SKILL.md).
+
 `amspirit.py` drives a running AmSpirit lite instance over its HTTP API (default
 `http://127.0.0.1:6128`, override with `--url` or `AMSPIRIT_URL`). It loads media, paces
 input on `emu.frames`, captures settled screenshots, dumps machine state and saves SNA
@@ -20,6 +22,13 @@ Start AmSpirit lite with its HTTP server enabled (`--web-server`; the pilot used
 subcommand for a different address. The helper connects to an existing instance; it does
 not start the emulator. For joint device work, separately check SSH access to `root@mister`.
 B17 and Sonic GX device work require that device connection; use AmSpirit where available.
+
+When the user requests an AmSpirit test, use the existing instance even if it is running a
+different program; that alone is not a reason to ask before loading the requested CPR or SNA.
+Loading media and applying case settings replaces the current machine state and may change
+configuration and rendering settings. Do not manually preserve and restore the prior state or
+settings just for cleanup; leave the test configuration in place and record it with the evidence.
+The helper's pause-state handling is described below.
 
 The [Copter pilot](../../docs/investigations/hardware-runs/amspirit-oracle-pilot-2026-09-13.md)
 proved an automated AmSpirit checkpoint and its continuation on MiSTer after loading the
@@ -52,7 +61,8 @@ python3 scripts/amspirit/amspirit.py run scripts/amspirit/cases/copter271_title.
 `run` applies the case's `config` and `render` settings, records requested versus applied
 values, loads the media (hard reset unless `media.hard_reset` is false), executes `steps`
 (`wait_frames`, `joystick`, `keys`, `screenshot`), then pauses and captures a checkpoint:
-screenshot, state files and SNA, all describing one instant. `manifest.json` records
+screenshot, state files and SNA, all describing one instant. The requested config/render
+settings remain applied after the run. `manifest.json` records
 AmSpirit version, settings, media and case hashes, the frame origin, every event with its
 start and end frame offsets (`at`, `done_at`), and the SNA chunk list. It refuses an
 existing manifest. On success it restores the pause state it found (or stays on the

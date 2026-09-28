@@ -64,9 +64,12 @@ Preserve the ACK provenance repair and five CRTC3 repairs.
   edaa15b. Do not start with its cumbersome gameplay navigation.
 
 Hardware settings: 6128Plus, Full sync. User owns visual/device acceptance.
-Targeted AmSpirit API diagnostics are authorized; save and restore the user's
-session. User has original Plus/GX4000 and can run CPRs if needed, but prefers
-AmSpirit first and can do a human check when requested.
+Targeted AmSpirit API diagnostics are authorized. Use the existing instance even
+if another program is running. Leave the test configuration in place; do not
+manually preserve or restore the prior machine state/settings just for cleanup.
+Let the helper handle pause state as documented. User has original Plus/GX4000
+and can run CPRs if needed, but prefers AmSpirit first and can do a human check
+when requested.
 
 ## Next investigation
 
@@ -116,9 +119,10 @@ SHA256 `ce72fcf911b4b403a5012f8dedabd567c80a8af2e43e1b0646fd55468e48e794`.
 AmSpirit API: `http://127.0.0.1:6128`, previously Lite1.15.1/core2491682.
 Read `scripts/amspirit/README.md`, helper `scripts/amspirit/amspirit.py`, and
 `docs/investigations/hardware-runs/amspirit-oracle-design-2026-09-13.md`.
-The existing save/restore diagnostic is in ignored
+The existing diagnostic is in ignored
 `docs/specs/crtc3-2026-09-25/ff2/alias-probe-amspirit/run.py` (also previously
-`/tmp/ff2-pri-smoke.py`). Previous runs restored snapshot/config/render/pause.
+`/tmp/ff2-pri-smoke.py`). It records the test configuration and probe state; no
+manual pre-test state restoration is required.
 
 CPR loading needs explicit reset. `/api/z80_bp` accepts CPU addresses or
 physical-bank addresses; `/api/step` executes one instruction. RAM views and

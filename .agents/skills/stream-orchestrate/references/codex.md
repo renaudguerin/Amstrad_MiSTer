@@ -8,6 +8,9 @@ worktrees, branch diffs and task briefs. Task titles are not authoritative scope
 
 When the user requests new tasks, `create_thread` accepts a project target with
 `environment: {"type": "worktree"}`. Use the returned project ID, not a hardcoded path.
+An explicit request to create or launch those tasks in the current message or active goal is
+authorization; do not wait for a second user turn during unattended work. A passing mention of
+task creation is not a request.
 Only set `startingState` when the user explicitly requested a particular Git starting state,
 as required by the tool schema. Otherwise omit it, pass the intended integration SHA in the
 initial brief, and have `stream-start` verify and prepare the fresh branch in the resulting

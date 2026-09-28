@@ -35,14 +35,17 @@ actual paths and branch ownership with Git and host task metadata.
 
 Task skills live in `.agents/skills/`:
 
+- `amspirit-test`: run and interpret AmSpirit checks with the repository helper.
 - `stream-start [accuracy|plus|general|auto] [brief]`: selection, overlap assessment, a named
   branch, and reference provisioning. Omitted scope means auto.
 - `stream-orchestrate`: creates compatible steerable tasks, or adopts existing ones and adds
   more without restarting them. The agent assesses shared-interface risks; ordinary textual
   overlap can wait for merge reconciliation.
 - `stream-finish [source] [--no-push]`: integrates and validates one branch, reconciles shared
-  docs, and pushes by default; explicit invocation is the authorization. Coordinated tasks stop
-  at READY unless finish was requested; the integrator finishes them sequentially.
+  docs, and pushes by default. A user request in the current message or active goal to run
+  `$stream-finish` authorizes integration and push, including during unattended work; do not
+  wait for a later interactive invocation. Coordinated tasks stop at READY unless finish was
+  requested; the integrator finishes them sequentially.
 
 One writer per checkout, one integrator at a time. `stream-start` prepares the ignored ACCC
 PDFs in the assigned checkout; bridge workers use that checkout without another clone. Never

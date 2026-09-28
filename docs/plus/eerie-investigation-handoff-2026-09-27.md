@@ -81,11 +81,14 @@ repair. The survey has source anchors and the remaining debugger limitations.
 - Use the existing corrected Eerie cartridge/replay inputs. The original CPR
   has malformed RIFF sizing; consult the [container diagnosis](eerie-forest-container-2026-09-23.md)
   before treating a loader failure as an emulation failure.
-- AmSpirit API is at `http://127.0.0.1:6128`. Save and restore the user's
-  snapshot, configuration, rendering, and pause state; clear temporary
-  breakpoints. Its instruction breakpoints and beam coordinates are not raw
-  CRTC subphase or bus timestamps, and its live API does not expose raw HSYNC
-  or full C4/C9. The previous Eerie investigation restored and checked state.
+- AmSpirit API is at `http://127.0.0.1:6128`. Use the existing instance for
+  requested probes even if another program is running; do not save or restore
+  the prior machine state or settings just for cleanup. Leave the test
+  configuration in place, follow the helper's pause-state behavior, and clear
+  temporary breakpoints. Its instruction breakpoints and beam coordinates are
+  not raw CRTC subphase or bus timestamps, and its live API does not expose raw HSYNC
+  or full C4/C9. See the [AmSpirit helper guide](../../scripts/amspirit/README.md)
+  for its test-state handling.
 - Original Plus/GX4000 visual acceptance remains user-owned. MiSTer capture
   evidence is not original-hardware acceptance.
 
