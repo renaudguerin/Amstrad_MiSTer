@@ -568,3 +568,56 @@ narrows PA3 to terminal capture timing with R5>0, rather than justifying a
 frame-restart persistence change. It supports an earlier capture boundary in
 AmSpirit but does not measure the exact boundary on original hardware. The
 early-arm variant has not yet been run on the original Plus.
+
+### Phase-4 oracle follow-up (2026-09-28)
+
+AmSpirit Lite1.15.1/core2491682, model4, CRTC3 and the same unfiltered
+render settings reproduced PA2: full-width green image rows242–243 and258–271
+(active x15–654), corresponding to lines297 and305–311. PA7 yellow right
+edges are x67 and195, exactly128 dots apart. Captures are in the ignored
+`output_files/plus-hw-probes/v4/amspirit-phase4/` directory. Each cartridge
+settled100 frames; the prior snapshot and pause state were restored afterward.
+
+The PA3 timing sweep recorded its prediction before running. Moving only the
+enable4,8,12 NOPs earlier, with compensating padding before disable, gives
+no green adjustment at4/8 and all16 green adjustment lines at12. The12 case
+has green image rows240–271 and red frame0–7, matching the earlier24-NOP
+control. This brackets the emulator capture opportunity near R1=40; it does
+not measure an exact original-hardware edge. The implementation uses the
+ordinary R1 capture on the last normal line when R5 is nonzero and preserves
+the hardware-confirmed R0 terminal capture when R5=0. Frame-origin persistence
+is unchanged.
+
+**Outstanding real-hardware check:** run the early-arm screen28 variant on
+the original6128Plus. It must show green adjustment followed by red frame0–7.
+The late-arm all-red photograph is already available. Until that control is
+run, the R5>0 capture mechanism remains emulator-supported. Adjustment indexes
+other than0/1/8 and exact R1/R0 boundary timing remain unmeasured.
+
+PA7 remains open:128 versus112 dots establishes a CPU-visible timing mismatch,
+but one NOP acceptance slot cannot uniquely determine the raw request delay.
+The compatible path shares counter clears, VSYNC resynchronization, and ACK
+state with the classic-derived sequencer. No fixed delay is inferred from
+this single image. A request/acceptance phase discriminator is still needed.
+
+The cross-provider review identified one further case: the last adjustment
+line is the actual frame end. A predeclared AmSpirit discriminator added1024
+NOPs (16 lines) before the enable, with early/late variants and unchanged
+disable alignment. The production-CPU trace confirms the late enable at
+line311/C48 (VC36/RC15/ADJ1); disable is frame0/C10. Both earlyC24 and lateC48
+AmSpirit variants show red frame0 then green frame1–7. Their identical PNG
+hash is `415824bee4208a8604b244ff9b7ff1f53ac7af62184c340e773a773d7781c6e2`.
+Thus the adjustment-ending line also needs the late capture opportunity.
+The variants are `amspirit-phase4/last-adjustment-early0/` and `...early24/`.
+This is emulator evidence, **not an original-hardware pass**. Run both variants
+on the original Plus alongside the early-arm normal-terminal control.
+
+Interlace's extra-line terminal case remains unprobed; this work does not
+claim to resolve its sampling edge. The same caution applies to live R5
+rewrites at the adjustment boundary.
+
+The corrected production-T80 model also ran the late last-adjustment CPR for
+40 frames: enable311/C48, split capture311/C63, frame0 MA3000 with stored0200,
+frame1 MA0200. Its trace is beside the variant as `rtl-after-events.txt`.
+This is an implementation check against the predeclared oracle outcome,
+not additional hardware evidence.

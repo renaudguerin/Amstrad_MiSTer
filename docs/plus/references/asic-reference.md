@@ -401,7 +401,7 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
 - Capture/apply timing [ARNOLD-REV §2.3 & "6845's MA"]: the CRTC (ASIC) keeps an
   internal "stored MA" reloaded into the MA counter at the start of each line.
   On the programmed line, the SSA value is captured when HCC == R1 (Horizontal
-  Displayed) — or when HCC == R0 if VCC==R4 and RCC==R9 (last line of frame;
+  Displayed) — or when HCC == R0 if VCC==R4, RCC==R9 and R5=0 (last line of frame;
   original Plus probe V3 screen 21 is consistent: the line-311 capture follows a
   C0≈52 write) —
   and is used from the next scan line onward, i.e. it *replaces* the line-start
@@ -410,13 +410,21 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
 - The value is never applied at VCC=0/RCC=0 (can't retarget the first line of a
   frame) in the probed R5=0 case; it takes effect at the next opportunity, e.g.
   VCC=0/RCC=1. Original Plus probe 11 (SPLT=55, matching line 311, R5=0)
-  confirms it: frame line 0 shows R12/R13, line 1 onwards SSA. Behavior with
-  R5>0 is not established. The RTL reloads VMA from R12/R13 at the frame origin
+  confirms it: frame line 0 shows R12/R13, line 1 onwards SSA.
+  With R5>0, V4 screen28 misses a late enable; AmSpirit captures when armed
+  earlier and shows SSA through adjustment, then R12/R13 at frame0–7. The
+  ordinary R1 capture is used on this last normal line. AmSpirit captures a
+  late split on the last adjustment line and carries SSA to frame1 onward;
+  the non-interlaced adjustment-ending line uses R0 in the RTL model. The
+  exact edge and both original-Plus timing controls
+  are still pending. The RTL reloads VMA from R12/R13 at the frame origin
   but lets the stored MA (VMA') keep a split captured on the terminal line.
 - Multiple splits per frame are allowed (reprogram SPLT/SSA after each one).
 - [ARNOLD-REV] says a split can occur during the **first** char-line of vertical
-  adjust, but not later ones. The boundary remains unprobed; see the adjustment
-  qualification above and the open case in the audit.
+  adjust, but not later ones. Original6128Plus V4 screen27 contradicts that
+  restriction: captures occur at tested adjustment indexes0,1,8, with index8
+  aliasing index0. The RTL leaves the split comparator active in adjustment.
+  Other indexes and the exact intra-line boundary remain unmeasured.
 - DRAM refresh is derived from the CRTC-generated address: keep split start
   addresses on 16k boundaries so address bits A1-A8 keep cycling, or RAM decays.
   Combining line-by-line vertical rupture (R4=0, R9=0) with raster interrupts

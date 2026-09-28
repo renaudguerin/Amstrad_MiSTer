@@ -293,8 +293,8 @@ to the reference digest; none needs a gate or review.
 | §4.05 | Write to `+3` sets magnification ([ARNOLD-REV]) or Y-high ([KT]) (l.157-160) | conflict | `asic_regs.v:489-492` stores Y-high | reference asks for hardware verification; unprobed |
 | §4.06 | Reads of `+4..+7` mirror `+0..+3`; magnification write-only (l.160-164) | tested | `asic_regs.v:610-615` | `a02_sprite_regs` |
 | §4.07 | `&6800-&6807` write-only, read as unmapped (l.165) | tested | `asic_regs.v:643-644` | `a06_open_bus` |
-| §4.08 | Unmapped/write-only page reads = last instruction byte (l.166-169) | contradicted | ASIC read selection + `Amstrad.sv` SDRAM OE gate + `rtl/sdram.v:88` | PA4: V4 screen29 hardware reads50/68/7E/7E with passing controls, versus production CPU FF/FF/FF/FF |
-| §4.09 | Same rule for the value an `IN` on a write-only Plus port **returns** (l.169-170) | contradicted | `Amstrad.sv` CPU mux + `rtl/sdram.v:88` inactive-port FF | PA1: V4 screen 26 traces CPU FF separately from opcode-driven palette; 6128 Plus photo26 returns78/40/50/58/60/68 (repeat78), confirming CPU-readback mismatch |
+| §4.08 | Unmapped/write-only page reads = last instruction byte (l.166-169) | tested | `Amstrad_motherboard.v` retained memory-read byte; `asic_regs.read_driven` | PA4 production-T80 `audit_page_readback`: photo29 50/68/7E/7E, fail-before FF; claimed FF and RAM/mapped controls pass |
+| §4.09 | Same rule for the value an `IN` on a write-only Plus port returns (l.169-170) | tested | `Amstrad_motherboard.v` `plus_ga_open_read` | PA1 production-T80 `audit_ga_readback`: photo26 bytes78/40/50/58/60/68/78; palette and claimed-responder controls. Conflicting aliases conservatively unchanged |
 | §4.10 | `IN` on `&7Fxx` performs a GA write with the bus value (l.170-172) | tested | `Amstrad_motherboard.v:288`, `asic_ga_timing.v` I/O decode | `test_io_read_traps_unlock_and_rmr2`, t80pa m9 |
 | §4.11 | That value is `&79` on 6128+, `&78` on 464+ (l.172) | contradicted | `Amstrad_motherboard.v:290-297` (`&78` on both for `ED 78`) | PA1: 6128 Plus photo26 writes opcode palette, including ED78→066; hardware supports RTL write path over KT79 claim |
 | §4.12 | DCSR readable at any `&6C00-&6C0F`, writable only at `&6C0F`; SAR/PPR unreadable (l.174-175) | tested | `asic_regs.v:386-391,624-627` | `a05_raster_dma_regs`, `a08_dcsr_raster_status` |
@@ -393,11 +393,11 @@ to the reference digest; none needs a gate or review.
 | §8.03 | Pathological terminal-line value is 55 on a 312-line frame; [KT] reports 56 (l.387-389) | tested | `asic_video.v:554-605` | original Plus probes confirm 55; `t08k_split_on_terminal_line`; RC4 |
 | §8.04 | SSA in R12/R13 format incl. bank bits; MA of the first line after the split (l.390-392) | tested | `asic_video.v:585,604` | `t08a`, `t08h_overscan_carry_14bit` |
 | §8.05 | SSA captured at HCC == R1 (l.395) | tested | `asic_video.v:557` | `t08a`, `t08l_split_ssa_sampling_point` |
-| §8.06 | **or** at HCC == R0 **if** VCC == R4 **and** RCC == R9 (l.396) | tested | `asic_video.v:555-557` (equality) | `t08l` (fixed in `edd6d80`) |
+| §8.06 | HCC == R0 on the R5=0 normal terminal or non-interlaced adjustment-ending line; ordinary capture before adjustment | tested | `asic_video.v` `split_at_r0` | `t08l` preserves V3 hardware timing; PA3 `t08n` pins late/early normal-terminal enable; `t08o` pins late adjustment-terminal carry. Original-Plus controls pending; exact edge is an emulator-supported model |
 | §8.07 | Used from the next scan line; replaces the line-start MA until the next split or frame restart (l.399-401) | tested | `asic_video.v:584-605` | `t08a`, `t08c_split_screen_multiple_splits` |
-| §8.08 | In the probed R5=0 case, **never** applied at VCC=0/RCC=0; takes effect at VCC=0/RCC=1 (l.402-407) | tested (R5=0) | `asic_video.v:559-602` (`split_held`) | `t08k`; R5>0 photo28 is all red, phase dash not discernible; AmSpirit early arming yields green adjustment/red frame0–7, narrowing PA3 to capture timing; RC8 |
+| §8.08 | Terminal split does not retarget frame0; R5=0 carries to frame1, earlier adjustment capture does not | tested | `asic_video.v` frame-origin reload and `split_held` | `t08k`, PA3 `t08n`/`t08o`; normal-terminal early arm gives green adjustment/red frame0–7, last-adjustment capture carries to frame1. Additional hardware controls pending |
 | §8.09 | Multiple splits per frame (l.408) | tested | `asic_video.v:584-605` | `t08c` |
-| §8.10 | Split **can** occur in the **first** adjustment line, **not** later ones (l.409-410) | contradicted | `asic_video.v:556` (`!in_adj`) | PA2: photo27 has green297 and305–311, supporting tested adjustment captures0/1/8 and the index8 alias; RTL predicts all red |
+| §8.10 | Split captures occur at tested adjustment indexes0/1/8, contradicting Arnold’s first-only restriction | tested | `asic_video.v` comparator active in adjustment | PA2 `t08m` fails before fix; photo27 and AmSpirit green297/305–311. Other indexes and exact intra-line boundary unmeasured |
 | §8.11 | DRAM refresh hazard with non-16k split addresses / R4=R9=0 rupture (l.411-415) | scope | — | §14 item 2 |
 | §8.12 | SSCR D3-D0: horizontal delay 0-15 mode-2 pixels (l.423) | tested | `asic_video.v:1196-1216` | `t08f_sscr_horizontal_pixel_delay` |
 | §8.13 | SSCR D6-D4 added to RA low 3 bits (l.424, 432) | tested | `asic_video.v:529` | `t08e_sscr_vertical_scanline_offset` |
@@ -521,7 +521,7 @@ to the reference digest; none needs a gate or review.
 | §14.2 | RAM refresh loss with rupture + raster interrupts: arguably skip (l.692-694) | scope | — | not modelled |
 | §14.3 | External RAM expansion write-through (l.695) | scope | — | §2.08 |
 | §14.4 | PPI quirks required (l.696-697) | tested | `i8255.v` | §12.08-§12.10 |
-| §14.5 | Open-bus reads for write-only I/O and unmapped page (l.698-699) | contradicted | | CPU readback: §4.08, §4.09, PA1/PA4; V4 photos26/29 confirm readback mismatch. I/O write side effects are separately tested by §14.6 |
+| §14.5 | Open-bus reads for write-only I/O and unmapped page (l.698-699) | tested | Motherboard retained-byte fallback | PA1/PA4 production-T80 photo vectors; mapped registers and overlapping responders retain priority |
 | §14.6 | `IN` on GA/CRTC ports performs writes (l.700-701) | tested | | §4.10, §13.02; value PA1 |
 | §14.7 | ASIC-damage contention: do not emulate (l.702) | scope | — | — |
 
@@ -529,24 +529,25 @@ to the reference digest; none needs a gate or review.
 
 ## Summary
 
-222 clauses: 177 `tested`, 9 `untested`, 13 `conflict`, 11 `scope`, 6 `contradicted`,
+222 clauses: 181 `tested`, 9 `untested`, 13 `conflict`, 11 `scope`, 2 `contradicted`,
 6 `not-impl`.
 
 | Status | Rows | Disposition |
 |---|---|---|
-| `contradicted` | §4.08 / §14.5, §4.09, §4.11, §8.10 | PA4/PA1 CPU readback and PA2 adjustment captures: hardware discrepancies; PA1 decoder write matches hardware over KT79 claim |
+| `contradicted` | §4.11 | Hardware supports opcode78 on this6128Plus, contradicting KT79; preserve decoder writes |
+| `tested` | §4.08, §4.09, §8.10, §14.5 | PA1/PA2/PA4 fixed with hardware-derived fail-before vectors |
 | `contradicted` | §11.14 | deliberate, tested fail-closed CPR policy; no action |
 | `not-impl` | §7.22, §12.12 | PA7 (single-source timing offsets) |
 | `not-impl` | §10.03-§10.04, §12.11 | no paddle/printer source; title-driven only |
 | `not-impl` | §11.07 | deliberate Plus-mode expansion isolation (B13) |
 | `tested` | §1.13, §2.07, §7.20, §7.28, §8.17, §8.21, §12.03 | PA5/PA6 regression vectors pass; PA6c also pins the chosen REPEAT 0 reading in conflict row §9.07 |
-| `untested` | §8.08 (R5>0) | PA3, probe first |
+| `tested` | §8.06, §8.08 (R5>0) | PA3 late/early normal-terminal and adjustment-terminal vectors; original-hardware early/last-adjustment controls pending |
 | `untested` | others | structural or single-line; recorded, no vector proposed |
 
-The one exception-clause gap of the kind that triggered this audit, §8.06, is fixed and
-tested (`t08l`). No other "or when / unless / only" clause was found implemented in its main
-half only. The remaining exception-shaped gaps are PA2 (§8.10, "first adjustment line
-only", known open) and PA1 (§4.11, a model-specific value).
+Terminal sampling now distinguishes the last normal line from the frame-ending
+adjustment line (PA3). PA2 follows measured adjustment captures over Arnold's
+first-only claim. PA1's model-specific KT79 claim remains contradicted by this
+6128Plus; other models and conflicting I/O aliases remain unmeasured.
 
 ## Execution status (2026-09-28)
 
@@ -623,11 +624,26 @@ from a 6128 Plus through Retrotink4K → TV → phone show:
   green and frame0–7 red. The working diagnosis is a missed capture opportunity,
   not restart persistence. The early-arm original-hardware control remains unrun.
 
-The photograph record changes no RTL or tests. The existing 222-clause status
-counts remain unchanged: statuses compare reference and RTL, not completion of
-hardware investigation. Next work is hardware-derived fail-before vectors for
-supported findings, plus an original-hardware early-arm confirmation of the AmSpirit PA3 diagnosis. Preserve
-the already hardware-matching PA1 decoder-write behavior.
+### Phase-4 implementation (2026-09-28)
+
+PA4 and PA1 now return the hardware-observed bytes; tests execute production
+T80 from cartridge and SDRAM, preserving palette side effects, mapped ASIC
+reads (including legitimateFF), and PPI/CRTC/FDC priority. The old audit claim
+that `plus_asic_rd` did not select unused page reads was wrong: it already
+claimed the entire page, while `asic_regs` supplied neutralFF. The repair
+uses explicit register read ownership and a retained memory-read byte.
+
+PA2 permits adjustment captures. PA3 distinguishes last-normal-line R1 capture
+from frame-ending R0 capture, including the last adjustment line. No frame
+restart policy or snapshot attribution was changed. Each finding has a
+failing-before vector. Opus medium reviews cover the bus and video changes;
+the final adjustment-terminal extension uses Muse Spark implementation.
+
+PA7 remains open: AmSpirit measures exactly128dots, matching the phone photo,
+but raw request timing is not uniquely determined by this acceptance slot.
+The [oracle record](asic-audit-probes-v4.md#phase-4-oracle-follow-up-2026-09-28)
+names the missing original-Plus early-arm and adjustment-terminal controls.
+Interlace terminal timing and live R5 rewrites remain unprobed.
 
 ## Suggested execution order
 
@@ -636,4 +652,50 @@ the already hardware-matching PA1 decoder-write behavior.
 | 1 | RC1-RC8 reference corrections (applied 2026-09-28) | XS, docs | none |
 | 2 | PA5a, PA5b, PA6a-e vectors (complete, passing regression armour) | S | none |
 | 3 | Probe screens: PA1 (`IN` values), PA2/PA3 (split × R5), PA4 (page open bus), PA7 (PRI=0 phase) | M | V4 complete; 6128 Plus photographs recorded |
-| 4 | PA1 / PA2 / PA3 / PA4 / PA7 RTL fixes, each with its fail-before vector | S each | its probe result |
+| 4 | PA1/PA2/PA3/PA4 implemented; PA7 request-phase investigation remains | S each | recorded hardware/oracle evidence and outstanding controls |
+
+## Phase-4 validation
+
+Final code selection, run once after the last code edit (exit0):
+
+```sh
+MAKEFLAGS='CXX=/opt/homebrew/opt/llvm/bin/clang++' python3 sim/select_tests.py --run
+```
+
+Final line:
+
+```text
+select_tests: PASS 41 benches: crtc-test, crt-filter-blank-test, crtc-cpu-phase-test, video-color-test, video-output-test, ssm-marker-test, sna-cpu-header-test, video-mixer-rgb-test, ga40010-test, u765-test, run/asic_unlock_tests, run/asic_video_tests, run/b6_menu_mask_tests, run/dandanator_loader_bounds_tests, run/rom_loader_route_tests, run/plus_legacy_cart_gate_tests, run/plus_cartridge_memory_tests, run/plus_cartridge_memory_min_tests, run/sdram_cartridge_tests, run/plus_cpr_parser_tests, run/plus_mmu_tests, run/p0_boot_tests, run/asic_ga_timing_diff_tests, run/p1_video_tests, run/p1_mobo_bench_tests, run/asic_regs_tests, run/plus_sprite_ram_tests, run/asic_pri_tests, run/asic_sprites_tests, run/d3_sprites_tests, run/p4_sprites_regs_tests, run/p4_multiplex_tests, run/asic_dma_tests, run/plus_p8_tests, run/b16_load_model_tests, run/p10_boot_tests, run/p10_input_tests, run/p10_dma_ppi_tests, run/p10_dma_mobo_tests, run/b8_palette_tests, run/sna_save_stream_tests
+```
+
+Soak (exit0):
+
+```sh
+make -C sim CXX=/opt/homebrew/opt/llvm/bin/clang++ soak SOAK_EXPECT=0xe99ab434a5e1cdb3
+```
+
+`soak hash: 0xe99ab434a5e1cdb3`; `soak hash matches expected`.
+This soak hashes the classic CRTC projection; the Plus fixes intentionally
+change behavior but do not change that projection, so no golden was re-minted.
+
+Focused production-T80 `d5-asic-audit` passes PA1/PA4 plus all six PA6b/d
+model/tape controls. PA1 executed from SDRAM, PA4 from cartridge. Leaf/motherboard
+controls pass, including classic isolation and drivenFF. PA1’s Opus review
+suggested requiring a non-FF FDC response; that assertion was added and the
+focused D5 run passed again.
+
+Production-T80 diagnostic run:
+
+```sh
+python3 scripts/diagnostics/plus_hw_probes_sim.py --out output_files/plus-hw-probes/v4/phase4-sim --screens 21 22 23 24 25 26 27 28 29 30 --frames 40
+```
+
+All ten screens completed40 frames. Screens21–25 are pixel-identical to the
+pre-fix V4 preservation renders. Screen26 reports78/40/50/58/60/68/78 with the
+photographed palette words, screen29 reports50/68/7E/7E and passing controls.
+Screen27 captures adjustment0/1/8; screen28 late arm no longer captures on the
+last normal line. Screen30 remains pixel-identical: PA7 is still unresolved.
+
+Independent Opus medium reviews accepted PA4, PA1, PA2/PA3, and the additional
+Muse Spark PA3 adjustment-terminal implementation. Remaining evidence limits
+are recorded in the V4 oracle section, not treated as hardware passes.
