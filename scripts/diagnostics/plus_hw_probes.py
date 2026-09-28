@@ -14,7 +14,7 @@ import subprocess
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-VERSION = 'V3'
+VERSION = 'V5'
 
 # RTL predictions are simulation readings of the production model at the commit
 # named in README.md, not hardware claims.
@@ -79,6 +79,16 @@ TESTS = [
         'BAR LENGTH = 3 BYTES PER SOURCE ROW (ROW 6 = 9)'], 'RTL: BARS STEP ONCE PER 4-LINE ROW'),
     ('init_bars_off2', 'E4 R9=3 ROWS 6-11, VSCROLL 2', [
         'BAR LENGTH = 3 BYTES PER SOURCE ROW (ROW 6 = 9)'], 'RTL: BARS STEP ON 3 LINES OF EVERY 4-LINE ROW'),
+    ('init_pa1', 'PA1 IN BYTE AND GA WRITE', [], 'PRE-BUILD RTL: CPU FF; PALETTE TRACKS OPCODE'),
+    ('init_pa2', 'PA2 SPLITS INSIDE ADJUSTMENT', [], 'PRE-BUILD RTL: ALL 16 ADJUSTMENT LINES RED'),
+    ('init_pa3', 'PA3 TERMINAL SPLIT WITH R5=16', [], 'PRE-BUILD RTL: ADJUST GREEN; FRAME 0-7 RED'),
+    ('init_pa4', 'PA4 UNMAPPED PAGE READS', [], 'PRE-BUILD RTL: FF FF FF FF'),
+    ('init_pa7', 'PA7 PRI0 RELATIVE PHASE', [], 'SLOT HYPOTHESES: CLASSIC EDGE = PRI EDGE +112 OR +128'),
+    ('init_pa7g', 'PA7G PENDING UNDER DI', [], 'RTL G=0 IRQ/FRAME=04'),
+    ('init_pa7w', 'PA7W WIDTH 12 NOP', [], 'RTL SEP176 A=B IRQ/FRAME=04'),
+    ('init_pa7l', 'PA7L LD A,(HL)', [], 'RTL MEAN112 IRQ/FRAME=04'),
+    ('init_pa7r', 'PA7R RET NC', [], 'RTL MEAN112 IRQ/FRAME=04'),
+    ('init_pa7i', 'PA7I INC HL', [], 'RTL MEAN112 IRQ/FRAME=04'),
 ]
 
 # B bands: PRI:=T written at C0 = 45 + i on line T = 8*i+7, sync on T-2; the
@@ -89,6 +99,13 @@ SLED_BASE = 24  # calibrated in simulation: sled NOPs for C0=45 (see README)
 # H: line-255 interrupt to the line-311 SSA write, calibrated in simulation.
 SSA_COARSE = 500
 SSA_SLED = {'late': 36, 'early': 14}  # C0 ~52 and ~30
+
+# PA2/3: PA2 SPLT32 at295:C50; red SSA high/low297:C6/11, SPLT33 C17;
+# off298:C16; green SSA304:C4/9, SPLT32 C15; off305:C14. PA3 SPLT39
+# at295:C48, off296:C10. Production T80, mode2 with normal READY, V4.
+ADJ_COARSE = 350
+ADJ_FINE = 66
+ADJ_NEXT = 57
 
 EXTRA_GLYPHS = {
     '+': '00000 00100 00100 11111 00100 00100 00000',
@@ -140,6 +157,57 @@ def screen_text(index, init, title, notes, prediction):
         lines.append((24, 2, footer))
         return text(lines)
     label = [(0, 2, f'{index:02d} {title}'), (1, 2, prediction)] + [(2 + k, 2, s) for k, s in enumerate(notes)]
+    if init == 'init_pa1':
+        rows = [(6 + i, 2, r) for i, r in enumerate(['IN A ED78', 'IN B ED40', 'IN D ED50',
+                'IN E ED58', 'IN H ED60', 'IN L ED68', 'IN A PORT 7F54'])]
+        return text(label + [(4, 22, 'CPU       GRB'), (15, 2, 'OUT 78 CONTROL'),
+                    (16, 2, 'OUT 79 CONTROL'), (18, 2, 'CONTROLS 066/F66. GRB 00F MEANS NO OBSERVED WRITE'),
+                    (20, 2, 'RECORD CPU AND GRB SEPARATELY; IDENTIFY MACHINE MODEL'), (24, 2, footer)] + rows)
+    if init == 'init_pa4':
+        rows = [(6 + i, 2, r) for i, r in enumerate(['LD A,(5000)', 'LD A,(6800)', 'LD A,(HL=5000)',
+                'LD A,(HL=6800)', 'RAM 5000 CONTROL A5', 'RAM 6800 CONTROL 5A',
+                'SPRITE CONTROL 0B', 'PALETTE CONTROL 5A'])]
+        return text(label + [(4, 30, 'READ'), (16, 2, 'OPERAND: 50 68 7E 7E   M1: 3A 3A 7E 7E'),
+                    (18, 2, 'UNDERLYING RAM: A5 5A A5 5A   INACTIVE: FF FF FF FF'),
+                    (24, 2, footer)] + rows)
+    if init in ('init_pa2', 'init_pa3'):
+        # Reserve baseline C390-C3DF and SSA C000-C04F / bank0 0400-044F.
+        lines = [(4, 2, f'{index:02d} {title}'), (5, 2, prediction),
+                 (6, 2, 'R4=36 R5=16 R9=7: ADJUST296-311, THEN FRAME0'),
+                 (7, 2, 'BLUE BORDER + CYAN DASHES LOCATE THE COLOUR STRIP'), (8, 2, footer)]
+        return text(lines) + text(lines, base=0x0400, invert=True)
+    if init == 'init_pa7':
+        return text([(3, 2, 'PRI REFERENCE: YELLOW MARK NEAR LINE8'),
+                     (10, 2, 'CLASSIC: YELLOW MARK NEAR LINE69'),
+                     (13, 2, 'COMPARE RIGHT EDGES, SAME ISR AND NOP ACCEPTANCE'),
+                     (14, 2, 'COMMON HSYNC SHIFT VS CPC IS NOT DISTINGUISHED'),
+                     (20, 2, f'{index:02d} {title}'), (21, 2, prediction), (24, 2, footer)])
+    if init in ('init_pa7g', 'init_pa7w', 'init_pa7l', 'init_pa7r', 'init_pa7i'):
+        # Markers/rulers occupy display rows 1,8,9,10,11,18; text stays on
+        # 2-4 plus title/prediction/footer on 20/21/24. IRQ/FRAME=04 in prediction.
+        ref = (2, 2, 'REF 8/86 69/147 +RULERS')
+        if init == 'init_pa7g':
+            detail = [ref,
+                      (3, 2, 'DI PENDING MAGENTA MARKS EI'),
+                      (4, 2, 'B=A+78L+1US YELLOW ISR')]
+        elif init == 'init_pa7w':
+            detail = [ref,
+                      (3, 2, 'R3=8C W12 NOP SLED A13=1'),
+                      (4, 2, 'B=A+78L+1US SAME ISR A=B')]
+        elif init == 'init_pa7l':
+            detail = [ref,
+                      (3, 2, 'LD A,(HL) A13=1 PH NOP-1/4US'),
+                      (4, 2, 'B=A+78L+1US OPP PARITY')]
+        elif init == 'init_pa7r':
+            detail = [ref,
+                      (3, 2, 'RET NC NT C=1 PH NOP+1/4US'),
+                      (4, 2, 'B=A+78L+1US OPP PARITY')]
+        else:
+            detail = [ref,
+                      (3, 2, 'INC HL A13=1 PH NOP+1/2US'),
+                      (4, 2, 'B=A+78L+1US OPP PARITY')]
+        return text(detail + [(20, 2, f'{index:02d} {title}'),
+                              (21, 2, prediction), (24, 2, footer)])
     if init.startswith('init_split'):
         # Red C000 bank shows rows 0-3; the green SSA bank repeats a label.
         return text(label + [(3, 2, 'RED = R12/R13 BANK C000. GREEN = SSA BANK 0000'), (4, 2, footer)])
@@ -169,7 +237,8 @@ def screen_text(index, init, title, notes, prediction):
 
 def generate(start):
     inc = [f'START_TEST equ {start}', f'NTESTS equ {len(TESTS)}', f'SLED_MAX equ {SLED_MAX}',
-           f'SSA_COARSE equ {SSA_COARSE}', f"SSA_SLED_LATE equ {SSA_SLED['late']}",
+           f'SSA_COARSE equ {SSA_COARSE}', f'ADJ_COARSE equ {ADJ_COARSE}',
+           f'ADJ_FINE equ {ADJ_FINE}', f'ADJ_NEXT equ {ADJ_NEXT}', f"SSA_SLED_LATE equ {SSA_SLED['late']}",
            f"SSA_SLED_EARLY equ {SSA_SLED['early']}"]
     s = [8 * i + 5 for i in range(len(BAND_C0))]
     t = [8 * i + 7 for i in range(len(BAND_C0))]
@@ -216,7 +285,8 @@ def build(destination, start):
     cpr = b'RIFF' + struct.pack('<I', len(payload)) + payload
     (destination / f'{stem}.cpr').write_bytes(cpr)
     meta = dict(sha256=hashlib.sha256(cpr).hexdigest(), program_bytes=len(code), start=start,
-                tests=[t[1] for t in TESTS], band_c0=BAND_C0, sled_base=SLED_BASE)
+                tests=[t[1] for t in TESTS], band_c0=BAND_C0, sled_base=SLED_BASE,
+                adjustment_delay=dict(coarse=ADJ_COARSE, fine=ADJ_FINE, next=ADJ_NEXT))
     (destination / f'{stem}.json').write_text(json.dumps(meta, indent=2) + '\n')
     print(f'{destination / (stem + ".cpr")}: {len(code)} bytes, sha256={meta["sha256"]}')
 
@@ -228,4 +298,6 @@ if __name__ == '__main__':
     parser.add_argument('--output-dir', type=Path, default=HERE.parents[1] / 'output_files/plus-hw-probes')
     parser.add_argument('--start', type=int, default=0, help='first screen (simulation)')
     args = parser.parse_args()
+    if not 0 <= args.start < len(TESTS):
+        parser.error(f'--start must be between 0 and {len(TESTS)-1}')
     build(args.output_dir, args.start)

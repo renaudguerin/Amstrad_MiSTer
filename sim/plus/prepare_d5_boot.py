@@ -7,8 +7,9 @@ root = Path(__file__).resolve().parents[2]
 out = root / 'sim/plus/obj_dir/d5_sources'
 out.mkdir(parents=True, exist_ok=True)
 s = (root / 'sim/plus/p10_boot_test_top.v').read_text()
-s = s.replace('input             clk,', 'input [10:0] d5_key,\n\toutput [7:0] d5_romsel,\n\toutput [7:0] d5_a,\n\toutput d5_ack_sample,\n\tinput             clk,', 1)
+s = s.replace('input             clk,', 'input d5_tape_in,\n\toutput d5_tape_out,\n\toutput d5_tape_motor,\n\tinput [10:0] d5_key,\n\toutput [7:0] d5_romsel,\n\toutput [7:0] d5_a,\n\toutput d5_ack_sample,\n\tinput             clk,', 1)
 s = s.replace(".ps2_key(11'd0)", '.ps2_key(d5_key)').replace(".no_wait(1'b1)", ".no_wait(1'b0)")
+s = s.replace(".tape_in(1'b0)", '.tape_in(d5_tape_in)').replace('.tape_out()', '.tape_out(d5_tape_out)').replace('.tape_motor()', '.tape_motor(d5_tape_motor)')
 if s.count(".no_wait(1'b0)") != 1:
     raise SystemExit('P10 no_wait fixture wiring changed; update adapter')
 s = s.replace('mb.CPU.cen_n', 'mb.CPU.CEN_n').replace('mb.CPU.cen_p;', 'mb.CPU.CEN_p;').replace('mb.CPU.wait_n', 'mb.CPU.WAIT_n')
@@ -23,6 +24,20 @@ if not config:
 if s.count("wire plus_exp_n  = 1'b1;") != 1:
     raise SystemExit('P10 /EXP fixture assignment changed; update adapter')
 s = s.replace("wire plus_exp_n  = 1'b1;", 'wire plus_exp_n = ' + config[1].replace('plus_model', 'plus_model_i') + ';')
+# PA6b compiles the real top-level SDRAM gates, as /EXP above. Unsupported
+# classic expansion and reset-loader inputs are tied inactive in this fixture.
+production = (root / 'Amstrad.sv').read_text().split('sdram sdram', 1)[1]
+for port in ('oe', 'we'):
+    expr = re.search(r'\.' + port + r'\s*\(([^\n]+)\),', production)
+    if not expr:
+        raise SystemExit('Cannot locate production SDRAM ' + port)
+    gate = re.sub(r'\breset\b', 'sys_reset', expr[1])
+    s, count = re.subn(r'\.' + port + r'\(sys_reset \?[^\n]+\),',
+                       '.' + port + '(' + gate + '),', s)
+    if count != 1:
+        raise SystemExit('P10 SDRAM gate changed: ' + port)
+s = s.replace('wire plus_aspage_sel =',
+              "wire mf2_ram_en = 1'b0, mf2_rom_en = 1'b0, boot_wr = 1'b0;\n\twire plus_aspage_sel =")
 (out / 'p10_boot_test_top.v').write_text(s)
 s = (root / 'rtl/Amstrad_motherboard.v').read_text()
 a = s.index('T80pa CPU'); b = s.index('\n);', a); part = s[a:b]

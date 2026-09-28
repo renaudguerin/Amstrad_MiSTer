@@ -166,6 +166,7 @@ module plus_p8_test_top (
 	output  [4:0] ga_border_out,
 	output [79:0] ga_inkr_out,
 	output        ga_int_n_out,
+	output        ga_raw_int_n_out, // pre-delivery counter/pending observation
 	output        ga_vsync_o,     // shaped monitor VSYNC (hcnt in 4..7)
 	// Production INT_n composition (Amstrad_motherboard: the GA line and the
 	// ASIC DMA request are ORed), so the aggregate level can be judged.
@@ -371,6 +372,7 @@ module plus_p8_test_top (
 		.A(aregs_addr),
 		.D_in(aregs_din),
 		.D_out(aregs_dout),
+		.read_driven(),
 
 		// B8-3 accepted legacy palette event, straight from the GA as
 		// production wires it (B8-5 slice B: proves a snapshot apply emits no
@@ -531,6 +533,7 @@ module plus_p8_test_top (
 	assign video_line_out = video_line;
 	assign video_row_out  = video_row;
 	assign video_adj_out  = video_adj;
+	assign ga_raw_int_n_out = asic_ga.classic_raw_n;
 	assign int_n_merged   = ga_int_n_out & ~aregs_dma_int_req;
 
 	asic_ga_timing asic_ga

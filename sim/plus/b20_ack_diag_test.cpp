@@ -377,6 +377,74 @@ void test_b20_double_pulse_dma(Vplus_p8_test_top& dut) {
     }
 }
 
+// PA6e: asic-reference §7 [ARNOLD-REV §2.7, KT]: simultaneous requests
+// arbitrate raster > DMA2 > DMA1 > DMA0. IVR=0 uses auto-clear; acknowledging
+// one source must retain the others. DCSR flags are DMA0/1/2 at bits6/5/4.
+// Thus vectors 06,00,02,04 leave flags 70,60,40,00 respectively.
+void test_pa6e_simultaneous_priority(Vplus_p8_test_top& dut) {
+    auto tick = [&]() { dut.clk=0; dut.eval(); dut.clk=1; dut.eval(); };
+    b8_global_reset(dut, tick);
+    B8Header h;
+    // Restore a quiet, normal-length display with no pending sources. B4
+    // cannot encode simultaneous raster+DMA pending: restore deliberately
+    // attributes it to DMA when DCSR already explains the request.
+    h.crtc[0] = 63;
+    h.crtc[1] = 40;
+    h.crtc[2] = 46;
+    h.crtc[3] = 0x8E;
+    h.crtc[4] = 38;
+    h.crtc[6] = 25;
+    h.crtc[7] = 30;
+    h.crtc[9] = 7;
+    B8ChunkParams p;
+    b8_stream_chunk_apply(dut, tick, p, h);
+    auto write = [&](uint16_t addr, uint8_t value) {
+        dut.aregs_cs = 1;
+        dut.aregs_mem_wr = 1;
+        dut.aregs_addr = addr;
+        dut.aregs_din = value;
+        tick();
+        dut.aregs_cs = 0;
+        dut.aregs_mem_wr = 0;
+        tick();
+    };
+    try {
+        // Raise the raster request at PRI line 1 and each DMA flag by executing
+        // INT+STOP live. All channels stop, so no later fetch can replenish flags.
+        write(0x2800, 1);
+        write(0x2C0F, 0x07);
+        dut.dma_ram_data = 0x4030;
+        dut.dma_test_hsync = 1;
+        tick();
+        dut.dma_test_hsync = 0;
+        for (int i = 0; i < 20000; ++i) {
+            tick();
+            if (!dut.ga_int_n_out && (dut.aregs_dcsr & 0x70) == 0x70) break;
+        }
+        if (dut.int_n_merged || dut.ga_int_n_out || (dut.aregs_dcsr & 0x70) != 0x70)
+            fail("PA6e setup: expected INT low, raster pending and DMA flags 70; INT_n=" +
+                 std::to_string(dut.int_n_merged) + " raster_pending=" +
+                 std::to_string(!dut.ga_int_n_out));
+        const uint8_t vectors[] = {0x06, 0x00, 0x02, 0x04};
+        const uint8_t flags[] = {0x70, 0x60, 0x40, 0x00};
+        for (unsigned i = 0; i < 4; ++i) {
+            if (dut.int_n_merged) fail("PA6e priority: pending source disappeared");
+            dut.ga_m1_n = 0;
+            dut.ga_iorq_n = 0;
+            auto seen = b20_ack_pulse(dut, tick, 8, "PA6e simultaneous priority");
+            if (seen[0] != vectors[i]) fail("PA6e priority: wrong vector at source " + std::to_string(i));
+            b20_release(dut, tick, 4);
+            if ((dut.aregs_dcsr & 0x70) != flags[i]) fail("PA6e priority: wrong residual DMA flags");
+            if (bool(dut.aregs_dcsr & 0x80) != (i == 0)) fail("PA6e priority: wrong raster provenance");
+        }
+        if (!dut.int_n_merged) fail("PA6e priority: interrupt held after all sources cleared");
+        std::printf("PASS PA6e: simultaneous raster/DMA2/DMA1/DMA0 vectors 06/00/02/04\n");
+    } catch (const std::exception& e) {
+        fail(std::string(e.what()) + " (actual vector=0x" + hex_str(dut.ack_vec_byte, 2) +
+             ", DCSR=0x" + hex_str(dut.aregs_dcsr, 2) + ")");
+    }
+}
+
 void test_b20_idle_probe(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
 	b8_global_reset(dut, tick);
@@ -431,6 +499,7 @@ int main(int argc, char** argv) {
 		{
 			Vplus_p8_test_top dut;
 			test_b20_idle_probe(dut);
+			test_pa6e_simultaneous_priority(dut);
 		}
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());

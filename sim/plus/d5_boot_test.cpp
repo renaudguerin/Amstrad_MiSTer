@@ -22,7 +22,7 @@ void model_controls() {
             chunks.push_back({id, std::vector<uint8_t>(16384, uint8_t(page))});
         }
         Harness h;
-        h.dut.d5_key = 0;
+        h.dut.d5_key = 0; h.dut.d5_tape_in = 0;
         h.dut.production_clocking = 1;
         h.dut.plus_model_i = model;
         h.initialize(); h.download(build_cpr_image(chunks)); wait_for_cpr_apply(h);
@@ -91,7 +91,7 @@ void cart_timing() {
     const uint8_t hl_lo = uint8_t(0x10 + loads - 1), hl_hi = uint8_t(0x80 + loads - 1);
 
     Harness h;
-    h.dut.d5_key = 0;
+    h.dut.d5_key = 0; h.dut.d5_tape_in = 0;
     h.dut.production_clocking = 1;
     h.dut.plus_model_i = 2;
     h.initialize(); h.download(build_cpr_image({{"cb00", program}})); wait_for_cpr_apply(h);
@@ -156,9 +156,254 @@ void cart_timing() {
     std::cout << "PASS cartridge NOP 1 us, LD HL,nn 3 us, operands latched" << std::endl;
 }
 
+// PA6b/PA6d: asic-reference §2 [ARNOLD §2.6] forbids internal RAM
+// write-through under the ASIC page; §12 model table gives tape on 464+
+// only (GX4000/6128+ have none). PPI PortB bit7 is tape input, PortC
+// bits4/5 drive motor/output (8255 PPI source, "Port B"/"Port C").
+// Run actual Z80 I/O/memory instructions through production MMU, ASIC,
+// motherboard, SDRAM gates extracted from Amstrad.sv, and SDRAM storage.
+// Classic CPC is deliberately outside this cartridge-based Plus vector.
+void audit_page_and_tape() {
+    bool disconnected_input[4] = {};
+    for (unsigned model : {1U, 2U, 3U}) for (unsigned tape : {0U, 1U}) {
+        std::vector<uint8_t> program{0xf3}; // DI
+        auto emit = [&](std::initializer_list<uint8_t> bytes) {
+            program.insert(program.end(), bytes.begin(), bytes.end());
+        };
+        auto write = [&](uint16_t a, uint8_t d) {
+            emit({0x3e, d, 0x32, uint8_t(a), uint8_t(a >> 8)});
+        };
+        auto out = [&](uint16_t port, uint8_t d) {
+            emit({0x01, uint8_t(port), uint8_t(port >> 8), 0x3e, d, 0xed, 0x79});
+        };
+        auto copy = [&](uint16_t from, uint16_t to) {
+            emit({0x3a, uint8_t(from), uint8_t(from >> 8),
+                  0x32, uint8_t(to), uint8_t(to >> 8)});
+        };
+        // Distinct RAM sentinels below sprite RAM, palette, and an unmapped
+        // page address: none may become the later ASIC-page payload.
+        write(0x4000, 0x5a); write(0x6400, 0xa6); write(0x7000, 0x3c);
+        const uint8_t unlock[] = {0xff,0,0xff,0x77,0xb3,0x51,0xa8,0xd4,
+                                 0x62,0x39,0x9c,0x46,0x2b,0x15,0x8a,0xcd};
+        for (uint8_t b : unlock) out(0xbc00, b);
+        out(0x7f00, 0xb8);
+        write(0x4000, 0x0b); write(0x6400, 0x12); write(0x7000, 0xe7);
+        copy(0x4000, 0x8000); // positive control: ASIC write really landed
+        out(0x7f00, 0xa0);
+        copy(0x4000, 0x8001); copy(0x6400, 0x8002); copy(0x7000, 0x8003);
+        out(0xf700, 0x82); // PPI B input, C output
+        for (uint8_t c : {0x00, 0x10, 0x20, 0x30}) {
+            out(0xf600, c);
+            emit({0x3a, uint8_t(c), 0x90}); // read marker 9000+C to sample tape pins
+        }
+        emit({0x01, 0x00, 0xf5, 0xed, 0x78, 0x32, 0x04, 0x80}); // IN A,(C); LD(8004),A
+        const unsigned halt_pc = program.size();
+        emit({0x76});
+        program.resize(16384, 0x76);
+        Harness h;
+        h.dut.d5_key = 0;
+        h.dut.d5_tape_in = tape;
+        h.dut.production_clocking = 1;
+        h.dut.plus_model_i = model;
+        h.initialize(); h.download(build_cpr_image({{"cb00", program}})); wait_for_cpr_apply(h);
+        bool reached_halt = false, reading = false;
+        unsigned markers = 0;
+        for (unsigned n = 0; n < 2000000; ++n) {
+            h.tick();
+            const bool marker = !h.dut.dbg_mreq_n && !h.dut.dbg_rd_n &&
+                                (h.dut.dbg_addr & 0xffcf) == 0x9000;
+            if (marker && !reading) {
+                const unsigned c = h.dut.dbg_addr & 0x30;
+                require(c == markers * 0x10, "PA6d: unexpected tape marker order");
+                const bool motor = model == 3 && (c & 0x10);
+                const bool output = model == 3 && (c & 0x20);
+                require(h.dut.d5_tape_motor == motor && h.dut.d5_tape_out == output,
+                        "PA6d: motherboard tape outputs wrong for model " + std::to_string(model));
+                ++markers;
+            }
+            reading = marker;
+            if (m1_memory_read(h) && h.dut.dbg_addr == halt_pc) { reached_halt = true; break; }
+        }
+        require(reached_halt && markers == 4, "PA6b/d: cartridge did not complete");
+        // CPU-produced results are observed in the real SDRAM model below.
+        const uint8_t expected[] = {0x0b, 0x5a, 0xa6, 0x3c};
+        for (unsigned i = 0; i < 4; ++i)
+            require(h.memory.at(0x28000 + i) == expected[i],
+                    "PA6b: ASIC/RAM readback mismatch at result " + std::to_string(i));
+        const bool input = bool(h.memory.at(0x28004) & 0x80);
+        if (model == 3)
+            require(input == bool(tape), "PA6d: 464+ tape input did not reach PPI Port B");
+        else if (tape == 0)
+            disconnected_input[model] = input;
+        else
+            // No tape on these models (§12): changing the external input
+            // must not affect PB7. The source does not specify its idle level.
+            require(input == disconnected_input[model],
+                    "PA6d: tape input affected a model without tape");
+        std::cout << "PASS PA6b/d model=" << model << " tape=" << tape
+                  << " ASIC write isolation and motherboard tape input/output/motor" << std::endl;
+    }
+}
+
+// PA4: original 6128 Plus V4 screen29, IMG_3971 (2026-09-28),
+// docs/plus/asic-audit-probes-v4.md: absolute reads retain operand high
+// bytes 50/68; LD A,(HL) retains opcode 7E. Observe CPU-written results,
+// not the combinational module output. Cartridge execution also proves
+// real operand fetches survive the retained-byte path.
+void audit_page_readback() {
+    std::vector<uint8_t> program{0xf3};
+    auto emit = [&](std::initializer_list<uint8_t> bytes) {
+        program.insert(program.end(), bytes.begin(), bytes.end());
+    };
+    auto write = [&](uint16_t a, uint8_t d) {
+        emit({0x3e, d, 0x32, uint8_t(a), uint8_t(a >> 8)});
+    };
+    auto out = [&](uint16_t port, uint8_t d) {
+        emit({0x01, uint8_t(port), uint8_t(port >> 8), 0x3e, d, 0xed, 0x79});
+    };
+    unsigned result = 0;
+    auto save = [&]() { emit({0x32, uint8_t(result++), 0x80}); };
+    auto read = [&](uint16_t a) { emit({0x3a, uint8_t(a), uint8_t(a >> 8)}); save(); };
+    write(0x5000, 0xa5); write(0x6800, 0x5a);
+    read(0x5000); read(0x6800); // page-off RAM controls from the photo
+    const uint8_t unlock[] = {0xff,0,0xff,0x77,0xb3,0x51,0xa8,0xd4,
+                             0x62,0x39,0x9c,0x46,0x2b,0x15,0x8a,0xcd};
+    for (uint8_t b : unlock) out(0xbc00, b);
+    out(0x7f00, 0xb8);
+    read(0x5000); read(0x6800);
+    for (uint16_t a : {0x5000, 0x6800}) {
+        emit({0x21, uint8_t(a), uint8_t(a >> 8), 0x7e}); save();
+    }
+    write(0x4000, 0x0b); write(0x6400, 0x5a);
+    read(0x4000); read(0x6400); // mapped controls from the photo
+    // A legitimate FF read must remain driven, not look like an unclaimed
+    // page read. Sprite X-high 3 reads FF (ASIC reference §4).
+    write(0x6001, 3); read(0x6001);
+    read(0x6808); // ADC is claimed beside the write-only register range
+    out(0x7f00, 0xa0);
+    read(0x5000); read(0x6800); // page-off path restored
+    const unsigned halt_pc = program.size(); emit({0x76});
+    program.resize(16384, 0x76);
+    Harness h;
+    h.dut.d5_key = 0; h.dut.d5_tape_in = 0;
+    h.dut.production_clocking = 1; h.dut.plus_model_i = 2;
+    h.initialize(); h.download(build_cpr_image({{"cb00", program}})); wait_for_cpr_apply(h);
+    bool done = false;
+    for (unsigned n = 0; n < 2000000; ++n) {
+        h.tick();
+        if (m1_memory_read(h) && h.dut.dbg_addr == halt_pc) { done = true; break; }
+    }
+    require(done, "PA4: production CPU did not reach HALT");
+    const uint8_t expected[] = {0xa5,0x5a,0x50,0x68,0x7e,0x7e,0x0b,0x5a,0xff,0x3f,0xa5,0x5a};
+    bool ok = true;
+    for (unsigned i = 0; i < sizeof(expected); ++i) {
+        const unsigned actual = h.memory.at(0x28000 + i);
+        if (actual != expected[i]) {
+            std::cerr << "PA4 result " << i << ": got " << std::hex << actual
+                      << " expected " << unsigned(expected[i]) << std::dec << std::endl;
+            ok = false;
+        }
+    }
+    require(ok, "FAIL PA4: CPU ASIC-page readback");
+    std::cout << "PASS PA4: production T80 50/68/7E/7E; RAM, mapped ASIC, driven FF and cartridge controls" << std::endl;
+}
+
+// PA1: original 6128 Plus V4 screen26, IMG_3968 (2026-09-28).
+// CPU bytes and palette words are independently photographed observations:
+// docs/plus/asic-audit-probes-v4.md. Keep the existing IN-performs-write
+// decoder path pinned while repairing the CPU's returned byte.
+void audit_ga_readback() {
+    std::vector<uint8_t> program{0xf3};
+    std::vector<uint8_t> expected;
+    auto emit = [&](std::initializer_list<uint8_t> bytes) {
+        program.insert(program.end(), bytes.begin(), bytes.end());
+    };
+    auto write = [&](uint16_t a, uint8_t d) {
+        emit({0x3e, d, 0x32, uint8_t(a), uint8_t(a >> 8)});
+    };
+    auto out = [&](uint16_t port, uint8_t d) {
+        emit({0x01, uint8_t(port), uint8_t(port >> 8), 0x3e, d, 0xed, 0x79});
+    };
+    auto save = [&](uint8_t value) {
+        emit({0x32, uint8_t(expected.size()), 0x80}); expected.push_back(value);
+    };
+    auto palette = [&](uint16_t value) {
+        emit({0x3a,0x20,0x64}); save(uint8_t(value));
+        emit({0x3a,0x21,0x64}); save(uint8_t(value >> 8));
+    };
+    auto in_a = [&](uint16_t port) {
+        emit({0x01, uint8_t(port), uint8_t(port >> 8), 0xed,0x78});
+    };
+    const uint8_t unlock[] = {0xff,0,0xff,0x77,0xb3,0x51,0xa8,0xd4,
+                             0x62,0x39,0x9c,0x46,0x2b,0x15,0x8a,0xcd};
+    for (uint8_t b : unlock) out(0xbc00, b);
+    out(0x7f00, 0xb8);
+    const uint8_t opcodes[] = {0x78,0x40,0x50,0x58,0x60,0x68,0x78};
+    const uint8_t move_a[]  = {0x7f,0x78,0x7a,0x7b,0x7c,0x7d,0x7f};
+    const uint16_t colours[] = {0x066,0x666,0x006,0x066,0x666,0x0f6,0x066};
+    for (unsigned i = 0; i < 7; ++i) {
+        write(0x6420, 0x0f); write(0x6421, 0); // per-row sentinel
+        out(0x7f00, 0x10); // select border; reload BC after IN B
+        emit({0x01, uint8_t(i == 6 ? 0x54 : 0),0x7f,0xed,opcodes[i],move_a[i]});
+        save(opcodes[i]); palette(colours[i]);
+    }
+    out(0x7f00, 0x78); palette(0x066);
+    out(0x7f00, 0x79); palette(0xf66);
+    // Real responders overlapping GA's partial decode must beat retention.
+    // PPI control reads replicate mode bit4 in Plus mode, including driven FF.
+    out(0xf700, 0x9b); in_a(0x7700); save(0xff);
+    out(0xf700, 0x82); in_a(0x7700); save(0x00);
+    out(0xf600, 0xa5); in_a(0x7600); save(0xa5);
+    // CRTC R12 is a readable full byte, outside the GA select.
+    out(0xbc00, 12); out(0xbd00, 0xa5); in_a(0xbf00); save(0xa5);
+    // Compare two aliases of the same idle production FDC status register;
+    // 7B7E also selects GA, FB7E does not. Neither read consumes data.
+    const unsigned fdc_result = expected.size();
+    in_a(0xfb7e); save(0); in_a(0x7b7e); save(0);
+    const unsigned halt_pc = 0x9000 + program.size(); emit({0x76});
+    // Execute the measured stream from real SDRAM. PA4 above executes from
+    // cartridge; together they pin both operand/opcode retention sources.
+    const unsigned size = program.size();
+    std::vector<uint8_t> cartridge{0xf3,0x31,0x00,0xc0, // DI; LD SP,C000
+        0x21,0x00,0x01,0x11,0x00,0x90,                // HL=0100; DE=9000
+        0x01,uint8_t(size),uint8_t(size >> 8),0xed,0xb0, // BC=size; LDIR
+        0xc3,0x00,0x90};                              // JP 9000
+    cartridge.resize(0x100, 0x76);
+    cartridge.insert(cartridge.end(), program.begin(), program.end());
+    cartridge.resize(16384, 0x76);
+    Harness h;
+    h.dut.d5_key = 0; h.dut.d5_tape_in = 0;
+    h.dut.production_clocking = 1; h.dut.plus_model_i = 2;
+    h.initialize(); h.download(build_cpr_image({{"cb00", cartridge}})); wait_for_cpr_apply(h);
+    bool done = false;
+    for (unsigned n = 0; n < 2000000; ++n) {
+        h.tick();
+        if (m1_memory_read(h) && h.dut.dbg_addr == halt_pc) { done = true; break; }
+    }
+    require(done, "PA1: production CPU did not reach HALT");
+    bool ok = true;
+    for (unsigned i = 0; i < fdc_result; ++i) {
+        const unsigned actual = h.memory.at(0x28000 + i);
+        if (actual != expected[i]) {
+            std::cerr << "PA1 result " << i << ": got " << std::hex << actual
+                      << " expected " << unsigned(expected[i]) << std::dec << std::endl;
+            ok = false;
+        }
+    }
+    require(h.memory.at(0x28000 + fdc_result) == h.memory.at(0x28001 + fdc_result) &&
+            h.memory.at(0x28000 + fdc_result) != 0x78 &&
+            h.memory.at(0x28000 + fdc_result) != 0xff,
+            "PA1: GA-overlapping FDC status differs from ordinary FDC read");
+    require(ok, "FAIL PA1: CPU GA readback or decoder palette side effect");
+    std::cout << "PASS PA1: production T80 from SDRAM 78/40/50/58/60/68/78; opcode palettes and PPI/CRTC/FDC controls" << std::endl;
+}
+
 int main(int argc,char **argv) {
  try {
   Verilated::commandArgs(argc,argv);
+  if(argc == 2 && std::string(argv[1]) == "--asic-audit") { audit_ga_readback(); audit_page_readback(); audit_page_and_tape(); return 0; }
+  if(argc == 2 && std::string(argv[1]) == "--ga-readback") { audit_ga_readback(); return 0; }
+  if(argc == 2 && std::string(argv[1]) == "--page-readback") { audit_page_readback(); return 0; }
   if(argc == 2 && std::string(argv[1]) == "--controls") { model_controls(); return 0; }
   if(argc == 2 && std::string(argv[1]) == "--cart-timing") { cart_timing(); return 0; }
   require(argc >= 2, "usage: d5_boot image.cpr [--classic-rom] [--464]");
@@ -173,7 +418,7 @@ int main(int argc,char **argv) {
   std::ifstream f(argv[1],std::ios::binary);
   require(bool(f),"CPR missing");
   std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(f)),{});
-  Harness h; h.dut.d5_key=0; h.dut.production_clocking=1;
+  Harness h; h.dut.d5_key=0; h.dut.d5_tape_in=0; h.dut.production_clocking=1;
   h.dut.plus_model_i = model464 ? 3 : 2;
   h.initialize(); h.download(bytes); wait_for_cpr_apply(h);
   bool fetch=false,io=false,menu=false,disc=false,error=false,basic=false;

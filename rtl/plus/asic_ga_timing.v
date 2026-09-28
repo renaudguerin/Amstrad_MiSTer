@@ -558,9 +558,13 @@ module asic_ga_timing
 		end
 	end
 
-	// Interrupt acknowledge: any INT-sampled I/O or M1 cycle sets
-	// irqack_rst until M1 releases (set-dominant latch).
-	wire irqack_s = ~(INT_N | IORQ_N | M1_N);
+	// Preserve the GA-derived raw ACK path and counter sequencing in lockstep
+	// with ga40010. Compatible CPU delivery is delayed separately below.
+	// This keeps the existing policy that an ACK also clears an undelivered
+	// classic request; the DMA-ACK consequence remains hardware debt.
+	// classic_raw_n is the pre-delivery aggregate assigned below.
+	wire classic_raw_n;
+	wire irqack_s = ~(classic_raw_n | IORQ_N | M1_N);
 	wire irqack_r = M1_N;
 	reg  irqack_hold;
 	always @(*) begin
@@ -691,7 +695,21 @@ module asic_ga_timing
 	// a hidden CPC request on a DMA ACK remains an unverified modelling choice.
 	reg  classic_int_n;
 	reg  programmed_int_n;
-	assign INT_N = programmed_int_n & (classic_int_n | (pri != 8'd0));
+	// PA7 compatible delivery (docs/plus/pa7-interrupt-phase-followup.md V5):
+	// the raw classic latch above keeps its exact counter-sequenced assert
+	// edge; classic_delivery_n samples it only at CCLK_EN_N, so the ordinary
+	// raw assertion reaches the CPU on the next character edge (~63
+	// master ticks later). Delivered INT_N needs BOTH raw and delivery low,
+	// so an MRER/ACK cancel inside the pending window deasserts immediately
+	// and never ghosts; hidden raw keeps maturing while PRI masks delivery.
+	// The next-CCLK exact phase is an explicit model-policy assumption:
+	// V5 hardware with the separate CPU correction only bounds the delay to
+	// roughly 56..71 ticks, and sub-microsecond phase is software-invisible.
+	// classic_raw_n below is the pre-delivery aggregate the lockstep bench
+	// compares against ga40010; delivered INT_N intentionally diverges there.
+	reg  classic_delivery_n;
+	assign classic_raw_n = programmed_int_n & (classic_int_n | (pri != 8'd0));
+	assign INT_N = programmed_int_n & (classic_int_n | classic_delivery_n | (pri != 8'd0));
 
 	reg  raster_fire_pending;
 
@@ -733,6 +751,9 @@ module asic_ga_timing
 			// this apply pulse; attribute the request to that restored mechanism.
 			classic_int_n    <= ~(SNA_INT && (pri == 8'd0));
 			programmed_int_n <= ~(SNA_INT && (pri != 8'd0));
+			// Restored pending is immediately delivered: seed delivery exactly
+			// as the raw classic request, so SNA INT holds INT_N low like live.
+			classic_delivery_n <= ~(SNA_INT && (pri == 8'd0));
 			raster_fire_pending <= 1'b0;
 		end
 		else begin
@@ -756,6 +777,15 @@ module asic_ga_timing
 			end
 			else if ((pri == 8'd0) && ~intcnt_comb[5] & cnt5) begin
 				classic_int_n <= 1'b0;
+			end
+			// Delivery has intentionally no reset branch, matching the raw
+			// classic latch above (which also has none). ACK/MRER/intack clears
+			// it to idle immediately; otherwise it follows raw only at CCLK_EN_N.
+			if (int_ack_active) begin
+				classic_delivery_n <= 1'b1;
+			end
+			else if (CCLK_EN_N) begin
+				classic_delivery_n <= classic_int_n;
 			end
 		end
 	end

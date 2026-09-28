@@ -2742,6 +2742,27 @@ void t08k_split_on_terminal_line(TestBench& test) {
     test.expect_ma("t08k next frame line 0 from R12/R13", 0x1234);
     test.run_characters(8);
     test.expect_ma("t08k next frame line 1 from SSA", 0x2400);
+
+    // PA5b: original Plus V3 screen 23, asic-reference §8: a line-0
+    // effective RA reaching R9 replaces the held terminal split at C0=R1.
+    // Here R9=7, R1=4: offset7 reaches R9; line1 must be 0x1234+4,
+    // not SSA=0x2400. The frame origin still displays R12/R13 itself.
+    test.write_register(9, 7);
+    test.set_splt(23); // terminal {row2,raster7}
+    test.set_sscr(0);
+    test.run_to_frame_start();
+    test.run_characters(8);
+    test.run_to_frame_start();
+    test.run_characters(8);
+    test.expect_ma("t08k R9=7 control holds terminal SSA", 0x2400);
+    test.set_sscr(0x70);
+    test.run_to_frame_start();
+    test.run_characters(8);
+    test.run_to_frame_start(); // complete terminal capture in the new geometry
+    test.expect_ma("t08k offset7 frame origin", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08k offset7 replaces held SSA", 0x1238);
+
 }
 
 // t08l: SSA sampling point. [ARNOLD-REV §2.3] (asic-reference §8): the split
@@ -2792,6 +2813,91 @@ void t08l_split_ssa_sampling_point(TestBench& test) {
     test.expect_ma("t08l RCC > R9 on the last row keeps the R1 capture", 0x2400);
 }
 
+// PA2: original 6128 Plus V4 screen27 (IMG_3969, 2026-09-28)
+// captures at adjustment indexes 0, 1 and 8. Index8 aliases index0 through
+// the low-three-raster-bit SPLT compare. The photo establishes next-line
+// SSA use, not the exact intra-line sampling edge. Short geometry keeps
+// this test independent of CPU instruction timing: R4=2, R9=3, R5=16.
+void t08m_split_during_adjustment(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(5, 16);
+    test.set_splt(0);
+    test.run_to_frame_start();
+    test.run_until_adjustment();
+    test.expect_row("PA2 adjustment index0", 0);
+    test.expect_hcc("PA2 adjustment start", 0);
+    for (unsigned index : {0U, 1U, 8U}) {
+        test.run_to_state(2, index, 0, "PA2 adjustment target");
+        test.expect_adj(true, "PA2 target is in adjustment");
+        const unsigned ssa = 0x2400 + index * 0x100;
+        test.set_ssa(ssa);
+        test.set_splt(16 + (index & 7));
+        test.run_characters(8);
+        test.expect_ma("PA2 next line uses SSA at index " + std::to_string(index), ssa);
+        test.set_splt(0);
+    }
+    test.run_to_frame_start();
+    test.expect_ma("PA2 frame origin restores R12/R13", 0x1234);
+}
+
+// PA3: V4 screen28 on original6128Plus is all red with SPLT armed after
+// R1 on the last normal line when R5=16. AmSpirit1.15.1 agrees; arming
+// 12/24 NOPs earlier yields green adjustment, then red frame0-7.
+// This pins capture before the late enable and preserves frame-origin
+// reload. Exact R1 timing and the early-arm hardware control remain open
+// (docs/plus/asic-audit-probes-v4.md). R5=0 R0 capture stays covered by t08l.
+void t08n_terminal_split_before_adjustment(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(5, 16);
+    test.set_ssa(0x2400);
+    for (bool early : {false, true}) {
+        test.set_splt(0);
+        test.run_to_frame_start();
+        test.run_to_state(2, 3, early ? 2 : 5, "PA3 terminal enable");
+        test.set_splt(19);
+        test.run_until_adjustment();
+        test.set_splt(0);
+        // Three character rows of R1=4 follow R12/R13=1234.
+        const unsigned expected = early ? 0x2400 : 0x1240;
+        for (unsigned i = 0; i < 16; ++i) {
+            test.expect_ma("PA3 adjustment " + std::to_string(i), expected);
+            test.run_characters(8);
+        }
+        test.expect_ma("PA3 frame0 reload", 0x1234);
+        test.run_characters(8);
+        test.expect_ma("PA3 frame1 no terminal carry", 0x1234);
+    }
+}
+
+// PA3b: AmSpirit Lite1.15.1 last-adjustment oracle (V4 screen28 delayed
+// 1024 NOPs/16 lines to the last adjustment line311 with R5=16; pre-run
+// prediction in
+// output_files/plus-hw-probes/v4/amspirit-phase4/last-adjustment-prediction.txt,
+// source variants in last-adjustment-early0/early24): late enable about C48
+// and early about C24 BOTH capture, frame0 red then frame1-7 green. The
+// late enable lands after R1=40, so the actual adjustment-ending line must
+// accept the late enable; R0 is the selected sampling model. Reduced geometry R0=7 R1=4 R4=2 R9=3 R5=16:
+// arm SPLT=23 ({C4=2,RC=7} = last adjustment index15) at HCC=5 (after
+// R1=4, before R0=7); frame line0 shows R12/R13=1234 (red), line1 onwards
+// SSA=2400 (green). R8=0 only; interlace extra-line timing is unmeasured.
+// Emulator-only timing; original-hardware early-arm confirmation pending
+// (docs/plus/asic-audit-probes-v4.md).
+void t08o_last_adjustment_split_uses_r0(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(5, 16);
+    test.set_ssa(0x2400);
+    test.set_splt(0);
+    test.run_to_frame_start();
+    test.run_until_adjustment();
+    test.run_to_state(2, 15, 5, "PA3b last adjustment line, after R1");
+    test.set_splt(23);
+    test.run_to_frame_start();
+    test.set_splt(0);
+    test.expect_ma("PA3b frame line 0 from R12/R13", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("PA3b frame line 1 from last-adjustment SSA", 0x2400);
+}
+
 // t08e: SSCR[6:4] vertical scanline offset added to RA[2:0].
 void t08e_sscr_vertical_scanline_offset(TestBench& test) {
     program_display_frame(test);
@@ -2819,6 +2925,22 @@ void t08e_sscr_vertical_scanline_offset(TestBench& test) {
     test.run_characters(8);
     test.expect_row("t08e row 3", 3);
     test.expect_ra("t08e sscr 3 raster 3", 6);
+
+    // PA5a: original Plus V3 screens 24-25 (source-divergences SSCR row).
+    // R9=3, offset2 gives RA 2,3,4,5; captures at C0=R1 on raw
+    // rasters 1,2,3. With R1=4, successive line-start MA values are
+    // 1234,1234,1238,123C; the next character row starts at 1240.
+    test.set_sscr(0x20);
+    test.run_to_frame_start();
+    const unsigned bases[] = {0x1234, 0x1234, 0x1238, 0x123c, 0x1240};
+    const unsigned rasters[] = {2, 3, 4, 5, 2};
+    for (unsigned line = 0; line < 5; ++line) {
+        test.expect_ma("t08e offset2 MA line " + std::to_string(line), bases[line]);
+        test.expect_ra("t08e offset2 RA line " + std::to_string(line), rasters[line]);
+        test.expect_row("t08e raw raster unaffected", line % 4);
+        if (line != 4) test.run_characters(8);
+    }
+
 }
 
 // t08f: SSCR[3:0] horizontal pixel delay (0-15 mode-2 pixels).
@@ -2981,7 +3103,8 @@ void t08i_sscr_vertical_wrap_advances_ma(TestBench& test) {
 // run 00,03,06,... in steps of three, as photographed. An equality test
 // (ra_eff == R9) never matches here and repeats row 0 forever.
 // For R9 = 7 the wrapped ra_eff stays in 0..7, so >= and == coincide
-// (t08i unchanged); R9 < 7 with an offset differs and is unprobed.
+// (t08i unchanged). Original Plus V3 screens 24-25 confirm R9=3 with
+// offset 2 captures on raw rasters 1-3; t08e pins that MA staircase.
 void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.write_register(9, 11);
     test.write_register(4, 2);
@@ -3014,7 +3137,7 @@ void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.expect_ra("t08j next row starts at offset RA 5", 5);
 }
 
-constexpr std::array<TestCase, 70> kTests = {{
+constexpr std::array<TestCase, 73> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3096,6 +3219,9 @@ constexpr std::array<TestCase, 70> kTests = {{
     {"t08i SSCR vertical wrap advances MA", t08i_sscr_vertical_wrap_advances_ma},
     {"t08j SSCR vertical offset with R9>7", t08j_sscr_vertical_offset_r9_above_7},
     {"t08k SPLT on the terminal frame line", t08k_split_on_terminal_line},
+    {"t08n terminal split before adjustment", t08n_terminal_split_before_adjustment},
+    {"t08o last-adjustment split uses R0", t08o_last_adjustment_split_uses_r0},
+    {"t08m adjustment split captures", t08m_split_during_adjustment},
     {"t08l SSA sampling point (R1; R0 on the terminal line)", t08l_split_ssa_sampling_point},
 }};
 
