@@ -37,10 +37,18 @@ PORTS = {
     'g_progn': (1, 'mb.asic_ga.programmed_int_n'),
     'g_intcycle': (1, 'mb.CPU.intcycle_n'),
     'g_insn': (1, 'mb.cpu_insn_start'),
+    # Companion PA7 overlap: observe full ACK clear interval and attribution.
+    'g_ack': (1, 'mb.asic_ga.intack'),
+    'g_clear': (1, 'mb.asic_ga.int_ack_active'),
+    'g_delivery': (1, 'mb.asic_ga.classic_delivery_n'),
+    'g_m1n': (1, 'mb.M1_n'),
+    'g_vector': (8, 'mb.plus_vec_byte'),
+    'g_dcsr': (8, 'mb.asic_page.dcsr'),
+    'g_dma_set': (3, 'mb.dma_int_set'),
 }
 
 
-def build_model(obj, cxx):
+def build_model(obj, cxx, rtl_overrides=None):
     subprocess.run(['make', '-C', str(ROOT / 'sim'), 't80-netlist'], check=True)
     subprocess.run(['python3', 'prepare_d5_boot.py'], cwd=ROOT / 'sim/plus', check=True)
     top = ROOT / 'sim/plus/obj_dir/d5_sources/p10_boot_test_top.v'
@@ -56,6 +64,9 @@ def build_model(obj, cxx):
     rtl = subprocess.run(['make', '-s', '-f', '-', 'print-d5'], cwd=ROOT / 'sim/plus',
                          input='include Makefile\nprint-d5:\n\t@echo $(D5_RTL)\n',
                          check=True, capture_output=True, text=True).stdout.split()
+    for source, replacement in (rtl_overrides or {}).items():
+        assert rtl.count(str(source)) == 1, f'override source missing: {source}'
+        rtl[rtl.index(str(source))] = str(replacement)
     cmd = ['verilator', '--cc', '--exe', '--build', '-j', '8', '+1364-2001ext+.v', '+1800-2017ext+.sv',
            '-UVERILATOR', '-DP10_DMA_MOBO_REAL_IO', '--top-module', 'p10_boot_test_top', '-GSYNC_FILTER=0',
            '--Mdir', str(obj), '-Wno-fatal', '-Wno-PROCASSWIRE', '-CFLAGS', f'-std=c++17 -O2 -I{ROOT / "sim/plus"}',

@@ -478,7 +478,12 @@ plus-sprite-ram-lint:
 # in SLOW_TESTS; `slow` runs only those; `full` runs both. The public targets
 # re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
 # inside a makefile; JOBS=1 gives serial, readable output.
-SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing d5-asic-audit b20-bus-diag b23-cpu-diff
+SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing d5-asic-audit b20-bus-diag b23-cpu-diff pa7-dma-overlap
+
+# Original-Plus photographs: unchanged four-page CPR, production T80/ASIC.
+.PHONY: pa7-dma-overlap
+pa7-dma-overlap:
+	python3 pa7_dma_overlap_test.py --cxx "$(CXX)"
 FAST_BINS := $(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS))
 FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS)))
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
