@@ -3,8 +3,9 @@
 ## Current position in plain English
 
 **The V5 timing mismatch is fixed, reviewed, integrated and built.**
-A separate original-Plus DMA overlap probe now exposes a remaining
-[DMA/compatible cancellation mismatch](pa7-dma-overlap-original-plus-2026-09-28.md).
+A separate original-Plus DMA overlap probe exposed a
+[DMA/compatible cancellation mismatch](pa7-dma-overlap-original-plus-2026-09-28.md),
+now repaired in a [local candidate with its own acceptance record](pa7-dma-overlap-repair.md).
 Your original 6128 Plus photos showed software reacting at different positions
 from our simulation. Two changes now make every measured marker and interrupt
 count on screens30–35 match those photos:
@@ -17,10 +18,12 @@ count on screens30–35 match those photos:
   the real ASIC uses this exact internal mechanism.
 
 The important uncertainty is what happens in cases the screens do not cover.
-In our implementation, a DMA acknowledge during the new delay can also clear
+In RBF1346f39, a DMA acknowledge during the new delay also clears
 an undelivered compatible interrupt. The original-Plus overlap photographs
 show that both interrupts survive at the disputed positions on all four pages;
-the current cancellation behavior therefore needs repair. The precise electrical delay, VSYNC interaction and literal timing
+the local repair now preserves both sources and all six V5 images in production
+simulation. Its review, gate and device acceptance are recorded separately.
+The precise electrical delay, VSYNC interaction and literal timing
 comparison with an original CPC are also unmeasured.
 
 Classic integration tests pass. Opus found no evidence that the old T80 error
@@ -32,8 +35,7 @@ missing. The separate classic gate-array phase question is tracked as
 **MiSTer V5 verification is complete:** screens30–35 on RBF1346f39 match
 the simulation pixel-for-pixel in the active test area, including every marker
 and count compared with the original Plus photographs. **Next:** check familiar
-classic and Plus software, and pin the photographed DMA overlap mismatch in a
-failing regression before repairing it;
+classic and Plus software, and complete the local overlap candidate's acceptance;
 clock/INT/HSYNC traces on original machines would settle the precise timing.
 PA3's extra original-hardware controls remain separate B24 debt.
 
@@ -498,6 +500,10 @@ independently source-derived, not a Plus-only delay fitted to these images.
 [The CPU evidence record](../t80-int-sampling.md) includes upstream provenance,
 the isolated fail-before/passes-after proof and the actual classic CRTC/GA
 regression. Original classic hardware confirmation remains outstanding.
+
+The paragraph below records the original V5 model. Its DMA-ACK cancellation
+assumption and unrestricted raw-IRQ differential domain are superseded by the
+[hardware-derived overlap repair](pa7-dma-overlap-repair.md).
 
 The ASIC retains its GA-derived raw counter and pending latch. A separate
 compatible-request delivery latch samples that raw request at the next

@@ -4,7 +4,7 @@
 
 The user supplied four photographs identified as original Plus results. All
 four match the predeclared **H1 compatible request survives DMA ACK** class.
-The production model and MiSTer RBF1346f39 instead lose the raster interrupt
+The pre-repair production model and MiSTer RBF1346f39 instead lose the raster interrupt
 at two anchor-relative sweep positions. This is a confirmed software-visible
 hardware mismatch in the current DMA/compatible overlap handling.
 
@@ -93,6 +93,10 @@ these cases. This narrows the earlier DCSR uncertainty for this experiment;
 it does not settle readback under other DMA modes or event combinations.
 
 ## Next implementation acceptance
+
+The [repair acceptance record](pa7-dma-overlap-repair.md) now tracks the
+implementation and its regression, review, gate and device evidence against
+the requirements below.
 
 Use these photographs and transcription as the authority for a failing
 production-T80 regression: preserve both sources across the disputed DMA ACK

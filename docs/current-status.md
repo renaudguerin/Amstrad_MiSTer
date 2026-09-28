@@ -32,8 +32,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   separates the fixed mismatch from unverified hardware mechanisms.
   The [original-Plus DMA overlap results](plus/pa7-dma-overlap-original-plus-2026-09-28.md)
   now confirm that both sources survive at positions where this build loses
-  raster. All four pages match the predeclared H1 class; a focused failing
-  regression and DMA/compatible ACK repair remain outstanding.
+  raster. The [local DMA/compatible ACK repair](plus/pa7-dma-overlap-repair.md)
+  now changes the production-T80 hardware regression from60/68 to68/68 records
+  and preserves all six V5 images. Review, gate and artifact acceptance are
+  tracked there; this candidate is not yet integrated.
 
 - **Probe-driven Plus ASIC fixes integrated (2026-09-27):** an 18-screen original-Plus probe
   cartridge settled most Plus source conflicts; the results, confidence levels and open probes

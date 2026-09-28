@@ -51,7 +51,10 @@ the reference says. The table makes the unexercised exception rows visible befor
 or probe finds them.
 
 **Remaining action:** original-machine edge-case validation of the implemented
-PA7 model and shared T80 correction. MiSTer1346f39 now reproduces every V5
+PA7 model and shared T80 correction. The original-Plus DMA overlap photographs
+confirmed request loss during DMA ACK; the [local repair and acceptance record](plus/pa7-dma-overlap-repair.md)
+tracks its hardware-derived regression and implementation validation.
+MiSTer1346f39 now reproduces every V5
 active test image pixel-for-pixel, including all photographed marker/count values. [CPU source and classic safety evidence](t80-int-sampling.md)
 records isolated and actual CRTC0/1 fail-before/passes-after checks. Production
 simulation matches all measured V5 Plus markers after the shared CPU sampling

@@ -23,6 +23,9 @@ classic timing, PA3 extra controls and PA7 raw-phase/cross-machine confirmation
 remain hardware acceptance work, not closed findings; see
 [B24](backlog.md#b24-plus-asic-reference-clause-traceability) and
 [the shared CPU evidence](t80-int-sampling.md).
+The hardware-confirmed DMA/compatible overlap repair is a local candidate;
+its [acceptance record](plus/pa7-dma-overlap-repair.md) owns regression, review,
+gate and synthesis/MiSTer status before integration.
 
 Use [current-status.md](current-status.md) for the current integration/artifact handoff and
 [the status history](archive/current-status-history-2026-09-21.md) for dated build identities.

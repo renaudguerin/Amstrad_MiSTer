@@ -55,7 +55,8 @@ Consequences to embrace explicitly:
 - Plus mode's classic-compatibility (locked-ASIC games) rides on the new behavioral code,
   not on ga40010. It will initially be less accurate than classic mode. That matches real
   history (the ASIC's GA emulation itself has documented deltas: colours ~½µs late, PPI
-  quirks, interrupt +1µs).
+  quirks and compatible interrupt timing). PA7 photographs constrain the
+  software-visible timing; literal Plus-versus-CPC pin delay remains unmeasured.
 - The CRTC-accuracy work stream (docs/accuracy/) hardens the classic CRTC core (`rtl/CRTC.v`) independently; the
   ASIC's CRTC-3 is a *new* implementation informed by ACCC v1.10's type-3 notes, reusing
   the Verilator testbench harness (same pin contract) with a type-3 rule set. The v1.10
@@ -64,6 +65,12 @@ Consequences to embrace explicitly:
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).
+
+The [PA7 overlap repair](pa7-dma-overlap-repair.md) qualifies compatible ACK
+clearing with the delivered raster selected at each ASIC pulse's start. This
+matches the register block's vector arbitration and keeps a DMA ACK from
+consuming a compatible request that matures during it. First-pulse M1 provenance
+for DCSR remains a separate state lifetime.
 
 ### Module/bus sketch
 

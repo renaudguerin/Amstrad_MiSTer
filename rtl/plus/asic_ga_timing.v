@@ -20,13 +20,17 @@
 //  ga40010 path (ga40010.sv + casgen_sync + syncgen_sync + rslatch) is
 //  pinned by the lockstep differential bench
 //  sim/plus/asic_ga_timing_diff_test.cpp, which drives both modules with
-//  identical randomised bus/sync traffic and compares every shared output
-//  on every clock edge. Register payload decoding (border/INKR/mode/ROM
+//  identical randomised bus/sync traffic in the common raster-ACK domain.
+//  Compatible delivery and DMA-ACK retention differ from ga40010 and are
+//  checked against Plus hardware separately. Register payload decoding
+//  (border/INKR/mode/ROM
 //  mapping) is additionally covered by directed vectors, because ga40010
 //  does not export those registers for comparison.
 //
-//  Deliberate differences from ga40010 (each documented, none behavioural
-//  for the shared contract):
+//  Deliberate differences from ga40010:
+//   - Compatible delivery follows at the next character edge; DMA ACK does
+//     not consume a compatible request. PA7 V5/overlap photographs establish
+//     the software outcomes, not the literal internal ASIC implementation.
 //   - Snapshot (SNA) preload covers more than ga40010's: besides the register
 //     file it seeds the sync/interrupt phase from the v3 header (B8-5).
 //     Power-up values are defined constants rather than uninitialised
@@ -343,8 +347,8 @@ module asic_ga_timing
 // (monitor C-VSYNC) is emitted while hcnt sits in 4..7; VBLANK
 // (HCNTLT28) while it is NOT in 28..31 — the ASIC's vertical-blank
 // window. hdelay reshapes HSYNC into the monitor HSYNC_O with its own
-// microsequence. intcnt counts shaped lines and fires INT_N low on the
-// 52nd, cleared by RMR bit 4 or the interrupt-acknowledge cycle; the
+// microsequence. intcnt counts raw HSYNC falls and fires on the 52nd;
+// RMR bit 4 or a raster acknowledge clears the request. The
 // VSYNC-edge term (intcntclr_4) re-arms it at frame start.
 //
 // All of this free-runs on clk; only the vsync edge detectors are
@@ -512,8 +516,8 @@ module asic_ga_timing
 	assign HSYNC_O = hdelay_comb[2];
 	assign SYNC_N  = ~(VSYNC_O_int ^ HSYNC_O);
 
-	// Interrupt counter: cleared at 52 shaped lines, on the shaped VSYNC
-	// edge, by RMR bit 4, or by the acknowledge cycle.
+	// Interrupt counter: cleared at 52 raw HSYNC falls, on the shaped VSYNC
+	// edge, by RMR bit 4, or (bit5 only) by a raster acknowledge.
 	wire intcnt52 = hcnt_cnt & intcnt_next[2] & intcnt_next[4] & intcnt_next[5];
 	wire intcntclr_52_s = intcnt52;
 	wire intcntclr_52_r = ~hsync_n;
@@ -558,13 +562,14 @@ module asic_ga_timing
 		end
 	end
 
-	// Preserve the GA-derived raw ACK path and counter sequencing in lockstep
-	// with ga40010. Compatible CPU delivery is delayed separately below.
-	// This keeps the existing policy that an ACK also clears an undelivered
-	// classic request; the DMA-ACK consequence remains hardware debt.
-	// classic_raw_n is the pre-delivery aggregate assigned below.
+	// Only an ACK selected as raster may arm the held counter clear. A DMA
+	// ACK can overlap raw compatible creation and its later CPU delivery;
+	// neither transition may reclassify that ACK or reset the counter.
+	// Original-Plus evidence: docs/plus/pa7-dma-overlap-original-plus-2026-09-28.md.
+	// Source selection matches asic_regs: delivered raster at each ASIC ACK
+	// start, held for that pulse. DCSR first-pulse provenance is separate.
 	wire classic_raw_n;
-	wire irqack_s = ~(classic_raw_n | IORQ_N | M1_N);
+	wire irqack_s = ~(classic_raw_n | IORQ_N | M1_N) & ack_raster_selected;
 	wire irqack_r = M1_N;
 	reg  irqack_hold;
 	always @(*) begin
@@ -577,9 +582,8 @@ module asic_ga_timing
 	//------------------------------------------------------------------
 	// P3 programmable raster interrupt (reference §7, [ARNOLD-REV §2.4]).
 	//
-	// PRI == 0: the 52-line counter above behaves exactly like the
-	// classic Gate Array (this whole block is inert, preserving the
-	// lockstep equivalence pinned by d01-d04).
+	// PRI == 0: the 52-line counter follows the classic Gate Array, with
+	// source-qualified ACK clearing and separate compatible delivery.
 	//
 	// PRI != 0: the counter KEEPS RUNNING but its interrupt assertion is
 	// suppressed; the programmed request is the RISING EDGE of
@@ -675,13 +679,16 @@ module asic_ga_timing
 	// falsely asserting and dropping the event. The fire is latched in
 	// raster_fire_pending and pulled low on the cycle following deassertion.
 	// (Modelling choice: MRER D4 clear during coincident fire similarly holds
-	// pending; classic overflow during DMA ack when pri==0 is not latched).
+	// programmed pending). Compatible creation during DMA ACK is retained,
+	// as required by the original-Plus overlap observations.
 	wire int_reset = irq_reset | irqack_rst;
 	wire int_ack_active = int_reset | intack;
+	wire classic_ack_active = int_reset | (intack & ack_raster_selected);
 
 	// Classic overflow event, kept in the original single-block form so
 	// the assert edge stays exactly where the lockstep bench pinned it.
 	reg  cnt5; // counter top bit, delayed one clk (block below drives it)
+	wire classic_fire = (pri == 8'd0) && ~intcnt_comb[5] & cnt5;
 
 	// PRI replaces delivery of CPC-compatible requests (Arnold V section 2.4;
 	// Extra CPC Plus Hardware Information, "When the ASIC raster interrupt
@@ -691,8 +698,8 @@ module asic_ga_timing
 	// latch leaked that old request into Eerie Forest's first EI/JP(IX) exit.
 	// A programmed request still holds until the existing ACK/MRER clear;
 	// changing PRI must not clear it merely because its compare value changed.
-	// ACK still clears both latches, preserving the aggregate model; clearing
-	// a hidden CPC request on a DMA ACK remains an unverified modelling choice.
+	// Raster ACK clears both latches. DMA ACK preserves the compatible latch,
+	// including when it is still undelivered or masked by PRI.
 	reg  classic_int_n;
 	reg  programmed_int_n;
 	// PA7 compatible delivery (docs/plus/pa7-interrupt-phase-followup.md V5):
@@ -700,8 +707,8 @@ module asic_ga_timing
 	// edge; classic_delivery_n samples it only at CCLK_EN_N, so the ordinary
 	// raw assertion reaches the CPU on the next character edge (~63
 	// master ticks later). Delivered INT_N needs BOTH raw and delivery low,
-	// so an MRER/ACK cancel inside the pending window deasserts immediately
-	// and never ghosts; hidden raw keeps maturing while PRI masks delivery.
+	// so MRER cancels immediately without a ghost. A DMA ACK preserves and
+	// allows delivery to mature; hidden raw also matures while PRI masks it.
 	// The next-CCLK exact phase is an explicit model-policy assumption:
 	// V5 hardware with the separate CPU correction only bounds the delay to
 	// roughly 56..71 ticks, and sub-microsecond phase is software-invisible.
@@ -714,10 +721,18 @@ module asic_ga_timing
 	reg  raster_fire_pending;
 
 	reg  intack_d;
+	reg  ack_raster;
+	// Before the first sampling edge use the same live delivered source as
+	// asic_regs. Afterwards hold it even if compatible delivery matures.
+	// Do not use last_raster: it describes the first pulse in an M1 window,
+	// whereas vector arbitration and clearing occur on every ASIC pulse.
+	wire ack_raster_selected = intack_d ? ack_raster : !INT_N;
 	reg  raster_ack_seen;
 	reg  last_raster;
 	always @(posedge clk) begin
 		intack_d <= intack;
+		if (reset || SNA_LOAD) ack_raster <= 1'b0;
+		else if (intack && !intack_d) ack_raster <= !INT_N;
 
 		// Board shaping can produce two ASIC pulses within one CPU M1.
 		// Preserve the first pulse's provenance for the software handler;
@@ -769,19 +784,20 @@ module asic_ga_timing
 			end
 
 			if (int_ack_active) begin
-				classic_int_n    <= 1'b1;
+				if (classic_ack_active) classic_int_n <= 1'b1;
+				else if (classic_fire)  classic_int_n <= 1'b0;
 				programmed_int_n <= 1'b1;
 			end
 			else if (raster_fire_pending | raster_fire) begin
 				programmed_int_n <= 1'b0;
 			end
-			else if ((pri == 8'd0) && ~intcnt_comb[5] & cnt5) begin
+			else if (classic_fire) begin
 				classic_int_n <= 1'b0;
 			end
 			// Delivery has intentionally no reset branch, matching the raw
-			// classic latch above (which also has none). ACK/MRER/intack clears
-			// it to idle immediately; otherwise it follows raw only at CCLK_EN_N.
-			if (int_ack_active) begin
+			// classic latch above (which also has none). Raster ACK/MRER clears
+			// it immediately; otherwise it follows raw only at CCLK_EN_N.
+			if (classic_ack_active) begin
 				classic_delivery_n <= 1'b1;
 			end
 			else if (CCLK_EN_N) begin
