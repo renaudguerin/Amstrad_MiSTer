@@ -101,7 +101,9 @@ Why each matters and what each outcome would change: [source-divergences.md](../
 
 The [reviewed design, predictions and evidence](../../docs/plus/pa7-interrupt-phase-followup.md)
 separates request timing from CPU acceptance. V5 adds31–35 while preserving
-the existing experiments. Original-Plus results are pending.
+the existing experiments. Original-Plus photographs and MiSTer verification
+are recorded in the linked evidence note; corrected production simulation
+matches all measured markers and counts.
 
 ```sh
 python3 scripts/diagnostics/plus_hw_probes.py --output-dir output_files/plus-hw-probes/pa7-followup/final-sim --start 30
@@ -114,17 +116,41 @@ four magenta references. Screen30 needs count02;31–35 need04.
 
 | Screen | Control | Current RTL | AmSpirit | Original Plus |
 |---|---|---|---|---|
-| 30 | W8 / NOP reference | 112-dot gap | 128 | V4: approximately128 |
-| 31 G | Requests pending under DI | Normalized G=0 | G=0 | pending |
-| 32 W | HSYNC width12 / NOP | 176-dot mean gap | 192 | pending |
-| 33 L | LD A,(HL), complementary passes | 112-dot mean gap | 128 | pending |
-| 34 R | RET NC, carry set, never taken | 112-dot mean gap | 144 | pending |
-| 35 I | INC HL, complementary passes | 112-dot mean gap | 128 | pending |
+| 30 | W8 / NOP reference | 128-dot gap | 128 | approximately128 |
+| 31 G | Requests pending under DI | Normalized G=0 | G=0 | approximately0 |
+| 32 W | HSYNC width12 / NOP | 192-dot mean gap | 192 | approximately192 |
+| 33 L | LD A,(HL), complementary passes | 128-dot mean gap | 128 | approximately128 |
+| 34 R | RET NC, carry set, never taken | 128-dot mean gap | 144 | approximately128 |
+| 35 I | INC HL, complementary passes | 128-dot mean gap | 128 | approximately128 |
 
 G subtracts each magenta right edge from its yellow right edge, then compares
 compatible with reference. Other new screens average the A/B yellow-edge
 gaps. The different RET NC result is conditional emulator evidence, not an
-exact raw-IRQ delay or a hardware finding. No PA7 RTL change is included.
+exact raw-IRQ delay. The shared T80 sampling and compatible-delivery repairs
+are integrated; the old V5 cartridge labels retain their pre-repair predictions.
+
+### PA7 DMA overlap companion
+
+The separate [DMA overlap design and evidence](../../docs/plus/pa7-dma-overlap-probe.md)
+keeps V5 screens1–35 intact. It measures DMA/compatible cancellation with an
+already-pending DMA0 request, a no-DMA timing anchor, vector order and DCSR
+readback. Four pages cover NOP, LD A,(HL), manual DMA clearing and wider HSYNC.
+Each page runs17 cases eight times. These are observations, not hardware verdicts.
+
+```sh
+python3 scripts/diagnostics/pa7_dma_overlap.py --start 0
+python3 scripts/diagnostics/pa7_dma_overlap_sim.py --pages 0 1 2 3
+```
+
+Load the companion CPR on the original6128Plus, wait for `DONE`, photograph the
+whole screen, then press and release a key or joystick fire for the next page.
+Photograph all four pages, including any nonzero disagreement/error fields.
+The linked evidence note defines the columns and interpretation limits.
+
+The simulator uses production T80 and saves screen PPM, per-trial timing events
+and17×16-byte RAM records. `--hypothesis late` and `--hypothesis retain` build
+explicit disposable counterfactuals; checked-in production RTL is unchanged.
+Their output is a diagnostic prediction, never original-hardware evidence.
 
 ### V4 audit screens: historical photograph protocol
 
