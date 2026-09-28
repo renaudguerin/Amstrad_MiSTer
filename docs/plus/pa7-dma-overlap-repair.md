@@ -1,10 +1,10 @@
 # PA7 DMA / compatible interrupt overlap repair
 
-Status: **READY code** — reviewed and validated; hosted synthesis and MiSTer
-comparison in progress. Branch publication is authorized for synthesis;
-integration and release remain separate.
+Status: **READY** — review, regression gates, full-effort hosted synthesis and
+MiSTer comparisons pass. The repair branch is pushed; integration and release
+remain separate.
 Dependency base: `9888a90418551d5d1315b3f3a91e2b9c3538fcbf`.
-Branch: `codex/plus/pa7-dma-overlap-repair`. Integration and publication are separate.
+Branch: `codex/plus/pa7-dma-overlap-repair`. Integration and release are separate.
 
 ## Hardware requirement and repair
 
@@ -126,15 +126,44 @@ source edit before the selection gate was comment wrapping.
 
 ### Hosted synthesis and MiSTer comparison
 
-The local Quartus VM address does not resolve from this Mac. The user has
-authorized pushing the repair branch to GitHub for full-effort hosted synthesis.
-The reviewed implementation commit is `5eb2d35354ce6883e80d9c83e01ab104b5d13771`;
-later documentation-only descendants preserve its code. The hosted workflow
-dispatch SHA and artifact/timing results will be recorded after completion.
+The user authorized branch publication and hosted synthesis after the local
+Quartus VM failed hostname resolution. The reviewed implementation is
+`5eb2d35354ce6883e80d9c83e01ab104b5d13771`; full-effort
+[workflow run36453223818](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/36453223818)
+built its documentation-only descendant `011f323d938d727895bfcbabc16b001ad28602e5`.
+All required jobs passed, including selected simulation/lint and production T80.
 
-MiSTer is reachable and reports `Amstrad`. Only a read-only preflight was made;
-its configuration and running session were not changed. Loading/capturing the
-new RBF remains pending synthesis. Retain timing reports and RBF hashes, then
-use the hardware-loop driver to compare all four overlap pages and V5 screens30–35.
-Existing probe cases and images are available in the referenced read-only
-checkouts. Preserve and verify the device CFG across that run.
+- Artifact: `Amstrad-build-295-1-full`, `build_mode=clean_full`.
+- RBF: `Amstrad_20260928_011f323.rbf`.
+- RBF SHA256: `a42a2a5be09b33510be4609dc38697aa3d39eb987c6a2886dccfe4ea4723c8f7`.
+- Timing gate: **PASS**, setup minimum **0.145 ns**, hold minimum **0.242 ns**,
+  across seven clocks; **TNS zero**. This is closure under the existing constraints;
+  the build log retains the existing not-fully-constrained notices.
+- Retained build and workflow logs: `output_files/pa7-dma-repair/synthesis/`.
+  The uploaded package contained the build log and provenance, not separate STA reports.
+
+The hardware-loop driver loaded this hash-pinned RBF and the unchanged cartridges
+on MiSTer with 6128+ and Full filter settings. All ten cases completed and cleaned
+up successfully. All thirty PNGs were inspected; each screen's three captures
+are byte-identical.
+
+- All four overlap pages: the entire displayed record area matches the repaired
+  production simulation, which passes all68 original-Plus photograph records.
+  The 639×200 region `(17,40)-(656,240)` on MiSTer matches simulation
+  `(17,0)-(656,200)` exactly. The adjacent border column at x16 differs only in
+  blue level (MiSTer128, simulation136); the unmodified 640×200 comparison and
+  its difference rectangle are retained rather than reported as identical.
+- V5 screens30–35: all six full 640×200 active regions match the accepted
+  production simulation pixel-for-pixel, including every marker and count.
+- CFG SHA256 before and during capture:
+  `13ef32c7f1acfd5b5c9a1df3aa8b270b6378b00e0f5692fb05e10a350bc35747`.
+  The saved configuration already selected the requested fields, so its bytes
+  did not change. Per the user's instruction, the test settings are left applied;
+  the new RBF remains running on V5 screen35.
+
+Cases, original CFG, per-capture hashes, manifests, contact sheets and comparison
+results are retained under `output_files/pa7-dma-repair/mister/`, with a durable
+ignored copy under `docs/references/pa7-dma-repair-2026-09-28/`.
+These native captures establish the diagnostic software results on this MiSTer
+build; they do not measure internal ASIC pin timing or replace original hardware
+as the rule authority. Broader title regression remains separate.
