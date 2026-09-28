@@ -26,14 +26,21 @@ control MiSTer.
 1. Identify the title/media, desired machine configuration, and observable checkpoint from
    the request and current investigation. Reuse an existing case when it fits. Do not ask for
    details already present in the task or its handoff.
-2. Query the existing instance and record its identity and current settings:
+2. Query the instance and record its identity and current settings:
 
    ```sh
    python3 scripts/amspirit/amspirit.py identity
    ```
 
    The helper defaults to `http://127.0.0.1:6128`; pass `--url` before the subcommand to use
-   another instance. AmSpirit Lite must have its web server enabled.
+   another instance. If the API is unreachable and AmSpirit Lite is not running, launch it with
+   its web server enabled:
+
+   ```sh
+   /Applications/amspirit-lite-sdl.app/Contents/MacOS/amspirit-lite-sdl --web-server
+   ```
+
+   Then rerun `identity`. Do not launch a second instance when the API is already reachable.
 3. Prefer `amspirit.py run <case.json> --out-dir <new-directory>` for repeatable work. The
    output directory must not already contain a manifest. The case records configuration,
    render settings, media, and input steps. CPR loading needs a hard reset; SNA loading must
