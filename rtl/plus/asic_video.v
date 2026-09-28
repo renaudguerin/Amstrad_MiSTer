@@ -545,14 +545,23 @@ wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
                        (hcc == R1_h_displayed) &&
                        row_latch_done;
 
-// P6: Screen split comparison ({SPLT7..0} == {VC4..0, RC2..0}, asic-reference §8).
-// When matched and SPLT != 0, capture SSA into vma_latch at HCC == R1, or at
-// HCC == R0 when VCC == R4 and RCC == R9 [ARNOLD-REV §2.3]: equality, so an
-// overshoot line (RCC > R9) keeps R1 (t08l). Original Plus probe V3 screen 21
-// is consistent with the terminal case: SSA rewritten on line 311 after
-// C0=R1 is the SSA frame line 1 displays.
+// P6: Eight-bit split compare (asic-reference §8). Ordinary capture is
+// at R1. The R5=0 normal terminal line uses R0 when C4=R4 and C9=R9
+// [ARNOLD-REV §2.3]; original Plus V3 screen21 captures an SSA rewrite
+// after R1. Equality is deliberate: an R9 overshoot keeps R1 (t08l).
 wire split_match = (SPLT != 8'd0) && ({charline[4:0], raster[2:0]} == SPLT);
-wire split_at_r0 = last_charline && (raster == R9_v_max_line);
+// PA3: with R5>0 the last normal line keeps R1 (V4 screen28 late enable
+// misses; AmSpirit early enable captures). The actual adjustment-ending
+// line instead accepts a late enable in AmSpirit Lite1.15.1, then carries
+// SSA to frame1 onwards. R0 is the selected sampling model; the exact edge
+// and both original-Plus early/late controls remain unmeasured. Restrict
+// this added case to non-interlace: extra-line timing remains unprobed.
+// See docs/plus/source-divergences.md; t08n/t08o pin the oracle outcomes.
+wire split_adj_end = in_adj && adj_end_n &&
+                     !ivm_active && !sync_interlace_active;
+wire split_at_r0 = (last_charline && (raster == R9_v_max_line) &&
+                    !in_adj && (R5_v_total_adj == 5'd0)) ||
+                   split_adj_end;
 // Original 6128 Plus V4 screen27 captures at adjustment indexes 0, 1
 // and 8 (the low-three-bit alias); adjustment must not mask the comparator.
 wire split_latch_event = CLKEN && split_match &&
