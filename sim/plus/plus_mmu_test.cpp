@@ -316,6 +316,18 @@ void test_rmr2_locking_positions_pages() {
     tb.respond(0x00);
     tb.end_read();
 
+    // PA6a, asic-reference §1 [ARNOLD-REV/QUASAR]: locking keeps the
+    // ASIC page mapped, and locked RMR2 cannot unmap it. Use the actual
+    // unlock detector, with STATE=0 (anything except CD locks).
+    for (unsigned i = 0; i < sizeof(seq) - 1; ++i) tb.io_write(0xbc00, seq[i]);
+    tb.io_write(0xbc00, 0x00);
+    require(tb.dut().asic_page_on == 1, "re-locking lost the mapped ASIC page");
+    tb.io_write(0x7f00, 0xa0);
+    require(tb.dut().asic_page_on == 1, "locked A0 unmapped the ASIC page");
+    for (std::uint8_t b : seq) tb.io_write(0xbc00, b);
+    tb.io_write(0x7f00, 0xa0);
+    require(tb.dut().asic_page_on == 0, "re-unlocked A0 did not unmap ASIC page");
+
     // RMR2 &A4: position 00, page 4, ASIC page off.
     tb.io_write(0x7f00, 0xa4);
     require(tb.dut().asic_page_on == 0, "RMR2 A4 did not clear asic_page_on");

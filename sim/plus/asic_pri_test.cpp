@@ -42,6 +42,7 @@
 #include <vector>
 
 #include "Vasic_ga_timing.h"
+#include "Vasic_ga_timing___024root.h"
 #include "verilated.h"
 
 namespace {
@@ -850,6 +851,48 @@ void pr12_line_entry() {
 
 } // namespace
 
+// PA6e: KT "Extra CPC Plus Hardware Information", Raster Interrupts:
+// a PRI fire clears only bit5 of the six-bit GA counter. Seed 40 (0x28),
+// so the fire must leave 8 BEFORE acknowledge (which also clears bit5).
+// Re-enabling CPC then requires 52-8=44 HSYNC trailing edges. A full
+// reset would require 52; omitting the fire clear leaves 40 until ACK.
+// KT also infers "not closer than 32 lines"; that is not general for the
+// stated bit operation (e.g. 31 stays 31). This vector pins the operation.
+void pr13_fire_clears_counter_bit5() {
+    PriBench b;
+    b.line_chars = 64;
+    b.hs_start = 16;
+    b.hs_width = 8 * kCharClks;
+    b.power_on();
+    b.pri = 1;
+    while (b.crtc_line != 1 || b.chr != 8) b.tick();
+    b.dut.SNA_LOAD = 1;
+    b.dut.SNA_INTCNT = 40;
+    b.dut.SNA_VSDELAY = 0;
+    b.dut.SNA_VS = 1;
+    b.dut.SNA_HS = 0;
+    b.dut.SNA_INT = 0;
+    b.tick();
+    b.dut.SNA_LOAD = 0;
+    wait_fire(b, "pr13 PRI", b.line_clks());
+    if (b.dut.rootp->asic_ga_timing__DOT__intcnt_reg != 8)
+        fail("pr13: PRI fire did not leave count 8 before acknowledge");
+    b.empty_ack();
+    b.pri = 0;
+    b.tick();
+    unsigned falls = 0;
+    bool hs = b.in_hs;
+    const uint64_t deadline = b.cyc + 46u * b.line_clks();
+    while (b.dut.INT_N && b.cyc < deadline) {
+        b.tick();
+        if (hs && !b.in_hs) ++falls;
+        hs = b.in_hs;
+    }
+    if (b.dut.INT_N || falls != 44)
+        fail("pr13: CPC re-enable expected 44 HSYNC falls, got " + std::to_string(falls));
+    std::printf("PASS pr13: PRI fire clears 40 to 8 before ACK; CPC resumes after 44 falls\n");
+}
+
 int main(int argc, char** argv) {
 	Verilated::commandArgs(argc, argv);
 	try {
@@ -866,6 +909,7 @@ int main(int argc, char** argv) {
 		pr10_ordinary_phase();
 		pr11_pri_write_window();
 		pr12_line_entry();
+		pr13_fire_clears_counter_bit5();
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;

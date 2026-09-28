@@ -312,7 +312,29 @@ void test_d04_repeat_and_loop(TestBench& tb) {
 	if (tb.last_ena_clr != 1) fail("d04: STOP did not assert dcsr_ena_clr");
 	if (tb.dut->sar0_addr != 0x2008) fail("d04: SAR0 after STOP not 0x2008");
 
-	std::printf("PASS d04: REPEAT N and LOOP iteration execution\n");
+	// PA6c: asic-reference §9, captured CPCWiki ASIC p.5 chooses REPEAT0
+	// as NOP (French tutorial/Quasar conflict remains open). Preserve a
+	// live REPEAT1 context: LOAD, REPEAT0, LOOP must execute twice, then
+	// STOP. This distinguishes NOP from replacing the old count/address.
+	tb.pulse_reset();
+	tb.set_sar(0, 0x2100);
+	tb.set_dcsr_ena(1);
+	tb.write_instruction(0x2100, 0x2001); // REPEAT1: body twice
+	tb.write_instruction(0x2102, 0x015a); // LOAD
+	tb.write_instruction(0x2104, 0x2000); // NOP, keep live context
+	tb.write_instruction(0x2106, 0x4001); // LOOP
+	tb.write_instruction(0x2108, 0x4020); // STOP
+	writes.clear();
+	const uint16_t next[] = {0x2102, 0x2104, 0x2106, 0x2102,
+	                         0x2104, 0x2106, 0x2108, 0x210a};
+	for (unsigned line = 0; line < 8; ++line) {
+		tb.run_scanline(&writes);
+		if (tb.dut->sar0_addr != next[line]) fail("d04 REPEAT0: context/flow changed");
+	}
+	if (writes.size() != 2 || writes[0].second != 0x5a || writes[1].second != 0x5a)
+		fail("d04 REPEAT0: expected exactly two body writes");
+	if (tb.last_ena_clr != 1) fail("d04 REPEAT0: STOP not reached");
+	std::printf("PASS d04: REPEAT N, LOOP and REPEAT0 preserving live context\n");
 }
 
 // d05: INT instruction (&4010)
