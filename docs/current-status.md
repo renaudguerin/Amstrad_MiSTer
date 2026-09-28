@@ -23,6 +23,12 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   assumptions, not measured facts. PA3 early-arm and last-adjustment hardware
   controls remain outstanding. See [B24](backlog.md#b24-plus-asic-reference-clause-traceability)
   and the [PA7 evidence record](plus/pa7-interrupt-phase-followup.md).
+  Integrated as `1346f39` from source `a68dca8`; exact-SHA CI run36425467292
+  passes selected tests/lint, production-T80 and full synthesis. Delivered
+  `output_files/Amstrad_20260928_1346f39.rbf` (SHA-256 `680940ac…61d523`),
+  setup/hold +0.628/+0.247ns, zero TNS, 24,569 ALMs (59%). MiSTer testing
+  remains pending; the current [plain-English status](plus/pa7-interrupt-phase-followup.md#current-position-in-plain-english)
+  separates the fixed mismatch from unverified hardware mechanisms.
 
 - **Probe-driven Plus ASIC fixes integrated (2026-09-27):** an 18-screen original-Plus probe
   cartridge settled most Plus source conflicts; the results, confidence levels and open probes

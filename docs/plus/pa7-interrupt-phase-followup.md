@@ -1,9 +1,51 @@
 # PA7 interrupt request versus CPU acceptance
 
-Status: V5 original-6128-Plus results recorded; no IRQ RTL change. Original evidence is the V4 screen 30
-photograph from a 6128 Plus through Retrotink 4K and the pixel-perfect AmSpirit
-Lite 1.15.1/core 2491682 capture. Both show about 128 mode2 dots between marker
-right edges; the production-T80 RTL shows 112. Hardware has precedence.
+## Current position in plain English
+
+**The observed PA7 mismatch is fixed, reviewed, integrated and built.**
+Your original 6128 Plus photos showed software reacting at different positions
+from our simulation. Two changes now make every measured marker and interrupt
+count on screens30–35 match those photos:
+
+- T80 now samples interrupts at the clock edge specified by Zilog. This is a
+  source-derived CPU correction, supported by independent review and tests
+  that fail before it and pass afterwards. It affects classic CPC too.
+- The Plus-compatible interrupt is delivered about one character later.
+  This reproduces the photographs, but the photographs cannot prove that
+  the real ASIC uses this exact internal mechanism.
+
+The important uncertainty is what happens in cases the screens do not cover.
+In our implementation, a DMA acknowledge during the new delay can also clear
+an undelivered compatible interrupt. That behaviour needs an original-Plus
+probe. The precise electrical delay, VSYNC interaction and literal timing
+comparison with an original CPC are also unmeasured.
+
+Classic integration tests pass. Opus found no evidence that the old T80 error
+was compensating for the classic gate array: the suspected errors act in the
+same direction. Nevertheless, original classic hardware confirmation is still
+missing. The separate classic gate-array phase question is tracked as
+[B25](../backlog.md#b25-classic-ga-interrupt-phase-against-cpu-edges).
+
+**Next:** run the existing V5 cartridge on MiSTer with the new RBF, compare
+screens30–35 against the original Plus photographs, and check familiar classic
+and Plus software. Then use a focused original-Plus probe for DMA overlap;
+clock/INT/HSYNC traces on original machines would settle the precise timing.
+PA3's extra original-hardware controls remain separate B24 debt.
+
+Build `1346f39` passed exact-commit simulation, production-T80 tests and full
+Quartus synthesis. [Artifact details](#integrated-build-and-artifact) are below.
+
+## Pre-fix investigation record
+
+The following traces and intermediate acceptance decisions describe the
+investigation before the final repair; statements that a fix is pending or
+RTL is unchanged are historical. The current result is above and in
+[the implementation acceptance record](#implemented-cpu-and-compatible-delivery-repair-2026-09-28).
+
+Original evidence was the V4 screen30 photograph from a 6128 Plus through
+Retrotink4K and the pixel-perfect AmSpirit Lite1.15.1/core2491682 capture.
+Both showed about128 mode2 dots between marker right edges, against112 in
+the pre-fix production-T80 RTL. Hardware has precedence.
 
 ## Existing RTL trace
 
@@ -542,3 +584,26 @@ Soak: `soak hash: 0xe99ab434a5e1cdb3`, `soak hash matches expected`,
 2,845,088 CLKEN samples. This is the classic CRTC projection; it does not
 claim CPU/ASIC behaviour was unchanged. The intended changes are demonstrated
 by the focused CPU/ASIC failures before repair. No golden hash was re-minted.
+
+## Integrated build and artifact
+
+Source `a68dca89c71d2bf0f74dd95c487fc53a9458d6f4` was merged without conflicts
+or post-review code changes as `1346f399639a2b7f5850eb07d74b2fa7757bf6d9`.
+[CI run36425467292](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/36425467292)
+passed selected simulation (41 benches), lint, production-T80, synthesis policy,
+routing, full hosted synthesis and the required gate on that exact commit.
+The local synthesis leg was correctly skipped. The production-T80 log includes
+`classic_irq_phase: 8 passed, 0 failed`, isolated sampling controls and B18
+snapshot preservation.
+
+Artifact `Amstrad-build-292-1-full` records `build_mode=clean_full`, Quartus
+17.0.2. Worst setup/hold slack is +0.628/+0.247ns, all TNS zero; utilization
+is24,569/41,910 ALMs (59%). Delivered main-checkout file:
+`output_files/Amstrad_20260928_1346f39.rbf`.
+
+SHA-256 (CI download and delivered copy agree):
+`680940ac1d03d6195bccfe33fc15178a7a83213308655070bb88ff943b61d523`.
+
+This is a simulation- and timing-verified hardware-test artifact, not a claim
+that the remaining original-hardware checks have been run. This documentation
+handoff does not alter the bitstream's source commit.
