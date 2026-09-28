@@ -37,7 +37,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   and preserves all six V5 images. Review and gates pass; hosted full synthesis
   at `011f323d` closes setup/hold at +0.145/+0.242ns, zero TNS. MiSTer confirms
   all four overlap record pages and all six V5 images, with three identical
-  captures per screen. Integrated from `d563586`; exact integration CI and artifact delivery are pending.
+  captures per screen. Integrated as `4a44394` from `d563586`; exact-SHA CI and full synthesis pass.
+  Delivered `output_files/Amstrad_20260928_4a44394.rbf` (SHA256 `285f4258…2034a4`),
+  setup/hold +0.238/+0.180ns, zero TNS. MiSTer evidence covers source RBF `011f323d`;
+  broader title testing remains pending.
 
 - **Probe-driven Plus ASIC fixes integrated (2026-09-27):** an 18-screen original-Plus probe
   cartridge settled most Plus source conflicts; the results, confidence levels and open probes

@@ -1,8 +1,9 @@
 # PA7 DMA / compatible interrupt overlap repair
 
-Status: **integrated into master** from `d563586a06da0edc3dd9c6f69c5aa03dfb0d7dc6`.
-Source review, regression gates, full-effort hosted synthesis and MiSTer comparisons
-pass. Exact integration CI and artifact delivery are pending; release is separate.
+Status: **INTEGRATED** at `4a443942a6755225b79b892ff8fb12242ec30aa2` from
+`d563586a06da0edc3dd9c6f69c5aa03dfb0d7dc6`. Review, exact integration CI and
+full-effort synthesis pass; the integration RBF is delivered locally. MiSTer
+acceptance below covers the source RBF `011f323d`. Release is separate.
 Dependency base: `9888a90418551d5d1315b3f3a91e2b9c3538fcbf`.
 Branch: `codex/plus/pa7-dma-overlap-repair`. Integration and release are separate.
 
@@ -167,3 +168,30 @@ ignored copy under `docs/references/pa7-dma-repair-2026-09-28/`.
 These native captures establish the diagnostic software results on this MiSTer
 build; they do not measure internal ASIC pin timing or replace original hardware
 as the rule authority. Broader title regression remains separate.
+
+### Integration artifact
+
+[Push run36460031177](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/36460031177)
+verified exact merge SHA `4a443942a6755225b79b892ff8fb12242ec30aa2`. Production T80,
+synthesis-policy, selected simulation/lint (41 benches), routing, full hosted
+synthesis and required-gate all passed; the unselected local synthesis leg was skipped.
+The merge required no code conflict resolution or code edits. Shared docs were
+reconciled; review debt and the classic soak golden remain unchanged.
+
+- Artifact `Amstrad-build-296-1-full`, provenance `build_mode=clean_full`.
+- Delivered in the main checkout: `output_files/Amstrad_20260928_4a44394.rbf`.
+- SHA256: `285f42583bdb52f2f85bdceee087de18594c68c05352f32295e3611b802034a4`;
+  download and delivered copy hashes match.
+- Timing closure **PASS**: setup minimum **0.238 ns**, hold minimum **0.180 ns**,
+  seven clocks each, **zero TNS**, under the existing constraints.
+- Logs and downloaded artifact: `output_files/pa7-integration-4a44394/`.
+- Artifact limitation: the package includes the build log and effort provenance,
+  but no separate fitter/resource summary or STA report. The workflow log provides
+  the timing gate result; utilization cannot be independently reported from this
+  package. Follow-up: repair workflow report collection for retained fitter/STA
+  summaries; this does not invalidate the successful compile or timing gate.
+
+The thirty MiSTer captures cover the same production source before the merge
+(`011f323d`), not a fresh device run of the integration RBF. No broader title
+improvement is claimed. Subsequent acceptance-record edits are documentation-only;
+they reuse this exact artifact without relabelling it as a newer build.
