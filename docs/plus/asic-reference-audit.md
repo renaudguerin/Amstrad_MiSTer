@@ -47,7 +47,9 @@ wrong; they are documentation-only. Clause IDs are `§section.index`.
 
 ## Candidate findings
 
-Ordered by expected value (impact × confidence ÷ cost of evidence).
+Ordered by expected value (impact × confidence ÷ cost of evidence). The descriptions
+identify gaps at the audited base; the clause table and execution status record
+subsequent coverage and evidence.
 
 ### PA1. `IN` on the Gate Array port writes the last opcode byte on every model; [KT] measured &79 on a 6128+
 
@@ -249,7 +251,7 @@ to the reference digest; none needs a gate or review.
 | §1.10 | Lock gates only RMR2 (l.54) | tested | `plus_mmu.v:236-249`, `asic_ga_timing.v:287` | `test_rmr2_locking_positions_pages` |
 | §1.11 | Locked `101xxxxx` acts as MRER, bit 5 ignored (l.55-56) | tested | `plus_mmu.v:242-243`, `asic_ga_timing.v:287` | `test_rmr2_locking_positions_pages` |
 | §1.12 | Sprites, DMA, PRI keep running when locked (l.56-58) | untested | no lock input to `asic_regs`/`asic_dma`/`asic_sprites` | structural: those blocks never see `unlocked` |
-| §1.13 | ASIC page mapped at lock **stays** mapped; cannot unmap until re-unlock (l.58-59) | untested | `plus_mmu.v:236-240` | PA6a |
+| §1.13 | ASIC page mapped at lock **stays** mapped; cannot unmap until re-unlock (l.58-59) | tested | `plus_mmu.v:236-240` | PA6a: `test_rmr2_locking_positions_pages` relocks while mapped, rejects locked unmap, then unlocks and unmaps |
 
 ### §2 RMR2 and mapping
 
@@ -261,7 +263,7 @@ to the reference digest; none needs a gate or review.
 | §2.04 | D2-D0 cartridge page 0-7 as low ROM (l.84) | tested | `plus_mmu.v:239,277` | same (`&A4`) |
 | §2.05 | ASIC page beats RAM, ROM, expansion at &4000-&7FFF regardless of order (l.91-93) | tested | `Amstrad.sv:826-827,1250-1252` | `p4_sprites_regs`, `asic_regs` benches read the page; expansion side is moot (§11.07) |
 | §2.06 | Write-through still works for relocated low ROM (l.94-95) | untested | `Amstrad.sv:827` (`we` not gated by cart windows) | no bench writes under a relocated low ROM |
-| §2.07 | **No** write-through from the ASIC page to RAM (l.95-97) | untested | `Amstrad.sv:827` `~plus_aspage_sel` | PA6b |
+| §2.07 | **No** write-through from the ASIC page to RAM (l.95-97) | tested | `Amstrad.sv:827` `~plus_aspage_sel` | PA6b: `d5-asic-audit` CPU writes under sprite/palette/unmapped page addresses, then unmaps and reads original RAM sentinels; gates extracted from production top level |
 | §2.08 | External RAM expansion also written when the page is on (hardware bug) (l.98-102) | scope | — | §14 item 3; the core has no external RAM expansion in Plus mode |
 | §2.09 | MRER keeps CPC meaning; bit 4 clears the interrupt counter (l.103-104) | tested | `asic_ga_timing.v:290,307` | `pr04_mrer_clears_pri`, lockstep diff |
 | §2.10 | MRER ROM-disable bits disable low ROM **wherever** mapped (l.104-105) | tested | `plus_mmu.v:191` (`~lromen` in `low_hit`) | `test_rom_enable_gating` |
@@ -359,15 +361,15 @@ to the reference digest; none needs a gate or review.
 | §7.17 | PRI does **not** trigger during vertical adjust (l.320) | tested | `asic_ga_timing.v:650-651` (`!adj`, `!adj_d`) | `pr03_adjustment_gate` |
 | §7.18 | …but a request due from the last normal line can still land in the first adjustment line (RTL comment, `asic_ga_timing.v:617-619`) | untested | `asic_ga_timing.v:650` (`line_d` term) | RTL refinement not stated in the reference |
 | §7.19 | PRI "misbehaves for some values when R9 < 7" (l.320-321) | conflict | compare on raw `RC2..RC0` | unspecified behaviour; nothing to implement until probed |
-| §7.20 | A PRI fire clears bit 5 of the GA counter, so a re-enabled CPC interrupt waits ≥ 32 lines (l.322-324) | untested | `asic_ga_timing.v:532-536,543` | PA6e |
+| §7.20 | A PRI fire clears bit 5 of the GA counter, so a re-enabled CPC interrupt waits ≥ 32 lines (l.322-324) | tested | `asic_ga_timing.v:532-536,543` | PA6e: `pr13_fire_clears_counter_bit5` observes 40→8 before ACK, then 44 HSYNC falls; KT’s universal ≥32 inference remains ambiguous |
 | §7.21 | Raster interrupt cleared by INT acknowledge **or** MRER bit 4 (l.325-326) | tested | `asic_ga_timing.v:290,675-676` | `pr01_baseline`, `pr04_mrer_clears_pri`, `test_b20_two_distinct_acks` |
 | §7.22 | GA-compatible interrupt ~1µs later than a CPC (l.327-328) | not-impl | `asic_ga_timing.v` lockstep with GA40010 | PA7 |
 | §7.23 | IVR at `&6805`; bit 0 = 1 at reset, bits 7-1 undefined (l.330) | tested | `asic_regs.v:410,512` | `a07_reset_contract` (bits 7-1 defined zero) |
 | §7.24 | The ASIC always supplies a vector byte on acknowledge (l.334-335) | tested | `asic_regs.v:693-694`, `Amstrad.sv:1250` | `p1_mobo_bench`, `test_b20_two_distinct_acks` |
 | §7.25 | Locked/plain Plus bus byte is `&00` (some `&56`) (l.335-336) | conflict | `asic_regs.v:692-693` (`(IVR & F8) \| src`) | with reset IVR a pending raster gives `&06`, only an empty ack `&00`; IM 1 ignores it |
 | §7.26 | Vector = `(IVR & &F8) \| source`, D0 = 0 (l.337) | tested | `asic_regs.v:692-693` | `p1_mobo_bench`, `test_b20_two_distinct_acks` |
-| §7.27 | Source codes: DMA2 000, DMA1 010, DMA0 100, raster 110 (l.339-344) | tested (DMA1 untested) | `asic_regs.v:678-685` | `test_b20_double_pulse_dma` (000, 100), `test_b20_two_distinct_acks` (110) |
-| §7.28 | Priority raster > DMA2 > DMA1 > DMA0 (l.346) | untested | `asic_regs.v:678-685` (if/else chain) | PA6e |
+| §7.27 | Source codes: DMA2 000, DMA1 010, DMA0 100, raster 110 (l.339-344) | tested | `asic_regs.v:678-685` | `test_pa6e_simultaneous_priority` (110, 000, 010, 100) |
+| §7.28 | Priority raster > DMA2 > DMA1 > DMA0 (l.346) | tested | `asic_regs.v:678-685` (if/else chain) | PA6e: `test_pa6e_simultaneous_priority`, live PRI plus all three DMA INT flags; vectors 06/00/02/04 and retained flags 70/60/40/00 |
 | §7.29 | IVR bit 0 = 0: DMA flags auto-cleared by acknowledge (l.347-348) | tested | `asic_regs.v:396-399,460-462` | `test_b20_double_pulse_dma` |
 | §7.30 | IVR bit 0 = 1: DMA flags held until DCSR write-1 (l.348-350) | tested | `asic_regs.v:460-464` | `a05_raster_dma_regs`, `test_b20_double_pulse_dma` |
 | §7.31 | Bits 4-7 freeze in automatic mode ([QUASAR], unresolved) (l.351-352) | conflict | not implemented | the reference says not a rule |
@@ -399,11 +401,11 @@ to the reference digest; none needs a gate or review.
 | §8.14 | SSCR D7 extends border over the first 2 bytes of each line (l.425) | tested | `asic_video.v:1218-1232` | `t08g` |
 | §8.15 | Affects both halves of a split; sprites not scrolled, D7 hides them (l.427-430) | tested | `asic_video.v:529,1232,1253` | `t08g` |
 | §8.16 | Effect immediate, several times per line (l.431) | tested | `asic_video.v:529,1216,1232` (live `SSCR`) | `t08f`, `t08g` |
-| §8.17 | CRTC counters unaffected; odd behaviour **when** R9 < 7 (l.432-433) | untested | `asic_video.v:543` level test | PA5a |
+| §8.17 | CRTC counters unaffected; odd behaviour **when** R9 < 7 (l.432-433) | tested | `asic_video.v:543` level test | PA5a: `t08e_sscr_vertical_scanline_offset` pins offset-2 MA staircase from V3 screen 25 |
 | §8.18 | Clean full-screen scroll is confirmed for R9=7; do not generalize to R9>7 (l.433-435) | tested | `asic_video.v:543` | `t08i` covers R9=7; R9>7 behavior is in §8.19; RC3 |
 | §8.19 | Row capture is the level test RA ≥ R9 at HCC == R1; R9=11 offset 5 advances three rows (l.436-442) | tested | `asic_video.v:543-546` | `t08i_sscr_vertical_wrap_advances_ma`, `t08j_sscr_vertical_offset_r9_above_7` |
 | §8.20 | Clean full-screen row capture occurs when effective RA reaches R9 at HCC == R1 (l.433-435) | tested | `asic_video.v:543` | `t08i`; RC3 |
-| §8.21 | At frame line 0, row capture can replace a held terminal-line split when effective RA reaches R9 (l.443-444) | untested | `asic_video.v:584-587` (row capture overwrites held split) | PA5b; the observed offset-7 case is not the only possible trigger; RC3 |
+| §8.21 | At frame line 0, row capture can replace a held terminal-line split when effective RA reaches R9 (l.443-444) | tested | `asic_video.v:584-587` (row capture overwrites held split) | PA5b: `t08k_split_on_terminal_line`, R9=7 and SSCR=70; frame line 1 uses R12/R13+R1 instead of SSA (V3 screen 23) |
 
 ### §9 DMA sound
 
@@ -415,7 +417,7 @@ to the reference digest; none needs a gate or review.
 | §9.04 | `&0RDD` LOAD writes PSG register R (l.464) | tested | `asic_dma.v:412-423` | `d02`, `d08`, `d11` |
 | §9.05 | `&1NNN` PAUSE N; PAUSE 0 = NOP (l.465) | tested | `asic_dma.v:432-435` | `d03_pause_and_prescaler`, `d15_repeated_pause_int_cadence` |
 | §9.06 | `&2NNN` REPEAT: nonzero N executes the body N+1 times (l.466) | tested | `asic_dma.v:438-441,447-451` | `d04_repeat_and_loop` |
-| §9.07 | REPEAT 0: NOP (CPCWiki, RTL) vs REPEAT 1 (French tutorial, Quasar) (l.490-492) | conflict | `asic_dma.v:438` | unpinned; PA6c |
+| §9.07 | REPEAT 0: NOP (CPCWiki, RTL) vs REPEAT 1 (French tutorial, Quasar) (l.490-492) | conflict | `asic_dma.v:438` | PA6c: `d04_repeat_and_loop` pins NOP while a prior nonzero loop context is live; source conflict retained |
 | §9.08 | `&3xxx` acts as PAUSE then REPEAT (l.467) | tested | `asic_dma.v:432-441` | `d09_undocumented_pause_repeat` |
 | §9.09 | `&4000` NOP, `&4010` INT, `&4020` STOP (SAR left at next) (l.468-471) | tested | `asic_dma.v:442-445` | `d05`, `d06`, `d07_compound_int_stop` |
 | §9.10 | LOOP: if counter ≠ 0 decrement and jump; **if** 0 no effect (l.469) | tested | `asic_dma.v:447-451` | `d04` |
@@ -478,7 +480,7 @@ to the reference digest; none needs a gate or review.
 |---|---|---|---|---|
 | §12.01 | RAM 64/128/64 KB (table) | tested | `plus_model_select.v:29-47` | `b6_menu_mask` |
 | §12.02 | FDC on 6128+ only (table) | tested | `plus_fdc_decode.v:23-36` | `plus_p8` p10_03 |
-| §12.03 | Tape on 464+ only (table) | untested | `Amstrad_motherboard.v:1163,1196-1197` | PA6d |
+| §12.03 | Tape on 464+ only (table) | tested | `Amstrad_motherboard.v:1163,1196-1197` | PA6d: `d5-asic-audit`, production model decoder and motherboard/PPI input, output and motor across all three Plus models |
 | §12.04 | GX4000 `&DFxx` = 7 → page 1; boot page 1 at &C000 (table) | tested | `plus_mmu.v:199` | `test_gx4000_overrides` |
 | §12.05 | GX4000 keyboard absent, Pause = P, pads on lines 9/6 (table) | scope | `hid.sv`/top level, not audited here | integration assumption, unverified |
 | §12.06 | GX4000 printer and expansion absent (table) | scope | not modelled | — |
@@ -524,7 +526,7 @@ to the reference digest; none needs a gate or review.
 
 ## Summary
 
-222 clauses: 170 `tested`, 17 `untested`, 13 `conflict`, 11 `scope`, 5 `contradicted`,
+222 clauses: 177 `tested`, 10 `untested`, 13 `conflict`, 11 `scope`, 5 `contradicted`,
 6 `not-impl`.
 
 | Status | Rows | Disposition |
@@ -534,7 +536,7 @@ to the reference digest; none needs a gate or review.
 | `not-impl` | §7.22, §12.12 | PA7 (single-source timing offsets) |
 | `not-impl` | §10.03-§10.04, §12.11 | no paddle/printer source; title-driven only |
 | `not-impl` | §11.07 | deliberate Plus-mode expansion isolation (B13) |
-| `untested` | §1.13, §2.07, §7.20, §7.28, §8.17, §8.21, §12.03 | PA5, PA6: vectors that meet the keep rule |
+| `tested` | §1.13, §2.07, §7.20, §7.28, §8.17, §8.21, §12.03 | PA5/PA6 regression vectors pass; PA6c also pins the chosen REPEAT 0 reading in conflict row §9.07 |
 | `untested` | §8.08 (R5>0) | PA3, probe first |
 | `untested` | others | structural or single-line; recorded, no vector proposed |
 
@@ -545,14 +547,44 @@ only", known open) and PA1 (§4.11, a model-specific value).
 
 ## Execution status (2026-09-28)
 
-RC1-RC8 and the §1.05 reference refinement are committed. Phase 2 stopped at the first
-failed new assertion: PA6e simultaneous priority. The snapshot setup masks raster pending
-when DMA is pending, so this is an invalid test precondition, not a demonstrated RTL
-priority discrepancy. PA5a/b, PA6a/c and the PA6e counter vector passed their focused runs;
-PA6b/d have not run. The test diff is provisional and has not received independent review
-or the final gate. Clause statuses/counts above remain the accepted documentation state;
-no provisional test is counted as closure. Phase 3 has not started. See the
-[stop record](asic-audit-phase2-stop-2026-09-28.md).
+RC1-RC8 and the §1.05 reference refinement are committed. PA5a/b and PA6a-e
+pass their focused checks and the phase-2 selection gate (41 benches). Independent
+Opus medium cross-provider review accepted the tests, including the same-geometry
+SSCR control and tape-input independence check. Production RTL remains unchanged.
+
+The first PA6e priority attempt restored header raster pending together with
+DCSR `70`. The snapshot policy attributes that pair to DMA, so this did not
+create simultaneous sources and was a test-setup defect, not an RTL finding.
+The repaired setup uses live PRI and DMA requests and checks both are pending
+before acknowledge; expected vectors `06,00,02,04` and remaining DMA flags
+`70,60,40,00` are unchanged. The corrected focused priority run passes.
+
+PA6e's counter vector pins KT's bit-5-clear operation: count 40 becomes 8 before
+acknowledge, then CPC delivery resumes after 44 HSYNC falls (52−8). KT's broader
+“not closer than 32 lines” inference is not general: clearing bit 5 leaves 31
+unchanged. This source ambiguity is separate from the implemented operation.
+
+Phase-2 validation (Homebrew LLVM replaces the host’s incomplete default C++ setup):
+
+```sh
+MAKEFLAGS='CXX=/opt/homebrew/opt/llvm/bin/clang++' python3 sim/select_tests.py --run
+make -C sim CXX=/opt/homebrew/opt/llvm/bin/clang++ soak SOAK_EXPECT=0xe99ab434a5e1cdb3
+```
+
+```text
+select_tests: PASS 41 benches: crtc-test, crt-filter-blank-test, crtc-cpu-phase-test, video-color-test, video-output-test, ssm-marker-test, sna-cpu-header-test, video-mixer-rgb-test, ga40010-test, u765-test, run/asic_unlock_tests, run/asic_video_tests, run/b6_menu_mask_tests, run/dandanator_loader_bounds_tests, run/rom_loader_route_tests, run/plus_legacy_cart_gate_tests, run/plus_cartridge_memory_tests, run/plus_cartridge_memory_min_tests, run/sdram_cartridge_tests, run/plus_cpr_parser_tests, run/plus_mmu_tests, run/p0_boot_tests, run/asic_ga_timing_diff_tests, run/p1_video_tests, run/p1_mobo_bench_tests, run/asic_regs_tests, run/plus_sprite_ram_tests, run/asic_pri_tests, run/asic_sprites_tests, run/d3_sprites_tests, run/p4_sprites_regs_tests, run/p4_multiplex_tests, run/asic_dma_tests, run/plus_p8_tests, run/b16_load_model_tests, run/p10_boot_tests, run/p10_input_tests, run/p10_dma_ppi_tests, run/p10_dma_mobo_tests, run/b8_palette_tests, run/sna_save_stream_tests
+soak hash: 0xe99ab434a5e1cdb3
+soak hash matches expected
+```
+
+The slow `b20-ack-diag` and `d5-asic-audit` targets passed separately with
+`CXX=/opt/homebrew/opt/llvm/bin/clang++`. D5 covers all three Plus models and
+both tape-input levels. Its initial build-only error called a private helper;
+using the fixture’s public SDRAM map fixed access without changing expectations.
+
+Phase 3 designs passed independent Opus medium review before cartridge assembly. PA2 must observe adjustment lines directly, with PA3's
+terminal-split band as a visibility control; frame carry alone cannot distinguish
+PA2 from PA3. Probe designs receive independent review before cartridge assembly.
 
 ## Suggested execution order
 

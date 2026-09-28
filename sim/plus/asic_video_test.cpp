@@ -2742,6 +2742,27 @@ void t08k_split_on_terminal_line(TestBench& test) {
     test.expect_ma("t08k next frame line 0 from R12/R13", 0x1234);
     test.run_characters(8);
     test.expect_ma("t08k next frame line 1 from SSA", 0x2400);
+
+    // PA5b: original Plus V3 screen 23, asic-reference §8: a line-0
+    // effective RA reaching R9 replaces the held terminal split at C0=R1.
+    // Here R9=7, R1=4: offset7 reaches R9; line1 must be 0x1234+4,
+    // not SSA=0x2400. The frame origin still displays R12/R13 itself.
+    test.write_register(9, 7);
+    test.set_splt(23); // terminal {row2,raster7}
+    test.set_sscr(0);
+    test.run_to_frame_start();
+    test.run_characters(8);
+    test.run_to_frame_start();
+    test.run_characters(8);
+    test.expect_ma("t08k R9=7 control holds terminal SSA", 0x2400);
+    test.set_sscr(0x70);
+    test.run_to_frame_start();
+    test.run_characters(8);
+    test.run_to_frame_start(); // complete terminal capture in the new geometry
+    test.expect_ma("t08k offset7 frame origin", 0x1234);
+    test.run_characters(8);
+    test.expect_ma("t08k offset7 replaces held SSA", 0x1238);
+
 }
 
 // t08l: SSA sampling point. [ARNOLD-REV §2.3] (asic-reference §8): the split
@@ -2819,6 +2840,22 @@ void t08e_sscr_vertical_scanline_offset(TestBench& test) {
     test.run_characters(8);
     test.expect_row("t08e row 3", 3);
     test.expect_ra("t08e sscr 3 raster 3", 6);
+
+    // PA5a: original Plus V3 screens 24-25 (source-divergences SSCR row).
+    // R9=3, offset2 gives RA 2,3,4,5; captures at C0=R1 on raw
+    // rasters 1,2,3. With R1=4, successive line-start MA values are
+    // 1234,1234,1238,123C; the next character row starts at 1240.
+    test.set_sscr(0x20);
+    test.run_to_frame_start();
+    const unsigned bases[] = {0x1234, 0x1234, 0x1238, 0x123c, 0x1240};
+    const unsigned rasters[] = {2, 3, 4, 5, 2};
+    for (unsigned line = 0; line < 5; ++line) {
+        test.expect_ma("t08e offset2 MA line " + std::to_string(line), bases[line]);
+        test.expect_ra("t08e offset2 RA line " + std::to_string(line), rasters[line]);
+        test.expect_row("t08e raw raster unaffected", line % 4);
+        if (line != 4) test.run_characters(8);
+    }
+
 }
 
 // t08f: SSCR[3:0] horizontal pixel delay (0-15 mode-2 pixels).
@@ -2981,7 +3018,8 @@ void t08i_sscr_vertical_wrap_advances_ma(TestBench& test) {
 // run 00,03,06,... in steps of three, as photographed. An equality test
 // (ra_eff == R9) never matches here and repeats row 0 forever.
 // For R9 = 7 the wrapped ra_eff stays in 0..7, so >= and == coincide
-// (t08i unchanged); R9 < 7 with an offset differs and is unprobed.
+// (t08i unchanged). Original Plus V3 screens 24-25 confirm R9=3 with
+// offset 2 captures on raw rasters 1-3; t08e pins that MA staircase.
 void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.write_register(9, 11);
     test.write_register(4, 2);

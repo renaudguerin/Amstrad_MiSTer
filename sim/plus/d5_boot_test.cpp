@@ -22,7 +22,7 @@ void model_controls() {
             chunks.push_back({id, std::vector<uint8_t>(16384, uint8_t(page))});
         }
         Harness h;
-        h.dut.d5_key = 0;
+        h.dut.d5_key = 0; h.dut.d5_tape_in = 0;
         h.dut.production_clocking = 1;
         h.dut.plus_model_i = model;
         h.initialize(); h.download(build_cpr_image(chunks)); wait_for_cpr_apply(h);
@@ -91,7 +91,7 @@ void cart_timing() {
     const uint8_t hl_lo = uint8_t(0x10 + loads - 1), hl_hi = uint8_t(0x80 + loads - 1);
 
     Harness h;
-    h.dut.d5_key = 0;
+    h.dut.d5_key = 0; h.dut.d5_tape_in = 0;
     h.dut.production_clocking = 1;
     h.dut.plus_model_i = 2;
     h.initialize(); h.download(build_cpr_image({{"cb00", program}})); wait_for_cpr_apply(h);
@@ -156,9 +156,99 @@ void cart_timing() {
     std::cout << "PASS cartridge NOP 1 us, LD HL,nn 3 us, operands latched" << std::endl;
 }
 
+// PA6b/PA6d: asic-reference §2 [ARNOLD §2.6] forbids internal RAM
+// write-through under the ASIC page; §12 model table gives tape on 464+
+// only (GX4000/6128+ have none). PPI PortB bit7 is tape input, PortC
+// bits4/5 drive motor/output (8255 PPI source, "Port B"/"Port C").
+// Run actual Z80 I/O/memory instructions through production MMU, ASIC,
+// motherboard, SDRAM gates extracted from Amstrad.sv, and SDRAM storage.
+// Classic CPC is deliberately outside this cartridge-based Plus vector.
+void audit_page_and_tape() {
+    bool disconnected_input[4] = {};
+    for (unsigned model : {1U, 2U, 3U}) for (unsigned tape : {0U, 1U}) {
+        std::vector<uint8_t> program{0xf3}; // DI
+        auto emit = [&](std::initializer_list<uint8_t> bytes) {
+            program.insert(program.end(), bytes.begin(), bytes.end());
+        };
+        auto write = [&](uint16_t a, uint8_t d) {
+            emit({0x3e, d, 0x32, uint8_t(a), uint8_t(a >> 8)});
+        };
+        auto out = [&](uint16_t port, uint8_t d) {
+            emit({0x01, uint8_t(port), uint8_t(port >> 8), 0x3e, d, 0xed, 0x79});
+        };
+        auto copy = [&](uint16_t from, uint16_t to) {
+            emit({0x3a, uint8_t(from), uint8_t(from >> 8),
+                  0x32, uint8_t(to), uint8_t(to >> 8)});
+        };
+        // Distinct RAM sentinels below sprite RAM, palette, and an unmapped
+        // page address: none may become the later ASIC-page payload.
+        write(0x4000, 0x5a); write(0x6400, 0xa6); write(0x7000, 0x3c);
+        const uint8_t unlock[] = {0xff,0,0xff,0x77,0xb3,0x51,0xa8,0xd4,
+                                 0x62,0x39,0x9c,0x46,0x2b,0x15,0x8a,0xcd};
+        for (uint8_t b : unlock) out(0xbc00, b);
+        out(0x7f00, 0xb8);
+        write(0x4000, 0x0b); write(0x6400, 0x12); write(0x7000, 0xe7);
+        copy(0x4000, 0x8000); // positive control: ASIC write really landed
+        out(0x7f00, 0xa0);
+        copy(0x4000, 0x8001); copy(0x6400, 0x8002); copy(0x7000, 0x8003);
+        out(0xf700, 0x82); // PPI B input, C output
+        for (uint8_t c : {0x00, 0x10, 0x20, 0x30}) {
+            out(0xf600, c);
+            emit({0x3a, uint8_t(c), 0x90}); // read marker 9000+C to sample tape pins
+        }
+        emit({0x01, 0x00, 0xf5, 0xed, 0x78, 0x32, 0x04, 0x80}); // IN A,(C); LD(8004),A
+        const unsigned halt_pc = program.size();
+        emit({0x76});
+        program.resize(16384, 0x76);
+        Harness h;
+        h.dut.d5_key = 0;
+        h.dut.d5_tape_in = tape;
+        h.dut.production_clocking = 1;
+        h.dut.plus_model_i = model;
+        h.initialize(); h.download(build_cpr_image({{"cb00", program}})); wait_for_cpr_apply(h);
+        bool reached_halt = false, reading = false;
+        unsigned markers = 0;
+        for (unsigned n = 0; n < 2000000; ++n) {
+            h.tick();
+            const bool marker = !h.dut.dbg_mreq_n && !h.dut.dbg_rd_n &&
+                                (h.dut.dbg_addr & 0xffcf) == 0x9000;
+            if (marker && !reading) {
+                const unsigned c = h.dut.dbg_addr & 0x30;
+                require(c == markers * 0x10, "PA6d: unexpected tape marker order");
+                const bool motor = model == 3 && (c & 0x10);
+                const bool output = model == 3 && (c & 0x20);
+                require(h.dut.d5_tape_motor == motor && h.dut.d5_tape_out == output,
+                        "PA6d: motherboard tape outputs wrong for model " + std::to_string(model));
+                ++markers;
+            }
+            reading = marker;
+            if (m1_memory_read(h) && h.dut.dbg_addr == halt_pc) { reached_halt = true; break; }
+        }
+        require(reached_halt && markers == 4, "PA6b/d: cartridge did not complete");
+        // CPU-produced results are observed in the real SDRAM model below.
+        const uint8_t expected[] = {0x0b, 0x5a, 0xa6, 0x3c};
+        for (unsigned i = 0; i < 4; ++i)
+            require(h.memory.at(0x28000 + i) == expected[i],
+                    "PA6b: ASIC/RAM readback mismatch at result " + std::to_string(i));
+        const bool input = bool(h.memory.at(0x28004) & 0x80);
+        if (model == 3)
+            require(input == bool(tape), "PA6d: 464+ tape input did not reach PPI Port B");
+        else if (tape == 0)
+            disconnected_input[model] = input;
+        else
+            // No tape on these models (§12): changing the external input
+            // must not affect PB7. The source does not specify its idle level.
+            require(input == disconnected_input[model],
+                    "PA6d: tape input affected a model without tape");
+        std::cout << "PASS PA6b/d model=" << model << " tape=" << tape
+                  << " ASIC write isolation and motherboard tape input/output/motor" << std::endl;
+    }
+}
+
 int main(int argc,char **argv) {
  try {
   Verilated::commandArgs(argc,argv);
+  if(argc == 2 && std::string(argv[1]) == "--asic-audit") { audit_page_and_tape(); return 0; }
   if(argc == 2 && std::string(argv[1]) == "--controls") { model_controls(); return 0; }
   if(argc == 2 && std::string(argv[1]) == "--cart-timing") { cart_timing(); return 0; }
   require(argc >= 2, "usage: d5_boot image.cpr [--classic-rom] [--464]");
@@ -173,7 +263,7 @@ int main(int argc,char **argv) {
   std::ifstream f(argv[1],std::ios::binary);
   require(bool(f),"CPR missing");
   std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(f)),{});
-  Harness h; h.dut.d5_key=0; h.dut.production_clocking=1;
+  Harness h; h.dut.d5_key=0; h.dut.d5_tape_in=0; h.dut.production_clocking=1;
   h.dut.plus_model_i = model464 ? 3 : 2;
   h.initialize(); h.download(bytes); wait_for_cpr_apply(h);
   bool fetch=false,io=false,menu=false,disc=false,error=false,basic=false;

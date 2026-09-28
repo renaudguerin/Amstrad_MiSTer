@@ -20,7 +20,7 @@ them.
 
 ## B24. Plus ASIC reference clause traceability
 
-**Audited 2026-09-27; RC1-RC8 applied 2026-09-28; phase 2 stopped. Plus.** [plus/asic-reference-audit.md](plus/asic-reference-audit.md)
+**Audited 2026-09-27; RC1-RC8 applied 2026-09-28; phase 2 complete. Plus.** [plus/asic-reference-audit.md](plus/asic-reference-audit.md)
 traces every normative clause of the Plus implementation reference, with each rule split
 from its exceptions, to its RTL line and to the test that drives that exact condition.
 It was prompted by the terminal-line SSA capture (`t08l`): the reference had quoted the
@@ -31,15 +31,12 @@ Why this matters: vectors derived from observed effects cover what has been seen
 the reference says. The table makes the unexercised exception rows visible before a title
 or probe finds them.
 
-**Remaining action:** finish PA5-PA6 regression coverage before preparing hardware probes.
-The first focused run passed PA5a/b, PA6a/c and the PA6e counter check, then stopped at
-the new simultaneous-priority assertion. Read-only inspection shows invalid test setup:
-restoring DMA pending flags suppresses the snapshot raster-pending bit, so the vector did
-not create simultaneous sources. No RTL finding is established and no expectation was
-changed. PA6b/d are written but unrun; all phase-2 code remains provisional. See the
-[stop record](plus/asic-audit-phase2-stop-2026-09-28.md) for exact evidence and next action.
-PA1/PA2/PA3/PA4/PA7 probe screens remain unimplemented; no hardware run is ready.
-Re-run the affected audit section when `asic-reference.md` revises a normative clause.
+**Remaining action:** implement the independently reviewed PA1/PA2/PA3/PA4/PA7
+hardware probe designs. PA5-PA6 validation and cross-provider review passed. PA6e's initial failure was a snapshot setup
+defect; its repaired live-request setup passes without changing the priority
+expectations or RTL. See the [audit execution status](plus/asic-reference-audit.md#execution-status-2026-09-28).
+No probe cartridge is ready yet. Re-run the affected audit section when
+`asic-reference.md` revises a normative clause.
 
 ## B23. TV80 bench CPU: bus-timing parity with production T80pa
 
