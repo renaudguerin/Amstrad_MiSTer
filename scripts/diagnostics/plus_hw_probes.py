@@ -14,7 +14,7 @@ import subprocess
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-VERSION = 'V4'
+VERSION = 'V5'
 
 # RTL predictions are simulation readings of the production model at the commit
 # named in README.md, not hardware claims.
@@ -84,6 +84,11 @@ TESTS = [
     ('init_pa3', 'PA3 TERMINAL SPLIT WITH R5=16', [], 'PRE-BUILD RTL: ADJUST GREEN; FRAME 0-7 RED'),
     ('init_pa4', 'PA4 UNMAPPED PAGE READS', [], 'PRE-BUILD RTL: FF FF FF FF'),
     ('init_pa7', 'PA7 PRI0 RELATIVE PHASE', [], 'SLOT HYPOTHESES: CLASSIC EDGE = PRI EDGE +112 OR +128'),
+    ('init_pa7g', 'PA7G PENDING UNDER DI', [], 'RTL G=0 IRQ/FRAME=04'),
+    ('init_pa7w', 'PA7W WIDTH 12 NOP', [], 'RTL SEP176 A=B IRQ/FRAME=04'),
+    ('init_pa7l', 'PA7L LD A,(HL)', [], 'RTL MEAN112 IRQ/FRAME=04'),
+    ('init_pa7r', 'PA7R RET NC', [], 'RTL MEAN112 IRQ/FRAME=04'),
+    ('init_pa7i', 'PA7I INC HL', [], 'RTL MEAN112 IRQ/FRAME=04'),
 ]
 
 # B bands: PRI:=T written at C0 = 45 + i on line T = 8*i+7, sync on T-2; the
@@ -177,6 +182,32 @@ def screen_text(index, init, title, notes, prediction):
                      (13, 2, 'COMPARE RIGHT EDGES, SAME ISR AND NOP ACCEPTANCE'),
                      (14, 2, 'COMMON HSYNC SHIFT VS CPC IS NOT DISTINGUISHED'),
                      (20, 2, f'{index:02d} {title}'), (21, 2, prediction), (24, 2, footer)])
+    if init in ('init_pa7g', 'init_pa7w', 'init_pa7l', 'init_pa7r', 'init_pa7i'):
+        # Markers/rulers occupy display rows 1,8,9,10,11,18; text stays on
+        # 2-4 plus title/prediction/footer on 20/21/24. IRQ/FRAME=04 in prediction.
+        ref = (2, 2, 'REF 8/86 69/147 +RULERS')
+        if init == 'init_pa7g':
+            detail = [ref,
+                      (3, 2, 'DI PENDING MAGENTA MARKS EI'),
+                      (4, 2, 'B=A+78L+1US YELLOW ISR')]
+        elif init == 'init_pa7w':
+            detail = [ref,
+                      (3, 2, 'R3=8C W12 NOP SLED A13=1'),
+                      (4, 2, 'B=A+78L+1US SAME ISR A=B')]
+        elif init == 'init_pa7l':
+            detail = [ref,
+                      (3, 2, 'LD A,(HL) A13=1 PH NOP-1/4US'),
+                      (4, 2, 'B=A+78L+1US OPP PARITY')]
+        elif init == 'init_pa7r':
+            detail = [ref,
+                      (3, 2, 'RET NC NT C=1 PH NOP+1/4US'),
+                      (4, 2, 'B=A+78L+1US OPP PARITY')]
+        else:
+            detail = [ref,
+                      (3, 2, 'INC HL A13=1 PH NOP+1/2US'),
+                      (4, 2, 'B=A+78L+1US OPP PARITY')]
+        return text(detail + [(20, 2, f'{index:02d} {title}'),
+                              (21, 2, prediction), (24, 2, footer)])
     if init.startswith('init_split'):
         # Red C000 bank shows rows 0-3; the green SSA bank repeats a label.
         return text(label + [(3, 2, 'RED = R12/R13 BANK C000. GREEN = SSA BANK 0000'), (4, 2, footer)])

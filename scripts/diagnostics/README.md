@@ -1,7 +1,8 @@
 # Plus / GX4000 hardware diagnostics
 
 Cartridges that ask original hardware a question the written sources answer differently,
-or not at all. Each screen states what the current RTL predicts; photographs decide. Record
+or not at all. Each screen states a recorded prediction; its evidence note identifies the RTL
+revision. Photographs decide. Record
 results in [the divergence ledger](../../docs/plus/source-divergences.md).
 
 ## Multi-test probe cartridge (`plus_hw_probes.py`)
@@ -15,7 +16,7 @@ all ignored). The program is `plus_hw_probes.asm`; the script generates its incl
 (test table, screen text, phase-band table, font). Cold boot shows a title screen listing
 every test. **Any key or joystick fire advances to the next screen**, wrapping back to the
 title; every screen starts from a clean machine state. Each screen names itself
-(`NN/30`, test id, settings), prints the RTL prediction, and interrupt tests print the
+(`NN/35`, test id, settings), prints the RTL prediction, and interrupt tests print the
 counted test interrupts per frame (`IRQ/FRAME=nn`). Photograph each screen whole,
 including the text rows; note the machine model.
 
@@ -25,8 +26,9 @@ RA2 plane shown on RA0 by an SSCR write (A), or pen 0 turned yellow for about 9 
 
 ### Screens
 
-"RTL" records production simulations (see below). V4 screens26–30 use the
-unchanged production RTL at branch base `77ebf51`; V4 is not yet integrated.
+"RTL" in the historical table records the pre-fix production simulations.
+V4 screens26–30 were captured at `77ebf51`; PA1–PA4 have since changed.
+The V5 PA7 follow-up below records current predictions separately.
 "AmSpirit" is Lite 1.15.1, 6128Plus/CRTC3, on the same CPR. "Original Plus" is the
 2026-09-27 photograph set (cartridge V1 screens 01–18, V2 screens 19–20, V3 screens 21–25) recorded in [the ledger](../../docs/plus/source-divergences.md#probe-photographs).
 Screens 19–20 were added in V2 (photographed the same day), 21–25 in V3, and 26–30 in V4. Earlier numbering is unchanged. V4 photographs from a 6128 Plus are recorded in the [V4 hardware record](../../docs/plus/asic-audit-probes-v4.md#original-6128-plus-photographs-2026-09-28).
@@ -95,7 +97,36 @@ Why each matters and what each outcome would change: [source-divergences.md](../
 - The NOP windows accept interrupts on the same 1 µs M1 boundary as `HALT`.
 
 
-### V4 audit screens: photograph protocol
+### V5 PA7 follow-up: screens 30–35
+
+The [reviewed design, predictions and evidence](../../docs/plus/pa7-interrupt-phase-followup.md)
+separates request timing from CPU acceptance. V5 adds31–35 while preserving
+the existing experiments. Original-Plus results are pending.
+
+```sh
+python3 scripts/diagnostics/plus_hw_probes.py --output-dir output_files/plus-hw-probes/pa7-followup/final-sim --start 30
+```
+
+Hardware handoff: [V5 PA7 CPR](../../output_files/plus-hw-probes/pa7-followup/plus-hw-probes-v5-pa7.cpr).
+Photograph30, then advance through31–35, waiting three seconds each time.
+Include all four yellow markers, rulers and IRQ/FRAME digits;31 also has
+four magenta references. Screen30 needs count02;31–35 need04.
+
+| Screen | Control | Current RTL | AmSpirit | Original Plus |
+|---|---|---|---|---|
+| 30 | W8 / NOP reference | 112-dot gap | 128 | V4: approximately128 |
+| 31 G | Requests pending under DI | Normalized G=0 | G=0 | pending |
+| 32 W | HSYNC width12 / NOP | 176-dot mean gap | 192 | pending |
+| 33 L | LD A,(HL), complementary passes | 112-dot mean gap | 128 | pending |
+| 34 R | RET NC, carry set, never taken | 112-dot mean gap | 144 | pending |
+| 35 I | INC HL, complementary passes | 112-dot mean gap | 128 | pending |
+
+G subtracts each magenta right edge from its yellow right edge, then compares
+compatible with reference. Other new screens average the A/B yellow-edge
+gaps. The different RET NC result is conditional emulator evidence, not an
+exact raw-IRQ delay or a hardware finding. No PA7 RTL change is included.
+
+### V4 audit screens: historical photograph protocol
 
 The [reviewed pre-build design](../../docs/plus/asic-audit-probes-v4.md) separates
 hardware hypotheses from the production-model observations below. There is no
@@ -139,15 +170,10 @@ Generated hardware handoff: [title-first V4 CPR](../../output_files/plus-hw-prob
 and [start-at-26 V4 CPR](../../output_files/plus-hw-probes/v4/plus-hw-probes-start26.cpr).
 The design document records their SHA256 hashes and the complete simulation evidence.
 
-A direct screen26 image is convenient for hardware testing:
-
-```sh
-python3 scripts/diagnostics/plus_hw_probes.py --output-dir output_files/plus-hw-probes/v4 --start 26
-```
-
-The normal build without `--start` opens the title. Any key or joystick fire
-advances26→27→28→29→30→title. Allow three seconds after each change for setup and
-monitor settling before photographing.
+The archived V4 start-at-26 build advances26→27→28→29→30→title.
+The current generator builds V5 and continues through35 instead; do not
+regenerate it into the archived `v4/` directory. Allow three seconds after
+each change for setup and monitor settling before photographing.
 
 ### Simulation predictions
 

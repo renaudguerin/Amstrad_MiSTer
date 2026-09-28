@@ -366,7 +366,7 @@ to the reference digest; none needs a gate or review.
 | §7.19 | PRI "misbehaves for some values when R9 < 7" (l.320-321) | conflict | compare on raw `RC2..RC0` | unspecified behaviour; nothing to implement until probed |
 | §7.20 | A PRI fire clears bit 5 of the GA counter, so a re-enabled CPC interrupt waits ≥ 32 lines (l.322-324) | tested | `asic_ga_timing.v:532-536,543` | PA6e: `pr13_fire_clears_counter_bit5` observes 40→8 before ACK, then 44 HSYNC falls; KT’s universal ≥32 inference remains ambiguous |
 | §7.21 | Raster interrupt cleared by INT acknowledge **or** MRER bit 4 (l.325-326) | tested | `asic_ga_timing.v:290,675-676` | `pr01_baseline`, `pr04_mrer_clears_pri`, `test_b20_two_distinct_acks` |
-| §7.22 | GA-compatible interrupt ~1µs later than a CPC (l.327-328) | not-impl | `asic_ga_timing.v` lockstep with GA40010 | PA7: V4 screen30 hardware gap approximately128 dots versus RTL112, count02. Software-visible timing mismatch; raw delay/common HSYNC shift unresolved |
+| §7.22 | GA-compatible interrupt ~1µs later than a CPC (l.327-328) | not-impl | `asic_ga_timing.v` lockstep with GA40010 | PA7: V4 hardware gap approximately128 dots versus RTL112. V5 screens31–35 distinguish pending acceptance, width and instruction phase; AmSpirit G0/W192/L128/R144/I128, original Plus pending. [Follow-up](pa7-interrupt-phase-followup.md) |
 | §7.23 | IVR at `&6805`; bit 0 = 1 at reset, bits 7-1 undefined (l.330) | tested | `asic_regs.v:410,512` | `a07_reset_contract` (bits 7-1 defined zero) |
 | §7.24 | The ASIC always supplies a vector byte on acknowledge (l.334-335) | tested | `asic_regs.v:693-694`, `Amstrad.sv:1250` | `p1_mobo_bench`, `test_b20_two_distinct_acks` |
 | §7.25 | Locked/plain Plus bus byte is `&00` (some `&56`) (l.335-336) | conflict | `asic_regs.v:692-693` (`(IVR & F8) \| src`) | with reset IVR a pending raster gives `&06`, only an empty ack `&00`; IM 1 ignores it |
@@ -699,3 +699,20 @@ last normal line. Screen30 remains pixel-identical: PA7 is still unresolved.
 Independent Opus medium reviews accepted PA4, PA1, PA2/PA3, and the additional
 Muse Spark PA3 adjustment-terminal implementation. Remaining evidence limits
 are recorded in the V4 oracle section, not treated as hardware passes.
+
+### PA7 diagnostic follow-up (2026-09-28)
+
+[V5 design and evidence](pa7-interrupt-phase-followup.md) adds five controls
+with predeclared predictions and independent Opus design review. Passive
+production-T80 tracing separates the counter event, INT, CPU interrupt-cycle
+entry and ACK. AmSpirit gives G=0, width12 gap192, and L/R/I mean gaps
+128/144/128. The RET NC result distinguishes the simple uniform-shift reading
+under the stated phase assumptions; it is not an exact ASIC delay measurement.
+Original6128Plus photographs of31–35 remain outstanding. No production RTL
+changed; §7.22 remains not-implemented. Summary counts remain unchanged:
+222 clauses,181 tested,9 untested,13 conflict,11 scope,2 contradicted,6 not-implemented.
+
+V5 final gate passed41 benches; soak reproduced `0xe99ab434a5e1cdb3`.
+The [exact commands and final selection line](pa7-interrupt-phase-followup.md#review-and-validation)
+are recorded with the follow-up evidence. Both design and final code received
+independent Opus medium review.

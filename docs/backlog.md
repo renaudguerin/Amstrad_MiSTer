@@ -31,8 +31,10 @@ Why this matters: vectors derived from observed effects cover what has been seen
 the reference says. The table makes the unexercised exception rows visible before a title
 or probe finds them.
 
-**Remaining action:** investigate PA7's128-versus112-dot software acceptance
-slot without assuming an exact raw IRQ delay. Run the original-Plus early-arm
+**Remaining action:** run [V5 PA7 screens30–35](plus/pa7-interrupt-phase-followup.md)
+on the original Plus. AmSpirit gives normalized G=0, width12 gap192 and
+LD/RET/INC means128/144/128; the RET NC control is the new discriminator.
+Raw IRQ timing remains unresolved and no PA7 RTL fix is included. Run the original-Plus early-arm
 PA3 control and both last-adjustment-line variants; AmSpirit supports these
 mechanisms, but those hardware confirmations are still missing. Interlace
 terminal timing, live R5 rewrites and conflicting GA I/O aliases remain

@@ -621,3 +621,9 @@ The corrected production-T80 model also ran the late last-adjustment CPR for
 frame1 MA0200. Its trace is beside the variant as `rtl-after-events.txt`.
 This is an implementation check against the predeclared oracle outcome,
 not additional hardware evidence.
+
+PA7 now has a [V5 follow-up cartridge](pa7-interrupt-phase-followup.md) with
+five reviewed controls and passive CPU-sampling traces. AmSpirit agrees with
+the pending-IRQ control but gives a different RET NC mean from the uniform
+shift hypothesis. Original-Plus screens31–35 are pending; V4 alone still
+does not justify an exact raw-IRQ delay.
