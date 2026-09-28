@@ -478,7 +478,7 @@ plus-sprite-ram-lint:
 # in SLOW_TESTS; `slow` runs only those; `full` runs both. The public targets
 # re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
 # inside a makefile; JOBS=1 gives serial, readable output.
-SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing b20-bus-diag b23-cpu-diff
+SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing d5-asic-audit b20-bus-diag b23-cpu-diff
 FAST_BINS := $(filter-out $(B8FIELD_TEST_BIN) $(B7_TEST_BIN),$(TEST_BINS))
 FAST_TESTS := $(addprefix run/,$(notdir $(FAST_BINS)))
 JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
@@ -878,6 +878,12 @@ d5-boot: d5-boot-build
 .PHONY: d5-cart-timing
 d5-cart-timing: d5-boot-build
 	$(D5_OBJ_DIR)/d5_boot --cart-timing
+
+# PA6b/d synthetic cartridge: real motherboard tape and production SDRAM
+# gating. Requires the production T80 netlist, but no private firmware.
+.PHONY: d5-asic-audit
+d5-asic-audit: d5-boot-build
+	$(D5_OBJ_DIR)/d5_boot --asic-audit
 
 # B20 production-bus discriminator: production T80 + motherboard/ASIC
 # acknowledge/vector/request path on the D5 prepared fixture.

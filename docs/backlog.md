@@ -18,9 +18,25 @@ the D5 boot-configuration note) are archived verbatim in
 them.
 
 
+## B25. Classic GA interrupt phase against CPU edges
+
+**⚠ VERIFY, 2026-09-28. Classic.** The production CRTC0/1→GA40010→T80
+regression measures raw INT visible at N (the no-WAIT NOP T2 edge), whereas
+French ACCC v1.11 §27.7.2 pp289–290 gives N+16 master ticks for the on-time
+case and N+32 for the late variant. Opus source review predicts INC HL can
+therefore still accept one instruction early after the shared CPU sampling
+fix. This is separate from the now-proven T80 final-T discrepancy; do not
+alter the netlist-derived GA merely to match this inference.
+
+Acceptance: original classic INT/clock/HSYNC trace or instruction-phase probe
+with NOP/HALT, RET NC parity, INC HL and ADD HL,DE controls; then reconcile
+the ACCC diagram's inconsistent WAIT-row label and type1 unit variance.
+Only after that add source-derived failing vectors for any GA/CRTC repair.
+See [T80 evidence](t80-int-sampling.md) for model measurements and reviews.
+
 ## B24. Plus ASIC reference clause traceability
 
-**Audited 2026-09-27; findings open. Plus.** [plus/asic-reference-audit.md](plus/asic-reference-audit.md)
+**Audited 2026-09-27; RC1-RC8 applied 2026-09-28; phases 1–3 complete; PA1/PA2/PA3/PA4 implemented from V4 hardware/oracle evidence. Plus.** [plus/asic-reference-audit.md](plus/asic-reference-audit.md)
 traces every normative clause of the Plus implementation reference, with each rule split
 from its exceptions, to its RTL line and to the test that drives that exact condition.
 It was prompted by the terminal-line SSA capture (`t08l`): the reference had quoted the
@@ -31,11 +47,28 @@ Why this matters: vectors derived from observed effects cover what has been seen
 the reference says. The table makes the unexercised exception rows visible before a title
 or probe finds them.
 
-**Remaining action:** apply the documentation-only corrections RC1-RC8. Add the vectors
-PA5-PA6, which are expected to pass and pin hardware-confirmed or cross-module rules. Put
-PA1 (`IN` value on a 6128+), PA2/PA3 (split × vertical adjust) and PA4/PA7 on the next probe
-cartridge before any RTL change. Re-run the audit, or at least its affected section, when
-`asic-reference.md` gains or revises a normative clause.
+**Remaining action:** hardware validation of the implemented PA7 model and
+shared T80 correction. [CPU source and classic safety evidence](t80-int-sampling.md)
+records isolated and actual CRTC0/1 fail-before/passes-after checks. Production
+simulation matches all measured V5 Plus markers after the shared CPU sampling
+repair and separate compatible-delivery stage. The exact ASIC mechanism and
+literal Plus-versus-CPC delay remain unmeasured; original classic RET NC parity
+pairs and clock/INT traces are still needed. See the
+[PA7 evidence and assumptions](plus/pa7-interrupt-phase-followup.md#implemented-cpu-and-compatible-delivery-repair-2026-09-28).
+Run the original-Plus early-arm
+PA3 control and both last-adjustment-line variants; AmSpirit supports these
+mechanisms, but those hardware confirmations are still missing. Interlace
+terminal timing, live R5 rewrites and conflicting GA I/O aliases remain
+unmeasured. The [V4 evidence record](plus/asic-audit-probes-v4.md#phase-4-oracle-follow-up-2026-09-28)
+contains the controls and their predictions.
+
+PA1/PA4 production-T80 fail-before vectors now pass from RAM/cartridge, with
+palette side effects and other bus responders protected. PA2/PA3 video vectors
+pin adjustment captures and distinguish the last normal line from the actual
+frame end. The audit now counts222 clauses:181 tested,10 untested,13 conflict,
+11 scope,2 contradicted,5 not-implemented. Re-run affected rows when the
+implementation reference changes. Final phase-4 gate evidence is recorded
+in the audit's validation section.
 
 ## B23. TV80 bench CPU: bus-timing parity with production T80pa
 

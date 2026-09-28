@@ -14,6 +14,7 @@ ASIC_SSCR   equ 0x6804
 ASIC_IVR    equ 0x6805
 ASIC_DCSR   equ 0x6C0F
 PEN0_G      equ 0x6401          ; pen 0 green nibble; red->yellow marker
+audit_data  equ 0xBF20          ; PA1/PA4 saved observations, never display RAM
 STACK       equ 0xBFF0
 
 test_index  equ 0xBF00
@@ -24,6 +25,14 @@ tmp         equ 0xBF06
 irq_count   equ 0xBF07
 window_r3   equ 0xBF0D          ; A: R3 during the window (0 = unchanged)
 test_var    equ 0xBF0E          ; H: sled length; E3/E4: R9 phase
+; PA7 follow-up (screens 31-35): runtime window at 0x2000 (A13=1), two passes
+; per displayed frame (A: PRI7/compat69, B: PRI85/compat147 = A+78 lines+1us).
+PA7X_BUF    equ 0x2000
+PA7X_B      equ 78
+pa7x_pass   equ 0xBF10
+pa7x_bc1    equ 0xBF12          ; G: gated EI delay, reference window
+pa7x_bc2    equ 0xBF14          ; G: gated EI delay, compatible window
+pa7x_wait   equ 0xBF16          ; inter-window loop (400 for sleds, as PA7)
 sync_addr   equ 0xBF08          ; handler the 0038 JP overlay targets
 target_head equ 0xBF0A          ; first 3 bytes of the installed test handler
 SYNC_LINE   equ 2               ; A/C: arming interrupt, well before line 7
@@ -506,6 +515,197 @@ sprite_table:
             ld bc,5 : ldir              ; X lo, X hi, Y lo, Y hi, magnification
             jr sprite_table
 
+; ---- V4 audit screens. Hand predictions: docs/plus/asic-audit-probes-v4.md.
+; These experiments expose observations, never decide which source is correct.
+
+; A in hex at DE; preserve the caller's result pointer and loop registers.
+hex_byte:   push af
+            rrca : rrca : rrca : rrca
+            call hex_digit
+            inc de
+            pop af
+            call hex_digit
+            inc de
+            ret
+hex_digit:  push bc : push hl
+            and 15 : add a,'0' : cp '9'+1 : jr c,.digit
+            add a,7
+.digit:     ld c,0 : call glyph
+            pop hl : pop bc
+            ret
+
+; PA1: each actual ED instruction gets a fresh port and selected border.
+; Capture the destination before palette reads overwrite A or HL.
+            macro in_sample reg,slot
+            ld hl,0x000F : ld (0x6420),hl ; distinct no-write sentinel per row
+            ld bc,0x7F00 : ld a,0x10 : out (c),a
+            in reg,(c)
+            ld a,reg : ld (audit_data+slot*3),a
+            ld hl,(0x6420) : ld (audit_data+slot*3+1),hl
+            endm
+init_pa1:   in_sample a,0
+            in_sample b,1
+            in_sample d,2
+            in_sample e,3
+            in_sample h,4
+            in_sample l,5
+            ld hl,0x000F : ld (0x6420),hl
+            ld bc,0x7F54 : ld a,0x10 : out (c),a
+            in a,(c) : ld (audit_data+18),a
+            ld hl,(0x6420) : ld (audit_data+19),hl
+            ld bc,0x7F00 : ld a,0x10 : out (c),a
+            ld a,0x78 : out (c),a
+            ld hl,(0x6420) : ld (audit_data+21),hl
+            ld a,0x79 : out (c),a
+            ld hl,(0x6420) : ld (audit_data+23),hl
+            ; Restore mapping only after saving all observations and controls.
+            ld bc,0x7F00
+            ld a,0xC0 : out (c),a
+            ld a,0xB8 : out (c),a
+            ; Restore blue only after saving both explicit-OUT controls.
+            ld hl,0x000F : ld (0x6420),hl
+            ld hl,audit_data : ld de,0xC000+6*80+22 : ld b,7
+.row:       ld a,(hl) : inc hl : call hex_byte
+            push de
+            ld a,e : add a,8 : ld e,a : jr nc,.nocarry
+            inc d
+.nocarry:   inc hl : ld a,(hl) : call hex_digit : inc de
+            dec hl : ld a,(hl) : call hex_byte : inc hl : inc hl
+            pop de
+            push hl : ld hl,78 : add hl,de : ex de,hl : pop hl
+            djnz .row
+            ld de,0xC000+15*80+32 : call pa1_control
+            ld de,0xC000+16*80+32 : call pa1_control
+            jp main_static
+pa1_control:
+            inc hl : ld a,(hl) : call hex_digit : inc de
+            dec hl : ld a,(hl) : call hex_byte : inc hl : inc hl
+            ret
+
+; PA4: seed actual underlying RAM before mapping the page. No interrupts.
+init_pa4:   ld bc,0x7F00 : ld a,0xA0 : out (c),a
+            ld a,0xA5 : ld (0x5000),a
+            ld a,0x5A : ld (0x6800),a
+            ld a,(0x5000) : ld (audit_data+4),a
+            ld a,(0x6800) : ld (audit_data+5),a
+            ld a,0xB8 : out (c),a
+            ld a,(0x5000) : ld (audit_data),a
+            ld a,(0x6800) : ld (audit_data+1),a
+            ld hl,0x5000 : ld a,(hl) : ld (audit_data+2),a
+            ld hl,0x6800 : ld a,(hl) : ld (audit_data+3),a
+            ld a,0xAB : ld (0x4000),a
+            ld a,(0x4000) : ld (audit_data+6),a
+            ld a,0x5A : ld (0x6404),a
+            ld a,(0x6404) : ld (audit_data+7),a
+            ld hl,audit_data : ld de,0xC000+6*80+30 : ld b,8
+.row:       ld a,(hl) : inc hl : call hex_byte
+            push hl : ld hl,78 : add hl,de : ex de,hl : pop hl
+            djnz .row
+            jp main_static
+
+; PA2/3 share geometry and physical fills. Red overlay 0790-07DF on every
+; plane normalizes adjustment entry even after a prior frame carried SSA0200.
+init_pa2:   xor a : jr init_adjust
+init_pa3:   ld a,1
+init_adjust:
+            ld (test_var),a
+            call fill_bank0
+            ld hl,0x0790 : ld b,8
+.plane:     push bc : push hl
+            ld d,h : ld e,l : inc de
+            ld bc,79 : ld (hl),0 : ldir
+            pop hl : ld de,0x0800 : add hl,de
+            pop bc : djnz .plane
+            ld hl,crtc_adjust : call crtc_table
+            ld a,2 : ld (ASIC_SSA),a
+            xor a : ld (ASIC_SSA+1),a
+            ld hl,isr_adjust : ld (sync_addr),hl : call overlay_sync
+            ld a,255 : ld (ASIC_PRI),a
+            ld bc,0x7F00 : ld a,0x9E : out (c),a
+            xor a : ld (frame_done),a
+            ei
+main_audit: halt
+            ld a,(frame_done) : or a : jr z,main_audit
+            xor a : ld (frame_done),a
+            call key_check
+            jp main_audit
+
+isr_adjust: push af : push bc : push de : push hl
+            ld a,(test_var) : or a : jr nz,.terminal
+            ld a,32 : jr .delay
+.terminal:  ld a,39
+.delay:     ld e,a
+            ld bc,ADJ_COARSE
+.wait:      dec bc : ld a,b : or c : jr nz,.wait
+            ds ADJ_FINE,0
+            ld a,e : ld (ASIC_SPLT),a       ; late normal line295
+            ld hl,0x6421 : ld (hl),15      ; cyan phase dash
+            ds 4,0
+            ld (hl),0
+            ld a,(test_var) : or a : jp nz,.pa3
+            ds ADJ_NEXT,0
+            ld a,0x30 : ld (ASIC_SSA),a
+            xor a : ld (ASIC_SSA+1),a
+            ld a,33 : ld (ASIC_SPLT),a      ; early297, after296/R0
+            ds 58,0
+            xor a : ld (ASIC_SPLT),a       ; early298, after297/R0
+            ld bc,50
+.gap:       dec bc : ld a,b : or c : jr nz,.gap
+            ds 14,0
+            ld a,2 : ld (ASIC_SSA),a
+            xor a : ld (ASIC_SSA+1),a
+            ld a,32 : ld (ASIC_SPLT),a      ; early304
+            ds 58,0
+            xor a : ld (ASIC_SPLT),a       ; early305, after304/R0
+            jr .done
+.pa3:       xor a : ld (ASIC_SPLT),a       ; disable before adjustment7
+.done:      ld hl,0x6421 : ld (hl),15
+            ds 4,0
+            ld (hl),0
+            ; Restore SSA0200 only with SPLT disabled, ready for next frame.
+            ld a,2 : ld (ASIC_SSA),a
+            xor a : ld (ASIC_SSA+1),a
+            ld a,1 : ld (frame_done),a
+            pop hl : pop de : pop bc : pop af
+            ei : ret
+crtc_adjust: db 4,36, 5,16, 6,40, 7,18, 0xFF
+
+; PA7: identical pen0-yellow handler, identical NOP window for both requests.
+; PRI7 occurs in the first window; reset near line17 and compatible fire near69
+; put the complete 52-HSYNC interval before VSYNC240 and its resynchronization.
+init_pa7:   ld a,3 : ld e,0x88 : call crtc_set
+            ld hl,0xD050 : ld de,0xD850 : call pa7_ruler ; lines10/11
+            ld hl,0xFA80 : ld de,0xC2D0 : call pa7_ruler ; lines71/72
+            ld hl,isr_pal : ld de,isr_pal_end : call install_isr
+            call pal_regs
+            ld hl,isr_pa7_sync : ld a,SYNC_LINE
+            jp arm_irq
+; One short tick per byte (8 dots), every other tick extended (16 dots).
+; Pure display data, outside marker lines8/69 and before interrupts are armed.
+pa7_ruler:  ld b,80
+.tick:      ld (hl),0x80 : inc hl
+            ld a,b : and 1 : jr nz,.short
+            ld a,0x80 : jr .write
+.short:     xor a
+.write:     ld (de),a : inc de
+            djnz .tick
+            ret
+isr_pa7_sync:
+            push af : push bc : push de : push hl
+            ld a,7 : ld (ASIC_PRI),a
+            call overlay_target
+            call pa7_window
+            xor a : ld (ASIC_PRI),a       ; expose any held compatible IRQ
+            ld bc,0x7F00 : ld a,0x9E : out (c),a ; clear it, keep mode/ROM bits
+            ld bc,400
+.wait:      dec bc : ld a,b : or c : jr nz,.wait
+            call pa7_window
+            ld a,SYNC_LINE : ld (ASIC_PRI),a ; suppress subsequent classic IRQs
+            call overlay_sync
+            ld a,1 : ld (frame_done),a
+            pop hl : pop de : pop bc : pop af
+            ei : ret
+
 unlock_seq: db 0xFF,0x00,0xFF,0x77,0xB3,0x51,0xA8,0xD4,0x62,0x39,0x9C,0x46,0x2B,0x15,0x8A,0xCD,0xEE
 ; &6400 pen 0 red, pen 1 green; &6420 border blue, &6422 sprite colour 1 white.
 palette:    db 0xF0,0x00, 0x00,0x0F, 0x0F,0x00, 0xFF,0x0F
@@ -536,4 +736,94 @@ mask_sprites:
 
             include "plus_hw_probes.inc"
 
+; Keep both measured interrupt-acceptance windows at A13=1.
+pa7_window: ei
+            ds 800,0
+            di : ret
+pa7_window_end:
+            assert (pa7_window & 0x2000) != 0
+            assert (pa7_window_end & 0x2000) != 0
+
+; ---- PA7 follow-up screens 31-35 (G/W/L/R/I). Predeclared expectations in
+; docs/plus/pa7-interrupt-phase-followup.md, never adjust to match output.
+; Same shared yellow ISR (isr_pal) for every request. B = A +78 lines +1us
+; via 3 extra NOPs, giving complementary parity for 2us sleds. PRI0 then
+; MRER reset order preserved; all markers finish before VSYNC240.
+isr_pa7x_sync:
+            push af : push bc : push de : push hl
+            ld a,(pa7x_pass) : or a
+            jr nz,.b                        ; A: JR not taken (2us)
+            ld a,7 : jr .go                 ; A: LD 2us + JR 3us = 7us
+.b:         ld a,7+PA7X_B : ds 3,0          ; B: JR taken 3us + LD 2us + 3 NOPs 3us = 8us
+.go:        ld (ASIC_PRI),a
+            call overlay_target
+            ld bc,(pa7x_bc1) : call PA7X_BUF ; reference window (sleds ignore BC)
+            xor a : ld (ASIC_PRI),a         ; PRI0 first...
+            ld bc,0x7F00 : ld a,0x9E : out (c),a ; ...then MRER reset
+            ld bc,(pa7x_wait)
+.w:         dec bc : ld a,b : or c : jr nz,.w
+            ld bc,(pa7x_bc2) : call PA7X_BUF ; compatible window
+            ld a,(pa7x_pass) : xor 1 : ld (pa7x_pass),a
+            jr z,.frame
+            ld a,SYNC_LINE+PA7X_B : ld (ASIC_PRI),a : jr .out
+.frame:     ld a,SYNC_LINE : ld (ASIC_PRI),a
+            ld a,1 : ld (frame_done),a
+.out:       call overlay_sync
+            pop hl : pop de : pop bc : pop af
+            ei
+            ret
+
+init_pa7w:  ld e,0x8C : ld d,0x00 : jr init_pa7s
+init_pa7l:  ld e,0x88 : ld d,0x7E : jr init_pa7s
+init_pa7r:  ld e,0x88 : ld d,0xD0 : jr init_pa7s
+init_pa7i:  ld e,0x88 : ld d,0x23
+; E = R3 width, D = sled opcode (0 = NOP single, else 2us opcode x400).
+init_pa7s:  ld a,3 : call crtc_set     ; before E is reused
+            ld hl,PA7X_BUF            ; LD HL,buf / SCF / EI, same for all four
+            ld (hl),0x21 : inc hl : ld (hl),0x00 : inc hl
+            ld (hl),0x20 : inc hl
+            ld (hl),0x37 : inc hl : ld (hl),0xFB : inc hl
+            ld bc,800 : ld a,d : or a : jr z,.f
+            ld bc,400                 ; 2us opcodes, same 800us window
+.f:         ld (hl),d : inc hl : dec bc : ld a,b : or c : jr nz,.f
+            ld (hl),0xF3 : inc hl : ld (hl),0xC9 ; DI / RET
+            ld hl,400 : ld (pa7x_wait),hl
+            jr init_pa7x
+; G: both requests pending under DI, CPU-timed magenta before EI.
+; Template is position independent, copied to PA7X_BUF on each init.
+; EI is after C10 so all magenta marks clear left blanking; yellow ends
+; before C36. Both requests are pending under DI. Delays position the
+; experiment only; expected normalized G=0 is declared before simulation.
+PA7G_BC1    equ 35
+PA7G_BC2    equ 40
+PA7G_WAIT   equ 499
+init_pa7g:  ld a,3 : ld e,0x88 : call crtc_set
+            ld hl,pa7g_tmpl : ld de,PA7X_BUF : ld bc,pa7g_end-pa7g_tmpl : ldir
+            ld hl,PA7G_BC1 : ld (pa7x_bc1),hl
+            ld hl,PA7G_BC2 : ld (pa7x_bc2),hl
+            ld hl,PA7G_WAIT : ld (pa7x_wait),hl
+init_pa7x:  xor a : ld (pa7x_pass),a
+            ld hl,0xD050 : ld de,0xD850 : call pa7_ruler ; lines 10/11
+            ld hl,0xFA80 : ld de,0xC2D0 : call pa7_ruler ; lines 71/72
+            ld hl,0xC370 : ld de,0xCB70 : call pa7_ruler ; lines 88/89
+            ld hl,0xEDA0 : ld de,0xF5A0 : call pa7_ruler ; lines 149/150
+            ld hl,isr_pal : ld de,isr_pal_end : call install_isr
+            call pal_regs
+            ld hl,isr_pa7x_sync : ld a,SYNC_LINE
+            jp arm_irq
+
+; Copied to PA7X_BUF. Requests arrive under DI; magenta (pen0 blue nibble
+; at 6400: FF magenta, F0 red) marks the CPU-timed EI point, then the same
+; shared yellow ISR runs after acceptance. BC = gated delay to EI.
+pa7g_tmpl:  di
+.d:         dec bc : ld a,b : or c : jr nz,.d
+            ld hl,0x6400 : ld (hl),0xFF
+            ds 2,0
+            ld (hl),0xF0
+            ds 2,0
+            ei
+            ds 48,0                   ; acceptance + isr_pal here
+            di : ret
+pa7g_end:
+            assert PA7X_BUF+806 < 0x4000 && (PA7X_BUF & 0x2000) != 0
             assert $ < 0xBF00

@@ -109,6 +109,7 @@ module p4_sprites_regs_test_top #(parameter [9:0] H_ORIGIN_DOTS = 10'd0) (
 		.A(A),
 		.D_in(D_in),
 		.D_out(D_out),
+		.read_driven(),
 		.leg_pal_wr(leg_pal_wr),
 		.leg_pal_addr(leg_pal_addr),
 		.leg_pal_data(leg_pal_data),

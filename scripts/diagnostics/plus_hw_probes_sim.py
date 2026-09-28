@@ -2,7 +2,7 @@
 """Run every plus_hw_probes screen on the production simulation model.
 
 Builds the D5 production-T80 fixture (sim/plus prepare_d5_boot.py, GHDL T80 netlist)
-with four extra probe ports, then runs one cartridge per start screen and writes
+with diagnostic probe ports, then runs one cartridge per start screen and writes
 <out>/<NN>.ppm plus <NN>-events.txt. Diagnostic only: outputs are simulation
 predictions to compare with original-hardware photographs, never expectations.
 """
@@ -19,6 +19,24 @@ PORTS = {
     'g_vc': (7, 'mb.plus_vc'),
     'g_rc': (5, 'mb.plus_rc'),
     'g_fire': (1, 'mb.asic_ga.raster_fire'),
+    'g_int_n': (1, 'mb.INT_n'),
+    'g_adj': (1, 'mb.asic_vid.in_adj'),
+    'g_split': (1, 'mb.asic_vid.split_latch_event'),
+    'g_store': (14, 'mb.asic_vid.vma_latch'),
+    'g_ssa': (14, 'mb.asic_vid.SSA'),
+    'g_splt': (8, 'mb.asic_vid.SPLT'),
+    # PA7 follow-up: passive cause-chain taps (diagnostic fixture only).
+    # g_c52/g_intcnt/g_classicn/g_progn read asic_ga_timing internals
+    # (intcnt52 pulse, 6-bit scanline counter, classic/programmed latches).
+    # g_intcycle reads the GHDL-T80 netlist wire mb.CPU.intcycle_n
+    # (T80pa.vhd:96, already proven by d5_ack_sample in prepare_d5_boot.py);
+    # g_insn reads the motherboard cpu_insn_start observation port.
+    'g_intcnt': (6, 'mb.asic_ga.intcnt_reg'),
+    'g_c52': (1, 'mb.asic_ga.intcnt52'),
+    'g_classicn': (1, 'mb.asic_ga.classic_int_n'),
+    'g_progn': (1, 'mb.asic_ga.programmed_int_n'),
+    'g_intcycle': (1, 'mb.CPU.intcycle_n'),
+    'g_insn': (1, 'mb.cpu_insn_start'),
 }
 
 
@@ -59,6 +77,8 @@ def main():
     binary = obj / 'plus_hw_probes_sim' if args.no_build else build_model(obj, args.cxx)
     import plus_hw_probes
     screens = args.screens if args.screens else range(1, len(plus_hw_probes.TESTS))
+    if any(n < 0 or n >= len(plus_hw_probes.TESTS) for n in screens):
+        parser.error('screen number out of range')
     args.out.mkdir(parents=True, exist_ok=True)
     for n in screens:
         plus_hw_probes.build(args.out, n)
@@ -69,9 +89,14 @@ def main():
                            capture_output=True, text=True)
         return n, r.returncode, (r.stdout + r.stderr).strip()
 
+    failed = []
     with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
         for n, code, text in pool.map(run, screens):
             print(f'{n:02d}: exit {code} {text}')
+            if code:
+                failed.append(n)
+    if failed:
+        raise SystemExit(f'probe simulation failed for screens: {failed}')
 
 
 if __name__ == '__main__':

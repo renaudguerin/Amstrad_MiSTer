@@ -284,7 +284,16 @@ wire INT_n = plus_mode ? plus_int_n : ga_int_n;
 wire M1_n;
 wire [7:0] ppi_dout;
 wire [7:0] ppi_cpu_dout;
-wire [7:0] cpu_data_bus = crtc_dout_sel & ppi_cpu_dout & cpu_din;
+// PA1: original 6128 Plus V4 screen26 (IMG_3968) returns the retained
+// instruction byte on otherwise undriven GA reads: 78/40/50/58/60/68.
+// GA partially decodes A15=0,A14=1. Preserve responder priority in its
+// overlapping PPI (A11=0) and peripheral (A10=0: FDC/Kempston) aliases;
+// those unmeasured conflicts keep their existing bus path. CRTC requires
+// A14=0; the other supported I/O readers require A15=1. Never infer bus
+// ownership from a returned FF, nor substitute a model-specific 79.
+wire plus_ga_open_read = plus_mode & io_rd & M1_n & ~A[15] & A[14] & A[11] & A[10];
+wire [7:0] cpu_read_data = plus_ga_open_read ? memory_bus_byte : cpu_din;
+wire [7:0] cpu_data_bus = crtc_dout_sel & ppi_cpu_dout & cpu_read_data;
 wire [7:0] plus_io_data = io_rd ? io_bus_byte : D;
 
 // Write-only Plus ports see the byte left by the final opcode fetch of the
@@ -659,6 +668,19 @@ wire        psg_dma_bc1;
 wire [7:0]  psg_dma_dout;
 wire        psg_dma_active;
 
+// PA4: V4 screen29 on an original 6128 Plus (IMG_3971) returns the
+// last memory-read byte: LD A,(5000/6800) -> 50/68, LD A,(HL) -> 7E.
+// Keep this separate from the M1-only decoder-write source above. Retain
+// driven reads through their full cycle (including cartridge WAIT), and
+// hold across unclaimed page reads rather than feeding the fallback back.
+wire asic_read_driven;
+reg [7:0] memory_bus_byte;
+always @(posedge clk) begin
+	if (reset) memory_bus_byte <= 8'hFF;
+	else if (mem_rd && !(plus_asic_rd && !asic_read_driven))
+		memory_bus_byte <= cpu_data_bus;
+end
+
 asic_regs asic_page
 (
 	.clk(clk),
@@ -670,6 +692,7 @@ asic_regs asic_page
 	.A(A[13:0]),
 	.D_in(D),
 	.D_out(asic_regs_dout),
+	.read_driven(asic_read_driven),
 
 	.leg_pal_wr(leg_pal_wr),
 	.leg_pal_addr(leg_pal_addr),
@@ -725,7 +748,7 @@ asic_regs asic_page
 	.sna_pal_plain(~sna_plus_chunk),
 	.sna_pal_hdr(sna_ga_palette)
 );
-assign plus_asic_dout = asic_regs_dout;
+assign plus_asic_dout = (plus_asic_rd && !asic_read_driven) ? memory_bus_byte : asic_regs_dout;
 assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
 
 wire plus_spr_wr_en;

@@ -29,6 +29,8 @@ Sequence (17 writes total):
 
 - **Sync phase**: any **non-zero** byte (`RQ00`), then a **zero** byte. (A non-zero
   value followed by zero resets the sequence pointer.) [WIKI-Unlock, MAME]
+- RTL refinement used by Switchblade and observed in AmSpirit: extra zero bytes
+  after the sync zero and before the initial `FF` are tolerated.
 - **13 fixed bytes**: `FF 77 B3 51 A8 D4 62 39 9C 46 2B 15 8A`
 - **STATE byte**: `&CD` (205) ⇒ **UNLOCK**. Any other value ⇒ **LOCK**.
 - **ACQ**: [ARNOLD] lists a final `&EE`, but [WIKI-Unlock] verified on hardware:
@@ -200,9 +202,12 @@ From [ARNOLD App.1] / [ARNOLD-REV App.1]. POR = defined state at power-on reset
   with final visibility determined by the border/display compositor.
   [ARNOLD §2.1, KT]
 - The compare line for Y is `(CRTC_char_line << 3) | (raster_count & 7)` and the
-  X compare uses the CRTC horizontal character counter: char = `(X & &FFF8)>>3`,
-  pixel-in-char = `X & 7`. If CRTC R0 > 64 sprites can repeat horizontally.
-  Y compare is **not** gated by Vertical Displayed (R6). [KT]
+  X compare uses the CRTC horizontal character counter. [KT]'s formula
+  `char = (X & &FFF8)>>3`, `pixel-in-char = X & 7` is inconsistent with its
+  mode-2-pixel X units: a CRTC character spans 16 such pixels, not 8. The core
+  uses a 16-pixel character grid, consistent with the reported horizontal repeat
+  when R0 > 64 (1024/16). Y compare is **not** gated by Vertical Displayed (R6).
+  [KT; the X formula is internally inconsistent]
 - **Magnification byte**: bits 3-2 = X mag, bits 1-0 = Y mag.
   `00`=off(not displayed), `01`=×1, `10`=×2, `11`=×4. If either X or Y mag is 0
   the sprite is off. Cleared to 0 at reset. Finest sprite = mode-2 resolution in
@@ -383,31 +388,43 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
 [ARNOLD §2.3, ARNOLD-REV, QUASAR, KT]
 
 - SPLT = scan line *after* which the split occurs; 0 = off. Comparison:
-  `{SPLT7..0} == {VC4..VC0, RC2..RC0}` (8-bit; wraps, so with a 312-line frame a
-  value fires at line n and n+256 — value `&37`/55 (or 56 per [KT] — ⚠ minor
-  CONFLICT, likely off-by-one in one source) interacts pathologically with the
-  frame end; avoid, or ensure SPLT=0 during vertical retrace, or set R5≠0).
+  `{SPLT7..0} == {VC4..VC0, RC2..RC0}` (8-bit; wraps, so a value can fire at
+  line n and n+256). With a 312-line frame, `&37`/55 is the pathological value:
+  original Plus probes 10-13 confirm the line-311 match and the RTL carries that
+  terminal-line capture across the frame origin; [KT]'s value 56 is not supported
+  by those probes. Avoid this value, or ensure SPLT=0 during vertical retrace, or
+  set R5≠0. When R9>7, only RC2..RC0 are compared, so one SPLT value can match
+  twice per character row at raw rasters r and r+8; this case is unprobed.
 - SSA is in CRTC R12/R13 format (same bit meanings, including the `&0C00`
   bank-size bits); it is the MA for the **first line after the split**, not a 16k
   block base. Any CRTC address is allowed (a split screen can itself scroll).
 - Capture/apply timing [ARNOLD-REV §2.3 & "6845's MA"]: the CRTC (ASIC) keeps an
   internal "stored MA" reloaded into the MA counter at the start of each line.
   On the programmed line, the SSA value is captured when HCC == R1 (Horizontal
-  Displayed) — or when HCC == R0 if VCC==R4 and RCC==R9 (last line of frame;
+  Displayed) — or when HCC == R0 if VCC==R4, RCC==R9 and R5=0 (last line of frame;
   original Plus probe V3 screen 21 is consistent: the line-311 capture follows a
   C0≈52 write) —
   and is used from the next scan line onward, i.e. it *replaces* the line-start
   MA until the next split or frame restart (the split affects the rest of the
   screen).
 - The value is never applied at VCC=0/RCC=0 (can't retarget the first line of a
-  frame; it takes effect at the next opportunity, e.g. VCC=0/RCC=1). Original
-  Plus probe 11 (SPLT=55, matching line 311) confirms it: frame line 0 shows
-  R12/R13, line 1 onwards SSA. The RTL reloads VMA from R12/R13 at the frame
-  origin but lets the stored MA (VMA') keep a split captured on the terminal
-  line.
+  frame) in the probed R5=0 case; it takes effect at the next opportunity, e.g.
+  VCC=0/RCC=1. Original Plus probe 11 (SPLT=55, matching line 311, R5=0)
+  confirms it: frame line 0 shows R12/R13, line 1 onwards SSA.
+  With R5>0, V4 screen28 misses a late enable; AmSpirit captures when armed
+  earlier and shows SSA through adjustment, then R12/R13 at frame0–7. The
+  ordinary R1 capture is used on this last normal line. AmSpirit captures a
+  late split on the last adjustment line and carries SSA to frame1 onward;
+  the non-interlaced adjustment-ending line uses R0 in the RTL model. The
+  exact edge and both original-Plus timing controls
+  are still pending. The RTL reloads VMA from R12/R13 at the frame origin
+  but lets the stored MA (VMA') keep a split captured on the terminal line.
 - Multiple splits per frame are allowed (reprogram SPLT/SSA after each one).
-- A split can occur during the **first** char-line of vertical adjust, but not
-  later ones. [ARNOLD-REV]
+- [ARNOLD-REV] says a split can occur during the **first** char-line of vertical
+  adjust, but not later ones. Original6128Plus V4 screen27 contradicts that
+  restriction: captures occur at tested adjustment indexes0,1,8, with index8
+  aliasing index0. The RTL leaves the split comparator active in adjustment.
+  Other indexes and the exact intra-line boundary remain unmeasured.
 - DRAM refresh is derived from the CRTC-generated address: keep split start
   addresses on 16k boundaries so address bits A1-A8 keep cycling, or RAM decays.
   Combining line-by-line vertical rupture (R4=0, R9=0) with raster interrupts
@@ -428,11 +445,12 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   do **not** move sprites. D7's extension is border, and border beats sprites
   (§5), so sprites are hidden in the masked first character too. [ARNOLD §2.1,
   §2.5] See [Eerie Forest green bar](eerie-pri-trigger-counterfactual-2026-09-27.md#green-bar-sprites-under-the-sscr7-border).
-- Effect is immediate (can toggle multiple times per line). The RA output =
-  raster count + scroll value (≈ ANDed with &1F); the CRTC's internal counters
-  are unaffected — hence odd behavior when R9 < 7, correct for R9 ≥ 7. For a
-  clean full-screen vertical scroll the value must equal R9 when HCC==R1 (then
-  the current MA is stored for the next line). [ARNOLD-REV]
+- Effect is immediate (can toggle multiple times per line). The scroll value is
+  added to the low three raster-address bits; the CRTC's internal counters are
+  unaffected. Clean full-screen scrolling is confirmed for R9=7. At HCC==R1,
+  row capture occurs when the effective/displayed RA reaches R9; the current MA
+  is then stored for the next line. Do not generalize clean scrolling to all
+  R9≥7. [ARNOLD-REV; original Plus probe 15]
 - With R9 > 7 only the low three bits wrap, so the displayed RA can exceed R9
   on several lines of one character row. The row capture is the level test
   RA >= R9 at HCC==R1 (current RTL, `asic_video.v` `row_latch_done`): R9=11
@@ -440,8 +458,11 @@ odd  address (high byte): D7-D4 = (unused, reads 0), D3-D0 = GREEN
   rasters 8-10, advancing three source rows per character row. Original
   Plus probes 14-15 show exactly that, identical to AmSpirit
   ([source divergences](../source-divergences.md)).
-- Vertical part pairs with R12/R13 coarse scroll for pixel-perfect scrolling;
-  when V-scroll == 7 it takes precedence over the split-wrap bug case ([KT]).
+- Vertical part pairs with R12/R13 coarse scroll for pixel-perfect scrolling.
+  At frame line 0, row capture can replace a held terminal-line split address
+  whenever the effective raster address reaches R9; V-scroll 7 with R9=7 is the
+  probed example (original Plus probe V3 screen 23). This is not specific to
+  offset 7. [KT; current RTL]
 
 ---
 
@@ -491,13 +512,14 @@ DMA rate follows the CRTC line rate (vertical rupture at half-lines doubles it t
   equate it to REPEAT 1; captured CPCWiki *ASIC* p.5 and current RTL treat it as
   NOP. Do not promote the former approximation to an accepted rule.
 - **PAUSE**: total delay = `N × (PPR+1)` scan lines (64µs ticks); PPR (8-bit)
-  gives PPR+1 lines per tick, giving 64µs..~67s. The previously digested
-  [ARNOLD-REV] claim and captured French DMA tutorial p.4 say PPR changes take
-  effect immediately, even mid-pause. **Current code differs:** it samples the
-  new PPR only when the existing prescaler reaches zero; see finding I5 in the
-  [source comparison](scrapes-interrupt-findings-2026-09-22.md). A pause is not interruptible by SAR rewrites: pause keeps counting
-  if SAR is rewritten; disabling the channel *suspends* pause countdown (state
-  retained, resumes on re-enable). [ARNOLD-REV]
+  gives PPR+1 lines per tick, giving 64µs..~67s. [ARNOLD-REV] and the captured
+  French DMA tutorial p.4 say PPR changes take effect immediately, including
+  mid-pause. In this core, the B20-1 implementation convention is that a CPU
+  PPR write ends the current prescaler interval and the new value controls the
+  next one ([live PPR finding](../live-ppr-2026-09-22.md)). A pause is not
+  interruptible by SAR rewrites: pause keeps counting if SAR is rewritten;
+  disabling the channel *suspends* pause countdown (state retained, resumes on
+  re-enable). [ARNOLD-REV]
 - SAR can be rewritten while the channel runs (list jump). Re-writing an already
   set enable bit is a no-op. On reset all channels stop.
 
@@ -571,10 +593,11 @@ bit 7 first. In the current RTL bit 7 records whether the last acknowledge was
 - **High bank (`&C000-&FFFF`)** selected via classic ROM-select port `&DFxx`:
   - value 128-255 (`&80-&FF`): low 5 bits select cartridge **physical page 0-31**
     directly (logical ROMs 128-159).
-  - value 0-127, ≠ disc ROM code: physical page 1 ("BASIC").
-  - value 0 or 7 (disc ROM code): physical page **3** ("AMSDOS") — on
-    464+/6128+; **on GX4000 selecting 7 still yields page 1** (disc hardware
-    select absent). [ARNOLD-REV]
+  - value 1-6 or 8-127: physical page 1 ("BASIC").
+  - value 7 (disc ROM code): physical page **3** ("AMSDOS") on 464+/6128+;
+    GX4000 selects page 1 because disc hardware is absent.
+  - value 0: on 464+/6128+, /EXP decides (low ⇒ page 1, high ⇒ page 3), just as
+    at reset; GX4000 selects page 1. [ARNOLD-REV; `test_reset_defaults_and_exp_sampling`]
   - Expansion ROMs via ROMDIS still override matching page numbers.
 - **Low bank** (position set by RMR2 D4-D3, page by RMR2 D2-D0): physical pages
   0-7 only.
@@ -650,11 +673,11 @@ third fire line; 4 MHz bus is actually 4.44 MHz-derived timing for some signals.
 
 ## 13. CRTC "type 3" (the ASIC's CRTC) — summary of differences
 
-(Brief — a separate CRTC-focused document covers depth.) Sources: ACCC v1.10
-§21.2.3/§21.3.4, [WIKI-CRTC], [KT crtcnew + cpcplus]. ACCC v1.10 is the
-authority where the older summaries disagree.
+(Brief — a separate CRTC-focused document covers depth.) Sources: ACCC v1.11
+FR §21.2.3/§21.3.4, [WIKI-CRTC], [KT crtcnew + cpcplus]. The French ACCC v1.11
+is the authority where older summaries disagree.
 
-- Port decode (`&BCxx-&BFxx`, b1b0 of address): `00` select (W), `01` write data
+- Port decode (`&BCxx-&BFxx`, A9/A8 of the port address): `00` select (W), `01` write data
   (W), `10` **read data** (R), `11` read data (R) — i.e. both read ports return
   the selected register; there is **no separate status register port** (unlike
   type 1's `&BExx` status).
@@ -666,21 +689,21 @@ authority where the older summaries disagree.
 |---|---|
 | 0, 8, 16, 24 | R16 (light pen H) |
 | 1, 9, 17, 25 | R17 (light pen L) |
-| 2, 10, 18, 26 | "Status 1": bit 0 high at C0=R0; bits 1-5 active-low at C0=R0/2, C0=R1-1, C0=R2, last HSYNC character, and last VSYNC line; bit 6 high; bit 7 previews a VMA low-byte wrap/reload |
+| 2, 10, 18, 26 | "Status 1": bit 0 high at C0=R0; bits 1-5 active-low respectively at C0=R0/2, C0=R1-1 (only when R0≥R1), C0=R2, C0=R2+(R3 & &0F) (the character after HSYNC), and the last VSYNC line; bit 6 high; bit 7 previews a VMA low-byte wrap/reload. R3=0 compares at C0=R2, not after 16 characters. [ACCC v1.11 FR §21.3.4 p.248] |
 | 3, 11, 19, 27 | "Status 2": bits 0-2 active-low at the R4, R6-1 and R7-1 terminal characters; bit 3 is the 16-frame timer; bit 4 high; bit 5 active-low at C9=R9; bit 6 low; bit 7 marks the documented first/final raster regions |
 | 4, 12, 20, 28 | **R12** (all eight stored bits readable; VMA consumes bits 5:0) |
 | 5, 13, 21, 29 | **R13** |
 | 6, 14, 22, 30 | **R14** (stored/readable, bits 7:6 forced zero) |
 | 7, 15, 23, 31 | **R15** (stored/readable) |
 
-The older [KT] table reported slots 6/7 as zero/unmapped. ACCC v1.10
+The older [KT] table reported slots 6/7 as zero/unmapped. ACCC v1.11 FR
 §21.2.3 explicitly says R14/R15 can store values and be read back, so that
-later rule supersedes [KT]. R16/R17 are readable but remain zero on CPC Plus
-hardware because no light-pen strobe source is emulated.
+rule supersedes [KT]. R16/R17 are readable; this core has no light-pen strobe,
+so they are zero unless a snapshot load seeds them.
 
 - R3: both HSYNC width (0⇒16) and VSYNC width (0⇒16) programmable, like type 0.
-- No R31 dummy register. CRTC type 4 ≡ type 3 (register reads repeat the same
-  way).
+- No R31 dummy register. Type 4 has a similar read map, but Status 2 bit 3 may
+  differ; do not assume complete equivalence. [ACCC v1.11 FR §21.3.4 p.248]
 - Type-3 detection by software: unlock ASIC, page ASIC RAM, check it exists.
 
 ---
@@ -711,4 +734,4 @@ hardware because no light-pen strobe source is emulated.
 - ⚠ MISSING — whether DMA RAM fetches insert Z80 wait states (believed no; only 8255/PSG arbitration documented, §9).
 - RESOLVED 2026-09-27 — PRI fire offset after HSYNC start: [ARNOLD-REV] (6µs clamp) and [KT] (~10µs) are both overridden by original-Plus photographs; the request is 1µs after raw HSYNC start at every width (§7).
 - ⚠ CONFLICT — sprite attribute write mirror at offset +3 (magnification per [ARNOLD-REV] vs Y-high per [KT] read table); read mirrors agree.
-- ⚠ CONFLICT — split-wrap pathological SPLT value: 55 ([ARNOLD-REV]) vs 56 ([KT]) for a 312-line frame. Original Plus probe screens 10–13 show 55, as AmSpirit does; the RTL keeps a line-311 capture past the frame origin (resolved).
+- Resolved 2026-09-27 — split-wrap pathological SPLT value: original Plus probes 10–13 show 55 at line 311; [KT]'s 56 is not supported. The RTL keeps the line-311 capture past the frame origin. A possible double match per row when R9>7 remains unprobed (§8).

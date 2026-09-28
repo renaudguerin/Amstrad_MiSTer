@@ -11,12 +11,10 @@
 //  [ARNOLD-REV], [KT], [QUASAR]); sections cited at each rule below.
 //
 //  Bus contract: the caller asserts asic_cs for memory accesses inside the
-//  enabled page; D_out participates in the motherboard's wired-AND CPU data
-//  mux and is therefore HIGH-NEUTRAL — undriven/unmapped reads present 8'hFF
-//  (the explicit open-bus response, reference §4: unmapped areas read the
-//  instruction byte on real hardware; this core has no instruction
-//  visibility, so it contributes the neutral level instead, which the
-//  wired-AND renders identically once every other source also abstains).
+//  enabled page. D_out is HIGH-NEUTRAL (FF) when no register answers;
+//  read_driven distinguishes that case from a register legitimately reading
+//  FF. The motherboard supplies the retained memory-read byte for unclaimed
+//  page reads (reference §4; original Plus V4 screen29, IMG_3971).
 //
 //  No write-through: writes land only in the registers/RAM here. Reaching
 //  the "writes do not hit RAM underneath" system guarantee (reference §2) is
@@ -61,6 +59,7 @@ module asic_regs
 
 	// Wired-AND-neutral read data: 1s wherever this module does not answer
 	output [7:0] D_out,
+	output       read_driven, // readable register selected, including FF data
 
 	// Legacy Gate Array accepted write event (B8-3, Arnold V §2.2 secondary
 	// port): each accepted INKR write maps its 5-bit HW colour into the
@@ -649,6 +648,7 @@ module asic_regs
 	end
 
 	assign D_out = rdata | {8{~renable}};
+	assign read_driven = renable;
 	assign pal_rdata = pal_r;
 
 	// Vector byte: (IVR & &F8) | source; source = %110 (raster) while a

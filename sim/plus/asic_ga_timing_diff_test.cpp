@@ -5,7 +5,12 @@
 //
 // d01-d04 drive BOTH modules inside sim/plus/asic_ga_diff_top.v with identical
 // randomised bus/sync/reset traffic (fixed seed schedule) and require every
-// shared output to agree on every clock edge. Register payload decoding
+// shared output to agree on every clock edge, EXCEPT delivered INT_N: the
+// Plus ASIC holds compatible delivery ~1 character after the raw latch (PA7
+// V5 hardware, docs/plus/pa7-interrupt-phase-followup.md), so as_INT_N
+// intentionally lags ga_INT_N. Lockstep compares ga_INT_N against the
+// simulation-only as_RAW_N tap (the pre-delivery aggregate, exactly the old
+// INT_N); all other shared pins still compare directly. Register payload decoding
 // (BORDER/INKR/mode/ROM map/INT semantics) cannot be compared against
 // ga40010, which does not export those registers, so r01-r03 pin them
 // directly on the replica with expectations derived from the published Gate
@@ -172,7 +177,25 @@ public:
 		CMP(READY); CMP(CPU_N); CMP(MWE_N); CMP(E244_N);
 		CMP(ROMEN_N); CMP(RAMRD_N); CMP(ROM);
 		CMP(HSYNC_O); CMP(VSYNC_O); CMP(SYNC_N);
-		CMP(INT_N); CMP(VBLANK); CMP(MODE);
+		// Delivered as_INT_N lags by ~1 char by design (PA7), so it cannot
+		// lockstep ga_INT_N. Compare the RAW pre-delivery tap instead; the
+		// delivered delay itself is bounded by asic_pri pr14, not here.
+		if (dut.ga_INT_N != dut.as_RAW_N) {
+			char buf[256];
+			snprintf(buf, sizeof buf,
+			         "cycle %llu (%s): RAW INT mismatch ga40010=%d asic_raw=%d (delivered as_INT_N=%d)"
+			         " [cen=%u fast=%d rstN=%d mreq=%d m1=%d rd=%d iorq=%d"
+			         " HS_I=%d VS_I=%d HS_O=%d/%d VS_O=%d/%d]",
+			         (unsigned long long)cyc, phase,
+			         (int)dut.ga_INT_N, (int)dut.as_RAW_N, (int)dut.as_INT_N,
+			         cen_phase, (int)fast, (int)reset_n, (int)mreq_n,
+			         (int)m1_n, (int)rd_n, (int)iorq_n,
+			         (int)hsync_i, (int)vsync_i,
+			         (int)dut.ga_HSYNC_O, (int)dut.as_HSYNC_O,
+			         (int)dut.ga_VSYNC_O, (int)dut.as_VSYNC_O);
+			fail(std::string(buf));
+		}
+		CMP(VBLANK); CMP(MODE);
 	}
 #undef CMP
 
