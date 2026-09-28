@@ -20,7 +20,7 @@ them.
 
 ## B24. Plus ASIC reference clause traceability
 
-**Audited 2026-09-27; RC1-RC8 applied 2026-09-28; phase 2 complete. Plus.** [plus/asic-reference-audit.md](plus/asic-reference-audit.md)
+**Audited 2026-09-27; RC1-RC8 applied 2026-09-28; phases 1–3 complete; hardware pending. Plus.** [plus/asic-reference-audit.md](plus/asic-reference-audit.md)
 traces every normative clause of the Plus implementation reference, with each rule split
 from its exceptions, to its RTL line and to the test that drives that exact condition.
 It was prompted by the terminal-line SSA capture (`t08l`): the reference had quoted the
@@ -31,12 +31,15 @@ Why this matters: vectors derived from observed effects cover what has been seen
 the reference says. The table makes the unexercised exception rows visible before a title
 or probe finds them.
 
-**Remaining action:** implement the independently reviewed PA1/PA2/PA3/PA4/PA7
-hardware probe designs. PA5-PA6 validation and cross-provider review passed. PA6e's initial failure was a snapshot setup
-defect; its repaired live-request setup passes without changing the priority
-expectations or RTL. See the [audit execution status](plus/asic-reference-audit.md#execution-status-2026-09-28).
-No probe cartridge is ready yet. Re-run the affected audit section when
-`asic-reference.md` revises a normative clause.
+**Remaining action:** run V4 screens 26–30 on the original Plus and return photographs
+before any PA1/PA2/PA3/PA4/PA7 RTL change. The [V4 record](plus/asic-audit-probes-v4.md)
+contains reviewed pre-build predictions, production-T80 results, artifact links and
+interpretation limits. PA5-PA6 regression coverage, cross-provider review, the final
+41-bench selection and unchanged soak hash `0xe99ab434a5e1cdb3` pass. PA6e's initial
+failure was a snapshot setup defect; live requests pass the unchanged priority
+expectations. No production RTL changed. See the
+[audit execution status](plus/asic-reference-audit.md#execution-status-2026-09-28).
+Re-run the affected audit section when `asic-reference.md` revises a normative clause.
 
 ## B23. TV80 bench CPU: bus-timing parity with production T80pa
 

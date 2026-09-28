@@ -15,7 +15,7 @@ all ignored). The program is `plus_hw_probes.asm`; the script generates its incl
 (test table, screen text, phase-band table, font). Cold boot shows a title screen listing
 every test. **Any key or joystick fire advances to the next screen**, wrapping back to the
 title; every screen starts from a clean machine state. Each screen names itself
-(`NN/25`, test id, settings), prints the RTL prediction, and interrupt tests print the
+(`NN/30`, test id, settings), prints the RTL prediction, and interrupt tests print the
 counted test interrupts per frame (`IRQ/FRAME=nn`). Photograph each screen whole,
 including the text rows; note the machine model.
 
@@ -25,10 +25,11 @@ RA2 plane shown on RA0 by an SSCR write (A), or pen 0 turned yellow for about 9 
 
 ### Screens
 
-"RTL" is the production simulation of the current cartridge on current master (see below);
+"RTL" records production simulations (see below). V4 screens26–30 use the
+unchanged production RTL at branch base `77ebf51`; V4 is not yet integrated.
 "AmSpirit" is Lite 1.15.1, 6128Plus/CRTC3, on the same CPR. "Original Plus" is the
 2026-09-27 photograph set (cartridge V1 screens 01–18, V2 screens 19–20, V3 screens 21–25) recorded in [the ledger](../../docs/plus/source-divergences.md#probe-photographs).
-Screens 19–20 were added in V2 (photographed the same day) and 21–25 in V3; earlier numbering is unchanged.
+Screens 19–20 were added in V2 (photographed the same day), 21–25 in V3, and 26–30 in V4. Earlier numbering is unchanged. V4 hardware results remain pending.
 
 | # | Test | Question | RTL | AmSpirit | Original Plus |
 |---|---|---|---|---|---|
@@ -52,6 +53,11 @@ Screens 19–20 were added in V2 (photographed the same day) and 21–25 in V3; 
 | 23 | D5 SPLT=55, vscroll 7 | Does the line-0 row capture (offset 7 makes raster 0 the row's last) replace the held line-311 split? | red to line 55, green from 56 | same | as RTL |
 | 24 | E3 R9=3 rows 6–11, vscroll 0 | Reference for E4 | bars step once per 4-line row | same | as RTL |
 | 25 | E4 R9=3 rows 6–11, vscroll 2 | R9<7 with an offset: does `ra_eff >= R9` capture on several lines of a row? | bars step on 3 lines of every 4-line row | same | as RTL |
+| 26 | PA1 real `IN A/B/D/E/H/L,(C)` | Opcode, opcode OR1, or fixed model byte? | CPU `FF` each; GRB `066/666/006/066/666/0F6`; controls `066/F66` | pending | pending |
+| 27 | PA2 adjustment captures, R5=16 | Which adjustment indexes can capture SSA? | Lines296–311 red; timed writes verified | pending | pending |
+| 28 | PA3 terminal split with R5=16 | Immediate, carried, or deferred terminal SSA? | Adjustment296–311 green; frame0–7 red | pending | pending |
+| 29 | PA4 unmapped page reads | Last operand/opcode, FF, or underlying RAM? | `FF FF FF FF`; controls `A5 5A 0B 5A` | pending | pending |
+| 30 | PA7 compatible interrupt phase | Extra delay relative to raw HSYNC? | Marker right edges x68/x180, difference112 dots; count02 | pending | pending |
 
 Why each matters and what each outcome would change: [source-divergences.md](../../docs/plus/source-divergences.md).
 
@@ -88,6 +94,62 @@ Why each matters and what each outcome would change: [source-divergences.md](../
   row on E4 too.
 - The NOP windows accept interrupts on the same 1 µs M1 boundary as `HALT`.
 
+
+### V4 audit screens: photograph protocol
+
+The [reviewed pre-build design](../../docs/plus/asic-audit-probes-v4.md) separates
+hardware hypotheses from the production-model observations below. There is no
+RTL change. These five screens await original hardware; they are not findings
+of incorrect hardware behavior merely because a written source predicts another
+outcome. Record the Plus model, loading method and capture device.
+
+- **26 PA1:** photograph every CPU byte and three-digit **GRB** palette word.
+  `IN A` at port7F54 repeats KT's original port low byte. OUT78/79 controls should
+  read066/F66. Each IN starts from blue `00F`; that result means no observed
+  palette write for that row. CPU return and the GA write are separate observations.
+- **27 PA2:** photograph the 16-line adjustment strip just before the frame
+  origin, with the cyan phase dash in the adjacent border. All red; green from297;
+  green297 only; and green297 plus305–311 are the four observable classes.
+  Green297 only also fits unrestricted eligibility without the unprobed RC3
+  alias. A one-line green stripe must remain resolvable in the capture.
+- **28 PA3:** use identical geometry to27. Adjustment green/frame1–7 red means
+  restart reload; adjustment green/frame1–7 green means carry; adjustment
+  red/frame1–7 green means deferred application. Frame0 is red in those cases.
+  All red is ambiguous. The red or green strip must contrast with the blue border;
+  green is not a prerequisite for visibility. The unusual R7 position deliberately
+  brings adjustment and the frame origin onto the visible monitor area.
+- **29 PA4:** photograph all four reads and four controls. RAM sentinels are
+  written with the ASIC page unmapped, then read before remapping. The sprite
+  and palette controls establish supported mapped readback.
+- **30 PA7:** compare the right edges of the two yellow pen0 markers. The upper
+  marker is the programmed PRI reference; the lower is the compatible interrupt.
+  Both use the same ISR and A13=1 NOP window. Rulers immediately below the
+  markers have8-dot ticks, with longer ticks every16 dots. Difference112 versus128 mode2 dots
+  distinguishes the stated acceptance-slot hypotheses. This does not distinguish
+  a common Plus HSYNC shift from no extra delay, nor measure raw IRQ time below
+  the CPU acceptance resolution. `IRQ/FRAME=02` is the two-marker control.
+
+PA2/PA3 show explanatory text again where video-address wrapping repeats it;
+those text regions are outside the reserved flat sample spans. The top cyan dash
+is at raw line295 after HSYNC; it appears near the monitor-wrapped left border.
+The later diagnostic border write is inside active display and is not itself a
+second visible mark. Judge visibility from the blue border, top dash and the
+identified strip, not from that hidden write.
+
+Generated hardware handoff: [title-first V4 CPR](../../output_files/plus-hw-probes/v4/plus-hw-probes.cpr)
+and [start-at-26 V4 CPR](../../output_files/plus-hw-probes/v4/plus-hw-probes-start26.cpr).
+The design document records their SHA256 hashes and the complete simulation evidence.
+
+A direct screen26 image is convenient for hardware testing:
+
+```sh
+python3 scripts/diagnostics/plus_hw_probes.py --output-dir output_files/plus-hw-probes/v4 --start 26
+```
+
+The normal build without `--start` opens the title. Any key or joystick fire
+advances26→27→28→29→30→title. Allow three seconds after each change for setup and
+monitor settling before photographing.
+
 ### Simulation predictions
 
 ```sh
@@ -96,10 +158,15 @@ python3 scripts/diagnostics/plus_hw_probes_sim.py --no-build --screens 4
 ```
 
 Builds the D5 production-T80 fixture (`sim/plus/prepare_d5_boot.py`, GHDL T80 netlist)
-with four extra probe ports, then runs one CPR per start screen (`--start N`). Each run
+with passive diagnostic probe ports, then runs one CPR per start screen (`--start N`). Each run
 writes `output_files/plus-hw-probes/sim/NN.ppm` in C0 geometry (x = C0·16 + dot,
-y = scanline) and `NN-events.txt` with PRI/SPLT/SSCR/pen-0 writes, raster requests and
-acknowledges of the last frame, each with line and C0. Uses Homebrew LLVM by default
+y = scanline). Images and `NN-events.txt` cover the same complete CRTC-origin
+frame, identified in the event header. Events include raw HSYNC rises/falls,
+actual motherboard INT and ACK, split captures, line-start MA/stored MA, ASIC
+and legacy-GA writes, and monotonic master-clock timestamps. `NN-acquisition.txt`
+records selected CPU read samples across startup, `NN-results.txt` dumps the
+ordinary-RAM observation buffer, and `NN-navigation.txt` records screen changes.
+The wrapper exits unsuccessfully if any screen run fails. Uses Homebrew LLVM by default
 (`--cxx`), as the rest of the Verilator suite does on macOS.
 
 ## PRI alias experiment (`pri_alias_probe.py`)
