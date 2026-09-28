@@ -31,9 +31,11 @@ Why this matters: vectors derived from observed effects cover what has been seen
 the reference says. The table makes the unexercised exception rows visible before a title
 or probe finds them.
 
-**Remaining action:** run [V5 PA7 screens30–35](plus/pa7-interrupt-phase-followup.md)
-on the original Plus. AmSpirit gives normalized G=0, width12 gap192 and
-LD/RET/INC means128/144/128; the RET NC control is the new discriminator.
+**Remaining action:** resolve the RET NC pass-A reference phase using the
+[V5 PA7 hardware results](plus/pa7-interrupt-phase-followup.md#original-6128-plus-results-2026-09-28).
+The 6128 Plus gives G=0, width12 gap192 and LD/RET/INC means128/128/128.
+AmSpirit RET144 disagrees: its first PRI reference marker is32 dots earlier
+than hardware, as is RTL. An IRQ-only fix must not hide this CPU-visible discrepancy.
 Raw IRQ timing remains unresolved and no PA7 RTL fix is included. Run the original-Plus early-arm
 PA3 control and both last-adjustment-line variants; AmSpirit supports these
 mechanisms, but those hardware confirmations are still missing. Interlace

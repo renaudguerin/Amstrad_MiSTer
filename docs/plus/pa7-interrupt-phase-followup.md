@@ -1,6 +1,6 @@
 # PA7 interrupt request versus CPU acceptance
 
-Status: investigation; no IRQ RTL change. Original evidence is the V4 screen 30
+Status: V5 original-6128-Plus results recorded; no IRQ RTL change. Original evidence is the V4 screen 30
 photograph from a 6128 Plus through Retrotink 4K and the pixel-perfect AmSpirit
 Lite 1.15.1/core 2491682 capture. Both show about 128 mode2 dots between marker
 right edges; the production-T80 RTL shows 112. Hardware has precedence.
@@ -103,9 +103,9 @@ between delaying the IRQ alone and delaying a shared internal HSYNC.
 The review supplies an assembler sketch and calibration targets, not verified
 code. Calibration may position the experiment (requests pending before EI,
 markers visible, reset away from the counter clock edge); it must not redefine expected results.
-Original 6128 Plus confirmation of the new controls remains outstanding.
+Original 6128 Plus results are recorded below; these predictions remain unchanged.
 
-## Oracle observations (hardware confirmation pending)
+## Oracle observations (compare with hardware results below)
 
 AmSpirit Lite 1.15.1/core 2491682, 6128 Plus model, CRTC3, unfiltered render.
 Each cartridge settled for 100 frames. The prior snapshot and pause state were
@@ -197,11 +197,67 @@ Screen 31 also needs four visible magenta marks. Missing marks or a different
 count invalidate the intended comparison and should be reported as observed.
 The main new question is whether screen 34 also averages 144 dots on hardware.
 
-No PA7 RTL fix is made. The original Plus run remains outstanding. The
-separate PA3 early-arm and last-adjustment-line hardware controls are also
-still outstanding; this cartridge does not replace them.
+No PA7 RTL fix is made. The original Plus run is recorded below. The separate
+PA3 early-arm and last-adjustment-line hardware controls are still outstanding;
+this cartridge does not replace them.
 
 Cartridge SHA-256: `70efbbbcbf6bcc994461c4052ca9cbd4f06545f6d12f429fb858161a424bf352`.
+
+## Original-6128-Plus results (2026-09-28)
+
+The user supplied `IMG_3973.HEIC` through `IMG_3978.HEIC` under
+`output_files/plus-hw-probes/pa7-followup/`. Their visible titles identify
+screens 30 through 35 respectively. Capture provenance follows the user's
+6128 Plus → Retrotink 4K → TV → phone setup. Every expected marker is visible,
+including all four magenta markers on screen 31. Screen 30 reads IRQ/FRAME=02;
+screens 31–35 all read 04. The printed RTL predictions are labels, not results.
+
+Measurements use each band's adjacent ruler, whose ticks are eight mode2 dots
+apart. The table records visually resolved positions in ruler intervals from
+that band's zero tick; camera coordinates from different bands are not
+subtracted. Half-tick positions are approximate (allow about two dots per
+edge), not subpixel timing measurements. These readings were made from the
+photographs, independently of the emulator's expected values.
+
+| Photo / screen | Yellow right edges in 8-dot ruler intervals: ref A, compatible A, ref B, compatible B | A/B gaps in dots | Mean |
+|---|---|---|---:|
+| IMG_3973 / 30 NOP W8 | 6.5, 22.5 | 128 | 128 |
+| IMG_3974 / 31 G | 56.5, 58.5, 58.5, 60.5 | Normalized below | 0 |
+| IMG_3975 / 32 NOP W12 | 6.5, 30.5, 6.5, 30.5 | 192 / 192 | 192 |
+| IMG_3976 / 33 LD A,(HL) | 6.5, 24.5, 8.5, 22.5 | 144 / 112 | 128 |
+| IMG_3977 / 34 RET NC not taken | 8.5, 24.5, 6.5, 22.5 | 128 / 128 | 128 |
+| IMG_3978 / 35 INC HL | 4.5, 20.5, 6.5, 22.5 | 128 / 128 | 128 |
+
+Screen 31's magenta edges lie at ruler intervals 12,14,14,16. Each
+magenta-to-yellow distance is approximately 44.5 intervals =356 dots;
+subtracting reference from compatible gives G≈0 in both passes.
+
+The hardware supports the falling-edge-width dependence (W12 minus W8 is
+64 dots) and does not show a persistent source-dependent acceptance penalty
+in the pending-under-DI control. All L/R/I means are approximately128 dots.
+Within the predeclared operational readings, these results fit a one-character
+request shift with equal sub-character phase. They do not uniquely establish
+that internal implementation: a fractional delay in an unsampled interval,
+source-dependent sampling effects, and a shared internal HSYNC shift are still
+not distinguished. A common Plus-versus-CPC shift remains unmeasured.
+
+**Hardware rejects AmSpirit's RET NC mean144 as the oracle for this case.**
+The disagreement is specifically the first PRI reference marker: hardware is
+at ruler dot68, while AmSpirit is at dot36 (capture x51 minus ruler origin15).
+The other three RET edges agree at dots196,52,180. Current RTL puts the first
+reference at dot36 too (raw x52 minus ruler origin16). Hardware's first PRI
+reference therefore differs by32 dots even though that is not the compatible
+IRQ source. Matching the mean alone would hide this discrepancy.
+
+The next implementation prerequisite is to account for the RET NC pass-A
+reference phase through CPU/WAIT/instruction alignment, then prove any proposed
+compatible-IRQ timing change against all individual hardware marker positions
+and counts. A compatible-only request delay cannot by itself explain the PRI
+reference discrepancy. Preserve the existing classic lockstep test until the
+specific Plus deviation is justified; do not weaken expectations or change
+shared counter, ACK, PRI or snapshot policy merely to fit a mean. PA7 remains
+open, and no RTL was edited for this evidence update. PA3's separate hardware
+controls remain outstanding.
 
 ## Review and validation
 
