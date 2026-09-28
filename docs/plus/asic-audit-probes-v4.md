@@ -2,7 +2,7 @@
 
 Design date: 2026-09-28. The design below received independent review **before
 building a cartridge**. Its hypotheses are retained separately from the
-implementation observations at the end. No hardware result is claimed. The scope is exactly five
+implementation observations and the original-hardware photograph record at the end. The scope is exactly five
 new screens, appended to V3: 26 PA1, 27 PA2, 28 PA3, 29 PA4 and 30 PA7. Preserve
 screens 01–25, their numbering, handlers, timing constants and geometry. No RTL
 change is part of this work. Phase 2 vectors and their acceptance status are
@@ -480,6 +480,91 @@ sim/plus/obj_dir/plus_hw_probes_sim/plus_hw_probes_sim output_files/plus-hw-prob
 sim/plus/obj_dir/plus_hw_probes_sim/plus_hw_probes_sim output_files/plus-hw-probes/v4/sim/plus-hw-probes-start30.cpr output_files/plus-hw-probes/v4/final-nav30 65 40
 ```
 
-Original hardware remains
-the next acceptance step; no result here closes the observational equivalences
-listed above or authorizes a production RTL fix.
+These simulation observations establish cartridge behavior only. The subsequent
+hardware observations and their remaining ambiguities are recorded below.
+
+## Original 6128 Plus photographs (2026-09-28)
+
+The user supplied `IMG_3968.HEIC` through `IMG_3972.HEIC` and confirmed the path:
+**6128 Plus → Retrotink 4K → TV → phone photograph**. Original files are preserved
+under `output_files/plus-hw-probes/v4/hardware/` beside PNG conversions and reduced
+previews; all image artifacts remain ignored. The five filenames map to screens
+26–30 in order. The pre-build predictions above remain unchanged.
+
+The parent and a separate Astra medium reviewer independently read the images.
+No simulation result was substituted for a photographed value. This records
+observations and their limits; no RTL change accompanies the photograph record.
+
+| Photo / screen | Hardware observation | Comparison with pre-build RTL prediction |
+|---|---|---|
+| IMG_3968 / 26 PA1 | CPU `78 40 50 58 60 68`, then `78` for port7F54. GRB `066 666 006 066 666 0F6`, repeat `066`. OUT controls `066/F66`. | CPU readback differs from RTL `FF`; palette writes agree with opcode tracking. This 6128 Plus does not show KT's fixed `79` claim. |
+| IMG_3969 / 27 PA2 | Thin green line, red gap, then a seven-line green band. Fits red296, green297, red298–304, green305–311. Blue border and cyan dash visible. | Differs from RTL's all-red adjustment. Supports captures at tested adjustment indexes0,1,8, including the SPLT32 alias at index8. |
+| IMG_3970 / 28 PA3 | All red in the measurement region; no green adjustment or post-origin band. No cyan dash discernible. | Differs from the predicted green adjustment, but matches the explicitly ambiguous outcome: missed capture or deferred capture discarded at restart. Does not select a pointer/restart fix. |
+| IMG_3971 / 29 PA4 | Reads `50 68 7E 7E`; RAM controls `A5/5A`, sprite `0B`, palette `5A`. | Differs from RTL `FF FF FF FF`; matches the last-memory-read-byte prediction rather than M1-only or underlying RAM. |
+| IMG_3972 / 30 PA7 | Two yellow markers; `IRQ/FRAME=02`. Right-edge separation approximately128 mode2 dots. | Differs from RTL's112-dot acceptance-slot separation. Does not uniquely establish an exact raw-IRQ delay. |
+
+For PA7, compare each edge against its own adjacent ruler to account for camera
+perspective. The reference edge is about halfway between short ticks6 and7
+(~52 dots from ruler origin); the compatible edge is between ticks22 and23
+(~180 dots). The difference is approximately16 short intervals ×8 =128 dots,
+rather than the14 intervals of the112-dot prediction. A submicrosecond request
+shift crossing a CPU sampling boundary can also cause this extra16-dot software
+slot. A common Plus-versus-CPC HSYNC shift remains outside this experiment.
+
+PA2 resolves the previously noted **negative-result** alias ambiguity positively:
+the later green band establishes the tested index8 alias and eligibility. It does
+not independently test every adjustment index or distinguish capture at R1 from
+capture at R0. Preserve that distinction when deriving a failing vector.
+
+PA3 was armed after R1 on the terminal normal line. An earlier hardware capture
+boundary is one possible reason for the missed effect. Its16-dot cyan dash is
+shorter than PA2's48-dot dash; blanking or cropping could hide it, so the missing
+dash does not prove the handler failed. The next discriminator should compare
+early-before-R1 and late-after-R1 terminal arming at R5=16, retaining an R5=0
+control and a visible phase/handler control away from HSYNC blanking. Do not
+change terminal capture or frame-restart semantics from this photograph alone.
+
+PA1/PA4 establish the returned-byte vectors for these instruction streams, not a
+unique physical latch mechanism. Preserve PA1's already matching decoder-write
+path while investigating CPU readback. Any implementation follows the phase-4
+contract: hardware-derived fail-before vector, one fix per commit, independent
+cross-provider review, then the selection/soak gates. Existing deliberate
+source deviations remain protected.
+
+### PA3 AmSpirit discriminator
+
+At the user's request, AmSpirit Lite1.15.1/core2491682 was used through the
+existing HTTP helper, model4 (6128 Plus), CRTC3, monitor preset Off and all CRT
+effects disabled. The current machine was saved first; its snapshot and paused
+state were restored afterward. This is emulator evidence, kept separate from
+the original-Plus photograph.
+
+The unchanged screen28 CPR (`06209727d93f134317766d9c3208a7c00c8c534922d6047268351e825d591741`)
+was cold-booted and allowed150 frames to settle. Its lossless
+[original-timing capture](../../output_files/plus-hw-probes/v4/amspirit/28.png)
+is all red, matching IMG_3970; there is no full-width green adjustment stripe.
+
+A temporary diagnostic variant moved only the enable timing24 NOPs earlier:
+`ds ADJ_FINE,0` became `ds ADJ_FINE-24,0`, and24 NOPs were added before PA3's
+SPLT disable. The disable time, SSA and geometry therefore stayed unchanged.
+The source and pre-run prediction are preserved in the ignored `amspirit/`
+evidence directory; the checked-in cartridge source was not modified. The
+prediction was: if the original missed an R1 opportunity, earlier arming would
+produce green adjustment; if neither timing captures, it would remain all red.
+
+The variant CPR (`c9c9b989353e363c00331d283f6668b15673b1f58c7701e32f1bd3e85d4c5e87`)
+was cold-booted and settled for150 frames. Its
+[early-arm capture](../../output_files/plus-hw-probes/v4/amspirit/28-early.png)
+has exactly32 full-width green image rows at y240–271:16 emulated adjustment
+lines at vertical2×. The following image rows272–287 (frame lines0–7) remain
+red in both runs. Measurement used the full640-pixel active span x15–654,
+not text glyphs or a single sampled pixel.
+
+**Working diagnosis:** in AmSpirit, late arming misses the capture opportunity;
+it does not demonstrate loss of an already-captured SSA at frame restart. Once
+armed early enough, adjustment is green and frame0–7 red, matching the RTL's
+restart result. Together with the matching late-arm hardware photograph, this
+narrows PA3 to terminal capture timing with R5>0, rather than justifying a
+frame-restart persistence change. It supports an earlier capture boundary in
+AmSpirit but does not measure the exact boundary on original hardware. The
+early-arm variant has not yet been run on the original Plus.

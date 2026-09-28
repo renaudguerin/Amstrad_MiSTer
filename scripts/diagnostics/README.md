@@ -29,7 +29,7 @@ RA2 plane shown on RA0 by an SSCR write (A), or pen 0 turned yellow for about 9 
 unchanged production RTL at branch base `77ebf51`; V4 is not yet integrated.
 "AmSpirit" is Lite 1.15.1, 6128Plus/CRTC3, on the same CPR. "Original Plus" is the
 2026-09-27 photograph set (cartridge V1 screens 01–18, V2 screens 19–20, V3 screens 21–25) recorded in [the ledger](../../docs/plus/source-divergences.md#probe-photographs).
-Screens 19–20 were added in V2 (photographed the same day), 21–25 in V3, and 26–30 in V4. Earlier numbering is unchanged. V4 hardware results remain pending.
+Screens 19–20 were added in V2 (photographed the same day), 21–25 in V3, and 26–30 in V4. Earlier numbering is unchanged. V4 photographs from a 6128 Plus are recorded in the [V4 hardware record](../../docs/plus/asic-audit-probes-v4.md#original-6128-plus-photographs-2026-09-28).
 
 | # | Test | Question | RTL | AmSpirit | Original Plus |
 |---|---|---|---|---|---|
@@ -53,11 +53,11 @@ Screens 19–20 were added in V2 (photographed the same day), 21–25 in V3, and
 | 23 | D5 SPLT=55, vscroll 7 | Does the line-0 row capture (offset 7 makes raster 0 the row's last) replace the held line-311 split? | red to line 55, green from 56 | same | as RTL |
 | 24 | E3 R9=3 rows 6–11, vscroll 0 | Reference for E4 | bars step once per 4-line row | same | as RTL |
 | 25 | E4 R9=3 rows 6–11, vscroll 2 | R9<7 with an offset: does `ra_eff >= R9` capture on several lines of a row? | bars step on 3 lines of every 4-line row | same | as RTL |
-| 26 | PA1 real `IN A/B/D/E/H/L,(C)` | Opcode, opcode OR1, or fixed model byte? | CPU `FF` each; GRB `066/666/006/066/666/0F6`; controls `066/F66` | pending | pending |
-| 27 | PA2 adjustment captures, R5=16 | Which adjustment indexes can capture SSA? | Lines296–311 red; timed writes verified | pending | pending |
-| 28 | PA3 terminal split with R5=16 | Immediate, carried, or deferred terminal SSA? | Adjustment296–311 green; frame0–7 red | pending | pending |
-| 29 | PA4 unmapped page reads | Last operand/opcode, FF, or underlying RAM? | `FF FF FF FF`; controls `A5 5A 0B 5A` | pending | pending |
-| 30 | PA7 compatible interrupt phase | Extra delay relative to raw HSYNC? | Marker right edges x68/x180, difference112 dots; count02 | pending | pending |
+| 26 | PA1 real `IN A/B/D/E/H/L,(C)` | Opcode, opcode OR1, or fixed model byte? | CPU `FF` each; GRB `066/666/006/066/666/0F6`; controls `066/F66` | pending | CPU78/40/50/58/60/68, repeat78; palette and controls as RTL |
+| 27 | PA2 adjustment captures, R5=16 | Which adjustment indexes can capture SSA? | Lines296–311 red; timed writes verified | pending | Green297 and305–311: tested indexes0/1/8 capture |
+| 28 | PA3 terminal split with R5=16 | Immediate, carried, or deferred terminal SSA? | Adjustment296–311 green; frame0–7 red | All red; early-arm variant has green adjustment/red frame0–7 | All red; phase dash not discernible; mechanism unresolved |
+| 29 | PA4 unmapped page reads | Last operand/opcode, FF, or underlying RAM? | `FF FF FF FF`; controls `A5 5A 0B 5A` | pending | 50/68/7E/7E; all controls pass |
+| 30 | PA7 compatible interrupt phase | Extra delay relative to raw HSYNC? | Marker right edges x68/x180, difference112 dots; count02 | pending | Approximately128-dot gap, count02; software-visible slot |
 
 Why each matters and what each outcome would change: [source-divergences.md](../../docs/plus/source-divergences.md).
 
@@ -99,9 +99,8 @@ Why each matters and what each outcome would change: [source-divergences.md](../
 
 The [reviewed pre-build design](../../docs/plus/asic-audit-probes-v4.md) separates
 hardware hypotheses from the production-model observations below. There is no
-RTL change. These five screens await original hardware; they are not findings
-of incorrect hardware behavior merely because a written source predicts another
-outcome. Record the Plus model, loading method and capture device.
+RTL change. The five original-6128-Plus photographs are recorded separately from these
+predeclared predictions; discrepancies and unresolved mechanisms are listed there. Record the Plus model, loading method and capture device.
 
 - **26 PA1:** photograph every CPU byte and three-digit **GRB** palette word.
   `IN A` at port7F54 repeats KT's original port low byte. OUT78/79 controls should
