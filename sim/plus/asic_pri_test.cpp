@@ -32,7 +32,7 @@
 //   pr10-pr12 use the plus_hw_probes geometry (R0=63).
 //   pr14  classic (compatible) delivery one character after raw assertion:
 //         V5 conditional bounds (not delivered by 55, delivered by 72),
-//         MRER/ACK cancellation in the
+//         MRER cancellation / DMA ACK retention in the
 //         pending window, PRI mask/unmask maturation and SNA immediate
 //         delivery controls.
 //
@@ -923,9 +923,9 @@ void pr13_fire_clears_counter_bit5() {
 // window checks this model; an exact next-CCLK assertion would merely
 // mirror the implementation and is deliberately omitted.
 //
-// Cancellation (MRER bit 4 / ACK inside the pending window) must prevent
-// any delivered pulse: the raw OR term in delivered INT_N cancels
-// immediately, so no ghost request appears. Hidden classic pending keeps
+// MRER cancellation must prevent a delivered pulse. Original-Plus overlap
+// photographs supersede the former ACK-cancels-undelivered assumption:
+// DMA ACK retains compatible pending. Hidden classic pending keeps
 // maturing while PRI masks delivery, and an SNA-restored pending request
 // is seeded already delivered (SNA_LOAD sets delivery exactly as raw).
 static uint64_t pr14_wait_raw(PriBench& b, const char* who) {
@@ -1002,8 +1002,10 @@ void pr14_classic_delivery() {
                 fail("pr14 MRER: ghost INT after window-cancelled raw");
         }
     }
-    // C: ACK (M1+IORQ) inside the pending window cancels with no ghost.
-    {
+    // C: Original-Plus overlap (2026-09-28) retains both sources. Exercise
+    // release before delivery and delivery inside the same held DMA ACK.
+    // Internal timing is model preservation; source survival is hardware.
+    for (unsigned ack_ticks : {4u, 100u}) {
         PriBench b;
         b.power_on();
         b.empty_ack();
@@ -1015,21 +1017,24 @@ void pr14_classic_delivery() {
             fail("pr14 ACK: INT already low at raw, must stay high until delivery (too early)");
         b.iorq_n = false;
         b.m1_n = false;
-        for (unsigned i = 0; i < 4; ++i) {
+        for (unsigned i = 0; i < ack_ticks; ++i) {
             b.tick();
-            if (b.dut.INT_N == 0)
-                fail("pr14 ACK: ghost INT asserted during window ACK (old delivers too early)");
+            if (i < 55 && b.dut.INT_N == 0)
+                fail("pr14 ACK: delivery moved earlier during DMA ACK");
+            if (b.dut.int_last_raster)
+                fail("pr14 ACK: compatible maturation changed DMA provenance");
+            if (b.dut.rootp->asic_ga_timing__DOT__irqack_rst)
+                fail("pr14 ACK: DMA ACK armed held raster counter clear");
         }
         b.iorq_n = true;
         b.m1_n = true;
         b.run(2);
-        for (unsigned i = 0; i < 100; ++i) {
-            b.tick();
-            if (b.dut.INT_N == 0)
-                fail("pr14 ACK: ghost INT after window-cancelled raw");
-        }
-        if (b.dut.rootp->asic_ga_timing__DOT__classic_int_n != 1)
-            fail("pr14 ACK: window ACK must clear raw classic latch");
+        b.run(100);
+        if (b.dut.INT_N || b.dut.rootp->asic_ga_timing__DOT__classic_int_n)
+            fail("pr14 ACK: DMA ACK lost compatible request");
+        b.empty_ack();
+        if (!b.dut.INT_N || !b.dut.int_last_raster)
+            fail("pr14 ACK: subsequent raster ACK must retire retained request");
     }
     // D: MODEL POLICY: hidden classic pending matures under PRI mask.
     // This pins the selected delayed-delivery mechanism, not later raw timing.
@@ -1082,7 +1087,7 @@ void pr14_classic_delivery() {
         if (b.dut.INT_N != 1)
             fail("pr14 SNA: restored pending must acknowledge");
     }
-    std::printf("PASS pr14: classic delivery ~1 char after raw (55/72 conditional bounds), window cancel, PRI/SNA controls\n");
+    std::printf("PASS pr14: compatible delivery bounds, MRER cancel, DMA ACK retention, PRI/SNA controls\n");
 }
 
 int main(int argc, char** argv) {

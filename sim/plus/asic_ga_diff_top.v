@@ -154,7 +154,7 @@ module asic_ga_diff_top (
 		.pri(8'd0),
 		.crtc_line(9'd0),
 		.crtc_adj(1'b0),
-		.intack(1'b0),
+		.intack(~M1_N & ~IORQ_N),
 		.int_last_raster(),
 		.SNA_LOAD(1'b0),
 		.SNA_INKSEL(5'd0),

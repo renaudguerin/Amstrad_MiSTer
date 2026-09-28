@@ -10,8 +10,11 @@
 // V5 hardware, docs/plus/pa7-interrupt-phase-followup.md), so as_INT_N
 // intentionally lags ga_INT_N. Lockstep compares ga_INT_N against the
 // simulation-only as_RAW_N tap (the pre-delivery aggregate, exactly the old
-// INT_N); all other shared pins still compare directly. Register payload decoding
-// (BORDER/INKR/mode/ROM map/INT semantics) cannot be compared against
+// INT_N); all other shared pins still compare directly.
+// ACK stimulus is restricted to delivered raster requests in both models:
+// original-Plus DMA overlap photographs reject raw GA equivalence for an ACK
+// before compatible delivery. pa7-dma-overlap and b20-ack-diag cover that class.
+// Register payload decoding (BORDER/INKR/mode/ROM map/INT semantics) cannot be compared against
 // ga40010, which does not export those registers, so r01-r03 pin them
 // directly on the replica with expectations derived from the published Gate
 // Array port description cited in the RTL header.
@@ -287,6 +290,11 @@ public:
 			iorq_n = true;
 			break;
 		case Cyc::IntAck:
+			// Shared-domain comparison only: an empty/undelivered ACK is a
+			// DMA/expansion ACK on Plus and has different retention semantics
+			// from ga40010 (original-Plus overlap record, 2026-09-28).
+			// Keep every comparator active; replace ineligible ACK with idle.
+			if (dut.ga_INT_N || dut.as_INT_N) { run(2); break; }
 			m1_n = iorq_n = false; mreq_n = rd_n = true;
 			run(2);
 			m1_n = iorq_n = true;

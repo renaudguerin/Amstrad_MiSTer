@@ -445,6 +445,52 @@ void test_pa6e_simultaneous_priority(Vplus_p8_test_top& dut) {
     }
 }
 
+// Original-Plus PA7 overlap photographs require DMA04 then raster06 when
+// compatible matures during the DMA acknowledge. The long synthetic pulse
+// isolates the GA/register interaction; the unchanged CPR separately proves
+// reachable production-T80 timing. No internal silicon phase is inferred.
+void test_pa7_compatible_during_dma(Vplus_p8_test_top& dut) {
+    auto tick = [&]() { dut.clk=0; dut.eval(); dut.clk=1; dut.eval(); };
+    for (bool manual : {false, true}) {
+        b8_global_reset(dut, tick);
+        B8Header h;
+        h.crtc[0]=63; h.crtc[1]=40; h.crtc[2]=49; h.crtc[3]=0x88;
+        h.crtc[4]=38; h.crtc[6]=25; h.crtc[7]=30; h.crtc[9]=7;
+        h.intcnt=51;
+        B8ChunkParams p;
+        p.dcsr=0x40; // pending DMA0, stopped; B4=0 leaves compatible idle
+        b8_stream_chunk_apply(dut, tick, p, h);
+        auto write = [&](uint16_t address, uint8_t value) {
+            dut.aregs_cs=1; dut.aregs_mem_wr=1;
+            dut.aregs_addr=address; dut.aregs_din=value;
+            tick(); dut.aregs_cs=0; dut.aregs_mem_wr=0; tick();
+        };
+        if (manual) write(0x2805, 1);
+        unsigned guard=0;
+        while (dut.ga_raw_int_n_out && ++guard < 6000) tick();
+        if (dut.ga_raw_int_n_out || !dut.ga_int_n_out)
+            fail("PA7 setup: expected undelivered compatible request");
+        dut.ga_m1_n=0; dut.ga_iorq_n=0;
+        auto first=b20_ack_pulse(dut, tick, 100, "PA7 DMA across compatible delivery");
+        if (first[0] != 4) fail("PA7: first source must be DMA0/04");
+        if (dut.aregs_dcsr != (manual ? 0x40 : 0))
+            fail("PA7: compatible maturation changed DMA clear/status provenance");
+        if (dut.ga_int_n_out || dut.ga_raw_int_n_out)
+            fail("PA7: compatible request lost inside DMA ACK");
+        b20_release(dut, tick, 4);
+        if (manual) write(0x2c0f, 0x40); // handler clears manual flag
+        if (dut.ga_int_n_out) fail("PA7: DMA cleanup cleared compatible request");
+        dut.ga_m1_n=0; dut.ga_iorq_n=0;
+        auto second=b20_ack_pulse(dut, tick, 8, "PA7 retained raster");
+        if (second[0] != 6 || dut.aregs_dcsr != 0x80)
+            fail("PA7: retained raster must give vector06/status80");
+        b20_release(dut, tick, 4);
+        if (!dut.int_n_merged) fail("PA7: sources not retired after two ACKs");
+        std::printf("PASS PA7: DMA%s vector04 stable across compatible maturation, then 06/80\n",
+                    manual ? " manual" : " auto");
+    }
+}
+
 void test_b20_idle_probe(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
 	b8_global_reset(dut, tick);
@@ -500,6 +546,7 @@ int main(int argc, char** argv) {
 			Vplus_p8_test_top dut;
 			test_b20_idle_probe(dut);
 			test_pa6e_simultaneous_priority(dut);
+			test_pa7_compatible_during_dma(dut);
 		}
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "FAIL: %s\n", e.what());
