@@ -284,7 +284,16 @@ wire INT_n = plus_mode ? plus_int_n : ga_int_n;
 wire M1_n;
 wire [7:0] ppi_dout;
 wire [7:0] ppi_cpu_dout;
-wire [7:0] cpu_data_bus = crtc_dout_sel & ppi_cpu_dout & cpu_din;
+// PA1: original 6128 Plus V4 screen26 (IMG_3968) returns the retained
+// instruction byte on otherwise undriven GA reads: 78/40/50/58/60/68.
+// GA partially decodes A15=0,A14=1. Preserve responder priority in its
+// overlapping PPI (A11=0) and peripheral (A10=0: FDC/Kempston) aliases;
+// those unmeasured conflicts keep their existing bus path. CRTC requires
+// A14=0; the other supported I/O readers require A15=1. Never infer bus
+// ownership from a returned FF, nor substitute a model-specific 79.
+wire plus_ga_open_read = plus_mode & io_rd & M1_n & ~A[15] & A[14] & A[11] & A[10];
+wire [7:0] cpu_read_data = plus_ga_open_read ? memory_bus_byte : cpu_din;
+wire [7:0] cpu_data_bus = crtc_dout_sel & ppi_cpu_dout & cpu_read_data;
 wire [7:0] plus_io_data = io_rd ? io_bus_byte : D;
 
 // Write-only Plus ports see the byte left by the final opcode fetch of the

@@ -308,10 +308,101 @@ void audit_page_readback() {
     std::cout << "PASS PA4: production T80 50/68/7E/7E; RAM, mapped ASIC, driven FF and cartridge controls" << std::endl;
 }
 
+// PA1: original 6128 Plus V4 screen26, IMG_3968 (2026-09-28).
+// CPU bytes and palette words are independently photographed observations:
+// docs/plus/asic-audit-probes-v4.md. Keep the existing IN-performs-write
+// decoder path pinned while repairing the CPU's returned byte.
+void audit_ga_readback() {
+    std::vector<uint8_t> program{0xf3};
+    std::vector<uint8_t> expected;
+    auto emit = [&](std::initializer_list<uint8_t> bytes) {
+        program.insert(program.end(), bytes.begin(), bytes.end());
+    };
+    auto write = [&](uint16_t a, uint8_t d) {
+        emit({0x3e, d, 0x32, uint8_t(a), uint8_t(a >> 8)});
+    };
+    auto out = [&](uint16_t port, uint8_t d) {
+        emit({0x01, uint8_t(port), uint8_t(port >> 8), 0x3e, d, 0xed, 0x79});
+    };
+    auto save = [&](uint8_t value) {
+        emit({0x32, uint8_t(expected.size()), 0x80}); expected.push_back(value);
+    };
+    auto palette = [&](uint16_t value) {
+        emit({0x3a,0x20,0x64}); save(uint8_t(value));
+        emit({0x3a,0x21,0x64}); save(uint8_t(value >> 8));
+    };
+    auto in_a = [&](uint16_t port) {
+        emit({0x01, uint8_t(port), uint8_t(port >> 8), 0xed,0x78});
+    };
+    const uint8_t unlock[] = {0xff,0,0xff,0x77,0xb3,0x51,0xa8,0xd4,
+                             0x62,0x39,0x9c,0x46,0x2b,0x15,0x8a,0xcd};
+    for (uint8_t b : unlock) out(0xbc00, b);
+    out(0x7f00, 0xb8);
+    const uint8_t opcodes[] = {0x78,0x40,0x50,0x58,0x60,0x68,0x78};
+    const uint8_t move_a[]  = {0x7f,0x78,0x7a,0x7b,0x7c,0x7d,0x7f};
+    const uint16_t colours[] = {0x066,0x666,0x006,0x066,0x666,0x0f6,0x066};
+    for (unsigned i = 0; i < 7; ++i) {
+        write(0x6420, 0x0f); write(0x6421, 0); // per-row sentinel
+        out(0x7f00, 0x10); // select border; reload BC after IN B
+        emit({0x01, uint8_t(i == 6 ? 0x54 : 0),0x7f,0xed,opcodes[i],move_a[i]});
+        save(opcodes[i]); palette(colours[i]);
+    }
+    out(0x7f00, 0x78); palette(0x066);
+    out(0x7f00, 0x79); palette(0xf66);
+    // Real responders overlapping GA's partial decode must beat retention.
+    // PPI control reads replicate mode bit4 in Plus mode, including driven FF.
+    out(0xf700, 0x9b); in_a(0x7700); save(0xff);
+    out(0xf700, 0x82); in_a(0x7700); save(0x00);
+    out(0xf600, 0xa5); in_a(0x7600); save(0xa5);
+    // CRTC R12 is a readable full byte, outside the GA select.
+    out(0xbc00, 12); out(0xbd00, 0xa5); in_a(0xbf00); save(0xa5);
+    // Compare two aliases of the same idle production FDC status register;
+    // 7B7E also selects GA, FB7E does not. Neither read consumes data.
+    const unsigned fdc_result = expected.size();
+    in_a(0xfb7e); save(0); in_a(0x7b7e); save(0);
+    const unsigned halt_pc = 0x9000 + program.size(); emit({0x76});
+    // Execute the measured stream from real SDRAM. PA4 above executes from
+    // cartridge; together they pin both operand/opcode retention sources.
+    const unsigned size = program.size();
+    std::vector<uint8_t> cartridge{0xf3,0x31,0x00,0xc0, // DI; LD SP,C000
+        0x21,0x00,0x01,0x11,0x00,0x90,                // HL=0100; DE=9000
+        0x01,uint8_t(size),uint8_t(size >> 8),0xed,0xb0, // BC=size; LDIR
+        0xc3,0x00,0x90};                              // JP 9000
+    cartridge.resize(0x100, 0x76);
+    cartridge.insert(cartridge.end(), program.begin(), program.end());
+    cartridge.resize(16384, 0x76);
+    Harness h;
+    h.dut.d5_key = 0; h.dut.d5_tape_in = 0;
+    h.dut.production_clocking = 1; h.dut.plus_model_i = 2;
+    h.initialize(); h.download(build_cpr_image({{"cb00", cartridge}})); wait_for_cpr_apply(h);
+    bool done = false;
+    for (unsigned n = 0; n < 2000000; ++n) {
+        h.tick();
+        if (m1_memory_read(h) && h.dut.dbg_addr == halt_pc) { done = true; break; }
+    }
+    require(done, "PA1: production CPU did not reach HALT");
+    bool ok = true;
+    for (unsigned i = 0; i < fdc_result; ++i) {
+        const unsigned actual = h.memory.at(0x28000 + i);
+        if (actual != expected[i]) {
+            std::cerr << "PA1 result " << i << ": got " << std::hex << actual
+                      << " expected " << unsigned(expected[i]) << std::dec << std::endl;
+            ok = false;
+        }
+    }
+    require(h.memory.at(0x28000 + fdc_result) == h.memory.at(0x28001 + fdc_result) &&
+            h.memory.at(0x28000 + fdc_result) != 0x78 &&
+            h.memory.at(0x28000 + fdc_result) != 0xff,
+            "PA1: GA-overlapping FDC status differs from ordinary FDC read");
+    require(ok, "FAIL PA1: CPU GA readback or decoder palette side effect");
+    std::cout << "PASS PA1: production T80 from SDRAM 78/40/50/58/60/68/78; opcode palettes and PPI/CRTC/FDC controls" << std::endl;
+}
+
 int main(int argc,char **argv) {
  try {
   Verilated::commandArgs(argc,argv);
-  if(argc == 2 && std::string(argv[1]) == "--asic-audit") { audit_page_readback(); audit_page_and_tape(); return 0; }
+  if(argc == 2 && std::string(argv[1]) == "--asic-audit") { audit_ga_readback(); audit_page_readback(); audit_page_and_tape(); return 0; }
+  if(argc == 2 && std::string(argv[1]) == "--ga-readback") { audit_ga_readback(); return 0; }
   if(argc == 2 && std::string(argv[1]) == "--page-readback") { audit_page_readback(); return 0; }
   if(argc == 2 && std::string(argv[1]) == "--controls") { model_controls(); return 0; }
   if(argc == 2 && std::string(argv[1]) == "--cart-timing") { cart_timing(); return 0; }
