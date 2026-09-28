@@ -2054,7 +2054,8 @@ void test_b8_ga_interrupt_restore(Vplus_p8_test_top& dut) {
 	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
 
 	// B3 = 51: the very next shaped line completes the 52-line count and the
-	// classic interrupt fires. Nothing may fire before that edge.
+	// raw classic request fires. PA7 delays CPU delivery separately; preserve
+	// the original eight-tick counter deadline at the raw observation.
 	b8_global_reset(dut, tick);
 	B8Header h;
 	b8_set_short_frame_crtc(h);
@@ -2068,9 +2069,30 @@ void test_b8_ga_interrupt_restore(Vplus_p8_test_top& dut) {
 		fail("B8-5 GA int: restoring B3=51 with B4=0 asserted an interrupt at the apply");
 	b8_wait_hsync_falls(dut, tick, 1, "GA int");
 	bool fired = false;
-	for (int i = 0; i < 8 && !fired; ++i) { if (!dut.ga_int_n_out) fired = true; tick(); }
+	for (int i = 0; i < 8 && !fired; ++i) {
+		if (!dut.ga_raw_int_n_out) { fired = true; break; }
+		tick();
+	}
 	if (!fired)
-		fail("B8-5 GA int: B3=51 did not complete the 52-line count on the next line");
+		fail("B8-5 GA int: B3=51 did not complete the raw 52-line count on the next line");
+	// Conditional V5 bound with the retained raw phase: compatible delivery
+	// occurs roughly 56..71 production master ticks later. This fixture ties
+	// cen_16 high (16 MHz steps), unlike production at one enable per four
+	// 64 MHz master ticks. Round the 55/72 bounds outward to 13/18 steps.
+	// Check both sides after restore too,
+	// rather than broadening the old counter assertion to accept lateness.
+	for (int i = 0; i < 13; ++i) {
+		tick();
+		if (!dut.ga_int_n_out)
+			fail("B8-5 GA int: compatible delivery too early after restored counter fired");
+	}
+	bool delivered = false;
+	for (int i = 13; i < 18; ++i) {
+		tick();
+		if (!dut.ga_int_n_out) { delivered = true; break; }
+	}
+	if (!delivered)
+		fail("B8-5 GA int: restored counter request did not reach compatible delivery");
 
 	// B3 = 0: the counter is at the start of its cycle, so no interrupt for
 	// several lines.

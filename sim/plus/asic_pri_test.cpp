@@ -30,6 +30,11 @@
 //   pr11  PRI write window, one character past raw HSYNC (probe 04).
 //   pr12  HSYNC crossing into the PRI line at R2=49..63 (probes 05-09, 19-20).
 //   pr10-pr12 use the plus_hw_probes geometry (R0=63).
+//   pr14  classic (compatible) delivery one character after raw assertion:
+//         V5 conditional bounds (not delivered by 55, delivered by 72),
+//         MRER/ACK cancellation in the
+//         pending window, PRI mask/unmask maturation and SNA immediate
+//         delivery controls.
 //
 // Expectations are derived from reference §7 / [ARNOLD-REV §2.4] and cited
 // inline — never read back out of the simulator.
@@ -378,7 +383,7 @@ void pr05_dcsr_level(PriBench& b) {
 	// Z80-style acknowledge of the pending raster interrupt.
 	b.fast = true;
 	b.iorq_n = false; b.m1_n = false;
-	for (unsigned i = 0; i < 32; ++i) tick_pub(b);
+	for (unsigned i = 0; i < 55; ++i) tick_pub(b);
 	b.iorq_n = true; b.m1_n = true;
 	b.fast = false;
 	b.run(8);
@@ -388,7 +393,7 @@ void pr05_dcsr_level(PriBench& b) {
 	// Empty acknowledge (nothing pending): the level clears.
 	b.fast = true;
 	b.iorq_n = false; b.m1_n = false;
-	for (unsigned i = 0; i < 32; ++i) tick_pub(b);
+	for (unsigned i = 0; i < 55; ++i) tick_pub(b);
 	b.iorq_n = true; b.m1_n = true;
 	b.fast = false;
 	b.run(8);
@@ -893,6 +898,193 @@ void pr13_fire_clears_counter_bit5() {
     std::printf("PASS pr13: PRI fire clears 40 to 8 before ACK; CPC resumes after 44 falls\n");
 }
 
+// pr14: classic (compatible) delivery one character after raw assertion.
+//
+// Source: docs/plus/pa7-interrupt-phase-followup.md V5 original-6128-Plus
+// results. With the shared-CPU sampling correction applied in T80, compatible delivery needs approximately one additional
+// microsecond: disposable counterfactual C16 (common 16 ticks) + K64
+// (compatible-only 64 ticks) matches all six V5 screens, while K64 alone
+// leaves the two pass-A RET edges 32 dots early. The surviving hardware
+// window with CPU correction is roughly 56..71 master ticks of compatible
+// delay. Under the retained raw-counter phase, this vector asserts loose
+// bounds on the chosen delivery model:
+//
+//   - INT_N must still be high 55 ticks after the raw classic latch falls
+//     (current RTL delivers immediately, so this fails before the fix);
+//   - INT_N must be low by 72 ticks after raw.
+//
+// These bounds are inferred from V5 with the retained raw-counter phase;
+// they are not measurements of the physical INT pin. The chosen next
+// CCLK_EN_N sampling edge (about one character / ~63 master ticks after raw) is a separately labeled MODEL
+// POLICY: these screens do not distinguish delays within the same CPU
+// sampling interval, and the follow-up
+// records that a fractional delay, a shared-HSYNC shift or a different
+// sub-character phase could give the same pictures. The conditional 55/72
+// window checks this model; an exact next-CCLK assertion would merely
+// mirror the implementation and is deliberately omitted.
+//
+// Cancellation (MRER bit 4 / ACK inside the pending window) must prevent
+// any delivered pulse: the raw OR term in delivered INT_N cancels
+// immediately, so no ghost request appears. Hidden classic pending keeps
+// maturing while PRI masks delivery, and an SNA-restored pending request
+// is seeded already delivered (SNA_LOAD sets delivery exactly as raw).
+static uint64_t pr14_wait_raw(PriBench& b, const char* who) {
+    uint64_t guard = 0;
+    while (b.dut.rootp->asic_ga_timing__DOT__classic_int_n != 1) {
+        b.tick();
+        if (++guard > 120u * kLineClks)
+            fail(std::string(who) + ": never reached idle classic before raw");
+    }
+    guard = 0;
+    while (true) {
+        b.tick();
+        if (++guard > 120u * kLineClks)
+            fail(std::string(who) + ": no classic raw event within budget");
+        if (b.dut.rootp->asic_ga_timing__DOT__classic_int_n == 0)
+            return b.cyc;
+    }
+}
+
+void pr14_classic_delivery() {
+    // A1: hardware bounds — not delivered by 55, delivered by 72.
+    {
+        PriBench b;
+        b.power_on();
+        b.empty_ack();
+        b.empty_ack();
+        b.pri = 0;
+        b.run(2);
+        pr14_wait_raw(b, "pr14 delay");
+        for (unsigned i = 0; i < 55; ++i) {
+            b.tick();
+            if (b.dut.INT_N == 0)
+                fail("pr14 delay: classic INT delivered " + std::to_string(i + 1) +
+                     " ticks after raw, must stay high for 55 (V5 needs ~64)");
+        }
+        bool delivered = false;
+        for (unsigned i = 55; i < 72; ++i) {
+            b.tick();
+            if (b.dut.INT_N == 0) { delivered = true; break; }
+        }
+        if (!delivered)
+            fail("pr14 delay: classic INT not delivered by 72 ticks after raw (V5 needs ~64)");
+        b.empty_ack();
+    }
+    // B: MRER bit 4 inside the pending window cancels with no ghost pulse.
+    {
+        PriBench b;
+        b.power_on();
+        b.empty_ack();
+        b.empty_ack();
+        b.pri = 0;
+        b.run(2);
+        pr14_wait_raw(b, "pr14 MRER");
+        if (b.dut.INT_N == 0)
+            fail("pr14 MRER: INT already low at raw, must stay high until delivery (too early)");
+        b.fast = true;
+        b.iorq_n = false;
+        b.bus_a = 0x4000 >> 14;
+        b.bus_d = 0x90;
+        bool cleared = false;
+        for (unsigned i = 0; i < 60; ++i) {
+            b.tick();
+            if (b.dut.INT_N == 0)
+                fail("pr14 MRER: ghost INT asserted before MRER cleared raw (old delivers too early)");
+            if (b.dut.rootp->asic_ga_timing__DOT__classic_int_n == 1) { cleared = true; break; }
+        }
+        if (!cleared) fail("pr14 MRER: MRER did not clear raw within 60 ticks");
+        b.iorq_n = true;
+        b.fast = false;
+        b.run(2);
+        for (unsigned i = 0; i < 100; ++i) {
+            b.tick();
+            if (b.dut.INT_N == 0)
+                fail("pr14 MRER: ghost INT after window-cancelled raw");
+        }
+    }
+    // C: ACK (M1+IORQ) inside the pending window cancels with no ghost.
+    {
+        PriBench b;
+        b.power_on();
+        b.empty_ack();
+        b.empty_ack();
+        b.pri = 0;
+        b.run(2);
+        pr14_wait_raw(b, "pr14 ACK");
+        if (b.dut.INT_N == 0)
+            fail("pr14 ACK: INT already low at raw, must stay high until delivery (too early)");
+        b.iorq_n = false;
+        b.m1_n = false;
+        for (unsigned i = 0; i < 4; ++i) {
+            b.tick();
+            if (b.dut.INT_N == 0)
+                fail("pr14 ACK: ghost INT asserted during window ACK (old delivers too early)");
+        }
+        b.iorq_n = true;
+        b.m1_n = true;
+        b.run(2);
+        for (unsigned i = 0; i < 100; ++i) {
+            b.tick();
+            if (b.dut.INT_N == 0)
+                fail("pr14 ACK: ghost INT after window-cancelled raw");
+        }
+        if (b.dut.rootp->asic_ga_timing__DOT__classic_int_n != 1)
+            fail("pr14 ACK: window ACK must clear raw classic latch");
+    }
+    // D: MODEL POLICY: hidden classic pending matures under PRI mask.
+    // This pins the selected delayed-delivery mechanism, not later raw timing.
+    // Classic only fires with PRI==0, so the pending must exist before the
+    // mask (pr08 pattern): raw with PRI=0, mask inside the undelivered
+    // window, let delivery mature hidden, then unmask for immediate INT.
+    {
+        PriBench b;
+        b.power_on();
+        b.empty_ack();
+        b.empty_ack();
+        b.pri = 0;
+        b.run(2);
+        pr14_wait_raw(b, "pr14 PRI mask");
+        b.pri = 200;
+        b.run(2);
+        for (unsigned i = 0; i < 100; ++i) {
+            b.tick();
+            if (b.dut.INT_N != 1)
+                fail("pr14 PRI: INT must stay high while PRI nonzero masks hidden pending");
+        }
+        b.pri = 0;
+        b.run(2);
+        if (b.dut.INT_N != 0)
+            fail("pr14 PRI: unmasking to PRI=0 must expose matured classic immediately");
+        b.empty_ack();
+        if (b.dut.INT_N != 1 || b.dut.int_last_raster != 1)
+            fail("pr14 PRI: unmasked classic must acknowledge as raster");
+    }
+    // E: SNA restore seeds delivery as raw, so restored pending is immediate.
+    {
+        PriBench b;
+        b.power_on();
+        b.empty_ack();
+        b.empty_ack();
+        b.pri = 0;
+        b.run(2);
+        b.dut.SNA_LOAD = 1;
+        b.dut.SNA_INTCNT = 0;
+        b.dut.SNA_VSDELAY = 0;
+        b.dut.SNA_VS = 1;
+        b.dut.SNA_HS = 0;
+        b.dut.SNA_INT = 1;
+        b.tick();
+        b.dut.SNA_LOAD = 0;
+        b.run(2);
+        if (b.dut.INT_N != 0)
+            fail("pr14 SNA: restored classic pending must be immediately delivered");
+        b.empty_ack();
+        if (b.dut.INT_N != 1)
+            fail("pr14 SNA: restored pending must acknowledge");
+    }
+    std::printf("PASS pr14: classic delivery ~1 char after raw (55/72 conditional bounds), window cancel, PRI/SNA controls\n");
+}
+
 int main(int argc, char** argv) {
 	Verilated::commandArgs(argc, argv);
 	try {
@@ -910,6 +1102,7 @@ int main(int argc, char** argv) {
 		pr11_pri_write_window();
 		pr12_line_entry();
 		pr13_fire_clears_counter_bit5();
+		pr14_classic_delivery();
 	} catch (const TestFailure& e) {
 		std::printf("FAIL: %s\n", e.what());
 		return 1;
