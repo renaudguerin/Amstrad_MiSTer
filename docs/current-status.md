@@ -30,6 +30,14 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   now matches all six V5 active test images pixel-for-pixel, with three identical
   captures per screen; title regression testing remains pending. The current [plain-English status](plus/pa7-interrupt-phase-followup.md#current-position-in-plain-english)
   separates the fixed mismatch from unverified hardware mechanisms.
+  The [original-Plus DMA overlap results](plus/pa7-dma-overlap-original-plus-2026-09-28.md)
+  now confirm that both sources survive at positions where this build loses
+  raster. The [DMA/compatible ACK repair](plus/pa7-dma-overlap-repair.md)
+  now changes the production-T80 hardware regression from60/68 to68/68 records
+  and preserves all six V5 images. Review and gates pass; hosted full synthesis
+  at `011f323d` closes setup/hold at +0.145/+0.242ns, zero TNS. MiSTer confirms
+  all four overlap record pages and all six V5 images, with three identical
+  captures per screen. Integrated from `d563586`; exact integration CI and artifact delivery are pending.
 
 - **Probe-driven Plus ASIC fixes integrated (2026-09-27):** an 18-screen original-Plus probe
   cartridge settled most Plus source conflicts; the results, confidence levels and open probes

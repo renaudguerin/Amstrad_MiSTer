@@ -45,6 +45,13 @@ The probe screen numbers refer to [the multi-test probe cartridge](../../scripts
 
 ## Probe photographs
 
+PA7 DMA/compatible overlap adds an original-Plus hardware constraint: all four
+pages retain both sources at the two positions where RBF1346f39 loses raster.
+The [full transcription](pa7-dma-overlap-original-plus-2026-09-28.md) owns every
+recorded field; the [repair record](pa7-dma-overlap-repair.md) describes
+source-qualified ACK clearing and its acceptance. This does not uniquely
+identify raw request creation time or the literal ASIC latch implementation.
+
 Original Plus, 2026-09-27, cartridge built at `749b9c4`: main checkout
 `local/task-archives/plus-hw-probes-2026-09-27/real_hw/NN.jpg` (screen number; `IMG_*.HEIC`
 originals beside them). Screens 01–02 are shot through a Retrotink 4K, because the OSSC

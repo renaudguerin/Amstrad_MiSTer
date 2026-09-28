@@ -55,7 +55,8 @@ Consequences to embrace explicitly:
 - Plus mode's classic-compatibility (locked-ASIC games) rides on the new behavioral code,
   not on ga40010. It will initially be less accurate than classic mode. That matches real
   history (the ASIC's GA emulation itself has documented deltas: colours ~½µs late, PPI
-  quirks, interrupt +1µs).
+  quirks and compatible interrupt timing). PA7 photographs constrain the
+  software-visible timing; literal Plus-versus-CPC pin delay remains unmeasured.
 - The CRTC-accuracy work stream (docs/accuracy/) hardens the classic CRTC core (`rtl/CRTC.v`) independently; the
   ASIC's CRTC-3 is a *new* implementation informed by ACCC v1.10's type-3 notes, reusing
   the Verilator testbench harness (same pin contract) with a type-3 rule set. The v1.10
@@ -64,6 +65,12 @@ Consequences to embrace explicitly:
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).
+
+The [PA7 overlap repair](pa7-dma-overlap-repair.md) qualifies compatible ACK
+clearing with the delivered raster selected at each ASIC pulse's start. This
+matches the register block's vector arbitration and keeps a DMA ACK from
+consuming a compatible request that matures during it. First-pulse M1 provenance
+for DCSR remains a separate state lifetime.
 
 ### Module/bus sketch
 
@@ -398,7 +405,7 @@ reads. CPR parsing must not begin until that contract is accepted. See
 | **P0 cartridge boots** | `plus_mmu` + CPR loader connected to the already-tested cartridge memory service + boot/reset state; video still via classic CRTC+GA as a temporary stopgap; unlock FSM present but ASIC page not yet backed | Parser vectors cover chunk order, short-page zero fill, bounds, and malformed input; GX4000 firmware/game reaches its first screen |
 | **P1 CRTC-3 timing foundation** | `asic_video` CRTC3 counters, MA/RA, DE, both sync widths, VSYNC C0=C9=0 gate, +1µs alignment, basic locked-ASIC pixel path, and the CPU/WAIT timing contract needed by later raster consumers; exact register readback quirks may remain pending | Cycle assertions for counter rollover, sync/DE/MA/RA timing, classic-palette pixel output, and stable CPU/SDRAM handshake; locked-ASIC title reaches the same boot point as P0 |
 | **P2 ASIC page + palette** | `asic_regs` page decoder, unlock-gated RMR2, sprite/attribute backing RAM, palette RAM both ports, legacy PENR/INKR translation, and 4-bit RGB path; implement `8'hFF`-neutral wired-AND participation, explicit open-bus responses, per-register read/write masks, and no write-through to underlying RAM | Exhaustive page decode/read/write/mirror/mask/open-bus tests; static Plus palettes display correctly (Burnin' Rubber title) |
-| **P3 interrupts** | PRI driven from P1's CRTC3 counters, IVR + vector supply, DCSR bit 7, MRER bit-4 clear, +32-line bit-5 rule; A13 bug remains deliberately not emulated unless evidence changes the decision | Exact-cycle PRI/vector/DCSR assertions; raster-split games stable (Pang, RoboCop 2) |
+| **P3 interrupts** | PRI driven from P1's CRTC3 counters, IVR + vector supply, DCSR bit 7, MRER bit-4 clear, +32-line bit-5 rule; A13-dependent board IORQ shaping is implemented (see `references/asic-reference.md` §7) | Exact-cycle PRI/vector/DCSR assertions; raster-split games stable (Pang, RoboCop 2) |
 | **P4 sprites** | sprite compare/compositor driven from P1's counters, priority, magnification, and access-blanking side effect | Per-pixel overlap/priority/magnification/blanking assertions; Switchblade, Copter 271, and Klax sprite smoke tests |
 | **P5 CRTC-3 bus semantics — complete in simulation** | modulo-8 reads including stored R14/R15 and full-byte R12, both `&BE`/`&BF` read ports, live status groups, neutral unselected cycles, and IN-performs-write traps on CRTC/GA ports; timing remains owned by P1 | `t07a`-`t07g`, MMU held-cycle trap vectors, motherboard `m9`, and classic-inert `m7` pass; SHAKER on its CRTC3 setting remains hardware evidence |
 | **P6 split & scroll** | SPLT/SSA capture at HCC=R1 using P1's stored-MA model; SSCR H-delay/V-offset/border-mask | Exact capture/offset assertions; Plus demos and games using hardware scroll (Fluff intro screens etc.) |
@@ -435,8 +442,11 @@ P1.
    cartridge/main/tape/video arbitration instead of assuming an unused slot.
 3. **GX4000 clock (39.90257 vs 40 MHz)**: ignore (0.25%; MiSTer video pipeline normalizes;
    note in docs).
-4. **A13 vector bug**: default = not emulated; revisit only if a title provably depends on
-   it (none known — software uses the DCSR re-dispatch workaround which works either way).
+4. **A13 vector bug**: the motherboard implements IC116/READY/A13 IORQ shaping.
+   ASIC vector selection and auto-clear see the shaped pulses; expansion devices see raw
+   CPU IORQ. FlowLIB exercises this behavior. Diagnostic vector attribution must keep
+   interrupted instructions at A13=1 or explicitly handle the corrupted-vector case
+   (`references/asic-reference.md` §7).
 5. **6128+ FDC**: reuse the existing u765 implementation, but add explicit Plus-model
    selection when P0 enables behavior. The current top-level port decode is controlled by
    the drive-disable option, not by the classic model field, so do not assume model gating.
