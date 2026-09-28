@@ -190,40 +190,42 @@ Not proposed (fail the keep rule, structural one-liners): SPLT n+256 alias with 
 
 ---
 
-## Reference corrections (documentation only)
+## Reference corrections (documentation only; applied 2026-09-28)
 
-The RTL is right, or at least hardware-matched, in every row here; the reference text needs
-to change. None needs a gate or review.
+The RTL is right, or at least hardware-matched, in every row here. RC1-RC8 have been applied
+to the reference digest; none needs a gate or review.
 
-- **RC1 — §9 PPR paragraph is stale** (l.493-498): the reference says the code "samples the
-  new PPR only when the existing prescaler reaches zero" (finding I5). Since B20-1
-  ([live-ppr-2026-09-22.md](live-ppr-2026-09-22.md)) a CPU PPR write ends the current
+- **RC1 — §9 PPR paragraph corrected** (l.493-498): [ARNOLD-REV] and the captured French DMA
+  tutorial p.4 say changes take effect immediately, including mid-pause. Since B20-1
+  ([live-ppr-2026-09-22.md](live-ppr-2026-09-22.md)), a CPU PPR write ends the current
   prescaler interval (`asic_dma.v:167-175`, `:274-286`; one-shot `pprN_wr` from
-  `asic_regs.v:470-481`), covered by `plus_p8` b20_02/b20_03. Rewrite the paragraph.
-- **RC2 — §13 Status 1 bit 4** (l.669): "last HSYNC character" is wrong. ACCC v1.11 FR §21.3.4
-  p.248 gives C0=R2+R3, the character *after* HSYNC; `asic_video.v:953-955` uses the raw
-  R3l (so R3l=0 gives C0=R2), and `t07b` expects it. Also add bit 2's R0≥R1 gate.
-- **RC3 — §8 SSCR "correct for R9 ≥ 7"** (l.432-433): the next bullet (R9=11 advances three
-  rows per character row, probe 15) contradicts it. Clean vertical scroll holds only for
-  R9 = 7. Restate l.444 as in PA5b.
-- **RC4 — stale SPLT 55/56 CONFLICT flags** (l.387-388, §15 l.714; also
-  `asic-documentation-gap-map.md`): probes 10-13 settled 55. Drop the CONFLICT marker.
-  Add that with R9>7 one SPLT value matches twice per character row (raw rasters r and
-  r+8), since only RC2..RC0 is compared. That is unprobed.
-- **RC5 — §5 sprite X compare formula** (l.202-204): [KT]'s `char = (X & &FFF8)>>3` means
-  8 X units per CRTC character, but X is in mode-2 pixels (16 per character) and the same
-  [KT] paragraph says sprites repeat when R0>64, i.e. 1024/16. The RTL
-  (`asic_sprites.v:241`, dot counter `hp` at 16 per character, `s10_r0_gt_64_repeat`)
-  follows the 16-per-character reading. Mark the formula as a [KT] inconsistency.
-- **RC6 — §11 `&DFxx` value 0** (l.576 vs l.581-583): "value 0 or 7 → page 3" conflicts with
-  the reset-state rule "/EXP low ⇒ page 1, else page 3". `plus_mmu.v:202` applies the /EXP
-  rule to every write of 0, not only at reset (`test_reset_defaults_and_exp_sampling`).
-  Rephrase l.576 as "7 → page 3; 0 → per /EXP".
-- **RC7 — §13 wording**: "b1b0 of address" (l.657) is A9/A8 of the port. "CRTC type 4 ≡
-  type 3" (l.682) overstates: Status 2 bit 3 may differ (ACCC §21.3.4). R16/R17 "remain zero"
-  (l.678) is untrue after an SNA load (`asic_video.v:282-283`). Migrate the "ACCC v1.10"
-  anchor to v1.11 when §13 is next revised.
-- **RC8 — §8 PA3 qualifier**: l.402-407 describe the R5=0 case only (see PA3).
+  `asic_regs.v:470-481`), covered by existing `plus_p8` b20_02/b20_03.
+- **RC2 — §13 Status 1 wording corrected** (l.669): ACCC v1.11 FR §21.3.4 p.248 gives
+  C0=R2+R3, the character after HSYNC. `asic_video.v:953-955` uses raw R3 low bits, so
+  R3=0 compares at C0=R2; it does not expand to a 16-character width. The row also records
+  bit 2's R0≥R1 gate.
+- **RC3 — §8 SSCR rule qualified** (l.432-444): the R9=11 probe shows three source rows can
+  advance per character row, so the old "correct for R9 ≥ 7" wording was too broad. The
+  reference now states the confirmed R9=7 full-screen case and the effective-RA row-capture
+  condition; it does not make scroll offset 7 a unique trigger.
+- **RC4 — SPLT 55/56 conflict marker removed** (l.387-388, §15; also
+  `asic-documentation-gap-map.md`): probes 10-13 settle the terminal-line value at 55. The
+  reference and gap map now record that result and the unprobed R9>7 double-match case (raw
+  rasters r and r+8, because only RC2..RC0 is compared).
+- **RC5 — §5 sprite X formula qualified** (l.202-204): [KT]'s `char = (X & &FFF8)>>3` means
+  8 X units per CRTC character, while X is in mode-2 pixels (16 per character) and the same
+  paragraph says sprites repeat when R0>64 (1024/16). The reference now records this as a
+  [KT] inconsistency; RTL (`asic_sprites.v:241`, `hp` at 16 per character,
+  `s10_r0_gt_64_repeat`) uses the 16-per-character grid.
+- **RC6 — §11 `&DFxx` value 0 clarified** (l.576-583): the former "value 0 or 7 → page 3"
+  wording conflicted with the /EXP rule. The reference now separates value 7 from value 0;
+  `plus_mmu.v:202` applies /EXP to every 0 write, not only at reset
+  (`test_reset_defaults_and_exp_sampling`).
+- **RC7 — §13 wording corrected**: A9/A8 are the port-address decode bits; Type 4 may differ
+  from type 3 at Status 2 bit 3 (ACCC v1.11 FR §21.3.4 p.248); R16/R17 can be seeded by a
+  snapshot even though this core has no light-pen strobe. The §13 source anchor is now v1.11.
+- **RC8 — §8 PA3 qualifier added**: the VCC=0/RCC=0 exclusion and next-opportunity example
+  are explicitly limited to the probed R5=0 case. R5>0 remains open as PA3.
 
 ---
 
@@ -239,7 +241,7 @@ to change. None needs a gate or review.
 | §1.02 | Sync: non-zero then zero resets the pointer (l.30) | tested | `asic_unlock.v:107` | `test_resynchronization`, `test_every_nonzero_sync_lead_unlocks` |
 | §1.03 | 13 fixed bytes `FF 77 … 8A` (l.32) | tested | `asic_unlock.v` `sequence_byte` | `test_partial_prefixes_do_not_unlock`, `test_wrong_bytes_fail_closed` |
 | §1.04 | Mismatch mid-sequence cannot unlock; a mismatching zero after non-zero re-syncs | tested | `asic_unlock.v:124-129` | `test_wrong_bytes_fail_closed`, `test_malformed_input_preserves_unlocked` |
-| §1.05 | *RTL extension*: extra zeros before `FF` keep waiting (Switchblade, AmSpirit) | tested | `asic_unlock.v:116-121` | not in the reference; add a line to §1 |
+| §1.05 | *RTL extension*: extra zeros before `FF` keep waiting (Switchblade, AmSpirit) | tested | `asic_unlock.v:116-121` | now recorded in §1 |
 | §1.06 | STATE `&CD` unlocks; any other value locks (l.33, l.50-53) | tested | `asic_unlock.v:134` | `test_state_byte_and_trailing_ee` |
 | §1.07 | Unlocked already after STATE; `EE` superfluous (l.34-38) | tested | `asic_unlock.v:131-137` | `test_state_byte_and_trailing_ee` |
 | §1.08 | Lock semantics [ARNOLD] vs [WIKI] (l.48-53) | conflict | `asic_unlock.v:134` | RTL follows [WIKI-Unlock] as recommended |
@@ -306,7 +308,7 @@ to change. None needs a gate or review.
 | §5.08 | Visible span at ×4: X −63..+639, Y −63..+199; [ARNOLD] prints −64 (l.193-198) | conflict | `asic_sprites.v:242-243` | RTL uses derived −63; `s09`, `s06_quad_magnification_corners`; awaiting hardware |
 | §5.09 | Positive X accepted through 767 for non-standard widths (l.199-201) | tested | `asic_sprites.v:175,241` | `s09` |
 | §5.10 | Y compare line `(C4 << 3) \| (C9 & 7)` (l.202) | tested | `asic_sprites.v:155` | `s03` |
-| §5.11 | X compare `char = (X & &FFF8)>>3`, `pixel = X & 7` (l.202-204) | conflict | `asic_sprites.v:241` (16 dots/char) | RC5 |
+| §5.11 | [KT] X formula implies 8 X units/CRTC character, while its repeat rule implies 16 mode-2 pixels/character (l.202-204) | conflict | `asic_sprites.v:241` (16 dots/char) | RC5 documents the internal [KT] inconsistency; RTL follows the 16-pixel grid |
 | §5.12 | **If** R0 > 64, sprites can repeat horizontally (l.204) | tested | `asic_sprites.v:279` (10-bit `hp` wrap) | `s10_r0_gt_64_repeat` |
 | §5.13 | Y compare **not** gated by R6 (l.205) | tested | `asic_sprites.v:185-187` (no R6 input) | `s03` |
 | §5.14 | Mag bits 3-2 = X, 1-0 = Y; `00` off, `01` ×1, `10` ×2, `11` ×4 (l.206-207) | tested | `asic_sprites.v:177-184` | `s01_disabled_codes_off`, `s04`, `s05` |
@@ -382,13 +384,13 @@ to change. None needs a gate or review.
 | ID | Clause (ref line) | Status | RTL | Tests / note |
 |---|---|---|---|---|
 | §8.01 | SPLT = line **after** which the split occurs; 0 = off (l.385) | tested | `asic_video.v:554` | `t08a_split_screen_capture_and_advance`, `t08b_split_screen_disabled_when_zero` |
-| §8.02 | Compare `{SPLT} == {VC4..VC0, RC2..RC0}`, 8-bit, so n and n+256 match (l.385-387) | untested (alias) | `asic_video.v:554` | n+256 via probe sim only; fails the keep rule; RC4 |
-| §8.03 | Pathological value 55 vs 56 (l.387-389) | tested | `asic_video.v:554-605` | settled 55 on hardware; `t08k_split_on_terminal_line`; RC4 |
+| §8.02 | Compare `{SPLT} == {VC4..VC0, RC2..RC0}`, 8-bit, so n and n+256 match; with R9>7 a value can match at raw rasters r and r+8 (l.385-387) | untested (alias) | `asic_video.v:554` | n+256 alias lacks a kept vector; R9>7 double match is unprobed; RC4 |
+| §8.03 | Pathological terminal-line value is 55 on a 312-line frame; [KT] reports 56 (l.387-389) | tested | `asic_video.v:554-605` | original Plus probes confirm 55; `t08k_split_on_terminal_line`; RC4 |
 | §8.04 | SSA in R12/R13 format incl. bank bits; MA of the first line after the split (l.390-392) | tested | `asic_video.v:585,604` | `t08a`, `t08h_overscan_carry_14bit` |
 | §8.05 | SSA captured at HCC == R1 (l.395) | tested | `asic_video.v:557` | `t08a`, `t08l_split_ssa_sampling_point` |
 | §8.06 | **or** at HCC == R0 **if** VCC == R4 **and** RCC == R9 (l.396) | tested | `asic_video.v:555-557` (equality) | `t08l` (fixed in `edd6d80`) |
 | §8.07 | Used from the next scan line; replaces the line-start MA until the next split or frame restart (l.399-401) | tested | `asic_video.v:584-605` | `t08a`, `t08c_split_screen_multiple_splits` |
-| §8.08 | **Never** applied at VCC=0/RCC=0; takes effect at VCC=0/RCC=1 (l.402-407) | tested (R5=0) | `asic_video.v:559-602` (`split_held`) | `t08k`; R5>0 differs, PA3 |
+| §8.08 | In the probed R5=0 case, **never** applied at VCC=0/RCC=0; takes effect at VCC=0/RCC=1 (l.402-407) | tested (R5=0) | `asic_video.v:559-602` (`split_held`) | `t08k`; R5>0 differs, PA3; RC8 |
 | §8.09 | Multiple splits per frame (l.408) | tested | `asic_video.v:584-605` | `t08c` |
 | §8.10 | Split **can** occur in the **first** adjustment line, **not** later ones (l.409-410) | contradicted | `asic_video.v:556` (`!in_adj`) | PA2 |
 | §8.11 | DRAM refresh hazard with non-16k split addresses / R4=R9=0 rupture (l.411-415) | scope | — | §14 item 2 |
@@ -398,10 +400,10 @@ to change. None needs a gate or review.
 | §8.15 | Affects both halves of a split; sprites not scrolled, D7 hides them (l.427-430) | tested | `asic_video.v:529,1232,1253` | `t08g` |
 | §8.16 | Effect immediate, several times per line (l.431) | tested | `asic_video.v:529,1216,1232` (live `SSCR`) | `t08f`, `t08g` |
 | §8.17 | CRTC counters unaffected; odd behaviour **when** R9 < 7 (l.432-433) | untested | `asic_video.v:543` level test | PA5a |
-| §8.18 | "Correct for R9 ≥ 7" (l.433) | contradicted | `asic_video.v:543` | hardware (probe 15) sides with RTL; RC3 |
+| §8.18 | Clean full-screen scroll is confirmed for R9=7; do not generalize to R9>7 (l.433-435) | tested | `asic_video.v:543` | `t08i` covers R9=7; R9>7 behavior is in §8.19; RC3 |
 | §8.19 | Row capture is the level test RA ≥ R9 at HCC == R1; R9=11 offset 5 advances three rows (l.436-442) | tested | `asic_video.v:543-546` | `t08i_sscr_vertical_wrap_advances_ma`, `t08j_sscr_vertical_offset_r9_above_7` |
-| §8.20 | Clean full-screen scroll needs offset == R9 at HCC == R1 (l.433-435) | tested | `asic_video.v:543` | `t08i` |
-| §8.21 | V-scroll == 7 takes precedence over the split-wrap case (l.443-444) | untested | `asic_video.v:584-587` (row capture overwrites held split) | PA5b; RC3 |
+| §8.20 | Clean full-screen row capture occurs when effective RA reaches R9 at HCC == R1 (l.433-435) | tested | `asic_video.v:543` | `t08i`; RC3 |
+| §8.21 | At frame line 0, row capture can replace a held terminal-line split when effective RA reaches R9 (l.443-444) | untested | `asic_video.v:584-587` (row capture overwrites held split) | PA5b; the observed offset-7 case is not the only possible trigger; RC3 |
 
 ### §9 DMA sound
 
@@ -425,7 +427,7 @@ to change. None needs a gate or review.
 | §9.16 | One loop context per channel; a second REPEAT overwrites it (l.487-488) | untested | `asic_dma.v` single `loop_cnt`/`loop_addr` | structural; fails the keep rule |
 | §9.17 | ASIC never writes RAM; REPEAT not re-fetched per iteration (l.488-489) | tested | `asic_dma.v:439-440` (`loop_addr = SAR` after REPEAT) | `d04` |
 | §9.18 | PAUSE total `N × (PPR+1)` lines (l.493-494) | tested | `asic_dma.v:274-286` | `d03` |
-| §9.19 | PPR change takes effect immediately, even mid-pause (l.495-498) | tested | `asic_dma.v:167-175,274-286`, `asic_regs.v:470-481` | `plus_p8` b20_02/b20_03; the reference's "code differs" is stale, RC1 |
+| §9.19 | PPR change takes effect immediately, even mid-pause (l.495-498) | tested | `asic_dma.v:167-175,274-286`, `asic_regs.v:470-481` | CPU PPR write ends the current interval; `plus_p8` b20_02/b20_03; RC1 |
 | §9.20 | SAR rewrite does **not** interrupt a pause (l.498-499) | tested | `asic_dma.v:259-261` (pause state untouched) | `d10_byte_sar_writes` |
 | §9.21 | Disabling a channel **suspends** its pause; resumes on re-enable (l.499-500) | tested | `asic_dma.v:274-278` (`dcsr_ena` gates the count) | `d15`, `plus_p8` b20 |
 | §9.22 | SAR rewritable while running (list jump) (l.501) | tested | `asic_dma.v:259-261` | `d10` |
@@ -458,7 +460,7 @@ to change. None needs a gate or review.
 | §11.02 | `&DFxx` 128-255: low 5 bits = physical page (l.572-573) | tested | `plus_mmu.v:198` | `test_rom_select_rules` |
 | §11.03 | 0-127 (≠ disc code): page 1 (l.574) | tested | `plus_mmu.v:202` | `test_rom_select_rules` |
 | §11.04 | 7: page 3 on 464+/6128+ (l.575-576) | tested | `plus_mmu.v:200` | `test_rom_select_rules` |
-| §11.05 | 0: page 3 (l.575) vs /EXP rule (l.581-583) | conflict | `plus_mmu.v:201` (/EXP for every 0) | `test_reset_defaults_and_exp_sampling`; RC6 |
+| §11.05 | 0: /EXP decides page 1 or 3 on 464+/6128+; GX4000 remains page 1 (l.575-583) | conflict | `plus_mmu.v:201` (/EXP for every 0) | the reference now resolves its duplicated 0 rule; source distinction remains; `test_reset_defaults_and_exp_sampling`; RC6 |
 | §11.06 | **On GX4000**, 7 (and 0) still page 1 (l.576-577) | tested | `plus_mmu.v:199` | `test_gx4000_overrides` |
 | §11.07 | Expansion ROMs via ROMDIS still override matching pages (l.578) | not-impl | `Amstrad.sv:1250-1252` (cart wins) | deliberate: no expansion ROM reaches Plus mode (`architecture.md` B13) |
 | §11.08 | Low bank: pages 0-7 only (l.579-580) | tested | `plus_mmu.v:277` | `test_rmr2_locking_positions_pages` |
@@ -492,19 +494,19 @@ to change. None needs a gate or review.
 
 | ID | Clause (ref line) | Status | RTL | Tests / note |
 |---|---|---|---|---|
-| §13.01 | Port decode: select (W), write (W), both read ports return the selected register; no status port (l.657-660) | tested | `asic_video.v:1005-1015` | `t07g_readonly_and_neutral_cycles` |
+| §13.01 | Port decode by A9/A8: select (W), write (W), both read ports return the selected register; no status port (l.657-660) | tested | `asic_video.v:1005-1015` | `t07g_readonly_and_neutral_cycles`; RC7 |
 | §13.02 | `IN` on `&BCxx`/`&BDxx` also performs the write with the open-bus byte (l.661-662) | tested | `Amstrad_motherboard.v:288-297` | t80pa m9 steps 42-52, `test_io_read_traps_unlock_and_rmr2`; value per PA1 |
 | §13.03 | Reads repeat modulo 8 over selects 0-31: R16, R17, S1, S2, R12, R13, R14, R15 (l.663-674) | tested | `asic_video.v:1009-1020` | `t07a_mod8_read_map_and_storage` |
-| §13.04 | Status 1 bit-by-bit (l.669) | tested | `asic_video.v:950-966` | `t07b`, `t07c`, `t07d`; bit 4 wording RC2 |
+| §13.04 | Status 1 bit-by-bit, including bit 2's R0≥R1 gate and bit 4 at C0=R2+R3[3:0] (l.669) | tested | `asic_video.v:950-966` | `t07b`, `t07c`, `t07d`; R3=0 compares at C0=R2; ACCC v1.11 FR §21.3.4 p.248; RC2 |
 | §13.05 | Status 2 bit-by-bit (l.670) | tested | `asic_video.v:968-977` | `t07e`, `t07f` |
 | §13.06 | R12 all 8 bits readable, VMA uses bits 5:0 (l.671) | tested | `asic_video.v` R12 store | `t07a` |
 | §13.07 | R14 bits 7:6 forced zero (l.673) | tested | `asic_video.v:306` (6-bit store) | `t07a` |
-| §13.08 | R14/R15 readable (ACCC v1.10 supersedes [KT]) (l.676-678) | tested | `asic_video.v:1009-1020` | `t07a` |
-| §13.09 | R16/R17 readable, zero without a light pen (l.678-679) | tested | `asic_video.v:1011-1012` | `t07a`; SNA can seed them, RC7 |
+| §13.08 | R14/R15 readable (ACCC v1.11 supersedes [KT]) (l.676-678) | tested | `asic_video.v:1009-1020` | `t07a`; RC7 |
+| §13.09 | R16/R17 readable; zero without a light-pen value, but snapshot load can seed them (l.678-679) | tested | `asic_video.v:1011-1012` | `t07a`; RC7 |
 | §13.10 | R3 HSYNC width 0 ⇒ 16 (l.681) | tested | `asic_video.v` `hsc` wrap | `t04b_r3_zero_means_sixteen` |
 | §13.11 | R3 VSYNC width 0 ⇒ 16 (l.681) | tested | `asic_video.v` `vsc` wrap | `t04f_vsync_width` |
 | §13.12 | No R31 dummy register (l.682) | untested | `asic_video.v:308` (write `default`); read select 31 → R15 | structural; fails the keep rule |
-| §13.13 | Type 4 ≡ type 3 (l.682-683) | conflict | — | overstated; RC7 |
+| §13.13 | Type 4 read map is similar to type 3, but Status 2 bit 3 may differ (l.682-683) | conflict | — | older equivalence claim is overbroad; ACCC v1.11 FR §21.3.4 p.248; RC7 |
 
 ### §14 Hardware-flaw checklist
 
@@ -522,13 +524,12 @@ to change. None needs a gate or review.
 
 ## Summary
 
-222 clauses: 169 `tested`, 17 `untested`, 13 `conflict`, 11 `scope`, 6 `contradicted`,
+222 clauses: 170 `tested`, 17 `untested`, 13 `conflict`, 11 `scope`, 5 `contradicted`,
 6 `not-impl`.
 
 | Status | Rows | Disposition |
 |---|---|---|
 | `contradicted` | §4.08 / §14.5, §4.11, §8.10 | PA4, PA1, PA2: candidate RTL findings, each needing a probe first |
-| `contradicted` | §8.18 | hardware sides with the RTL: RC3 |
 | `contradicted` | §11.14 | deliberate, tested fail-closed CPR policy; no action |
 | `not-impl` | §7.22, §12.12 | PA7 (single-source timing offsets) |
 | `not-impl` | §10.03-§10.04, §12.11 | no paddle/printer source; title-driven only |
@@ -546,7 +547,7 @@ only", known open) and PA1 (§4.11, a model-specific value).
 
 | Order | Item | Size | Prerequisite |
 |---|---|---|---|
-| 1 | RC1-RC8 reference corrections | XS, docs | none |
+| 1 | RC1-RC8 reference corrections (applied 2026-09-28) | XS, docs | none |
 | 2 | PA5a, PA5b, PA6a-e vectors (expected green; regression armour) | S | none |
 | 3 | Probe screens: PA1 (`IN` values), PA2/PA3 (split × R5), PA4 (page open bus), PA7 (PRI=0 phase) | M | next probe cartridge |
 | 4 | PA1 / PA2 / PA3 / PA4 / PA7 RTL fixes, each with its fail-before vector | S each | its probe result |
