@@ -31,13 +31,16 @@ Why this matters: vectors derived from observed effects cover what has been seen
 the reference says. The table makes the unexercised exception rows visible before a title
 or probe finds them.
 
-**Remaining action:** resolve the shared-T80 scope dependency, then finish PA7.
+**Remaining action:** establish classic-CPC safety of the shared-T80 candidate, then finish PA7.
 [Sampling-edge diagnosis](plus/pa7-interrupt-phase-followup.md#sampling-edge-diagnosis-2026-09-28)
 identifies INT sampling one CPU clock late against Zilog Figure9; a standalone
 ASIC-free check fails both an early-pulse and a late-arrival case. A disposable
 16-tick common /64-tick compatible delay reproduces every V5 hardware marker,
 but a Plus-only CPU-input delay would hide the shared CPU defect. Shared-CPU
-scope approval is needed before implementation; classic mode is affected too.
+scope is authorized, but implementation awaits classic-CPC impact evidence.
+Gemini independently confirmed the Zilog diagram; Opus confirmed the edge
+mapping and raised the classic regression risk. See the follow-up acceptance
+boundary before committing any CPU change.
 Raw IRQ timing remains unresolved and no PA7 RTL fix is included. Run the original-Plus early-arm
 PA3 control and both last-adjustment-line variants; AmSpirit supports these
 mechanisms, but those hardware confirmations are still missing. Interlace

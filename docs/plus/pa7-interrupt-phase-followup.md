@@ -343,12 +343,13 @@ Result: **exit1, `cpu_irq_sample: FAIL 2 mismatches`**. This is an intentional
 fail-before reproduction, not a regression gate failure. No production fix
 or golden-hash change has been made.
 
-The repair belongs at the shared T80 sampling boundary, with EI/prefix, WAIT,
-interrupt modes and snapshot continuation checked. That affects classic CPC
-as well as Plus and exceeds this task's original Plus-only scope. Scope
-approval was requested before editing shared CPU behavior. After that repair,
-PA7 still needs its separate compatible-request timing fix and source-derived
-checks for pending clear, reset, PRI masking and VSYNC resynchronization.
+A candidate repair at the shared T80 sampling boundary needs EI/prefix, WAIT,
+interrupt modes and snapshot continuation checked. The user authorized this
+shared-CPU scope, but acceptance is blocked on classic-CPC impact evidence.
+The Plus photos alone do not identify the CPU as their unique cause. If the
+CPU repair is accepted, PA7 still needs its separate compatible-request timing
+fix and source-derived checks for pending clear, reset, PRI masking and VSYNC
+resynchronization.
 Do not delay a live aggregate IRQ pin: that could deliver a request already
 withdrawn by a register write or restore.
 
@@ -357,6 +358,54 @@ Artifacts and reproducible diagnostic scripts are under the ignored
 `software_controls.py`, `oracle_controls.py`, `cpu_irq_top.sv`, `cpu_irq.cpp`,
 measurements, traces and both provider reports. Only evidence documentation
 is committed at this point; the last production gate/soak below remain valid.
+
+### Shared-CPU evidence and acceptance boundary (2026-09-28)
+
+A fresh Opus medium review (`20260928T052306Z-71403-637e`) independently
+confirmed the committed T80 edge mapping, motherboard clock polarity and
+isolated harness arithmetic. Its worker permissions blocked both the Zilog
+image and web access, so it did **not** independently verify the primary
+source or upstream history. It identified the missing acceptance check:
+a shared CPU change may move classic CPC interrupt acceptance, and the current
+gate-array timing could compensate for the CPU discrepancy.
+
+Gemini Flash high (`20260928T052709Z-73621-8f7e`) independently inspected the
+rendered Zilog Figure9 and corroborated it with the HALT discussion and
+Figure11 (printed pp14–15). The manual distinguishes the final-T sampling
+edge from the next rising edge that starts the acknowledge cycle. Gemini
+confirmed the one-clock discrepancy in committed T80. Its report's stimulus
+table incorrectly starts the early pulse at640; the actual reproducer starts
+it at632, providing eight master ticks of setup before640. The source and
+recorded run above are authoritative for that interval. The review supports
+the documented Z80 rule, not an independently measured original-Z80 pin trace
+or a unique explanation of the Plus photographs.
+
+Upstream history narrows the provenance. In
+[mist-devel/T80 commit670437e (2018-07-14)](https://github.com/mist-devel/T80/commit/670437ea23f09f993df9cf85021b0e2d20e01b9f),
+the enabled-clock `INT_s` register was removed and the boundary decision
+changed to live `INT_n`, together with interrupt-acknowledge and WAIT changes.
+The commit gives no separate sampling-edge rationale. Current MiST T80 retains
+this choice; it is not a local Amstrad change. The related
+[TV80 implementation](https://github.com/hutch31/tv80/blob/master/rtl/core/tv80_core.v)
+retains an enabled-clock INT register consumed at the instruction boundary.
+Thus the discrepancy should not be attributed to every T80-derived core.
+
+**Acceptance remains pending.** Before a shared CPU fix is committed:
+
+- Measure classic GA INT assertion against physical CPU edges and compare
+  before/after instruction acceptance at the sensitive phases.
+- Validate the resulting classic timing against original-hardware evidence or
+  the applicable French ACCC timing diagrams; a green existing suite alone
+  does not exclude compensating errors. Record missing hardware coverage.
+- Only then complete the focused fail-before/passes-after CPU test, boundary
+  preservation checks and fresh cross-provider code review, followed by the
+  selection gate and soak required for the final code change.
+
+Production RTL remains unchanged. The implementation worker was stopped;
+its unfinished regression draft also had harness-startup failures, so it was
+removed from the active test registration and preserved under ignored
+`phase-diagnosis/unfinished-test-draft/`. It is not accepted regression
+coverage. No new gate or soak was run for this documentation-only update.
 
 ## Review and validation
 
