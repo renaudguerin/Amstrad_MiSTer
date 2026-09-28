@@ -198,6 +198,13 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Classic CRTC accuracy (types 0 and 1)
 
+**Next validation approach:** B1/B22 acquisition and applied-mode observation
+precede further visual SHAKER-driven CRTC changes. Numeric checks run once in
+Full and may proceed independently. B25's next deliverable is a
+self-synchronizing diagnostic DSK with RAM results and normal-video reporting;
+see [the backlog](backlog.md#b25-classic-ga-interrupt-phase-against-cpu-edges)
+and [the execution queue](implementation-roadmap.md#8-immediate-execution-queue).
+
 **Position.** Findings F1-F20 are implemented within their recorded scope at the
 deterministic-model level; see [audit-findings.md](classic/audit-findings.md). The latest RTL
 change before the September 22 retest was the D1/D6 parity repair (source `2d04812`,

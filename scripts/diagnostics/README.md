@@ -7,6 +7,13 @@ results in [the divergence ledger](../../docs/plus/source-divergences.md).
 
 ## Multi-test probe cartridge (`plus_hw_probes.py`)
 
+The remaining PA3 original-Plus controls are temporary V4 timing variants,
+not extra screens in this standard build. They need recovery or reproducible
+rebuilding into a labelled follow-up CPR; see the
+[variant inventory and packaging plan](../../docs/plus/asic-audit-probes-v4.md#pa3-follow-up-cartridge-packaging).
+The proposed self-synchronizing Classic DSK is a separate, not-yet-implemented
+[B25 deliverable](../../docs/backlog.md#b25-classic-ga-interrupt-phase-against-cpu-edges).
+
 ```sh
 python3 scripts/diagnostics/plus_hw_probes.py        # needs sjasmplus on PATH
 ```

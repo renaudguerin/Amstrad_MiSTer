@@ -418,9 +418,15 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 **Current next actions (2026-09-29).** The `4a44394` title regression pass is
 user-confirmed clean. Prioritize B1/B22 output acquisition diagnosis before
 interpreting further sync-sensitive SHAKER image mismatches as CRTC defects.
-In parallel, prepare B25 classic software phase probes with results retained
-in RAM and displayed only after normal video timing is restored; original
-Plus PA3 controls remain the bounded follow-up batch. Keep substantive review
+In parallel, prepare the self-synchronizing B25 Classic diagnostic DSK with
+results retained in RAM and displayed only after normal video timing is
+restored. An optional SNA runs the same initialization; snapshot phase is not
+an oracle. Run numeric SHAKER checks once in Full; use a small separate
+multi-mode display corpus rather than tripling every title/numeric test.
+Recover or rebuild the three temporary V4 PA3 variants as one clearly labelled
+follow-up CPR; accepted V5/DMA-overlap tests do not need repeating unchanged.
+The concrete contracts are in B25, B24 and B1 of [the backlog](backlog.md).
+Keep substantive review
 debt separate. The B16/B18 entries below are residual validation, not new
 implementation requests.
 

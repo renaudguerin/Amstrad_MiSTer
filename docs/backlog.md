@@ -37,6 +37,25 @@ the ACCC diagram's inconsistent WAIT-row label and type1 unit variance.
 Only after that add source-derived failing vectors for any GA/CRTC repair.
 See [T80 evidence](t80-int-sampling.md) for model measurements and reviews.
 
+**Next deliverable: a self-synchronizing Classic diagnostic DSK.** Run the
+same program on original CPC hardware and MiSTer, with CRTC0/1 identified.
+Include NOP/HALT, both RET NC parity cases, INC HL and ADD HL,DE controls.
+Store acceptance results/counts in RAM during each trial, restore normal
+video timing, then display a numeric table. Run in Full; timed border or
+raster-marker positions are not the acceptance oracle. Derive predictions
+from the French source before implementation and retain differing original
+hardware results rather than adjusting expectations to the emulator.
+
+Reuse `sim/classic_irq_phase_test.cpp` as a starting point, not a directly
+portable program: its simulator-only IRQ masking needs a hardware-valid
+replacement, and INC HL/ADD HL,DE controls need adding. The existing
+diagnostic assembly/build patterns are reusable, but a Classic diagnostic
+and DSK packaging path have not yet been implemented. An optional SNA may
+launch the same self-synchronizing code; it cannot establish initial CRTC
+counters or GA interrupt phase from snapshot state. Software probes establish
+instruction-acceptance boundaries. Exact electrical INT/clock/HSYNC timing
+still requires a logic analyser or scope.
+
 ## B24. Plus ASIC reference clause traceability
 
 **Audited 2026-09-27; RC1-RC8 applied 2026-09-28; phases 1–3 complete; PA1/PA2/PA3/PA4 implemented from V4 hardware/oracle evidence. Plus.** [plus/asic-reference-audit.md](plus/asic-reference-audit.md)
@@ -68,6 +87,18 @@ mechanisms, but those hardware confirmations are still missing. Interlace
 terminal timing, live R5 rewrites and conflicting GA I/O aliases remain
 unmeasured. The [V4 evidence record](plus/asic-audit-probes-v4.md#phase-4-oracle-follow-up-2026-09-28)
 contains the controls and their predictions.
+
+**Bounded next batch:** recover or rebuild the three temporary V4 PA3
+variants into one clearly labelled follow-up CPR, with named cases and
+recorded build/hash identity. These were not extra pages in the tested V5
+or DMA-overlap cartridges. The [variant inventory](plus/asic-audit-probes-v4.md#pa3-follow-up-cartridge-packaging)
+records their identities and recovery limits. Preserve the late-arm baseline
+and R5=0 control, and make phase markers readable outside HSYNC blanking.
+There is no reason to repeat the accepted V5/DMA-overlap batch unchanged.
+Defer interlace, live-R5 and other-model/alias expansion until a specific
+discrepancy supplies a bounded question. Exact ASIC edges and literal
+CPC-versus-Plus delay need signal capture or a matched cross-machine probe;
+the existing screenshots do not uniquely determine them.
 
 PA1/PA4 production-T80 fail-before vectors now pass from RAM/cartridge, with
 palette side effects and other bus responders protected. PA2/PA3 video vectors
@@ -359,6 +390,27 @@ through an HDMI scaler to the original-monitor oracle. A pre-filter trace
 can establish emitted signals; original-monitor evidence is still needed
 for physical display response. This is an investigation recommendation, not
 a new sync implementation or hardware acceptance claim.
+
+**Testing split.** Run SHAKER numeric/readback checks once in Full, using
+RAM result buffers where display legibility is doubtful. The selector does
+not change CRTC counters or CPU-visible VSYNC/interrupt results, so a full
+three-mode numeric matrix adds no CRTC evidence. Continue independently
+measured numeric investigations while visual sync cases await B1/B22 work.
+Use a small display corpus for acquisition, missing/irregular sync and mode
+transitions; expand across modes when the output path changes or a result
+actually depends on mode. Keep Full for routine title acceptance, Raw pixels
+for targeted pixel-policy comparisons, and Raw CRT for deliberate compatible
+CRT/output diagnosis. Do not remove modes or redesign sync without evidence.
+
+**Observability prerequisite.** Capture metadata currently records the
+requested mode, not proof of `sync_filter_applied`; native screenshots omit
+the OSD and use an asynchronous scaler buffer. Establish the applied mode
+and acquisition state in the bounded B22 reproduction before interpreting
+geometry. The SSM marker timestamps selected output sync, not raw CRTC sync.
+Existing filter/B6 tests protect the core boundary, not the complete scaler,
+analog pins or monitor response. A failure attributed to CRTC needs an
+independent raw-signal or software-result discrepancy and a fail-first vector;
+monitor PLL shape alone is insufficient.
 
 `rtl/crt_filter.v` sits at the end of the video path. Before the mode selector
 below, it was hardwired on (`Amstrad.sv`, `.sync_filter(1)`). Its original Full

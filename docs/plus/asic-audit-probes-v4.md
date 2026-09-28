@@ -622,8 +622,34 @@ frame1 MA0200. Its trace is beside the variant as `rtl-after-events.txt`.
 This is an implementation check against the predeclared oracle outcome,
 not additional hardware evidence.
 
-PA7 now has a [V5 follow-up cartridge](pa7-interrupt-phase-followup.md) with
-five reviewed controls and passive CPU-sampling traces. AmSpirit agrees with
-the pending-IRQ control but gives a different RET NC mean from the uniform
-shift hypothesis. Original-Plus screens31–35 are pending; V4 alone still
-does not justify an exact raw-IRQ delay.
+PA7's [V5 follow-up cartridge](pa7-interrupt-phase-followup.md) and the later
+DMA-overlap cartridge have original-Plus results and implemented repairs;
+see the [integration acceptance record](pa7-dma-overlap-repair.md).
+The `4a44394` title regression pass is user-confirmed clean. These results do
+not uniquely establish exact raw ASIC timing or close the PA3 variants below.
+
+### PA3 follow-up cartridge packaging
+
+The remaining bounded original-Plus batch consists of temporary variants of
+V4 screen28, not additional pages in the tested V5 or DMA-overlap cartridge.
+
+| Case | Recorded artifact identity | AmSpirit prediction |
+|---|---|---|
+| Last normal line, enable24 NOPs earlier | CPR SHA256 `c9c9b989353e363c00331d283f6668b15673b1f58c7701e32f1bd3e85d4c5e87`; capture `amspirit/28-early.png` | Green adjustment, red frame0–7 |
+| Last adjustment line, late enable | `amspirit-phase4/last-adjustment-early0/` | Red frame0, green frame1–7 |
+| Last adjustment line, early enable | `amspirit-phase4/last-adjustment-early24/` | Red frame0, green frame1–7 |
+
+The paths are historical evidence-directory names under the V4 output root,
+not verified downloadable artifacts. The 2026-09-29 search did not locate the
+generated CPRs in the current output/archive directories; exact CPR filenames
+were not recorded here. Recover the originals or rebuild reproducibly from
+the timing changes above. `plus_hw_probes.py` has a start-screen option but
+does not expose these PA3 timing variants as build options.
+
+Package one clearly labelled follow-up cartridge, retaining the late-arm
+baseline and an R5=0 control. Record case names, build command and CPR hash;
+keep phase/handler markers outside HSYNC blanking so a photograph identifies
+a reached case. Validate the rebuilt variants against the recorded emulator
+predictions before requesting an original-machine run. Hardware disagreement
+is evidence to investigate, not a reason to alter the expected result silently.
+No new hardware acceptance is claimed by this packaging plan.
