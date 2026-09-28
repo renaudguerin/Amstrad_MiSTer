@@ -249,15 +249,114 @@ reference at dot36 too (raw x52 minus ruler origin16). Hardware's first PRI
 reference therefore differs by32 dots even though that is not the compatible
 IRQ source. Matching the mean alone would hide this discrepancy.
 
-The next implementation prerequisite is to account for the RET NC pass-A
-reference phase through CPU/WAIT/instruction alignment, then prove any proposed
-compatible-IRQ timing change against all individual hardware marker positions
-and counts. A compatible-only request delay cannot by itself explain the PRI
-reference discrepancy. Preserve the existing classic lockstep test until the
-specific Plus deviation is justified; do not weaken expectations or change
-shared counter, ACK, PRI or snapshot policy merely to fit a mean. PA7 remains
-open, and no RTL was edited for this evidence update. PA3's separate hardware
-controls remain outstanding.
+The reference discrepancy is now explained by a shared CPU sampling defect
+in the diagnostic counterfactual below. A compatible-only request delay cannot
+by itself explain it. PA7 remains open pending the shared-CPU scope decision
+and the separate ASIC timing implementation. PA3 hardware controls remain
+outstanding.
+
+## Sampling-edge diagnosis (2026-09-28)
+
+The original RET trace has request-to-interrupt-entry margins of7/71 ticks for
+reference A/B and71/7 for compatible A/B. The shared ISR takes417 ticks from
+ACK to its first yellow write and holds yellow for640 ticks, identically in
+all four windows. In an instrumented copy,698 sled fetch records have carry
+set (flags01/41/45), and sequential RET fetches are128 ticks apart. RET NC is
+untaken throughout; the alternate pass has the intended opposite parity.
+Muse Spark independently checked the assembly and original trace
+(`20260928T045156Z-57786-2bea`); the parent checked the added flags/clock taps.
+
+Two software controls were predicted before assembly/run:
+
+| Screen34 variant | Predicted and observed RTL local edges | Predicted and observed AmSpirit local edges |
+|---|---|---|
+| B padding3NOP→2NOP: same entry parity as A | 36,164,36,164 | 36,196,36,196 |
+| RET count400→401: one full iteration longer per window | 36,164,52,148 | 36,196,52,180 |
+
+Both retain IRQ/FRAME=04. AmSpirit snapshot and pause state were restored.
+The controls confirm the model's phase/length isolation; they do not establish
+physical hardware request timing or choose an ASIC-versus-CPU explanation.
+
+### Disposable timing counterfactuals
+
+Generated motherboard and fixture copies add two configurable delays **only to
+the CPU input**, leaving production files, internal IRQ latches, counter and
+ACK policy unchanged. `C` delays both sources; `K` adds a compatible-only
+delay while PRI=0. Units are64MHz ticks (16ticks=0.25µs;64ticks=1µs).
+Predictions were recorded first in `phase-diagnosis/predictions.md`.
+
+| C / K | Screen34 local edges | Result |
+|---|---|---|
+| 0 / 0 | 36,164,52,148 | All six images byte-identical to committed-model predictions |
+| 0 / 64 | 36,164,52,180 | All hardware means fit, but the two pass-A RET edges remain32 dots early |
+| 16 / 0 | 68,164,52,180 | Corrects reference A; compatible timing remains wrong |
+| 16 / 64 | 68,196,52,180 | Every individual measured marker on screens30–35 matches hardware |
+
+All24 runs complete40 frames, origin38, with count pixels unchanged (02 for30,
+04 for31–35). G remains normalized0. The C16/K64 local edges are:
+30:52,180;31:452,468,468,484;32:52,244,52,244;
+33:52,196,68,180;34:68,196,52,180;35:36,164,52,180.
+
+The common shift must cross RET-A's7-tick margin but not INC-A's23-tick
+margin; the compatible total must cross71 but not87. These delimit sampling
+bins, not exact analogue timing: later ASIC assertion and earlier CPU sampling
+can produce the same pictures. A sixteen-tick common term and an additional
+sixty-four-tick compatible term are sufficient, not uniquely measured delays.
+
+The initial exploratory build exposed the delay tap but failed to replace the
+generated CPU's uppercase `.INT_n` connection. Its `c*` outputs are invalid as
+delay experiments. The corrected build asserts the connection replacement and
+observes the actual CPU pin; accepted outputs are exclusively `wired-c*k*`.
+
+### Independent CPU rule check
+
+[Zilog UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf), printed p12 and
+Figure9 on p13, places INT sampling on the rising edge **beginning the final
+T-state**, one clock before the next M1. The text was extracted with
+pdf-inspector and the diagram checked visually. This is independent of the
+Plus measurements and emulator behavior.
+
+T80pa clocks the CPU on `CEN_p` (`T80pa.vhd:109`). Its bus strobes establish the
+physical phase: M1 begins on the edge entering T1; MREQ/RD begin at the falling
+edge inside T1. In `T80.vhd:1326`, live INT is tested under `T_Res` on the edge
+leaving the last T-state and entering T1. The sample is therefore one CPU clock
+late. On the Plus production divider that is16 master ticks. Opus medium
+independently checked this physical phase mapping and the disposable delay
+wiring (`20260928T050206Z-62360-c85b`), and advised against a Plus-only delay
+on the CPU pin as a production fix. The parent verified the cited Zilog diagram;
+the reviewer relied on that citation and did not independently open the PDF.
+
+A standalone production-T80 check removes the ASIC and WAIT entirely. After
+DI/LD SP/IM1/SCF/EI/NOP it executes untaken RET NC. The documented final-T rising
+edge is tick640; next M1 begins at656. The three INT stimuli are:
+
+| INT low interval (master ticks) | Expected ACK at656 | Current T80 |
+|---|---:|---:|
+| 632–660: spans both edges | yes | yes |
+| 632–647: spans documented sample only | yes | **no** |
+| 648–660: arrives after documented sample | no | **yes** |
+
+The early pulse provides eight master ticks of setup and hold around the
+sample. Expectations come from Zilog Figure9, not from fitting a photograph.
+Command: `output_files/plus-hw-probes/pa7-followup/phase-diagnosis/cpu-obj/cpu_irq`.
+Result: **exit1, `cpu_irq_sample: FAIL 2 mismatches`**. This is an intentional
+fail-before reproduction, not a regression gate failure. No production fix
+or golden-hash change has been made.
+
+The repair belongs at the shared T80 sampling boundary, with EI/prefix, WAIT,
+interrupt modes and snapshot continuation checked. That affects classic CPC
+as well as Plus and exceeds this task's original Plus-only scope. Scope
+approval was requested before editing shared CPU behavior. After that repair,
+PA7 still needs its separate compatible-request timing fix and source-derived
+checks for pending clear, reset, PRI masking and VSYNC resynchronization.
+Do not delay a live aggregate IRQ pin: that could deliver a request already
+withdrawn by a register write or restore.
+
+Artifacts and reproducible diagnostic scripts are under the ignored
+`output_files/plus-hw-probes/pa7-followup/phase-diagnosis/`: `build.py`, `run.py`,
+`software_controls.py`, `oracle_controls.py`, `cpu_irq_top.sv`, `cpu_irq.cpp`,
+measurements, traces and both provider reports. Only evidence documentation
+is committed at this point; the last production gate/soak below remain valid.
 
 ## Review and validation
 

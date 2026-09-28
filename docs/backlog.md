@@ -31,11 +31,13 @@ Why this matters: vectors derived from observed effects cover what has been seen
 the reference says. The table makes the unexercised exception rows visible before a title
 or probe finds them.
 
-**Remaining action:** resolve the RET NC pass-A reference phase using the
-[V5 PA7 hardware results](plus/pa7-interrupt-phase-followup.md#original-6128-plus-results-2026-09-28).
-The 6128 Plus gives G=0, width12 gap192 and LD/RET/INC means128/128/128.
-AmSpirit RET144 disagrees: its first PRI reference marker is32 dots earlier
-than hardware, as is RTL. An IRQ-only fix must not hide this CPU-visible discrepancy.
+**Remaining action:** resolve the shared-T80 scope dependency, then finish PA7.
+[Sampling-edge diagnosis](plus/pa7-interrupt-phase-followup.md#sampling-edge-diagnosis-2026-09-28)
+identifies INT sampling one CPU clock late against Zilog Figure9; a standalone
+ASIC-free check fails both an early-pulse and a late-arrival case. A disposable
+16-tick common /64-tick compatible delay reproduces every V5 hardware marker,
+but a Plus-only CPU-input delay would hide the shared CPU defect. Shared-CPU
+scope approval is needed before implementation; classic mode is affected too.
 Raw IRQ timing remains unresolved and no PA7 RTL fix is included. Run the original-Plus early-arm
 PA3 control and both last-adjustment-line variants; AmSpirit supports these
 mechanisms, but those hardware confirmations are still missing. Interlace
