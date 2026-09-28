@@ -2813,6 +2813,33 @@ void t08l_split_ssa_sampling_point(TestBench& test) {
     test.expect_ma("t08l RCC > R9 on the last row keeps the R1 capture", 0x2400);
 }
 
+// PA2: original 6128 Plus V4 screen27 (IMG_3969, 2026-09-28)
+// captures at adjustment indexes 0, 1 and 8. Index8 aliases index0 through
+// the low-three-raster-bit SPLT compare. The photo establishes next-line
+// SSA use, not the exact intra-line sampling edge. Short geometry keeps
+// this test independent of CPU instruction timing: R4=2, R9=3, R5=16.
+void t08m_split_during_adjustment(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(5, 16);
+    test.set_splt(0);
+    test.run_to_frame_start();
+    test.run_until_adjustment();
+    test.expect_row("PA2 adjustment index0", 0);
+    test.expect_hcc("PA2 adjustment start", 0);
+    for (unsigned index : {0U, 1U, 8U}) {
+        test.run_to_state(2, index, 0, "PA2 adjustment target");
+        test.expect_adj(true, "PA2 target is in adjustment");
+        const unsigned ssa = 0x2400 + index * 0x100;
+        test.set_ssa(ssa);
+        test.set_splt(16 + (index & 7));
+        test.run_characters(8);
+        test.expect_ma("PA2 next line uses SSA at index " + std::to_string(index), ssa);
+        test.set_splt(0);
+    }
+    test.run_to_frame_start();
+    test.expect_ma("PA2 frame origin restores R12/R13", 0x1234);
+}
+
 // t08e: SSCR[6:4] vertical scanline offset added to RA[2:0].
 void t08e_sscr_vertical_scanline_offset(TestBench& test) {
     program_display_frame(test);
@@ -3052,7 +3079,7 @@ void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.expect_ra("t08j next row starts at offset RA 5", 5);
 }
 
-constexpr std::array<TestCase, 70> kTests = {{
+constexpr std::array<TestCase, 71> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3134,6 +3161,7 @@ constexpr std::array<TestCase, 70> kTests = {{
     {"t08i SSCR vertical wrap advances MA", t08i_sscr_vertical_wrap_advances_ma},
     {"t08j SSCR vertical offset with R9>7", t08j_sscr_vertical_offset_r9_above_7},
     {"t08k SPLT on the terminal frame line", t08k_split_on_terminal_line},
+    {"t08m adjustment split captures", t08m_split_during_adjustment},
     {"t08l SSA sampling point (R1; R0 on the terminal line)", t08l_split_ssa_sampling_point},
 }};
 

@@ -553,7 +553,9 @@ wire row_latch_event = CLKEN && !in_adj && !interlace_line &&
 // C0=R1 is the SSA frame line 1 displays.
 wire split_match = (SPLT != 8'd0) && ({charline[4:0], raster[2:0]} == SPLT);
 wire split_at_r0 = last_charline && (raster == R9_v_max_line);
-wire split_latch_event = CLKEN && !in_adj && split_match &&
+// Original 6128 Plus V4 screen27 captures at adjustment indexes 0, 1
+// and 8 (the low-three-bit alias); adjustment must not mask the comparator.
+wire split_latch_event = CLKEN && split_match &&
                          (hcc == (split_at_r0 ? R0_h_total : R1_h_displayed));
 
 // A split captured on the terminal line of a frame survives the frame
