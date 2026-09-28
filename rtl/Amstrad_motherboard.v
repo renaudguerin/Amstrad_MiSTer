@@ -659,6 +659,19 @@ wire        psg_dma_bc1;
 wire [7:0]  psg_dma_dout;
 wire        psg_dma_active;
 
+// PA4: V4 screen29 on an original 6128 Plus (IMG_3971) returns the
+// last memory-read byte: LD A,(5000/6800) -> 50/68, LD A,(HL) -> 7E.
+// Keep this separate from the M1-only decoder-write source above. Retain
+// driven reads through their full cycle (including cartridge WAIT), and
+// hold across unclaimed page reads rather than feeding the fallback back.
+wire asic_read_driven;
+reg [7:0] memory_bus_byte;
+always @(posedge clk) begin
+	if (reset) memory_bus_byte <= 8'hFF;
+	else if (mem_rd && !(plus_asic_rd && !asic_read_driven))
+		memory_bus_byte <= cpu_data_bus;
+end
+
 asic_regs asic_page
 (
 	.clk(clk),
@@ -670,6 +683,7 @@ asic_regs asic_page
 	.A(A[13:0]),
 	.D_in(D),
 	.D_out(asic_regs_dout),
+	.read_driven(asic_read_driven),
 
 	.leg_pal_wr(leg_pal_wr),
 	.leg_pal_addr(leg_pal_addr),
@@ -725,7 +739,7 @@ asic_regs asic_page
 	.sna_pal_plain(~sna_plus_chunk),
 	.sna_pal_hdr(sna_ga_palette)
 );
-assign plus_asic_dout = asic_regs_dout;
+assign plus_asic_dout = (plus_asic_rd && !asic_read_driven) ? memory_bus_byte : asic_regs_dout;
 assign plus_asic_rd   = asic_page_active & (A[15:14] == 2'b01) & mem_rd;
 
 wire plus_spr_wr_en;

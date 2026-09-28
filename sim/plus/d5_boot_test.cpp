@@ -245,10 +245,74 @@ void audit_page_and_tape() {
     }
 }
 
+// PA4: original 6128 Plus V4 screen29, IMG_3971 (2026-09-28),
+// docs/plus/asic-audit-probes-v4.md: absolute reads retain operand high
+// bytes 50/68; LD A,(HL) retains opcode 7E. Observe CPU-written results,
+// not the combinational module output. Cartridge execution also proves
+// real operand fetches survive the retained-byte path.
+void audit_page_readback() {
+    std::vector<uint8_t> program{0xf3};
+    auto emit = [&](std::initializer_list<uint8_t> bytes) {
+        program.insert(program.end(), bytes.begin(), bytes.end());
+    };
+    auto write = [&](uint16_t a, uint8_t d) {
+        emit({0x3e, d, 0x32, uint8_t(a), uint8_t(a >> 8)});
+    };
+    auto out = [&](uint16_t port, uint8_t d) {
+        emit({0x01, uint8_t(port), uint8_t(port >> 8), 0x3e, d, 0xed, 0x79});
+    };
+    unsigned result = 0;
+    auto save = [&]() { emit({0x32, uint8_t(result++), 0x80}); };
+    auto read = [&](uint16_t a) { emit({0x3a, uint8_t(a), uint8_t(a >> 8)}); save(); };
+    write(0x5000, 0xa5); write(0x6800, 0x5a);
+    read(0x5000); read(0x6800); // page-off RAM controls from the photo
+    const uint8_t unlock[] = {0xff,0,0xff,0x77,0xb3,0x51,0xa8,0xd4,
+                             0x62,0x39,0x9c,0x46,0x2b,0x15,0x8a,0xcd};
+    for (uint8_t b : unlock) out(0xbc00, b);
+    out(0x7f00, 0xb8);
+    read(0x5000); read(0x6800);
+    for (uint16_t a : {0x5000, 0x6800}) {
+        emit({0x21, uint8_t(a), uint8_t(a >> 8), 0x7e}); save();
+    }
+    write(0x4000, 0x0b); write(0x6400, 0x5a);
+    read(0x4000); read(0x6400); // mapped controls from the photo
+    // A legitimate FF read must remain driven, not look like an unclaimed
+    // page read. Sprite X-high 3 reads FF (ASIC reference §4).
+    write(0x6001, 3); read(0x6001);
+    read(0x6808); // ADC is claimed beside the write-only register range
+    out(0x7f00, 0xa0);
+    read(0x5000); read(0x6800); // page-off path restored
+    const unsigned halt_pc = program.size(); emit({0x76});
+    program.resize(16384, 0x76);
+    Harness h;
+    h.dut.d5_key = 0; h.dut.d5_tape_in = 0;
+    h.dut.production_clocking = 1; h.dut.plus_model_i = 2;
+    h.initialize(); h.download(build_cpr_image({{"cb00", program}})); wait_for_cpr_apply(h);
+    bool done = false;
+    for (unsigned n = 0; n < 2000000; ++n) {
+        h.tick();
+        if (m1_memory_read(h) && h.dut.dbg_addr == halt_pc) { done = true; break; }
+    }
+    require(done, "PA4: production CPU did not reach HALT");
+    const uint8_t expected[] = {0xa5,0x5a,0x50,0x68,0x7e,0x7e,0x0b,0x5a,0xff,0x3f,0xa5,0x5a};
+    bool ok = true;
+    for (unsigned i = 0; i < sizeof(expected); ++i) {
+        const unsigned actual = h.memory.at(0x28000 + i);
+        if (actual != expected[i]) {
+            std::cerr << "PA4 result " << i << ": got " << std::hex << actual
+                      << " expected " << unsigned(expected[i]) << std::dec << std::endl;
+            ok = false;
+        }
+    }
+    require(ok, "FAIL PA4: CPU ASIC-page readback");
+    std::cout << "PASS PA4: production T80 50/68/7E/7E; RAM, mapped ASIC, driven FF and cartridge controls" << std::endl;
+}
+
 int main(int argc,char **argv) {
  try {
   Verilated::commandArgs(argc,argv);
-  if(argc == 2 && std::string(argv[1]) == "--asic-audit") { audit_page_and_tape(); return 0; }
+  if(argc == 2 && std::string(argv[1]) == "--asic-audit") { audit_page_readback(); audit_page_and_tape(); return 0; }
+  if(argc == 2 && std::string(argv[1]) == "--page-readback") { audit_page_readback(); return 0; }
   if(argc == 2 && std::string(argv[1]) == "--controls") { model_controls(); return 0; }
   if(argc == 2 && std::string(argv[1]) == "--cart-timing") { cart_timing(); return 0; }
   require(argc >= 2, "usage: d5_boot image.cpr [--classic-rom] [--464]");
