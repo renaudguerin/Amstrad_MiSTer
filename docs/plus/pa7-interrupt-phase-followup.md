@@ -2,7 +2,9 @@
 
 ## Current position in plain English
 
-**The observed PA7 mismatch is fixed, reviewed, integrated and built.**
+**The V5 timing mismatch is fixed, reviewed, integrated and built.**
+A separate original-Plus DMA overlap probe now exposes a remaining
+[DMA/compatible cancellation mismatch](pa7-dma-overlap-original-plus-2026-09-28.md).
 Your original 6128 Plus photos showed software reacting at different positions
 from our simulation. Two changes now make every measured marker and interrupt
 count on screens30–35 match those photos:
@@ -16,8 +18,9 @@ count on screens30–35 match those photos:
 
 The important uncertainty is what happens in cases the screens do not cover.
 In our implementation, a DMA acknowledge during the new delay can also clear
-an undelivered compatible interrupt. That behaviour needs an original-Plus
-probe. The precise electrical delay, VSYNC interaction and literal timing
+an undelivered compatible interrupt. The original-Plus overlap photographs
+show that both interrupts survive at the disputed positions on all four pages;
+the current cancellation behavior therefore needs repair. The precise electrical delay, VSYNC interaction and literal timing
 comparison with an original CPC are also unmeasured.
 
 Classic integration tests pass. Opus found no evidence that the old T80 error
@@ -29,7 +32,8 @@ missing. The separate classic gate-array phase question is tracked as
 **MiSTer V5 verification is complete:** screens30–35 on RBF1346f39 match
 the simulation pixel-for-pixel in the active test area, including every marker
 and count compared with the original Plus photographs. **Next:** check familiar
-classic and Plus software, then design a focused original-Plus probe for DMA overlap;
+classic and Plus software, and pin the photographed DMA overlap mismatch in a
+failing regression before repairing it;
 clock/INT/HSYNC traces on original machines would settle the precise timing.
 PA3's extra original-hardware controls remain separate B24 debt.
 

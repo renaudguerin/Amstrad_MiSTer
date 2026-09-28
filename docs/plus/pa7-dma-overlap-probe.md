@@ -3,7 +3,9 @@
 Status: cartridge built; production-T80, counterfactual, MiSTer and AmSpirit runs completed.
 Independent implementation and final-delta reviews passed; repository gate passed.
 Base: `7f12f1c653085270f598be869eed20ee7f603349`. No production RTL change.
-Original hardware has not run this probe.
+Original Plus photographs now confirm H1 on all four pages and reject the
+production DMA/compatible cancellation behavior. See the
+[hardware observation record](pa7-dma-overlap-original-plus-2026-09-28.md).
 
 ## Question and experimental boundary
 
@@ -304,5 +306,7 @@ Exit 0; final line: `select_tests: no simulation needed`. Diagnostic scripts
 are outside the standard bench triggers. The dedicated production-T80 runs,
 conditional-model checks and physical FPGA captures above provide the relevant
 verification. No production RTL changed and no soak hash was re-minted.
-Original Plus results remain pending. The task stops at locally committed
-READY: no integration, push or release promotion.
+Original Plus results are recorded in the linked hardware observation record:
+all four pages match H1; the production overlap mismatch requires a separate
+regression and repair. The probe task remains locally committed READY:
+no integration, push or release promotion.
