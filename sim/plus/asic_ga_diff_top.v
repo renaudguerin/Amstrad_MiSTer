@@ -71,6 +71,13 @@ module asic_ga_diff_top (
 	output wire       as_INT_N,
 	output wire       as_VBLANK,
 	output wire [1:0] as_MODE,
+	// Simulation-only RAW classic aggregate (pre-delivery INT_N): the Plus
+	// ASIC holds compatible delivery ~1 char after the raw latch (PA7 V5),
+	// so delivered as_INT_N intentionally no longer locksteps ga_INT_N.
+	// Lockstep compares ga_INT_N against this RAW tap; every other shared
+	// pin still compares directly. Hierarchical tap only — no production
+	// port was added to asic_ga_timing for it.
+	output wire       as_RAW_N,
 
 	// Replica-only observability (register payloads cannot be compared
 	// against ga40010, which does not export them; directed vectors own
@@ -185,6 +192,11 @@ module asic_ga_diff_top (
 		.INKR_O(as_INKR_O),
 		.GAMODE_O(as_GAMODE_O)
 	);
+
+	// RAW (undelivered) classic request for lockstep: hierarchical peek at
+	// the replica's pre-delivery aggregate. Delivered as_INT_N lags it by
+	// ~1 character by design (PA7), so it cannot be compared lockstep.
+	assign as_RAW_N = u_replica.classic_raw_n;
 
 endmodule
 
