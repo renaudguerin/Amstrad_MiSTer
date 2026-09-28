@@ -26,9 +26,10 @@ same direction. Nevertheless, original classic hardware confirmation is still
 missing. The separate classic gate-array phase question is tracked as
 [B25](../backlog.md#b25-classic-ga-interrupt-phase-against-cpu-edges).
 
-**Next:** run the existing V5 cartridge on MiSTer with the new RBF, compare
-screens30–35 against the original Plus photographs, and check familiar classic
-and Plus software. Then use a focused original-Plus probe for DMA overlap;
+**MiSTer V5 verification is complete:** screens30–35 on RBF1346f39 match
+the simulation pixel-for-pixel in the active test area, including every marker
+and count compared with the original Plus photographs. **Next:** check familiar
+classic and Plus software, then design a focused original-Plus probe for DMA overlap;
 clock/INT/HSYNC traces on original machines would settle the precise timing.
 PA3's extra original-hardware controls remain separate B24 debt.
 
@@ -607,3 +608,79 @@ SHA-256 (CI download and delivered copy agree):
 This is a simulation- and timing-verified hardware-test artifact, not a claim
 that the remaining original-hardware checks have been run. This documentation
 handoff does not alter the bitstream's source commit.
+
+## MiSTer V5 verification (2026-09-28)
+
+The hardware-loop driver loaded the exact delivered RBF1346f39 on `root@mister`
+and six independently auto-starting V5 cartridges (screens30–35). Three native
+768×273 PNGs were captured per load; all three are byte-identical for each
+screen. Each screen was visually inspected. The 640×200 active test area
+(x16,y40 in MiSTer capture; x16,y0 in the simulation PPM) is pixel-identical
+to the corrected production simulation for **all six screens**. This includes
+yellow markers, G magenta reference markers, labels and interrupt counts.
+
+| Screen | MiSTer yellow endpoints, relative to ruler zero | IRQ/frame |
+|---|---|---|
+| 30 | 52,180 | 02 |
+| 31 | 452,468,468,484 | 04 |
+| 32 | 52,244,52,244 | 04 |
+| 33 | 52,196,68,180 | 04 |
+| 34 | 68,196,52,180 | 04 |
+| 35 | 36,164,52,180 | 04 |
+
+Screen31 magenta endpoints are96,112,112,128; G remains0. These agree with
+all previously recorded original-6128-Plus photographic measurements. The
+native screenshots validate the synthesized FPGA implementation; they do not
+measure original ASIC pins or independently capture the HDMI/analogue output.
+
+CFG: 6128 Plus (bits34:33=2), Full sync filter (bits36:35=0), other fields
+preserved. Applied CFG SHA256:
+`13ef32c7f1acfd5b5c9a1df3aa8b270b6378b00e0f5692fb05e10a350bc35747`.
+Original CFG SHA256:
+`2e585b4c85e2387cfb9c25028a061c6ba2aa3749f82453ffd895b5aaa393d8e4`.
+The user explicitly authorized replacing the active Amstrad session and asked
+not to restore it. Screen35 and the test configuration were left running.
+The remote RBF hash matches the integrated-build record above.
+
+Captures, case JSONs, media/Main hashes and cleanup manifests are preserved
+in the task checkout's ignored `docs/references/pa7-mister-20260928-1346f39/`
+and `output_files/plus-hw-probes/pa7-followup/mister-1346f39/`.
+No RTL changed; no simulation gate rerun is required for this evidence update.
+
+## Remaining mechanisms and how to distinguish them
+
+The V5 prediction table explicitly compared observable timing readings. It did
+not completely distinguish internal circuit mechanisms. The remaining choices
+should be kept separate:
+
+| Hypothesis | Meaning | Current evidence / discriminator |
+|---|---|---|
+| Early pending latch, later CPU delivery | A request exists internally before the CPU sees it | Current implementation; a DMA ACK in the gap can erase it. Test this on original Plus |
+| Later creation of the pending request | The counter event or its input is later, so no request exists during some or all of the gap | Can fit the visible timing; cancellation interactions may differ. Needs a reviewed overlap probe |
+| Shifted internal HSYNC timing | Timing moves at an input shared with other ASIC functions, rather than only at the IRQ output | Width tests constrain it but do not isolate all consumers. Probe another HSYNC-driven function alongside IRQ |
+| A different delay within the same CPU sampling interval | The electrical edge differs but software accepts on the same clock | V5 cannot distinguish this; finer phase controls or physical signal capture are needed |
+
+A persistent source-specific acceptance penalty after the request is already
+pending is disfavoured by the G control. The shared T80 correction has its own
+Zilog-based evidence; a Plus-specific CPU input delay is not the chosen fix.
+A common shift between original CPC and original Plus remains unmeasured.
+
+For DMA overlap, first design a software CPR probe for original6128Plus: sweep
+DMA interrupt/acknowledge timing across the compatible boundary, record vector
+order/count and DMA flags, and include no-DMA and early/late controls. Exact
+predictions require design review before cartridge construction. This needs no
+physical circuit probe. By contrast, an electrical clock/INT/HSYNC trace means
+connecting suitable logic-analyser or oscilloscope probes to accessible signals
+on an original CPC or Plus. That is optional deeper evidence, not what the
+MiSTer screenshot capture did.
+
+The classic gate-array logic is derived from Gerald's reverse-engineered40010
+schematics. This strongly supports the underlying logic, but does not prove
+all FPGA clock adaptation and inter-chip timing. Production instantiates
+`syncgen_sync.v`; the schematic-style `syncgen.v` is a VERILATOR comparison
+shadow (`ga40010.sv`). B25 therefore concerns the **combined CRTC→GA→CPU phase
+and its interpretation**, not a demonstrated error in the original gate-array
+logic. Check CRTC HSYNC phase, enable/clock mapping, synchronous adaptation,
+bench anchoring and the Compendium reading before proposing a GA change.
+Original classic validation means the same program on a real non-Plus CPC
+and MiSTer; no T80 code can be installed into the original machine's Z80.

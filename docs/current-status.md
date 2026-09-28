@@ -27,7 +27,8 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   passes selected tests/lint, production-T80 and full synthesis. Delivered
   `output_files/Amstrad_20260928_1346f39.rbf` (SHA-256 `680940ac…61d523`),
   setup/hold +0.628/+0.247ns, zero TNS, 24,569 ALMs (59%). MiSTer testing
-  remains pending; the current [plain-English status](plus/pa7-interrupt-phase-followup.md#current-position-in-plain-english)
+  now matches all six V5 active test images pixel-for-pixel, with three identical
+  captures per screen; title regression testing remains pending. The current [plain-English status](plus/pa7-interrupt-phase-followup.md#current-position-in-plain-english)
   separates the fixed mismatch from unverified hardware mechanisms.
 
 - **Probe-driven Plus ASIC fixes integrated (2026-09-27):** an 18-screen original-Plus probe

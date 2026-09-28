@@ -20,7 +20,10 @@ them.
 
 ## B25. Classic GA interrupt phase against CPU edges
 
-**⚠ VERIFY, 2026-09-28. Classic.** The production CRTC0/1→GA40010→T80
+**⚠ VERIFY, 2026-09-28. Classic.** This concerns the combined CRTC→GA→CPU
+phase, not a demonstrated error in the decap-derived gate-array logic. Check
+CRTC output phase, synchronous adaptation/clock wiring and source interpretation
+before proposing a GA change. The production CRTC0/1→GA40010→T80
 regression measures raw INT visible at N (the no-WAIT NOP T2 edge), whereas
 French ACCC v1.11 §27.7.2 pp289–290 gives N+16 master ticks for the on-time
 case and N+32 for the late variant. Opus source review predicts INC HL can
@@ -47,8 +50,9 @@ Why this matters: vectors derived from observed effects cover what has been seen
 the reference says. The table makes the unexercised exception rows visible before a title
 or probe finds them.
 
-**Remaining action:** hardware validation of the implemented PA7 model and
-shared T80 correction. [CPU source and classic safety evidence](t80-int-sampling.md)
+**Remaining action:** original-machine edge-case validation of the implemented
+PA7 model and shared T80 correction. MiSTer1346f39 now reproduces every V5
+active test image pixel-for-pixel, including all photographed marker/count values. [CPU source and classic safety evidence](t80-int-sampling.md)
 records isolated and actual CRTC0/1 fail-before/passes-after checks. Production
 simulation matches all measured V5 Plus markers after the shared CPU sampling
 repair and separate compatible-delivery stage. The exact ASIC mechanism and
