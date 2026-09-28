@@ -262,8 +262,27 @@ architecture rtl of T80 is
 	signal XYbit_undoc          : std_logic;
 	signal No_PC                : std_logic;
 	signal DOR                  : std_logic_vector(127 downto 0);
+	signal IntSample_n          : std_logic := '1';
+	signal IntDecision_n        : std_logic;
 
 begin
+	-- Zilog UM008011-0816, p12 / Figure 9 p13: sample INT on the
+	-- rising edge BEGINNING the final T-state. T_Res below enters the
+	-- next T1, so its decision consumes the preceding enabled-edge sample.
+	-- Keep the unverified 8080/GB/R800 timing policies unchanged.
+	IntDecision_n <= IntSample_n when (Mode = 0 or Mode = 1) and R800_mode = '0' else INT_n;
+	process (RESET_n, CLK_n)
+	begin
+		if RESET_n = '0' then
+			IntSample_n <= '1';
+		elsif rising_edge(CLK_n) then
+			if DIRSet = '1' then
+				IntSample_n <= '1';
+			elsif CEN = '1' then
+				IntSample_n <= INT_n;
+			end if;
+		end if;
+	end process;
 
 	REG <= IntE_FF2 & IntE_FF1 & IStatus & DOR & std_logic_vector(PC) & std_logic_vector(SP) & std_logic_vector(R) & I & Fp & Ap & F & ACC when Alternate = '0'
 			 else IntE_FF2 & IntE_FF1 & IStatus & DOR(127 downto 112) & DOR(47 downto 0) & DOR(63 downto 48) & DOR(111 downto 64) &
@@ -1323,7 +1342,7 @@ begin
 										NMI_s    <= '0';
 										NMICycle <= '1';
 										IntE_FF1 <= '0';
-									elsif IntE_FF1 = '1' and INT_n='0' and Prefix = "00" and SetEI = '0' then
+									elsif IntE_FF1 = '1' and IntDecision_n='0' and Prefix = "00" and SetEI = '0' then
 										IntCycle <= '1';
 										IntE_FF1 <= '0';
 										IntE_FF2 <= '0';
