@@ -25,6 +25,14 @@ tmp         equ 0xBF06
 irq_count   equ 0xBF07
 window_r3   equ 0xBF0D          ; A: R3 during the window (0 = unchanged)
 test_var    equ 0xBF0E          ; H: sled length; E3/E4: R9 phase
+; PA7 follow-up (screens 31-35): runtime window at 0x2000 (A13=1), two passes
+; per displayed frame (A: PRI7/compat69, B: PRI85/compat147 = A+78 lines+1us).
+PA7X_BUF    equ 0x2000
+PA7X_B      equ 78
+pa7x_pass   equ 0xBF10
+pa7x_bc1    equ 0xBF12          ; G: gated EI delay, reference window
+pa7x_bc2    equ 0xBF14          ; G: gated EI delay, compatible window
+pa7x_wait   equ 0xBF16          ; inter-window loop (400 for sleds, as PA7)
 sync_addr   equ 0xBF08          ; handler the 0038 JP overlay targets
 target_head equ 0xBF0A          ; first 3 bytes of the installed test handler
 SYNC_LINE   equ 2               ; A/C: arming interrupt, well before line 7
@@ -735,4 +743,87 @@ pa7_window: ei
 pa7_window_end:
             assert (pa7_window & 0x2000) != 0
             assert (pa7_window_end & 0x2000) != 0
+
+; ---- PA7 follow-up screens 31-35 (G/W/L/R/I). Predeclared expectations in
+; docs/plus/pa7-interrupt-phase-followup.md, never adjust to match output.
+; Same shared yellow ISR (isr_pal) for every request. B = A +78 lines +1us
+; via 3 extra NOPs, giving complementary parity for 2us sleds. PRI0 then
+; MRER reset order preserved; all markers finish before VSYNC240.
+isr_pa7x_sync:
+            push af : push bc : push de : push hl
+            ld a,(pa7x_pass) : or a
+            jr nz,.b                        ; A: JR not taken (2us)
+            ld a,7 : jr .go                 ; A: LD 2us + JR 3us = 7us
+.b:         ld a,7+PA7X_B : ds 3,0          ; B: JR taken 3us + LD 2us + 3 NOPs 3us = 8us
+.go:        ld (ASIC_PRI),a
+            call overlay_target
+            ld bc,(pa7x_bc1) : call PA7X_BUF ; reference window (sleds ignore BC)
+            xor a : ld (ASIC_PRI),a         ; PRI0 first...
+            ld bc,0x7F00 : ld a,0x9E : out (c),a ; ...then MRER reset
+            ld bc,(pa7x_wait)
+.w:         dec bc : ld a,b : or c : jr nz,.w
+            ld bc,(pa7x_bc2) : call PA7X_BUF ; compatible window
+            ld a,(pa7x_pass) : xor 1 : ld (pa7x_pass),a
+            jr z,.frame
+            ld a,SYNC_LINE+PA7X_B : ld (ASIC_PRI),a : jr .out
+.frame:     ld a,SYNC_LINE : ld (ASIC_PRI),a
+            ld a,1 : ld (frame_done),a
+.out:       call overlay_sync
+            pop hl : pop de : pop bc : pop af
+            ei
+            ret
+
+init_pa7w:  ld e,0x8C : ld d,0x00 : jr init_pa7s
+init_pa7l:  ld e,0x88 : ld d,0x7E : jr init_pa7s
+init_pa7r:  ld e,0x88 : ld d,0xD0 : jr init_pa7s
+init_pa7i:  ld e,0x88 : ld d,0x23
+; E = R3 width, D = sled opcode (0 = NOP single, else 2us opcode x400).
+init_pa7s:  ld a,3 : call crtc_set     ; before E is reused
+            ld hl,PA7X_BUF            ; LD HL,buf / SCF / EI, same for all four
+            ld (hl),0x21 : inc hl : ld (hl),0x00 : inc hl
+            ld (hl),0x20 : inc hl
+            ld (hl),0x37 : inc hl : ld (hl),0xFB : inc hl
+            ld bc,800 : ld a,d : or a : jr z,.f
+            ld bc,400                 ; 2us opcodes, same 800us window
+.f:         ld (hl),d : inc hl : dec bc : ld a,b : or c : jr nz,.f
+            ld (hl),0xF3 : inc hl : ld (hl),0xC9 ; DI / RET
+            ld hl,400 : ld (pa7x_wait),hl
+            jr init_pa7x
+; G: both requests pending under DI, CPU-timed magenta before EI.
+; Template is position independent, copied to PA7X_BUF on each init.
+; EI is after C10 so all magenta marks clear left blanking; yellow ends
+; before C36. Both requests are pending under DI. Delays position the
+; experiment only; expected normalized G=0 is declared before simulation.
+PA7G_BC1    equ 35
+PA7G_BC2    equ 40
+PA7G_WAIT   equ 499
+init_pa7g:  ld a,3 : ld e,0x88 : call crtc_set
+            ld hl,pa7g_tmpl : ld de,PA7X_BUF : ld bc,pa7g_end-pa7g_tmpl : ldir
+            ld hl,PA7G_BC1 : ld (pa7x_bc1),hl
+            ld hl,PA7G_BC2 : ld (pa7x_bc2),hl
+            ld hl,PA7G_WAIT : ld (pa7x_wait),hl
+init_pa7x:  xor a : ld (pa7x_pass),a
+            ld hl,0xD050 : ld de,0xD850 : call pa7_ruler ; lines 10/11
+            ld hl,0xFA80 : ld de,0xC2D0 : call pa7_ruler ; lines 71/72
+            ld hl,0xC370 : ld de,0xCB70 : call pa7_ruler ; lines 88/89
+            ld hl,0xEDA0 : ld de,0xF5A0 : call pa7_ruler ; lines 149/150
+            ld hl,isr_pal : ld de,isr_pal_end : call install_isr
+            call pal_regs
+            ld hl,isr_pa7x_sync : ld a,SYNC_LINE
+            jp arm_irq
+
+; Copied to PA7X_BUF. Requests arrive under DI; magenta (pen0 blue nibble
+; at 6400: FF magenta, F0 red) marks the CPU-timed EI point, then the same
+; shared yellow ISR runs after acceptance. BC = gated delay to EI.
+pa7g_tmpl:  di
+.d:         dec bc : ld a,b : or c : jr nz,.d
+            ld hl,0x6400 : ld (hl),0xFF
+            ds 2,0
+            ld (hl),0xF0
+            ds 2,0
+            ei
+            ds 48,0                   ; acceptance + isr_pal here
+            di : ret
+pa7g_end:
+            assert PA7X_BUF+806 < 0x4000 && (PA7X_BUF & 0x2000) != 0
             assert $ < 0xBF00

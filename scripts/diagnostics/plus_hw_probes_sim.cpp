@@ -25,6 +25,7 @@ int main(int argc, char **argv) {
 		unsigned frame = 0, origin = 0, line = 0, last_origin = 0;
 		bool old_vs = false, old_fire = false, old_ack = false, old_hs = false;
 		bool old_wr = false, old_int = true, old_split = false, old_latch = false, old_io_wr = false;
+		bool old_c52 = false, old_classicn = true, old_progn = true, old_intcycle = true, old_insn = false;
 		unsigned old_hcc = 0, old_test = 255;
 		bool key_down = false;
 		unsigned key_frame = 0;
@@ -33,7 +34,9 @@ int main(int argc, char **argv) {
 			s << "tick=" << h.cycles << " origin=" << origin << " line=" << line
 			  << " c0=" << unsigned(d.g_hcc) << " dot=" << unsigned(d.dbg_video_pixcnt)
 			  << " vc=" << unsigned(d.g_vc) << " rc=" << unsigned(d.g_rc)
-			  << " adj=" << unsigned(d.g_adj);
+			  << " adj=" << unsigned(d.g_adj) << " intcnt=" << unsigned(d.g_intcnt)
+			  << " mc=" << unsigned(d.dbg_mcycle) << " ts=" << unsigned(d.dbg_tstate)
+			  << " intcyc=" << unsigned(d.g_intcycle);
 			return s.str();
 		};
 		auto byte = [&](unsigned a) {
@@ -68,7 +71,7 @@ int main(int argc, char **argv) {
 			const bool wr = d.dbg_asic_wr;
 			if (wr && !old_wr) {
 				const unsigned a = 0x4000 | d.dbg_asic_addr;
-				if ((a >= 0x6800 && a <= 0x6804) || a == 0x6401 || a == 0x6421)
+				if ((a >= 0x6800 && a <= 0x6804) || a == 0x6400 || a == 0x6401 || a == 0x6421)
 					ev_cur << "WR " << std::hex << a << '=' << unsigned(d.dbg_asic_val)
 					       << std::dec << ' ' << where(d) << '\n';
 			}
@@ -90,6 +93,33 @@ int main(int argc, char **argv) {
 			const bool ack = d.dbg_int_ack;
 			if (ack && !old_ack) ev_cur << "ACK " << where(d) << " pc=" << std::hex << d.dbg_pc << std::dec << '\n';
 			old_ack = ack;
+			// PA7 cause chain, all passive edge taps: 52-counter event (C52),
+			// latch attribution (CLASSIC/PROG), CPU sampling (INTSAMPLE =
+			// intcycle_n fall) versus bus acknowledge (ACK above).
+			const bool c52 = d.g_c52;
+			if (c52 && !old_c52) ev_cur << "C52 " << where(d) << '\n';
+			old_c52 = c52;
+			const bool classicn = d.g_classicn;
+			if (classicn != old_classicn)
+				ev_cur << (classicn ? "CLASSIC_RELEASE " : "CLASSIC_ASSERT ") << where(d) << '\n';
+			old_classicn = classicn;
+			const bool progn = d.g_progn;
+			if (progn != old_progn) ev_cur << (progn ? "PROG_RELEASE " : "PROG_ASSERT ") << where(d) << '\n';
+			old_progn = progn;
+			const bool intcycle = d.g_intcycle;
+			if (intcycle != old_intcycle)
+				ev_cur << (intcycle ? "INTSAMPLE_END " : "INTSAMPLE ") << where(d)
+				       << " pc=" << std::hex << d.dbg_pc << std::dec << '\n';
+			old_intcycle = intcycle;
+			// Bounded fetch trace: instruction starts only inside the PA7
+			// reference/compatible windows in both follow-up passes, with
+			// PC and master tick. Never a per-master-cycle log.
+			const bool insn = d.g_insn;
+			if (old_test >= 30 && old_test <= 35 && insn && !old_insn &&
+			    ((line >= 6 && line <= 10) || (line >= 66 && line <= 72) ||
+			     (line >= 84 && line <= 88) || (line >= 144 && line <= 150)))
+				ev_cur << "FETCH " << where(d) << " pc=" << std::hex << d.dbg_pc << std::dec << '\n';
+			old_insn = insn;
 			const bool split = d.g_split;
 			if (split && !old_split) ev_cur << "SPLIT " << where(d) << " ssa=" << std::hex << d.g_ssa << std::dec << '\n';
 			old_split = split;

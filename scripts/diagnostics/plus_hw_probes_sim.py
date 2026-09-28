@@ -25,6 +25,18 @@ PORTS = {
     'g_store': (14, 'mb.asic_vid.vma_latch'),
     'g_ssa': (14, 'mb.asic_vid.SSA'),
     'g_splt': (8, 'mb.asic_vid.SPLT'),
+    # PA7 follow-up: passive cause-chain taps (diagnostic fixture only).
+    # g_c52/g_intcnt/g_classicn/g_progn read asic_ga_timing internals
+    # (intcnt52 pulse, 6-bit scanline counter, classic/programmed latches).
+    # g_intcycle reads the GHDL-T80 netlist wire mb.CPU.intcycle_n
+    # (T80pa.vhd:96, already proven by d5_ack_sample in prepare_d5_boot.py);
+    # g_insn reads the motherboard cpu_insn_start observation port.
+    'g_intcnt': (6, 'mb.asic_ga.intcnt_reg'),
+    'g_c52': (1, 'mb.asic_ga.intcnt52'),
+    'g_classicn': (1, 'mb.asic_ga.classic_int_n'),
+    'g_progn': (1, 'mb.asic_ga.programmed_int_n'),
+    'g_intcycle': (1, 'mb.CPU.intcycle_n'),
+    'g_insn': (1, 'mb.cpu_insn_start'),
 }
 
 
