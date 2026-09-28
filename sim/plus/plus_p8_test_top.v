@@ -371,6 +371,7 @@ module plus_p8_test_top (
 		.A(aregs_addr),
 		.D_in(aregs_din),
 		.D_out(aregs_dout),
+		.read_driven(),
 
 		// B8-3 accepted legacy palette event, straight from the GA as
 		// production wires it (B8-5 slice B: proves a snapshot apply emits no
