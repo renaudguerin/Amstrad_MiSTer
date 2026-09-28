@@ -40,7 +40,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   captures per screen. Integrated as `4a44394` from `d563586`; exact-SHA CI and full synthesis pass.
   Delivered `output_files/Amstrad_20260928_4a44394.rbf` (SHA256 `285f4258…2034a4`),
   setup/hold +0.238/+0.180ns, zero TNS. MiSTer evidence covers source RBF `011f323d`;
-  broader title testing remains pending.
+  the user confirms the broader title regression pass complete with no issues on
+  `4a44394` (2026-09-29; FF2, Prehistorik II, Eerie Forest, Sonic GX, Copter 271
+  and CRTC3 demo were the requested set). See the
+  [acceptance scope](plus/pa7-dma-overlap-repair.md#integration-title-acceptance--2026-09-29).
 
 - **Probe-driven Plus ASIC fixes integrated (2026-09-27):** an 18-screen original-Plus probe
   cartridge settled most Plus source conflicts; the results, confidence levels and open probes
@@ -251,14 +254,12 @@ Sonic no-input progression (corrupt title, then playfield); see the
 [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md). Exact write/HSYNC phase remains
 a model convention; no Sonic outcome is claimed.
 
-**Position.** The P-2 to P9 functional milestones and the P10 compatibility repairs are
-integrated. Remaining work is title-driven and evidence-gated: roadmap rows P10f/P10g list the
-capture each screenshot family needs before any RTL change, and the named model assumptions
-(sprite `+3` mirror, coordinate formula, PRI offset, lowered R0, R3-low collision, pixel phase)
-stay assumptions until a source or hardware discriminator settles them. B19's residual
-fix is hardware-confirmed at `88262b9`; the subsequent Sonic DMA PAUSE candidate
-failed hardware acceptance and its behavior was restored in `b0e5bed`. Its
-measured partial cadence improvement remains worth isolating, as described below.
+**Position.** P-2 through P9, P10 compatibility repairs and the subsequent
+hardware-probed ASIC corrections are integrated. The `4a44394` title regression
+pass is user-confirmed clean. The [source-divergence ledger](plus/source-divergences.md)
+distinguishes hardware-settled PRI, sprite and split rules from remaining
+assumptions. PA3 early-arm and last-adjustment controls, exact interrupt phase,
+general DMA boundaries and the named model/disk/reset acceptance remain open.
 
 **Hardware-confirmed:** 6128 Plus BASIC boot (`5c16b17`); Copter 271 logo palette (PRI line
 compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` input
@@ -273,9 +274,9 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   is absent. Muse cross-provider review found no blockers. Low-A13 FDC aliases
   remain a schematic inference.
 
-- Copter 271: major animation, palette and gameplay regressions in the CRTC3
-  repair builds; prioritize the acknowledge-provenance finding above. The older
-  vertical-scrolling residual remains separately unclosed.
+- Copter 271: the CRTC3-repair regressions were accepted fixed on `cf62d5f`;
+  the latest `4a44394` title regression report is clean. No new quantitative
+  vertical-scrolling measurement was supplied.
 - Sonic GX: title screen corruption is **hardware-accepted fixed on `64702ac`**
   ([device acceptance record](investigations/sonic/b20-7-dma-pause-acceptance-2026-09-22.md)).
   With the cartridge stall fixed (`03f4724`), the resurrected DMA terminal-PAUSE
@@ -286,7 +287,7 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   sustained fire input transitions cleanly through the Act 1 title card into live player
   gameplay. Zero regressions observed across Copter 271, Burnin' Rubber, Pang, Plotting,
   Navy Seals, and the CRTC3 demo.
-  Title corruption is confirmed on the integrated build `8b18ac0` (2026-09-23
+  The title fix is confirmed on the integrated build `8b18ac0` (2026-09-23
   user retest, title symptom only; see the
   [retest record](investigations/hardware-runs/plus-titles-8b18ac0-2026-09-23.md)).
   General PAUSE 0/1, PPR and REPEAT boundaries remain open for independent investigation.
@@ -304,8 +305,8 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   regression samples. The late freeze reproduces as a DMA command-decode
   interrupt storm; fifth repair `7596a7c` passes focused tests,41 selected
   benches and fresh Opus review.
-  Full-effort integration build `e4445a1` passes CI/timing; user-owned visual
-  acceptance remains pending; see the
+  Full-effort integration build `e4445a1` passes CI/timing. Later CRTC3 user
+  acceptance is recorded on `cf62d5f` and the clean `4a44394` regression pass; see the
   [investigation](investigations/hardware-runs/crtc3-demo-2026-09-25.md).
   Eerie's residual does not meet the cross-line condition, and six early-line
   pixel probes match AmSpirit. The **unchanged**

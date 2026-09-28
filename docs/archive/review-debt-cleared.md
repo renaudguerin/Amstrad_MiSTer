@@ -891,3 +891,29 @@ and the simultaneous raw-HSYNC-fall/line-entry seam. Preserve ordinary monitor
 trailing-edge timing, nine-bit PRI no-wrap and pending/acknowledge behavior.
 Evidence and acceptance limits are in the
 [CRTC3 record](../investigations/hardware-runs/crtc3-demo-2026-09-25.md).
+
+
+## TV80 automatic I/O wait — cleared 2026-09-29
+
+**TV80 automatic I/O wait (`plus/ga-fast-write-latch`), 2026-09-22 — UNREVIEWED:** Opus made
+`sim/plus/tv80/tv80_core.v` hold T2 for one wait state on I/O cycles (the existing, previously
+dead `IOWait` parameter) and removed the P10 fixture's `production_wait` switch. Sim-only; no
+RTL change. Measured IORQ windows now match the production T80pa exactly
+([investigation](investigations/no-wait-ga-write-latch-2026-09-22.md)). Look hardest at:
+whether the wait also applies where it should not (interrupt-acknowledge M1 is excluded
+through `iorq`; block I/O instructions and the WAIT-stretch path through the wrapper's
+`cen_pol`), and the resulting `b6-dynamic` type-1 failure (backlog B22).
+
+Independent native Astra reviewer (OpenAI; original author Opus/Anthropic),
+source review in task `tv80_review`: **CLEAR**, no actionable defect. Reviewed
+one enabled T2 hold, external-WAIT enable gating, IRQ-ack exclusion, P10
+`production_wait` removal and D5 production READY restoration. B22 now checks
+raw pulse widths and conditions shifted-fetch expectations on acquisition;
+monitor fidelity remains open. No gates rerun.
+
+Limits: this reduced TV80 does not implement block I/O; B23 exercises ordinary
+IN/OUT and memory-read WAIT, not external WAIT combined with I/O. IRQ timing
+and omitted interrupt stack writes remain B23 debt. This source review does
+not certify those instructions or close monitor/hardware acceptance.
+
+[Investigation (archive-relative link)](../investigations/no-wait-ga-write-latch-2026-09-22.md).

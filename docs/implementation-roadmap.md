@@ -25,7 +25,8 @@ remain hardware acceptance work, not closed findings; see
 [the shared CPU evidence](t80-int-sampling.md).
 The hardware-confirmed DMA/compatible overlap repair is integrated from `d563586`;
 its [acceptance record](plus/pa7-dma-overlap-repair.md) owns regression, review,
-gate and synthesis/MiSTer status. Broader title acceptance remains separate.
+gate and synthesis/MiSTer status. The user confirms the `4a44394` title
+regression pass complete with no issues on 2026-09-29.
 
 Use [current-status.md](current-status.md) for the current integration/artifact handoff and
 [the status history](archive/current-status-history-2026-09-21.md) for dated build identities.
@@ -37,8 +38,10 @@ open acceptance criteria; they are not instructions to rebuild the completed sta
   failures, and the canonical soak is `0xe99ab434a5e1cdb3`. Named hardware questions remain.
 - **Plus:** P-2 through P9 and the P10 compatibility repairs are integrated. Hardware confirms
   6128 Plus BASIC boot, Pang/Plotting/arn5diag input, Copter 271 logo colours and title-flash
-  repair, and the Burnin' Rubber/CRTC3-demo right-edge sprite repairs. Sonic GX, Copter gameplay
-  scrolling, Navy Seals left-edge flicker and the remaining title matrix are still open.
+  repair, and the Burnin' Rubber/CRTC3-demo right-edge sprite repairs. Sonic GX
+  is accepted fixed, and the latest `4a44394` title regression pass is clean.
+  Quantitative Copter scrolling, Navy Seals left-edge flicker capture and the
+  remaining model/disk/reset matrix retain their separate evidence limits.
   Left-edge sprite corruption overall is much improved, perhaps fixed; do not promote that
   tentative result to closure.
 - **Shared:** B8-1 through B8-7 repairs and B6's video boundary/rendering follow-up are
@@ -412,6 +415,15 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 
 ### Integrated implementations and follow-up validation
 
+**Current next actions (2026-09-29).** The `4a44394` title regression pass is
+user-confirmed clean. Prioritize B1/B22 output acquisition diagnosis before
+interpreting further sync-sensitive SHAKER image mismatches as CRTC defects.
+In parallel, prepare B25 classic software phase probes with results retained
+in RAM and displayed only after normal video timing is restored; original
+Plus PA3 controls remain the bounded follow-up batch. Keep substantive review
+debt separate. The B16/B18 entries below are residual validation, not new
+implementation requests.
+
 1. **B16 — implemented; partial device acceptance (Plus).** A CPR loaded with Plus Off selects 6128+;
    an already selected Plus model is preserved. SNA header values 4/5/6 select the recorded
    Plus model before CPU resume, with the OSD status updated. Preserve existing classic-header
@@ -437,18 +449,18 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 
 ### Independent Plus accuracy work
 
-[B20: interrupt and DMA findings](backlog.md#b20-independent-plus-asic-interrupt-and-dma-accuracy-findings)
-is a separate queue from title debugging. Continue from the live PPR repair and
-the source-specific empty-vector/double-ack discriminators below. A Sonic reproduction is not an entry gate. Conflicting PRI-phase and
-DCSR claims require source/hardware discrimination before RTL changes. Coordinate
-shared interrupt/DMA interfaces and device use with the active Sonic task.
+[B24](backlog.md#b24-plus-asic-reference-clause-traceability) and the
+[source-divergence ledger](plus/source-divergences.md) carry the current
+hardware-probed position. PRI phase/width/writes, nine-bit comparison, sprite
+mirrors and the observed DMA/compatible overlap are settled within their
+recorded probe scope. Do not restart the old Sonic cartridge-latency or
+physical double-ack investigation as though those repairs were still absent.
 
-B20-1 live PPR writes are implemented and reviewed; original-hardware phase
-validation remains open. B20-2/3 now have synthetic and production-T80
-[acknowledge discriminators](plus/references/b20-ack-discriminator-2026-09-22.md),
-with physical double-ack reachability unresolved. Sonic has a reviewed
-[85-tick rearm deadline trace](investigations/sonic/rearm-boundary-2026-09-22.md);
-CPU/cartridge-memory latency is the next discriminator before another DMA change.
+The next bounded original-Plus batch is PA3 early-arm on the last normal line
+and both early/late last-adjustment-line variants. Exact raw IRQ phase and
+split-ACK corners remain separate measurement work. B20 live-PPR, general
+PAUSE/REPEAT boundaries and collision-priority questions remain open where
+not exercised by those cartridges; choose a discriminating probe before RTL.
 
 ### Device-dependent work
 

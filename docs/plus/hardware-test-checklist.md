@@ -13,6 +13,14 @@ cartridges `Drive A: read fail`; approximately half of sampled cartridges loaded
 
 ## Latest recorded results
 
+**2026-09-29:** the user reports the requested title regression pass on
+`Amstrad_20260928_4a44394.rbf` complete with **no issues**. The requested set
+was FF2, Prehistorik II, Eerie Forest, Sonic GX, Copter 271 and CRTC3 demo.
+See [the acceptance record](pa7-dma-overlap-repair.md#integration-title-acceptance--2026-09-29)
+for artifact identity and evidence limits. This closes that regression action;
+it does not check every subsystem/model box below. Older reports follow as
+historical evidence, not the current title verdict.
+
 The [2026-09-23 retest](../investigations/hardware-runs/plus-titles-8b18ac0-2026-09-23.md)
 on integrated build **`8b18ac0`** (contains B20-7 terminal-PAUSE, cartridge
 READY-rate fix and tape-bank relocation; device copy hash unchecked) reports:

@@ -3,7 +3,8 @@
 Status: **INTEGRATED** at `4a443942a6755225b79b892ff8fb12242ec30aa2` from
 `d563586a06da0edc3dd9c6f69c5aa03dfb0d7dc6`. Review, exact integration CI and
 full-effort synthesis pass; the integration RBF is delivered locally. MiSTer
-acceptance below covers the source RBF `011f323d`. Release is separate.
+diagnostic acceptance below covers source RBF `011f323d`; the user reports clean
+title regression testing on integration RBF `4a44394` (2026-09-29). Release is separate.
 Dependency base: `9888a90418551d5d1315b3f3a91e2b9c3538fcbf`.
 Branch: `codex/plus/pa7-dma-overlap-repair`. Integration and release are separate.
 
@@ -99,7 +100,7 @@ and production traces remain in the read-only `pa7-dma-overlap` checkout;
 repair outputs live under this checkout's ignored `output_files/pa7-dma-repair/`.
 
 B25 classic phase investigation, PA3 extra original-machine controls, precise
-ASIC pin timing and broader title acceptance remain separate work.
+ASIC pin timing remain separate work. Broader title acceptance is recorded below.
 
 ### Final local gate
 
@@ -192,6 +193,17 @@ reconciled; review debt and the classic soak golden remain unchanged.
   summaries; this does not invalidate the successful compile or timing gate.
 
 The thirty MiSTer captures cover the same production source before the merge
-(`011f323d`), not a fresh device run of the integration RBF. No broader title
-improvement is claimed. Subsequent acceptance-record edits are documentation-only;
+(`011f323d`), not a fresh device run of the integration RBF. Subsequent
+acceptance-record edits are documentation-only;
 they reuse this exact artifact without relabelling it as a newer build.
+
+### Integration title acceptance — 2026-09-29
+
+The user confirms that the requested title regression pass on
+`Amstrad_20260928_4a44394.rbf` is complete with **no issues**. The requested
+set was FF2, Prehistorik II, Eerie Forest, Sonic GX, Copter 271 and the CRTC3
+demo. This closes the pending broader title regression action for this build.
+It is user-reported acceptance; no new automated captures, per-title play
+lengths, device hash verification or sync/model settings were supplied with
+this report. It does not close original-machine PA3 controls, B25 classic
+phase measurements or the exact internal ASIC timing assumptions.

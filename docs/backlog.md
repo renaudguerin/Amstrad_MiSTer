@@ -335,6 +335,31 @@ interest.
 
 **Priority: highest. Everything sync-related is downstream of this.**
 
+**Current implementation, checked against RTL 2026-09-29.** The OSD modes are
+**Full / Raw pixels / Raw CRT**, not the earlier Full / Live blanking / Off.
+`Amstrad_motherboard.v` and `crt_filter_output_select` in `rtl/crt_filter.v`
+keep the complete filtered HSYNC/VSYNC/HBLANK/VBLANK acquisition tuple in
+both Full and Raw pixels. Raw pixels changes fetch-byte SHIFT compensation
+and the vertical-blank pixel mask. Raw CRT selects GA-shaped monitor sync,
+raw CRTC HSYNC horizontal blank and GA vertical blank. The earlier Live
+implementation and experiments below are historical evidence, not today's
+wiring contract. CPU PPI VSYNC reads use `vs_sel`; GA interrupt generation
+and CRTC sequencing precede the display selector. A numeric result read from
+RAM therefore has a different evidence boundary from its displayed layout.
+
+**Recommended next investigation.** Establish output-path acquisition and
+observable applied mode before using sync-sensitive SHAKER pictures to justify
+CRTC edits. Use one fixed Full configuration for ordinary title regression;
+validate raw CRTC/GA timings and software result buffers independently of
+presentation. Use Full/Raw pixels/Raw CRT comparisons only for the bounded
+output-boundary corpus or a demonstrated mode-dependent discrepancy. A
+picture mismatch alone does not identify a CRTC error. B22's unacquired
+type-1 filter is a concrete first acquisition case. Do not promote Raw CRT
+through an HDMI scaler to the original-monitor oracle. A pre-filter trace
+can establish emitted signals; original-monitor evidence is still needed
+for physical display response. This is an investigation recommendation, not
+a new sync implementation or hardware acceptance claim.
+
 `rtl/crt_filter.v` sits at the end of the video path. Before the mode selector
 below, it was hardwired on (`Amstrad.sv`, `.sync_filter(1)`). Its original Full
 path does three things that matter:
