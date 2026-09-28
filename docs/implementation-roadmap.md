@@ -16,6 +16,14 @@ merged into the same behavioral PR.
 
 ## 1. Current baseline
 
+B24's clause audit has completed RC1–RC8 and PA5/PA6 coverage; PA1–4 and PA7
+software-visible repairs are implemented. Shared T80 sampling is independently
+source-derived and protected by classic CRTC0/1 integration checks. Original
+classic timing, PA3 extra controls and PA7 raw-phase/cross-machine confirmation
+remain hardware acceptance work, not closed findings; see
+[B24](backlog.md#b24-plus-asic-reference-clause-traceability) and
+[the shared CPU evidence](t80-int-sampling.md).
+
 Use [current-status.md](current-status.md) for the current integration/artifact handoff and
 [the status history](archive/current-status-history-2026-09-21.md) for dated build identities.
 Section 8 below is the active queue. Sections 4–5 retain implemented checkpoint contracts and

@@ -407,7 +407,7 @@ removed from the active test registration and preserved under ignored
 `phase-diagnosis/unfinished-test-draft/`. It is not accepted regression
 coverage. No new gate or soak was run for this documentation-only update.
 
-## Review and validation
+## V5 probe tooling review and validation (before the timing repair)
 
 Opus medium reviewed the design before any cartridge build
 (`20260928T025142Z-11868-4ef0`) and independently reviewed the final code
@@ -441,3 +441,104 @@ Soak exit0: `soak hash: 0xe99ab434a5e1cdb3`, `soak hash matches expected`
 (2,845,088 CLKEN samples). No golden hash was re-minted. No production RTL
 changed in this follow-up. Logs are preserved with the ignored cartridge
 artifacts under `pa7-followup/validation/`.
+
+
+## Implemented CPU and compatible-delivery repair (2026-09-28)
+
+The shared CPU discrepancy is corrected at the T80 instruction decision:
+Z80 modes consume INT sampled on the preceding enabled rising edge. It is
+independently source-derived, not a Plus-only delay fitted to these images.
+[The CPU evidence record](../t80-int-sampling.md) includes upstream provenance,
+the isolated fail-before/passes-after proof and the actual classic CRTC/GA
+regression. Original classic hardware confirmation remains outstanding.
+
+The ASIC retains its GA-derived raw counter and pending latch. A separate
+compatible-request delivery latch samples that raw request at the next
+CCLK edge, approximately one character later. PRI delivery is unchanged.
+Raw AND delivered eligibility prevents a cancelled request from reappearing;
+MRER/ACK cancellation, PRI masking and immediate delivery of restored pending
+are checked by pr14. Raw IRQ continues to qualify counter ACK clearing;
+the differential bench still checks raw GA lockstep. Reset retention follows
+the existing classic latch policy. This is a chosen model mechanism:
+next-CCLK phase, VSYNC-originated request delay and clearing an undelivered
+compatible request during a DMA ACK are not independently hardware-proven.
+The conditional pr14 bounds are relative to the retained raw-counter phase;
+they must not be presented as measured INT-pin bounds.
+
+Production probe simulation was rebuilt after both RTL edits and run for
+40 frames per screen. Yellow endpoints relative to each local ruler are:
+
+| Screen | Corrected production RTL | Original 6128 Plus photograph |
+|---|---|---|
+| 30 | 52, 180 | 52, 180 |
+| 31 | 452, 468, 468, 484 | 452, 468, 468, 484 |
+| 32 | 52, 244, 52, 244 | 52, 244, 52, 244 |
+| 33 | 52, 196, 68, 180 | 52, 196, 68, 180 |
+| 34 | 68, 196, 52, 180 | 68, 196, 52, 180 |
+| 35 | 36, 164, 52, 180 | 36, 164, 52, 180 |
+
+Hardware endpoints have approximately ±2-dot photographic uncertainty.
+Counts remain 02 on screen30 and 04 on screens31–35, pixel-identical to the
+previous simulation count fields. These were comparisons against already
+recorded photographs, not newly derived expectations. Reproduction:
+
+```sh
+python3 scripts/diagnostics/plus_hw_probes_sim.py --out output_files/plus-hw-probes/pa7-followup/production-corrected --screens 30 31 32 33 34 35 --frames 40 --cxx /opt/homebrew/opt/llvm/bin/clang++
+```
+
+No same-setup original classic CPC versus Plus measurement exists. The audit's
+literal cross-machine §7.22 claim therefore remains untested even though the
+software-visible Plus mismatch is repaired. Further hardware work should
+measure raw INT against clock/HSYNC, exercise classic RET NC parity pairs,
+and repeat the existing Plus software checks on the resulting MiSTer RBF.
+
+Opus5.5 medium reviewed the actual CPU/ASIC diff and both new CPU benches
+(`20260928T061710Z-98533-b40b`): GO, no blockers. It confirmed that the model's
+early GA request and old late CPU sampling reinforce each other rather than
+compensating. Follow-ups tighten pr14 to conditional 55/72 bounds, label PRI
+mask maturation as model policy, and track the classic phase question as
+[B25](../backlog.md#b25-classic-ga-interrupt-phase-against-cpu-edges).
+A DMA ACK inside the new undelivered window is classified as DMA and can clear
+its flag **and lose the raw CPC request**; previously that ACK was raster and
+left the DMA flag pending. This concrete consequence is accepted as model
+policy pending a mixed DMA/PRI=0 original-hardware probe.
+
+The first final gate exposed b8_5_b3's eight-tick CPU-delivery assumption.
+The revised snapshot test preserves that deadline on the raw counter event,
+then separately checks the V5-compatible delivery window. It does not extend
+the deadline for the restored 52-line counter. No restore policy or RTL was
+changed to resolve the test failure.
+
+The follow-up caught a harness-unit mistake before acceptance: `plus_p8`
+ties `cen_16` high, so its steps are 16MHz, whereas pr14/production use
+64MHz steps. The snapshot delivery bounds are rounded outward to 13/18
+fixture steps; the raw eight-step deadline stays unchanged. The failed
+55/72-step attempt and corrected result are preserved in validation logs.
+
+Opus medium follow-up `20260928T062807Z-5073-e6da` independently checked
+fixture clock units, outward rounding, the preserved raw deadline and the
+final focused log: GO. The earlier follow-up missed the unit mismatch; its
+GO alone was not used as acceptance. No production RTL changed after the
+main code review. Final focused `plus_p8_tests` and `asic_pri_tests` pass.
+
+### Final repair gate
+
+After the last code edit, the selected gate passed (the preceding failed gate
+and focused unit-correction attempts remain in the ignored evidence directory):
+
+```sh
+MAKEFLAGS='CXX=/opt/homebrew/opt/llvm/bin/clang++' python3 sim/select_tests.py --run
+```
+
+```text
+select_tests: PASS 41 benches: crtc-test, crt-filter-blank-test, crtc-cpu-phase-test, video-color-test, video-output-test, ssm-marker-test, sna-cpu-header-test, video-mixer-rgb-test, ga40010-test, u765-test, run/asic_unlock_tests, run/asic_video_tests, run/b6_menu_mask_tests, run/dandanator_loader_bounds_tests, run/rom_loader_route_tests, run/plus_legacy_cart_gate_tests, run/plus_cartridge_memory_tests, run/plus_cartridge_memory_min_tests, run/sdram_cartridge_tests, run/plus_cpr_parser_tests, run/plus_mmu_tests, run/p0_boot_tests, run/asic_ga_timing_diff_tests, run/p1_video_tests, run/p1_mobo_bench_tests, run/asic_regs_tests, run/plus_sprite_ram_tests, run/asic_pri_tests, run/asic_sprites_tests, run/d3_sprites_tests, run/p4_sprites_regs_tests, run/p4_multiplex_tests, run/asic_dma_tests, run/plus_p8_tests, run/b16_load_model_tests, run/p10_boot_tests, run/p10_input_tests, run/p10_dma_ppi_tests, run/p10_dma_mobo_tests, run/b8_palette_tests, run/sna_save_stream_tests
+```
+
+```sh
+make -C sim CXX=/opt/homebrew/opt/llvm/bin/clang++ soak SOAK_EXPECT=0xe99ab434a5e1cdb3
+```
+
+Soak: `soak hash: 0xe99ab434a5e1cdb3`, `soak hash matches expected`,
+2,845,088 CLKEN samples. This is the classic CRTC projection; it does not
+claim CPU/ASIC behaviour was unchanged. The intended changes are demonstrated
+by the focused CPU/ASIC failures before repair. No golden hash was re-minted.

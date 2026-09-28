@@ -12,6 +12,18 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **ASIC clause audit and PA repairs (2026-09-28):** RC1–RC8 and PA5/PA6 regression
+  coverage are complete. PA1/PA4 readback and PA2/PA3 split capture changes follow
+  original-6128-Plus photographs and recorded AmSpirit controls. PA7 production
+  simulation now matches every measured V5 marker/count, using a source-derived
+  shared T80 final-T INT sample plus a separate compatible-delivery stage.
+  [Classic safety evidence](t80-int-sampling.md) includes before/after actual
+  CRTC0/1 regressions; original classic RET NC parity pairs and INT/clock traces
+  remain unrun. Exact ASIC raw timing and the literal Plus-versus-CPC delay are
+  assumptions, not measured facts. PA3 early-arm and last-adjustment hardware
+  controls remain outstanding. See [B24](backlog.md#b24-plus-asic-reference-clause-traceability)
+  and the [PA7 evidence record](plus/pa7-interrupt-phase-followup.md).
+
 - **Probe-driven Plus ASIC fixes integrated (2026-09-27):** an 18-screen original-Plus probe
   cartridge settled most Plus source conflicts; the results, confidence levels and open probes
   are in the [source-divergence ledger](plus/source-divergences.md). Three RTL rules changed:

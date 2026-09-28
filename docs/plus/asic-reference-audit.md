@@ -180,19 +180,20 @@ Each is a boundary or cross-module rule that a routine edit in a shared block co
 Not proposed (fail the keep rule, structural one-liners): SPLT n+256 alias with C4≥32, select
 31 reading R15, DCSR enable re-write no-op, second REPEAT overwriting the loop context.
 
-### PA7. GA-compatible interrupt timing: "~1µs later than a real CPC" is not modelled
+### PA7. Compatible interrupt software phase repaired; cross-machine delay untested
 
-- **Clause** (§7 l.327-328, [QUASAR] only): even with PRI=0 the Plus interrupt arrives ~1µs
-  later than on a CPC.
-- **Current**: the PRI=0 path is the GA40010-derived counter in `asic_ga_timing.v`, pinned in
-  lockstep against the classic GA by `asic_ga_timing_diff_tests`, so it asserts on the same
-  edge as a CPC. That bench makes a Plus-only delay an explicit design decision, not an
-  accident.
-- **Status**: `not-impl`. **Confidence**: low (single source, no stated reference point).
-  [KT]'s "colour changes ½µs later" and "some CRTC changes 2µs later" (§12 l.645) are the
-  same kind of claim and are also unmodelled. **Next step**: use the
-  [V5 hardware results](pa7-interrupt-phase-followup.md#original-6128-plus-results-2026-09-28)
-  and the isolated shared-T80 late-sampling finding before selecting an IRQ timing fix.
+- **Clause** (§7 l.327-328, [QUASAR] only): even with PRI=0 the Plus interrupt
+  arrives ~1µs later than on a CPC.
+- **Implementation**: raw GA-counter lockstep is retained; compatible delivery
+  follows at the next CCLK edge. A separate source-derived shared T80 sampling
+  correction prevents acceptance one CPU clock too late.
+- **Evidence**: corrected production simulation matches every measured V5
+  hardware marker and count. Focused CPU tests fail before/pass after; actual
+  classic CRTC0/1 integration tests protect instruction acceptance.
+- **Status**: `untested` for the literal cross-machine claim. Plus timing is
+  hardware-matched at the software-visible level; the exact ASIC delivery
+  mechanism and an original-CPC comparison remain unproven. See the
+  [repair and hardware debt](pa7-interrupt-phase-followup.md#implemented-cpu-and-compatible-delivery-repair-2026-09-28).
 
 ---
 
@@ -367,7 +368,7 @@ to the reference digest; none needs a gate or review.
 | §7.19 | PRI "misbehaves for some values when R9 < 7" (l.320-321) | conflict | compare on raw `RC2..RC0` | unspecified behaviour; nothing to implement until probed |
 | §7.20 | A PRI fire clears bit 5 of the GA counter, so a re-enabled CPC interrupt waits ≥ 32 lines (l.322-324) | tested | `asic_ga_timing.v:532-536,543` | PA6e: `pr13_fire_clears_counter_bit5` observes 40→8 before ACK, then 44 HSYNC falls; KT’s universal ≥32 inference remains ambiguous |
 | §7.21 | Raster interrupt cleared by INT acknowledge **or** MRER bit 4 (l.325-326) | tested | `asic_ga_timing.v:290,675-676` | `pr01_baseline`, `pr04_mrer_clears_pri`, `test_b20_two_distinct_acks` |
-| §7.22 | GA-compatible interrupt ~1µs later than a CPC (l.327-328) | not-impl | `asic_ga_timing.v` lockstep with GA40010 | PA7: V4 hardware gap approximately128 dots versus RTL112. V5 screens31–35 distinguish pending acceptance, width and instruction phase; V5 hardware G0/W192/L128/R128/I128; AmSpirit R144 disagrees in the first PRI reference marker. Isolated T80 sampling is one CPU clock late; independently confirmed Zilog reading; shared-CPU scope authorized, with classic-CPC impact evidence required before PA7 repair. [Follow-up](pa7-interrupt-phase-followup.md) |
+| §7.22 | GA-compatible interrupt ~1µs later than a CPC (l.327-328) | untested | `asic_ga_timing.v` compatible delivery; raw GA lockstep retained | PA7 software timing repaired: all V5 hardware marker edges/counts match production simulation. Shared T80 correction has isolated and classic CRTC0/1 fail-before/pass-after proof. Literal CPC-relative delay and exact ASIC mechanism remain hardware debt; [follow-up](pa7-interrupt-phase-followup.md) |
 | §7.23 | IVR at `&6805`; bit 0 = 1 at reset, bits 7-1 undefined (l.330) | tested | `asic_regs.v:410,512` | `a07_reset_contract` (bits 7-1 defined zero) |
 | §7.24 | The ASIC always supplies a vector byte on acknowledge (l.334-335) | tested | `asic_regs.v:693-694`, `Amstrad.sv:1250` | `p1_mobo_bench`, `test_b20_two_distinct_acks` |
 | §7.25 | Locked/plain Plus bus byte is `&00` (some `&56`) (l.335-336) | conflict | `asic_regs.v:692-693` (`(IVR & F8) \| src`) | with reset IVR a pending raster gives `&06`, only an empty ack `&00`; IM 1 ignores it |
@@ -530,15 +531,16 @@ to the reference digest; none needs a gate or review.
 
 ## Summary
 
-222 clauses: 181 `tested`, 9 `untested`, 13 `conflict`, 11 `scope`, 2 `contradicted`,
-6 `not-impl`.
+222 clauses: 181 `tested`, 10 `untested`, 13 `conflict`, 11 `scope`, 2 `contradicted`,
+5 `not-impl`.
 
 | Status | Rows | Disposition |
 |---|---|---|
 | `contradicted` | §4.11 | Hardware supports opcode78 on this6128Plus, contradicting KT79; preserve decoder writes |
 | `tested` | §4.08, §4.09, §8.10, §14.5 | PA1/PA2/PA4 fixed with hardware-derived fail-before vectors |
 | `contradicted` | §11.14 | deliberate, tested fail-closed CPR policy; no action |
-| `not-impl` | §7.22, §12.12 | PA7 (single-source timing offsets) |
+| `untested` | §7.22 | PA7 implemented software phase; cross-machine delay remains unmeasured |
+| `not-impl` | §12.12 | Single-source colour timing offset, not measured by PA7 |
 | `not-impl` | §10.03-§10.04, §12.11 | no paddle/printer source; title-driven only |
 | `not-impl` | §11.07 | deliberate Plus-mode expansion isolation (B13) |
 | `tested` | §1.13, §2.07, §7.20, §7.28, §8.17, §8.21, §12.03 | PA5/PA6 regression vectors pass; PA6c also pins the chosen REPEAT 0 reading in conflict row §9.07 |
@@ -653,7 +655,7 @@ Interlace terminal timing and live R5 rewrites remain unprobed.
 | 1 | RC1-RC8 reference corrections (applied 2026-09-28) | XS, docs | none |
 | 2 | PA5a, PA5b, PA6a-e vectors (complete, passing regression armour) | S | none |
 | 3 | Probe screens: PA1 (`IN` values), PA2/PA3 (split × R5), PA4 (page open bus), PA7 (PRI=0 phase) | M | V4 complete; 6128 Plus photographs recorded |
-| 4 | PA1/PA2/PA3/PA4 implemented; PA7 request-phase investigation remains | S each | recorded hardware/oracle evidence and outstanding controls |
+| 4 | PA1/PA2/PA3/PA4 implemented; PA7 software phase repaired, hardware debt retained | S each | recorded hardware/oracle evidence and outstanding controls |
 
 ## Phase-4 validation
 
@@ -721,3 +723,14 @@ V5 final gate passed41 benches; soak reproduced `0xe99ab434a5e1cdb3`.
 The [exact commands and final selection line](pa7-interrupt-phase-followup.md#review-and-validation)
 are recorded with the follow-up evidence. Both design and final code received
 independent Opus medium review.
+
+### PA7 implementation acceptance (2026-09-28)
+
+The software-visible discrepancy is repaired with a source-derived shared
+T80 sampling correction and a separate Plus compatible-delivery stage.
+See the [final evidence and residuals](pa7-interrupt-phase-followup.md#implemented-cpu-and-compatible-delivery-repair-2026-09-28)
+and [classic safety evidence](../t80-int-sampling.md). §7.22 moves from
+not-implemented to untested because its literal cross-machine claim has no
+CPC measurement. Counts:222 clauses,181 tested,10 untested,13 conflict,
+11 scope,2 contradicted,5 not-implemented. Earlier dated sections record the
+pre-repair investigations, not the current implementation state.
