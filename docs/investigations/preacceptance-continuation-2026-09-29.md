@@ -65,13 +65,20 @@ A successful fallback is not a successful 2.7 script. Preserve author originals,
 keep numeric runs in Full, and distinguish runner completion from correctness
 of the displayed hardware results. Types 2/4 must not be mapped to 0/1.
 
-Classic A–E on types 0/1 is running. True Plus/CRTC3 needs bounded host support:
+The first classic A0 attempt retained 107 captures before SSH hostname
+resolution failed. Later cells, including its 2.6 fallback, did not execute
+usefully. This is an infrastructure interruption, not a proven CSL typo.
+The runner could not verify CFG restoration; the original backup remains with
+the exclusive device operator and must be restored/hash-verified before another
+load or release. The full A–E matrix remains incomplete.
+
+True Plus/CRTC3 needs bounded host support:
 explicit Plus model policy, system CPR before DSK, and distinct result labels.
 The user selected `6128_FR.cpr` with French keyboard layout for these runs;
 it boots directly into BASIC without the original system cartridge's F1 step.
 That extension is authorized within this suite task, with fail-first tests,
-fresh cross-provider review and gates before device use. The classic run keeps
-its unchanged runner while the extension is prepared separately. One operator
+fresh cross-provider review and gates before device use. The interrupted classic run used
+the unchanged runner; the extension is prepared separately against failing tests. One operator
 owns MiSTer and must restore and verify the original CFG before release.
 
 ## Remaining physical acceptance
