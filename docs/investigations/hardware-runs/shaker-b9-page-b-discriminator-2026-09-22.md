@@ -301,3 +301,13 @@ accepted its localized timing evidence with the qualifications above. Rule citat
 [ACCC v1.11](../../specs/ACCC1.11-FR.pdf) (user-owned, untracked). Scratch
 inputs are not linked. `git diff --check` clean; no simulation gate for this
 documentation-only change.
+
+## MID FRAME follow-up, 2026-09-29
+
+The [reproducible MID replay](../shaker-b9-mid/README.md) now executes the authentic
+page-B caller and all four MID cases. R8=3 is accepted at C0=`1A`, and both update
+stages complete mid-line with `line_new=0`. Both VSYNC-count loops and formatter
+buffers are observed: counts `049D`/`049F` produce `4E40`/`9C60` for all four R6
+pairs. Thus this fixture's MID path does not share the C0=3F collision. The original
+reference glyph remains unresolved; the prior residual, separate boundary
+discriminators and hardware acceptance limits remain in force.

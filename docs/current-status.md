@@ -259,6 +259,11 @@ to violate, not from blanket coverage.
   five photographed rows. Its hardware/author discriminators, and the setup,
   measurement and Sync-path limits, are in the
   [page-B discriminator brief](investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md).
+  The [September 29 MID FRAME replay](investigations/shaker-b9-mid/README.md) executes
+  all four cases through the authentic page-B caller. R8=3 is accepted at C0=`1A`;
+  both stage pulses have `line_new=0`, so this entry contract does not encounter the
+  C0=3F collision. Loop counts `049D`/`049F` format `4E40`/`9C60` in every case.
+  The original reference glyph remains unresolved; no production RTL changed.
 - DSC4 and SHAKER still fail on hardware (2026-09-09 retest); the changed failure shapes are
   not yet characterized. Amazing Demo keeps lower-screen corruption.
 - F13 (type-0 half-character DE) and F20 (CRTC-1 R2.JIT HSYNC start) are implemented but need
