@@ -356,7 +356,9 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   explicit Plus choices on CPR loads remain open. See the
   [load contract](plus/b16-load-model-2026-09-22.md) and
   [device readback record](investigations/hardware-runs/b16-sna-model-readback-2026-09-23.md).
-- The PRI line-compare change is unreviewed (review debt).
+- PRI line-compare source review is closed, with the original-Plus alias-probe
+  evidence retained in the [review archive](archive/review-debt-cleared.md).
+  This does not settle the separate raw interrupt-phase questions.
 
 ## General: video path, peripherals, harnesses and tooling
 
@@ -381,7 +383,11 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   model/CRTC combinations and host publication races (acceptance 2 and 3). 464 and 664 saves round-trip on
   device (`cdcb3c3`, 2026-09-22; see the
   [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md)). Open:
-  SD transport and the existing slice 3-4c review debt. See [b18-sna-save.md](b18-sna-save.md).
+  SD transport. Slice 3–4c source-review debt is closed; the resulting
+  [Dandanator admission repair](investigations/b18-save-admission-2026-09-29.md)
+  refuses saves whenever the cartridge remains loaded, even with chip select idle.
+  Its new integrated build/device validation is separate from the earlier round-trip
+  acceptance. See [b18-sna-save.md](b18-sna-save.md).
 - **TV80 bench CPU** now takes the Z80's automatic I/O wait, so its I/O windows match the
   production T80pa. The reported no_wait Gate Array write drop was this fixture artifact, not an
   RTL defect ([record](investigations/no-wait-ga-write-latch-2026-09-22.md)). The resulting

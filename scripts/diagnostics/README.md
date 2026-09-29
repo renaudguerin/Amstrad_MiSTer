@@ -13,8 +13,8 @@ reproducible production-T80 timing checks. See the
 [build, morning instructions and evidence](../../docs/plus/pa3-followup-cartridge.md).
 They are not extra screens in this standard build; original-machine acceptance
 remains outstanding.
-The proposed self-synchronizing Classic DSK is a separate, not-yet-implemented
-[B25 deliverable](../../docs/backlog.md#b25-classic-ga-interrupt-phase-against-cpu-edges).
+The self-synchronizing [Classic B25 DSK](../../docs/investigations/b25-diagnostic.md)
+is a separate delivered diagnostic; see its build instructions below.
 
 ```sh
 python3 scripts/diagnostics/plus_hw_probes.py        # needs sjasmplus on PATH
