@@ -502,7 +502,9 @@ class DeviceBackend(Backend):
         self.ssm_startup_polls = 0
         self.cfg_original: Optional[bytes] = None
         self.cfg_original_sha: str = ""
-        self.cfg_written = False
+        self.cfg_backup_path: Optional[Path] = None
+        self.cfg_write_count = 0
+        self.cfg_restore_needed = False
         self.keys_in_flight: Optional[set] = None
         self.remote_temp: List[str] = []
         self.run_id = f"{int(time.time())}_{uuid.uuid4().hex[:6]}"
@@ -539,34 +541,43 @@ class DeviceBackend(Backend):
         """Upload a CFG and confirm by hash that the device holds exactly it."""
         path = self.options.cfg_path
         expected = hashlib.sha256(data).hexdigest()
-        local = self.out_dir / f"Amstrad_{self.run_id}.CFG"
+        local = self.out_dir / f"Amstrad_{self.run_id}_write_{self.cfg_write_count}.CFG"
+        self.cfg_write_count += 1
         local.write_bytes(data)
         staging = f"/media/fat/csl_cfg_{self.run_id}.bin"
         self.transport.upload_file(local, staging, timeout=self.options.cmd_timeout)
         self.remote_temp.append(staging)
+        # The redirection can truncate or partially replace CFG before a
+        # transport error or non-zero status reaches the host. Arm recovery
+        # immediately before the first command that can mutate the device.
+        self.cfg_restore_needed = True
         res = self._run(f"cat {shlex.quote(staging)} > {shlex.quote(path)}")
         if res.exit_code != 0:
             raise DriverError(f"Cannot write {path} ({res.exit_code}): {res.stderr.strip()}")
         actual = fetch_sha256(self.transport, path, self.options.cmd_timeout)
         if actual != expected:
             raise DriverError(f"{path} SHA-256 mismatch after write: expected {expected}, got {actual}")
-        self.cfg_written = True
         return actual
 
     def restore_cfg(self) -> Dict[str, Any]:
-        if self.cfg_original is None or not self.cfg_written:
-            return {"attempted": False}
+        local_copy = str(self.cfg_backup_path) if self.cfg_backup_path is not None else None
+        if self.cfg_original is None or not self.cfg_restore_needed:
+            return {"attempted": False, "local_copy": local_copy}
         try:
             actual = self.write_cfg(self.cfg_original)
+            matches = actual == self.cfg_original_sha
+            if matches:
+                self.cfg_restore_needed = False
             return {
                 "attempted": True,
                 "restored_sha256": actual,
-                "matches_original": actual == self.cfg_original_sha,
+                "matches_original": matches,
+                "local_copy": local_copy,
             }
         except Exception as exc:
             return {"attempted": True, "error": str(exc),
                     "original_sha256": self.cfg_original_sha,
-                    "local_copy": str(self.out_dir / f"Amstrad_{self.run_id}.CFG")}
+                    "local_copy": local_copy}
 
     # --- backend interface ---------------------------------------------
 
@@ -576,7 +587,10 @@ class DeviceBackend(Backend):
         if self.cfg_original is None:
             self.cfg_original = self.read_cfg()
             self.cfg_original_sha = hashlib.sha256(self.cfg_original).hexdigest()
+            self.cfg_backup_path = self.out_dir / f"Amstrad_{self.run_id}_original.CFG"
+            self.cfg_backup_path.write_bytes(self.cfg_original)
             record["cfg_original_sha256"] = self.cfg_original_sha
+            record["cfg_original_local_copy"] = str(self.cfg_backup_path)
 
         bits: Dict[int, int] = {}
         if load.get("crtc_status_bit") is not None:
@@ -1180,11 +1194,17 @@ class CslRunner:
                 )
             else:
                 raise command.error(f"unknown CRTC identifier {requested!r}", self.script_version)
-            if self.machine_running and self.crtc_status_bit is not None and bit != self.crtc_status_bit:
-                raise command.error(
-                    "a live CRTC change needs the OSD; the effective type is fixed at core load",
-                    self.script_version,
-                )
+            if self.machine_running:
+                if self.crtc_status_bit is None:
+                    raise command.error(
+                        "the initial CRTC type is unknown; a live selection needs the OSD",
+                        self.script_version,
+                    )
+                if bit != self.crtc_status_bit:
+                    raise command.error(
+                        "a live CRTC change needs the OSD; the effective type is fixed at core load",
+                        self.script_version,
+                    )
             if self.machine_running:
                 self._note(command, "crtc_select",
                            f"accepted as a no-op: {requested} maps to the CRTC type already loaded")
@@ -1218,6 +1238,11 @@ class CslRunner:
             )
 
         elif name == "disk_insert":
+            if self.machine_running:
+                raise command.error(
+                    "disk_insert after machine start is unsupported; media is mounted by a power-on load",
+                    self.script_version,
+                )
             args = list(command.args)
             slot = "S0"
             if len(args) == 2:
@@ -1655,6 +1680,9 @@ def run_csl(
     }
     backend: Optional[Backend] = None
     runner: Optional[CslRunner] = None
+    primary_error: Optional[Exception] = None
+    primary_traceback = None
+    cleanup_error: Optional[Exception] = None
     try:
         program = load_program(entry, follow_loads=options.follow_loads)
         manifest["command_count"] = len(program)
@@ -1670,14 +1698,15 @@ def run_csl(
         runner = CslRunner(program, options, backend, entry.name)
         manifest.update(runner.run())
         manifest["status"] = "planned" if dry_run else "success"
-        return manifest
     except CslError as exc:
+        primary_error = exc
+        primary_traceback = exc.__traceback__
         manifest["error"] = exc.as_dict()
-        raise
     except Exception as exc:
+        primary_error = exc
+        primary_traceback = exc.__traceback__
         manifest["error"] = {"reason": str(exc) or type(exc).__name__,
                              "supported_version": SUPPORTED_CSL_VERSION}
-        raise
     finally:
         # A rejected command stops the script, so the partial trace and the
         # approximations recorded before it are the evidence for the run.
@@ -1690,11 +1719,30 @@ def run_csl(
         if isinstance(backend, DeviceBackend):
             try:
                 manifest["cleanup"] = backend.cleanup()
-            except Exception as exc:  # cleanup never replaces the primary error
+                cfg_restore = manifest["cleanup"].get("cfg_restore", {})
+                if cfg_restore.get("error"):
+                    cleanup_error = DriverError(f"CFG restore failed: {cfg_restore['error']}")
+            except Exception as exc:
                 manifest["cleanup"] = {"error": str(exc)}
+                cleanup_error = exc
+        if cleanup_error is not None:
+            manifest["status"] = "failed"
+            if primary_error is None:
+                manifest["error"] = {
+                    "reason": str(cleanup_error) or type(cleanup_error).__name__,
+                    "supported_version": SUPPORTED_CSL_VERSION,
+                }
+        if primary_error is not None:
+            manifest["status"] = "failed"
         if transport is not None:
             manifest["command_log"] = getattr(transport, "command_log", [])
         write_outputs(out_dir, manifest)
+
+    if primary_error is not None:
+        raise primary_error.with_traceback(primary_traceback)
+    if cleanup_error is not None:
+        raise cleanup_error
+    return manifest
 
 
 def _parse_point(value: str, default_script: str) -> Tuple[str, int]:

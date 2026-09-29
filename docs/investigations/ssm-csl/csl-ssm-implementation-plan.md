@@ -140,9 +140,9 @@ Command semantics on this target:
 | `crtc_select 0` | CFG status bit 2 = 1 | `crtc_type = ~status[2]` in `Amstrad.sv` |
 | `crtc_select 1`, `1A`, `1B` | CFG status bit 2 = 0 | 1A/1B are one type here; record which the script asked for |
 | `crtc_select 2/3/4` | reject | not implemented in the core |
-| `crtc_select` after the first key | accept as no-op if the effective bit is unchanged, else reject | a live change needs the OSD |
+| `crtc_select` after the first key | accept as no-op only if the effective bit is known and unchanged, else reject | a live change needs the OSD |
 | `cpc_model 0/1/2` | CFG status bits 5:4 before load | Plus models: reject until Plus CSL is in scope |
-| `disk_insert [A] 'x.dsk'` | MGL `S0` mount; drive B `S1` | path resolved under `disk_dir` or the case's media directory |
+| `disk_insert [A] 'x.dsk'` | MGL `S0` mount; drive B `S1` | power-on fold only; reject live insertion after execution starts; path resolved under `--disk-dir` |
 | `key_delay` | drives `MBC_KEY_WAIT` | one knob is both CSL delays; see below |
 | `key_output` | CPC characters and `\(XX)` names translated to Linux keycodes for the active ROM layout, sent through MBC `raw_seq` | chords `{..}` become MBC hold/release; `\(KOF)` cannot be honoured and is logged as an approximation |
 | `key_from_file` | reject | inline with `key_output` |
@@ -157,7 +157,10 @@ Command semantics on this target:
 | `csl_load` | recursive run, depth-limited, cycle-checked | |
 
 CFG editing follows the B2 method: back up the 16-byte `config/Amstrad.CFG`, change only
-the bits the script names, verify by hash, restore at the end. Configuration is applied,
+the bits the script names, verify by hash, restore at the end. Keep a separate original-byte
+backup before dispatching a remote write; a failed or timed-out write can still have changed
+the device file and must trigger restoration. Failed restoration fails the run while retaining
+any primary script error. See the [offline safety evidence](csl-runner-safety-2026-09-29.md). Configuration is applied,
 not merely declared, but the native PNG still omits the OSD, so the manifest records
 "applied by CFG" and never "visually confirmed".
 
