@@ -88,12 +88,12 @@ terminal timing, live R5 rewrites and conflicting GA I/O aliases remain
 unmeasured. The [V4 evidence record](plus/asic-audit-probes-v4.md#phase-4-oracle-follow-up-2026-09-28)
 contains the controls and their predictions.
 
-**Bounded next batch:** recover or rebuild the three temporary V4 PA3
-variants into one clearly labelled follow-up CPR, with named cases and
-recorded build/hash identity. These were not extra pages in the tested V5
-or DMA-overlap cartridges. The [variant inventory](plus/asic-audit-probes-v4.md#pa3-follow-up-cartridge-packaging)
-records their identities and recovery limits. Preserve the late-arm baseline
-and R5=0 control, and make phase markers readable outside HSYNC blanking.
+**Bounded next batch:** run the [packaged PA3 follow-up](plus/pa3-followup-cartridge.md)
+on the original Plus. The three temporary V4 variants have been rebuilt as
+one labelled CPR with named cases and recorded build/hash identity. These were
+not extra pages in the tested V5 or DMA-overlap cartridges. The [variant inventory](plus/asic-audit-probes-v4.md#pa3-follow-up-cartridge-packaging)
+records their identities and recovery limits. The package retains the late-arm
+baseline and R5=0 control, with a visible handler indicator and border marker.
 There is no reason to repeat the accepted V5/DMA-overlap batch unchanged.
 Defer interlace, live-R5 and other-model/alias expansion until a specific
 discrepancy supplies a bounded question. Exact ASIC edges and literal

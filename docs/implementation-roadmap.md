@@ -423,8 +423,9 @@ results retained in RAM and displayed only after normal video timing is
 restored. An optional SNA runs the same initialization; snapshot phase is not
 an oracle. Run numeric SHAKER checks once in Full; use a small separate
 multi-mode display corpus rather than tripling every title/numeric test.
-Recover or rebuild the three temporary V4 PA3 variants as one clearly labelled
-follow-up CPR; accepted V5/DMA-overlap tests do not need repeating unchanged.
+Run the [packaged PA3 follow-up CPR](plus/pa3-followup-cartridge.md) on the
+original Plus: five labelled controls passed production-T80 and AmSpirit checks.
+Accepted V5/DMA-overlap tests do not need repeating unchanged.
 The concrete contracts are in B25, B24 and B1 of [the backlog](backlog.md).
 Keep substantive review
 debt separate. The B16/B18 entries below are residual validation, not new

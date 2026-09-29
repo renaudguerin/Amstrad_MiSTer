@@ -21,7 +21,8 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   CRTC0/1 regressions; original classic RET NC parity pairs and INT/clock traces
   remain unrun. Exact ASIC raw timing and the literal Plus-versus-CPC delay are
   assumptions, not measured facts. PA3 early-arm and last-adjustment hardware
-  controls remain outstanding. See [B24](backlog.md#b24-plus-asic-reference-clause-traceability)
+  controls remain outstanding; the [five-case follow-up CPR](plus/pa3-followup-cartridge.md)
+  is built and checked in production-T80 simulation and AmSpirit, ready for that run. See [B24](backlog.md#b24-plus-asic-reference-clause-traceability)
   and the [PA7 evidence record](plus/pa7-interrupt-phase-followup.md).
   Integrated as `1346f39` from source `a68dca8`; exact-SHA CI run36425467292
   passes selected tests/lint, production-T80 and full synthesis. Delivered
