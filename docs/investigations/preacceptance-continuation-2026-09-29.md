@@ -72,12 +72,15 @@ The runner could not verify CFG restoration; the original backup remains with
 the exclusive device operator and must be restored/hash-verified before another
 load or release. The full A–E matrix remains incomplete.
 
-Reviewed host support from source `9659157` implements true Plus/CRTC3:
+Host support from source `9659157`, integrated as `dcd0218`, implements true Plus/CRTC3:
 explicit Plus model policy, system CPR before DSK, and distinct result labels.
 The user selected `6128_FR.cpr` with French keyboard layout for these runs;
 it boots directly into BASIC without the original system cartridge's F1 step.
 The extension passed fail-first regression checks, fresh Opus review and the
 205-test host suite (one skip); the selected gate requires no simulation.
+Exact integration CI `36526429367` passed simulation/lint, production-T80,
+synthesis policy and the required gate; synthesis correctly skipped. Logs are
+retained in `output_files/shaker27-integration/`.
 The interrupted classic run used the previous runner. The French cartridge
 boot path still needs device acceptance. The [suite report](shaker27-full-suite-2026-09-29.md)
 records partial A0 screen discrepancies without claiming original-hardware

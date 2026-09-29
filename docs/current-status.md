@@ -13,7 +13,7 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 ## Latest integration and artifact
 
 - **Pre-acceptance continuation (2026-09-29):** all four initial evidence tasks
-  are integrated, with exact integration CI green through `5f8f8ae`. No production
+  are integrated, with exact integration CI green through `dcd0218`. No production
   RTL changed; the `cec641c` RBF retains its identity. The added full SHAKER 2.7
   suite and 2.6 fallback task has reviewed host support for CRTC3 and updated
   corpus paths. Hardware execution is blocked by MiSTer name resolution; original
