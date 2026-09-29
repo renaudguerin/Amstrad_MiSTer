@@ -196,8 +196,12 @@ always @(posedge CLK) begin : syncgen
 			// 2 lines are needed to neutralize fake interlace video
 			if(~&hSyncCount2x) hSyncCount2x = hSyncCount2x + 1'd1;
 			if(~old_hsync & hsync_i) begin
+				// The estimate below consumes the updated training count on this edge.
+				// Preserve the existing blocking order after exposing syncs for observation.
+				/* verilator lint_off BLKSEQ */
 				if(~VSYNC_I & ~&syncs) syncs = syncs + 1'd1;
 				if(VSYNC_I) {syncs,hSyncCount2x} = 0;
+				/* verilator lint_on BLKSEQ */
 				if(syncs == 2) hSyncSize <= hSyncCount2x[9:1];
 			end
 		end

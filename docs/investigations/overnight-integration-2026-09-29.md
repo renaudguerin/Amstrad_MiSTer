@@ -43,7 +43,7 @@ oracle by those differences.
   startup period contamination from phase misalignment; acquisition policy is
   unchanged. Selected tests, focused B6 checks and unchanged soak passed;
   fresh Opus review was CLEAR. [ABI and evidence](video-boundary/b22-acquisition-trace-2026-09-29.md).
-- **CSL, local integration `b0ef51f`:** uncertain CFG writes trigger restoration
+- **CSL, integration `b0ef51f`:** uncertain CFG writes trigger restoration
   from a preserved original; cleanup failure fails the run; unknown live CRTC
   selection and unsupported live disk insertion are rejected. Sixty-seven tests
   passed with six absent private-corpus skips; Opus review was CLEAR.
@@ -59,8 +59,12 @@ registers, 102 RAM blocks and 35 DSP blocks. The delivered main-checkout RBF is
 the downloaded and copied files hash identically. Reports and Actions logs are
 retained in `output_files/b18-integration-fe42298/`.
 
-Sync is now published for its own exact-SHA CI/full synthesis; CSL publication
-remains queued behind that checkpoint. New-RBF device checks, real SSH-disconnect recovery,
+Sync run `36506927028` passed its six selected benches but failed motherboard
+lint: moving `syncs` to module scope exposed two existing blocking assignments
+to `BLKSEQ`. A narrow annotation retains their intentional same-edge ordering;
+`make -C sim lint` passes after that comment-only repair. The corrected combined
+head, including CSL, requires successor CI/full synthesis; the older run is not
+claimed as successful integration evidence. New-RBF device checks, real SSH-disconnect recovery,
 unobserved key mappings and original-monitor fidelity remain separate acceptance
 work. Numeric SHAKER runs use Full once; a small targeted display corpus covers
 mode differences without tripling every numeric/title test.

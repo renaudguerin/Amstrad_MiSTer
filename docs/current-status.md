@@ -17,7 +17,8 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   their original-machine acceptance remains open. The B18 loaded-Dandanator
   admission fix passed exact-SHA CI/full synthesis at `fe42298`, and its RBF is
   retained locally. Sync format-2 observations are published at `11e9819` with
-  synthesis pending; CSL safety fixes are locally integrated awaiting publication.
+  successor CI/synthesis pending after a narrow lint annotation; CSL safety fixes
+  are included in that final publication.
   The [batch evidence and run instructions](investigations/overnight-integration-2026-09-29.md)
   distinguish these gates from the earlier user-confirmed title pass.
 
