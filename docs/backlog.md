@@ -47,9 +47,14 @@ for CRTC0/1. INC pad0 differs between the production fixture and AmSpirit;
 AmSpirit CRTC1 also differs on ADD pad1. These are observations, not hardware
 pass/fail values or grounds for an RTL change.
 
-**Next acceptance:** run the same DSK on original CPC hardware and MiSTer,
-with CRTC0/1 identified, in Full mode. Photograph the complete table and retain
-all phase groups. No original-CPC or MiSTer run is claimed by the package.
+**MiSTer acceptance (2026-09-29):** AMSDOS boots on delivered `cec641c`
+produce identical complete CRTC0/1 tables matching the production fixture;
+all eight trials and phase groups are retained in the
+[device evidence](investigations/mister-format2-b25-2026-09-29.md).
+
+**Next acceptance:** run the same DSK on original CPC hardware with CRTC0/1
+identified. Photograph the complete table and retain all phase groups.
+Original-CPC acceptance remains open.
 An optional SNA is not needed for delivery and cannot establish initial CRTC
 counters or GA interrupt phase. Software probes establish instruction-acceptance
 boundaries; exact electrical INT/clock/HSYNC timing still requires a logic
@@ -153,8 +158,9 @@ and later corrects its period without aligning the pulse-classification phase.
 An opt-in B6 CSV reproduces the training and phase history. SSM ring format 2
 adds marker-time requested/applied mode, line estimate and history flags using
 reserved record bits; the reader accepts old format 1 with unknown observation.
-This needs a new RBF/device acceptance and does not fix acquisition or establish
-monitor fidelity. See the [trace and device contract](investigations/video-boundary/b22-acquisition-trace-2026-09-29.md).
+Delivered `cec641c` now has bounded [device acceptance](investigations/mister-format2-b25-2026-09-29.md)
+for coherent steady marker records in all three modes. This does not fix
+acquisition, exercise live transitions or establish monitor fidelity. See the [trace and device contract](investigations/video-boundary/b22-acquisition-trace-2026-09-29.md).
 
 **Remaining action:** compare the same startup/R3 sequence against an original
 CPC/CTM or justified monitor oracle, then the MiSTer Full/Raw outputs, before
@@ -415,7 +421,9 @@ requested mode, not proof of `sync_filter_applied`; native screenshots omit
 the OSD and use an asynchronous scaler buffer. Establish the applied mode
 and acquisition state in the bounded B22 reproduction before interpreting
 geometry. SSM format 2 can provide marker-time applied mode and passive filter state
-with the new RBF; format 1 cannot. The run-wide manifest remains requested-only.
+on delivered `cec641c`, with steady three-mode records now
+[device-verified](investigations/mister-format2-b25-2026-09-29.md); format 1 cannot.
+The run-wide manifest remains requested-only.
 The SSM marker timestamps selected motherboard output sync, not raw CRTC sync.
 Existing filter/B6 tests protect the core boundary, not the complete scaler,
 analog pins or monitor response. A failure attributed to CRTC needs an

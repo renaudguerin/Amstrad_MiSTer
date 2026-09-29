@@ -12,6 +12,15 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **Pre-acceptance device checks (2026-09-29):** delivered `cec641c` produces
+  coherent SSM format-2 records with matching requested/applied modes in Full,
+  Raw-pixels and Raw-CRT. B25 AMSDOS boots on MiSTer CRTC0/1 produce complete
+  identical 72-record tables matching the production fixture. The bounded
+  SHAKER display comparison and verified original-CFG restoration are in the
+  [device evidence](investigations/mister-format2-b25-2026-09-29.md). Original-CPC
+  phase, CTM fidelity, pathological acquisition and live-mode transitions remain
+  open; the separate `4a44394` title acceptance is unchanged.
+
 - **Diagnostic and safety batch (2026-09-29):** PA3's five-case follow-up CPR and
   the self-synchronizing Classic B25 DSK are delivered with model/emulator checks;
   their original-machine acceptance remains open. The B18 loaded-Dandanator
