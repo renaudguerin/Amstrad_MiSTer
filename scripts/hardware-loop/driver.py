@@ -254,8 +254,15 @@ def validate_case_config(data: Any) -> Dict[str, Any]:
 
 # --- MGL & PNG Helpers ---
 
-def generate_mgl_xml(rbf_path: str, media_type: str, media_slot: str, media_path: str, delay: int = 1) -> str:
-    """Generate official MiSTer Game Launcher (MGL) XML content using stdlib ElementTree."""
+def generate_mgl_xml(
+    rbf_path: str,
+    media_type: str,
+    media_slot: str,
+    media_path: Optional[str],
+    delay: int = 1,
+    prerequisite_path: Optional[str] = None,
+) -> str:
+    """Generate MGL XML, placing an optional system cartridge before disk media."""
     clean_rbf = rbf_path
     if clean_rbf.startswith("/media/fat/"):
         clean_rbf = clean_rbf[len("/media/fat/") :]
@@ -267,7 +274,14 @@ def generate_mgl_xml(rbf_path: str, media_type: str, media_slot: str, media_path
 
     root = ET.Element("mistergamedescription")
     ET.SubElement(root, "rbf").text = clean_rbf
-    ET.SubElement(root, "file", {"delay": str(delay), "type": mgl_type, "index": mgl_index, "path": media_path})
+    if prerequisite_path:
+        ET.SubElement(root, "file", {
+            "delay": str(delay), "type": "f", "index": "8", "path": prerequisite_path,
+        })
+    if media_path:
+        ET.SubElement(root, "file", {
+            "delay": str(delay), "type": mgl_type, "index": mgl_index, "path": media_path,
+        })
     return ET.tostring(root, encoding="utf-8").decode("utf-8") + "\n"
 
 
