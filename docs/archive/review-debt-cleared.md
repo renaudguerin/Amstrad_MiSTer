@@ -1018,3 +1018,31 @@ stream-only reset also drains.
 Read-only source review; no gate rerun, ACCC rule revalidation or hardware
 acceptance. Slice4c remains open for the separately identified Dandanator
 attachment/admission defect.
+
+
+## Plus PRI nine-bit compare — cleared 2026-09-29
+
+**Plus PRI 9-bit line compare, 2026-09-13 — UNREVIEWED:** `rtl/plus/asic_ga_timing.v`
+`pri_line_match` now requires bit 8 of `{VC5..VC0, RC2..RC0}` to be 0, following the
+Arnold-revision §2.4 formula `0 PRI7..PRI0 == VC5..VC0 RC2..RC0`. The previous
+don't-care fired PRI=&37 again on line 311, which loaded Copter 271's title sky palette
+55 lines early (MiSTer captures versus AmSpirit, both under ignored
+`local/test_media/defects/copter271/`). `sim/plus/asic_pri_test.cpp` pr02 was
+rewritten from the old n/n+256 expectation and failed on the old RTL before the fix;
+pr03 now picks a line with bit 8 clear. Look hardest at: whether any other consumer of
+`crtc_line` relied on the alias (SPLT is a separate 8-bit compare in `asic_video.v` and
+is unchanged); the rejected CPCWiki "PRI=10 also fires at 266" claim, which only
+hardware can finally settle; and the device recapture, which remains pending an RBF.
+
+Independent Astra-low review (`pri_compare_review`; original `b5c3014`
+explicitly Opus-authored): **CLEAR** for compare width. Both current delayed
+and live comparisons retain fixed bit8 zero; motherboard supplies nine
+bits; SPLT remains separately eight-bit. pr02 rejects line311 alias and
+requires512-line recurrence, pr03 checks eligible/adjustment behavior, pr09
+covers live-write ninth-bit mismatch.
+
+The old pending-hardware language is superseded by the original-Plus
+[divergence ledger](../plus/source-divergences.md):32 interrupts/32 frames
+in all four alias probes, including PRI10 at R6=25/34. The review does not
+certify broader comparator timing or every counter configuration. No gates
+rerun or new hardware calls.
