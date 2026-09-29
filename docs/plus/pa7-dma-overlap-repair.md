@@ -186,11 +186,14 @@ reconciled; review debt and the classic soak golden remain unchanged.
 - Timing closure **PASS**: setup minimum **0.238 ns**, hold minimum **0.180 ns**,
   seven clocks each, **zero TNS**, under the existing constraints.
 - Logs and downloaded artifact: `output_files/pa7-integration-4a44394/`.
-- Artifact limitation: the package includes the build log and effort provenance,
-  but no separate fitter/resource summary or STA report. The workflow log provides
-  the timing gate result; utilization cannot be independently reported from this
-  package. Follow-up: repair workflow report collection for retained fitter/STA
-  summaries; this does not invalidate the successful compile or timing gate.
+- Retained reports verified 2026-09-29 under
+  `output_files/pa7-integration-4a44394/Amstrad-build-296-1-full/reports/`:
+  fitter report/summary, STA report/summary/paths and build log are present.
+  The adjacent RBF hash matches the delivered identity above. Fitter summary:
+  **24,384 ALMs (58%)**, 28,449 registers, 102 RAM blocks, 35 DSP blocks.
+  The STA summary independently confirms +0.238/+0.180ns minimum setup/hold
+  and zero TNS. The earlier missing-report statement was incorrect for this
+  retained package; no workflow report-collection repair is justified.
 
 The thirty MiSTer captures cover the same production source before the merge
 (`011f323d`), not a fresh device run of the integration RBF. Subsequent
