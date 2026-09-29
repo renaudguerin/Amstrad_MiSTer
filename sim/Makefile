@@ -92,6 +92,7 @@ $(TEST_BIN): $(RTL) $(TEST_SRC) Makefile
 		-o $(notdir $(TEST_BIN)) $(RTL) $(TEST_SRC)
 
 $(CRTF_TEST_BIN): $(CRTF_TOP_SRC) $(CRTF_RTL) $(CRTF_TEST_SRC) Makefile
+	mkdir -p $(CRTF_OBJ_DIR)
 	$(VERILATOR) --cc --exe --build --trace \
 		--top-module $(CRTF_TOP) --Mdir $(CRTF_OBJ_DIR) -Wno-fatal \
 		-CFLAGS "$(CXXFLAGS)" \
