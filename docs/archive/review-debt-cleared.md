@@ -1076,3 +1076,26 @@ and passes after it; all 42 selected benches pass. See the
 [repair evidence](../investigations/b18-save-admission-2026-09-29.md).
 This closes source-review debt; integrated synthesis and physical-device
 acceptance remain separate gates, not claims made by the review.
+
+## B4 original provider — cleared 2026-09-29
+
+Source and bounded production-T80 execution reviewed CLEAR by Opus 5.5 medium,
+run `20260929T043549Z-23673-ac79`. The [evidence record](../investigations/ssm-csl/b4-production-fetch-2026-09-29.md)
+distinguishes that closure from the physical residual retained in review-debt.
+The original entry follows unchanged.
+
+**B4 phase 1 original fetch-provider review/evidence, 2026-09-12 — OPEN:**
+The revised detector, ring reader, recorder and top-level SSM connections are covered
+by the "B4 revised SSM path" source review (CLEAR, now in the archive). That does not discharge the original
+`rtl/Amstrad_motherboard.v` raw-fetch-provider boundary or production T80pa evidence.
+The existing tests exercise T80pa-shaped TV80 fetches and synthetic held fetches;
+the production T80pa netlist still needs a suitable mixed-language gate.
+
+DDR allocation, verified 2026-09-13 on the device: the kernel boots with
+`mem=511M memmap=513M$511M`, and `/proc/iomem` lists System RAM only at
+`00000000-1fefffff`, so Linux never owns the ring's 1,040 bytes at `0x30000000`. The
+framework scaler buffer is `RAMBASE 0x20000000`, `RAMSIZE 0x00800000`
+(`sys/sys_top.v`), ending well below the ring. Main's own `/dev/mem` mappings were not
+enumerated; the ring sits in the window MiSTer reserves for core DDR use. Address units
+are 64-bit words in the source interface. New logic on `clk_sys` and the DDR port still need synthesis/timing and
+real-media validation. Source passivity and green simulation do not close those gates.

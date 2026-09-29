@@ -59,7 +59,7 @@ test full:
 	@$(MAKE) --no-print-directory $(PARALLEL) $@-run
 
 list-tests:
-	@echo $(SIM_TESTS) b18-snapshot-test t80-irq-sample-test classic-irq-phase-test classic-b25-test
+	@echo $(SIM_TESTS) b18-snapshot-test t80-irq-sample-test classic-irq-phase-test classic-b25-test ssm-provider-test
 
 # One sub-make per directory: plus-test and plus-full never run together.
 test-run: $(SIM_TESTS) plus-test
@@ -166,6 +166,7 @@ GHDL ?= ghdl
 T80_VHDL_SRC := $(addprefix ../rtl/T80/,T80_Pack.vhd T80_ALU.vhd T80_MCode.vhd T80_Reg.vhd T80.vhd T80pa.vhd)
 T80_NETLIST  := $(OBJ_DIR)/t80/T80pa.v
 include b18_snapshot.mk
+include ssm_provider.mk
 
 .DELETE_ON_ERROR:
 
@@ -291,7 +292,7 @@ crtc-t80-old-test: $(CRTC_T80_OLD_BIN)
 # and for local runs with GHDL=/path/to/ghdl. Kept out of `test` so the
 # default gate still builds without GHDL.
 .PHONY: production-t80-test
-production-t80-test: t80-trace-test crtc-t80-test crtc-t80-old-test t80-freeze-test t80-irq-sample-test classic-irq-phase-test b18-snapshot-test plus-d5-cart-timing
+production-t80-test: t80-trace-test crtc-t80-test crtc-t80-old-test t80-freeze-test t80-irq-sample-test classic-irq-phase-test b18-snapshot-test ssm-provider-test plus-d5-cart-timing
 
 # Plus cartridge execution rate on the production T80 (sim/plus d5-cart-timing).
 .PHONY: plus-d5-cart-timing

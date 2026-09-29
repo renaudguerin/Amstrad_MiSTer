@@ -65,21 +65,18 @@ index or selector edit selects no benches, and a `sim/TESTS.md`-only push skips 
 ignore) until the next code push runs `--check`; pull requests select from the PR head while
 testing the auto-merge tree (integration goes through local merges and pushes, not PRs).
 
-**B4 phase 1 original fetch-provider review/evidence, 2026-09-12 — OPEN:**
-The revised detector, ring reader, recorder and top-level SSM connections are covered
-by the "B4 revised SSM path" source review (CLEAR, now in the archive). That does not discharge the original
-`rtl/Amstrad_motherboard.v` raw-fetch-provider boundary or production T80pa evidence.
-The existing tests exercise T80pa-shaped TV80 fetches and synthetic held fetches;
-the production T80pa netlist still needs a suitable mixed-language gate.
-
-DDR allocation, verified 2026-09-13 on the device: the kernel boots with
-`mem=511M memmap=513M$511M`, and `/proc/iomem` lists System RAM only at
-`00000000-1fefffff`, so Linux never owns the ring's 1,040 bytes at `0x30000000`. The
-framework scaler buffer is `RAMBASE 0x20000000`, `RAMSIZE 0x00800000`
-(`sys/sys_top.v`), ending well below the ring. Main's own `/dev/mem` mappings were not
-enumerated; the ring sits in the window MiSTer reserves for core DDR use. Address units
-are 64-bit words in the source interface. New logic on `clk_sys` and the DDR port still need synthesis/timing and
-real-media validation. Source passivity and green simulation do not close those gates.
+**B4 physical integration residuals — OPEN:**
+The original raw-fetch-provider source/execution debt is closed by fresh Opus
+5.5 medium review and five production motherboard/T80 cases; its unchanged
+entry is in the [review archive](archive/review-debt-cleared.md). See the
+[provider evidence](investigations/ssm-csl/b4-production-fetch-2026-09-29.md).
+This does not establish banked memory, cartridge/SDRAM service, repeated HALT
+fetches, or physical timing. DDR allocation has the earlier device evidence;
+The separate [device session](investigations/mister-format2-b25-2026-09-29.md)
+confirms controlled format-2 startup/coherent reads and matching steady requested/applied
+modes in three output modes on `cec641c`. Main mapping enumeration, live mode
+transitions and independent device proof of the fetch-sampling cut remain outside
+that bounded acceptance. No new synthesis or hardware result is claimed by the provider fixture.
 
 **B4 phase 0, CSL runner — source review closed 2026-09-29; hardware residual OPEN:**
 Fresh Opus 5.5 medium review (`20260929T004043Z-66217-cccf`, CLEAR) closes the

@@ -688,6 +688,13 @@ in `rtl/ssm_marker.v` and `csl_runner.py`) was verified on real hardware: Module
 across CRTC 0 (122 captures) and CRTC 1 (124 captures) and Gate 1 (Module B) with zero dropped
 markers and byte-identical CFG restoration.
 
+**PRODUCTION PROVIDER EVIDENCE, 2026-09-29:** Five production motherboard/T80
+cases and fresh cross-provider review close the original raw-fetch source/execution
+gap: ROM/RAM opcode streams, resolved PPI data, GA/extra WAIT completion and
+IM1 cancellation with a DI control. The [evidence and limits](investigations/ssm-csl/b4-production-fetch-2026-09-29.md)
+exclude banked memory, cartridge/SDRAM service, repeated HALT fetches and physical
+DDR/format-2 acceptance. Production RTL is unchanged.
+
 The experimental Phase 2 sample recorder was **retired and pruned** from the active codebase
 following author Longshot's confirmation on 2026-09-12 that all SHAKER test result screens are
 visually stable for multiple frames around SSM markers (making Phase 1 asynchronous native captures
