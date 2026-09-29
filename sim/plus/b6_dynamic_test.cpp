@@ -3,6 +3,7 @@
 #define B6_BOUNDARY_LIBRARY
 #include "b6_video_boundary_test.cpp"
 #include <array>
+#include <fstream>
 #include "Vp10_boot_test_top___024root.h"
 #define FILTER(name) d.rootp->p10_boot_test_top__DOT__mb__DOT__crt_filter__DOT__##name
 #define CRTC(name) d.rootp->p10_boot_test_top__DOT__mb__DOT__crtc__DOT__##name
@@ -36,6 +37,52 @@ Program dynamic_program() {
     emit(0x76); // HALT: interrupts remain disabled
     return p;
 }
+// Passive snapshots immediately before h.tick(): the previous tick has left
+// clk low and evaluated. No trace operation evaluates or drives the DUT.
+// Tuple bits are HS,VS,HB,VB (3..0); raw HB is CRTC HS, raw HS/VS are GA.
+// Counters are CE4 units, tick is a 64 MHz loop index after initialization.
+// hSyncCount is regenerated phase BEFORE syncgen's blocking increment/reset;
+// hSyncReg is a falling-edge classification arm, not a monitor-lock flag.
+class SyncTrace {
+    std::ofstream out;
+    std::array<unsigned,19> previous{};
+    unsigned previous_count=0;
+    int previous_stage=-2;
+    bool first=true;
+public:
+    SyncTrace(const std::string& prefix,unsigned machine,unsigned mode) {
+        if(prefix.empty())return;
+        out.exceptions(std::ios::failbit|std::ios::badbit);
+        out.open(prefix+"-machine"+std::to_string(machine)+"-mode"+std::to_string(mode)+".csv");
+        out<<"tick,stage,stage_name,stage_age,event_bits,requested,applied,crtc_hs,crtc_vs,ga_raw_tuple,filtered_tuple,selected_tuple,mixer_de,line_estimate,arm,no_hsync,hsync_mask,SHIFT,hs4,shift_internal,filter_hs,filter_old_hs,r3_hs_width,training_syncs,ce4,hSyncCount,line_time,hSyncCount2x,old_vs\n";
+    }
+    void sample(unsigned tick,int stage,unsigned age,Vp10_boot_test_top& d) {
+        if(!out.is_open())return;
+        const std::array<unsigned,19> state={d.b6_mode,d.b6_applied,
+            d.dbg_raw_hsync,d.dbg_raw_vsync,d.b6_raw_tuple,d.b6_full_tuple,
+            selected_tuple(d),d.b6_mixer_de,FILTER(hSyncSize),
+            FILTER(hSyncReg),FILTER(no_hsync),FILTER(hsync_mask),
+            d.b6_shift,FILTER(hs4),FILTER(shift),FILTER(hsync_i),
+            FILTER(syncgen__DOT__old_hsync),CRTC(R3_h_sync_width),FILTER(syncs)};
+        const unsigned count=FILTER(syncgen__DOT__hSyncCount);
+        const bool ce4=d.rootp->p10_boot_test_top__DOT__mb__DOT__phi_en_n;
+        // Event bits: 1 initial, 2 stage entry, 4 observed state change,
+        // 8 CE4-qualified filter input edge, 16 counter reset/wrap observed.
+        // Counter increments and CE toggles alone do not emit rows.
+        const unsigned events=(first?1:0)|(stage!=previous_stage?2:0)|
+            (state!=previous?4:0)|((ce4&&state[15]!=state[16])?8:0)|
+            ((!first&&count<previous_count)?16:0);
+        if(events) {
+            out<<tick<<','<<stage<<','<<(stage<0?"setup":names[stage])<<','<<age<<','<<events;
+            for(auto value:state)out<<','<<value;
+            out<<','<<ce4<<','<<count<<','<<unsigned(FILTER(hsyncfilt__DOT__line_time))<<','
+               <<unsigned(FILTER(syncgen__DOT__hSyncCount2x))<<','
+               <<unsigned(FILTER(syncgen__DOT__old_vs))<<'\n';
+        }
+        previous=state;previous_stage=stage;previous_count=count;first=false;
+    }
+    void finish() {if(out.is_open())out.close();}
+};
 struct Samples {
     std::vector<uint8_t> timing;
     std::vector<uint32_t> rgb;
@@ -45,7 +92,7 @@ struct Samples {
     uint64_t short_pulses=0,short_width_bad=0;
     std::array<uint64_t,stages> armed_falls{},hs4_ticks{};
 };
-Samples dynamic_run(unsigned machine,unsigned mode,bool probe) {
+Samples dynamic_run(unsigned machine,unsigned mode,bool probe,const std::string& trace_prefix) {
     Harness h(machine==2,machine==1);
     h.verify_mutation(0);h.dut.production_clocking=1;h.dut.b6_mode=mode;
     for(unsigned a=0xc000;a<0x10000;a+=2) {
@@ -54,6 +101,7 @@ Samples dynamic_run(unsigned machine,unsigned mode,bool probe) {
     }
     const auto p=dynamic_program();h.initialize(p,machine==2);
     if(machine==2) {h.download(build_cpr_image({{"cb00",p.code},{"cb03",std::vector<uint8_t>(16384,0)}}));h.wait_for_reset_release();}
+    SyncTrace trace(trace_prefix,machine,mode);
     Samples s;
     int stage=-1;unsigned age=0;bool old_hs=false;
     bool pulse_open=false;unsigned pulse_start=0;
@@ -68,6 +116,20 @@ Samples dynamic_run(unsigned machine,unsigned mode,bool probe) {
         if(!d.dbg_mreq_n&&!d.dbg_wr_n&&d.dbg_addr==0xb000&&d.dbg_dout>=1&&d.dbg_dout<=stages) {
             int next=d.dbg_dout-1;if(next!=stage){std::cerr<<"stage "<<next<<" tick="<<n<<" pc="<<std::hex<<d.dbg_pc<<std::dec<<std::endl;stage=next;age=0;}
         }
+        trace.sample(n,stage,age,d);
+        // Compare the production diagnostic port against independently probed
+        // state. This catches disconnected ports and misordered filter-state bits.
+        const unsigned expected_observation = d.b6_mode | (d.b6_applied << 2) |
+            (FILTER(hSyncSize) << 4) | (FILTER(hs4) << 13) | (d.b6_shift << 14) |
+            (FILTER(no_hsync) << 15) | (FILTER(hsync_mask) << 16) |
+            (FILTER(hSyncReg) << 17) | (FILTER(syncs) << 18);
+        if(d.b6_sync_observation != expected_observation)
+            throw AuditFailure("B22 motherboard sync observation mismatch tick="+std::to_string(n));
+        // Requests are constant and applied during initialization/reset. Every
+        // oracle below assumes this mode; fail explicitly if that premise fails.
+        if(d.b6_applied!=mode)throw AuditFailure("B6 applied-mode mismatch machine="+
+            std::to_string(machine)+" tick="+std::to_string(n)+" requested="+
+            std::to_string(mode)+" applied="+std::to_string(d.b6_applied));
         const bool ce=d.dbg_video_ce16;
         const bool fetch=d.b6_cpu_n&&!d.b6_ras_n&&!d.b6_cas_n;
         const unsigned word=d.dbg_video_vram_word;
@@ -80,20 +142,20 @@ Samples dynamic_run(unsigned machine,unsigned mode,bool probe) {
         mixer_r=gamma_output;
         if(ce&&!old_ce){gamma_output=gamma_input;gamma_input=d.b6_color_rgb;}
         old_ce=ce;
-        const unsigned old_r3=CRTC(R3_h_sync_width), old_hs4=FILTER(hs4), old_size=FILTER(syncgen__DOT__hSyncSize);
+        const unsigned old_r3=CRTC(R3_h_sync_width), old_hs4=FILTER(hs4), old_size=FILTER(hSyncSize);
         const unsigned old_count=FILTER(syncgen__DOT__hSyncCount);
         if(probe&&stage<=1&&stage>=0&&age<40000&&d.rootp->p10_boot_test_top__DOT__mb__DOT__phi_en_n && FILTER(syncgen__DOT__old_hsync)!=FILTER(hsync_i))
-            std::cerr<<"B22 edge tick="<<n<<" stage="<<stage<<" age="<<age<<" hs="<<unsigned(FILTER(hsync_i))
-                     <<" count="<<old_count<<" size="<<unsigned(FILTER(syncgen__DOT__hSyncSize))<<" reg="<<unsigned(FILTER(syncgen__DOT__hSyncReg))<<'\n';
+            std::cerr<<"B22 machine="<<machine<<" mode="<<mode<<" edge tick="<<n<<" stage="<<stage<<" age="<<age<<" hs="<<unsigned(FILTER(hsync_i))
+                     <<" count="<<old_count<<" size="<<unsigned(FILTER(hSyncSize))<<" reg="<<unsigned(FILTER(hSyncReg))<<'\n';
         const bool raw_hs_before=d.b6_raw_tuple&2;
         const bool armed_fall=d.rootp->p10_boot_test_top__DOT__mb__DOT__phi_en_n &&
-            FILTER(syncgen__DOT__old_hsync) && !FILTER(hsync_i) && FILTER(syncgen__DOT__hSyncReg);
+            FILTER(syncgen__DOT__old_hsync) && !FILTER(hsync_i) && FILTER(hSyncReg);
         h.tick();++pipeline_age;
-        if(probe && (old_r3!=CRTC(R3_h_sync_width)||old_hs4!=FILTER(hs4)||old_size!=FILTER(syncgen__DOT__hSyncSize)))
-            std::cerr<<"B22 tick="<<n<<" stage="<<stage<<" R3="<<old_r3<<"->"<<unsigned(CRTC(R3_h_sync_width))
+        if(probe && (old_r3!=CRTC(R3_h_sync_width)||old_hs4!=FILTER(hs4)||old_size!=FILTER(hSyncSize)))
+            std::cerr<<"B22 machine="<<machine<<" mode="<<mode<<" tick="<<n<<" stage="<<stage<<" R3="<<old_r3<<"->"<<unsigned(CRTC(R3_h_sync_width))
                      <<" C0="<<unsigned(CRTC(hcc))<<" C3="<<unsigned(CRTC(hsc))
                      <<" count="<<old_count<<"->"<<unsigned(FILTER(syncgen__DOT__hSyncCount))
-                     <<" size="<<old_size<<"->"<<unsigned(FILTER(syncgen__DOT__hSyncSize))<<" hs4="<<old_hs4<<"->"<<unsigned(FILTER(hs4))<<" shift="<<unsigned(FILTER(shift))<<'\n';
+                     <<" size="<<old_size<<"->"<<unsigned(FILTER(hSyncSize))<<" hs4="<<old_hs4<<"->"<<unsigned(FILTER(hs4))<<" shift="<<unsigned(FILTER(shift))<<'\n';
         if(stage>=0&&age++>20000) {
             ++s.ticks[stage];
             const bool hs=d.b6_raw_tuple&2;
@@ -124,21 +186,28 @@ Samples dynamic_run(unsigned machine,unsigned mode,bool probe) {
         if(ce){tag=blank;tag_valid=true;}
         if(stage==int(stages)-1&&age>1600000)break;
     }
+    trace.finish();
     return s;
 }
 }
 int main(int argc,char**argv) {
     Verilated::commandArgs(argc,argv);
-    unsigned only=3;bool probe=false;
+    unsigned only=3;bool probe=false;std::string trace_prefix;
     for(int i=1;i<argc;++i)if(std::string(argv[i])=="--probe-sync")probe=true;
     for(int i=1;i+1<argc;++i)if(std::string(argv[i])=="--machine")only=std::stoul(argv[++i]);
+    for(int i=1;i<argc;++i)if(std::string(argv[i])=="--trace-sync") {
+        if(i+1==argc||std::string(argv[i+1]).empty()||std::string(argv[i+1]).front()=='-') {
+            std::cerr<<"--trace-sync requires a file prefix\n";return 2;
+        }
+        trace_prefix=argv[++i];
+    }
     bool bad=false;
     try {
         for(unsigned machine=0;machine<3;++machine) {
             if(only<3&&machine!=only)continue;
             Samples full;
             for(unsigned mode=0;mode<3;++mode) {
-                auto s=dynamic_run(machine,mode,probe);
+                auto s=dynamic_run(machine,mode,probe,trace_prefix);
                 std::array<uint64_t,stages> differences{};
                 uint64_t timing_bad=0;
                 if(mode==0)full=s;
