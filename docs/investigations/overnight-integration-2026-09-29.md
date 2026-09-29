@@ -67,9 +67,19 @@ head includes CSL. Its successor `36507312981` exposed a separate clean-build
 dependency: selecting only `crt-filter-blank-test` did not create its nested
 output directory. Adding `mkdir -p $(CRTF_OBJ_DIR)` makes the target standalone;
 an isolated empty `/tmp` output tree passed all nine focused cases. The older
-failed runs are not claimed as successful integration evidence. The current
-Quartus job continues because this Makefile-only repair does not change any
-synthesized input; final CI will verify the build repair after artifact retention. New-RBF device checks, real SSH-disconnect recovery,
+failed runs are not claimed as successful integration evidence. The full synthesis leg of `36507312981` subsequently passed on `cec641c`.
+Artifact `Amstrad-build-301-1-full` is retained under
+`output_files/sync-integration-cec641c/`, including fitter/STA summaries and
+worst-path reports. Setup/hold minima are +0.810/+0.242 ns across seven clocks
+with zero TNS; utilization is 24,558 ALMs (59%), 28,390 registers, 102 RAM blocks
+and 35 DSP blocks, using clean full-effort Quartus 17.0.2.
+The delivered `output_files/Amstrad_20260929_cec641c.rbf` has SHA-256
+`40f7d66bfcfda37ce9f5053ff3e3af833713bdb4065fe4bcde9c311a3cb4dd2c`,
+verified against the downloaded copy. The aggregate run remains failed because
+of the test-directory defect; its synthesis result and production-T80 pass are
+separate evidence. The Makefile/docs repair changes no synthesized input
+(classifier false), so final CI can reuse this bitstream without relabelling it.
+Final repair CI remains pending. New-RBF device checks, real SSH-disconnect recovery,
 unobserved key mappings and original-monitor fidelity remain separate acceptance
 work. Numeric SHAKER runs use Full once; a small targeted display corpus covers
 mode differences without tripling every numeric/title test.

@@ -16,9 +16,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   the self-synchronizing Classic B25 DSK are delivered with model/emulator checks;
   their original-machine acceptance remains open. The B18 loaded-Dandanator
   admission fix passed exact-SHA CI/full synthesis at `fe42298`, and its RBF is
-  retained locally. Sync format-2 observations are published at `11e9819` with
-  successor CI/synthesis pending after a narrow lint annotation; CSL safety fixes
-  are included in that final publication.
+  retained locally. Sync format-2 observations and CSL safety fixes are published. The final RTL at
+  `cec641c` passed full synthesis (+0.810/+0.242 ns setup/hold, zero TNS), and
+  `output_files/Amstrad_20260929_cec641c.rbf` is delivered locally. Final CI for
+  the isolated test-directory build repair remains pending; it changes no RTL.
   The [batch evidence and run instructions](investigations/overnight-integration-2026-09-29.md)
   distinguish these gates from the earlier user-confirmed title pass.
 
