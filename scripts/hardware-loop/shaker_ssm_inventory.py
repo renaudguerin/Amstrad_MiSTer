@@ -14,7 +14,7 @@ bytes the directory yields means the extraction is wrong and the scan cannot
 be trusted.
 
 Usage:
-    python3 scripts/hardware-loop/shaker_ssm_inventory.py docs/references/Shaker_CSL/shaker26.dsk
+    python3 scripts/hardware-loop/shaker_ssm_inventory.py local/test_media/shaker/shaker26.dsk
 
 The disc images are user-owned and untracked; nothing here writes to the
 repository or reproduces disc content, it only counts and locates byte

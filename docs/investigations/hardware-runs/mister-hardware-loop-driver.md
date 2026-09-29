@@ -172,8 +172,12 @@ does not visually confirm the active filter mode. Record that distinction.
 ## The CSL runner
 
 [csl_runner.py](../../../scripts/hardware-loop/csl_runner.py) executes CSL through v1.5.
-SHAKER 2.6 scripts remain unchanged under `docs/references/Shaker_CSL/` (untracked),
-and future author-supplied 2.7 scripts can use the new event-driven `wait_ssm` command
+Author-supplied SHAKER 2.7 scripts live under `local/test_media/shaker/CSL_27/`
+(module directories contain spaces, for example `MODULE B`); the unchanged 2.6
+fallback corpus lives under `local/test_media/shaker/CSL_26/` (`MODULE_B`).
+Disks and standards remain directly under `local/test_media/shaker/`. All are
+private, untracked inputs: preserve the original files. The 2.7 scripts use the
+event-driven `wait_ssm` command
 against the same device contract as the JSON driver. It is phase 0 of
 [the CSL/SSM plan](../ssm-csl/csl-ssm-implementation-plan.md): the host half, with no RTL
 change. The optional phase 1 detector is described under [SSM markers](#ssm-markers).
@@ -181,23 +185,35 @@ change. The optional phase 1 detector is described under [SSM markers](#ssm-mark
 ```sh
 # Offline: parse, validate, plan. Contacts nothing, imports no Pillow.
 python3 scripts/hardware-loop/csl_runner.py \
-  docs/references/Shaker_CSL/MODULE_B/SHAKE26B-1.CSL \
-  --rbf-path /media/fat/_Computer/Amstrad_20260911_5c16b17.rbf \
+  'local/test_media/shaker/CSL_27/MODULE B/SHAKER-B-1.CSL' \
+  --rbf-path /media/fat/_Computer/Amstrad_20260929_cec641c.rbf \
   --disk-dir /media/fat/games/Amstrad/dsk --layout fr --dry-run \
+  --ssm --max-wait 120 --no-follow-loads \
   --out-dir docs/references/csl-dry-run
 
 # On the device, stopping partway and capturing at chosen script lines.
 python3 scripts/hardware-loop/csl_runner.py \
-  docs/references/Shaker_CSL/MODULE_B/SHAKE26B-1.CSL \
-  --rbf-path /media/fat/_Computer/Amstrad_20260911_5c16b17.rbf \
+  'local/test_media/shaker/CSL_27/MODULE B/SHAKER-B-1.CSL' \
+  --rbf-path /media/fat/_Computer/Amstrad_20260929_cec641c.rbf \
   --disk-dir /media/fat/games/Amstrad/dsk --layout fr \
   --target root@mister --ack-main-cmd --mbc-path /tmp/mbc \
+  --ssm --max-wait 120 --no-follow-loads --sync-filter full \
   --stop-at 120 --screenshot-at 110 --screenshot-at 118 \
   --out-dir docs/references/csl-b1-run1
 ```
 
 `--no-follow-loads` keeps the run inside one file; by default `csl_load` chains
-are followed, depth-limited and cycle-checked.
+are followed, depth-limited and cycle-checked. The supplied corpus chains across
+CRTC types, including unsupported ones, so use `--no-follow-loads` for an
+explicit module/type matrix. Run A–E for each supported type once in Full mode.
+A failed 2.7 cell retains its partial manifest and screenshots; record script,
+line, expected marker, last observed marker and error, then run its matching
+`CSL_26/MODULE_X/SHAKE26X-N.CSL` with `shaker26.dsk` and the script’s fixed
+waits. Keep SSM enabled for capture in both versions. A successful fallback
+establishes fallback execution coverage, not a passing 2.7 script. Investigate
+transport failures separately from script defects; a marker timeout alone does
+not prove a typo. Record elapsed time and coverage without treating the author’s
+expected speedup as a measurement.
 
 ### What the target can and cannot honour
 
@@ -206,11 +222,12 @@ are followed, depth-limited and cycle-checked.
 | `csl_version` | recorded; versions 1.0 through 1.5 are known, while a later version is a manifest warning rather than a stop. The bundled 2.6 scripts declare 1.0 while using v1.4 forms |
 | `reset` / `reset hard` | fresh core load, equal to power-on |
 | `reset soft` | rejected: no distinct soft-reset path exists from the host |
-| `crtc_select 0` | status bit 2 set (`crtc_type = ~status[2]` in `Amstrad.sv`) |
-| `crtc_select 1`, `1A`, `1B` | status bit 2 clear. 1A and 1B are one model here; which one the script asked for is recorded |
-| `crtc_select 2/3/4` | rejected: not implemented in the core |
+| `crtc_select 0` | Plus off; status bit 2 set (`crtc_type = ~status[2]` in `Amstrad.sv`) |
+| `crtc_select 1`, `1A`, `1B` | Plus off; status bit 2 clear. 1A and 1B are one model here; which one the script asked for is recorded |
+| `crtc_select 3` | selects 6128+ through status bits 34:33; requires `--plus-cartridge` and its SHA-256 pin, loads the CPR before disk media |
+| `crtc_select 2/4` | rejected: not implemented in the core |
 | `crtc_select` mid-session | a no-op when the effective bit is unchanged, rejected otherwise: a live change needs the OSD |
-| `cpc_model 0/1/2` | status bits 5:4 before the load. Plus models are rejected until Plus CSL is in scope |
+| `cpc_model 0/1/2` | status bits 5:4 before the load. Plus model numbers are rejected; `crtc_select 3` selects 6128+ explicitly |
 | `disk_insert [A\|B] 'x.dsk'` | MGL `S0`/`S1` mount, resolved under `--disk-dir` |
 | `disk_dir` | rejected: it names a host directory. Use `--disk-dir` |
 | `key_delay` | drives `MBC_KEY_WAIT` (see below) |
@@ -231,6 +248,17 @@ A rejected command stops the script and is reported with the six fields CSL
 requires: script, line, instruction, reason, script version, supported version.
 The manifest and `last-run.log` are written even then, holding the partial
 trace up to the stop.
+
+For CRTC3, use the user-approved `6128_FR.cpr` with `--layout fr`; it boots
+directly into BASIC without the original system cartridge’s F1 prompt. Add
+`--plus-cartridge /media/fat/games/Amstrad/cpr/06_System/6128_FR.cpr` and
+`--expect-plus-cartridge-sha256 ab241580c9b6a9fa9aeae94ca6847ea70dca386d305e38fc2ac03fce603360cf`
+to the command, after verifying the device path. The runner checks the cartridge
+hash before changing CFG, selects 6128+, and places the CPR before the DSK in
+the MGL. CRTC3 retains the classic CRTC bit without interpreting it as ASIC
+identity; captures use `MISTER_3_…`. CFG metadata records the requested/applied
+file settings, not runtime Plus readback. This host path’s hardware acceptance
+is tracked in the [suite record](../shaker27-full-suite-2026-09-29.md).
 
 ### Power-on folding
 

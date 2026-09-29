@@ -1,8 +1,8 @@
 """Offline tests for the CSL runner (backlog B4, phase 0).
 
 Deterministic and network-free.  The corpus tests read the bundled Logon System
-scripts under ``docs/references/Shaker_CSL``; they skip when that directory is
-absent, because the bundle is user-owned and untracked.
+scripts under ``local/test_media/shaker``; they skip when the corresponding
+directory is absent, because the bundle is user-owned and untracked.
 
 The cross-checks worth the most here are the ones that can fail for a reason we
 do not already know:
@@ -19,9 +19,11 @@ do not already know:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List
@@ -31,23 +33,31 @@ import cpc_keys
 from cpc_keys import KeyTranslationError, sequence_tokens, translate_text
 from csl_runner import (
     CFG_BIT_CRTC,
+    CFG_BITS_PLUS_MODEL,
     CFG_BITS_SYNC_FILTER,
     SYNC_FILTER_MODES,
     CslError,
+    CslRunner,
+    DeviceBackend,
     PlanBackend,
     RunOptions,
     _cfg_apply_bits,
     load_program,
     main,
+    parse_args,
     parse_script,
     run_csl,
 )
 from driver import CommandResult, DriverError, validate_raw_seq
 from test_driver import ScriptedTransport, create_minimal_png_bytes
 
-SHAKER_DIR = Path(__file__).resolve().parents[2] / "docs" / "references" / "Shaker_CSL"
+TEST_MEDIA_DIR = Path(__file__).resolve().parents[2] / "local" / "test_media" / "shaker"
+SHAKER_DIR = TEST_MEDIA_DIR / "CSL_26"
+SHAKER_27_DIR = TEST_MEDIA_DIR / "CSL_27"
 RBF = "/media/fat/_Computer/Amstrad_test.rbf"
 DISK_DIR = "/media/fat/games/Amstrad/dsk"
+PLUS_CARTRIDGE = "/media/fat/games/Amstrad/6128_FR.cpr"
+PLUS_CARTRIDGE_SHA256 = "a" * 64
 
 
 def options(tmp: Path, **kwargs: Any) -> RunOptions:
@@ -369,6 +379,244 @@ class TestPowerOnFold(unittest.TestCase):
             self.assertIn("powered on", ctx.exception.reason)
 
 
+class TestPlusCrtc3(unittest.TestCase):
+    def _plus_script(self, tmp: Path) -> Path:
+        return write(
+            tmp,
+            "plus.csl",
+            "csl_version 1.5\ncrtc_select 3\nreset\n"
+            "disk_insert 'shaker27.dsk'\nwait 1\n",
+        )
+
+    def test_crtc3_requires_an_explicit_pinned_cartridge(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script = self._plus_script(tmp)
+            for supplied, expected in (
+                ({}, "--plus-cartridge"),
+                ({"plus_cartridge_path": PLUS_CARTRIDGE}, "--expect-plus-cartridge-sha256"),
+            ):
+                with self.subTest(expected=expected), tempfile.TemporaryDirectory() as out:
+                    with self.assertRaises(CslError) as ctx:
+                        plan(script, Path(out), **supplied)
+                    self.assertIn(expected, ctx.exception.reason)
+
+    def test_crtc2_and_crtc4_remain_unsupported(self):
+        for crtc in ("2", "4"):
+            with self.subTest(crtc=crtc), tempfile.TemporaryDirectory() as td:
+                tmp = Path(td)
+                script = write(tmp, "unsupported.csl", f"crtc_select {crtc}\nreset\n")
+                with self.assertRaises(CslError) as ctx:
+                    plan(script, tmp / "out")
+                self.assertEqual(
+                    ctx.exception.reason,
+                    f"CRTC type {crtc} is not implemented in this core",
+                )
+
+    def test_classic_model_survives_plus_roundtrip_and_can_precede_classic_crtc(self):
+        scripts = (
+            # Returning from Plus without another cpc_model keeps the chosen 664.
+            "cpc_model 1\ncrtc_select 3\ncrtc_select 0\nreset\n",
+            # cpc_model still sets the classic fallback while Plus is selected.
+            "crtc_select 3\ncpc_model 1\ncrtc_select 0\nreset\n",
+        )
+        for index, source in enumerate(scripts):
+            with self.subTest(script=index), tempfile.TemporaryDirectory() as td:
+                tmp = Path(td)
+                script = write(tmp, "roundtrip.csl", source)
+                manifest = plan(
+                    script,
+                    tmp / "out",
+                    plus_cartridge_path=PLUS_CARTRIDGE,
+                    expect_sha256={"plus_cartridge": PLUS_CARTRIDGE_SHA256},
+                )
+                load = next(a for a in manifest["actions"] if a["action"] == "load_core")
+                self.assertEqual(load["crtc_requested"], "0")
+                self.assertEqual(load["plus_model_status"], 0)
+                self.assertEqual(load["model_status"], 1)
+                self.assertEqual(manifest["effective_settings"]["model_status"], 1)
+
+    def test_cli_accepts_explicit_cartridge_path_and_hash_pin(self):
+        args = parse_args([
+            "plus.csl", "--rbf-path", RBF, "--disk-dir", DISK_DIR,
+            "--plus-cartridge", PLUS_CARTRIDGE,
+            "--expect-plus-cartridge-sha256", PLUS_CARTRIDGE_SHA256,
+            "--dry-run",
+        ])
+        self.assertEqual(args.plus_cartridge, PLUS_CARTRIDGE)
+        self.assertEqual(args.expect_plus_cartridge_sha256, PLUS_CARTRIDGE_SHA256)
+
+    def test_plus_plan_has_distinct_model_and_capture_identity(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script = self._plus_script(tmp)
+            result = plan(
+                script,
+                tmp / "out",
+                plus_cartridge_path=PLUS_CARTRIDGE,
+                expect_sha256={"plus_cartridge": PLUS_CARTRIDGE_SHA256},
+                screenshot_at=[("plus.csl", 3)],
+            )
+            load = next(a for a in result["actions"] if a["action"] == "load_core")
+            settings = result["effective_settings"]
+            self.assertEqual(load["crtc_requested"], "3")
+            self.assertIsNone(load["crtc_status_bit"])
+            self.assertEqual(load["plus_model_status"], 2)
+            self.assertEqual(load["plus_cartridge_path"], PLUS_CARTRIDGE)
+            self.assertEqual(load["plus_cartridge_sha256_expected"], PLUS_CARTRIDGE_SHA256)
+            self.assertEqual(settings["crtc_requested"], "3")
+            self.assertIsNone(settings["crtc_status_bit"])
+            self.assertEqual(settings["plus_model_status"], 2)
+            capture = next(a for a in result["actions"] if a["action"] == "screenshot")
+            self.assertTrue(capture["name"].startswith("MISTER_3_"), capture["name"])
+
+            runner = CslRunner([], options(tmp / "ssm"), PlanBackend(), "plus.csl")
+            runner.crtc_requested = "3"
+            runner._ssm_capture({"frame": 1, "code": "1234"}, None)
+            self.assertEqual(runner.backend.actions[-1]["name"], "MISTER_3_1234.png")
+
+    def test_device_load_sets_only_the_plus_model_and_orders_cartridge_before_disk(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script = self._plus_script(tmp)
+            manifest = plan(
+                script,
+                tmp / "plan",
+                plus_cartridge_path=PLUS_CARTRIDGE,
+                expect_sha256={"plus_cartridge": PLUS_CARTRIDGE_SHA256},
+            )
+            load = next(a for a in manifest["actions"] if a["action"] == "load_core")
+            run_options = options(
+                tmp / "device",
+                plus_cartridge_path=PLUS_CARTRIDGE,
+                expect_sha256={"plus_cartridge": PLUS_CARTRIDGE_SHA256},
+            )
+            out = tmp / "device"
+            out.mkdir()
+            transport = ScriptedTransport()
+            backend = DeviceBackend(transport, run_options, out)
+            original_cfg = _cfg_apply_bits(bytes(16), {CFG_BIT_CRTC: 1})
+            cfg_writes = []
+            hashes = {
+                RBF: "b" * 64,
+                f"{DISK_DIR}/shaker27.dsk": "c" * 64,
+                PLUS_CARTRIDGE: PLUS_CARTRIDGE_SHA256,
+            }
+
+            def record_cfg(data):
+                cfg_writes.append(data)
+                return hashlib.sha256(data).hexdigest()
+
+            with patch.object(backend, "read_cfg", return_value=original_cfg), \
+                 patch.object(backend, "write_cfg", side_effect=record_cfg), \
+                 patch("csl_runner.check_rbf_directory"), \
+                 patch("csl_runner.fetch_sha256", side_effect=lambda _t, p, _timeout: hashes[p]):
+                record = backend.load_core(load)
+
+            self.assertEqual(len(cfg_writes), 1)
+            updated_cfg = int.from_bytes(cfg_writes[0], "little")
+            self.assertEqual((updated_cfg >> 33) & 0b11, 2)
+            self.assertEqual((updated_cfg >> CFG_BIT_CRTC) & 1, 1)
+            self.assertEqual(record["plus_cartridge_sha256"], PLUS_CARTRIDGE_SHA256)
+            mgl = ET.fromstring(transport.files[record["mgl"]])
+            files = mgl.findall("file")
+            self.assertEqual(
+                [(node.get("type"), node.get("index"), node.get("path")) for node in files],
+                [("f", "8", PLUS_CARTRIDGE),
+                 ("s", "0", f"{DISK_DIR}/shaker27.dsk")],
+            )
+
+    def test_device_load_rejects_a_cartridge_hash_mismatch_before_core_load(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script = self._plus_script(tmp)
+            manifest = plan(
+                script,
+                tmp / "plan",
+                plus_cartridge_path=PLUS_CARTRIDGE,
+                expect_sha256={"plus_cartridge": "d" * 64},
+            )
+            load = next(a for a in manifest["actions"] if a["action"] == "load_core")
+            run_options = options(
+                tmp / "device",
+                plus_cartridge_path=PLUS_CARTRIDGE,
+                expect_sha256={"plus_cartridge": "d" * 64},
+            )
+            out = tmp / "device"
+            out.mkdir()
+            transport = ScriptedTransport()
+            backend = DeviceBackend(transport, run_options, out)
+            with patch.object(backend, "read_cfg", return_value=bytes(16)), \
+                 patch.object(backend, "write_cfg", return_value="0" * 64) as write_cfg, \
+                 patch("csl_runner.check_rbf_directory"), \
+                 patch("csl_runner.fetch_sha256", side_effect=lambda _t, _p, _timeout: "a" * 64):
+                with self.assertRaisesRegex(DriverError, "plus_cartridge SHA-256 mismatch"):
+                    backend.load_core(load)
+                write_cfg.assert_not_called()
+            self.assertFalse(any("load_core " in row["command"] for row in transport.command_log))
+            self.assertFalse(any(name.endswith(".mgl") for name in transport.files))
+
+    def test_plus_to_classic_load_clears_plus_status_without_reloading_cartridge(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            plus = self._plus_script(tmp)
+            plus_manifest = plan(
+                plus,
+                tmp / "plus-plan",
+                plus_cartridge_path=PLUS_CARTRIDGE,
+                expect_sha256={"plus_cartridge": PLUS_CARTRIDGE_SHA256},
+            )
+            plus_load = next(a for a in plus_manifest["actions"] if a["action"] == "load_core")
+
+            classic_loads = []
+            for crtc in ("0", "1"):
+                classic = write(tmp, f"classic-{crtc}.csl", f"crtc_select {crtc}\nreset\n")
+                classic_manifest = plan(classic, tmp / f"classic-{crtc}-plan")
+                classic_loads.append(
+                    next(a for a in classic_manifest["actions"] if a["action"] == "load_core")
+                )
+
+            out = tmp / "device"
+            out.mkdir()
+            transport = ScriptedTransport()
+            run_options = options(
+                out,
+                plus_cartridge_path=PLUS_CARTRIDGE,
+                expect_sha256={"plus_cartridge": PLUS_CARTRIDGE_SHA256},
+            )
+            backend = DeviceBackend(transport, run_options, out)
+            original_cfg = _cfg_apply_bits(
+                bytes(16), {CFG_BITS_PLUS_MODEL[0]: 0, CFG_BITS_PLUS_MODEL[1]: 1}
+            )
+            cfg_writes = []
+
+            def record_cfg(data):
+                cfg_writes.append(data)
+                return hashlib.sha256(data).hexdigest()
+
+            hashes = {
+                RBF: "b" * 64,
+                f"{DISK_DIR}/shaker27.dsk": "c" * 64,
+                PLUS_CARTRIDGE: PLUS_CARTRIDGE_SHA256,
+            }
+            with patch.object(backend, "read_cfg", return_value=original_cfg), \
+                 patch.object(backend, "write_cfg", side_effect=record_cfg), \
+                 patch("csl_runner.check_rbf_directory"), \
+                 patch("csl_runner.fetch_sha256", side_effect=lambda _t, p, _timeout: hashes[p]):
+                plus_record = backend.load_core(plus_load)
+                classic_records = [backend.load_core(load) for load in classic_loads]
+
+            self.assertEqual((int.from_bytes(cfg_writes[0], "little") >> 33) & 0b11, 2)
+            self.assertTrue(all(
+                (int.from_bytes(cfg, "little") >> 33) & 0b11 == 0
+                for cfg in cfg_writes[1:]
+            ))
+            self.assertEqual([load["plus_model_status"] for load in classic_loads], [0, 0])
+            self.assertEqual(plus_record["plus_cartridge_sha256"], PLUS_CARTRIDGE_SHA256)
+            self.assertTrue(all("plus_cartridge_sha256" not in record for record in classic_records))
+            self.assertEqual(len([name for name in transport.files if name.endswith(".mgl")]), 1)
+
+
 class TestTiming(unittest.TestCase):
     def test_key_delay_maps_onto_the_single_mbc_knob(self):
         with tempfile.TemporaryDirectory() as td:
@@ -525,7 +773,7 @@ class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
         load = manifest["actions"][0]
         # Bit 37 is written explicitly even with SSM off, so a detector left
         # on by an earlier run cannot leak into this one.
-        self.assertEqual(load["cfg_bits_changed"], {"2": 0, "37": 0})
+        self.assertEqual(load["cfg_bits_changed"], {"2": 0, "33": 0, "34": 0, "37": 0})
         self.assertIn("not visually confirmed", load["configuration_evidence"])
         # CRTC 1 means bit 2 clear, which this CFG already had: the written
         # bytes must equal the original, and the restore must put them back.
@@ -542,7 +790,7 @@ class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
         manifest = self._run(MINIMAL, sync_filter="raw-pixels")
         self.assertEqual(manifest["status"], "success")
         load = manifest["actions"][0]
-        self.assertEqual(load["cfg_bits_changed"], {"2": 0, "35": 1, "36": 0, "37": 0})
+        self.assertEqual(load["cfg_bits_changed"], {"2": 0, "33": 0, "34": 0, "35": 1, "36": 0, "37": 0})
         self.assertEqual(self.written[0][4], 0x08)
         self.assertEqual(manifest["effective_settings"]["applied_b6_config"]["sync_filter"], "raw-pixels")
         self.assertFalse(manifest["effective_settings"]["applied_b6_config"]["raw_crt"])
@@ -551,7 +799,7 @@ class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
         manifest_crt = self._run(MINIMAL, sync_filter="raw-crt")
         self.assertEqual(manifest_crt["status"], "success")
         load_crt = manifest_crt["actions"][0]
-        self.assertEqual(load_crt["cfg_bits_changed"], {"2": 0, "35": 0, "36": 1, "37": 0})
+        self.assertEqual(load_crt["cfg_bits_changed"], {"2": 0, "33": 0, "34": 0, "35": 0, "36": 1, "37": 0})
         self.assertEqual(self.written[0][4], 0x10)
         self.assertEqual(manifest_crt["effective_settings"]["applied_b6_config"]["sync_filter"], "raw-crt")
         self.assertTrue(manifest_crt["effective_settings"]["applied_b6_config"]["raw_crt"])
@@ -801,23 +1049,29 @@ class TestBundledCorpus(unittest.TestCase):
         for script in self.scripts:
             parse_script(script.read_text(encoding="utf-8"), script.name)
 
-    def test_only_the_crtc_2_3_4_scripts_are_rejected_and_only_for_the_crtc(self):
+    def test_only_the_crtc_2_and_4_scripts_are_rejected_and_only_for_the_crtc(self):
         rejected, planned = {}, []
         for layout in cpc_keys.SUPPORTED_LAYOUTS:
             for script in self.scripts:
                 with tempfile.TemporaryDirectory() as td:
                     try:
-                        plan(script, Path(td), layout=layout)
+                        extra = {}
+                        if script.name.endswith("-3.CSL"):
+                            extra = {
+                                "plus_cartridge_path": PLUS_CARTRIDGE,
+                                "expect_sha256": {"plus_cartridge": PLUS_CARTRIDGE_SHA256},
+                            }
+                        plan(script, Path(td), layout=layout, **extra)
                     except CslError as exc:
                         rejected[(layout, script.name)] = exc
                     else:
                         planned.append((layout, script.name))
         for (layout, name), exc in rejected.items():
-            self.assertTrue(name.endswith(("-2.CSL", "-3.CSL", "-4.CSL")), f"{layout}/{name}")
+            self.assertTrue(name.endswith(("-2.CSL", "-4.CSL")), f"{layout}/{name}")
             self.assertEqual(exc.instruction.split()[0], "crtc_select", f"{layout}/{name}")
             self.assertIn("not implemented in this core", exc.reason)
-        self.assertEqual(len(rejected), 30)
-        self.assertEqual(len(planned), 20)
+        self.assertEqual(len(rejected), 20)
+        self.assertEqual(len(planned), 30)
 
     def test_every_keystroke_the_corpus_needs_is_mappable_in_both_layouts(self):
         texts = set()
@@ -833,10 +1087,16 @@ class TestBundledCorpus(unittest.TestCase):
     def test_every_generated_sequence_satisfies_the_pinned_mbc_parser(self):
         for layout in cpc_keys.SUPPORTED_LAYOUTS:
             for script in self.scripts:
-                if script.name.endswith(("-2.CSL", "-3.CSL", "-4.CSL")):
+                if script.name.endswith(("-2.CSL", "-4.CSL")):
                     continue
+                extra = {}
+                if script.name.endswith("-3.CSL"):
+                    extra = {
+                        "plus_cartridge_path": PLUS_CARTRIDGE,
+                        "expect_sha256": {"plus_cartridge": PLUS_CARTRIDGE_SHA256},
+                    }
                 with tempfile.TemporaryDirectory() as td:
-                    manifest = plan(script, Path(td), layout=layout)
+                    manifest = plan(script, Path(td), layout=layout, **extra)
                 for action in manifest["actions"]:
                     if action["action"] == "send_keys":
                         validate_raw_seq(action["raw_seq"])
@@ -850,6 +1110,35 @@ class TestBundledCorpus(unittest.TestCase):
             with self.assertRaises(CslError) as ctx:
                 run_csl(entry, options(Path(td), follow_loads=True), dry_run=True)
         self.assertEqual(ctx.exception.script, "SHAKE26B-2.CSL")
+
+
+@unittest.skipUnless(SHAKER_27_DIR.is_dir(), "CSL_27 bundle is user-owned and untracked")
+class TestCsl27Corpus(unittest.TestCase):
+    def test_every_script_including_spaced_module_dirs_parses(self):
+        scripts = sorted(SHAKER_27_DIR.glob("MODULE */*.CSL"))
+        self.assertEqual(len(scripts), 25)
+        for script in scripts:
+            with self.subTest(script=script.relative_to(SHAKER_27_DIR)):
+                parse_script(script.read_text(encoding="utf-8"), script.name)
+
+    def test_crtc3_module_a_plans_as_plus_with_its_spaced_path(self):
+        entry = SHAKER_27_DIR / "MODULE A" / "SHAKER-A-3.CSL"
+        with tempfile.TemporaryDirectory() as td:
+            result = run_csl(
+                entry,
+                options(
+                    Path(td),
+                    plus_cartridge_path=PLUS_CARTRIDGE,
+                    expect_sha256={"plus_cartridge": PLUS_CARTRIDGE_SHA256},
+                    ssm=True,
+                    stop_at=(entry.name, 11),
+                ),
+                dry_run=True,
+            )
+        load = next(a for a in result["actions"] if a["action"] == "load_core")
+        self.assertEqual(load["crtc_requested"], "3")
+        self.assertEqual(load["plus_model_status"], 2)
+        self.assertEqual(load["media_path"], f"{DISK_DIR}/shaker27.dsk")
 
 
 if __name__ == "__main__":

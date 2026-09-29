@@ -80,6 +80,8 @@ CFG_SIZE = 16
 CFG_BIT_CRTC = 2
 # "d3P2O[5:4],Model,CPC 6128,CPC 664,CPC 464;"
 CFG_BITS_MODEL = (4, 5)
+# Plus model status is a separate two-bit field; value 2 selects 6128+.
+CFG_BITS_PLUS_MODEL = (33, 34)
 # "P1O[36:35],Sync filter,Full,Raw pixels,Raw CRT;"
 CFG_BITS_SYNC_FILTER = (35, 36)
 SYNC_FILTER_MODES = {
@@ -154,6 +156,7 @@ ALL_COMMANDS = frozenset(
 )
 
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9_\-]+$")
+_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 class CslError(Exception):
@@ -361,10 +364,15 @@ class RunOptions:
         ssm_startup_polls: int = 20,
         sync_filter: Optional[str] = None,
         screenshot_scaled: bool = False,
+        plus_cartridge_path: Optional[str] = None,
     ):
         validate_device_path(rbf_path, "rbf_path")
         validate_device_path(disk_dir, "disk_dir")
         validate_device_path(cfg_path, "cfg_path")
+        if plus_cartridge_path is not None:
+            validate_device_path(plus_cartridge_path, "plus_cartridge_path")
+            if not plus_cartridge_path.lower().endswith(".cpr"):
+                raise ValueError("plus_cartridge_path must name a .cpr cartridge")
         if layout not in cpc_keys.SUPPORTED_LAYOUTS:
             raise ValueError(f"layout must be one of {cpc_keys.SUPPORTED_LAYOUTS}, got {layout!r}")
         if sync_filter is not None and sync_filter.lower() not in SYNC_FILTER_MODES:
@@ -378,6 +386,7 @@ class RunOptions:
         self.stop_at = stop_at
         self.screenshot_at = list(screenshot_at)
         self.expect_sha256 = dict(expect_sha256 or {})
+        self.plus_cartridge_path = plus_cartridge_path
         self.cmd_timeout = cmd_timeout
         self.capture_timeout = capture_timeout
         self.poll_interval = poll_interval
@@ -592,6 +601,26 @@ class DeviceBackend(Backend):
             record["cfg_original_sha256"] = self.cfg_original_sha
             record["cfg_original_local_copy"] = str(self.cfg_backup_path)
 
+        cartridge = (
+            load.get("plus_cartridge_path")
+            if load.get("plus_model_status") == 2
+            else None
+        )
+        if cartridge:
+            pin = self.options.expect_sha256.get("plus_cartridge")
+            if not isinstance(pin, str) or not _SHA256_RE.fullmatch(pin):
+                raise DriverError("Plus cartridge loading requires a 64-digit SHA-256 pin")
+            if self._run(f"test -f {shlex.quote(cartridge)}").exit_code != 0:
+                raise DriverError(f"Declared Plus cartridge file not found: {cartridge}")
+            record["plus_cartridge_sha256"] = fetch_sha256(
+                self.transport, cartridge, self.options.cmd_timeout
+            )
+            if record["plus_cartridge_sha256"].lower() != pin.lower():
+                raise DriverError(
+                    "plus_cartridge SHA-256 mismatch: "
+                    f"expected {pin.lower()}, got {record['plus_cartridge_sha256']}"
+                )
+
         bits: Dict[int, int] = {}
         if load.get("crtc_status_bit") is not None:
             bits[CFG_BIT_CRTC] = load["crtc_status_bit"]
@@ -599,6 +628,10 @@ class DeviceBackend(Backend):
             value = load["model_status"]
             bits[CFG_BITS_MODEL[0]] = value & 1
             bits[CFG_BITS_MODEL[1]] = (value >> 1) & 1
+        if load.get("plus_model_status") is not None:
+            value = load["plus_model_status"]
+            bits[CFG_BITS_PLUS_MODEL[0]] = value & 1
+            bits[CFG_BITS_PLUS_MODEL[1]] = (value >> 1) & 1
         # The detector is off by default, so turning it on is part of the
         # configuration this run applies and restores.
         bits[CFG_BIT_SSM] = 1 if self.options.ssm else 0
@@ -626,17 +659,22 @@ class DeviceBackend(Backend):
             if key in record and record[key] != expected:
                 raise DriverError(f"{kind} SHA-256 mismatch: expected {expected}, got {record[key]}")
 
-        # MGL exists to mount media as part of the load.  With no disk there is
-        # nothing to mount, so load the RBF directly and leave no temp file.
-        if media:
+        # MGL applies the Plus system cartridge before mounting its disk.
+        # With neither, load the RBF directly and leave no temporary file.
+        if media or cartridge:
             mgl = generate_mgl_xml(self.options.rbf_path, "dsk",
-                                   load.get("media_slot", "S0"), media, delay=1)
+                                   load.get("media_slot", "S0"), media, delay=1,
+                                   prerequisite_path=cartridge)
             local_mgl = self.out_dir / f"csl_{self.run_id}_{len(self.actions)}.mgl"
             local_mgl.write_text(mgl, encoding="utf-8")
             target = f"/media/fat/csl_{self.run_id}_{len(self.actions)}.mgl"
             self.transport.upload_file(local_mgl, target, timeout=self.options.cmd_timeout)
             self.remote_temp.append(target)
             record["mgl"] = target
+            if cartridge:
+                record["mgl_file_order"] = ["plus_cartridge"] + (
+                    ["disk"] if media else []
+                )
         else:
             target = self.options.rbf_path
 
@@ -903,6 +941,7 @@ class CslRunner:
         self.crtc_requested: Optional[str] = None
         self.crtc_status_bit: Optional[int] = None
         self.model_status: Optional[int] = None
+        self.plus_model_status: Optional[int] = None
         self.media_path: Optional[str] = None
         self.media_slot = "S0"
         self.disk_dir = options.disk_dir
@@ -1084,7 +1123,10 @@ class CslRunner:
             name = f"{self.screenshot_name}.png"
             self.screenshot_name = None
         else:
-            crtc = "0" if self.crtc_status_bit else "1"
+            crtc = (
+                "3" if self.crtc_requested == "3"
+                else ("0" if self.crtc_status_bit else "1")
+            )
             name = ssm_ring.suggested_name("MISTER", crtc, code)
             if self.screenshot_name and command is not None:
                 self._note(command, "ssm",
@@ -1123,13 +1165,23 @@ class CslRunner:
             self._record(command, "ssm_capture", name=name, ssm=record, paired=paired)
 
     def _pending_load(self) -> Dict[str, Any]:
-        return {
+        load = {
             "crtc_requested": self.crtc_requested,
             "crtc_status_bit": self.crtc_status_bit,
             "model_status": self.model_status,
             "media_path": self.media_path,
             "media_slot": self.media_slot,
         }
+        if self.plus_model_status is not None:
+            load["plus_model_status"] = self.plus_model_status
+        if self.plus_model_status == 2:
+            load.update({
+                "plus_cartridge_path": self.options.plus_cartridge_path,
+                "plus_cartridge_sha256_expected": self.options.expect_sha256.get(
+                    "plus_cartridge"
+                ),
+            })
+        return load
 
     def _ensure_machine(self, command: Command) -> None:
         if not self.machine_running:
@@ -1186,21 +1238,41 @@ class CslRunner:
             requested = command.args[0].upper()
             if requested in ("1", "1A", "1B"):
                 bit = 0
+                plus_model_status = 0
             elif requested == "0":
                 bit = 1
-            elif requested in ("2", "3", "4"):
+                plus_model_status = 0
+            elif requested == "3":
+                bit = None
+                plus_model_status = 2
+                if not self.options.plus_cartridge_path:
+                    raise command.error(
+                        "CRTC type 3 requires --plus-cartridge with an explicit system CPR",
+                        self.script_version,
+                    )
+                pin = self.options.expect_sha256.get("plus_cartridge")
+                if not isinstance(pin, str) or not _SHA256_RE.fullmatch(pin):
+                    raise command.error(
+                        "CRTC type 3 requires --expect-plus-cartridge-sha256 with a 64-digit pin",
+                        self.script_version,
+                    )
+            elif requested in ("2", "4"):
                 raise command.error(
                     f"CRTC type {requested} is not implemented in this core", self.script_version
                 )
             else:
                 raise command.error(f"unknown CRTC identifier {requested!r}", self.script_version)
             if self.machine_running:
-                if self.crtc_status_bit is None:
+                if self.crtc_requested is None:
                     raise command.error(
                         "the initial CRTC type is unknown; a live selection needs the OSD",
                         self.script_version,
                     )
-                if bit != self.crtc_status_bit:
+                same_type = (
+                    requested == self.crtc_requested
+                    or (bit is not None and bit == self.crtc_status_bit)
+                )
+                if not same_type:
                     raise command.error(
                         "a live CRTC change needs the OSD; the effective type is fixed at core load",
                         self.script_version,
@@ -1214,6 +1286,7 @@ class CslRunner:
                            "does not distinguish 1A from 1B")
             self.crtc_requested = requested
             self.crtc_status_bit = bit
+            self.plus_model_status = plus_model_status
 
         elif name == "cpc_model":
             if len(command.args) != 1 or not command.args[0].isdigit():
@@ -1229,6 +1302,7 @@ class CslRunner:
                     "the model is fixed at core load; cpc_model after the first key needs the OSD",
                     self.script_version,
                 )
+            # Keep the classic model as a fallback while Plus uses its separate status field.
             self.model_status = CSL_MODEL_TO_STATUS[number][0]
 
         elif name == "disk_dir":
@@ -1586,6 +1660,15 @@ class CslRunner:
                 "crtc_requested": self.crtc_requested,
                 "crtc_status_bit": self.crtc_status_bit,
                 "model_status": self.model_status,
+                **({
+                    "plus_model_status": self.plus_model_status,
+                    **({
+                        "plus_cartridge_path": self.options.plus_cartridge_path,
+                        "plus_cartridge_sha256_expected": self.options.expect_sha256.get(
+                            "plus_cartridge"
+                        ),
+                    } if self.plus_model_status == 2 else {}),
+                } if self.plus_model_status is not None else {}),
                 "media_path": self.media_path,
                 "media_slot": self.media_slot,
                 "applied_b6_config": {
@@ -1775,6 +1858,10 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                              "carry no screenshot instructions of their own.")
     parser.add_argument("--expect-rbf-sha256", default=None)
     parser.add_argument("--expect-media-sha256", default=None)
+    parser.add_argument("--plus-cartridge", default=None,
+                        help="Explicit Plus system CPR to load before any disk media")
+    parser.add_argument("--expect-plus-cartridge-sha256", default=None,
+                        help="Required SHA-256 pin for --plus-cartridge when CRTC 3 is selected")
     parser.add_argument("--max-wait", type=float, default=300.0,
                         help="Reject any single wait longer than this many seconds")
     parser.add_argument("--no-follow-loads", action="store_true",
@@ -1811,6 +1898,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         expect["rbf"] = args.expect_rbf_sha256.lower()
     if args.expect_media_sha256:
         expect["media"] = args.expect_media_sha256.lower()
+    if args.expect_plus_cartridge_sha256:
+        expect["plus_cartridge"] = args.expect_plus_cartridge_sha256.lower()
 
     try:
         options = RunOptions(
@@ -1823,6 +1912,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             stop_at=_parse_point(args.stop_at, args.script.name) if args.stop_at else None,
             screenshot_at=[_parse_point(v, args.script.name) for v in args.screenshot_at],
             expect_sha256=expect,
+            plus_cartridge_path=args.plus_cartridge,
             max_wait_seconds=args.max_wait,
             follow_loads=not args.no_follow_loads,
             ssm=args.ssm,
