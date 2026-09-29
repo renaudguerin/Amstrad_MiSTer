@@ -1,0 +1,136 @@
+ENTRY SP=4065 JP 8E5A type=1 tick=1278026; scale=64 ticks/us,4096 ticks/line
+PROGRESS tick=50000000 cases=0 done=0 last_M1=9FFD debug_SP=405D HALT_n=1
+PROGRESS tick=100000000 cases=0 done=0 last_M1=9FFD debug_SP=405D HALT_n=1
+PROGRESS tick=150000000 cases=0 done=0 last_M1=9FFD debug_SP=405B HALT_n=1
+PROGRESS tick=200000000 cases=0 done=0 last_M1=9FFD debug_SP=405D HALT_n=1
+PROGRESS tick=250000000 cases=0 done=0 last_M1=91FE debug_SP=405F HALT_n=1
+PROGRESS tick=300000000 cases=0 done=0 last_M1=9FF9 debug_SP=405D HALT_n=1
+CASE_BEGIN n=1 entry=9266 R6=32/32 tick=309085818
+VSYNC case=1 tick=310333515 interval_ticks=1748992 us=27328.000 lines=427.0000
+VSYNC case=1 tick=311611467 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=312889419 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=313184331 interval_ticks=294912 us=4608.000 lines=72.0000
+VSYNC case=1 tick=314462283 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=315740235 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=317018187 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=318296139 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=319574091 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=320852043 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=322129995 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=323407947 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=324685899 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=1 tick=325963851 interval_ticks=1277952 us=19968.000 lines=312.0000
+R8_FETCH case=1 tick=325965370 C0=17 C9=0 C4=0 stage=0 ivm=0 PF=1 PC9=1 CLKEN=0 line_new=0 A=0 B=0 poke=0/1 R8=0 bus=92AC/BC
+R8_ACCEPT_PRE case=1 tick=325965522 C0=1A C9=0 C4=0 stage=0 ivm=0 PF=1 PC9=1 CLKEN=0 line_new=0 A=0 B=0 poke=0/1 R8=0 bus=BD03/03
+R8_ACCEPT_POST case=1 tick=325965523 C0=1A C9=0 C4=0 stage=1 ivm=0 PF=1 PC9=1 CLKEN=0 line_new=0 A=0 B=0 poke=0/1 R8=3 bus=BD03/03
+WRITE_FETCH_DELTA ticks=153
+STAGE_PRE case=1 tick=325965577 C0=1A C9=0 C4=0 stage=1 ivm=0 PF=1 PC9=1 CLKEN=1 line_new=0 A=1 B=0 poke=1/0 R8=3 bus=BD03/03
+STAGE_POST case=1 tick=325965578 C0=1B C9=0 C4=0 stage=2 ivm=1 PF=1 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=BD03/03
+STAGE_PRE case=1 tick=325965641 C0=1B C9=0 C4=0 stage=2 ivm=1 PF=1 PC9=0 CLKEN=1 line_new=0 A=0 B=1 poke=1/0 R8=3 bus=92AE/BD
+STAGE_POST case=1 tick=325965642 C0=1C C9=0 C4=0 stage=0 ivm=1 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=92AE/BD
+LOOP_BEGIN case=1 pc=92CD tick=326037242 HL=0000
+VSYNC case=1 tick=327245899 interval_ticks=1282048 us=20032.000 lines=313.0000
+LOOP_END case=1 pc=92D7 tick=327246586 HL=049D iterations=1181
+DELAY case=1 DE=03F4 expected=03F4
+LOOP_BEGIN case=1 pc=92FE tick=327315194 HL=0000
+VSYNC case=1 tick=328525835 interval_ticks=1279936 us=19999.000 lines=312.4844
+LOOP_END case=1 pc=9307 tick=328526522 HL=049F iterations=1183
+FORMAT_FETCH case=1 pc=9312 observed_HL=9C60
+FORMAT_FETCH case=1 pc=931F observed_HL=4E40
+CASE_DONE n=1 R6=32/32 raw_HL=049D/049F MID=4E40 TOTAL=9C60 last_VSYNC_ticks=1279936
+CASE_BEGIN n=2 entry=926B R6=7F/32 tick=329283706
+VSYNC case=2 tick=332931147 interval_ticks=4405312 us=68833.000 lines=1075.5156
+VSYNC case=2 tick=333226059 interval_ticks=294912 us=4608.000 lines=72.0000
+VSYNC case=2 tick=334504011 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=2 tick=335781963 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=2 tick=337059915 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=2 tick=338337867 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=2 tick=339615819 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=2 tick=340893771 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=2 tick=342171723 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=2 tick=343449675 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=2 tick=344727627 interval_ticks=1277952 us=19968.000 lines=312.0000
+R8_FETCH case=2 tick=344729146 C0=17 C9=0 C4=0 stage=0 ivm=0 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=0 bus=92AC/BC
+R8_ACCEPT_PRE case=2 tick=344729298 C0=1A C9=0 C4=0 stage=0 ivm=0 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=0 bus=BD03/03
+R8_ACCEPT_POST case=2 tick=344729299 C0=1A C9=0 C4=0 stage=1 ivm=0 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=BD03/03
+WRITE_FETCH_DELTA ticks=153
+STAGE_PRE case=2 tick=344729353 C0=1A C9=0 C4=0 stage=1 ivm=0 PF=0 PC9=0 CLKEN=1 line_new=0 A=1 B=0 poke=1/0 R8=3 bus=BD03/03
+STAGE_POST case=2 tick=344729354 C0=1B C9=0 C4=0 stage=2 ivm=1 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=BD03/03
+STAGE_PRE case=2 tick=344729417 C0=1B C9=0 C4=0 stage=2 ivm=1 PF=0 PC9=0 CLKEN=1 line_new=0 A=0 B=1 poke=1/0 R8=3 bus=92AE/BD
+STAGE_POST case=2 tick=344729418 C0=1C C9=0 C4=0 stage=0 ivm=1 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=92AE/BD
+LOOP_BEGIN case=2 pc=92CD tick=344801018 HL=0000
+VSYNC case=2 tick=346009675 interval_ticks=1282048 us=20032.000 lines=313.0000
+LOOP_END case=2 pc=92D7 tick=346010362 HL=049D iterations=1181
+DELAY case=2 DE=03F4 expected=03F4
+LOOP_BEGIN case=2 pc=92FE tick=346078970 HL=0000
+VSYNC case=2 tick=347289611 interval_ticks=1279936 us=19999.000 lines=312.4844
+LOOP_END case=2 pc=9307 tick=347290298 HL=049F iterations=1183
+FORMAT_FETCH case=2 pc=9312 observed_HL=9C60
+FORMAT_FETCH case=2 pc=931F observed_HL=4E40
+CASE_DONE n=2 R6=7F/32 raw_HL=049D/049F MID=4E40 TOTAL=9C60 last_VSYNC_ticks=1279936
+CASE_BEGIN n=3 entry=9271 R6=32/7F tick=348047482
+PROGRESS tick=350000000 cases=3 done=2 last_M1=9FF9 debug_SP=4061 HALT_n=1
+VSYNC case=3 tick=351694923 interval_ticks=4405312 us=68833.000 lines=1075.5156
+VSYNC case=3 tick=351989835 interval_ticks=294912 us=4608.000 lines=72.0000
+VSYNC case=3 tick=353267787 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=3 tick=354545739 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=3 tick=355823691 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=3 tick=357101643 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=3 tick=358379595 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=3 tick=359657547 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=3 tick=360935499 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=3 tick=362213451 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=3 tick=363491403 interval_ticks=1277952 us=19968.000 lines=312.0000
+R8_FETCH case=3 tick=363492922 C0=17 C9=0 C4=0 stage=0 ivm=0 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=0 bus=92AC/BC
+R8_ACCEPT_PRE case=3 tick=363493074 C0=1A C9=0 C4=0 stage=0 ivm=0 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=0 bus=BD03/03
+R8_ACCEPT_POST case=3 tick=363493075 C0=1A C9=0 C4=0 stage=1 ivm=0 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=BD03/03
+WRITE_FETCH_DELTA ticks=153
+STAGE_PRE case=3 tick=363493129 C0=1A C9=0 C4=0 stage=1 ivm=0 PF=0 PC9=0 CLKEN=1 line_new=0 A=1 B=0 poke=1/0 R8=3 bus=BD03/03
+STAGE_POST case=3 tick=363493130 C0=1B C9=0 C4=0 stage=2 ivm=1 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=BD03/03
+STAGE_PRE case=3 tick=363493193 C0=1B C9=0 C4=0 stage=2 ivm=1 PF=0 PC9=0 CLKEN=1 line_new=0 A=0 B=1 poke=1/0 R8=3 bus=92AE/BD
+STAGE_POST case=3 tick=363493194 C0=1C C9=0 C4=0 stage=0 ivm=1 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=92AE/BD
+LOOP_BEGIN case=3 pc=92CD tick=363564794 HL=0000
+VSYNC case=3 tick=364773451 interval_ticks=1282048 us=20032.000 lines=313.0000
+LOOP_END case=3 pc=92D7 tick=364774138 HL=049D iterations=1181
+DELAY case=3 DE=03F4 expected=03F4
+LOOP_BEGIN case=3 pc=92FE tick=364842746 HL=0000
+VSYNC case=3 tick=366053387 interval_ticks=1279936 us=19999.000 lines=312.4844
+LOOP_END case=3 pc=9307 tick=366054074 HL=049F iterations=1183
+FORMAT_FETCH case=3 pc=9312 observed_HL=9C60
+FORMAT_FETCH case=3 pc=931F observed_HL=4E40
+CASE_DONE n=3 R6=32/7F raw_HL=049D/049F MID=4E40 TOTAL=9C60 last_VSYNC_ticks=1279936
+CASE_BEGIN n=4 entry=9277 R6=7F/7F tick=366811258
+VSYNC case=4 tick=370462795 interval_ticks=4409408 us=68897.000 lines=1076.5156
+VSYNC case=4 tick=370757707 interval_ticks=294912 us=4608.000 lines=72.0000
+VSYNC case=4 tick=372035659 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=373313611 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=374591563 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=375869515 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=377147467 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=378425419 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=379703371 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=380981323 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=382259275 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=383537227 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=384815179 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=386093131 interval_ticks=1277952 us=19968.000 lines=312.0000
+VSYNC case=4 tick=387371083 interval_ticks=1277952 us=19968.000 lines=312.0000
+R8_FETCH case=4 tick=387372602 C0=17 C9=0 C4=0 stage=0 ivm=0 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=0 bus=92AC/BC
+R8_ACCEPT_PRE case=4 tick=387372754 C0=1A C9=0 C4=0 stage=0 ivm=0 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=0 bus=BD03/03
+R8_ACCEPT_POST case=4 tick=387372755 C0=1A C9=0 C4=0 stage=1 ivm=0 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=BD03/03
+WRITE_FETCH_DELTA ticks=153
+STAGE_PRE case=4 tick=387372809 C0=1A C9=0 C4=0 stage=1 ivm=0 PF=0 PC9=0 CLKEN=1 line_new=0 A=1 B=0 poke=1/0 R8=3 bus=BD03/03
+STAGE_POST case=4 tick=387372810 C0=1B C9=0 C4=0 stage=2 ivm=1 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=BD03/03
+STAGE_PRE case=4 tick=387372873 C0=1B C9=0 C4=0 stage=2 ivm=1 PF=0 PC9=0 CLKEN=1 line_new=0 A=0 B=1 poke=1/0 R8=3 bus=92AE/BD
+STAGE_POST case=4 tick=387372874 C0=1C C9=0 C4=0 stage=0 ivm=1 PF=0 PC9=0 CLKEN=0 line_new=0 A=0 B=0 poke=0/0 R8=3 bus=92AE/BD
+LOOP_BEGIN case=4 pc=92CD tick=387444474 HL=0000
+VSYNC case=4 tick=388653131 interval_ticks=1282048 us=20032.000 lines=313.0000
+LOOP_END case=4 pc=92D7 tick=388653818 HL=049D iterations=1181
+DELAY case=4 DE=03F4 expected=03F4
+LOOP_BEGIN case=4 pc=92FE tick=388722426 HL=0000
+VSYNC case=4 tick=389933067 interval_ticks=1279936 us=19999.000 lines=312.4844
+LOOP_END case=4 pc=9307 tick=389933754 HL=049F iterations=1183
+FORMAT_FETCH case=4 pc=9312 observed_HL=9C60
+FORMAT_FETCH case=4 pc=931F observed_HL=4E40
+CASE_DONE n=4 R6=7F/7F raw_HL=049D/049F MID=4E40 TOTAL=9C60 last_VSYNC_ticks=1279936
+SUCCESS: four MID cases completed; software arithmetic verified; hardware reference 4E40/4F40 unresolved
