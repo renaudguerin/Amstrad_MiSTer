@@ -62,3 +62,12 @@ prints the primary script error; operators must consult `manifest.json` for
 `cleanup.cfg_restore` and its local backup path. This preserves the requested
 primary-error precedence. Real transport interruption and the source-derived
 key-map entries remain hardware acceptance limits.
+
+## Real SSH follow-up
+
+The [controlled transport-interruption experiment](csl-real-ssh-recovery-2026-09-29.md)
+now verifies recovery after a completed CFG write on the real MiSTer: the owned
+SSH client was killed, the production runner reported failure, and fresh
+connections restored the exact original bytes without emergency fallback.
+Persistent network loss, partial writes on hardware, active OSD state and
+key-map acceptance remain outside that result.

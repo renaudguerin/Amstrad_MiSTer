@@ -88,6 +88,10 @@ matches both mappings in `rtl/hid.sv`. See the [failure-injection and review evi
 Hardware acceptance remains separate: only 15 key-map entries have B2 device
 confirmation; the remainder are source-derived, and the absent user-owned SHAKER
 corpus skipped six tests in this checkout. In particular, RIGHTCTRL's complete
-Main/MBC input path is not newly device-confirmed. Real SSH-failure recovery was
-not exercised; the safety repair is proven by scripted transport only. These
-limits do not reopen the four source findings or extend existing Phase 1 acceptance.
+Main/MBC input path is not newly device-confirmed.
+[Real SSH interruption recovery](investigations/ssm-csl/csl-real-ssh-recovery-2026-09-29.md)
+now passes for an acknowledged complete CFG write followed by loss of its owned
+SSH client: the runner reports failure and restores the exact bytes through fresh
+connections. Partial hardware writes, persistent outages and active OSD recovery
+remain unverified. These limits do not reopen the four source findings or extend
+existing Phase 1 acceptance.

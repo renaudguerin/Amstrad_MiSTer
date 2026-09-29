@@ -1,0 +1,88 @@
+{
+  "original_sha256": "13ef32c7f1acfd5b5c9a1df3aa8b270b6378b00e0f5692fb05e10a350bc35747",
+  "original_hex": "00004000040000000000000000000000",
+  "ssh_argv": [
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-o",
+    "ControlMaster=no",
+    "-o",
+    "ControlPath=none",
+    "-p",
+    "22",
+    "root@mister",
+    "command -v timeout >/dev/null || { echo 'Missing device timeout utility' >&2; exit 127; }; timeout -s KILL 30 sh -c 'cat /media/fat/csl_cfg_1790656689_fb1148.bin > /media/fat/config/Amstrad.CFG' && echo CSL_WRITE_ACK && timeout -s KILL 10 sleep 8"
+  ],
+  "ssh_pid": 29143,
+  "changed_hex": "04004000040000000000000000000000",
+  "ack": "CSL_WRITE_ACK",
+  "ssh_returncode": -9,
+  "ssh_stderr": "",
+  "cli_returncode": 1,
+  "restored_hex": "00004000040000000000000000000000",
+  "restored_sha256": "13ef32c7f1acfd5b5c9a1df3aa8b270b6378b00e0f5692fb05e10a350bc35747",
+  "result": "PASS",
+  "fallback_needed": false,
+  "final_identical": true,
+  "recovery_command_log": [
+    {
+      "command": "base64 < /media/fat/config/Amstrad.CFG",
+      "timestamp": "2026-09-29T04:38:09.254640+00:00",
+      "duration_ms": 270.3274169980432,
+      "exit_code": 0,
+      "stdout": "AABAAAQAAAAAAAAAAAAAAA==\n",
+      "stderr": ""
+    },
+    {
+      "command": "base64 < /media/fat/config/Amstrad.CFG",
+      "timestamp": "2026-09-29T04:38:10.657092+00:00",
+      "duration_ms": 294.7174580003775,
+      "exit_code": 0,
+      "stdout": "BABAAAQAAAAAAAAAAAAAAA==\n",
+      "stderr": ""
+    },
+    {
+      "command": "base64 < /media/fat/config/Amstrad.CFG",
+      "timestamp": "2026-09-29T04:38:12.330893+00:00",
+      "duration_ms": 276.33562499977415,
+      "exit_code": 0,
+      "stdout": "AABAAAQAAAAAAAAAAAAAAA==\n",
+      "stderr": ""
+    },
+    {
+      "command": "test ! -e /media/fat/csl_cfg_1790656689_fb1148.bin",
+      "timestamp": "2026-09-29T04:38:12.607580+00:00",
+      "duration_ms": 270.0836250005523,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": "test ! -e /media/fat/csl_cfg_1790656689_fb1148.bin",
+      "timestamp": "2026-09-29T04:38:12.877691+00:00",
+      "duration_ms": 298.6330829990038,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": "base64 < /media/fat/config/Amstrad.CFG",
+      "timestamp": "2026-09-29T04:38:13.176724+00:00",
+      "duration_ms": 291.2525409992668,
+      "exit_code": 0,
+      "stdout": "AABAAAQAAAAAAAAAAAAAAA==\n",
+      "stderr": ""
+    },
+    {
+      "command": "base64 < /media/fat/config/Amstrad.CFG",
+      "timestamp": "2026-09-29T04:38:13.468028+00:00",
+      "duration_ms": 269.9199589987984,
+      "exit_code": 0,
+      "stdout": "AABAAAQAAAAAAAAAAAAAAA==\n",
+      "stderr": ""
+    }
+  ]
+}
