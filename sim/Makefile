@@ -59,7 +59,7 @@ test full:
 	@$(MAKE) --no-print-directory $(PARALLEL) $@-run
 
 list-tests:
-	@echo $(SIM_TESTS) b18-snapshot-test t80-irq-sample-test classic-irq-phase-test
+	@echo $(SIM_TESTS) b18-snapshot-test t80-irq-sample-test classic-irq-phase-test classic-b25-test
 
 # One sub-make per directory: plus-test and plus-full never run together.
 test-run: $(SIM_TESTS) plus-test
@@ -341,3 +341,16 @@ $(SNA_CPU_HDR_BIN): $(SNA_CPU_HDR_RTL) sna_cpu_header_test.cpp Makefile
 		-o sna_cpu_header_tests $(SNA_CPU_HDR_RTL) $(abspath sna_cpu_header_test.cpp)
 
 
+
+# Portable B25 diagnostic execution and independent DSK extraction. The harness
+# leaves mask_cpu_irq and SNA_LOAD zero for every clock, including initialization.
+CLASSIC_B25_BIN := $(OBJ_DIR)/classic_b25/classic_b25_tests
+.PHONY: classic-b25-test
+classic-b25-test: $(CLASSIC_B25_BIN)
+	python3 ../scripts/diagnostics/classic_b25_sim.py $<
+
+$(CLASSIC_B25_BIN): $(CLASSIC_IRQ_PHASE_RTL) classic_b25_test.cpp Makefile
+	mkdir -p $(OBJ_DIR)/classic_b25
+	$(VERILATOR) --cc --exe --build --top-module classic_irq_phase_top -UVERILATOR \
+		--Mdir $(OBJ_DIR)/classic_b25 -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
+		-o classic_b25_tests $(CLASSIC_IRQ_PHASE_RTL) classic_b25_test.cpp
