@@ -30,11 +30,18 @@ module crt_filter
 	output reg HBLANK,
 	output     HBLANK_LIVE,
 	output reg VBLANK,
-	output     SHIFT
+	output     SHIFT,
+	// Passive acquisition/history state; bit layout is the SSM v2 payload
+	// above the two requested/applied mode fields supplied by the motherboard.
+	output [15:0] SYNC_OBSERVATION
 );
 
 wire resync = 1;
 reg hs4,shift;
+// Module scope exposes observation without synthesis hierarchical references.
+reg [8:0] hSyncSize;
+reg       hSyncReg;
+reg [1:0] syncs;
 assign SHIFT = shift ^ hs4;
 
 // generate HSync if original is absent for almost whole frame
@@ -155,6 +162,8 @@ end
 
 wire hsync_i = no_hsync ? hsync : (HSYNC_I & ~hsync_mask);
 
+assign SYNC_OBSERVATION = {syncs, hSyncReg, hsync_mask, no_hsync, SHIFT, hs4, hSyncSize};
+
 
 // Generate HSync,VSync for monitor
 // HSync: delayed by 2us for set, immediate reset and limited by 4us.
@@ -164,10 +173,7 @@ always @(posedge CLK) begin : syncgen
 	reg       old_vsync,old_vs;
 	reg [8:0] hSyncCount;
 	reg [9:0] hSyncCount2x;
-	reg [8:0] hSyncSize;
-	reg       hSyncReg;
 	reg [3:0] vSyncCount;
-	reg [1:0] syncs;
 	reg [8:0] vSyncFlt;
 
 	localparam HFLT_SZ = 50*4;

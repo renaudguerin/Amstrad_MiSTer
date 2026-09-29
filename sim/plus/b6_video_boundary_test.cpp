@@ -96,6 +96,10 @@ void live_transitions(Harness& h,bool plus,Result& r,uint8_t& history) {
         if(d.dbg_video_cclk_n) assembled=(assembled&255)|(oldbyte<<8);
         h.tick();
         r.transition_bad+=h.dut.b6_applied!=next||h.dut.b6_raw_crt!=(next==2);
+        // Pending requests differ from the applied policy: check both fields
+        // through the production observation port against this independent
+        // transition oracle, so swapped/aliased mode fields cannot pass.
+        r.transition_bad+=(h.dut.b6_sync_observation&15)!=(h.dut.b6_mode|(next<<2));
         r.transition_bad+=selected_tuple(h.dut)!=
             (next==2?h.dut.b6_raw_tuple:h.dut.b6_full_tuple);
         r.transition_bad+=h.dut.b6_history!=next_history;

@@ -69,6 +69,7 @@ public:
         dut_->use_cpu = 0;
         dut_->m1_fetch_in = 0;
         dut_->bus_data_in = 0;
+        dut_->sync_observation_in = 0;
         dut_->cpu_reset = 1;
         dut_->int_n = 1;
         dut_->prog_we = 0;
@@ -272,7 +273,7 @@ void test_ring_header_and_record() {
 
     const uint64_t magic = h.peek(kWordMagic);
     expect_eq(uint32_t(magic), kMagic, "ring magic");
-    expect_eq((magic >> 32) & 0xFFFF, 1, "ring format version");
+    expect_eq((magic >> 32) & 0xFFFF, 2, "ring format version");
     expect_eq((magic >> 48) & 0xFF, kRingEntries, "ring entry count");
 
     const uint64_t header = h.peek(kWordHeader);
@@ -357,7 +358,7 @@ void test_enable_publishes_a_zero_header_before_any_marker() {
     // reading whatever the physical window happened to hold.
     Harness h;
     expect_eq(uint32_t(h.peek(kWordMagic)), kMagic, "magic published on enable");
-    expect_eq((h.peek(kWordMagic) >> 32) & 0xFFFF, 1, "format version on enable");
+    expect_eq((h.peek(kWordMagic) >> 32) & 0xFFFF, 2, "format version on enable");
     expect_eq((h.peek(kWordMagic) >> 48) & 0xFF, kRingEntries, "entry count on enable");
     expect_eq(uint32_t(h.peek(kWordHeader)), 0, "written count on enable");
     expect_eq((h.peek(kWordHeader) >> 32) & 0xFF, 0, "dropped count on enable");
@@ -446,6 +447,34 @@ void test_one_clock_disable_during_stalled_write_restarts_lifecycle() {
 }
 
 // --- timestamp convention -----------------------------------------------------
+
+// ABI v2 carries the observation at exactly the same cut as the timestamp.
+// Deliberately distinct live values at every pipeline phase detect late sampling.
+void test_observation_is_the_hh_fetch_completion_state() {
+    Harness h;
+    h->ddr_stall = 15;
+    h.fetch_all({0xED, 0x21, 0xED});
+    h->bus_data_in = 0x34;
+    h->m1_fetch_in = 1;
+    h->sync_observation_in = 0x12345;
+    h.tick(9); // wait-stated HH fetch
+    h->m1_fetch_in = 0;
+    constexpr uint32_t at_cut = 0xBEDA7;
+    h->sync_observation_in = at_cut;
+    h.tick();
+    const uint32_t cut_tick = h->fetch_end_tick;
+    h->sync_observation_in = 0x43210; // recognition
+    h.tick();
+    h->sync_observation_in = 0x76543; // pending record capture
+    h.tick();
+    h->sync_observation_in = 0xABCDE; // DDR submission/acceptance
+    h.tick(400);
+    const uint64_t a = h.peek(kWordRecord0), b = h.peek(kWordRecord0 + 1);
+    expect_eq(((a >> 59) << 16) | (b >> 48), at_cut,
+              "observation survives recognition, queueing and DDR stall");
+    expect_eq(uint32_t(b >> 16), cut_tick, "observation and tick share fetch cut");
+    expect_eq(uint32_t(h.peek(kWordHeader)), 1, "observation record published");
+}
 
 void test_event_tick_is_the_hh_fetch_completion_tick() {
     // Pinned contract: the marker's timestamp is latched at the HH fetch
@@ -603,6 +632,7 @@ const Test kTests[] = {
      test_disable_holds_a_stalled_write_and_completes_it_once},
     {"one-clock disable during stalled write restarts lifecycle",
      test_one_clock_disable_during_stalled_write_restarts_lifecycle},
+    {"observation is the HH fetch-completion state", test_observation_is_the_hh_fetch_completion_state},
     {"event tick is the HH fetch-completion tick", test_event_tick_is_the_hh_fetch_completion_tick},
     {"published counts account for every event", test_published_counts_account_for_every_event},
     {"CPU: undefined ED pair emits the marker", test_cpu_undefined_ed_pair_emits_the_marker},
