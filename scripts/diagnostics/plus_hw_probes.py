@@ -235,8 +235,11 @@ def screen_text(index, init, title, notes, prediction):
     return text(lines)
 
 
-def generate(start):
-    inc = [f'START_TEST equ {start}', f'NTESTS equ {len(TESTS)}', f'SLED_MAX equ {SLED_MAX}',
+def generate(start, tests=None, render_text=None):
+    """Generate common tables; optional tables let companion cartridges reuse code."""
+    tests = TESTS if tests is None else tests
+    render_text = screen_text if render_text is None else render_text
+    inc = [f'START_TEST equ {start}', f'NTESTS equ {len(tests)}', f'SLED_MAX equ {SLED_MAX}',
            f'SSA_COARSE equ {SSA_COARSE}', f'ADJ_COARSE equ {ADJ_COARSE}',
            f'ADJ_FINE equ {ADJ_FINE}', f'ADJ_NEXT equ {ADJ_NEXT}', f"SSA_SLED_LATE equ {SSA_SLED['late']}",
            f"SSA_SLED_EARLY equ {SSA_SLED['early']}"]
@@ -250,11 +253,11 @@ def generate(start):
         nxt = s[i + 1] if i + 1 < len(s) else 0
         inc.append(f'    db {sled},{t[i]},{nxt} ; write C0={c0} on line {t[i]}')
     inc.append('test_table:')
-    for k, (init, *_rest) in enumerate(TESTS):
+    for k, (init, *_rest) in enumerate(tests):
         inc.append(f'    dw {init},text_{k}')
-    for k, test in enumerate(TESTS):
+    for k, test in enumerate(tests):
         inc.append(f'text_{k}:')
-        inc += screen_text(k, *test)
+        inc += render_text(k, *test)
         inc.append('    db 0xFF')
     inc.append('count_text:')
     inc += text([(20, 62, 'IRQ/FRAME=')])

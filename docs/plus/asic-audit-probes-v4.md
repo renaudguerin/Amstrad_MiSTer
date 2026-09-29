@@ -653,3 +653,8 @@ a reached case. Validate the rebuilt variants against the recorded emulator
 predictions before requesting an original-machine run. Hardware disagreement
 is evidence to investigate, not a reason to alter the expected result silently.
 No new hardware acceptance is claimed by this packaging plan.
+
+The reproducible [PA3 follow-up cartridge](pa3-followup-cartridge.md) now packages
+these three cases with the late baseline and R5=0 control. Its build identities,
+execution checks and morning instructions are recorded separately; this does
+not convert the outstanding original-Plus predictions into hardware passes.
