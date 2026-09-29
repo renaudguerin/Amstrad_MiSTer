@@ -12,6 +12,15 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **Diagnostic and safety batch (2026-09-29):** PA3's five-case follow-up CPR and
+  the self-synchronizing Classic B25 DSK are delivered with model/emulator checks;
+  their original-machine acceptance remains open. The B18 loaded-Dandanator
+  admission fix passed exact-SHA CI/full synthesis at `fe42298`, and its RBF is
+  retained locally. Sync format-2 observations are published at `11e9819` with
+  synthesis pending; CSL safety fixes are locally integrated awaiting publication.
+  The [batch evidence and run instructions](investigations/overnight-integration-2026-09-29.md)
+  distinguish these gates from the earlier user-confirmed title pass.
+
 - **ASIC clause audit and PA repairs (2026-09-28):** RC1–RC8 and PA5/PA6 regression
   coverage are complete. PA1/PA4 readback and PA2/PA3 split capture changes follow
   original-6128-Plus photographs and recorded AmSpirit controls. PA7 production
