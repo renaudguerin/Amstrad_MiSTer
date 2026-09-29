@@ -39,6 +39,7 @@ Mac, including the Verilator build.
 | `sim video-output-test` | fast | `rtl/amstrad_video_output.sv` `rtl/amstrad_video_color.sv` `rtl/color_mix.sv` `sys/gamma_corr.sv` `sys/video_mixer.sv` `rtl/video_interlace.v` `sys/video_freak.sv` `sys/video_freezer.sv` `sys/scandoubler.v` `sys/hq2x.sv` `sys/math.sv` | Production output chain from a synthetic timing source: crop window, retained processing settings, sample-recorder tap |
 | `sim ssm-marker-test` | fast | `rtl/ssm_marker.v` | SSM v1.2 consecutive opcode-fetch markers and event-ring publication |
 | `sim sna-cpu-header-test` | fast | `rtl/sna_cpu_header.v` | SNA CPU header decode from the T80pa register layout |
+| `sim b18-save-admission-test` | fast | `Amstrad.sv` `rtl/plus/plus_legacy_cart_gate.v` `rtl/sna_save_capture.v` `sim/b18_save_admission*` `sim/prepare_b18_save_admission.py` | Production save admission with persistent Dandanator load/select state, detach, armed cancellation, Plus exclusion and other admission controls |
 | `sim video-mixer-rgb-test` | fast | `sys/video_mixer.sv` | MiSTer video mixer RGB scope correction |
 | `sim ga40010-test` | fast | `rtl/GA40010/*` `rtl/crtc_type1_engine.v` | GA40010 netlist with the CRTC: type-1 R2.JIT timing |
 | `sim u765-test` | fast | `rtl/u765/*` | u765 floppy controller |

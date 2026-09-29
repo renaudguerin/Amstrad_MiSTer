@@ -1787,8 +1787,9 @@ wire save_req = status[38] & ~old_save_osd;
 // mode, the Dandanator and the Multiface II hold memory or mapping state the
 // file cannot carry, and an outstanding cartridge request would leave the
 // SDRAM port busy. Losing admission while armed cancels the request.
+// Dandanator attachment persists while its EEPROM chip-select (dan_ena) is idle.
 wire save_admit = !reset && !ioctl_download && !sna_hold && !sna_load && !plus_mode &&
-                  !dan_ena && !mf2_en && !cart_mem_req;
+                  !dan_eeprom_loaded && !mf2_en && !cart_mem_req;
 
 // Once the CPU is held, only a reset or a snapshot load stops the save: a
 // load rewrites the RAM being dumped. Every other download either resets the

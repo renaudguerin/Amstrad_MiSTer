@@ -1046,3 +1046,33 @@ The old pending-hardware language is superseded by the original-Plus
 in all four alias probes, including PRI10 at R6=25/34. The review does not
 certify broader comparator timing or every counter configuration. No gates
 rerun or new hardware calls.
+
+
+## B18 slice 4c admission repair — source review closed 2026-09-29
+
+**B18 slice 4c, top-level save wiring — CHANGES REQUIRED (2026-09-29):** the parent (Opus) wrote the `Amstrad.sv` wiring, `rtl/sna_cart_mux.v` and
+stream case 7; Gemini wrote `scripts/hardware-loop/sna_pull.py`. Gemini (gemini-3.8-flash-high)
+reviewed the whole diff and found nothing blocking; its one low finding, the `--wait` usage
+order, is fixed in the design doc. Gemini reviewed its own pull script, so that part is not
+cross-provider, and Astra had no quota for this slice. `Amstrad.sv` is checked only by Quartus
+synthesis. Look hardest at the admission and abort terms (`save_admit`, `save_abort`) against
+every download and overlay path, and at `sna_cart_mux`'s two-edge drain against `sdram.v`
+arbitration if its `clkref`/`q` alignment ever changes.
+
+Independent Astra-medium review at `fe4bfde` finds a concrete admission defect:
+`save_admit` tests `!dan_ena` (current bus ownership), so a loaded Dandanator
+executing RAM can save without its cartridge/mapper state. Repair attachment
+exclusion using the loaded-state owner and prove refusal at request and while
+armed with chip select inactive. Other examined abort/download, two-edge mux
+drain and `sna_pull.py` paths have no blocking finding. No tests rerun or new
+hardware claims. The row stays open until the repair has fresh review/gates.
+
+Resolution: original cross-provider Astra-medium review found no other blocking
+abort/download, mux-drain or host-reader defects. The Dandanator admission repair
+uses persistent `dan_eeprom_loaded` rather than instantaneous chip select. Fresh
+Opus 5.5 medium review `20260929T002733Z-52071-60b3` returned CLEAR.
+The production-expression/real-gate/capture regression fails before the repair
+and passes after it; all 42 selected benches pass. See the
+[repair evidence](../investigations/b18-save-admission-2026-09-29.md).
+This closes source-review debt; integrated synthesis and physical-device
+acceptance remain separate gates, not claims made by the review.

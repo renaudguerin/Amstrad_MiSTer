@@ -65,23 +65,6 @@ index or selector edit selects no benches, and a `sim/TESTS.md`-only push skips 
 ignore) until the next code push runs `--check`; pull requests select from the PR head while
 testing the auto-merge tree (integration goes through local merges and pushes, not PRs).
 
-**B18 slice 4c, top-level save wiring — CHANGES REQUIRED (2026-09-29):** the parent (Opus) wrote the `Amstrad.sv` wiring, `rtl/sna_cart_mux.v` and
-stream case 7; Gemini wrote `scripts/hardware-loop/sna_pull.py`. Gemini (gemini-3.8-flash-high)
-reviewed the whole diff and found nothing blocking; its one low finding, the `--wait` usage
-order, is fixed in the design doc. Gemini reviewed its own pull script, so that part is not
-cross-provider, and Astra had no quota for this slice. `Amstrad.sv` is checked only by Quartus
-synthesis. Look hardest at the admission and abort terms (`save_admit`, `save_abort`) against
-every download and overlay path, and at `sna_cart_mux`'s two-edge drain against `sdram.v`
-arbitration if its `clkref`/`q` alignment ever changes.
-
-Independent Astra-medium review at `fe4bfde` finds a concrete admission defect:
-`save_admit` tests `!dan_ena` (current bus ownership), so a loaded Dandanator
-executing RAM can save without its cartridge/mapper state. Repair attachment
-exclusion using the loaded-state owner and prove refusal at request and while
-armed with chip select inactive. Other examined abort/download, two-edge mux
-drain and `sna_pull.py` paths have no blocking finding. No tests rerun or new
-hardware claims. The row stays open until the repair has fresh review/gates.
-
 **B4 phase 1 original fetch-provider review/evidence, 2026-09-12 — OPEN:**
 The revised detector, ring reader, recorder and top-level SSM connections are covered
 by the "B4 revised SSM path" source review (CLEAR, now in the archive). That does not discharge the original

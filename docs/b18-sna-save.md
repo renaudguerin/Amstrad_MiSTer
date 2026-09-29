@@ -315,7 +315,9 @@ and 3 add exact automated checks for those otherwise invisible fields in one com
    - **OSD.** `T[38],Save snapshot` in the main menu. An `I,` popup reports saved, refused or
      cancelled.
    - **Admission.** Classic mode only, outside reset, downloads and snapshot apply, with no
-     Dandanator, no Multiface II and no cartridge request outstanding, plus `RAMpage == 3`.
+     loaded Dandanator (even with its chip select idle), no Multiface II and no cartridge
+     request outstanding, plus `RAMpage == 3`. Use "Reset & Detach Dandanator" to clear
+     the attachment. See the [admission regression evidence](investigations/b18-save-admission-2026-09-29.md).
      Plus mode and both overlays are refused because the file cannot carry their memory or
      mapping state. Losing admission while armed cancels the request.
    - **Abort while held.** Only reset or a snapshot load (`sna_download`) aborts, since a load

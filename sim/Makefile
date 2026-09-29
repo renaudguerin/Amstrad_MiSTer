@@ -52,7 +52,7 @@ JOBS ?= $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
 SIM_TESTS := crtc-test crt-filter-blank-test crtc-cpu-phase-test video-color-test \
 	video-output-test ssm-marker-test sna-cpu-header-test video-mixer-rgb-test \
-	ga40010-test u765-test
+	ga40010-test u765-test b18-save-admission-test
 
 .PHONY: full test-run full-run list-tests crtc-test plus-test plus-full ga40010-test u765-test
 test full:
@@ -105,6 +105,24 @@ video-color-test: $(VIDEO_COLOR_BIN)
 $(VIDEO_COLOR_BIN): $(VIDEO_COLOR_SRC) Makefile
 	$(VERILATOR) --binary --timing --top-module video_color_test \
 		--Mdir $(OBJ_DIR)/video_color -Wno-fatal $(VIDEO_COLOR_SRC)
+
+B18_ADMIT_TOP := b18_save_admission_test
+B18_ADMIT_GEN := $(OBJ_DIR)/b18_save_admission/b18_save_admission_test.sv
+B18_ADMIT_RTL := ../rtl/plus/plus_legacy_cart_gate.v ../rtl/sna_save_capture.v
+B18_ADMIT_OBJ_DIR := $(OBJ_DIR)/b18_save_admission
+B18_ADMIT_BIN := $(B18_ADMIT_OBJ_DIR)/V$(B18_ADMIT_TOP)
+
+.PHONY: b18-save-admission-test
+b18-save-admission-test: $(B18_ADMIT_BIN)
+	$(B18_ADMIT_BIN)
+
+$(B18_ADMIT_GEN): b18_save_admission_test.sv prepare_b18_save_admission.py ../Amstrad.sv
+	python3 prepare_b18_save_admission.py
+
+$(B18_ADMIT_BIN): $(B18_ADMIT_GEN) $(B18_ADMIT_RTL) Makefile
+	$(VERILATOR) --binary --timing --top-module $(B18_ADMIT_TOP) \
+		--Mdir $(B18_ADMIT_OBJ_DIR) -Wno-fatal \
+		$(B18_ADMIT_GEN) $(B18_ADMIT_RTL)
 
 lint:
 	$(VERILATOR) --lint-only --top-module ssm_marker -Wall -Wno-fatal -Wno-PROCASSINIT $(SSM_RTL)
