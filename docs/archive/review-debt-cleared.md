@@ -917,3 +917,63 @@ and omitted interrupt stack writes remain B23 debt. This source review does
 not certify those instructions or close monitor/hardware acceptance.
 
 [Investigation (archive-relative link)](../investigations/no-wait-ga-write-latch-2026-09-22.md).
+
+
+## ACCC lookup-tool fixes — cleared 2026-09-29
+
+**ACCC section lookup tool (`scripts/accc/`), 2026-09-22 — REVIEWED (MiMo v2.6 Flash, run
+`20260922T092939Z-5423-8625`), CHANGES REQUIRED, all 13 findings fixed by Opus; the fixes
+are not re-reviewed:** Opus wrote `lookup.py` and `run_eval.py`; Gemini added round-2 eval data,
+`--set` and the bilingual claim check. The review found silent text loss and page drift in the
+parser, FR-only sections dropped by the merge, and several failure paths that crashed or called
+the API unasked. Look hardest at: the widened `FOOTER` and `TABLE_HEADING` patterns (could one
+swallow a body line?), `follows` accepting untitled headings, and the known residue (EN "9
+GATE ARRAY" text sits at the end of 8.3; FR 3 and 3.1 and EN 11.2.2 are absent from their
+edition; EN p21 and FR p280 footers are unmatched). Tooling only; no RTL or sim impact.
+
+Independent native Astra-low review (`lookup_review_debt`, original fixes
+by Opus): **CLEAR**, no actionable finding. Reviewed `7f1712b`, preceding
+footer/fallback fixes, current `scripts/accc/lookup.py`, `eval/run_eval.py`
+and relevant extraction text. Footer/body retention, real numbered headings,
+FR untitled sections24.2/24.10.4, edition-union merging, missing-edition
+handling and explicit no-API/error/fallback paths were checked.
+
+Static review only: no eval/API or gate rerun and no PDF rule verification.
+Original MiMo temporary log was unavailable; fixes were inspected from Git
+and current sources. Known extraction residues remain limitations; this
+does not clear the separate page-anchor migration debt.
+
+
+## Cartridge SDRAM admission and follow-up fixtures — cleared 2026-09-29
+
+**Plus cartridge stall released at SDRAM admission (`plus/sonic-cpu-cart-latency`), 2026-09-22 —
+REVIEWED BY WORKHORSE TIER ONLY:** Opus wrote the RTL and the `d5-cart-timing` vector. Astra high
+was requested twice but Codex hit its usage limit (runs `20260922T095830Z-36234-3fa4`,
+`20260922T143147Z-83199-8563`; resets 2026-09-28), so Sol and Astra were unavailable. Muse Spark 1.3 xhigh (run `20260922T095955Z-38975-6693`) and Gemini 3.8 Flash
+high (run `20260922T095958Z-39149-44d4`) reviewed `56771ff..d06972d` and found no blocking issue;
+Muse's two comment-accuracy points (sdram `q` resync after configuration, watchdog after a grant)
+were fixed in comments only. Not reviewed by either: the later P10 fixture edits (`production_wait`
+input for the video-coherence test, since removed by `plus/ga-fast-write-latch`; the stall-run pin re-derived as 4 ticks). A Sol or Astra pass
+should still look hardest at: any path that drops `cart_stall` while `cart_dout` is stale at the
+T80pa latch (grant of a discarded/cancelled read, `sna_cart_mux` handover, `sdram.v` resync);
+the budget (grant I, data at I+9, earliest latch I+11; `p0_boot_tests` measures data 7 clocks
+after release); and the derivation of the `d5-cart-timing` 64/192-tick expectations. Evidence:
+[cart-wait record](investigations/sonic/cart-wait-2026-09-22.md).
+
+Independent native Astra-medium review (`cart_stall_debt`, original author
+Opus): **CLEAR**, no actionable finding. Reviewed integrated commits
+`63fcf23`, `94b18f0` and current service/MMU/SDRAM/mux/T80/fixture code; the
+previously named `d06972d` object was unavailable locally.
+
+Source timing: grant I, SDRAM data/ack I+6, service capture I+7, MMU data I+9;
+stall falls I+2, earliest observed WAIT release I+3, opcode capture I+11.
+Cancellation clearing wins over admission; discarded requests drain through
+ACK, and snapshot ownership drains two reference edges. The production
+reference remains eight clocks apart. D5 64/192 and transition exclusions,
+its production WAIT adapter and P10 four-clock stall expectation were checked.
+
+No gate rerun or new hardware claim. Cancellation tests suppress completion
+but do not explicitly inject a grant, and D5 checks final rather than every
+intermediate operand pair. Current P0 waits eight clocks after release; the
+older seven-clock measurement is historical evidence. These coverage limits
+do not constitute a demonstrated defect.

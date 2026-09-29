@@ -29,30 +29,6 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
-**Plus cartridge stall released at SDRAM admission (`plus/sonic-cpu-cart-latency`), 2026-09-22 —
-REVIEWED BY WORKHORSE TIER ONLY:** Opus wrote the RTL and the `d5-cart-timing` vector. Astra high
-was requested twice but Codex hit its usage limit (runs `20260922T095830Z-36234-3fa4`,
-`20260922T143147Z-83199-8563`; resets 2026-09-28), so Sol and Astra were unavailable. Muse Spark 1.3 xhigh (run `20260922T095955Z-38975-6693`) and Gemini 3.8 Flash
-high (run `20260922T095958Z-39149-44d4`) reviewed `56771ff..d06972d` and found no blocking issue;
-Muse's two comment-accuracy points (sdram `q` resync after configuration, watchdog after a grant)
-were fixed in comments only. Not reviewed by either: the later P10 fixture edits (`production_wait`
-input for the video-coherence test, since removed by `plus/ga-fast-write-latch`; the stall-run pin re-derived as 4 ticks). A Sol or Astra pass
-should still look hardest at: any path that drops `cart_stall` while `cart_dout` is stale at the
-T80pa latch (grant of a discarded/cancelled read, `sna_cart_mux` handover, `sdram.v` resync);
-the budget (grant I, data at I+9, earliest latch I+11; `p0_boot_tests` measures data 7 clocks
-after release); and the derivation of the `d5-cart-timing` 64/192-tick expectations. Evidence:
-[cart-wait record](investigations/sonic/cart-wait-2026-09-22.md).
-
-**ACCC section lookup tool (`scripts/accc/`), 2026-09-22 — REVIEWED (MiMo v2.6 Flash, run
-`20260922T092939Z-5423-8625`), CHANGES REQUIRED, all 13 findings fixed by Opus; the fixes
-are not re-reviewed:** Opus wrote `lookup.py` and `run_eval.py`; Gemini added round-2 eval data,
-`--set` and the bilingual claim check. The review found silent text loss and page drift in the
-parser, FR-only sections dropped by the merge, and several failure paths that crashed or called
-the API unasked. Look hardest at: the widened `FOOTER` and `TABLE_HEADING` patterns (could one
-swallow a body line?), `follows` accepting untitled headings, and the known residue (EN "9
-GATE ARRAY" text sits at the end of 8.3; FR 3 and 3.1 and EN 11.2.2 are absent from their
-edition; EN p21 and FR p280 footers are unmatched). Tooling only; no RTL or sim impact.
-
 **ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — REVIEWED (Gemini 3.8 Flash
 high, run `20260921T175020Z-80016-18b2`; Astra low, run `20260921T175020Z-79905-dd1b`), both
 CHANGES REQUIRED; round-2 re-review (runs `20260921T180739Z-90193-140e`, `20260921T180739Z-90182-2e61`)
