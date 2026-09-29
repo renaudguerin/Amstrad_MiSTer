@@ -54,8 +54,8 @@ are transport failures, not established script typos or module failures.
 
 That attempt’s cleanup could not verify CFG restoration because DNS remained
 unavailable. Both `mister` and `mister.local` failed subsequent bounded checks.
-The original CFG remains locally backed up; restoration must be verified before
-the exclusive device slot is released.
+The original CFG remained locally backed up. Restoration was subsequently
+verified before the resumed session below.
 
 Local evidence is retained under `docs/specs/shaker27-suite-2026-09-29/` with a
 directory-local ignore file: corpus hashes and dry-run results, original and
@@ -93,7 +93,8 @@ SHA-pinned system CPR before the disk. The user selected `6128_FR.cpr`, which
 boots directly into BASIC with the French keyboard layout. Its local hash is
 `ab241580c9b6a9fa9aeae94ca6847ea70dca386d305e38fc2ac03fce603360cf`.
 The `cec641c` bitstream includes the D5 BASIC mapping repair `f0af3d6`.
-The combined French-cartridge/disk path still needs actual device acceptance.
+The resumed module A run below demonstrates the French-cartridge/disk startup
+and CRTC3 script execution on that bitstream.
 
 Explicit classic selection clears the Plus model bits. Classic `cpc_model`
 state persists independently across Plus power-ons. Focused fail-first tests
@@ -118,10 +119,66 @@ Final checks:
 - `python3 sim/select_tests.py --run`: `select_tests: no simulation needed`.
 - `git diff --check`: clean.
 
-This is an offline-ready host change with partial hardware evidence, **not a
-completed full suite**. No 2.7 matrix cell completed; no 2.6 fallback completed.
-The immediate recovery obligation remains original-CFG restoration and hash
-verification before another test load. Then restart cells with fresh output
-paths and retain the DNS-failed attempt separately. Do not retry a whole matrix
-blindly while a shared transport outage persists. Device ownership has not been
-released and CFG restoration has not been claimed.
+## Resumed module A and user-directed cutoff
+
+After the user restored connectivity and rebooted MiSTer, the device reported
+MENU with CFG hash `4d68df48…`. Before any new test load, the original CFG was
+copied back and its complete `13ef32c7…` hash verified. MBC was reprovisioned
+and hash-checked; RBF, both disks and the French cartridge matched their pins.
+The clean task checkout advanced to integrated `a79a5a1`; no host-code edits
+were made during this resumed run.
+
+The user then requested finishing module A and stopping for the day to conserve
+quota. The full-matrix supervisor was paused while A1 continued, then removed
+after that child completed. A separate A-only continuation ran A3. Modules B–E
+were not started in the resumed session. The earlier DNS-blocked launch attempts
+remain transport evidence, not execution coverage.
+
+| CSL27 cell | Result | Elapsed seconds | PNG captures | SSM records | CSL26 fallback |
+|---|---|---:|---:|---:|---|
+| A / CRTC0 | Complete | 807.720 | 122 | 237 | Not needed |
+| A / CRTC1 | Complete | 828.406 | 127 | 240 | Not needed |
+| A / CRTC3, 6128+ | Complete | 809.671 | 123 | 238 | Not needed |
+
+A0/A3 times measure the runner subprocess wall time. A1 uses manifest start
+through completion of the last cleanup command because its batch supervisor
+was paused; it is not an independently measured subprocess duration. Together
+these spans total about 40m46s. They include SSH, input and native screenshot
+overhead and do not measure the author’s estimated speedup.
+
+All three runs observed a zero-written SSM startup header in one attempt. Each
+completed without a runner error and verified CFG restoration to the original
+hash. The A3 first test page visibly identifies CRTC3, demonstrating the pinned
+`6128_FR.cpr` + disk boot with French input. Its author script ends with a reset;
+that second load is retained in its manifest. A0/A1 terminal `csl_load` commands
+are recorded but not followed under `--no-follow-loads`.
+
+The successful A0 run reproduces the earlier `0037` and `0091` PNGs byte-for-byte,
+including the displayed VSYNC/PPI discrepancies described above. Successful
+script execution does not make those observations pass. The 372 resumed PNGs
+are preserved; exhaustive new image/reference comparison was deferred at the
+user’s wrap-up request. No new RTL finding or original-CPC verdict is claimed.
+
+## Final restoration, artifacts and handoff
+
+After A3, an independent copy of the original CFG was applied and SHA-256
+verified as `13ef32c7f1acfd5b5c9a1df3aa8b270b6378b00e0f5692fb05e10a350bc35747`.
+`/media/fat/menu.rbf` was loaded and `CORENAME=MENU` read back. Task MBC
+`/tmp/mbc-task5` was removed, along with the exact manifest-owned MGL/CFG temp
+paths, including leftovers from the DNS-interrupted attempt. Final checks
+returned exit0. The device slot was explicitly released to the coordinator.
+
+The evidence directory’s `resumed/` contains each completed run, command logs,
+`module-a-results.json`, recovery preflight and `restoration.log`. The original
+failed attempt, original CFG backup, corpus hashes/dry-runs and offline gate/
+review logs remain alongside them. The refreshed archive is
+`shaker27-suite-2026-09-29-module-a.tar.gz`; its delivered hash is reported in
+the coordinator handoff. Private author files remain unchanged and uncommitted.
+
+This continuation changes documentation only; simulation and code review are
+not rerun. The integrated host runner’s prior tests/review remain applicable.
+The **full suite remains incomplete by user direction**: modules B–E for each
+supported CRTC0/1/3 remain to run, with corresponding CSL26 fallback for module
+execution problems (especially D), and separate visual/numeric comparison.
+CRTC2/4 remain unavailable and must not be substituted. Resume with fresh output
+directories, the same pinned artifacts, and a new independent CFG snapshot.
