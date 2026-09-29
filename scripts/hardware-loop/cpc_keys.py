@@ -58,7 +58,7 @@ CPC_KEY_TO_LINUX: Dict[str, int] = {
     "SHIFT": 42,        # key[2][5]  Linux LEFTSHIFT (unconditional; RIGHTSHIFT
                         #            depends on the Right Shift OSD option)
     "\\": 86,           # key[2][6]  reached via Linux 102ND
-    "CTRL": 97,         # key[2][7]  Linux RIGHTCTRL; LEFTCTRL is unmapped in hid.sv
+    "CTRL": 97,         # key[2][7]  Linux RIGHTCTRL; LEFTCTRL also maps here in hid.sv
     "^": 13,            # key[3][0]  reached via Linux EQUAL
     "-": 12,            # key[3][1]
     "@": 26,            # key[3][2]  reached via Linux LEFTBRACE

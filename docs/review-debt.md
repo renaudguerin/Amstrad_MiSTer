@@ -81,16 +81,16 @@ enumerated; the ring sits in the window MiSTer reserves for core DDR use. Addres
 are 64-bit words in the source interface. New logic on `clk_sys` and the DDR port still need synthesis/timing and
 real-media validation. Source passivity and green simulation do not close those gates.
 
-**B4 phase 0, CSL runner, 2026-09-12 — UNREVIEWED:** `scripts/hardware-loop/csl_runner.py`,
-`scripts/hardware-loop/cpc_keys.py` and their 51 offline tests were written and
-gated by the parent alone; no cross-provider review was available. Host-only
-Python, no RTL. Look hardest at: the power-on fold, where configuration and
-media commands on both sides of a `reset` are bound to one core load and a
-later `crtc_select` is judged as a live change instead (a mis-scoped window
-would silently run a SHAKER module under the wrong CRTC); the CFG read/modify/
-restore path, which writes to the user's real `config/Amstrad.CFG` and must
-leave it byte-identical; and the derived `CPC_KEY_TO_LINUX` table, of which only
-15 entries are confirmed against the B2 device capture, the rest being read back
-from `rtl/hid.sv` through the standard PS/2 set-2 encoding. The corpus test
-covers exactly the characters the 25 bundled SHAKER scripts use, so an
-unconfirmed entry outside that set would not be caught.
+**B4 phase 0, CSL runner — source review closed 2026-09-29; hardware residual OPEN:**
+Fresh Opus 5.5 medium review (`20260929T004043Z-66217-cccf`, CLEAR) closes the
+four runner findings: CFG restoration after uncertain writes, unknown live CRTC
+selection, unsupported live disk insertion, and cleanup failure status/exit code.
+The power-on fold and known same-type no-op remain intact; the CTRL comment now
+matches both mappings in `rtl/hid.sv`. See the [failure-injection and review evidence](investigations/ssm-csl/csl-runner-safety-2026-09-29.md).
+
+Hardware acceptance remains separate: only 15 key-map entries have B2 device
+confirmation; the remainder are source-derived, and the absent user-owned SHAKER
+corpus skipped six tests in this checkout. In particular, RIGHTCTRL's complete
+Main/MBC input path is not newly device-confirmed. Real SSH-failure recovery was
+not exercised; the safety repair is proven by scripted transport only. These
+limits do not reopen the four source findings or extend existing Phase 1 acceptance.

@@ -22,8 +22,10 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List
+from unittest.mock import patch
 
 import cpc_keys
 from cpc_keys import KeyTranslationError, sequence_tokens, translate_text
@@ -36,6 +38,7 @@ from csl_runner import (
     RunOptions,
     _cfg_apply_bits,
     load_program,
+    main,
     parse_script,
     run_csl,
 )
@@ -75,6 +78,7 @@ key_delay 70000 70000 400000
 key_output 'RUN"SHAKE26B"\\(RET)'
 wait 2000000
 """
+MUTATING_CFG = MINIMAL.replace("crtc_select 1", "crtc_select 0")
 
 
 class TestHardwareCrossChecks(unittest.TestCase):
@@ -340,6 +344,22 @@ class TestPowerOnFold(unittest.TestCase):
                 plan(script, tmp / "out")
             self.assertIn("OSD", ctx.exception.reason)
 
+    def test_live_crtc_change_is_refused_when_initial_type_is_unknown(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script = write(tmp, "m.csl", "reset\nkey_output ' '\ncrtc_select 0\n")
+            with self.assertRaises(CslError) as ctx:
+                plan(script, tmp / "out")
+            self.assertIn("initial CRTC type is unknown", ctx.exception.reason)
+
+    def test_live_disk_insert_is_refused_after_machine_starts(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script = write(tmp, "m.csl", "reset\nkey_output ' '\ndisk_insert 'x.dsk'\n")
+            with self.assertRaises(CslError) as ctx:
+                plan(script, tmp / "out")
+            self.assertIn("after machine start", ctx.exception.reason)
+
     def test_input_before_a_reset_is_refused(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)
@@ -579,6 +599,127 @@ class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
         uploaded = {k for k in self.transport.files if k.startswith("/media/fat/csl_")}
         self.assertTrue(uploaded)
         self.assertTrue(uploaded <= removed)
+
+
+class TestDeviceCfgFailureRecovery(DeviceHarnessMixin, unittest.TestCase):
+    """A failed CFG mutation can still have changed bytes on the device."""
+
+    def _partial_write_then_recover(self, failure: str) -> None:
+        original_write = self._capture_cfg_write
+        calls = {"count": 0}
+        original_cfg = bytes.fromhex("00004000000000000000000000000000")
+
+        def fail_first_write(cmd: str) -> CommandResult:
+            calls["count"] += 1
+            if calls["count"] > 1:
+                return original_write(cmd)
+            source = cmd.split()[1]
+            intended = self.transport.files[source]
+            self.cfg = intended[:8] + self.cfg[8:]
+            self.assertNotEqual(self.cfg, original_cfg)
+            backups = [
+                path for path in (self.tmp / "out").glob("*.CFG")
+                if path.read_bytes() == original_cfg
+            ]
+            self.assertEqual(len(backups), 1, "the original local CFG backup must survive the attempted write")
+            if failure == "partial":
+                return CommandResult(1, "", "simulated short write")
+            raise DriverError("simulated SSH timeout after partial write")
+
+        self.transport.handlers.insert(
+            0, (lambda cmd: cmd.startswith("cat /media/fat/csl_cfg_"), fail_first_write)
+        )
+        with self.assertRaises(DriverError):
+            self._run(MUTATING_CFG)
+
+        self.assertEqual(self.cfg, original_cfg)
+        manifest = json.loads((self.tmp / "out" / "manifest.json").read_text())
+        self.assertTrue(manifest["cleanup"]["cfg_restore"]["attempted"])
+        backup = Path(manifest["cleanup"]["cfg_restore"]["local_copy"])
+        self.assertEqual(backup.read_bytes(), original_cfg)
+
+    def test_partial_cfg_write_is_restored_from_immutable_backup(self):
+        self._partial_write_then_recover("partial")
+
+    def test_transport_timeout_after_cfg_mutation_is_restored(self):
+        self._partial_write_then_recover("timeout")
+
+    def test_hash_mismatch_after_cfg_write_still_restores_original(self):
+        original_hash = self._sha
+        calls = {"count": 0}
+
+        def mismatch_first_cfg_hash(cmd: str) -> CommandResult:
+            if cmd.endswith("/media/fat/config/Amstrad.CFG"):
+                calls["count"] += 1
+                if calls["count"] == 1:
+                    self.assertNotEqual(self.cfg, bytes.fromhex("00004000000000000000000000000000"))
+                    return CommandResult(0, f"{'0' * 64}  /media/fat/config/Amstrad.CFG\n", "")
+            return original_hash(cmd)
+
+        self.transport.handlers.insert(0, (lambda cmd: cmd.startswith("sha256sum"), mismatch_first_cfg_hash))
+        with self.assertRaises(DriverError):
+            self._run(MUTATING_CFG)
+
+        self.assertEqual(self.cfg, bytes.fromhex("00004000000000000000000000000000"))
+        manifest = json.loads((self.tmp / "out" / "manifest.json").read_text())
+        self.assertTrue(manifest["cleanup"]["cfg_restore"]["matches_original"])
+
+    def _fail_restore_write(self) -> None:
+        original_write = self._capture_cfg_write
+        calls = {"count": 0}
+
+        def fail_restore(cmd: str) -> CommandResult:
+            calls["count"] += 1
+            if calls["count"] == 2:
+                return CommandResult(1, "", "simulated restore failure")
+            return original_write(cmd)
+
+        self.transport.handlers.insert(
+            0, (lambda cmd: cmd.startswith("cat /media/fat/csl_cfg_"), fail_restore)
+        )
+
+    def test_cleanup_only_restore_failure_fails_run_and_persists_manifest(self):
+        self._fail_restore_write()
+        with self.assertRaises(DriverError):
+            self._run(MUTATING_CFG)
+
+        manifest = json.loads((self.tmp / "out" / "manifest.json").read_text())
+        self.assertNotEqual(self.cfg, bytes.fromhex("00004000000000000000000000000000"))
+        self.assertEqual(manifest["status"], "failed")
+        self.assertIn("restore failure", manifest["error"]["reason"])
+        self.assertIn("restore failure", manifest["cleanup"]["cfg_restore"]["error"])
+        backup = Path(manifest["cleanup"]["cfg_restore"]["local_copy"])
+        self.assertEqual(backup.read_bytes(), bytes.fromhex("00004000000000000000000000000000"))
+
+    def test_script_error_remains_primary_when_cfg_restore_also_fails(self):
+        self._fail_restore_write()
+        with self.assertRaises(CslError) as ctx:
+            self._run("crtc_select 0\nreset\nwait 1\nnot_a_csl_command\n")
+
+        self.assertIn("unknown CSL instruction", ctx.exception.reason)
+        manifest = json.loads((self.tmp / "out" / "manifest.json").read_text())
+        self.assertEqual(manifest["status"], "failed")
+        self.assertIn("unknown CSL instruction", manifest["error"]["reason"])
+        self.assertIn("restore failure", manifest["cleanup"]["cfg_restore"]["error"])
+
+    def test_main_returns_failure_for_cleanup_only_restore_failure(self):
+        self._fail_restore_write()
+        script = write(self.tmp, "main.csl", MUTATING_CFG)
+        out = self.tmp / "main-out"
+        args = [
+            str(script), "--rbf-path", RBF, "--disk-dir", DISK_DIR,
+            "--out-dir", str(out), "--ack-main-cmd", "--target", "scripted",
+        ]
+        with patch("csl_runner.SSHTransport", return_value=self.transport), \
+             patch("csl_runner.check_pillow_installed", return_value=None), \
+             patch("sys.stderr", new=StringIO()) as stderr:
+            status = main(args)
+
+        self.assertNotEqual(status, 0)
+        self.assertIn("Run failed", stderr.getvalue())
+        manifest = json.loads((out / "manifest.json").read_text())
+        self.assertNotEqual(self.cfg, bytes.fromhex("00004000000000000000000000000000"))
+        self.assertEqual(manifest["status"], "failed")
 
 
 class TestAppliedB6Evidence(unittest.TestCase):
