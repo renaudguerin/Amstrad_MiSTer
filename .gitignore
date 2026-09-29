@@ -74,3 +74,6 @@ docs/**/*.local.md
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Private SHAKER B9 replay build and traces
+/.roster-scratch/b9-mid/
