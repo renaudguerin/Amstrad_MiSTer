@@ -1,0 +1,122 @@
+{
+  "run_id": "1790656689_afe638",
+  "timestamp": "2026-09-29T04:38:09.531486+00:00",
+  "entry_script": "/Users/renaudg/.codex/worktrees/cfda/Amstrad_MiSTer/.fdc-scratch/csl-real-ssh/run/interrupt.csl",
+  "dry_run": false,
+  "hardware_contacted": true,
+  "supported_csl_version": "1.5",
+  "status": "failed",
+  "error": {
+    "reason": "Cannot write /media/fat/config/Amstrad.CFG (-9): ",
+    "supported_version": "1.5"
+  },
+  "command_count": 2,
+  "scripts": [
+    "interrupt.csl"
+  ],
+  "trace": [
+    {
+      "script": "interrupt.csl",
+      "line": 1,
+      "instruction": "crtc_select 0",
+      "outcome": "folded_into_power_on",
+      "timestamp": "2026-09-29T04:38:09.539741+00:00",
+      "power_on_line": 2
+    }
+  ],
+  "approximations": [],
+  "actions": [],
+  "captures": [],
+  "cleanup": {
+    "remote_temp": [
+      {
+        "path": "/media/fat/csl_cfg_1790656689_fb1148.bin",
+        "exit_code": 0
+      },
+      {
+        "path": "/media/fat/csl_cfg_1790656689_fb1148.bin",
+        "exit_code": 0
+      }
+    ],
+    "cfg_restore": {
+      "attempted": true,
+      "restored_sha256": "13ef32c7f1acfd5b5c9a1df3aa8b270b6378b00e0f5692fb05e10a350bc35747",
+      "matches_original": true,
+      "local_copy": "/Users/renaudg/.codex/worktrees/cfda/Amstrad_MiSTer/.fdc-scratch/csl-real-ssh/run/runner/Amstrad_1790656689_fb1148_original.CFG"
+    }
+  },
+  "command_log": [
+    {
+      "command": "test -f /media/fat/config/Amstrad.CFG",
+      "timestamp": "2026-09-29T04:38:09.539764+00:00",
+      "duration_ms": 267.3309169986169,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": "base64 < /media/fat/config/Amstrad.CFG | tr -d '\\n'",
+      "timestamp": "2026-09-29T04:38:09.807130+00:00",
+      "duration_ms": 286.5107499965234,
+      "exit_code": 0,
+      "stdout": "AABAAAQAAAAAAAAAAAAAAA==",
+      "stderr": ""
+    },
+    {
+      "command": "scp /Users/renaudg/.codex/worktrees/cfda/Amstrad_MiSTer/.fdc-scratch/csl-real-ssh/run/runner/Amstrad_1790656689_fb1148_write_0.CFG -> root@mister:/media/fat/csl_cfg_1790656689_fb1148.bin",
+      "timestamp": "2026-09-29T04:38:10.094172+00:00",
+      "duration_ms": 275.50404200155754,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": "cat /media/fat/csl_cfg_1790656689_fb1148.bin > /media/fat/config/Amstrad.CFG",
+      "timestamp": "2026-09-29T04:38:10.369707+00:00",
+      "duration_ms": 583.7693749999744,
+      "exit_code": -9,
+      "stdout": "CSL_WRITE_ACK\n",
+      "stderr": ""
+    },
+    {
+      "command": "scp /Users/renaudg/.codex/worktrees/cfda/Amstrad_MiSTer/.fdc-scratch/csl-real-ssh/run/runner/Amstrad_1790656689_fb1148_write_1.CFG -> root@mister:/media/fat/csl_cfg_1790656689_fb1148.bin",
+      "timestamp": "2026-09-29T04:38:10.953854+00:00",
+      "duration_ms": 270.7692080002744,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": "cat /media/fat/csl_cfg_1790656689_fb1148.bin > /media/fat/config/Amstrad.CFG",
+      "timestamp": "2026-09-29T04:38:11.224656+00:00",
+      "duration_ms": 279.18579099787166,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": "sha256sum /media/fat/config/Amstrad.CFG",
+      "timestamp": "2026-09-29T04:38:11.503876+00:00",
+      "duration_ms": 275.0548330004676,
+      "exit_code": 0,
+      "stdout": "13ef32c7f1acfd5b5c9a1df3aa8b270b6378b00e0f5692fb05e10a350bc35747  /media/fat/config/Amstrad.CFG\n",
+      "stderr": ""
+    },
+    {
+      "command": "rm -f /media/fat/csl_cfg_1790656689_fb1148.bin",
+      "timestamp": "2026-09-29T04:38:11.779012+00:00",
+      "duration_ms": 276.8891669984441,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": "rm -f /media/fat/csl_cfg_1790656689_fb1148.bin",
+      "timestamp": "2026-09-29T04:38:12.055938+00:00",
+      "duration_ms": 274.3627089985239,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

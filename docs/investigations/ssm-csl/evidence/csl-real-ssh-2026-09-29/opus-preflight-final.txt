@@ -1,0 +1,31 @@
+**CLEAR. There are no blocking issues for the real SSH run.** I only read `experiment.py`, `csl_runner.py` and `driver.py`. I made no edits, did not contact the device, and did not run the experiment.
+
+### B1 (reversed CRTC toggle) is fixed
+- Line 76 is now `target_type = 1 if original[0] & 4 else 0`.
+- `CFG_BIT_CRTC = 2` is bit 2 of byte 0, and `crtc_select 0` sets the bit (`csl_runner.py:1186-1189`).
+- So the target is always the other CRTC type, and the first CFG write always changes the file.
+- Line 61 checks for that change before the kill, and line 90 checks it again before PASS.
+
+### B2 (swallowed harness assertion allowing a false PASS) is fixed
+- **Exit code:** line 88 requires `rc == 1`. `main` returns 1 only when `run_csl` raises something other than a `CslError` (`csl_runner.py:1855-1857`).
+- **Killed transport:** line 89 requires `ssh_returncode == -9`. That value is set only after this experiment's own `proc.kill()`.
+- **Changed bytes:** line 90 requires `changed_hex != original_hex`. If the intercept failed before `changed_hex` was set, this raises a `KeyError`, which is still not a PASS.
+- **Error message:** line 91 requires the exact production message from `write_cfg` (`csl_runner.py:556`), with `path` equal to `DEFAULT_CFG_PATH` (`:75`).
+  - A -9 exit is not 255, so `run_cmd` returns it rather than raising (`driver.py:348`).
+  - A harness `AssertionError`, a timeout `DriverError` or the Main-command `RuntimeError` would each produce a different reason, so none of them can pass.
+
+### The other safeguards
+- **Main commands blocked:** any `ssh` call whose remote command contains `/dev/MiSTer_cmd` raises before it runs (line 40). That covers both `load_core` and command writes. The runner stops at `write_cfg` in any case, before `check_rbf_directory`. Line 99 repeats the check against the command log.
+- **Intercept rewrite:** the rewritten remote command reads `…; timeout -s KILL N sh -c '<cat> > cfg' && echo CSL_WRITE_ACK && timeout -s KILL 10 sleep 8`, with `exec` removed. The ACK prints only after the bounded write succeeds. Only the first write is intercepted, so the restore write runs unmodified.
+- **Staging removed:** line 96 fails on any `remote_temp` entry that has an `error` and no `exit_code`. Line 98 then checks over a separate connection that each staging path no longer exists. The same staging path appears twice in `remote_temp` (the forced write and the restore). That is harmless because `rm -f` is idempotent.
+- **Evidence saved first:** the `finally` block writes `evidence.json` (line 103) before any fallback read, and again at the end.
+- **Fallback:** the restore write's exit code, a re-read that the CFG matches the original, and the `rm -f` exit code are all checked (lines 110-112). The `patch` context has already exited by then, so the fallback uses the real `subprocess.run`.
+
+### Remaining limitations (not blocking)
+- If the fallback's `read_cfg() == original` check fails, the emergency staging file stays on the device. `original.CFG` is still saved locally, so you can restore by hand.
+- If the fallback itself raises, it hides the original exception from the `try` block. Python still prints it as the chained context, and `evidence.json` has already been written.
+- These still apply from the first review:
+  - The test covers losing the connection after a completed write, not a truncated one.
+  - Patching `subprocess.run` affects the whole process.
+  - Keep the MiSTer slot to yourself so nobody saves from the OSD during the run.
+  - Pillow must be installed on the host.

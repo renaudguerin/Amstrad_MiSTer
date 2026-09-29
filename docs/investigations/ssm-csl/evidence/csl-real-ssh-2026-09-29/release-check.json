@@ -1,0 +1,13 @@
+{
+  "matching_remote_processes": [],
+  "command_log": [
+    {
+      "command": "sha256sum /media/fat/config/Amstrad.CFG; test ! -e /media/fat/csl_cfg_1790656689_fb1148.bin",
+      "timestamp": "2026-09-29T04:38:47.737412+00:00",
+      "duration_ms": 279.1147499992803,
+      "exit_code": 0,
+      "stdout": "13ef32c7f1acfd5b5c9a1df3aa8b270b6378b00e0f5692fb05e10a350bc35747  /media/fat/config/Amstrad.CFG\n",
+      "stderr": ""
+    }
+  ]
+}

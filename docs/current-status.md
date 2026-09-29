@@ -390,7 +390,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 - **Capture and oracles:** the B2 device driver captures repeatably (native screenshots omit the
   OSD, so they cannot prove the active mode). B4 CSL/SSM Phase 1 is verified on hardware for
   Module A on both CRTC types and Gate 1 (Module B); the workbook's 712 rows remain coverage
-  targets. Source support is updated to CSL v1.5 and SSM v1.2: `wait_ssm 0xHHLL` is available,
+  targets. [Real SSH interruption recovery](investigations/ssm-csl/csl-real-ssh-recovery-2026-09-29.md)
+  now passes for a completed CFG write: the runner reports failure and restores
+  the exact original bytes through fresh connections. Persistent outages and
+  active OSD recovery remain unverified. Source support is updated to CSL v1.5 and SSM v1.2: `wait_ssm 0xHHLL` is available,
   legacy `wait_ssm0000` and SHAKER 2.6 remain compatible, and the existing detector already
   enforces four consecutive opcode fetches. The original production-T80 provider
   gap is closed at source and bounded motherboard-execution level by the
