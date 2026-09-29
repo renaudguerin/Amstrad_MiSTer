@@ -19,7 +19,7 @@ from pathlib import Path
 
 from shaker_ssm_inventory import DiskError, inventory, ssm_byte_allowed
 
-SHAKER_DIR = Path(__file__).resolve().parents[2] / "docs" / "references" / "Shaker_CSL"
+SHAKER_DIR = Path(__file__).resolve().parents[2] / "local" / "test_media" / "shaker"
 DISCS = ("shaker26.dsk", "shaker27.dsk")
 
 CODE_SYNC = 0x0000
