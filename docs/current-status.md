@@ -392,7 +392,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   Module A on both CRTC types and Gate 1 (Module B); the workbook's 712 rows remain coverage
   targets. Source support is updated to CSL v1.5 and SSM v1.2: `wait_ssm 0xHHLL` is available,
   legacy `wait_ssm0000` and SHAKER 2.6 remain compatible, and the existing detector already
-  enforces four consecutive opcode fetches. A bounded live `wait_ssm` check remains before
+  enforces four consecutive opcode fetches. The original production-T80 provider
+  gap is closed at source and bounded motherboard-execution level by the
+  [five-case fixture and review](investigations/ssm-csl/b4-production-fetch-2026-09-29.md);
+  it does not extend the separate [bounded format-2 device acceptance](investigations/mister-format2-b25-2026-09-29.md). A bounded live `wait_ssm` check remains before
   claiming device acceptance, but it can use an existing Phase 1 SSM-capable RBF because the
   refresh changes no hardware logic. The B3 frame-capture CLI works within
   its CPU and clock limits. The AmSpirit oracle
@@ -421,8 +424,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   adds a passive edge/state CSV and SSM format-2 marker-time mode/acquisition
   observations, backward-compatible with format-1 reads. The current trace
   separates stale startup period from persistent phase misalignment after
-  period correction. New-RBF device acceptance and original-monitor fidelity
-  remain open; no acquisition policy was changed.
+  period correction. Steady format-2 observations now pass the
+  [bounded device session](investigations/mister-format2-b25-2026-09-29.md);
+  live transitions, pathological acquisition and original-monitor fidelity remain
+  open. No acquisition policy was changed.
 - **Peripherals:** FDC full-sector result/ST1, classic AMSDOS and hardware acceptance are open.
   B8-7 HPS cadence is open; real-CDT playback is device-accepted on 464 and 464+.
   **CDT on a CPC 464 overwriting the 464 OS ROM is fixed and device-accepted on

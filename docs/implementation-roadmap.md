@@ -540,7 +540,9 @@ that a previously online device remains available. Keep one device operator.
   CSL v1.5/SSM v1.2 source support adds arbitrary-code `wait_ssm` while preserving the 2.6
   scripts. Its bounded device check can reuse an existing Phase 1 SSM-capable RBF because
   the standards refresh changes no hardware logic. Production-T80
-  fetch-provider review/evidence remains an explicit review-debt item.
+  [fetch-provider source/execution evidence](investigations/ssm-csl/b4-production-fetch-2026-09-29.md)
+  is reviewed and passes five motherboard cases; physical memory/DDR and format-2
+  observations retain their separate acceptance boundaries.
 - B8-1 through B8-7 are integrated. Remaining work includes native dynamic-WAIT equivalence,
   complete frame-level RFD/full motherboard CPU execution, full video-consumer validation,
   real-CDT playback/HPS cadence, snapshot first-frame limits and named hardware retests.
