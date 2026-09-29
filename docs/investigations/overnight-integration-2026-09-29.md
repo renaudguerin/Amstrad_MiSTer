@@ -63,8 +63,13 @@ Sync run `36506927028` passed its six selected benches but failed motherboard
 lint: moving `syncs` to module scope exposed two existing blocking assignments
 to `BLKSEQ`. A narrow annotation retains their intentional same-edge ordering;
 `make -C sim lint` passes after that comment-only repair. The corrected combined
-head, including CSL, requires successor CI/full synthesis; the older run is not
-claimed as successful integration evidence. New-RBF device checks, real SSH-disconnect recovery,
+head includes CSL. Its successor `36507312981` exposed a separate clean-build
+dependency: selecting only `crt-filter-blank-test` did not create its nested
+output directory. Adding `mkdir -p $(CRTF_OBJ_DIR)` makes the target standalone;
+an isolated empty `/tmp` output tree passed all nine focused cases. The older
+failed runs are not claimed as successful integration evidence. The current
+Quartus job continues because this Makefile-only repair does not change any
+synthesized input; final CI will verify the build repair after artifact retention. New-RBF device checks, real SSH-disconnect recovery,
 unobserved key mappings and original-monitor fidelity remain separate acceptance
 work. Numeric SHAKER runs use Full once; a small targeted display corpus covers
 mode differences without tripling every numeric/title test.
