@@ -30,6 +30,7 @@ module ssm_marker_top
 	input         use_cpu,
 	input         m1_fetch_in,
 	input   [7:0] bus_data_in,
+	input  [20:0] sync_observation_in,
 
 	// Executing CPU driver (use_cpu = 1)
 	input         cpu_reset,
@@ -254,6 +255,7 @@ ssm_marker dut (
 
 	.m1_fetch(m1_fetch),
 	.bus_data(bus_data),
+	.sync_observation(sync_observation_in),
 
 	.ce_pix(ce_16),
 	.hsync(1'b0),

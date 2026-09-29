@@ -390,7 +390,12 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   `b6-dynamic` now passes all nine machine/mode cases with source-derived pulse-width
   checks; production RTL and CPU timing are unchanged. Physical monitor acquisition
   remains open ([evidence](investigations/video-boundary/b22-short-hsync-2026-09-23.md)). [B23](backlog.md#b23-tv80-bench-cpu-bus-timing-parity-with-production-t80pa)
-  proposes a TV80-vs-T80pa parity bench.
+  proposes a TV80-vs-T80pa parity bench. The [B1/B22 observability slice](investigations/video-boundary/b22-acquisition-trace-2026-09-29.md)
+  adds a passive edge/state CSV and SSM format-2 marker-time mode/acquisition
+  observations, backward-compatible with format-1 reads. The current trace
+  separates stale startup period from persistent phase misalignment after
+  period correction. New-RBF device acceptance and original-monitor fidelity
+  remain open; no acquisition policy was changed.
 - **Peripherals:** FDC full-sector result/ST1, classic AMSDOS and hardware acceptance are open.
   B8-7 HPS cadence is open; real-CDT playback is device-accepted on 464 and 464+.
   **CDT on a CPC 464 overwriting the 464 OS ROM is fixed and device-accepted on

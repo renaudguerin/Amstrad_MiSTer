@@ -170,6 +170,7 @@ module p10_boot_test_top #(
 `ifdef B6_VIDEO_BOUNDARY
     , input [1:0] b6_mode,
     output [1:0] b6_applied,
+    output [20:0] b6_sync_observation,
     output [3:0] b6_full_tuple,
     output [3:0] b6_raw_tuple,
     output [7:0] b6_history,
@@ -493,6 +494,11 @@ module p10_boot_test_top #(
 	// lint stays quiet about it.
 	.ssm_m1_fetch(),
 	.ssm_bus_data(),
+`ifdef B6_VIDEO_BOUNDARY
+	.ssm_sync_observation(b6_sync_observation),
+`else
+	.ssm_sync_observation(),
+`endif
 		.reset(sys_reset),
 		.clk(clk),
 		.ce_16(ce_16),

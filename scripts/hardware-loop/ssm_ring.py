@@ -15,6 +15,12 @@ Layout, little-endian throughout, matching the RTL comment:
     word A  [15:0] code  [39:16] frame  [49:40] line  [57:50] hpos  [58] field
     word B  [15:0] sequence number  [47:16] core clock tick
 
+Format 2 adds sync_observation = {word A[63:59], word B[63:48]}:
+requested[1:0], applied[3:2], line estimate in CE4 ticks[12:4], hs4[13],
+SHIFT[14], no_hsync[15], mask[16], arm[17], training_syncs[19:18], reserved[20].
+It shares the timestamp's HH-fetch-completion cut. Format 1 has no observation;
+its reserved bits are ignored and sync_observation is None.
+
 The core writes a record pair before it updates the header, so a header read
 never points at a half-written record. It also publishes the header with
 `written = 0` when the observer is *enabled*, before any marker arrives, so a
@@ -43,7 +49,8 @@ import struct
 from typing import Any, Dict, List, Optional, Tuple
 
 MAGIC = 0x53534D31  # "SSM1"
-SUPPORTED_FORMAT = 1
+SUPPORTED_FORMAT = 2
+SUPPORTED_FORMATS = (1, 2)
 HEADER_BYTES = 16
 RECORD_BYTES = 16
 DEFAULT_BASE = 0x3000_0000
@@ -97,9 +104,9 @@ class SsmNotInitializedError(SsmFormatError):
 
 
 class SsmRecord:
-    __slots__ = ("code", "frame", "line", "hpos", "field", "seq", "tick", "slot")
+    __slots__ = ("code", "frame", "line", "hpos", "field", "seq", "tick", "slot", "sync_observation")
 
-    def __init__(self, word_a: int, word_b: int, slot: int):
+    def __init__(self, word_a: int, word_b: int, slot: int, format_version: int = 1):
         self.code = word_a & 0xFFFF
         self.frame = (word_a >> 16) & 0xFFFFFF
         self.line = (word_a >> 40) & 0x3FF
@@ -108,6 +115,20 @@ class SsmRecord:
         self.seq = word_b & 0xFFFF
         self.tick = (word_b >> 16) & 0xFFFFFFFF
         self.slot = slot
+        self.sync_observation = None
+        if format_version == 2:
+            obs = ((word_a >> 59) << 16) | (word_b >> 48)
+            self.sync_observation = {
+                "requested_mode": obs & 3,
+                "applied_mode": (obs >> 2) & 3,
+                "line_estimate_ce4": (obs >> 4) & 0x1FF,
+                "hs4": bool(obs & (1 << 13)),
+                "shift": bool(obs & (1 << 14)),
+                "no_hsync": bool(obs & (1 << 15)),
+                "hsync_mask": bool(obs & (1 << 16)),
+                "arm": bool(obs & (1 << 17)),
+                "training_syncs": (obs >> 18) & 3,
+            }
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -119,6 +140,7 @@ class SsmRecord:
             "seq": self.seq,
             "tick": self.tick,
             "slot": self.slot,
+            "sync_observation": self.sync_observation,
         }
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
@@ -146,10 +168,10 @@ class SsmHeader:
                 "SSM OSD option is off, the core has not finished loading, or the "
                 "DDR3 base is wrong for this framework build."
             )
-        if self.format_version != SUPPORTED_FORMAT:
+        if self.format_version not in SUPPORTED_FORMATS:
             raise SsmFormatError(
                 f"ring format version {self.format_version}, this reader implements "
-                f"{SUPPORTED_FORMAT}"
+                f"{SUPPORTED_FORMATS}"
             )
         if not 1 <= self.entries <= 255:
             raise SsmFormatError(f"implausible ring entry count {self.entries}")
@@ -182,7 +204,7 @@ def parse_ring(data: bytes) -> Tuple[SsmHeader, List[SsmRecord]]:
     for slot in range(header.entries):
         offset = HEADER_BYTES + slot * RECORD_BYTES
         word_a, word_b = struct.unpack_from("<QQ", data, offset)
-        records.append(SsmRecord(word_a, word_b, slot))
+        records.append(SsmRecord(word_a, word_b, slot, header.format_version))
     return header, records
 
 

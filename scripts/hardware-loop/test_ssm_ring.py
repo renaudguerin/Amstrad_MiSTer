@@ -54,6 +54,22 @@ class TestRingParsing(unittest.TestCase):
         self.assertEqual(rec.seq, 7)
         self.assertEqual(rec.tick, 0xDEADBEEF)
 
+    def test_observation_v2_and_unknown_v1(self):
+        # Independent ABI fixture: raw request 3 must remain distinct from
+        # applied 1; asymmetric flags exercise both reserved-word slices.
+        observation = 3 | (1 << 2) | (475 << 4) | (1 << 13) | (1 << 15) | (1 << 17) | (2 << 18)
+        a, b = struct.unpack("<QQ", make_record(0x3421, 5, tick=0xDEADBEEF))
+        raw = struct.pack("<QQ", a | ((observation >> 16) << 59), b | ((observation & 0xFFFF) << 48))
+        _, records = ssm_ring.parse_ring(make_ring([raw], written=1, version=2))
+        self.assertEqual(records[0].as_dict()["sync_observation"], {
+            "requested_mode": 3, "applied_mode": 1, "line_estimate_ce4": 475,
+            "hs4": True, "shift": False, "no_hsync": True,
+            "hsync_mask": False, "arm": True, "training_syncs": 2,
+        })
+        self.assertEqual(records[0].tick, 0xDEADBEEF)
+        _, old = ssm_ring.parse_ring(make_ring([raw], written=1, version=1))
+        self.assertIsNone(old[0].as_dict()["sync_observation"])
+
     def test_header_fields(self):
         header = ssm_ring.parse_header(make_ring([], written=9, dropped=2))
         self.assertEqual(header.magic, ssm_ring.MAGIC)
