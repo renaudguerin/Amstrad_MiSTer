@@ -142,7 +142,8 @@ All required jobs passed, including selected simulation/lint and production T80.
   across seven clocks; **TNS zero**. This is closure under the existing constraints;
   the build log retains the existing not-fully-constrained notices.
 - Retained build and workflow logs: `output_files/pa7-dma-repair/synthesis/`.
-  The uploaded package contained the build log and provenance, not separate STA reports.
+  The retained package contains fitter/STA reports and summaries as well as
+  the build log and provenance (contents rechecked 2026-09-29).
 
 The hardware-loop driver loaded this hash-pinned RBF and the unchanged cartridges
 on MiSTer with 6128+ and Full filter settings. All ten cases completed and cleaned
