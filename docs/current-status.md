@@ -12,6 +12,13 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **Pre-acceptance continuation (2026-09-29):** all four initial evidence tasks
+  are integrated, with exact integration CI green through `5f8f8ae`. No production
+  RTL changed; the `cec641c` RBF retains its identity. The added full SHAKER 2.7
+  suite and 2.6 fallback task is in progress. See the
+  [batch handoff](investigations/preacceptance-continuation-2026-09-29.md) for
+  source/integration identities, evidence and remaining acceptance boundaries.
+
 - **Pre-acceptance device checks (2026-09-29):** delivered `cec641c` produces
   coherent SSM format-2 records with matching requested/applied modes in Full,
   Raw-pixels and Raw-CRT. B25 AMSDOS boots on MiSTer CRTC0/1 produce complete
