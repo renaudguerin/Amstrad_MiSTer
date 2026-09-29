@@ -201,8 +201,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 **Next validation approach:** B1/B22 acquisition and applied-mode observation
 precede further visual SHAKER-driven CRTC changes. Numeric checks run once in
-Full and may proceed independently. B25's next deliverable is a
-self-synchronizing diagnostic DSK with RAM results and normal-video reporting;
+Full and may proceed independently. The [B25 diagnostic DSK](investigations/b25-diagnostic.md)
+is built, with 432 production-model captures and actual AmSpirit AMSDOS boots/reruns
+for CRTC0/1. Original-CPC and MiSTer table captures remain outstanding;
 see [the backlog](backlog.md#b25-classic-ga-interrupt-phase-against-cpu-edges)
 and [the execution queue](implementation-roadmap.md#8-immediate-execution-queue).
 

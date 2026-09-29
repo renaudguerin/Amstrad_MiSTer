@@ -418,9 +418,9 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 **Current next actions (2026-09-29).** The `4a44394` title regression pass is
 user-confirmed clean. Prioritize B1/B22 output acquisition diagnosis before
 interpreting further sync-sensitive SHAKER image mismatches as CRTC defects.
-In parallel, prepare the self-synchronizing B25 Classic diagnostic DSK with
-results retained in RAM and displayed only after normal video timing is
-restored. An optional SNA runs the same initialization; snapshot phase is not
+Run the [delivered B25 Classic diagnostic DSK](investigations/b25-diagnostic.md)
+on original CPC hardware and MiSTer, retaining the complete numeric table.
+The program self-synchronizes and restores normal video before reporting. An optional SNA runs the same initialization; snapshot phase is not
 an oracle. Run numeric SHAKER checks once in Full; use a small separate
 multi-mode display corpus rather than tripling every title/numeric test.
 Run the [packaged PA3 follow-up CPR](plus/pa3-followup-cartridge.md) on the

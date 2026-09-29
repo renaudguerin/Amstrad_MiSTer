@@ -37,24 +37,23 @@ the ACCC diagram's inconsistent WAIT-row label and type1 unit variance.
 Only after that add source-derived failing vectors for any GA/CRTC repair.
 See [T80 evidence](t80-int-sampling.md) for model measurements and reviews.
 
-**Next deliverable: a self-synchronizing Classic diagnostic DSK.** Run the
-same program on original CPC hardware and MiSTer, with CRTC0/1 identified.
-Include NOP/HALT, both RET NC parity cases, INC HL and ADD HL,DE controls.
-Store acceptance results/counts in RAM during each trial, restore normal
-video timing, then display a numeric table. Run in Full; timed border or
-raster-marker positions are not the acceptance oracle. Derive predictions
-from the French source before implementation and retain differing original
-hardware results rather than adjusting expectations to the emulator.
+**Portable diagnostic delivered (2026-09-29):** the [B25 DSK](investigations/b25-diagnostic.md)
+uses two real GA interrupts to synchronize each trial, with NOP/HALT, both RET NC
+and INC HL parities, and all three ADD HL,DE padding phases. It retains 72 PC/HL
+records in RAM and restores normal video before showing the numeric table.
+Production T80/GA/CRTC0/1 execution passed 432 captures across three launch
+phases. Actual AMSDOS cold boots and input-driven reruns passed in AmSpirit
+for CRTC0/1. INC pad0 differs between the production fixture and AmSpirit;
+AmSpirit CRTC1 also differs on ADD pad1. These are observations, not hardware
+pass/fail values or grounds for an RTL change.
 
-Reuse `sim/classic_irq_phase_test.cpp` as a starting point, not a directly
-portable program: its simulator-only IRQ masking needs a hardware-valid
-replacement, and INC HL/ADD HL,DE controls need adding. The existing
-diagnostic assembly/build patterns are reusable, but a Classic diagnostic
-and DSK packaging path have not yet been implemented. An optional SNA may
-launch the same self-synchronizing code; it cannot establish initial CRTC
-counters or GA interrupt phase from snapshot state. Software probes establish
-instruction-acceptance boundaries. Exact electrical INT/clock/HSYNC timing
-still requires a logic analyser or scope.
+**Next acceptance:** run the same DSK on original CPC hardware and MiSTer,
+with CRTC0/1 identified, in Full mode. Photograph the complete table and retain
+all phase groups. No original-CPC or MiSTer run is claimed by the package.
+An optional SNA is not needed for delivery and cannot establish initial CRTC
+counters or GA interrupt phase. Software probes establish instruction-acceptance
+boundaries; exact electrical INT/clock/HSYNC timing still requires a logic
+analyser or scope.
 
 ## B24. Plus ASIC reference clause traceability
 

@@ -313,3 +313,15 @@ no-alias comparison, AmSpirit and CPCEC. Photograph:
 
 There is no hardware-error detection or result interpretation. An invalid
 calibration or incomplete status should be reported alongside the counts.
+
+## Classic B25 instruction acceptance DSK
+
+`python3 scripts/diagnostics/classic_b25.py` builds
+`output_files/classic-b25/classic-b25.dsk`. Mount in A and `RUN"B25"` on a
+Classic CPC or MiSTer CRTC0/1, normal CPU speed, **Full** video mode. The program
+self-synchronizes with real HALT/GA interrupts and shows eight PC/HL captures for
+NOP, HALT, both RET NC and INC HL padding parities, and all three ADD HL,DE phases.
+Photograph the complete table and record machine/CRTC/RBF identity. Any key or
+joystick fire reruns; reset exits.
+
+[Build, measurement contract, RAM map and validation limits](../../docs/investigations/b25-diagnostic.md).
