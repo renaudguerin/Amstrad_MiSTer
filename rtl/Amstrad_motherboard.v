@@ -149,6 +149,7 @@ module Amstrad_motherboard
 	// that the logic under test lives in the module the vectors exercise.
 	output        ssm_m1_fetch,
 	output  [7:0] ssm_bus_data,
+	output [20:0] ssm_sync_observation,
 
 	output        hblank,
 	output        vblank,
@@ -1055,6 +1056,10 @@ crt_filter_output_select crt_filter_output_select
 	.VBLANK_OUT(vblank)
 );
 
+// SSM v2: raw request remains distinguishable from the normalized/applied mode.
+wire [15:0] filter_sync_observation;
+assign ssm_sync_observation = {1'b0, filter_sync_observation, sync_filter_applied, sync_filter};
+
 crt_filter crt_filter
 (
 	.CLK(clk),
@@ -1068,7 +1073,8 @@ crt_filter crt_filter
 	// filter keeps it as an internal diagnostic with its own regression.
 	.HBLANK_LIVE(),
 	.VBLANK(vblank_filtered),
-	.SHIFT(crtc_shift)
+	.SHIFT(crtc_shift),
+	.SYNC_OBSERVATION(filter_sync_observation)
 );
 
 // Screen mode and RGB: classic netlist pair passes through in the low

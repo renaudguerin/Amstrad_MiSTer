@@ -416,8 +416,11 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 ### Integrated implementations and follow-up validation
 
 **Current next actions (2026-09-29).** The `4a44394` title regression pass is
-user-confirmed clean. Prioritize B1/B22 output acquisition diagnosis before
-interpreting further sync-sensitive SHAKER image mismatches as CRTC defects.
+user-confirmed clean. The [B1/B22 observability slice](investigations/video-boundary/b22-acquisition-trace-2026-09-29.md)
+now distinguishes startup period contamination from persistent phase misalignment
+and adds SSM marker-time applied-mode/filter observations. Validate those fields
+on the synthesized RBF and obtain a justified original-monitor comparison before
+changing acquisition policy or interpreting sync-sensitive images as CRTC defects.
 Run the [delivered B25 Classic diagnostic DSK](investigations/b25-diagnostic.md)
 on original CPC hardware and MiSTer, retaining the complete numeric table.
 The program self-synchronizes and restores normal video before reporting. An optional SNA runs the same initialization; snapshot phase is not

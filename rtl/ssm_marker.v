@@ -71,6 +71,8 @@ module ssm_marker #(
 	// high and so produces no fetch at all.
 	input             m1_fetch,
 	input       [7:0] bus_data,
+	// Passive motherboard state. Sampled with tick/position at HH fetch end.
+	input      [20:0] sync_observation,
 
 	// Output-side raster position, used to stamp each event. Taken from the
 	// video timing rather than from CRTC registers: phase 2 compares against
@@ -158,6 +160,7 @@ reg       fetch_stb  = 1'b0;
 wire fetch_end = m1_fetch_d & ~m1_fetch;
 
 reg [31:0] tick_at_fetch = 32'd0;
+reg [20:0] observation_at_fetch = 21'd0;
 reg [42:0] pos_at_fetch  = 43'd0;   // {field, hpos, line, frame}
 
 always @(posedge clk) begin
@@ -173,10 +176,12 @@ end
 always @(posedge clk) begin
 	if (!active) begin
 		tick_at_fetch <= 32'd0;
+		observation_at_fetch <= 21'd0;
 		pos_at_fetch  <= 43'd0;
 	end
 	else if (fetch_end) begin
 		tick_at_fetch <= tick;
+		observation_at_fetch <= sync_observation;
 		pos_at_fetch  <= {field, hpos, line, frame};
 	end
 end
@@ -211,6 +216,7 @@ reg        hit = 1'b0;
 reg [15:0] hit_code = 16'd0;
 reg [31:0] hit_tick = 32'd0;
 reg [42:0] hit_pos  = 43'd0;
+reg [20:0] hit_observation = 21'd0;
 
 assign event_stb = hit;
 
@@ -253,6 +259,7 @@ always @(posedge clk) begin
 					// The boundary values latched when this HH fetch
 					// completed, two clocks ago.
 					hit_tick <= tick_at_fetch;
+					hit_observation <= observation_at_fetch;
 					hit_pos  <= pos_at_fetch;
 				end
 				state <= S_ED1;
@@ -265,6 +272,10 @@ end
 // Event record and DDR3 ring writer
 //----------------------------------------------------------------------------
 //
+// Format 2 uses former reserved bits: A[63:59]=observation[20:16],
+// B[63:48]=observation[15:0]. Observation: requested[1:0], applied[3:2],
+// line estimate CE4[12:4], hs4[13], SHIFT[14], no_hsync[15], mask[16],
+// arm[17], training syncs[19:18], reserved zero[20].
 // Ring layout, all little-endian 64-bit words from DDR_BASE:
 //   +0x00  magic | format version | ring entries
 //   +0x08  written records | dropped | (reserved)
@@ -304,8 +315,8 @@ wire          [28:0] slot_off = {{(28-SLOT_BITS){1'b0}}, slot, 1'b0};
 
 // Latched at the marker so the record describes the instant it was seen,
 // not the instant the DDR3 port got around to accepting the write.
-wire [63:0] capture_a = {5'd0, hit_pos, hit_code};
-wire [63:0] capture_b = {16'd0, hit_tick, event_count[15:0]};
+wire [63:0] capture_a = {hit_observation[20:16], hit_pos, hit_code};
+wire [63:0] capture_b = {hit_observation[15:0], hit_tick, event_count[15:0]};
 
 always @(posedge clk) begin
 	if (!active) begin
@@ -366,7 +377,7 @@ always @(posedge clk) begin
 				// host cannot read a previous run's count as this run's.
 				W_MAGIC: begin
 					ddram_addr <= BASE_WORD;
-					ddram_din  <= {8'd0, RING_ENTRIES, 16'd1, MAGIC};
+					ddram_din  <= {8'd0, RING_ENTRIES, 16'd2, MAGIC};
 					ddram_we   <= 1'b1;
 					wstate     <= W_INIT_HDR;
 				end

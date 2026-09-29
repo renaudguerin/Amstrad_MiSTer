@@ -255,7 +255,11 @@ limit the [device record](b2-device-capture-2026-09-12.md) established.
 while `sync_filter_applied` / `raw_crt_applied` stay `null` because the runner
 never reads the runtime latch; `pixel_rate_select`, `scale`, `mix`, `plus_mode`
 and `native_cadence` are likewise `null` (neither set nor observed, never
-derived from on-disk CFG).
+derived from on-disk CFG). With a format-2 RBF, `--ssm` additionally records
+marker-time `ssm_records[].sync_observation`, including actual applied mode.
+That per-event evidence does not populate the run-wide configuration fields;
+format-1 records report a null observation. See the
+[B1/B22 field contract](../video-boundary/b22-acquisition-trace-2026-09-29.md#ssm-format-2-contract-and-use).
 
 ### Keyboard translation
 
@@ -341,7 +345,7 @@ is cancelled when the ISR's first opcode is fetched.
 The detector is off by default. `--ssm` sets OSD status bit 37 through the
 same CFG mechanism as the CRTC bit, and restores it with the rest of the
 configuration at the end of the run. The runner then polls the ring over the
-existing SSH transport with BusyBox `dd if=/dev/mem`; no Main patch and no
+existing SSH transport with a read-only Python `mmap` of `/dev/mem`; no Main patch and no
 device daemon is involved. `status_set` and `info_req` were both checked and
 neither reaches user space.
 
@@ -361,10 +365,13 @@ is only the variant that takes its name from CSL instead of from the code.
 | other `#FFxx` | recorded with its raster position, acted on by nothing |
 
 Each record carries the marker's code, a VSYNC-edge count, line, horizontal
-position, field and core clock tick. Format 1 samples the pre-conversion timing
+position, field and core clock tick. Formats 1 and 2 sample the pre-conversion timing
 at 16 MHz; `hpos` wraps every 256 dots (16 us), so it is not a unique pixel
 coordinate. The 32-bit tick wraps after 67.108864 s. Keep deltas within a verified
-session and account for wrap.
+session and account for wrap. Format 2 also carries requested/applied sync-filter
+mode and passive acquisition/history fields sampled at that same marker fetch
+completion. The reader accepts format 1 with `sync_observation: null`; a correct
+line estimate or cleared arm bit alone never means monitor lock.
 
 **Captures remain approximate.** Main reads the scaler asynchronously, and neither
 the marker stamp nor a successfully decoded PNG establishes the image's age. Stable

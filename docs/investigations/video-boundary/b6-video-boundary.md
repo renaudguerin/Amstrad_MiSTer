@@ -326,15 +326,19 @@ design time. A current real-mixer DE fixture is therefore the mandatory local
 gate; an ASCAL rerun is optional additional evidence when that runtime is
 available. Neither establishes framebuffer delivery, HDMI lock or CRT output.
 
-**Implementation preflight limit:** in this Verilator build, the unchanged
-`sys/video_mixer.sv` declares `R_in/G_in/B_in` inside generate branches and
-resolves its later unqualified references as undriven implicit nets. Mixer RGB
-is consequently black in simulation, despite nonzero real motherboard and
-converter pixels. B6 keeps `sys/` unchanged: assert pixel identity/masking at
-the production colour-converter output and acquisition at actual mixer DE/CE.
-Do not claim downstream mixer RGB was validated, or silently repair a copied
-framework file in the fixture. Resolving that framework elaboration difference
-is a separate follow-up before a complete rendered-pipeline simulation claim.
+**Resolved simulation preflight limitation:** the initial Verilator build
+resolved the generate-scoped `R_in/G_in/B_in` references in `video_mixer` as
+undriven implicit nets. The September 12 follow-up moved the declarations to
+module scope; current `sys/video_mixer.sv` contains that correction and the B6
+dynamic fixture checks final mixer RGB. The initial black-output limitation
+must not be treated as a current integration blocker. This simulation coverage
+still does not establish framework/scaler delivery or physical connector timing.
+
+The [B1/B22 acquisition trace](b22-acquisition-trace-2026-09-29.md) records actual
+applied mode and separate raw CRTC, GA, filtered and selected boundaries in the
+unchanged CPU-driven dynamic reproduction. The CSV is simulation-only; SSM
+format 2 adds marker-time device observations that still require a new RBF and
+device validation. Neither establishes physical monitor lock.
 
 ## Acceptance still requiring hardware
 

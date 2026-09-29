@@ -147,6 +147,15 @@ that path; the type-1 trace no longer asserts acquisition it never established.
 The CPU program and production RTL are unchanged. See the
 [probe, source evidence and validation record](investigations/video-boundary/b22-short-hsync-2026-09-23.md).
 
+**2026-09-29 observability slice.** The current-base trace learns 475 (not the
+older base's 474), emits 7,600-tick filtered HS against 4,096-tick raw/GA HS,
+and later corrects its period without aligning the pulse-classification phase.
+An opt-in B6 CSV reproduces the training and phase history. SSM ring format 2
+adds marker-time requested/applied mode, line estimate and history flags using
+reserved record bits; the reader accepts old format 1 with unknown observation.
+This needs a new RBF/device acceptance and does not fix acquisition or establish
+monitor fidelity. See the [trace and device contract](investigations/video-boundary/b22-acquisition-trace-2026-09-29.md).
+
 **Remaining action:** compare the same startup/R3 sequence against an original
 CPC/CTM or justified monitor oracle, then the MiSTer Full/Raw outputs, before
 changing filter acquisition or sticky-history behavior. Existing captures do
@@ -405,7 +414,9 @@ CRT/output diagnosis. Do not remove modes or redesign sync without evidence.
 requested mode, not proof of `sync_filter_applied`; native screenshots omit
 the OSD and use an asynchronous scaler buffer. Establish the applied mode
 and acquisition state in the bounded B22 reproduction before interpreting
-geometry. The SSM marker timestamps selected output sync, not raw CRTC sync.
+geometry. SSM format 2 can provide marker-time applied mode and passive filter state
+with the new RBF; format 1 cannot. The run-wide manifest remains requested-only.
+The SSM marker timestamps selected motherboard output sync, not raw CRTC sync.
 Existing filter/B6 tests protect the core boundary, not the complete scaler,
 analog pins or monitor response. A failure attributed to CRTC needs an
 independent raw-signal or software-result discrepancy and a fail-first vector;

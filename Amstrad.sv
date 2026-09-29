@@ -1224,6 +1224,7 @@ wire        phi_n, phi_en_p, phi_en_n;
 wire        m1, key_nmi, key_reset;
 wire        ssm_m1_fetch;
 wire  [7:0] ssm_bus_data;
+wire [20:0] ssm_sync_observation;
 wire        rd, wr, iorq, asic_iorq;
 wire        mreq;
 wire        field;
@@ -1573,6 +1574,7 @@ Amstrad_motherboard motherboard
 
 	.ssm_m1_fetch(ssm_m1_fetch),
 	.ssm_bus_data(ssm_bus_data),
+	.ssm_sync_observation(ssm_sync_observation),
 
 	.phi_n(phi_n),
 	.phi_en_n(phi_en_n),
@@ -1748,6 +1750,7 @@ ssm_marker ssm
 
 	.m1_fetch(ssm_m1_fetch),
 	.bus_data(ssm_bus_data),
+	.sync_observation(ssm_sync_observation),
 
 	.ce_pix(ce_16),
 	.hsync(hs),
