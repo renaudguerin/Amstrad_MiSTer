@@ -977,3 +977,44 @@ but do not explicitly inject a grant, and D5 checks final rather than every
 intermediate operand pair. Current P0 waits eight clocks after release; the
 older seven-clock measurement is historical evidence. These coverage limits
 do not constitute a demonstrated defect.
+
+
+## B18 slice3 and slice4 parent fixes — cleared 2026-09-29
+
+**B18 slice 4, freeze controller and save stream, 2026-09-13 — REVIEWED, FIXES UNREVIEWED:**
+Astra high reviewed `rtl/sna_save_capture.v`, `rtl/sna_save_stream.v`, `rtl/sna_ddr_mux.v` and
+their tests (Gemini-authored, parent-fixed) and returned CHANGES REQUIRED. The parent fixed all
+three findings without a second review:
+- mux ownership kept through reset while a write is outstanding;
+- generation consumed when the final write is issued;
+- 64K page decode in the test.
+
+Each fix has a case that its revert fails. Look hardest at the interaction between the stream's
+`S_QUIESCE` path and the mux release condition when the stream and mux resets differ in 4c
+wiring. Also check that Case 6E really lands the reset on the acceptance clock.
+
+**B18 slice 3, observation ports, 2026-09-13 — PARTLY REVIEWED:** the port and shadow RTL was
+written by Gemini and reviewed by the Opus parent, so it is cross-provider. The parent's own
+fixes were not independently reviewed: the `u765` one-clock `pcn` copy, the `sna_hw_header.v`
+integer scope, and the `t36a_b18_vsw_elapsed_counter` vector. Look hardest at whether
+`vsw_elapsed` in `rtl/CRTC.v` truly shadows every `vsc` assignment, including the R7-write load
+outside the `CLKEN` branch; and at whether t36a's mid-line samples can miss a one-line offset.
+The formatter's classic byte mapping now has independently reviewed production-T80
+capture/round-trip coverage (B18 fixture, integrated 2026-09-22; see
+[b18-sna-save.md](b18-sna-save.md#classic-capture-and-round-trip-fixture-2026-09-22)).
+That fixture evidence does not clear the unreviewed parent fixes named above.
+
+Independent Astra-medium review (`b18_review_debt`) at `fe4bfde`: **CLEAR**
+for both rows, original authors Gemini/Opus. Reviewed original commits
+`0af3dcb`, `bb86255`, `b03bead`, `0608653` and current production wiring.
+The PCN copy runs outside FDC enable; formatter loop has one combinational
+owner; each VSC assignment has an elapsed counterpart including R7 reload.
+The vector distinguishes a whole-line offset, not exact-edge/interlace phase.
+Outstanding DDR writes survive reset/quiesce, release waits for b_we low,
+generation advances on final issue, Case6E resets before acceptance, and
+64K payload decode is correct. Production stream/mux both receive save_abort;
+stream-only reset also drains.
+
+Read-only source review; no gate rerun, ACCC rule revalidation or hardware
+acceptance. Slice4c remains open for the separately identified Dandanator
+attachment/admission defect.
