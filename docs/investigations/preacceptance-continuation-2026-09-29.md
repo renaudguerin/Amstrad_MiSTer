@@ -50,7 +50,7 @@ integrations retain their independent review and focused evidence. Their path
 classification requires no new synthesis. No private SHAKER payload or ACCC
 PDF is distributed with the diagnostics.
 
-## Added full SHAKER task — in progress
+## Added full SHAKER task — module A complete, B–E deferred
 
 The user added a fifth task: update current suite documentation for the private
 `local/test_media/shaker/CSL_27` files and run the full supported matrix. The
@@ -68,9 +68,12 @@ of the displayed hardware results. Types 2/4 must not be mapped to 0/1.
 The first classic A0 attempt retained 107 captures before SSH hostname
 resolution failed. Later cells, including its 2.6 fallback, did not execute
 usefully. This is an infrastructure interruption, not a proven CSL typo.
-The runner could not verify CFG restoration; the original backup remains with
-the exclusive device operator and must be restored/hash-verified before another
-load or release. The full A–E matrix remains incomplete.
+The runner initially could not verify CFG restoration. After connectivity was
+restored and MiSTer rebooted, the original CFG was restored and hash-verified
+before fresh execution. Module A then completed on CRTC0/1/3 with 122/127/123
+captures and no fallback required. At the user’s quota cutoff, B–E were deferred.
+Final original-CFG restoration, MENU and temporary-file cleanup are verified;
+the device slot is released. The full A–E matrix remains incomplete.
 
 Host support from source `9659157`, integrated as `dcd0218`, implements true Plus/CRTC3:
 explicit Plus model policy, system CPR before DSK, and distinct result labels.
@@ -81,14 +84,18 @@ The extension passed fail-first regression checks, fresh Opus review and the
 Exact integration CI `36526429367` passed simulation/lint, production-T80,
 synthesis policy and the required gate; synthesis correctly skipped. Logs are
 retained in `output_files/shaker27-integration/`.
-The interrupted classic run used the previous runner. The French cartridge
-boot path still needs device acceptance. The [suite report](shaker27-full-suite-2026-09-29.md)
+The interrupted classic run used the previous runner. The resumed A3 run demonstrates the French cartridge/disk boot path and
+CRTC3 script execution; it does not establish every displayed result as correct. The [suite report](shaker27-full-suite-2026-09-29.md)
 records partial A0 screen discrepancies without claiming original-hardware
 correctness. Its retained local archive is
 `output_files/shaker27-suite-2026-09-29.tar.gz`, SHA-256
 `1247f98b779e9479981af20aee81b1ebdd08eb22359373334aa7b20a72d2e13f`.
-One operator owns MiSTer and must restore and verify the original CFG before
-another load or release.
+The completed module A evidence archive is
+`output_files/shaker27-suite-2026-09-29-module-a.tar.gz`, SHA-256
+`ff5239149d379469ef4d7c94bfc4ec31d0319745ecd314ea894eed0c147dca2d`.
+Resume B–E with fresh output directories and a new independent CFG snapshot.
+The 30% speedup remains unmeasured; image/reference comparison is separate
+from successful script completion.
 
 ## Remaining physical acceptance
 

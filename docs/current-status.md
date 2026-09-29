@@ -16,8 +16,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   are integrated, with exact integration CI green through `dcd0218`. No production
   RTL changed; the `cec641c` RBF retains its identity. The added full SHAKER 2.7
   suite and 2.6 fallback task has reviewed host support for CRTC3 and updated
-  corpus paths. Hardware execution is blocked by MiSTer name resolution; original
-  CFG restoration remains pending. See the
+  corpus paths. Module A completed on CRTC0/1/3 without fallback; original CFG
+  restoration and return to MENU are verified. Modules B–E are deferred at the
+  user’s quota cutoff. See the
   [batch handoff](investigations/preacceptance-continuation-2026-09-29.md) for
   source/integration identities, evidence and remaining acceptance boundaries.
 
