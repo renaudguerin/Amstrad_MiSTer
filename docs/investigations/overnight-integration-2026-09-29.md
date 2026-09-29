@@ -79,7 +79,13 @@ verified against the downloaded copy. The aggregate run remains failed because
 of the test-directory defect; its synthesis result and production-T80 pass are
 separate evidence. The Makefile/docs repair changes no synthesized input
 (classifier false), so final CI can reuse this bitstream without relabelling it.
-Final repair CI remains pending. New-RBF device checks, real SSH-disconnect recovery,
+Final repair CI `36509154780` passed on exact commit `539933f`: 42 selected
+benches, lint, production-T80 and the required gate. Synthesis was correctly
+skipped because the Makefile/docs repair leaves all synthesized inputs identical
+to `cec641c`. The RBF retains its artifact commit name. Final CI logs are saved
+in `output_files/final-integration-539933f/actions.log`. All five reviewed task
+branches are merged and published; subsequent closeout edits are documentation
+only. New-RBF device checks, real SSH-disconnect recovery,
 unobserved key mappings and original-monitor fidelity remain separate acceptance
 work. Numeric SHAKER runs use Full once; a small targeted display corpus covers
 mode differences without tripling every numeric/title test.

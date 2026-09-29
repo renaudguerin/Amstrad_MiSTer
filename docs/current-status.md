@@ -18,8 +18,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   admission fix passed exact-SHA CI/full synthesis at `fe42298`, and its RBF is
   retained locally. Sync format-2 observations and CSL safety fixes are published. The final RTL at
   `cec641c` passed full synthesis (+0.810/+0.242 ns setup/hold, zero TNS), and
-  `output_files/Amstrad_20260929_cec641c.rbf` is delivered locally. Final CI for
-  the isolated test-directory build repair remains pending; it changes no RTL.
+  `output_files/Amstrad_20260929_cec641c.rbf` is delivered locally. Exact-head CI at `539933f` passes 42 selected benches, lint, production-T80
+  and the required gate. Its isolated test-directory build repair changes no RTL,
+  so the verified `cec641c` bitstream is reused under its original name.
   The [batch evidence and run instructions](investigations/overnight-integration-2026-09-29.md)
   distinguish these gates from the earlier user-confirmed title pass.
 
