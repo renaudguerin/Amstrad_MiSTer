@@ -182,3 +182,43 @@ supported CRTC0/1/3 remain to run, with corresponding CSL26 fallback for module
 execution problems (especially D), and separate visual/numeric comparison.
 CRTC2/4 remain unavailable and must not be substituted. Resume with fresh output
 directories, the same pinned artifacts, and a new independent CFG snapshot.
+
+
+## B–E continuation, 2026-09-30
+
+The continuation uses the same pinned RBF, disks, MBC and French Plus cartridge
+as module A. Preflight read MENU and independently saved the current CFG,
+whose hash still matches `13ef32c7…`. Fresh evidence is retained under
+`docs/references/shaker27-suite-2026-09-30/` (the repository reference directory
+resolves into the ignored specs area). The serial matrix covers B–E for
+CRTC0/1/3, Full sync, `--ssm --max-wait 120 --no-follow-loads`; each failed
+2.7 cell triggers the corresponding unmodified 2.6 script and disk.
+
+B0 failed in both versions while retrieving capture `MISTER_0_00FB.png`.
+The `00FB` marker arrived, but Main produced no PNG within the 20-second
+capture deadline. The final file-check SSH timeout had only about 25 ms
+remaining; this is a capture deadline symptom rather than evidence of an
+SSH outage. Independent SSH checks remained healthy, and both manifests
+verified exact CFG restoration. B0 remains incomplete in both versions.
+
+B1 2.7 stopped at `SHAKER-B-1.CSL` line 45, `wait_ssm 0x00E5`, after the
+120-second bound. The last observed sequence was `00D0`, `00D1`, `00D2`,
+with no recorded ring loss. The 2.6 run also revisited the `00D*` sequence
+at the corresponding transition; it continues through fixed waits, so a
+zero exit alone cannot establish that the intended pages were exercised.
+The author files are preserved; neither failure is yet classified as a typo.
+
+The B1 2.6 fallback completed in 1591.2 seconds with 129 captures. Visual
+inspection confirms its second `00D0` settings capture repeats R9=7 instead
+of establishing the intended R9=6 block. The run visibly reaches later tests,
+but that missing transition remains a coverage gap. Two overt screen-level
+discrepancies are retained: `01F4` identifies CRTC1 and prints
+`R0=0/R3=1/RS2 CALC=#34`, although its expectation for OTHER CRTC types is
+`#FF`; `019D` prints `OUTI ON R7 LAST CHANCE 5TH uSec ON C0=0 – RES: #1F
+!WRONG!`. Neither is yet an original-CPC or ACCC-derived verdict.
+
+An analyst inspected all 157 PNGs across B0 primary/fallback and B1
+primary/fallback, including full-size decisive frames. Most text pages are
+legible; tall/repeated/overlapping interlace and RFD frames require reference
+comparison. Results and final device restoration remain pending completion
+of the remaining matrix.

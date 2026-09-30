@@ -413,9 +413,10 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
   enforces four consecutive opcode fetches. The original production-T80 provider
   gap is closed at source and bounded motherboard-execution level by the
   [five-case fixture and review](investigations/ssm-csl/b4-production-fetch-2026-09-29.md);
-  it does not extend the separate [bounded format-2 device acceptance](investigations/mister-format2-b25-2026-09-29.md). A bounded live `wait_ssm` check remains before
-  claiming device acceptance, but it can use an existing Phase 1 SSM-capable RBF because the
-  refresh changes no hardware logic. The B3 frame-capture CLI works within
+  it does not extend the separate [bounded format-2 device acceptance](investigations/mister-format2-b25-2026-09-29.md). The [SHAKER 2.7 suite run](investigations/shaker27-full-suite-2026-09-29.md)
+  completed module A on CRTC0/1/3 using `wait_ssm`, with 372 captures and no
+  fallback. B–E continuation is in progress on the same pinned Phase 1
+  SSM-capable RBF; execution coverage and visual/numeric acceptance are separate. The B3 frame-capture CLI works within
   its CPU and clock limits. The AmSpirit oracle
   (`scripts/amspirit/amspirit.py`) captures reference checkpoints. See the
   [mister-capture skill](../.agents/skills/mister-capture/SKILL.md) and

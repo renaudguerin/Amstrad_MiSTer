@@ -184,9 +184,17 @@ Runner outputs: per-run manifest (effective settings, hashes, ordered command lo
 host timestamps, approximations, rejections with the six error fields the standard
 lists, screenshot names and SHA-256), the retained Main log, and a `last-run.log`.
 
-Corpus: SHAKER 2.6 (`shaker26.dsk`) with the bundled `SHAKE26*` scripts. The bundle has
-no 2.7 scripts. Establish the 2.6 baseline first, then test whether those scripts also
-drive 2.7; record disc/script hashes and observed coverage separately.
+Current corpus: author-supplied SHAKER 2.7 `wait_ssm` scripts are in
+`local/test_media/shaker/CSL_27/MODULE X/SHAKER-X-N.CSL`, paired with
+`shaker27.dsk`. The older fixed-delay scripts are in
+`CSL_26/MODULE_X/SHAKE26X-N.CSL`, paired with `shaker26.dsk`. Run 2.7 first
+for each supported CRTC0/1/3 cell, keeping `--no-follow-loads` to avoid
+unsupported CRTC2/4. Record execution problems and run the matching 2.6
+fallback, particularly for the author-warned module D. Preserve both attempts
+and distinguish transport faults from script defects. See the
+[runner guide](../hardware-runs/mister-hardware-loop-driver.md#the-csl-runner)
+and [suite record](../shaker27-full-suite-2026-09-29.md). The estimated 30%
+speedup is not a measured result.
 
 Tests (host, `python3 -m unittest discover -s scripts/hardware-loop`): parser over all
 25 bundled scripts with no rejection other than the documented ones; keycode coverage;
