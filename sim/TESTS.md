@@ -28,6 +28,7 @@ Mac, including the Verilator build.
 
 | Target | Tier | Covers | Checks |
 |---|---|---|---|
+| `scripts/amspirit test` | fast | `scripts/amspirit/*.py` | AmSpirit helper command acknowledgements, deadlines and SNA load policy |
 | `sim b18-snapshot-test` | slow | `rtl/sna_hw_header.v` `rtl/sna_save_capture.v` `rtl/sna_save_stream.v` `rtl/sna_cpu_header.v` `rtl/plus/plus_sna_header.v` `rtl/plus/plus_sna_apply.v` `sim/b18_snapshot*` `Amstrad.sv` `rtl/Amstrad_motherboard.v` `rtl/T80/*` `rtl/i8255.v` `rtl/YM2149.sv` `rtl/hid.sv` `rtl/Amstrad_MMU.v` `rtl/GA40010/*` `rtl/CRTC.v` `rtl/crtc_type*_engine.v` `scripts/hardware-loop/sna_pull.py` | Production T80 and real motherboard classic save/header/RAM restore, DDR stalls, and production host-reader publication races; also runs in production-t80 CI |
 | `sim t80-irq-sample-test` | slow | `rtl/T80/*` `sim/t80_irq_sample*` | Production-T80 (GHDL netlist) Z80 maskable-INT sampling edge per Zilog UM0080 Fig9, probed with pin-anchored early/late/held pulses, plus EI/prefix/HALT/IM1/IM2/NMI boundary preservation; also runs in production-t80 CI |
 | `sim classic-irq-phase-test` | slow | `rtl/T80/*` `sim/classic_irq_phase*` `rtl/CRTC.v` `rtl/crtc_type0_engine.v` `rtl/crtc_type1_engine.v` `rtl/GA40010/*` | Classic CPC interrupt phase measurement and regression with real CRTC types 0/1 and GA40010 on production T80pa; verifies NOP/HALT stability and detects late INT sampling on untaken RET NC per ACCC §27.7.2 |

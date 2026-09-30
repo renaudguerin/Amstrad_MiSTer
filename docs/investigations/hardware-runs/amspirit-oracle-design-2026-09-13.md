@@ -43,6 +43,9 @@ codes).
 ## 2. Verified AmSpirit capabilities (live, 2026-09-13)
 
 Probed against the local instance (lite 1.15.1, `127.0.0.1:6128`).
+Current documented 1.16 workflows are in the
+[tooling guide](amspirit-lite-1.16-tooling.md), checked against upstream on 2026-09-30.
+That documentation update does not re-verify the pilot or snapshot handoff live.
 Upstream sources:
 `amspirit-releases/docs/lite/scripting.md`,
 `amspirit-releases/docs/lite/web_api.md`, and the machine-readable
@@ -79,9 +82,12 @@ fields; neither implies the other.
 - `/api/history` (last 20 instructions), `/api/codemap`,
   `/api/basic_state|basic_listing|basic_export` (BASIC oracle: pointers,
   statement addresses, detokenized source).
-- No internal CRTC counters anywhere: Lua `cpc.getCRTC` is **nil**, and
-  `/api/crtc` exposes only registers + rasterline + vsync. Internal-counter
-  questions still go to the ACCC and our own sim.
+- The 1.15.1 probe found no Lua `cpc.getCRTC` and only registers + rasterline +
+  vsync over HTTP. In 1.16, `cpc.getCRTC()` mirrors `/api/crtc`, including extra
+  signals published by the loaded core; inspect the actual fields before assuming
+  internal counters are exposed. Lua GA state now mirrors `/api/ga` as well.
+  Tick-stamped Z80 breakpoint events support timing between software stops;
+  raw IRQ assertions and hardware-rule claims still need independent evidence.
 
 ### 2.3 Control
 
@@ -95,6 +101,13 @@ breakpoint, or after failure), `/api/basic` inject,
 `/api/ram`+`/api/exec` (poll `ram_apply_seq` before trusting readback), Z80 /
 BASIC / raster breakpoints, single-step, run-to, `POST /api/tl_back`,
 `/api/disk` create/save, `/api/quit`.
+
+In 1.16, order dependent reads using the response's `cmd_seq` and
+`emu.applied_cmd_seq`; acknowledgement starts long-running commands, whose completion
+still needs its own condition. `emu.ticks` times code in 1 µs units, restarting on
+hard reset, SNA load and rewind. `crtc=keep` permits SNA comparisons within the
+classic or Plus boundary without resetting the checkpoint. See the tooling guide
+for helper support, rewind/history configuration and disk mechanics.
 
 ### 2.4 Scripting and console
 
@@ -126,14 +139,13 @@ fine for our uses, keep `--lua-full-stdlib` off.
 
 ### 2.5 SSM scope (Track S only)
 
-SSM exists in the script engine (`wait_ssm0000()`, `#0000/#FFFF/#FFFE/
-#FFFD/#FFFC`) and CLI flags (`--ssm`, `--ssm-both`); it has **no HTTP
-surface** (absent from the full endpoint list). Marker-driven automation must
-go through a posted script. Open semantic question, do not assume: per docs,
-only `#FFFE` screenshots and `#FFFF` snapshots — ordinary per-test codes
-appear to produce nothing, unlike our runner, which captures on every
-non-reserved code. Resolve against Longshot/docs before mirroring a SHAKER
-walk.
+SSM uses the script engine and CLI flags (`--ssm`, `--ssm-both`), with no
+dedicated HTTP endpoint; marker-driven automation goes through a posted script.
+The 1.16 scripting documentation specifies `wait_ssm(code)` (0000 retains its
+legacy alias) and ordinary pairs' screenshot+snapshot fallback. A code is the
+second ED operand followed by the first: `0405` matches `ED 05 ED 04`.
+Calls enable SSM automatically. This resolves the earlier documentary ambiguity
+about ordinary captures; actual matcher parity with our runner is still unverified.
 
 ## 3. Snapshot handoff (proven to load; state transfer per-case)
 
@@ -217,7 +229,8 @@ it only if that stalls), so the pilot defect is still to be chosen.
 
 ## 6. Open questions
 
-1. AmSpirit ordinary-code capture behaviour (§2.5) — Track S only, nonblocking for Track G.
+1. Live confirmation of 1.16 ordinary-code capture behaviour (§2.5) — the upstream
+   documentation now specifies its fallback; Track S only, nonblocking for Track G.
 2. AmSpirit SSM matcher byte set vs our 177-value permissive set — Track S only, nonblocking for Track G.
 3. Per-case snapshot compatibility and configuration-matching evidence on the
    MiSTer (§§3–4). The AmSpirit save/load round trip is settled (§2.4a): the

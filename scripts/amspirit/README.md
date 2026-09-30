@@ -18,7 +18,7 @@ because the SNA is copied from AmSpirit's local script directory.
 ## Starting a debugging session
 
 Start AmSpirit lite with its HTTP server enabled (`--web-server`; the pilot used lite
-1.15.1), then run `python3 scripts/amspirit/amspirit.py identity`. Use `--url` before the
+1.15.1; current tooling guidance covers 1.16), then run `python3 scripts/amspirit/amspirit.py identity`. Use `--url` before the
 subcommand for a different address. The helper connects to an existing instance; it does
 not start the emulator. For joint device work, separately check SSH access to `root@mister`.
 B17 and Sonic GX device work require that device connection; use AmSpirit where available.
@@ -47,6 +47,7 @@ the documented rule; emulator agreement alone is not correctness.
 python3 scripts/amspirit/amspirit.py identity                 # version, config, render
 python3 scripts/amspirit/amspirit.py load cart.cpr            # load + hard reset, prints frame origin
 python3 scripts/amspirit/amspirit.py load --no-reset x.sna    # snapshots must not be reset
+python3 scripts/amspirit/amspirit.py load x.sna --crtc keep  # retain current CRTC within classic/Plus boundary
 python3 scripts/amspirit/amspirit.py wait 500                 # frames, with host deadline
 python3 scripts/amspirit/amspirit.py joy fire --frames 10     # joystick 0 via keyboard matrix row 9
 python3 scripts/amspirit/amspirit.py keys 'RUN"DISC'          # autotype, waits until typed
@@ -59,11 +60,11 @@ python3 scripts/amspirit/amspirit.py run scripts/amspirit/cases/copter271_title.
 ```
 
 `run` applies the case's `config` and `render` settings, records requested versus applied
-values, loads the media (hard reset unless `media.hard_reset` is false), executes `steps`
+values, loads the media (hard reset for other media, no reset for SNA by default), executes `steps`
 (`wait_frames`, `joystick`, `keys`, `screenshot`), then pauses and captures a checkpoint:
 screenshot, state files and SNA, all describing one instant. The requested config/render
 settings remain applied after the run. `manifest.json` records
-AmSpirit version, settings, media and case hashes, the frame origin, every event with its
+AmSpirit version/frontend, settings, media and case hashes, the frame origin, every event with its
 start and end frame offsets (`at`, `done_at`), and the SNA chunk list. It refuses an
 existing manifest. On success it restores the pause state it found (or stays on the
 checkpoint with `leave_paused`); on failure it leaves the emulator paused for post-mortem.
@@ -76,7 +77,29 @@ Keep decisive runs under `docs/references/<topic>-<date>/` in the main checkout
 
 ## API behaviour that shapes the helper
 
-Verified live on lite 1.15.1.
+The observations below were verified live on lite 1.15.1. For the documented 1.16
+capabilities and direct API/Lua recipes, read the
+[Lite 1.16 tooling guide](../../docs/investigations/hardware-runs/amspirit-lite-1.16-tooling.md).
+That update was checked against upstream documentation with read-only local endpoint
+checks; command and capture behavior was not re-probed live.
+
+Helper settings, pause, autotype and media calls require the 1.16 command acknowledgement contract:
+they wait with a host deadline for `emu.applied_cmd_seq >= cmd_seq` before dependent
+reads. Pause and autotype also wait for their own completion conditions. Missing
+acknowledgement fields produce an error rather than an assumed successful application.
+Lua eval retains its separate `seq` / `done` completion contract.
+For SNA comparisons, `load --crtc keep` or case `media.crtc: "keep"` retains the current
+CRTC within the classic/Plus boundary; default `sna` follows the snapshot header.
+SNA loads default to no reset. The manifest records effective settings after loading,
+because an SNA can override the case's requested configuration.
+`media_effect` reports the requested policy, effective CRTC and any `keep` mismatch;
+`settings.effective_after_media` contains the live model/CRTC, tick/frame readings,
+config/render and requested-setting mismatches. A Plus/classic boundary mismatch is
+recorded rather than treated as a successful preservation. `--reset` or case
+`media.hard_reset: true` is rejected for an SNA before applying machine changes.
+`state` saves the new fields returned by the existing endpoints (including FDC within
+`state.json`), but does not subscribe to breakpoint events or configure history/rewind
+automatically. Case `config` can pass the new settings through to `/api/config`.
 
 - **Loading a CPR does not reset.** Loading into a running machine left it executing garbage
   with no VSYNC. The helper hard-resets after a load unless told otherwise.
@@ -90,7 +113,9 @@ Verified live on lite 1.15.1.
   checks the pause flag and a host deadline instead of polling forever.
 - **`/api/keytype " "` is the keyboard, not the joystick.** Plus titles usually want fire;
   `keyboard_write` of matrix row 9 (active low, fire = `0x10`) works and is what `joy` does.
-- **No ASIC state over HTTP.** `/api/state` has Z80, GA, CRTC registers, PSG and FDC only.
-  Plus ASIC registers (PRI, DCSR, sprites, palette) exist only in the SNA `CPC+` chunk.
+- **The pilot exposed no Plus ASIC registers over HTTP.** It used the SNA `CPC+`
+  chunk for PRI, DCSR, sprites and palette. In 1.16, inspect the instance's published
+  GA/CRTC fields before assuming a signal is available; their extra fields depend on
+  the loaded core. The SNA remains the fallback for unavailable ASIC state.
 - **SNA from AmSpirit is v3 with `CPC+` and `SPRT` chunks.** Our core's apply path does not
   restore `SPRT`; the manifest's chunk list is what a MiSTer handoff must record.
