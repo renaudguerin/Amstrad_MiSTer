@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -41,6 +42,8 @@ class AmSpirit:
     def __init__(self, url: str, deadline: float):
         self.url = url.rstrip("/")
         self.deadline = deadline
+        self._api_ping: Optional[Dict[str, Any]] = None
+        self.last_media_result: Dict[str, Any] = {}
 
     # --- transport ---
 
@@ -54,82 +57,174 @@ class AmSpirit:
         except OSError as exc:
             raise OracleError(f"{method} {path}: {exc}") from exc
 
-    def get_json(self, path: str) -> Any:
-        with self._req("GET", path) as r:
+    def get_json(self, path: str, timeout: Optional[float] = None) -> Any:
+        with self._req("GET", path, timeout=30.0 if timeout is None else timeout) as r:
             return json.load(r)
 
     def post_json(self, path: str, payload: Dict[str, Any]) -> Any:
-        with self._req("POST", path, json.dumps(payload).encode(), "application/json") as r:
+        self.require_command_sequences()
+        with self._req("POST", path, json.dumps(payload).encode(), "application/json",
+                       timeout=self.deadline) as r:
             out = json.load(r)
         if not out.get("ok", False):
             raise OracleError(f"POST {path} {payload}: {out}")
+        self.wait_applied_cmd(out.get("cmd_seq"), path)
         return out
 
     # --- primitives ---
 
-    def emu(self) -> Dict[str, Any]:
-        return self.get_json("/api/ping")["emu"]
+    def emu(self, timeout: Optional[float] = None) -> Dict[str, Any]:
+        return self.get_json("/api/ping", timeout=timeout)["emu"]
 
-    def frames(self) -> int:
-        return int(self.emu()["frames"])
+    def require_command_sequences(self) -> Dict[str, Any]:
+        """Require the 1.16 applied-command contract before sending mutations."""
+        if self._api_ping is None:
+            ping = self.get_json("/api/ping", timeout=self.deadline)
+            applied = ping.get("emu", {}).get("applied_cmd_seq")
+            if isinstance(applied, bool) or not isinstance(applied, int):
+                raise OracleError(
+                    "AmSpirit does not publish emu.applied_cmd_seq; command ordering is "
+                    "unverifiable, so this helper requires Lite 1.16 and will not assume "
+                    "legacy commands have applied")
+            self._api_ping = ping
+        return self._api_ping
+
+    def require_crtc_keep(self) -> Dict[str, Any]:
+        """Fail before mutation unless the server advertises Lite 1.16 or newer."""
+        ping = self.require_command_sequences()
+        version = str(ping.get("version", ""))
+        match = re.match(r"^(\d+)\.(\d+)\.(\d+)", version)
+        version_tuple = tuple(map(int, match.groups())) if match else ()
+        if ping.get("frontend") != "lite" or version_tuple < (1, 16, 0):
+            raise OracleError(
+                f"CRTC keep requires a Lite 1.16+ API capability; server reports "
+                f"frontend={ping.get('frontend')!r}, version={version!r}")
+        return ping
+
+    def wait_applied_cmd(self, seq: Any, path: str = "command") -> None:
+        """Wait for a command's applied sequence, bounding each HTTP poll too."""
+        if isinstance(seq, bool) or not isinstance(seq, int):
+            raise OracleError(
+                f"{path} response has no integer cmd_seq; refusing to assume the "
+                "accepted command has been applied")
+        end = time.monotonic() + self.deadline
+        while True:
+            remaining = end - time.monotonic()
+            if remaining <= 0:
+                raise OracleError(f"cmd_seq {seq} was not applied before the host deadline")
+            try:
+                emu = self.emu(timeout=remaining)
+            except OracleError as exc:
+                if time.monotonic() >= end:
+                    raise OracleError(f"cmd_seq {seq} poll hit the host deadline") from exc
+                raise
+            applied = emu.get("applied_cmd_seq")
+            if isinstance(applied, int) and not isinstance(applied, bool) and applied >= seq:
+                return
+            time.sleep(min(0.05, max(0.0, end - time.monotonic())))
+
+    def frames(self, timeout: Optional[float] = None) -> int:
+        return int(self.emu(timeout=timeout)["frames"])
 
     def wait_frames(self, n: int) -> int:
         """Wait until emu.frames advances by n. Fails on pause or host deadline,
         because the counter stops while paused, at a breakpoint or after a crash."""
-        start = self.frames()
-        target = start + n
         end = time.monotonic() + max(self.deadline, n / 25.0)
+        remaining = end - time.monotonic()
+        if remaining <= 0:
+            raise OracleError("host deadline before frame wait started")
+        start = self.frames(timeout=remaining)
+        target = start + n
+        last_frame = start
         while True:
-            e = self.emu()
+            remaining = end - time.monotonic()
+            if remaining <= 0:
+                raise OracleError(f"host deadline: frame {last_frame} of {target} (started {start})")
+            e = self.emu(timeout=remaining)
+            last_frame = int(e["frames"])
             if e["frames"] >= target:
                 return int(e["frames"])
             if e["paused"]:
                 raise OracleError(f"emulator paused at frame {e['frames']} while waiting for {target}")
-            if time.monotonic() > end:
-                raise OracleError(f"host deadline: frame {e['frames']} of {target} (started {start})")
-            time.sleep(0.05)
+            time.sleep(min(0.05, max(0.0, end - time.monotonic())))
 
     def eval_lua(self, chunk: str, timeout: Optional[float] = None) -> str:
         """Run one Lua chunk. A chunk that waits on frames cannot finish while
         paused; paused evals without waits (snapshot saves) finish at once, so the
         pause check only starts after a grace second. A timed-out chunk keeps
         running in AmSpirit and the engine refuses new evals until it ends."""
-        with self._req("POST", "/api/eval", chunk.encode(), "text/plain") as r:
-            seq = json.load(r)["seq"]
         start = time.monotonic()
         limit = timeout or self.deadline
-        while time.monotonic() - start < limit:
-            res = self.get_json(f"/api/eval?seq={seq}")
+        end = start + limit
+        with self._req("POST", "/api/eval", chunk.encode(), "text/plain", timeout=limit) as r:
+            seq = json.load(r)["seq"]
+        while True:
+            remaining = end - time.monotonic()
+            if remaining <= 0:
+                raise OracleError(f"eval seq {seq} not done within {limit}s")
+            res = self.get_json(f"/api/eval?seq={seq}", timeout=remaining)
             if res.get("refused"):
                 raise OracleError("eval refused: script engine busy")
             if res.get("done"):
                 if res.get("error"):
                     raise OracleError(f"lua error: {res['error']}")
                 return res.get("value", "")
-            if time.monotonic() - start > 1.0 and self.emu()["paused"]:
-                raise OracleError(f"eval seq {seq} blocked: emulator paused")
-            time.sleep(0.05)
-        raise OracleError(f"eval seq {seq} not done within {limit}s")
+            if time.monotonic() - start > 1.0:
+                remaining = end - time.monotonic()
+                if remaining <= 0:
+                    raise OracleError(f"eval seq {seq} not done within {limit}s")
+                if self.emu(timeout=remaining)["paused"]:
+                    raise OracleError(f"eval seq {seq} blocked: emulator paused")
+            time.sleep(min(0.05, max(0.0, end - time.monotonic())))
 
     def set_paused(self, paused: bool) -> None:
         self.post_json("/api/config", {"paused": paused})
         end = time.monotonic() + self.deadline
-        while self.emu()["paused"] != paused:
-            if time.monotonic() > end:
-                raise OracleError(f"pause state did not become {paused}")
-            time.sleep(0.05)
+        observed = None
+        while True:
+            remaining = end - time.monotonic()
+            if remaining <= 0:
+                raise OracleError(f"pause state did not become {paused}; last state was {observed}")
+            observed = self.emu(timeout=remaining)["paused"]
+            if observed == paused:
+                return
+            time.sleep(min(0.05, max(0.0, end - time.monotonic())))
 
-    def load_media(self, path: Path, hard_reset: bool) -> int:
+    def load_media(self, path: Path, hard_reset: Optional[bool] = None, crtc: str = "sna") -> int:
         """Load media; return the frame counter read right after the (optional)
         hard reset. That read is the run's frame origin, accurate to a few frames."""
-        name = urllib.parse.quote(path.name)
-        with self._req("POST", f"/api/media?name={name}", path.read_bytes(), "application/octet-stream") as r:
+        is_sna = media_is_sna(path)
+        if hard_reset is None:
+            hard_reset = not is_sna
+        validate_media_policy(is_sna, hard_reset, crtc)
+        self.require_command_sequences()
+        crtc_before = None
+        if crtc == "keep":
+            self.require_crtc_keep()
+            crtc_before = self.emu(timeout=self.deadline).get("crtc_type")
+            if isinstance(crtc_before, bool) or not isinstance(crtc_before, int):
+                raise OracleError("CRTC keep requires a live emu.crtc_type before loading")
+        query = {"name": path.name}
+        if is_sna:
+            query["crtc"] = crtc
+        url = "/api/media?" + urllib.parse.urlencode(query)
+        with self._req("POST", url, path.read_bytes(), "application/octet-stream",
+                       timeout=self.deadline) as r:
             out = json.load(r)
         if not out.get("ok"):
             raise OracleError(f"media load refused: {out}")
+        self.wait_applied_cmd(out.get("cmd_seq"), "POST /api/media")
         if hard_reset:
             self.post_json("/api/config", {"do_hard_reset": True})
-        return self.frames()
+        emu = self.emu(timeout=self.deadline)
+        self.last_media_result = {
+            "crtc_policy": crtc,
+            "hard_reset": hard_reset,
+            "crtc_before": crtc_before,
+            "effective_crtc_type": emu.get("crtc_type"),
+            "crtc_mismatch": crtc == "keep" and emu.get("crtc_type") != crtc_before,
+        }
+        return int(emu["frames"])
 
     def screenshot(self, out: Path) -> Dict[str, Any]:
         # Settled plain frame: live=0 full=1. When the machine produces no VSYNC
@@ -185,15 +280,17 @@ class AmSpirit:
     def type_keys(self, text: str) -> None:
         self.post_json("/api/keytype", {"text": text})
         end = time.monotonic() + self.deadline
+        e: Dict[str, Any] = {}
         while True:
-            e = self.emu()
+            remaining = end - time.monotonic()
+            if remaining <= 0:
+                raise OracleError(f"autotype unfinished, {e.get('autotype_remaining', '?')} chars left")
+            e = self.emu(timeout=remaining)
             if not e["autotyping"]:
                 return
             if e["paused"]:
                 raise OracleError("emulator paused while autotyping")
-            if time.monotonic() > end:
-                raise OracleError(f"autotype unfinished, {e['autotype_remaining']} chars left")
-            time.sleep(0.1)
+            time.sleep(min(0.1, max(0.0, end - time.monotonic())))
 
 
 # --- helpers ---
@@ -223,6 +320,23 @@ def parse_sna(path: Path) -> Dict[str, Any]:
     return info
 
 
+def media_is_sna(path: Path) -> bool:
+    with path.open("rb") as media:
+        has_sna_magic = media.read(8) == b"MV - SNA"
+    if path.suffix.lower() == ".sna" and not has_sna_magic:
+        raise OracleError(f"{path.name}: .sna file has invalid snapshot magic")
+    return has_sna_magic
+
+
+def validate_media_policy(is_sna: bool, hard_reset: bool, crtc: str) -> None:
+    if crtc not in ("sna", "keep"):
+        raise OracleError(f"invalid SNA CRTC policy {crtc!r}; expected 'sna' or 'keep'")
+    if crtc == "keep" and not is_sna:
+        raise OracleError("crtc=keep is only supported when loading an SNA")
+    if is_sna and hard_reset:
+        raise OracleError("SNA media must not be hard reset; its loaded state is the reset")
+
+
 def main_checkout() -> Path:
     """Ignored media (cartridges, disks) lives only in the main checkout."""
     out = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
@@ -232,8 +346,26 @@ def main_checkout() -> Path:
 
 def identity(ams: AmSpirit) -> Dict[str, Any]:
     ping = ams.get_json("/api/ping")
-    return {"lite": ping.get("lite"), "core": ping.get("core"), "url": ams.url,
+    return {"lite": ping.get("lite"), "frontend": ping.get("frontend"),
+            "version": ping.get("version"), "core": ping.get("core"), "url": ams.url,
             "config": ams.get_json("/api/config"), "render": ams.get_json("/api/render")}
+
+
+def read_effective_settings(ams: AmSpirit, requested: Dict[str, Any]) -> Dict[str, Any]:
+    cfg, render = ams.get_json("/api/config"), ams.get_json("/api/render")
+    emu = ams.emu(timeout=ams.deadline)
+    req_cfg = requested.get("config", {})
+    req_render = requested.get("render", {})
+    crt = render.get("crt", {})
+    applied = {**cfg, **{k: render.get(k, crt.get(k)) for k in req_render}}
+    if "crtc_type" in req_cfg and "crtc_type" in emu:
+        # An SNA can switch the live CRTC without changing the saved preference.
+        applied["crtc_type"] = emu["crtc_type"]
+    mismatches = {k: {"requested": v, "applied": applied.get(k)}
+                  for k, v in {**req_cfg, **req_render}.items() if applied.get(k) != v}
+    return {"config": cfg, "render": render,
+            "emu": {k: emu.get(k) for k in ("cpc_model", "crtc_type", "frames", "ticks")},
+            "mismatches": mismatches}
 
 
 def apply_settings(ams: AmSpirit, case: Dict[str, Any]) -> Dict[str, Any]:
@@ -244,14 +376,11 @@ def apply_settings(ams: AmSpirit, case: Dict[str, Any]) -> Dict[str, Any]:
         ams.post_json("/api/config", req_cfg)
     if req_render:
         ams.post_json("/api/render", req_render)
-    time.sleep(0.2)
-    cfg, render = ams.get_json("/api/config"), ams.get_json("/api/render")
-    crt = render.get("crt", {})  # shader parameters are nested under "crt"
-    applied = {**cfg, **{k: render.get(k, crt.get(k)) for k in req_render}}
-    mismatches = {k: {"requested": v, "applied": applied.get(k)}
-                  for k, v in {**req_cfg, **req_render}.items() if applied.get(k) != v}
-    return {"requested": {"config": req_cfg, "render": req_render},
-            "applied": {"config": cfg, "render": render}, "mismatches": mismatches}
+    requested = {"config": req_cfg, "render": req_render}
+    effective = read_effective_settings(ams, requested)
+    return {"requested": requested,
+            "applied": {"config": effective["config"], "render": effective["render"]},
+            "mismatches": effective["mismatches"]}
 
 
 def run_case(ams: AmSpirit, case_path: Path, out_dir: Path, media_root: Path) -> Dict[str, Any]:
@@ -262,6 +391,16 @@ def run_case(ams: AmSpirit, case_path: Path, out_dir: Path, media_root: Path) ->
         raise OracleError(f"{manifest_path} exists; use a new --out-dir")
 
     media = media_root / case["media"]["path"]
+    is_sna = media_is_sna(media)
+    crtc_policy = case["media"].get("crtc", "sna")
+    hard_reset_value = case["media"].get("hard_reset")
+    if hard_reset_value is not None and not isinstance(hard_reset_value, bool):
+        raise OracleError("media.hard_reset must be a boolean")
+    hard_reset = (not is_sna) if hard_reset_value is None else hard_reset_value
+    validate_media_policy(is_sna, hard_reset, crtc_policy)
+    if crtc_policy == "keep":
+        # Capability checks are read-only and must happen before settings or pause change.
+        ams.require_crtc_keep()
     media_sha = sha256_file(media)
     expected = case["media"].get("sha256")
     if expected and expected != media_sha:
@@ -271,7 +410,8 @@ def run_case(ams: AmSpirit, case_path: Path, out_dir: Path, media_root: Path) ->
         "case_id": case["case_id"], "description": case.get("description", ""),
         "started_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "side": "amspirit", "identity": identity(ams),
-        "media": {"path": case["media"]["path"], "sha256": media_sha},
+        "media": {"path": case["media"]["path"], "sha256": media_sha,
+                  "crtc": crtc_policy, "hard_reset": hard_reset},
         "case_sha256": sha256_file(case_path), "steps": case.get("steps", []),
         "pipeline_position": "AmSpirit pre-shader raw frame (monitor Off), settled, plain",
         "events": [],
@@ -283,10 +423,12 @@ def run_case(ams: AmSpirit, case_path: Path, out_dir: Path, media_root: Path) ->
         if was_paused:
             ams.set_paused(False)
         manifest["settings"] = apply_settings(ams, case)
-        hard_reset = case["media"].get("hard_reset", True)
-        origin = ams.load_media(media, hard_reset)
+        origin = ams.load_media(media, hard_reset, crtc_policy)
         action = "media load and hard reset" if hard_reset else "media load (no reset)"
         manifest["frame_origin"] = {"frames": origin, "definition": f"emu.frames read right after {action}"}
+        manifest["media_effect"] = ams.last_media_result
+        manifest["settings"]["effective_after_media"] = read_effective_settings(
+            ams, manifest["settings"]["requested"])
         shot_no = 0
         # "at" is the offset when a step starts; "done_at" when it returned.
         for step in case.get("steps", []):
@@ -345,9 +487,16 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--deadline", type=float, default=30.0, help="host deadline per wait, seconds")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("identity", help="version, config and render settings")
-    s = sub.add_parser("load", help="load media (hard reset by default)")
+    s = sub.add_parser("load", help="load media (CPR resets by default; SNA never resets)")
     s.add_argument("media", type=Path)
-    s.add_argument("--no-reset", action="store_true")
+    reset = s.add_mutually_exclusive_group()
+    reset.add_argument("--reset", dest="reset", action="store_true",
+                       help="hard reset after loading (SNA files cannot be reset)")
+    reset.add_argument("--no-reset", dest="reset", action="store_false",
+                       help="skip the hard reset after loading")
+    s.set_defaults(reset=None)
+    s.add_argument("--crtc", choices=("sna", "keep"), default="sna",
+                   help="SNA CRTC policy (default: use the snapshot's CRTC)")
     s = sub.add_parser("wait", help="wait N emulated frames")
     s.add_argument("frames", type=int)
     s = sub.add_parser("shot", help="settled screenshot to a PNG")
@@ -380,8 +529,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.cmd == "identity":
             out: Any = identity(ams)
         elif args.cmd == "load":
-            out = {"frame_origin": ams.load_media(args.media, not args.no_reset),
-                   "sha256": sha256_file(args.media)}
+            frame_origin = ams.load_media(args.media, args.reset, args.crtc)
+            out = {"frame_origin": frame_origin, "sha256": sha256_file(args.media),
+                   "media_effect": ams.last_media_result}
         elif args.cmd == "wait":
             out = {"frames": ams.wait_frames(args.frames)}
         elif args.cmd == "shot":

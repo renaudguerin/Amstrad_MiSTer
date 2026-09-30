@@ -20,6 +20,12 @@ control MiSTer.
 - Read [the helper guide](../../../scripts/amspirit/README.md) for commands, case format,
   supported API behavior, and limitations. Read [the oracle design](../../../docs/investigations/hardware-runs/amspirit-oracle-design-2026-09-13.md)
   before treating a result as evidence for a hardware rule.
+- For command ordering, breakpoint timing, CRTC-preserving SNA comparisons, rewind,
+  CSL key chords or SSM checkpoints, read the
+  [Lite 1.16 tooling guide](../../../docs/investigations/hardware-runs/amspirit-lite-1.16-tooling.md).
+  The helper waits for command acknowledgements and supports SNA `crtc=keep`;
+  breakpoint events, rewind navigation and CSL/SSM scripts use the direct API or Lua.
+  Check the instance identity and published fields before using them.
 
 ## Run a test
 
@@ -49,6 +55,10 @@ control MiSTer.
    settled screenshot can be stale if the machine stopped producing VSYNC; identical frames
    on an animated title are a reason to inspect machine state, not evidence that the screen
    is stable. Use the helper's bounded frame waits rather than unbounded polling.
+   For finer timing, subtract `ticks` at two breakpoint stops within one uninterrupted
+   run (1 tick = 1 µs). Hard reset, SNA load and rewind restart the tick epoch. For direct
+   API writes, wait with a host deadline for `emu.applied_cmd_seq >= cmd_seq` before
+   reading back; long-running commands also need their completion condition.
 5. Keep decisive outputs under `docs/references/<topic>-<date>/` in the main checkout
    (gitignored, never committed). Record AmSpirit version, effective model/CRTC and render
    settings, media hash, input/checkpoint, and what the evidence establishes.
