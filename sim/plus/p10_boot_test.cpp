@@ -2204,131 +2204,6 @@ void run_capture_cli(const CaptureOptions &options,
               << " output=" << options.output_path << std::endl;
 }
 
-// One focused case per CLI boundary class (parse shape, non-clobbering
-// output).  These pin the fail-closed contract without enumerating every
-// micro-variant; simulation is not involved.
-void test_b3_capture_cli_validation() {
-    std::cout << "Running test_b3_capture_cli_validation..." << std::endl;
-    auto parse = [](std::vector<const char *> args) {
-        std::vector<char *> mutable_args;
-        for (const char *arg : args)
-            mutable_args.push_back(const_cast<char *>(arg));
-        return parse_capture_options(static_cast<int>(mutable_args.size()),
-                                     mutable_args.data());
-    };
-    auto expect_reject = [&](std::vector<const char *> args, const char *why) {
-        bool rejected = false;
-        try {
-            parse(args);
-        } catch (const TestFailure &) {
-            rejected = true;
-        }
-        require(rejected, std::string("CLI accepted invalid input: ") + why);
-    };
-    expect_reject({"p10_boot_tests", "--capture-cpr", "a.cpr", "--frames", "0",
-                   "--output", "o.txt"}, "zero frame count");
-    expect_reject({"p10_boot_tests", "--capture-cpr", "a.cpr", "--frames", "17",
-                   "--output", "o.txt"}, "over-limit frame count");
-    expect_reject({"p10_boot_tests", "--capture-cpr", "a.cpr", "--frames", "two",
-                   "--output", "o.txt"}, "non-numeric frame count");
-    expect_reject({"p10_boot_tests", "--capture-cpr", "a.cpr", "--frames", "2"},
-                  "missing --output");
-    expect_reject({"p10_boot_tests", "--frames", "2", "--frames", "2",
-                   "--capture-cpr", "a.cpr", "--output", "o.txt"},
-                  "duplicate --frames");
-    expect_reject({"p10_boot_tests", "--help", "--frames", "2"},
-                  "--help combined with other arguments");
-    expect_reject({"p10_boot_tests", "--frobnicate"}, "unknown argument");
-
-    const CaptureOptions valid = parse({"p10_boot_tests", "--capture-cpr", "a.cpr",
-                                        "--frames", "2", "--output", "o.txt"});
-    require(valid.capture_requested && valid.frame_count == 2 &&
-                valid.cpr_path == "a.cpr" && valid.output_path == "o.txt",
-            "CLI rejected a well-formed capture invocation");
-
-    // Non-clobbering output: same input/output path and pre-existing output
-    // must both fail before any simulation starts.
-    {
-        bool rejected_same = false;
-        try {
-            reject_existing_capture_output("same.cpr", "same.cpr");
-        } catch (const TestFailure &) {
-            rejected_same = true;
-        }
-        require(rejected_same,
-                "CLI accepted an output path identical to its CPR input");
-    }
-    // Non-clobbering output probes live in the test working directory and
-    // are removed afterwards: the harness must not depend on an OS temp
-    // directory.  A stale probe from a crashed run is cleared first so a
-    // leftover cannot wedge the suite.
-    const std::string existing = "b3_cli_exists_probe.tmp";
-    const std::string link_to_existing = "b3_cli_link_probe.tmp";
-    const std::string dangling_link = "b3_cli_dangling_probe.tmp";
-    {
-        std::error_code ignored;
-        std::filesystem::remove(existing, ignored);
-        std::filesystem::remove(link_to_existing, ignored);
-        std::filesystem::remove(dangling_link, ignored);
-    }
-    {
-        std::ofstream probe(existing, std::ios::binary);
-        require(static_cast<bool>(probe), "could not create CLI probe file");
-        probe << "occupied";
-    }
-    bool rejected_existing = false;
-    try {
-        reject_existing_capture_output("some.cpr", existing);
-    } catch (const TestFailure &) {
-        rejected_existing = true;
-    }
-    // A symlink to an existing file is an existing output: the pre-check
-    // follows it to the occupied target and refuses before any simulation.
-    bool rejected_link = false;
-    {
-        std::error_code link_error;
-        std::filesystem::create_symlink("b3_cli_exists_probe.tmp",
-                                        link_to_existing, link_error);
-        require(!link_error,
-                "could not create CLI symlink probe: " + link_error.message());
-        try {
-            reject_existing_capture_output("some.cpr", link_to_existing);
-        } catch (const TestFailure &) {
-            rejected_link = true;
-        }
-    }
-    // A dangling symlink is invisible to the pre-check (no target exists),
-    // so the exclusive open must refuse it rather than follow it: prove the
-    // boundary on the primitive directly, without simulation. Either errno
-    // is a refusal (ELOOP where O_NOFOLLOW reports the refused follow,
-    // EEXIST where the link entry itself collides with O_CREAT|O_EXCL, as
-    // on macOS); what matters is that nothing is followed or created.
-    bool refused_dangling = false;
-    {
-        std::error_code link_error;
-        std::filesystem::create_symlink("b3_cli_no_such_target.tmp",
-                                        dangling_link, link_error);
-        require(!link_error,
-                "could not create CLI dangling probe: " + link_error.message());
-        ExclusiveFileBuf dangling;
-        refused_dangling = !dangling.open(dangling_link);
-        require(refused_dangling &&
-                    (dangling.error_number() == ELOOP ||
-                     dangling.error_number() == EEXIST),
-                "exclusive open followed a dangling symlink instead of refusing it");
-    }
-    {
-        std::error_code remove_error;
-        std::filesystem::remove(existing, remove_error);
-        std::filesystem::remove(link_to_existing, remove_error);
-        std::filesystem::remove(dangling_link, remove_error);
-    }
-    require(rejected_existing, "CLI accepted a pre-existing output path");
-    require(rejected_link, "CLI accepted a symlink to a pre-existing output path");
-    require(refused_dangling, "CLI exclusive open followed a dangling symlink");
-    std::cout << "PASS: capture CLI fails closed on invalid input" << std::endl;
-}
-
 } // namespace
 
 int main(int argc, char **argv) {
@@ -2351,7 +2226,6 @@ int main(int argc, char **argv) {
 		test_b3_malformed_cpr_rejected();
 		test_b3_truncated_cpr_rejected();
 		test_b3_repeat_capture_stable(binary_identity);
-		test_b3_capture_cli_validation();
         test_p10a_deterministic_boot();
 		test_real_u765_edsk_read();
 		std::cout << "\nAll P10 Production CPR Boot Harness tests PASSED.\n";

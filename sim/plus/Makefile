@@ -491,7 +491,7 @@ PARALLEL := -j$(JOBS) $(if $(filter 3.%,$(MAKE_VERSION)),,-Otarget)
 
 .PHONY: test slow full test-run slow-run full-run list-tests b8-field $(FAST_TESTS)
 test slow full:
-	@$(MAKE) --no-print-directory $(PARALLEL) $@-run
+	@"$(MAKE)" --no-print-directory $(PARALLEL) $@-run
 
 test-run: $(FAST_TESTS)
 slow-run: $(SLOW_TESTS)
@@ -539,7 +539,7 @@ B20MAT_TEST_BIN := $(B20MAT_OBJ_DIR)/b20_ack_matrix_tests
 B20MAT_NETLIST  := $(abspath ../obj_dir/t80/T80pa.v)
 B20MAT_VHDL_SRC := $(addprefix $(abspath ../../rtl/T80)/,T80_Pack.vhd T80_ALU.vhd T80_MCode.vhd T80_Reg.vhd T80.vhd T80pa.vhd)
 $(B20MAT_NETLIST): $(B20MAT_VHDL_SRC)
-	$(MAKE) -C .. t80-netlist
+	"$(MAKE)" -C .. t80-netlist
 $(B20MAT_TEST_BIN): $(B20MAT_TEST_SRC) $(B20MAT_NETLIST) Makefile | $(OBJ_DIR)
 	$(VERILATOR) --cc --exe --build --top-module T80pa \
 		--Mdir $(B20MAT_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" \
@@ -871,7 +871,7 @@ D5_FR ?= ../../docs/plus/cartridges/06_System/6128_FR.cpr
 .PHONY: d5-boot-build d5-boot
 
 d5-boot-build:
-	$(MAKE) -C .. t80-netlist
+	"$(MAKE)" -C .. t80-netlist
 	python3 prepare_d5_boot.py
 	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --top-module p10_boot_test_top --Mdir $(D5_OBJ_DIR) -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" -o d5_boot $(D5_SRC_DIR)/p10_boot_test_top.v $(D5_RTL) $(abspath d5_boot_test.cpp)
 
@@ -896,7 +896,7 @@ B20_BUS_OBJ_DIR := $(abspath obj_dir/b20_bus_diag)
 .PHONY: b20-bus-diag-build b20-bus-diag
 
 b20-bus-diag-build:
-	$(MAKE) -C .. t80-netlist
+	"$(MAKE)" -C .. t80-netlist
 	python3 prepare_d5_boot.py
 	$(VERILATOR) --cc --exe --build -j 4 +1364-2001ext+.v +1800-2017ext+.sv -UVERILATOR -DP10_DMA_MOBO_REAL_IO --top-module p10_boot_test_top -GSYNC_FILTER=0 --Mdir $(B20_BUS_OBJ_DIR) -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" -o b20_bus_diag $(D5_SRC_DIR)/p10_boot_test_top.v $(D5_RTL) $(abspath b20_bus_diag_test.cpp)
 
