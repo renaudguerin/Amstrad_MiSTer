@@ -11,7 +11,7 @@ HDL_FILES := ga40010_test.v ga40010.sv syncgen.v syncgen_sync.v casgen.v \
 	casgen_sync.v video.sv rslatch.v ../CRTC.v \
 	../crtc_type0_engine.v ../crtc_type1_engine.v
 
-VERILATOR_FLAGS := --cc --exe --build --trace --top-module $(TOP) -Wno-fatal
+VERILATOR_FLAGS := --cc --exe --build --top-module $(TOP) -Wno-fatal
 CXXFLAGS ?= -std=c++17 -O2
 
 .PHONY: all test lint clean
