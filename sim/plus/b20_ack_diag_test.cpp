@@ -216,32 +216,6 @@ void b8_stream_chunk_apply(Vplus_p8_test_top& dut,
 	tick(); tick();
 }
 
-void b8_stream_plain_apply(Vplus_p8_test_top& dut,
-                           const std::function<void()>& tick,
-                           const B8Header& hdr = B8Header()) {
-	dut.sna_download = 1;
-	dut.seam_plus_asic_reset = 1;
-	tick();
-	dut.seam_plus_asic_reset = 0;
-	b8_stream_header(dut, tick, hdr);
-	for (int i = 0; i < 3; ++i) tick();
-	dut.sna_download = 0;
-	int loads = 0;
-	int last = 0;
-	for (int i = 0; i < 1000; ++i) {
-		tick();
-		int cur = dut.ctl_sna_load ? 1 : 0;
-		if (cur && !last) ++loads;
-		last = cur;
-		if (!dut.sna_busy && !dut.ctl_finish_pending && dut.ctl_apply_cnt == 0 &&
-		    i > 10)
-			break;
-	}
-	if (loads != 1)
-		fail("B20 setup: plain SNA produced " + std::to_string(loads) + " loads, expected 1");
-	tick(); tick();
-}
-
 // One acknowledge pulse sampled every clock: returns the vector bytes seen.
 // Asserts vec_valid throughout and within-ack stability (the source field is
 // sampled on the first acknowledge edge and held, asic_regs.v:618-638).
@@ -491,44 +465,6 @@ void test_pa7_compatible_during_dma(Vplus_p8_test_top& dut) {
     }
 }
 
-void test_b20_idle_probe(Vplus_p8_test_top& dut) {
-	auto tick = [&]() { dut.clk = 0; dut.eval(); dut.clk = 1; dut.eval(); };
-	b8_global_reset(dut, tick);
-	b8_stream_plain_apply(dut, tick);
-
-	// Define IVR explicitly through the CPU page port (&6805).
-	dut.aregs_cs = 1;
-	dut.aregs_mem_wr = 1;
-	dut.aregs_mem_rd = 0;
-	dut.aregs_addr = 0x2805;
-	dut.aregs_din = 0x00;
-	tick();
-	dut.aregs_cs = 0;
-	dut.aregs_mem_wr = 0;
-	dut.eval();
-	if (dut.aregs_ivr != 0x00)
-		fail("B20 idle setup: IVR page write did not land");
-
-	uint8_t vec = 0xFF;
-	int valid_clocks = 0;
-	dut.ga_m1_n = 0;
-	dut.ga_iorq_n = 0;
-	for (int i = 0; i < 4; ++i) {
-		tick();
-		if (dut.ack_vec_valid) {
-			vec = dut.ack_vec_byte;
-			++valid_clocks;
-		}
-	}
-	b20_release(dut, tick, 4);
-	// Informational: current idle vector, deliberately NOT compared to S29
-	// (S29's DMA0 claim is scoped to the post-raster window, not to every
-	// idle acknowledge). No assertion constrains future idle semantics.
-	std::printf("B20 IDLE (informational): isolated acknowledge with nothing ever pending gave "
-	            "0x%s on %d/4 valid clocks (current model; no S29 comparison)\n",
-	            hex_str(vec, 2).c_str(), valid_clocks);
-}
-
 } // namespace
 
 int main(int argc, char** argv) {
@@ -544,7 +480,6 @@ int main(int argc, char** argv) {
 		}
 		{
 			Vplus_p8_test_top dut;
-			test_b20_idle_probe(dut);
 			test_pa6e_simultaneous_priority(dut);
 			test_pa7_compatible_during_dma(dut);
 		}

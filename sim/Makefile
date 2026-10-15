@@ -34,9 +34,9 @@ VIDEO_OUTPUT_BIN := $(OBJ_DIR)/video_output/Vamstrad_video_output
 all: test
 
 build: $(TEST_BIN) crt-filter-blank-build $(VIDEO_COLOR_BIN) $(VIDEO_OUTPUT_BIN) $(SSM_BIN)
-	$(MAKE) -C plus build
-	$(MAKE) -C ../rtl/GA40010 all
-	$(MAKE) -C ../rtl/u765 build
+	"$(MAKE)" -C plus build
+	"$(MAKE)" -C ../rtl/GA40010 all
+	"$(MAKE)" -C ../rtl/u765 build
 
 crt-filter-blank-build: $(CRTF_TEST_BIN)
 
@@ -56,7 +56,7 @@ SIM_TESTS := crtc-test crt-filter-blank-test crtc-cpu-phase-test video-color-tes
 
 .PHONY: full test-run full-run list-tests crtc-test plus-test plus-full ga40010-test u765-test
 test full:
-	@$(MAKE) --no-print-directory $(PARALLEL) $@-run
+	@"$(MAKE)" --no-print-directory $(PARALLEL) $@-run
 
 list-tests:
 	@echo $(SIM_TESTS) b18-snapshot-test t80-irq-sample-test classic-irq-phase-test classic-b25-test ssm-provider-test
@@ -69,16 +69,16 @@ crtc-test: $(TEST_BIN)
 	$(TEST_BIN)
 
 plus-test:
-	$(MAKE) -C plus test-run
+	"$(MAKE)" -C plus test-run
 
 plus-full:
-	$(MAKE) -C plus full-run
+	"$(MAKE)" -C plus full-run
 
 ga40010-test:
-	$(MAKE) -C ../rtl/GA40010 test
+	"$(MAKE)" -C ../rtl/GA40010 test
 
 u765-test:
-	$(MAKE) -C ../rtl/u765 test
+	"$(MAKE)" -C ../rtl/u765 test
 
 # Randomized equivalence soak (sim/README.md). Override the golden hash to
 # check one, e.g.: make -C sim soak SOAK_EXPECT=1a2b3c4d5e6f7081
@@ -140,15 +140,15 @@ lint:
 	$(VERILATOR) --lint-only --top-module sna_save_stream -Wall -Wno-fatal ../rtl/sna_save_stream.v
 	$(VERILATOR) --lint-only --top-module sna_ddr_mux -Wall -Wno-fatal ../rtl/sna_ddr_mux.v
 	$(VERILATOR) --lint-only --top-module sna_cart_mux -Wall -Wno-fatal ../rtl/sna_cart_mux.v
-	$(MAKE) -C plus lint
-	$(MAKE) -C ../rtl/GA40010 lint
-	$(MAKE) -C ../rtl/u765 lint
+	"$(MAKE)" -C plus lint
+	"$(MAKE)" -C ../rtl/GA40010 lint
+	"$(MAKE)" -C ../rtl/u765 lint
 
 clean:
 	$(RM) -r -- $(OBJ_DIR)
-	$(MAKE) -C plus clean
-	$(MAKE) -C ../rtl/GA40010 clean
-	$(MAKE) -C ../rtl/u765 clean
+	"$(MAKE)" -C plus clean
+	"$(MAKE)" -C ../rtl/GA40010 clean
+	"$(MAKE)" -C ../rtl/u765 clean
 
 # Real GA divider/enables with post-edge CPU bus launches (B8-1).
 CPU_PHASE_RTL := crtc_cpu_phase_top.sv $(RTL) $(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v)
@@ -297,7 +297,7 @@ production-t80-test: t80-trace-test crtc-t80-test crtc-t80-old-test t80-freeze-t
 # Plus cartridge execution rate on the production T80 (sim/plus d5-cart-timing).
 .PHONY: plus-d5-cart-timing
 plus-d5-cart-timing:
-	$(MAKE) -C plus d5-cart-timing
+	"$(MAKE)" -C plus d5-cart-timing
 
 $(CRTC_T80_OLD_BIN): $(CRTC_T80_OLD_RTL) crtc_t80_test.cpp Makefile
 	mkdir -p $(OBJ_DIR)/crtc_t80_old
