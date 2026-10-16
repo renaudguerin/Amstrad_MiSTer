@@ -53,6 +53,8 @@ import cpc_keys
 import ssm_ring
 from cpc_keys import KeyGroup, KeyTranslationError, sequence_tokens, translate_text
 from driver import (
+    CaptureFailedError,
+    CaptureTimeoutError,
     DriverError,
     SSHTransport,
     check_pillow_installed,
@@ -365,6 +367,7 @@ class RunOptions:
         sync_filter: Optional[str] = None,
         screenshot_scaled: bool = False,
         plus_cartridge_path: Optional[str] = None,
+        tolerate_capture_timeout: bool = False,
     ):
         validate_device_path(rbf_path, "rbf_path")
         validate_device_path(disk_dir, "disk_dir")
@@ -399,6 +402,7 @@ class RunOptions:
         self.ssm_startup_polls = ssm_startup_polls
         self.sync_filter = sync_filter.lower() if sync_filter is not None else None
         self.screenshot_scaled = screenshot_scaled
+        self.tolerate_capture_timeout = tolerate_capture_timeout
 
 
 class Backend:
@@ -484,6 +488,26 @@ def _cfg_apply_bits(data: bytes, bits: Dict[int, int]) -> bytes:
         else:
             out[index] &= 0xFF ^ mask
     return bytes(out)
+
+
+def _is_capture_timeout(error: Exception) -> bool:
+    """True when a capture failed because Main never produced the PNG.
+
+    Tests that deliberately break or stop video sync leave the scaler without
+    fresh frames, so Main's asynchronous grab times out.  That failure is a
+    property of the captured state, not of the walk, so
+    --tolerate-capture-timeout may record it and continue.
+
+    Classified on the exception type, not the message: when the deadline
+    expires during the final poll, the recorded text is the transport's SSH
+    timeout, and matching text would silently miss exactly the case this flag
+    exists for (B0-27, 2026-10-16).
+
+    Output the grab produced but the pipeline could never use (persistent
+    download failure, persistently invalid PNG, broken file check) raises
+    CaptureFailedError instead, which is never tolerated.
+    """
+    return isinstance(error, CaptureTimeoutError)
 
 
 class DeviceBackend(Backend):
@@ -725,13 +749,28 @@ class DeviceBackend(Backend):
         self.actions.append(record)
         return record
 
+    def _remote_shot_name(self, name: str) -> str:
+        """Attempt-unique remote filename for a logical capture name.
+
+        The manifest and the local file keep the logical `name`
+        (MISTER_0_02EA.png); Main is asked for a per-attempt name so a grab
+        that lands after a tolerated timeout cannot poison the next attempt's
+        preflight (a D0-27 02EA leftover aborted attempts 8 and 9 on
+        2026-10-16).  The out-dir leaf (cell tag + attempt, e.g. D0-27-full-a7)
+        is unique per attempt because the runner refuses to reuse an out-dir.
+        """
+        stem, dot, ext = name.rpartition(".")
+        token = "".join(ch if ch.isalnum() or ch in "_.-" else "_" for ch in self.out_dir.name)
+        return f"{stem}-{token}.{ext}" if dot else f"{name}-{token}"
+
     def screenshot(self, name: str) -> Dict[str, Any]:
         validate_screenshot_name(name)
-        remote = f"/media/fat/screenshots/{name}"
+        shot = self._remote_shot_name(name)
+        remote = f"/media/fat/screenshots/{shot}"
         local = self.out_dir / name
         if self._run(f"test ! -e {shlex.quote(remote)}").exit_code != 0:
             raise DriverError(f"Screenshot path already exists or cannot be checked: {remote}")
-        cmd = f"screenshot scaled {name}" if self.options.screenshot_scaled else f"screenshot {name}"
+        cmd = f"screenshot scaled {shot}" if self.options.screenshot_scaled else f"screenshot {shot}"
         if self._run(f"printf '%s\\n' {shlex.quote(cmd)} > /dev/MiSTer_cmd").exit_code != 0:
             raise DriverError(f"screenshot command failed for {name}")
 
@@ -739,6 +778,13 @@ class DeviceBackend(Backend):
         dims: Optional[Tuple[int, int]] = None
         last_error: Optional[str] = None
         attempts = 0
+        # Terminal-classification signals: same rule as
+        # driver.run_hardware_loop.  A remote file the grab produced but the
+        # pipeline could never use is a harness or device fault
+        # (CaptureFailedError, never tolerated); only a file never observed,
+        # or a valid PNG that arrived past the deadline, is a capture timeout.
+        # Poll exceptions keep the existing retry behaviour.
+        saw_remote_file, saw_bad_check, completed_late = False, False, False
         while self.time_fn() < deadline:
             attempts += 1
             remaining = deadline - self.time_fn()
@@ -750,7 +796,9 @@ class DeviceBackend(Backend):
                     self.sleep_fn(min(self.options.poll_interval, max(0.0, deadline - self.time_fn())))
                     continue
                 if stat.exit_code != 0:
+                    saw_bad_check = True
                     raise DriverError(f"Capture file check failed ({stat.exit_code}): {stat.stderr}")
+                saw_remote_file = True
                 remaining = deadline - self.time_fn()
                 if remaining <= 0:
                     break
@@ -758,6 +806,7 @@ class DeviceBackend(Backend):
                 candidate = verify_png(local)
                 if self.time_fn() >= deadline:
                     last_error = "Capture completed after its deadline"
+                    completed_late = True
                     break
                 dims = candidate
                 self._run(f"rm -f {shlex.quote(remote)}")
@@ -768,8 +817,17 @@ class DeviceBackend(Backend):
 
         if dims is None:
             message = last_error or f"Capture {name} timed out after {self.options.capture_timeout}s"
-            self.captures.append({"name": name, "status": "failed", "error": message})
-            raise DriverError(message)
+            self.captures.append({"name": name, "status": "failed", "error": message,
+                                  "remote_path": remote, "local_path": str(local)})
+            try:
+                self._run(f"rm -f {shlex.quote(remote)}")
+            except Exception:
+                pass  # Best effort only: a still-pending Main grab can
+                # recreate the file after we leave.  The per-attempt remote
+                # name keeps such a leftover from poisoning any other attempt.
+            if not completed_late and (saw_remote_file or saw_bad_check):
+                raise CaptureFailedError(message)
+            raise CaptureTimeoutError(message)
 
         record = {
             "action": "screenshot", "name": name, "remote_path": remote,
@@ -950,6 +1008,7 @@ class CslRunner:
 
         self.trace: List[Dict[str, Any]] = []
         self.approximations: List[Dict[str, Any]] = []
+        self.capture_failures: List[Dict[str, Any]] = []
         self.folded: Dict[int, int] = {}
         self._fold_order: Dict[int, List[int]] = {}
         self.ssm_records: List[Dict[str, Any]] = []
@@ -1141,7 +1200,16 @@ class CslRunner:
             name = name.replace(".png", f"_{self.capture_names[name]}.png")
         else:
             self.capture_names[name] = 1
-        result = self.backend.screenshot(name)
+        try:
+            result = self.backend.screenshot(name)
+        except DriverError as exc:
+            if not self._tolerated_capture_failure(command, name, exc, record=record):
+                raise
+            # The marker advanced but no capture backs it: drop the neighbour
+            # pointer so a later paired success cannot attach its
+            # same-phase warning to this marker's predecessor (Codex defect 3).
+            self.last_capture_record = None
+            return
         result["ssm_record"] = record
         result["capture_semantics"] = (
             "Main's asynchronous scaler grab, at least one VSYNC after the marker; "
@@ -1490,6 +1558,27 @@ class CslRunner:
             )
         self._do_wait_ssm(command, int(command.args[0], 16))
 
+    def _tolerated_capture_failure(self, command: Optional[Command], name: str,
+                                   error: Exception,
+                                   record: Optional[Dict[str, Any]] = None) -> bool:
+        """Record a frameless-page capture failure; return True when the walk may continue.
+
+        Off by default: a missing PNG normally stops the walk, because it can
+        mean the machine is wedged.  With --tolerate-capture-timeout the
+        failure is recorded (the backend has already listed it in captures)
+        and the walk continues, so one frameless page does not cost the rest
+        of the module.
+        """
+        if not (self.options.tolerate_capture_timeout and _is_capture_timeout(error)):
+            return False
+        failure: Dict[str, Any] = {"name": name, "error": str(error)}
+        if record is not None:
+            failure["ssm_code"] = record.get("code")
+        self.capture_failures.append(failure)
+        if command is not None:
+            self._record(command, "capture_failed", name=name, error=str(error))
+        return True
+
     def _do_screenshot(self, command: Command) -> None:
         self._ensure_machine(command)
         if command.args and command.args[0].lower() == "vsync":
@@ -1502,8 +1591,15 @@ class CslRunner:
             raise command.error(f"unknown screenshot option {command.args[0]!r}", self.script_version)
         self.capture_count += 1
         name = self.screenshot_name or f"csl_{self.entry_script_stem}_{self.capture_count:03d}"
-        self.backend.screenshot(f"{name}.png")
+        # The pending name belongs to this capture whether or not it lands; a
+        # tolerated failure must not leave it for a later #FFFE marker.
         self.screenshot_name = None
+        try:
+            self.backend.screenshot(f"{name}.png")
+        except DriverError as exc:
+            if not self._tolerated_capture_failure(command, f"{name}.png", exc):
+                raise
+            return
         self._record(command, "captured", name=f"{name}.png")
 
     def _host_capture(self, command: Command) -> None:
@@ -1516,7 +1612,12 @@ class CslRunner:
         self.capture_count += 1
         crtc = self.crtc_requested or "unknown"
         name = f"MISTER_{crtc}_{Path(command.script).stem}_{command.line:04d}_{self.capture_count:03d}.png"
-        self.backend.screenshot(name)
+        try:
+            self.backend.screenshot(name)
+        except DriverError as exc:
+            if not self._tolerated_capture_failure(command, name, exc):
+                raise
+            return
         self._record(command, "host_capture", name=name)
 
     # --- main walk --------------------------------------------------------
@@ -1796,6 +1897,7 @@ def run_csl(
         if runner is not None:
             manifest.setdefault("trace", runner.trace)
             manifest["approximations"] = _dedupe_approximations(runner.approximations)
+            manifest["capture_failures"] = getattr(runner, "capture_failures", [])
         if backend is not None:
             manifest["actions"] = getattr(backend, "actions", [])
             manifest["captures"] = getattr(backend, "captures", [])
@@ -1884,6 +1986,10 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                         help="Save the screenshot with Main's Imlib2 software resize of the "
                              "native scaler capture (same DDR source at 0x20000000, not an "
                              "independent HDMI capture) instead of native unscaled resolution")
+    parser.add_argument("--tolerate-capture-timeout", action="store_true",
+                        help="Record a Main capture timeout (a frameless page whose test "
+                             "breaks video sync) as a failed capture and continue the walk "
+                             "instead of aborting; failed captures stay listed in the manifest")
     return parser.parse_args(argv)
 
 
@@ -1921,6 +2027,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             ssm_startup_seconds=args.ssm_startup_timeout,
             sync_filter=args.sync_filter,
             screenshot_scaled=args.screenshot_scaled,
+            tolerate_capture_timeout=args.tolerate_capture_timeout,
         )
     except (ValueError, argparse.ArgumentTypeError) as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
@@ -1948,6 +2055,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     print(f"status={manifest['status']} commands={manifest.get('command_count')} "
           f"captures={len(manifest.get('captures', []))} "
+          f"capture_failures={len(manifest.get('capture_failures', []))} "
           f"ssm_records={len(manifest.get('ssm_records', []))}")
     return 0
 

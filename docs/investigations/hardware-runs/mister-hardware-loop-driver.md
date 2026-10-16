@@ -210,7 +210,38 @@ A failed 2.7 cell retains its partial manifest and screenshots; record script,
 line, expected marker, last observed marker and error, then run its matching
 `CSL_26/MODULE_X/SHAKE26X-N.CSL` with `shaker26.dsk` and the script’s fixed
 waits. Keep SSM enabled for capture in both versions. A successful fallback
-establishes fallback execution coverage, not a passing 2.7 script. Investigate
+establishes fallback execution coverage, not a passing 2.7 script.
+
+A capture whose page has no fresh scaler frames — a test that deliberately
+breaks video sync — makes Main's grab time out, and by default that stops the
+walk. `--tolerate-capture-timeout` records the failed capture (a `failed` entry
+in `captures` plus a `capture_failures` list) and continues, so one frameless
+page does not cost the rest of the module; the run still reports
+`status=success` and its summary line carries `capture_failures=<n>`.
+
+The tolerated condition is a typed one (`CaptureTimeoutError`), not a message
+match, because the text that survives to the caller varies: when the deadline
+expires during the final `test -f` poll the transport's own
+`SSH command timed out after Ns` is what gets recorded. A capture that lands
+*after* its deadline also raises that type — the PNG exists locally but the
+manifest keeps it as a failed capture, since its content may be stale. Output
+the grab produced but the pipeline could never use — a file observed remotely
+that never downloads or verifies before the deadline, or a `test -f` poll
+reporting a genuine check failure — raises `CaptureFailedError` instead, which
+is never tolerated: unlike a frameless page, those all mean the harness or the
+device path is at fault. Real device faults (path already present, a failed
+`screenshot` command) stay ordinary `DriverError`s and still stop the walk.
+Failed entries record `remote_path`/`local_path` for salvage.
+
+Remote screenshot names carry the out-dir leaf (cell tag + attempt), while the
+manifest and local file keep the logical capture name: a grab that lands after
+a tolerated timeout therefore cannot poison the next attempt's preflight. A
+best-effort `rm` runs on the failure path too, but Main can still recreate the
+file afterwards — the unique name is what makes that harmless. A tolerated SSM
+failure also clears the neighbour pointer, so a later paired success cannot
+attach its same-phase warning to an older, distant capture.
+
+Investigate
 transport failures separately from script defects; a marker timeout alone does
 not prove a typo. Record elapsed time and coverage without treating the author’s
 expected speedup as a measurement.

@@ -48,7 +48,7 @@ from csl_runner import (
     parse_script,
     run_csl,
 )
-from driver import CommandResult, DriverError, validate_raw_seq
+from driver import CaptureFailedError, CaptureTimeoutError, CommandResult, DriverError, validate_raw_seq
 from test_driver import ScriptedTransport, create_minimal_png_bytes
 
 TEST_MEDIA_DIR = Path(__file__).resolve().parents[2] / "local" / "test_media" / "shaker"
@@ -847,6 +847,199 @@ class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
         uploaded = {k for k in self.transport.files if k.startswith("/media/fat/csl_")}
         self.assertTrue(uploaded)
         self.assertTrue(uploaded <= removed)
+
+    def _frameless_screenshots(self) -> None:
+        """Make every Main screenshot poll report 'not ready'.
+
+        A page whose test deliberately breaks video sync starves the scaler,
+        which is what a frameless page looks like from the host.  The first
+        matching handler wins, so this one moves in front of the mixin's
+        ready handler.
+        """
+        self.transport.register_handler(
+            lambda c: c.startswith("test -f /media/fat/screenshots/"),
+            lambda c: CommandResult(1, "", ""))
+        self.transport.handlers.insert(0, self.transport.handlers.pop())
+
+    def test_capture_timeout_stops_the_walk_by_default(self):
+        # Default stays fail-fast: a missing PNG can mean the machine is
+        # wedged, so the walk must not silently continue past it.
+        self._frameless_screenshots()
+        with self.assertRaises(DriverError):
+            self._run(MINIMAL, screenshot_at=[("m.csl", 4), ("m.csl", 8)],
+                      capture_timeout=0.05)
+
+    def test_tolerate_capture_timeout_keeps_the_walk_after_a_frameless_page(self):
+        # The opt-in flag records the frameless page and still reaches the
+        # later capture point, so one page cannot cost the rest of a module.
+        self._frameless_screenshots()
+        manifest = self._run(MINIMAL, screenshot_at=[("m.csl", 4), ("m.csl", 8)],
+                             capture_timeout=0.05, tolerate_capture_timeout=True)
+        self.assertEqual(manifest["status"], "success")
+        self.assertEqual(len(manifest["capture_failures"]), 2)
+        self.assertEqual([c["status"] for c in manifest["captures"]], ["failed", "failed"])
+        self.assertEqual(
+            [a["outcome"] for a in manifest["trace"] if a["outcome"] == "capture_failed"],
+            ["capture_failed", "capture_failed"],
+        )
+
+    def test_tolerate_capture_timeout_covers_ssm_marker_captures(self):
+        # SHAKER's real captures are SSM-marker driven (B0 00FB, D0 02EA), so
+        # the tolerance must cover that path and not only --screenshot-at.
+        self._frameless_screenshots()
+        opts = options(self.tmp / "out-ssm", capture_timeout=0.05,
+                       tolerate_capture_timeout=True, ssm=True)
+        backend = DeviceBackend(self.transport, opts, self.tmp / "out-ssm",
+                                sleep_fn=lambda s: None, time_fn=self._clock())
+        runner = CslRunner([], opts, backend, "m.csl")
+        # The state a `crtc_select 0` walk reaches: CFG bit 2 is the CRTC
+        # selection, and the capture name follows the effective type.
+        runner.crtc_requested = "0"
+        runner.crtc_status_bit = 1
+        runner._ssm_capture({"frame": 1, "code": "1234"}, None)
+        self.assertEqual(runner.capture_failures,
+                         [{"name": "MISTER_0_1234.png",
+                           "error": "Capture MISTER_0_1234.png timed out after 0.05s",
+                           "ssm_code": "1234"}])
+
+    def test_tolerate_capture_timeout_survives_a_poll_that_times_out_at_the_deadline(self):
+        # Real failure shape (B0-27 attempt 4, 2026-10-16): the deadline
+        # expires *during* the final `test -f` poll, so the transport's own SSH
+        # timeout is what gets recorded, not the canonical "Capture ... timed
+        # out after Ns".  Classifying on that text silently missed the exact
+        # case the flag exists for, so the failure is classified by type.
+        def poll_times_out(cmd: str) -> CommandResult:
+            raise DriverError(f"SSH command timed out after 0.01s: {cmd}")
+
+        self.transport.register_handler(
+            lambda c: c.startswith("test -f /media/fat/screenshots/"), poll_times_out)
+        self.transport.handlers.insert(0, self.transport.handlers.pop())
+        manifest = self._run(MINIMAL, screenshot_at=[("m.csl", 4), ("m.csl", 8)],
+                             capture_timeout=0.05, tolerate_capture_timeout=True)
+        self.assertEqual(manifest["status"], "success")
+        self.assertEqual(len(manifest["capture_failures"]), 2)
+        self.assertIn("SSH command timed out",
+                      manifest["capture_failures"][0]["error"])
+
+    def _backend(self, out_name: str, **opt_kwargs: Any) -> DeviceBackend:
+        """Direct live-backend handle: classify without running a whole walk."""
+        out = self.tmp / out_name
+        out.mkdir(parents=True, exist_ok=True)
+        opts = options(out, capture_timeout=0.05, **opt_kwargs)
+        return DeviceBackend(self.transport, opts, out,
+                             sleep_fn=lambda s: None, time_fn=self._clock())
+
+    def _write_garbage_screenshot(self, cmd: str) -> CommandResult:
+        """A grab Main produced but the pipeline can never use."""
+        self.transport.files[cmd.split()[-1]] = b"not a png"
+        return CommandResult(0, "", "")
+
+    def test_unusable_capture_download_is_fatal_even_when_tolerated(self):
+        # Codex defect 1: the file exists remotely but can never be fetched.
+        # That is a harness fault, not a frameless page, so the flag must not
+        # swallow it into a successful walk.
+        backend = self._backend("out-dl", tolerate_capture_timeout=True)
+
+        def download_fails(remote: str, local: Path, timeout: float) -> None:
+            raise DriverError("SCP failed: connection reset")
+
+        self.transport.download_file = download_fails  # type: ignore[method-assign]
+        with self.assertRaises(CaptureFailedError):
+            backend.screenshot("MISTER_0_1234.png")
+        failed = backend.captures[-1]
+        self.assertEqual((failed["status"], failed["name"]), ("failed", "MISTER_0_1234.png"))
+        self.assertIn("remote_path", failed)
+
+    def test_persistently_invalid_png_is_fatal_even_when_tolerated(self):
+        # Codex defect 1: bytes arrive on every poll but never verify.  A
+        # partial write would heal on retry; garbage that never heals is fatal.
+        backend = self._backend("out-badpng", tolerate_capture_timeout=True)
+        self.transport.register_handler(
+            lambda c: c.startswith("test -f /media/fat/screenshots/"),
+            self._write_garbage_screenshot)
+        self.transport.handlers.insert(0, self.transport.handlers.pop())
+        with self.assertRaises(CaptureFailedError):
+            backend.screenshot("MISTER_0_1234.png")
+
+    def test_broken_file_check_is_fatal_even_when_tolerated(self):
+        # Codex defect 1: `test -f` itself failing (exit code other than 0/1)
+        # means the check pipeline is broken, so absence is unprovable.
+        backend = self._backend("out-badcheck", tolerate_capture_timeout=True)
+        self.transport.register_handler(
+            lambda c: c.startswith("test -f /media/fat/screenshots/"),
+            lambda c: CommandResult(2, "", "test: boom"))
+        self.transport.handlers.insert(0, self.transport.handlers.pop())
+        with self.assertRaises(CaptureFailedError):
+            backend.screenshot("MISTER_0_1234.png")
+
+    def test_completed_after_deadline_stays_a_tolerated_timeout(self):
+        # Guard, not a fix prover: the endorsed late-arrival case (a valid PNG
+        # past the deadline) must stay a tolerated CaptureTimeoutError, so the
+        # defect-1 refactor must not narrow the deadline side.
+        out = self.tmp / "out-late"
+        out.mkdir()
+        ticks = iter([0.0, 1.0, 9.0, 9.0, 50.0, 50.0])
+        backend = DeviceBackend(self.transport, options(out, capture_timeout=10.0),
+                                out, sleep_fn=lambda s: None,
+                                time_fn=lambda: next(ticks, 50.0))
+        with self.assertRaises(CaptureTimeoutError) as ctx:
+            backend.screenshot("MISTER_0_1234.png")
+        self.assertIn("completed after its deadline", str(ctx.exception))
+        self.assertEqual(backend.captures[-1]["status"], "failed")
+
+    def test_remote_capture_names_are_unique_per_attempt(self):
+        # Codex defect 2 (D0-27 02EA, 2026-10-16): a leftover MISTER_0_02EA.png
+        # aborted the next attempt's preflight.  The manifest and local file
+        # keep the logical name; Main is asked for a per-attempt remote name.
+        backend7 = self._backend("D0-27-full-a7")
+        record = backend7.screenshot("MISTER_0_02EA.png")
+        self.assertEqual(Path(record["local_path"]).name, "MISTER_0_02EA.png")
+        self.assertIn("D0-27-full-a7", record["remote_path"])
+        dispatched = [e["command"] for e in self.transport.command_log
+                      if "screenshot" in e["command"] and e["command"].endswith("> /dev/MiSTer_cmd")]
+        self.assertTrue(any("MISTER_0_02EA-D0-27-full-a7.png" in c for c in dispatched))
+        # Tonight's exact poison — a stale *logical-name* file — must not
+        # block the next attempt, whose preflight checks its own unique name.
+        self.transport.files["/media/fat/screenshots/MISTER_0_02EA.png"] = (
+            create_minimal_png_bytes(8, 8))
+        backend8 = self._backend("D0-27-full-a8")
+        record8 = backend8.screenshot("MISTER_0_02EA.png")
+        self.assertEqual(record8["status"], "completed")
+
+    def test_tolerated_ssm_failure_clears_the_neighbour_pointer(self):
+        # Codex defect 3: marker 1 succeeds, marker 2 fails tolerated, marker 3
+        # succeeds paired-close to marker 2.  The same-phase warning must not
+        # land on marker 1's distant capture — and pairing must still fire, or
+        # the test would prove nothing.
+        out = self.tmp / "out-nb"
+        out.mkdir()
+        opts = options(out, capture_timeout=0.05,
+                       tolerate_capture_timeout=True, ssm=True)
+        backend = DeviceBackend(self.transport, opts, out,
+                                sleep_fn=lambda s: None, time_fn=self._clock())
+        runner = CslRunner([], opts, backend, "m.csl")
+        runner.crtc_requested = "0"
+        runner.crtc_status_bit = 1
+        runner._ssm_capture({"frame": 1, "code": "1234"}, None)
+        first = runner.last_capture_record
+        self._frameless_screenshots()
+        runner._ssm_capture({"frame": 100, "code": "1235"}, None)
+        self.transport.handlers.pop(0)
+        runner._ssm_capture({"frame": 101, "code": "1236"}, None)
+        self.assertIn("state_uncertain", runner.last_capture_record)
+        self.assertNotIn("state_uncertain", first)
+
+    def test_unusable_capture_output_aborts_the_walk_even_when_tolerated(self):
+        # Runner layer: a CaptureFailedError is not a timeout, so the flag
+        # must not record-and-continue — the walk stops loudly instead of
+        # reporting success with missing data.
+        self.transport.register_handler(
+            lambda c: c.startswith("test -f /media/fat/screenshots/"),
+            self._write_garbage_screenshot)
+        self.transport.handlers.insert(0, self.transport.handlers.pop())
+        with self.assertRaises(CaptureFailedError):
+            self._run(MINIMAL, screenshot_at=[("m.csl", 4)],
+                      capture_timeout=0.05, tolerate_capture_timeout=True)
 
 
 class TestDeviceCfgFailureRecovery(DeviceHarnessMixin, unittest.TestCase):

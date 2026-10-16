@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, List, Optional
 from PIL import Image
 
 from driver import (
+    CaptureFailedError,
     CommandResult,
     DriverError,
     SSHTransport,
@@ -257,6 +258,31 @@ class TestHardwareLoopContracts(unittest.TestCase):
         self.assertIn("screenshot", str(ctx.exception))
         manifest = json.loads((self.out_dir / "manifest.json").read_text())
         self.assertEqual(manifest["status"], "failed")
+
+    @staticmethod
+    def _write_garbage_shot(transport: ScriptedTransport, cmd: str) -> CommandResult:
+        name = cmd.split("screenshot ")[1].split("'")[0].strip()
+        transport.files[f"/media/fat/screenshots/{name}"] = b"not a png"
+        return CommandResult(0, "", "")
+
+    def test_persistently_invalid_png_is_a_failed_capture_not_a_timeout(self):
+        """Bytes Main produced but the pipeline can never verify are a failed
+        capture (Codex defect 1), not a frameless-page timeout."""
+        transport = ScriptedTransport()
+        self._setup_working_device(transport)
+        transport.handlers.insert(0, (
+            lambda cmd: "screenshot " in cmd and "> /dev/MiSTer_cmd" in cmd,
+            lambda cmd: self._write_garbage_shot(transport, cmd),
+        ))
+        state = {"t": 0.0}
+
+        def now() -> float:
+            state["t"] += 0.01
+            return state["t"]
+
+        with self.assertRaises(CaptureFailedError):
+            run_hardware_loop(transport, self.config, self.out_dir, target="mister",
+                              sleep_fn=lambda _: None, time_fn=now)
 
     def test_hash_failure_nonzero_or_malformed(self):
         """sha256sum failure or malformed output must abort before load, not masquerade as UNKNOWN."""

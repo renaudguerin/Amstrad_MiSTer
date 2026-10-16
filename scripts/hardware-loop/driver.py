@@ -29,6 +29,33 @@ class DriverError(Exception):
     """Base error for test loop failures."""
 
 
+class CaptureTimeoutError(DriverError):
+    """Main never delivered the screenshot PNG before the capture deadline.
+
+    A frameless page (a test that breaks or stops video sync) starves the
+    scaler, and the error text that survives to the caller is not always the
+    canonical "Capture ... timed out after Ns": when the deadline expires
+    during the final `test -f` poll, the transport's own SSH timeout message is
+    what gets recorded.  Callers that need to distinguish a frameless page from
+    a real device fault must therefore classify on this type, not on the text.
+    """
+
+
+class CaptureFailedError(DriverError):
+    """The grab produced output the pipeline could not use, or the file check
+    itself was broken.
+
+    Raised instead of CaptureTimeoutError when a remote screenshot file was
+    observed at least once but never downloaded and verified before the
+    deadline (persistent download failure, persistently invalid PNG), or when
+    a `test -f` poll reported a genuine check failure (exit code other than
+    0/1).  A late-but-valid PNG ("Capture completed after its deadline")
+    stays a CaptureTimeoutError: the acquisition failed its deadline, not its
+    content.  Never tolerated: unlike a frameless page, these all mean the
+    harness or the device path is at fault.
+    """
+
+
 # --- Validation Helpers ---
 
 _TARGET_REGEX = re.compile(r"^[a-zA-Z0-9._\-@]+$")
@@ -607,6 +634,11 @@ def run_hardware_loop(
             deadline = time_fn() + config["timeouts"]["capture_timeout"]
             corruption_retries, poll_attempts = 0, 0
             verified_dims, last_err = None, None
+            # Terminal-classification signals (Codex defect 1): a file the
+            # grab produced but the pipeline could never use is a harness or
+            # device fault, not a frameless page.  Poll exceptions keep the
+            # existing retry behaviour; only the terminal error type changes.
+            saw_remote_file, saw_bad_check, completed_late = False, False, False
 
             while time_fn() < deadline:
                 poll_attempts += 1
@@ -619,7 +651,9 @@ def run_hardware_loop(
                         sleep_fn(min(config["timeouts"]["poll_interval"], max(0.0, deadline - time_fn())))
                         continue
                     if stat.exit_code != 0:
+                        saw_bad_check = True
                         raise DriverError(f"Capture file check failed ({stat.exit_code}): {stat.stderr}")
+                    saw_remote_file = True
                     rem = deadline - time_fn()
                     if rem <= 0:
                         break
@@ -627,6 +661,7 @@ def run_hardware_loop(
                     dims = verify_png(local_shot)
                     if time_fn() >= deadline:
                         last_err = "Capture completed after its deadline"
+                        completed_late = True
                         break
                     verified_dims = dims
                     break
@@ -640,7 +675,16 @@ def run_hardware_loop(
             if verified_dims is None:
                 err_msg = last_err or f"Capture {shot_name} timed out after {config['timeouts']['capture_timeout']}s"
                 captures.append({"index": i, "name": shot_name, "remote_path": remote_shot, "local_path": str(local_shot), "sha256": "", "dimensions": [0, 0], "poll_attempts": poll_attempts, "status": "failed", "error": err_msg})
-                raise DriverError(err_msg)
+                try:
+                    transport.run_cmd(f"rm -f {shlex.quote(remote_shot)}", timeout=cmd_timeout)
+                except Exception:
+                    pass  # Best effort only: a still-pending Main grab can
+                    # recreate the file after we leave (D0-27 02EA, 2026-10-16).
+                    # Run-unique remote names keep such a leftover from
+                    # poisoning any other attempt's preflight.
+                if not completed_late and (saw_remote_file or saw_bad_check):
+                    raise CaptureFailedError(err_msg)
+                raise CaptureTimeoutError(err_msg)
 
             sha = hashlib.sha256(local_shot.read_bytes()).hexdigest()
             captures.append({"index": i, "name": shot_name, "remote_path": remote_shot, "local_path": str(local_shot), "sha256": sha, "dimensions": list(verified_dims), "poll_attempts": poll_attempts, "status": "completed", "error": None})
