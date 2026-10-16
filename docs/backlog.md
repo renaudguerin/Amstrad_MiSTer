@@ -571,7 +571,11 @@ class of small geometric difference. Two practical positions:
   accuracy target below hardware and documentary evidence.
 
 Use our repeated captures to establish repeatability, then compare selected cases
-with the site's Amspirit references. The plan records the test/image mapping and
+with the site's Amspirit references. [`scripts/shaker-ref/`](../scripts/shaker-ref/README.md)
+scrapes them into a hex-keyed layout with an `index.json` join key; the
+2026-10-15 pull (`docs/specs/shaker-ref-logon/`, ignored) holds AmSpirit Lite
+1.15 CRTC 0/1/3, 1296 images, with 54 CRTC3 misses (DU/D8/DH) that have no
+emulator reference. The plan records the test/image mapping and
 keeps original references locally with attribution. Hardware remains the final
 authority; differing pixels alone do not establish which result is correct.
 
