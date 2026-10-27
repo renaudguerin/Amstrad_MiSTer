@@ -1041,6 +1041,28 @@ void t03i_r6_border_latched_until_frame_origin(TestBench& test) {
     test.expect_de("t03i C4=R6=0 at the frame origin borders", false);
 }
 
+// ACCC v1.11 FR §18.2.1 p.189: the restore condition is C4=C9=C0=0, not a
+// frame end. Lowering R4 below C4 makes C4 overflow (§12.5 p.103): it runs
+// to 127 and wraps to 0 with C9=C0=0, which restores the display although
+// no R4 frame end occurred.
+void t03j_r6_border_cleared_by_c4_overflow(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(4, 5);  // R4=5: C4 0..5
+    test.write_register(6, 2);  // R6=2: border from C4=2
+    test.write_register(9, 0);  // R9=0: one scanline per character row
+    test.write_register(1, 4);
+    test.run_to_frame_start();
+
+    test.run_to_state(2, 0, 1, "t03j C4=2");
+    test.expect_de("t03j C4=R6 borders C4=2", false);
+    test.run_to_state(3, 0, 1, "t03j C4=3");
+    test.write_register(4, 1);  // R4 < C4: C4 overflows through 127
+    test.run_to_state(127, 0, 1, "t03j C4=127");
+    test.expect_de("t03j overflow rows stay bordered", false);
+    test.run_to_state(0, 0, 1, "t03j C4 wrapped to 0");
+    test.expect_de("t03j C4=C9=C0=0 after overflow restores the display", true);
+}
+
 // ACCC §19.2.3 p.194-195 (SKEW-DISPTMG exists on types 0/3/4): delay +1
 // shifts both visible border edges by one character; mode 3 forces
 // BORDER ON regardless of R1/R6 state.
@@ -3182,7 +3204,7 @@ void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.expect_ra("t08j next row starts at offset RA 5", 5);
 }
 
-constexpr std::array<TestCase, 74> kTests = {{
+constexpr std::array<TestCase, 75> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3208,6 +3230,7 @@ constexpr std::array<TestCase, 74> kTests = {{
     {"t03e R6 line-start-only semantics", t03e_r6_line_start_semantics},
     {"t03h VDE rows past R6 stay bordered", t03h_vde_rows_past_r6_stay_bordered},
     {"t03i R6 border latched until frame origin", t03i_r6_border_latched_until_frame_origin},
+    {"t03j R6 border cleared by C4 overflow", t03j_r6_border_cleared_by_c4_overflow},
     {"t03f adjustment rows solidified", t03f_adjustment_rows_solidified},
     {"t03g SKEW-DISPTMG delay and BORDER ON", t03g_skew_delay_and_border_on},
     {"t04a HSYNC position and width", t04a_hsync_position_and_width},
