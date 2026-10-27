@@ -29,9 +29,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   re-minted; hardware recheck pending the next master RBF). The other four have their SHAKER
   register sequences decoded from the disk but no vector yet
   ([sequences](investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md)). The
-  [CRTC0 wedge](investigations/hardware-runs/crtc0-ssm-wedge-2026-10-27.md) after B0-27 `00FB` is
-  a VSYNC wait with C4 apparently stuck at 30 (core candidate; needs a pin-bench vector from the
-  test's register sequence). The [D1-27 stall](investigations/hardware-runs/d1-27-stall-2026-10-27.md)
+  [CRTC0 wedge](investigations/hardware-runs/crtc0-ssm-wedge-2026-10-27.md) after B1/A1 `00FB` is
+  fixed in simulation: the F16 frozen IVM-exit comparator never released on a non-matching exit;
+  it now releases at the C9 31-to-0 wrap (release point inferred; real CRTC0 continues to `00FC`;
+  [report](investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md)). The
+  [D1-27 stall](investigations/hardware-runs/d1-27-stall-2026-10-27.md)
   at 0305 reproduces; cause open.
 
 - **SHAKER 2.7 modules B–E and sync-filter comparison (2026-10-15/16):** on delivered

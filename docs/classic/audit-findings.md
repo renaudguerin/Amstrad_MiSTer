@@ -371,6 +371,11 @@ General implementation rules for all fix prompts:
   `t22l`-`t22s` walking through $C_9=7$ without premature reset at $C_9=6$ on non-matching exits, and `t30a`/`t30b`
   verifying the p.221 mid-line recovery recipe on odd and even frames.
 - **Confidence: high.** Derived directly from ACCC v1.11 pp.220-225 exit tables and author confirmation.
+- **Release (2026-10-27):** the source tables stop at C9=7 and do not bound the frozen lifetime. Real
+  CRTC 0 continues after SHAKER B1/A1's non-matching exit (frozen 15 vs R9=7), so a permanent freeze
+  is wrong. The engine now releases it when C9 wraps 31 to 0 without a row end (§10.3.1.1 p.76). The
+  release point is an inference pinned by `t30c`; see
+  `docs/investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md`.
 
 ## F17. Type-1 RFD triggered on C9=R9 disables VMA-source state
 

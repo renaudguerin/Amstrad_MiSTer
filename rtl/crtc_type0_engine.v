@@ -212,6 +212,8 @@ wire type0_seam = CLKEN && (hcc == 0);
 wire type0_leaving_ivm_line = (tog_line && !tog_enter_line) ||
                               (r8_toggle_write_t0 && (DI[1:0] != 2'b11));
 
+wire type0_frozen_wrap = !in_adj && (line == 5'd31);
+
 always @(posedge CLOCK) begin
 	if(~nRESET | SNA_LOAD | CRTC_TYPE) begin
 		ivm_disp_r <= 0;
@@ -226,10 +228,17 @@ always @(posedge CLOCK) begin
 			tog_line <= 0;
 		end
 		if(CLKEN && line_new) begin
+			// F16 release: the frozen comparison also ends when C9 wraps
+			// 31 -> 0 without a row end (ACCC v1.11 FR section 10.3.1.1
+			// p.76: a C9 that misses its limit counts to 31 and wraps to 0).
+			// `line` is still the ending line's value at this edge (CRTC.v
+			// updates it nonblocking from line_next).  Release point
+			// inferred from hardware SHAKER B1 00FB/00FC, not stated by
+			// section 19.8.1.  The in_adj limit (R5) is unaffected.
 			if(type0_leaving_ivm_line) begin
-				ivm_exit_frozen <= !type0_rollover_line_last;
+				ivm_exit_frozen <= !type0_rollover_line_last && !type0_frozen_wrap;
 			end
-			else if(type0_rollover_line_last) begin
+			else if(type0_rollover_line_last || type0_frozen_wrap) begin
 				ivm_exit_frozen <= 0;
 			end
 		end
