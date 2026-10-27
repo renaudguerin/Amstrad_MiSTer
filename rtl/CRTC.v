@@ -306,7 +306,7 @@ crtc_type1_engine crtc_type1_engine
 (
 	CLOCK, CLKEN, nCLKEN, nRESET, CRTC_TYPE, SNA_LOAD,
 	ENABLE, nCS, R_nW, RS, DI, addr,
-	R0_h_total, R1_h_displayed, R3_h_sync_width, R4_v_total,
+	R0_h_total, R1_h_displayed, R2_h_sync_pos, R3_h_sync_width, R4_v_total,
 	R5_v_total_adj, R6_v_displayed, R7_v_sync_pos, R8_interlace, R9_v_max_line,
 	hcc, hcc_next, hcc_last, hcc_end, line, row, c5, in_adj, crtc1_adj_from_row0,
 	VSYNC_r, vsync_allow, hsc, vde_r,
