@@ -232,9 +232,15 @@ always @(posedge CLOCK) begin
 			// 31 -> 0 without a row end (ACCC v1.11 FR section 10.3.1.1
 			// p.76: a C9 that misses its limit counts to 31 and wraps to 0).
 			// `line` is still the ending line's value at this edge (CRTC.v
-			// updates it nonblocking from line_next).  Release point
-			// inferred from hardware SHAKER B1 00FB/00FC, not stated by
-			// section 19.8.1.  The in_adj limit (R5) is unaffected.
+			// updates it nonblocking from line_next).  The in_adj limit
+			// (R5) is unaffected.
+			// UNCERTAIN: section 19.8.1 p.221 and its exit tables
+			// (pp.224-225) stop at C9=7 and never say how long the frozen
+			// comparison lasts.  Real CRTC 0 does end it (SHAKER B1
+			// continues from 00FB to 00FC, frozen 15 vs R9=7), but when is
+			// unknown: this wrap point is the least-assumption choice, not a
+			// documented rule.  t30c pins only that frames resume.  Open
+			// author question 21 in docs/classic/accc-author-questions.md.
 			if(type0_leaving_ivm_line) begin
 				ivm_exit_frozen <= !type0_rollover_line_last && !type0_frozen_wrap;
 			end

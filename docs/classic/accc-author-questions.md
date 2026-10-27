@@ -348,6 +348,25 @@ with it.
     44 and 512 scanlines respectively. Those predictions remain unmeasured; the documentary
     residual itself is closed by the author's direct answer.
 
+21. **§19.8.1 p.221, tables pp.224–225 — how long does the frozen post-IVM-exit comparison last
+    on CRTC 0?**
+
+    **OPEN, not yet sent.** After R8 returns from 3 to 0 with C9.VMA different from R9, the
+    p.221 prose and the exit tables show C9 running on past R9, which we model as a comparison
+    of the frozen C9.VMA against plain R9 (F16). The tables stop at C9=7, and the text does not
+    say when this state ends.
+
+    Real hardware shows that it does end. SHAKER 2.7 B1/A1 (parity-detect routine at
+    `SHAKE27B.BIN` `0x7722`) leaves IVM with C9.VMA=15 and then restores R9=7, and the Logon
+    System CRTC 0 photographs continue normally to page `00FC`. Read literally, a permanent
+    freeze would stop C4, and therefore VSYNC, forever.
+
+    Question: once C9 has missed R9 after the exit, what ends the frozen comparison? Is it
+    (a) C9 overflowing 31 to 0, after which the plain C9=R9 test applies; (b) a C9.VMA value
+    that keeps being recomputed after the exit; or (c) something else? The core currently
+    assumes (a) (`rtl/crtc_type0_engine.v`, `t30c`); see
+    `docs/investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md`.
+
 Also noted while verifying (no answer needed, listed for completeness): p.196 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay
 applies to type 0's substituted trigger (the placement caveat cited by
