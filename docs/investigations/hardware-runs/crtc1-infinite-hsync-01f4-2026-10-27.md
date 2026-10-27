@@ -79,3 +79,9 @@ monitor HSYNC at the re-entry position, which is visible only as monitor timing.
 
 - The hardware check of the new RBF on SHAKER `01F4` waits for the next master synthesis.
 - The §15.3.4 GA re-sync blip is not modelled; see Change above.
+
+## MiSTer recheck
+
+The [2026-10-27 recheck](shaker-followup-recheck-2026-10-27.md) on the exact
+`925b5bb` RBF still reads `CALC=#34` for R0=0, against original CRTC1 `#FF`.
+The pin-level rule remains implemented; integrated CRTC/GA/IRQ acceptance fails.
