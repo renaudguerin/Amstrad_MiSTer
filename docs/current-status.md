@@ -12,12 +12,12 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **Draft release prepared (2026-10-27):** [v2026.10.27](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-2feb66355206bf724e0d)
+- **Published release (2026-10-27):** [v2026.10.27](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/v2026.10.27)
   targets the verified full-effort build `321f96a`; attached
   `Amstrad_20261027.rbf` SHA-256 `6bc43724…400d`. It contains the Alcon R6-border
   fix and the classic CRTC0 freeze/CRTC1 infinite-HSYNC fixes. The notes distinguish
   hardware confirmation from the inferred CRTC0 release edge and list the open
-  accuracy issues. It remains a draft, not a published release.
+  accuracy issues. GitHub publication and the attached asset digest are verified.
 
 - **Alcon 2020 top-band fix (2026-10-27, integrated `c666e19` from `plus/alcon2020-top-lines`):** the
   garbage band above the playfield is the HUD CRTC frame's last rows. `asic_video` treated the
@@ -45,20 +45,25 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   `03AE`/`03B4` remain integrated-phase investigations; their pin replay passes.
   `008D` retains its unproven width-counter hypothesis (author question 22).
   [D1-27](investigations/hardware-runs/d1-27-stall-2026-10-27.md) at `0305` remains
-  open on CRTC1. The [decoded sequences](investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md)
+  unresolved on CRTC1; it was last reproduced on `cec641c` and needs a retest on
+  the published build before further diagnosis. The [decoded sequences](investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md)
   and [photo comparison](investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md)
   retain the remaining evidence.
 
-- **SHAKER 2.7 modules B–E and sync-filter comparison (2026-10-15/16):** on delivered
-  `cec641c`, every 2.6-path cell walks its module, but several 2.7 cells stall
-  deterministically at fixed SSM markers (B0/B1, C0/C1/C3, D0/D1/D3, E0/E3). On CRTC0,
-  a sync-breaking page (`00FB`, `02EA`, the C5 parity page) is followed by no further SSM
-  markers; whether real CRTC0 continues is open and needs the hardware path. The byte/pixel
-  mask is content-neutral where capture locks; Raw CRT differences come from its window
-  and sync path. Text-level AmSpirit divergences (B1 `01F4` `CALC=#34` vs `#FF`, DE `03AE`/
-  `03B4`) survive the filter change. Runner timeout tolerance and triage tools are
-  committed; zero-capture runs now fail after the runner repair. See the
-  [session report](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md).
+- **Remaining classic accuracy work:** `019D` has a failing production-T80
+  regression; the physical write-visibility rule is the missing evidence, and a
+  common latch change must also re-examine the existing B8 assumptions.
+  `03AE`/`03B4` need the authentic module-D production replay because their
+  scripted CRTC-only replay already reloads the correct video address. A shared
+  cause with `019D` is possible but unproven. `008D` needs a hardware discriminator
+  or author answer before changing the VSYNC-width counter's clock source.
+  D1's first step is a release-build retest, then multiple snapshots and the
+  caller disassembly if it still stalls. These are investigation/evidence tasks,
+  not four established RTL patches ready to implement.
+  The older [B–E capture report](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md)
+  retains the other module stalls and filter observations from `cec641c`; its
+  CRTC0 B1 and CRTC1 `01F4` failures are superseded by the fixes above.
+  Zero-capture runs now fail after the runner repair.
 
 - **Pre-acceptance continuation (2026-09-29):** all four initial evidence tasks
   are integrated, with exact integration CI green through `dcd0218`. No production
