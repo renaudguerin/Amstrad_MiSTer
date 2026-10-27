@@ -355,6 +355,7 @@ public:
     }
 
     bool raw_vsync() const { return dut_->rootp->CRTC__DOT__VSYNC_r; }
+    bool raw_hsync() const { return dut_->HSYNC; }
     bool frame_parity() const { return dut_->rootp->CRTC__DOT__parity_frame; }
     bool frame_end_pending() const { return dut_->rootp->CRTC__DOT__frame_new; }
     unsigned row_counter() const { return dut_->rootp->CRTC__DOT__row; }
@@ -1663,6 +1664,59 @@ void test_type1_r0_zero_keeps_one_character_lines(TestBench& test) {
     test.expect_ra("type 1 widened line before C0 reaches R0", 5);
     test.run_characters(1);
     test.expect_ra("type 1 widened line advances C9/RA at C0=R0", 6);
+}
+
+// Shared by t09m/t09n: type 1, R2=0, R3l=1.  Returns once raw HSYNC has
+// first risen; fails if no pulse starts within a few characters.
+void start_type1_r2_zero_one_char_hsync(TestBench& test, std::uint8_t r0) {
+    configure_f5_r0_zero_fixture(test, 1, 0);
+    test.write_register(0, r0);
+    test.select_register(0);
+    for (unsigned tick = 0; tick < 4 * kClockTicksPerCharacter; ++tick) {
+        test.run_clock_ticks(1);
+        if (test.raw_hsync()) {
+            return;
+        }
+    }
+    test.expect_hsync_high("type 1 R2=0 starts an HSYNC");
+}
+
+void test_type1_r0_zero_r2_zero_infinite_hsync(TestBench& test) {
+    // ACCC v1.11 FR section 15.3.2 p.150 (HSYNC INFINIE) and section 15.3.4
+    // p.152: on CRTC 1, if C0 equals R2 at the position C0=R2+R3l, HSYNC
+    // does not end; C3l overflows and HSYNC continues until C3l wraps back to
+    // R3l, where the same test repeats.  With R0=0, R2=0, R3l=1, C0 is 0 on
+    // every character, so the pulse never ends.  Real CRTC 1 hardware
+    // confirms it: SHAKER 2.7 page 01F4 (BR/E "R52 INC IN HSYNC") reads
+    // #FF, meaning no R52 overflow in a 3328 us window (Logon System photo,
+    // docs/investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md).
+    // Observe 40 characters, beyond two full C3l overflow cycles, at every
+    // raw CLOCK tick.
+    start_type1_r2_zero_one_char_hsync(test, 0);
+    for (unsigned tick = 0; tick < 40 * kClockTicksPerCharacter; ++tick) {
+        test.run_clock_ticks(1);
+        test.expect_hsync_high(
+            "type 1 R0=R2=0, R3l=1 HSYNC never ends (FR 15.3.2 p.150)");
+    }
+}
+
+void test_type1_r0_one_r2_zero_hsync_still_ends(TestBench& test) {
+    // Control for t09m from the same SHAKER page: with R0=1 the end position
+    // C0=R2+R3l=1 differs from R2=0, so the section 15.3.4 overflow does not
+    // apply.  The page expects #34 on every CRTC type, i.e. one HSYNC end per
+    // 2 us line, so HSYNC must fall within the next two characters.
+    start_type1_r2_zero_one_char_hsync(test, 1);
+    bool fell = false;
+    for (unsigned tick = 0; tick < 2 * kClockTicksPerCharacter; ++tick) {
+        test.run_clock_ticks(1);
+        if (!test.raw_hsync()) {
+            fell = true;
+            break;
+        }
+    }
+    if (!fell) {
+        test.expect_hsync_low("type 1 R0=1, R2=0, R3l=1 HSYNC ends at C0=1");
+    }
 }
 
 void test_type0_midline_r0_zero_free_runs_then_pins(TestBench& test) {
@@ -8239,6 +8293,12 @@ int main(int argc, char** argv) {
         {"t09d_type1_r0_zero_keeps_one_character_lines",
          "ACCC v1.10 section 13.3; F5 regression guard", false,
          test_type1_r0_zero_keeps_one_character_lines},
+        {"t09m_type1_r0_zero_r2_zero_infinite_hsync",
+         "ACCC v1.11 FR section 15.3.2 p.150, 15.3.4 p.152; SHAKER 01F4", false,
+         test_type1_r0_zero_r2_zero_infinite_hsync},
+        {"t09n_type1_r0_one_r2_zero_hsync_still_ends",
+         "ACCC v1.11 FR section 15.3.4 p.152 control; SHAKER 01F4", false,
+         test_type1_r0_one_r2_zero_hsync_still_ends},
         {"t09e_type0_midline_r0_zero_free_runs_then_pins",
          "ACCC v1.10 section 13.2.1; F5 live-write regression guard", false,
          test_type0_midline_r0_zero_free_runs_then_pins},

@@ -487,7 +487,16 @@ reg        r2_jit_pending;
 reg        register_write_d;
 
 wire hsync_on = hcc == R2_h_sync_pos && R3_h_sync_width != 0;
-wire hsync_off = CRTC_TYPE ? e1_hsync_off : e0_hsync_off;
+// ACCC v1.11 FR section 15.3.2 p.150, 15.3.4 p.152: on type 1, when C0 == R2
+// at the character where C3l reaches R3l, HSYNC does not end; C3l (the 4-bit
+// hsc) keeps counting, wraps, and the test repeats at the next C3l == R3l.
+// R0=R2=0, R3l=1 therefore gives infinite HSYNC.  Residual: real hardware
+// emits a brief invisible HSYNC off/on blip here that only resets the GA
+// counter; not modelled.  This type-1 rule lives here rather than in the
+// engine because the crtc_t80_old negative-control bench compiles this
+// wrapper against historic engine files, which fixes the engine port list.
+wire type1_hsync_overflow = (hcc == R2_h_sync_pos) && (R3_h_sync_width != 0);
+wire hsync_off = CRTC_TYPE ? (e1_hsync_off && !type1_hsync_overflow) : e0_hsync_off;
 wire register_write = ENABLE & RS & ~nCS & ~R_nW;
 // ACCC v1.11 section 14.7.1 p.142 (FR §14.7.1 p.143): an OUT(C),r8 update which makes
 // R2 equal to the current C0 is the R2.JIT event.  The bus write is a level
