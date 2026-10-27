@@ -154,6 +154,17 @@ a new line.
 Either CRTC 1 does not count VSYNC-width lines on these 1 µs lines, or the count differs.
 This is a hypothesis; the ACCC rule for it has not been located yet.
 
-**First step for the finding.** Replay the sequence in the pin bench, confirm VSYNC falls
-between S1 and S2, then find the governing FR rule (§16 VSYNC counting, §13.3 R0 on CRTC 1)
-before fixing.
+**Rule search (2026-10-27).** French §16.4.2 (p.170, CRTC 1) and §13.3 say only that R0=0
+causes no counter problem on CRTC 1. Neither says what advances the VSYNC-width counter C3h on
+1 µs lines.
+
+If C3h counts line ends, as the core does, VSYNC ends about 8 µs after the R0=0 write, before
+S2. Hardware keeps it high through S3, about 60 µs later.
+
+One hypothesis fits all four rows: on CRTC 1, C3h advances at HSYNC rather than at the C0=R0
+line end. While R0 (0, then `0x2D`) is below R2=`0x2E`, no HSYNC occurs at all; the first one
+comes only after R2 is set to `0x1C`.
+
+This is not a source rule. It would change type-1 VSYNC width wherever R2 > R0, so it needs a
+discriminating hardware vector or an author answer before any RTL change. It is filed as author
+question 22.

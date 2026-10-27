@@ -367,6 +367,20 @@ with it.
     assumes (a) (`rtl/crtc_type0_engine.v`, `t30c`); see
     `docs/investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md`.
 
+22. **§16.4.2 p.170 — what advances the CRTC 1 VSYNC-width counter (C3h) on very short lines?**
+
+    **OPEN, not yet sent.** SHAKER 2.7 module A, page `008D` ("AI/A LOST VSYNC ON R0=0/1"), writes
+    R0=0 near C0=0 of the last line before C4=R7 (R4=38, R9=7, R7=30, R3h=8, R2=`0x2E`). It then
+    writes R0=`0x2D` about 18 µs later and R2=`0x1C` about 41 µs later, and samples PPI port B
+    at +5, +23, +62 and +66 µs.
+
+    The real CRTC 1 photograph shows VSYNC active at all four samples. If C3h counted every
+    1 µs R0=0 line, VSYNC would end after 8 µs.
+
+    Question: on CRTC 1, does C3h count line ends (C0=R0), HSYNCs, or something else? Does a
+    period with no HSYNC (R2 > R0) stop it? See
+    `docs/investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md`.
+
 Also noted while verifying (no answer needed, listed for completeness): p.196 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay
 applies to type 0's substituted trigger (the placement caveat cited by
