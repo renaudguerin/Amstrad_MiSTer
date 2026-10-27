@@ -659,7 +659,9 @@ wire      disp_raw = hde & vde;
 // The R6 border is a latch (ACCC v1.11 FR §18.1/§18.2.1 p.189, §18.2.4
 // p.190): it sets at a line start with C4=R6 and only the frame origin
 // clears it, so a later R6 rewrite neither cancels it nor, below C4 and
-// without equality, sets it.
+// without equality, sets it. The origin is C4=C9=C0=0, which a C4 overflow
+// wrap also reaches without a frame end (§12.5 p.103), so the shared
+// pointer_frame_origin clears it rather than frame_restart.
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		hde <= 1'b0;
@@ -678,7 +680,7 @@ always @(posedge CLOCK) begin
 	else if (CLKEN) begin
 		if (hcc_last) begin
 			hde <= (R1_h_displayed != 8'd0);
-			if (frame_restart)
+			if (pointer_frame_origin)
 				vde <= (charline_n != R6_v_displayed);
 			else if (vde_reseed)
 				vde <= (charline_n < R6_v_displayed);

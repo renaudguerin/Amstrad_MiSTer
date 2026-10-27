@@ -90,6 +90,12 @@ derivation, because the latch state is not serialized.
   Before the fix: `FAIL: t03i … raising R6 does not cancel the border: DE: expected 0, actual 1`.
 - `t03e`'s last assertion ("display resumes once C4!=R6 at a line start") encoded the
   misreading and now asserts the §18.2.4 rule.
+- Review (Codex Sol 6.1 medium, run `20261027T091602Z-3338-a804`): no blocking findings. One
+  major: §18.2.1's restore condition is C4=C9=C0=0, which a C4 overflow wrap (§12.5 p.103,
+  R4 lowered below C4) reaches without a frame end, and `frame_restart` missed it. The latch
+  now clears on the shared `pointer_frame_origin` (equal to `frame_restart` under IVM and
+  sync-interlace). New `t03j R6 border cleared by C4 overflow` failed first:
+  `DE: expected 1, actual 0`.
 - Gate: `python3 sim/select_tests.py --run` → `select_tests: PASS 3 benches:
   run/asic_video_tests, run/p1_video_tests, run/p1_mobo_bench_tests`.
 

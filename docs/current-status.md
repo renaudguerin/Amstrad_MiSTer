@@ -15,7 +15,7 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 - **Alcon 2020 top-band diagnosis (2026-10-27, branch `plus/alcon2020-top-lines`):** the
   garbage band above the playfield is the HUD CRTC frame's last rows. `asic_video` treated the
   R6 border as `C4 < R6` per line instead of a latch cleared only at the frame origin
-  (ACCC FR §18.2.4 p.190). The fix and failing-first vector `t03i` pass simulation. A MiSTer
+  (ACCC FR §18.2.4 p.190). The fix and failing-first vectors `t03i`/`t03j` pass simulation and a Sol review. A MiSTer
   recapture with a new RBF is pending. See the
   [report](investigations/hardware-runs/alcon2020-top-lines-2026-10-27.md).
 

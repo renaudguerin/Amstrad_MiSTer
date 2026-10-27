@@ -1099,3 +1099,17 @@ framework scaler buffer is `RAMBASE 0x20000000`, `RAMSIZE 0x00800000`
 enumerated; the ring sits in the window MiSTer reserves for core DDR use. Address units
 are 64-bit words in the source interface. New logic on `clk_sys` and the DDR port still need synthesis/timing and
 real-media validation. Source passivity and green simulation do not close those gates.
+
+**CRTC3 R6 border latch, 2026-10-27 (`c48ad4b`, branch `plus/alcon2020-top-lines`) — NOT
+REVIEWED:** every cross-provider route failed during the unattended run. The Codex Sol high run, its
+retry and the Astra high run all hit "timed out negotiating with the code-mode host", and Agy failed
+on exhausted credits (incident in `agents-roster/inbox/bridge-incidents/`). Check hardest:
+`frame_restart` versus `pointer_frame_origin` as the clear condition, especially for IVM,
+sync-interlace and the extra interlace line, and that R6==R4 still borders the adjust lines;
+the `vde_reseed` path after `SNA_LOAD`; whether the corrected `t03e` and the new `t03i` read
+French §18.2.4 p.190 correctly; and the unresolved §18.3.4 granularity question recorded in
+`investigations/hardware-runs/alcon2020-top-lines-2026-10-27.md`.
+
+Cleared 2026-10-27 by Codex Sol 6.1 medium (run `20261027T091602Z-3338-a804`): no blocking
+findings; one major (a C4 overflow wrap to C4=C9=C0=0 did not clear the latch), fixed with the
+failing-first vector `t03j` on the same branch. The §18.3.4 note stays an open source ambiguity.
