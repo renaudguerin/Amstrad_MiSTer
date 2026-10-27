@@ -53,7 +53,8 @@ module crtc_t80_top(
   output t80_wr_n,
   output t80_m1_n,
   output t80_halt_n,
-  output write_active
+  output write_active,
+  output vsync
 );
 
   // Production clock divider from Amstrad.sv
@@ -240,6 +241,7 @@ module crtc_t80_top(
   assign t80_wr_n = WR_n;
   assign t80_m1_n = M1_n;
   assign t80_halt_n = HALT_n;
+  assign vsync = vs;
   assign write_active = io_wr & ~crtc_ncs & ~crtc_rnw;
 
 endmodule
