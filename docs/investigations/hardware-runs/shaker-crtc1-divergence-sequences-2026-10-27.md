@@ -52,8 +52,33 @@ The core reading VSYNC high means its VSYNC is active at that sample. That may b
 R7=30 pulse, which starts at line 240 and lasts R3h=0 (16 lines), so it ends at line 256.
 Or it may be a new pulse.
 
-**First step for the finding.** Replay the exact sequence in the type-1 pin bench and print
-C4, C9, C0 and VSYNC at the write and at the read.
+**Pin-bench result (2026-10-27, probe not committed).** The type-1 CRTC alone follows the
+expected rule: R7 is 32, the frame number of row 32.
+
+- An R7=32 write during the last character of C4=32 (C9=7, C0=63) raises VSYNC at once. That
+  is the `#1F` the 4TH variant expects.
+- The same write at C0=0 of C4=33 does not raise VSYNC. That is the `#1E` the 5TH variant
+  expects.
+
+So the CRTC rule is right, and the `019D` divergence comes from how the integrated machine
+places the `OUTI` write relative to C0. In the core, the 5TH-µs `OUTI` write takes effect one
+character early, inside C4=32.
+
+**Supporting evidence:**
+
+- French ACCC v1.11 §13.3 p.114 and §13.7.1.1 p.125: on CRTC 1, an `OUTI` write takes effect
+  one µs later than an `OUT (C),r8` write ("R0 is actually modified 6 µs after the start of
+  OUTI").
+- SHAKER module A test (4): the real CRTC 1 photograph reads `OUTI ON C0vs=#3c:01` (I/O on the
+  5th NOP), where the core reads `00` (see `docs/classic/accc-author-feedback.md` §4).
+- `docs/classic/audit-findings.md` already names the residual: "the current bus interface
+  cannot distinguish `OUTI` from an otherwise identical write".
+
+**Next step.** In the production-T80 bench (`sim/crtc_t80_test.cpp`), compare the CRTC data
+latch edge for `OUTI` against `OUT (C),r`. The question is whether CRTC 1 latches at the end of
+the I/O cycle, which for `OUTI` falls in the next µs once GA wait states are counted, rather
+than at the start. Then write a failing type-1 vector from the `019D` sequence: sync on VSYNC,
+`OUTI` R7=`0x20` at +21504 µs, PPI read 6 µs later, expect bit 0 low.
 
 ## `03AE` / `03B4`: DE/A and DE/C "VMA=R12/R13 UPD WHEN C4=0" (`SHAKE27D.BIN`)
 
