@@ -20,6 +20,15 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   AmSpirit. See the
   [report](investigations/hardware-runs/alcon2020-top-lines-2026-10-27.md).
 
+- **CRTC follow-ups from the 2026-10-27 run (classic stream, reports only):**
+  [hardware-photo comparison](investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md)
+  confirms five CRTC1 divergences where AmSpirit matches the Logon photos and the core does not
+  (01F4, 03AE, 03B4, 019D, 008D bit 0); 02EA agrees everywhere. The
+  [CRTC0 wedge](investigations/hardware-runs/crtc0-ssm-wedge-2026-10-27.md) after B0-27 `00FB` is
+  a VSYNC wait with C4 apparently stuck at 30 (core candidate; needs a pin-bench vector from the
+  test's register sequence). The [D1-27 stall](investigations/hardware-runs/d1-27-stall-2026-10-27.md)
+  at 0305 reproduces; cause open.
+
 - **SHAKER 2.7 modules B–E and sync-filter comparison (2026-10-15/16):** on delivered
   `cec641c`, every 2.6-path cell walks its module, but several 2.7 cells stall
   deterministically at fixed SSM markers (B0/B1, C0/C1/C3, D0/D1/D3, E0/E3). On CRTC0,
