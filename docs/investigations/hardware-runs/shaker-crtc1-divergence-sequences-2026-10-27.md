@@ -111,9 +111,19 @@ then runs lines 1–7 (C9 0..6). In variant C the real update lands on line 2 (C
 expected value therefore depends on how CRTC 1 takes R12/R13 into account on every line
 while C4=0. The type-1 engine already has a row-0 reload path (`e1_row0_reload`).
 
-**First step for the finding.** Replay this timeline in the pin bench and record MA at the
-start of row 1. Then derive the expected value from ACCC FR §20.3 (CRTC 1 offset handling)
-before writing the vector.
+**Pin-bench result (2026-10-27, probe not committed).** I replayed the table above on the
+type-1 CRTC alone. Writes land at the listed µs from a C4=C9=C0=0 frame start, with R12/R13
+starting at `3000`.
+
+- Variant A takes `3190` on line 2 (C9=1). Variant C takes it on line 3 (C9=2).
+- Both start row 1 at `0x3190 + 40`, which is the **OK** copy that real CRTC 1 shows.
+
+The CRTC rule, as modelled, already matches hardware. The MiSTer **WRONG** therefore comes
+from the integrated machine. Either the CPU write phase lands differently relative to C0, or
+the test's VSYNC lock aligns to a different line than assumed.
+
+**Next step.** Replay the module D entry in the production-T80 bench, or take a MiSTer SNA on
+the `03AE` page, to get the real C4/C9/C0 at each write. Compare that with the table above.
 
 ## `008D`: AI/A "LOST VSYNC ON R0=0/1" (`SHAKE27A.BIN`)
 
