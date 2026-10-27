@@ -40,6 +40,17 @@ for name, expected in checks.items():
 with tarfile.open('zig-aarch64-macos-0.16.0.tar.xz') as archive:
     archive.extractall('.', filter='data')
 PY
+# Apply the local repair described below before building for future captures.
+python3 - <<'PY'
+from pathlib import Path
+p = Path('mbc.c')
+s = p.read_text()
+old = 'int i;\n    if (1 == sscanf(val, "%d", &i)) {'
+new = 'char *end;\n    long i = strtol(val, &end, 10);\n    if (end != val) {'
+if s.count(old) != 3:
+    raise SystemExit('Expected exactly three wait-option parsing snippets')
+p.write_text(s.replace(old, new))
+PY
 ZIG_GLOBAL_CACHE_DIR="$PWD/zig-cache" ./zig-aarch64-macos-0.16.0/zig cc \
   -target arm-linux-musleabihf -mcpu=cortex_a9 -std=c99 \
   -D_XOPEN_SOURCE=700 \
@@ -50,12 +61,33 @@ file mbc-arm-linux-musleabihf
 shasum -a 256 mbc-arm-linux-musleabihf
 ```
 
-The verified artifact is an `ELF 32-bit LSB executable, ARM, EABI5`, statically
+The original, unpatched verified artifact is an `ELF 32-bit LSB executable, ARM, EABI5`, statically
 linked and stripped; SHA-256
 `0e99082bb8c9b8b2c2b6581c736dfc5d701a977a9c76fa548565cbc6642984db`.
 The compiler, cache, source and binary remain under ignored `docs/references/`.
 No ARM binary or toolchain is committed. A second local compilation produced the
 same artifact hash with this exact source, flags and compiler.
+
+## Known build-specific crash and local repair (2026-10-27)
+
+The original `0e99082b…` artifact intermittently segfaults with environment
+wait options set. GDB traced the failure through musl `vsscanf` to a Zig 0.16
+`memchr` vector load crossing the top stack page in `read_options`; some
+environment layouts do not crash. This finding is specific to that build.
+
+The patch above replaces exactly the three `sscanf` wait-option snippets with
+`strtol`, preserving invalid-value fallback and supported bounded wait values.
+The repaired artifact has SHA-256
+`f2b3a4f3cbd98c7a13f8770eb4c893bc352eae9d204f92f664f5eaad6c697330`.
+The task-local source and binary are `.roster-scratch/mbc/mbc.c` and
+`.roster-scratch/mbc/mbc-fixed`; the device copy is `/tmp/mbc-fixed`. The
+original `/tmp/mbc` was left untouched.
+
+The repaired build was checked with valid waits, invalid-wait fallback and a
+release-only `raw_seq '}57'` returning exit 0. Actual CSL SHAKE27B key typing
+and the CRTC 0 wait for SSM `00FC` also succeeded. The old build's environment
+help crash was reproduced under GDB. No C source, binary or toolchain needs to
+be committed.
 
 On eventual device access, verify the selected target, executable permission,
 `/dev/uinput`, and MBC input behavior before using it in a capture case. MBC's

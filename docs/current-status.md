@@ -20,27 +20,27 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   AmSpirit. See the
   [report](investigations/hardware-runs/alcon2020-top-lines-2026-10-27.md).
 
-- **CRTC follow-ups from the 2026-10-27 run (classic stream, reports only):**
-  [hardware-photo comparison](investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md)
-  confirms five CRTC1 divergences where AmSpirit matches the Logon photos and the core does not
-  (01F4, 03AE, 03B4, 019D, 008D bit 0); 02EA agrees everywhere. `01F4` is fixed in
-  simulation: type-1 HSYNC no longer ends when C0=R2 at the C0=R2+R3l end position
-  ([report](investigations/hardware-runs/crtc1-infinite-hsync-01f4-2026-10-27.md); soak
-  re-minted; hardware recheck pending the next master RBF). The other four have their SHAKER
-  register sequences decoded from the disk but no vector yet
-  ([sequences](investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md)). The
-  [CRTC0 wedge](investigations/hardware-runs/crtc0-ssm-wedge-2026-10-27.md) after B1/A1 `00FB` is
-  fixed in simulation: the F16 frozen IVM-exit comparator never released on a non-matching exit;
-  it now releases at the C9 31-to-0 wrap (release point inferred; real CRTC0 continues to `00FC`;
-  [report](investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md)). The
-  [D1-27 stall](investigations/hardware-runs/d1-27-stall-2026-10-27.md)
-  at 0305 reproduces; cause open (CRTC1, so the CRTC0 fix cannot explain it).
-  Hardware-testable RBF with both fixes: `output_files/Amstrad_20261027_925b5bb.rbf`
-  (`9ba5e34b…`, full-effort CI run 40494721631, no negative slack; copied to the MiSTer).
-  A MiSTer recheck of B1 on CRTC0 with a minimal hand-written CSL (the `CSL_27` scripts are not
-  in `local/test_media/shaker/`) failed twice at the first MBC key input with an SSH exit 255.
-  The device was left at MENU with the original CFG. Recheck pending: B1 on CRTC0 must
-  walk past `00FB` to `00FC`, and B1 `01F4` on CRTC1 must read `CALC=#FF`.
+- **Classic CRTC follow-ups (2026-10-27):** the
+  [MiSTer recheck](investigations/hardware-runs/shaker-followup-recheck-2026-10-27.md)
+  on `Amstrad_20261027_925b5bb.rbf` confirms CRTC0 B1 reaches `00FC` after the
+  [wedge repair](investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md).
+  The main pattern matches the Logon photograph; the inferred C9-wrap release edge
+  remains author question 21. CRTC1 `01F4` still reads `CALC=#34`, against hardware
+  `#FF`: the pin-level infinite-HSYNC change does not close the integrated IRQ result.
+  A temporary [MBC build repair](investigations/hardware-runs/mister-mbc-cross-build.md#known-build-specific-crash-and-local-repair-2026-10-27)
+  removes the capture blocker. Original CFG restoration and return to MENU are verified.
+  The `925b5bb` artifact remains the hardware reference (`9ba5e34b…`).
+  [019D production-T80 replay](investigations/hardware-runs/crtc1-outi-019d-2026-10-27.md)
+  reproduces the hardware disagreement: fifth/fourth-µs calls return `1F/1F` instead
+  of `1E/1F`. Its named XFAIL and passing adjacent-phase control retain the mismatch;
+  no RTL change is justified until the physical write-visibility contract is settled.
+  The existing B8 early-capture expectation also needs independent hardware validation.
+  `03AE`/`03B4` remain integrated-phase investigations; their pin replay passes.
+  `008D` retains its unproven width-counter hypothesis (author question 22).
+  [D1-27](investigations/hardware-runs/d1-27-stall-2026-10-27.md) at `0305` remains
+  open on CRTC1. The [decoded sequences](investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md)
+  and [photo comparison](investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md)
+  retain the remaining evidence.
 
 - **SHAKER 2.7 modules B–E and sync-filter comparison (2026-10-15/16):** on delivered
   `cec641c`, every 2.6-path cell walks its module, but several 2.7 cells stall
@@ -50,7 +50,7 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   mask is content-neutral where capture locks; Raw CRT differences come from its window
   and sync path. Text-level AmSpirit divergences (B1 `01F4` `CALC=#34` vs `#FF`, DE `03AE`/
   `03B4`) survive the filter change. Runner timeout tolerance and triage tools are
-  committed; a zero-capture run still reports success. See the
+  committed; zero-capture runs now fail after the runner repair. See the
   [session report](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md).
 
 - **Pre-acceptance continuation (2026-09-29):** all four initial evidence tasks

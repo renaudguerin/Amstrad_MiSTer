@@ -78,6 +78,7 @@ exit, or the `00FC` screen geometry compared with a MiSTer capture.
 ## Residuals
 
 - The release point (C9 wrap) is inferred; see Change.
-- The MiSTer recheck of SHAKER B1 on CRTC 0 waits for an RBF with this change. Pass condition:
-  B1 walks past `00FB`, and `00FC` matches the photograph.
+- The [MiSTer recheck](shaker-followup-recheck-2026-10-27.md) on `925b5bb` reaches
+  `00FC`; its main pattern matches the photograph. The exact inferred release
+  point and native-capture bottom strip remain separate from that progress check.
 - D1-27 at `0305` (stall B) has not been checked against this fix.
