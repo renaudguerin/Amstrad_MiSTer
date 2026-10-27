@@ -49,7 +49,12 @@ second monitor HSYNC.
 
 ## Change
 
-`rtl/crtc_type1_engine.v` now holds HSYNC high at the end position when C0 equals R2. C3l is
+`rtl/CRTC.v` now holds HSYNC high on type 1 at the end position when C0 equals R2. The rule
+sits in the wrapper's type-1 `hsync_off` select rather than in the type-1 engine: the
+`crtc_t80_old` negative-control bench (CI `production-t80`) compiles the current wrapper
+against historic engine files, so the engine port list is fixed. A first version added an
+engine port and broke that build on `f180f30`; the fix-forward is behaviour-identical (soak
+hash reproduced). C3l is
 not reset, so its 4-bit counter wraps and the same test runs again when it next reaches R3l.
 Type 0 is unchanged.
 

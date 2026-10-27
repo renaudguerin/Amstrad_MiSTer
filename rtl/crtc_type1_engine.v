@@ -44,7 +44,6 @@ module crtc_type1_engine
 
 	input      [7:0] R0_h_total,
 	input      [7:0] R1_h_displayed,
-	input      [7:0] R2_h_sync_pos,
 	input      [3:0] R3_h_sync_width,
 	input      [6:0] R4_v_total,
 	input      [4:0] R5_v_total_adj,
@@ -573,13 +572,7 @@ assign vsync_line_fire = (((CRTC_TYPE && in_adj && !crtc1_adj_end &&
 assign vsc_load = 4'd0 - 1'd1;
 assign r7_write_fire = !VSYNC_r && vsync_allow;
 
-// ACCC v1.11 FR section 15.3.2 p.150, 15.3.4 p.152: when C0 == R2 at the
-// character where C3l reaches R3l, HSYNC does not end; C3l (the 4-bit hsc)
-// keeps counting, wraps, and the test repeats at the next C3l == R3l.  R0=R2=0,
-// R3l=1 therefore gives infinite HSYNC.  Residual: real hardware emits a brief
-// invisible HSYNC off/on blip here that only resets the GA counter; not modelled.
-assign hsync_off = ((hsc == R3_h_sync_width) && !(hcc == R2_h_sync_pos)) ||
-						 (R3_h_sync_width == 0);
+assign hsync_off = (hsc == R3_h_sync_width) || (R3_h_sync_width == 0);
 assign de_index = 2'b00;
 
 // nCLKEN R6-write handling.  Program order in the original shared block:
