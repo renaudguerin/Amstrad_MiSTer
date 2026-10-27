@@ -11,7 +11,8 @@ refactor commit means behaviour moved; stop and document why before proceeding.
 
 | Hash | Date | Reason |
 |---|---|---|
-| `0xe99ab434a5e1cdb3` | 2026-09-22 | **Current.** F14 type-1 additional-line existence made independent of R5 (French ACCC v1.11 section 19.6.2 p.217), with the additional-line adjustment-entry guard. See `docs/investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md`. |
+| `0x7358b7e99971f5d6` | 2026-10-27 | **Current.** Type-0 frozen post-IVM-exit C9.VMA comparison released when C9 wraps 31 to 0 (French ACCC v1.11 section 10.3.1.1 p.76; release point inferred from hardware SHAKER B1 00FB/00FC). See `docs/investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md`. |
+| `0xe99ab434a5e1cdb3` | 2026-09-22 | F14 type-1 additional-line existence made independent of R5 (French ACCC v1.11 section 19.6.2 p.217), with the additional-line adjustment-entry guard. See `docs/investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md`. |
 | `0xb1cb70da95c2e44f` | 2026-09-11 | D1 canonical origin VSYNC/active-pulse phase ownership and D6 shared RFD parity (French sections 19.7.2 p.219, 11.6.1 p.90, 19.5.3 pp.209-210). The two VSYNC arm/phase bits joined the sampled projection. See `docs/accuracy/d1-d6-parity-repair-2026-09-11.md`. |
 | `0x6e8258198d6e6137` | 2026-09-08 | B8-1 production-phase R5/R0 write-event retention (French sections 11.6 pp.89-92, 13.7 pp.126-128): old-value side effects survive register writes between character enables. See `docs/accuracy/b8-1-cpu-write-timing-2026-09-08.md`. |
 | `0x2263c9fc44af4ee7` | 2026-09-01 | Reviewed interlace VSYNC lifecycle correction: type 1 no longer depends on type-0 C0 history; type 0 reconstructs an already-earned C0=2 qualification from the live counter when snapshot load or live type switch clears private history after C0=2. |

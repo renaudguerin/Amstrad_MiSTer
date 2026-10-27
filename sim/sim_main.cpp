@@ -8082,6 +8082,65 @@ void run_soak(std::uint64_t expected_hash, bool check_expected) {
     std::cout << "soak hash matches expected\n";
 }
 
+void test_type0_ivm_exit_frozen_mismatch_resumes_frames(TestBench& test) {
+    // SHAKER 2.7 module B, test B1/A1 (page 00FB), parity-detect routine at
+    // SHAKE27B.BIN 0x7722, replayed on the menu register state.  On the
+    // C4=R7=30 row it lowers R9 to 6 at C9=0, enters IVM (R8=3) on the
+    // C9=6 line, leaves it (R8=0) on the next line and restores R9=7.  The
+    // exit freezes a C9.VMA value that no longer equals R9 (French ACCC
+    // v1.11 section 19.8.1 p.221 and the pp.224-225 exit tables; F16).
+    //
+    // Expected value from real hardware, not from the ACCC: the Logon System
+    // CRTC 0 photographs show the 00FB page and the following 00FC screen
+    // drawn normally, so a real CRTC 0 keeps producing frames after this
+    // sequence.  The ACCC tables only cover the exit window up to C9=7 and
+    // do not say when the frozen comparison ends.  The bound used here is
+    // three full 19968 us frames after the R9=7 write.
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> menu = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x8E}, {4, 38},
+        {5, 0},  {6, 25}, {7, 30}, {8, 0},    {9, 7},
+    }};
+    for (const auto& [address, value] : menu) {
+        test.write_register(address, value);
+    }
+    test.reset();
+
+    // Synchronise on a VSYNC rising edge as SHAKER's 9F52 routine does.
+    // The routine syncs twice: after the first sync it writes R6=127, so C4
+    // never reaches R6 and ParityFrame stops toggling.
+    const auto sync_on_vsync_rise = [&test]() {
+        unsigned guard = 0;
+        while (test.raw_vsync() && ++guard < 40000) test.run_characters(1);
+        while (!test.raw_vsync() && ++guard < 80000) test.run_characters(1);
+        test.expect_c4("t30c VSYNC rises at C4=R7=30", 30);
+    };
+    sync_on_vsync_rise();
+    test.run_characters(13);
+    test.write_register(6, 127);
+    sync_on_vsync_rise();
+
+    // Timings in us (= characters at R0=63) from the decoded routine.
+    test.run_characters(13);
+    test.write_register(9, 6);
+    test.run_characters(385);
+    test.expect_byte("t30c R8=3 lands on the C9=6 line", 6, test.line_counter());
+    test.write_register(8, 3);
+    test.run_characters(54);
+    test.expect_byte("t30c R8=0 lands on the following line", 7, test.line_counter());
+    test.write_register(8, 0);
+    test.run_characters(14);
+    test.write_register(9, 7);
+
+    // Let the current pulse end, then require a new one.
+    test.run_characters(1024);
+    if (!test.vsync_within_characters(3 * 19968)) {
+        test.expect_vsync_high(
+            "type 0 resumes frames after a non-matching IVM exit (SHAKER 00FB, "
+            "real CRTC 0 continues to 00FC)");
+    }
+}
+
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
 
@@ -8750,6 +8809,9 @@ int main(int argc, char** argv) {
         {"t30b_type0_post_ivm_exit_recovery_recipe_even",
          "ACCC v1.11 section 19.8.1 p.221 prose (recovery recipe by programming R9=C9.VMA, even frame); F16",
          false, t30_type0_post_ivm_exit_recovery_recipe_even},
+        {"t30c_type0_ivm_exit_frozen_mismatch_resumes_frames",
+         "Hardware SHAKER B1 00FB/00FC; ACCC v1.11 FR section 19.8.1 p.221", false,
+         test_type0_ivm_exit_frozen_mismatch_resumes_frames},
         // t31: F13 exact half-character border pulse.
         {"t31a_type0_half_character_border_no_skew",
          "ACCC v1.11 sections 17.6.2 p.187 (FR p.188) and 19.2.4 p.196 (FR p.196); F13",
