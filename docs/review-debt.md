@@ -29,6 +29,16 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
+**CRTC3 R6 border latch, 2026-10-27 (`c48ad4b`, branch `plus/alcon2020-top-lines`) — NOT
+REVIEWED:** every cross-provider route failed during the unattended run. The Codex Sol high run, its
+retry and the Astra high run all hit "timed out negotiating with the code-mode host", and Agy failed
+on exhausted credits (incident in `agents-roster/inbox/bridge-incidents/`). Check hardest:
+`frame_restart` versus `pointer_frame_origin` as the clear condition, especially for IVM,
+sync-interlace and the extra interlace line, and that R6==R4 still borders the adjust lines;
+the `vde_reseed` path after `SNA_LOAD`; whether the corrected `t03e` and the new `t03i` read
+French §18.2.4 p.190 correctly; and the unresolved §18.3.4 granularity question recorded in
+`investigations/hardware-runs/alcon2020-top-lines-2026-10-27.md`.
+
 **ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — REVIEWED (Gemini 3.8 Flash
 high, run `20260921T175020Z-80016-18b2`; Astra low, run `20260921T175020Z-79905-dd1b`), both
 CHANGES REQUIRED; round-2 re-review (runs `20260921T180739Z-90193-140e`, `20260921T180739Z-90182-2e61`)
