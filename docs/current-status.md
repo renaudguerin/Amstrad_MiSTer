@@ -12,12 +12,12 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **Alcon 2020 top-band diagnosis (2026-10-27, branch `plus/alcon2020-top-lines`):** the
+- **Alcon 2020 top-band fix (2026-10-27, integrated `c666e19` from `plus/alcon2020-top-lines`):** the
   garbage band above the playfield is the HUD CRTC frame's last rows. `asic_video` treated the
   R6 border as `C4 < R6` per line instead of a latch cleared only at the frame origin
   (ACCC FR §18.2.4 p.190). The fix (vectors `t03i`/`t03j`, Sol-reviewed) is confirmed on the MiSTer with
   `Amstrad_20261027_98fa3e1.rbf`: band gone in Full and Raw CRT, playfield bottom now matches
-  AmSpirit. Ready to integrate. See the
+  AmSpirit. See the
   [report](investigations/hardware-runs/alcon2020-top-lines-2026-10-27.md).
 
 - **SHAKER 2.7 modules B–E and sync-filter comparison (2026-10-15/16):** on delivered
