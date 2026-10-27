@@ -3,9 +3,10 @@
 **Verdict.** The band is the last character rows of the game's HUD CRTC frame, displayed
 where the CRTC3 model should hold the R6 border. `rtl/plus/asic_video.v` re-derived vertical
 display at every line start as `C4 < R6`. Alcon raises R6 after the `C4=R6` border, so the
-model switched display back on. Fixed on `plus/alcon2020-top-lines` (`c48ad4b`) with a vector
-that failed first. Simulation proves the fix. The fix is not yet hardware-tested: it needs an
-RBF build and a MiSTer recapture.
+model switched display back on. Fixed on `plus/alcon2020-top-lines` (`c48ad4b`, review fix
+`98fa3e1`) with vectors that failed first. Confirmed on the MiSTer with the `98fa3e1` RBF: the
+band is gone in Full and Raw CRT, and the playfield's last 7 lines, which the old model also
+hid, now match AmSpirit.
 
 ## Media and settings
 
@@ -99,15 +100,29 @@ derivation, because the latch state is not serialized.
 - Gate: `python3 sim/select_tests.py --run` → `select_tests: PASS 3 benches:
   run/asic_video_tests, run/p1_video_tests, run/p1_mobo_bench_tests`.
 
+## Hardware confirmation (`98fa3e1`)
+
+Hosted full synthesis, run 40480122539: `Amstrad_20261027_98fa3e1.rbf`, SHA-256
+`d34eecde…be283f`, all jobs green, worst setup slack +0.242 ns. It was run with the same
+manifests (`mister_alcon_98fa3e1.json`, `mister_alcon_raw_98fa3e1.json`), CFGs and fire
+replay as before. Evidence: `fx-001`..`fx-004` and `before-after-98fa3e1.png`. Original CFG
+restored (`f8c6879a…`), input map removed, device left at MENU.
+
+| Capture | Before (`cec641c`) | After (`98fa3e1`) |
+|---|---|---|
+| Full, rows above playfield | 0–14 garbage, 2 black | 0–16 black |
+| Raw CRT, rows above playfield | 0–18 garbage, 4 black | 0–22 black |
+| Full, playfield / gap / HUD | 17–232 / 233–240 black / 241–255 | 17–239 / 240 black / 241–255 |
+
+The fix also corrected the bottom of the playfield. The game writes R6=2 during frame P's
+last rows, so the old `C4 < R6` model bordered P's last 7 lines. Under the latch, C4 never
+equals 2 there. AmSpirit's line-doubled capture (`as-006`, `g250`), halved, gives exactly the
+new layout: playfield 17–239, one black line, HUD 241–255. Both defects came from one rule.
+
 ## Open
 
-- **Hardware recapture** after an RBF build: expect black rows above the playfield in
-  both Full and Raw CRT. Rerun `mister_alcon.json` and `mister_alcon_raw.json` from the
-  evidence directory, then the fire replay.
 - **§18.3.4 granularity.** "Positionner R6 à 0 lorsque C4 et C9 valent 0, mais que C0>0
   n'aura aucune incidence avant le nouveau frame" conflicts with `t03e`'s middle
   assertion, which borders at the next scanline of the same character row. Either the
   line-start test is per character row, or the sentence assumes R9=0. This was left unchanged
   because the reading is ambiguous; it needs an author or hardware answer.
-- The 2 (Full) or 4 (Raw CRT) black lines between the band and the playfield were not
-  analysed separately. They should disappear into the border once the fix is on hardware.
