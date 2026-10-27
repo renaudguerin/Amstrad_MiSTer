@@ -930,8 +930,11 @@ void t03e_r6_line_start_semantics(TestBench& test) {
     test.write_register(6, 7);     // new value lands mid-line
     test.run_characters(4);        // later characters of that line
     test.expect_de("mid-line R6 change does not clear the border", false);
-    test.run_characters(4);        // next line start re-evaluates C4!=R6
-    test.expect_de("display resumes once C4!=R6 at a line start", true);
+    test.run_characters(4);        // next line start: C4!=R6, but only a
+                                   // frame origin clears the border, and
+                                   // R6=0 cannot border temporarily
+                                   // (ACCC v1.11 FR §18.2.4 p.190)
+    test.expect_de("border persists after R6 moves away from C4", false);
 }
 
 // ACCC §11.2.6 p.85 + §20.3.4: adjustment lines do not update the video
@@ -994,6 +997,70 @@ void t03h_vde_rows_past_r6_stay_bordered(TestBench& test) {
     // Frame restarts at Row 0: display resumes
     test.expect_line("frame restart row 0", 0);
     test.expect_de("display resumes at frame restart", true);
+}
+
+// ACCC v1.11 FR §18.2.4 p.190: on types 3/4 the R6 border is activated only
+// when C0 passes to 0 with C4=R6, and (§18.1/§18.2.1 p.189) only a new frame
+// (C4=C9=C0=0) restores the display; §18.2.4 adds that R6=0 cannot border
+// temporarily as on type 1, so no R6 rewrite cancels it. Alcon 2020 (CPR)
+// relies on this: its HUD frame borders at C4=R6=2, then rewrites R6=29
+// at C4=5 for the next frame; the two rows before the playfield must stay
+// border (docs/investigations/hardware-runs/alcon2020-top-lines-2026-10-27.md).
+// Conversely, lowering R6 below C4 without an equality never borders.
+void t03i_r6_border_latched_until_frame_origin(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(4, 5);  // R4=5: C4 0..5
+    test.write_register(6, 2);  // R6=2: border from C4=2
+    test.write_register(9, 1);  // R9=1: two scanlines per character row
+    test.write_register(1, 4);  // R1=4: C0 0..3 displayed
+    test.run_to_frame_start();
+
+    test.run_to_state(2, 0, 1, "t03i C4=2");
+    test.expect_de("t03i C4=R6 borders C4=2", false);
+    test.run_to_state(3, 0, 1, "t03i C4=3");
+    test.write_register(6, 29);  // R6 > C4, mid-line (as Alcon at C4=5)
+    test.run_to_state(3, 0, 3, "t03i rest of the write line");
+    test.expect_de("t03i the write line stays bordered", false);
+    for (unsigned c4 = 3; c4 <= 5; ++c4) {
+        for (unsigned c9 = (c4 == 3) ? 1 : 0; c9 <= 1; ++c9) {
+            test.run_to_state(c4, c9, 1, "t03i after the R6 raise");
+            test.expect_de("t03i raising R6 does not cancel the border", false);
+        }
+    }
+    test.run_to_state(0, 0, 1, "t03i next frame origin");
+    test.expect_de("t03i the new frame restores the display", true);
+
+    // C4=1 of the new frame: R6=0 lies below C4, so C4=R6 never occurs.
+    test.run_to_state(1, 0, 1, "t03i next frame C4=1");
+    test.write_register(6, 0);
+    for (unsigned c4 = 2; c4 <= 5; ++c4) {
+        test.run_to_state(c4, 0, 1, "t03i after the R6 drop");
+        test.expect_de("t03i R6 below C4 without equality keeps display", true);
+    }
+    test.run_to_state(0, 0, 1, "t03i third frame origin");
+    test.expect_de("t03i C4=R6=0 at the frame origin borders", false);
+}
+
+// ACCC v1.11 FR §18.2.1 p.189: the restore condition is C4=C9=C0=0, not a
+// frame end. Lowering R4 below C4 makes C4 overflow (§12.5 p.103): it runs
+// to 127 and wraps to 0 with C9=C0=0, which restores the display although
+// no R4 frame end occurred.
+void t03j_r6_border_cleared_by_c4_overflow(TestBench& test) {
+    program_display_frame(test);
+    test.write_register(4, 5);  // R4=5: C4 0..5
+    test.write_register(6, 2);  // R6=2: border from C4=2
+    test.write_register(9, 0);  // R9=0: one scanline per character row
+    test.write_register(1, 4);
+    test.run_to_frame_start();
+
+    test.run_to_state(2, 0, 1, "t03j C4=2");
+    test.expect_de("t03j C4=R6 borders C4=2", false);
+    test.run_to_state(3, 0, 1, "t03j C4=3");
+    test.write_register(4, 1);  // R4 < C4: C4 overflows through 127
+    test.run_to_state(127, 0, 1, "t03j C4=127");
+    test.expect_de("t03j overflow rows stay bordered", false);
+    test.run_to_state(0, 0, 1, "t03j C4 wrapped to 0");
+    test.expect_de("t03j C4=C9=C0=0 after overflow restores the display", true);
 }
 
 // ACCC §19.2.3 p.194-195 (SKEW-DISPTMG exists on types 0/3/4): delay +1
@@ -3137,7 +3204,7 @@ void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.expect_ra("t08j next row starts at offset RA 5", 5);
 }
 
-constexpr std::array<TestCase, 73> kTests = {{
+constexpr std::array<TestCase, 75> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3162,6 +3229,8 @@ constexpr std::array<TestCase, 73> kTests = {{
     {"t03d R1>R0 no substitution, frozen rows", t03d_r1_gt_r0_no_substitution},
     {"t03e R6 line-start-only semantics", t03e_r6_line_start_semantics},
     {"t03h VDE rows past R6 stay bordered", t03h_vde_rows_past_r6_stay_bordered},
+    {"t03i R6 border latched until frame origin", t03i_r6_border_latched_until_frame_origin},
+    {"t03j R6 border cleared by C4 overflow", t03j_r6_border_cleared_by_c4_overflow},
     {"t03f adjustment rows solidified", t03f_adjustment_rows_solidified},
     {"t03g SKEW-DISPTMG delay and BORDER ON", t03g_skew_delay_and_border_on},
     {"t04a HSYNC position and width", t04a_hsync_position_and_width},
