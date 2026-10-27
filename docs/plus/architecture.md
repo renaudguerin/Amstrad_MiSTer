@@ -209,6 +209,13 @@ exception below.
 - **A container with zero `cbNN` chunks still ends in ABORT, not COMMIT** (kept from
   `cd47d7d`): committing a cleared-but-empty region would boot unspecified memory as
   firmware with no diagnostic.
+- **Bank-0 boot-preamble mangling in circulating rips is a game-level failure, not a
+  loader concern.** The parser stays content-blind for chunk data: two 2005-set rips
+  (`No Exit`, `Pro Tennis Tour`) carry a botched "AMS" header stamp that destroys the
+  game's boot code and crashes at boot in this core (and, by the boot analysis, would on real hardware), while CPCEC
+  masks it with non-canonical reset defaults. No header/signature validation may be
+  added: the working set proves no universal header exists. See the
+  [bad-rip finding](cpr-boot-preamble-bad-rips-2026-10-04.md).
 - **Reset-time cleanup ownership.** The parser never pulses `load_commit` or `load_abort`
   in response to a raw machine reset — its reset just returns it to idle. The cartridge
   memory service owns reset-time cleanup through `cold_reset`: it cancels transient
