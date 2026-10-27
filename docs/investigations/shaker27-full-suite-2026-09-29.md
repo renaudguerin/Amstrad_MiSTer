@@ -222,3 +222,8 @@ primary/fallback, including full-size decisive frames. Most text pages are
 legible; tall/repeated/overlapping interlace and RFD frames require reference
 comparison. Results and final device restoration remain pending completion
 of the remaining matrix.
+
+## Continuation
+
+Modules B–E and the sync-filter comparison ran on 2026-10-15/16; see the
+[session report](hardware-runs/shaker27-modules-b-e-2026-10-15.md).

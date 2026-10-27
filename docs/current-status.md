@@ -12,6 +12,17 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **SHAKER 2.7 modules B–E and sync-filter comparison (2026-10-15/16):** on delivered
+  `cec641c`, every 2.6-path cell walks its module, but several 2.7 cells stall
+  deterministically at fixed SSM markers (B0/B1, C0/C1/C3, D0/D1/D3, E0/E3). On CRTC0,
+  a sync-breaking page (`00FB`, `02EA`, the C5 parity page) is followed by no further SSM
+  markers; whether real CRTC0 continues is open and needs the hardware path. The byte/pixel
+  mask is content-neutral where capture locks; Raw CRT differences come from its window
+  and sync path. Text-level AmSpirit divergences (B1 `01F4` `CALC=#34` vs `#FF`, DE `03AE`/
+  `03B4`) survive the filter change. Runner timeout tolerance and triage tools are
+  committed; a zero-capture run still reports success. See the
+  [session report](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md).
+
 - **Pre-acceptance continuation (2026-09-29):** all four initial evidence tasks
   are integrated, with exact integration CI green through `dcd0218`. No production
   RTL changed; the `cec641c` RBF retains its identity. The added full SHAKER 2.7
