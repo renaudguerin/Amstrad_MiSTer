@@ -12,6 +12,13 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **Draft release prepared (2026-10-27):** [v2026.10.27](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-2feb66355206bf724e0d)
+  targets the verified full-effort build `321f96a`; attached
+  `Amstrad_20261027.rbf` SHA-256 `6bc43724…400d`. It contains the Alcon R6-border
+  fix and the classic CRTC0 freeze/CRTC1 infinite-HSYNC fixes. The notes distinguish
+  hardware confirmation from the inferred CRTC0 release edge and list the open
+  accuracy issues. It remains a draft, not a published release.
+
 - **Alcon 2020 top-band fix (2026-10-27, integrated `c666e19` from `plus/alcon2020-top-lines`):** the
   garbage band above the playfield is the HUD CRTC frame's last rows. `asic_video` treated the
   R6 border as `C4 < R6` per line instead of a latch cleared only at the frame origin
@@ -25,11 +32,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   on `Amstrad_20261027_925b5bb.rbf` confirms CRTC0 B1 reaches `00FC` after the
   [wedge repair](investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md).
   The main pattern matches the Logon photograph; the inferred C9-wrap release edge
-  remains author question 21. CRTC1 `01F4` still reads `CALC=#34`, against hardware
-  `#FF`: the pin-level infinite-HSYNC change does not close the integrated IRQ result.
+  remains author question 21. CRTC1 `01F4` is fixed and hardware-confirmed:
+  both `925b5bb` and `321f96a` show `#34` for R0=1 and `#FF` for R0=0.
   A temporary [MBC build repair](investigations/hardware-runs/mister-mbc-cross-build.md#known-build-specific-crash-and-local-repair-2026-10-27)
   removes the capture blocker. Original CFG restoration and return to MENU are verified.
-  The `925b5bb` artifact remains the hardware reference (`9ba5e34b…`).
+  The `321f96a` RBF is also hardware-checked for `01F4` (`6bc43724…`).
   [019D production-T80 replay](investigations/hardware-runs/crtc1-outi-019d-2026-10-27.md)
   reproduces the hardware disagreement: fifth/fourth-µs calls return `1F/1F` instead
   of `1E/1F`. Its named XFAIL and passing adjacent-phase control retain the mismatch;
