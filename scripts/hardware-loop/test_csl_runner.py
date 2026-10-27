@@ -875,7 +875,8 @@ class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
         self._frameless_screenshots()
         manifest = self._run(MINIMAL, screenshot_at=[("m.csl", 4), ("m.csl", 8)],
                              capture_timeout=0.05, tolerate_capture_timeout=True)
-        self.assertEqual(manifest["status"], "success")
+        # The walk continued, but no PNG verified: not a success (C0-26).
+        self.assertEqual(manifest["status"], "no_captures")
         self.assertEqual(len(manifest["capture_failures"]), 2)
         self.assertEqual([c["status"] for c in manifest["captures"]], ["failed", "failed"])
         self.assertEqual(
@@ -916,10 +917,48 @@ class TestDeviceBackend(DeviceHarnessMixin, unittest.TestCase):
         self.transport.handlers.insert(0, self.transport.handlers.pop())
         manifest = self._run(MINIMAL, screenshot_at=[("m.csl", 4), ("m.csl", 8)],
                              capture_timeout=0.05, tolerate_capture_timeout=True)
-        self.assertEqual(manifest["status"], "success")
+        # Both timeouts were tolerated, so the walk completed; zero captures
+        # completed, so the run is not a success (C0-26).
+        self.assertEqual(manifest["status"], "no_captures")
         self.assertEqual(len(manifest["capture_failures"]), 2)
         self.assertIn("SSH command timed out",
                       manifest["capture_failures"][0]["error"])
+
+    def test_a_run_with_no_completed_capture_is_not_a_success(self):
+        # C0-26, 2026-10-27: the walk finished with zero PNGs and the manifest
+        # still said success.  Every command completing is not evidence; the
+        # captures are the point of the run.
+        self._frameless_screenshots()
+        manifest = self._run(MINIMAL, screenshot_at=[("m.csl", 8)],
+                             capture_timeout=0.05, tolerate_capture_timeout=True)
+        self.assertEqual(manifest["status"], "no_captures")
+        self.assertEqual(manifest["completed_captures"], 0)
+        self.assertEqual([c["status"] for c in manifest["captures"]], ["failed"])
+
+        # The exit status is what a batch driver reads, so it must not stay 0.
+        script = write(self.tmp, "main.csl", MINIMAL)
+        with patch("csl_runner.SSHTransport", return_value=self.transport), \
+             patch("csl_runner.run_csl", return_value=manifest), \
+             patch("sys.stdout", new=StringIO()), \
+             patch("sys.stderr", new=StringIO()) as stderr:
+            status = main([
+                str(script), "--rbf-path", RBF, "--disk-dir", DISK_DIR,
+                "--ack-main-cmd", "--target", "scripted",
+            ])
+        self.assertEqual(status, 2)
+        self.assertIn("status=no_captures", stderr.getvalue())
+
+    def test_a_run_with_a_completed_capture_is_a_success(self):
+        manifest = self._run(MINIMAL, screenshot_at=[("m.csl", 8)])
+        self.assertEqual(manifest["status"], "success")
+        self.assertEqual(manifest["completed_captures"], 1)
+
+    def test_a_run_that_requests_no_capture_is_still_a_success(self):
+        # A config-only walk must not be failed for evidence it never asked for.
+        manifest = self._run(MINIMAL)
+        self.assertEqual(manifest["captures"], [])
+        self.assertEqual(manifest["completed_captures"], 0)
+        self.assertEqual(manifest["status"], "success")
 
     def _backend(self, out_name: str, **opt_kwargs: Any) -> DeviceBackend:
         """Direct live-backend handle: classify without running a whole walk."""
