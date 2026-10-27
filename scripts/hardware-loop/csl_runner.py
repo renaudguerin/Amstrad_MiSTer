@@ -1901,6 +1901,16 @@ def run_csl(
         if backend is not None:
             manifest["actions"] = getattr(backend, "actions", [])
             manifest["captures"] = getattr(backend, "captures", [])
+        # A completed command is not evidence that the run measured anything.
+        # Count the PNGs that actually verified so the status can say when a
+        # walk produced none (C0-26, 2026-10-27: zero captures, recorded PASS).
+        completed_captures: Optional[int] = None
+        if not dry_run:
+            completed_captures = sum(
+                1 for capture in manifest.get("captures", [])
+                if capture.get("status") == "completed"
+            )
+            manifest["completed_captures"] = completed_captures
         if isinstance(backend, DeviceBackend):
             try:
                 manifest["cleanup"] = backend.cleanup()
@@ -1919,6 +1929,12 @@ def run_csl(
                 }
         if primary_error is not None:
             manifest["status"] = "failed"
+        # Requests come from screenshot commands, --screenshot-at lines and SSM
+        # screenshot markers; capture_count covers all three.  No request means
+        # nothing to miss, so a config-only walk stays a success.
+        if (manifest["status"] != "failed" and completed_captures == 0
+                and getattr(runner, "capture_count", 0) > 0):
+            manifest["status"] = "no_captures"
         if transport is not None:
             manifest["command_log"] = getattr(transport, "command_log", [])
         write_outputs(out_dir, manifest)
@@ -2057,6 +2073,13 @@ def main(argv: Optional[List[str]] = None) -> int:
           f"captures={len(manifest.get('captures', []))} "
           f"capture_failures={len(manifest.get('capture_failures', []))} "
           f"ssm_records={len(manifest.get('ssm_records', []))}")
+    if manifest["status"] == "no_captures":
+        # Same non-zero path as a run that stopped on the device: the walk
+        # completed but produced none of the evidence it was run for.
+        print(f"Error: no capture completed ({manifest.get('completed_captures', 0)} of "
+              f"{len(manifest.get('captures', []))} requested); status=no_captures",
+              file=sys.stderr)
+        return 2
     return 0
 
 
