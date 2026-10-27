@@ -23,11 +23,17 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 - **CRTC follow-ups from the 2026-10-27 run (classic stream, reports only):**
   [hardware-photo comparison](investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md)
   confirms five CRTC1 divergences where AmSpirit matches the Logon photos and the core does not
-  (01F4, 03AE, 03B4, 019D, 008D bit 0); 02EA agrees everywhere. The
+  (01F4, 03AE, 03B4, 019D, 008D bit 0); 02EA agrees everywhere. `01F4` is fixed in
+  simulation: type-1 HSYNC no longer ends when C0=R2 at the C0=R2+R3l end position
+  ([report](investigations/hardware-runs/crtc1-infinite-hsync-01f4-2026-10-27.md); soak
+  re-minted; hardware recheck pending the next master RBF). The other four have their SHAKER
+  register sequences decoded from the disk but no vector yet
+  ([sequences](investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md)). The
   [CRTC0 wedge](investigations/hardware-runs/crtc0-ssm-wedge-2026-10-27.md) after B1/A1 `00FB` is
   fixed in simulation: the F16 frozen IVM-exit comparator never released on a non-matching exit;
   it now releases at the C9 31-to-0 wrap (release point inferred; real CRTC0 continues to `00FC`;
-  [report](investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md)). The [D1-27 stall](investigations/hardware-runs/d1-27-stall-2026-10-27.md)
+  [report](investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md)). The
+  [D1-27 stall](investigations/hardware-runs/d1-27-stall-2026-10-27.md)
   at 0305 reproduces; cause open.
 
 - **SHAKER 2.7 modules B–E and sync-filter comparison (2026-10-15/16):** on delivered

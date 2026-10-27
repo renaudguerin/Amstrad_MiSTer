@@ -72,6 +72,8 @@ exit, or the `00FC` screen geometry compared with a MiSTer capture.
   crtc-test, crtc-cpu-phase-test`. Lint is clean.
 - Soak on this branch (base `3bf1c53`): `0xe99ab434a5e1cdb3` became `0x7358b7e99971f5d6`. This
   is an intended behaviour change, because the random stimulus reaches non-matching IVM exits.
+  Merged with master's `01F4` change (`0x0bb996495fb3207e`), the combined hash is
+  `0xde0a16d0ececc573`.
 
 ## Residuals
 
