@@ -52,6 +52,38 @@ The run completed with six captures, zero capture failures and five SSM records.
 All ten PNGs across the two runs were inspected. The other BR pages are route
 context, not a new acceptance claim for their timing rules.
 
+## Production replay narrows the `01F4` residual
+
+A scratch replay of authentic BR caller `4FD6`, including both calls to `502A`,
+uses production T80pa, GA40010 `syncgen_sync`, normal WAIT and the current CRTC.
+The first R0=1 case reaches IRQ handler `5062`. The second R0=0 case keeps raw
+HSYNC high throughout the roughly 3335 µs NOP sled and reaches fallback `50A1`,
+which sets H=`FF`. No HSYNC falling edge occurs during that second sled, and no
+HSYNC-off event is pending when R0 becomes 0. The fixture does not capture the
+first formatted value, so this is a path/edge observation rather than an exact
+`#34/#FF` formatter regression.
+
+The raw CRTC HSYNC feeds the GA interrupt path directly; video filtering cannot
+explain this difference. The relevant CRTC, GA, T80 and motherboard sources
+match `925b5bb`. The retained MGL names that RBF explicitly. These checks do not
+prove the physical FPGA image or full-machine state matches the fixture.
+
+The fixture loads the private module at `3900` into flat 64 KiB RAM and boots
+with DI, SP=`4065`, IM1, detected type byte `(BF03)=1`, and a jump to `4FD6`.
+Its CRTC defaults are `3F 28 2E 8E 26 00 19 1E 00 07`. Authentic setup,
+synchronization, HALTs, writes and the first formatter execute; ROM banking,
+keyboard, PSG/PlayCity and prior menu history are absent. Sources, full entry
+contract and traces remain under `.roster-scratch/01f4-analysis/`.
+
+There is no failing production vector or justified RTL repair yet. The next
+hardware discriminator should retain the authentic R0-write phase, then park
+the CPU while R0=0 remains active. One proposed private-payload patch replaces
+three bytes at `0102`, after `ED 71` at `0100`, with `DI; JR $` (`F3 18 FE`).
+Snapshot the actual CRTC type, R0/R2/R3, C0, HS/HSC, GA R52 and IRQ before the
+result handler restores R0=63; repeat with R0=1 as the pulse control. This
+proposal was not run. Compare the captured state before deciding whether the
+missing difference is runtime history, loading/synthesis, or a CRTC/GA rule.
+
 ## Retained evidence and restoration
 
 Private captures and manifests are under
