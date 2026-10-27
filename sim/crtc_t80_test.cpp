@@ -57,7 +57,8 @@ struct Bench {
     }
   }
 
-  Bench(bool type = 1, unsigned reg = 5, unsigned r0 = 15, unsigned r6 = 3) {
+  Bench(bool type = 1, unsigned reg = 5, unsigned r0 = 15, unsigned r6 = 3,
+        unsigned r4 = 3, unsigned r7 = 2, unsigned r9 = 3) {
     d.reset = 1;
     d.cpu_reset = 1;
     d.sna_load = 1;
@@ -68,9 +69,9 @@ struct Bench {
     for (int i = 0; i < 5; i++) d.sna_regs[i] = 0;
     const unsigned char r[18] = {
       static_cast<unsigned char>(r0),
-      8, 10, 0x22, 3, 0,
-      static_cast<unsigned char>(r6),
-      2, 0, 3, 0, 0, 0x12, 0x34, 0, 0, 0, 0
+      8, 10, 0x22, static_cast<unsigned char>(r4), 0,
+      static_cast<unsigned char>(r6), static_cast<unsigned char>(r7),
+      0, static_cast<unsigned char>(r9), 0, 0, 0x12, 0x34, 0, 0, 0, 0
     };
     for (unsigned i = 0; i < 18; i++)
       d.sna_regs[i / 4] |= unsigned(r[i]) << (8 * (i % 4));
@@ -306,6 +307,38 @@ void test_out_r0_type1_widen() {
   b.check(b.d.pending == 1, "pending must be 1 on current engine");
 }
 
+// SHAKER 019D: hardware observes 1E for the fifth-us call and 1F for
+// the fourth-us call, one character earlier. See
+// docs/investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md.
+// French ACCC v1.11 section 16.4.2 p.171 describes the immediate R7=C4
+// VSYNC effect, but does not specify the bus sampling edge within a character.
+// The frame and write value preserve the hardware test's matching row and
+// last raster; the short program reproduces the authentic write phase.
+bool outi_r7_boundary_vsync(bool earlier) {
+  Bench b(true, 7, 63, 25, 38, 30, 7);
+  // Select R7, then OUTI writes RAM[0x40] to port BD00.
+  b.load_prog(0, {0x01, 0x07, 0xbc,  // LD BC, BC07
+                  0xed, 0x49,        // OUT (C), C
+                  0x01, 0x00, 0xbe,  // LD BC, BE00
+                  0x21, 0x40, 0x00,  // LD HL, 0040
+                  0xed, 0xa3,        // OUTI
+                  0x76});            // HALT
+  b.prog_byte(0x40, 32);
+  b.pos(32, 7, earlier ? 45 : 46);
+  b.d.cpu_reset = 0;
+  b.until([&] { return b.d.write_active && b.d.crtc_addr == 7 && b.d.t80_a == 0xbd00; });
+  b.check(b.d.t80_dout == 32, "OUTI R7 data mismatch");
+  b.check(b.d.row == 32 && b.d.line == 7 && b.d.c0 == (earlier ? 62 : 63),
+          "OUTI did not land at the expected character");
+  b.check(!b.d.vsync, "VSYNC active before OUTI acceptance");
+  const unsigned old_c0 = b.d.c0;
+  const unsigned start = b.ticks;
+  b.until([&] { return b.d.c0 != old_c0; });
+  b.check(b.ticks - start == 8, "OUTI phase differs from authentic replay");
+  b.run(6 * 64 - (b.ticks - start));
+  return b.d.vsync;
+}
+
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
@@ -331,6 +364,27 @@ int main(int argc, char **argv) {
   run_case("Type 0 OUT (C), C for R0 widening", test_out_r0_type0_widen);
   run_case("Type 1 OUT (C), C for R0 widening", test_out_r0_type1_widen);
 
-  std::cout << "Summary: " << passes << " passed, " << failures << " failed (total 4)\n";
-  return (failures == 0) ? 0 : 1;
+  unsigned xfailed = 0;
+  unsigned xpassed = 0;
+  std::cout << "[TEST] SHAKER 019D fifth-us OUTI... " << std::flush;
+  try {
+    if (outi_r7_boundary_vsync(false)) {
+      std::cout << "XFAIL: VSYNC is high; hardware expects low\n";
+      ++xfailed;
+    } else {
+      std::cout << "XPASS: remove expected-failure marker\n";
+      ++xpassed;
+    }
+  } catch (const std::exception &e) {
+    std::cout << "FAIL: " << e.what() << "\n";
+    ++failures;
+  }
+  run_case("SHAKER 019D fourth-us OUTI", [] {
+    if (!outi_r7_boundary_vsync(true))
+      throw std::runtime_error("VSYNC low; hardware expects high");
+  });
+
+  std::cout << "Summary: " << passes << " passed, " << failures << " failed, " << xfailed << " xfailed, "
+            << xpassed << " xpassed (total 6)\n";
+  return (failures == 0 && xpassed == 0) ? 0 : 1;
 }
