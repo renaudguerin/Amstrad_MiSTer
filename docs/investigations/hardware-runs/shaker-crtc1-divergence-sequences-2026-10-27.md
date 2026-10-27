@@ -74,11 +74,9 @@ character early, inside C4=32.
 - `docs/classic/audit-findings.md` already names the residual: "the current bus interface
   cannot distinguish `OUTI` from an otherwise identical write".
 
-**Next step.** In the production-T80 bench (`sim/crtc_t80_test.cpp`), compare the CRTC data
-latch edge for `OUTI` against `OUT (C),r`. The question is whether CRTC 1 latches at the end of
-the I/O cycle, which for `OUTI` falls in the next µs once GA wait states are counted, rather
-than at the start. Then write a failing type-1 vector from the `019D` sequence: sync on VSYNC,
-`OUTI` R7=`0x20` at +21504 µs, PPI read 6 µs later, expect bit 0 low.
+**Follow-up.** The [production-T80 replay and reduced-frame vector](crtc1-outi-019d-2026-10-27.md)
+confirm the divergence. The exact early visibility and setup/edge ordering remain open;
+hardware evidence or author clarification is needed before choosing a fix.
 
 ## `03AE` / `03B4`: DE/A and DE/C "VMA=R12/R13 UPD WHEN C4=0" (`SHAKE27D.BIN`)
 
