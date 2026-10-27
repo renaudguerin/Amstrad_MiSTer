@@ -34,7 +34,13 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   it now releases at the C9 31-to-0 wrap (release point inferred; real CRTC0 continues to `00FC`;
   [report](investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md)). The
   [D1-27 stall](investigations/hardware-runs/d1-27-stall-2026-10-27.md)
-  at 0305 reproduces; cause open.
+  at 0305 reproduces; cause open (CRTC1, so the CRTC0 fix cannot explain it).
+  Hardware-testable RBF with both fixes: `output_files/Amstrad_20261027_925b5bb.rbf`
+  (`9ba5e34b…`, full-effort CI run 40494721631, no negative slack; copied to the MiSTer).
+  A MiSTer recheck of B1 on CRTC0 with a minimal hand-written CSL (the `CSL_27` scripts are not
+  in `local/test_media/shaker/`) failed twice at the first MBC key input with an SSH exit 255.
+  The device was left at MENU with the original CFG. Recheck pending: B1 on CRTC0 must
+  walk past `00FB` to `00FC`, and B1 `01F4` on CRTC1 must read `CALC=#FF`.
 
 - **SHAKER 2.7 modules B–E and sync-filter comparison (2026-10-15/16):** on delivered
   `cec641c`, every 2.6-path cell walks its module, but several 2.7 cells stall
