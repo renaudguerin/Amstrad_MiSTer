@@ -651,14 +651,20 @@ end
 
 reg       hde;
 reg       vde;
+reg       vde_reseed;
 reg [1:0] dde;
 
 wire      disp_raw = hde & vde;
 
+// The R6 border is a latch (ACCC v1.11 FR §18.1/§18.2.1 p.189, §18.2.4
+// p.190): it sets at a line start with C4=R6 and only the frame origin
+// clears it, so a later R6 rewrite neither cancels it nor, below C4 and
+// without equality, sets it.
 always @(posedge CLOCK) begin
 	if (!nRESET) begin
 		hde <= 1'b0;
 		vde <= 1'b0;
+		vde_reseed <= 1'b0;
 		dde <= 2'b00;
 	end
 	else if (SNA_LOAD) begin
@@ -666,12 +672,19 @@ always @(posedge CLOCK) begin
 		// line seam from the restored counters and R1/R6.
 		hde <= 1'b0;
 		vde <= 1'b0;
+		vde_reseed <= 1'b1;
 		dde <= 2'b00;
 	end
 	else if (CLKEN) begin
 		if (hcc_last) begin
 			hde <= (R1_h_displayed != 8'd0);
-			vde <= (charline_n < R6_v_displayed);
+			if (frame_restart)
+				vde <= (charline_n != R6_v_displayed);
+			else if (vde_reseed)
+				vde <= (charline_n < R6_v_displayed);
+			else if (charline_n == R6_v_displayed)
+				vde <= 1'b0;
+			vde_reseed <= 1'b0;
 		end
 		else if ((hcc + 8'd1) == R1_h_displayed) begin
 			hde <= 1'b0;
