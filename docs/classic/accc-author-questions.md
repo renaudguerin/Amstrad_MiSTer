@@ -381,6 +381,37 @@ with it.
     period with no HSYNC (R2 > R0) stop it? See
     `docs/investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md`.
 
+23. **§11.6.1–11.6.2, French pp.90–91 — RFD/parity lifetime across SHAKER D's E tests.**
+
+    **OPEN, not yet sent; filed 2026-10-28.** On the same MiSTer `cec641c` RBF,
+    SHAKE26D E entered directly after boot gives OK at `03AE` and `03B4`.
+    The complete supplied 2.6 D1 walk through those pages gives WRONG,
+    reproducing the October captures pixel-for-pixel. Menu `9` followed by E
+    gives repeated OK character rows instead. The release `321f96a` full walk
+    also has repeated OK rows and a blank `03AF`. Applied CFG is identical;
+    absolute frame phase is not controlled between device walks.
+
+    In saved state, the E body, sync/delay helpers, font and entire VRAM match
+    between the repeated-OK and full-history WRONG C variants. Saved CRTC,
+    GA, RAM and PPI configurations also match. The core's RFD/parity/address
+    latches are not saved by SNA. A synthetic CPU-executed R5=1 then R5=0
+    precondition reproduces WRONG or repeated-OK layouts in simulation when
+    the E entry is separated by one frame. This is a mechanism discriminator,
+    not a claim about original hardware.
+
+    Questions: should E give the same result after fresh boot, after the
+    complete `9` group, and after the full D1 script on an original CRTC 1-A?
+    What clears or normalizes the RFD parity-enable state after that history,
+    especially through E's R4=R9=0 frame followed by R9=6/7? Does that frame
+    end clear the enable, or only affect the parity value? French §11.6.2 p.91
+    describes subsequent-frame effects and an enable that cannot be disabled
+    before the current frame ends; that alone does not specify a blanket
+    clear on every frame start. No such clear has been added.
+
+    Same-history original-CPC observations or clarification of this lifetime
+    are needed before treating the differing layouts as an R12/R13 latch bug.
+    See [the evidence and replay controls](../investigations/session-logs/classic-overnight-2026-10-28.md).
+
 Also noted while verifying (no answer needed, listed for completeness): p.196 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay
 applies to type 0's substituted trigger (the placement caveat cited by

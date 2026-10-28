@@ -1,5 +1,17 @@
 # SHAKER divergence candidates against hardware photographs (2026-10-27)
 
+**Current follow-up:** `01F4` is fixed and hardware-confirmed (see
+[recheck](shaker-followup-recheck-2026-10-27.md)). On 2026-10-28,
+`03AE`/`03B4` display OK through cold-boot direct-E walks on both released
+`321f96a` and old `cec641c`, with identical PNGs. Authentic production-T80
+replay matches the expected address. An RFD precondition can reproduce WRONG
+or repeated-OK layouts depending on retained parity phase in simulation.
+The old full walk reproduces the WRONG PNGs pixel-for-pixel. The release
+full walk shows repeated OK rows and a blank `03AF`, so cold-entry success
+does not close the history-sensitive residual. The same history on original
+CRTC1 is needed before treating the RFD mechanism as an RTL defect.
+See the [evidence unit](../session-logs/classic-overnight-2026-10-28.md).
+
 The six AmSpirit-divergence candidates from the
 [2.7 B–E report](shaker27-modules-b-e-2026-10-15.md) §5 are compared here against the Logon
 System **Real Hardware** set (`cpc_CPC`, rank-1 authority), all on CRTC 1. Photographs were
