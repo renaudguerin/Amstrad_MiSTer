@@ -27,7 +27,7 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   AmSpirit. See the
   [report](investigations/hardware-runs/alcon2020-top-lines-2026-10-27.md).
 
-- **Classic CRTC follow-ups (2026-10-27):** the
+- **Classic CRTC follow-ups (2026-10-28):** the
   [MiSTer recheck](investigations/hardware-runs/shaker-followup-recheck-2026-10-27.md)
   on `Amstrad_20261027_925b5bb.rbf` confirms CRTC0 B1 reaches `00FC` after the
   [wedge repair](investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md).
@@ -45,12 +45,18 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   A [2026-10-28 evidence unit](investigations/session-logs/classic-overnight-2026-10-28.md)
   replays authentic `03AE`/`03B4` code with production T80/GA timing: both
   produce the hardware-expected row address. Cold-boot direct `03AE` and `03B4` also
-  display OK on released `321f96a`; old-build/menu-history dependence is
-  unresolved. No VMA RTL change is justified.
+  display OK on both old `cec641c` and released `321f96a`, with identical
+  capture hashes and applied CFG. The historical full-walk WRONG result
+  remains a prior-state investigation; a build change alone does not explain
+  it on the short path. A CPU-executed RFD precondition reproduces WRONG or
+  repeated-OK layouts in simulation depending on parity phase. That mechanism
+  needs a same-history original-CPC oracle before any VMA RTL change.
   `008D` retains its unproven width-counter hypothesis (author question 22).
-  [D1-27](investigations/hardware-runs/d1-27-stall-2026-10-27.md) at `0305` remains
-  unresolved on CRTC1; it was last reproduced on `cec641c` and needs a retest on
-  the published build before further diagnosis. The [decoded sequences](investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md)
+  The [D1-27 `0305` stop](investigations/hardware-runs/d1-27-stall-2026-10-27.md)
+  reproduces on the release with the original script, but sufficient, slower
+  input reaches the marker and returns to the module menu without an RTL
+  change. The script/input workaround is bounded progress proof, not a pass
+  for every swept page or the whole module. The [decoded sequences](investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md)
   and [photo comparison](investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md)
   retain the remaining evidence.
 
@@ -58,14 +64,14 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   regression; the physical write-visibility rule is the missing evidence, and a
   common latch change must also re-examine the existing B8 assumptions.
   `03AE`/`03B4` now also pass the bounded authentic production replay; direct
-  cold-boot `03AE`/`03B4` pass on the release. Compare the old build and prior
-  menu history before treating these as current RTL defects. A shared cause
-  with `019D` remains unproven. `008D` needs a hardware discriminator
-  or author answer before changing the VSYNC-width counter's clock source.
-  D1 still stops at `0305` on the release; its caller is an interactive
-  sweep with a script input deficit. Test slower, sufficient advances before
-  classifying it as a CRTC wedge; snapshot re-arming remains unreliable. These are investigation/evidence tasks,
-  not four established RTL patches ready to implement.
+  cold-boot `03AE`/`03B4` pass on both old and release builds. Prior menu
+  history remains the discriminator before treating these as current RTL
+  defects. A shared cause with `019D` remains unproven. `008D` needs a hardware
+  discriminator or author answer before changing the VSYNC-width counter's clock source.
+  D1's `0305` stop has a demonstrated script/input workaround; no CRTC
+  wedge repair is justified. Snapshot re-arming remains a separate tooling
+  question. These are investigation/evidence tasks, not four established
+  RTL patches ready to implement.
   The older [B–E capture report](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md)
   retains the other module stalls and filter observations from `cec641c`; its
   CRTC0 B1 and CRTC1 `01F4` failures are superseded by the fixes above.

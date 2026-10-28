@@ -123,6 +123,15 @@ the test's VSYNC lock aligns to a different line than assumed.
 **Next step.** Replay the module D entry in the production-T80 bench, or take a MiSTer SNA on
 the `03AE` page, to get the real C4/C9/C0 at each write. Compare that with the table above.
 
+**2026-10-28 follow-up.** The
+[authentic production replay and device controls](../session-logs/classic-overnight-2026-10-28.md)
+pass A/C from reset. Cold-boot device entries pass on both the release and
+old `cec641c` builds. A synthetic CPU-executed RFD precondition reproduces WRONG or repeated-OK
+layouts depending on parity phase, without changing E's measured code. This
+moves the discriminator to retained history state, not an established R12/R13
+latch defect. The same history on original CRTC1, or a source-proven lifetime
+rule, is required before changing RTL.
+
 ## `008D`: AI/A "LOST VSYNC ON R0=0/1" (`SHAKE27A.BIN`)
 
 There is one shared body at `6400`, reached through `6491(a)`. Each block writes R0 and

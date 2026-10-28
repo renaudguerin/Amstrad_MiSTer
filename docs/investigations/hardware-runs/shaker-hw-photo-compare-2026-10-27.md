@@ -2,10 +2,12 @@
 
 **Current follow-up:** `01F4` is fixed and hardware-confirmed (see
 [recheck](shaker-followup-recheck-2026-10-27.md)). On 2026-10-28,
-`03AE`/`03B4` both display OK on released `321f96a` through a cold-boot direct-E
-walk, and their authentic production-T80 replay matches the expected address.
-The old WRONG observations below remain specific to the earlier build/path;
-compare build and menu history before treating them as current RTL defects.
+`03AE`/`03B4` display OK through cold-boot direct-E walks on both released
+`321f96a` and old `cec641c`, with identical PNGs. Authentic production-T80
+replay matches the expected address. An RFD precondition can reproduce WRONG
+or repeated-OK layouts depending on retained parity phase in simulation.
+The old WRONG observations remain path-specific evidence; the same history
+on original CRTC1 is needed before treating this mechanism as an RTL defect.
 See the [evidence unit](../session-logs/classic-overnight-2026-10-28.md).
 
 The six AmSpirit-divergence candidates from the

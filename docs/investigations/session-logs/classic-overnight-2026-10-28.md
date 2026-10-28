@@ -1,130 +1,187 @@
-# Classic CRTC unattended run, 2026-10-28
+# Classic CRTC unattended evidence, 2026-10-28
 
-## Scope and starting position
+## Position and scope
 
-This run starts from `5ade887` on the MacBook Air M5 in the task-owned
-`codex/accuracy/crtc1-module-d-replay` checkout. The user's pasted handoff
-predates the published `v2026.10.27` release and the integrated `019D`
-production-T80 XFAIL. Current source is authoritative for task selection.
+This run starts from `5ade887` on the MacBook Air M5, in the task-owned
+`codex/accuracy/crtc1-module-d-replay` checkout. The user authorizes integration
+and push. Existing worktrees, stashes and private inputs are preserved. Sol
+6.1 high performed the bounded module-D replay and snapshot comparison;
+parent owns device operations and acceptance.
 
-The user authorizes branch creation, integration and push. The run-specific
-model roster supersedes the older generic routing: Sol 6.1 high handles the
-authentic module-D timing investigation. Parent owns device operations and
-acceptance. Existing worktrees, stashes and private inputs are preserved.
+No RTL, production code, committed test or soak golden changed. The evidence
+narrows two investigations without inventing a hardware rule: D1's `0305`
+stop has a script/input workaround; `03AE`/`03B4` depend on prior state in the
+model and need the same history on original hardware before an RTL repair.
+`019D` and `008D` retain their independent evidence requirements.
 
-## Completed evidence unit
+## D1: sufficient input overcomes the `0305` stop
 
-- Authentic production-T80/GA replay of module D `03AE`/`03B4`, retaining
-  register-write phase and frame/address observations. A scripted pin replay
-  already passes, so the integrated execution is the missing discriminator.
-- Bounded D1 release-build retest, operated serially through the Mac mini.
-  RBF `321f96a`, SHA-256
-  `6bc437243db9ef5f9db2349f420520a46364dee4b7954ccc95e96f55ba36400d`.
-  The verified temporary `mbc-fixed` helper was reprovisioned after `/tmp`
-  lost its copy. Its SHA-256 is
-  `f2b3a4f3cbd98c7a13f8770eb4c893bc352eae9d204f92f664f5eaad6c697330`.
+The unmodified supplied `CSL_27` D1 script actually loads `shaker26.dsk` /
+`SHAKE26D`. On exact release `321f96a`, it again times out at line 81,
+`wait_ssm 0305`: 30 captures, zero capture failures. Its saved caller is an
+interactive sweep, not a VSYNC-wait wedge. A2FD is delay-return padding;
+the stack returns to 710B, which repeats the sweep through 7093 and polls
+input through 9FE0/7107.
 
-## Evidence boundaries
+The loop starts at length 40, outer count 3A, and decrements until count 09:
+49 accepted advances. The supplied script sends 36+11=47 spaces after
+`0302`. Both old and release snapshots retain length 16, count 10, equivalent
+to only 42 advances. The release snapshot `D1-release-1.sna` has PC=A2F3,
+SP=405D, C0/C4/C9=51/1/1, SHA-256
+`e855e5092a13eaeb19d596247c5b6464e4bf1155457c50aa5e39786378120e75`.
+The first pull timed out; retry succeeded at generation 1. Repeat-save
+navigation did not produce a later generation, so post-save input controls
+were inconclusive and are not used to establish the cause.
 
-`019D` remains blocked on the physical write-visibility rule; neither a
-blanket latch delay nor an R7-specific exception is justified. `008D` still
-needs original-hardware discrimination or an author answer. No inferred
-counter clock or latch edge is to be promoted into RTL just to satisfy a
-simulation.
+A scratch copy preserves boot, media and earlier tests, then changes the
+final sweep to 36+13 spaces with `key_delay 250000 250000 400000`, stopping
+at `0305`. It completes on the same release: `status=success commands=69
+captures=31 capture_failures=0 ssm_records=41`, returning to the module menu.
+Count and pacing changed together; this does not establish a minimum reliable
+count or isolate key repeat/debounce. Markers emitted inside the key burst
+were drained afterwards: captures `0303`–`0305` show the same menu. This is
+bounded progress proof, not numeric-page correctness or a whole-module pass.
+The source script is unchanged. See the [D1 report](../hardware-runs/d1-27-stall-2026-10-27.md#sufficient-input-device-control-2026-10-28).
 
-The D1 `CSL_27` script actually loads `shaker26.dsk` / `SHAKE26D`.
-The old snapshot's `A2FD` is delay-return padding, not the caller. Its stack
-returns to `710B`, which repeats the interactive monitor-VSYNC-length sweep
-through `7093`. The keyboard scan at `9FE0` controls the return at `7107`.
-A snapshot in that loop alone cannot establish a CPU or CRTC wedge.
+## Module D: cold-entry controls and retained state
 
-## Continuity and quota
+Authentic SHAKE26D and SHAKE27D entries A=4966 / C=4994 execute their real
+setup, screen draw, VSYNC lock and measured body with production T80/GA/CRTC
+timing. From reset, both reach row 1 at `3190 + 40 = 31B8`. Three SHAKE26D
+iterations retain `31B8..31DF` across all eight row-1 rasters. This is bounded
+replay: immediate RAM, direct PPI VSYNC, BC00 RET stub, incomplete loader/font
+and marker state. It is not a full motherboard verdict.
 
-Initial live Codex usage: five-hour 33% used; weekly 37% used. Two banked
-resets are available and remain untouched. Work is bounded and stops before
-the unattended reserve thresholds. Sleep/restart/quota-exhaustion recovery
-is not verified; this file is the durable continuation point.
+Cold-boot direct E reaches `03AE`/`03AF`/`03B4`, visibly OK, on both old
+`cec641c` and released `321f96a`: each walk has 14 commands, three captures,
+zero failures and five SSM records. Corresponding PNGs are identical:
 
-## Completion record
+| Page | SHA-256, old and release |
+|---|---|
+| `03AE` / `03AF` | `c91dea6b9b3b161b2cba377a1bea0d410552847eb3417ee52bf52beeaa8ef71b` |
+| `03B4` | `fcb90f46fa95fd8f3c16f1f4a2833ddb9c6b31fa4bd45c3d22a1451cb28c8d79` |
 
-The authentic module-D replay completed without tracked code changes. Both
-SHAKE26D and SHAKE27D A/C entries reach row 1 at `31B8`; three SHAKE26D
-iterations retain the correct `31B8..31DF` addresses across all eight rasters.
-Scratch reproduction sources and traces are retained under
-`.roster-scratch/module-d/` and copied to
-`docs/references/classic-overnight-2026-10-28/module-d/`. This uses production
-T80/GA/CRTC but immediate RAM, direct PPI VSYNC and a BC00 RET stub; it is
-not full-machine proof. No test, RTL, soak golden or production code changed;
-no simulation gate or independent code review is required for this docs-only unit.
+The historical October 15/16 full-walk captures were pulled and visually
+rechecked: they really say WRONG. The saved original CFG and applied
+classic CRTC1/Full/SSM CFG hashes match those runs exactly (`f8c6879a…67cf3e`
+and `022f2aae30beb5237f42036bda82ed68370afff135558f210740dba865742abc`).
+A build change alone does not explain the old result on the short path.
 
-D1 on exact release `321f96a` again stopped at line 81, waiting for `0305`,
-with 30 captures and zero capture failures. The runner restored the original
-CFG. Snapshot `D1-release-1.sna` SHA-256
-`e855e5092a13eaeb19d596247c5b6464e4bf1155457c50aa5e39786378120e75`
-shows PC=A2F3, SP=405D, C0/C4/C9=51/1/1 and the same caller/sweep position as
-the older sample (length `16`, outer count `10`). The first pull timed out;
-a retry produced generation 1. Attempts to re-save did not advance the generation.
+An old-build `9`-then-E control displays OK but repeats the text across
+character rows and hides the explanatory header: 34 commands, 15 captures,
+zero failures, 27 SSM records. Snapshot `E-after9-old.sna` has SHA-256
+`dd1ecab063f3702a2bfdbd5bd0c4c4e5259e3afea643aaaab0dd87a73bc22d45`.
+RAM comparison with direct-E snapshot `E-03AE-release.sna`
+(`c5cd9f998a56af521bef540f22927178714b1a5534f9f8af24e14ad40362f972`)
+finds intact font/header data and one OK string. All 528 differing VRAM bytes
+are intentional A/C explanatory text. Saved CRTC/GA/RAM/PPI configuration
+matches. SNA omits RFD flags, parity and video-address latches; loading a
+snapshot clears candidate RFD state and cannot preserve this discriminator.
 
-Static disassembly identifies an input deficit: the sweep at 702A starts
-length 40, outer count 3A, decrements once per accepted advance and exits
-when the count reaches 09 (49 advances). The supplied script sends 36+11=47
-spaces after `0302`; both snapshots show only 42 accepted. That supports a
-script pacing/count explanation but is not yet a proven fix. Additional input
-after the snapshot did not visibly advance the screen; OSD/input/snapshot
-state makes that control inconclusive. Do not claim a CRTC wedge from it.
+### Bounded RFD/parity mechanism probe
 
-Cold-boot direct entry E on the release reaches `03AE` and visibly says
-"YOUR EMULATOR IS OK". Its manifest has 10 commands, one capture, zero capture
-failures and one SSM record. Snapshot `E-03AE-release.sna` SHA-256
-`c5cd9f998a56af521bef540f22927178714b1a5534f9f8af24e14ad40362f972`
-is retained beside the PNG and manifests in
-`docs/references/classic-overnight-2026-10-28/`. This supersedes the old WRONG
-observation for this entry path only. The old capture used `cec641c` and
-prior menu history; a controlled old/new or menu-history comparison remains.
+A scratch experiment executes R5=1 then R5=0 at an R0=63 rollover, then
+resets only the CPU before running authentic E. This is a synthetic
+precondition, not an authentic menu-9 replay. Two iterations each produce:
 
-Short-window usage reached 94% (weekly 47%), so the run checkpoints without
-starting another unit. No banked reset was redeemed. A single heartbeat
-`resume-classic-crtc-overnight-after-reset` targets this chat at 05:30 London
-on 28 October, after the 05:25:06 reset. Its saved kind, target and schedule
-were inspected. Actual wakeup/recovery is unverified and needs the Air awake,
-Codex running and the workspace available. The Mac mini and MiSTer must also
-be reachable for further device work.
+| Precondition | Row 1 MA | Following rows |
+|---|---|---|
+| Reset, no RFD | `31B8` (OK) | Advance normally |
+| CPU-executed RFD | `3028` (WRONG) | Advance normally |
+| Same RFD, one frame later | `31B8` (OK) | Repeat `31B8` through row 10 |
 
-## Resume next
+No RTL or internal signal was injected. This shows how retained RFD/parity
+phase can produce the observed layout classes; it does not establish which
+is faithful after the same history on original CRTC1. R3 was corrected to
+the module/snapshot's 0E for these final probes; earlier 8E logs are explicitly
+distinguished and unchanged. Do not turn observed addresses into required-pass
+vectors or clear hidden state on register initialization without an oracle.
 
-1. Check live quota and current Git/device state; no substantial work above
-   the unattended thresholds. Preserve shared account headroom.
-2. Retain the completed direct E results below as the current cold-boot control.
-3. Compare direct E on old `cec641c` with the release, then test prior menu
-   history only if it changes the result. Do not patch a non-reproducing VMA rule.
-4. For D1, try a scratch copy of the supplied script with at least 49 slower
-   advances, without saving a snapshot first; preserve the source script.
-   Re-test snapshot re-arming separately before relying on multiple samples.
-5. Reconcile current-status and the older dated reports with these bounded
-   results, then stream-finish the docs-only unit. No build is warranted.
-6. `019D` and `008D` still need the independent evidence described above.
+The French ACCC v1.11 was read directly through pdf-inspector for
+§§11.6–11.6.3 pp.89–92, including a render of p.91. §11.6.1 p.90 describes
+parity-dependent VMA' saves; §11.6.2 p.91 describes subsequent-frame effects
+and a minimum within-frame lifetime. In context this does not justify a
+blanket frame-start clear. A bounded check of French §19.5.3 pp.209–210 (including rendered p.209 table)
+finds that a frame origin aligns ParityC9 with newly toggled ParityFrame;
+it does not force absolute even parity. Current engine/wrapper assignments
+match that boundary. A paper E sequence retains the initial phase after
+its short frame and even-R9 row. No source/model contradiction was established;
+RFD lifetime after the same history still needs original-hardware evidence.
+The source check is retained in `module-d/parity-source-check.md`.
 
-Device teardown must verify the original CFG SHA-256
+The original full 2.6 menu-history walk through `03B4` completes on old
+`cec641c`: 191 commands, 124 captures, zero capture failures, 178 SSM records.
+Its `03AE`/`03B4` PNGs reproduce the October WRONG captures pixel-for-pixel
+(`49eb3655…bf3936` and `8fff451c…33eb0`); `03AF` remains OK. Commands are
+unchanged, line endings normalized, and execution stops after that wait.
+The original full-script SHA-256 is
+`32e968d0488779e08664ada2435fcefb1bec718a3ffa548df9006158bc0cb936`,
+identical across the two Macs.
+
+Snapshot `E-full-history-old.sna` SHA-256
+`44d2faa87e6a7b48cf3544391cecd38a2066677701195b4ab44252373f7bc916`
+has the same saved CRTC/GA/RAM/PPI configuration, E body, sync/delay helpers,
+firmware wrapper, font and entire VRAM as the repeated-OK C snapshot after
+menu 9. This is a concrete retained-state discriminator, not RAM corruption.
+[Author question 23](../../classic/accc-author-questions.md) records the missing
+same-history original-hardware/lifetime evidence and has not been sent.
+The first equivalent release walk stopped before E, after 24 captures,
+when MiSTer SSH authentication failed. Its cleanup also failed to restore
+CFG. A bounded access retry succeeded; the original CFG was then manually
+restored and MENU verified before starting one fresh full-walk attempt.
+The failed manifest/logs remain in `full26-e-release-a1/`. A snapshot cannot
+resume this experiment because it omits/clears candidate hidden history.
+The one fresh release attempt is the final live control.
+
+## Artifacts and verification
+
+Private evidence is under `docs/references/classic-overnight-2026-10-28/`
+(the repository alias resolves to `docs/specs/`). It includes decisive PNGs,
+manifests, SNAs, scratch CSL controls and the module-D source/trace bundle.
+Reproduction commands and limitations are in `.roster-scratch/module-d/README.md`
+and `snapshot-analysis.md`, copied to the private evidence's `module-d/`.
+The remaining full run is retained on the Mac mini under
+`/tmp/crtc-overnight-20261028/full26-e-old-a1/`; preserve decisive outputs
+before that host's temporary storage is cleaned. Media and PDFs stay untracked.
+
+RBF identities:
+
+- Release `321f96a`: `6bc437243db9ef5f9db2349f420520a46364dee4b7954ccc95e96f55ba36400d`.
+- Old `cec641c`: `40f7d66bfcfda37ce9f5053ff3e3af833713bdb4065fe4bcde9c311a3cb4dd2c`.
+- MBC helper: `f2b3a4f3cbd98c7a13f8770eb4c893bc352eae9d204f92f664f5eaad6c697330`.
+
+The release RBF was copied unchanged to this task's
+`output_files/Amstrad_20261027_321f96a.rbf` and its full hash verified.
+Exact-source [CI run 40521275117](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/40521275117)
+was rechecked: simulation, production-T80, synthesis-policy, route, full
+synthesis and required-gate pass; local synthesis is intentionally skipped.
+This is ancestor artifact provenance, not a new build or new-tip CI evidence.
+Documentation-only changes require no simulation or independent code review.
+The synthesis classifier returns false, and the push workflow excludes docs.
+
+One Opus medium review of the untracked diagnostic was attempted through
+`ask-claude`; it failed before producing a review (OAuth 401, expired token).
+The supervisor exited cleanly and reaper reported no live bridge workers.
+The diagnostic remains author analysis, not independently reviewed code or
+hardware proof; a future RTL change needs a fresh cross-provider review.
+The preserved incident is `.roster-scratch/bridge-incidents/20261028T060434Z-opus-review-auth.md`
+(intended destination: `~/code/agents-roster/inbox/bridge-incidents/`).
+Worker/coordinator wasted token/cost is unknown; runtime was 6.2 seconds.
+No credentials or account settings were changed.
+
+## Continuation and boundaries
+
+The local heartbeat successfully resumed this chat at 05:30 after a deliberate
+quota pause (94% short-window usage before reset, 0% after; weekly 48%). This
+verifies that case only, not recovery after sleep, restart or quota exhaustion.
+Two banked resets remain untouched. The one-shot wakeup is removed on completion.
+
+Next useful work is same-history original-CPC evidence or source clarification
+for RFD/parity lifetime, the physical write-visibility rule for `019D` (including
+B8 assumptions), and an original-hardware discriminator or author answer for
+`008D`'s width-counter clock. Snapshot re-arming is separate tooling work.
+No speculative latch or counter change is justified by these results.
+
+Final teardown must verify original CFG SHA-256
 `f8c6879a0e1fc3370de80ba3f04d30bea05cec5abc31c74db40e71c52867cf3e`
-and `CORENAME=MENU`.
-
-## Final device result before quota pause
-
-The short direct-E walk also reaches `03AF` and `03B4`: 14 commands,
-three captures, zero failures, five SSM records. `03B4` visibly says
-"YOUR EMULATOR IS OK", matching the production replay. Capture SHA-256:
-
-- `03AE`: `c91dea6b9b3b161b2cba377a1bea0d410552847eb3417ee52bf52beeaa8ef71b`
-- `03B4`: `fcb90f46fa95fd8f3c16f1f4a2833ddb9c6b31fa4bd45c3d22a1451cb28c8d79`
-
-Both tests therefore pass on this release/short-entry path. The older WRONG
-captures remain evidence for their earlier build and menu history. No code
-fix was made or inferred. The next useful discriminator is the controlled
-old/new build comparison, followed by menu history if necessary.
-
-The final device read verifies `CORENAME=MENU` and the original CFG hash
-`f8c6879a0e1fc3370de80ba3f04d30bea05cec5abc31c74db40e71c52867cf3e`.
-All provider/device commands have completed. Private media, snapshots,
-replay sources and captures remain untracked; add only the named documentation
-files when committing. Integration/push is deferred to the scheduled continuation
-because the shared short window has exceeded the pause threshold.
+and `CORENAME=MENU` after the remaining capture completes.
