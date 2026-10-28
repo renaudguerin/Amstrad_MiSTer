@@ -6,8 +6,10 @@
 `321f96a` and old `cec641c`, with identical PNGs. Authentic production-T80
 replay matches the expected address. An RFD precondition can reproduce WRONG
 or repeated-OK layouts depending on retained parity phase in simulation.
-The old WRONG observations remain path-specific evidence; the same history
-on original CRTC1 is needed before treating this mechanism as an RTL defect.
+The old full walk reproduces the WRONG PNGs pixel-for-pixel. The release
+full walk shows repeated OK rows and a blank `03AF`, so cold-entry success
+does not close the history-sensitive residual. The same history on original
+CRTC1 is needed before treating the RFD mechanism as an RTL defect.
 See the [evidence unit](../session-logs/classic-overnight-2026-10-28.md).
 
 The six AmSpirit-divergence candidates from the

@@ -387,7 +387,9 @@ with it.
     SHAKE26D E entered directly after boot gives OK at `03AE` and `03B4`.
     The complete supplied 2.6 D1 walk through those pages gives WRONG,
     reproducing the October captures pixel-for-pixel. Menu `9` followed by E
-    gives repeated OK character rows instead. Applied CFG is identical.
+    gives repeated OK character rows instead. The release `321f96a` full walk
+    also has repeated OK rows and a blank `03AF`. Applied CFG is identical;
+    absolute frame phase is not controlled between device walks.
 
     In saved state, the E body, sync/delay helpers, font and entire VRAM match
     between the repeated-OK and full-history WRONG C variants. Saved CRTC,

@@ -131,7 +131,16 @@ CFG. A bounded access retry succeeded; the original CFG was then manually
 restored and MENU verified before starting one fresh full-walk attempt.
 The failed manifest/logs remain in `full26-e-release-a1/`. A snapshot cannot
 resume this experiment because it omits/clears candidate hidden history.
-The one fresh release attempt is the final live control.
+The fresh release attempt completes: 191 commands, 124 captures, zero capture
+failures, 178 SSM records. `03AE` and `03B4` show repeated OK rows without the
+header (`997603427efb9b4366afd52e92998daf14689e8e70774ffdf96a343fdb1ef9cf`);
+`03AF` is blank (`1c237400da52f45639975517ac5cfde2af0d5df3aaae6c023283599dfe3e62c2`).
+These are history-sensitive display residuals, not a clean visual pass.
+The RBF and keyboard/capture timings changed between the old and release
+walks, so that difference is not isolated to the build. The old-build
+`9`-then-E control already demonstrates the repeated-OK class on that build.
+The synthetic phase probe explains implementation sensitivity, not chip
+faithfulness; the same-history original-CPC oracle remains necessary.
 
 ## Artifacts and verification
 
@@ -140,9 +149,13 @@ Private evidence is under `docs/references/classic-overnight-2026-10-28/`
 manifests, SNAs, scratch CSL controls and the module-D source/trace bundle.
 Reproduction commands and limitations are in `.roster-scratch/module-d/README.md`
 and `snapshot-analysis.md`, copied to the private evidence's `module-d/`.
-The remaining full run is retained on the Mac mini under
-`/tmp/crtc-overnight-20261028/full26-e-old-a1/`; preserve decisive outputs
-before that host's temporary storage is cleaned. Media and PDFs stay untracked.
+Durable mirrors are in each host's main clone, under ignored
+`local/investigations/classic-crtc-2026-10-28-d434/`: the Air holds the curated
+artifact bundle; the Mac mini's `device-runs/` holds all complete and partial
+device runs copied from `/tmp/crtc-overnight-20261028/`. Decisive outputs also
+remain in this task's private evidence directory. The full original 2.6 script was truncated only
+after E/C; neither full-walk transport success claims whole-module or numeric
+correctness. Media and PDFs stay untracked.
 
 RBF identities:
 
@@ -151,7 +164,8 @@ RBF identities:
 - MBC helper: `f2b3a4f3cbd98c7a13f8770eb4c893bc352eae9d204f92f664f5eaad6c697330`.
 
 The release RBF was copied unchanged to this task's
-`output_files/Amstrad_20261027_321f96a.rbf` and its full hash verified.
+`output_files/Amstrad_20261027_321f96a.rbf`, then to the main integration clone's
+same path, with its full hash verified in both locations.
 Exact-source [CI run 40521275117](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/40521275117)
 was rechecked: simulation, production-T80, synthesis-policy, route, full
 synthesis and required-gate pass; local synthesis is intentionally skipped.
@@ -174,7 +188,10 @@ No credentials or account settings were changed.
 The local heartbeat successfully resumed this chat at 05:30 after a deliberate
 quota pause (94% short-window usage before reset, 0% after; weekly 48%). This
 verifies that case only, not recovery after sleep, restart or quota exhaustion.
-Two banked resets remain untouched. The one-shot wakeup is removed on completion.
+No reset was redeemed by this run; two banked resets remain available.
+The final live telemetry unexpectedly reports both windows at 0% with later
+reset times; the cause is not established and no extra work is inferred from
+it. The one-shot wakeup was deleted after successful delivery.
 
 Next useful work is same-history original-CPC evidence or source clarification
 for RFD/parity lifetime, the physical write-visibility rule for `019D` (including
@@ -182,6 +199,9 @@ B8 assumptions), and an original-hardware discriminator or author answer for
 `008D`'s width-counter clock. Snapshot re-arming is separate tooling work.
 No speculative latch or counter change is justified by these results.
 
-Final teardown must verify original CFG SHA-256
+Final teardown verifies original CFG SHA-256
 `f8c6879a0e1fc3370de80ba3f04d30bea05cec5abc31c74db40e71c52867cf3e`
-and `CORENAME=MENU` after the remaining capture completes.
+and `CORENAME=MENU` after the final capture. The two owned temporary files
+left by the failed release attempt were removed after restoration. All
+provider/device commands have completed. The one-shot wakeup was deleted.
+No release-control retry or provider process remains running.

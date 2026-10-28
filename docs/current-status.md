@@ -51,6 +51,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   it on the short path. A CPU-executed RFD precondition reproduces WRONG or
   repeated-OK layouts in simulation depending on parity phase. That mechanism
   needs a same-history original-CPC oracle before any VMA RTL change.
+  The full walk reproduces WRONG pixel-for-pixel on old `cec641c`; the release
+  full walk shows repeated OK rows and a blank `03AF`, so the retained-state
+  display residual remains on the release despite its cold-entry pass.
   `008D` retains its unproven width-counter hypothesis (author question 22).
   The [D1-27 `0305` stop](investigations/hardware-runs/d1-27-stall-2026-10-27.md)
   reproduces on the release with the original script, but sufficient, slower
