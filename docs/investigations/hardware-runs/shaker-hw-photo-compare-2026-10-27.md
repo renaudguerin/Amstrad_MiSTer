@@ -1,5 +1,13 @@
 # SHAKER divergence candidates against hardware photographs (2026-10-27)
 
+**Current follow-up:** `01F4` is fixed and hardware-confirmed (see
+[recheck](shaker-followup-recheck-2026-10-27.md)). On 2026-10-28,
+`03AE`/`03B4` both display OK on released `321f96a` through a cold-boot direct-E
+walk, and their authentic production-T80 replay matches the expected address.
+The old WRONG observations below remain specific to the earlier build/path;
+compare build and menu history before treating them as current RTL defects.
+See the [evidence unit](../session-logs/classic-overnight-2026-10-28.md).
+
 The six AmSpirit-divergence candidates from the
 [2.7 B–E report](shaker27-modules-b-e-2026-10-15.md) §5 are compared here against the Logon
 System **Real Hardware** set (`cpc_CPC`, rank-1 authority), all on CRTC 1. Photographs were

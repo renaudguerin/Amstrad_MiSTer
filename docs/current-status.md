@@ -42,7 +42,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   of `1E/1F`. Its named XFAIL and passing adjacent-phase control retain the mismatch;
   no RTL change is justified until the physical write-visibility contract is settled.
   The existing B8 early-capture expectation also needs independent hardware validation.
-  `03AE`/`03B4` remain integrated-phase investigations; their pin replay passes.
+  A [2026-10-28 evidence unit](investigations/session-logs/classic-overnight-2026-10-28.md)
+  replays authentic `03AE`/`03B4` code with production T80/GA timing: both
+  produce the hardware-expected row address. Cold-boot direct `03AE` and `03B4` also
+  display OK on released `321f96a`; old-build/menu-history dependence is
+  unresolved. No VMA RTL change is justified.
   `008D` retains its unproven width-counter hypothesis (author question 22).
   [D1-27](investigations/hardware-runs/d1-27-stall-2026-10-27.md) at `0305` remains
   unresolved on CRTC1; it was last reproduced on `cec641c` and needs a retest on
@@ -53,12 +57,14 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 - **Remaining classic accuracy work:** `019D` has a failing production-T80
   regression; the physical write-visibility rule is the missing evidence, and a
   common latch change must also re-examine the existing B8 assumptions.
-  `03AE`/`03B4` need the authentic module-D production replay because their
-  scripted CRTC-only replay already reloads the correct video address. A shared
-  cause with `019D` is possible but unproven. `008D` needs a hardware discriminator
+  `03AE`/`03B4` now also pass the bounded authentic production replay; direct
+  cold-boot `03AE`/`03B4` pass on the release. Compare the old build and prior
+  menu history before treating these as current RTL defects. A shared cause
+  with `019D` remains unproven. `008D` needs a hardware discriminator
   or author answer before changing the VSYNC-width counter's clock source.
-  D1's first step is a release-build retest, then multiple snapshots and the
-  caller disassembly if it still stalls. These are investigation/evidence tasks,
+  D1 still stops at `0305` on the release; its caller is an interactive
+  sweep with a script input deficit. Test slower, sufficient advances before
+  classifying it as a CRTC wedge; snapshot re-arming remains unreliable. These are investigation/evidence tasks,
   not four established RTL patches ready to implement.
   The older [B–E capture report](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md)
   retains the other module stalls and filter observations from `cec641c`; its
