@@ -15,6 +15,12 @@ minimal `video_mixer` RGB generate-scope correction, backed by a failing
 production-module test. No monitor PLL model, duplicate renderer or engine
 gating belongs to this work.
 
+**New investigation, 2026-10-29:** Renaud has requested an explicit assessment
+of monitor-response presentation for HDMI alongside faithful raw CRT output.
+The [V1/V2 work plan](sync-response-and-demo-plan-2026-10-29.md) records source
+analysis, Opus high advice and evidence gates. This extends the investigation
+beyond the completed B6 slice; it does not change the mode contract below.
+
 ## Decision and physical limit
 
 Keep one pixel pipeline. Separate its byte-phase policy from the timing tuple
