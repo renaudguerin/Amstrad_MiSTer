@@ -77,8 +77,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   of `925b5bb`, while the same-media AmSpirit run has coherent lower content.
   A [caller replay](investigations/video-boundary/amazing-lower-caller-2026-10-29.md)
   now reproduces dense lower corruption before the mixer/scaler: row0 remains
-  MA3000, while row1 and later repeat0C34 in the corrupt model window. RFD/parity
-  save tracing is in progress; PPI/bootstrap assumptions remain explicit, and
+  MA3000, while row1 and later repeat0C34 in the corrupt model window. Qualified
+  tracing locates the suppressed save and accounts for the parity change through
+  consecutive R0=0 origins. The unresolved rule is whether retained RFD parity
+  still gates saves after its R12/R13 source state clears; a controlled R1>R0
+  discriminator is being prepared. PPI/bootstrap assumptions remain explicit;
   no hardware-rule violation or production repair is established. V1/V2 retain their own gates.
   Direct SSH to `root@mister` is verified; parallel chats need a sole
   device operator and explicit handoffs. See the linked

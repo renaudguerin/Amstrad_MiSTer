@@ -113,20 +113,48 @@ retention or parity evolution violates the physical chip's rule. Last-IORQ
 context in this trace can precede bus settling and must not be interpreted as
 a decoded write. The separate I/O trace supplies causative transactions.
 
+A corrected passive observer records actual CRTC register-file acceptance and
+CLKEN-qualified line/frame events, including repeated R0=0 origins. Its C012
+128K RAM and all 11299 named CPU fetch events through the phenotype match the
+earlier replay; first dense caller217 remains tick397868927/MA0C34. From caller170
+through the short caller218 endpoint it records 29639 line origins, including
+14655 with R0=0, with no hidden-state continuity gaps. PF and PC9 are equal
+at every recorded pre- and post-edge state. Selecting one instead of the
+other cannot change the predicate anywhere in this recorded interval.
+
+The observer also locates the first arming transaction: R0 changes 0→63 at
+tick345202567, C0/C4/C9=0/0/2 with R9=2; R9 changes 2→3 at345203399;
+the actual extended-line end qualifies the R0 route at345206654 and the
+post-edge hidden tuple is F. Accepted writes are system-clock edges, including
+repeated acceptance while the CPU holds the bus, not invented first-IORQ
+transactions. The one-tick distinction from the earlier state observations
+is the documented pre-edge versus subsequent sampled-state convention.
+
+Immediately before the lower return, caller216's R9=0 tail has 15 frame origins
+after the final R9=3 origin; caller217 has 14. Each toggles both parity states.
+The last R9=3 origin is 65521 versus 61425 ticks before C05D, a 4096-tick
+difference. This accounts for C05D hidden E versus 2 and the opposite parity
+after the lower origin. Assigning a uniquely missing member among identical
+periodic origins would depend on alignment; the count difference is exact.
+This closes a model-history explanation, not the original-hardware oracle.
+
+Of the 42 source-flag clear transitions in that interval, 21 have the qualified
+successful-save context and 21 have R1>R0 with bare C9=R9. The last clear before
+dense217 is tick397606527: R0=0, R1=48, C9=R9=3, hidden 3→2. CLKEN is 0 on
+that system-clocked source-disarm edge. Thus the source-scope control below
+exercises a disarm route present in the actual replay history, rather than
+only a hypothetical register arrangement.
+
 French ACCC v1.11 §11.6 pp89–91 explains RFD's two retained states and parity-
 dependent VMA' saves; §13.6.2 p124 distinguishes OUT(C),reg8/OUTI update phase;
 §13.7.1.2 p126 defines the widened-last-line/R4-or-R9-cancellation route;
 §19.5.3 pp209–212 defines parity changes. The French text was extracted with
 pdf-inspector and the p124 chronogram rendered and inspected. These rules
-support tracing the mechanism; no unsupported flag-clear patch is justified.
-The single authorized Astra-high read-only diagnosis independently identifies
-the same suppressed-save mechanism and finds no proven French-rule mismatch.
-It ranks parity-enable lifetime/normalization, exact R0-zero acceptance/parity
-evolution, and fixture entry history as unresolved causes. It also identifies
-a logging trap: `c0 < oldc0` does not record consecutive R0=0 line origins;
-those rows cannot reconstruct parity history. A minimal one-shot trigger,
-followed by ordinary frames without retriggering, is the proposed original-
-CRTC1 discriminator before choosing a permanent failing expectation.
+support tracing the mechanism; they do not yet settle the save gate's scope
+after source retirement. The qualified observer above replaces the earlier
+`c0 < oldc0` line log, which cannot reconstruct consecutive R0=0 origins.
+Neither a blanket flag clear nor a polarity change is justified by a matching
+picture alone.
 
 A narrowly read independent implementation, CPCSyntaxError commit
 `ba477b84496e7399ff7c001bbf86863e49cf3eca`, supplies a concrete competing policy.
@@ -140,6 +168,117 @@ or a ready-made patch. Its PPI preserves mode on BSR writes and saves control
 with bit7 set (`ppi.cpp`, `sna.cpp:271`); this does not establish AmSpirit's
 actual PPI MODE. No files in the comparison repository were changed.
 
+## RFD rule decision remains open
+
+A second, distinct French-rule review separates four competing decisions. At
+the pinned comparison revision, their implementations are:
+
+| Decision | Current RTL | CPCSyntaxError |
+| --- | --- | --- |
+| RFD save parity selector | ParityC9 | ParityFrame |
+| Value suppressing the save | odd / 1 | even / 0 |
+| Successful save retires | VMA-source state | combined source/parity gate |
+| Even-R9 ParityC9 row toggle outside IVM | enabled | disabled |
+
+French §11.6 p89 explicitly distinguishes two states. Section 11.6.2 p91
+specifies the successful comparison's clear for the VMA-source state and
+constrains parity-enable changes within the frame; it does not explicitly
+define automatic parity-enable clearing at the following origin. The existing
+[author response](../../classic/accc-author-response-round2-2026-08-31.md)
+confirms source-state clearing only. The unanswered
+[author question23](../../classic/accc-author-questions.md) already identifies
+the same lifetime ambiguity from SHAKER D history.
+
+There is also a polarity tension within the French text. Section 11.6.1 p90
+explicitly attributes the failed save to odd parity. Sections 11.6.2–11.6.3
+pp91–92 associate IVM ON/OFF before RFD, which normalizes parity to even,
+with that failing case; the after-RFD recipe associates the following odd
+frame with the other case. This is an apparent tension whose operating
+conditions have not yet been matched, not an established contradiction.
+A permanent expected value must not silently choose between these readings.
+The RTL comment at
+`rtl/crtc_type1_engine.v:505` also overstates p90 by naming ParityC9 where
+the source names frame parity. V3's parity-selector decision must resolve
+that claim before treating its interpretation as verified.
+
+CPCSyntaxError explicitly cites the Compendium's frame-parity wording for
+its PF selector. No measured hardware exception or author clarification for
+its save-gating scope or the opposite polarity was found in the scoped
+source/history inspection. A small CRTC-only executable
+comparison confirms its implemented policy: with odd R9 and IVM off, an
+even-PF arm suppresses saves until an odd-PF save retires `rfdActive`; an
+odd-PF arm retires at the first eligible save. An even-R9 IVM arm also
+suppresses with PF=0/PC9=1 and retires with PF=1/PC9=1. These are synthetic
+emulator observations, not a title replay or original-CPC truth table.
+
+A separate production-CRTC pin observer uses the same small register geometry
+and one ordinary-bus R5 pulse, choosing each PF phase by waiting rather than
+writing hidden state. It observes the opposite policy: PF=PC9=0 saves, while
+the initial PF=PC9=1 matches suppress. It retains three origins after the first
+successful save and confirms parity-enable remains set after the source flag
+clears. Both standalone probes compiled and completed their protocol checks;
+they are not cycle-equivalent replays or production behavior gates.
+
+State retention and combinational scope must also be separated. The French
+two-state wording does not explicitly require parity to gate every later
+VMA' save after R12/R13 sourcing ends. CPCSyntaxError can retain parity
+eligibility and its within-frame RFD#10 lock while consulting parity only
+when its source state is active. Its combined effective gate is therefore
+not proof that it incorrectly clears the second state. Conversely, the
+current RTL's global gate after source retirement is an interpretation,
+not a proven consequence of keeping two state bits.
+
+A stronger scope discriminator uses odd R9 and a known inhibiting parity,
+arms RFD, then temporarily sets R1>R0 across C9=R9. French §11.6 p89 explicitly
+disarms R12/R13 sourcing on that bare match without a successful save.
+Restore R1<R0 before a later eligible save in the same frame, with no R8
+write, origin or new RFD. A source-active control should still suppress;
+the source-disarmed arm distinguishes a global retained gate (suppresses)
+from a source-dependent gate (saves). An R12/R13 sentinel at C4>0 checks
+source retirement independently of row advancement. Resumed saves could
+also represent hidden normalization at that disarm; the observation would
+not validate every CPCSyntaxError policy.
+
+The authentic SHAKE27B COPY group provides higher-authority visual targets:
+[A](https://shaker.logonsystem.eu/images/cpc/CPC/BCOPY_CRTC1_A.webp) has mostly
+bitmap-like lower content, while
+[B](https://shaker.logonsystem.eu/images/cpc/CPC/BCOPY_CRTC1_B.webp) and
+[C1](https://shaker.logonsystem.eu/images/cpc/CPC/BCOPY_CRTC1_C1.webp) repeat
+test-label rows. Its A–D loop temporarily writes R9=6 around the R5 pulse
+and restores R9=7; A places R8 ON/OFF after that sequence, B before, C neither
+and D both. Both optional calls execute with R9=7 and have the same nominal
+21µs duration. Thus direct even-R9 normalization during R8 is excluded, but
+an intervening even-R9 row boundary can still change counter/parity history.
+The exact C9 phase and pictured iteration remain necessary before deriving
+parity constants from the photographs. No A–D loop implements the R1>R0
+scope control. The supplied disk/body provenance and private static mapping
+are retained under `v3-bcopy-source/`; no copyrighted bytes are tracked.
+
+The private RTL scope experiment executes that control: source/parity=1/1
+initially inhibits; R1>R0 clears source without a save; after restoration,
+source/parity=0/1 still yields save-base/save=1/0 in the same frame. The
+next-row sentinel distinguishes MA3008 from the active-source control's
+MA3040. CPCSyntaxError cannot execute the equivalent cleared-source control:
+it retains `rfdActive` across the R1>R0 bare match and restoration. Its
+ordinary API produces MA3040 in both arms. That is an unsupported control
+in the comparison model, not an original-CPC verdict. Both bounded programs
+compiled and completed their declared protocol checks.
+
+The recommended original-CRTC probe uses two parity-preparation pages and
+interprets the page whose source-active controls actually inhibit. Its scope
+measurement then stays within one frame with no R8 change or retrigger. This
+avoids assigning an absolute parity truth table before observing hardware.
+Broader polarity work should use odd R9 first, then separate an IVM PF≠PC9
+case from a non-IVM even-R9 evolution case.
+For lifetime, observe a successful post-RFD save, enter the known inhibiting
+parity without retriggering, and compare with a fresh-arm control. This
+distinguishes retained eligibility from retirement/clearing; distinguishing
+successful-save retirement from origin clearing needs a further controlled
+within-frame parity transition. At the first Amazing dense lower save,
+PF=PC9=1, so selector choice alone cannot distinguish that immediate event.
+No production repair or permanent failing expectation follows from the
+comparison alone.
+
 A's later uninterrupted AmSpirit C05D capture remains readable. Its software
 counter C12D is232F versus startup25A8. C130 decrements it once per caller,
 so the pre-decrement C05D state corresponds to caller634, provided the timer
@@ -150,8 +289,10 @@ Keep this source-derived correspondence separate from elapsed-time alignment.
 
 Ignored working artifacts: `.roster-scratch/v3-resume/` contains fresh/late
 inputs, paired-results.json and input assumptions; `v3-sdram/` contains the
-controller adapter and caller512 trace; `v3-full-entry/` contains full
-initialization, table comparison and passive RFD/save observations. Their
+controller adapter and caller512 trace; `v3-cpcse-policy/` and
+`v3-rtl-policy/` contain the CRTC-only comparisons and protocols;
+`v3-full-entry/` contains full initialization, table comparison and passive
+RFD/save observations. Their
 READMEs record exact commands, formats and limits. All copyrighted media,
 snapshots, RAM/disassembly and images remain ignored. Production RTL and
 tracked simulation sources are unchanged; exploratory builds/runs are not
