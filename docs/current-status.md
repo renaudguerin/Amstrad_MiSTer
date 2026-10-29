@@ -74,8 +74,12 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   Neither repair depends on V1, and each symptom retains its own acceptance gate.
   [V2 evidence and capture-helper repair](investigations/hardware-runs/dsc4-video-2026-10-29.md)
   reproduce DSC4 from two fresh boots and preserve shared Amazing Full/Raw-pixels
-  captures. DSC4's first wrong address/pixel and its repair remain open; the
-  French launch mappings are corrected. Direct SSH to `root@mister` is verified;
+  captures. Original-loader replay now reaches C000 through real disk service,
+  and the caller trace isolates a row-save conflict with the French R8-before-RFD
+  recipe. A private counterfactual changes that result; conflicting source parity
+  wording still blocks a production fix. DSC4's first wrong hardware address/pixel
+  remains open; the French launch mappings are corrected. Direct SSH to
+  `root@mister` is verified;
   parallel chats need a sole
   device operator and explicit handoffs. See the linked
   plan for evidence limits, gates and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
