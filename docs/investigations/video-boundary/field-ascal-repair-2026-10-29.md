@@ -16,25 +16,32 @@ policy question on an original CRTC1 CPC.
 
 ## Repair boundary
 
-`amstrad_video_output` exports one field identity per displayed frame: capture
-the aligned converted FIELD at the first enabled active pixel after VSYNC,
-then hold it until the next frame. Capture happens before the mixer/gamma
-pipeline so the identity settles before final-output DE. The existing raw
-FIELD observation tap, interlace/scandoubler history, motherboard signal and
-SSM marker input retain their previous meanings. No CRTC rule, pixel, sync or
-blanking calculation changes. The shared MiSTer ASCAL source is unchanged.
+The classic CRTC adds a separate `FRAME_FIELD` export. It combines the existing
+field flop with an interlace mask latched only at the same canonical frame
+origin that updates that flop. A mid-frame R8 pulse therefore cannot leak to
+this export. The motherboard routes it to `VGA_F1` in classic mode, retaining
+the previous Plus FIELD path. The raw FIELD equation, observation tap,
+interlace/scandoubler history and SSM marker input retain their meanings.
+No CRTC parity/address rule, pixel, sync or blanking calculation changes.
+The shared MiSTer ASCAL source is unchanged.
 
-Sampling at VSYNC alone was tested and rejected: the CRTC changes genuine
-interlace identity later in the blank interval, so that version reversed the
-field ordering relative to the previous raw export. The regression compares
-the actual consumer headers against a raw genuine-interlace reference, rather
-than merely checking that both field values occur.
+Sampling at VSYNC alone was tested and rejected because it reverses genuine
+field order. Review also caught the same defect in a first-active-pixel
+variant: production's visible top border can start before the CRTC origin.
+The new border-inclusive fixture reproduces that ordering failure before the
+origin-based correction. The regression compares consumer field ordering and
+header geometry against the raw genuine-interlace reference, rather than
+merely checking that both field values occur.
 
 ## Deterministic evidence
 
 `sim/video_field_test_top.sv` instantiates the real CRTC and production output
 chain. Ordinary register writes generate progressive frames, repeated short
-R8 pulses, held interlace, and return to progressive. The C++ driver records
+R8 pulses, held interlace, and return to progressive. Each runs both with
+display-only blanking and an adversarial visible top border whose blank ends
+before the CRTC origin. This compact border input exercises the production
+ordering hazard; it does not substitute for the complete GA/filter path.
+The C++ driver records
 the final CE-qualified HS/VS/FIELD/DE pins. GHDL replays these into the real
 `sys/ascal.vhd`; assertions inspect its public Avalon framebuffer headers.
 The consumer test also checks independent progressive, alternating-field and
@@ -51,7 +58,15 @@ all `1`, despite progressive frame identity. Both the initial full-sized
 raster and the compact permanent fixture reproduce this. After the fix,
 progressive and short-pulse headers stay progressive, genuine interlace keeps
 both fields in the same order as the raw reference, and recovery ends with
-three progressive headers. Final result: `ascal_field_test: PASS`.
+three progressive headers, in both border conditions. The final origin-based
+correction, including exact genuine-interlace header geometry equality, ends
+with `ascal_field_test: PASS` in `origin-green.log`.
+
+The combined source includes master `bb0052a`. Its final selected gate,
+`python3 sim/select_tests.py --run`, passes all 43 selected benches; the exact
+`select_tests: PASS 43 benches: ...` line is preserved in
+`origin-selected-gate.log`. The pre-existing FDC payload-poll expected failure
+remains an XFAIL. No CRTC parity/address assertion was changed or weakened.
 
 The VHDL fixture observes the input framebuffer writer with its output clock
 stopped. It proves the real consumer's classification and field ordering; it
@@ -63,8 +78,8 @@ must be recorded separately from this local test.
 
 Private red/green logs are under `.roster-scratch/v3-field-fix/`; the pulse
 failure is `compact-red.log`, the rejected VS-only ordering failure is
-`vsync-sample-order.log`, and the final CE-qualified result is
-`ce-qualified-green.log`. Supplied media and copied title code remain private.
+`vsync-sample-order.log`, and the rejected first-active-pixel ordering failure
+is `border-order-red.log`. Supplied media and copied title code remain private.
 
 The bench runs in the existing GHDL-equipped `production-t80-test` CI job.
 The normal selected gate remains usable without a local GHDL installation;

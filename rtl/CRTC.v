@@ -73,6 +73,7 @@ module CRTC
 	output reg       HSYNC_RESTART,
 	output           DE,
 	output           FIELD,
+	output           FRAME_FIELD,
 	output           CURSOR,
 
 	output    [13:0] MA,
@@ -94,6 +95,11 @@ module CRTC
 /* verilator lint_off WIDTH */
 
 assign FIELD = ~field & interlace[0];
+// Platform frame identity: unlike the raw FIELD pin, its mode mask cannot
+// pulse when software briefly changes R8 within a frame. Use the existing
+// field flop and latch only the mask at its canonical update boundary.
+reg frame_interlace;
+assign FRAME_FIELD = ~field & frame_interlace;
 
 assign MA = row_addr_r;
 
@@ -354,6 +360,7 @@ always @(posedge CLOCK) begin
 		c5     <= 0;
 		in_adj <= 0;
 		field  <= 0;
+		frame_interlace <= 0;
 		crtc1_adj_from_row0 <= 0;
 		parity_frame <= 0;
 		parity_c9    <= 0;
@@ -415,6 +422,7 @@ always @(posedge CLOCK) begin
 				in_adj <= 0;
 				row <= 0;
 				field <= ~field & R8_interlace[0];
+				frame_interlace <= interlace[0];
 				crtc1_adj_from_row0 <= 0;
 			end
 			else if(CRTC_TYPE && in_adj && row_next != 1) begin

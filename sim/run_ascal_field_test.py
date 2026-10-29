@@ -33,7 +33,7 @@ def main():
                         help="production output trace to replay (repeatable)")
     parser.add_argument("--interlace-trace", type=Path, action="append", default=[])
     parser.add_argument("--recovery-trace", type=Path, action="append", default=[])
-    parser.add_argument("--interlace-reference", type=Path,
+    parser.add_argument("--interlace-reference", type=Path, action="append", default=[],
                         help="raw genuine-interlace trace whose field ordering must survive")
     parser.add_argument("--expect", choices=("progressive", "interlace"), default="progressive")
     parser.add_argument("--ghdl", default=os.environ.get("GHDL", "ghdl"))
@@ -77,7 +77,9 @@ def main():
         traces = [(p, args.expect) for p in args.trace]
         traces += [(p, "interlace") for p in args.interlace_trace]
         traces += [(p, "recovery") for p in args.recovery_trace]
-        reference = run(args.interlace_reference) if args.interlace_reference else None
+        if args.interlace_reference and len(args.interlace_reference) != len(args.interlace_trace):
+            raise AssertionError("Each genuine-interlace trace needs its own raw reference")
+        references = dict(zip(args.interlace_trace, args.interlace_reference))
         for trace, expect in traces:
             headers = run(trace)
             flags, fields = {x[0] for x in headers}, {x[1] for x in headers}
@@ -88,9 +90,10 @@ def main():
                     f"producer trace did not recover progressive frames: {headers}"
             else:
                 assert flags == {"1"} and fields == {"0", "1"}, f"producer trace lost interlace fields: {headers}"
-                if reference:
-                    assert [x[1] for x in headers] == [x[1] for x in reference], \
-                        f"genuine field ordering changed: {headers} vs raw {reference}"
+                if trace in references:
+                    reference = run(references[trace])
+                    assert headers == reference, \
+                        f"genuine field ordering/geometry changed: {headers} vs raw {reference}"
             print(f"producer {trace.name} {expect}: PASS ({len(headers)} headers)", flush=True)
     print("ascal_field_test: PASS")
 

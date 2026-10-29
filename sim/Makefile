@@ -326,9 +326,14 @@ ascal-field-test: $(VIDEO_FIELD_BIN)
 	GHDL="$(GHDL)" python3 run_ascal_field_test.py \
 		--trace $(VIDEO_FIELD_TRACES)/progressive.txt \
 		--trace $(VIDEO_FIELD_TRACES)/pulse.txt \
+		--trace $(VIDEO_FIELD_TRACES)/border-progressive.txt \
+		--trace $(VIDEO_FIELD_TRACES)/border-pulse.txt \
 		--interlace-trace $(VIDEO_FIELD_TRACES)/interlace.txt \
+		--interlace-trace $(VIDEO_FIELD_TRACES)/border-interlace.txt \
 		--interlace-reference $(VIDEO_FIELD_TRACES)/interlace-raw.txt \
-		--recovery-trace $(VIDEO_FIELD_TRACES)/recovery.txt
+		--interlace-reference $(VIDEO_FIELD_TRACES)/border-interlace-raw.txt \
+		--recovery-trace $(VIDEO_FIELD_TRACES)/recovery.txt \
+		--recovery-trace $(VIDEO_FIELD_TRACES)/border-recovery.txt
 
 $(VIDEO_FIELD_BIN): $(VIDEO_FIELD_SRC) video_field_test.cpp Makefile
 	$(VERILATOR) --cc --exe --build -j 4 --top-module video_field_test_top \
