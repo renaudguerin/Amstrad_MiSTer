@@ -622,6 +622,12 @@ General implementation rules for all fix prompts:
   `t33b` protects the separate earliest approximately 3.5-pixel pin restart only at its
   controlled bus phase and includes a no-write control; `t33c` protects lifecycle and
   R3l=0 suppression. Hardware phase confirmation remains open.
+  V1-R1 now carries type 1's invisible terminal-equality restart to the GA H06
+  shaper (French §15.3.4 p.152), keeping raw HSYNC and its R52/V26 end qualification
+  continuous. The production CRTC/GA vector fails before and passes after;
+  neighboring type-0/R2=22, mode-latch and BR/E infinite-HSYNC controls pass.
+  See [T/E execution and boundary proof](../investigations/video-boundary/v1-shaker-caller-response-2026-10-29.md).
+  Original-monitor hardware confirmation of the repaired T/E pulse remains open.
 - **F11b — VSYNC re-entrancy** (`vsync_allow`, `CRTC.v:380`, `:383-388`, `:436-451`):
   reproduces mechanism 2 including the R7=0/R4=0 lock and the R7=0,R4=1,R9=7 infinite-VSYNC
   bypass (digest-02 §18) ✓. Protected by `t03a`/`t03b`.

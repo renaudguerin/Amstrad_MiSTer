@@ -105,6 +105,7 @@ module classic_irq_phase_top(
   // GA signals
   wire phi_en_p, phi_en_n, cclk_en_p, cclk_en_n, ready_o;
   wire crtc_hs, crtc_vs, crtc_de;
+  wire crtc_hsync_restart;
   wire ga_irq;
   wire [5:0] ga_intcnt;
 
@@ -150,7 +151,7 @@ module classic_irq_phase_top(
     .M1_N(M1_n),
     .RD_N(RD_n),
     .IORQ_N(IORQ_n),
-    .HSYNC_I(crtc_hs),
+    .HSYNC_I(crtc_hs), .HSYNC_RESTART_I(crtc_hsync_restart),
     .VSYNC_I(crtc_vs),
     .DISPEN(crtc_de),
     .CCLK_EN_P(cclk_en_p),
@@ -211,7 +212,7 @@ module classic_irq_phase_top(
     .SNA_ADDR(sna_addr),
     .SNA_REGS(sna_regs),
     .VSYNC(crtc_vs),
-    .HSYNC(crtc_hs),
+    .HSYNC(crtc_hs), .HSYNC_RESTART(crtc_hsync_restart),
     .DE(crtc_de),
     .FIELD(),
     .CURSOR(),

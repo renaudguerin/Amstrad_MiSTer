@@ -63,6 +63,24 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   and [photo comparison](investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md)
   retain the remaining evidence.
 
+- **New focus (2026-10-29):** [sync response and demo work packages V1/V2/V3](investigations/video-boundary/sync-response-and-demo-plan-2026-10-29.md)
+  extend existing B1/B22 and DSC4/Amazing residuals. V1 investigates whether
+  SHAKER AT/AY/D3/D4 need a digital monitor-response model alongside raw CRT
+  output and Amazing's upper effect (user reports Full works better on HDMI).
+  V2 independently targets DSC4's filter-insensitive defect: `dsk/dsc4-alt.dsk`,
+  classic 6128/CRTC1, `RUN"-DSC4`, first capture after 50 seconds. V3 targets
+  Amazing's lower flashing corruption: `dsk/amazing2021_rev2.dsk`, `RUN"AMAZING`.
+  CRTC/GA defects are the working hypotheses for V2/V3, not established causes.
+  Neither repair depends on V1, and each symptom retains its own acceptance gate.
+  Task preparation includes source analysis; fresh demo captures and fixes are
+  pending. Direct SSH to `root@mister` is verified; parallel chats need a sole
+  device operator and explicit handoffs. See the linked
+  plan for evidence limits, gates and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
+
+- **V1 bounded result (2026-10-29):** [sync-response feasibility](investigations/video-boundary/v1-sync-response-evidence-2026-10-29.md) maps AT/AY/D3/D4 and adds an opt-in passive RGB/tuple trace to the existing B6 fixture. Selected B6 gate and canonical soak pass; production video is unchanged. A rising-edge-only response candidate is insufficient; shared Amazing Full/Raw-pixels captures remain phase-sensitive and do not establish a monitor model or close the upper effect.
+
+- **V1 continuation:** the [actual SHAKER T/Y and response investigation](investigations/video-boundary/v1-shaker-caller-response-2026-10-29.md) executes T/A–F and Y/A–B on production T80/motherboard/GA with cold-entry/ideal-RAM limits explicit. It identifies T/E's missing invisible CRTC1 overflow restart (French §15.3.4 p.152). V1-R1 adds a separate classic GA H06 restart event while preserving raw HS/blacking and R52/V26 end qualification; its focused boundary regression fails before and passes after, including mode-latch and infinite-HSYNC controls. Cross-provider review is CLEAR; canonical soak is `0x0874d4b8ecc08793`, with the old projection separately reproducing `0xde0a16d0ececc573`. Original-CPC/CTM corpus retest remains pending. The frozen CPCSyntaxError monitor is a useful candidate with deferred-width/rollback and output-commitment limitations; AT/AY/D3/D4 already informed its fit. No monitor-filter rewrite or extra device operation.
+
 - **Remaining classic accuracy work:** `019D` has a failing production-T80
   regression; the physical write-visibility rule is the missing evidence, and a
   common latch change must also re-examine the existing B8 assumptions.

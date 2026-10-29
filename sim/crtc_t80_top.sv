@@ -106,6 +106,7 @@ module crtc_t80_top(
   // GA signals
   wire phi_en_p, phi_en_n, cclk_en_p, cclk_en_n, ready_o;
   wire hs, vs, de;
+  wire hs_restart;
 
   // Motherboard wait state logic: ready | (IORQ_n & MREQ_n)
   wire cpu_wait_n = ready_o | (IORQ_n & MREQ_n);
@@ -148,7 +149,7 @@ module crtc_t80_top(
     .M1_N(M1_n),
     .RD_N(RD_n),
     .IORQ_N(IORQ_n),
-    .HSYNC_I(hs),
+    .HSYNC_I(hs), .HSYNC_RESTART_I(hs_restart),
     .VSYNC_I(vs),
     .DISPEN(de),
     .CCLK_EN_P(cclk_en_p),
@@ -201,7 +202,7 @@ module crtc_t80_top(
     .SNA_ADDR(sna_addr),
     .SNA_REGS(sna_regs),
     .VSYNC(vs),
-    .HSYNC(hs),
+    .HSYNC(hs), .HSYNC_RESTART(hs_restart),
     .DE(de),
     .FIELD(),
     .CURSOR(),

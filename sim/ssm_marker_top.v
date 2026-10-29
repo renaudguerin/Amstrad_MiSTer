@@ -146,7 +146,7 @@ ga40010 ga (
 	.M1_N(M1_n),
 	.RD_N(RD_n),
 	.IORQ_N(IORQ_n),
-	.HSYNC_I(1'b0),
+	.HSYNC_I(1'b0), .HSYNC_RESTART_I(1'b0),
 	.VSYNC_I(1'b0),
 	.DISPEN(1'b0),
 	.CCLK_EN_P(cclk_en_p),

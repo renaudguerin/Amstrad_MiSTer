@@ -8,6 +8,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -42,12 +43,12 @@ public:
         }
     }
 
-    void configure(std::uint8_t r2) {
+    void configure(std::uint8_t r2, std::uint8_t r3 = 0x84) {
         // A short, stable raster with the sync position well inside display.
         write_crtc(0, 63);
         write_crtc(1, 56);
         write_crtc(2, r2);
-        write_crtc(3, 0x84);
+        write_crtc(3, r3);
         write_crtc(4, 3);
         write_crtc(5, 0);
         write_crtc(6, 3);
@@ -124,6 +125,126 @@ public:
 
     Vga40010_test& dut() { return *dut_; }
 
+    void check_overflow_restart(bool type1, unsigned relocated_r2) {
+        // French ACCC v1.11 §15.3.4 p.152 (rendered chronogram):
+        // R2=11→21, R3l=10 keeps the type-1 raw pulse continuous while an
+        // invisible end/restart generates a second monitor HS at C0vs=23.
+        // Restoring R2=46 gives the ordinary pulse at48. Adjacent R2=22
+        // has a genuine end/restart and monitor HS at24 on either type.
+        configure(11, 0x8a);
+        select_crtc_register(2);
+        wait_for_c0(0);
+        sync_monitor_armed_ = true;
+        sync_rises_.clear();
+        sync_last_ = dut_->HSYNC;
+        continuous_raw_ = true;
+        continuous_black_ = true;
+        raw_guard_start_ = 13;
+        raw_guard_end_ = 37;
+        wait_for_c0(15);
+        arm_r2_write_monitor();
+        write_selected(relocated_r2);
+        if (!r2_write_seen_ || r2_write_c0_ != 15)
+            throw TestFailure("restart fixture must write R2 at actual T/E C0=15");
+        wait_for_c0(20);
+        const auto int_before = dut_->GA_INTCNT;
+        const auto vert_before = dut_->GA_HCNT;
+        wait_for_c0(22);
+        const bool counters_held = dut_->GA_INTCNT == int_before &&
+                                   dut_->GA_HCNT == vert_before;
+        wait_for_c0(37);
+        write_selected(46);
+        wait_for_c0(60);
+        sync_monitor_armed_ = false;
+        const std::vector<unsigned> expected = relocated_r2 == 22
+            ? std::vector<unsigned>{13, 24, 48}
+            : type1 ? std::vector<unsigned>{13, 23, 48}
+                    : std::vector<unsigned>{13, 48};
+        std::cout << "restart type=" << type1 << " R2=" << relocated_r2
+                  << " GA-rise C0vs:";
+        for (auto c0 : sync_rises_) std::cout << ' ' << c0;
+        std::cout << " raw-held=" << continuous_raw_
+                  << " black-held=" << continuous_black_
+                  << " counters-held=" << counters_held << '\n';
+        if (sync_rises_ != expected)
+            throw TestFailure("GA monitor pulses disagree with FR §15.3.3–4 pp.151–152");
+        if (type1 && relocated_r2 == 21 &&
+            (!continuous_raw_ || !continuous_black_ || !counters_held))
+            throw TestFailure("invisible restart changed raw blanking or R52/V26 end counters");
+    }
+
+    void check_restart_mode(unsigned width) {
+        // Same FR §15.3.4 terminal-equality interaction at three distinct
+        // production phases: before monitor HS (1), during it (2), and after
+        // its natural end (6). Only an actual monitor fall may latch MODE.
+        configure(11, 0x80 | width);
+        select_crtc_register(2);
+        wait_for_c0(0);
+        sync_monitor_armed_ = true;
+        sync_rises_.clear();
+        sync_last_ = dut_->HSYNC;
+        mode_sync_count_ = restart_count_ = 0;
+        continuous_raw_ = continuous_black_ = true;
+        raw_guard_start_ = 12;
+        raw_guard_end_ = 13 + width;
+        write_io(0x7fff, 0x80); // mode 0 waits for a real GA mode-sync edge
+        if (dut_->GA_MODE_IS_0)
+            throw TestFailure("MODE latched before the target monitor pulse");
+        // Width1 must be relocated after its start but before C0=12 ends
+        // it; writing on12 would instead mix in the R2.JIT restart path.
+        const unsigned write_c0 = width == 1 ? 11 : 12;
+        wait_for_c0(write_c0);
+        arm_r2_write_monitor();
+        write_selected(11 + width);
+        if (!r2_write_seen_ || r2_write_c0_ != write_c0)
+            throw TestFailure("width-control R2 write missed its pre-terminal character");
+        wait_for_c0(27);
+        sync_monitor_armed_ = false;
+        const std::vector<unsigned> expected = width == 1
+            ? std::vector<unsigned>{14}
+            : std::vector<unsigned>{13, 13 + width};
+        const unsigned mode_edges = width == 1 ? 1 : 2;
+        std::cout << "restart R3l=" << width << " mode-edges=" << mode_sync_count_
+                  << " restart-events=" << restart_count_ << '\n';
+        if (sync_rises_ != expected || mode_sync_count_ != mode_edges ||
+            restart_count_ != 1 || !dut_->GA_MODE_IS_0 ||
+            !continuous_raw_ || !continuous_black_)
+            throw TestFailure("restart lost/duplicated monitor MODE qualification at production phase");
+    }
+
+    void check_infinite_restart() {
+        // Original CPC SHAKER BR/E 01F4 reports #FF for R0=R2=0,R3l=1:
+        // no R52 overflow in 3328us. This cross-module control protects the
+        // distinction between an H06 restart and a genuine HSYNC end.
+        configure(0);
+        // Isolate end counting from the independent raw-VSYNC-start reset
+        // of V26. Retire the configured vertical pulse before pinning C0.
+        write_crtc(7, 0x7f);
+        for (unsigned i = 0; i < 32 * 4096; ++i) clock();
+        write_crtc(3, 0x81);
+        write_crtc(0, 0);
+        wait_for("infinite raw HSYNC", [&] {
+            return dut_->CRTC_C0 == 0 && dut_->CRTC_HSYNC_RAW;
+        });
+        for (unsigned i = 0; i < 64; ++i) clock();
+        const auto int_before = dut_->GA_INTCNT;
+        const auto vert_before = dut_->GA_HCNT;
+        unsigned events = 0;
+        for (unsigned i = 0; i < 3328 * 64; ++i) {
+            clock();
+            events += dut_->CRTC_RESTART;
+            if (!dut_->CRTC_HSYNC_RAW || dut_->GA_INTCNT != int_before ||
+                dut_->GA_HCNT != vert_before)
+                throw TestFailure("BR/E infinite HSYNC changed raw/end counters at tick " +
+                    std::to_string(i) + " C0=" + std::to_string(dut_->CRTC_C0) +
+                    " HS=" + std::to_string(dut_->CRTC_HSYNC_RAW) +
+                    " R52=" + std::to_string(int_before) + "→" + std::to_string(dut_->GA_INTCNT) +
+                    " V26=" + std::to_string(vert_before) + "→" + std::to_string(dut_->GA_HCNT));
+        }
+        if (events == 0) throw TestFailure("infinite-HSYNC control never exercised a restart");
+        std::cout << "PASS  infinite_hsync_no_counter_ends (" << events << " restarts)\n";
+    }
+
 private:
     bool blank() const {
         return dut_->BLUE_OE_N == 0 && dut_->BLUE == 0 &&
@@ -139,6 +260,20 @@ private:
     void clock() {
         dut_->clk = 1;
         eval();
+
+        // Master-clock observation catches a faulty one-tick visible HS low;
+        // the existing pixel-M2 blank monitor is too coarse for this contract.
+        if (sync_monitor_armed_) {
+            mode_sync_count_ += dut_->GA_MODE_SYNC;
+            restart_count_ += dut_->CRTC_RESTART;
+            if (dut_->HSYNC && !sync_last_)
+                sync_rises_.push_back(dut_->CRTC_C0);
+            sync_last_ = dut_->HSYNC;
+            if (dut_->CRTC_C0 >= raw_guard_start_ && dut_->CRTC_C0 < raw_guard_end_) {
+                continuous_raw_ &= bool(dut_->CRTC_HSYNC_RAW);
+                continuous_black_ &= blank();
+            }
+        }
 
         if (r2_monitor_armed_ && dut_->CRTC_R2 != old_r2_) {
             r2_write_seen_ = true;
@@ -229,6 +364,11 @@ private:
     bool previous_raw_hsync_ = false;
     bool raw_rise_seen_ = false;
     bool raw_fall_seen_ = false;
+    bool sync_monitor_armed_ = false, sync_last_ = false;
+    bool continuous_raw_ = true, continuous_black_ = true;
+    std::vector<unsigned> sync_rises_;
+    unsigned mode_sync_count_ = 0, restart_count_ = 0;
+    unsigned raw_guard_start_ = 13, raw_guard_end_ = 37;
 };
 
 struct Measurement {
@@ -314,6 +454,24 @@ int main(int argc, char** argv) {
             throw TestFailure("same-value R2 rewrite changed normal HSYNC timing");
         }
         std::cout << "PASS  r2jit_same_value_control\n";
+
+        for (bool type1 : {false, true}) {
+            Bench adjacent(type1);
+            adjacent.check_overflow_restart(type1, 22);
+        }
+        Bench type0_overflow(false);
+        type0_overflow.check_overflow_restart(false, 21);
+        std::cout << "PASS  invisible_restart_adjacent_and_type0_controls\n";
+        Bench type1_overflow(true);
+        type1_overflow.check_overflow_restart(true, 21);
+        std::cout << "PASS  invisible_restart_type1_ga_boundary\n";
+        for (unsigned width : {1u, 2u, 6u}) {
+            Bench mode(true);
+            mode.check_restart_mode(width);
+        }
+        std::cout << "PASS  invisible_restart_mode_qualification\n";
+        Bench infinite(true);
+        infinite.check_infinite_restart();
     } catch (const std::exception& error) {
         std::cerr << "FAIL  r2jit_integrated_controls\n      " << error.what() << '\n';
         return 1;
