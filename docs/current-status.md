@@ -75,8 +75,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   [V3 lower-screen evidence](investigations/video-boundary/amazing-lower-evidence-2026-10-29.md)
   now reproduces alternating readable/corrupt lower content on two fresh Full boots
   of `925b5bb`, while the same-media AmSpirit run has coherent lower content.
-  The first wrong fetch remains unlocated; snapshot continuation did not acquire
-  trustworthy timing, and no CRTC/GA fix is justified. V1/V2 retain their own gates.
+  A [caller replay](investigations/video-boundary/amazing-lower-caller-2026-10-29.md)
+  now reproduces dense lower corruption before the mixer/scaler: row0 remains
+  MA3000, while row1 and later repeat0C34 in the corrupt model window. RFD/parity
+  save tracing is in progress; PPI/bootstrap assumptions remain explicit, and
+  no hardware-rule violation or production repair is established. V1/V2 retain their own gates.
   Direct SSH to `root@mister` is verified; parallel chats need a sole
   device operator and explicit handoffs. See the linked
   plan for evidence limits, gates and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).

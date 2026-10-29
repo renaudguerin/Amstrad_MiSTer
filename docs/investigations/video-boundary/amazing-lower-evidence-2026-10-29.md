@@ -66,11 +66,12 @@ The checkpoint SNA has SHA-256
 128K standard RAM and an emulator-specific SPRT chunk. Byte A4 is unspecified
 in version2; its zero does not contradict the effective CRTC1 configuration.
 CPU PC is `92E6`, RAM configuration `C2`. Private RAM disassembly and history
-identify a useful lower-effect entry: `C049` programs R4=0; the following setup
+identify the upper raster entry preceding the lower region: `C049` programs R4=0; the following setup
 programs R9=8 and jumps to `C234`; that entry writes R9=0, sets SP=`4600` and
 IX=`3F40`, then enters a generated/table-driven chain. Do not substitute the
 alternate `C21F` routine for this selected entry or assume a cold-entry replay
-preserves the preceding top effect and frame phase.
+preserves preceding frame phase. Normal lower-region restoration follows the
+return at C05D; see the [subsequent caller replay](amazing-lower-caller-2026-10-29.md).
 
 Current production source separates the relevant boundaries:
 
