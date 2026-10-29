@@ -37,6 +37,7 @@ module ga40010 (
 	input  RD_N,
 	input  IORQ_N,
 	input  HSYNC_I,
+	input  HSYNC_RESTART_I,
 	input  VSYNC_I,
 	input  DISPEN,
 
