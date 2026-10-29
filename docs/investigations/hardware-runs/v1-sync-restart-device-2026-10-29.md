@@ -42,9 +42,15 @@ these bounded scripts do **not** establish full Module-A/B prehistory.
 
 All 27 PNGs were inspected, including automatic SSM-triggered captures and
 explicit line captures. Full's legible output is not a quantitative old/new
-pixel comparison or proof of CTM curvature. The Raw CRT observation has no
-matched older-RBF Raw CRT capture in this batch, so it does not establish a
-regression caused by this change. A returned PNG is not proof of fresh scaler
+pixel comparison or proof of CTM curvature. The same bounded Raw CRT case was also run on the previous925b5bb RBF
+(SHA2569ba5e34be1bd6d0eba4d9dcf6a46b686648b6abacef1b093903252d72aed77eb),
+with identical script/settings/timing and fresh controlled case boundaries.
+Both runs reach A/E with requested/applied2/2. All six corresponding native
+PNGs are byte-identical, including E SHA256
+74478834e09ace1d978fa9ca73d0045d436e1238e0ed7ceb554293f6eb1a3d88.
+Thus the observed bounded native-image distortion predates cfd0016; it is not
+a new regression in this comparison. Physical pulse/analog fidelity remains
+unmeasured. The old run is private `v1-hardware/baseline925b5bb-cold-T-rawcrt/`. A returned PNG is not proof of fresh scaler
 content; buffer age and the physical connector's displayed output are unknown.
 Format2 SSM does not expose GA HS pulse counts or HSYNC_RESTART. Neither its
 mode observation nor these PNGs prove the intended pulse waveform.
