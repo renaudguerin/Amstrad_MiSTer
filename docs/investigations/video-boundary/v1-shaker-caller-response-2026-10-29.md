@@ -107,11 +107,12 @@ unmeasured monitor families sharing a value; that is an assumption, not evidence
 that the sets respond identically.
 
 The cited `tools/monitor_response.py` and `docs/LA7800.pdf` are absent from this
-checkout. Consequently its original pin/image measurement procedure and the
-claimed 4.7 ms / 73-line circuit premise have not been independently reproduced.
-An RC product alone would not establish the complete closed-loop transfer
-function or gain. Obtain those resources or independent circuit measurements
-before treating those values as physical constraints.
+checkout. The measurement procedure remains unavailable. An independent
+[primary circuit check](v1-ctm-afc-circuit-check-2026-10-29.md) recovers the Sanyo
+datasheet and CTM644 service drawing: the sample has 4.7 kΩ, the CTM has 8.2 kΩ,
+and R·C is not the closed-loop settling time. The candidate's 73-line constant
+remains an empirical hypothesis; do not replace it with 128 lines merely from
+the CTM component product.
 
 An ignored adapter compiles the supplied `monitor_renderer.cpp` **in place**,
 with no modified constants. It feeds active composite sync as GA HS XOR GA VS,
