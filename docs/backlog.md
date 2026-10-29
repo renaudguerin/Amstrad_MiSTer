@@ -400,6 +400,14 @@ and [device receipt](investigations/hardware-runs/v1-sync-restart-device-2026-10
 This does not close monitor-response modelling, full-history/analog acceptance,
 DSC4's RFD recipe, or the separate V3 FIELD/ASCAL work.
 
+**Integrated FIELD qualification, 2026-10-29:** classic raw FIELD remains
+available to machine observations; a separate frame-origin-qualified export
+feeds the platform scaler. Production ASCAL tests protect real interlace and
+recovery. The unchanged SCOPE0/1 device rerun removes the stale alternate plane
+and preserves each program's former clean plane exactly. See the
+[repair and acceptance note](investigations/video-boundary/field-ascal-repair-2026-10-29.md).
+This output-boundary repair does not settle the CRTC1 RFD save policy.
+
 **Current implementation, checked against RTL 2026-09-29.** The OSD modes are
 **Full / Raw pixels / Raw CRT**, not the earlier Full / Live blanking / Off.
 `Amstrad_motherboard.v` and `crt_filter_output_select` in `rtl/crt_filter.v`

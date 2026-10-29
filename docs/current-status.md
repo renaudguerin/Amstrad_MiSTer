@@ -100,10 +100,22 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   does not support treating 73 lines as a measured CTM settling constant. No
   monitor-filter rewrite is integrated.
 
-- **V3 remains active:** Amazing's lower corruption has a model-level repeated
-  address mechanism, with RFD save-gating scope unresolved. The separate
-  FIELD/ASCAL investigation and combined future CRTC1 diagnostic disk remain on
-  V3's task branch. No FIELD repair or CRTC1 parity change is included here.
+- **Integrated FIELD/ASCAL repair (2026-10-29):** [Amazing's lower corruption](investigations/video-boundary/amazing-lower-evidence-2026-10-29.md)
+  has a [model-level repeated-address mechanism](investigations/video-boundary/amazing-lower-caller-2026-10-29.md),
+  with RFD save-gating scope unresolved. The private SCOPE0/SCOPE1 disk passes
+  CPU timing, independent disk-body execution and AmSpirit cold boots. Its
+  `cfd0016` MiSTer captures mix invariant contaminated even rows with readable
+  odd rows. The resulting [FIELD/ASCAL repair](investigations/video-boundary/field-ascal-repair-2026-10-29.md)
+  has a failing production CRTC/output→ASCAL consumer test: short R8 pulses
+  falsely acquired interlace. The qualified export now rejects those pulses
+  while preserving genuine field order and progressive recovery. Exact
+  `46f8ab8` hosted full synthesis passes timing. Session A's unchanged SCOPE0/1
+  reruns both return clean native 768×273 frames, pixel-identical to each
+  program's own old live odd-row plane; three captures agree per program.
+  Same-program AmSpirit differences remain separate from this bounded pass.
+  Raw machine FIELD and CRTC1 parity rules are unchanged.
+  The combined CRTC1 diagnostic disk is being finalized separately by V3;
+  its original-machine results and the RFD save-policy questions remain open.
   The classic CRTC1 machine is available for a later bounded test session;
   a 6128 Plus/CRTC3 cannot decide these CRTC1 rules. See the
   [French author-question draft](classic/accc-author-questions-2026-10-29-fr.md)

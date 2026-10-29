@@ -419,8 +419,10 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 classic GA monitor shaping (French §15.3.4 p.152), with deterministic, synthesis
 and bounded MiSTer evidence. The capture helper's French demo-launch mappings
 are repaired. DSC4's before-RFD reload conflict and Amazing's parity-scope
-question remain open; V3 continues FIELD/ASCAL separately and owns the future
-combined CRTC1 test disk. See [current status](current-status.md) and the
+question remain open. The classic FIELD/ASCAL export repair is now integrated:
+short R8 pulses no longer force progressive frames into the interlaced capture
+path, with real-ASCAL tests and clean SCOPE0/1 MiSTer captures. V3 owns the
+combined CRTC1 disk for a later original-machine session. See [current status](current-status.md) and the
 [unsent French author questions](classic/accc-author-questions-2026-10-29-fr.md).
 
 **Current next actions (2026-09-29).** The `4a44394` title regression pass is

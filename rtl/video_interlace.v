@@ -2,7 +2,7 @@
 // MiSTer scaler interlace history + scandoubler enable (B8-2 extraction).
 //
 // Behavioral extraction of the Amstrad.sv top-level block that sampled
-// VGA_F1 at each selected-VSYNC rise into a 3-bit shift and gated the
+// raw machine FIELD at each selected-VSYNC rise into a 3-bit shift and gated the
 // scandoubler with it: the same shift-on-rise / enable-while-all-zero
 // decision, shared by production (Amstrad.sv) and the B8-2 fixture so the
 // test executes the real downstream decision instead of a copied C++ model.
@@ -18,7 +18,7 @@ module video_interlace
 (
 	input            clk,
 	input            vsync_in,   // selected (filtered) VSYNC from the motherboard
-	input            field_in,   // selected FIELD (VGA_F1) from the motherboard
+	input            field_in,   // raw selected FIELD from the motherboard
 	input      [1:0] scale,      // OSD scaler mode; nonzero forces scandoubler path
 	input            forced_scandoubler,
 	output     [2:0] interlace,  // last three FIELD samples at VSYNC rises

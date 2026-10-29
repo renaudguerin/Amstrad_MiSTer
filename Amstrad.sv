@@ -1560,7 +1560,8 @@ Amstrad_motherboard motherboard
 	.red(r4),
 	.green(g4),
 	.blue(b4),
-	.field(VGA_F1),
+	.field(field),
+	.frame_field(VGA_F1),
 
 	.vram_din(vram_dout),
 	.vram_addr(vram_addr),
@@ -1715,7 +1716,7 @@ amstrad_video_output video_output (
     .integer_scale(status[29:28]), .mix(status[13:11]),
     .r4(r4), .g4(g4), .b4(b4), .hs(hs), .vs(vs), .hbl(hbl), .vbl(vbl),
     .pixel_rate_select(status[30]), .forced_scandoubler(forced_scandoubler),
-    .field_in(VGA_F1), .vcrop_en(status[27]),
+    .field_in(field), .vcrop_en(status[27]),
     .HDMI_WIDTH(HDMI_WIDTH), .HDMI_HEIGHT(HDMI_HEIGHT),
     .HDMI_FREEZE(HDMI_FREEZE), .progress_pix(progress_pix), .gamma_bus(gamma_bus),
     .CE_PIXEL(CE_PIXEL), .VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B),
@@ -1755,7 +1756,7 @@ ssm_marker ssm
 	.ce_pix(ce_16),
 	.hsync(hs),
 	.vsync(vs),
-	.field(VGA_F1),
+	.field(field),
 
 	.last_code(),
 	.event_count(),
