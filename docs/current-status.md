@@ -77,8 +77,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   captures. Original-loader replay now reaches C000 through real disk service,
   and the caller trace isolates a row-save conflict with the French R8-before-RFD
   recipe. The constrained odd-R9 recipe expects reload33BD at the traced line
-  edge; baseline restores1030. General parity scope remains unresolved, and
-  production RTL is unchanged. DSC4's first wrong hardware address/pixel
+  edge; baseline restores1030. A full CPCSyntaxError original-disk boot now
+  corroborates the caller phases and33BD reload. General parity scope remains
+  unresolved, and production RTL is unchanged. DSC4's first wrong hardware address/pixel
   remains open; the French launch mappings are corrected. Direct SSH to
   `root@mister` is verified.
   [V1's bounded test-RBF receipt](investigations/hardware-runs/v1-sync-restart-device-2026-10-29.md)
