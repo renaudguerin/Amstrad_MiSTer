@@ -92,6 +92,12 @@ MiSTer event timestamps. The separate `phys` column at a C0-wrap sample can
 still carry the preceding registered VRAM address: MA is the row-pointer
 observation here; use accepted-fetch rows for physical RAM transactions.
 
+A's later uninterrupted AmSpirit C05D capture remains readable. Its software
+counter C12D is232F versus startup25A8. C130 decrements it once per caller,
+so the pre-decrement C05D state corresponds to caller634, provided the timer
+has not reset; raw monitor-frame waiting alone did not establish that ordinal.
+Keep this source-derived correspondence separate from elapsed-time alignment.
+
 ## Retained-state discriminator
 
 The full C000 observational replay first arms the RFD parity flag in caller176
@@ -239,21 +245,6 @@ source retirement independently of row advancement. Resumed saves could
 also represent hidden normalization at that disarm; the observation would
 not validate every CPCSyntaxError policy.
 
-The authentic SHAKE27B COPY group provides higher-authority visual targets:
-[A](https://shaker.logonsystem.eu/images/cpc/CPC/BCOPY_CRTC1_A.webp) has mostly
-bitmap-like lower content, while
-[B](https://shaker.logonsystem.eu/images/cpc/CPC/BCOPY_CRTC1_B.webp) and
-[C1](https://shaker.logonsystem.eu/images/cpc/CPC/BCOPY_CRTC1_C1.webp) repeat
-test-label rows. Its A–D loop temporarily writes R9=6 around the R5 pulse
-and restores R9=7; A places R8 ON/OFF after that sequence, B before, C neither
-and D both. Both optional calls execute with R9=7 and have the same nominal
-21µs duration. Thus direct even-R9 normalization during R8 is excluded, but
-an intervening even-R9 row boundary can still change counter/parity history.
-The exact C9 phase and pictured iteration remain necessary before deriving
-parity constants from the photographs. No A–D loop implements the R1>R0
-scope control. The supplied disk/body provenance and private static mapping
-are retained under `v3-bcopy-source/`; no copyrighted bytes are tracked.
-
 The private RTL scope experiment executes that control: source/parity=1/1
 initially inhibits; R1>R0 clears source without a save; after restoration,
 source/parity=0/1 still yields save-base/save=1/0 in the same frame. The
@@ -279,11 +270,72 @@ PF=PC9=1, so selector choice alone cannot distinguish that immediate event.
 No production repair or permanent failing expectation follows from the
 comparison alone.
 
-A's later uninterrupted AmSpirit C05D capture remains readable. Its software
-counter C12D is232F versus startup25A8. C130 decrements it once per caller,
-so the pre-decrement C05D state corresponds to caller634, provided the timer
-has not reset; raw monitor-frame waiting alone did not establish that ordinal.
-Keep this source-derived correspondence separate from elapsed-time alignment.
+## CPU-executed scope protocol
+
+An ignored prototype now executes the scope experiment through production
+T80/GA/CRTC, using the original BCOPY drift-sync and delay routines. The
+eight completed cases are two parity-preparation pages × startup delays of
+0, 7, 41 and 113 ordinary NOPs. DI executes on the CPU and the real GA IRQ
+remains connected. PPI F5 input is projected as the VSYNC bit; this is not
+a full PPI, ROM, floppy or original-CPC test.
+
+Actual CPU writes place the terminal, main and rearm R5 pulses at
+C4:C9:C0 = 0:7:63, 1:2:63 and 5:0:63, restoring R5 at C0=3 on each next
+line. P0 normalizes at row0/C9=2; P1 normalizes in preceding blanking and
+crosses one origin. R1=80 spans the row2 last line; R1=32 is restored on
+row3. No R8 change, origin, retrigger or successful save intervenes between
+the main P1 pulse and its source-disarmed save observation.
+
+The source-false A01, source-active B00 and following C00 address witnesses
+all hold. After source clear, the B sentinel is ignored. In the current
+model, P1 then repeats A01 across rows3→4 and repeats B00 after rearming;
+P0 advances C01→C02 and B00→B01. These labels map the observed MA values
+to synthetic marker pages. The fixture also checks the mapped RAM byte;
+it does not model production video DMA/rendering. The exact build/run and
+`python3 .roster-scratch/v3-scope-portable/check-scope.py` reports are in
+that directory's `CPU-SCOPE.md` and logs. This is a demonstrated CPU-driven
+discriminator of current behavior, not a permanent assertion of hardware
+truth or a completed portable disk.
+
+Initialization order matters: programming R0 first while reset R4/R9 are
+zero accidentally opens the widened-last-line route, then later geometry
+writes arm RFD. Programming safe R4/R9 before R0 avoids that precondition;
+the accepted traces reject any source/parity state before synchronization.
+The failed startup traces remain private rather than being relabeled as
+valid marker results.
+
+## Authentic COPY comparison limits
+
+The authentic SHAKE27B COPY group provides higher-authority visual targets:
+[A](https://shaker.logonsystem.eu/images/cpc/CPC/BCOPY_CRTC1_A.webp) has mostly
+bitmap-like lower content, while
+[B](https://shaker.logonsystem.eu/images/cpc/CPC/BCOPY_CRTC1_B.webp) and
+[C1](https://shaker.logonsystem.eu/images/cpc/CPC/BCOPY_CRTC1_C1.webp) repeat
+test-label rows. Its A–D loop temporarily writes R9=6 around the R5 pulse
+and restores R9=7; A places R8 ON/OFF after that sequence, B before, C neither
+and D both. Both optional calls execute with R9=7 and have the same nominal
+21µs duration. Thus direct even-R9 normalization during R8 is excluded, but
+an intervening even-R9 row boundary can still change counter/parity history.
+The exact C9 phase and pictured iteration remain necessary before deriving
+parity constants from the photographs. No A–D loop implements the R1>R0
+scope control. The supplied disk/body provenance and private static mapping
+are retained under `v3-bcopy-source/`; no copyrighted bytes are tracked.
+
+A later genuine AmSpirit A checkpoint at PC6754 supplies complete RAM and
+PPI82 without the Amazing PPI substitution. A named diagnostic starts at
+6751 so the original CALL9F52 resynchronizes before the loop; counters and
+hidden state still start reset. A second diagnostic changes only the two
+call targets to the authentic B-body configuration, retaining A's other
+RAM/history. It is not an authentic B checkpoint.
+
+Across three model loops, both pulse R5 at C4=5/C9=0/C0=63. The R9=6 window
+contains only C9 0→1 with no C4 increment. B's early R8 pair executes at
+C4=4/C9=0; A's late pair at10/0. B normalizes before arm and permits the
+row5 save; A suppresses rows5–9 until its later normalization, then saves
+on row10. Thus an even-R9 C4 transition does not explain this model ordering
+effect. These are resynchronized counter predictions, not hardware parity
+measurements or matched reproductions of the photographs. Inputs, explicit
+diagnostic changes and accepted-edge traces are in `v3-bcopy-replay/`.
 
 ## Reproduction and scope
 
@@ -292,7 +344,8 @@ inputs, paired-results.json and input assumptions; `v3-sdram/` contains the
 controller adapter and caller512 trace; `v3-cpcse-policy/` and
 `v3-rtl-policy/` contain the CRTC-only comparisons and protocols;
 `v3-full-entry/` contains full initialization, table comparison and passive
-RFD/save observations. Their
+RFD/save observations; `v3-scope-portable/` holds the CPU-driven prototype,
+and `v3-bcopy-source/` / `v3-bcopy-replay/` hold the COPY comparison. Their
 READMEs record exact commands, formats and limits. All copyrighted media,
 snapshots, RAM/disassembly and images remain ignored. Production RTL and
 tracked simulation sources are unchanged; exploratory builds/runs are not
