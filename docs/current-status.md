@@ -79,6 +79,8 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 - **V1 bounded result (2026-10-29):** [sync-response feasibility](investigations/video-boundary/v1-sync-response-evidence-2026-10-29.md) maps AT/AY/D3/D4 and adds an opt-in passive RGB/tuple trace to the existing B6 fixture. Selected B6 gate and canonical soak pass; production video is unchanged. A rising-edge-only response candidate is insufficient; shared Amazing Full/Raw-pixels captures remain phase-sensitive and do not establish a monitor model or close the upper effect.
 
+- **V1 continuation:** the [pulse-width/admission probe](investigations/video-boundary/v1-width-admission-probe-2026-10-29.md) separates raw-CRTC filtering from GA-monitor pulse admission. Width alone leaves ordinary-width extra pulses ambiguous; the trace cannot identify monitor constants. The actual SHAKER RGB prerequisite is now source-checked: existing B9/Module-D timing fixtures need the production VRAM/GA data path before their pixels can be used. No production change or extra device run.
+
 - **Remaining classic accuracy work:** `019D` has a failing production-T80
   regression; the physical write-visibility rule is the missing evidence, and a
   common latch change must also re-examine the existing B8 assumptions.
