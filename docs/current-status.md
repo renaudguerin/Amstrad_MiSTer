@@ -63,6 +63,20 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   and [photo comparison](investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md)
   retain the remaining evidence.
 
+- **New focus (2026-10-29):** [sync response and demo work packages V1/V2/V3](investigations/video-boundary/sync-response-and-demo-plan-2026-10-29.md)
+  extend existing B1/B22 and DSC4/Amazing residuals. V1 investigates whether
+  SHAKER AT/AY/D3/D4 need a digital monitor-response model alongside raw CRT
+  output and Amazing's upper effect (user reports Full works better on HDMI).
+  V2 independently targets DSC4's filter-insensitive defect: `dsk/dsc4-alt.dsk`,
+  classic 6128/CRTC1, `RUN"-DSC4`, first capture after 50 seconds. V3 targets
+  Amazing's lower flashing corruption: `dsk/amazing2021_rev2.dsk`, `RUN"AMAZING`.
+  CRTC/GA defects are the working hypotheses for V2/V3, not established causes.
+  Neither repair depends on V1, and each symptom retains its own acceptance gate.
+  Task preparation includes source analysis; fresh demo captures and fixes are
+  pending. Direct SSH to `root@mister` is verified; parallel chats need a sole
+  device operator and explicit handoffs. See the linked
+  plan for evidence limits, gates and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
+
 - **Remaining classic accuracy work:** `019D` has a failing production-T80
   regression; the physical write-visibility rule is the missing evidence, and a
   common latch change must also re-examine the existing B8 assumptions.
