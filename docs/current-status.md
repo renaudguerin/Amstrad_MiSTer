@@ -79,8 +79,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   recipe. A private counterfactual changes that result; conflicting source parity
   wording still blocks a production fix. DSC4's first wrong hardware address/pixel
   remains open; the French launch mappings are corrected. Direct SSH to
-  `root@mister` is verified;
-  parallel chats need a sole
+  `root@mister` is verified.
+  [V1's bounded test-RBF receipt](investigations/hardware-runs/v1-sync-restart-device-2026-10-29.md)
+  records passing counter guards for both CRTC types and Full page progress; Raw CRT mode 2/2
+  captures are distorted, with direct pulse/analog fidelity still unobserved.
+  Parallel chats need a sole
   device operator and explicit handoffs. See the linked
   plan for evidence limits, gates and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
 
