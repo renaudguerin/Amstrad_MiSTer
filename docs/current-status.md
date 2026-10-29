@@ -72,8 +72,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   Amazing's lower flashing corruption: `dsk/amazing2021_rev2.dsk`, `RUN"AMAZING`.
   CRTC/GA defects are the working hypotheses for V2/V3, not established causes.
   Neither repair depends on V1, and each symptom retains its own acceptance gate.
-  Task preparation includes source analysis; fresh demo captures and fixes are
-  pending. Direct SSH to `root@mister` is verified; parallel chats need a sole
+  [V2 evidence and capture-helper repair](investigations/hardware-runs/dsc4-video-2026-10-29.md)
+  reproduce DSC4 from two fresh boots and preserve shared Amazing Full/Raw-pixels
+  captures. DSC4's first wrong address/pixel and its repair remain open; the
+  French launch mappings are corrected. Direct SSH to `root@mister` is verified;
+  parallel chats need a sole
   device operator and explicit handoffs. See the linked
   plan for evidence limits, gates and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
 
