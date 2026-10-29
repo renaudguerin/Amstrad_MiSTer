@@ -108,8 +108,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   odd rows. The resulting [FIELD/ASCAL repair](investigations/video-boundary/field-ascal-repair-2026-10-29.md)
   has a failing production CRTC/output→ASCAL consumer test: short R8 pulses
   falsely acquired interlace. The qualified export now rejects those pulses
-  while preserving genuine field order and progressive recovery. Fixed-RBF
-  synthesis and session A's unchanged SCOPE0/SCOPE1 rerun remain pending.
+  while preserving genuine field order and progressive recovery. Exact
+  `46f8ab8` hosted full synthesis passes timing. Session A's unchanged SCOPE0/1
+  reruns both return clean native 768×273 frames, pixel-identical to each
+  program's own old live odd-row plane; three captures agree per program.
+  Same-program AmSpirit differences remain separate from this bounded pass.
   Raw machine FIELD and CRTC1 parity rules are unchanged.
   The combined future CRTC1 diagnostic disk remains on V3's task branch.
   The classic CRTC1 machine is available for a later bounded test session;

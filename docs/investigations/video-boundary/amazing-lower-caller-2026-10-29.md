@@ -3,7 +3,9 @@
 Follow-up to [the two-boot device evidence](amazing-lower-evidence-2026-10-29.md),
 2026-10-29. This diagnostic now reproduces the dense lower corruption before
 MiSTer's mixer/scaler. The first located model mechanism is the lower character-row
-pointer; a hardware-rule violation and a production repair remain unproven.
+pointer; a hardware-rule violation and an RFD production repair remain unproven.
+The separate [FIELD/ASCAL export repair](field-ascal-repair-2026-10-29.md) now
+passes bounded MiSTer SCOPE capture acceptance without changing that pointer rule.
 
 ## Execution and input contract
 
@@ -391,6 +393,12 @@ verified afterward. No further device operation, build or production change
 was needed for field isolation. A live HDMI photograph paired with a native
 screenshot is a possible next discriminator for shared-scaler versus screenshot-
 only presentation; an RFD hardware-policy verdict remains separate.
+
+The subsequent [fail-first FIELD repair and fixed-RBF rerun](field-ascal-repair-2026-10-29.md)
+closes the bounded native-capture defect: both programs return clean 768×273
+frames exactly equal in full RGB to their own old live odd-row planes. The
+same-program AmSpirit differences persist. That acceptance does not establish
+the unresolved RFD rule or a physical HDMI waveform result.
 
 ## Authentic COPY comparison limits
 
