@@ -323,3 +323,32 @@ the candidate's existing AT/AY/D3/D4 fitting must remain visible in that choice.
 Only after those checks should displacement, buffering, latency and physical-CRT
 bypass contracts be specified. No production filter or menu change is justified
 by this continuation alone.
+
+## Prepared D3/D4 caller contract
+
+The next corpus slice is prepared from the actual `SHAKE26D` used by the
+supplied CSL_27 Module-D script: payload SHA-256
+`4b691c8e4c5682c2a8791b9f605cd2f53dedfe3caecc54b05081ff8dfbacadf2`,
+load `3A00`, 27,050 bytes, end `A3AA` exclusive, entry `4042`.
+Extraction length agrees with the AMSDOS header. The private disassembly uses
+that load origin; no D3/D4 execution is claimed yet.
+
+D3's key-3 dispatch selects `42BD`, whose handler words are
+`5B1C,5B36,5B3A,5B3E,0000`. The first initializes the SSM record cursor at
+`B144`; the four groups use R3l=6,5,4,3. Emission occurs inside the parameter
+loop, rather than once per handler. The supplied script sends an initial Space
+before waiting for `0314`, then variable multi-Space sequences through `033F`.
+Do not substitute one Space per page or apply the T/Y advancement policy.
+
+D4's table at `42B7` is specifically `2B 5C 23 5C 00 00`: handler **5C2B runs
+first**, initializes `B24E`, and is followed by `5C23`, which continues the cursor.
+Thus a cold D4 menu selection does establish its own `037F/0380` sequence;
+it does not inherit an uninitialized first-page pointer. Trace the actual
+`A385` emitter operands, `A371` cursor and `A395` countdown alongside the active
+register writes, rather than infer scene identity from table counts.
+
+Startup copies the original lower-ROM font to `A3A9` and installs the real
+bank-copy helpers. The executing probe must keep those prerequisites, real PPI
+keyboard/VSYNC and within-group history. Full supplied Module-D navigation and
+hidden RFD/parity history remain a separate boundary. Prepared payload, corrected
+caller map and source evidence are private under `continuation/d3-d4-callers/`.
