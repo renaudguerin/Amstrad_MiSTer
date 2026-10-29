@@ -177,6 +177,34 @@ If source execution is available without an independent monitor observation,
 parameter non-identifiability still remains. Source validation can proceed
 independently of presentation fitting.
 
+## Existing V3 caller stream as a steady source control
+
+V3 supplied an existing three-frame `window-full-rgb.bin`, SHA-256
+`6077e06e1122d5b36babb30f1e36d6baf50e09a55157e0ae7feeccdb3eeb4198`.
+There are 958,464 six-byte samples at one sample per four master ticks:
+GA red/green/blue DAC pairs, CRTC HS/VS/DE, GA sync tuple and applied-mode/SHIFT.
+The epoch is the first observed M1 at C015 following C012→C7B6→CF04 sync,
+9,928,559 ticks after reset-trampoline release. Three caller frames span
+3,833,856 master ticks (59.904 ms).
+
+The stream contains 936 complete monitor pulses, all observed widths 256
+and rising periods 4096 ticks. Its mode/SHIFT byte is zero throughout. All
+12 frozen cells admit every pulse and keep phase zero. This is a title-derived
+**steady source control**, not a width/admission discriminator or an explanation
+of Amazing's upper effect. No parameter was changed and no new replay run
+or device capture was requested.
+
+Both edges are quantised to four-master-tick samples; pulse-width error can
+reach three ticks even when a pulse is detected, and sub-four-tick pulses
+could be missed. This is not an all-master-edge export. The replay uses late
+67-second AmSpirit RAM, ordinary counter bootstrap, authentic caller sync and
+ideal RAM; initial pixel-pipeline history and continuous title boot are not
+established. Zero observed SHIFT is not proof of all prior byte history.
+V3 subsequently reports that fresh C012 input stalls at CF12 in both ideal-RAM
+and real-SDRAM variants. Thus the acquired late-RAM window cannot substitute
+for fresh-input or paired hardware proof. The next source discriminator stays
+with V3/A; V1 retains this existing window only under its narrower contract.
+
 ## Acceptance and retained artifacts
 
 The free DeepSeek worker wrote only ignored probe files. Parent inspection
@@ -213,3 +241,6 @@ retained under
 `local/investigations/sync-monitor-response-2026-10-29-f4da/continuation/`.
 The worker run is `20261029T175223Z-63974-a28f`; no new consultation, device
 operation, synthesis, integration, push, publication or paid-quota action.
+
+Stopped after this bounded unit at the shared 18:05:59 UTC quota reading:
+85% five-hour / 62% weekly used. No new work, retry, reset or wakeup started.
