@@ -80,8 +80,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   MA3000, while row1 and later repeat0C34 in the corrupt model window. Qualified
   tracing locates the suppressed save and accounts for the parity change through
   consecutive R0=0 origins. The unresolved rule is whether retained RFD parity
-  still gates saves after its R12/R13 source state clears; a controlled R1>R0
-  discriminator is being prepared. PPI/bootstrap assumptions remain explicit;
+  still gates saves after its R12/R13 source state clears. The controlled R1>R0
+  discriminator now passes CPU timing/marker checks and independent disk-body
+  execution as a private repeated-page candidate. Both programs cold-boot through
+  AMSDOS in AmSpirit with legible markers; original-CPC results remain open.
+  PPI/bootstrap assumptions remain explicit;
   no hardware-rule violation or production repair is established. V1/V2 retain their own gates.
   Direct SSH to `root@mister` is verified; parallel chats need a sole
   device operator and explicit handoffs. See the linked

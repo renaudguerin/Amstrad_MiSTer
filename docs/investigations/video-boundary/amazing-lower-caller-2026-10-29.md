@@ -304,6 +304,46 @@ the accepted traces reject any source/parity state before synchronization.
 The failed startup traces remain private rather than being relabeled as
 valid marker results.
 
+## Private repeated-page candidate
+
+The prototype now draws all three marker pages itself and includes ordinary
+GA mode/ROM and PPI setup writes. The integrated single-trial protocol passes
+all eight page/startup combinations. A separate comparison checks all 49152
+drawn RAM bytes against the marker data. The fixture still projects F5 input
+and does not model ROM overlays or production video DMA/rendering.
+
+`scope-candidate.dsk` contains SCOPE0 and SCOPE1, each an 8330-byte program
+loaded and entered at8000. Disk SHA-256:
+`8f4fd32786319ef579ce7b0311e31acc45151b59d9081f5b23d2b6c781ac0125`.
+Each synchronizes once and repeats at19968µs. Four trials/page from two
+startup delays retain exact accepted-write timing and three stable settled
+marker patterns. The independent disk reader verifies AMSDOS header,
+checksum, length, entry and body identity. Executing only each extracted
+body, plus the ordinary reset jump, repeats the protocol successfully;
+no separate host sync, code or marker upload supplies missing disk content.
+
+In the current model, settled P0 advances C01→C02 and B00→B01. Settled P1
+repeats A02 and B00; its first trial repeats A01 and is discarded for the
+stable photographic pattern. These are predictions to compare, not hardware
+PASS/FAIL labels. The image carries A/B/C row labels but no page identifier:
+record whether RUN"SCOPE0 or RUN"SCOPE1 was used and reset between programs.
+Full PPI/ROM behavior and original-CPC results remain separate gates. The
+copied SHAKER synchronizer and candidate stay private.
+
+Operator A subsequently cold-booted both programs independently through AMSDOS
+in AmSpirit Lite1.16.0/core2491682, classic6128/CRTC1 and normal CPU. Both
+display legible A/B/C address labels with different patterns. Keys are released,
+autotyping is false, and sampled CPU states show continued execution. The
+requested30-frame gaps include RPC/screenshot overhead: actual intervals are
+236 frames/4713061 ticks and254 frames/5084478 ticks. This is disk-launch and
+readability evidence in that emulator, not exact-cadence or hardware-policy
+proof. The instance remains paused on SCOPE1 with its test config retained.
+
+The established private bundle now includes `continued-evidence/`, with the
+candidate, source, exact build/check reports, inputs and selected traces.
+Start with its `v3-scope-portable/CANDIDATE.md` and `CPU-SCOPE.md`. No
+production RTL or tracked simulation change follows from these observations.
+
 ## Authentic COPY comparison limits
 
 The authentic SHAKE27B COPY group provides higher-authority visual targets:
@@ -336,6 +376,14 @@ on row10. Thus an even-R9 C4 transition does not explain this model ordering
 effect. These are resynchronized counter predictions, not hardware parity
 measurements or matched reproductions of the photographs. Inputs, explicit
 diagnostic changes and accepted-edge traces are in `v3-bcopy-replay/`.
+
+The actual B checkpoint was subsequently captured in AmSpirit. Its PC-only
+6751 diagnostic preserves seven differing CPU-header bytes and 22 differing
+RAM bytes rather than normalizing them to the earlier input. All three
+re-synchronized loop traces, including accepted writes, qualified origins,
+saves, hidden state and named CPU calls, match the source-derived B-body
+experiment byte for byte. This removes that particular input assumption;
+the fixture's CPU/counter reset and resynchronization limits still apply.
 
 ## Reproduction and scope
 
