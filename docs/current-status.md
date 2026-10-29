@@ -114,8 +114,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   program's own old live odd-row plane; three captures agree per program.
   Same-program AmSpirit differences remain separate from this bounded pass.
   Raw machine FIELD and CRTC1 parity rules are unchanged.
-  The combined CRTC1 diagnostic disk is being finalized separately by V3;
-  its original-machine results and the RFD save-policy questions remain open.
+  The [combined private CRTC1 disk](investigations/hardware-runs/crtc1-combined-disk-2026-10-29.md)
+  is delivered with five boot/readability-checked CONTROL/BEFORE/AFTER cases
+  and two explicitly experimental SCOPE cases whose sentinel control remains
+  inconclusive in AmSpirit. Original-machine results and RFD save policy remain open.
   The classic CRTC1 machine is available for a later bounded test session;
   a 6128 Plus/CRTC3 cannot decide these CRTC1 rules. See the
   [French author-question draft](classic/accc-author-questions-2026-10-29-fr.md)
