@@ -45,7 +45,7 @@ Mac, including the Verilator build.
 | `sim sna-cpu-header-test` | fast | `rtl/sna_cpu_header.v` | SNA CPU header decode from the T80pa register layout |
 | `sim b18-save-admission-test` | fast | `Amstrad.sv` `rtl/plus/plus_legacy_cart_gate.v` `rtl/sna_save_capture.v` `sim/b18_save_admission*` `sim/prepare_b18_save_admission.py` | Production save admission with persistent Dandanator load/select state, detach, armed cancellation, Plus exclusion and other admission controls |
 | `sim video-mixer-rgb-test` | fast | `sys/video_mixer.sv` | MiSTer video mixer RGB scope correction |
-| `sim ga40010-test` | fast | `rtl/GA40010/*` `rtl/crtc_type1_engine.v` | GA40010 netlist with the CRTC: type-1 R2.JIT timing |
+| `sim ga40010-test` | fast | `rtl/GA40010/*` `rtl/CRTC.v` `rtl/crtc_type1_engine.v` | Production CRTC/GA R2.JIT timing and type-1 invisible overflow restart, raw blanking, mode qualification and R52/V26 end-counter separation |
 | `sim u765-test` | fast | `rtl/u765/*` | u765 floppy controller |
 | `sim/plus run/asic_unlock_tests` | fast | `rtl/plus/asic_unlock.v` | ASIC unlock sequence detector |
 | `sim/plus run/asic_video_tests` | fast | `rtl/plus/asic_video.v` | Plus CRTC (type 3) counters and register bus |

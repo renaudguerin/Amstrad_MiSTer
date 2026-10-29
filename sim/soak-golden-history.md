@@ -11,7 +11,8 @@ refactor commit means behaviour moved; stop and document why before proceeding.
 
 | Hash | Date | Reason |
 |---|---|---|
-| `0xde0a16d0ececc573` | 2026-10-27 | **Current.** Combined hash after integrating the two rows below. |
+| `0x0874d4b8ecc08793` | 2026-10-29 | **Current.** Type-1 invisible terminal-overflow GA restart (French ACCC v1.11 §15.3.4 p.152). The new output and its seen/pending/phase state join the sampled projection; raw HS and existing CRTC sequencing retain their level semantics. Focused production CRTC/GA proof restores T/E's second monitor pulse while protecting blacking, mode qualification and R52/V26. See `docs/investigations/video-boundary/v1-shaker-caller-response-2026-10-29.md`. |
+| `0xde0a16d0ececc573` | 2026-10-27 | Combined hash after integrating the two rows below. |
 | `0x7358b7e99971f5d6` | 2026-10-27 | Branch-local hash (base `0xe99ab434a5e1cdb3`) for: Type-0 frozen post-IVM-exit C9.VMA comparison released when C9 wraps 31 to 0 (French ACCC v1.11 section 10.3.1.1 p.76; release point inferred from hardware SHAKER B1 00FB/00FC). See `docs/investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md`. |
 | `0x0bb996495fb3207e` | 2026-10-27 | Type-1 HSYNC does not end when C0=R2 at the C0=R2+R3l end position; C3l wraps and the test repeats (French ACCC v1.11 sections 15.3.2 p.150, 15.3.4 p.152; hardware SHAKER `01F4`). See `docs/investigations/hardware-runs/crtc1-infinite-hsync-01f4-2026-10-27.md`. |
 | `0xe99ab434a5e1cdb3` | 2026-09-22 | F14 type-1 additional-line existence made independent of R5 (French ACCC v1.11 section 19.6.2 p.217), with the additional-line adjustment-entry guard. See `docs/investigations/hardware-runs/shaker-d1-d6-retest-2026-09-22.md`. |

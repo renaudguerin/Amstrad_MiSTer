@@ -369,6 +369,7 @@ wire  [7:0] plus_crtc_dout;
 // data bus. The explicit mux also keeps plus_mode=0 invariant.
 wire  [7:0] crtc_dout_sel = plus_mode ? plus_crtc_dout : crtc_dout;
 
+wire crtc_hsync_restart;
 CRTC crtc
 (
 	.CLOCK(clk),
@@ -390,6 +391,7 @@ CRTC crtc
 
 	.VSYNC(crtc_vs),
 	.HSYNC(crtc_hs),
+	.HSYNC_RESTART(crtc_hsync_restart),
 	.DE(crtc_de),
 	.FIELD(crtc_field),
 	.CURSOR(cursor),
@@ -1109,6 +1111,7 @@ ga40010 GateArray (
 	.RD_N(RD_n),
 	.IORQ_N(IORQ_n),
 	.HSYNC_I(crtc_hs),
+	.HSYNC_RESTART_I(crtc_hsync_restart & ~plus_mode),
 	.VSYNC_I(crtc_vs),
 	.DISPEN(crtc_de),
 	.CCLK(),

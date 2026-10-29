@@ -122,6 +122,7 @@ module b9_t80_top(
   // GA signals (declared before DI: PPI bit0 taps raw CRTC VSYNC)
   wire phi_en_p, phi_en_n, cclk_en_p, cclk_en_n, ready_o;
   wire hs, vs, de;
+  wire hs_restart;
 
   // PPI Port-B read (F5xx): bit0 = raw CRTC VSYNC per
   // rtl/Amstrad_motherboard.v (ppi_ipb bit0 = vs_sel). Upper bits are
@@ -184,7 +185,7 @@ module b9_t80_top(
     .M1_N(M1_n),
     .RD_N(RD_n),
     .IORQ_N(IORQ_n),
-    .HSYNC_I(hs),
+    .HSYNC_I(hs), .HSYNC_RESTART_I(hs_restart),
     .VSYNC_I(vs),
     .DISPEN(de),
     .CCLK_EN_P(cclk_en_p),
@@ -237,7 +238,7 @@ module b9_t80_top(
     .SNA_ADDR(sna_addr),
     .SNA_REGS(sna_regs),
     .VSYNC(vs),
-    .HSYNC(hs),
+    .HSYNC(hs), .HSYNC_RESTART(hs_restart),
     .DE(de),
     .FIELD(),
     .CURSOR(),

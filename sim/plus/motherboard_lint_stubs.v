@@ -34,6 +34,7 @@ module ga40010 (
 	input  wire        RD_N,
 	input  wire        IORQ_N,
 	input  wire        HSYNC_I,
+	input  wire        HSYNC_RESTART_I,
 	input  wire        VSYNC_I,
 	input  wire        DISPEN,
 	output wire        CCLK,
@@ -112,7 +113,7 @@ module ga40010 (
 	assign SNAP_INTCNT = 6'd0;
 	assign SNAP_HCNT   = 5'd0;
 	wire unused = &{1'b0, clk, cen_16, fast, RESET_N, A, D, MREQ_N, M1_N,
-			RD_N, IORQ_N, HSYNC_I, VSYNC_I, DISPEN, SNA_LOAD,
+			RD_N, IORQ_N, HSYNC_I, HSYNC_RESTART_I, VSYNC_I, DISPEN, SNA_LOAD,
 			SNA_INKSEL, SNA_PALETTE, SNA_CONFIG, 1'b0};
 endmodule
 `endif
