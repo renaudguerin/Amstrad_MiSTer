@@ -156,6 +156,7 @@ module Amstrad_motherboard
 	output        hsync,
 	output        vsync,
 	output        field,
+	output        frame_field,
 
 	// B6 applied output policy
 	// (docs/investigations/video-boundary/b6-video-boundary.md).  raw_crt is
@@ -369,7 +370,7 @@ wire  [7:0] plus_crtc_dout;
 // data bus. The explicit mux also keeps plus_mode=0 invariant.
 wire  [7:0] crtc_dout_sel = plus_mode ? plus_crtc_dout : crtc_dout;
 
-wire crtc_hsync_restart;
+wire crtc_hsync_restart, crtc_frame_field;
 CRTC crtc
 (
 	.CLOCK(clk),
@@ -394,6 +395,7 @@ CRTC crtc
 	.HSYNC_RESTART(crtc_hsync_restart),
 	.DE(crtc_de),
 	.FIELD(crtc_field),
+	.FRAME_FIELD(crtc_frame_field),
 	.CURSOR(cursor),
 
 	.MA(MA),
@@ -466,12 +468,15 @@ wire [4:0]  ra_sel = plus_mode ? plus_ra : RA;
 wire        hs_sel = plus_mode ? plus_crtc_hs : crtc_hs;
 wire        vs_sel = plus_mode ? plus_crtc_vs : crtc_vs;
 wire        de_sel = plus_mode ? plus_crtc_de : crtc_de;
-// B8-2: the scaler-facing FIELD (VGA_F1) belongs to the selected machine.
+// B8-2: raw FIELD belongs to the selected machine.
 // Classic FIELD stays with the classic CRTC; Plus FIELD comes from the ASIC's
 // own frame parity (see asic_video FIELD). Unselected-engine perturbation must
 // not reach the pin.
 wire        plus_field;
 assign field = plus_mode ? plus_field : crtc_field;
+// Classic R8 pulses must not advertise interlace to the platform scaler.
+// Preserve the existing Plus FIELD export; this repair concerns classic R8.
+assign frame_field = plus_mode ? plus_field : crtc_frame_field;
 
 asic_ga_timing asic_ga
 (
