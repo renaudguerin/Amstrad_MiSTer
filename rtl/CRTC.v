@@ -31,9 +31,10 @@
 //  cite their ACCC section at the point of implementation.
 //============================================================================
 //
-//  Port-compatible wrapper around the two per-type counter engines
-//  (crtc_type0_engine / crtc_type1_engine). The motherboard wiring and every
-//  external pin are unchanged. The wrapper is named for the component, not
+//  Wrapper around the two per-type counter engines
+//  (crtc_type0_engine / crtc_type1_engine). Visible pins retain their level
+//  semantics; HSYNC_RESTART carries type 1's invisible GA restart separately.
+//  The wrapper is named for the component, not
 //  one variant: the socket takes a type-0 HD6845S/UM6845 or a type-1
 //  UM6845R depending on model (the file was rtl/UM6845R.v before the
 //  per-type split; the old name survives only in history).
@@ -69,6 +70,7 @@ module CRTC
 	
 	output reg       VSYNC,
 	output reg       HSYNC,
+	output reg       HSYNC_RESTART,
 	output           DE,
 	output           FIELD,
 	output           CURSOR,
@@ -490,13 +492,47 @@ wire hsync_on = hcc == R2_h_sync_pos && R3_h_sync_width != 0;
 // ACCC v1.11 FR section 15.3.2 p.150, 15.3.4 p.152: on type 1, when C0 == R2
 // at the character where C3l reaches R3l, HSYNC does not end; C3l (the 4-bit
 // hsc) keeps counting, wraps, and the test repeats at the next C3l == R3l.
-// R0=R2=0, R3l=1 therefore gives infinite HSYNC.  Residual: real hardware
-// emits a brief invisible HSYNC off/on blip here that only resets the GA
-// counter; not modelled.  This type-1 rule lives here rather than in the
+// R0=R2=0, R3l=1 therefore gives infinite HSYNC. Real hardware
+// emits an invisible HSYNC off/on blip here that restarts the GA horizontal
+// shaper without a visible raw-HSYNC end. HSYNC_RESTART carries that event.
+// This type-1 rule lives here rather than in the
 // engine because the crtc_t80_old negative-control bench compiles this
 // wrapper against historic engine files, which fixes the engine port list.
 wire type1_hsync_overflow = (hcc == R2_h_sync_pos) && (R3_h_sync_width != 0);
 wire hsync_off = CRTC_TYPE ? (e1_hsync_off && !type1_hsync_overflow) : e0_hsync_off;
+
+// French ACCC v1.11 §15.3.4 p.152: C3l keeps overflowing, but the GA sees
+// an invisible end/restart at the ordinary trailing-edge phase. A level-low
+// HSYNC pulse would also count an end for R52/V26 and release FORCE_BLANK;
+// those paths must retain the continuous raw pin (SHAKER BR/E 01F4).
+reg type1_restart_seen;
+reg type1_restart_pending;
+reg [6:0] type1_restart_count;
+wire type1_restart_due = HSYNC && CRTC_TYPE && e1_hsync_off &&
+							type1_hsync_overflow;
+always @(posedge CLOCK) begin
+	if (!nRESET || SNA_LOAD || !CRTC_TYPE) begin
+		HSYNC_RESTART <= 0;
+		type1_restart_seen <= 0;
+		type1_restart_pending <= 0;
+		type1_restart_count <= 0;
+	end else begin
+		HSYNC_RESTART <= 0;
+		if (!type1_restart_due) type1_restart_seen <= 0;
+		if (type1_restart_pending) begin
+			if (type1_restart_count == 0) begin
+				HSYNC_RESTART <= 1;
+				type1_restart_pending <= 0;
+			end else type1_restart_count <= type1_restart_count - 1'd1;
+		end else if (type1_restart_due && !type1_restart_seen) begin
+			type1_restart_seen <= 1;
+			if (hsync_phaseful && hsync_start_phase != 0) begin
+				type1_restart_pending <= 1;
+				type1_restart_count <= hsync_start_phase - 1'd1;
+			end else HSYNC_RESTART <= 1;
+		end
+	end
+end
 wire register_write = ENABLE & RS & ~nCS & ~R_nW;
 // ACCC v1.11 section 14.7.1 p.142 (FR §14.7.1 p.143): an OUT(C),r8 update which makes
 // R2 equal to the current C0 is the R2.JIT event.  The bus write is a level
