@@ -86,8 +86,12 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   AMSDOS in AmSpirit with legible markers; original-CPC results remain open.
   The `cfd0016` MiSTer PNGs mix invariant contaminated even rows with readable
   odd rows. Field isolation recovers the markers; repeated R8 pulses reaching
-  ASCAL's unqualified FIELD-edge interlace detector are the leading source-
-  supported clue. Live FIELD/scaler state and original-CPC policy remain unproven.
+  ASCAL's unqualified FIELD-edge interlace detector led to a
+  [failing consumer test and FIELD export repair](investigations/video-boundary/field-ascal-repair-2026-10-29.md).
+  The production CRTC/output→ASCAL test now rejects short R8 pulses while
+  preserving genuine field ordering and progressive recovery. Fixed-RBF
+  synthesis and session A's SCOPE0/SCOPE1 rerun remain pending; original-CPC
+  policy remains unproven.
   PPI/bootstrap assumptions remain explicit;
   no hardware-rule violation or production repair is established. V1/V2 retain their own gates.
   Direct SSH to `root@mister` is verified; parallel chats need a sole
