@@ -143,7 +143,7 @@ KOF = "KOF"
 
 # Letters that keep their UK position on a French CPC keyboard are omitted from
 # the swap table below.
-_FR_LETTER_SWAPS = {"A": "Q", "Q": "A", "Z": "W", "W": "Z", "M": ";"}
+_FR_LETTER_SWAPS = {"A": "Q", "Q": "A", "Z": "W", "W": "Z", "M": ":"}
 
 # Characters the UK CPC prints when the key is held with SHIFT.
 _UK_SHIFTED = {
@@ -181,6 +181,9 @@ def _build_layout(layout: str) -> Dict[str, Tuple[str, bool]]:
         for char, position in _UK_SHIFTED.items():
             table[char] = (position, True)
     else:
+        # French firmware key 24 (UK '^') prints '-' unshifted. This and
+        # M at key 29 (UK ':') are confirmed by the 2026-10-29 demo boots.
+        table["-"] = ("^", False)
         for digit in "0123456789":
             table[digit] = (digit, True)
         for char, position in _FR_DIGIT_ROW_UNSHIFTED.items():

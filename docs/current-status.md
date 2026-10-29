@@ -72,14 +72,43 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   Amazing's lower flashing corruption: `dsk/amazing2021_rev2.dsk`, `RUN"AMAZING`.
   CRTC/GA defects are the working hypotheses for V2/V3, not established causes.
   Neither repair depends on V1, and each symptom retains its own acceptance gate.
-  Task preparation includes source analysis; fresh demo captures and fixes are
-  pending. Direct SSH to `root@mister` is verified; parallel chats need a sole
-  device operator and explicit handoffs. See the linked
-  plan for evidence limits, gates and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
+  [V2's evidence and capture-helper repair](investigations/hardware-runs/dsc4-video-2026-10-29.md)
+  reproduce DSC4 from two boots. Original-loader replay and a full CPCSyntaxError
+  boot corroborate the caller phases; the constrained French before-RFD recipe
+  expects reload `33BD`, whereas the current model restores `1030`. The general
+  parity predicate remains unresolved. No DSC4 production repair is accepted.
+  The French launch mappings are corrected. Direct SSH to `root@mister` is
+  verified; one operator owns shared MiSTer and AmSpirit access.
 
-- **V1 bounded result (2026-10-29):** [sync-response feasibility](investigations/video-boundary/v1-sync-response-evidence-2026-10-29.md) maps AT/AY/D3/D4 and adds an opt-in passive RGB/tuple trace to the existing B6 fixture. Selected B6 gate and canonical soak pass; production video is unchanged. A rising-edge-only response candidate is insufficient; shared Amazing Full/Raw-pixels captures remain phase-sensitive and do not establish a monitor model or close the upper effect.
+- **Integrated V1 restart fix (2026-10-29):** the
+  [T/Y investigation](investigations/video-boundary/v1-shaker-caller-response-2026-10-29.md)
+  identifies the missing invisible CRTC1 overflow restart (French §15.3.4 p.152).
+  The separate classic GA H06 restart preserves raw HS/blacking and R52/V26.
+  Fail-before/pass-after boundary tests, cross-provider review and the exact
+  `cfd0016` hosted build passed. Canonical soak is `0x0874d4b8ecc08793`; the old
+  projection remains `0xde0a16d0ececc573`.
+  [Bounded MiSTer checks](investigations/hardware-runs/v1-sync-restart-device-2026-10-29.md)
+  pass numeric controls and Full cold T-page progress. All six Raw CRT PNGs
+  match the previous RBF byte-for-byte: that distortion predates this fix.
+  Direct pulse/analog fidelity and full-history acceptance remain open.
 
-- **V1 continuation:** the [actual SHAKER T/Y and response investigation](investigations/video-boundary/v1-shaker-caller-response-2026-10-29.md) executes T/A–F and Y/A–B on production T80/motherboard/GA with cold-entry/ideal-RAM limits explicit. It identifies T/E's missing invisible CRTC1 overflow restart (French §15.3.4 p.152). V1-R1 adds a separate classic GA H06 restart event while preserving raw HS/blacking and R52/V26 end qualification; its focused boundary regression fails before and passes after, including mode-latch and infinite-HSYNC controls. Cross-provider review is CLEAR; canonical soak is `0x0874d4b8ecc08793`, with the old projection separately reproducing `0xde0a16d0ececc573`. Original-CPC/CTM corpus retest remains pending. The frozen CPCSyntaxError monitor is a useful candidate with deferred-width/rollback and output-commitment limitations; AT/AY/D3/D4 already informed its fit. No monitor-filter rewrite or extra device operation.
+- **Monitor response:** the [passive trace/feasibility work](investigations/video-boundary/v1-sync-response-evidence-2026-10-29.md)
+  and [width/admission study](investigations/video-boundary/v1-width-admission-probe-2026-10-29.md)
+  do not establish a complete monitor model. The frozen CPCSyntaxError model
+  has deferred-width and output-commitment limits; its training corpus includes
+  AT/AY/D3/D4. The [primary circuit check](investigations/video-boundary/v1-ctm-afc-circuit-check-2026-10-29.md)
+  does not support treating 73 lines as a measured CTM settling constant. No
+  monitor-filter rewrite is integrated.
+
+- **V3 remains active:** Amazing's lower corruption has a model-level repeated
+  address mechanism, with RFD save-gating scope unresolved. The separate
+  FIELD/ASCAL investigation and combined future CRTC1 diagnostic disk remain on
+  V3's task branch. No FIELD repair or CRTC1 parity change is included here.
+  The classic CRTC1 machine is available for a later bounded test session;
+  a 6128 Plus/CRTC3 cannot decide these CRTC1 rules. See the
+  [French author-question draft](classic/accc-author-questions-2026-10-29-fr.md)
+  (not sent), the [work plan](investigations/video-boundary/sync-response-and-demo-plan-2026-10-29.md)
+  and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
 
 - **Remaining classic accuracy work:** `019D` has a failing production-T80
   regression; the physical write-visibility rule is the missing evidence, and a

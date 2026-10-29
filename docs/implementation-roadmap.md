@@ -415,6 +415,14 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 
 ### Integrated implementations and follow-up validation
 
+**2026-10-29 integration:** the CRTC1 invisible HSYNC overflow now restarts only
+classic GA monitor shaping (French §15.3.4 p.152), with deterministic, synthesis
+and bounded MiSTer evidence. The capture helper's French demo-launch mappings
+are repaired. DSC4's before-RFD reload conflict and Amazing's parity-scope
+question remain open; V3 continues FIELD/ASCAL separately and owns the future
+combined CRTC1 test disk. See [current status](current-status.md) and the
+[unsent French author questions](classic/accc-author-questions-2026-10-29-fr.md).
+
 **Current next actions (2026-09-29).** The `4a44394` title regression pass is
 user-confirmed clean. The [B1/B22 observability slice](investigations/video-boundary/b22-acquisition-trace-2026-09-29.md)
 now distinguishes startup period contamination from persistent phase misalignment

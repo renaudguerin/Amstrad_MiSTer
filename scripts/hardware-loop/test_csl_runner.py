@@ -101,6 +101,15 @@ class TestHardwareCrossChecks(unittest.TestCase):
         expected = ":13:16:31:04:1F:23:10:25:12{2A:03:08}2A:30"
         self.assertEqual(sequence_tokens(translate_text('RUN"SHAKE27B', "fr")), expected)
 
+    def test_french_demo_launches_match_device_rom_key_positions(self):
+        # Active boot_fr.rom on 2026-10-29: translation table at 0x1eef
+        # maps key 24 to '-' and key 29 to 'm'. These full sequences booted
+        # DSC4 and Amazing on MiSTer; see the dated V2 evidence record.
+        self.assertEqual(sequence_tokens(translate_text('RUN"-DSC4\\(RET)', "fr")),
+                         ":13:16:31:04:0D:20:1F:2E{2A:05}2A:1C")
+        self.assertEqual(sequence_tokens(translate_text('RUN"AMAZING\\(RET)', "fr")),
+                         ":13:16:31:04:10:27:10:11:17:31:22:1C")
+
     def test_menu_digit_reaches_the_same_cpc_key_as_the_device_capture(self):
         # The same document selects SHAKER module B test 9 with bare :0A.
         # Under the French ROM the character '9' also needs SHIFT, so the
