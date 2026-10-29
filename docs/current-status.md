@@ -72,31 +72,51 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   Amazing's lower flashing corruption: `dsk/amazing2021_rev2.dsk`, `RUN"AMAZING`.
   CRTC/GA defects are the working hypotheses for V2/V3, not established causes.
   Neither repair depends on V1, and each symptom retains its own acceptance gate.
-  [V3 lower-screen evidence](investigations/video-boundary/amazing-lower-evidence-2026-10-29.md)
-  now reproduces alternating readable/corrupt lower content on two fresh Full boots
-  of `925b5bb`, while the same-media AmSpirit run has coherent lower content.
-  A [caller replay](investigations/video-boundary/amazing-lower-caller-2026-10-29.md)
-  now reproduces dense lower corruption before the mixer/scaler: row0 remains
-  MA3000, while row1 and later repeat0C34 in the corrupt model window. Qualified
-  tracing locates the suppressed save and accounts for the parity change through
-  consecutive R0=0 origins. The unresolved rule is whether retained RFD parity
-  still gates saves after its R12/R13 source state clears. The controlled R1>R0
-  discriminator now passes CPU timing/marker checks and independent disk-body
-  execution as a private repeated-page candidate. Both programs cold-boot through
-  AMSDOS in AmSpirit with legible markers; original-CPC results remain open.
-  The `cfd0016` MiSTer PNGs mix invariant contaminated even rows with readable
-  odd rows. Field isolation recovers the markers; repeated R8 pulses reaching
-  ASCAL's unqualified FIELD-edge interlace detector led to a
-  [failing consumer test and FIELD export repair](investigations/video-boundary/field-ascal-repair-2026-10-29.md).
-  The production CRTC/output→ASCAL test now rejects short R8 pulses while
-  preserving genuine field ordering and progressive recovery. Fixed-RBF
-  synthesis and session A's SCOPE0/SCOPE1 rerun remain pending; original-CPC
-  policy remains unproven.
-  PPI/bootstrap assumptions remain explicit;
-  no hardware-rule violation or production repair is established. V1/V2 retain their own gates.
-  Direct SSH to `root@mister` is verified; parallel chats need a sole
-  device operator and explicit handoffs. See the linked
-  plan for evidence limits, gates and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
+  [V2's evidence and capture-helper repair](investigations/hardware-runs/dsc4-video-2026-10-29.md)
+  reproduce DSC4 from two boots. Original-loader replay and a full CPCSyntaxError
+  boot corroborate the caller phases; the constrained French before-RFD recipe
+  expects reload `33BD`, whereas the current model restores `1030`. The general
+  parity predicate remains unresolved. No DSC4 production repair is accepted.
+  The French launch mappings are corrected. Direct SSH to `root@mister` is
+  verified; one operator owns shared MiSTer and AmSpirit access.
+
+- **Integrated V1 restart fix (2026-10-29):** the
+  [T/Y investigation](investigations/video-boundary/v1-shaker-caller-response-2026-10-29.md)
+  identifies the missing invisible CRTC1 overflow restart (French §15.3.4 p.152).
+  The separate classic GA H06 restart preserves raw HS/blacking and R52/V26.
+  Fail-before/pass-after boundary tests, cross-provider review and the exact
+  `cfd0016` hosted build passed. Canonical soak is `0x0874d4b8ecc08793`; the old
+  projection remains `0xde0a16d0ececc573`.
+  [Bounded MiSTer checks](investigations/hardware-runs/v1-sync-restart-device-2026-10-29.md)
+  pass numeric controls and Full cold T-page progress. All six Raw CRT PNGs
+  match the previous RBF byte-for-byte: that distortion predates this fix.
+  Direct pulse/analog fidelity and full-history acceptance remain open.
+
+- **Monitor response:** the [passive trace/feasibility work](investigations/video-boundary/v1-sync-response-evidence-2026-10-29.md)
+  and [width/admission study](investigations/video-boundary/v1-width-admission-probe-2026-10-29.md)
+  do not establish a complete monitor model. The frozen CPCSyntaxError model
+  has deferred-width and output-commitment limits; its training corpus includes
+  AT/AY/D3/D4. The [primary circuit check](investigations/video-boundary/v1-ctm-afc-circuit-check-2026-10-29.md)
+  does not support treating 73 lines as a measured CTM settling constant. No
+  monitor-filter rewrite is integrated.
+
+- **V3 remains active:** [Amazing's lower corruption](investigations/video-boundary/amazing-lower-evidence-2026-10-29.md)
+  has a [model-level repeated-address mechanism](investigations/video-boundary/amazing-lower-caller-2026-10-29.md),
+  with RFD save-gating scope unresolved. The private SCOPE0/SCOPE1 disk passes
+  CPU timing, independent disk-body execution and AmSpirit cold boots. Its
+  `cfd0016` MiSTer captures mix invariant contaminated even rows with readable
+  odd rows. The resulting [FIELD/ASCAL repair](investigations/video-boundary/field-ascal-repair-2026-10-29.md)
+  has a failing production CRTC/output→ASCAL consumer test: short R8 pulses
+  falsely acquired interlace. The qualified export now rejects those pulses
+  while preserving genuine field order and progressive recovery. Fixed-RBF
+  synthesis and session A's unchanged SCOPE0/SCOPE1 rerun remain pending.
+  Raw machine FIELD and CRTC1 parity rules are unchanged.
+  The combined future CRTC1 diagnostic disk remains on V3's task branch.
+  The classic CRTC1 machine is available for a later bounded test session;
+  a 6128 Plus/CRTC3 cannot decide these CRTC1 rules. See the
+  [French author-question draft](classic/accc-author-questions-2026-10-29-fr.md)
+  (not sent), the [work plan](investigations/video-boundary/sync-response-and-demo-plan-2026-10-29.md)
+  and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
 
 - **Remaining classic accuracy work:** `019D` has a failing production-T80
   regression; the physical write-visibility rule is the missing evidence, and a

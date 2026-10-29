@@ -83,6 +83,42 @@ public:
     }
     void finish() {if(out.is_open())out.close();}
 };
+// Optional time-domain video export. Each row is one pre-edge snapshot, held
+// until the next row; the terminal row bounds the final interval. Unlike the
+// sparse sync diagnostic this records RGB changes, including changes between
+// native dot enables. It never evaluates or drives the DUT.
+// rgb12 is motherboard-native: classic DAC pairs occupy the low two bits of
+// each nibble; Plus uses the full nibble. Only modes 1/2 have native byte order.
+// Converted/mixer RGB are separate pipeline observations, NOT time-aligned
+// substitutes for rgb12 at the raw GA tuple's timestamp.
+class VideoTrace {
+    std::ofstream out;
+    std::array<unsigned,14> previous{};
+    int previous_stage=-2;
+    bool first=true;
+public:
+    VideoTrace(const std::string& prefix,unsigned machine,unsigned mode) {
+        if(prefix.empty())return;
+        out.exceptions(std::ios::failbit|std::ios::badbit);
+        out.open(prefix+"-machine"+std::to_string(machine)+"-mode"+std::to_string(mode)+".video.csv");
+        out<<"tick,stage,stage_age,requested,applied,crtc_hs,crtc_vs,ga_raw_tuple,rgb12,pixel_vblank,full_tuple,selected_tuple,color_rgb24,color_tuple,mixer_rgb24,mixer_de,mixer_ce,terminal\n";
+    }
+    void sample(unsigned tick,int stage,unsigned age,const Vp10_boot_test_top& d,bool terminal=false) {
+        if(!out.is_open())return;
+        const std::array<unsigned,14> state={d.b6_mode,d.b6_applied,
+            d.dbg_raw_hsync,d.dbg_raw_vsync,d.b6_raw_tuple,d.dbg_video_rgb,
+            d.b6_pixel_vblank,d.b6_full_tuple,selected_tuple(d),
+            d.b6_color_rgb,d.b6_color_tuple,d.b6_mixer_rgb,
+            d.b6_mixer_de,d.b6_mixer_ce};
+        if(first||stage!=previous_stage||state!=previous||terminal) {
+            out<<tick<<','<<stage<<','<<age;
+            for(auto value:state)out<<','<<value;
+            out<<','<<terminal<<'\n';
+        }
+        previous=state;previous_stage=stage;first=false;
+        if(terminal)out.close();
+    }
+};
 struct Samples {
     std::vector<uint8_t> timing;
     std::vector<uint32_t> rgb;
@@ -92,7 +128,8 @@ struct Samples {
     uint64_t short_pulses=0,short_width_bad=0;
     std::array<uint64_t,stages> armed_falls{},hs4_ticks{};
 };
-Samples dynamic_run(unsigned machine,unsigned mode,bool probe,const std::string& trace_prefix) {
+Samples dynamic_run(unsigned machine,unsigned mode,bool probe,const std::string& trace_prefix,
+                    const std::string& video_prefix) {
     Harness h(machine==2,machine==1);
     h.verify_mutation(0);h.dut.production_clocking=1;h.dut.b6_mode=mode;
     for(unsigned a=0xc000;a<0x10000;a+=2) {
@@ -102,6 +139,7 @@ Samples dynamic_run(unsigned machine,unsigned mode,bool probe,const std::string&
     const auto p=dynamic_program();h.initialize(p,machine==2);
     if(machine==2) {h.download(build_cpr_image({{"cb00",p.code},{"cb03",std::vector<uint8_t>(16384,0)}}));h.wait_for_reset_release();}
     SyncTrace trace(trace_prefix,machine,mode);
+    VideoTrace video(video_prefix,machine,mode);
     Samples s;
     int stage=-1;unsigned age=0;bool old_hs=false;
     bool pulse_open=false;unsigned pulse_start=0;
@@ -111,12 +149,14 @@ Samples dynamic_run(unsigned machine,unsigned mode,bool probe,const std::string&
     // never from the output being checked. Mixer captures on its old CE.
     uint32_t gamma_input=0,gamma_output=0,mixer_r=0,vga=0;
     bool old_ce=false;unsigned pipeline_age=0;
+    unsigned elapsed=0;
     for(unsigned n=0;n<16000000;++n) {
         auto&d=h.dut;
         if(!d.dbg_mreq_n&&!d.dbg_wr_n&&d.dbg_addr==0xb000&&d.dbg_dout>=1&&d.dbg_dout<=stages) {
             int next=d.dbg_dout-1;if(next!=stage){std::cerr<<"stage "<<next<<" tick="<<n<<" pc="<<std::hex<<d.dbg_pc<<std::dec<<std::endl;stage=next;age=0;}
         }
         trace.sample(n,stage,age,d);
+        video.sample(n,stage,age,d);
         // Compare the production diagnostic port against independently probed
         // state. This catches disconnected ports and misordered filter-state bits.
         const unsigned expected_observation = d.b6_mode | (d.b6_applied << 2) |
@@ -150,7 +190,7 @@ Samples dynamic_run(unsigned machine,unsigned mode,bool probe,const std::string&
         const bool raw_hs_before=d.b6_raw_tuple&2;
         const bool armed_fall=d.rootp->p10_boot_test_top__DOT__mb__DOT__phi_en_n &&
             FILTER(syncgen__DOT__old_hsync) && !FILTER(hsync_i) && FILTER(hSyncReg);
-        h.tick();++pipeline_age;
+        h.tick();++pipeline_age;elapsed=n+1;
         if(probe && (old_r3!=CRTC(R3_h_sync_width)||old_hs4!=FILTER(hs4)||old_size!=FILTER(hSyncSize)))
             std::cerr<<"B22 machine="<<machine<<" mode="<<mode<<" tick="<<n<<" stage="<<stage<<" R3="<<old_r3<<"->"<<unsigned(CRTC(R3_h_sync_width))
                      <<" C0="<<unsigned(CRTC(hcc))<<" C3="<<unsigned(CRTC(hsc))
@@ -187,19 +227,21 @@ Samples dynamic_run(unsigned machine,unsigned mode,bool probe,const std::string&
         if(stage==int(stages)-1&&age>1600000)break;
     }
     trace.finish();
+    video.sample(elapsed,stage,age,h.dut,true);
     return s;
 }
 }
 int main(int argc,char**argv) {
     Verilated::commandArgs(argc,argv);
-    unsigned only=3;bool probe=false;std::string trace_prefix;
+    unsigned only=3;bool probe=false;std::string trace_prefix,video_prefix;
     for(int i=1;i<argc;++i)if(std::string(argv[i])=="--probe-sync")probe=true;
     for(int i=1;i+1<argc;++i)if(std::string(argv[i])=="--machine")only=std::stoul(argv[++i]);
-    for(int i=1;i<argc;++i)if(std::string(argv[i])=="--trace-sync") {
+    for(int i=1;i<argc;++i)if(std::string(argv[i])=="--trace-sync"||std::string(argv[i])=="--trace-video") {
+        const std::string option=argv[i];
         if(i+1==argc||std::string(argv[i+1]).empty()||std::string(argv[i+1]).front()=='-') {
-            std::cerr<<"--trace-sync requires a file prefix\n";return 2;
+            std::cerr<<option<<" requires a file prefix\n";return 2;
         }
-        trace_prefix=argv[++i];
+        (option=="--trace-sync"?trace_prefix:video_prefix)=argv[++i];
     }
     bool bad=false;
     try {
@@ -207,7 +249,7 @@ int main(int argc,char**argv) {
             if(only<3&&machine!=only)continue;
             Samples full;
             for(unsigned mode=0;mode<3;++mode) {
-                auto s=dynamic_run(machine,mode,probe,trace_prefix);
+                auto s=dynamic_run(machine,mode,probe,trace_prefix,video_prefix);
                 std::array<uint64_t,stages> differences{};
                 uint64_t timing_bad=0;
                 if(mode==0)full=s;

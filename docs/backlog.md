@@ -391,6 +391,15 @@ and capture times are in the plan. Investigate digital response offline before
 any filter rewrite. Original-CPC access is not required for these bounded units;
 faithful CTM response remains unproven. These extend existing residuals.
 
+**Integrated boundary repair, 2026-10-29:** the type-1 invisible HSYNC
+terminal-overflow event now restarts classic GA monitor shaping without ending
+the raw HSYNC/black level or clocking the interrupt counter. The source-derived
+boundary vector, exact hosted full build and bounded MiSTer controls pass;
+see [the implementation evidence](investigations/video-boundary/v1-shaker-caller-response-2026-10-29.md)
+and [device receipt](investigations/hardware-runs/v1-sync-restart-device-2026-10-29.md).
+This does not close monitor-response modelling, full-history/analog acceptance,
+DSC4's RFD recipe, or the separate V3 FIELD/ASCAL work.
+
 **Current implementation, checked against RTL 2026-09-29.** The OSD modes are
 **Full / Raw pixels / Raw CRT**, not the earlier Full / Live blanking / Off.
 `Amstrad_motherboard.v` and `crt_filter_output_select` in `rtl/crt_filter.v`

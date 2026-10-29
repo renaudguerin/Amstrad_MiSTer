@@ -324,6 +324,11 @@ public:
         mix(r.CRTC__DOT__type1_hsync_start_count);
         mix(r.CRTC__DOT__type0_hsync_restart_pending);
         mix(r.CRTC__DOT__type0_hsync_restart_count);
+        // Type-1 invisible GA restart lifecycle, FR §15.3.4 p.152.
+        mix(dut_->HSYNC_RESTART);
+        mix(r.CRTC__DOT__type1_restart_seen);
+        mix(r.CRTC__DOT__type1_restart_pending);
+        mix(r.CRTC__DOT__type1_restart_count);
         mix(r.CRTC__DOT__r2_jit_pending);
         mix(r.CRTC__DOT__register_write_d);
     }
