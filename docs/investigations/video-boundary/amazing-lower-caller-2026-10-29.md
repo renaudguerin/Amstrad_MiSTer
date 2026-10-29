@@ -344,7 +344,7 @@ candidate, source, exact build/check reports, inputs and selected traces.
 Start with its `v3-scope-portable/CANDIDATE.md` and `CPU-SCOPE.md`. No
 production RTL or tracked simulation change follows from these observations.
 
-### MiSTer comparison: controls unreadable
+### MiSTer comparison: alternate-row contamination
 
 At the user's request, operator A independently cold-booted SCOPE0 and SCOPE1
 on `cfd0016` (RBF SHA-256
@@ -354,20 +354,43 @@ applied CFG; its runtime latch was not independently observed. The disk hash
 is unchanged. Each program has three native 768×546 captures at approximately
 10/13/16 seconds after input-command completion.
 
-The captures are byte-identical within each program and differ between programs.
-Marker-like columns support launch, but glyphs are partial/malformed, their
-vertical extent differs from AmSpirit, and the lower native region contains
-coloured bands and displaced pictorial/noisy content. A diagnostic stretch of
-the top273 rows does not recover reliable source/sentinel/scope/rearm controls.
-The identical captures do not independently establish continued execution or
-fresh native-buffer content. Consequently no row-level RFD policy verdict is
-accepted from this comparison. Candidate geometry/marker validity and capture
-freshness must be accounted for before policy inference.
+The raw captures are byte-identical within each program and differ between
+programs. Their partial glyphs, apparently compressed column and coloured
+lower region initially prevented a control reading. Stretching the top273
+rows mixes distinct image planes and does not recover the diagnostic.
+
+A user-requested Astra High inspection, reproduced numerically by the parent,
+isolates the actual clue: every even row is byte-identical between programs;
+all57526 strongly coloured pixels lie on even rows y274–544; all601 differing
+pixels between programs are on odd rows. Coordinates are zero-based. Isolating
+rows1,3,...545 recovers readable768×273 output. Across the common original
+768×542 area, per-channel >128 thresholding gives exact equality between
+MiSTer SCOPE0 odd rows and AmSpirit SCOPE1 odd rows. The reverse pairing differs
+by52 pixels at x15–35/y97–161. This is cross-program thresholded correspondence,
+not full-RGB identity, assigned hardware parity or proof of buffer freshness.
+
+The deployed `cfd0016` source supplies a specific mechanism: `rtl/CRTC.v:96,204`
+derives FIELD from frame state and R8 interlace selection; motherboard:474 and
+`sys/sys_top.v:756` route it directly to ASCAL. `sys/ascal.vhd:1217–1225` treats
+any FIELD edge as interlace evidence and refreshes a three-frame timeout,
+without VSYNC qualification. Its height doubling and alternate-line writes
+are at1318–1330,1239–1248,1564–1574. Repeated short R8=3→0 pulses can therefore
+keep interlace acquisition active while ordinary frame boundaries select one
+field, plausibly leaving the other row parity with earlier contents. The
+546=2×273 height and exact pixel separation strongly favour this scaler/capture
+explanation; the live FIELD waveform and runtime scaler state remain unobserved.
+The Full filter does not qualify that FIELD connection. The right-side token
+can instead follow the x+512 next-marker-row alias during R1>R0; it is not an
+independently drawn page label or separate proof of stale lettering.
 
 Original captures, receipts, paired views and the operator's comparison are
 private under `local/investigations/classic-video-v2-2026-10-29-b157/scope-mister/`.
-Original CFG and MENU were verified afterward. No further device operation or
-production change followed from the unreadable control result.
+The continued V3 bundle's `v3-scope-field-analysis/` contains isolated row views,
+the reproducible script, metrics and source anchors. Original CFG and MENU were
+verified afterward. No further device operation, build or production change
+was needed for field isolation. A live HDMI photograph paired with a native
+screenshot is a possible next discriminator for shared-scaler versus screenshot-
+only presentation; an RFD hardware-policy verdict remains separate.
 
 ## Authentic COPY comparison limits
 

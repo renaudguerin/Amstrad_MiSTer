@@ -84,9 +84,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   discriminator now passes CPU timing/marker checks and independent disk-body
   execution as a private repeated-page candidate. Both programs cold-boot through
   AMSDOS in AmSpirit with legible markers; original-CPC results remain open.
-  The subsequent `cfd0016` MiSTer comparison has partial glyphs and corrupted
-  lower native content; unreadable controls and unverified buffer freshness
-  prevent an RFD policy conclusion.
+  The `cfd0016` MiSTer PNGs mix invariant contaminated even rows with readable
+  odd rows. Field isolation recovers the markers; repeated R8 pulses reaching
+  ASCAL's unqualified FIELD-edge interlace detector are the leading source-
+  supported clue. Live FIELD/scaler state and original-CPC policy remain unproven.
   PPI/bootstrap assumptions remain explicit;
   no hardware-rule violation or production repair is established. V1/V2 retain their own gates.
   Direct SSH to `root@mister` is verified; parallel chats need a sole
