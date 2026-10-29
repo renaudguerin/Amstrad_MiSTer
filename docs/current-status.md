@@ -77,6 +77,8 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   device operator and explicit handoffs. See the linked
   plan for evidence limits, gates and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
 
+- **V1 bounded result (2026-10-29):** [sync-response feasibility](investigations/video-boundary/v1-sync-response-evidence-2026-10-29.md) maps AT/AY/D3/D4 and adds an opt-in passive RGB/tuple trace to the existing B6 fixture. Selected B6 gate and canonical soak pass; production video is unchanged. A rising-edge-only response candidate is insufficient; shared Amazing Full/Raw-pixels captures remain phase-sensitive and do not establish a monitor model or close the upper effect.
+
 - **Remaining classic accuracy work:** `019D` has a failing production-T80
   regression; the physical write-visibility rule is the missing evidence, and a
   common latch change must also re-examine the existing B8 assumptions.
