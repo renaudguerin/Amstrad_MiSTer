@@ -59,7 +59,7 @@ test full:
 	@"$(MAKE)" --no-print-directory $(PARALLEL) $@-run
 
 list-tests:
-	@echo $(SIM_TESTS) b18-snapshot-test t80-irq-sample-test classic-irq-phase-test classic-b25-test ssm-provider-test
+	@echo $(SIM_TESTS) b18-snapshot-test t80-irq-sample-test classic-irq-phase-test classic-b25-test ssm-provider-test ascal-field-test
 
 # One sub-make per directory: plus-test and plus-full never run together.
 test-run: $(SIM_TESTS) plus-test
@@ -292,7 +292,7 @@ crtc-t80-old-test: $(CRTC_T80_OLD_BIN)
 # and for local runs with GHDL=/path/to/ghdl. Kept out of `test` so the
 # default gate still builds without GHDL.
 .PHONY: production-t80-test
-production-t80-test: t80-trace-test crtc-t80-test crtc-t80-old-test t80-freeze-test t80-irq-sample-test classic-irq-phase-test b18-snapshot-test ssm-provider-test plus-d5-cart-timing
+production-t80-test: t80-trace-test crtc-t80-test crtc-t80-old-test t80-freeze-test t80-irq-sample-test classic-irq-phase-test b18-snapshot-test ssm-provider-test plus-d5-cart-timing ascal-field-test
 
 # Plus cartridge execution rate on the production T80 (sim/plus d5-cart-timing).
 .PHONY: plus-d5-cart-timing
@@ -314,6 +314,27 @@ $(VIDEO_OUTPUT_BIN): $(VIDEO_OUTPUT_SRC) b6_video_output_test.cpp Makefile
 	$(VERILATOR) --cc --exe --build -j 4 --top-module amstrad_video_output \
 		--Mdir $(OBJ_DIR)/video_output -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
 		$(VIDEO_OUTPUT_SRC) $(abspath b6_video_output_test.cpp)
+
+# Real CRTC/output pins replayed into the production VHDL Avalon scaler.
+# Runs with production-t80-test, where CI already supplies pinned GHDL.
+VIDEO_FIELD_SRC := video_field_test_top.sv $(RTL) $(VIDEO_OUTPUT_SRC)
+VIDEO_FIELD_BIN := $(OBJ_DIR)/video_field/video_field_tests
+VIDEO_FIELD_TRACES := $(abspath $(OBJ_DIR)/video_field/traces)
+.PHONY: ascal-field-test
+ascal-field-test: $(VIDEO_FIELD_BIN)
+	$(VIDEO_FIELD_BIN) $(VIDEO_FIELD_TRACES)
+	GHDL="$(GHDL)" python3 run_ascal_field_test.py \
+		--trace $(VIDEO_FIELD_TRACES)/progressive.txt \
+		--trace $(VIDEO_FIELD_TRACES)/pulse.txt \
+		--interlace-trace $(VIDEO_FIELD_TRACES)/interlace.txt \
+		--interlace-reference $(VIDEO_FIELD_TRACES)/interlace-raw.txt \
+		--recovery-trace $(VIDEO_FIELD_TRACES)/recovery.txt
+
+$(VIDEO_FIELD_BIN): $(VIDEO_FIELD_SRC) video_field_test.cpp Makefile
+	$(VERILATOR) --cc --exe --build -j 4 --top-module video_field_test_top \
+		--Mdir $(OBJ_DIR)/video_field -Wno-fatal -Wno-PROCASSWIRE \
+		-CFLAGS "$(CXXFLAGS)" -o video_field_tests \
+		$(VIDEO_FIELD_SRC) $(abspath video_field_test.cpp)
 
 # Failure-first RGB scoping regression across supported mixer parameter widths.
 MIXER_RGB_SRC := video_mixer_rgb_test.sv ../sys/video_mixer.sv ../sys/gamma_corr.sv \
