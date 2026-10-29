@@ -31,6 +31,7 @@ module syncgen_sync (
 	input  M1_N,
 	input  IORQ_N,
 	input  HSYNC_I,
+	input  HSYNC_RESTART_I,
 	input  VSYNC_I,
 	input  irq_reset,
 
@@ -122,8 +123,11 @@ always @(posedge clk) begin
 end
 
 // hsync gen
-wire hdelay_res0 = hsync_n | hdelay_reg[3]; // u804
-wire hdelay_res1 = hsync_n; // u822
+// CRTC1's invisible terminal-overflow restart resets H06 only. Keep the
+// raw falling-edge detector above independent: this is not an R52/V26 end.
+// French ACCC v1.11 §15.3.4 p.152; the visible HSYNC/black level stays high.
+wire hdelay_res0 = hsync_n | HSYNC_RESTART_I | hdelay_reg[3]; // u804
+wire hdelay_res1 = hsync_n | HSYNC_RESTART_I; // u822
 
 reg hdelay_res0_d, hdelay2d;
 always @(posedge clk) begin

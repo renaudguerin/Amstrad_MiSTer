@@ -261,6 +261,7 @@ module p1_video_test_top (
 	// rtl/Amstrad_motherboard.v. Its twice-per-character VIDEO_BUF latches
 	// are exported for slot-by-slot comparison with the Plus PEN stream.
 	wire c_crtc_hs, c_crtc_vs, c_crtc_de, c_field, c_cursor;
+	wire c_crtc_hsync_restart;
 	wire [13:0] c_ma;
 	wire [4:0]  c_ra;
 	wire [7:0]  c_crtc_dout;
@@ -272,7 +273,7 @@ module p1_video_test_top (
 		.ENABLE(vid_enable), .nCS(vid_nCS), .R_nW(vid_R_nW), .RS(vid_RS),
 		.DI(vid_di), .DO(c_crtc_dout),
 		.SNA_LOAD(1'b0), .SNA_ADDR(5'b0), .SNA_REGS(144'b0),
-		.VSYNC(c_crtc_vs), .HSYNC(c_crtc_hs), .DE(c_crtc_de),
+		.VSYNC(c_crtc_vs), .HSYNC(c_crtc_hs), .HSYNC_RESTART(c_crtc_hsync_restart), .DE(c_crtc_de),
 		.FIELD(c_field), .CURSOR(c_cursor),
 		.MA(c_ma), .RA(c_ra)
 	);
@@ -299,7 +300,7 @@ module p1_video_test_top (
 		.clk(clk), .cen_16(cen_16), .fast(fast), .RESET_N(RESET_N),
 		.A(ga_addr[15:14]), .D(c_ga_din),
 		.MREQ_N(1'b1), .M1_N(ga_m1_n), .RD_N(1'b1), .IORQ_N(ga_iorq_n),
-		.HSYNC_I(c_crtc_hs), .VSYNC_I(c_crtc_vs), .DISPEN(c_crtc_de),
+		.HSYNC_I(c_crtc_hs), .HSYNC_RESTART_I(c_crtc_hsync_restart), .VSYNC_I(c_crtc_vs), .DISPEN(c_crtc_de),
 		.CCLK(), .CCLK_EN_P(), .CCLK_EN_N(), .PHI_N(), .PHI_EN_N(),
 		.PHI_EN_P(), .RAS_N(), .CAS_N(), .READY(), .CASAD_N(), .CPU_N(),
 		.MWE_N(), .E244_N(), .ROMEN_N(), .RAMRD_N(),

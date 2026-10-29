@@ -104,7 +104,7 @@ module asic_ga_diff_top (
 		.M1_N(M1_N),
 		.RD_N(RD_N),
 		.IORQ_N(IORQ_N),
-		.HSYNC_I(HSYNC_I),
+		.HSYNC_I(HSYNC_I), .HSYNC_RESTART_I(1'b0),
 		.VSYNC_I(VSYNC_I),
 		.DISPEN(DISPEN),
 		.CCLK(ga_CCLK),

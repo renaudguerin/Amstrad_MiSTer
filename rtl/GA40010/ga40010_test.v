@@ -51,6 +51,11 @@ module ga40010_test (
 	output CRTC_DE_RAW,
 	output [7:0] CRTC_C0,
 	output [7:0] CRTC_R2,
+	output [5:0] GA_INTCNT,
+	output [4:0] GA_HCNT,
+	output CRTC_RESTART,
+	output GA_MODE_SYNC,
+	output GA_MODE_IS_0,
 	output BLUE_OE_N,
 	output BLUE,
 	output GREEN_OE_N,
@@ -89,6 +94,7 @@ ga40010 ga40010 (
 	.RD_N(RD_N),
 	.IORQ_N(IORQ_N),
 	.HSYNC_I(CRTC_HSYNC),
+	.HSYNC_RESTART_I(crtc_hsync_restart),
 	.VSYNC_I(CRTC_VSYNC),
 	.DISPEN(CRTC_DE),
 	.CCLK(),
@@ -121,7 +127,8 @@ ga40010 ga40010 (
 	.SNA_LOAD(1'b0),
 	.SNA_INKSEL(5'd0),
 	.SNA_PALETTE(136'd0),
-	.SNA_CONFIG(8'd0)
+	.SNA_CONFIG(8'd0),
+	.SNAP_INTCNT(GA_INTCNT), .SNAP_HCNT(GA_HCNT)
 );
 
 /// CRTC INSTANCE ///
@@ -131,6 +138,7 @@ wire [7:0] crtc_dout;
 wire [13:0] MA;
 wire [4:0] RA;
 wire CRTC_HSYNC;
+wire crtc_hsync_restart;
 wire CRTC_VSYNC;
 wire CRTC_DE;
 
@@ -142,6 +150,9 @@ assign CRTC_DE_RAW = CRTC_DE;
 // without adding observability ports to production CRTC RTL.
 assign CRTC_C0 = crtc.hcc;
 assign CRTC_R2 = crtc.R2_h_sync_pos;
+assign CRTC_RESTART = crtc_hsync_restart;
+assign GA_MODE_SYNC = ga40010.mode_sync_en;
+assign GA_MODE_IS_0 = ga40010.video_sync.mode_is_0;
 
 CRTC crtc
 (
@@ -164,6 +175,7 @@ CRTC crtc
 
 	.VSYNC(CRTC_VSYNC),
 	.HSYNC(CRTC_HSYNC),
+	.HSYNC_RESTART(crtc_hsync_restart),
 	.DE(CRTC_DE),
 	.FIELD(),
 	.CURSOR(),

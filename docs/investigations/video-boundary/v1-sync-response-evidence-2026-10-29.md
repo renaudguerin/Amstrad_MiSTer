@@ -220,6 +220,12 @@ subdirectories are `amazing-valid-full`, `amazing-valid-full-boot2`,
 
 ## Next bounded slice and interface decision
 
+Continuation: [actual SHAKER caller and independent response evidence](v1-shaker-caller-response-2026-10-29.md)
+now reaches T/A and Y/A from a cold Module-A entry with production T80,
+motherboard and native GA pixels. Full supplied navigation and quantitative
+held-out monitor validation remain open; use that report for the current
+source-validity boundary.
+
 Acquire a native-byte raw RGB/GA-sync stream for one AT R2 transition and one AY
 R3-width case, retaining authentic module startup and navigation. Reuse existing
 production-T80/motherboard replay infrastructure rather than make the B22 TV80
@@ -278,7 +284,7 @@ terminal row rather than treating process exit alone as trace delivery. The
 review's identical-RGB observation applies only to this unacquired type-1
 trace; it does not prove filter independence when Full SHIFT is active.
 
-This bounded unit stops at committed READY with source/monitor evidence gaps
-explicit. Shared Codex quota reached 89% five-hour / 47% weekly used during
-final handover; no new investigation, delegation or device batch was started.
-No integration, push, publication, paid overage, reset redemption or wakeup.
+The passive exporter is committed READY; subsequent evidence work continues
+under the current unattended-run instruction, until actual quota exhaustion.
+Preserve live experimental state across the user's manual reset/resume. No
+integration, push, publication, paid overage, reset redemption or wakeup.
