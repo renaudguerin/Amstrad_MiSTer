@@ -380,6 +380,17 @@ interest.
 
 **Priority: highest. Everything sync-related is downstream of this.**
 
+**2026-10-29 requested work:** [V1/V2/V3 work plan](investigations/video-boundary/sync-response-and-demo-plan-2026-10-29.md)
+extends B1/B22 with an explicit raw-CRT versus HDMI monitor-response investigation
+for SHAKER AT/AY/D3/D4 and Amazing's upper effect, which the user reports works
+better in Full on HDMI. V2 independently investigates DSC4's filter-insensitive
+display defect, prioritizing the suspected CRTC/GA cause. V3 independently
+investigates Amazing's lower flashing corruption, also suspected CRTC/GA.
+Neither repair waits for V1; a shared cause is unproven. Exact media, settings
+and capture times are in the plan. Investigate digital response offline before
+any filter rewrite. Original-CPC access is not required for these bounded units;
+faithful CTM response remains unproven. These extend existing residuals.
+
 **Current implementation, checked against RTL 2026-09-29.** The OSD modes are
 **Full / Raw pixels / Raw CRT**, not the earlier Full / Live blanking / Off.
 `Amstrad_motherboard.v` and `crt_filter_output_select` in `rtl/crt_filter.v`
