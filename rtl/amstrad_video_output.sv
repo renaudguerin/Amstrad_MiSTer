@@ -18,7 +18,7 @@ module amstrad_video_output (
     inout [21:0] gamma_bus,
     output CE_PIXEL,
     output [7:0] VGA_R, VGA_G, VGA_B,
-    output VGA_HS, VGA_VS, VGA_DE, VGA_F1,
+    output VGA_HS, VGA_VS, VGA_DE,
     output [1:0] VGA_SL,
     output [12:0] VIDEO_ARX, VIDEO_ARY,
     output reg en270p,
@@ -96,25 +96,6 @@ wire       scandoubler_hist;
 // Forced scandoubler is disabled at this boundary too: otherwise a framework
 // setting could silently resample a selected CRT mode.
 wire       scandoubler_en = scandoubler_hist & ~raw_crt;
-// ASCAL treats every FIELD edge as interlace acquisition, including a short
-// R8 pulse between frames. Capture frame identity at the first active pixel
-// after VSYNC, then hold it for the frame. Sampling at VSYNC alone takes the
-// preceding CRTC frame's identity and reverses genuine interlace ordering.
-// The converted tuple and obs_field_r describe the same pixel; the remaining
-// mixer/gamma delay settles this export before the first final-output DE.
-// Raw machine FIELD stays unchanged at the observation tap above.
-reg scaler_field = 1'b0;
-reg field_pending = 1'b1;
-reg field_old_vs = 1'b0;
-always @(posedge CLK_VIDEO) begin
-    field_old_vs <= VSync;
-    if (VSync && !field_old_vs) field_pending <= 1'b1;
-    else if (ce_pix && field_pending && !HBlank && !VBlank) begin
-        scaler_field <= obs_field_r;
-        field_pending <= 1'b0;
-    end
-end
-assign VGA_F1 = scaler_field;
 video_interlace interlace_hist
 (
 	.clk(CLK_VIDEO),

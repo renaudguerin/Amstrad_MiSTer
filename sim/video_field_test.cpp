@@ -40,18 +40,22 @@ struct Bench {
         d.enable = 0; d.eval();
     }
     void reg(unsigned n, unsigned value) { write(false, n); write(true, value); }
-    void run(const std::filesystem::path& path, bool pulses, bool interlace, bool recovery) {
-        d.reset_n = 0; d.crtc_type = 1; d.enable = 0;
+    void run(const std::filesystem::path& path, bool pulses, bool interlace, bool recovery,
+             bool border) {
+        d.reset_n = 0; d.crtc_type = 1; d.enable = 0; d.border = border;
         for (unsigned n = 0; n < 128; ++n) tick();
         // Small valid rasters keep the full ASCAL simulation inexpensive.
         // The contract is frame identity, independent of the raster dimensions.
-        const unsigned regs[] = {7,4,6,0x11,7,0,5,6,0,3};
+        // Type 1 VSYNC lasts sixteen scanlines. Leave room for its blank
+        // interval to end before the origin even when IVM halves the body.
+        const unsigned regs[] = {7,4,6,0x11,23,0,10,12,0,3};
         for (unsigned r : {4,9,0,1,2,3,5,6,7,8}) reg(r, regs[r]);
         for (unsigned n = 0; n < 128; ++n) tick();
         d.reset_n = 1;
         if (interlace) reg(8,3);
         trace.open(path);
-        if (interlace && !recovery) raw_reference.open(path.parent_path()/"interlace-raw.txt");
+        if (interlace && !recovery)
+            raw_reference.open(path.parent_path()/(path.stem().string()+"-raw.txt"));
         bool old_vs = false, pulsed = false, restored = false, exited = false;
         unsigned frames = 0, pulse_count = 0;
         for (unsigned n = 0; n < 1000000; ++n) {
@@ -83,10 +87,11 @@ int main(int argc, char** argv) {
         if (argc != 2) throw std::runtime_error("usage: video_field_tests output-directory");
         std::filesystem::path dir(argv[1]);
         std::filesystem::create_directories(dir);
-        for (const auto& name : {"progressive", "pulse", "interlace", "recovery"}) {
-            Bench b; b.run(dir / (std::string(name) + ".txt"),
+        for (bool border : {false, true})
+          for (const auto& name : {"progressive", "pulse", "interlace", "recovery"}) {
+            Bench b; b.run(dir / ((border ? "border-" : "") + std::string(name) + ".txt"),
                           std::string(name) == "pulse", std::string(name) == "interlace" ||
-                          std::string(name) == "recovery", std::string(name) == "recovery");
+                          std::string(name) == "recovery", std::string(name) == "recovery", border);
         }
     } catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }
