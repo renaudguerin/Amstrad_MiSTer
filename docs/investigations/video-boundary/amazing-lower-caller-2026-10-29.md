@@ -344,6 +344,31 @@ candidate, source, exact build/check reports, inputs and selected traces.
 Start with its `v3-scope-portable/CANDIDATE.md` and `CPU-SCOPE.md`. No
 production RTL or tracked simulation change follows from these observations.
 
+### MiSTer comparison: controls unreadable
+
+At the user's request, operator A independently cold-booted SCOPE0 and SCOPE1
+on `cfd0016` (RBF SHA-256
+`7e4a905dcc0c749e0790a5d50fec741f5e04ec58e51d00216de5751a78352c83`),
+classic6128/CRTC1, Plus off and normal CPU. Full was requested through the
+applied CFG; its runtime latch was not independently observed. The disk hash
+is unchanged. Each program has three native 768×546 captures at approximately
+10/13/16 seconds after input-command completion.
+
+The captures are byte-identical within each program and differ between programs.
+Marker-like columns support launch, but glyphs are partial/malformed, their
+vertical extent differs from AmSpirit, and the lower native region contains
+coloured bands and displaced pictorial/noisy content. A diagnostic stretch of
+the top273 rows does not recover reliable source/sentinel/scope/rearm controls.
+The identical captures do not independently establish continued execution or
+fresh native-buffer content. Consequently no row-level RFD policy verdict is
+accepted from this comparison. Candidate geometry/marker validity and capture
+freshness must be accounted for before policy inference.
+
+Original captures, receipts, paired views and the operator's comparison are
+private under `local/investigations/classic-video-v2-2026-10-29-b157/scope-mister/`.
+Original CFG and MENU were verified afterward. No further device operation or
+production change followed from the unreadable control result.
+
 ## Authentic COPY comparison limits
 
 The authentic SHAKE27B COPY group provides higher-authority visual targets:
