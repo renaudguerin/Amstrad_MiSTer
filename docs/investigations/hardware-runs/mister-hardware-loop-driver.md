@@ -171,6 +171,17 @@ does not visually confirm the active filter mode. Record that distinction.
 
 ## The CSL runner
 
+**French ROM and SHAKER menu letters (2026-11-03).** `--layout fr` translates
+`key_output` text so the firmware types the intended characters under the French
+ROM, swapping the A/Q, Z/W and M positions. That is right for `RUN"…` but wrong
+for SHAKER's own menu keys, which it reads by physical matrix position on the UK
+layout. The only swapped letter the CSL 2.7 corpus sends after a module loads
+is `SHAKER-B-1.CSL` line 41, `key_output 'Z'` ("Passe sur R9 BASE=6"). Sent
+through the French swap, it never reaches SHAKER, and the walk stalls at
+`wait_ssm 0x00E5`. A private copy that sends `'W'` instead (which the swap
+maps to the UK Z position) runs past it. Substitute in a copy of the script
+rather than editing the author's file.
+
 [csl_runner.py](../../../scripts/hardware-loop/csl_runner.py) executes CSL through v1.5.
 Author-supplied SHAKER 2.7 scripts live under `local/test_media/shaker/CSL_27/`
 (module directories contain spaces, for example `MODULE B`); the unchanged 2.6
