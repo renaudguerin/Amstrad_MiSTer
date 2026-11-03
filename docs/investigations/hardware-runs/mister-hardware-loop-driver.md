@@ -182,6 +182,13 @@ through the French swap, it never reaches SHAKER, and the walk stalls at
 maps to the UK Z position) runs past it. Substitute in a copy of the script
 rather than editing the author's file.
 
+**`SHAKER-C-1.CSL` marker typo (2026-11-03).** Lines 180 and 182 wait for
+`0x02F1`/`0x02F2`, which the screenshot-code sheet assigns to DT D1/D2
+(VSYNC Gate Array). The module correctly emits `03F1` here, the code for CO I1
+"INTERLACE VSYNC NIGHTMARE" (CRTC 1), followed by `03F3`–`03F6`, which the
+script already expects. This is the long-standing C1-27 stall at `02F1`. A
+private copy waiting for `03F1`/`03F2` is the workaround.
+
 [csl_runner.py](../../../scripts/hardware-loop/csl_runner.py) executes CSL through v1.5.
 Author-supplied SHAKER 2.7 scripts live under `local/test_media/shaker/CSL_27/`
 (module directories contain spaces, for example `MODULE B`); the unchanged 2.6
