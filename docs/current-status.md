@@ -12,6 +12,16 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **Manual demo acceptance update (2026-11-03, `5fba168`):** DSC4's main effects
+  are fine on CRTC1 and mostly fixed on CRTC0, but credits still lose their
+  colons on both, and CRTC1 has a corrupt bottom line around 43 seconds.
+  CRTC3 clips the credit words more severely and shows only a top band at the
+  main effect. Amazing's main effects look fine on CRTC0/1 and remain broken
+  on CRTC3. These observations narrow the earlier acceptance below; they do
+  not close either demo as a whole. See the [manual retest](investigations/hardware-runs/manual-demo-retest-2026-11-03.md).
+  **MiSTer is reserved for Renaud: no automated device launches or input until
+  his explicit all clear.** Local tooling and source investigation may continue.
+
 - **CRTC 1 RFD (2026-11-03):** even ParityFrame suppresses the RFD VMA' save (French
   §11.6.2 pp.90-91 IVM ON/OFF recipe), and parity management is frame-local: it clears
   at the origin and on a successful save; the R0-widening R4 variant arms on even frames

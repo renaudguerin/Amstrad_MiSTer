@@ -415,15 +415,24 @@ finding or coherent fixture per branch, based on current `master` (or an explici
 
 ### Integrated implementations and follow-up validation
 
+**Current demo follow-up (2026-11-03):** the RFD changes through `5fba168`
+repair the tested CRTC1 main effects and SHAKER D9/B COPY pages. Manual testing
+accepts Amazing's main effects on CRTC0/1 and DSC4's on CRTC1, with CRTC0 mostly
+fixed. Keep DSC4's missing credit colons and CRTC1 bottom-line corruption as
+separate residuals. CRTC3 remains broken in both demos; diagnose its selected
+ASIC counter/address path before porting any classic rule. See the
+[manual checkpoint matrix](investigations/hardware-runs/manual-demo-retest-2026-11-03.md)
+and [current RFD question](classic/accc-author-questions-2026-11-03-fr.md).
+MiSTer testing is held until Renaud explicitly releases the device.
+
 **2026-10-29 integration:** the CRTC1 invisible HSYNC overflow now restarts only
 classic GA monitor shaping (French §15.3.4 p.152), with deterministic, synthesis
 and bounded MiSTer evidence. The capture helper's French demo-launch mappings
-are repaired. DSC4's before-RFD reload conflict and Amazing's parity-scope
-question remain open. The classic FIELD/ASCAL export repair is now integrated:
+are repaired. The classic FIELD/ASCAL export repair is now integrated:
 short R8 pulses no longer force progressive frames into the interlaced capture
 path, with real-ASCAL tests and clean SCOPE0/1 MiSTer captures. V3 owns the
 combined CRTC1 disk for a later original-machine session. See [current status](current-status.md) and the
-[unsent French author questions](classic/accc-author-questions-2026-10-29-fr.md).
+[superseded French question draft](classic/accc-author-questions-2026-10-29-fr.md).
 
 **Current next actions (2026-09-29).** The `4a44394` title regression pass is
 user-confirmed clean. The [B1/B22 observability slice](investigations/video-boundary/b22-acquisition-trace-2026-09-29.md)
