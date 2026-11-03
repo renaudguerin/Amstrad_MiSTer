@@ -12,9 +12,11 @@ Références : ACCC v1.11 française.
 
 Bonjour,
 
-Grâce à SHAKER et à vos photos de référence, notre modèle de CRTC 1 affiche
-désormais correctement DSC4, Amazing et les pages RFD de SHAKER (B COPY et
-D9 « RFD ROUND 2 »). Nous avons lu la section 11.6.1, page 90, ainsi : la
+Grâce à SHAKER et à vos photos de référence, notre modèle de CRTC 1 reproduit
+les effets principaux de DSC4 et Amazing, ainsi que les pages RFD de SHAKER
+(B COPY et D9 « RFD ROUND 2 »). Il reste quelques défauts distincts dans
+DSC4, notamment les deux-points des crédits. Nous avons lu la section 11.6.1,
+page 90, ainsi : la
 sauvegarde VMA′ échoue quand la parité courante du frame est paire, ce qui
 correspond à la recette « IVM ON/OFF avant la RFD » de la section 11.6.2.
 Le mot « impaire » de la section 11.6.1 désignerait alors le premier frame et
@@ -29,7 +31,16 @@ sauvegardes suivantes. Deux modèles reproduisent vos photos :
 1. la gestion de parité s’arrête à la première sauvegarde VMA′ réussie ;
 2. la parité est figée au moment où la RFD est déclenchée.
 
-Lequel correspond au circuit ? Une séquence de SHAKER les distingue-t-elle déjà ?
+La section 11.6.2 distingue l’état qui autorise VMA=R12/R13 et celui qui
+autorise le test de parité. Une sauvegarde réussie désactive-t-elle seulement
+le premier, rendant le second sans effet sur les sauvegardes ordinaires,
+même s’il reste actif jusqu’à la fin du frame ?
+
+Le code actuel de CPCSyntaxError utilise la parité courante, puis retire la
+RFD à la première sauvegarde réussie. C’est donc un exemple du premier modèle,
+mais pas une preuve permettant d’écarter le second. Lequel correspond au
+circuit ? Une séquence de SHAKER les distingue-t-elle déjà, par exemple avec
+un IVM ON/OFF entre le déclenchement de la RFD et la première sauvegarde ?
 
 Merci beaucoup pour ce travail et pour ces démos !
 

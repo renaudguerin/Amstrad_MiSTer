@@ -367,6 +367,14 @@ with it.
     assumes (a) (`rtl/crtc_type0_engine.v`, `t30c`); see
     `docs/investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md`.
 
+    **Source cross-check, 2026-11-03:** CPCSyntaxError `22de765` releases its
+    deferred exit comparison at the next C0=0, providing a concrete competing
+    model. This does not close the question: the rendered French p.225
+    bottom-right odd-frame exit keeps C4=1 through C9=6 and 7 with R9=6,
+    despite C9-VMA returning to ordinary displayed values. See the
+    [source audit](../investigations/hardware-runs/emulator-source-author-question-audit-2026-11-03.md)
+    before interpreting the table or withdrawing Q21.
+
 22. **§16.4.2 p.170 — what advances the CRTC 1 VSYNC-width counter (C3h) on very short lines?**
 
     **OPEN, not yet sent.** SHAKER 2.7 module A, page `008D` ("AI/A LOST VSYNC ON R0=0/1"), writes
@@ -382,6 +390,14 @@ with it.
     `docs/investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md`.
 
 23. **§11.6.1–11.6.2, French pp.90–91 — RFD/parity lifetime across SHAKER D's E tests.**
+
+    **Current disposition, 2026-11-03:** the D9→E MiSTer mismatch is repaired
+    through `5fba168`. The historical observations below retain their original
+    scope. The remaining unsent question is the distinction between live
+    parity/retirement and arm-time parity sampling in the
+    [current French draft](accc-author-questions-2026-11-03-fr.md).
+    CPCSyntaxError implements retirement but does not supply independent
+    hardware evidence distinguishing those models; see the source audit above.
 
     **OPEN, not yet sent; filed 2026-10-28.** On the same MiSTer `cec641c` RBF,
     SHAKE26D E entered directly after boot gives OK at `03AE` and `03B4`.
