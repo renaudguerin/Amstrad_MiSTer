@@ -499,8 +499,9 @@ assign reload = crtc1_row0_reload | crtc1_adj_row1_reload | crtc1_rfd_reload;
 assign row0_reload = crtc1_row0_reload;
 
 // The VMA' save shares the line-limit test, parity included while IVM is
-// active (ACCC v1.11 section 19.8.1 p.221 Note: the C9=R9 / C9.VMA='R9 or
-// ParityC9' test also governs the VMA' assignment).
+// active (ACCC v1.11 section 19.8.1 p.221 Note for CRTC 0, with the CRTC 1
+// counting in section 19.8.2: the C9=R9 / parity test also governs the VMA'
+// assignment).
 wire row_addr_save_base = hcc == R1_h_displayed && line_row_structure_last;
 // French ACCC v1.11 section 11.6.2 pp.90-91: an IVM ON/OFF (R8=3 then 0,
 // odd R9, even C9) fixes EVEN parity, and doing it before an RFD makes every
