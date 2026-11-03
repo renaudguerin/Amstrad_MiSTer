@@ -1,5 +1,8 @@
 # Questions à l’auteur de l’ACCC, de DSC4 et d’Amazing
 
+**Remplacé** par le [brouillon du 3 novembre](accc-author-questions-2026-11-03-fr.md) : les deux
+questions ci-dessous sont résolues par les essais MiSTer du 3 novembre.
+
 Brouillon du 29 octobre 2026, non envoyé. Rédigé par Terra 6.1, effort high,
 puis relu. Les références sont celles de l’ACCC v1.11 française.
 
