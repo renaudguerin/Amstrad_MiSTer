@@ -5,8 +5,7 @@
 With RFD parity management armed, **even ParityC9 now suppresses the VMA' save
 (case 1) and odd ParityC9 permits it (case 2)**. The previous gate had the
 opposite polarity. The change is one term in `rtl/crtc_type1_engine.v`
-(`row_addr_save`). On the MiSTer it fixes DSC4, clears most of Amazing's lower
-corruption, and makes SHAKER 2.7 module B COPY match the Logon System
+(`row_addr_save`). On the MiSTer it fixes DSC4 and makes SHAKER 2.7 module B COPY match the Logon System
 photographs where it previously did not.
 
 ## Rule and the source tension
@@ -48,7 +47,7 @@ documentation changed afterwards.
 | Target | Baseline 46f8ab8 | Change eba4dc8 |
 |---|---|---|
 | DSC4 (`dsc4-alt.dsk`, `RUN"-DSC4`, 52 s) | fragmented, rolling image | coherent otter image with its intended line wobble, as in AmSpirit |
-| Amazing (`amazing2021_rev2.dsk`, 30 s + 8 s steps, 4 frames) | lower region corrupted in 3 of 4 | clean in 3 of 4; one capture still shows the dense lower pattern |
+| Amazing (`amazing2021_rev2.dsk`, 30 s + 8 s steps, 4 frames) | lower region corrupted in 3 of 4 | clean in 3 of 4; a later 10-capture series (26 s + 4 s steps) is corrupted in 5 of 10, so the flashing corruption is not fixed |
 | SHAKER 2.7 B COPY (`01D4`–`01D9`) vs Logon photos | A, B, C2, D mismatch, inverted | A, B, C1, D, E match; C2 differs |
 
 COPY test C performs no ON/OFF, so its parity alternates between frames and the
@@ -87,8 +86,10 @@ citation for CRTC 1) are applied.
 
 ## Open residuals
 
-- Amazing still shows the lower pattern in one of four captures. Characterise
-  which scene, then compare against AmSpirit before assuming the RFD rule.
+- Amazing's lower region still flashes: 5 of 10 dense captures are corrupted
+  with repeated rows, on every text page, while AmSpirit shows them clean. The
+  alternation suggests parity is not held fixed as the demo expects, like D9
+  D/E/F below.
 - COPY C2 phase not captured; take several captures within test C.
 - SHAKER D (9) "RFD round 2" (`0393`–`039B`) was run on both RBFs after
   integration (`RFDD.CSL`, captures in the same private folders). Against the
