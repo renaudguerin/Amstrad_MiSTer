@@ -4457,16 +4457,17 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
     test.expect_parity_c9("French 11.6.2: odd parity selects case 2", true);
     test.expect_c4("RFD parity boundary resets C4", 0);
     test.expect_ra("RFD parity boundary resets C9", 0);
+    // French p.91: parity management lasts until the frame ends, so the
+    // origin clears it; the VMA-source flag is still armed.
     test.expect_type1_rfd_state(
-        "RFD odd-R9 frame boundary selects case 2", true, true);
+        "RFD frame boundary ends parity management, source stays armed",
+        true, false);
 
-    // In case 2, the next C9=R9/C0=R1 comparison succeeds.  The actual
-    // VMA' save clears only the VMA-source flag; parity management remains
-    // armed for subsequent frames (section 11.6.1, pp.89-90).
+    // With parity management ended, the next C9=R9/C0=R1 save is ungated
+    // and succeeds, retiring the VMA-source flag (section 11.6, p.89).
     test.run_characters(13);
     test.expect_type1_rfd_state(
-        "RFD case 2 successful VMA' save disarms only the source flag",
-        false, true);
+        "RFD next-frame VMA' save retires the source flag", false, false);
 }
 
 void test_type1_rfd_r1_gt_r0_bare_c9_disarms(TestBench& test) {
@@ -4604,6 +4605,153 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
     test.expect_ma("MA on row 2 line 1 continues without reloading 0x3070", 0x1245);
 }
 
+// t13o-t13q: RFD parity management is frame-local and keyed to ParityFrame
+// (French ACCC v1.11 sections 11.6.1-11.6.2 pp.90-91, 13.7.1.2 p.126,
+// 19.5.3 p.209).
+
+void test_type1_rfd_r0_widen_r4_cancel_odd_frame_does_not_arm(TestBench& test) {
+    test.set_crtc_type(1);
+    program_registers(test, kRfdRegisters);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(0);
+    test.reset();
+    // Fixture geometry as t13g: 8 characters per line, 4 lines per frame
+    // (32 characters).  One frame from reset is the first ParityFrame
+    // toggle (19.5.3 p.209): the fixture is in an ODD frame.
+    test.run_characters(32);
+    test.expect_parity_frame("odd-frame fixture", true);
+
+    // French 13.7.1.2 p.126: the R4 variant ("C4 != R4 by line end", C9==R9
+    // held) takes R12/R13 into account only on one frame in two, the even
+    // ParityFrame one.  Here the frame is odd, so RFD must not arm.  The
+    // extended end still has C9==R9=1, so the row boundary fires and, with
+    // R4 raised to 2, C4 goes 1 -> 2 without a frame restart ("le second
+    // frame C4 n'est pas remis a 0").
+    // MA on paper: the origin reloads 0x1234; the C9=R9 line of row 0 saves
+    // VMA'=0x1234+R1=0x1238 and row 1 starts there; its C9=R9 line saves
+    // 0x1238+4=0x123C at C0=R1 (RFD is not active, so the save is not
+    // gated).  The continued row 2 therefore starts at 0x123C, with no
+    // R12/R13 reload.
+    test.run_characters(24);
+    test.run_characters(7);
+    test.write_selected_register_at_clken(9);
+    test.write_register(4, 2);
+    test.run_characters(2);
+    test.expect_type1_rfd_pending("window closes at the extended end", false);
+    test.expect_type1_rfd_state(
+        "R4 variant on an odd ParityFrame arms neither flag", false, false);
+    test.expect_c4("C4 advances past the old R4 without restart", 2);
+    test.expect_ra("row boundary resets C9", 0);
+    test.expect_ma("unarmed continuation starts the row at VMA'", 0x123C);
+}
+
+void test_type1_rfd_even_r9_parity_c9_odd_still_suppresses_save(
+    TestBench& test) {
+    test.set_crtc_type(1);
+    RegisterProgram registers = kRfdRegisters;
+    registers[4].second = 3;  // R4=3: four rows
+    registers[9].second = 2;  // R9=2: even, three lines per row
+    program_registers(test, registers);
+    test.write_register(12, 0x12);
+    test.write_register(13, 0x34);
+    test.select_register(5);
+    test.reset();
+    // Reset leaves ParityFrame=0, ParityC9=0.  With even R9, ParityC9
+    // toggles at each C4 row end (19.5.3 p.209), ParityFrame only at the
+    // frame origin.  Arm in row 0 (C9=0 != R9): both flags set, MA reloads
+    // 0x1234 on the arming rollover.
+    test.run_characters(7);
+    test.expect_line("arming line is C9=0", 0);
+    test.write_selected_register_at_clken(1);
+    test.expect_type1_rfd_state("R5 write arms RFD", true, true);
+    test.expect_ma("arming rollover reloads R12/R13", 0x1234);
+    test.write_register(5, 0);
+    test.write_register(12, 0x20);
+    test.write_register(13, 0x50);
+
+    // Row 1 begins after row 0's end toggled ParityC9 to odd; ParityFrame
+    // is unchanged (even).  Row 0's own save at C9=R9, C0=R1 is suppressed
+    // by even ParityFrame, so the source flag reloads 0x2050 at row 1.
+    d6_wait_position(test, 1, 0, 0);
+    test.expect_ma("row 1 reloads R12/R13 (row 0 save suppressed)", 0x2050);
+    test.expect_parity_c9("row end toggled ParityC9 odd", true);
+    test.expect_parity_frame("ParityFrame is still even", false);
+    test.write_register(12, 0x30);
+    test.write_register(13, 0x70);
+
+    // French 11.6.1 p.90: the gate is the current frame parity, not
+    // ParityC9.  At row 1's C9=R9=2, C0=R1=4 ParityC9 is odd but ParityFrame
+    // even, so the save is still suppressed: row 2 reloads R12/R13=0x3070
+    // (a successful save would give 0x3070+4=0x3074) and the source flag
+    // stays armed.
+    d6_wait_position(test, 1, 2, 5);
+    test.expect_parity_c9("save point: ParityC9 odd", true);
+    test.expect_parity_frame("save point: ParityFrame even", false);
+    d6_wait_position(test, 2, 0, 0);
+    test.expect_ma("row 2 reloads R12/R13, no VMA' save", 0x3070);
+    test.expect_type1_rfd_state(
+        "suppressed save leaves both flags armed", true, true);
+}
+
+void test_type1_rfd_successful_save_retires_parity_management(
+    TestBench& test) {
+    // d6 fixture: R9=3 (odd), R4=2, 64-character lines, R12/R13=0x1000.
+    test.set_crtc_type(1);
+    RegisterProgram registers = kRfdRegisters;
+    registers[0].second = 63;
+    registers[1].second = 40;
+    registers[2].second = 46;
+    registers[4].second = 2;
+    registers[6].second = 2;
+    registers[7].second = 127;
+    registers[9].second = 3;
+    program_registers(test, registers);
+    test.write_register(12, 0x10);
+    test.write_register(13, 0);
+    test.reset();
+    test.run_characters(12 * 64);
+    test.expect_parity_frame("odd frame fixture", true);
+
+    // Arm in row 0 of the odd frame (R5 0->1 at C0=R0, C9=0 != R9).
+    test.select_register(5);
+    d6_wait_position(test, 0, 0, 63);
+    test.write_selected_register_at_clken(1);
+    test.write_register(5, 0);
+    test.expect_type1_rfd_state("armed in odd frame", true, true);
+
+    // 11.6.2: odd frame is case 2, so row 0's C9=R9, C0=R1 save succeeds:
+    // VMA' = 0x1000 + R1(40) = 0x1028.  The successful save retires both
+    // flags (p.91, as in CPCSyntaxError).
+    d6_wait_position(test, 0, 3, 41);
+    test.expect_saved_address("odd-frame save succeeds", 0x1000 + 40);
+    test.expect_type1_rfd_state(
+        "successful save retires source and parity flags", false, false);
+    test.write_register(12, 0x30);
+    test.write_register(13, 0x70);
+    d6_wait_position(test, 1, 0, 0);
+    test.expect_ma("row 1 consumes VMA'", 0x1028);
+
+    // IVM ON/OFF on even C9=2 with odd R9 fixes even parity (19.5.3,
+    // 11.6.2) -- the d6 recipe -- but parity management is already retired.
+    d6_wait_position(test, 1, 2, 20);
+    test.write_register(8, 3);
+    test.run_characters(2);
+    test.run_to_c0(27);
+    test.write_register(8, 0);
+    test.run_characters(2);
+    test.expect_parity_frame("ON/OFF fixes the frame even", false);
+    test.expect_parity_c9("ON/OFF fixes ParityC9 even", false);
+
+    // Row 1 started at 0x1028; at C9=3, C0=R1=40 MA = 0x1028+40 = 0x1050.
+    // The save is ungated, so VMA'=0x1050 and row 2 starts there, not at
+    // R12/R13=0x3070.
+    d6_wait_position(test, 1, 3, 41);
+    test.expect_saved_address("save after ON/OFF still happens", 0x1050);
+    d6_wait_position(test, 2, 0, 0);
+    test.expect_ma("row 2 consumes the saved VMA'", 0x1050);
+}
+
 // ---------------------------------------------------------------------------
 // t13e-t13k: F7 residual -- CRTC-1 R0-widening RFD trigger route
 // (ACCC v1.11 section 13.7.1.2 p.125; digest-01 section 8.6)
@@ -4697,9 +4845,11 @@ void test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end(TestBench& test) {
     test.expect_c4("raised R9 defers the frame end by one line pair", 0);
     test.expect_ra("deferred frame boundary resets C9", 0);
     test.expect_ma("frame start reloads R12/R13 as usual", 0x1234);
+    // French p.91: the frame boundary ends parity management; the
+    // suppressed save left the VMA-source flag armed.
     test.expect_type1_rfd_state(
-        "case-1 save suppression leaves the source flag armed",
-        true, true);
+        "case-1 save suppression leaves the source flag armed past the frame",
+        true, false);
 }
 
 void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
@@ -4743,9 +4893,11 @@ void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
         "armed RFD reloads R12/R13 at the continued row start", 0x1234);
     test.run_characters(20);
     test.expect_c4("frame ends once C4 reaches the raised R4", 0);
+    // French p.91: the frame boundary ends parity management; the
+    // suppressed save left the VMA-source flag armed.
     test.expect_type1_rfd_state(
-        "case-1 save suppression leaves the source flag armed",
-        true, true);
+        "case-1 save suppression leaves the source flag armed past the frame",
+        true, false);
 }
 
 void test_type1_rfd_r0_widen_restored_condition_does_not_arm(TestBench& test) {
@@ -8542,6 +8694,15 @@ int main(int argc, char** argv) {
         {"t13n_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source",
          "ACCC v1.11 section 11.6.1 p.89 (RFD triggered on C9=R9 disables VMA-source); F17", false,
          test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source},
+        {"t13o_type1_rfd_r0_widen_r4_cancel_odd_frame_does_not_arm",
+         "French ACCC v1.11 section 13.7.1.2 p.126 (R12/R13 one frame in two); 19.5.3 p.209", false,
+         test_type1_rfd_r0_widen_r4_cancel_odd_frame_does_not_arm},
+        {"t13p_type1_rfd_even_r9_parity_c9_odd_still_suppresses_save",
+         "French ACCC v1.11 sections 11.6.1-11.6.2 pp.90-91, 19.5.3 p.209", false,
+         test_type1_rfd_even_r9_parity_c9_odd_still_suppresses_save},
+        {"t13q_type1_rfd_successful_save_retires_parity_management",
+         "French ACCC v1.11 sections 11.6.1-11.6.2 pp.90-91", false,
+         test_type1_rfd_successful_save_retires_parity_management},
         {"t20a_type0_normal_frame_reloads_at_frame_start_only",
          "ACCC v1.10 sections 17.4.1 and 20.3.1; F11h", false,
          test_type0_normal_frame_reloads_at_frame_start_only},
