@@ -502,11 +502,17 @@ assign row0_reload = crtc1_row0_reload;
 // active (ACCC v1.11 section 19.8.1 p.221 Note: the C9=R9 / C9.VMA='R9 or
 // ParityC9' test also governs the VMA' assignment).
 wire row_addr_save_base = hcc == R1_h_displayed && line_row_structure_last;
-// French ACCC v1.11 section 11.6.1 p.90: odd ParityC9 suppresses
-// the RFD save. Section 19.5.3 pp.209-210 shares this parity with IVM
-// ON/OFF; a private frame toggle cannot observe that normalization.
+// French ACCC v1.11 section 11.6.2 pp.90-91: an IVM ON/OFF (R8=3 then 0,
+// odd R9, even C9) fixes EVEN parity, and doing it before an RFD makes every
+// frame case 1 (VMA' save fails, R12/R13 stays the line source); doing it
+// after the RFD gives case 2 from the next frame, once the origin toggle has
+// made the parity odd.  So even ParityC9 suppresses the RFD save.  Section
+// 11.6.1 p.90 calls case 1 the "odd" parity; that wording is read here as
+// the frame count, not the ParityC9 bit, because the operational recipe,
+// AmSpirit and the SHAKER BCOPY photographs all need this polarity.
+// Section 19.5.3 pp.209-210 shares this parity with IVM ON/OFF.
 assign row_addr_save = row_addr_save_base &
-                       (~rfd_parity_active | ~parity_c9);
+                       (~rfd_parity_active | parity_c9);
 
 always @(posedge CLOCK) begin
 	if(~nRESET | SNA_LOAD) begin
