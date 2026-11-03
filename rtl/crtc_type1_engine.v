@@ -511,11 +511,11 @@ wire row_addr_save_base = hcc == R1_h_displayed && line_row_structure_last;
 // odd R9, even C9) fixes EVEN parity, and doing it before an RFD makes every
 // frame case 1 (VMA' save fails, R12/R13 stays the line source); doing it
 // after the RFD gives case 2 from the next frame, once the origin toggle has
-// made the parity odd.  So even ParityC9 suppresses the RFD save.  Section
-// 11.6.1 p.90 calls case 1 the "odd" parity; that wording is read here as
-// the frame count, not the ParityC9 bit, because the operational recipe,
-// AmSpirit and the SHAKER BCOPY photographs all need this polarity.
-// Section 19.5.3 pp.209-210 shares this parity with IVM ON/OFF.
+// made the parity odd.  So even ParityFrame suppresses the RFD save.  Section
+// 11.6.1 p.90 tests "la parité courante du frame": ParityFrame, not ParityC9,
+// which toggles per row when R9 is even (19.5.3 p.209).  Its calling case 1
+// the "odd" parity is read as the frame count, because the operational
+// recipe and the SHAKER COPY and D9 photographs all need this polarity.
 assign row_addr_save = row_addr_save_base &
                        (~rfd_parity_active | parity_frame);
 
