@@ -49,6 +49,7 @@ Mac, including the Verilator build.
 | `sim u765-test` | fast | `rtl/u765/*` | u765 floppy controller |
 | `sim/plus run/asic_unlock_tests` | fast | `rtl/plus/asic_unlock.v` | ASIC unlock sequence detector |
 | `sim/plus run/asic_video_tests` | fast | `rtl/plus/asic_video.v` | Plus CRTC (type 3) counters and register bus |
+| `sim/plus asic-cpu-bus` | slow | `rtl/Amstrad_motherboard.v` `rtl/plus/asic_video.v` `rtl/plus/asic_ga_timing.v` `rtl/T80/*` `sim/plus/asic_cpu_bus_test.cpp` `sim/plus/asic_cpu_bus_test_top.sv` | Production T80 and actual motherboard CRTC3 OUT(C) fourth-microsecond acceptance, terminal-row R4 seam, OUTI/OUTD/OUT(n) payload/timing, readback, IN-performs-write and no-WAIT compatibility; also runs in production-t80 CI |
 | `sim/plus run/b6_menu_mask_tests` | fast | `rtl/plus/plus_menu_capability_mask.v` `rtl/plus/plus_model_select.v` | OSD capability mask and RAM size per machine model |
 | `sim/plus run/dandanator_loader_bounds_tests` | fast | `rtl/dandanator/*` | Dandanator loader address bounds |
 | `sim/plus run/rom_loader_route_tests` | fast | `rtl/rom_loader_route.v` | ROM download routing against a frozen model of the old Amstrad.sv decoder |
