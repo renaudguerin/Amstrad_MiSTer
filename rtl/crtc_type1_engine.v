@@ -124,7 +124,10 @@ module crtc_type1_engine
 	output           line_poke_bit,
 
 	// Type-1 status register view (readback multiplexed by the wrapper).
-	output           status_bit5
+	output           status_bit5,
+
+	// Shared R6-border origin for wrapper display and sampled status.
+	output           r6_origin
 );
 
 /* verilator lint_off WIDTH */
@@ -402,6 +405,12 @@ assign     row_next = (row_frame_last | crtc1_stuck_r5_row_reset) ? 7'd0 :
 assign     row_new = line_new & line_row_event;
 
 wire       frame_new_w = row_new & row_frame_last;
+// French ACCC v1.11 sections 18.1/18.2.1 p.189 and 21.3.3 p.247:
+// display and sampled BORDER R6 share an origin. Q20 / section 11.3.2
+// p.87 supplies the R4 reset while R5=0 adjustment remains active.
+// A seven-bit C4 carry wrap alone is not this reset event.
+assign r6_origin = frame_new_w | crtc1_stuck_r5_row_reset_event;
+
 
 // French v1.11 section 19.5.3 p.209 aligns ParityC9 to the new frame
 // parity at the origin.  Its worked table starts an odd IVM frame at C9=1,
@@ -618,7 +627,7 @@ always @(posedge CLOCK) begin
 		if(CLKEN && row_new) begin
 			// C4=C9=C0=0 is explicitly outside the R6-border condition,
 			// including the otherwise-equal R6=0 case at frame origin.
-			if(frame_new_w) r6_border_condition <= 0;
+			if(r6_origin) r6_border_condition <= 0;
 			else if(row_next == R6_v_displayed) r6_border_condition <= 1;
 		end
 
@@ -631,7 +640,7 @@ always @(posedge CLOCK) begin
 			// A row transition can assert or clear the condition on this
 			// same line-end edge, so sample the resulting state rather than
 			// the old flop.
-			if(row_new && frame_new_w) status_bit5_r <= 0;
+			if(r6_origin) status_bit5_r <= 0;
 			else if(row_new && row_next == R6_v_displayed) status_bit5_r <= 1;
 			else status_bit5_r <= r6_border_condition;
 		end

@@ -301,7 +301,7 @@ wire       e1_line_last, e1_line_new, e1_row_last, e1_row_frame_last, e1_row_new
 wire       e1_adj_from_row0;
 wire       e1_reload, e1_row0_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
 wire       e1_vsync_line_fire, e1_r7_write_fire, e1_r6_vde_write, e1_r6_vde_value;
-wire       e1_r6_vder_write, e1_r6_vder_value, e1_status_bit5;
+wire       e1_r6_vder_write, e1_r6_vder_value, e1_status_bit5, e1_r6_origin;
 wire       e1_rfd_r0_extend;
 wire       e1_pf_write, e1_pf_value, e1_pc9_write, e1_pc9_value;
 wire       e1_line_poke, e1_line_poke_bit;
@@ -329,7 +329,7 @@ crtc_type1_engine crtc_type1_engine
 	e1_rfd_r0_extend,
 	e1_pf_write, e1_pf_value, e1_pc9_write, e1_pc9_value,
 	e1_line_poke, e1_line_poke_bit,
-	e1_status_bit5
+	e1_status_bit5, e1_r6_origin
 );
 
 assign status_bit5 = e1_status_bit5;
@@ -774,7 +774,12 @@ always @(posedge CLOCK) begin
 
 		if(row_new) begin
 			if((frame_new & row !=0) | row_next != row) vsync_allow <= 1;
-			if(frame_new)                  begin vde <= 1; vde_r <= 1; end
+			// French ACCC v1.11 sections 18.1/18.2.1 p.189: the
+			// type-1 engine shares the Q20 R4-reset origin with its R6
+			// status latch, without manufacturing a frame_new event.
+			if(frame_new | (CRTC_TYPE & e1_r6_origin)) begin
+				vde <= 1; vde_r <= 1;
+			end
 			// ACCC v1.11 French section 18.3.2 p.191: on a type-0
 			// frame-origin line with C4=R6=C9=0, DISPLAY ENABLE starts
 			// high and falls at nCLKEN.  Do not let the ordinary R6

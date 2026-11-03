@@ -4121,6 +4121,70 @@ void test_type1_r5_zero_r4_reset_does_not_fire_r4_plus_one_vsync(TestBench& test
     test.expect_vsync_low("Q20 row_next=0 does not invent C4=R4+1 VSYNC");
 }
 
+// French ACCC v1.11 sections 18.1/18.2.1 p.189 restore DISPLAY ENABLE at
+// C4=C9=C0=0. Section 11.3.2 p.87 and author answer Q20 (2026-08-31)
+// permit that origin while R5=0 adjustment remains active. SHAKER C E/P
+// real-CPC photographs (CE 02C9, CP 02CB) show text in this state; the
+// counter-only t08j/p/q checks cannot detect a permanently blank display.
+void test_type1_r5_zero_row_origin_reopens_display(TestBench& test) {
+    test.set_crtc_type(1);
+    run_type1_r5_zero_to_q20_reset(test, 30);
+    // The fixture crosses R6=25 before the seven-bit C4 carry wrap, then
+    // reaches the Q20 reset at C4=R4. Its origin is C4=C9=0, C0=1, C5=8.
+    // The repeat below isolates recovery from the preceding carry wrap.
+    test.expect_ra("t08r stuck-adjustment origin resets C9", 0);
+    test.expect_de_high("t08r row-only origin restores visible display");
+    // French section 21.3.3 p.247 (rendered chronograms): at the origin
+    // the sampled BORDER R6 condition is false, independently of R5/C5.
+    test.expect_byte("t08r Q20 origin clears sampled R6 border", 0x00,
+                     test.read_status());
+
+    // Move the border to a reachable row. The new R6 differs from the
+    // current C4, so it preserves the reopened display (section 18.2.3
+    // French p.190). This also exercises the delayed vertical gate used
+    // by a live R6 write rather than testing only the first origin pixel.
+    test.write_register(6, 2);
+    test.expect_de_high("t08r live unequal R6 retains reopened display");
+    // R9=2: two character rows contain 2*3=6 scanlines.
+    test.run_characters(6u * 64u);
+    test.expect_c4("t08r border begins at C4=R6=2", 2);
+    test.expect_de_low("t08r R6 closes display during stuck adjustment");
+    test.expect_byte("t08r C4=R6 sets sampled R6 border", 0x20,
+                     test.read_status());
+
+    // R4=10: every subsequent origin is (10+1)*3=33 scanlines apart.
+    // There are 27 lines left after C4 reaches 2; C5 advances from 8 to
+    // (8+33) mod 32 = 9 instead of resetting through a true frame end.
+    test.run_characters(27u * 64u);
+    test.expect_c4("t08r next row-only origin resets C4", 0);
+    test.expect_ra("t08r next row-only origin resets C9", 0);
+    test.expect_c5("t08r repeated origin preserves looping C5", 9);
+    test.expect_adjustment_active("t08r display recovery leaves adjustment active");
+    test.expect_de_high("t08r next row-only origin reopens after R6 border");
+    test.expect_byte("t08r repeated Q20 origin clears sampled R6 border", 0x00,
+                     test.read_status());
+
+    // R6=0 at C4=0 closes display immediately (section 18.2.3 French
+    // p.190), and the matching border becomes visible to status at the
+    // next C0=R0 sample (section 21.3.3 French p.247).
+    test.select_register(6);
+    test.write_selected_register_at_nclken(0);
+    test.expect_de_low("t08r R6=0 forces border at row zero");
+    test.expect_byte("t08r R6 write waits for the line-end status sample", 0x00,
+                     test.read_status());
+    test.run_characters(32u * 64u);
+    test.expect_c4("t08r before the next Q20 origin C4=10", 10);
+    test.expect_byte("t08r matched R6=0 border was sampled", 0x20,
+                     test.read_status());
+    test.run_characters(64u);
+    test.expect_c4("t08r R6=0 control reaches another Q20 origin", 0);
+    test.expect_de_low("t08r R6=0 retains display border at the origin");
+    // Origin-false wins for status even when R6=0. This is the existing
+    // ordinary-frame priority, explicitly shown by the p.247 false term.
+    test.expect_byte("t08r R6=0 origin clears sampled R6 condition", 0x00,
+                     test.read_status());
+}
+
 void test_type0_adjustment_c4_frozen_c9_counts_to_r5(TestBench& test) {
     test.set_crtc_type(0);
 
@@ -8631,6 +8695,9 @@ int main(int argc, char** argv) {
         {"t08j_type1_r5_zero_mid_adjustment_keeps_counting",
          "ACCC v1.11 section 11.3.2 p.86 and 2026-08-31 author response Q20; zero-R5 C4 reset and recovery", false,
          test_type1_r5_zero_mid_adjustment_keeps_counting},
+        {"t08r_type1_r5_zero_row_origin_reopens_display",
+         "French ACCC v1.11 sections 18.1/18.2.1 p.189, 11.3.2 p.87; Q20 and SHAKER C E/P photographs", false,
+         test_type1_r5_zero_row_origin_reopens_display},
         {"t08k_type0_adjustment_c4_frozen_c9_counts_to_r5",
          "ACCC v1.10 section 11.2.1; F8 type-0 control", false,
          test_type0_adjustment_c4_frozen_c9_counts_to_r5},

@@ -268,9 +268,14 @@ $(CRTC_OLD_ENGINES_DIR)/crtc_type0_engine.v:
 	mkdir -p $(CRTC_OLD_ENGINES_DIR)
 	git show d46609d066aafb6b182fd6fa504a91719500cd91:rtl/crtc_type0_engine.v > $@.tmp && mv $@.tmp $@
 
-$(CRTC_OLD_ENGINES_DIR)/crtc_type1_engine.v:
+# The current wrapper has a trailing R6-origin event output. Tie it off
+# only in this historical negative control: its existing frame_new display
+# path remains intact, and none of the old engine's rules are changed.
+$(CRTC_OLD_ENGINES_DIR)/crtc_type1_engine.v: Makefile
 	mkdir -p $(CRTC_OLD_ENGINES_DIR)
-	git show d46609d066aafb6b182fd6fa504a91719500cd91:rtl/crtc_type1_engine.v > $@.tmp && mv $@.tmp $@
+	git show d46609d066aafb6b182fd6fa504a91719500cd91:rtl/crtc_type1_engine.v | \
+		sed -e 's/output           status_bit5/output           status_bit5, output r6_origin/' \
+		    -e "s/^endmodule/assign r6_origin = 1'b0; endmodule/" > $@.tmp && mv $@.tmp $@
 
 .PHONY: crtc-t80-old-test
 crtc-t80-old-test: $(CRTC_T80_OLD_BIN)
