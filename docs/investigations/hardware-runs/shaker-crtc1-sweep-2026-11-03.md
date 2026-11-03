@@ -50,5 +50,11 @@ Gemini 3.8 Flash classified 229 photo/capture pairs from the first sweep:
 | `02DA` (C, interlace VSYNC nightmare F) | **Pre-existing.** `#0050` WRONG, expected `#0060`. The capture is byte-identical to October's. |
 | `009A` (A, R1 stories I) | Open: the photo shows a full RAM-snow screen, the capture is black with displaced red text. |
 
-The second batch (the newly reachable B-1 and C-1 pages) is reported
-separately once triaged.
+The second batch covered the 121 newly reachable B-1 and C-1 pages: 98
+match, 20 phase, 3 different. The parent checked all three:
+
+| Page | Classification |
+|---|---|
+| `019D` (B6, OUTI on R0) | **Known residual.** `#1F` WRONG versus the photo's `#1E`; the production-T80 XFAIL and its open write-visibility question are unchanged. |
+| `01E7` (BO, 1-A/1-B identifier) | **Expected.** The photographed machine is a CRTC 1-B; the core models 1-A and deliberately omits RFD#10 (§11.6.2). |
+| `0216` (BS, BE00 check) | **Documented variant.** R31 reads `#FF` here and `#7F` on the photographed machine. French ACCC §21.2.2 p.245 reports "127 ou 255" for this read; both are real-CPC values. All other values on the page match. |
