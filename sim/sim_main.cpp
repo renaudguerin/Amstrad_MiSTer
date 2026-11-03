@@ -4327,8 +4327,9 @@ constexpr RegisterProgram kRfdRegisters = {{
     {5, 0}, {6, 2}, {7, 20}, {8, 0},   {9, 1},
 }};
 
-// French ACCC 1.11 sections 11.6.1-11.6.2 p.90, 19.5.3 pp.209-210.
-// Odd parity makes the C9/R9 save fail; IVM ON/OFF on even C9 sets it even.
+// French ACCC 1.11 sections 11.6.1-11.6.2 pp.90-91, 19.5.3 pp.209-210.
+// IVM ON/OFF (odd R9, even C9) fixes even parity; even parity makes the
+// RFD C9/R9 save fail (case 1), odd parity lets it succeed (case 2).
 void d6_wait_position(TestBench& test, unsigned row, unsigned line, unsigned c0) {
     for (unsigned n = 0; n < 100000; ++n) {
         if (test.row_counter() == row && test.line_counter() == line && test.c0() == c0)
@@ -4371,28 +4372,24 @@ void test_d6_rfd_ivm_on_off(TestBench& test, bool initial_odd) {
         test.run_characters(2);
         test.expect_parity_frame("D6 ON/OFF fixes current frame even", false);
         test.expect_parity_c9("D6 odd R9 gives even ParityC9 after ON/OFF", false);
-        for (unsigned row = 0; row < 3; ++row) {
-            d6_wait_position(test, row, 3, 41);
-            // VMA'=base+(row+1)*R1, sampled after the C0=R1 save.
-            test.expect_saved_address("D6 every row saves VMA prime", 0x1000 + (row + 1) * 40);
-            if (row != 2) {
-                d6_wait_position(test, row + 1, 0, 0);
-                test.expect_ma("D6 next row consumes saved VMA prime", 0x1000 + (row + 1) * 40);
-            }
+        for (unsigned row = 0; row < 2; ++row) {
+            // 11.6.2: even parity after ON/OFF suppresses every C0=R1 save,
+            // so the RFD source state survives and each row reloads R12/R13.
+            d6_wait_position(test, row + 1, 0, 0);
+            test.expect_ma("D6 even case 1 reloads R12/R13 on every row", 0x1000);
         }
         d6_wait_position(test, 0, 0, 0);
         // 19.5.3: an origin still toggles, rather than permanently locking
         // parity. The next execution of ON/OFF has work to do again.
         test.expect_parity_frame("D6 following origin toggles to odd", true);
     }
-    // Omit ON/OFF in this following odd frame. Section 19.5.3 still
-    // toggles at the origin, so 11.6.1 suppresses saves again; the last
-    // preceding even-frame save remains base+3*R1. This distinguishes
-    // per-frame normalization from an unsupported permanent parity lock.
+    // Omit ON/OFF in this following odd frame. The source flag is still
+    // armed, but odd parity is case 2: row 0's C0=R1 save succeeds with
+    // VMA'=base+R1 and retires the source, so row 1 consumes VMA'.
     d6_wait_position(test, 0, 3, 41);
-    test.expect_saved_address("D6 no-ON/OFF odd control suppresses save", 0x1000 + 120);
+    test.expect_saved_address("D6 no-ON/OFF odd control saves VMA prime", 0x1000 + 40);
     d6_wait_position(test, 1, 0, 0);
-    test.expect_ma("D6 odd control consumes retained preceding-frame save", 0x1000 + 120);
+    test.expect_ma("D6 odd control consumes the saved VMA prime", 0x1000 + 40);
 
 }
 
@@ -4421,14 +4418,15 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
     test.write_register(13, 0x34);
     test.select_register(5);
     test.reset();
-    // French 11.6.1 p.90: case 1 is odd. One complete frame
-    // (19.5.3 p.209) advances the fixture from reset-even to odd.
-    test.run_characters(32);
-    test.expect_parity_c9("RFD case-1 fixture is odd", true);
+    // French 11.6.2 pp.90-91: IVM ON/OFF fixes even parity and, before an
+    // RFD, gives case 1, so case 1 is even ParityC9.  Two complete frames
+    // (19.5.3 p.209) leave the fixture even again with a normal VMA' history.
+    test.run_characters(64);
+    test.expect_parity_c9("RFD case-1 fixture is even", false);
 
     // French ACCC v1.11 section 11.6.1 p.90: with R5 previously
     // zero and C9=0 != R9=1, the 0->1 write landing at C0=R0=7 arms both
-    // independent RFD flags.  The current odd parity is case 1, so the
+    // independent RFD flags.  The current even parity is case 1, so the
     // C9=R9-at-C0=R1 save is suppressed during this frame.
     test.run_characters(7);
     test.write_selected_register_at_clken(1);
@@ -4443,7 +4441,7 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
 
     // Change the base during C9=R9.  With the parity-gated VMA' save blocked,
     // the RFD VMA-source flag reloads R12/R13 on the next row even though
-    // C4 becomes 1 (section 11.6.1, pages 89-90, case 1).
+    // C4 becomes 1 (section 11.6.1, pages 89-90, case 1; even per 11.6.2).
     test.write_register(12, 0x20);
     test.write_register(13, 0x50);
     test.run_characters(8);
@@ -4456,7 +4454,7 @@ void test_type1_rfd_alternates_save_by_frame_parity(TestBench& test) {
     // The tiny fixture has four lines per frame.  Two more line endings
     // reach C4=C9=C0=0; odd R9 toggles parity (section 11.6.1, pp.89-90).
     test.run_characters(16);
-    test.expect_parity_c9("French 11.6.1: even parity selects case 2", false);
+    test.expect_parity_c9("French 11.6.2: odd parity selects case 2", true);
     test.expect_c4("RFD parity boundary resets C4", 0);
     test.expect_ra("RFD parity boundary resets C9", 0);
     test.expect_type1_rfd_state(
@@ -4535,10 +4533,11 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
     test.write_register(13, 0x34);
     test.select_register(5);
     test.reset();
-    // French 11.6.1 p.90: case 1 is odd. One complete frame
-    // (19.5.3 p.209) advances the fixture from reset-even to odd.
-    test.run_characters(64);
-    test.expect_parity_c9("RFD case-1 fixture is odd", true);
+    // French 11.6.2 pp.90-91: IVM ON/OFF fixes even parity and, before an
+    // RFD, gives case 1, so case 1 is even ParityC9.  Two complete frames
+    // (19.5.3 p.209) leave the fixture even again with a normal VMA' history.
+    test.run_characters(128);
+    test.expect_parity_c9("RFD case-1 fixture is even", false);
 
     // Step 1: Trigger an initial RFD on Row 0, Line 0 (C9=0 != R9=1) at C0=R0=7:
     test.run_characters(7);
@@ -4591,7 +4590,7 @@ void test_type1_rfd_trigger_on_c9_eq_r9_disables_vma_source(TestBench& test) {
 
     // Advance across the rollover to Row 2 Line 0 (C4=2, C9=0):
     // Because the source flag was disabled by the C9=R9 trigger, VMA must NOT reload
-    // 0x3070 (which would produce MA=0x3071 at C0=1). Instead, it loads VMA' (0x1244), retained from the preceding even frame:
+    // 0x3070 (which would produce MA=0x3071 at C0=1). Instead, it loads VMA' (0x1244), retained from the preceding frame:
     // base 0x1234 + four rows * R1=4 (French 11.6.1 p.90).
     test.run_characters(1);
     test.expect_c4("advances to row 2 line 0", 2);
@@ -4664,10 +4663,11 @@ void test_type1_rfd_r0_widen_r9_cancel_arms_at_extended_end(TestBench& test) {
     test.write_register(13, 0x34);
     test.select_register(0);
     test.reset();
-    // French 11.6.1 p.90: case 1 is odd. One complete frame
-    // (19.5.3 p.209) advances the fixture from reset-even to odd.
-    test.run_characters(32);
-    test.expect_parity_c9("RFD case-1 fixture is odd", true);
+    // French 11.6.2 pp.90-91: IVM ON/OFF fixes even parity and, before an
+    // RFD, gives case 1, so case 1 is even ParityC9.  Two complete frames
+    // (19.5.3 p.209) leave the fixture even again with a normal VMA' history.
+    test.run_characters(64);
+    test.expect_parity_c9("RFD case-1 fixture is even", false);
 
     // ACCC v1.11 section 13.7.1.2 p.125, R9 variant ("C9 != R9 by line
     // end"): widen R0 7->9 on the last line, then raise R9 to 3 inside the
@@ -4709,10 +4709,11 @@ void test_type1_rfd_r0_widen_r4_cancel_arms_and_advances_c4(TestBench& test) {
     test.write_register(13, 0x34);
     test.select_register(0);
     test.reset();
-    // French 11.6.1 p.90: case 1 is odd. One complete frame
-    // (19.5.3 p.209) advances the fixture from reset-even to odd.
-    test.run_characters(32);
-    test.expect_parity_c9("RFD case-1 fixture is odd", true);
+    // French 11.6.2 pp.90-91: IVM ON/OFF fixes even parity and, before an
+    // RFD, gives case 1, so case 1 is even ParityC9.  Two complete frames
+    // (19.5.3 p.209) leave the fixture even again with a normal VMA' history.
+    test.run_characters(64);
+    test.expect_parity_c9("RFD case-1 fixture is even", false);
 
     // ACCC v1.11 section 13.7.1.2 p.125, R4 variant ("C4 != R4 by line
     // end, C9==R9 still held"): widen R0 7->9 on the last line, then raise
@@ -8768,9 +8769,9 @@ int main(int argc, char** argv) {
          [](TestBench& t) { test_vsync_r7_origin_write(t, 1, true, false); }},
         {"d1_type1_r7_clken_cancel", "French 16.4 p.170 / 19.7.2 p.219", false,
          [](TestBench& t) { test_vsync_r7_origin_write(t, 1, true, true); }},
-        {"d6_even_rfd_ivm_on_off", "French 11.6.1 p.90 / 19.5.3 pp.209-210", false,
+        {"d6_even_rfd_ivm_on_off", "French 11.6.2 pp.90-91 / 19.5.3 pp.209-210", false,
          [](TestBench& t) { test_d6_rfd_ivm_on_off(t, false); }},
-        {"d6_odd_rfd_ivm_on_off", "French 11.6.1 p.90 / 19.5.3 pp.209-210", false,
+        {"d6_odd_rfd_ivm_on_off", "French 11.6.2 pp.90-91 / 19.5.3 pp.209-210", false,
          [](TestBench& t) { test_d6_rfd_ivm_on_off(t, true); }},
         {"d1_type0_blocked_addline_origin", "French 16.4.1.2 / 19.7.2", false,
          test_type0_vsync_blocked_addline_origin},
