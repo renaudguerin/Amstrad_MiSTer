@@ -1,5 +1,9 @@
 # CRTC 1 RFD save parity polarity — 2026-11-03
 
+**Superseded in part:** the [frame-lifetime follow-up](rfd-frame-lifetime-2026-11-03.md)
+changes the gate to ParityFrame and fixes the D9, Amazing and `03AE`/`03B4`
+residuals below. Its report corrects this one: G and H did not match here.
+
 ## Position
 
 With RFD parity management armed, **even ParityC9 now suppresses the VMA' save

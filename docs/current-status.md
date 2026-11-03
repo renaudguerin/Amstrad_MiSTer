@@ -12,12 +12,15 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **CRTC 1 RFD parity polarity (2026-11-03):** even ParityC9 now suppresses the RFD
-  VMA' save (French §11.6.2 pp.90-91 IVM ON/OFF recipe; the §11.6.1 "impaire" wording
-  is read as frame numbering). On `Amstrad_20261103_eba4dc8.rbf` DSC4 renders
-  coherently and SHAKER B COPY A/B/C1/D/E match the Logon photographs. Amazing's
-  lower region still flashes (5 of 10 captures). Soak `0x3e1301080dd3b3ef`. Residuals: COPY C2 phase, SHAKER D (9) D/E/F/I still mismatch (G/H now match). See the
-  [report](investigations/hardware-runs/rfd-parity-polarity-2026-11-03.md).
+- **CRTC 1 RFD (2026-11-03):** even ParityFrame suppresses the RFD VMA' save (French
+  §11.6.2 pp.90-91 IVM ON/OFF recipe), and parity management is frame-local: it clears
+  at the origin and on a successful save; the R0-widening R4 variant arms on even frames
+  only (§13.7.1.2 p.126). On `Amstrad_20261103_07bac19.rbf`: DSC4 coherent, Amazing's
+  lower region clean in 10 of 10 captures, SHAKER D9 A1–I and B COPY A–E match the
+  Logon photographs, and `03AE`/`03B4` read OK after D9 history. Soak
+  `0x1d57d12f7c83810a`. Open: retire-on-save versus latch-at-arm is an inference
+  (review P2). See the [polarity](investigations/hardware-runs/rfd-parity-polarity-2026-11-03.md)
+  and [lifetime](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md) reports.
 
 - **Published release (2026-10-27):** [v2026.10.27](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/v2026.10.27)
   targets the verified full-effort build `321f96a`; attached
