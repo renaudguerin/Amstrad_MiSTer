@@ -17,7 +17,7 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   is read as frame numbering). On `Amstrad_20261103_eba4dc8.rbf` DSC4 renders
   coherently, Amazing's lower region is clean in 3 of 4 captures, and SHAKER B COPY
   A/B/C1/D/E match the Logon photographs. Soak `0x3e1301080dd3b3ef`. Residuals: one
-  Amazing capture, COPY C2 phase, SHAKER D (9) not yet run. See the
+  Amazing capture, COPY C2 phase, SHAKER D (9) D/E/F/I still mismatch (G/H now match). See the
   [report](investigations/hardware-runs/rfd-parity-polarity-2026-11-03.md).
 
 - **Published release (2026-10-27):** [v2026.10.27](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/v2026.10.27)

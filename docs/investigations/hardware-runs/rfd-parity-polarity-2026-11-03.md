@@ -90,6 +90,14 @@ citation for CRTC 1) are applied.
 - Amazing still shows the lower pattern in one of four captures. Characterise
   which scene, then compare against AmSpirit before assuming the RFD rule.
 - COPY C2 phase not captured; take several captures within test C.
-- SHAKER D (9) "RFD round 2" (`0393`–`039B`, photos exist) has not been run on
-  either RBF.
+- SHAKER D (9) "RFD round 2" (`0393`–`039B`) was run on both RBFs after
+  integration (`RFDD.CSL`, captures in the same private folders). Against the
+  photographs: G and H (ON/OFF after RFD) now match, where the baseline lost the
+  header and showed only two rows. D, E and F (ON/OFF before RFD) mismatch on
+  both builds: the photographs repeat "THIS LINE REPEATED" on every row under an
+  intact header; the change blanks the header and shows only three rows, the
+  baseline shows one repeated row then case-2 rows. I mismatches on both. A1–C1
+  (no ON/OFF) are stroboscopic and identical on both builds. The mirrored
+  header loss suggests a second RFD lifecycle defect (for example how long
+  parity management stays armed); an authentic-code replay is in progress.
 - Even-R9 and IVM-active RFD cases rest on the ParityC9 reading only.
