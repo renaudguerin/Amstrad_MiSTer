@@ -12,13 +12,13 @@ What AmSpirit evidence means, and what it cannot establish, is set in
 [the design](../../docs/investigations/hardware-runs/amspirit-oracle-design-2026-09-13.md). In short: it shows what this
 AmSpirit build does, never whether the core is correct.
 
-Python 3 standard library only. AmSpirit must run on the same host for `snapshot` and `run`,
-because the SNA is copied from AmSpirit's local script directory.
+Python 3 standard library only. In 1.17+, snapshots are streamed directly
+over HTTP (`GET /api/snapshot`), enabling remote as well as local capture workflows.
 
 ## Starting a debugging session
 
-Start AmSpirit lite with its HTTP server enabled (`--web-server`; the pilot used lite
-1.15.1; current tooling guidance covers 1.16), then run `python3 scripts/amspirit/amspirit.py identity`. Use `--url` before the
+Start AmSpirit lite with its HTTP server enabled (`--web-server`; current tooling guidance
+covers 1.17), then run `python3 scripts/amspirit/amspirit.py identity`. Use `--url` before the
 subcommand for a different address. The helper connects to an existing instance; it does
 not start the emulator. For joint device work, separately check SSH access to `root@mister`.
 B17 and Sonic GX device work require that device connection; use AmSpirit where available.
@@ -49,12 +49,12 @@ python3 scripts/amspirit/amspirit.py load cart.cpr            # load + hard rese
 python3 scripts/amspirit/amspirit.py load --no-reset x.sna    # snapshots must not be reset
 python3 scripts/amspirit/amspirit.py load x.sna --crtc keep  # retain current CRTC within classic/Plus boundary
 python3 scripts/amspirit/amspirit.py wait 500                 # frames, with host deadline
-python3 scripts/amspirit/amspirit.py joy fire --frames 10     # joystick 0 via keyboard matrix row 9
+python3 scripts/amspirit/amspirit.py joy fire --frames 10     # joystick 0 via native POST /api/joystick
 python3 scripts/amspirit/amspirit.py keys 'RUN"DISC'          # autotype, waits until typed
-python3 scripts/amspirit/amspirit.py pause                    # or resume
+python3 scripts/amspirit/amspirit.py pause                    # or resume (via POST /api/run)
 python3 scripts/amspirit/amspirit.py shot out.png             # settled plain frame + beam/crop headers
 python3 scripts/amspirit/amspirit.py state out-dir/           # ping/config/render/state/memmap/beam/history/keymatrix
-python3 scripts/amspirit/amspirit.py snapshot name out-dir/   # SNA + parsed header/chunk list
+python3 scripts/amspirit/amspirit.py snapshot name out-dir/   # streamed SNA (GET /api/snapshot) + parsed header/chunk list
 python3 scripts/amspirit/amspirit.py eval 'return fs.root()'
 python3 scripts/amspirit/amspirit.py run scripts/amspirit/cases/copter271_title.json --out-dir $S/run-001
 ```
@@ -77,16 +77,15 @@ Keep decisive runs under `docs/references/<topic>-<date>/` in the main checkout
 
 ## API behaviour that shapes the helper
 
-The observations below were verified live on lite 1.15.1. For the documented 1.16
-capabilities and direct API/Lua recipes, read the
-[Lite 1.16 tooling guide](../../docs/investigations/hardware-runs/amspirit-lite-1.16-tooling.md).
-That update was checked against upstream documentation with read-only local endpoint
-checks; command and capture behavior was not re-probed live.
+For the documented 1.17 capabilities, migration details, and direct API recipes, read the
+[Lite 1.17 tooling guide](../../docs/investigations/hardware-runs/amspirit-lite-1.17-tooling.md).
+Historical 1.16 details remain in the [Lite 1.16 tooling guide](../../docs/investigations/hardware-runs/amspirit-lite-1.16-tooling.md).
 
-Helper settings, pause, autotype and media calls require the 1.16 command acknowledgement contract:
+Helper settings, pause, autotype, media and run calls require the 1.16/1.17 command acknowledgement contract:
 they wait with a host deadline for `emu.applied_cmd_seq >= cmd_seq` before dependent
-reads. Pause and autotype also wait for their own completion conditions. Missing
-acknowledgement fields produce an error rather than an assumed successful application.
+reads. In 1.17, command responses return `{"cmd_seq": N}` (without `"ok"`), and apply-time
+failures recorded in `emu.failed_cmds` are detected and raised as errors.
+Execution control (pause, resume, reset) uses `POST /api/run`.
 Lua eval retains its separate `seq` / `done` completion contract.
 For SNA comparisons, `load --crtc keep` or case `media.crtc: "keep"` retains the current
 CRTC within the classic/Plus boundary; default `sna` follows the snapshot header.
@@ -97,24 +96,25 @@ because an SNA can override the case's requested configuration.
 config/render and requested-setting mismatches. A Plus/classic boundary mismatch is
 recorded rather than treated as a successful preservation. `--reset` or case
 `media.hard_reset: true` is rejected for an SNA before applying machine changes.
-`state` saves the new fields returned by the existing endpoints (including FDC within
+`state` saves the fields returned by the existing endpoints (including FDC within
 `state.json`), but does not subscribe to breakpoint events or configure history/rewind
 automatically. Case `config` can pass the new settings through to `/api/config`.
 
 - **Loading a CPR does not reset.** Loading into a running machine left it executing garbage
-  with no VSYNC. The helper hard-resets after a load unless told otherwise.
-- **The settled screenshot goes stale without VSYNC.** `live=0` returns the last completed
+  with no VSYNC. The helper hard-resets via `POST /api/run {"action":"reset","kind":"hard"}`
+  after a load unless told otherwise.
+- **The settled screenshot goes stale without VSYNC.** `live=false` returns the last completed
   frame, so a crashed machine yields identical PNGs forever. Identical hashes across
   captures of an animated screen mean "check the machine", not "stable screen".
-- **`snapshot()` fails silently if its directory is missing.** `fs.root()`
-  (`~/.config/amspirit-lite/scripts`) does not exist on a fresh install; any `fs.write`
-  creates it. Snapshots, screenshots and state dumps all work while paused.
+- **Snapshots are streamed over HTTP in 1.17.** `GET /api/snapshot` streams `.sna` bytes directly
+  in the response body, removing the prior requirement for local filesystem co-location and Lua
+  `fs.root()` scripting. Snapshots, screenshots and state dumps all work while paused.
 - **`emu.frames` stops while paused**, at a breakpoint, or when the core stalls. Every wait
   checks the pause flag and a host deadline instead of polling forever.
-- **`/api/keytype " "` is the keyboard, not the joystick.** Plus titles usually want fire;
-  `keyboard_write` of matrix row 9 (active low, fire = `0x10`) works and is what `joy` does.
+- **Joystick port 0 is driven natively via `POST /api/joystick`.** The helper maps `fire` to `fire1`,
+  sets the hold `frames` budget, and waits for completion.
 - **The pilot exposed no Plus ASIC registers over HTTP.** It used the SNA `CPC+`
-  chunk for PRI, DCSR, sprites and palette. In 1.16, inspect the instance's published
+  chunk for PRI, DCSR, sprites and palette. In 1.16/1.17, inspect the instance's published
   GA/CRTC fields before assuming a signal is available; their extra fields depend on
   the loaded core. The SNA remains the fallback for unavailable ASIC state.
 - **SNA from AmSpirit is v3 with `CPC+` and `SPRT` chunks.** Our core's apply path does not

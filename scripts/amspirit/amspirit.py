@@ -16,7 +16,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import time
@@ -28,8 +27,19 @@ from typing import Any, Dict, List, Optional
 
 DEFAULT_URL = os.environ.get("AMSPIRIT_URL", "http://127.0.0.1:6128")
 
-# CPC joystick 0 lives on keyboard matrix row 9, active low.
-JOY_BITS = {"up": 0x01, "down": 0x02, "left": 0x04, "right": 0x08, "fire": 0x10, "fire2": 0x20}
+# Joystick button mapping for POST /api/joystick (port 0)
+JOY_MAP = {
+    "up": "up",
+    "down": "down",
+    "left": "left",
+    "right": "right",
+    "fire": "fire1",
+    "fire1": "fire1",
+    "fire2": "fire2",
+    "fire3": "fire3",
+}
+
+MODEL_INT_TO_NAME = {0: "464", 1: "664", 2: "6128", 3: "464+", 4: "6128+", 5: "GX4000"}
 
 STATE_ENDPOINTS = ["ping", "config", "render", "state", "memmap", "beam", "history", "keymatrix"]
 
@@ -54,6 +64,16 @@ class AmSpirit:
             req.add_header("Content-Type", ctype)
         try:
             return urllib.request.urlopen(req, timeout=timeout)
+        except urllib.error.HTTPError as exc:
+            err_body = ""
+            try:
+                err_body = exc.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+            msg = f"{method} {path}: HTTP {exc.code} {exc.reason}"
+            if err_body:
+                msg += f" - {err_body}"
+            raise OracleError(msg) from exc
         except OSError as exc:
             raise OracleError(f"{method} {path}: {exc}") from exc
 
@@ -66,7 +86,7 @@ class AmSpirit:
         with self._req("POST", path, json.dumps(payload).encode(), "application/json",
                        timeout=self.deadline) as r:
             out = json.load(r)
-        if not out.get("ok", False):
+        if "ok" in out and not out["ok"]:
             raise OracleError(f"POST {path} {payload}: {out}")
         self.wait_applied_cmd(out.get("cmd_seq"), path)
         return out
@@ -77,14 +97,14 @@ class AmSpirit:
         return self.get_json("/api/ping", timeout=timeout)["emu"]
 
     def require_command_sequences(self) -> Dict[str, Any]:
-        """Require the 1.16 applied-command contract before sending mutations."""
+        """Require the 1.16/1.17+ applied-command contract before sending mutations."""
         if self._api_ping is None:
             ping = self.get_json("/api/ping", timeout=self.deadline)
             applied = ping.get("emu", {}).get("applied_cmd_seq")
             if isinstance(applied, bool) or not isinstance(applied, int):
                 raise OracleError(
                     "AmSpirit does not publish emu.applied_cmd_seq; command ordering is "
-                    "unverifiable, so this helper requires Lite 1.16 and will not assume "
+                    "unverifiable, so this helper requires Lite 1.16+ and will not assume "
                     "legacy commands have applied")
             self._api_ping = ping
         return self._api_ping
@@ -102,7 +122,8 @@ class AmSpirit:
         return ping
 
     def wait_applied_cmd(self, seq: Any, path: str = "command") -> None:
-        """Wait for a command's applied sequence, bounding each HTTP poll too."""
+        """Wait for a command's applied sequence, bounding each HTTP poll too,
+        and checking emu.failed_cmds for apply-time failure."""
         if isinstance(seq, bool) or not isinstance(seq, int):
             raise OracleError(
                 f"{path} response has no integer cmd_seq; refusing to assume the "
@@ -120,6 +141,12 @@ class AmSpirit:
                 raise
             applied = emu.get("applied_cmd_seq")
             if isinstance(applied, int) and not isinstance(applied, bool) and applied >= seq:
+                failed_cmds = emu.get("failed_cmds", [])
+                if isinstance(failed_cmds, list):
+                    for fail in failed_cmds:
+                        if isinstance(fail, dict) and fail.get("cmd_seq") == seq:
+                            err = fail.get("error", "command failed at apply time")
+                            raise OracleError(f"{path} (cmd_seq {seq}) failed at apply time: {err}")
                 return
             time.sleep(min(0.05, max(0.0, end - time.monotonic())))
 
@@ -178,7 +205,7 @@ class AmSpirit:
             time.sleep(min(0.05, max(0.0, end - time.monotonic())))
 
     def set_paused(self, paused: bool) -> None:
-        self.post_json("/api/config", {"paused": paused})
+        self.post_json("/api/run", {"action": "pause" if paused else "resume"})
         end = time.monotonic() + self.deadline
         observed = None
         while True:
@@ -211,11 +238,11 @@ class AmSpirit:
         with self._req("POST", url, path.read_bytes(), "application/octet-stream",
                        timeout=self.deadline) as r:
             out = json.load(r)
-        if not out.get("ok"):
+        if "ok" in out and not out["ok"]:
             raise OracleError(f"media load refused: {out}")
         self.wait_applied_cmd(out.get("cmd_seq"), "POST /api/media")
         if hard_reset:
-            self.post_json("/api/config", {"do_hard_reset": True})
+            self.post_json("/api/run", {"action": "reset", "kind": "hard"})
         emu = self.emu(timeout=self.deadline)
         self.last_media_result = {
             "crtc_policy": crtc,
@@ -227,10 +254,10 @@ class AmSpirit:
         return int(emu["frames"])
 
     def screenshot(self, out: Path) -> Dict[str, Any]:
-        # Settled plain frame: live=0 full=1. When the machine produces no VSYNC
+        # Settled plain frame: live=false full=true. When the machine produces no VSYNC
         # (a crash) AmSpirit keeps returning the last settled frame, so compare
         # hashes across captures before trusting a "stable" screen.
-        with self._req("GET", "/api/screenshot?crop=1&full=1&live=0") as r:
+        with self._req("GET", "/api/screenshot?crop=true&full=true&live=false") as r:
             data = r.read()
             headers = {k: v for k, v in r.headers.items() if k.lower().startswith("x-")}
         out.write_bytes(data)
@@ -246,36 +273,23 @@ class AmSpirit:
         return names
 
     def save_snapshot(self, name: str, out_dir: Path) -> Dict[str, Any]:
-        """Save an SNA through Lua. snapshot() silently writes nothing when the
-        target directory is missing, so create fs.root() first (fs.write makes it)."""
-        root = self.eval_lua(
-            'if not fs.exists(".oracle") then fs.write(".oracle", "") end '
-            f'if fs.exists("{name}.sna") then fs.remove("{name}.sna") end '
-            f'snapshot_dir(fs.root()) snapshot_name("{name}") snapshot() '
-            f'if not fs.exists("{name}.sna") then error("snapshot not written") end '
-            'return fs.root()')
-        src = Path(root) / f"{name}.sna"
-        if not src.exists():
-            raise OracleError(f"{src} not visible from this host; AmSpirit must run locally")
-        dst = out_dir / src.name
-        shutil.copyfile(src, dst)
-        self.eval_lua(f'fs.remove("{name}.sna") return "ok"')
+        """Save an SNA snapshot via GET /api/snapshot.
+        In Lite 1.17+, the snapshot is streamed over HTTP directly as octet-stream,
+        removing the requirement for filesystem co-location or Lua fs manipulation."""
+        dst = out_dir / f"{name}.sna"
+        with self._req("GET", "/api/snapshot", timeout=self.deadline) as r:
+            data = r.read()
+        dst.write_bytes(data)
         return {"file": dst.name, "sha256": sha256_file(dst), "sna": parse_sna(dst)}
 
     def hold_joystick(self, buttons: List[str], frames: int) -> None:
-        mask = 0
+        payload: Dict[str, Any] = {"frames": frames}
         for b in buttons:
-            if b not in JOY_BITS:
-                raise OracleError(f"unknown joystick button {b!r}; known: {sorted(JOY_BITS)}")
-            mask |= JOY_BITS[b]
-        row9 = 0xFF & ~mask
-        # pcall so the release runs even if the hold loop errors inside AmSpirit.
-        self.eval_lua(
-            "local m={} for i=1,16 do m[i]=255 end m[10]=" f"{row9} "
-            f"local ok,err=pcall(function() for i=1,{frames} do keyboard_write(table.unpack(m)) wait_frames(1) end end) "
-            "for i=1,16 do m[i]=255 end keyboard_write(table.unpack(m)) "
-            "if not ok then error(err) end return 'ok'",
-            timeout=max(self.deadline, frames / 25.0 + 5.0))
+            if b not in JOY_MAP:
+                raise OracleError(f"unknown joystick button {b!r}; known: {sorted(JOY_MAP)}")
+            payload[JOY_MAP[b]] = True
+        self.post_json("/api/joystick", payload)
+        self.wait_frames(frames)
 
     def type_keys(self, text: str) -> None:
         self.post_json("/api/keytype", {"text": text})
@@ -351,6 +365,12 @@ def identity(ams: AmSpirit) -> Dict[str, Any]:
             "config": ams.get_json("/api/config"), "render": ams.get_json("/api/render")}
 
 
+def normalize_model(val: Any) -> Any:
+    if isinstance(val, int) and val in MODEL_INT_TO_NAME:
+        return MODEL_INT_TO_NAME[val]
+    return str(val) if val is not None else None
+
+
 def read_effective_settings(ams: AmSpirit, requested: Dict[str, Any]) -> Dict[str, Any]:
     cfg, render = ams.get_json("/api/config"), ams.get_json("/api/render")
     emu = ams.emu(timeout=ams.deadline)
@@ -361,8 +381,14 @@ def read_effective_settings(ams: AmSpirit, requested: Dict[str, Any]) -> Dict[st
     if "crtc_type" in req_cfg and "crtc_type" in emu:
         # An SNA can switch the live CRTC without changing the saved preference.
         applied["crtc_type"] = emu["crtc_type"]
+
+    def setting_mismatch(k: str, req_v: Any, app_v: Any) -> bool:
+        if k == "cpc_model":
+            return normalize_model(req_v) != normalize_model(app_v)
+        return app_v != req_v
+
     mismatches = {k: {"requested": v, "applied": applied.get(k)}
-                  for k, v in {**req_cfg, **req_render}.items() if applied.get(k) != v}
+                  for k, v in {**req_cfg, **req_render}.items() if setting_mismatch(k, v, applied.get(k))}
     return {"config": cfg, "render": render,
             "emu": {k: emu.get(k) for k in ("cpc_model", "crtc_type", "frames", "ticks")},
             "mismatches": mismatches}
@@ -474,7 +500,7 @@ def run_case(ams: AmSpirit, case_path: Path, out_dir: Path, media_root: Path) ->
                 manifest["resume_error"] = str(exc)
         elif status != "ok":
             try:
-                ams.post_json("/api/config", {"paused": True})
+                ams.post_json("/api/run", {"action": "pause"})
             except OracleError:
                 pass
         manifest_path.write_text(json.dumps(manifest, indent=1) + "\n")
@@ -507,7 +533,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     s.add_argument("name")
     s.add_argument("out_dir", type=Path)
     s = sub.add_parser("joy", help="hold joystick 0 buttons for N frames")
-    s.add_argument("buttons", nargs="+", choices=sorted(JOY_BITS))
+    s.add_argument("buttons", nargs="+", choices=sorted(JOY_MAP))
     s.add_argument("--frames", type=int, default=10)
     s = sub.add_parser("keys", help="autotype text and wait until it lands")
     s.add_argument("text")

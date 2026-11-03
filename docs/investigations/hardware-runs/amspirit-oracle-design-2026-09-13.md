@@ -43,9 +43,10 @@ codes).
 ## 2. Verified AmSpirit capabilities (live, 2026-09-13)
 
 Probed against the local instance (lite 1.15.1, `127.0.0.1:6128`).
-Current documented 1.16 workflows are in the
-[tooling guide](amspirit-lite-1.16-tooling.md), checked against upstream on 2026-09-30.
-That documentation update does not re-verify the pilot or snapshot handoff live.
+Current workflows are in the [Lite 1.17 tooling guide](amspirit-lite-1.17-tooling.md),
+including the 2026-11-03 live helper smoke and the direct-HTTP/MCP decision.
+The capability inventory below records the older probe; use the current guide
+for command acknowledgement, named settings and `/api/run` control.
 Upstream sources:
 `amspirit-releases/docs/lite/scripting.md`,
 `amspirit-releases/docs/lite/web_api.md`, and the machine-readable

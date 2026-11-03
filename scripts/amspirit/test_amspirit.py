@@ -141,7 +141,7 @@ class CommandOrderingTests(unittest.TestCase):
         media = next(i for i, event in enumerate(ams.events) if event.startswith("request:POST:/api/media"))
         media_applied = ams.events.index("poll:applied:6")
         reset = next(i for i, event in enumerate(ams.events)
-                     if event.startswith("request:POST:/api/config"))
+                     if event.startswith("request:POST:/api/run"))
         self.assertLess(media, media_applied)
         self.assertLess(media_applied, reset)
 
@@ -234,6 +234,124 @@ class SnaPolicyTests(unittest.TestCase):
 
         self.assertEqual(effective["mismatches"]["crtc_type"],
                          {"requested": 0, "applied": 1})
+
+
+class Migration117Tests(unittest.TestCase):
+    def test_post_json_accepts_117_response_without_ok_field(self):
+        ams = FakeAmSpirit(command={"cmd_seq": 7}, applied=[7])
+        result = ams.post_json("/api/run", {"action": "pause"})
+        self.assertEqual(result["cmd_seq"], 7)
+
+    def test_media_load_accepts_117_response_without_ok_field(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cpr = Path(tmp) / "game.cpr"
+            cpr.write_bytes(b"RIFF0000AMS ")
+            ams = FakeAmSpirit(command={"cmd_seq": 7}, applied=[7, 8])
+            ams.load_media(cpr, hard_reset=False)
+            method, path, _body, _timeout = next(r for r in ams.requests if r[0] == "POST")
+            self.assertEqual(method, "POST")
+            self.assertIn("/api/media", path)
+
+    def test_set_paused_uses_post_api_run_action(self):
+        ams = FakeAmSpirit(command={"cmd_seq": 7}, applied=[7],
+                           ping={"frontend": "lite", "version": "1.17.1", "core": 2491682,
+                                 "emu": {"applied_cmd_seq": 0, "paused": True,
+                                         "frames": 12, "crtc_type": 0}})
+        ams.set_paused(True)
+        post_requests = [r for r in ams.requests if r[0] == "POST"]
+        self.assertTrue(post_requests)
+        method, path, body, _timeout = post_requests[0]
+        self.assertEqual(path, "/api/run")
+        self.assertEqual(json.loads(body), {"action": "pause"})
+
+    def test_hard_reset_uses_post_api_run_action(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cpr = Path(tmp) / "game.cpr"
+            cpr.write_bytes(b"RIFF0000AMS ")
+            ams = FakeAmSpirit(commands=[{"cmd_seq": 6}, {"cmd_seq": 7}],
+                               applied=[6, 7])
+            ams.load_media(cpr, hard_reset=True)
+
+        run_requests = [r for r in ams.requests if r[0] == "POST" and r[1] == "/api/run"]
+        self.assertTrue(run_requests)
+        self.assertEqual(json.loads(run_requests[0][2]), {"action": "reset", "kind": "hard"})
+
+    def test_failed_cmds_at_apply_time_raises_oracle_error(self):
+        ams = FakeAmSpirit(command={"cmd_seq": 7}, applied=[7],
+                           ping={"frontend": "lite", "version": "1.17.1", "core": 2491682,
+                                 "emu": {"applied_cmd_seq": 0, "paused": False,
+                                         "frames": 12, "crtc_type": 0,
+                                         "failed_cmds": [{"cmd_seq": 7, "error": "cpc_model / crtc_type mismatch"}]}})
+        with self.assertRaisesRegex(amspirit.OracleError, "cpc_model / crtc_type mismatch"):
+            ams.post_json("/api/config", {"cpc_model": "GX4000", "crtc_type": 0})
+
+    def test_snapshot_streams_over_http_without_lua_or_filesystem(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = Path(tmp)
+            valid_sna = b"MV - SNA" + bytes(0x100 - 8)
+            class SnapshotAms(FakeAmSpirit):
+                def _req(self, method, path, body=None, ctype=None, timeout=30.0):
+                    self.requests.append((method, path, body, timeout))
+                    if method == "GET" and path == "/api/snapshot":
+                        return Response(valid_sna)
+                    return super()._req(method, path, body, ctype, timeout)
+
+                def eval_lua(self, chunk, timeout=None):
+                    raise AssertionError("save_snapshot in 1.17+ must not invoke Lua eval")
+
+            ams = SnapshotAms()
+            result = ams.save_snapshot("test_snap", out_dir)
+            self.assertEqual(result["file"], "test_snap.sna")
+            self.assertTrue((out_dir / "test_snap.sna").exists())
+            self.assertEqual((out_dir / "test_snap.sna").read_bytes(), valid_sna)
+            self.assertTrue(any(r[0] == "GET" and r[1] == "/api/snapshot" for r in ams.requests))
+
+    def test_hold_joystick_uses_post_api_joystick(self):
+        class JoyAms(FakeAmSpirit):
+            def frames(self, timeout=None):
+                return 100
+
+            def wait_frames(self, n):
+                return 100 + n
+
+            def eval_lua(self, chunk, timeout=None):
+                raise AssertionError("hold_joystick in 1.17+ must not invoke Lua eval")
+
+        ams = JoyAms(command={"cmd_seq": 7}, applied=[7])
+        ams.hold_joystick(["fire"], frames=15)
+
+        joy_requests = [r for r in ams.requests if r[0] == "POST" and r[1] == "/api/joystick"]
+        self.assertTrue(joy_requests)
+        self.assertEqual(json.loads(joy_requests[0][2]), {"frames": 15, "fire1": True})
+
+    def test_effective_settings_normalizes_cpc_model_names(self):
+        class SettingsRead:
+            deadline = 1.0
+
+            def get_json(self, path):
+                if path == "/api/config":
+                    return {"cpc_model": "6128+", "crtc_type": 3}
+                if path == "/api/render":
+                    return {}
+                raise AssertionError(path)
+
+            def emu(self, timeout=None):
+                return {"cpc_model": "6128+", "crtc_type": 3, "frames": 10, "ticks": 100}
+
+        # String model matching applied string model
+        eff1 = amspirit.read_effective_settings(
+            SettingsRead(), {"config": {"cpc_model": "6128+", "crtc_type": 3}, "render": {}})
+        self.assertEqual(eff1["mismatches"], {})
+
+        # Legacy int model 4 (6128+) matching applied string model "6128+"
+        eff2 = amspirit.read_effective_settings(
+            SettingsRead(), {"config": {"cpc_model": 4, "crtc_type": 3}, "render": {}})
+        self.assertEqual(eff2["mismatches"], {})
+
+        # Genuine mismatch: requested "6128" vs applied "6128+"
+        eff3 = amspirit.read_effective_settings(
+            SettingsRead(), {"config": {"cpc_model": "6128", "crtc_type": 3}, "render": {}})
+        self.assertIn("cpc_model", eff3["mismatches"])
 
 
 if __name__ == "__main__":

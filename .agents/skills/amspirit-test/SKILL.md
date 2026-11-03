@@ -22,7 +22,7 @@ control MiSTer.
   before treating a result as evidence for a hardware rule.
 - For command ordering, breakpoint timing, CRTC-preserving SNA comparisons, rewind,
   CSL key chords or SSM checkpoints, read the
-  [Lite 1.16 tooling guide](../../../docs/investigations/hardware-runs/amspirit-lite-1.16-tooling.md).
+  [Lite 1.17 tooling guide](../../../docs/investigations/hardware-runs/amspirit-lite-1.17-tooling.md).
   The helper waits for command acknowledgements and supports SNA `crtc=keep`;
   breakpoint events, rewind navigation and CSL/SSM scripts use the direct API or Lua.
   Check the instance identity and published fields before using them.
@@ -43,10 +43,13 @@ control MiSTer.
    its web server enabled:
 
    ```sh
-   /Applications/amspirit-lite-sdl.app/Contents/MacOS/amspirit-lite-sdl --web-server
+   open -a /Applications/amspirit-lite-sdl.app --args --web-server
    ```
 
-   Then rerun `identity`. Do not launch a second instance when the API is already reachable.
+   This macOS desktop launch works where a restricted direct executable launch
+   cannot reach WindowServer. On other hosts, use the installed frontend's
+   `--web-server` option. Then rerun `identity`. Do not launch a second instance
+   when the API is already reachable.
 3. Prefer `amspirit.py run <case.json> --out-dir <new-directory>` for repeatable work. The
    output directory must not already contain a manifest. The case records configuration,
    render settings, media, and input steps. CPR loading needs a hard reset; SNA loading must
@@ -58,7 +61,10 @@ control MiSTer.
    For finer timing, subtract `ticks` at two breakpoint stops within one uninterrupted
    run (1 tick = 1 µs). Hard reset, SNA load and rewind restart the tick epoch. For direct
    API writes, wait with a host deadline for `emu.applied_cmd_seq >= cmd_seq` before
-   reading back; long-running commands also need their completion condition.
+  reading back; also check `emu.failed_cmds` for an apply-time refusal.
+  Long-running commands still need their completion condition. Use the named
+  model/monitor values and `/api/run` control actions documented for 1.17;
+  inspect `/api/doc` on the running build when a published shape differs.
 5. Keep decisive outputs under `docs/references/<topic>-<date>/` in the main checkout
    (gitignored, never committed). Record AmSpirit version, effective model/CRTC and render
    settings, media hash, input/checkpoint, and what the evidence establishes.
