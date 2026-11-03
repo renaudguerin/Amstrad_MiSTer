@@ -22,6 +22,14 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   (review P2). See the [polarity](investigations/hardware-runs/rfd-parity-polarity-2026-11-03.md)
   and [lifetime](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md) reports.
 
+- **SHAKER CRTC 1 sweep (2026-11-03):** with two private script workarounds (B-1 `Z`→`W`
+  for the French layout, C-1 marker typo `02F1`→`03F1`) the A, B and C CRTC 1 walks
+  complete for the first time; D-1 still stops on input timing. Against 229 real-CPC
+  photographs: 202 match; the differences are the known PPI port B bits, pre-existing
+  blank/yellow acquisition pages, `02DA`, `009A`, and the history-dependent `02D3`
+  (correct cold, WRONG after the module's earlier tests; replay in progress). See the
+  [sweep report](investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md).
+
 - **Published release (2026-10-27):** [v2026.10.27](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/v2026.10.27)
   targets the verified full-effort build `321f96a`; attached
   `Amstrad_20261027.rbf` SHA-256 `6bc43724…400d`. It contains the Alcon R6-border
