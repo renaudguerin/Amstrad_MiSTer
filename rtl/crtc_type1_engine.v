@@ -349,7 +349,11 @@ always @(posedge CLOCK) begin
 end
 assign rfd_r0_extend = rfd_r0_widen_at_last_line;
 
-wire rfd_r0_cancelled = (line != crtc1_line_max) | (row != R4_v_total);
+// French ACCC v1.11 section 13.7.1.2 p.126: the R9 variant (C9 != R9 by the
+// extended line end) always arms; the R4 variant (C9 == R9 still, C4 != R4)
+// takes R12/R13 only on one frame in two, the even ParityFrame one.
+wire rfd_r0_cancelled = (line != crtc1_line_max) |
+                        ((row != R4_v_total) & ~parity_frame);
 // Consume the RFD window only at the effective end of the extended line.
 // A further qualified extension must postpone this decision as well.
 wire rfd_r0_arm = rfd_r0_pending & CLKEN & hcc_end & rfd_r0_cancelled;
@@ -513,7 +517,7 @@ wire row_addr_save_base = hcc == R1_h_displayed && line_row_structure_last;
 // AmSpirit and the SHAKER BCOPY photographs all need this polarity.
 // Section 19.5.3 pp.209-210 shares this parity with IVM ON/OFF.
 assign row_addr_save = row_addr_save_base &
-                       (~rfd_parity_active | parity_c9);
+                       (~rfd_parity_active | parity_frame);
 
 always @(posedge CLOCK) begin
 	if(~nRESET | SNA_LOAD) begin
@@ -532,9 +536,15 @@ always @(posedge CLOCK) begin
 		else if(rfd_vma_arm) begin
 			rfd_vma_flag <= 1;
 		end
+		// French p.91: once armed, parity management cannot be disabled
+		// "tant que le frame n'est pas terminé" -- it ends with the frame.
+		// It also retires on a successful save (as in CPCSyntaxError), so
+		// a later IVM ON/OFF in the same frame does not re-suppress saves.
 		if(rfd_arm | rfd_r0_arm) begin
 			rfd_parity_flag <= 1;
 		end
+		else if(CLKEN && (frame_new_w || row_addr_save))
+			rfd_parity_flag <= 0;
 
 		// Section 13.7.1.2 trigger window: opened only by the qualifying
 		// widening write, closed by the next line end (the extended line's
