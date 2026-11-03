@@ -46,7 +46,7 @@ Gemini 3.8 Flash classified 229 photo/capture pairs from the first sweep:
 | `0037`, `008D`–`0091`, `023C`, `02CD` | **Known, not CRTC.** Printed PPI port B reads `5E/5F` on the photographed machine and `FE/FF` here. Bits 7 (cassette) and 5 (/EXP) differ; the VSYNC bit agrees (finding D7, 2026-09-10). |
 | `00D5`, `00D6`, `00DD`, `00DE` (B1 interlace, C9=2/6) | **Pre-existing acquisition.** Near-uniform yellow captures on every RBF back to `925b5bb` (bisected) and in the October walk. |
 | `02C9`, `02CB` (C, R5/R8 on last line) | **Pre-existing.** Black in every walk since September; the photographs show result text. Open. |
-| `02D3` (C, R5 additional line in interlace) | **History-dependent.** A cold isolated run prints the correct `#4E40` on `46f8ab8`, `918237f` and `5fba168`. After the module's earlier tests, two walks printed `#5060` and `#0840` WRONG. The tests just before it are `02C9`/`02CB`, so the leftover state is under replay. |
+| `02D3` (C, R5 additional line in interlace) | **History-dependent.** A cold isolated run prints the correct `#4E40` on `46f8ab8`, `918237f` and `5fba168`. After the module's earlier tests, two walks printed `#5060` and `#0840` WRONG. Replay (below) traces it to state left by test E. |
 | `02DA` (C, interlace VSYNC nightmare F) | **Pre-existing.** `#0050` WRONG, expected `#0060`. The capture is byte-identical to October's. |
 | `009A` (A, R1 stories I) | Open: the photo shows a full RAM-snow screen, the capture is black with displaced red text. |
 
@@ -58,3 +58,29 @@ match, 20 phase, 3 different. The parent checked all three:
 | `019D` (B6, OUTI on R0) | **Known residual.** `#1F` WRONG versus the photo's `#1E`; the production-T80 XFAIL and its open write-visibility question are unchanged. |
 | `01E7` (BO, 1-A/1-B identifier) | **Expected.** The photographed machine is a CRTC 1-B; the core models 1-A and deliberately omits RFD#10 (§11.6.2). |
 | `0216` (BS, BE00 check) | **Documented variant.** R31 reads `#FF` here and `#7F` on the photographed machine. French ACCC §21.2.2 p.245 reports "127 ou 255" for this read; both are real-CPC values. All other values on the page match. |
+
+## `02D3` and the blank E/P pages: replay diagnosis
+
+An authentic-code replay of SHAKE27C on production T80, GA and CRTC reproduces
+both walk values. Test E (`02C9`) ends in the §11.3.2 R5=0 deadlock (French
+pp.86-87, author answer Q20): its last attempt writes R5=0 on the C0=R0 edge
+where C5+1=R5 is decided, the model reads that as no release, and the type-1
+engine stays in vertical adjustment. P and the menu do not clear it. S's R5=8
+then ends adjustment wherever C5 has reached; the stuck frames are 312 lines,
+so the result cycles with menu idle time (`#0840`, `#5060`, `#0440`, `#0640`).
+S alone gives `#4E40`. The pre-today and current engines give identical
+results, so the RFD changes are not involved.
+
+E and P display blank because `vde` re-arms only on `frame_new`, which never
+fires while stuck. Their photographs show text, so hardware re-opens the
+display at the stuck C4 reset. A scratch `rtl/CRTC.v` change re-arming `vde`
+there restores E/P display in the replay and passes crtc-test 238/238. It
+needs a fail-first vector and a hardware RBF before integration. Whether the
+R5 write on the C0=R0 decision edge should release the deadlock (which would
+also fix `02D3` in the walk) needs the `02CA` photograph or an author answer.
+A separate model mismatch is noted: E's "CPU TO NEW FRAME" line reads `#0060`
+in the model and `#0080` on the photo.
+
+Replay harness, extracted payload, disassembly and logs:
+`local/investigations/shaker-sweep-2026-11-03/c02d3-replay/` (`build2.sh`,
+`c_test`; `eng_old.v`, `eng_new.v`, `CRTC_vdefix.v`).
