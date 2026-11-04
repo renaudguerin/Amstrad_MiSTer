@@ -1,15 +1,15 @@
-# Active unattended handover — 4 November 2026, 22:00 UTC
+# Active unattended handover — 4 November 2026, 22:24 UTC
 
 Continue known SHAKER and DSC4/Amazing work until approximately 80% weekly
 Codex usage. Do not stop merely because one unit finishes. Last live OAuth
-reading at 21:46: 59% weekly used, reset 5 November 19:34 UTC; three banked
+reading at 22:05: 60% weekly used, reset 5 November 19:34 UTC; three banked
 resets untouched. No credits, overage or reset redemption. Keep `ask-claude`
 paused until its five-hour window resets and fresh telemetry verifies that.
 Use Gemini 3.8 for routine work, prepared Gemini 4 for hard independent review,
 and Sol high for RBF changes. Known defects precede a broad fresh baseline.
 
 Checkout: `/Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer`.
-Ordinary branch: `codex/overnight-validation-20261103`, HEAD `51ae4dd`.
+Ordinary branch: `codex/overnight-validation-20261103`, HEAD/code tip `ccf2be7`; C0 build pins earlier `51ae4dd`.
 Branch pushes and full milestone builds are authorized. No master integration,
 PR, release or author message. Parent owns all shared MiSTer/AmSpirit access;
 device use remains authorized with no hold. SSH and Git metadata writes need
@@ -91,11 +91,29 @@ This is an observed inherited-state difference, not permission to clear C5.
 
 Sol `/root/r3_output_model_scope` now owns only private
 `c1-s-live-state-analysis/` source analysis and an isolated failing proof.
-Parent read French §11.8 p93: R9=7/R5=8 in IVM has four C9 per C4, hence two
-C4 increments during eight adjustment lines. Current Type1 overrides IVM
-stepping and row tests inside adjustment despite calling the interaction
-unpinned. Worker may prepare a private deterministic red, but must not edit
-tracked RTL/sim/history yet. Keep C5 lifetime/restart and E0080/P26 unchanged.
+Parent read French §11.8 p93 and §19.8.2 p226. Private proof completed once:
+18 red assertions across both natural parity setups; first C9 boundary,
+fourth-boundary actual C4 commit and raw/public VSYNC fail while C5/lifetime
+checks pass. Source unchanged. Worker is NOW authorized to edit only Type1
+engine, sim_main and soak-history, plus private implementation evidence.
+SOURCE-PLAN.md under implementation/ precedes edits: retain a focused red,
+share IVM-aware ordinary row identity among C9/C4/structure/R4-reset/re-entry,
+keep C5 completion/restart policy and added-line priority. Retained t08i/j/s
+own first-five-boundary and mode-eligible zero/positive R4 interactions.
+No wrapper/new flops/Git/build/device/API/delegation. Retained red237PASS/3FAIL
+before RTL; final focused240PASS. Two old t28a/b plain-IVM C9 oracles corrected
+only in C9/comments after preserving their red; C4/C5/extra/parity/origin owners
+unchanged. Intentional soak402410acec7f4988, unchanged seed/projection/samples;
+C0 row retained. Final selected gate PASS45 ONCE; no later source edit. Parent verified
+SOURCE-HASHES/UNCHANGED-OWNERS. Fresh Gemini4 review20261104T221327Z-92939-f023 ACCEPT, exec13299 drained
+cleanly; logs preserved implementation/cross-provider-review/. Parent hashes
+match. Committed/pushed `ccf2be7` (Type1/sim/history + parent source report).
+WAIT for C0 synthesis41921307910 to finish before dispatching C1 full build;
+global synthesis concurrency would otherwise preempt C0. All C0 simulation/
+production-T80 jobs passed; compilation still active. No other synthesis.
+Then verify/download/install C0 artifact and run its targeted E6/DSC4 while
+C1 compiles, with one root device operator.
+Do not claim S fixed or clear C5. Parent owns all documentation changes.
 The original round2 `message.txt` is absent; its tracked technical summary is
 not literal correspondence. Do not invent the missing wording.
 
@@ -141,3 +159,36 @@ docs; stage code separately. Pure docs need links/diff checks, no simulation
 or provider review. Check the reaper before replacing a bridge; preserve logs
 and own each run through exit. Commentary at least once per60s during work.
 No goal tool was created.
+
+
+Active foreign read-only leaves (parent must drain through exit):
+- Gemini3 CPCSE source retrieval COMPLETE/drained exec10403,
+  run20261104T220211Z-90150-a2cc; logs preserved cpcse-c1-adjustment-source/.
+  Parent qualified hashes/source, corrected misleading claim that peer lacks
+  positive re-entry restart, and rejected importing native C5=24 into an
+  unobserved peer S timeline. Peer retained-zero reset lifetime differs from
+  French/Q20; do not copy it. See PARENT-QUALIFICATION.md.
+- Prepared Gemini4 universal mixed-mode cadence assessment using the NEW JIT2→0
+  residual5 versus JIT2→1 residual6 control: exec76195,
+  run20261104T220647Z-90788-d139; output r3-universal-cadence-assessment/.
+  Advice only, no implementation or experiments. Prior Astra assessment could
+  not derive a rule before that independent destination constraint existed.
+
+
+Sol now owns only NEW ignored r3-fixed-mode3-proof/ for a bounded missing
+fixed-Mode3 regression control, using coherent frozen T80/READY fixture and
+French §9.3.4.3.4 p63. No candidate or production edit. Prior observer aliases3
+as0 and cannot qualify3; require actual accepted mode/source identity rather
+than simply relaxing its guard. One private Verilator build/run for both types,
+every-clock192-window source oracle, or return exact blocker. No source/phase/
+NOP/release search, Git, Quartus/gate/device/API/delegation. Frozen C1/C0
+sources must remain identical. This can proceed during parent review/builds.
+
+
+Quota routing at22:21: Gemini5h reset (0% used), Gemini weekly44.1%,
+Argon weekly84.4%, separate Claude/GPT Antigravity weekly100% (unavailable;
+no credits). Let the active Argon cadence assessment finish, but do not start
+another Argon call at this headroom. Gemini3.8 routine work remains available.
+Codex last22:05 weekly60%; next check around22:30. User's Codex reserve80%
+and no abrupt cutoff/credit redemption remain in force. ask-claude stays
+paused pending the requested window reset; no call was made in this segment.

@@ -44,22 +44,33 @@ Pourriez-vous préciser les trois points suivants ?
    Une écriture positive de R5 **loin du prochain front R4/R9**, après cette
    attente, serait-elle un bon moyen de mesurer directement la phase conservée ?
 
-Un redémarrage privé de C5 au seul front R4/R9 avec R5 positif donne bien
-`0080`, sans changer les autres nombres de E. Cela ne suffit pas à choisir
-cette règle : une remise à zéro de C5 à chaque front R4/R9, une sortie
-antérieure de la gestion, ou un frame de plus entre les mesures peuvent
-également expliquer ce nombre. Nous n’avons donc pas modifié la règle de
-production à partir de ce seul résultat.
+Un redémarrage de C5 au seul front R4/R9 avec R5 positif donne bien
+`0080`, sans changer les autres nombres de E. Nous avons retenu ce modèle
+provisoire avec un test déterministe et une vérification native de E/P, en
+combinant la condition d’engagement de §11.3.2 et votre photo. Le redémarrage
+reste une déduction du modèle, pas une mesure du compteur matériel : une remise
+à zéro de C5 à un autre front, une sortie antérieure de la gestion ou un frame
+supplémentaire d’acquisition peuvent aussi expliquer le seul nombre `0080`.
 
 CPCSyntaxError 0.12 donne également `0080`, mais sa trace montre une sortie
 antérieure de la gestion lorsque R5=0, avant la seconde mesure. AmSpirit 1.17.1
 donne aussi `0080`, sans que son interface nous expose C5. Ces résultats ne
 suffisent donc pas à choisir le mécanisme du circuit réel.
 
-Complément de contexte, sans conclusion sur C5 : le test S (`02D3`) donne
-`0640` après un parcours C1 complet sur le dernier RBF, mais `4E40` en accès
-direct après un démarrage neuf. Cet accès direct donne une image identique
-sur l'ancien et le nouveau RBF. La dépendance à l'historique reste donc ouverte ;
-nous n'attribuons pas cette différence à un mécanisme précis du circuit.
+Complément de contexte : notre observation passive du programme S (`02D3`),
+sans arrêt ni modification du processeur, conserve les résultats du même RBF :
+`4E40` en accès direct, `0440` après le préfixe canonique. À la lecture de la
+première instruction OUT qui va écrire R5=8, les deux chemins ont C4=C9=0 et
+IVM actif ; l’accès direct a la gestion inactive/C5=0, le parcours précédent
+la gestion active/C5=24. Ces états sont ceux de notre FPGA, pas des mesures
+sur le CPC réel. AmSpirit donne `4E40` par les deux chemins, mais ne nous expose
+pas C5.
+
+Nous avons aussi isolé une erreur distincte de notre cœur : le comptage IVM
+était remplacé par un comptage normal pendant l’ajustement. §11.8 p93 précise
+bien la poursuite du comptage interlace, avec deux incrémentations de C4 sur
+huit lignes R5 dans son exemple. Sa correction suit son propre test ; elle ne
+justifie pas une remise à zéro de C5 et ne résout pas, à elle seule, la question
+de phase ci-dessus.
 
 Merci pour cette précision.

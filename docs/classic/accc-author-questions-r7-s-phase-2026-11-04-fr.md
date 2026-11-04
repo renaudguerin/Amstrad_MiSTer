@@ -35,7 +35,7 @@ une restriction C0 pour reproduire AmSpirit sans confirmation matérielle.
 ## Résultat physique de CS/02D3
 
 La version actuelle du programme attend4E40 pour «FRAME LENGTH WITH R5=8 AFTER
-304 INTERLACE LINES». La photo CS_CRTC1_A.webp semble afficher4E30. Est-ce
+304 INTERLACE LINES». La photographie de CS/02D3 pour le CRTC1 semble afficher4E30. Est-ce
 une différence de version, une variante matérielle, ou une quantification de
 la mesure qui autorise les deux valeurs ? Nous ne proposons pas une tolérance
 sans confirmation. CPCSyntaxError 0.12 donne4E40, ce qui correspond au programme,
@@ -45,8 +45,11 @@ Indépendamment de cette petite différence, notre cœur donne4E40 en entrée
 directe et0640 après le parcours canonique; un changement de publication VSYNC
 d'un Pixel-M2 donne5060 après ce même parcours. Un autre RBF avec la même
 logique CRTC1 donne0440 ; la phase d’entrée reste donc à qualifier avant
-attribution causale à ce seul changement. La dépendance à l'historique reste
-à expliquer. L’index public CE_B/02CA ne liste que les CRTC3/4 au4novembre. Existe-t-il
+attribution causale à ce seul changement. Une observation FPGA passive conserve exactement les résultats direct4E40/
+parcours0440 et révèle une gestion additionnelle déjà active à l’entrée de S,
+avec C5=24 avant R5=8. Ce ne sont pas des mesures du CPC. Le défaut distinct
+de comptage IVM pendant l’ajustement est spécifié par §11.8 p93 et fait l’objet
+d’une correction ; la phase de C5 reste dans la question séparée. L’index public CE_B/02CA ne liste que les CRTC3/4 au4novembre. Existe-t-il
 une référence CRTC1 pour cette seconde page, ou un état de sortie E à vérifier
 avantP/S ?
 

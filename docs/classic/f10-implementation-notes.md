@@ -60,9 +60,11 @@ behavior, review remediation).
   masked, restarts from the toggled ParityC9 on a match, otherwise steps by two. C9
   itself carries the parity (no C9.VMA split), so RA is the raw counter.
 - Row-end plumbing is split three ways: the frame-structure limit (frame-adj/adjustment
-  entry), the per-line row event (C4 increments at *every* C9 wrap during adjustment per
-  §11.1 — this preserved t08i/j/l bit-identically), and the row-structure test for the
-  VMA reload/save/vsync consumers. Scope note (review N-4): `line_last` itself differs
+  entry), the per-line row event, and the row-structure test for VMA/VSYNC.
+  The initial implementation used a plain C9 wrap during adjustment, preserving
+  the non-IVM t08i/j/l owners but missing French §11.8 p93 continuation of IVM
+  counting. The focused 2026-11-04 repair below addresses that source mismatch.
+  Scope note (review N-4): `line_last` itself differs
   inside type-1 adjustment (it now follows the adjustment end); observable only through
   `line_last_r` after a live type 1→0 switch during adjustment — not a bug, but the
   "outside IVM bit-identical" claim does not extend to that one signal.
@@ -182,8 +184,15 @@ write/value port pairs.
   is pinned, consuming the toggle status immediately; unpinned, documented in the engine.
 - **Type-0 odd-R9 IVM** — resolved: implemented as finding F15 on 2026-08-26 (see the
   odd-R9 entry above); even R9 — everything the tables pin — was never affected.
-- **Adjustment during IVM** (both types): adjustment keeps its plain comparisons; the
-  interaction is unpinned in the source.
+- **Type-1 adjustment during IVM — source mismatch identified 2026-11-04:**
+  French §11.8 p93 explicitly retains interlace C9/C4 counting during R5
+  adjustment; §19.8.2 p226 supplies the Type1 sequence. The earlier plain-
+  comparison treatment is not an unpinned source choice. Both-parity natural
+  entry vectors now fail C9/C4 and public VSYNC before RTL; a focused repair
+  is in progress. C5 lifetime and added-line ownership remain separate.
+  [Proof and current scope](../investigations/hardware-runs/crtc1-interlace-adjustment-counting-2026-11-04.md).
+  The Type0 combination is outside this focused repair and has not been
+  re-audited here.
 - **Same-edge coincidences** (stage edge vs row end vs frame boundary): documented
   priorities in the RTL (stage write wins over parity toggles; `line_new` wins over the
   C9.0 poke) — the coincidences themselves are unpinned.

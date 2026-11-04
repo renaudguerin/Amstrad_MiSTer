@@ -604,7 +604,11 @@ General implementation rules for all fix prompts:
   callouts). Medium overall until hardware: the odd-R9 half (F15), additional interlace line
   (F14), and post-exit frozen C9.VMA (F16) are deliberately unimplemented; the residuals
   listed in `f10-implementation-notes.md` (MID-VSYNC parity source after mid-frame R8 toggles,
-  RFD×IVM, adjustment-during-IVM) are unpinned.
+  RFD×IVM) remain open. Type1 adjustment counting is specified by French
+  §11.8 p93 together with §19.8.2 p226: the current plain-count override is
+  a source mismatch, with a both-parity failing-first counter/VSYNC proof and
+  repair `ccf2be7` passing240CRTC/45selected benches with independent review;
+  native validation remains pending. [Current adjustment finding](../investigations/hardware-runs/crtc1-interlace-adjustment-counting-2026-11-04.md).
 - **Remaining work**: F14/F15/F16 require fixtures before RTL. Q12 is resolved as an English
   qualifier omission: French v1.11 p.208 specifies IVM activation on every frame. The
   odd-C4 transition case still needs local fixtures; the source resolution does not verify
