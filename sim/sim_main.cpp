@@ -3142,11 +3142,59 @@ void test_type0_r4_write_at_c0_1_enters_zero_adjustment(TestBench& test) {
 
 }
 
+// French §11.2.2 p83 and §13.2.4 p108: the first forced additional
+// line still owns R9 while C4=R4. Restoring R9 before R0 can therefore
+// calculate C9=0 at that first boundary; R5 decides whether it is origin
+// or the beginning of the remaining positive adjustment lines.
+void check_type0_first_adjustment_r9_rematch(TestBench& test, unsigned r5) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 8},
+        {5, r5}, {6, 7}, {7, 0}, {8, 0}, {9, 7},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.select_register(9);
+    test.reset();
+    test.run_characters((8 * 8 + 7) * 64);
+    test.expect_byte("R9 rematch source C0=0", 0, test.c0());
+    test.expect_c4("R9 rematch source C4=R4", 8);
+    test.expect_ra("R9 rematch source C9=R9", 7);
+    test.expect_adjustment_inactive("R9 rematch begins on the ordinary terminal line");
+    test.run_characters(1);
+    test.write_selected_register_at_clken(6);
+    for (unsigned c0 = 2; c0 < 64; ++c0) {
+        test.expect_byte("R9 rematch remains on the qualified current line", c0, test.c0());
+        test.expect_c4("R9 rematch holds C4 before its boundary", 8);
+        test.expect_ra("R9 rematch holds C9 before its boundary", 7);
+        test.expect_vsync_low("R9 rematch cannot reach R7=0 before origin");
+        if (c0 == 60) test.write_selected_register_at_clken(7);
+        else test.run_characters(1);
+    }
+    // Positive R5 leaves two actual C4=R4+1 lines, with C9=0,1.
+    // Zero R5 completes before displaying either additional line.
+    for (unsigned line = 0; line < r5; ++line) {
+        test.expect_c4("first R9 rematch advances C4 into positive adjustment", 9);
+        test.expect_ra("positive adjustment follows the R9 reset", line);
+        test.expect_adjustment_active("positive R5 remains active after first R9 rematch");
+        for (unsigned c0 = 0; c0 < 64; ++c0) {
+            test.expect_vsync_low("positive R5 has not yet reached the genuine origin");
+            test.run_characters(1);
+        }
+    }
+    test.expect_c4("first-line R9 rematch commits the derived origin C4", 0);
+    test.expect_ra("first-line R9 rematch commits the derived origin C9", 0);
+    test.expect_adjustment_inactive("first-line R9 rematch completes the selected R5 count");
+    test.run_clock_ticks(1); // unchanged Type0 publication register
+    test.expect_vsync_high("first-line R9 rematch starts genuine R7=0 origin VSYNC");
+}
+
 void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
     check_type0_short_r9_accepting_owner(test);
     // French §11.2.2 p83 / §13.2.4 p108: C9=31->0 while C4=R4
     // remains an R9-phase overflow, not a second simultaneous R5 endpoint.
     check_type0_forced_zero_adjustment(test, false, 6, 7);
+    check_type0_first_adjustment_r9_rematch(test, 0);
+    check_type0_first_adjustment_r9_rematch(test, 2);
     check_type0_forced_zero_adjustment(test, false, 2);
     check_type0_forced_zero_adjustment(test, false, 1);
     test.set_crtc_type(0);
