@@ -1,0 +1,107 @@
+# CPCSyntaxError testing and source comparison
+
+Use CPCSyntaxError for fast, instrumentable SHAKER experiments. Establish which
+observables match the original-CPC photographs before using its implementation
+to explain a MiSTer failure. Its source provides hypotheses; hardware and the
+French ACCC remain the rule authorities. AmSpirit remains our closest software
+reference. Use it when CPCSyntaxError fails
+the relevant hardware comparison or its timing model cannot answer the question.
+
+## Installed tool and source
+
+The user-supplied macOS universal v0.12.0 package is ignored at
+`local/CPCSyntaxError-macos-universal-v0.12.0/` in the main checkout. The current
+validation worktree also has a private copy for headless batches. The package
+keeps settings inside the app: an isolated copy avoids sharing those files with
+the open GUI. Neither the package, its firmware nor captured media belongs in Git.
+
+- Executable: `CPCSyntaxError.app/Contents/MacOS/cpcse` inside the package.
+- Client: `cpcse-ctl` beside the app.
+- Firmware: `CPCSyntaxError.app/Contents/Resources/roms`.
+- Matching source: `~/code/CPCSyntaxError`, tag `v0.12.0`, commit
+  `22de765ef44da46c55217e4dd7caa385d69a6045`.
+- Executable SHA-256:
+  `f4254653b11676055eedd89dcdae6c6aab381835344d69780f56fcbff218a577`.
+
+Read the matching source's `README.md` (CSL/SSM and headless sections) and
+`docs/external-debugging.md` for additional operations. Pin a new binary and
+source revision together before attributing new output to the inspected code.
+
+## Headless CSL batches
+
+The bundled executable runs CSL without opening a window. This route was
+exercised on macOS with the supplied v0.12.0 binary; it does not need the command
+API or a replacement client library. From a checkout with the private inputs:
+
+```sh
+CPCSE_DIR="$PWD/local/CPCSyntaxError-macos-universal-v0.12.0"
+"$CPCSE_DIR/CPCSyntaxError.app/Contents/MacOS/cpcse" \
+  --csl "local/test_media/shaker/CSL_27/MODULE C/SHAKER-C-1.CSL" \
+  --out local/investigations/cpcse-c1-unique-run \
+  --disk-dir local/test_media/shaker \
+  --roms "$CPCSE_DIR/CPCSyntaxError.app/Contents/Resources/roms" \
+  --model cpc6128 --crtc 1 --no-chain --no-errata
+```
+
+Use a fresh output directory. `--no-chain` limits execution to the named script.
+`--no-errata` runs the supplied script without CPCSyntaxError's built-in A-U wait
+extension. The default extension may be useful, but record it rather than
+silently calling the input identical. Keep the author's canonical scripts intact.
+The MiSTer French B-1 key override is specific to its keyboard translation; do
+not automatically apply it to a CPCSyntaxError run with different firmware.
+
+For Plus, use `--model cpc6128plus --crtc 3`. The player boots its configured
+system cartridge into BASIC; record the cartridge named in the log. The first
+pilot used the packaged English Burning Rubber cartridge, whereas MiSTer used
+its pinned French cartridge. That difference is part of the evidence setup.
+
+SSM captures are named `CPCSE_<crtc>_<HHLL>.bmp`; retain the originals and log.
+Convert copies to PNG for inspection if needed. The completion count establishes
+execution coverage, not that every captured page matches hardware. Check page
+parameters and state before comparing pictures, especially dynamic tests.
+
+CSL supports snapshots and explicit snapshot versions 1–3. Verify the saved
+version before interpreting its CRTC-counter fields. Standard snapshots still
+omit some hidden latch/phase history: restarting an initializer from a later
+snapshot is not equivalent to an original boot and can modify the title's RAM.
+
+## Interactive inspection
+
+The open GUI can be driven by its bundled `cpcse-ctl` client once its command
+API is enabled under Settings/Debug → External debugging. It uses newline JSON
+over TCP, **not HTTP**. Its default port 6128 conflicts with AmSpirit's HTTP
+server; configure a distinct port such as 7000 when using both.
+
+```sh
+"$CPCSE_DIR/cpcse-ctl" --port 7000 status
+"$CPCSE_DIR/cpcse-ctl" --port 7000 disasm 0x4000 16
+"$CPCSE_DIR/cpcse-ctl" --port 7000 read 0xC000 32
+```
+
+The source also documents conditional breakpoints, watchpoints, stepping and
+screenshots. These interactive operations have not yet been exercised in this
+toolbelt validation; the verified route is headless CSL. Choose an existing
+configured GUI for live inspection, rather than assuming a listener is running.
+
+## Hardware-backed source investigation
+
+1. Pin the disk, script/history, supported CRTC/revision, firmware and binary.
+   Use fresh v0.12.0 captures; older portal CPCSyntaxError images are not results
+   for this build.
+2. Compare the relevant result with original hardware. Separate counter/status
+   values and intended pixels from monitor-dependent shear, scaling and capture
+   phase. Keep unmatched cases for AmSpirit checks.
+3. Where CPCSyntaxError matches and MiSTer fails, locate the responsible state
+   transition or caller in the pinned source. Trace an observable first
+   divergence rather than copying a whole rule engine.
+4. Check the hypothesis against the French ACCC and turn it into a focused,
+   independently expected failing RTL vector. Then fix, run the selected gate,
+   review and compare a synthesized artifact with SHAKER. Demos are milestone
+   integration checks.
+
+Known limits: its I/O-effect scheduler rounds advancement to character-sized
+steps, so it cannot establish every physical sub-character bus boundary. Its
+monitor renderer is partly fitted to SHAKER photographs. Some source rules
+diverge from author-confirmed behavior; a local success does not validate the
+entire model. See the [source audit](investigations/hardware-runs/emulator-source-author-question-audit-2026-11-03.md)
+and [fresh pilot](investigations/hardware-runs/cpcsyntaxerror-v012-pilot-2026-11-04.md).

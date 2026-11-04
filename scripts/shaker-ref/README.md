@@ -2,7 +2,11 @@
 
 Reference-screenshot tooling for SHAKER comparison. Complements the live
 oracles: [`scripts/amspirit/`](../amspirit/README.md) (local emulator runs)
-and the `mister-capture` skill (device captures).
+and the `mister-capture` skill (device captures). For fresh version-pinned
+CPCSyntaxError CSL/SSM batches and hardware-backed source comparisons, see
+[the CPCSyntaxError guide](../../docs/cpcsyntaxerror-testing.md) and
+[the cpcse-test skill](../../.agents/skills/cpcse-test/SKILL.md). Older portal
+CPCSyntaxError captures are not the installed v0.12.0 baseline.
 
 ## scrape_logon.py
 
