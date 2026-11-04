@@ -788,7 +788,34 @@ always @(posedge CLOCK) begin
 	end
 end
 
-always @(posedge CLOCK) VSYNC <= VSYNC_r; // delay the same as HSYNC to not confuse the GA
+// French ACCC v1.11 §16.2.1 pp161-162: ordinary Type1 GA-black starts
+// one Pixel-M2 after Type0. At production64MHz, delay Type1 publication by
+// four clocks on both edges, preserving the logical pulse width. This is an
+// abstract endpoint model, not a physical flip-flop claim; R7.JIT absolute
+// onset and terminal-row R7 admission remain separate open boundaries.
+reg [3:0] type1_vsync_publication;
+reg vsync_publication_type;
+always @(posedge CLOCK) begin
+    if (!nRESET) begin
+        // Type0 retains its original one-register publication even on reset:
+        // VSYNC_r may still carry the pre-reset level on this edge.
+        VSYNC <= CRTC_TYPE ? 1'b0 : VSYNC_r;
+        type1_vsync_publication <= 0;
+        vsync_publication_type <= CRTC_TYPE;
+    end else begin
+        vsync_publication_type <= CRTC_TYPE;
+        if (SNA_LOAD || CRTC_TYPE != vsync_publication_type) begin
+            // A context replacement discards queued transport history and
+            // rebases to the existing logical level. Classic SNA does not
+            // restore hidden VSYNC_r; do not clear/invent that logical state.
+            VSYNC <= VSYNC_r;
+            type1_vsync_publication <= {4{VSYNC_r}};
+        end else begin
+            type1_vsync_publication <= {type1_vsync_publication[2:0],VSYNC_r};
+            VSYNC <= CRTC_TYPE ? type1_vsync_publication[3] : VSYNC_r;
+        end
+    end
+end
 always @(posedge CLOCK) begin
 	reg  [3:0] vsc;
 

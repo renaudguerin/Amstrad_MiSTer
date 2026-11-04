@@ -18,6 +18,7 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+struct NjitSample { unsigned tick,rgb,mode,c0,row,raster; bool pixel,logical,raw,black; };
 struct PixelSample { unsigned rgb, mode; };
 struct SourceCapture { std::vector<PixelSample> pixels; unsigned write_phase=0, write_seq=0; };
 
@@ -158,6 +159,62 @@ public:
         while(dut_->CRTC_C0<28) clock();
         capture_=false;
         return {captured_,accepted_phase_,accepted_seq_};
+    }
+
+    std::vector<NjitSample> ordinary_vsync_capture(bool unblanked) {
+        // French ACCC §16.2.1 p162 ordinary NJIT. Setup writes are early;
+        // onset comes from the natural row comparator, not host CPU release.
+        source_memory_=true;
+        for(unsigned i=0;i<ram_.size();i++) ram_[i]=(i&1)?0x00:0xaa;
+        configure(46,0x8e);
+        write_crtc(1,40);write_crtc(4,38);write_crtc(6,25);
+        write_crtc(7,unblanked?127:10);
+        for(unsigned i=0;i<16;i++) {
+            write_io(0x7fff,i);write_io(0x7fff,0x40|(i==1?0x0c:0x0b));
+        }
+        write_io(0x7fff,16);write_io(0x7fff,0x4b); // nonblack border
+        write_io(0x7fff,0x82);
+        wait_for("ordinary Mode2",[&]{return dut_->GA_VIDEO_MODE==2;},2000000);
+        // Settle the configured frame; these predicates start observation,
+        // never release CPU, change counters or define the pixel phase.
+        wait_for("ordinary leave frame origin",[&]{return dut_->CRTC_ROW==1;},2000000);
+        wait_for("ordinary fresh frame origin",[&]{return dut_->CRTC_ROW==0 && dut_->CRTC_RASTER==0;},2000000);
+        wait_for("ordinary prior two lines",[&]{return dut_->CRTC_ROW==9 && dut_->CRTC_RASTER==6 && dut_->CRTC_C0==0;},2000000);
+        if(dut_->CRTC_VSYNC_RAW) throw TestFailure("ordinary pulse already active before row10");
+        njit_samples_.clear();njit_capture_=true;
+        wait_for("ordinary row10 observer end",[&]{return dut_->CRTC_ROW==10 && dut_->CRTC_RASTER==0 && dut_->CRTC_C0==8;},2000000);
+        njit_capture_=false;
+        return njit_samples_;
+    }
+
+    std::vector<NjitSample> ordinary_full_pulse() {
+        ordinary_vsync_capture(false);
+        njit_capture_=true;
+        wait_for("ordinary published pulse end",[&]{return !dut_->CRTC_VSYNC_LOGICAL && !dut_->CRTC_VSYNC_RAW;},200000);
+        njit_capture_=false;
+        return njit_samples_;
+    }
+
+    void publication_context(unsigned kind,unsigned age,bool falling) {
+        ordinary_vsync_capture(false);
+        wait_for("publication first logical fall",[&]{return !dut_->CRTC_VSYNC_LOGICAL;},200000);
+        if(!falling)wait_for("publication next logical rise",[&]{return bool(dut_->CRTC_VSYNC_LOGICAL);},2000000);
+        for(unsigned i=0;i<age;i++)clock();
+        const bool logical=dut_->CRTC_VSYNC_LOGICAL;
+        if(logical==bool(dut_->CRTC_VSYNC_RAW))throw TestFailure("context control missed candidate pending transport window");
+        if(kind==0)dut_->RESET_N=0;
+        if(kind==1)dut_->SNA_LOAD=1;
+        if(kind==2)dut_->CRTC_TYPE=0;
+        clock();
+        const bool expected=kind==0?false:logical;
+        if(bool(dut_->CRTC_VSYNC_RAW)!=expected)throw TestFailure("replacement did not normalize publication to current logical level");
+        if(kind==1 && bool(dut_->CRTC_VSYNC_LOGICAL)!=logical)throw TestFailure("SNA unexpectedly replaced hidden logical VSYNC");
+        dut_->RESET_N=1;dut_->SNA_LOAD=0;
+        for(unsigned i=0;i<20;i++) {
+            clock();
+            if(bool(dut_->CRTC_VSYNC_RAW)!=expected)throw TestFailure("old publication edge leaked after context replacement");
+        }
+        std::cout<<"PASS  publication_context kind="<<kind<<" age="<<age<<" falling="<<falling<<" logical="<<logical<<" normalized="<<expected<<'\n';
     }
 
     void write_selected(std::uint8_t value) {
@@ -353,8 +410,11 @@ private:
             const unsigned addr=(unsigned(dut_->VRAM_ADDR)<<1) | (dut_->GA_SEQ==3);
             dut_->RAM_DIN=ram_[addr]; eval();
         }
+        const bool njit_pixel_edge=dut_->CEN_16; // old CE actually consumed by GA
         dut_->clk = 1;
         eval();
+        ++master_ticks_;
+        if(njit_capture_) njit_samples_.push_back({master_ticks_,rgb(),unsigned(dut_->GA_VIDEO_MODE),unsigned(dut_->CRTC_C0),unsigned(dut_->CRTC_ROW),unsigned(dut_->CRTC_RASTER),njit_pixel_edge,bool(dut_->CRTC_VSYNC_LOGICAL),bool(dut_->CRTC_VSYNC_RAW),bool(dut_->GA_VBLANK_RAW)});
 
         if(capture_) captured_.push_back({rgb(), unsigned(dut_->GA_VIDEO_MODE)});
 
@@ -447,6 +507,9 @@ private:
     std::unique_ptr<VerilatedContext> context_;
     std::unique_ptr<Vga40010_test> dut_;
     bool source_memory_=false, capture_=false;
+    bool njit_capture_=false;
+    unsigned master_ticks_=0;
+    std::vector<NjitSample> njit_samples_;
     std::array<std::uint8_t,65536> ram_{};
     std::vector<PixelSample> captured_;
     unsigned accepted_phase_=0, accepted_seq_=0;
@@ -572,11 +635,132 @@ void source_byte_windows() {
     if(failed) throw TestFailure(std::to_string(failed)+" source-derived byte windows failed");
 }
 
+void ordinary_njit_words() {
+    // Technical information: ACCC by Longshot (CC BY-NC-ND4.0).
+    // Independent oracle: rendered French ACCC v1.11 §16.2.1 p162:
+    // ordinary Type0=5th/Type1=6th Mode2 pixel of the preceding VMA word.
+    // Normal-boot original guest optical controls independently give5/6.
+    // No expected mastertick, counter phase or candidate delay binds origin.
+    unsigned failures=0;
+    for(bool type:{false,true}) {
+        Bench base(type);auto unblanked=base.ordinary_vsync_capture(true);
+        Bench run(type);auto actual=run.ordinary_vsync_capture(false);
+        if(unblanked.size()!=actual.size()) throw TestFailure("NJIT matched observation windows differ in length");
+        // Baseline R7=127 has no VSYNC. Its natural row9->10 seam selects
+        // the preceding scanline independently of the tested black/rawVS edge.
+        size_t seam=unblanked.size();unsigned seams=0;
+        for(size_t i=1;i<unblanked.size();i++)
+            if(unblanked[i-1].row==9 && unblanked[i].row==10 &&
+               unblanked[i].raster==0 && unblanked[i].c0==0){seam=i;++seams;}
+        if(seams!=1)throw TestFailure("NJIT baseline lacks one natural row9->10 seam");
+        size_t vs=actual.size(),ga=actual.size(),logical=actual.size();
+        for(size_t i=1;i<actual.size();i++) {
+            if(logical==actual.size() && actual[i].logical && !actual[i-1].logical)logical=i;
+            if(vs==actual.size() && actual[i].raw && !actual[i-1].raw)vs=i;
+            if(ga==actual.size() && actual[i].black && !actual[i-1].black)ga=i;
+        }
+        if(vs==actual.size()||ga==actual.size()||logical==actual.size())throw TestFailure("ordinary logical/rawVS/GAblack onset absent");
+        std::vector<size_t> pixels;
+        for(size_t i=0;i<actual.size();i++) {
+            if(unblanked[i].pixel!=actual[i].pixel)throw TestFailure("NJIT unblanked/run CE16 grids differ");
+            if(actual[i].pixel)pixels.push_back(i);
+            if(unblanked[i].raw)throw TestFailure("NJIT unblanked R7=127 control produced rawVS");
+        }
+        for(size_t i=1;i<pixels.size();i++) if(pixels[i]-pixels[i-1]!=4)throw TestFailure("NJIT irregular postCE16 pixel grid");
+        size_t black=pixels.size();
+        for(size_t i=0;i<pixels.size();i++) if(pixels[i]>=vs && actual[pixels[i]].rgb==0){black=i;break;}
+        if(black==pixels.size())throw TestFailure("ordinary RGB black absent after rawVS");
+        for(size_t i=0;i<pixels[black];i++)if(actual[i].rgb!=unblanked[i].rgb)throw TestFailure("NJIT preblack RGB does not match nonblack control");
+        if(unblanked[pixels[black]].rgb==0)throw TestFailure("NJIT first black overlaps baseline HSYNC blank");
+        std::array<unsigned,64> freq{};
+        for(auto i:pixels)if(i<seam && unblanked[i].rgb)freq[unblanked[i].rgb]++;
+        unsigned pen0=0,pen1=0,colors=0;
+        for(unsigned i=1;i<64;i++)if(freq[i]){colors++;if(freq[i]>freq[pen0])pen0=i;}
+        for(unsigned i=1;i<64;i++)if(i!=pen0 && freq[i]>freq[pen1])pen1=i;
+        if(colors!=2 || pen0==pen1)throw TestFailure("NJIT nonblack AA00 palette binding missing");
+        std::array<unsigned,16> pattern{};
+        for(unsigned i=0;i<16;i++)pattern[i]=(i<8 && !(i&1))?pen1:pen0;
+        std::vector<size_t> windows;
+        for(size_t i=0;i+64<=pixels.size() && pixels[i+63]<seam;i++) {
+            bool match=true;
+            for(unsigned j=0;j<64;j++) match &= unblanked[pixels[i+j]].rgb==pattern[j%16];
+            if(match)windows.push_back(i);
+        }
+        if(windows.empty())throw TestFailure("NJIT no four complete observed AA00 words");
+        const size_t origin=windows.back()+48;
+        for(auto i:windows)if((i+16-origin%16)%16)throw TestFailure("NJIT ambiguous observed16pixel lattice");
+        // French §16.2.1 pp161-162: display is one character behind the
+        // CRTC; the NJIT edge belongs to preceding displayed columnR0=63.
+        // Baseline's last complete active word is columnR1-1=39. Confirm its
+        // full40-word run, then advance(63-39)=24words. Never select a word
+        // from actual black/rawVS; an entire-word-late edge must fail.
+        constexpr size_t line_words=64,display_words=40,word_pixels=16;
+        if(origin<(display_words-1)*word_pixels)
+            throw TestFailure("NJIT full active baseline run missing");
+        const size_t active_start=origin-(display_words-1)*word_pixels;
+        for(size_t j=0;j<display_words*word_pixels;j++)
+            if(unblanked[pixels[active_start+j]].rgb!=pattern[j%word_pixels])
+                throw TestFailure("NJIT baseline is not40 complete active AA00 words");
+        const size_t word=origin+(line_words-display_words)*word_pixels;
+        if(word+2*word_pixels>pixels.size())throw TestFailure("NJIT expected word outside capture");
+        // Independently cross-check the next visible row0 word after the
+        // baseline seam: its first complete AA00 word follows our border
+        // word by16pixels. No actual sync/black observation participates.
+        size_t next_word=pixels.size();
+        for(size_t i=0;i+64<=pixels.size();i++)if(pixels[i]>=seam) {
+            bool match=true;
+            for(unsigned j=0;j<64;j++)match &= unblanked[pixels[i+j]].rgb==pattern[j%16];
+            if(match){next_word=i;break;}
+        }
+        if(next_word!=word+word_pixels)
+            throw TestFailure("NJIT preceding word disagrees with next baseline row0 word");
+        for(unsigned i=0;i<16;i++)
+            if(unblanked[pixels[word+i]].rgb!=pen0)
+                throw TestFailure("NJIT extrapolated edge word is not unblanked border");
+        const long long observed=static_cast<long long>(black)-static_cast<long long>(word)+1;
+        const unsigned expected=type?6:5;
+        const bool passed=observed==expected;
+        std::cout<<(passed?"PASS  ":"FAIL  ")<<"ordinary_NJIT_word type="<<type<<" expected="<<expected<<" observed="<<observed
+                 <<" windows4="<<windows.size()<<" verified_origin_pixel="<<origin<<" extrapolated_word_pixel="<<word
+                 <<" RGBblack_pixel="<<black<<" logical/raw/GA_ticks="<<logical<<'/'<<vs<<'/'<<ga<<" directAA00=0\n";
+        failures+=!passed;
+    }
+    std::cout<<"NJIT_PAIR: "<<(2-failures)<<" passed, "<<failures<<" failed\n";
+    if(failures)throw TestFailure("ordinary NJIT source-derived pixel words failed");
+}
+
+void publication_width_and_context() {
+    Bench b(true);auto v=b.ordinary_full_pulse();
+    size_t lr=v.size(),lf=v.size(),pr=v.size(),pf=v.size();
+    for(size_t i=1;i<v.size();i++) {
+        if(v[i].logical && !v[i-1].logical && lr==v.size())lr=i;
+        if(!v[i].logical && v[i-1].logical && lf==v.size())lf=i;
+        if(v[i].raw && !v[i-1].raw && pr==v.size())pr=i;
+        if(!v[i].raw && v[i-1].raw && pf==v.size())pf=i;
+    }
+    if(lr==v.size()||lf==v.size()||pr==v.size()||pf==v.size())throw TestFailure("ordinary complete pulse lacks edge");
+    // Fixed Type1 16line pulse; standard64chars/line and64masterticks/char.
+    // This pins the source width, not the candidate's fourtick pipe formula.
+    if(lf-lr!=16*64*64 || pf-pr!=lf-lr)throw TestFailure("publication changed ordinary16line width");
+    if(pr-lr!=pf-lf)throw TestFailure("publication rising/falling phase differs");
+    unsigned logical_rises=0,raw_rises=0;
+    for(size_t i=1;i<v.size();i++){logical_rises+=v[i].logical&&!v[i-1].logical;raw_rises+=v[i].raw&&!v[i-1].raw;}
+    if(logical_rises!=1||raw_rises!=1)throw TestFailure("publication duplicated ordinary pulse");
+    std::cout<<"PASS  publication_ordinary_width logical="<<(lf-lr)<<" published="<<(pf-pr)<<" on/off_delay="<<(pr-lr)<<'/'<<(pf-lf)<<" rises="<<logical_rises<<'/'<<raw_rises<<" GAblack_after_rawfall="<<v.back().black<<'\n';
+    // Engineering history/cancellation controls, not silicon SNA phase rules.
+    // Both ends of the private pending window; no production state injection.
+    for(unsigned kind:{0u,1u,2u})for(unsigned age:{0u,3u})for(bool falling:{false,true}) {
+        Bench c(true);c.publication_context(kind,age,falling);
+    }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     try {
+        if(argc==2 && std::string(argv[1])=="--publication-only") { publication_width_and_context(); return 0; }
+        if(argc==2 && std::string(argv[1])=="--njit-only") { ordinary_njit_words(); return 0; }
         source_byte_windows();
         for(bool type:{false,true}) for(unsigned kind:{0u,1u,2u}) for(unsigned delay:{0u,7u}) {
             Bench cancel(type);cancel.check_jit_cancellation(kind,delay);
@@ -645,6 +829,8 @@ int main(int argc, char** argv) {
         std::cout << "PASS  invisible_restart_mode_qualification\n";
         Bench infinite(true);
         infinite.check_infinite_restart();
+        ordinary_njit_words();
+        publication_width_and_context();
     } catch (const std::exception& error) {
         std::cerr << "FAIL  r2jit_integrated_controls\n      " << error.what() << '\n';
         return 1;
