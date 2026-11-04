@@ -59,8 +59,8 @@ B6/019D remains fifth/fourth 1F/1F versus 1E/1F, with its other displayed R0
 controls still GOOD. Uniform publication does not repair equality admission.
 
 The same canonical C1 prefix completes 131 commands/64 captures/121 records without
-capture errors, but S changes 0640→9600 WRONG, still versus 4E40. Direct-S on
-this source is pending. This establishes sensitivity to a changed PPI-visible
+capture errors, but S changes 0640→9600 WRONG, still versus 4E40. Fresh direct S on
+this source gives 4E40 (10 commands, one capture, zero failures, one SSM record). This establishes sensitivity to a changed PPI-visible
 edge/entry path; it does not identify a C5 mechanism or justify dismissing a
 computed result as screenshot phase. Keep 599 as the conservative comparison.
 
@@ -98,3 +98,36 @@ SSH authentication before a new accepted capture. One clean SSH retry was
 also denied; root requested the user's SSH-agent restoration asynchronously.
 Last confirmed device state is e574/C1/S9600, not a completed A4 experiment.
 Device authorization remains available; authentication is the blocker.
+
+## Subsequent bounded DSC4 control
+
+On e574a46, the existing CRTC1 DSC4 recipe completes19commands/fourcaptures/
+zero failures/zeroSSM records. Parent viewed all four images: the credits'
+colons and names remain clear, and static/main/later rotating/fire bands
+remain visible. This preserves bounded regression acceptance, not complete
+demo or monitor-edge acceptance. Evidence: r7-njit-control/device-c1-dsc4-e574/.
+
+SSH was subsequently verified outside the sandbox and the hardware runs
+resumed without user authentication changes. The earlier access failure
+remains recorded; it is no longer a device availability blocker.
+
+The matching bounded CRTC1 Amazing recipe also completes13commands/two
+captures/zero failures/zeroSSM records on e574a46. Parent viewed both: the
+animated logo and lower text/QR region remain visible. This is sampled
+regression acceptance, not full-demo completion. Evidence:
+r7-njit-control/device-c1-amazing-e574/.
+
+## 9a91920 targeted CRTC0 acceptance
+
+The subsequent [canonical-row VSYNC correction](crtc0-r4-switch-vsync-2026-11-04.md)
+has full timing and exact-source native acceptance for E6 case25=051B.
+Direct E6 completes16commands/fourcaptures/zero failures/nineSSM records;
+11/28 unique printed checks remain wrong. The linked report records the
+complete tally, build/hash and correction to the earlier0003/0037 reading.
+
+The CRTC0 DSC4 recipe on the same installed RBF completes19commands/fourcaptures/
+zero failures/zeroSSM records. Root viewed every PNG: four colons and names
+are clear, with the static picture and sampled rotating/fire-band effects
+visible. This preserves bounded regression acceptance, not full-demo or
+physical monitor acceptance. Evidence: c0-row-vsync-build/device-c0-dsc4-9a91920/.
+Current MiSTer state is this CRTC0 DSC4 run; no hardware job is active.

@@ -3,7 +3,8 @@
 A focused counter/output proof exposes a definite defect independently of the
 SHAKER caller's final number. An R4 write selects vertical adjustment and holds
 C4, but the VSYNC engine compares a proposed next row that is never entered.
-The candidate uses the canonical row transition. Native acceptance is pending.
+Fix `9a91920` uses the canonical row transition. The exact-source native E6
+run repairs case 25 to 051B; eleven of 28 printed checks still fail.
 
 ## Source and failing proof
 
@@ -47,14 +48,50 @@ trace or the printed SHAKER expectation.
 Fresh Gemini4Argon high review20261104T193542Z-59624-bee9 accepts the frozen
 three-file change. Parent independently verifies its SHA256 hashes against the
 author freeze and current files; no later code edit or repeated gate. An
-exact-source RBF/device check is still required before accepting this as a
-SHAKER repair. Current 599 case25 reads 0037 versus 051B;
-this focused proof does not assert that full caller number or establish its
-absolute write phase. Earlier source audits confused case22 with passing
-case24 and reused a historical 0003 result; those proposed causes are rejected.
+exact-source RBF/device check now qualifies the targeted SHAKER repair.
+The full [workflow 41900154684](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41900154684)
+passes all jobs. Artifact 13359402650, `Amstrad-build-360-1-full`, contains
+`Amstrad_20261104_9a91920.rbf` (3,145,108 bytes), SHA256
+`eadc739cb8809236df65866ad36f99b9b6ba1dd04c22e71d507318e53d0c5576`.
+Quartus 17.0.2.602 full compilation reports seven setup/hold groups, zero TNS,
+minimum setup/hold 0.585/0.242 ns and no errors or critical warnings. The
+installed MiSTer file has the same hash.
+
+## Native E6 acceptance and corrected reading
+
+The same direct CRTC0 E6 recipe completes 16 commands, four captures, zero
+capture failures and nine SSM records on the installed author disk
+6b9ff106…eb61, Full sync filter. Parent inspected every PNG and the enlarged
+before/after numerical panel. Compared with 599:
+
+| Case | 599 | 9a91920 | Printed expectation |
+|---|---|---|---|
+|19|0003|002B|00A3|
+|25|0003|051B|051B|
+
+Only these two numerical rows change. Pages 0407 and 040A are pixel-identical;
+5/14/21/24 retain 00C0/0D97/0066/000E. Eleven of 28 unique printed checks fail:
+2, 4, 6, 8, 9, 10, 16, 17, 19, 27 and 28. This is a program self-check tally,
+not an original-CPC photo comparison or a full CRTC0 compliance percentage.
+
+The earlier parent reading of case 25 as 0037 was wrong: the original 599
+PNG says 0003. A one-off decoder now matches eight-pixel glyphs learned from
+immutable case labels, fixed text and source-compiled EXP fields, independently
+of the measured actual values. Its complete old/new ledger is retained as
+`c0-row-vsync-build/e6-decoded-tally.json`. The initial source audit correctly
+read 0003; its causal claim still failed to account for C4's row_new gating.
+The case22/case24 naming confusion is separate. The accepted defect is the
+stable discarded VSYNC proposal demonstrated by the counter/output proof,
+not a trajectory inferred from one printed scalar.
+
+The same artifact's bounded CRTC0 DSC4 control completes19commands/fourcaptures/
+zero failures/zeroSSM records. Root inspected all four: credit colons/names
+and sampled main/static/rotating/fire-band views remain visible. This does not
+close the separate mixed-mode partial-pixel defect or prove full-demo fidelity.
 
 Evidence: ignored `resumed-20261104/e6-r4-vsync-proof/` and
-`resumed-20261104/e6-r4-vsync-fix/`. No broad baseline follows from this unit.
+`resumed-20261104/e6-r4-vsync-fix/` and
+`resumed-20261104/c0-row-vsync-build/`. No broad baseline follows from this unit.
 
 Technical information sourced from the Amstrad CPC CRTC Compendium by Longshot
 (CC BY-NC-ND 4.0).

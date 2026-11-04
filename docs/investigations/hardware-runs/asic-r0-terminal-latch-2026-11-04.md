@@ -312,6 +312,14 @@ preserves those bounded observations.
 
 ### A4 is not fully compliant
 
+**Correction, 4 November:** the earlier last-four-row 1/1 interpretation below
+was an E/F glyph misreading. A loss-free native result observer gives 0/0,
+and the new original page is pixel-identical to 7ac11a2. First/third 0/1 versus
+the older photo’s 1/1 remain open, with revision/history binding unproved.
+[Native result qualification](asic-a4-native-results-2026-11-04.md) supersedes
+the following residual analysis; no ASIC timing change follows from that
+withdrawn last-four-row claim.
+
 The lower eight printed PPI words still differ. Masking away other PPI bits,
 the original Plus photo has bit0 pairs1/1 in the first four rows and0/0 in the
 last four. New7ac11a2 shows1/1 throughout; the prior3113323 last four showed0/1.

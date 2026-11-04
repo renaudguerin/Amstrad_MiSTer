@@ -15,8 +15,13 @@ instructions across handoffs and context compaction.
 
 ## Branch and current artifacts
 
-- Active branch: `codex/overnight-validation-20261103`, code tip `e574a46`.
+- Active branch: `codex/overnight-validation-20261103`, RTL tip `9a91920`, tooling tip `ccd49d4`.
   It is distinct from integrated `master`; no integration or release is implied.
+- Latest targeted build: `Amstrad_20261104_9a91920.rbf`, SHA256
+  `eadc739cb8809236df65866ad36f99b9b6ba1dd04c22e71d507318e53d0c5576`.
+  [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41900154684)
+  passes all jobs, setup/hold 0.585/0.242 ns. Native C0 E6 case 25 is now 051B;
+  11/28 printed checks remain wrong. This artifact is installed on the MiSTer.
 - Conservative hardware comparison: `Amstrad_20261104_599ca80.rbf`, SHA256
   `8c21cfeb24ed5cb33570e04a93add45aefb146f82e2dd169385b34059f02c87f`.
   [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893)
@@ -27,7 +32,7 @@ instructions across handoffs and context compaction.
   [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41881983617)
   passes all jobs, setup/hold 0.575/0.243 ns. E/P is pixel-identical to 599 and DI/B6
   retain their known residuals; full-history S changes 0640→9600, still wrong.
-  Direct S on this source is pending. Its ordinary fifth/sixth-pixel correction
+  Direct S on this source is 4E40. Its ordinary fifth/sixth-pixel correction
   is source/reference/bench-proven, not a measured native-PNG endpoint.
   [Exact targeted results and limits](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
 - ASIC acceptance remains bounded on `275af8a`: DSC4 colons/names and sampled
@@ -48,17 +53,25 @@ our closest software reference, not the hardware oracle.
 
 ### Classic CRTC 0/1
 
-- C0 E6 on 599 repairs cases 5/14 to 00C0/0D97 and retains 21/24=0066/000E.
-  Twelve of 28 printed self-checks still differ; this is not a photo failure
-  denominator. Case 16's zero-R5 lifetime remains a source question. The audit's
-  brief confused cases 22 and 24; both pass. Case 25 remains 0037 versus 051B,
-  and its proposed cause needs correction against current state gating. [Last Line proof](investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md),
+- C0 E6 on `9a91920` fixes case 25 from 0003 to 051B, following the canonical
+  row-commit VSYNC correction. Case 19 changes 0003→002B versus 00A3; 11/28
+  printed checks still fail. The prior parent 0037 reading was wrong. Cases
+  5/14/21/24 retain their corrected values. Case 16's zero-R5 lifetime and
+  case 28's post-entry R4 re-match remain source questions. The failing-first
+  proof, 240-case CRTC suite, selected gate, independent review, full synthesis
+  and exact-source targeted native run all pass their stated bounds.
+  [Last Line proof](investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md),
+  [VSYNC proof and native result](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md),
   [unsent C0 question](classic/accc-author-questions-crtc0-c0-1-2026-11-04-fr.md).
 - C1 E is 0080 on native direct and canonical-history paths; all seven numeric
   controls and P26 remain. S remains history-sensitive: 599 full 0640/direct 4E40,
-  e574 full 9600/direct pending. The cached CS photograph appears 4E30, so exact
+  e574 full 9600/direct 4E40. The cached CS photograph appears 4E30, so exact
   photo/program revision binding also needs clarification. Preserve the current
-  program's 4E40 expectation. [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
+  program's 4E40 expectation. Matched original-caller AmSpirit direct/history
+  runs both give 4E40/1,188 polls despite three versus six failed acquisition
+  retries; every checkpoint's CRTC register array matches. Retry count alone
+  does not explain the native failure. A bounded default-off passive FPGA
+  observer is being prepared; no counter model is selected. [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
   [S evidence](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
 - DSC4 credit colons are visible on CRTC 0/1 after `db4be80`; the unchanged
   bottom row matches all 768 pixels of the uncropped AmSpirit reference, outside
@@ -91,12 +104,13 @@ our closest software reference, not the hardware oracle.
   alignment is measured, not a literal silicon-stage claim. Wider mixed-mode
   and full-demo acceptance remain outside this result.
   [Boundary evidence](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md).
-- A4 lower VSYNC-bit words differ from the original Plus; native result RAM
-  is still unknown. A new A4-only diagnostic uses unselected test8 code after
-  measurements; strict menu-to-hook equivalence and 16 marker transport checks
-  pass, followed by independent parent review. Paired original/diagnostic native
-  checks await SSH restoration. The rejected stack-overlapping padding probe
-  remains rejected. [A4 evidence](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md).
+- A4 native result observation corrects the earlier E/F glyph reading: the
+  last four rows already have VSYNC bits 0/0, and the current original page is
+  pixel-identical to 7ac11a2. The first/third rows remain 0/1 versus the older
+  physical photo's 1/1, with exact program/history binding unproved. The safe
+  observer's complete marker burst and identical page qualify the raw bits;
+  its runner false-timeout is fixed separately in `ccd49d4`.
+  [Native A4 evidence](investigations/hardware-runs/asic-a4-native-results-2026-11-04.md).
 - General DMA PAUSE/PPR/REPEAT boundaries, exact interrupt phase, PA3 early-arm
   and last-adjustment controls, and named model/disk/reset acceptance remain
   open. Sonic's title and bounded gameplay are hardware accepted; general DMA
@@ -134,9 +148,9 @@ our closest software reference, not the hardware oracle.
   CPCSyntaxError v0.12.0 and matching source are instrumentable. The MiSTer
   hardware loop, CSL/SSM and native capture are working tools, subject to the
   page-state and display limits above. One operator owns shared MiSTer and
-  AmSpirit access. Device use remains authorized; SSH signing/authentication
-  failed after the e574 S capture and a clean retry. Restoration was requested
-  asynchronously; source/simulation work continues. [AmSpirit tooling](investigations/hardware-runs/amspirit-lite-1.17-tooling.md),
+  AmSpirit access. Device use remains authorized. Sandboxed SSH signing/authentication failed;
+  an approved read-only check outside the sandbox succeeded. Captures now use
+  that execution path; no user SSH-agent action is needed. [AmSpirit tooling](investigations/hardware-runs/amspirit-lite-1.17-tooling.md),
   [CPCSyntaxError guide](cpcsyntaxerror-testing.md),
   [hardware loop](investigations/hardware-runs/mister-hardware-loop-driver.md).
 - FDC full-sector result/ST1, classic AMSDOS and hardware acceptance remain open;

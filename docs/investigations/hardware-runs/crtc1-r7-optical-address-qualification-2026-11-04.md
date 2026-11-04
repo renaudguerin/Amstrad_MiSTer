@@ -80,3 +80,15 @@ candidate, source-derived expected value or retained test was changed here.
 
 Technical information sourced from the Amstrad CPC CRTC Compendium by Longshot
 (CC BY-NC-ND4.0).
+
+## Subsequent bounded CPCSE loader qualification
+
+One UK coldboot uses the explicit R7I0.BIN filename and a 10-second post-input
+wait. All 623 guest bytes match, hide/target R7 writes occur at expected PCs,
+and the final snapshot reaches the original HALT/SP guard. PPI bit0 is 1,
+normal fall count 64 with timeout 0; target trace is C0=0/C4=10/C9=1 at
+character-rounded dispatch. Root viewed the final PNG and checked provenance.
+The combined loading changes qualify that recipe without isolating the old
+extension-fallback versus motor-delay cause. No sibling was run. This supplies
+a successful software peer observation, not a subpixel or physical verdict.
+Evidence: resumed-20261104/cpcse-r7-loader-qualification/.

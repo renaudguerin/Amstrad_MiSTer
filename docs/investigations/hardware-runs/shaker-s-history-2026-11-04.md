@@ -1,8 +1,8 @@
 # SHAKER CRTC1 S: history-sensitive result — 4 November 2026
 
-Test S (`02D3`) is not closed. The latest full C1 walk prints0640 instead of
-the current program expectation4E40, while direct entry on the same RBF
-prints4E40. Keep the numerical failure; its cause is not established by the
+Test S (`02D3`) is not closed. The 599 full-history path prints 0640 and
+e574 prints 9600, while direct entry on either artifact prints the current
+program expectation 4E40. Keep the numerical failure; its cause is not established by the
 changed screenshot alone.
 
 ## Exact observations
@@ -36,8 +36,8 @@ On599ca80, the exact canonical prefix through S completes131commands,
 fresh direct S remains4E40. E now prints0080 in both paths and P remains26.
 On e574a46, whose additional change shifts Type1 published VSYNC by one
 Pixel-M2 without changing logical counters, the same prefix completes but
-S prints9600 WRONG versus the same4E40 expectation. Direct S on that source
-is pending. This isolates sensitivity to the changed PPI-visible phase/entry
+S prints9600 WRONG versus the same4E40 expectation. Fresh direct S on that source gives 4E40 (10 commands, one capture, zero
+failures, one SSM record). This isolates sensitivity to the changed PPI-visible phase/entry
 path, not a proven C5 mechanism. [Exact artifacts and bounds](classic-targeted-milestones-2026-11-04.md).
 
 The cached physical photograph CS_02D3_A.webp, SHA256
@@ -76,3 +76,68 @@ Evidence is under ignored `local/overnight-20261103/milestone-next/`:
 `c1-device-db4be80/`, `c1-comparison/`, `s-only.CSL`, `s-only-db4be80/` and
 `s-only-8dde1e7/`. The source/rule questions in the unsent C5 follow-up remain
 open; this result does not choose an adjustment-counter lifetime model.
+
+## Qualified caller facts and next observation
+
+Original BIN SHA256 3647e120…682f was byte-checked. Acquisition A067/A069
+writes R8=3 then 0 using the inherited live R9; the S path programs R9=7 only
+later at 5BE7. A prior source audit's steady-IVM timeline is rejected. Including
+CALL/helper/branch overhead, equal retry probes are 19,969 nominal CPC µs
+apart, giving +1 µs drift against a 19,968 µs frame. An extra retry does not
+automatically determine later parity because the acquisition pulse and fresh
+IVM request also affect it.
+
+The loop computes 16*(64+N) modulo 65,536. Thus 0640 means N=36 modulo 4096 and
+9600 means N=2336 modulo 4096, not an observed exact frame-length timeline.
+A passive first A4CF→successful A4DE timestamp pair gives 10+19969F µs for F
+failed retries; first 5B0A→first 5B17 gives 4+16N µs, cross-checked with raw HL,
+provided the API's instruction-clock semantics qualify. Current v2 SNA counter
+fields remain unavailable; no zeros may be substituted.
+
+## Matched original-caller AmSpirit discriminator
+
+A qualified original-normal-boot direct/history pair now completes on AmSpirit
+Lite1.17.1/core2491682, CPC6128/CRTC1A/128K/French. Both paths use the installed
+author disk and unchanged BIN3647e120…682f. The history input is the canonical
+142-line prefix through S, without splitting P/S into separate host jobs. Source,
+code-bank, CALL operand, stack-return and instruction guards all pass. Root
+inspected all ten live checkpoint images and the final02D3 image in each path.
+
+| Observation | Direct | Canonical history |
+|---|---:|---:|
+|Failed acquisition retries|3|6|
+|First A4CF→successful A4DE|59,917 µs|119,824 µs|
+|A067→A06B, R8=3→0|8 µs|8 µs|
+|Inherited R9 for that pulse|7|7|
+|5B0A→5B17|19,012 µs|19,012 µs|
+|Raw HL before doubling|04E4|04E4|
+|Poll count / wrap|1,188 / none|1,188 / none|
+|Computed and printed result|4E40|4E40|
+
+All ten checkpoint CRTC register arrays match between paths. These measured
+instruction-clock deltas satisfy10+19969F and4+16N respectively. Different
+retry counts alone do not flip this software-reference result. The R8 pulse
+and fresh IVM request make a simple inherited-parity argument insufficient.
+Classic v2 SNA counter fields remain unavailable; they are not zeros or an
+observed C0/C4/C9/parity tuple. Live screenshots do not supply that hidden state.
+
+The positive-R5 C5 restart guard has not been observed in the native caller
+and is not yet implicated. The next useful observation is passive live FPGA
+state at the original fetch checkpoints. Existing SSM/SNAP wiring has most
+counters but lacks parity/effective-IVM state and a lossless checkpoint queue;
+a bounded default-off diagnostic is being prepared. No guest-state patch,
+CPU pause, counter model change or altered printed expectation is authorized
+by the matched pair. AmSpirit is left paused after the completed history S;
+its temporary breakpoints/scripts are cleared.
+
+Private evidence: `resumed-20261104/c1-s-caller-qualified/` and
+`c1-s-original-capture/runs/run-direct-002/`, `runs/run-history-001/`, plus
+`direct-history-comparison.json`. The initial capture helper had a constructor
+keyword error before its first HTTP call; it was corrected and statically
+bound before the accepted runs. It contributes no guest-state evidence.
+
+A focused live [portal index](https://shaker.logonsystem.eu/api/tests) recheck
+on4November finds67test entries and no moduleE. CE_B/02CA explicitly lists
+only CRTC3/4; there is no listed CRTC1 reference for that second E page. This
+qualifies the photo gap rather than treating a missing cache file as evidence.
+Private response: resumed-20261104/reference-index-recheck/.

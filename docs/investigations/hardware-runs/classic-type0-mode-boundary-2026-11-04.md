@@ -161,3 +161,26 @@ CRTC types. It cannot simply be renamed as the required clock edge. The
 1–2Pixel-M2 prose and chip tolerance do not independently choose a fitted
 quantizer. No new timing candidate follows. Full source/read-only report is
 under ignored resumed-20261104/r3jit-next-discriminator/.
+
+## Non-aliased 2→1 controls and abstract-model boundary
+
+A further paired ordinary/JIT proof uses 5D followed by A5, retaining each
+family's actual-T80/READY schedule. All 12 complete fixed-mode controls pass.
+Ordinary Type0 loses the old partial pixel and has wrong zero-fill provenance;
+Type1 passes. JIT Type0's visible pen is correct, but Type1 emits pen1 instead
+of the source-required zero-filled pen 0. Its causal ledger attributes that
+value to old 5D shifted seven times, not the equal first A5 pen. Both JIT blank
+releases remain early. No behavioral candidate followed.
+
+One focused Astra-medium assessment corrects an assumption: the new-mode token
+already occupies masked source 39 before visible 40. Visible release therefore
+does not establish the internal mode edge. A universal abstract token model is
+allowed; identifying literal silicon stages is unnecessary. A general causal
+rule for residual-byte ownership/publication has not yet been derived. French
+§9.3.4.4.1 p65 additionally requires JIT2→0 residual 5 (pen 5 for 5D), versus
+JIT2→1 residual 6 (pen 0). Any proposed shared model must satisfy both destination
+cadences without recipe-specific phase constants. This is a paper acceptance
+constraint, not a newly executed 2→0 test.
+
+Frozen paired proof and assessment: resumed-20261104/r3-2to1-zero-fill-proof/
+and r3-stateful-model/. The consultation made no production change.

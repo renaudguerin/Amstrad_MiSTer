@@ -1,182 +1,166 @@
-# Resumed unattended work — 4 November 2026
+# Active unattended handover — 4 November 2026, 20:25 UTC
 
-## Active instructions and quota
+Continue the authorized task until approximately 80% weekly Codex used; do not
+end merely because one coherent unit finishes. Live OAuth reading20:24 reports
+57% weekly used, reset5November19:34UTC, three banked resets untouched. No paid
+overage, credits or banked reset use. Prefer suitable Gemini3.8 routine work;
+Solhigh for RBF work, sparing prepared Astra consultations only. Keep ask-claude
+paused under the user's window instruction; no such call has run since it.
 
-Continue useful authorized work until approximately80% weekly Codex quota is
-used; finish in-flight units cleanly near that limit. The earlier stop at42%
-was premature. Check at unit boundaries/every20–30minutes; no banked resets.
-Latest live1851UTC reading:54%weekly used, reset5November1934UTC,3banked untouched.
+Known SHAKER and DSC4/Amazing defects precede the broad fresh baseline.
+Targeted history discriminators are allowed. No master integration, PR, release
+or author messages are authorized by this run. Branch pushes and hosted
+milestone builds are authorized.
 
-Known SHAKER and DSC4/Amazing defects precede a broad fresh baseline. Targeted
-reproductions/history controls are necessary and authorized. Maintain approximate
-older-build photo counts in docs/shaker-status.md without inventing global
-compliance. Task-branch pushes/milestone builds are authorized; no master merge,
-PR, release or author messages. Parent alone owns MiSTer/AmSpirit operations.
-RBF implementation remains Solhigh, fresh cross-provider review. Gemini3.8
-routine work; Astra/Gemini4/Opus selectively for prepared hard questions.
+## Checkout and operators
 
-The user paused all ask-claude calls until its5h reset. **That pause was fully
-respected.** Live CodexBar1902UTC now confirms session0%used (weekly14%), after
-prior88%/1859UTC reset. No new Claude call has yet been launched. Its allowance
-may now be used for a prepared hard question; don't spend it on routine work.
-AGYClaude/GPT pool remains exhausted; AGYGemini is separate. No paid overage.
+Checkout /Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer, branch
+codex/overnight-validation-20261103. HEADccd49d4, RTLtip9a91920. Parent owns
+all docs and shared MiSTer/AmSpirit access. Device use remains authorized,
+with no hold. Sandboxed SSH signing failed, but the identical approved
+outside-sandbox path works; hardware-loop/SSH use require_escalated. The old
+user-agent question is obsolete. Gitmetadata writes likewise need that path.
 
-## Code and artifacts
+One writer owns overlapping files. Current native Solhigh
+/root/r3_output_model_scope owns a bounded default-off passive S diagnostic
+implementation and its focused proof/gate; root owns docs. Other agents are
+idle. Do not start a second overlapping writer or rerun that worker's gates.
+No foreign provider, device job or AmSpirit job is active at this handover.
+Root must own any newly launched command/provider through exit.
 
-Branch codex/overnight-validation-20261103; committed HEAD5827cf2 (docs), code
-tipe574a46. Current uncommitted changes are DOCS ONLY: new hardware/optical
-reports, source questions and current-tip/tally reconciliation; finish links/
-diff checks and commit/push this checkpoint. No code/gate rerun needed.
+## Completed code and exact latest artifact
 
-- Conservative comparison599ca8098c655556457a6066b2e4fdeed2d8a9a7:
-  full41878239893 ALLSUCCESS, artifact13348697814 Amstrad-build-356-1-full,
-  RBF8c21cfeb24ed5cb33570e04a93add45aefb146f82e2dd169385b34059f02c87f,
- 3121608bytes, setup.356/hold.244ns,7clocks/TNS0. Native C0E6 repairs5/14
-  (00C0/0D97), retains21/24(0066/000E), onlytwo numerical rows change versus
-  ee9; twelve of28printed checks remainwrong, not a photo failure denominator.
-  Native C1E0080+7metrics/P26 pass direct/history; clean DSC4four samples clear.
-  Canonical prefix-to-S131commands/64captures/121records completes, S0640wrong;
-  directS4E40.52of64images identicalprior db4;12new images inspected (Efix +
- 11row/raster patterns not rejudged against photos). One erroneous DSC4--ssm
-  run generated63EDED extra captures; retained without timing acceptance, then
-  repeated correctly with listener off (19commands/4captures/0failures/0records).
-- Investigation e574a46fccd392f4de7bd277fd6fe2b3558a3b5f:
-  full41881983617 ALLSUCCESS, artifact13350633612 Amstrad-build-358-1-full,
-  RBFf95bac8d60821cee62329d9314bd63811936a8102c892f47d484cfa74ae19df9,
- 3134640bytes, setup.575/hold.243ns,7clocks/TNS0. Native E/P pixel-identical599;
-  DI58vs59 remains; SET40/CPindexedC4allowed/pending00/R52=0018/break00 okay.
-  B6fifth/fourth1F/1F stillwrong/good; other R0controls GOOD. Canonical same
-  prefix131commands/64captures/121records completes, **S9600wrong**, changed
-  from599's0640. Directe574S stillpending. Keep599 as conservative comparison.
-  Own steady NJIT guest reaches AA00 display, but native viewport excludes
-  VSYNC-black endpoint: NO sixth-pixel device measurement. Source/AmSpirit/bench
- 5/6 proof remains; no extra filter sweep was attempted. First CSL screenshot
-  syntax failed, corrected to1.5screenshot_name/screenshot and dry-run, then
- 10commands/1capture succeed; no guest/timing fitting.
-- All artifacts/manifests/logs/hash checks retained under resumed-20261104/
-  build599-targeted-acceptance/ and r7-njit-control/. Source fixes/reviews/gates
-  remain as in dated reports; C5controlled replay uses inherited pre9deT80,
-  current CI/native uses currentCPU. Do not recast that controlled replay as
-  an original-disk motherboard boot. ASIC275af8a bounded device acceptance is
-  unchanged; no new broad Plus baseline.
+- 9a91920be2f54289ced79a0118c7e1c9947fb668: C0 VSYNC requires canonical
+  row_new and row_next=R7. R4 adjustment can hold C4 while discarded row_next
+  matchesR7. Retained t16a extension fails before the edit with C4held2/RA4/
+  in_adj yet VSYNC1, passes afterward and checks the genuine next-frame match.
+  Original fixture retained. CRTC240/selected44PASS; unchanged soak stimulus
+  produces intentional golden57463f9d37d0251e. Fresh Gemini4Argon high
+  review20261104T193542Z-59624-bee9 ACCEPT; parent verifies author/current/review
+  source hashes. No later code edit or repeated gate for this fix.
+- ccd49d4: SSM capture runner uses ring-poll completion time rather than later
+  synchronous screenshot completion for wait deadline. Meaningful17-record
+  failure-before proof and genuine-late control. Gemini3.8 author, independent
+  parent review. One duplicate test removed mechanically. Final223tooltests
+  OK/12skipped and selected44PASS. Pushed; no new RBF needed for tools.
 
-## Device blocker and next native order
+Full workflow41900154684 ALLSUCCESS on exact9a91920. Artifact13359402650,
+Amstrad-build-360-1-full. Amstrad_20261104_9a91920.rbf,3145108bytes, SHA256
+ eadc739cb8809236df65866ad36f99b9b6ba1dd04c22e71d507318e53d0c5576.
+Clean Quartus17.0.2.602 full build, seven setup/holdgroups, TNS0, minimum
+0.585/0.242ns, noerrors/criticalwarnings. Downloaded reports/workflow log and
+verification at resumed-20261104/c0-row-vsync-build/. Distinct installed
+MiSTer file hash matches. No synthesis active or dispatch needed.
 
-**Device use remains authorized; SSH authentication is currently blocked.**
-After e574canonical S9600, first native-original A4 attempt failed because
-SSH agent signing failed; one clean readonly retry also denied. Root asked
-user asynchronously to unlock/reconnect SSH agent. No instrumented A4 native
-run has started. Last CONFIRMED device state is e574/C1/S9600. Do not infer a
-user-requested device hold. On restoration verify read-only SSH once and resume:
+## Native acceptance now complete
 
-1. A4paired native original and diagnostic on SAME e574RBF/FRCPR, once each.
-   Both scripts dry-run pass,11commands. Original sha6b9ff106...eb61;
-   diagnostic17ea16ab0afb081fee3e75e9b3d5270443363cd9d2d745a5b6f3fc7f17de28bb
-   copied under DISTINCT /media/fat/games/Amstrad/dsk/shaker27-a4-obs.dsk.
-   Original package is intact. Scriptpaths asic/a4-observer-8946/native-{original,
-   instrumented}.CSL. Cart6128_FR.cpr ab241580...0cf; --plus-cartridge +hash,
-   --ssm Full. Require printed numerical pages agree and contiguous16HH16..1
-   records, no loss/drop/wrap; LL onlybits0..5. Source proof does not replace
-   cold native comparison. Root's original attempt is native-original-e574/,
-   failed auth; use a NEW out-dir after restoration. Start with original.
-2. Fresh directS on e574 (05-c1-s-direct.CSL) to compare against history9600;
-   never substitute direct for the known full-history failure.
-3. Bounded C1DSC4 regression on e574, omit--ssm (03-c1-dsc4.CSL). Consider
-   AmazingC1 main regression if a clear existing recipe is available. No full
-   baseline. Runtime Full0/0 observations exist for SHAKER, not ordinary demos.
-4. Classic B18 save works after OSD Save snapshot and sna_pull.py. CurrentMBC
-   status_set is unsupported. A future manual snapshot of failed/good S RAM
-   could separate program/history from counters; don't invent hidden latch
-   restoration or brittle UI workarounds while independent work remains.
+Latest9a direct C0E6:16commands/fourPNGs/zero failures/nineSSM records.
+All four viewed. Case25=0003→051B PASS; case19=0003→002B vs00A3 stillfails.
+Only these two numeric rows change versus599;0407/040A pixelidentical.
+5/14/21/24 retain00C0/0D97/0066/000E. Eleven/28 unique printedchecks fail:
+2,4,6,8,9,10,16,17,19,27,28. This is NOT a photo-compliance rate.
+Parent's earlier0037 reading of25 was wrong; initialGemini0003 reading was
+correct. Source-derived glyph decoder learns immutablelabels/fixedtext/EXP,
+never actualvalues, and stores complete old/new e6-decoded-tally.json.
+Both private audit PARENT-QUALIFICATIONs now own/correct that error while
+retaining rejection of unsupported caller trajectories.
 
-## Completed A4 observer and review
+Latest9a C0DSC4:19commands/fourPNGs/zero failures/zeroSSM. Root viewed all:
+colons/names clear; static/main/rotating/fireband views visible. Bounded
+regression acceptance only, not full-demo closure. Current MiSTer state is
+this C0DSC4run. Evidence c0-row-vsync-build/device-c0-{e6,dsc4}-9a91920/.
 
-Ignored asic/a4-observer-8946/ is Gemini3.8 implementation, parent OpenAI
-independent review ACCEPT in PARENT-REVIEW.md. Uses unselected test8 code
-8946..8963, maximum32byte disk budget (30actual differences), original headers/
-length/directory intact; A4ONLYdiagnostic, test8 intentionally unusable.
+Previous conservative599:full41878239893/artifact13348697814, RBFhash
+8c21cfeb24ed5cb33570e04a93add45aefb146f82e2dd169385b34059f02c87f,
+3121608bytes,0.356/0.244ns. C0old12/28printedfailures, C1E0080+sevencontrols/
+P26, sampledDSC4clear, canonicalS0640/direct4E40. Evidence
+build599-targeted-acceptance/. An initialdemo --ssm run has invalidtiming;
+accepted repeat omittedSSM. Do not repeat it again.
 
-One unchanged menu safety run has zero physicalbank2 slot accesses and exact
-hook570718775/hash1619ac773a62ab17,16store/8formatter/fullRAM agreement. Its
-RAW exit2/FAIL is preserved: final logger compared retired-loop776 instead
-of storedhook775. Parent accepts only the zero-access/event-qualified evidence;
-no baseline rerun. One modified-program run then compares correct storedhook
-against UNCHANGED775, passes full equivalence except exact code delta,16ordered
-markers matching ORIGINAL baseline bytes&3f, no result/slot writes, CALLA2ED
-restored and2normal returns/no second burst. All gate/evidence hashes checked;
-no rerun. Core/T80 frozen coherently (T80435after9de), no timing rule changes.
-Cold FDC/firmware prefix remains unproved until bounded paired native use.
+E574:full41881983617/artifact13350633612, RBFhash
+f95bac8d60821cee62329d9314bd63811936a8102c892f47d484cfa74ae19df9,
+3134640bytes,0.575/0.243ns. E/Ppixelidentical599;DI58vs59 andB6fifth/fourth
+1F/1Fvs1E/1F remain. C1canonicalprefix131commands/64PNGs/121SSM givesS9600;
+freshdirect10commands/onePNG/oneSSM gives4E40. All changed PNGs viewed:
+50/64identical599,13rasterpatternchanges+Sscalar. No refreshedphotopassclaim.
+C1DSC4fourviews andAmazingtwoviews remainvisible, nofullcompletionclaim.
+OwnordinaryNJITnativeviewport lacksblackVSYNCendpoint, so no native6pixel
+measurement. Evidence r7-njit-control/.
 
-Old4045padding probe remains REJECTED due nested stack writes; preserve it.
+## S original-caller reference discriminator and active next work
 
-## Active source work and open questions
+Original BIN3647e120…682f/sourceguards: acquisitionA067/A069 writesR8=3→0
+under inheritedR9, programsR9=7later5BE7. C1SMC5AF7=07/5B23=40 and
+5AF8=CDD75B; codebanks1for5A/5B,2forA0/A4. Earlier steady-IVM causal audit
+was rejected; acquisition is not bus stabilization. Poll word16*(64+N)
+mod65536, not an exact native frame timeline from final scalar alone.
 
-- Completed Gemini3.8 e6-case22-source-audit/, exec71462 EXIT0. Accepted case
-  numbering correction: requested recipe is case24, already000E PASS; actual
-  case22 is003A PASS. Parent rejects proposed case25 cause: report reused old
-  0003 while current599 is0037; row_next consumption is gated by row_new, and
-  existing t16a already pins C4-held R4 switch. PARENT-QUALIFICATION.md records
-  this. Followup ACTIVE Gemini3.8 e6-case25-followup/, exec78146, readonly
-  current caller schedule/latch audit; no candidate or simulation yet.
-- ACTIVE Gemini3.8 readonly c1-s-source-audit/, exec92734,
-  run20261104T185442Z-51353-375c. Original S2/304interlacelines/R58 caller,
-  CPCSEsource22de765 and French vs current Type1. Important NEW parent photo
-  qualification: CPCSE's valid full C1 S image prints4E40 (matches PROGRAM),
-  but cached physical CSphoto appears4E30. Updated Sreport records this;
-  worker may have read earlier version. Review its claims rather than calling
-  CPCSEexacthardware match. No new directe574 result exists yet.
-- R3genuine control complete: source40both types0→1 wrong5B Bpen1 instead
-  ofCpen2;1→2postLOAD A5suffix passes; blankrelease38/39vs40. Gemini4Argon
-  readonly consultation completed r3jit-next-discriminator/REPORT.md, no code.
-  It identifies required Mode1shift decision839before R3write840: no later
-  MODE_SYNCdelay alone fixes it. Late-half serializer and bytecursor remain
-  hypotheses. Parent reread FR166: CSYNC chart is secondHSYNC DURING VSYNC,
-  not an isolated C-HSYNC/MODE_SYNC chart for both CRTC types. Do not choose a
-  fitted quantizer from it. Source's1–2M2/chip tolerance is not exact phase.
-  No new RBFcandidate. Prepared hard question may merit Opus after source audits.
-- Root completed ONE address-tag AmSpirit qualification (private
-  r7-counter-optical-qualification/). Guest fills VRAM before originalsync,
-  no host patches. Exhaustive three-word decoder has8190valid/zero shifted or
-  inverted falsehits/48corruption negatives. Freshest LIVE rows showword400
-  (C320) then1424(CB20), lowVMA400same andRA bits0→1; fullR9=7/nonterminal
-  inference uses settled standard8raster recipe, not a direct fullC9read.
-  PPIstill0, widthunmeasured, exactbusC0notclaimed. French20.2p241 and17.2.1
-  p179 rendered/read. Do not force a new C0gate to match software. Dated report
-  and unsent French r7/s questions now tracked docs pendingcommit.
-- Earlier r7-inertial-pair/ local terminal/nonterminal bothPPI1F, fullwidth
-  observed but notgolden; AmSpirit earlierpair0/0 unqualified until tags. Four
-  CPCSE newguest runs neverloaded guest, no PPI/counterclaims; preserve failures.
-  Native continuation/spawn attempts returned agentthreadlimit, including an
-  attempted tagprep followup: none started. Root implemented tagprep itself.
-- C0case16 forced-entry/default-disable ambiguity remains unsent; RFDretire-vs-
-  arm model remains inferred. Historical tallies and earlier source/package/tool
-  migrations are complete; don't repeat them. New demo uses alternatingR3,
-  media/details still await user's retest; recent HSYNC work is not a specific
-  alternating-R3 scrolling fix claim.
+Matched AmSpirit1.17.1/core2491682/6128/C1A/128K/FR pair completes untouched
+originalnormalboot direct and canonical142-line history throughS without
+hostsplitP/S. All ten checkpointguards and CRTC registerarraypairs match.
+DirectF3/historyF6 failedretries, deltas59917/119824=10+19969F; pulse8us,
+inheritedR9=7. Both measure19012=4+16*1188us, rawHL04E4, no wrap, computed/
+printed4E40. Root viewed20LIVEcheckpointimages+bothfinalPNGs. Retry count
+alone does not explain nativehistoryfailure. ClassicSNAv2counterfields are
+unavailable, neverzero; these are1us instruction clocks, not64MHz phase.
+AmSpirit is paused on historyS4E40 with temporaryscripts/BPscleared.
 
-## Shared tools
+Evidence c1-s-caller-qualified/ and c1-s-original-capture/runs/{run-direct-002,
+run-history-001}/, pairedregister/tickledger direct-history-comparison.json.
+Firsthelperdirect001 failedbeforeHTTP due timeout/deadline constructor;
+original/logpreserved, signature/staticbindings corrected before validruns.
+Localincident bridge-incidents/20261104-c1-s-prep-runtime.md awaits optional
+rosterinbox transfer outsidewritableroot. No gueststate/counter/PCpatch.
 
-AmSpirit paused on own r7tag diagnostic after guarded run-001; input complete,
-no script/breakpoints, not a demo reference. Classicv2 counter bytes remain
-invalid; only optical addresses were qualified. Root soleAPIoperator.
-CPCSEGUI stays separate from isolated headless batches. Never probe thatbinary
-with--help; use known--csl. Both current foreign leaves must be owned through
-exit; preserve logs before24h pruning. No provider process was abandoned.
+NativeSol now implements bounded default-off passive original-S trace per
+s-passive-fpga-trace/FEASIBILITY.md and latesttaskbrief. Seven ordered
+M1-completion snapshots, qualifiedmapping/opcodes, C0/C4/C9/C5/adjustment/
+parities/effectiveIVMcontext, onchipbuffer independent of DDRstalls; export
+privateunusedFFxx onlyAFTER genuineS02D3 marker. NoCPUhalt/WAIT/reset/guest
+patch/fakeSYNC/screenshot. Require proof-first observer/transport vectors,
+logicaldisabled/enabled machineequivalence and normal-marker preservation.
+If integratedpassivityharness becomesdisproportionate, worker muststop with
+scoped diff/plan. Parent mustreview/cross-providerreview before diagnostic
+branch/build. No build/device/API/Git/delegation authorized to worker.
+No productioncounterfix follows until nativehiddenstate is observed.
 
-Dated reports own detailed evidence. Current-status must remain current-tip
-handover; archive history instead of appending another chronology.
+## Other current evidence and remaining source questions
 
-## 19:12 UTC checkpoint additions
+A4safeobserver8946 complete:originale574/diagnosticpagesRGBidentical to7ac.
+17contiguousmarkersHH16..1then0037,zero losses/overflow; low6rawbytes
+3E3F3F3F3E3F3F3F3E3E3E3E3E3E3E3E. PB0pairs0/1,1/1,0/1,1/1,thenfour0/0.
+Earlierlastfour1/1 was an E/F glyphmisreading, corrected. First/thirdvsolder
+photo1/1 remain with revision/historybindingunproved. Rawcaptureexit2 was
+screenshotprocessingfalsewaittimeout, fixed separatelyccd. No repeatneeded.
+StrictcurrentCPU menu replay verifies originalhook570718775/hash1619ac773a62ab17,
+fullRAMexceptexactcode/16measurements/8formatter/tworeturns. Old4045stack
+placementREJECTED. New asic-a4-native-results report owns exactbounds.
 
-e574 history RGB join against inspected599:50/64 identical; parent inspected
-all14 changed images in five panels.13 are raster-pattern row differences;
-last is S0640→9600. No fresh photo verdict. Ledger/panels in
-r7-njit-control/history-inspection/. C0 E6 wrong cases are2,4,6,8,9,10,13,16,
-17,19,25,28 (12/28); not the stale brief's22.
+C0cases16/28 remain Frenchquestions. Case28actualR4=39/R9=3 despiteprinted2;
++78/+14/+14us writeintervals don'testablishabsoluteC0. CPCSEalsofails28=02D6.
+UnsentFrenchdraftasks postentryrematchnext(40,0)or(39,4), not a chosenrule.
 
-Native delegation became available again at19:14. Focused Solhigh read-only
-agent /root/r3_output_model_scope is active: assess whether source-defined
-ordinary/JIT pixel behavior suffices for a shared ABSTRACT model without
-requiring an exact silicon clock. No production or test writes authorized yet.
-No new ask-claude call has been made. Latest Codex reading19:10:55%weeklyused,
-three banked resets untouched.
+R3/mixedmode: no candidate. r3-2to1-zero-fill-proof/ onebuild/run16cases,
+12full192clockfixedcontrolsPASS. OrdinaryType0oldslot/zerofillfail,Type1pass;
+JITType0pixelpass,Type1extraold5DMode2shiftfails; bothblankreleaseearly38/39
+vs40. Astra-medium r3-stateful-model read corrects visible40vsinternaltoken39.
+PaperFrenchp65JIT2→0residual5/pen5for5D versus2→1residual6/pen0 is next
+independentdestinationcadenceconstraint. No2→0run or universalcausalrule.
+
+R7CPCSEUKexplicitR7I0.BIN+10swaitqualifies623codebytes/PC/HALT/SP/VRAM;
+PPI1,fallcount64,timeout0; char-roundedC0=0/C4=10/C9=1. Guardednonterminal
+AmSpiritaddress-tagcontrolPPI0; no admissionmodelchosen. Fourpriorfailed
+loaders preserved; combinedfilename/waitchange doesn't isolate motorcause.
+Evidence cpcse-r7-loader-qualification/. RootviewedPNG. No siblingrun.
+
+Live portalindexNov4:67entries/no moduleE;CE_B02CA listsCRTC3/4only,noC1.
+PhysicalCSphotoappears4E30vscurrentprogram4E40,revision/quantumquestion
+unsent. Keep programassertion. reference-index-recheck/ retainsJSON.
+
+## Checkpoint policy
+
+Root's current uncommitted docs include currenttip/tally, newA4report,
+sourcequalifications and latest nativeacceptance. Reviewlinks/diffcheck and
+checkpointpush coherently. Pureddocs need no simulation/providerreview.
+Keep current-status currenttip; datedreports ownevidence/history. Do not
+repeatcompleted migrations/packageaudits/baselines. No goaltool was created.

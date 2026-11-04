@@ -87,7 +87,16 @@ Own diagnostic runs with explicitly loaded French ROMs therefore typed
 that typed input, but those two bounded runs still did not reach the guest
 by their saved checkpoints. Neither set supplies guest counter/PPI evidence.
 Pin actual ROM bytes and require code/guest-write guards before interpreting
-RAM; a zero result buffer does not prove a test returned zero. Keep the
+RAM; a zero result buffer does not prove a test returned zero.
+
+A subsequent bounded UK run uses the explicit `RUN"R7I0.BIN"` filename and a
+10-second post-input wait. It loads all 623 guest bytes, reaches the expected
+R7 writes and terminal HALT, and records initial PPI bit0=1 with normal pulse
+fall. These combined loader changes qualify that recipe; they do not isolate
+extension fallback versus motor delay as the earlier cause. Its target trace
+is C0=0/C4=10/C9=1 at the character-rounded dispatch, while AmSpirit’s guarded
+version samples0. This peer difference does not decide a physical aperture.
+Keep the
 verified canonical capture batches separate from these failed new loader
 qualifications. [R7 qualification](investigations/hardware-runs/crtc1-r7-optical-address-qualification-2026-11-04.md).
 
