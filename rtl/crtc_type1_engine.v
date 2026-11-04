@@ -368,6 +368,15 @@ always @(*) begin
 	if(line_new) begin
 		if(in_adj) begin
 			if(crtc1_adj_end_eff) c5_next = 5'd0;
+			// French ACCC v1.11 section 11.3.2 p.87 gives positive-R5
+			// R4/R9 engagement without an inactive-state qualification.
+			// SHAKER CE/02C9's photographed 0080 infers this abstract C5
+			// restart; it does not identify a physical silicon counter reset.
+			// Preserve completion priority and the interlace added-line owner;
+			// no wrapper-entry, row-0 arm or parity side effect is inferred.
+			else if(row == R4_v_total && line_last_w &&
+			        (|crtc1_rollover_r5) && !type1_add_line_active)
+				c5_next = 5'd0;
 			else c5_next = c5 + 1'd1;
 		end
 		else c5_next = 5'd0;

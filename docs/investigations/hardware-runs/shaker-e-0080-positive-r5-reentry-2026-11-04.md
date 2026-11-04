@@ -2,24 +2,19 @@
 
 ## Result and recommendation
 
-Fresh CPCSyntaxError v0.12.0 prints `#0080` for E's “R5=3 / ON 2ND ADD LINE,
-R5=1 / CPU TO NEW FRAME” row, matching the original-CPC photograph. MiSTer
-`8dde1e7` and `bedb1c5` print `#0060`. The matching source exposes a useful,
-narrow hypothesis: **a positive R5 at a genuine C4=R4/C9=R9 boundary may restart
-C5 even when additional management is already active**. CPCSyntaxError does
-that; MiSTer preserves C5. Applying that restart to the saved MiSTer caller
-trace accounts exactly for the numerical difference.
+The original-CPC E photograph requires0080; unchanged MiSTer prints0060.
+A bounded positive-R5 R4/R9 re-entry restart is now justified as an abstract
+output rule, and its production implementation has passed the final gate and code review. It is not a
+claim to identify a physical C5 reset inside the chip.
 
-This is a source-derived discriminator, not an established silicon rule or an
-RTL fix. The saved CPCSyntaxError run has no internal C5/write trace, and its
-earlier R5=0 re-entry already differs from author-confirmed behavior. Keep Q20
-and its R5=0 continuity vector intact. The next useful experiment records C5
-around the **positive** R4 re-entry while replaying the original E history;
-it does not copy CPCSyntaxError's global release rule.
-
-This pass read saved artifacts and source only. No emulator/API/device operation,
-source change, retained test, build or gate was performed. The clean AmSpirit
-reference was left untouched.
+The initial source comparison and private restart showed sufficiency only.
+New original-caller AmSpirit/T80 timing excludes the extra acquisition frame
+in their compared interval, a prior positive completion establishes a common
+origin under the documented rule, and exact zero-R4-reset-only algebra predicts
+0020 rather than0080. French§11.3.2 p87 independently requires retained
+management at R5=0. Fresh Opus review now says PROCEED with the narrow positive
+restart while preserving the zero route, completion and added-line owners.
+The final sections retain the exact evidence and inference bounds. A full build and targeted E hardware acceptance are still pending.
 
 ## Evidence identities and authority
 
@@ -450,3 +445,98 @@ The published `/api/crtc` returns only registers and selected register on this
 classic machine; its streamed SNA is version2. No classic C5 phase was observed.
 Consequently this corroborates the final0080, **not** CPCSE's early-release
 mechanism or any private FPGA C5 repair. Keep those conclusions distinct.
+
+## Original reference acquisition: six attempts on both paths
+
+A new unchanged production-T80 observer reproduces0060 and all2967 prior
+observable log lines exactly after removing only its new acquisition records.
+It measures the original previous-result print return, A4AD entry and six
+A4D1 attempts: five retry branches followed by success,19969µs apart. The
+target C5 phase remains6/7/8/9; all515 zero-route and81 off-R4 controls pass.
+
+Parent then executed one guarded original-disk SHAKE27C/keyE run in
+AmSpirit1.17.1/core2491682,6128/CRTC1/FR. Original code, stack/order, mapping
+and media guards pass; the normal key coroutine finishes. Breakpoints freeze
+the whole machine; no RAM/PC/counter/instruction patch or extra inter-case
+frame is present. Both6F3F subcases, their cleanups,6B72,7105/A4AD, every
+A4D1 and retry/success branch, original R5 instruction boundaries and the
+original formatter were captured. It independently returns HL0080 and formats
+0080; parent viewed the complete page and all seven other numeric controls.
+The script does not assert0080 or an expected attempt count.
+
+The reference also makes **six attempts/five retries**. Relative to6B72, both
+paths reach7105 at117µs, A4AD at134µs, and A4D1 at48422,68391,88360,108329,
+128298,148267µs; post-acquisition710B is168238µs on both. These align by the
+original instruction identity, without a fitted offset. This excludes an
+extra adaptive-acquisition frame between the previous print and target for
+this observed pair. It does not reveal AmSpirit's hidden C5 or choose between
+a zero-boundary C5 reset, earlier adjustment release and positive re-entry.
+Earlier history and replay startup qualifications still need judgment.
+
+AmSpirit ticks have1µs resolution. Local accepted-write times are compared
+against the reference's original4µs OUT instruction windows, not assigned a
+fabricated bus timestamp. Classic version2 SNA counter fields remain null.
+The local dense PPI logger missed the second ED-opcode M1 identity; the
+original retry/success branches establish returned bits and attempt count,
+not the exact PPI sample aperture.
+
+Evidence is under ignored `resumed-20261104/c1-positive-r5-probe/`; the
+root-only reference run is `amspirit-request/runs/original-e-acq-001/`.
+Production C5 remains unchanged. This narrows the prior gap audit rather
+than validating the private positive-restart implementation.
+
+## Narrowed model and implementation proof
+
+Frozen shared-history algebra excludes a blanket C5 reset at every zero-R5
+R4/R9 edge as the sole explanation. The last such edge before the target,
+tick872616010, has C5=15→16. Resetting it to0 instead makes the R5=3/1 writes
+inherit22/25; completion then takes8lines rather than24 and predicts0020,
+not0080. This calculation changes only C5 on the frozen zero-R5 trajectory;
+no simulator run or candidate output supplied that expectation. Exact
+derivation: `offline-comparison/ZERO-R4-DERIVATION.md` and its algebra script.
+
+French§11.3.2 p87 explicitly retains adjustment when R5 becomes0; releasing
+it at a later zero-R4 edge contradicts that rule. The raw Q20 attachment is
+still unavailable, so no new exact-author-wording claim is made. A reset at
+every R4 edge, including positive re-entry, could still match0080, but its
+positive restart is shared with the proposed minimal repair; E adds no
+evidence to change the protected zero-route continuity.
+
+Fresh Opus review20261104T163544Z-21690-32e5 says PROCEED with this bounded
+abstract rule. A real-CPC extra retry remains unmeasured and is documented
+as a residual, rather than asserted impossible. Completion/re-entry collision,
+interlace added-line and row0 wrapper side effects are not inferred from E.
+
+The private minimal C5-only candidate passes a new public-origin test that
+fails before: retain the original R4=38/R9=7 phase, write3 then1 across the
+positive R4/R9 edge, and require the photographed32line delay instead of24.
+Removing eight312line frames from the long caller history removes78×32lines
+and preserves the relevant phase without injecting counters. Off-R4 positive
+writes retain their29line delay, and existing completion priority remains.
+All240CRTC, CPU-phase and GA neighbors pass privately; the code and retained
+test are being applied before the final gate, fresh code review and one
+original-caller production acceptance replay. No hardware closure is claimed.
+
+## Final production verification
+
+The tracked C5-only correction passes240CRTC cases and the selected
+CRTC/CPU-phase/GA gate: `python3 sim/select_tests.py --base HEAD --run`,
+PASS3benches once after its last code edit. Intended soak becomes
+5ee108925f8a58e6 with unchanged seed/stimulus/projection and2845088samples.
+A subsequent historical-fixture Makefile repair runs its own final selected
+44benches on the same frozen C5 source; no C5 code or test edits follow.
+
+Exactly one original E replay rebuilt against the current production sources
+returns0080, all seven other numeric controls,515zero-route and89off-R4
+controls, zero failures. Its complete output is byte-identical to the prior
+private restart result, now with production source identities. The inherited
+trampoline/classification/PortB qualifications remain; it is not a new
+normal-disk motherboard replay. Artifacts: positive-candidate/production-replay/
+and TRACKED-HANDOFF.md.
+
+Fresh Gemini4Argon/high code review20261104T165734Z-27885-54dd ACCEPT reads
+the Frenchp87 render and original CE_02C9_A photograph directly. It checks
+effective-R5 forwarding, completion/added-line priority and the public-origin
+test without rerunning gates. Parent verifies the three frozen source hashes.
+A full exact-source build and direct C1 E/P/S/DSC4 regression checks follow;
+none are inferred complete from simulation or software-reference agreement.

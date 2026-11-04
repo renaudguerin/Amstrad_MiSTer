@@ -4267,6 +4267,95 @@ void test_type1_r5_zero_mid_adjustment_keeps_counting(TestBench& test) {
     test.expect_adjustment_inactive("adjustment exited cleanly");
 }
 
+// French ACCC v1.11 section 11.3.2 p.87: positive live C5+1=R5
+// completion, and R5=0 retained management. The positive R4/R9 re-entry
+// duration is inferred from original-CPC SHAKER CE/02C9's 0080 result;
+// it is an abstract output rule, not a measured silicon C5 reset.
+// See docs/investigations/hardware-runs/
+// shaker-e-0080-positive-r5-reentry-2026-11-04.md (original caller trace).
+void test_type1_positive_r5_reentry_origin_delay(TestBench& test) {
+    const auto prepare_retained_adjustment = [&]() {
+        test.set_crtc_type(1);
+        program_registers(test, {{{0, 63}, {1, 40}, {2, 46}, {3, 14},
+                                 {4, 38}, {5, 1}, {6, 25}, {7, 30},
+                                 {8, 0}, {9, 7}}});
+        test.reset();
+        test.run_characters(312 * 64);
+        test.expect_c4("positive re-entry fixture enters C4=39", 39);
+        test.expect_ra("positive re-entry fixture enters C9=0", 0);
+        test.expect_c5("positive re-entry fixture first additional C5=0", 0);
+        test.write_register(5, 0);
+    };
+    const auto reach_original_positive_write = [&]() {
+        prepare_retained_adjustment();
+        // From C4=39/C9=0, the first zero-R5 R4/R9 reset takes1024 lines.
+        // Two further312-line frames then310 lines give1958 lines and
+        // C4/C9/C5=38/6/6. The frozen caller takes4454 lines: removing
+        // eight312-line frames removes2496=78*32 lines, preserving phase.
+        test.run_characters(1958 * 64);
+        test.expect_c4("original positive-write row", 38);
+        test.expect_ra("original positive-write raster", 6);
+        test.expect_c5("original positive-write retained phase", 6);
+        test.run_to_c0(62);
+    };
+
+    reach_original_positive_write();
+    test.write_register(5, 3);
+    // Original accepted writes are132us apart: C0=62/C9=6 -> C0=2/C9=1.
+    // This crosses the genuine R4/R9 edge with pre-C5=7. No PC, counter,
+    // snapshot-state injection or special phase hook is used.
+    test.run_characters(132);
+    test.expect_c4("original lowering write row", 39);
+    test.expect_ra("original lowering write raster", 1);
+    test.expect_byte("original lowering write character", 2, test.c0());
+    test.write_register(5, 1);
+    test.write_register(7, 0);
+    // The hardware measurement0080 counts128*16us=32 physical64us lines.
+    // At this write the inferred restart has C5=1:31 increments reach0,
+    // then live C5+1=1 completes on the32nd line end. Preserved phase9
+    // completes at24 and wrongly produces0060. Assert the VSYNC consequence,
+    // not an internal post-re-entry C5=0 equation.
+    test.expect_no_vsync_observed(
+        "CE0080: origin must not fire before the32nd line end",
+        test.vsync_within_characters(31 * 64));
+    test.run_characters(64);
+    test.expect_vsync_high("CE0080: public VSYNC at the32nd line end");
+    test.expect_c4("CE0080: origin resets C4", 0);
+    test.expect_ra("CE0080: origin resets C9", 0);
+    test.expect_adjustment_inactive("CE0080: origin completes adjustment");
+
+    // Distinct control: positive writes away from R4 must retain the phase.
+    // C5=4 at C4=39/C9=4; lowering to1 needs28 increments to0 and the
+    //29th completion edge. A general positive-write reset fires too early.
+    prepare_retained_adjustment();
+    test.run_characters(4 * 64);
+    test.write_register(5, 3);
+    test.write_register(5, 1);
+    test.write_register(7, 0);
+    test.expect_no_vsync_observed(
+        "off-R4 positive writes preserve the29-line origin delay",
+        test.vsync_within_characters(28 * 64));
+    test.run_characters(64);
+    test.expect_vsync_high("off-R4 positive phase completes at29 line ends");
+    test.expect_adjustment_inactive("off-R4 completion clears adjustment");
+
+    // Preserve existing completion priority rather than infer collision
+    // semantics from CE: R5=8 matches pre-C5=7 on the R4/R9 edge itself.
+    // This control is an implementation compatibility bound, not a new
+    // hardware-derived claim about re-entry/completion priority.
+    reach_original_positive_write();
+    test.write_register(5, 8);
+    test.write_register(7, 0);
+    test.expect_no_vsync_observed(
+        "completion/re-entry collision waits for genuine R4/R9 edge",
+        test.vsync_within_characters(64));
+    test.run_characters(64);
+    test.expect_vsync_high("completion still owns the R4/R9 origin");
+    test.expect_c4("completion/re-entry collision origin C4", 0);
+    test.expect_ra("completion/re-entry collision origin C9", 0);
+    test.expect_adjustment_inactive("completion wins over re-entry");
+}
+
 void run_type1_r5_zero_to_q20_reset(TestBench& test, std::uint8_t r7) {
     constexpr RegisterProgram kRegisters = {{
         {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 10},
@@ -8953,6 +9042,9 @@ int main(int argc, char** argv) {
         {"t08j_type1_r5_zero_mid_adjustment_keeps_counting",
          "ACCC v1.11 section 11.3.2 p.86 and 2026-08-31 author response Q20; zero-R5 C4 reset and recovery", false,
          test_type1_r5_zero_mid_adjustment_keeps_counting},
+        {"t08s_type1_positive_r5_reentry_origin_delay",
+         "French ACCC v1.11 section11.3.2 p.87; SHAKER CE02C9 photograph0080, positive re-entry inferred", false,
+         test_type1_positive_r5_reentry_origin_delay},
         {"t08r_type1_r5_zero_row_origin_reopens_display",
          "French ACCC v1.11 sections 18.1/18.2.1 p.189, 11.3.2 p.87; Q20 and SHAKER C E/P photographs", false,
          test_type1_r5_zero_row_origin_reopens_display},
