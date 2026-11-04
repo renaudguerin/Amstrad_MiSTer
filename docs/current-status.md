@@ -15,13 +15,13 @@ instructions across handoffs and context compaction.
 
 ## Branch and current artifacts
 
-- Active branch: `codex/overnight-validation-20261103`, RTL tip `9a91920`, tooling tip `ccd49d4`, default-off observer `50b2402`.
+- Active branch: `codex/overnight-validation-20261103`, RTL tip `51ae4dd`, tooling tip `ccd49d4`, default-off observer `50b2402`.
   It is distinct from integrated `master`; no integration or release is implied.
 - Latest targeted build: `Amstrad_20261104_9a91920.rbf`, SHA256
   `eadc739cb8809236df65866ad36f99b9b6ba1dd04c22e71d507318e53d0c5576`.
   [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41900154684)
   passes all jobs, setup/hold 0.585/0.242 ns. Native C0 E6 case 25 is now 051B;
-  11/28 printed checks remain wrong. This artifact is installed on the MiSTer.
+  11/28 printed checks remain wrong. This is the latest functional acceptance artifact.
 - Conservative hardware comparison: `Amstrad_20261104_599ca80.rbf`, SHA256
   `8c21cfeb24ed5cb33570e04a93add45aefb146f82e2dd169385b34059f02c87f`.
   [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893)
@@ -36,8 +36,9 @@ instructions across handoffs and context compaction.
   is source/reference/bench-proven, not a measured native-PNG endpoint.
   The isolated diagnostic branch `codex/s-passive-native-20261104` enables the
   reviewed observer at `ae9ccdc`; [full synthesis](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41910599920)
-  is running. It has no native acceptance yet and must preserve exact-baseline
-  S scalars before its state is interpreted.
+  passes all jobs, setup/hold0.548/0.178ns. The installed diagnostic preserves
+  exact9a direct4E40/history0440 with seven valid passive cuts and no drops.
+  [Native observer qualification](investigations/hardware-runs/shaker-s-passive-observer-2026-11-04.md).
   [Exact targeted results and limits](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
 - ASIC acceptance remains bounded on `275af8a`: DSC4 colons/names and sampled
   DSC4/Amazing effects, BI widths/clipping and AE/AR patterns. Later changes
@@ -61,12 +62,15 @@ our closest software reference, not the hardware oracle.
   row-commit VSYNC correction. Case 19 changes 0003→002B versus 00A3; 11/28
   printed checks still fail. The prior parent 0037 reading was wrong. Cases
   5/14/21/24 retain their corrected values. The zero-R5 early-write
-  distinction now has a combined French-source counter proof in preparation;
+  distinction has a failing-first counter proof and a frozen candidate;
   case 28's later R4 re-match remains a source question. The matched
   AmSpirit original E6 path passes all28 printed checks; CPCSyntaxError also
   fails case19, so its source supplies no validated replacement rule there. The canonical-row fix has its retained red proof, 240-case CRTC suite,
   selected gate, independent review, full synthesis and exact-source native
-  acceptance; the next forced-entry correction remains in progress.
+  acceptance. The forced-entry/terminal-R4 fix `51ae4dd` passes240CRTC/45selected
+  benches with intentional soakf9b5f86e16277c55 and fresh independent review.
+  Its [full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41921307910)
+  is running; no new native fix is claimed.
   [Last Line proof](investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md),
   [VSYNC proof and native result](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md),
   [forced-entry source distinction](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md),
@@ -80,8 +84,9 @@ our closest software reference, not the hardware oracle.
   runs both give 4E40/1,188 polls despite three versus six failed acquisition
   retries; every checkpoint's CRTC register array matches. Retry count alone
   does not explain the native failure. A bounded default-off passive FPGA
-  observer is reviewed/gated and undergoing isolated synthesis; no S counter
-  model is selected. [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
+  observer now retains both exact native scalars. History carries adjustment/C5
+  into S and has an added line before measurement; direct does not. Interlace
+  counting during adjustment is the next source discriminator; no S fix is claimed. [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
   [S evidence](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
 - DSC4 credit colons are visible on CRTC 0/1 after `db4be80`; the unchanged
   bottom row matches all 768 pixels of the uncropped AmSpirit reference, outside

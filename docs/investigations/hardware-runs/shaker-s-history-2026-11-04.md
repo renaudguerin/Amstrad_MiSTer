@@ -156,3 +156,17 @@ reports and unsent question are corrected; original PNGs/logs are unchanged.
 Ledgers/panel: s-passive-fpga-trace/{historical-s-glyph-ledger.json,
 baseline-s-glyph-ledger.json,baseline-s-words.png}. This correction changes no
 pass/fail verdict and supplies no hidden counter trajectory.
+
+## Passive native state now qualified
+
+The isolatedae9ccdc observer retains exact9a direct4E40/history0440 and clean
+full timing. Both complete seven ordered cuts with no errors/drops and stable
+raw reads. History already enters acquisition with adjustment active/C5=31;
+C5=24 remains at the original R5-write fetch, while direct has adjustment off/
+C5=0. At R7, direct C4=4 versus history C4=2 with an added line active.
+This supplies the missing native state discriminator. It does not authorize
+clearing inherited state to fit the final word. See the [observer qualification
+and cut table](shaker-s-passive-observer-2026-11-04.md) for exact artifact,
+source guards, timestamps and passivity limits. The next source investigation
+checks interlace counting during adjustment against French§11.8p93 while
+preserving E0080/P26 and the zero-R5 author contract.

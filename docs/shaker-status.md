@@ -28,7 +28,8 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
   from 12 on 599 and 14 on ee9. Failures: 2/4/6/8/9/10/16/17/19/27/28.
   This is a program self-report, not a photo comparison. Case 19 changes
   0003→002B versus 00A3; case 25's previous value was 0003, correcting an earlier
-  parent reading of 0037. Cases 16 and 28 retain their named source questions.
+  parent reading of 0037. The early forced-entry distinction now has a source-derived, failing-first
+  candidate under review; case28 retains its separate post-entry rematch question.
   [Exact-source proof and native tally](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md),
   [previous targeted evidence](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
 
@@ -41,7 +42,10 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
 - **CRTC 1 A–C:** E `02C9` now gives `0080` on 599, direct and after canonical
   history; P `02CB` remains readable with `26`. S `02D3` gives 0640 after
   history versus4E40 direct on 599; publication build e574 gives 5060 after
-  history, with direct control 4E40. `02DA` shows `0050` versus `0060`; `009A` differs
+  history, with direct control 4E40. Exact9a and the qualified passive diagnostic
+  retain history0440/direct4E40. Seven native cuts locate inherited adjustment/
+  C5 and an added line before the history measurement; source analysis continues
+  ([passive evidence](investigations/hardware-runs/shaker-s-passive-observer-2026-11-04.md)). `02DA` shows `0050` versus `0060`; `009A` differs
   from the RAM-snow photograph; `019D` still shows fifth/fourth `1F/1F` on e574a46 versus fresh original-caller
   AmSpirit/photo `1E/1F`; it needs the physical comparator-visibility contract
   ([fresh caller evidence](investigations/hardware-runs/crtc1-outi-019d-2026-11-04.md)). The four yellow acquisition pages
