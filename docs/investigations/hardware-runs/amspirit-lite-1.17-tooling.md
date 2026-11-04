@@ -119,6 +119,21 @@ zero external dependencies, and deterministic command sequencing.
    A desktop launch needs the local app/desktop to remain available; this
    does not establish unattended recovery after app exit or host sleep.
 
+4. **Ordered breakpoint probes**:
+   Applying a breakpoint set resumes execution, including replacement with a
+   nonempty set. A second unconditional resume after its acknowledgement can
+   skip a breakpoint that has already stopped the machine. Inspect the stopped
+   PC/tick before issuing another run command. Record the ordinal of each hit;
+   the same PC reached on a later demo loop is not an interchangeable checkpoint.
+
+5. **Banked addresses use a 16 KiB offset**:
+   `B02:000C` addresses offset000C in RAM bank2. `B02:800C` carries the high
+   offset into bank4; it does not mean CPU address800C currently mapped to
+   bank2. For a CPU execution breakpoint, use the CPU address form and verify
+   the active mapping. The preserved synthetic C0vs probe initially timed out
+   from this address mistake; its corrected run is under
+   `local/overnight-20261103/asic/c0vs-reference-amspirit-v2/`.
+
 ## Verification
 
 The new migration checks failed against the original helper (3 failures,

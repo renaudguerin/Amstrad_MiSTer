@@ -403,6 +403,17 @@ D3's native page overlay separately encounters level-sensitive held-Space advanc
 prevents treating mislabelled captures as CRTC failures. Neither finding requires
 full CRT-photo identity before addressing independently proved functional defects.
 
+**Classic blank-alignment follow-up, 2026-11-04:** the provisional sampled GA
+RGB blank pipeline leaves raw-mode metadata at its earlier phase. In
+`rtl/Amstrad_motherboard.v`, `pixel_vblank` samples raw GA VBLANK once, whereas
+classic RGB blank now uses three native-dot edges; Raw CRT also takes HBLANK
+directly from raw HSYNC. Raw pixels/Raw CRT can therefore mask or acquire border
+pixels earlier than the new RGB blank. Full does not consume that pixel mask.
+Before using either raw mode as an aligned pixel oracle, reproduce the mismatch
+with a non-black border, then align metadata with its renderer while preserving
+the deliberately different Raw CRT geometry. Do not retime sync/IRQ consumers
+merely to align pixel tags. See [bounded classic repair](investigations/hardware-runs/classic-blank-alignment-2026-11-04.md).
+
 **Integrated boundary repair, 2026-10-29:** the type-1 invisible HSYNC
 terminal-overflow event now restarts classic GA monitor shaping without ending
 the raw HSYNC/black level or clocking the interrupt counter. The source-derived

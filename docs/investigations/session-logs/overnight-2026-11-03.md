@@ -24,8 +24,8 @@ running hosted build to completion without duplication. No VM migration
 or provisioning was requested. Merge to master and
 release remain outside this run's request.
 
-Pause at approximately **60% weekly Codex usage** until Renaud authorizes
-more. Initial live OAuth reading at 22:24 UTC: 21% weekly used, reset
+Wrap up cleanly at approximately **80% weekly Codex usage**, as authorized when
+Renaud went to sleep. Initial live OAuth reading at 22:24 UTC: 21% weekly used, reset
 5 November 19:34 UTC; short-window usage unavailable. Three banked resets
 exist but redemption is not authorized. The stale dashboard reading is not
 the active telemetry. Gemini pool at 22:25 UTC: about 19.4% weekly used;
@@ -363,3 +363,32 @@ No API/device/build job is active. All three guarded bridge runs completed0;
 provider logs are preserved under the corresponding ignored proof directories.
 Codex live02:46 UTC is34% weekly used; active user ceiling is80%, banked resets
 untouched. No master integration, release, PR or author message is authorized.
+
+## Checkpoint — 4 November, 04:05 UTC
+
+CPU9de75d3 exact-SHA CI41764626693 is green, including production-T80 and the
+required gate. A narrower classic proposal now passes eight source byte windows,
+CRTC239, real-T80 IRQ8 and one final44-bench selection; intended soak is
+0xdc253576aa4029a0. Fresh Opus review20261104T040025Z-1839-e8fa is active, with
+production frozen. It delays sampled GA blank plus qualified JIT onset; it does
+not delay the raw falling edge. Global blank includes vertical edges, whose
+absolute RGB latency is not independently accepted. Type0's old-mode extra-M2
+failure remains explicit. No RBF exists for this proposal yet.
+
+The private broad ASIC capture/consume mechanism passes genuine A4 firstOUTI01,
+but a smaller entered-terminal R0 decision bit now passes all the same bounded
+A4 and DSC4 counter observables without changing register admission. The worker
+is preparing a retained real-T80/motherboard/PPI test before production edits.
+Source status bits require literal C0=R0, so the production proposal must keep
+those comparisons separate from the remembered line-end event.
+
+AmSpirit currently holds the unchanged synthetic OUT3D program paused at HALT,
+PC804B, with no breakpoints or script active. It independently falsified the
+unsupported post-return zero observer assertion; the critical-stop one-character
+difference remains documented. MiSTer remains3113323, Full/classic BASIC. Live
+Codex usage at03:55 was36% weekly; ceiling80%, resets untouched.
+
+Optional local-VM preflight could not establish a trusted SSH host key, and the
+repository reports no registered GitHub runners. No host key or account setting
+was changed. Hosted synthesis remains available for the next reviewed milestone;
+do not stall the run or duplicate builds to investigate this optional route.

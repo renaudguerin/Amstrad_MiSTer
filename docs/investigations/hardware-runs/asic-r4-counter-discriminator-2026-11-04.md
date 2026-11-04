@@ -930,13 +930,61 @@ focused final lines are `TOP_RAW [0,0,0,0,1,1,1]`, `NATURAL_CHECKPOINTS 4 / 4`,
 copied source, `source-hashes.json` and `handoff.json` preserve the reviewable
 private unit. No baseline rerun or general selection gate was performed.
 
-Recommend independent review of this specific capture/consume mechanism and
-its reset/SNA/selection ordering before a production proposal. It is the first
+The capture/consume mechanism needs independent review of its
+reset/SNA/selection ordering before any production proposal. It is the first
 bounded candidate here that satisfies authentic A4's deadline, both ordered
 natural R0 transitions, BI's live one-character pulse and actual alias/IN/fast
 controls together. The physical storage edge, A4 OUTI numeric, broader register
 side effects and full demo pixels remain unverified; these passes do not
 justify declaring the ASIC bus architecture or all R0-lowering cases correct.
+
+## Narrower terminal-decision discriminator
+
+The broad capture/consume candidate now reaches the original A4's first OUTI3C
+result store: baseline00 versus candidate01, against hardware01. Both execute
+the same first caller72F2→715A and stop at its first71A1→71A9 store, before
+later calls overwrite the result. Preserved evidence is under
+`asic/pending-write-proof/outi-extension/`; baseline6.41130 and candidate6.09157
+emulated seconds are normal exits. The earlier five-second cap above remains
+an incomplete run, not a failed measurement.
+
+A smaller alternative preserves all live register writes and remembers whether
+the current character was entered with C0=R0. That remembered terminal opportunity
+cannot be canceled by a later unequal R0 write. Reset seeds the reset equality;
+snapshot load seeds equality from the incoming counters/register. This is a
+counter-lifetime hypothesis, not evidence of a silicon latch or physical storage
+edge. The original `>=` experiment, register queue and motherboard admission
+qualifier are separate hypotheses and must not be combined silently.
+
+The private `asic/r0-terminal-proof/` candidate passes the four early/late
+OUT/OUTI counter consequences, the four ordered first-loop AmSpirit stops and
+all twelve later C802=0/0/0 and C804=3/0/0 observations. No later R4 failure
+appears within that authentic bounded chain. Production acceptance, retained
+test and review are recorded separately when complete.
+
+### An unsupported CPU observation anchor
+
+The synthetic program's extra assertion that the first post-return LD BC at
+PC800C must be observed at C0/C4/C9=0/30/0 was not source-backed. T80's
+INSN_START represents an architectural state before completion of a possibly
+WAIT-extended fetch; French §7.2's C0vs description does not bind that signal
+to a particular master edge. The private precursor preserves that red assertion
+and its logs rather than concealing it.
+
+An independent AmSpirit run of the unchanged generated OUT3C and OUT3D programs
+also observes63/29/7 at PC800C. This rejects the proposed zero-valued binding as
+an acceptance oracle. It does not replace it with a new hardware golden.
+AmSpirit observes critical opcode starts59/30/0 and60/30/0, versus T80's60/30/0
+and61/30/0; that one-character observer difference remains explicit. After the
+OUTs, AmSpirit observes63/30/0 and0/30/1 with R0=127, respectively. No NOP count,
+CPU state, RAM byte or reference counter was adjusted to fit those outcomes.
+Evidence: `asic/c0vs-reference-amspirit-v2/` and
+`asic/c0vs-retained-proof/README.md`.
+
+The first AmSpirit probe used B02:800C incorrectly: the banked-address API carries
+an offset above3FFF into a later bank. It timed out after the actual program
+halted. The successful probe used CPU addresses resolved through the current
+mapping; the failed attempt is preserved and supplies no emulator-accuracy claim.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).

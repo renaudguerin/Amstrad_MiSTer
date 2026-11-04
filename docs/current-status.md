@@ -60,9 +60,13 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   the current raw blank mask suppresses their nonzero pens. The production CPU
   takes the JIT branch, ruling out a classification miss. A matched CPU/READY/
   unique-byte vector now fails the source-derived onset delay (5 clocks versus
-  nominal12). A private publication-phase model meets the byte windows, with
-  GA mode/IRQ side effects still under review; no production timing repair is accepted.
-  [Credits evidence](investigations/hardware-runs/dsc4-credit-clipping-2026-11-03.md).
+  nominal12). Delaying the whole published pulse was rejected: it moves the
+  source-correct mode change and IRQ sampling. A narrower sampled-GA-blank plus
+  JIT-onset repair passes all eight byte windows, CRTC239, real-T80 IRQ8 and
+  44 selected benches. Reviewed commit `db4be80` is building for hardware;
+  Type0's old-mode extra pixel remains a named pre-existing failure.
+  [Credits evidence](investigations/hardware-runs/dsc4-credit-clipping-2026-11-03.md),
+  [bounded repair](investigations/hardware-runs/classic-blank-alignment-2026-11-04.md).
 
 - **SHAKER inputs and display boundary:** the new package is installed, with
   the French B1 key override retained separately; package changes do not invalidate
