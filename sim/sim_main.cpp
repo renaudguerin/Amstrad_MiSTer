@@ -2159,7 +2159,7 @@ void test_type0_worked_example_window_write_yields_38_8(TestBench& test) {
     test.reset();
 
     test.run_characters(kT12CriticalLineCharacters + 10);  // C0=10, window open.
-    test.write_selected_register_at_clken(8);
+    test.write_selected_register_at_clken(10);
     test.run_characters(64 - 11);  // Consume characters 11..63 to the rollover.
 
     // ACCC v1.11 section 11.2.2, p.83 example 3: the windowed write leaves
@@ -2167,6 +2167,21 @@ void test_type0_worked_example_window_write_yields_38_8(TestBench& test) {
     test.expect_adjustment_active("t12 windowed write enters adjustment");
     test.expect_c4("t12 windowed write keeps C4=38", 38);
     test.expect_ra("t12 windowed write leaves C9=8", 8);
+    // French ACCC v1.11 section 11.2.2 p.83 example 3: C9/R5
+    // cannot begin until C4 increments. Continue against the new R9=10
+    // before entering the R5=16 count with C4=39, C9=0.
+    for (unsigned c9 = 9; c9 <= 10; ++c9) {
+        test.run_characters(64);
+        test.expect_c4("t12 window continuation retains C4=R4", 38);
+        test.expect_ra("t12 window continuation counts against R9", c9);
+    }
+    test.run_characters(64);
+    test.expect_ra("t12 new R9 match resets RA before R5 counting", 0);
+    test.expect_c4("t12 new R9 match advances C4 before R5 counting", 39);
+    test.run_characters(16 * 64);
+    test.expect_ra("t12 R5 count completes after the R9 phase", 0);
+    test.expect_c4("t12 R5 count restores frame origin", 0);
+    test.expect_adjustment_inactive("t12 R5 completion ends management");
 }
 
 // ---------------------------------------------------------------------------
@@ -2795,6 +2810,27 @@ void test_type0_r4_write_at_c0_1_enters_zero_adjustment(TestBench& test) {
     test.expect_adjustment_inactive("type 0 C0=1 R4 zero adjustment completes");
     test.expect_type0_zero_adj_entry(
         "type 0 zero adjustment entry latch clears after completion", false);
+
+    // French ACCC v1.11 section 12.2 p.95 and section 11.2.2 p.83:
+    // the C0=1 R4 break already selected R5 (C4<>R4). A subsequent R9
+    // write on this line must not preserve R9 counting on the next one.
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(4);
+    test.reset();
+    test.run_characters(1);
+    test.write_selected_register_at_clken(1);
+    test.select_register(9);
+    test.write_selected_register_at_clken(3);  // C0=2, after the R4 break.
+    test.run_characters(1);
+    test.expect_ra("C0=1 R4 then R9 write enters adjustment C9=1", 1);
+    test.expect_c4("C0=1 R4 then R9 write keeps C4=0", 0);
+    test.run_characters(4);
+    test.expect_ra("C0=1 R4 then R9 write preserves zero-adjustment end", 0);
+    test.expect_c4("C0=1 R4 then R9 write restores frame origin", 0);
+    test.expect_adjustment_inactive("C0=1 R4 then R9 write completes adjustment");
+
 }
 
 void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
@@ -2816,6 +2852,28 @@ void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
     test.expect_adjustment_active("type 0 C0=1 R9 break enters adjustment with R5=0");
     test.expect_c4("type 0 C0=1 R9 break keeps C4", 0);
     test.expect_ra("type 0 C0=1 R9 break increments C9", 1);
+
+    // French ACCC v1.11 section 12.2 p.95: an R9 break at C0=1
+    // already makes this the first additional line, just like an R4
+    // break. The section 11.2.2 p.83 last-line R9 window cannot arm a
+    // persistent R9 phase after that entry, even while C4 still equals R4.
+    for (const auto& [address, value] : registers) {
+        test.write_register(address, value);
+    }
+    test.select_register(9);
+    test.reset();
+    test.run_characters(1);
+    test.write_selected_register_at_clken(1);  // C0=1 enters adjustment.
+    test.write_selected_register_at_clken(3);  // C0=2 is already additional.
+    test.run_characters(1);
+    test.expect_ra("C0=1 R9 then R9 write enters adjustment C9=1", 1);
+    test.expect_c4("C0=1 R9 then R9 write keeps C4=0", 0);
+    test.expect_adjustment_active("C0=1 R9 then R9 write enters adjustment");
+    test.run_characters(4);
+    test.expect_ra("C0=1 R9 then R9 write preserves zero-adjustment end", 0);
+    test.expect_c4("C0=1 R9 then R9 write restores frame origin", 0);
+    test.expect_adjustment_inactive("C0=1 R9 then R9 write completes adjustment");
+
 }
 
 void test_type0_r4_write_at_c0_0_overrides_last_line(TestBench& test) {
@@ -3392,6 +3450,43 @@ void test_type0_r4_unequal_history_retains_switch(TestBench& test) {
     test.expect_adjustment_active("transient: type 0 unequal R4 history enters vertical adjustment");
     test.expect_c4("transient: unequal R4 history keeps C4 at 2 (French v1.11 §13.2.1 p.106)", 2);
     test.expect_ra("transient: unequal R4 history advances C9 toward R5 (C9=4)", 4);
+
+    // French ACCC v1.11 section 11.2.2 p.83 examples 2/3 and section
+    // 13.2.1 p.106: switching R4 during pending R9 counting selects R5
+    // for this line's rollover, even if R4 is subsequently restored.
+    // Exercise both comparator disagreements: C9=R9=6 (not R5-1), and
+    // C9=R5-1=4 (not R9). The seam's old R9 result cannot decide either.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 2> switches = {{
+        {6, 7}, {4, 0},
+    }};
+    for (const auto& [switch_c9, next_c9] : switches) {
+        for (const auto& [address, value] : registers) {
+            test.write_register(address, value);
+        }
+        test.write_register(5, 5);
+        test.select_register(9);
+        test.reset();
+        test.run_characters(lines_before_last * line_characters + 2);
+        test.write_selected_register_at_clken(6);
+        test.run_characters(5);  // Enter pending C4=2/C9=4.
+        test.expect_ra("pending R4 switch setup enters C9=4", 4);
+        test.run_characters((switch_c9 - 4) * line_characters);
+        test.expect_ra("pending R4 switch reaches discriminator", switch_c9);
+        test.select_register(4);
+        test.run_to_c0(3);
+        test.write_selected_register_at_clken(1);
+        test.write_selected_register_at_clken(2);
+        test.run_characters(3);  // Complete C0=5..7.
+        test.expect_ra("pending R4 history uses current R5 comparison", next_c9);
+        test.expect_c4("pending R4 history resets C4 only at R5 completion",
+                       next_c9 ? 2 : 0);
+        if (next_c9) {
+            test.expect_adjustment_active("pending R4 switch continues R5 count");
+        } else {
+            test.expect_adjustment_inactive("pending R4 switch completes R5 count");
+        }
+    }
+
 }
 
 // ---------------------------------------------------------------------------

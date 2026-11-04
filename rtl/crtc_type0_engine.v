@@ -303,8 +303,16 @@ reg        type0_r0_widen_pending;
 wire       type0_r4_window_write;
 wire       type0_r4_switch_write;
 wire       type0_r9_compare_write;
-wire       type0_r4_switch_active = type0_r4_adjust_switch | type0_r4_switch_write;
-wire       type0_r9_compare_active = type0_r9_live_compare | type0_r9_compare_write;
+wire       type0_r9_pending_r4_cancel = type0_r9_live_compare && in_adj && register_write &&
+                                      (addr == 5'd04) && (DI[6:0] != row);
+wire       type0_r4_switch_active = type0_r4_adjust_switch | type0_r4_switch_write |
+                                   type0_r9_pending_r4_cancel;
+// French ACCC v1.11 section 11.2.2 p.83, example 3: management is
+// already armed, but an R9 write keeps C9/R9 selected until the pending
+// C4 increment. R4's explicit switch takes precedence, including an
+// unequal write restored within the same line (section 13.2.1 p.106).
+wire       type0_r9_compare_active = (type0_r9_live_compare | type0_r9_compare_write) &
+                                   ~type0_r4_switch_active;
 wire       type0_c0_1_break_write = !CRTC_TYPE && register_write && hcc == 1 &&
 									frame_adj_r && !in_adj &&
 									((addr == 5'd04 && DI[6:0] != row) ||
@@ -378,7 +386,8 @@ wire       type0_ivm_limit = ({1'b0, type0_limit_value} == type0_limit_target6);
 // reached from C9>0 must let C9 run to 31 and wrap, so no unconditional
 // "limit is zero" match may short-circuit the comparison.  Adjustment keeps
 // its plain C9-vs-R5 reuse; outside adjustment the IVM comparison applies.
-wire       line_last = in_adj ? (line == crtc0_line_max) : type0_ivm_limit;
+wire       line_last = (in_adj && !type0_r9_compare_active) ?
+                       (line == crtc0_line_max) : type0_ivm_limit;
 wire [4:0] type0_r5_adjust_target_effective = type0_r5_window_write ?
 											(DI[4:0] - 1'd1) : type0_r5_adjust_target;
 wire       type0_r5_write = !CRTC_TYPE && register_write && addr == 5'd05;
@@ -427,7 +436,8 @@ assign c5_next = 5'd0;
 // too.  Type 0's R4=0 frame end comes from the `Last Line` / adjustment
 // arbitration above, not from a magnitude special case.
 wire       row_last_w = (row == R4_v_total);
-wire       crtc0_row_frame_last = (row_last_r | in_adj) & ~type0_adjustment_selected;
+wire       crtc0_row_frame_last = (row_last_r | in_adj) &
+                                      ~type0_adjustment_selected & ~type0_r9_compare_active;
 // F14 (ACCC v1.11 section 19.6.1 p.217; Q10 resolution in
 // accc-author-questions.md item 10): with an interlace mode active (R8=1 or
 // 3) and ParityR6 odd, one additional line is appended after the R5
@@ -448,7 +458,8 @@ reg        type0_add_line_active;
 wire       type0_frame_end_raw = row_new & crtc0_row_frame_last;
 wire       type0_add_intercept = type0_frame_end_raw && !type0_add_line_active &&
 								 type0_add_armed;
-assign     frame_adj = type0_adjustment_selected | type0_add_intercept;
+assign     frame_adj = type0_adjustment_selected | type0_r9_compare_active |
+                       type0_add_intercept;
 assign     row_frame_last = crtc0_row_frame_last & ~type0_add_intercept;
 assign     row_next = type0_add_intercept ? (in_adj ? row : row + 7'd1) :
 									 row_frame_last ? 7'd0 : row + 1'd1;
@@ -499,7 +510,7 @@ wire       type0_c0_row_last = (row == type0_c0_r4);
 // F14: on the additional line (C9=R5) the seam must latch the row-end so
 // the line ends at the frame origin; the plain adjustment limit (R5-1)
 // cannot match there.
-wire       type0_c0_line_last = in_adj ? (((type0_add_line_active && (line == type0_c0_r5)) |
+wire       type0_c0_line_last = (in_adj && !type0_r9_compare_active) ? (((type0_add_line_active && (line == type0_c0_r5)) |
 											(line == type0_c0_adjust_line_max)) | type0_c0_zero_adj_entry) :
 										(({1'b0, type0_seam_value} == type0_seam_target6));
 assign     c0_line_last = type0_c0_line_last;
@@ -576,9 +587,18 @@ always @(posedge CLOCK) begin
 		// sets type0_r4_adjust_switch sticky for the rest of the line; an
 		// equal restoring write must not clear the current-line history.
 		if(CLKEN && line_new) type0_r4_adjust_switch <= 0;
-		else if(type0_r4_switch_write) type0_r4_adjust_switch <= 1;
-		if(type0_r9_compare_write) type0_r9_live_compare <= 1;
-		else if(CLKEN && line_new) type0_r9_live_compare <= 0;
+		else if(type0_r4_switch_write || type0_r9_pending_r4_cancel)
+			type0_r4_adjust_switch <= 1;
+		if(type0_r4_switch_active) type0_r9_live_compare <= 0;
+		// French ACCC v1.11 section 12.2 p.95: either C0=1 break
+		// already made this the first additional line. A later R9 write
+		// is not the section 11.2.2 p.83 last-line window any longer.
+		else if(type0_r9_compare_write && !type0_c0_1_adjust_active)
+			type0_r9_live_compare <= 1;
+		// The first boundary only advances C9. Consume the pending R9
+		// comparator when C4 finally advances. An unequal R4 write above
+		// selects R5 even if R4 is subsequently restored to C4.
+		else if(CLKEN && row_new) type0_r9_live_compare <= 0;
 		if(type0_r9_at_r0_write) type0_r9_at_r0_pending <= 1;
 		else if(CLKEN && line_new) type0_r9_at_r0_pending <= 0;
 		// A line boundary consumes the current-line override.  An accepted
