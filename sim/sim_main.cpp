@@ -2837,9 +2837,10 @@ void test_type0_adjustment_latches_clear_on_snapshot_load(TestBench& test) {
     test.expect_type0_arbitration_latches(
         "snapshot load clears type 0 arbitration state", false, false, false);
 
-    // Arm zero adjustment entry latch, verify it is true, then verify snapshot load clears it.
+    // French §13.2.1 p106: unmodified R0=1 arms the one-extra-line
+    // flag; verify snapshot load clears that state.
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> zero_adj_registers = {{
-        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 0},
+        {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 0},
         {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
     }};
     for (const auto& [address, value] : zero_adj_registers) {
@@ -2848,8 +2849,6 @@ void test_type0_adjustment_latches_clear_on_snapshot_load(TestBench& test) {
     test.select_register(4);
     test.reset();
 
-    test.run_characters(1);
-    test.write_selected_register_at_clken(1);
     test.run_characters(2);
     test.expect_type0_zero_adj_entry(
         "type 0 zero adjustment entry latch is armed before snapshot load", true);
@@ -2899,9 +2898,10 @@ void test_type0_adjustment_latches_clear_on_type_roundtrip(TestBench& test) {
     test.expect_type0_arbitration_latches(
         "live type round-trip clears exact-R0 state", false, false, false);
 
-    // Arm zero adjustment entry latch, verify it is true, then verify type round-trip clears it.
+    // French §13.2.1 p106: use unmodified R0=1 to arm the
+    // one-extra-line flag before checking the live-type lifecycle.
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> zero_adj_registers = {{
-        {0, 3}, {1, 2}, {2, 2}, {3, 0x11}, {4, 0},
+        {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 0},
         {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
     }};
     for (const auto& [address, value] : zero_adj_registers) {
@@ -2910,8 +2910,6 @@ void test_type0_adjustment_latches_clear_on_type_roundtrip(TestBench& test) {
     test.select_register(4);
     test.reset();
 
-    test.run_characters(1);
-    test.write_selected_register_at_clken(1);
     test.run_characters(2);
     test.expect_type0_zero_adj_entry(
         "type 0 zero adjustment entry latch is armed before type round-trip", true);
@@ -2923,10 +2921,168 @@ void test_type0_adjustment_latches_clear_on_type_roundtrip(TestBench& test) {
         "live type round-trip clears zero adjustment entry latch", false);
 }
 
+// French ACCC v1.11 §12.2 p95: forced C0=1 entry is already additional.
+// §11.2.2 p83 and §13.2.4 p108: pending C4=R4 retains the R9 comparator,
+// including natural C9 overflow; R5 completion is eligible after C4 advances.
+// Exercise wrapper counter commits and public VSYNC, not a private flag oracle.
+void check_type0_forced_zero_adjustment(TestBench& test, bool r4_break,
+                                        unsigned new_r9 = 0,
+                                        unsigned incoming_r9 = 0) {
+    test.set_crtc_type(0);
+    const unsigned r7 = r4_break ? 9 : 3;
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 8},
+        {5, 0}, {6, 7}, {7, r7}, {8, 0}, {9, incoming_r9},
+    }};
+    for (const auto& [address, value] : registers)
+        test.write_register(address, value);
+    test.select_register(r4_break ? 4 : 9);
+    test.reset();
+    test.run_characters((8 * (incoming_r9 + 1) + incoming_r9) * 64);
+    test.expect_c4("forced-zero source fixture reaches C4=R4=8", 8);
+    test.expect_ra("forced-zero source fixture reaches C9=R9", incoming_r9);
+    test.expect_vsync_low("R7 is quiet before the forced entry");
+    test.run_characters(1);
+    test.write_selected_register_at_clken(r4_break ? 10 : new_r9);
+    test.run_characters(62);
+
+    // R4 break selects R5 and counts 0..31. Pending R9 must first
+    // match the new R9, even across a five-bit wrap: 7->6 holds 7..31,
+    // then 0..6 (32 lines). That match advances C4/switches to R5, and
+    // calculated zero completes adjustment before another line is displayed.
+    const unsigned origin_line = r4_break ? 32 :
+                                 ((new_r9 + 32 - incoming_r9) & 31) + 1;
+    for (unsigned line = 1; line < origin_line; ++line) {
+        const auto label = "forced-zero L" + std::to_string(line);
+        test.expect_c4(label + " holds C4=8", 8);
+        test.expect_ra(label + " advances C9", (incoming_r9 + line) & 31);
+        test.expect_adjustment_active(label + " retains adjustment");
+        for (unsigned c0 = 0; c0 < 64; ++c0) {
+            test.expect_vsync_low(label + " cannot enter quiet R7");
+            test.run_characters(1);
+        }
+    }
+    test.expect_c4("calculated C9=R5 resets C4 at the derived origin", 0);
+    test.expect_ra("calculated C9=R5 resets C9 at the derived origin", 0);
+    test.expect_adjustment_inactive("calculated C9=R5 ends forced adjustment");
+    test.expect_vsync_low("frame origin has not reached R7");
+    // French §16.4.1 p170: only the real following-frame C4=R7
+    // transition starts VSYNC, after R7*(R9+1) ordinary scanlines.
+    const unsigned to_r7 = r7 * (r4_break ? 1 : new_r9 + 1) * 64;
+    for (unsigned c = 0; c < to_r7 - 1; ++c) {
+        test.expect_vsync_low("following frame has not yet reached R7");
+        test.run_characters(1);
+    }
+    test.expect_vsync_low("last character before the genuine R7 row");
+    test.run_characters(1);
+    test.expect_c4("following frame genuinely reaches R7", r7);
+    test.expect_ra("genuine R7 row starts with C9=0", 0);
+    // The wrapper publishes Type0 VSYNC_r through its existing one-clock
+    // register. Counter entry above is the source-derived event; sample the
+    // public pin after that unchanged publication edge (CRTC.v).
+    test.run_clock_ticks(1);
+    test.expect_vsync_high("genuine C4=R7 starts public VSYNC");
+}
+
+// French §11.2.2 pp82–83, §12.2 p95 and §13.2.4 p108: an R4
+// break has selected R5 on the current forced additional line, which may
+// already calculate its terminal value at the first boundary.
+void check_type0_forced_r4_terminal(TestBench& test, unsigned r5, unsigned r9,
+                                    unsigned r0 = 63, int r5_write_c0 = -1) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, r0}, {1, 40}, {2, 46}, {3, 0x11}, {4, 8},
+        {5, r5}, {6, 7}, {7, 0}, {8, 0}, {9, r9},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.select_register(4);
+    test.reset();
+    const unsigned line_characters = r0 + 1;
+    test.run_characters((8 * (r9 + 1) + r9) * line_characters);
+    test.expect_c4("R4-terminal fixture reaches natural C4=R4=8", 8);
+    test.expect_ra("R4-terminal fixture reaches natural C9=R9", r9);
+    test.expect_vsync_low("R7=0 is quiet before the true terminal-entry origin");
+    test.run_characters(1);
+    test.write_selected_register_at_clken(10);
+    if (r5_write_c0 >= 0) {
+        test.select_register(5);
+        test.run_to_c0(r5_write_c0);
+        test.write_selected_register_at_clken(4);
+    }
+    if (r0 > 1) {
+        while (test.c0() != r0) {
+            test.expect_vsync_low("R4 terminal line stays quiet before its boundary");
+            test.run_clock_ticks(1);
+        }
+        test.expect_vsync_low("last character before selected-R5 boundary");
+        test.run_characters(1);
+    }
+    if (r5_write_c0 == 2) {
+        // Existing accepted target window: R5=4 replaces the terminal-zero
+        // target before C0=3, so four C9=0..3 lines follow before origin.
+        for (unsigned line = 0; line < 4; ++line) {
+            test.expect_c4("accepted R5 target retains the held C4", 8);
+            test.expect_ra("accepted R5 target counts its four lines", line);
+            test.expect_adjustment_active("accepted R5 target remains additional");
+            test.expect_no_vsync_observed("accepted R5 target has not reached origin",
+                                         test.vsync_within_characters(line_characters - 1));
+            test.run_characters(1);
+        }
+    }
+    test.expect_c4("selected R5 terminal entry commits the origin C4", 0);
+    test.expect_ra("selected R5 terminal entry commits the origin C9", 0);
+    test.expect_adjustment_inactive("selected R5 terminal entry ends adjustment");
+    test.run_clock_ticks(1); // unchanged Type0 publication register
+    if (r0 > 1) test.expect_vsync_high("true terminal-entry origin starts R7=0 VSYNC");
+    else {
+        test.expect_vsync_low("short-R0 origin retains the C0=2 VSYNC qualification");
+        test.run_characters((r9 + 1) * line_characters);
+        test.expect_c4("short-R0 terminal origin resumes ordinary next row", 1);
+        test.expect_ra("short-R0 terminal origin resumes at C9=0", 0);
+        test.expect_adjustment_inactive("short-R0 terminal entry leaves no stale phase");
+    }
+}
+
+// Accepting-edge R9 ownership must prevent terminal-R4 completion when a
+// short-R0 rollover coincides with the R9 break (French §11.2.2 p83).
+void check_type0_short_r9_accepting_owner(TestBench& test) {
+    test.set_crtc_type(0);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 8},
+        {5, 0}, {6, 7}, {7, 0}, {8, 0}, {9, 31},
+    }};
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.select_register(9);
+    test.reset();
+    test.run_characters((8 * 32 + 31) * 2);
+    test.run_characters(1);
+    test.write_selected_register_at_clken(30);
+    for (unsigned line = 0; line <= 30; ++line) {
+        test.expect_c4("coincident R9 break keeps its pending C4", 8);
+        test.expect_ra("coincident R9 break owns the wrapped C9", line);
+        test.expect_adjustment_active("coincident R9 break is not an R4 endpoint");
+        test.expect_vsync_low("short-R0 pending R9 cannot start VSYNC");
+        test.run_characters(2);
+    }
+    test.expect_c4("coincident R9 match commits its true origin", 0);
+    test.expect_ra("coincident R9 origin clears C9", 0);
+    test.expect_adjustment_inactive("coincident R9 origin consumes its phase");
+    test.run_characters(31 * 2);
+    test.expect_c4("R9 origin follow-through resumes an ordinary row", 1);
+    test.expect_ra("R9 origin follow-through has C9=0", 0);
+    test.expect_adjustment_inactive("R9 origin follow-through retains no pending latch");
+}
+
 void test_type0_r4_write_at_c0_1_enters_zero_adjustment(TestBench& test) {
+    check_type0_forced_r4_terminal(test, 0, 31);
+    check_type0_forced_r4_terminal(test, 4, 3);
+    check_type0_forced_r4_terminal(test, 0, 31, 63, 2);
+    check_type0_forced_r4_terminal(test, 0, 31, 63, 3);
+    check_type0_forced_r4_terminal(test, 0, 31, 1);
+    check_type0_forced_zero_adjustment(test, true);
     test.set_crtc_type(0);
 
-    // ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2: if Last Line was
+    // French ACCC v1.11 §12.2 p95 and §13.2.4 p108: if Last Line was
     // established at C0=0, an R4 write at C0=1 that breaks C4==R4 makes the
     // current line the first adjustment line even when R5=0. The changed R4
     // keeps C4 at zero, while C9 advances from zero instead of being reset.
@@ -2942,9 +3098,6 @@ void test_type0_r4_write_at_c0_1_enters_zero_adjustment(TestBench& test) {
 
     test.run_characters(1);
     test.write_selected_register_at_clken(1);
-    test.expect_type0_arbitration_latches(
-        "type 0 C0=1 R4 break arms only zero-adjustment entry", false, false,
-        false, true);
     test.run_characters(2);
 
     test.expect_adjustment_active("type 0 C0=1 R4 break enters adjustment with R5=0");
@@ -2953,13 +3106,15 @@ void test_type0_r4_write_at_c0_1_enters_zero_adjustment(TestBench& test) {
     test.expect_type0_arbitration_latches(
         "type 0 C0=1 entry latch clears at the line boundary", false, false,
         false);
-    test.expect_type0_zero_adj_entry(
-        "type 0 C0=1 R4 break sets zero adjustment entry latch", true);
-
-    test.run_characters(4);
+    // French §13.2.4 p108: this forced route counts C9 to R5=0;
+    // p106's short-R0 one-extra-line flag does not describe this entry.
+    for (unsigned line = 1; line < 32; ++line) {
+        test.expect_ra("compact R4-break adjustment C9", line);
+        test.expect_c4("compact R4-break adjustment holds C4", 0);
+        test.expect_adjustment_active("compact R4-break adjustment stays active");
+        test.run_characters(4);
+    }
     test.expect_adjustment_inactive("type 0 C0=1 R4 zero adjustment completes");
-    test.expect_type0_zero_adj_entry(
-        "type 0 zero adjustment entry latch clears after completion", false);
 
     // French ACCC v1.11 section 12.2 p.95 and section 11.2.2 p.83:
     // the C0=1 R4 break already selected R5 (C4<>R4). A subsequent R9
@@ -2976,14 +3131,24 @@ void test_type0_r4_write_at_c0_1_enters_zero_adjustment(TestBench& test) {
     test.run_characters(1);
     test.expect_ra("C0=1 R4 then R9 write enters adjustment C9=1", 1);
     test.expect_c4("C0=1 R4 then R9 write keeps C4=0", 0);
-    test.run_characters(4);
-    test.expect_ra("C0=1 R4 then R9 write preserves zero-adjustment end", 0);
+    test.run_characters(3 * 4);
+    test.expect_ra("R4-selected R5 phase counts past the later R9=3", 4);
+    test.expect_c4("later R9 write cannot advance the held C4", 0);
+    test.expect_adjustment_active("R4-selected R5 phase remains active past R9");
+    test.run_characters(28 * 4);
+    test.expect_ra("C0=1 R4 then R9 write ends at calculated R5=0", 0);
     test.expect_c4("C0=1 R4 then R9 write restores frame origin", 0);
     test.expect_adjustment_inactive("C0=1 R4 then R9 write completes adjustment");
 
 }
 
 void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
+    check_type0_short_r9_accepting_owner(test);
+    // French §11.2.2 p83 / §13.2.4 p108: C9=31->0 while C4=R4
+    // remains an R9-phase overflow, not a second simultaneous R5 endpoint.
+    check_type0_forced_zero_adjustment(test, false, 6, 7);
+    check_type0_forced_zero_adjustment(test, false, 2);
+    check_type0_forced_zero_adjustment(test, false, 1);
     test.set_crtc_type(0);
 
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
@@ -3003,10 +3168,14 @@ void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
     test.expect_c4("type 0 C0=1 R9 break keeps C4", 0);
     test.expect_ra("type 0 C0=1 R9 break increments C9", 1);
 
-    // French ACCC v1.11 section 12.2 p.95: an R9 break at C0=1
-    // already makes this the first additional line, just like an R4
-    // break. The section 11.2.2 p.83 last-line R9 window cannot arm a
-    // persistent R9 phase after that entry, even while C4 still equals R4.
+    test.run_characters(4);
+    test.expect_ra("compact R9=1 break calculates R5=0 after C9=1", 0);
+    test.expect_c4("compact R9=1 break restores the origin", 0);
+    test.expect_adjustment_inactive("compact R9=1 break ends on L2");
+
+    // French §11.2.2 p83 example3 and §13.2.4 p108: the C0=1 R9
+    // break is already additional, retaining the pending R9 comparator
+    // while C4=R4. A later R9 write changes that selected comparator.
     for (const auto& [address, value] : registers) {
         test.write_register(address, value);
     }
@@ -3019,8 +3188,14 @@ void test_type0_r9_write_within_c0_1_enters_zero_adjustment(TestBench& test) {
     test.expect_ra("C0=1 R9 then R9 write enters adjustment C9=1", 1);
     test.expect_c4("C0=1 R9 then R9 write keeps C4=0", 0);
     test.expect_adjustment_active("C0=1 R9 then R9 write enters adjustment");
+    for (unsigned line = 2; line <= 3; ++line) {
+        test.run_characters(4);
+        test.expect_ra("pending R9 phase follows the later R9=3", line);
+        test.expect_c4("pending R9 phase holds C4 until its wrap", 0);
+        test.expect_adjustment_active("pending R9 phase remains additional");
+    }
     test.run_characters(4);
-    test.expect_ra("C0=1 R9 then R9 write preserves zero-adjustment end", 0);
+    test.expect_ra("C0=1 R9 then R9 write ends at calculated R5=0", 0);
     test.expect_c4("C0=1 R9 then R9 write restores frame origin", 0);
     test.expect_adjustment_inactive("C0=1 R9 then R9 write completes adjustment");
 
@@ -3158,9 +3333,10 @@ void test_type0_r0_zero_during_adjustment_freezes_c4(TestBench& test) {
 void test_type0_r0_one_c0_1_break_is_consumed_at_rollover(TestBench& test) {
     test.set_crtc_type(0);
 
-    // With R0=1, C0=1 is also the line rollover. The equality-breaking R4
-    // write must affect that rollover directly and be consumed there; retaining
-    // the entry latch would force an extra adjustment line.
+    // French §12.2 p95 and §13.2.4 p108: with R0=1, the C0=1 R4
+    // break also coincides with rollover. Consume the transient entry there,
+    // then retain the forced R5 count until completion. This differs from
+    // t16p's unmodified short-R0 one-extra-line route.
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
         {0, 1}, {1, 1}, {2, 1}, {3, 0x11}, {4, 0},
         {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
@@ -3180,8 +3356,16 @@ void test_type0_r0_one_c0_1_break_is_consumed_at_rollover(TestBench& test) {
         "type 0 R0=1 consumes the C0=1 entry latch at rollover", false, false,
         false);
 
-    test.run_characters(2);
-    test.expect_adjustment_inactive("type 0 R0=1 C0=1 adjustment completes next line");
+    // French §12.2 p95 and §13.2.4 p108: consuming the transient
+    // C0=1 entry latch does not end the forced R5=0 adjustment. This
+    // differs from the unmodified R0=1 one-extra-line control in t16p.
+    for (unsigned line = 1; line < 32; ++line) {
+        test.expect_ra("R0=1 forced R4 break counts C9 to R5", line);
+        test.expect_c4("R0=1 forced R4 break holds C4", 0);
+        test.expect_adjustment_active("R0=1 forced R4 break stays additional");
+        test.run_characters(2);
+    }
+    test.expect_adjustment_inactive("R0=1 forced adjustment ends on calculated C9=R5");
     test.expect_c4("type 0 R0=1 C0=1 completion resets C4", 0);
     test.expect_ra("type 0 R0=1 C0=1 completion resets C9", 0);
 }
@@ -3436,16 +3620,13 @@ void test_type0_r5_same_line_rejected_zero_does_not_retarget(TestBench& test) {
         "rejected C0=3 R5=0 write does not retarget accepted R5=4 completion");
 }
 
-void test_type0_zero_adj_entry_r5_positive_extends_adjustment(TestBench& test) {
+void test_type0_forced_zero_adjustment_r5_write_window(TestBench& test) {
     test.set_crtc_type(0);
 
-    // ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2:
-    // Entering special zero adjustment (e.g. via C0=1 R4 break with R5=0) arms
-    // type0_zero_adj_entry for a one-line adjustment.
-    // An accepted positive R5 write before C0=3 (e.g. R5=4 at C0=2) must
-    // clear/suppress type0_zero_adj_entry and override stale line_last_r at
-    // rollover, extending adjustment toward the new R5 (C9 counting through R5-1)
-    // instead of sticky one-line completion.
+    // French ACCC v1.11 §12.2 p95 and §13.2.4 p108: forced R4
+    // entry counts to R5=0, rather than the short-R0 one-extra-line limit.
+    // A positive R5=4 write at C0<=2 retargets the current line; a later
+    // write affects subsequent line comparisons, without that override.
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
         {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 0},
         {5, 0}, {6, 1}, {7, 1}, {8, 0},    {9, 0},
@@ -3463,29 +3644,23 @@ void test_type0_zero_adj_entry_r5_positive_extends_adjustment(TestBench& test) {
     test.write_selected_register_at_clken(1);
     test.run_characters(line_characters - 2);
 
-    // Now on adjustment line: zero-entry is initially armed, C9 advanced to 1.
+    // Already additional: C9 advanced to1 on the forced R5-count route.
     test.expect_adjustment_active("type 0 enters special zero adjustment");
     test.expect_c4("type 0 zero adjustment keeps C4 at 0", 0);
     test.expect_ra("type 0 zero adjustment starts at C9=1", 1);
-    test.expect_type0_zero_adj_entry(
-        "zero adjustment entry latch is initially true", true);
 
     // Write R5=4 (positive) before C0=3 (at C0=2).
     test.select_register(5);
     test.run_characters(2);
     test.write_selected_register_at_clken(4);
-    test.expect_type0_zero_adj_entry(
-        "positive R5 write at C0=2 clears zero adjustment entry latch immediately", false);
     test.expect_type0_r5_adjust_override(
         "positive R5 write at C0=2 arms adjustment override latch", true);
     test.run_characters(line_characters - 3);
 
-    // Line 1 completes rollover without ending adjustment; C9 advances to 2.
-    test.expect_adjustment_active("type 0 positive R5 write extends adjustment");
+    // Accepted R5=4 keeps adjustment active as C9 advances from1 to2.
+    test.expect_adjustment_active("accepted positive R5 retains adjustment until its target");
     test.expect_c4("type 0 C4 remains 0 during extended adjustment", 0);
-    test.expect_ra("type 0 C9 advances to 2 instead of sticky completion", 2);
-    test.expect_type0_zero_adj_entry(
-        "zero adjustment entry latch remains false", false);
+    test.expect_ra("accepted R5=4 counts C9 to2", 2);
     test.expect_type0_r5_adjust_override(
         "R5 adjustment override latch clears after line rollover", false);
 
@@ -3499,10 +3674,8 @@ void test_type0_zero_adj_entry_r5_positive_extends_adjustment(TestBench& test) {
     test.expect_adjustment_inactive("type 0 leaves adjustment after C9=3");
     test.expect_c4("type 0 frame reset clears C4", 0);
     test.expect_ra("type 0 frame reset clears C9", 0);
-    test.expect_type0_zero_adj_entry(
-        "zero adjustment entry latch remains clear after frame reset", false);
 
-    // Rejection check: write R5 positive after C0=2 (at C0=3) does NOT extend adjustment.
+    // After C0=2, R5 updates the register but not the current-line override.
     for (const auto& [address, value] : registers) {
         test.write_register(address, value);
     }
@@ -3515,8 +3688,6 @@ void test_type0_zero_adj_entry_r5_positive_extends_adjustment(TestBench& test) {
 
     test.expect_adjustment_active("type 0 enters special zero adjustment for rejection check");
     test.expect_ra("type 0 zero adjustment starts at C9=1", 1);
-    test.expect_type0_zero_adj_entry(
-        "zero adjustment entry latch is true before late write", true);
 
     // Write R5=4 at C0=3 (after the accepted window C0<=2).
     test.select_register(5);
@@ -3526,8 +3697,14 @@ void test_type0_zero_adj_entry_r5_positive_extends_adjustment(TestBench& test) {
         "late R5 write at C0=3 does NOT arm adjustment override latch", false);
     test.run_characters(line_characters - 4);
 
-    // The late write is rejected for current line: adjustment ends after line 1.
-    test.expect_adjustment_inactive("type 0 late R5 write after C0=2 does not extend adjustment");
+    // The forced zero route has no one-line shortcut. Current C9=1
+    // proceeds to2; subsequent seams use R5=4 and finish after C9=3.
+    test.expect_ra("late R5 write retains the forced current-line count", 2);
+    test.expect_adjustment_active("late R5 write does not create a one-line end");
+    test.run_characters(line_characters);
+    test.expect_ra("late R5 write is used by the following comparison", 3);
+    test.run_characters(line_characters);
+    test.expect_adjustment_inactive("late R5=4 ends after calculated C9=4");
     test.expect_c4("type 0 late R5 write resets C4", 0);
     test.expect_ra("type 0 late R5 write resets C9", 0);
 }
@@ -8995,10 +9172,10 @@ int main(int argc, char** argv) {
          "CRTC live CRTC_TYPE contract; F12 lifecycle guard", false,
          test_type0_adjustment_latches_clear_on_type_roundtrip},
         {"t16m_type0_r4_write_at_c0_1_enters_zero_adjustment",
-         "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12", false,
+         "French ACCC v1.11 §11.2.2 pp82–83, §12.2 p95, §13.2.4 p108; forced R4/R5 zero wrap", false,
          test_type0_r4_write_at_c0_1_enters_zero_adjustment},
         {"t16n_type0_r9_write_within_c0_1_enters_zero_adjustment",
-         "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12 bus-phase guard", false,
+         "French ACCC v1.11 §11.2.2 pp82–83, §12.2 p95, §13.2.4 p108; pending R9/R5 completion", false,
          test_type0_r9_write_within_c0_1_enters_zero_adjustment},
         {"t16o_type0_r4_write_at_c0_0_overrides_last_line",
          "ACCC v1.10 sections 10.3.1 and 12.2; F12 C0=0 guard", false,
@@ -9013,7 +9190,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 section 13.2.3; F5/F12 interaction guard", false,
          test_type0_r0_zero_during_adjustment_freezes_c4},
         {"t16s_type0_r0_one_c0_1_break_is_consumed_at_rollover",
-         "ACCC v1.10 sections 10.3.1, 11.2.2, and 13.2.1; F5/F12 boundary",
+         "French ACCC v1.11 §12.2 p95, §13.2.4 p108; coincident R0=1 forced entry",
          false, test_type0_r0_one_c0_1_break_is_consumed_at_rollover},
         {"t16t_type0_adjustment_unequal_c9_counts_to_r5",
          "ACCC v1.10 sections 11.2.1 and 11.2.2; F12/F4 vertical adjustment C9 reuse",
@@ -9030,9 +9207,9 @@ int main(int argc, char** argv) {
         {"t16y_type0_r5_same_line_rejected_zero_does_not_retarget",
          "ACCC v1.10 sections 10.3.1 and 11.2.2; F4/F12 inverse R5 target latch",
          false, test_type0_r5_same_line_rejected_zero_does_not_retarget},
-        {"t16w_type0_zero_adj_entry_r5_positive_extends_adjustment",
-         "ACCC v1.10 sections 10.3.1, 11.2.2, and 12.2; F12 zero-entry positive R5",
-         false, test_type0_zero_adj_entry_r5_positive_extends_adjustment},
+        {"t16w_type0_forced_zero_adjustment_r5_write_window",
+         "French ACCC v1.11 §11.2.2 pp82–83, §12.2 p95, §13.2.4 p108; forced-entry R5 window",
+         false, test_type0_forced_zero_adjustment_r5_write_window},
         {"t16z_type0_r4_unequal_history_retains_switch",
          "ACCC v1.11 French section 13.2.1 p.106 and section 11.2.2; IA-4/BL-017 R4 history",
          false, test_type0_r4_unequal_history_retains_switch},
