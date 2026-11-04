@@ -6,8 +6,9 @@
 //  the user-owned standard is kept with the ignored SHAKER media; files at
 //  https://shaker.logonsystem.eu). Credit: Longshot / Logon System.
 //
-//  This module observes CRTC behaviour nowhere, so it carries no ACCC
-//  attribution; the Logon System credit above is for the SSM standard itself.
+//  This module implements no CRTC behaviour. The optional private diagnostic
+//  only copies existing state; CRTC rule attribution remains with its owners.
+//  The Logon System credit above is for the SSM standard itself.
 //
 //  A SHAKER build from version 2.5 marks each of its test screens by executing
 //  two consecutive undefined-ED instructions, #ED #LL #ED #HH. Those are two
@@ -96,6 +97,12 @@ module ssm_marker #(
 	output      [7:0] ddram_burstcnt,
 	output reg        ddram_we,
 	input             ddram_busy
+`ifdef SSM_S_PASSIVE_TRACE
+	// Temporary original-S observer: physical M1 mapping, never CPU register PC.
+	, input s_trace_enable, s_trace_qualified
+	, input [15:0] s_trace_addr
+	, input [127:0] s_trace_snapshot
+`endif
 );
 
 localparam [28:0] BASE_WORD = DDR_BASE[31:3];
@@ -185,6 +192,99 @@ always @(posedge clk) begin
 		pos_at_fetch  <= {field, hpos, line, frame};
 	end
 end
+
+`ifdef SSM_S_PASSIVE_TRACE
+// One acquisition per SSM-enable epoch. Pure observers; no machine feedback.
+// Capture cut: pre-edge live state when the completed M1 read first goes low.
+reg [15:0] s_fetch_addr;
+reg s_fetch_ok;
+reg s_tail_pending = 0;
+reg [1:0] s_tail_pulse = 0;
+reg [15:0] s_tail_addr;
+reg [7:0] s_tail_op;
+reg s_started = 0, s_frozen = 0;
+reg [2:0] s_count = 0;
+reg [7:0] s_error = 0;
+reg [127:0] s_samples [0:6];
+reg [31:0] s_ticks [0:6];
+reg s_flush = 0, s_done = 0, s_writing = 0, s_header_pending = 0;
+reg [3:0] s_index = 0;
+reg [31:0] s_result_tick = 0;
+reg [63:0] s_rec_a, s_rec_b;
+function [15:0] s_pc(input [2:0] i);
+ case(i)
+  0:s_pc=16'hA4CF; 1:s_pc=16'hA4DE; 2:s_pc=16'hA067;
+  3:s_pc=16'hA06B; 4:s_pc=16'h5BFB; 5:s_pc=16'h5B0A;
+  default:s_pc=16'h5B17;
+ endcase
+endfunction
+function [7:0] s_op(input [2:0] i);
+ case(i)
+  0:s_op=8'h06; 1,3:s_op=8'h11; 6:s_op=8'h29; default:s_op=8'hED;
+ endcase
+endfunction
+wire s_target = s_fetch_addr==16'hA4CF || s_fetch_addr==16'hA4DE ||
+ s_fetch_addr==16'hA067 || s_fetch_addr==16'hA06B ||
+ s_fetch_addr==16'h5BFB || s_fetch_addr==16'h5B0A || s_fetch_addr==16'h5B17;
+wire s_header_accepted = s_header_pending && ddram_we && !ddram_busy;
+always @(posedge clk) begin
+ if (!active || !s_trace_enable) begin
+  s_started<=0; s_frozen<=0; s_count<=0; s_error<=0; s_fetch_ok<=0;
+  s_tail_pending<=0; s_tail_pulse<=0;
+ end else begin
+  if (m1_fetch) begin
+   s_fetch_addr<=s_trace_addr;
+   s_fetch_ok<=s_trace_qualified &&
+     (!m1_fetch_d || (s_fetch_ok && s_fetch_addr==s_trace_addr));
+  end
+  if (s_header_accepted) s_frozen<=1;
+  if (fetch_end && !s_frozen) begin
+   if (s_tail_pending && s_error==0) begin
+    if (!s_fetch_ok) s_error<=1;
+    else if (s_fetch_addr!=s_tail_addr) s_error<=4;
+    else if (fetch_data!=s_tail_op) s_error<=2;
+    else if (s_tail_pulse==1) begin
+     s_tail_addr<=16'hA069; s_tail_op<=8'hED; s_tail_pulse<=2;
+    end else if (s_tail_pulse==2) begin
+     s_tail_addr<=16'hA06A; s_tail_op<=8'h71; s_tail_pulse<=0;
+    end else s_tail_pending<=0;
+   end else if (!s_started && s_fetch_addr==16'h5AF3) begin
+    s_started<=1;
+    if (!s_fetch_ok) s_error<=1;
+    else if (fetch_data!=8'hCD) s_error<=2;
+   end else if (s_started && s_error==0 && s_count<7 && s_target) begin
+    if (!s_fetch_ok) s_error<=1;
+    else if (s_fetch_addr==s_pc(s_count)) begin
+     if (fetch_data!=s_op(s_count)) s_error<=2;
+     else begin
+      s_samples[s_count]<=s_trace_snapshot;
+      s_ticks[s_count]<=tick;
+      s_count<=s_count+1'b1;
+      // ED prefix completion is the capture cut; validate its next M1 too.
+      // A067 must also be followed by the original A069 ED71 R8 clear.
+      if (s_count==2 || s_count==4 || s_count==5) begin
+       s_tail_pending<=1; s_tail_addr<=s_fetch_addr+16'd1;
+       s_tail_op<=s_count==5 ? 8'h71 : 8'h49;
+       s_tail_pulse<=s_count==2 ? 2'd1 : 2'd0;
+      end
+     end
+    end else if (!(s_count==1 && s_fetch_addr==16'hA4CF && fetch_data==8'h06))
+     s_error<=4;
+   end
+  end
+ end
+end
+// FF20..26 / FF28..2E are opaque 64-bit payload halves, not raster/B22.
+// FF2F status: high32 STR1, error[23:16] (8=incomplete), version[15:8], count[7:0].
+wire s_status = s_index=={s_count,1'b0};
+wire [2:0] s_sample_index = s_index[3:1];
+wire [63:0] s_payload = s_status ?
+ {32'h53545231,8'd0,(s_error | (s_count==7 ? 8'd0 : 8'd8)),8'd1,5'd0,s_count} :
+ (s_index[0] ? s_samples[s_sample_index][127:64] : s_samples[s_sample_index][63:0]);
+wire [15:0] s_code = s_status ? 16'hFF2F :
+ (s_index[0] ? 16'hFF28 : 16'hFF20)+{13'd0,s_sample_index};
+wire [31:0] s_tick = s_status ? s_result_tick : s_ticks[s_sample_index];
+`endif
 
 //----------------------------------------------------------------------------
 // Marker recognition
@@ -338,6 +438,9 @@ always @(posedge clk) begin
 			pub_dropped   <= 8'd0;
 			last_code     <= 16'd0;
 			pend          <= 1'b0;
+`ifdef SSM_S_PASSIVE_TRACE
+			s_flush<=0; s_done<=0; s_writing<=0; s_header_pending<=0; s_index<=0;
+`endif
 		end
 	end
 	else if (quiesce_pending) begin
@@ -353,9 +456,18 @@ always @(posedge clk) begin
 			pub_dropped     <= 8'd0;
 			last_code       <= 16'd0;
 			pend            <= 1'b0;
+`ifdef SSM_S_PASSIVE_TRACE
+			s_flush<=0; s_done<=0; s_writing<=0; s_header_pending<=0; s_index<=0;
+`endif
 		end
 	end
 	else begin
+`ifdef SSM_S_PASSIVE_TRACE
+        if (s_header_accepted) begin
+            s_header_pending<=0;
+            if (s_trace_enable && s_started && !s_done) s_flush<=1;
+        end
+`endif
 		if (hit) begin
 			event_count <= event_count + 1'd1;
 			last_code   <= hit_code;
@@ -393,18 +505,34 @@ always @(posedge clk) begin
 				W_IDLE: begin
 					if (pend) wstate <= W_RECA;
 					else if (pub_dropped != dropped_count) wstate <= W_REPUB;
+`ifdef SSM_S_PASSIVE_TRACE
+                    else if (s_flush && !s_done && !hit) begin
+                        s_rec_a<={s_payload[47:0],s_code};
+                        s_rec_b<={s_payload[63:48],s_tick,written[15:0]};
+                        s_writing<=1;
+                        wstate<=W_RECA;
+                    end
+`endif
 				end
 
 				W_RECA: begin
 					ddram_addr <= BASE_WORD + 29'd2 + slot_off;
-					ddram_din  <= rec_a;
+					ddram_din  <=
+`ifdef SSM_S_PASSIVE_TRACE
+                        s_writing ? s_rec_a :
+`endif
+                        rec_a;
 					ddram_we   <= 1'b1;
 					wstate     <= W_RECB;
 				end
 
 				W_RECB: begin
 					ddram_addr <= BASE_WORD + 29'd3 + slot_off;
-					ddram_din  <= rec_b;
+					ddram_din  <=
+`ifdef SSM_S_PASSIVE_TRACE
+                        s_writing ? s_rec_b :
+`endif
+                        rec_b;
 					ddram_we   <= 1'b1;
 					wstate     <= W_HDR;
 				end
@@ -415,7 +543,20 @@ always @(posedge clk) begin
 					ddram_we    <= 1'b1;
 					written     <= written + 1'd1;
 					pub_dropped <= dropped_count;
+`ifdef SSM_S_PASSIVE_TRACE
+                    if (s_writing) begin
+                        s_writing<=0;
+                        if (s_status) begin s_done<=1; s_flush<=0; end
+                        else s_index<=s_index+1'b1;
+                    end else begin
+                        pend<=0;
+                        if (rec_a[15:0]==16'h02D3) begin
+                            s_header_pending<=1; s_result_tick<=rec_b[47:16];
+                        end
+                    end
+`else
 					pend        <= 1'b0;
+`endif
 					wstate      <= W_IDLE;
 				end
 

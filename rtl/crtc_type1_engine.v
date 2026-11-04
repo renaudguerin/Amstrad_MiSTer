@@ -128,6 +128,9 @@ module crtc_type1_engine
 
 	// Shared R6-border origin for wrapper display and sampled status.
 	output           r6_origin
+`ifdef SSM_S_PASSIVE_TRACE
+ , output [3:0] S_TRACE_STATE
+`endif
 );
 
 /* verilator lint_off WIDTH */
@@ -272,6 +275,9 @@ wire       crtc1_adj_end = CRTC_TYPE & in_adj & ({1'b0, c5} + 6'd1 == {1'b0, crt
 // Intercept the adjustment end, or the ordinary frame end when R5=0.
 // The additional line itself ends the frame unconditionally.
 reg        type1_add_line_active;
+`ifdef SSM_S_PASSIVE_TRACE
+assign S_TRACE_STATE = {ivm, tog_stage, type1_add_line_active};
+`endif
 wire       type1_add_intercept = line_new && type1_add_armed &&
                                  !type1_add_line_active &&
                                  (in_adj ? crtc1_adj_end :

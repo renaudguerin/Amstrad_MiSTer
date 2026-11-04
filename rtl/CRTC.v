@@ -90,6 +90,9 @@ module CRTC
 	output           SNAP_HSYNC,
 	output           SNAP_VSYNC_R,
 	output     [3:0] SNAP_VSW_ELAPSED
+`ifdef SSM_S_PASSIVE_TRACE
+ , output [6:0] S_TRACE_STATE
+`endif
 );
 
 /* verilator lint_off WIDTH */
@@ -311,6 +314,10 @@ wire [6:0] e1_row_next;
 wire [1:0] e1_de_index;
 wire [3:0] e1_vsc_load;
 
+`ifdef SSM_S_PASSIVE_TRACE
+wire [3:0] s_trace_type1;
+assign S_TRACE_STATE = {vsync_allow, parity_frame, parity_c9, s_trace_type1};
+`endif
 crtc_type1_engine crtc_type1_engine
 (
 	CLOCK, CLKEN, nCLKEN, nRESET, CRTC_TYPE, SNA_LOAD,
@@ -331,6 +338,9 @@ crtc_type1_engine crtc_type1_engine
 	e1_pf_write, e1_pf_value, e1_pc9_write, e1_pc9_value,
 	e1_line_poke, e1_line_poke_bit,
 	e1_status_bit5, e1_r6_origin
+`ifdef SSM_S_PASSIVE_TRACE
+ , s_trace_type1
+`endif
 );
 
 assign status_bit5 = e1_status_bit5;
