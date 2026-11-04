@@ -51,4 +51,9 @@ antérieure de la gestion, ou un frame de plus entre les mesures peuvent
 également expliquer ce nombre. Nous n’avons donc pas modifié la règle de
 production à partir de ce seul résultat.
 
+CPCSyntaxError 0.12 donne également `0080`, mais sa trace montre une sortie
+antérieure de la gestion lorsque R5=0, avant la seconde mesure. AmSpirit 1.17.1
+donne aussi `0080`, sans que son interface nous expose C5. Ces résultats ne
+suffisent donc pas à choisir le mécanisme du circuit réel.
+
 Merci pour cette précision.

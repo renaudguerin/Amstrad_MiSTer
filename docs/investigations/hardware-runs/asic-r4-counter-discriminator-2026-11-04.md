@@ -672,5 +672,271 @@ directory. All processes have exited. No production/retained-test edit,
 selection gate, API/device operation, RBF build, commit, push or delegation
 occurred.
 
+## Authentic A4 baseline attempt: blocked at the first opcode fetch
+
+The separate baseline-only unit is ignored under `asic/a4-authentic-proof/`.
+It uses the genuine menu SNA identified above, unchanged header/RAM/CPC+ bytes,
+and the original equality/raw-admission production copies. No `>=`, character
+write qualifier or fresh-R3 hypothesis is present. The English cartridge
+provenance of the CPCSE snapshot is retained; no firmware image was silently
+substituted.
+
+The actual motherboard keyboard input is exposed at the private top. Planned
+key4 input is625hex at20ms, then025hex release at100ms, through the real HID
+matrix. **Neither event was reached.** Both runs stop within the first millisecond
+because direct SNA resumption corrupts the first opcode. This is not an A4
+measurement or a keyboard failure.
+
+The first run and the subsequent passive first-bus trace both verify:
+
+```text
+RESTORE PC=4195 C=38/12/3 expected=38/12/3
+FIRST_FETCH pc=4195 byte=ca C=38/12/3
+MISSING_ROM PC=3
+DONE entered=0 fetches=967 topresults=0 outiresults=0 r0writes=0 marker=0 PC=3 clocks=62448 dependency=1
+```
+
+The later ROM request is a consequence of the wrong path, not evidence that the
+original A4 caller needs firmware. The passive trace identifies the first error
+much earlier:
+
+| Master tick after release | Observation |
+|---:|---|
+| 15 | Logical4195 reads RAM opcodeCA, but CPU input isC0. Raw IORQ is asserted during the M1 read. |
+| 23 | T80 instruction-start/T2 observes PC4195; READY shaping temporarily gives CPU inputCA. |
+| 67 | Still the first fetch/T2: CPU input is againC0 although RAM remainsCA. |
+| 87 | The actual T80 IR isC0, notCA. |
+| 135..287 | The unintended RET NZ reads stack bytes3C andFC fromC000/C001. |
+| 295/311 | Address/next instruction-start isFC3C. |
+
+Saved RAM at4195 is `CA C4 41`: JP Z,41C4. Saved F=30hex has Z clear, so the
+correct original next PC is4198. Instead, the initial simultaneous I/O read
+allows PPI-B to answer at4195 (A11=0, A9:A8=1). Its input isF4 for these jumpers
+and inactive VSYNC. The wired-AND bus gives CA AND F4=C0, RET NZ; NZ is true and
+it pops the screen data at the saved empty-stack position. The first opcode's
+value at instruction-start was therefore insufficient to prove correct CPU
+resumption: the IR load occurs later in that fetch.
+
+`run/first-bus.csv` directly records logical address, physical address, RAM byte,
+actual CPU bus, T80 DI/IR/TState/MCycle, M1/RD/IORQ and CPU enables. `blocker.json`
+selects the decisive samples. The first run remains unchanged in
+`run-direct-first-attempt/`; the second adds taps only and reproduces the same
+bad path. Any RAM dump from the stopped wrong path is not an authentic A4 result.
+
+The private wrapper uses the same production `plus_sna_apply` countdown,
+registered owner reset, T80 DIRSet and CEN gating as B18/production. Its existing
+pause ORs into sna_hold during loading, then releases without a PC change or
+extra raster seed. Counter/PC restoration itself is correct. The failure is the
+known first-fetch I/O overlap boundary; no trampoline, RAM edit, PC redirect,
+special first-cycle mask or general SNA repair was introduced to hide it.
+
+### Actual A4 code and result locations are now identified
+
+An original extracted `SHAKE27A.asm`/binary already existed under the main
+checkout's
+`local/investigations/sync-monitor-response-2026-10-29-f4da/continuation/shaker-callers/`.
+The private copy and hash are retained. The binary's org3D00 mapping matches
+the menu RAM signature at4190; exact opcode bytes also match at every critical
+address below.
+
+- The real menu checks keyboard row7/bit0 at4105 and dispatches key4 to71AA.
+- The top seven HCC tests run from71CB. Original OUT(C),C at71DB changes R0 to7F;
+ 71EE restores3F. PPI reads71F8/71FA are subtracted at71FC and stored through IX
+ at71FD into74EE..74F4.
+- The display loop72B6 maps those seven results to labels39..3F. Its lookup at
+ 7583 converts raw0 to OK and raw1 to KO. Thus index4 is the actual HCC3D
+ comparison, without a synthetic M1-to-C0vs phase assumption.
+- Original OUTI at7190 is measured with PPI reads719C/719E; its difference is
+ stored at71A9 by71A1. The first such call supplies the displayed C0vs3C result;
+ the later call overwrites that temporary for the3B result, so a future trace
+ must preserve each store rather than read only final RAM.
+- The original A487 synchronizer establishes the title's own VSYNC reference;
+ no counter position should be imposed from a screenshot or synthetic fixture.
+
+The next precise prerequisite is a genuine pre-A4 menu stop whose first fetch
+can resume without this I/O overlap, or a separately owned production SNA
+first-bus repair. A different original checkpoint must preserve original control
+flow and register state; changing PC or injecting an initializer is not a
+replacement. Once that input is available, the key/result taps above can score
+the independent hardware HCC3C=OK/HCC3D=KO and first OUTI3C=01 results cheaply.
+This unit establishes **no new A4 baseline mismatch**.
+
+Exact commands, input/source hashes, both run logs, the passive bus CSV and
+`blocker.json` are preserved in the task directory. Both processes exited.
+There were no production/retained-test changes, general gates, device/API calls,
+RBF builds, commits, pushes or delegation.
+
+Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
+(CC BY-NC-ND 4.0).
+
+## Private pending-write capture/commit discriminator — 4 November 2026
+
+The authentic A4 menu blocker above is resolved by the separately reviewed T80
+reset repair; see [the first-fetch report](t80-first-fetch-iorq-2026-11-04.md).
+With that repair, the original menu resumes at 4195→4198 and accepts real HID
+key 4. Its frozen raw-admission ASIC baseline computes top results
+`[0,0,0,0,0,1,1]`: HCC 3C=OK and HCC 3D=OK. The original Plus photograph and the
+parent's fresh CPCSE comparison require 3C=OK and 3D=KO. The baseline therefore
+has an authentic, independently measured admission/consumption mismatch. The
+preceding blocked-run evidence remains pre-repair evidence, not a current
+prerequisite or an A4 result.
+
+The new unit is entirely private under
+`local/overnight-20261103/asic/pending-write-proof/`. No production source,
+retained test, gate, device/API, RBF, commit, push or delegation was involved.
+The parent was notified before this report append. All private processes exited.
+
+### Hypothesis and source boundary
+
+The private `asic_video.v` captures each leading edge of the **original**
+`ENABLE & ~nCS & ~R_nW` decode, storing RS, DI and the selected target. It commits
+one pending transaction at the next existing CLKEN (`plus_cclk_en_n`). A capture
+exactly on CLKEN commits directly if no earlier transaction is pending. If an
+old transaction commits alongside a new capture, the new one remains pending;
+selection forwarding covers a select commit coinciding with a data capture.
+A second capture while pending without a simultaneous commit stops simulation.
+There is one pending transaction, no FIFO, opcode decode, A13 bypass or fast-mode
+exception. Read ports remain continuously connected to their original decode.
+
+Reset clears pending state. SNA_LOAD discards pending work and seeds the edge
+tracker from the current decoded level, preventing a held pre-restore level from
+being replayed. The R8 interlace parity side effect consumes the same committed
+transaction as its register storage. No clock, raw-HSYNC/blank, IRQ, sprite or
+PRI event was moved.
+
+R0 still uses the original equality comparator; **no `>=` catch-up change is
+combined with this experiment**. Its character decision sees old stored R0 on
+the commit edge. The horizontal and vertical R3 terminal comparisons instead
+see the R3 payload committing on that edge. Horizontal forwarding is exercised
+by BI's live-width outcome; vertical forwarding is the same private live-R3
+hypothesis, not separately verified here.
+
+French ACCC v1.11 §4.4.3 p.26's rendered table distinguishes fourth-us OUT(C)
+from fifth-us OUTI/OUTD and third-us OUT(n),A. Its text explicitly warns that
+within-us acceptance differs by instruction. French §13.6.3 p.125's rendered
+CRTC3/4 chronogram makes an OUT beginning at C0vs3C just in time to extend old
+R0=3F, while the next 3D case is too late. Both existing primary-page renders
+were visually rechecked (`asic/fr-access-026.png` and
+`asic/r4-natural-proof/fr-r0-125.png`). The stronger top-boundary oracle here is
+the original Plus A4 photograph, independently reproduced by CPCSE. This does
+**not** establish that the literal pending register or its storage edge exists
+in silicon. It demonstrates a coherent separation of transaction capture from
+counter consumption; the source-grid/T1 calibration caveat above remains open.
+
+### Authentic A4: the previously failing deadline now matches
+
+The same unchanged v3 menu SNA and actual motherboard/production T80 run through
+real key 4, without CPU/RAM/PC/raster changes. The snapshot is still the fresh
+Plus English-firmware CPCSE input, SHA256
+`eac8609c7458f75178a244ee32c6756b0dafe26b14a0ee0b05621ca98a57afef`.
+All private executables use the reset-fixed frozen T80 netlist SHA256
+`435eb2ac16780e0f60c62f76e098239658f2c5f643c7746541ee7c2b5dfeb565`.
+
+The original 71FD result stores now produce `[0,0,0,0,1,1,1]`, and the unchanged
+original display lookup means:
+
+```text
+PASS HCC 3C expected OK actual OK
+PASS HCC 3D expected KO actual KO
+```
+
+`a4-run/transactions.csv` records the mechanism at the actual original 71DB OUT:
+
+| A4 label | Capture tick/C0 | Commit tick | Old R0 / pre-C0 | Post-C0/C9 | Stored R0 |
+|---|---|---:|---|---|---:|
+| 3C | 68363783 /62 | 68363838 | 63 /62 | 63 /1 | 127 |
+| 3D | 83715655 /63 | 83715710 | 63 /63 | 0 /2 | 127 |
+
+Thus 3C stores 127 before the old terminal decision, while 3D retains the old 63
+wrap on its commit edge. Both take 55 master clocks from capture (GA S=0x1F)
+to commit (S=0x03); that measured phase is evidence, not an asserted silicon
+phase. All 185 captured transactions have 185 commits and no overwrite.
+
+The five-emulated-second cap ends in ordinary delay-loop code at A515:
+
+```text
+DONE entered=1 fetches=2853177 topresults=7 outiresults=0 r0writes=51 marker=0 PC=a515 clocks=320000000 dependency=0
+```
+
+Exit 2 means the original OUTI measurements and 0037 marker were not yet reached.
+No OUTI A4 numeric or full-page acceptance is claimed, and no capture extension
+was added after the bounded cap. `score-a4.{py,json,log}` preserves the original
+result stores and paired capture/commit rows.
+
+### Natural DSC4: ordered first-loop reference and later counters
+
+Only after A4 passed, the unchanged genuine C000 v3 snapshot was resumed with
+original full CPC+ state. Header PC=C000 and C0/C4/C9=2/24/1 restore exactly;
+the first original byte is F3. No initializer, bank, RAM, PC or clock patch was
+introduced. `natural-run/` preserves the bounded actual-caller trace.
+
+The four independently captured, correctly ordered AmSpirit first-loop
+instruction boundaries all agree:
+
+```text
+PASS before-e2b ref [60,0,13,63] actual [60,0,13,63]
+PASS after-e2b  ref [0,0,0,59]   actual [0,0,0,59]
+PASS before-e54 ref [56,0,0,59] actual [56,0,0,59]
+PASS after-e54  ref [0,0,1,0]   actual [0,0,1,0]
+NATURAL_CHECKPOINTS 4 / 4
+```
+
+These are ordered same-FIRST-loop **software-reference** comparisons, not a new
+hardware golden for lowering R0. `score-natural.py` hashes their saved snapshots
+and retains the original reference ordinal. The skipped-next-loop E54 capture
+is not used.
+
+At character edge 96161662, E2B has old R0=63 and pre-C0/C4/C9=63/0/13; the old
+terminal decision produces0/0/0 while the pending payload 59 commits. At 96165502,
+E54 has old R0=59 and pre-C0/C4/C9=59/0/0; the old terminal decision produces0/0/1
+while payload 0 commits. No held-R4 flag or lower-than-C0 catch-up comparator is
+needed for these two observed outcomes.
+
+All twelve observed C802 instruction starts have C0/C4/C9=0/0/0; all twelve
+C804 starts have 3/0/0, and C80B has 13/0/0. The former vertical drift disappears.
+Unlike the private `>=` experiment, later C804 does not acquire a +1-character
+C0 discrepancy. This agrees with the bounded original C804=3/0/0 and later
+C80B C4/C9=0/0 reference evidence described above; it is not a claim of every
+instruction or pixel matching a complete demo run. CPU/write counts and the
+110163895-master-clock bounded duration remain unchanged, with no dependency.
+
+### BI and bus controls remain intact
+
+The existing private BI adapter, unchanged original snapshots and unchanged
+hardware-backed scorer pass **8/8**. Critical raw-HSYNC widths remain
+14/1/2/3 characters in both groups; each page scores 297 critical pulses and 936
+normal 14-character pulses with zero failures. In 01DF, edge 755657 has
+C0=14, HSC=0, old stored R3=14 and committed payload 1. It produces HSC=1, stored R3=1
+and HSYNC low on that edge, retaining the one-character pulse. This is a
+counter-level live-R3 control, not merely a stored-value check.
+
+The unchanged old private CPU-bus diagnostic passes **9/9**: OUT(C), OUTI,
+OUTD, OUT(n), IN-on-write, normal BE readback, A13-low write-port OUT and IN aliases, and
+no-WAIT fast register delivery. Payloads remain 77hex for OUT/OUTI/OUTD/aliasOUT,
+BDhex for OUT(n), 78hex for both IN-write paths, and normal BE read returns 30hex.
+Fast R1/R4/R9 remain40/38/7. Measured fetch-to-storage intervals are 208 master
+clocks for OUT/IN-write including aliases, 272 for OUTI/OUTD, and 144 for OUT(n).
+The old fixture's absolute storage-window assertions are preserved diagnostic
+results, **not independent silicon phase oracles**. Its rejected synthetic
+counter-equivalence seams were not rerun or reinstated as acceptance criteria.
+No existing assertion was weakened. Runtime overwrite assertions remain active
+in all private executables; none fired.
+
+### Exact reproduction and next action
+
+`pending-write-proof/commands.txt` records all build/run/score commands. The
+focused final lines are `TOP_RAW [0,0,0,0,1,1,1]`, `NATURAL_CHECKPOINTS 4 / 4`,
+`BI_FINAL 8 / 8` and `DIAGNOSTIC_BUS 9 / 9`. Logs, `hypothesis.patch`, complete
+copied source, `source-hashes.json` and `handoff.json` preserve the reviewable
+private unit. No baseline rerun or general selection gate was performed.
+
+Recommend independent review of this specific capture/consume mechanism and
+its reset/SNA/selection ordering before a production proposal. It is the first
+bounded candidate here that satisfies authentic A4's deadline, both ordered
+natural R0 transitions, BI's live one-character pulse and actual alias/IN/fast
+controls together. The physical storage edge, A4 OUTI numeric, broader register
+side effects and full demo pixels remain unverified; these passes do not
+justify declaring the ASIC bus architecture or all R0-lowering cases correct.
+
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).

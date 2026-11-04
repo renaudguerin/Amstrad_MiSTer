@@ -108,3 +108,15 @@ XFAIL and adjacent-phase control until independent evidence chooses the edge.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by
 Longshot (CC BY-NC-ND 4.0).
+
+
+## Runtime follow-up, 4 November
+
+A separately instrumented private v0.12 build completes the same C1 history and
+produces a byte-identical02C9 capture. Its actual C5 trace confirms the earlier
+R5=0 release route described above: adjustment is inactive when the target writes
+R5=3, so its later0080 does not exercise positive restart of an already active
+adjustment. Keep the hardware question open. Exact events and the worker's unit
+correction are recorded in the [E discriminator report](shaker-e-0080-positive-r5-reentry-2026-11-04.md#actual-cpcsyntaxerror-c5-trace).
+The initial audit remains a static source reading; this follow-up supplies the
+later runtime evidence without reclassifying a software model as hardware.

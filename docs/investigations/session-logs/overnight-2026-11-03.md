@@ -295,3 +295,71 @@ Live Codex OAuth02:25 UTC reports33% weekly used, reset November5 19:34 UTC;
 primary unavailable, three banked resets untouched. Continue bounded units and
 pause near the user's60% weekly threshold. No master integration, release or PR
 has been requested.
+
+
+## Overnight authorization update — 4 November
+
+Renaud is away/asleep and raised the clean-wrap threshold from60% to approximately
+80% weekly Codex usage. Continue bounded authorized units, preserve active work,
+and wrap up without abruptly killing builds or workers. Do not redeem banked
+resets. Previous checkpoint thresholds remain historical readings, not the active
+limit. Author questions remain unsent; no integration/release request was added.
+
+
+## DT correction and classic relative proof — 4 November, 02:45 UTC
+
+Fresh unmodified CPCSE built-in R7 tracing disproves the DT replay's phase
+assumption. Actual G writes occur at C0/C4/C9=12/0/0,27/10/0,42/20/0; replay
+had61/6/7,12/17/0,27/27/0. Original JP69E3 bypasses CALLA241 after its first
+iteration, so missing classic counters do not recover with repeated frames.
+The apparent local acquisition explanation is withdrawn in the report, backlog
+and current status. Full/Raw CRT device runs each finish32commands/14captures/
+zero failures; applied modes0/2 are confirmed at both target markers. Raw CRT
+crops the picture and does not isolate raw band count. Runtime Full is restored
+by a four-command cleanup reset; MiSTer is on classic BASIC,3113323.
+
+The private classic actual-T80 vector is a valid candidate fail-first proof:
+matched ordinary/JIT writes, unique six bytes and24unblankedRGBslots pass;
+relative blank onset is5clocks versus nominal12, outside conservative±4.
+Trailing edges match; raw and RGB widths remain separate, no physical T2/T3
+claim. Argon-high read-only review is active at
+20261104T024051Z-84726-b36f, with no test rerun requested.
+
+A4's original menu restore exposed a separate concrete first-fetch problem:
+T80pa's IntCycleD_n has no reset value, so the initial memory fetch also asserts
+IORQ, allowing PPI-B to corrupt CA toC0 at4195. The Sol-high worker owns a focused
+fail-first B18 test and minimal reset repair if proved, followed by authentic
+menu continuation. No CRTC/ASIC timing change is authorized from that symptom.
+General gate and review wait until the provisional diff is ready.
+
+
+## Checkpoint — 4 November, 03:05 UTC
+
+CPU reset repair is committed as9de75d3 after Gemini3.8-high ACCEPT and the final
+single44bench selected gate. Strengthened native trace/freeze/14IRQ checks also
+pass; focused B18 cold+6restore/host checks passed after the RTL edit. No code
+edits followed. The original A4 menu now resumes faithfully and real key4 reaches
+its caller: topresults[0,0,0,0,0,1,1], reproducing3DwrongOK against originalPlusKO.
+OUTI has not been reached within the bounded replay; no full A4 pass is claimed.
+
+Argon accepts the classic relative5-versus12clock fail-first proof. Sol-high is
+adding source-derived absolute unique-byte visibility/reactivation checks and
+one private phase variant; root flagged the measured3clock RGB-release lag so
+raw and visible widths cannot be conflated. No classic timing edit is in production.
+The other Sol-high worker owns only a private captured-write/character-consume
+ASIC hypothesis, checked against authentic A4, ordered DSC4 R0 and BI width/alias
+controls. It must preserve A13-low transfers; no production change is accepted.
+
+Fresh AmSpirit canonical C1 history reaches E02C9 and visibly prints0080 with
+all seven numeric controls, on1.17.1/core2491682,6128/CRTC1/FR/PAL/monitorOff.
+It is paused there, with no active script or breakpoints. No C5 counter was
+exposed; streamed classic SNA remainsv2. The instrumented CPCSE build's identical
+E BMP and trace prove its earlier zero-R5 release, not positive active re-entry.
+Raw worker prose had a32line/512us conversion error; parent corrected units while
+preserving the original trace. No C5 production rule was changed.
+
+MiSTer remains on3113323 in runtime Full/classic BASIC after the DT comparison.
+No API/device/build job is active. All three guarded bridge runs completed0;
+provider logs are preserved under the corresponding ignored proof directories.
+Codex live02:46 UTC is34% weekly used; active user ceiling is80%, banked resets
+untouched. No master integration, release, PR or author message is authorized.

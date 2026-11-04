@@ -13,10 +13,14 @@ or clipping remain distinct explanations. A screenshot showing one black region
 instead of two cannot distinguish them. Do not assign DT to the filter from
 shape alone.
 
-The subsequent private replay below establishes two upstream black intervals
-but only one inside Full acquisition in the settled local caller. That narrows
-the local model's visible-band difference to acquisition placement. It does not
-prove the captured FPGA's lock history or establish a hardware-faithful repair.
+**The private replay below is rejected as a phase-faithful DT discriminator.**
+It produces two upstream black intervals, one outside Full acquisition, but a
+fresh CPCSyntaxError register trace proves its original caller has a different
+vertical write phase. The loop bypasses its initial synchronizer on subsequent
+iterations, so waiting for repetition cannot recover the missing classic SNA
+counters. Those replay measurements describe the wrong-phase local execution;
+they do not narrow the actual device defect to acquisition placement. The final
+correction below records the concrete mismatch.
 
 The initial source pass used no execution. A separately authorized follow-up
 used an isolated headless CPCSE CLI and an ignored production-motherboard/T80
@@ -209,7 +213,7 @@ states. No external input was injected. `run/markers.csv` is only a syntactic
 ED/byte scan and includes real OUT/LDI pairs; only known DT marker candidates
 are separately listed. It is not a general SSM decoder.
 
-### Measured settled chronology
+### Measured repeated chronology — phase-incompatible, see correction
 
 `run/io.csv` records the production CRTC register-write level's first acceptance
 edge; C0/C4/C9 here are the values at that edge, not CPU instruction-start
@@ -282,3 +286,60 @@ missing band should be pursued at acquisition placement before changing its
 CRTC/GA. If it does not, compare accepted R7 edges before generalizing this
 settled replay. No production change is proposed. All private processes exited;
 the headless CLI ownership is returned to the parent.
+
+
+## Fresh-reference phase correction and bounded device comparison
+
+The parent ran the supplied unmodified v0.12 binary with its built-in register
+trace, using the identical bounded T script and firmware:
+
+```sh
+CPCSE_TRACE_REG=7 CPCSE_TRACE_REG_MAX=8000 <cpcse> \
+  --csl local/overnight-20261103/cpcse/dt1-through-fa.CSL \
+  --out local/overnight-20261103/cpcse/dt1-reg7-v012 \
+  --disk-dir local/test_media/shaker --roms <packaged-roms> \
+  --model cpc6128 --crtc 1 --no-chain --no-errata
+```
+
+It completes13 captures, exit0. Target02F8 is byte-identical to the prior fresh
+CPCSE capture (SHA256 `60d2e729ad929c5a36118f60e8e615f4d82e05b58e0800c3e2595590f6447313`).
+In a representative original G iteration, the actual reference writes are:
+
+| Opcode-start PC | Payload | Fresh CPCSE C0/C4/C9 | Rejected replay C0/C4/C9 |
+|---|---:|---|---|
+| 69F1 | R7=10 | 12/0/0 | 61/6/7 |
+| 69FC | R7=14 | 27/10/0 | 12/17/0 |
+| 6A07 | R7=30 | 42/20/0 | 27/27/0 |
+
+CPCSE logs its CPU.pc after the two-byte OUT; its printed69F3/69FE/6A09
+therefore correspond to the opcode-start PCs above. This is a large vertical
+phase difference, not a logging-edge tolerance. The actual binary calls its
+synchronizer at69E0, but the later loop's `JP69E3` at6A2D bypasses that call.
+The earlier SNA resumes inside the delay, after this one-time synchronization.
+Its missing counter restoration can therefore persist indefinitely. Repeated
+312-line execution does not make this a valid reference-aligned caller.
+
+In particular, the rejected replay writes14 after C4 has already reached17,
+whereas fresh CPCSE writes it at10. The two traces do not even offer the same
+opportunity for a later R7 match at14. **Withdraw the inference that the missing
+hardware band is explained by one of these two replay intervals being outside
+Full acquisition.** No new hardware rule or filter repair follows from it.
+Exact evidence is `cpcse/dt1-reg7-v012.log` and
+`classic/dt-boundary-proof/fresh-reference-phase-correction.json`.
+
+The parent also ran the unchanged bounded script on3113323 in Full and Raw CRT:
+each completes32commands/14captures/zero failures/14SSM records. Target02F8/02FA
+marker observations confirm applied modes0 and2 respectively. Full reproduces
+the single visible band; Raw CRT yields severely cropped native frames and
+cannot provide a clean count of upstream bands. This is a negative discriminator,
+not a filter pass/fail. Both manifests verify original CFG restoration. A final
+four-command reset run restores runtime Full on classic CRTC1/BASIC; no hardware
+job remains active. Device artifacts are `package/dt1-device-3113323-{full,raw-crt}/`
+and `package/device-full-cleanup/run/`.
+
+The useful next proof starts before the original one-time synchronizer, or uses
+an independently verified complete classic counter restoration. Compare actual
+accepted R7 phases and raw VSYNC/GA black before acquisition. Until then, DT
+remains unassigned between functional timing and display acquisition; the source
+boundary analysis above remains valid, while the wrong-phase causal replay does
+not establish the device's mechanism.

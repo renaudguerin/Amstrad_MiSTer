@@ -391,12 +391,13 @@ and capture times are in the plan. Investigate digital response offline before
 any filter rewrite. Original-CPC access is not required for these bounded units;
 faithful CTM response remains unproven. These extend existing residuals.
 
-**DT boundary evidence, 2026-11-04:** a private original-caller replay produces
-both raw GA black intervals, while Full acquisition hides one entirely. Marker-time
-SSM records on the saved MiSTer DT pages confirm applied Full, but do not expose its
-vertical anchor or raw black chronology. Pursue acquisition placement first if the
-device confirms both upstream intervals; do not change CRTC/GA from the photograph
-alone. See the [trace and its snapshot/phase limits](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
+**DT boundary evidence, 2026-11-04:** the private replay's apparent acquisition
+explanation is rejected: fresh CPCSE R7 traces expose a different vertical caller
+phase, and the loop bypasses its one-time synchronizer. Repetition cannot repair
+missing classic SNA counters. Full-mode device captures reproduce one band;
+Raw CRT crops the native picture and does not isolate upstream band count.
+Establish a faithful pre-synchronizer caller before assigning this to CRTC/GA or
+acquisition. See the [trace correction and device comparison](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
 D3's native page overlay separately encounters level-sensitive held-Space advances;
 [caller analysis](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md)
 prevents treating mislabelled captures as CRTC failures. Neither finding requires

@@ -202,3 +202,9 @@ command `make -C sim t80-trace-test t80-freeze-test t80-irq-sample-test` also
 passes:139-cycle native/translated equivalence with defined startup IORQ, the
 freeze/save handshake cases, and all14IRQ controls. Exact output is
 `t80-first-fetch-review/strengthened-tests-final.log`. No code edits followed.
+
+
+Exact-SHA CI on9de75d31ab92e182ccb86697434980b1f9221c2f also passes
+[run41764626693](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41764626693):
+simulation/lint, production-T80, synthesis-policy and required-gate all succeed.
+Synthesis is correctly skipped for this branch push; no RBF was produced.

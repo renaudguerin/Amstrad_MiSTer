@@ -391,3 +391,62 @@ invariance under0–3 deliberately added inter-case frames. It retains the
 original E case history rather than treating the private C5 reset as a golden
 rule. The compact audit and source slice are in
 `local/overnight-20261103/classic/e-0080-proof/gap-audit/`.
+
+
+## Actual CPCSyntaxError C5 trace
+
+A private source build of clean v0.12.0 now observes the path directly rather
+than inferring it from a final number. Instrumentation adds logging and PC/cycle
+read callbacks only; the parent inspected its diff. The unchanged full-history
+C-1 script completes80captures, exit0. Target02C9's BMP is byte-identical to the
+supplied binary's earlier capture, SHA256
+`7849374e8e0bcb5db0436f81f7ca0cabcbc9fca2398fabeecc8cacbdcaf128fe`.
+Build/run commands, logs and the instrumentation diff are preserved in
+`cpcse/e-c5-instrumented/`; no installed/source checkout or tracked emulator code
+was changed. The guarded Gemini3.8-high run completed successfully.
+
+The trace confirms **earlier zero-R5 release**, not positive re-entry while
+already active:
+
+| Event | Machine-cycle timestamp | Relevant state |
+|---|---:|---|
+| Earlier R4 match with R5=0 | 542098676 | C4=38, C5=0, adjustment active; commit clears `adjustStateEngaged`, then exits to `newFrame()` |
+| Later target R5←3 | 542977008 | PC711A, C0/C4/C9=62/38/6; adjustment and engagement both inactive |
+| Ordinary first engagement | 542977268 | R5=3, C5 reset0; adjustment and engagement become active |
+| Target R5←1 | 542977536 | PC7125, C0/C4/C9=2/39/1, C5 already2 |
+| Eventual adjustment exit | 542985716 | C5 reaches1 after modulo32 traversal; the target screenshot remains0080 |
+
+These timestamps are CPCSE's machine-cycle counter, not FPGA master clocks.
+At64µs per scanline,32scanlines are2048µs;512µs describes eight scanlines,
+not32. The worker's final prose conflated these units; the parent correction is
+saved separately, while the original trace and handoff remain intact.
+
+This validates the source-divergence diagnosis. It **does not** establish that
+original hardware takes the same release path, overturn Q20, or distinguish
+positive C5 restart from the extra-frame explanation in the FPGA replay. Keep
+the precise French follow-up unsent and production C5 unchanged. A matching
+photograph plus a known software mechanism is useful evidence to prepare a
+hardware question, not authority to copy that mechanism.
+
+
+### AmSpirit original-history result
+
+AmSpirit Lite1.17.1/core2491682 independently completes the canonical C1 history
+through02C9 with the new pinned disk, classic6128/CRTC1/128KiB/French firmware,
+PAL refresh and monitor Off. The only script adaptations are HTTP preloading
+of that same disk (the redundant `disk_insert` is omitted), explicit output
+directories and a final two-frame settle. The E page visibly prints0080 and
+all seven other numeric controls match the photograph/CPCSE page. The machine
+is left paused on this valid page, not an initializer restart.
+
+Evidence is `classic/e-amspirit-full-history-v2/`: canonical/script/disk hashes,
+identity/config, script completion sentinel, PNG, SNA and state. An initial
+helper-method mismatch stopped before any emulation change; a final output-
+directory error occurred after the successful script. Both are preserved.
+Creating the missing directory and capturing the still-paused page recovered
+that output without rerunning or changing the original history.
+
+The published `/api/crtc` returns only registers and selected register on this
+classic machine; its streamed SNA is version2. No classic C5 phase was observed.
+Consequently this corroborates the final0080, **not** CPCSE's early-release
+mechanism or any private FPGA C5 repair. Keep those conclusions distinct.

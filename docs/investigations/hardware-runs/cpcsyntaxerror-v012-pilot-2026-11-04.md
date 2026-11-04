@@ -89,8 +89,8 @@ The [source audit](emulator-source-author-question-audit-2026-11-03.md)
 records that conflict. A subsequent bounded
 [source comparison](shaker-e-0080-positive-r5-reentry-2026-11-04.md) identifies
 positive-R5 re-entry as a useful discriminator: restarting C5 predicts the
-eight physical lines behind 0060/0080. The actual aligned CPCSyntaxError
-C5 trace is missing, so this remains a hypothesis.
+eight physical lines behind 0060/0080. The subsequent private C5 trace confirms an earlier R5=0 release followed by
+ordinary first engagement; it does not exercise active positive re-entry.
 
 P (`02CB`) is readable and prints C4=#26 as expected. S (`02D3`) reads
 **#4E40** in the fresh full C-1 walk, as do the two new MiSTer runs.

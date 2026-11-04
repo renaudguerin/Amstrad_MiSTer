@@ -65,6 +65,20 @@ version before interpreting its CRTC-counter fields. Standard snapshots still
 omit some hidden latch/phase history: restarting an initializer from a later
 snapshot is not equivalent to an original boot and can modify the title's RAM.
 
+## Built-in source traces
+
+Before rebuilding for instrumentation, inspect the pinned source for existing
+`CPCSE_TRACE_*` environment switches. The supplied v0.12 binary's register trace
+was exercised with `CPCSE_TRACE_REG=7 CPCSE_TRACE_REG_MAX=8000`; it logs payload,
+C0/C4/C9 and PC to stderr without changing the captured02F8 BMP. Register lists
+such as `4,7,9` and a starting CRTC-frame filter are supported by `crtc.cpp`.
+These are source-defined diagnostic controls, not a stable external API.
+
+The logged PC is the CPU PC at I/O dispatch and can be after the opcode; account
+for this when comparing a production-T80 instruction-start trace. A snapshot
+that omits counters may retain a wrong phase indefinitely if the restored loop
+bypasses its one-time synchronizer. Repeated output alone does not validate it.
+
 ## Interactive inspection
 
 The open GUI can be driven by its bundled `cpcse-ctl` client once its command

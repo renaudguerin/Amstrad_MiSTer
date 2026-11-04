@@ -540,3 +540,77 @@ identities or independently validate the production CPU's write phase.
 Opinions are preserved in `classic/credit-preinit-replay/astra-byte-phase-opinion.md` and
 `argon-opinion.log`; the original native metadata and bridge log remain ignored.
 These are diagnostic analyses, not independent hardware observations.
+
+
+### Private production-CPU relative-delay vector
+
+The bounded vector now supplies that missing matched control. It drives the
+actual production GHDL T80 through motherboard READY/WAIT, with ordinary and JIT
+OUT(C),E at the same C0=22, sequencer1F, character phase8. Six distinct consecutive
+VRAM bytes (`B6 6D E3 9C 5A A5`) are verified through byte selection, GA buffer,
+serializer and24pen/colour slots in each pass. The unblanked pass verifies all24
+RGB slots. Display is active after a genuine frame origin. R3=1 controls are
+programmed through real CPU OUTs after width2 mode qualification.
+
+The source-derived failing invariant is the **relative** type1 blank-onset delay:
+French §14.7.1 pp.143–144 specifies three mode-2 pixels, or12master clocks. Even
+a conservative±4-clock allowance for both boundaries excludes the observed5.
+Ordinary/JIT raw trailing edges and RGB reactivation are identical.
+
+| R3 | Ordinary raw width | JIT raw width | Ordinary RGB black | JIT RGB black | JIT onset delay |
+|---:|---:|---:|---:|---:|---:|
+| 2 | 128 | 123 | 131 | 126 | 5 |
+| 1 | 64 | 59 | 67 | 62 | 5 |
+
+All values are master clocks. RGB release adds three clocks relative to raw
+HSYNC in this setup, so raw width and visible-black width are deliberately
+reported separately. The nominal29-mode-2-pixel interval is recorded as a source
+reference, without turning it into an unjustified absolute RGB-width assertion.
+Nor does a relative repair alone prove the title's third pen would become visible.
+
+Commands and final results, after the last private edit:
+
+```text
+cd local/overnight-20261103/classic/credit-pipeline-vector
+./obj/credit_pipeline > vector.log 2>&1
+FAIL private_production_t80_jit_pipeline: source-derived relative blank onset mismatch
+# exit1
+python3 analyze.py
+# exit0: all five control sets and24unblankedRGBslots pass
+```
+
+`HANDOFF.{txt,json}`, five pre/post CSVs and the source hashes preserve the proof.
+The final result replaces earlier setup probes with inactive display, which are
+kept separately. No retained test or production RTL was changed, and no general
+gate was run. An independent Argon source/proof review is checking this relative
+invariant and the remaining absolute byte/colour origin before a repair is chosen.
+
+
+### Absolute byte windows: feasible private phase model, no production repair
+
+A further source-derived check uses the unblanked stream to identify full
+mode-1 pixel interiors, eight master clocks each. Baseline JIT wrongly blanks
+B6's third pixel; both ordinary and JIT cases expose fifth-byte5A's second
+pixel too early. Fifth-byte5A's third pixel is the documented restoration point
+(French §9.3.4.2 p.57, with the displayed-character anchor in §14.7.1 p.143).
+These checks fail before the private variant; they do not copy a desired number
+back out of that variant.
+
+One private model retains the original internal CRTC decisions and publishes
+type1 HSYNC at the documented output phases. With `video.sv` unchanged it passes
+all eight absolute checks and the12-clock relative delay. Visible ordinary/JIT
+black widths are128/116clocks; raw widths125/113 differ because unchanged RGB
+release is three clocks later. Raw fallphase13 is derived from the source's
+RGB restorationphase16 and that measured release latency, rather than blindly
+adding12clocks to both raw edges.
+
+This demonstrates feasibility, not an accepted repair. GA-shaped HSYNC, mode
+update and interrupt-counter event phases move by eight clocks. Threshold IRQ
+sampling, changing-mode requests, invisible restart, snapshots/live type changes,
+other modes/types and long/infinite pulses still constrain production work.
+The private shim deliberately has not reconciled those contracts. A focused
+Opus architecture/faithfulness review is evaluating the boundary before any
+production move. `PHASE-HANDOFF.{txt,json}`, `side-effects.json`,
+`baseline/visibility.json`, `phase-hypothesis/visibility.json` and `FROZEN.json`
+are preserved under `classic/credit-pipeline-vector/`. No production/test/gate
+or device operation followed from the private hypothesis.

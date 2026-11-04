@@ -36,19 +36,32 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   and reverted in `939ee6f`; never publish it as a verified repair.
   These changes are on the task branch; no master integration or release is requested.
 
+- **CPU startup repair:** task commit `9de75d3` resets the T80 interrupt-acknowledge
+  delay, preventing the first cold memory fetch from also selecting I/O responders.
+  A real PPI/SNA regression fails before and passes after; cross-provider review,
+  44 selected benches and strengthened native/freeze/IRQ checks pass; exact-SHA
+  CI also passes simulation, production-T80 and the required gate. This unblocks
+  an authentic A4 replay, which reproduces the hardware's wrong HCC3D=OK.
+  No RBF/device acceptance is yet claimed for this CPU change.
+  [Proof and scope](investigations/hardware-runs/t80-first-fetch-iorq-2026-11-04.md).
+
 - **Classic results:** the reviewed E/P display/status repair `8dde1e7` passes
   its own full-build C1 repeat: E/P readable, P 26 and S 4E40. E 0060 versus 0080
   remains open. A private positive-R5 C5 restart reaches 0080, but independent
-  review found several indistinguishable mechanisms, including an extra frame
-  in the original adaptive synchronization. No C5 production change is justified.
+  review found several indistinguishable mechanisms. Actual CPCSE tracing confirms
+  its earlier zero-R5 release followed by fresh engagement; AmSpirit also prints
+  0080 but exposes no classic C5. Neither chooses a hardware rule, so production
+  C5 remains unchanged.
   [E/P acceptance](investigations/hardware-runs/shaker-ep-display-2026-11-03.md),
   [private discriminator and review](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
   [precise French follow-up, not sent](classic/accc-author-questions-c5-2026-11-04-fr.md).
   A genuine DSC4 post-file-load/pre-initializer checkpoint now reproduces
   all 128 KiB of reference RAM in a private replay. Colon bytes reach the decoder;
-  the current raw blank mask suppresses their nonzero pens. The production CPU takes the JIT branch, ruling out a classification miss;
-  its relative blank timing and the absolute pixel anchor need a matched
-  cross-module vector before any timing change.
+  the current raw blank mask suppresses their nonzero pens. The production CPU
+  takes the JIT branch, ruling out a classification miss. A matched CPU/READY/
+  unique-byte vector now fails the source-derived onset delay (5 clocks versus
+  nominal12). A private publication-phase model meets the byte windows, with
+  GA mode/IRQ side effects still under review; no production timing repair is accepted.
   [Credits evidence](investigations/hardware-runs/dsc4-credit-clipping-2026-11-03.md).
 
 - **SHAKER inputs and display boundary:** the new package is installed, with
@@ -59,10 +72,11 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   [Package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md),
   [device results](investigations/hardware-runs/shaker-package-device-2026-11-03.md),
   [D3 caller analysis](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md).
-  DT's private original-caller replay produces two raw GA black intervals while
-  Full acquisition hides one. Device SSM records confirm applied Full at 02F8/02FA;
-  its vertical anchor/raw black chronology still need correlation. Pursue that
-  boundary before changing CRTC/GA from the photograph alone.
+  DT's private acquisition explanation is rejected: fresh CPCSE R7 traces show
+  that the snapshot replay retains a different vertical phase after bypassing
+  the one-time synchronizer. Full captures reproduce one band; Raw CRT crops
+  the picture and does not isolate the cause. A faithful caller phase is needed
+  before assigning DT to functional timing or display acquisition.
   [DT trace and limits](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
 
 - **Manual demo acceptance update (2026-11-03, `5fba168`):** DSC4's main effects
