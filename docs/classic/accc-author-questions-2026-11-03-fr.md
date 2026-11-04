@@ -1,6 +1,6 @@
 # Question à l’auteur de l’ACCC sur la durée de la gestion de parité RFD
 
-Brouillon du 3 novembre 2026, non envoyé. Il remplace celui du
+Brouillon actualisé le 4 novembre 2026, non envoyé. Il remplace celui du
 [29 octobre](accc-author-questions-2026-10-29-fr.md), dont les deux questions
 sont résolues par les essais MiSTer du
 [rapport de durée de vie RFD](../investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md).
@@ -14,8 +14,8 @@ Bonjour,
 
 Grâce à SHAKER et à vos photos de référence, notre modèle de CRTC 1 reproduit
 les effets principaux de DSC4 et Amazing, ainsi que les pages RFD de SHAKER
-(B COPY et D9 « RFD ROUND 2 »). Il reste quelques défauts distincts dans
-DSC4, notamment les deux-points des crédits. Nous avons lu la section 11.6.1,
+(B COPY et D9 « RFD ROUND 2 »). Les deux-points des crédits, traités
+séparément, sont désormais visibles sur notre version CRTC0/1. Nous avons lu la section 11.6.1,
 page 90, ainsi : la
 sauvegarde VMA′ échoue quand la parité courante du frame est paire, ce qui
 correspond à la recette « IVM ON/OFF avant la RFD » de la section 11.6.2.

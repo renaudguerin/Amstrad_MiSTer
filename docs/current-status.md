@@ -62,6 +62,10 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   that fresh-device lower-row failure. The live-equality creation control is an
   explicit model choice, and late-R0/split overlap remains unverified.
   [Proof and review](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md).
+  Separate genuine-title and byte probes attribute credit clipping to HSYNC
+  suppression of intact pixels. One private delay hypothesis recovers132
+  missing samples but introduces16 colon-tail pixels; it is not promoted.
+  [Blank boundary and edge limit](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md).
 
 - **Classic results:** the reviewed E/P display/status repair `8dde1e7` passes
   its own full-build C1 repeat: E/P readable, P 26 and S 4E40. E 0060 versus 0080
