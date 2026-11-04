@@ -4,7 +4,8 @@ The French Compendium provides a stronger basis for the early-write E6
 failures than the previously isolated C0=2 deactivation sentence. A focused
 source review and parent inspection support failing counter vectors for the
 R4/R9 distinction. A candidate now passes its focused and selected gates and has fresh
-independent review. No new native fix is claimed.
+independent review. The exact51ae4dd build now passes25/28 native printed E6 checks; remaining
+checks and acceptance bounds are recorded below.
 
 ## Source and scope
 
@@ -116,3 +117,86 @@ the initial candidate only. Native caller phase,
 new printed E6 results and synthesis/timing are separate remaining gates.
 Private `c0-forced-zero-adjust-fix/r4-terminal-fix/` retains the red, full and
 incremental diffs, hashes, review brief, gate log and handoff.
+
+## Exact build and targeted native E6 result
+
+Commit51ae4dd30b2a16c9d2cb59e1e1fa8d511aced520 completes full
+[workflow41921307910](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41921307910)
+with every required job passing. Artifact13368881149/build366 contains
+`Amstrad_20261104_51ae4dd.rbf`,3,108,976bytes, SHA256
+`ea84683c8e52b4dfd450deac17888e6bd6d45bf6209970ccdea83887e80ba08e`.
+Reports confirm clean full Quartus17.0.2.602, StandardFit/HighPerformanceEffort,
+seven setup/hold groups, zeroTNS, minima0.542/0.211ns, no errors or critical
+warnings and the passive S macro off. Installed file hash matches.
+
+The unchanged original E6 script completes16commands/fourPNGs/zero failures/
+nineSSM records. Parent viewed all four pages and decoded results using the
+existing immutable-label/EXP glyph dictionary, without training on actual
+result values. Twenty-five of28 unique printed checks match, up from17/28
+on9a. No previously passing check regresses. This is a program self-check
+score, not physical-photo compliance; no moduleE photos are available.
+
+| Case |9a before|51ae after|Printed expectation|
+|---|---|---|---|
+|2|0037|00F7|00F7|
+|6|0007|007F|007F|
+|8|0023|007F|007F|
+|9|0043|009F|009F|
+|10|04E3|053F|053F|
+|16|002B|002F|002F|
+|17|0013|008B|008B|
+|19|002B|00A3|00A3|
+
+Three checks remain wrong:4=00FE versus0032 (changed from0038),27=0055
+versus0065 and28=02D6 versus000E. Case4 is not closed by its changed value.
+It restores R9 during the first forced line; a focused source investigation
+now separates that rematch from case28's later R4 rematch.
+
+The original case2 FFFD→FFFC markers independently change720→2640µs,
+an increase of1920µs=30×64µs, consistent with the corrected adjustment wrap.
+Their positions are output-side raster metadata, not observed C0/C4/C9.
+The hidden full-caller trajectory is not inferred from those fields.
+Bounded DSC4 completes19commands/fourPNGs/zero failures/noSSM. Parent views
+all four: credit colons/names clear, otter/main and rotating/fire-band views
+visible. These samples retain the prior regression acceptance; no full-demo
+closure or fresh broad baseline is implied. Evidence: `resumed-20261104/
+c0-forced-adjustment-build/`, decoded tally, original-marker timing ledger,
+build reports and manifests.
+
+## First-line selected-R9 rematch follow-up
+
+The residual case4 exposes a narrower missing endpoint. French§11.2.2p83
+and§13.2.4p108 retain the R9 comparator while pending C4=R4. Restoring R9 to
+current C9 before R0 therefore calculates C9=0 at the first boundary. For
+R5=0, that ends adjustment before an extra R4+1 row is displayed. It does not
+re-arm ordinary Last Line after its C0=0/1 window.
+
+A natural source-derived fixture uses R0=63,R8=0,R4=C4=8,R9=C9=7 atC0=0,
+then R9←6 atC0=1 and R9←7 atC0=60. The previous engine suppresses the first
+pending-R9 row event unconditionally: it produces C4=8/C9=8/in_adj1 instead
+of origin0/0/in_adj0 and leaves VSYNC low. The unrestored7→6/L32 companion
+passes. Retained t16n fails before RTL (239pass/1fail), then passes with a
+positive-R5=2 companion that advances C4 to9/C9=0,1 before the genuine L3
+origin. No previously passing assertion is weakened.
+
+The bounded correction admits the selected live R9 match on an already
+latched forced line and routes its zero-R5 completion through the canonical
+origin. The accepting C0=1 edge and exact-R0 write retain their prior priority;
+the old-mismatch/new-equality exact-R0 case remains unproven and excluded.
+Type1, wrapper, GA, C5 rules and post-entry R4-rematch behavior are unchanged.
+
+Caller correction: byte checking places the lowering OUT at5C9E, with restore
+at5CA4. There is no intervening LD HL,FFFF; that is5CB0 after R7. The nominal
+gap is59CPCµs, not62. A label of first-write C0=1 would put restoration at60,
+but no native absolute C0 is inferred from that label. The counter expectation
+comes from the source rule, not the printed0032 result.
+
+Final focused240/240 and selected45 benches PASS once after the last source
+edit. Soak remains402410acec7f4988 with unchanged seed/projection/samples; the
+history explicitly records that this directed path is not distinguished by
+that randomized trace. Fresh Gemini3.8high review20261104T224717Z-98570-694c
+accepts the frozen delta with no findings. Parent verifies all final/unchanged
+owner hashes and trusts the completed gate without rerunning it. New synthesis
+and native case4 acceptance remain pending.
+Private proof, red, source guards, gate and review:
+`resumed-20261104/c0-e6-case4-first-line-rematch/`.

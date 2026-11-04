@@ -429,7 +429,14 @@ wire       type0_last_line_armed = line_last_r & row_last_r;
 // a different comparator and must not take this completion path.
 wire       type0_c0_1_r5_end = type0_c0_1_r5_owner &&
                               (line == type0_adjust_line_max);
-wire       type0_rollover_line_last = type0_c0_1_adjust_active ? type0_c0_1_r5_end :
+// French §11.2.2 p83 and §13.2.4 p108: pending C4=R4 still owns
+// R9 on the first forced additional line. A pre-R0 restoration can
+// match it at this boundary. The accepting C0=1 edge and exact-R0
+// write keep their existing distinct rollover priorities.
+wire       type0_c0_1_r9_match = type0_c0_1_adjust && type0_c0_1_r9_owner &&
+                               !type0_r9_at_r0_active && type0_live_line_last;
+wire       type0_rollover_line_last = type0_c0_1_adjust_active ?
+                                     (type0_c0_1_r5_end | type0_c0_1_r9_match) :
                                     c1_last_line_validate ? 1'b1 :
 									 type0_r9_at_r0_active ?
 									 (line == type0_adjust_line_max) :
@@ -444,9 +451,11 @@ wire       type0_rollover_line_last = type0_c0_1_adjust_active ? type0_c0_1_r5_e
 // while the pending C4=R4 phase still compares R9, its C9 reset already
 // calculates the next line. If that zero reaches the selected R5=0 target,
 // adjustment ends before displaying an extra C4=R4+1/C9=0 line.
-wire       type0_r9_zero_adjust_end = in_adj && type0_r9_compare_active &&
+wire       type0_r9_zero_adjust_end = (in_adj | type0_c0_1_r9_match) &&
+                                     type0_r9_compare_active &&
                                      type0_rollover_line_last &&
                                      (type0_adjust_line_max == 5'd31);
+wire       type0_adjust_end = type0_r9_zero_adjust_end | type0_c0_1_r5_end;
 wire       type0_rollover_row_last = type0_r9_at_r0_active ? line_last_r :
 									 type0_rollover_line_last;
 
@@ -465,7 +474,7 @@ wire       row_last_w = (row == R4_v_total);
 // a frame reset consumes the combined Last Line decision. C4==R4 alone
 // cannot reset a frame after an early R9 write cancelled that decision.
 wire       crtc0_row_frame_last = (type0_last_line_armed | in_adj) &
-                                      (~type0_adjustment_selected | type0_c0_1_r5_end) &
+                                      (~type0_adjustment_selected | type0_adjust_end) &
                                       (~type0_r9_compare_active | type0_r9_zero_adjust_end);
 // F14 (ACCC v1.11 section 19.6.1 p.217; Q10 resolution in
 // accc-author-questions.md item 10): with an interlace mode active (R8=1 or
@@ -488,7 +497,7 @@ wire       type0_frame_end_raw = row_new & crtc0_row_frame_last;
 wire       type0_add_intercept = type0_frame_end_raw && !type0_add_line_active &&
 								 type0_add_armed;
 assign     frame_adj = ((type0_adjustment_selected | type0_r9_compare_active) &
-                        ~(type0_r9_zero_adjust_end | type0_c0_1_r5_end)) |
+                        ~type0_adjust_end) |
                        c1_last_line_validate |
                        type0_add_intercept;
 assign     row_frame_last = crtc0_row_frame_last & ~type0_add_intercept;
@@ -579,7 +588,7 @@ assign type0_r9_compare_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
 assign type0_r9_at_r0_write = !CRTC_TYPE && register_write && addr == 5'd09 &&
 								 hcc_last && hcc >= 2 && type0_adjustment_selected && !in_adj;
 
-assign in_adj_route = !CRTC_TYPE && line_new && !type0_c0_1_r5_end &&
+assign in_adj_route = !CRTC_TYPE && line_new && !type0_adjust_end &&
                                              (type0_r4_switch_active | type0_r9_compare_active |
 												type0_c0_1_adjust_active);
 
@@ -648,8 +657,8 @@ always @(posedge CLOCK) begin
 		else if((type0_c0_1_break_write && addr == 5'd09 && row == R4_v_total) ||
 				(type0_r9_compare_write && !type0_c0_1_adjust_active))
 			type0_r9_live_compare <= 1;
-		// The first boundary only advances C9. Consume the pending R9
-		// comparator when C4 finally advances. An unequal R4 write above
+		// Consume the pending R9 comparator when C4 advances, including
+		// a restored match on the first boundary. An unequal R4 write above
 		// selects R5 even if R4 is subsequently restored to C4.
 		else if(CLKEN && row_new) type0_r9_live_compare <= 0;
 		if(type0_r9_at_r0_write) type0_r9_at_r0_pending <= 1;
