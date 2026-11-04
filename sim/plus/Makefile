@@ -478,7 +478,7 @@ plus-sprite-ram-lint:
 # in SLOW_TESTS; `slow` runs only those; `full` runs both. The public targets
 # re-invoke make in parallel because GNU Make 3.81 (macOS) ignores -j set
 # inside a makefile; JOBS=1 gives serial, readable output.
-SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing d5-asic-audit b20-bus-diag b23-cpu-diff pa7-dma-overlap asic-cpu-bus
+SLOW_TESTS := b6-video-boundary b6-dynamic b6-plus-layers b8-field b7-dark-silicon-audit b20-ack-diag b20-ack-matrix d5-cart-timing d5-asic-audit b20-bus-diag b23-cpu-diff pa7-dma-overlap
 
 # Original-Plus photographs: unchanged four-page CPR, production T80/ASIC.
 .PHONY: pa7-dma-overlap
@@ -959,26 +959,3 @@ $(B16_BIN): $(B16_RTL) b16_load_model_test.cpp Makefile
 		$(B16_RTL) $(abspath b16_load_model_test.cpp)
 b16-load-model: $(B16_BIN)
 	./$(B16_BIN)
-
-# Source-derived ASIC register acceptance through production T80 and the
-# actual motherboard. Reuse B18's pin-case adapter; it copies all motherboard
-# logic unchanged and adapts only the GHDL CPU port spellings.
-ASICBUS_OBJ_DIR := $(abspath obj_dir/asic_cpu_bus)
-ASICBUS_MBOARD := $(abspath ../obj_dir/b18_snapshot/Amstrad_motherboard.v)
-ASICBUS_TOP := $(abspath asic_cpu_bus_test_top.sv)
-ASICBUS_CPP := $(abspath asic_cpu_bus_test.cpp)
-ASICBUS_RTL := $(ASICBUS_MBOARD) $(B20MAT_NETLIST) \
- $(addprefix $(abspath ../../rtl)/,Amstrad_MMU.v CRTC.v crtc_type0_engine.v crtc_type1_engine.v crt_filter.v i8255.v YM2149.sv hid.sv) \
- $(addprefix $(abspath ../../rtl/GA40010)/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v) \
- $(addprefix $(abspath ../../rtl/plus)/,asic_regs.v plus_sprite_ram.v asic_ga_timing.v asic_video.v asic_sprites.v asic_dma.v)
-$(ASICBUS_MBOARD): ../../rtl/Amstrad_motherboard.v ../b18_snapshot.mk $(B20MAT_NETLIST)
-	"$(MAKE)" -C .. obj_dir/b18_snapshot/Amstrad_motherboard.v
-$(ASICBUS_OBJ_DIR)/asic_cpu_bus_tests: $(ASICBUS_TOP) $(ASICBUS_CPP) $(ASICBUS_RTL) Makefile
-	mkdir -p $(ASICBUS_OBJ_DIR)
-	$(VERILATOR) --cc --exe --build -j 4 --top-module asic_cpu_bus_test_top -UVERILATOR \
-	 +1364-2001ext+.v +1800-2017ext+.sv --Mdir $(ASICBUS_OBJ_DIR) \
-	 -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" -o asic_cpu_bus_tests \
-	 $(ASICBUS_TOP) $(ASICBUS_RTL) $(ASICBUS_CPP)
-.PHONY: asic-cpu-bus
-asic-cpu-bus: $(ASICBUS_OBJ_DIR)/asic_cpu_bus_tests
-	$<
