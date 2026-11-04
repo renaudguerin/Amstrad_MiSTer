@@ -1,11 +1,11 @@
 # Type0 cancelled Last Line: preserve the row step — 4 November 2026
 
 An early R9 write can cancel Last Line, yet the core still reset the frame from
-C4=R4 alone. The minimal candidate uses the existing combined Last Line latch
-for frame reset. Its retained counter recipe fails before and passes after;
-239CRTC cases,51focused neighbors and44selected benches pass on the first
-candidate, but independent review found a C0=1 establishing-write regression.
-The candidate is not accepted; broader C0<2 latch qualification is next.
+C4=R4 alone. The final correction uses the combined Last Line latch for frame reset and
+admits C0=1 validation into existing shared latches, using the current line's
+IVM comparison. Independent review accepts it;239CRTC,51neighbors and44selected
+benches pass. A full exact-source RBF and targeted E6 hardware check are next.
+No new flip-flop or Type1 rule is introduced.
 
 ## Source-derived failure
 
@@ -24,8 +24,8 @@ C4=0/RA0. An RA-only assertion would miss this defect.
 The live rollover already used the combined decision. The separate
 `crtc0_row_frame_last` used row_last_r alone, mistaking C4/R4 equality for
 Last Line. Replacing that input with existing `type0_last_line_armed`
-(line_last_r AND row_last_r) fixes the ownership mismatch. No new state,
-C0-specific exception, wrapper, Type1 or parity rule is introduced. Adjustment
+(line_last_r AND row_last_r) fixes the ownership mismatch. This frame-end consumer change adds no state. The subsequent C0=1
+qualification below reuses the existing wrapper latches; Type1 is untouched. Adjustment
 completion through in_adj and the accepted pending-R9 comparator route remain.
 Genuinely true Last Line stays sticky through later R4/R9 writes, as p95 requires.
 
@@ -58,25 +58,69 @@ source renders, final diff/hashes and handoff are under ignored
 - `make -C sim crtc-test`:239passed, zero failed.
 - Focused neighbors:51passed, including opposite row/line decisions, late true
   Last Line writes, both C0=1 entries, R5/IVM/VMA/R0 and accepted ee9 cases.
-- `make -C sim soak`:0xc7dd6686aaa44162, seed0xaccc5eed20260822,
+- Corrected C0<2 candidate `make -C sim soak`:0xfe95fe98619b6cfa, seed0xaccc5eed20260822,
   2845088characters/samples, unchanged stimulus and projection. The history
   top row records this intended behavior change.
 - Final `python3 sim/select_tests.py --run`:PASS44benches, once after final code
   edit. Exact final line and hashes are in FINAL-REPORT.json; parent verified
-  all three. No later code edit or repeated parent gate.
+  the four frozen files. This gate belongs to the revision before the IVM
+  regression below; it did not validate the final IVM correction.
 
 Fresh Opus review run20261104T151222Z-4821-b186 blocks this revision: the
 wrapper samples Last Line only atC0=0. An R9 equality-establishing write atC0=1
 previously reset the frame accidentally through row_last_r; requiring combined
 Last Line exposes its missing re-evaluation. R4 establishing writes and
 positive-R5 entry are pre-existing related gaps. French §12.2 pp94–95 and
-§13.2.1 p108 require the C0=1 opportunity too. These need independent red cases
-and a source-faithful C0<2 decision before this frame-end change is accepted.
+§13.2.1 p108 require the C0=1 opportunity too. The review required independent red cases and a source-faithful C0<2
+decision; the corrected proof follows below.
 The original case5 red remains valid; no gate is weakened to hide the gap.
 
-After the corrected candidate has fresh review, Then build a full exact-source artifact and
-repeat the same direct E6 input. Changes in reported numeric results remain
-bounded to that caller history; no broad fresh baseline is implied.
+The C0<2 correction adds nine independent fail-before cases: R4/R9
+establishment at C0=1 with R5=0/2, nonzero case13 counters, R0=1 same-edge
+validation/default adjustment, and cancellation restored at1 versus5. It
+passes239CRTC/51neighbors/two live-type priority controls and the selected44.
+Fresh Opus review20261104T160353Z-14286-8d95 accepts that correction but names
+an IVM residual. The parent verifies its four source hashes independently;
+the review's hash command was denied. Restoring atC0=1 is an interpretation
+of Frenchp94, not a measured hardware rule.
+
+## Source-backed interlace regression found after review
+
+French§19.8.1p220 requires the line where R8 becomes3 to compare rawC9;
+doubling begins on the next line. With R0=63,R4=0,R9=6,R5=0,R6=25, even
+frame/raster parity and rawC9=3, writeR8=3 duringC0=1 before its CLKEN. The
+line must advance rawC9 to4; the next doubled display givesRA8. A private
+bite-test givesRA8 on acceptedee9 andRA0 on the frozen C0<2 candidate.
+The latter reuses the next-seam expression, reads liveR8 too early, arms
+Last Line and incorrectly resets the frame.
+
+This is a definite regression, rather than the review's separate unpinned
+odd-R9 first-doubled-line question. The final correction uses the existing **current-line** IVM/frozen-exit
+interpretation plus effective incoming R4/R9. Four existing owners fail before
+and pass after: entry, exit, steady incoming odd-R9 target and same-edge R8
+frame-parity forwarding. Two steady-IVM establishing controls remain green.
+Parent visually read the primary French207/220/221 renders, including the
+R9=7 even-row0,2,4,6,8 example and switch/exit rules. No RBF yet contains it. Primary renders, red/green proofs and review deltas are
+under `e6-case5-proof/review3/`; the earlier gate/review remains evidence for
+its own revision only.
+
+Final review20261104T163812Z-22111-e809 accepts the complete four-file diff;
+parent verifies its hashes against review3/FINAL-REPORT.json. Final
+`python3 sim/select_tests.py --run` passes44benches once after the last code
+edit. CRTC239/51neighbors pass; soak recomputesfe95fe98619b6cfa unchanged with
+the same2845088samples. The directed IVM reds establish the distinction the
+random stimulus does not exercise. No parent gate repeat or later code edit.
+
+Nonblocking source residual: on the first doubled line after R8 entry with
+oddR9, C0=0 may use prior toggle parity while C0=1 uses current seeded parity.
+The latter can now admit positiveR5 adjustment where HEAD reset the frame.
+Smallest unpinned recipe: enterR8=3 on the preceding line, R9=7, even frame,
+C4=R4, rawC9=4/VMA8,R5=2. It is recorded without a new expected value. Frozen
+IVM-exit re-entry at the exact C0=1 clock and late restore-at1 retain their
+stated inference bounds. E6case16 is unchanged.
+
+Build an exact-source artifact and repeat direct E6 plus named regression controls. No broad fresh
+baseline is implied.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).

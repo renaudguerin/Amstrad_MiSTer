@@ -89,9 +89,10 @@ module crtc_type0_engine
 	output           row_new,
 	output           frame_adj,
 
-	// C0=0 seam captures for the wrapper's hcc==0 latch load.
+	// C0<2 comparison values and admission for the wrapper's C0=1 validation.
 	output           c0_line_last,
 	output           c0_row_last,
+	output           c1_last_line_validate,
 
 	// Arbitration route into vertical adjustment on the current CLKEN.
 	output           in_adj_route,
@@ -412,7 +413,10 @@ wire       type0_r9_at_r0_active = type0_r9_at_r0_pending | type0_r9_at_r0_write
 // carried by type0_ivm_limit's per-line bits.
 wire       type0_live_line_last = type0_ivm_limit;
 wire       type0_last_line_armed = line_last_r & row_last_r;
+// C0=1 is the rollover too when R0=1: consume the admitted live
+// validation on that edge, before the wrapper's shared latches update.
 wire       type0_rollover_line_last = type0_c0_1_adjust_active ? 1'b0 :
+                                    c1_last_line_validate ? 1'b1 :
 									 type0_r9_at_r0_active ?
 									 (line == type0_adjust_line_max) :
 								 type0_r4_switch_active ?
@@ -436,7 +440,10 @@ assign c5_next = 5'd0;
 // too.  Type 0's R4=0 frame end comes from the `Last Line` / adjustment
 // arbitration above, not from a magnitude special case.
 wire       row_last_w = (row == R4_v_total);
-wire       crtc0_row_frame_last = (row_last_r | in_adj) &
+// French ACCC v1.11 sections 10.3.1.2 p.77 and 12.2 pp.94-95:
+// a frame reset consumes the combined Last Line decision. C4==R4 alone
+// cannot reset a frame after an early R9 write cancelled that decision.
+wire       crtc0_row_frame_last = (type0_last_line_armed | in_adj) &
                                       ~type0_adjustment_selected & ~type0_r9_compare_active;
 // F14 (ACCC v1.11 section 19.6.1 p.217; Q10 resolution in
 // accc-author-questions.md item 10): with an interlace mode active (R8=1 or
@@ -459,6 +466,7 @@ wire       type0_frame_end_raw = row_new & crtc0_row_frame_last;
 wire       type0_add_intercept = type0_frame_end_raw && !type0_add_line_active &&
 								 type0_add_armed;
 assign     frame_adj = type0_adjustment_selected | type0_r9_compare_active |
+                       c1_last_line_validate |
                        type0_add_intercept;
 assign     row_frame_last = crtc0_row_frame_last & ~type0_add_intercept;
 assign     row_next = type0_add_intercept ? (in_adj ? row : row + 7'd1) :
@@ -480,8 +488,8 @@ assign pr6_write = row_new && !frame_new_w && !in_adj &&
                    (row_next == R6_v_displayed);
 assign pr6_value = parity_frame ^ 1'd1;
 
-wire       type0_r4_at_c0_write = register_write && addr == 5'd04 && hcc == 0;
-wire       type0_r9_at_c0_write = register_write && addr == 5'd09 && hcc == 0;
+wire       type0_r4_at_c0_write = register_write && addr == 5'd04 && hcc < 2;
+wire       type0_r9_at_c0_write = register_write && addr == 5'd09 && hcc < 2;
 wire       type0_r5_at_c0_write = type0_r5_write && hcc == 0;
 wire [6:0] type0_c0_r4 = type0_r4_at_c0_write ? DI[6:0] : R4_v_total;
 // ACCC v1.11 §12.2 (pp. 93–95): on CRTC 0, evaluating whether C9==R9 and
@@ -515,6 +523,25 @@ wire       type0_c0_line_last = (in_adj && !type0_r9_compare_active) ? (((type0_
 										(({1'b0, type0_seam_value} == type0_seam_target6));
 assign     c0_line_last = type0_c0_line_last;
 assign     c0_row_last = type0_c0_row_last;
+// French ACCC v1.11 section 12.2 pp.94-95: false Last Line can become
+// true at C0=1 as well as C0=0. A C0=1 break already entered adjustment;
+// retain that distinct route instead of treating a restoring write as
+// a new last-frame-line decision. Active adjustment owns its own count.
+// Section19.8.1 p220: an R8 write changes the value interpretation
+// only after this line's comparison. C0=1 therefore uses the current
+// line's IVM/frozen-exit value, not the next-seam mode from live R8.
+// Target parity is immediate on an R8 write, including this edge;
+// steady-IVM target parity follows the effective new R9 (19.5.2 p207).
+wire       type0_c1_toggle = tog_line || r8_toggle_write_t0;
+wire       type0_c1_enter = r8_toggle_write_t0 ? (DI[1:0] == 2'b11) : tog_enter_line;
+wire [5:0] type0_c1_limit_addend = type0_c1_toggle ?
+                                 (type0_c1_enter ? {5'b00000, parity_frame} : 6'd0) :
+                                 ivm_disp_r ? {4'b0000, parity_c9 ^ type0_c0_r9[0]} : 6'd0;
+wire [5:0] type0_c1_limit_target = {1'b0, type0_c0_r9} + type0_c1_limit_addend;
+wire       type0_c1_line_last = ({1'b0, type0_limit_value} == type0_c1_limit_target);
+assign     c1_last_line_validate = !CRTC_TYPE && (hcc == 1) && !in_adj &&
+                                  !type0_c0_1_adjust_active &&
+                                  type0_c1_line_last && type0_c0_row_last;
 
 wire       type0_adjustment_selected = type0_c0_1_adjust_active |
 									 ((hcc == 2) ?

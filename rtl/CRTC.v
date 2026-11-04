@@ -255,7 +255,8 @@ reg        parity_r6;
 // Per-type engines
 // ------------------------------------------------------------------
 wire       e0_r0_frozen, e0_line_new, e0_row_frame_last, e0_row_new, e0_frame_adj;
-wire       e0_c0_line_last, e0_c0_row_last, e0_in_adj_route, e0_frozen_row_advance;
+wire       e0_c0_line_last, e0_c0_row_last, e0_c1_last_line_validate;
+wire       e0_in_adj_route, e0_frozen_row_advance;
 wire       e0_r0_widen_hold, e0_r0_widen_step;
 wire       e0_hcc2_adj_keep, e0_reload, e0_row_addr_save, e0_field_count_tick;
 wire       e0_hsync_off, e0_vsync_line_fire, e0_r7_write_fire, e0_vsync_holdoff;
@@ -284,7 +285,7 @@ crtc_type0_engine crtc_type0_engine
 	parity_frame, parity_c9, parity_r6,
 	e0_r0_frozen, e0_line_new, e0_line_next, e0_c5_next,
 	e0_row_frame_last, e0_row_next, e0_row_new, e0_frame_adj,
-	e0_c0_line_last, e0_c0_row_last,
+	e0_c0_line_last, e0_c0_row_last, e0_c1_last_line_validate,
 	e0_in_adj_route, e0_frozen_row_advance, e0_hcc2_adj_keep,
 	e0_r0_widen_hold, e0_r0_widen_step,
 	e0_reload, e0_row_addr_save,
@@ -382,6 +383,13 @@ always @(posedge CLOCK) begin
 			row_last_r <= CRTC_TYPE ? e1_row_last : e0_c0_row_last;
 			frame_adj_r <= (CRTC_TYPE ? (e1_line_last & e1_row_last) :
 									 (e0_c0_line_last & e0_c0_row_last)) & ~in_adj;
+		end
+		else if(e0_c1_last_line_validate) begin
+			// French ACCC v1.11 section 12.2 pp.94-95: the engine
+			// admits a C0=1 validation into the same shared seam state.
+			line_last_r <= 1;
+			row_last_r <= 1;
+			frame_adj_r <= 1;
 		end
 		// CRTC0 always schedule the adjustment run at HCC=0,
 		// then at HCC=2 it decides that it really has to run
