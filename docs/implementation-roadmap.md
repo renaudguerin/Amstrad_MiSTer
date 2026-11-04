@@ -423,8 +423,28 @@ separate residuals. CRTC3 remains broken in both demos; diagnose its selected
 ASIC counter/address path before porting any classic rule. See the
 [manual checkpoint matrix](investigations/hardware-runs/manual-demo-retest-2026-11-03.md)
 and [current RFD question](classic/accc-author-questions-2026-11-03-fr.md).
-MiSTer is released for automated checks; distinguish the existing `5fba168`
-baseline from the separate E/P display repair until that repair has an RBF.
+MiSTer is released for automated checks. The separate E/P classic build
+`8dde1e7` passed hosted synthesis and its full C-1 repeat: E/P readable, P 26,
+S 4E40; E 0060/0080 remains open.
+
+**Work order clarified November 4:** prioritize actionable SHAKER failures
+for supported CRTCs. First make page acquisition trustworthy, then select
+a source-backed CRTC/GA discrepancy with an independently expected result,
+prove it on the relevant production modules, and use demos as milestone
+integration checks. Do not require CRT-photo presentation identity before
+addressing functional timing: AT/AY/D3/D4 monitor response and B22 filter
+acquisition remain separate work. D02F8/02FA's missing regions are unassigned.
+The current source-derived ASIC mode-latch failures are functional GA/video
+work; their relation to DSC4's particular pixels remains unproven.
+
+Use CPCSyntaxError for instrumented, headless caller/state discovery where
+its model is adequate; retain AmSpirit spot checks and original hardware
+acceptance. Pin its source/build and record CSL errata overrides. Its
+character-granularity I/O scheduling cannot settle physical sub-character
+acceptance, and its SHAKER-tuned monitor response is not an independent
+monitor oracle. A fresh original boot or faithful pre-initialization state
+is required: restarting a demo initializer from a post-initialization SNA
+can alter its RAM and invalidate the rendering comparison.
 
 **2026-10-29 integration:** the CRTC1 invisible HSYNC overflow now restarts only
 classic GA monitor shaping (French §15.3.4 p.152), with deterministic, synthesis

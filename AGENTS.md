@@ -36,7 +36,8 @@ actual paths and branch ownership with Git and host task metadata.
 Task skills live in `.agents/skills/`:
 
 - `amspirit-test`: run and interpret AmSpirit checks with the repository helper.
-- `cpcse-test`: run fresh CPCSyntaxError CSL/SSM batches and inspect matching source for hardware-backed differences.
+- `cpcse-test`: run fresh CPCSyntaxError CSL/SSM batches and inspect matching source
+  for hardware-backed differences.
 - `stream-start [accuracy|plus|general|auto] [brief]`: selection, overlap assessment, a named
   branch, and reference provisioning. Omitted scope means auto.
 - `stream-orchestrate`: creates compatible steerable tasks, or adopts existing ones and adds

@@ -93,23 +93,26 @@ eight phase/acquisition cases comprise `02EE`/`02EF`, `0303`–`0305` and three
 flashing D9 pages. Do not report these 52 cases to the authors as core defects.
 
 The first focused paced D3 run completed `100 commands, 44 captures,
-0 capture failures, 49 SSM records`, but all44 remain acquisition/parameter
-mismatches: the reused legacy section sends an extra space after selecting
-D3, while module27 already displays its initial #35/#06 state. Captures
-then show R2 one increment beyond each requested value; the last is the
-menu. This is a parameter increment, not generally the next photograph
-index, since the script uses variable-length space sequences. Parent
-spot-checks at0314,0325 and033F confirm the offset and final menu.
+0 capture failures, 49 SSM records`, but every captured parameter state was
+one increment ahead, with the final capture at the menu. Removing the
+initial space and waiting for 0314 then timed out before any capture:
+**the marker is emitted on page advance, rather than stable initial entry**.
+The first key is therefore not proven to be an author-script error; native
+host retrieval sees the state after the marker-producing transition.
 
-The provisional Gemini `d3-paced-vs-cpc/visual-triage.md` usefully identifies
-that entry key, but its broad RTL-fidelity conclusion is not accepted. It
-also misnames the module-E binary as this run's media. The adjacent
-`parent-acceptance.md` records these corrections. Neither rectangular
-output nor shifted parameter text alone proves the original monitor's
-response.
+A manual overlay instead captures the stable page before sending each key
+sequence, with SSM autocapture disabled. Its first 44-capture run completed
+but 70 ms press/release timing lost spaces: 0314 is correctly 35/06, 0315 is 39
+instead of 3A, and later pages accumulate offsets. This run also cannot
+support page-by-page core verdicts. A short three-page probe with symmetric
+200 ms press/release instead repeated
+keys (35→3C→3E), while 100 ms reached the expected 35→3A→3B. The full
+100 ms overlay walk is now running; acceptance still requires all 44 headers.
+The MBC adapter uses the larger of requested press and release delays for
+both, so asymmetric CSL values do not provide independently controlled phases.
 
-The next private script removes only that extra entry space, preserving
-the event waits and original variable-length sequences. It is
-`CSL_MiSTer/MODULE D/SHAKER-D-1-D3-r2.CSL`; validation is pending before
-installation of a recommended full D-1 hybrid. Canonical author scripts
-remain untouched.
+The provisional Gemini `d3-paced-vs-cpc/visual-triage.md` is not accepted as
+an RTL-fidelity verdict; its module-E media identification is also wrong.
+The adjacent `parent-acceptance.md` records those limits. Canonical author
+scripts remain unchanged. These host-specific capture/input limitations
+must be resolved before recommending an overlay or reporting D3 failures.

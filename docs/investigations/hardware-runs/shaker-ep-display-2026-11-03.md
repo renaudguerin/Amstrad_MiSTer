@@ -8,14 +8,13 @@ condition at a Q20 R4 reset, even when adjustment remains active. This repairs
 the missing display route behind blank SHAKER C E (`02C9`) and P (`02CB`) pages
 identified in the [CRTC 1 sweep](shaker-crtc1-sweep-2026-11-03.md).
 
-The focused pin suite passes with a failure-first counter/display/status
-vector, as does the directly affected historical-engine discriminator. The
-combined selection gate passes all 43 selected benches. Fresh Opus review cleared the final display/status change. Hosted full
-synthesis of combined diagnostic commit `bedb1c5` passed; its new
-RBF/photo comparison is running. A classic-only build at `8dde1e7` is
-separately queued so the repair can be used independently of the ASIC
-experiment. The classic worker used
-neither MiSTer nor AmSpirit.
+The failure-first pin and historical-engine checks pass, followed by all 43
+selected benches and fresh Opus review. Full synthesis and a complete 80-capture
+C-1 walk now pass on the separate classic-only 8dde1e7 artifact: E/P are readable,
+P reports 26 and S reports 4E40. E still reports 0060 versus the photographed 0080.
+The combined diagnostic artifact gives identical E/P/S pages; its rejected ASIC
+bus experiment is not needed for this classic result. Build identities and the
+remaining capture-phase ambiguities are recorded below.
 
 ## Evidence and derivation
 
@@ -164,7 +163,7 @@ classic path. This artifact must not be published as an accepted Plus fix.
 
 The full C-1 history on the new disk completed in
 `local/overnight-20261103/ep/c1-device-bedb1c5-r2/`: 165 commands,
-80 captures, zero capture failures and152 SSM records. Its first attempt
+80 captures, zero capture failures and 152 SSM records. Its first attempt
 stopped before execution because the parent passed `filename=hash` instead
 of a bare media digest; the corrected run has its own directory and keeps
 that failed preflight evidence.
@@ -172,8 +171,12 @@ that failed preflight evidence.
 Classic-only full build
 [41742364942](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41742364942)
 targets exact `8dde1e7e432cf344c44bc2937d9065050ecbd56f` on
-`codex/classic-ep-20261103`. It is in progress; no second build of the
-combined candidate was dispatched.
+`codex/classic-ep-20261103` and succeeded. Its RBF `Amstrad_20261104_8dde1e7.rbf` is 3,135,216 bytes,
+SHA-256 `fc010ae3e27615dc20f8f31dc8de20bf2d0bde18499991a09b12608e5c07ba9e`.
+Full Quartus 17.0.2 build took 21m2s; minimum setup 0.750 ns, hold 0.242 ns,
+seven clocks and zero TNS. All 43 selected benches and production-T80 CI
+passed. The device copy's hash was verified; reports remain in ignored
+`local/overnight-20261103/classic-build/`.
 
 ## Combined-artifact hardware observations
 
@@ -182,16 +185,19 @@ E still prints `#0060` against the embedded/photo `#0080` expectation. P
 prints C4=`#26` as expected. This establishes the missing-display repair
 on this artifact and full recorded history, not every numerical result.
 
-The later `02D3` capture now reads **`#0240` as expected**, whereas the prior
-full C-1f capture on5fba168 reads `#0840 WRONG (EXP:#0240)`. This is a new
+The later `02D3` capture now reads **`#4E40` as expected**, whereas the prior
+full C-1f capture on 5fba168 reads `#0840 WRONG (EXP:#4E40)`. This is a new
 observed result, not yet a proven causal repair: R6 display recovery changes
 capture duration and therefore subsequent keyboard/entry phase. The numeric
 path polls PPI VSYNC, so it cannot be attributed directly to the status-bit
 correction. Repeat the full history on the classic-only artifact before
-closing its history/phase sensitivity.
+closing its history/phase sensitivity. The value was verified from an
+enlarged crop; the parent initially transcribed it as 0240 at native scale,
+which was corrected to 4E40. The old enlarged crop confirms 0840 and the
+embedded 4E40 expectation.
 
-Against the prior80capture C-1f walk, **66 PNGs are byte-identical**. The
-remaining14 are E/P's three restored pages, the `02D3` text, and ten narrow
+Against the prior 80-capture C-1f walk, **66 PNGs are byte-identical**. The
+remaining 14 are E/P's three restored pages, the `02D3` text, and ten narrow
 line bands (1–5 rows) at022D/022F/0230/0233/0234/0285/0287/0297/0298/0299.
 Parent inspection found raster-pattern/colour-band phase differences in
 those ten; no new numerical text differences there. A same-RBF phase
@@ -200,6 +206,26 @@ original-CPC join has77reference pairs and three pages without a cached
 reference; numeric pixel metrics are not verdicts. Comparisons and narrow
 band contact sheet: `local/overnight-20261103/ep/c1-bedb-vs-old/` and
 `c1-bedb-vs-cpc/`.
+
+## Classic-only full-history repeat
+
+`ep/c1-device-8dde1e7/` completed 165 commands, 80 captures, zero failures
+and 152 SSM records. E/P/S are byte-identical to the combined artifact:
+readable E/P, E 0060, P 26 and S 4E40. Thus S's new expected result repeats
+without the rejected ASIC candidate, while causal attribution to the
+status repair still is not established.
+
+Against the combined artifact, 65 of 80 PNGs are byte-identical. Fourteen
+of the 15 changed captures show narrow/dynamic bands or paired phases
+(0285/0286 exchange exact hashes). 023A has a broader row-pattern change
+whose content-versus-phase cause remains unassigned; it is not silently
+accepted as harmless. Parent/worker comparisons and enlarged crops are
+retained with the hardware handoff. No new core failure is inferred from
+that unmatched capture alone.
+
+Fresh CPCSyntaxError v0.12.0 also gives E 0080 and S 4E40. Its source exposes
+[a positive-R5 re-entry discriminator](shaker-e-0080-positive-r5-reentry-2026-11-04.md)
+for E; this has not yet become an RTL correction.
 
 ## Remaining boundaries
 

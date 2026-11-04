@@ -12,29 +12,51 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **Validation task (`codex/overnight-validation-20261103`):** AmSpirit helper
-  migration to Lite 1.17.1 is committed (`bcfcd5e`), with 21 protocol tests and
-  a live Plus title/joystick/snapshot smoke. Keep direct HTTP; the upstream MCP
-  server omits media, render and script operations needed by the cases. The
-  [tooling guide](investigations/hardware-runs/amspirit-lite-1.17-tooling.md)
-  records the supported desktop launch and exact proof. The new SHAKER
-  package is installed locally and on MiSTer, with old assets backed up and
-  a separate French B-1 override. E-1 executes; first five captures match the
-  prior run exactly, final warning pages remain unresolved. D-1 completes
-  with 127 captures; D3 needs a separate paced run because bulk input outruns
-  native screenshot retrieval. The paced D3 run completes all 44 captures. See [package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md)
-  and [device results](investigations/hardware-runs/shaker-package-device-2026-11-03.md).
-  Classic E/P display and status recovery is committed (`8dde1e7`) and
-  cleared by fresh Opus review. The full C-1 hardware walk completes80
-  captures on the combined diagnostic RBF: E/P are readable; E retains
-  #0060/#0080 and02D3 reads the expected #0240 in this run, pending repeat. The
-  separate ASIC write candidate (`bedb1c5`) is **unaccepted**: review exposed an unresolved
-  counter-phase contract behind three OUTI/OUTD/OUT(n) seam failures.
-  Those classic-equivalence expectations themselves require calibration;
-  passing storage windows alone is insufficient. [ASIC diagnosis](investigations/hardware-runs/asic-demo-diagnosis-2026-11-03.md).
-  Renaud authorized branch push and hosted full synthesis; the `bedb1c5`
-  build is diagnostic and must not be published as a verified repair.
-  These remain task-branch changes; no merge or release is requested.
+- **CPCSyntaxError toolbelt (2026-11-04):** the supplied macOS universal
+  v0.12.0 binary and matching source 22de765 are pinned. Headless CSL/SSM
+  has run eight BI/CRTC3 captures, the 80-capture C-1 walk and seven AE/AR
+  captures (the last batch took 1.639 s wall time); a further13capture DT
+  probe completes through02FA. E prints 0080 as on the
+  real-CPC photo, where MiSTer still prints 0060. BI's one-us case preserves
+  the hardware-expected mode. These are targeted observations, not a whole
+  suite accuracy score. [Guide](cpcsyntaxerror-testing.md),
+  [skill](../.agents/skills/cpcse-test/SKILL.md),
+  [pilot](investigations/hardware-runs/cpcsyntaxerror-v012-pilot-2026-11-04.md).
+
+- **Validation task (`codex/overnight-validation-20261103`):** AmSpirit Lite
+  1.17.1 tooling is committed and verified; retain direct HTTP because the
+  upstream MCP omits required media/render/script operations. The new SHAKER
+  package is installed, with the French B-1 key override kept separately.
+  D-1 completes 127 captures, but all 44 D3 pages still need a reliable host
+  capture/input overlay: SSM is emitted on advance, and the initial manual
+  overlay loses multi-space inputs. This is a harness limitation, not 44 core
+  failures. [Package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md),
+  [device results](investigations/hardware-runs/shaker-package-device-2026-11-03.md).
+  Classic E/P display/status recovery (`8dde1e7`) is reviewed and now repeated
+  on its own full-build artifact: E/P are readable, P reports 26, S reports 4E40
+  in both new full C-1 walks. E's 0060 versus 0080 remains open; the new
+  [positive-R5 source discriminator](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md)
+  now has an executable private proof: a C5-only positive-R5 restart changes
+  0060 to0080, retaining the other seven E values and zero/off-R4 controls.
+  It remains a mechanism hypothesis under independent review, with Q20's
+  zero case preserved.
+  The ASIC bus qualifier (`bedb1c5`) is **rejected and reverted** (`939ee6f`):
+  genuine BI CPU replay and original-Plus photographs establish a counter
+  regression that storage-only checks missed.
+  [Counter proof](investigations/hardware-runs/shaker-bi-r3-counter-consumption-2026-11-04.md).
+  The independent mode-only repair (`3113323`) has failure-first GA→decoder
+  vectors, cross-provider review and 44 selected benches passing. Full build
+  [41750348807](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41750348807)
+  is underway; SHAKER hardware acceptance follows. A separate **ASIC mode/blank
+  alignment residual** remains: short valid HSYNC can expose a whole 16-dot
+  old-mode character before the delayed update. This is coarser than the open
+  mixed-pixel question and needs its own bounded repair.
+  [Mode proof and residual](investigations/hardware-runs/asic-mode-latch-2026-11-04.md).
+  DT's second black region remains unassigned: raw GA black pixels precede
+  filtering, while filter acquisition can reject extra VSYNCs. The
+  [boundary analysis](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md)
+  defines the trace needed to separate the two.
+  These are task-branch changes; no master integration or release is requested.
 
 - **Manual demo acceptance update (2026-11-03, `5fba168`):** DSC4's main effects
   are fine on CRTC1 and mostly fixed on CRTC0, but credits still lose their

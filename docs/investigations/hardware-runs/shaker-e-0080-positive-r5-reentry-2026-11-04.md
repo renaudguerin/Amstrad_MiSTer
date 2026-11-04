@@ -194,3 +194,115 @@ Private evidence is under `local/overnight-20261103/classic/e-0080-source/`:
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by
 Longshot (CC BY-NC-ND 4.0).
+
+## Private executable discriminator: actual C5 confirmed
+
+A subsequent bounded private replay reproduced the unchanged `0060`, directly
+observed the inferred C5 phase, and then obtained `0080` with a C5-only
+positive-R5 re-entry counterfactual. This advances the evidence from phase
+arithmetic to an executable mechanism; it does not uniquely identify silicon.
+All files remain ignored under
+`local/overnight-20261103/classic/e-0080-proof/`. Production RTL and retained
+simulation sources were not edited; no selection gate, synthesis, emulator/API
+or device operation was performed.
+
+The replay uses a private `git archive` of
+`3113323f24bb47dd18d51489d6c53a25793f158c`; relevant classic RTL is identical
+to `8dde1e7`. The original `SHAKE27C.bin`, caller harness and observation top
+were copied from the saved replay, without changing historical originals.
+The production-T80 netlist is the preserved GHDL netlist from the BI unit.
+The final observation additions expose C5 and record line-edge pre/post state,
+bus-write onset, and actual R5 storage changes. They do not alter clocking,
+WAIT, CPU instructions, RAM setup, PPI VSYNC input or production CRTC logic.
+The inherited trampoline, seeded classification and direct PPI Port-B model
+remain explicit limits: this is not a fresh-disk full-motherboard replay.
+
+The unchanged replay first confirmed the target mismatch and C5=6/7/8/9
+sequence. Only then was the private counterfactual evaluated. Its entire
+behavioral difference (`private-counterfactual.diff`) is: while already in
+adjustment, at a genuine positive-R5 C4=R4/C9=R9 line end, restart C5 at0
+unless adjustment completion or the interlace additional-line state already
+owns that edge. It does not clear adjustment or change C4/C9/parity logic.
+In particular, R5=0 never enters this new branch. No PC, opcode, absolute tick
+or special caller exception is present in the counterfactual.
+
+### Measured transition and collateral state
+
+The direct edge trace corrects the earlier VSYNC-derived boundary estimate
+by one 64 MHz master clock: the actual counter update is tick873893962;
+VSYNC observation follows at tick873996363 or874029131. R5 storage changes
+occur one clock after the harness first observes bus-write onset.
+
+| Observable | Unchanged | Private C5 restart |
+|---|---|---|
+| R5=3 stored at tick873889747 | C4=38, C9=6, C5=6, adjustment=1 | identical |
+| R4/R9 edge at tick873893962 | C5=7 -> 8 | C5=7 -> 0 |
+| Other state after that edge | C4=39, C9=0, adjustment=1, ParityFrame=1, ParityC9=1 | identical |
+| R5=1 stored at tick873898195 | C4=39, C9=1, C5=9, adjustment=1 | C5=1; other fields identical |
+| Actual adjustment-exit edge | tick873996362; pre C4=42/C9=0 | tick874029130; pre C4=43/C9=0 |
+| State after exit | C4=C9=C5=0, adjustment=0, both parity states0 | identical |
+| Raw VSYNC observed | tick873996363 | tick874029131 |
+| Printed measurement | `0060 (0080 expected)` | `0080 (0080 expected)` |
+
+The VSYNC shift is exactly32768 master clocks:512 microseconds/eight physical
+lines. The changed pre-exit C4 is the expected consequence of counting eight
+more lines, not collateral equality being silently assumed.
+
+The **earliest divergence in the whole E execution** occurs earlier, at
+tick36143178, during a positive-R5=1 scanner case: both start from C5=7;
+unchanged goes to8 and the private variant to0. Both retain C4=39, C9=0,
+adjustment=1, ParityFrame=1 and ParityC9=1. Thus the experiment is a general
+positive-re-entry hypothesis, not an edit activated solely at the target row.
+The target measurement later reaches identical pre-write state and accepted
+write timings in both executions, as shown above. `comparison.json` preserves
+both the earliest divergence and the target windows.
+
+### Focused results and commands
+
+```sh
+bash local/overnight-20261103/classic/e-0080-proof/build.sh old
+local/overnight-20261103/classic/e-0080-proof/obj-old/replay local/overnight-20261103/classic/e-0080-proof/SHAKE27C.bin 6b54 1 0 quiet
+python3 local/overnight-20261103/classic/e-0080-proof/score.py old
+
+bash local/overnight-20261103/classic/e-0080-proof/build.sh restart
+local/overnight-20261103/classic/e-0080-proof/obj-restart/replay local/overnight-20261103/classic/e-0080-proof/SHAKE27C.bin 6b54 1 0 quiet
+python3 local/overnight-20261103/classic/e-0080-proof/score.py restart
+```
+
+Both private Verilator compilations and replay processes exit0. Replay stdout
+is retained as `old.log` and `restart.log`. The focused scorer independently
+requires the photographed `0080`, not the expected-value text supplied by the
+title. Exact scorer results:
+
+- Unchanged: **`e-0080-proof: FAIL`, exit1**, observed96 versus expected128.
+- Private restart: **`e-0080-proof: PASS`, exit0**, observed128.
+- Both retain all seven other E measurements: `0004`, `0B20`, `0073`, `0077`,
+  `04A0`, `0B20`, `0223`.
+- Both pass515 actual R5=0 R4-reset events: C4 resets0, adjustment stays
+  active and C5 advances modulo32, including nonzero phases.
+- All off-R4 positive-R5 line edges preserve ordinary C5 increment:
+  81 baseline checks and89 private-restart checks, zero failures. The extra
+  eight checks correspond to the intentionally extended measurement.
+
+`score-old.log`, `score-restart.log`, their JSON results, build logs,
+`private-counterfactual.diff`, `comparison.json` and `provenance.json` retain
+commands, exits, source SHA and file/log hashes. The earlier `old-bus-only.log`
+is an initial observation pass; the final `old.log` additionally records actual
+register-storage edges and the complete positive-line control set.
+
+### What this now resolves
+
+The preserved-phase explanation and the proposed positive-re-entry C5 restart
+are now measured, not merely arithmetic guesses. A C5-only restart is
+sufficient to match the hardware number while retaining the tested Q20 and
+other E controls. This supplies a concrete failure-first candidate for a
+future retained cross-module test and production review.
+
+It still does not prove that original hardware uses this exact hidden-state
+mechanism, nor validate CPCSyntaxError's global R5=0 release. Its internal
+execution trace remains absent, and the replay's inherited setup remains
+synthetic. A future narrowly reviewed implementation can be evaluated against
+this discriminator and the original E hardware result without waiting on a
+broad author question; a new hardware result or a different authentic history
+that distinguishes mechanisms would carry more weight than final-number
+agreement alone. No production repair is included in this unit.

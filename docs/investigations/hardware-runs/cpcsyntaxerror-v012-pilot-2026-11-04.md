@@ -115,6 +115,24 @@ Original URLs, hashes and attribution are preserved in
 original-CPC photographs were fetched; older portal CPCSyntaxError captures
 were not used as a current-version baseline.
 
+### DT: an additional monitor/GA discriminator
+
+A direct D-1/T experiment reached 02F8 and 02FA using the unchanged D binary,
+new canonical D-1 boot and the older upstream event-paced T section. The
+first broader attempt ended naturally at its time cap waiting for 0300
+(line 49); 17 earlier captures are preserved as partial execution, not an
+emulator-accuracy verdict or a valid full D walk. The new canonical fixed-wait
+D script differs, so that wait must not be reported as an author defect.
+
+A second bounded script ends at 02FA and completes with 13 captures, exit0
+(`dt1-through-fa-v012/` and adjacent log). Both target BMP hashes match the
+first attempt exactly. They show two black horizontal regions, as in the
+original-CPC photos; MiSTer's recorded Full-mode 02F8 shows only one. This
+is a useful hardware-matching source lead. It does not assign the defect to
+the CRTC, GA or sync filter without observing their actual boundary signals.
+The first 95 captures above and this 13-capture batch give 108 completed
+captures; no overall pass rate is inferred.
+
 ## Limits and next work
 
 Use hardware-matching cases to investigate specific first divergences.

@@ -12,9 +12,9 @@ A retained actual-GA-to-video regression fails before the repair and passes afte
 including requests actually stored between +6/+7us and after +7us. An in-flight
 snapshot control rejects a phantom event and verifies the pending request on a fresh
 pulse. The initial private experiment below explains why simply connecting the old
-classic-reference MODE_SYNC_EN was insufficient. Production changes remain subject
-to the parent's independent review and SHAKER comparison; no hardware acceptance is
-claimed here.
+classic-reference MODE_SYNC_EN was insufficient. Cross-provider Opus review accepted the production change; its requested test and
+comment follow-ups passed the final44-bench selection. SHAKER comparison on a new
+RBF remains pending; no hardware acceptance is claimed here.
 
 The reported DSC4 credit-name corruption is motivation for this investigation,
 not evidence of its cause. Neither this test nor emulator agreement identifies the
@@ -48,9 +48,9 @@ rendered with `pdftoppm` and visually read. Renders are in the ignored
 These pages establish the minimum-width and during-pulse request contracts. They
 do not by themselves prove an exact master-clock dot for the ASIC mode latch.
 
-## Production boundary checked
+## Pre-fix production boundary
 
-`asic_video.v` samples GAMODE on raw HSYNC rising, inside PIXEN. Its adjacent comment
+At baseline8dde1e7, `asic_video.v` sampled GAMODE on raw HSYNC rising, inside PIXEN. Its adjacent comment
 explicitly defers the minimum-width rule. `asic_ga_timing.v` stores the RMR shadow
 and exports it unsynchronized on both MODE and GAMODE_O. Its hdelay sequencer also
 exports MODE_SYNC_EN; the motherboard leaves that event unconnected. The classic

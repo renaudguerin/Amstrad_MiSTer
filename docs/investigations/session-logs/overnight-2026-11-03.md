@@ -106,7 +106,7 @@ Latest live Codex OAuth reading, 00:05 UTC November4: **26% weekly used**, reset
 remains in force. Automatic restart after ending this chat is unverified.
 
 The full C-1 walk on the combined artifact completed80captures: E/P
-readable, E numeric60/80residual remains, 02D3now0240expected in this
+readable, E numeric60/80residual remains, 02D3now4E40expected in this
 run. 66PNGs are byte-identical to old C-1f. Repeat full history on the
 classic-only build8dde1e7, hosted run41742364942, still in progress.
 
@@ -114,3 +114,100 @@ Next: finish classic-only artifact checks and its repeat C-1 history; use the AS
 DSC4/Amazing counterfactual captures; finish D3 comparison and preserve a
 host-paced overlay. Resolve the ASIC acceptance gap before any verified
 publication or integration claim.
+
+## November4 continuation and strategy
+
+Renaud requested an efficiency assessment. The recommended working order
+is now SHAKER-led functional diagnosis, with demos as milestone checks.
+Monitor-response appearance and filter acquisition have their own evidence
+and acceptance; neither a photograph mismatch nor a successful native PNG
+is automatically a CRTC verdict. CPCSyntaxError's headless CSL/API/source
+make it useful for instrumentation, with AmSpirit and original hardware
+retained for independent checks. Installing a built macOS version would
+be useful but does not block other work; no binary was found in the local
+source tree during this check. Its default CSL runner patches an A-U wait;
+record `--no-errata` versus default instead of assuming identical scripts.
+
+The live AmSpirit corruption Renaud observed came from private restart
+controls, not the clean boot reference. The initializer replay changed
+left-hand screen RAM and zeroed sampled colons; its trace is rejected as
+a rendering oracle. A fresh original-disk classic boot now shows all
+colons/names correctly and is left paused for inspection. Evidence is in
+`classic/credit-replay/visible-control/fresh-credits-t23/`.
+
+The ASIC bus qualifier has now failed an original-Plus SHAKER comparison:
+BI/R3-JIT's six narrow-band cases become224pixel blocks, while the two
+large-band controls stay unchanged. Old widths16/32/48 and the expected
+large controls agree with original-Plus photographs and fresh AmSpirit.
+The qualifier and its uncalibrated fixture have been removed from the
+working source, with all code/patches retained under
+`asic/rejected-bus-candidate/`; a code checkpoint follows the final gate.
+The current mode-latch unit is independent, uses French52–53 and actual
+GA→video tests, and keeps raw sync/blank/IRQ/clocks unchanged.
+
+Hardware ownership transferred from parent to classic_build: corrected
+D3 entry-wait trial timed out before 0314, proving that first SSM arrives
+on page advance rather than stable initial entry. The next host overlay
+uses explicit screenshots before keys with SSM autocapture off. The
+classic-only C-1 repeat is running; parent must not touch MiSTer until
+that operator returns ownership. AmSpirit API ownership has returned to
+parent; leave the clean credits reference visible while working offline.
+
+
+## Current checkpoint — 4 November, 01:00 UTC
+
+The prior build/capture ownership notes above are historical. Both earlier hosted
+builds completed; the classic-only8dde1e7 repeat has 80 captures, readable E/P,
+P 26 and S 4E40. E 0060/0080 remains open. Device ownership is back with the parent;
+no emulator API work is active, and AmSpirit remains paused on clean credits.
+
+The rejected ASIC bus qualifier is now reverted in 939ee6f, backed by actual
+production-T80 BI counter traces and original-Plus photographs. The independent
+mode-only repair is 3113323f24bb47dd18d51489d6c53a25793f158c, pushed. Opus accepted
+its RTL; the requested test/comment follow-ups pass44 selected benches, with no
+code edits after that gate. The whole-character mode/blank alignment residual is
+named separately. Hosted full build 41750348807 is the only synthesis in progress;
+the build operator owns its watcher and artifacts, with no device ownership.
+
+CPCSyntaxError v0.12.0 is installed/pinned and now in the toolbelt guide/skill.
+Fresh headless BI3/C1/AE-AR3 batches yielded 95 captures. These are execution
+counts, not pass counts. The hardware-matching E 0080 result has narrowed an
+[experimental positive-R5 C5 restart](../hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md);
+Q20's zero continuity remains protected. A bounded private trace is next.
+
+D3's marker is emitted on advance, so removing the entry key was not a valid
+capture fix. The manual before-key overlay avoids that marker race but still
+loses bulk inputs. A three-page 200 ms probe repeats keys (35→3C→3E instead of
+35→3A→3B); the 100 ms probe is in progress. Canonical author scripts are unchanged.
+No full 44-page rerun is accepted until header alignment is demonstrated.
+
+Live Codex OAuth at 00:53 UTC: 29% weekly used, reset 5 November 19:34 UTC; primary
+window unavailable. User's 60% pause threshold remains in force; no banked reset
+has been redeemed. No master integration, release or PR is requested.
+
+
+## Checkpoint — 4 November, 01:12 UTC
+
+CPCSyntaxError toolbelt guide/skill and initial source discriminator are committed
+asdd247d4. Fresh DT through02FA adds13 complete captures; its02F8/02FA both show
+the photographed second black band and match the earlier partial attempt exactly.
+The broader older event-paced T script times out naturally at0300; that is not
+assigned as an emulator or author defect. Raw-GA-versus-acquisition tracing remains
+necessary, as explained in the DT boundary report.
+
+The E proof now directly observes C5 and obtains0080 via a private C5-only
+positive-R5 re-entry restart, keeping all other seven values and515zero controls.
+No production change was made. An authorized bounded Opus faithfulness review is
+running at`/tmp/agents-roster-runs/20261104T011108Z-64964-7921/` (sessionfc46133d).
+It must finish before any implementation decision or turn-end cleanup.
+
+D3's100ms full walk has22correct headers, then an extra key at the R3=4 group
+shifts the rest. The replacement single-key overlay retains70ms presses and
+sends each space in its own MBC invocation; it is active, with parent sole
+MiSTer ownership. No canonical author edits and no accepted44page claim.
+
+Hosted mode3113323 synthesis is active after exact-SHA44bench/lint and
+production-T80 CI pass. No duplicate VM build was started. The build worker
+owns only artifacts, and the DT worker owns only private headless CPCSE/replay
+experiments; neither may operate MiSTer or AmSpirit. AmSpirit's clean original
+credits remain paused. No new code after the accepted44gate.
