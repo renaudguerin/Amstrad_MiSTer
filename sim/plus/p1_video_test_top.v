@@ -101,6 +101,8 @@ module p1_video_test_top (
 	wire [79:0] inkr;
 	wire [1:0]  gamode;
 
+	wire video_mode_update_en;
+
 	asic_ga_timing ga (
 		.clk(clk),
 		.cen_16(cen_16),
@@ -142,6 +144,7 @@ module p1_video_test_top (
 		.INT_N(pri_irq_n),
 		.VBLANK(),
 		.MODE_SYNC_EN(),
+		.ASIC_MODE_SYNC_EN(video_mode_update_en),
 		.MODE(),
 		.BORDER_O(border),
 		.INKR_O(inkr),
@@ -180,6 +183,7 @@ module p1_video_test_top (
 		.SSCR(8'd0),
 		.PIXEN(cen_16),
 		.VIDEOD(vidword),
+		.MODE_UPDATE_EN(video_mode_update_en),
 		.GAMODE(gamode),
 		.BORDER_I(border),
 		.INKR_I(inkr),

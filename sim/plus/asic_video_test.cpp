@@ -35,6 +35,7 @@ public:
         dut.CLOCK = 0;
         dut.CLKEN = 0;
         dut.PIXEN = 0;
+        dut.MODE_UPDATE_EN = 0;
         dut.nRESET = 0;
         dut.VIDEOD = 0;
         dut.GAMODE = 0;
@@ -259,6 +260,14 @@ public:
         dut.GAMODE = mode;
         dut.BORDER_I = border;
         dut.VIDEOD = videod_word;
+        apply_mode_event();
+    }
+
+    // Leaf decoder input; real GA qualification is owned by asic-mode-latch.
+    void apply_mode_event() {
+        dut.MODE_UPDATE_EN = 1;
+        clock_tick();
+        dut.MODE_UPDATE_EN = 0;
     }
 
     // Sprite-plane inputs (P4 precedence vectors t06*).
@@ -2084,10 +2093,9 @@ void t05e_border_substitution_and_sync_blank(TestBench& test) {
     test.expect_rgb("border returns after HSYNC", 6, 0, 6);
 }
 
-// Grimware §RMR: the video mode takes effect only after the next HSYNC.
-// Switching GAMODE mid-line leaves mode-2 decoding in charge until the
-// line boundary; after crossing HSYNC the same VIDEOD word decodes with
-// mode-1 cadence.
+// Decoder input contract: a requested mode stays inert until the qualified
+// GA event. The actual GA width/deadline contract is checked end-to-end by
+// asic-mode-latch; this leaf pins mode2/1 pixel decoding across that input.
 void t05f_mode_change_latches_at_hsync(TestBench& test) {
     program_pixel_frame(test);
     TestPalette pal;
@@ -2124,10 +2132,12 @@ void t05f_mode_change_latches_at_hsync(TestBench& test) {
         test.expect_rgb("inert mid-line mode change dot " + std::to_string(d),
                         c[0], c[1], c[2]);
     }
-    // Cross HSYNC (characters 40-41) and realign; mode 1 now applies to the
+    // Supply the external qualification event after the intervening HSYNC
+    // and realign; mode 1 now applies to the
     // same word: pairs A={b3,b7}=3, B={b2,b6}=2, C=0, D={b0,b4}=1 for 9C;
     // A=0, B=1, C=3, D=2 for 63.
     test.run_characters(45);
+    test.apply_mode_event();
     test.run_to_frame_start();
     test.align_to_character_start();
     static const unsigned m1[16][3] = {
@@ -3258,7 +3268,7 @@ constexpr std::array<TestCase, 75> kTests = {{
     {"t05c mode 1 pair pixels", t05c_mode1_pair_pixels},
     {"t05d mode 0 nibble pixels", t05d_mode0_nibble_pixels},
     {"t05e border substitution and sync blank", t05e_border_substitution_and_sync_blank},
-    {"t05f mode change latches at HSYNC", t05f_mode_change_latches_at_hsync},
+    {"t05f mode change requires qualified GA event", t05f_mode_change_latches_at_hsync},
     {"t05g mode 3 two-bit pixels", t05g_mode3_two_bit_pixels},
     {"t05h byte halves belong to their character "
      "(intra-character phase is an unverified model assumption)",

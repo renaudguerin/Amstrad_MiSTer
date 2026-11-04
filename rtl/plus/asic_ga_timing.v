@@ -27,6 +27,9 @@
 //  mapping) is additionally covered by directed vectors, because ga40010
 //  does not export those registers for comparison.
 //
+//  Technical information sourced from the "Amstrad CPC CRTC Compendium"
+//  by Longshot (CC BY-NC-ND 4.0).
+//
 //  Deliberate differences from ga40010:
 //   - Compatible delivery follows at the next character edge; DMA ACK does
 //     not consume a compatible request. PA7 V5/overlap photographs establish
@@ -39,6 +42,8 @@
 //     reset to 0 (ga40010 leaves those to FPGA power-up init); the
 //     INKR/ink-select power-up value is a named unverified model assumption
 //     (real ASIC power-up contents undocumented).
+//   - Graphic-mode qualification follows the ASIC's delayed window; the
+//     reference MODE_SYNC_EN and all sync/IRQ outputs keep their own timing.
 //   - No video-buffer/RGB section: asic_video owns rasterisation.
 //   - No DISPEN input: only the omitted video buffer consumed it.
 //   - No ``ifdef VERILATOR`` shadow domain: the *_sync variants this module
@@ -112,18 +117,16 @@ module asic_ga_timing
 	output       SYNC_N,
 	output       INT_N,
 	output       VBLANK,    // ga40010 HCNTLT28 analogue
-	output       MODE_SYNC_EN, // screen-mode resync strobe (asic_video
-	                          // currently re-latches GAMODE on raw HSYNC;
-	                          // this is the netlist's equivalent phase
-	                          // reference for the P1 pixel-phase check)
+	output       MODE_SYNC_EN, // classic netlist-reference hdelay event
+	output reg   ASIC_MODE_SYNC_EN, // qualified Plus decoder-mode update
 	output [1:0] MODE,
 
 	// ---- Legacy GA register file, driving asic_video ----
 	output [4:0]  BORDER_O,   // border hardware colour number
 	output [79:0] INKR_O,     // 16 hardware colour numbers, entry k at
 	                          // [k*5 +: 5] (asic_video INKR_I packing)
-	output [1:0]  GAMODE_O,   // RMR VM bits, unsynchronised (asic_video
-	                          // re-latches on HSYNC itself)
+	output [1:0]  GAMODE_O,   // RMR VM bits, unsynchronised; decoder
+	                          // consumes them on ASIC_MODE_SYNC_EN
 
 	// ---- B8-3 accepted legacy palette write event (Arnold V §2.2 ----
 	// secondary port: each accepted INKR write maps its 5-bit colour into
@@ -515,6 +518,51 @@ module asic_ga_timing
 
 	assign HSYNC_O = hdelay_comb[2];
 	assign SYNC_N  = ~(VSYNC_O_int ^ HSYNC_O);
+
+	// ASIC graphic-mode qualification is separate from monitor/IRQ shaping.
+	// ACCC v1.11 FR §§9.3.1–9.3.3 pp.52–53: all chips require >=2us
+	// raw HSYNC; the ASIC defers its GA interval by 1us and caps that
+	// interval at 6us. Deriving the short-pulse bound from p.52 leaves
+	// the request open one character after a valid raw fall; the long-
+	// pulse raw start+7us deadline is charted in §9.3.3 p.53.
+	// HSYNC_I is registered only on CCLK_EN_N or SNA_LOAD by asic_video;
+	// edge detection therefore sees ordinary falls between CCLK enables.
+	// Exact type3 mixed-byte pixel phase is unresolved (§9.3.4.1 p.54).
+	reg       mode_hsync_d, mode_tracking, mode_fell;
+	reg [2:0] mode_elapsed;
+	always @(posedge clk) begin
+		ASIC_MODE_SYNC_EN <= 1'b0;
+		if (reset | SNA_LOAD) begin
+			// The decoder separately restores settled SNA_MODE. No event
+			// may escape from the pre-restore or already-running pulse.
+			mode_hsync_d <= ~reset & SNA_LOAD & SNA_HS;
+			mode_tracking <= 1'b0;
+			mode_fell <= 1'b0;
+			mode_elapsed <= 3'd0;
+		end
+		else begin
+			mode_hsync_d <= HSYNC_I;
+			if (HSYNC_I & ~mode_hsync_d) begin
+				mode_tracking <= 1'b1;
+				mode_fell <= 1'b0;
+				mode_elapsed <= 3'd0;
+			end
+			else if (mode_tracking) begin
+				if (~HSYNC_I & mode_hsync_d) begin
+					if (mode_elapsed < 3'd2) mode_tracking <= 1'b0;
+					else mode_fell <= 1'b1;
+				end
+				if (CCLK_EN_N) begin
+					if (mode_fell | (mode_elapsed == 3'd6)) begin
+						ASIC_MODE_SYNC_EN <= 1'b1;
+						mode_tracking <= 1'b0;
+						mode_fell <= 1'b0;
+					end
+					else mode_elapsed <= mode_elapsed + 3'd1;
+				end
+			end
+		end
+	end
 
 	// Interrupt counter: cleared at 52 raw HSYNC falls, on the shaped VSYNC
 	// edge, by RMR bit 4, or (bit5 only) by a raster acknowledge.
