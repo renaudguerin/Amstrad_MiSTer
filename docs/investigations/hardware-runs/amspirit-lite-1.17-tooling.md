@@ -21,6 +21,8 @@ emitted on success. HTTP status 200 signals acceptance into the command queue. C
 HTTP 400 with a structured body `{"error": "...", "field": "..."}`.
 The helper accepts both 1.16 and 1.17 responses: if `"ok"` is present, it must be truthy; if absent,
 HTTP 200 acceptance is trusted.
+This response compatibility does not make the complete helper compatible with
+1.16: native joystick and snapshot streaming require 1.17 endpoints.
 
 ### Execution control consolidated on `POST /api/run`
 Pause, resume, reset, and single-stepping have moved from `POST /api/config` to `POST /api/run`:
@@ -135,3 +137,21 @@ Its helper output reports `Ran 21 tests` and `OK`; the same run includes the
 separately reviewed classic E/P repair. Full output is ignored under
 `local/overnight-20261103/selected-tests-final.log`. No claim of a live
 apply-time refusal or of every upstream endpoint being exercised is made.
+
+### Breakpoint-clear pause behavior observed on 1.17.1
+
+On core2491682, `PUT /api/breakpoints` with an empty replacement set
+**resumes** a paused machine. A direct control read `paused=true` before
+the call and `paused=false` after its command sequence was applied; the
+operator then reapplied pause and verified it. A breakpoint may also be
+hit before a resume observer ever sees `paused=false`: use command
+acknowledgment plus the intended stop condition, rather than the helper's
+`set_paused(False)` when expecting an immediate breakpoint.
+
+For checkpoint scripts, clear breakpoints first, then explicitly pause
+and verify the final state. Evidence:
+`local/overnight-20261103/classic/breakpoint-clear-pause-control.json`.
+The core's streamed classic SNA defaults to version2 with zeros at the
+v3 CRTC-counter offsets; those zero bytes are **not counter measurements**.
+Plus snapshots observed in the same build are version3. Check the version
+before interpreting offsets A9–B0 or claiming an instruction-start C0.

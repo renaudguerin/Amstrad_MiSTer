@@ -116,8 +116,11 @@ python3 scripts/shaker-ref/compare_modes.py --a <results A> --b <results B> \
   exist. C0 completed with 0 captures and 0 SSM records in both modes and was
   still logged PASS; check `captures`/`ssm_records` in the manifest when
   integrating results.
-- The 2.7 suite is not uniformly on the 27 disk: `SHAKER-D-1.CSL` inserts
-  `shaker26.dsk`. Derive media pins from each script's `disk_insert` line.
+- Derive media pins from each script's `disk_insert` line. The old D-1 script
+  loaded `shaker26.dsk`; the newly supplied and installed November 3 package
+  restores `shaker27.dsk`. The
+  [package audit](../../docs/investigations/hardware-runs/shaker-package-audit-2026-11-03.md)
+  records both identities and the preserved older corpus.
 - Same-mode reruns are the capture-phase control: B0 captures repeat
   pixel-identically, while animated tests (e.g. B1-27) differ between
   attempts with mean abs diff up to ~112, so cross-mode pixel diffs on
@@ -134,12 +137,13 @@ python3 scripts/shaker-ref/compare_modes.py --a <results A> --b <results B> \
   own case (B0-27 attempts a4–a6, 2026-10-16). Output the grab produced but
   the pipeline could never use (failed download, invalid PNG, broken file
   check) raises `CaptureFailedError` instead and is never tolerated.
-- On CRTC0 a sync-breaking test costs more than the page: after B0 `00FB` the
-  machine stops emitting SSM markers altogether, so the walk dies at the next
-  `wait_ssm` (line 18 `00FC`) even with the capture failure tolerated. Marker
-  waits are deliberately not tolerated — a missing marker can mean a wedged
-  machine. 2.7 B0/D0 therefore cannot complete on CRTC0; the 2.6 scripts use
-  fixed waits and walk the whole module.
+- A sync-breaking test can cost more than the page: older CRTC0 builds stopped
+  emitting SSM markers after B0 `00FB`, dying at `wait_ssm 00FC` even with
+  capture timeouts tolerated. The later IVM-exit wedge repair restores progress
+  to `00FC`; do not infer that historical stop on a current RBF. Marker waits
+  remain deliberately intolerant of missing events, since a missing marker
+  can mean a wedged machine. Preserve exact RBF/script/media history when
+  assessing whether a new walk has the same failure.
 - Raw pixels keeps Full's acquisition tuple and geometry: over the A cells 280
   of 372 pairs have aligned-mean zero and 37 more differ by ≤3/255, while all
   44 large pairs are sync/register-update tests (A3 CRTC RVMB, R13 UPDATE, R1/R6

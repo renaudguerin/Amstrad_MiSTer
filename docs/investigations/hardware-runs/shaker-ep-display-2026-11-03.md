@@ -10,9 +10,12 @@ identified in the [CRTC 1 sweep](shaker-crtc1-sweep-2026-11-03.md).
 
 The focused pin suite passes with a failure-first counter/display/status
 vector, as does the directly affected historical-engine discriminator. The
-combined selection gate passes all 43 selected benches. Independent review and
-a new RBF/photo comparison remain with the coordinator. This work used neither MiSTer nor
-AmSpirit and has not been synthesized.
+combined selection gate passes all 43 selected benches. Fresh Opus review cleared the final display/status change. Hosted full
+synthesis of combined diagnostic commit `bedb1c5` passed; its new
+RBF/photo comparison is running. A classic-only build at `8dde1e7` is
+separately queued so the repair can be used independently of the ASIC
+experiment. The classic worker used
+neither MiSTer nor AmSpirit.
 
 ## Evidence and derivation
 
@@ -139,6 +142,65 @@ select_tests: PASS 43 benches: test, crtc-test, crt-filter-blank-test, crtc-cpu-
 Output is preserved in `local/overnight-20261103/ep/select-final.log`.
 `git diff --check` passed. No code changed after this gate.
 
+## Hosted artifact and device handoff
+
+User-authorized hosted full run
+[41739354589](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41739354589)
+succeeded at exact SHA `bedb1c5e20e1d720da4b75f5f735c987776e2835`.
+Quartus 17.0.2 Build 602 Lite, clean full build, 0 errors and 0 critical
+warnings. The timing checker reports setup minimum 0.137 ns and hold
+minimum 0.241 ns across seven clocks, with zero TNS. Selected 43 benches,
+production T80 and the required gate passed on that SHA. Existing ignored
+fast-I/O/fitter and other warnings are retained in the artifact handoff;
+no unchanged-warning comparison is claimed.
+
+`Amstrad_20261103_bedb1c5.rbf` is 3,124,836 bytes, SHA-256
+`02ed2ae66f6648d72c86cbaa9bbbe393d36b0d5656ab05e17cb32931b17321c7`.
+The same digest was verified after copy to MiSTer's `_Computer` directory.
+All reports and build metadata are saved in ignored
+`local/overnight-20261103/build/`. The ASIC candidate in this combined
+artifact is **diagnostic and unaccepted**; it does not affect the selected
+classic path. This artifact must not be published as an accepted Plus fix.
+
+The full C-1 history on the new disk completed in
+`local/overnight-20261103/ep/c1-device-bedb1c5-r2/`: 165 commands,
+80 captures, zero capture failures and152 SSM records. Its first attempt
+stopped before execution because the parent passed `filename=hash` instead
+of a bare media digest; the corrected run has its own directory and keeps
+that failed preflight evidence.
+
+Classic-only full build
+[41742364942](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41742364942)
+targets exact `8dde1e7e432cf344c44bc2937d9065050ecbd56f` on
+`codex/classic-ep-20261103`. It is in progress; no second build of the
+combined candidate was dispatched.
+
+## Combined-artifact hardware observations
+
+E (`02C9`) and its second page (`02CA`) are now readable, as is P (`02CB`).
+E still prints `#0060` against the embedded/photo `#0080` expectation. P
+prints C4=`#26` as expected. This establishes the missing-display repair
+on this artifact and full recorded history, not every numerical result.
+
+The later `02D3` capture now reads **`#0240` as expected**, whereas the prior
+full C-1f capture on5fba168 reads `#0840 WRONG (EXP:#0240)`. This is a new
+observed result, not yet a proven causal repair: R6 display recovery changes
+capture duration and therefore subsequent keyboard/entry phase. The numeric
+path polls PPI VSYNC, so it cannot be attributed directly to the status-bit
+correction. Repeat the full history on the classic-only artifact before
+closing its history/phase sensitivity.
+
+Against the prior80capture C-1f walk, **66 PNGs are byte-identical**. The
+remaining14 are E/P's three restored pages, the `02D3` text, and ten narrow
+line bands (1–5 rows) at022D/022F/0230/0233/0234/0285/0287/0297/0298/0299.
+Parent inspection found raster-pattern/colour-band phase differences in
+those ten; no new numerical text differences there. A same-RBF phase
+control was not run, so they are not silently counted as equal. The
+original-CPC join has77reference pairs and three pages without a cached
+reference; numeric pixel metrics are not verdicts. Comparisons and narrow
+band contact sheet: `local/overnight-20261103/ep/c1-bedb-vs-old/` and
+`c1-bedb-vs-cpc/`.
+
 ## Remaining boundaries
 
 The authentic E/P/`02D3` measurements poll PPI VSYNC bit 0 at `F5xx`, not
@@ -154,8 +216,7 @@ must not be claimed repaired by this display/status change.
   not the complete SHAKER result screen or numeric values.
 - R5=0 write visibility on the adjustment decision edge, history-dependent
   `02D3`, and E's `CPU TO NEW FRAME` `#0060` versus photographed `#0080` remain
-  separate unresolved questions. Whether E uses status bit 5 for that measured
-  path has not been established here. No new release rule is inferred.
+  separate unresolved questions. No new release rule is inferred.
 - Display behaviour at a seven-bit C4 carry wrap remains an explicit source
   and hardware evidence gap; this patch only adds the Q20 R4-reset route.
 

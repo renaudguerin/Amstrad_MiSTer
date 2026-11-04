@@ -12,6 +12,30 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
+- **Validation task (`codex/overnight-validation-20261103`):** AmSpirit helper
+  migration to Lite 1.17.1 is committed (`bcfcd5e`), with 21 protocol tests and
+  a live Plus title/joystick/snapshot smoke. Keep direct HTTP; the upstream MCP
+  server omits media, render and script operations needed by the cases. The
+  [tooling guide](investigations/hardware-runs/amspirit-lite-1.17-tooling.md)
+  records the supported desktop launch and exact proof. The new SHAKER
+  package is installed locally and on MiSTer, with old assets backed up and
+  a separate French B-1 override. E-1 executes; first five captures match the
+  prior run exactly, final warning pages remain unresolved. D-1 completes
+  with 127 captures; D3 needs a separate paced run because bulk input outruns
+  native screenshot retrieval. The paced D3 run completes all 44 captures. See [package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md)
+  and [device results](investigations/hardware-runs/shaker-package-device-2026-11-03.md).
+  Classic E/P display and status recovery is committed (`8dde1e7`) and
+  cleared by fresh Opus review. The full C-1 hardware walk completes80
+  captures on the combined diagnostic RBF: E/P are readable; E retains
+  #0060/#0080 and02D3 reads the expected #0240 in this run, pending repeat. The
+  separate ASIC write candidate (`bedb1c5`) is **unaccepted**: review exposed an unresolved
+  counter-phase contract behind three OUTI/OUTD/OUT(n) seam failures.
+  Those classic-equivalence expectations themselves require calibration;
+  passing storage windows alone is insufficient. [ASIC diagnosis](investigations/hardware-runs/asic-demo-diagnosis-2026-11-03.md).
+  Renaud authorized branch push and hosted full synthesis; the `bedb1c5`
+  build is diagnostic and must not be published as a verified repair.
+  These remain task-branch changes; no merge or release is requested.
+
 - **Manual demo acceptance update (2026-11-03, `5fba168`):** DSC4's main effects
   are fine on CRTC1 and mostly fixed on CRTC0, but credits still lose their
   colons on both, and CRTC1 has a corrupt bottom line around 43 seconds.
@@ -19,8 +43,9 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   main effect. Amazing's main effects look fine on CRTC0/1 and remain broken
   on CRTC3. These observations narrow the earlier acceptance below; they do
   not close either demo as a whole. See the [manual retest](investigations/hardware-runs/manual-demo-retest-2026-11-03.md).
-  **MiSTer is reserved for Renaud: no automated device launches or input until
-  his explicit all clear.** Local tooling and source investigation may continue.
+  Renaud released MiSTer for automated testing after the manual session; the
+  updated-package checks use the existing `5fba168` RBF until a new build is
+  explicitly identified.
 
 - **CRTC 1 RFD (2026-11-03):** even ParityFrame suppresses the RFD VMA' save (French
   §11.6.2 pp.90-91 IVM ON/OFF recipe), and parity management is frame-local: it clears

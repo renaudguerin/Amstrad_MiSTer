@@ -180,14 +180,18 @@ is `SHAKER-B-1.CSL` line 41, `key_output 'Z'` ("Passe sur R9 BASE=6"). Sent
 through the French swap, it never reaches SHAKER, and the walk stalls at
 `wait_ssm 0x00E5`. A private copy that sends `'W'` instead (which the swap
 maps to the UK Z position) runs past it. Substitute in a copy of the script
-rather than editing the author's file.
+rather than editing the author's file. The installed override is
+`local/test_media/shaker/CSL_27_FR/MODULE B/SHAKER-B-1.CSL`; use it with
+`--layout fr --no-follow-loads`.
 
 **`SHAKER-C-1.CSL` marker typo (2026-11-03).** Lines 180 and 182 wait for
 `0x02F1`/`0x02F2`, which the screenshot-code sheet assigns to DT D1/D2
 (VSYNC Gate Array). The module correctly emits `03F1` here, the code for CO I1
 "INTERLACE VSYNC NIGHTMARE" (CRTC 1), followed by `03F3`–`03F6`, which the
 script already expects. This is the long-standing C1-27 stall at `02F1`. A
-private copy waiting for `03F1`/`03F2` is the workaround.
+private copy waiting for `03F1`/`03F2` was the workaround. The new author
+package fixes both waits and is byte-identical to that private copy; the
+installed canonical C-1 now contains the fix.
 
 [csl_runner.py](../../../scripts/hardware-loop/csl_runner.py) executes CSL through v1.5.
 Author-supplied SHAKER 2.7 scripts live under `local/test_media/shaker/CSL_27/`
@@ -195,7 +199,12 @@ Author-supplied SHAKER 2.7 scripts live under `local/test_media/shaker/CSL_27/`
 fallback corpus lives under `local/test_media/shaker/CSL_26/` (`MODULE_B`).
 Disks and standards remain directly under `local/test_media/shaker/`. All are
 private, untracked inputs: preserve the original files. The 2.7 scripts use the
-event-driven `wait_ssm` command
+event-driven `wait_ssm` command, except the updated module D scripts, which use
+fixed waits while SSM polling/capture continues in the runner. The
+[package audit](shaker-package-audit-2026-11-03.md) records the supplied hashes,
+retained French override, changed module E binary, and rerun scope. Previous
+canonical inputs are preserved in `local/test_media/shaker/pre-CSLSSM-20261103/`.
+The scripts run
 against the same device contract as the JSON driver. It is phase 0 of
 [the CSL/SSM plan](../ssm-csl/csl-ssm-implementation-plan.md): the host half, with no RTL
 change. The optional phase 1 detector is described under [SSM markers](#ssm-markers).

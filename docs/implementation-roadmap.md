@@ -423,7 +423,8 @@ separate residuals. CRTC3 remains broken in both demos; diagnose its selected
 ASIC counter/address path before porting any classic rule. See the
 [manual checkpoint matrix](investigations/hardware-runs/manual-demo-retest-2026-11-03.md)
 and [current RFD question](classic/accc-author-questions-2026-11-03-fr.md).
-MiSTer testing is held until Renaud explicitly releases the device.
+MiSTer is released for automated checks; distinguish the existing `5fba168`
+baseline from the separate E/P display repair until that repair has an RBF.
 
 **2026-10-29 integration:** the CRTC1 invisible HSYNC overflow now restarts only
 classic GA monitor shaping (French §15.3.4 p.152), with deterministic, synthesis

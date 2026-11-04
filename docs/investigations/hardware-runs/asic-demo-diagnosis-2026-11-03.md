@@ -2,17 +2,20 @@
 
 ## Acceptance position
 
-A source-derived ASIC register-acceptance defect is repaired locally: `OUT(C),r8/0`
-previously changed the CRTC register in the third microsecond, while CRTC3 requires the
-fourth. The repair samples only the ASIC CRTC's write ports on the CPU-owned rising phase.
-OUTI/OUTD retain fifth-microsecond acceptance; OUT(n),A retains third-microsecond
-acceptance; read ports and IN-performs-write remain functional. The production T80 and
-actual motherboard regression fails before the repair and passes afterward.
+**The CPU-owned-slot candidate is blocked by the final independent review.** Its
+register-storage windows pass, but new actual-motherboard counter seams fail for
+OUTI, OUTD and OUT(n),A. Each identical program passes on the motherboard's classic
+type-1 path. The candidate therefore has not established the no-shift contract for
+these instructions, and must not be accepted as an ASIC timing repair. No replacement
+production phase has been selected. See the review discriminator below.
 
-This is a verified interface repair, **not yet hardware acceptance of DSC4 or Amazing**.
-An authentic AmSpirit Plus boot renders DSC4's credits and main effect coherently, but
-its instruction-stop SNA counter values cannot establish the FPGA caller's absolute
-bus phase. No classic RFD behavior was transplanted into the ASIC.
+The original OUT(C) third-versus-fourth-microsecond mismatch remains a useful finding.
+The previous eleven-case pass and 43-bench gate are preserved as evidence of the
+candidate's limited coverage, not current acceptance. An authentic AmSpirit Plus boot
+renders DSC4's credits and main effect coherently, but its instruction-stop SNA counter
+values cannot establish the FPGA caller's absolute bus phase. No classic RFD behavior
+was transplanted into the ASIC. The parent-launched bedb1c5 RBF is diagnostic only;
+it predates discovery of this counter-level gap.
 
 No MiSTer operation, synthesis, commit or push was performed by this worker. AmSpirit
 was used only after the parent transferred ownership; it is left paused at C80D, with
@@ -44,12 +47,11 @@ uses the qualified slot; the explicit no-WAIT option retains immediate writes):
 ```
 
 A9=0 names the write ports, including IN's write-side-effect aliases. A9=1 keeps read
-ports continuously responsive. The CPU-owned rising slot distinguishes the
-instruction families and remains visible through READY-shaped A13-low aliases; no opcode decoder, delay queue, GA/RMR timing change, or new
+ports continuously responsive. The CPU-owned rising slot distinguishes the register-storage windows and remains visible through READY-shaped A13-low aliases; no opcode decoder, delay queue, GA/RMR timing change, or new
 production port is required. `asic_video` itself remains unchanged. Its raw HSYNC and
 the existing GA/PRI/interrupt pipelines are not shifted by this repair.
 
-## Fail-before and after proof through the actual motherboard
+## Initial interface proof through the actual motherboard (insufficient for acceptance)
 
 The permanent owner regression is `sim/plus/asic_cpu_bus_test.cpp` with
 `asic_cpu_bus_test_top.sv`. It elaborates the actual motherboard, production T80pa
@@ -152,7 +154,7 @@ The new target is slow-tier because it needs GHDL. It is also included in the ex
 `production-t80-test` CI aggregate; no new workflow is introduced. The final selected
 fast gate is recorded in `local/overnight-20261103/asic/selection-final.log`.
 
-## Final local validation
+## Prior local validation (before the review discriminator)
 
 After the last code/test edit:
 
@@ -164,9 +166,11 @@ After the last code/test edit:
   Existing P10 FDC-payload XFAIL remains unchanged; no new expected failure was added.
 - `git diff --check` — clean.
 
-The focused slow proof was run separately from the selected fast gate. No code edit
-followed these passes. Independent cross-provider review and synthesized-artifact
-acceptance remain outstanding.
+The focused slow proof was run separately from the selected fast gate. No code edit had
+followed those passes at that checkpoint. The later review discriminators
+introduced below are intentionally red; the prior pass is not current
+acceptance. Fresh Opus review and the completed diagnostic build do not
+resolve the source-to-counter phase calibration.
 
 ## Authentic AmSpirit Plus comparison
 
@@ -201,7 +205,9 @@ unsupported process/runtime workaround was attempted.
 
 ## Original detector and counter checkpoints
 
-A second authentic disk boot confirms DSC4's Plus/PPI detection, without consulting
+Renaud independently confirmed correct CRTC3 detection on MiSTer during
+this run. A second authentic AmSpirit disk boot confirms DSC4's Plus/PPI
+detection, without consulting
 CRTC status aliases. Original detector219E sets E=3, writes03 to PPI-C, sets control82,
 then reads PPI-C at21AA. The observed C value is03, F=04 (NZ), E=3. RET NZ reaches1D2D;
 LD A,E then leaves A=3 at1D2E. Main C000 later enters A=3 and stores03 into C014, selecting
@@ -254,8 +260,8 @@ Raw-CRT acquisition consumers, so a global shift would have wider consequences. 
 existing pixel fixture adapts the VRAM-address latch branch for zero-latency memory and
 leaves absolute boundary phase open; its green result is not a physical phase oracle.
 
-The common missing colons on classic and ASIC remain separate from the demonstrated
-write-acceptance defect until matched traces show otherwise. Shared Full-mode fetch
+The common missing colons on classic and ASIC remain separate from the investigated
+write-acceptance mismatch until matched traces show otherwise. Shared Full-mode fetch
 compensation can zero retained high-byte history when DE is low, but no corresponding
 SHIFT/DE edge trace was captured. Do not call that mechanism proven.
 
@@ -274,3 +280,253 @@ FPGA divergence or supersede original-hardware evidence.
 
 Technical information sourced from the "Amstrad CPC CRTC Compendium" by Longshot
 (CC BY-NC-ND).
+
+## Review discriminator: OUTI/OUTD and OUT(n) counter seams
+
+Fresh cross-provider review in `local/overnight-20261103/review-final-opus.md` found
+that storing within a named CPU microsecond does not establish which CRTC counter
+edge consumes the new register. The review's source-page anchor needed correction:
+French §4.4.4 prose spans pp.27–29; diagrams B and C are on p.31. Pages 26–33 were
+rendered locally with `pdftoppm`; p.26 and pp.27–31 were visually read. Renders are
+`local/overnight-20261103/asic/fr-p026.png` and `fr-clock-027.png` through `-033.png`.
+The saved pdf-inspector report/Markdown were reused; no PDF was modified.
+
+The firm French §4.4.3 p.26 table and prose say the one-microsecond OUT(C) shift does
+not occur for OUTI/OUTD. OUT(n),A is third-microsecond on all types. French §4.4.4
+p.29 repeats OUTI's fifth-microsecond update on every type, but explicitly presents
+the clock-offset explanation as tentative ("À priori", "sans doute"). Rendered
+diagram C p.31 draws ASIC clock intervals displaced from the classic intervals in
+B. It does not establish that the existing model's `CCLK_EN_N` is the physical
+counter-decision edge, or calibrate AmSpirit instruction-stop C0 to that edge.
+
+The existing permanent fixture now selects either actual motherboard path: Plus or
+classic type1, with the same production T80, bytes, snapshot register seed and
+counter-coordinate CPU release. No write qualifier or clock equation is copied into
+the fixture. OUTI/OUTD write zero from RAM to R4; OUT(n),A writes BD to BD04, hence
+R4=3D after its seven-bit mask. Both change R4 away from old C4=R4=1 on the last
+raster C9=R9=7. French §12.5 p.103's live end-of-line R4 comparison gives the
+observable split: a write effective before the terminal comparison loses the old
+frame end (next C4=2); a write after it preserves the wrap (next C4=0).
+
+For the existing model's phase, OUTI/OUTD fetch at C0=59 and OUT(n) at C0=61 place
+their fifth-/third-microsecond counter decision at that seam. A +1-character release
+control has already crossed the seam and expects C4=0 on both paths. Fetch-coordinate
+and payload assertions guard setup. These are an explicit discriminator of the
+claimed same-character equivalence against the existing classic control, not a new
+silicon claim that the absolute source clock intervals equal these model phases.
+The first OUT(n) trial fetched at62, one character too late; both paths failed the
+calibration assertion. Its release was corrected by one character to reach the
+independently chosen fetch61. The uncalibrated log is retained as a dead end.
+
+Exact focused command, with **no production RTL edit**:
+
+```sh
+make -C sim/plus asic-cpu-bus GHDL=/opt/homebrew/bin/ghdl
+```
+
+| Boundary case | Classic type1 | Current Plus qualifier | +1-character control |
+|---|---|---|---|
+| OUTI R4 seam, fetch C0=59 | C4=2, PASS; store265 ticks | C4=0, FAIL; store280 ticks | Both C4=0, PASS |
+| OUTD R4 seam, fetch C0=59 | C4=2, PASS; store265 ticks | C4=0, FAIL; store280 ticks | Both C4=0, PASS |
+| OUT(n),A R4 seam, fetch C0=61 | C4=2, PASS; store137 ticks | C4=0, FAIL; store152 ticks | Both C4=0, PASS |
+
+All previous eleven controls still pass. Final output is `asic-cpu-bus: FAIL`, make
+exit2, with exactly the three Plus seams failing. The calibrated command/output is
+`local/overnight-20261103/asic/review-seams-before-calibrated.log`; the initial
+OUT(n) calibration miss is `review-seams-before.log`. Previous test sources were
+preserved as `asic_cpu_bus_test.pre-review.cpp` and
+`asic_cpu_bus_test_top.pre-review.sv`. No new selection gate was run: the code unit is
+intentionally red pending the phase decision.
+
+### Phase relationship and proposed next ownership boundary
+
+Production inspection confirms why the storage-only proof missed this: both GA timing
+owners decode `CCLK_EN_N` at S=03. The candidate's CPU-owned PHI rising slot is S=0F,
+eight master clocks later. Under the current shared counter phase, the new value
+therefore misses a decision that the original level write preceded. A fixed periodic
+sampler cannot by itself demonstrate all three instruction contracts: OUT(C)'s long
+held I/O spans an additional sampling opportunity that OUTI/OUT(n)'s shorter I/O does
+not, and register-file storage and counter use are distinct events.
+
+Changing `asic_video.CLKEN` is not an isolated bus fix. It advances C0/C4/C9, sync,
+VMA, pixel count and serializer state and creates HWRAP. Its HSYNC feeds the Plus GA
+IRQ timing; its vertical counters feed PRI; HWRAP/counters also feed sprites. Video
+word fetch halves remain tied to GA CCLK. Thus shifting the whole enable to make
+these R4 seams green could move raw IRQ contracts or misalign pixels and RAM words.
+The current source does not support choosing that shift from the CPU-window numbers.
+
+**Recommended next action:** retain this red discriminator and reject publication of
+the current qualifier as an accepted fix. Establish the ASIC register-sampling edge
+relative to the counter-decision and displayed-character phase, using rendered
+§4.4.4 B/C plus a source-defined JIT/HSYNC or hardware timing control. Then authorize
+one bounded ASIC interface/counter owner change, with explicit GA/PRI/HWRAP and pixel
+phase checks if CLKEN moves. That requires discussing ownership of
+`rtl/plus/asic_video.v`; this worker has not changed it or any production RTL during
+this review follow-up. Do not add opcode decoding or tune a dot solely to these
+storage intervals. Hardware evidence outranks the tentative phase explanation and
+both software models.
+
+## Full-CCLK-window scratch counterfactual and timing-origin correction
+
+At the parent's request, a private overlay connected the existing Plus GA `CCLK`
+level to write acceptance, retaining A9 read continuity and the no_wait exception.
+The earlier rejected candidate had used the `CCLK_EN_N` pulse, not this level. The
+production motherboard and all fixture sources remained unchanged for this run.
+The overlay copies B18's already adapted motherboard and changes only an added
+wire, the previously unused CCLK output connection, and the ASIC ENABLE expression.
+Source and exact command are preserved in
+`local/overnight-20261103/asic/full-cclk-level/{Amstrad_motherboard.v,command.sh}`;
+complete output is `focused.log` there. It ran the same `asic-cpu-bus` target and
+unchanged assertions in a separate object directory, not the selection gate.
+
+| Case | Full-CCLK storage interval from fixture fetch | Result |
+|---|---:|---|
+| OUT(C) | 189 | Storage-window assertion FAIL; timestamp caveat below |
+| OUTI / OUTD | 265 / 265 | Payload and new C4=2 seams PASS |
+| OUT(n),A | 137 | Payload and new C4=2 seam PASS |
+| OUT(C) old terminal seam | 189, C0=63 | C4=2, FAIL versus initial C4=0 assertion |
+| A13-low OUT / IN-write | No register write | Both FAIL, R13 remains10 hex |
+| Normal IN-write / BE read | 189 / continuous read | PASS |
+| Later seam controls / no_wait | Existing expected outcomes | PASS |
+
+There are four failing named cases: out, alias-out, alias-in, seam. Final line is
+`asic-cpu-bus: FAIL`, make exit2. No assertion was weakened and no production fix was
+selected. In particular, passing the new classic-equal seams does not make this an
+accepted hardware model.
+
+### The existing fetch timestamp is not internal T80 T1
+
+`asic_cpu_bus_test.cpp` marks the first observation of M1_n=0, MREQ_n=0 and RD_n=0.
+Production `T80.vhd` enters M1/TState1 and lowers M1_n on the CEN_p edge. The
+pseudo-asynchronous `T80pa.vhd` lowers MREQ_n/RD_n on the following CEN_n while
+MCycle=1/TState=1. Thus the fixture's combined fetch observation is one normal
+4MHz half-cycle, **8 master clocks**, after the model's internal T1-entry edge.
+This is an RTL-derived timestamp relationship, not yet a calibration to the ACCC
+diagram's physical-machine T1 label. It is not a proposed sampling delay.
+
+Relative to that internal model T1 edge, full-level storage189 corresponds to197,
+within the model's fourth microsecond. The corresponding original/classified observations shift by the same
+origin correction: OUT(C)153→161; current qualifier216→224; OUTI265→273;
+OUT(n)137→145. No test-origin or assertion edits have yet been authorized. The bare189<192 failure cannot be settled by this model-internal offset alone: the
+ACCC source-grid alignment remains unresolved, as recorded below. Its alias losses
+are independent of that convention and remain decisive.
+
+### READY/CCLK overlap constraint
+
+Take t=0 as the existing counter/CLKEN edge, which transitions S03→S07. The ring
+advances once per four master ticks. Full CCLK high is [-20,0), the five states
+C0/80/00/01/03; its next interval is [44,64). Production READY is high [4,24), the
+states0F/1F/3F/7F/FF; next [68,88). It is low throughout full CCLK. There is a
+four-tick gap between CCLK closing and READY opening.
+
+The prior raw CPU CSVs in `phase/out-cpu-slot.csv` and `alias-cpu-slot.csv`, combined
+with the production READY latch equations, place OUT(C)'s raw IORQ/WR at [8,96),
+88ticks. For A13=0, the real motherboard's IC116 equation therefore exposes only
+[8,24) and [68,88) to the ASIC. Neither overlaps full CCLK. The current CPU-owned
+rising sample at t8 cannot see IORQ asserted by the CPU on that same edge; it catches
+t72, with storage visible73. Full CCLK first catches t44, storage visible45.
+OUTI/OUT(n)'s shorter raw strobe is [-8,32), so ordinary full CCLK catches its first
+eight ticks before the counter edge; the A13-low READY mask would remove those too.
+The old CSV probe copied motherboard seams and is explanatory phase evidence; the
+new actual-motherboard overlay independently confirms the observed alias loss.
+
+The ASIC physically receives shaped IORQ. An A13 bypass or a window extended just
+to cross this gap would need independent support; neither is proposed. CPCSyntaxError
+cannot supply that physical window: `cpcIoEffectOffset()` returns per-instruction
+integer T-state offsets8/12/16 and `advanceHardwareToInstructionOffset()` rounds
+hardware advancement to whole4T-state CRTC ticks. konCePCja similarly documents a
+character scheduler/one-hop bus model. These are useful functional comparisons,
+not READY-versus-register-sampling measurements.
+
+## Concrete independent phase experiment (proposed, not run)
+
+French §14.5.3 p.139 supplies a stronger type3/4 counter-to-screen discriminator
+than assuming classic-equal R4 seams. Its rendered diagram starts R2=11, R3low=10
+and writes a new R3 during C0vs=15. R3low=4 misses the current C3=4 comparison and
+runs through overflow, ending at C0vs=31; R3low=5 ends normally at C0vs=16. The
+15-character endpoint difference is visible without interpreting a fine sampling dot.
+French §14.5.4 p.140 says R3.JIT's fractional-character shortening does not work on
+3/4. Both pages were rendered and read (`fr-r3-139.png`, `fr-r3-140.png`).
+
+Minimal experiment: normal WAIT, type3, non-interlace, fixed R0=63; white mode2
+screen with a static byte/character ruler; R3 high nibble unchanged. Before each
+probe line set R2=11/R3low=10 and select R3. From a repeatable PPI-VSYNC-synchronized
+software origin execute one critical `OUT(C),A` (BC=BD03, A=84 or85 hex), then the
+same critical update using `OUTI` (BC=BE03, HL points to84/85). Put one NOP before
+OUT(C), so its fourth microsecond aligns with OUTI's fifth. Sweep the shared start
+by -1/0/+1 NOP around the transition instead of asserting an absolute emulator C0
+from an instruction-stop SNA. Keep surrounding lines normal and identical across
+captures. Record raw/native bitmap black-zone start/end against the ruler; if a
+signal trace is available also retain raw HSYNC and monitor sync separately.
+
+Observe where R3=4 changes between the long overflow band and the short normal band,
+then compare R3=5 and the two instruction forms. A candidate that adds an extra
+counter character to OUTI moves this transition by one NOP/16 mode2 pixels relative
+to a calibrated type3 baseline. A monitor-position change alone is insufficient:
+compare the black band against the in-line ruler, or use a raw trace, because altered
+HSYNC can move the entire rendered line. This sequence is a proposed synthetic
+payload, not claimed to have run or to be an existing SHAKER byte sequence.
+
+For a shipped corroborating control, original SHAKER27B module I's text identifies
+R3JIT with R2=R3=14 and R3=0/1/2 on C0io=14/15/16; its OUTC and OUTI variants exercise
+the same transport family. Original SHAKER27A O/I explicitly compares first-half
+OUTC with second-half OUTI for R1=63 on C0=63. CPCSyntaxError cites actual Plus and
+AmSpirit observations for AO/I, but those comments are lower-rank evidence and R1
+has an ASIC-specific deadline; use it as corroboration, not an R4 rule oracle.
+
+A fine-pixel R2.JIT test has a separate source limit: French §14.7.2 p.144 and the
+rendered §14.9 chart p.146 state type3's diagram is still absent. The proposed
+17th-pixel type3 onset is explicitly assumed; the drawn type4 19th-pixel chart must
+not be promoted to a type3 silicon oracle. The useful robust contract is that ASIC
+R2.JIT does not add the classic late-black-onset displacement.
+
+The classic-equal R4 seams are therefore valuable regressions of the current shared
+counter-phase contract, and expose the accepted qualifier's missed decision. They
+are **not yet independently calibrated type3 hardware expectations**. Physical T1,
+ASIC register acceptance, counter comparison, displayed character and raw/monitor
+HSYNC phases must be separated before selecting a production repair.
+
+## Reconciliation with the independent phase review: distinct timing anchors
+
+The parent's read-only cross-provider analysis is preserved in
+`local/overnight-20261103/review-asic-phase-opus.md`. It aligns the diagram's
+microsecond cell c to recorded-fetch-relative `8 + 4*c` modulo64 using OUTI's
+IORQ onset, OUT(C)'s onset and the no-WAIT phase. This is a proposed **source-grid
+anchor**, distinct from the **internal T80 T1-entry edge** above.
+
+Actual RTL supports the latter relation without resolving the former. At an ordinary
+instruction transition, `T80.vhd` enters MCycle1/TState1 and lowers M1 on CEN_p.
+`T80pa.vhd` lowers RD/MREQ on the following CEN_n. GA decoding places CEN_n eight
+master clocks after that CEN_p. The fixture's combined M1/RD/MREQ observation is
+therefore at rel0, the internal T1-entry edge at rel-8. In the saved raw trace this
+combined fetch has post-edge S80; the next positive CPU edge, pre-edge S00, is rel+8.
+This agrees with the phase review's signal alignment but does not prove the source's
+T1 label belongs to that positive edge rather than the preceding one.
+
+If the diagram cell0 is assigned to rel+8 as the review proposes, the source's
+instruction-origin grid is **16 master ticks (one CPU T-state) later** than the
+model's internal T1-entry edge at rel-8. Both numerical statements can therefore be
+true: RD/MREQ fetch is eight ticks late versus internal T1, and eight ticks early
+versus the proposed source grid. They are not opposite measurements of one proven
+physical anchor. The earlier term "physical T1" overstated the evidence; it has been
+corrected above. No fixture timestamp or assertion has been changed.
+
+This distinction changes the full-CCLK storage interpretation: its recorded189 is197
+from model T1 (fourth model microsecond), but181 from the proposed source-grid origin
+(third source microsecond). The RTL alone cannot choose between those mappings to
+the ACCC instruction labels. Retain **unresolved source-grid calibration** explicitly;
+neither reading makes the full-CCLK alias losses disappear.
+
+The review also supplies a useful conditional impossibility result. With the current
+classic counter phase and the asserted storage windows, OUT(C)'s long strobe covers
+every same-microsecond sampling opportunity available to OUTI/OUT(n). Any monotone,
+instruction-independent acceptance-window/counter model cannot then add one counter
+character to OUT(C) while adding none to OUTI/OUT(n). The red seam combination depends
+on interpreting the ACCC delay as that classic-relative counter effect; it is not a
+silicon proof. No further sampling/dot sweeps are justified by this conflict.
+
+Next evidence remains differential: the parent's shipped SHAKER B3 R3-JIT baseline
+and diagnostic-candidate captures can compare OUTC/OUTI effects without pretending to
+know an absolute T1 origin. Preserve machine type, exact page/variant and raw black-zone
+geometry. Production/fixture stay unchanged, and the READY/CCLK no-alias-overlap
+constraint remains blocking for the full-level candidate.
