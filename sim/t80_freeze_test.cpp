@@ -78,7 +78,6 @@ struct Bench {
   Vt80_freeze_top d;
   uint64_t ticks = 0;
   bool prev_start = false;
-  bool seen_refresh = false;
   bool prev_io_wr = false;
   std::vector<Snap> bounds;
   std::vector<IoWrite> io_writes;
@@ -167,15 +166,12 @@ struct Bench {
             "INSN_START outside an opcode fetch at tick " + std::to_string(ticks));
       check(d.t80_a == field(64, 16),
             "INSN_START with address bus != REG.PC at tick " + std::to_string(ticks));
-      // T80pa never resets IntCycleD_n, which drives IORQ_n on M1/T1; it is
-      // only flushed to "11" by the first M1/T3 (t80_trace_test masks the same
-      // startup X). Judge the acknowledge pins after the first refresh.
-      if (seen_refresh)
-        check(d.t80_m1_n || d.t80_iorq_n,
-              "INSN_START during interrupt acknowledge at tick " + std::to_string(ticks));
+      // A representable instruction boundary is an ordinary fetch, including
+      // the first fetch after reset; interrupt acknowledge is excluded.
+      check(d.t80_m1_n || d.t80_iorq_n,
+            "INSN_START during interrupt acknowledge at tick " + std::to_string(ticks));
       if (!prev_start) bounds.push_back(snap());
     }
-    if (!d.t80_rfsh_n) seen_refresh = true;
     prev_start = d.insn_start;
     bool io_wr = !d.t80_iorq_n && !d.t80_wr_n;
     if (io_wr && !prev_io_wr) io_writes.push_back({uint16_t(d.t80_a), uint8_t(d.t80_dout)});
@@ -453,8 +449,7 @@ void test_im1_interrupt() {
       0xFB,  // 39: EI
       0xC9,  // 3A: RET  <- no boundary
   });
-  // An acknowledge only counts once INT is raised: the unreset IntCycleD_n
-  // also pulls IORQ_n low on the very first fetch after reset.
+  // Count acknowledgements belonging to this request after INT is raised.
   bool raised = false, acked = false;
   b.stimulus = [&](Bench &bb) {
     size_t loops = 0;
