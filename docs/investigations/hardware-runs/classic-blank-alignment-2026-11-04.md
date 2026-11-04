@@ -48,7 +48,7 @@ Focused validation: `make -C sim ga40010-test crtc-test` passes (CRTC239 passed)
 
 Existing CRTC vertical vectors protect raw vertical sequencing, the real-T80 IRQ bench protects the raw trailing-edge consumer, and GA restart controls protect monitor/mode/R52/V26 separation. None is a source-derived assertion of vertical RGB blank assertion/release latency; the selected integration tests are regression coverage, not evidence for that timing rule. No mechanical vertical-edge test was added without an independently justified expected value.
 
-Further acceptance needs independent review of the abstract GA pipeline, active vertical edges and startup/SNA fill, and hardware colon visibility. Other mode transitions, Plus output and unseen JIT phases are not established by this proof. The countdown is anchored to the measured production acceptance phase8/S1F. A sufficiently late write (phase55 or later), reachable with non-production fast/no_wait bus timing, can cross CLKEN and expire the comparator context before publication; the old immediate path would have emitted it. No general JIT timing claim for those phases is made. The live-type cancellation test enforces a MiSTer context-replacement choice, not an ACCC-specified physical CRTC switch behavior. No production MODE_SYNC correction is included.
+Further acceptance needs independent review of the abstract GA pipeline, active vertical edges and startup/SNA fill, and hardware colon visibility. Other mode transitions, Plus output and unseen JIT phases are not established by this proof. The countdown is anchored to the measured production acceptance phase8/S1F. A sufficiently late write (phase55 or later) can cross CLKEN and expire the comparator context before publication; the old immediate path would have emitted it. A later genuine production-T80 OUTI probe observes phase56/S01, so this limit is not exclusive to fast/no_wait operation. Its fixed R2 remained ahead of both writes: it establishes transport phase, not an OUTI JIT source observer or a failed source result. No general JIT timing claim for those phases is made. The live-type cancellation test enforces a MiSTer context-replacement choice, not an ACCC-specified physical CRTC switch behavior. No production MODE_SYNC correction is included.
 
 ## Final selection
 
@@ -83,7 +83,7 @@ raw-mode metadata correction is included in this bounded repair.
 
 Parent accepts the reviewed code and refreshed evidence for synthesis and
 targeted hardware checks. This does not accept vertical RGB timing, physical GA
-pipeline identity, the Type0 mixed-mode residual, or unseen fast-write phases.
+pipeline identity, the Type0 mixed-mode residual, or unseen write phases, including the OUTI boundary.
 
 ## Final-tree evidence after independent review
 
