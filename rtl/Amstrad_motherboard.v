@@ -478,6 +478,8 @@ assign field = plus_mode ? plus_field : crtc_field;
 // Preserve the existing Plus FIELD export; this repair concerns classic R8.
 assign frame_field = plus_mode ? plus_field : crtc_frame_field;
 
+wire plus_mode_update_en;
+
 asic_ga_timing asic_ga
 (
 	.clk(clk),
@@ -530,6 +532,7 @@ asic_ga_timing asic_ga
 	.INT_N(plus_ga_int_n),
 	.VBLANK(plus_vblank),
 	.MODE_SYNC_EN(),
+	.ASIC_MODE_SYNC_EN(plus_mode_update_en),
 
 	// MODE and GAMODE_O alias the same RMR bits inside the module; the
 	// motherboard consumes GAMODE_O, so MODE stays unconnected here.
@@ -605,6 +608,7 @@ asic_video asic_vid
 	.PIXEN(ce_16),
 	.VIDEOD(plus_vidword),
 	.GAMODE(plus_gamode),
+	.MODE_UPDATE_EN(plus_mode_update_en),
 	.BORDER_I(asic_border),
 	.INKR_I(asic_inkr),
 	.RGB_R(plus_rgb_r),

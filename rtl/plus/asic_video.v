@@ -108,6 +108,7 @@ module asic_video
 	input               PIXEN,     // 16 MHz dot enable; 16 dots per character
 	input      [15:0]   VIDEOD,    // VRAM word for the current MA address:
 	                               // {odd byte (second half), even byte}
+	input               MODE_UPDATE_EN, // qualified GA event; one CLOCK pulse
 	input      [1:0]    GAMODE,    // legacy GA screen mode (RMR VM bits)
 	input      [4:0]    BORDER_I,  // border hardware colour number
 	input      [79:0]   INKR_I,    // 16 x 5-bit ink hardware colours; entry
@@ -1082,8 +1083,7 @@ reg  [3:0] pix_cnt;    // dot index within the character (0..15)
 reg  [7:0] vid_even;   // byte displayed during dots 0-7
 reg  [7:0] vid_odd;    // byte displayed during dots 8-15
 reg        de_hold;    // DE captured at the character edge (post-skew)
-reg  [1:0] mode_q;     // GAMODE latched on HSYNC assertion
-reg        hsync_d;
+reg  [1:0] mode_q;     // GAMODE latched on the qualified GA event
 
 always @(posedge CLOCK) begin
 	if (!nRESET) pix_cnt <= 4'd0;
@@ -1121,37 +1121,19 @@ always @(posedge CLOCK) begin
 	end
 end
 
-// Grimware §RMR: "VM ... will take effect after the next HSync". The
-// netlist re-times mode identically (MODE_SYNC = ~HSYNC_O, ga40010.sv).
-//
-// This model latches on the HSYNC rising edge, so it does not depend on
-// the pulse having any particular width. That deliberately does NOT model
-// the real GA's documented requirement for an HSYNC of at least 2 us
-// before the byte=>pixel decoder updates. A shorter type-3 pulse is
-// reachable here — R3l=1 statically, or an R3l rewrite during the pulse:
-// ACCC §14.6 p.142 (FR §14.6 p.143) bounds an R3l=0 HSYNC to 16 characters only "unless it
-// is interrupted by modifying R3 during HSYNC" — and on hardware such a
-// pulse would leave the screen mode unchanged. Deferred with the rest of
-// the GA pixel-phase contract to motherboard integration (architecture
-// §5 Risk 1).
+// ACCC v1.11 FR §§9.3.1–9.3.3 pp.52–53: a valid >=2us HSYNC
+// qualifies the requested mode in the ASIC's delayed GA window. The GA
+// owns that event; raw HSYNC assertion cannot establish either condition.
+// Consume on CLOCK, not PIXEN: the supplied event is one master clock.
+// Type3's exact mixed-byte transition pixel remains open (§9.3.4.1 p.54).
 always @(posedge CLOCK) begin
-	if (!nRESET) begin
-		mode_q  <= 2'b00;
-		hsync_d <= 1'b0;
-	end
+	if (!nRESET) mode_q <= 2'b00;
 	else if (SNA_LOAD) begin
-		// The decoder mode comes from the SETTLED header RMR (SNA_MODE), not
-		// from GAMODE: the Gate Array restores its own RMR shadow on this same
-		// edge, so sampling GAMODE here would read the pre-restore value.
-		// hsync_d takes the restored HSYNC level so the pulse already in
-		// progress does not re-latch the mode on a phantom rising edge.
-		mode_q  <= SNA_MODE;
-		hsync_d <= SNA_HS;
+		// The settled header owns the decoder while the GA restores its
+		// shadow on this same edge; sampling GAMODE would read old state.
+		mode_q <= SNA_MODE;
 	end
-	else if (PIXEN) begin
-		hsync_d <= HSYNC;
-		if (HSYNC && !hsync_d) mode_q <= GAMODE;
-	end
+	else if (MODE_UPDATE_EN) mode_q <= GAMODE;
 end
 
 wire [7:0] vbyte = pix_cnt[3] ? vid_odd : vid_even;

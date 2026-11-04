@@ -48,6 +48,7 @@ Mac, including the Verilator build.
 | `sim ga40010-test` | fast | `rtl/GA40010/*` `rtl/CRTC.v` `rtl/crtc_type1_engine.v` | Production CRTC/GA R2.JIT timing and type-1 invisible overflow restart, raw blanking, mode qualification and R52/V26 end-counter separation |
 | `sim u765-test` | fast | `rtl/u765/*` | u765 floppy controller |
 | `sim/plus run/asic_unlock_tests` | fast | `rtl/plus/asic_unlock.v` | ASIC unlock sequence detector |
+| `sim/plus run/asic_mode_latch_tests` | fast | `rtl/plus/asic_ga_timing.v` `rtl/plus/asic_video.v` `sim/plus/asic_mode_latch_test*` | Actual GA RMR writes to decoded pens: short/exact-two-us HSYNC, request during valid pulse, ASIC six-to-seven-us deadline, late and absent pulse controls |
 | `sim/plus run/asic_video_tests` | fast | `rtl/plus/asic_video.v` | Plus CRTC (type 3) counters and register bus |
 | `sim/plus run/b6_menu_mask_tests` | fast | `rtl/plus/plus_menu_capability_mask.v` `rtl/plus/plus_model_select.v` | OSD capability mask and RAM size per machine model |
 | `sim/plus run/dandanator_loader_bounds_tests` | fast | `rtl/dandanator/*` | Dandanator loader address bounds |

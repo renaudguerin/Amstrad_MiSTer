@@ -536,6 +536,8 @@ module plus_p8_test_top (
 	assign ga_raw_int_n_out = asic_ga.classic_raw_n;
 	assign int_n_merged   = ga_int_n_out & ~aregs_dma_int_req;
 
+	wire video_mode_update_en;
+
 	asic_ga_timing asic_ga
 	(
 		.clk(clk),
@@ -578,6 +580,7 @@ module plus_p8_test_top (
 		.INT_N(ga_int_n_out),
 		.VBLANK(),
 		.MODE_SYNC_EN(),
+		.ASIC_MODE_SYNC_EN(video_mode_update_en),
 		.MODE(),
 		.BORDER_O(ga_border_out),
 		.INKR_O(ga_inkr_out),
@@ -629,6 +632,7 @@ module plus_p8_test_top (
 
 		.PIXEN(1'b1),
 		.VIDEOD(16'd0),
+		.MODE_UPDATE_EN(video_mode_update_en),
 		.GAMODE(ga_mode_out),
 		.BORDER_I(ga_border_out),
 		.INKR_I(ga_inkr_out),

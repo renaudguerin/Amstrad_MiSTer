@@ -110,6 +110,13 @@ GADIFF_OBJ_DIR  := obj_dir/asic_ga_diff
 GADIFF_TEST_SRC := $(abspath asic_ga_timing_diff_test.cpp)
 GADIFF_TEST_BIN := $(GADIFF_OBJ_DIR)/asic_ga_timing_diff_tests
 
+# Actual GA RMR -> qualified ASIC mode event -> decoded pixel pens.
+MODE_TOP_SRC := $(abspath asic_mode_latch_test_top.sv)
+MODE_TEST_SRC := $(abspath asic_mode_latch_test.cpp)
+MODE_RTL := $(abspath ../../rtl/plus/asic_ga_timing.v) $(abspath ../../rtl/plus/asic_video.v)
+MODE_OBJ_DIR := obj_dir/asic_mode_latch
+MODE_TEST_BIN := $(MODE_OBJ_DIR)/asic_mode_latch_tests
+
 # P1 motherboard-integration validation: pixel phase / byte order through
 # the production fetch cadence (t05h closure).
 P1VID_TOP      := p1_video_test_top
@@ -371,6 +378,7 @@ TEST_BINS := $(ASIC_TEST_BIN) $(ASICVID_TEST_BIN) $(B6_MENU_TEST_BIN) $(DAN_BOUN
 	$(AREGS_TEST_BIN) $(SPRRAM_TEST_BIN) $(PRI_TEST_BIN) $(SPRITES_TEST_BIN) $(D3_TEST_BIN) $(SPRREGS_TEST_BIN) $(SPRMULTI_TEST_BIN) $(DMA_TEST_BIN) $(P8_TEST_BIN) $(P10BOOT_TEST_BIN) $(B7_TEST_BIN)
 
 TEST_BINS += $(P10INPUT_TEST_BIN) $(P10DMA_TEST_BIN) $(P10DMAMOBO_TEST_BIN)
+TEST_BINS += $(MODE_TEST_BIN)
 TEST_BINS += $(B8FIELD_TEST_BIN) $(B8PAL_TEST_BIN)
 TEST_BINS += $(SNA_STREAM_TEST_BIN) obj_dir/b16_load_model/b16_load_model_tests
 
@@ -959,3 +967,12 @@ $(B16_BIN): $(B16_RTL) b16_load_model_test.cpp Makefile
 		$(B16_RTL) $(abspath b16_load_model_test.cpp)
 b16-load-model: $(B16_BIN)
 	./$(B16_BIN)
+
+$(MODE_TEST_BIN): $(MODE_TOP_SRC) $(MODE_TEST_SRC) $(MODE_RTL) Makefile
+	mkdir -p $(MODE_OBJ_DIR)
+	$(VERILATOR) --cc --exe --build -j 4 --top-module asic_mode_latch_test_top -UVERILATOR \
+	 --Mdir $(MODE_OBJ_DIR) -Wno-fatal -CFLAGS "$(CXXFLAGS)" -o asic_mode_latch_tests \
+	 $(MODE_TOP_SRC) $(MODE_RTL) $(MODE_TEST_SRC)
+.PHONY: asic-mode-latch
+asic-mode-latch: $(MODE_TEST_BIN)
+	./$(MODE_TEST_BIN)
