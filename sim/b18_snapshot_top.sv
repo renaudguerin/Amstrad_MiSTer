@@ -3,7 +3,9 @@
 // FDC is intentionally absent: motor and physical tracks are fixed at zero.
 // Video fetch pixels are zero; real GA/CRTC timing still runs during save.
 // Only standard uncompressed classic snapshots are accepted (no chunks).
-module b18_snapshot_top (
+module b18_snapshot_top #(
+    parameter PLUS_MODE = 1'b0
+) (
     input clk, reset_btn,
     input [1:0] model,
     input crtc_type, save_req, sna_download, load_wr,
@@ -31,7 +33,12 @@ module b18_snapshot_top (
     output [2047:0] saved_header,
     output reg [1:0] active_model = 2'd0,
     output cpu_iorq, cpu_mreq, cpu_rd, cpu_wr,
-    output [7:0] ppi_a_latch, ppi_b_latch
+    output [7:0] ppi_a_latch, ppi_b_latch,
+    // Passive counter observations for the Plus production-CPU boundary test.
+    output [7:0] plus_hcc, plus_r0,
+    output [6:0] plus_row,
+    output [4:0] plus_raster,
+    output plus_cclk
 );
     // Production 64 MHz divider; neither phase is reset by a snapshot.
     reg [2:0] div = 3'd0;
@@ -190,7 +197,7 @@ sna_cpu_header sna_cpu_header
         .reset(owner_reset),
         .clk(clk),
         .ce_16(ce_16),
-        .plus_mode('0),
+        .plus_mode(PLUS_MODE),
         .plus_unlocked('0),
         .plus_ram_128k('0),
         .plus_has_fdc('0),
@@ -383,6 +390,12 @@ sna_hw_header save_hw_header
 
 	.hdr(hw_header)
 );
+
+    assign plus_hcc = PLUS_MODE ? motherboard.asic_vid.hcc : 8'd0;
+    assign plus_r0 = PLUS_MODE ? motherboard.asic_vid.R0_h_total : 8'd0;
+    assign plus_row = PLUS_MODE ? motherboard.asic_vid.charline : 7'd0;
+    assign plus_raster = PLUS_MODE ? motherboard.asic_vid.raster : 5'd0;
+    assign plus_cclk = PLUS_MODE ? motherboard.plus_cclk_en_n : 1'b0;
 
     wire [2047:0] save_header;
     assign saved_header = save_header;

@@ -5,6 +5,7 @@ B18_SNAPSHOT_RTL := b18_snapshot_top.sv $(T80_NETLIST) $(B18_MBOARD) \
 	$(addprefix ../rtl/GA40010/,ga40010.sv syncgen.v syncgen_sync.v casgen.v casgen_sync.v video.sv rslatch.v) \
 	$(addprefix ../rtl/plus/,asic_regs.v plus_sprite_ram.v asic_ga_timing.v asic_video.v asic_sprites.v asic_dma.v plus_sna_header.v plus_sna_apply.v)
 B18_SNAPSHOT_BIN := $(OBJ_DIR)/b18_snapshot/b18_snapshot_tests
+ASIC_R0_TERMINAL_BIN := $(OBJ_DIR)/asic_r0_terminal/asic_r0_terminal_tests
 
 # VHDL ports are case-insensitive; GHDL preserves their declaration case in
 # Verilog. Adapt named CPU pins only, as in plus/prepare_d5_boot.py. The
@@ -24,3 +25,16 @@ $(B18_SNAPSHOT_BIN): $(B18_SNAPSHOT_RTL) b18_snapshot_test.cpp b18_snapshot.mk M
 		+1364-2001ext+.v +1800-2017ext+.sv \
 		--Mdir $(OBJ_DIR)/b18_snapshot -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
 		-o b18_snapshot_tests $(B18_SNAPSHOT_RTL) b18_snapshot_test.cpp
+
+# Same real CPU/motherboard/SNA owners, with Plus selected at elaboration.
+# This fixture parameter leaves all classic B18 runs unchanged by default.
+.PHONY: asic-r0-terminal-test
+asic-r0-terminal-test: $(ASIC_R0_TERMINAL_BIN)
+	$<
+
+$(ASIC_R0_TERMINAL_BIN): $(B18_SNAPSHOT_RTL) asic_r0_terminal_test.cpp b18_snapshot.mk Makefile
+	mkdir -p $(OBJ_DIR)/asic_r0_terminal
+	$(VERILATOR) --cc --exe --build --top-module b18_snapshot_top -GPLUS_MODE=1 -UVERILATOR \
+		+1364-2001ext+.v +1800-2017ext+.sv \
+		--Mdir $(OBJ_DIR)/asic_r0_terminal -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
+		-o asic_r0_terminal_tests $(B18_SNAPSHOT_RTL) asic_r0_terminal_test.cpp

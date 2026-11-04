@@ -97,7 +97,7 @@ module asic_sprites
 	input        CLOCK,
 	input        PIXEN,      // 16 MHz dot enable
 	input        CLKEN,      // 1 µs character-clock enable (boundary strobe)
-	input        HWRAP,      // asic_video: CLKEN & (hcc == R0) — line seam
+	input        HWRAP,      // asic_video terminal-opportunity line seam
 	input        nRESET,
 
 	// CRTC taps (asic_video). ROW[2:0] enters the [KT] compare formula;

@@ -121,6 +121,7 @@ public:
     // Advance one character at a time until the counters sit at a frame
     // start (C4=C9=C0=0 sampled just after a CLKEN edge).
     unsigned vsync() const { return dut.VSYNC; }
+    bool field() const { return dut.FIELD != 0; }
 
     void dbg_state(const char* where) const {
         std::printf("DBG %s: HCC=%u LINE=%u ROW=%u MA=%u RA=%u DE=%u\n",
@@ -227,6 +228,12 @@ public:
     void expect_vsync(const std::string& expectation, bool expected) const {
         if ((dut.VSYNC != 0) != expected) {
             fail(expectation + ": VSYNC", expected ? 1 : 0, dut.VSYNC);
+        }
+    }
+
+    void expect_field(const std::string& expectation, bool expected) const {
+        if ((dut.FIELD != 0) != expected) {
+            fail(expectation + ": FIELD", expected ? 1 : 0, dut.FIELD);
         }
     }
 
@@ -480,13 +487,17 @@ void t01a_reset_and_r0_zero(TestBench& test) {
     test.expect_hcc("R0=0 keeps C0 pinned at 0 (ACCC §13.5)", 0);
 }
 
-// Program R0=63 mid-character; the live equality (ACCC §13.1, p.103) makes
-// the line exactly 64 characters: C0 walks 1..63 then wraps to 0 twice.
+// Separate zero-line write propagation from the steady 64-character period.
+// FR §13.6.3 p125's old-R0=0 chart and the independent real-T80/AmSpirit
+// zero-exit transport (asic_r0_terminal_test.cpp) retain the entered zero
+// terminal once. §13.1's inclusive period alone did not justify the old
+// assertion that the very next edge after a mid-character write must be1.
 void t01b_r63_period(TestBench& test) {
     test.write_register(0x00, 63);
-    // One character completes after the write (the pending CLKEN edge).
     test.run_characters(1);
-    test.expect_hcc("first post-write character advances C0 to 1", 1);
+    test.expect_hcc("entered zero terminal completes before the nonzero period", 0);
+    test.run_characters(1);
+    test.expect_hcc("nonzero period starts at C0=1 after zero handoff", 1);
     for (unsigned step = 2; step <= 63; ++step) {
         test.run_characters(1);
         test.expect_hcc("C0 climb to R0", step);
@@ -502,6 +513,9 @@ void t01b_r63_period(TestBench& test) {
 // further, which is P5 scope). Behaviour here proves the select landed.
 void t01c_register_select_alias(TestBench& test) {
     test.write_register(0xE0, 3);  // select alias for index 0
+    // Complete the entered reset-zero character before checking the alias's
+    // steady four-character period (zero propagation is covered by t01b).
+    test.run_characters(1);
     test.run_characters(1);
     test.expect_hcc("select 0xE0 addressed R0: line is 4 characters", 1);
     test.run_characters(2);
@@ -519,6 +533,7 @@ void t01c_register_select_alias(TestBench& test) {
 // C0=6 internally, and each following character climbs one step from 6.
 void t01d_r0_widen_midline(TestBench& test) {
     test.write_register(0x00, 10);
+    test.run_characters(1);  // finish the entered reset-zero character
     test.run_characters(5);  // C0 now 5
     test.expect_hcc("precondition C0=5", 5);
     test.write_register(0x00, 63);
@@ -540,6 +555,7 @@ void t01d_r0_widen_midline(TestBench& test) {
 // C4/C9 identification overflow, not this C0 case.
 void t01e_r0_shrink_overflow(TestBench& test) {
     test.write_register(0x00, 63);
+    test.run_characters(1);  // finish the entered reset-zero character
     test.run_characters(20);  // C0 now 20
     test.expect_hcc("precondition C0=20", 20);
     test.write_register(0x00, 10);
@@ -590,21 +606,27 @@ void t04a_hsync_position_and_width(TestBench& test) {
 // 16-character HSYNC (full nibble), unlike types 0/1 which produce none.
 void t04b_r3_zero_means_sixteen(TestBench& test) {
     program_display_frame(test);
-    test.write_register(2, 6);
+    test.write_register(2, 255);
     test.write_register(3, 0x60);  // H width 0 -> 16
-    test.run_to_frame_start();
-    // Steady pattern with 8-character lines: each pulse lasts 16 chars
-    // from C0=6, and a start landing inside an active pulse is ignored
-    // (a new HSYNC cannot begin during one, ACCC §15.3.1), giving 16 on
-    // / 8 off. The aligned character sits 14 characters into the pulse
-    // that the previous line started.
-    for (unsigned k = 0; k <= 23; ++k) {
+    test.run_until_hsync_idle(); // exclude the reset-programming pulse
+    test.write_register(2, 6);
+    unsigned guard = 0;
+    while (!test.hsync()) {
+        test.run_characters(1);
+        if (++guard > 64) throw TestFailure("t04b did not find a fresh HSYNC rise");
+    }
+    test.expect_hcc("fresh R3l=0 pulse starts at R2", 6);
+    // Anchor to the actual rise, not an arbitrary reset-history phase at
+    // frame origin. Preserve the full 16-on/8-off pattern and next start.
+    // The separate t04i caveat about width-zero end/start collision remains.
+    for (unsigned k = 0; k <= 24; ++k) {
         if (k > 0) {
             test.run_characters(1);
         }
         test.expect_hsync("R3l=0 gives a full-nibble HSYNC",
-                          k < 14 || k >= 22);
+                          k < 16 || k == 24);
     }
+    test.expect_hcc("next R3l=0 pulse starts at R2 after the gap", 6);
 }
 
 // Dynamic R3l rewrite below the already-counted value: the counter wraps
@@ -686,10 +708,21 @@ void t04i_r3_zero_collision_stays_bounded(TestBench& test) {
     test.run_until_hsync_idle();
     test.write_register(0, 15);    // 16-character lines
     test.write_register(2, 0);     // every natural end meets a live start
-    test.run_to_frame_start();
-
-    // The first aligned C0=0 is the natural end of the pulse that was
-    // already active while run_to_frame_start converged.
+    unsigned guard = 0;
+    while (!test.hsync()) {
+        test.run_characters(1);
+        if (++guard > 64) throw TestFailure("t04i did not find a fresh HSYNC rise");
+    }
+    test.expect_hcc("width-zero collision pulse starts at live R2", 0);
+    for (unsigned c0 = 1; c0 <= 15; ++c0) {
+        test.run_characters(1);
+        test.expect_hcc("first bounded collision pulse advances C0", c0);
+        test.expect_hsync("first zero-width pulse remains high for 16 characters", true);
+    }
+    test.run_characters(1);
+    test.expect_hcc("natural width-zero end meets the next start", 0);
+    // Keep the same explicit model assumption and full gap/next-pulse
+    // checks, anchored to that observed pulse rather than reset history.
     test.expect_hsync("unverified model assumption lets collision end", false);
     for (unsigned c0 = 1; c0 <= 15; ++c0) {
         test.run_characters(1);
@@ -1240,18 +1273,17 @@ void t02g_r5_grow_extends_adjustment(TestBench& test) {
 // ACCC v1.11 §19.8.4 pp.236-241 and §19.5.5 pp.214-216 (FR pp.214-216): in IVM (R8=3),
 // an odd R9 alternates ParityC9 at each C4 transition, while a frame restart
 // reloads ParityC9 from the newly toggled ParityFrame.  This fixture uses
-// R9=7 (the documented 4/5-line alternation), R4=1, and R5=2.  R0=63 keeps
-// the setup seam deterministic: its first reset-frame rollover is followed
-// by one no-adjustment frame, leaving the next frame's ParityFrame even.
-// R5 and R8 are then written at that frame origin, so the first adjustment
-// below is the even-frame case.  The companion vectors below separately pin
-// the additional-line and VSYNC phase rules.
+// R9=7 (the documented 4/5-line alternation), R4=1, and R5=2. Configure
+// IVM before aligning to a true C4=C9=C0=0 frame origin, then require its
+// public FIELD to identify the even context. Do not infer parity from a
+// guessed number of reset-zero rollovers: R0 zero-exit propagation can
+// change that history. The interlace/MA expectations below stay unchanged.
 void program_ivm_adjustment_frame(TestBench& test) {
     test.write_register(0, 63);
     test.write_register(1, 2);
     test.write_register(4, 1);
-    // R5 remains zero while setup is aligned; this avoids an adjustment
-    // during the parity-normalising frame below.
+    // Keep R5 zero during pre-IVM programming. The final field alignment
+    // below runs with the configured R5=2 adjustment.
     test.write_register(6, 100);
     test.write_register(7, 100);
     test.write_register(9, 7);
@@ -1260,6 +1292,8 @@ void program_ivm_adjustment_frame(TestBench& test) {
     test.run_to_frame_start();
     test.write_register(5, 2);
     test.write_register(8, 3);
+    test.run_to_frame_start();
+    test.expect_field("adjustment setup starts at an even IVM frame origin", true);
 }
 
 // ACCC v1.11 §19.8.4 pp.236-241: the even-frame terminal C9 is 7 on the
@@ -1376,12 +1410,11 @@ void t02l_ivm_odd_frame_adjustment(TestBench& test) {
     test.expect_ma("t02l next frame reloads R12/R13", kBase);
 }
 
-// Program a stable interlace frame whose first active field is even.  R0=63
-// makes the ACCC p.215/p.219 half-line position C0=31 directly observable.
-// The initial R0=0 reset rollover makes ParityFrame odd;
-// run_to_frame_start() consumes the programmed setup frame and therefore
-// enters an even frame.  The mode defaults to IVM (R8=3); the sync-only
-// vector below passes R8=1 while sharing the same deterministic setup.
+// Program a stable interlace frame with an observed even FIELD at a true
+// frame origin. R0=63 makes the FR p.215/p.219 half-line position C0=31
+// observable. FIELD, not guessed reset-rollover history or C9 alone, pins
+// parity: sync-only R8=1 has C9=0 on both even and odd frame origins.
+// The mode defaults to IVM; the sync-only vector passes R8=1.
 void program_ivm_sync_frame(TestBench& test, unsigned r7,
                             unsigned vsync_lines = 1,
                             unsigned interlace_mode = 3) {
@@ -1395,6 +1428,9 @@ void program_ivm_sync_frame(TestBench& test, unsigned r7,
     test.write_register(9, 7);
     test.run_to_frame_start();
     test.write_register(8, interlace_mode);
+    test.run_to_frame_start();
+    if (!test.field()) test.run_to_frame_start(); // at most one observed odd frame
+    test.expect_field("sync setup starts at an even interlace frame origin", true);
 }
 
 // ACCC v1.11 §19.5.5 pp.214-216 (FR pp.214-216) and §19.7.1/19.7.3 p.219 (FR p.219).  With odd R9
@@ -1700,6 +1736,34 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     // §19.6.4 p.218 says the added line starts from the VMA' captured at
     // C9=R9,C0=R1.  R4=0 is the aliasing discriminator: the added line has
     // C4=C9=0, but it is not a real frame origin and must not reload R12/R13.
+    // These short sync-only fixtures need an actual FIELD transition to
+    // identify a true origin; the counter tuple alone also names the added
+    // line. Observe at most two fields, then retain the existing C0=1
+    // sampling phase. No reset-rollover parity is assumed.
+    const auto enter_short_field = [](TestBench& bench, bool even,
+                                      const std::string& context) {
+        bool previous=bench.field();
+        unsigned transitions=0;
+        for (unsigned guard=0;guard<128;++guard) {
+            bench.run_characters(1);
+            const bool current=bench.field();
+            if (current!=previous) {
+                if (++transitions>2) throw TestFailure(context+": exceeded two fields");
+                if (current==even) {
+                    bench.expect_field(context+": selected field", even);
+                    bench.expect_hcc(context+": true origin C0", 0);
+                    bench.expect_line(context+": true origin C4", 0);
+                    bench.expect_row(context+": true origin C9", 0);
+                    bench.expect_adj(false, context+": true origin is not R5 adjustment");
+                    bench.run_characters(1);
+                    bench.expect_hcc(context+": existing sampling phase", 1);
+                    return;
+                }
+            }
+            previous=current;
+        }
+        throw TestFailure(context+": FIELD transition did not converge");
+    };
     TestBench r4_zero;
     r4_zero.write_register(0, 7);
     r4_zero.write_register(1, 2);
@@ -1713,7 +1777,9 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     r4_zero.write_register(13, 0);
     r4_zero.run_to_frame_start();
     r4_zero.write_register(8, 1);
+    enter_short_field(r4_zero, true, "t04n R4=0 initial even field");
     r4_zero.run_characters(16);
+    r4_zero.expect_field("t04n R4=0 added line remains in even field", true);
     r4_zero.expect_line("t04n R4=0 added line keeps C4", 0);
     r4_zero.expect_row("t04n R4=0 added line forces C9", 0);
     r4_zero.expect_hcc("t04n R4=0 added line sampled phase", 1);
@@ -1735,14 +1801,17 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     r9_zero.write_register(13, 0);
     r9_zero.run_to_frame_start();
     r9_zero.write_register(8, 1);
-    // This setup reaches the even-parity field after one ordinary one-line
+    enter_short_field(r9_zero, false, "t04n R9=0 initial odd field");
+    // The observed odd setup reaches the even field after one ordinary one-line
     // field, so the second line is the added line.  Advance one more line to
     // discriminate its exit from its C4=C9=0 entry state.
     r9_zero.run_characters(16);
+    r9_zero.expect_field("t04n R9=0 added line is in even field", true);
     r9_zero.expect_line("t04n R9=0 added line keeps C4", 0);
     r9_zero.expect_row("t04n R9=0 added line forces C9", 0);
     r9_zero.expect_hcc("t04n R9=0 added line sampled phase", 1);
     r9_zero.run_characters(8);
+    r9_zero.expect_field("t04n R9=0 added-line exit reaches odd field", false);
     r9_zero.expect_line("t04n R9=0 exits added line at frame origin", 0);
     r9_zero.expect_row("t04n R9=0 origin C9", 0);
     r9_zero.expect_hcc("t04n R9=0 origin sampled phase", 1);
@@ -1764,7 +1833,11 @@ void t04n_sync_interlace_half_line_vsync(TestBench& test) {
     r5_nonzero.write_register(13, 0);
     r5_nonzero.run_to_frame_start();
     r5_nonzero.write_register(8, 1);
+    enter_short_field(r5_nonzero, false, "t04n R5 path initial odd field");
+    // Three odd body/adjustment lines plus four even body/adjustment/added
+    // lines reach the next odd origin; this specifically samples added exit.
     r5_nonzero.run_characters(56);
+    r5_nonzero.expect_field("t04n R5 path added-line exit reaches odd field", false);
     r5_nonzero.expect_adj(false, "t04n R9=0 added-line exit does not re-enter R5");
     r5_nonzero.expect_line("t04n R5 path exits at next-frame C4", 0);
     r5_nonzero.expect_row("t04n R5 path exits at next-frame C9", 0);

@@ -120,7 +120,7 @@ module asic_video
 	                               // {showing_border, decoded ink nibble}
 
 	// Sprite-plane interface (P4). HWRAP strobes the line seam (CLKEN
-	// edge where the character counter sits on R0) for the sprite
+	// edge with a live or retained terminal opportunity) for the sprite
 	// engine's horizontal scale; SPR_* is the composited sprite pixel,
 	// shown between the screen and the border (asic-reference §5
 	// priority: border > sprites > screen), under HSYNC force-blank.
@@ -316,21 +316,34 @@ end
 //----------------------------------------------------------------------
 // Horizontal character counter C0 ("HCC")
 //
-// C0 counts 0..R0 inclusive and wraps via equality against the live R0
-// value (ACCC §13.1, p.103). Type 3 accepts any R0 without disturbing
-// other counters — there is no type-0-style freeze machinery (§13.5,
-// p.122). The exact post-write behavior when R0 is lowered below the
-// current C0 is not given as a direct CRTC3 chronogram in the source; the
-// equality-based eight-bit overflow below is therefore an explicitly
-// unverified P1 model assumption, protected by t01e pending direct CRTC3
-// rule/chronogram, Logon, or hardware evidence. ACCC §28.1.1 is not support
-// for this behavior: it describes C4/C9 identification overflow, not C0.
+// C0 counts 0..R0 inclusive (ACCC FR v1.11 §13.1 p.104). The rendered
+// type-3/4 deadline chart (§13.6.3 p.125), corroborated by real Plus SHAKER
+// A4's OUT(C) 3C/3D and OUTI 3C results, requires a late R0 rewrite not to
+// cancel the already entered terminal character. Retain that opportunity
+// until the next character edge, while still accepting live new equality.
+// This match lifetime is a model of the observed deadline, not a claim
+// about the ASIC's physical latch/storage clock. Register writes stay live.
+//
+// Outside that terminal opportunity, lowering R0 below current C0 retains
+// the equality-based eight-bit overflow assumption protected by t01e. A
+// direct type-3 lowering chronogram/hardware result is still absent; the
+// terminal-lowering control instead cites the original DSC4 AmSpirit trace.
+// §28.1.1 is not support for overflow: it concerns C4/C9 identification.
 //----------------------------------------------------------------------
 
 reg [7:0] hcc;
 
-wire        hcc_last = (hcc == R0_h_total);
+reg         entered_terminal_match;
+wire        hcc_equal = (hcc == R0_h_total);
+wire        hcc_last = hcc_equal | entered_terminal_match;
 wire [7:0]  hcc_next = hcc_last ? 8'h00 : hcc + 8'd1;
+
+always @(posedge CLOCK) begin
+    if (!nRESET) entered_terminal_match <= 1'b1; // reset HCC=R0=0
+    // Standard SNA carries counters/registers, not in-flight match history.
+    else if (SNA_LOAD) entered_terminal_match <= (SNA_HCC == SNA_REGS[0 +: 8]);
+    else if (CLKEN) entered_terminal_match <= (hcc_next == R0_h_total);
+end
 
 always @(posedge CLOCK) begin
 	if (!nRESET) hcc <= 8'h00;
@@ -563,6 +576,8 @@ wire split_adj_end = in_adj && adj_end_n &&
 wire split_at_r0 = (last_charline && (raster == R9_v_max_line) &&
                     !in_adj && (R5_v_total_adj == 5'd0)) ||
                    split_adj_end;
+// This capture still uses live R0. Its overlap with a late R0 rewrite
+// that ends the line through a retained terminal opportunity is unverified.
 // Original 6128 Plus V4 screen27 captures at adjustment indexes 0, 1
 // and 8 (the low-three-bit alias); adjustment must not mask the comparator.
 wire split_latch_event = CLKEN && split_match &&
@@ -574,7 +589,7 @@ wire split_latch_event = CLKEN && split_match &&
 // identical): frame line 0 shows R12/R13, line 1 onwards SSA. VMA' priority
 // is split capture > frame-origin init > row capture. split_held remembers
 // a capture made earlier on the current line; a C0=R1=R0 capture coincides
-// with the line end and is seen directly.
+// with the line end under stable R0 and is seen directly.
 reg split_held;
 
 always @(posedge CLOCK) begin
@@ -954,6 +969,9 @@ assign RA   = ra_eff;
 // bits 7:6 are the §20.5 (p.245) extended start-address bits, kept for
 // readback while the VMA reload consumes R12[5:0] only.
 //
+// Status comparisons remain live: FR §21.3.4.1–2 pp.248–249 and
+// §28.1.10 p.293 (S1.0 is zero otherwise). They are distinct from the
+// retained terminal opportunity used by the counter/event consumers.
 // STATUS 1 (slot 2) and STATUS 2 (slot 3) are live combinational levels
 // of the counter/pointer state — several bits hold for one character
 // only (§21.3.4 "requires great precision"). The HSYNC/VSYNC boundary
@@ -973,8 +991,8 @@ assign RA   = ra_eff;
 //    only; aliased-select write behaviour is not evidenced).
 //----------------------------------------------------------------------
 
-// STATUS 1 (§21.3.4.1 p.249): horizontal-event group.
-wire s1_bit0 = hcc_last;                                    // 1 at C0=R0
+// STATUS 1 (ACCC FR §21.3.4.1 p.248): horizontal-event group.
+wire s1_bit0 = hcc_equal;                                    // 1 at C0=R0
 wire s1_bit1 = ~(hcc == {1'b0, R0_h_total[7:1]});           // 0 at C0=R0/2
 wire s1_bit2 = ~((R0_h_total >= R1_h_displayed) &&
                  (hcc == (R1_h_displayed - 8'd1)));         // 0 at C0=R1-1
@@ -989,18 +1007,18 @@ wire s1_bit5 = ~(in_vsync &&
 wire s1_bit7 = ~(((hcc != R0_h_total) && (vma[7:0] == 8'hFF)) ||
                  ((hcc == R0_h_total) && (vma_latch[7:0] == 8'h00)));
 
-// STATUS 2 (§21.3.4.2 p.250, FR p.249): vertical-event group. ACCC specifies literal
+// STATUS 2 (ACCC FR §21.3.4.2 p.249): vertical-event group. ACCC specifies literal
 // counter comparisons, so these remain live during vertical adjustment too;
 // whether hardware suppresses an adjustment-time duplicate is not evidenced.
 wire s2_bit0 = ~((charline == R4_v_total) &&
-                 (raster == R9_v_max_line) && hcc_last);
+                 (raster == R9_v_max_line) && hcc_equal);
 wire s2_bit1 = ~((charline == (R6_v_displayed - 7'd1)) &&
-                 (raster == R9_v_max_line) && hcc_last);
+                 (raster == R9_v_max_line) && hcc_equal);
 wire s2_bit2 = ~((charline == (R7_v_sync_pos - 7'd1)) &&
-                 (raster == R9_v_max_line) && hcc_last);
+                 (raster == R9_v_max_line) && hcc_equal);
 wire s2_bit3 = frame16_toggle;
 wire s2_bit5 = ~(raster == R9_v_max_line);
-wire s2_bit7 = ((raster == R9_v_max_line) && hcc_last) ||
+wire s2_bit7 = ((raster == R9_v_max_line) && hcc_equal) ||
                ((raster == 5'd0) && (hcc != R0_h_total));
 
 // Frame-origin strobe: the same edge the video pointers reload from
