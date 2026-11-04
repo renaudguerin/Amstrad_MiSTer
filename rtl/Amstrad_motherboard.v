@@ -573,23 +573,13 @@ wire sna_ga_int_pending = sna_int_pending & ~plus_dma_int_req;
 // classic CRTC sparse decode. On Plus hardware an IN on either write port
 // performs the corresponding write with the live bus byte ([KT] Ports;
 // asic-reference sections 4/13), so DI remains D during read cycles too.
-// ACCC v1.11 FR §4.4.3 p.26: OUT(C),r8/0 updates the ASIC CRTC in its
-// fourth microsecond; OUTI/OUTD still update in their fifth. Sample write
-// ports on the CPU-owned rising phase: it misses OUT(C)'s earlier strobe
-// without adding a character to OUTI/OUTD, and admits READY-shaped A13-low
-// aliases. This within-microsecond phase is the model's selection; the
-// source specifies the instruction windows, not an exact sampling dot.
-// Read ports (A9=1) remain continuously enabled; IN on a write port retains
-// its sampled open-bus write side effect. The explicit no-WAIT speed hack
-// keeps immediate writes: its unaligned bus pulses can miss this periodic
-// slot, and the normal-machine instruction windows do not apply there.
 asic_video asic_vid
 (
 	.CLOCK(clk),
 	.CLKEN(plus_cclk_en_n),
 	.nRESET(~reset),
 
-	.ENABLE((io_rd | io_wr) & (A[9] | no_wait | (plus_phi_en_p & ~plus_cpu_n))),
+	.ENABLE(io_rd | io_wr),
 	.nCS(A[14]),
 	.R_nW(A[9]),
 	.RS(A[8]),
