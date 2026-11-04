@@ -218,6 +218,9 @@ module Amstrad_motherboard
 	output        snap_crtc_hsync,
 	output        snap_crtc_vsync_r,
 	output  [3:0] snap_crtc_vsw_elapsed,
+`ifdef SSM_S_PASSIVE_TRACE
+ output [6:0] s_trace_crtc_state,
+`endif
 
 	output  [2:0] snap_mmu_rammap,
 	output  [4:0] snap_mmu_rampage,
@@ -412,6 +415,9 @@ CRTC crtc
 	.SNAP_HSYNC(snap_crtc_hsync),
 	.SNAP_VSYNC_R(snap_crtc_vsync_r),
 	.SNAP_VSW_ELAPSED(snap_crtc_vsw_elapsed)
+`ifdef SSM_S_PASSIVE_TRACE
+ , .S_TRACE_STATE(s_trace_crtc_state)
+`endif
 );
 
 // -----------------------------------------------------------------------

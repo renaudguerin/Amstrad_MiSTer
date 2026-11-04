@@ -785,6 +785,9 @@ wire        snap_crtc_in_adj;
 wire  [3:0] snap_crtc_hsc;
 wire        snap_crtc_hsync, snap_crtc_vsync_r;
 wire  [3:0] snap_crtc_vsw_elapsed;
+`ifdef SSM_S_PASSIVE_TRACE
+wire [6:0] s_trace_crtc_state;
+`endif
 wire  [2:0] snap_mmu_rammap;
 wire  [4:0] snap_mmu_rampage;
 wire  [7:0] snap_mmu_rom_select_shadow;
@@ -1619,6 +1622,9 @@ Amstrad_motherboard motherboard
 	.snap_crtc_hsync(snap_crtc_hsync),
 	.snap_crtc_vsync_r(snap_crtc_vsync_r),
 	.snap_crtc_vsw_elapsed(snap_crtc_vsw_elapsed),
+`ifdef SSM_S_PASSIVE_TRACE
+ .s_trace_crtc_state(s_trace_crtc_state),
+`endif
 
 	.snap_mmu_rammap(snap_mmu_rammap),
 	.snap_mmu_rampage(snap_mmu_rampage),
@@ -1752,6 +1758,20 @@ ssm_marker ssm
 	.m1_fetch(ssm_m1_fetch),
 	.bus_data(ssm_bus_data),
 	.sync_observation(ssm_sync_observation),
+`ifdef SSM_S_PASSIVE_TRACE
+    .s_trace_enable(1'b1),
+    .s_trace_addr(cpu_addr),
+    // Same bank and byte address the SDRAM CPU port actually serves.
+    .s_trace_qualified(!plus_mode && !status[2] && !romen &&
+        mem_bank==0 && ram_a=={7'd2,cpu_addr} &&
+        !mf2_rom_en && !mf2_ram_en && !dan_ena && !sna_load &&
+        !sna_hold && !save_hold && !ioctl_download),
+    .s_trace_snapshot({33'd0, snap_ppi_portb_in,
+        snap_crtc_regs[79:72], snap_crtc_regs[71:64], snap_crtc_regs[63:56],
+        snap_crtc_regs[47:40], snap_crtc_regs[39:32], snap_crtc_regs[7:0],
+        snap_crtc_addr, snap_crtc_vsync_r, s_trace_crtc_state,
+        snap_crtc_in_adj, snap_crtc_c5, snap_crtc_line, snap_crtc_row, snap_crtc_hcc}),
+`endif
 
 	.ce_pix(ce_16),
 	.hsync(hs),
