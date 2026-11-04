@@ -1,7 +1,7 @@
 # SHAKER CRTC1 S: history-sensitive result — 4 November 2026
 
 Test S (`02D3`) is not closed. The latest full C1 walk prints0640 instead of
-the original-machine expectation4E40, while direct entry on the same RBF
+the current program expectation4E40, while direct entry on the same RBF
 prints4E40. Keep the numerical failure; its cause is not established by the
 changed screenshot alone.
 
@@ -28,6 +28,27 @@ The full `db4be80` walk completes165commands/80captures/no capture failures/
 separators match the previous run. Media is the installed author package,
 SHA256 `6b9ff106bb8dd02e984f69acd39d0b26d7318854345d23643b12d6748ed0eb61`.
 The [classic milestone](classic-blank-alignment-2026-11-04.md) pins the RBF.
+
+## Current targeted milestones and photo qualification
+
+On599ca80, the exact canonical prefix through S completes131commands,
+64captures and121SSM records without capture errors: S remains0640, while
+fresh direct S remains4E40. E now prints0080 in both paths and P remains26.
+On e574a46, whose additional change shifts Type1 published VSYNC by one
+Pixel-M2 without changing logical counters, the same prefix completes but
+S prints9600 WRONG versus the same4E40 expectation. Direct S on that source
+is pending. This isolates sensitivity to the changed PPI-visible phase/entry
+path, not a proven C5 mechanism. [Exact artifacts and bounds](classic-targeted-milestones-2026-11-04.md).
+
+The cached physical photograph CS_02D3_A.webp, SHA256
+3738bf22d3a2e28c571705a10fec4262393176b781f5b038ff732bd93f9cb4c8,
+appears to print4E30, rather than the current program's4E40. Parent inspected
+the full original photograph; the precise last-but-one digit/version binding
+still needs author confirmation. Keep the current program's explicit4E40
+expectation and preserve the much larger0640/9600 failures. Do not claim the
+CPCSE4E40 image exactly matches that physical photograph, or silently broaden
+an assertion to mask the difference. A16us measurement quantum, variant or
+program revision is an open question, not an established explanation.
 
 ## Corpus comparison and interpretation
 

@@ -162,3 +162,15 @@ encodes the documented optical endpoints but supplies no physical admission
 mechanism. These sources do not resolve the remaining sub-character question.
 Exact anchors and the parent qualification are preserved under ignored
 `resumed-20261104/r7-other-emulator-source/`. No emulator was launched.
+
+## Full artifact and bounded native checks
+
+Full e574build41881983617passes every required job and timing. E/P remains
+pixel-identical to599; DI58 and B6fifth/fourth1F/1F remain their known failures.
+Canonical S changes0640→9600 WRONG rather than closing the history defect.
+The own steady NJIT guest reaches its expected picture, but native capture
+excludes the VSYNC-black endpoint; it cannot measure the sixth-pixel correction.
+[Exact artifact and capture bounds](classic-targeted-milestones-2026-11-04.md).
+The [address-tag experiment](crtc1-r7-optical-address-qualification-2026-11-04.md)
+now supplies a nonterminal reference constraint; no inertial/C0 admission rule
+is inferred from it.

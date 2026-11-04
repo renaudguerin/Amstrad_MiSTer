@@ -4,7 +4,8 @@ An early R9 write can cancel Last Line, yet the core still reset the frame from
 C4=R4 alone. The final correction uses the combined Last Line latch for frame reset and
 admits C0=1 validation into existing shared latches, using the current line's
 IVM comparison. Independent review accepts it;239CRTC,51neighbors and44selected
-benches pass. A full exact-source RBF and targeted E6 hardware check are next.
+benches pass. The full599artifact passes its gates/timing and repairs native
+E6cases5/14 while preserving21/24; see the targeted acceptance below.
 No new flip-flop or Type1 rule is introduced.
 
 ## Source-derived failure
@@ -124,3 +125,11 @@ baseline is implied.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).
+
+## Targeted native acceptance
+
+The full599artifact passes all required jobs and timing, then direct E6 repairs
+cases5/14 to00C0/0D97. Relative toee9, only those two numerical rows change;
+0409is pixel-identical, preserving21/24. Case16 remains unchanged. Twelve of28
+printed self-checks still differ; no original C0E photo denominator is implied.
+[Exact build, capture counts and source bounds](classic-targeted-milestones-2026-11-04.md).

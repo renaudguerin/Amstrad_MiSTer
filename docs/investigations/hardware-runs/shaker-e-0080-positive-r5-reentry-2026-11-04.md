@@ -2,7 +2,8 @@
 
 ## Result and recommendation
 
-The original-CPC E photograph requires0080; unchanged MiSTer prints0060.
+The original-CPC E photograph requires0080; pre-fix MiSTer prints0060 and
+599ca80 now gives0080 on native direct and canonical-history paths.
 A bounded positive-R5 R4/R9 re-entry restart is now justified as an abstract
 output rule, and its production implementation has passed the final gate and
 code review, and is committed and pushed as
@@ -18,10 +19,10 @@ management at R5=0. Fresh Opus review now says PROCEED with the narrow positive
 restart while preserving the zero route, completion and added-line owners.
 The final sections retain the exact evidence and inference bounds. Exact push
 CI [41874429612](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41874429612)
-passed all required jobs. A new full build
-([41878239893](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893))
-is queued/running and targeted E hardware acceptance is still pending; `ee9c131`
-remains the accepted device artifact.
+passed all required jobs. Full build
+[41878239893](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893)
+and targeted native E/P/DSC4 checks pass. The separate S history defect remains
+open; exact results and bounds are in the native acceptance section below.
 
 ## Evidence identities and authority
 
@@ -550,7 +551,15 @@ test without rerunning gates. Parent verified the three frozen source hashes.
 The correction is committed and pushed as
 `599ca8098c655556457a6066b2e4fdeed2d8a9a7` (exact push CI
 [41874429612](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41874429612)
-all required jobs SUCCESS). A new full exact-source build
-([41878239893](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893),
-captured at 17:31 UTC) is queued/running; direct C1 E/P/S/DSC4 regression checks
-follow on that artifact, and `ee9c131` remains the accepted device artifact.
+all required jobs SUCCESS). The full exact-source build
+[41878239893](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893)
+and targeted native checks complete as recorded below; this does not close S.
+
+## Targeted native acceptance
+
+Full599build41878239893passes all required jobs/timing. Native E02C9 now gives
+0080 with all seven other measurements intact, E02CA stays readable, and P
+remains26. Canonical history through S retains E0080; S itself still0640
+versus direct4E40, so that separate history defect is not closed by this fix.
+The later publication build keeps E/P pixel-identical but changes S to9600.
+[Exact artifacts and limits](classic-targeted-milestones-2026-11-04.md).

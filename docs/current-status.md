@@ -13,45 +13,31 @@ continues toward the user's approximately 80% weekly quota limit. Finish known
 SHAKER and DSC4/Amazing defects before the broad baseline; preserve these
 instructions across handoffs and context compaction.
 
-## Branch and accepted artifact
+## Branch and current artifacts
 
-- The active `codex/overnight-validation-20261103` task branch contains the
-  recent fixes and evidence. It is distinct from integrated `master` and no
-  integration or release is implied. Published-artifact history is archived.
-- Latest accepted device artifact: `Amstrad_20261104_ee9c131.rbf`, source
-  `ee9c131`, SHA-256
-  `b6bb116d91c34450128738fd4d3d118ca4fb27426f15af29dd8ba8f8e8a462fe`.
-  MiSTer copy matches. [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41849887000)
-  passes all required jobs; Quartus setup/hold 0.504/0.245 ns, seven clocks,
-  zero TNS. CRTC239/focused30/final44 benches pass; fresh Opus accepts.
-- Targeted Type0 acceptance: E6 cases21/24 now print0066/000E, matching their
-  source-backed recipes; DSC4 credits and sampled effects remain clear/visible.
-  [Comparator/build/device evidence](investigations/hardware-runs/crtc0-r9-r5-comparator-2026-11-04.md).
-- Prior ASIC acceptance on `275af8a`: DSC4 colons/names and sampled DSC4/Amazing
-  effects restored; BI widths/clipping, AE09/AR stripe families and A4 retained.
-  Five Plus runs completed21captures. The later change is Type0-only; these
-  checks were not repeated on its descendant. [ASIC evidence](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md).
-- Current code tip is `e574a46`: Type0 Last Line/C0=1/IVM repair `c3e896d`,
-  historical fixture adapter `28ba886`, Type1 positive-R5 C5 restart `599ca80`,
-  and ordinary Type1 VSYNC publication `e574a46`. Each behavior change has a
-  failing-first proof, passing selected gate and fresh independent review.
-- Exact `599ca80` [push CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41874429612)
-  passes all required jobs. Its [full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893)
-  is pending; let it finish before another synthesis. The prior `c3e896d` build
-  met timing but failed its historical fixture, now repaired. It was preserved
-  without device acceptance. `ee9c131` remains the accepted device artifact.
-- C5's controlled E replay gives `0080`, seven other metrics and 515 zero-route /
-  89 off-R4 controls. R7's replay preserves them while shifting all 1262 published
-  VSYNC edges by four clocks. These use current CRTC/engines/GA with an inherited
-  pre-`9de` T80 netlist, rather than a full original-disk motherboard boot.
-  [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
-  [publication proof](investigations/hardware-runs/crtc1-r7-onset-controls-2026-11-04.md).
-- The branch includes the ASIC mode repair `3113323`, T80 startup repair
-  `9de75d3`, classic credit repair `db4be80`, and ASIC R0 repair `7ac11a2`.
-  The rejected broader bus qualifier must not be treated as a verified fix.
-  [Mode evidence](investigations/hardware-runs/asic-mode-latch-2026-11-04.md),
-  [CPU evidence](investigations/hardware-runs/t80-first-fetch-iorq-2026-11-04.md),
-  [classic credits](investigations/hardware-runs/classic-blank-alignment-2026-11-04.md).
+- Active branch: `codex/overnight-validation-20261103`, code tip `e574a46`.
+  It is distinct from integrated `master`; no integration or release is implied.
+- Conservative hardware comparison: `Amstrad_20261104_599ca80.rbf`, SHA256
+  `8c21cfeb24ed5cb33570e04a93add45aefb146f82e2dd169385b34059f02c87f`.
+  [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893)
+  passes every required job, setup/hold 0.356/0.244 ns, seven clocks, zero TNS.
+  C0 E6 cases 5/14 and 21/24 match; C1 E is 0080/P26; sampled DSC4 remains clear.
+- Investigation build: `Amstrad_20261104_e574a46.rbf`, SHA256
+  `f95bac8d60821cee62329d9314bd63811936a8102c892f47d484cfa74ae19df9`.
+  [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41881983617)
+  passes all jobs, setup/hold 0.575/0.243 ns. E/P is pixel-identical to 599 and DI/B6
+  retain their known residuals; full-history S changes 0640→9600, still wrong.
+  Direct S on this source is pending. Its ordinary fifth/sixth-pixel correction
+  is source/reference/bench-proven, not a measured native-PNG endpoint.
+  [Exact targeted results and limits](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
+- ASIC acceptance remains bounded on `275af8a`: DSC4 colons/names and sampled
+  DSC4/Amazing effects, BI widths/clipping and AE/AR patterns. Later changes
+  target classic CRTC state; no new full Plus baseline is implied.
+  [ASIC evidence](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md).
+- Recent fixes retain failing-first tests, selected gates and fresh independent
+  reviews. C5 controlled replay uses an inherited pre-9de T80 netlist; current
+  CI/native checks cover the current CPU separately. Dated reports retain that
+  provenance and the repaired historical-fixture failure.
 
 ## Active hardware questions
 
@@ -62,23 +48,19 @@ our closest software reference, not the hardware oracle.
 
 ### Classic CRTC 0/1
 
-- Type0 E6's R9→R5 handoff is fixed in `ee9c131`; cases21/24 have targeted
-  device acceptance. Case5 cancellation, C0=1 establishment and current-line IVM
-  rechecking are corrected in `c3e896d` (included in `599ca80`, build
-  `41878239893` running), awaiting exact-source RBF and direct E6 check.
-  Case16's zero-R5 early-entry lifetime remains a source question;
-  [French draft](classic/accc-author-questions-crtc0-c0-1-2026-11-04-fr.md) is unsent.
-  [Comparator](investigations/hardware-runs/crtc0-r9-r5-comparator-2026-11-04.md),
-  [Last Line](investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md).
-- C1 E/P is readable and P is 26; E prints `0080` in the controlled production-CRTC
-  replay under `599ca80` (positive-R5 C5 restart, Gemini 4 Argon high reviewed),
-  matching the original photograph. Hardware acceptance pending on build
-  `41878239893`. On `db4be80` a full C1 walk gives S `0640`, while direct S
-  entry gives `4E40` on both old and new artifacts. Preserve the history
-  distinction before changing C5 further.
-  [E investigation](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
-  [S history](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
-- DSC4 credit colons are visible on CRTC0/1 after `db4be80`; the unchanged
+- C0 E6 on 599 repairs cases 5/14 to 00C0/0D97 and retains 21/24=0066/000E.
+  Twelve of 28 printed self-checks still differ; this is not a photo failure
+  denominator. Case 16's zero-R5 lifetime remains a source question. The audit's
+  brief confused cases 22 and 24; both pass. Case 25 remains 0037 versus 051B,
+  and its proposed cause needs correction against current state gating. [Last Line proof](investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md),
+  [unsent C0 question](classic/accc-author-questions-crtc0-c0-1-2026-11-04-fr.md).
+- C1 E is 0080 on native direct and canonical-history paths; all seven numeric
+  controls and P26 remain. S remains history-sensitive: 599 full 0640/direct 4E40,
+  e574 full 9600/direct pending. The cached CS photograph appears 4E30, so exact
+  photo/program revision binding also needs clarification. Preserve the current
+  program's 4E40 expectation. [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
+  [S evidence](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
+- DSC4 credit colons are visible on CRTC 0/1 after `db4be80`; the unchanged
   bottom row matches all 768 pixels of the uncropped AmSpirit reference, outside
   its default viewport. Monitor bounds remain B1 work. Type 0's old-mode partial
   pixel at a mixed-mode boundary remains a failure. A genuine R3.JIT control
@@ -86,22 +68,20 @@ our closest software reference, not the hardware oracle.
   while blank release is early on both. No mode timing fix is selected.
   [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
   [mode boundary](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
-- `019D` remains fifth/fourth `1F/1F` versus original-caller AmSpirit/photo
-  `1E/1F`. Ordinary NJIT source/reference Type0=5 / Type1=6 is corrected by
-  `e574a46`'s reviewed abstract pin transport; device acceptance is pending.
-  R7.JIT remains 8/4 versus 9/5, and terminal-row admission is still open.
-  A new reference pair returned low for both controls, so its assumed hidden
-  counter phase is being qualified before any admission change. B8's synthetic
-  OUTI margin is distinct from the authentic OUT(C),C caller.
-  [OUTI caller](investigations/hardware-runs/crtc1-outi-019d-2026-11-04.md),
-  [onset controls](investigations/hardware-runs/crtc1-r7-onset-controls-2026-11-04.md).
+- B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
+  publication is a separate correction. R7.JIT remains 8/4 versus 9/5.
+  Address-tagged AmSpirit pixels qualify a nonterminal raster window but its
+  later PPI sample is still 0; no admission model is selected from that result.
+  [Onset controls](investigations/hardware-runs/crtc1-r7-onset-controls-2026-11-04.md),
+  [optical qualification](investigations/hardware-runs/crtc1-r7-optical-address-qualification-2026-11-04.md),
+  [unsent questions](classic/accc-author-questions-r7-s-phase-2026-11-04-fr.md).
 - B9 page B's collision ordering and MID FRAME glyph remain unresolved; original
   machine evidence is needed. F13 and F20 still need their named hardware gates;
   IA-2/3/6 are source-model evidence, IA-5 needs simultaneous sync/interrupt
   capture, and Q17 needs hardware discrimination. The D1 adjustment-entry
   pointer is not source-adjudicated. [B9 discriminator](investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md),
   [audit](classic/audit-findings.md).
-- CRTC1 RFD parity has bounded device acceptance; retire-on-save versus
+- CRTC 1 RFD parity has bounded device acceptance; retire-on-save versus
   latch-at-arm remains an inference. [RFD lifetime](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md).
 
 ### Plus / GX4000 ASIC
@@ -111,23 +91,22 @@ our closest software reference, not the hardware oracle.
   alignment is measured, not a literal silicon-stage claim. Wider mixed-mode
   and full-demo acceptance remain outside this result.
   [Boundary evidence](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md).
-- A4 lower VSYNC-bit words differ from the original Plus; native result RAM is
-  unknown. A saved-menu replay does not reproduce the fresh-device result. A
-  disk-only observation probe was **rejected** before device use because its
-  proposed emitter overlaps nested stack writes. Obtain safe native observation
-  before inferring an admission rule. The R0 model's live-equality creation
-  control and late-R0/split overlap also remain unverified.
-  [A4 and R0 evidence](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md).
+- A4 lower VSYNC-bit words differ from the original Plus; native result RAM
+  is still unknown. A new A4-only diagnostic uses unselected test8 code after
+  measurements; strict menu-to-hook equivalence and 16 marker transport checks
+  pass, followed by independent parent review. Paired original/diagnostic native
+  checks await SSH restoration. The rejected stack-overlapping padding probe
+  remains rejected. [A4 evidence](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md).
 - General DMA PAUSE/PPR/REPEAT boundaries, exact interrupt phase, PA3 early-arm
   and last-adjustment controls, and named model/disk/reset acceptance remain
   open. Sonic's title and bounded gameplay are hardware accepted; general DMA
   boundary closure does not follow. [Source divergence ledger](plus/source-divergences.md),
   [Sonic acceptance](investigations/sonic/b20-7-dma-pause-acceptance-2026-09-22.md).
-- Left-edge sprite flicker needs a repeatable capture for closure; full CRTC3
+- Left-edge sprite flicker needs a repeatable capture for closure; full CRTC 3
   demo completion, Eerie full-demo completion and Switchblade gameplay remain
   untested. Other cartridge crashes, Plus SNA/reset/reload recovery, odd-R5
-  CRTC3 behaviour and low-A13 FDC aliases remain evidence-gated.
-  [CRTC3 investigation](investigations/hardware-runs/crtc3-demo-2026-09-25.md).
+  CRTC 3 behaviour and low-A13 FDC aliases remain evidence-gated.
+  [CRTC 3 investigation](investigations/hardware-runs/crtc3-demo-2026-09-25.md).
 - D3/D4 post-BSR readback and title/flicker acceptance, the status-2 16-frame
   timer source conflict, B8-2/3/5/6 hardware acceptance and B16 cartridge-backed
   SNA restoration remain open. The system-cartridge disk poll remains XFAIL.
@@ -155,7 +134,9 @@ our closest software reference, not the hardware oracle.
   CPCSyntaxError v0.12.0 and matching source are instrumentable. The MiSTer
   hardware loop, CSL/SSM and native capture are working tools, subject to the
   page-state and display limits above. One operator owns shared MiSTer and
-  AmSpirit access. [AmSpirit tooling](investigations/hardware-runs/amspirit-lite-1.17-tooling.md),
+  AmSpirit access. Device use remains authorized; SSH signing/authentication
+  failed after the e574 S capture and a clean retry. Restoration was requested
+  asynchronously; source/simulation work continues. [AmSpirit tooling](investigations/hardware-runs/amspirit-lite-1.17-tooling.md),
   [CPCSyntaxError guide](cpcsyntaxerror-testing.md),
   [hardware loop](investigations/hardware-runs/mister-hardware-loop-driver.md).
 - FDC full-sector result/ST1, classic AMSDOS and hardware acceptance remain open;

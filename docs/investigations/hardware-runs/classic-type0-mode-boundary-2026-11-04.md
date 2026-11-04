@@ -145,3 +145,19 @@ been chosen.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).
+
+## Causal barrier after the R3.JIT control
+
+A focused Gemini4Argon read identifies the third Mode1 shift decision at839,
+before the actual R3 write840. No later MODE_SYNC delay alone can make old5B
+advance from B to required C by the colour sample851. The passing1→2 suffix
+starts after LOAD ofA5, so it is not a mixed-byte handoff proof. A late-half
+shift schedule and a byte-phase cursor remain unimplemented alternatives;
+fixed-mode equivalence is a proposed constraint, not a new passed simulation.
+
+Parent reread Frenchp166: its plotted CSYNC is the combined signal during
+the second HSYNC of VSYNC, not an isolated MODE_SYNC/C-HSYNC trace for both
+CRTC types. It cannot simply be renamed as the required clock edge. The
+1–2Pixel-M2 prose and chip tolerance do not independently choose a fitted
+quantizer. No new timing candidate follows. Full source/read-only report is
+under ignored resumed-20261104/r3jit-next-discriminator/.

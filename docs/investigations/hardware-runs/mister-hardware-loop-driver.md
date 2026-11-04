@@ -428,6 +428,11 @@ Operand/data reads and interrupt acknowledge do not produce bytes for the detect
 other fetched opcode resets a partial marker; therefore an interrupt between the ED pairs
 is cancelled when the ISR's first opcode is fetched.
 
+For ordinary demo/title captures that emit no genuine SHAKER markers, omit
+`--ssm`: the listener can turn unrelated records into extra captures and delay
+the intended checkpoints. The 2026-11-04 DSC4 repeat confirms the four-checkpoint
+recipe with the listener off.
+
 The detector is off by default. `--ssm` sets OSD status bit 37 through the
 same CFG mechanism as the CRTC bit, and restores it with the rest of the
 configuration at the end of the run. The runner then polls the ring over the

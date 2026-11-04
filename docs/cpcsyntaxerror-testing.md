@@ -79,6 +79,18 @@ for this when comparing a production-T80 instruction-start trace. A snapshot
 that omits counters may retain a wrong phase indefinitely if the restored loop
 bypasses its one-time synchronizer. Repeated output alone does not validate it.
 
+## Headless firmware/input qualification
+
+In v0.12.0, `csl.cpp:1069` passes a hardcoded UK layout to `key_output`.
+Own diagnostic runs with explicitly loaded French ROMs therefore typed
+`run2...` instead of the intended quote/digits. Package-default UK ROMs fixed
+that typed input, but those two bounded runs still did not reach the guest
+by their saved checkpoints. Neither set supplies guest counter/PPI evidence.
+Pin actual ROM bytes and require code/guest-write guards before interpreting
+RAM; a zero result buffer does not prove a test returned zero. Keep the
+verified canonical capture batches separate from these failed new loader
+qualifications. [R7 qualification](investigations/hardware-runs/crtc1-r7-optical-address-qualification-2026-11-04.md).
+
 ## Interactive inspection
 
 The open GUI can be driven by its bundled `cpcse-ctl` client once its command
