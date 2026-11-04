@@ -359,8 +359,8 @@ assign     r0_frozen = !CRTC_TYPE && r0_frozen_w;
 // comparison below replaces it (section 19.8.1).
 wire [4:0] crtc0_line_max = (in_adj ? (R5_v_total_adj - 1'd1) : R9_v_max_line);
 
-// The live IVM-aware line-limit comparison (evaluated at hcc_last by the
-// rollover's live path, and by the VSYNC row-end consumer).
+// The live IVM-aware line-limit comparison, evaluated at hcc_last by the
+// rollover's live path.
 //
 // F15 (ACCC v1.11 section 19.5.2 pp.206-207, the rendered R9=7 worked
 // example; the p.220 row-end gate adjudicated as `If R9.0=1` in author
@@ -754,7 +754,11 @@ assign vde_toggle = !CRTC_TYPE && row == 0 && line == 0 && R6_v_displayed == 0;
 //   d2 -- retains the following-line half-count event for the legacy
 //         R8-exit lifecycle. In steady IVM the odd-parity pulse uses d1
 //         at the seam; d2 is not its normal start path.
-wire       vsync_fire_seam_raw = ((row_next) == R7_v_sync_pos && line_last);
+// French ACCC v1.11 section 11.2.2 p.83 example 2 holds C4 when an R4
+// write selects C9/R5, even if the live C9/R9 comparison still matches.
+// Section 16.4.1 p.170 starts VSYNC when C4 reaches R7: consume the
+// canonical row commit, not a prospective row_next that rollover discards.
+wire       vsync_fire_seam_raw = row_new && (row_next == R7_v_sync_pos);
 wire       vsync_fire_seam = vsync_fire_seam_raw && type0_vsync_line_reached_c0_2;
 // Non-interlace consumes a blocked comparison at the row-entry seam.  In a
 // field the comparison is consumed at its half-line count point, using either

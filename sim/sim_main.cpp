@@ -1941,30 +1941,59 @@ void test_type0_r0_zero_c9_equal_single_c4_increment_deferred(TestBench& test) {
 void test_type0_adjustment_r4_write_switches_c9_to_r5(TestBench& test) {
     test.set_crtc_type(0);
 
-    // ACCC v1.10 section 11.2.2: once the last-line state is established,
+    // French ACCC v1.11 section 11.2.2 p.83, example 2: once the last-line state is established,
     // changing R4 from C0=2 through C0=R0 switches the line-end comparator
     // from C9/R9 to C9/R5.  With C4=R4=2, C9=R9=3, and R5=5, the next line
     // must therefore be C4=2/C9=4 in vertical adjustment, not C4=3/C9=0.
-    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
-        {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
-        {5, 5}, {6, 2}, {7, 1}, {8, 0},    {9, 3},
-    }};
-    for (const auto& [address, value] : registers) {
-        test.write_register(address, value);
+    // Preserve the original R4=1/R7=1 fixture; the widening sibling also
+    // checks section 16.4.1 p.170: VSYNC starts only when C4 reaches R7.
+    for (const auto& [new_r4, r7] :
+         std::array<std::pair<std::uint8_t, std::uint8_t>, 2>{{{1, 1}, {4, 3}}}) {
+        const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+            {0, 7}, {1, 4}, {2, 5}, {3, 0x11}, {4, 2},
+            {5, 5}, {6, 2}, {7, r7}, {8, 0},    {9, 3},
+        }};
+        for (const auto& [address, value] : registers) {
+            test.write_register(address, value);
+        }
+        test.select_register(4);
+        test.reset();
+
+        constexpr unsigned line_characters = 8;
+        constexpr unsigned lines_before_last = 11;
+        test.run_characters(lines_before_last * line_characters);
+        test.run_characters(2);  // Last-line state is now established; C0=2.
+        test.write_selected_register_at_clken(new_r4);
+        test.run_characters(5);  // Complete C0=3..7 and enter the next line.
+
+        test.expect_adjustment_active("type 0 R4 write enters vertical adjustment");
+        test.expect_c4("type 0 R4 write keeps C4 on the entry line", 2);
+        test.expect_ra("type 0 R4 write compares C9 with R5", 4);
+
+        if (new_r4 == 4) {
+            // R7=3 has never matched. C4 remains 2 throughout adjustment and
+            // resets to 0 when C9+1=R5, so its hypothetical next value 3 cannot
+            // start VSYNC. Allow the published pin's register to observe the seam.
+            test.run_clock_ticks(1);
+            test.expect_vsync_low("R4-switched adjustment never enters R7=3");
+            test.expect_no_vsync_observed("R4-switched adjustment stays quiet until reset",
+                                         test.vsync_within_characters(line_characters));
+            test.expect_adjustment_inactive("R4-switched R5 completion ends adjustment");
+            test.expect_c4("R4-switched R5 completion resets C4", 0);
+            test.expect_ra("R4-switched R5 completion resets C9", 0);
+
+            // New R4=4 leaves row 3 reachable in the next frame. Twelve normal
+            // lines reach C4=R7=3; the preceding eleven must remain quiet.
+            test.expect_no_vsync_observed("next frame waits for actual C4=R7",
+                                         test.vsync_within_characters(11 * line_characters));
+            test.expect_c4("positive VSYNC control stops before C4=3", 2);
+            test.expect_ra("positive VSYNC control stops on C9=R9", 3);
+            test.run_characters(line_characters);
+            test.expect_c4("positive VSYNC control actually enters R7=3", 3);
+            test.expect_ra("positive VSYNC control enters the first raster", 0);
+            test.expect_vsync_high("actual next-frame C4=R7 still starts VSYNC");
+        }
     }
-    test.select_register(4);
-    test.reset();
-
-    constexpr unsigned line_characters = 8;
-    constexpr unsigned lines_before_last = 11;
-    test.run_characters(lines_before_last * line_characters);
-    test.run_characters(2);  // Last-line state is now established; C0=2.
-    test.write_selected_register_at_clken(1);
-    test.run_characters(5);  // Complete C0=3..7 and enter the next line.
-
-    test.expect_adjustment_active("type 0 R4 write enters vertical adjustment");
-    test.expect_c4("type 0 R4 write keeps C4 on the entry line", 2);
-    test.expect_ra("type 0 R4 write compares C9 with R5", 4);
 }
 
 void test_type0_adjustment_r9_write_uses_new_r9(TestBench& test) {
@@ -8915,7 +8944,7 @@ int main(int argc, char** argv) {
          "ACCC v1.10 sections 13.2.1 and 13.2.6; F5/F12", false,
          test_type0_r0_zero_c9_equal_single_c4_increment_deferred},
         {"t16a_type0_r4_write_switches_c9_to_r5",
-         "ACCC v1.10 sections 10.3.1 and 11.2.2; F12 guard", false,
+         "French ACCC v1.11 sections 11.2.2 p.83 and 16.4.1 p.170; F12/VSYNC interaction", false,
          test_type0_adjustment_r4_write_switches_c9_to_r5},
         {"t12a_type0_worked_example_exact_r0_yields_39_8",
          "ACCC v1.11 section 11.2.2 p.83 example 3 and section 10.3.1 p.77; F9/B4",
