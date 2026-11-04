@@ -154,9 +154,9 @@ int main(int argc, char **argv) {
       std::cerr << "FAIL: VHDL unknown on address bus at cycle " << cycle << ": " << vhdl_line << "\n";
       return 1;
     }
-    // IORQ_n has a known 3-cycle power-up unknown on CYC=6..8 in native VHDL T80pa due to uninitialized
-    // IntCycleD_n before the first M1 T3 reload ("11"). Outside cycles 6..8, IORQ_n must NEVER be unknown.
-    if ((cycle < 6 || cycle > 8) && vhdl_iorq.find('X') != std::string::npos) {
+    // Reset initializes the interrupt-acknowledge delay before the first fetch.
+    // IORQ_n must therefore be defined during startup as well as later cycles.
+    if (vhdl_iorq.find('X') != std::string::npos) {
       std::cerr << "FAIL: VHDL unknown on IORQ_n at cycle " << cycle << ": " << vhdl_line << "\n";
       return 1;
     }
@@ -175,12 +175,8 @@ int main(int argc, char **argv) {
     if (std::to_string(int(dut.WR_n)) != vhdl_wr) mismatch = true;
     if (std::to_string(int(dut.HALT_n)) != vhdl_halt) mismatch = true;
 
-    // Compare IORQ_n: compare every defined value. Only mask when vhdl_iorq is specifically
-    // unknown ('X') during cycles 6..8 due to uninitialized IntCycleD_n.
-    // If vhdl_iorq is defined (even during cycles 6..8), require exact match vs Verilog.
-    if (vhdl_iorq.find('X') == std::string::npos) {
-      if (std::to_string(int(dut.IORQ_n)) != vhdl_iorq) mismatch = true;
-    }
+    // Both representations must agree on IORQ_n, including the first fetch.
+    if (std::to_string(int(dut.IORQ_n)) != vhdl_iorq) mismatch = true;
 
     // Compare DO: when WR_n=0 (active write), DO must match exactly.
     // When WR_n=1 (outside write), if VHDL DO is legitimately uninitialized ("XX"),
@@ -253,7 +249,7 @@ int main(int argc, char **argv) {
   std::cout << "PASS T80 native VHDL vs translated Verilog trace equivalence ("
             << compared << " cycles verified, bounded defined-field trace)\n"
             << "  Confirmed reset startup: cycles 1..4 verified\n"
-            << "  Confirmed defined IORQ_n and startup IntCycleD_n X-mask (cycles 6..8)\n"
+            << "  Confirmed defined IORQ_n through reset startup and first fetch\n"
             << "  Confirmed OUT(C),C strobe: A=0xBD05 DO=0x05 IORQ_n=0 WR_n=0\n"
             << "  Confirmed OUTI strobe:    A=0xBD43 DO=0x42 IORQ_n=0 WR_n=0 (B decremented & memory read)\n"
             << "  Confirmed HALT reached: cycle " << halt_cycle << ", full trace completed at cycle " << compared << "\n";

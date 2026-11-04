@@ -49,9 +49,8 @@ namespace {
 
 constexpr int kCpuPeriod = 16;   // master ticks per CPU clock (cp/cn grid)
 constexpr int kResetTicks = 64;  // reset_n held low
-constexpr int kGuardTicks = 256; // ignore bus events: T80pa never resets
-                                 // IntCycleD_n, which can hold IORQ_n low
-                                 // on the first M1 (see t80_freeze_test)
+constexpr int kGuardTicks = 256; // bounded startup window before sample calibration;
+                                 // cold first-fetch bus safety is checked by B18.
 
 [[noreturn]] void fail(const std::string &why) { throw std::runtime_error(why); }
 

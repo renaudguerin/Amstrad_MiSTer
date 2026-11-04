@@ -152,6 +152,7 @@ begin
                 RD_n    <= '1';
                 IORQ_n  <= '1';
                 MREQ_n  <= '1';
+                IntCycleD_n <= "11";
                 DI_Reg  <= "00000000";
                 CEN_pol <= '0';
             elsif CEN_p = '1' and CEN_pol = '0' then

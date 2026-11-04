@@ -180,9 +180,57 @@ static void run_case(unsigned model,unsigned type) {
     bytecheck(0xa102,b.memory[b.idx(model,0x2a102)],0xa9,"continuation read through restored RAM map");
     std::cout<<"PASS B18 model="<<model<<" CRTC="<<type<<" header=256 RAM="<<ram_size<<" stalls="<<b.stalls<<"\n";
 }
+
+// Zilog Z80 CPU User Manual UM008011-0816, "Instruction Fetch" p8 and
+// "Interrupt Request/Acknowledge Cycle" p12: an ordinary opcode fetch uses
+// MREQ, while interrupt acknowledge uses IORQ instead. Restore before the CPU
+// has executed any fetch: the capture/restore cases above warm the bus first.
+// At 4195 a spurious simultaneous I/O read selects the real PPI port B, whose
+// driven bits corrupt CA (JP Z) into C0 (RET NZ) on the wired-AND CPU bus.
+// The byte sequence and Z-clear state independently require fallthrough4198.
+static void first_fetch_after_cold_restore() {
+    Bench b;auto& d=b.d;
+    std::vector<uint8_t> sna(0x10100,0);
+    std::copy_n("MV - SNA",8,sna.begin());sna[0x10]=3;
+    sna[0x11]=0x30; // F: Z clear; both IFFs remain zero (no acknowledge).
+    sna[0x21]=0;sna[0x22]=0xc0;sna[0x23]=0x95;sna[0x24]=0x41;sna[0x25]=1;
+    sna[0x40]=0x8e; // both ROMs disabled, ordinary mode2
+    sna[0x43]=63;sna[0x44]=40;sna[0x45]=46;sna[0x46]=14;
+    sna[0x47]=38;sna[0x49]=25;sna[0x4a]=30;sna[0x4c]=7;
+    sna[0x59]=0x82; // PPI port B input, matching the real bus responder.
+    sna[0x6b]=64;sna[0x6d]=2;sna[0xa4]=1;
+    const uint8_t program[]={0xca,0xc4,0x41,0x3e,0x5a,0x76};
+    std::copy(std::begin(program),std::end(program),sna.begin()+0x100+0x4195);
+    sna[0x100+0x41c4]=0x76; // Wrong taken branch must not look like success.
+    sna[0x100+0xc000]=0x3c;sna[0x100+0xc001]=0xfc; // Wrong RET target FC3C.
+    d.model=0;d.crtc_type=1;d.reset_btn=1;b.run(1024);d.reset_btn=0;
+    d.sna_download=1;b.run(4);
+    for(unsigned i=0;i<sna.size();++i) {
+        d.load_wr=1;d.load_addr=i;d.load_data=sna[i];b.tick();d.load_wr=0;b.tick();
+    }
+    d.sna_download=0;b.until([&]{return d.sna_load;},100,"cold restore apply");b.tick();
+    require(bits(d.cpu_reg,64,16)==0x4195,"cold restore PC");
+    bool first=false,fallthrough=false,old_start=false;
+    for(unsigned n=0;n<10000&&d.cpu_halt_n;++n) {
+        if(!d.owner_reset&&!d.sna_hold) {
+            require(!(d.cpu_iorq&&d.cpu_mreq&&d.cpu_rd),
+                    "cold SNA fetch overlaps IORQ and memory read at "+hx(d.cpu_addr));
+            const bool start=d.cpu_insn_start;
+            if(start&&!old_start) {
+                if(!first) {require(d.cpu_addr==0x4195,"cold first fetch address");first=true;}
+                else if(!fallthrough) {require(d.cpu_addr==0x4198,"JP Z with Z clear did not fall through: "+hx(d.cpu_addr));fallthrough=true;}
+            }
+            old_start=start;
+        }
+        b.tick();
+    }
+    require(first&&fallthrough&&!d.cpu_halt_n,"cold restore continuation did not halt");
+    require(bits(d.cpu_reg,0)==0x5a,"cold restore continuation accumulator");
+    std::cout<<"PASS B18 cold first fetch: JP Z falls through4198; no IORQ/memory overlap\n";
+}
 int main(int argc,char** argv) {
     Verilated::commandArgs(argc,argv);
-    try {for(unsigned model=0;model<3;++model)for(unsigned type=0;type<2;++type)run_case(model,type);}
+    try {first_fetch_after_cold_restore();for(unsigned model=0;model<3;++model)for(unsigned type=0;type<2;++type)run_case(model,type);}
     catch(const std::exception& e) {std::cerr<<"FAIL B18: "<<e.what()<<"\n";return 1;}
-    std::cout<<"B18 snapshot: PASS 6 classic capture/restore cases\n";return 0;
+    std::cout<<"B18 snapshot: PASS cold first fetch and 6 classic capture/restore cases\n";return 0;
 }
