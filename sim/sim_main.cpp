@@ -2221,6 +2221,89 @@ void test_type0_c0_r9_write_immediate_clears_last_line(TestBench& test) {
     test.expect_adjustment_inactive("t12c C0=0 R9 write evaluates updated R9 so Last Line is false and does not enter adjustment");
     test.expect_c4("t12c C0=0 R9 write keeps C4=38", 38);
     test.expect_ra("t12c C0=0 R9 write increments C9 to 8", 8);
+
+    // SHAKER E0 case 5 counter recipe, qualified independently by French
+    // ACCC v1.11 section 12.2 pp.94-95 and section 10.3.1.2 p.77:
+    // R9=6 at C0=0 cancels Last Line while C9=7. Restoring R9=7 at
+    // C0=5 cannot re-arm it after the C0<2 window. Live C9/R9 equality
+    // therefore resets RA and increments C4 to39 rather than resetting it.
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> restore_registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x8e}, {4, 38},
+        {5, 0}, {6, 25}, {7, 45}, {8, 0}, {9, 7},
+    }};
+    // French section 12.2 pp.94-95: restoration at1 revalidates;
+    // at5 the comparison window is closed (section10.3.1.2 p77).
+    const std::array<std::pair<unsigned, unsigned>, 2> restorations = {{{1, 0}, {5, 39}}};
+    for (const auto& [restore_c0, expected_c4] : restorations) {
+        for (const auto& [address, value] : restore_registers) {
+            test.write_register(address, value);
+        }
+        test.select_register(9);
+        test.reset();
+        test.run_characters(kT12CriticalLineCharacters);
+        test.expect_c4("t12c transient R9 starts at C4=R4", 38);
+        test.expect_ra("t12c transient R9 starts at C9=R9", 7);
+        test.expect_byte("t12c transient R9 first write at C0=0", 0, test.c0());
+        test.write_selected_register_at_clken(6);
+        test.run_characters(restore_c0 - 1);
+        test.expect_byte("t12c transient R9 restore character", restore_c0, test.c0());
+        test.write_selected_register_at_clken(7);
+        test.run_characters(63 - restore_c0);
+        test.expect_ra("t12c R9 restoration resets matching RA", 0);
+        test.expect_c4("t12c R9 restoration respects C0<2 validation window", expected_c4);
+        test.expect_adjustment_inactive("t12c transient R9 does not enter adjustment");
+    }
+
+}
+
+// French ACCC v1.11 section12.2 pp94-95: either register may
+// establish Last Line at C0=1. Section11.2.2 p83 supplies R5 entry.
+struct C1ValidationCase {
+    std::uint8_t reg, r4, r9, r5, c4, c9, value;
+    std::uint8_t r0 = 63;
+    std::uint8_t r8 = 0;
+};
+constexpr std::array<C1ValidationCase, 11> kC1ValidationCases = {{
+    {9, 0, 7, 0, 0, 0, 0}, {9, 0, 7, 2, 0, 0, 0},
+    {4, 7, 0, 0, 0, 0, 0}, {4, 7, 0, 2, 0, 0, 0},
+    // SHAKER E0 case13's nonzero counter recipe; R5=2 is its entry companion.
+    {9, 38, 7, 0, 38, 6, 6}, {9, 38, 7, 2, 38, 6, 6},
+    // French section13.2.1 p106: R0=1 never reaches C0=2, so
+    // validation at its terminal C0=1 enters default adjustment.
+    {9, 0, 7, 0, 0, 0, 0, 1}, {4, 7, 0, 0, 0, 0, 0, 1},
+    // Steady IVM, frozen even parity: preserve doubled comparison while
+    // forwarding R4/R9. French19.5.2 p207 gives R9=7's even-row limit8.
+    {4, 1, 6, 0, 0, 3, 0, 63, 3},
+    {9, 0, 10, 0, 0, 3, 6, 63, 3}, {9, 0, 10, 0, 0, 4, 7, 63, 3},
+}};
+void check_type0_c1_last_line_validation(TestBench& test, const C1ValidationCase& c) {
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, c.r0}, {1, 40}, {2, 46}, {3, 0x06}, {4, c.r4},
+        {5, c.r5}, {6, 25}, {7, 45}, {8, c.r8}, {9, c.r9},
+    }};
+    test.set_crtc_type(0);
+    for (const auto& [address, value] : registers) test.write_register(address, value);
+    test.select_register(c.reg);
+    test.reset();
+    test.run_characters((c.c4 * (c.r9 + 1u) + c.c9) * (c.r0 + 1u) + 1u);
+    test.expect_byte("t12d C0=1 validation write character", 1, test.c0());
+    test.expect_c4("t12d C0=1 validation precondition C4", c.c4);
+    test.expect_line("t12d C0=1 validation precondition C9", c.c9);
+    test.expect_ra("t12d C0=1 validation precondition RA", c.r8 == 3 ? 2*c.c9 : c.c9);
+    test.write_selected_register_at_clken(c.value);
+    test.run_characters(c.r0 - 1);
+    test.expect_ra("t12d C0=1 validation resets matching RA", 0);
+    test.expect_c4("t12d C0=1 validation frame reset or R5 entry", (c.r5 || c.r0 == 1) ? c.c4 + 1 : 0);
+    if (c.r5 || c.r0 == 1) test.expect_adjustment_active("t12d C0=1 validation enters adjustment");
+    else test.expect_adjustment_inactive("t12d C0=1 validation ends frame");
+    if (c.r0 == 1) {
+        // French section13.2.1 p106: the default R5=0 additional
+        // line then ends and returns C4/C9 to0 on the following line.
+        test.run_characters(2);
+        test.expect_ra("t12d terminal validation default adjustment ends RA0", 0);
+        test.expect_c4("t12d terminal validation default adjustment ends C4=0", 0);
+        test.expect_adjustment_inactive("t12d terminal validation ends default adjustment");
+    }
 }
 
 void test_type0_c0_r9_write_immediate_validates_last_line(TestBench& test) {
@@ -2247,6 +2330,10 @@ void test_type0_c0_r9_write_immediate_validates_last_line(TestBench& test) {
     // At line end, C9 wraps to 0 and row enters vertical adjustment (in_adj=1).
     test.expect_adjustment_active("t12d C0=0 R9 write evaluates updated R9 validating Last Line and entering adjustment");
     test.expect_ra("t12d C0=0 R9 write wraps C9 to 0", 0);
+    for (const auto& validation : kC1ValidationCases) {
+        check_type0_c1_last_line_validation(test, validation);
+    }
+
 }
 
 void test_type0_c0_r4_write_immediate_clears_last_line(TestBench& test) {
@@ -6565,10 +6652,56 @@ void t22_run_entry(TestBench& test, bool odd_frame, std::uint8_t offset,
     t22_walk(test, "t22 entry", steps);
 }
 
+// French19.8.1 p220: on an R8-entry line raw C9 is still tested;
+// live R8 cannot select the following line's doubled value at C0=1.
+void t22_c1_entry_uses_current_line(TestBench& test) {
+    test.set_crtc_type(0);
+    program_registers(test, {{{0,63},{1,40},{2,46},{3,0x06},{4,0},
+                             {5,0},{6,25},{7,45},{8,0},{9,6}}});
+    test.select_register(8);
+    test.reset();
+    test.run_characters(3*64);
+    test.run_clock_ticks(8);
+    test.expect_byte("t22 entry C0=1 bus phase",1,test.c0());
+    test.expect_ra("t22 entry rawC9=3 before mode write",3);
+    test.expect_parity_frame("t22 entry even frame",false);
+    test.expect_parity_c9("t22 entry even C9 parity",false);
+    test.write_selected_register_now(3);
+    test.run_to_c0(0);
+    test.run_characters(1);
+    test.expect_ra("t22 C0=1 entry preserves raw3!=6 then doubles4",8);
+    test.expect_line("t22 C0=1 entry increments rawC9",4);
+    test.expect_c4("t22 C0=1 entry cannot arm frame end",0);
+}
+
+// French19.8.1 p220 makes the target parity immediate, including the
+// accepting edge. French19.5.2 p206 supplies PF/ParityR6 preparation.
+void t22_c1_entry_forwards_target_parity(TestBench& test) {
+    test.set_crtc_type(0);
+    program_registers(test, {{{0,63},{1,40},{2,46},{3,0x06},{4,1},
+                             {5,0},{6,1},{7,45},{8,0},{9,7}}});
+    test.select_register(9);
+    test.reset();
+    test.run_characters(31*64); // Odd frame, row1 captured ParityR6=0.
+    test.expect_c4("t22 immediate target precondition C4=R4",1);
+    test.expect_ra("t22 immediate target precondition raw7",7);
+    test.expect_parity_frame("t22 immediate target odd frame",true);
+    test.write_selected_register_at_clken(6); // Cancel Last Line at0.
+    test.select_register(8);
+    test.expect_byte("t22 immediate parity accepts C0=1",1,test.c0());
+    test.write_selected_register_at_clken(3); // Raw7 equals R9+PF=7.
+    test.run_characters(62);
+    test.expect_c4("t22 incoming R8 target parity validates Last Line",0);
+    test.expect_line("t22 incoming R8 target parity resets C9",0);
+}
+
 void t22_entry_even_0(TestBench& test) { t22_run_entry(test, false, 0, false); }
 void t22_entry_even_1(TestBench& test) { t22_run_entry(test, false, 1, false); }
 void t22_entry_even_2(TestBench& test) { t22_run_entry(test, false, 2, false); }
-void t22_entry_even_3(TestBench& test) { t22_run_entry(test, false, 3, true); }
+void t22_entry_even_3(TestBench& test) {
+    t22_run_entry(test, false, 3, true);
+    t22_c1_entry_uses_current_line(test);
+}
 void t22_entry_even_4(TestBench& test) { t22_run_entry(test, false, 4, true); }
 void t22_entry_even_5(TestBench& test) { t22_run_entry(test, false, 5, true); }
 void t22_entry_odd_0(TestBench& test) { t22_run_entry(test, true, 0, false); }
@@ -6613,6 +6746,8 @@ void t22_entry_odd_6(TestBench& test) {
     steps.push_back({1, 3, 7});  // doubled limit on the odd frame: C9.VMA = 7
     steps.push_back({2, 0, 1});
     t22_walk(test, "t22 entry odd 6", steps);
+    t22_c1_entry_forwards_target_parity(test);
+
 }
 
 // Exit fixtures, table-shaped (pp.224-225): IVM is entered on line 0 of
@@ -6638,6 +6773,32 @@ void t22_run_exit(TestBench& test, bool odd_frame, std::uint8_t exit_offset,
     t22_walk(test, "t22 exit", steps);
 }
 
+// French19.8.1 pp220-221: enter after the half-height limit to reach
+// raw6/VMA12, then exit at C0=1. The exit line tests VMA12 vs plainR9=6.
+void t22_c1_exit_uses_current_line(TestBench& test) {
+    test.set_crtc_type(0);
+    program_registers(test, {{{0,63},{1,40},{2,46},{3,0x06},{4,0},
+                             {5,0},{6,25},{7,45},{8,0},{9,6}}});
+    test.select_register(8);
+    test.reset();
+    test.run_characters(4*64+10);
+    test.write_selected_register_at_clken(3);
+    test.run_characters(53+64);
+    test.run_to_c0(1);
+    test.run_clock_ticks(7);
+    test.expect_byte("t22 exit C0=1 bus phase",1,test.c0());
+    test.expect_line("t22 exit precondition rawC9=R9=6",6);
+    test.expect_ra("t22 exit current doubled value12",12);
+    test.expect_parity_frame("t22 exit even frame",false);
+    test.expect_parity_c9("t22 exit even C9 parity",false);
+    test.write_selected_register_now(0);
+    test.run_to_c0(0);
+    test.run_characters(1);
+    test.expect_ra("t22 C0=1 exit compares12!=6 then resumes plainRA7",7);
+    test.expect_line("t22 C0=1 exit increments rawC9",7);
+    test.expect_c4("t22 C0=1 exit cannot arm frame end from raw6",0);
+}
+
 void t22_exit_even_at_limit(TestBench& test) {
     // p.223 bottom-right table: exiting on the second row's limit line
     // (C9.VMA = 6 = R9) still ends the row (parity dropped from the target
@@ -6648,6 +6809,8 @@ void t22_exit_even_at_limit(TestBench& test) {
         {2, 6, 6},  // matches live C9==R9=6
         {3, 0, 0}, {3, 1, 1}
     });
+    t22_c1_exit_uses_current_line(test);
+
 }
 
 void t22_exit_odd_at_r9_plus_1(TestBench& test) {
