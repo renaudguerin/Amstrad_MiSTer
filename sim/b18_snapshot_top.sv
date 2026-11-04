@@ -1,10 +1,12 @@
 // Combined classic SNA save/reload fixture. All owners and byte decoders are
 // production RTL; C++ supplies byte-addressed RAM and the DDR write sink.
 // FDC is intentionally absent: motor and physical tracks are fixed at zero.
-// Video fetch pixels are zero; real GA/CRTC timing still runs during save.
+// Video defaults to zero; VIDEO_RAM enables the external word backend for
+// the real motherboard byte-to-RGB boundary regression.
 // Only standard uncompressed classic snapshots are accepted (no chunks).
 module b18_snapshot_top #(
-    parameter PLUS_MODE = 1'b0
+    parameter PLUS_MODE = 1'b0,
+    parameter VIDEO_RAM = 1'b0
 ) (
     input clk, reset_btn,
     input [1:0] model,
@@ -38,7 +40,14 @@ module b18_snapshot_top #(
     output [7:0] plus_hcc, plus_r0,
     output [6:0] plus_row,
     output [4:0] plus_raster,
-    output plus_cclk
+    output plus_cclk,
+    // External memory backend and passive video observations. Defaults leave
+    // existing classic/save and R0 callers at their original zero-pixel input.
+    input [15:0] video_word,
+    output [14:0] video_addr,
+    output [11:0] video_rgb,
+    output [4:0] video_pen,
+    output video_hs, video_vs, video_de
 );
     // Production 64 MHz divider; neither phase is reset by a snapshot.
     reg [2:0] div = 3'd0;
@@ -287,8 +296,8 @@ sna_cpu_header sna_cpu_header
         .field(),
         .raw_crt(),
         .pixel_vblank(),
-        .vram_din('0),
-        .vram_addr(),
+        .vram_din(VIDEO_RAM ? video_word : 16'd0),
+        .vram_addr(video_addr),
         .rom_map(256'd0),
         .ram64k(active_model != 2'd0),
         .mem_addr(mem_addr),
@@ -396,6 +405,12 @@ sna_hw_header save_hw_header
     assign plus_row = PLUS_MODE ? motherboard.asic_vid.charline : 7'd0;
     assign plus_raster = PLUS_MODE ? motherboard.asic_vid.raster : 5'd0;
     assign plus_cclk = PLUS_MODE ? motherboard.plus_cclk_en_n : 1'b0;
+
+    assign video_rgb = {motherboard.plus_rgb_r, motherboard.plus_rgb_g, motherboard.plus_rgb_b};
+    assign video_pen = motherboard.asic_vid.PEN;
+    assign video_hs = motherboard.plus_crtc_hs;
+    assign video_vs = motherboard.plus_crtc_vs;
+    assign video_de = motherboard.asic_vid.eff_de;
 
     wire [2047:0] save_header;
     assign saved_header = save_header;

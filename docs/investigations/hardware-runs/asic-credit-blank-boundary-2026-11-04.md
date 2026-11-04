@@ -1,9 +1,11 @@
 # ASIC credit clipping: byte/blank boundary — 4 November 2026
 
-The controlled ASIC probe isolates correct fetched data, decoding and palette
-selection from HSYNC suppression. A genuine DSC4 replay also attributes the
-missing credit pixels to that boundary. Neither establishes a replacement
-timing constant. Production RTL is unchanged by these probes.
+The ASIC credit candidate shifts only terminal horizontal RGB blanking. A
+genuine DSC4 replay attributes the missing pixels to that boundary, and four
+independent normal-boot AmSpirit controls measure both edges. The retained
+regression fails before the change and passes afterward. Independent Gemini
+4 Argon high review accepts the implementation; hardware validation is pending.
+The earlier private probes below are evidence history, not the final contract.
 
 ## Controlled integration result
 
@@ -140,6 +142,105 @@ and `HANDOFF.txt/json`. Commands from that directory are `bash build.sh`,
 Parent verified the run log, executable and ledger hashes against the frozen
 handoff. No timing variant, production test, new RBF or device change follows
 from this controlled unit alone.
+
+## Normal-boot reference controls
+
+Four independent normal-boot cartridges now measure the missing software edge
+contract, without reusing the title's expected last pixel. Guest Z80 code copies
+itself into RAM, programs the palette/CRTC, clears VRAM, writes the same six
+marker bytes on 200 rows, disables interrupts and halts. The paired inputs use
+Mode1/2 and R2=46/22, with R3=2 and otherwise standard63/40/38/25/30/7 timing.
+There is no snapshot input, host PC/RAM/counter write or beam-conditioned CPU
+release. The code reaches HALT8A44, SPBFF0, IFF1=IFF2=0 naturally.
+
+Parent verifies the exact registers and palette, then the **entire16KiB VRAM**
+against the independently constructed 200-row marker pattern. After two further
+natural frames, it captures a paused uncropped1024-pixel raster. Render is Off;
+bright RGB245 and dark5 separate unambiguously at threshold180. No horizontal
+resizing or title-registration search is involved. Parent inspected all four
+images through their contact sheet.
+
+| Control | Mode1 | Mode2 |
+|---|---:|---:|
+| Complete independently decoded marker | 48 Mode2-width samples | 48 Mode2-width samples |
+| Normal DE width / outer border | 640 /384 | 640 /384 |
+| Marker start relative to DE | 336 | 336 |
+| First black sample relative to marker | **15** | **15** |
+| Last black sample | **46** | **46** |
+| First reactivated sample | **47** | **47** |
+| Interior black width | 32 | 32 |
+
+The offline reader first proves the full unique color pattern and border
+geometry, then locates black runs without an expected edge. R2's change moves
+DE origin by384 samples, exactly24 characters; each case's independently
+identified DE origin anchors its marker. Both modes give15..46. This differs
+from the earlier16..47 private hypothesis and motivates testing a15-sample
+terminal-RGB alignment. It is an **AmSpirit1.17.1/core2491682 measurement**,
+not proof that the physical ASIC contains15 stages. French §14.7.2 p144's
+qualified type3 working assumption remains qualified.
+
+Frozen source, cartridge hashes, all request/response metadata, readiness
+checks, screenshots, snapshots captured for observation only, optical ledger
+and `capture_references.py` are under ignored
+`local/overnight-20261103/resumed-20261104/asic-credit-edge/`. Readiness uses
+`view=raw` atC000 under the guest's C0 mapping; `view=fw` is a separate ROM
+view and is not used as CPU RAM. The reader command is
+`python3 read_edges.py reference` from that directory. All four cases complete.
+The next production regression must first fail on current RTL, retain full
+data/pen controls and both edges, and protect reset/SNA history normalization.
+
+## Production candidate and acceptance
+
+`rtl/plus/asic_video.v` samples raw HSYNC into a 15-PIXEN history and uses its
+oldest sample only at the final RGB mask. Reset clears it; snapshot apply fills
+it from incoming `SNA_HS`, replacing pending transitions from the old machine
+state. This is deterministic normalization: the hidden preceding pixel history
+is not serialized, so arbitrary mid-pulse snapshot fidelity is not claimed.
+Raw sync, counters, mode events, register admission and IRQ consumers retain
+their timing. Fifteen is the measured software-reference alignment, not a
+claim about a physical ASIC register chain.
+
+The retained `make -C sim asic-blank-alignment-test` uses production T80/READY,
+normal motherboard snapshot owners and an original six-byte VRAM marker. On
+pre-fix RTL both full 192-clock unblanked controls pass, then each mode reports
+120 RGB mismatches at the intended boundary. After the fix both modes pass:
+unique byte origin260, raw HSYNC `[256,384)`, RGB black `[320,448)`; data, pen,
+DE and VSYNC controls are preserved. A separate public-pin leaf covers 151
+reset/reset-free snapshot lifecycle checks. Default-disabled fixture video RAM
+preserves existing B18 callers. The target is indexed and runs in production
+T80 CI.
+
+Focused verification:
+
+- `make -C sim asic-blank-alignment-test b18-snapshot-test`: PASS, both complete
+  mode windows, lifecycle, six classic capture/restore and six host-publication
+  checks.
+- `make -C sim/plus run/asic_video_tests run/asic_mode_latch_tests`: PASS, 75 video
+  cases and mode latch. Three existing raw-HS-relative sample points now observe
+  the delayed plateau; their R3=1, colors and sprite/border assertions are kept.
+- `python3 sim/select_tests.py --run`: **PASS 44 benches**, once after the final
+  code edit. The slow new target has the focused pass above. No classic soak
+  change is claimed for this ASIC-only behavior change.
+
+The final production source is semantically identical to the frozen private
+15-pixel title candidate. Existing DSC4 replay evidence therefore applies:
+139/139 reference label samples pass, including132 newly recovered pixels and
+seven previously visible controls; fixed-frame differences fall208→76 with
+zero new pixels. CPU, RAM and319488 upstream samples are unchanged. The76
+remaining differences are unassigned, not declared hardware errors.
+
+Cross-provider review: guarded `ask-agy`, `gemini-4-argon-high`, run
+`20261104T134111Z-80111-6ccd`, **ACCEPT**, no blocking findings, no tracked edits
+or repeated gate. Review checked nonblocking-edge arithmetic, both mask edges,
+snapshot/reset priority, fixture defaults and test integration. One cosmetic
+assertion-label spacing nit is left unchanged to preserve the frozen gate.
+
+The parent verified all eight source/test hashes against the final handoff.
+Frozen red/green logs, complete diff, hashes and final gate line are in
+`local/overnight-20261103/resumed-20261104/asic-credit-production/`; the review
+is in sibling `asic-credit-review/REVIEW.md`. The next acceptance is a full
+Quartus artifact with timing closure, then targeted DSC4 credits/main effects,
+Amazing and SHAKER A4/BI8/AEAR7 controls. No broad fresh baseline follows yet.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).
