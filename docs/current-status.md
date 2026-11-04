@@ -57,7 +57,9 @@ our closest software reference, not the hardware oracle.
   row-commit VSYNC correction. Case 19 changes 0003→002B versus 00A3; 11/28
   printed checks still fail. The prior parent 0037 reading was wrong. Cases
   5/14/21/24 retain their corrected values. Case 16's zero-R5 lifetime and
-  case 28's post-entry R4 re-match remain source questions. The failing-first
+  case 28's post-entry R4 re-match remain source questions. The matched
+  AmSpirit original E6 path passes all28 printed checks; CPCSyntaxError also
+  fails case19, so its source supplies no validated replacement rule there. The failing-first
   proof, 240-case CRTC suite, selected gate, independent review, full synthesis
   and exact-source targeted native run all pass their stated bounds.
   [Last Line proof](investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md),

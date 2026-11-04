@@ -89,6 +89,26 @@ zero failures/zeroSSM records. Root inspected all four: credit colons/names
 and sampled main/static/rotating/fire-band views remain visible. This does not
 close the separate mixed-mode partial-pixel defect or prove full-demo fidelity.
 
+## Original-program AmSpirit reference
+
+The same short original E6 path now completes in AmSpirit Lite1.17.1 on
+CPC6128/CRTC0/128K/French, with the same disk and CSL hash1c8673f4…d1d8.
+HTTP preloads the disk; the original reset/boot/key/page waits are preserved,
+with explicit captures after the four page markers. No guest or hidden state
+is patched. Root inspected all four PNGs. Exact 2:1 vertical normalization
+allows the same independent immutable-label glyph decoder to read the three
+numeric pages: all28 printed checks match, including19=00A3 and25=051B.
+This is software-reference evidence, not a physical E6 photo oracle.
+
+The guest script reaches its completion sentinel and saves all four captures.
+The host then fails to create a final state dump because its destination
+folder was absent; the paused-state read is recovered without rerunning or
+modifying the guest. The failed raw exit and separate recovered result are
+retained. Effective monitor isOff/screen_type0; the API reports auto calibration.
+Evidence: `resumed-20261104/amspirit-c0-e6-reference/run-001/`, including the
+complete decoded ledger. CPCSyntaxError's existing original E6 page instead
+prints0003 for case19, so that peer supplies no validated alternative here.
+
 Evidence: ignored `resumed-20261104/e6-r4-vsync-proof/` and
 `resumed-20261104/e6-r4-vsync-fix/` and
 `resumed-20261104/c0-row-vsync-build/`. No broad baseline follows from this unit.

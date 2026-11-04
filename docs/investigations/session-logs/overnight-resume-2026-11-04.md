@@ -1,4 +1,4 @@
-# Active unattended handover — 4 November 2026, 20:25 UTC
+# Active unattended handover — 4 November 2026, 20:38 UTC
 
 Continue the authorized task until approximately 80% weekly Codex used; do not
 end merely because one coherent unit finishes. Live OAuth reading20:24 reports
@@ -15,7 +15,7 @@ milestone builds are authorized.
 ## Checkout and operators
 
 Checkout /Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer, branch
-codex/overnight-validation-20261103. HEADccd49d4, RTLtip9a91920. Parent owns
+codex/overnight-validation-20261103. HEAD4ca04e3 (docs checkpoint pushed), RTLtip9a91920. Parent owns
 all docs and shared MiSTer/AmSpirit access. Device use remains authorized,
 with no hold. Sandboxed SSH signing failed, but the identical approved
 outside-sandbox path works; hardware-loop/SSH use require_escalated. The old
@@ -25,7 +25,17 @@ One writer owns overlapping files. Current native Solhigh
 /root/r3_output_model_scope owns a bounded default-off passive S diagnostic
 implementation and its focused proof/gate; root owns docs. Other agents are
 idle. Do not start a second overlapping writer or rerun that worker's gates.
-No foreign provider, device job or AmSpirit job is active at this handover.
+Two Gemini3.8 calls are active, owned by root:
+- case19source audit exec78142/run20261104T202733Z-68559-1add, private
+  e6-case19-source/REPORT.md; no code/device/API.
+- JIT2→0 private proof exec88320/run20261104T203141Z-69703-5358, private
+  r3-jit-2to0-proof/; coherentfrozenRTL/no candidate, sixfixed+twomixedcases,
+ 5D/A6 nonaliasedpair, sourceplanfirst. No production/Git/device/API.
+Root owns active MiSTer exec68744: targeted9a directS then canonicalhistoryS,
+outputs s-passive-fpga-trace/baseline-{direct,history}-9a91920/. This qualifies
+exact diagnostic-comparison source, not a broad baseline. Drain toexit and
+view scalarPNGs; neverinfer9a Sfrome574 just becauseC1logicunchanged.
+AmSpirit has no active job. Root must drain both bridges anddeviceexec toexit.
 Root must own any newly launched command/provider through exit.
 
 ## Completed code and exact latest artifact
@@ -103,7 +113,13 @@ inheritedR9=7. Both measure19012=4+16*1188us, rawHL04E4, no wrap, computed/
 printed4E40. Root viewed20LIVEcheckpointimages+bothfinalPNGs. Retry count
 alone does not explain nativehistoryfailure. ClassicSNAv2counterfields are
 unavailable, neverzero; these are1us instruction clocks, not64MHz phase.
-AmSpirit is paused on historyS4E40 with temporaryscripts/BPscleared.
+AmSpirit subsequently ran originalC0E6 and is now paused on040A with scripts/
+BPscleared. AllfourPNGs viewed, all28checks match via same independentglyph
+reader after EXACTverticalhalf542→271 (firstincorrect272normalizationfailed
+withoutacceptingdata). Case19=00A3,25=051B. Guestscriptcompletes; host final
+state-dumpfoldermissing causesrawexit1, recoveredpausedreadwithoutguestretry.
+Evidence amspirit-c0-e6-reference/run-001/, result-recovered.json. Sameoriginal
+disk/CSLhash1c8673f4…d1d8. ExistingCPCSE19=0003isalsoWRONG.
 
 Evidence c1-s-caller-qualified/ and c1-s-original-capture/runs/{run-direct-002,
 run-history-001}/, pairedregister/tickledger direct-history-comparison.json.
@@ -145,7 +161,7 @@ R3/mixedmode: no candidate. r3-2to1-zero-fill-proof/ onebuild/run16cases,
 JITType0pixelpass,Type1extraold5DMode2shiftfails; bothblankreleaseearly38/39
 vs40. Astra-medium r3-stateful-model read corrects visible40vsinternaltoken39.
 PaperFrenchp65JIT2→0residual5/pen5for5D versus2→1residual6/pen0 is next
-independentdestinationcadenceconstraint. No2→0run or universalcausalrule.
+independentdestinationcadenceconstraint. Private2→0proof delegated as above; no newrunresult or universalcausalrule yet.
 
 R7CPCSEUKexplicitR7I0.BIN+10swaitqualifies623codebytes/PC/HALT/SP/VRAM;
 PPI1,fallcount64,timeout0; char-roundedC0=0/C4=10/C9=1. Guardednonterminal
@@ -159,8 +175,9 @@ unsent. Keep programassertion. reference-index-recheck/ retainsJSON.
 
 ## Checkpoint policy
 
-Root's current uncommitted docs include currenttip/tally, newA4report,
-sourcequalifications and latest nativeacceptance. Reviewlinks/diffcheck and
-checkpointpush coherently. Pureddocs need no simulation/providerreview.
+Docscheckpoint4ca04e3 pushed after local-linkcheck13files/diffcheckPASS.
+New uncommitteddoc additions recordAmSpiritE6all28PASS and correctnative27
+actual0055vs0065; do not accidentallystageSol's in-progress diagnosticRTL.
+Reviewlinks/diffcheck andcheckpointpush coherently. Pureddocs need no simulation/providerreview.
 Keep current-status currenttip; datedreports ownevidence/history. Do not
 repeatcompleted migrations/packageaudits/baselines. No goaltool was created.

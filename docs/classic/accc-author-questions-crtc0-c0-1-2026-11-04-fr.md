@@ -38,7 +38,7 @@ sur l'état après C0=2 et sur les deux prochains couples (C4,C9) suffirait.
 
 Les cas27/28 de SHAKE27E écrivent R4=39 puis R9=3 ; leurs textes affichent
 R9=2, alors que les deux instructions chargent bien3. Ils ciblent ensuite
-R7=0 et R7=40. Notre cœur donne0065 au premier et02D6 au second, dont le
+R7=0 et R7=40. Notre cœur donne0055 au premier (attendu0065) et02D6 au second, dont le
 programme attend000E. CPCSyntaxError0.12 échoue également au second cas ;
 son résultat ne fournit donc pas une règle alternative validée.
 
