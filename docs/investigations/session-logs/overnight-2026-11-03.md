@@ -474,3 +474,47 @@ fresh FR Plus DSC4 credits at23.5seconds, no breakpoint or script active.
 No bridge remains active. Live OAuth05:37 reading is40% weekly used, reset
 5November19:34UTC, three banked resets untouched; active ceiling80%.
 No master integration, release, PR or author message is requested.
+
+## Final handover — 4 November, 06:17 UTC
+
+The accepted production source remains7ac11a2; later commits contain evidence
+and handoff documentation only. The full RBF is installed on MiSTer and
+includes the classic db4be80 blank/JIT repair, CPU startup repair and Plus
+entered-R0-terminal repair. Its exact-SHA CI and full synthesis are green;
+all44 selected benches, production-T80 and lint pass. The final classic IRQ
+and intended soak checks are recorded in the classic report. No master merge,
+PR, release or author message was made. Documentation checks pass; no code
+changed after the accepted gates.
+
+Genuine FR Plus credit replay now attributes132 black label samples to HSYNC
+suppression of intact bytes/pens/palette; seven boundary controls were already
+visible. One private16-dot blank-delay hypothesis recovers all132 but creates
+16 trailing colon pixels. Its full-frame mismatch count improves208→92 without
+outside-label damage; a final-old-pen/palette sample at the new blank edge is
+still unverified. Reset/SNA history is also unaccepted. It remains private and
+unpromoted; no delay sweep or RBF followed. See the new ASIC blank-boundary
+report and SHAKER next-discriminator matrix.
+
+The bounded A4 media probe is rejected. Apparent padding4045..4062 is used by
+nested stack calls; both actual-CPU runs match all16 original measurements and
+eight formatting words before the hook, but overwrite ten emitter-tail bytes.
+The instrumented run then leaves its intended path. Original red jobs/scorer,
+source, disk diff and observations are preserved; the disk is explicitly
+.REJECTED.dsk. There was no device use, replacement cave, marker/RAM verdict or
+fresh review requirement for an accepted change. A source-only feasibility note
+must not be mistaken for validated media. Existing Plus save admission remains
+unchanged; native A4 RAM is still a missing discriminator.
+
+All native workers and cross-provider runs are finished. No synthesis, capture,
+API script or other long-running job is left for a fresh session to own.
+MiSTer remains7ac11a2/Full after Amazing. AmSpirit is paused on the clean FR
+Plus DSC4 credits at23.5seconds, with no breakpoint/script. Reaper inspection
+reports no live cross-provider bridge. Latest live OAuth06:16 reading is42%
+weekly used, reset5November19:34UTC, three banked resets untouched. The80%
+ceiling was not reached; the run ends at a documented evidence boundary rather
+than consuming the remaining allowance on timing fits or unsafe probes.
+
+Resume from docs/current-status.md and the next-discriminator matrix. Highest
+open questions are the physical ASIC blank/pen latch edge, Type0 mixed-mode
+sampling edge, native A4 result observation, and C1 E/S history/C5. The author
+questions remain unsent and explicitly retain their unresolved alternatives.

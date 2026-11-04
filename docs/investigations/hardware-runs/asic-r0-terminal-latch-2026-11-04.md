@@ -356,5 +356,28 @@ These results accept the specific R0 deadline repair and restored sampled
 main effects, not full SHAKER or ASIC compliance. They do not justify the
 broader queue mechanism.
 
+A separate disk-only observation probe was rejected before device use. Static
+inspection found30 bytes of apparent padding at4045..4062 for a post-measurement
+SSM emitter, preserving file length, header and allocation. Paired production-CPU
+replay then found genuine nested stack writes there: CALL7523 pushes its return
+7526 into4062/4061, and CALL604D next writes4060/405F. The emitter placement is therefore unsafe;
+an earlier five-register-save stack bound was incomplete. Logical cave accesses
+from bank4 backup are a separate alias and do not explain away those stack
+writes. No replacement cave or load-length workaround was tried. Frozen
+failed placement, exact disk diff and passive access traces are in
+`asic/a4-ssm-probe/`; `asic/a4-ssm-feasibility/` is provisional static analysis,
+not accepted media. No native result-RAM claim follows from it.
+
+Both bounded jobs finish with identical16 measurement rows, eight formatter
+rows and instruction-start signature through the first73A9 boundary. At that
+boundary ten emitter-tail bytes4059..4062 have been overwritten in both runs;
+the instrumented run subsequently leaves its intended path. Both wrappers and
+the strict scorer remain red. Physical bank attribution uses source/MMU mapping
+and complete at-hook RAM, not a physical-address CSV field. A separate passive
+wrapper sampled marker `last_code` one publication clock too early; that stale
+value is not a transport result or a production SSM defect. No marker burst or
+native observation is accepted. The disk is named `.REJECTED.dsk`, and all
+jobs have exited.
+
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).
