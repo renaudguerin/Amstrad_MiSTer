@@ -106,6 +106,11 @@ automatically. Case `config` can pass the new settings through to `/api/config`.
 - **The settled screenshot goes stale without VSYNC.** `live=false` returns the last completed
   frame, so a crashed machine yields identical PNGs forever. Identical hashes across
   captures of an animated screen mean "check the machine", not "stable screen".
+- **Replacing breakpoints resumes execution on Lite1.17.1**, even for a nonempty set.
+  A target may already be hit before command acknowledgment completes. Inspect pause/PC
+  before issuing resume, or an ordered chain can silently skip its first occurrence.
+  Clear first, then pause for cleanup. The [tooling guide](../../docs/investigations/hardware-runs/amspirit-lite-1.17-tooling.md)
+  records the live controls and safe checkpoint sequence.
 - **Snapshots are streamed over HTTP in 1.17.** `GET /api/snapshot` streams `.sna` bytes directly
   in the response body, removing the prior requirement for local filesystem co-location and Lua
   `fs.root()` scripting. Snapshots, screenshots and state dumps all work while paused.
@@ -117,5 +122,9 @@ automatically. Case `config` can pass the new settings through to `/api/config`.
   chunk for PRI, DCSR, sprites and palette. In 1.16/1.17, inspect the instance's published
   GA/CRTC fields before assuming a signal is available; their extra fields depend on
   the loaded core. The SNA remains the fallback for unavailable ASIC state.
-- **SNA from AmSpirit is v3 with `CPC+` and `SPRT` chunks.** Our core's apply path does not
-  restore `SPRT`; the manifest's chunk list is what a MiSTer handoff must record.
+- **Inspect each SNA version and chunk list.** Observed Plus saves are v3 with `CPC+`
+  and `SPRT`; classic 6128/CRTC1 on Lite1.17.1 can stream v2, whose v3 CRTC-counter
+  offsets contain zeros rather than measurements. The core does not restore `SPRT`.
+  Record these limits in a replay/hardware handoff; do not assume the snapshot carries
+  every hidden phase. Upstream `snapshot_version` is an accepted no-op in Lite1.17,
+  so that scripting command cannot force a complete classic v3 checkpoint.

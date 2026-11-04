@@ -391,6 +391,17 @@ and capture times are in the plan. Investigate digital response offline before
 any filter rewrite. Original-CPC access is not required for these bounded units;
 faithful CTM response remains unproven. These extend existing residuals.
 
+**DT boundary evidence, 2026-11-04:** a private original-caller replay produces
+both raw GA black intervals, while Full acquisition hides one entirely. Marker-time
+SSM records on the saved MiSTer DT pages confirm applied Full, but do not expose its
+vertical anchor or raw black chronology. Pursue acquisition placement first if the
+device confirms both upstream intervals; do not change CRTC/GA from the photograph
+alone. See the [trace and its snapshot/phase limits](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
+D3's native page overlay separately encounters level-sensitive held-Space advances;
+[caller analysis](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md)
+prevents treating mislabelled captures as CRTC failures. Neither finding requires
+full CRT-photo identity before addressing independently proved functional defects.
+
 **Integrated boundary repair, 2026-10-29:** the type-1 invisible HSYNC
 terminal-overflow event now restarts classic GA monitor shaping without ending
 the raw HSYNC/black level or clocking the interrupt counter. The source-derived

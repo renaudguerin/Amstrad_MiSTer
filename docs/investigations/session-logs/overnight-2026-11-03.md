@@ -105,10 +105,10 @@ Latest live Codex OAuth reading, 00:05 UTC November4: **26% weekly used**, reset
 5 November 19:34 UTC, primary window unavailable. The 60% user limit
 remains in force. Automatic restart after ending this chat is unverified.
 
-The full C-1 walk on the combined artifact completed80captures: E/P
+The full C-1 walk on the combined artifact completed 80captures: E/P
 readable, E numeric60/80residual remains, 02D3now4E40expected in this
 run. 66PNGs are byte-identical to old C-1f. Repeat full history on the
-classic-only build8dde1e7, hosted run41742364942, still in progress.
+classic-only build8dde1e7, hosted run 41742364942, still in progress.
 
 Next: finish classic-only artifact checks and its repeat C-1 history; use the ASIC candidate only for diagnostic
 DSC4/Amazing counterfactual captures; finish D3 comparison and preserve a
@@ -157,7 +157,7 @@ parent; leave the clean credits reference visible while working offline.
 ## Current checkpoint — 4 November, 01:00 UTC
 
 The prior build/capture ownership notes above are historical. Both earlier hosted
-builds completed; the classic-only8dde1e7 repeat has 80 captures, readable E/P,
+builds completed; the classic-only 8dde1e7 repeat has 80 captures, readable E/P,
 P 26 and S 4E40. E 0060/0080 remains open. Device ownership is back with the parent;
 no emulator API work is active, and AmSpirit remains paused on clean credits.
 
@@ -189,14 +189,14 @@ has been redeemed. No master integration, release or PR is requested.
 ## Checkpoint — 4 November, 01:12 UTC
 
 CPCSyntaxError toolbelt guide/skill and initial source discriminator are committed
-asdd247d4. Fresh DT through02FA adds13 complete captures; its02F8/02FA both show
+asdd247d4. Fresh DT through 02FA adds13 complete captures; its02F8/02FA both show
 the photographed second black band and match the earlier partial attempt exactly.
-The broader older event-paced T script times out naturally at0300; that is not
+The broader older event-paced T script times out naturally at 0300; that is not
 assigned as an emulator or author defect. Raw-GA-versus-acquisition tracing remains
 necessary, as explained in the DT boundary report.
 
 The E proof now directly observes C5 and obtains0080 via a private C5-only
-positive-R5 re-entry restart, keeping all other seven values and515zero controls.
+positive-R5 re-entry restart, keeping all other seven values and 515zero controls.
 No production change was made. An authorized bounded Opus faithfulness review is
 running at`/tmp/agents-roster-runs/20261104T011108Z-64964-7921/` (sessionfc46133d).
 It must finish before any implementation decision or turn-end cleanup.
@@ -206,8 +206,92 @@ shifts the rest. The replacement single-key overlay retains70ms presses and
 sends each space in its own MBC invocation; it is active, with parent sole
 MiSTer ownership. No canonical author edits and no accepted44page claim.
 
-Hosted mode3113323 synthesis is active after exact-SHA44bench/lint and
+Hosted mode 3113323 synthesis is active after exact-SHA44bench/lint and
 production-T80 CI pass. No duplicate VM build was started. The build worker
 owns only artifacts, and the DT worker owns only private headless CPCSE/replay
 experiments; neither may operate MiSTer or AmSpirit. AmSpirit's clean original
 credits remain paused. No new code after the accepted44gate.
+
+
+## Checkpoint — 4 November, 01:45 UTC
+
+The mode-only 3113323 full build is verified and on MiSTer. Hardware runs complete:
+BI25commands/8captures/zero failures; AE/AR21/7/0 on both new and baseline;
+DSC416/3/0 and Amazing13/2/0. BI pulse widths are preserved and its one-us mode
+is fixed; AE's readable09 and AR's stripe family match original Plus. DSC4 and
+Amazing CRTC3 remain broken. No demo-wide, master or release acceptance is claimed.
+
+One focused Astra-medium leaf resolved the D3 source question; persisted model
+and effort matched the request.35/04 has no intrinsic timeout: Space is level-
+sensitive across handlers. The separate-key walk still shifts at R3=4. Stop full
+blind delay sweeps; the next discriminator is an accepted-key boundary trace.
+Gemini4Argon high is additionally authorized if Astra does not help; it was not
+needed for this question.
+
+The DT replay has two raw GA black intervals and one acquired interval. Classic
+SNA counters were not restored, so repeated settled cycles establish the model's
+boundary, not exact continuation of the captured hardware phase. Parent corrected
+metadata: per-marker SSM records do contain applied Full0 at 02F8/02FA despite the
+null top-level summary.
+
+E's Opus review completed NEED-DISCRIMINATOR and is preserved. A4AD's deliberate
+1us/frame drift prevents the saved logs excluding an extra acquisition frame.
+A precise C5 French follow-up is drafted, not sent. Production C5 is unchanged.
+
+Original AmSpirit boots captured1800 before file load, then1803 after genuine
+file load but before initialization. The first replay needs absent ROM/FDC;
+the second matches all 128KiB of RAM and first 1891 CPU registers, with real short
+HSYNC. Colon data reaches correct pens and is suppressed by raw FORCE_BLANK.
+The worker is checking R2 write/JIT classification; no timing fix has started.
+AmSpirit is paused on clean credits: PC2084, tick29224275, all ten colon bytes
+match12/31, no breakpoints. Parent owns its API.
+
+The other Sol-high worker owns the natural Plus C000→C802 trace. Genuine v3 CPU,
+RAM and counters load correctly, with no trampoline or patches. Initial frame
+wraps succeed; the saved later AmSpirit chain is 2253frames after the first, so
+it is not the same invocation. A terminal-character R0 write is now the earlier
+candidate; its type3 documentary expectation must be checked before a defect is
+claimed. Both workers own ignored scratch and reports only.
+
+No bridge or hardware job is active. MiSTer is on3113323, Amazing's final black
+screen. Live Codex OAuth01:38 UTC reports31% weekly used, reset November5 19:34 UTC,
+primary unknown. The user's60% pause threshold remains; banked resets are untouched.
+Production code remains3113323; subsequent changes are documentation. No master
+integration, release or PR is authorized.
+
+
+## Checkpoint — 4 November, 02:30 UTC
+
+Production code remains3113323. The mode-only RBF has the bounded BI/AE/AR
+hardware acceptance above; DSC4/Amazing type3 remain broken. A4 adds an
+independent reference constraint: original Plus and fresh CPCSE reject HCC3D,
+while MiSTer accepts it. A genuine CPCSE Plus pre-A4-menu v3 SNA is ready for
+a production-motherboard/T80 replay, with real key4 injection, not a synthesized
+CPU phase. The Sol-high ASIC worker owns that private baseline unit.
+
+The private >= counter experiment scores4/4 against the correctly ordered first
+E2B/E54 reference, but retains its documented overflow-test conflict and later
+phase residual. The character-clock gate is rejected: it loses DSC4's actual
+A13-low OUT(#FF),A register select and consequently writes R9 instead of R0.
+All eight BI width controls still pass, illustrating why BI alone is insufficient.
+Both experiments are frozen and no production repair is accepted from them.
+
+An AmSpirit control proves nonempty breakpoint replacement resumes execution,
+as does an empty replacement. An unconditional resume after acknowledgment can
+skip an already-hit first target. The ordered first-loop probe corrects the old
+E54 ordinal; tooling guidance now records the safe stop check. AmSpirit is paused
+on a clean original classic credit boot, PC2084/tick29164371, ten correct colon
+bytes, no breakpoints. No API or hardware job is active.
+
+Argon-high completed a focused classic timing source pass. French143–144 explicitly
+anchors the black interval to displayed character R2−1; parent rendered/read143.
+Sol-high is preparing a private actual-T80 unique-byte NJIT/JIT vector. No RTL
+edit precedes a failing cross-module proof. A separate Gemini3.8-high guarded
+worker owns only ignored CPCSE E instrumentation, to observe the actual C5 route
+behind its0080 rather than infer it from static source. Its run is
+20261104T022818Z-80045-c04a; the parent retains ownership until exit.
+
+Live Codex OAuth02:25 UTC reports33% weekly used, reset November5 19:34 UTC;
+primary unavailable, three banked resets untouched. Continue bounded units and
+pause near the user's60% weekly threshold. No master integration, release or PR
+has been requested.

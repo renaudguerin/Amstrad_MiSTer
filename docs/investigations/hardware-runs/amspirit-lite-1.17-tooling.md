@@ -138,20 +138,38 @@ separately reviewed classic E/P repair. Full output is ignored under
 `local/overnight-20261103/selected-tests-final.log`. No claim of a live
 apply-time refusal or of every upstream endpoint being exercised is made.
 
-### Breakpoint-clear pause behavior observed on 1.17.1
+### Breakpoint replacement resumes execution on 1.17.1
 
-On core2491682, `PUT /api/breakpoints` with an empty replacement set
-**resumes** a paused machine. A direct control read `paused=true` before
-the call and `paused=false` after its command sequence was applied; the
-operator then reapplied pause and verified it. A breakpoint may also be
-hit before a resume observer ever sees `paused=false`: use command
-acknowledgment plus the intended stop condition, rather than the helper's
-`set_paused(False)` when expecting an immediate breakpoint.
+On core2491682, `PUT /api/breakpoints` resumes a paused machine for both
+empty and nonempty replacement sets. The empty-set control read
+`paused=true` before the call and `paused=false` after application. The
+nonempty control installed `B00:1891` at paused PC2084/tick29204307,
+without a resume request; the machine reached PC1891/tick29218913.
+These are observed frontend semantics, not an inference from elapsed host time.
 
-For checkpoint scripts, clear breakpoints first, then explicitly pause
-and verify the final state. Evidence:
-`local/overnight-20261103/classic/breakpoint-clear-pause-control.json`.
+A target can be hit while the replacement command is being acknowledged.
+Unconditionally resuming afterward skips that first stop. For an ordered
+checkpoint chain, acknowledge the replacement and inspect pause/PC first:
+accept an already-paused target; explicitly resume only if execution remains
+paused at the previous stop. If it is running, wait for the target. Use a
+host deadline and the intended stop condition, rather than requiring a
+resume observer to see `paused=false`.
+
+For cleanup, clear breakpoints first, then explicitly pause and verify the
+final state. Evidence below the ignored task-local root:
+`classic/breakpoint-clear-pause-control.json`,
+`classic/nonempty-breakpoint-pause-control.json`, and the corrected
+`asic/r0-first-loop-amspirit-ordered/`. The earlier unconditional-resume
+probe skipped the first E54 stop; its next-loop counters are not a first-loop
+golden.
+
 The core's streamed classic SNA defaults to version2 with zeros at the
 v3 CRTC-counter offsets; those zero bytes are **not counter measurements**.
 Plus snapshots observed in the same build are version3. Check the version
 before interpreting offsets A9–B0 or claiming an instruction-start C0.
+
+The pinned upstream [scripting guide](https://raw.githubusercontent.com/AMSpiriT-Emulator/amspirit-releases/94c101bfab15039c89187a54d99fa8fb5322aba3/docs/lite/scripting.md)
+explicitly lists `snapshot_version` as accepted and ignored. It cannot force a
+classic v3 save. GET `/api/snapshot` also publishes no version parameter in the
+live endpoint schema. Preserve a genuine pre-initialization CPU/RAM checkpoint
+when later-state replay would otherwise rerun destructive initialization.

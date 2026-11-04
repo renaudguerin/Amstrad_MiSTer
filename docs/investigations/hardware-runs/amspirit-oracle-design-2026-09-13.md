@@ -24,14 +24,23 @@ consequential conclusion must still be confirmed through a cold-boot
 reproduction or independent hardware/reference evidence. The French ACCC keeps
 its documentary role for rule claims.
 
-## 1. Two tracks, different priority
+## Current validation work order
 
-**Track G — generic troubleshooting (priority).** Booting Plus cartridges and
+SHAKER-led functional diagnosis is the current priority. Use fresh CPCSyntaxError
+captures where they match original-CPC photos, inspect its pinned source for
+hypotheses, and use fresh AmSpirit spot checks where it fails or cannot resolve
+behavior. Demos are milestone integration checks. The original-hardware/French-ACCC
+ranking above remains unchanged. See the [CPCSyntaxError guide](../../cpcsyntaxerror-testing.md).
+Older portal captures do not establish behavior in the installed current versions.
+
+## 1. Two troubleshooting mechanisms
+
+**Track G — generic troubleshooting.** Booting Plus cartridges and
 other titles to a defect point, screenshotting, and interrogating machine
 state (registers, CRTC, RAM, BASIC) while debugging the core in simulation or
 on device. Uses no CSL/SSM.
 
-**Track S — Shaker (background).** CSL/SSM walks on both sides already exist
+**Track S — Shaker.** CSL/SSM walks on both sides already exist
 (Phase 0 runner + Phase 1 ring, see
 [csl-ssm-implementation-plan.md](../ssm-csl/csl-ssm-implementation-plan.md)). Since
 `shaker.logonsystem.eu/tests` already hosts most AmSpirit Shaker screenshots

@@ -334,3 +334,209 @@ continue that same caller on the production replay. Verify unchanged colon
 RAM and correct mixed-mode rendering before asserting a pixel failure. Until
 then, the accepted-write observations above are failed replay controls, not
 permission to retime CRTC or GA. The image-stage bottom line remains separate.
+
+
+## Authentic pre-initialization replay — 2026-11-04
+
+The fresh original-boot checkpoints remove the corrupted-source-RAM problem
+of the earlier restart experiments. A private production-motherboard replay
+now reaches the authentic first `1891` RAM image exactly and traces the actual
+colon bytes to their suppression by raw-HSYNC force blank. This is a concrete
+pipeline observation, not yet a hardware-rule verdict or a production fix.
+The image-stage bottom line remains independent.
+
+### Original `1800` entry exposes a different missing dependency
+
+The parent's original disk boot was stopped before executing `1800`, whose
+first instruction is `CALL 1CA0`. The snapshot is
+`classic/credit-preinit-original/pre-1800/pre-1800.sna`, full SHA-256
+`5b7c41571c76fa430bf8205853be35291ba4d78e1a01d289a0da221348bca8d0`.
+Its v2 header supplies CPU registers and 128 KiB RAM, not measured CRTC counters.
+
+The private B18 fixture has no firmware ROM images, a zero ROM-presence map,
+and no FDC path. That matters at this genuine entry: `1CA0` loads the remaining
+DSC4 assets through firmware, rather than merely transforming already present
+RAM. The observed path includes `1CEA: CALL BC77`. A short bus probe pins its
+first unsupported fetch at CPU address `CD30`, physical address `400D30`,
+master-clock offset 13,199: ROM is selected and the unpopulated memory supplies
+`FF`. Execution subsequently falls through repeated `RST 38`, with the stack
+shrinking. This is an explicit missing-ROM/firmware dependency before any
+credible raster comparison. The longer run was stopped after its second
+one-second progress report, not accepted as a failed colon test.
+
+Evidence is in `classic/credit-preinit-replay/`: `direct-probe/`,
+`trampoline-probe/`, `missing-rom-probe/bus.csv`, and the stopped
+`full-original-init.log`. The corresponding private source revisions are
+preserved in `initial-source/` and `missing-rom-source/`. No original snapshot,
+previous replay, production module or retained test was modified.
+
+### Genuine post-load `1803` boundary
+
+The parent then captured another original boot immediately after the real
+`1CA0` returned, before executing `1803: LD SP,1C22`. This is a genuine
+continuation boundary, not a diagnostic PC jump past initialization:
+
+- Input: `classic/credit-preinit-afterload-original/pre-1803/pre-1803.sna`,
+  SHA-256 `7c191b02a567ef848d82dd6c8a3c65eaab97aa55e24d38138dbae37042c4bbe4`.
+- CPU PC `1803`, SP `BFF8`; all four CPU quadrants map RAM, ROMs are disabled,
+  RMR is `8D`, and RAM mapping is zero.
+- The remaining direct caller is `LD SP,1C22; CALL 1D00; CALL 2030;
+  CALL 1910; JP 1812`. The private replay executes that caller unchanged.
+  Its observed `2139`/`21DE` helper path is resident RAM; the full run's
+  missing-ROM guard observed no ROM fetch.
+
+The direct-resume probe demonstrates the fixture's known first-fetch overlap:
+from PC `1800`, it fetches `1801` and `1802` instead of executing `CALL 1CA0`.
+That direct attempt is rejected. The diagnostic FFF0 trampoline avoids the
+first-fetch overlap, subtracts its one extra M1 increment from the initial R,
+and restores all nine saved bytes at FFF0 before the original entry executes.
+For the post-load input, restoration occurs at master-clock offset 215;
+`LD SP,1C22` then executes and `1D00` starts with SP `1C20` at offset 727.
+No title delay or main-loop PC is patched.
+
+Raster initialization is an explicit assumption: production reset holds the
+classic CRTC at C0/C4/C9 zero for 1,024 clocks, then the counters run during
+byte-stream loading and the CPU pause. CPU release occurs at the resulting
+simulated C0=26/C4=3/C9=0. These are deterministic reset-history values,
+**not** measurements read from zero-filled v2 fields or inferred from frontend
+beam coordinates. The original initializer/synchronizer must establish the
+subsequent caller phase.
+
+### Post-initialization RAM and caller regime
+
+`postload-full/` completes in 110.2 seconds wall time, stopping after first
+`1891` plus the bounded target windows. Its first `1891` is at master-clock
+offset 179,461,415. SP=`1AB9`, BC=`BC03`, DE=`1602`, HL=`062E`, and conventional
+AF=`20AA` match the authentic checkpoint's compared register subset. Every byte
+of the 128 KiB RAM dump matches the original first-`1891` snapshot: zero
+differences in all eight 16 KiB banks, SHA-256
+`9fc3395eb79ce9bc852984c661201caa8c60418bc9d27bc28141bdba41929316`.
+The ten independently sampled `12`/`31` bytes and all sixteen colon dot rows
+are intact. See `postload-ram-comparison.json`.
+
+The observed CRTC write events repeat consistently:
+
+| Caller event | Observed C0 | Repetitions |
+|---|---:|---:|
+| `1891` instruction start | 15 | 128 |
+| `1894`, R2 ← 22 | 22 | 128 |
+| `1896`, R2 ← 46 | 26 | 128 |
+| `189C`, R3 ← 6 | 36 | 128 |
+| `18B2`, R3 ← 2 | 10 of the following line | 124 |
+
+Within a line group, `1891→1891` is 4,096 master clocks, or 64 µs. Raw HSYNC
+has both 123-clock short pulses and 384-clock ordinary pulses. This is the
+short-HSYNC caller regime missing from the rejected post-init restart controls.
+Full is requested and applied in the private fixture; observed SHIFT is zero.
+No claim that a different byte policy was exercised follows from that setting.
+
+### First local suppression after correct byte and pen selection
+
+All sixteen authentic dot rows are present in the trace, across 52 captured
+byte occurrences. In all 104 nonzero source-pen slots, the mode-1 serializer
+selects the expected pen, the selected nonblack ink reaches the colour mux,
+and force blank suppresses RGB to zero. No wrong source byte, odd/even half,
+effective mode or selected ink precedes that suppression in these windows.
+
+The earliest captured example is CODE row 166, `F66A=12`, even byte of
+character 21; its neighbouring byte is zero. Times below are observed master
+clock offsets from CPU release:
+
+| Offset | Observation |
+|---:|---|
+| 179,494,598 | Video byte is `12`, mode 1, DISPEN buffered high, raw HSYNC/blank low |
+| 179,494,606 | `VIDEO_BUF=12` |
+| 179,494,614 | Serializer contains `12`, then shifts through `24`, `48`, `90` |
+| 179,494,633 | Raw HSYNC rises at C0=22; force blank asserts |
+| 179,494,634 | Serializer `48` selects pen 2, ink 31, with DISPEN still high |
+| 179,494,638 | Colour mux contains 31; RGB remains zero under blank |
+| 179,494,642 | The pen-2 output slot remains RGB zero; the unchanged decoder without force blank would encode nonblack value 62 |
+
+The following pen-1 slot is also blanked. The `31` source rows similarly
+select pens 1 and 3 before blanking suppresses their nonblack colours.
+`pipeline-ledger.json` records every occurrence; `colon-events.csv` gives the
+first occurrence of each dot row, and `first-boundary.csv` retains the narrow
+first window. `analyze_pipeline.py` reproduces the analysis from the saved CSV.
+The decoder counterfactual only demonstrates that the selected colour is
+nonblack; it is not a manufactured hardware timing golden or a retained test.
+
+### Acceptance limit and next discriminator
+
+This establishes the current core's suppression boundary after correct
+post-init RAM, video byte, mode and pen selection. It does not decide whether
+the hardware-correct repair lies in raw-HSYNC onset, serializer/colour latency,
+or their alignment. The original v2 snapshots still provide no independently
+measured C0 or GA sequencer phase. The reference `1803→1891` duration is
+2,884,645 µs, whereas the replay takes 2,804,084.609375 µs, so absolute cold-boot
+timing equivalence is not claimed even though the compared CPU subset and all
+RAM match and the short-sync line regime is reproduced.
+
+The next rule-derived discriminator can now use these authentic `12`/`31`
+bytes and accepted R2/R3 writes, with the French blank/mode chronogram and an
+independent phase observation choosing its expected pixel window. Do not
+retime HSYNC merely to make this replay render colons. The hardware baseline
+still misses them and the clean original AmSpirit boot still displays them;
+that difference remains the external observation. No production fix, retained
+test, simulation gate, device/API operation, RBF, commit or push was made by
+this private replay unit. The coloured bottom line requires its own image-stage
+investigation.
+
+
+### Production-T80 storage-edge classification
+
+A further observation-only replay records both sides of every master edge
+around the first R2 ← 22 write in `jit-edge/edges.csv`. It reproduces the same
+first-`1891` RAM hash. This explicitly checks two tempting explanations for
+its early-looking blank onset: a pre-C0=21/post-C0=22 counter collision, and
+the later `CLKEN && hcc != R2_old` assignment clearing a fresh JIT latch.
+Neither occurs on this actual write.
+
+At rising edge 179,461,863, the pre-edge signals are C0=22, `hcc_next=23`,
+CLKEN=0, nCLKEN=0, old R2=46, DI=22, `register_write=1`,
+`register_write_d=0`, and `r2_jit_write=1`. After that edge, R2 is 22,
+`register_write_d` is one, and `r2_jit_pending` is one. At the following
+rising edge 179,461,864, the pending latch and comparator are high before
+the edge; afterward raw HSYNC is high, the pending latch is clear,
+`hsync_start_phase=4`, and `hsync_phaseful=1`. The normal type-1 start-pending
+path stays unarmed. Thus this production-T80 occurrence takes the current
+wrapper's **JIT branch**, not its NJIT path. The clear at CRTC.v's later
+CLKEN condition cannot override the fresh latch here because CLKEN is low.
+
+`jit-edge-classification.json` retains the pre/post records and preceding
+counter increment. The earlier sync CSV's rise at offset 179,461,865 is the
+next pre-edge observation of the HSYNC assignment at edge 179,461,864; this
+one-clock logging convention must not be mistaken for another pipeline delay.
+The observed classification does not establish that the JIT output phase is
+hardware-correct. The French phase chart and an independently anchored phase
+origin still need to adjudicate the relationship between the byte serializer,
+colour stages and raw blank. No JIT predicate, latch priority, HSYNC logic or
+other production signal was changed.
+
+
+### French displayed-character anchor and next vector
+
+A focused Astra-medium reading correctly separated serializer load from displayed
+pixel zero. A subsequent Argon-high source pass located a stronger anchor in
+French §14.7.1 pp.143–144. The parent read the primary inspector text and rendered
+p.143 (`classic/credit-preinit-replay/fr-143.png`): when C0 reaches R2, the GA
+is still displaying character R2−1. Type1's ordinary black interval starts at
+the sixth mode-2 pixel of that displayed character; an OUT(C),r8 R2.JIT starts
+at the ninth, with the documented half-eighth-pixel observation. Page144 states
+the three-mode-2-pixel delay and unchanged display-restoration timing. This is
+an output-character anchor; it does not identify a serializer-load edge as RGB
+pixel zero or validate every CPU phase inference in the model's opinion.
+
+Argon's proposed mismatch is concrete enough to test: the actual-T80 JIT rise
+in the saved trace is only five master ticks after the wrapper's nominal
+normal phase, while the output rule requires three mode-2 pixels. The nominal
+phase comparison still needs a matched actual-CPU ordinary-write control.
+A private production-motherboard/T80 vector is being prepared with unique
+adjacent VRAM bytes, an unblanked control, ordinary and JIT writes, and a bounded
+short-HSYNC reactivation control where feasible. It must expose the relative
+blank interval and actual byte/pen slots before any production timing edit.
+The old constant-VRAM, manually driven I/O fixture cannot establish those byte
+identities or independently validate the production CPU's write phase.
+
+Opinions are preserved in `classic/credit-preinit-replay/astra-byte-phase-opinion.md` and
+`argon-opinion.log`; the original native metadata and bridge log remain ignored.
+These are diagnostic analyses, not independent hardware observations.

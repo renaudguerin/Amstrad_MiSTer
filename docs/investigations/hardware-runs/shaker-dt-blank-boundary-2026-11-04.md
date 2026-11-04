@@ -13,10 +13,15 @@ or clipping remain distinct explanations. A screenshot showing one black region
 instead of two cannot distinguish them. Do not assign DT to the filter from
 shape alone.
 
-This is a read-only source investigation. No production/test edits, simulations,
-gates, builds, devices, emulator/API calls, commits, pushes or delegation were
-performed. The only new artifacts are this report and the French-page render
-under `local/overnight-20261103/asic/dt-boundary/`.
+The subsequent private replay below establishes two upstream black intervals
+but only one inside Full acquisition in the settled local caller. That narrows
+the local model's visible-band difference to acquisition placement. It does not
+prove the captured FPGA's lock history or establish a hardware-faithful repair.
+
+The initial source pass used no execution. A separately authorized follow-up
+used an isolated headless CPCSE CLI and an ignored production-motherboard/T80
+simulation. No production/retained-test edits, general gates, RBF builds,
+devices, GUI/API access, commits, pushes or delegation were performed.
 
 ## Evidence and limits
 
@@ -29,11 +34,14 @@ are cached in the main checkout at
 `local/investigations/shaker-sweep-2026-11-03/ref/cpc_CPC/CRTC1/DT_02F8_G2.webp`
 and `DT_02FA_H2.webp`.
 
-The baseline manifest records **requested** Full sync filtering. Its applied
-mode, pixel-rate, scale, mix and native-cadence fields are null: there was no
-runtime readback. Do not treat applied Full as measured. This matters because
-Raw CRT selects different acquisition geometry. The requested mode alone is
-insufficient to prove which stream reached the scaler.
+The baseline manifest's top-level `applied_b6_config` fields are null, but
+its per-marker format-2 SSM records provide runtime evidence: both02F8 and
+02FA have `requested_mode=0`, `applied_mode=0` (Full), line estimate256,
+`shift=false`, `no_hsync=false`, `hsync_mask=true`, `arm=false`, and three
+training syncs. Parent acceptance checked these actual records. Thus Full
+is measured at the markers; the null summary must not be mistaken for an
+absence of all runtime readback. Pixel-rate/mix/native cadence, the later
+PNG's exact phase, and its vertical lock anchor remain unmeasured.
 
 The inspected shared HEAD was `dd247d4e221f70bd3cd0ea6dae6e981bfed87238`.
 `git diff 5fba168 HEAD` reported no changes in `rtl/crt_filter.v`,
@@ -126,3 +134,151 @@ applied filter/scale/pixel-rate mode. No further generic mode sweep is needed.
 Recommended next action is that single boundary trace, not a filter correction.
 The source establishes a credible acquisition hypothesis and an equally live raw
 event hypothesis; the current screenshots do not choose between them.
+
+## Private original-caller replay
+
+Artifacts are entirely under
+`local/overnight-20261103/classic/dt-boundary-proof/`. `commands.txt` preserves
+the commands; `capture-provenance.json`, `rom-hashes.json`,
+`snapshot-header.json` and `replay-provenance.json` pin the inputs. No historical
+capture or caller media was modified.
+
+The known-working `dt1-through-fa.CSL` was copied and stopped immediately after
+its `wait_ssm 0x02F8`, followed by the documented instructions:
+
+```text
+snapshot_version 3
+snapshot_name 'dt-02f8-running'
+snapshot
+```
+
+This invokes the original D module from disk, including its canonical prior T
+pages. It does not start an initializer from a later snapshot. The entire app
+was copied into task scratch so the GUI's settings were not shared. The pinned
+v0.12 executable hash remains
+`f4254653b11676055eedd89dcdae6c6aab381835344d69780f56fcbff218a577`;
+disk hash is `6b9ff106bb8dd02e984f69acd39d0b26d7318854345d23643b12d6748ed0eb61`.
+Machine was CPC6128/CRTC1, `--no-chain --no-errata`, with the copied packaged
+firmware. The CLI completed with:
+
+```text
+[snapshot v3] -> .../capture/dt-02f8-running.sna  t=20.782s
+done: 11 screenshot(s), 1 snapshot(s)
+```
+
+This is a running G caller captured after receipt of F8, not the instant its
+image was rendered: F8 was saved at20.402s and received by the script at20.782s.
+The module also emits F7 during continued execution; page markers are not a
+guarantee that dynamic caller operands remain frozen forever.
+
+The saved file is a131328-byte uncompressed standard-v3 SNA, magic `MV - SNA`,
+SHA256 `bcbb2ea83508703b4c08bd6c1cf52221bcf7f471b0f0a6605a03dcf0e751ecfb`.
+Its CPU state has PC=A2F6, SP=4061, GAconfig=8E, RAMconfig=0, CRTCtype1,
+R0/R4/R7/R9=63/38/30/7, and C0/C4/C9=16/32/0. Both ROMs are disabled, so the
+continued caller uses the saved RAM. The private CPCSE extension is present in
+unused header space and is not interpreted by the FPGA loader.
+
+### Restore and synchronization limits
+
+The wrapper derives from `sim/b18_snapshot_top.sv`, uses the actual motherboard,
+production classic GA/CRTC/filter and generated production T80, and supplies
+byte RAM plus real saved VRAM words. It adds passive output taps. The copied
+motherboard adapter only maps generated T80 port spelling and supplies its
+OUT0/R800_mode constants; it changes no behavioral expression. Source copies
+were pinned at HEAD `d50fee32dcb4447356034000c424817796eefa25`, with per-file
+hashes. CPU state, PC and every RAM byte were consumed unchanged.
+
+**The classic CRTC does not restore these standard-v3 counters.** Its production
+counter block has reset and CLKEN branches, without a SNA counter-load branch;
+the corresponding motherboard classic owner has no counter-load interface.
+The observed restore was therefore PC=A2F6 as saved, but C0/C4/C9=0/0/0 rather
+than16/32/0. GA V26 and filter lock history are also absent from the standard
+snapshot. No private reseed, PC redirect, RAM patch or initializer restart was
+used to conceal that gap.
+
+Consequently the restored prefix is not evidence for the original capture's
+phase. Evidence below is limited to the caller's repeated forward execution,
+which reaches identical accepted-write/counter subcycles. It supports a settled
+local boundary mechanism, not bit-identical continuation from the snapshot or
+the historical device's lock choice.
+
+The first12-frame run was preserved as `run-prefix12/`. Reading the original
+caller bytes exposed a self-modifying countdown/intermediate R7 operand, so the
+final run covered64million master clocks (1s), including both observed operand
+states. No external input was injected. `run/markers.csv` is only a syntactic
+ED/byte scan and includes real OUT/LDI pairs; only known DT marker candidates
+are separately listed. It is not a general SSM decoder.
+
+### Measured settled chronology
+
+`run/io.csv` records the production CRTC register-write level's first acceptance
+edge; C0/C4/C9 here are the values at that edge, not CPU instruction-start
+estimates. After warmup, these positions recur unchanged:
+
+| Instruction PC | Register/payload | Accepted C0/C4/C9 |
+|---|---|---|
+| 69F1 | R7←10 | 61/6/7 |
+| 69FC | R7←30, or the caller's other operand14 | 12/17/0 |
+| 6A07 | R7←30 | 27/27/0 |
+
+The14 payload is already behind C4=17 and did not create an additional raw
+VSYNC in this replay. Both operand states still produce raw VSYNCs at
+C0/C4/C9=0/10/0 and0/30/0. This was observed, not inferred from the register
+values. Final execution completed:
+
+```text
+RESTORE PC=a2f6 expected=a2f6 C0=0 C4=0 C9=0 R7=30 applied_filter=0
+DONE fetches=620329 writes=150 raw_vsync_rises=100 ga_black_rises=100 pc=a2f4 clocks=64000000
+STEADY cycle_ticks 1277952 lines 312.0 rawVS 2 GAblack 2
+```
+
+`run/events.csv`, `run/lines.csv`, `cycle-summary.json` and `analysis.log`
+preserve raw CRTC HS/VS, GA hcnt/black/monitor VS and DAC pairs, actual filter
+vertical counters, and motherboard HBL/VBL. One late complete312-line cycle
+starts at tick60391424; times below are relative to that raw row10 VSYNC:
+
+| Relative tick | Observation | Acquisition state |
+|---:|---|---|
+| 0 | Raw VSYNC rises at0/10/0; GA black starts. | VBLANK already1; vSyncFlt311. |
+| 7183 | Regenerated filter VSYNC rises. | vSyncFlt reset; vSyncCount1. |
+| 7428 | GA monitor VSYNC rises at52/10/1. | Filter vborder resets to0. |
+| 105732 | First GA black interval ends at52/13/1. | VBLANK remains1 throughout this interval. |
+| 130879 | Full acquisition VBLANK clears. | First GA black interval has already ended. |
+| 655360 | Second raw VSYNC and GA black start at0/30/0. | VBLANK0, HBLANK0 at this edge; vSyncFlt159. |
+| 662788 | Second GA monitor VSYNC rises. | No regenerated filter VSYNC; VBLANK remains0. |
+| 761092 | Second GA black interval ends at52/33/1. | VBLANK remained0 throughout this interval. |
+| 1248063 | Full acquisition VBLANK reasserts. | Before the following row10 pulse. |
+
+There are **two distinct upstream black intervals**, each105732 master clocks
+from its raw VSYNC start to the26th raw HSYNC falling edge. The first starts and
+ends entirely outside Full acquisition; the second is inside its vertical
+window. Raw DAC pairs are zero at the recorded black events; the production
+FORCE_BLANK path explains that color independently of output metadata.
+HBL/VBL here are actual motherboard outputs, not downstream VGA_DE/HDMI traces.
+
+This is an acquisition-boundary explanation for one acquired band despite two
+upstream intervals in the local model. It is stronger than the screenshot-only
+hypothesis, but not a confirmed filter defect: the fixed acquisition window,
+chosen sync anchor and physical monitor placement still need comparison. No
+complete scaler or monitor image was reconstructed. The Full vertical filter
+source is unchanged between5fba168 and this copied HEAD, but the complete
+replayed classic CRTC is current HEAD, not an exact5fba168 hardware replay.
+
+### Source comparison and next action
+
+CPCSE's matching source separately supplies GA black to its renderer while its
+monitor consumes composite C-SYNC (`emulator.cpp::advanceClassicMonitorCharacter`).
+`monitor_renderer.cpp::vSync` can refuse early pulses before its oscillator
+window. Its black painting therefore need not disappear when its monitor
+refuses a sync. The renderer and the MiSTer fixed VBLANK aperture are different
+geometrical models; a matching CPCSE photograph does not validate a transplant
+of its flywheel or a new FPGA counter rule.
+
+Recommended next action is to correlate raw event/black counts with the vertical
+Full acquisition tuple and anchor on the device at the same G caller, including
+preceding lock history. Marker-time applied Full is already recorded; that does
+not supply the missing vertical counters or screenshot-time alignment. If the device also has two raw black intervals, DT's
+missing band should be pursued at acquisition placement before changing its
+CRTC/GA. If it does not, compare accepted R7 edges before generalizing this
+settled replay. No production change is proposed. All private processes exited;
+the headless CLI ownership is returned to the parent.

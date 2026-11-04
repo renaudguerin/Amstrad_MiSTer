@@ -306,3 +306,88 @@ this discriminator and the original E hardware result without waiting on a
 broad author question; a new hardware result or a different authentic history
 that distinguishes mechanisms would carry more weight than final-number
 agreement alone. No production repair is included in this unit.
+
+## Independent review and gap audit: discriminator still required
+
+The frozen Opus review (`e-0080-proof/opus-review.log`) returns
+**NEED-DISCRIMINATOR**. Production remains unchanged. The private restart
+proves sufficiency within this replay; it does not select a hardware rule.
+In particular, **CPCSyntaxError's matching0080 is not evidence that its
+positive re-entry-while-already-active branch caused that result**: its source
+releases adjustment at the earlier R5=0 R4/R9 match, so the later case can
+start through ordinary first engagement. The mapped tick858558539 belongs
+to the MiSTer replay; no timestamped internal CPCSyntaxError trace was captured.
+
+The review identifies four classes consistent with the final number: the
+private positive-only restart; an earlier adjustment release; C5 reset at
+every R4/R9 edge while management stays active; or one extra frame between
+cases while C5 preserves phase. The other seven numeric controls do not
+separate those classes. Nor does an identical parity field prove that a
+hardware re-entry would have no other side effects. Exit/restart priority,
+interlace exclusions and entry side effects remain unestablished by this case.
+The reviewer could not open the original photo and relied on this report's
+provenance; no independent reviewer photo inspection is claimed.
+
+### Why the inter-case frame-count explanation remains open
+
+The original code gives part of the gap a fixed count:
+
+- `6F3F` records the result, then calls cleanup `6E40`.
+- `6E40` writes R5=0 and restores R7=30, then jumps to889D.
+- `889D` calls `A4E4` three times. Each call waits for VSYNC to become
+  inactive, then active. This is three subsequent VSYNC starts.
+- After returning, the original character blitter prints the result line.
+  The caller then reaches `70E5/7105`, whose `7108 CALL A4AD` reacquires C0vs.
+
+But **A4AD is not a fixed-count frame wait**. It waits on/off/on, measures the
+second pulse, then at `A4CF/A4D1` repeatedly samples PPI VSYNC. An unsuccessful
+sample calls the delay with DE=`4DED` (=19949), then loops. The instruction
+and call overhead is20 microseconds: the retry period is19969 microseconds,
+one microsecond longer than a312-line frame. The final successful sample
+then takes a separate near-frame delay using DE=`4DF5` (=19957).
+
+French ACCC §7.2 p.39 explicitly describes this frame-by-frame one-microsecond
+drift. Its timing table and wait routine on p.41 were rendered and read for
+this audit (`gap-audit/fr-41.png`). They agree with the original assembly;
+the cleanup's fixed three edges do not remove the adaptive acquisition.
+Thus a one-microsecond difference in starting sample phase can change the
+retry count by a frame, even when the preceding print finishes comfortably
+before the first acquisition edge. This is a possible mechanism, not a claim
+that such a discrepancy has been observed on hardware.
+
+The saved log locates cleanup R5=0 at858565970 and R7=30 at858566866.
+The three following VSYNC starts are859541579,860819531,862097483. Its
+previous-result `TXT` marker falls between the862097483 and863375435 edges,
+but has no timestamp. Later raw VSYNC edges alone cannot identify which pulse
+was caught by an `A4D1` sample and which followed the final near-frame delay.
+The target R5 write at873889747 therefore does not reveal the acquisition
+iteration count or margin retrospectively.
+
+The exact missing observables are timestamps for `7105/A4AD` entry, the
+accepted `A4D1` PPI reads and returned bit0, the successful acquisition branch,
+and the print return. Corresponding real-machine timing or a deliberately
+controlled extra-frame discriminator is also absent. This read-only unit did
+not run another CPU replay or emulator. **Gap class C is not ruled out.**
+The arithmetic remains `312 mod32=24`, so an extra frame changes C5=9 to1
+modulo32 and can account for0080 under the preserved-phase model.
+
+### Q20 raw-wording boundary and follow-up
+
+The dated Q20 note identifies the original attachment as `message.txt`, SHA256
+`278ad89000b9768c965b432157d83e6523259901fa7b3414504ce7d7d65d0677`.
+Neither this unit nor the parent could locate that original attachment in the
+supplied evidence. The available note and the current asked-question entry
+are repository syntheses, not the raw sent/received exchange. They support
+retaining the existing Q20 rule, but **the exact author's wording about C5
+phase on the reset edge could not be reverified**. No claim is made that the
+author explicitly selected uninterrupted C5 phase at that instant, or
+contradicted a possible C5 reset while adjustment stays active.
+
+Existing production rules and historical notes were not rewritten. The
+[French follow-up draft](../../classic/accc-author-questions-c5-2026-11-04-fr.md),
+**not sent**, asks separately about C5 at a zero-R5 R4 reset, positive-R5
+re-engagement while management remains active, possible prior exit, and
+invariance under0–3 deliberately added inter-case frames. It retains the
+original E case history rather than treating the private C5 reset as a golden
+rule. The compact audit and source slice are in
+`local/overnight-20261103/classic/e-0080-proof/gap-audit/`.

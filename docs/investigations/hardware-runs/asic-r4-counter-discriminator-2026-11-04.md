@@ -2,6 +2,12 @@
 
 ## Position
 
+The original-C000 production-motherboard/T80 replay below does **not** lose its
+first C802 frame wrap. Its first twelve invocations also never make C851's R4←2
+a matching C4 write. The measured earlier counter/write candidate is generated
+R0←59 at old C0=R0=63. The next useful reference is that first-loop R0/R9
+chronology, not a held-R4 repair or a broad I/O delay.
+
 There is a useful counter-lifetime discriminator, but no source-backed ASIC latch
 repair is established yet. The current RTL evaluates live C4/R4 at the line seam.
 CPCSyntaxError v0.12 can retain an equality set by an earlier R4 write. The French
@@ -15,9 +21,11 @@ to the rejected synthetic seam's CPU-fetch phase. Actual SHAKER BI pulse-width
 comparisons independently rejected the broad admission qualifier; that rejection
 remains binding for this investigation.
 
-No code/test edits, simulations, builds, device/API access, emulator launches,
-commits, pushes or delegation were performed. Only this report and ignored source-
-reading artifacts under `asic/r4-counter-discriminator/` were written.
+The initial source pass used no execution. A separately authorized private
+production-motherboard/T80 replay is documented below. There were no production
+or retained-test edits, general gates, RBF builds, device/API access, emulator
+launches, commits, pushes or delegation. New private artifacts are confined to
+`asic/r4-counter-discriminator/` and `asic/r4-natural-proof/`.
 
 ## Original evidence located
 
@@ -154,6 +162,515 @@ This distinguishes a counter-decision lifetime from general admission and from t
 source's explicit ROM-select race. Until it is answered or an actual FPGA trace
 shows a different first divergence, the correct result is a named evidence gap,
 not a production latch or a port-wide delay.
+
+## Authentic C000 forward replay
+
+All new executable artifacts are ignored under
+`local/overnight-20261103/asic/r4-natural-proof/`; `commands.txt`, `build.sh`,
+`provenance.json`, `private-source-hashes.json`, `original-header.json` and
+`chunk-control.json` preserve the setup. Original checkpoints and prior replay
+artifacts were left unchanged.
+
+The input is the accepted original pre-initializer `main-entry-c000.sna`, SHA256
+`89e054ccf1afe33c425ac068a2835e48aa109f7dadf37bf47dedea1e693e2c82`.
+Its standard header, all128KiB RAM and the2296-byte CPC+ chunk were copied
+unchanged to `entry-with-cpcplus.sna`; only AmSpirit's trailing private SPRT chunk
+was omitted. The comparison C802 snapshot was never an initializer input.
+
+The fixture reuses the BI/B18 actual motherboard, generated production T80 and
+production standard-header/apply owners. It adds the production CPC+ parser and
+passive taps. The copied motherboard adapter only translates generated T80 port
+spelling and supplies OUT0/R800_mode constants. It changes no behavioral RTL.
+Copied HEAD is `d50fee32dcb4447356034000c424817796eefa25`; the relevant
+motherboard/ASIC video/ASIC GA files have no diff from accepted mode3113323.
+Per-file hashes pin the copied source independently of later shared edits.
+
+Snapshot CPU mapping is RAM banks0/1/2/7, with both ROMs disabled. Bank7's C000
+bytes match the saved CPU-view dump. Its initial calls C26A and CC80 are present
+in saved RAM; CC80 begins the original PPI-VSYNC synchronizer. Execution guards
+would stop on any missing ROM read or FDC transfer. Neither was requested during
+the completed run. No firmware, disk controller or new emulator was required.
+
+The CPC+ state is locked/RMR2=0, PRI/SPLT/SSA/SSCR=0, zero sprite attributes and
+DCSR=80 with no enabled DMA channel. It was consumed through the production
+parser, including palette, IVR and internal DMA shadows. No hidden VMA or CPU/GA
+phase was inferred from the omitted private chunk. The ordinary SNA loader seeds
+VMA/VMA' from R12/R13 as documented in production; the title then runs its own
+original initialization and synchronization.
+
+Unlike classic, Plus actually consumes the v3 counters. This was checked at the
+apply edge and first fetch, not assumed from the header version:
+
+```text
+RESTORE PC=c000 expected=c000 C0=2 C4=24 C9=1 expected=2/24/1 R4=38 R9=7
+FIRST_FETCH pc=c000 byte=f3 c0=2 c4=24 c9=1
+```
+
+The following original fetches are C001, C004, C26A, CC80, CC82. There was no
+trampoline, overwritten RAM, PC redirect, chosen C0, raster reseed or initializer
+restart. The standard snapshot still omits absolute CPU/GA phase and VMA history;
+the original synchronizer, rather than a reference-selected raster, establishes
+the subsequent title timing.
+
+### First natural C802 and subsequent counter drift
+
+The preserved `run-first2/` establishes the first two invocations. The final
+`run/` adds passive R0/register taps and follows twelve natural invocations:
+
+```text
+DONE firstpc=c000 pc=bf00 fetches=844136 writes=14666 C802=12 C851=11 clocks=110163895 dependency=0
+```
+
+Times here are64MHz master clocks after release. The first original C802 is
+observed on the motherboard's M1/INSN_START interface at96104327. Nine clocks
+earlier, the real terminal CCLK edge has already made the correct decision:
+
+| Event | Tick | C0/C4/C9 before | R4/R9 | Result |
+|---|---:|---|---|---|
+| Terminal seam, PC still C801 | 96104318 | 63/1/7 | 1/7 | `frame_wrap=1`; next0/0/0, VMA reload4096. |
+| Observed first C802 M1 | 96104327 | 0/0/0 | 1/7 | CPU is naturally entering OUT(C),0. |
+| Accepted R4←0, portBD04 | 96104455 | 2/0/0 | 1/7 | Stored R4 becomes0,137 clocks after the successful wrap. |
+| C804 M1 | 96104567 | 3/0/0 | 0/7 | Counter result agrees with the original first reference. |
+| Accepted R9←13, portBD04 | 96105287 | 15/0/0 | 0/7 | Stored R9 becomes13. |
+| First C851 R4←2, portBD09 | 97285767 | 28/0/2 | 0/7 | Stored R4 becomes2; C4 is0, so this is not a matching write. |
+| Second C802 M1 | 97382279 | 0/0/2 | 2/7 | Already differs vertically from the reference's later recurring0/0 result. |
+
+Do not compare M1 at C0=0 directly to an AmSpirit instruction-boundary stop at
+C0=63 and infer a lost frame. The terminal edge and the actual write acceptance
+are both recorded here, and demonstrate that first C802 did not cancel a pending
+wrap. No synthetic fetch at C0=60 was used.
+
+Across all eleven C851 acceptances, C0=28, C4=0 and C9 progresses2,4,6,8,9, then
+stays9. Matching C4=payload2 occurs **zero** times. C802's C9 progresses0,2,4,6,7,
+then stays7, always with C4=0. The CPU loop cadence remains1277952 master clocks
+(19968µs). Thus this natural model develops a vertical-counter discrepancy before
+the later C802 reference, but supplies no matching-write history that could
+justify the CPCSE held-R4 flag as its repair.
+
+### Reference ordinal is recoverable
+
+`checkpoint_dsc4_plus_retry.py` saves the original C000 checkpoint, steps DI and
+the type store, then **replaces a nonempty breakpoint set** with B07:0802. There
+is no empty-clear between C000 and that first R4=1 stop. The matching retry log
+records C000 at45734678 and C802 at47236307, a1501629µs elapsed initializer.
+The private first C802 is1501630.109375µs after release, approximately one
+microsecond later at its different observation anchor. Both first C804 stops
+have C0/C4/C9=3/0/0.
+
+The retry then steps C802, replaces its breakpoint with C80B and catches a later
+caller at47256288. This is19981µs after first C802, consistent with one19968µs
+loop plus its13µs C802→C80B sequence. Its HL low byte is1. That later C80B has
+C4/C9=0/0, whereas the private second C80B has0/2. This bounds a real observed
+counter difference by the second loop, without pretending to have its exact
+first divergent edge.
+
+`step_dsc4_write_chain.py` does **not** reboot or reload C000. It imports only
+the definition prefix of the earlier script and arms C802 on the already-running
+machine. The retry's final empty `bp()` had resumed execution, consistent with
+the separately measured breakpoint-clear behavior. Its coherent single-stepped
+C802 chain at92224211 is44987904µs after the first stop: exactly2253×19968µs.
+HL low0→205 and E1→206 agree with2253 loop advances modulo256. This is a later
+same-boot lineage, not a first/second-invocation reference; under the measured
+cadence it is the2254th C802. The exact same-caller C802→C80D sequence remains
+valid, but cannot be overlaid on the first initializer traversal.
+
+### Earlier measured boundary and precise missing reference
+
+The first generated R0 traffic provides a more useful earlier discriminator:
+
+| PC | Tick | Current C0 | Old R0 | Stored new R0 | C4/C9 |
+|---|---:|---:|---:|---:|---|
+| 0E00 | 96157511 | 63 | 63 | 63 | 0/12 |
+| 0E2B | 96161607 | 63 | 63 | 59 | 0/13 |
+| 0E54 | 96165447 | 123 | 59 | 0 | 0/13 |
+| 0E56 | 96165703 | 127 | 0 | 57 | 0/13 |
+
+At0E2B the actual accepted R0←59 removes the live `hcc_last` comparison while
+C0 is63, before its CCLK decision edge. The model then advances past the new
+R0; C0 is123 by the next R0 write. These are measured production counter/write
+facts, **not yet a claim that hardware must retain the old comparison**.
+The original reference C802 RAM was read only for comparison, resolving CPU
+addresses through its saved mode2/banks4..7 map; its generated0E2B bytes are
+OUT(C),D. No comparison-image bytes were fed into initialization.
+
+The current missing reference is the first generated R0/R9 sequence after the
+successful first C802: stop immediately before/after0E2B and its next line
+decision, recording current C0/C4/C9 and old/new R0/R9. That can distinguish an
+intended R0 overflow from a prematurely cancelled old terminal decision. Check
+the French type3 rule before writing a fail-first expectation. Preserve raw I/O
+admission and BI's already accepted pulse widths; this evidence authorizes
+neither a broad port delay nor a held-R4 production flag.
+
+`run/{io,seams,c802-fine}.csv` preserve the emitted logs. Their final logging
+helper added two post-state values, R0 and selected register, without adding
+those two header names; `analyze.py` names the columns from that helper's exact
+emitted order and writes separate `*-normalized.csv` files. No numeric values
+are changed. `analysis.json` and `analysis.log` preserve the derived summaries.
+All private processes exited. No live emulator or device was touched.
+
+## R0 source follow-up: boundary known, lowering outcome still open
+
+This follow-up was source-only: no further simulation, tests, emulator/API calls
+or device operation. Navigation used `lookup.py`; the existing French
+pdf-inspector primary Markdown and native-partial inspection report were reused.
+French pp.123–126 were rendered and read visually as
+`asic/r4-natural-proof/fr-r0-{123,124,125,126}.png`. The diagram, rather than its
+flattened text extraction, determines the timings below.
+
+The suggested classic sections do not define an ASIC retained-match rule:
+§13.2.2 p.107 concerns type0 VSYNC qualification when C0 never reaches2;
+§13.7.1.2 p.126 concerns type1 RFD after enlargement of a terminal frame line.
+Neither can be transposed to type3. French §13.5 p.123 instead says the ASIC
+handles all R0 values without the classic counter-freeze constraints, identifies
+the separate C9/R9 lowering behavior, and reminds the reader of the one-us I/O
+offset. It does not explicitly state what C0 does when new R0 is below current C0.
+
+French §13.6.3 p.125 directly establishes an **instruction deadline** for
+enlarging R0 from#3F to#7F. Using the document's C0vs instruction-start anchor:
+
+| Transfer | Starts in time for the current line | Too late for the current line |
+|---|---|---|
+| OUT(C),r8 | #3B or#3C: chart continues #3F,#40 | #3D or#3E: chart gives #3F,#00 |
+| OUTI | #3A or#3B: chart continues #3F,#40 | #3C or#3D: chart gives #3F,#00 |
+
+The late value is not lost as register storage; it is too late to prevent that
+old line's wrap. The chart's lower panel similarly distinguishes when R0=0
+becomes positive. Its sentence that C0 never exceeds R0 is expressly qualified
+by the timings shown. It does **not** provide a lowering-to-below-C0 chronogram
+or establish a generic `C0>=R0` ASIC comparator.
+
+C0vs is the source's PPI-VSYNC-derived timing reference (§§7.1–7.2 pp.38–39),
+not an arbitrary first-M1 timestamp. The natural trace's raw C0=63 at acceptance
+cannot be placed in one of these instruction rows merely by subtracting a
+nominal instruction duration. That would repeat the unverified absolute-phase
+assumption from the rejected bus qualifier.
+
+### Software hypothesis versus current RTL
+
+In matching CPCSE v0.12 source, `crtc.cpp::writeRegister` recomputes
+`horizontalTotalMatch` on every R0 write. Type3's
+`horizontalCounterAtTotal()` returns `horizontal >= R0`; other default chips
+use equality. Its character tick later consumes `horizontalTotalMatch` to wrap
+C0 and advance vertical state. Thus new R0 below current C0 forces a next-wrap
+condition in this software. It is not simply an old equality retained forever:
+an R0 write explicitly recomputes the condition.
+
+Current `asic_video.v` instead makes `hcc_last=(hcc==R0_h_total)` combinational
+and samples it on CLKEN. This equality/overflow behavior is already marked an
+unverified P1 assumption in that source. The live equality explains the measured
+0E2B path, but the CPCSE >= alternative remains a hypothesis. Neither source's
+comment supplies missing silicon evidence.
+
+### Paper discriminator, not a required failing assertion
+
+Select R0 through BC00, then use ordinary BD00 data writes, with R5=R8=0 and a
+nonterminal vertical row to isolate horizontal behavior. Keep raw I/O admission
+and R3/HSYNC unchanged. Use the original/source-defined synchronizer for any
+instruction deadline, and score raw counters rather than monitor position.
+
+| Case | Transfer/history | Independently established outcome or open question |
+|---|---|---|
+| Safe held control | R0=63; write59 well before its terminal region, then hold. | Normal sequence reaches59 and wraps0; vertical state advances once (§13.1 p.104). |
+| Source early enlargement | R0=63; OUT(C),D with D=127 begins on C0vs#3C. | Current line continues through#40 (§13.6.3 p.125). |
+| Source late enlargement | Same transfer begins on C0vs#3D. | Old line still wraps#3F→0; next line uses new R0 (§13.6.3 p.125). |
+| Natural lower-at-old-terminal | Store59 during raw old C0=R0=63, recording actual acceptance and next CCLK. | Live equality predicts64; retained old decision or CPCSE catch-up predicts0. No definitive French outcome for this lowered-value case. |
+| Distinguish catch-up from old-match retention | Store20 safely during old C0=40/R0=63. | No old equality exists to retain: a next0 favors catch-up; next41 favors equality/overflow. Again a hardware/author question, not a source-proven expected pass. |
+
+The next precise question is therefore: on type3, does an ordinary R0 write below
+current C0 force a line end at the next character, and is the result different
+when old C0 already equals old R0? Calibrate that through the proven early/late
+enlargement controls before using the natural0E2B trace as an ASIC comparator
+verdict. A first-loop reference stop immediately before/after0E2B remains useful
+even without absolute instruction timing: it can directly show the next C0 and
+C9 change. No new fail-first fixture is justified yet for the disputed lower
+case, and no production comparator or bus-admission change is proposed.
+
+## Private catch-up experiment against the fresh natural reference
+
+The parent subsequently captured the missing natural reference using
+**B04:0E2B**, not B00. `0E2B` in the private trace is the logical CPU PC of
+generated code. C816 writes7FC2, selecting mode2/banks4..7; C830 jumps to0E00.
+T80's instruction-start tap is M1/T2 with Prefix00, excluding operand fetches,
+continued prefixes and IRQ acknowledge. Both original reference CPU maps and
+bank4 bytes corroborate the address. A breakpoint on B00:0E2B cannot catch it.
+
+Fresh original-C000, unpatched AmSpirit evidence is preserved in
+`asic/r0-first-loop-amspirit-ordered/`. Its instruction-boundary stops are:
+
+| Stop | Emulated µs since load | C0/C4/C9 | R0 |
+|---|---:|---|---:|
+| Before first0E2B | 1502522 | 60/0/13 | 63 |
+| After its original OUT(C),D | 1502526 | 0/0/0 | 59 |
+| Before first0E54 | 1502582 | 56/0/0 | 59 |
+| After its original OUT(C),0 | 1502586 | 0/0/1 | 0 |
+
+This supplies an independent **software-reference oracle** for the actual lower
+case. It does not turn French §13.6.3 into a lowered-R0 silicon golden.
+
+These E54 stops are60µs after E2B, in the same first loop. The older
+`r0-first-loop-amspirit-b04/` instead stopped at1522550/1522554µs, one extra
+19968µs loop later. Its2/4 variant comparison is preserved separately as
+`score-skipped-nextloop.{py,json,log}`. The primary scorer now uses the ordered
+first-loop reference and selects the first E54/E56 samples. No simulation was
+rerun to make that correction.
+
+### Baseline failure and one-line private variant
+
+All new work is ignored under `asic/r0-catchup-proof/`; no production or retained
+test file changed. `score-baseline.py` scores the frozen natural trace against
+the fresh reference and exits1:
+
+```text
+FAIL frozen baseline first-E54 vertical [0, 13] reference [0, 0]
+```
+
+The baseline did not sample the immediate next CCLK after0E2B. Its post-write
+state and known equality expression imply next64/0/13, but that is explicitly a
+model-derived value. The direct frozen failure is C9=13 at
+the first E54 acceptance, where the ordered reference remains C9=0 before that
+instruction. Only that unchanged vertical state is scored across the different
+within-instruction observation phases. No baseline simulation was rerun.
+
+The private source copy changes exactly one behavioral line:
+
+```diff
+-wire        hcc_last = (hcc == R0_h_total);
++wire        hcc_last = (hcc >= R0_h_total);
+```
+
+This is a catch-up hypothesis: while stable C0 never exceeds R0 it is identical
+to equality; when a write lowers R0 below current C0 it permits the next line
+edge. It is broader than CPCSE's on-write recomputation, so equivalence with that
+software is not claimed. Raw I/O admission, CPU/GA clocks, R3 storage and pulse
+logic remain unchanged. `hypothesis.patch`, `experiment.json`, source hashes and
+the frozen baseline provenance pin the change. The same original header, RAM,
+CPC+ input and initial clock are used, with no CPU/PC/RAM/raster patch.
+
+The completed natural run has the same CPU instruction/write counts and elapsed
+clock count as baseline:
+
+```text
+DONE firstpc=c000 pc=bf00 fetches=844136 writes=14666 C802=12 C851=11 clocks=110163895 dependency=0
+```
+
+`score.py` reads expected values directly from the parent's saved checkpoint
+metadata, hashes the corresponding v3 snapshots, and compares the variant's
+original instruction-boundary observations:
+
+```text
+PASS before-e2b ref [60, 0, 13, 63] observed [60, 0, 13, 63]
+PASS after-e2b ref [0, 0, 0, 59] observed [0, 0, 0, 59]
+PASS before-e54 ref [56, 0, 0, 59] observed [56, 0, 0, 59]
+PASS after-e54 ref [0, 0, 1, 0] observed [0, 0, 1, 0]
+NATURAL_CHECKPOINTS 4 / 4
+```
+
+The added passive tap now records the exact next CCLK edges. At96161662, C0=63,
+R0=59, C4/C9=0/13 becomes0/0/0. At96165502, C0=59, R0=0, C4/C9=0/0 becomes
+0/0/1. Thus both measured same-first-loop counter discrepancies disappear under
+the one-line variant, without shifting the bus. The correctly ordered reference
+supports all four comparisons. The old skipped-next-loop score is capture-order
+evidence, not the primary acceptance interpretation.
+
+All twelve C802 observations now have C4/C9=0/0; the former0→2→4→6→7 raster
+drift disappears. This is **not complete phase agreement**: the first C804 still
+has C0=3, but subsequent C804 observations have C0=4 instead of the reference3.
+Later C802 M1 is C0=1. Absolute instruction/counter phase and admission therefore
+remain open even though this vertical discrepancy is removed.
+
+### Bounded controls and preserved failure
+
+The existing private BI actual-motherboard/T80 adapter and unchanged external
+pulse oracle were rebuilt against the private current source/variant. No old
+baseline was rerun. All eight original BI snapshots pass:
+
+```text
+BI_FINAL 8 / 8
+```
+
+This covers2376 critical pulses at the independently established14/1/2/3-character
+widths and7488 normal14-character pulses, with zero width failures. It preserves
+the hardware-backed pulse-admission result which rejected the earlier broad bus
+qualifier. It is a pulse-width check, not a full BI image comparison.
+
+Three private leaf controls pass: safely held R0=59; enlargement to127 well
+before the old terminal; and enlargement to127 after the old wrap has already
+committed. These are broad source-safe sides of §13.6.3, **not** a calibrated
+OUT/OUTI C0vs deadline test. They do not resolve the adjacent#3C/#3D boundary.
+
+The original leaf `t01e_r0_shrink_overflow` body and assertions are unchanged:
+
+```text
+FAIL existing t01e unverified eight-bit overflow assumption: overflow climb toward 255: HCC: expected 22, actual 0
+PRIVATE_CONTROLS passed=3 failed=1
+```
+
+This known unverified model expectation conflicts with the catch-up hypothesis.
+Its failure is retained in `controls.log`, rather than weakened or described as
+a green suite. It requires independent resolution if a production fix is later
+chosen. No general selection gate was run for this private experiment.
+
+### Independent A4 constraint and next hypothesis boundary
+
+During this experiment the parent reported an independent actual-hardware A4
+deadline mismatch on3113323: Plus reference/CPCSE HCC#3D is KO while MiSTer says
+OK, and OUTI on C0vs#3C differs01 versus00. Artifacts are
+`asic/a4-3-device-3113323/` and `cpcse/a4-3-real-plus-ref/`. These were supplied
+by the parent, not captured or reinterpreted here. A4 constrains register timing;
+it is not a hardware oracle for lowering R0 below current C0.
+
+The catch-up variant does not fix that independent admission deadline. Moreover,
+deferred storage at the old line-end edge could produce the same first E2B
+result while retaining equality. The
+present result therefore demonstrates a sufficient mechanism for the first
+discrepancy, not a complete repair or uniquely the right physical mechanism.
+
+A bounded private CCLK_EN_N acceptance hypothesis is worth investigating against
+the actual A4 early/late pair, natural E2B/E54 and BI1µs control together. If R3 is
+stored on the same edge as its terminal comparison, nonblocking storage alone
+leaves that comparison reading old R3; fresh-data forwarding would need its own
+source-supported control. No such second hypothesis was implemented here.
+
+There is also an existing hard integration constraint: the production IC116
+equation exposes A13-low IORQ only while READY is high. Prior actual-motherboard
+phase evidence places those visible OUT windows at[8,24) and[68,88), outside the
+CCLK level/CCLK_EN_N edge. Simply ANDing ENABLE with CCLK_EN_N previously lost
+alias OUT and IN-write transfers. A proposed clocked acceptance boundary must
+therefore prove those contracts as well, without an A13/opcode bypass or an
+unsupported extra window. Pending capture/commit state may be necessary, but is
+not a source-derived repair established by this report.
+
+Exact commands and final lines are preserved in `commands.txt`, `baseline-score.log`,
+`score.log`, `bi-batch.log`, `controls.log` and `run/run.log`. All private processes
+exited. There was no production/retained-test edit, general gate, API/device
+operation, RBF build, commit, push or delegation. Preserve both the >= result
+and the t01e failure for independent review before any production decision.
+
+## Ordered-reference correction and character-edge hypothesis
+
+The parent then captured a correctly ordered **same-first-loop** sequence at
+`asic/r0-first-loop-amspirit-ordered/`: E2B before/after1502522/1502526µs,
+E54 before/after1502582/1502586µs. Counter/register values are the same as the
+four-row table above, but E54 is now60µs after E2B rather than20028µs later.
+The parent separately proved that a nonempty breakpoint PUT resumes execution;
+an unconditional resume POST can therefore run past an already-hit nearby
+target. Evidence is `classic/nonempty-breakpoint-pause-control.json`. This is
+why the older B04 E54 stops belong to the next loop.
+
+The `>=` source and executable remain frozen. A read-only rescore against the
+ordered reference, saved under `asic/character-write-proof/score.{json,log}`,
+now gives **4/4** first-loop checkpoint matches for that variant. The older
+2/4 result remains a valid comparison with a different E54 ordinal, not the
+same-first-loop acceptance test. This does not remove A4's independent deadline
+failure, the later horizontal offset or the unverified t01e conflict.
+
+### Second private hypothesis: equality plus character-edge writes
+
+The separate ignored `asic/character-write-proof/` starts from the original
+3113323-equivalent production copies, retaining `hcc_last == R0_h_total`.
+Its only motherboard behavioral change is the ASIC instance:
+
+```verilog
+.ENABLE((io_rd | io_wr) & (A[9] | no_wait | plus_cclk_en_n))
+```
+
+A9 selects the CRTC port's read/write operation independently of the CPU
+opcode, so read ports remain live and IN on a write port still performs its
+normal write side effect. `no_wait` explicitly retains fast-mode admission.
+No opcode/A13 exception or pending-write infrastructure was introduced.
+
+The private ASIC copy also forwards DI's R3 low/high nibbles to horizontal and
+vertical terminal-width comparisons only when that R3 transfer is accepted on
+the current CLKEN edge. This avoids the comparison seeing stale nonblocking
+register storage at that same decision. No counter/GA clock was moved, and R0
+equality was not changed. The complete small diff is `hypothesis.patch`.
+
+An initial provisional copy also gated the dormant classic instance through an
+overbroad textual replacement. It is preserved under
+`pre-classic-owner-correction/`; that change was removed and the final natural
+and BI runs below were rebuilt/rerun with only the ASIC instance changed. No
+production classic source was touched.
+
+### Fatal result in the authentic caller: register selection is lost
+
+The final run preserves the same original C000 input, counter restore, CPU/RAM,
+CPC+ parser and clock. It completes twelve invocations with the same844136
+fetches,14666 logged data-write pulses and110163895 master clocks, with no ROM
+or FDC dependency. Those counts do not establish correct transfers.
+
+The ordered checkpoint comparison is **1/4**, not a counter repair:
+
+```text
+character-edge PASS before-e2b ref [60, 0, 13, 63] actual [60, 0, 13, 63]
+character-edge FAIL after-e2b ref [0, 0, 0, 59] actual [0, 0, 0, 63]
+character-edge FAIL before-e54 ref [56, 0, 0, 59] actual [56, 0, 0, 63]
+character-edge FAIL after-e54 ref [0, 0, 1, 0] actual [60, 0, 0, 63]
+```
+
+The apparently correct first E2B counter wrap hides the wrong register write.
+At96161662 the actual accepted data pulse has logical PC=0E2B, selected
+register9, portBD09, data59 and post-R0 still63. The preceding original code is:
+
+```text
+0E23  AF       XOR A
+0E24  D3 FF    OUT (#FF),A     ; address00FF selects R0, A13=0
+0E26  16 3B    LD D,59
+0E28  BE BE BE
+0E2B  ED 51    OUT (C),D      ; should write R0; BC=BD09
+```
+
+The character qualifier misses that short READY-shaped A13-low select at00FF.
+R9 remains selected, so E2B writes59 to R9 rather than R0. E54/E56 similarly
+hit the wrong selected register. This is the previously predicted alias loss
+inside the **authentic DSC4 caller**, not just an artificial port test. Later
+C802 C9 becomes4 and stays there. No counter-lifetime conclusion can be drawn
+from those wrong-register side effects.
+
+### What survives, what is not proven
+
+With incoming-R3 terminal forwarding, the unchanged private BI oracle still
+reports `BI_FINAL 8 / 8`:2376 critical and7488 normal pulses retain the correct
+widths. That is useful evidence for the R3 consumer interaction, but cannot
+validate admission for other traffic.
+
+The original production-T80 motherboard bus fixture, used diagnostically only,
+preserves ordinary OUT/OUTI/OUTD payloads77, OUT(n) payloadBD, IN-write opcode78,
+normal BE read30 and fast setup R1/R4/R9=40/38/7. Both A13-low alias OUT and
+IN-write fail, leaving R13 at10hex. Its final result is
+`DIAGNOSTIC_BUS 7 / 9`; the old storage-window assertions are not newly promoted
+silicon oracles. No assertion was weakened.
+
+No original A4 caller was executed in this private unit. Its actual#3C/#3D C0vs
+enlargement deadline therefore remains
+**untested here**; the old fixture's raw M1-coordinate windows cannot substitute
+for that anchor. The independent original-Plus A4 photograph still requires a
+faithful admission repair, but this simple character-edge AND is already
+disqualified by lost aliases and the natural wrong-register transfer. No new
+emulator/API session was opened.
+
+The parent subsequently supplied a genuine pre-A4 menu snapshot at
+`cpcse/a3-menu-v012/a3-menu-before-a4.sna`, SHA256
+`eac8609c7458f75178a244ee32c6756b0dafe26b14a0ee0b05621ca98a57afef`.
+Header inspection confirms v3/model4/type3/128KiB, PC4195; provenance is a fresh
+CPCSEv0.12 Plus run with the English cartridge. It is ready for a separate
+baseline measurement, not consumed here. The verified key4 PS/2 press/release
+values are625/025hex. This B18 adapter currently ties ps2_key to0 and has no A4
+result scorer, so obtaining a meaningful baseline would require an additional
+bounded fixture unit after this already rejected hypothesis. Details are saved
+in `character-write-proof/a4-input-ready.json`.
+
+Recommended next boundary is source-supported transaction capture versus commit:
+preserve the physical READY-shaped address-select/data traffic, then establish
+when the ASIC consumes it using actual A4 and BI together. Do not paper over
+the gap with an A13 bypass, a register-specific delay or a generic pending queue
+without evidence. The present stage proposes no production change. The `>=`
+experiment is a separate frozen result, not combined with this qualifier.
+
+Final source/input hashes, exact commands, `score.log`, `bus-batch.log`,
+`bi-batch.log`, `handoff.json` and `run/run.log` are preserved in the new scratch
+directory. All processes have exited. No production/retained-test edit,
+selection gate, API/device operation, RBF build, commit, push or delegation
+occurred.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).

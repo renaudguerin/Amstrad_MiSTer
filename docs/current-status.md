@@ -12,51 +12,58 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
 
 ## Latest integration and artifact
 
-- **CPCSyntaxError toolbelt (2026-11-04):** the supplied macOS universal
-  v0.12.0 binary and matching source 22de765 are pinned. Headless CSL/SSM
-  has run eight BI/CRTC3 captures, the 80-capture C-1 walk and seven AE/AR
-  captures (the last batch took 1.639 s wall time); a further13capture DT
-  probe completes through02FA. E prints 0080 as on the
-  real-CPC photo, where MiSTer still prints 0060. BI's one-us case preserves
-  the hardware-expected mode. These are targeted observations, not a whole
-  suite accuracy score. [Guide](cpcsyntaxerror-testing.md),
-  [skill](../.agents/skills/cpcse-test/SKILL.md),
-  [pilot](investigations/hardware-runs/cpcsyntaxerror-v012-pilot-2026-11-04.md).
+- **Validation branch (`codex/overnight-validation-20261103`, 2026-11-04):**
+  AmSpirit Lite 1.17.1 tooling is migrated and verified; keep direct HTTP for
+  required media/render/script operations. CPCSyntaxError v0.12.0 and matching
+  source are now a working instrumentable tool. Fresh runs cover BI3, C1,
+  AE/AR3, a bounded DT1 probe, A4 and DSC4 credits. Capture completion is
+  execution coverage, not an overall pass rate. Use original-CPC photos to validate each relevant
+  observable; AmSpirit remains our closest software reference.
+  [CPCSyntaxError guide](cpcsyntaxerror-testing.md),
+  [pilot](investigations/hardware-runs/cpcsyntaxerror-v012-pilot-2026-11-04.md),
+  [AmSpirit tooling](investigations/hardware-runs/amspirit-lite-1.17-tooling.md).
 
-- **Validation task (`codex/overnight-validation-20261103`):** AmSpirit Lite
-  1.17.1 tooling is committed and verified; retain direct HTTP because the
-  upstream MCP omits required media/render/script operations. The new SHAKER
-  package is installed, with the French B-1 key override kept separately.
-  D-1 completes 127 captures, but all 44 D3 pages still need a reliable host
-  capture/input overlay: SSM is emitted on advance, and the initial manual
-  overlay loses multi-space inputs. This is a harness limitation, not 44 core
-  failures. [Package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md),
-  [device results](investigations/hardware-runs/shaker-package-device-2026-11-03.md).
-  Classic E/P display/status recovery (`8dde1e7`) is reviewed and now repeated
-  on its own full-build artifact: E/P are readable, P reports 26, S reports 4E40
-  in both new full C-1 walks. E's 0060 versus 0080 remains open; the new
-  [positive-R5 source discriminator](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md)
-  now has an executable private proof: a C5-only positive-R5 restart changes
-  0060 to0080, retaining the other seven E values and zero/off-R4 controls.
-  It remains a mechanism hypothesis under independent review, with Q20's
-  zero case preserved.
-  The ASIC bus qualifier (`bedb1c5`) is **rejected and reverted** (`939ee6f`):
-  genuine BI CPU replay and original-Plus photographs establish a counter
-  regression that storage-only checks missed.
-  [Counter proof](investigations/hardware-runs/shaker-bi-r3-counter-consumption-2026-11-04.md).
-  The independent mode-only repair (`3113323`) has failure-first GA→decoder
-  vectors, cross-provider review and 44 selected benches passing. Full build
-  [41750348807](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41750348807)
-  is underway; SHAKER hardware acceptance follows. A separate **ASIC mode/blank
-  alignment residual** remains: short valid HSYNC can expose a whole 16-dot
-  old-mode character before the delayed update. This is coarser than the open
-  mixed-pixel question and needs its own bounded repair.
-  [Mode proof and residual](investigations/hardware-runs/asic-mode-latch-2026-11-04.md).
-  DT's second black region remains unassigned: raw GA black pixels precede
-  filtering, while filter acquisition can reject extra VSYNCs. The
-  [boundary analysis](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md)
-  defines the trace needed to separate the two.
-  These are task-branch changes; no master integration or release is requested.
+- **New task-branch artifact:** source `3113323` has a full Quartus 17.0.2
+  [build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41750348807),
+  setup 0.625 ns/hold 0.247 ns, zero TNS, all 44 selected benches plus lint and
+  production-T80 CI passing. `Amstrad_20261104_3113323.rbf` is on MiSTer.
+  The mode-only ASIC repair now has bounded hardware acceptance: BI retains
+  all eight pulse widths and fixes the one-us mode; AE's readable marker 09 and
+  AR's restored stripes match original-Plus references. Its separate 16-dot
+  mode/blank alignment residual remains open. DSC4 and Amazing remain broken
+  on CRTC3. [Proof and hardware results](investigations/hardware-runs/asic-mode-latch-2026-11-04.md).
+  The broader bus qualifier `bedb1c5` was disproved by genuine BI counter evidence
+  and reverted in `939ee6f`; never publish it as a verified repair.
+  These changes are on the task branch; no master integration or release is requested.
+
+- **Classic results:** the reviewed E/P display/status repair `8dde1e7` passes
+  its own full-build C1 repeat: E/P readable, P 26 and S 4E40. E 0060 versus 0080
+  remains open. A private positive-R5 C5 restart reaches 0080, but independent
+  review found several indistinguishable mechanisms, including an extra frame
+  in the original adaptive synchronization. No C5 production change is justified.
+  [E/P acceptance](investigations/hardware-runs/shaker-ep-display-2026-11-03.md),
+  [private discriminator and review](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
+  [precise French follow-up, not sent](classic/accc-author-questions-c5-2026-11-04-fr.md).
+  A genuine DSC4 post-file-load/pre-initializer checkpoint now reproduces
+  all 128 KiB of reference RAM in a private replay. Colon bytes reach the decoder;
+  the current raw blank mask suppresses their nonzero pens. The production CPU takes the JIT branch, ruling out a classification miss;
+  its relative blank timing and the absolute pixel anchor need a matched
+  cross-module vector before any timing change.
+  [Credits evidence](investigations/hardware-runs/dsc4-credit-clipping-2026-11-03.md).
+
+- **SHAKER inputs and display boundary:** the new package is installed, with
+  the French B1 key override retained separately; package changes do not invalidate
+  old A/B/C baseline captures. D1 executes 127 captures, but its 44 D3 pages lack
+  accepted native page-state alignment. Source analysis confirms level-sensitive
+  Space can advance across handler entry; stop blind full-walk timing retries.
+  [Package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md),
+  [device results](investigations/hardware-runs/shaker-package-device-2026-11-03.md),
+  [D3 caller analysis](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md).
+  DT's private original-caller replay produces two raw GA black intervals while
+  Full acquisition hides one. Device SSM records confirm applied Full at 02F8/02FA;
+  its vertical anchor/raw black chronology still need correlation. Pursue that
+  boundary before changing CRTC/GA from the photograph alone.
+  [DT trace and limits](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
 
 - **Manual demo acceptance update (2026-11-03, `5fba168`):** DSC4's main effects
   are fine on CRTC1 and mostly fixed on CRTC0, but credits still lose their

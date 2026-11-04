@@ -133,6 +133,23 @@ the CRTC, GA or sync filter without observing their actual boundary signals.
 The first 95 captures above and this 13-capture batch give 108 completed
 captures; no overall pass rate is inferred.
 
+### Additional A4 and DSC4 checks
+
+A fresh Plus A4 run completes at0037 (`a4-3-v012/`). Its top HCC#3C=OK,
+#3D=KO pair agrees with the original Plus photograph, while MiSTer3113323
+accepts#3D. Its OUTI C0vs#3C result01 also differs from MiSTer's00. This is a
+specific hardware-backed write-admission constraint, separate from the uncharted
+R0-lowering behavior in DSC4. Reference URLs/hashes are retained in
+`a4-3-real-plus-ref/`; the detailed counter report links the native device run.
+A separate fresh version3 snapshot before pressing4 is available at
+`a3-menu-v012/a3-menu-before-a4.sna` for an authentic original-caller replay.
+
+A fresh classic CRTC1 DSC4 run (`dsc4-c1-credits-v012/`) displays both the colons
+and names clearly. It corroborates the original AmSpirit boot; it does not
+provide an independent gate-array timing measurement because its black-pixel
+boundary is prescribed by the renderer. The post-initialization restart images
+with corrupted names or left credits remain rejected controls.
+
 ## Limits and next work
 
 Use hardware-matching cases to investigate specific first divergences.
