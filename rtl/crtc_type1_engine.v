@@ -291,31 +291,21 @@ wire       crtc1_adj_end_eff = crtc1_adj_end ||
 // "limit is zero" match may short-circuit the comparison.
 wire       line_last_w = (line == crtc1_line_max);
 
-// Two distinct IVM-aware row-end shapes, per section 19.8.2 read against
-// the section 11.1 adjustment rules:
-//
-//   line_limit_match -- the frame-structure test (frame-adj entry latch,
-//   adjustment entry): outside adjustment IVM counting replaces the plain
-//   C9==R9 comparison.  Adjustment-during-IVM interaction is unpinned in
-//   the source, so inside adjustment this follows the adjustment end
-//   (named residual in the F10 notes).
-//
-//   line_row_event -- the per-line row-event test that increments C4:
-//   during type-1 adjustment C4 increments at every C9==R9 wrap (section
-//   11.1), so the plain wrap test stays live there and the IVM test only
-//   applies outside adjustment.
-//
-//   line_row_structure_last -- the "final line of the row" test for the
-//   VMA reload/save/vsync consumers: the plain C9==R9 wrap while
-//   adjustment cycles C9, the IVM-aware test otherwise.
+// French ACCC v1.11 §11.8 p93 explicitly keeps the §19.8.2 p226
+// C9/C4 interlace counting during R5 adjustment: with R9=7 there are
+// four physical lines per IVM row, including while C5 is counting.
+// Share that ordinary row identity with its counter, VMA and VSYNC
+// consumers. C5 completion and the independent added line still own
+// their explicit forced row/frame events; they do not disable IVM.
+wire       ordinary_row_last = ivm ? ivm_row_end : line_last_w;
 wire       line_limit_match = type1_add_line_active ? 1'b1 : in_adj ? crtc1_adj_end_eff :
-                                ivm  ? ivm_row_end : line_last_w;
+                                ordinary_row_last;
 wire       type1_adj_counter_end = crtc1_adj_end_eff &&
                                   (!type1_add_intercept || type1_add_cond);
 wire       line_row_event = type1_add_line_active ? 1'b1 :
-                           in_adj ? (line_last_w | type1_adj_counter_end) :
-                              ivm  ? ivm_row_end : line_last_w;
-wire       line_row_structure_last = in_adj ? line_last_w : line_limit_match;
+                           in_adj ? (ordinary_row_last | type1_adj_counter_end) :
+                                    ordinary_row_last;
+wire       line_row_structure_last = in_adj ? ordinary_row_last : line_limit_match;
 assign     line_last = line_limit_match;
 assign     line_new = hcc_end;
 
@@ -368,8 +358,8 @@ wire rfd_r0_cancelled = (line != crtc1_line_max) |
 wire rfd_r0_arm = rfd_r0_pending & CLKEN & hcc_end & rfd_r0_cancelled;
 
 // ACCC v1.10 section 11.1 specifies that CRTC 1 has a separate C5 counter
-// for vertical adjustment, while C9 continues cycling 0..R9 and C4
-// increments at each C9==R9 wrap.
+// for vertical adjustment. C5 counts physical lines independently of the
+// effective-mode C9/C4 row shape (§11.8 p93 / §19.8.2 p226).
 always @(*) begin
 	if(line_new) begin
 		if(in_adj) begin
@@ -380,7 +370,9 @@ always @(*) begin
 			// restart; it does not identify a physical silicon counter reset.
 			// Preserve completion priority and the interlace added-line owner;
 			// no wrapper-entry, row-0 arm or parity side effect is inferred.
-			else if(row == R4_v_total && line_last_w &&
+			// §§11.8/19.8.2 make this the actual IVM row boundary;
+			// only eligibility changes, not the inferred restart policy.
+			else if(row == R4_v_total && ordinary_row_last &&
 			        (|crtc1_rollover_r5) && !type1_add_line_active)
 				c5_next = 5'd0;
 			else c5_next = c5 + 1'd1;
@@ -404,10 +396,12 @@ assign     frame_adj = frame_adj_CRTC1;
 // round-2 question 20: R5=0 prevents the C5 equality from ending vertical
 // adjustment, but does not disable the ordinary C4==R4 reset.  Keep that
 // reset separate from row_frame_last so C5 and adjustment remain active.
+// Its row eligibility follows effective IVM as required by §11.8 p93;
+// no C5 reset or management exit is inferred on this ordinary R4 reset.
 // Use the rollover-effective R5 so a same-edge 0->positive RFD write retains
 // the documented positive-R5 exit path rather than taking this reset.
 wire       crtc1_stuck_r5_row_reset = in_adj && !(|crtc1_rollover_r5) &&
-									 row_last_w && line_last_w;
+									 row_last_w && ordinary_row_last;
 wire       crtc1_stuck_r5_row_reset_event = crtc1_stuck_r5_row_reset &&
 										 line_new;
 wire       crtc1_row_frame_last = type1_add_line_active ||
@@ -432,10 +426,9 @@ assign r6_origin = frame_new_w | crtc1_stuck_r5_row_reset_event;
 // so the C9 restart must carry that same newly toggled parity rather than
 // the ordinary row-end value derived from the old ParityC9.
 assign line_next = frame_new_w ? (ivm ? {4'b0000, ~parity_frame} : 5'd0)
-                 : in_adj     ? ((line_last_w | type1_adj_counter_end) ? 5'd0 :
-                                  line + 5'd1)
-                 : ivm        ? (ivm_row_end ? pc9_toggled : c9_ivm_step)
-                 :              (line_last_w ? 5'd0 : line + 5'd1);
+                 : (in_adj && type1_adj_counter_end) ? 5'd0
+                 : ivm        ? (ordinary_row_last ? pc9_toggled : c9_ivm_step)
+                 :              (ordinary_row_last ? 5'd0 : line + 5'd1);
 
 // Additional-line state: set on the intercepted adjustment/frame end,
 // cleared by the true origin that ends the added line. Intercept priority
