@@ -4365,7 +4365,79 @@ void test_type1_identification_r7_40_is_silent(TestBench& test) {
 // F8 worked example, zero-R5 bug, and Type 0 control tests
 // ---------------------------------------------------------------------------
 
+// French ACCC v1.11 §11.8 p93 / §19.8.2 p226: C5 management
+// does not replace IVM row counting. Cross-check public C9/C4 and VSYNC
+// before the R5 endpoint, keeping extra-line accounting out of this proof.
+void check_type1_ivm_adjustment_rows(TestBench& test, unsigned parity) {
+    test.set_crtc_type(1);
+    const RegisterProgram registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 75},
+        {5, 8}, {6, 74}, {7, 77}, {8, 3}, {9, 7},
+    }};
+    program_registers(test, registers);
+    test.reset();
+    if (parity) test.run_characters(313 * 64); // §§11.8–11.9: 304+8+1
+    test.expect_parity_frame("IVM adjustment natural frame parity", parity);
+    test.expect_parity_c9("IVM adjustment natural C9 parity", parity);
+    test.expect_c4("IVM adjustment begins from the natural origin", 0);
+    test.expect_ra("IVM adjustment natural origin C9", parity);
+    test.run_characters(304 * 64); // 76 ordinary rows, four lines each
+    test.expect_c4("IVM positive R5 entry increments C4 once", 76);
+    test.expect_ra("IVM positive R5 entry keeps its C9 parity", parity);
+    test.expect_c5("IVM positive R5 entry starts C5=0", 0);
+    test.expect_adjustment_active("IVM positive R5 management is active");
+    test.expect_vsync_low("R7=77 is unreachable in the ordinary frame");
+    bool seen_raw = false, seen_public = false;
+    for (unsigned boundary = 1; boundary <= 5; ++boundary) {
+        for (unsigned c = 0; c < 64; ++c) {
+            test.run_characters(1);
+            seen_raw |= test.raw_vsync();
+            seen_public |= test.published_vsync();
+        }
+        test.expect_ra("§11.8 keeps IVM C9 stepping while C5 counts",
+                       (parity + 2 * boundary) & 7);
+        test.expect_c4("§11.8 actual C4 increments after four IVM lines",
+                       76 + boundary / 4);
+        test.expect_c5("IVM adjustment C5 counts physical lines", boundary);
+        test.expect_adjustment_active("the eight-line C5 endpoint is not reached");
+    }
+    // §§16.4.2 p171 / 19.7.2 p219: row77 begins after four lines;
+    // the fifth includes even-frame MID-VSYNC and public publication.
+    test.expect_vsync_observed("real IVM adjustment row77 starts logical VSYNC", seen_raw);
+    test.expect_vsync_observed("real IVM adjustment row77 reaches public VSYNC", seen_public);
+}
+
+// Apply the existing retained-zero and positive-R5 restart contracts at
+// the real IVM row boundary (§11.8 p93 / §19.8.2 p226). This pins mode
+// eligibility; it does not infer a new C5 lifetime or silicon reset rule.
+void check_type1_ivm_adjustment_r4_boundary(TestBench& test, bool zero_r5) {
+    test.set_crtc_type(1);
+    const RegisterProgram registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x11}, {4, 75},
+        {5, 8}, {6, 74}, {7, 100}, {8, 3}, {9, 7},
+    }};
+    program_registers(test, registers);
+    test.reset();
+    test.run_characters(304 * 64);
+    test.expect_c4("IVM R4-boundary fixture enters C4=76", 76);
+    test.expect_ra("IVM R4-boundary fixture has even C9=0", 0);
+    test.expect_c5("IVM R4-boundary fixture starts C5=0", 0);
+    test.expect_adjustment_active("IVM R4-boundary fixture is already additional");
+    if (zero_r5) test.write_register(5, 0);
+    test.write_register(4, 76);
+    test.run_characters(4 * 64); // even IVM row: 0,2,4,6 then0
+    test.expect_c4("mode-aware R4 boundary commits its selected row",
+                   zero_r5 ? 0 : 77);
+    test.expect_ra("mode-aware R4 boundary restarts IVM C9", 0);
+    test.expect_c5(zero_r5 ? "retained-zero R4 reset keeps C5 counting" :
+                            "existing positive-R5 restart uses the actual IVM row end",
+                   zero_r5 ? 4 : 0);
+    test.expect_adjustment_active("R4 boundary preserves existing management lifetime");
+}
+
 void test_type1_adjustment_c4_c9_c5_worked_example(TestBench& test) {
+    check_type1_ivm_adjustment_rows(test, 0);
+    check_type1_ivm_adjustment_rows(test, 1);
     test.set_crtc_type(1);
 
     // Compendium section 4.1 (ACCC v1.11 section 11.2.1, page 82):
@@ -4419,6 +4491,7 @@ void test_type1_adjustment_c4_c9_c5_worked_example(TestBench& test) {
 }
 
 void test_type1_r5_zero_mid_adjustment_keeps_counting(TestBench& test) {
+    check_type1_ivm_adjustment_r4_boundary(test, true);
     test.set_crtc_type(1);
 
     // ACCC v1.11 section 11.3.2 p.86 plus the author's 2026-08-31
@@ -4514,6 +4587,7 @@ void test_type1_r5_zero_mid_adjustment_keeps_counting(TestBench& test) {
 // See docs/investigations/hardware-runs/
 // shaker-e-0080-positive-r5-reentry-2026-11-04.md (original caller trace).
 void test_type1_positive_r5_reentry_origin_delay(TestBench& test) {
+    check_type1_ivm_adjustment_r4_boundary(test, false);
     const auto prepare_retained_adjustment = [&]() {
         test.set_crtc_type(1);
         program_registers(test, {{{0, 63}, {1, 40}, {2, 46}, {3, 14},
@@ -8232,8 +8306,9 @@ void t27_type0_addline_freeze_even(TestBench& test) {
 // frame origin regardless of R8 (section 19.5.3 p.209), so frame 0 is even
 // and frame 1 odd by construction.
 //
-// Walk (t28a): frame 0 = 12 row lines + 4 adjustment lines (C4=3, C9=0..3,
-// C5=0..3), then the additional line (C4=4, C9=0, C5=0), then the origin
+// Walk (t28a): frame 0 = 12 row lines +4 adjustment lines (C4=3,
+// C9=0,2,4,6 per §11.8 p93 / §19.8.2 p226, C5=0..3), then the
+// additional line (C4=4,C9=0,C5=0), then the origin
 // (C4=0, ParityFrame=1).  Frame 1 (odd) runs the same 16 lines but ends
 // directly: its last adjustment line is followed immediately by C4=0.
 
@@ -8270,10 +8345,10 @@ void t28_type1_addline_basic(TestBench& test) {
         t27_step_plain(test, "t28a frame 0 line", static_cast<std::uint8_t>(i / 4),
                        static_cast<std::uint8_t>((i % 4) * 2));
     }
-    // Adjustment: C4=R4+1, C9 counts plainly, C5 counts the lines.
+    // §11.8 p93: C9 retains IVM stepping while C5 counts physical lines.
     for (unsigned i = 0; i < 4; ++i) {
         t28_step_adjustment(test, "t28a frame 0 adjustment",
-                            static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
+                            static_cast<std::uint8_t>(2 * i), static_cast<std::uint8_t>(i));
     }
     // Section 19.6.2 p.217 + section 11.2.4 p.85: the additional line,
     // C4 incremented once more, C9 back at 0.
@@ -8300,7 +8375,7 @@ void t28_type1_addline_basic(TestBench& test) {
     }
     for (unsigned i = 0; i < 4; ++i) {
         t28_step_adjustment(test, "t28a frame 1 adjustment",
-                            static_cast<std::uint8_t>(i + 1), static_cast<std::uint8_t>(i));
+                            static_cast<std::uint8_t>(2 * i + 1), static_cast<std::uint8_t>(i));
     }
     test.expect_c4("t28a frame 2 opens directly (odd frame)", 0);
     test.expect_line("t28a frame 2 opens at C9=0", 0);
@@ -8355,8 +8430,9 @@ void t28_type1_addline_interlace_sync(TestBench& test) {
 }
 
 // t28b: R5=3 does not divide R9+1=8, but the even frame still gains a
-// physical line (French §19.6.2 p.217). Adjustment continues C9=0,1,2,3
-// in C4=3: no C9 wrap requires a new row (§11.2.3 pp.84-85).
+// physical line (French §19.6.2 p217). IVM adjustment continues
+// C9=0,2,4,6 in C4=3 (§11.8 p93 / §19.8.2 p226); no row wrap
+// precedes this extra line. Keep its existing C4/endpoint accounting.
 void t28_type1_addline_nondivisible(TestBench& test) {
     t28_configure(test, 3);
     for (unsigned i = 0; i < 12; ++i) {
@@ -8365,10 +8441,10 @@ void t28_type1_addline_nondivisible(TestBench& test) {
     }
     for (unsigned i = 0; i < 3; ++i) {
         t28_step_adjustment(test, "t28b frame 0 adjustment",
-                            static_cast<std::uint8_t>(i), static_cast<std::uint8_t>(i));
+                            static_cast<std::uint8_t>(2 * i), static_cast<std::uint8_t>(i));
     }
     test.expect_c4("t28b extra line retains adjustment row", 3);
-    test.expect_line("t28b extra line continues C9 without a wrap", 3);
+    test.expect_line("t28b extra line continues IVM C9 without a wrap", 6);
     test.expect_parity_frame("t28b extra line retains even frame", false);
     test.run_characters(64);
     test.expect_c4("t28b origin follows the extra physical line", 0);
@@ -9277,13 +9353,13 @@ int main(int argc, char** argv) {
          "ACCC v1.10 section 28.1.1; F4/F8 type-1 boundary", false,
          test_type1_identification_r7_40_is_silent},
         {"t08i_type1_adjustment_c4_c9_c5_worked_example",
-         "ACCC v1.10 section 11.2.1; F8 worked example sequence", false,
+         "French §11.2.1 p82 / §11.8 p93 / §19.8.2 p226; ordinary and IVM adjustment counter/output sequences", false,
          test_type1_adjustment_c4_c9_c5_worked_example},
         {"t08j_type1_r5_zero_mid_adjustment_keeps_counting",
-         "ACCC v1.11 section 11.3.2 p.86 and 2026-08-31 author response Q20; zero-R5 C4 reset and recovery", false,
+         "French §11.3.2 p87 / §11.8 p93; retained Q20 zero-R5 counter/reset contract and IVM row eligibility", false,
          test_type1_r5_zero_mid_adjustment_keeps_counting},
         {"t08s_type1_positive_r5_reentry_origin_delay",
-         "French ACCC v1.11 section11.3.2 p.87; SHAKER CE02C9 photograph0080, positive re-entry inferred", false,
+         "French §11.3.2 p87 / §11.8 p93; SHAKER CE02C9 photograph0080 restart policy with IVM row eligibility", false,
          test_type1_positive_r5_reentry_origin_delay},
         {"t08r_type1_r5_zero_row_origin_reopens_display",
          "French ACCC v1.11 sections 18.1/18.2.1 p.189, 11.3.2 p.87; Q20 and SHAKER C E/P photographs", false,
