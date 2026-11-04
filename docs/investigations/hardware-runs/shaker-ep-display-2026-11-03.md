@@ -246,5 +246,14 @@ must not be claimed repaired by this display/status change.
 - Display behaviour at a seven-bit C4 carry wrap remains an explicit source
   and hardware evidence gap; this patch only adds the Q20 R4-reset route.
 
+## Later S result qualification
+
+The [4 November full walk and direct controls](shaker-s-history-2026-11-04.md)
+reopen S's history sensitivity: db4be80 prints0640 after the full canonical
+history but4E40 from a fresh menu; old8dde1e7 gives the identical4E40 direct
+image. The earlier passing full-history samples remain valid observations,
+not proof that S is repaired for every entry state. E/P remain byte-identical
+and readable in that newer full walk.
+
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by
 Longshot (CC BY-NC-ND 4.0).

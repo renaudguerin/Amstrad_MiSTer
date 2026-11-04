@@ -414,6 +414,14 @@ with a non-black border, then align metadata with its renderer while preserving
 the deliberately different Raw CRT geometry. Do not retime sync/IRQ consumers
 merely to align pixel tags. See [bounded classic repair](investigations/hardware-runs/classic-blank-alignment-2026-11-04.md).
 
+**DSC4 bottom-row coverage, 2026-11-04:** all768 pen-class pixels of MiSTer's
+last CRTC1 row match a unique uncropped AmSpirit source row, including all108
+coloured pixels. The default AmSpirit crop excludes it. Full admits273 line
+slots whereas that reference viewport contains271. This is a presentation
+coverage difference; it does not justify a CRTC repair or select new global
+monitor bounds. Establish the intended viewport before changing the acquisition
+constants. [Exact match and limits](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md).
+
 **Integrated boundary repair, 2026-10-29:** the type-1 invisible HSYNC
 terminal-overflow event now restarts classic GA monitor shaping without ending
 the raw HSYNC/black level or clocking the interrupt counter. The source-derived

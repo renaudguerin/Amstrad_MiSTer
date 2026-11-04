@@ -19,19 +19,23 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   AE/AR3, a bounded DT1 probe, A4 and DSC4 credits. Capture completion is
   execution coverage, not an overall pass rate. Use original-CPC photos to validate each relevant
   observable; AmSpirit remains our closest software reference.
+  The [next-discriminator matrix](investigations/hardware-runs/shaker-next-discriminators-2026-11-04.md)
+  separates established pixel/counter failures from viewport and unassigned
+  acquisition questions, and gives the SHAKER-first work order.
   [CPCSyntaxError guide](cpcsyntaxerror-testing.md),
   [pilot](investigations/hardware-runs/cpcsyntaxerror-v012-pilot-2026-11-04.md),
   [AmSpirit tooling](investigations/hardware-runs/amspirit-lite-1.17-tooling.md).
 
-- **New task-branch artifact:** source `3113323` has a full Quartus 17.0.2
+- **ASIC mode milestone:** source `3113323` has a full Quartus 17.0.2
   [build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41750348807),
   setup 0.625 ns/hold 0.247 ns, zero TNS, all 44 selected benches plus lint and
   production-T80 CI passing. `Amstrad_20261104_3113323.rbf` is on MiSTer.
   The mode-only ASIC repair now has bounded hardware acceptance: BI retains
   all eight pulse widths and fixes the one-us mode; AE's readable marker 09 and
   AR's restored stripes match original-Plus references. Its separate 16-dot
-  mode/blank alignment residual remains open. DSC4 and Amazing remain broken
-  on CRTC3. [Proof and hardware results](investigations/hardware-runs/asic-mode-latch-2026-11-04.md).
+  mode/blank alignment residual remains open. That mode-only milestone left
+  DSC4 and Amazing broken on CRTC3; the R0 milestone below restores their sampled
+  main effects. [Proof and hardware results](investigations/hardware-runs/asic-mode-latch-2026-11-04.md).
   The broader bus qualifier `bedb1c5` was disproved by genuine BI counter evidence
   and reverted in `939ee6f`; never publish it as a verified repair.
   These changes are on the task branch; no master integration or release is requested.
@@ -42,8 +46,22 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   44 selected benches and strengthened native/freeze/IRQ checks pass; exact-SHA
   CI also passes simulation, production-T80 and the required gate. This unblocks
   an authentic A4 replay, which reproduces the hardware's wrong HCC3D=OK.
-  No RBF/device acceptance is yet claimed for this CPU change.
+  The fix is included in the later hardware-tested RBFs. Its cold-SNA first-fetch
+  collision is proved in simulation, not separately measured on the device.
   [Proof and scope](investigations/hardware-runs/t80-first-fetch-iorq-2026-11-04.md).
+
+- **ASIC R0 milestone:** reviewed commit `7ac11a2` retains an entered terminal
+  decision across a late R0 rewrite, preserving live register admission and
+  literal status comparisons. Seven production-CPU cases, default B18, all 75
+  ASIC leaf tests and 44 selected benches pass. Its full build and device
+  milestone are complete: A4's 3C/3D and OUTI deadlines match; all eight BI and
+  seven AE/AR PNGs are identical to the accepted prior artifact. DSC4 and Amazing
+  restore their sampled main effects on CRTC3. The RBF is on MiSTer, with
+  setup 0.279 ns/hold 0.204 ns and zero TNS. ASIC credit clipping and lower A4
+  VSYNC-bit results remain open; the saved-menu private proof does not reproduce
+  that fresh-device lower-row failure. The live-equality creation control is an
+  explicit model choice, and late-R0/split overlap remains unverified.
+  [Proof and review](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md).
 
 - **Classic results:** the reviewed E/P display/status repair `8dde1e7` passes
   its own full-build C1 repeat: E/P readable, P 26 and S 4E40. E 0060 versus 0080
@@ -55,18 +73,34 @@ reviewer verdicts) in the task's own record or a dated hardware report, and link
   [E/P acceptance](investigations/hardware-runs/shaker-ep-display-2026-11-03.md),
   [private discriminator and review](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
   [precise French follow-up, not sent](classic/accc-author-questions-c5-2026-11-04-fr.md).
+  A fresh full C1 walk on `db4be80` preserves E/P exactly but gives S 0640.
+  Direct S entry gives the same correct 4E40 PNG on both old and new RBFs;
+  its history/entry sensitivity is reopened, with no established causal change
+  in C5. [Full walk and controls](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
   A genuine DSC4 post-file-load/pre-initializer checkpoint now reproduces
   all 128 KiB of reference RAM in a private replay. Colon bytes reach the decoder;
-  the current raw blank mask suppresses their nonzero pens. The production CPU
+  the pre-fix raw blank mask suppressed their nonzero pens. The production CPU
   takes the JIT branch, ruling out a classification miss. A matched CPU/READY/
-  unique-byte vector now fails the source-derived onset delay (5 clocks versus
-  nominal12). Delaying the whole published pulse was rejected: it moves the
+  unique-byte vector failed the source-derived onset delay before the repair
+  (5 clocks versus nominal12). Delaying the whole published pulse was rejected: it moves the
   source-correct mode change and IRQ sampling. A narrower sampled-GA-blank plus
   JIT-onset repair passes all eight byte windows, CRTC239, real-T80 IRQ8 and
-  44 selected benches. Reviewed commit `db4be80` is building for hardware;
-  Type0's old-mode extra pixel remains a named pre-existing failure.
+  44 selected benches. Reviewed commit `db4be80` now has a green full build and
+  bounded device acceptance: all four DSC4 credit colons are visible on CRTC0/1,
+  with readable names and identical native credit PNGs. Its RBF is on MiSTer;
+  setup0.280ns/hold0.242ns, zero TNS. The CRTC1 static picture and corrupt
+  bottom line are byte-identical to the prior capture; both later main-effect
+  captures remain visible. The bottom row now matches all768 pixels of an
+  uncropped AmSpirit row outside its default viewport: this is a coverage
+  difference, not evidence of a MiSTer-only pixel pattern. Monitor bounds remain
+  B1 work. Type0's old-mode partial pixel remains a named failure. A focused
+  source review also caught a palette alias in the apparent Mode0→1 positive
+  control; its non-aliased form fails without any RTL timing change. No new
+  mode-publication delay has been selected.
   [Credits evidence](investigations/hardware-runs/dsc4-credit-clipping-2026-11-03.md),
-  [bounded repair](investigations/hardware-runs/classic-blank-alignment-2026-11-04.md).
+  [bounded repair](investigations/hardware-runs/classic-blank-alignment-2026-11-04.md),
+  [uncropped comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
+  [mode-boundary evidence](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
 
 - **SHAKER inputs and display boundary:** the new package is installed, with
   the French B1 key override retained separately; package changes do not invalidate
@@ -705,9 +739,9 @@ compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` i
 
 ## How hardware testing fits the loop
 
-SHAKER is **not** part of the automated loop. The automated loop is the selected Verilator
-benches plus GitHub Actions synthesis. SHAKER and title sessions are manual, user-run, and
-happen at significant milestones against a target list recorded before the session (roadmap
+SHAKER runs outside the automated CI gate. That gate is the selected Verilator
+benches plus GitHub Actions synthesis. SHAKER and title sessions happen at significant
+milestones, driven manually or by authorized CSL/SSM scripts, against a target list recorded before the session (roadmap
 section 4 lists SHAKER targets per checkpoint; [plus/hardware-test-checklist.md](plus/hardware-test-checklist.md)
 is the Plus title matrix). A green simulation gate is never evidence of hardware accuracy, and
 a manual session never gates a commit. Dated results go under

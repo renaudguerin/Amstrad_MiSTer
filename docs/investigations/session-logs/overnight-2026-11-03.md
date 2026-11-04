@@ -392,3 +392,85 @@ Optional local-VM preflight could not establish a trusted SSH host key, and the
 repository reports no registered GitHub runners. No host key or account setting
 was changed. Hosted synthesis remains available for the next reviewed milestone;
 do not stall the run or duplicate builds to investigate this optional route.
+
+## Checkpoint — 4 November, 05:04 UTC
+
+Classic repair db4be80 is pushed, reviewed and built in full run41771359810.
+Setup0.280ns/hold0.242ns, seven clocks, zero TNS/errors/critical/implicit-net
+warnings. RBF SHA84661e28263acc630539f0f5b86decf9b117f4419fc79cce80e59b812530e4f6
+matches the device. Fresh DSC4 C0/C1 runs show all four credit colons and clear
+names; native credit PNGs are identical. Later main-effect captures remain
+visible. C1's static picture including the last row exactly matches the old
+image. All768 pen-class positions of that row match AmSpirit native327, outside
+crop55..325. Do not patch source pixels or choose global viewport bounds from
+a cropped comparison. See the bottom-row report and backlog B1. No crop changed.
+
+The canonical C1 moduleC walk on db4be80 finished165commands/80captures/no
+failures/152SSM records, all152 requested/appliedFull0. The72 unconsumed zero
+separators match the prior run. Gemini3.8-high artifact comparison is active,
+run20261104T045625Z-15677-19d7, exec22868; it owns only ignored
+milestone-next/c1-comparison/. No source edits are authorized to it.
+
+ASIC7ac11a2 is committed/pushed after Opus ACCEPT20261104T044157Z-11709-2c7f,
+seven production-CPU cases,75ASIC leaf cases, defaultB18 and final44-bench gate.
+Parent corrected comments/oracle labels only after review; stripped-code
+comparison is identical, and exact-SHA push CI41775642197 is green. Full build
+41775641712 is active; do not cancel it with a competing synthesis. The model
+retains an entered R0 terminal decision; writes and status remain live. The
+late-created live-equality control pins an unverified model choice, and late
+R0/SPLT overlap remains unverified. Original red/phase/FIELD evidence remains
+preserved; fixture setup repairs retain body assertions.
+
+MiSTer is on db4be80, Full, after the C1 walk; no device job remains active.
+AmSpirit is paused on the original static image after an unchanged own SPRT
+snapshot reload and settled-frame capture, with no breakpoints or script.
+Both crop views use paused frame224923/tick119808. Its default cropped PNG
+is byte-identical to the original reference. Classic saved v3 counters would
+be observations, not automatic faithful reload: the current classic loader
+does not restore them, and hidden phases are not serialized.
+
+Sol-high owns only ignored classic/type0-mode-boundary/ for a source-qualification
+check: does the FR56 old-mode extra dot apply unchanged to Mode1→Mode2 despite
+the explicit one-dot Mode2 advance? No production edit or publication-delay
+experiment is authorized before resolving that oracle. Live OAuth04:45 reading:
+38% weekly used, reset5Nov19:34UTC; three banked resets untouched. Active ceiling
+is80%; no master integration/release/PR/author message requested.
+## Checkpoint — 4 November, 05:52 UTC
+
+Both reviewed milestones now have full hosted builds and bounded device
+acceptance. Classic `db4be80` restores the four DSC4 credit colons on CRTC0/1;
+Plus `7ac11a2` restores sampled DSC4/Amazing main effects on CRTC3 and the
+specific A4 R0/OUTI deadlines. BI's eight and AE/AR's seven PNGs remain exactly
+identical to the accepted mode-only artifact. Neither milestone establishes
+full SHAKER compliance. Exact identities, timing and limits are in current
+status and their dated reports. No synthesis or device job remains active.
+
+The C1 corpus comparison is complete: 66/80 PNGs identical, E/P unchanged,
+13 raster-pattern differences not causally assigned, and S02D3=0640 reopened.
+Direct S entry gives the exact old passing4E40 PNG on both RBFs. Preserve the
+full-history failure; do not infer a C5 rule or dismiss it as capture jitter.
+The provisional Gemini report and parent corrections are preserved.
+
+The Type0 source oracle is confirmed, and a non-aliased palette exposes a
+second premature old-mode pixel. The previous apparent Mode0→1 positive
+control aliased pen10/pen2. No speculative publication delay was implemented.
+One focused Astra-high consultation found that alias; Sol's independent
+non-aliased control confirms it. A physical sampling-edge discriminator is
+still missing.
+
+A private ASIC byte probe isolates intact data/pen/palette from HSYNC blank
+suppression. Its absolute16-dot discrepancy is against the ACCC's explicitly
+qualified type3 working assumption, not a hardware timing oracle. Sol is
+freezing that unit, then attempting one bounded attribution replay of the
+unchanged fresh FR Plus credit snapshot; no timing variant is authorized.
+The A4 worker is finishing one delayed-key control: the terminal-only and
+broad-queue models both give the same lower words, and no production queue
+proposal follows. Plus hardware RAM observation is unavailable through B18:
+`save_admit` explicitly rejects `plus_mode`. No model switch or state patch
+will be used to manufacture that missing observation.
+
+MiSTer is on7ac11a2, Full, after Amazing. AmSpirit1.17.1 is paused on the
+fresh FR Plus DSC4 credits at23.5seconds, no breakpoint or script active.
+No bridge remains active. Live OAuth05:37 reading is40% weekly used, reset
+5November19:34UTC, three banked resets untouched; active ceiling80%.
+No master integration, release, PR or author message is requested.

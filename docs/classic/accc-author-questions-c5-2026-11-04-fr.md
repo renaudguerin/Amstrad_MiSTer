@@ -56,4 +56,10 @@ antérieure de la gestion lorsque R5=0, avant la seconde mesure. AmSpirit 1.17.1
 donne aussi `0080`, sans que son interface nous expose C5. Ces résultats ne
 suffisent donc pas à choisir le mécanisme du circuit réel.
 
+Complément de contexte, sans conclusion sur C5 : le test S (`02D3`) donne
+`0640` après un parcours C1 complet sur le dernier RBF, mais `4E40` en accès
+direct après un démarrage neuf. Cet accès direct donne une image identique
+sur l'ancien et le nouveau RBF. La dépendance à l'historique reste donc ouverte ;
+nous n'attribuons pas cette différence à un mécanisme précis du circuit.
+
 Merci pour cette précision.

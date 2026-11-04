@@ -1,6 +1,6 @@
 # Classic blank alignment — 2026-11-04
 
-Status: reviewed implementation accepted for a hardware milestone; hardware accuracy remains pending. No RBF has been built or loaded for this change.
+Status: reviewed implementation with bounded hardware acceptance of DSC4's missing credit colons on CRTC0/1. The reported CRTC1 bottom row is a reference-crop coverage difference; its viewport policy remains separate.
 
 The production T80/motherboard replay showed correct colon VRAM bytes reaching the serializer but disappearing under blanking. The previous fast GA vector wrote R2 at a later bit-banged phase and checked only relative timing. This change aligns blanking with displayed pixels and corrects the qualified JIT onset without moving the ordinary raw trailing edge or MODE_SYNC.
 
@@ -84,6 +84,48 @@ raw-mode metadata correction is included in this bounded repair.
 Parent accepts the reviewed code and refreshed evidence for synthesis and
 targeted hardware checks. This does not accept vertical RGB timing, physical GA
 pipeline identity, the Type0 mixed-mode residual, or unseen write phases, including the OUTI boundary.
+
+## Exact build and hardware milestone
+
+Source `db4be806455eda22adee83ba4073cc9a5944dce8` passed
+[hosted full build41771359810](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41771359810),
+including selected simulation/lint, production-T80 and required gate. Quartus
+17.0.2.602 reports setup0.280ns/hold0.242ns, zero TNS across seven clocks,
+zero errors, critical warnings or implicit-net warnings. Artifact
+`Amstrad-build-345-1-full/Amstrad_20261104_db4be80.rbf` has SHA256
+`84661e28263acc630539f0f5b86decf9b117f4419fc79cce80e59b812530e4f6`;
+the copy in MiSTer's `_Computer` directory matches. Source9de75d3's CPU reset
+repair is included; no R0 terminal-latch proposal is in this RBF.
+
+The unchanged DSC4 disk SHA256 is
+`ec9e0d51b10a7455848bd9211793c585c46456759486057b12a491039923b8e4`.
+Each CRTC run starts from a fresh core load and requests Full via CFG. This
+demo run has no runtime SSM readback of the applied filter latch. Each finishes
+19commands/four captures/zero failures. Evidence is under ignored
+`local/overnight-20261103/milestone-next/dsc4-crtc{0,1}-db4be80/`, with
+`capture-hashes.json`, input CSL and build reports beside it.
+
+- CRTC0 and CRTC1 credits show all four colons with readable handwritten names.
+  Their native768×273 credit PNGs are identical, SHA256
+  `d6f6bfe064b66ad65fdcb897403e2d2c9080b84599e78ffe40204ff7cba04fb2`.
+  The previous native CRTC1 capture visibly clipped the label endings.
+- CRTC1's otter image, including the corrupt final line, is byte-identical to
+  the earlier `bedb1c5` Full capture: SHA256
+  `d811cce0582fcaa25c098194898e07d36dcace76ac8c77c71d793c9e4e88f373`.
+  This rules out a repair or a new regression of that captured residual.
+  CRTC0's corresponding captured bottom row is black.
+- Both later captures show the rotating main image with the fire bands.
+  The first capture named `main` is still the preceding static image; capture
+  names and approximate waits must not replace scene inspection. The CRTC1
+  captures occur24.8/43.6/50.4/56.2 wall seconds after the key command returns,
+  including capture/transport overhead. No full animation or all-frame
+  acceptance is claimed.
+
+This accepts the missing-colon repair on the tested device and settings. A
+subsequent [uncropped comparison](dsc4-bottom-row-crop-2026-11-04.md) matches
+all768 pixels of the CRTC1 bottom row to AmSpirit outside its default viewport.
+Its framing policy belongs to B1. The Type0 mixed-mode extra pixel, raw metadata,
+OUTI coincidence and vertical RGB-edge questions remain separate open work.
 
 ## Final-tree evidence after independent review
 

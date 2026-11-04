@@ -278,5 +278,83 @@ the final gate was not redundantly rerun. Review, before-cleanup sources and
 Hardware acceptance must cover original A4 deadlines/OUTI, BI pulse widths,
 AE/AR controls and the affected Plus demos on the exact new RBF.
 
+## Full build and bounded device results
+
+Exact source `7ac11a23551411b6f4b8e5435ac580022656ca6f` passes
+[full build41775641712](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41775641712),
+including simulation/lint, production-T80 and required gate. Quartus17.0.2.602
+reports setup0.279ns/hold0.204ns, seven clocks, zero TNS, errors, critical or
+implicit-net warnings. Artifact `Amstrad-build-347-1-full` contains
+`Amstrad_20261104_7ac11a2.rbf`,3137680bytes, SHA256
+`4dc1e7628248a30092719ff026c63997bae6d95810c49bc7ad981c10b7a501ec`.
+The MiSTer copy matches. Build reports and metadata remain in ignored
+`local/overnight-20261103/r0-build/`.
+
+Fresh normal-boot device runs request Full with the same FR6128+ cartridge
+SHA256 `ab241580c9b6a9fa9aeae94ca6847ea70dca386d305e38fc2ac03fce603360cf`.
+The installed SHAKER disk SHA256 is
+`6b9ff106bb8dd02e984f69acd39d0b26d7318854345d23643b12d6748ed0eb61`.
+
+| Target | Observation |
+|---|---|
+| A4,0037 | 3C=OK/3D=KO; OUTI3C=01; the additional C9=0..7 OUTI results are all01. Corrects the previous3D=OK/OUTI00. |
+| BI | 25commands/eight captures/no failures/17SSM. All eight PNGs byte-identical to accepted3113323: widths224/16/32/48 repeated, including white1us LOGON. |
+| AE/AR | All seven native PNGs byte-identical to3113323, preserving marker09, stripes and controls. |
+| DSC4 Plus | Full static otter and later rotating image/fire bands replace the earlier top-band/black result. Credit labels remain clipped. |
+| Amazing Plus | Logo and lower text/effect region remain present in both sampled main/later frames; prior matched script lost most of the logo and then went black. This is bounded visibility acceptance, not every animation frame. |
+
+Evidence is under `milestone-next/`: `a4-3-device-7ac11a2/`,
+`bi3-device-7ac11a2/`, `ae-ar3-device-7ac11a2/`,
+`dsc4-plus-7ac11a2/`, `amazing-plus-7ac11a2/` and their comparison JSONs.
+Parent inspected all title captures and the BI contact sheet. The saved3113323
+references already have original-Plus photo comparison; exact PNG identity
+preserves those bounded observations.
+
+### A4 is not fully compliant
+
+The lower eight printed PPI words still differ. Masking away other PPI bits,
+the original Plus photo has bit0 pairs1/1 in the first four rows and0/0 in the
+last four. New7ac11a2 shows1/1 throughout; the prior3113323 last four showed0/1.
+Those lower-row differences must not be hidden by the successful top deadline.
+The reference photo lacks the current additional C9 OUTI row, so its complete
+preceding history is not assumed byte-identical.
+
+A fresh AmSpirit1.17.1 run of the current disk and identical FR cartridge also
+has0/0 in the last four rows; its first and third rows differ from the photo.
+AmSpirit remains a software reference. Native high PPI bits also differ between
+machines; this comparison explicitly concerns VSYNC bit0. Motherboard PB0 is
+raw selected CRTC VSYNC (`vs_sel`), so the filter cannot change the sampled
+PB0 value. The native image alone does not establish whether its printed hex
+faithfully represents the result RAM. The existing saved-menu private R0-only and broad-queue
+proofs both give the same low0/0 lower rows and therefore have not reproduced
+the fresh-device failure. No new register-admission rule follows from that
+initialization/entry-state gap.
+
+Fresh reference evidence is in `asic/a4-amspirit-1171-v2/`; the first attempt
+stopped before media load because `crtc=keep` is valid only for SNA, not CPR.
+The corrected run uses the normal CPR load/reset contract. No data, PC or
+counter patch was used.
+
+The bounded full-caller comparison is now complete. The terminal-only model,
+broad pending-register queue and one delayed-key control all reach the original
+caller at73A9/IX7508, execute all16 actual measurement stores and format all
+eight words. All produce `F4F5,F5F5,F4F5,F5F5,F4F4,F4F4,F4F4,F4F4`; neither
+the queue nor moving the real key4 press from20ms to1second reproduces the
+native last-four1/1 result. There was no delay search. Two initial wrappers
+exit2 because their tally includes16 initialization writes as well as16
+actual measurement stores; a source-PC-qualified scorer proves completion.
+That raw diagnostic failure is preserved. The corrected delayed-key logging
+run exits0.
+
+The next discriminator is native result RAM74F8..7507 at this page, separating
+execution from formatting/display. Existing B18 cannot supply it:
+`Amstrad.sv` explicitly requires `!plus_mode` for save admission. No direct
+CPU-RAM read path was found, and no model switch, state patch or new save
+tooling was introduced for this unit. Frozen sources, traces, result scoring,
+hashes and process completion are in `asic/a4-bottom-comparison/`.
+These results accept the specific R0 deadline repair and restored sampled
+main effects, not full SHAKER or ASIC compliance. They do not justify the
+broader queue mechanism.
+
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).
