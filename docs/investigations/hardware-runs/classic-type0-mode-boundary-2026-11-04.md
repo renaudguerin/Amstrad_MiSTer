@@ -56,5 +56,31 @@ Frozen evidence is under ignored
 French renders, Gerald's inspector/fallback report and figures, source copies,
 the actual-T80 traces, `ASTRA-BRIEF.md`, and `nonaliased-control/`.
 
+## C-HSYNC discriminator
+
+A focused Opus read found no literal stage/NBA translation defect in Gerald's
+single native-clock video/control/color pipeline. Under the frozen traces, the
+source0→1 old-quarter/suffix constraints require mode visibility after963 and
+by967, while current Type0/1 visibility is961/965. This rules out a **simple
+common constant delay** in that clock model; it does not identify a new gate.
+The independent GA publication/CSYNC phase remains the issue, rather than a
+justified typed GA workaround.
+
+French §16.2.2 p166 specifies C-HSYNC deactivation1–2Pixel-M2 after CRTC HSYNC
+end (or the4µs cap). Current `syncgen_sync.v` instead clears `hdelay` directly
+through `hsync_n`; its synchronous event follows that modeled edge. Which
+physical end phase should feed MODE_SYNC is not established by that literal
+unverified drawing. The printed p166 chronogram and prose must be reconciled
+before deriving an exact quantization phase; no universal delay follows here.
+
+Parent also inspected higher-resolution primary pp56–57. Ordinary Type0
+reactivation/mode switch are36/37 and Type1's37/37. In their R3.JIT rows both
+are40/40. These are extra source output constraints; they are not evidence
+that raw HSYNC end simply moved four dots or that one two-dot clock grid fits
+all cases. A new publication model must explain ordinary and JIT together,
+without fitting only the missing old-mode slot. Source render, crop and full
+Opus reasoning are frozen in `resumed-20261104/type0-mode-order-review/`.
+No new mode experiment or production edit followed this read.
+
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).

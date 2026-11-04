@@ -4,7 +4,8 @@ The ASIC credit candidate shifts only terminal horizontal RGB blanking. A
 genuine DSC4 replay attributes the missing pixels to that boundary, and four
 independent normal-boot AmSpirit controls measure both edges. The retained
 regression fails before the change and passes afterward. Independent Gemini
-4 Argon high review accepts the implementation; hardware validation is pending.
+4 Argon high review accepts the implementation. Full synthesis and targeted
+MiSTer checks now pass; credits are clear, with bounded SHAKER photo support.
 The earlier private probes below are evidence history, not the final contract.
 
 ## Controlled integration result
@@ -241,6 +242,43 @@ Frozen red/green logs, complete diff, hashes and final gate line are in
 is in sibling `asic-credit-review/REVIEW.md`. The next acceptance is a full
 Quartus artifact with timing closure, then targeted DSC4 credits/main effects,
 Amazing and SHAKER A4/BI8/AEAR7 controls. No broad fresh baseline follows yet.
+
+## Full artifact and targeted device acceptance
+
+Source275af8a90c407422d1ff830129652e9659557814, full hosted
+[run41843571428](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41843571428),
+passes simulation/lint, production T80, synthesis and the required gate. Quartus
+17.0.2.602 reports setup0.091ns/hold0.241ns across seven clocks, zero TNS/errors/
+critical or implicit-net warnings. Artifact13331597231,
+`Amstrad-build-350-1-full`, contains `Amstrad_20261104_275af8a.rbf`,3112820bytes,
+SHA2566382ded9dd830310096a769393c1e16f68db9cd876f8b21d9938cc23f6153672.
+The MiSTer copy matches. The artifact retains the compiler log but no standalone
+STA summary; complete workflow output preserves the successful timing checker.
+
+Same Full/French6128+ setup and unchanged disks/cartridge as7ac11a2. Five
+normal-boot targeted runs total85commands/21captures/zero failures/30SSM:
+
+| Target | Execution | Result |
+|---|---|---|
+| DSC4 |16commands/3captures | All four credit colons and handwritten names are clear. Main otter and later rotating/fire-band image remain present. |
+| Amazing |13commands/2captures | Logo and lower text/effect region remain present in both sampled frames. |
+| BI |25commands/8captures/17SSM | Widths224/16/32/48 repeat unchanged for OUT(C)/OUTI. Both black edges shift exactly15native pixels at row160. White1µs text now clips LOGON→GON as on the original Plus photograph; the2µs partial first word also has the photographed mask placement. |
+| AE/AR |21commands/7captures/12SSM | AE008C is byte-identical to7ac11a2, readable marker09. Six AR images change only between black and their original nonblack RGB values; **zero changed nonblack-to-nonblack RGB samples**. Fine-stripe/color families remain consistent with the six available original photos. |
+| A4 |10commands/1capture/1SSM |0037 is byte-identical to7ac11a2. Top3C/3D and OUTI deadlines stay accepted; lower PPI words remain the separate known discrepancy. |
+
+Parent inspected every native image and all eight original BI photographs,
+including the full1/2µs photographs, plus the six AE/AR references. These support
+specific widths, clipping and pattern families, not pixel-identical CRT geometry
+or complete ASIC compliance. The unchanged A4 RAM-observation question remains.
+Each SHAKER SSM record carries requested/applied Full mode0; title captures pin
+CFG application but do not claim screenshot-time scaler lock from absent markers.
+
+Frozen artifact/provenance is in ignored `resumed-20261104/asic-credit-build/`;
+all five device runs are under sibling `device/` with275af8a suffix. BI's exact
+edge ledger and physical-reference contact sheet, AE/AR's pixel-difference
+ledger, and A4's PNG identity comparison retain the bounds above. Original
+photo URLs/hashes remain in `asic/b3-r3jit-real-plus-ref/index.json` and
+`cpcse/ae-ar3-real-plus-ref/index.json`. No broad fresh baseline was launched.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).

@@ -18,20 +18,23 @@ instructions across handoffs and context compaction.
 - The active `codex/overnight-validation-20261103` task branch contains the
   recent fixes and evidence. It is distinct from integrated `master` and no
   integration or release is implied. Published-artifact history is archived.
-- The latest accepted device artifact is `Amstrad_20261104_7ac11a2.rbf`, from
-  source `7ac11a2`, SHA-256
-  `4dc1e7628248a30092719ff026c63997bae6d95810c49bc7ad981c10b7a501ec`.
-  The MiSTer copy matches. Its [full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41775641712)
-  passes simulation, lint, production T80 and the required selection gate;
-  Quartus setup/hold slack is 0.279/0.204 ns with zero TNS. The R0 change was
-  independently reviewed; seven production-CPU cases, default B18, all 75
-  ASIC leaf tests and 44 selected benches pass. [Evidence and reviews](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md).
-- Bounded device acceptance covers A4's 3C/3D and OUTI deadlines, eight BI
-  and seven AE/AR images unchanged from the accepted ASIC-mode artifact, and
-  restored sampled DSC4 and Amazing main effects on CRTC3. It does **not**
-  establish full SHAKER, demo or ASIC compliance. Target known SHAKER and demo
-  residuals first; a broad fresh baseline follows the fixes. Capture completion
-  is execution coverage, not a pass rate.
+- Latest accepted device artifact: `Amstrad_20261104_ee9c131.rbf`, source
+  `ee9c131`, SHA-256
+  `b6bb116d91c34450128738fd4d3d118ca4fb27426f15af29dd8ba8f8e8a462fe`.
+  MiSTer copy matches. [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41849887000)
+  passes all required jobs; Quartus setup/hold 0.504/0.245 ns, seven clocks,
+  zero TNS. CRTC239/focused30/final44 benches pass; fresh Opus accepts.
+- Targeted Type0 acceptance: E6 cases21/24 now print0066/000E, matching their
+  source-backed recipes; DSC4 credits and sampled effects remain clear/visible.
+  [Comparator/build/device evidence](investigations/hardware-runs/crtc0-r9-r5-comparator-2026-11-04.md).
+- Prior ASIC acceptance on `275af8a`: DSC4 colons/names and sampled DSC4/Amazing
+  effects restored; BI widths/clipping, AE09/AR stripe families and A4 retained.
+  Five Plus runs completed21captures. The later change is Type0-only; these
+  checks were not repeated on its descendant. [ASIC evidence](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md).
+- Next Last Line fix is **not accepted**: source-derived C0=0 cancellation red
+  is proved, but review exposed missing C0=1 establishing-write support. Private
+  C0<2 latch qualification is under test; no new RBF contains it. No broad
+  baseline, master integration or release is implied.
 - The branch includes the ASIC mode repair `3113323`, T80 startup repair
   `9de75d3`, classic credit repair `db4be80`, and ASIC R0 repair `7ac11a2`.
   The rejected broader bus qualifier must not be treated as a verified fix.
@@ -48,6 +51,13 @@ our closest software reference, not the hardware oracle.
 
 ### Classic CRTC 0/1
 
+- Type0 E6's R9→R5 handoff is fixed in `ee9c131`; cases21/24 have targeted
+  device acceptance. Case5 exposes cancelled Last Line still resetting the
+  frame; its fix needs C0=1 establishing-write coverage before acceptance.
+  Case16's zero-R5 early-entry lifetime remains a source question;
+  [French draft](classic/accc-author-questions-crtc0-c0-1-2026-11-04-fr.md) is unsent.
+  [Comparator](investigations/hardware-runs/crtc0-r9-r5-comparator-2026-11-04.md),
+  [Last Line](investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md).
 - C1 E/P is readable and P is 26; E remains `0060` versus reference `0080`.
   A positive-R5 candidate reaches `0080` but does not identify the mechanism;
   production C5 remains unchanged. On `db4be80` a full C1 walk gives S `0640`,
@@ -61,11 +71,17 @@ our closest software reference, not the hardware oracle.
   pixel at a mixed-mode boundary remains a failure; no publication-delay fix
   has been selected. [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
   [mode boundary](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
-- `019D` has a failing production-T80 regression; physical write visibility and
-  the adjacent B8 expectation need hardware evidence. The updated-package full D1 walk passed the
+- `019D` remains fifth/fourth `1F/1F` on7ac11a2 versus fresh original-caller
+  AmSpirit/photo `1E/1F`. Fresh midrow AmSpirit controls match source9/5; local replay is7/3.
+  Ordinary NJIT independently gives source/reference Type0=5/Type1=6 versus
+  local5/5. The retained ordinary pair is red; a private publication-phase probe is
+  in progress, with no accepted timing change.
+  Physical comparator visibility and authentic B8 qualification remain open.
+  The updated-package full D1 walk passed the
   prior input stops, and `03AE`/`03B4` matched after that history.
   [Classic follow-up](investigations/hardware-runs/shaker-followup-recheck-2026-10-27.md),
-  [OUTI replay](investigations/hardware-runs/crtc1-outi-019d-2026-10-27.md).
+  [fresh OUTI caller](investigations/hardware-runs/crtc1-outi-019d-2026-11-04.md),
+  [onset controls](investigations/hardware-runs/crtc1-r7-onset-controls-2026-11-04.md).
 - B9 page B's collision ordering and MID FRAME glyph remain unresolved; original
   machine evidence is needed. F13 and F20 still need their named hardware gates;
   IA-2/3/6 are source-model evidence, IA-5 needs simultaneous sync/interrupt
@@ -77,10 +93,10 @@ our closest software reference, not the hardware oracle.
 
 ### Plus / GX4000 ASIC
 
-- DSC4 credit clipping is caused by HSYNC suppression of intact pixels. A private
-  delay candidate recovers 132 missing samples but adds 16 colon-tail pixels
-  and has startup implications; it is not accepted. The separate 16-dot
-  mode/blank alignment residual also remains open.
+- ASIC credit fix `275af8a` has bounded device acceptance: all colons/names
+  visible, BI clipping corroborated by original Plus photos. The terminal-mask
+  alignment is measured, not a literal silicon-stage claim. Wider mixed-mode
+  and full-demo acceptance remain outside this result.
   [Boundary evidence](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md).
 - A4 lower VSYNC-bit words differ from the original Plus; native result RAM is
   unknown. A saved-menu replay does not reproduce the fresh-device result. A

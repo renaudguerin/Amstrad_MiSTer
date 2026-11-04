@@ -44,3 +44,21 @@ firmware directory. Software evidence is in sibling `cpcse-e1-v012/`.
 Private inputs, complete manifests, hashes and images are under
 `local/overnight-20261103/resumed-20261104/device/e{0,1}-7ac11a2/`, with the
 contact sheets beside them. No production code or new RBF was introduced.
+
+## Direct E6 control and author-feedback lead
+
+The direct key6/CRTC0 check on7ac11a2 completed16commands/fourcaptures, zero
+failures and nineSSM records. All four PNGs0407..040A are byte-identical to the
+earlier full E0 walk. The comparator case21 still gives003A against0066;
+[the source-derived fix](crtc0-r9-r5-comparator-2026-11-04.md) has separate
+review/build acceptance. This direct entry preserves the observed page state
+without repeating the preceding module tests.
+
+A Terra high source map covers all28numeric cases and exact polling addresses
+in ignored `resumed-20261104/e6-case-map/CASE-MAP.md`. Cases27/28 label the
+update R9=2, but their original instructions are `LD BC,BD03` at65AD/6624
+followed by `OUT(C),C`, hence writeR9=3. Parent checked both bytes in the pinned
+payload1a747864…bca1. Treat this as a **label/source discrepancy for author
+feedback**, not proof that either the recipe or expected results should change.
+The current disk and scripts remain unchanged. Native expectation text alone
+does not substitute for a photograph or source-derived rule.

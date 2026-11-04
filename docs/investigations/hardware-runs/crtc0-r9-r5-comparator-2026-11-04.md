@@ -5,7 +5,7 @@ before the pending C4 increment. French ACCC1.11 §11.2.2 p83 example3 instead
 requires continued C9/R9 comparison while C4=R4, then C9/R5 after C4 increments.
 A source-derived retained t12 extension fails before the fix. The candidate
 reuses existing phase state; fresh Opus review accepts the corrected candidate.
-Full RBF and targeted hardware acceptance remain pending.
+Full synthesis and targeted E6/DSC4 device acceptance now pass.
 
 ## Independent counter proof
 
@@ -97,6 +97,38 @@ remains003A against printed0066. The last page warns R4/R9 without flash has
 issues after switching. Full/French/current disk6b9 are pinned in its manifest;
 private output is `resumed-20261104/device/e6-0-before-7ac11a2/`. Use the same
 entry for targeted after-captures; do not substitute a broad baseline.
+
+## Full artifact and targeted hardware result
+
+Committed sourceee9c131e3bc59dc5ec06b644c0c0931cf75ff4a9 has a successful full
+[build41849887000](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41849887000):
+all simulation/lint, production T80, synthesis and required-gate jobs pass.
+Quartus17.0.2.602 closes setup0.504ns/hold0.245ns across seven clocks, zero
+TNS/errors/critical/implicit-net warnings. Artifact13335232700,
+`Amstrad-build-352-1-full`, contains `Amstrad_20261104_ee9c131.rbf`,3121976bytes,
+SHA256b6bb116d91c34450128738fd4d3d118ca4fb27426f15af29dd8ba8f8e8a462fe.
+The MiSTer copy matches; provenance is in `resumed-20261104/type0-comparator-build/`.
+
+Same direct E6/French/Full input and disk6b9 complete16commands/fourcaptures,
+zero failures/nineSSM records. Parent inspected every image:
+
+- Case21 changes003A→0066 on0408 and0409, matching the printed0066 and the
+  independently established pending-R9 counter trajectory.
+- Case24 changes06EE→000E, matching its printed000E withR7=39 at the delayed
+  C4 increment. These are two distinct recipes; duplicated21 is counted once.
+- 0407 is byte-identical to the before-run. Other numeric recipes stay at their
+  previous values. Fourteen of28 still differ from program expectations, down
+  from16; this is a **program self-report**, not a physical-photo failure rate.
+  The new Last Line case5 and early-entry case16 are separate investigations.
+- 040A changes display phase; its source warns about first-line flashing/R12/13
+  after the switch. No additional numeric pass or exact-photo geometry is inferred.
+
+A matched-script CRTC0 DSC4 regression run completes19commands/fourcaptures,
+zero failures. Parent inspected all: four colons/names clear, static picture and
+sampled main/rotating/fire-band region visible. This is bounded title acceptance,
+not full demo completion. Evidence is `device/e6-0-after-ee9c131/` and
+`device/dsc4-c0-ee9c131/` below `resumed-20261104/`. Prior ASIC acceptance remains
+on275af8a; this change touches only classic Type0 rules and their tests.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).
