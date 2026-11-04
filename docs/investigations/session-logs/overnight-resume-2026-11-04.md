@@ -1,194 +1,168 @@
-# Active unattended handover — 4 November 2026, 22:24 UTC
+# Active unattended handover — 4 November 2026, 23:00 UTC
 
-Continue known SHAKER and DSC4/Amazing work until approximately 80% weekly
-Codex usage. Do not stop merely because one unit finishes. Last live OAuth
-reading at 22:05: 60% weekly used, reset 5 November 19:34 UTC; three banked
-resets untouched. No credits, overage or reset redemption. Keep `ask-claude`
-paused until its five-hour window resets and fresh telemetry verifies that.
-Use Gemini 3.8 for routine work, prepared Gemini 4 for hard independent review,
-and Sol high for RBF changes. Known defects precede a broad fresh baseline.
+Continue known SHAKER and DSC4/Amazing work toward approximately80% weekly
+Codex used; do not stop after one unit. Last live OAuth22:53:61% weekly used,
+reset5November19:34UTC; three banked resets untouched. No credits/overage or
+reset redemption. `ask-claude` remains paused pending the requested5h reset;
+no such call occurred in this segment. Argon was84.4% weekly at22:21: its last
+opinion finished, start no more Argon calls at that headroom. Gemini3.8 remains
+healthy (weekly44.1%, five-hour reset22:11); use prepared bounded briefs.
 
-Checkout: `/Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer`.
-Ordinary branch: `codex/overnight-validation-20261103`, HEAD/code tip `ccf2be7`; C0 build pins earlier `51ae4dd`.
-Branch pushes and full milestone builds are authorized. No master integration,
-PR, release or author message. Parent owns all shared MiSTer/AmSpirit access;
-device use remains authorized with no hold. SSH and Git metadata writes need
-the approved `require_escalated` path; no user SSH-agent action is needed.
+Checkout `/Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer`.
+Branch/code tip `codex/overnight-validation-20261103` / `e24cb50`.
+Branch pushes and milestone synthesis authorized; no master integration, PR,
+release or author messages. Parent is sole MiSTer/AmSpirit operator. Device
+use authorized, no hold. SSH/Git metadata need approved require_escalated;
+no user-agent action. Known defects before broad fresh baseline. No goal tool.
 
-## Committed CRTC0 fix: build, then native acceptance
+## Active jobs: own these through completion
 
-Sol high `/root/r3_output_model_scope` changed only `rtl/crtc_type0_engine.v`,
-`sim/sim_main.cpp` and `sim/soak-golden-history.md`. They are frozen after the
-final gate. Parent verified these SHA256 values at 21:53:
+- ONE native device process rootexec54442: original direct S then canonical
+  history on exact076eab1. Direct COMPLETE10cmd/1PNG/0fail/1SSM, full RGB
+  identical to qualified4E40 baseline; parent viewed it. History RUNNING;
+  last check34/64PNGs saved. Output `c1-ivm-adjustment-build/
+  device-c1-{direct,history}-s-076eab1/`. No other device/API job. Drain, view/
+  glyph-qualify S, compare all64 images and E/P before claiming S closed.
+- Full synthesis41929217942 on exacte24cb50 first-line R9-rematch fix.
+  Do not supersede it with another synthesis. Earlier C0/C1 builds COMPLETE.
+- Gemini3.8high read-only DT authentic-prefix prep rootexec48091,
+  run20261104T225642Z-99887-b5e6; output `dt-authentic-prefix-prep/`.
+  Source/caller byte facts and root AmSpirit capture plan only. No execution.
+- Solhigh `/root/r3_output_model_scope` READONLY `r3-causal-model-paper/`.
+  New bounded model question after corrected GA40010p59; no code/test/build/
+  API/device/Git/delegation. Frozen production hashes must stay unchanged.
 
-- Type0: `148837f54e888869d1cb0c29fb219edac05c8481d25a5095a16dda1d9460f05d`
-- sim: `6c8b3d89c14054e4fb1ecef800a5c6b7b8b7765b6513041b90b7c3a7d70859e1`
-- history: `7cac32e4d557c1f1e384ad3e1e963921ae9a353bddd1798fe177a3a41d2601b0`
+All other root execs/providers in earlier handovers are finished/drained.
+MiSTer is running076eab1 C1history. AmSpirit remains paused C0E6040A,
+temporary breakpoints/scripts cleared, no API job. One operator per service.
 
-CRTC 240 PASS. Intentional soak `f9b5f86e16277c55`, unchanged seed/projection,
-2,845,088 samples. Final `python3 sim/select_tests.py --run`: PASS 45 benches,
-once after the last source edit. Trust that gate; no source edit followed it.
-Private evidence root: `local/overnight-20261103/resumed-20261104/`.
-Read `c0-forced-zero-adjust-fix/r4-terminal-fix/HANDOFF.md`, `new-delta.diff`,
-`full-candidate.diff`, source hashes and red/gate logs before acceptance.
+## Committed changes and current artifact
 
-French §12.2 p95 distinguishes a forced current additional line from the
-unmodified short-R0 one-extra-line case. §11.2.2 p83 / §13.2.4 p108 retain the
-R9 comparator while pending C4=R4; an unequal R4 selects R5. Initial forced
-zero-entry vectors failed before RTL. Old universal one-line expectations
-were corrected against primary source, with red logs preserved. Opus accepted
-that initial candidate, but its review does not cover the terminal delta.
-The rejected generic downward-R9 completion at natural wrap is not a rule:
-7→6 completes on line32, not line25. Keep the correct L32 and original
-positive-R5 t16z controls.
+- 51ae4dd: C0 forced zero-adjustment ownership, R9 pending comparison and
+  terminal R4-selected R5 entry. Source-first red,240CRTC/45selected PASS,
+  intentional soakf9b5f86e16277c55. Initial Opus source review plus fresh final
+  Gemini4 review20261104T215343Z-88790-cc7b ACCEPT. No wrapper/new flop.
+- ccf2be7: C1 keeps IVM C9/C4/row structure during adjustment per French§11.8
+  p93 /§19.8.2p226. C5 physical-line lifetime/completion and inferred E0080
+  restart policy retained; R4-reset/re-entry mode eligibility follows real row.
+  Retained t08i/j/s red237PASS3FAIL; final240CRTC/45selected PASS once,
+  soak402410acec7f4988. Only obsolete t28a/b C9 sequences/comments corrected,
+  their C4/C5/extra-line/parity/origin assertions preserved. Fresh Gemini4
+  review20261104T221327Z-92939-f023 ACCEPT. No wrapper/new flop/GA change.
+- e24cb50: C0 first forced line can honor a live selected R9 rematch. Retained
+  t16n red239PASS1FAIL; zeroR5 L1origin and positiveR5=2 L3origin controls pass;
+  unrestored7→6/L32 and existing R4/shortR0/IVM controls remain. Final240CRTC/
+  45selected PASS once, clean exit0. Soak unchanged402410acec7f4988 with fixed
+  seed/projection/2,845,088samples; history truthfully says directed path not
+  distinguished. Fresh Gemini3.8high review20261104T224717Z-98570-694c ACCEPT,
+  rootexec11680 drained and logs preserved. Parent verified all source and
+  unchanged-owner hashes; no later code edit. Type1/wrapper/GA unchanged.
 
-The real terminal-R4 red uses natural C4=R4=8, R0=63, R8=0 and either
-R9=C9=31/R5=0 or R9=C9=3/R5=4. Writing R4=10 at C0=1 already selects R5;
-origin must occur at the first boundary. The prior candidate held row8.
-The final delta consumes that terminal result through canonical decisions,
-retains its selected target using existing R5 override storage, and excludes
-accepting-edge R9 ownership on short R0. No wrapper, new flop or global
-case28 rematch. Public window/origin/VSYNC/follow-through controls pass;
-a storage-echo assertion was removed rather than changed to mirror storage.
+Current code hashes: Type0bffea594d5ea710dd1ba7620c96a1383675a65f36b17e592f8ed4c6a769769f0;
+Type1425977f99755799ff79336c999bf4ab53e184e0f7728fb1d04032baa7297871a;
+simae4da595192c7cd0e0c61e905f60f6f3f63b8c893b56abbdc64331383a4b4ab4;
+history21cc54ca8216e213797a0076df4b6339897eb7eb563fe21495e472d7748c6ae5.
+Private handoffs/hashes/red/gate/review logs under
+`local/overnight-20261103/resumed-20261104/`:
+`c0-forced-zero-adjust-fix/r4-terminal-fix/`,
+`c1-s-live-state-analysis/implementation/`,
+`c0-e6-case4-first-line-rematch/implementation/`. Trust exact completed gates;
+do not rerun unless later source edits/failure/mismatched evidence.
 
-Fresh Gemini 4 Argon high review `20261104T215343Z-88790-cc7b` ACCEPTS
-with no findings; exec4182 exited cleanly and logs are preserved under
-`r4-terminal-fix/terminal-cross-provider-review/`. Parent verified source
-hashes; no later edit or gate rerun. Committed/pushed `51ae4dd30b2a16c9d2cb59e1e1fa8d511aced520`.
-Full milestone workflow41921307910 is running on that exact SHA. Push workflow
-41921280149 is simulation-only. No other synthesis is active. Wait for the full
-artifact, verify timing/hash, then native C0 E6 and bounded DSC4 regression.
+## Exact full builds and native acceptance
 
-## S diagnostic: native pair complete, source proof next
+C0 workflow41921307910 ALLSUCCESS, source51ae4dd30b2a16c9d2cb59e1e1fa8d511aced520,
+artifact13368881149/build366. RBFAmstrad_20261104_51ae4dd.rbf,3108976bytes,
+SHAea84683c8e52b4dfd450deac17888e6bd6d45bf6209970ccdea83887e80ba08e.
+CleanfullQuartus17.0.2.602/StandardFit/HighPerformanceEffort,macroOFF,7groups/
+TNS0,minima.542/.211ns,noerrors/criticalwarnings. Installedhashmatches.
+Evidence `c0-forced-adjustment-build/` reports/workflow/verification.
 
-Isolated branch `codex/s-passive-native-20261104` at
-`ae9ccdc02d6ac941eddc9b4aab771b15218ffa20` only enables the reviewed observer.
-Workflow41910599920 succeeds; artifact13363847112, build363.
-RBF `Amstrad_20261104_ae9ccdc.rbf`, 3,139,340 bytes, SHA256
-`ed83e351fc650633c7e6021cf3f7521b38550b3265a5a8132c7b8c5a7a250d54`.
-Full Quartus17.0.2.602, Standard Fit/High Performance Effort, macro ON,
-seven setup/hold groups, zero TNS, minima0.548/0.178ns, no errors/critical
-warnings. Installed file hash matches. Normal production QSF remains OFF.
-Default-off observer50b2402 has a passing 717-M1/50k-clock production-T80
-checkpoint-instruction replay, 45-bench gate, unchanged soak and independent
-Gemini4 acceptance. Replay trampolines are not original hidden-state evidence.
+Original E6 COMPLETE16cmd/4PNGs/0fail/9SSM, all4rootviewed and independently
+immutable-label/EXP glyph decoded.25/28PASS versus17/28 on9a, eight more pass:
+2:0037→00F7,6:0007→007F,8:0023→007F,9:0043→009F,10:04E3→053F,
+16:002B→002F,17:0013→008B,19:002B→00A3. No prior passing check regresses.
+Residual4=00FEvs0032 (was0038),27=0055vs0065,28=02D6vs000E.
+Case2 originalFFFD→FFFC markers720→2640us=+30*64us. Metadata is output
+raster, NOTC0/C4/C9. No E physical photos; score is printed self-check only.
+DSC4 COMPLETE19cmd/4PNGs/0fail/noSSM; all4rootviewed: colons/names clear,
+otter/main/rotation/fire visible. Bounded regression, not full demo completion.
 
-Both native paths COMPLETE and drained: direct10commands/1PNG/0fail/16SSM;
-history131commands/64PNGs/0fail/136SSM. Each has two identical1040-byte reads,
-all retained sequence checks, seven ordered cuts, error0/drop0. Direct glyph
-and timing give4E40/N1188; history gives0440/N4, exactly retaining production9a.
-Direct acquisition has six failed retries, history zero; both R8 pulses8µs.
-All64 history images and eleven changed pairs were inspected:53 pixel-identical
-to production9a, eleven raster-pattern changes; E/P/S identical. No new photo
-verdict. Evidence: `s-passive-fpga-trace/native-{direct,history}-ae9ccdc/`,
-`native-pair-qualified-values.json`, `native-history-page-comparison.json`.
+C1 workflow41925025171 ALLSUCCESS, source076eab11a948e91e44279f5ef128c924a26b92ea
+(docs only aboveccf2be7), artifact13370705502/build368. RBF
+Amstrad_20261104_076eab1.rbf,3139692bytes,
+SHA7d7fc3f6f1cc2ea6197a05cfc273ca4bc308e7e6a2b14bfc3774ffac1b6cb4b6.
+CleanfullQuartus17.0.2.602/StandardFit/HighPerformanceEffort,macroOFF,7groups/
+TNS0,.539/.242ns,noerrors/criticalwarnings. Installedhashmatches; reports/
+workflow/verification `c1-ivm-adjustment-build/`. Native pair active above.
+After pair, e24cb50 artifact should be next device E6 check, then bounded
+DSC4; no speculative native case4pass claim yet. No runner registered; hosted
+route selected deliberately. All download/upload/log commands drained.
 
-Direct adjustment is off/C5=0 through R5. History already has adjustment on/
-C5=31 at A4CF, stays on through A067/A06B with C5=0, then reaches the R5
-fetch5BFB with C5=24. At R7 fetch5B0A, both have C0=13/C9=C5=0/IVM1/parities0;
-direct has C4=4/adjustment off, history C4=2/adjustment on/added line active.
-This is an observed inherited-state difference, not permission to clear C5.
+## Source findings and evidence limits
 
-Sol `/root/r3_output_model_scope` now owns only private
-`c1-s-live-state-analysis/` source analysis and an isolated failing proof.
-Parent read French §11.8 p93 and §19.8.2 p226. Private proof completed once:
-18 red assertions across both natural parity setups; first C9 boundary,
-fourth-boundary actual C4 commit and raw/public VSYNC fail while C5/lifetime
-checks pass. Source unchanged. Worker is NOW authorized to edit only Type1
-engine, sim_main and soak-history, plus private implementation evidence.
-SOURCE-PLAN.md under implementation/ precedes edits: retain a focused red,
-share IVM-aware ordinary row identity among C9/C4/structure/R4-reset/re-entry,
-keep C5 completion/restart policy and added-line priority. Retained t08i/j/s
-own first-five-boundary and mode-eligible zero/positive R4 interactions.
-No wrapper/new flops/Git/build/device/API/delegation. Retained red237PASS/3FAIL
-before RTL; final focused240PASS. Two old t28a/b plain-IVM C9 oracles corrected
-only in C9/comments after preserving their red; C4/C5/extra/parity/origin owners
-unchanged. Intentional soak402410acec7f4988, unchanged seed/projection/samples;
-C0 row retained. Final selected gate PASS45 ONCE; no later source edit. Parent verified
-SOURCE-HASHES/UNCHANGED-OWNERS. Fresh Gemini4 review20261104T221327Z-92939-f023 ACCEPT, exec13299 drained
-cleanly; logs preserved implementation/cross-provider-review/. Parent hashes
-match. Committed/pushed `ccf2be7` (Type1/sim/history + parent source report).
-WAIT for C0 synthesis41921307910 to finish before dispatching C1 full build;
-global synthesis concurrency would otherwise preempt C0. All C0 simulation/
-production-T80 jobs passed; compilation still active. No other synthesis.
-Then verify/download/install C0 artifact and run its targeted E6/DSC4 while
-C1 compiles, with one root device operator.
-Do not claim S fixed or clear C5. Parent owns all documentation changes.
-The original round2 `message.txt` is absent; its tracked technical summary is
-not literal correspondence. Do not invent the missing wording.
+C0 first-line rematch: natural C4=R4=8,C9=R9=7,R0=63,R8=0. R9←6 atC0=1,
+restore7 atC0=60 must calculate zero on L1 (R5=0), without rearming ordinary
+LastLine. Previous primitive produced8/8/in_adj1. PositiveR5=2 instead advances
+C4=9,C9=0,1 then L3origin. Exact-R0 old-mismatch/new-match remains unproven and
+excluded by preserved special priority; acceptingC0=1/R0=1 path also excluded
+from new registered-force match. Source Frenchp83/p108 read by parent/worker.
+Native caller audit corrects prior Gemini schedule: lower OUT5C9E, not5C9B
+(LDBC); restore5CA4, no interveningLDHL. Nominal gap59us, not62; absolute
+nativeC0unmeasured. Earlier retrieval hashes/labels valid but prose schedule
+wrong; qualifications/incident retained, no guessed-phase oracle accepted.
 
-AmSpirit matched original direct/history both give4E40/N1188 with all ten
-register arrays equal; v2 SNA counters are unavailable, not zero. CPCSE4E40
-versus physical photo4E30 revision binding remains unresolved. Device is idle
-at diagnostic history S0440; no device/API job. AmSpirit is paused at C0 E6
-040A with temporary scripts/breakpoints cleared. A prior same9a repeat failed
-after28captures on SSH/SCP timeouts: no S scalar, no core verdict, no active
-job; later SSH succeeds with no orphan MBC client.
+S old qualified passive pair (ae9 diagnostic) retained production9a direct4E40/
+history0440 with seven stable cuts, zero errors/drops. History already carries
+adjustment/C5=31 at acquisition, C5=24 before original R5=8; sixteen lines later
+C4=2/addedline1 versus direct C4=4/adjustmentoff. Source§11.8 independently
+requires IVM continuation: fixed inccf, but retained C5 phase is not thereby
+resolved. E0080/P26 controls must remain. Raw Q20message missing; technical
+summary is not literal correspondence. CPCSE also continuesIVM and restartsC5
+on positiveR4re-entry, but ends retainedzero state via newFrame, differing from
+French/Q20. Do not copy its lifetime or import nativeC5=24 into unobserved peer
+state. Parent qualification in cpcse-c1-adjustment-source/ rejects that causal
+inference; source hashes/logs preserved. PhysicalCSphoto4E30 vsprogram4E40
+binding remains open; AmSpirit original matched pairboth4E40/N1188.
+Historical words:5990640,e5745060 (NOTearlier9600),9a0440; all direct4E40.
+Use immutable glyph dictionary, not small-font guesses.
 
-## Other completed evidence and remaining work
+## Mixed-mode state and next prepared work
 
-Gemini3 case2/4 retrieval COMPLETE; exec78595 drained. Run
-`20261104T214048Z-85364-e02a`, logs preserved in
-`e6-case2-4-retrieval/provider-log/`. Parent verified media/routine/label
-hashes and accepted recipes as navigation only. Its report confuses184,320-byte
-sector payload with194,816-byte DSK container; parent qualification records
-that and OUT-versus-preceding-INC PC conventions. No native bus phase or
-causal RTL conclusion. Native2=0037 versus00F7,4=0038 versus0032.
+All existing ordinary/JIT0→1,2→1,1→2 and JIT2→0 constraints qualified;
+JIT2→0 requires residual5/pen5 from5D, actualType0res6/pen0 andType1res7/pen1;
+successorA6pens13/2 correct. Fixed Mode0/1/2 controls recorded. New fixedMode3
+proof one build/run, both192/192 PASS, requested11/effectiveflags000 and actual
+CPU8F plus old-SR/earlier-LOAD provenance. All102manifest hashes match; parent
+readFrenchp47/p63 and qualified source timing gloss in PARENT-ACCEPTANCE.
+No new model or production mode timing change.
 
-Functional9a build41900154684/artifact13359402650 has RBF SHA256
-`eadc739cb8809236df65866ad36f99b9b6ba1dd04c22e71d507318e53d0c5576`.
-C0 E6 case25 fixed0003→051B;19 changed0003→002B versus00A3. Eleven of28
-printed checks fail:2,4,6,8,9,10,16,17,19,27,28. Cases5/14/21/24 retain
-00C0/0D97/0066/000E. Case27 is0055 versus0065. Use immutable-label glyph
-decoding, not tiny-font guesses. AmSpirit passes28/28, CPCSE9/28; no E physical
-photos. Bounded C0 DSC4 views are clear. C1 E/P0080/26 remain; DI58vs59,
-B6 1F/1Fvs1E/1F and R7.JIT8/4vs9/5 remain open.
+Argon advice76195/run20261104T220647Z-90788-d139 COMPLETE/drained, raw report/
+logs preserved r3-universal-cadence-assessment/. Parent REJECTS universal-rule
+claim: citedp60 isGA40007/8, not40010. Actual renderedp59 (root-fr059.png)
+ordinary2→0 holds residual5 across source37..40; no inventedres6 suffix. A2
+still branchesOrd/JIT and lists blank oracle intervals without a causal rule;
+fixedPASS words are paper, not executed results. p166combinedCSYNC is not an
+isolatedMODEclock. Type1JITtail question must distinguish raw pin vsGAblank;
+do not modifyCRTC to make model fit. PARENT-QUALIFICATION/incident retained.
+Sol's current PAPER task uses corrected matrix and considers/rejects a possible
+common next-oddM2 grid (raw960/964→967,841/845→847) plus retained-byte/token
+history. It is a hypothesis, no imposedrule and no implementation authorized.
 
-R3/mixed-mode controls are qualified but no universal model is selected.
-Latest JIT2→0 requires source40 pen5, actual Type0pen0/Type1pen1; successor
-A6 pens13/2 and all six fixed controls pass. 0.25µs is four Pixel-M2, not one.
-Historical S words:599=0640,e574=5060 (earlier9600 reading withdrawn),9a=0440;
-all direct4E40. A4 last four PB0 pairs already0/0; earlier1/1 was an E/F glyph
-error. ccd49d4 fixes the runner's poll-completion versus screenshot deadline;
-223 tests/12 skipped and selected gate passed. ASIC275af8a credits/BI/sampled
-effects have bounded acceptance. Full demos, monitor and remaining SHAKER
-questions are recorded in dated reports; no broad baseline has been launched.
+DT remains unassigned functional versus acquisition. Old replay starts after
+one-time sync with missing classic SNA counters and wrongC4 phase (6/17/27 vs
+freshCPCSE0/10/20). Loop bypasses sync, so waiting does not repair it. New Gemini3
+prep active above must give raw guarded bytes/path to authentic pre-sync capture;
+no snapshot-counter zeros, guessed convergence or filter fix is authorized.
 
-Keep current-status and tally focused on the current tip. Parent owns dirty
-docs; stage code separately. Pure docs need links/diff checks, no simulation
-or provider review. Check the reaper before replacing a bridge; preserve logs
-and own each run through exit. Commentary at least once per60s during work.
-No goal tool was created.
+## Current documentation and checkpoint policy
 
-
-Active foreign read-only leaves (parent must drain through exit):
-- Gemini3 CPCSE source retrieval COMPLETE/drained exec10403,
-  run20261104T220211Z-90150-a2cc; logs preserved cpcse-c1-adjustment-source/.
-  Parent qualified hashes/source, corrected misleading claim that peer lacks
-  positive re-entry restart, and rejected importing native C5=24 into an
-  unobserved peer S timeline. Peer retained-zero reset lifetime differs from
-  French/Q20; do not copy it. See PARENT-QUALIFICATION.md.
-- Prepared Gemini4 universal mixed-mode cadence assessment using the NEW JIT2→0
-  residual5 versus JIT2→1 residual6 control: exec76195,
-  run20261104T220647Z-90788-d139; output r3-universal-cadence-assessment/.
-  Advice only, no implementation or experiments. Prior Astra assessment could
-  not derive a rule before that independent destination constraint existed.
-
-
-Sol now owns only NEW ignored r3-fixed-mode3-proof/ for a bounded missing
-fixed-Mode3 regression control, using coherent frozen T80/READY fixture and
-French §9.3.4.3.4 p63. No candidate or production edit. Prior observer aliases3
-as0 and cannot qualify3; require actual accepted mode/source identity rather
-than simply relaxing its guard. One private Verilator build/run for both types,
-every-clock192-window source oracle, or return exact blocker. No source/phase/
-NOP/release search, Git, Quartus/gate/device/API/delegation. Frozen C1/C0
-sources must remain identical. This can proceed during parent review/builds.
-
-
-Quota routing at22:21: Gemini5h reset (0% used), Gemini weekly44.1%,
-Argon weekly84.4%, separate Claude/GPT Antigravity weekly100% (unavailable;
-no credits). Let the active Argon cadence assessment finish, but do not start
-another Argon call at this headroom. Gemini3.8 routine work remains available.
-Codex last22:05 weekly60%; next check around22:30. User's Codex reserve80%
-and no abrupt cutoff/credit redemption remain in force. ask-claude stays
-paused pending the requested window reset; no call was made in this segment.
+Parent owns dirty current-status/tally/mode report/handover. Keep current-status
+at current tips; dated reports/Git preserve old artifacts and misreadings. The
+C0 forced-adjustment report now records fullbuild/native25/28/DSC4 and the
+rematch followup; it was included ine24cb50. Unsent C5/R7 questions were updated
+for actual native state/inferred restart and remain unsent. No author contact.
+Pure docs require local links/diff check, no simulation/review. Never stage
+worker code accidentally; all current production code is committed/frozen.
+Before replacement bridge confirm reaper shows old provider stopped, preserve
+logs. Own every job to exit and keep commentary at least once per60s.

@@ -10,7 +10,7 @@ builds and are not an overall compliance score.
 
 | CRTC | Execution coverage and source | Photo comparison / current boundary |
 |---|---|---|
-| 0 | On `cec641c`, 2.7 A completed 122 captures; B and D stopped part-way, C stalled at `029E` with no captures. 2.6 B and D fixed-wait walks yielded 2 and 110 captures respectively. The later B1 repair reaches `00FC`, without a full B0 rerun. On `7ac11a2`, updated-package E0 completed34 commands/11 captures; direct E6 on `9a91920` completed4 captures; cases 5/14/21/24/25 match their printed expectations. Eleven of 28 unique printed checks remain wrong (not a photo failure rate). No E photos are cached. | No aggregate original-photo failure denominator established. Historical `0037` and `0091` differences and C0 `029E` starvation need reassessment on current builds. [September A](investigations/shaker27-full-suite-2026-09-29.md), [October B–E](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md), [B1 recheck](investigations/hardware-runs/shaker-followup-recheck-2026-10-27.md). |
+| 0 | On `cec641c`, 2.7 A completed 122 captures; B and D stopped part-way, C stalled at `029E` with no captures. 2.6 B and D fixed-wait walks yielded 2 and 110 captures respectively. The later B1 repair reaches `00FC`, without a full B0 rerun. On `7ac11a2`, updated-package E0 completed34 commands/11 captures; direct E6 on `51ae4dd` completed4 captures and passes25/28 printed checks; only4/27/28 remain wrong (not a photo failure rate). No E photos are cached. | No aggregate original-photo failure denominator established. Historical `0037` and `0091` differences and C0 `029E` starvation need reassessment on current builds. [September A](investigations/shaker27-full-suite-2026-09-29.md), [October B–E](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md), [B1 recheck](investigations/hardware-runs/shaker-followup-recheck-2026-10-27.md). |
 | 1 | On `5fba168`, 2.7 A/B/C completed 127/139/80 captures with French B key and C marker workarounds; updated-package D/E completed 127/7. On `db4be80`, C completed 80. On `7ac11a2`, E1 completed 25 commands, 7 captures, zero capture failures and 16 SSM records; photos are not yet judged. | Older November 3 two-batch comparison: 350 pairs, 300 match, 30 phase and 20 different. Six of 350 (~1.7%) were content/timing flags; four (~1.1%) were acquisition questions. The raw 20/350 (~5.7%) includes eight PPI input differences and two documented variants. E/P display and E's 0080 scalar now have targeted native acceptance; S remains history-sensitive. [Sweep](investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md), [S controls](investigations/hardware-runs/shaker-s-history-2026-11-04.md). |
 | 3 | On `cec641c`, 2.7 A/B completed 123/121 captures; C/D/E 2.7 stopped part-way, while 2.6 C/D/E produced 23/150/4 captures. On275af8a, A4/BI/AE-AR complete1/8/7 captures with zero failures; E3 remains unlaunched. | No aggregate original-photo failure denominator established. A4 top deadlines match, BI pulse widths and one-microsecond mode, AE marker and AR stripes have bounded acceptance; exact-photo geometry and other observables remain outside that acceptance. [Old execution](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md), [current milestone](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md). |
 
@@ -23,15 +23,13 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
 
 ## Known pages and next discriminators
 
-- **CRTC 0 E6:** `9a91920` repairs 25=051B and retains 5/14=00C0/0D97
-  and 21/24=0066/000E. Eleven of 28 unique printed checks still differ, down
-  from 12 on 599 and 14 on ee9. Failures: 2/4/6/8/9/10/16/17/19/27/28.
-  This is a program self-report, not a photo comparison. Case 19 changes
-  0003→002B versus 00A3; case 25's previous value was 0003, correcting an earlier
-  parent reading of 0037. The early forced-entry distinction now has a source-derived, failing-first
-  candidate under review; case28 retains its separate post-entry rematch question.
-  [Exact-source proof and native tally](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md),
-  [previous targeted evidence](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
+- **CRTC 0 E6:** `51ae4dd` passes25/28 unique printed checks, up from17/28
+  on9a. Eight more checks match:2/6/8/9/10/16/17/19; all former passes remain.
+  Failures are4=00FE versus0032,27=0055 versus0065 and28=02D6 versus000E.
+  This is a program self-report, not a photo comparison. The first-line R9
+  restoration in4 and later post-entry R4 rematch in28 are separate questions.
+  [Forced-adjustment fix and native tally](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md),
+  [earlier canonical-row proof](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md).
 
   Matched short original-program E6 reference: AmSpirit1.17.1 passes28/28
   printed checks; the preserved CPCSyntaxError0.12 batch passes9/28. These

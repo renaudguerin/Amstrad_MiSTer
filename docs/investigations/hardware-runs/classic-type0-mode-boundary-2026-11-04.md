@@ -208,3 +208,34 @@ Evidence: resumed-20261104/r3-jit-2to0-proof/. Parent verified all frozen
 source/artifact hashes and accepted the worker's completed command/result,
 without repeating the build or run. Final line:
 `JIT_2TO0_DESTINATION_CADENCE: MISMATCH`; all eight setup guards pass.
+
+## Fixed Mode3 control qualified
+
+The missing fixedMode3 control now passes on both CRTC types over all192
+clocks of the frozen actual-T80 fixture. French§9.1p47 and§9.3.4.3.4p63 give
+two four-colour, four-M2 pixels per byte; the six distinct markers yield pens
+1,2 /2,3 /1,1 /3,2 /2,3 /1,2, with every pen checked for sixteen master clocks.
+The private observer now distinguishes requested11/effective decode flags000
+from Mode0, and verifies the actual CPU8F GA write. An old-SR/earlier-LOAD
+ledger independently binds each byte; matching RGB alone is insufficient.
+
+One coherent build/run passes both192-clock controls; existing fixed0/1/2
+results are reused. Parent verifies all102 source/artifact hashes and unchanged
+production hashes, without rerunning the proof. The absolute703..895 window
+is a bound of the frozen fixture, not a new measurement of physical silicon
+pipeline latency. No mixed-mode model or production change follows from this
+fixed-mode result. Evidence: `resumed-20261104/r3-fixed-mode3-proof/`, including
+`PARENT-ACCEPTANCE.md`. The source-plan gloss attributing a one-M2 lead to p47
+alone is qualified there; its pixel oracle does not depend on that gloss.
+
+## Ordinary 2→0 source-family guard
+
+French§9.3.4.3.1p59 gives the GA40010 ordinary2→0 suffix: after the old
+Mode2b3 slot at source36, residual5 supplies [0,b0,0,b2] across source37..40.
+The adjacent p60 describes GA40007/8 and its one-filled missing bits. It does
+not justify advancing GA40010 to residual6 at source39..40. Parent rendered
+and read p59 directly while qualifying a provisional model opinion; that
+opinion's ordinary-only extra increment and universal-candidate claim are
+rejected. No serializer or blank-validity rule was implemented from it.
+Corrected paper assessment: `resumed-20261104/
+r3-universal-cadence-assessment/PARENT-QUALIFICATION.md`.

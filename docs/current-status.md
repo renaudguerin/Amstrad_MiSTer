@@ -15,26 +15,22 @@ instructions across handoffs and context compaction.
 
 ## Branch and current artifacts
 
-- Active branch: `codex/overnight-validation-20261103`, RTL tip `ccf2be7`, tooling tip `ccd49d4`, default-off observer `50b2402`.
+- Active branch: `codex/overnight-validation-20261103`, code tip `e24cb50`.
   It is distinct from integrated `master`; no integration or release is implied.
-- Latest targeted build: `Amstrad_20261104_9a91920.rbf`, SHA256
-  `eadc739cb8809236df65866ad36f99b9b6ba1dd04c22e71d507318e53d0c5576`.
-  [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41900154684)
-  passes all jobs, setup/hold 0.585/0.242 ns. Native C0 E6 case 25 is now 051B;
-  11/28 printed checks remain wrong. This is the latest functional acceptance artifact.
-- Passive diagnostic: isolated branch `codex/s-passive-native-20261104` at
-  `ae9ccdc`, installed as `Amstrad_20261104_ae9ccdc.rbf`, SHA256
-  `ed83e351fc650633c7e6021cf3f7521b38550b3265a5a8132c7b8c5a7a250d54`.
-  [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41910599920)
-  passes with setup/hold0.548/0.178ns. It preserves exact9a direct4E40/history0440
-  with seven valid passive cuts and no drops. Normal production leaves its
-  macro off. [Observer qualification](investigations/hardware-runs/shaker-s-passive-observer-2026-11-04.md).
-- C0 fix `51ae4dd` has passed its selected gate and fresh review;
-  [full synthesis](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41921307910)
-  is running. C1 fix `ccf2be7` is gated/reviewed and awaits that build before
-  dispatch, to preserve synthesis already in flight. Neither has new native
-  acceptance yet. Earlier artifacts and their results are in the
-  [dated milestone report](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
+- Current full artifact: `Amstrad_20261104_076eab1.rbf`, SHA256
+  `7d7fc3f6f1cc2ea6197a05cfc273ca4bc308e7e6a2b14bfc3774ffac1b6cb4b6`.
+  [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41925025171)
+  passes all jobs, setup/hold0.539/0.242ns. It contains C1 counting fix `ccf2be7`;
+  native direct S retains4E40 and canonical history is running.
+- Latest completed C0 acceptance is `51ae4dd`:25/28 E6 printed checks pass,
+  and four bounded DSC4 views retain clear credits and visible effects.
+  Its code is included in076eab1; this does not imply a fresh C0 run on that RBF.
+  [Exact artifact and evidence](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md).
+- Follow-up C0 first-line R9-rematch fix `e24cb50` passes its failing-first
+  counter proof,240CRTC/45selected benches and independent review.
+  [Full synthesis](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41929217942)
+  is running; native case4 remains unverified. Earlier artifacts and results
+  belong in [dated milestone reports](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
 - ASIC acceptance remains bounded on `275af8a`: DSC4 colons/names and sampled
   DSC4/Amazing effects, BI widths/clipping and AE/AR patterns. Later changes
   target classic CRTC state; no new full Plus baseline is implied.
@@ -49,16 +45,15 @@ our closest software reference, not the hardware oracle.
 
 ### Classic CRTC 0/1
 
-- C0 E6 on `9a91920`: case25 is051B, case19 remains002B versus00A3, and11/28
-  printed checks fail. Cases
-  5/14/21/24 retain their corrected values. The zero-R5 early-write
-  distinction has a failing-first counter proof and a frozen candidate;
-  case 28's later R4 re-match remains a source question. The matched
-  AmSpirit original E6 path passes all28 printed checks; CPCSyntaxError also
-  fails case19, so its source supplies no validated replacement rule there. The canonical-row fix has its retained red proof, 240-case CRTC suite,
-  selected gate, independent review, full synthesis and exact-source native
-  acceptance. The forced-entry/terminal-R4 fix `51ae4dd` passes240CRTC/45selected
-  benches and independent review; native acceptance awaits its active build.
+- C0 E6 on `51ae4dd` passes25/28 printed checks, with eight newly matching
+  cases and no previously passing regression. Remaining4/27/28 require focused
+  rematch work; first-line R9 restoration differs from later R4 restoration.
+  Follow-up `e24cb50` implements the source-defined first-line R9 endpoint,
+  with a build underway before native case4 validation.
+  The early forced-entry distinction has failing-first proofs,240CRTC/45selected
+  passes, independent review, full synthesis and targeted native acceptance.
+  Matched AmSpirit passes28/28; CPCSyntaxError passes9/28 and supplies no
+  validated replacement for every residual.
   [Last Line proof](investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md),
   [VSYNC proof and native result](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md),
   [forced-entry source distinction](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md),
@@ -76,7 +71,7 @@ our closest software reference, not the hardware oracle.
   counting during adjustment is now a French-source mismatch with both-parity
   failing counter/VSYNC proofs. The committed repair `ccf2be7` passes240CRTC/
   45selected benches and fresh independent acceptance.
-  Its full build waits for the active C0 synthesis to finish.
+  Its full build passes; direct S retains4E40 and canonical history is running.
   No S fix is claimed.
   [Interlace-adjustment proof](investigations/hardware-runs/crtc1-interlace-adjustment-counting-2026-11-04.md). [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
   [S evidence](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
