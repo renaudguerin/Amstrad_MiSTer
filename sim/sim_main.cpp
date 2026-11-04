@@ -360,6 +360,8 @@ public:
     }
 
     bool raw_vsync() const { return dut_->rootp->CRTC__DOT__VSYNC_r; }
+    bool snapshot_vsync() const { return dut_->SNAP_VSYNC_R; }
+    bool published_vsync() const { return dut_->VSYNC; }
     bool raw_hsync() const { return dut_->HSYNC; }
     bool frame_parity() const { return dut_->rootp->CRTC__DOT__parity_frame; }
     bool frame_end_pending() const { return dut_->rootp->CRTC__DOT__frame_new; }
@@ -786,8 +788,9 @@ void write_r7_zero_at_hcc(TestBench& test, unsigned hcc) {
     test.expect_vsync_low("VSYNC before the timed R7 write");
     test.write_selected_register_at_clken(0);
 
-    // VSYNC is deliberately registered once more at the output pin. One raw
-    // 16 MHz tick exposes the R7 handler's immediate assertion there.
+    // Retain this helper's historical one-clock observation step. Immediate
+    // Type1 acceptance uses SNAP_VSYNC_R; the independent64CLOCK CRTC+GA
+    // optical regression qualifies the published-pin phase.
     test.run_clock_ticks(1);
 }
 
@@ -838,22 +841,53 @@ void test_type1_r7_early_hcc_immediate(TestBench& test) {
         std::ostringstream expectation;
         expectation << "type 1 R7=C4 write at C0=" << hcc
                     << " asserts VSYNC immediately";
-        test.expect_vsync_high(expectation.str());
+        test.expect_high(expectation.str(), test.snapshot_vsync());
     }
 }
 
 void test_type1_r7_midline_partial_counts(TestBench& test) {
     configure_f3_midline_fixture(test, 1);
-    write_r7_zero_at_hcc(test, kF3MidlineHcc);
-    test.expect_vsync_high("type 1 mid-line R7 write asserts VSYNC immediately");
+    // Same R7 write edge as write_r7_zero_at_hcc(), but observe publication
+    // before that helper's old one-clock pin assumption. No bus retiming.
+    test.run_characters(kF3MidlineHcc);
+    test.expect_vsync_low("VSYNC before the timed R7 write");
+    test.write_selected_register_at_clken(0);
+    test.expect_high("type 1 mid-line R7 write asserts VSYNC immediately", test.snapshot_vsync());
 
-    // Type 1 always uses a 16-line VSYNC. Its current partial line is count 1:
-    // at C0=3 the pulse therefore ends after 4 + 15*8 = 124 characters, four
-    // characters (C0+1) shorter than a line-aligned 16*8-character pulse.
-    test.run_characters((kF3LineCharacters - 1) - kF3MidlineHcc);
-    test.run_characters((kVsyncLines - 2) * kF3LineCharacters);
+    // French ACCC v1.11 §16.4.2 p171: the partial current line counts as
+    // line1. R0=7/writeC0=3 leaves4chars, followed by15full8char lines:
+    // published pulse width124chars. The observed pin rise binds its phase;
+    // no exact logical-to-pin masterclock latency is a hardware golden.
+    unsigned rise_wait = 0;
+    while (!test.published_vsync() && rise_wait < kClockTicksPerCharacter) {
+        test.run_clock_ticks(1);
+        ++rise_wait;
+    }
+    test.expect_high("published partial VSYNC rises within one character",
+                     test.published_vsync() && rise_wait < kClockTicksPerCharacter);
+    constexpr unsigned remaining = (kF3LineCharacters - 1) - kF3MidlineHcc;
+    constexpr unsigned width_ticks =
+        (remaining + (kVsyncLines - 1) * kF3LineCharacters) * kClockTicksPerCharacter;
+    unsigned published_elapsed = 0;
+    auto advance_from_published_rise = [&](unsigned characters) {
+        for (unsigned tick = 0; tick < characters * kClockTicksPerCharacter; ++tick) {
+            test.run_clock_ticks(1);
+            ++published_elapsed;
+            // The logical count still ends on its original source boundary,
+            // independently of the measured publication offset.
+            if (published_elapsed + rise_wait == width_ticks)
+                test.expect_low("logical partial VSYNC at its sixteenth boundary", test.snapshot_vsync());
+            if (published_elapsed < width_ticks)
+                test.expect_vsync_high("published partial VSYNC before its source width ends");
+        }
+    };
+    // Preserve4 +14*8 +8 progression without re-aligning the observed pin
+    // rise to CLKEN. Every intervening pin sample must remain high.
+    advance_from_published_rise(remaining);
+    test.expect_high("partial current line counts as line1", test.vsync_width_elapsed() == 1);
+    advance_from_published_rise((kVsyncLines - 2) * kF3LineCharacters);
     test.expect_vsync_high("type 1 VSYNC through its fifteenth line boundary");
-    test.run_characters(kF3LineCharacters);
+    advance_from_published_rise(kF3LineCharacters);
     test.expect_vsync_low("type 1 partial-line VSYNC at its sixteenth boundary");
 }
 
@@ -1337,7 +1371,7 @@ void test_vsync_compare_lock_and_rearm(TestBench& test) {
         test.run_characters(1);
         test.write_selected_register_at_clken(0);
         test.run_clock_ticks(1);
-        test.expect_vsync_high("R7 truth-value change re-arms VSYNC");
+        test.expect_high("R7 truth-value change re-arms VSYNC", test.snapshot_vsync());
     }
 }
 
@@ -8529,10 +8563,10 @@ void t29_type0_delay_arm_clears_on_type_switch(TestBench& test) {
     // first post-switch edge, sampling the stale pre-clear d1.
     test.set_crtc_type(1);
     test.run_clock_ticks(1);
-    // The fire sets VSYNC_r at that edge; the output register follows one
-    // tick later.
+    // Observe the logical natural-fire objective independently of the
+    // separately calibrated published-pin phase.
     test.run_clock_ticks(2);
-    test.expect_vsync_high("t29e type-1 natural fire survives the switch");
+    test.expect_high("t29e type-1 natural fire survives the switch", test.snapshot_vsync());
 }
 
 }  // namespace
