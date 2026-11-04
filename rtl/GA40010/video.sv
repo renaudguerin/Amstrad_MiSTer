@@ -2,6 +2,9 @@
 //
 //  Amstrad CPC Gate Array
 //  Based on 40010-simplified_V03.pdf by Gerald
+//  Pixel alignment follows the Amstrad CPC CRTC Compendium v1.11,
+//  Serge Querne (Longshot / Logon System), https://shaker.logonsystem.eu
+//  licensed CC BY-NC-ND 4.0; attribution required in distributed credits.
 //
 //  Copyright (C) 2020 Gyorgy Szombathelyi <gyurco@freemail.hu>
 //
@@ -127,21 +130,28 @@ endgenerate
 
 /////////// RGB DECODER ////////////
 
-always @(posedge clk, posedge FORCE_BLANK) begin
-	if (FORCE_BLANK) begin
-		BLUE_OE_N <= 0;
-		BLUE <= 0;
-		GREEN_OE_N <= 0;
-		GREEN <= 0;
-		RED_OE_N <= 0;
-		RED <= 0;
-	end else if (cen_16) begin
-		BLUE_OE_N <= ~((colour[1] | colour[2]) & (colour[3] | colour[4]));
-		BLUE <= colour[0];
-		GREEN_OE_N <= (colour[1] & colour[2]) | ~(colour[1] | colour[2] | colour[3] | colour[4]);
-		GREEN <= (~colour[2] & colour[0]) | colour[1];
-		RED_OE_N <= ~(colour[1] | colour[2] | colour[3] | colour[4]) | (colour[3] & colour[4]);
-		RED <= (colour[0] & ~colour[4]) | colour[3];
+// French ACCC v1.11 §9.3.4 pp54/56/57: blanking is aligned with
+// the displayed byte/pixel pipeline. Two sampled stages plus the RGB
+// register give three cen_16 edges for assertion and release. This is an
+// abstract pixel-alignment model, not Gerald's literal transistor pipeline.
+// Keep MODE_SYNC and the colour/serializer path independent of this delay.
+reg blank_stage1 = 1'b1, blank_stage2 = 1'b1;
+always @(posedge clk) begin
+	if (cen_16) begin
+		blank_stage1 <= FORCE_BLANK;
+		blank_stage2 <= blank_stage1;
+		if (blank_stage2) begin
+			BLUE_OE_N <= 0; BLUE <= 0;
+			GREEN_OE_N <= 0; GREEN <= 0;
+			RED_OE_N <= 0; RED <= 0;
+		end else begin
+			BLUE_OE_N <= ~((colour[1] | colour[2]) & (colour[3] | colour[4]));
+			BLUE <= colour[0];
+			GREEN_OE_N <= (colour[1] & colour[2]) | ~(colour[1] | colour[2] | colour[3] | colour[4]);
+			GREEN <= (~colour[2] & colour[0]) | colour[1];
+			RED_OE_N <= ~(colour[1] | colour[2] | colour[3] | colour[4]) | (colour[3] & colour[4]);
+			RED <= (colour[0] & ~colour[4]) | colour[3];
+		end
 	end
 end
 

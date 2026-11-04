@@ -3,6 +3,7 @@
 #include "Vga40010_test.h"
 
 #include <cstdint>
+#include <array>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -17,6 +18,9 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+struct PixelSample { unsigned rgb, mode; };
+struct SourceCapture { std::vector<PixelSample> pixels; unsigned write_phase=0, write_seq=0; };
+
 class Bench {
 public:
     explicit Bench(bool crtc_type)
@@ -24,6 +28,7 @@ public:
           dut_(std::make_unique<Vga40010_test>(context_.get())) {
         dut_->clk = 0;
         dut_->RESET_N = 0;
+        dut_->SNA_LOAD = 0;
         dut_->A = 0;
         dut_->RAM_DIN = 0;
         dut_->CPU_DIN = 0;
@@ -74,6 +79,85 @@ public:
 
     void select_crtc_register(std::uint8_t reg) {
         write_io(0xbc00, reg);
+    }
+
+    void write_selected_production_phase(std::uint8_t value, bool complete=true) {
+        // Production T80/READY trace: accepted R2 write preedge phase8/S1F.
+        // A full bit-banged T1 after reaching C0 instead writes at phase21.
+        wait_for("production OUT acceptance phase8", [&] { return dut_->CRTC_PHASE == 8; });
+        dut_->A = 0xbd00; dut_->CPU_DIN = value;
+        dut_->IORQ_N = 0; dut_->WR_N = 0;
+        if (dut_->GA_SEQ != 0x1f)
+            throw TestFailure("phase8 disagrees with actual T80 S1F trace");
+        accepted_phase_ = dut_->CRTC_PHASE; accepted_seq_ = dut_->GA_SEQ;
+        clock(); clock();
+        if(complete) {
+            // Actual production T80 trace holds IORQ/WR for88 master clocks
+            // (840..927); READY is low during52 of those clocks.
+            for(unsigned i=2;i<88;i++) clock();
+            dut_->IORQ_N = 1; dut_->WR_N = 1;
+            clock();
+        }
+    }
+
+    void check_jit_cancellation(unsigned kind,unsigned delay) {
+        configure(46,2);select_crtc_register(2);wait_for_c0(22);
+        write_selected_production_phase(22,false);
+        for(unsigned i=0;i<delay;i++) clock();
+        if(dut_->CRTC_HSYNC_RAW) throw TestFailure("JIT fired before cancellation control");
+        dut_->IORQ_N=1;dut_->WR_N=1;
+        const bool oldtype=dut_->CRTC_TYPE;
+        if(kind==0) dut_->RESET_N=0;
+        if(kind==1) dut_->SNA_LOAD=1;
+        if(kind==2) dut_->CRTC_TYPE=!oldtype;
+        clock();
+        if(dut_->CRTC_HSYNC_RAW) throw TestFailure("cancelled JIT published on its old deadline");
+        if(kind==2) {
+            // The new type owns an ordinary comparator hit now. A stale
+            // JIT countdown must not defer that hit until its old deadline.
+            const unsigned limit=oldtype?2:6;
+            for(unsigned i=0;i<limit;i++) clock();
+            if(!dut_->CRTC_HSYNC_RAW) throw TestFailure("old JIT event delayed new-type ordinary start");
+        }else{
+            dut_->RESET_N=1;dut_->SNA_LOAD=0;
+            for(unsigned i=0;i<20;i++) {
+                clock();
+                if(dut_->CRTC_HSYNC_RAW) throw TestFailure("cancelled JIT leaked a raw pulse after reset/SNA");
+            }
+        }
+        std::cout<<"PASS  JIT_context_cancel type="<<oldtype<<" kind="<<kind<<" age="<<delay<<'\n';
+    }
+
+    SourceCapture source_capture(unsigned initial_mode, unsigned width,
+                                 bool jit, bool unblanked, bool mode_switch=false) {
+        source_memory_ = true;
+        ram_.fill(0);
+        constexpr std::array<unsigned,6> bytes{{0xb6,0x6d,0xe3,0x9c,0x5b,0xa5}};
+        for (unsigned y=0;y<200;y++)
+            for (unsigned i=0;i<bytes.size();i++)
+                ram_[0xc000+(y&7)*0x800+(y>>3)*80+42+i]=bytes[i];
+        configure(jit || unblanked ? 46 : 22, 2);
+        write_crtc(1,40); write_crtc(4,38); write_crtc(6,25); write_crtc(7,30);
+        const unsigned inks[]={0,4,6,31};
+        for(unsigned i=0;i<4;i++) { write_io(0x7fff,i); write_io(0x7fff,0x40|inks[i]); }
+        write_io(0x7fff,0x80|initial_mode);
+        wait_for("source initial mode",[&]{return dut_->GA_VIDEO_MODE==initial_mode;},2000000);
+        if(width==1) write_crtc(3,1);
+        select_crtc_register(2);
+        // R1 was changed after configure(); wait a whole configured frame
+        // so MA's saved row start cannot retain the previous56-char pitch.
+        wait_for("leave configured frame origin",[&]{return dut_->CRTC_ROW==1;},2000000);
+        wait_for("fresh configured frame origin",[&]{return dut_->CRTC_ROW==0 && dut_->CRTC_RASTER==0;},2000000);
+        wait_for("source displayed row6 origin",[&]{return dut_->CRTC_ROW==6 && dut_->CRTC_RASTER==0 && dut_->CRTC_C0==0;},2000000);
+        if(mode_switch) write_io(0x7fff,0x82);
+        wait_for_c0(9);
+        captured_.clear(); capture_=true;
+        wait_for_c0(22);
+        arm_r2_write_monitor();
+        write_selected_production_phase(unblanked ? 46 : 22);
+        while(dut_->CRTC_C0<28) clock();
+        capture_=false;
+        return {captured_,accepted_phase_,accepted_seq_};
     }
 
     void write_selected(std::uint8_t value) {
@@ -246,6 +330,11 @@ public:
     }
 
 private:
+    unsigned rgb() const {
+        return (unsigned(dut_->RED)<<5)|(unsigned(dut_->RED_OE_N)<<4)|
+               (unsigned(dut_->GREEN)<<3)|(unsigned(dut_->GREEN_OE_N)<<2)|
+               (unsigned(dut_->BLUE)<<1)|unsigned(dut_->BLUE_OE_N);
+    }
     bool blank() const {
         return dut_->BLUE_OE_N == 0 && dut_->BLUE == 0 &&
                dut_->GREEN_OE_N == 0 && dut_->GREEN == 0 &&
@@ -258,8 +347,16 @@ private:
     }
 
     void clock() {
+        if(source_memory_) {
+            // Physical even/odd bytes captured at sequencer E0/03, as in
+            // motherboard's two-byte video fetch. MA/RA supply the address.
+            const unsigned addr=(unsigned(dut_->VRAM_ADDR)<<1) | (dut_->GA_SEQ==3);
+            dut_->RAM_DIN=ram_[addr]; eval();
+        }
         dut_->clk = 1;
         eval();
+
+        if(capture_) captured_.push_back({rgb(), unsigned(dut_->GA_VIDEO_MODE)});
 
         // Master-clock observation catches a faulty one-tick visible HS low;
         // the existing pixel-M2 blank monitor is too coarse for this contract.
@@ -349,6 +446,10 @@ private:
 
     std::unique_ptr<VerilatedContext> context_;
     std::unique_ptr<Vga40010_test> dut_;
+    bool source_memory_=false, capture_=false;
+    std::array<std::uint8_t,65536> ram_{};
+    std::vector<PixelSample> captured_;
+    unsigned accepted_phase_=0, accepted_seq_=0;
     bool r2_monitor_armed_ = false;
     std::uint8_t old_r2_ = 0;
     bool r2_write_seen_ = false;
@@ -391,7 +492,7 @@ Measurement measure(bool crtc_type, bool dynamic, std::uint8_t initial_r2,
     if (dynamic) {
         bench.wait_for_c0(start_c0);
         bench.arm_r2_write_monitor();
-        bench.write_selected(written_r2);
+        bench.write_selected_production_phase(written_r2);
         if (initial_r2 != written_r2 && !bench.r2_write_seen()) {
             throw TestFailure("R2 write did not reach the CRTC");
         }
@@ -403,11 +504,83 @@ Measurement measure(bool crtc_type, bool dynamic, std::uint8_t initial_r2,
             bench.raw_fall_pixel()};
 }
 
+unsigned byte_origin(const SourceCapture& capture,unsigned mode) {
+    constexpr unsigned bytes[]={0xb6,0x6d,0xe3,0x9c,0x5b,0xa5};
+    constexpr unsigned rgb[]={21,1,13,62};
+    std::vector<unsigned> expected;
+    for(auto byte:bytes) for(unsigned i=0;i<(mode==1?4u:8u);i++) {
+        unsigned pen=(byte>>(7-i))&1;
+        if(mode==1) pen|=((byte>>(3-i))&1)<<1;
+        for(unsigned j=0;j<(mode==1?8u:4u);j++) expected.push_back(rgb[pen]);
+    }
+    unsigned found=0,origin=0;
+    for(unsigned t=0;t+expected.size()<=capture.pixels.size();t++) {
+        bool match=true;
+        for(unsigned i=0;i<expected.size();i++) match &= capture.pixels[t+i].rgb==expected[i];
+        if(match){found++;origin=t;}
+    }
+    if(found!=1) throw TestFailure("six physical VRAM bytes lack a unique complete RGB origin: mode="+std::to_string(mode)+" matches="+std::to_string(found));
+    return origin;
+}
+void source_byte_windows() {
+    // Independent oracle: French ACCC v1.11 §14.7.1pp143–144 identifies
+    // displayed R2−1; rendered §9.3.4pp56/57 gives M2 normal4/5,JIT8,
+    // end36/37. Mode2 advances oneM2 relative Mode1. All slot interiors,
+    // not an implementation-derived HSYNC duration, are checked below.
+    unsigned failed=0;
+    for(bool type:{false,true}) for(unsigned width:{2u,1u}) {
+        Bench c1(type); auto u1=c1.source_capture(1,width,false,true);
+        Bench c2(type); auto u2=c2.source_capture(2,width,false,true);
+        const auto o1=byte_origin(u1,1),o2=byte_origin(u2,2);
+        if(o1!=o2+4) throw TestFailure("unblanked Mode2 does not lead Mode1 by oneM2");
+        for(bool jit:{false,true}) {
+            Bench b(type);auto run=b.source_capture(1,width,jit,false);
+            const unsigned start=o2+(jit?8:4+unsigned(type))*4;
+            const unsigned end=o2+(width*16+4+unsigned(type))*4;
+            unsigned bad=0;
+            for(unsigned t=o2;t<o2+192;t++) {
+                const unsigned expected=t>=start&&t<end?0:u1.pixels[t].rgb;
+                bad += run.pixels[t].rgb!=expected;
+            }
+            std::cout<<(bad?"FAIL  ":"PASS  ")<<"source_byte_window type="<<type<<" R3="<<width<<" JIT="<<jit<<" origins="<<o1<<'/'<<o2<<" expected="<<start<<":"<<end<<" mismatches="<<bad<<" writephase="<<run.write_phase<<" seq="<<run.write_seq<<'\n';
+            failed += bad!=0;
+        }
+        if(width==2) {
+            Bench b(type);auto mixed=b.source_capture(1,2,false,false,true);
+            const unsigned oldslot=o2+36*4;
+            bool old_kept=true;
+            for(unsigned t=oldslot;t<oldslot+4;t++) old_kept &= mixed.pixels[t].rgb==u1.pixels[t].rgb;
+            // Named pre-existing type0 mismatch: p56 retains one oldmodeM2
+            // before index37. Keep as XFAIL; unexpected repair needs review.
+            if(!type) {
+                if(old_kept) throw TestFailure("XPASS type0_mixed_mode_old_pixel: review source/repair");
+                for(unsigned t=oldslot;t<oldslot+4;t++)
+                    if(mixed.pixels[t].rgb!=21)
+                        throw TestFailure("type0 mixed-mode XFAIL changed its known pen0 signature");
+                std::cout<<"XFAIL type0_mixed_mode_old_pixel FRp56 index36\n";
+            } else {
+                if(mixed.pixels[o2+37*4].mode!=2)
+                    throw TestFailure("type1 mode2 missing at source index37");
+                // Distinct marker bit: first fresh Mode2 pen0 differs from
+                // oldMode1 pen2. Verify all4 RGB clocks, not modelatch alone.
+                for(unsigned t=o2+37*4;t<o2+38*4;t++)
+                    if(mixed.pixels[t].rgb!=21) throw TestFailure("type1 new-mode RGB slot37 is not pen0");
+                std::cout<<"PASS  type1_mode_switch_RGB_index37\n";
+            }
+        }
+    }
+    if(failed) throw TestFailure(std::to_string(failed)+" source-derived byte windows failed");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     try {
+        source_byte_windows();
+        for(bool type:{false,true}) for(unsigned kind:{0u,1u,2u}) for(unsigned delay:{0u,7u}) {
+            Bench cancel(type);cancel.check_jit_cancellation(kind,delay);
+        }
         const Measurement normal = measure(true, false, 46, 0, 0);
         const Measurement jit = measure(true, true, 55, 46, 46);
         const int blank_delta = static_cast<int>(jit.blank_pixel) -

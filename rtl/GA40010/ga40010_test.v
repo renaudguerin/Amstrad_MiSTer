@@ -24,6 +24,7 @@
 module ga40010_test (
 	input clk,
 	input RESET_N,
+	input SNA_LOAD,
 	input [15:0] A,
 	input [7:0] RAM_DIN,
 	input [7:0] CPU_DIN,
@@ -51,6 +52,10 @@ module ga40010_test (
 	output CRTC_DE_RAW,
 	output [7:0] CRTC_C0,
 	output [7:0] CRTC_R2,
+	output [6:0] CRTC_PHASE, CRTC_ROW,
+	output [4:0] CRTC_RASTER,
+	output [7:0] GA_SEQ,
+	output [1:0] GA_VIDEO_MODE,
 	output [5:0] GA_INTCNT,
 	output [4:0] GA_HCNT,
 	output CRTC_RESTART,
@@ -150,6 +155,11 @@ assign CRTC_DE_RAW = CRTC_DE;
 // without adding observability ports to production CRTC RTL.
 assign CRTC_C0 = crtc.hcc;
 assign CRTC_R2 = crtc.R2_h_sync_pos;
+assign CRTC_PHASE = crtc.hsync_char_phase;
+assign CRTC_ROW = crtc.row;
+assign CRTC_RASTER = crtc.line;
+assign GA_SEQ = ga40010.S;
+assign GA_VIDEO_MODE = {ga40010.video_sync.mode_is_2,ga40010.video_sync.mode_is_1};
 assign CRTC_RESTART = crtc_hsync_restart;
 assign GA_MODE_SYNC = ga40010.mode_sync_en;
 assign GA_MODE_IS_0 = ga40010.video_sync.mode_is_0;
@@ -169,7 +179,7 @@ CRTC crtc
 	.DI(CPU_DIN),
 	.DO(crtc_dout),
 
-	.SNA_LOAD(1'b0),
+	.SNA_LOAD(SNA_LOAD),
 	.SNA_ADDR(5'd0),
 	.SNA_REGS(144'd0),
 
