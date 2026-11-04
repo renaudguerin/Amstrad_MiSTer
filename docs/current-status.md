@@ -1,752 +1,142 @@
 # Current status
 
-The handoff for a fresh session: where each stream stands, what is integrated, and which
-hardware or validation questions are still open. It states the current position only. Commit,
-review-run and RBF identities for past milestones, and the order in which they landed, are in
-the [status history](archive/current-status-history-2026-09-21.md). Work order lives in
-[implementation-roadmap.md](implementation-roadmap.md) (section 8 is the queue) and
-[backlog.md](backlog.md); open review obligations are in [review-debt.md](review-debt.md).
+Fresh-session handover as of 2026-11-04. Work order and acceptance gates are in
+[the roadmap](implementation-roadmap.md) and [backlog](backlog.md); review obligations
+are in [review debt](review-debt.md); the maintained execution and photo tally is
+in [SHAKER status](shaker-status.md). The prior handover is preserved as a
+[historical snapshot](archive/current-status-history-2026-11-04.md), with older
+history in the [September archive](archive/current-status-history-2026-09-21.md).
+Dated reports contain the evidence and bounds behind the current claims below.
 
-Update this file when a stream's position changes. Put the dated evidence (hashes, run IDs,
-reviewer verdicts) in the task's own record or a dated hardware report, and link it from here.
+The [active unattended session](investigations/session-logs/overnight-resume-2026-11-04.md)
+continues toward the user's approximately 80% weekly quota limit. Finish known
+SHAKER and DSC4/Amazing defects before the broad baseline; preserve these
+instructions across handoffs and context compaction.
 
-## Latest integration and artifact
+## Branch and accepted artifact
 
-- **Validation branch (`codex/overnight-validation-20261103`, 2026-11-04):**
-  AmSpirit Lite 1.17.1 tooling is migrated and verified; keep direct HTTP for
-  required media/render/script operations. CPCSyntaxError v0.12.0 and matching
-  source are now a working instrumentable tool. Fresh runs cover BI3, C1,
-  AE/AR3, a bounded DT1 probe, A4 and DSC4 credits. Capture completion is
-  execution coverage, not an overall pass rate. Use original-CPC photos to validate each relevant
-  observable; AmSpirit remains our closest software reference.
-  The [next-discriminator matrix](investigations/hardware-runs/shaker-next-discriminators-2026-11-04.md)
-  separates established pixel/counter failures from viewport and unassigned
-  acquisition questions, and gives the SHAKER-first work order.
-  [CPCSyntaxError guide](cpcsyntaxerror-testing.md),
-  [pilot](investigations/hardware-runs/cpcsyntaxerror-v012-pilot-2026-11-04.md),
-  [AmSpirit tooling](investigations/hardware-runs/amspirit-lite-1.17-tooling.md).
+- The active `codex/overnight-validation-20261103` task branch contains the
+  recent fixes and evidence. It is distinct from integrated `master` and no
+  integration or release is implied. Published-artifact history is archived.
+- The latest accepted device artifact is `Amstrad_20261104_7ac11a2.rbf`, from
+  source `7ac11a2`, SHA-256
+  `4dc1e7628248a30092719ff026c63997bae6d95810c49bc7ad981c10b7a501ec`.
+  The MiSTer copy matches. Its [full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41775641712)
+  passes simulation, lint, production T80 and the required selection gate;
+  Quartus setup/hold slack is 0.279/0.204 ns with zero TNS. The R0 change was
+  independently reviewed; seven production-CPU cases, default B18, all 75
+  ASIC leaf tests and 44 selected benches pass. [Evidence and reviews](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md).
+- Bounded device acceptance covers A4's 3C/3D and OUTI deadlines, eight BI
+  and seven AE/AR images unchanged from the accepted ASIC-mode artifact, and
+  restored sampled DSC4 and Amazing main effects on CRTC3. It does **not**
+  establish full SHAKER, demo or ASIC compliance. Target known SHAKER and demo
+  residuals first; a broad fresh baseline follows the fixes. Capture completion
+  is execution coverage, not a pass rate.
+- The branch includes the ASIC mode repair `3113323`, T80 startup repair
+  `9de75d3`, classic credit repair `db4be80`, and ASIC R0 repair `7ac11a2`.
+  The rejected broader bus qualifier must not be treated as a verified fix.
+  [Mode evidence](investigations/hardware-runs/asic-mode-latch-2026-11-04.md),
+  [CPU evidence](investigations/hardware-runs/t80-first-fetch-iorq-2026-11-04.md),
+  [classic credits](investigations/hardware-runs/classic-blank-alignment-2026-11-04.md).
 
-- **ASIC mode milestone:** source `3113323` has a full Quartus 17.0.2
-  [build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41750348807),
-  setup 0.625 ns/hold 0.247 ns, zero TNS, all 44 selected benches plus lint and
-  production-T80 CI passing. `Amstrad_20261104_3113323.rbf` is on MiSTer.
-  The mode-only ASIC repair now has bounded hardware acceptance: BI retains
-  all eight pulse widths and fixes the one-us mode; AE's readable marker 09 and
-  AR's restored stripes match original-Plus references. Its separate 16-dot
-  mode/blank alignment residual remains open. That mode-only milestone left
-  DSC4 and Amazing broken on CRTC3; the R0 milestone below restores their sampled
-  main effects. [Proof and hardware results](investigations/hardware-runs/asic-mode-latch-2026-11-04.md).
-  The broader bus qualifier `bedb1c5` was disproved by genuine BI counter evidence
-  and reverted in `939ee6f`; never publish it as a verified repair.
-  These changes are on the task branch; no master integration or release is requested.
+## Active hardware questions
 
-- **CPU startup repair:** task commit `9de75d3` resets the T80 interrupt-acknowledge
-  delay, preventing the first cold memory fetch from also selecting I/O responders.
-  A real PPI/SNA regression fails before and passes after; cross-provider review,
-  44 selected benches and strengthened native/freeze/IRQ checks pass; exact-SHA
-  CI also passes simulation, production-T80 and the required gate. This unblocks
-  an authentic A4 replay, which reproduces the hardware's wrong HCC3D=OK.
-  The fix is included in the later hardware-tested RBFs. Its cold-SNA first-fetch
-  collision is proved in simulation, not separately measured on the device.
-  [Proof and scope](investigations/hardware-runs/t80-first-fetch-iorq-2026-11-04.md).
+The [next-discriminator matrix](investigations/hardware-runs/shaker-next-discriminators-2026-11-04.md)
+separates observed faults from acquisition and state-observation questions.
+Compare each relevant observable against original-CPC photographs; AmSpirit is
+our closest software reference, not the hardware oracle.
 
-- **ASIC R0 milestone:** reviewed commit `7ac11a2` retains an entered terminal
-  decision across a late R0 rewrite, preserving live register admission and
-  literal status comparisons. Seven production-CPU cases, default B18, all 75
-  ASIC leaf tests and 44 selected benches pass. Its full build and device
-  milestone are complete: A4's 3C/3D and OUTI deadlines match; all eight BI and
-  seven AE/AR PNGs are identical to the accepted prior artifact. DSC4 and Amazing
-  restore their sampled main effects on CRTC3. The RBF is on MiSTer, with
-  setup 0.279 ns/hold 0.204 ns and zero TNS. ASIC credit clipping and lower A4
-  VSYNC-bit results remain open; the saved-menu private proof does not reproduce
-  that fresh-device lower-row failure. The live-equality creation control is an
-  explicit model choice, and late-R0/split overlap remains unverified.
-  [Proof and review](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md).
-  Separate genuine-title and byte probes attribute credit clipping to HSYNC
-  suppression of intact pixels. One private delay hypothesis recovers132
-  missing samples but introduces16 colon-tail pixels; it is not promoted.
-  [Blank boundary and edge limit](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md).
+### Classic CRTC 0/1
 
-- **Classic results:** the reviewed E/P display/status repair `8dde1e7` passes
-  its own full-build C1 repeat: E/P readable, P 26 and S 4E40. E 0060 versus 0080
-  remains open. A private positive-R5 C5 restart reaches 0080, but independent
-  review found several indistinguishable mechanisms. Actual CPCSE tracing confirms
-  its earlier zero-R5 release followed by fresh engagement; AmSpirit also prints
-  0080 but exposes no classic C5. Neither chooses a hardware rule, so production
-  C5 remains unchanged.
-  [E/P acceptance](investigations/hardware-runs/shaker-ep-display-2026-11-03.md),
-  [private discriminator and review](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
-  [precise French follow-up, not sent](classic/accc-author-questions-c5-2026-11-04-fr.md).
-  A fresh full C1 walk on `db4be80` preserves E/P exactly but gives S 0640.
-  Direct S entry gives the same correct 4E40 PNG on both old and new RBFs;
-  its history/entry sensitivity is reopened, with no established causal change
-  in C5. [Full walk and controls](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
-  A genuine DSC4 post-file-load/pre-initializer checkpoint now reproduces
-  all 128 KiB of reference RAM in a private replay. Colon bytes reach the decoder;
-  the pre-fix raw blank mask suppressed their nonzero pens. The production CPU
-  takes the JIT branch, ruling out a classification miss. A matched CPU/READY/
-  unique-byte vector failed the source-derived onset delay before the repair
-  (5 clocks versus nominal12). Delaying the whole published pulse was rejected: it moves the
-  source-correct mode change and IRQ sampling. A narrower sampled-GA-blank plus
-  JIT-onset repair passes all eight byte windows, CRTC239, real-T80 IRQ8 and
-  44 selected benches. Reviewed commit `db4be80` now has a green full build and
-  bounded device acceptance: all four DSC4 credit colons are visible on CRTC0/1,
-  with readable names and identical native credit PNGs. Its RBF is on MiSTer;
-  setup0.280ns/hold0.242ns, zero TNS. The CRTC1 static picture and corrupt
-  bottom line are byte-identical to the prior capture; both later main-effect
-  captures remain visible. The bottom row now matches all768 pixels of an
-  uncropped AmSpirit row outside its default viewport: this is a coverage
-  difference, not evidence of a MiSTer-only pixel pattern. Monitor bounds remain
-  B1 work. Type0's old-mode partial pixel remains a named failure. A focused
-  source review also caught a palette alias in the apparent Mode0→1 positive
-  control; its non-aliased form fails without any RTL timing change. No new
-  mode-publication delay has been selected.
-  [Credits evidence](investigations/hardware-runs/dsc4-credit-clipping-2026-11-03.md),
-  [bounded repair](investigations/hardware-runs/classic-blank-alignment-2026-11-04.md),
-  [uncropped comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
-  [mode-boundary evidence](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
+- C1 E/P is readable and P is 26; E remains `0060` versus reference `0080`.
+  A positive-R5 candidate reaches `0080` but does not identify the mechanism;
+  production C5 remains unchanged. On `db4be80` a full C1 walk gives S `0640`,
+  while direct S entry gives `4E40` on both old and new artifacts. Preserve the
+  history distinction and obtain a discriminator before changing C5.
+  [E investigation](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
+  [S history](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
+- DSC4 credit colons are visible on CRTC0/1 after `db4be80`; the unchanged
+  bottom row matches all 768 pixels of the uncropped AmSpirit reference, outside
+  its default viewport. Monitor bounds remain B1 work. Type 0's old-mode partial
+  pixel at a mixed-mode boundary remains a failure; no publication-delay fix
+  has been selected. [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
+  [mode boundary](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
+- `019D` has a failing production-T80 regression; physical write visibility and
+  the adjacent B8 expectation need hardware evidence. The updated-package full D1 walk passed the
+  prior input stops, and `03AE`/`03B4` matched after that history.
+  [Classic follow-up](investigations/hardware-runs/shaker-followup-recheck-2026-10-27.md),
+  [OUTI replay](investigations/hardware-runs/crtc1-outi-019d-2026-10-27.md).
+- B9 page B's collision ordering and MID FRAME glyph remain unresolved; original
+  machine evidence is needed. F13 and F20 still need their named hardware gates;
+  IA-2/3/6 are source-model evidence, IA-5 needs simultaneous sync/interrupt
+  capture, and Q17 needs hardware discrimination. The D1 adjustment-entry
+  pointer is not source-adjudicated. [B9 discriminator](investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md),
+  [audit](classic/audit-findings.md).
+- CRTC1 RFD parity has bounded device acceptance; retire-on-save versus
+  latch-at-arm remains an inference. [RFD lifetime](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md).
 
-- **SHAKER inputs and display boundary:** the new package is installed, with
-  the French B1 key override retained separately; package changes do not invalidate
-  old A/B/C baseline captures. D1 executes 127 captures, but its 44 D3 pages lack
-  accepted native page-state alignment. Source analysis confirms level-sensitive
-  Space can advance across handler entry; stop blind full-walk timing retries.
+### Plus / GX4000 ASIC
+
+- DSC4 credit clipping is caused by HSYNC suppression of intact pixels. A private
+  delay candidate recovers 132 missing samples but adds 16 colon-tail pixels
+  and has startup implications; it is not accepted. The separate 16-dot
+  mode/blank alignment residual also remains open.
+  [Boundary evidence](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md).
+- A4 lower VSYNC-bit words differ from the original Plus; native result RAM is
+  unknown. A saved-menu replay does not reproduce the fresh-device result. A
+  disk-only observation probe was **rejected** before device use because its
+  proposed emitter overlaps nested stack writes. Obtain safe native observation
+  before inferring an admission rule. The R0 model's live-equality creation
+  control and late-R0/split overlap also remain unverified.
+  [A4 and R0 evidence](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md).
+- General DMA PAUSE/PPR/REPEAT boundaries, exact interrupt phase, PA3 early-arm
+  and last-adjustment controls, and named model/disk/reset acceptance remain
+  open. Sonic's title and bounded gameplay are hardware accepted; general DMA
+  boundary closure does not follow. [Source divergence ledger](plus/source-divergences.md),
+  [Sonic acceptance](investigations/sonic/b20-7-dma-pause-acceptance-2026-09-22.md).
+- Left-edge sprite flicker needs a repeatable capture for closure; full CRTC3
+  demo completion, Eerie full-demo completion and Switchblade gameplay remain
+  untested. Other cartridge crashes, Plus SNA/reset/reload recovery, odd-R5
+  CRTC3 behaviour and low-A13 FDC aliases remain evidence-gated.
+  [CRTC3 investigation](investigations/hardware-runs/crtc3-demo-2026-09-25.md).
+- D3/D4 post-BSR readback and title/flicker acceptance, the status-2 16-frame
+  timer source conflict, B8-2/3/5/6 hardware acceptance and B16 cartridge-backed
+  SNA restoration remain open. The system-cartridge disk poll remains XFAIL.
+  [B16 contract](plus/b16-load-model-2026-09-22.md), [roadmap](implementation-roadmap.md).
+
+## Capture, display and platform
+
+- The updated SHAKER package is installed; the French B1 key override is retained
+  separately, and old A/B/C baseline captures remain valid. D1 executes 127
+  captures, but its 44 D3 pages lack accepted native page-state alignment; held
+  Space can advance across handler entry. Avoid blind full-walk timing retries.
   [Package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md),
-  [device results](investigations/hardware-runs/shaker-package-device-2026-11-03.md),
-  [D3 caller analysis](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md).
-  DT's private acquisition explanation is rejected: fresh CPCSE R7 traces show
-  that the snapshot replay retains a different vertical phase after bypassing
-  the one-time synchronizer. Full captures reproduce one band; Raw CRT crops
-  the picture and does not isolate the cause. A faithful caller phase is needed
-  before assigning DT to functional timing or display acquisition.
-  [DT trace and limits](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
+  [D3 caller](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md).
+- DT's snapshot replay has a different vertical phase after bypassing its one-time
+  synchronizer. Full reproduces one band; Raw CRT crops the picture without
+  settling the cause. Reproduce the caller phase before assigning the difference
+  to functional timing or display acquisition. [DT evidence](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
+- B1 display ownership and applied-mode observability remain open; native
+  screenshots omit the OSD. B6 still needs physical HDMI/CRT acceptance and a
+  CPU-generated stuck-high raw-sync recipe. The available trace and format-2
+  device observations do not establish original-monitor fidelity or a complete
+  monitor response model. [B1/B22 evidence](investigations/video-boundary/b22-acquisition-trace-2026-09-29.md),
+  [monitor study](investigations/video-boundary/v1-sync-response-evidence-2026-10-29.md).
+- AmSpirit Lite 1.17.1 media/render/script operations work through direct HTTP;
+  CPCSyntaxError v0.12.0 and matching source are instrumentable. The MiSTer
+  hardware loop, CSL/SSM and native capture are working tools, subject to the
+  page-state and display limits above. One operator owns shared MiSTer and
+  AmSpirit access. [AmSpirit tooling](investigations/hardware-runs/amspirit-lite-1.17-tooling.md),
+  [CPCSyntaxError guide](cpcsyntaxerror-testing.md),
+  [hardware loop](investigations/hardware-runs/mister-hardware-loop-driver.md).
+- FDC full-sector result/ST1, classic AMSDOS and hardware acceptance remain open;
+  B8-7 HPS cadence and B8-4 video-word hardware acceptance also remain open.
+  B18 SNA save is a development aid: SD transport needs a Main_MiSTer change,
+  and Plus saves are refused. [B18](b18-sna-save.md).
+- B25 still needs original-CPC and MiSTer table captures; B14 host smoke tests
+  remain open. Production T80 native dynamic-wait equivalence remains open.
+  The Compendium lookup is navigation only.
+  [B25 diagnostic](investigations/b25-diagnostic.md), [backlog](backlog.md).
 
-- **Manual demo acceptance update (2026-11-03, `5fba168`):** DSC4's main effects
-  are fine on CRTC1 and mostly fixed on CRTC0, but credits still lose their
-  colons on both, and CRTC1 has a corrupt bottom line around 43 seconds.
-  CRTC3 clips the credit words more severely and shows only a top band at the
-  main effect. Amazing's main effects look fine on CRTC0/1 and remain broken
-  on CRTC3. These observations narrow the earlier acceptance below; they do
-  not close either demo as a whole. See the [manual retest](investigations/hardware-runs/manual-demo-retest-2026-11-03.md).
-  Renaud released MiSTer for automated testing after the manual session; the
-  updated-package checks use the existing `5fba168` RBF until a new build is
-  explicitly identified.
-
-- **CRTC 1 RFD (2026-11-03):** even ParityFrame suppresses the RFD VMA' save (French
-  §11.6.2 pp.90-91 IVM ON/OFF recipe), and parity management is frame-local: it clears
-  at the origin and on a successful save; the R0-widening R4 variant arms on even frames
-  only (§13.7.1.2 p.126). On `Amstrad_20261103_07bac19.rbf`: DSC4 coherent, Amazing's
-  lower region clean in 10 of 10 captures, SHAKER D9 A1–I and B COPY A–E match the
-  Logon photographs, and `03AE`/`03B4` read OK after D9 history. Soak
-  `0x1d57d12f7c83810a`. Open: retire-on-save versus latch-at-arm is an inference
-  (review P2). See the [polarity](investigations/hardware-runs/rfd-parity-polarity-2026-11-03.md)
-  and [lifetime](investigations/hardware-runs/rfd-frame-lifetime-2026-11-03.md) reports.
-
-- **SHAKER CRTC 1 sweep (2026-11-03):** with two private script workarounds (B-1 `Z`→`W`
-  for the French layout, C-1 marker typo `02F1`→`03F1`) the A, B and C CRTC 1 walks
-  complete for the first time; D-1 still stops on input timing. Against 229 real-CPC
-  photographs: 202 match; the differences are the known PPI port B bits, pre-existing
-  blank/yellow acquisition pages, `02DA`, `009A`, and the history-dependent `02D3`
-  (correct cold, WRONG after the module's earlier tests; replay in progress). See the
-  [sweep report](investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md).
-
-- **Published release (2026-10-27):** [v2026.10.27](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/v2026.10.27)
-  targets the verified full-effort build `321f96a`; attached
-  `Amstrad_20261027.rbf` SHA-256 `6bc43724…400d`. It contains the Alcon R6-border
-  fix and the classic CRTC0 freeze/CRTC1 infinite-HSYNC fixes. The notes distinguish
-  hardware confirmation from the inferred CRTC0 release edge and list the open
-  accuracy issues. GitHub publication and the attached asset digest are verified.
-
-- **Alcon 2020 top-band fix (2026-10-27, integrated `c666e19` from `plus/alcon2020-top-lines`):** the
-  garbage band above the playfield is the HUD CRTC frame's last rows. `asic_video` treated the
-  R6 border as `C4 < R6` per line instead of a latch cleared only at the frame origin
-  (ACCC FR §18.2.4 p.190). The fix (vectors `t03i`/`t03j`, Sol-reviewed) is confirmed on the MiSTer with
-  `Amstrad_20261027_98fa3e1.rbf`: band gone in Full and Raw CRT, playfield bottom now matches
-  AmSpirit. See the
-  [report](investigations/hardware-runs/alcon2020-top-lines-2026-10-27.md).
-
-- **Classic CRTC follow-ups (2026-10-28):** the
-  [MiSTer recheck](investigations/hardware-runs/shaker-followup-recheck-2026-10-27.md)
-  on `Amstrad_20261027_925b5bb.rbf` confirms CRTC0 B1 reaches `00FC` after the
-  [wedge repair](investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md).
-  The main pattern matches the Logon photograph; the inferred C9-wrap release edge
-  remains author question 21. CRTC1 `01F4` is fixed and hardware-confirmed:
-  both `925b5bb` and `321f96a` show `#34` for R0=1 and `#FF` for R0=0.
-  A temporary [MBC build repair](investigations/hardware-runs/mister-mbc-cross-build.md#known-build-specific-crash-and-local-repair-2026-10-27)
-  removes the capture blocker. Original CFG restoration and return to MENU are verified.
-  The `321f96a` RBF is also hardware-checked for `01F4` (`6bc43724…`).
-  [019D production-T80 replay](investigations/hardware-runs/crtc1-outi-019d-2026-10-27.md)
-  reproduces the hardware disagreement: fifth/fourth-µs calls return `1F/1F` instead
-  of `1E/1F`. Its named XFAIL and passing adjacent-phase control retain the mismatch;
-  no RTL change is justified until the physical write-visibility contract is settled.
-  The existing B8 early-capture expectation also needs independent hardware validation.
-  A [2026-10-28 evidence unit](investigations/session-logs/classic-overnight-2026-10-28.md)
-  replays authentic `03AE`/`03B4` code with production T80/GA timing: both
-  produce the hardware-expected row address. Cold-boot direct `03AE` and `03B4` also
-  display OK on both old `cec641c` and released `321f96a`, with identical
-  capture hashes and applied CFG. The historical full-walk WRONG result
-  remains a prior-state investigation; a build change alone does not explain
-  it on the short path. A CPU-executed RFD precondition reproduces WRONG or
-  repeated-OK layouts in simulation depending on parity phase. That mechanism
-  needs a same-history original-CPC oracle before any VMA RTL change.
-  The full walk reproduces WRONG pixel-for-pixel on old `cec641c`; the release
-  full walk shows repeated OK rows and a blank `03AF`, so the retained-state
-  display residual remains on the release despite its cold-entry pass.
-  `008D` retains its unproven width-counter hypothesis (author question 22).
-  The [D1-27 `0305` stop](investigations/hardware-runs/d1-27-stall-2026-10-27.md)
-  reproduces on the release with the original script, but sufficient, slower
-  input reaches the marker and returns to the module menu without an RTL
-  change. The script/input workaround is bounded progress proof, not a pass
-  for every swept page or the whole module. The [decoded sequences](investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md)
-  and [photo comparison](investigations/hardware-runs/shaker-hw-photo-compare-2026-10-27.md)
-  retain the remaining evidence.
-
-- **New focus (2026-10-29):** [sync response and demo work packages V1/V2/V3](investigations/video-boundary/sync-response-and-demo-plan-2026-10-29.md)
-  extend existing B1/B22 and DSC4/Amazing residuals. V1 investigates whether
-  SHAKER AT/AY/D3/D4 need a digital monitor-response model alongside raw CRT
-  output and Amazing's upper effect (user reports Full works better on HDMI).
-  V2 independently targets DSC4's filter-insensitive defect: `dsk/dsc4-alt.dsk`,
-  classic 6128/CRTC1, `RUN"-DSC4`, first capture after 50 seconds. V3 targets
-  Amazing's lower flashing corruption: `dsk/amazing2021_rev2.dsk`, `RUN"AMAZING`.
-  CRTC/GA defects are the working hypotheses for V2/V3, not established causes.
-  Neither repair depends on V1, and each symptom retains its own acceptance gate.
-  [V2's evidence and capture-helper repair](investigations/hardware-runs/dsc4-video-2026-10-29.md)
-  reproduce DSC4 from two boots. Original-loader replay and a full CPCSyntaxError
-  boot corroborate the caller phases; the constrained French before-RFD recipe
-  expects reload `33BD`, whereas the current model restores `1030`. The general
-  parity predicate remains unresolved. No DSC4 production repair is accepted.
-  The French launch mappings are corrected. Direct SSH to `root@mister` is
-  verified; one operator owns shared MiSTer and AmSpirit access.
-
-- **Integrated V1 restart fix (2026-10-29):** the
-  [T/Y investigation](investigations/video-boundary/v1-shaker-caller-response-2026-10-29.md)
-  identifies the missing invisible CRTC1 overflow restart (French §15.3.4 p.152).
-  The separate classic GA H06 restart preserves raw HS/blacking and R52/V26.
-  Fail-before/pass-after boundary tests, cross-provider review and the exact
-  `cfd0016` hosted build passed. Canonical soak is `0x0874d4b8ecc08793`; the old
-  projection remains `0xde0a16d0ececc573`.
-  [Bounded MiSTer checks](investigations/hardware-runs/v1-sync-restart-device-2026-10-29.md)
-  pass numeric controls and Full cold T-page progress. All six Raw CRT PNGs
-  match the previous RBF byte-for-byte: that distortion predates this fix.
-  Direct pulse/analog fidelity and full-history acceptance remain open.
-
-- **Monitor response:** the [passive trace/feasibility work](investigations/video-boundary/v1-sync-response-evidence-2026-10-29.md)
-  and [width/admission study](investigations/video-boundary/v1-width-admission-probe-2026-10-29.md)
-  do not establish a complete monitor model. The frozen CPCSyntaxError model
-  has deferred-width and output-commitment limits; its training corpus includes
-  AT/AY/D3/D4. The [primary circuit check](investigations/video-boundary/v1-ctm-afc-circuit-check-2026-10-29.md)
-  does not support treating 73 lines as a measured CTM settling constant. No
-  monitor-filter rewrite is integrated.
-
-- **Integrated FIELD/ASCAL repair (2026-10-29):** [Amazing's lower corruption](investigations/video-boundary/amazing-lower-evidence-2026-10-29.md)
-  has a [model-level repeated-address mechanism](investigations/video-boundary/amazing-lower-caller-2026-10-29.md),
-  with RFD save-gating scope unresolved. The private SCOPE0/SCOPE1 disk passes
-  CPU timing, independent disk-body execution and AmSpirit cold boots. Its
-  `cfd0016` MiSTer captures mix invariant contaminated even rows with readable
-  odd rows. The resulting [FIELD/ASCAL repair](investigations/video-boundary/field-ascal-repair-2026-10-29.md)
-  has a failing production CRTC/output→ASCAL consumer test: short R8 pulses
-  falsely acquired interlace. The qualified export now rejects those pulses
-  while preserving genuine field order and progressive recovery. Exact
-  `46f8ab8` hosted full synthesis passes timing. Session A's unchanged SCOPE0/1
-  reruns both return clean native 768×273 frames, pixel-identical to each
-  program's own old live odd-row plane; three captures agree per program.
-  Same-program AmSpirit differences remain separate from this bounded pass.
-  Raw machine FIELD and CRTC1 parity rules are unchanged.
-  The [combined private CRTC1 disk](investigations/hardware-runs/crtc1-combined-disk-2026-10-29.md)
-  is delivered with five boot/readability-checked CONTROL/BEFORE/AFTER cases
-  and two explicitly experimental SCOPE cases whose sentinel control remains
-  inconclusive in AmSpirit. Original-machine results and RFD save policy remain open.
-  The classic CRTC1 machine is available for a later bounded test session;
-  a 6128 Plus/CRTC3 cannot decide these CRTC1 rules. See the
-  [French author-question draft](classic/accc-author-questions-2026-10-29-fr.md)
-  (not sent), the [work plan](investigations/video-boundary/sync-response-and-demo-plan-2026-10-29.md)
-  and [continuation prompts](investigations/video-boundary/sync-demo-continuation-prompts-2026-10-29.md).
-
-- **Remaining classic accuracy work:** `019D` has a failing production-T80
-  regression; the physical write-visibility rule is the missing evidence, and a
-  common latch change must also re-examine the existing B8 assumptions.
-  `03AE`/`03B4` now also pass the bounded authentic production replay; direct
-  cold-boot `03AE`/`03B4` pass on both old and release builds. Prior menu
-  history remains the discriminator before treating these as current RTL
-  defects. A shared cause with `019D` remains unproven. `008D` needs a hardware
-  discriminator or author answer before changing the VSYNC-width counter's clock source.
-  D1's `0305` stop has a demonstrated script/input workaround; no CRTC
-  wedge repair is justified. Snapshot re-arming remains a separate tooling
-  question. These are investigation/evidence tasks, not four established
-  RTL patches ready to implement.
-  The older [B–E capture report](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md)
-  retains the other module stalls and filter observations from `cec641c`; its
-  CRTC0 B1 and CRTC1 `01F4` failures are superseded by the fixes above.
-  Zero-capture runs now fail after the runner repair.
-
-- **Pre-acceptance continuation (2026-09-29):** all four initial evidence tasks
-  are integrated, with exact integration CI green through `dcd0218`. No production
-  RTL changed; the `cec641c` RBF retains its identity. The added full SHAKER 2.7
-  suite and 2.6 fallback task has reviewed host support for CRTC3 and updated
-  corpus paths. Module A completed on CRTC0/1/3 without fallback; original CFG
-  restoration and return to MENU are verified. Modules B–E are deferred at the
-  user’s quota cutoff. See the
-  [batch handoff](investigations/preacceptance-continuation-2026-09-29.md) for
-  source/integration identities, evidence and remaining acceptance boundaries.
-
-- **Pre-acceptance device checks (2026-09-29):** delivered `cec641c` produces
-  coherent SSM format-2 records with matching requested/applied modes in Full,
-  Raw-pixels and Raw-CRT. B25 AMSDOS boots on MiSTer CRTC0/1 produce complete
-  identical 72-record tables matching the production fixture. The bounded
-  SHAKER display comparison and verified original-CFG restoration are in the
-  [device evidence](investigations/mister-format2-b25-2026-09-29.md). Original-CPC
-  phase, CTM fidelity, pathological acquisition and live-mode transitions remain
-  open; the separate `4a44394` title acceptance is unchanged.
-
-- **Diagnostic and safety batch (2026-09-29):** PA3's five-case follow-up CPR and
-  the self-synchronizing Classic B25 DSK are delivered with model/emulator checks;
-  their original-machine acceptance remains open. The B18 loaded-Dandanator
-  admission fix passed exact-SHA CI/full synthesis at `fe42298`, and its RBF is
-  retained locally. Sync format-2 observations and CSL safety fixes are published. The final RTL at
-  `cec641c` passed full synthesis (+0.810/+0.242 ns setup/hold, zero TNS), and
-  `output_files/Amstrad_20260929_cec641c.rbf` is delivered locally. Exact-head CI at `539933f` passes 42 selected benches, lint, production-T80
-  and the required gate. Its isolated test-directory build repair changes no RTL,
-  so the verified `cec641c` bitstream is reused under its original name.
-  The [batch evidence and run instructions](investigations/overnight-integration-2026-09-29.md)
-  distinguish these gates from the earlier user-confirmed title pass.
-
-- **ASIC clause audit and PA repairs (2026-09-28):** RC1–RC8 and PA5/PA6 regression
-  coverage are complete. PA1/PA4 readback and PA2/PA3 split capture changes follow
-  original-6128-Plus photographs and recorded AmSpirit controls. PA7 production
-  simulation now matches every measured V5 marker/count, using a source-derived
-  shared T80 final-T INT sample plus a separate compatible-delivery stage.
-  [Classic safety evidence](t80-int-sampling.md) includes before/after actual
-  CRTC0/1 regressions; original classic RET NC parity pairs and INT/clock traces
-  remain unrun. Exact ASIC raw timing and the literal Plus-versus-CPC delay are
-  assumptions, not measured facts. PA3 early-arm and last-adjustment hardware
-  controls remain outstanding; the [five-case follow-up CPR](plus/pa3-followup-cartridge.md)
-  is built and checked in production-T80 simulation and AmSpirit, ready for that run. See [B24](backlog.md#b24-plus-asic-reference-clause-traceability)
-  and the [PA7 evidence record](plus/pa7-interrupt-phase-followup.md).
-  Integrated as `1346f39` from source `a68dca8`; exact-SHA CI run36425467292
-  passes selected tests/lint, production-T80 and full synthesis. Delivered
-  `output_files/Amstrad_20260928_1346f39.rbf` (SHA-256 `680940ac…61d523`),
-  setup/hold +0.628/+0.247ns, zero TNS, 24,569 ALMs (59%). MiSTer testing
-  now matches all six V5 active test images pixel-for-pixel, with three identical
-  captures per screen; title regression testing remains pending. The current [plain-English status](plus/pa7-interrupt-phase-followup.md#current-position-in-plain-english)
-  separates the fixed mismatch from unverified hardware mechanisms.
-  The [original-Plus DMA overlap results](plus/pa7-dma-overlap-original-plus-2026-09-28.md)
-  now confirm that both sources survive at positions where this build loses
-  raster. The [DMA/compatible ACK repair](plus/pa7-dma-overlap-repair.md)
-  now changes the production-T80 hardware regression from60/68 to68/68 records
-  and preserves all six V5 images. Review and gates pass; hosted full synthesis
-  at `011f323d` closes setup/hold at +0.145/+0.242ns, zero TNS. MiSTer confirms
-  all four overlap record pages and all six V5 images, with three identical
-  captures per screen. Integrated as `4a44394` from `d563586`; exact-SHA CI and full synthesis pass.
-  Delivered `output_files/Amstrad_20260928_4a44394.rbf` (SHA256 `285f4258…2034a4`),
-  setup/hold +0.238/+0.180ns, zero TNS. MiSTer evidence covers source RBF `011f323d`;
-  the user confirms the broader title regression pass complete with no issues on
-  `4a44394` (2026-09-29; FF2, Prehistorik II, Eerie Forest, Sonic GX, Copter 271
-  and CRTC3 demo were the requested set). See the
-  [acceptance scope](plus/pa7-dma-overlap-repair.md#integration-title-acceptance--2026-09-29).
-
-- **Probe-driven Plus ASIC fixes integrated (2026-09-27):** an 18-screen original-Plus probe
-  cartridge settled most Plus source conflicts; the results, confidence levels and open probes
-  are in the [source-divergence ledger](plus/source-divergences.md). Three RTL rules changed:
-  the PRI request is one delayed-comparator edge matching the delayed or live line (width 1,
-  PRI-write window, R2=63 crossing and HSYNC ending at line start), the SSCR row capture is
-  `ra_eff >= R9`, and a SPLT capture on line 311 survives the frame origin. MiSTer
-  `1c85bee` matches photographed probe screens 01–20; the user confirms CRTC3 demo, FF2 and
-  Prehistorik II gameplay good on it. Integrated as `a24688a`: exact-SHA CI run 36345129750
-  passes every required job; `output_files/Amstrad_20260927_a24688a.rbf` (SHA-256
-  `fd49d192…40da45`), setup/hold +0.509/+0.241 ns, zero TNS, 24,368 ALMs (58%). New probe screens 19–20 (HSYNC ending at
-  the PRI line start) also match the original Plus. Probe cartridge V3 (screens 21–25), photographed
-  the same day: offset 7 with the held split and R9<7 with an offset match the RTL; screen 21
-  showed the line-311 split capture follows a C0≈52 SSA write, consistent with
-  [ARNOLD-REV §2.3]'s R0 capture on the last frame line (already in asic-reference §8 but
-  unimplemented). Fixed and integrated as `80c81a1`: exact-SHA CI run 36352533643 passes
-  every required job; `output_files/Amstrad_20260927_80c81a1.rbf` (SHA-256 `48220efd…0ceb6b`),
-  worst setup/hold +0.241 ns, zero TNS, 24,816 ALMs (59%). Not yet tried on MiSTer.
-
-- **FF2 PRI-write repair hardware-accepted (2026-09-27):** the resumed
-  production-T80 replay confirms a changed PRI46→48 write on line48 after the
-  ordinary interrupt comparison but during raw HSYNC. Adding that write event
-  restores the palette/music chain from every other frame to every frame in
-  the six-frame replay. The focused test fails before and passes after; all
-  seven selected benches pass. The nine-bit comparison, ordinary PRI phase and
-  accepted ACK provenance remain unchanged. Independent Opus5.5-medium review finds no blockers;
-  exact-integration `2f409e9` simulation, production-T80, lint and full synthesis pass.
-  Delivered `output_files/Amstrad_20260927_2f409e9.rbf`: setup/hold +0.471/+0.247ns,
-  zero TNS. User confirms FF2 and Prehistorik II fixed, with no other regressions
-  observed on this exact RBF. Source `d56ce1f`
-  preserves the reviewed `ff7e0a0` RTL unchanged after rebasing onto master. See the
-  [runtime evidence and checklist](plus/references/ff2-runtime-pri-2026-09-27.md).
-  Eerie's left-edge residual is split into a sprite-mask fix and an open PRI-timing strip (below). Release `v2026.09.27` is staged
-  as a draft with this exact bitstream.
-
-- **CRTC3 / interrupt-status repair accepted (2026-09-27):** user confirms
-  Copter 271, World of Sports BMX and all listed CRTC3 checks fixed on delivered
-  `cf62d5f` (`output_files/Amstrad_20260926_cf62d5f.rbf`, SHA256
-  `ae4d5b78…3f27a7`). Focused tests, selected gate, independent review and
-  exact-SHA full synthesis pass; setup/hold +0.331/+0.178ns, zero TNS on
-  constrained paths. The Prehistorik II HUD-line residual on that build is now
-  confirmed fixed on `2f409e9`. Eerie Forest's
-  left strip remains. Fire & Forget 2 has newly reported sky-gradient flicker
-  and music slowdown: gameplay is confirmed good on `84e6969` and bad on
-  `c595031` (also later builds); `bee92a6` passes. The hardware bisect
-  identifies `b5c3014`, requiring bit 8 clear in the PRI comparison, as the
-  trigger. The resumed candidate above reproduces how alias events masked a
-  missing current-line PRI-write event, retaining the comparison that repaired
-  Copter on hardware. CPCEC uses a full nine-bit compare, and the new
-  standalone CPR gives one IRQ/frame in AmSpirit for PRI10 at both R6=25/34
-  and for off-display PRI255. Original-Plus testing remains available. Keep its historical bisect separate from the recent Prehistorik
-  residual. See the [repair record](plus/ack-provenance-regression-2026-09-26.md)
-  and [remaining-title investigation](plus/remaining-title-regressions-2026-09-27.md).
-
-- **Latest Plus sprite repair:** source `566e0c7` (2026-09-23) retargets
-  sprite rows after live Y changes before their X windows. Focused before/after
-  tests, selected gates, fresh Opus review and exact full-effort synthesis pass.
-  MiSTer confirms Eerie Forest's three reveal-line leaks are gone; Sonic GX
-  title/attract regression samples pass. Integrated as `edaa15b`; the exact
-  final RBF is hardware-verified. The remaining left-edge residual has
-  [two separate causes](plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md).
-  The green first-column bar is sprites drawn inside SSCR[7]'s extended
-  border, now hidden per Arnold V §2.1/§2.5 (`8306e6f`; MiSTer capture
-  confirms the bar gone). The dotted logo strip is removed by requesting ordinary
-  PRI 1 µs after raw HSYNC start at every width. That matches AmSpirit's
-  width-independent probe markers and overrides revised Arnold's +6 µs. It was
-  integrated 2026-09-27 after a MiSTer A/B (Eerie clean; FF2 attract, Copter
-  title, CRTC3 demo unchanged). FF2 gameplay, Prehistorik II and no-regression
-  checks later passed on MiSTer, and original-Plus width 3/6/11 photographs
-  confirm the rule ([hardware](plus/references/eerie-pri-trigger-counterfactual-2026-09-27.md#original-hardware-2026-09-27)).
-  Remaining source divergences and their probe screens are listed in the
-  [ledger](plus/source-divergences.md); the
-  [probe cartridge](../scripts/diagnostics/README.md#multi-test-probe-cartridge-plus_hw_probespy)
-  awaits an original-Plus run.
-- **Latest implementation:** B20-1 live PPR write handling (`5d12f56`), integrated
-  with reviewed capture transport/metadata fixes and B20 acknowledge diagnostics.
-  Combined exact-SHA CI and full Quartus synthesis pass at `cdcb3c3`.
-  Original-hardware acceptance of the PPR change remains open.
-- **Latest Classic implementation:** Classic F14 type-1 additional-line correction, source
-  `5f72d66` (2026-09-22). The physical line no longer depends on R5; the added-line
-  origin excludes simultaneous adjustment entry. Selected simulation gates and fresh
-  review pass; integrated `95e6f56` also passes synthesis. Hardware confirms B9/type1
-  page A; page B and C4 retain residuals, and type 0 remains inconclusive.
-- **Plus baseline:** `b0e5bed` (2026-09-22) restores the three DMA
-  behavior/test files exactly to `0e92c9c`, retaining the P8 test-selection
-  dependency. The restore passes four selected benches and fresh Opus review;
-  its integration build `0601050` passes all required CI jobs. DMA PAUSE candidate `190f4d3`, integrated at
-  `a137d48`, **failed hardware acceptance as integrated**: it passed
-  simulation, review and synthesis, but no longer reached Sonic gameplay in
-  the matched input sequence. PRI and interrupt vector logic are unchanged.
-- **Latest timing-clean integration artifact:** `edaa15b` (2026-09-23), the
-  reviewed Eerie sprite-row repair. [Exact-SHA CI run 35903633316](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35903633316)
-  passes all required jobs and full hosted synthesis. Artifact
-  `Amstrad-build-265-1-full` is delivered as `output_files/Amstrad_20260923_edaa15b.rbf`,
-  SHA-256 `d974447958841e5360151539ccc8a13cef6c0996fc74fffaf645adacca5beebf`.
-  Setup/hold minima +0.555/+0.243 ns, zero TNS. Exact-RBF Eerie and Sonic GX
-  captures confirm the bounded acceptance and left-edge residual above.
-  Reports: `output_files/master-edaa15b/`; [device evidence](investigations/hardware-runs/eerie-forest-graphics-2026-09-23.md#final-integration-artifact-and-device-acceptance).
-- **Previous timing-clean integration artifact:** `57a90bc` (2026-09-23), merging the
-  Eerie Forest pending-CPC-request repair. Exact-SHA [CI run 35868033667](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35868033667)
-  passes simulation, production-T80, full hosted synthesis and required-gate.
-  Its clean-full RBF is `output_files/Amstrad_20260923_57a90bc.rbf`, SHA-256
-  `11959f68712177fa2f73958ca98ac7e98b1b5a854f8cb47d1e0b4db6c9638d8b`;
-  setup/hold minima +0.501/+0.177 ns, zero TNS. This exact master RBF
-  passes bounded Eerie progression and Switchblade title/attract device checks;
-  the reviewed source `cb60ff8` RBF separately passes those checks plus Copter 271.
-  Capture hashes and limits are in the [device record](investigations/hardware-runs/eerie-forest-pending-classic-2026-09-23.md).
-  B23 changes only the simulation fixture and later evidence commits change only docs;
-  [B23 exact-SHA CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35871363119)
-  passes its required jobs and correctly skips synthesis.
-- **Previous timing-clean integration artifact:** `cdcb3c3` (2026-09-22), including B20-1
-  on the Classic F14/restored Plus baseline. Exact-SHA CI
-  [35699931488](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/35699931488)
-  passes simulation, production-T80, synthesis-policy, route, local Quartus and
-  required-gate; hosted synthesis is intentionally skipped. Full-effort Quartus
-  17.0.2 artifact `Amstrad-local-build-239-1-full` is delivered as
-  `output_files/Amstrad_20260922_cdcb3c3.rbf`, SHA-256
-  `f8bc3158826214d81ffeab09a311e78103f451add356247a70587592da6d63a1`.
-  Setup/hold minima +0.622/+0.193 ns; zero TNS; 23,812 ALMs (57%),
-  28,349 registers, 102 RAM blocks and 35 DSP blocks. Reports are in
-  `output_files/reports-cdcb3c3/`. This artifact has not been hardware-tested.
-  Candidate `a137d48` remains experimental; its progression failure and partial
-  timing gain are preserved in the [rearm record](investigations/sonic/rearm-boundary-2026-09-22.md).
-- **Latest hardware-tested builds:** `edaa15b` (2026-09-23: horizontal Eerie
-  reveal leaks fixed, left-edge residual open; Sonic GX title/attract passes);
-  `57a90bc` (2026-09-23: exact integration RBF,
-  Eerie progresses beyond the old freeze and Switchblade title/attract passes;
-  see the [integration-artifact check](investigations/hardware-runs/eerie-forest-pending-classic-2026-09-23.md#integration-artifact-confirmation-2026-09-23));
-  `cb60ff8` (2026-09-23: Eerie progresses beyond
-  the striped-frame freeze; Copter 271 and Switchblade title/attract samples pass;
-  Eerie also boots from saved Plus Off; B16 later observed SNA model readback);
-  `8b18ac0` (2026-09-23 user retest:
-  Sonic GX confirmed fixed, Navy Seals / World of Sports sprite-line flicker
-  appears fixed, Switchblade / original Eerie Forest CPR still not loading; see the
-  [retest record](investigations/hardware-runs/plus-titles-8b18ac0-2026-09-23.md)).
-  A subsequent same-build check confirms Eerie Forest boots after correcting only
-  its malformed RIFF length ([finding](plus/eerie-forest-container-2026-09-23.md));
-  `64702ac` (B20-7 DMA terminal-PAUSE resurrection;
-  Sonic title screen 100% coherent without displaced bands; attract and player gameplay
-  progression confirmed; six regression titles clean),
-  `ef8da61` (master baseline with cartridge stall fix `03f4724`; tested in parallel with `64702ac`),
-  `95e6f56` (Classic SHAKER partial acceptance),
-  `0601050` (Classic B9/type1 first page only),
-  `a137d48` (Sonic progression regression; experimental),
-  `c59e03a` (Sonic baseline still corrupt but reaches gameplay),
-  `88262b9` (Copter 271 title flash fixed) and `a0778b6` (PSG R7 reset;
-  keyboard and joystick fixed). B18 SNA save was tested on branch RBF `0608653`.
-- **Simulation baseline:** 232 required classic CRTC vectors with no expected failures, and
-  canonical soak hash `0xe99ab434a5e1cdb3`, re-minted for the F14 type-1 additional-line correction. Since
-  2026-09-15 the gate runs only the benches a change can break (`sim/select_tests.py`, index
-  in `sim/TESTS.md`).
-
-## Classic CRTC accuracy (types 0 and 1)
-
-**Next validation approach:** B1/B22 acquisition and applied-mode observation
-precede further visual SHAKER-driven CRTC changes. Numeric checks run once in
-Full and may proceed independently. The [B25 diagnostic DSK](investigations/b25-diagnostic.md)
-is built, with 432 production-model captures and actual AmSpirit AMSDOS boots/reruns
-for CRTC0/1. Original-CPC and MiSTer table captures remain outstanding;
-see [the backlog](backlog.md#b25-classic-ga-interrupt-phase-against-cpu-edges)
-and [the execution queue](implementation-roadmap.md#8-immediate-execution-queue).
-
-**Position.** Findings F1-F20 are implemented within their recorded scope at the
-deterministic-model level; see [audit-findings.md](classic/audit-findings.md). The latest RTL
-change before the September 22 retest was the D1/D6 parity repair (source `2d04812`,
-2026-09-11). That retest exposed F14's missing type-1 additional line for R5=0 and
-nondivisible R5; its correction is described in the linked evidence record. Further
-classic RTL work should start from a hardware discrepancy or a rule the RTL is predicted
-to violate, not from blanket coverage.
-
-**Open hardware and validation questions:**
-
-- Repaired build `95e6f56`: SHAKER B (9), type 1 page A matches all numeric
-  reference rows, closing the observed F14 even-entry one-line deficit. Page B
-  retains C0=3F (`2780` vs `2740`) and MID FRAME SIZE (`4E40` vs `4F40`)
-  discrepancies. Type 0 produced no PNG and remains inconclusive. C (4), type 1
-  states A–E, has capture/reference structural differences with cause unassigned.
-  See the [repaired hardware record](investigations/hardware-runs/shaker-repaired-95e6f56-2026-09-22.md).
-  Original CFG, MENU and owned-temporary cleanup are verified; no full D1/D6 closure.
-  [Capture investigation](investigations/hardware-runs/capture-reliability-2026-09-22.md)
-  identifies field-history evidence in C4 images, not a proven CRTC fault. Full
-  was requested; the active Sync latch was not independently observed.
-  A scratch production-T80 replay reproduces the B9 C0=3F stage-A/line-end
-  collision and extra 64 µs raw VSYNC interval. The September 23 result-buffer
-  follow-up now reproduces all five first-block SHAKER values (`2740, 2740,
-  2780, 2780, 2760`), closing the displayed-value correlation gap.
-  French ACCC v1.11 §19.5.3
-  pp.210–212 and §19.8.2 p.226 do not order that collision, so the RTL is not
-  predicted to violate a documented rule and remains unchanged. Counting the
-  coincident line end in the new IVM mode is the only candidate ordering that fits all
-  five photographed rows. Its hardware/author discriminators, and the setup,
-  measurement and Sync-path limits, are in the
-  [page-B discriminator brief](investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md).
-  The [September 29 MID FRAME replay](investigations/shaker-b9-mid/README.md) executes
-  all four cases through the authentic page-B caller. R8=3 is accepted at C0=`1A`;
-  both stage pulses have `line_new=0`, so this entry contract does not encounter the
-  C0=3F collision. Loop counts `049D`/`049F` format `4E40`/`9C60` in every case.
-  The original reference glyph remains unresolved; no production RTL changed.
-- DSC4 and SHAKER still fail on hardware (2026-09-09 retest); the changed failure shapes are
-  not yet characterized. Amazing Demo keeps lower-screen corruption.
-- F13 (type-0 half-character DE) and F20 (CRTC-1 R2.JIT HSYNC start) are implemented but need
-  their named hardware gates: DSC4 and SHAKER `(TAB)`. See roadmap section 4.
-- IA-2, IA-3 and IA-6 rest on source-model evidence only. IA-5 needs a simultaneous capture of
-  raw CRTC HSYNC/VSYNC and GA `INT_N`.
-- Q17 is not closed: the adjustment arithmetic and the simulation predict R7=39 silence, while
-  ACCC §28.1.1 predicts a pulse. Hardware must discriminate.
-- The absolute adjustment-entry pointer in the D1 p.82 addressing pins is not
-  source-adjudicated.
-- Production T80: four executed OUT(C)/OUTI cases pass, but native dynamic-wait equivalence
-  and full motherboard execution remain open. Do not infer production instruction behaviour
-  from the TV80 substitute.
-
-## Plus / GX4000 ASIC
-
-**B20-1 integrated:** live PPR writes now advance the active PAUSE iteration,
-including same-value writes, through registered CPU write events. The fail-first
-regs-to-DMA matrix and nine selected benches pass; see the
-[source and validation record](plus/live-ppr-2026-09-22.md). This is a source-model
-repair with hardware acceptance still open. On device, `cdcb3c3` keeps the `c59e03a`
-Sonic no-input progression (corrupt title, then playfield); see the
-[device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md). Exact write/HSYNC phase remains
-a model convention; no Sonic outcome is claimed.
-
-**Position.** P-2 through P9, P10 compatibility repairs and the subsequent
-hardware-probed ASIC corrections are integrated. The `4a44394` title regression
-pass is user-confirmed clean. The [source-divergence ledger](plus/source-divergences.md)
-distinguishes hardware-settled PRI, sprite and split rules from remaining
-assumptions. PA3 early-arm and last-adjustment controls, exact interrupt phase,
-general DMA boundaries and the named model/disk/reset acceptance remain open.
-
-**Hardware-confirmed:** 6128 Plus BASIC boot (`5c16b17`); Copter 271 logo palette (PRI line
-compare, `b5c3014`) and title flash (`88262b9`); Pang, Plotting and `arn5diag` input
-(`a0778b6`); the Burnin' Rubber and CRTC3-demo right-edge sprite leaks.
-
-**Open:**
-
-- B20-2/3: the [CRTC3 repair](investigations/hardware-runs/crtc3-demo-2026-09-25.md)
-  implements schematic-derived ASIC-side IORQ shaping and the measured repeated
-  empty-acknowledge vector04. Production-T80 controls and the unchanged FlowLIB
-  cartridge check pass simulation; exact `1eec469` MiSTer boot confirms the warning
-  is absent. Muse cross-provider review found no blockers. Low-A13 FDC aliases
-  remain a schematic inference.
-
-- Copter 271: the CRTC3-repair regressions were accepted fixed on `cf62d5f`;
-  the latest `4a44394` title regression report is clean. No new quantitative
-  vertical-scrolling measurement was supplied.
-- Sonic GX: title screen corruption is **hardware-accepted fixed on `64702ac`**
-  ([device acceptance record](investigations/sonic/b20-7-dma-pause-acceptance-2026-09-22.md)).
-  With the cartridge stall fixed (`03f4724`), the resurrected DMA terminal-PAUSE
-  rule (`64702ac`, B20-7) eliminates the extra scanline wait on expiry, restoring
-  frame-locked 312-line list recurrence and 8-line handler cadence matching AmSpirit.
-  On real MiSTer hardware, the Sonic title renders with complete coherence (no displaced
-  bands or torn copper rasters); no-input control reaches Green Hill Zone attract playfield;
-  sustained fire input transitions cleanly through the Act 1 title card into live player
-  gameplay. Zero regressions observed across Copter 271, Burnin' Rubber, Pang, Plotting,
-  Navy Seals, and the CRTC3 demo.
-  The title fix is confirmed on the integrated build `8b18ac0` (2026-09-23
-  user retest, title symptom only; see the
-  [retest record](investigations/hardware-runs/plus-titles-8b18ac0-2026-09-23.md)).
-  General PAUSE 0/1, PPR and REPEAT boundaries remain open for independent investigation.
-- Left-edge sprite corruption is much improved, perhaps fixed; closure is open. Navy Seals
-  / World of Sports left-edge sprite-line flicker is reported fixed on `8b18ac0`
-  (2026-09-23 user retest; no assigned RTL cause, closure pending a repeatable
-  capture); its black-screen report was not reproduced and has no
-  assigned cause.
-- CRTC3 demo: two-fix `1eec469` MiSTer captures confirm FlowLIB without the
-  warning, coherent Buddha/post-flash spheres and clean Wolverine. Tunnel
-  left-edge streaks and the identical late frozen frame remain. Two separately
-  reviewed sprite-cache repairs bring the candidate to `bbd7348`; the selected
-  gate passes41 benches and full synthesis/timing pass. Combined MiSTer tunnel
-  captures remove the left streaks; Eerie/Sonic/Copter progress in bounded
-  regression samples. The late freeze reproduces as a DMA command-decode
-  interrupt storm; fifth repair `7596a7c` passes focused tests,41 selected
-  benches and fresh Opus review.
-  Full-effort integration build `e4445a1` passes CI/timing. Later CRTC3 user
-  acceptance is recorded on `cf62d5f` and the clean `4a44394` regression pass; see the
-  [investigation](investigations/hardware-runs/crtc3-demo-2026-09-25.md).
-  Eerie's residual does not meet the cross-line condition, and six early-line
-  pixel probes match AmSpirit. The **unchanged**
-  Switchblade and Eerie Forest CPRs now boot on the exact full-effort `41a1f27`
-  RBF ([device record](investigations/hardware-runs/plus-cartridge-originals-41a1f27-2026-09-23.md)).
-  Switchblade advances through intro/title and high scores; gameplay is untested.
-  Eerie Forest's later striped-frame freeze passes bounded hardware acceptance on
-  exact full-effort `cb60ff8`: pending CPC interrupts are masked when PRI is active;
-  three captures show the coloured landscape, runner and scrolling text advancing.
-  Copter 271 and Switchblade title/attract regression samples pass on the same RBF
-  ([repair and device evidence](investigations/hardware-runs/eerie-forest-pending-classic-2026-09-23.md)).
-  Full-demo completion and gameplay are untested. The original boot-failure causes
-  are recorded in the [Switchblade unlock](plus/switchblade-unlock-2026-09-23.md)
-  and [Eerie container](plus/eerie-forest-container-2026-09-23.md) findings.
-  Other cartridge crashes, CPC+ SNA/reset/reload recovery and odd-R5 CRTC3
-  behaviour remain evidence-gated.
-- Disk path: on `4027f5e` the System Cartridge boots 6128+ (AMSDOS) and 464+ (tape), and
-  6128+ reads a disk directory and loads Space Gun to its title
-  ([device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md));
-  GX4000 shows `Ready / 14592` (explained: see [gx4000-system-cartridge-2026-09-22.md](plus/gx4000-system-cartridge-2026-09-22.md)). Empty-drive details are unrecorded. The
-  System CPR disk read is held at `XFAIL fdc-payload-poll`; see "Open Plus evidence
-  boundaries" in the roadmap.
-- D3/D4: post-BSR control readback and title/flicker hardware acceptance.
-- B8-2, B8-3, B8-5 and B8-6 are integrated without hardware acceptance. B8-5 snapshot apply
-  approximates first-frame pixels where the SNA omits address/phase history.
-- Status-2 16-frame timer: the source conflict and hardware confirmation remain open.
-- **Sonic reference preparation:** the new ASIC/interrupt scrapes are compared with current
-  RTL in [the source findings](plus/references/scrapes-interrupt-findings-2026-09-22.md).
-  PRI no-wrap remains the accepted Copter-backed policy; stale B19 and SPLT assumptions
-  are corrected. Empty-vector and live-prescaler differences are investigation leads,
-  not confirmed Sonic causes. See [the corpus inventory](reference-ingestion/scrapes-2026-09-22.md)
-  for reviewed and deferred sources, including the synchronization/filter comparison.
-- **B16 implemented; partial device acceptance:** CPR-from-Off boots on `4027f5e`
-  and `cb60ff8` after ungating the CPR entry. SNA v3 headers 4/5/6 from Off select
-  6128+/464+/GX4000 on `cb60ff8`, observed through Main's explicit Save settings
-  readback. This confirms the normal SNA status echo; visual OSD labels,
-  functional cartridge-backed restores for headers 5/6, and preservation of
-  explicit Plus choices on CPR loads remain open. See the
-  [load contract](plus/b16-load-model-2026-09-22.md) and
-  [device readback record](investigations/hardware-runs/b16-sna-model-readback-2026-09-23.md).
-- PRI line-compare source review is closed, with the original-Plus alias-probe
-  evidence retained in the [review archive](archive/review-debt-cleared.md).
-  This does not settle the separate raw interrupt-phase questions.
-
-## General: video path, peripherals, harnesses and tooling
-
-- **B1 video ownership** is open as an ownership/observability problem. Full versus Raw pixels
-  shows no visible difference so far (Amazing Demo, DSC4, SHAKER A); Pulpo awaits retest.
-- **B6 video boundary** is integrated (`5c16b17`) with its rendering follow-up. Physical
-  HDMI/CRT acceptance and a CPU-generated stuck-high raw-sync recipe remain open.
-- **Capture and oracles:** the B2 device driver captures repeatably (native screenshots omit the
-  OSD, so they cannot prove the active mode). B4 CSL/SSM Phase 1 is verified on hardware for
-  Module A on both CRTC types and Gate 1 (Module B); the workbook's 712 rows remain coverage
-  targets. [Real SSH interruption recovery](investigations/ssm-csl/csl-real-ssh-recovery-2026-09-29.md)
-  now passes for a completed CFG write: the runner reports failure and restores
-  the exact original bytes through fresh connections. Persistent outages and
-  active OSD recovery remain unverified. Source support is updated to CSL v1.5 and SSM v1.2: `wait_ssm 0xHHLL` is available,
-  legacy `wait_ssm0000` and SHAKER 2.6 remain compatible, and the existing detector already
-  enforces four consecutive opcode fetches. The original production-T80 provider
-  gap is closed at source and bounded motherboard-execution level by the
-  [five-case fixture and review](investigations/ssm-csl/b4-production-fetch-2026-09-29.md);
-  it does not extend the separate [bounded format-2 device acceptance](investigations/mister-format2-b25-2026-09-29.md). The [SHAKER 2.7 suite run](investigations/shaker27-full-suite-2026-09-29.md)
-  completed module A on CRTC0/1/3 using `wait_ssm`, with 372 captures and no
-  fallback. B–E continuation is in progress on the same pinned Phase 1
-  SSM-capable RBF; execution coverage and visual/numeric acceptance are separate. The B3 frame-capture CLI works within
-  its CPU and clock limits. The AmSpirit oracle
-  (`scripts/amspirit/amspirit.py`) captures reference checkpoints. See the
-  [mister-capture skill](../.agents/skills/mister-capture/SKILL.md) and
-  [driver guide](investigations/hardware-runs/mister-hardware-loop-driver.md).
-- **B18 SNA save** is integrated as a development aid only: the core cannot write to SD, so
-  shipping it needs a Main_MiSTer change. The reviewed production-T80 capture/round-trip fixture now covers six classic
-  model/CRTC combinations and host publication races (acceptance 2 and 3). 464 and 664 saves round-trip on
-  device (`cdcb3c3`, 2026-09-22; see the
-  [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md)). Open:
-  SD transport. Slice 3–4c source-review debt is closed; the resulting
-  [Dandanator admission repair](investigations/b18-save-admission-2026-09-29.md)
-  refuses saves whenever the cartridge remains loaded, even with chip select idle.
-  Its new integrated build/device validation is separate from the earlier round-trip
-  acceptance. See [b18-sna-save.md](b18-sna-save.md).
-- **TV80 bench CPU** now takes the Z80's automatic I/O wait, so its I/O windows match the
-  production T80pa. The reported no_wait Gate Array write drop was this fixture artifact, not an
-  RTL defect ([record](investigations/no-wait-ga-write-latch-2026-09-22.md)). The resulting
-  [B22](backlog.md#b22-b6-dynamic-type-1-short-hsync-stage-loses-its-shifted-fetches-after-the-tv80-io-fix)
-  failure was an unsupported type-1 filter-acquisition assumption, not sticky `hs4`.
-  `b6-dynamic` now passes all nine machine/mode cases with source-derived pulse-width
-  checks; production RTL and CPU timing are unchanged. Physical monitor acquisition
-  remains open ([evidence](investigations/video-boundary/b22-short-hsync-2026-09-23.md)). [B23](backlog.md#b23-tv80-bench-cpu-bus-timing-parity-with-production-t80pa)
-  proposes a TV80-vs-T80pa parity bench. The [B1/B22 observability slice](investigations/video-boundary/b22-acquisition-trace-2026-09-29.md)
-  adds a passive edge/state CSV and SSM format-2 marker-time mode/acquisition
-  observations, backward-compatible with format-1 reads. The current trace
-  separates stale startup period from persistent phase misalignment after
-  period correction. Steady format-2 observations now pass the
-  [bounded device session](investigations/mister-format2-b25-2026-09-29.md);
-  live transitions, pathological acquisition and original-monitor fidelity remain
-  open. No acquisition policy was changed.
-- **Peripherals:** FDC full-sector result/ST1, classic AMSDOS and hardware acceptance are open.
-  B8-7 HPS cadence is open; real-CDT playback is device-accepted on 464 and 464+.
-  **CDT on a CPC 464 overwriting the 464 OS ROM is fixed and device-accepted on
-  `8b18ac0`** (ROM then CDT loads AmstradDiag fully; inherited from upstream: tape SDRAM
-  bank 2 was also the 464 model bank; see the
-  [device record](investigations/hardware-runs/device-acceptance-cdcb3c3-2026-09-22.md)).
-  The fix (`859fd24`, integrated 2026-09-22) moves the tape image to bank 3 at `0x100000`
-  upward — the region no model ROM/RAM, Dandanator or Plus cartridge uses — with a 7 MB
-  maximum tape length, proven fail-first against the map and the B8-7 fixture. **464+ CDT
-  playback losing block 2 is resolved on hardware** by the cartridge execution-rate fix
-  `63fcf23`/`94b18f0`: on 2026-09-23 the same System Cartridge + `AmstradDiag.cdt` sequence
-  loaded fully on RBFs `ef8da61` and `64702ac` and still lost block 2 on `4027f5e`
-  ([investigation](investigations/b8-7-464plus-cdt-block2-2026-09-23.md)). The in-sim
-  `cdt-boot` fixture reaches the PLAY prompt but its tape motor never starts (fixture
-  divergence, recorded there, not committed as a bench). B8-4 video-word coherence has no
-  hardware acceptance.
-- **Tooling:** the task-workflow host smoke tests (B14) are open. `scripts/accc/lookup.py`
-  finds candidate Compendium sections (BM25 plus a TypeSafe Jev skim and rerank; BM25 only,
-  with a notice, when Jev is unreachable) as a navigation aid, not verification. On the two labelled
-  query sets in `scripts/accc/eval/` an accepted section lands in the top 3 for 23/30 and
-  27/29, and for 40/49 of the queries that share no word with the gold section's title. `--check-claim` (EN, FR or both)
-  is experimental: it misreads same-topic "silent" sections as contradictions. B17 has a device-tested
-  [timed keyboard replay slice](../scripts/hardware-loop/INPUT-REPLAY.md), including Sonic fire
-  through Main keyboard joystick mode. Recording remains deferred because Main grabs evdev
-  inputs; gameplay timing is not frame-deterministic. CI and synthesis routing are in
-  [ci-testing-policy.md](ci-testing-policy.md); local setup is in [building.md](building.md).
-
-## How hardware testing fits the loop
-
-SHAKER runs outside the automated CI gate. That gate is the selected Verilator
-benches plus GitHub Actions synthesis. SHAKER and title sessions happen at significant
-milestones, driven manually or by authorized CSL/SSM scripts, against a target list recorded before the session (roadmap
-section 4 lists SHAKER targets per checkpoint; [plus/hardware-test-checklist.md](plus/hardware-test-checklist.md)
-is the Plus title matrix). A green simulation gate is never evidence of hardware accuracy, and
-a manual session never gates a commit. Dated results go under
-[investigations/hardware-runs/](investigations/hardware-runs/).
+Simulation selection and synthesis gates do not establish hardware accuracy;
+record bounded device results in dated [hardware reports](investigations/hardware-runs/).

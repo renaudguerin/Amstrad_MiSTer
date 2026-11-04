@@ -12,6 +12,7 @@ Start from:
   roadmap does not show.
 - `docs/implementation-roadmap.md`: dependency order and acceptance gates.
 - `docs/current-status.md`: handoff state per stream, open hardware residuals, latest artifact.
+- `docs/shaker-status.md`: maintained SHAKER execution, photo comparisons and open pages.
 - `docs/classic/audit-findings.md` (symlinked from `docs/accuracy/`): numbered findings.
 
 ## Proportionate engineering
@@ -48,6 +49,12 @@ Task skills live in `.agents/skills/`:
   `$stream-finish` authorizes integration and push, including during unattended work; do not
   wait for a later interactive invocation. Coordinated tasks stop at READY unless finish was
   requested; the integrator finishes them sequentially.
+
+`docs/current-status.md` is a compact current-tip handover. Replace superseded entries
+rather than appending milestones; move history to `docs/archive/` or dated reports,
+while retaining live risks, next actions and links to their evidence. Update
+`docs/shaker-status.md` when a targeted run or fix changes known results; a full
+rerun is not mandatory until the fix milestone.
 
 One writer per checkout, one integrator at a time. `stream-start` prepares the ignored ACCC
 PDFs in the assigned checkout; bridge workers use that checkout without another clone. Never
