@@ -38,3 +38,16 @@ $(ASIC_R0_TERMINAL_BIN): $(B18_SNAPSHOT_RTL) asic_r0_terminal_test.cpp b18_snaps
 		+1364-2001ext+.v +1800-2017ext+.sv \
 		--Mdir $(OBJ_DIR)/asic_r0_terminal -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
 		-o asic_r0_terminal_tests $(B18_SNAPSHOT_RTL) asic_r0_terminal_test.cpp
+
+# Pixel-boundary reference through the same real CPU/motherboard/RAM owners.
+ASIC_BLANK_BIN := $(OBJ_DIR)/asic_blank_alignment/asic_blank_alignment_tests
+.PHONY: asic-blank-alignment-test
+asic-blank-alignment-test: $(ASIC_BLANK_BIN)
+	$<
+
+$(ASIC_BLANK_BIN): $(B18_SNAPSHOT_RTL) asic_blank_alignment_top.sv asic_blank_alignment_test.cpp b18_snapshot.mk Makefile
+	mkdir -p $(OBJ_DIR)/asic_blank_alignment
+	$(VERILATOR) --cc --exe --build --top-module asic_blank_alignment_top -UVERILATOR \
+		+1364-2001ext+.v +1800-2017ext+.sv \
+		--Mdir $(OBJ_DIR)/asic_blank_alignment -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
+		-o asic_blank_alignment_tests $(B18_SNAPSHOT_RTL) asic_blank_alignment_top.sv asic_blank_alignment_test.cpp

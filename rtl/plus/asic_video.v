@@ -1266,7 +1266,23 @@ assign PAL_ADDR = eff_de ? {1'b0, pen_delayed} : 5'd16;
 wire [11:0] asic_rgb = {PAL_RGB[7:4], PAL_RGB[11:8], PAL_RGB[3:0]};
 
 wire [11:0] rgb_mux = PAL_EN ? asic_rgb : legacy_colour(hw_sel);
-wire        blank   = HSYNC;
+// Horizontal blank is aligned to the registered pixel stream. The 15-dot
+// output offset is a measured AmSpirit Lite1.17.1 Type3 software reference
+// (normal-boot Mode1/2 controls), not a verified silicon delay. ACCC French
+// v1.11 §14.7.2 p144 explicitly qualifies its Type3 chronogram as a working
+// assumption. Evidence/limits: docs/investigations/hardware-runs/
+// asic-credit-blank-boundary-2026-11-04.md#normal-boot-reference-controls. Raw HSYNC and its mode/IRQ
+// consumers retain their original timing; only the final RGB mask is delayed.
+reg [14:0] horizontal_blank_history;
+always @(posedge CLOCK) begin
+    if (!nRESET) horizontal_blank_history <= 15'd0;
+    // Pixel history is not serialized. Normalize to the settled incoming pin
+    // (HSYNC itself updates on this edge), discarding old pending transitions.
+    // Seeding from old HSYNC or zero would leak color on an active-HS restore.
+    else if (SNA_LOAD) horizontal_blank_history <= {15{SNA_HS}};
+    else if (PIXEN) horizontal_blank_history <= {horizontal_blank_history[13:0], HSYNC};
+end
+wire        blank = horizontal_blank_history[14];
 
 // Line seam strobe for the sprite engine: the character-counter wrap edge.
 assign HWRAP = CLKEN & hcc_last;

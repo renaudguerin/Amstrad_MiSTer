@@ -2142,9 +2142,11 @@ void t05d_mode0_nibble_pixels(TestBench& test) {
     });
 }
 
-// Outside DE the border colour is substituted; while HSYNC is active the
-// RGB pins are forced to black (netlist FORCE_BLANK analogue). Border here
-// is hw 24 = magenta (6,0,6) per [KT].
+// Outside DE the border colour is substituted; terminal horizontal RGB blank
+// takes precedence over that colour. Keep the short R3low=1 pulse: the RGB
+// mask is delayed from the raw pin, so its plateau continues after raw fall.
+// Exact output-edge alignment belongs to asic-blank-alignment-test; this leaf
+// checks colour precedence. Border is hw24 = magenta (6,0,6) per [KT].
 void t05e_border_substitution_and_sync_blank(TestBench& test) {
     program_pixel_frame(test);
     TestPalette pal;
@@ -2158,12 +2160,17 @@ void t05e_border_substitution_and_sync_blank(TestBench& test) {
     do {
         test.run_characters(1);
     } while (!test.hsync());
-    // Still inside the pulse (R3h=1): give the registered output two dots
-    // to pick up the forced-blank value.
+    // Observe raw fall at dot resolution, rather than polling a whole
+    // character and potentially skipping the delayed short-pulse plateau.
+    unsigned guard = 0;
+    while (test.hsync()) {
+        test.run_dots(1);
+        if (++guard > 32) throw TestFailure("t05e short raw HSYNC did not end");
+    }
     test.run_dots(3);
-    test.expect_rgb("HSYNC forces RGB to black", 0, 0, 0);
-    test.run_until_hsync_idle();
-    test.expect_rgb("border returns after HSYNC", 6, 0, 6);
+    test.expect_rgb("terminal RGB blank beats border after raw HSYNC fall", 0, 0, 0);
+    test.run_characters(1); // settle beyond the delayed RGB fall
+    test.expect_rgb("border returns after terminal RGB blank", 6, 0, 6);
 }
 
 // Decoder input contract: a requested mode stays inert until the qualified
@@ -2484,12 +2491,18 @@ void t06b_border_over_sprite(TestBench& test) {
     test.set_sprite(1, 5, 10, 15);
     test.run_dots(1);
     test.expect_rgb("t06b border still wins over sprite", 6, 0, 6);
-    // t06c: HSYNC force-blank beats everything, sprite included.
+    // t06c: delayed terminal RGB blank beats everything, sprite included.
+    // SPR_EN remains asserted through the short R3low=1 pulse and its tail.
     do {
         test.run_characters(1);
     } while (!test.hsync());
-    test.run_dots(3);  // registered output picks up the forced blank
-    test.expect_rgb("t06c HSYNC blanks active sprite", 0, 0, 0);
+    unsigned guard = 0;
+    while (test.hsync()) {
+        test.run_dots(1);
+        if (++guard > 32) throw TestFailure("t06c short raw HSYNC did not end");
+    }
+    test.run_dots(3); // sample the delayed mask's plateau after raw fall
+    test.expect_rgb("t06c terminal RGB blank beats active sprite", 0, 0, 0);
 }
 
 // ---- t07: CRTC-3 bus readback and status groups (P5) -----------------
