@@ -1025,6 +1025,7 @@ class CslRunner:
         self.capture_count = 0
         self._ssm_start_checked = False
         self.ssm_startup: Dict[str, Any] = {"attempted": False}
+        self._last_ssm_poll_completed_at: Optional[float] = None
         self.entry_script_stem = Path(entry_script).stem
         self._media_line = 0
 
@@ -1132,6 +1133,9 @@ class CslRunner:
         if not self._ssm_start_checked:
             return []
         records = self.backend.poll_ssm()
+        # Record marker ingestion observation time immediately when poll completes,
+        # separating it from downstream capture processing (taking screenshots).
+        self._last_ssm_poll_completed_at = self.backend.now()
         for record in records:
             self.ssm_records.append(record)
             code = int(record["code"], 16)
@@ -1296,6 +1300,7 @@ class CslRunner:
         self._ssm_start_checked = False
         self.backend.reset_ssm()
         self.ssm_wait_pending.clear()
+        self._last_ssm_poll_completed_at = None
         self._record(command, "load_core", **load)
 
     def _apply_config(self, command: Command, folded_into: Optional[int] = None) -> None:
@@ -1522,7 +1527,7 @@ class CslRunner:
                 )
             self.backend.sleep(min(step, remaining), f"wait_ssm #{code:04X} poll")
             self._consume_ssm(command)
-            if self.backend.now() > deadline:
+            if self._last_ssm_poll_completed_at is not None and self._last_ssm_poll_completed_at > deadline:
                 raise command.error(
                     f"no SSM #{code:04X} arrived within {self.options.max_wait_seconds:.0f}s "
                     f"(poll completed after monotonic deadline)",
@@ -1537,7 +1542,7 @@ class CslRunner:
                              released_by="not executed: offline plan")
                 return
             released = self._pop_pending_ssm(code)
-        if self.backend.now() > deadline:
+        if self._last_ssm_poll_completed_at is not None and self._last_ssm_poll_completed_at > deadline:
             raise command.error(
                 f"no SSM #{code:04X} arrived within {self.options.max_wait_seconds:.0f}s "
                 f"(marker observed after monotonic deadline)",

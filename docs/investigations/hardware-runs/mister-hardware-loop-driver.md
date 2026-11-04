@@ -499,8 +499,12 @@ commits the count. Anything outside it is counted as lost and reported.
 
 After startup is established, the runner drains the ring at every command boundary and once more at the end of the
 run, so a marker emitted while MBC or a PNG retrieval blocked the thread is still
-collected. CSL waits and `--max-wait` are monotonic wall deadlines, because the polls
-and SSH round trips inside them advance the machine too. `wait_ssm0000` and v1.5
+collected. CSL waits and `--max-wait` use monotonic wall time, because polling and SSH
+round trips advance the machine too. For SSM waits, the deadline applies to
+when the ring poll returns. Screenshot processing for a marker already observed
+in time may finish later; it must not turn that observation into a false
+“no marker” timeout. A poll itself completing late still fails, and an absent
+target still times out after slow captures. `wait_ssm0000` and v1.5
 `wait_ssm` each consume one unconsumed matching event from the current run, including
 one observed before wait entry; unrelated codes stay queued. Neither CSL edition settles
 the buffered-before-entry case, so this asynchronous-host choice is recorded in the

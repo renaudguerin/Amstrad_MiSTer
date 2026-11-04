@@ -286,8 +286,10 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
             self.polls += 1
             entry = self.publish_at.pop(self.polls, None)
             if entry is not None:
-                code, frame = entry if isinstance(entry, tuple) else (entry, 0)
-                self.publish(code, frame)
+                entries = entry if isinstance(entry, list) else [entry]
+                for item in entries:
+                    code, frame = item if isinstance(item, tuple) else (item, 0)
+                    self.publish(code, frame)
         image = make_ring(self.ring_slots, written=self.ring_written)
         if header_only:
             image = image[:16]
@@ -457,7 +459,7 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
             self._run(script, ssm=True, max_wait_seconds=1.0)
         self.assertEqual(loads["count"], 2)
         self.assertIn("no SSM #1234 arrived", ctx.exception.reason)
-        self.assertTrue(any("screenshot MISTER_1_1234.png" in entry["command"]
+        self.assertTrue(any("screenshot MISTER_1_1234" in entry["command"]
                             for entry in self.transport.command_log),
                         "the pre-reset marker was never observed")
 
@@ -532,6 +534,71 @@ class TestRunnerSsmIntegration(DeviceHarnessMixin, unittest.TestCase):
                     transport=self.transport, dry_run=False, sleep_fn=lambda s: None,
                     time_fn=advance_time)
         self.assertIn("deadline", ctx.exception.reason)
+
+    def test_wait_ssm_succeeds_when_marker_observed_before_deadline_even_if_captures_advance_clock_past_deadline(self):
+        # Regression for native A4 instrumented bug:
+        # A single in-time ring poll returns a batch of 17 records ending in target
+        # marker 0x0037. The poll completes before the deadline, but downstream
+        # capture processing for the screenshot requests advances the monotonic
+        # clock past the deadline. The wait must succeed and retain all captures
+        # and records.
+        clock = {"t": 0.0}
+
+        def on_screenshot(cmd: str) -> CommandResult:
+            clock["t"] += 1.0
+            return CommandResult(0, "", "")
+
+        self.transport.handlers.insert(0, (
+            lambda c: "/dev/MiSTer_cmd" in c,
+            on_screenshot,
+        ))
+
+        # 17 records matching the native A4 failure trace: 16 HH codes then target 0x0037
+        codes = [
+            0x103E, 0x0F3F, 0x0E3F, 0x0D3F, 0x0C3E, 0x0B3F, 0x0A3F, 0x093F,
+            0x083E, 0x073E, 0x063E, 0x053E, 0x043E, 0x033E, 0x023E, 0x013E,
+            0x0037,
+        ]
+        self.publish_at[2] = codes
+        script = write(self.tmp, "m.csl", (
+            "csl_version 1.5\ncrtc_select 1\nreset\n"
+            "disk_insert 'shaker27.dsk'\nwait_ssm 0x0037\n"
+        ))
+        manifest = run_csl(
+            script, options(self.tmp / "out", ssm=True, max_wait_seconds=2.0),
+            transport=self.transport, dry_run=False, sleep_fn=lambda s: None,
+            time_fn=lambda: clock["t"],
+        )
+        released = [e for e in manifest["trace"] if e["outcome"] == "ssm_wait_released"]
+        self.assertEqual(len(released), 1)
+        self.assertEqual(released[0]["code"], "0037")
+        self.assertIn("after entry", released[0]["released_by"])
+        self.assertEqual(len(manifest["captures"]), 17)
+        self.assertEqual(len(manifest["ssm_records"]), 17)
+
+    def test_wait_ssm_fails_when_target_absent_and_slow_captures_advance_clock_past_deadline(self):
+        # In-time poll returns screenshot requests that push time past deadline,
+        # but the requested target code was NOT in the batch: must fail.
+        clock = {"t": 0.0}
+
+        def on_screenshot(cmd: str) -> CommandResult:
+            clock["t"] += 10.0
+            return CommandResult(0, "", "")
+
+        self.transport.handlers.insert(0, (
+            lambda c: "/dev/MiSTer_cmd" in c,
+            on_screenshot,
+        ))
+        self.publish_at[2] = 0x103E  # Not the target 0x0037
+        script = write(self.tmp, "m.csl", (
+            "csl_version 1.5\ncrtc_select 1\nreset\n"
+            "disk_insert 'shaker27.dsk'\nwait_ssm 0x0037\n"
+        ))
+        with self.assertRaises(CslError) as ctx:
+            run_csl(script, options(self.tmp / "out", ssm=True, max_wait_seconds=2.0),
+                    transport=self.transport, dry_run=False, sleep_fn=lambda s: None,
+                    time_fn=lambda: clock["t"])
+        self.assertIn("no SSM #0037 arrived within 2s", ctx.exception.reason)
 
     # --- startup and read failures -------------------------------------------
 
