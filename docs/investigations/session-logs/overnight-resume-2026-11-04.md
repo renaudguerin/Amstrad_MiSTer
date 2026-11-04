@@ -1,7 +1,7 @@
-# Active unattended handover — 4 November 2026, 20:38 UTC
+# Active unattended handover — 4 November 2026, 21:02 UTC
 
 Continue the authorized task until approximately 80% weekly Codex used; do not
-end merely because one coherent unit finishes. Live OAuth reading20:24 reports
+end merely because one coherent unit finishes. Live OAuth reading20:46 reports
 57% weekly used, reset5November19:34UTC, three banked resets untouched. No paid
 overage, credits or banked reset use. Prefer suitable Gemini3.8 routine work;
 Solhigh for RBF work, sparing prepared Astra consultations only. Keep ask-claude
@@ -15,27 +15,34 @@ milestone builds are authorized.
 ## Checkout and operators
 
 Checkout /Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer, branch
-codex/overnight-validation-20261103. HEAD4ca04e3 (docs checkpoint pushed), RTLtip9a91920. Parent owns
+codex/overnight-validation-20261103. HEAD50b2402 (reviewed default-off observer pushed), functionalRTLtip9a91920. Parent owns
 all docs and shared MiSTer/AmSpirit access. Device use remains authorized,
 with no hold. Sandboxed SSH signing failed, but the identical approved
 outside-sandbox path works; hardware-loop/SSH use require_escalated. The old
 user-agent question is obsolete. Gitmetadata writes likewise need that path.
 
-One writer owns overlapping files. Current native Solhigh
-/root/r3_output_model_scope owns a bounded default-off passive S diagnostic
-implementation and its focused proof/gate; root owns docs. Other agents are
-idle. Do not start a second overlapping writer or rerun that worker's gates.
-Two Gemini3.8 calls are active, owned by root:
-- case19source audit exec78142/run20261104T202733Z-68559-1add, private
-  e6-case19-source/REPORT.md; no code/device/API.
-- JIT2→0 private proof exec88320/run20261104T203141Z-69703-5358, private
-  r3-jit-2to0-proof/; coherentfrozenRTL/no candidate, sixfixed+twomixedcases,
- 5D/A6 nonaliasedpair, sourceplanfirst. No production/Git/device/API.
-Root owns active MiSTer exec68744: targeted9a directS then canonicalhistoryS,
-outputs s-passive-fpga-trace/baseline-{direct,history}-9a91920/. This qualifies
-exact diagnostic-comparison source, not a broad baseline. Drain toexit and
-view scalarPNGs; neverinfer9a Sfrome574 just becauseC1logicunchanged.
-AmSpirit has no active job. Root must drain both bridges anddeviceexec toexit.
+One writer owns overlapping files. NativeSol /root/r3_output_model_scope
+now owns the next C0 forced-zero-adjustment fix in type0engine/sim_main/
+soak-golden-history only. Taskbrief gives independentFrenchsource vector,
+proof-beforeRTL, preserveR0<2/positiveR5 and don'tgloballychangecase28rematch.
+Parentownsdocs/device/API. No other writer or foreign provider is active.
+Active root-owned operations:
+- MiSTerexec68744 COMPLETE/drained: exact9a directS4E40(10commands/1PNG/
+ 0fail/1SSM), canonicalhistory0440WRONG(131commands/64PNGs/0fail/121SSM).
+ Finalscalarrootviewed; independentglyphread confirms. NewACTIVErootexec92208
+ doesONEsame9a historyrepeat toqualifyentry-phase/cohort beforediagnostic:
+ baseline-history-9a91920-repeat1/. Drain/view, no otherdevicejob.
+ Importantadditionalcorrection: exactpreservede574historyPNGreads5060,
+ NOTearlier9600. Independenthistorical-s-glyph-ledger.json confirms5990640,
+ e5745060,bothdirect4E40. 5060=>N1222mod4096,0440=>N4,notoldN2336.
+ Userinformed, relevantdocs/Frenchdraftcorrected. SameC1logic9a-vse574
+ scalar difference doesNOTisolateType1publicationcausality. Avoidnewtinyfont
+ guesses; use immutablelabelglyphdictionary/numericalcrop.
+- Full workflow41910599920 onEXACTae9ccdc02d6ac941eddc9b4aab771b15218ffa20,
+ isolatedbranchcodex/s-passive-native-20261104, macroON. Hostedfull synthesis
+ inprogress; routefoundnoregisteredrunner. Normalcheckout isBACKonovernight
+ branch50b2402, macroOFF. DoNOTsupersedethisbuildwithC0candidate untilfinished.
+BothGemini4andGemini3calls drainedtoexit; logs copiedprivate. NoAmSpiritjob.
 Root must own any newly launched command/provider through exit.
 
 ## Completed code and exact latest artifact
@@ -90,7 +97,7 @@ accepted repeat omittedSSM. Do not repeat it again.
 E574:full41881983617/artifact13350633612, RBFhash
 f95bac8d60821cee62329d9314bd63811936a8102c892f47d484cfa74ae19df9,
 3134640bytes,0.575/0.243ns. E/Ppixelidentical599;DI58vs59 andB6fifth/fourth
-1F/1Fvs1E/1F remain. C1canonicalprefix131commands/64PNGs/121SSM givesS9600;
+1F/1Fvs1E/1F remain. C1canonicalprefix131commands/64PNGs/121SSM givesS5060;
 freshdirect10commands/onePNG/oneSSM gives4E40. All changed PNGs viewed:
 50/64identical599,13rasterpatternchanges+Sscalar. No refreshedphotopassclaim.
 C1DSC4fourviews andAmazingtwoviews remainvisible, nofullcompletionclaim.
@@ -136,8 +143,18 @@ privateunusedFFxx onlyAFTER genuineS02D3 marker. NoCPUhalt/WAIT/reset/guest
 patch/fakeSYNC/screenshot. Require proof-first observer/transport vectors,
 logicaldisabled/enabled machineequivalence and normal-marker preservation.
 If integratedpassivityharness becomesdisproportionate, worker muststop with
-scoped diff/plan. Parent mustreview/cross-providerreview before diagnostic
-branch/build. No build/device/API/Git/delegation authorized to worker.
+scoped diff/plan. Parent hash/diffreviewdone, independentGem4reviewACCEPT0blockers(run20261104T204518Z-74150-8699). Focusedtransport+
+productionT80/READYcheckpoint-instructionreplayPASS(717M1/50kclocks), seven
+exportedcutsmatchdirectowners, disabled/enabledfetch/I/O/counter/RGBhashesequal,
+ordinarySrecordbitidentical. Replayusesexplicittrampolines,NOToriginalhiddenstate.
+Default-offsoakmatches57463f9d37d0251e/2845088samples. Finalselectedgate45PASS
+onceafterlastcodeedit; source frozen. HANDOFF.md owns fullresults/privateenable
+recipe: append VERILOG_MACRO SSM_S_PASSIVE_TRACE=1 ONLY inlaterseparatebuildbranch,
+notnormalQSF. ExistingfiveproductiondefaultoffnoncommenttokensidenticalHEAD.
+Seven128bit+ticks onchip; fourteenFF20..26/28..2Epayloadrecords +FF2Fstatus
+aftergenuineSheaderaccepted; private decoder decode.py/raw1040bytering. Timing+
+nativeSretentionpending. No build/device/API/Git/delegation authorized to worker. Sobservercommitted/
+pushed50b2402; isolatedQSFmacro-onlyae9ccdc buildactive, no furtherobservercodeedit.
 No productioncounterfix follows until nativehiddenstate is observed.
 
 ## Other current evidence and remaining source questions
@@ -152,6 +169,23 @@ StrictcurrentCPU menu replay verifies originalhook570718775/hash1619ac773a62ab17
 fullRAMexceptexactcode/16measurements/8formatter/tworeturns. Old4045stack
 placementREJECTED. New asic-a4-native-results report owns exactbounds.
 
+C0case19Gemini3auditcompleted, sourceidentity/recipeusefulbutcausalverdict
+REJECTED; qualification e6-case19-source/PARENT-QUALIFICATION.md. Claimthat
+008B/00A3authorformulaincorrectbecause38-8=30 is unsupported; full32inclusive
+zeroR5wrapvscurrent2inclusive also adds30lines. OriginalAmSpiritall28pass.
+R9breakmaypreserveR9comparatoruntilC4advances whereasR4breakselectsR5; plausible
+notobserved, sourceadjudicationCOMPLETErun20261104T204402Z-73922-7226. Parent rendered/read
+Frenchp108/p128plusp83/82/95/106 independently. §13.2.4p108explicitly says
+passingC0=2doesn'tcancel andC4/R4inequalityselectsR5; whileequalR9remainsuntil
+pendingC4advance. CandidatevectorR0=63,R5=0,R8=0,R4=C4=8,R9=C9=0trueLastLine
+atC0=0: C0=1 R9←2holdsC4=8/C9=0,1,2thenoriginL3; R4←10holdsC4=8/C9=0..31
+thenoriginL32. Sourcep128analogouszeroR5wrapcorroboration,NOTsameR0stimulus.
+ASscalarcorroborates; originalcaller'sabsolutephaseNOTobserved. NativeSol
+implementsproof-firstminimalfinding. Source supportsfixwithoutfirstquestion
+asktoauthor; case28postentryrestoreambiguity remainsseparate. Report
+crtc0-forced-zero-adjustment-2026-11-04.md recordsbounds. Do NOT senda wrongauthor-bugquestion.
+CPCSE17actually0017not0013,20=0027not0000; independentglyphledger
+cpcse-e6-0-v012/root-decoded-checks.json,19/28printedfails. Case16passes002F.
 C0cases16/28 remain Frenchquestions. Case28actualR4=39/R9=3 despiteprinted2;
 +78/+14/+14us writeintervals don'testablishabsoluteC0. CPCSEalsofails28=02D6.
 UnsentFrenchdraftasks postentryrematchnext(40,0)or(39,4), not a chosenrule.
@@ -161,7 +195,11 @@ R3/mixedmode: no candidate. r3-2to1-zero-fill-proof/ onebuild/run16cases,
 JITType0pixelpass,Type1extraold5DMode2shiftfails; bothblankreleaseearly38/39
 vs40. Astra-medium r3-stateful-model read corrects visible40vsinternaltoken39.
 PaperFrenchp65JIT2→0residual5/pen5for5D versus2→1residual6/pen0 is next
-independentdestinationcadenceconstraint. Private2→0proof delegated as above; no newrunresult or universalcausalrule yet.
+independentdestinationcadenceconstraint. Private2→0proof now COMPLETE/accepted,8cases(onebuild/run),sixfullfixedcontrols
+PASS. 5D/A6pair avoidsnextbytealias; source40expectedpen5,Type0actual0(old5D<<6),
+Type1actual1(old5D<<7); successor13/2pixelsPASS,bothblankreleaseearlyunchanged.
+Allsource/artifactmanifesthashesparentverified, no rerun. Providerfinaltextsome
+hashvaluesstalebutactualfrozenmanifestsallmatch; usefiles. No universalcausalrule.
 
 R7CPCSEUKexplicitR7I0.BIN+10swaitqualifies623codebytes/PC/HALT/SP/VRAM;
 PPI1,fallcount64,timeout0; char-roundedC0=0/C4=10/C9=1. Guardednonterminal
@@ -176,8 +214,21 @@ unsent. Keep programassertion. reference-index-recheck/ retainsJSON.
 ## Checkpoint policy
 
 Docscheckpoint4ca04e3 pushed after local-linkcheck13files/diffcheckPASS.
-New uncommitteddoc additions recordAmSpiritE6all28PASS and correctnative27
-actual0055vs0065; do not accidentallystageSol's in-progress diagnosticRTL.
+Additionaldocscheckpointf03ddbe pushed. Sobserver50b2402pushedafter45gate,
+soak andcrossreview; privateQSFonlymacrocommitae9ccdc isonseparatebuildbranch.
+CurrentdirtydocsrecordJIT2→0proof/CPCSE9of28vsAS28of28/E6sourceclarification
+andactivehandover. DoNOTaccidentallystageSol's nextC0fix; commitdocsseparately.
 Reviewlinks/diffcheck andcheckpointpush coherently. Pureddocs need no simulation/providerreview.
 Keep current-status currenttip; datedreports ownevidence/history. Do not
 repeatcompleted migrations/packageaudits/baselines. No goaltool was created.
+
+## Latest work boundary
+
+NativeSol C0candidate240/240focusedPASS; retainedbefore-fixfailures for new
+naturalrow8R4/R9 trajectories. Existingt16k/l/m/n/s/w haduniversalone-extra-line
+oracles contradictedbyprimary; theirpostfixredlogs/VCDs andsourcecorrectionnote
+retainedbeforeupdating. ShortR0/widening/positiveR5/IVM/Type1ownersunchanged.
+Finalsoakmint/selectedgateinprogress, thenfreshcross-providerreviewneeded.
+DoNOTsupersedeactiveSdiagnosticsynthesis. CLAUDE usagecheckexec79251 active;
+no ask-claude call made. Only resume that route if freshtelemetry confirms the
+5hwindowreset requestedbyuser; otherwiseGemini3routine/Argonhardreview.

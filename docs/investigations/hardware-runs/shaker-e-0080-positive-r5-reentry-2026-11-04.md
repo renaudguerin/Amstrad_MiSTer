@@ -561,5 +561,5 @@ Full599build41878239893passes all required jobs/timing. Native E02C9 now gives
 0080 with all seven other measurements intact, E02CA stays readable, and P
 remains26. Canonical history through S retains E0080; S itself still0640
 versus direct4E40, so that separate history defect is not closed by this fix.
-The later publication build keeps E/P pixel-identical but changes S to9600.
+The later publication build keeps E/P pixel-identical but changes S to5060.
 [Exact artifacts and limits](classic-targeted-milestones-2026-11-04.md).

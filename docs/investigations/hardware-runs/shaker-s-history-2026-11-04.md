@@ -1,7 +1,7 @@
 # SHAKER CRTC1 S: history-sensitive result — 4 November 2026
 
 Test S (`02D3`) is not closed. The 599 full-history path prints 0640 and
-e574 prints 9600, while direct entry on either artifact prints the current
+e574 prints 5060, while direct entry on either artifact prints the current
 program expectation 4E40. Keep the numerical failure; its cause is not established by the
 changed screenshot alone.
 
@@ -36,16 +36,16 @@ On599ca80, the exact canonical prefix through S completes131commands,
 fresh direct S remains4E40. E now prints0080 in both paths and P remains26.
 On e574a46, whose additional change shifts Type1 published VSYNC by one
 Pixel-M2 without changing logical counters, the same prefix completes but
-S prints9600 WRONG versus the same4E40 expectation. Fresh direct S on that source gives 4E40 (10 commands, one capture, zero
-failures, one SSM record). This isolates sensitivity to the changed PPI-visible phase/entry
-path, not a proven C5 mechanism. [Exact artifacts and bounds](classic-targeted-milestones-2026-11-04.md).
+S prints5060 WRONG versus the same4E40 expectation. Fresh direct S on that source gives 4E40 (10 commands, one capture, zero
+failures, one SSM record). This records a different failing result under the same author path, not a
+proven C5 mechanism or isolated publication-phase cause. [Exact artifacts and bounds](classic-targeted-milestones-2026-11-04.md).
 
 The cached physical photograph CS_02D3_A.webp, SHA256
 3738bf22d3a2e28c571705a10fec4262393176b781f5b038ff732bd93f9cb4c8,
 appears to print4E30, rather than the current program's4E40. Parent inspected
 the full original photograph; the precise last-but-one digit/version binding
 still needs author confirmation. Keep the current program's explicit4E40
-expectation and preserve the much larger0640/9600 failures. Do not claim the
+expectation and preserve the much larger0640/5060 failures. Do not claim the
 CPCSE4E40 image exactly matches that physical photograph, or silently broaden
 an assertion to mask the difference. A16us measurement quantum, variant or
 program revision is an open question, not an established explanation.
@@ -87,8 +87,7 @@ apart, giving +1 µs drift against a 19,968 µs frame. An extra retry does not
 automatically determine later parity because the acquisition pulse and fresh
 IVM request also affect it.
 
-The loop computes 16*(64+N) modulo 65,536. Thus 0640 means N=36 modulo 4096 and
-9600 means N=2336 modulo 4096, not an observed exact frame-length timeline.
+The loop computes 16*(64+N) modulo 65,536. Thus 0640 means N=36 modulo 4096, 5060 means N=1222, and0440 means N=4, not an observed exact frame-length timeline.
 A passive first A4CF→successful A4DE timestamp pair gives 10+19969F µs for F
 failed retries; first 5B0A→first 5B17 gives 4+16N µs, cross-checked with raw HL,
 provided the API's instruction-clock semantics qualify. Current v2 SNA counter
@@ -141,3 +140,19 @@ on4November finds67test entries and no moduleE. CE_B/02CA explicitly lists
 only CRTC3/4; there is no listed CRTC1 reference for that second E page. This
 qualifies the photo gap rather than treating a missing cache file as evidence.
 Private response: resumed-20261104/reference-index-recheck/.
+
+## Exact9a comparison and transcription correction
+
+The same targeted scripts on exact9a91920 complete direct10commands/onePNG/
+zero failures/oneSSM and canonicalhistory131commands/64PNGs/zero failures/
+121SSM. Direct remains4E40; history prints0440 WRONG. Root viewed the final
+scalar. C1 functional RTL is unchanged frome574, so a different scalar alone
+does not isolate a source-code cause; entry phase remains a necessary control.
+
+Independent immutable-label glyph matching corrects the earlier e574 reading:
+the preserved PNG says5060, not9600. Its derived poll count is1222mod4096,
+not2336. The599 control0640 and both direct4E40 readings are confirmed. Active
+reports and unsent question are corrected; original PNGs/logs are unchanged.
+Ledgers/panel: s-passive-fpga-trace/{historical-s-glyph-ledger.json,
+baseline-s-glyph-ledger.json,baseline-s-words.png}. This correction changes no
+pass/fail verdict and supplies no hidden counter trajectory.

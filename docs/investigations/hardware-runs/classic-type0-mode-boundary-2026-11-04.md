@@ -184,3 +184,27 @@ constraint, not a newly executed 2→0 test.
 
 Frozen paired proof and assessment: resumed-20261104/r3-2to1-zero-fill-proof/
 and r3-stateful-model/. The consultation made no production change.
+
+## JIT 2→0 destination-cadence proof
+
+One further private build/run qualifies eight cases: six complete192-clock
+fixed-mode0/1/2 controls and two genuineJIT2→0 transitions. Source-plan
+expectations precede execution. The old5D byte must emit Mode0 pen5 at
+source40; successorA6 deliberately starts pen13 to avoid the oldA5 alias.
+Type0 instead emits pen0 (old5D shifted6); Type1 emits pen1 (shifted7).
+Both following A6 pixels have the correct four-slot pens13/2, and both blank
+releases retain their known early38/39 rather than40 failure.
+
+The causal ledger follows the source40 RGB sample back to old5D's colour
+refresh on the same edge that loads A6. Complete fixed controls, unique inks,
+unchanged accepted R3 write840/C0=22/phase8/hsc2 and frozen coherent source
+hashes all qualify. No phase/NOP/reset search or behavioral candidate follows.
+Compared with the existing2→1 proof, the independent Frenchp65 output requires
+residual5 for destinationMode0 and residual6 forMode1. A universal model must
+account for destination cadence as well as preserved byte history; selecting
+a single frozen residual at visible release is insufficient.
+
+Evidence: resumed-20261104/r3-jit-2to0-proof/. Parent verified all frozen
+source/artifact hashes and accepted the worker's completed command/result,
+without repeating the build or run. Final line:
+`JIT_2TO0_DESTINATION_CADENCE: MISMATCH`; all eight setup guards pass.

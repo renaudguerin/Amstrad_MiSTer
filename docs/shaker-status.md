@@ -32,9 +32,15 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
   [Exact-source proof and native tally](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md),
   [previous targeted evidence](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
 
+  Matched short original-program E6 reference: AmSpirit1.17.1 passes28/28
+  printed checks; the preserved CPCSyntaxError0.12 batch passes9/28. These
+  figures use exact glyph-decoded program results, not physical-photo scores.
+  CPCSyntaxError passes case16 but fails17/19/20 and28, so use its source
+  selectively rather than substituting it for AmSpirit on this module.
+
 - **CRTC 1 A–C:** E `02C9` now gives `0080` on 599, direct and after canonical
   history; P `02CB` remains readable with `26`. S `02D3` gives 0640 after
-  history versus4E40 direct on 599; publication build e574 gives 9600 after
+  history versus4E40 direct on 599; publication build e574 gives 5060 after
   history, with direct control 4E40. `02DA` shows `0050` versus `0060`; `009A` differs
   from the RAM-snow photograph; `019D` still shows fifth/fourth `1F/1F` on e574a46 versus fresh original-caller
   AmSpirit/photo `1E/1F`; it needs the physical comparator-visibility contract

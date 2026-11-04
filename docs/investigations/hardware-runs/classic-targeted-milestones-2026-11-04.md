@@ -59,9 +59,9 @@ B6/019D remains fifth/fourth 1F/1F versus 1E/1F, with its other displayed R0
 controls still GOOD. Uniform publication does not repair equality admission.
 
 The same canonical C1 prefix completes 131 commands/64 captures/121 records without
-capture errors, but S changes 0640→9600 WRONG, still versus 4E40. Fresh direct S on
-this source gives 4E40 (10 commands, one capture, zero failures, one SSM record). This establishes sensitivity to a changed PPI-visible
-edge/entry path; it does not identify a C5 mechanism or justify dismissing a
+capture errors, but S changes 0640→5060 WRONG, still versus 4E40. Fresh direct S on
+this source gives 4E40 (10 commands, one capture, zero failures, one SSM record). This records the history-dependent failure across sources; it does not
+isolate a publication-phase/C5 mechanism or justify dismissing a
 computed result as screenshot phase. Keep 599 as the conservative comparison.
 
 Of the 64 images, 50 are pixel-identical to the inspected 599 history. Parent
@@ -96,7 +96,7 @@ by a diagnostic. Original/modified A4 diagnostics are a separate pending unit.
 After the completed e574 C1 history, the first A4 native-original attempt failed
 SSH authentication before a new accepted capture. One clean SSH retry was
 also denied; root requested the user's SSH-agent restoration asynchronously.
-Last confirmed device state is e574/C1/S9600, not a completed A4 experiment.
+Last confirmed device state is e574/C1/S5060, not a completed A4 experiment.
 Device authorization remains available; authentication is the blocker.
 
 ## Subsequent bounded DSC4 control

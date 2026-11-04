@@ -43,8 +43,10 @@ mais ne suffit donc pas à qualifier une concordance exacte avec cette photo.
 
 Indépendamment de cette petite différence, notre cœur donne4E40 en entrée
 directe et0640 après le parcours canonique; un changement de publication VSYNC
-d'un Pixel-M2 donne9600 après ce même parcours. La dépendance à l'historique
-reste à expliquer. L’index public CE_B/02CA ne liste que les CRTC3/4 au4novembre. Existe-t-il
+d'un Pixel-M2 donne5060 après ce même parcours. Un autre RBF avec la même
+logique CRTC1 donne0440 ; la phase d’entrée reste donc à qualifier avant
+attribution causale à ce seul changement. La dépendance à l'historique reste
+à expliquer. L’index public CE_B/02CA ne liste que les CRTC3/4 au4novembre. Existe-t-il
 une référence CRTC1 pour cette seconde page, ou un état de sortie E à vérifier
 avantP/S ?
 
