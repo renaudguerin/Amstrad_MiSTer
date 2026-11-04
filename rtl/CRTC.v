@@ -494,6 +494,9 @@ reg  [1:0] type1_hsync_start_count;
 reg        type0_hsync_restart_pending;
 reg  [3:0] type0_hsync_restart_count;
 reg        r2_jit_pending;
+reg        jit_on_pending;
+reg  [3:0] jit_on_count;
+reg        hsync_type_d;
 reg        register_write_d;
 
 wire hsync_on = hcc == R2_h_sync_pos && R3_h_sync_width != 0;
@@ -575,10 +578,14 @@ always @(posedge CLOCK) begin
 		type0_hsync_restart_pending <= 0;
 		type0_hsync_restart_count   <= 0;
 		r2_jit_pending            <= 0;
+		jit_on_pending <= 0;
+		jit_on_count <= 0;
+		hsync_type_d <= CRTC_TYPE;
 		register_write_d          <= 0;
 	end
 	else begin
 		register_write_d <= register_write;
+		hsync_type_d <= CRTC_TYPE;
 		if (CLKEN) hsync_char_phase <= 0;
 		else       hsync_char_phase <= hsync_char_phase + 1'd1;
 
@@ -597,15 +604,11 @@ always @(posedge CLOCK) begin
 			type0_hsync_restart_count   <= 4'd13;
 		end
 
-		// Through the GA's 16 MHz video sampler CRTC1's normal start is the
-		// documented sixth rather than fifth pixel-M2. Four 64 MHz master edges
-		// express that one-pixel phase in production; the integrated GA fixture
-		// pins this production ratio. A JIT comparator hit starts immediately at
-		// the write phase. A JIT pulse keeps only the ordinary type-specific
-		// trailing-edge phase, not the later write phase: ACCC sections
-		// 9.3.4.1/9.3.4.3 pp.54-58 state that R2.JIT removes the left part of
-		// blanking without delaying display reactivation, shortening the physical
-		// pulse by 4/3 pixel-M2 on type 0/1 respectively.
+		// Keep the ordinary type-specific start and trailing phases. The
+		// qualified JIT path below delays only onset: French ACCC v1.11
+		// §9.3.4 pp54/56/57 shifts displayed blanking by four/three Pixel-M2
+		// on type0/1 while reactivation stays fixed. The GA's sampled blank
+		// pipeline, rather than raw-pin width alone, owns that RGB contract.
 		if (hsync_off_pending) begin
 			if (hsync_off_count == 0) begin
 				HSYNC             <= 0;
@@ -623,7 +626,17 @@ always @(posedge CLOCK) begin
 				hsync_phaseful <= 0;
 			end
 		end else if (!HSYNC) begin
-			if (!SNA_LOAD && !CRTC_TYPE && type0_hsync_restart_pending) begin
+			if (jit_on_pending) begin
+				// A delayed comparator hit belongs to this character/type.
+				// Never publish it after its comparison context has expired.
+				if (!hsync_on || SNA_LOAD || CRTC_TYPE != hsync_type_d) begin
+					jit_on_pending <= 0;
+					jit_on_count <= 0;
+				end else if (jit_on_count == 0) begin
+					HSYNC <= 1;
+					jit_on_pending <= 0;
+				end else jit_on_count <= jit_on_count - 1'd1;
+			end else if (!SNA_LOAD && !CRTC_TYPE && type0_hsync_restart_pending) begin
 				if (type0_hsync_restart_count == 0) begin
 					HSYNC                       <= 1;
 					hsync_phaseful              <= 0;
@@ -634,7 +647,13 @@ always @(posedge CLOCK) begin
 						type0_hsync_restart_count - 1'd1;
 				end
 			end else if (r2_jit_pending && hsync_on) begin
-				HSYNC                     <= 1;
+				// FR §14.7.1 pp143–144 and §9.3.4 pp54/56/57:
+				// a qualified production OUT phase shifts only the JIT
+				// onset; the normal type-specific trailing phase stays put.
+				// Eight 64MHz edges place it on the ninth Pixel-M2 after
+				// the GA's independently sampled blank/RGB pipeline.
+				jit_on_pending <= 1;
+				jit_on_count <= 7;
 				hsync_phaseful            <= CRTC_TYPE;
 				hsync_start_phase         <= CRTC_TYPE ? 7'd4 : 7'd0;
 				r2_jit_pending            <= 0;
@@ -662,6 +681,14 @@ always @(posedge CLOCK) begin
 		// A comparator opportunity that has passed cannot leak into a later
 		// line or a live CRTC type switch.
 		if (CLKEN && hcc != R2_h_sync_pos) r2_jit_pending <= 0;
+		// Highest priority: no event from an old SNA/type context may arm
+		// or finish after replacement, even on the scheduling edge itself.
+		if (SNA_LOAD || CRTC_TYPE != hsync_type_d) begin
+			r2_jit_pending <= 0;
+			jit_on_pending <= 0;
+			jit_on_count <= 0;
+			type1_hsync_start_pending <= 0;
+		end
 
 		if (ENABLE & RS & ~nCS & ~R_nW & addr == 5'd01 & hcc == DI) hde <= 0;
 
