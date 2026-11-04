@@ -84,19 +84,60 @@ question more strongly than a shared GA correction: shifting common blanking
 would spoil the matching Type0 path. JIT7/3 versus9/5 is still a separate
 observation; the B6 equality/carry defect is not solved by moving an output edge.
 
-The pair is now red in private copies of the existing fast actual-CRTC/GA
-fixture: Type0=5passes, Type1expected6/actual5fails. The normal target retains
-its existing controls. A private uniform Type1 pin-publication phase probe is
-authorized after that red; no production timing edit is accepted. `VSYNC_r` owns logical pulse count/rearm while
-`VSYNC <= VSYNC_r` is the current shared one-master-tick published pin. PPI,
-GA and filter consume that pin. Any publication hypothesis must preserve both
-edges/pulse width and reset/SNA/type context; the sixth-pixel endpoint alone
-is not a literal flip-flop or off-edge oracle. No timing implementation follows
-from this read. Private controls/checker/impact ledger are in
-`resumed-20261104/r7-njit-control/`; reference runs are `run-001` (Type1) and
-`crtc0-001` (Type0).
+The retained pair fails before the correction: Type0=5 passes while Type1
+expected6/actual5 fails. The reviewed correction is committed and pushed as
+`e574a46`; hardware acceptance is pending. Its six-file gate/review freeze is
+under ignored `resumed-20261104/r7-njit-control/tracked-599ca80/`, named for the
+parent source revision.
 
-The [original019D failure](crtc1-outi-019d-2026-11-04.md) supplies a separate
+## Committed ordinary Type1 publication correction
+
+The candidate models Type1 publication as an abstract pin-transport delay:
+`type1_vsync_publication[3:0]` shifts `VSYNC_r` on each 64 MHz `CLOCK` edge so
+`VSYNC <= type1_vsync_publication[3]` adds four master clocks (one Mode-2 pixel
+at `cen_16`) on both rising and falling edges relative to Type 0's one-register
+output (`5` master clocks total from `VSYNC_r` vs `1` on Type 0). This is an
+abstract endpoint transport model, not a physical flip-flop or onset claim.
+Logical `VSYNC_r` owns line counting, rearming, and immediate acceptance; internal
+counters and Type 0 one-register publication remain unchanged. Logical VSYNC
+pulse width is preserved at exactly 16 lines (`16 * 64 * 64 = 65,536` master
+clocks). All 12 reset, `SNA_LOAD`, and `CRTC_TYPE` switch cancellation controls
+pass at both endpoints of the pending window.
+
+French §16.2.1 pp.161–162 and normal-boot AmSpirit references specify Type0=5 /
+Type1=6 black-pixel endpoints. The retained actual CRTC+GA test derives expected
+preceding word 2046 independently from the unblanked AA00 baseline (active
+column 39 plus 24 word periods to displayed column 63, cross-checked against
+next baseline row 0 word). Fixed oracle original publication fails 5 vs 6; an
+injected whole-word fault fails 22 vs 6; the candidate passes 5/6.
+
+Simulation verification and gates:
+
+- Focused benches: `crtc-test` passes 240/0; `ga40010-test` passes 43 + existing
+  Type0 mixed-mode XFAIL; `classic-irq-phase-test` passes 8/0.
+- Selection gate: `python3 sim/select_tests.py --base HEAD --run --files rtl/CRTC.v rtl/GA40010/ga40010_test.v rtl/GA40010/r2jit_tb.cpp sim/sim_main.cpp sim/TESTS.md sim/soak-golden-history.md`
+  passes all 4 benches (`crtc-test`, `crtc-cpu-phase-test`, `ga40010-test`,
+  `run/asic_ga_timing_diff_tests`) with exit 0.
+- Soak golden hash reminted to `0x36ae36ec1e60d836` (2,845,088 characters/samples,
+  seed `0xaccc5eed20260822`, RNG stimulus and sampled projection unchanged).
+- Independent review: fresh Gemini 4 Argon high code review
+  `20261104T172304Z-34324-4cca` ACCEPT (`REVIEW.md`).
+- Controlled replay acceptance: candidate E replay yields `0080`, all 7 other
+  metrics, 515 zero-route and 89 off-R4 controls, zero failures; all 1262
+  published VSYNC transitions shift by exactly +4 master clocks, normalized log
+  identical to C5 baseline (`acceptance.json`). Provenance: current CRTC/engines/GA,
+  inherited production-family T80 netlist `bded028` (pre-`9de` startup fix), not
+  latest CPU `435`.
+- Residuals: `R7.JIT` absolute onset remains private named XFAIL 8/4 against
+  source/reference 9/5. B6 terminal row admission remains independently OPEN at
+  1F/1F vs 1E/1F. No hardware RBF acceptance is claimed.
+- Prepared R7 inertial terminal/nonterminal pair: in private current core, both
+  yield PPI1F under the same OUTI schedule; observed width is not golden. The
+  one normal-boot AmSpirit own-guest pair returned initial bit0 for both. Its
+  assumed C4/C9 phase came from local counters and remains unqualified, so no
+  reference width or admission conclusion follows.
+
+The [original 019D failure](crtc1-outi-019d-2026-11-04.md) supplies a separate
 raw-PPI constraint. Only later **observation of equality against then-current
 C4** can reject its fifth case after carry. Delaying an already accepted true
 equality or merely its output cannot remove that unwanted pulse. The new optical
@@ -109,3 +150,15 @@ R5/R0 deadlines unchanged; do not certify an OUTI margin with that other opcode.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).
+
+## Other source implementations
+
+A focused read of CPCEC `c025aab9`, Caprice32 `a0d78f0f` and konCePCja
+`f15cdcdb` found immediate R7 equality at I/O dispatch over character-level
+CRTC state, without an independent Type1 comparison or pin-transport aperture.
+Caprice32 models Type0; its C0>=2 gate is consistent with that type's separate
+rule and cannot select the Type1 deadline. CPCSyntaxError `22de765` explicitly
+encodes the documented optical endpoints but supplies no physical admission
+mechanism. These sources do not resolve the remaining sub-character question.
+Exact anchors and the parent qualification are preserved under ignored
+`resumed-20261104/r7-other-emulator-source/`. No emulator was launched.

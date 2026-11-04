@@ -4,17 +4,24 @@
 
 The original-CPC E photograph requires0080; unchanged MiSTer prints0060.
 A bounded positive-R5 R4/R9 re-entry restart is now justified as an abstract
-output rule, and its production implementation has passed the final gate and code review. It is not a
-claim to identify a physical C5 reset inside the chip.
+output rule, and its production implementation has passed the final gate and
+code review, and is committed and pushed as
+`599ca8098c655556457a6066b2e4fdeed2d8a9a7`. It is not a claim to identify a
+physical C5 reset inside the chip.
 
 The initial source comparison and private restart showed sufficiency only.
 New original-caller AmSpirit/T80 timing excludes the extra acquisition frame
 in their compared interval, a prior positive completion establishes a common
 origin under the documented rule, and exact zero-R4-reset-only algebra predicts
-0020 rather than0080. French§11.3.2 p87 independently requires retained
+0020 rather than 0080. French §11.3.2 p87 independently requires retained
 management at R5=0. Fresh Opus review now says PROCEED with the narrow positive
 restart while preserving the zero route, completion and added-line owners.
-The final sections retain the exact evidence and inference bounds. A full build and targeted E hardware acceptance are still pending.
+The final sections retain the exact evidence and inference bounds. Exact push
+CI [41874429612](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41874429612)
+passed all required jobs. A new full build
+([41878239893](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893))
+is queued/running and targeted E hardware acceptance is still pending; `ee9c131`
+remains the accepted device artifact.
 
 ## Evidence identities and authority
 
@@ -526,17 +533,24 @@ PASS3benches once after its last code edit. Intended soak becomes
 A subsequent historical-fixture Makefile repair runs its own final selected
 44benches on the same frozen C5 source; no C5 code or test edits follow.
 
-Exactly one original E replay rebuilt against the current production sources
-returns0080, all seven other numeric controls,515zero-route and89off-R4
-controls, zero failures. Its complete output is byte-identical to the prior
-private restart result, now with production source identities. The inherited
-trampoline/classification/PortB qualifications remain; it is not a new
-normal-disk motherboard replay. Artifacts: positive-candidate/production-replay/
-and TRACKED-HANDOFF.md.
+Exactly one original E controlled replay rebuilt against CURRENT CRTC wrapper,
+both engines, and GA (with inherited production-family T80 netlist `bded028`
+pre-`9de` startup fix, NOT latest CPU `435`) returns `0080`, all seven other
+numeric controls, 515 zero-route and 89 off-R4 controls, zero failures. Its
+complete output is byte-identical to the prior private restart result. The
+inherited trampoline, seeded startup classification, and direct Port B
+qualifications remain; this is a controlled replay, not a full original-disk
+motherboard boot. Artifacts: `positive-candidate/production-replay/` and
+`TRACKED-HANDOFF.md`.
 
-Fresh Gemini4Argon/high code review20261104T165734Z-27885-54dd ACCEPT reads
-the Frenchp87 render and original CE_02C9_A photograph directly. It checks
+Fresh Gemini 4 Argon high code review `20261104T165734Z-27885-54dd` ACCEPT reads
+the French p87 render and original `CE_02C9_A` photograph directly. It checks
 effective-R5 forwarding, completion/added-line priority and the public-origin
-test without rerunning gates. Parent verifies the three frozen source hashes.
-A full exact-source build and direct C1 E/P/S/DSC4 regression checks follow;
-none are inferred complete from simulation or software-reference agreement.
+test without rerunning gates. Parent verified the three frozen source hashes.
+The correction is committed and pushed as
+`599ca8098c655556457a6066b2e4fdeed2d8a9a7` (exact push CI
+[41874429612](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41874429612)
+all required jobs SUCCESS). A new full exact-source build
+([41878239893](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893),
+captured at 17:31 UTC) is queued/running; direct C1 E/P/S/DSC4 regression checks
+follow on that artifact, and `ee9c131` remains the accepted device artifact.

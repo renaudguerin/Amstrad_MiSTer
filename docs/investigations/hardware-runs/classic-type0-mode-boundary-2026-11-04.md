@@ -84,3 +84,64 @@ No new mode experiment or production edit followed this read.
 
 Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
 (CC BY-NC-ND 4.0).
+
+## Old-pixel completion is insufficient
+
+A second focused architecture read rejects a universal “finish the old pixel”
+rule. At the observed ordinary handoff, Mode0→1 changes the colour mux while the
+existing hold/shift decisions remain the same, so control-only deferral cannot
+preserve old pen10. The mode-dependent control equations differ at other phases. Any common handoff
+would need to govern both mux and control evaluation. Ordinary old-at963 /
+new-at967 fits both transitions on paper, but does not select a circuit rule.
+
+The independent R3.JIT rows on French pp56–57 switch at 40, inside the old
+Mode1/Mode0 pixels ending at 40. Completing those pixels would switch at 41.
+A LOAD exception could fit that position, but simultaneous serializer load
+and colour consumption do not establish which mode owns the sample. Explicit
+R3.JIT mixed-mode byte provenance is the next useful control; existing R2.JIT
+blanking checks are a different stimulus. No mode handoff has been implemented.
+Consultation and verified model metadata: ignored
+`resumed-20261104/mode-completion-architecture/`.
+
+## Genuine R3.JIT source-qualified mixed-mode control
+
+A source-qualified actual-T80/READY private suite is complete in
+`local/overnight-20261103/resumed-20261104/r3jit-mode-provenance/`
+(`HANDOFF.md`, `SOURCE-PLAN.md`), with no timing or model changes. It qualifies
+an actual write OUT(C),E R3 14→2 at C0=22 / phase 8 (C0 = R2+2 with R2=20),
+hsc 2, old HS active, fulfilling French primary sources §9.3.4.4.2/.3 pp.66–67
+and §14.5.4 pp.140–142. All six full 192-clock fixed-mode controls pass on both
+CRTC types. Six distinct bytes B6, 6D, E3, 9C, 5B, A5 begin at line byte
+38 = 2*(R2−1), with all 16 pens mapped to distinct RGBs and blank distinct from
+every pen.
+
+| Case | Type0 | Type1 |
+|---|---|---|
+| Actual write 14→2 at 22 / phase 8 / hsc 2 / HS active | Qualified | Qualified |
+| Complete 192-clock fixed controls 0/1/2 | Pass | Pass |
+| Source 40→47 A5 Mode2 bit sequence | Pass | Pass |
+| Source 40 0→1 required 5B C pen 2 / RGB 13 | Fails: pen 1 / RGB 1 | Fails: pen 1 / RGB 1 |
+| Required blank release 40 / tick 859 | Fails: 38 / tick 851 | Fails: 39 / tick 855 |
+
+In 0→1, at tick 819 the serializer loaded 5B. At tick 851, simultaneous LOAD
+consumes old SR = B6 (5B shifted once), pre-CIDX 13; the Mode1 mux writes pen 1
+from 5B's (b2,b6), the ordinary B pair, rather than required JIT C (b1,b5).
+At 855 colour is held, and RGB 859 reads stored ink 4. Thus the wrong pen 1
+comes from **5B old-SR colour**, not an early A5 appearance (which also starts
+with pen 1); the causal ledger resolves this alias.
+
+In 1→2, tick 851 loads A5 while colour consumes old SR. Refresh 855 consumes A5
+bit 7; RGB 859 reads that result, as required. The following 7-bit suffix
+(source 40..47) agrees on both types. However, blank release fails on both
+(Type0 releases at 38 / tick 851, Type1 at 39 / tick 855, versus required 40 /
+tick 859). The 1→2 result provides an informative pixel-ownership control, but
+is not a whole-case pass.
+
+Preliminary invalid composites were caused by a port list shift when the frozen
+wrapper was initially paired with a newer Type0 engine; coherent frozen engines
+were restored, giving zero missing-pin warnings under `-Werror-PINMISSING`.
+Prior universal old-pixel completion is rejected, and no rule or timing fix has
+been chosen.
+
+Technical information sourced from the “Amstrad CPC CRTC Compendium” by Longshot
+(CC BY-NC-ND 4.0).

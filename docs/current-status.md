@@ -31,10 +31,21 @@ instructions across handoffs and context compaction.
   effects restored; BI widths/clipping, AE09/AR stripe families and A4 retained.
   Five Plus runs completed21captures. The later change is Type0-only; these
   checks were not repeated on its descendant. [ASIC evidence](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md).
-- Next Last Line fix is **not accepted**: source-derived C0=0 cancellation red
-  is proved, but review exposed missing C0=1 establishing-write support. Private
-  C0<2 latch qualification is under test; no new RBF contains it. No broad
-  baseline, master integration or release is implied.
+- Current code tip is `e574a46`: Type0 Last Line/C0=1/IVM repair `c3e896d`,
+  historical fixture adapter `28ba886`, Type1 positive-R5 C5 restart `599ca80`,
+  and ordinary Type1 VSYNC publication `e574a46`. Each behavior change has a
+  failing-first proof, passing selected gate and fresh independent review.
+- Exact `599ca80` [push CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41874429612)
+  passes all required jobs. Its [full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41878239893)
+  is pending; let it finish before another synthesis. The prior `c3e896d` build
+  met timing but failed its historical fixture, now repaired. It was preserved
+  without device acceptance. `ee9c131` remains the accepted device artifact.
+- C5's controlled E replay gives `0080`, seven other metrics and 515 zero-route /
+  89 off-R4 controls. R7's replay preserves them while shifting all 1262 published
+  VSYNC edges by four clocks. These use current CRTC/engines/GA with an inherited
+  pre-`9de` T80 netlist, rather than a full original-disk motherboard boot.
+  [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
+  [publication proof](investigations/hardware-runs/crtc1-r7-onset-controls-2026-11-04.md).
 - The branch includes the ASIC mode repair `3113323`, T80 startup repair
   `9de75d3`, classic credit repair `db4be80`, and ASIC R0 repair `7ac11a2`.
   The rejected broader bus qualifier must not be treated as a verified fix.
@@ -52,35 +63,37 @@ our closest software reference, not the hardware oracle.
 ### Classic CRTC 0/1
 
 - Type0 E6's R9→R5 handoff is fixed in `ee9c131`; cases21/24 have targeted
-  device acceptance. Case5 exposes cancelled Last Line still resetting the
-  frame; its fix needs C0=1 establishing-write coverage before acceptance.
+  device acceptance. Case5 cancellation, C0=1 establishment and current-line IVM
+  rechecking are corrected in `c3e896d` (included in `599ca80`, build
+  `41878239893` running), awaiting exact-source RBF and direct E6 check.
   Case16's zero-R5 early-entry lifetime remains a source question;
   [French draft](classic/accc-author-questions-crtc0-c0-1-2026-11-04-fr.md) is unsent.
   [Comparator](investigations/hardware-runs/crtc0-r9-r5-comparator-2026-11-04.md),
   [Last Line](investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md).
-- C1 E/P is readable and P is 26; E remains `0060` versus reference `0080`.
-  A positive-R5 candidate reaches `0080` but does not identify the mechanism;
-  production C5 remains unchanged. On `db4be80` a full C1 walk gives S `0640`,
-  while direct S entry gives `4E40` on both old and new artifacts. Preserve the
-  history distinction and obtain a discriminator before changing C5.
+- C1 E/P is readable and P is 26; E prints `0080` in the controlled production-CRTC
+  replay under `599ca80` (positive-R5 C5 restart, Gemini 4 Argon high reviewed),
+  matching the original photograph. Hardware acceptance pending on build
+  `41878239893`. On `db4be80` a full C1 walk gives S `0640`, while direct S
+  entry gives `4E40` on both old and new artifacts. Preserve the history
+  distinction before changing C5 further.
   [E investigation](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
   [S history](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
 - DSC4 credit colons are visible on CRTC0/1 after `db4be80`; the unchanged
   bottom row matches all 768 pixels of the uncropped AmSpirit reference, outside
   its default viewport. Monitor bounds remain B1 work. Type 0's old-mode partial
-  pixel at a mixed-mode boundary remains a failure; no publication-delay fix
-  has been selected. [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
+  pixel at a mixed-mode boundary remains a failure. A genuine R3.JIT control
+  also finds wrong first-pixel bits on 0→1 for both types; 1→2 suffixes pass,
+  while blank release is early on both. No mode timing fix is selected.
+  [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
   [mode boundary](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
-- `019D` remains fifth/fourth `1F/1F` on7ac11a2 versus fresh original-caller
-  AmSpirit/photo `1E/1F`. Fresh midrow AmSpirit controls match source9/5; local replay is7/3.
-  Ordinary NJIT independently gives source/reference Type0=5/Type1=6 versus
-  local5/5. The retained ordinary pair is red; a private publication-phase probe is
-  in progress, with no accepted timing change.
-  Physical comparator visibility and authentic B8 qualification remain open.
-  The updated-package full D1 walk passed the
-  prior input stops, and `03AE`/`03B4` matched after that history.
-  [Classic follow-up](investigations/hardware-runs/shaker-followup-recheck-2026-10-27.md),
-  [fresh OUTI caller](investigations/hardware-runs/crtc1-outi-019d-2026-11-04.md),
+- `019D` remains fifth/fourth `1F/1F` versus original-caller AmSpirit/photo
+  `1E/1F`. Ordinary NJIT source/reference Type0=5 / Type1=6 is corrected by
+  `e574a46`'s reviewed abstract pin transport; device acceptance is pending.
+  R7.JIT remains 8/4 versus 9/5, and terminal-row admission is still open.
+  A new reference pair returned low for both controls, so its assumed hidden
+  counter phase is being qualified before any admission change. B8's synthetic
+  OUTI margin is distinct from the authentic OUT(C),C caller.
+  [OUTI caller](investigations/hardware-runs/crtc1-outi-019d-2026-11-04.md),
   [onset controls](investigations/hardware-runs/crtc1-r7-onset-controls-2026-11-04.md).
 - B9 page B's collision ordering and MID FRAME glyph remain unresolved; original
   machine evidence is needed. F13 and F20 still need their named hardware gates;
