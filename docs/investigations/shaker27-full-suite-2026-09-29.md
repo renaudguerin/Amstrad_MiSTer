@@ -227,3 +227,7 @@ of the remaining matrix.
 
 Modules B–E and the sync-filter comparison ran on 2026-10-15/16; see the
 [session report](hardware-runs/shaker27-modules-b-e-2026-10-15.md).
+
+## 5 November source qualification of A0 captions
+
+The [current original-caller recheck](hardware-runs/shaker-crtc0-0091-protection-2026-11-05.md) verifies that SHAKE27A is unchanged across disk revisions. Its literal expected0091 captions are6B/6B/38, so the earlier visual “printed68” correction above is not a byte-verified caption. The photographed actual first-two counts are6x with final glyph ambiguous; current38 remains distinct. The photograph also shows the top0037 HCC3E/3F KO labels, so those labels alone are not defects. Separate0037 OUTI fields and0091 post-toggle PPI bits remain under investigation.

@@ -10,7 +10,7 @@ builds and are not an overall compliance score.
 
 | CRTC | Execution coverage and source | Photo comparison / current boundary |
 |---|---|---|
-| 0 | On `cec641c`, 2.7 A completed 122 captures; B and D stopped part-way, C stalled at `029E` with no captures. 2.6 B and D fixed-wait walks yielded 2 and 110 captures respectively. The later B1 repair reaches `00FC`, without a full B0 rerun. On `7ac11a2`, updated-package E0 completed34 commands/11 captures; direct E6 on `e24cb50` completed4 captures and passes26/28 printed checks; only27/28 remain wrong (not a photo failure rate). No E photos are cached. | No aggregate original-photo failure denominator established. Historical `0037` and `0091` differences and C0 `029E` starvation need reassessment on current builds. [September A](investigations/shaker27-full-suite-2026-09-29.md), [October B–E](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md), [B1 recheck](investigations/hardware-runs/shaker-followup-recheck-2026-10-27.md). |
+| 0 | On `cec641c`, 2.7 A completed 122 captures; B and D stopped part-way, C stalled at `029E` with no captures. 2.6 B and D fixed-wait walks yielded 2 and 110 captures respectively. The later B1 repair reaches `00FC`, without a full B0 rerun. On `7ac11a2`, updated-package E0 completed34 commands/11 captures; direct E6 on `e24cb50` completed4 captures and passes26/28 printed checks; only27/28 remain wrong (not a photo failure rate). No E photos are cached. | No aggregate original-photo failure denominator established. Current42 direct A4/AI recheck completes28 commands/eight images:0037 top KO labels match hardware, separate OUTI fields remain open;0091 first-two raw/PPI discrepancy persists and is reproduced by the unchanged production-T80 caller. C0 `029E` starvation remains unrechecked. [September A](investigations/shaker27-full-suite-2026-09-29.md), [October B–E](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md), [B1 recheck](investigations/hardware-runs/shaker-followup-recheck-2026-10-27.md). |
 | 1 | On `5fba168`, 2.7 A/B/C completed 127/139/80 captures with French B key and C marker workarounds; updated-package D/E completed 127/7. On `db4be80`, C completed 80. On `7ac11a2`, E1 completed25 commands/7 captures/zero failures/16SSM records. On `076eab1`, targeted canonical history through S completes64 captures/zero failures/121SSM; E0080/P26 are unchanged, S now4E40 on both entry paths. Diagnostic `c16e7ec` confirms the same S result and normalized entry state. Current DT completes14 captures without failures; diagnostic`c90ec8a` also qualifies both early active-black bands and preserves all14 production RGB images. The late one-band difference is an epoch mismatch, not a remaining DT RTL failure. On `5261414`, original O/E/P/direct-S complete 44 commands and 10 captures with zero failures; all 12 DA rows match, E/P/S retain pixel-identical accepted controls. | Older November 3 two-batch comparison: 350 pairs, 300 match, 30 phase and 20 different. Six of 350 (~1.7%) were content/timing flags; four (~1.1%) were acquisition questions. The raw20/350 (~5.7%) includes eight PPI input differences and two documented variants. The new targeted checks do not refresh this photo denominator. [Sweep](investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md), [S controls](investigations/hardware-runs/shaker-s-history-2026-11-04.md), [passive observer](investigations/hardware-runs/shaker-s-passive-observer-2026-11-04.md). |
 | 3 | On `cec641c`, 2.7 A/B completed 123/121 captures; C/D/E 2.7 stopped part-way, while 2.6 C/D/E produced 23/150/4 captures. On275af8a, A4/BI/AE-AR complete1/8/7 captures with zero failures; E3 remains unlaunched. | No aggregate original-photo failure denominator established. A4 top deadlines match, BI pulse widths and one-microsecond mode, AE marker and AR stripes have bounded acceptance; exact-photo geometry and other observables remain outside that acceptance. [Old execution](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md), [current milestone](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md). |
 
@@ -36,8 +36,10 @@ RGB-identical to `6cc52c3`. Named step/wave inputs execute, while D6 dynamic
 phase remains unqualified. This does not clear physical oscillation/settling.
 A new R2/R3 interaction probe exposes stale width4 RGB history after complete
 width6 pulses. The reviewed independent-width metadata correction now passes
-public17/R2/lint/46 selected benches; its new full build/native acceptance are
-pending. The historical photo denominator remains unchanged.
+public17/R2/lint/46 selected benches. Exact-source `42befa3` full synthesis
+and timing pass; native static C0/C1/Plus and all ten D7 pages preserve f4
+output. All six targeted DSC4/Amazing groups retain the sampled scenes;
+broader acceptance remains bounded. The historical photo denominator is unchanged.
 These results are separate from page/photo compliance counts ([D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md)).
 
 The updated-package CRTC 1 D walk on `5fba168` separately classified 127
@@ -96,9 +98,10 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
   timestamps/summary: three rawVS/GA-black starts, active-black79,664/79,664/0.
   Both early bands reach acquisition; all14 late images retain production RGB.
   The reported DT discrepancy is removed from the timing/filter fix queue.
-  E `0401/0402` have
-  crop/blank uncertainty on the older updated-package run; new E0/E1 images
-  await photo judgment. [DT evidence](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md),
+  Standalone moduleE `0401/0402` show both warning and success in a current42
+  targeted Option2 run (23commands/six images), versus only success in matched
+  AmSpirit1.17.1. A VMA/DE discriminator is in progress; no scaler-only cause
+  or photo verdict is established ([current evidence](investigations/hardware-runs/shaker-module-e-vma-2026-11-05.md)). [DT evidence](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md),
   [package run](investigations/hardware-runs/shaker-package-device-2026-11-03.md).
 - **CRTC 3 A4:** top 3C/3D and OUTI deadlines are accepted. Native result bytes
   confirm the last four VSYNC-bit pairs are 0/0; the previous 1/1 reading was

@@ -50,8 +50,13 @@ comparaison C9/R9 malgré l’ajustement déjà actif ? La ligne suivante devien
 compte-t-on la fin de R5 après cette nouvelle remise à0 de C9 ?
 
 §11.2.2 pp82–83 décrit la bascule initiale R9→R5 ; §13.2.4 p108 indique une
-seule incrémentation de C4 et la condition C4=R4/C9=R9. Nous ne trouvons pas
-le cas où cette égalité est rétablie après cette première incrémentation.
+seule incrémentation de C4 quelle que soit la valeur de R5, en attribuant la
+bascule du comparateur à la différence C4/R4. Nous ne lisons donc pas cette
+phrase comme la preuve d’un verrou mémorisant cette première incrémentation
+malgré des écritures ultérieures de R4. Nous ne trouvons pas le cas où
+l’égalité est rétablie après cette incrémentation : le comparateur dépend-il
+à nouveau de C4=R4 sur une ligne entière, ou conserve-t-il la sélection R5
+jusqu’à la fin de cet ajustement ?
 Les délais relatifs des écritures sont vérifiés dans le code, mais pas leurs
 positions C0 absolues sur notre cœur. La question porte donc sur ce stimulus
 conditionnel précis, pas sur une validation du seul nombre attendu000E.

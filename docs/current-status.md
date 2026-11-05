@@ -9,7 +9,8 @@ history in the [September archive](archive/current-status-history-2026-09-21.md)
 Dated reports contain the evidence and bounds behind the current claims below.
 
 The [active unattended session](investigations/session-logs/overnight-resume-2026-11-04.md)
-continues toward the user's approximately 90% weekly quota limit. Finish known
+continues until weekly quota exhaustion, as authorized on 5 November. The user
+will apply any reset manually and provide the next instructions. Finish known
 SHAKER and DSC4/Amazing defects before the broad baseline; preserve these
 instructions across handoffs and context compaction.
 
@@ -19,23 +20,21 @@ instructions across handoffs and context compaction.
   accepted functional reference remains `e24cb50`. Completed DT evidence is on
   `codex/overnight-validation-20261103` (`18b58ce`).
   It is distinct from integrated `master`; no integration or release is implied.
-- Current experimental full artifact: `Amstrad_20261105_f4f2502.rbf`, SHA256
-  `6b5f0e997a979ac51178bcdd8a1ad9dda7395d0834661614c4a3b0a878065d9b`.
-  [Clean full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42034911383)
-  passes all jobs, setup/hold minima 0.482/0.244 ns across seven clocks and zero TNS.
-  It is installed hash-identically on MiSTer. All ten D7 native pages match
-  the qualified private replay; four Type0 and four Plus static images remain
-  RGB-identical to `6cc52c3`. Named step/wave inputs and D6 complete; 17
-  DSC4/Amazing images across C0/C1/Plus retain the sampled credits/effects.
-  All 55 trial PNGs are inspected. Physical oscillation/settling remains open,
-  so this is a labelled trial rather than general monitor acceptance.
-  The previous `6cc52c3` trial verified ordinary width4/5 LEFT8 and preserved
-  sampled DSC4/Amazing views; its thirteen BTF stills cannot judge alternating-frame
-  wobble. Dated reports retain its full build and capture receipts.
-  Last bounded native G1/MID controls remain on `5261414`: original O matches
-  all 12 rows, E/P/S remain pixel-identical, and sampled C0/C1 DSC4/Amazing views
-  are visible. Functional reference `e24cb50` retains C0 E6 26/28. Earlier
-  artifacts and the resolved initializer-lint failure are in dated reports.
+- Current experimental full artifact: `Amstrad_20261105_42befa3.rbf`, SHA256
+  `c979b0567338689af0eab2f2e910fbc1ac64c8572c343ff45eaf4afaa3e28779`.
+  [Clean full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42057692203)
+  passes all jobs, setup/hold minima 0.210/0.249 ns across seven clocks and zero TNS.
+  It is installed hash-identically on MiSTer. The reviewed RGB-width metadata
+  correction passes 17 public callers, R2 controls, lint and 46 selected benches.
+  Native static C0/C1/Plus and all ten D7 pages preserve the prior `f4f2502`
+  output; all six targeted DSC4/Amazing groups retain the sampled scenes.
+  Settled BASIC R2/R3 controls preserve output but do not reproduce the transient relock defect.
+  Physical oscillation/settling and BTF alternating-frame acceptance remain open;
+  a paired original BTF snapshot replay verifies width4 right8/width5 unchanged
+  with byte-identical guest/raw-GA/acquisition inputs.
+  Prior G1/MID acceptance on `5261414` retains all 12 original O rows and E/P/S;
+  functional reference `e24cb50` retains C0 E6 26/28. Dated reports hold earlier
+  artifacts, capture receipts and limits.
 - ASIC acceptance remains bounded on `275af8a`: DSC4 colons/names and sampled
   DSC4/Amazing effects, BI widths/clipping and AE/AR patterns. Later changes
   target classic CRTC state; no new full Plus baseline is implied.
@@ -66,6 +65,13 @@ our closest software reference, not the hardware oracle.
   the same result with R4=38, but four/eight additional lines with R4=39.
   All OUT phases match; the matrix sharpens the unsent question without
   selecting a physical rule. [Stimulus qualification](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md).
+- C0 AI/`0091` still returns38 in its first two length groups, where the
+  original-CPC photograph shows6x; the post-toggle VS bits also disagree.
+  The unchanged original production-T80 caller now reproduces the raw/PPI
+  failure and isolates premature same-row protection rearm. A private
+  successor is in progress; no tracked RTL change or native fix claim yet.
+  A4/`0037`’s top KO labels match hardware; separate OUTI fields remain open.
+  [Current source and native evidence](investigations/hardware-runs/shaker-crtc0-0091-protection-2026-11-05.md).
 - C1 E=`0080`/P=`26` and the S history residual have bounded native acceptance.
   The corrected history and direct paths now have matching R5/R7/exit state;
   changed raster captures match previously inspected views. The physical S
@@ -102,7 +108,8 @@ our closest software reference, not the hardware oracle.
   R2/R3 interaction probe finds stale width4 RGB history after complete width6
   pulses. The reviewed metadata correction separates width measurement from
   acquisition phase; public17, R2, lint and46 selected benches pass. Full
-  synthesis/native acceptance for this new transport are pending. [D7 proof and bounds](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md).
+  synthesis and targeted native static/D7/demo preservation pass for this
+  transport. Physical/native relock closure remains bounded. [D7 proof and bounds](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
   publication is a separate correction. Fresh CPCSyntaxError B6 matches hardware
   and supplies a carry-ordering clue, without a physical aperture. Coherent
@@ -120,6 +127,11 @@ our closest software reference, not the hardware oracle.
   recorded prefix through R7 acceptance. AmSpirit and fresh CPCSyntaxError
   agree on the expected rows. Whole-module history remains a separate gate.
   [Proof and native result](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
+- Standalone module E Option2: current0401/0402 show success and warning,
+  while matched AmSpirit1.17.1 shows only success. Original pre-initialization
+  snapshots are captured; a passive VMA/DE replay is in progress to separate
+  address/counter behavior from acquisition. No blanket scaler diagnosis.
+  [Current discrepancy](investigations/hardware-runs/shaker-module-e-vma-2026-11-05.md).
 - C1 DE/03B6's old missing-row symptom no longer reproduces on e24cb50:
   direct E and D9→E both show A/A/B, with all six E PNGs pixel-identical.
   FF/5F remains a separate machine-input difference. [Current recheck](investigations/hardware-runs/shaker-03b6-current-recheck-2026-11-05.md).

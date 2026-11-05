@@ -1,0 +1,21 @@
+# CRTC0 A4/AI: current original-caller recheck
+
+Known historical flags0037 and0091 are rechecked directly on experimental42befa3/Full/FR and unchanged original SHAKE27A. This is a targeted two-caller investigation, not a fresh module baseline. The native run completes28commands/eight PNGs/zero failures/11SSM records. All captures are retained under `local/overnight-20261103/resumed-20261104/c0-a0-known-recheck/device-42/`; source-audit/ binds exact current and September payloads and both original-CPC photographs.
+
+The module is byte-identical across current author disk6b9ff106 and pre-CSLSSM disk65eb43e1:27004-byte bodyab8a7cb6…8a8d, load3D00. Exact photo-program checksum is unavailable, although sequences/text match. The original photographs are [A4/CRTC0](https://shaker.logonsystem.eu/images/cpc/CPC/A4_CRTC0_A.webp) and [AI/CRTC0](https://shaker.logonsystem.eu/images/cpc/CPC/AI_CRTC0_E.webp); PHOTO-SOURCES.json records retrieval and hashes.
+
+0037’s top HCC sweep matches the photograph:39..3D giveOK,3E/3F giveKO. Those two KO labels are expected, not generic failures. The separate first OUTI timing field remains unresolved: current00 versus a blurry01/B1-looking first photographed field; the second is00. Captions describe01/00 but are not the hardware oracle. The original715A callers, PPI subtraction and result formatting are identified separately from the KO lookup. No whole0037 pass is claimed.
+
+0091 still differs: the first two returned VSYNC-length counts are38 here versus photographed6x; the third is38 in both. The first two post-toggle PPI VS bits also stay high here where the photograph shows low, providing a stronger discriminator than the final blurry glyph. Compare bit0 only: upper PPI bits reflect separate tape/expansion machine inputs.
+
+A source-byte correction supersedes the old September “printed68” transcription: literal ASCII bytes at6748/674B produce expected captions6B/6B;6769 changes the third to38. The photographed actual final glyph remains ambiguous between8/B. Neither the caption nor emulator output supplies a new numeric golden. The raw length bytes are6353/6359/635F; first-two post-toggle bits and third-call early-VS control are the preferred failing-first observations.
+
+Root reads freshly extracted/rendered French§16.3 p169 and§16.4.1.1 p170. A blockedR7=C4 write atC0vs0/1 consumes protection without a pulse. The current wrapper immediately rearms on every unequalR7 write; whether that incorrectly admits the original same-row16→1 toggles is the focused hypothesis. Partial-line counting, CPU/READY/write/read phase and protection during an active pulse must remain separate. PPI bit0 uses raw classic CRTC VS, bypassing the CRT filter; a Full-filter pixel correction alone cannot explain this scalar/bit difference.
+
+Next: execute unchanged original62DD three-call timing through productionT80/READY with passive acceptedR7/PPI/protection/counter ledgers. Require source/photograph-derived first-two low bits and third-call high control, preserving exact13E8/13E9/13EA and NOP-tail operands. No implementation precedes qualified RED; no numeric timing aperture is fitted. A private failing-first proof is in progress, with no tracked source change.
+
+## Qualified original-caller RED
+
+The unchanged production-T80 three-call sequence now completes45,106,115 master clocks with21acceptedR7 writes,18result-byte stores and13,292PPI read bursts. Source operands, row/raster/write order and accepted read-to-store identity qualify. Firsttwo groups areF4/F5/F5/F5/F5/38, thirdF5/F5/F5/F5/F5/38. The firsttwo post-toggle bits are high against the physical low observations; the initial blocked0/1 and third positive2 controls pass. Passive state showsR7=16 atC17/18 immediately rearming protection, thenR7=1 atC25/26 starting logicalVS. This is a qualified raw/PPI failure, not a filter-pixel inference.
+
+The first32M-clock host cap ended while the third call was still naturally synchronizing; preserved partial evidence was followed by one64M-cap run with identicalguest/bootstrap/RTL/oracles. No phase fit or expected-value change. A minimal private Type0 successor is now authorized; active-VSYNC comparison changes, ordinary rearming, Type1 and existing vectors remain explicit controls. No production transport or fix claim yet.
