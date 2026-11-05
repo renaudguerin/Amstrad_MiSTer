@@ -26,7 +26,7 @@ module asic_blank_alignment_top (
     output [11:0] life_rgb
 );
     b18_snapshot_top #(.PLUS_MODE(1'b1), .VIDEO_RAM(1'b1)) machine (
-        .clk(clk), .reset_btn(reset_btn), .model(2'd0), .crtc_type(1'b1),
+        .clk(clk), .reset_btn(reset_btn), .pause(1'b0), .model(2'd0), .crtc_type(1'b1),
         .save_req(1'b0), .sna_download(sna_download), .load_wr(load_wr),
         .load_addr(load_addr), .load_data(load_data), .mem_din(mem_din),
         .cart_dout(8'hff), .cart_ack(1'b0), .ddram_busy(1'b0),

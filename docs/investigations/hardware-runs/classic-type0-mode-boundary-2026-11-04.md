@@ -392,3 +392,39 @@ comment-format repair before application; neither that patch nor the test has
 been integrated. This is routine interface qualification, not strong approval
 of the serializer. Evidence: r3-retained-final-candidate/ and
 r3-retained-pin-qualification/. Stronger GA review remains pending.
+
+
+## Experimental retained integration — 5 November
+
+The final private two-file candidate is now adopted provisionally on
+`codex/classic-ga-boundary-native-20261105`, with
+[explicit stronger-review debt](../../review-debt.md). No serializer policy,
+phase, palette, source expectation or byte table changed during transport.
+Production video/GA file hashes remainc7ef950bef31560e09024afed329ca78392b743047568c09d6b88da55d27ae90
+and2d35d80a17d2a49b2344b3e01c7b197be47ec49485bb312ddeddf6821a5d9d77.
+The Opus attempt returned401 expired OAuth without a review; a fresh narrow
+Gemini3.8 integration audit and root diff/source review found no porting defect.
+This is not stronger architectural approval or master/release acceptance.
+
+The asset-free64-case B18/production-T80 test is retained, with fatal missing-pin
+checks, original actual-input guards and unchanged public RGB/blank oracles.
+The adapter opens only the five verified unused outputs. All other B18/ASIC
+callers explicitly tie the test-only pause input0. The existing production-T80
+aggregate runs the new slow owner; no workflow change was needed. The old-quarter
+XFAIL becomes required French source36 RGB, and the qualified Mode2 initializer
+precedes the unchanged narrowR3 target body. All three target-start contexts
+match the earlier qualified prefix exactly, including absolute ticks.
+
+The snapshot tests retain8 settled-mode and64 cross-module freshness controls;
+consolidation changes registration/names and removes routine CSV output only.
+Focused64/64,72/72 and all three shared B18/ASIC callers pass. Final
+`python3 sim/select_tests.py --run` passes46benches after the last code edit;
+root verified all16 source hashes and read the integrated test/interface delta
+without rerunning the gate. Protected646files, prior12input sources, CRTC/T80/
+Plus/QSF and soak golden remain unchanged. No new production test seam exists.
+
+Frozen receipts and full diff are in
+`resumed-20261104/ga-experimental-integration/`; narrow review logs and parent
+bounds in`ga-experimental-review/`. Full synthesis, timing/resource acceptance
+and bounded original-caller hardware comparisons are next. Stronger review
+remains a separate unresolved debt even if those comparisons succeed.

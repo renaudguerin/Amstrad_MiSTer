@@ -6,6 +6,10 @@ unexport VERILATOR_BIN
 TOP       := ga40010_test
 R2JIT_OBJ := obj_r2jit
 R2JIT_BIN := $(R2JIT_OBJ)/r2jit_tests
+SNA_LIFECYCLE_OBJ := $(R2JIT_OBJ)/sna_lifecycle
+SNA_LIFECYCLE_BIN := $(SNA_LIFECYCLE_OBJ)/sna_lifecycle_tests
+SNA_LIFECYCLE_RTL := sna_lifecycle_top.sv ga40010.sv syncgen.v syncgen_sync.v \
+	casgen.v casgen_sync.v video.sv rslatch.v
 
 HDL_FILES := ga40010_test.v ga40010.sv syncgen.v syncgen_sync.v casgen.v \
 	casgen_sync.v video.sv rslatch.v ../CRTC.v \
@@ -16,20 +20,32 @@ CXXFLAGS ?= -std=c++17 -O2
 
 .PHONY: all test lint clean
 
-# The asserted bench is the R2.JIT pin suite (r2jit_tb.cpp); `all` builds it
-# without running so `make -C sim build` stays side-effect free.
-all: $(R2JIT_BIN)
+# Build the pin and SNA lifecycle suites without running, so
+# `make -C sim build` stays side-effect free.
+all: $(R2JIT_BIN) $(SNA_LIFECYCLE_BIN)
 
-test: $(R2JIT_BIN)
+test: $(R2JIT_BIN) $(SNA_LIFECYCLE_BIN)
 	./$(R2JIT_BIN)
+	./$(SNA_LIFECYCLE_BIN)
 
 $(R2JIT_BIN): $(HDL_FILES) r2jit_tb.cpp Makefile
 	$(VERILATOR_BIN) $(VERILATOR_FLAGS) --Mdir $(R2JIT_OBJ) \
 		-CFLAGS "$(CXXFLAGS)" -o $(notdir $(R2JIT_BIN)) \
 		$(HDL_FILES) r2jit_tb.cpp
 
+# Public GA SNA restore across active-mode and outer-prefetch/inner-LOAD ownership.
+.PHONY: sna-lifecycle-test
+sna-lifecycle-test: $(SNA_LIFECYCLE_BIN)
+	./$(SNA_LIFECYCLE_BIN)
+
+$(SNA_LIFECYCLE_BIN): $(SNA_LIFECYCLE_RTL) sna_lifecycle_tb.cpp Makefile
+	$(VERILATOR_BIN) --cc --exe --build --top-module sna_lifecycle_top \
+		-Wno-fatal -Werror-PINMISSING --Mdir $(SNA_LIFECYCLE_OBJ) \
+		-CFLAGS "$(CXXFLAGS)" -o $(notdir $(SNA_LIFECYCLE_BIN)) \
+		$(SNA_LIFECYCLE_RTL) sna_lifecycle_tb.cpp
+
 lint:
 	$(VERILATOR_BIN) --lint-only --top-module $(TOP) -Wall -Wno-fatal $(HDL_FILES)
 
 clean:
-	$(RM) -r -- $(R2JIT_OBJ)
+	$(RM) -r -- $(R2JIT_OBJ) $(SNA_LIFECYCLE_OBJ)

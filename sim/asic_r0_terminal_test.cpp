@@ -95,6 +95,7 @@ struct Bench {
     std::vector<uint8_t> memory=std::vector<uint8_t>(0x800000,0xff);
     uint64_t ticks=0;
     Bench() {
+        d.pause=0;
         d.model=0;d.crtc_type=1;d.save_req=0;d.sna_download=0;
         d.load_wr=0;d.load_addr=0;d.load_data=0;
         d.mem_din=0xff;d.cart_dout=0xff;d.cart_ack=0;d.ddram_busy=0;

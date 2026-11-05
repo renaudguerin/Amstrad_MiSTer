@@ -15,7 +15,9 @@ instructions across handoffs and context compaction.
 
 ## Branch and current artifacts
 
-- Active branch: `codex/overnight-validation-20261103`, functional code tip `e24cb50`.
+- Active experimental branch: `codex/classic-ga-boundary-native-20261105`;
+  accepted functional reference remains `e24cb50`. Completed DT evidence is on
+  `codex/overnight-validation-20261103` (`18b58ce`).
   It is distinct from integrated `master`; no integration or release is implied.
 - Current full artifact: `Amstrad_20261104_e24cb50.rbf`, SHA256
   `c65d7e60ac4ff95263e2bf425da248c31b6c838bfadb90f2e653df533605cc46`.
@@ -65,25 +67,15 @@ our closest software reference, not the hardware oracle.
   binding. Broader phase/lifetime closure is unproved.
   [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
   [S state and reference limits](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
-- DSC4 credit colons are visible on CRTC 0/1 after `db4be80`; the unchanged
-  bottom row matches all 768 pixels of the uncropped AmSpirit reference, outside
-  its default viewport. Monitor bounds remain B1 work. Type 0's old-mode partial
-  pixel at a mixed-mode boundary remains a failure. A genuine R3.JIT control
-  also finds wrong first-pixel bits on 0→1 for both types; 1→2 suffixes pass,
-  while blank release is early on both. JIT 2→0 additionally fails the source-required
-  old-byte pen on both types, while its non-aliased successor and fixed controls pass.
-  An asset-free current-T80 baseline has 12 source-derived failures among 56
-  controls; the frozen candidate passes all 56, including Mode3, and the existing
-  fast GA controls. Removing proof-only stored metadata preserves all captured
-  fields. Eight genuine same-numeric JIT controls also pass. Focused snapshot checks
-  exposed mode restoration and stale prefetch defects in the private candidate;
-  corrections pass focused red/green checks and all 64 pixel controls.
-  The asset-free retained-test draft also passes64 public RGB/blank controls;
-  strict pin qualification removes its broad missing-pin waiver. Stronger
-  independent review and tracked test integration remain pending; production
-  GA timing is unchanged.
+- DSC4 credit colons are visible on CRTC0/1; its bottom-row difference is
+  outside AmSpirit's default viewport. The remaining Type0 mixed-mode quarter
+  and R3.JIT pixel/blank defects have an experimental GA candidate with retained
+  64 production-T80 pixel controls,72 snapshot lifecycle controls and46selected
+  benches passing. Full synthesis/native comparisons are pending. Stronger
+  source review remains [explicit debt](review-debt.md); diagnostic adoption
+  does not establish all phases or final release acceptance.
   [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
-  [mode boundary](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
+  [mode-boundary source/proof](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
   publication is a separate correction. R7.JIT remains 8/4 versus 9/5.
   Address-tagged AmSpirit pixels qualify a nonterminal raster window but its

@@ -252,6 +252,13 @@ end
 wire vidbuf_clk_en = cen_16 & (S == 8'he0 || S == 8'h03);
 reg DISPEN_BUF;
 reg [7:0] VIDEO_BUF;
+// SNA does not serialize pending prefetches. A byte becomes eligible only
+// after a real post-apply fetch; loading an old VIDEO_BUF cannot publish it.
+reg VIDEO_BUF_VALID = 1'b0;
+always @(posedge clk) begin
+	if (reset | SNA_LOAD) VIDEO_BUF_VALID <= 1'b0;
+	else if (vidbuf_clk_en) VIDEO_BUF_VALID <= 1'b1;
+end
 always @(posedge clk) begin
 	if (vidbuf_clk_en) begin
 		DISPEN_BUF <= DISPEN;
@@ -261,30 +268,11 @@ end
 
 //////// VIDEO CONTROL ////////
 
-`ifdef VERILATOR
-video video(
-	.clk(clk_16),
-	.cen_16(1'b1),
-	.S(S_a),
-	.DISPEN_BUF(DISPEN_BUF_a),
-	.PHI_N(PHI_N_a),
-	.MODE({mode1, mode0}),
-	.MODE_SYNC(MODE_SYNC),
-	.MODE_SYNC_EN(1'b1),
-	.VIDEO(VIDEO_BUF_a),
-	.BORDER(border),
-	.INKR(inkr),
-	.FORCE_BLANK(HCNTLT28 | HSYNC_I),
-	.BLUE_OE_N(),
-	.BLUE(),
-	.GREEN_OE_N(),
-	.GREEN(),
-	.RED_OE_N(),
-	.RED()
-);
-`endif
+
 
 video video_sync(
+	.MODEL_RESET(reset | SNA_LOAD), .PHASE_P(PHI_EN_P), .PHASE_N(PHI_EN_N),
+	.MODEL_MODE(SNA_LOAD ? SNA_CONFIG[1:0] : 2'b00),
 	.clk(clk),
 	.cen_16(cen_16),
 	.S(S),
@@ -295,7 +283,7 @@ video video_sync(
 	.MODE_SYNC_EN(mode_sync_en),
 //	.MODE_SYNC(~HSYNC_O),
 //	.MODE_SYNC_EN(1'b1),
-	.VIDEO(VIDEO_BUF),
+	.VIDEO(VIDEO_BUF), .VIDEO_VALID(VIDEO_BUF_VALID),
 	.BORDER(border),
 	.INKR(inkr),
 	.FORCE_BLANK(HCNTLT28 | HSYNC_I),

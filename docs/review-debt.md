@@ -29,6 +29,25 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
+**Classic GA serializer, 2026-11-05 — EXPERIMENTAL; stronger source review OPEN:**
+Branch`codex/classic-ga-boundary-native-20261105` adopts the source-qualified
+retained-byte/cursor/mode-epoch model and settled-SNA/prefetch normalization.
+This is diagnostic adoption, not integrated or release acceptance. Gemini3.8's
+supplementary broad review was insufficient for hard approval; the prepared
+Opus5.5high attempt failed401 expired OAuth, so no strong review ran. A fresh
+narrow Gemini integration audit and root source review found no porting defect.
+Look hardest at LOAD/MODE/PHI coincidence ordering, retained-byte replay across
+adjacent phases, token/anchor epoch validity and16-bit wrap lifetimes, border/
+palette timing, held-SNA apply/fetch freshness and no-HS restored-mode behavior.
+The model is abstract; source-derived RGB controls do not prove a unique silicon
+pipeline or all phases. Retained64 production-T80 controls,72 public GA lifecycle
+controls, shared B18/ASIC callers and46selected benches pass; no code edit followed
+the final gate. Full synthesis/native comparison remain separate gates.
+[Source and proof](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md),
+[active handover](investigations/session-logs/overnight-resume-2026-11-04.md).
+Keep this debt until an adequate fresh strong review actually runs; hardware
+success or a weak review alone does not clear it.
+
 **ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — REVIEWED (Gemini 3.8 Flash
 high, run `20260921T175020Z-80016-18b2`; Astra low, run `20260921T175020Z-79905-dd1b`), both
 CHANGES REQUIRED; round-2 re-review (runs `20260921T180739Z-90193-140e`, `20260921T180739Z-90182-2e61`)

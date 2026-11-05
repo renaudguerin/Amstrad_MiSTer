@@ -52,7 +52,8 @@ module ga40010_test (
 	output CRTC_VSYNC_RAW, CRTC_VSYNC_LOGICAL, GA_VBLANK_RAW,
 	output CRTC_DE_RAW,
 	output [7:0] CRTC_C0,
-	output [7:0] CRTC_R2,
+	output [7:0] CRTC_R2, CRTC_R3,
+	output [1:0] GA_MODE_REQUEST,
 	output [6:0] CRTC_PHASE, CRTC_ROW,
 	output [4:0] CRTC_RASTER,
 	output [7:0] GA_SEQ,
@@ -116,6 +117,9 @@ ga40010 ga40010 (
 	.CPU_N(CPU_N),
 	.MWE_N(),
 	.E244_N(E244_N),
+	.ROM(), .MODE(),
+	.SNAP_INKSEL(), .SNAP_BORDER(), .SNAP_INKR(),
+	.SNAP_HROMEN(), .SNAP_LROMEN(), .SNAP_MODE(),
 	.ROMEN_N(),
 	.RAMRD_N(),
 	.HSYNC_O(HSYNC),
@@ -159,6 +163,8 @@ assign CRTC_DE_RAW = CRTC_DE;
 // without adding observability ports to production CRTC RTL.
 assign CRTC_C0 = crtc.hcc;
 assign CRTC_R2 = crtc.R2_h_sync_pos;
+assign CRTC_R3 = {crtc.R3_v_sync_width,crtc.R3_h_sync_width};
+assign GA_MODE_REQUEST = {ga40010.mode1,ga40010.mode0};
 assign CRTC_PHASE = crtc.hsync_char_phase;
 assign CRTC_ROW = crtc.row;
 assign CRTC_RASTER = crtc.line;
@@ -191,6 +197,10 @@ CRTC crtc
 	.HSYNC(CRTC_HSYNC),
 	.HSYNC_RESTART(crtc_hsync_restart),
 	.DE(CRTC_DE),
+	.SNAP_ADDR(), .SNAP_REGS(), .SNAP_HCC(), .SNAP_ROW(),
+	.SNAP_LINE(), .SNAP_C5(), .SNAP_IN_ADJ(), .SNAP_HSC(),
+	.SNAP_HSYNC(), .SNAP_VSYNC_R(), .SNAP_VSW_ELAPSED(),
+	.FRAME_FIELD(),
 	.FIELD(),
 	.CURSOR(),
 

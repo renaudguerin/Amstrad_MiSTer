@@ -7,12 +7,13 @@ B18_SNAPSHOT_RTL := b18_snapshot_top.sv $(T80_NETLIST) $(B18_MBOARD) \
 B18_SNAPSHOT_BIN := $(OBJ_DIR)/b18_snapshot/b18_snapshot_tests
 ASIC_R0_TERMINAL_BIN := $(OBJ_DIR)/asic_r0_terminal/asic_r0_terminal_tests
 
-# VHDL ports are case-insensitive; GHDL preserves their declaration case in
-# Verilog. Adapt named CPU pins only, as in plus/prepare_d5_boot.py. The
-# production motherboard body is otherwise copied unchanged.
+# VHDL ports are case-insensitive; GHDL preserves declaration case in Verilog.
+# Adapt named CPU pins as in plus/prepare_d5_boot.py, and explicitly open the
+# unused CPU BUSAK_n, GA ROM and PSG ACTIVE/IOA_out/IOB_out outputs.
+# The production motherboard body is otherwise copied unchanged.
 $(B18_MBOARD): ../rtl/Amstrad_motherboard.v $(T80_NETLIST) b18_snapshot.mk
 	mkdir -p $(@D)
-	python3 -c 'from pathlib import Path; import re; s=Path("$<").read_text(); n=Path("$(T80_NETLIST)").read_text().split("module T80pa")[1].split(");")[0]; ports={p.lower():p for p in re.findall(r"(?:input|output)\s+(?:\[[^]]+\]\s*)?(\w+)",n)}; a=s.index("T80pa CPU"); b=s.index("\n);",a); part=re.sub(r"\.(\w+)\(",lambda m:"."+ports.get(m[1].lower(),m[1])+"(",s[a:b]); Path("$@").write_text(s[:a]+part+",\n.OUT0(1\x27b0), .R800_mode(1\x27b0)"+s[b:])'
+	python3 -c 'from pathlib import Path; import re; s=Path("$<").read_text(); n=Path("$(T80_NETLIST)").read_text().split("module T80pa")[1].split(");")[0]; ports={p.lower():p for p in re.findall(r"(?:input|output)\s+(?:\[[^]]+\]\s*)?(\w+)",n)}; a=s.index("T80pa CPU"); b=s.index("\n);",a); part=re.sub(r"\.(\w+)\(",lambda m:"."+ports.get(m[1].lower(),m[1])+"(",s[a:b]); s=s[:a]+part+",\n."+ports.get("busak_n","BUSAK_n")+"(), .OUT0(1\x27b0), .R800_mode(1\x27b0)"+s[b:]; ga_b=s.index("\n);",s.index("ga40010 GateArray")); s=s[:ga_b]+",\n\t.ROM()"+s[ga_b:]; psg_b=s.index("\n);",s.index("YM2149 PSG")); s=s[:psg_b]+",\n\t.ACTIVE(),\n\t.IOA_out(),\n\t.IOB_out()"+s[psg_b:]; Path("$@").write_text(s)'
 
 .PHONY: b18-snapshot-test
 b18-snapshot-test: $(B18_SNAPSHOT_BIN)
@@ -51,3 +52,17 @@ $(ASIC_BLANK_BIN): $(B18_SNAPSHOT_RTL) asic_blank_alignment_top.sv asic_blank_al
 		+1364-2001ext+.v +1800-2017ext+.sv \
 		--Mdir $(OBJ_DIR)/asic_blank_alignment -Wno-fatal -Wno-PROCASSWIRE -CFLAGS "$(CXXFLAGS)" \
 		-o asic_blank_alignment_tests $(B18_SNAPSHOT_RTL) asic_blank_alignment_top.sv asic_blank_alignment_test.cpp
+
+# Asset-free classic byte/mode boundaries on the same production T80 and RAM owners.
+CLASSIC_MODE_BOUNDARY_BIN := $(OBJ_DIR)/classic_mode_boundary/classic_mode_boundary_tests
+.PHONY: classic-mode-boundary-test
+classic-mode-boundary-test: $(CLASSIC_MODE_BOUNDARY_BIN)
+	$<
+
+$(CLASSIC_MODE_BOUNDARY_BIN): $(B18_SNAPSHOT_RTL) classic_mode_boundary_top.sv classic_mode_boundary_test.cpp b18_snapshot.mk Makefile
+	mkdir -p $(@D)
+	$(VERILATOR) --cc --exe --build --top-module classic_mode_boundary_top -UVERILATOR \
+		+1364-2001ext+.v +1800-2017ext+.sv \
+		--Mdir $(OBJ_DIR)/classic_mode_boundary -Wno-fatal -Werror-PINMISSING -Wno-PROCASSWIRE \
+		-CFLAGS "$(CXXFLAGS)" -o classic_mode_boundary_tests \
+		$(B18_SNAPSHOT_RTL) classic_mode_boundary_top.sv classic_mode_boundary_test.cpp

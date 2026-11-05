@@ -91,6 +91,7 @@ struct Program {
 };
 struct Bench {
     Vb18_snapshot_top d;
+    Bench() { d.pause=0; }
     std::vector<uint8_t> memory=std::vector<uint8_t>(4*0x800000,0xff);
     std::vector<uint8_t> slot=std::vector<uint8_t>(16+0x20100,0xa7);
     uint64_t ticks=0,stalls=0,writes=0;
