@@ -2,6 +2,63 @@
 
 The user reports alternating-frame horizontal wobble on CRTC1 in an earlier build. The author confirms alternating R3 values. Media is`btf.dsk`, launched with`RUN"-BTF`; the affected landscape scroller is approximately373–403 seconds after RUN (the supplied video enters RUN near2s and shows the effect at6:15–6:45). The video frames have not been independently inspected: retrieval was throttled.
 
+## Consecutive native acceptance on c0939d8
+
+The reported reversing wobble now has a bounded native before/after result.
+Both runs normal-boot the original disk/CSL, CRTC1, French layout and requested
+Full filter. Applied CFG bytes match (SHA256
+`2e585b4c85e2387cfb9c25028a061c6ba2aa3749f82453ffd895b5aaa393d8e4`);
+the runtime applied-mode latch remains unobserved. Source c0939d8 uses RBF
+`cb7fe0bd06c1d282413e501fd6017a34dba11ae62f4483e388a630c7ca1d883e`;
+pre-R3 reference e24cb50 uses `c65d7e60ac4ff95263e2bf425da248c31b6c838bfadb90f2e653df533605cc46`.
+
+A private read-only ARM reader acquires the scaler input buffers without
+changing Main or the RBF. Root checks actual `ascal.vhd`: writer rotation
+occurs at input VS rise, while the **new bank's** header is written on VS
+fall before its pixels. Thus a fresh header is not a completion marker.
+The corrected reader copies the distinct preceding-counter bank at the next
+fresh event. It requires stable19–22ms PAL cadence, poll/detection delays
+at most1ms each, copy at most12ms and unchanged post-copy header. Root
+checks the Full-filter route; its ordinary VS spans counter1→3, about two
+64µs lines. The14ms maximum detection/copy age leaves an ordinary-frame margin.
+These conditions do not qualify arbitrary sync or a physical monitor.
+
+Independent Opus review accepts this with a completeness limit: header
+geometry lags measured frame geometry. Retain frame i only when frame i+1
+is accepted consecutive with valid identical geometry; discard the last frame
+and every frame before a gap. A static24-frame trial is full-RGB-exact to
+Main at768×273. Moving captures are separately inspected for seams/stale rows.
+The initial prototype's150 attempts all exceeded its5ms bound and supplied
+zero accepted frames; its wrong completion premise and logs are preserved.
+
+Current c0939d8 yields eight24-frame bursts across about21seconds of the
+landscape (approximately372–393seconds after RUN),192images in total.
+The successor-header guard retains184frames and176consecutive motion pairs.
+All192images are inspected through eight contact sheets. Fixed registration
+bounds chosen before capture—x32–735, y98–121, shifts−24…24—have unique
+minima at **0 in88 pairs and −2 in88 pairs**, with no positive reversal.
+The upper mountain and foreground bands retain distinct parallax speeds.
+Copies take8.745–11.774ms; accepted periods19.533–20.462ms and maximum
+poll gap0.592ms remain within the reader's bounds.
+
+The same reader/CSL on e24cb50 captures four24-frame bursts. Eight explicit
+copy/poll rejections and gaps are retained; only82eligible motion pairs enter
+the comparison. The same middle band gives **−10 in20 pairs, 0 in41 and
++6 in21**. Its upper band also reverses, while the foreground combines into
+larger left steps. Root inspects all96reference images. The earlier build
+therefore reproduces a reversing displacement; the current build removes
+it in the sampled native acquisition stream. This agrees with the separate
+same-input production-T80 width4/right8 proof below. The source tuples differ
+beyond R3; no cross-run equality of animated frames or hidden phases is claimed.
+Physical HDMI/CRT output and the whole demo remain outside this result.
+
+Evidence: `local/overnight-20261103/resumed-20261104/btf-native-frameburst-feasibility/`,
+including `NATIVE-BTF-ACCEPTANCE.json`, both normal-boot manifests, all raw
+RGB/header/timing records, registration scores, source/binary identities,
+`v3-opus-review/` and a20-frame native before/after GIF at5×slow speed.
+No public capture infrastructure, RTL edit or new gate follows from this trial.
+Earlier asynchronous-still limits below describe those earlier runs.
+
 ## Original caller and references
 
 Disk SHA256 is`f01bc41d8ea9dc8dbacc8b78d7f331399d4a856437bd01f0558924feb1ba703e`. Normal-boot native CRTC1/Full/FR on accepted reference`e24cb50` completes38 commands,13 PNGs and zero runner failures. The RBF SHA256 is`c65d7e60ac4ff95263e2bf425da248c31b6c838bfadb90f2e653df533605cc46`. All images were inspected; they bracket the rainbow landscape, trees and parallax scene. These asynchronous stills are not consecutive physical frames and cannot establish or reject the reported every-other-frame wobble.

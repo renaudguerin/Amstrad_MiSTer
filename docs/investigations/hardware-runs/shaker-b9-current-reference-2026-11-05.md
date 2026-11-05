@@ -93,6 +93,15 @@ images are RGB-identical to 005. Three of four DSC4 images are RGB-identical;
 the bottom animated phase differs. Amazing's two sampled images preserve the
 scene with different animation phase.
 
+A separate original D9→E preservation run checks the related R1/RFD path:
+42commands,18inspected PNGs and35SSM records, without failures. Fifteen
+images are RGB-identical to e24. The three differences,0393/03F7/03F8,
+exchange the same flashing display bodies: each opposite-phase body is
+RGB-exact in the reciprocal comparison. Both E result pages remain OK.
+This preserves the observed pattern families; exact flashing phase and
+physical RFD-lifetime discrimination are separate. The receipt and paired
+views are in `b9-stagea-build/native-d9-e/`.
+
 The genuine proof covers entry at C9=0/C4=0/R9=7. Unexercised exit at a
 terminal row, even-R9 parity ordering, origin and independent R5 coincidences
 remain explicit bounds. Both parity stages and their existing priorities

@@ -31,13 +31,15 @@ instructions across handoffs and context compaction.
   artifact `Amstrad-build-399-1-full` passes all jobs; minimum setup/hold
   slack is 0.478/0.236 ns across seven clocks with zero TNS and warning counts
   unchanged from 208. Nine native cohorts completed 185 commands and 60 viewed
-  PNGs; targeted controls are described in the [B9 acceptance report](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md).
+  PNGs. A further D9→E run inspects18images:15RGB-exact to e24,
+  three reciprocal flashing phases, both E result pages OK. Controls are described in the [B9 acceptance report](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md).
   Earlier 208 C5 parity and 005 acceptance are in the
   [C5 report](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md)
   and [terminal-fixes report](investigations/hardware-runs/shaker-terminal-fixes-2026-11-05.md).
   Prior filter/R3 controls and paired title replay remain bounded evidence in
   the [R3 investigation](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
-  Physical oscillation/settling and BTF alternating-frame acceptance remain open;
+  D7 physical oscillation/settling remain open. BTF consecutive native
+  before/after captures now remove the sampled reversing wobble;
   a paired original BTF snapshot replay verifies width4 right8/width5 unchanged
   with byte-identical guest/raw-GA/acquisition inputs.
   Prior G1/MID acceptance on `5261414` retains all 12 original O rows and E/P/S;
@@ -101,9 +103,11 @@ our closest software reference, not the hardware oracle.
 - Before the Storm (CRTC1, RUN"-BTF): the ordinary R3=4/5 post-GA
   correction passes the twelve-caller proof, strict CI and full synthesis on
   `6cc52c3`. Native calibration verifies LEFT8 with complete paper width and
-  stable return. Thirteen normal-boot landscape-scroller captures are visible;
-  asynchronous stills cannot judge the reported alternating-frame wobble.
-  D6 per-line settling and nonordinary/JIT width behaviour remain open.
+  stable return. Consecutive native captures now reproduce middle-band
+  reversals−10/+6 on e24 and remove them on c093:176eligible current pairs
+  contain only holds/left2steps, versus82eligible reference pairs. Reader
+  review/geometry guards and all288image inspections are recorded. Physical
+  HDMI/CRT, D6 per-line settling and wider JIT behaviour remain open.
   [R3 evidence and limits](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 - D7 R2 alternation: experimental source `f4f2502` corrects the source-qualified
   endpoint lock and passes the public failing-first R2

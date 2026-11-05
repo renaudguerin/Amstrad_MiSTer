@@ -14,6 +14,14 @@ builds and are not an overall compliance score.
 | 1 | On `5fba168`, 2.7 A/B/C completed 127/139/80 captures with French B key and C marker workarounds; updated-package D/E completed 127/7. On `db4be80`, C completed 80. On `7ac11a2`, E1 completed25 commands/7 captures/zero failures/16SSM records. On `076eab1`, targeted canonical history through S completes64 captures/zero failures/121SSM; E0080/P26 are unchanged, S now4E40 on both entry paths. Diagnostic `c16e7ec` confirms the same S result and normalized entry state. Current DT completes14 captures without failures; diagnostic`c90ec8a` also qualifies both early active-black bands and preserves all14 production RGB images. The late one-band difference is an epoch mismatch, not a remaining DT RTL failure. On `5261414`, original O/E/P/direct-S complete 44 commands and 10 captures with zero failures; all 12 DA rows match, E/P/S retain pixel-identical accepted controls. | Older November 3 two-batch comparison: 350 pairs, 300 match, 30 phase and 20 different. Six of 350 (~1.7%) were content/timing flags; four (~1.1%) were acquisition questions. The raw20/350 (~5.7%) includes eight PPI input differences and two documented variants. The new targeted checks do not refresh this photo denominator. [Sweep](investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md), [S controls](investigations/hardware-runs/shaker-s-history-2026-11-04.md), [passive observer](investigations/hardware-runs/shaker-s-passive-observer-2026-11-04.md). |
 | 3 | On `cec641c`, 2.7 A/B completed 123/121 captures; C/D/E 2.7 stopped part-way, while 2.6 C/D/E produced 23/150/4 captures. On275af8a, A4/BI/AE-AR complete1/8/7 captures with zero failures; E3 remains unlaunched. | No aggregate original-photo failure denominator established. A4 top deadlines match, BI pulse widths and one-microsecond mode, AE marker and AR stripes have bounded acceptance; exact-photo geometry and other observables remain outside that acceptance. [Old execution](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md), [current milestone](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md). |
 
+The six historical content/timing flags now have three functional closures
+(E02C9, P02CB, O02DA), one repaired history path with unresolved photo/program
+binding (S02D3), and two remaining old visual/scalar flags (009A and019D).
+AI008D is an additional raw-VSYNC discrepancy found by targeted checking of
+a page previously grouped with PPI input differences. Thus subtracting fixes
+from the old six flags would understate current uncertainty; keep the old
+percentages as a scale estimate, not a refreshed failure rate.
+
 Latest targeted CRTC1 validation closes O/`02DA` and preserves E/P/S.
 Source `c0939d8` corrects B9's three `3F` rows to `2740` in qualified
 original replay and native capture; its 46-bench gate, review, full build and
@@ -27,8 +35,10 @@ The ordinary
 R3=4/5 Full-filter collapse has a deterministic rendered-border counterexample;
 its reviewed correction passes the retained 12-caller proof and 46 selected
 benches. Full experimental build `6cc52c3` passes and native static calibration
-verifies ordinary LEFT8 without paper-width loss or return drift. D6 phase
-acceptance remains open. See the
+verifies ordinary LEFT8 without paper-width loss or return drift. A later BTF consecutive native before/after run reproduces the reversing
+mountain motion on e24 and removes it on c093:82eligible reference pairs
+versus176current pairs, with all288images inspected. This closes the sampled
+native wobble gate; physical display and D6 phase acceptance remain open. See the
 [G1/MID native controls](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md)
 and [R3 investigation](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 D7/R2 alternation is now isolated as a Full-filter phase defect with both

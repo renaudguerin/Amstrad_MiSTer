@@ -95,6 +95,12 @@ Expiry of a pre-existing pulse at R0=0 would instead distinguish the AI
 onset/admission context. None alone proves an internal silicon topology.
 The paired probe remains unexecuted and is not an RTL test oracle.
 
+A read-only live API check on core2491682 finds only registers/selection
+in `/api/crtc`, with no PPI or internal CRTC VSYNC/width counter in
+`/api/state`. The beam endpoint reports viewport coordinates. Another
+breakpoint chain cannot directly observe that missing counter state; do
+not treat viewport position as C0/C4/C9 or infer a width clock from it.
+
 Keep
 [Q22](../../classic/accc-author-questions.md) unsent and separate from B9
 and the Type0 inactive-R7 protection fix. No new public test or RTL change

@@ -1,7 +1,7 @@
 # Active unattended handover — 5 November 2026
 
 Continue known SHAKER/DSC4/Amazing/BTF work until weekly quota exhaustion.
-Natural weekly reset19:34UTC; live20:54 reading8%used, next reset12November
+Natural weekly reset19:34UTC; live21:14 reading9%used, next reset12November
 19:34UTC. Three banked resets untouched; user alone redeems them. No credits/
 overage. Experimental branch pushes/builds and MiSTer use authorized; no master
 integration, PR, release, author messages or broad baseline before known fixes.
@@ -57,35 +57,65 @@ vsunreachable, >=64us rawHS/VS/writetrace and nofreshR7match, plusR0zero,
 can discriminate. Longerlinepair ifneeded. Fourhighsamples do not establish
 continuouspulse. CurrentAIreport/Q22 contain proof+probe; allnativeagentsreleased.
 
-## Active BTF capture experiment
+## BTF native gate completed
 
-MiSTer **69608 active**: original RUN"-BTF,370swait, thenMain screenshot;
-`btf-native-frameburst-feasibility/btf-native-001/`. Do not overlap devicejobs.
-Private Opus AGY **27181 active**, run20261105T205716Z-87012-a9c6,
-readonly review of rootv3Ctool/sourcebuffercompletion; no edits/devices/Git.
-Gemv2 **15368 complete0/drained**, logs/sourcepreserved in `v2-review/`.
-ClaudePro cached20:46 session0%remaining; AGYClaude after20:45reset100%
-sessionleft/44%weeklyleft. No directask-claude untilfreshwindowreading.
+Normalboot c09369608/13927 and pre-R3e24 80700/55208 complete0/drained.
+SameoriginalCSL/DSK/requestedFull/FR/CRTC1/identicalCFG. Privatev3 reader:
+8currentbursts192frames184eligible176motionlinks; middleband0/−2only
+(88each). Fourreferencebursts96frames82eligiblelinks give−10/0/+6
+(20/41/21), reproducingreversal. All288rootviewed12contacts, no visibletears.
+Eightold explicitcopy/pollrejections/gapsretained; last/pre-gapframesexcluded.
+`btf-native-frameburst-feasibility/NATIVE-BTF-ACCEPTANCE.json` binds sources,
+settings, readerhash, inputs and measurements.20framefirstburst GIF at5×slow
+showsnativebefore/after. No physicalHDMI/CRT/generalmonitor/full-demo claim.
 
-Root found v1/v2 completionpremisewrong: ascal rotateswriter onVSrise then
-writes NEWbankheader onVSfall beforepixels. NeveruseoldREADME40msclaim.
-V2 all150copies rejected >5ms, zeroaccepted. Rootv3 copies predecessorbank
-onnextfreshheader, stable19–22msPALonly, poll/detection<=1mseach,copy<=12ms,
-postcopyheadercheck. No Main/RBF/MMIO writes. Static trial24frames/23consecutive
-links/zero rejects in493ms, everyRGBexactMain768x273. Source/build/runtime
-retained; geometry/movingcoherence/physicalHDMI remain separate bounds.
+Actualascal rotateswriter atVSrise, writesNEWbankheaderatVSfall beforepixels.
+V1/v2 completionpremisewrong, logs/sourcepreserved; v2all150copiesrejected5ms,
+zeroaccepted. Rootv3copiespredecessorbankonnextfreshheader, stable19–22msPAL,
+poll/detection<=1mseach,copy<=12ms,postcopyheaderequality. OpusAGY27181
+complete0/drainedLIMIT: headergeometrylagsoneframe; retaini onlyif nextaccepted
+consecutiveheaderconfirmsgeometry. Rootimplementsguardinanalysis, nobinarychange.
+Static24frameRGBexactMain validatespacking; movingframesseparatelyinspected.
+PrivateCtool notinstalledpublicly, noMain/RBF/MMIOwrites or newcodegate.
+FullfilteredVS spanscount1→3 (~two64uslines); upstreamGA4linesisnotdirectFullVS.
 
-After69608 reaches scroller and reviewpermits, capture consecutiveframes
-around373..403safterRUN; inspectactualscene/trajectory before BTFacceptance.
-Prior13asyncstills cannotjudgealternatingwobble. CPUreplay4frames remains
-qualified width4right8/width5unchanged, exactguest/rawGA/acquisitioninputs.
-Do not createpublicinfrastructure or modifyMain/core for this privateexperiment.
+D9→E extra93580 complete0/drained42commands18PNGs35SSM:15RGBexacte24,
+three0393/03F7/03F8 reciprocalflashingbodiesRGBexact, bothEresultpagesOK.
+All18rootviewed. NoRFDphysical-lifetime or exactphaseclosure. CurrentRBFrestored
+bydirectR1run6301 (29commands10viewedimages17SSM), idleon009A.
+
+## Active 009A R1-stories check
+
+KnownoldercanonicalA1 flagged009A black/displacedredtext versusphotonoise.
+CurrentoriginaldirectOsequence0092..009A givesfullredRAMnoise. Rootviews
+all10nativeimages andphysicalAO_009A_I.webp; patternfamilymuchcloser, exact
+analoguegeometrynotjudged. FreshAmSpirit normalboot/directO41736complete0/
+drained, twotargetPNGs plusdirectSNAv2 saved. Fullnoise, samewhitebar/header.
+NoSSMautocaptureinAmSpirit: onlyexplicitlater+settledPNGs, notten.
+RootAPIcheckfindsnoCRTCVSwidth/counters/PPIinpublishedcore2491682state;
+noAIcounterbreakpointguessing. ViewportbeamnotC0/C4/C9.
+
+Gem3.8high55250 ACTIVE run20261105T211341Z-90963-78c3 owns ONLY
+`c1-009a-current/`: isolatedheadlessCPCSEdirectO, sourcecomparison/report.
+Runalreadycompletes10images1v3SNA in21.723emulatedseconds; rootviews009A
+BMPconvertedtoownnativefolder, alsofullnoise. Awaitfinalreportbeforeusing
+sourceclaims/hashes; notrackedwrites/devices/Git/providerchildrenauthorized.
+
+RootAmSpirit44622 complete1/drained runs unchangedcanonicalA1prefixthrough009A,
+110SSMwaits/220instructions, onlyexplicitfinalimages. This is a singleknown
+pagehistory discriminator, not broadbaseline. It testswhetherprecedingmemory
+cases explainoldblackRAMcontent. DirectSNApreservedforRAMcomparison;
+canonicalSNAplanned. Newfolder`c1-009a-native-current/amspirit-canonical-prefix-001/`,
+script/logbesideit. It reaches150shostdeadline onPLEASEWAIT beforetarget;
+no009Acanonicalresult. Finallyclears/pauseverified; fullfailed-checkpointSNA/
+state/PNGpreserved. Do not blindlyretry/extendphase. AmSpiritpaused, scripts/
+bps empty; MiSTeridle/currentc093available.
 
 ## Remaining order
 
-Drain69608/27181, capture/inspect BTF ifsafe; preservefailedruns. Optional
-short originalD9 preservation addresses B9 nonseamR1/RFD semanticconcern,
-notbroadDwalk. Finish rootdocscheckpoint/push; no newgateforpuredocs.
+Await55250; inspectcanonicalreference009A partialstate and compareRAM/history before
+reclassifyingoldflag. No speculativeRTL. BTF/D9/AI/tallydocsdirty; finish
+checkpoint/push, no newgateforpuredocs.
 C0E6 cases27/28, B6 aperture, C1C5count/RFDlifetime remain evidence-gated
 unsentquestions. DI58vs59 caption unreliableonType1. D7physicaloscillation/
 settling open. DSC4bottomrow isviewport; ASICcredits/BI/AEAR/sampledeffects
