@@ -236,10 +236,27 @@ result; the C5 draft now uses S's current direct/history 4E40 and measured
 pre-S C5=0 context. The lifetime/mechanism questions remain unsent. Neither
 correction changes the SHAKER tally or claims a new hardware observation.
 
+SSH access recovers without a credential or account change. The user explicitly
+authorizes further bounded retries and diagnosis during unattended work; policy
+commit `ac4c5a2` updates AGENTS, the capture guide and skill. Clean alias/direct
+checks, SCP hashes and task-owned multiplexed capture all work. The old
+one-retry handoff is no longer a rule.
+
+VSCLK native attempt003 stops before key input because the French translator
+has no period mapping. Fresh004 uses `RUN"VSCLK` and completes13 commands/two
+byte-identical captures:111/000/000/000, matching the production model. Root
+reads all four rows; the original-CRTC1 rule remains unresolved. Failed runs
+and `native-c093-004/PARENT-ACCEPTANCE.json` remain private. Old-c093 static
+ASIC width4/5/6 controls complete: all six captures root-viewed, each pair
+byte-identical;4/5 exactly identical with marker x409,6 marker x401. Borders
+remain x65..705/y40..240. New-candidate final-image/border acceptance is pending.
+Eight old C3 temporary burst directories are removed only after all200 original
+files match locally by SHA256 (120,819,080 bytes); the cleanup receipt is retained.
+
 ## Remaining order
 
-FinishASICBTFfixviafailingtest/gate/freshreview/fullbuild; awaitSSHunlockfor
-VSCLKnativeandnewASICRBFacceptance. 0090remainsunknownafterfocusedreading;
+Finish ASIC BTF acceptance after the running full build. SSH is recovered;
+VSCLK native matches the model and still needs an original-CRTC1 result. 0090remainsunknownafterfocusedreading;
 A4version/physicaldeadlinequestionpreserved. No speculativeAIzero-guard.
 C0E6 cases27/28, B6 aperture, C1C5count/RFDlifetime remain evidence-gated
 unsentquestions. DI58vs59 caption unreliableonType1. D7physicaloscillation/

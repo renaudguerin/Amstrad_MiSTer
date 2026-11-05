@@ -74,7 +74,7 @@ French ACCCv1.11 §14.2 p133 specifies fixed16-line Type1 width;
 §16.4.2 p171 describes ordinary onset/end without naming this short-line
 clock. §13.3 p115 keeps C4/C9 running at R0=0. No RTL change follows.
 
-## Artifacts and pending native run
+## Artifacts and native MiSTer result
 
 Private source, builder, listing, disk and observations are in
 `local/overnight-20261103/resumed-20261104/c1-vsync-clock-probe/`.
@@ -86,11 +86,22 @@ The display-corrected disk SHA256 is
 `51d2a99f00863bf5a639589a38885620085b1930cf0485f454ad79e751a2f54a`;
 the raw program SHA256 is
 `453c3107ec4678dbe1ce651f748a1398189dd7558249d74e46972ac6b7a60ab8`.
-It is copied to MiSTer as `VSCLK_51d2a99f.dsk`. Two native attempts stop
-before loading because SSH authentication fails; direct SSH and one
-connection-reuse retry confirm the problem. They supply no native probe
-result. The user has been asked to unlock/reconnect the SSH agent while
-independent ASIC simulation work continues. No author message is sent.
+The disk is installed on MiSTer as `VSCLK_51d2a99f.dsk`. After SSH access
+recovers, source `c0939d8` completes the normal-boot diagnostic: ordinary
+63/46 reads111; cases1/1,1/63 and0/63 each read000, matching simulation.
+Two captures separated by two seconds are byte-identical, PNG SHA256
+`5a7297303795d4a690771c3f63d3ea9218f41492f2539fddf3273ff4c023827f`.
+The parent reads all four rows; the script completes13 commands/two captures
+with no capture failure. `native-c093-004/PARENT-ACCEPTANCE.json` binds the
+RBF/media/CFG, launch and screenshot evidence.
+
+Attempts001/002 stop on SSH authentication. Attempt003 reaches the core but
+rejects the unimplemented French `.` key mapping before sending input.
+Attempt004 uses `RUN"VSCLK`, omitting the filename extension, and visibly
+executes the intended program. Failed attempts remain preserved. The native
+result confirms the FPGA/model side of the difference, not an original-CPC
+rule. The original-CRTC1 measurement and author question remain open; no
+zero-only or minimum-phase RTL policy is selected and no message is sent.
 
 Technical information sourced from the Amstrad CPC CRTC Compendium by
 Longshot (CC BY-NC-ND).

@@ -41,6 +41,20 @@ common full-canvas comparison. This is software-reference evidence,
 not a physical ASIC measurement. The observed 5→6 left 10 is not promoted
 to a new requirement; the candidate retains the existing coarse 5/6 output.
 
+## Old-build native static controls
+
+On installed `c0939d8`, all three original calibration cartridges now complete
+normal boots through the hardware loop, with two stable native captures per
+width. The parent views all six. R3=4 and R3=5 images are byte-identical
+(SHA256 `780c7946aaacb599d64e25db5d772c472df310c8132c81b6e12ce6432dc390a6`).
+Independent decoding of the original 48-dot marker places both at x409 on
+rows40/100/239; width6 places it at x401. All three non-border rectangles
+are `(65,40,705,240)` in the 768×273 captures. These are old-build output
+observations, not candidate acceptance or an original-ASIC measurement.
+Private `btf-asic-r3-hardware-plan/PARENT-OLD-STATIC-ACCEPTANCE.json` binds
+the CPR/RBF/CFG identities and all six captures. The new-build trial retains
+these inputs and checks the final captured image, including its borders.
+
 ## Failing-first production proof
 
 The retained `make -C sim asic-r3-position-test` uses production

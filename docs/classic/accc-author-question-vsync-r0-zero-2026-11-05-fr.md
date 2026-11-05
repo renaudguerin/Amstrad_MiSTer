@@ -35,14 +35,16 @@ suivent de plus de118µs le premier débordement de C0. Les cas R2 inaccessible
 ont une HSYNC transitoire avant ce débordement, puis plus aucune dans les
 64µs précédant la première lecture.
 
-| R0 / R2 | Modèle actuel | AmSpirit1.17.1 | CPC physique |
+| R0 / R2 | Modèle et MiSTer c0939d8 | AmSpirit1.17.1 | CPC physique |
 |---|---|---|---|
 |63 /46, témoin ordinaire|111|111|À mesurer|
 |1 /1|000|000|À mesurer|
 |1 /63|000|000|À mesurer|
 |0 /63|000|111|À mesurer|
 
-Le comportement AmSpirit ne correspond donc pas simplement à une horloge
+Le diagnostic exécuté sur MiSTer donne les mêmes quatre lignes que notre
+modèle, dans deux captures identiques. Le comportement AmSpirit ne correspond
+donc pas simplement à une horloge
 qui attendrait chaque HSYNC. Il reste compatible, entre autres, avec une
 condition R0=0 ou une phase minimale C0=1 jamais atteinte à R0=0. Ces
 résultats logiciels ne tranchent pas la règle physique et trois lectures
