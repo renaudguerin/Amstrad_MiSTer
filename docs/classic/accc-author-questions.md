@@ -375,6 +375,15 @@ with it.
     [source audit](../investigations/hardware-runs/emulator-source-author-question-audit-2026-11-03.md)
     before interpreting the table or withdrawing Q21.
 
+    **Fresh caller cross-check, 2026-11-05:** original C5/029E reaches its
+    marker on MiSTer42 but prints6O/6O/OOOOOO. Fresh matching-version CPCSE
+    and AmSpirit both reproduce the hardware photo's6E/6O/OEOEOE. Existing
+    t22/t29 already cover the simple IVM-entry distinction; a supported-loader
+    original C5 replay is now qualifying the post-exit path and PPI reads.
+    This strengthens the value of the question but does not yet identify the
+    causal lifetime or override the French exit tables. See the
+    [current C5 evidence](../investigations/hardware-runs/shaker-crtc0-c5-parity-2026-11-05.md).
+
 22. **§16.4.2 p.170 — what advances the CRTC 1 VSYNC-width counter (C3h) on very short lines?**
 
     **OPEN, not yet sent.** SHAKER 2.7 module A, page `008D` ("AI/A LOST VSYNC ON R0=0/1"), writes
@@ -427,6 +436,25 @@ with it.
     Same-history original-CPC observations or clarification of this lifetime
     are needed before treating the differing layouts as an R12/R13 latch bug.
     See [the evidence and replay controls](../investigations/session-logs/classic-overnight-2026-10-28.md).
+
+24. **French §11.2.4 p.85 / §11.3.2 p.87 — C5 after a terminal R9 increase.**
+
+    **OPEN, not yet sent; 2026-11-05.** A held R9 write accepted within C0=R0
+    retains additional management while its new value governs C9/C4. With
+    R0=7, R4=0, R5=3, R9=1 and old C4=0/C9=1, change R9 to2 during that
+    terminal character. The next line is C4=0/C9=2 in adjustment. At its end
+    C4 advances to1/C9=0. Does C5 count this line continuously, or restart
+    because C4=R4/C9=R9 matches again while management is already active?
+
+    Current RTL's photo-inferred positive-R5 restart gives four adjustment
+    lines, rather than the three suggested by continuous counting. That
+    restart was needed for original SHAKER CE/02C9's0080 after retained
+    R5=0 management, but the new example never writes R5 to zero. Does that
+    history distinguish the two situations? No original-CPC result exists
+    for this focused example; it is a source/implementation question, not
+    a new hardware failure claim. See the
+    [French draft](accc-author-questions-crtc1-c5-terminal-2026-11-05-fr.md)
+    and [qualified entry/count bounds](../investigations/hardware-runs/shaker-module-e-vma-2026-11-05.md).
 
 Also noted while verifying (no answer needed, listed for completeness): p.196 places the
 skew-delay-from-substitution note inside the CRTCs-1/3/4 paragraph — we assume the delay

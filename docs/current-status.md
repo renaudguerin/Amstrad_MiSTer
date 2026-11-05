@@ -20,6 +20,11 @@ instructions across handoffs and context compaction.
   accepted functional reference remains `e24cb50`. Completed DT evidence is on
   `codex/overnight-validation-20261103` (`18b58ce`).
   It is distinct from integrated `master`; no integration or release is implied.
+- Latest source `005ea84` contains separate Type0 protection (`338d111`), Type1
+  terminal-entry (`6e3f14f`) and first-C4=1 reload fixes. Final selection46PASS,
+  CRTC owner246/0, soak d8edb00f54abdb5e and independent Opus reviews pass.
+  [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42083118790)
+  is active; it has not replaced the installed42 artifact below.
 - Current experimental full artifact: `Amstrad_20261105_42befa3.rbf`, SHA256
   `c979b0567338689af0eab2f2e910fbc1ac64c8572c343ff45eaf4afaa3e28779`.
   [Clean full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42057692203)
@@ -65,11 +70,12 @@ our closest software reference, not the hardware oracle.
   the same result with R4=38, but four/eight additional lines with R4=39.
   All OUT phases match; the matrix sharpens the unsent question without
   selecting a physical rule. [Stimulus qualification](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md).
-- C0 AI/`0091` still returns38 in its first two length groups, where the
-  original-CPC photograph shows6x; the post-toggle VS bits also disagree.
-  The unchanged original production-T80 caller now reproduces the raw/PPI
-  failure and isolates premature same-row protection rearm. A private
-  successor is in progress; no tracked RTL change or native fix claim yet.
+- C0 AI/`0091`: fix `338d111` retains inactive protection through same-line
+  R7 toggles. Original production-T80 replay restores the photographed low
+  post-toggle bits; lengths become6B/6B/38. The source-derived corrected
+  rearm test fails before and passes after, with246 CRTC checks passing.
+  Final transported-test review passes; full-RBF/native acceptance is pending;
+  installed42 still has the defect. Type1 inactive rearming remains unverified.
   A4/`0037`’s top KO labels match hardware; separate OUTI fields remain open.
   [Current source and native evidence](investigations/hardware-runs/shaker-crtc0-0091-protection-2026-11-05.md).
 - C1 E=`0080`/P=`26` and the S history residual have bounded native acceptance.
@@ -127,11 +133,19 @@ our closest software reference, not the hardware oracle.
   recorded prefix through R7 acceptance. AmSpirit and fresh CPCSyntaxError
   agree on the expected rows. Whole-module history remains a separate gate.
   [Proof and native result](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
-- Standalone module E Option2: current0401/0402 show success and warning,
-  while matched AmSpirit1.17.1 shows only success. Original pre-initialization
-  snapshots are captured; a passive VMA/DE replay is in progress to separate
-  address/counter behavior from acquisition. No blanket scaler diagnosis.
+- Standalone module E Option2: fix `6e3f14f` retains terminal adjustment
+  eligibility across held R4/R9 publication while keeping live counter values.
+  Original first-edge replay changes1PASS/2FAIL to3PASS/0FAIL, removes raw-DE
+  warning fetches and preserves0400. Combined selection46PASS; source review
+  accepts the bounded fix and the first-C4=1 reload correction; full-RBF/native
+  acceptance is pending.
+  C5 restart/count compatibility remains open (four observed lines for R5=3).
   [Current discrepancy](investigations/hardware-runs/shaker-module-e-vma-2026-11-05.md).
+- C0 C5/`029E` now completes on42, but prints all odd against the hardware
+  photo's6E/6O/OEOEOE. Fresh CPCSyntaxError0.12.0 matches those parity groups;
+  matching source/RTL comparison is active. This is a raw PPI result, separate
+  from filter acquisition, and does not add18 independent tests to the tally.
+  [Parity evidence](investigations/hardware-runs/shaker-crtc0-c5-parity-2026-11-05.md).
 - C1 DE/03B6's old missing-row symptom no longer reproduces on e24cb50:
   direct E and D9→E both show A/A/B, with all six E PNGs pixel-identical.
   FF/5F remains a separate machine-input difference. [Current recheck](investigations/hardware-runs/shaker-03b6-current-recheck-2026-11-05.md).
