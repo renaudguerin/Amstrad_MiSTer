@@ -121,6 +121,25 @@ C0E60409, C1A40037/AI008D/B6019D. Oldacceptedjudgmentscarriedforward, notfresh
 baseline. NativeTerrahighupdatesonlygenerator/CSV/table; rootread7rowdiffand
 accepted15cell/sums/unique/category/evidencelinkgate, noRTL/simulation.
 
+## Current demo reference and compact handover
+
+39d49d3 docscheckpoint pushed. Root fresh normalboot C1AmSpirit DSC4 reference
+002 completes9settledPNGs50..66s: longgreenlines at3100/3300 offsets; all9viewed,
+3100/3200fullsize. Amazingreference001 completes6settledPNGs30..40s: later
+coloredlines alsoinreference; all6viewed1700/1900fullsize. Bothnaturaloriginal
+DSK/commands/FR128K/monitorOff/core2491682, noSNAsubstrate/guestpatch/breakpoints.
+Pausedcleanup scripts/bps empty, finalstate/SNA saved. Report:
+dsc4-c1-main-lines-reference-2026-11-05.md. Noexactphase/rate/physicalCPC/full-demo
+claim. InitialDSC4attempt stopsbeforeboot becausefreq_screenreadonly; logskept,
+retry002defaultrealtime. NoactiveAPI/device/providerjob.
+
+UserrequestedTerrahighcurrenttipcleanup complete: old270linesnapshot archived
+to docs/archive/current-status-detail-2026-11-05.md withlinksfixed; currenttip
+102lines before rootnewreference/sharedfixscope clarifications. Rootreadswhole
+file, acceptscoverage andlinks/diffcheck; noRTL/simulation. Pure-docscheckpoint
+pending. 0090matrixreadersupports6footerlowbits001111+length66;328matrixcells
+notfullyreadable/adjudicated, remainsunknown, nochangedcounts.
+
 ## Remaining order
 
 Finish0090matrixadjudication, preserveA4version/physicaldeadlinequestion.

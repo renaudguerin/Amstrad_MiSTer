@@ -92,7 +92,10 @@ and [next discriminators](investigations/hardware-runs/shaker-next-discriminator
 
 These are sampled hardware results, not full-demo sign-off. DSC4's CRTC1
 bottom row also exists in AmSpirit's uncropped buffer; desired visible bounds
-remain a viewport question. [Classic evidence](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md),
+remain a viewport question. Fresh CRTC1 AmSpirit runs also show DSC4's long
+green lines and Amazing's later coloured bands; their physical-CPC status
+remains unverified. [Reference comparison](investigations/hardware-runs/dsc4-c1-main-lines-reference-2026-11-05.md),
+[classic evidence](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md),
 [ASIC evidence](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md),
 [bottom-row comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md).
 
