@@ -273,14 +273,16 @@ $(CRTC_OLD_ENGINES_DIR)/crtc_type0_engine.v: Makefile
 		sed -e 's/output           c0_row_last,/output           c0_row_last, output c1_last_line_validate,/' \
 		    -e "s/^endmodule/assign c1_last_line_validate = 1'b0; endmodule/" > $@.tmp && mv $@.tmp $@
 
-# The current wrapper has a trailing R6-origin event output. Tie it off
-# only in this historical negative control: its existing frame_new display
-# path remains intact, and none of the old engine's rules are changed.
+# Match the current interface in this historical negative control: the MID
+# input is unused and the live-R7 defer/fire and R6-origin outputs stay inert.
+# The frozen engine body and its pre-B8 behaviour remain unchanged.
 $(CRTC_OLD_ENGINES_DIR)/crtc_type1_engine.v: Makefile
 	mkdir -p $(CRTC_OLD_ENGINES_DIR)
 	git show d46609d066aafb6b182fd6fa504a91719500cd91:rtl/crtc_type1_engine.v | \
-		sed -e 's/output           status_bit5/output           status_bit5, output r6_origin/' \
-		    -e "s/^endmodule/assign r6_origin = 1'b0; endmodule/" > $@.tmp && mv $@.tmp $@
+		sed -e 's/input            parity_c9,/input            parity_c9, input vsync_mid,/' \
+		    -e 's/output           r7_write_fire,/output           r7_write_fire, output r7_write_defer, output r7_mid_fire,/' \
+		    -e 's/output           status_bit5/output           status_bit5, output r6_origin/' \
+		    -e "s/^endmodule/assign r6_origin = 1'b0; assign r7_write_defer = 1'b0; assign r7_mid_fire = 1'b0; endmodule/" > $@.tmp && mv $@.tmp $@
 
 .PHONY: crtc-t80-old-test
 crtc-t80-old-test: $(CRTC_T80_OLD_BIN)

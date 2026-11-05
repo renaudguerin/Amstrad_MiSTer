@@ -1113,3 +1113,33 @@ French §18.2.4 p.190 correctly; and the unresolved §18.3.4 granularity questio
 Cleared 2026-10-27 by Codex Sol 6.1 medium (run `20261027T091602Z-3338-a804`): no blocking
 findings; one major (a C4 overflow wrap to C4=C9=C0=0 did not clear the latch), fixed with the
 failing-first vector `t03j` on the same branch. The §18.3.4 note stays an open source ambiguity.
+
+
+## CRTC1 live R7 / MID-VSYNC — source review cleared 2026-11-05
+
+The open row is preserved below, with its evidence URL adjusted for this
+archive directory. The clearance note follows it.
+
+**CRTC1 live R7 / MID-VSYNC, 2026-11-05 — EXPERIMENTAL; stronger review OPEN:**
+The Type1 engine now retains an accepted before-midpoint matching R7 write
+until the existing midpoint consumer, as French§19.7.1–2p219 requires. The
+shared wrapper keeps pulse/count sequencing. Review hardest the consumed-allow
+handoff, actual-midpoint coincidence, active-pulse immunity, accepting-edge
+parity and reset/SNA/type cancellation. Pending R8/R0 changes inherit the
+existing MID line lifetime; wider physical behavior is not established.
+A failing-first natural-state vector,15 focused candidate controls,246 CRTC
+tests, unchanged-projection soak e30456ff0f009775 and46 selected benches pass.
+A focused Gemini read finds no blocker and is supplementary. After the user
+refreshed Claude login, strong Opus5.5 review is active for this change and
+the GA model; it has not yet returned a verdict. Full synthesis
+and native0050→0060 acceptance are separate pending gates. [Evidence](../investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
+
+Cleared for bounded experimental source/RBF use by Claude Opus5.5, run
+`20261105T054304Z-77737-502a`. No C1 defect found after checking the French
+p219 rule, consumed-allow handoff, midpoint/counting, accepting-edge parity,
+held/active writes, port order and reset/SNA/type lifecycle. Parent verified
+the exact source hashes after the reviewer's sandbox prevented hash commands.
+Hardware acceptance, after-midpoint writes and MID-selection changes while
+pending remain unqualified. This source clearance does not clear the GA G1
+regression found in the same review. Private strong review report and provider
+logs are in`local/overnight-20261103/resumed-20261104/strong-current-rbf-review/`.

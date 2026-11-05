@@ -115,10 +115,15 @@ b7940b789f19deda98250c60e9cfcdb78e592a59d650415d52cfd09cb945a0c9.
 Private proof/patch/gate receipts are under`c1-02da-current-replay/` in
 `mid-red/`, `mid-candidate/` and `production-adoption/`.
 
-Pending R8/R0 modifications inherit the ordinary MID line lifetime; no new
+Pending R8/R0 modifications inherit the ordinary MID line lifetime. Unlike
+the ordinary seam arm, the live write has already consumed allow; changing
+MID selection before onset can drop the pending pulse. This wider case is
+unqualified. No new
 physical claim is made about them, after-midpoint or short-line cases. A later
 unequal R7 write does not revoke an accepted ticket, matching the existing
-seam-arm policy. Stronger review is [explicit debt](../../review-debt.md).
+seam-arm policy. Strong Claude Opus5.5 review accepts this C1 source/RBF change within its
+stated bounds; its [debt entry is archived](../../archive/review-debt-cleared.md).
+It does not clear the separate GA G1 regression found in the same review.
 Full synthesis and native0050→0060 verification remain pending. The separate
 non-IVM B6 admission and optical9/5 questions are not explained by this rule.
 

@@ -22,7 +22,9 @@ instructions across handoffs and context compaction.
 - Current experimental full artifact: `Amstrad_20261105_90f3b18.rbf`, SHA256
   `a7c3b0ad177744a3c2e2120365c3febdbd8226f0f80782603ccb1e3e8008a102`.
   [Full synthesis](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41964150943)
-  passes all jobs, setup/hold0.316/0.243ns. Bounded C0/C1 DSC4/Amazing views
+  passes all jobs, setup/hold0.316/0.243ns. Strong review now finds a fixed-mode
+  border/ink-edge regression (G1); this artifact is held pending correction.
+  Bounded C0/C1 DSC4/Amazing views
   retain credits and visible effects; stronger source review remains debt.
   A DSC4 horizontal-line transient also occurs on reference e24cb50 and still
   lacks matched physical/reference qualification. [Build and native bounds](investigations/hardware-runs/classic-ga-native-2026-11-05.md).
@@ -96,7 +98,8 @@ our closest software reference, not the hardware oracle.
   (French§19.7.1–2p219). Experimental source now defers that accepted
   comparison through the existing midpoint consumer, with failing-first proof,
   246 CRTC/46 selected passes and a re-minted unchanged-projection soak.
-  Stronger review, synthesis and native verification remain pending. The
+  Strong Opus source review accepts this bounded C1 change; synthesis and
+  native verification remain pending. The
   corrected current-T80 observational replay is running. [Current poll boundary](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
 - C1 DE/03B6's old missing-row symptom no longer reproduces on e24cb50:
   direct E and D9→E both show A/A/B, with all six E PNGs pixel-identical.

@@ -29,20 +29,6 @@ Newest first. A row stays here until a real independent review clears it; source
 clearance never closes a hardware gate, which is tracked in `backlog.md` and
 `implementation-roadmap.md`.
 
-**CRTC1 live R7 / MID-VSYNC, 2026-11-05 — EXPERIMENTAL; stronger review OPEN:**
-The Type1 engine now retains an accepted before-midpoint matching R7 write
-until the existing midpoint consumer, as French§19.7.1–2p219 requires. The
-shared wrapper keeps pulse/count sequencing. Review hardest the consumed-allow
-handoff, actual-midpoint coincidence, active-pulse immunity, accepting-edge
-parity and reset/SNA/type cancellation. Pending R8/R0 changes inherit the
-existing MID line lifetime; wider physical behavior is not established.
-A failing-first natural-state vector,15 focused candidate controls,246 CRTC
-tests, unchanged-projection soak e30456ff0f009775 and46 selected benches pass.
-A focused Gemini read finds no blocker and is supplementary. After the user
-refreshed Claude login, strong Opus5.5 review is active for this change and
-the GA model; it has not yet returned a verdict. Full synthesis
-and native0050→0060 acceptance are separate pending gates. [Evidence](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
-
 **Classic GA serializer, 2026-11-05 — EXPERIMENTAL; stronger source review OPEN:**
 Branch`codex/classic-ga-boundary-native-20261105` adopts the source-qualified
 retained-byte/cursor/mode-epoch model and settled-SNA/prefetch normalization.
@@ -54,7 +40,12 @@ narrow Gemini integration audit and root source review found no porting defect.
 Look hardest at LOAD/MODE/PHI coincidence ordering, retained-byte replay across
 adjacent phases, token/anchor epoch validity and16-bit wrap lifetimes, border/
 palette timing, held-SNA apply/fetch freshness and no-HS restored-mode behavior.
-The model is abstract; source-derived RGB controls do not prove a unique silicon
+Strong Opus5.5 review now identifies G1: the current colour refresh chooses
+incoming DISPEN while rendering the outgoing byte's last pixel, moving border/ink
+one refresh early. A failing DE-edge vector and correction are required before
+this row can clear. Queue/anchor/replay, SNA freshness and wrap had no identified
+counterexample; the optional identity simplification is deferred. The model is
+abstract; source-derived RGB controls do not prove a unique silicon
 pipeline or all phases. Retained64 production-T80 controls,72 public GA lifecycle
 controls, shared B18/ASIC callers and46selected benches pass; no code edit followed
 the final gate. Clean full synthesis and bounded C0/C1 DSC4/Amazing native
