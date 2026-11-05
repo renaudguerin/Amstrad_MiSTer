@@ -39,6 +39,7 @@ sna-lifecycle-test: $(SNA_LIFECYCLE_BIN)
 	./$(SNA_LIFECYCLE_BIN)
 
 $(SNA_LIFECYCLE_BIN): $(SNA_LIFECYCLE_RTL) sna_lifecycle_tb.cpp Makefile
+	mkdir -p $(SNA_LIFECYCLE_OBJ)
 	$(VERILATOR_BIN) --cc --exe --build --top-module sna_lifecycle_top \
 		-Wno-fatal -Werror-PINMISSING --Mdir $(SNA_LIFECYCLE_OBJ) \
 		-CFLAGS "$(CXXFLAGS)" -o $(notdir $(SNA_LIFECYCLE_BIN)) \
