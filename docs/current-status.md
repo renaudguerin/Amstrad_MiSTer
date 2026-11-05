@@ -9,7 +9,7 @@ history in the [September archive](archive/current-status-history-2026-09-21.md)
 Dated reports contain the evidence and bounds behind the current claims below.
 
 The [active unattended session](investigations/session-logs/overnight-resume-2026-11-04.md)
-continues toward the user's approximately 80% weekly quota limit. Finish known
+continues toward the user's approximately 90% weekly quota limit. Finish known
 SHAKER and DSC4/Amazing defects before the broad baseline; preserve these
 instructions across handoffs and context compaction.
 
@@ -93,8 +93,14 @@ our closest software reference, not the hardware oracle.
   Matching original-O AmSpirit gives0060; first-row public stops prove PB0=0
   then1 on two distinct polls, with rawHL6. Fresh CPCSyntaxError also passes
   all twelve rows; its source exposes our live-R7 bypass of active MID-VSYNC
-  (French§19.7.1–2p219). A failing vector precedes implementation; the
-  current-T80 observational replay is running. [Current poll boundary](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
+  (French§19.7.1–2p219). Experimental source now defers that accepted
+  comparison through the existing midpoint consumer, with failing-first proof,
+  246 CRTC/46 selected passes and a re-minted unchanged-projection soak.
+  Stronger review, synthesis and native verification remain pending. The
+  corrected current-T80 observational replay is running. [Current poll boundary](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
+- C1 DE/03B6's old missing-row symptom no longer reproduces on e24cb50:
+  direct E and D9→E both show A/A/B, with all six E PNGs pixel-identical.
+  FF/5F remains a separate machine-input difference. [Current recheck](investigations/hardware-runs/shaker-03b6-current-recheck-2026-11-05.md).
 - B9 page B's collision ordering and MID FRAME glyph remain unresolved; original
   machine evidence is needed. F13 and F20 still need their named hardware gates;
   IA-2/3/6 are source-model evidence, IA-5 needs simultaneous sync/interrupt
@@ -152,6 +158,8 @@ our closest software reference, not the hardware oracle.
 - B1's four formerly flat-yellow captures now show identical structured RGB
   on production e24 and diagnostic c90. D5/DD were superseded before capture;
   D6/DE corroborate photo pattern families, with geometry unjudged.
+  A faster opt-in SSH retry still misses the photographed intro text; absence
+  of the superseded flag does not establish alignment.
   [Bounded recheck](investigations/hardware-runs/shaker-b1-current-recheck-2026-11-05.md).
   Display ownership and applied-mode observability remain open; native
   screenshots omit the OSD. B6 still needs physical HDMI/CRT acceptance and a

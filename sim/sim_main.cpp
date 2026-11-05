@@ -359,6 +359,8 @@ public:
         }
     }
 
+    bool setup_effective_ivm() const { return dut_->rootp->CRTC__DOT__crtc_type1_engine__DOT__ivm; }
+    bool setup_vsync_allow() const { return dut_->rootp->CRTC__DOT__vsync_allow; }
     bool raw_vsync() const { return dut_->rootp->CRTC__DOT__VSYNC_r; }
     bool snapshot_vsync() const { return dut_->SNAP_VSYNC_R; }
     bool published_vsync() const { return dut_->VSYNC; }
@@ -1263,6 +1265,107 @@ void test_type1_interlace_sync_even_parity_vsync(TestBench& test) {
     test.run_characters(7);
     test.expect_vsync_high("type 1 R8=1 even-parity VSYNC fires at the half-line tick");
 }
+
+// French ACCC v1.11 §§19.7.1/2 p219: live matching R7 observes MID.
+void test_type1_live_r7_before_mid(TestBench& test, bool odd) {
+    test.prepare_for_reset(1);
+    const std::array<std::pair<std::uint8_t,std::uint8_t>,10> regs = {{
+        {0,63},{1,40},{2,46},{3,0x41},{4,31},{5,0},{6,25},
+        {7,127},{8,3},{9,7}}};
+    for (const auto& [a,v]:regs) test.write_register(a,v);
+    test.reset();
+    test.select_register(7);
+    unsigned origins=0,previous_row=test.row_counter(),c=0;
+    for (;c<100000;++c) {
+        test.run_characters(1);
+        if(previous_row!=0 && test.row_counter()==0) ++origins;
+        previous_row=test.row_counter();
+        if(origins>=3 && test.frame_parity()==odd && test.row_counter()==0 &&
+           test.line_counter()==(odd?3u:2u) && test.c0()==8) break;
+    }
+    if(c==100000) throw TestFailure("private live R7 natural setup not reached");
+    test.expect_high("qualified effective IVM",test.setup_effective_ivm());
+    test.expect_high("qualified rearmed comparator",test.setup_vsync_allow());
+    test.expect_low("no earlier logical pulse",test.raw_vsync());
+    test.expect_vsync_low("no earlier published pulse");
+    std::cout<<"SETUP type1_live_r7 parity="<<odd<<" origins="<<origins
+             <<" C0="<<unsigned(test.c0())<<" C4="<<test.row_counter()
+             <<" C9="<<test.line_counter()<<"\n";
+    test.write_selected_register_now(0);
+    if(odd) {
+        test.expect_high("oddPF live equal R7 starts immediately",test.raw_vsync());
+        return;
+    }
+    while(test.c0()<31) {
+        test.expect_low("French19.7.1 even live R7 waits for midpoint (logical)",test.raw_vsync());
+        test.expect_vsync_low("French19.7.1 even live R7 waits for midpoint (public)");
+        test.run_clock_ticks(1);
+    }
+    test.expect_byte("live MID starts at hcc_next halfline",31,test.c0());
+    test.expect_high("live MID logical onset",test.raw_vsync());
+    // Public transport may delay a pin edge but cannot change the16-line width.
+    bool previous_pub=test.published_vsync();
+    unsigned rise=0,fall=0;
+    constexpr unsigned width=16*64*kClockTicksPerCharacter;
+    for(unsigned tick=1;tick<=width+kClockTicksPerCharacter;++tick) {
+        test.run_clock_ticks(1);
+        if(tick<width) test.expect_high("MID remains up before16countticks",test.raw_vsync());
+        if(tick==width) test.expect_low("MID ends at16thcounttick",test.raw_vsync());
+        const bool now=test.published_vsync();
+        if(now&&!previous_pub) rise=tick;
+        if(!now&&previous_pub) fall=tick;
+        previous_pub=now;
+    }
+    test.expect_high("public MID rose after logical",rise>0&&rise<kClockTicksPerCharacter);
+    test.expect_high("public MID preserves16physical lines (full unsigned width)",fall>rise && fall-rise==width);
+}
+
+
+// Setup-only helper for new ticket cancellation and the actual-midpoint edge.
+void prepare_type1_live_r7_pending(TestBench& test, unsigned c0) {
+    test.prepare_for_reset(1);
+    const std::array<std::pair<std::uint8_t,std::uint8_t>,10> regs = {{
+        {0,63},{1,40},{2,46},{3,0x41},{4,31},{5,0},{6,25},
+        {7,127},{8,3},{9,7}}};
+    for(const auto& [a,v]:regs) test.write_register(a,v);
+    test.reset(); test.select_register(7);
+    unsigned origins=0,previous=test.row_counter(),c=0;
+    for(;c<100000;++c) {
+        test.run_characters(1);
+        if(previous!=0 && test.row_counter()==0) ++origins;
+        previous=test.row_counter();
+        if(origins>=3 && !test.frame_parity() && test.row_counter()==0 &&
+           test.line_counter()==2 && test.c0()==c0) break;
+    }
+    if(c==100000) throw TestFailure("private pending lifecycle setup not reached");
+    test.expect_high("lifecycle effectiveIVM",test.setup_effective_ivm());
+    test.expect_high("lifecycle allow",test.setup_vsync_allow());
+    test.expect_low("lifecycle no earlier pulse",test.raw_vsync());
+}
+void test_type1_live_r7_actual_midpoint(TestBench& test) {
+    prepare_type1_live_r7_pending(test,30);
+    // At the next CLKEN oldhcc=30,hcc_next=31: this IS the midpoint event.
+    test.write_selected_register_at_clken(0);
+    test.expect_byte("coincident livewrite advances to actual midpoint",31,test.c0());
+    test.expect_high("coincident livewrite is not stranded past actual midpoint",test.raw_vsync());
+}
+void test_type1_live_ticket_context_cancel(TestBench& test,unsigned context) {
+    prepare_type1_live_r7_pending(test,8);
+    test.write_selected_register_now(0);
+    test.expect_low("accepted ticket has no early pulse",test.raw_vsync());
+    // Move the live comparison away before context replacement; a subsequent
+    // pulse can therefore only be a leaked accepted ticket, not a new match.
+    test.write_selected_register_now(127);
+    if(context==0) test.reset();
+    else if(context==1) test.load_snapshot_registers({63,40,46,0x41,31,0,25,127,3,7});
+    else {test.set_crtc_type(0);test.run_clock_ticks(1);test.set_crtc_type(1);}
+    for(unsigned t=0;t<2*64*kClockTicksPerCharacter;++t) {
+        test.expect_low("context replacement discards old logical ticket",test.raw_vsync());
+        test.expect_vsync_low("context replacement discards old public ticket");
+        test.run_clock_ticks(1);
+    }
+}
+
 
 void test_type0_interlace_vsync_rebuilds_after_snapshot(TestBench& test) {
     // R7=127 remains unreachable even when the added line visits R4+1.
@@ -9202,6 +9305,24 @@ int main(int argc, char** argv) {
         {"t02r_type0_interlace_vsync_rebuilds_after_live_type_switch",
          "ACCC v1.11 English section 16.4.1.2 with live CRTC_TYPE lifecycle",
          false, test_type0_interlace_vsync_rebuilds_after_live_type_switch},
+        {"t02s_type1_live_r7_mid_even",
+         "French ACCC v1.11 sections 19.7.1/19.7.2 p.219; live R7 MID admission",
+         false, [](TestBench& t) { test_type1_live_r7_before_mid(t, false); }},
+        {"t02t_type1_live_r7_immediate_odd",
+         "French ACCC v1.11 sections 16.4.2 p.171 and 19.7.2 p.219",
+         false, [](TestBench& t) { test_type1_live_r7_before_mid(t, true); }},
+        {"t02u_type1_live_r7_actual_midpoint",
+         "French ACCC v1.11 section 19.7.1 p.219; accepting-edge half-line event",
+         false, test_type1_live_r7_actual_midpoint},
+        {"t02v_type1_live_r7_pending_reset",
+         "CRTC reset context; accepted live MID comparison lifecycle",
+         false, [](TestBench& t) { test_type1_live_ticket_context_cancel(t, 0); }},
+        {"t02w_type1_live_r7_pending_snapshot",
+         "CRTC SNA context replacement; accepted live MID comparison lifecycle",
+         false, [](TestBench& t) { test_type1_live_ticket_context_cancel(t, 1); }},
+        {"t02x_type1_live_r7_pending_type_roundtrip",
+         "CRTC live type round-trip; accepted live MID comparison lifecycle",
+         false, [](TestBench& t) { test_type1_live_ticket_context_cancel(t, 2); }},
         {"t03a_vsync_compare_lock_and_rearm", "ACCC v1.10 section 16.3; F11b",
          false, test_vsync_compare_lock_and_rearm},
         {"t03b_vsync_reentrancy_bypass", "ACCC v1.10 section 16.3; F11b",

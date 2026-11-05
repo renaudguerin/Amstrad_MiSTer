@@ -76,9 +76,50 @@ and rendered page, says active MID-VSYNC triggers at C0=R0/2, with even parity
 including R7=0. This gives an independently documented before-midpoint rule;
 it does not select a new numeric delay or an after-midpoint policy.
 
-A focused failing vector and smallest pending-consumption design are being
-prepared before implementation. Preserve equal-write consumption, active-pulse
-protection, parity/origin ordering and reset/SNA/type lifecycle. The separate
+The source-derived natural-state vector fails before implementation: after
+four natural frame origins, evenPF/R8=3/C4=0/C9=2/C0=8, a matching R7 write
+raises logical VSYNC before the midpoint. The oddPF sibling and existing
+ordinary partial-width/held-active/rearm controls pass. The initial odd
+fixture accidentally requested unreachable C9=2; that attempt is retained,
+and only its setup guard was corrected to C9=3. The even failing assertion
+and phase did not change.
+
+## Experimental source correction and proof
+
+An engine-owned one-bit accepted-comparison ticket carries the already-consumed
+write to the existing midpoint/start/count path. Register storage is unchanged;
+no numerical delay is added. Explicit interlace/MID qualification preserves
+ordinary/odd writes, while a write coinciding with the actual midpoint starts
+there. Reset, SNA apply and live Type1 exit clear the context-local ticket.
+The wrapper only connects engine contributions to shared sequencing. Type0,
+GA, CPU and ordinary pin transport are unchanged.
+
+The candidate passes15 focused cases, including full16-line logical/public
+width, actual-midpoint coincidence, three context replacements and existing
+origin/overlap/active-R8 controls. Parent caught an unreachable tail assertion
+using an8-bit helper for the16384-clock width; the old red/source is preserved,
+and the tail was corrected to a full unsigned comparison before candidate
+qualification. No passing width is inferred from the earlier failing run.
+The original wrapper-owned prototype and its receipt are also retained; the
+final engine-owned port passes the identical15-case test source.
+
+The retained suite adds six live-write/context cases to the existing owner,
+reusing existing D1/F3 registrations. `make -C sim crtc-test` gives246 passes;
+`make -C sim soak` gives e30456ff0f009775 with unchanged seed, stimulus and
+sampled projection. Final `python3 sim/select_tests.py --run` passes46 benches
+after the last code edit. Root verified all four source hashes against the
+worker's final manifest and accepted its receipt without rerunning the gate.
+Final wrapper/engine SHA256 are
+07f5f2268179a897139501b0b6db3c42931becd2340b9f7a064220e4e2a3e944 and
+b7940b789f19deda98250c60e9cfcdb78e592a59d650415d52cfd09cb945a0c9.
+Private proof/patch/gate receipts are under`c1-02da-current-replay/` in
+`mid-red/`, `mid-candidate/` and `production-adoption/`.
+
+Pending R8/R0 modifications inherit the ordinary MID line lifetime; no new
+physical claim is made about them, after-midpoint or short-line cases. A later
+unequal R7 write does not revoke an accepted ticket, matching the existing
+seam-arm policy. Stronger review is [explicit debt](../../review-debt.md).
+Full synthesis and native0050→0060 verification remain pending. The separate
 non-IVM B6 admission and optical9/5 questions are not explained by this rule.
 
 ## Current-T80 discriminator
@@ -90,3 +131,29 @@ source identity. The existing source audit already finds incoming parity at
 R7=0 origin and parity-aware IVM row counting implemented; do not duplicate
 those rules or move a VSYNC edge merely to make0060 appear. A native0050
 print alone still does not prove the first poll count or an exact16µs early edge.
+
+
+The current-T80 replay uses the genuine normal-menu v2 architectural snapshot;
+its omitted hidden counters are naturally normalized by the existing loader,
+not restored measurements. The first attempt's PS2 builder incorrectly ORed
+Space with the old O payload. Root found the exact bad6D versus required29
+payload before accepting any target data. It stopped with exit130; root
+confirmed no live process, and source/logs/partial traces are preserved in
+`attempt0-invalid-space/`. Only its O→D4 prefix qualifies. The corrected
+attempt preserves the same menu and original instructions, with fatal exact
+O/Space make/break guards and identical firstD4 tick485807303. It completes with the corrected Space at1,341,102,392masterclocks, reproducing
+native0050 as rawHL5/one poll.
+No late PC/counter fit, hidden-state checkpoint or candidate full-caller result
+is claimed from that repair.
+
+
+The qualified current-T80 baseline observes the actual R7=0 write at tick
+1,341,100,167, C0/C4/C9=2/0/2, C5=0/adjustment off, PF/PC9=0/0,
+effectiveIVM1 and old allow1 with no active pulse. Logical VSYNC rises one
+master tick later, public VSYNC six ticks later, both before the midpoint.
+The first PPI interval returns PB0=1, and the sole poll exits with HL5. This
+qualifies the documented before-midpoint class in the original caller, with
+architectural snapshot limitations retained. Candidate replay is now running
+from the identical menu/observer/key/source tuple except the two fixed RTL
+files; no candidate full-caller pass is claimed yet. The first D4 timestamp
+is identical to the accepted baseline prefix, without phase search.

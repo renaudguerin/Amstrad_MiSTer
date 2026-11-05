@@ -56,7 +56,10 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
   reflect machine input differences. [Sweep and page details](investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md),
   [E follow-up](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md).
 - **CRTC 1 D/E:** `02E3` still reads 58 on current production e24cb50 versus original-caller
-  AmSpirit/photo 59 ([first-IRQ evidence](investigations/hardware-runs/shaker-di-first-irq-2026-11-04.md)); `03B6` has a text-row difference.
+  AmSpirit/photo 59 ([first-IRQ evidence](investigations/hardware-runs/shaker-di-first-irq-2026-11-04.md)); `03B6` now shows the expected A/A/B rows on e24cb50 both directly and
+  after D9, with all six E images pixel-identical between those entry paths.
+  Full earlier D-history equivalence is unproved; FF/5F remains a PPI input
+  difference ([bounded recheck](investigations/hardware-runs/shaker-03b6-current-recheck-2026-11-05.md)).
   DT `02F8/02FA` is not currently a confirmed core/filter failure: the guest
   intentionally removes the second band about339ms after F8, and continuing
   the same AmSpirit run past F7 also gives one band. The native F8-labelled

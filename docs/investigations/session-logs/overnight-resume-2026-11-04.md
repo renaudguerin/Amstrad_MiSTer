@@ -1,8 +1,8 @@
-# Active unattended handover — 2026-11-05 05:11 UTC
+# Active unattended handover — 2026-11-05 05:46 UTC
 
-Continue known SHAKER and DSC4/Amazing fixes toward approximately80% weekly
+Continue known SHAKER and DSC4/Amazing fixes toward approximately90% weekly
 Codex usage; do not stop after one unit or launch the broad fresh baseline.
-Latest live OAuth04:53:33:68% weekly used, reset5Nov19:34UTC,3banked resets
+Latest live OAuth05:33:34:70% weekly used, reset5Nov19:34UTC,3banked resets
 untouched. No credits/overage/reset redemption. Work remains authorized while
 user sleeps; device released. Branch pushes/milestone builds authorized; no
 master integration, PR, release or author messages. No goal/wakeup configured.
@@ -48,8 +48,8 @@ Provider line anchors are unreliable; parentreadactualdiff. This is NOT strong
 serializer architectural approval. Explicitstrongreviewdebt is added to
 [review debt](../../review-debt.md) before the experimentalcommit. Opus5.5high
 firstboundedpostpauseattempt025740 failed401expiredOAuth, no review ran, logs
-preserved`r3-production-clean-review/strong-provider-log/`. No furtherask-claude
-until user/login; asyncquestionpending, not answered. Pause/lastpublishedreset
+preserved`r3-production-clean-review/strong-provider-log/`. User refreshed interactiveClaude login;05:41 live5h0%/weekly15% verified.
+Fresh strong GA+MID Opusreview71132/run20261105T054304Z-77737-502a is active. Pause/lastpublishedreset
 were past before thatoneattempt; telemetry remainsunknown. No overage/retryloop.
 Argon93.6%weekly:no calls. LatestGeminiweekly03:23:52used52.49%; routineGem3healthy.
 
@@ -65,14 +65,33 @@ CurrentT80 R7.JIT remains8/4versus9/5 onbothGA, all57CSVcols equal.
 CommonnextCLKEN causallyrejected (OUTC requirededge35ticks beforeconsumer).
 Fresh originalCPCSEB6matches6hardware rows; sourcegivesorderingnotaperture.
 
-Active independent units: nativeSolhigh currentT80 originalmenuO/02DA replay,
-private c1-02da-current-replay, bounded1.6B clocks, v2hiddenstate normalized
-not measured; no fitting. Gemini3.8high exec69470/run20261105T050616Z-66183-9726
-ownsONLYhardware-loop opt-in taskownedSSHmultiplex implementation/tests/guide;
-no device/API, root must review exactdiff+red/gate beforeuse. Prior benchmark
-1.35sindependent vs.026swarm. Defaultambientmuxdisable mustremain.
-LatestAGY05:05:41 Geminiweekly53.94%,5h7.02%; Argon93.6%,3Pweekly100% so no calls.
-No master/release acceptance. Runtime ACTIVE-JOBS.json owns updateddetails.
+Current MID unit: exact engine-owned source correction is frozen in
+rtl/CRTC.v07f5f226…/crtc_type1_engine.vb7940b78…. Source-derived evenMID
+red precedes15focused/246CRTC/46selectedpasses; soak e30456ff0f009775 with
+unchangedseed/stimulus/projection. Rootverified4finalhashes, no codeeditsaftergate.
+StrongerGA+MID Opusreview71132/run20261105T054304Z-77737-502a active afteruser
+refreshedlogin; Claude05:41live5h0%/weekly15%. NarrowGemMIDreview26660completed0,
+no blocker; rootrejectsblanketno-regressionclaim. No strongverdict yet.
+
+Originalmenu/currentT80O baselineQUALIFIED0050/HL5/1poll, actualR7write
+C0/C4/C9=2/0/2,evenPF/effectiveIVM1,allow1,noactivepulse. FirstinvalidSpace
+attemptstopped/preserved; correctedexact29payloadandD4prefixguardpassed.
+CandidateONEidenticaltupleexceptfinal2RTLfilesactive46794,1.6Bcap,
+original-o-candidate/. Onlyexistingcollectedledgers/checkpointscompare; no
+inventedfullmachinehash orlatecounterfit. V2hiddenstateisnormalizednotmeasured.
+
+Hosttool0e37fb0committed/pushed: opt-in taskownedSSHreuse, defaultambient
+isolationpreserved. Rootremovedunusedexternalcontrolpathoverride/restoredCLI
+validation, finalgate46PASS, LIVElegacySCPbyte/socketcleanuppass. Warm68/67ms.
+B1retry23cmd/15PNG/0fail/21records stillshowsD5/DDpatternsversusphysicalintro
+text; no longeralready-supersededflagdoesNOTprovealignment. No blindretry.
+LatestAGY05:33Geminiweekly55.54%/5h11.44%; Argon93.6%,3Pweekly100%no calls.
+UsernowraisesCodexstoplimitto~90%weekly; latest05:33Codex70%,3bankeduntouched.
+
+Next commit/push source+currentproof/debt andstartONEhostedfullmilestonebuild
+inparallelwithstrongreview/candidateO. AcceptcleanexactSHA7setup/7hold/TNS0,
+then nativeoriginalO/E/P/S+boundedDSC4. No master/PR/release/authormessages.
+Runtime ACTIVE-JOBS.json owns jobdetails; no broadbaselineuntilknownfixes.
 
 ## Completed DT unit
 
@@ -108,7 +127,10 @@ Productione24 control nowmatchesallfourc90RGBexactly, sixcolours each.
 Do notclaimallfourphoto-compliant orrefresh350denominator.
 [Bounded recheck](../hardware-runs/shaker-b1-current-recheck-2026-11-05.md).
 
-Device idle on acceptedproductione24 after boundedDSC4burst. AmSpirit paused
+Device idle on acceptedproductione24 afterdirectE andD9→E known03B6rechecks.
+Direct22cmd/6PNG/0fail/13SSM; D9→E42/18/0/35. AllsixEPNGs identicalbetween
+paths and03B6A/A/Bmatchesphysicaltextrows; FF/5FPPIinputseparate.
+Allimagesviewed; fullDhistoryunproved. No newRTLcausalselection. AmSpirit paused
 at first original02DA R7=0 poll exit5588, rawHL6, script/BPs clear. Matching
 normalbootO reference12rows good. Native90 directO19cmd/6PNG/0fail/10SSM
 retainsfour0050vs0060; rootviewedall6. AmSpirit firstIN42156845A1E/HL4,
@@ -140,7 +162,8 @@ activepulse/rearm and sameedgeMID semantics; no aftermidrule chosen.
   DIcaptionwarnsCRTC1unreliable. CurrentR7.JIT and02DAreproducedasabove. D3heldSpace44
   pagesnotstatealigned,no blindfullwalkretry. ASIC275af8aboundedcredits/BI/AE/AR
   andsampledDSC4/Amazingaccepted, no fullPlusbaseline.
-- Pendinguser:newR3scrollingdemo title/path/CRTC/onset andClaude/login.
+- Pendinguser:newR3scrollingdemo title/path/CRTC/onset. SSH works viaapproved
+  capturepath; userinteractiveSSH/Claude confirmation resolvesoldauthrequests.
 
 [Current status](../../current-status.md)/[maintained tally](../../shaker-status.md)
 carrycurrentpublicposition; datedreports andprivatepacks carryproof. Keepcurrent
