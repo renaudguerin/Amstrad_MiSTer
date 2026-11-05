@@ -25,174 +25,115 @@
 //============================================================================
 
 
+// Abstract GA40010 output/serializer model; no literal silicon-stage claim.
+// French ACCC v1.11 §§9.1, 9.3.4 pp47,56–67 defines the pixel rules.
+// Byte/epoch identities below serve control; causal test metadata lives only
+// in a separate simulation monitor, outside this production module.
 module video (
-	input  clk,
-	input cen_16,
-	input [7:0] S,
-	input DISPEN_BUF,
-	input PHI_N,
-	input [1:0] MODE,
-	input MODE_SYNC,
-	input MODE_SYNC_EN,
-	input [7:0] VIDEO,
-	input [4:0]BORDER,
-	input [4:0]INKR[16],
-	input FORCE_BLANK, // u1801
-
-	output reg BLUE_OE_N,
-	output reg BLUE,
-	output reg GREEN_OE_N,
-	output reg GREEN,
-	output reg RED_OE_N,
-	output reg RED
+ input clk, cen_16, input [7:0] S, input DISPEN_BUF, PHI_N,
+ input [1:0] MODE, input MODE_SYNC, MODE_SYNC_EN,
+ input [7:0] VIDEO, input [4:0] BORDER, input [4:0] INKR[16],
+ input FORCE_BLANK, input MODEL_RESET, PHASE_P, PHASE_N,
+ input [1:0] MODEL_MODE, input VIDEO_VALID,
+ output reg BLUE_OE_N, BLUE, GREEN_OE_N, GREEN, RED_OE_N, RED
 );
-
-//////// VIDEO CONTROL ////////
-
-reg mode_is_0, mode_is_1, mode_is_2;
-always @(posedge MODE_SYNC) begin
-	if (MODE_SYNC_EN) begin
-		mode_is_0 <= ~MODE[0] & ~MODE[1];
-		mode_is_1 <=  MODE[0] & ~MODE[1];
-		mode_is_2 <= ~MODE[0] &  MODE[1];
-	end
-end
-
-reg load;
-reg u1007, u1005, u1013;
-reg colour_keep, ink_sel, border_sel, shift, keep;
-
-wire u1008 = load ? DISPEN_BUF : u1005;
-wire u1017 = mode_is_2 | (u1007 & u1013) | (mode_is_1 & u1013);
+reg load=0, u1005=0;
+wire u1008=load?DISPEN_BUF:u1005;
+reg [7:0] byte_reg=0;
+reg byte_valid=0;
+reg [3:0] cursor=0, age=0;
+reg [1:0] active_mode=0, pending_mode=0;
+reg mode_pending=0;
+reg [15:0] byte_id=0, epoch_id=0;
+reg anchor_valid=0;
+reg [3:0] anchor_cursor=0, anchor_age=0;
+reg [15:0] anchor_byte_id=0;
+reg [4:0] colour=0;
+reg [15:0] token_epoch=0;
+reg token_valid=0, permit=0, await_colour=1;
+reg blank_stage1=1, blank_stage2=1;
+wire mode_is_0=active_mode==0, mode_is_1=active_mode==1, mode_is_2=active_mode==2;
+wire [7:0] shift_reg=cursor>=8?8'd0:(byte_reg<<cursor);
+wire [3:0] cidx={shift_reg[1],shift_reg[5],shift_reg[3],shift_reg[7]};
+wire [3:0] pen=mode_is_0?cidx:mode_is_2?{3'd0,cidx[0]}:{2'd0,cidx[1:0]};
+wire [3:0] event_age=load?4'd8:age+4'd1;
+wire refresh=(mode_is_2 || !event_age[0]);
+wire colour_keep=!refresh;
+wire ink_sel=refresh&&u1008;
+wire border_sel=refresh&&!u1008;
+function automatic advance(input [1:0] m,input [3:0] a);
+ begin
+  case(m)
+   0,3: advance=(a==4);
+   1: advance=(a==2||a==4||a==6);
+   2: advance=(a>=1&&a<=7);
+  endcase
+ end
+endfunction
+function automatic [3:0] sat_add(input [3:0] c,input [3:0] n);
+ reg [4:0] x;begin x={1'b0,c}+{1'b0,n};sat_add=x>8?4'd8:x[3:0];end
+endfunction
+function automatic [3:0] replay_steps(input [1:0] m,input [3:0] lo,hi);
+ integer i;reg [3:0] n;begin n=0;for(i=1;i<=8;i=i+1)if(i>lo&&i<=hi&&advance(m,i[3:0]))n=n+1;replay_steps=n;end
+endfunction
+wire shift=advance(active_mode,event_age)&&!load;
+wire keep=!shift&&!load;
+wire [3:0] normal_cursor=sat_add(cursor,{3'd0,shift});
+wire accept=cen_16&&mode_pending&&(PHASE_P||PHASE_N);
+wire [15:0] anchor_epoch_after=PHASE_P?epoch_id+16'd1:epoch_id;
+wire [15:0] pending_epoch_now=refresh?epoch_id:token_epoch;
+wire pending_valid_now=refresh?byte_valid:token_valid;
+wire anchor_valid_after=PHASE_P?byte_valid:anchor_valid;
+wire invalidate=accept&&pending_valid_now&&anchor_valid_after&&(pending_epoch_now==anchor_epoch_after);
+wire arrival=cen_16&&await_colour&&refresh&&byte_valid&&!accept;
+wire [3:0] replay_cursor=sat_add(anchor_cursor,replay_steps(pending_mode,anchor_age,event_age));
 
 always @(posedge clk) begin
-	if (cen_16) begin
-		load <= S[5] ^ S[6];
-		u1007 <= ~PHI_N;
-		u1005 <= u1008;
-		u1013 <= load | ~u1013;
-
-		colour_keep <= ~(u1013 | mode_is_2);
-		ink_sel <= (u1013 | mode_is_2) & u1008;
-		border_sel <= (u1013 | mode_is_2) & ~u1008;
-
-		shift <= u1017 & ~(S[5] ^ S[6]);
-		keep <= ~u1017;
-	end
+ if(MODEL_RESET) begin
+  byte_reg<=0;byte_valid<=0;cursor<=0;age<=0;
+  // Snapshot mode is an explicit settled-header normalization, as in Plus.
+  // The caller supplies zero for hardware reset and SNA_CONFIG for apply.
+  // A later HSYNC is not guaranteed (e.g. R3=0).
+  active_mode<=MODEL_MODE;pending_mode<=MODEL_MODE;mode_pending<=0;
+  byte_id<=0;epoch_id<=0;
+  anchor_valid<=0;anchor_cursor<=0;anchor_age<=0;anchor_byte_id<=0;
+  colour<=0;
+  token_epoch<=0;token_valid<=0;
+  permit<=0;await_colour<=1;blank_stage1<=1;blank_stage2<=1;
+  BLUE_OE_N<=0;BLUE<=0;GREEN_OE_N<=0;GREEN<=0;RED_OE_N<=0;RED<=0;
+ end else begin
+  if(cen_16) begin
+   // Publish preceding colour/blank state; current token generation follows.
+   if(blank_stage2) begin
+    BLUE_OE_N<=0;BLUE<=0;GREEN_OE_N<=0;GREEN<=0;RED_OE_N<=0;RED<=0;
+   end else begin
+    BLUE_OE_N<=~((colour[1]|colour[2])&(colour[3]|colour[4]));BLUE<=colour[0];
+    GREEN_OE_N<=(colour[1]&colour[2])|~(colour[1]|colour[2]|colour[3]|colour[4]);GREEN<=(~colour[2]&colour[0])|colour[1];
+    RED_OE_N<=~(colour[1]|colour[2]|colour[3]|colour[4])|(colour[3]&colour[4]);RED<=(colour[0]&~colour[4])|colour[3];
+   end
+   blank_stage1<=FORCE_BLANK||!(permit||arrival);
+   blank_stage2<=blank_stage1;
+   if(arrival) begin permit<=1;await_colour<=0;end
+   if(refresh) begin
+    colour<=u1008?INKR[pen]:BORDER;
+    token_epoch<=epoch_id;token_valid<=byte_valid;
+   end
+   if(load) begin byte_reg<=VIDEO;cursor<=0;age<=0;byte_valid<=VIDEO_VALID;byte_id<=byte_id+16'd1;end
+   else begin cursor<=normal_cursor;age<=event_age;end
+   if(PHASE_P) begin
+    anchor_cursor<=normal_cursor;anchor_age<=event_age;
+    anchor_byte_id<=byte_id;anchor_valid<=byte_valid;epoch_id<=epoch_id+16'd1;
+   end
+   if(accept) begin
+    active_mode<=pending_mode;mode_pending<=0;
+    if(!PHASE_P&&anchor_valid&&anchor_byte_id==byte_id)cursor<=replay_cursor;
+    if(invalidate) begin blank_stage1<=1;blank_stage2<=1;permit<=0;await_colour<=1;end
+   end
+  end
+  // Last assignment queues a coincident new request for a subsequent Q.
+  if(MODE_SYNC_EN) begin pending_mode<=MODE;mode_pending<=1;end
+ end
+ // These are the unchanged endogenous load/display pipeline decisions.
+ if(cen_16) begin load<=S[5]^S[6];u1005<=u1008;end
 end
-
-///////// VIDEO SHIFT REGISTER ////////
-reg [7:0] shift_reg;
-wire [7:0] shift_out = { shift_reg[6:0], 1'b0 };
-reg [7:0] shift_inp;
-always @(*) begin
-	for (integer i=0; i<8; i=i+1) begin
-		shift_inp[i] = (shift & shift_out[i]) | (load & VIDEO[i]) | (keep & shift_reg[i]);
-	end
-end
-
-always @(posedge clk) if (cen_16) shift_reg <= shift_inp;
-
-wire [3:0] cidx = { shift_reg[1], shift_reg[5], shift_reg[3], shift_reg[7] };
-
-//////////// COLOUR MUX ///////////////
-wire [4:0] colour;
-
-reg [15:0] ink_bits[5];
-always @(*) begin
-	for (integer i=0;i<16;i=i+1) begin
-		ink_bits[0][i] = INKR[i][0];
-		ink_bits[1][i] = INKR[i][1];
-		ink_bits[2][i] = INKR[i][2];
-		ink_bits[3][i] = INKR[i][3];
-		ink_bits[4][i] = INKR[i][4];
-	end
-end
-
-genvar i;
-generate
-	for (i=0; i<=4; i=i+1) begin : colour_mux
-		color_bit_mux color_bit_mux (
-			.clk(clk),
-			.cen_16(cen_16),
-			.COLOUR_KEEP(colour_keep),
-			.BORDER_SEL(border_sel),
-			.BORDER(BORDER[i]),
-			.INK_SEL(ink_sel),
-			.INKR(ink_bits[i]),
-			.CIDX(cidx),
-			.MODE_IS_0(mode_is_0),
-			.MODE_IS_2(mode_is_2),
-			.INK(colour[i])
-		);
-	end 
-endgenerate
-
-/////////// RGB DECODER ////////////
-
-// French ACCC v1.11 §9.3.4 pp54/56/57: blanking is aligned with
-// the displayed byte/pixel pipeline. Two sampled stages plus the RGB
-// register give three cen_16 edges for assertion and release. This is an
-// abstract pixel-alignment model, not Gerald's literal transistor pipeline.
-// Keep MODE_SYNC and the colour/serializer path independent of this delay.
-reg blank_stage1 = 1'b1, blank_stage2 = 1'b1;
-always @(posedge clk) begin
-	if (cen_16) begin
-		blank_stage1 <= FORCE_BLANK;
-		blank_stage2 <= blank_stage1;
-		if (blank_stage2) begin
-			BLUE_OE_N <= 0; BLUE <= 0;
-			GREEN_OE_N <= 0; GREEN <= 0;
-			RED_OE_N <= 0; RED <= 0;
-		end else begin
-			BLUE_OE_N <= ~((colour[1] | colour[2]) & (colour[3] | colour[4]));
-			BLUE <= colour[0];
-			GREEN_OE_N <= (colour[1] & colour[2]) | ~(colour[1] | colour[2] | colour[3] | colour[4]);
-			GREEN <= (~colour[2] & colour[0]) | colour[1];
-			RED_OE_N <= ~(colour[1] | colour[2] | colour[3] | colour[4]) | (colour[3] & colour[4]);
-			RED <= (colour[0] & ~colour[4]) | colour[3];
-		end
-	end
-end
-
-endmodule
-
-/////// COLOR BIT MUX //////////////
-module color_bit_mux (
-	input clk,
-	input cen_16,
-	input COLOUR_KEEP,
-	input BORDER_SEL,
-	input BORDER,
-	input INK_SEL,
-	input [15:0] INKR,
-	input [3:0] CIDX,
-	input MODE_IS_0,
-	input MODE_IS_2,
-
-	output reg INK
-);
-wire u1301 = CIDX[2] & MODE_IS_0;
-wire [3:0] ink_a = {
-	(u1301 | INKR[1]) & (~u1301 | INKR[5]),
-	(u1301 | INKR[3]) & (~u1301 | INKR[7]),
-	(u1301 | INKR[0]) & (~u1301 | INKR[4]),
-	(u1301 | INKR[2]) & (~u1301 | INKR[6]) };
-
-wire [3:0] ink_b = {
-	(u1301 | INKR[9]) & (~u1301 | INKR[13]),
-	(u1301 | INKR[11]) & (~u1301 | INKR[15]),
-	(u1301 | INKR[8]) & (~u1301 | INKR[12]),
-	(u1301 | INKR[10]) & (~u1301 | INKR[14]) };
-
-wire [3:0] ink_mux = (CIDX[3] & MODE_IS_0) ? ink_b : ink_a;
-
-wire u1303 = CIDX[1] & ~MODE_IS_2;
-wire u1318 = (u1303 | ink_mux[3]) & (~u1303 | ink_mux[2]);
-wire u1319 = (u1303 | ink_mux[1]) & (~u1303 | ink_mux[0]);
-wire u1320 = INK_SEL & CIDX[0] & u1318;
-wire u1321 = INK_SEL & ~CIDX[0] & u1319;
-
-always @(posedge clk) if (cen_16) INK <= (INK & COLOUR_KEEP) | (BORDER_SEL & BORDER) | u1320 | u1321;
-
 endmodule

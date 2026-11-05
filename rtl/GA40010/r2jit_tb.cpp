@@ -318,9 +318,37 @@ public:
         // Same FR §15.3.4 terminal-equality interaction at three distinct
         // production phases: before monitor HS (1), during it (2), and after
         // its natural end (6). Only an actual monitor fall may latch MODE.
-        configure(11, 0x80 | width);
+        // Normal width4 acquires a real requestedMode2 before narrowing.
+        // Beam-only full scanlines fix this prefix; no candidate-output timing.
+        if(width<=2) {
+            configure(11, 0x84);
+            wait_for_c0(0);
+            wait_for_c0(0);
+            if(dut_->GA_MODE_REQUEST!=2 || dut_->GA_VIDEO_MODE!=2 ||
+               dut_->GA_MODE_IS_0 || mode2_sync_receipts_==0)
+                throw TestFailure("qualified wider-prefix failed to acquire realMode2");
+            std::cout<<"PREFIX_MODE2 width="<<width<<" request="<<unsigned(dut_->GA_MODE_REQUEST)
+                     <<" effective="<<unsigned(dut_->GA_VIDEO_MODE)<<" sync_receipts="<<mode2_sync_receipts_<<'\n';
+            write_crtc(3, 0x80 | width);
+            // First seam retires any in-flight wide pulse; the next completes
+            // a full configured narrow scanline before selecting targetR2.
+            wait_for_c0(0);
+            wait_for_c0(0);
+        } else configure(11, 0x80 | width);
         select_crtc_register(2);
         wait_for_c0(0);
+        if(dut_->GA_MODE_REQUEST!=2 || dut_->GA_VIDEO_MODE!=2 ||
+           dut_->GA_MODE_IS_0 || mode2_sync_receipts_==0 || dut_->CRTC_R3!=(0x80|width))
+            throw TestFailure("target-start lacks qualified priorMode2/originalR3");
+        std::cout<<"TARGET_START width="<<width<<" tick="<<master_ticks_
+                 <<" c0="<<unsigned(dut_->CRTC_C0)<<" seq="<<unsigned(dut_->GA_SEQ)
+                 <<" phase="<<unsigned(dut_->CRTC_PHASE)<<" raw="<<unsigned(dut_->CRTC_HSYNC_RAW)
+                 <<" monitor="<<unsigned(dut_->HSYNC)<<" rawVS="<<unsigned(dut_->CRTC_VSYNC_RAW)
+                 <<" row="<<unsigned(dut_->CRTC_ROW)<<" raster="<<unsigned(dut_->CRTC_RASTER)
+                 <<" r2="<<unsigned(dut_->CRTC_R2)<<" r3="<<unsigned(dut_->CRTC_R3)
+                 <<" request="<<unsigned(dut_->GA_MODE_REQUEST)<<" effective="<<unsigned(dut_->GA_VIDEO_MODE)
+                 <<" mode0="<<unsigned(dut_->GA_MODE_IS_0)<<" irq="<<unsigned(dut_->INT_N)
+                 <<" R52="<<unsigned(dut_->GA_INTCNT)<<" V26="<<unsigned(dut_->GA_HCNT)<<'\n';
         sync_monitor_armed_ = true;
         sync_rises_.clear();
         sync_last_ = dut_->HSYNC;
@@ -414,6 +442,7 @@ private:
         dut_->clk = 1;
         eval();
         ++master_ticks_;
+        if(dut_->GA_MODE_SYNC && dut_->GA_MODE_REQUEST==2) ++mode2_sync_receipts_;
         if(njit_capture_) njit_samples_.push_back({master_ticks_,rgb(),unsigned(dut_->GA_VIDEO_MODE),unsigned(dut_->CRTC_C0),unsigned(dut_->CRTC_ROW),unsigned(dut_->CRTC_RASTER),njit_pixel_edge,bool(dut_->CRTC_VSYNC_LOGICAL),bool(dut_->CRTC_VSYNC_RAW),bool(dut_->GA_VBLANK_RAW)});
 
         if(capture_) captured_.push_back({rgb(), unsigned(dut_->GA_VIDEO_MODE)});
@@ -532,6 +561,7 @@ private:
     bool continuous_raw_ = true, continuous_black_ = true;
     std::vector<unsigned> sync_rises_;
     unsigned mode_sync_count_ = 0, restart_count_ = 0;
+    unsigned mode2_sync_receipts_ = 0;
     unsigned raw_guard_start_ = 13, raw_guard_end_ = 37;
 };
 
@@ -613,14 +643,15 @@ void source_byte_windows() {
             const unsigned oldslot=o2+36*4;
             bool old_kept=true;
             for(unsigned t=oldslot;t<oldslot+4;t++) old_kept &= mixed.pixels[t].rgb==u1.pixels[t].rgb;
-            // Named pre-existing type0 mismatch: p56 retains one oldmodeM2
-            // before index37. Keep as XFAIL; unexpected repair needs review.
+            // Required French p56 oldMode1 quarter at source36 before
+            // Mode2 begins37; retain the old quarter as required public RGB.
             if(!type) {
-                if(old_kept) throw TestFailure("XPASS type0_mixed_mode_old_pixel: review source/repair");
-                for(unsigned t=oldslot;t<oldslot+4;t++)
-                    if(mixed.pixels[t].rgb!=21)
-                        throw TestFailure("type0 mixed-mode XFAIL changed its known pen0 signature");
-                std::cout<<"XFAIL type0_mixed_mode_old_pixel FRp56 index36\n";
+                if(!old_kept) {
+                    for(unsigned t=oldslot;t<oldslot+4;t++)
+                        if(mixed.pixels[t].rgb!=u1.pixels[t].rgb)
+                            throw TestFailure("type0_mixed_mode_old_pixel REQUIRED French p56 source36: tick="+std::to_string(t)+" expected_old_Mode1_RGB="+std::to_string(u1.pixels[t].rgb)+" actual_RGB="+std::to_string(mixed.pixels[t].rgb)+" observed_mode="+std::to_string(mixed.pixels[t].mode));
+                }
+                std::cout<<"PASS  type0_mixed_mode_old_pixel FRp56 index36 required\n";
             } else {
                 if(mixed.pixels[o2+37*4].mode!=2)
                     throw TestFailure("type1 mode2 missing at source index37");
