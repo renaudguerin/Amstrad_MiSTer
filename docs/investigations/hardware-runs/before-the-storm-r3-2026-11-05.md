@@ -4,6 +4,43 @@ The user reports alternating-frame horizontal wobble on CRTC1 in an earlier buil
 
 ## Consecutive native acceptance on c0939d8
 
+Fresh coverage now distinguishes the shared classic correction from ASIC:
+
+| CRTC | Current complete frames / eligible pairs | Middle-band steps | Status |
+|---:|---:|---|---|
+| 0 | 72 /63 | 31 holds,32 left2 | No reversal in the sampled current run. |
+| 1 | 192 /176 | 88 holds,88 left2 | Before/after native acceptance below. |
+| 3 | 192 /176 | 88 holds,43 left10,45 right6 | Reversing wobble still present; ASIC proof required. |
+
+All three use c0939d8, the same original disk/command and requested Full
+filter. Root views all72 CRTC0 and192 CRTC3 complete frames in their
+contact sheets. The same predecessor reader, successor-header geometry
+guard and preselected registration window are retained. CRTC0 has five
+explicit capture rejections/gaps;67 complete frames qualify and63 links
+survive the guard. CRTC3 has184 eligible frames and no explicit rejection.
+No pre-fix CRTC0 or CRTC3 comparison is claimed.
+
+CRTC0's fourth burst stopped on a full MiSTer `/tmp`; its partial files are
+preserved and entirely excluded. Before continuing, root verifies397
+original files across16 owned remote burst directories against their local
+SHA256 copies, then removes those temporary remote directories, retaining
+239,379,385bytes locally. CRTC3's eight bursts subsequently complete.
+This capture-storage interruption is not a demo failure.
+
+A fresh isolated CPCSyntaxError0 run also reaches the scene and logs276
+original writer08A0 R3 updates,138 each of4/5, strictly alternating. This
+qualifies the guest mechanism on its CRTC0 path without measuring native
+bus phase. A separate CPCSyntaxError3 run reaches the same scene. Its
+packaged English Plus cartridge differs from MiSTer's pinned French
+`6128_FR.cpr` (`ab241580…3360cf`); peer output is supporting evidence only.
+
+Private roots are `btf-crtc0-native-20261105-002/`,
+`btf-crtc3-native-20261105/`, `btf-cpcse-crtc0-001/` and
+`btf-cpcse-crtc3-001/` under `resumed-20261104/`. Per-machine
+`PARENT-ACCEPTANCE.json` records counts, hashes and bounds; the CRTC0 root
+also holds `REMOTE-CLEANUP-VERIFIED.json`. No physical HDMI/CRT or full-demo
+acceptance follows. The new ASIC proof must fail before any RTL repair.
+
 The reported reversing wobble now has a bounded native before/after result.
 Both runs normal-boot the original disk/CSL, CRTC1, French layout and requested
 Full filter. Applied CFG bytes match (SHA256

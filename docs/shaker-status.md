@@ -103,7 +103,8 @@ The R3 compensation is shared by classic CRTC0/1 and has deterministic
 coverage for both. ASIC display timing uses its separate fix. BTF's reported
 reversing wobble now has native before/after acceptance on **CRTC1**:
 82eligible reference pairs include−10/+6reversals;176current pairs contain
-only0/−2steps. CRTC0/3 BTF acceptance remains untested.
+only0/−2steps. A fresh CRTC0 run adds63eligible pairs without reversal;
+CRTC3 still reverses in176eligible pairs and needs its own ASIC proof/fix.
 [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 
 ## Maintaining the tally

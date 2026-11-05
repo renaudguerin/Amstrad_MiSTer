@@ -70,8 +70,10 @@ These are sampled native results, not full-demo or physical HDMI/CRT sign-off.
 | 1 | Credits clear; sampled main effects restored | Sampled effects preserved | DSC4 green lines and Amazing coloured bands also appear in fresh AmSpirit; [comparison](investigations/hardware-runs/dsc4-c1-main-lines-reference-2026-11-05.md). Bottom row is outside AmSpirit's default viewport; [crop](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md). |
 | 3 / ASIC | Credits clear; sampled main effects restored | Logo and lower effects restored | [ASIC boundary](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md); full demo remains untested. |
 
-Before the Storm's reversing wobble is accepted on native CRTC1; CRTC0/3 and
-physical HDMI/CRT acceptance remain untested. [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
+Before the Storm: CRTC1 has native before/after acceptance; CRTC0 now has
+63 eligible pairs without reversal. CRTC3 still reverses in176 eligible
+pairs; an ASIC failing proof is in progress. Physical HDMI/CRT acceptance
+remains open. [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 The GA/R3 compensation is shared by classic CRTC0/1 and has deterministic
 coverage for both; ASIC display timing uses a separately tested correction.
 

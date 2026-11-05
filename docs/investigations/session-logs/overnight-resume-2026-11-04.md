@@ -140,10 +140,60 @@ file, acceptscoverage andlinks/diffcheck; noRTL/simulation. Pure-docscheckpoint
 pending. 0090matrixreadersupports6footerlowbits001111+length66;328matrixcells
 notfullyreadable/adjudicated, remainsunknown, nochangedcounts.
 
+## BTF coverage and ASIC follow-up
+
+Currentc093C0native92217/watcher74493 complete/drained:3completebursts72frames,
+67eligible63pairs middle0:31/-2:32,5explicitrejects/gaps; all72rootviewed3contacts.
+Fourthburst fills/tmp atframe20; partialentirelyexcluded+preserved. Cleanup
+SHAverifiesall397originalfiles16ownedremotedirs239379385bytesagainstlocalbefore
+removingonlythose/tmpdirs. C0firstattemptguessedMBCpathfailedbeforetyping;
+existing/tmp/mbc-overnight-20261103 f2b3fixedbinaryusedforaccepted002.
+CPCSE0fresh276actual08A0writesstrict4/5alternation,138each, scenebound.
+
+C3native87837/watcher36806 completes8bursts192frames184eligible176pairs,
+0explicitrejects, middle0:88/-10:43/+6:45. All192rootviewedeightcontacts:
+ASICreversingwobblestillpresent. Frenchsystemcartab241580…3360cf; native/guest
+inputs/media/RBFbound. FreshCPCSE3reacheslandscapeunderpackagedUKBurningRubber;
+peerdifferencepinned,nophysorwobbleverdictfromtwostills. BothprivatePARENT-
+ACCEPTANCE.jsonreceipts andpublicBTF/currentstatusreportscurrent.
+
+Solhigh asic_r3_failing_proof privatefirstqualifiedrun4RED:671/1104LEFT8
+bitmapmismatch, all4borderedges0movementinstead32masterticks; all18active
+inputssame andacq8192contextsame,3naturalorigins/actualCPUOUTperwidth/unique
+48dotmarkerdecode/full12bsourcepublicidentity. Inputguest4/5onlyR3immediatediff,
+raw5/6anchorsfrozen. Invalidfirst3runsconcretesimbackendbaseRAM/resetwrite
+blockerspreserved,nophasefit. Rootreads165lineCPP/passivetop/French134-135,
+acceptsRED. WriterownsnewpublicASICtest/top+target/indexandmotherboardRGBblock;
+publicREDbeforeRTL, thenshared12bpostRGBhistorywithownerchangeflush, rawmode
+controls/classicpreservation andfinalselectonce. NoRTLcandidate/gatecompletedyet.
+RootwillgetfreshOpushighcrossproviderreviewbeforeanyRBF, noauthorhardwareclaim.
+
+## Minimal CRTC1 clock probe
+
+OriginalassetfreeVSCLKsoftwarequalified, noSHAKERcode. Fourpre-existingpulse
+cases(63,46)/(1,1)/(1,63)/(0,63): productionT80model111/000/000/000;
+freshAmSpirit111/000/000/111. FinaldisplaycorrectedR7=30onlyAFTERmeasurements,
+all4rowsrootviewed. MeasurementR7=10unchanged,12read/store/code/idle guards.
+Readstarts330/373/416us; firstshortwraps211.875/208.875/207.875us leave>=118.125us
+settled. R2unreachablecasesoneinitialHSthennoHSlast64us; noretriggerinmodel.
+Before/afterdisplayfixmeasurementtimestamps/countertuplesidentical. Finalraw
+453c3107…60ab8/dsk51d2a99f…2f54a, results42E1/status42E0/idle4260; oldprototype
+source/proof/AmSpiritpreservedoriginal-display-limited/. Observeractualread-end
+labelcorrected, firstwrap eventsadded. Final12,108,939clocks; noRTLexpectedrule.
+Astra focusedreadagreeszero-registervsminimumC0=1phaseunderdetermined; physical
+probenext, nozero-guardimplemented. FrenchQ22anddatedprobereportupdatedunsent.
+
+CopieddiagnosticDSKtoMiSTerVSCLK_51d2a99f.dsk. Native001failsSCPauthbeforeload;
+cleanreadSSHinitiallysucceeds,but002supportedmultiplexretryfailspreflight255;
+subsequentdirectBatchModeSSHalso255. Asyncuserunlockagentrequestpending, no
+furtherdeviceattemptsuntilreply. CurrentdeviceidleC3BTF/c093; AmSpiritpaused
+probe, scripts/bpsempty. NoactiveCLI/provider/APIjob. Solnativewriteronlyactive.
+
 ## Remaining order
 
-Finish0090matrixadjudication, preserveA4version/physicaldeadlinequestion.
-CheckpointtargetedA/AI/tallydocs; no newgateforpuredocs and no speculativeRTL.
+FinishASICBTFfixviafailingtest/gate/freshreview/fullbuild; awaitSSHunlockfor
+VSCLKnativeandnewASICRBFacceptance. 0090remainsunknownafterfocusedreading;
+A4version/physicaldeadlinequestionpreserved. No speculativeAIzero-guard.
 C0E6 cases27/28, B6 aperture, C1C5count/RFDlifetime remain evidence-gated
 unsentquestions. DI58vs59 caption unreliableonType1. D7physicaloscillation/
 settling open. DSC4bottomrow isviewport; ASICcredits/BI/AEAR/sampledeffects

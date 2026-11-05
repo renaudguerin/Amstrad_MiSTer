@@ -26,12 +26,34 @@ l'ancienne entrée directe. Cela ne distingue pas encore l'effet de
 l'historique, de l'état omis ou de la phase. Le rejeu qualifie l'expiration
 du modèle, pas l'état interne ou la phase du CRTC physique.
 
-Une mesure qui séparerait les hypothèses serait une VSYNC déjà commencée
-avec des paramètres ordinaires, puis deux intervalles à R0=1/R3l=1 :
-R2=1, puis R2 hors d'atteinte, sans nouveau passage sur C4=R7. Un troisième
-cas aurait R0=0 et R2 hors d'atteinte. Il faudrait observer directement
-HSYNC/VSYNC sur au moins 64 µs. R0=R2=0/R3=1 ne convient pas pour compter
-des impulsions : le §15.3.2 p.150 indique une HSYNC infinie sur CRTC 1.
-Ce protocole est proposé, pas exécuté ni utilisé comme oracle de test.
+Un petit programme original prépare désormais cette mesure sans code SHAKER.
+Il attend une VSYNC ordinaire, fixe R4=127/R9=31 pour éviter un nouveau
+passage sur C4=R7 pendant la mesure, puis écrit R2 et R0. R7 reste à10.
+Après320 NOP, puis deux intervalles de32 NOP, il lit PPI.B. Dans le rejeu
+T80, les lectures commencent330/373/416µs après l'écriture de R0 : elles
+suivent de plus de118µs le premier débordement de C0. Les cas R2 inaccessible
+ont une HSYNC transitoire avant ce débordement, puis plus aucune dans les
+64µs précédant la première lecture.
+
+| R0 / R2 | Modèle actuel | AmSpirit1.17.1 | CPC physique |
+|---|---|---|---|
+|63 /46, témoin ordinaire|111|111|À mesurer|
+|1 /1|000|000|À mesurer|
+|1 /63|000|000|À mesurer|
+|0 /63|000|111|À mesurer|
+
+Le comportement AmSpirit ne correspond donc pas simplement à une horloge
+qui attendrait chaque HSYNC. Il reste compatible, entre autres, avec une
+condition R0=0 ou une phase minimale C0=1 jamais atteinte à R0=0. Ces
+résultats logiciels ne tranchent pas la règle physique et trois lectures
+hautes ne prouvent pas une impulsion continuellement haute. Il faudrait
+compléter la mesure par une observation directe HSYNC/VSYNC, puis un cas
+de reprise de R0 si nécessaire. R0=R2=0/R3=1 reste exclu : le §15.3.2 p.150
+indique une HSYNC infinie sur CRTC1.
+
+Le disque privé `VSCLK_51d2a99f.dsk` se lance par `RUN"VSCLK.BIN` et affiche
+les trois bits de chacun des quatre cas, sans verdict imposé. La mesure
+physique reste à effectuer ; aucune modification RTL n'a été retenue.
+[Programme, identités et qualification](../investigations/hardware-runs/shaker-crtc1-vsync-clock-probe-2026-11-05.md).
 
 [Preuves, limites et provenance](../investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md).

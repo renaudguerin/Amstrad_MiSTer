@@ -382,6 +382,10 @@ with it.
     hardware probe rather than adopting the HSYNC hypothesis from agreement.
     [Fresh caller/source evidence](../investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md).
     [French question draft](accc-author-question-vsync-r0-zero-2026-11-05-fr.md).
+    A prepared original pre-existing-pulse probe now gives model000 versus
+    AmSpirit111 at R0=0, while both expire at R0=1 with unreachable R2.
+    A zero-register condition and minimum horizontal phase remain distinct
+    hypotheses; physical results are pending. [Probe qualification](../investigations/hardware-runs/shaker-crtc1-vsync-clock-probe-2026-11-05.md).
 
 23. **§11.6.1–11.6.2, French pp.90–91 — RFD/parity lifetime across SHAKER D's E tests.**
 
