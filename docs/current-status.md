@@ -19,17 +19,19 @@ instructions across handoffs and context compaction.
   accepted functional reference remains `e24cb50`. Completed DT evidence is on
   `codex/overnight-validation-20261103` (`18b58ce`).
   It is distinct from integrated `master`; no integration or release is implied.
-- Current experimental full artifact: `Amstrad_20261105_6cc52c3.rbf`, SHA256
-  `666930cf70ce029901dbbbacfe0fef37f834dce70e227201713674a66bf632cf`.
-  [Clean full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42008725418)
-  passes all jobs, setup/hold minima 0.477/0.248 ns across seven clocks and zero TNS.
-  It is installed hash-identically on MiSTer. D6 completes four captures with
-  dynamic phase unqualified; all four D7 controls are RGB-identical to `5261414`.
-  Static calibration verifies ordinary width4/5 LEFT8 with full paper width and
-  stable return. All30 targeted DSC4/Amazing/BTF images across the named
-  classic/Plus controls are inspected; sampled effects remain visible. BTF
-  alternating-frame wobble remains unqualified by stills. This is a
-  reviewed hardware trial, not general monitor or release acceptance.
+- Current experimental full artifact: `Amstrad_20261105_f4f2502.rbf`, SHA256
+  `6b5f0e997a979ac51178bcdd8a1ad9dda7395d0834661614c4a3b0a878065d9b`.
+  [Clean full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42034911383)
+  passes all jobs, setup/hold minima 0.482/0.244 ns across seven clocks and zero TNS.
+  It is installed hash-identically on MiSTer. All ten D7 native pages match
+  the qualified private replay; four Type0 and four Plus static images remain
+  RGB-identical to `6cc52c3`. Named step/wave inputs and D6 complete; 17
+  DSC4/Amazing images across C0/C1/Plus retain the sampled credits/effects.
+  All 55 trial PNGs are inspected. Physical oscillation/settling remains open,
+  so this is a labelled trial rather than general monitor acceptance.
+  The previous `6cc52c3` trial verified ordinary width4/5 LEFT8 and preserved
+  sampled DSC4/Amazing views; its thirteen BTF stills cannot judge alternating-frame
+  wobble. Dated reports retain its full build and capture receipts.
   Last bounded native G1/MID controls remain on `5261414`: original O matches
   all 12 rows, E/P/S remain pixel-identical, and sampled C0/C1 DSC4/Amazing views
   are visible. Functional reference `e24cb50` retains C0 E6 26/28. Earlier
@@ -80,26 +82,24 @@ our closest software reference, not the hardware oracle.
   [G1 correction and bounds](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md).
   [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
   [mode-boundary source/proof](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
-- Before the Storm (CRTC1, RUN"-BTF) has original normal-boot native and
-  AmSpirit scene captures. Fresh CPCSyntaxError confirms the guest alternates
-  R3=04/05. The production motherboard proves Full collapses 4/5 onto
-  one byte position. The pre-GA extension is rejected for edge clipping; the
-  post-GA correction now has a retained 12-caller public-output proof, 46
-  selected benches passing and fresh strong transport review. Its initializer
-  syntax passes strict lint and fresh equivalence review; the corrected full
-  build passes, with targeted native acceptance still in progress. D6 per-line behavior and R2 relocking
-  remain acceptance gates before any general monitor-model claim.
-  D7 now has a qualified source discriminator: raw R2 alternation is correct,
-  but Full acquisition remains endpoint-locked in both cases. A private phase
-  candidate passes the original mean bounds and all ten guest input cohorts
-  after a cadence-consistency correction, preserving rectangular acquisition
-  and vertical line identity. Complete public RGB exports are inspected. Fresh
-  strong review clears only a labelled trial. Exact experimental transport
-  passes the public failing-first R2 proof, twelve R3 callers,18 strict
-  B6 boots, nine dynamic cases and the final46-bench gate. Full synthesis
-  and the named native controls remain pending. The measured VS reanchor stretch is inside both blank windows in
-  its qualified case. Physical oscillation and settling remain unproved. [D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md). Current BTF stills
-  cannot judge alternating-frame wobble. [Evidence and limits](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
+- Before the Storm (CRTC1, RUN"-BTF): the ordinary R3=4/5 post-GA
+  correction passes the twelve-caller proof, strict CI and full synthesis on
+  `6cc52c3`. Native calibration verifies LEFT8 with complete paper width and
+  stable return. Thirteen normal-boot landscape-scroller captures are visible;
+  asynchronous stills cannot judge the reported alternating-frame wobble.
+  D6 per-line settling and nonordinary/JIT width behaviour remain open.
+  [R3 evidence and limits](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
+- D7 R2 alternation: experimental source `f4f2502` corrects the source-qualified
+  endpoint lock and passes the public failing-first R2
+  proof, all ten source-qualified guest cohorts, twelve R3 callers,18 strict
+  B6 boots,nine dynamic cases and the final46-bench selection. Complete public
+  RGB exports are inspected; strong review clears only a labelled trial.
+  Full synthesis/timing passes and all ten native pages match the private replay.
+  Static Type0/Plus controls are unchanged; named dynamic/demo checks complete.
+  The measured VS reanchor stretch is inside both blank windows in its qualified
+  case. Physical oscillation and settling remain unproved. A separate qualified
+  R2/R3 interaction probe finds stale width4 RGB history after complete width6
+  pulses; its correction remains private. [D7 proof and bounds](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
   publication is a separate correction. Fresh CPCSyntaxError B6 matches hardware
   and supplies a carry-ordering clue, without a physical aperture. Coherent

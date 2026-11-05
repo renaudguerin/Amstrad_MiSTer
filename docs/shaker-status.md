@@ -29,9 +29,13 @@ controlled alternating cases failing their source-derived interior bound;
 the private prototype passes mean/coherent-acquisition controls and now admits
 all ten source-qualified guest cohorts after correcting its cadence policy.
 Physical oscillation/settling remain open. Strong review clears a labelled trial;
-experimental transport passes the failing-first public proof and all named
-simulation gates, with full synthesis/native trial pending.
-All four new native D7 first-two-page images are RGB-identical to `5261414`.
+experimental `f4f2502` passes the failing-first public proof, all named simulation
+gates and full synthesis/timing. All ten native D7 pages match the qualified
+private replay at fixed pixel coordinates; static Type0/Plus controls remain
+RGB-identical to `6cc52c3`. Named step/wave inputs execute, while D6 dynamic
+phase remains unqualified. This does not clear physical oscillation/settling.
+A new R2/R3 interaction probe exposes stale width4 RGB history after complete
+width6 pulses; its correction is private and the trial source remains frozen.
 These results are separate from page/photo compliance counts ([D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md)).
 
 The updated-package CRTC 1 D walk on `5fba168` separately classified 127
