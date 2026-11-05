@@ -305,6 +305,7 @@ wire       e1_line_last, e1_line_new, e1_row_last, e1_row_frame_last, e1_row_new
 wire       e1_adj_from_row0;
 wire       e1_reload, e1_row0_reload, e1_row_addr_save, e1_field_count_tick, e1_hsync_off;
 wire       e1_vsync_line_fire, e1_r7_write_fire, e1_r6_vde_write, e1_r6_vde_value;
+wire       e1_r7_write_defer, e1_r7_mid_fire;
 wire       e1_r6_vder_write, e1_r6_vder_value, e1_status_bit5, e1_r6_origin;
 wire       e1_rfd_r0_extend;
 wire       e1_pf_write, e1_pf_value, e1_pc9_write, e1_pc9_value;
@@ -326,13 +327,13 @@ crtc_type1_engine crtc_type1_engine
 	R5_v_total_adj, R6_v_displayed, R7_v_sync_pos, R8_interlace, R9_v_max_line,
 	hcc, hcc_next, hcc_last, hcc_end, line, row, c5, in_adj, crtc1_adj_from_row0,
 	VSYNC_r, vsync_allow, hsc, vde_r,
-	parity_frame, parity_c9,
+	parity_frame, parity_c9, vsync_mid,
 	e1_line_last, e1_line_new, e1_line_next, e1_c5_next,
 	e1_row_last, e1_row_frame_last, e1_row_next, e1_row_new, e1_frame_adj,
 	e1_adj_from_row0,
 	e1_reload, e1_row0_reload, e1_row_addr_save,
 	e1_field_count_tick, e1_hsync_off, e1_de_index, e1_vsync_line_fire,
-	e1_vsc_load, e1_r7_write_fire,
+	e1_vsc_load, e1_r7_write_fire, e1_r7_write_defer, e1_r7_mid_fire,
 	e1_r6_vde_write, e1_r6_vde_value, e1_r6_vder_write, e1_r6_vder_value,
 	e1_rfd_r0_extend,
 	e1_pf_write, e1_pf_value, e1_pc9_write, e1_pc9_value,
@@ -766,9 +767,10 @@ wire vsync_type0_mid_fire = ((row == R7_v_sync_pos && !line &&
     e0_vsync_c0_2_qualified && !e0_vsync_delay_suppress) || e0_vsync_delay_half);
 // An old pulse may count at a different phase from the next comparison.
 // Do not consume a seam predicate on that pulse's midpoint tick (or vice versa).
-wire vsync_fire = vsync_allow && (vsync_mid == vsync_tick_mid) && (vsync_mid ?
+wire vsync_fire = (vsync_allow && (vsync_mid == vsync_tick_mid) && (vsync_mid ?
     (CRTC_TYPE ? (R8_interlace[0] ? vsync_mid_arm :
-        (row == R7_v_sync_pos && !line)) : vsync_type0_mid_fire) : vsync_line_fire);
+        (row == R7_v_sync_pos && !line)) : vsync_type0_mid_fire) : vsync_line_fire)) ||
+    e1_r7_mid_fire;
 
 // The engine's row comparison describes the line about to start. Latch it
 // at the seam so a midpoint cannot consume it one line early.
@@ -909,7 +911,7 @@ always @(posedge CLOCK) begin
 			// pulse at C0=0/1.  Qualifying with the old allow state also makes
 			// a bus write held for several clocks one comparison, not many.
 			vsync_allow <= 0;
-			if(r7_write_fire) begin
+			if(r7_write_fire && !e1_r7_write_defer) begin
 				VSYNC_r <= 1;
 				vsync_active_mid <= vsync_mid;
 				vsc <= vsc_load;

@@ -73,6 +73,8 @@ module crtc_type1_engine
 	// reads them and contributes the type-1 update decisions.
 	input            parity_frame,
 	input            parity_c9,
+	// Resolved shared MID phase includes the canonical accepting-edge parity.
+	input            vsync_mid,
 
 	// Counter next-state contributions.
 	output           line_last,
@@ -101,6 +103,8 @@ module crtc_type1_engine
 	output           vsync_line_fire,
 	output     [3:0] vsc_load,
 	output           r7_write_fire,
+	output           r7_write_defer,
+	output           r7_mid_fire,
 	output           r6_vde_write,
 	output           r6_vde_value,
 	output           r6_vder_write,
@@ -605,6 +609,30 @@ assign vsync_line_fire = (((CRTC_TYPE && in_adj && !crtc1_adj_end &&
 								 (row + 1'd1) : row_next) == R7_v_sync_pos && line_row_structure_last);
 assign vsc_load = 4'd0 - 1'd1;
 assign r7_write_fire = !VSYNC_r && vsync_allow;
+
+// French ACCC v1.11 sections 19.7.1/19.7.2 p.219: an eligible live
+// type-1 comparison before the midpoint retains its MID onset. The write
+// consumes vsync_allow now; this ticket carries that accepted comparison
+// to the ordinary midpoint consumer without re-admitting a held write.
+reg type1_r7_mid_pending;
+wire r7_write_hit = ENABLE && RS && !nCS && !R_nW && addr == 5'd7;
+wire type1_r7_mid_now = CLKEN && field_count_tick;
+assign r7_write_defer = CRTC_TYPE && R8_interlace[0] && vsync_mid &&
+    (hcc < {1'b0, R0_h_total[7:1]}) && !type1_r7_mid_now;
+always @(posedge CLOCK) begin
+    if (!nRESET || SNA_LOAD || !CRTC_TYPE) type1_r7_mid_pending <= 0;
+    else begin
+        // Same line lifetime as the ordinary seam arm. A later unequal
+        // R7 write re-arms comparisons; it does not revoke an accepted one.
+        if (CLKEN && (line_new || (vsync_mid && field_count_tick)))
+            type1_r7_mid_pending <= 0;
+        if (r7_write_hit && row == DI[6:0] && r7_write_fire &&
+            r7_write_defer) type1_r7_mid_pending <= 1;
+    end
+end
+assign r7_mid_fire = CRTC_TYPE && R8_interlace[0] && vsync_mid &&
+    type1_r7_mid_pending && !VSYNC_r;
+
 
 assign hsync_off = (hsc == R3_h_sync_width) || (R3_h_sync_width == 0);
 assign de_index = 2'b00;
