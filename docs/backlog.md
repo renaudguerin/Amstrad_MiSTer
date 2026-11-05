@@ -391,6 +391,18 @@ and capture times are in the plan. Investigate digital response offline before
 any filter rewrite. Original-CPC access is not required for these bounded units;
 faithful CTM response remains unproven. These extend existing residuals.
 
+**V1 input contract and response follow-up, 2026-11-05:** source inspection
+confirms `hs_sel`/`vs_sel` are the selected raw CRTC pins, passed directly to
+`crt_filter`; they are not GA C-SYNC. CPCSyntaxError v0.12 instead recovers
+monitor timing from composite sync and retains low-passed phase-error and
+fractional pull state. Its photographed-pattern agreement is a useful structural
+hypothesis, not a licence to copy its empirically tuned coefficients. The bounded
+D7 pair-mean trial does not close oscillation/settling. V1's next input-boundary
+cleanup must also clarify `crt_filter`'s older live-blank comment: raw HS is one
+force-blank contributor, not the complete GA blank event. Keep that documentary
+cleanup with the next V1 change rather than altering the currently hash-bound
+trial source. [D7 source and bounds](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md).
+
 **DT boundary evidence, 2026-11-04:** the private replay's apparent acquisition
 explanation is rejected: fresh CPCSE R7 traces expose a different vertical caller
 phase, and the loop bypasses its one-time synchronizer. Repetition cannot repair

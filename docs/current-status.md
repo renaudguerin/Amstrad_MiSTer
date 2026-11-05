@@ -91,11 +91,14 @@ our closest software reference, not the hardware oracle.
   remain acceptance gates before any general monitor-model claim.
   D7 now has a qualified source discriminator: raw R2 alternation is correct,
   but Full acquisition remains endpoint-locked in both cases. A private phase
-  candidate passes seven input patterns and preserves rectangular acquisition
-  and vertical line identity. Strong review conditionally permits a bounded trial,
-  but the source-qualified ten-page guest replay exposes cadence rejection
-  on the last four pages. A private cohort-consistency correction precedes
-  any tracked adoption. [D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md). Current BTF stills
+  candidate passes the original mean bounds and all ten guest input cohorts
+  after a cadence-consistency correction, preserving rectangular acquisition
+  and vertical line identity. Complete public RGB exports are inspected. Fresh
+  strong review clears only a labelled trial. Exact experimental transport
+  passes the public failing-first R2 proof, twelve R3 callers,18 strict
+  B6 boots, nine dynamic cases and the final46-bench gate. Full synthesis
+  and the named native controls remain pending. The measured VS reanchor stretch is inside both blank windows in
+  its qualified case. Physical oscillation and settling remain unproved. [D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md). Current BTF stills
   cannot judge alternating-frame wobble. [Evidence and limits](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
   publication is a separate correction. Fresh CPCSyntaxError B6 matches hardware

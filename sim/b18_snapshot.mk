@@ -80,3 +80,17 @@ $(CLASSIC_R3_POSITION_BIN): $(B18_SNAPSHOT_RTL) classic_mode_boundary_top.sv cla
 		--Mdir $(OBJ_DIR)/classic_r3_position -Wno-fatal -Werror-PINMISSING -Wno-PROCASSWIRE \
 		-CFLAGS "$(CXXFLAGS)" -o classic_r3_position_tests \
 		$(B18_SNAPSHOT_RTL) classic_mode_boundary_top.sv classic_r3_position_test.cpp
+
+# Public classic Full rendered-line phase synchronization and boundary spans.
+CLASSIC_R2_PHASE_BIN := $(OBJ_DIR)/classic_r2_phase/classic_r2_phase_tests
+.PHONY: classic-r2-phase-test
+classic-r2-phase-test: $(CLASSIC_R2_PHASE_BIN)
+	$<
+
+$(CLASSIC_R2_PHASE_BIN): $(B18_SNAPSHOT_RTL) classic_mode_boundary_top.sv classic_r2_phase_test.cpp b18_snapshot.mk Makefile
+	mkdir -p $(@D)
+	$(VERILATOR) --cc --exe --build --top-module classic_mode_boundary_top -UVERILATOR \
+		+1364-2001ext+.v +1800-2017ext+.sv \
+		--Mdir $(OBJ_DIR)/classic_r2_phase -Wno-fatal -Werror-PINMISSING -Wno-PROCASSWIRE \
+		-CFLAGS "$(CXXFLAGS)" -o classic_r2_phase_tests \
+		$(B18_SNAPSHOT_RTL) classic_mode_boundary_top.sv classic_r2_phase_test.cpp

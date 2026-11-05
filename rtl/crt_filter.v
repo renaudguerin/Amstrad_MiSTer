@@ -41,6 +41,19 @@ module crt_filter
 
 wire resync = 1;
 reg hs4,shift;
+// PRIVATE bounded measured-pair output phase experiment. The original
+// period/width reference and its metadata remain independent of this offset.
+reg legacy_hsync;
+reg phase_epoch, phase_pair_valid;
+reg signed [10:0] phase_first, phase_pending, phase_active;
+reg [9:0] phase_age;
+reg [8:0] phase_period;
+initial begin
+    phase_epoch = 0; phase_pair_valid = 0;
+    phase_first = 0; phase_pending = 0; phase_active = 0;
+    phase_age = 1023; phase_period = 0;
+end
+
 // French ACCC v1.11 section14.4 pp134-135: the ordinary4/5 pair
 // differs by eight M2 pixels. This classifies the measured pulse bin,
 // not numeric R3 or arbitrary JIT identity; acquisition/SHIFT stay intact.
@@ -182,6 +195,8 @@ always @(posedge CLK) begin : syncgen
 	reg [9:0] hSyncCount2x;
 	reg [3:0] vSyncCount;
 	reg [8:0] vSyncFlt;
+	integer phase_value, phase_sum, phase_effective;
+	reg phase_anchor;
 
 	localparam HFLT_SZ = 50*4;
 	localparam VFLT_SZ = 260;
@@ -238,7 +253,7 @@ always @(posedge CLK) begin : syncgen
 		end
 
 		if(hSyncCount == 2*4) begin
-			HSYNC_O <= 1;
+			legacy_hsync <= 1;
 			shift <= 0;
 			old_vsync <= VSYNC_I;
 			
@@ -259,7 +274,68 @@ always @(posedge CLK) begin : syncgen
 		//force VSYNC disable earlier
 		if(~VSYNC_I) VSYNC_O <= 0;
 
-		if(hSyncCount == 6*4) HSYNC_O <= 0;
+		if(hSyncCount == 6*4) legacy_hsync <= 0;
+
+        // Measurement uses the updated legacy count; output phase never
+        // feeds back into that counter, training, width or SHIFT logic.
+        phase_anchor = (~old_vs & VSYNC_I & ~old_hsync & hsync_i);
+        phase_value = $signed({23'd0, hSyncCount});
+        if (phase_value > ($signed({23'd0, hSyncSize}) >>> 1))
+            phase_value = phase_value - $signed({23'd0, hSyncSize});
+        phase_sum = $signed({{21{phase_first[10]}}, phase_first}) + phase_value;
+        phase_effective = $signed({{21{phase_active[10]}}, phase_active});
+        if (hSyncCount == 0) begin
+            phase_effective = $signed({{21{phase_pending[10]}}, phase_pending});
+            phase_active <= phase_pending;
+        end
+        if (phase_age != 1023) phase_age <= phase_age + 1'd1;
+        if (no_hsync || hSyncSize < 32 || hSyncSize != phase_period) begin
+            phase_epoch <= 0;
+            phase_pair_valid <= 0;
+            phase_pending <= 0;
+        end
+        if (phase_anchor) begin
+            phase_epoch <= !no_hsync;
+            phase_pair_valid <= 0;
+            phase_pending <= 0;
+            phase_active <= 0;
+            phase_effective = 0;
+            phase_period <= hSyncSize;
+        end
+        if (~old_hsync & hsync_i) begin
+            phase_age <= 0;
+            if (phase_epoch && !phase_anchor && !no_hsync &&
+                    hSyncSize >= 32 && phase_period == hSyncSize && syncs == 3) begin
+                // A one-line interval is P + current_phase - previous_phase.
+                // Two samples in the unchanged +/-8 cohort can differ by16.
+                if (phase_value >= -8 && phase_value <= 8 &&
+                        phase_age + 1 >= hSyncSize - 16 &&
+                        phase_age + 1 <= hSyncSize + 16) begin
+                    if (!phase_pair_valid) begin
+                        phase_first <= phase_value[10:0];
+                        phase_pair_valid <= 1;
+                    end else begin
+                        phase_pair_valid <= 0;
+                        if ((phase_sum % 2) == 0)
+                            // Even signed /2, narrowed explicitly to11bits.
+                            phase_pending <= phase_sum[11:1];
+                        else phase_pending <= 0;
+                    end
+                end else begin
+                    phase_epoch <= 0;
+                    phase_pair_valid <= 0;
+                    phase_pending <= 0;
+                end
+            end else begin
+                phase_pair_valid <= 0;
+                phase_pending <= 0;
+            end
+        end
+        // A completed pair is pending until the following reference origin.
+        // The effective value also covers an offset-8 rise on that origin.
+        if ($signed({23'd0, hSyncCount}) == 32'sd8 + phase_effective) HSYNC_O <= 1;
+        if ($signed({23'd0, hSyncCount}) == 32'sd24 + phase_effective) HSYNC_O <= 0;
+
 	end
 end
 
@@ -273,6 +349,7 @@ always @(posedge CLK) begin : blankgen
 
 	reg old_vs;
 	reg old_hs;
+	reg old_line;
 
 	reg [8:0] vborder;
 	reg [8:0] hborder;
@@ -284,7 +361,12 @@ always @(posedge CLK) begin : blankgen
 		if (~old_hs & HSYNC_O) begin
 			hborder <= 0;
 			HBLANK <= 1;
+        end
 
+        // Retain the original vertical line clock; blank boundaries below
+        // share the actual horizontal acquisition phase.
+        old_line <= legacy_hsync;
+        if (~old_line & legacy_hsync) begin
 			if(~&vborder) vborder <= vborder + 1'd1;
 			old_vs <= VSYNC_O;
 			if(~old_vs & VSYNC_O) begin
@@ -295,12 +377,16 @@ always @(posedge CLK) begin : blankgen
 
 		if(hborder == BEGIN_HBORDER) begin
 			HBLANK <= 0;
-			if(vborder == BEGIN_VBORDER) VBLANK <= 0;
+		end
+        if (hborder == BEGIN_HBORDER) begin
+            if(vborder == BEGIN_VBORDER) VBLANK <= 0;
 		end
 		
 		if(hborder == END_HBORDER) begin
 			HBLANK <= 1;
-			if(vborder == END_VBORDER) VBLANK <= 1;
+		end
+        if (hborder == END_HBORDER) begin
+            if(vborder == END_VBORDER) VBLANK <= 1;
 		end
 	end
 end

@@ -26,8 +26,11 @@ acceptance remains open. See the
 and [R3 investigation](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 D7/R2 alternation is now isolated as a Full-filter phase defect with both
 controlled alternating cases failing their source-derived interior bound;
-the private first-two-pattern prototype passes mean/coherent-acquisition controls,
-but the full five-pattern guest audit exposes an untested band/cadence policy.
+the private prototype passes mean/coherent-acquisition controls and now admits
+all ten source-qualified guest cohorts after correcting its cadence policy.
+Physical oscillation/settling remain open. Strong review clears a labelled trial;
+experimental transport passes the failing-first public proof and all named
+simulation gates, with full synthesis/native trial pending.
 All four new native D7 first-two-page images are RGB-identical to `5261414`.
 These results are separate from page/photo compliance counts ([D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md)).
 
