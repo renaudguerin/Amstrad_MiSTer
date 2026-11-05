@@ -189,6 +189,40 @@ subsequentdirectBatchModeSSHalso255. Asyncuserunlockagentrequestpending, no
 furtherdeviceattemptsuntilreply. CurrentdeviceidleC3BTF/c093; AmSpiritpaused
 probe, scripts/bpsempty. NoactiveCLI/provider/APIjob. Solnativewriteronlyactive.
 
+
+## ASIC R3 candidate simulation and review
+
+The Sol high candidate now passes the unchanged public LEFT8 test, including
+four visible border edges and actual Raw-pixels / Raw-CRT / Full round trips.
+The existing classic fixture passes all 17 callers. Final
+`python3 sim/select_tests.py --run` reports `select_tests: PASS 46 benches`;
+the new slow ASIC fixture is also assigned to production-T80 CI. The parent
+verified all six source hashes against the final gate receipt. No code changed
+after that gate. Source and native acceptance are still separate: the installed
+RBF remains c0939d8, where BTF CRTC3 still reverses.
+
+Both preferred Opus review routes failed without findings or edits. AGY run
+`20261105T231348Z-30009-121d` returned resource exhaustion / insufficient AI
+credits; no credits or overage were enabled. Claude Pro run
+`20261105T231941Z-31602-edb8` returned an expired OAuth token. Both processes
+exited and their logs are preserved under `btf-asic-r3-review/`. A user login
+request is pending. The fallback DeepSeek free max review completed normally, run
+`20261105T232421Z-32325-af93`, with GO for experimental full synthesis and no
+P0/P1 RTL finding. Its useful counter-guard finding is verified: `complete`
+and `readyLow` are cumulative on the return pass, while fresh origins, live
+acquisition and separate pixel/edge assertions still qualify it. Counter deltas,
+enabled-sprite narrow-sync coverage, live owner switching and Opus review remain
+promotion debt. The parent verified all six frozen source hashes after review;
+no edits or tests ran in the provider and no foreign process remains. The direct
+focused test is the slow-gate equivalent; CI also owns it. No repeated gate is
+needed without a later code change.
+
+Fresh normal-boot AmSpirit Plus calibration cartridges independently show
+R3 4→5 moving the whole 640×400 paper left eight pixels with exact translated
+RGB identity. The 40 differences outside paper are retained. This corroborates
+the relative software behaviour, without claiming a physical ASIC measurement.
+AmSpirit is paused on the R3=6 calibration cartridge; no API job is running.
+
 ## Remaining order
 
 FinishASICBTFfixviafailingtest/gate/freshreview/fullbuild; awaitSSHunlockfor

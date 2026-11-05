@@ -94,3 +94,17 @@ $(CLASSIC_R2_PHASE_BIN): $(B18_SNAPSHOT_RTL) classic_mode_boundary_top.sv classi
 		--Mdir $(OBJ_DIR)/classic_r2_phase -Wno-fatal -Werror-PINMISSING -Wno-PROCASSWIRE \
 		-CFLAGS "$(CXXFLAGS)" -o classic_r2_phase_tests \
 		$(B18_SNAPSHOT_RTL) classic_mode_boundary_top.sv classic_r2_phase_test.cpp
+
+# Plus/ASIC public Full rendered-line position after palette/sprite composition.
+ASIC_R3_POSITION_BIN := $(OBJ_DIR)/asic_r3_position/asic_r3_position_tests
+.PHONY: asic-r3-position-test
+asic-r3-position-test: $(ASIC_R3_POSITION_BIN)
+	$< $(ASIC_R3_CAPTURE_DIR)
+
+$(ASIC_R3_POSITION_BIN): $(B18_SNAPSHOT_RTL) asic_r3_position_top.sv asic_r3_position_test.cpp b18_snapshot.mk Makefile
+	mkdir -p $(OBJ_DIR)/asic_r3_position
+	$(VERILATOR) --cc --exe --build --top-module asic_r3_position_top -UVERILATOR \
+		+1364-2001ext+.v +1800-2017ext+.sv \
+		--Mdir $(OBJ_DIR)/asic_r3_position -Wno-fatal -Wno-PROCASSWIRE \
+		-CFLAGS "$(CXXFLAGS)" -o asic_r3_position_tests \
+		$(B18_SNAPSHOT_RTL) asic_r3_position_top.sv asic_r3_position_test.cpp

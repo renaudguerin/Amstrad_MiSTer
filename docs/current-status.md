@@ -71,8 +71,11 @@ These are sampled native results, not full-demo or physical HDMI/CRT sign-off.
 | 3 / ASIC | Credits clear; sampled main effects restored | Logo and lower effects restored | [ASIC boundary](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md); full demo remains untested. |
 
 Before the Storm: CRTC1 has native before/after acceptance; CRTC0 now has
-63 eligible pairs without reversal. CRTC3 still reverses in176 eligible
-pairs; an ASIC failing proof is in progress. Physical HDMI/CRT acceptance
+63 eligible pairs without reversal. CRTC3 still reverses in 176 eligible
+pairs; its failing-first RGB candidate passes focused tests and the 46-bench
+gate. DeepSeek review permits an experimental build; synthesis/native acceptance
+are pending. Opus review, live-owner and enabled-sprite coverage remain open.
+[ASIC candidate](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md). Physical HDMI/CRT acceptance
 remains open. [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 The GA/R3 compensation is shared by classic CRTC0/1 and has deterministic
 coverage for both; ASIC display timing uses a separately tested correction.
