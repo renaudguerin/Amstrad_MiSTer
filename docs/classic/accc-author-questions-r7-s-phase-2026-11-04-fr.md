@@ -32,6 +32,28 @@ Un modèle fondé seulement sur une comparaison plus tardive avec C4 devrait
 préserver l'égalité dans ce cas non terminal. Nous ne souhaitons pas ajouter
 une restriction C0 pour reproduire AmSpirit sans confirmation matérielle.
 
+## Visibilité de C4 pour une écriture R7 près du changement de ligne
+
+Un nouvel essai du B6/019D original dans CPCSyntaxError0.12 donne les six
+résultats photographiés13/14/26/26/1E/1F. Son ordonnanceur avance le matériel
+jusqu'à l'instant logique de l'OUTI avant l'écriture : sa trace place la
+cinquième µs à C0/C4/C9=0/33/0 (égalité rejetée), la quatrième à63/32/7
+(égalité acceptée). Cette observation explique l'accord de cet émulateur,
+mais ne mesure pas l'ouverture physique de la comparaison.
+
+Comment C4 devient-il visible à la comparaison provoquée par une écriture R7
+autour de cette retenue, séparément du stockage de R7 et de l'évolution
+ordinaire des compteurs ? Une comparaison systématiquement reportée au
+prochain CLKEN ne convient pas à nos autres contraintes : dans le contrôle
+optique OUT(C), le premier pixel noir attendu précède cette comparaison de
+35horloges maîtres. Avec le transport inchangé, ce report produirait22/6
+pour OUT(C)/OUTI, contre9/5 attendus. Il faut donc distinguer les conditions
+d'admission près du changement de C4 du délai général de publication, sans
+interdire le cas non terminal où C4 reste égal à R7.
+
+Les [preuves et limites](../investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md)
+conservent les deux contraintes ; aucun nouveau délai numérique n'est retenu.
+
 ## Résultat physique de CS/02D3
 
 La version actuelle du programme attend4E40 pour «FRAME LENGTH WITH R5=8 AFTER

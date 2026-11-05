@@ -1,8 +1,8 @@
-# Active unattended handover — 2026-11-05 03:48 UTC
+# Active unattended handover — 2026-11-05 05:11 UTC
 
 Continue known SHAKER and DSC4/Amazing fixes toward approximately80% weekly
 Codex usage; do not stop after one unit or launch the broad fresh baseline.
-Latest live OAuth03:45:01:67% weekly used, reset5Nov19:34UTC,3banked resets
+Latest live OAuth04:53:33:68% weekly used, reset5Nov19:34UTC,3banked resets
 untouched. No credits/overage/reset redemption. Work remains authorized while
 user sleeps; device released. Branch pushes/milestone builds authorized; no
 master integration, PR, release or author messages. No goal/wakeup configured.
@@ -53,12 +53,26 @@ until user/login; asyncquestionpending, not answered. Pause/lastpublishedreset
 were past before thatoneattempt; telemetry remainsunknown. No overage/retryloop.
 Argon93.6%weekly:no calls. LatestGeminiweekly03:23:52used52.49%; routineGem3healthy.
 
-Next verify16hashes/docslinks, commit/push exact candidate+tests+debt on this
-experimentalbranch. Check no activesynthesis, then fullsemanticmilestone build
-through build.yml (no registeredlocalrunner). Accept exactSHA allCI jobs and
-cleanfull17.0.2.602/alltiming before device. Compare originalC0/C1 DSC4/Amazing
-bounded captures and relevant knownresidualcontrols. Keepstrongreviewdebt even
-if hardwarepasses; no master/release acceptance implied.
+Experimental90f3b18 is committed/pushed. Full41964150943/artifact13386879496/
+build377 ALLSUCCESS, clean17.0.2.602,7setup/7hold/TNS0,min.316/.243ns.
+S/DT macrosOFF. RBF3139964bytes SHA
+a7c3b0ad177744a3c2e2120365c3febdbd8226f0f80782603ccb1e3e8008a102;
+remotehash matches. C0/C1 DSC4 each19cmd/4PNG/0fail; Amazing each13/2/0.
+All12PNGs viewed. Clearcredits/visiblemain samples retained; later C1DSC4
+hasgreenhorizontaltransients ALSOseen in6framee24control, so not uniquetoGA.
+Not fullphase/frequency/effectcompletion proof. [Native evidence](../hardware-runs/classic-ga-native-2026-11-05.md).
+CurrentT80 R7.JIT remains8/4versus9/5 onbothGA, all57CSVcols equal.
+CommonnextCLKEN causallyrejected (OUTC requirededge35ticks beforeconsumer).
+Fresh originalCPCSEB6matches6hardware rows; sourcegivesorderingnotaperture.
+
+Active independent units: nativeSolhigh currentT80 originalmenuO/02DA replay,
+private c1-02da-current-replay, bounded1.6B clocks, v2hiddenstate normalized
+not measured; no fitting. Gemini3.8high exec69470/run20261105T050616Z-66183-9726
+ownsONLYhardware-loop opt-in taskownedSSHmultiplex implementation/tests/guide;
+no device/API, root must review exactdiff+red/gate beforeuse. Prior benchmark
+1.35sindependent vs.026swarm. Defaultambientmuxdisable mustremain.
+LatestAGY05:05:41 Geminiweekly53.94%,5h7.02%; Argon93.6%,3Pweekly100% so no calls.
+No master/release acceptance. Runtime ACTIVE-JOBS.json owns updateddetails.
 
 ## Completed DT unit
 
@@ -90,12 +104,24 @@ prefixthroughDE on acceptedc90 completes23cmd/15PNG/0fail/21SSM: allfour nowhave
 six-colouractivepatterns. Rootviewedall4targets plusphysicalD6/DEphotos. D6/DE
 patterncontent corroboratesphysicalphotos, butgeometry/bluebarphase notjudged.
 D5/DD arePROVENsuperseded byD6/DEin samepolledbatch and cannotcountasintrostatepasses.
-Do notclaimallfourphoto-compliant orrefresh350denominator. Consider productione24
-control andotherCURRENTknownC1residualrechecks duringGAbuild, notabroadbaseline.
+Productione24 control nowmatchesallfourc90RGBexactly, sixcolours each.
+Do notclaimallfourphoto-compliant orrefresh350denominator.
+[Bounded recheck](../hardware-runs/shaker-b1-current-recheck-2026-11-05.md).
 
-Deviceidle on`c90ec8a`,Full/C1A/B1DE; native84093done. AmSpiritpausedC0guard65C9,
-script/BPsclear; no currentAPI/device job. No liveprovider/nativeworker. Refresh
-ignored`resumed-20261104/ACTIVE-JOBS.json` after changes; it outranksoldruntimeparagraphs.
+Device idle on acceptedproductione24 after boundedDSC4burst. AmSpirit paused
+at first original02DA R7=0 poll exit5588, rawHL6, script/BPs clear. Matching
+normalbootO reference12rows good. Native90 directO19cmd/6PNG/0fail/10SSM
+retainsfour0050vs0060; rootviewedall6. AmSpirit firstIN42156845A1E/HL4,
+second42156861A1F/HL5, exit42156871HL6; no hiddenstate/PC/RAMwrites.
+[Current poll proof](../hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
+Refresh ignored ACTIVE-JOBS.json after runtimechanges.
+
+FreshCPCSEdirectO also all12rows correct; rootviewed6contacts/fullDA.
+Matchingcrtc.cpp759–817 points to activeMID livewrite deferral. Root/Sol
+independently re-read/renderedFrench19.7.1–2p219 andconfirmed CRTC.v liveR7
+blockbypassesmidpoint. Solpreparingprivatefailingvector/designbeforeproduction
+edits; fullbaseline replay continuesunchanged. Preserve nonIVM/odd control,
+activepulse/rearm and sameedgeMID semantics; no aftermidrule chosen.
 
 ## Other current boundaries
 
@@ -110,8 +136,8 @@ ignored`resumed-20261104/ACTIVE-JOBS.json` after changes; it outranksoldruntimep
   Available2.6/2.7bothSexpected4E40andlooppolicy; directconstantchange ruledout,
   earlierhistory/photobinding4E30 stillopen. Providerwrongbyte-exactstart5A90
   corrected5A91; one16usprintedquantum doesnotproveVSYNC16usearlier.
-- B6/019D1F/1Fvs1E/1F,DI58vs59,R7.JIT8/4vs9/5 and02DA0050vs0060 derivefrom
-  olderartifacts; reproCURRENTknownflags beforeselectingfurtherRTL. D3heldSpace44
+- B6/019D1F/1Fvs1E/1F andDI58vs59 are nowreproducedonproductione24;
+  DIcaptionwarnsCRTC1unreliable. CurrentR7.JIT and02DAreproducedasabove. D3heldSpace44
   pagesnotstatealigned,no blindfullwalkretry. ASIC275af8aboundedcredits/BI/AE/AR
   andsampledDSC4/Amazingaccepted, no fullPlusbaseline.
 - Pendinguser:newR3scrollingdemo title/path/CRTC/onset andClaude/login.

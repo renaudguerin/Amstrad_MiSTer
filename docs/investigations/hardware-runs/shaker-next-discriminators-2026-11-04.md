@@ -1,61 +1,32 @@
-# SHAKER-first work order and remaining discriminators — 4 November 2026
+# SHAKER work order and remaining discriminators
 
-Use SHAKER and original-machine photographs to choose deterministic failures,
-then source inspection and focused replay to isolate their owner. Keep the
-affected demos as milestone checks. Full compliance is an objective, not a
-single reliable pass/fail gate: input history, field sampling, PPI variants
-and capture geometry can change a screenshot independently of the intended
-CRTC observable.
+Current tip, 5 November 2026. Finish known SHAKER and DSC4/Amazing defects
+before a broad fresh baseline. Use original-machine photographs to qualify
+results; successful execution, emulator agreement and native PNGs alone do not
+establish physical display fidelity. Historical findings belong in their dated
+reports. The maintained execution/photo denominator is in
+[SHAKER status](../../shaker-status.md).
 
-## Failure ownership
-
-| Observable | Established boundary | Next useful discriminator |
+| Observable | Current evidence | Next useful discriminator |
 |---|---|---|
-| CRTC1 DSC4 static picture's last coloured row | All768 pen-class positions match an uncropped AmSpirit row excluded by its default crop. Full admits a larger vertical window. This is a viewport/acquisition question; no MiSTer-only pixel pattern is established. | Define the intended monitor viewport against physical-CPC output. Do not change source pixels to match a software crop. [Evidence](dsc4-bottom-row-crop-2026-11-04.md). |
-| Type0 old-mode partial pixel | Non-aliased controls expose premature Mode1 and Mode2 decoding. Genuine R3.JIT mixed-mode control complete (OUT(C),E 14→2 at C022/hsc2/oldHS active); six fixed controls pass. 0→1 emits wrong 5B B pen 1 instead of 5B C pen 2 (causal old-SR ledger confirms 5B old-SR origin); 1→2 suffix 40..47 correct; blank release Type0 38 / Type1 39 vs 40. Universal old-pixel completion rejected. | Establish the native sampling edge and causal ownership at the mode mux and hold/shift controls. No candidate timing fix chosen. [Evidence](classic-type0-mode-boundary-2026-11-04.md). |
-| Plus DSC4 credit labels | Accepted275af8a restores colons and names on MiSTer. Five targeted Plus runs retain sampled DSC4/Amazing effects, BI clipping/widths, AE/AR patterns and A4 deadlines. | Wider mixed-mode and full-demo acceptance remain bounded; the measured terminal mask is not a literal silicon-stage claim. [Proof and limits](asic-credit-blank-boundary-2026-11-04.md). |
-| A4 lower VSYNC-bit words on Plus | PPI B bit0 reads raw CRTC VSYNC, independently of the sync filter. The native printed words differ; private full-caller result RAM does not reproduce them under either counter model. | Observe native RAM74F8..7507 to separate execution from formatting/display. Existing B18 refuses Plus saves. Do not infer a new admission rule from the saved-menu replay. [Evidence](asic-r0-terminal-latch-2026-11-04.md). |
-| C1 E CPU-to-new-frame 0060 versus 0080 | Bounded positive-R5 C5 restart committed/pushed in 599ca80 after Gemini 4 Argon high review ACCEPT. Controlled replay returns 0080, 7 other metrics, 515 zero-route and 89 off-R4 controls (current CRTC/engines/GA, inherited T80 netlist bded028). Hardware acceptance pending on full build 41878239893. | Hardware verification of Amstrad_20261104_599ca80.rbf on MiSTer once build 41878239893 completes; direct C1 E/P/S and DSC4 checks. [Evidence](shaker-e-0080-positive-r5-reentry-2026-11-04.md). |
-| CRTC1 ordinary R7 onset and 019D B6 | Source/reference gives ordinary Type0=5 / Type1=6 (ACCC §16.2.1 pp.161–162). Committed correction e574a46 adds abstract four-clock (+1 Pixel-M2) Type1 pin transport on both edges (reviewed ACCEPT), making ordinary NJIT 5/6 pass while keeping logical pulse width 16 lines and Type0 unchanged. Candidate E acceptance 0080 matches C5 baseline with +4 master ticks on all 1262 published edges. R7.JIT remains 8/4 vs source 9/5; B6 terminal-row admission remains 1F/1F vs 1E/1F. | Resolve terminal-row equality admission against current C4 rather than pin transport alone. The reference pair returned low for both controls; qualify its hidden phase before an admission candidate. No hardware acceptance claimed. [Evidence](crtc1-r7-onset-controls-2026-11-04.md). |
-| C1 S02D3=0640 versus4E40 | Full-history failure remains; direct entry gives identical passing PNGs on old and new RBFs. A computed numerical result is not explained by asynchronous screenshot sampling alone. | Capture the relevant entry/history state. No precise C5 cause is established. [Evidence](shaker-s-history-2026-11-04.md). |
-| DT early/late band history | The guest removes the second band about339ms after F8. Late same-run AmSpirit also has one band; native F8/F7 were already in one batch before its F8-labelled PNG. A separate earlier wrong-phase SNA inference is also withdrawn. | Qualified on diagnosticc90ec8a: native early timestamps/state/active-black counts match the authentic replay, while all14 late RGB images match production. Remove this reported difference from the timing/filter fix queue; exact marker-frame HDMI capture is separate tooling. [Evidence](shaker-dt-blank-boundary-2026-11-04.md). |
+| C0 E6 cases27/28 | Native e24cb50 passes26/28, with0055/02D6 versus0065/000E remaining. AmSpirit original passes28/28; a two-operand timing-preserving guard shortens case27 by four lines. No unique post-entry R4 rule is established. | Keep the focused [unsent question](../../classic/accc-author-questions-crtc0-c0-1-2026-11-04-fr.md); do not fit a new lifetime to the scalar. [Stimulus proof](crtc0-e6-rematch-stimulus-2026-11-05.md). |
+| Classic mixed-mode/R3.JIT pixels | Experimental90f3b18 retains64 production-T80 RGB/blank controls,72 snapshot lifecycle controls and46 selected benches. Full synthesis41964150943 is clean, setup/hold0.316/0.243ns; strong serializer review remains debt. | Finish bounded native DSC4/Amazing comparisons and qualify any new pixel symptom before further RTL. [Source and proof](classic-type0-mode-boundary-2026-11-04.md). |
+| C1 ordinary R7 versus B6/JIT | Ordinary publication correction is retained. Current e24 native019D remains1F/1F; fresh CPCSE original caller matches hardware1E/1F. Coherent current-T80 optical controls remain8/4 versus9/5 with both reference and new GA. | Resolve write-induced C4 comparison visibility. Common next-CLKEN deferral is causally excluded by OUT(C)'s required edge. No numeric aperture selected. [Peer ordering and counterexample](crtc1-b6-cpcse-ordering-2026-11-05.md), [unsent question](../../classic/accc-author-questions-r7-s-phase-2026-11-04-fr.md). |
+| C1 E/P/S | Native E0080/P26 retained. Direct and canonical-history S now both4E40; passive native trace confirms normalized entry and matching R5/R7/exit state. | Bind physical S photograph4E30 to its program/history; both available2.6/2.7 callers expect4E40. Do not add tolerance or C5 reset. [S evidence](shaker-s-history-2026-11-04.md). |
+| C1 O/02DA | Current90f3 native originaldirectO retains four0050 versus0060 rows. Matching AmSpirit first R7=0 row has PB0=0 then1 on two distinct polls, rawHL6. | Observe the equivalent current-T80 write/counter/PPI timeline with authentic entry. Do not infer a16µs VSYNC error from the scalar alone. [Current poll boundary](crtc1-02da-current-poll-boundary-2026-11-05.md). |
+| C1 B1 four old yellow pages | e24 production and c90 diagnostic now show identical structured images forD5/D6/DD/DE. D5/DD are superseded by successors before capture, so are not intro-state passes. D6/DE photo pattern families corroborate; geometry is unjudged. | Obtain state-qualified intro captures and separately judge physical viewport. No scaler/core attribution from uniform RGB alone. [Current recheck](shaker-b1-current-recheck-2026-11-05.md). |
+| DT early/late bands | CLOSED reported core/filter discrepancy: native early trace matches authentic replay, including79,664/79,664/0 active-black counts. Guest removes middle band339ms afterF8; late AmSpirit/native both have one band. | Exact marker-frame capture is separate tooling; no DT timing repair selected. [Evidence](shaker-dt-blank-boundary-2026-11-04.md). |
+| C1 DI/02E3 | Current e24 still58 versus AmSpirit/photo59; original page explicitly labels CRTC1 unreliable. | Preserve the original-caller interrupt/phase question, without treating this scalar as a general compliance failure. [First-IRQ evidence](shaker-di-first-irq-2026-11-04.md). |
+| ASIC credits/effects |275af8a has bounded native colons/names, BI clipping/widths and AE/AR acceptance; sampled DSC4/Amazing main effects restored. | Wider mixed-mode/full-demo acceptance remains open. [Credit boundary](asic-credit-blank-boundary-2026-11-04.md). |
+| ASIC A4 VSYNC words | Native result bytes correct the old E/F glyph reading: lower four pairs0/0. Page is pixel-identical to7ac11a2; first/third0/1 versus older photo1/1 remain. | Bind program/history before changing admission. The earlier request to obtain native result RAM is completed. [Result evidence](asic-a4-native-results-2026-11-04.md). |
 
-## Recommended order
+Use [CPCSyntaxError](../../cpcsyntaxerror-testing.md) where a fresh original
+caller matches hardware and its source explains a difference; use AmSpirit1.17.1
+where CPCSE fails or cannot resolve it. Neither supplies an unmeasured physical
+bus aperture. D3's44 held-Space captures remain invalid for page-state comparison;
+avoid blind full-walk timing retries.
 
-1. The Plus credit fix 275af8a and Type0 E6 R9→R5 fix ee9c131 have targeted
-   build/device acceptance. Type0 Last Line correction c3e896d, fixture repair
-   28ba886, and Type1 positive-R5 C5 restart 599ca80 are committed/pushed in
-   source 599ca80, with full build 41878239893 running. Case 16 remains a separate
-   source question; do not infer its lifetime from a passing software model.
-   [Last Line proof](crtc0-last-line-cancellation-2026-11-04.md).
-2. Resolve the Type1 ordinary R7 onset with its Type0 positive control and
-   separate original-caller JIT/B6 constraints. The ordinary NJIT publication
-   candidate (+1 Pixel-M2 Type1 pin transport on both edges) passes 5/6 and
-   candidate E acceptance, reviewed ACCEPT, but R7.JIT remains 8/4 vs 9/5 and
-   B6 terminal-row admission remains 1F/1F vs 1E/1F. The reference pair returned low for both controls; its counter phase needs qualification. [R7 controls](crtc1-r7-onset-controls-2026-11-04.md).
-   Genuine R3.JIT mixed-mode control is complete, showing 0→1 wrong 5B pen 1 from
-   old SR and blank release 38/39 vs 40; universal old-pixel completion rejected,
-   no timing candidate chosen. [Mode boundary](classic-type0-mode-boundary-2026-11-04.md).
-3. Treat A4 lower rows and C1 S as state-observation work. C1 E positive-R5
-   restart is verified in simulation and controlled replay (0080), awaiting
-   device acceptance on build 41878239893. Preserve the smaller accepted R0
-   mechanism; the broader queue has no discriminating advantage in the completed
-   full-caller comparison. Keep author questions open where source inspection
-   cannot distinguish mechanisms.
-4. Resume monitor/filter policy only with raw boundary evidence and an explicit
-   physical viewport contract. Raw pixel metadata currently precedes the new
-   classic RGB blank path; it is not an independent alignment oracle.
-
-Use fresh CPCSyntaxError v0.12.0 CSL/SSM runs where its result matches the
-original-machine photograph, then read the matching source to propose a
-mechanism. Use AmSpirit1.17.1 where CPCSE fails or disagrees, and retain the
-hardware photograph as the authority. CPCSE's logical model is useful evidence
-but does not supply the physical sampling edge missing above. See the
-[tool guide](../../cpcsyntaxerror-testing.md) and
-[source audit](cpcsyntaxerror-v012-pilot-2026-11-04.md).
-
-Do not repeat the whole corpus after every probe. Package-only changes did not
-invalidate the existing A/B/C captures; behavior changes require targeted
-milestone reruns. The fresh80-page C1 walk is preserved, including its reopened
-S failure. A full fresh compliance baseline remains worthwhile once the next
-behavior milestone and script entry conditions are stable.
+Resume monitor/filter changes only with raw boundary evidence and an explicit
+physical viewport contract. DSC4's extra bottom row matches uncropped AmSpirit
+source pixels and is a viewport question ([crop evidence](dsc4-bottom-row-crop-2026-11-04.md)).
+The four old yellow pages and DT do not currently establish a sync-filter defect.

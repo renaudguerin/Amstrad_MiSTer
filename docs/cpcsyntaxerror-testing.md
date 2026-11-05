@@ -100,6 +100,12 @@ Keep the
 verified canonical capture batches separate from these failed new loader
 qualifications. [R7 qualification](investigations/hardware-runs/crtc1-r7-optical-address-qualification-2026-11-04.md).
 
+Fresh original B6/019D is a positive example: v0.12.0 matches all six physical
+results, including fifth/fourth R7 deadlines1E/1F where MiSTer remains1F/1F.
+Its source advances hardware to the instruction-effect offset before dispatch,
+then compares current C4. This supplies a carry-ordering clue, not a measured
+sub-character aperture. [Qualified B6 result and limits](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md).
+
 ## Interactive inspection
 
 The open GUI can be driven by its bundled `cpcse-ctl` client once its command

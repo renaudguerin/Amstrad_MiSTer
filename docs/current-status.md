@@ -19,12 +19,15 @@ instructions across handoffs and context compaction.
   accepted functional reference remains `e24cb50`. Completed DT evidence is on
   `codex/overnight-validation-20261103` (`18b58ce`).
   It is distinct from integrated `master`; no integration or release is implied.
-- Current full artifact: `Amstrad_20261104_e24cb50.rbf`, SHA256
-  `c65d7e60ac4ff95263e2bf425da248c31b6c838bfadb90f2e653df533605cc46`.
-  [Full synthesis](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41929217942)
-  passes all jobs, setup/hold0.560/0.182ns. Native C0 E6 passes26/28 printed
-  checks: case4 now0032, all other results unchanged. Four bounded DSC4 views
-  retain clear credits and visible effects. [C0 evidence](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md).
+- Current experimental full artifact: `Amstrad_20261105_90f3b18.rbf`, SHA256
+  `a7c3b0ad177744a3c2e2120365c3febdbd8226f0f80782603ccb1e3e8008a102`.
+  [Full synthesis](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41964150943)
+  passes all jobs, setup/hold0.316/0.243ns. Bounded C0/C1 DSC4/Amazing views
+  retain credits and visible effects; stronger source review remains debt.
+  A DSC4 horizontal-line transient also occurs on reference e24cb50 and still
+  lacks matched physical/reference qualification. [Build and native bounds](investigations/hardware-runs/classic-ga-native-2026-11-05.md).
+  Accepted functional reference e24cb50 retains native C0 E6 acceptance26/28;
+  no full baseline on90f3b18 is implied.
 - C1 interlace-adjustment fix `ccf2be7` has targeted native acceptance on
   production `076eab1` and diagnostic `c16e7ec`: direct and canonical-history S
   both give 4E40; E0080/P26 remain pixel-identical to their controls. The passive
@@ -71,18 +74,27 @@ our closest software reference, not the hardware oracle.
   outside AmSpirit's default viewport. The remaining Type0 mixed-mode quarter
   and R3.JIT pixel/blank defects have an experimental GA candidate with retained
   64 production-T80 pixel controls,72 snapshot lifecycle controls and46selected
-  benches passing. Full synthesis/native comparisons are pending. Stronger
+  benches passing. Full synthesis and bounded native comparisons pass. Stronger
   source review remains [explicit debt](review-debt.md); diagnostic adoption
   does not establish all phases or final release acceptance.
   [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
   [mode-boundary source/proof](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
-  publication is a separate correction. R7.JIT remains 8/4 versus 9/5.
+  publication is a separate correction. Fresh CPCSyntaxError B6 matches hardware
+  and supplies a carry-ordering clue, without a physical aperture. Coherent
+  current-T80 R7.JIT remains 8/4 versus 9/5 on both old and new GA.
+  [Peer evidence and rejected deferral](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md).
   Address-tagged AmSpirit pixels qualify a nonterminal raster window but its
   later PPI sample is still 0; no admission model is selected from that result.
   [Onset controls](investigations/hardware-runs/crtc1-r7-onset-controls-2026-11-04.md),
   [optical qualification](investigations/hardware-runs/crtc1-r7-optical-address-qualification-2026-11-04.md),
   [unsent questions](classic/accc-author-questions-r7-s-phase-2026-11-04-fr.md).
+- C1 O/02DA remains0050 versus0060 in all four R7=0 rows on90f3b18.
+  Matching original-O AmSpirit gives0060; first-row public stops prove PB0=0
+  then1 on two distinct polls, with rawHL6. Fresh CPCSyntaxError also passes
+  all twelve rows; its source exposes our live-R7 bypass of active MID-VSYNC
+  (French§19.7.1–2p219). A failing vector precedes implementation; the
+  current-T80 observational replay is running. [Current poll boundary](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
 - B9 page B's collision ordering and MID FRAME glyph remain unresolved; original
   machine evidence is needed. F13 and F20 still need their named hardware gates;
   IA-2/3/6 are source-model evidence, IA-5 needs simultaneous sync/interrupt
@@ -137,7 +149,11 @@ our closest software reference, not the hardware oracle.
   and two stable native ring reads pass. No DT timing/filter repair is selected;
   exact marker-frame HDMI capture remains separate tooling work.
   [DT evidence](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
-- B1 display ownership and applied-mode observability remain open; native
+- B1's four formerly flat-yellow captures now show identical structured RGB
+  on production e24 and diagnostic c90. D5/DD were superseded before capture;
+  D6/DE corroborate photo pattern families, with geometry unjudged.
+  [Bounded recheck](investigations/hardware-runs/shaker-b1-current-recheck-2026-11-05.md).
+  Display ownership and applied-mode observability remain open; native
   screenshots omit the OSD. B6 still needs physical HDMI/CRT acceptance and a
   CPU-generated stuck-high raw-sync recipe. The available trace and format-2
   device observations do not establish original-monitor fidelity or a complete

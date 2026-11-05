@@ -42,7 +42,9 @@ palette timing, held-SNA apply/fetch freshness and no-HS restored-mode behavior.
 The model is abstract; source-derived RGB controls do not prove a unique silicon
 pipeline or all phases. Retained64 production-T80 controls,72 public GA lifecycle
 controls, shared B18/ASIC callers and46selected benches pass; no code edit followed
-the final gate. Full synthesis/native comparison remain separate gates.
+the final gate. Clean full synthesis and bounded C0/C1 DSC4/Amazing native
+comparisons now pass ([evidence](investigations/hardware-runs/classic-ga-native-2026-11-05.md));
+this does not clear the source-review debt or establish all-phase acceptance.
 [Source and proof](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md),
 [active handover](investigations/session-logs/overnight-resume-2026-11-04.md).
 Keep this debt until an adequate fresh strong review actually runs; hardware

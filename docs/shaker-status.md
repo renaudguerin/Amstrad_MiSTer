@@ -43,15 +43,19 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
   The passive trace confirms C5=0/adjustment off at entry and matching R5/R7/exit
   states; all changed raster contents match previously inspected views.
   This is bounded state/result acceptance; physical photo 4E30 versus program
-  4E40 still needs revision binding ([passive evidence](investigations/hardware-runs/shaker-s-passive-observer-2026-11-04.md)). `02DA` shows `0050` versus `0060`; `009A` differs
-  from the RAM-snow photograph; `019D` still shows fifth/fourth `1F/1F` on e574a46 versus fresh original-caller
-  AmSpirit/photo `1E/1F`; it needs the physical comparator-visibility contract
-  ([fresh caller evidence](investigations/hardware-runs/crtc1-outi-019d-2026-11-04.md)). The four yellow acquisition pages
-  `00D5/00D6/00DD/00DE` remain unassigned, not proven correct. The older
+  4E40 still needs revision binding ([passive evidence](investigations/hardware-runs/shaker-s-passive-observer-2026-11-04.md)). `02DA` still gives `0050` versus `0060` on90f3b18 through original directO;
+  matching AmSpirit proves two distinct polls/rawHL6 ([current boundary](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md)); `009A` differs
+  from the RAM-snow photograph; `019D` still shows fifth/fourth `1F/1F` on current production `e24cb50` versus fresh original-caller
+  AmSpirit, CPCSyntaxError0.12 and photo `1E/1F`; it needs the physical comparator-visibility contract
+  ([fresh caller evidence](investigations/hardware-runs/crtc1-outi-019d-2026-11-04.md)). The four formerly yellow pages
+  `00D5/00D6/00DD/00DE` now have structured, identical RGB on production e24
+  and diagnostic c90. D5/DD were superseded before capture; D6/DE corroborate
+  physical pattern families but geometry remains unjudged. This does not
+  change the historical denominator ([bounded recheck](investigations/hardware-runs/shaker-b1-current-recheck-2026-11-05.md)). The older
   `01E7` and `0216` differences are documented variants; eight PPI pages
   reflect machine input differences. [Sweep and page details](investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md),
   [E follow-up](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md).
-- **CRTC 1 D/E:** `02E3` still reads 58 on the e574a46 targeted check versus original-caller
+- **CRTC 1 D/E:** `02E3` still reads 58 on current production e24cb50 versus original-caller
   AmSpirit/photo 59 ([first-IRQ evidence](investigations/hardware-runs/shaker-di-first-irq-2026-11-04.md)); `03B6` has a text-row difference.
   DT `02F8/02FA` is not currently a confirmed core/filter failure: the guest
   intentionally removes the second band about339ms after F8, and continuing
@@ -72,7 +76,10 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
   the capture-processing deadline bug is fixed separately in `ccd49d4`.
   [Native result evidence](investigations/hardware-runs/asic-a4-native-results-2026-11-04.md).
 - **Demo targets:** classic DSC4 credits are repaired, but Type 0 mixed-mode
-  partial pixel remains open. ASIC DSC4 credit clipping is traced to HSYNC
+  partial pixel has an experimental retained-test correction on90f3b18,
+  with clean full synthesis and bounded C0/C1 DSC4/Amazing views. Stronger
+  source review remains debt; all-phase acceptance is open
+  ([native bounds](investigations/hardware-runs/classic-ga-native-2026-11-05.md)). ASIC DSC4 credit clipping is traced to HSYNC
   suppression of intact pixels; the 15-dot terminal-mask fix 275af8a has full synthesis and targeted device
   acceptance: credit colons/names clear, BI photo clipping corroborated,
   AE/AR controls preserved. Its private replay recovered 132 samples with zero
