@@ -31,19 +31,19 @@ validation remains unknown, even when a specific defect on it is repaired.
 | 0 | D | 0 | 0 | 1 | 110 | 111 |
 | 0 | E | 2 | 1 | 8 | 0 | 11 |
 | **0** | **Total** | **4** | **1** | **256** | **226** | **487** |
-| 1 | A | 116 | 1 | 6 | 4 | 127 |
+| 1 | A | 118 | 2 | 7 | 0 | 127 |
 | 1 | B | 103 | 1 | 35 | 0 | 139 |
 | 1 | C | 76 | 0 | 4 | 0 | 80 |
 | 1 | D | 63 | 0 | 15 | 49 | 127 |
 | 1 | E | 3 | 0 | 4 | 0 | 7 |
-| **1** | **Total** | **361** | **2** | **64** | **53** | **480** |
+| **1** | **Total** | **363** | **3** | **65** | **49** | **480** |
 | 3 | A | 0 | 0 | 9 | 115 | 124 |
 | 3 | B | 0 | 0 | 8 | 113 | 121 |
 | 3 | C | 0 | 0 | 0 | 23 | 23 |
 | 3 | D | 0 | 0 | 0 | 150 | 150 |
 | 3 | E | 0 | 0 | 1 | 4 | 5 |
 | **3** | **Total** | **0** | **0** | **18** | **405** | **423** |
-| **All** | **Total** | **365** | **3** | **338** | **684** | **1390** |
+| **All** | **Total** | **367** | **4** | **339** | **680** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
@@ -53,7 +53,7 @@ most stale entries. This table does not classify those pages as failures.
 
 ## What the remaining counts contain
 
-- **Confirmed broken:** C0 E6/page0409, cases27/28; C1 AI/008D;
+- **Confirmed broken:** C0 E6/page0409, cases27/28; C1 A/0037 and AI/008D;
   C1 B6/019D. E6's26/28 figure counts assertions across0407/0408/0409,
   separately from the page tally.
 - **Repaired but not a whole-page pass:** B9's three3Fdelay rows are2740
@@ -63,15 +63,16 @@ most stale entries. This table does not classify those pages as failures.
   (58/59; the program labels CRTC1 unreliable), and DT02F8/02FA's full
   phase-matched photo verdict. DT's reported missing band was an acquisition
   epoch mismatch; its early native trace contains both bands.
-- **Stale CRTC1 captures:**44 D3 pages have invalid page-state alignment;
-  five further D captures need acquisition/parameter recheck. Four old AI
-  PPI-mask judgments need individual bit checks: the earlier broad masking
-  wrongly hid008D's VSYNC discrepancy.
-- **009A remains unknown:** fresh original direct-O MiSTer, CPCSyntaxError
-  and AmSpirit runs show the noisy RAM pattern family. The older canonical
-  walk was black; equivalent history is not yet qualified. The bounded
-  AmSpirit prefix stopped on PLEASE WAIT and is preserved, not counted as
-  either a pass or failure. No new R1/VMA rule follows from that experiment.
+- **Stale CRTC1 captures:** 44 D3 pages have invalid page-state alignment;
+  five further D captures need acquisition/parameter recheck.
+- **Current AI recheck:** 008E and 0091 pass the photographed VS fields;
+  008F remains unknown because its physical V2 exception glyph is unresolved,
+  and 0090 awaits full cell adjudication. The 0037 OUTI bit 0 mismatch cannot
+  be masked as an unrelated upper-PPI input difference.
+- **009A passes:** original direct and full A1-history native paths both show
+  the dynamic full-screen RAM-noise family seen in the photograph. The old
+  black defect did not reproduce; this result introduces no new RTL rule.
+  See the [current A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md).
 
 Recent accepted fixes include C0 0091 and C5 parity, C1 E/P, O's twelve
 result rows and Module E0401/0402 warning removal. Current B9 preservation

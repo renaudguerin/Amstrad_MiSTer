@@ -84,59 +84,47 @@ three0393/03F7/03F8 reciprocalflashingbodiesRGBexact, bothEresultpagesOK.
 All18rootviewed. NoRFDphysical-lifetime or exactphaseclosure. CurrentRBFrestored
 bydirectR1run6301 (29commands10viewedimages17SSM), idleon009A.
 
-## Active 009A R1-stories check
+## Current Module A targeted recheck and tally
 
-KnownoldercanonicalA1 flagged009A black/displacedredtext versusphotonoise.
-CurrentoriginaldirectOsequence0092..009A givesfullredRAMnoise. Rootviews
-all10nativeimages andphysicalAO_009A_I.webp; patternfamilymuchcloser, exact
-analoguegeometrynotjudged. FreshAmSpirit normalboot/directO41736complete0/
-drained, twotargetPNGs plusdirectSNAv2 saved. Fullnoise, samewhitebar/header.
-NoSSMautocaptureinAmSpirit: onlyexplicitlater+settledPNGs, notten.
-RootAPIcheckfindsnoCRTCVSwidth/counters/PPIinpublishedcore2491682state;
-noAIcounterbreakpointguessing. ViewportbeamnotC0/C4/C9.
+009A closes the old black flag on c0939d8: directO6301 completes29commands/
+10viewedPNGs/17SSM; originalA1prefix60828 completes220commands/111PNGs/
+206SSM0fail, all111rootvisuallyscreened via8contacts. Bothnativeentrypaths
+showfullchangingRAMpattern, target/laterdifferences68231/70281pixels.
+PhysicalAO_009A_I hasmatchingpatternfamily/whitebar; noexactRAM/analogclaim.
+FreshAmSpiritdirectO41736andCPCSEdirect/canonicalalsofullpattern. CPCSE96052
+canonical155.572emusec/10.725hostsec;235710changedpixels. Incidentalprefix
+capturesarenotgradedbaseline. AmSpiritcanonical44622incomplete150shostdeadline
+onPLEASEWAIT; checkpointSNA/state/PNGpreserved, scripts/bpsclearedpaused.
+Gem009A55250freshcaptureaccepted/13hashesverified; unsupportedfixedR1/stuckVMA
+explanationrejected, ROOT-ASSESSMENT.md preserveslimits. NoRTLornewgate.
 
-Gem3.8high55250 complete0/drained run20261105T211341Z-90963-78c3 owns ONLY
-`c1-009a-current/`: isolatedheadlessCPCSEdirectO, sourcecomparison/report.
-Runalreadycompletes10images1v3SNA in21.723emulatedseconds; rootviews009A
-BMPconvertedtoownnativefolder, alsofullnoise. Root verifies13decisivehashes,
-acceptsfreshcaptureonly. StrongunconditionalstuckVMA/physicaldynamicclaims
-rejected: currentnativealreadydynamic andguestR1alternates63/64, noCPU/VMA
-traceorFrenchadjudication. ROOT-ASSESSMENT.md recordslimits; providerlogskept.
+CurrentcanonicalAI008D1000/1111/1000/1111 vsdirect2081001/1111/1001/1111;
+physical/AmSpirit1111. Replay1000agreescanonical; sourcephase/historynotisolated.
+Q22unsentFrenchdraftnowrecordsentrypaths, fixed16linepremise andphysicalprobe.
+008EphysicalallfourfinalFconfirmedfocusedAstrapixelread; rootinitialtentativeE
+readingcorrected. 0091four1111photo/native; bothpagespass. 008Fambiguousphysical
+V2glyph/0090matrixremainunknown. Terrahigh0090literalreaderactive, noAPI/device.
 
-RootAmSpirit44622 complete1/drained runs unchangedcanonicalA1prefixthrough009A,
-110SSMwaits/220instructions, onlyexplicitfinalimages. This is a singleknown
-pagehistory discriminator, not broadbaseline. It testswhetherprecedingmemory
-cases explainoldblackRAMcontent. DirectSNApreservedforRAMcomparison;
-canonicalSNAplanned. Newfolder`c1-009a-native-current/amspirit-canonical-prefix-001/`,
-script/logbesideit. It reaches150shostdeadline onPLEASEWAIT beforetarget;
-no009Acanonicalresult. Finallyclears/pauseverified; fullfailed-checkpointSNA/
-state/PNGpreserved. Do not blindlyretry/extendphase. AmSpiritpaused, scripts/
-bps empty; MiSTeridle/currentc093available.
+A4/0037photo#3Cfirstresult?1(lowdigit1decisive),#3B00. Nativecanonicaland
+CPCSEcanonical00/00; freshAmSpiritdirectA4referencealso00/00, complete/log+cleanup
+verifiedpausedscripts/bpsempty, snapshot3bc16402…de76e70saved. Thisfailedphoto
+comparisoncannotbeupperPPImasked. Olderphotoomitsextra2.7C9row; version/machine
+questionalreadyrecordedinauthorfeedback§4. Fresh2.6/2.7extractionhasmainOUTI7190
+andcaption75B4same, helpercallsrelocated; notphotobinarybinding/timingproof.
+RootreadsFrench13.3p115/13.6.2p124/13.7.1.1p126nativeMarkdown+renders. Nochosen
+physicalapertureornewRTL. Evidence: shaker-crtc1-a-current-recheck-2026-11-05.md.
 
-## User-requested numerical tally
-
-`docs/shaker-status.md` nowhas15CRTC/module rows plus totals, backedby
-tracked `docs/shaker-results.csv`:1390uniqueSSMpages (1350originalphotoIDs+
-40additionalexplicitcurrentauthorwaitIDs). Eachrow hasstatus/build/evidence/
-reason. C0totals4passing/1broken/256unknown/226stale=487;
-C1 361/2/64/53=480; C3 0/0/18/405=423. Oldacceptedphotomatchescarriedforward
-asuserallows, notfreshglobalbaseline. Staleincludesoldungraded/invalidcapture;
-partialwholepageverdictsunknown. C3BI/AEAR15namedobservableacceptances do
-notbecome15wholepagepasses. Onlyconfirmedbrokenpages:C0E60409(27/28),
-C1AI008D, B6019D. DIunreliablecaption/Sbinding/B9MIDremainunknown.
-C1A008E..91oldbroadPPImaskjudgmentssetstaleuntilindividualbitcheck.
-Fulloldstatussnapshotarchived; currenttiplinksCSV. All15rowarithmetic,
-1390keyuniqueness/categories/evidencelinkschecked. NoRTL/gatetouched.
-Useraskedfixscopeanddemoacceptance: R3sharedclassic0/1(simulatedboth),
-BTFnativefixedonlytestedC1; ASICseparatefix, allthreeDSC4/Amazinghavebounded
-sampledacceptance, nofull-demo ornewfullPlusbaseline. CSVforceaddrequired
-becauseexisting*.csvignore; thereaftertrackedupdatesnormal.
+User-requested15celltable+per-pageCSV1390uniqueSSMpagesnowupdatesC1A118P/2B/7U/
+0S=127; C1total363P/3B/65U/49S=480. C0unchanged4/1/256/226=487;
+C3unchanged0/0/18/405=423. Global367P/4B/339U/680S=1390. Wholebrokenpages:
+C0E60409, C1A40037/AI008D/B6019D. Oldacceptedjudgmentscarriedforward, notfresh
+baseline. NativeTerrahighupdatesonlygenerator/CSV/table; rootread7rowdiffand
+accepted15cell/sums/unique/category/evidencelinkgate, noRTL/simulation.
 
 ## Remaining order
 
-Inspectcanonicalreference009A partialstate and compareRAM/history before
-reclassifyingoldflag. No speculativeRTL. BTF/D9/AI/tallydocsdirty; finish
-checkpoint/push, no newgateforpuredocs.
+Finish0090matrixadjudication, preserveA4version/physicaldeadlinequestion.
+CheckpointtargetedA/AI/tallydocs; no newgateforpuredocs and no speculativeRTL.
 C0E6 cases27/28, B6 aperture, C1C5count/RFDlifetime remain evidence-gated
 unsentquestions. DI58vs59 caption unreliableonType1. D7physicaloscillation/
 settling open. DSC4bottomrow isviewport; ASICcredits/BI/AEAR/sampledeffects

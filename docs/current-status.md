@@ -32,7 +32,7 @@ instructions across handoffs and context compaction.
   artifact `Amstrad-build-399-1-full` passes all jobs; minimum setup/hold
   slack is 0.478/0.236 ns across seven clocks with zero TNS and warning counts
   unchanged from 208. Nine native cohorts completed 185 commands and 60 viewed
-  PNGs. A further D9→E run inspects18images:15RGB-exact to e24,
+  PNGs. A further D9→E run inspects 18 images: 15 RGB-exact to e24,
   three reciprocal flashing phases, both E result pages OK. Controls are described in the [B9 acceptance report](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md).
   Earlier 208 C5 parity and 005 acceptance are in the
   [C5 report](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md)
@@ -82,7 +82,8 @@ our closest software reference, not the hardware oracle.
   rearm test fails before and passes after, with246 CRTC checks passing.
   Full build and native005 acceptance pass:6B/6B/38, with the six preceding
   captures pixel-identical to42. Type1 inactive rearming remains unverified.
-  A4/`0037`’s top KO labels match hardware; separate OUTI fields remain open.
+  A4/`0037`’s top KO labels match hardware; the separate CRTC1 OUTI
+  result now has a confirmed hardware-photo mismatch, detailed below.
   [Current source and native evidence](investigations/hardware-runs/shaker-crtc0-0091-protection-2026-11-05.md).
 - C1 E=`0080`/P=`26` and the S history residual have bounded native acceptance.
   The corrected history and direct paths now have matching R5/R7/exit state;
@@ -134,11 +135,20 @@ our closest software reference, not the hardware oracle.
   [Onset controls](investigations/hardware-runs/crtc1-r7-onset-controls-2026-11-04.md),
   [optical qualification](investigations/hardware-runs/crtc1-r7-optical-address-qualification-2026-11-04.md),
   [unsent questions](classic/accc-author-questions-r7-s-phase-2026-11-04-fr.md).
-- C1 AI/008D remains a raw-PPI discrepancy on208: both R0=0 blocks give
-  1/0/0/1 versus the photograph/AmSpirit1/1/1/1. Fresh CPCSE also fails.
+- C1 AI/008D remains a raw-PPI discrepancy: direct208 gives1001 and
+  the current canonical A1 prefix gives1000, versus photograph/AmSpirit1111.
+  Fresh CPCSE also fails.
   Q22's fixed-width premise is corrected to16lines (French§14.2p133);
   genuine replay qualifies premature16-tick expiry but gives1000, leaving
-  native fourth-sample provenance and physical clock/retrigger rules open. [Current evidence](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md).
+  entry-path/state provenance and physical clock/retrigger rules open.
+  [Current evidence](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md).
+- C1 Module A recheck: 009A now passes on direct and original full A1-history
+  native paths; the old black image does not reproduce. AI008E/0091 pass,
+  while008F/0090 remain unknown pending photo/cell adjudication. A4/0037's
+  first OUTI result has bit0=0 against hardware-photo1. Fresh AmSpirit and
+  CPCSyntaxError also give0, so their agreement supplies no replacement
+  rule. The tally records the failed photo comparison without selecting a
+  timing fix. [Targeted evidence](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md).
 - C1 O/02DA is corrected on `5261414`: all 12 original-O rows match on MiSTer,
   with `0060` in all four formerly `0050` R7=0 cases. The source MID-VSYNC correction
   has failing-first proof,246 CRTC/46 selected passes and strong Opus clearance.

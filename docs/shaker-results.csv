@@ -537,7 +537,7 @@ crtc,module,page,status,build,evidence,detail
 1,A,0034,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0035,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0036,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
-1,A,0037,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,Accepted upper-PPI input difference or documented chip variant; core-relevant observation matched
+1,A,0037,broken,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,Physical OUTI #3C bit0=1; native and CPCSE bit0=0; upper-PPI masking does not apply
 1,A,0038,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0039,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,003A,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
@@ -558,11 +558,11 @@ crtc,module,page,status,build,evidence,detail
 1,A,0088,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0089,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,008C,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
-1,A,008D,broken,208bacf,docs/investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md,R0=0 groups1001 versus photographed1111; rawPPI discrepancy
-1,A,008E,stale,5fba168,docs/investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md,Old PPI-mask judgment needs per-bit recheck after008D was overmasked; no new whole-page pass
-1,A,008F,stale,5fba168,docs/investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md,Old PPI-mask judgment needs per-bit recheck after008D was overmasked; no new whole-page pass
-1,A,0090,stale,5fba168,docs/investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md,Old PPI-mask judgment needs per-bit recheck after008D was overmasked; no new whole-page pass
-1,A,0091,stale,5fba168,docs/investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md,Old PPI-mask judgment needs per-bit recheck after008D was overmasked; no new whole-page pass
+1,A,008D,broken,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md,"Direct prior1001, fresh canonical1000 versus photographed1111"
+1,A,008E,passing,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,All four physical and native VS fields high; prior tentative E reading corrected
+1,A,008F,unknown,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,"Fresh capture; physical V2 exception glyph unresolved, no whole-page verdict"
+1,A,0090,unknown,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,Fresh matrix captured; full cell adjudication pending
+1,A,0091,passing,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,All four physical and native fields1111
 1,A,0092,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0093,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0094,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
@@ -571,7 +571,7 @@ crtc,module,page,status,build,evidence,detail
 1,A,0097,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0098,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0099,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
-1,A,009A,unknown,c0939d8,docs/shaker-status.md,Fresh direct noise family matches references; older canonical black capture and history unqualified
+1,A,009A,passing,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,Original direct and full A1-history native paths show dynamic full-screen RAM-noise family matching photograph; old black defect not reproduced
 1,A,009B,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,009C,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,009D,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"

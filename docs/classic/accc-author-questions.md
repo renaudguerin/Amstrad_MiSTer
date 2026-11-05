@@ -359,16 +359,18 @@ with it.
 
     **OPEN, not sent; current evidence checked 2026-11-05.** Original SHAKER
     AI/008D gives high VSYNC at all four samples in both R0=0 blocks on the
-    physical photograph and fresh AmSpirit1.17.1. Full MiSTer208 gives1/0/0/1;
-    fresh CPCSyntaxError0.12.0 gives1/0/0/0. R0=1 blocks are all high.
+    physical photograph and fresh AmSpirit1.17.1. Direct MiSTer208 gives1001;
+    the current original A1 prefix on c0939d8 and fresh CPCSyntaxError0.12.0
+    give1000. R0=1 blocks are all high.
     These sampled bits do not establish continuity between reads.
 
     Correct the former eight-line premise: French§14.2 p133 specifies a
     fixed16-line width for CRTC1/2, independent of R3h. Ordinary line-end
     counting can still expire during the short-line interval, but the
     genuine production-T80 replay now qualifies accepted writes and expiry
-    after16 one-microsecond ticks with HSYNC low. Its fourth sample0 differs
-    from native1, leaving complete-state/phase equivalence unqualified.
+    after16 one-microsecond ticks with HSYNC low. Its fourth sample0 matches
+    the current canonical native run but differs from the earlier direct1;
+    history/state/phase provenance remains unqualified.
     French§16.4.2 p171 describes ordinary onset/termination without explicitly
     naming the short/no-HSYNC counter clock. The old p170 anchor was English.
 
@@ -379,6 +381,7 @@ with it.
     ends; it supplies no hardware-backed alternate rule. Keep a discriminating
     hardware probe rather than adopting the HSYNC hypothesis from agreement.
     [Fresh caller/source evidence](../investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md).
+    [French question draft](accc-author-question-vsync-r0-zero-2026-11-05-fr.md).
 
 23. **§11.6.1–11.6.2, French pp.90–91 — RFD/parity lifetime across SHAKER D's E tests.**
 

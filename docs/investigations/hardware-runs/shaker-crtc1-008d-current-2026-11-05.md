@@ -46,8 +46,10 @@ a Type1 rule. Root checks the cited executable counter blocks; no fresh
 original-program runs of those three peers were performed. Their algorithms
 supply no hardware-matching alternate clock. HSYNC gating, another
 horizontal-phase/minimum-line gate and intervening retriggering remain
-possibilities, not selected repairs. The neighboring008E photo also has
-all four samples high for R0=2/3; it does not by itself choose a clock.
+possibilities, not selected repairs. The neighboring008E photograph has high samples for R0=2/3. A later
+focused pixel reading resolves all four final glyphs as F; the initial
+suspicion of low fourth samples was a photo-reading error. Neither
+photograph alone chooses the internal width-counter clock.
 
 A genuine AmSpirit preinitializer snapshot (PC6491/SP4063, original return
 6411) now completes the untouched four-group caller under current c0939d8
@@ -68,9 +70,12 @@ this history. These observations explain current RTL expiry; they do not
 identify the physical width clock. The R0=1 pulse ends after restoration
 to R0=63, so that run is not a fixed-R0=1 width oracle.
 
-The replay's fourth bit0 differs from native208's fourth bit1. Its S2/S3
-photo mismatch is qualified, but complete native state/phase equivalence
-and the fourth-sample mechanism are not. Classic-v2 omits hidden beam,
+The replay's fourth bit0 differs from native208's fourth bit1. A fresh
+original canonical A1 prefix on c0939d8 now gives1000/1111/1000/1111,
+matching the replay's printed groups. The direct/canonical distinction
+does not isolate history, omitted state or phase. Its S2/S3 photo mismatch
+is qualified, but complete native state/phase equivalence and the
+fourth-sample mechanism are not. Classic-v2 omits hidden beam,
 parity and divider state. The unchanged original caller synchronizes
 naturally; this does not restore those omitted states. A passive reference
 capture immediately after64EC, before restoration A304, could locate that
