@@ -1013,7 +1013,9 @@ void test_b18_vsw_elapsed_counter(TestBench& test) {
 
     // A new R7-triggered pulse restarts C3h at 0 even though the previous
     // pulse left the counter at 15. C4 is still 0 (R9=31); rewriting R7
-    // away and back re-arms the comparison, as in t03a.
+    // away and back re-arms the comparison in the existing Type1 model.
+    // This inactive rearm policy is unverified (F11b); retain it pending
+    // a separate CRTC1 discriminator rather than inferring it from Type0.
     test.write_selected_register_at_clken(1);
     test.run_characters(1);
     test.write_selected_register_at_clken(0);
@@ -1468,13 +1470,38 @@ void test_vsync_compare_lock_and_rearm(TestBench& test) {
         test.run_characters(2 * line_characters);
         test.expect_vsync_low("unchanged C4=R7 truth does not refire VSYNC");
 
-        // Rewriting R7 away and back changes the comparison truth and re-arms
-        // mechanism 2. Return to R7=0 at C0=2, outside type 0's blocked window.
+        // Keep the false/true pair within one line, returning at C0=2.
         test.write_selected_register_at_clken(1);
         test.run_characters(1);
         test.write_selected_register_at_clken(0);
         test.run_clock_ticks(1);
-        test.expect_high("R7 truth-value change re-arms VSYNC", test.snapshot_vsync());
+        if (type == 0) {
+            // French ACCC v1.11 sections 16.3/16.4.1.1 pp169-170 and
+            // original SHAKER AI/0091: a transient unequal R7 does not
+            // lift inactive protection without a C9-return boundary.
+            test.expect_low("type 0 same-line R7 toggle remains locked",
+                            test.snapshot_vsync());
+
+            // French section16.3 p169's R4=0 example: keep R7 unequal
+            // across a genuine C9 return with C4 unchanged. Section16.4.1.1
+            // p170 then permits a matching write at C0>1 to start VSYNC.
+            test.run_to_c0(0);
+            test.write_selected_register_at_clken(1);
+            test.run_characters(line_characters - 1);
+            test.expect_c4("type 0 R7 rearm keeps C4 unchanged at the seam", 0);
+            test.expect_ra("type 0 R7 rearm crosses the C9-return seam", 0);
+            test.expect_vsync_low("type 0 false R7 cannot start VSYNC");
+            test.run_to_c0(2);
+            test.write_selected_register_at_clken(0);
+            test.run_clock_ticks(1);
+            test.expect_high("type 0 C9-return comparison change re-arms VSYNC",
+                             test.snapshot_vsync());
+        } else {
+            // Unverified legacy Type1 behavior: French section16.4.2 p171
+            // does not establish immediate inactive rearming. Preserve this
+            // assertion pending a separate CRTC1 discriminator.
+            test.expect_high("R7 truth-value change re-arms VSYNC", test.snapshot_vsync());
+        }
     }
 }
 
@@ -9323,7 +9350,7 @@ int main(int argc, char** argv) {
         {"t02x_type1_live_r7_pending_type_roundtrip",
          "CRTC live type round-trip; accepted live MID comparison lifecycle",
          false, [](TestBench& t) { test_type1_live_ticket_context_cancel(t, 2); }},
-        {"t03a_vsync_compare_lock_and_rearm", "ACCC v1.10 section 16.3; F11b",
+        {"t03a_vsync_compare_lock_and_rearm", "French ACCC v1.11 sections 16.3/16.4.1.1 pp169-170; AI/0091; Type1 legacy unverified",
          false, test_vsync_compare_lock_and_rearm},
         {"t03b_vsync_reentrancy_bypass", "ACCC v1.10 section 16.3; F11b",
          false, test_vsync_reentrancy_bypass},

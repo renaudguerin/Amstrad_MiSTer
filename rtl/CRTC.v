@@ -846,6 +846,15 @@ always @(posedge CLOCK) begin
 			vde_r <= ~vde_r;
 		end
 
+		// French ACCC v1.11 §16.3 p169 and §16.4.1.1 p170:
+		// after a blocked inactive Type0 comparison, a transient unequal
+		// R7 does not rearm until C9 returns0 with C4 unequal to R7.
+		// Use the incoming counters and same-edge R7 data at that seam;
+		// row/frame rearming below and active-pulse writes keep their owner.
+		if(!CRTC_TYPE && !VSYNC_r && line_new && line_next == 0 &&
+				((row_new ? row_next : row) !=
+				 (r7_write_hit ? DI[6:0] : R7_v_sync_pos)))
+			vsync_allow <= 1;
 		if(row_new) begin
 			if((frame_new & row !=0) | row_next != row) vsync_allow <= 1;
 			// French ACCC v1.11 sections 18.1/18.2.1 p.189: the
@@ -902,9 +911,9 @@ always @(posedge CLOCK) begin
 
 	if (r7_write_hit) begin
 		if(row != DI[6:0]) begin
-			// A false comparison re-arms the next genuine C4=R7 match.  It
-			// does not alter a VSYNC already in progress.
-			vsync_allow <= 1;
+			// French §16.3 p169: comparison changes during active VSYNC
+			// retain immediate rearming; Type1 keeps its existing policy.
+			if(CRTC_TYPE || VSYNC_r) vsync_allow <= 1;
 		end
 		else begin
 			// An equal comparison is consumed even when type 0 blocks the
