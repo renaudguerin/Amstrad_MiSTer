@@ -26,4 +26,25 @@ Combined `python3 sim/select_tests.py --run` passes46benches. The fixed-seed soa
 
 One passive followup deliberately adds no count assertion. With R0=7/R4=0/R9=1/R5=3 and an early held R9=2 write, ADJ lasts four lines: C5 is0 on entry and restarts at the subsequent old C4=R4/C9=R9 match before counting1,2 to completion. This reaches the existing photo-inferred C5 restart policy. French§11.2.4 p85's continuous-count reading may instead imply three; general counting compatibility remains open. Do not remove the old E0080 restart rule or declare the section fully closed from these warnings alone. Records are under `followup/`, including `c5/run.log` and `soak-refactor-only/run.log`.
 
-Final transported-test review and a new full RBF/native Option2 check remain pending. The software first-edge/rendered-warning result does not substitute for native acceptance or create a hardware-photo denominator.
+## Review-discovered first-C4=1 reload
+
+The final transported-test review finds that the immediate R9 MA2050 assertion,
+now on C4=0, no longer protects the French p85 Remarque's first C4=1 line.
+Extending the existing t08o by one eight-character line confirms the predicted
+defect: C4=1/C9=0/ADJactive but MA2054 instead of2050 (245PASS/1FAIL).
+This is a new failing-first observation, not a weakened or expected-failure test.
+
+A small Sol-high correction adds the missing armed row0→row1 boundary to the
+existing reload owner, using row_new and canonical row_next=1. It adds no state
+and changes no counters. The existing positive-R4 suppression remains intact.
+Opus5.5 independently reviews this correction GO; its added-line/IVM scope is
+in `ROW1-CORRECTION-REVIEW.md`. The final owner passes246/0 and final
+`python3 sim/select_tests.py --run` passes46benches. The fixed-seed soak remains
+d8edb00f54abdb5e: it does not exercise the newly protected first-C4=1 path.
+Both address assertions are now substantive. Logs are
+`shaker-joint-private-review/a2-row1-red.log`, `row1-final-selection.log` and
+`row1-soak.log`.
+
+All source/test reviews are complete. A new full RBF/native Option2 check remains
+pending. The software first-edge/rendered-warning result does not substitute
+for native acceptance or create a hardware-photo denominator.

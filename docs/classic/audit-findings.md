@@ -514,7 +514,8 @@ General implementation rules for all fix prompts:
   adjustment-ending VSYNC correction is now protected by `t08m` (and the corrected `t08g`
   oracle). A2 is protected at the production write phase: `t08n` requires a positive
   R4 rewrite accepted within the terminal character to suppress the special reload;
-  `t08o` requires an R9 rewrite there to retain adjustment entry and the row-0 reload.
+  `t08o` requires an R9 rewrite there to retain adjustment entry and the R12/R13
+  reload on the first subsequent C4=1 line as well as the entry line.
   Both writes remain held through the character boundary; new R4/R9 values govern
   C4/C9 progression (French ACCC v1.11 §11.2.4 p.85).
 - **Impact**: type 1 ruptures/overscan using adjustment rows show wrong row addressing (RA
