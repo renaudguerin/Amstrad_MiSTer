@@ -81,7 +81,7 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
   the capture-processing deadline bug is fixed separately in `ccd49d4`.
   [Native result evidence](investigations/hardware-runs/asic-a4-native-results-2026-11-04.md).
 - **Demo targets:** classic DSC4 credits are repaired, but Type 0 mixed-mode
-  partial pixel has an experimental retained-test correction on90f3b18,
+  partial pixel has an experimental retained-test correction,
   with clean full synthesis and bounded C0/C1 DSC4/Amazing views. Stronger
   source review, full synthesis and bounded native checks now pass on5261414;
   all-phase acceptance is open

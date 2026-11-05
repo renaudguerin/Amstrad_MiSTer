@@ -78,7 +78,8 @@ our closest software reference, not the hardware oracle.
 - Before the Storm (CRTC1, RUN"-BTF) has original normal-boot native and
   AmSpirit scene captures. Fresh CPCSyntaxError confirms the guest alternates
   R3=04/05. The production motherboard proves Full collapses 4/5 onto
-  one byte position; a private two-byte-history candidate is in preparation.
+  one byte position. The pre-GA extension is held for edge clipping; a private
+  post-GA rendered-pixel correction is being investigated.
   Current stills cannot judge alternating-frame wobble. [Evidence and limits](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
   publication is a separate correction. Fresh CPCSyntaxError B6 matches hardware
