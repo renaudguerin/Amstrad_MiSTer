@@ -352,30 +352,31 @@ General implementation rules for all fix prompts:
   medium on the full odd-R9 line sequencing (the p.207 example's within-character 5+4 split
   is not fully derivable from the pseudocode). Q19(b)'s adjacent post-exit behavior is now
   resolved separately as F16 and does not block the odd-R9 fixtures.
-- **Residual**: Q19(b)'s post-exit behavior after a non-matching R8=0 write is resolved visually
-  as finding F16 (see below). The within-line VSYNC phase on type-0 IVM frames still follows the
+- **Residual**: Q19(b)'s source reading is corrected in F16; its implementation and
+  native validation remain open. The within-line VSYNC phase on type-0 IVM frames still follows the
   legacy field-keyed mechanics; F15 moves the start line only.
 
-## F16. Type-0 post-IVM exit keeps the frozen C9.VMA comparison
+## F16. Type-0 IVM exit-line comparison and return to normal counting
 
-- **Rule** (ACCC v1.11 §19.8.1 pp.220-221 and tables pp.224-225; author feedback §2.8): On Type 0
-  (HD6845S/UM6845), when leaving IVM ($R_8 \to 0$), the line-end comparison does not revert to
-  evaluating live $C_9 == R_9$. Instead, the comparator continues testing the **frozen $C_9.\text{VMA}$
-  register content** (the last computed IVM raster address from the exit line) against plain $R_9$ until
-  a match occurs (or IVM is re-entered). If $R_9 \ne \text{frozen } C_9.\text{VMA}$, $C_9$ continues counting
-  past $R_9$ without ending the row, wrapping at 31. Software can recover normal counting by reprogramming
-  $R_9 = \text{frozen } C_9.\text{VMA}$ (the p.221 recovery recipe).
-- **Current** (implemented 2026-08-26): `rtl/crtc_type0_engine.v` tracks `ivm_exit_frozen` and latches
-  `exit_frozen_vma` at the IVM exit line. `type0_limit_value` and `type0_seam_value` compare `exit_frozen_vma`
-  against plain $R_9$ while frozen, clearing on comparator match or IVM re-entry. Verified by extended
-  `t22l`-`t22s` walking through $C_9=7$ without premature reset at $C_9=6$ on non-matching exits, and `t30a`/`t30b`
-  verifying the p.221 mid-line recovery recipe on odd and even frames.
-- **Confidence: high.** Derived directly from ACCC v1.11 pp.220-225 exit tables and author confirmation.
-- **Release (2026-10-27):** the source tables stop at C9=7 and do not bound the frozen lifetime. Real
-  CRTC 0 continues after SHAKER B1/A1's non-matching exit (frozen 15 vs R9=7), so a permanent freeze
-  is wrong. The engine now releases it when C9 wraps 31 to 0 without a row end (§10.3.1.1 p.76). The
-  release point is an inference pinned by `t30c`; see
-  `docs/investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md`.
+- **Rule** (French ACCC v1.11 §19.8.1 pp.221, 225): the exit/write line
+  compares the old IVM-derived C9.VMA against plain R9. The R8 mode change takes
+  effect at the next C0=0; following lines use ordinary C9 comparison. In all
+  four odd-frame p.225 panels, R9=6 and the row ends at C9=6, followed by
+  C4=2, C9=0. The bottom-right example exits at (C4,C9,C9.VMA)=(1,3,7),
+  then displays (1,4,4), (1,5,5), (1,6,6), (2,0,0).
+- **Current: source fixed, native acceptance pending.** The obsolete persistent
+  comparator and its wrap-release state are removed. Seven corrected `t22`
+  table owners fail239/7 before and pass with the full246/0 owner afterward;
+  `t30a/b` now apply p221's recovery write within the exit line. Final selection
+  passes46benches, soak ed57ffffdbf0b452; independent Opus review clears a bounded
+  trial. Original production-T80 even C5 caller changes equal PPI reads to
+  unequal with the source/input prefix intact. Installed005 still prints6O/6O/OOOOOO;
+  the hardware photo shows 6E/6O/OEOEOE. See the
+  [table correction](../investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md)
+  and [C5 evidence](../investigations/hardware-runs/shaker-crtc0-c5-parity-2026-11-05.md).
+- **Confidence:** high for the displayed odd-frame sequences and the line-bounded
+  source reading. Exact seam sampling, odd R9 and multiple writes on a line
+  remain outside those panels; the successor's native results remain open.
 
 ## F17. Type-1 RFD triggered on C9=R9 disables VMA-source state
 
@@ -609,17 +610,16 @@ General implementation rules for all fix prompts:
   ParityFrame. `t28a` pins the complementary odd-to-even origin. The full gate has 177
   required classic passes and soak `0x654a244c2cce6e0b`; hardware confirmation remains open.
 - **Impact**: interlace demos (SHAKER 2.x uses 1/64-line positioning tricks); most games unaffected.
-- **Confidence: high for the implemented even-R9 surface** (every asserted value traces to a
-  render-verified table cell or the pseudocode; the type-1 model reproduces all 64 panel
-  callouts). Medium overall until hardware: the odd-R9 half (F15), additional interlace line
-  (F14), and post-exit frozen C9.VMA (F16) are deliberately unimplemented; the residuals
+- **Confidence:** the type-1 model reproduces all 64 panel callouts; type-0 exit
+  expectations need correction under F16. Medium overall until hardware: the odd-R9 half (F15), additional interlace line
+  (F14), and the post-exit comparison (F16) remain open; the residuals
   listed in `f10-implementation-notes.md` (MID-VSYNC parity source after mid-frame R8 toggles,
   RFD×IVM) remain open. Type1 adjustment counting is specified by French
   §11.8 p93 together with §19.8.2 p226: the current plain-count override is
   a source mismatch, with a both-parity failing-first counter/VSYNC proof and
   repair `ccf2be7` passing240CRTC/45selected benches with independent review;
   native validation remains pending. [Current adjustment finding](../investigations/hardware-runs/crtc1-interlace-adjustment-counting-2026-11-04.md).
-- **Remaining work**: F14/F15/F16 require fixtures before RTL. Q12 is resolved as an English
+- **Remaining work**: F16 requires corrected fixtures, implementation and native validation. Q12 is resolved as an English
   qualifier omission: French v1.11 p.208 specifies IVM activation on every frame. The
   odd-C4 transition case still needs local fixtures; the source resolution does not verify
   the core's post-toggle pin timing (see `accc-author-questions.md` item 12). SHAKER

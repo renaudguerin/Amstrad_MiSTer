@@ -287,12 +287,13 @@ the p.208 right table prints C4=3 where its sequence requires 5 (source typo), a
       C9.VMA = (C9*2) | ParityC9
   ```
 - **On the very line where R8 transitions to 3**: the end-test uses the **old, un-doubled C9** compared directly against `R9 OR ParityFrame` (not C9.VMA) — deliberately, "to prevent the C9 used for display from switching mid-line." Parity itself, however, **is** considered immediately. This can cause **C9 to overflow past R9** on the transition line if `C9=R9` and parity is odd (test `C9 == R9+1` fails, so C9 doesn't reset and instead becomes `R9+1`). Render-verified 2026-08-24: the p.224-top tables switch at C9=6=R9 and show exactly this split — the even frame resets (next row C4=1, C9=0) while the odd frame overflows (C9 7..19).
-- **On and after the line where R8 returns to 0** (leaving IVM): the test compares the last
-  IVM-computed, now-frozen `C9.VMA` register content directly against plain `R9` (parity
-  dropped from the R9 side) — i.e. frozen `C9.VMA == R9`. A non-match persists on subsequent
-  lines even while live C9 advances past R9; p.221's recovery recipe programs R9 to the frozen
-  value. This asymmetry is the single most bug-prone edge in type-0 IVM and directly affects
-  the `VMA'←VMA` row-end latch too (§19.8.1, p.220-221; Q19(b), resolved visually 2026-08-26).
+- **On the line where R8 returns to 0** (leaving IVM), compare the old
+  IVM-derived `C9.VMA` against plain `R9`; the mode change takes effect at the
+  next C0=0 and following lines use ordinary C9 comparison (French §19.8.1
+  p.221). The p.225 odd-frame exit panels end at C9=6 for R9=6, then start
+  the next row at C9=0. The former persistent-frozen-comparison reading was
+  incorrect; F16 tracks the corrected RTL and pending native validation. See the
+  [dated correction](../investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md).
 - p.222-225 render-verified 2026-08-24. Entry tables switch R8→3 at C9 offsets 0,1,2,3 (p.222),
   4,5 (p.223) and 6 (p.224 top); exit tables switch R8→0 at C9 offsets 0-3 (p.224 bottom,
   p.225). **All of them use R9=6 (even), stated in prose on p.221**; an earlier reading of them
@@ -318,10 +319,11 @@ the p.208 right table prints C4=3 where its sequence requires 5 (source typo), a
   - the p.220 gate `If R9.0=0` is a source typo for R9 **odd**; p.206, the p.207 R9=7
     example, p.209's type-1 contrast, and the R9=6 tables all agree. Odd-R9 behavior is F15.
   - p.221 resolves the compared-value phases: switch line uses R9-or-ParityFrame, steady IVM
-    uses R9-or-ParityC9, and exit/post-exit uses frozen C9.VMA against plain R9.
-  - the seven non-matches all run through C9=7 and the frozen-6 control resets. One non-match,
-    p.224 bottom-left, also shows C4=2 (an increment without C9 reset); exclude only that C4
-    cell from fixtures pending hardware/author confirmation. Post-exit RTL is F16.
+    uses R9-or-ParityC9, and the exit line uses old C9.VMA against plain R9.
+  - French pp.224–225 exits reach C9=6 and reset after a nonmatching exit;
+    none runs through raw C9=7. The previously reported p.224 bottom-left
+    anomaly is also withdrawn: its final rows are (C4,C9,VMA)=(1,6,6),(2,0,0).
+    The corrected post-exit RTL awaits native validation under F16.
   - in the settled C4≥1 blocks of p.223 (both frames) and p.224-top even frame, the C9 column
     prints doubled values inconsistent with the C9-VMA beside it (p.222 and p.224-top odd print
     raw C9 for the same state). Key fixtures on C9-VMA, never on the tables' C9 column.
@@ -586,7 +588,8 @@ Resolved source conflicts / remaining table anomaly:
 
 - p.220 — the IVM parity-gate token `If R9.0=0` is a one-bit source typo for odd R9 (Q19,
   resolved 2026-08-25); F15 owns the unimplemented odd-R9 behavior.
-- p.224 bottom-left — the C4=2,C9=7 exit cell remains anomalous under the otherwise decisive
-  frozen-C9.VMA rule (Q19(b), resolved 2026-08-26); F16 excludes that cell pending hardware.
+- French p.224 bottom-left — no exit-cell anomaly remains: the rendered table
+  ends (1,6,6)→(2,0,0). The persistent frozen-comparison premise is withdrawn
+  (Q19(b), F16; visual recheck 2026-11-05).
 - p.294 — the identification "bit 6" reference is a source typo for bit 5 (Q14, resolved
   2026-08-26 against the p.247/p.248 renders and UM6845R datasheet).

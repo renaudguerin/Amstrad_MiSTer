@@ -290,10 +290,8 @@ with it.
     a typo for `If R9.0=1`? Two related details in the same block: (a) the compared value is
     written "R9 or ParityFrame" on p.220 but "R9 or ParityC9" on p.221 — identical while R9 is
     even, different exactly in the alternating odd-R9 case; which one is the hardware
-    comparison? (b) in the exit tables (p.224 bottom, p.225) the character keeps counting to
-    C9=7 with R9=6 after IVM is left, without the C4 increment the parity-dropped
-    `C9.VMA == R9` test would produce at C9=6 — illustrative padding, or does leaving IVM
-    really add a line? (Render-verified 2026-08-24. The earlier three-contradiction form of
+    comparison? (b) does the exit comparison persist beyond the exit line? The former premise that the
+    p.225 tables run through C9=7 was a misreading, corrected below. The earlier three-contradiction form of
     this question rested on misreading pp.222-225 as R9=3 and is withdrawn.)
 
     **Main token + (a): RESOLVED BY DEFAULT READING 2026-08-25** (fresh render pass pp.220,
@@ -311,21 +309,14 @@ with it.
     t22-family). Actionable: the odd-R9 counting machinery (row-end ParityC9 update with the
     corrected gate, odd-R9 limit tests, and the §19.5.2 VSYNC delay correction) is
     unimplemented → finding **F15** (audit-findings.md); fixtures before RTL.
-    (b): **RESOLVED BY VISUAL TABLE READING 2026-08-26.** After a non-matching R8=0 write, the
-    line-end test keeps comparing the **frozen C9.VMA register content** against plain R9; it
-    does not resume a live plain-C9 test. The eight rendered exit windows form a discriminating
-    set with R9=6:
-    - even-frame frozen values 0, 2 and 4 do not match 6 and run through plain C9=7;
-    - the even-frame frozen value 6 matches R9 and resets exactly at the write-line seam;
-    - odd-frame frozen values 1, 3, 5 and 7 all fail the plain-R9 comparison and run through
-      C9=7, including frozen 7 (which would match only if parity were still considered).
-    A live C9==R9 test would reset at C9=6 in all seven run-on windows and is therefore ruled
-    out. The p.221 worked recipe, which programs R9 to the frozen C9.VMA value to recover the
-    reset, independently agrees. One p.224 bottom-left cell remains anomalous: it ends at
-    C4=2,C9=7, an impossible C4 increment without a C9 reset. It is most likely a table typo
-    (C4=1 would match the other run-on windows), but that isolated anomaly cannot overturn the
-    seven-window discriminator. Actionable: current post-exit RTL resumes the live plain-C9
-    test; finding **F16** now owns the focused failing fixtures required before any RTL change.
+    (b): **CORRECTED 2026-11-05, French v1.11 §19.8.1 pp.221, 225.** The
+    four odd-frame panels end at C9=6 followed by C4=2, C9=0; none has a
+    raw C9=7 row. Bottom-right writes R8=0 at (1,3,7), followed by (1,4,4),
+    (1,5,5), (1,6,6), (2,0,0). The exit-line C9.VMA comparison against
+    plain R9 is followed by normal counting, consistent with p.221's next-C0=0
+    mode transition. The former claim that these tables prove persistent
+    frozen comparison is withdrawn. F16 tracks the implementation and native
+    validation; see the [dated correction](../investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md).
 
 20. **§11.3.2 — C4 comparison during stuck R5=0 vertical adjustment (CRTC 1).**
 
@@ -348,41 +339,20 @@ with it.
     44 and 512 scanlines respectively. Those predictions remain unmeasured; the documentary
     residual itself is closed by the author's direct answer.
 
-21. **§19.8.1 p.221, tables pp.224–225 — how long does the frozen post-IVM-exit comparison last
-    on CRTC 0?**
+21. **§19.8.1 p.221, table p.225 — duration of the post-IVM-exit comparison**
 
-    **OPEN, not yet sent.** After R8 returns from 3 to 0 with C9.VMA different from R9, the
-    p.221 prose and the exit tables show C9 running on past R9, which we model as a comparison
-    of the frozen C9.VMA against plain R9 (F16). The tables stop at C9=7, and the text does not
-    say when this state ends.
-
-    Real hardware shows that it does end. SHAKER 2.7 B1/A1 (parity-detect routine at
-    `SHAKE27B.BIN` `0x7722`) leaves IVM with C9.VMA=15 and then restores R9=7, and the Logon
-    System CRTC 0 photographs continue normally to page `00FC`. Read literally, a permanent
-    freeze would stop C4, and therefore VSYNC, forever.
-
-    Question: once C9 has missed R9 after the exit, what ends the frozen comparison? Is it
-    (a) C9 overflowing 31 to 0, after which the plain C9=R9 test applies; (b) a C9.VMA value
-    that keeps being recomputed after the exit; or (c) something else? The core currently
-    assumes (a) (`rtl/crtc_type0_engine.v`, `t30c`); see
-    `docs/investigations/hardware-runs/crtc0-ivm-exit-wedge-fix-2026-10-27.md`.
-
-    **Source cross-check, 2026-11-03:** CPCSyntaxError `22de765` releases its
-    deferred exit comparison at the next C0=0, providing a concrete competing
-    model. This does not close the question: the rendered French p.225
-    bottom-right odd-frame exit keeps C4=1 through C9=6 and 7 with R9=6,
-    despite C9-VMA returning to ordinary displayed values. See the
-    [source audit](../investigations/hardware-runs/emulator-source-author-question-audit-2026-11-03.md)
-    before interpreting the table or withdrawing Q21.
-
-    **Fresh caller cross-check, 2026-11-05:** original C5/029E reaches its
-    marker on MiSTer42 but prints6O/6O/OOOOOO. Fresh matching-version CPCSE
-    and AmSpirit both reproduce the hardware photo's6E/6O/OEOEOE. Existing
-    t22/t29 already cover the simple IVM-entry distinction; a supported-loader
-    original C5 replay is now qualifying the post-exit path and PPI reads.
-    This strengthens the value of the question but does not yet identify the
-    causal lifetime or override the French exit tables. See the
-    [current C5 evidence](../investigations/hardware-runs/shaker-crtc0-c5-parity-2026-11-05.md).
+    **WITHDRAWN / RESOLVED BY PRIMARY SOURCE, 2026-11-05; no author reply.**
+    The question assumed that the French p.225 panels continue through raw
+    C9=7 with R9=6. They instead end at C9=6 and start the next row at C9=0.
+    French p.221 describes the exit-line C9.VMA versus plain R9 comparison and
+    the mode change at the next C0=0. The source supports ordinary comparison
+    on following lines, not the persistent freeze assumed by the question and
+    current RTL. Exact seam sampling and unshown programming cases remain open.
+    Corrected implementation passes its final gate and independent review;
+    native successor verification is pending. F16 and the
+    [dated correction](../investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md)
+    track this work. The [C5 evidence](../investigations/hardware-runs/shaker-crtc0-c5-parity-2026-11-05.md)
+    records the current MiSTer/photo discrepancy.
 
 22. **§16.4.2 p.170 — what advances the CRTC 1 VSYNC-width counter (C3h) on very short lines?**
 

@@ -7164,14 +7164,11 @@ T21_TEST(t21_body_15, 15)
 //     documented p.221 worked example).
 //   - After the exit line, plain C9-vs-R9 counting resumes immediately.
 //
-// Fixture scope notes: the post-exit row-end behavior (seven of eight exit
-// tables run C9 to 7 with R9=6 without the predicted C4 increment) was
-// resolved 2026-08-26 (author question Q19(b) -> finding F16) and is
-// deliberately not asserted here; the settled C4>=1 blocks of the tables
-// print the doubled value in the C9 column (flagged source quirk) so
-// post-reset expectations follow the pseudocode (C9 restarts at 0 and steps
-// by 1) with the tables' C9-VMA column as the cross-check.  Odd-R9
-// alternation is finding F15 and is out of scope for these even-R9 tests.
+// French19.8.1 pp221/224-225: the exit line retains its IVM-derived
+// comparison value against plainR9. Every nonmatching exit panel resumes
+// ordinary C9/RA on the following line and ends the row after rawC9=6.
+// C9-VMA7 on an odd exit row is not a subsequent rawC9=7 row.
+// Odd-R9 alternation remains outside these even-R9 table fixtures.
 
 struct T22Step {
     std::uint8_t c4;
@@ -7424,7 +7421,7 @@ void t22_c1_exit_uses_current_line(TestBench& test) {
 }
 
 void t22_exit_even_at_limit(TestBench& test) {
-    // p.223 bottom-right table: exiting on the second row's limit line
+    // French p.224 bottom-right table: exiting on the second row's limit line
     // (C9.VMA = 6 = R9) still ends the row (parity dropped from the target
     // only): C9 resets to 0 and C4 increments; plain counting follows.
     t22_run_exit(test, false, 3, {
@@ -7438,67 +7435,67 @@ void t22_exit_even_at_limit(TestBench& test) {
 }
 
 void t22_exit_odd_at_r9_plus_1(TestBench& test) {
-    // p.224 bottom-right table and the p.220 worked example: exiting on the
-    // line whose C9.VMA = 7 = R9+1 misses the parity-dropped test, so C9 is
-    // incremented instead of resetting.  Finding F16: frozen C9.VMA (7 != 6)
-    // keeps line_last false, running through C9=7 without resetting at C9=6.
+    // French19.8.1 p221 and p225 bottom-right: the exit line tests
+    // VMA7 != plainR9=6, then raw C9 resumes and ends the row after6.
     t22_run_exit(test, true, 3, {
         {1, 3, 7},
-        {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+        {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {2, 0, 0}, {2, 1, 1}
     });
 }
 
 void t22_exit_odd_below_limit(TestBench& test) {
-    // p.224 third table: exiting at C9.VMA = 5 < 6 misses; Finding F16:
-    // frozen C9.VMA (5 != 6) keeps line_last false, running through C9=7.
+    // French19.8.1 pp221/225 bottom-left: VMA5 misses on the exit
+    // line; subsequent raw C9 reaches6 and advances C4.
     t22_run_exit(test, true, 2, {
         {1, 2, 5},
-        {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+        {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {2, 0, 0}, {2, 1, 1}
     });
 }
 
 void t22_exit_even_below_limit(TestBench& test) {
-    // p.223 bottom-left table: same shape on the even frame (C9.VMA = 4
-    // < 6).  Finding F16: frozen C9.VMA (4 != 6) runs through C9=7.
+    // French19.8.1 pp221/224 bottom-left: VMA4 misses on the exit
+    // line, followed by ordinary row termination after rawC9=6.
     t22_run_exit(test, false, 2, {
         {1, 2, 4},
-        {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+        {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {2, 0, 0}, {2, 1, 1}
     });
 }
 
 void t22_exit_even_c9_0(TestBench& test) {
-    // p.223 top exit table: exiting at C9.VMA = 0 misses; Finding F16:
-    // frozen C9.VMA (0 != 6) runs through C9=7.
+    // French19.8.1 pp221/224 top-left exit panel: exitVMA0 does
+    // not persist as the comparator on the following ordinary lines.
     t22_run_exit(test, false, 0, {
         {1, 0, 0},
-        {1, 1, 1}, {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+        {1, 1, 1}, {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6},
+        {2, 0, 0}, {2, 1, 1}
     });
 }
 
 void t22_exit_even_c9_1(TestBench& test) {
-    // p.223 second exit table: exiting at C9.VMA = 2 misses; Finding F16:
-    // frozen C9.VMA (2 != 6) runs through C9=7.
+    // French19.8.1 pp221/224 top-right exit panel: the exit row
+    // displaysVMA2, then plain C9/RA reaches6 before the next row.
     t22_run_exit(test, false, 1, {
         {1, 1, 2},
-        {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+        {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {2, 0, 0}, {2, 1, 1}
     });
 }
 
 void t22_exit_odd_c9_0(TestBench& test) {
-    // p.224 top exit table: exiting at C9.VMA = 1 misses; Finding F16:
-    // frozen C9.VMA (1 != 6) runs through C9=7.
+    // French19.8.1 pp221/225 top-left: exitVMA1 is followed by
+    // ordinary C9/RA1..6, then the next C4 row starts at0.
     t22_run_exit(test, true, 0, {
         {1, 0, 1},
-        {1, 1, 1}, {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+        {1, 1, 1}, {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6},
+        {2, 0, 0}, {2, 1, 1}
     });
 }
 
 void t22_exit_odd_c9_1(TestBench& test) {
-    // p.224 second exit table: exiting at C9.VMA = 3 misses; Finding F16:
-    // frozen C9.VMA (3 != 6) runs through C9=7.
+    // French19.8.1 pp221/225 top-right: exitVMA3 misses, then
+    // ordinary C9/RA2..6 terminate the row without a rawC9=7 line.
     t22_run_exit(test, true, 1, {
         {1, 1, 3},
-        {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
+        {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {2, 0, 0}, {2, 1, 1}
     });
 }
 
@@ -7510,10 +7507,9 @@ void t22_exit_odd_c9_1(TestBench& test) {
 // ---------------------------------------------------------------------------
 
 void t30_type0_post_ivm_exit_recovery_recipe_odd(TestBench& test) {
-    // Exit IVM on odd frame at C9=3 (frozen C9.VMA=7).
-    // Run past C9=6 to C9=7. During line C9=7, write R9=7.
-    // Line ends and matches 7==7, resetting C9 to 0 and advancing C4 to 2.
-    // Row 2 runs with R9=7 in normal non-IVM mode (cycling 0..7).
+    // French19.8.1 p221: program R9=C9.VMA BEFORE the exit line ends.
+    // Exit at rawC9=3/VMA7; matching VMA7 must end that same row.
+    // This distinguishes the exit-line VMA comparison from premature plainC9.
     t22_configure(test, true);
     test.run_to_c0(TestBench::kF10TargetC0);
     test.select_register(8);
@@ -7527,22 +7523,14 @@ void t30_type0_post_ivm_exit_recovery_recipe_odd(TestBench& test) {
     test.select_register(8);
     test.write_selected_register_now(0);  // exit IVM at C9=3 (C9.VMA=7)
 
-    const std::vector<T22Step> unrecovered_steps = {
-        {1, 3, 7},  // exit line
-        {1, 4, 4}, {1, 5, 5}, {1, 6, 6}, {1, 7, 7}
-    };
-    t22_walk(test, "t30 odd exit run", unrecovered_steps);
 
-    // Mid-line during C9=7, reprogram R9 to 7 (matching frozen C9.VMA=7)
-    test.run_to_c0(TestBench::kF10TargetC0);
+    test.expect_ra("t30 odd exit line retains its IVM VMA", 7);
     test.select_register(9);
     test.write_selected_register_now(7);
-
-    // Complete line C9=7 and advance to line 0 of the recovered row (C4=2).
     test.run_characters(64);
 
-    // Next line: comparator matched at line end (7==7), resetting C9 to 0 and advancing C4 to 2.
-    // Normal non-IVM counting runs with R9=7.
+    // The exit-line match reset C9 and advanced C4; subsequent rows use
+    // ordinary raw C9 counting against the newly programmed R9.
     const std::vector<T22Step> recovered_steps = {
         {2, 0, 0}, {2, 1, 1}, {2, 2, 2}, {2, 3, 3},
         {2, 4, 4}, {2, 5, 5}, {2, 6, 6}, {2, 7, 7},  // row 2 completes at C9=7
@@ -7552,10 +7540,9 @@ void t30_type0_post_ivm_exit_recovery_recipe_odd(TestBench& test) {
 }
 
 void t30_type0_post_ivm_exit_recovery_recipe_even(TestBench& test) {
-    // Exit IVM on even frame at C9=1 (frozen C9.VMA=2).
-    // Run past C9=1 to C9=5. During line C9=5, write R9=2.
-    // Line ends and matches 2==2, resetting C9 to 0 and advancing C4 to 2.
-    // Row 2 runs with R9=2 in normal non-IVM mode (cycling 0..2).
+    // French19.8.1 p221: program R9=C9.VMA BEFORE the exit line ends.
+    // Exit at rawC9=1/VMA2; matching VMA2 must end that same row.
+    // This distinguishes the exit-line VMA comparison from premature plainC9.
     t22_configure(test, false);
     test.run_to_c0(TestBench::kF10TargetC0);
     test.select_register(8);
@@ -7569,22 +7556,14 @@ void t30_type0_post_ivm_exit_recovery_recipe_even(TestBench& test) {
     test.select_register(8);
     test.write_selected_register_now(0);  // exit IVM at C9=1 (C9.VMA=2)
 
-    const std::vector<T22Step> unrecovered_steps = {
-        {1, 1, 2},  // exit line
-        {1, 2, 2}, {1, 3, 3}, {1, 4, 4}, {1, 5, 5}
-    };
-    t22_walk(test, "t30 even exit run", unrecovered_steps);
 
-    // Mid-line during C9=5, reprogram R9 to 2 (matching frozen C9.VMA=2)
-    test.run_to_c0(TestBench::kF10TargetC0);
+    test.expect_ra("t30 even exit line retains its IVM VMA", 2);
     test.select_register(9);
     test.write_selected_register_now(2);
-
-    // Complete line C9=5 and advance to line 0 of the recovered row (C4=2).
     test.run_characters(64);
 
-    // Next line: comparator matched at line end (2==2), resetting C9 to 0 and advancing C4 to 2.
-    // Normal non-IVM counting runs with R9=2.
+    // The exit-line match reset C9 and advanced C4; subsequent rows use
+    // ordinary raw C9 counting against the newly programmed R9.
     const std::vector<T22Step> recovered_steps = {
         {2, 0, 0}, {2, 1, 1}, {2, 2, 2},  // row 2 completes at C9=2
         {3, 0, 0}, {3, 1, 1}
@@ -8797,8 +8776,8 @@ void t28_type1_addline_vsync_at_extra_row(TestBench& test) {
 // t29: F15 type-0 odd-R9 IVM counting (ACCC v1.11 section 19.5.2 pp.206-207
 // including the worked R9=7 example table (render-verified 2026-08-26);
 // section 19.8.1 pp.220-221; the p.220 row-end gate adjudicated as
-// `If R9.0=1` in author question Q19; Q19(b) post-exit behavior stays out
-// of scope).
+// `If R9.0=1` in author question Q19). Post-exit behavior is protected
+// separately by the French-table t22/t30 owners under F16.
 //
 // Paper derivation from the p.207 table (both columns reproduced line for
 // line by the model below):
@@ -9247,15 +9226,16 @@ void test_type0_ivm_exit_frozen_mismatch_resumes_frames(TestBench& test) {
     // SHAKE27B.BIN 0x7722, replayed on the menu register state.  On the
     // C4=R7=30 row it lowers R9 to 6 at C9=0, enters IVM (R8=3) on the
     // C9=6 line, leaves it (R8=0) on the next line and restores R9=7.  The
-    // exit freezes a C9.VMA value that no longer equals R9 (French ACCC
-    // v1.11 section 19.8.1 p.221 and the pp.224-225 exit tables; F16).
+    // exit line compares its IVM-derived VMA against plain R9 (French
+    // ACCC v1.11 section19.8.1 p221); ordinary counting follows on the
+    // next line (rendered exit tables pp224-225).
     //
     // Expected value from real hardware, not from the ACCC: the Logon System
     // CRTC 0 photographs show the 00FB page and the following 00FC screen
     // drawn normally, so a real CRTC 0 keeps producing frames after this
-    // sequence.  The ACCC tables only cover the exit window up to C9=7 and
-    // do not say when the frozen comparison ends.  The bound used here is
-    // three full 19968 us frames after the R9=7 write.
+    // sequence. Keep this independent frame-resume control alongside the
+    // source-derived exit-line vectors. The bound remains three full
+    // 19968 us frames after the R9=7 write.
     test.set_crtc_type(0);
     const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> menu = {{
         {0, 63}, {1, 40}, {2, 46}, {3, 0x8E}, {4, 38},
