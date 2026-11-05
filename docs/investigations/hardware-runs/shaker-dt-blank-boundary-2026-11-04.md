@@ -1,6 +1,15 @@
 # SHAKER DT: black pixels and acquisition boundary — 4 November 2026
 
-## Finding
+## Current finding — corrected 5 November
+
+**The late native one-band image does not confirm a DT core or filter defect.**
+The original guest removes the second band about339ms after F8, and late
+same-run AmSpirit also shows one band. The native PNG associated with F8 was
+requested after F7 had already been published. The [capture-epoch correction](#capture-epoch-correction--5-november)
+below supersedes the earlier early-reference/late-native comparison. A passive
+first-window native trace remains useful; no filter repair is selected.
+
+## Source boundary finding
 
 The sync filter can ignore an additional mid-frame CRTC VSYNC when regenerating
 output timing. That makes it a plausible contributor to DT geometry, but does
@@ -19,7 +28,7 @@ fresh CPCSyntaxError register trace proves its original caller has a different
 vertical write phase. The loop bypasses its initial synchronizer on subsequent
 iterations, so waiting for repetition cannot recover the missing classic SNA
 counters. Those replay measurements describe the wrong-phase local execution;
-they do not narrow the actual device defect to acquisition placement. The final
+they do not establish a device defect or narrow its cause to acquisition placement. The final
 correction below records the concrete mismatch.
 
 The initial source pass used no execution. A separately authorized follow-up
@@ -424,15 +433,78 @@ Marker readback confirms requested mode 0 and applied mode 0 (Full), `shift=fals
 estimate is `line_estimate_ce4=256` CE4 ticks (4 MHz, hence a 64 µs horizontal scanline, not
 256 vertical lines). Artifacts are preserved under `dt-authentic-prefix-prep/device-dt-full-e24cb50/`.
 
-This confirms the single visible band is reproducible on the current codebase after the `9de75d3`
-CPU reset and recent CRTC repairs, rather than being an artifact of an obsolete build. Because
-the canonical F8 current-T80 simulation continues to produce 3 raw VSYNCs at C4=10/14/30 (with
-the first two reaching motherboard Full acquisition `HBL0/VBL0` and the third inside `VBL`) and
-original AmSpirit also shows two bands, the root cause remains unresolved between functional
-timing and acquisition boundary behavior. No filter repair is selected from this result.
+This confirms the late single-band appearance on the current artifact after the
+CPU reset and recent CRTC repairs. It does not qualify the early F8 epoch: the
+following capture-timing check withdraws the earlier comparison with an early
+AmSpirit image. No functional or filter repair follows from this screenshot.
 
-The provisional next step is a default-off passive native observer capturing caller state,
-raw VSYNC, GA vertical blank, and acquisition lock state; this plan remains provisional and
-requires formal source qualification. Root is the sole device operator; no device job is active.
-The physical device was left on `e24cb50` Full CRTC 1 DT 02FA; AmSpirit remains paused at the
-original F8 third R7 stop 6A07 with script and breakpoints cleared.
+## Capture-epoch correction — 5 November
+
+The complete existing original-T80 replay provides the missing time dimension.
+Genuine F8 occurs at tick79,896,647. The guest's write at PC6A1C changes its
+second-R7 operand69FA from0Eh to1Eh at tick101,617,919,339,394.875µs after F8.
+The first17 iterations have raw VSYNC at C4=10/14/30; the last3 have10/30.
+Genuine F7 occurs at105,455,687:399,360µs, or20×312-line frames, after F8.
+The row14 black band therefore belongs to a short early interval rather than
+a stable screen that persists until host capture.
+
+Across that replay, row10/14 GA-black intervals each last105,728 master ticks
+and overlap motherboard VBL=0 throughout; row30 black overlaps VBL=0 for zero
+ticks. These later event-ledger overlaps are not per-clock HBL/RGB counts.
+The first bracket separately measures actual active black samples; neither
+measurement is a final HDMI/scaler trace.
+
+Root continued the **same** paused normal-boot AmSpirit1.17.1/core2491682 caller
+without reset, input or guest-state writes. Waiting for genuine F7 and pausing
+404,568µs after the earlier stop leaves index0Eh and operand69FA=1Eh. The live
+uncropped image has one band, with REP0F..14 visible, qualitatively matching the
+late native layout. Its SHA256 is
+`55791f0ccc546813da0f88c0bc854fe1539c90db6ca87e8414a6944f4914cea0`.
+The earlier first-F8 image had two bands. AmSpirit is now paused in this late
+state; script and breakpoints are clear.
+
+The native manifest independently exposes the acquisition delay:
+
+| Observation | Native evidence |
+|---|---|
+| F8 / F7 core ticks |138,027,009 /163,586,049:399,360µs apart|
+| Key transport |00:23:42.068810–00:23:45.631 UTC|
+| First relevant ring poll |00:23:45.631819; both F8 and F7 returned in the same batch|
+| F8-labelled screenshot command |00:23:50.445968 UTC, after F7 was already known|
+
+The F8-labelled PNG is a marker association, not an image captured inside the
+sub350ms early window. **Withdraw the claimed native-versus-AmSpirit DT
+core/filter divergence from this comparison.** This correction is independent
+of the earlier rejected wrong-phase SNA replay; both limitations must be retained.
+Private evidence is `resumed-20261104/dt-temporal-window-qualification/`, including
+`RESULT.json`, `amspirit-after-f7/` and the original native manifest above.
+
+## Qualified next operation
+
+A default-off native observer now captures the first qualified post-F8 bracket:
+three M1 prefix-completion cuts, three actual raw-VSYNC ordinal cuts, independent
+VS/GA-black counts and actual active-black master ticks at the motherboard
+boundary. Its bounded window remains useful because SSH screenshots cannot
+resolve that early epoch. Missing raw edges are reported by ordinal and valid
+mask, never assigned an assumed row14. It reuses the seven-slot S storage and
+publishes only after genuine F7 and the ordinary header acknowledgement.
+The offline decoder rejects stale sequences and accepts honest invalid-tail
+partials without falsely qualifying their elapsed endpoint.
+
+The retained asset-free transport/host proof passes; final
+`python3 sim/select_tests.py --run` reports46 selected benches, and
+`PYTHONPATH=scripts/hardware-loop python3 -m unittest test_csl_runner test_ssm_ring`
+reports149 tests OK,6 skipped. Source guards keep both-off, S-only and
+DT-without-S behavior token-identical. The real-T80 enabled/disabled replay
+preserves ordinary markers and machine/bus ledgers; its frozen source and the
+subsequent partial-freeze projection are recorded in
+`dt-passive-candidate/` and `dt-passive-decoder-followup/`.
+The narrow foreign audit found two host decoder defects, both corrected with
+actual producer-generated failing-first fixtures. Fresh final host review found
+no additional defect; root accepted its narrow scope after reading the diff.
+These are diagnostic/host changes, not a GA/filter repair.
+
+Native synthesis, timing/fanout and early-packet acceptance remain separate
+gates. An agreeing early packet would qualify that window, not prove final
+HDMI behavior or a universal monitor model. The physical device remains on
+`e24cb50` Full CRTC1 DT02FA; no device job is active. Broad baseline deferred.

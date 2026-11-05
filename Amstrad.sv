@@ -787,6 +787,9 @@ wire        snap_crtc_hsync, snap_crtc_vsync_r;
 wire  [3:0] snap_crtc_vsw_elapsed;
 `ifdef SSM_S_PASSIVE_TRACE
 wire [6:0] s_trace_crtc_state;
+`ifdef SSM_DT_PASSIVE_TRACE
+wire [3:0] dt_trace_state;
+`endif
 `endif
 wire  [2:0] snap_mmu_rammap;
 wire  [4:0] snap_mmu_rampage;
@@ -1624,6 +1627,9 @@ Amstrad_motherboard motherboard
 	.snap_crtc_vsw_elapsed(snap_crtc_vsw_elapsed),
 `ifdef SSM_S_PASSIVE_TRACE
  .s_trace_crtc_state(s_trace_crtc_state),
+`ifdef SSM_DT_PASSIVE_TRACE
+ .dt_trace_state(dt_trace_state),
+`endif
 `endif
 
 	.snap_mmu_rammap(snap_mmu_rammap),
@@ -1749,6 +1755,14 @@ wire [63:0] ssm_ddr_din;
 wire  [7:0] ssm_ddr_be, ssm_ddr_burstcnt;
 wire        ssm_ddr_we, ssm_ddr_busy;
 
+`ifdef SSM_S_PASSIVE_TRACE
+`ifdef SSM_DT_PASSIVE_TRACE
+wire [32:0] dt_video_observation={12'd0,dt_trace_state[0],ssm_sync_observation[3:2],
+ snap_ga_intcnt,snap_ga_hcnt,
+ (!hbl&&!vbl&&dt_trace_state[3]&&!(|{r4,g4,b4})),!(|{r4,g4,b4}),
+ vbl,hbl,dt_trace_state[3],dt_trace_state[2],dt_trace_state[1]};
+`endif
+`endif
 ssm_marker ssm
 (
 	.clk(clk_sys),
@@ -1766,7 +1780,13 @@ ssm_marker ssm
         mem_bank==0 && ram_a=={7'd2,cpu_addr} &&
         !mf2_rom_en && !mf2_ram_en && !dan_ena && !sna_load &&
         !sna_hold && !save_hold && !ioctl_download),
-    .s_trace_snapshot({33'd0, snap_ppi_portb_in,
+    .s_trace_snapshot({
+`ifdef SSM_DT_PASSIVE_TRACE
+        dt_video_observation,
+`else
+        33'd0,
+`endif
+        snap_ppi_portb_in,
         snap_crtc_regs[79:72], snap_crtc_regs[71:64], snap_crtc_regs[63:56],
         snap_crtc_regs[47:40], snap_crtc_regs[39:32], snap_crtc_regs[7:0],
         snap_crtc_addr, snap_crtc_vsync_r, s_trace_crtc_state,

@@ -475,6 +475,17 @@ screenshot markers within four VSYNC periods and marks **both** captures of a cl
 pair, because neither of the two is the trustworthy one. Absence of that heuristic
 warning does not prove phase fidelity: proximity measures neither phase dwell nor
 host latency, and every SSM capture is labelled `capture_alignment: approximate`.
+
+When one poll already contains a later screenshot request, the earlier capture
+also records `superseded_before_capture` with the later marker's available
+code/sequence/frame/tick and a `state_uncertain` reason. This applies even when
+markers are many frames apart; sync, reserved and private diagnostic records do
+not supersede a screenshot. The annotation preserves capture and wait order and
+coexists with the paired-state warning. A latest or single request remains
+approximate without this flag. Compare the guest's actual dwell and PNG request
+times before treating a filename as an epoch: [DT's F8/F7 comparison](shaker-dt-blank-boundary-2026-11-04.md#capture-epoch-correction--5-november)
+shows why a marker association can outlive the state it names.
+
 A pending `screenshot_name` is kept for a later `#FFFE` and never consumed by an
 ordinary code.
 

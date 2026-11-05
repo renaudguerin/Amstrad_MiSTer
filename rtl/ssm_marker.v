@@ -194,6 +194,160 @@ always @(posedge clk) begin
 end
 
 `ifdef SSM_S_PASSIVE_TRACE
+`ifdef SSM_DT_PASSIVE_TRACE
+// DT-only specialization; all state is passive and shares the existing writer.
+reg [15:0] s_fetch_addr;
+reg s_fetch_ok=0;
+reg s_started=0, s_frozen=0;
+reg [2:0] s_count=0;
+reg [7:0] s_error=0;
+reg [127:0] s_samples[0:6];
+reg [31:0] s_ticks[0:6];
+reg s_flush=0,s_done=0,s_writing=0,s_header_pending=0;
+reg [3:0] s_index=0;
+reg [31:0] s_result_tick=0;
+reg [63:0] s_rec_a,s_rec_b;
+wire s_header_accepted=s_header_pending&&ddram_we&&!ddram_busy;
+reg [2:0] dt_marker_stage=0;
+reg [7:0] dt_marker_low=0;
+reg dt_f7_pair_seen=0,dt_f7_verified=0,dt_header_acked=0;
+reg [31:0] dt_f7_marker_tick=0;
+wire dt_marker_ret=fetch_end&&s_fetch_ok&&dt_marker_stage==4&&s_fetch_addr==16'hA389&&fetch_data==8'hC9;
+wire dt_arm_now=dt_marker_ret&&dt_marker_low==8'hF8&&!s_started;
+wire dt_finish_now=dt_marker_ret&&dt_marker_low==8'hF7&&s_started;
+reg dt_running=0,dt_bracket_started=0,dt_complete=0;
+reg dt_tail_pending=0,dt_tail_end=0;
+reg [1:0] dt_tail_slot=0,dt_next=0;
+reg [15:0] dt_tail_addr=0;
+reg [5:0] dt_mask=0;
+reg dt_raw_d=0,dt_gb_d=0,dt_hs_d=0;
+wire dt_raw=s_trace_snapshot[95],dt_gb=s_trace_snapshot[97],dt_hs=s_trace_snapshot[115];
+wire dt_raw_rise=dt_raw&&!dt_raw_d,dt_gb_rise=dt_gb&&!dt_gb_d,dt_hs_rise=dt_hs&&!dt_hs_d;
+wire dt_first=fetch_end&&s_fetch_ok&&s_fetch_addr==16'h69F1&&fetch_data==8'hED&&s_started&&!s_frozen&&!dt_bracket_started;
+wire dt_last=fetch_end&&s_fetch_ok&&s_fetch_addr==16'h69F1&&fetch_data==8'hED&&dt_running&&!s_frozen;
+wire dt_window=(dt_running||dt_first)&&!s_frozen&&!dt_last&&!dt_finish_now;
+reg [3:0] dt_raw_count=0,dt_gb_count=0;
+reg dt_raw_overflow=0,dt_gb_overflow=0;
+reg [1:0] dt_owner=0;
+reg dt_owner_valid=0;
+wire [1:0] dt_owner_now=dt_raw_rise?dt_raw_count[1:0]:dt_owner;
+wire dt_owner_ok=dt_raw_rise?(dt_raw_count<3):dt_owner_valid;
+reg [17:0] dt_black[0:2];
+reg [2:0] dt_black_overflow=0,dt_seen_ga=0,dt_seen_de=0;
+reg [23:0] dt_elapsed=0;
+reg dt_elapsed_overflow=0;
+reg [9:0] dt_lines=0;
+reg dt_line_overflow=0;
+reg [31:0] dt_end_tick=0;
+integer dt_i;
+always @(posedge clk) begin : dt_observe
+ reg [7:0] err;
+ reg [5:0] mask;
+ if(!active||!s_trace_enable) begin
+  s_started<=0;s_frozen<=0;s_count<=0;s_error<=0;s_fetch_ok<=0;
+  dt_marker_stage<=0;dt_marker_low<=0;dt_f7_pair_seen<=0;dt_f7_verified<=0;
+  dt_running<=0;dt_bracket_started<=0;dt_complete<=0;dt_tail_pending<=0;dt_tail_end<=0;dt_next<=0;
+  dt_mask<=0;dt_raw_d<=dt_raw;dt_gb_d<=dt_gb;dt_hs_d<=dt_hs;
+  dt_raw_count<=0;dt_gb_count<=0;dt_raw_overflow<=0;dt_gb_overflow<=0;
+  dt_owner<=0;dt_owner_valid<=0;dt_seen_ga<=0;dt_seen_de<=0;dt_black_overflow<=0;
+  dt_elapsed<=0;dt_elapsed_overflow<=0;dt_lines<=0;dt_line_overflow<=0;dt_end_tick<=0;
+  for(dt_i=0;dt_i<3;dt_i=dt_i+1)dt_black[dt_i]<=0;
+  for(dt_i=0;dt_i<7;dt_i=dt_i+1)begin s_samples[dt_i]<=0;s_ticks[dt_i]<=0;end
+ end else begin
+  err=s_error;mask=dt_mask;
+  dt_raw_d<=dt_raw;dt_gb_d<=dt_gb;dt_hs_d<=dt_hs;
+  if(m1_fetch) begin
+   s_fetch_addr<=s_trace_addr;
+   s_fetch_ok<=s_trace_qualified&&(!m1_fetch_d||(s_fetch_ok&&s_fetch_addr==s_trace_addr));
+  end
+  // Authenticate the actual undefined-ED pair and its following RET.
+  if(fetch_end) begin
+   if(!s_fetch_ok)dt_marker_stage<=0;
+   else case(dt_marker_stage)
+    0:if(s_fetch_addr==16'hA385&&fetch_data==8'hED)dt_marker_stage<=1;
+    1:if(s_fetch_addr==16'hA386&&(fetch_data==8'hF8||fetch_data==8'hF7))begin dt_marker_low<=fetch_data;dt_marker_stage<=2;end else dt_marker_stage<=0;
+    2:if(s_fetch_addr==16'hA387&&fetch_data==8'hED)dt_marker_stage<=3;else dt_marker_stage<=0;
+    3:if(s_fetch_addr==16'hA388&&fetch_data==8'h02)begin
+       dt_marker_stage<=4;
+       if(dt_marker_low==8'hF7&&s_started)begin dt_f7_pair_seen<=1;dt_f7_marker_tick<=tick;end
+      end else dt_marker_stage<=0;
+    default:dt_marker_stage<=0;
+   endcase
+  end
+  if(dt_arm_now)begin s_started<=1;s_count<=7;dt_f7_pair_seen<=0;dt_f7_verified<=0;end
+  if(dt_first)begin
+   dt_running<=1;dt_bracket_started<=1;
+   s_samples[0]<=s_trace_snapshot;s_ticks[0]<=tick;
+   dt_tail_pending<=1;dt_tail_slot<=0;dt_tail_addr<=16'h69F2;dt_tail_end<=0;
+  end
+  if(fetch_end&&s_started&&!s_frozen&&!dt_first)begin
+   if(dt_last)begin
+    if(dt_tail_pending)err=err|8'd4;
+    s_frozen<=1;dt_running<=0;dt_end_tick<=tick;
+    dt_tail_pending<=1;dt_tail_end<=1;dt_tail_addr<=16'h69F2;
+   end else if(dt_tail_pending)begin
+    dt_tail_pending<=0;
+    if(!s_fetch_ok)err=err|8'd1;
+    else if(s_fetch_addr!=dt_tail_addr)err=err|8'd4;
+    else if(fetch_data!=8'h49)err=err|8'd2;
+    else begin mask[dt_tail_slot]=1;dt_next<=dt_tail_slot+1'b1;end
+   end else if(s_fetch_addr==16'h69F1||s_fetch_addr==16'h69FC||s_fetch_addr==16'h6A07)begin
+    if(!s_fetch_ok)err=err|8'd1;
+    else if(fetch_data!=8'hED)err=err|8'd2;
+    else if(dt_running&&((s_fetch_addr==16'h69FC&&dt_next==1)||(s_fetch_addr==16'h6A07&&dt_next==2)))begin
+     s_samples[dt_next]<=s_trace_snapshot;s_ticks[dt_next]<=tick;
+     dt_tail_pending<=1;dt_tail_end<=0;dt_tail_slot<=dt_next;dt_tail_addr<=s_fetch_addr+16'd1;
+    end else err=err|8'd4;
+   end
+  end
+  // Closing prefix fixes the window immediately; its following49 validates it.
+  if(fetch_end&&s_frozen&&dt_tail_pending&&dt_tail_end)begin
+   dt_tail_pending<=0;dt_tail_end<=0;
+   if(!s_fetch_ok)err=err|8'd1;
+   else if(s_fetch_addr!=dt_tail_addr)err=err|8'd4;
+   else if(fetch_data!=8'h49)err=err|8'd2;
+   else dt_complete<=1;
+  end
+  if(dt_window)begin
+   if(dt_elapsed!=24'hFFFFFF)dt_elapsed<=dt_elapsed+1'b1;
+   else begin dt_elapsed_overflow<=1;err=err|8'd64;end
+   if(dt_hs_rise)begin if(dt_lines!=10'h3FF)dt_lines<=dt_lines+1'b1;else begin dt_line_overflow<=1;err=err|8'd64;end end
+   if(dt_raw_rise)begin
+    if(dt_raw_count!=15)dt_raw_count<=dt_raw_count+1'b1;else dt_raw_overflow<=1;
+    if(dt_raw_count<3)begin
+     s_samples[3+dt_raw_count]<=s_trace_snapshot;s_ticks[3+dt_raw_count]<=tick;
+     mask[3+dt_raw_count]=1;dt_owner<=dt_raw_count[1:0];dt_owner_valid<=1;
+    end else begin dt_owner_valid<=0;err=err|8'd16;end
+   end
+   if(dt_gb_rise)begin if(dt_gb_count!=15)dt_gb_count<=dt_gb_count+1'b1;else dt_gb_overflow<=1;end
+   if(dt_owner_ok)begin
+    if(dt_gb)dt_seen_ga[dt_owner_now]<=1;
+    if(dt_gb&&!s_trace_snapshot[98]&&!s_trace_snapshot[99])dt_seen_de[dt_owner_now]<=1;
+    if(dt_gb&&!s_trace_snapshot[98]&&!s_trace_snapshot[99]&&s_trace_snapshot[100])begin
+     if(dt_black[dt_owner_now]!=18'h3FFFF)dt_black[dt_owner_now]<=dt_black[dt_owner_now]+1'b1;
+     else begin dt_black_overflow[dt_owner_now]<=1;err=err|8'd32;end
+    end
+   end
+  end
+  if(dt_finish_now&&!dt_f7_verified)begin
+   dt_f7_verified<=1;s_frozen<=1;dt_running<=0;
+   if(!dt_complete||mask[2:0]!=7)err=err|8'd8;
+   s_samples[6]<={1'b0,!dt_complete,dt_complete,dt_bracket_started,s_started,err,
+     dt_line_overflow,dt_lines,dt_elapsed_overflow,dt_elapsed,
+     dt_black_overflow,dt_seen_de,dt_seen_ga,dt_black[2],dt_black[1],dt_black[0],
+     dt_gb_overflow,dt_gb_count,dt_raw_overflow,dt_raw_count,mask};
+   s_ticks[6]<=dt_complete?dt_end_tick:tick;
+  end
+  s_error<=err;dt_mask<=mask;
+ end
+end
+wire s_status=s_index=={s_count,1'b0};
+wire [2:0] s_sample_index=s_index[3:1];
+wire [63:0] s_payload=s_status?{32'h44545231,8'd0,s_error,8'd1,5'd0,s_count}:
+ (s_index[0]?s_samples[s_sample_index][127:64]:s_samples[s_sample_index][63:0]);
+wire [15:0] s_code=s_status?16'hFF2F:(s_index[0]?16'hFF28:16'hFF20)+{13'd0,s_sample_index};
+wire [31:0] s_tick=s_status?s_result_tick:s_ticks[s_sample_index];
+`else
 // One acquisition per SSM-enable epoch. Pure observers; no machine feedback.
 // Capture cut: pre-edge live state when the completed M1 read first goes low.
 reg [15:0] s_fetch_addr;
@@ -284,6 +438,7 @@ wire [63:0] s_payload = s_status ?
 wire [15:0] s_code = s_status ? 16'hFF2F :
  (s_index[0] ? 16'hFF28 : 16'hFF20)+{13'd0,s_sample_index};
 wire [31:0] s_tick = s_status ? s_result_tick : s_ticks[s_sample_index];
+`endif
 `endif
 
 //----------------------------------------------------------------------------
@@ -440,6 +595,9 @@ always @(posedge clk) begin
 			pend          <= 1'b0;
 `ifdef SSM_S_PASSIVE_TRACE
 			s_flush<=0; s_done<=0; s_writing<=0; s_header_pending<=0; s_index<=0;
+`ifdef SSM_DT_PASSIVE_TRACE
+            dt_header_acked<=0;
+`endif
 `endif
 		end
 	end
@@ -458,15 +616,27 @@ always @(posedge clk) begin
 			pend            <= 1'b0;
 `ifdef SSM_S_PASSIVE_TRACE
 			s_flush<=0; s_done<=0; s_writing<=0; s_header_pending<=0; s_index<=0;
+`ifdef SSM_DT_PASSIVE_TRACE
+            dt_header_acked<=0;
+`endif
 `endif
 		end
 	end
 	else begin
 `ifdef SSM_S_PASSIVE_TRACE
+`ifdef SSM_DT_PASSIVE_TRACE
+        if(dt_arm_now) dt_header_acked<=0;
+        if(s_header_accepted)begin
+            s_header_pending<=0;
+            if(dt_f7_pair_seen && s_result_tick==dt_f7_marker_tick) dt_header_acked<=1;
+        end
+        if(s_trace_enable && s_started && !s_done && dt_header_acked && dt_f7_verified) s_flush<=1;
+`else
         if (s_header_accepted) begin
             s_header_pending<=0;
             if (s_trace_enable && s_started && !s_done) s_flush<=1;
         end
+`endif
 `endif
 		if (hit) begin
 			event_count <= event_count + 1'd1;
@@ -550,7 +720,13 @@ always @(posedge clk) begin
                         else s_index<=s_index+1'b1;
                     end else begin
                         pend<=0;
-                        if (rec_a[15:0]==16'h02D3) begin
+                        if (rec_a[15:0]==
+`ifdef SSM_DT_PASSIVE_TRACE
+                            16'h02F7
+`else
+                            16'h02D3
+`endif
+                        ) begin
                             s_header_pending<=1; s_result_tick<=rec_b[47:16];
                         end
                     end

@@ -1136,6 +1136,11 @@ class CslRunner:
         # Record marker ingestion observation time immediately when poll completes,
         # separating it from downstream capture processing (taking screenshots).
         self._last_ssm_poll_completed_at = self.backend.now()
+        # Every request in this batch was published before any capture below.
+        # Preserve that evidence even when requests are many frames apart.
+        requests = [r for r in records
+                    if ssm_ring.is_screenshot_request(int(r["code"], 16))]
+        later_requests = iter(requests[1:] + [None])
         for record in records:
             self.ssm_records.append(record)
             code = int(record["code"], 16)
@@ -1151,14 +1156,15 @@ class CslRunner:
                 # the code itself; #FFFE is the variant named from the CSL
                 # screenshot_name instead. SHAKER uses the former, assigning
                 # one code per test screen.
-                self._ssm_capture(record, command)
+                self._ssm_capture(record, command, superseded_by=next(later_requests))
             elif command is not None:
                 self._note(command, "ssm",
                            f"marker #{code:04X} is reserved by SSM v1.2 for a use this "
                            "runner does not implement; recorded only")
         return records
 
-    def _ssm_capture(self, record: Dict[str, Any], command: Optional[Command]) -> None:
+    def _ssm_capture(self, record: Dict[str, Any], command: Optional[Command],
+                     superseded_by: Optional[Dict[str, Any]] = None) -> None:
         """Capture for a screenshot-requesting marker.
 
         The capture lands at least a frame after the marker, because Main grabs
@@ -1228,13 +1234,32 @@ class CslRunner:
                 "phase; the absence of this warning is not a guarantee either, because "
                 "proximity does not measure phase dwell or host latency"
             )
-            result["state_uncertain"] = warning
+            self._mark_capture_uncertain(result, warning)
             if previous_capture is not None:
-                previous_capture["state_uncertain"] = warning
+                self._mark_capture_uncertain(previous_capture, warning)
             if command is not None:
                 self._note(command, "ssm", warning)
+        if superseded_by is not None:
+            reason = (
+                "a later screenshot request was already published in the same poll "
+                "batch before this capture started; the requested state may be superseded"
+            )
+            result["superseded_before_capture"] = {
+                key: superseded_by[key] for key in ("code", "seq", "frame", "tick")
+                if key in superseded_by
+            }
+            result["superseded_before_capture"]["reason"] = reason
+            self._mark_capture_uncertain(result, reason)
         if command is not None:
             self._record(command, "ssm_capture", name=name, ssm=record, paired=paired)
+
+    @staticmethod
+    def _mark_capture_uncertain(capture: Dict[str, Any], reason: str) -> None:
+        previous = capture.get("state_uncertain")
+        if not previous:
+            capture["state_uncertain"] = reason
+        elif reason not in previous:
+            capture["state_uncertain"] = previous + "; " + reason
 
     def _pending_load(self) -> Dict[str, Any]:
         load = {

@@ -91,6 +91,76 @@ wait 2000000
 MUTATING_CFG = MINIMAL.replace("crtc_select 1", "crtc_select 0")
 
 
+class TestSsmBatchCaptureMetadata(unittest.TestCase):
+    """Published ring batches can outlive a phase before any PNG is requested."""
+
+    def consume(self, records):
+        class BatchBackend(PlanBackend):
+            def __init__(self):
+                super().__init__()
+                self.captures = []
+
+            def poll_ssm(self):
+                return records
+
+            def screenshot(self, name):
+                result = super().screenshot(name)
+                self.captures.append(result)
+                return result
+
+        backend = BatchBackend()
+        runner = CslRunner([], options(Path("unused"), ssm=True), backend, "batch.csl")
+        runner._ssm_start_checked = True
+        self.assertEqual(runner._consume_ssm(None), records)
+        self.assertEqual(runner.ssm_records, records)
+        self.assertEqual(runner.ssm_wait_pending, records)
+        return runner, backend.captures
+
+    def test_later_request_in_same_batch_marks_early_capture_superseded(self):
+        # Native DT: F8/F7 were already in ONE poll,20frames apart, before
+        # the host sent even the first screenshot command. Proximity is not
+        # the evidence: publication of the later request already is.
+        records = [{"code": "02F8", "seq": 10, "frame": 100, "tick": 6400},
+                   {"code": "02F7", "seq": 11, "frame": 120, "tick": 7680}]
+        runner, captures = self.consume(records)
+        self.assertEqual(runner.capture_count, 2)
+        self.assertIn("state_uncertain", captures[0])
+        later = captures[0]["superseded_before_capture"]
+        self.assertEqual({k: later[k] for k in ("code", "seq", "frame", "tick")}, records[1])
+        self.assertTrue(later["reason"])
+        self.assertNotIn("superseded_before_capture", captures[1])
+        self.assertNotIn("state_uncertain", captures[1])
+        self.assertTrue(all(c["capture_alignment"] == "approximate" for c in captures))
+
+    def test_single_request_with_reserved_tail_is_not_superseded(self):
+        records = [{"code": "02F8", "frame": 100}, {"code": "0000", "frame": 101},
+                   {"code": "FF20", "frame": 102}, {"code": "FF2F", "frame": 103},
+                   {"code": "FFFF", "frame": 104}]
+        runner, captures = self.consume(records)
+        self.assertEqual(runner.capture_count, 1)
+        self.assertEqual(runner.ssm_sync_seen, 1)
+        self.assertNotIn("superseded_before_capture", captures[0])
+        self.assertNotIn("state_uncertain", captures[0])
+        self.assertEqual(captures[0]["capture_alignment"], "approximate")
+
+    def test_reserved_records_between_requests_do_not_name_the_superseding_request(self):
+        records = [{"code": "02F8", "frame": 100}, {"code": "0000", "frame": 101},
+                   {"code": "FF20", "frame": 102}, {"code": "02F7", "frame": 120}]
+        runner, captures = self.consume(records)
+        self.assertEqual(runner.capture_count, 2)
+        self.assertEqual(captures[0]["superseded_before_capture"]["code"], "02F7")
+        self.assertNotIn("superseded_before_capture", captures[1])
+
+    def test_same_batch_supersession_preserves_the_paired_warning(self):
+        _, captures = self.consume([{"code": "02F8", "frame": 100},
+                                    {"code": "02F7", "frame": 102}])
+        self.assertIn(captures[0]["superseded_before_capture"]["reason"],
+                      captures[0]["state_uncertain"])
+        for capture in captures:
+            self.assertIn("absence of this warning is not a guarantee", capture["state_uncertain"])
+        self.assertNotIn("superseded_before_capture", captures[1])
+
+
 class TestHardwareCrossChecks(unittest.TestCase):
     """Pin the derived tables against evidence from the real device."""
 

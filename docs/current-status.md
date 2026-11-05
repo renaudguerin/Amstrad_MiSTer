@@ -15,7 +15,7 @@ instructions across handoffs and context compaction.
 
 ## Branch and current artifacts
 
-- Active branch: `codex/overnight-validation-20261103`, code tip `e24cb50`.
+- Active branch: `codex/overnight-validation-20261103`, functional code tip `e24cb50`.
   It is distinct from integrated `master`; no integration or release is implied.
 - Current full artifact: `Amstrad_20261104_e24cb50.rbf`, SHA256
   `c65d7e60ac4ff95263e2bf425da248c31b6c838bfadb90f2e653df533605cc46`.
@@ -72,9 +72,13 @@ our closest software reference, not the hardware oracle.
   An asset-free current-T80 baseline has 12 source-derived failures among 56
   controls; the frozen candidate passes all 56, including Mode3, and the existing
   fast GA controls. Removing proof-only stored metadata preserves all captured
-  fields. Eight genuine same-numeric JIT controls also pass. Independent review and
-  lifecycle checks remain;
-  production GA timing is unchanged.
+  fields. Eight genuine same-numeric JIT controls also pass. Focused snapshot checks
+  exposed mode restoration and stale prefetch defects in the private candidate;
+  corrections pass focused red/green checks and all 64 pixel controls.
+  The asset-free retained-test draft also passes64 public RGB/blank controls;
+  strict pin qualification removes its broad missing-pin waiver. Stronger
+  independent review and tracked test integration remain pending; production
+  GA timing is unchanged.
   [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
   [mode boundary](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
@@ -130,11 +134,13 @@ our closest software reference, not the hardware oracle.
   Space can advance across handler entry. Avoid blind full-walk timing retries.
   [Package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md),
   [D3 caller](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md).
-- DT still shows one middle band at `02F8/02FA` on current `e24cb50` in Full.
-  The original 14-page targeted run completes without failures. Authentic
-  current-T80 replay and AmSpirit show both bands; the replay carries both
-  through motherboard acquisition. A default-off native state/VS/GA-blank trace
-  is being prepared to locate the divergence. No filter repair is selected.
+- DT's late one-band screenshot is an acquisition-epoch question, not a
+  confirmed core/filter defect. The original guest removes the second band
+  about339ms after F8; the same AmSpirit run also shows one band after F7.
+  Native F8/F7 were already in one polled batch before the F8-labelled PNG.
+  A default-off passive trace is ready for diagnostic synthesis to qualify
+  the short early window. Its selected gate passes46 benches; the host also
+  flags superseded captures. No filter repair is selected.
   [DT evidence](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
 - B1 display ownership and applied-mode observability remain open; native
   screenshots omit the OSD. B6 still needs physical HDMI/CRT acceptance and a
