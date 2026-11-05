@@ -8,6 +8,12 @@ module classic_mode_boundary_top (
     input clk,
     input reset_btn,
     input pause,
+    input [1:0] filter_request,
+    input save_req, cart_ack,
+    input [7:0] cart_dout,
+    output cart_req, captured, save_hold,
+    output [22:0] cart_addr,
+    output [2047:0] saved_header,
     input crtc_type,
     input sna_download,
     input load_wr,
@@ -34,6 +40,15 @@ module classic_mode_boundary_top (
 
     // Read-only classic GA, CRTC, bus and pixel observations
     output [5:0] classic_rgb,
+    output [5:0] public_rgb,
+    output [7:0] r0_value, r1_value, crtc_data, byte_out,
+    output crtc_data_write, raw_vs, raw_de, outgoing_de, force_blank,
+    output ce4, fetch, bs, shift, filtered_hs, filtered_vs, hblank, vblank,
+    output selected_hs, selected_hb, selected_vb, filter_nohs, filter_commit,
+    output border_accept, ink_accept, end_gen,
+    output [4:0] palette_target, palette_data,
+    output [8:0] filter_size,
+    output [1:0] applied_mode,
     output classic_raw_blank,
     output [7:0] c0,
     output [6:0] c4,
@@ -65,16 +80,17 @@ module classic_mode_boundary_top (
         .clk(clk),
         .reset_btn(reset_btn),
         .pause(pause),
+        .filter_request(filter_request),
         .model(2'd0),
         .crtc_type(crtc_type),
-        .save_req(1'b0),
+        .save_req(save_req),
         .sna_download(sna_download),
         .load_wr(load_wr),
         .load_addr(load_addr),
         .load_data(load_data),
         .mem_din(mem_din),
-        .cart_dout(8'hff),
-        .cart_ack(1'b0),
+        .cart_dout(cart_dout),
+        .cart_ack(cart_ack),
         .ddram_busy(1'b0),
         .mem_addr(mem_addr),
         .mem_bank(),
@@ -84,14 +100,14 @@ module classic_mode_boundary_top (
         .load_mem_wr(load_mem_wr),
         .load_mem_addr(load_mem_addr),
         .load_mem_bank(),
-        .cart_req(),
-        .cart_addr(),
+        .cart_req(cart_req),
+        .cart_addr(cart_addr),
         .cart_bank(),
         .ddram_addr(),
         .ddram_din(),
         .ddram_we(),
-        .captured(),
-        .save_hold(),
+        .captured(captured),
+        .save_hold(save_hold),
         .save_done(),
         .sna_load(sna_load),
         .sna_hold(sna_hold),
@@ -101,7 +117,7 @@ module classic_mode_boundary_top (
         .cpu_insn_start(cpu_insn_start),
         .cpu_halt_n(),
         .hw_header(),
-        .saved_header(),
+        .saved_header(saved_header),
         .active_model(),
         .cpu_iorq(cpu_iorq),
         .cpu_mreq(cpu_mreq),
@@ -122,6 +138,38 @@ module classic_mode_boundary_top (
         .video_vs(),
         .video_de()
     );
+
+    // Public motherboard RGB is separate from the old GA-source oracle.
+    assign public_rgb = {machine.motherboard.red[1:0], machine.motherboard.green[1:0], machine.motherboard.blue[1:0]};
+    assign r0_value = machine.motherboard.crtc.R0_h_total;
+    assign r1_value = machine.motherboard.crtc.R1_h_displayed;
+    assign crtc_data = machine.motherboard.D;
+    assign crtc_data_write = machine.motherboard.crtc.reg_data_write;
+    assign byte_out = machine.motherboard.vram_d;
+    assign raw_vs = machine.motherboard.crtc_vs;
+    assign raw_de = machine.motherboard.crtc_de;
+    assign outgoing_de = machine.motherboard.GateArray.video_sync.u1005;
+    assign force_blank = machine.motherboard.GateArray.video_sync.FORCE_BLANK;
+    assign ce4 = machine.motherboard.phi_en_n;
+    assign fetch = machine.motherboard.cpu_n && !machine.motherboard.ras_n && !machine.motherboard.cas_n;
+    assign bs = machine.motherboard.vram_bs;
+    assign shift = machine.motherboard.crtc_shift;
+    assign filtered_hs = machine.motherboard.hsync_filtered;
+    assign filtered_vs = machine.motherboard.vsync_filtered;
+    assign hblank = machine.motherboard.hblank_filtered;
+    assign vblank = machine.motherboard.vblank_filtered;
+    assign selected_hs = machine.motherboard.hsync;
+    assign selected_hb = machine.motherboard.hblank;
+    assign selected_vb = machine.motherboard.vblank;
+    assign filter_nohs = machine.motherboard.crt_filter.no_hsync;
+    assign filter_size = machine.motherboard.crt_filter.hSyncSize;
+    assign applied_mode = machine.motherboard.sync_filter_applied;
+    assign filter_commit = machine.motherboard.sync_filter_commit;
+    assign border_accept = machine.motherboard.GateArray.border_en;
+    assign ink_accept = machine.motherboard.GateArray.inkr_en;
+    assign palette_target = machine.motherboard.GateArray.inksel;
+    assign palette_data = machine.motherboard.GateArray.D[4:0];
+    assign end_gen = machine.motherboard.crtc_end_gen;
 
     // Expose classic raw GA RGB {red, green, blue}
     assign classic_rgb = {machine.motherboard.ga_red, machine.motherboard.ga_green, machine.motherboard.ga_blue};

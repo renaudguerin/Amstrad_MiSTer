@@ -10,6 +10,7 @@ module b18_snapshot_top #(
 ) (
     input clk, reset_btn,
     input pause,
+    input [1:0] filter_request,
     input [1:0] model,
     input crtc_type, save_req, sna_download, load_wr,
     input [24:0] load_addr,
@@ -231,7 +232,7 @@ sna_cpu_header sna_cpu_header
         .Fn(),
         .ppi_jumpers(4'b1010),
         .crtc_type(crtc_type),
-        .sync_filter('0),
+        .sync_filter(filter_request),
         .no_wait('0),
         .sna_load(sna_load),
         .sna_cpu_dir(sna_cpu_dir),
