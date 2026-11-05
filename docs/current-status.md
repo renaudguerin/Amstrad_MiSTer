@@ -80,11 +80,13 @@ our closest software reference, not the hardware oracle.
   R3=04/05. The production motherboard proves Full collapses 4/5 onto
   one byte position. The pre-GA extension is rejected for edge clipping; the
   post-GA correction now has a retained 12-caller public-output proof, 46
-  selected benches passing and fresh strong transport review. One experimental
-  full build is pending; production RTL matches the reviewed prototype. D6 per-line behavior and R2 relocking
+  selected benches passing and fresh strong transport review. Its initializer
+  syntax now also passes strict lint and fresh equivalence review; the corrected
+  full build is pending. D6 per-line behavior and R2 relocking
   remain acceptance gates before any general monitor-model claim.
-  D7 R2-oscillation controls now separate a repeatable native flat position
-  from peer settling; a source discriminator is pending. Current BTF stills
+  D7 now has a qualified source discriminator: raw R2 alternation is correct,
+  but Full acquisition remains endpoint-locked in both cases. A separate
+  filter-phase correction is pending. [D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md). Current BTF stills
   cannot judge alternating-frame wobble. [Evidence and limits](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
   publication is a separate correction. Fresh CPCSyntaxError B6 matches hardware

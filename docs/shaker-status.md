@@ -22,6 +22,9 @@ its reviewed correction passes the retained 12-caller proof and 46 selected
 benches, with a full experimental build/native acceptance still pending. See the
 [G1/MID native controls](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md)
 and [R3 investigation](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
+D7/R2 alternation is now isolated as a Full-filter phase defect with both
+controlled alternating cases failing their source-derived interior bound;
+this is separate from page/photo compliance counts ([D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md)).
 
 The updated-package CRTC 1 D walk on `5fba168` separately classified 127
 pairs: 71 match, 52 phase/acquisition and four content differences. Of the
