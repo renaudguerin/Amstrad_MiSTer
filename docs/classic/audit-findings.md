@@ -512,9 +512,11 @@ General implementation rules for all fix prompts:
   Protected by `t08i`-`t08q`; `t08j` is the focused Q20 counter/VMA discriminator and
   `t08p`/`t08q` pin VSYNC to the actual row-next value. A1's
   adjustment-ending VSYNC correction is now protected by `t08m` (and the corrected `t08g`
-  oracle). A2 is protected in both directions: `t08n` requires a positive R4 rewrite on the
-  exact adjustment-entry edge to suppress the C4=1 reload, while `t08o` requires an R9 write
-  on that edge to retain it.
+  oracle). A2 is protected at the production write phase: `t08n` requires a positive
+  R4 rewrite accepted within the terminal character to suppress the special reload;
+  `t08o` requires an R9 rewrite there to retain adjustment entry and the row-0 reload.
+  Both writes remain held through the character boundary; new R4/R9 values govern
+  C4/C9 progression (French ACCC v1.11 §11.2.4 p.85).
 - **Impact**: type 1 ruptures/overscan using adjustment rows show wrong row addressing (RA
   bits come from C9, which real type 1 keeps cycling). With R5 stuck at zero, C4 can still
   return to zero at the next reachable C4==R4 row end; ending adjustment still requires a
@@ -534,10 +536,17 @@ General implementation rules for all fix prompts:
   > "VMA from R12/R13 while C4==1" special case — implement it only if the existing
 > CRTC1_reload logic doesn't already produce it, and add the §4.1 worked example
   (R4=10,R5=16,R9=3) as a testbench vector.
-- **§11.2.4 corner closed by A2** (findings-review.md B5; p.85): an **R9 write landing
-  exactly at `C0==R0` entering adjustment does not cancel** the VMA-from-R12/R13-while-C4==1
-  reload, while an R4(>0) rewrite on that edge does. Deterministic `t08n`/`t08o` pin both
-  directions.
+- **§11.2.4 terminal-write entry** (French p.85): retain the old terminal
+  C4/R4+C9/R9 qualification across system-clock register publication until the
+  character boundary. An R9 increase can enter adjustment without a C4 increment;
+  it must not force the old R9 rollover. Revised `t08n`/`t08o` fail before this
+  fix and preserve both address-selection assertions. Their former sole-CLKEN
+  fixture observed old stored R9 and did not establish the physical counting rule.
+  Original Module E0401/0402 replay confirms entry and removes the raw-DE warning.
+  **Count scope remains open:** a private R5=3/R9=1→2 observation gives four
+  adjustment lines because the existing inferred C5 restart is reached. This is
+  not a new count oracle or general §11.2.4 closure; see the
+  [terminal-write investigation](../investigations/hardware-runs/shaker-module-e-vma-2026-11-05.md).
 - **Verify**: V3 (the §4.1 table); V2.
 
 ## F9. Type 0 R9 write at C0==R0 straddles the R9-to-R5 comparison switch

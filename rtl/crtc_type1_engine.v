@@ -302,6 +302,34 @@ wire       line_last_w = (line == crtc1_line_max);
 // consumers. C5 completion and the independent added line still own
 // their explicit forced row/frame events; they do not disable IVM.
 wire       ordinary_row_last = ivm ? ivm_row_end : line_last_w;
+// French ACCC v1.11 §11.2.4 p.85: an R4/R9 write on C0=R0
+// cannot cancel adjustment when the old C4/R4 and C9/R9 matches hold.
+// Preserve that qualification before the system-clock register publication;
+// only entry is retained, while the new R4/R9 still govern C4/C9 counting.
+wire adj_terminal_write_accept = nRESET && !SNA_LOAD && CRTC_TYPE &&
+                                hcc_last && !in_adj && !type1_add_line_active &&
+                                (row == R4_v_total) && ordinary_row_last &&
+                                (|R5_v_total_adj) && ENABLE && RS && !nCS && !R_nW &&
+                                ((addr == 5'd04) || (addr == 5'd09));
+wire adj_terminal_positive_r4 = adj_terminal_write_accept &&
+                                (addr == 5'd04) && (|DI[6:0]);
+reg adj_terminal_write_pending;
+reg adj_terminal_positive_r4_pending;
+always @(posedge CLOCK) begin
+    if(!nRESET || SNA_LOAD || !CRTC_TYPE || CLKEN) begin
+        adj_terminal_write_pending <= 0;
+        adj_terminal_positive_r4_pending <= 0;
+    end
+    else if(adj_terminal_write_accept) begin
+        adj_terminal_write_pending <= 1;
+        adj_terminal_positive_r4_pending <= adj_terminal_positive_r4;
+    end
+end
+// The character boundary consumes this event once. A changed R0 that moves
+// the actual line end cannot carry the exception into a later character.
+wire adj_terminal_entry = hcc_end &&
+                          (adj_terminal_write_accept || adj_terminal_write_pending);
+
 wire       line_limit_match = type1_add_line_active ? 1'b1 : in_adj ? crtc1_adj_end_eff :
                                 ordinary_row_last;
 wire       type1_adj_counter_end = crtc1_adj_end_eff &&
@@ -393,7 +421,8 @@ assign     row_last = row_last_w;
 // The added line already owns an unconditional canonical origin. Keep
 // adjustment entry mutually exclusive even if live R4/R5 writes now match;
 // otherwise the wrapper's adjustment priority contradicts frame_new_w.
-wire       frame_adj_CRTC1 = row_last_w && ~in_adj &&
+wire       frame_adj_CRTC1 = ((row_last_w && ordinary_row_last) ||
+                             adj_terminal_entry) && ~in_adj &&
                             !type1_add_line_active && |crtc1_rollover_r5;
 assign     frame_adj = frame_adj_CRTC1;
 // ACCC v1.11 section 11.3.2 p.86 plus the author's 2026-08-31 response to
@@ -511,9 +540,9 @@ wire rfd_r1_gt_r0_disarm = rfd_vma_flag &
 wire r4_positive_write_at_adj_entry = CRTC_TYPE & CLKEN & hcc_last &
 									 ENABLE & RS & ~nCS & ~R_nW &
 									 (addr == 5'd04) & (|DI[6:0]);
-wire crtc1_adj_entry_from_row0 = CRTC_TYPE & !in_adj & row_last_w &
-									 line_limit_match & (|crtc1_rollover_r5) & (row == 0) &
-									 ~r4_positive_write_at_adj_entry;
+wire crtc1_adj_entry_from_row0 = CRTC_TYPE & frame_adj_CRTC1 & (row == 0) &
+                                    ~r4_positive_write_at_adj_entry &
+                                    ~(adj_terminal_entry & adj_terminal_positive_r4_pending);
 assign adj_from_row0 = crtc1_adj_entry_from_row0;
 wire crtc1_adj_row1_reload = CRTC_TYPE & (crtc1_adj_entry_from_row0 | (in_adj & crtc1_adj_from_row0 & (row == 1) & ~line_row_structure_last)) & !hcc_next;
 wire crtc1_row0_reload = CRTC_TYPE &

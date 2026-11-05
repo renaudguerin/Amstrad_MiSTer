@@ -431,6 +431,15 @@ always @(posedge CLOCK) begin
 			frame_adj_r <= 0;
 		end
 
+
+        // French ACCC v1.11 §11.2.4 p.85: a terminal R9 rewrite can
+        // engage adjustment while its new limit keeps C9 counting in the
+        // same C4 row. Entry must not require the independent row strobe.
+        if(CRTC_TYPE && line_new && !row_new && frame_adj) begin
+            in_adj <= 1;
+            if(e1_adj_from_row0) crtc1_adj_from_row0 <= 1;
+        end
+
 		if(row_new) begin
 			row <= row_next;
 			if(frame_adj) begin
