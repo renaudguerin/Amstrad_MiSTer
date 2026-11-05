@@ -19,12 +19,17 @@ not rerun or reclassify the historical 350 photo pairs. B6/`019D` and DI/`02E3`
 remain confirmed scalar discrepancies on the accepted reference. The ordinary
 R3=4/5 Full-filter collapse has a deterministic rendered-border counterexample;
 its reviewed correction passes the retained 12-caller proof and 46 selected
-benches, with a full experimental build/native acceptance still pending. See the
+benches. Full experimental build `6cc52c3` passes and native static calibration
+verifies ordinary LEFT8 without paper-width loss or return drift. D6 phase
+acceptance remains open. See the
 [G1/MID native controls](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md)
 and [R3 investigation](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 D7/R2 alternation is now isolated as a Full-filter phase defect with both
 controlled alternating cases failing their source-derived interior bound;
-this is separate from page/photo compliance counts ([D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md)).
+the private first-two-pattern prototype passes mean/coherent-acquisition controls,
+but the full five-pattern guest audit exposes an untested band/cadence policy.
+All four new native D7 first-two-page images are RGB-identical to `5261414`.
+These results are separate from page/photo compliance counts ([D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md)).
 
 The updated-package CRTC 1 D walk on `5fba168` separately classified 127
 pairs: 71 match, 52 phase/acquisition and four content differences. Of the

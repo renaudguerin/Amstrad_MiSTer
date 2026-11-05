@@ -19,16 +19,20 @@ instructions across handoffs and context compaction.
   accepted functional reference remains `e24cb50`. Completed DT evidence is on
   `codex/overnight-validation-20261103` (`18b58ce`).
   It is distinct from integrated `master`; no integration or release is implied.
-- Current experimental full artifact: `Amstrad_20261105_5261414.rbf`, SHA256
-  `4282cdb6f2f6f306bba9b6ce0d7fe541455e125b99183dc8e390d6ed4d936d7b`.
-  [Clean full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41980916339)
-  passes all jobs, minimum setup/hold slack 0.588/0.242 ns across seven clocks, zero TNS. Strong Opus
-  source review clears the GA G1 and C1 MID changes. Original O/02DA now matches
-  all 12 rows on MiSTer; E/P/S retain accepted pixel-identical results, and
-  bounded C0/C1 DSC4/Amazing controls remain visible.
-  The host-only `8a62a3a` build-directory fix changes no synthesis input.
-  Functional reference `e24cb50` retains C0 E6 acceptance 26/28; no full baseline
-  on `5261414` is implied. Earlier experimental artifacts are in dated reports.
+- Current experimental full artifact: `Amstrad_20261105_6cc52c3.rbf`, SHA256
+  `666930cf70ce029901dbbbacfe0fef37f834dce70e227201713674a66bf632cf`.
+  [Clean full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42008725418)
+  passes all jobs, setup/hold minima 0.477/0.248 ns across seven clocks and zero TNS.
+  It is installed hash-identically on MiSTer. D6 completes four captures with
+  dynamic phase unqualified; all four D7 controls are RGB-identical to `5261414`.
+  Static calibration verifies ordinary width4/5 LEFT8 with full paper width and
+  stable return. CRTC0/1 DSC4 credits and sampled effects remain visible; further
+  demo/BTF acceptance is in progress. This is a
+  reviewed hardware trial, not general monitor or release acceptance.
+  Last bounded native G1/MID controls remain on `5261414`: original O matches
+  all 12 rows, E/P/S remain pixel-identical, and sampled C0/C1 DSC4/Amazing views
+  are visible. Functional reference `e24cb50` retains C0 E6 26/28. Earlier
+  artifacts and the resolved initializer-lint failure are in dated reports.
 - ASIC acceptance remains bounded on `275af8a`: DSC4 colons/names and sampled
   DSC4/Amazing effects, BI widths/clipping and AE/AR patterns. Later changes
   target classic CRTC state; no new full Plus baseline is implied.
@@ -81,12 +85,15 @@ our closest software reference, not the hardware oracle.
   one byte position. The pre-GA extension is rejected for edge clipping; the
   post-GA correction now has a retained 12-caller public-output proof, 46
   selected benches passing and fresh strong transport review. Its initializer
-  syntax now also passes strict lint and fresh equivalence review; the corrected
-  full build is pending. D6 per-line behavior and R2 relocking
+  syntax passes strict lint and fresh equivalence review; the corrected full
+  build passes, with targeted native acceptance still in progress. D6 per-line behavior and R2 relocking
   remain acceptance gates before any general monitor-model claim.
   D7 now has a qualified source discriminator: raw R2 alternation is correct,
-  but Full acquisition remains endpoint-locked in both cases. A separate
-  filter-phase correction is pending. [D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md). Current BTF stills
+  but Full acquisition remains endpoint-locked in both cases. A private phase
+  candidate passes seven input patterns and preserves rectangular acquisition
+  and vertical line identity. Strong review conditionally permits a bounded trial,
+  but the full five-pattern guest audit exposes an untested band/cadence policy;
+  a private discriminator precedes any tracked adoption. [D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md). Current BTF stills
   cannot judge alternating-frame wobble. [Evidence and limits](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
   publication is a separate correction. Fresh CPCSyntaxError B6 matches hardware
