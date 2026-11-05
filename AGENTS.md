@@ -27,6 +27,11 @@ cycle; explain material tradeoffs briefly and keep scope proportionate.
 Keep rigorous source-derived tests and review for RTL, timing/state behaviour, and changes
 that could lose valuable work. Scale verification to consequences.
 
+For unattended MiSTer access failures, retries are not limited to one attempt.
+Use bounded retries, backoff and diagnosis, and apply proportionate recovery
+within the authorized task. Follow the [SSH recovery guide](docs/investigations/hardware-runs/mister-hardware-loop-driver.md#ssh-recovery-during-unattended-work)
+and preserve interrupted capture state before resuming.
+
 ## Worktrees and task lifecycle
 
 Tasks use ad-hoc, environment-owned worktrees. General work covers shared infrastructure,

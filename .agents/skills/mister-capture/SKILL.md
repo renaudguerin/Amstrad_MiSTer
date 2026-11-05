@@ -37,7 +37,12 @@ ssh -o BatchMode=yes -o ConnectTimeout=5 root@mister 'cat /tmp/CORENAME; echo'
 
 `MENU` means idle. Any other core name is context, not a confirmation gate: when the user
 requested a capture, load the requested RBF even if another core is running. Do not ask solely
-because `CORENAME` is not `MENU`. If SSH fails, hand off to the user (device off or asleep).
+because `CORENAME` is not `MENU`. If SSH fails during unattended work, use the driver's
+[SSH recovery policy](../../../docs/investigations/hardware-runs/mister-hardware-loop-driver.md#ssh-recovery-during-unattended-work):
+retry with bounded attempts and backoff, diagnose the agent/configuration/transport,
+and apply proportionate recovery. One failed retry does not require a handoff.
+Ask for human help only when the remaining step requires it; preserve interrupted
+capture state before resuming.
 
 Device layout:
 

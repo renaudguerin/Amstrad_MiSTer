@@ -28,11 +28,32 @@ sudo dscacheutil -flushcache
 sudo killall -HUP mDNSResponder
 ```
 
-These commands require macOS administrator privileges. Retry one bounded SSH
-connection afterward; a DNS failure alone does not establish a core crash.
+These commands require macOS administrator privileges. Retry SSH afterward;
+a DNS failure alone does not establish a core crash. Apply the recovery policy
+below rather than treating one failed retry as a mandatory handoff.
 If a capture was interrupted, first verify the saved CFG, input release and
 MENU/restoration state before resuming experiments. This recovery resolved the
 September 22 Wi-Fi/IP-change incident reported by the user.
+
+## SSH recovery during unattended work
+
+A transient SSH failure is not a one-retry stopping rule. During an authorized
+unattended session, continue bounded attempts with reasonable backoff and
+diagnose the transport when losing access blocks useful work. Compare the
+working `ssh mister` alias with the driver's explicit options; inspect agent
+availability, effective SSH configuration, hostname resolution and task-owned
+connection sockets. Use verbose SSH logs when necessary and keep them with the
+private run evidence. Apply proportionate fixes within the authorized task;
+ask for human help when an action actually requires it, while continuing
+independent work.
+
+Keep individual connection attempts bounded. Repeated identical failures with
+no new diagnostic information warrant a longer backoff or a different useful
+task, rather than an unbounded tight loop. Recover access with read-only checks
+first, then inspect the saved CFG, core and input state before resuming an
+interrupted case. Preserve failed manifests and use a new output directory;
+do not replay a stateful capture blindly. The existing host-key and credential
+configuration remains authoritative.
 
 ## Local use
 
