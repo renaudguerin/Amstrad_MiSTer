@@ -285,6 +285,7 @@ CaseResult run_case(const TestCase& c) {
     };
 
     // 3. Reset and SNA upload sequence
+    d.filter_request = 0; d.save_req = 0; d.cart_dout = 0xff; d.cart_ack = 0;
     d.crtc_type = c.type;
     d.pause = 1;
     d.reset_btn = 1;

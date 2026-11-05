@@ -31,6 +31,9 @@ module crt_filter
 	output     HBLANK_LIVE,
 	output reg VBLANK,
 	output     SHIFT,
+	output reg EXTRA_BYTE,
+	output reg START_GEN,
+	output reg END_GEN,
 	// Passive acquisition/history state; bit layout is the SSM v2 payload
 	// above the two requested/applied mode fields supplied by the motherboard.
 	output [15:0] SYNC_OBSERVATION
@@ -38,6 +41,10 @@ module crt_filter
 
 wire resync = 1;
 reg hs4,shift;
+// French ACCC v1.11 section14.4 pp134-135: the ordinary4/5 pair
+// differs by eight M2 pixels. This classifies the measured pulse bin,
+// not numeric R3 or arbitrary JIT identity; acquisition/SHIFT stay intact.
+initial begin EXTRA_BYTE = 0; START_GEN = 0; END_GEN = 0; end
 // Module scope exposes observation without synthesis hierarchical references.
 reg [8:0] hSyncSize;
 reg       hSyncReg;
@@ -189,7 +196,10 @@ always @(posedge CLK) begin : syncgen
 			//re-align restored hsync to the first hsync of vsync
 			if((~old_vs & VSYNC_I & ~old_hsync & hsync_i) || (hSyncCount >= hSyncSize)) begin
 				hSyncCount = 0;
-				if(~old_hsync & hsync_i) hSyncReg <= 1;
+				if(~old_hsync & hsync_i) begin
+					hSyncReg <= 1;
+					if (!no_hsync) START_GEN <= ~START_GEN;
+				end
 			end
 			
 			// Calc line size from length of 2 first lines after VSync
@@ -210,11 +220,16 @@ always @(posedge CLK) begin : syncgen
 			else if(~old_hsync & hsync_i) begin
 				hSyncCount = 0;
 				hSyncReg <= 1;
+				if (!no_hsync) START_GEN <= ~START_GEN;
 			end
 		end
 
 		if(old_hsync & ~hsync_i & hSyncReg) begin
 			hSyncReg <= 0;
+			// hSyncCount already includes this CE_4 edge (blocking above).
+			// Replace every classification so short/other pulses cannot inherit it.
+			EXTRA_BYTE <= (hSyncCount == 4*4);
+			END_GEN <= ~END_GEN;
 			if(hSyncCount > 7*4) hs4 <= 0;
 			if((hSyncCount >= 4*4-1) && (hSyncCount < 6*4-1)) begin
 				if(hSyncCount == 4*4-1) hs4 <= 1;

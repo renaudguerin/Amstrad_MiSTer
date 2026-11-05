@@ -246,6 +246,7 @@ module Amstrad_motherboard
 );
 
 wire crtc_shift;
+wire crtc_extra_byte, crtc_start_gen, crtc_end_gen;
 
 // B6 applied output policy.  One register owns the timing tuple, the byte
 // policy, the pixel mask and the top-level Raw CRT restrictions, so a mode
@@ -1099,6 +1100,9 @@ crt_filter crt_filter
 	.HBLANK_LIVE(),
 	.VBLANK(vblank_filtered),
 	.SHIFT(crtc_shift),
+	.EXTRA_BYTE(crtc_extra_byte),
+	.START_GEN(crtc_start_gen),
+	.END_GEN(crtc_end_gen),
 	.SYNC_OBSERVATION(filter_sync_observation)
 );
 
@@ -1108,9 +1112,76 @@ crt_filter crt_filter
 wire [1:0] ga_mode;
 wire [1:0] ga_red, ga_green, ga_blue;
 assign mode  = plus_mode ? plus_gamode : ga_mode;
-assign red   = plus_mode ? plus_rgb_r : {2'b00, ga_red};
-assign green = plus_mode ? plus_rgb_g : {2'b00, ga_green};
-assign blue  = plus_mode ? plus_rgb_b : {2'b00, ga_blue};
+// French ACCC v1.11 section14.4 pp134-135: correct the rendered
+// ordinary4/5 relative position, retaining Full5/6's coarse baseline.
+// This is output history, not a literal monitor/silicon-stage model.
+reg [5:0] full_rgb_history [0:7];
+reg rgb_sampled = 0, rgb_old_hs = 0;
+reg rgb_raw_open = 0, rgb_raw_fell = 0, rgb_start_owned = 0;
+reg rgb_start_seen = 0, rgb_end_seen = 0, rgb_correction = 0;
+wire rgb_context_clear = reset | sna_load | sync_filter_commit |
+                         plus_mode | (sync_filter_applied != 2'd0);
+wire rgb_raw_rise = ~rgb_old_hs & hs_sel;
+wire rgb_raw_fall = rgb_old_hs & ~hs_sel;
+wire rgb_new_start = rgb_start_seen != crtc_start_gen;
+wire rgb_new_end = rgb_end_seen != crtc_end_gen;
+integer rgb_i;
+always @(posedge clk) begin
+    if (rgb_context_clear) begin
+        for (rgb_i = 0; rgb_i < 8; rgb_i = rgb_i + 1)
+            full_rgb_history[rgb_i] <= 6'd0;
+        rgb_sampled <= 0;
+        rgb_old_hs <= hs_sel;
+        rgb_raw_open <= 0;
+        rgb_raw_fell <= 0;
+        rgb_start_owned <= 0;
+        rgb_start_seen <= crtc_start_gen;
+        rgb_end_seen <= crtc_end_gen;
+        rgb_correction <= 0;
+    end else begin
+        if (ce_16) begin
+            // GA publishes the new pixel on this edge; sample its preceding
+            // DAC pair. After this shift slot7 is exactly eight M2 dots old.
+            full_rgb_history[0] <= {ga_red, ga_green, ga_blue};
+            for (rgb_i = 1; rgb_i < 8; rgb_i = rgb_i + 1)
+                full_rgb_history[rgb_i] <= full_rgb_history[rgb_i-1];
+        end
+        rgb_old_hs <= hs_sel;
+        rgb_start_seen <= crtc_start_gen;
+        rgb_end_seen <= crtc_end_gen;
+        if (!rgb_sampled) begin
+            // First clean observation is a baseline, not a restored-HS rise.
+            rgb_sampled <= 1;
+            rgb_raw_open <= 0;
+            rgb_raw_fell <= 0;
+            rgb_start_owned <= 0;
+            rgb_correction <= 0;
+        end else begin
+            if (rgb_raw_rise) begin
+                rgb_raw_open <= 1;
+                rgb_raw_fell <= 0;
+                rgb_start_owned <= 0;
+            end
+            if (rgb_new_start)
+                rgb_start_owned <= rgb_raw_open | rgb_raw_rise;
+            if (rgb_raw_fall) begin
+                rgb_raw_fell <= rgb_raw_open;
+                rgb_raw_open <= 0;
+            end
+            if (rgb_new_end) begin
+                rgb_correction <= ~rgb_new_start & rgb_start_owned &
+                    (rgb_raw_fell | (rgb_raw_fall & rgb_raw_open)) & crtc_extra_byte;
+                rgb_start_owned <= 0;
+                rgb_raw_fell <= 0;
+            end
+        end
+    end
+end
+wire [5:0] classic_rendered_rgb = rgb_correction ? full_rgb_history[7] :
+                                                {ga_red, ga_green, ga_blue};
+assign red   = plus_mode ? plus_rgb_r : {2'b00, classic_rendered_rgb[5:4]};
+assign green = plus_mode ? plus_rgb_g : {2'b00, classic_rendered_rgb[3:2]};
+assign blue  = plus_mode ? plus_rgb_b : {2'b00, classic_rendered_rgb[1:0]};
 
 // CPU/expansion phase enables follow the selected machine. The ASIC path
 // replicates ga40010's timing contract cycle-exactly today (asic_ga_timing

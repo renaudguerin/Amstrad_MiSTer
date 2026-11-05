@@ -34,7 +34,9 @@ module crt_filter_blank_test_top (
 		.HBLANK(HBLANK),
 		.HBLANK_LIVE(HBLANK_LIVE),
 		.VBLANK(VBLANK),
-		.SHIFT(SHIFT)
+		.SHIFT(SHIFT),
+		.EXTRA_BYTE(), .START_GEN(), .END_GEN(),
+		.SYNC_OBSERVATION()
 	);
 
 	assign NO_HSYNC_DEBUG = dut.no_hsync;
