@@ -20,24 +20,21 @@ instructions across handoffs and context compaction.
   accepted functional reference remains `e24cb50`. Completed DT evidence is on
   `codex/overnight-validation-20261103` (`18b58ce`).
   It is distinct from integrated `master`; no integration or release is implied.
-- Latest source `208bacf` adds the French-table correction for Type0 IVM exit
-  to the separate Type0 protection (`338d111`), Type1 terminal-entry (`6e3f14f`)
-  and first-C4=1 reload fixes. Final selection46PASS, CRTC246/0, soak
-  ed57ffffdbf0b452 and independent Opus review pass.
-  [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42089486669)
-  passes all jobs, clean full Quartus17.0.2Build602, seven setup/hold clocks,
-  minimum slack0.704/0.192ns, zero TNS and unchanged warning counts.
-- Installed experimental artifact: `Amstrad_20261105_208bacf.rbf`, SHA256
-  `35493b0922c77ff09269dfc5544621ecab1f4d965affbfe9846b616e0d0731fc`.
-  Device file hash matches. Native C5 parity groups match the photograph,
-  with all18rows visible and stable in Full and RawCRT modes. B1 retains
-  the photographed pattern family/top band. Seven targeted Type0 cohorts
-  complete130commands/29inspected images; AI/static/DSC4 preserve005 pixels,
-  E6 retains26/28, and Amazing retains the sampled animated scene.
-  The preceding005 build completed15cohorts/300commands/72inspected PNGs;
-  O/E/P/S, static/D7 and all six sampled demo groups are preserved.
-  [005 artifact and acceptance](investigations/hardware-runs/shaker-terminal-fixes-2026-11-05.md),
-  [C5 source and native bounds](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md).
+- Source `c0939d8` corrects Type1 IVM counting when stage A coincides with
+  line end. Qualified production-T80 replay and native B9 both give all three
+  photographed `3F=2740` rows. The 46-bench gate, CRTC 246/0, recorded
+  soak `044411d1ebf3cb6d`, independent review and full build pass. Wider exit,
+  even-R9, origin and independent R5 seam bounds remain open.
+- Installed experimental artifact: `Amstrad_20261105_c0939d8.rbf`, SHA256
+  `cb7fe0bd06c1d282413e501fd6017a34dba11ae62f4483e388a630c7ca1d883e`
+  (3,151,920 bytes; device hash matches). [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42099745018)
+  artifact `Amstrad-build-399-1-full` passes all jobs; minimum setup/hold
+  slack is 0.478/0.236 ns across seven clocks with zero TNS and warning counts
+  unchanged from 208. Nine native cohorts completed 185 commands and 60 viewed
+  PNGs; targeted controls are described in the [B9 acceptance report](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md).
+  Earlier 208 C5 parity and 005 acceptance are in the
+  [C5 report](investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md)
+  and [terminal-fixes report](investigations/hardware-runs/shaker-terminal-fixes-2026-11-05.md).
   Prior filter/R3 controls and paired title replay remain bounded evidence in
   the [R3 investigation](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
   Physical oscillation/settling and BTF alternating-frame acceptance remain open;
@@ -132,6 +129,11 @@ our closest software reference, not the hardware oracle.
   [Onset controls](investigations/hardware-runs/crtc1-r7-onset-controls-2026-11-04.md),
   [optical qualification](investigations/hardware-runs/crtc1-r7-optical-address-qualification-2026-11-04.md),
   [unsent questions](classic/accc-author-questions-r7-s-phase-2026-11-04-fr.md).
+- C1 AI/008D remains a raw-PPI discrepancy on208: both R0=0 blocks give
+  1/0/0/1 versus the photograph/AmSpirit1/1/1/1. Fresh CPCSE also fails.
+  Q22's fixed-width premise is corrected to16lines (French§14.2p133);
+  genuine replay qualifies premature16-tick expiry but gives1000, leaving
+  native fourth-sample provenance and physical clock/retrigger rules open. [Current evidence](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md).
 - C1 O/02DA is corrected on `5261414`: all 12 original-O rows match on MiSTer,
   with `0060` in all four formerly `0050` R7=0 cases. The source MID-VSYNC correction
   has failing-first proof,246 CRTC/46 selected passes and strong Opus clearance.
@@ -163,13 +165,11 @@ our closest software reference, not the hardware oracle.
 - C1 DE/03B6's old missing-row symptom no longer reproduces on e24cb50:
   direct E and D9→E both show A/A/B, with all six E PNGs pixel-identical.
   FF/5F remains a separate machine-input difference. [Current recheck](investigations/hardware-runs/shaker-03b6-current-recheck-2026-11-05.md).
-- B9 pageB remains open on005: fresh15command/three-capture recheck retains
-  3F=2780 against photographed2740; the other update-delay rows match. A fresh
-  CPCSyntaxError and AmSpirit both give2740. Genuine production-T80 replay
-  now links the original2780 formatter result to the R8/line-end collision;
-  full15point qualification and a source-derived boundary fix are active.
-  Disputed MID glyph stays separate.
-  [Current B9 reference](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). F13 and F20 still need their named hardware gates;
+- B9 Page B's three `3F=2780` rows on 005 now read photographed `2740`
+  on c0939d8 in both qualified original replay and native capture; the other
+  rows remain intact. MID `4E40` is unchanged and remains separate. Wider
+  exit and coincidence bounds remain open.
+  [Current B9 reference and acceptance](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). F13 and F20 still need their named hardware gates;
   IA-2/3/6 are source-model evidence, IA-5 needs simultaneous sync/interrupt
   capture, and Q17 needs hardware discrimination. The D1 adjustment-entry
   pointer is not source-adjudicated. [B9 discriminator](investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md),

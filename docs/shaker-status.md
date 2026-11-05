@@ -14,9 +14,16 @@ builds and are not an overall compliance score.
 | 1 | On `5fba168`, 2.7 A/B/C completed 127/139/80 captures with French B key and C marker workarounds; updated-package D/E completed 127/7. On `db4be80`, C completed 80. On `7ac11a2`, E1 completed25 commands/7 captures/zero failures/16SSM records. On `076eab1`, targeted canonical history through S completes64 captures/zero failures/121SSM; E0080/P26 are unchanged, S now4E40 on both entry paths. Diagnostic `c16e7ec` confirms the same S result and normalized entry state. Current DT completes14 captures without failures; diagnostic`c90ec8a` also qualifies both early active-black bands and preserves all14 production RGB images. The late one-band difference is an epoch mismatch, not a remaining DT RTL failure. On `5261414`, original O/E/P/direct-S complete 44 commands and 10 captures with zero failures; all 12 DA rows match, E/P/S retain pixel-identical accepted controls. | Older November 3 two-batch comparison: 350 pairs, 300 match, 30 phase and 20 different. Six of 350 (~1.7%) were content/timing flags; four (~1.1%) were acquisition questions. The raw20/350 (~5.7%) includes eight PPI input differences and two documented variants. The new targeted checks do not refresh this photo denominator. [Sweep](investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md), [S controls](investigations/hardware-runs/shaker-s-history-2026-11-04.md), [passive observer](investigations/hardware-runs/shaker-s-passive-observer-2026-11-04.md). |
 | 3 | On `cec641c`, 2.7 A/B completed 123/121 captures; C/D/E 2.7 stopped part-way, while 2.6 C/D/E produced 23/150/4 captures. On275af8a, A4/BI/AE-AR complete1/8/7 captures with zero failures; E3 remains unlaunched. | No aggregate original-photo failure denominator established. A4 top deadlines match, BI pulse widths and one-microsecond mode, AE marker and AR stripes have bounded acceptance; exact-photo geometry and other observables remain outside that acceptance. [Old execution](investigations/hardware-runs/shaker27-modules-b-e-2026-10-15.md), [current milestone](investigations/hardware-runs/asic-r0-terminal-latch-2026-11-04.md). |
 
-Latest targeted CRTC 1 validation closes O/`02DA` and preserves E/P/S; it does
-not rerun or reclassify the historical 350 photo pairs. B6/`019D` and DI/`02E3`
-remain confirmed scalar discrepancies on the accepted reference. The ordinary
+Latest targeted CRTC1 validation closes O/`02DA` and preserves E/P/S.
+Source `c0939d8` corrects B9's three `3F` rows to `2740` in qualified
+original replay and native capture; its 46-bench gate, review, full build and
+bounded native controls pass. Wider exit and coincidence bounds remain open.
+[B9 acceptance](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). A fresh208 AI/008D check still fails bothR0=0 groups: CPCSE also
+fails, while AmSpirit matches the photo. These raw-PPI discrepancies are
+separate from filter response. Targeted runs do not reclassify the historical
+350photo pairs. B6/`019D` and DI/`02E3` remain confirmed scalar discrepancies
+on the accepted reference.
+The ordinary
 R3=4/5 Full-filter collapse has a deterministic rendered-border counterexample;
 its reviewed correction passes the retained 12-caller proof and 46 selected
 benches. Full experimental build `6cc52c3` passes and native static calibration

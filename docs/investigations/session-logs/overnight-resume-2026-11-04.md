@@ -1,108 +1,95 @@
 # Active unattended handover — 5 November 2026
 
-Continue known SHAKER/DSC4/Amazing/BTF work until weekly quota exhaustion, per
-the latest user instruction. The weekly pool reset naturally at19:34UTC; the
-post-reset live reading is1%used, next reset12November19:34UTC. Three banked
-resets remain untouched. User alone redeems resets; no credits/overage.
-No broad baseline until known defects are addressed. Experimental branch
-pushes/builds and MiSTer use are authorized; master integration, PR, release
-and author messages are not. Root alone controls MiSTer and AmSpirit.
+Continue known SHAKER/DSC4/Amazing/BTF work until weekly quota exhaustion.
+Natural weekly reset19:34UTC; live20:54 reading8%used, next reset12November
+19:34UTC. Three banked resets untouched; user alone redeems them. No credits/
+overage. Experimental branch pushes/builds and MiSTer use authorized; no master
+integration, PR, release, author messages or broad baseline before known fixes.
+Root alone operates MiSTer and AmSpirit. Keep these instructions across handoffs.
 
-## Source, artifact and accepted native checks
+## Accepted source and artifact
 
-Branch `codex/classic-ga-boundary-native-20261105` is pushed through functional
-source208bacfdc4ada19e7fa140b54439138011c7c2c9. Final selection46benchesPASS,
-CRTC246/0, soak ed57ffffdbf0b452. Fresh Opus5.5 review clears bounded trial.
-No code edit since; documentation changes do not need another gate.
+Branch `codex/classic-ga-boundary-native-20261105`, functional HEAD/pushed
+`c0939d857d8ac7115b83e23b320645faddf7138d`. Final selection46PASS,
+CRTC246/0, intended soak044411d1ebf3cb6d, independent Opus GO. No code edit
+since gate. Fullrun42099745018 passes all jobs; artifact13450418372
+`Amstrad-build-399-1-full`. Clean full Quartus17.0.2Build602; seven setup/
+hold clocks, minimum0.478/0.236ns, zeroTNS, warnings identical208.
+Installed `Amstrad_20261105_c0939d8.rbf`,3151920bytes, SHA256
+`cb7fe0bd06c1d282413e501fd6017a34dba11ae62f4483e388a630c7ca1d883e`.
+Device hash matches. Build acceptance in `b9-stagea-build/ACCEPTANCE.json`.
 
-Full [run42089486669](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42089486669)
-passes all jobs. Clean full Quartus17.0.2Build602, minimum setup/hold
-0.704/0.192ns across7clocks, zero TNS, warning counts identical005, no actual
-critical/error/latch/implicit net. Artifact13445148872,
-Amstrad-build-397-1-full. Installed3127748byte RBF
-**Amstrad_20261105_208bacf.rbf**, SHA256
-**35493b0922c77ff09269dfc5544621ecab1f4d965affbfe9846b616e0d0731fc**.
-Device hash matches. `c5-208bacf-build/ACCEPTANCE.json` retains the receipt.
+B9 stage-A mode forwarding corrects all15original delay points in genuine
+production-T80 replay and all three affected3Frows on MiSTer to2740. Native
+ninecohorts185commands60PNGs complete0/drained18372; all60 rootviewed.
+Only three8→4glyphs change in B9; PageA exact005, MID4E40 unchanged.
+O6/EP3/S1/ModuleE6/D7all20 images RGBexact005. B1 eightof15exacte24,
+sevenintro/transitionalepochs differ; pattern family retained, geometry unjudged.
+DSC4threeof4exact005; bottomanimatedphase differs. Amazing sampledscene
+preserved with phase differences. Wider B9 exit/evenR9/origin/R5 seams remain
+bounds; real nonseam consumer is R1row_addr_save/RFDretirement, not Type0-only
+cachedline-last state. Full proof/review/receipt in `b9-current-recheck/`;
+current source/native report is `shaker-b9-current-reference-2026-11-05.md`.
+No historical photo denominator refresh or generalbaseline follows.
 
-Seven targeted native cohorts complete130commands/29inspected PNGs, no
-failures: C5,B1,A4/AI,E6,static,DSC4,Amazing. C5 matches6E/6O/OEOEOE; B1
-structured pattern/top band survives with marker/geometry limits. AI8,
-static4 and DSC4four images are RGB-identical to005; E6 retains26/28.
-Amazing retains sampled animation, first text crop(y134..210) is unchanged;
-later phases differ. Two further C5 Full/RawCRT normal boots each complete
-19commands/four inspected captures, complete page stable through5seconds.
-An early reduced-preview reading falsely suggested folding: identical PNG
-enlarged2x disproves it. No C5 display defect is selected.
+Earlier208 C5 native matches6E/6O/OEOEOE, complete18rows stable Full/RawCRT;
+Q21 withdrawn by latest French221/224/225, not author reply. Earlier005 accepts
+0091=6B/6B/38, ModuleE0401/0402 warningsgone and O/E/P/S preservation. Dated
+reports retain those gates, hashes and bounds; avoid duplicating their history.
 
-Source208 removes obsolete persistent post-IVM comparator/state, retaining
-the exit-line IVM-derived test and following ordinary C9. French§19.8.1
-p221/pp224–225, including all four odd panels(1,6,6)→(2,0,0), correct the
-old F16/Q21 premise. Q21 is withdrawn, not awaiting an author answer.
-Seven existing table owners fail239/7 before,246/0 after; recovery vectors
-retain same-line VMA distinction, B1 control unchanged. Genuine untouched
-initializer/public-loader/production-T80 proof completes all18returns with
-6E/6O/OEOEOE,40qualified PPI/store identities and natural parity selection.
-Root verifies25artifacts/30compiled bindings. Earlier two-SNA odd-context
-limitation is preserved. Dated table-correction/parity reports hold detail.
+## AI008D residual — no RTL rule selected
 
-Preceding005 source contains338d111(Type0R7protection),6e3f14f(Type1held
-terminalR4/R9entry),005ea84(firstC4=1reload), all tests-first/reviewed.
-Full005 native queue completed15cohorts/300commands/72inspected PNGs. AI
-0091 now6B/6B/38; ModuleE0401/0402warningsgone,0400unchanged. O/E/P/S,
-static/D7 and six sampled DSC4/Amazing groups retain bounded acceptance.
-See shaker-terminal-fixes-2026-11-05.md. No broad photo denominator refresh.
+Native208 zero-length groups1001; physical/AmSpirit1111; CPCSE0121000.
+Genuine6491preinitializer SNA eb316a8c…dd8797/publicclassicv2/productionT80
+completes1000/1111/1000/1111,16IN→CPU→rawstore and32formatterdigits qualify.
+61,383,676clocks under unchanged400mcap, first exit1 preserved, no phasefit.
+Both zero groups expire16one-us ticks withHS0, no retriggerthroughS4.
+Native fourthsampleLIMIT remains: hiddenbeam/parity/divider state omitted.
+Root readobserver/validator/naming-onlywrapperdiff, verified67artifacts.
+`proof/PARENT-ACCEPTANCE.json` records bounded RED. No candidate/publictest.
+AmSpiritpausedAI, scripts/bps empty; no activeAPI job.
 
-## Active B9 work
+Q22 corrected: French14.2p133 fixed16lines;16.4.2Frenchp171 ordinaryonset/end
+without explicitshort/noHSclock. Astra-medium focused judgment finds noselected
+rule. Source13.3p115 doesnot specifyC3h;15.3.2p150 warnsR0=R2=0/R3l1
+infiniteHS. Physical paired pre-existingVS pulse atR0=1/R3l1 withR2reachable1
+vsunreachable, >=64us rawHS/VS/writetrace and nofreshR7match, plusR0zero,
+can discriminate. Longerlinepair ifneeded. Fourhighsamples do not establish
+continuouspulse. CurrentAIreport/Q22 contain proof+probe; allnativeagentsreleased.
 
-Fresh005 native B9 direct run15commands/three inspected PNGs retains3F2780
-in all three blocks versus physical2740. Neighbor rows and9C60 sums match.
-Fresh CPCSyntaxError0.12.0/matching22de765 and matched AmSpirit1.17.1 both
-give2740. Root verifies seven decisive hashes and rejects the peer report's
-claims of complete hardware agreement, observed physicalC9=2 or unique
-proven cause. MID4E40 versus photographed ambiguous glyph stays separate.
+## Active BTF capture experiment
 
-Native Sol-high `/root/native_relock_guest` owns ONLY
-`b9-current-recheck/proof/` frozenbaseline and separate `candidate/`. No
-tracked edits/Git/providers/devices. Genuine normalboot SNAffb4f17d… has
-PC9139/SP4061/return9127/BF03=1; unchanged full128K public loader, original
-sync/initialization, no PC/RAM/counter/phase forcing. Full15points and three
-original returns9127/912A/9138 qualify: each2740/2740/2780/2780/2760.
-8385actual PPI→CPU results,60original formatter stores, exact sled operands;
-284204796clocks below declared400m cap. Root reads proof/receipt and verifies
-63artifacts/30current-source/30compiled bindings. StageA coincides with
-line_end at63/0/0, calculates oldmode C9=1, later stageB pokes0. This binds
-the scalar to original guest flow; physical bus ordering remains inferred.
+MiSTer **69608 active**: original RUN"-BTF,370swait, thenMain screenshot;
+`btf-native-frameburst-feasibility/btf-native-001/`. Do not overlap devicejobs.
+Private Opus AGY **27181 active**, run20261105T205716Z-87012-a9c6,
+readonly review of rootv3Ctool/sourcebuffercompletion; no edits/devices/Git.
+Gemv2 **15368 complete0/drained**, logs/sourcepreserved in `v2-review/`.
+ClaudePro cached20:46 session0%remaining; AGYClaude after20:45reset100%
+sessionleft/44%weeklyleft. No directask-claude untilfreshwindowreading.
 
-Private t21 extension adds the missing seam/frame count to an existing owner:
-source-derived39*4+1=157, actual158 before;245/1RED. Private count_ivm
-stageA bypass into four counter consumers gives246/0GREEN, retaining all
-16midline panels/stageB/wrapper priority. Original full15point candidate
-replay is active; no originalGREEN claim yet. Root requested explanation
-of intentional registered-mode consumers and adjustment/frame seam risks.
-Require frozen original GREEN+neighbor preservation, parent source/proof
-inspection, fresh cross-provider review and focused failing-first public
-transport before any code commit/full build/native B9 acceptance. No
-unsupported physicalC9 assertion or global stageB deletion.
+Root found v1/v2 completionpremisewrong: ascal rotateswriter onVSrise then
+writes NEWbankheader onVSfall beforepixels. NeveruseoldREADME40msclaim.
+V2 all150copies rejected >5ms, zeroaccepted. Rootv3 copies predecessorbank
+onnextfreshheader, stable19–22msPALonly, poll/detection<=1mseach,copy<=12ms,
+postcopyheadercheck. No Main/RBF/MMIO writes. Static trial24frames/23consecutive
+links/zero rejects in493ms, everyRGBexactMain768x273. Source/build/runtime
+retained; geometry/movingcoherence/physicalHDMI remain separate bounds.
 
-## Runtime and next actions
+After69608 reaches scroller and reviewpermits, capture consecutiveframes
+around373..403safterRUN; inspectactualscene/trajectory before BTFacceptance.
+Prior13asyncstills cannotjudgealternatingwobble. CPUreplay4frames remains
+qualified width4right8/width5unchanged, exactguest/rawGA/acquisitioninputs.
+Do not createpublicinfrastructure or modifyMain/core for this privateexperiment.
 
-All root capture queues/build watches are drained. Device left on C5/RawCRT.
-AmSpirit paused after B9, scripts/breakpoints empty. No live foreign worker.
-Premature read-only GemC5retrieval20261105T193434Z-55707-144b stopped after
-preview premise disproved; no useful output. Logs/incident preserved under
-bridge-incidents/. Do not retry it. Claude TCC accepted by user; guarded
-ClaudePro Opus route works with managed runtime escalation. Prior reviews
-complete. Check reaper before replacement. AGYClaude/GPT pool unavailable
-until20:45:59; Gem3.8 available; reserve Argon. No raw provider CLIs.
+## Remaining order
 
-Paths above are relative to
-`local/overnight-20261103/resumed-20261104/`. ACTIVE-JOBS.json tracks process
-identities. Keep current-status compact; dated reports hold evidence.
-Commit/push pending documentation checkpoint, then accept/advance B9.
-Known C0E6later rematch, B6/DIphysical aperture, C1C5count semantics and RFD
-lifetime remain evidence-gated/unsent; no blind timing or baseline retries.
-BTF asynchronous13stills cannot close alternating-frame wobble; original
-paired4frame replay preserves guest/GA/acquisition input and width4right8.
-D7 mean endpoint is corrected; physical oscillation/settling unproved.
-DSC4 bottom row is a viewport difference. ASIC credits/BI/AEAR/sampled
-effects have bounded acceptance, no full Plus/demo baseline.
+Drain69608/27181, capture/inspect BTF ifsafe; preservefailedruns. Optional
+short originalD9 preservation addresses B9 nonseamR1/RFD semanticconcern,
+notbroadDwalk. Finish rootdocscheckpoint/push; no newgateforpuredocs.
+C0E6 cases27/28, B6 aperture, C1C5count/RFDlifetime remain evidence-gated
+unsentquestions. DI58vs59 caption unreliableonType1. D7physicaloscillation/
+settling open. DSC4bottomrow isviewport; ASICcredits/BI/AEAR/sampledeffects
+accepted, nofullPlus/demobaseline. No blind D3heldSpace/fullwalk retries.
+
+Private paths are relative to `local/overnight-20261103/resumed-20261104/`.
+`ACTIVE-JOBS.json` holds current process identities; update it before handing off.

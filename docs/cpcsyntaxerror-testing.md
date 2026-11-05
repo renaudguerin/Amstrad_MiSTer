@@ -117,6 +117,15 @@ Its source advances hardware to the instruction-effect offset before dispatch,
 then compares current C4. This supplies a carry-ordering clue, not a measured
 sub-character aperture. [Qualified B6 result and limits](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md).
 
+Fresh calibration now also distinguishes useful and unsuitable peer cases:
+C0 C5/029E and C1 B9/01C8 match the photographed parity/delay groups and
+provide useful source hypotheses. C0 E6 matches only9/28 printed checks,
+and C1 AI/008D fails the short-line VSYNC samples that AmSpirit matches.
+Use AmSpirit for those cases; a peer source algorithm cannot override the
+physical photograph. [C5](investigations/hardware-runs/shaker-crtc0-c5-parity-2026-11-05.md),
+[B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md),
+[AI008D](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md).
+
 ## Interactive inspection
 
 The open GUI can be driven by its bundled `cpcse-ctl` client once its command

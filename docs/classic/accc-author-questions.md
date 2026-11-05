@@ -355,19 +355,30 @@ with it.
     track this work. The [C5 evidence](../investigations/hardware-runs/shaker-crtc0-c5-parity-2026-11-05.md)
     records the bounded parity-result acceptance.
 
-22. **§16.4.2 p.170 — what advances the CRTC 1 VSYNC-width counter (C3h) on very short lines?**
+22. **§16.4.2, French p.171 — what advances CRTC1's VSYNC-width counter on very short lines?**
 
-    **OPEN, not yet sent.** SHAKER 2.7 module A, page `008D` ("AI/A LOST VSYNC ON R0=0/1"), writes
-    R0=0 near C0=0 of the last line before C4=R7 (R4=38, R9=7, R7=30, R3h=8, R2=`0x2E`). It then
-    writes R0=`0x2D` about 18 µs later and R2=`0x1C` about 41 µs later, and samples PPI port B
-    at +5, +23, +62 and +66 µs.
+    **OPEN, not sent; current evidence checked 2026-11-05.** Original SHAKER
+    AI/008D gives high VSYNC at all four samples in both R0=0 blocks on the
+    physical photograph and fresh AmSpirit1.17.1. Full MiSTer208 gives1/0/0/1;
+    fresh CPCSyntaxError0.12.0 gives1/0/0/0. R0=1 blocks are all high.
+    These sampled bits do not establish continuity between reads.
 
-    The real CRTC 1 photograph shows VSYNC active at all four samples. If C3h counted every
-    1 µs R0=0 line, VSYNC would end after 8 µs.
+    Correct the former eight-line premise: French§14.2 p133 specifies a
+    fixed16-line width for CRTC1/2, independent of R3h. Ordinary line-end
+    counting can still expire during the short-line interval, but the
+    genuine production-T80 replay now qualifies accepted writes and expiry
+    after16 one-microsecond ticks with HSYNC low. Its fourth sample0 differs
+    from native1, leaving complete-state/phase equivalence unqualified.
+    French§16.4.2 p171 describes ordinary onset/termination without explicitly
+    naming the short/no-HSYNC counter clock. The old p170 anchor was English.
 
-    Question: on CRTC 1, does C3h count line ends (C0=R0), HSYNCs, or something else? Does a
-    period with no HSYNC (R2 > R0) stop it? See
-    `docs/investigations/hardware-runs/shaker-crtc1-divergence-sequences-2026-10-27.md`.
+    Does C3h advance at each C0=R0, require a prior HSYNC, or depend on another
+    horizontal phase/minimum-line condition? Could an intervening retrigger
+    account for the sampled result? No retrigger occurs in the qualified
+    current-RTL replay. CPCEC/konCePCja source also counts line
+    ends; it supplies no hardware-backed alternate rule. Keep a discriminating
+    hardware probe rather than adopting the HSYNC hypothesis from agreement.
+    [Fresh caller/source evidence](../investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md).
 
 23. **§11.6.1–11.6.2, French pp.90–91 — RFD/parity lifetime across SHAKER D's E tests.**
 
