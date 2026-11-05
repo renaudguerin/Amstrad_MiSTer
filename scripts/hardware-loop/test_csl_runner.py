@@ -180,6 +180,19 @@ class TestHardwareCrossChecks(unittest.TestCase):
         self.assertEqual(sequence_tokens(translate_text('RUN"AMAZING\\(RET)', "fr")),
                          ":13:16:31:04:10:27:10:11:17:31:22:1C")
 
+    def test_french_out_sequence_proves_punctuation_interrupts_shift_run(self):
+        # French 6128_FR.cpr (0x1eef) maps physical M (matrix 38) to ',' and
+        # physical '.' (matrix 31) to ':'.
+        # Proves unshifted comma and colon interrupt French digit SHIFT runs
+        # across a full BASIC OUT line.
+        tokens = sequence_tokens(translate_text(r"OUT &BC00,3:OUT &BD00,132\(RET)", "fr"))
+        expected = (
+            ":18:16:14:39:02:30:2E{2A:0B:0B}2A:32{2A:04}2A:34"
+            ":18:16:14:39:02:30:20{2A:0B:0B}2A:32{2A:02:04:03}2A:1C"
+        )
+        self.assertEqual(tokens, expected)
+        validate_raw_seq(tokens)
+
     def test_menu_digit_reaches_the_same_cpc_key_as_the_device_capture(self):
         # The same document selects SHAKER module B test 9 with bare :0A.
         # Under the French ROM the character '9' also needs SHIFT, so the

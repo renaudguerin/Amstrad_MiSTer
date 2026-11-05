@@ -183,7 +183,11 @@ def _build_layout(layout: str) -> Dict[str, Tuple[str, bool]]:
     else:
         # French firmware key 24 (UK '^') prints '-' unshifted. This and
         # M at key 29 (UK ':') are confirmed by the 2026-10-29 demo boots.
+        # Pinned French 6128_FR.cpr (0x1eef) maps physical M (matrix 38)
+        # to ',' and physical '.' (matrix 31) to ':'.
         table["-"] = ("^", False)
+        table[","] = ("M", False)
+        table[":"] = (".", False)
         for digit in "0123456789":
             table[digit] = (digit, True)
         for char, position in _FR_DIGIT_ROW_UNSHIFTED.items():
