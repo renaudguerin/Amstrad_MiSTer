@@ -1116,9 +1116,19 @@ assign mode  = plus_mode ? plus_gamode : ga_mode;
 // ordinary4/5 relative position, retaining Full5/6's coarse baseline.
 // This is output history, not a literal monitor/silicon-stage model.
 reg [5:0] full_rgb_history [0:7];
-reg rgb_sampled = 0, rgb_old_hs = 0;
-reg rgb_raw_open = 0, rgb_raw_fell = 0, rgb_start_owned = 0;
-reg rgb_start_seen = 0, rgb_end_seen = 0, rgb_correction = 0;
+reg rgb_sampled, rgb_old_hs;
+reg rgb_raw_open, rgb_raw_fell, rgb_start_owned;
+reg rgb_start_seen, rgb_end_seen, rgb_correction;
+initial begin
+    rgb_sampled = 0;
+    rgb_old_hs = 0;
+    rgb_raw_open = 0;
+    rgb_raw_fell = 0;
+    rgb_start_owned = 0;
+    rgb_start_seen = 0;
+    rgb_end_seen = 0;
+    rgb_correction = 0;
+end
 wire rgb_context_clear = reset | sna_load | sync_filter_commit |
                          plus_mode | (sync_filter_applied != 2'd0);
 wire rgb_raw_rise = ~rgb_old_hs & hs_sel;
