@@ -124,7 +124,7 @@ unequal R7 write does not revoke an accepted ticket, matching the existing
 seam-arm policy. Strong Claude Opus5.5 review accepts this C1 source/RBF change within its
 stated bounds; its [debt entry is archived](../../archive/review-debt-cleared.md).
 It does not clear the separate GA G1 regression found in the same review.
-Full synthesis and native0050→0060 verification remain pending. The separate
+Full synthesis and native0050→0060 verification now pass on5261414 (details below). The separate
 non-IVM B6 admission and optical9/5 questions are not explained by this rule.
 
 ## Current-T80 discriminator
@@ -160,3 +160,11 @@ qualifies the documented before-midpoint class in the original caller, with
 architectural snapshot limitations retained. The identical candidate replay now completes at1,341,103,416 clocks and gives0060/rawHL6/two polls. All2,912 CRTC writes, five markers and ten key events are byte-identical; the collected prefix through R7 acceptance also matches12,322 state events,1,698 checkpoints and3,473 dense clocks. This is a comparison of recorded observables, not an unrecorded whole-machine hash.
 
 The first recorded difference is intended: at1,341,100,168 baseline logical VSYNC is1 while candidate remains0. Candidate logical VSYNC starts at1,341,102,015, actual C0=31/evenPF midpoint, with public VSYNC five clocks later. First IN completes at1,341,101,751 with PB0=0, second at1,341,102,775 with PB0=1; rawHL6 follows at1,341,103,415. Acquisition-relative OUT/IN/IN/exit timings56/79/95/105µs match the original AmSpirit checkpoints. The CPU branch diverges after the changed PPI read. Only the first R7=0 row is replayed; all-row native acceptance remains pending. Private `original-o-candidate/HANDOFF.md` and `COMPARISON.json` retain the exact source tuple, all first-column differences and immutable receipts.
+
+## Targeted native acceptance on5261414
+
+Clean full Quartus17.0.2.602 build41980916339 passes all workflow jobs, seven setup/hold groups with minima0.588/0.242ns and zeroTNS. RBF`Amstrad_20261105_5261414.rbf` SHA256`4282cdb6f2f6f306bba9b6ce0d7fe541455e125b99183dc8e390d6ed4d936d7b` is verified identically after installation. Production diagnostics are off. The host-only Makefile repair in8a62a3a changes no synthesis input.
+
+The original normal-boot O sequence on CRTC1/Full/FR completes19 commands, six PNGs, zero failures and ten SSM records. Root inspected all six images and full02DA: all twelve rows match3C20/1E20/0060, including0060 in all four formerly0050 R7=0 rows. This closes the observed original-O02DA residual on this build; it does not claim canonical whole-module history or hidden native first-poll timing. The source proof and current-T80 replay supply the bounded causal explanation independently.
+
+Exact device settings, media/RBF identities, captures and marker records are under`local/overnight-20261103/resumed-20261104/g1-native-build/device-c1-original-o/`. Other known B6/optical and author-question boundaries remain separate.

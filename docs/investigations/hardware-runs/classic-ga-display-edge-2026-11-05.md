@@ -14,6 +14,28 @@ The complete-byte rule comes from French ACCC v1.11 §9.1 p47 and §17.1 p177, w
 
 Claude Opus5.5 high follow-up `20261105T062119Z-89082-5616` clears G1 at source level and accepts the corrected serializer for bounded experimental RBF use. The previous strong review checked queue/anchor/replay, reset/SNA lifecycle and16-bit identity lifetime without finding a counterexample. Optional identity simplification is deferred. The reviewer's sandbox prevented shell/hash commands; root independently checked the final source manifest and actual diff.
 
-The fixed-mode DE proof does not cover DE coinciding with FORCE_BLANK, mode acceptance or palette writes. The existing retained-byte and64 production-T80 checks cover pixel ownership separately. No unique silicon pipeline, all-phase closure or full-demo correctness is claimed. Fresh full synthesis, timing and targeted MiSTer checks remain required. The earlier90f3b18 RBF remains held and must not be promoted.
+The fixed-mode DE proof does not cover DE coinciding with FORCE_BLANK, mode acceptance or palette writes. The existing retained-byte and64 production-T80 checks cover pixel ownership separately. No unique silicon pipeline, all-phase closure or full-demo correctness is claimed. Fresh full synthesis, timing and the bounded MiSTer checks below now pass. The earlier90f3b18 RBF remains held and must not be promoted.
 
 Private immutable proof, baseline/candidate logs, final manifests and provider logs are in `local/overnight-20261103/resumed-20261104/ga-display-edge-proof/`. Final video SHA256: `306e258eaa8ad7f803f1535b615f7f986eb5e1ca60b4efb815b779be3fe05f27`.
+
+## Replacement full build and targeted native checks
+
+Source526141429e3a1f2264df0d64870cb284884e733b, [full workflow41980916339](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41980916339), artifact13394960637/build383: all jobs succeed. Clean full Quartus17.0.2.602 has seven setup and seven hold groups, zeroTNS, minimum0.588/0.242ns, no errors/critical warnings/implicit nets. Use24,474ALMs,28,483registers,701,596RAMbits/102blocks and35DSPs; S/DT diagnostics are off. RBF`Amstrad_20261105_5261414.rbf` is3,113,400bytes, SHA256`4282cdb6f2f6f306bba9b6ce0d7fe541455e125b99183dc8e390d6ed4d936d7b`, installed hash-identically on MiSTer.
+
+A separate clean-checkout push exposed a lifecycle output-directory race before simulation. Fresh lifecycle-only compilation reproduces it; host-only8a62a3a explicitly creates the target directory, and final selection passes46. Its clean-checkout push41983065538 also passes all jobs. No synthesis input changes, so the5261414 full artifact remains the exact reviewed RTL build. Private logs preserve the original failure and setup details; no new behavior test was added for the Makefile line.
+
+All native checks request CRTC0/1 as named, Full, French layout, Plus off and original disk/RUN. The run-wide mode declaration is requested-only. Root inspected all22 PNGs:
+
+| Case | Commands / PNGs / failures | Result |
+|---|---|---|
+|Original C1 O|19 /6 /0|All12DA rows match; four former0050 rows now0060.|
+|C1 E/P|15 /3 /0|E0080/P26 retained.|
+|C1 direct S|10 /1 /0|4E40 retained. All four E/P/S images are RGB-identical to accepted599 controls.|
+|C0 DSC4|19 /4 /0|Credit colons/names and sampled picture/main views visible.|
+|C1 DSC4|19 /4 /0|Same clear credits, RGB-identical to C0 credits; sampled picture/main views visible.|
+|C0 Amazing|13 /2 /0|Scrolling title and lower text remain visible.|
+|C1 Amazing|13 /2 /0|Same bounded visibility; coloured horizontal bands appear in the later animated sample on both types.|
+
+These snapshots do not prove complete demos or parity-aligned transient equivalence. The earlier DSC4 long-line symptom also occurs on e24, with physical/reference status still unqualified; no new closure is inferred from its absence in a small sample. The extra bottom row remains the [viewport question](dsc4-bottom-row-crop-2026-11-04.md). ASIC acceptance remains separately bounded on275af8a; no Plus baseline was run here.
+
+Receipts, all PNGs/manifests, exact configurations, build reports, the E/P/S pixel comparison and frozen artifact are under`local/overnight-20261103/resumed-20261104/g1-native-build/`. Original [02DA proof](crtc1-02da-current-poll-boundary-2026-11-05.md) owns the causal replay and all-row native result. Before the Storm's ordinary4/5 compensation is a separate filter finding, not addressed by this GA correction. No master integration or release is implied.

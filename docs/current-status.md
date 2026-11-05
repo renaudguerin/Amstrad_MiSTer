@@ -19,24 +19,16 @@ instructions across handoffs and context compaction.
   accepted functional reference remains `e24cb50`. Completed DT evidence is on
   `codex/overnight-validation-20261103` (`18b58ce`).
   It is distinct from integrated `master`; no integration or release is implied.
-- Current experimental full artifact: `Amstrad_20261105_90f3b18.rbf`, SHA256
-  `a7c3b0ad177744a3c2e2120365c3febdbd8226f0f80782603ccb1e3e8008a102`.
-  [Full synthesis](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41964150943)
-  passes all jobs, setup/hold0.316/0.243ns. Strong review now finds a fixed-mode
-  border/ink-edge regression (G1); this artifact is held pending correction.
-  Bounded C0/C1 DSC4/Amazing views
-  retain credits and visible effects. The G1 correction now has strong source
-  clearance and awaits a replacement full build.
-  A DSC4 horizontal-line transient also occurs on reference e24cb50 and still
-  lacks matched physical/reference qualification. [Build and native bounds](investigations/hardware-runs/classic-ga-native-2026-11-05.md).
-  Accepted functional reference e24cb50 retains native C0 E6 acceptance26/28;
-  no full baseline on90f3b18 is implied.
-- C1 interlace-adjustment fix `ccf2be7` has targeted native acceptance on
-  production `076eab1` and diagnostic `c16e7ec`: direct and canonical-history S
-  both give 4E40; E0080/P26 remain pixel-identical to their controls. The passive
-  trace confirms history arrives without inherited adjustment or C5. Sampled
-  DSC4/Amazing screens remain visible. [C1 evidence](investigations/hardware-runs/crtc1-interlace-adjustment-counting-2026-11-04.md).
-  Earlier artifacts belong in [dated milestone reports](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
+- Current experimental full artifact: `Amstrad_20261105_5261414.rbf`, SHA256
+  `4282cdb6f2f6f306bba9b6ce0d7fe541455e125b99183dc8e390d6ed4d936d7b`.
+  [Clean full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41980916339)
+  passes all jobs, minimum setup/hold slack 0.588/0.242 ns across seven clocks, zero TNS. Strong Opus
+  source review clears the GA G1 and C1 MID changes. Original O/02DA now matches
+  all 12 rows on MiSTer; E/P/S retain accepted pixel-identical results, and
+  bounded C0/C1 DSC4/Amazing controls remain visible.
+  The host-only `8a62a3a` build-directory fix changes no synthesis input.
+  Functional reference `e24cb50` retains C0 E6 acceptance 26/28; no full baseline
+  on `5261414` is implied. Earlier experimental artifacts are in dated reports.
 - ASIC acceptance remains bounded on `275af8a`: DSC4 colons/names and sampled
   DSC4/Amazing effects, BI widths/clipping and AE/AR patterns. Later changes
   target classic CRTC state; no new full Plus baseline is implied.
@@ -51,22 +43,22 @@ our closest software reference, not the hardware oracle.
 
 ### Classic CRTC 0/1
 
-- C0 E6 on `e24cb50` passes26/28 printed checks, with nine newly matching
-  cases since9a and no previously passing regression. Remaining27/28 require
-  focused later R4-rematch work. First-line R9 restoration now passes case4
+- C0 E6 on `e24cb50` passes 26/28 printed checks, with nine newly matching
+  cases since `9a` and no previously passing regression. Remaining cases 27/28 require
+  focused later R4-rematch work. First-line R9 restoration now passes case 4
   on the device as well as its source-defined counter proof.
-  The early forced-entry distinction has failing-first proofs,240CRTC/45selected
+  The early forced-entry distinction has failing-first proofs,240 CRTC/45 selected
   passes, independent review, full synthesis and targeted native acceptance.
-  Matched AmSpirit passes28/28; CPCSyntaxError passes9/28 and supplies no
+  Matched AmSpirit passes 28/28; CPCSyntaxError passes 9/28 and supplies no
   validated replacement for every residual.
   [Last Line proof](investigations/hardware-runs/crtc0-last-line-cancellation-2026-11-04.md),
   [VSYNC proof and native result](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md),
   [forced-entry source distinction](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md),
   [unsent C0 question](classic/accc-author-questions-crtc0-c0-1-2026-11-04-fr.md).
-  A timing-preserving AmSpirit control removes exactly four lines from case27
+  A timing-preserving AmSpirit control removes exactly four lines from case 27
   while preserving the original OUT phases; it strengthens the coupled-rematch
   question without selecting a physical rule. [Stimulus qualification](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md).
-- C1 E0080/P26 and the S history residual have bounded native acceptance.
+- C1 E=`0080`/P=`26` and the S history residual have bounded native acceptance.
   The corrected history and direct paths now have matching R5/R7/exit state;
   changed raster captures match previously inspected views. The physical S
   photograph's 4E30 versus the current program's 4E40 still needs revision
@@ -76,17 +68,18 @@ our closest software reference, not the hardware oracle.
 - DSC4 credit colons are visible on CRTC0/1; its bottom-row difference is
   outside AmSpirit's default viewport. The remaining Type0 mixed-mode quarter
   and R3.JIT pixel/blank defects have an experimental GA candidate with retained
-  64 production-T80 pixel controls,80 snapshot/display-edge controls and46selected
+  64 production-T80 pixel controls, 80 snapshot/display-edge controls and 46 selected
   benches passing. Strong Opus source review clears the corrected candidate;
-  a replacement full build and targeted native checks are pending. Diagnostic
+  the replacement full build and bounded native checks pass. Experimental
   adoption does not establish all phases or final release acceptance.
   [G1 correction and bounds](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md).
   [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
   [mode-boundary source/proof](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
 - Before the Storm (CRTC1, RUN"-BTF) has original normal-boot native and
   AmSpirit scene captures. Fresh CPCSyntaxError confirms the guest alternates
-  R3=04/05. A source-qualified filter-width discriminator is in progress;
-  current stills cannot judge alternating-frame wobble. [Evidence and limits](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
+  R3=04/05. The production motherboard proves Full collapses 4/5 onto
+  one byte position; a private two-byte-history candidate is in preparation.
+  Current stills cannot judge alternating-frame wobble. [Evidence and limits](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
   publication is a separate correction. Fresh CPCSyntaxError B6 matches hardware
   and supplies a carry-ordering clue, without a physical aperture. Coherent
@@ -97,17 +90,13 @@ our closest software reference, not the hardware oracle.
   [Onset controls](investigations/hardware-runs/crtc1-r7-onset-controls-2026-11-04.md),
   [optical qualification](investigations/hardware-runs/crtc1-r7-optical-address-qualification-2026-11-04.md),
   [unsent questions](classic/accc-author-questions-r7-s-phase-2026-11-04-fr.md).
-- C1 O/02DA remains0050 versus0060 in all four R7=0 rows on90f3b18.
-  Matching original-O AmSpirit gives0060; first-row public stops prove PB0=0
-  then1 on two distinct polls, with rawHL6. Fresh CPCSyntaxError also passes
-  all twelve rows; its source exposes our live-R7 bypass of active MID-VSYNC
-  (French§19.7.1–2p219). Experimental source now defers that accepted
-  comparison through the existing midpoint consumer, with failing-first proof,
-  246 CRTC/46 selected passes and a re-minted unchanged-projection soak.
-  Strong Opus source review accepts this bounded C1 change; synthesis and
-  native verification remain pending. The
-  corrected current-T80 replay now gives0060/rawHL6/two polls with an identical
-  collected prefix through R7 acceptance; the baseline gives0050/rawHL5/one poll. [Current poll boundary](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
+- C1 O/02DA is corrected on `5261414`: all 12 original-O rows match on MiSTer,
+  with `0060` in all four formerly `0050` R7=0 cases. The source MID-VSYNC correction
+  has failing-first proof,246 CRTC/46 selected passes and strong Opus clearance.
+  Current-T80 replay changes `0050`/HL5/one poll to `0060`/HL6/two polls with an identical
+  recorded prefix through R7 acceptance. AmSpirit and fresh CPCSyntaxError
+  agree on the expected rows. Whole-module history remains a separate gate.
+  [Proof and native result](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
 - C1 DE/03B6's old missing-row symptom no longer reproduces on e24cb50:
   direct E and D9→E both show A/A/B, with all six E PNGs pixel-identical.
   FF/5F remains a separate machine-input difference. [Current recheck](investigations/hardware-runs/shaker-03b6-current-recheck-2026-11-05.md).
@@ -158,9 +147,9 @@ our closest software reference, not the hardware oracle.
   [Package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md),
   [D3 caller](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md).
 - DT's reported band difference is resolved as an acquisition-epoch mismatch.
-  Native diagnostic`c90ec8a` exactly matches the authentic replay's early
-  timestamps/state and active-black counts79,664/79,664/0. All14 images retain
-  the production RGB; the guest removes the second band about339ms after F8,
+  Native diagnostic `c90ec8a` exactly matches the authentic replay's early
+  timestamps/state and active-black counts 79,664/79,664/0. All 14 images retain
+  the production RGB; the guest removes the second band about 339 ms after F8,
   before the late F8-labelled PNG, as matched late AmSpirit does. Full synthesis
   and two stable native ring reads pass. No DT timing/filter repair is selected;
   exact marker-frame HDMI capture remains separate tooling work.
@@ -181,9 +170,8 @@ our closest software reference, not the hardware oracle.
   CPCSyntaxError v0.12.0 and matching source are instrumentable. The MiSTer
   hardware loop, CSL/SSM and native capture are working tools, subject to the
   page-state and display limits above. One operator owns shared MiSTer and
-  AmSpirit access. Device use remains authorized. Sandboxed SSH signing/authentication failed;
-  an approved read-only check outside the sandbox succeeded. Captures now use
-  that execution path; no user SSH-agent action is needed. [AmSpirit tooling](investigations/hardware-runs/amspirit-lite-1.17-tooling.md),
+  AmSpirit access. Device use remains authorized; the approved capture execution
+  path works, and no user SSH-agent action is needed. [AmSpirit tooling](investigations/hardware-runs/amspirit-lite-1.17-tooling.md),
   [CPCSyntaxError guide](cpcsyntaxerror-testing.md),
   [hardware loop](investigations/hardware-runs/mister-hardware-loop-driver.md).
 - FDC full-sector result/ST1, classic AMSDOS and hardware acceptance remain open;

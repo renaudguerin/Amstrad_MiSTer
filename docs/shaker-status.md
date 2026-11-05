@@ -43,9 +43,10 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
   The passive trace confirms C5=0/adjustment off at entry and matching R5/R7/exit
   states; all changed raster contents match previously inspected views.
   This is bounded state/result acceptance; physical photo 4E30 versus program
-  4E40 still needs revision binding ([passive evidence](investigations/hardware-runs/shaker-s-passive-observer-2026-11-04.md)). `02DA` still gives `0050` versus `0060` on90f3b18 through original directO;
-  the MID correction gives0060 in the current-T80 replay with an identical
-  recorded prefix; native acceptance is pending. Matching AmSpirit proves two distinct polls/rawHL6 ([current boundary](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md)); `009A` differs
+  4E40 still needs revision binding ([passive evidence](investigations/hardware-runs/shaker-s-passive-observer-2026-11-04.md)). `02DA` now matches all12rows on5261414 through original directO, including
+ 0060 in all four formerly0050 rows. Current-T80 replay and source MID correction
+ explain the change with an identical recorded prefix; whole-module history
+ remains unqualified ([proof/native result](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md)); `009A` differs
   from the RAM-snow photograph; `019D` still shows fifth/fourth `1F/1F` on current production `e24cb50` versus fresh original-caller
   AmSpirit, CPCSyntaxError0.12 and photo `1E/1F`; it needs the physical comparator-visibility contract
   ([fresh caller evidence](investigations/hardware-runs/crtc1-outi-019d-2026-11-04.md)). The four formerly yellow pages
@@ -82,9 +83,9 @@ a global rate. [D walk and page-state limits](investigations/hardware-runs/shake
 - **Demo targets:** classic DSC4 credits are repaired, but Type 0 mixed-mode
   partial pixel has an experimental retained-test correction on90f3b18,
   with clean full synthesis and bounded C0/C1 DSC4/Amazing views. Stronger
-  source review clears the G1-corrected candidate, whose replacement build/native
-  checks are pending; all-phase acceptance is open
-  ([native bounds](investigations/hardware-runs/classic-ga-native-2026-11-05.md)). ASIC DSC4 credit clipping is traced to HSYNC
+  source review, full synthesis and bounded native checks now pass on5261414;
+  all-phase acceptance is open
+  ([corrected native bounds](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md)). ASIC DSC4 credit clipping is traced to HSYNC
   suppression of intact pixels; the 15-dot terminal-mask fix 275af8a has full synthesis and targeted device
   acceptance: credit colons/names clear, BI photo clipping corroborated,
   AE/AR controls preserved. Its private replay recovered 132 samples with zero

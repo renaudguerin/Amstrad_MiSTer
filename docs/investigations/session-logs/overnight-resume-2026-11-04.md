@@ -1,98 +1,29 @@
-# Active unattended handover — 2026-11-05 06:30 UTC
+# Active unattended handover — 2026-11-05 07:16 UTC
 
-Continue known SHAKER and DSC4/Amazing fixes toward approximately90% weekly
-Codex usage; do not stop after one unit or launch the broad fresh baseline.
-Latest live OAuth06:15:16:71% weekly used, reset5Nov19:34UTC,3banked resets
-untouched. No credits/overage/reset redemption. Work remains authorized while
-user sleeps; device released. Branch pushes/milestone builds authorized; no
-master integration, PR, release or author messages. No goal/wakeup configured.
+Continue known SHAKER/DSC4/Amazing defects toward the user's approximately90% weekly Codex ceiling. Latest live06:53:05 is72% weekly used, reset5Nov19:34UTC; three banked resets untouched. No overage/credits/reset redemption. Device released. Branch pushes and milestone builds authorized; no master integration, PR, release, author messages or broad fresh baseline. Root solely owns shared MiSTer/AmSpirit and tracked integration. No automatic continuation/goal is configured.
 
-Checkout `/Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer`, active experimental
-branch`codex/classic-ga-boundary-native-20261105`, parent`18b58ce`. Root owns
-tracked writes and sole shared MiSTer/AmSpirit operation. Accepted functional
-reference remains`e24cb50`; completed DT evidence was pushed on
-`codex/overnight-validation-20261103`. Approved elevated Git/SSH works.
+Checkout`/Users/renaudg/.codex/worktrees/c1e6/Amstrad_MiSTer`; experimental branch`codex/classic-ga-boundary-native-20261105`, HEAD8a62a3a. Root has doc-only dirt for current native results. Native Solhigh worker owns only ignored BTF proof/candidate paths. Do not duplicate its work or edit its copies. All foreign workers have completed/drained; ask-claude auth now works. User's latest MacBook Claude telemetry showed ample subscription headroom, but no paid extras authorized.
 
-## Current GA unit
+## Accepted current unit
 
-G1 correction is source-complete and independently accepted by Opus5.5 high follow-up `20261105T062119Z-89082-5616` (exit0, drained). It selects outgoing `u1005` at colour refresh; eight public DE edges fail before/pass after. Existing72 lifecycle cases and64 production-T80 controls remain green; final selection PASS46, no subsequent code edit. Root verified final three hashes against `ga-display-edge-proof/production-adoption/FINAL-SOURCE-HASHES.json`. Strong source debt is archived; full synthesis/timing/native checks remain open. Earlier90f3b18 artifact is held. Do not simplify identity epochs or retune caller phases. [Source proof](../hardware-runs/classic-ga-display-edge-2026-11-05.md).
+Reviewed GA G1 correction5261414 uses outgoingu1005 display tag at colour refresh. Eight DE cases fail before/pass after; existing72 lifecycle and64 production-T80 controls pass. Final source gatePASS46. Strong Opus5.5 high follow-up20261105T062119Z-89082-5616 source-clears; previous strong review also accepts C1 MID. Debt rows archived. No unique silicon/all-phase/palette-coincidence claim. Exact frozen packs`ga-display-edge-proof/production-adoption/` and`strong-followup/`.
 
-Full original-O current-T80 candidate completes0060/HL6/two polls versus baseline0050/HL5/one poll. All2912writes/5markers/10keys are identical; collected prefix matches through R7 acceptance. MID source review is clear; native all-row check remains pending. No active CPU replay.
+Full41980916339/artifact13394960637/build383 ALLSUCCESS, cleanfull17.0.2.602, seven setup/hold groups, zeroTNS, minima0.588/0.242ns; no critical/implicit/error diagnostics, S/DT off. RBF`Amstrad_20261105_5261414.rbf`,3,113,400bytes,SHA4282cdb6f2f6f306bba9b6ce0d7fe541455e125b99183dc8e390d6ed4d936d7b installed hash-identically. 8a62a3a changes only hostMakefile/docs, no synthesis input. Original push526 failed a clean lifecycle directory race; root reproduced exact generation error then added one owned mkdir, focused80PASS and finalPASS46. New push41983065538 ALLSUCCESS. Preserve`ga-build-directory-race/`; do not restart Quartus for that host-only fix.
 
-Before the Storm user details are now known: btf.dsk, RUN"-BTF, CRTC1, scroller373–403s after RUN. Normal-boot e24 native baseline38commands/13PNGs/0fail and AmSpirit13 reference frames complete, root viewed all. Both reach the rainbow landscape/parallax scroller. AmSpirit burst is eight consecutive callbacks; native stills are not consecutive physical frames, so no alternating-wobble verdict is claimed. The CPCSE run completed0/drained; root accepted original guest code/780alternating4/5 writes and rejected its physical/cadence overclaims. Task-owned hung --help helper terminated (no user app touched). Solhigh owns only private`before-the-storm-r3/integration-width-proof/`, preparing failing-first production discriminator for same Full SHIFT under4/5; no tracked changes authorized. Root owns device/API; neither has an active script. AmSpirit is paused at BTF after-scroller with breakpoints cleared. Do not queue screenshot commands blindly: pinned Main FIFO consumes a read buffer as one command and drops requests while a PNG save is pending.
+Targeted native22PNGs all viewed: originalO19cmd/6PNG/0fail/10SSM nowall12DA rows correct, four0050→0060. E/P15/3/0/6 retain0080/26; directS10/1/0/1 gives4E40. Allfour E/P/S images RGB-identical599. C0/C1DSC4 each19/4/0, colons/names clear and creditsRGB-identical; sampledpictures/mainvisible. C0/C1Amazing each13/2/0, title/lowertextvisible; latercolouredlines presentboth. Bounded snapshots only, not fullcompletion/transientparity. Full originalO current-T80 replay independently gives0060/HL6/twopolls versus0050/HL5/onepoll, identical2912writes/5markers/10keys and collectedprefix throughR7acceptance. NativeO notfullcanonicalhistory. [02DA evidence](../hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md), [G1 build/native bounds](../hardware-runs/classic-ga-display-edge-2026-11-05.md).
 
-## Completed DT unit
+## Active BTF unit
 
-[Native early-window report](../hardware-runs/shaker-dt-blank-boundary-2026-11-04.md):
-`c90ec8a` differs from default-off observer73ca58a ONLY QSF S+DT defines.
-Full41957110274/artifact13383689973/build375 ALLSUCCESS; clean17.0.2.602,
-7setup/7hold/TNS0,min0.593/0.245ns, noerrors/critical/implicitnets. RBF
-`Amstrad_20261105_c90ec8a.rbf`,3149208bytes,SHA
-9a271dc63d701779eff49f81c70c118e6a59525f06933f3bf76b14ed0f56da93 installedhashmatches.
-OriginalDT32cmd/14PNG/0fail/29SSM. Twoidentical1040bytereads, written29/drop0,
-DTR1complete/all6slots/error0. Native3rawVS+3GAblack atrows10/14/30,
-activeblack79664/79664/0;1,277,952ticks/312HS. Sixrelativecutstamps,
-summary/owners and allnon-PB1/PB3 fields EXACTauthenticreplay; PB0alwaysagrees.
-All14RGBimages pixel-identicale24controls, allcontactviewed/fullF8FAviewed.
-F8manifestnowhonestlyflaggedsupersededbyF7beforecapture.
+User Before the Storm:`btf.dsk`, RUN"-BTF, CRTC1, scroller373–403s afterRUN, reportedalternatingframewobble; authoralternatesR3. DiskSHAf01bc41d8ea9dc8dbacc8b78d7f331399d4a856437bd01f0558924feb1ba703e. Originale24native38cmd/13PNG/0fail andAmSpirit13referenceimages reachlandscape; nativeasyncstills cannotjudgeframeparity. AmSpirit pausedafterBTF,script/BPsclear,noactiveAPI. CPCSE normalbootcompleted0/drained: original085Ecalculates4+(L&1),089EwritesR3,780strictalternating4/5. Parent rejectsprovider's cadence/visual/causalityoverclaims (one110gap/C4=20earlyrow). Task-ownedhung--helphelperkilled; userGUI untouched. No liveforeignworkers.
 
-ReportedDTcore/filterdifference CLOSED as acquisition-epoch mismatch: guest
-changes69FA0E→1E339msafterF8; late same-runAmSpiritalsooneband. Exactmarker-frame
-HDMIcapture is separatetooling, no DTtiming/filterrepair. Wrong-phaseSNA inference
-remains separatelywithdrawn. Evidence`dt-native-build/` frozen/readable.
+PrivateproductionT80/MB proof`before-the-storm-r3/integration-width-proof/` frozen: three naturalorigins, actualraw4/5 widths256/320clocks andsameFullHS/HB/address/data; bothSHIFT1, identicalRGB. Width6 anchor has384rawclocks, sameacquisition, SHIFT0 andRGBleft8ofboth. French§14.4p134–135 primarytext+renders require4→5LEFT8. One-bitmodelcannotrepresentthreepositions. Baselinefailingsourceproof is preserved; originalsetupfailure thenoneexternal-resetbackendguardrepairprovedbyfirstfetch/writelog, no phasefit.
 
-## Targeted B1 acquisition followup
+Solhigh`/root/r3_output_model_scope` nowownsONLYnewprivate`candidate-two-byte/` design/proof: preserve existing Full5/6 byte-exact, addextraoldbytefor4, keepexistingcoarse5/6 approximation explicit. Requirefails-before/passes-after exact4/5relation, public4→5→4and5→4→5,return6,history/reset/mode/rawpathbounds. No tracked edits/gate/Git/device/API/delegation authorized to worker. Rootmustreadproposal/proof thenfreshstrongOpusreview before productionadoption. No thresholdpolaritypatch or broadmonitorlinebuffer/phasefit. Waitforworker, don'treimplementitsquestion. [BTF evidence](../hardware-runs/before-the-storm-r3-2026-11-05.md).
 
-Gemmedium retrospectiveaudit82271/run032328completed0/drained;
-`acquisition-epoch-audit/` preservesoldmetadata and parentbounds. Rejectprovider's
-NOTepochambiguous/scalerfault claims basedonlyon longmarkergap; no source-qualified
-dwell/commonwalltickepoch. Oldfour00D5/6/DD/DE wereflatYellow. CurrentunchangedB1
-prefixthroughDE on acceptedc90 completes23cmd/15PNG/0fail/21SSM: allfour nowhave
-six-colouractivepatterns. Rootviewedall4targets plusphysicalD6/DEphotos. D6/DE
-patterncontent corroboratesphysicalphotos, butgeometry/bluebarphase notjudged.
-D5/DD arePROVENsuperseded byD6/DEin samepolledbatch and cannotcountasintrostatepasses.
-Productione24 control nowmatchesallfourc90RGBexactly, sixcolours each.
-Do notclaimallfourphoto-compliant orrefresh350denominator.
-[Bounded recheck](../hardware-runs/shaker-b1-current-recheck-2026-11-05.md).
+Rootdevice BTF75946 nowCOMPLETE0/drained:5261414 normalboot38cmd/13PNGs/0fail. Rootviewedall13contact/fullburst03; landscape/trees/scrollerreached,lastafterblack. Phasesunmatched, noalternatingwobble/fullcompletionclaim. DeviceidleafterBTF; noactiveAPI/device/Quartus/foreignworker. OnlyprivateSolcandidateactive. No pendinguseraction. `ACTIVE-JOBS.json` holdsruntimeindex.
 
-Device idle on acceptedproductione24 afterdirectE andD9→E known03B6rechecks.
-Direct22cmd/6PNG/0fail/13SSM; D9→E42/18/0/35. AllsixEPNGs identicalbetween
-paths and03B6A/A/Bmatchesphysicaltextrows; FF/5FPPIinputseparate.
-Allimagesviewed; fullDhistoryunproved. No newRTLcausalselection. AmSpirit paused
-at first original02DA R7=0 poll exit5588, rawHL6, script/BPs clear. Matching
-normalbootO reference12rows good. Native90 directO19cmd/6PNG/0fail/10SSM
-retainsfour0050vs0060; rootviewedall6. AmSpirit firstIN42156845A1E/HL4,
-second42156861A1F/HL5, exit42156871HL6; no hiddenstate/PC/RAMwrites.
-[Current poll proof](../hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
-Refresh ignored ACTIVE-JOBS.json after runtimechanges.
+## Other current open boundaries
 
-FreshCPCSEdirectO also all12rows correct; rootviewed6contacts/fullDA.
-Matchingcrtc.cpp759–817 points to activeMID livewrite deferral. Root/Sol
-independently re-read/renderedFrench19.7.1–2p219 andconfirmed CRTC.v liveR7
-blockbypassesmidpoint. Solpreparingprivatefailingvector/designbeforeproduction
-edits; fullbaseline replay continuesunchanged. Preserve nonIVM/odd control,
-activepulse/rearm and sameedgeMID semantics; no aftermidrule chosen.
+Functionalreferencee24 retainsC0E6 26/28 (27=0055vs0065;28=02D6vs000E); source/AmSpiritcoupledR4rematchquestion remainsunsent. Do notrepeatcompletedC0audits. S4E40direct/historyaccepted; physicalphoto4E30versusbothavailableprogramrevisionsstillbindingquestion. B6current1F/1Fvs1E/1F; peerCPCSEmatchesall6, sourcecarryorderingclueonly. CommonnextCLKENadmission rejected byopticaledge35clocksbeforeproposedconsumer; currentR7.JIT8/4vs9/5 remainsindependent. DI58vs59 withcaptionunreliableonCRTC1. DTreportedcore/filterfault CLOSED asacquisitionepochmismatch; firstnativepassivetraceexactmatchingreplay, bothbandsreachacquisition. 03B6directandD9→EmatchesphysicalA/A/B, fullolderDhistoryunproved. B1fouryellowpagesnowstructuredonbothproduction/diag; D5/DDsuperseded, geometry/stateunqualified. D3heldSpace44pagesnotstatealigned, noblindwalkretry. ASIC275af8aboundedcredits/BI/AE/AR/sampledeffectsaccepted, nofullPlusbaseline. Allauthorquestionsunsent.
 
-## Other current boundaries
-
-- C0e24E6passes26/28,case4fixed; remaining27=0055vs0065,28=02D6vs000E.
-  OriginalAmSpiritpair0065/000E; timing-preservingtwooperand27guard0055 removes
-  exactly256us atsameOUTphase modulooneframe. No hiddenCrtccountersused.
-  Effectivefreqreadback1both/requested0preboot; config/stack/cleanuppass.
-  [Stimulus report](../hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md).
-  Post-entryR4policy stillrequiresauthor/physicalevidence; questionunsent.
-- C1ccf2be7 on076/c16:direct/historyS4E40samePNG, E0080/P26preserved,
-  normalizedC5=0/adjustmentoff andsameR5/R7/exit. No ad-hocC5/R8reset.
-  Available2.6/2.7bothSexpected4E40andlooppolicy; directconstantchange ruledout,
-  earlierhistory/photobinding4E30 stillopen. Providerwrongbyte-exactstart5A90
-  corrected5A91; one16usprintedquantum doesnotproveVSYNC16usearlier.
-- B6/019D1F/1Fvs1E/1F andDI58vs59 are nowreproducedonproductione24;
-  DIcaptionwarnsCRTC1unreliable. CurrentR7.JIT and02DAreproducedasabove. D3heldSpace44
-  pagesnotstatealigned,no blindfullwalkretry. ASIC275af8aboundedcredits/BI/AE/AR
-  andsampledDSC4/Amazingaccepted, no fullPlusbaseline.
-- BTF details and baseline are recorded above. SSH works viaapproved
-  capturepath; userinteractiveSSH/Claude confirmation resolvesoldauthrequests.
-
-[Current status](../../current-status.md)/[maintained tally](../../shaker-status.md)
-carrycurrentpublicposition; datedreports andprivatepacks carryproof. Keepcurrent
-statusconcise, archivehistory ratherthanappend. Allauthorquestionsremainunsent.
+Maintain`docs/current-status.md` ascurrenttip; archivehistory. `docs/shaker-status.md` keepshistorical350-pairtallywithbounds; targetednewchecks do notrefreshdenominator. No broadbaselineuntilknownfixescomplete. Continueautonomously toward90%, notstopafteroneunit.
