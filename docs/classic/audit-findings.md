@@ -632,9 +632,15 @@ General implementation rules for all fix prompts:
   neighboring type-0/R2=22, mode-latch and BR/E infinite-HSYNC controls pass.
   See [T/E execution and boundary proof](../investigations/video-boundary/v1-shaker-caller-response-2026-10-29.md).
   Original-monitor hardware confirmation of the repaired T/E pulse remains open.
-- **F11b — VSYNC re-entrancy** (`vsync_allow`, `CRTC.v:380`, `:383-388`, `:436-451`):
-  reproduces mechanism 2 including the R7=0/R4=0 lock and the R7=0,R4=1,R9=7 infinite-VSYNC
-  bypass (digest-02 §18) ✓. Protected by `t03a`/`t03b`.
+- **F11b — VSYNC re-entrancy** (`vsync_allow`, French ACCC v1.11 §16.3 p.169,
+  §16.4.1.1 p.170): inactive Type0 protection survives a same-line unequal/equal R7
+  pair. An unequal comparison at a genuine C9 return to zero can rearm it even when
+  C4 stays zero. Corrected `t03a` pins both cases; `t03b` retains the
+  R7=0,R4=1,R9=7 infinite-VSYNC bypass. The former immediate-rearm expectation was
+  unsupported and contradicted the original-CPC AI/0091 photograph. See the
+  [qualified caller and review](../investigations/hardware-runs/shaker-crtc0-0091-protection-2026-11-05.md).
+  Type1's existing immediate inactive rearm remains **unverified**, including its
+  `t03a` and F3 counter-restart assertions; it needs a separate CRTC1 discriminator.
 - **F11c — R12/R13 readback** (`CRTC.v:118-119`): type 0 returns stored, type 1 returns 0 ✓
   (primary detection vector, correct). Protected by `t01`.
 - **F11d — Dummy register 31** (`CRTC.v:122`): 0xFF on type 1, 0x00 on type 0 ✓.
