@@ -149,10 +149,10 @@ module crtc_type1_engine
 // flag and the section 19.8.2 counting below.  The wrapper keeps using R8's
 // bit 0 for the FIELD output convention.
 //
-// ivm is the effective IVM flag: it follows the R8 toggle from the 3rd-us
-// stage edge onward, so counting and display switch one character after an
-// entering write and the leaving write keeps the old mode until its own
-// stage A.  tog_stage runs the documented two-stage update: armed by the
+// ivm holds the registered mode between toggle edges. It changes on
+// stage A; count_ivm also exposes that publication to counter consumers
+// on the same edge. Entering and leaving writes keep the prior mode until
+// stage A. tog_stage runs the documented two-stage update: armed by the
 // bus write (register-file timing), stage A (3rd us) at the next CLKEN
 // edge, stage B (4th us) at the one after.  A second toggle write while a
 // stage pair is in flight is ignored (the source documents one OUT at a
@@ -166,6 +166,13 @@ wire r8_toggle_write = r8_write_hit & ((DI[1:0] == 2'b11) != ivm);
 
 wire stage_a_edge = CLKEN && tog_stage == 2'd1;
 wire stage_b_edge = CLKEN && tog_stage == 2'd2;
+
+// French §19.5.3 p.210 pins both parity stages and §19.8.2 p.226 counts
+// when C0 goes to 0; neither orders a coincident stage A and line end.
+// Inference from physical B9 Page B FRAME SIZE=#2740 at C0=#3F (one line
+// less than #2780): counter consumers use the mode published on stage A
+// itself. Parity stages and the wrapper's poke arbitration are unchanged.
+wire count_ivm = stage_a_edge ? tog_enter : ivm;
 
 // Stage A (3rd us, p.210): the parity of the new C9 is the current C9.0
 // xor, when R9 is even, C4.0 -- and C9.0 takes that value immediately, in
@@ -286,7 +293,7 @@ wire       type1_add_intercept = line_new && type1_add_armed &&
                                  !type1_add_line_active &&
                                  (in_adj ? crtc1_adj_end :
                                   ((row == R4_v_total) && !(|crtc1_rollover_r5) &&
-                                   (ivm ? ivm_row_end : (line == crtc1_line_max))));
+                                   (count_ivm ? ivm_row_end : (line == crtc1_line_max))));
 wire       crtc1_adj_end_eff = crtc1_adj_end ||
 							   (type1_add_line_active && line_new);
 
@@ -301,7 +308,7 @@ wire       line_last_w = (line == crtc1_line_max);
 // Share that ordinary row identity with its counter, VMA and VSYNC
 // consumers. C5 completion and the independent added line still own
 // their explicit forced row/frame events; they do not disable IVM.
-wire       ordinary_row_last = ivm ? ivm_row_end : line_last_w;
+wire       ordinary_row_last = count_ivm ? ivm_row_end : line_last_w;
 // French ACCC v1.11 §11.2.4 p.85: an R4/R9 write on C0=R0
 // cannot cancel adjustment when the old C4/R4 and C9/R9 matches hold.
 // Preserve that qualification before the system-clock register publication;
@@ -458,9 +465,9 @@ assign r6_origin = frame_new_w | crtc1_stuck_r5_row_reset_event;
 // parity at the origin.  Its worked table starts an odd IVM frame at C9=1,
 // so the C9 restart must carry that same newly toggled parity rather than
 // the ordinary row-end value derived from the old ParityC9.
-assign line_next = frame_new_w ? (ivm ? {4'b0000, ~parity_frame} : 5'd0)
+assign line_next = frame_new_w ? (count_ivm ? {4'b0000, ~parity_frame} : 5'd0)
                  : (in_adj && type1_adj_counter_end) ? 5'd0
-                 : ivm        ? (ordinary_row_last ? pc9_toggled : c9_ivm_step)
+                 : count_ivm  ? (ordinary_row_last ? pc9_toggled : c9_ivm_step)
                  :              (ordinary_row_last ? 5'd0 : line + 5'd1);
 
 // Additional-line state: set on the intercepted adjustment/frame end,
