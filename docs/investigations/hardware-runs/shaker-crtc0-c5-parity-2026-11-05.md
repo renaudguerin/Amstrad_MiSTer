@@ -37,10 +37,31 @@ The public classic loader omits hidden parity/counter state; any replay must
 qualify actual parity rather than assume that the odd-group capture transfers
 it. No PC, RAM, parity or counters were patched.
 
-The completed peer/RTL audit rejects the proposed simple entry vector as
-redundant with t22g/k and t29. It identifies a concrete software difference:
-CPCSE clears its post-IVM deferred comparator after one line; current RTL
-retains a frozen comparison until C9 wraps31→0. That does not establish the
-silicon lifetime or prove this is C5's cause. French§19.8.1's longer run-on
-tables and existing B1 behavior remain constraints; unsent author question21
-stays open. A supported-loader original-caller replay is the next discriminator.
+The completed peer/RTL audit identified a comparator lifetime difference.
+Rereading the current French§19.8.1 p221 and rendered pp224–225 resolves
+the premise: all odd exit panels end(1,6,6)→(2,0,0), without C9=7.
+The old F16/Q21 interpretation retained cells already corrected in v1.11.
+Q21 is withdrawn by primary-source correction, not awaiting author reply.
+[The table-correction report](crtc0-ivm-exit-table-correction-2026-11-05.md)
+records the precise rule, failing-first existing vectors, original-caller
+proof, independent reviews and exact-source synthesis.
+
+Source208bacf retains the exit-line IVM-derived comparison, then resumes
+ordinary counting. The untouched original pre-freeze initializer rebuilds
+both parities naturally and completes6E/6O/OEOEOE through18ordinary returns,
+with all40actual PPI sample/store identities qualified. No guest or hidden
+state was forced. Earlier odd-labelled snapshots remain limited by public
+loader omission of hidden parity; the genuine initializer supplies that
+context instead of retrospectively claiming those transfers were complete.
+
+Full208 synthesis and all CI jobs pass; installed RBF identity is in the
+linked report. Native C5 now completes16commands/three inspected captures
+without failure. The early image contains six E then six O; final marker
+and settled images are identical and show OEOEOE. The parity relations match
+the physical photograph. All18rows are visible; repeat Full and RawCRT normal-boot controls each
+retain complete6E/6O/OEOEOE through five further seconds. A reduced-preview
+reading suggested folding, but full-size inspection of the identical PNG
+disproves it; no separate C5 display defect is selected. The historical page/photo denominator
+is unchanged. Native B1 structured patterns/top band survive, AI is8/8
+pixel-identical to005, and E6 retains26/28. No whole-page compliance claim
+follows from the corrected parity result.

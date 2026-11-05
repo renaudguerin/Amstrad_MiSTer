@@ -5,8 +5,11 @@ remediated** (2026-08-24/25, branch `accuracy/f10-fixtures`; review record
 `accuracy/archive/f10-independent-review.md` — NOT CLEAR on two blockings, both fixed with vectors).
 The two Q-gated residuals are now closed on this branch: odd-R9 alternation (finding F15)
 and the additional interlace line (finding F14) were implemented 2026-08-26 with their own
-fixture families (`t27`/`t28` for F14, `t29` for F15); the post-exit frozen-C9.VMA behavior
-resolved 2026-08-26 is finding F16 — see "Deliberately unmodeled" below for what remains open.
+fixture families (`t27`/`t28` for F14, `t29` for F15). F16's persistent post-exit
+comparison was based on obsolete table cells: source208bacf corrects it against
+French v1.11 pp.221,224–225, with bounded native C5/B1 acceptance. See the
+[dated correction](../investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md)
+and "Deliberately unmodeled" below for the remaining bounds.
 This file is the durable record for a fresh session: what was verified against the PDF,
 what the implemented model is, which conventions the fixtures pin, and what is left open.
 
@@ -137,15 +140,16 @@ write/value port pairs.
   sentence pins the addition form). Vectors `t29a`/`t29b` reproduce the rendered p.207 R9=7
   worked example line for line on both frame parities. Even-R9 behavior is bit-identical to
   the pre-F15 model (the addend reduces to the old R9-or-parity form).
-- **Post-exit row-end behavior** (seven non-match windows run C9 to 7 with R9=6; six keep C4
-  unchanged and one has an anomalous C4 increment): author question Q19(b) was resolved visually
-  2026-08-26. The eight tables discriminate the **frozen C9.VMA register content** against
-  plain R9 after a non-matching R8=0 write: even frozen 6 resets, while even 0/2/4 and odd
-  1/3/5/7 run through C9=7. This core instead resumes a live plain C9==R9 test on post-write
-  lines (unpinned; the `t22` exit walks stop at the write line's seam). A persistent mismatch
-  can leave the row unable to complete until software changes the comparison state; p.221's
-  recovery rewrites R9 to frozen C9.VMA. The divergence is finding **F16** and needs fixtures
-  before RTL. The anomalous p.224 C4 cell is excluded, but its C9 run-on remains usable evidence.
+- **Post-exit row-end behavior — F16 corrected2026-11-05**: French v1.11
+  §19.8.1 pp.221,224–225 retains the old IVM-derived C9-VMA comparison on the
+  exit line, then resumes ordinary counting. Nonmatching exit panels end after
+  rawC9=6 and advance to the next row at0; the former C9=7 continuation and
+  anomalous-cell claims are withdrawn. Seven corrected t22 owners fail before
+  source208bacf and pass afterward; t30 recovery writes now occur before the
+  exit line ends, as p221 requires. Final46-bench gate and original initializer
+  6E/6O/OEOEOE replay pass. Native C5 parity groups and B1 pattern family
+  pass; exact analogue geometry, seam sampling and unshown odd-R9/multiple-write
+  cases remain separate acceptance bounds.
 - **Additional interlace line — F14, type-1 gate corrected 2026-09-22**:
   French §19.6.2 p.217 adds a physical line whenever R8∈{1,3} and
   ParityFrame is even, including R5=0 and nondivisible R5. The earlier

@@ -55,10 +55,36 @@ This is a causal scalar proof without a fitted CPU timing rule.
 The tracked transport passes final `python3 sim/select_tests.py --run`:
 46benches, including246CRTC owners. Fixed-seed soak intentionally changes
 d8edb00f54abdb5e→ed57ffffdbf0b452 with unchanged stimulus/projection. Only two
-review-requested stale comments differ from the frozen proposal. Full synthesis
-and native C5/B1 acceptance remain pending. A separate untouched pre-freeze
-initializer replay is rebuilding the original parity-selection context; no
-complete18-call result is claimed until it finishes.
+review-requested stale comments differ from the frozen proposal. Full run42089486669 on exact208bacf passes all jobs with clean
+Quartus17.0.2Build602 synthesis, minimum setup/hold0.704/0.192ns across
+seven clocks, zero TNS, warning counts identical to005, and no actual
+critical warning/error/latch/implicit net. Artifact13445148872 is
+Amstrad-build-397-1-full; RBF Amstrad_20261105_208bacf.rbf is3127748bytes,
+SHA25635493b0922c77ff09269dfc5544621ecab1f4d965affbfe9846b616e0d0731fc.
+The installed device file matches that hash.
+
+Targeted native C5 reaches029E with16commands/three inspected PNGs/no
+failures. The early image contains the corrected6E and6O groups; final
+marker/settled images are identical and show OEOEOE. All18rows remain visible in the settled image. Independent Full and
+RawCRT normal-boot controls each complete19commands/four inspected PNGs,
+retaining the same complete parity groups through five additional seconds.
+A reduced-preview reading initially suggested folding; the2x image and
+stable capture hashes disprove it, so no display residual is selected. B1 reaches00FA/00FB/00FC with four
+inspected captures: settings then structured dots/stripes/split pattern,
+with the top band at00FC matching the physical pattern family. The physical
+filenames' marker labels are offset from these asynchronous native states;
+no instant alignment or exact analogue geometry is asserted. The unchanged
+B1 frame-resume vector and native pattern both survive. Targeted AI images
+are all8RGB-identical to005; E6 remains26/28. The seven native cohorts complete130commands/29inspected PNGs without
+failures. Static4 and DSC4four captures are RGB-identical to005. Amazing's
+sampled scene is retained; animation phases differ, and only the first
+static text crop(y134..210) is RGB-identical. No all-phase demo verdict follows.
+A separate untouched pre-freeze initializer replay completes the original
+parity-selection path:6E/6O/OEOEOE,18ordinary returns plus two initializer calls,
+with12originalR6control writes establishing both parities. All40PPI
+apertures/stores qualify. Root reads the driver and verifies25artifacts plus
+30compiledsource/fixture bindings. This supplies natural odd context without
+forcing state; it does not rewrite the earlier two-SNA transfer limitation.
 
 Evidence: `local/overnight-20261103/fr-p{221,224,225}.png`;
 `local/overnight-20261103/resumed-20261104/c0-c5-029e-recheck/` contains
