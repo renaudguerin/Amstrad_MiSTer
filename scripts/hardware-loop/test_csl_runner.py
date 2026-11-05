@@ -48,7 +48,7 @@ from csl_runner import (
     parse_script,
     run_csl,
 )
-from driver import CaptureFailedError, CaptureTimeoutError, CommandResult, DriverError, validate_raw_seq
+from driver import CaptureFailedError, CaptureTimeoutError, CommandResult, DriverError, SSHTransport, validate_raw_seq
 from test_driver import ScriptedTransport, create_minimal_png_bytes
 
 TEST_MEDIA_DIR = Path(__file__).resolve().parents[2] / "local" / "test_media" / "shaker"
@@ -784,6 +784,33 @@ class TestOperatorControls(unittest.TestCase):
             plan(script, out)
             with self.assertRaises(ValueError):
                 plan(script, out)
+
+    def test_cli_ssh_multiplex_flag_and_manifest(self):
+        args = parse_args([
+            "main.csl", "--rbf-path", RBF, "--disk-dir", DISK_DIR,
+            "--ssh-multiplex", "--dry-run",
+        ])
+        self.assertTrue(args.ssh_multiplex)
+
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script = write(tmp, "m.csl", MINIMAL)
+            out = tmp / "out"
+            manifest = run_csl(script, options(out, ssh_multiplex=True), dry_run=True)
+            self.assertTrue(manifest.get("ssh_multiplex"))
+
+            # CLI lifecycle on failure closes transport without masking error
+            mock_transport = SSHTransport("owner@fake-target", 22, multiplex=True)
+            with patch("csl_runner.SSHTransport", return_value=mock_transport), \
+                 patch("csl_runner.run_csl", side_effect=DriverError("hardware offline")), \
+                 patch.object(mock_transport, "close", wraps=mock_transport.close) as spy_close, \
+                 patch("sys.stderr", new=StringIO()):
+                status = main([
+                    str(script), "--rbf-path", RBF, "--disk-dir", DISK_DIR,
+                    "--ack-main-cmd", "--target", "fake-target", "--ssh-multiplex",
+                ])
+                self.assertEqual(status, 1)
+                spy_close.assert_called_once()
 
 
 class DeviceHarnessMixin:

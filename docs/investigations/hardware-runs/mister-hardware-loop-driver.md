@@ -59,12 +59,29 @@ output directory for every run; an existing manifest is never overwritten.
 
 ### SSH connection multiplexing
 
-Every `ssh`/`scp` call passes `-o ControlMaster=no -o ControlPath=none`, so an
-inherited `ControlMaster auto` (e.g. from `~/.ssh/config`) cannot fail
+By default, every `ssh`/`scp` call passes `-o ControlMaster=no -o ControlPath=none`,
+so an inherited `ControlMaster auto` (e.g. from `~/.ssh/config`) cannot fail
 preflight with exit 255 (`unix_listener ... Operation not permitted` on an
-unwritable socket path). Auth, host-key and port behaviour are unchanged. A
-manual reproduction needs the same flags:
+unwritable socket path). Auth, host-key, port and legacy SCP behaviour are unchanged.
+A manual reproduction needs the same flags:
 `ssh -o ControlMaster=no -o ControlPath=none root@mister true`.
+
+An explicit `--ssh-multiplex` CLI opt-in on `driver.py` and `csl_runner.py` enables
+task-owned connection multiplexing. When opted in, a short socket path is
+allocated in `/tmp` using `tempfile.TemporaryDirectory(prefix="mister_mux_", dir="/tmp")`
+to avoid macOS UNIX domain socket length limits (104 bytes) and guarantee isolation
+from ambient user sockets. All SSH commands and SCP file transfers within the run
+share the socket via `-o ControlMaster=auto -o ControlPersist=60s -o ControlPath=<path>`.
+On task success, error or interrupt, the CLI transport performs bounded best-effort
+cleanup (`ssh -O exit` and directory removal), while 60s idle `ControlPersist` covers
+unclean termination without custom process supervision. Opt-in
+status is recorded in `ssh_multiplex` in the run manifest.
+
+The bounded2026-11-05 live smoke passed SSH plus a legacy-SCP byte round trip
+and removed the owned socket directory; two warm commands took about68/67ms
+on that run. This reduces host latency, without guaranteeing transient page
+alignment. The targeted [B1 retry](shaker-b1-current-recheck-2026-11-05.md)
+still missed the photographed intro content, so it is not a marker-frame fix.
 
 ## Case and device prerequisites
 

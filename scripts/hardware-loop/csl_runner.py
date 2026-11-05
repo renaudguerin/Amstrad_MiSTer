@@ -368,6 +368,7 @@ class RunOptions:
         screenshot_scaled: bool = False,
         plus_cartridge_path: Optional[str] = None,
         tolerate_capture_timeout: bool = False,
+        ssh_multiplex: bool = False,
     ):
         validate_device_path(rbf_path, "rbf_path")
         validate_device_path(disk_dir, "disk_dir")
@@ -403,6 +404,7 @@ class RunOptions:
         self.sync_filter = sync_filter.lower() if sync_filter is not None else None
         self.screenshot_scaled = screenshot_scaled
         self.tolerate_capture_timeout = tolerate_capture_timeout
+        self.ssh_multiplex = bool(ssh_multiplex)
 
 
 class Backend:
@@ -1887,6 +1889,7 @@ def run_csl(
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "entry_script": str(entry),
         "dry_run": dry_run,
+        "ssh_multiplex": options.ssh_multiplex,
         "hardware_contacted": False,
         "supported_csl_version": SUPPORTED_CSL_VERSION,
         "status": "failed",
@@ -2036,6 +2039,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                         help="Record a Main capture timeout (a frameless page whose test "
                              "breaks video sync) as a failed capture and continue the walk "
                              "instead of aborting; failed captures stay listed in the manifest")
+    parser.add_argument("--ssh-multiplex", action="store_true",
+                        help="Enable task-owned SSH/SCP connection multiplexing")
     return parser.parse_args(argv)
 
 
@@ -2074,6 +2079,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             sync_filter=args.sync_filter,
             screenshot_scaled=args.screenshot_scaled,
             tolerate_capture_timeout=args.tolerate_capture_timeout,
+            ssh_multiplex=args.ssh_multiplex,
         )
     except (ValueError, argparse.ArgumentTypeError) as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
@@ -2087,7 +2093,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if not args.target:
             print("Error: --target is required unless --dry-run is used.", file=sys.stderr)
             return 1
-        transport = SSHTransport(args.target, args.port)
+        transport = SSHTransport(args.target, args.port, multiplex=args.ssh_multiplex)
 
     try:
         manifest = run_csl(args.script, options, transport=transport, dry_run=args.dry_run)
@@ -2098,6 +2104,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     except Exception as exc:
         print(f"Run failed: {exc}", file=sys.stderr)
         return 1
+    finally:
+        if transport is not None and hasattr(transport, "close"):
+            transport.close()
 
     print(f"status={manifest['status']} commands={manifest.get('command_count')} "
           f"captures={len(manifest.get('captures', []))} "

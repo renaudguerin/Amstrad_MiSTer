@@ -28,3 +28,19 @@ and [assessment of its limits](../../../local/overnight-20261103/resumed-2026110
 The current captures and manifests are in the adjacent `device-b1-e24cb50` and
 `device-b1-c90ec8a` directories. A state-qualified intro capture and a separate
 geometry/filter comparison remain needed.
+
+## Faster transport follow-up
+
+A separate original-prefix e24 run with task-owned SSH multiplexing and50ms
+SSM polling completes23commands/15PNGs/zero failures/21records. All15PNGs
+were inspected, with four full target images and physical photos. D5/DD are
+no longer flagged as already superseded in their poll batch, but their PNGs
+still show patterns rather than the photographs' intro text. Thus absence of
+the superseded flag does not establish guest-state alignment. D6/DE retain the
+corroborating pattern families; geometry remains unjudged. No intro pass is
+claimed and no further blind transport-timing retry is selected.
+
+Private`ssh-multiplex-tooling/device-b1-e24cb50/` retains the complete manifest,
+raw capture hashes and measured requested/applied Full mode0 at the target
+markers. `B1-INTRO-RESULT.json` records the limits. Exact opcode-frame capture
+and the caller's text-to-pattern transition remain separate from host latency.
