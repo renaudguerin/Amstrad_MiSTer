@@ -544,7 +544,14 @@ wire crtc1_adj_entry_from_row0 = CRTC_TYPE & frame_adj_CRTC1 & (row == 0) &
                                     ~r4_positive_write_at_adj_entry &
                                     ~(adj_terminal_entry & adj_terminal_positive_r4_pending);
 assign adj_from_row0 = crtc1_adj_entry_from_row0;
-wire crtc1_adj_row1_reload = CRTC_TYPE & (crtc1_adj_entry_from_row0 | (in_adj & crtc1_adj_from_row0 & (row == 1) & ~line_row_structure_last)) & !hcc_next;
+// French ACCC v1.11 §11.2.4 p.85: the retained row0-origin source
+// applies on the boundary entering C4=1 as well as within that row.
+// A live terminal R9 rewrite can defer this boundary until after entry.
+wire crtc1_adj_row1_reload = CRTC_TYPE &
+    (crtc1_adj_entry_from_row0 |
+     (in_adj & crtc1_adj_from_row0 &
+      (((row == 1) & ~line_row_structure_last) |
+       (row_new & (row == 0) & (row_next == 7'd1))))) & !hcc_next;
 wire crtc1_row0_reload = CRTC_TYPE &
 							 (frame_new_w | crtc1_stuck_r5_row_reset_event |
 							  (~line_row_structure_last & !row & !hcc_next));

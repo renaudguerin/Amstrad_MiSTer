@@ -5175,6 +5175,17 @@ void test_type1_r9_write_at_adjustment_entry_keeps_r12_reload(
     test.expect_ma(
         "type 1 held terminal R9 write keeps the row0 R12/R13 reload",
         0x2050);
+
+    // French ACCC v1.11 §11.2.4 p.85: an R9 rewrite at terminal
+    // C4=R4=0 preserves the R12/R13 source when C4 subsequently reaches 1
+    // during adjustment. The entry-line assertion above covers row0 only.
+    test.run_characters(8);
+    test.expect_c4("A2 R9 continuation reaches the first adjustment row", 1);
+    test.expect_ra("A2 R9 continuation wraps at the new R9 limit", 0);
+    test.expect_adjustment_active("A2 R9 continuation stays in adjustment");
+    test.expect_ma(
+        "type 1 terminal R9 write reloads R12/R13 on entering C4=1",
+        0x2050);
 }
 
 // ---------------------------------------------------------------------------
