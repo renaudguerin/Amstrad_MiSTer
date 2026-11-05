@@ -186,14 +186,12 @@ wire register_write = ENABLE & ~nCS & ~R_nW & RS;
 // R9 + (ParityC9 xor R9.0) -- the p.207 worked example's 5/4 line
 // alternation.  The section 19.5.2 VSYNC delay-by-1-line correction for
 // odd-C4 R7 on ParityFrame-odd frames is implemented with it (see the
-// vsync delay block below).  Q19(b) post-exit behavior remains out of
-// scope: the exit line and post-write lines keep the implemented plain-R9
-// resume (unpinned divergence recorded in accc-author-questions.md).
+// vsync delay block below). French v1.11 section19.8.1 p221 and rendered
+// exit tables pp224-225 retain the IVM-derived comparison for the exit
+// line, then resume ordinary raw-C9 counting from the following line.
 reg        ivm_disp_r;    // this line started with IVM active
 reg        tog_line;      // an R8 toggle write landed during this line
 reg        tog_enter_line;
-reg        ivm_exit_frozen;   // F16: retaining frozen C9.VMA comparator after IVM exit
-reg  [4:0] exit_frozen_vma;
 
 wire r8_write_hit_t0 = !CRTC_TYPE & ENABLE & RS & ~nCS & ~R_nW & (addr == 5'd08);
 wire r8_toggle_write_t0 = r8_write_hit_t0 && ((DI[1:0] == 2'b11) != ivm_disp_r);
@@ -210,54 +208,21 @@ wire r8_toggle_write_t0 = r8_write_hit_t0 && ((DI[1:0] == 2'b11) != ivm_disp_r);
 // an R0=0 freeze therefore loses its one-line target adjustment; the
 // combination (IVM toggle during a frozen C0) is unpinned in the source.
 wire type0_seam = CLKEN && (hcc == 0);
-wire type0_leaving_ivm_line = (tog_line && !tog_enter_line) ||
-                              (r8_toggle_write_t0 && (DI[1:0] != 2'b11));
-
-wire type0_frozen_wrap = !in_adj && (line == 5'd31);
 
 always @(posedge CLOCK) begin
 	if(~nRESET | SNA_LOAD | CRTC_TYPE) begin
 		ivm_disp_r <= 0;
 		tog_line <= 0;
 		tog_enter_line <= 0;
-		ivm_exit_frozen <= 0;
-		exit_frozen_vma <= 0;
 	end
 	else begin
 		if(type0_seam) begin
 			ivm_disp_r <= (R8_interlace == 2'b11);
 			tog_line <= 0;
 		end
-		if(CLKEN && line_new) begin
-			// F16 release: the frozen comparison also ends when C9 wraps
-			// 31 -> 0 without a row end (ACCC v1.11 FR section 10.3.1.1
-			// p.76: a C9 that misses its limit counts to 31 and wraps to 0).
-			// `line` is still the ending line's value at this edge (CRTC.v
-			// updates it nonblocking from line_next).  The in_adj limit
-			// (R5) is unaffected.
-			// UNCERTAIN: section 19.8.1 p.221 and its exit tables
-			// (pp.224-225) stop at C9=7 and never say how long the frozen
-			// comparison lasts.  Real CRTC 0 does end it (SHAKER B1
-			// continues from 00FB to 00FC, frozen 15 vs R9=7), but when is
-			// unknown: this wrap point is the least-assumption choice, not a
-			// documented rule.  t30c pins only that frames resume.  Open
-			// author question 21 in docs/classic/accc-author-questions.md.
-			if(type0_leaving_ivm_line) begin
-				ivm_exit_frozen <= !type0_rollover_line_last && !type0_frozen_wrap;
-			end
-			else if(type0_rollover_line_last || type0_frozen_wrap) begin
-				ivm_exit_frozen <= 0;
-			end
-		end
 		if(r8_toggle_write_t0) begin
 			tog_line <= 1;
 			tog_enter_line <= (DI[1:0] == 2'b11);
-			if(DI[1:0] != 2'b11) begin
-				exit_frozen_vma <= line_vma;
-			end
-			else begin
-				ivm_exit_frozen <= 0;
-			end
 		end
 		// Named residual (review N-6, 2026-08-25): OUT R8,3 followed by
 		// OUT R8,0 inside one line leaves tog_enter_line set, so that
@@ -385,8 +350,9 @@ wire [5:0] type0_limit_addend = tog_line ? (tog_enter_line ? {5'b00000, parity_f
                                                            : 6'd0) :
                              ivm_disp_r ? {4'b0000, parity_c9 ^ R9_v_max_line[0]} : 6'd0;
 wire [5:0] type0_limit_target6 = {1'b0, R9_v_max_line} + type0_limit_addend;
-wire [4:0] type0_limit_value = ivm_disp_r ? line_vma :
-                               ivm_exit_frozen ? exit_frozen_vma : line;
+// French19.8.1 p221/pp224-225: ivm_disp_r retains the exit line's
+// VMA test until its seam; following ordinary lines compare live raw C9.
+wire [4:0] type0_limit_value = ivm_disp_r ? line_vma : line;
 wire       type0_ivm_limit = ({1'b0, type0_limit_value} == type0_limit_target6);
 
 // ACCC v1.10 section 10.3: C9 uses equality, never magnitude.  A zero limit
@@ -540,8 +506,7 @@ wire       type0_c0_zero_adj_entry = type0_zero_adj_entry & ~(type0_r5_at_c0_wri
 // R9-plus-addend target form as the live comparison above, with the seam's
 // own toggle/IVM bits.
 wire       type0_seam_ivm = (R8_interlace == 2'b11);
-wire [4:0] type0_seam_value = type0_seam_ivm ? line_vma :
-                              ivm_exit_frozen ? exit_frozen_vma : line;
+wire [4:0] type0_seam_value = type0_seam_ivm ? line_vma : line;
 wire [5:0] type0_seam_addend = tog_line ? (tog_enter_line ? {5'b00000, parity_frame}
                                                           : 6'd0) :
                              type0_seam_ivm ? {4'b0000, parity_c9 ^ R9_v_max_line[0]} : 6'd0;
@@ -561,7 +526,7 @@ assign     c0_row_last = type0_c0_row_last;
 // a new last-frame-line decision. Active adjustment owns its own count.
 // Section19.8.1 p220: an R8 write changes the value interpretation
 // only after this line's comparison. C0=1 therefore uses the current
-// line's IVM/frozen-exit value, not the next-seam mode from live R8.
+// line's IVM value, not the next-seam mode from live R8.
 // Target parity is immediate on an R8 write, including this edge;
 // steady-IVM target parity follows the effective new R9 (19.5.2 p207).
 wire       type0_c1_toggle = tog_line || r8_toggle_write_t0;
