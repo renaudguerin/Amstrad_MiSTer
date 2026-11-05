@@ -1,0 +1,197 @@
+{
+  "status_magic": "DTR1",
+  "version": 1,
+  "transport": "unchanged format2 FF20..26 low64/FF28..2E high64/FF2Fstatus;7slots always exported, validmask; unobservedslotszero, unvalidatedprefix mayretainprospectivesnapshotbutvalidbit0;15private+ordinaryF8/F7=17/64",
+  "slots": [
+    "69F1 first ED completion",
+    "69FC ED completion",
+    "6A07 ED completion",
+    "rawVS ordinal1",
+    "rawVS ordinal2",
+    "rawVS ordinal3",
+    "summary"
+  ],
+  "sample_upper_fields": [
+    [
+      "rawVS",
+      95,
+      1
+    ],
+    [
+      "GA_VS",
+      96,
+      1
+    ],
+    [
+      "GA_blank",
+      97,
+      1
+    ],
+    [
+      "HBL",
+      98,
+      1
+    ],
+    [
+      "VBL",
+      99,
+      1
+    ],
+    [
+      "RGBzero",
+      100,
+      1
+    ],
+    [
+      "active_GA_black",
+      101,
+      1
+    ],
+    [
+      "GA_HCNT",
+      102,
+      5
+    ],
+    [
+      "GA_INTCNT",
+      107,
+      6
+    ],
+    [
+      "applied_filter",
+      113,
+      2
+    ],
+    [
+      "rawHS",
+      115,
+      1
+    ],
+    [
+      "reserved",
+      116,
+      12
+    ]
+  ],
+  "low95": "identical originalS schema, including7Type1statebits+logicalVS bit; no hiddenflags invented",
+  "summary": [
+    [
+      "slot_valid_mask",
+      0,
+      6
+    ],
+    [
+      "rawVS_rises",
+      6,
+      4
+    ],
+    [
+      "rawVS_overflow",
+      10,
+      1
+    ],
+    [
+      "GA_blank_rises",
+      11,
+      4
+    ],
+    [
+      "GA_blank_overflow",
+      15,
+      1
+    ],
+    [
+      "owner0_active_black_ticks",
+      16,
+      18
+    ],
+    [
+      "owner1_active_black_ticks",
+      34,
+      18
+    ],
+    [
+      "owner2_active_black_ticks",
+      52,
+      18
+    ],
+    [
+      "owner_GA_blank_seen",
+      70,
+      3
+    ],
+    [
+      "owner_DE_seen",
+      73,
+      3
+    ],
+    [
+      "owner_active_black_overflow",
+      76,
+      3
+    ],
+    [
+      "elapsed_master_ticks",
+      79,
+      24
+    ],
+    [
+      "elapsed_overflow",
+      103,
+      1
+    ],
+    [
+      "rawHS_rises",
+      104,
+      10
+    ],
+    [
+      "rawHS_overflow",
+      114,
+      1
+    ],
+    [
+      "error",
+      115,
+      8
+    ],
+    [
+      "armed_F8",
+      123,
+      1
+    ],
+    [
+      "bracket_started",
+      124,
+      1
+    ],
+    [
+      "bracket_complete_tail_validated",
+      125,
+      1
+    ],
+    [
+      "F7_partial_freeze",
+      126,
+      1
+    ],
+    [
+      "reserved",
+      127,
+      1
+    ]
+  ],
+  "units": "clk_sys=64MHz masterticks; samples preedge; bracket halfopen[firstqualified69F1completion,nextqualified69F1completion); owner activeblack requiresGAblank&HBL0&VBL0&RGBzero; firstedgecycle belongs newowner; no HDMI-DE or downstream rootcause inference",
+  "errors": {
+    "1": "qualificationlost",
+    "2": "opcode/tail mismatch",
+    "4": "M1order mismatch",
+    "8": "incomplete bracket/M1cuts atF7",
+    "16": "morethan3rawedges (counts still honest)",
+    "32": "activeblack counter saturated",
+    "64": "elapsed/linecounter saturated",
+    "128": "reserved"
+  },
+  "missing_edges": "ordinal validmask honest; count0/2 is valid observation if bracket/M1sourcequalified, not automatically sourceerror",
+  "owner_DE_seen_semantics": "GAblank AND HBL0 AND VBL0 occurred in actual owner interval, regardlessRGB; active-black additionally requiresRGBzero"
+}

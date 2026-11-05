@@ -220,6 +220,9 @@ module Amstrad_motherboard
 	output  [3:0] snap_crtc_vsw_elapsed,
 `ifdef SSM_S_PASSIVE_TRACE
  output [6:0] s_trace_crtc_state,
+`ifdef SSM_DT_PASSIVE_TRACE
+ output [3:0] dt_trace_state,
+`endif
 `endif
 
 	output  [2:0] snap_mmu_rammap,
@@ -997,6 +1000,11 @@ wire ga_vsync_o, vsync_filtered;
 
 wire hblank_filtered;
 wire ga_vblank_o, vblank_filtered;
+`ifdef SSM_S_PASSIVE_TRACE
+`ifdef SSM_DT_PASSIVE_TRACE
+assign dt_trace_state={ga_vblank_o,vsync_ga,crtc_vs,crtc_hs};
+`endif
+`endif
 
 wire hsync_ga = plus_mode ? plus_hsync_o : ga_hsync_o;
 wire vsync_ga = plus_mode ? plus_vsync_o : ga_vsync_o;
