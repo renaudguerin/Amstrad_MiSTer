@@ -17,6 +17,7 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 import xml.etree.ElementTree as ET
@@ -352,18 +353,46 @@ class CommandResult:
 class SSHTransport:
     """SSH and SCP communication transport."""
 
-    def __init__(self, target: str, port: int = 22):
+    def __init__(
+        self,
+        target: str,
+        port: int = 22,
+        multiplex: bool = False,
+    ):
         validate_ssh_target(target)
         validate_port(port)
         self.target = target
         self.port = port
+        self.multiplex = multiplex
         self.command_log: List[Dict[str, Any]] = []
+        self._closed = False
+        self._temp_dir: Optional[tempfile.TemporaryDirectory[str]] = None
+
+        if self.multiplex:
+            self._temp_dir = tempfile.TemporaryDirectory(prefix="mister_mux_", dir="/tmp")
+            self.control_path = os.path.join(self._temp_dir.name, "cm.sock")
+        else:
+            self.control_path = None
 
     def _log_record(self, cmd: str, ts: str, dur: float, code: int, out: str, err: str) -> None:
         self.command_log.append({
             "command": cmd, "timestamp": ts, "duration_ms": dur,
             "exit_code": code, "stdout": out, "stderr": err,
         })
+
+    def _mux_options(self) -> List[str]:
+        if self.multiplex and self.control_path:
+            return [
+                "-o", "ControlMaster=auto",
+                "-o", "ControlPersist=60s",
+                "-o", f"ControlPath={self.control_path}",
+            ]
+        # Disable inherited connection multiplexing: an ambient ControlMaster=auto
+        # (e.g. from ~/.ssh/config) binds a unix_listener socket that can fail
+        # with 255 ("Operation not permitted") on unwritable paths. Each call
+        # stays an independent bounded connection; auth, host-key and port
+        # behaviour are unchanged.
+        return ["-o", "ControlMaster=no", "-o", "ControlPath=none"]
 
     def run_cmd(self, cmd: str, timeout: float) -> CommandResult:
         # Bound the remote process as well as the local SSH client. A disconnected
@@ -372,14 +401,11 @@ class SSHTransport:
             "command -v timeout >/dev/null || { echo 'Missing device timeout utility' >&2; exit 127; }; "
             f"exec timeout -s KILL {max(1, math.ceil(timeout))} sh -c {shlex.quote(cmd)}"
         )
-        # Disable inherited connection multiplexing: an ambient ControlMaster=auto
-        # (e.g. from ~/.ssh/config) binds a unix_listener socket that can fail
-        # with 255 ("Operation not permitted") on unwritable paths. Each call
-        # stays an independent bounded connection; auth, host-key and port
-        # behaviour are unchanged.
-        ssh_cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
-                   "-o", "ControlMaster=no", "-o", "ControlPath=none",
-                   "-p", str(self.port), self.target, remote]
+        ssh_cmd = [
+            "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
+            *self._mux_options(),
+            "-p", str(self.port), self.target, remote,
+        ]
         start = time.monotonic()
         ts = datetime.now(timezone.utc).isoformat()
         try:
@@ -411,17 +437,55 @@ class SSHTransport:
 
     def upload_file(self, local_path: Path, remote_path: str, timeout: float) -> None:
         validate_device_path(remote_path, "upload remote_path")
-        cmd = ["scp", "-O", "-P", str(self.port), "-o", "BatchMode=yes",
-               "-o", "ControlMaster=no", "-o", "ControlPath=none",
-               str(local_path.resolve()), f"{self.target}:{shlex.quote(remote_path)}"]
+        cmd = [
+            "scp", "-O", "-P", str(self.port), "-o", "BatchMode=yes",
+            *self._mux_options(),
+            str(local_path.resolve()), f"{self.target}:{shlex.quote(remote_path)}",
+        ]
         self._run_scp(cmd, f"scp {local_path} -> {self.target}:{remote_path}", timeout, is_upload=True)
 
     def download_file(self, remote_path: str, local_path: Path, timeout: float) -> None:
         validate_device_path(remote_path, "download remote_path")
-        cmd = ["scp", "-O", "-P", str(self.port), "-o", "BatchMode=yes",
-               "-o", "ControlMaster=no", "-o", "ControlPath=none",
-               f"{self.target}:{shlex.quote(remote_path)}", str(local_path.resolve())]
+        cmd = [
+            "scp", "-O", "-P", str(self.port), "-o", "BatchMode=yes",
+            *self._mux_options(),
+            f"{self.target}:{shlex.quote(remote_path)}", str(local_path.resolve()),
+        ]
         self._run_scp(cmd, f"scp {self.target}:{remote_path} -> {local_path}", timeout, is_upload=False)
+
+    def close(self) -> None:
+        """Clean up task-owned multiplex control master and temporary directory."""
+        if self._closed:
+            return
+        self._closed = True
+        if not self.multiplex:
+            return
+
+        if self.control_path and os.path.exists(self.control_path):
+            exit_cmd = [
+                "ssh", "-o", "BatchMode=yes",
+                "-o", f"ControlPath={self.control_path}",
+                "-O", "exit",
+                "-p", str(self.port),
+                self.target,
+            ]
+            try:
+                subprocess.run(exit_cmd, capture_output=True, timeout=2.0)
+            except Exception:
+                pass
+
+        if self._temp_dir is not None:
+            try:
+                self._temp_dir.cleanup()
+            except Exception:
+                pass
+            self._temp_dir = None
+
+    def __enter__(self) -> SSHTransport:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.close()
 
 
 # --- Device Identity & Key Release ---
@@ -492,10 +556,12 @@ def run_hardware_loop(
     dry_run: bool = False,
     time_fn: Callable[[], float] = time.monotonic,
     sleep_fn: Callable[[float], None] = time.sleep,
+    ssh_multiplex: bool = False,
 ) -> Dict[str, Any]:
     """Execute the hardware capture loop or generate a planned dry-run."""
     run_id = f"{int(time.time())}_{uuid.uuid4().hex[:6]}"
     ts = datetime.now(timezone.utc).isoformat()
+    is_mux = bool(ssh_multiplex or getattr(transport, "multiplex", False))
 
     if (out_dir / "manifest.json").exists():
         raise ValueError(f"Output directory {out_dir} already contains manifest.json; refusing to overwrite previous run.")
@@ -549,6 +615,7 @@ def run_hardware_loop(
 
         manifest = {
             "case_id": config["case_id"], "run_id": run_id, "timestamp": ts, "dry_run": True,
+            "ssh_multiplex": is_mux,
             "hardware_contacted": False, "target": target, "port": port, "effective_case": config,
             "intended_sequence": seq, "partial_identity": {}, "captures": [], "command_log": plan,
             "status": "dry_run", "error": None,
@@ -693,6 +760,7 @@ def run_hardware_loop(
 
         manifest = {
             "case_id": config["case_id"], "run_id": run_id, "timestamp": ts, "dry_run": False,
+            "ssh_multiplex": is_mux,
             "hardware_contacted": hardware_contacted, "target": target, "port": port, "effective_case": config,
             "intended_sequence": seq, "partial_identity": partial_identity, "captures": captures,
             "command_log": transport.command_log, "status": "success", "error": None,
@@ -703,6 +771,7 @@ def run_hardware_loop(
     except (Exception, KeyboardInterrupt) as exc:
         manifest = {
             "case_id": config["case_id"], "run_id": run_id, "timestamp": ts, "dry_run": False,
+            "ssh_multiplex": is_mux,
             "hardware_contacted": hardware_contacted, "target": target, "port": port, "effective_case": config,
             "intended_sequence": seq, "partial_identity": partial_identity, "captures": captures,
             "command_log": getattr(transport, "command_log", []), "status": "failed", "error": str(exc) or type(exc).__name__,
@@ -738,6 +807,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true", help="Validate case and print execution plan without contacting device")
     parser.add_argument("--ack-main-cmd", action="store_true", help="Confirm installed Main commands, active PNG screenshots and /media/fat root")
     parser.add_argument("--mbc-path", type=str, default=None, help="Override MBC executable path on device")
+    parser.add_argument("--ssh-multiplex", action="store_true", help="Enable task-owned SSH/SCP connection multiplexing")
     return parser.parse_args(argv)
 
 
@@ -761,7 +831,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     out_dir = (args.out_dir or Path(f"docs/references/hardware-loop/{config['case_id']}_{int(time.time())}")).resolve()
 
     if args.dry_run:
-        manifest = run_hardware_loop(None, config, out_dir, target=args.target, port=args.port, dry_run=True)
+        manifest = run_hardware_loop(None, config, out_dir, target=args.target, port=args.port, dry_run=True, ssh_multiplex=args.ssh_multiplex)
         print(f"Dry-run plan written to: {out_dir / 'manifest.json'}")
         print(json.dumps(manifest, indent=2))
         return 0
@@ -770,9 +840,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("Error: --target is required for device execution (or use --dry-run).", file=sys.stderr)
         return 1
 
+    transport = None
     try:
-        transport = SSHTransport(args.target, port=args.port)
-        manifest = run_hardware_loop(transport, config, out_dir, target=args.target, port=args.port, dry_run=False)
+        transport = SSHTransport(args.target, port=args.port, multiplex=args.ssh_multiplex)
+        manifest = run_hardware_loop(transport, config, out_dir, target=args.target, port=args.port, dry_run=False, ssh_multiplex=args.ssh_multiplex)
         print(f"Capture completed successfully. Manifest: {out_dir / 'manifest.json'}")
         for cap in manifest["captures"]:
             print(f"  - {cap['name']}: {cap['dimensions']} SHA256: {cap['sha256']}")
@@ -780,6 +851,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     except Exception as exc:
         print(f"Execution failed: {exc}", file=sys.stderr)
         return 2
+    finally:
+        if transport is not None:
+            transport.close()
 
 
 if __name__ == "__main__":

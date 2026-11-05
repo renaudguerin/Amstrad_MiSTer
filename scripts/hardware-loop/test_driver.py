@@ -28,6 +28,8 @@ from driver import (
     check_rbf_directory,
     emergency_release_keys,
     generate_mgl_xml,
+    main,
+    parse_args,
     run_hardware_loop,
     validate_case_config,
     validate_device_path,
@@ -106,6 +108,9 @@ class ScriptedTransport:
         if remote_path not in self.files:
             raise DriverError(f"Remote file {remote_path} not found")
         local_path.write_bytes(self.files[remote_path])
+
+    def close(self) -> None:
+        pass
 
 
 class TestHardwareLoopContracts(unittest.TestCase):
@@ -537,6 +542,90 @@ class TestHardwareLoopContracts(unittest.TestCase):
             self.assertIn("-O", argv)
             self.assertEqual(argv[argv.index("-P") + 1], "2222")
             self.assertTrue(any("owner@fake-target:" in a for a in argv))
+
+    def test_ssh_multiplexing_opt_in_shares_task_socket_and_cleans_up(self):
+        """Opt-in multiplexing provisions a task-owned socket under /tmp,
+        shares it across ssh and scp with ControlMaster=auto and ControlPersist=60s,
+        and cleanly closes master and tempdir."""
+        transport = SSHTransport("owner@fake-target", port=2222, multiplex=True)
+        self.assertTrue(transport.multiplex)
+        self.assertIsNotNone(transport.control_path)
+        self.assertTrue(transport.control_path.startswith("/tmp/"))
+        local = self.temp_dir / "mux-probe.bin"
+        local.write_bytes(b"x")
+        with patch("driver.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "", "")) as run:
+            transport.run_cmd("true", 2)
+            ssh_argv = list(run.call_args.args[0])
+            transport.upload_file(local, "/media/fat/a.mgl", 3)
+            up_argv = list(run.call_args.args[0])
+            transport.download_file("/media/fat/a.mgl", local, 3)
+            down_argv = list(run.call_args.args[0])
+
+        cp = transport.control_path
+        for label, argv in (("ssh", ssh_argv), ("upload", up_argv), ("download", down_argv)):
+            with self.subTest(direction=label):
+                opts = [(argv[i], argv[i + 1]) for i, v in enumerate(argv[:-1]) if v == "-o"]
+                self.assertIn(("-o", "ControlMaster=auto"), opts)
+                self.assertIn(("-o", "ControlPersist=60s"), opts)
+                self.assertIn(("-o", f"ControlPath={cp}"), opts)
+                self.assertNotIn(("-o", "ControlMaster=no"), opts)
+                self.assertNotIn(("-o", "ControlPath=none"), opts)
+
+        sock_dir = Path(cp).parent
+        self.assertTrue(sock_dir.exists())
+        # A second run owns a different directory; closing one must not remove it.
+        other = SSHTransport("owner@fake-target", port=2222, multiplex=True)
+        other_dir = Path(other.control_path).parent
+        self.assertNotEqual(cp, other.control_path)
+
+        # Simulate active socket on disk for cleanup
+        Path(cp).touch()
+
+        # Cleanup lifecycle: best-effort ssh -O exit and tempdir cleanup
+        with patch("driver.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "", "")) as exit_run:
+            transport.close()
+            exit_argv = list(exit_run.call_args.args[0])
+            self.assertIn("-O", exit_argv)
+            self.assertIn("exit", exit_argv)
+            self.assertIn(f"ControlPath={cp}", [exit_argv[i + 1] for i, v in enumerate(exit_argv[:-1]) if v == "-o"])
+            self.assertEqual(exit_argv[exit_argv.index("-p") + 1], "2222")
+            self.assertIn("owner@fake-target", exit_argv)
+
+        self.assertFalse(sock_dir.exists())
+        self.assertTrue(other_dir.exists())
+        other.close()
+        self.assertFalse(other_dir.exists())
+
+        # Idempotent close
+        with patch("driver.subprocess.run") as nop_run:
+            transport.close()
+            nop_run.assert_not_called()
+
+        # Opt-out transport close is no-op
+        opt_out = SSHTransport("owner@fake-target", port=2222)
+        with patch("driver.subprocess.run") as nop_run:
+            opt_out.close()
+            nop_run.assert_not_called()
+
+    def test_cli_ssh_multiplex_dry_run_and_failure_cleanup(self):
+        # CLI parse accepts --ssh-multiplex
+        args = parse_args(["case.json", "--ssh-multiplex"])
+        self.assertTrue(args.ssh_multiplex)
+
+        # Dry-run records ssh_multiplex in manifest without contacting device
+        manifest = run_hardware_loop(None, self.config, self.out_dir, dry_run=True, ssh_multiplex=True)
+        self.assertTrue(manifest.get("ssh_multiplex"))
+
+        # CLI lifecycle on failure closes transport without masking error
+        mock_transport = SSHTransport("owner@fake-target", port=2222, multiplex=True)
+        with patch("driver.SSHTransport", return_value=mock_transport), \
+             patch("driver.run_hardware_loop", side_effect=DriverError("device contact failed")), \
+             patch.object(mock_transport, "close", wraps=mock_transport.close) as spy_close:
+            case_file = self.temp_dir / "case.json"
+            case_file.write_text(json.dumps(self.case_dict), encoding="utf-8")
+            status = main([str(case_file), "--target", "fake-target", "--ack-main-cmd", "--ssh-multiplex"])
+            self.assertEqual(status, 2)
+            spy_close.assert_called_once()
 
     def test_real_fifo_preflight(self):
         # Main input.cpp:5140-5143 creates a FIFO. Exercise the OS type test,
