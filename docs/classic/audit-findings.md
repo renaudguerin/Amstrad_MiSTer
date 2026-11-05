@@ -364,19 +364,21 @@ General implementation rules for all fix prompts:
   four odd-frame p.225 panels, R9=6 and the row ends at C9=6, followed by
   C4=2, C9=0. The bottom-right example exits at (C4,C9,C9.VMA)=(1,3,7),
   then displays (1,4,4), (1,5,5), (1,6,6), (2,0,0).
-- **Current: source fixed, native acceptance pending.** The obsolete persistent
+- **Current: source208bacf fixed, bounded native acceptance.** The obsolete persistent
   comparator and its wrap-release state are removed. Seven corrected `t22`
   table owners fail239/7 before and pass with the full246/0 owner afterward;
   `t30a/b` now apply p221's recovery write within the exit line. Final selection
   passes46benches, soak ed57ffffdbf0b452; independent Opus review clears a bounded
   trial. Original production-T80 even C5 caller changes equal PPI reads to
-  unequal with the source/input prefix intact. Installed005 still prints6O/6O/OOOOOO;
-  the hardware photo shows 6E/6O/OEOEOE. See the
+  unequal with the source/input prefix intact. The untouched original initializer
+  rebuilds both parities and completes6E/6O/OEOEOE. Installed208 matches those
+  photographed groups with all18rows visible/stable in Full and RawCRT; B1's
+  structured pattern family/top band survives. See the
   [table correction](../investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md)
   and [C5 evidence](../investigations/hardware-runs/shaker-crtc0-c5-parity-2026-11-05.md).
 - **Confidence:** high for the displayed odd-frame sequences and the line-bounded
   source reading. Exact seam sampling, odd R9 and multiple writes on a line
-  remain outside those panels; the successor's native results remain open.
+  remain outside those panels; exact analogue B1 geometry is unjudged.
 
 ## F17. Type-1 RFD triggered on C9=R9 disables VMA-source state
 
@@ -611,15 +613,18 @@ General implementation rules for all fix prompts:
   required classic passes and soak `0x654a244c2cce6e0b`; hardware confirmation remains open.
 - **Impact**: interlace demos (SHAKER 2.x uses 1/64-line positioning tricks); most games unaffected.
 - **Confidence:** the type-1 model reproduces all 64 panel callouts; type-0 exit
-  expectations need correction under F16. Medium overall until hardware: the odd-R9 half (F15), additional interlace line
-  (F14), and the post-exit comparison (F16) remain open; the residuals
+  expectations are corrected under F16. Medium overall until hardware: the odd-R9 half (F15), additional interlace line
+  (F14) retain their broader hardware bounds; F16 has bounded C5/B1 native
+  acceptance on208bacf. The residuals
   listed in `f10-implementation-notes.md` (MID-VSYNC parity source after mid-frame R8 toggles,
   RFD×IVM) remain open. Type1 adjustment counting is specified by French
   §11.8 p93 together with §19.8.2 p226: the current plain-count override is
   a source mismatch, with a both-parity failing-first counter/VSYNC proof and
   repair `ccf2be7` passing240CRTC/45selected benches with independent review;
   native validation remains pending. [Current adjustment finding](../investigations/hardware-runs/crtc1-interlace-adjustment-counting-2026-11-04.md).
-- **Remaining work**: F16 requires corrected fixtures, implementation and native validation. Q12 is resolved as an English
+- **Remaining work**: F16 exact seam/unshown-programming and analogue geometry
+  bounds remain; its fixtures, implementation and native parity-group gate pass.
+  Q12 is resolved as an English
   qualifier omission: French v1.11 p.208 specifies IVM activation on every frame. The
   odd-C4 transition case still needs local fixtures; the source resolution does not verify
   the core's post-toggle pin timing (see `accc-author-questions.md` item 12). SHAKER

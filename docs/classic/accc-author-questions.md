@@ -347,12 +347,13 @@ with it.
     French p.221 describes the exit-line C9.VMA versus plain R9 comparison and
     the mode change at the next C0=0. The source supports ordinary comparison
     on following lines, not the persistent freeze assumed by the question and
-    current RTL. Exact seam sampling and unshown programming cases remain open.
-    Corrected implementation passes its final gate and independent review;
-    native successor verification is pending. F16 and the
+    former RTL. Exact seam sampling and unshown programming cases remain open.
+    Source208bacf passes its final gate, independent review and full synthesis;
+    native C5 now matches6E/6O/OEOEOE, stable in Full and RawCRT, and B1 retains
+    the photographed pattern family. F16 and the
     [dated correction](../investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md)
     track this work. The [C5 evidence](../investigations/hardware-runs/shaker-crtc0-c5-parity-2026-11-05.md)
-    records the current MiSTer/photo discrepancy.
+    records the bounded parity-result acceptance.
 
 22. **§16.4.2 p.170 — what advances the CRTC 1 VSYNC-width counter (C3h) on very short lines?**
 

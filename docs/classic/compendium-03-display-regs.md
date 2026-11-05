@@ -292,7 +292,8 @@ the p.208 right table prints C4=3 where its sequence requires 5 (source typo), a
   next C0=0 and following lines use ordinary C9 comparison (French §19.8.1
   p.221). The p.225 odd-frame exit panels end at C9=6 for R9=6, then start
   the next row at C9=0. The former persistent-frozen-comparison reading was
-  incorrect; F16 tracks the corrected RTL and pending native validation. See the
+  incorrect; F16 tracks source208bacf and bounded native C5 parity/B1 pattern
+  acceptance. Exact seam and unshown programming cases remain open. See the
   [dated correction](../investigations/hardware-runs/crtc0-ivm-exit-table-correction-2026-11-05.md).
 - p.222-225 render-verified 2026-08-24. Entry tables switch R8→3 at C9 offsets 0,1,2,3 (p.222),
   4,5 (p.223) and 6 (p.224 top); exit tables switch R8→0 at C9 offsets 0-3 (p.224 bottom,
