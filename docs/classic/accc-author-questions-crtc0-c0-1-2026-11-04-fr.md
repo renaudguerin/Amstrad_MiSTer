@@ -1,6 +1,6 @@
 # CRTC0 : égalité R4=C4 rétablie pendant l’ajustement
 
-Brouillon du 4 novembre 2026, **non envoyé**. Références : ACCC1.11 française.
+Brouillon mis à jour le5 novembre 2026, **non envoyé**. Références : ACCC1.11 française.
 Cette question est distincte de celle sur C5 du CRTC1.
 
 Note de préparation : la question précédente sur l’entrée forcée à C0=1 a été
@@ -17,9 +17,18 @@ Bonjour,
 Les cas27/28 de SHAKE27E écrivent R4=39 puis R9=3 ; leurs textes affichent
 R9=2, alors que les deux instructions chargent bien3. Ils ciblent ensuite
 R7=0 et R7=40. Notre cœur donne0055 au premier (attendu0065) et02D6 au second, dont le
-programme attend000E. CPCSyntaxError0.12 échoue également au second cas ;
+programme attend000E. CPCSyntaxError0.12 donne également0055/02D6 ;
 son résultat ne fournit donc pas une règle alternative validée. AmSpirit1.17.1
 reproduit0065/000E avec le même programme, mais nous cherchons la règle matérielle.
+
+Un contrôle AmSpirit garde exactement les instructions et délais du cas27,
+mais remplace seulement les deux opérandes pour conserver R4=38 et R9=7.
+Il donne0055 au lieu de0065 ; les horodatages des huit bornes avant/après OUT
+ont la même phase à une trame près, et la sortie de scrutation avance de256µs,
+soit quatre lignes. Il s’agit d’une observation logicielle, pas d’une preuve
+matérielle. Le [relevé détaillé](../investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md)
+conserve les intervalles et limites ; l’ouverture exacte C0≤2 de R5 n’est pas
+mesurée directement.
 
 Pour isoler la règle sans supposer notre phase d’exécution exacte : R0=63,
 R8=0,R4=38,R9=7,R5=22, puis entrée normale en ajustement à(C4,C9)=(39,0).

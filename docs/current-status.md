@@ -55,6 +55,9 @@ our closest software reference, not the hardware oracle.
   [VSYNC proof and native result](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md),
   [forced-entry source distinction](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md),
   [unsent C0 question](classic/accc-author-questions-crtc0-c0-1-2026-11-04-fr.md).
+  A timing-preserving AmSpirit control removes exactly four lines from case27
+  while preserving the original OUT phases; it strengthens the coupled-rematch
+  question without selecting a physical rule. [Stimulus qualification](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md).
 - C1 E0080/P26 and the S history residual have bounded native acceptance.
   The corrected history and direct paths now have matching R5/R7/exit state;
   changed raster captures match previously inspected views. The physical S
@@ -138,7 +141,7 @@ our closest software reference, not the hardware oracle.
   confirmed core/filter defect. The original guest removes the second band
   about339ms after F8; the same AmSpirit run also shows one band after F7.
   Native F8/F7 were already in one polled batch before the F8-labelled PNG.
-  A default-off passive trace is ready for diagnostic synthesis to qualify
+  A default-off passive trace on `c90ec8a` is in full diagnostic synthesis to qualify
   the short early window. Its selected gate passes46 benches; the host also
   flags superseded captures. No filter repair is selected.
   [DT evidence](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).

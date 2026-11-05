@@ -460,8 +460,9 @@ without reset, input or guest-state writes. Waiting for genuine F7 and pausing
 uncropped image has one band, with REP0F..14 visible, qualitatively matching the
 late native layout. Its SHA256 is
 `55791f0ccc546813da0f88c0bc854fe1539c90db6ca87e8414a6944f4914cea0`.
-The earlier first-F8 image had two bands. AmSpirit is now paused in this late
-state; script and breakpoints are clear.
+The earlier first-F8 image had two bands. AmSpirit was left paused in that late
+state with script and breakpoints clear at this check; subsequent experiments
+may change the active emulator state.
 
 The native manifest independently exposes the acquisition delay:
 

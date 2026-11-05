@@ -310,7 +310,8 @@ Functional policy is unchanged. One execution preserves every captured field:
 French controls passing. Parent read the proposed video/GA deltas and verified
 52 source and 305 artifact hashes. Fast receipts remain valid through exact
 functional projection and unchanged observation interfaces; no rerun was needed.
-Fresh Gemini 3.8 high independent review is in progress. No production GA edit
+Completed Gemini 3.8 review is supplementary; parent rejects unsupported
+area/timing/reset guarantees and does not accept it as hard sign-off. No production GA edit
 or integration is accepted; reset-free SNA/lifecycle and adjacent phases remain
 open.
 
@@ -339,3 +340,55 @@ then its `candidate-obj/proof` with `CREDIT_VECTOR_TRACE_DIR` pointing to its
 Final line: `SAME_NUMERIC_GENUINE_R3_JIT: PASS 8 cases;1536 publicRGB clocks;candidate unchanged`.
 Sources match their pre-execution freeze. This resolves the same-numeric concern
 at the tested phase; adjacent phases and lifecycle transport are still unproved.
+
+## Private snapshot lifecycle red/green
+
+Public-GA-pin tests expose two normalization defects before production adoption.
+Without HSYNC, restored Modes1–3 still render as Mode0 after128µs (6/8 cases).
+A private internal reset-mode input uses the settled SNA header on apply and
+zero otherwise, following the engineering convention already used by Plus.
+This normalizes unrepresented state; it is not a physical reset/hidden-mode claim.
+
+A separate real-GA fetch/serializer test fails7/64 apply phases: clearing only
+the inner byte leaves a pre-apply VIDEO_BUF available for the next LOAD, leaking
+28 old RGB samples each. A functional prefetch-valid flag clears on reset/apply,
+sets on an actual later fetch, and qualifies the inner LOAD. A fetch coincident
+with apply is discarded; a partial initial byte may remain black while fresh
+ownership is acquired, but fresh-data recovery is required.
+
+All64 unchanged stale-byte controls and all8 restored-mode controls pass on
+final private sources. Red expectations existed before each correction; no
+phase/palette/output rule was fit. Original queue/cursor/epoch policy is unchanged.
+Evidence: resumed-20261104/r3-sna-mode-contract/ and r3-sna-stale-byte/. Separate
+64-case red/green traces are preserved; initial8mode-redCSVs were overwritten
+by first mode-only green, with red.log/sourcefreeze retained.
+
+The final SNA-corrected source passes all56 original controls and all8 genuine
+same-mode JIT controls:9,888 public RGB clocks/full blank. All171,968 captured
+rows and78 fields (13,413,504 comparisons) are byte-identical to the original
+controls; source hashes remain frozen. Evidence is r3-sna-normalized-matrix/
+and r3-sna-normalized-jit8/. Stronger review and retained production tests remain
+required. No production GA code, selected gate or RBF has changed.
+
+
+## Retained-test draft qualification
+
+The asset-free test draft now wraps the existing B18 motherboard/T80 fixture
+and generates its own synthetic RAM/header/guest. Its unchanged original56
+public RGB/blank controls produce11 baseline reds; the older12th provenance
+failure is a same-ink palette alias and is not a public-pixel red. Eight added
+same-numeric R3.JIT controls fail on production; all64 pass on the final private
+candidate with actual CPU/RMR/CRTC/READY/setup guards. Matching error counts
+alone do not establish full machine-input trace equality.
+
+The initial file-wide missing-pin waiver is rejected for retention. A private
+extension of the existing generated-motherboard adapter explicitly opens five
+verified unused outputs (CPU BUSAK, GA ROM, PSG ACTIVE/IOA/IOB). Strict fatal
+PINMISSING lint passes across the same elaborated test hierarchy without any
+waiver; no runtime repeat was needed for empty output connections. Parent read
+the delta, verified16 input/artifact hashes and independently confirmed cached
+T80 token equality after removing comments. The proposed patch text needs a
+comment-format repair before application; neither that patch nor the test has
+been integrated. This is routine interface qualification, not strong approval
+of the serializer. Evidence: r3-retained-final-candidate/ and
+r3-retained-pin-qualification/. Stronger GA review remains pending.
