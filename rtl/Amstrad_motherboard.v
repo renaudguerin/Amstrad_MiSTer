@@ -1106,20 +1106,23 @@ crt_filter crt_filter
 	.SYNC_OBSERVATION(filter_sync_observation)
 );
 
-// Screen mode and RGB: classic netlist pair passes through in the low
-// bits (consumption-point conversion), locked-ASIC 4-bit levels are
-// native (P2 widening; the temporary lvl4_to_ga adapter is gone).
+// Screen mode and RGB: preserve each classic two-bit DAC pair in the low
+// channel bits; ASIC pixels retain all twelve bits after palette/sprites.
 wire [1:0] ga_mode;
 wire [1:0] ga_red, ga_green, ga_blue;
 assign mode  = plus_mode ? plus_gamode : ga_mode;
 // French ACCC v1.11 section14.4 pp134-135: correct the rendered
 // ordinary4/5 relative position, retaining Full5/6's coarse baseline.
 // This is output history, not a literal monitor/silicon-stage model.
-reg [5:0] full_rgb_history [0:7];
+wire [11:0] selected_source_rgb = plus_mode ? {plus_rgb_r, plus_rgb_g, plus_rgb_b} :
+    {2'b00, ga_red, 2'b00, ga_green, 2'b00, ga_blue};
+reg [11:0] full_rgb_history [0:7];
+reg rgb_owner;
 reg rgb_sampled, rgb_old_hs;
 reg rgb_raw_open, rgb_raw_fell, rgb_start_owned;
 reg rgb_start_seen, rgb_end_seen, rgb_correction;
 initial begin
+    rgb_owner = 0;
     rgb_sampled = 0;
     rgb_old_hs = 0;
     rgb_raw_open = 0;
@@ -1129,17 +1132,19 @@ initial begin
     rgb_end_seen = 0;
     rgb_correction = 0;
 end
+wire rgb_owner_match = rgb_owner == plus_mode;
 wire rgb_context_clear = reset | sna_load | sync_filter_commit |
-                         plus_mode | (sync_filter_applied != 2'd0);
+                         ~rgb_owner_match | (sync_filter_applied != 2'd0);
 wire rgb_raw_rise = ~rgb_old_hs & hs_sel;
 wire rgb_raw_fall = rgb_old_hs & ~hs_sel;
 wire rgb_new_start = rgb_start_seen != crtc_start_gen;
 wire rgb_new_end = rgb_end_seen != crtc_end_gen;
 integer rgb_i;
 always @(posedge clk) begin
+    rgb_owner <= plus_mode;
     if (rgb_context_clear) begin
         for (rgb_i = 0; rgb_i < 8; rgb_i = rgb_i + 1)
-            full_rgb_history[rgb_i] <= 6'd0;
+            full_rgb_history[rgb_i] <= 12'd0;
         rgb_sampled <= 0;
         rgb_old_hs <= hs_sel;
         rgb_raw_open <= 0;
@@ -1150,9 +1155,9 @@ always @(posedge clk) begin
         rgb_correction <= 0;
     end else begin
         if (ce_16) begin
-            // GA publishes the new pixel on this edge; sample its preceding
-            // DAC pair. After this shift slot7 is exactly eight M2 dots old.
-            full_rgb_history[0] <= {ga_red, ga_green, ga_blue};
+            // Both owners publish their new pixel on this edge. Sample the
+            // preceding complete pixel; slot7 is exactly eight M2 dots old.
+            full_rgb_history[0] <= selected_source_rgb;
             for (rgb_i = 1; rgb_i < 8; rgb_i = rgb_i + 1)
                 full_rgb_history[rgb_i] <= full_rgb_history[rgb_i-1];
         end
@@ -1187,11 +1192,13 @@ always @(posedge clk) begin
         end
     end
 end
-wire [5:0] classic_rendered_rgb = rgb_correction ? full_rgb_history[7] :
-                                                {ga_red, ga_green, ga_blue};
-assign red   = plus_mode ? plus_rgb_r : {2'b00, classic_rendered_rgb[5:4]};
-assign green = plus_mode ? plus_rgb_g : {2'b00, classic_rendered_rgb[3:2]};
-assign blue  = plus_mode ? plus_rgb_b : {2'b00, classic_rendered_rgb[1:0]};
+// An owner change must bypass the old history immediately, before the
+// clocked context clear can run. The new owner then needs a complete pulse.
+wire [11:0] rendered_rgb = (rgb_correction & rgb_owner_match) ? full_rgb_history[7] :
+                                                                       selected_source_rgb;
+assign red   = rendered_rgb[11:8];
+assign green = rendered_rgb[7:4];
+assign blue  = rendered_rgb[3:0];
 
 // CPU/expansion phase enables follow the selected machine. The ASIC path
 // replicates ga40010's timing contract cycle-exactly today (asic_ga_timing
