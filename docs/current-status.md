@@ -75,6 +75,7 @@ Before the Storm: CRTC1 has native before/after acceptance; CRTC0 now has
 pairs; its failing-first RGB candidate passes focused tests and the 46-bench
 gate. DeepSeek review permits an experimental build; synthesis/native acceptance
 are pending. Opus review, live-owner and enabled-sprite coverage remain open.
+Candidate source `fdf348c`; [full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42131293902) is running.
 [ASIC candidate](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md). Physical HDMI/CRT acceptance
 remains open. [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 The GA/R3 compensation is shared by classic CRTC0/1 and has deterministic

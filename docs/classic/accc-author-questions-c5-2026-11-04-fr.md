@@ -1,6 +1,6 @@
 # Question à l’auteur : phase de C5 après un retour de C4 à zéro
 
-Brouillon du 4 novembre 2026, **non envoyé**. Références : ACCC v1.11
+Brouillon actualisé le 5 novembre 2026, **non envoyé**. Références : ACCC v1.11
 française, §§11.3.2 p.87 et 7.2 pp.39–41. Ce brouillon ne remplace pas Q20
 et ne prétend pas que l’auteur aurait confirmé une remise à zéro de C5.
 Le [rapport et le replay privé](../investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md)
@@ -57,14 +57,17 @@ antérieure de la gestion lorsque R5=0, avant la seconde mesure. AmSpirit 1.17.1
 donne aussi `0080`, sans que son interface nous expose C5. Ces résultats ne
 suffisent donc pas à choisir le mécanisme du circuit réel.
 
-Complément de contexte : notre observation passive du programme S (`02D3`),
-sans arrêt ni modification du processeur, conserve les résultats du même RBF :
-`4E40` en accès direct, `0440` après le préfixe canonique. À la lecture de la
-première instruction OUT qui va écrire R5=8, les deux chemins ont C4=C9=0 et
-IVM actif ; l’accès direct a la gestion inactive/C5=0, le parcours précédent
-la gestion active/C5=24. Ces états sont ceux de notre FPGA, pas des mesures
-sur le CPC réel. AmSpirit donne `4E40` par les deux chemins, mais ne nous expose
-pas C5.
+Complément de contexte : après correction du comptage IVM pendant
+l'ajustement, le programme S (`02D3`) donne désormais `4E40` en accès direct
+et après le préfixe canonique. Une sonde passive native confirme qu'avant
+l'écriture R5=8 les deux chemins ont C4=C9=C5=0, gestion additionnelle
+inactive et IVM actif. Le contexte ancien `0440` avec C5=24 ne décrit donc
+plus notre cœur actuel. Aucune remise à zéro spéciale de C5 n'a été ajoutée.
+La photographie `4E30`, face aux programmes disponibles qui attendent `4E40`,
+reste une question distincte de version ou de référence. Le
+[rapport daté](../investigations/hardware-runs/shaker-s-history-2026-11-04.md)
+conserve les états anciens et les observations natives actuelles ; aucun de
+ces états n'est une mesure de C5 sur le CPC réel.
 
 Nous avons aussi isolé une erreur distincte de notre cœur : le comptage IVM
 était remplacé par un comptage normal pendant l’ajustement. §11.8 p93 précise

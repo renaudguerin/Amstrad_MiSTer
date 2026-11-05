@@ -198,7 +198,19 @@ model with extra variables that are 0 until the ASIC page is unlocked, and class
 four CRTC designs (types 0, 1, 2 and 4), not two. Recorded in
 [crtc-per-type-separation.md](crtc-per-type-separation.md).
 
-## 6. §19.5.3 / §19.8.2 — type-1 R8 toggle whose 3rd µs meets C0→0 (open, not yet sent)
+## 6. §19.5.3 / §19.8.2 — type-1 R8 toggle whose 3rd µs meets C0→0
+
+**Current position, 2026-11-05:** The targeted B9 discrepancy below is resolved
+on experimental source `c0939d8`: all three photographed C0=#3F rows now read
+`#2740` on MiSTer. The stage-A mode-forwarding change has a failing-first
+production-T80 proof, independent review, full synthesis and native acceptance.
+See [the current B9 report](../investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md).
+The original question remains unsent and may still help clarify the silicon
+ordering, but must not describe the old `#2780` result as current. Wider
+entry/exit, parity/R5 and MID-reference bounds remain open; no further repair
+is inferred from these three accepted rows.
+
+The following records the original September observation and question.
 
 Filed 2026-09-22 from SHAKER B (9), CRTC 1, page B
 ([discriminator brief](../investigations/hardware-runs/shaker-b9-page-b-discriminator-2026-09-22.md)).

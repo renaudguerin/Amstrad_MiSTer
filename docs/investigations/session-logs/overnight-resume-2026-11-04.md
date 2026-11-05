@@ -223,6 +223,19 @@ RGB identity. The 40 differences outside paper are retained. This corroborates
 the relative software behaviour, without claiming a physical ASIC measurement.
 AmSpirit is paused on the R3=6 calibration cartridge; no API job is running.
 
+The reviewed candidate is committed and pushed as
+`fdf348cd04475589c48c5b9fd41a4d160039ad20`. One full milestone build is running:
+[42131293902](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42131293902),
+with hosted synthesis selected and no duplicate dispatch. Installed c0939d8
+remains unchanged. Exact-SHA CI, timing and artifact hashes must pass before a
+native candidate trial.
+
+A focused documentation pass corrected two unsent author-facing contexts:
+B9's old 2780 failure is now explicitly historical beside the accepted 2740
+result; the C5 draft now uses S's current direct/history 4E40 and measured
+pre-S C5=0 context. The lifetime/mechanism questions remain unsent. Neither
+correction changes the SHAKER tally or claims a new hardware observation.
+
 ## Remaining order
 
 FinishASICBTFfixviafailingtest/gate/freshreview/fullbuild; awaitSSHunlockfor
