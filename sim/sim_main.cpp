@@ -7115,8 +7115,47 @@ constexpr T21Panel kT21Panels[] = {
     {"11(K2)", true, true, true, true},
 };
 
+// The existing 16 panels above keep both stages mid-line. B9's genuine
+// original 9139 caller also puts stage A on the natural line seam.
+// The first row's four-line count at this coincidence is inferred from the
+// physical Page B photograph's FRAME SIZE=#2740, not from French prose.
+// #2740 = 157 * 64 us, subject to SHAKER's original scalar calibration.
+// French §19.8.2 p.226 supplies four lines for each of the 38 later rows;
+// §19.6.2 p.217 supplies the even frame's added line: 4 + 38*4 + 1 = 157.
+// This natural frame-origin count is hardware-backed, not independent of
+// the photo scalar. Both parity stages from §19.5.3 pp.210–212 are retained.
+void t21_run_boundary_frame(TestBench& test) {
+    test.set_crtc_type(1);
+    const std::array<std::pair<std::uint8_t, std::uint8_t>, 10> registers = {{
+        {0, 63}, {1, 40}, {2, 46}, {3, 0x0e}, {4, 38},
+        {5, 0}, {6, 25}, {7, 30}, {8, 0}, {9, 7},
+    }};
+    for (const auto& [address, value] : registers)
+        test.write_register(address, value);
+    test.reset();
+    test.select_register(8);
+    test.run_to_c0(63);
+    test.expect_c4("t21 B9 natural first row", 0);
+    test.expect_line("t21 B9 natural first raster", 0);
+    test.write_selected_register_now(3);
+    test.run_to_c0(0); // stage A coincides with this natural line boundary.
+    test.run_characters(3 * 64);
+    const unsigned first_row_after_four_lines = test.row_counter();
+    unsigned physical_lines = 4;
+    while (!test.frame_parity() && physical_lines < 200) {
+        test.run_characters(64);
+        ++physical_lines;
+    }
+    test.expect_parity_frame("t21 boundary reaches next natural frame", true);
+    test.expect_byte("t21 boundary:39 IVM rows plus even added line", 157,
+                     physical_lines);
+    test.expect_byte("t21 boundary:ordinary row advances after four lines", 1,
+                     first_row_after_four_lines);
+}
+
 void t21_run_indexed(TestBench& test, unsigned index) {
     t21_run_panel(test, kT21Panels[index]);
+    if (index == 4) t21_run_boundary_frame(test);
 }
 
 #define T21_TEST(name, idx)                                        \
