@@ -274,3 +274,22 @@ Physical photograph CS_02D3_A.webp (4E30) versus current program (4E40) revision
 remains open; scope is a targeted history walk, not a broad baseline or physical photo
 rejudgment. See the [passive observer qualification](shaker-s-passive-observer-2026-11-04.md)
 and [interlace counting investigation](crtc1-interlace-adjustment-counting-2026-11-04.md).
+
+
+## Available2.6/2.7 program check — 5 November
+
+Local SHAKER2.6 disk SHA256f7082f8eab521d632c343a288f54038af6df090c59b372e0d2866269c2cc4d08
+contains C body137c51511f9580639c6179eb4ee846145388e84a40e164270386466f22b66498.
+The current2.7 C body is3647e120e282412d5afc31bed0e4b6673beed850ba94ec7a4d5374ce04a4682f.
+Root verified identical expected-value setup5A91..5ABC and polling/arithmetic
+5B01..5B2A/5B2E..5B3B: both select4E40 for CRTC1, seed HL0040, and scale the
+16µs polling count by16. Relocated formatter call operands differ, including
+5A90; the earlier provider claim that5A90..5ABC was wholly byte-identical is
+corrected. A direct changed expectation/formula does not explain4E30 between
+these available versions. Earlier caller/history changes and the photograph's
+actual program binding remain unproved; do not rule out all version effects.
+
+One printed0x10 step is one polling quantum, not proof the physical VSYNC edge
+itself was16µs earlier. No runtime or hardware recheck was performed. Evidence:
+resumed-20261104/s-photo-program-binding/{HANDOFF.md,PARENT-ASSESSMENT.md,PARENT-CHECKS.json}.
+The physical-photo boundary remains open; current bounded S acceptance is unchanged.

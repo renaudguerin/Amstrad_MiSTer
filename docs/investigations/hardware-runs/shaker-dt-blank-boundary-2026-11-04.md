@@ -6,8 +6,9 @@
 The original guest removes the second band about339ms after F8, and late
 same-run AmSpirit also shows one band. The native PNG associated with F8 was
 requested after F7 had already been published. The [capture-epoch correction](#capture-epoch-correction--5-november)
-below supersedes the earlier early-reference/late-native comparison. A passive
-first-window native trace remains useful; no filter repair is selected.
+below supersedes the earlier early-reference/late-native comparison. The passive
+first-window native trace now matches the authentic replay, including both
+active black bands. No DT timing/filter repair is justified by this comparison.
 
 ## Source boundary finding
 
@@ -509,3 +510,60 @@ Native synthesis, timing/fanout and early-packet acceptance remain separate
 gates. An agreeing early packet would qualify that window, not prove final
 HDMI behavior or a universal monitor model. The physical device remains on
 `e24cb50` Full CRTC1 DT02FA; no device job is active. Broad baseline deferred.
+
+
+## Native early-window acceptance — 5 November
+
+The diagnostic child`c90ec8a546e6c27736a38fadaab064e2ac307bb0` changes only
+QSF S+DT defines relative to the default-off observer commit`73ca58a`.
+[Full build41957110274](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41957110274)
+passes every job, including selected simulation and production-T80. Artifact
+13383689973/build375 is clean-full Quartus17.0.2.602, Standard Fit/high effort,
+with7 setup and7 hold groups, zero TNS, minima0.593/0.245ns and no errors,
+critical warnings or implicit nets. Flow report confirms both trace macros.
+RBF`Amstrad_20261105_c90ec8a.rbf`,3,149,208bytes, SHA256
+`9a271dc63d701779eff49f81c70c118e6a59525f06933f3bf76b14ed0f56da93`
+is installed under that distinct name; remote hash matches.
+
+The original bounded DT script completes32commands/14captures/0failures and
+29SSM records (14 ordinary,15 private). Two independent1040-byte ring reads
+are identical, SHA256
+`784d1c76e1447946a7a23159179d91a6e4cf66701f32c0468ada7cf4885a98ff`.
+DTR1 is complete: all six snapshot slots valid, status/error0, no drops or
+counter overflow. The first bracket lasts1,277,952 master ticks and312 HS rises.
+
+| Native observation | Result |
+|---|---|
+| M1-prefix cuts C0/C4/C9 |10/0/0,25/10/0,40/20/0|
+| Pre-OUT R7 at those cuts |30,10,14|
+| Actual raw-VSYNC edge rows |10,14,30 (all C0/C9=0)|
+| Raw-VSYNC / GA-black rise counts |3 /3|
+| Active black master ticks by actual edge owner |79,664 /79,664 /0|
+| GA-black seen / DE during black masks |7 /3|
+
+The six relative timestamps, complete summary and edge-owner structures are
+**exactly equal** to the frozen authentic current-T80 replay. Every other sample
+field also matches except PPI input bits1/3 (F4/F5 simulated versus FE/FF native);
+PB0 VSYNC agrees at every cut. These differing non-VSYNC machine inputs are not
+ignored counter/timing mismatches. Native M1-prefix completion is not an actual
+accepted-OUT timestamp;12/27/42 belongs to the separate replay bus ledger.
+
+All14 native RGB images are pixel-identical to production`e24cb50` controls.
+Root viewed the full contact set and F8/FA individually. The F8 manifest now
+correctly marks its capture approximate and superseded by already-published F7;
+the late one-band PNG remains byte-identical to its control. The diagnostic
+therefore qualifies the early native source/GA/acquisition behavior without
+changing that late screen.
+
+Disposition: **remove the reported DT band difference from the timing/filter
+fix queue as an acquisition-epoch mismatch.** The first native window contains
+both active GA-black bands; the later original guest suppresses one, as late
+same-run AmSpirit does. This is bounded acceptance, not a final HDMI trace or
+universal physical-monitor claim. Exact marker-frame capture remains separate
+tooling work; no DT functional/filter patch or broad baseline is needed here.
+
+Evidence: `resumed-20261104/dt-native-build/`, including BUILD-ACCEPTANCE.json,
+native-packet/{decoded.json,READ-RECEIPT.json,SIM-COMPARISON.json}, the device
+manifest, SCREEN-COMPARISON.json and native-contact.png. Root is sole operator;
+run completed and device is idle on diagnosticc90ec8a/Full/C1/DT02FA. The current
+AmSpirit state is the later C0 experiment, not this historical DT stop.

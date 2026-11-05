@@ -137,13 +137,13 @@ our closest software reference, not the hardware oracle.
   Space can advance across handler entry. Avoid blind full-walk timing retries.
   [Package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md),
   [D3 caller](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md).
-- DT's late one-band screenshot is an acquisition-epoch question, not a
-  confirmed core/filter defect. The original guest removes the second band
-  about339ms after F8; the same AmSpirit run also shows one band after F7.
-  Native F8/F7 were already in one polled batch before the F8-labelled PNG.
-  A default-off passive trace on `c90ec8a` is in full diagnostic synthesis to qualify
-  the short early window. Its selected gate passes46 benches; the host also
-  flags superseded captures. No filter repair is selected.
+- DT's reported band difference is resolved as an acquisition-epoch mismatch.
+  Native diagnostic`c90ec8a` exactly matches the authentic replay's early
+  timestamps/state and active-black counts79,664/79,664/0. All14 images retain
+  the production RGB; the guest removes the second band about339ms after F8,
+  before the late F8-labelled PNG, as matched late AmSpirit does. Full synthesis
+  and two stable native ring reads pass. No DT timing/filter repair is selected;
+  exact marker-frame HDMI capture remains separate tooling work.
   [DT evidence](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
 - B1 display ownership and applied-mode observability remain open; native
   screenshots omit the OSD. B6 still needs physical HDMI/CRT acceptance and a
