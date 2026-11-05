@@ -3,9 +3,9 @@
 The French Compendium provides a stronger basis for the early-write E6
 failures than the previously isolated C0=2 deactivation sentence. A focused
 source review and parent inspection support failing counter vectors for the
-R4/R9 distinction. A candidate now passes its focused and selected gates and has fresh
-independent review. The exact51ae4dd build now passes25/28 native printed E6 checks; remaining
-checks and acceptance bounds are recorded below.
+R4/R9 distinction. Both focused repairs pass their failing-first and selected
+gates with fresh independent review. Exacte24cb50 now passes26/28 native
+printed E6 checks; remaining27/28 and acceptance bounds are recorded below.
 
 ## Source and scope
 
@@ -196,7 +196,31 @@ edit. Soak remains402410acec7f4988 with unchanged seed/projection/samples; the
 history explicitly records that this directed path is not distinguished by
 that randomized trace. Fresh Gemini3.8high review20261104T224717Z-98570-694c
 accepts the frozen delta with no findings. Parent verifies all final/unchanged
-owner hashes and trusts the completed gate without rerunning it. New synthesis
-and native case4 acceptance remain pending.
+owner hashes and trusts the completed gate without rerunning it. Full synthesis
+and native case4 acceptance follow below.
 Private proof, red, source guards, gate and review:
 `resumed-20261104/c0-e6-case4-first-line-rematch/`.
+
+## Native first-line rematch acceptance
+
+Exacte24cb5011c0960a1d549b112f1d90f2fff145136 passes every required job in
+[full workflow41929217942](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41929217942).
+Artifact13372296807/build370 contains `Amstrad_20261104_e24cb50.rbf`,
+3,129,292bytes, SHA256
+`c65d7e60ac4ff95263e2bf425da248c31b6c838bfadb90f2e653df533605cc46`.
+Reports verify clean_full/Quartus17.0.2.602/StandardFit/HighPerformanceEffort,
+seven setup/hold groups, zeroTNS, minima0.560/0.182ns, zero errors/critical
+warnings and passive observer macro off. Installed hash matches.
+
+The original E6 script completes16commands/fourcaptures/zero failures/nineSSM.
+The unchanged immutable-label/EXP glyph dictionary reads case4=0032, matching
+its printed expectation. All other27 results are unchanged from51ae4dd.
+This raises the score to26/28, with only27=0055 versus0065 and28=02D6
+versus000E still wrong. Parent inspected all four full pages. These are
+printed program checks, not a refreshed physical-photo score.
+
+Bounded DSC4 completes19commands/fourcaptures/zero failures/noSSM. All four
+parent-inspected views retain clear credit colons/names, the otter and rotating
+fire-band effects. No complete-demo acceptance or broad baseline follows.
+Evidence: `resumed-20261104/c0-rematch-build/`, including exact build reports,
+verification, manifests and `e6-decoded-tally.json`.

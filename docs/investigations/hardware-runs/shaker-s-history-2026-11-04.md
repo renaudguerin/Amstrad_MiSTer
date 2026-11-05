@@ -1,17 +1,30 @@
 # SHAKER CRTC1 S: history-sensitive result — 4 November 2026
 
-Test S (`02D3`) is not closed. The 599 full-history path prints 0640 and
-e574 prints 5060, while direct entry on either artifact prints the current
-program expectation 4E40. Keep the numerical failure; its cause is not established by the
-changed screenshot alone.
+The current canonical S residual has two native passing fits: default production
+build `076eab1` (macro OFF) and parent-verified diagnostic build `c16e7ec` (macro ON),
+both incorporating the C1 interlace adjustment counting correction `ccf2be7`.
+Test S (`02D3`) prints the current program expectation 4E40 in both fresh direct
+entry and the full canonical history walk. Direct and history full RGB captures
+are identical to each other and match the qualified `9a91920` direct 4E40 baseline
+image (SHA256 `b03c5e572b9d72e2a0cfb56b5c687f2e089b52d5cf38150f97fcee2dd50f4e2d`).
+Pre-fix builds exhibited history-sensitive numerical failures (0640 on
+`db4be80`/`599ca80`, 5060 on `e574a46`, and 0440 on `9a91920`/`ae9ccdc`), which
+are preserved below as historical evidence. Comprehensive lifetime policy,
+phase robustness, and physical photo compliance (CS_02D3_A.webp photo 4E30 vs
+current program 4E40) are not claimed closed; scope is a targeted history walk,
+not a broad baseline rejudgment.
 
 ## Exact observations
 
 | Source | Entry | Result |
 |---|---|---|
+| `076eab1` | Canonical history through S | 4E40 (matches direct baseline) |
+| `076eab1` | Fresh SHAKE27C boot, directly S | 4E40 |
+| `c16e7ec` (diagnostic) | Canonical history through S | 4E40 (matches direct baseline) |
+| `c16e7ec` (diagnostic) | Fresh SHAKE27C boot, directly S | 4E40 |
 | `8dde1e7` | Canonical full C1 history | 4E40 |
 | `bedb1c5` | Canonical full C1 history | 4E40 |
-| `db4be80` | Canonical full C1 history | 0640 WRONG, expected4E40 |
+| `db4be80` | Canonical full C1 history | 0640 WRONG (pre-fix), expected 4E40 |
 | `db4be80` | Fresh SHAKE27C boot, directly S | 4E40 |
 | `8dde1e7` | Same fresh-boot/direct-S script | 4E40 |
 
@@ -65,12 +78,12 @@ Its description of `bedb1c5` as pre-E/P is also wrong: that source includes
 the E/P repair. The original report is preserved with a parent assessment.
 
 S was already qualified as history/entry-sensitive in the
-[E/P investigation](shaker-ep-display-2026-11-03.md). The new direct controls
-show that the new RBF can reproduce the prior exact result; they do not rule
-out a change in which full-history entry conditions fail. This is a computed
-numerical difference, not merely an asynchronously sampled field image.
-Do not claim that S is fixed, dismiss0640 as screenshot jitter, or alter C5
-to fit that sample without a faithful counter/entry discriminator.
+[E/P investigation](shaker-ep-display-2026-11-03.md). Prior to the adjustment
+counting fix, direct controls showed that those RBFs could reproduce the prior
+exact result while full-history entry failed. That was a computed numerical
+difference, not merely an asynchronously sampled field image. Historical
+failures (0640, 5060, 0440) were retained rather than dismissed as screenshot
+jitter or fit by ad-hoc scalar alterations.
 
 Evidence is under ignored `local/overnight-20261103/milestone-next/`:
 `c1-device-db4be80/`, `c1-comparison/`, `s-only.CSL`, `s-only-db4be80/` and
@@ -167,6 +180,97 @@ C5=0. At R7, direct C4=4 versus history C4=2 with an added line active.
 This supplies the missing native state discriminator. It does not authorize
 clearing inherited state to fit the final word. See the [observer qualification
 and cut table](shaker-s-passive-observer-2026-11-04.md) for exact artifact,
-source guards, timestamps and passivity limits. The next source investigation
-checks interlace counting during adjustment against French§11.8p93 while
-preserving E0080/P26 and the zero-R5 author contract.
+source guards, timestamps and passivity limits. The subsequent source investigation
+resolved interlace counting during adjustment against French §11.8 p93 while
+preserving E0080/P26 and the zero-R5 author contract; see
+[CRTC1 interlace counting during adjustment](crtc1-interlace-adjustment-counting-2026-11-04.md).
+
+## Bounded native resolution on 076eab1
+
+Full build `076eab1` (functional change `ccf2be7` in `rtl/crtc_type1_engine.v`)
+was verified on hardware following clean full Quartus synthesis:
+
+- **Build verification**: Source `076eab11a948e91e44279f5ef128c924a26b92ea`, CI
+  workflow 41925025171 (all required jobs pass, artifact 13370705502, build 368).
+  Bitstream `Amstrad_20261104_076eab1.rbf` (3,139,692 bytes, SHA256
+  `7d7fc3f6f1cc2ea6197a05cfc273ca4bc308e7e6a2b14bfc3774ffac1b6cb4b6`). Built with
+  clean_full Quartus 17.0.2.602 Standard Fit / High Performance Effort: 7 setup and
+  7 hold clock groups, TNS 0, min slack +0.539 ns setup / +0.242 ns hold, zero errors,
+  zero critical warnings, observer macro OFF. Device bitstream matches installed hash.
+- **Native execution**:
+  - Direct S: 10 commands, 1 capture, 0 failures, 1 SSM record, prints 4E40.
+  - Canonical history through S: 131 commands, 64 captures, 0 failures, 121 SSM
+    records, prints 4E40.
+  - Direct S and history S full RGB captures are identical to each other and
+    identical to the qualified `9a91920` 4E40 direct baseline (SHA256
+    `b03c5e572b9d72e2a0cfb56b5c687f2e089b52d5cf38150f97fcee2dd50f4e2d`).
+  - Preceding checkpoints E (`02C9`/`02CA`, 0080) and P (`02CB`, 26) full RGB
+    are identical to baseline 9a; root inspected full S, E, and P images.
+- **History comparison and limits**:
+  - Across all 64 captures from the canonical history prefix against the exact 9a
+    baseline, 53 images are RGB identical and 11 changed (including S). The other
+    10 changed images contain raster patterns. Parent inspected all64 contact views
+    and all11 enlarged paired panels; no physical-photo verdict is refreshed.
+  - Regression controls: C1 DSC4 completed 4 views root-inspected (clear colons
+    and names, visible otter and rotated fire effects); Amazing completed 2 views
+    (visible logo, text, and QR code, showing bounded regression only).
+  - In production build `076eab1`, the observer macro was OFF; the earlier
+    native C5=24 reading belongs strictly to pre-fix traces. Live hidden state was
+    subsequently qualified on the dedicated macro-enabled diagnostic build `c16e7ec`
+    detailed below.
+  - Physical photograph CS_02D3_A.webp (4E30) versus current program (4E40)
+    revision binding remains open. Scope is a targeted history walk, not a broad
+    baseline or physical photo rejudgment. Neither comprehensive lifetime policy,
+    phase robustness, nor photo compliance is claimed closed.
+
+## Diagnostic native observation on c16e7ec
+
+Parent-verified diagnostic branch `codex/s-passive-ivm-native-20261104` at commit
+`c16e7eca6c574410d0f5d2b2cfee9bd30c19d898` is exact `076eab11a948e91e44279f5ef128c924a26b92ea`
+plus ONE QSF enable `SSM_S_PASSIVE_TRACE=1`. Full workflow 41933969717 passed all
+required jobs (artifact 13375070713, build 372). Bitstream `Amstrad_20261104_c16e7ec.rbf`,
+3,169,908 bytes, SHA256 `e6e6b848fff15d3e37c1bf5948aeb1c36654b856409955eb7d8ee01201f75f5e`.
+Clean_full Quartus 17.0.2.602 Standard Fit / High Performance Effort: 7 setup and
+7 hold clock groups, TNS 0, min slack +0.398 ns setup / +0.246 ns hold, zero errors,
+zero critical warnings, installed hash matches on target device. Production observer
+macro OFF remains unchanged.
+
+Native execution:
+- Original direct S: 10 commands, 1 capture, 0 failures, 16 SSM records.
+- Canonical history through S: 131 commands, 64 captures, 0 failures, 136 SSM records.
+- BOTH direct S and canonical history S full RGB captures yield exact SHA256
+  `b03c5e572b9d72e2a0cfb56b5c687f2e089b52d5cf38150f97fcee2dd50f4e2d`, printing
+  the program expectation 4E40 identically to default `076eab1`.
+- Preceding checkpoints E (`02C9`/`02CA`, 0080) and P (`02CB`, 26) full RGB are
+  identical to default `076eab1` and baseline 9a.
+- Two stable 1040-byte ring reads per path, 7 ordered valid cuts, error 0, dropped 0,
+  all sequence numbers match header. Direct written 16 / history written 136.
+- Timings: Acquisition direct 39,948 µs (2 failed retries); history 10 µs (0 failed retries);
+  R8 pulse 8 µs for both; measurement 19,012 µs (1,188 polls) for both.
+
+New hidden state is now actually observed:
+- In canonical history, the caller already arrives at A4CF with C5=0 and adjustment OFF
+  (before acquisition). A067 and A06B are all 0 / off.
+- Before R5 at 5BFB: C0=58, C4/C9/C5 = 0/0/0, adjustment OFF, effective IVM=1.
+- At R7 fetch 5B0A: C0=13, C4/C9/C5 = 4/0/0, adjustment OFF, added line 0, effective IVM=1.
+- At exit 5B17: C0=17, C4/C9/C5 = 0/1/0, adjustment OFF, parities=1.
+- Direct entry observes the same R5, R7, and exit states.
+
+This replaces the old pre-fix history state (A4CF C5=31 / adj ON, 5BFB C5=24 / adj ON,
+and 5B0A C4=2 / adj ON / added line 1). Do NOT say new code clears C5 by R8 write or adds a
+reset policy; it corrects IVM row counting during adjustment, and the full canonical prefix
+now naturally arrives at S without inherited adjustment. The source fix remains independently
+derived from French ACCC §11.8 p93; this is observed bounded state normalization, not scalar
+coincidence or comprehensive C5 author adjudication.
+
+Comparing all 64 diagnostic `c16e7ec` canonical history images against default `076eab1`:
+51 are RGB identical, and 13 raster pattern views changed (`MISTER_1_022B.png`, `022C`,
+`0230`, `0231`, `0233`, `0236`, `0239`, `023A`, `023B`, `0287`, `0288`, `0298`, `0299`),
+while S, E, and P are identical. Parent inspected all 64 contact views; each of the 13 changed RGB contents
+exactly matches a previously inspected view in the 076/9a/ae9/599 corpus. No
+novel content was found and no physical-photo verdict is refreshed.
+
+Physical photograph CS_02D3_A.webp (4E30) versus current program (4E40) revision binding
+remains open; scope is a targeted history walk, not a broad baseline or physical photo
+rejudgment. See the [passive observer qualification](shaker-s-passive-observer-2026-11-04.md)
+and [interlace counting investigation](crtc1-interlace-adjustment-counting-2026-11-04.md).

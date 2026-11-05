@@ -239,3 +239,103 @@ opinion's ordinary-only extra increment and universal-candidate claim are
 rejected. No serializer or blank-validity rule was implemented from it.
 Corrected paper assessment: `resumed-20261104/
 r3-universal-cadence-assessment/PARENT-QUALIFICATION.md`.
+
+## Frozen retained-byte/token hypothesis
+
+A private causal model now passes56 selected actual-T80 controls:40 complete
+192-clock fixed-mode windows (including genuine Mode3) and16 ordinary/JIT
+mixed-mode cases on both types. It retains the original byte and a saturating
+cursor, queues the existing mode event to an endogenous phase edge, and
+replays destination cadence from the retained four-M2 anchor. Token epoch
+validity preserves the ordinary old quarter while delaying premature JIT
+blank release. This is an abstract implementation hypothesis, not a unique
+physical-stage claim. No production GA code has changed.
+
+The event/tag/validity policy and all model sources were frozen before one
+build and one56-case execution. All8,352 visible RGB-clock constraints,
+original-byte/cursor/mode/pen/ink provenance and mixed blank intervals pass.
+Forty-six prior CPU/READY/CRTC/sync/IRQ/fetch/VRAM streams are byte-identical;
+the ten new ordinary5D/A6 cases have focused baseline/source qualification.
+For the new ordinary2→0 baseline, Type0 loses the old quarter while Type1
+already passes; neither result is manufactured to fit the candidate.
+
+One fixed-JIT analysis guard initially compared R2 with the R3 payload14
+instead of the preserved R2=46. Original analysis/logs are retained; the
+read-only correction uses the same56 completed traces without rebuilding,
+rerunning or changing model/oracles. Parent read the full policy, source/interface
+delta and analyzer, and verified all initial source and238 artifact hashes.
+
+Current-core asset-free proof is the next bounded step. Independent review,
+same-numeric-mode JIT, reset-free SNA lifecycle, adjacent phases and native
+acceptance remain open. Fixed controls use an unblanked recipe and do not
+cover the same-mode JIT validity question. Evidence: `resumed-20261104/
+r3-retained-token-prototype/` and `r3-production-integration-plan/`.
+
+## Current-source baseline and candidate equivalence — 5 November
+
+A separate private fixture `r3-current-source-baseline` independently qualifies the current-core
+T80 environment, including the reviewed `9de75d3` reset sequence and synthetic owned RAM/guest.
+The baseline yields 44 control passes and 12 source-derived failing expectations; all 40 fixed
+192-clock cases pass, including Mode 3. Against this qualified baseline, the candidate frozen
+policy from `r3-retained-token-prototype` executes all 56/56 PASS, satisfying 8,352 visible RGB
+clocks along with byte, cursor, mode, and pen provenance and full blanking intervals.
+
+Strict candidate-vs-current-baseline verification compares 150,472 rows across 43 machine and
+bus fields, producing 6,470,296 equal comparisons; the unchanged-video shadow output is also
+strictly equal. The earlier frozen CPU prototype's early IORQ, VRAM, and IRQ differences remain
+preserved for diagnostic reference only; no full-stream equality with the legacy CPU model is
+claimed. Root reviewed handoffs and verified 49 source and 353 baseline artifact hashes, alongside
+49 source and 312 candidate artifact hashes.
+
+## Fast GA regression qualification and clean candidate scope
+
+In the existing fast GA suite `r3-current-fast-ga-regression`, the Type 0 old-quarter French
+required expectation is red before and passes with the candidate, completing 27 PASS receipts.
+A previously unqualified initial Mode 2 premise in the narrow R3 restart fixture was addressed
+by `r3-fast-qualified-mode-prefix`: this strengthens only the setup sequence via public bus
+wide R3 writes and authentic `MODE_SYNC`, restoring the narrow R3 stimulus and waiting two fresh line seams to retire
+the wide pulse while leaving the target body unchanged.
+
+Original baseline and candidate each ran once with byte-identical logs, producing the 17 remaining
+PASS receipts across mode transitions, restart, non-JIT controls, and context. Absolute target
+phase, master tick, and IRQ match on both. No failure assertion was weakened, and no model fitting
+was performed. Root verified 29 source / 58 artifact hashes for fast GA, and 28 source / 56
+artifact hashes for the prefix suite; the first 27 PASS receipts were reused.
+
+The completed private `r3-production-clean-candidate/` removes eight trace-only
+registers (74 declared bits), moves the causal monitor and unchanged-video
+shadow into the simulation top, and restores original copyright/ACCC attribution.
+Functional policy is unchanged. One execution preserves every captured field:
+150,472 rows × 78 columns = 11,736,816 equal comparisons, with all 56 unchanged
+French controls passing. Parent read the proposed video/GA deltas and verified
+52 source and 305 artifact hashes. Fast receipts remain valid through exact
+functional projection and unchanged observation interfaces; no rerun was needed.
+Fresh Gemini 3.8 high independent review is in progress. No production GA edit
+or integration is accepted; reset-free SNA/lifecycle and adjacent phases remain
+open.
+
+## Same numeric mode under genuine R3.JIT
+
+The fixed-mode controls above use an unblanked recipe. Eight additional controls
+in `r3-same-mode-jit-controls/` instead execute the genuine width-shortening
+caller with old and requested mode equal: Modes0–3 on both CRTC types. The
+actual T80 writes R3=2 during active HS/C3=2, from initial R3=14/R2=20, with the
+same accepted-write, READY and six marker-LOAD guards. The frozen candidate and
+seed remain unchanged; no old trace is claimed equal for this new stimulus.
+
+French §9.3.4 pp56–57 gives the R3.JIT colourless interval and fixed-mode pixel
+cadence independently of a numeric mode change. Parent inspected the rendered
+French p57. Public RGB expectations combine the independently qualified fixed
+192-clock byte sequence with the JIT black interval [715,859) on Type0 and
+[719,859) on Type1. These absolute bounds belong to the qualified fixture;
+they are not new measurements of physical pipeline latency. No cursor/tag or
+replay implementation state supplies expected output.
+
+One build and eight-case execution pass all 1,536 public RGB constraints and
+complete black intervals, including true Mode3, with zero mismatch. Commands:
+`bash local/overnight-20261103/resumed-20261104/r3-same-mode-jit-controls/build.sh`,
+then its `candidate-obj/proof` with `CREDIT_VECTOR_TRACE_DIR` pointing to its
+`traces/`, then `python3 local/overnight-20261103/resumed-20261104/r3-same-mode-jit-controls/analyze.py`.
+Final line: `SAME_NUMERIC_GENUINE_R3_JIT: PASS 8 cases;1536 publicRGB clocks;candidate unchanged`.
+Sources match their pre-execution freeze. This resolves the same-numeric concern
+at the tested phase; adjacent phases and lifecycle transport are still unproved.

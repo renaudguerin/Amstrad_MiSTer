@@ -343,3 +343,96 @@ accepted R7 phases and raw VSYNC/GA black before acquisition. Until then, DT
 remains unassigned between functional timing and display acquisition; the source
 boundary analysis above remains valid, while the wrong-phase causal replay does
 not establish the device's mechanism.
+
+## Authentic synchronizer and reported F8 variant — 5 November
+
+The original pre-sync caller now reproduces the reference phases without any
+guest patch or forced counter state. A normal-boot AmSpirit1.17.1/core2491682
+run uses the same6b9 disk and65a9 D payload on6128/CRTC1/128K/French. At69E0,
+the source/SMC/stack-return6943 guards pass and live registers are
+`63,40,46,54,38,0,26,30,0,7,0,0,48,0`. This is before the original CALLA241.
+The streamed classic snapshot is v2: hidden counters and its v3 CRTC-type
+extension remain unavailable. Its original128K RAM/header prefix is preserved;
+the trailing SPRT emulator-history chunk is excluded from the private loader
+input without changing any header/RAM/PC byte.
+
+Current coherent RTL and a current-source GHDL T80 translation replay that
+caller from two naturally different starting phases. With the CPU held through
+the existing SNA pause, fixed0/50,000-clock settling gives measured initial
+C0/C4/C9=0/0/0 and13/1/4. A241 converges both to accepted R7 writes at
+12/0/0,27/10/0,42/20/0. Instruction starts are C0=9/24/39; the earlier table's
+12/27/42 values describe the accepted bus writes. Subtracting2 from CPCSE's
+logged PC identifies the opcode address, not its instruction-start clock.
+
+The first69E0 entry is REP0A and initially emits02F0, rather than the reported
+02F8. Byte-checked tableB086 advances through F0,F1,F3,F6/F5,F8/F7 as the
+original index advances0A..0E. A long first-REP run alone does not reach the
+reported variant. The new target proof follows the canonical four Space
+presses after F0,F1,F3,F5, using the existing PS2 input and70ms down/up pacing.
+It guards the actual retired A385/A387 pair, following A389 RET fetch and
+every marker/index. No host writes to guest memory, CPU PC or counters occur.
+
+All six expected markers and indexes pass in one private run, ending two
+frames after genuine F8 at index0E. Its accepted R7 sequence is10→14→30 at
+the same12/0/0,27/10/0,42/20/0 phases. The source/input hashes remain frozen.
+The correctly phased312-line cycle now has three raw VSYNC starts and three
+GA black intervals:
+
+|Raw C4 at start|GA black duration, physical-line units|Motherboard Full acquisition|
+|---|---:|---|
+|10|25.8125|Contains HBL=0/VBL=0 samples|
+|14|25.8125|Contains HBL=0/VBL=0 samples|
+|30|25.8125|Wholly inside acquisition VBL|
+
+Thus both middle black bands reach the current simulated motherboard's
+acquisition window. This does not establish the final native scaler image or
+its acquired state, but supplies no basis for a pure filter diagnosis from
+the earlier wrong-phase replay.
+
+Root also continued the same genuine AmSpirit state through the canonical
+inputs to F8. The original screen shows both bands;69C8/69FA are0E and the
+next three R7 stops remain5,135µs apart. All four live images were inspected.
+Beam coordinates are output coordinates, not measured hidden CRTC counters.
+
+The last native one-band check is3113323, which predates the independently
+reviewed CPU reset repair9de75d3 and later classic changes. Recheck the exact
+current production build with the original bounded script before adding a
+native R7-phase/acquisition observer. Neither a functional repair nor a filter
+repair is selected from this result. No broad baseline was launched.
+
+Evidence: `resumed-20261104/dt-authentic-prefix-prep/`, including genuine
+`original-run-001/`, `original-f8-continuation-001/`, both natural-phase
+controls, and `csl-to-f8-replay/target-f8-cycle-summary.json` with source,
+retired-marker, key, raw-event and accepted-I/O ledgers. Earlier compile,
+stream-format and observation-composition setup failures are preserved and
+qualified separately; none is a functional hardware result.
+
+## Fresh native run on current code tip e24cb50 — 5 November
+
+The original bounded `dt1-through-fa.CSL` walk was executed on the exact production artifact
+`Amstrad_20261104_e24cb50.rbf` under Full mode (`CRTC1`, French firmware, disk `6b9`). The run
+completed all 32 commands, 14 captures, 0 failures, and 14 format-2 SSM records.
+
+All 14 captures were root-viewed; targets 02F8 and 02FA were full-viewed. **Both 02F8 and 02FA
+reproduce the single visible black band on native hardware**, matching the older 3113323
+appearance:
+- `MISTER_1_02F8.png` SHA256: `19a03408cb5b24613dfdc694a3058843838d1d0edef3a60b74a1da7b704dfa58`
+- `MISTER_1_02FA.png` SHA256: `4df552a638871216346f9f400a9a56d9c3c0f931872da2b0fb685d389bce24c2`
+
+Marker readback confirms requested mode 0 and applied mode 0 (Full), `shift=false`,
+`no_hsync=false`, `hsync_mask=true`, `arm=false`, and 3 training syncs. The horizontal line
+estimate is `line_estimate_ce4=256` CE4 ticks (4 MHz, hence a 64 µs horizontal scanline, not
+256 vertical lines). Artifacts are preserved under `dt-authentic-prefix-prep/device-dt-full-e24cb50/`.
+
+This confirms the single visible band is reproducible on the current codebase after the `9de75d3`
+CPU reset and recent CRTC repairs, rather than being an artifact of an obsolete build. Because
+the canonical F8 current-T80 simulation continues to produce 3 raw VSYNCs at C4=10/14/30 (with
+the first two reaching motherboard Full acquisition `HBL0/VBL0` and the third inside `VBL`) and
+original AmSpirit also shows two bands, the root cause remains unresolved between functional
+timing and acquisition boundary behavior. No filter repair is selected from this result.
+
+The provisional next step is a default-off passive native observer capturing caller state,
+raw VSYNC, GA vertical blank, and acquisition lock state; this plan remains provisional and
+requires formal source qualification. Root is the sole device operator; no device job is active.
+The physical device was left on `e24cb50` Full CRTC 1 DT 02FA; AmSpirit remains paused at the
+original F8 third R7 stop 6A07 with script and breakpoints cleared.

@@ -1,6 +1,6 @@
 # Current status
 
-Fresh-session handover as of 2026-11-04. Work order and acceptance gates are in
+Fresh-session handover as of 2026-11-05. Work order and acceptance gates are in
 [the roadmap](implementation-roadmap.md) and [backlog](backlog.md); review obligations
 are in [review debt](review-debt.md); the maintained execution and photo tally is
 in [SHAKER status](shaker-status.md). The prior handover is preserved as a
@@ -17,20 +17,18 @@ instructions across handoffs and context compaction.
 
 - Active branch: `codex/overnight-validation-20261103`, code tip `e24cb50`.
   It is distinct from integrated `master`; no integration or release is implied.
-- Current full artifact: `Amstrad_20261104_076eab1.rbf`, SHA256
-  `7d7fc3f6f1cc2ea6197a05cfc273ca4bc308e7e6a2b14bfc3774ffac1b6cb4b6`.
-  [Full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41925025171)
-  passes all jobs, setup/hold0.539/0.242ns. It contains C1 counting fix `ccf2be7`;
-  native direct S retains4E40 and canonical history is running.
-- Latest completed C0 acceptance is `51ae4dd`:25/28 E6 printed checks pass,
-  and four bounded DSC4 views retain clear credits and visible effects.
-  Its code is included in076eab1; this does not imply a fresh C0 run on that RBF.
-  [Exact artifact and evidence](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md).
-- Follow-up C0 first-line R9-rematch fix `e24cb50` passes its failing-first
-  counter proof,240CRTC/45selected benches and independent review.
+- Current full artifact: `Amstrad_20261104_e24cb50.rbf`, SHA256
+  `c65d7e60ac4ff95263e2bf425da248c31b6c838bfadb90f2e653df533605cc46`.
   [Full synthesis](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/41929217942)
-  is running; native case4 remains unverified. Earlier artifacts and results
-  belong in [dated milestone reports](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
+  passes all jobs, setup/hold0.560/0.182ns. Native C0 E6 passes26/28 printed
+  checks: case4 now0032, all other results unchanged. Four bounded DSC4 views
+  retain clear credits and visible effects. [C0 evidence](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md).
+- C1 interlace-adjustment fix `ccf2be7` has targeted native acceptance on
+  production `076eab1` and diagnostic `c16e7ec`: direct and canonical-history S
+  both give 4E40; E0080/P26 remain pixel-identical to their controls. The passive
+  trace confirms history arrives without inherited adjustment or C5. Sampled
+  DSC4/Amazing screens remain visible. [C1 evidence](investigations/hardware-runs/crtc1-interlace-adjustment-counting-2026-11-04.md).
+  Earlier artifacts belong in [dated milestone reports](investigations/hardware-runs/classic-targeted-milestones-2026-11-04.md).
 - ASIC acceptance remains bounded on `275af8a`: DSC4 colons/names and sampled
   DSC4/Amazing effects, BI widths/clipping and AE/AR patterns. Later changes
   target classic CRTC state; no new full Plus baseline is implied.
@@ -45,11 +43,10 @@ our closest software reference, not the hardware oracle.
 
 ### Classic CRTC 0/1
 
-- C0 E6 on `51ae4dd` passes25/28 printed checks, with eight newly matching
-  cases and no previously passing regression. Remaining4/27/28 require focused
-  rematch work; first-line R9 restoration differs from later R4 restoration.
-  Follow-up `e24cb50` implements the source-defined first-line R9 endpoint,
-  with a build underway before native case4 validation.
+- C0 E6 on `e24cb50` passes26/28 printed checks, with nine newly matching
+  cases since9a and no previously passing regression. Remaining27/28 require
+  focused later R4-rematch work. First-line R9 restoration now passes case4
+  on the device as well as its source-defined counter proof.
   The early forced-entry distinction has failing-first proofs,240CRTC/45selected
   passes, independent review, full synthesis and targeted native acceptance.
   Matched AmSpirit passes28/28; CPCSyntaxError passes9/28 and supplies no
@@ -58,31 +55,26 @@ our closest software reference, not the hardware oracle.
   [VSYNC proof and native result](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md),
   [forced-entry source distinction](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md),
   [unsent C0 question](classic/accc-author-questions-crtc0-c0-1-2026-11-04-fr.md).
-- C1 E is 0080 on native direct and canonical-history paths; all seven numeric
-  controls and P26 remain. S remains history-sensitive: exact9a and its passive
-  diagnostic give full0440/direct4E40. The cached CS photograph appears4E30, so exact
-  photo/program revision binding also needs clarification. Preserve the current
-  program's 4E40 expectation. Matched original-caller AmSpirit direct/history
-  runs both give 4E40/1,188 polls despite three versus six failed acquisition
-  retries; every checkpoint's CRTC register array matches. Retry count alone
-  does not explain the native failure. A bounded default-off passive FPGA
-  observer retains both exact native scalars. History carries adjustment/C5
-  into S and has an added line before measurement; direct does not. Interlace
-  counting during adjustment is now a French-source mismatch with both-parity
-  failing counter/VSYNC proofs. The committed repair `ccf2be7` passes240CRTC/
-  45selected benches and fresh independent acceptance.
-  Its full build passes; direct S retains4E40 and canonical history is running.
-  No S fix is claimed.
-  [Interlace-adjustment proof](investigations/hardware-runs/crtc1-interlace-adjustment-counting-2026-11-04.md). [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
-  [S evidence](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
+- C1 E0080/P26 and the S history residual have bounded native acceptance.
+  The corrected history and direct paths now have matching R5/R7/exit state;
+  changed raster captures match previously inspected views. The physical S
+  photograph's 4E30 versus the current program's 4E40 still needs revision
+  binding. Broader phase/lifetime closure is unproved.
+  [E proof](investigations/hardware-runs/shaker-e-0080-positive-r5-reentry-2026-11-04.md),
+  [S state and reference limits](investigations/hardware-runs/shaker-s-history-2026-11-04.md).
 - DSC4 credit colons are visible on CRTC 0/1 after `db4be80`; the unchanged
   bottom row matches all 768 pixels of the uncropped AmSpirit reference, outside
   its default viewport. Monitor bounds remain B1 work. Type 0's old-mode partial
   pixel at a mixed-mode boundary remains a failure. A genuine R3.JIT control
   also finds wrong first-pixel bits on 0→1 for both types; 1→2 suffixes pass,
-  while blank release is early on both. JIT2→0 additionally fails the source-required old-byte pen on both types,
-  while its non-aliased successor and fixed controls pass. No mode timing fix
-  is selected.
+  while blank release is early on both. JIT 2→0 additionally fails the source-required
+  old-byte pen on both types, while its non-aliased successor and fixed controls pass.
+  An asset-free current-T80 baseline has 12 source-derived failures among 56
+  controls; the frozen candidate passes all 56, including Mode3, and the existing
+  fast GA controls. Removing proof-only stored metadata preserves all captured
+  fields. Eight genuine same-numeric JIT controls also pass. Independent review and
+  lifecycle checks remain;
+  production GA timing is unchanged.
   [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
   [mode boundary](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
@@ -138,10 +130,12 @@ our closest software reference, not the hardware oracle.
   Space can advance across handler entry. Avoid blind full-walk timing retries.
   [Package audit](investigations/hardware-runs/shaker-package-audit-2026-11-03.md),
   [D3 caller](investigations/hardware-runs/shaker-d3-held-space-2026-11-04.md).
-- DT's snapshot replay has a different vertical phase after bypassing its one-time
-  synchronizer. Full reproduces one band; Raw CRT crops the picture without
-  settling the cause. Reproduce the caller phase before assigning the difference
-  to functional timing or display acquisition. [DT evidence](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
+- DT still shows one middle band at `02F8/02FA` on current `e24cb50` in Full.
+  The original 14-page targeted run completes without failures. Authentic
+  current-T80 replay and AmSpirit show both bands; the replay carries both
+  through motherboard acquisition. A default-off native state/VS/GA-blank trace
+  is being prepared to locate the divergence. No filter repair is selected.
+  [DT evidence](investigations/hardware-runs/shaker-dt-blank-boundary-2026-11-04.md).
 - B1 display ownership and applied-mode observability remain open; native
   screenshots omit the OSD. B6 still needs physical HDMI/CRT acceptance and a
   CPU-generated stuck-high raw-sync recipe. The available trace and format-2

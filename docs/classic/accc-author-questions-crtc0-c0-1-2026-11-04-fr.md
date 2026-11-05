@@ -6,7 +6,9 @@ Cette question est distincte de celle sur C5 du CRTC1.
 Note de préparation : la question précédente sur l’entrée forcée à C0=1 a été
 retirée après lecture combinée des §§11.2.2,12.2 et13.2.4 (notamment p108).
 Le [rapport de vérification](../investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md)
-conserve cette distinction ; le correctif correspondant reste en cours.
+conserve cette distinction. L’entrée forcée et la restauration de R9 sur sa
+première ligne sont désormais validées en simulation et sur MiSTer (26/28
+contrôles E6 conformes). Seule la restauration ultérieure de R4 reste ici en question.
 
 Bonjour,
 

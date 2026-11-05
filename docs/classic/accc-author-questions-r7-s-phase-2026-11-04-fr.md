@@ -41,15 +41,17 @@ la mesure qui autorise les deux valeurs ? Nous ne proposons pas une tolérance
 sans confirmation. CPCSyntaxError 0.12 donne4E40, ce qui correspond au programme,
 mais ne suffit donc pas à qualifier une concordance exacte avec cette photo.
 
-Indépendamment de cette petite différence, notre cœur donne4E40 en entrée
-directe et0640 après le parcours canonique; un changement de publication VSYNC
-d'un Pixel-M2 donne5060 après ce même parcours. Un autre RBF avec la même
-logique CRTC1 donne0440 ; la phase d’entrée reste donc à qualifier avant
-attribution causale à ce seul changement. Une observation FPGA passive conserve exactement les résultats direct4E40/
-parcours0440 et révèle une gestion additionnelle déjà active à l’entrée de S,
-avec C5=24 avant R5=8. Ce ne sont pas des mesures du CPC. Le défaut distinct
-de comptage IVM pendant l’ajustement est spécifié par §11.8 p93 et fait l’objet
-d’une correction ; la phase de C5 reste dans la question séparée. L’index public CE_B/02CA ne liste que les CRTC3/4 au4novembre. Existe-t-il
+Le cœur donne désormais4E40 en entrée directe et après le parcours canonique,
+sur deux synthèses distinctes, après correction du comptage IVM pendant
+l’ajustement (§11.8 p93). Une sonde passive observe aussi l’arrivée sans
+ajustement actif/C5=0 avant S ; aucune remise à zéro spéciale de C5 n’a été
+ajoutée. Le grand écart numérique antérieur est donc résolu sur ces parcours
+et ne motive plus une question matérielle séparée. Les mesures historiques
+restent dans le [rapport daté](../investigations/hardware-runs/shaker-s-history-2026-11-04.md).
+
+## Référence CE_B/02CA
+
+L’index public CE_B/02CA ne liste que les CRTC3/4 au4novembre. Existe-t-il
 une référence CRTC1 pour cette seconde page, ou un état de sortie E à vérifier
 avantP/S ?
 
