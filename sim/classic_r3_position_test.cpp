@@ -10,6 +10,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 using namespace std;
 namespace {
@@ -132,7 +133,9 @@ struct Bench {
   for(unsigned n=0;n<8192;n++){a.push_back(tick());need(stage==capturedStage,"next CPU width arrived before complete window");}watch=false;
   if(border)need(visible==12&&ink11&&ink12,"all fixed-window accepted border latches");return a;
  }
- void active(){until([&]{return armed&&d.c4==6&&d.c9==0&&d.c0==20;},3000000,"fixed active source point absent");setup();}
+ // END can precede the first fully programmed field after a CPU/CRTC reset.
+ // Qualify a natural frame after idle before requiring visible source pixels.
+ void active(){until([&]{return armed&&frames>=1&&d.c4==6&&d.c9==0&&d.c0==20;},3000000,"fixed active source point absent");setup();}
  void nonzero(){need(d.c4==6&&d.c9==0&&d.c0==20,"predetermined nonzero opportunity");for(unsigned x:rawPast)need(x==32||x==42,"preceding programmed nonzero native pixels");}
  void mode(unsigned n){d.filter_request=n;until([&]{return d.applied_mode==n;},2000000,"public mode commit absent");run(8192);}
  vector<uint8_t> save(){
@@ -169,6 +172,239 @@ void edges(const vector<Pixel>& a,const vector<Pixel>& b){
  }
 }
 
+struct RelockProgram {
+ vector<uint8_t> rom = vector<uint8_t>(16384, 0xff);
+ unsigned r2PC = 0, r3PC = 0, loopPC = 0;
+ RelockProgram(unsigned warm, unsigned target, unsigned r2) {
+  unsigned a = 0x100;
+  auto e = [&](unsigned x) { rom.at(a++) = uint8_t(x); };
+  auto io = [&](unsigned p, unsigned v) {
+   e(1); e(p); e(p >> 8); e(0x3e); e(v); unsigned pc = a; e(0xed); e(0x79); return pc;
+  };
+  rom[0] = 0xc3; rom[1] = 0; rom[2] = 1;
+  e(0xf3); e(0x31); e(0xf0); e(0xbf);
+  const unsigned regs[] = {63, 40, 48, warm, 38, 0, 25, 30, 0, 7, 0, 0, 0x30, 0};
+  for (unsigned n = 0; n < 14; n++) { io(0xbc00, n); io(0xbd00, regs[n]); }
+  io(0x7f00, 0); io(0x7f00, 0x4b); io(0x7f00, 1); io(0x7f00, 0x4c);
+  io(0x7f00, 16); io(0x7f00, 0x52); io(0x7f00, 0x82); io(0xf700, 0x82);
+  e(1); e(0); e(0xf5); e(0x16); e(4); unsigned low = a;
+  e(0xed); e(0x78); e(0x1f); e(0x38); e(0xfb);
+  e(0xed); e(0x78); e(0x1f); e(0x30); e(0xfb);
+  e(0x15); e(0x20); e(uint8_t(int(low) - int(a + 1)));
+  e(0xed); e(0x78); e(0x1f); e(0x38); e(0xfb); // following VSfall
+  e(0x11); e(128); e(0); unsigned coarse = a;
+  e(0x1b); e(0x7a); e(0xb3); e(0x20); e(uint8_t(int(coarse) - int(a + 1)));
+  io(0xbc00, 2); r2PC = io(0xbd00, r2);
+  io(0xbc00, 3); r3PC = io(0xbd00, target);
+  io(0x7f00, 16); loopPC = a;
+  e(0x3e); e(0x4b); e(0xed); e(0x79);
+  e(0x3e); e(0x4c); e(0xed); e(0x79);
+  e(0x18); e(uint8_t(int(loopPC) - int(a + 1)));
+ }
+};
+
+struct RelockTimelineSample {
+ uint8_t ga;
+ bool hs, vs, de, ode, hb, vb, blank;
+ uint8_t c0, c4, c9;
+ bool operator==(const RelockTimelineSample& o) const {
+  return ga == o.ga && hs == o.hs && vs == o.vs && de == o.de && ode == o.ode &&
+         hb == o.hb && vb == o.vb && blank == o.blank &&
+         c0 == o.c0 && c4 == o.c4 && c9 == o.c9;
+ }
+};
+
+struct RelockAcceptedEvent {
+ uint32_t relTick;
+ uint8_t c0, c4, c9, target, data;
+ bool operator==(const RelockAcceptedEvent& o) const {
+  return relTick == o.relTick && c0 == o.c0 && c4 == o.c4 && c9 == o.c9 &&
+         target == o.target && data == o.data;
+ }
+};
+
+struct RelockResult {
+ string name;
+ unsigned warm = 0, target = 0, r2 = 0;
+ unsigned visible = 0, accept11 = 0, accept12 = 0;
+ unsigned rawEdges = 0, pubEdges = 0;
+ unsigned mismatch = 0, historyBad = 0;
+ unsigned complete = 0;
+ uint64_t window = 0, transition = 0, firstComplete = 0;
+ vector<RelockTimelineSample> timeline;
+ vector<RelockAcceptedEvent> acceptedLedger;
+};
+
+struct RelockBench {
+ Vclassic_mode_boundary_top d;
+ RelockProgram prog;
+ string name;
+ unsigned warm, target, r2;
+ vector<uint8_t> ram = vector<uint8_t>(0x800000, 0xff);
+ array<unsigned, 8> history{};
+ uint64_t tick = 0, r2Tick = 0, transition = 0, firstComplete = 0, rawStart = 0, window = 0;
+ unsigned pc = 0, visible = 0, accept11 = 0, accept12 = 0;
+ unsigned rawEdges = 0, pubEdges = 0, mismatch = 0, historyBad = 0;
+ unsigned complete = 0, vsAfter = 0, warmVS = 0;
+ uint64_t modeEvents = 0, readyLow = 0;
+ bool ins = false, wr = false, oldHS = false, oldVS = false, oldPal = false;
+ bool eligible = false, seenLoop = false, capturing = false, prevScore = false;
+ unsigned prevGA = 0, prevPub = 0;
+ vector<RelockTimelineSample> timeline;
+ vector<RelockAcceptedEvent> acceptedLedger;
+
+ RelockBench(string n, unsigned w, unsigned t, unsigned r)
+  : prog(w, t, r), name(n), warm(w), target(t), r2(r) {
+  copy(prog.rom.begin(), prog.rom.end(), ram.begin());
+  d.crtc_type = 1; d.pause = 0; d.filter_request = 0; d.save_req = 0;
+  d.cart_ack = 0; d.cart_dout = 255; d.sna_download = 0; d.load_wr = 0;
+  d.load_addr = 0; d.load_data = 0; d.reset_btn = 1;
+ }
+
+ void step() {
+  d.clk = 0; d.eval();
+  d.mem_din = ram.at(d.mem_addr);
+  unsigned va = 0x20000 + unsigned(d.video_addr) * 2;
+  d.video_word = ram.at(va) | (unsigned(ram.at(va + 1)) << 8);
+  d.eval();
+
+  unsigned c0 = d.c0, c4 = d.c4, c9 = d.c9;
+  bool ce = d.ce16;
+
+  if (!d.owner_reset && d.cpu_insn_start && !ins) {
+   pc = d.cpu_addr;
+   if (pc == prog.loopPC) seenLoop = true;
+  }
+  ins = d.cpu_insn_start;
+
+  if (!d.owner_reset && d.crtc_data_write && !wr) {
+   if (pc == prog.r2PC) {
+    r2Tick = tick;
+    need(d.crtc_reg == 2 && d.crtc_data == r2, "actual transition R2 order/data");
+    need(!d.raw_vs && !d.raw_hs && c0 < 48 && d.filter_size == 256 && !d.filter_nohs, "ordinary R2 write after period training");
+    need(d.r3_value == warm && warmVS >= 4, "warm CRTC R3 before R2 step");
+   }
+   if (pc == prog.r3PC) {
+    transition = tick;
+    need(r2Tick && d.crtc_reg == 3 && d.crtc_data == target && d.r2_value == r2, "actual transition R3 order/data");
+    need(!d.raw_vs && d.filter_size == 256 && !d.filter_nohs, "R3 transition outside VS/training");
+   }
+  }
+  wr = d.crtc_data_write;
+
+  if (transition) {
+   need(!d.owner_reset && !d.sna_download && !d.sna_load && !d.filter_commit, "no reset/SNA/filter/context clear across relock");
+  }
+
+  bool accept = d.border_accept || d.ink_accept;
+  if (capturing && accept && !oldPal) {
+   bool witness = (c0 >= 8 && c0 <= 31);
+   if (witness) {
+    need(d.border_accept && !d.ink_accept && d.palette_target == 16 &&
+         (d.palette_data == 11 || d.palette_data == 12) &&
+         !d.raw_de && !d.outgoing_de && !d.selected_hb && !d.selected_vb && !d.force_blank,
+         "actual visible accepted BORDER input");
+    if (d.palette_data == 11) accept11++;
+    if (d.palette_data == 12) accept12++;
+    acceptedLedger.push_back({uint32_t(tick - window), uint8_t(c0), uint8_t(c4), uint8_t(c9), uint8_t(d.palette_target), uint8_t(d.palette_data)});
+   }
+  }
+  oldPal = accept;
+
+  if (ce) {
+   for (unsigned i = 7; i > 0; i--) history[i] = history[i - 1];
+   history[0] = d.classic_rgb;
+  }
+
+  if (d.mem_wr && !d.owner_reset && !d.reset_btn) ram.at(d.mem_addr) = d.mem_dout;
+
+  d.clk = 1; d.eval();
+
+  if (!oldVS && d.raw_vs) {
+   warmVS++;
+   if (transition) vsAfter++;
+  }
+  oldVS = d.raw_vs;
+
+  if (!oldHS && d.raw_hs) {
+   rawStart = tick;
+   eligible = transition && (tick > transition) && (d.r3_value == target);
+  }
+  if (oldHS && !d.raw_hs) {
+   if (eligible) {
+    need(tick - rawStart == target * 64, "first/subsequent complete post-write target raw pulse width");
+    complete++;
+    if (!firstComplete) firstComplete = tick;
+   }
+  }
+  oldHS = d.raw_hs;
+
+  if (capturing && ce) {
+   timeline.push_back({
+    uint8_t(d.classic_rgb),
+    bool(d.raw_hs), bool(d.raw_vs),
+    bool(d.raw_de), bool(d.outgoing_de),
+    bool(d.selected_hb), bool(d.selected_vb),
+    bool(d.force_blank),
+    uint8_t(d.c0), uint8_t(d.c4), uint8_t(d.c9)
+   });
+  }
+
+  bool score = capturing && ce && (c0 >= 8 && c0 <= 31);
+  if (score) {
+   need(firstComplete && tick > firstComplete && !vsAfter && !d.raw_vs &&
+        d.r3_value == target && d.r2_value == r2 && d.applied_mode == 0 &&
+        d.filter_size == 256 && !d.filter_nohs &&
+        !d.raw_de && !d.outgoing_de && !d.selected_hb && !d.selected_vb && !d.force_blank,
+        "coherent width/complete-pulse/BORDER/Full-visible tuple");
+   need((d.classic_rgb == 32 || d.classic_rgb == 42) &&
+        (d.public_rgb == 32 || d.public_rgb == 42),
+        "programmed BORDER colors in raw/public outputs");
+   visible++;
+   mismatch += (d.public_rgb != d.classic_rgb);
+   historyBad += (d.public_rgb != history[7]);
+   if (prevScore) {
+    rawEdges += (prevGA != d.classic_rgb);
+    pubEdges += (prevPub != d.public_rgb);
+   }
+   prevGA = d.classic_rgb;
+   prevPub = d.public_rgb;
+  }
+  if (ce) prevScore = score;
+
+  modeEvents += d.mode_sync;
+  readyLow += !d.ready;
+  d.clk = 0; d.eval();
+  tick++;
+ }
+
+ RelockResult run() {
+  for (unsigned n = 0; n < 1024; n++) step();
+  d.reset_btn = 0;
+  unsigned timeout = 9000000;
+  while (!(transition && seenLoop && d.c4 == 34 && d.c9 == 2 && d.c0 == 0)) {
+   need(timeout > 0, "fixed post-transition natural capture boundary absent");
+   timeout--;
+   step();
+  }
+  need(firstComplete && complete >= 4 && !vsAfter && d.filter_size == 256 &&
+       d.applied_mode == 0 && d.requested_mode == 2 && d.effective_decode == 4 &&
+       modeEvents > 10 && readyLow > 0,
+       "fixed capture input/mode/nonvacuity setup");
+  window = tick;
+  timeline.reserve(2048);
+  capturing = true;
+  for (unsigned n = 0; n < 8192; n++) step();
+  capturing = false;
+  need(visible == 768 && accept11 > 0 && accept12 > 0 && rawEdges > 0 && pubEdges > 0 &&
+       !vsAfter && complete >= 6,
+       "fixed visible BORDER nonvacuity and no context/VS cancellation");
+  return {name, warm, target, r2, visible, accept11, accept12, rawEdges, pubEdges,
+          mismatch, historyBad, complete, window, transition, firstComplete,
+          std::move(timeline), std::move(acceptedLedger)};
+ }
+};
+
 }
 int main(int argc,char**argv){
  Verilated::commandArgs(argc,argv);cout<<unitbuf;
@@ -204,5 +440,66 @@ int main(int argc,char**argv){
   h.source_class();h.probe=Bench::Delayed;h.active();h.nonzero();auto four=h.save();h.restore(four,4);h.restore(six,6);
   need(staticRuns==6&&rapidRelations==6&&anchors==10,"fixed owner coverage count");
   cout<<"classic-r3-position: PASS12 callers; BORDER0/752; both types visible0/1520 DE0/80+0/144; 16 old rawGA/VRAM streams; 10 public5/6 anchors; 6 rapid relations; public nonzero reset/Full-rearm; loader-reset SNA4to4+4to6\n";
+
+  // Combined R2 relocation and R3 width transition regression:
+  // Full width6 publicRGB must follow rawGA after complete new width6 raw pulses.
+  struct RelockCase { string name; unsigned warm, target, r2; };
+  const RelockCase relockCases[] = {
+   {"positive4_fixed", 4, 4, 48},
+   {"bypass6_fixed", 4, 6, 48},
+   {"relocate6", 6, 6, 49},
+   {"relocate4", 4, 4, 49},
+   {"MAIN_4to6_relocate", 4, 6, 49}
+  };
+  vector<RelockResult> relockResults;
+  relockResults.reserve(5);
+  for (const auto& c : relockCases) {
+   RelockBench b(c.name, c.warm, c.target, c.r2);
+   relockResults.push_back(b.run());
+  }
+
+  const auto& pos4 = relockResults[0];
+  const auto& bypass6 = relockResults[1];
+  const auto& relocate6 = relockResults[2];
+  const auto& relocate4 = relockResults[3];
+  const auto& mainCase = relockResults[4];
+
+  need(pos4.acceptedLedger.size() == 14, "14 visible accepted BORDER latches expected");
+  need(pos4.accept11 == 8 && pos4.accept12 == 6, "exact accepted BORDER 11/12 count");
+  for (size_t i = 1; i < relockResults.size(); i++) {
+   need(relockResults[i].acceptedLedger == pos4.acceptedLedger,
+        "visible accepted-input ledger mismatch for caller " + relockResults[i].name);
+  }
+
+  need(mainCase.timeline.size() == 2048 && relocate6.timeline.size() == 2048, "complete 2048-sample capture window");
+  need(mainCase.timeline == relocate6.timeline,
+       "MAIN and relocation control rawGA/visibility timeline mismatch");
+
+  need(pos4.historyBad == 0 && pos4.mismatch > 0,
+       "positive4 control must follow 8-dot history (historyBad=0, mismatch>0)");
+  need(pos4.rawEdges > 0 && pos4.pubEdges > 0,
+       "positive4 control must exercise actual edge transitions, not uniform color");
+
+  need(bypass6.mismatch == 0, "bypass6_fixed control must pass zero public/rawGA mismatch");
+  need(bypass6.historyBad > 0, "bypass6_fixed control history8 mismatch");
+
+  need(relocate6.mismatch == 0, "relocate6 control must pass zero public/rawGA mismatch");
+  need(relocate6.historyBad > 0, "relocate6 control history8 mismatch");
+
+  need(relocate4.historyBad == 0 && relocate4.mismatch > 0,
+       "relocate4 control must follow 8-dot history (historyBad=0, mismatch>0)");
+  need(relocate4.rawEdges > 0 && relocate4.pubEdges > 0,
+       "relocate4 control must exercise actual edge transitions, not uniform color");
+
+  cout << "classic-r3-position: relock controls PASS ("
+       << "positive4 mismatch=" << pos4.mismatch << "/768 historyBad=" << pos4.historyBad
+       << ", bypass6 mismatch=" << bypass6.mismatch << "/768 historyBad=" << bypass6.historyBad
+       << ", relocate6 mismatch=" << relocate6.mismatch << "/768 historyBad=" << relocate6.historyBad
+       << ", relocate4 mismatch=" << relocate4.mismatch << "/768 historyBad=" << relocate4.historyBad
+       << "); MAIN mismatch=" << mainCase.mismatch << "/768\n";
+
+  need(mainCase.mismatch == 0,
+       "MAIN width6 public/rawGA identity mismatch: " + to_string(mainCase.mismatch) + "/768 visible samples");
+  cout << "classic-r3-position: PASS 17 callers (12 existing + 5 R2/R3 relock)\n";
  }catch(const exception&e){cerr<<"classic-r3-position: FAIL "<<e.what()<<'\n';return 1;}
 }

@@ -62,9 +62,10 @@ our closest software reference, not the hardware oracle.
   [VSYNC proof and native result](investigations/hardware-runs/crtc0-r4-switch-vsync-2026-11-04.md),
   [forced-entry source distinction](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md),
   [unsent C0 question](classic/accc-author-questions-crtc0-c0-1-2026-11-04-fr.md).
-  A timing-preserving AmSpirit control removes exactly four lines from case 27
-  while preserving the original OUT phases; it strengthens the coupled-rematch
-  question without selecting a physical rule. [Stimulus qualification](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md).
+  Timing-preserving AmSpirit controls isolate the interaction: R9=3/7 gives
+  the same result with R4=38, but four/eight additional lines with R4=39.
+  All OUT phases match; the matrix sharpens the unsent question without
+  selecting a physical rule. [Stimulus qualification](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md).
 - C1 E=`0080`/P=`26` and the S history residual have bounded native acceptance.
   The corrected history and direct paths now have matching R5/R7/exit state;
   changed raster captures match previously inspected views. The physical S
@@ -99,7 +100,9 @@ our closest software reference, not the hardware oracle.
   The measured VS reanchor stretch is inside both blank windows in its qualified
   case. Physical oscillation and settling remain unproved. A separate qualified
   R2/R3 interaction probe finds stale width4 RGB history after complete width6
-  pulses; its correction remains private. [D7 proof and bounds](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md).
+  pulses. The reviewed metadata correction separates width measurement from
+  acquisition phase; public17, R2, lint and46 selected benches pass. Full
+  synthesis/native acceptance for this new transport are pending. [D7 proof and bounds](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
   publication is a separate correction. Fresh CPCSyntaxError B6 matches hardware
   and supplies a carry-ordering clue, without a physical aperture. Coherent

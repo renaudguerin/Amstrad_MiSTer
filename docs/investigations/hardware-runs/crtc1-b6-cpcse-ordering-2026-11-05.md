@@ -26,3 +26,6 @@ against the required `9/5`. B6's character ordering alone is compatible with
 such deferral, but the optical constraint rules out the common model. No new
 R7 timing rule or numeric delay is selected; the remaining question is which
 comparison visibility ordering can satisfy both observations.
+
+
+Additional read-only peer-source retrieval checks current CPCEC `c025aab`, Caprice32 `a0d78f0` and konCePCja `f15cdcd`. Root verifies commits and direct R7/row-update anchors. CPCEC compares current crtc_count_r4 (cpcec.c343–345); konCePCja compares current vcc with an equality-edge latch (src/hw/crtc.cpp120–127,273–277). Caprice identifies its controller as Type0 and has no executed crtc_type selector; its cap32.cpp679–688 C0>=2 gate is not CRTC1 evidence. No B6 run is performed in those peers. The helper’s universal scheduling/physical-/WR/quantization conclusions are rejected as unsupported, with the original report and parent assessment preserved in `r7-peer-ordering-sources/`. These source anchors do not resolve the physical question or justify changing the author draft.

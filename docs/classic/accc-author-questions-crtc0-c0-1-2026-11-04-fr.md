@@ -21,14 +21,25 @@ programme attend000E. CPCSyntaxError0.12 donne également0055/02D6 ;
 son résultat ne fournit donc pas une règle alternative validée. AmSpirit1.17.1
 reproduit0065/000E avec le même programme, mais nous cherchons la règle matérielle.
 
-Un contrôle AmSpirit garde exactement les instructions et délais du cas27,
-mais remplace seulement les deux opérandes pour conserver R4=38 et R9=7.
-Il donne0055 au lieu de0065 ; les horodatages des huit bornes avant/après OUT
-ont la même phase à une trame près, et la sortie de scrutation avance de256µs,
-soit quatre lignes. Il s’agit d’une observation logicielle, pas d’une preuve
-matérielle. Le [relevé détaillé](../investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md)
-conserve les intervalles et limites ; l’ouverture exacte C0≤2 de R5 n’est pas
-mesurée directement.
+Dans AmSpirit, nous avons conservé toutes les instructions et tous les délais
+du cas27, en ne changeant que les deux opérandes R4/R9. Les deux OUT restent
+présents dans les quatre combinaisons ; R5=22 et R7=0 restent identiques :
+
+| R4 écrit | R9 écrit | Résultat HL |
+|---:|---:|---|
+|38|7|0055|
+|38|3|0055|
+|39|7|0075|
+|39|3|0065|
+
+Les huit bornes avant/après OUT et les deux ancres de scrutation ont la même
+phase, à une trame de19968µs près. Dans ce stimulus, la valeur de R9 n’a donc
+d’effet observé que lorsque R4 est rétabli à39. Par rapport à R4=38, le retard
+supplémentaire est512µs pour R9=7, ou256µs pour R9=3 : huit ou quatre lignes
+de64µs. Ces observations logicielles ne prouvent ni la transition interne
+C4/C9/R5 ni l’ouverture C0≤2 de R5. Le
+[relevé détaillé](../investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md)
+conserve les identités, les bornes et ces limites.
 
 Pour isoler la règle sans supposer notre phase d’exécution exacte : R0=63,
 R8=0,R4=38,R9=7,R5=22, puis entrée normale en ajustement à(C4,C9)=(39,0).

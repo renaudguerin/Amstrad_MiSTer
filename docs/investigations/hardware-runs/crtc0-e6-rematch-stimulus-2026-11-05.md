@@ -99,3 +99,19 @@ The existing26/28 native tally and remaining0055/02D6 are unchanged.
 The next useful external input is the precise post-entry transition from the
 author or matched original-hardware observation. Emulator agreement alone
 cannot choose between the one-shot and re-arm policies.
+
+
+## One-operand controls: isolate the R4/R9 interaction
+
+Two fresh normal boots use the same guarded driver and one immediate change each: R4-only restoresR9=7 while keepingR4=39; R9-only restoresR4=38 while keepingR9=3. Every instruction and both OUT strobes remain. Both complete once on the same1.17.1/core2491682/configuration and effectivefreq_screen1; published post-OUT CRTC registers confirm R5/R4/R9/R7. No hidden state or PC/CPU redirect is used.
+
+|R4 after OUT|R9 after OUT|HL result|Poll exit relative to original|
+|---:|---:|---|---:|
+|38|7|0055 (existing guard)|−256µs|
+|38|3|0055|−256µs|
+|39|7|0075|+256µs|
+|39|3|0065 (original)|0|
+
+Both new runs have all ten sync/OUT anchors at exactly the original timestamps. The old guard’s anchors differ by one19968µs frame. After that normalization, R4=39 adds512µs whenR9=7 or256µs whenR9=3, compared with the R4=38 corner. The observed R9 sensitivity is conditional on the restored R4 value in this four-corner stimulus; this is consistent with eight/four64µs lines, without proving which internal counter transition produces them. It is more specific than the original two-operand comparison, and does not independently qualify the R5 admission aperture or a physical rule.
+
+Private `c0-rematch-factorial/` preserves the pre-execution plan, two single-operand drivers,56 artifact hashes, all ordered states/operations and RESULT.json with phase and published-value checks. Scripts/breakpoints are cleared and AmSpirit is paused after R9-only at65C9. The unsent French question now includes the matrix; no RTL or native26/28 tally changes.

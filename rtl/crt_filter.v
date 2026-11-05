@@ -41,8 +41,8 @@ module crt_filter
 
 wire resync = 1;
 reg hs4,shift;
-// PRIVATE bounded measured-pair output phase experiment. The original
-// period/width reference and its metadata remain independent of this offset.
+// PRIVATE bounded measured-pair output phase experiment. The legacy
+// period/SHIFT reference remains independent of this output offset.
 reg legacy_hsync;
 reg phase_epoch, phase_pair_valid;
 reg signed [10:0] phase_first, phase_pending, phase_active;
@@ -182,6 +182,38 @@ end
 
 wire hsync_i = no_hsync ? hsync : (HSYNC_I & ~hsync_mask);
 
+// RGB-only metadata follows complete pulses in the existing admitted stream.
+// Seed1 counts the rise sample; a fall16 CE4 later observes width16.
+// Saturation prevents a long pulse wrapping into the ordinary4 bin.
+reg rgb_meta_old_hs, rgb_meta_open, rgb_meta_real;
+reg [5:0] rgb_meta_width;
+initial begin
+    rgb_meta_old_hs = 0; rgb_meta_open = 0; rgb_meta_real = 0;
+    rgb_meta_width = 0;
+end
+always @(posedge CLK) begin : rgbmetadata
+    if (CE_4) begin
+        rgb_meta_old_hs <= hsync_i;
+        if (!rgb_meta_old_hs && hsync_i) begin
+            rgb_meta_open <= 1;
+            rgb_meta_width <= 6'd1;
+            rgb_meta_real <= !no_hsync;
+            if (!no_hsync) START_GEN <= ~START_GEN;
+        end else if (rgb_meta_open && hsync_i && !(&rgb_meta_width)) begin
+            rgb_meta_width <= rgb_meta_width + 1'd1;
+        end
+        // Fallback pulses may close metadata, but never claim a raw4 class.
+        if (no_hsync) rgb_meta_real <= 0;
+        if (rgb_meta_old_hs && !hsync_i && rgb_meta_open) begin
+            EXTRA_BYTE <= rgb_meta_real && !no_hsync &&
+                          (rgb_meta_width == 6'd16);
+            END_GEN <= ~END_GEN;
+            rgb_meta_open <= 0;
+            rgb_meta_real <= 0;
+        end
+    end
+end
+
 assign SYNC_OBSERVATION = {syncs, hSyncReg, hsync_mask, no_hsync, SHIFT, hs4, hSyncSize};
 
 
@@ -213,7 +245,6 @@ always @(posedge CLK) begin : syncgen
 				hSyncCount = 0;
 				if(~old_hsync & hsync_i) begin
 					hSyncReg <= 1;
-					if (!no_hsync) START_GEN <= ~START_GEN;
 				end
 			end
 			
@@ -235,16 +266,13 @@ always @(posedge CLK) begin : syncgen
 			else if(~old_hsync & hsync_i) begin
 				hSyncCount = 0;
 				hSyncReg <= 1;
-				if (!no_hsync) START_GEN <= ~START_GEN;
 			end
 		end
 
 		if(old_hsync & ~hsync_i & hSyncReg) begin
 			hSyncReg <= 0;
-			// hSyncCount already includes this CE_4 edge (blocking above).
-			// Replace every classification so short/other pulses cannot inherit it.
-			EXTRA_BYTE <= (hSyncCount == 4*4);
-			END_GEN <= ~END_GEN;
+			// This legacy SHIFT/hs4 count includes the current CE_4 edge
+			// through the blocking update above.
 			if(hSyncCount > 7*4) hs4 <= 0;
 			if((hSyncCount >= 4*4-1) && (hSyncCount < 6*4-1)) begin
 				if(hSyncCount == 4*4-1) hs4 <= 1;

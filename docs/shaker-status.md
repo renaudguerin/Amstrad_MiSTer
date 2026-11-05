@@ -35,7 +35,9 @@ private replay at fixed pixel coordinates; static Type0/Plus controls remain
 RGB-identical to `6cc52c3`. Named step/wave inputs execute, while D6 dynamic
 phase remains unqualified. This does not clear physical oscillation/settling.
 A new R2/R3 interaction probe exposes stale width4 RGB history after complete
-width6 pulses; its correction is private and the trial source remains frozen.
+width6 pulses. The reviewed independent-width metadata correction now passes
+public17/R2/lint/46 selected benches; its new full build/native acceptance are
+pending. The historical photo denominator remains unchanged.
 These results are separate from page/photo compliance counts ([D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md)).
 
 The updated-package CRTC 1 D walk on `5fba168` separately classified 127
