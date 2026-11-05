@@ -3,7 +3,8 @@
 Fresh-session handover as of 2026-11-05. Work order and acceptance gates are in
 [the roadmap](implementation-roadmap.md) and [backlog](backlog.md); review obligations
 are in [review debt](review-debt.md); the maintained execution and photo tally is
-in [SHAKER status](shaker-status.md). The prior handover is preserved as a
+in [SHAKER status](shaker-status.md), backed by the per-page
+[results ledger](shaker-results.csv). The prior handover is preserved as a
 [historical snapshot](archive/current-status-history-2026-11-04.md), with older
 history in the [September archive](archive/current-status-history-2026-09-21.md).
 Dated reports contain the evidence and bounds behind the current claims below.

@@ -95,11 +95,13 @@ NoSSMautocaptureinAmSpirit: onlyexplicitlater+settledPNGs, notten.
 RootAPIcheckfindsnoCRTCVSwidth/counters/PPIinpublishedcore2491682state;
 noAIcounterbreakpointguessing. ViewportbeamnotC0/C4/C9.
 
-Gem3.8high55250 ACTIVE run20261105T211341Z-90963-78c3 owns ONLY
+Gem3.8high55250 complete0/drained run20261105T211341Z-90963-78c3 owns ONLY
 `c1-009a-current/`: isolatedheadlessCPCSEdirectO, sourcecomparison/report.
 Runalreadycompletes10images1v3SNA in21.723emulatedseconds; rootviews009A
-BMPconvertedtoownnativefolder, alsofullnoise. Awaitfinalreportbeforeusing
-sourceclaims/hashes; notrackedwrites/devices/Git/providerchildrenauthorized.
+BMPconvertedtoownnativefolder, alsofullnoise. Root verifies13decisivehashes,
+acceptsfreshcaptureonly. StrongunconditionalstuckVMA/physicaldynamicclaims
+rejected: currentnativealreadydynamic andguestR1alternates63/64, noCPU/VMA
+traceorFrenchadjudication. ROOT-ASSESSMENT.md recordslimits; providerlogskept.
 
 RootAmSpirit44622 complete1/drained runs unchangedcanonicalA1prefixthrough009A,
 110SSMwaits/220instructions, onlyexplicitfinalimages. This is a singleknown
@@ -111,9 +113,28 @@ no009Acanonicalresult. Finallyclears/pauseverified; fullfailed-checkpointSNA/
 state/PNGpreserved. Do not blindlyretry/extendphase. AmSpiritpaused, scripts/
 bps empty; MiSTeridle/currentc093available.
 
+## User-requested numerical tally
+
+`docs/shaker-status.md` nowhas15CRTC/module rows plus totals, backedby
+tracked `docs/shaker-results.csv`:1390uniqueSSMpages (1350originalphotoIDs+
+40additionalexplicitcurrentauthorwaitIDs). Eachrow hasstatus/build/evidence/
+reason. C0totals4passing/1broken/256unknown/226stale=487;
+C1 361/2/64/53=480; C3 0/0/18/405=423. Oldacceptedphotomatchescarriedforward
+asuserallows, notfreshglobalbaseline. Staleincludesoldungraded/invalidcapture;
+partialwholepageverdictsunknown. C3BI/AEAR15namedobservableacceptances do
+notbecome15wholepagepasses. Onlyconfirmedbrokenpages:C0E60409(27/28),
+C1AI008D, B6019D. DIunreliablecaption/Sbinding/B9MIDremainunknown.
+C1A008E..91oldbroadPPImaskjudgmentssetstaleuntilindividualbitcheck.
+Fulloldstatussnapshotarchived; currenttiplinksCSV. All15rowarithmetic,
+1390keyuniqueness/categories/evidencelinkschecked. NoRTL/gatetouched.
+Useraskedfixscopeanddemoacceptance: R3sharedclassic0/1(simulatedboth),
+BTFnativefixedonlytestedC1; ASICseparatefix, allthreeDSC4/Amazinghavebounded
+sampledacceptance, nofull-demo ornewfullPlusbaseline. CSVforceaddrequired
+becauseexisting*.csvignore; thereaftertrackedupdatesnormal.
+
 ## Remaining order
 
-Await55250; inspectcanonicalreference009A partialstate and compareRAM/history before
+Inspectcanonicalreference009A partialstate and compareRAM/history before
 reclassifyingoldflag. No speculativeRTL. BTF/D9/AI/tallydocsdirty; finish
 checkpoint/push, no newgateforpuredocs.
 C0E6 cases27/28, B6 aperture, C1C5count/RFDlifetime remain evidence-gated
