@@ -25,7 +25,8 @@ instructions across handoffs and context compaction.
   passes all jobs, setup/hold0.316/0.243ns. Strong review now finds a fixed-mode
   border/ink-edge regression (G1); this artifact is held pending correction.
   Bounded C0/C1 DSC4/Amazing views
-  retain credits and visible effects; stronger source review remains debt.
+  retain credits and visible effects. The G1 correction now has strong source
+  clearance and awaits a replacement full build.
   A DSC4 horizontal-line transient also occurs on reference e24cb50 and still
   lacks matched physical/reference qualification. [Build and native bounds](investigations/hardware-runs/classic-ga-native-2026-11-05.md).
   Accepted functional reference e24cb50 retains native C0 E6 acceptance26/28;
@@ -75,10 +76,11 @@ our closest software reference, not the hardware oracle.
 - DSC4 credit colons are visible on CRTC0/1; its bottom-row difference is
   outside AmSpirit's default viewport. The remaining Type0 mixed-mode quarter
   and R3.JIT pixel/blank defects have an experimental GA candidate with retained
-  64 production-T80 pixel controls,72 snapshot lifecycle controls and46selected
-  benches passing. Full synthesis and bounded native comparisons pass. Stronger
-  source review remains [explicit debt](review-debt.md); diagnostic adoption
-  does not establish all phases or final release acceptance.
+  64 production-T80 pixel controls,80 snapshot/display-edge controls and46selected
+  benches passing. Strong Opus source review clears the corrected candidate;
+  a replacement full build and targeted native checks are pending. Diagnostic
+  adoption does not establish all phases or final release acceptance.
+  [G1 correction and bounds](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md).
   [Crop comparison](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md),
   [mode-boundary source/proof](investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
@@ -100,7 +102,8 @@ our closest software reference, not the hardware oracle.
   246 CRTC/46 selected passes and a re-minted unchanged-projection soak.
   Strong Opus source review accepts this bounded C1 change; synthesis and
   native verification remain pending. The
-  corrected current-T80 observational replay is running. [Current poll boundary](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
+  corrected current-T80 replay now gives0060/rawHL6/two polls with an identical
+  collected prefix through R7 acceptance; the baseline gives0050/rawHL5/one poll. [Current poll boundary](investigations/hardware-runs/crtc1-02da-current-poll-boundary-2026-11-05.md).
 - C1 DE/03B6's old missing-row symptom no longer reproduces on e24cb50:
   direct E and D9→E both show A/A/B, with all six E PNGs pixel-identical.
   FF/5F remains a separate machine-input difference. [Current recheck](investigations/hardware-runs/shaker-03b6-current-recheck-2026-11-05.md).

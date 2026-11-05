@@ -17,7 +17,7 @@ static unsigned restored_mode_contract(){unsigned failed=0;
  for(unsigned target=0;target<4;target++)for(unsigned held:{1u,9u}){
   auto ctx=std::make_unique<VerilatedContext>();auto d=std::make_unique<Vsna_lifecycle_top>(ctx.get());
   unsigned tick=0,events=0;std::vector<Sample> samples;
-  d->clk=0;d->reset_n=0;d->raw_hs=0;d->sna_load=0;d->sna_mode=0;d->ram_byte=0xb6;
+  d->display=1;d->clk=0;d->reset_n=0;d->raw_hs=0;d->sna_load=0;d->sna_mode=0;d->ram_byte=0xb6;
   for(unsigned i=0;i<5;i++)d->palette[i]=0;
   for(unsigned i=0;i<16;i++)d->palette[i/4]|=inks[i]<<((i%4)*8);
   d->palette[4]=4;
@@ -52,7 +52,7 @@ static unsigned fresh_byte_contract(){unsigned failed=0;
  const std::array<unsigned,16>inks={0,4,6,31,1,2,3,5,7,8,10,11,12,13,14,15};
  for(unsigned offset=0;offset<32;offset++)for(unsigned held:{1u,9u}){
   auto ctx=std::make_unique<VerilatedContext>();auto d=std::make_unique<Vsna_lifecycle_top>(ctx.get());
-  d->clk=0;d->reset_n=0;d->raw_hs=0;d->sna_load=0;d->sna_mode=0;d->ram_byte=0xff;
+  d->display=1;d->clk=0;d->reset_n=0;d->raw_hs=0;d->sna_load=0;d->sna_mode=0;d->ram_byte=0xff;
   for(unsigned i=0;i<5;i++)d->palette[i]=0;
   for(unsigned i=0;i<16;i++)d->palette[i/4]|=inks[i]<<((i%4)*8);d->palette[4]=4;
   unsigned tick=0;
@@ -77,4 +77,63 @@ static unsigned fresh_byte_contract(){unsigned failed=0;
  }
  std::cout<<"SNA_FRESH_BYTE_CONTRACT: "<<(failed?"MISMATCH":"PASS")<<" failing_cases="<<failed<<"/64\n";return failed;}
 
-int main(int argc,char**argv){Verilated::commandArgs(argc,argv);unsigned failed=restored_mode_contract();failed+=fresh_byte_contract();return failed?1:0;}
+
+// French ACCC v1.11 §9.1 p47: each byte contributes8Pixel-M2;
+// §17.1 p177: BORDER follows the complete displayed characters.
+// The firstpixel origin LOAD+8/12 is the existing fixed-byte oracle above.
+static unsigned display_edge_contract(){
+ unsigned failed=0;
+ const std::array<unsigned,16>inks={0,4,6,31,1,2,3,5,7,8,10,11,12,13,14,15};
+ const std::array<unsigned,16>rgb={21,1,13,62,63,9,43,35,47,33,40,42,32,34,44,46};
+ constexpr unsigned border_ink=18,border_rgb=8;
+ struct E{unsigned tick,rgb,req,active;bool ce,load,prefetch,buf,valid,event;};
+ for(unsigned mode=0;mode<4;++mode)for(unsigned initial:{0u,1u}){
+  auto ctx=std::make_unique<VerilatedContext>();auto d=std::make_unique<Vsna_lifecycle_top>(ctx.get());
+  unsigned tick=0;std::vector<E> samples;
+  d->display=initial;d->clk=0;d->reset_n=0;d->raw_hs=0;d->sna_load=0;d->sna_mode=0;d->ram_byte=0xff;
+  for(unsigned i=0;i<5;i++)d->palette[i]=0;
+  for(unsigned i=0;i<16;i++)d->palette[i/4]|=inks[i]<<((i%4)*8);d->palette[4]=border_ink;
+  auto clock=[&](bool capture=false){
+   d->clk=0;d->eval();bool ce=d->ce16,load=d->load,pref=d->prefetch,buf=d->buffered_display,valid=d->buffer_valid,event=d->mode_event;
+   d->clk=1;d->eval();if(capture)samples.push_back({tick,unsigned(d->rgb),unsigned(d->requested),unsigned(d->active),ce,load,pref,buf,valid,event});
+   d->clk=0;d->eval();++tick;ctx->timeInc(1);
+  };
+  for(unsigned i=0;i<64;i++)clock();d->reset_n=1;
+  for(unsigned n=0;n<32;n++){d->raw_hs=1;for(unsigned i=0;i<256;i++)clock();d->raw_hs=0;for(unsigned i=0;i<3840;i++)clock();}
+  d->sna_load=1;d->sna_mode=mode;clock();d->sna_load=0;
+  for(unsigned i=0;i<256;i++)clock();
+  const unsigned pen=mode==0?15:mode==2?1:3;
+  const unsigned before=initial?rgb[pen]:border_rgb,after=initial?border_rgb:rgb[pen];
+  if(d->requested!=mode||d->active!=mode||d->hcnt!=30||before==after||before==0||after==0)
+   throw std::runtime_error("DEfixed mode/palette/blank setup guard");
+  for(unsigned i=0;i<192;i++){clock();if(d->rgb!=before)throw std::runtime_error("DEfixed prefix lacks192stable masterclocks");}
+  for(unsigned i=0;!(d->ce16&&d->load);++i){if(i>128)throw std::runtime_error("DE real LOAD absent");clock();}
+  // One fixed public-input transition after a real LOAD, no phase search.
+  clock(true);clock(true);d->display=!initial;const unsigned changed=tick;
+  for(unsigned i=0;i<190;++i)clock(true);
+  unsigned pref=0,load=0,events=0;
+  for(const auto&s:samples){
+   events+=s.event;
+   if(s.tick>=changed&&s.prefetch&&!pref)pref=s.tick;
+   if(pref&&s.tick>pref&&s.ce&&s.load&&!load){
+    if(s.buf!=!initial||!s.valid)throw std::runtime_error("first DE LOAD has wrong incoming tag/validity");
+    load=s.tick;
+   }
+   if(s.req!=mode||s.active!=mode)throw std::runtime_error("DE mode changed inside fixed window");
+  }
+  if(!pref||!load||events||load>=changed+128||d->hcnt!=30)throw std::runtime_error("DE incoming-prefetch/LOAD qualification failed");
+  const unsigned expected=load+(mode==2?8:12);unsigned bad=0,first=0,observed=0;
+  for(const auto&s:samples){
+   const unsigned want=s.tick<expected?before:after;
+   if(s.rgb!=want){if(!bad)first=s.tick;bad++;}
+   if(!observed&&s.tick>=changed&&s.rgb==after)observed=s.tick;
+  }
+  std::cout<<"DISPLAY_EDGE mode="<<mode<<" direction="<<(initial?"exit":"entry")<<" prefetch="<<pref<<" LOAD="<<load
+           <<" expected_public_edge="<<expected<<" observed_public_edge="<<observed<<" before="<<before<<" after="<<after
+           <<" first_bad="<<first<<" RGB_bad="<<bad<<"/"<<samples.size()<<" actualMode="<<unsigned(d->active)<<"\n";
+  if(bad)failed++;
+ }
+ std::cout<<"DISPLAY_EDGE_CONTRACT: "<<(failed?"MISMATCH":"PASS")<<" failing_cases="<<failed<<"/8\n";return failed;
+}
+
+int main(int argc,char**argv){Verilated::commandArgs(argc,argv);if(argc==2&&std::string(argv[1])=="--display-edge-only")return display_edge_contract()?1:0;unsigned failed=restored_mode_contract();failed+=fresh_byte_contract();failed+=display_edge_contract();return failed?1:0;}

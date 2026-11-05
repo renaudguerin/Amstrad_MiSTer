@@ -1,8 +1,8 @@
-# Active unattended handover — 2026-11-05 05:46 UTC
+# Active unattended handover — 2026-11-05 06:30 UTC
 
 Continue known SHAKER and DSC4/Amazing fixes toward approximately90% weekly
 Codex usage; do not stop after one unit or launch the broad fresh baseline.
-Latest live OAuth05:33:34:70% weekly used, reset5Nov19:34UTC,3banked resets
+Latest live OAuth06:15:16:71% weekly used, reset5Nov19:34UTC,3banked resets
 untouched. No credits/overage/reset redemption. Work remains authorized while
 user sleeps; device released. Branch pushes/milestone builds authorized; no
 master integration, PR, release or author messages. No goal/wakeup configured.
@@ -15,83 +15,11 @@ reference remains`e24cb50`; completed DT evidence was pushed on
 
 ## Current GA unit
 
-Solhigh `/root/r3_output_model_scope` finished and released16ownedfiles.
-The two productionGA files EXACTLY match the final SNA-qualified private
-candidate: videoSHAc7ef950bef31560e09024afed329ca78392b743047568c09d6b88da55d27ae90,
-GASHA2d35d80a17d2a49b2344b3e01c7b197be47ec49485bb312ddeddf6821a5d9d77.
-No policy/oracle/phase/palette/input change during transport. Retained64 uses
-asset-free B18/productionT80/READY/publicRGB+blank guards; lifecycle8+64 retain
-public settled-mode/fresh-byte contracts. NarrowR3 setup/oldquarter required
-pass are the previously source-qualified changes. Test-only B18pause is0 in
-allothercallers; generatedadapter opens5verifiedunusedOUTPUTS, no broadmissingpin
-waiver/productiontesthook. Newslowtarget belongs to existing production-t80
-aggregate; no workflow edit. CRTC/T80/Plus/QSF/soakgolden unchanged.
+G1 correction is source-complete and independently accepted by Opus5.5 high follow-up `20261105T062119Z-89082-5616` (exit0, drained). It selects outgoing `u1005` at colour refresh; eight public DE edges fail before/pass after. Existing72 lifecycle cases and64 production-T80 controls remain green; final selection PASS46, no subsequent code edit. Root verified final three hashes against `ga-display-edge-proof/production-adoption/FINAL-SOURCE-HASHES.json`. Strong source debt is archived; full synthesis/timing/native checks remain open. Earlier90f3b18 artifact is held. Do not simplify identity epochs or retune caller phases. [Source proof](../hardware-runs/classic-ga-display-edge-2026-11-05.md).
 
-Proof (trust receipts, no code edit afterward):
+Full original-O current-T80 candidate completes0060/HL6/two polls versus baseline0050/HL5/one poll. All2912writes/5markers/10keys are identical; collected prefix matches through R7 acceptance. MID source review is clear; native all-row check remains pending. No active CPU replay.
 
-- `make -C sim classic-mode-boundary-test`:64/64PASS, fatalmissingpin/no waiver.
-- `make -C rtl/GA40010 sna-lifecycle-test`:8+64PASS.
-- Shared B18/ASIC3owners PASS (B18coldfetch+6captures/hostpublication,
-  ASIC7terminals,2modewindows+151lifecyclecontrols).
-- `python3 sim/select_tests.py --run`:**PASS46benches** after last edit.
-
-Frozen pack`ga-experimental-integration/`: FINAL-SOURCE-HASHES.json SHA
-7693c94fd950635f6b64312b226f629dc16419eba7101d9556eee60f25976a24;
-integration.diffSHA7b0e556d13284e38cc478127154336e4986f14085cf5787f80e6b00f147ac078.
-Root verified16hashes/read full source/interface/testdelta and all646protected
-files were intact before root docs edits. Don't rerun the globalprotectedguard
-just because root nowchangedownedhandover/docs; check16codehashes for acceptance.
-
-Fresh Gemini3.8high LIMITEDintegration review91102/run033306completed0/drained,
-no blocking porting finding. Logs/parentassessment in`ga-experimental-review/`.
-Provider line anchors are unreliable; parentreadactualdiff. This is NOT strong
-serializer architectural approval. Explicitstrongreviewdebt is added to
-[review debt](../../review-debt.md) before the experimentalcommit. Opus5.5high
-firstboundedpostpauseattempt025740 failed401expiredOAuth, no review ran, logs
-preserved`r3-production-clean-review/strong-provider-log/`. User refreshed interactiveClaude login;05:41 live5h0%/weekly15% verified.
-Fresh strong GA+MID Opusreview71132/run20261105T054304Z-77737-502a is active. Pause/lastpublishedreset
-were past before thatoneattempt; telemetry remainsunknown. No overage/retryloop.
-Argon93.6%weekly:no calls. LatestGeminiweekly03:23:52used52.49%; routineGem3healthy.
-
-Experimental90f3b18 is committed/pushed. Full41964150943/artifact13386879496/
-build377 ALLSUCCESS, clean17.0.2.602,7setup/7hold/TNS0,min.316/.243ns.
-S/DT macrosOFF. RBF3139964bytes SHA
-a7c3b0ad177744a3c2e2120365c3febdbd8226f0f80782603ccb1e3e8008a102;
-remotehash matches. C0/C1 DSC4 each19cmd/4PNG/0fail; Amazing each13/2/0.
-All12PNGs viewed. Clearcredits/visiblemain samples retained; later C1DSC4
-hasgreenhorizontaltransients ALSOseen in6framee24control, so not uniquetoGA.
-Not fullphase/frequency/effectcompletion proof. [Native evidence](../hardware-runs/classic-ga-native-2026-11-05.md).
-CurrentT80 R7.JIT remains8/4versus9/5 onbothGA, all57CSVcols equal.
-CommonnextCLKEN causallyrejected (OUTC requirededge35ticks beforeconsumer).
-Fresh originalCPCSEB6matches6hardware rows; sourcegivesorderingnotaperture.
-
-Current MID unit: exact engine-owned source correction is frozen in
-rtl/CRTC.v07f5f226…/crtc_type1_engine.vb7940b78…. Source-derived evenMID
-red precedes15focused/246CRTC/46selectedpasses; soak e30456ff0f009775 with
-unchangedseed/stimulus/projection. Rootverified4finalhashes, no codeeditsaftergate.
-StrongerGA+MID Opusreview71132/run20261105T054304Z-77737-502a active afteruser
-refreshedlogin; Claude05:41live5h0%/weekly15%. NarrowGemMIDreview26660completed0,
-no blocker; rootrejectsblanketno-regressionclaim. No strongverdict yet.
-
-Originalmenu/currentT80O baselineQUALIFIED0050/HL5/1poll, actualR7write
-C0/C4/C9=2/0/2,evenPF/effectiveIVM1,allow1,noactivepulse. FirstinvalidSpace
-attemptstopped/preserved; correctedexact29payloadandD4prefixguardpassed.
-CandidateONEidenticaltupleexceptfinal2RTLfilesactive46794,1.6Bcap,
-original-o-candidate/. Onlyexistingcollectedledgers/checkpointscompare; no
-inventedfullmachinehash orlatecounterfit. V2hiddenstateisnormalizednotmeasured.
-
-Hosttool0e37fb0committed/pushed: opt-in taskownedSSHreuse, defaultambient
-isolationpreserved. Rootremovedunusedexternalcontrolpathoverride/restoredCLI
-validation, finalgate46PASS, LIVElegacySCPbyte/socketcleanuppass. Warm68/67ms.
-B1retry23cmd/15PNG/0fail/21records stillshowsD5/DDpatternsversusphysicalintro
-text; no longeralready-supersededflagdoesNOTprovealignment. No blindretry.
-LatestAGY05:33Geminiweekly55.54%/5h11.44%; Argon93.6%,3Pweekly100%no calls.
-UsernowraisesCodexstoplimitto~90%weekly; latest05:33Codex70%,3bankeduntouched.
-
-Next commit/push source+currentproof/debt andstartONEhostedfullmilestonebuild
-inparallelwithstrongreview/candidateO. AcceptcleanexactSHA7setup/7hold/TNS0,
-then nativeoriginalO/E/P/S+boundedDSC4. No master/PR/release/authormessages.
-Runtime ACTIVE-JOBS.json owns jobdetails; no broadbaselineuntilknownfixes.
+Before the Storm user details are now known: btf.dsk, RUN"-BTF, CRTC1, scroller373–403s after RUN. Normal-boot e24 native baseline38commands/13PNGs/0fail and AmSpirit13 reference frames complete, root viewed all. Both reach the rainbow landscape/parallax scroller. AmSpirit burst is eight consecutive callbacks; native stills are not consecutive physical frames, so no alternating-wobble verdict is claimed. A single isolated CPCSE source/trace experiment is active via routineGemini run `20261105T061335Z-86124-215b`. Root owns device/API; neither has an active script. AmSpirit is paused at BTF after-scroller with breakpoints cleared. Do not queue screenshot commands blindly: pinned Main FIFO consumes a read buffer as one command and drops requests while a PNG save is pending.
 
 ## Completed DT unit
 
@@ -162,7 +90,7 @@ activepulse/rearm and sameedgeMID semantics; no aftermidrule chosen.
   DIcaptionwarnsCRTC1unreliable. CurrentR7.JIT and02DAreproducedasabove. D3heldSpace44
   pagesnotstatealigned,no blindfullwalkretry. ASIC275af8aboundedcredits/BI/AE/AR
   andsampledDSC4/Amazingaccepted, no fullPlusbaseline.
-- Pendinguser:newR3scrollingdemo title/path/CRTC/onset. SSH works viaapproved
+- BTF details and baseline are recorded above. SSH works viaapproved
   capturepath; userinteractiveSSH/Claude confirmation resolvesoldauthrequests.
 
 [Current status](../../current-status.md)/[maintained tally](../../shaker-status.md)

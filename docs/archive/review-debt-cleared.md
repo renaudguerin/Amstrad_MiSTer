@@ -1143,3 +1143,35 @@ Hardware acceptance, after-midpoint writes and MID-selection changes while
 pending remain unqualified. This source clearance does not clear the GA G1
 regression found in the same review. Private strong review report and provider
 logs are in`local/overnight-20261103/resumed-20261104/strong-current-rbf-review/`.
+
+## Classic GA serializer — source review cleared 2026-11-05
+
+**Classic GA serializer, 2026-11-05 — EXPERIMENTAL; stronger source review OPEN:**
+Branch`codex/classic-ga-boundary-native-20261105` adopts the source-qualified
+retained-byte/cursor/mode-epoch model and settled-SNA/prefetch normalization.
+This is diagnostic adoption, not integrated or release acceptance. Gemini3.8's
+supplementary broad review was insufficient for hard approval; the prepared
+early Opus5.5high attempt failed401 expired OAuth. A new authenticated strong
+review is now active after the user refreshed login. A fresh
+narrow Gemini integration audit and root source review found no porting defect.
+Look hardest at LOAD/MODE/PHI coincidence ordering, retained-byte replay across
+adjacent phases, token/anchor epoch validity and16-bit wrap lifetimes, border/
+palette timing, held-SNA apply/fetch freshness and no-HS restored-mode behavior.
+Strong Opus5.5 review now identifies G1: the current colour refresh chooses
+incoming DISPEN while rendering the outgoing byte's last pixel, moving border/ink
+one refresh early. A failing DE-edge vector and correction are required before
+this row can clear. Queue/anchor/replay, SNA freshness and wrap had no identified
+counterexample; the optional identity simplification is deferred. The model is
+abstract; source-derived RGB controls do not prove a unique silicon
+pipeline or all phases. Retained64 production-T80 controls,72 public GA lifecycle
+controls, shared B18/ASIC callers and46selected benches pass; no code edit followed
+the final gate. Clean full synthesis and bounded C0/C1 DSC4/Amazing native
+comparisons now pass ([evidence](../investigations/hardware-runs/classic-ga-native-2026-11-05.md));
+this does not clear the source-review debt or establish all-phase acceptance.
+[Source and proof](../investigations/hardware-runs/classic-type0-mode-boundary-2026-11-04.md),
+[active handover](../investigations/session-logs/overnight-resume-2026-11-04.md).
+Keep this debt until an adequate fresh strong review actually runs; hardware
+success or a weak review alone does not clear it.
+
+
+Cleared for bounded experimental source/RBF use by Claude Opus5.5 high, runs `20261105T054304Z-77737-502a` and `20261105T062119Z-89082-5616`. G1 was reproduced by eight failing-first public DE cases and corrected by selecting the existing outgoing display tag. All80 lifecycle/DE and64 production-T80 controls pass; final selection PASS46. Root verified actual final source hashes. Fresh synthesis, timing and native acceptance remain open; source clearance does not close those gates. [Correction and bounds](../investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md).

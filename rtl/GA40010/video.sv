@@ -115,7 +115,7 @@ always @(posedge clk) begin
    blank_stage2<=blank_stage1;
    if(arrival) begin permit<=1;await_colour<=0;end
    if(refresh) begin
-    colour<=u1008?INKR[pen]:BORDER;
+    colour<=u1005?INKR[pen]:BORDER;
     token_epoch<=epoch_id;token_valid<=byte_valid;
    end
    if(load) begin byte_reg<=VIDEO;cursor<=0;age<=0;byte_valid<=VIDEO_VALID;byte_id<=byte_id+16'd1;end

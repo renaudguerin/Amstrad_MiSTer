@@ -148,8 +148,7 @@ confirmed no live process, and source/logs/partial traces are preserved in
 attempt preserves the same menu and original instructions, with fatal exact
 O/Space make/break guards and identical firstD4 tick485807303. It completes with the corrected Space at1,341,102,392masterclocks, reproducing
 native0050 as rawHL5/one poll.
-No late PC/counter fit, hidden-state checkpoint or candidate full-caller result
-is claimed from that repair.
+No late PC/counter fit or hidden-state checkpoint is claimed from that repair.
 
 
 The qualified current-T80 baseline observes the actual R7=0 write at tick
@@ -158,7 +157,6 @@ effectiveIVM1 and old allow1 with no active pulse. Logical VSYNC rises one
 master tick later, public VSYNC six ticks later, both before the midpoint.
 The first PPI interval returns PB0=1, and the sole poll exits with HL5. This
 qualifies the documented before-midpoint class in the original caller, with
-architectural snapshot limitations retained. Candidate replay is now running
-from the identical menu/observer/key/source tuple except the two fixed RTL
-files; no candidate full-caller pass is claimed yet. The first D4 timestamp
-is identical to the accepted baseline prefix, without phase search.
+architectural snapshot limitations retained. The identical candidate replay now completes at1,341,103,416 clocks and gives0060/rawHL6/two polls. All2,912 CRTC writes, five markers and ten key events are byte-identical; the collected prefix through R7 acceptance also matches12,322 state events,1,698 checkpoints and3,473 dense clocks. This is a comparison of recorded observables, not an unrecorded whole-machine hash.
+
+The first recorded difference is intended: at1,341,100,168 baseline logical VSYNC is1 while candidate remains0. Candidate logical VSYNC starts at1,341,102,015, actual C0=31/evenPF midpoint, with public VSYNC five clocks later. First IN completes at1,341,101,751 with PB0=0, second at1,341,102,775 with PB0=1; rawHL6 follows at1,341,103,415. Acquisition-relative OUT/IN/IN/exit timings56/79/95/105µs match the original AmSpirit checkpoints. The CPU branch diverges after the changed PPI read. Only the first R7=0 row is replayed; all-row native acceptance remains pending. Private `original-o-candidate/HANDOFF.md` and `COMPARISON.json` retain the exact source tuple, all first-column differences and immutable receipts.

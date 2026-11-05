@@ -1,9 +1,9 @@
 // Public-pin GA snapshot normalization probe; no production control seam.
-module sna_lifecycle_top(input clk,reset_n,raw_hs,sna_load,
+module sna_lifecycle_top(input clk,reset_n,raw_hs,sna_load,display,
  input[1:0]sna_mode,input[7:0]ram_byte,input[135:0]palette,
  output[1:0]requested,active,
  output[5:0]rgb,output[4:0]hcnt,
- output ce16,load,mode_event);
+ output ce16,load,mode_event,prefetch,buffered_display,buffer_valid);
  reg[1:0]div=0;
  reg ce16_r=0;
  always @(posedge clk)begin div<=div+1'b1;ce16_r<=div==0;end
@@ -12,6 +12,9 @@ module sna_lifecycle_top(input clk,reset_n,raw_hs,sna_load,
  assign rgb={red,red_oe,green,green_oe,blue,blue_oe};
  assign active=ga.video_sync.mode_is_0?0:ga.video_sync.mode_is_1?1:ga.video_sync.mode_is_2?2:3;
  assign load=ga.video_sync.load;
+ assign prefetch=ga.vidbuf_clk_en;
+ assign buffered_display=ga.DISPEN_BUF;
+ assign buffer_valid=ga.VIDEO_BUF_VALID;
  assign mode_event=ga.mode_sync_en;
  ga40010 ga(
  .CCLK(),
@@ -64,7 +67,7 @@ module sna_lifecycle_top(input clk,reset_n,raw_hs,sna_load,
  .HSYNC_I(raw_hs),
  .HSYNC_RESTART_I(1'b0),
  .VSYNC_I(1'b0),
- .DISPEN(1'b1),
+ .DISPEN(display),
  .SNA_LOAD(sna_load),
  .SNA_INKSEL(5'd0),
  .SNA_PALETTE(palette),
