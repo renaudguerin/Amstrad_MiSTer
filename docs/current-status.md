@@ -26,8 +26,9 @@ instructions across handoffs and context compaction.
   It is installed hash-identically on MiSTer. D6 completes four captures with
   dynamic phase unqualified; all four D7 controls are RGB-identical to `5261414`.
   Static calibration verifies ordinary width4/5 LEFT8 with full paper width and
-  stable return. CRTC0/1 DSC4 credits and sampled effects remain visible; further
-  demo/BTF acceptance is in progress. This is a
+  stable return. All30 targeted DSC4/Amazing/BTF images across the named
+  classic/Plus controls are inspected; sampled effects remain visible. BTF
+  alternating-frame wobble remains unqualified by stills. This is a
   reviewed hardware trial, not general monitor or release acceptance.
   Last bounded native G1/MID controls remain on `5261414`: original O matches
   all 12 rows, E/P/S remain pixel-identical, and sampled C0/C1 DSC4/Amazing views
@@ -92,8 +93,9 @@ our closest software reference, not the hardware oracle.
   but Full acquisition remains endpoint-locked in both cases. A private phase
   candidate passes seven input patterns and preserves rectangular acquisition
   and vertical line identity. Strong review conditionally permits a bounded trial,
-  but the full five-pattern guest audit exposes an untested band/cadence policy;
-  a private discriminator precedes any tracked adoption. [D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md). Current BTF stills
+  but the source-qualified ten-page guest replay exposes cadence rejection
+  on the last four pages. A private cohort-consistency correction precedes
+  any tracked adoption. [D7 proof](investigations/hardware-runs/shaker-d7-r2-phase-2026-11-05.md). Current BTF stills
   cannot judge alternating-frame wobble. [Evidence and limits](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 - B6/019D remains 1F/1F versus 1E/1F; DI remains 58 versus 59. Ordinary R7
   publication is a separate correction. Fresh CPCSyntaxError B6 matches hardware

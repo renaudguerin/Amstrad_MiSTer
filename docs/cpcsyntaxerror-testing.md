@@ -59,6 +59,11 @@ SSM captures are named `CPCSE_<crtc>_<HHLL>.bmp`; retain the originals and log.
 Convert copies to PNG for inspection if needed. The completion count establishes
 execution coverage, not that every captured page matches hardware. Check page
 parameters and state before comparing pictures, especially dynamic tests.
+For marker-producing SHAKER pages, use `wait_ssm 0xHHLL` before taking a
+snapshot or advancing. The D7 fixed-delay pilot reached ten parameter states
+but retained only three automatic marker images; waiting for each marker
+produced all ten correctly bound image pairs. Extra fixed waits do not establish
+that the requested marker picture has completed.
 
 CSL supports snapshots and explicit snapshot versions 1–3. Verify the saved
 version before interpreting its CRTC-counter fields. Standard snapshots still
@@ -78,6 +83,12 @@ The logged PC is the CPU PC at I/O dispatch and can be after the opcode; account
 for this when comparing a production-T80 instruction-start trace. A snapshot
 that omits counters may retain a wrong phase indefinitely if the restored loop
 bypasses its one-time synchronizer. Repeated output alone does not validate it.
+For transfer into the current classic FPGA loader, even a CPCSyntaxError v3
+snapshot does not preserve beam phase: `rtl/CRTC.v` takes only `SNA_ADDR` and
+`SNA_REGS` on restore, without counter inputs. The D7 guest loop can therefore
+resume on the wrong raster. Qualify its actual I/O coordinates; an explicitly
+labelled return through the guest synchronizer is a separate input experiment,
+not an unchanged snapshot replay.
 
 ## Headless firmware/input qualification
 
