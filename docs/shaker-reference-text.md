@@ -2,9 +2,9 @@
 
 Use `local/shaker-reference-text/INDEX.json` and the matching CRTC/test/page
 JSON or TXT before reopening a reviewed static text photograph. This private
-cache is a reading aid; the original image remains authoritative. Thirteen pages
+cache is a reading aid; the original image remains authoritative. Seventeen pages
 have reviewed result fields: the five-page C0 A4/B6/C5 and C1 A4/B6 pilot,
-seven C0/C1 AI pages, and two CRTC3DU03C0verdicts, with explicit partial coverage.
+eight C0/C1 AI pages, three CRTC3 DU photographs and one C1 S photograph, with explicit partial coverage.
 The complete private cache is also preserved in the main clone’s ignored
 `local/shaker-reference-text/`, which newly provisioned task worktrees share
 through their normal `local` link. Keep accepted fields and the raw batch
@@ -92,3 +92,49 @@ those two fields are accepted in `CRTC3-DU_03C0_D.json`. Earlier no-photo
 claims were an evidence-discovery error. Use `rg --files --no-ignore` for
 ignored reference/media trees. Available26/27DU predicates are byte-identical;
 that bounded binding does not identify the photo’s exact disk binary.
+
+## Partial CRTC3 register-table cache
+
+Two additional DU03BD/03BE photographs have15 verified literal fields after
+blind Astra-medium and root image adjudication. Enlarging these moiré-heavy
+photos did not make cheap-model readings reliable: Haiku retained unknowns;
+Gemini supplied conflicting valid-hex digits. Those drafts remain separate.
+Only the JSON `verified_fields` are accepted. R4/R5 and other uncertain
+readings remain unknown; neither complete page receives a core grade. The
+private packet is `vision-reference-batch-du-br-20261106/` beneath the session
+evidence root. No further broad retry is required for these unresolved fields.
+
+## Exact native screenshot text
+
+For source-bound native MiSTer text panels, use the private reusable reader at
+`local/shaker-native-text/read_native_text.py` and its README. It matches the
+pinned ROM font exactly using fixed source-string anchors and an exact palette.
+Nine frozen fixtures reproduce all codepoints and RGB panels; an independent
+parent review found and qualified an unknown-cell validation RED, repaired
+before the final92-check gate. Explicit unknown/off-palette cells prevent
+acceptance, even if a diagnostic placeholder happens to match the raw image.
+
+CLI exit0 only means output was written. Require `roundtrip_accepted`, and keep
+font/program provenance separate from a caller-declared source hash. This reads
+literal native glyphs and supplies no physical-photo or whole-page core grade.
+The tool and private font are excluded from release screenshot archives.
+
+## CRTC1 AI0090 partial matrix
+
+The dense physical matrix now has316 of328 literal cells adjudicated, plus
+eight footer fields. Twelve E/F cells remain unresolved. The source-bound
+native decoder matches those316 PPI-bit0 samples and seven footer comparisons
+(length66 and six samples), using the existing upper-PPI allowance separately
+from literal transcription. The page stays unknown. Prior Gemini's five E
+readings at the start of upper row9 were corrected to F by blind Astra and
+root crop inspection. Raw outputs and partial comparison receipts remain in
+`c1-ai-0090-photo-20261106/` and `c1-ai-0090-native-20261106/` beneath the
+private session root. No new hardware run or matrix-wide pass is implied.
+
+## S/02D3 physical result correction
+
+The physical CRTC1 S word is4E40 after two blind vision reads and root glyph
+adjudication. The former4E30 reading is superseded; it does not establish a
+program-version conflict. The source-hash-bound cache record preserves that
+correction and the exact-binary uncertainty separately. See the
+[current S report](investigations/hardware-runs/shaker-s-current-2026-11-06.md).

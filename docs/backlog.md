@@ -81,7 +81,7 @@ is next edited, without invalidating an active frozen proof for housekeeping.
 
 ## B27. Reviewed text cache for static real-CPC SHAKER photographs
 
-**Native OCR pilot and first vision batch complete, 2026-11-06.** Avoid repeated vision reads
+**Seventeen photos have reviewed fields, with explicit partial coverage, 2026-11-06.** Avoid repeated vision reads
 of immutable text-only hardware references. This can run alongside current RTL
 work in the same worktree: one worker owns only the private reference-text
 cache and its batch artifacts; the coordinator owns shared docs/ledger. Workers

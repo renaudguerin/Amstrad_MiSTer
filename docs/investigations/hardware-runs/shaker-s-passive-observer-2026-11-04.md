@@ -1,5 +1,10 @@
 # Passive original-S observer — 4 November 2026
 
+> Current correction,6November: this report preserves the named4November cohorts.
+> Later fdf history fails0840/0440; the physical S word is reread4E40,
+> superseding historical4E30 mentions below. Use the
+> [current S report](shaker-s-current-2026-11-06.md) for the live position.
+
 A default-off diagnostic captures the original CRTC1 S caller's missing live
 FPGA state without changing functional counter rules. Two native passing fits
 now exist: default production build `076eab1` (observer macro OFF) and parent-verified

@@ -561,7 +561,7 @@ crtc,module,page,status,build,evidence,detail
 1,A,008D,broken,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md,"Direct prior1001, fresh canonical1000 versus photographed1111"
 1,A,008E,passing,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,All four physical and native VS fields high; prior tentative E reading corrected
 1,A,008F,passing,8ba384e,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,Both blind vision passes plus root source/crop adjudication resolve30 photo result bytes; native30/30VS fields match with unrelatedupperPPI A0 allowance. C1 finaltwo footer bytes5E/nativeFE; C0all5F/nativeFF. Statictextpage only; geometryexcluded.
-1,A,0090,unknown,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,Fresh matrix captured; full cell adjudication pending
+1,A,0090,unknown,fdf348c,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,Existing canonical native exactfont2000cells/no unknowns/fullRGB roundtrip. Physical316of328 matrix PPIbit0 samples plus length66 and6 footer samples agree under existing upperPPIallowance.12 E/F photo glyphs unresolved; no wholepagepass or freshacquisition.
 1,A,0091,passing,c0939d8,docs/investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md,All four physical and native fields1111
 1,A,0092,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,A,0093,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
@@ -815,7 +815,7 @@ crtc,module,page,status,build,evidence,detail
 1,C,02D0,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,C,02D1,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,C,02D2,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
-1,C,02D3,broken,fdf348c,docs/investigations/hardware-runs/shaker-s-current-2026-11-06.md,fdf fullhistory0840 andcanonicalprefixrepeat0440 WRONG vsprogram4E40; sameRBFdirect4E40. Exactsourcefont matching corrects oldrepeat4E40claim. Historicalenabledae9 retains0440 trace; c16historypassesondifferentsource. Currentmechanism/phasebindingremainopen; olderphoto4E30separate.
+1,C,02D3,broken,fdf348c,docs/investigations/hardware-runs/shaker-s-current-2026-11-06.md,fdf fullhistory0840 andprefixrepeat0440 WRONG vs physical/program4E40; direct4E40. Exactfont corrects oldrepeatpassingclaim; independentphoto reread corrects old4E30claim. FreshAmSpirit fullhistory raw4E40/1188polls/19012us. Currentcb3prefix interruptedbeforeS after57PNGs; no newnativeword or mechanism.
 1,C,02D4,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,C,02D5,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"
 1,C,02D6,passing,5fba168,docs/investigations/hardware-runs/shaker-crtc1-sweep-2026-11-03.md,"Historical photo match; carried forward, not a fresh c093 sweep"

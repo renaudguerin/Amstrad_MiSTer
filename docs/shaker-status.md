@@ -21,6 +21,9 @@ fresh Opus review, full fit and native acceptance on cb3a1a6. DU03C0 now shows
 every check OK; all eleven Module E captures match4e45417, and scoped CRTC3
 DSC4/Amazing samples remain intact. This moves one page from broken to passing.
 
+C1 AI0090 now matches316/328 matrix samples and seven footer comparisons;
+twelve photo glyphs remain unresolved, so its whole-page status stays unknown.
+
 Read the [reviewed static-reference text cache](shaker-reference-text.md) before reopening covered text-only photos; unresolved fields still require the source image.
 
 ## Counts by CRTC and module

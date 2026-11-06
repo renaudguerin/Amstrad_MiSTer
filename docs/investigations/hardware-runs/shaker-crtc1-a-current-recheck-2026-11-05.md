@@ -31,7 +31,7 @@ full size. Incidental captures are not a new graded Module A baseline.
 | AI/`008D` | Broken | Current canonical zero-length groups give1000 against photographed1111; the earlier direct native run gave1001. |
 | AI/`008E` | Passing | All four photographed and current native VS fields are high. A focused photo reading resolves the disputed final glyphs as F. |
 | AI/`008F` | Passing | Two blind vision passes plus direct source/crop review resolve the numeric glyphs; all30 result bytes match the8ba384e native page under the existing upper-PPI allowance. |
-| AI/`0090` | Unknown | Six footer low bits001111 and length66 match; the328 matrix cells are not fully readable/adjudicated. |
+| AI/`0090` | Unknown | Source-font decoding and photo adjudication match316/328 matrix samples plus six footer low bits001111 and length66. Twelve photo E/F cells remain unresolved. |
 | AI/`0091` | Passing | All four photographed and current native VS fields are1111. |
 | AO/`009A` | Passing | Both native entry paths produce the photographed RAM-pattern family, with continuing changes in later captures. |
 
@@ -231,3 +231,24 @@ The same numeric-cache review closes C0/008E: all16 photographed5F and
 nativeFF fields match under that upper-input allowance. Root views the native
 page and checks parameters/order; AI-008E-REFERENCE-ACCEPTANCE.json binds the
 capture and cache. C0/008E becomes passing without another device run.
+
+## Dense0090 adjudication, 6 November
+
+This uses the existing fdf348c canonical ModuleA capture, SHA256
+`38b4ab711cfc240cff89bf7ca5759e284bed8a6d3123acc8375c21fbc3204ef0`,
+and the physical photograph SHA256
+`89eee4325cb896a5dde279037164896282ba0fd4b59c32a9d8e6858c65d5b81b`.
+The exact native font reader finds a unique fixed-source-string anchor,
+decodes all2,000 cells with no unknowns and reproduces the complete RGB panel.
+Original ModuleA's ROM copy and renderer signatures bind the accepted font;
+expected result digits do not locate the grid.
+
+Blind Astra plus the earlier independent drafts and root crop review accept
+316 of328 physical matrix bytes, retaining12 unresolved E/F glyphs. All316
+PPI-bit0 comparisons agree; raw physical5F/5E and nativeFF/FE remain separate
+under the existing upper-PPI allowance. Length66 and the six footer samples
+also agree. Five provisional Gemini E readings at the start of upper row9
+are corrected to F from the image, not from native expectations. The page
+remains unknown; no whole-page pass or fresh acquisition follows. The private
+cache stores the reviewed fields and unresolved coordinates. Packets:
+`c1-ai-0090-photo-20261106/`, `c1-ai-0090-native-20261106/`.

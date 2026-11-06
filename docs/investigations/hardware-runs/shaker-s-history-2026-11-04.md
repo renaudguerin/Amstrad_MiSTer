@@ -1,5 +1,10 @@
 # SHAKER CRTC1 S: history-sensitive result — 4 November 2026
 
+> Current correction,6November: this report preserves the named4November cohorts.
+> Later fdf history fails0840/0440; the physical S word is reread4E40,
+> superseding historical4E30 mentions below. Use the
+> [current S report](shaker-s-current-2026-11-06.md) for the live position.
+
 The current canonical S residual has two native passing fits: default production
 build `076eab1` (macro OFF) and parent-verified diagnostic build `c16e7ec` (macro ON),
 both incorporating the C1 interlace adjustment counting correction `ccf2be7`.

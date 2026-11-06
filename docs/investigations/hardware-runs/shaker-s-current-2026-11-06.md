@@ -1,8 +1,8 @@
 # SHAKER CRTC1 S: current numeric failure — 6 November 2026
 
 The full canonical Module C walk on `fdf348c` prints **0840 WRONG
-(EXP:4E40)** on S/page02D3. This is a computed result mismatch, independently
-of the older photograph's unresolved4E30/program-revision binding. The earlier
+(EXP:4E40)** on S/page02D3. This is a computed result mismatch against the program and the independently reread physical photograph, both4E40.
+The earlier physical4E30 reading was a glyph error, corrected below. The earlier
 [scoped direct/history passes](shaker-s-history-2026-11-04.md) remain historical
 evidence; they do not establish current acceptance. A fresh direct-entry
 control on the same RBF gives4E40. This establishes a history/entry-path
@@ -78,3 +78,39 @@ revisions between these cohorts must be reconciled first. Raw-ring, image,
 build and source bindings are retained in
 `c1-s-diagnostic-readiness-20261106/`. No new diagnostic build is needed to
 recover this historical bad/good pair.
+
+## Current reference and physical glyph correction
+
+Fresh normal-boot AmSpirit1.17.1/core2491682 completes the same original
+ModuleC prefix through S on CPC6128/CRTC1/FR. Read-only debugger cuts at
+5AF3/5B0A/5B17/5B1B/5B3F preserve original code and the CRTC1 self-modifications;
+there is no snapshot reload, PC/RAM/register/counter edit. Raw HL progresses
+0040→04E4→4E40, then the formatter writes ASCII `4E40` and clears WRONG.
+The5B0A→5B17 interval is19012µs, matching1188 original polling iterations.
+The script completes normally. An auxiliary final-state dump then failed for
+a missing output directory; existing cuts/snapshots/completion were retained,
+and paused post-cleanup metadata was captured separately without replay.
+This is a fresh peer control, not native phase equivalence or a C5 measurement.
+
+The physical CS/02D3 photograph SHA256
+`3738bf22d3a2e28c571705a10fec4262393176b781f5b038ff732bd93f9cb4c8`
+now reads **4E40** after blind Astra/Gemini passes and root same-image glyph
+adjudication. Both prefer4E40 while retaining optical alternatives; the first
+and third4 share their shape, and the last0 is compared with304 above. No
+expected/WRONG/OK text is printed. The earlier4E30 claim is superseded; no
+photo/program numeric conflict is established. Exact photographed disk identity
+remains unknown. Available2.6/2.7 CRTC1 dispatch/patch bytes both select R9=7
+and expected low40, with the same high4E compare and16x scaling; their common
+helpers relocate, so this is not a complete timing-equivalence proof.
+
+A targeted current cb3a1a6 MiSTer prefix was interrupted by a vanished forwarded
+SSH agent after57 captures, before S. It supplies **no current S result**.
+Forty-five PNGs equal the saved fdf prefix; twelve changed dynamic views are
+inspected. All locally recorded CFG writes equal the original022f2aae…2abc
+bytes, although remote verification/cleanup awaits restored access. No new
+diagnostic fit or full milestone baseline was launched.
+
+Private packets: `c1-s-current-cb3a1a6-20261106/` (native partial and fresh
+AmSpirit history), `c1-s-physical-glyph-check-20261106/`, and
+`c1-s-program-version-binding-20261106/`. The reviewed reference cache records
+physical4E40. The canonical fdf0840/0440 failures remain broken.

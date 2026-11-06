@@ -62,22 +62,22 @@ de règle d'annulation provisoire.
 Les [preuves et limites](../investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md)
 conservent les deux contraintes ; aucun nouveau délai numérique n'est retenu.
 
-## Résultat physique de CS/02D3
+## CS/02D3 : contexte vérifié
 
-La version actuelle du programme attend4E40 pour «FRAME LENGTH WITH R5=8 AFTER
-304 INTERLACE LINES». La photographie de CS/02D3 pour le CRTC1 semble afficher4E30. Est-ce
-une différence de version, une variante matérielle, ou une quantification de
-la mesure qui autorise les deux valeurs ? Nous ne proposons pas une tolérance
-sans confirmation. CPCSyntaxError 0.12 donne4E40, ce qui correspond au programme,
-mais ne suffit donc pas à qualifier une concordance exacte avec cette photo.
+Une relecture indépendante Astra/Gemini, puis une vérification des glyphes
+de la photographie par le coordinateur, donnent4E40. L'ancienne lecture4E30
+était erronée : nous retirons donc la question d'une divergence numérique
+photo/programme. Les branches CRTC1 disponibles en2.6/2.7 attendent toutes
+deux4E40 ; cela n'identifie pas le binaire exact de la photographie.
 
-Le cœur donne désormais4E40 en entrée directe et après le parcours canonique,
-sur deux synthèses distinctes, après correction du comptage IVM pendant
-l’ajustement (§11.8 p93). Une sonde passive observe aussi l’arrivée sans
-ajustement actif/C5=0 avant S ; aucune remise à zéro spéciale de C5 n’a été
-ajoutée. Le grand écart numérique antérieur est donc résolu sur ces parcours
-et ne motive plus une question matérielle séparée. Les mesures historiques
-restent dans le [rapport daté](../investigations/hardware-runs/shaker-s-history-2026-11-04.md).
+Le build c16e7ec après correction IVM avait donné4E40 sur les deux parcours,
+avec C5 inactif dès l'acquisition. Des captures ultérieures sur fdf348c montrent
+pourtant0840 et0440 après préfixe, contre4E40 en entrée directe. AmSpirit1.17.1
+passe maintenant le préfixe complet et fournit le compte brut4E40 avant
+formatage. L'ancien état caché ae9 ne doit pas être transposé au cœur actuel.
+Le mécanisme natif de cette réapparition reste à qualifier ; aucune tolérance
+numérique ni remise à zéro spéciale de C5 n'en est déduite.
+[État et preuves](../investigations/hardware-runs/shaker-s-current-2026-11-06.md).
 
 ## Référence CE_B/02CA
 

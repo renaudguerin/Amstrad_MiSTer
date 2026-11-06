@@ -57,17 +57,19 @@ antérieure de la gestion lorsque R5=0, avant la seconde mesure. AmSpirit 1.17.1
 donne aussi `0080`, sans que son interface nous expose C5. Ces résultats ne
 suffisent donc pas à choisir le mécanisme du circuit réel.
 
-Complément de contexte : après correction du comptage IVM pendant
-l'ajustement, le programme S (`02D3`) donne désormais `4E40` en accès direct
-et après le préfixe canonique. Une sonde passive native confirme qu'avant
-l'écriture R5=8 les deux chemins ont C4=C9=C5=0, gestion additionnelle
-inactive et IVM actif. Le contexte ancien `0440` avec C5=24 ne décrit donc
-plus notre cœur actuel. Aucune remise à zéro spéciale de C5 n'a été ajoutée.
-La photographie `4E30`, face aux programmes disponibles qui attendent `4E40`,
-reste une question distincte de version ou de référence. Le
-[rapport daté](../investigations/hardware-runs/shaker-s-history-2026-11-04.md)
-conserve les états anciens et les observations natives actuelles ; aucun de
-ces états n'est une mesure de C5 sur le CPC réel.
+Complément de contexte : la correction du comptage IVM a donné4E40 en
+accès direct et après préfixe sur c16e7ec, avec gestion additionnelle inactive
+dès l'acquisition. Des captures ultérieures fdf348c retiennent0840/0440 en
+historique, contre4E40 en accès direct. L'ancien état ae9/C5=24 ne décrit
+pas automatiquement ces nouveaux échecs ; aucun état caché courant n'est
+encore qualifié et aucune remise à zéro spéciale n'a été ajoutée.
+
+La photographie S est désormais relue4E40 par deux lectures indépendantes
+et vérification des glyphes ; l'ancienne lecture4E30 était erronée. Nous ne
+retenons donc plus de conflit numérique photo/programme sur ce point.
+AmSpirit1.17.1 donne aussi4E40 sur le préfixe complet, avant formatage.
+Le [rapport courant](../investigations/hardware-runs/shaker-s-current-2026-11-06.md)
+distingue ces cohortes ; aucune n'est une mesure de C5 sur le CPC réel.
 
 Nous avons aussi isolé une erreur distincte de notre cœur : le comptage IVM
 était remplacé par un comptage normal pendant l’ajustement. §11.8 p93 précise
