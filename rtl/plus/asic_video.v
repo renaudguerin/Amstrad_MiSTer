@@ -977,11 +977,14 @@ assign RA   = ra_eff;
 // only (§21.3.4 "requires great precision"). The HSYNC/VSYNC boundary
 // boundaries follow the literal §21.3.4 comparators. In particular STATUS1
 // bit 4 is low at C0=R2+R3l; unlike HSYNC pulse generation, that comparator
-// does not substitute 16 for R3l=0. For bit 5, [KT]'s final-VSYNC-line rule
-// supplies the R3h=0 sixteenth-line case that ACCC leaves unspecified.
+// does not substitute 16 for R3l=0. Bit 5 has opposite event polarity at
+// R3h=0 (FR §21.3.4.1 p.248): fifteen HIGH lines from VSYNC, LOW outside
+// that band, as checked by original DU03C0's 297 LOW / 15 HIGH reads.
 //
 // Named assumptions (each would need its own vector against new
 // evidence):
+//  - Status 1 bit 5 uses live R3h even for mid-VSYNC writes; the status
+//    readback transition for those writes is not independently evidenced.
 //  - R16/R17 change only at reset or SNA restore: no light-pen strobe
 //    source is emulated.
 //  - Status 2 bit 3 resets to 0 and toggles at every 16th frame origin
@@ -1000,8 +1003,11 @@ wire s1_bit3 = ~(hcc == R2_h_sync_pos);                     // 0 at C0=R2
 wire [8:0] status1_hsync_end = {1'b0, R2_h_sync_pos} +
                                {5'd0, R3_h_sync_width};
 wire s1_bit4 = ~(hcc == status1_hsync_end);                 // 0 at C0=R2+R3l
-wire s1_bit5 = ~(in_vsync &&
-                 (vsc == (R3_v_sync_width - 4'd1)));        // 0 on last VSYNC line
+// FR §21.3.4.1 p248 gives opposite event polarity at R3h=0:
+// fifteen HIGH lines, LOW outside that band (original DU03C0 check).
+wire s1_bit5 = (R3_v_sync_width == 0) ?
+                 (in_vsync && (vsc != 4'd15)) :
+                 ~(in_vsync && (vsc == (R3_v_sync_width - 4'd1)));
 // C0=0..R0-1 with VMA LSB 0xFF, or C0=R0 with VMA' LSB 0x00: the next
 // character resets the video-pointer low byte (§21.3.4.1 prose).
 wire s1_bit7 = ~(((hcc != R0_h_total) && (vma[7:0] == 8'hFF)) ||
