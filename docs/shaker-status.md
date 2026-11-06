@@ -15,6 +15,8 @@ use mixed builds: older accepted photo comparisons are carried forward unless
 superseded or invalidated; the ledger records the build and evidence for each
 page. This is an approximation of known status, not a fresh milestone baseline.
 
+Read the [reviewed static-reference text cache](shaker-reference-text.md) before reopening covered text-only photos; unresolved fields still require the source image.
+
 ## Counts by CRTC and module
 
 A unit is one unique SSM page, not one screenshot or individual assertion.
@@ -70,13 +72,16 @@ menu captures remain stale.
 The focused current [CRTC0 A4/AI comparison](investigations/hardware-runs/shaker-crtc0-a4-ai-photo-check-2026-11-06.md)
 adds an AI passing judgment and the A4 OUTI mismatch to previously unknown
 coverage; this does not establish a regression. Current CPCSE26/27 match the
-physical CRTC0 A4 result, unlike its CRTC1 result. C0 B6 also has four confirmed
-photo/self-check differences; the fresh peer matches all six.
+physical CRTC0 A4 result, unlike its CRTC1 result. C0 B6 now has two confirmed R7 differences on8ba384e; its four R0 rows
+match the photo/self-checks after the narrow repair. The fresh peer matches all six.
 [C0 B6 comparison](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md).
 The [original C0 A4 caller](investigations/hardware-runs/shaker-crtc0-a4-qualified-phase-2026-11-06.md)
 now independently qualifies a3Ccounter-continuation failure; ordinaryOUT
 boundary controls now qualify the OUTI-only mismatch. The zero-total OUTI control independently fails while ordinary OUT and C1
-controls pass; one private sampling-stage candidate is in progress.
+controls pass. Reviewed source8ba384e passes the qualified original caller, full CI and
+native01/00 pair. A4 stays broken: six existing lower R0=1 first-byte VS
+bits still disagree after the upper-PPI allowance. The changed extra C9
+sweep matches current CPCSE but is absent from the photo and remains unknown.
 
 - **Confirmed broken:** C0 E6/page0409, cases27/28; C0/1 A/0037; C0/1 B6/019D;
   C1 AI/008D; current C1 S/02D3 (0840 versus4E40); C3 BR/01F0 and01F1, DU/03C0 and E/0406. E6's26/28 figure counts assertions across0407/0408/0409,

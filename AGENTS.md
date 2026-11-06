@@ -113,6 +113,23 @@ Documents make two kinds of claims with different owners:
 Before acting on a boundary claim, check it against the code. Fix it in the same pass if
 cheap; otherwise record it with a named remediation milestone. Never leave it silently stale.
 
+## Inferred RTL exceptions
+
+When a fix needs a special-case guard or retained state because a simpler general
+rule is not established, flag it at the implementation with `MODEL LIMIT (B26):`.
+Explain the affected scope, the evidence that requires the narrow behaviour, and
+which broader rule or competing model remains unresolved; link the investigation
+or backlog item. Do not present a coverage guard or a peer-emulator convention as
+a proven chip quirk. Ordinary conditional logic and sourced hardware exceptions
+do not need this label merely because they are conditional.
+
+Record such cases in the B26 model-confidence inventory. A future strong-model
+audit should seek simpler rules against the complete frozen constraint set and
+propose original-hardware discriminators where alternatives disagree. Existing
+tests may be wrong or overfitted: hardware/source evidence outranks preserving an
+assertion. Do not refactor active frozen proof inputs just to add these comments;
+apply the label when that area is next edited and reconcile its evidence then.
+
 ## Core layout
 
 The classic CRTC core is three files: wrapper `rtl/CRTC.v` (ports, register file and bus

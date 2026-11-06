@@ -1,6 +1,6 @@
-# CRTC0 B6: four confirmed differences
+# CRTC0 B6: R0 checks repaired, two R7 differences remain
 
-Current `fdf348c` CRTC0 B6/`019D` differs on four of six rows from the
+Baseline `fdf348c` CRTC0 B6/`019D` differs on four of six rows from the
 [original-CPC photograph](https://shaker.logonsystem.eu/images/cpc/CPC/B6_CRTC0_A.webp).
 The native program also marks those four rows WRONG. This was previously
 unknown coverage, not an established regression. No RTL repair is selected.
@@ -43,3 +43,21 @@ assessment are under
 the raw native capture remains in the milestone cell directory. The maintained
 ledger changes this page from unknown to broken. No new bus delay, vector,
 simulation gate, build or physical-hardware claim follows from this comparison.
+
+## Native R0 acceptance on8ba384e
+
+The reviewed type0 R0 repair now gives **27/14/26/27/1F/1F** in an original
+direct B6 run. Both marker and settled captures are byte-identical. The four
+R0 rows all match the photograph and original GOOD checks; the two R7 rows
+remain WRONG1F against1E. This reduces four confirmed row differences to two
+without changing the whole-page broken grade. The R7 mechanism remains open.
+
+This is the exact-SHA full RBF verified in the [A4 proof](shaker-crtc0-a4-qualified-phase-2026-11-06.md),
+Full mode and normal WAIT. Private native packet: `c0-r0-native-20261106/`.
+Six targeted cells complete with35 verified PNGs,41 actual Full0 records and
+CFG restoration; all12 written CFG copies have no-wait bit6 clear. Five C0
+A2 pages, five C0 AI pages and the C1 A4/AI/B6/B9 controls are unchanged
+against the accepted baseline images. C0 C5 still shows6E/6O/OEOEOE. The
+C0 B9 marker01C7 is blank and the later capture is readable but clipped;
+this is retained as acquisition-phase evidence, not complete-page acceptance.
+C0 B9/01C8 is byte-identical to baseline. No broad milestone rerun is claimed.

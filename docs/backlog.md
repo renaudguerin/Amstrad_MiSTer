@@ -18,6 +18,93 @@ the D5 boot-configuration note) are archived verbatim in
 them.
 
 
+## B26. Consolidate inferred RTL exceptions before upstream submission
+
+**Planned, 2026-11-06.** The concern is accumulated local guards and pending
+state whose narrow outcomes are supported, while a simpler general timing rule
+may still be missing. This can hide errors outside observed cases and make an
+upstream review harder. It is distinct from ordinary RTL conditionals and
+accurately sourced chip quirks. The [initial source-checked inventory](investigations/rtl-model-confidence-2026-11-06.md)
+contains six candidate policies/coverage limits; it is not an exhaustive count.
+Continue the current known SHAKER/demo fixes; prepare this audit in parallel,
+then examine one bounded area at a time before upstream submission. No broad
+RTL rewrite is authorized merely by this planning entry.
+
+1. Survey the CRTC wrapper/engines and Plus video/GA timing for inferred
+   exceptions, numeric apertures, coverage restrictions and overlapping pending
+   state. Classify each as sourced hardware rule, measured outcome model,
+   unsupported assumption or temporary coverage guard. Record source location,
+   rationale, shared consumers and live residuals. Do not count grep hits as
+   independent exceptions.
+2. Give a very strong reasoning model a prepared packet for one area: French
+   ACCC rules/rendered figures, immutable real-CPC observations, qualified
+   original callers, contradictory evidence and provenance, current RTL and
+   independent tests. Ask for a simpler general state/phase rule matching all
+   authoritative constraints, plus competing models and predicted differences.
+   Astra high or an appropriate successor is suitable; use fresh cross-provider
+   review, such as Opus5.5, for the proposed rule. Model availability/quota is
+   checked at execution; no paid overage or separately gated spending is implied.
+3. Logical reasoning can find a simpler rule and expose contradictions, but
+   finite observations can admit several rules. Freeze their predictions and
+   design the smallest discriminating original-CPC test where they differ.
+   Use numerical guest probes for outcomes and pin traces for electrical
+   ordering. Reuse existing hardware evidence when it already discriminates;
+   do not require a broad hardware sweep for every candidate.
+4. Prototype one rule privately. Retain all independent constraints and expose
+   newly predicted corners before editing production RTL. A behaviour-preserving
+   consolidation needs equivalence evidence; a behavioural expansion needs a
+   focused failing-before proof and appropriate original-hardware acceptance.
+   Keep classic/Plus changes separable and record unresolved model choices.
+
+Acceptance: an expanded classified inventory; per-area constraint/hypothesis
+matrix; a reviewed general-rule proposal or explicit explanation of why the
+exception is irreducible/underdetermined; targeted discriminator results or a
+clear pending hardware request; relevant simulation/synthesis/native gates for
+any accepted RTL change. Line-count reduction alone is not success.
+
+Going forward, [AGENTS.md](../AGENTS.md) requires `MODEL LIMIT (B26):` comments
+when a narrow exception is used without an established general rule, naming its
+scope, evidence and unresolved alternative. Add existing labels when the area
+is next edited, without invalidating an active frozen proof for housekeeping.
+
+## B27. Reviewed text cache for static real-CPC SHAKER photographs
+
+**Pilot complete; batch work planned, 2026-11-06.** Avoid repeated vision reads
+of immutable text-only hardware references. This can run alongside current RTL
+work in the same worktree: one worker owns only the private reference-text
+cache and its batch artifacts; the coordinator owns shared docs/ledger. Workers
+do not operate MiSTer/AmSpirit or alter another task's frozen inputs.
+
+The [cache protocol and five-photo pilot](shaker-reference-text.md) cover C0
+A4/B6/C5 and C1 A4/B6, with explicit partial field coverage. Source images are
+unchanged and source-hash bound. Local Apple Vision returned no text in this
+host attempt; Tesseract produced drafts but severely misread hex and mostly
+missed B6. Accepted numeric fields were visually checked. This pilot establishes
+that raw OCR is not sufficient to grade a core.
+
+Batch plan: select static text-only reference pages; make one local OCR pass
+when useful; have a vision-capable model transcribe/correct directly against
+the image in bounded batches. Prefer a suitable free/cheap route such as
+Gemini3.8. Crouton may review text/structure if its current route and capabilities
+are verified; its undisclosed maker cannot establish cross-provider review
+independence. Independently check decisive hex values and resolve disagreements
+against the image. Sample a second vision provider at batch admission and review
+ambiguous/low-confidence fields; do not pay for exhaustive duplicate transcription
+unless observed error rates justify it. Engine confidence alone is insufficient.
+
+Store literal text/numeric fields, source path/hash, CRTC/module/page/variant,
+review status and explicit uncertainty/omission markers. Separate hardware
+reference values, program-version binding and interpretations/PPI allowances.
+Keep raw drafts separate from accepted fields. A changed source hash is a new
+reference. Images remain authoritative; curves, positioning, clipping and
+transients retain image-based acceptance. Do not insert reference photos or
+private firmware/media into the distributed MiSTer screenshot archive.
+
+Acceptance: reviewed cache/index for each batch, no guessed digits, unresolved
+cells explicit, and targeted lookup before reopening covered photographs.
+Judge the pilot on correctness and saved rereads before expanding it to the
+complete photo collection. This task changes no SHAKER passing/broken grade.
+
 ## B25. Classic GA interrupt phase against CPU edges
 
 **⚠ VERIFY, 2026-09-28. Classic.** This concerns the combined CRTC→GA→CPU
@@ -401,9 +488,7 @@ V1 gate: original T/Y waveform export and offline candidates exist, but no
 validated dynamic response model is installed in production. The
 [Astra design revised after Opus review](investigations/video-boundary/v1-qualitative-monitor-design-2026-11-06.md)
 recommends a fourth CRT-response profile while retaining Full as default. Current
-coherent T/Y source transport is qualified; the first prototype's geometry is
-promising, but its causal collector, buffering and synthetic checks require
-correction before acceptance. Ordinary
+coherent T/Y source transport is qualified. The [offline causal prototype](investigations/video-boundary/v1-offline-causal-prototype-2026-11-06.md) now passes its reviewed collector/coordinate/ownership controls and preserves T/Y/D3 replays. Period admission, reset/mode, ordinary-width response, RAM scheduling and RTL/resource gates remain open. Ordinary
 R3 width-position compensation is narrower than that model. Keep the current
 functional SHAKER work moving independently. [D3 boundary](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
 
@@ -916,6 +1001,8 @@ here:
 ---
 
 ## B8. Full independent architecture audit
+
+**Upstream-readiness follow-up, 2026-11-06:** the [source-checked model-confidence inventory](investigations/rtl-model-confidence-2026-11-06.md) identifies six initial inferred policies/coverage limits. It is not an exhaustive count. Prioritize the R0=1 coverage guard and competing RFD lifetime models when seeking a simpler shared timing contract. Keep narrow accepted fixes separable; do not equate synthesis or peer agreement with a silicon rule.
 
 **B8-1 integrated, 2026-09-08:** qualified production-phase R5/R0 events now
 survive until the CRTC character decision. The real-GA/scripted-bus fixture has

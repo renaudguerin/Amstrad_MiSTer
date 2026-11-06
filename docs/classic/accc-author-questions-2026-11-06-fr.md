@@ -49,9 +49,10 @@ seize frames.
 ## Type3 : création tardive d’une égalité R4=C4
 
 La §12.5 p103 décrit l’ordre entre R4 et le retour de C4 à0, avec une
-exception liée à « ROM Select ». À cette même phase, avec une I/O ordinaire,
-que se passe-t-il si l’ancien R4 diffère de C4 et si la nouvelle valeur de R4
-est précisément C4 ? Le frame peut-il encore se terminer à cette frontière,
+exception liée à « ROM Select ». Avec une I/O ordinaire (bit5 de B à1),
+encore active au passage de fin de ligne correspondant à ce cas, que se
+passe-t-il si l’ancien R4 diffère de C4 et si la nouvelle valeur de R4 est
+précisément C4 ? La trame peut-elle encore se terminer à cette frontière,
 ou l’égalité ne sera-t-elle utilisée qu’à la suivante ?
 
 Le premier couple E0406 distingue l’annulation tardive d’une égalité, mais

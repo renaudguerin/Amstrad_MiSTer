@@ -1,0 +1,55 @@
+# RTL model confidence and upstream review
+
+This is a source-checked starting inventory, not an exhaustive count of
+exceptions or an architecture approval. It addresses the risk that successive
+local timing repairs preserve an accidental model rather than expose a simpler
+hardware rule. Source under review: experimental8ba384e plus its documentation
+checkpoint; private E candidates are separate.
+
+## Cases needing explicit judgment
+
+| Area | Current model / restriction | Evidence and remaining risk |
+|---|---|---|
+| Classic type0 R0 deadline | `type0_r0_eq_kept` samples true equality at nCLKEN, ORs live equality, explicitly excludes sampledR0=1. | French§13.6.1 p124 plus qualified original caller, four instruction bins and native A4/B6 support the narrow fix. Exact sample edge is inferred. The R0=1 exclusion is a coverage guard; native A4 retains six low-bit residuals there. It is not a proved silicon exception. Source: `rtl/crtc_type0_engine.v`, `type0_r0_at_sample`. |
+| Type1 RFD lifetime | `rfd_parity_flag` retires on successful address save as well as frame end. | Existing photographs fit this model and a competing arm-time model. Peer source does not decide the silicon lifetime. The unsent French author question remains needed. Source: `rtl/crtc_type1_engine.v`, successful-save clear. |
+| Plus R0 deadline and lowering | `entered_terminal_match` retains a terminal opportunity; live equality can also end the line. Nonterminal lowering uses equality-based overflow. | Type3 deadline chart and original Plus A4 support bounded outcome; physical latch/clock is unidentified. Nonterminal lowering lacks a direct Type3 chronogram/hardware result; a peer trace is weaker evidence. Source: `rtl/plus/asic_video.v`, horizontal counter. |
+| Plus HS collision at zero width | End/start collision extends HS only for explicit nonzeroR3l. | Nonzero collision behaviour is sourced; excluding zero-width collision is explicitly an unverified model assumption. A source rule or original-hardware discriminator must decide it. Source: `asic_video.v`, `hsync_end_start_collision`. |
+| Plus compatible IRQ delivery | Raw request reaches CPU at next CCLK_EN_N. | Original Plus observations bound delivery, but do not identify that exact edge. Existing counter/provenance tests protect interactions; they cannot establish silicon topology. Source: `rtl/plus/asic_ga_timing.v`, `classic_delivery_n`. |
+| Plus split during adjustment | `split_adj_end` accepts a late split at the selected R0 boundary, limited to noninterlace. | Existing original-Plus/AmSpirit results support bounded cases; exact edge and early/late original-hardware controls remain unmeasured. Source: `asic_video.v`, `split_adj_end` and `split_at_r0`. |
+
+The private E R4 candidate also uses an inferred retained comparison. Its next
+revision qualifies that term by the actual selected-write window already
+shaped by motherboard READY/A13. It has independent ordinary/ROM fail-first
+controls and remains unpublished. It must not be counted as established
+production behaviour or as a new port/decode requirement.
+
+The planned audit, model selection, hardware discriminator and acceptance steps are tracked in [B26](../backlog.md#b26-consolidate-inferred-rtl-exceptions-before-upstream-submission). New inferred exceptions receive the `MODEL LIMIT (B26):` implementation comment required by [AGENTS.md](../../AGENTS.md).
+
+## Meaning for upstream adoption
+
+These modules use synchronous register-transfer logic; behavioural modelling
+and pending state are ordinary FPGA techniques. Decap-derived classic GA logic
+has a stronger structural basis, while the CRTC and Plus models are behavioural.
+Synthesis success does not make their inferred rules correct. Conversely, a
+large conditional expression may implement a documented chip quirk faithfully.
+
+The explicit coverage guards and competing lifetime models above are technical
+debt worth resolving before presenting the complete branch as upstream-ready.
+Keep the evidence-backed narrow fixes separable. For consolidation, trace bus
+visibility, comparator sampling and consumer edges together, then seek one
+state/phase contract that also handles the preserved residuals. Do not remove
+guards merely for visual simplicity or keep an assertion solely to protect a
+legacy implementation: real hardware can invalidate either.
+
+A structural refactor should reproduce the pinned soak and focused independent
+counterexamples; intended behavioural expansion needs its own fail-first
+hardware/source oracle. No RTL refactor or additional configuration switch is
+introduced by this inventory. The next audit should expand this table across
+both classic engines and Plus, count independent policies rather than grep
+matches, and distinguish sourced quirks, empirical outcome models, coverage
+limits and simulation-only restoration policy.
+
+See [C0 proof and native limits](hardware-runs/shaker-crtc0-a4-qualified-phase-2026-11-06.md),
+[RFD lifetime](hardware-runs/rfd-frame-lifetime-2026-11-03.md),
+[Plus divergences](../plus/source-divergences.md), and
+[unsent questions](../classic/accc-author-questions-2026-11-06-fr.md).

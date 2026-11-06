@@ -90,8 +90,8 @@ closed: the zero-total OUTI case now checks unchanged C4/C9 as well as C0.
 A one-shot mutant retaining the old frozen-counter consumer fails that
 assertion while the corrected RTL passes. After the last test edit the
 selected gate again passes all46 benches. Source `8ba384e` is pushed and
-full synthesis is running. Native A4 remains broken in the tally until the
-new bitstream is tested; wider C0 R0 pages are a hardware acceptance gate.
+exact-SHA full CI, production-T80 and synthesis pass. Native first-pair
+acceptance passes; wider C0 R0 pages remain a hardware acceptance gate.
 
 Type1's §13.6.2 expects40 at both3C and3B, and the earlier Type1 caller gives
 that compatible continuation. This Type0 defect therefore does not explain
@@ -118,3 +118,33 @@ Final review is retained in `c0-r0-public-integration-20261106/final-review-prov
 the frozen-counter mutant and final gate receipt are in
 `c0-r0-postreview-counter-proof-20261106/` and
 `c0-r0-public-integration-20261106/FINAL-GATE-RECEIPT.json`.
+
+## Native A4 acceptance and remaining lower-section failures
+
+Full CI run42196903156 produces verified RBF SHA256
+`1391b7b8a2a732a70d9bfd98123dbff463fd5d0b28b87dd2485c1cdb2ce5938e`,
+3,123,016bytes, Quartus17.0.2 build602 SJ Lite Edition, Standard Fit maximum
+Fitter effort. Setup/hold minima are0.534/0.186ns across seven clocks, zero
+TNS. Device hash/size match; the run uses Full and normal WAIT (bit6 clear).
+
+The original direct native A4 walk now prints01/00. Marker and later images
+are byte-identical. Compared with fdf348c, all changed pixels are confined to
+the first OUTI scalar and the extra C9-sweep row; that sweep is now01×8,
+matching current CPCSE26/27, but absent from the physical photo. All five
+following C0 AI marker images are byte-identical to the milestone baseline.
+This accepts the narrow R0 repair, not the complete page or every phase.
+
+A complete lower-section recheck identifies **six existing VS-bit mismatches**
+in the R0=1-origin pairs. The photograph and current CPCSE give
+5E5F/5E5F/5F5F/5F5F/5E5F/5E5F/5E5F/5E5F. Both native builds giveFFFF
+throughout. Removing only the documented unrelatedA0 upper-input difference
+leaves5F5F throughout: six first-byte bit0 values still disagree. These are
+not repaired by the p124 change. The exact photo binary remains unbound;
+peer agreement supplies a useful discriminator, not a hardware timing rule.
+A4 therefore stays **broken** in the maintained tally. The unreferenced C9
+row is a separate unknown, not a reason to hide those confirmed differences.
+
+Private native inputs/commands, quality receipts, full-page comparison and
+preservation checks are in `c0-r0-native-20261106/`. The additive full-page
+receipt corrects an initial pre-run grading note that overlooked those six
+low-bit differences. No R0=1 repair is selected from this image.
