@@ -74,6 +74,14 @@ Use these current inputs for source-content comparison and V1 response work;
 keep those verdicts separate instead of repeating an input-timing sweep or
 forcing CRT curves into CRTC rules.
 
+A subsequent Terra-high worksheet covers all 44 correctly bound physical/native
+pairs. The comparable ruler/cutout families agree broadly and it identifies no
+concrete missing-content discrepancy. Compressed/overlapping transition rows
+and some screen-edge boundaries prevent a complete glyph comparison; these
+are evidence limits, not failing tests. Root checks the report and the 0339
+interior-hole pair at original resolution. The private per-page worksheet is
+under `digital-content-adjudication/`; it supplies no new whole-page grades.
+
 A subsequent Gemini 3.8 high diagnosis inspects ten representative physical/
 current pairs and identifies no concrete missing-content discrepancy. Root
 spot-checks five pairs and confirms the broad surviving-digit/cutout families.

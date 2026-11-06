@@ -17,6 +17,41 @@ retained native manifest identifies `7ac11a2`, hash `4dc1e762…501ec`, rather t
 e24 label previously used in this report. Do not treat that older capture as
 fresh e24 evidence.
 
+## Complete original-caller ordering — 6 November
+
+A single cold Module-B diagnostic now executes the complete original B6
+path through production GHDL T80, READY and HID. It preserves initialization,
+the ROM font, all four preliminary measurements, both original R7 calls and
+restores, six result stores and both completed `019D` marker instructions.
+The results are again `13/14/26/26/1F/1F`.
+
+Relative to each data-32 write onset, the fifth call starts at raw
+C0/C4/C9=63/32/7 and the fourth at 62/32/7. Both first expose stored R7 and
+logical VS at +1 master clock, then published VS at +6. The fifth's terminal
+counter decision is +7; the fourth's is +71. Both later PPI reads see F5 and
+the original encoders store 1F. This closes the original-caller ordering gap;
+it does not establish the physical chip's comparison aperture. Source-relative
+M1 phases retain their fractional observations without rounding into C0vs.
+
+This is an ideal-RAM cold module with a reset-ROM trampoline, not firmware/FDC
+boot or a canonical full-module walk. It holds key 6 longer than the canonical
+70 ms pulse; the complete ledger shows no keyboard reads between dispatch and
+release. The parent reads the driver/passive-top diff and report, verifies 36
+current/private source bindings, four inputs and 44 artifact hashes, and does
+not rerun the DUT. Evidence and acceptance remain under
+`shaker-cold-caller-readiness-20261106/cold-b6/`.
+
+A separate primary-source bus audit finds the classic Boolean access decode
+consistent with the CPC6128 service schematic (MC0009A, printed pp19–20).
+The [UMC interface sheet](https://www.theoddys.com/acorn/the_6845_crtc/UM6845R-RA-RB%20UMC.pdf#page=3)'s write-data setup/hold minima do
+not specify the first internal R7 comparison, nor do French §§4.4.3–4 pp26–31.
+The board's shared-data-bus behaviour on IN to a write port (§4.4.2 p25) is a
+separate abstraction to investigate; it cannot explain this OUTI path. No RTL
+change follows. The remaining useful physical discriminator captures socket
+E, CCLK, relevant data bits and VSYNC together for the original fifth/fourth
+accesses on a confirmed UM6845R. Primary-source notes and renders remain under
+`crtc-bus-pin-contract-20261106/`.
+
 In the matching CPCSyntaxError source, the block-OUT scheduler advances hardware
 to instruction effect offset 16 T-states before `writePort`; the advance is
 relative to hardware already advanced in that instruction, not an unconditional

@@ -88,6 +88,17 @@ prove helper timing equivalence. AmSpirit agreement with MiSTer does not
 overturn the photograph. The two KO labels higher on the page are not
 this discrepancy.
 
+A fresh 6 November CPCSyntaxError v0.12.0 version pair boots the available
+2.6 and 2.7 disks separately, enters original A4 with the same 70 ms key input,
+and reaches `0037` in both. Both readable pages show 00/00 and already include
+the C9=0..7 row absent from the photograph. The complete visible result pages
+are pixel-identical. Each run retains a black acquisition-phase image as well
+as its readable counterpart; all four images are inspected. This narrows the
+version question: swapping the two available disks does not explain either
+the photographed value or the missing row. It does not identify the photo's
+actual program revision or establish a hardware rule. Inputs, commands,
+snapshots and parent assessment are in `c1-a4-version-pair-20261106/`.
+
 The next source discriminator is R0 publication relative to the real OUTI
 bus cycle and C0 rollover. French ACCCv1.11 §13.3 p115 and §13.7.1.1 p126
 describe its instruction-dependent ordering; the separate last-frame-line

@@ -188,6 +188,12 @@ does it depend on the machine (Z80 wait-state alignment, expansion on `/EXP`)?
 The `UPD R0=3F ...` bytes are understood to be PPI port B reads (VSYNC bit 0
 before and after), so no question there.
 
+**6 November 2026 update:** fresh CPCSyntaxError v0.12.0 normal-boot A4 runs
+on both locally available SHAKER 2.6 and 2.7 print `00/00`; their complete
+visible result pages are pixel-identical, and both include the additional
+C9 row. The available 2.6 disk therefore does not resolve the photograph's
+program identity. [Version-pair evidence](../investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md).
+
 ## 5. Correspondence 2026-09-11: re-issued v1.11 and the four classic CRTC types
 
 Longshot re-issued both v1.11 PDFs with the feedback applied and the version number

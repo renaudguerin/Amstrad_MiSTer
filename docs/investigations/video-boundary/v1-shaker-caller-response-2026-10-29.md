@@ -106,6 +106,12 @@ replay supplies an independent MiSTer source stream. Some comments describe
 unmeasured monitor families sharing a value; that is an assumption, not evidence
 that the sets respond identically.
 
+A 6 November source check against the installed v0.12.0 revision
+`22de765ef44da46c55217e4dd7caa385d69a6045` finds no changes in the four
+`monitor_renderer`/`monitor_model` source and header files from the pinned
+revision above. The candidate remains relevant to the current toolbelt;
+this is a source comparison, not a fresh emulator run or response validation.
+
 The cited `tools/monitor_response.py` and `docs/LA7800.pdf` are absent from this
 checkout. The measurement procedure remains unavailable. An independent
 [primary circuit check](v1-ctm-afc-circuit-check-2026-10-29.md) recovers the Sanyo

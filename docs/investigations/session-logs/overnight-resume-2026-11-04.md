@@ -441,6 +441,31 @@ from existingoptical/synthetic traces. Sol is authorizedonly a boundedprivate
 coherentcoldB6 diagnostic, no publicchanges or selectedaperture. Astra-medium
 separately readsphysicalE,/CS,R/W wiring/primarybuscontract; noDUT changes.
 
+## Original B6 ordering and remaining photo limits — 6 November
+
+The single cold Module-B/HID diagnostic completes all six original measurements
+and both actual 019D marker instructions on coherent production T80/READY.
+Results 13/14/26/26/1F/1F reproduce native; both R7 writes start logical VS
+before carry. The held-key variation is explicit and unused by keyboard reads
+on the measured path. Parent reads the complete driver/passive-top diff and
+report, verifies 36 source pairs, four inputs and 44 artifacts; no rerun or RTL
+change. Primary bus wiring is consistent with the Boolean decode; UMC interface
+minima and French timing diagrams still do not select an internal aperture.
+
+Terra-high's 44-pair D3 worksheet finds no concrete content discrepancy in the
+comparable portions. Overlapped transition rows prevent complete independent
+glyph reading. Root checks its limits and the original 0339 pair; no grade or
+count changes. Missing CRT deflection remains separate V1 work. Source comparison
+also confirms V1's four CPCSyntaxError monitor files unchanged through installed
+v0.12.0; the offline model is relevant but still unvalidated.
+
+A paired direct A4 run on CPCSyntaxError v0.12.0 executes the available 2.6 and
+2.7 disks once each with identical inputs. Both reach 0037 and show 00/00,
+including the extra C9 row absent from the physical photo. Their readable pages
+are RGB-identical. Opposite black acquisition-phase images are preserved and
+not classified as execution failures. This excludes a simple available-26/27
+version explanation, without binding the older photograph or changing timing.
+
 ## Remaining order
 
 Return to the known CRTC1 B6 comparison-visibility question after the R3
