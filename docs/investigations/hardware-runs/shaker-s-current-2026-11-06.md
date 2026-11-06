@@ -128,3 +128,32 @@ Private packets: `c1-s-current-cb3a1a6-20261106/` (native partial and fresh
 AmSpirit history), `c1-s-physical-glyph-check-20261106/`, and
 `c1-s-program-version-binding-20261106/`. The reviewed reference cache records
 physical4E40. Current0640 and historical fdf0840/0440 keep the page broken.
+
+## Current passive diagnostic cohorts
+
+Exact0c9f6c8 enables only the existing S observer on cb3 functional code.
+Full CI including productionT80 passes; cleanfull Quartus17.0.2 Standard Fit/
+High Performance closes seven setup/hold groups at0.268/0.182ns and zeroTNS.
+RBF3,141,028bytes, SHA256
+`6d43ff06a0494b0ed2b7fc2d8ca66a1fb93edd3925dcb51a2750a82c7c417806`.
+
+Direct S gives4E40, the first canonical history4E40, and an unchanged repeat
+0440WRONG. All have exact source-font decoding, stable seven ordered native
+samples, error0/drops0, genuineS actualFull0 and CFG restoration. Histories
+write136ring records including15opaque private records; direct writes16.
+Do not interpret those payloads as ordinary raster metadata.
+
+On this same fit, good history arrives at A4CF with C5=0/adjustmentoff; bad
+history arrives C5=15/adjustmenton. At A4DE the bad C5 is0 but adjustment
+remains on, and stays on through both R8 cuts. At the R5-write cut it hasC5=24;
+at the R7 cut both paths have C4=4/C9=0/C5=0, but only bad has adjustment and
+the added line active. Bad measures68us/four polls, good19012us/1188polls.
+This excludes transplanting the older ae9 row2 explanation into current code.
+The default0640 cohort remains separate; the observed diagnostic0440 mechanism
+is not automatically its complete explanation.
+
+E02C9/E02CA/P02CB PNGs equal across good/bad histories, including P's26 result.
+That does not prove identical outgoing hidden state. Original P's final R5=1,
+R9=6 attempt and its final R5=0 cleanup are the sharper upstream boundary.
+A short originalE→P→S subset is now being tested; it is not canonical-history
+equivalence. No C5 clear or management-retirement fix is selected.

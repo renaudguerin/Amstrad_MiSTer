@@ -75,6 +75,15 @@ driven throughout raw ACK including one external wait. I:R appears at ACK
 release. This narrows CPU-policy uncertainty without proving the original Plus
 variant, complete BR history or ASIC counter semantics. No timing fix is selected.
 
+## Private candidate
+
+A [delayed-normal-count candidate](shaker-crtc3-br-delayed-count-2026-11-06.md)
+now passes all13 original resident rows and transport on both qualified/current
+compositions. Actual count31→32 survives ACK and leads to a wrap20lines later,
+with PCs4A9B/C4ED. An earlier one-line synchronization shift remains explicit.
+Broader controls and independent semantic review are pending; this selects no
+production fix and does not change the current native page tally.
+
 ## Remaining discriminator
 
 One original-CPC CPI bus capture, reproducing C4 with the original antecedents,
