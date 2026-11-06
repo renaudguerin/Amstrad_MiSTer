@@ -223,7 +223,7 @@ wire       hcc_last  = hcc == R0_h_total;
 // hcc_end is the effective line-end strobe every line-event consumer uses;
 // raw hcc_last stays for terms whose documented semantics are tied to the
 // comparator edge itself.
-wire       hcc_end   = hcc_last & ~(CRTC_TYPE ? e1_rfd_r0_extend :
+wire       hcc_end   = (CRTC_TYPE ? hcc_last : e0_hcc_terminal) & ~(CRTC_TYPE ? e1_rfd_r0_extend :
 									 e0_r0_widen_hold);
 wire [7:0] hcc_next  = e0_r0_widen_hold ? hcc :
 						 hcc_end ? 8'h00 : hcc + 1'd1;
@@ -257,6 +257,7 @@ reg        parity_r6;
 // ------------------------------------------------------------------
 // Per-type engines
 // ------------------------------------------------------------------
+wire       e0_hcc_terminal;
 wire       e0_r0_frozen, e0_line_new, e0_row_frame_last, e0_row_new, e0_frame_adj;
 wire       e0_c0_line_last, e0_c0_row_last, e0_c1_last_line_validate;
 wire       e0_in_adj_route, e0_frozen_row_advance;
@@ -277,7 +278,7 @@ wire [3:0] e0_vsc_load;
 
 crtc_type0_engine crtc_type0_engine
 (
-	CLOCK, CLKEN, nRESET, CRTC_TYPE, SNA_LOAD,
+	CLOCK, CLKEN, nCLKEN, nRESET, CRTC_TYPE, SNA_LOAD,
 	ENABLE, nCS, R_nW, RS, DI, addr,
 	R0_h_total, R1_h_displayed, R3_h_sync_width, R3_v_sync_width,
 	R4_v_total, R5_v_total_adj, R6_v_displayed, R7_v_sync_pos,
@@ -286,7 +287,7 @@ crtc_type0_engine crtc_type0_engine
 	line_last_r, row_last_r, frame_adj_r,
 	VSYNC_r, vsync_allow, hsc,
 	parity_frame, parity_c9, parity_r6,
-	e0_r0_frozen, e0_line_new, e0_line_next, e0_c5_next,
+	e0_r0_frozen, e0_hcc_terminal, e0_line_new, e0_line_next, e0_c5_next,
 	e0_row_frame_last, e0_row_next, e0_row_new, e0_frame_adj,
 	e0_c0_line_last, e0_c0_row_last, e0_c1_last_line_validate,
 	e0_in_adj_route, e0_frozen_row_advance, e0_hcc2_adj_keep,

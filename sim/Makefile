@@ -270,8 +270,10 @@ CRTC_T80_OLD_BIN := $(OBJ_DIR)/crtc_t80_old/crtc_t80_old_tests
 $(CRTC_OLD_ENGINES_DIR)/crtc_type0_engine.v: Makefile
 	mkdir -p $(CRTC_OLD_ENGINES_DIR)
 	git show d46609d066aafb6b182fd6fa504a91719500cd91:rtl/crtc_type0_engine.v | \
-		sed -e 's/output           c0_row_last,/output           c0_row_last, output c1_last_line_validate,/' \
-		    -e "s/^endmodule/assign c1_last_line_validate = 1'b0; endmodule/" > $@.tmp && mv $@.tmp $@
+		sed -e 's/input            CLKEN,/input            CLKEN, input nCLKEN,/' \
+		    -e 's/output           r0_frozen,/output           r0_frozen, output hcc_terminal,/' \
+		    -e 's/output           c0_row_last,/output           c0_row_last, output c1_last_line_validate,/' \
+		    -e "s/^endmodule/assign hcc_terminal = hcc_last; assign c1_last_line_validate = 1'b0; endmodule/" > $@.tmp && mv $@.tmp $@
 
 # Match the current interface in this historical negative control: the MID
 # input is unused and the live-R7 defer/fire and R6-origin outputs stay inert.

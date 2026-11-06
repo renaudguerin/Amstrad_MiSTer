@@ -167,6 +167,9 @@ void r0_type0(unsigned phase, bool safe) {
   b.seam();
   // French §13.7.2 pp126-128: unsafe C0=1 old equality survives widening;
   // by C0=2 C4=R4+1, C9 retained, and R5=0 still counts adjustment to 31.
+  // Phase0 preserves existing behavior pending the OUTI chart-cell versus
+  // physical-onset question; p127's OUT example does not establish this
+  // phase's expectation.
   if (!safe) {
     b.check(b.d.c0 == 2,
             "type0 widening must not insert a duplicate C0=1 character");

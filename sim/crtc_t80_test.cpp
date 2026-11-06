@@ -339,6 +339,71 @@ bool outi_r7_boundary_vsync(bool earlier) {
   return b.d.vsync;
 }
 
+
+// FR §13.6.1 p124, with production-T80/GA phase classes independently
+// qualified by the full PPI-calibrated four-bin caller. These constants
+// release the existing R5/R7 instruction sequences; they are not guest NOP fits.
+void p124_r0_publication(bool outi, bool earlier) {
+  Bench b(false, 0, 63, 25, 38, 30, 7);
+  const unsigned pc = outi ? 11 : 8;
+  b.load_prog(0, outi ? std::vector<uint8_t>{
+      0x01,0x00,0xbc,0xed,0x49,0x01,0x00,0xbe,
+      0x21,0x40,0x00,0xed,0xa3,0x76} : std::vector<uint8_t>{
+      0x01,0x00,0xbc,0xed,0x49,0x01,0x7f,0xbd,0xed,0x49,0x76});
+  b.prog_byte(0x40,0x7f);
+  // Existing full OUT sequence consumes13 characters to valid onset;
+  // the existing OUTI sequence consumes17. Target OUT3D / OUTI3B,3C.
+  b.pos(1,0,outi ? (earlier ? 45 : 46) : 50);
+  b.d.cpu_reset=0;unsigned fetch=0;
+  b.until([&] {
+    if(!fetch && !b.d.t80_m1_n && !b.d.t80_mreq_n &&
+       !b.d.t80_rd_n && b.d.t80_a==pc)fetch=b.ticks;
+    return b.d.write_active && b.d.t80_a==(outi ? 0xbd00 : 0xbd7f);
+  });
+  b.check(fetch!=0,"p124 target M1 absent");
+  const unsigned interval=b.ticks-fetch;
+  b.check(outi ? (interval>=256&&interval<320) : (interval>=128&&interval<192),
+          "p124 actual IO instruction microsecond class changed");
+  b.check(b.d.crtc_addr==0 && b.d.t80_dout==0x7f,"p124 write tuple changed");
+  b.check(b.d.row==1 && b.d.line==0 && b.d.c0==(earlier?62:63),
+          "p124 release/program did not qualify target character");
+  b.check(b.d.seq==(outi?0x01:0x1f),"p124 production GA write class changed");
+  b.check(b.d.r0==63,"p124 R0 changed before first store");
+  b.tick();b.check(b.d.r0==127,"p124 R0 publication must remain immediate");
+  b.check(b.d.c0==(earlier?62:63),"p124 storage unexpectedly advanced counter");
+  b.seam();
+  if(earlier){b.check(b.d.c0==63,"p124 OUTI3B first decision");b.seam();}
+  const bool wraps=outi&&!earlier;
+  b.check(b.d.c0==(wraps?0:64),"p124 instruction-class terminal outcome wrong");
+  b.check(b.d.line==(wraps?1:0),"p124 line-consumer disagrees with terminal");
+  if(wraps){b.until([&]{return b.d.c0==127;});b.seam();
+    b.check(b.d.c0==0&&b.d.line==2,"p124 newly published total lost after wrap");}
+}
+void p124_zero_outi() {
+  Bench b(false,0,63,25,38,30,7);
+  // Real OUT first sets R0=0. A 256-iteration DJNZ exceeds the maximum
+  // 256-character old-counter wrap; no selected phase or NOP padding.
+  b.load_prog(0,{0x01,0x00,0xbd,0xed,0x49,0x06,0x00,0x10,0xfe,
+                0x01,0x00,0xbe,0x21,0x40,0x00,0xed,0xa3,0x76});
+  b.prog_byte(0x40,0x10);b.pos(1,0,0);b.d.cpu_reset=0;unsigned fetch=0;
+  b.until([&]{
+    if(!fetch&&!b.d.t80_m1_n&&!b.d.t80_mreq_n&&!b.d.t80_rd_n&&b.d.t80_a==15)fetch=b.ticks;
+    return b.d.write_active&&b.d.t80_a==0xbd00&&b.d.t80_dout==16;
+  });
+  b.check(fetch&&b.ticks-fetch>=256&&b.ticks-fetch<320,"p124 zero OUTI class changed");
+  b.check(b.d.r0==0&&b.d.c0==0&&b.d.seq==1,"p124 own OUT did not establish frozen zero");
+  // FR §13.2.1 p105: C9 counting is re-authorized at C0=1 for a
+  // following terminal. Leaving a consumed R0=0 freeze must not make
+  // either of these two seams a new line/row event.
+  const unsigned frozen_line=b.d.line, frozen_row=b.d.row;
+  b.tick();b.check(b.d.r0==16&&b.d.c0==0,"p124 zero immediate publication");
+  b.seam();b.check(b.d.c0==0,"p124 zero OUTI must retain first zero");
+  b.check(b.d.line==frozen_line&&b.d.row==frozen_row,
+          "p124 zero held seam must preserve C9/C4");
+  b.seam();b.check(b.d.c0==1,"p124 zero OUTI must leave at second decision");
+  b.check(b.d.line==frozen_line&&b.d.row==frozen_row,
+          "p124 zero departure must preserve C9/C4");
+}
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
@@ -364,6 +429,11 @@ int main(int argc, char **argv) {
   run_case("Type 0 OUT (C), C for R0 widening", test_out_r0_type0_widen);
   run_case("Type 1 OUT (C), C for R0 widening", test_out_r0_type1_widen);
 
+  run_case("p124 OUT(C)3D publication", []{p124_r0_publication(false,false);});
+  run_case("p124 OUTI3B publication", []{p124_r0_publication(true,true);});
+  run_case("p124 OUTI3C publication", []{p124_r0_publication(true,false);});
+  run_case("p124 zero-total OUTI", p124_zero_outi);
+
   unsigned xfailed = 0;
   unsigned xpassed = 0;
   std::cout << "[TEST] SHAKER 019D fifth-us OUTI... " << std::flush;
@@ -385,6 +455,6 @@ int main(int argc, char **argv) {
   });
 
   std::cout << "Summary: " << passes << " passed, " << failures << " failed, " << xfailed << " xfailed, "
-            << xpassed << " xpassed (total 6)\n";
+            << xpassed << " xpassed (total 10)\n";
   return (failures == 0 && xpassed == 0) ? 0 : 1;
 }
