@@ -117,3 +117,22 @@ Its midline widening closes display but does not capture parity at that edge
 (`src/core/crtc_type_0.cpp:216`). It supports the ordinary event interpretation
 without settling the new midline parity question. Original hardware remains
 necessary where the two French readings disagree.
+
+## Focused B6 R7 judgment
+
+A prepared Astra review of the frozen493 source and original C0 B6 caller
+finds the late R7 ordering underdetermined. Both photo-required low PPI samples
+are high in the qualified model. IRQ decoding and the result encoder are
+excluded; the fourth-microsecond trial (ordinal6) has preceding misses that
+anchor its phase, while ordinal5 succeeds on its first drifting IN and has
+weaker phase qualification. Neither
+bus-write onset/end nor the next CLKEN alone identifies physical R7 acceptance.
+Removing row-change rearm would conflict with French§16.3 p169's continuous-pulse
+example. No timing exception or RTL candidate is selected.
+
+The smallest proposed physical discriminator keeps ordinal6, its fourth-microsecond access and its
+prehistory, comparing departing-rowR7=32 with entering-rowR7=33. A seam VS rise
+would rule out late acceptance as the sole explanation; a negative remains
+ambiguous. A C9-nonterminal companion can then separate row-carry dependence
+from line-wide terminal inhibition. The unsent French question records this
+boundary. Private report: `c0-b6-r7-strong-judgment-20261106/REPORT.md`.

@@ -81,3 +81,28 @@ pour C9=R9 et C4<>R4 donne pourtant C4=R4+1. Faut-il lire C4=C4+1 dans ce
 résumé ? Exemple discriminant : C4=1, R4=3, C9=R9=0 au gel R0=0 ; obtient-on
 C4=2 ou4 ? Notre compteur existant utilise l'incrément, et le nouveau test de
 consommation R6 conserve cette hypothèse. Aucun message n'a été envoyé.
+
+## Type0 : R7 écrit près du changement de ligne caractère (B6)
+
+Les deux dernières mesures de B6/019D donnent1E/1E sur la photo CRTC0,
+contre1F/1F dans notre modèle. Les appels originaux désactivent les interruptions,
+lisent directement PPI-B puis font AND1/OR1E ; la différence est bien le bitVS.
+La §16.4 p170 distingue l'égalité naturelle à l'entrée d'un C4 et celle créée
+par une écriture R7 ; les cas C0vs0/1 consomment la comparaison sans impulsion.
+
+Si une écriture arrive assez tôt pour que la comparaison naturelle du C4
+entrant voie R7, peut-elle encore créer une impulsion en visant le C4 sortant ?
+La réponse dépend-elle du changement de C4, ou de la seule position horizontale ?
+Notre trace simulée ne constitue pas une mesure des broches E/CCLK du CRTC.
+Nous n'en déduisons donc pas une nouvelle fenêtre numérique dans le RTL.
+
+Discriminateur proposé sur un vrai CRTC0 : conserver la sixième mesure
+(quatrième microseconde), sa préhistoire et son OUTI/IN, puis comparer les
+valeurs20h (C4 sortant32) et21h (entrant33), en ne changeant que cette valeur
+pour cette mesure. Une montée VS à l'entrée de33 montrerait que la nouvelle
+valeur est arrivée à temps pour cette comparaison ; l'hypothèse d'une acceptation
+seulement après cette entrée ne suffirait plus. Une absence seule reste ambiguë.
+Si nécessaire, un compagnon à C9=6 sans changement de C4 distingue un effet
+lié au changement de ligne caractère d'une inhibition en fin de toute ligne.
+Les broches et la lecture réelle doivent confirmer l'alignement ; aucun test
+physique supplémentaire n'a été fait et aucun message n'a été envoyé.

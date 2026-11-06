@@ -503,3 +503,26 @@ C002 completes. See the public driver recovery procedure and private receipt.
 Private paths are relative to `local/overnight-20261103/resumed-20261104/`.
 `ACTIVE-JOBS.json` holds live process identities. No release publication,
 master integration or author message is authorized by this checkpoint.
+
+## Source493 acceptance and next proofs — 6 November, 16:25 UTC
+
+Exact source493cdea passes full CI/production-T80/synthesis and targeted native
+preservation; the verified RBF is on MiSTer. The corrected C0 A4 glyph audit
+finds only one prior photographed-field failure, fixed in493. The tally is now
+374 passing,9 broken,1004 unknown,3 stale; no fresh milestone sweep. Current-tip
+details and artifact hashes belong in current-status.md and the dated reports.
+
+The original ASIC DU normal bit0 replay qualifies all19968 samples and passes.
+Its adjusted continuation can report the same4DFF offset; a source-closed
+two-stage observer is being implemented in a new private packet, compile only
+until parent review. A second worker prepares C3 BR ACK/R52 source closure,
+without runtime or DUT work. Astra finds the C0 B6 R7 ordering underdetermined
+and proposes a matched physical32/33 discriminator; no RTL timing exception
+is chosen. The French question remains unsent.
+
+MiSTer is released to the root operator; no active device capture. The restored
+forwarded SSH agent works, and the user approved the rg TCC prompt. Quota at
+16:24UTC is62% Codex weekly used; the user permits exhaustion without redeeming
+resets or overage. Claude session85% used resets18:19UTC, so expensive review
+waits. ACTIVE-JOBS.json records current work; no master integration, public
+release or author message is authorized.
