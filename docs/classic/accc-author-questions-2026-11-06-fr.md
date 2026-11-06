@@ -29,22 +29,50 @@ R0=0 possède ses propres chronogrammes et contrôles indépendants.
 
 ## Type3 : état2 bit4 et ajustement vertical
 
-La §21.3.4.2 p249 décrit le bit4 comme toujours égal à1. DU/03C0 vérifie
-bien cette valeur sur un frame normal, puis programme R4=25hex et R5=8,
-effectue une nouvelle capture et rétablit R4=26hex/R5=0. Son second contrôle
-attend le bit4 bas sur les 4DFF premiers échantillons, puis haut sur le dernier.
+La §21.3.4.2 p249 décrit le bit4 comme toujours égal à1. La photo matérielle
+CRTC3 DU/03C0 indique pourtant OK pour le contrôle suivant, identique dans
+les programmes2.6/2.7 disponibles : avec R4=26hex/R5=0, les4E00 échantillons
+sont hauts ; avec R4=25hex/R5=8, les4DFF premiers sont bas et le dernier haut.
+L'identité CRTC3 vient de l'index et du chemin de la photo, dont le titre
+« CRTC3/4 » est générique.
 
-Cette attente décrit-elle une exception à la table pendant l’ajustement,
-un effet de la méthode de capture, ou une autre interprétation du contrôle ?
-Le collecteur reconstruit les données avec 624 lectures par phase et
-32 phases ; nous ne traitons donc pas le tampon comme un seul frame continu.
-Notre MiSTer et CPCSyntaxError échouent sur ce contrôle ; AmSpirit le passe
-après achèvement de la mesure. Nous devons encore qualifier les lectures
-et le transport du tampon avant d’attribuer ce résultat au bit physique.
-Cette question concerne le bit4, distinct du bit3 et de son origine sur
-seize frames.
+Nous avons maintenant qualifié les lectures IN, leur stockage, la reconstruction
+du tampon et les branches AND10 du programme original. Le MiSTer échoue au
+premier échantillon ajusté ; AmSpirit passe le même appel résident et fournit
+bien ces deux motifs de données. Ses contrôles R5=1/8/16 placent l'échantillon
+haut64/512/1024µs après le dernier caractère du corps. Ces derniers contrôles
+restent des observations d'émulateur, sans nouvelle mesure sur CPC.
+
+Faut-il lire « toujours1 lorsque R5=0 », puis une impulsion au dernier
+caractère de l'ajustement lorsque R5 est non nul ? Ou le bit désigne-t-il
+plutôt le vrai redémarrage du frame ? Les deux coïncident ici. Avec R8=1,
+dans le champ qui ajoute une ligne après R5, le bit est-il haut à la fin du
+bloc R5, à la fin de cette ligne supplémentaire, ou autrement ? Nous gardons
+cette distinction ouverte. Cette question est indépendante du bit3 et de
+son origine sur seize frames.
 
 [Captures et limites de qualification](../investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
+
+## Type3 : acquittement R52 dans BR, instruction CPI
+
+Sur BR/01F0, CPI (EDA1) donne C4 sur la photo CRTC3 et dans la table du
+programme. Notre appel original reproduit CC après douze contrôles précédents
+corrects ; les octets hérités du créneau sont conservés (EDA1034600).
+
+Dans notre trace, l'INT attend déjà depuis longtemps. L'ACK CPU commence avant
+la transition R52 de31 à32, mais IC116 le masque côté ASIC jusqu'à READY,
+qui arrive après cette transition. L'adresse reste PC=4A9B, donc A13=0,
+pendant tout l'ACK ; I:R n'apparaît qu'à sa fin. Nous ne déduisons pas de cette
+trace simulée quel événement réel est incorrect.
+
+Sur quel signal/front R52[5] est-il effacé dans ce cas, et comment cela
+s'articule-t-il avec NIORQ et READY ? Une acquisition CPI liée au résultat C4,
+avec M1, IORQ CPU, NIORQ ASIC, READY/WAIT, horloge, A13 et HSYNC, pourrait
+distinguer une chronologie CPU différente d'un autre mécanisme interne.
+CPCSyntaxError préacquitte selon la durée de l'instruction précédente : ce
+choix reproduit la photo mais ne décrit pas les broches d'IC116.
+
+[Appel original et contraintes ACK](../investigations/hardware-runs/shaker-crtc3-br-ack-boundary-2026-11-06.md).
 
 ## Type3 : création tardive d’une égalité R4=C4
 

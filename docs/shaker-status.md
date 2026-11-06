@@ -19,7 +19,9 @@ report actual Full0. This changes freshness, not counts.
 CRTC3 STATUS2 bit0 now passes both original CPU stages, 46 selected benches,
 full fit and native acceptance on4e45417. DU03C0 still fails bit4. Its separate
 original CPU replay qualifies the adjusted offset0000 failure; the same resident
-AmSpirit routine passes. A bit4 candidate is in progress. No tally change.
+AmSpirit routine passes. The bit4 correction passes the unchanged original CPU
+caller and46 benches with fresh Opus conditional GO; fit/native remain pending.
+No tally change.
 
 Read the [reviewed static-reference text cache](shaker-reference-text.md) before reopening covered text-only photos; unresolved fields still require the source image.
 

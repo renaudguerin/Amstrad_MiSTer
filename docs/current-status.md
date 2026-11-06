@@ -44,9 +44,10 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
   identical. The bit0 correction passes both original CPU stages and46benches;
   Opus source review, full fit and targeted native acceptance now pass. Bit4
   remains broken: its original CPU replay qualifies normal PASS and adjusted
-  RED at offset0000; the same resident AmSpirit routine passes. A separate
-  fail-first bit4 candidate is in progress. The prior missing-photo premise
-  was wrong.
+  RED at offset0000; the same resident AmSpirit routine passes. The separate
+  bit4 correction passes both original CPU stages, focused RED/GREEN and46
+  benches, with fresh Opus conditional GO. Exact-SHA fit and whole03C0 native
+  acceptance remain pending. The prior missing-photo premise was wrong.
   [Plus proof](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
 - The [unpublished milestone draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-992c9d8a468de299083c)
   still targets `fdf348c`, with its coherent 1,384-image SHAKER archive and six
@@ -77,7 +78,7 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 | C1 AI/008D | Direct208 gives1001 and canonicalc093 gives1000 versus physical1111. C0 AI now passes all16 photographed VS bits under the upper-PPI allowance. [C1 residual](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
 | C1 AI/008F and 0090 | 008F now passes30/30 numeric fields after independent vision/source adjudication, also on C0. 0090 still needs complete cell adjudication. 008E, 0091 and direct/full-history 009A retain acceptance. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md). |
 | B6/019D, CRTC0/1 | C0 now matches all four R0 rows on8ba384e; both R7 rows remain1F versus1E. Current CPCSE matches all six physical values. C1 fifth/fourth R7 deadlines remain1F/1F versus1E/1F. Astra finds the lateR7 ordering underdetermined; a physical R7=32/33 paired discriminator is prepared. No aperture or RTL fix selected. [C0](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md), [C1](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |
-| C3 DU/03C0 and E/0406 | DU bit5 passes natively on9c11daf; status2 bit0/bit4 still fail. Reviewed E candidate on the branch matches all17 original CPU witnesses, including ROM0D/1D; ASIC81/81 and46-bench gate pass. It qualifies retained R4 equality by existing READY/A13-shaped selected-write timing. Full synthesis and native0406 pass; all original ordinary/ROM checks clear. DU03C0 stays broken; scoped title/owner preservation passes. [Evidence](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md). |
+| C3 DU/03C0 and E/0406 | Native4e45417 has bit0/bit5 OK and retains only bit4 WRONG0000; all0406 ordinary/ROM checks remain clear. The separate bit4 correction passes the original two-stage CPU caller and46 benches with fresh Opus conditional GO; full fit/native acceptance remain pending. DU03C0 stays broken until then. [Evidence](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md). |
 | C3 B6 and BR | B6 passes all six current program checks. BR01F0/01F1 remain broken. The original resident BR replay preserves twelve passing controls, then produces CPI CC versus table/photo C4. No IC116 wiring mismatch is found; the I-register and small local interrupt-delivery-delay explanations are excluded for that ACK. CPU/WAIT versus READY/HSYNC ordering and internal counter clearing remain unresolved; no fitted timing fix is selected. [ACK evidence](investigations/hardware-runs/shaker-crtc3-br-ack-boundary-2026-11-06.md). |
 | C1 DI/02E3 | Native58 versus photo59; original program labels CRTC1 unreliable, so this remains excluded from confirmed broken counts. |
 | C1 S/02D3 and B9 MID | Current full-history S is0840 WRONG versus program4E40; fresh CPCSE history gives4E40. Same-RBF direct gives4E40; the unchanged canonical-prefix repeat also gives4E40. Preserve current phase/history variability; require a diagnostic fit to retain the failing scalar before attributing a mechanism. Older photo4E30 binding remains separate. B9's repaired 3F rows pass, but MID glyph/reference binding still needs adjudication. [S](investigations/hardware-runs/shaker-s-current-2026-11-06.md), [B9](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md). |

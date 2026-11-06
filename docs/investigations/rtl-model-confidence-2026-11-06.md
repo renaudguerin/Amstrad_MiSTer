@@ -153,7 +153,8 @@ original production-CPU baseline qualifies normalPASS/adjusted4DFFRED; the
 candidate qualifies both stagesPASS with the same observer/input/oracle.
 FocusedRED/GREEN and46selected benches pass. Fresh Opus source review gives
 conditional experimentalGO, with parent verification of the out-of-sandbox
-proof packet. Full fit/native gates remain owed.
+proof packet. Exact-source full fit and targeted native acceptance pass on
+4e45417; bit4 remains a separate defect.
 
 The source comment carries MODEL LIMIT(B26). A body-terminal event and a
 last-adjustment-line suppression rival fit the same R9=7/R5=8pair; a physical
@@ -161,4 +162,38 @@ R5=16pair can distinguish them. Interlaced adjustment is also affected, while
 the separate extra line is unchanged. Live writes, sibling status bits and
 comparator topology remain unproved. Do not describe this as a decap-derived
 shared comparator or silently generalize it to bit4. Evidence:
+[status proof](hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
+
+## Plus STATUS2 bit4: adjustment terminal candidate
+
+The separate candidate uses `R5==0 || (in_adj && adj_end_n && hcc_equal)`.
+It reads existing state and changes only bit4 readback. Canonical physical
+CRTC3 DU03C0 reports OK for the unchanged normal38/0 and adjusted37/8 tests;
+the exact photographed binary is unknown, but available26/27 predicates and
+collectors are identical. The original CPU baseline qualifies normal PASS and
+adjusted0000 RED. AmSpirit executes the same resident unit to PASS. These
+observations override the French §21.3.4.2 p249 Always1 row for that sampled
+case; they do not establish a general hardware decoder.
+
+The widest extrapolation is every stable nonzero R5: the candidate changes
+the former constant to one terminal-character pulse throughout the frame.
+Physical support covers R5=8, R9=7, R0=63 and R8=0. Diagnostic peer controls
+add R5=1/16 at the same other settings. Other R5 values, live register writes,
+the reuse of the sequencer's greater-than-or-equal termination, pulse width
+and interlace remain inferred. No extra state or numeric timing aperture is
+introduced. The RTL carries `MODEL LIMIT (B26)`.
+
+End of adjustment and true frame restart coincide in the accepted progressive
+case. A physical R8=1 run can separate them: in the field with an extra line,
+sample the final character of the R5 block and the final character of the extra
+line; the other field supplies a coincidence control. A stored flag could also
+match the current observations. This is a proposed discriminator, not a new
+hardware expectation. Photo identity comes from the canonical CRTC3 index and
+path; its generic CRTC3/4 heading is not itself the type identifier.
+
+Focused RED/GREEN and46 selected benches pass. The unchanged original CPU
+replay now qualifies both stages PASS and natural RET9761 toC012; only adjusted
+prefix bit4 bytes change. Fresh Opus review finds no RTL or test bug and permits
+a private full fit. Exact-SHA fit and native whole03C0 acceptance remain pending.
+Evidence and source-table conflict:
 [status proof](hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).

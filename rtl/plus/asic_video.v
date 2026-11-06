@@ -1048,6 +1048,16 @@ wire s2_bit1 = ~((charline == (R6_v_displayed - 7'd1)) &&
 wire s2_bit2 = ~((charline == (R7_v_sync_pos - 7'd1)) &&
                  (raster == R9_v_max_line) && hcc_equal);
 wire s2_bit3 = frame16_toggle;
+// MODEL LIMIT (B26): canonical physical CRTC3 DU OK and unchanged SHAKE26/27
+// predicates support bit4 HIGH throughout normal R4/R5=38/0, but only at the
+// final character of adjusted37/8. This bounded observation overrides FR
+// §21.3.4.2 p.249's "Always 1" row. Reusing adjustment termination matches
+// those samples; it does not prove decoder topology. End of adjustment versus
+// true frame origin, extra interlace lines and live R5/R0 writes are unmeasured.
+// See docs/investigations/hardware-runs/
+// shaker-crtc3-status-overflow-2026-11-06.md.
+wire s2_bit4 = (R5_v_total_adj == 5'd0) ||
+                 (in_adj && adj_end_n && hcc_equal);
 wire s2_bit5 = ~(raster == R9_v_max_line);
 wire s2_bit7 = ((raster == R9_v_max_line) && hcc_equal) ||
                ((raster == 5'd0) && (hcc != R0_h_total));
@@ -1087,7 +1097,7 @@ always @(*) begin
 			3'd1: DO = R17_pen_l;
 			3'd2: DO = {s1_bit7, 1'b1, s1_bit5, s1_bit4,
 			            s1_bit3, s1_bit2, s1_bit1, s1_bit0};
-			3'd3: DO = {s2_bit7, 1'b0, s2_bit5, 1'b1,
+			3'd3: DO = {s2_bit7, 1'b0, s2_bit5, s2_bit4,
 			            s2_bit3, s2_bit2, s2_bit1, s2_bit0};
 			3'd4: DO = R12_start_addr_h;
 			3'd5: DO = R13_start_addr_l;

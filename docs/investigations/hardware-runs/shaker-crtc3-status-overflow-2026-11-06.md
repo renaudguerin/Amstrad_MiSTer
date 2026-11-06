@@ -1,5 +1,11 @@
 # CRTC3 status and C4-overflow failures
 
+Current boundary: native4e45417 passes E0406 and DU bit0, retaining only
+DU bit4 WRONG0000. The separate bit4 correction passes both original CPU
+stages and the selected gate, with fresh Opus conditional GO; fit/native
+acceptance are pending. Earlier sections retain their checkpoint-specific
+limits. The final section records the current bit4 derivation and scope.
+
 > Physical-reference correction: the ignored canonical real-CPC cache contains
 > CRTC3 DU/03C0, showing STATUS2 bit0 andbit4 OK. Earlier no-photo assumptions
 > were wrong. The available2.6/2.7checks are byte-identical; see the final
@@ -425,3 +431,56 @@ Private packets: `c3-status2-bit4-amspirit-20261106/`,
 `c3-status2-bit4-amspirit-geometry-20261106/`,
 `c3-status2-bit4-peer-source-20261106/` and the fail-first preparation in
 `c3-status2-bit4-original-proof-20261106/`.
+
+## Bit4 correction: original CPU RED/GREEN, fit/native pending
+
+The fresh production-T80 baseline executes the declared original bit4 unit
+without changing its guest, inputs or sampling phase. Normal9762 checks all
+19,968 samples successfully. Both collectors complete, but adjusted9751 takes
+the original failure branch to9777 at offset0000, HL1000/SPBFEE/A10/F10.
+Both captured arrays have bit4HIGH throughout. The adjusted final byte is
+captured but not reached by the failing guest analyzer. Actual IN/latch/A/store,
+original remap-before-restore, AND10/branch, stack and every-write RAM replay
+qualify; counter tuples remain diagnostics. A fresh Gemini review finds no
+material proof-code flaw.
+
+The correction changes only STATUS2 bit4 readback:
+`R5==0 || (in_adj && adj_end_n && hcc_equal)`. It adds no state and reads the
+existing adjustment terminal decision plus the strict live horizontal equality.
+The same focused test fails at adjusted0000 before the edit, then passes with
+unchanged expectations. One final `JOBS=1 python3 sim/select_tests.py --run`
+passes46 benches, including82 ASIC-video cases.
+
+One fresh candidate production-CPU replay changes only ASIC source within the
+same36-file tuple. The original guest, observer, analyzer, oracle and passive
+top remain byte-identical. Both19,968-sample stages qualify PASS, ending with
+original RET9761→C012, HL9790/SPBFF0/BC0/A10/F10. The normal array is identical
+to baseline. Adjusted0000..4DFE differ only by bit4; final4DFF is unchanged.
+Both synchronization reference ticks are unchanged. No fitted phase, later
+frame, counter seed or observer/oracle edit is used.
+
+Fresh Opus5.5 review finds no RTL or test bug and permits a private full fit
+after that replay. Its auxiliary hash commands were refused; it reads the
+actual changed source and staged in-checkout evidence, while the parent binds
+the exact source/test hashes and accepted gate log. Its documentation findings
+are resolved in this section and the [B26 inventory](../rtl-model-confidence-2026-11-06.md).
+The physical photo has a generic CRTC3/4 heading: the canonical index and path
+establish its CRTC3 identity. A new clarification leaves the earlier frozen
+program-binding packet unchanged.
+
+MODEL LIMIT(B26): the equation predicts a terminal pulse for every stable
+nonzero R5. Physical acceptance supports the bounded R5=8/R9=7/R0=63/R8=0
+pair; R5=1/16 controls are peer-only. Live writes, greater-than termination,
+interlace, pulse width and decoder topology are unmeasured. In particular,
+end of adjustment and true frame restart coincide here. An original R8=1
+two-boundary capture can distinguish them in the field with an extra line.
+No expectation for that unmeasured corner is added to the conformance suite.
+
+Full fit must close on the exact committed SHA. Native DU03C0 must then show
+every check OK, retaining03BF, ModuleE/R5 and scoped title controls. Until
+then the page stays broken in the ledger. No master integration or release
+approval follows. Private evidence:
+`c3-status2-bit4-original-proof-20261106/` and
+`c3-status2-bit4-candidate-20261106/`. The
+[unsent author draft](../../classic/accc-author-questions-2026-11-06-fr.md)
+now asks about the table conflict and the interlace discriminator directly.

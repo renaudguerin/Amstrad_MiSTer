@@ -2696,8 +2696,8 @@ void t07d_status1_vsync_band_polarity(TestBench& test) {
                 0x20, 0x00);
 }
 
-// ACCC §21.3.4.2 p.250 (FR p.249). Constants: bit4=1 and bit6=0. Bit5 is zero
-// throughout C9=R9. Bit7 is one at C9=0 before C0=R0 and at the final
+// ACCC §21.3.4.2 p.250 (FR p.249): bit6=0; bit4=1 for this R5=0 case.
+// Bit5 is zero throughout C9=R9. Bit7 is one at C9=0 before C0=R0 and at the final
 // C9=R9/C0=R0 character. Bits 1/2/0 pulse low at the three named line ends.
 void t07e_status2_vertical_events(TestBench& test) {
     test.write_register(0, 3);
@@ -2739,13 +2739,26 @@ void t07e_status2_vertical_events(TestBench& test) {
 // The relevant 26/27 checks are byte-identical; the photo's exact payload
 // hash is unknown. Qualified original CPU replay exposed a duplicate LOW
 // at4DFF. This pins the shared counter/status boundary, not decoder topology.
-void t07h_status2_bit0_body_and_adjustment(TestBench& test) {
+// Bit4 is independently specified by unchanged SHAKE27D 9762..9776
+// (normal HIGH0000..4DFF) and 9736..9761 (adjusted LOW0000..4DFE,
+// HIGH4DFF), with the same byte-identical 26/27 predicates/photo binding.
+// This bounded hardware/software oracle conflicts with FR §21.3.4.2 p.249's
+// bit4 "Always 1" table row. It does not establish a general R5 rule or the
+// photographed payload hash. See docs/investigations/hardware-runs/
+// shaker-crtc3-status-overflow-2026-11-06.md for the derivation and evidence
+// limits.
+void t07h_status2_bits0_and4_body_and_adjustment(TestBench& test) {
     constexpr unsigned kFrameCharacters = 312 * 64; // 19968, original4E00 buffer
     const std::array<std::uint8_t, 10> normal =
         {{63, 40, 46, 14, 38, 0, 25, 30, 0, 7}};
-    struct Geometry { std::uint8_t r4, r5; unsigned low_offset; const char* name; };
-    const std::array<Geometry, 2> cases = {{{38, 0, 0x4DFF, "normal"},
-                                           {37, 8, 0x4BFF, "adjusted"}}};
+    struct Geometry {
+        std::uint8_t r4, r5;
+        unsigned low_offset;
+        bool bit4_all_high;
+        const char* name;
+    };
+    const std::array<Geometry, 2> cases = {{{38, 0, 0x4DFF, true, "normal"},
+                                           {37, 8, 0x4BFF, false, "adjusted"}}};
     for (const auto& geometry : cases) {
         for (unsigned reg = 0; reg < normal.size(); ++reg)
             test.write_register(reg, normal[reg]);
@@ -2761,8 +2774,16 @@ void t07h_status2_bit0_body_and_adjustment(TestBench& test) {
             const std::uint8_t expected = offset == geometry.low_offset ? 0 : 1;
             char position[5];
             std::snprintf(position, sizeof(position), "%04X", offset);
+            const std::uint8_t status = test.sample_selected();
             expect_mask(std::string("t07h ") + geometry.name + " offset " + position,
-                        test.sample_selected(), 0x01, expected);
+                        status, 0x01, expected);
+            // Original 9769 requires all normal samples HIGH; original
+            // 974F/975A requires only adjusted offset4DFF HIGH. Neither
+            // bit0 nor the DUT's counter/adjustment state selects this oracle.
+            const std::uint8_t expected_bit4 =
+                geometry.bit4_all_high || offset == 0x4DFF ? 1 : 0;
+            expect_mask(std::string("t07h ") + geometry.name + " bit4 offset " + position,
+                        status >> 4, 0x01, expected_bit4);
             test.run_characters(1);
         }
         test.expect_hcc("t07h312-line frame wrap", 0);
@@ -3499,7 +3520,7 @@ constexpr std::array<TestCase, 82> kTests = {{
     {"t07d STATUS1 VSYNC band polarity", t07d_status1_vsync_band_polarity},
     {"t07e STATUS2 vertical events", t07e_status2_vertical_events},
     {"t07f STATUS2 16-frame timer", t07f_status2_frame16_timer},
-    {"t07h STATUS2 bit0 normal and adjusted body", t07h_status2_bit0_body_and_adjustment},
+    {"t07h STATUS2 bits0/4 normal and adjusted body", t07h_status2_bits0_and4_body_and_adjustment},
     {"t07g read-only slots, dual read ports and neutral cycles", t07g_readonly_and_neutral_cycles},
     {"t08a screen split capture and advance", t08a_split_screen_capture_and_advance},
     {"t08b screen split disabled when zero", t08b_split_screen_disabled_when_zero},
