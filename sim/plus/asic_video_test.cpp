@@ -2629,10 +2629,10 @@ void t07c_status1_pointer_preview(TestBench& test) {
                 0x80, 0x00);
 }
 
-// ACCC §21.3.4.1 p.249 (FR p.248) + [KT] CRTC Status 1: bit 5 is zero only on
-// the final line of the effective VSYNC pulse. [KT] supplies the R3h=0
-// sixteenth-line result; ACCC documents only the preceding 15 lines.
-void t07d_status1_last_vsync_line(TestBench& test) {
+// ACCC FR §21.3.4.1 p.248: positive R3h makes status 1 bit 5 LOW on the
+// final VSYNC line. R3h=0 reverses the event polarity: fifteen HIGH lines
+// from VSYNC, LOW outside that band (original DU03C0: 297 LOW / 15 HIGH).
+void t07d_status1_vsync_band_polarity(TestBench& test) {
     auto seek_vsync = [&](const std::string& context) {
         unsigned guard = 0;
         while (!test.vsync()) {
@@ -2668,7 +2668,11 @@ void t07d_status1_last_vsync_line(TestBench& test) {
     test.write_register(9, 31);
     test.select_register(2);
     test.run_to_frame_start();
+    expect_mask("t07d before zero-width VSYNC band", test.sample_selected(),
+                0x20, 0x00);
     seek_vsync("t07d width-16");
+    expect_mask("t07d first zero-width VSYNC line", test.sample_selected(),
+                0x20, 0x20);
     test.run_characters(28); // line index 14
     expect_mask("t07d fifteenth of sixteen VSYNC lines",
                 test.sample_selected(), 0x20, 0x20);
@@ -2677,7 +2681,7 @@ void t07d_status1_last_vsync_line(TestBench& test) {
                 0x20, 0x00);
     test.run_characters(2);
     expect_mask("t07d after width-16 VSYNC", test.sample_selected(),
-                0x20, 0x20);
+                0x20, 0x00);
 }
 
 // ACCC §21.3.4.2 p.250 (FR p.249). Constants: bit4=1 and bit6=0. Bit5 is zero
@@ -3369,7 +3373,7 @@ constexpr std::array<TestCase, 75> kTests = {{
     {"t07a modulo-8 read map and pointer storage", t07a_mod8_read_map_and_storage},
     {"t07b STATUS1 horizontal events", t07b_status1_horizontal_events},
     {"t07c STATUS1 video-pointer preview", t07c_status1_pointer_preview},
-    {"t07d STATUS1 last VSYNC line", t07d_status1_last_vsync_line},
+    {"t07d STATUS1 VSYNC band polarity", t07d_status1_vsync_band_polarity},
     {"t07e STATUS2 vertical events", t07e_status2_vertical_events},
     {"t07f STATUS2 16-frame timer", t07f_status2_frame16_timer},
     {"t07g read-only slots, dual read ports and neutral cycles", t07g_readonly_and_neutral_cycles},
