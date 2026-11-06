@@ -38,9 +38,10 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
   [model audit](investigations/rtl-model-confidence-2026-11-06.md).
 - Plus E0406 acceptance carries from5c1ab57; ASIC source is unchanged in493cdea.
   All original ordinary/ROM checks pass in that native proof, while DU03C0
-  status2 remains broken. Its normal-frame bit0 collector now passes a fully qualified original CPU
-  replay. The adjusted-frame observer is being implemented: it can report
-  the same4DFF offset. Bit4/table conflict stays separate.
+  status2 remains broken. Its complete original bit0 replay now qualifies normalPASS and adjustedRED:
+  a second LOW at4DFF takes9368→938E. The canonical physical CRTC3 photo
+  shows bit0/bit4OK; available-program binding is being checked. The prior
+  missing-photo premise was wrong. Bit4/table interpretation stays separate.
   [Plus proof](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
 - The [unpublished milestone draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-992c9d8a468de299083c)
   still targets `fdf348c`, with its coherent 1,384-image SHAKER archive and six

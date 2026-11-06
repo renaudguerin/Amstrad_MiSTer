@@ -1,5 +1,10 @@
 # CRTC3 status and C4-overflow failures
 
+> Physical-reference correction: the ignored canonical real-CPC cache contains
+> CRTC3 DU/03C0, showing STATUS2 bit0 andbit4 OK. Earlier no-photo assumptions
+> were wrong. The available-program binding is being checked; see the final
+> section for the qualified adjusted-stage failure and reference provenance.
+
 Native baseline `fdf348c` fails the original program checks on DU/03C0 and E/0406.
 Fresh AmSpirit Lite 1.17.1 completes both pages with every check clear. These
 are confirmed failures against the current program, separate from a matched
@@ -290,3 +295,43 @@ The unexecuted v1 guard review caught SP/DE reads before T1 deferred commits;
 v2/v3 observe them at T2. A v2 lexical compiler error and a source-path comment
 identity-helper error are preserved; only one v3 DUT ran. All original guest,
 phase, oracle and36 production inputs remain frozen.
+
+## Qualified adjusted-stage bit0 failure and physical reference
+
+The unchanged original continuation now completes both captures under the
+frozen5c1 production composition. Normal geometryR4=38/R5=0 passes. With
+R4=37/R5=8, the reconstructed buffer has bit0LOW at4BFF and4DFF. Original
+code requires only4BFFLOW;9368 branches to938E on the final adjustment byte,
+HL5DFF/SP9DE4/F54. This is a qualified original-software failure; the actual
+native branch remains unobserved.
+
+All39,936 real statusIN→DI_Reg→A→store→original remap→analyzerRAM→A receipts
+qualify, along with49,318 copied bytes and248,928 replayed writes. The second
+C7→C7 command is observed separately from actual map changes:10commands and
+9changes. Both sample generations and final128KB match the independent write
+replay. The one DUT and analyzer each exit0; execution takes161,520,447clocks
+and146.578host seconds. No input, phase or expectation was fitted or retried.
+
+The body and adjustment LOWs both haveC0/C4/C9=63/37/7, with in_adj0 and1
+respectively,512µs apart in the same strided phase. These counter observations
+are diagnostic, not qualification gates. Parent reads the complete observer
+delta, accepts Gemini’s independent review with no functional finding, and
+verifies226input,30compiled and46final-artifact hashes. Private packet:
+`c3-status2-adjusted-bit0-proof-20261106/runtime/`.
+
+The [canonical physical CRTC3 photograph](https://shaker.logonsystem.eu/images/cpc/CPC/DU_CRTC3_D.webp)
+shows STATUS2 bit0OK andbit4OK. Root and Astra independently read those labels.
+Its cached SHA256 isbc2837b3df66b3b46471ec603d627823e6eb9aa53bd43040a777bde8143377e5;
+the portal index identifies it as Real Hardware, not an emulator. It was
+already available in the main clone’s ignored cache; the earlier missing-photo
+claim was an evidence-discovery mistake. Photograph identity does not identify
+its exact disk binary. Available2.6/2.7 predicate comparison is the next binding
+check before using that OK to settle the adjustment rule.
+
+French§21.3.4.2p249 gives raw counter equalities, while§11.2.6pp85–86 assigns
+C9’s adjustment termination toR5. This does not by itself establish the status
+comparator’s domain. Astra’s focused judgment keeps the source interpretations
+separate and revises its recommendation after viewing the physical photo:
+a matching two-stage hardware verdict permits a scoped fail-first correction,
+without proving comparator topology or transposing it to other status bits.
+No production comparator or bit4 change is selected in this checkpoint.
