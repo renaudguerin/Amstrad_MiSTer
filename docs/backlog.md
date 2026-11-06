@@ -80,7 +80,13 @@ Acceptance: an expanded classified inventory; per-area constraint/hypothesis
 matrix; a reviewed general-rule proposal or explicit explanation of why the
 exception is irreducible/underdetermined; targeted discriminator results or a
 clear pending hardware request; relevant simulation/synthesis/native gates for
-any accepted RTL change. Line-count reduction alone is not success.
+any accepted RTL change. Human readability is part of acceptance: preserve
+names and comments that explain the timing event, sampling boundary and priority.
+An algebraically shorter expression is not an improvement if it hides why a
+coincident write still works or which history the state represents. Prefer a
+single clearly named decision point over duplicated setters; retain explanatory
+terms when their intent is clearer than the absorbed form. Line-count reduction
+alone is not success.
 
 Going forward, [AGENTS.md](../AGENTS.md) requires `MODEL LIMIT (B26):` comments
 when a narrow exception is used without an established general rule, naming its

@@ -43,13 +43,16 @@ The two runs have the same55,300,783 post-origin ticks. No baseline was rerun.
 
 ## Remaining gates
 
-Existing focused controls are being evaluated without changing assertions.
-PRI pr01–13 pass; pr14 stops on its old raw-relative delivery bound. GA
+Focused existing controls have completed without changing assertions.
+All six original V5 screens30–35 match the physical endpoint/count table, and
+all68 photographed DMA H1 records match. These constrain delivered behaviour;
+they do not locate the internal count stage. PRI pr01–13 pass; pr14 stops on
+its old raw-relative delivery bound. GA
 differential d02/r02 stop on raw classic-lockstep phase, and snapshot B3=51
 stops on its old next-raw-line deadline. Those are recorded failures, not waived
 gates: source/model expectations and actual external outcomes must be reviewed
-separately. The latter aborts leave later subcases unexecuted. V5 screens30–35
-and the four original DMA H1 pages are still under test.
+separately. The latter aborts leave later subcases unexecuted, including VS/MRER
+and snapshot pending/ACK combinations.
 
 Fresh cross-provider semantic review, current-tip final gates, enabled full fit
 and native original BR/IRQ/DMA preservation remain before adoption. The
