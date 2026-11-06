@@ -88,6 +88,17 @@ public:
         dut.eval();
     }
 
+    // Replay a board-qualified data-write window at the existing bus pins.
+    // The normal character/PIXEN cadence continues during disabled ticks.
+    void selected_write_tick(bool enabled, std::uint8_t value) {
+        dut.ENABLE = enabled;
+        dut.nCS = 0;
+        dut.R_nW = 0;
+        dut.RS = 1;
+        dut.DI = value;
+        clock_tick();
+    }
+
     // P5 readback is combinational and several status bits last one
     // character only (ACCC §21.3.4 p.249). Sample without advancing the
     // clock so the assertion names the counter state actually observed.
@@ -3304,7 +3315,65 @@ void t08j_sscr_vertical_offset_r9_above_7(TestBench& test) {
     test.expect_ra("t08j next row starts at offset RA 5", 5);
 }
 
-constexpr std::array<TestCase, 75> kTests = {{
+enum class R4WriteWindow { Early, Late, FragmentedRom };
+
+// French ACCC §12.5 p103 and original SHAKER E0406: the ordinary early
+// 3C/38 cases overflow C4 and set the PPI VS witness; late 3D/39 cases wrap
+// without VS. The ROM 0D/1D cases retain the overflow witness. These source
+// outcomes are independent of the retained-match implementation.
+//
+// Replay the production-T80/READY caller's measured board ENABLE windows,
+// relative to the terminal CLKEN at t=0, with 64 CLOCK ticks per character:
+// early [-119,-31), late [-55,33), ROM [-55,-39) plus [5,25).
+// READY/A13 already qualify ENABLE upstream; no ROM input exists here.
+// These intervals are transport receipts, not a silicon sampling aperture.
+// See docs/investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md.
+void t02m_r4_source_window(TestBench& test, unsigned r0,
+                           R4WriteWindow window) {
+    test.set_pixen_divider(4);
+    test.write_register(0, r0);
+    test.write_register(3, 14);
+    test.write_register(9, 7);
+    test.write_register(4, 1);
+    test.write_register(5, 0);
+    test.write_register(7, 2);
+    test.write_register(8, 0);
+    test.run_until_vsync_idle();
+    test.run_to_frame_start();
+    test.select_register(4);
+    test.run_to_state(1, 7, r0 - 2, "t02m natural preterminal alignment");
+    test.align_to_character_start();
+    test.expect_hcc("t02m aligned two characters before terminal", r0 - 2);
+    test.expect_line("t02m aligned old R4 match", 1);
+    test.expect_row("t02m aligned last raster", 7);
+
+    for (int tick = -128; tick <= 34; ++tick) {
+        bool enabled;
+        if (window == R4WriteWindow::Early) {
+            enabled = tick >= -119 && tick < -31;
+        } else if (window == R4WriteWindow::Late) {
+            enabled = tick >= -55 && tick < 33;
+        } else {
+            enabled = (tick >= -55 && tick < -39) ||
+                      (tick >= 5 && tick < 25);
+        }
+        if (tick == 0) {
+            test.expect_hcc("t02m actual terminal pre-edge", r0);
+            test.expect_line("t02m old row at terminal pre-edge", 1);
+            test.expect_row("t02m last raster at terminal pre-edge", 7);
+        }
+        test.selected_write_tick(enabled, 0);
+    }
+
+    const bool overflow = window != R4WriteWindow::Late;
+    test.expect_hcc("t02m terminal horizontal wrap", 0);
+    test.expect_line("t02m original E C4 outcome", overflow ? 2 : 0);
+    test.expect_row("t02m original E C9 outcome", 0);
+    test.expect_vsync("t02m original E PPI VS witness", overflow);
+    test.expect_adj(false, "t02m no adjustment");
+}
+
+constexpr std::array<TestCase, 81> kTests = {{
     {"t01a reset and R0=0 acceptance", t01a_reset_and_r0_zero},
     {"t01b R0=64-character line period", t01b_r63_period},
     {"t01c five-bit register select alias", t01c_register_select_alias},
@@ -3323,6 +3392,18 @@ constexpr std::array<TestCase, 75> kTests = {{
     {"t02j IVM exit to plain counting", t02j_ivm_exit_returns_to_plain_counting},
     {"t02k IVM even-frame adjustment", t02k_ivm_even_frame_adjustment},
     {"t02l IVM odd-frame adjustment", t02l_ivm_odd_frame_adjustment},
+    {"t02m R0=63 ordinary early R4 window", [](TestBench& test) {
+         t02m_r4_source_window(test, 63, R4WriteWindow::Early); }},
+    {"t02m R0=63 ordinary late R4 window", [](TestBench& test) {
+         t02m_r4_source_window(test, 63, R4WriteWindow::Late); }},
+    {"t02m R0=63 fragmented ROM R4 window", [](TestBench& test) {
+         t02m_r4_source_window(test, 63, R4WriteWindow::FragmentedRom); }},
+    {"t02m R0=59 ordinary early R4 window", [](TestBench& test) {
+         t02m_r4_source_window(test, 59, R4WriteWindow::Early); }},
+    {"t02m R0=59 ordinary late R4 window", [](TestBench& test) {
+         t02m_r4_source_window(test, 59, R4WriteWindow::Late); }},
+    {"t02m R0=59 fragmented ROM R4 window", [](TestBench& test) {
+         t02m_r4_source_window(test, 59, R4WriteWindow::FragmentedRom); }},
     {"t03a VMA reload and row advance", t03a_ma_reload_and_row_advance},
     {"t03b R1 border edges", t03b_r1_border_edges},
     {"t03c R1==R0 single-character blip", t03c_r1_eq_r0_blip},
