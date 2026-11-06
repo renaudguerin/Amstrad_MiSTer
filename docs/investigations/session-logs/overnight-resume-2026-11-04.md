@@ -299,6 +299,28 @@ outgoing author question is created. The whole-page SHAKER tally is unchanged.
 The latest Codex reading00:20:04 UTC is17% weekly used, with three banked
 resets untouched; the user alone redeems resets.
 
+## B6 current-source qualification — 6 November
+
+Astra's read-only audit identifies the frozen optical source as90f3b18.
+A separate Sol-high replay now compiles29 current production inputs with the
+12 original fixture/guest/oracle files unchanged. One build/two guest runs
+retain8/4 versus9/5; all57 columns in both optical windows exactly match90f3.
+Root reads the final report/logs and verifies82 artifact hashes plus all source
+and input bindings. Analyzer exit0 qualifies the mismatch, not behaviour.
+No original B6 fourth/fifth replay, firmware boot or physical aperture is claimed.
+`r7-jit-fdf-cohort/PARENT-ACCEPTANCE.json` records acceptance; no global gate is
+repeated and no public code changes.
+
+The held-write provisional-onset hypothesis remains unselected. It is not
+excluded by the inspected vectors, but French§16.3p169 protects an active
+VSYNC when equality changes and supplies no unfinished-write exception.
+§16.4.2p171 retains immediate onset/partial-line counting. The unsent R7 draft
+now asks whether protection already applies during the triggering write and
+whether B6's later PPI sample excludes a short pulse. No speculative RTL follows.
+Both workers finish; MiSTer remains idle on fdf348c in French Plus BASIC with
+BTF mounted. Root next reads the D3 boundary rather than launching another
+full44-page timing sweep.
+
 ## Remaining order
 
 Return to the known CRTC1 B6 comparison-visibility question after the R3

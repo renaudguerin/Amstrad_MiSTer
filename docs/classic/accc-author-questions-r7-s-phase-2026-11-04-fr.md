@@ -51,6 +51,14 @@ pour OUT(C)/OUTI, contre9/5 attendus. Il faut donc distinguer les conditions
 d'admission près du changement de C4 du délai général de publication, sans
 interdire le cas non terminal où C4 reste égal à R7.
 
+Le §16.3p169 protège une VSYNC en cours si l'égalité C4/R7 change. Cette
+protection s'applique-t-elle aussi dès le déclenchement pendant une écriture
+R7 encore maintenue, si C4 change avant la fin de cette même écriture ? Le
+résultat PPI ultérieur de B6 permet-il d'exclure une brève impulsion pendant
+l'écriture, ou seulement une VSYNC qui se poursuit jusqu'à la lecture ? Nous
+n'avons pas mesuré la broche VSYNC pendant cette écriture et ne retenons pas
+de règle d'annulation provisoire.
+
 Les [preuves et limites](../investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md)
 conservent les deux contraintes ; aucun nouveau délai numérique n'est retenu.
 
