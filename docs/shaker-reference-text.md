@@ -5,6 +5,11 @@ JSON or TXT before reopening a reviewed static text photograph. This private
 cache is a reading aid; the original image remains authoritative. Twelve pages
 have reviewed numeric coverage: the five-page C0 A4/B6/C5
 and C1 A4/B6 pilot, plus seven C0/C1 AI pages, with explicit partial coverage.
+The complete private cache is also preserved in the main clone’s ignored
+`local/shaker-reference-text/`, which newly provisioned task worktrees share
+through their normal `local` link. Keep accepted fields and the raw batch
+outputs when preserving private evidence before worktree cleanup.
+
 Source-image SHA256 binds each record. Keep source expected values separate
 from MiSTer observations and from program-version assumptions.
 

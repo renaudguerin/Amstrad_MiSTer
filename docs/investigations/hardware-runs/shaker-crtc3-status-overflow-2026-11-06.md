@@ -250,3 +250,17 @@ could not establish MiSTer bus/CLKEN phase anyway. Broader late nonzero R4 title
 coverage therefore stays open, as do false-to-true behavior, the rival write-end
 model and the split consumer. Native acceptance does not establish silicon
 latch topology or complete R4 behavior.
+
+A second pinned peer trace covers the unchanged Amazing script:202,907 register
+events and1,590 R4 writes, with both requested logo/lower-text captures viewed.
+Its527 repeated0→17 rewrites occur atC0=11/R0=63, so oldC4/R4 equality there
+is ordinary rewrite coverage rather than a late terminal overlap. No changed
+nonzero near-terminal candidate is found in this sampled script. The specific
+late-nonzero title acceptance remains open; neither trace is a MiSTer aperture
+oracle. Private packet: `c3-e-amazing-r4-coverage-20261106/`.
+
+The next DU status2 unit is an unchanged original bit0 collector proof, before
+attempting bit4's contradictory adjustment predicate. A Gemini static source
+map is retained with parent corrections in `c3-status2-proof-readiness-20261106/`.
+It is not executed evidence: sampler timing, IN-to-banked-RAM/remap provenance
+and resident dependencies must qualify before any timing or predicate change.

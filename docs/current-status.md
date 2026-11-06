@@ -30,7 +30,8 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 - C0's accepted8ba384e controls give A4 first pair01/00 and B6's four R0
   results27/14/26/27. Seven lower A4 VS-bit discrepancies and both B6 R7
   failures remain. Source-derived p127 non-last widening now has a qualified
-  RED; a private candidate and original B6 preservation are next. No further
+  RED; the original B6 baseline qualifies46/46 with all six native bytes.
+  Private candidate preservation is next. No further
   classic production fix is accepted. [C0 evidence](investigations/hardware-runs/shaker-crtc0-a4-qualified-phase-2026-11-06.md),
   [model audit](investigations/rtl-model-confidence-2026-11-06.md).
 - The [unpublished milestone draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-992c9d8a468de299083c)
@@ -50,10 +51,10 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 
 | CRTC | Passing | Broken | Unknown | Stale | Total |
 |---:|---:|---:|---:|---:|---:|
-| 0 | 6 | 3 | 477 | 1 | 487 |
+| 0 | 7 | 3 | 476 | 1 | 487 |
 | 1 | 364 | 4 | 111 | 1 | 480 |
 | 3 | 3 | 3 | 416 | 1 | 423 |
-| All | 373 | 10 | 1004 | 3 | 1390 |
+| All | 374 | 10 | 1003 | 3 | 1390 |
 
 | Live question or gate | Current evidence and next boundary |
 |---|---|

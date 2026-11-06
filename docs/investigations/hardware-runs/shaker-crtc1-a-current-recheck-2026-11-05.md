@@ -226,3 +226,8 @@ captures remain byte-identical to their prior controls; no new baseline or DUT
 run was needed. Private `c0-r0-native-20261106/AI-008F-REFERENCE-ACCEPTANCE.json`
 binds the60 observed/photographed values, native hashes and cache hashes.
 The other dense0090 grid remains unknown.
+
+The same numeric-cache review closes C0/008E: all16 photographed5F and
+nativeFF fields match under that upper-input allowance. Root views the native
+page and checks parameters/order; AI-008E-REFERENCE-ACCEPTANCE.json binds the
+capture and cache. C0/008E becomes passing without another device run.

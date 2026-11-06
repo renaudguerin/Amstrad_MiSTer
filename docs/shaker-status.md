@@ -41,12 +41,12 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 
 | CRTC | Module | Passing | Broken | Unknown | Stale | Total |
 |---:|:---|---:|---:|---:|---:|---:|
-| 0 | A | 3 | 1 | 118 | 0 | 122 |
+| 0 | A | 4 | 1 | 117 | 0 | 122 |
 | 0 | B | 0 | 1 | 220 | 0 | 221 |
 | 0 | C | 1 | 0 | 21 | 0 | 22 |
 | 0 | D | 0 | 0 | 110 | 1 | 111 |
 | 0 | E | 2 | 1 | 8 | 0 | 11 |
-| **0** | **Total** | **6** | **3** | **477** | **1** | **487** |
+| **0** | **Total** | **7** | **3** | **476** | **1** | **487** |
 | 1 | A | 119 | 2 | 6 | 0 | 127 |
 | 1 | B | 103 | 1 | 35 | 0 | 139 |
 | 1 | C | 76 | 1 | 3 | 0 | 80 |
@@ -59,7 +59,7 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 | 3 | D | 1 | 1 | 147 | 1 | 150 |
 | 3 | E | 1 | 0 | 4 | 0 | 5 |
 | **3** | **Total** | **3** | **3** | **416** | **1** | **423** |
-| **All** | **Total** | **373** | **10** | **1004** | **3** | **1390** |
+| **All** | **Total** | **374** | **10** | **1003** | **3** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.

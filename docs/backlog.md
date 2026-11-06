@@ -29,7 +29,9 @@ contains six candidate policies/coverage limits; it is not an exhaustive count.
 The frozen8ba384e source audit finds a French §13.7.2.1 p127 non-last-row
 widening defect, now reproduced with126/126 production-T80 transport guards.
 A private candidate separates row advance from true-frame adjustment without
-new state; original C0 B6 preservation is its next acceptance boundary. Keep
+new state; the unchanged original C0 B6 baseline now qualifies46/46 and reproduces all six
+native values; private candidate preservation is next. B6 never storesR0=1,
+so it protects shared owners rather than directly proving the new admission. Keep
 the accepted ordinary/zero repair: late oldR0=1 horizontal timing remains
 underdetermined. The [model-confidence report](investigations/rtl-model-confidence-2026-11-06.md)
 links the frozen proof, candidate and remaining limits.
