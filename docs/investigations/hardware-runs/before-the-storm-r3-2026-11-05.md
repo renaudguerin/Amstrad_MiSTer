@@ -2,7 +2,35 @@
 
 The user reports alternating-frame horizontal wobble on CRTC1 in an earlier build. The author confirms alternating R3 values. Media is`btf.dsk`, launched with`RUN"-BTF`; the affected landscape scroller is approximately373–403 seconds after RUN (the supplied video enters RUN near2s and shows the effect at6:15–6:45). The video frames have not been independently inspected: retrieval was throttled.
 
-## Consecutive native acceptance on c0939d8
+## Current CRTC3 native result — 6 November
+
+The ASIC correction on `fdf348c` removes the sampled reversing wobble.
+The unchanged original normal-boot CSL/disk/French cartridge and reviewed
+frame reader produce eight complete bursts:192 frames,180 geometry-qualified
+frames and168 eligible consecutive pairs. The fixed middle-band window gives
+85 holds and83 left-two steps, with no rightward or left-ten step. Old
+c0939d8 gave88 holds,43 left-ten and45 right-six steps in176 eligible pairs.
+Root views all192 frames and the primary screenshot.
+
+Eleven attempts are explicitly rejected: eight exceed the12ms copy limit,
+three the1ms poll-gap limit. Accepted maxima are11.782361ms copy and
+0.823028ms polling gap. The next-consecutive-header geometry guard, last/pregap
+exclusions and original x32:736/y98:122/dx−24..24 registration remain unchanged.
+No tolerance or capture guard is relaxed. Ordinary PAL native output is the
+acceptance scope; physical HDMI/CRT response and full-demo completion remain
+unmeasured. See `btf-asic-r3-native-fdf348c/PARENT-ACCEPTANCE.json` for hashes,
+rejections and all before/after counts.
+
+The exact-SHA full build is
+[42131293902](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42131293902).
+Static native controls independently show a complete LEFT8 R3=4→5 translation
+with zero common-canvas RGB mismatches and exact old5/6 preservation. All eight
+BI/R3-JIT pages are byte-identical to c0939d8. The candidate DSC4/Amazing and
+AE/AR preservation batch passes within its recorded scope. The intentional
+INK10 cycle explains colour variants, including exact old-build held-page
+counterparts; no geometric or colour tolerance is fitted. [ASIC proof and artifact](asic-r3-rendered-position-2026-11-05.md).
+
+## Prior c0939d8 coverage by CRTC
 
 Fresh coverage now distinguishes the shared classic correction from ASIC:
 
@@ -10,7 +38,7 @@ Fresh coverage now distinguishes the shared classic correction from ASIC:
 |---:|---:|---|---|
 | 0 | 72 /63 | 31 holds,32 left2 | No reversal in the sampled current run. |
 | 1 | 192 /176 | 88 holds,88 left2 | Before/after native acceptance below. |
-| 3 | 192 /176 | 88 holds,43 left10,45 right6 | Reversing wobble still present; ASIC proof required. |
+| 3 | 192 /176 | 88 holds,43 left10,45 right6 | Prior reversing wobble, repaired by fdf348c above. |
 
 All three use c0939d8, the same original disk/command and requested Full
 filter. Root views all72 CRTC0 and192 CRTC3 complete frames in their
@@ -34,12 +62,21 @@ bus phase. A separate CPCSyntaxError3 run reaches the same scene. Its
 packaged English Plus cartridge differs from MiSTer's pinned French
 `6128_FR.cpr` (`ab241580…3360cf`); peer output is supporting evidence only.
 
+A fresh CPCSyntaxError3 trace on 6 November additionally records278 writes
+at the original post-opcode PC08A0,139 each of4/5, strictly alternating.
+Both768×544 images are RGB-identical to the earlier untraced run; root views
+both. Executable/source remain the pinned v0.12.0 pair. This qualifies the
+Plus guest mechanism with the same disk, while retaining the English/French
+cartridge difference. Its internal restart counter is not a display-frame ID
+and its dispatch coordinates do not measure native bus phase. Evidence is
+`btf-cpcse-crtc3-trace-001/GUEST-R3-QUALIFICATION.json`.
+
 Private roots are `btf-crtc0-native-20261105-002/`,
 `btf-crtc3-native-20261105/`, `btf-cpcse-crtc0-001/` and
 `btf-cpcse-crtc3-001/` under `resumed-20261104/`. Per-machine
 `PARENT-ACCEPTANCE.json` records counts, hashes and bounds; the CRTC0 root
 also holds `REMOTE-CLEANUP-VERIFIED.json`. No physical HDMI/CRT or full-demo
-acceptance follows. The new ASIC proof must fail before any RTL repair.
+acceptance follows. The failing-first ASIC proof and subsequent native result are recorded above.
 
 The reported reversing wobble now has a bounded native before/after result.
 Both runs normal-boot the original disk/CSL, CRTC1, French layout and requested

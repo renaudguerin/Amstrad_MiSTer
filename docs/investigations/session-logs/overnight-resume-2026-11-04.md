@@ -253,15 +253,64 @@ remain x65..705/y40..240. New-candidate final-image/border acceptance is pending
 Eight old C3 temporary burst directories are removed only after all200 original
 files match locally by SHA256 (120,819,080 bytes); the cleanup receipt is retained.
 
+## ASIC R3 native milestone — 6 November
+
+Source `fdf348cd04475589c48c5b9fd41a4d160039ad20` passes every required CI job,
+including the slow ASIC fixture, and full run42131293902. Artifact13464902429
+contains `Amstrad_20261106_fdf348c.rbf`,3,138,276 bytes,
+SHA256 `17466675860ee115418e712c55250a866c1b2f45bc9a796fd7f314a86d1cbf0d`.
+Setup/hold minimum0.507/0.201ns across seven clocks, TNS zero; warning IDs/counts
+match c0939d8. Device file hash matches. No code changed after the frozen gate.
+
+Static native4/5 is the exact LEFT8 whole-image relation, including both paper
+edges:207,480 common-canvas RGB comparisons, zero mismatches. Width5/6 are
+byte-identical to old controls. All six candidate pictures are root-viewed.
+Original normal-boot BTF3 completes10 commands/one screenshot then eight
+bursts:192 complete frames,180 geometry-qualified,168 eligible pairs. Middle
+motion85 holds/83 left-two steps, no reversal; old c093 gave88 holds/43 left-ten/
+45 right-six in176 pairs. All192 frames and primary screenshot are viewed.
+Eleven attempts are rejected by unchanged copy/poll timing guards (8/3);
+no acquisition or image-match tolerance is relaxed. The raw reader SHA matches.
+All200 original candidate burst files are hash-verified locally before only
+the eight owned remote temporary directories are removed (120,821,813 bytes).
+
+Candidate preservation totals75 commands/20 images across BI, DSC4, Amazing
+and AE/AR, all completed and viewed. BI8 is exactc093/275. DSC4 credits/first
+otter are exact275, later image remains visible; Amazing logo/lower effects
+remain present at unpaired animation phases. All seven AE/AR images have exact
+current-c093 phase counterparts. The original guest901E–903D toggles INK10
+5F/5C every50 loop iterations. Old c093 retained-BC snapshots show both exact
+320-pixel colour states; the640-pixel variant also occurs on oldc093. Thus
+this apparent residual is the documented guest colour cycle. Initial menu
+captures are excluded; the valid original walk stops before its final SPACE.
+No production fix or gate rerun was added for that investigation.
+
+Fresh CPCSE3 tracing qualifies278 original08A0 writes,139 each4/5, strictly
+alternating; both images match its earlier untraced run. UK/French cartridge
+and character-rounded scheduler limits remain explicit. No physical bus-phase
+claim follows. The SHA/command/trace packet is private and complete.
+
+MiSTer is left on the new fdf trial in French Plus BASIC, BTF mounted, with
+its ready screenshot viewed. No device/emulator/provider job remains active.
+AmSpirit stays paused on the own R3=6 calibration cartridge; the user's CPCSE
+GUI is untouched. Opus assurance, enabled-sprite/live-owner coverage and the
+return-pass counter guard remain promotion debt. No master/PR/release or
+outgoing author question is created. The whole-page SHAKER tally is unchanged.
+The latest Codex reading00:20:04 UTC is17% weekly used, with three banked
+resets untouched; the user alone redeems resets.
+
 ## Remaining order
 
-Finish ASIC BTF acceptance after the running full build. SSH is recovered;
-VSCLK native matches the model and still needs an original-CRTC1 result. 0090remainsunknownafterfocusedreading;
-A4version/physicaldeadlinequestionpreserved. No speculativeAIzero-guard.
-C0E6 cases27/28, B6 aperture, C1C5count/RFDlifetime remain evidence-gated
-unsentquestions. DI58vs59 caption unreliableonType1. D7physicaloscillation/
-settling open. DSC4bottomrow isviewport; ASICcredits/BI/AEAR/sampledeffects
-accepted, nofullPlus/demobaseline. No blind D3heldSpace/fullwalk retries.
+Return to the known CRTC1 B6 comparison-visibility question after the R3
+checkpoint; keep its physical aperture unselected unless a source-founded
+failing proof identifies a concrete defect. The rejected common next-CLKEN
+consumer and OUTI CPU-phase audit are already preserved, not work to repeat.
+VSCLK native matches the model and still needs an original-CRTC1 result.
+0090 remains unknown after focused reading; A4 version/physical deadline,
+C0 E6 cases27/28, C1 C5 count/RFD lifetime and D7 physical settling remain
+bounded open questions. DI's Type1 warning and D3's invalid held-Space captures
+remain exclusions. Do not launch a broad milestone baseline before the known
+fixes are complete, and do not add a speculative AI zero guard.
 
 Private paths are relative to `local/overnight-20261103/resumed-20261104/`.
 `ACTIVE-JOBS.json` holds current process identities; update it before handing off.

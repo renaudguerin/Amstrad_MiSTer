@@ -41,7 +41,9 @@ accept: return-pass acquisition/READY counters are cumulative rather than deltas
 enabled-sprite narrow-sync pixels lack end-to-end coverage; live classic/Plus
 owner switching has inspection-only assurance. Look hardest at CE alignment,
 12-bit post-compositor history and context cancellation across owner/reset/SNA
-changes. This is an experimental branch, not merged or hardware accepted.
+changes. This remains an experimental branch, not merged. Static LEFT8, sampled native
+BTF, BI/AE/AR and DSC4/Amazing preservation now pass; those results do not
+close these promotion or physical-display gates.
 [Evidence and bounds](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md).
 
 **ACCC page-anchor migration to the v1.11 re-issue, 2026-09-21 — REVIEWED (Gemini 3.8 Flash

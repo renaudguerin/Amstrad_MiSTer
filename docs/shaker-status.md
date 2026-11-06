@@ -1,6 +1,8 @@
 # SHAKER status
 
-Maintained page tally, 5 November 2026, against experimental source `c0939d8`.
+Maintained page tally, 6 November 2026. Page judgments carry forward the
+`c0939d8` milestone and qualified earlier builds; current trial `fdf348c`
+adds scoped ASIC preservation without changing whole-page verdicts.
 The per-page [results ledger](shaker-results.csv) owns these counts. Results
 use mixed builds: older accepted photo comparisons are carried forward unless
 superseded or invalidated; the ledger records the build and evidence for each
@@ -88,7 +90,7 @@ and [next discriminators](investigations/hardware-runs/shaker-next-discriminator
 |---:|---|---|---|
 | 0 | Credits clear; sampled main effects restored | Sampled effects preserved | 208bacf preservation |
 | 1 | Credits clear; sampled main effects restored | Sampled effects preserved | c0939d8 preservation |
-| 3 / ASIC | Credits clear; sampled main effects restored | Logo/lower effects restored | 275af8a acceptance; later005 preservation |
+| 3 / ASIC | Credits clear; sampled main effects restored | Logo/lower effects restored | fdf348c targeted preservation |
 
 These are sampled hardware results, not full-demo sign-off. DSC4's CRTC1
 bottom row also exists in AmSpirit's uncropped buffer; desired visible bounds
@@ -104,7 +106,12 @@ coverage for both. ASIC display timing uses its separate fix. BTF's reported
 reversing wobble now has native before/after acceptance on **CRTC1**:
 82eligible reference pairs include−10/+6reversals;176current pairs contain
 only0/−2steps. A fresh CRTC0 run adds63eligible pairs without reversal;
-CRTC3 still reverses in176eligible pairs and needs its own ASIC proof/fix.
+CRTC3 now also has native before/after acceptance: old c0939d8 reverses in176
+eligible pairs; fdf348c has168 eligible pairs with85 holds/83 left-two steps
+and no reversal. All192 candidate frames are viewed, with11 rejected
+acquisition attempts retained. Static LEFT8, eight exact BI controls and
+scoped AE/AR/DSC4/Amazing preservation pass; Opus/promotion coverage and
+physical HDMI/CRT acceptance remain open.
 [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 
 ## Maintaining the tally

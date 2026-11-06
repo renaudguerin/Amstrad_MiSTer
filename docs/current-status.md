@@ -1,6 +1,6 @@
 # Current status
 
-Fresh-session handover, 5 November 2026. The [roadmap](implementation-roadmap.md)
+Fresh-session handover, 6 November 2026. The [roadmap](implementation-roadmap.md)
 sets work order and acceptance gates; the [backlog](backlog.md) and
 [review debt](review-debt.md) track cross-cutting work. Dated investigations hold
 proof and limits. The [detailed prior handover](archive/current-status-detail-2026-11-05.md)
@@ -14,21 +14,23 @@ AmSpirit and CPCSyntaxError are useful peers, not substitutes for hardware.
 
 ## Current branch and artifact
 
-- Experimental branch `codex/classic-ga-boundary-native-20261105`, source
-  `c0939d8`; comparison baseline `e24cb50`. This is not integrated
-  into `master` and is not a release. Completed DT evidence is on
-  `codex/overnight-validation-20261103` (`18b58ce`).
-- Installed `Amstrad_20261105_c0939d8.rbf`, 3,151,920 bytes; SHA256
-  `cb7fe0bd06c1d282413e501fd6017a34dba11ae62f4483e388a630c7ca1d883e`,
-  matching the device. The 46-bench gate, CRTC 246/0, recorded soak
-  `044411d1ebf3cb6d`, independent review and
-  [full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42099745018)
-  `Amstrad-build-399-1-full` passed. Minimum setup/hold slack was
-  0.478/0.236 ns across seven clocks, zero TNS; warning counts unchanged from
-  208. [Native B9 and preservation evidence](investigations/hardware-runs/shaker-b9-current-reference-2026-11-05.md).
+- Experimental branch `codex/classic-ga-boundary-native-20261105`, trial source
+  `fdf348c`; prior native milestone `c0939d8`, comparison baseline `e24cb50`.
+  This is not integrated into `master` and is not a release. Completed DT
+  evidence remains on `codex/overnight-validation-20261103` (`18b58ce`).
+- Installed `Amstrad_20261106_fdf348c.rbf`, 3,138,276 bytes; SHA256
+  `17466675860ee115418e712c55250a866c1b2f45bc9a796fd7f314a86d1cbf0d`,
+  matching the device. Exact-SHA selected simulation/lint, production-T80
+  (including the new slow ASIC fixture) and
+  [full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42131293902)
+  pass; `Amstrad-build-401-1-full`. Setup/hold minimum is 0.507/0.201 ns
+  across seven clocks, zero TNS; warning counts match c0939d8.
+  DeepSeek permits an experimental trial; Opus/promotion review debt remains.
+  [ASIC proof and current acceptance](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md).
 - `c0939d8` restores B9's three photographed 3F=2740 rows; wider Type1 exit,
   even-R9, origin and independent R5 seam bounds remain open. ASIC acceptance
-  on `275af8a` is scoped to the checks below, not a fresh Plus baseline.
+  on `fdf348c` preserves the scoped BI/AE/AR and demo checks below, not a fresh
+  Plus baseline.
 
 ## SHAKER
 
@@ -68,18 +70,24 @@ These are sampled native results, not full-demo or physical HDMI/CRT sign-off.
 |---:|---|---|---|
 | 0 | Credits clear; sampled main effects restored | Sampled effects preserved | [Classic display](investigations/hardware-runs/classic-ga-display-edge-2026-11-05.md); wider phases remain open. |
 | 1 | Credits clear; sampled main effects restored | Sampled effects preserved | DSC4 green lines and Amazing coloured bands also appear in fresh AmSpirit; [comparison](investigations/hardware-runs/dsc4-c1-main-lines-reference-2026-11-05.md). Bottom row is outside AmSpirit's default viewport; [crop](investigations/hardware-runs/dsc4-bottom-row-crop-2026-11-04.md). |
-| 3 / ASIC | Credits clear; sampled main effects restored | Logo and lower effects restored | [ASIC boundary](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md); full demo remains untested. |
+| 3 / ASIC | Credits clear; sampled main effects restored | Logo and lower effects restored | fdf348c preservation; [ASIC boundary](investigations/hardware-runs/asic-credit-blank-boundary-2026-11-04.md); full demo remains untested. |
 
-Before the Storm: CRTC1 has native before/after acceptance; CRTC0 now has
-63 eligible pairs without reversal. CRTC3 still reverses in 176 eligible
-pairs; its failing-first RGB candidate passes focused tests and the 46-bench
-gate. DeepSeek review permits an experimental build; synthesis/native acceptance
-are pending. Opus review, live-owner and enabled-sprite coverage remain open.
-Candidate source `fdf348c`; [full build](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42131293902) is running.
-[ASIC candidate](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md). Physical HDMI/CRT acceptance
-remains open. [BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
+Before the Storm: CRTC1 has native before/after acceptance; CRTC0 has 63
+eligible pairs without reversal. Old c0939d8 CRTC3 reverses in 176 pairs.
+The fdf348c candidate passes static native controls: the complete R3=4/5
+image moves by eight pixels with exact translated RGB identity, while 5/6
+stay byte-identical to the old build. The original BTF3 trial now has 168
+eligible pairs with no reversal, all 192 frames viewed. Eight BI/R3-JIT images are byte-identical to c0939d8; scoped
+DSC4/Amazing and AE/AR preservation pass. AR colour differences are the
+original INK10 cycle, reproduced exactly on the old build. Opus,
+live-owner and enabled-sprite promotion coverage remain open.
+[ASIC candidate](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md),
+[BTF evidence](investigations/hardware-runs/before-the-storm-r3-2026-11-05.md).
 The GA/R3 compensation is shared by classic CRTC0/1 and has deterministic
-coverage for both; ASIC display timing uses a separately tested correction.
+coverage for both; ASIC uses a separately tested correction. Physical HDMI/CRT
+acceptance remains open. CRTC0/1 demo results retain their prior evidence;
+CRTC3 preservation is refreshed on fdf348c. MiSTer is left in French Plus
+BASIC with the BTF disk mounted and the new trial RBF active.
 
 Plus retains bounded BI/AE/AR and credit acceptance. A4 first/third rows are
 0/1 versus the older physical photo's 1/1, with program/history binding open;

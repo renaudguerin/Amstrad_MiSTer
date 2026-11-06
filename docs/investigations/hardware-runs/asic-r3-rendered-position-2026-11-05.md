@@ -1,15 +1,15 @@
-# ASIC R3 positioning: rendered-RGB candidate
+# ASIC R3 positioning: rendered-RGB correction
 
-The current MiSTer build still reverses Before the Storm's scroller on
-CRTC3. A focused test identifies the missing ordinary R3=4/5 output shift
-and now passes after extending the rendered-RGB correction to ASIC output.
-The candidate has completed its simulation gates. DeepSeek cross-provider review gives GO for an experimental full build. Both
-Opus routes were unavailable (AGY resource exhaustion; Claude Pro expired OAuth).
-Synthesis and native acceptance remain pending.
+Source `fdf348c` removes Before the Storm's sampled reversing wobble on
+CRTC3. The production fixture fails before the correction and passes after it;
+full synthesis, static native LEFT8, the original BTF run and scoped
+BI/AE/AR/DSC4/Amazing preservation now pass. The branch remains experimental.
+DeepSeek independently permits the trial; Opus assurance and the documented
+promotion coverage remain open. No full-demo or physical HDMI/CRT claim follows.
 
 ## Native defect and independent reference
 
-On installed source `c0939d8`, eight CRTC3 bursts provide 192 complete frames
+On prior source `c0939d8`, eight CRTC3 bursts provide 192 complete frames
 and 176 eligible consecutive pairs. The fixed middle-band registration gives
 88 holds, 43 left 10 and 45 right 6 steps. Root views every frame. The same
 qualified reader and geometry guards show no reversal on sampled CRTC0,
@@ -43,17 +43,79 @@ to a new requirement; the candidate retains the existing coarse 5/6 output.
 
 ## Old-build native static controls
 
-On installed `c0939d8`, all three original calibration cartridges now complete
+On prior build `c0939d8`, all three original calibration cartridges now complete
 normal boots through the hardware loop, with two stable native captures per
 width. The parent views all six. R3=4 and R3=5 images are byte-identical
 (SHA256 `780c7946aaacb599d64e25db5d772c472df310c8132c81b6e12ce6432dc390a6`).
 Independent decoding of the original 48-dot marker places both at x409 on
-rows40/100/239; width6 places it at x401. All three non-border rectangles
+rows40/100/239; width 6 places it at x401. All three non-border rectangles
 are `(65,40,705,240)` in the 768×273 captures. These are old-build output
 observations, not candidate acceptance or an original-ASIC measurement.
 Private `btf-asic-r3-hardware-plan/PARENT-OLD-STATIC-ACCEPTANCE.json` binds
 the CPR/RBF/CFG identities and all six captures. The new-build trial retains
 these inputs and checks the final captured image, including its borders.
+
+## Candidate build and static native acceptance — 6 November
+
+[Full run 42131293902](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42131293902)
+passes every required job on `fdf348cd04475589c48c5b9fd41a4d160039ad20`.
+Artifact 13464902429, `Amstrad-build-401-1-full`, contains
+`Amstrad_20261106_fdf348c.rbf`, 3,138,276 bytes, SHA256
+`17466675860ee115418e712c55250a866c1b2f45bc9a796fd7f314a86d1cbf0d`.
+Clean-full Quartus 17.0.2 Build 602 closes setup/hold at 0.507/0.201 ns across
+seven clocks, TNS zero. Warning categories/counts match c0939d8; no critical,
+implicit-net or latch warning is added. The device file hash matches.
+
+The same three normal-boot cartridges now complete two captures each on the
+candidate. Root views all six. Width 4 paper moves to `(73,40,713,240)` and
+its unique marker to x417; width 5 remains `(65,40,705,240)`/x409. The entire
+760×273 common canvas matches after the expected eight-pixel translation:
+207,480 pixels, zero RGB mismatches. Both paper edges move; no border clipping
+is introduced. Width 5/6 remain byte-identical to their old-build images.
+
+`btf-asic-r3-build/ACCEPTANCE.json` binds CI, timing and device provenance;
+`btf-asic-r3-hardware-plan/PARENT-CANDIDATE-STATIC-ACCEPTANCE.json` binds
+all six final images. All eight old-c093 BI/R3-JIT captures are additionally
+byte-identical to the accepted 275af8a images, establishing the current
+preservation baseline. The candidate BI run is byte-identical to all eight.
+The original BTF trial completes eight bursts / 192 frames: 180 geometry-qualified
+frames, 168 eligible pairs, 85 holds / 83 left-two steps and no reversal. Eleven
+attempts rejected by unchanged copy/poll timing guards remain explicit in the
+[BTF acceptance](before-the-storm-r3-2026-11-05.md).
+
+## Targeted preservation and AR palette phase
+
+Four candidate runs complete 75 commands/20 captures with no failure. Root
+views every image. These checks preserve the previously qualified scope;
+they do not refresh the whole-page photo tally.
+
+| Target | Commands / captures | Result |
+|---|---:|---|
+| BI / R3-JIT |25 /8| All eight images are byte-identical to current c0939d8, which also matches 275af8a. |
+| DSC4 |16 /3| Credits, including all four colons/names, and the first otter image are exact 275af8a matches. The later rotating/fire-band image remains visible at a different animation phase. |
+| Amazing |13 /2| Logo and lower text/effects remain visible in both sampled frames; no phase-matched pixel claim. |
+| AE / AR |21 /7| Every candidate frame has an exact current c093 native phase counterpart, including the guest's intentional colour cycle. |
+
+AR initially differs from older captures in 640/320 pixels, all the same
+red/blue pair. A focused read-only Sol review locates the original INK10
+cycle at guest 901E–903D: the program counts 50 loop iterations, then toggles
+its colour literal 5F/5C with XOR3. All three AR variants use that loop. Its
+exact bytes are present in the pinned input disk at offset 0x1209E; root
+checks the listing and ASIC legacy-palette entries.
+
+The immediate-parent c093 control already reproduces the candidate's 640-pixel
+variant. An original walk stopped before the final SPACE then retains BC.
+Six live old-build screenshots, with no reset, input or register edits, show
+both 320-pixel variants: four are byte-identical to the candidate BC/B7 image,
+two to the earlier old image. Thus the apparent residual is a guest colour
+phase, with exact old-source counterparts, not a newly observed regression.
+The initial live menu captures are excluded, not treated as AR evidence.
+
+`btf-asic-r3-hardware-plan/PARENT-AE-AR-ACCEPTANCE.json` binds all seven
+counterparts; `AR-INK10-SOURCE-JUDGMENT.md` and the held-page captures retain
+the source and native discriminator. BI and title comparison receipts are in
+the same private root. Physical geometry, broad Plus compliance and the
+promotion limits below remain open.
 
 ## Failing-first production proof
 
@@ -100,7 +162,9 @@ The filter, VRAM, raw HSYNC and CRTC/ASIC counter rules are unchanged.
   still match the gate. The provider exited normally; no edits or tests ran.
 - The direct focused ASIC run is the slow-gate evidence; the 46-bench selector
   run covers the affected fast benches. CI additionally runs the slow fixture.
-- Full synthesis and targeted native candidate acceptance: pending.
+- Full synthesis/required CI: PASS on exact source `fdf348c`, including the
+  slow production-T80 fixture. Static native controls, BTF and scoped
+  title/SHAKER candidate acceptance pass within the limits below.
 
 The review identifies three limits to retain before promotion:
 
