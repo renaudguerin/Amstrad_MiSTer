@@ -27,6 +27,8 @@ AmSpirit and CPCSyntaxError are useful peers, not substitutes for hardware.
   across seven clocks, zero TNS; warning counts match c0939d8.
   DeepSeek permits an experimental trial; Opus/promotion review debt remains.
   [ASIC proof and current acceptance](investigations/hardware-runs/asic-r3-rendered-position-2026-11-05.md).
+  A later test-only change requires fresh Full-return acquisition/READY
+  receipts; focused/46-bench gates and Gemini review pass. FPGA RTL is unchanged.
 - `c0939d8` restores B9's three photographed 3F=2740 rows; wider Type1 exit,
   even-R9, origin and independent R5 seam bounds remain open. ASIC acceptance
   on `fdf348c` preserves the scoped BI/AE/AR and demo checks below, not a fresh

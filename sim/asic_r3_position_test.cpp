@@ -147,6 +147,8 @@ struct Bench {
         return body();
     }
     std::vector<Sample> body() {
+        // A Full return must earn fresh receipts after its committed mode change.
+        const unsigned completeAtEntry = complete, readyLowAtEntry = readyLow;
         bool found = false;
         for (unsigned i = 0; i < 12000000; ++i) {
             if (armed && frames >= 3 && dut.c4 == 6 && dut.c9 == 0 && dut.c0 == 0) {
@@ -157,16 +159,22 @@ struct Bench {
         require(found, "bounded natural frame/body capture timed out");
         require(writes == 1 && dut.r0 == 63 && dut.r1 == 40 && dut.r2 == 50 && dut.r3 == width,
                 "actual CPU nominal CRTC registers");
-        require(dut.filter_applied == 0 && dut.filter_size == 256 && !dut.filter_nohs && complete > 10,
-                "Full natural acquisition qualification");
-        require(dut.mode_requested == 2 && dut.mode_effective == 2 && readyLow > 10,
-                "production CPU/READY/Mode2 qualification");
+        const unsigned completeDelta = complete - completeAtEntry;
+        const unsigned readyLowDelta = readyLow - readyLowAtEntry;
+        require(dut.filter_applied == 0 && dut.filter_size == 256 && !dut.filter_nohs && completeDelta > 10,
+                "Full natural acquisition qualification within this body");
+        require(dut.mode_requested == 2 && dut.mode_effective == 2 && readyLowDelta > 10,
+                "production CPU/READY/Mode2 qualification within this body");
         event("capture");
         std::vector<Sample> samples; samples.reserve(8192);
         for (unsigned i = 0; i < 8192; ++i) samples.push_back(tick());
         std::cout << "width" << width << " qualified: ticks=" << ticks << " natural_origins=" << frames
                   << " CPU_R3_writes=" << writes << " complete_pulses=" << complete
-                  << " READY_low=" << readyLow << '\n';
+                  << " READY_low=" << readyLow
+                  << " body_entry_complete=" << completeAtEntry
+                  << " body_qual_complete_delta=" << completeDelta
+                  << " body_entry_READY_low=" << readyLowAtEntry
+                  << " body_qual_READY_low_delta=" << readyLowDelta << '\n';
         return samples;
     }
     void mode(unsigned requested) {

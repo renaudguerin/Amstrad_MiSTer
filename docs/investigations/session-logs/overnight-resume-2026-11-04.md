@@ -338,6 +338,23 @@ and allCRTC367/4/383/636/1390. Whole-page physical CRT geometry/temporal compari
 remains open. MiSTer is restored to fdfPlusBASIC/BTF; sevencommands/oneviewed
 ready image. [Current count proof](../hardware-runs/shaker-d3-count-correction-2026-11-06.md).
 
+## ASIC return-pass qualification — 6 November
+
+Sol-high changes only body() in sim/asic_r3_position_test.cpp: completed-pulse
+and READY-low guards use entry-relative deltas. No RTL, top, guest, pixel oracle,
+window or threshold changes. Focused ASIC fixture passes: initial4/5/6 each
+979/2,755,114 fresh receipts; return748/2,104,209. Both1104 LEFT8 relations,
+eight edges and16,384 raw-mode RGB comparisons pass. Final selected gate runs
+once after the last edit: `select_tests: PASS 46 benches`. Root reads the logs,
+diff/report and all six source hashes without repeating it.
+
+Gemini3.8 high independent review20261106T011845Z-68309-6dd2 exits0/GO;
+no blocking finding, edits or tests. Root accepts the small counter-qualification
+fix while retaining Opus, enabled-sprite/live-owner and physical-display debt.
+This closes the earlier cumulative-counter P2, not a new DUT timing defect or
+filter retraining epoch. The RBF remains fdf348c. Logs/review/parent acceptance
+are in asic-return-qualification-20261106/; no worker/provider remains active.
+
 ## Remaining order
 
 Return to the known CRTC1 B6 comparison-visibility question after the R3

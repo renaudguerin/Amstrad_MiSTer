@@ -166,13 +166,12 @@ The filter, VRAM, raw HSYNC and CRTC/ASIC counter rules are unchanged.
   slow production-T80 fixture. Static native controls, BTF and scoped
   title/SHAKER candidate acceptance pass within the limits below.
 
-The review identifies three limits to retain before promotion:
+The original review identifies three limits; the first is now closed by
+the test-only qualification follow-up below:
 
-- Return-pass `complete` and `readyLow` checks use cumulative counters. Three
-  fresh natural origins, the live acquisition fields, nonempty pixel checks
-  and four visible-edge assertions still qualify that pass. Use counter deltas
-  to strengthen those two guards before promotion; this is not an observed
-  false pass or an RTL blocker for the experimental trial.
+- **Closed:** return-pass `complete` and `readyLow` guards now require fresh
+  per-body deltas. This strengthens acquisition qualification; no observed
+  RTL failure or hardware timing policy is changed.
 - The fixture uses sprites disabled. The history structurally follows the
   final palette/sprite compositor, but narrow-sync output with enabled sprites
   has no end-to-end proof.
@@ -180,13 +179,40 @@ The review identifies three limits to retain before promotion:
   neither static-owner fixture toggles the owner at runtime.
 
 These limits and the pending Opus review are tracked in [review debt](../../review-debt.md).
-No code changed after the reviewed gate.
+The FPGA RTL remains frozen at `fdf348c`. The test-only follow-up has its own
+focused result, selected gate and independent review.
 
 The focused ASIC fixture uses Mode 2 with sprites disabled. It checks the
 whole rendered line and full 12-bit source identity, rather than a proposed
 silicon register stage. General monitor settling, every JIT waveform,
 enabled-sprite narrow-sync combinations and full-demo acceptance remain
 outside this result. Raw-mode and old 5/6 preservation are explicit bounds.
+
+## Fresh Full-return qualification — 6 November
+
+`Bench::body()` now saves its completed-pulse and READY-low totals on entry,
+and applies both existing >10 guards to fresh deltas before collecting pixels.
+The returned body begins after the actual Full-mode commit and waits for three
+natural origins. Earlier Full/Raw receipts cannot satisfy these guards; no
+counter, CPU, guest, capture window, threshold or RGB oracle is changed.
+A pulse can straddle entry, but cannot alone meet the completed-pulse threshold.
+This establishes fresh activity during Full residency, not a restarted filter-
+training epoch or three necessarily complete frames.
+
+`make -C sim asic-r3-position-test` passes. Each initial width earns 979 pulses
+and 2,755,114 READY-low samples; the Full return earns 748 and 2,104,209.
+Both 1104 LEFT8 comparisons and all eight visible-edge checks pass, with 16,384
+raw-mode RGB checks. The sole final `python3 sim/select_tests.py --run` passes
+46 benches. The parent reads the logs and verifies all six frozen source hashes
+without rerunning the gate. Only the C++ qualification changed.
+
+Gemini 3.8 Flash high independently reviews the frozen diff and gives GO,
+run `20261106T011845Z-68309-6dd2`, exit 0. It finds no blocking issue and makes
+no edits or test runs. Its assurance is limited to this small test change;
+the pending Opus, enabled-sprite, live-owner and physical-display gates remain.
+Private commands, hashes, review and parent receipt are in sibling
+`asic-return-qualification-20261106/`. No new RBF is required for this test-only
+change; the installed artifact remains the accepted `fdf348c` build.
 
 Private evidence is under
 `local/overnight-20261103/resumed-20261104/btf-asic-r3-proof/`:
