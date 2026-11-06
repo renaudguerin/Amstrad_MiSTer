@@ -15,27 +15,33 @@ hardware and photographs remain the oracle; AmSpirit and CPCSyntaxError are peer
 
 ## Current branch and artifact
 
-- Experimental branch `codex/classic-ga-boundary-native-20261105`; not integrated
-  into `master`. Latest hardware candidate `5c1ab57` retains the reviewed C0 R0
-  equality repair and Plus status1 bit5 fix, and adds selected-write-qualified
-  Plus R4 retention. Exact-SHA simulation/production-T80 and
-  [full synthesis](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42209634374)
-  pass. Quartus17.0.2 build602 Standard Fit/max effort closes seven clocks,
-  setup/hold minima0.550/0.241ns, zeroTNS. The3,149,156-byte RBF
-  `Amstrad_20261106_5c1ab57.rbf`, SHA256
-  `0165785e2120f16a748f31543338d7faf8c5b4e4e4513fb2b22fd2a164f65d17`,
-  is verified on device. Native E0406 clears all checks; DU captures are
-  byte-identical to9c11daf. Scoped DSC4/Amazing and seven AE/AR frames preserve acceptance.
-  [Proof, review and limits](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
-- The prepared C0 row-advance/R6 candidate passes253/253 CRTC tests,
-  46 selected benches, all126 original p127 CPU guards and all46 original B6
-  preservation guards. Root verifies both frozen artifact manifests. Opus finds
-  no RTL composition defect and permits an experimental build; the historical
-  T80 interface repair and additional R6 route proofs now pass. The final
-  46-bench gate passes; supplemental Opus review permits the experimental build. No new RBF or whole-page acceptance yet. R4/R7 landings,
-  late widening and degenerate parity policies remain unresolved.
-  [Candidate and limits](investigations/hardware-runs/shaker-crtc0-r0-nonlast-advance-2026-11-06.md),
+- Experimental branch `codex/classic-ga-boundary-native-20261105`, source
+  `493cdea`; not integrated into `master`. [Exact-SHA full CI](https://github.com/renaudguerin/Amstrad_MiSTer/actions/runs/42239336164),
+  including production-T80, passes. Quartus17.0.2 full fit closes seven
+  setup/hold domains, minima0.475/0.247ns and zeroTNS. Device-verified RBF
+  `Amstrad_20261106_493cdea.rbf`,3,135,416bytes, SHA256
+  `f370e07b6813b4a0b06fa055b1e316518a53bdbc5bb218ae9cfb0f23d8dcfc35`.
+  Six targeted runs produce35 viewed captures and41 actualFull0 records;
+  normal WAIT and all CFG restores pass. All14 CRTC1 captures are byte-identical
+  to8ba384e. C0 B6 and stable C5/B9 markers are preserved; three asynchronous
+  A2/C5/B9 views vary in acquisition and remain ungraded.
+- C0's p127 row advance and shared R6 consumers pass253/253 CRTC tests,
+  46 selected benches,126 p127 CPU guards,46 B6 guards and33 original A4 guards.
+  Opus full/supplemental reviews permit experimental use. Native A4 now matches
+  all photographed fields: earlier seven-lower-mismatch claims misreadFEFF asFFFF;
+  onlyrow4 was wrong and493cdea corrects it. A4 becomes unknown because extra
+  C9sweep lacks a hardware reference. R4/R7 landings, late admission and competing
+  parity readings remain explicit B26 limits. Scoped CRTC0 DSC4/Amazing preservation also passes; user manual BTF acceptance
+  remains carried forward.
+  [Correction](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md),
+  [candidate proof](investigations/hardware-runs/shaker-crtc0-r0-nonlast-advance-2026-11-06.md),
   [model audit](investigations/rtl-model-confidence-2026-11-06.md).
+- Plus E0406 acceptance carries from5c1ab57; ASIC source is unchanged in493cdea.
+  All original ordinary/ROM checks pass in that native proof, while DU03C0
+  status2 remains broken. Its normal-frame bit0 collector now passes a fully qualified original CPU
+  replay. The adjusted-frame continuation is being prepared: it can report
+  the same4DFF offset. Bit4/table conflict stays separate.
+  [Plus proof](investigations/hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
 - The [unpublished milestone draft](https://github.com/renaudguerin/Amstrad_MiSTer/releases/tag/untagged-992c9d8a468de299083c)
   still targets `fdf348c`, with its coherent 1,384-image SHAKER archive and six
   explicit gaps. The CRTC3 DSC4/Amazing samples are also preserved on5c1ab57; wider demo/
@@ -53,15 +59,15 @@ are not a fresh sweep. CRTC2/4 are not selectable in this core.
 
 | CRTC | Passing | Broken | Unknown | Stale | Total |
 |---:|---:|---:|---:|---:|---:|
-| 0 | 7 | 3 | 476 | 1 | 487 |
+| 0 | 7 | 2 | 477 | 1 | 487 |
 | 1 | 364 | 4 | 111 | 1 | 480 |
 | 3 | 3 | 3 | 416 | 1 | 423 |
-| All | 374 | 10 | 1003 | 3 | 1390 |
+| All | 374 | 9 | 1004 | 3 | 1390 |
 
 | Live question or gate | Current evidence and next boundary |
 |---|---|
 | C0 E6/0409 | Cases 27/28 remain wrong; 26/28 pass. Resolve R4 rematch against physical behaviour; AmSpirit passes 28/28. [Forced-entry evidence](investigations/hardware-runs/crtc0-forced-zero-adjustment-2026-11-04.md), [stimulus](investigations/hardware-runs/crtc0-e6-rematch-stimulus-2026-11-05.md). |
-| A4/0037, CRTC0/1 | C0 repair8ba384e passes original caller and native first pair01/00. Full-page comparison retains seven R0=1 first-byte VS-bit mismatches after the upper-PPI allowance; those rows are unchanged from baseline. Extra C9 sweep changes to01×8, matching current CPCSE but absent from photo. Wider native controls complete; five C0 A2 and five AI pages are unchanged. C1 first pair remains00/00; no transposition follows from its separate rule. [Proof and limits](investigations/hardware-runs/shaker-crtc0-a4-qualified-phase-2026-11-06.md). |
+| A4/0037, CRTC0/1 | C0 upper01/00 remains correct and all8 photographed lower pairs now match on493cdea. Prior seven-lower-failure claim was an E/F transcription error: baselineFEFF×8 had only row4 wrong, nowFFFF. Page becomes unknown because extraC9sweep lacks hardware reference. C1 first pair00/00 remains broken. [Correction](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md). |
 | C1 AI/008D | Direct208 gives1001 and canonicalc093 gives1000 versus physical1111. C0 AI now passes all16 photographed VS bits under the upper-PPI allowance. [C1 residual](investigations/hardware-runs/shaker-crtc1-008d-current-2026-11-05.md). |
 | C1 AI/008F and 0090 | 008F now passes30/30 numeric fields after independent vision/source adjudication, also on C0. 0090 still needs complete cell adjudication. 008E, 0091 and direct/full-history 009A retain acceptance. [A recheck](investigations/hardware-runs/shaker-crtc1-a-current-recheck-2026-11-05.md). |
 | B6/019D, CRTC0/1 | C0 now matches all four R0 rows on8ba384e; both R7 rows remain1F versus1E. Current CPCSE matches all six physical values. C1 fifth/fourth R7 deadlines remain1F/1F versus1E/1F. Continue source-qualified original caller ordering after the C0 A4 phase diagnostic; no aperture selected. [C0](investigations/hardware-runs/shaker-crtc0-b6-current-2026-11-06.md), [C1](investigations/hardware-runs/crtc1-b6-cpcse-ordering-2026-11-05.md). |

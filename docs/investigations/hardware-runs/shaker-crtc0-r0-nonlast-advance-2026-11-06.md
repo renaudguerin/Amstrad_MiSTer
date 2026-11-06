@@ -11,8 +11,11 @@ its original B6 replay qualifies46/46 with the same six results and all ten
 outputs byte-identical. Root verifies all271 combined artifacts and56 additive
 R4 artifacts. Fresh Opus review permits an experimental build; historical T80
 harness wiring and additional R6 route proofs now pass. The final selected
-gate passes46 benches; supplemental Opus review also permits the experimental build. Native acceptance remains required. No SHAKER page is promoted from these source
-results; the seven lower A4 VS-bit discrepancies remain open.
+gate passes46 benches; supplemental Opus review also permits the experimental build. Targeted native A4/AI acceptance now preserves01/00 and corrects the sole
+lower mismatch. The earlier seven-failure claim was an E/F transcription
+error; [correction](shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
+A4 is unknown because extraC9sweep remains ungraded; other native controls
+are completing. No whole-page pass follows from source proof alone.
 
 ## Source-derived counter contract
 
@@ -163,3 +166,24 @@ physical verdict. At frozen R0=0, §13.2.6 p110's bullet says C4 increments
 regardless of R4, but its summary literally gives R4+1. The existing counter
 and new consumer tests retain C4+1; no counter rule changed in this consumer
 repair. Both questions are recorded in the unsent French list and B26 inventory.
+
+The493cdea original A4 resident replay also qualifies33/33 unchanged guards,
+retains the repaired upper01/00 pair and binds all16lower widening onsets.
+None of those baseline/candidate onsets has C4+1 equal to R4/R6/R7. Private
+lower PB0 pairs become01/01/01/11/01/00/01/00, changing only row4. The previous description of native eightFFFF pairs was a transcription
+error. Correct native baseline is FEFF×8, candidate changes onlyrow4 toFFFF.
+Private/native PB0 differences remain only in second bytes of rows6/8; this
+is not hidden by an upper-PPI allowance. The resident diagnostic is not
+firmware/native history reproduction, so lower values remain classification
+and prediction only. Exact493 native comparison remains required. Parent
+verifies all85 packet artifacts against manifest13ea6f48b871c355d26a4690754c17feb7bb24a6477833a297d8dbf6df8cb744.
+
+Targeted493 hardware preservation completes with35viewed PNGs and41actual
+Full0 SSM records across A4/AI,B6/B9,C5,A2 onC0 and A4/AI,B6/B9 onC1.
+All14 C1 images are byte-identical to8ba384e; stable C0 B6/C5/B9 markers are
+also identical. Three asynchronous A2/C5/B9 samples vary in acquisition and
+remain ungraded. All12writtenCFGs have normalWAIT; allsixrestores match.
+Scoped C0 DSC4 credits/first/later main are byte-identical; the otter and both
+Amazing logo/text samples remain visible with animation-phase variation.
+Demo Full evidence is requested/CFG only, separate from the41observed SHAKER
+records. No whole-demo or physicalCRT model claim follows.

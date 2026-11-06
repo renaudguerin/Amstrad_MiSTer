@@ -1,20 +1,18 @@
 # SHAKER status
 
-Maintained page tally, 6 November 2026. Page judgments carry forward the
-`c0939d8` milestone and qualified earlier builds; current trial `fdf348c`
-adds scoped ASIC preservation, correctly aligned D3 captures on all three
-selectable CRTCs, and the completed archive refresh. A–E acquisition on CRTC0/1/3
-is complete: 1,384 images and six explicit gaps; DT0305 on all three remains stale
-because its exit grab contains the menu. Fresh unadjudicated images become
-unknown. A separate full-resolution C0 A4/AI check adds one passing and one
-broken judgment to previously unknown coverage. [Archive progress](investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md).
-Targeted5c1ab57 CRTC3 E0406 now passes all original program checks; DU03BF
-remains passing and03C0 retains status2 bit0/4 failures. Reviewed physical008F
-readings also close CRTC0/1 numeric-page comparisons on8ba384e.
-The per-page [results ledger](shaker-results.csv) owns these counts. Results
-use mixed builds: older accepted photo comparisons are carried forward unless
-superseded or invalidated; the ledger records the build and evidence for each
-page. This is an approximation of known status, not a fresh milestone baseline.
+Maintained page tally, 6 November 2026. The [results ledger](shaker-results.csv)
+owns the counts and records each source build. Qualified historical comparisons
+carry forward unless superseded; this is an approximation of known status,
+not a fresh milestone baseline. A–E acquisition on CRTC0/1/3 has1,384images
+and six explicit gaps; the three invalid DT0305 exit/menu grabs remain stale.
+[Archive](investigations/hardware-runs/shaker-milestone-archive-2026-11-06.md).
+
+Targeted493cdea fixes C0 A4's sole lower-field mismatch. Earlier seven-failure
+claims misreadFEFF asFFFF. All photographed fields now match, but A4 stays
+unknown because extraC9sweep lacks hardware reference. CRTC0/1 AI008F numeric
+comparisons pass after reviewed reference readings. CRTC3 E0406 passes on5c1ab57;
+DU03BF passes while03C0 retains status2 bit0/bit4 failures. See the
+[A4 correction](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
 
 Read the [reviewed static-reference text cache](shaker-reference-text.md) before reopening covered text-only photos; unresolved fields still require the source image.
 
@@ -41,12 +39,12 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 
 | CRTC | Module | Passing | Broken | Unknown | Stale | Total |
 |---:|:---|---:|---:|---:|---:|---:|
-| 0 | A | 4 | 1 | 117 | 0 | 122 |
+| 0 | A | 4 | 0 | 118 | 0 | 122 |
 | 0 | B | 0 | 1 | 220 | 0 | 221 |
 | 0 | C | 1 | 0 | 21 | 0 | 22 |
 | 0 | D | 0 | 0 | 110 | 1 | 111 |
 | 0 | E | 2 | 1 | 8 | 0 | 11 |
-| **0** | **Total** | **7** | **3** | **476** | **1** | **487** |
+| **0** | **Total** | **7** | **2** | **477** | **1** | **487** |
 | 1 | A | 119 | 2 | 6 | 0 | 127 |
 | 1 | B | 103 | 1 | 35 | 0 | 139 |
 | 1 | C | 76 | 1 | 3 | 0 | 80 |
@@ -59,7 +57,7 @@ withhold functional acceptance. Unvalidated source content remains unknown.
 | 3 | D | 1 | 1 | 147 | 1 | 150 |
 | 3 | E | 1 | 0 | 4 | 0 | 5 |
 | **3** | **Total** | **3** | **3** | **416** | **1** | **423** |
-| **All** | **Total** | **374** | **10** | **1003** | **3** | **1390** |
+| **All** | **Total** | **374** | **9** | **1004** | **3** | **1390** |
 
 CRTC2/4 are not selectable in this core. There are no indexed module-E photos;
 its passing/broken judgments use the qualified original-program checks.
@@ -80,11 +78,14 @@ The [original C0 A4 caller](investigations/hardware-runs/shaker-crtc0-a4-qualifi
 now independently qualifies a3Ccounter-continuation failure; ordinaryOUT
 boundary controls now qualify the OUTI-only mismatch. The zero-total OUTI control independently fails while ordinary OUT and C1
 controls pass. Reviewed source8ba384e passes the qualified original caller, full CI and
-native01/00 pair. A4 stays broken: seven existing lower R0=1 first-byte VS
-bits still disagree after the upper-PPI allowance. The changed extra C9
-sweep matches current CPCSE but is absent from the photo and remains unknown.
+native01/00 pair.493cdea now also corrects the sole lower mismatch. The
+prior seven-failure claim misread nativeFEFF asFFFF: two blind readings and
+exact pixel/glyph comparison establish baselineFEFF×8 and only row4 changing
+toFFFF. All eight photographed pairs now match after the documented upperA0
+allowance. A4 moves to unknown because the extraC9sweep remains ungraded.
+[Correction and evidence](investigations/hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
 
-- **Confirmed broken:** C0 E6/page0409, cases27/28; C0/1 A/0037; C0/1 B6/019D;
+- **Confirmed broken:** C0 E6/page0409, cases27/28; C1 A/0037; C0/1 B6/019D;
   C1 AI/008D; current C1 S/02D3 (0840 versus4E40); C3 BR/01F0 and01F1, DU/03C0. E6's26/28 figure counts assertions across0407/0408/0409,
   separately from the page tally.
 - **Repaired but not a whole-page pass:** B9's three3Fdelay rows are2740
@@ -110,8 +111,8 @@ sweep matches current CPCSE but is absent from the photo and remains unknown.
   because its current exit grab is the menu, not the reference result. [Count correction](investigations/hardware-runs/shaker-d3-count-correction-2026-11-06.md).
 - **Current AI recheck:** 008E and 0091 pass the photographed VS fields;
   008F now passes30/30 numeric fields on C0/C1 after blind vision and root
-  adjudication; 0090 awaits full cell adjudication. The 0037 OUTI bit 0 mismatch cannot
-  be masked as an unrelated upper-PPI input difference.
+  adjudication; 0090 awaits full cell adjudication. The C1 0037 OUTI bit0 mismatch remains; C0
+  photographed fields are repaired on493cdea.
 - **009A passes:** original direct and full A1-history native paths both show
   the dynamic full-screen RAM-noise family seen in the photograph. The old
   black defect did not reproduce; this result introduces no new RTL rule.

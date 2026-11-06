@@ -10,7 +10,7 @@ checkpoint. The later reviewed Plus R4 branch candidate is identified below.
 
 | Area | Current model / restriction | Evidence and remaining risk |
 |---|---|---|
-| Classic type0 R0 deadline | `type0_r0_eq_kept` samples true equality at nCLKEN, ORs live equality, explicitly excludes sampledR0=1. | French§13.6.1 p124 plus qualified original caller, four instruction bins and native A4/B6 support the narrow fix. Exact sample edge is inferred. The R0=1 exclusion is a coverage guard; native A4 retains seven low-bit residuals there. It is not a proved silicon exception. Source: `rtl/crtc_type0_engine.v`, `type0_r0_at_sample`. |
+| Classic type0 R0 deadline | `type0_r0_eq_kept` samples true equality at nCLKEN, ORs live equality, explicitly excludes sampledR0=1. | French§13.6.1 p124 plus qualified original caller, four instruction bins and native A4/B6 support the narrow fix. Exact sample edge is inferred. The R0=1 exclusion is a coverage guard; its broader deadline remains unproved. The independently repaired p127 row result now matches all photographed A4 fields on493cdea; earlier seven-lower-failure claims were an E/F transcription error. It is not a proved silicon exception. Source: `rtl/crtc_type0_engine.v`, `type0_r0_at_sample`. |
 | Type1 RFD lifetime | `rfd_parity_flag` retires on successful address save as well as frame end. | Existing photographs fit this model and a competing arm-time model. Peer source does not decide the silicon lifetime. The unsent French author question remains needed. Source: `rtl/crtc_type1_engine.v`, successful-save clear. |
 | Plus R0 deadline and lowering | `entered_terminal_match` retains a terminal opportunity; live equality can also end the line. Nonterminal lowering uses equality-based overflow. | Type3 deadline chart and original Plus A4 support bounded outcome; physical latch/clock is unidentified. Nonterminal lowering lacks a direct Type3 chronogram/hardware result; a peer trace is weaker evidence. Source: `rtl/plus/asic_video.v`, horizontal counter. |
 | Plus HS collision at zero width | End/start collision extends HS only for explicit nonzeroR3l. | Nonzero collision behaviour is sourced; excluding zero-width collision is explicitly an unverified model assumption. A source rule or original-hardware discriminator must decide it. Source: `asic_video.v`, `hsync_end_start_collision`. |
@@ -90,8 +90,11 @@ passes46 benches; supplemental Opus review permits experimental synthesis. No na
 These are recorded by `MODEL LIMIT (B26):` implementation comments. They are
 not proved chip exceptions. Two late oldR0=1 horizontal models remain
 admissible; removing the numeric sampling guard alone saves no established
-state. The seven lower A4 mismatches remain open; an additive reference
-correction resolves row3 as5E5F, leaving only row4 as the matching negative.
+state. The earlier seven-lower-A4 constraint is invalid: archived8ba native fields
+were FEFF×8, notFFFF. Onlyrow4 differed;493cdea corrects it toFFFF. All
+photographed lower pairs now match, with extraC9sweep still ungraded. Use the
+[corrected constraint](hardware-runs/shaker-crtc0-a4-native-glyph-correction-2026-11-06.md)
+for future audits rather than the frozen report's misread digits.
 
 Private immutable inputs/proofs remain under the active session evidence root:
 `b26-audit-frozen-20261106/`, `b26-audit-results-20261106/`,
@@ -107,3 +110,10 @@ this candidate does not introduce that counter rule. Record both readings and
 seek author clarification rather than treating the summary as silently fixed.
 Before master, add both rival readings beside t35e/f/h when next editing them.
 See the [unsent questions](../classic/accc-author-questions-2026-11-06-fr.md).
+
+Peer-source check: CPCSyntaxErrorv0.12.0 (`22de765`) implements frozenC4+1
+and has no R6<=R4 gate on ordinary ParityR6 capture (`src/core/crtc.cpp:1147,1443`).
+Its midline widening closes display but does not capture parity at that edge
+(`src/core/crtc_type_0.cpp:216`). It supports the ordinary event interpretation
+without settling the new midline parity question. Original hardware remains
+necessary where the two French readings disagree.

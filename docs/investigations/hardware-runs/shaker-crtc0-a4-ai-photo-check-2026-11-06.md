@@ -1,5 +1,11 @@
 # CRTC0 A4 and AI: current photo comparison
 
+> Native lower-field correction: earlier eightFFFF/seven-mismatch readings are
+> superseded by the [verified glyph correction](shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
+> Baseline was FEFF×8;493cdea fixes the single row4 mismatch. Frozen source
+> proofs and captures remain unchanged.
+
+
 Two full-resolution comparisons qualify one additional passing page and one
 additional broken page on exact `fdf348c`. This examines previously unknown
 coverage; it does not establish a regression from an earlier build. No RTL or

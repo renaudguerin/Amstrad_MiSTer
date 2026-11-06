@@ -1,5 +1,11 @@
 # CRTC0 A4: qualified R0 continuation failure
 
+> Native lower-field correction: earlier eightFFFF/seven-mismatch readings are
+> superseded by the [verified glyph correction](shaker-crtc0-a4-native-glyph-correction-2026-11-06.md).
+> Baseline was FEFF×8;493cdea fixes the single row4 mismatch. Frozen source
+> proofs and captures remain unchanged.
+
+
 The original cold CRTC0 A4 caller now reproduces a failure against French
 ACCC §13.6.1 p124 independently of the photograph's scalar result. Its first
 OUTI starts at software-relative C0vs3C and continues3F→40; the diagram

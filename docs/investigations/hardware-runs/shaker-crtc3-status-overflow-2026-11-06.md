@@ -264,3 +264,29 @@ attempting bit4's contradictory adjustment predicate. A Gemini static source
 map is retained with parent corrections in `c3-status2-proof-readiness-20261106/`.
 It is not executed evidence: sampler timing, IN-to-banked-RAM/remap provenance
 and resident dependencies must qualify before any timing or predicate change.
+
+## Qualified normal-frame status2 bit0 boundary
+
+A frozen5c1 resident architectural-loader proof now completes the original
+normal-frame bit0 capture/analyzer:19,968 genuine IN/store/analyzer reads,
+83-byte relocation, two12,288-byte bank6 copies,124,462 replayed writes and
+542,147 architectural T2 entries all qualify. Original RET938D reaches933C,
+HL93A7/SP9DE4/carry clear. First/last samples areB7/96 at counters0/0/0 and
+63/38/7; all source32/33us intervals and24576us synchronization offset match.
+There is no phase fit or post-release host state change. Parent verifies all44
+final artifacts, manifest8cad68a24558781b1b66e6119d53e4a8257aaf058787286e0c56ed0b48c29915.
+
+This is the **normal first stage only**, not a full DU bit0 pass or native
+warm-history reproduction. The printed4DFF offset alone cannot identify which
+stage failed: normal9388 reports it for a HIGH final sample; adjusted9368 also
+reports it for a LOW final sample. The original second capture programsR4=37,
+R5=8 and expects LOW at4BFF, then HIGH through4DFF. It remains unexecuted in
+this proof. Preparation now follows that unchanged original continuation
+before attributing the native result to a read aperture or firmware history.
+No comparator change or bit4 repair is selected.
+
+Private evidence: `c3-status2-original-bit0-proof-20261106/runtime-v3/`.
+The unexecuted v1 guard review caught SP/DE reads before T1 deferred commits;
+v2/v3 observe them at T2. A v2 lexical compiler error and a source-path comment
+identity-helper error are preserved; only one v3 DUT ran. All original guest,
+phase, oracle and36 production inputs remain frozen.
