@@ -41,6 +41,11 @@ correction. This is scoped experimental acceptance, not upstream approval.
 Keep the sampledR0=1 exclusion and explicit admission/zero/adjustment limits until discriminated;
 R4/R7 landing behavior remains unresolved. Continue known SHAKER fixes one
 bounded area at a time; this audit does not authorize a broad RTL rewrite.
+A focused Astra-high CRTC1 terminal-write audit now proposes two algebraic
+reductions while retaining the two necessary local history bits. A private
+full-wrapper equivalence proof is in preparation; production RTL is unchanged.
+See the inventory for constraints, packet corrections and the physical RA
+discriminator.
 
 1. Survey the CRTC wrapper/engines and Plus video/GA timing for inferred
    exceptions, numeric apertures, coverage restrictions and overlapping pending
@@ -81,7 +86,7 @@ is next edited, without invalidating an active frozen proof for housekeeping.
 
 ## B27. Reviewed text cache for static real-CPC SHAKER photographs
 
-**Seventeen photos have reviewed fields, with explicit partial coverage, 2026-11-06.** Avoid repeated vision reads
+**Eighteen photos have reviewed fields, with explicit partial coverage, 2026-11-06.** Avoid repeated vision reads
 of immutable text-only hardware references. This can run alongside current RTL
 work in the same worktree: one worker owns only the private reference-text
 cache and its batch artifacts; the coordinator owns shared docs/ledger. Workers

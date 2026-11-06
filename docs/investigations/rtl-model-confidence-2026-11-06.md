@@ -199,3 +199,27 @@ cb3a1a6, with E/R5 and scoped DSC4/Amazing preservation. This accepts the
 sampled readback behaviour; the broader model limits above remain open.
 Evidence and source-table conflict:
 [status proof](hardware-runs/shaker-crtc3-status-overflow-2026-11-06.md).
+
+## Focused CRTC1 terminal-write audit
+
+A prepared Astra-high audit of the current eebf98d source identifies two local
+algebraic simplifications: the current qualified write already implies the
+ordinary terminal match, and duplicated adjustment admission can become one
+Type1-line/Type0-row predicate. Both retained facts and the independent
+same-edge positive-R4 VMA veto remain. Three converging register histories
+require three distinguishable continuations at the unrestricted RTL pins;
+this is a local-state argument, not a claim about physical latch count or stock
+Z80 ability to issue two writes in one character.
+
+The French §11.2.4 p85 was rendered and checked directly. Its single-write
+counting/VMA rules do not establish system-clock aperture, simultaneous-write
+arbitration or the current C5 restart policy. The prep packet mislabeled an
+English page as French, overstated Module E physical-photo coverage and carried
+a historical soak value; the audit records those corrections. Native MiSTer
+and AmSpirit results remain distinct from original-CPC evidence.
+
+Private report `b26-c1-terminal-astra-20261106/AUDIT.md` under the session root
+contains algebra, counterexample histories and a single-write RA discriminator
+for three versus four adjustment lines. A private full-wrapper equivalence
+prototype is in preparation; no production edit, machine-equivalence result,
+Opus acceptance or new hardware rule is claimed yet.

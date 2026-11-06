@@ -1,5 +1,18 @@
 # SHAKER CRTC1 S: current numeric failure — 6 November 2026
 
+Current `cb3a1a6` canonical-prefix repeat prints **0640 WRONG (EXP:4E40)**.
+Its134commands/65captures complete without failures; all121SSM records report
+actual Full0 and CFG restoration matches the saved original. Exact source-font
+decode verifies all2,000cells, zero unknown/off-palette/mismatched pixels. The
+S PNG SHA256 is`f792b76001f17ba93aea1be3f349cfea18d77655faf7b91470b4b606d2d4cf84`.
+SSH connection reuse recovered the interrupted route; it is a transport change,
+not a claim of phase equivalence with old0840/0440 runs. Root inspected the
+complete65-image contact sheet. The fresh exact-build direct control completes13commands/two captures and
+prints4E40; its marker PNG is byte-identical to the historical accepted direct
+control (`b03c5e57…f4e2d`). Its SSM record reports actualFull0 and CFG restore
+passes. The later explicit grab remains acquisition evidence.
+No current hidden C5/adjustment mechanism is inferred from this scalar.
+
 The full canonical Module C walk on `fdf348c` prints **0840 WRONG
 (EXP:4E40)** on S/page02D3. This is a computed result mismatch against the program and the independently reread physical photograph, both4E40.
 The earlier physical4E30 reading was a glyph error, corrected below. The earlier
@@ -103,14 +116,15 @@ remains unknown. Available2.6/2.7 CRTC1 dispatch/patch bytes both select R9=7
 and expected low40, with the same high4E compare and16x scaling; their common
 helpers relocate, so this is not a complete timing-equivalence proof.
 
-A targeted current cb3a1a6 MiSTer prefix was interrupted by a vanished forwarded
-SSH agent after57 captures, before S. It supplies **no current S result**.
-Forty-five PNGs equal the saved fdf prefix; twelve changed dynamic views are
-inspected. All locally recorded CFG writes equal the original022f2aae…2abc
-bytes, although remote verification/cleanup awaits restored access. No new
-diagnostic fit or full milestone baseline was launched.
+The first current prefix stopped before S when the forwarded SSH agent vanished.
+After access recovered, the remote CFG matched the original and only this
+runner's two stale temporary files were removed. The successful prefix-003
+above supersedes that acquisition gap, preserving the interrupted57captures.
+Its original disk/RBF identities are pinned in COMMAND-003.json and manifest;
+the CFG restore and temporary cleanup both pass. Passive observer qualification
+is the next diagnostic step; no fresh milestone baseline was launched.
 
 Private packets: `c1-s-current-cb3a1a6-20261106/` (native partial and fresh
 AmSpirit history), `c1-s-physical-glyph-check-20261106/`, and
 `c1-s-program-version-binding-20261106/`. The reviewed reference cache records
-physical4E40. The canonical fdf0840/0440 failures remain broken.
+physical4E40. Current0640 and historical fdf0840/0440 keep the page broken.

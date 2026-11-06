@@ -66,6 +66,15 @@ instruction slack, citing the BR/CPI photographs. It does not model the
 IC116-shaped ACK pins. Its passing result supplies a peer policy, rather than
 independent evidence for the physical ACK edge or a chosen delay.
 
+## Independent CPU contract evidence
+
+Five [qualified NMOS die-netlist runs](z80-die-cpi-wait-ack-2026-11-06.md)
+now support two narrow contracts independently of T80: selected CPI internal-T2
+WAIT is ignored while operand-T2 WAIT adds one clock, and PC stays actively
+driven throughout raw ACK including one external wait. I:R appears at ACK
+release. This narrows CPU-policy uncertainty without proving the original Plus
+variant, complete BR history or ASIC counter semantics. No timing fix is selected.
+
 ## Remaining discriminator
 
 One original-CPC CPI bus capture, reproducing C4 with the original antecedents,

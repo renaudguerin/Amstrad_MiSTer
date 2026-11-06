@@ -2,9 +2,9 @@
 
 Use `local/shaker-reference-text/INDEX.json` and the matching CRTC/test/page
 JSON or TXT before reopening a reviewed static text photograph. This private
-cache is a reading aid; the original image remains authoritative. Seventeen pages
+cache is a reading aid; the original image remains authoritative. Eighteen pages
 have reviewed result fields: the five-page C0 A4/B6/C5 and C1 A4/B6 pilot,
-eight C0/C1 AI pages, three CRTC3 DU photographs and one C1 S photograph, with explicit partial coverage.
+nine C0/C1 AI pages, three CRTC3 DU photographs and one C1 S photograph, with explicit partial coverage.
 The complete private cache is also preserved in the main clone’s ignored
 `local/shaker-reference-text/`, which newly provisioned task worktrees share
 through their normal `local` link. Keep accepted fields and the raw batch
@@ -119,9 +119,9 @@ font/program provenance separate from a caller-declared source hash. This reads
 literal native glyphs and supplies no physical-photo or whole-page core grade.
 The tool and private font are excluded from release screenshot archives.
 
-## CRTC1 AI0090 partial matrix
+## CRTC0/1 AI0090 partial matrices
 
-The dense physical matrix now has316 of328 literal cells adjudicated, plus
+The CRTC1 physical matrix has316 of328 literal cells adjudicated, plus
 eight footer fields. Twelve E/F cells remain unresolved. The source-bound
 native decoder matches those316 PPI-bit0 samples and seven footer comparisons
 (length66 and six samples), using the existing upper-PPI allowance separately
@@ -130,6 +130,16 @@ readings at the start of upper row9 were corrected to F by blind Astra and
 root crop inspection. Raw outputs and partial comparison receipts remain in
 `c1-ai-0090-photo-20261106/` and `c1-ai-0090-native-20261106/` beneath the
 private session root. No new hardware run or matrix-wide pass is implied.
+
+CRTC0 now has310/328 adjudicated matrix cells plus eight literal footer fields.
+Those310 PPI-bit0 samples and seven actual footer results match the existing
+493cdea capture; eighteen E/F cells remain unresolved. Both physical footers
+read actual length66 and printed expected65; the native program prints actual66
+and expected66. The earlier C1 cache expected66 was a transcription error,
+corrected after parent crop review. Printed expected text is recorded separately
+from measured timing and does not add a failed result. Both pages stay unknown.
+The C0 source/crop and comparison packets are `c0-ai-0090-photo-20261106/` and
+`c0-ai-0090-native-20261106/` under the private session root.
 
 ## S/02D3 physical result correction
 

@@ -21,8 +21,14 @@ fresh Opus review, full fit and native acceptance on cb3a1a6. DU03C0 now shows
 every check OK; all eleven Module E captures match4e45417, and scoped CRTC3
 DSC4/Amazing samples remain intact. This moves one page from broken to passing.
 
-C1 AI0090 now matches316/328 matrix samples and seven footer comparisons;
-twelve photo glyphs remain unresolved, so its whole-page status stays unknown.
+Current cb3 S canonical prefix prints0640 WRONG versus4E40, with134commands,
+65captures and121actualFull0SSM records. Exact-font decoding and CFG restore
+pass; no new hidden-state mechanism is inferred. The page remains broken.
+
+AI0090 matches310/328 C0 and316/328 C1 matrix samples plus seven actual
+footer comparisons per CRTC. Eighteen/twelve photo glyphs remain unresolved,
+so both whole-page statuses stay unknown. Printed photo expected65 versus
+native expected66 is retained separately; measured length66 matches.
 
 Read the [reviewed static-reference text cache](shaker-reference-text.md) before reopening covered text-only photos; unresolved fields still require the source image.
 
